@@ -352,6 +352,11 @@ body   { background: #0d0820 !important; }
     transition: box-shadow 0.2s;
     position: relative;
     z-index: 1;
+    /* Disable iOS double-tap-zoom and the synthesised-mouse delay so the
+       tap → focus → keyboard sequence runs in a single user gesture
+       without any browser-level deferral that could split focus across
+       two animation frames. */
+    touch-action: manipulation;
 }
 #name-input:focus {
     box-shadow: 0 0 0 3px rgba(240, 192, 64, 0.35);
@@ -696,6 +701,34 @@ body   { background: #0d0820 !important; }
        button. */
     var _lastPointerDownTargetId = null;
 
+    /* iOS detection. iOS Safari has unique focus / soft-keyboard timing
+       quirks (see _setNameOverlayActive and the openNameEntry deferred
+       focus below). iPadOS reports as MacIntel with touch points, so we
+       check that branch too. */
+    var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+                 ((navigator.platform === 'MacIntel') &&
+                  (navigator.maxTouchPoints || 0) > 1);
+
+    /* Lock down the canvas + body while the name overlay is open. This
+       isolates the input from any pygbag/SDL pointer or keyboard
+       interception:
+         - canvas pointer-events: none → no SDL mouse / touch handling
+         - canvas tabindex=-1        → canvas can't receive focus from
+                                       OS-level focus-cycling
+         - body overflow: hidden     → iOS can't scroll the page during
+                                       its keyboard-appearance reflow,
+                                       which has been observed to flicker
+                                       the soft keyboard open/closed.
+       Restored on every overlay-close path (submit, skip, Enter). */
+    function _setNameOverlayActive(active) {
+        var canvas = document.getElementById('canvas');
+        if (canvas) {
+            canvas.style.pointerEvents = active ? 'none' : '';
+            canvas.setAttribute('tabindex', active ? '-1' : '0');
+        }
+        document.body.style.overflow = active ? 'hidden' : '';
+    }
+
     /* Mobile + desktop keyboard fix — neutralise SDL's three keyboard
        listeners. SDL2's Emscripten port attaches keydown / keyup / keypress
        on window in BUBBLE phase and calls preventDefault — keypress is
@@ -741,6 +774,7 @@ body   { background: #0d0820 !important; }
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             document.getElementById('name-overlay').style.display = 'none';
+            _setNameOverlayActive(false);
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
@@ -774,7 +808,13 @@ body   { background: #0d0820 !important; }
         // their own click handler to fire normally.
         if (t && (t.id === 'name-submit' || t.id === 'name-skip')) return;
         var inp = document.getElementById('name-input');
-        if (inp) try { inp.focus(); } catch (_) {}
+        // Idempotent focus: a redundant focus() on an already-focused
+        // input still fires a focus event that iOS Safari interprets as
+        // "focus changed" and uses to re-evaluate keyboard visibility,
+        // which can cause the keyboard to flicker.
+        if (inp && document.activeElement !== inp) {
+            try { inp.focus(); } catch (_) {}
+        }
     }, true);
 
     window.openNameEntry = function () {
@@ -800,17 +840,27 @@ body   { background: #0d0820 !important; }
         }
 
         ov.style.display = 'flex';
+        _setNameOverlayActive(true);
         inp.value = '';
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. iOS
-           Safari blocks focus() outside a real user gesture, so this
-           call is a no-op there — the document-level pointerdown
-           listener installed below handles iOS by re-focusing the
-           input synchronously inside the player's tap. */
-        setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
+           (or readies the cursor) without further user action.
+           iOS: SKIP this call entirely. iOS only opens the soft keyboard
+           when focus() runs inside a real user gesture; an async focus
+           after setTimeout is a no-op for the keyboard but DOES still
+           dispatch a focus event, and iOS uses focus events to re-arm
+           keyboard visibility — which can flicker the keyboard once the
+           player taps the field a moment later. The document-level
+           pointerdown listener above handles iOS focus on tap. */
+        if (!_isIOS) {
+            setTimeout(function () {
+                try {
+                    if (document.activeElement !== inp) inp.focus();
+                } catch (_) {}
+            }, 80);
+        }
 
         /* Counter-only handler. We deliberately do NOT shield input /
            beforeinput / composition* at window-capture above: SDL
@@ -826,12 +876,14 @@ body   { background: #0d0820 !important; }
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             ov.style.display = 'none';
+            _setNameOverlayActive(false);
         }
         document.getElementById('name-submit').onclick = submit;
         document.getElementById('name-skip').onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
+            _setNameOverlayActive(false);
         };
         // Enter / Escape are handled by the global capture-phase listener
         // above, since SDL would otherwise eat the input's own keydown.
