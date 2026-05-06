@@ -401,19 +401,29 @@ body   { background: #0d0820 !important; }
    the flex children around, and `display:none` by default so the
    element is inert until JS opts it in by adding .ne-debug-on to the
    overlay. Sits ABOVE everything else in the overlay (z:9) but is
-   pointer-events:none so it never blocks taps. */
+   pointer-events:none so it never blocks taps.
+
+   Hard size caps so the panel can never grow past ~1/6 of the screen
+   even if the buffer fills. The earlier debug strip had `max-height:
+   50vh` which covered enough of the screen that the user couldn't
+   even reach the name-entry overlay. The `min(20vh, 160px)` cap
+   means the panel is always small relative to the screen AND
+   always small in absolute pixels. `overflow:hidden` clips any
+   excess if the buffer ever overshoots the visible line count. */
 #ne-debug {
     display: none;
     position: absolute;
     top: 6px;
     left: 6px;
     right: 6px;
-    max-height: 36vh;
+    max-height: 20vh;
+    max-height: min(20vh, 160px);
+    max-width: calc(100% - 12px);
     margin: 0;
-    padding: 5px 7px;
+    padding: 4px 6px;
     background: rgba(0, 0, 0, 0.88);
     color: #4ec9b0;
-    font: 10px/1.3 ui-monospace, Menlo, Consolas, monospace;
+    font: 9px/1.2 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre;
     overflow: hidden;
     z-index: 9;
@@ -928,7 +938,11 @@ body   { background: #0d0820 !important; }
         var buf = [];
         var t0 = 0;             /* reset to performance.now() each open */
         var lastActive = '';
-        var MAX_LINES = 18;
+        /* Sized so the rendered text fits inside the 160px max-height
+           cap (9px/1.2 line ≈ 11 px × 14 lines + 8 px padding ≈ 162).
+           Ring-buffer keeps the *most recent* lines, which is the
+           keyboard-dismissal sequence we care about. */
+        var MAX_LINES = 14;
 
         function fmt(x) {
             if (!x) return 'null';
