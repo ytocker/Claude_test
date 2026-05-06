@@ -685,6 +685,16 @@ body   { background: #0d0820 !important; }
 
     window._pendingName = "__pending__";
     var _nameStarsAdded = false;
+    /* Last pointerdown target id while the overlay is open. Used by the
+       SUBMIT / SKIP onclick handlers to reject "ghost" clicks: on iOS,
+       the soft keyboard shrinks the visual viewport, the flex-centered
+       overlay re-centers, and #name-skip drifts upward under the user's
+       original tap on the input. iOS then dispatches the synthetic
+       `click` to whatever element is at those coordinates at click time
+       — landing on SKIP and dismissing the overlay. We only honor a
+       click on a button if its preceding pointerdown was on the same
+       button. */
+    var _lastPointerDownTargetId = null;
 
     /* Mobile + desktop keyboard fix — neutralise SDL's three keyboard
        listeners. SDL2's Emscripten port attaches keydown / keyup / keypress
@@ -752,6 +762,7 @@ body   { background: #0d0820 !important; }
         var ov = document.getElementById('name-overlay');
         if (!ov || ov.style.display !== 'flex') return;
         var t = e.target;
+        _lastPointerDownTargetId = t && t.id ? t.id : null;
         // Don't steal focus from the SUBMIT / SKIP buttons — they need
         // their own click handler to fire normally.
         if (t && (t.id === 'name-submit' || t.id === 'name-skip')) return;
@@ -803,12 +814,15 @@ body   { background: #0d0820 !important; }
         };
 
         function submit() {
+            // Reject ghost clicks whose pointerdown wasn't on this button.
+            if (_lastPointerDownTargetId !== 'name-submit') return;
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             ov.style.display = 'none';
         }
         document.getElementById('name-submit').onclick = submit;
         document.getElementById('name-skip').onclick = function () {
+            if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
         };
