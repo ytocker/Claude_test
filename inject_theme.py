@@ -686,32 +686,56 @@ body   { background: #0d0820 !important; }
     window._pendingName = "__pending__";
     var _nameStarsAdded = false;
 
-    /* Desktop keyboard fix:
-       SDL/pygame attaches a keydown listener at the window level and calls
-       preventDefault on every key. That swallows the browser's default
-       text-typing behavior on the focused <input>, so the field stays empty
-       no matter what the user types. We register our own keydown listener
-       in CAPTURE phase on window — it runs before SDL's bubble listener
-       and, while the overlay is visible, calls stopPropagation so SDL never
-       sees (or preventDefaults) the event. The browser's default action
-       (typing into the focused input) still happens because that's not a
-       listener — it's the browser's intrinsic behavior, which is gated by
-       preventDefault, not stopPropagation.
+    /* Mobile + desktop keyboard fix — neutralise SDL's three keyboard
+       listeners. SDL2's Emscripten port attaches keydown / keyup / keypress
+       on window in BUBBLE phase and calls preventDefault — keypress is
+       preventDefaulted whenever SDL_TEXTINPUT is enabled (always, for
+       pygame), and that swallows the browser's default "type the character
+       into the focused input" action. With caps mode off, mobile IMEs skip
+       the synthetic keydown-with-key path for printable chars and rely on
+       keypress / beforeinput, so a keydown-only shield isn't enough.
 
-       Enter must be handled here too because the input's own keydown
-       listener is in the propagation path we're cutting short. */
-    window.addEventListener('keydown', function (e) {
+       We register window-capture listeners on all three events SDL touches.
+       stopPropagation() in capture aborts the bubble phase, so SDL never
+       sees the event and never preventDefaults. The browser's default
+       action (insert character into focused <input>) still fires, because
+       default action is gated on preventDefault, not propagation. The
+       input's own oninput still fires too — it's a separate event after
+       the default action, not in the keydown propagation chain.
+
+       We do NOT shield input / beforeinput / composition* — SDL doesn't
+       listen for them, and a window-capture stopPropagation on `input`
+       would prevent #name-input's own oninput from firing (the counter
+       would freeze). If a future SDL/pygbag version starts binding those,
+       the fallback is to preventDefault beforeinput, manually apply
+       e.data to inp.value, and dispatch a synthetic 'input' event.
+
+       Enter is intercepted here for desktop submit. On mobile the soft
+       keyboard's Go/Done emits Enter too. keyCode 229 / isComposing is
+       the IME "composing" placeholder — must NOT be treated as Enter, or
+       we'd close the overlay mid-character on iOS. */
+    function _isNameOverlayOpen() {
         var ov = document.getElementById('name-overlay');
-        if (!ov || ov.style.display !== 'flex') return;
+        return !!ov && ov.style.display === 'flex';
+    }
+    function _shieldKeyEvent(e) {
+        if (!_isNameOverlayOpen()) return;
         e.stopPropagation();
+    }
+    window.addEventListener('keydown', function (e) {
+        if (!_isNameOverlayOpen()) return;
+        e.stopPropagation();
+        if (e.keyCode === 229 || e.isComposing) return;
         if (e.key === 'Enter') {
             var inp = document.getElementById('name-input');
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
-            ov.style.display = 'none';
+            document.getElementById('name-overlay').style.display = 'none';
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
+    window.addEventListener('keyup',    _shieldKeyEvent, true);
+    window.addEventListener('keypress', _shieldKeyEvent, true);
 
     /* iOS Safari fix: the soft keyboard only appears if focus() runs
        inside a real user gesture. ``openNameEntry``'s setTimeout(focus)
@@ -770,6 +794,10 @@ body   { background: #0d0820 !important; }
            input synchronously inside the player's tap. */
         setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
+        /* Counter-only handler. We deliberately do NOT shield input /
+           beforeinput / composition* at window-capture above: SDL
+           doesn't bind them, and shielding would prevent this handler
+           from firing. */
         inp.oninput = function () {
             if (ctr) ctr.textContent = inp.value.length + ' / 10';
         };
