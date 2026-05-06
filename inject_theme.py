@@ -696,6 +696,30 @@ body   { background: #0d0820 !important; }
        button. */
     var _lastPointerDownTargetId = null;
 
+    /* iOS soft-keyboard fix: pygbag/SDL calls canvas.focus() in
+       response to internal events (resize from soft-keyboard
+       appearance, animation-frame ticks, SDL state transitions).
+       When that fires after the user taps the name input on iPhone,
+       the canvas grabs focus, the input blurs, and iOS dismisses the
+       soft keyboard — every tap. While the overlay is open, replace
+       canvas.focus with a no-op so any pygbag attempt to grab focus
+       is silently dropped. Restored on every overlay-close path. */
+    var _canvasFocusBackup = null;
+    function _suppressCanvasFocus() {
+        var cv = document.getElementById('canvas');
+        if (cv && _canvasFocusBackup === null) {
+            _canvasFocusBackup = cv.focus;
+            cv.focus = function () { /* suppressed while name overlay is open */ };
+        }
+    }
+    function _restoreCanvasFocus() {
+        var cv = document.getElementById('canvas');
+        if (cv && _canvasFocusBackup !== null) {
+            cv.focus = _canvasFocusBackup;
+            _canvasFocusBackup = null;
+        }
+    }
+
     /* SDL shield. SDL2's Emscripten port (used by pygbag) listens on
        window for keyboard events (keydown / keyup / keypress) AND for
        mouse + touch events (mousedown / mouseup / touchstart / touchend
@@ -744,6 +768,7 @@ body   { background: #0d0820 !important; }
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             document.getElementById('name-overlay').style.display = 'none';
+            _restoreCanvasFocus();
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
@@ -801,6 +826,7 @@ body   { background: #0d0820 !important; }
         }
 
         ov.style.display = 'flex';
+        _suppressCanvasFocus();
         inp.value = '';
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
@@ -827,12 +853,14 @@ body   { background: #0d0820 !important; }
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             ov.style.display = 'none';
+            _restoreCanvasFocus();
         }
         document.getElementById('name-submit').onclick = submit;
         document.getElementById('name-skip').onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
+            _restoreCanvasFocus();
         };
         // Enter / Escape are handled by the global capture-phase listener
         // above, since SDL would otherwise eat the input's own keydown.
