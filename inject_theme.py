@@ -805,12 +805,39 @@ body   { background: #0d0820 !important; }
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
+        /* iOS: the HTML <input> + pygbag soft-keyboard combo is
+           reliably broken on iPhone — the input cannot hold focus, so
+           the keyboard pops up and immediately dismisses. Multiple
+           fix attempts (event shielding, canvas.focus override,
+           position swaps, native prompt() fallback) did not resolve
+           it. To unblock iPhone players: hide the input + counter,
+           change the SUBMIT button into a single "OK — RECORD AS
+           PILOT" tap, and auto-submit with a default name so the
+           player still appears on the leaderboard. SKIP behaves the
+           same as elsewhere. */
+        var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+                     ((navigator.platform === 'MacIntel') &&
+                      (navigator.maxTouchPoints || 0) > 1);
+        var sub = document.getElementById('name-submit');
+        var skp = document.getElementById('name-skip');
+
+        if (_isIOS) {
+            inp.style.display = 'none';
+            if (ctr) ctr.style.display = 'none';
+            sub.textContent = 'OK';
+            sub.onclick = function () {
+                window._pendingName = 'PILOT';
+                ov.style.display = 'none';
+            };
+            skp.onclick = function () {
+                window._pendingName = '__skip__';
+                ov.style.display = 'none';
+            };
+            return;
+        }
+
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. iOS
-           Safari blocks focus() outside a real user gesture, so this
-           call is a no-op there — the document-level pointerdown
-           listener above handles iOS by re-focusing the input
-           synchronously inside the player's tap. */
+           (or readies the cursor) without further user action. */
         setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
         /* Counter-only handler. We deliberately do NOT shield input /
@@ -1067,104 +1094,6 @@ body   { background: #0d0820 !important; }
 </script>
 """
 html = html.replace("</body>", INJECTION + "</body>", 1)
-
-# ── On-page debug overlay (only active when URL has ?debug=1) ──────────────
-# Captures focus / blur / pointerdown / viewport events and displays them on
-# the page itself, so iPhone users without Safari Web Inspector access can
-# diagnose issues. Inert (display:none, no listeners trigger) on normal
-# loads — only the IIFE's own existence cost. Enabled by visiting:
-#   https://ytocker.github.io/skybit/?debug=1
-# Panel is HIDDEN during gameplay and only shows once the name-entry overlay
-# opens, so the user can actually play to reach top-10 first.
-DEBUG_INJECTION = """
-<div id="skybit-debug"></div>
-<style>
-#skybit-debug {
-    position: fixed; top: 0; left: 0; right: 0;
-    background: rgba(0, 0, 0, 0.92); color: #0f0;
-    font: 9px/1.2 ui-monospace, Menlo, Consolas, monospace;
-    padding: 3px 5px; z-index: 2147483646;
-    white-space: pre-wrap; pointer-events: none;
-    display: none;
-    height: 160px; overflow: hidden;
-}
-</style>
-<script>
-(function () {
-    if (!/[?&]debug=1\\b/.test(location.search)) return;
-    var el = document.getElementById('skybit-debug');
-    if (!el) return;
-    var lines = [];
-    var t0 = Date.now();
-    function fmt(x) {
-        if (!x) return 'null';
-        var name = x.tagName || x.nodeName || '?';
-        return x.id ? name + '#' + x.id : name;
-    }
-    function pad(n) {
-        var s = '' + n;
-        while (s.length < 5) s = '0' + s;
-        return s;
-    }
-    function log(msg) {
-        var t = Date.now() - t0;
-        lines.push(pad(t) + ' ' + msg);
-        if (lines.length > 14) lines.shift();
-        el.textContent = lines.join('\\n');
-    }
-    log('debug ON');
-    log('ua=' + (navigator.userAgent || '').slice(0, 50));
-    document.addEventListener('focusin', function (e) {
-        log('focusin ' + fmt(e.target));
-    }, true);
-    document.addEventListener('focusout', function (e) {
-        log('focusout ' + fmt(e.target) + ' -> ' + fmt(e.relatedTarget) +
-            ' active=' + fmt(document.activeElement));
-    }, true);
-    document.addEventListener('pointerdown', function (e) {
-        log('pdown ' + fmt(e.target));
-    }, true);
-    document.addEventListener('touchstart', function (e) {
-        log('tstart ' + fmt(e.target));
-    }, true);
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', function () {
-            log('vvport h=' + Math.round(window.visualViewport.height) +
-                ' top=' + Math.round(window.visualViewport.offsetTop));
-        });
-    }
-    window.addEventListener('resize', function () {
-        log('win h=' + window.innerHeight);
-    });
-    window.addEventListener('error', function (e) {
-        log('ERR ' + ((e && e.message) || '?').slice(0, 80));
-    });
-    var lastActive = '', lastOverlay = '';
-    setInterval(function () {
-        var a = document.activeElement;
-        var fa = fmt(a);
-        if (fa !== lastActive) {
-            lastActive = fa;
-            log('active=' + fa);
-        }
-        var ov = document.getElementById('name-overlay');
-        var os = ov ? (ov.style.display || 'none') : '-';
-        if (os !== lastOverlay) {
-            lastOverlay = os;
-            log('overlay=' + os);
-        }
-        // Show panel only when the name overlay is open (so the user
-        // can actually play to reach top-10 first; debug history is
-        // still being captured continuously during gameplay).
-        var shouldShow = (os === 'flex');
-        var isShown = (el.style.display === 'block');
-        if (shouldShow && !isShown) el.style.display = 'block';
-        else if (!shouldShow && isShown) el.style.display = 'none';
-    }, 250);
-}());
-</script>
-"""
-html = html.replace("</body>", DEBUG_INJECTION + "</body>", 1)
 
 html = html.replace("__SB_URL__", _SB_URL)
 html = html.replace("__SB_KEY__", _SB_KEY)
