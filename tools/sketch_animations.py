@@ -126,7 +126,12 @@ def setup_fireworks(world: World) -> None:
 
 def setup_balloon(world: World) -> None:
     rng = random.Random(7)
-    world.ambient.balloon = A._PaneledBalloon(rng)
+    balloon = A._PaneledBalloon(rng)
+    # Move the balloon so it starts visible at the right edge, not
+    # off-screen — otherwise a short clip catches only the slow entry
+    # and the balloon appears stationary.
+    balloon.x = float(W * 0.90)
+    world.ambient.balloon = balloon
 
 
 def setup_parrots(world: World) -> None:
@@ -144,7 +149,7 @@ CLIPS = [
     # slug,                phase, duration, setup
     ("anim_flock",         0.16,  5.0, setup_flock),
     ("anim_fireworks",     0.62,  6.0, setup_fireworks),
-    ("anim_balloon",       0.16,  6.0, setup_balloon),
+    ("anim_balloon",       0.16, 12.0, setup_balloon),
     ("anim_parrots",       0.05,  4.5, setup_parrots),
     ("anim_blossoms",      0.90,  4.0, setup_blossoms),
 ]

@@ -332,10 +332,15 @@ def _build_balloon_surface(scale_idx: int, palette_idx: int) -> tuple:
 
 
 class _PaneledBalloon:
-    """One paneled hot-air balloon drifting slowly leftward across the sky.
-    Pre-rendered to a cached surface; per-frame draw is a single blit."""
-    SPEED = 12.0
-    DURATION_MAX = 40.0
+    """One paneled hot-air balloon drifting calmly leftward across the sky.
+    Pre-rendered to a cached surface; per-frame draw is a single blit.
+
+    SPEED tuned so the balloon visibly traverses the screen in roughly
+    20 s — 'calm' but not stationary. With W=360 and a ~50px balloon
+    surface, total travel ≈ 410 px, so ~20 px/s gives ~20 s of screen
+    time."""
+    SPEED = 22.0
+    DURATION_MAX = 28.0
 
     __slots__ = ("_surf", "_env_cx", "_env_cy", "x", "_y0",
                  "_bob_phase", "t")
