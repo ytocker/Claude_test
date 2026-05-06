@@ -265,6 +265,413 @@ def draw_aurora(surf: pygame.Surface, palette: dict) -> None:
     surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
+# ──────────── Hot-air balloon helpers (shared by 07a–07e) ────────────
+
+def _teardrop_polygon(cx: float, cy: float, w: float, h: float, n: int = 36):
+    """Closed polygon approximating a hot-air-balloon envelope:
+    rounded top, gently pinched bottom mouth."""
+    pts = []
+    rx, ry = w / 2, h / 2
+    for i in range(n):
+        ang = -math.pi / 2 + (i / n) * math.tau
+        x = math.cos(ang) * rx
+        y = math.sin(ang) * ry
+        if y > 0:
+            pinch = 1.0 - 0.62 * (y / ry) ** 2
+            x *= pinch
+        pts.append((cx + x, cy + y))
+    return pts
+
+
+def _envelope_extent_at_y(cx: float, cy: float, w: float, h: float, y: float):
+    """Return (left_x, right_x) of the teardrop envelope at world-y `y`."""
+    rx, ry = w / 2, h / 2
+    dy = y - cy
+    if abs(dy) >= ry:
+        return None
+    x_ell = rx * math.sqrt(max(0.0, 1 - (dy / ry) ** 2))
+    if dy > 0:
+        x_ell *= 1.0 - 0.62 * (dy / ry) ** 2
+    return cx - x_ell, cx + x_ell
+
+
+def _draw_basket(surf, cx: int, top_y: int, w: int, h: int,
+                 weave: bool = True, passenger: bool = False):
+    pygame.draw.rect(surf, (130, 85, 40), (cx - w // 2, top_y, w, h))
+    pygame.draw.rect(surf, (60, 40, 20), (cx - w // 2, top_y, w, h), 1)
+    if weave:
+        for k in range(1, 3):
+            ly = top_y + h * k // 3
+            pygame.draw.line(surf, (90, 60, 30),
+                             (cx - w // 2 + 1, ly),
+                             (cx + w // 2 - 1, ly), 1)
+        for vx in (cx - w // 4, cx, cx + w // 4):
+            pygame.draw.line(surf, (95, 65, 32),
+                             (vx, top_y + 1), (vx, top_y + h - 1), 1)
+    if passenger:
+        pygame.draw.circle(surf, (35, 25, 20), (cx, top_y - 2), 2)
+
+
+def _draw_ropes(surf, env_cx: int, env_bottom_y: int,
+                basket_cx: int, basket_top_y: int,
+                basket_w: int, env_w: int):
+    rope = (45, 30, 20)
+    bx0 = basket_cx - basket_w // 2 + 1
+    bx1 = basket_cx + basket_w // 2 - 1
+    ex0 = env_cx - env_w // 4
+    ex1 = env_cx + env_w // 4
+    ex_mid_l = env_cx - env_w // 8
+    ex_mid_r = env_cx + env_w // 8
+    pygame.draw.line(surf, rope, (ex0, env_bottom_y), (bx0, basket_top_y), 1)
+    pygame.draw.line(surf, rope, (ex1, env_bottom_y), (bx1, basket_top_y), 1)
+    pygame.draw.line(surf, rope, (ex_mid_l, env_bottom_y - 2),
+                     (basket_cx - basket_w // 6, basket_top_y), 1)
+    pygame.draw.line(surf, rope, (ex_mid_r, env_bottom_y - 2),
+                     (basket_cx + basket_w // 6, basket_top_y), 1)
+
+
+# ──────────── 07a Paneled (multi-gore) ────────────
+
+def draw_balloons_paneled(surf: pygame.Surface, palette: dict) -> None:
+    """Real hot-air balloon multi-gore construction with alternating
+    vertical panels and a visible equator seam."""
+    balloons = [
+        # cx, cy, w, h, panel_colors (alternating), seam color
+        (W * 0.22, H * 0.32, 56, 70,
+         [(220,  60,  60), (250, 230, 200)], (90, 50, 30)),
+        (W * 0.58, H * 0.46, 44, 56,
+         [(40, 140, 200), (240, 240, 240)], (30, 70, 110)),
+        (W * 0.84, H * 0.24, 36, 46,
+         [(245, 175,  80), (90,  60, 130)], (90, 60, 25)),
+    ]
+    for cx, cy, w, h, panels, seam in balloons:
+        cx, cy = int(cx), int(cy)
+        # 1) Fill envelope with base panel color
+        outline = _teardrop_polygon(cx, cy, w, h)
+        pygame.draw.polygon(surf, panels[0], outline)
+        # 2) Overlay alternating vertical panel stripes, masked to envelope
+        n_panels = 8
+        for i in range(n_panels):
+            if i % 2 == 0:
+                continue  # base color already covers these
+            x0 = cx - w / 2 + i * (w / n_panels)
+            x1 = cx - w / 2 + (i + 1) * (w / n_panels)
+            # Walk row-by-row, clipping to envelope extent
+            for y_int in range(int(cy - h / 2), int(cy + h / 2) + 1):
+                ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+                if ext is None:
+                    continue
+                lx, rx = ext
+                draw_x0 = max(x0, lx)
+                draw_x1 = min(x1, rx)
+                if draw_x1 > draw_x0:
+                    pygame.draw.line(surf, panels[1],
+                                     (int(draw_x0), y_int),
+                                     (int(draw_x1), y_int), 1)
+        # 3) Vertical gore-separator hairlines
+        for i in range(1, n_panels):
+            sx = cx - w / 2 + i * (w / n_panels)
+            # Only draw where the envelope exists
+            for y_int in range(int(cy - h / 2 + 2), int(cy + h / 2 - 1)):
+                ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+                if ext is None:
+                    continue
+                lx, rx = ext
+                if lx + 1 <= sx <= rx - 1:
+                    surf.set_at((int(sx), y_int), seam)
+        # 4) Equator seam (horizontal hairline at envelope mid)
+        ext = _envelope_extent_at_y(cx, cy, w, h, cy + 2)
+        if ext is not None:
+            lx, rx = ext
+            pygame.draw.line(surf, seam, (int(lx + 1), int(cy + 2)),
+                             (int(rx - 1), int(cy + 2)), 1)
+        # 5) Outline
+        pygame.draw.polygon(surf, seam, outline, 1)
+        # 6) Subtle highlight on upper-left
+        hi = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(hi, (255, 255, 255, 55),
+                            (4, 4, max(6, w // 3), max(6, h // 3)))
+        surf.blit(hi, (cx - w // 2, cy - h // 2))
+        # 7) Ropes + basket
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 9
+        basket_w = max(12, int(w * 0.32))
+        _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
+        _draw_basket(surf, cx, basket_top_y, basket_w, 9,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07b Burner glow (lit from within) ────────────
+
+def draw_balloons_glow(surf: pygame.Surface, palette: dict) -> None:
+    """Hot-air balloons with a visible burner flame and warm internal
+    glow — atmospheric, evening-fire vibe."""
+    balloons = [
+        (W * 0.22, H * 0.32, 54, 68, (220,  85,  85), (255, 200, 130)),
+        (W * 0.58, H * 0.46, 44, 56, (95,  150, 215), (255, 200, 130)),
+        (W * 0.84, H * 0.26, 38, 48, (235, 165,  85), (255, 220, 150)),
+    ]
+    for cx, cy, w, h, body, accent in balloons:
+        cx, cy = int(cx), int(cy)
+        # Envelope outline
+        outline = _teardrop_polygon(cx, cy, w, h)
+        pygame.draw.polygon(surf, body, outline)
+        # Vertical accent stripe (thin)
+        pygame.draw.line(surf, accent,
+                         (cx, int(cy - h / 2 + 4)),
+                         (cx, int(cy + h / 2 - 4)), 2)
+        # Warm wash: gradient band ramping from transparent at envelope
+        # mid down to warm at the bottom mouth. Body color dominates the
+        # upper portion; only the lower third gets the burner-lit feel.
+        warm = pygame.Surface((W, H), pygame.SRCALPHA)
+        band_top_y = int(cy)
+        band_bot_y = int(cy + h * 0.50)
+        for y_int in range(band_top_y, band_bot_y + 1):
+            u = (y_int - band_top_y) / max(1, band_bot_y - band_top_y)
+            a = int(110 * (u ** 1.6))
+            if a <= 2:
+                continue
+            ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+            if ext is None:
+                continue
+            lx, rx = ext
+            pygame.draw.line(warm, (255, 205, 140, a),
+                             (int(lx) + 1, y_int),
+                             (int(rx) - 1, y_int), 1)
+        surf.blit(warm, (0, 0))
+        # Outline on top
+        pygame.draw.polygon(surf, (60, 30, 25), outline, 1)
+        # Burner flame at the bottom mouth — small and bright
+        bx = cx
+        by = int(cy + h / 2 - 1)
+        flame = pygame.Surface((W, H), pygame.SRCALPHA)
+        pygame.draw.ellipse(flame, (255, 235, 150, 230), (bx - 2, by - 3, 4, 6))
+        pygame.draw.ellipse(flame, (255, 180,  90, 180), (bx - 3, by - 1, 6, 7))
+        surf.blit(flame, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        # Ropes + basket
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 10
+        basket_w = max(12, int(w * 0.32))
+        _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
+        _draw_basket(surf, cx, basket_top_y, basket_w, 9,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07c Painterly (radial-gradient shading) ────────────
+
+def draw_balloons_painterly(surf: pygame.Surface, palette: dict) -> None:
+    """Soft radial gradient shading for a 3-D painted look. Light comes
+    from the upper-left so the right/lower side falls into shadow."""
+    balloons = [
+        (W * 0.22, H * 0.32, 56, 72, (235, 95, 95)),
+        (W * 0.58, H * 0.46, 46, 58, (95, 175, 230)),
+        (W * 0.83, H * 0.24, 38, 50, (245, 180, 80)),
+    ]
+    for cx, cy, w, h, base in balloons:
+        cx, cy = int(cx), int(cy)
+        # Build an offscreen surface for the envelope so we can paint
+        # gradient shading and then blit.
+        pad = 10
+        env_surf = pygame.Surface((w + pad * 2, h + pad * 2), pygame.SRCALPHA)
+        local_cx = w // 2 + pad
+        local_cy = h // 2 + pad
+        # Light direction: upper-left at ~ (-0.7, -0.7)
+        light = (-0.7, -0.7)
+        for y_int in range(0, h + pad * 2):
+            for x_int in range(0, w + pad * 2):
+                lx = x_int - local_cx
+                ly = y_int - local_cy
+                # Inside teardrop?
+                rx, ry = w / 2, h / 2
+                # World coords for the helper
+                ext = _envelope_extent_at_y(local_cx, local_cy, w, h, y_int)
+                if ext is None:
+                    continue
+                lxx, rxx = ext
+                if x_int < lxx or x_int > rxx:
+                    continue
+                # Surface normal approx: vector from center, normalized
+                d = math.hypot(lx, ly)
+                if d < 1e-3:
+                    nx, ny = 0, -1
+                else:
+                    nx, ny = lx / d, ly / d
+                # Lambert shading factor
+                lambert = max(0.15, nx * light[0] + ny * light[1])
+                # Specular highlight bump near the upper-left
+                hl_dx = lx - light[0] * rx * 0.55
+                hl_dy = ly - light[1] * ry * 0.55
+                hl = max(0.0, 1 - math.hypot(hl_dx, hl_dy) / (rx * 0.45))
+                # Blend
+                shade = 0.55 + 0.55 * lambert
+                r = min(255, int(base[0] * shade + 255 * 0.35 * hl))
+                g = min(255, int(base[1] * shade + 255 * 0.35 * hl))
+                b = min(255, int(base[2] * shade + 255 * 0.35 * hl))
+                env_surf.set_at((x_int, y_int), (r, g, b, 255))
+        # Outline (slightly darker than base)
+        outline = _teardrop_polygon(local_cx, local_cy, w, h)
+        pygame.draw.polygon(env_surf,
+                            (max(0, base[0] - 100),
+                             max(0, base[1] - 100),
+                             max(0, base[2] - 100)),
+                            outline, 1)
+        # Composite envelope
+        rect = env_surf.get_rect(center=(cx, cy))
+        surf.blit(env_surf, rect.topleft)
+        # Soft cast shadow under the basket
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 10
+        basket_w = max(12, int(w * 0.32))
+        shadow = pygame.Surface((basket_w + 14, 5), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 70),
+                            (0, 0, basket_w + 14, 5))
+        surf.blit(shadow, (cx - (basket_w + 14) // 2,
+                           basket_top_y + 11))
+        # Ropes + basket
+        _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
+        _draw_basket(surf, cx, basket_top_y, basket_w, 9,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07d Festival patterns ────────────
+
+def draw_balloons_festival(surf: pygame.Surface, palette: dict) -> None:
+    """Three balloons each with a different decorative motif: polka dots,
+    harlequin diamonds, and chevron stripes."""
+    balloons = [
+        # cx, cy, w, h, motif, base, motif_color
+        (W * 0.22, H * 0.32, 56, 70, "dots",     (215,  55,  55), (250, 240, 220)),
+        (W * 0.58, H * 0.46, 46, 58, "harlequin",(255, 205,  85), (210,  60, 110)),
+        (W * 0.84, H * 0.24, 38, 48, "chevron",  (90, 165, 220), (240, 240, 240)),
+    ]
+    for cx, cy, w, h, motif, base, accent in balloons:
+        cx, cy = int(cx), int(cy)
+        outline = _teardrop_polygon(cx, cy, w, h)
+        pygame.draw.polygon(surf, base, outline)
+
+        # Each motif is rendered to a w×h SRCALPHA layer, then masked
+        # by the envelope outline.
+        layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        if motif == "dots":
+            rnd = random.Random(11)
+            for _ in range(28):
+                px = rnd.randint(int(cx - w / 2), int(cx + w / 2))
+                py = rnd.randint(int(cy - h / 2), int(cy + h / 2))
+                ext = _envelope_extent_at_y(cx, cy, w, h, py)
+                if ext is None or not (ext[0] + 2 <= px <= ext[1] - 2):
+                    continue
+                pygame.draw.circle(layer, (*accent, 255), (px, py),
+                                   rnd.choice((2, 2, 3)))
+        elif motif == "harlequin":
+            # Diamond grid — alternate cells get the accent color
+            cell = 8
+            for iy in range(int(cy - h / 2), int(cy + h / 2) + 1, cell):
+                for ix in range(int(cx - w / 2 - cell), int(cx + w / 2 + cell), cell):
+                    row = (iy // cell)
+                    col = (ix // cell)
+                    if (row + col) % 2 != 0:
+                        continue
+                    # Diamond polygon centered at (ix, iy)
+                    diamond = [
+                        (ix, iy - cell // 2),
+                        (ix + cell // 2, iy),
+                        (ix, iy + cell // 2),
+                        (ix - cell // 2, iy),
+                    ]
+                    # Clip each vertex to envelope vertically
+                    pygame.draw.polygon(layer, (*accent, 255), diamond)
+        elif motif == "chevron":
+            # Three horizontal chevron bands
+            for k, by in enumerate((cy - h * 0.30, cy - h * 0.05, cy + h * 0.20)):
+                ext = _envelope_extent_at_y(cx, cy, w, h, by)
+                if ext is None:
+                    continue
+                lx, rx = ext
+                pts = [
+                    (lx + 1, by - 3),
+                    (cx,     by + 4),
+                    (rx - 1, by - 3),
+                    (rx - 1, by + 1),
+                    (cx,     by + 8),
+                    (lx + 1, by + 1),
+                ]
+                pygame.draw.polygon(layer, (*accent, 255), pts)
+
+        # Mask: only keep motif pixels that lie inside the envelope.
+        mask = pygame.Surface((W, H), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255), outline)
+        # Use BLEND_RGBA_MIN to intersect alpha channels (motif AND mask).
+        layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        surf.blit(layer, (0, 0))
+
+        # Outline on top
+        pygame.draw.polygon(surf,
+                            (max(0, base[0] - 80),
+                             max(0, base[1] - 80),
+                             max(0, base[2] - 80)),
+                            outline, 1)
+        # Highlight pop
+        hi = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(hi, (255, 255, 255, 60),
+                            (4, 4, max(6, w // 3), max(6, h // 3)))
+        surf.blit(hi, (cx - w // 2, cy - h // 2))
+        # Ropes + basket
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 9
+        basket_w = max(12, int(w * 0.32))
+        _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
+        _draw_basket(surf, cx, basket_top_y, basket_w, 9,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07e Alto-style minimal cinematic ────────────
+
+def draw_balloons_alto(surf: pygame.Surface, palette: dict) -> None:
+    """Two larger balloons in flat single colors with restrained detail —
+    Alto's-Adventure-style cinematic minimalism. Negative space lets the
+    sky breathe."""
+    balloons = [
+        # Larger hero balloon, lower-left
+        (W * 0.28, H * 0.42, 78, 100, (210,  70,  70)),
+        # Smaller companion, upper-right
+        (W * 0.78, H * 0.18, 50, 64,  (60, 130, 200)),
+    ]
+    for cx, cy, w, h, color in balloons:
+        cx, cy = int(cx), int(cy)
+        outline = _teardrop_polygon(cx, cy, w, h, n=48)
+        # Flat fill
+        pygame.draw.polygon(surf, color, outline)
+        # Single subtle shadow band on the lower-right (one elliptical
+        # darken region, low alpha)
+        shade_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        shade_color = (max(0, color[0] - 60), max(0, color[1] - 60),
+                       max(0, color[2] - 60), 110)
+        pygame.draw.ellipse(shade_layer, shade_color,
+                            (cx - 3, cy - h // 4,
+                             w // 2 + 4, h - h // 4))
+        # Mask shade to envelope
+        mask = pygame.Surface((W, H), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255), outline)
+        shade_layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        surf.blit(shade_layer, (0, 0))
+        # Tiny single-color band at the equator (no outline, no panels)
+        ext = _envelope_extent_at_y(cx, cy, w, h, cy + 2)
+        if ext is not None:
+            lx, rx = ext
+            pygame.draw.line(surf,
+                             (max(0, color[0] - 40), max(0, color[1] - 40),
+                              max(0, color[2] - 40)),
+                             (int(lx + 2), int(cy + 2)),
+                             (int(rx - 2), int(cy + 2)), 2)
+        # Ropes + basket — minimal, no weave
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 14
+        basket_w = max(14, int(w * 0.30))
+        _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
+        _draw_basket(surf, cx, basket_top_y, basket_w, int(h * 0.13),
+                     weave=False, passenger=False)
+
+
 def draw_hot_air_balloons(surf: pygame.Surface, palette: dict) -> None:
     """Three colorful hot-air balloons drifting at mid-distance."""
     rnd = random.Random(303)
@@ -492,6 +899,11 @@ SCENES = [
     ("05_fireworks",       0.62, draw_fireworks),
     ("06_aurora",          0.78, draw_aurora),
     ("07_hot_air_balloons", 0.16, draw_hot_air_balloons),
+    ("07a_balloons_paneled",   0.16, draw_balloons_paneled),
+    ("07b_balloons_glow",      0.16, draw_balloons_glow),
+    ("07c_balloons_painterly", 0.16, draw_balloons_painterly),
+    ("07d_balloons_festival",  0.16, draw_balloons_festival),
+    ("07e_balloons_alto",      0.16, draw_balloons_alto),
     ("08_windmill",        0.04, draw_windmill),
     ("09_paper_lanterns",  0.60, draw_paper_lanterns),
     ("10_cherry_blossoms", 0.92, draw_cherry_blossoms),
