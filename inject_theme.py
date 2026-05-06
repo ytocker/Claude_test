@@ -126,6 +126,12 @@ INJECTION = """
 /* ── Canvas base (shows behind pygame loading bar) ─── */
 canvas { background: #0d0820 !important; }
 body   { background: #0d0820 !important; }
+/* Full-height html/body so the name-entry overlay can use
+   position: absolute (instead of position: fixed) to avoid iOS
+   Safari's documented bug where focusing an input inside a
+   position: fixed element re-positions the element to absolute,
+   reflows the layout, and flickers the soft keyboard. */
+html, body { height: 100%; min-height: 100%; }
 
 /* ── Loading overlay ─────────────────────────────────
    Hardened: every pygbag template version has at one point shipped a
@@ -286,8 +292,15 @@ body   { background: #0d0820 !important; }
 
 /* ── Name-entry overlay ─────────────────────────────────────── */
 #name-overlay {
-    position: fixed;
-    inset: 0;
+    /* position: absolute (NOT fixed) — see iOS Safari bug note above
+       in html/body. The overlay's stacking context still puts it on top
+       via z-index, and html/body height: 100% makes 100% here the full
+       viewport. */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 200;
     background: linear-gradient(180deg, #060115 0%, #12082a 50%, #0c1022 100%);
     display: none;
@@ -808,11 +821,17 @@ body   { background: #0d0820 !important; }
         // their own click handler to fire normally.
         if (t && (t.id === 'name-submit' || t.id === 'name-skip')) return;
         var inp = document.getElementById('name-input');
-        // Idempotent focus: a redundant focus() on an already-focused
-        // input still fires a focus event that iOS Safari interprets as
-        // "focus changed" and uses to re-evaluate keyboard visibility,
-        // which can cause the keyboard to flicker.
-        if (inp && document.activeElement !== inp) {
+        // iOS: do NOT call inp.focus() here. With the capture-phase
+        // stopPropagation above, SDL never sees the tap, so iOS's
+        // natural tap-to-focus brings up the keyboard once on its own.
+        // A manual focus() call earlier in the same gesture (from
+        // capture phase, before the click is dispatched) creates an
+        // extra focus event that iOS uses to re-evaluate keyboard
+        // visibility and produces the multi-cycle flicker.
+        // Non-iOS: keep manual focus — Android / desktop don't have
+        // this quirk and the manual call ensures consistent behavior
+        // across pygbag's runtime.
+        if (inp && !_isIOS && document.activeElement !== inp) {
             try { inp.focus(); } catch (_) {}
         }
     }, true);
