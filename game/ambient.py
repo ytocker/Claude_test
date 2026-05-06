@@ -27,17 +27,20 @@ _FIREWORKS_PHASES = ((0.55, 0.72),)            # night
 _BALLOON_PHASES = ((0.10, 0.22),)              # golden hour
 _PARROTS_PHASES = ((0.96, 1.0), (0.0, 0.10))   # day (wraps around 0)
 _BLOSSOMS_PHASES = ((0.85, 0.95),)             # sunrise
+_CAMPFIRE_PHASES = ((0.55, 0.72),)             # night
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
 _BALLOON_COOLDOWN_S = 90.0
 _PARROTS_COOLDOWN_S = 80.0
+_CAMPFIRE_COOLDOWN_S = 130.0
 
 # Initial delay before the FIRST event of each kind in a run.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
 _FIREWORKS_INITIAL_DELAY = (30.0, 60.0)
 _BALLOON_INITIAL_DELAY = (20.0, 40.0)
 _PARROTS_INITIAL_DELAY = (25.0, 50.0)
+_CAMPFIRE_INITIAL_DELAY = (40.0, 80.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -546,6 +549,196 @@ class _CherryBlossomDrift:
             p.draw(surf)
 
 
+# ── Campfire ────────────────────────────────────────────────────────────────
+
+_CAMPFIRE_HALO_RADIUS = 30
+_CAMPFIRE_HALO_PEAK = (160, 80, 32)
+
+# Local layout inside the cached static surface.
+_CAMP_SURF_W, _CAMP_SURF_H = 100, 70
+_CAMP_FIRE_LX, _CAMP_FIRE_LY = 40, 40
+
+# Module-level halo cache — built once, reused by every campfire instance.
+_campfire_halo_cache: pygame.Surface | None = None
+
+
+def _build_campfire_halo() -> pygame.Surface:
+    """Per-pixel radial gradient halo (smooth, no concentric-ring artefacts).
+    Scaled so additive blits give a warm firelight bleed without saturation."""
+    global _campfire_halo_cache
+    if _campfire_halo_cache is not None:
+        return _campfire_halo_cache
+    r = _CAMPFIRE_HALO_RADIUS
+    size = r * 2
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    cx = cy = size // 2
+    peak = _CAMPFIRE_HALO_PEAK
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot(x - cx, y - cy)
+            if d > r:
+                continue
+            u = d / r
+            intensity = (1.0 - u) ** 2.4
+            rr = int(peak[0] * intensity)
+            gg = int(peak[1] * intensity)
+            bb = int(peak[2] * intensity)
+            if rr + gg + bb > 0:
+                surf.set_at((x, y), (rr, gg, bb, 255))
+    _campfire_halo_cache = surf
+    return surf
+
+
+def _build_campfire_solid() -> pygame.Surface:
+    """Tent + logs baked once, reused by every instance. The fire and
+    sparks animate on top each frame, so they're not in here."""
+    surf = pygame.Surface((_CAMP_SURF_W, _CAMP_SURF_H), pygame.SRCALPHA)
+    fcx, fcy = _CAMP_FIRE_LX, _CAMP_FIRE_LY
+    tent_silh = (165, 90, 65)
+    tent_dark = (90, 50, 35)
+    tent_cx = fcx + 28
+    tent_h = 22
+    tent_half_w = 14
+    pygame.draw.polygon(surf, tent_silh, [
+        (tent_cx - tent_half_w, fcy),
+        (tent_cx + tent_half_w, fcy),
+        (tent_cx,               fcy - tent_h),
+    ])
+    # Tent door
+    pygame.draw.polygon(surf, tent_dark, [
+        (tent_cx - 4, fcy),
+        (tent_cx + 4, fcy),
+        (tent_cx,     fcy - 12),
+    ])
+    # Center seam
+    pygame.draw.line(surf, tent_dark,
+                     (tent_cx, fcy - tent_h),
+                     (tent_cx, fcy - 12), 1)
+    # Side seams
+    pygame.draw.line(surf, tent_dark,
+                     (tent_cx - tent_half_w + 1, fcy - 1),
+                     (tent_cx, fcy - tent_h + 1), 1)
+    pygame.draw.line(surf, tent_dark,
+                     (tent_cx + tent_half_w - 1, fcy - 1),
+                     (tent_cx, fcy - tent_h + 1), 1)
+    # Logs at the fire base
+    pygame.draw.line(surf, (40, 25, 15),
+                     (fcx - 5, fcy - 1), (fcx + 5, fcy - 1), 2)
+    pygame.draw.line(surf, (45, 28, 16),
+                     (fcx - 4, fcy - 2), (fcx + 4, fcy - 2), 1)
+    return surf
+
+
+_campfire_solid_cache: pygame.Surface | None = None
+
+
+def _get_campfire_solid() -> pygame.Surface:
+    global _campfire_solid_cache
+    if _campfire_solid_cache is None:
+        _campfire_solid_cache = _build_campfire_solid()
+    return _campfire_solid_cache
+
+
+_SPARK_COLORS = (
+    (255, 220, 130),
+    (255, 180,  90),
+    (255, 240, 200),
+)
+
+
+class _Campfire:
+    """Night-time campsite (tent + flickering fire + sparks + warm halo)
+    drifting calmly leftward across the foothills.
+
+    Halo and tent are baked into shared cached surfaces; the flame
+    flickers via two summed sine waves and sparks are simulated as a
+    small particle pool that rises and fades."""
+    SPEED = 16.0          # slow horizontal drift, similar to mountains
+    DURATION_MAX = 35.0
+    SPARK_INTERVAL = 0.10
+    SPARK_CAP = 14
+
+    __slots__ = ("x", "y", "t", "_sparks", "_spark_t", "_flicker_seed")
+
+    def __init__(self, rng: random.Random):
+        self.x = float(W + 20)
+        self.y = float(GROUND_Y - 24)
+        self.t = 0.0
+        self._sparks: list = []
+        self._spark_t = 0.0
+        self._flicker_seed = rng.uniform(0, math.tau)
+        # Warm up caches the first time a campfire spawns
+        _build_campfire_halo()
+        _get_campfire_solid()
+
+    def update(self, dt: float) -> None:
+        self.t += dt
+        self.x -= self.SPEED * dt
+        # Spark physics (tuple [rx, ry, vx, vy, life, color])
+        new = []
+        for s in self._sparks:
+            s[0] += s[2] * dt
+            s[1] += s[3] * dt
+            s[4] -= dt
+            if s[4] > 0:
+                new.append(s)
+        self._sparks = new
+        # Spark spawn — bounded interval AND population cap
+        self._spark_t += dt
+        while (self._spark_t > self.SPARK_INTERVAL and
+               len(self._sparks) < self.SPARK_CAP):
+            self._spark_t -= self.SPARK_INTERVAL
+            self._sparks.append([
+                random.uniform(-4, 4),       # rel x
+                -2.0,                         # rel y (just above logs)
+                random.uniform(-8, 8),       # vx
+                random.uniform(-50, -28),    # vy (rising)
+                random.uniform(0.7, 1.3),    # life
+                random.choice(_SPARK_COLORS),
+            ])
+
+    def is_done(self) -> bool:
+        return self.x < -60 or self.t > self.DURATION_MAX
+
+    def draw(self, surf: pygame.Surface) -> None:
+        x = int(self.x)
+        y = int(self.y)
+        # Halo (additive) — centred a few pixels above the fire base
+        halo = _build_campfire_halo()
+        hr = _CAMPFIRE_HALO_RADIUS
+        surf.blit(halo, (x - hr, y - 4 - hr),
+                  special_flags=pygame.BLEND_RGB_ADD)
+        # Solid (tent + logs) blitted with normal alpha
+        solid = _get_campfire_solid()
+        surf.blit(solid, (x - _CAMP_FIRE_LX, y - _CAMP_FIRE_LY))
+        # Flame — flicker via two summed sines so it doesn't look periodic
+        flicker = (math.sin(self.t * 12.0 + self._flicker_seed) * 0.5 +
+                   math.sin(self.t * 7.5 + self._flicker_seed * 2) * 0.5)
+        h_off = int(round(flicker * 1.5))   # -1..+1 px height jitter
+        flame = pygame.Surface((W, H), pygame.SRCALPHA)
+        pygame.draw.ellipse(flame, (255,  90,  50, 200),
+                            (x - 5, y - 7 - h_off, 10, 8 + h_off))
+        pygame.draw.ellipse(flame, (255, 150,  60, 230),
+                            (x - 4, y - 8 - h_off, 8, 8 + h_off))
+        pygame.draw.ellipse(flame, (255, 210, 110, 240),
+                            (x - 2, y - 8 - h_off, 5, 7 + h_off))
+        pygame.draw.ellipse(flame, (255, 240, 180, 250),
+                            (x - 1, y - 6 - h_off, 3, 4 + h_off))
+        pygame.draw.ellipse(flame, (255, 200, 100, 200),
+                            (x - 1, y - 11 - h_off, 3, 5))
+        surf.blit(flame, (0, 0))
+        pygame.draw.circle(surf, (255, 250, 220), (x, y - 5), 1)
+        # Sparks (additive)
+        spark_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        for sx, sy, _, _, life, color in self._sparks:
+            life_u = max(0.0, min(1.0, life / 1.3))
+            a = int(220 * life_u)
+            if a > 4:
+                pygame.draw.circle(spark_layer, (*color, a),
+                                   (x + int(sx), y + int(sy)), 1)
+        surf.blit(spark_layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class AmbientScenes:
@@ -561,11 +754,13 @@ class AmbientScenes:
         self.fireworks: _Fireworks | None = None
         self.balloon: _PaneledBalloon | None = None
         self.parrots: _ParrotFamily | None = None
+        self.campfire: _Campfire | None = None
         self.blossoms: _CherryBlossomDrift = _CherryBlossomDrift()  # always live, gated
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
         self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
         self._parrots_cool = random.uniform(*_PARROTS_INITIAL_DELAY)
+        self._campfire_cool = random.uniform(*_CAMPFIRE_INITIAL_DELAY)
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
@@ -617,6 +812,17 @@ class AmbientScenes:
                 self.parrots = _ParrotFamily(random.Random())
                 self._parrots_cool = _PARROTS_COOLDOWN_S + random.uniform(-20, 40)
 
+        # ── Campfire ──
+        if self.campfire is not None:
+            self.campfire.update(dt)
+            if self.campfire.is_done():
+                self.campfire = None
+        elif self._in_window(phase, _CAMPFIRE_PHASES):
+            self._campfire_cool -= dt
+            if self._campfire_cool <= 0:
+                self.campfire = _Campfire(random.Random())
+                self._campfire_cool = _CAMPFIRE_COOLDOWN_S + random.uniform(-25, 50)
+
         # ── Cherry blossoms (continuous, phase-gated) ──
         self.blossoms.update(dt, phase)
 
@@ -629,4 +835,6 @@ class AmbientScenes:
             self.balloon.draw(surf)
         if self.parrots is not None:
             self.parrots.draw(surf)
+        if self.campfire is not None:
+            self.campfire.draw(surf)
         self.blossoms.draw(surf)

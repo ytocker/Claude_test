@@ -145,6 +145,17 @@ def setup_blossoms(world: World) -> None:
         world.ambient.blossoms.update(1 / 30, 0.90)
 
 
+def setup_campfire(world: World) -> None:
+    fire = A._Campfire(random.Random(11))
+    # Start partway across so the clip captures it mid-drift, not just
+    # the right-edge entry.
+    fire.x = float(W * 0.85)
+    world.ambient.campfire = fire
+    # Pre-tick spark physics so the clip opens with sparks already active.
+    for _ in range(40):
+        fire.update(1 / 30)
+
+
 CLIPS = [
     # slug,                phase, duration, setup
     ("anim_flock",         0.16,  5.0, setup_flock),
@@ -152,6 +163,7 @@ CLIPS = [
     ("anim_balloon",       0.16, 12.0, setup_balloon),
     ("anim_parrots",       0.05,  4.5, setup_parrots),
     ("anim_blossoms",      0.90,  4.0, setup_blossoms),
+    ("anim_campfire",      0.62, 10.0, setup_campfire),
 ]
 
 
