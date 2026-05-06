@@ -696,31 +696,29 @@ body   { background: #0d0820 !important; }
        button. */
     var _lastPointerDownTargetId = null;
 
-    /* SDL shield. SDL2's Emscripten port (used by pygbag) listens on
-       window for keyboard events (keydown / keyup / keypress) AND for
-       mouse + touch events (mousedown / mouseup / touchstart / touchend
-       / touchmove / touchcancel). It calls preventDefault on many of
-       them — in particular keypress is preventDefaulted whenever
-       SDL_TEXTINPUT is enabled (always, for pygame), which swallows
-       the browser's default "type the character into the focused
-       input" action. On mobile, SDL also handles touch events that
-       compete with the input's natural focus path, which on iPhone
-       produces a multi-cycle soft-keyboard flicker as focus bounces
-       between the input and the canvas.
+    /* SDL keyboard shield. SDL2's Emscripten port attaches keydown /
+       keyup / keypress on window in BUBBLE phase and calls
+       preventDefault — keypress is preventDefaulted whenever
+       SDL_TEXTINPUT is enabled (always, for pygame), and that
+       swallows the browser's default "type the character into the
+       focused input" action. With caps mode off, mobile IMEs skip
+       the synthetic keydown-with-key path for printable chars and
+       rely on keypress / beforeinput, so a keydown-only shield
+       isn't enough.
 
-       We register window-capture listeners on every event SDL touches.
-       stopPropagation() in capture aborts the bubble phase, so SDL
-       never sees the event and never preventDefaults. The browser's
-       default action (insert character into focused <input>, focus the
-       tapped element, etc.) still fires, because default action is
+       We register window-capture listeners on the three keyboard
+       events SDL touches. stopPropagation() in capture aborts the
+       bubble phase, so SDL never sees the event and never
+       preventDefaults. The browser's default action (insert character
+       into focused <input>) still fires, because default action is
        gated on preventDefault, not propagation. The input's own
-       oninput handler still fires too — it's a separate event after
-       the default action, not in the propagation chain we're cutting.
+       oninput still fires too — it's a separate event after the
+       default action, not in the keydown propagation chain.
 
-       We do NOT shield input / beforeinput / composition* — SDL doesn't
-       listen for them, and a window-capture stopPropagation on `input`
-       would prevent #name-input's own oninput from firing (the counter
-       would freeze).
+       We do NOT shield input / beforeinput / composition* — SDL
+       doesn't listen for them, and a window-capture stopPropagation
+       on `input` would prevent #name-input's own oninput from
+       firing (the counter would freeze).
 
        Enter is intercepted here for desktop submit. On mobile the
        soft keyboard's Go/Done emits Enter too. keyCode 229 /
@@ -731,7 +729,7 @@ body   { background: #0d0820 !important; }
         var ov = document.getElementById('name-overlay');
         return !!ov && ov.style.display === 'flex';
     }
-    function _shieldEvent(e) {
+    function _shieldKeyEvent(e) {
         if (!_isNameOverlayOpen()) return;
         e.stopPropagation();
     }
@@ -747,12 +745,8 @@ body   { background: #0d0820 !important; }
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
-    ['keyup', 'keypress',
-     'mousedown', 'mouseup',
-     'touchstart', 'touchend', 'touchmove', 'touchcancel']
-    .forEach(function (evt) {
-        window.addEventListener(evt, _shieldEvent, true);
-    });
+    window.addEventListener('keyup',    _shieldKeyEvent, true);
+    window.addEventListener('keypress', _shieldKeyEvent, true);
 
     /* iOS Safari fix: the soft keyboard only appears if focus() runs
        inside a real user gesture. openNameEntry's setTimeout(focus)
