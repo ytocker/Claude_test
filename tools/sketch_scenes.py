@@ -312,6 +312,69 @@ def _draw_basket(surf, cx: int, top_y: int, w: int, h: int,
         pygame.draw.circle(surf, (35, 25, 20), (cx, top_y - 2), 2)
 
 
+def _draw_paneled_envelope(surf, cx: int, cy: int, w: int, h: int,
+                           panel_a: tuple, panel_b: tuple,
+                           seam: tuple, n_panels: int = 8):
+    """Reusable paneled (multi-gore) hot-air-balloon envelope.
+
+    Renders teardrop outline, alternating vertical panels masked to the
+    envelope, gore-separator hairlines, equator seam, outline, and a
+    small upper-left highlight."""
+    outline = _teardrop_polygon(cx, cy, w, h)
+    pygame.draw.polygon(surf, panel_a, outline)
+    # Alternating panel stripes
+    for i in range(n_panels):
+        if i % 2 == 0:
+            continue
+        x0 = cx - w / 2 + i * (w / n_panels)
+        x1 = cx - w / 2 + (i + 1) * (w / n_panels)
+        for y_int in range(int(cy - h / 2), int(cy + h / 2) + 1):
+            ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+            if ext is None:
+                continue
+            lx, rx = ext
+            dx0 = max(x0, lx)
+            dx1 = min(x1, rx)
+            if dx1 > dx0:
+                pygame.draw.line(surf, panel_b,
+                                 (int(dx0), y_int), (int(dx1), y_int), 1)
+    # Gore separator hairlines
+    for i in range(1, n_panels):
+        sx = cx - w / 2 + i * (w / n_panels)
+        for y_int in range(int(cy - h / 2 + 2), int(cy + h / 2 - 1)):
+            ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+            if ext is None:
+                continue
+            lx, rx = ext
+            if lx + 1 <= sx <= rx - 1:
+                surf.set_at((int(sx), y_int), seam)
+    # Equator seam
+    ext = _envelope_extent_at_y(cx, cy, w, h, cy + 1)
+    if ext is not None:
+        lx, rx = ext
+        pygame.draw.line(surf, seam, (int(lx + 1), int(cy + 1)),
+                         (int(rx - 1), int(cy + 1)), 1)
+    # Outer outline
+    pygame.draw.polygon(surf, seam, outline, 1)
+    # Upper-left highlight
+    hi = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.ellipse(hi, (255, 255, 255, 60),
+                        (3, 3, max(5, w // 3), max(5, h // 3)))
+    surf.blit(hi, (cx - w // 2, cy - h // 2))
+
+
+# Smaller, tighter set of 3 paneled balloons used by all 07a*-variants.
+_BALLOONS_SMALL = [
+    # cx, cy, w, h, panels[0], panels[1], seam
+    (W * 0.22, H * 0.34, 36, 46,
+     (220,  60,  60), (250, 230, 200), (90, 50, 30)),
+    (W * 0.58, H * 0.46, 28, 36,
+     (40, 140, 200), (240, 240, 240), (30, 70, 110)),
+    (W * 0.84, H * 0.26, 22, 28,
+     (245, 175,  80), (90,  60, 130), (90, 60, 25)),
+]
+
+
 def _draw_ropes(surf, env_cx: int, env_bottom_y: int,
                 basket_cx: int, basket_top_y: int,
                 basket_w: int, env_w: int):
@@ -398,6 +461,216 @@ def draw_balloons_paneled(surf: pygame.Surface, palette: dict) -> None:
         basket_w = max(12, int(w * 0.32))
         _draw_ropes(surf, cx, env_bottom_y, cx, basket_top_y, basket_w, w)
         _draw_basket(surf, cx, basket_top_y, basket_w, 9,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07a1 Skirt band + fanning ropes ────────────
+
+def draw_balloons_paneled_skirt(surf: pygame.Surface, palette: dict) -> None:
+    """Smaller paneled balloons with an explicit darker skirt band at the
+    envelope's bottom and 6 ropes fanning from the skirt to the basket."""
+    rope = (40, 28, 18)
+    for cx, cy, w, h, pa, pb, seam in _BALLOONS_SMALL:
+        cx, cy = int(cx), int(cy)
+        _draw_paneled_envelope(surf, cx, cy, w, h, pa, pb, seam)
+        # Skirt band — a darker horizontal band at the bottom of the envelope
+        skirt_y = int(cy + h * 0.40)
+        ext = _envelope_extent_at_y(cx, cy, w, h, skirt_y)
+        if ext is not None:
+            lx, rx = ext
+            for off in range(-1, 3):
+                pygame.draw.line(surf, (max(0, seam[0] - 10),
+                                        max(0, seam[1] - 10),
+                                        max(0, seam[2] - 10)),
+                                 (int(lx) + 1, skirt_y + off),
+                                 (int(rx) - 1, skirt_y + off), 1)
+        env_bottom_y = int(cy + h / 2)
+        # Basket — closer to envelope (smaller air gap)
+        basket_top_y = env_bottom_y + 5
+        basket_w = max(10, int(w * 0.36))
+        basket_h = max(6, int(h * 0.20))
+        bx0 = cx - basket_w // 2
+        bx1 = cx + basket_w // 2
+        # 6 ropes: 3 anchor points on each side of the envelope skirt,
+        # fanning down to evenly-spaced points along the basket's top edge.
+        for k in range(3):
+            u = (k + 0.5) / 3        # 1/6, 1/2, 5/6
+            anchor_y = cy + h * (0.05 + u * 0.35)
+            ae = _envelope_extent_at_y(cx, cy, w, h, anchor_y)
+            if ae is None:
+                continue
+            ae_l, ae_r = ae
+            target_l = bx0 + (k * (basket_w - 1)) // 3
+            target_r = bx1 - (k * (basket_w - 1)) // 3
+            pygame.draw.line(surf, rope,
+                             (int(ae_l), int(anchor_y)),
+                             (target_l, basket_top_y), 1)
+            pygame.draw.line(surf, rope,
+                             (int(ae_r), int(anchor_y)),
+                             (target_r, basket_top_y), 1)
+        _draw_basket(surf, cx, basket_top_y, basket_w, basket_h,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07a2 Load ring ────────────
+
+def draw_balloons_paneled_loadring(surf: pygame.Surface, palette: dict) -> None:
+    """Paneled balloons with a small darker load-ring directly below the
+    envelope. Top ropes converge into the ring; a short set of taut ropes
+    drops from the ring straight down to the basket."""
+    rope = (40, 28, 18)
+    for cx, cy, w, h, pa, pb, seam in _BALLOONS_SMALL:
+        cx, cy = int(cx), int(cy)
+        _draw_paneled_envelope(surf, cx, cy, w, h, pa, pb, seam)
+        env_bottom_y = int(cy + h / 2)
+        # Load ring — a small dark ellipse just below envelope mouth
+        ring_cy = env_bottom_y + 4
+        ring_w = max(6, int(w * 0.28))
+        ring_h = max(2, int(w * 0.10))
+        pygame.draw.ellipse(surf, (35, 25, 18),
+                            (cx - ring_w // 2, ring_cy - ring_h // 2,
+                             ring_w, ring_h))
+        pygame.draw.ellipse(surf, (90, 65, 35),
+                            (cx - ring_w // 2 + 1, ring_cy - ring_h // 2 + 1,
+                             max(2, ring_w - 2), max(1, ring_h - 2)), 1)
+        # 8 thin ropes from envelope underside converging into the ring
+        for k in range(4):
+            u = (k + 0.5) / 4   # spread evenly
+            anchor_y = cy + h * (0.10 + u * 0.35)
+            ae = _envelope_extent_at_y(cx, cy, w, h, anchor_y)
+            if ae is None:
+                continue
+            ae_l, ae_r = ae
+            ring_left  = cx - ring_w // 2 + 1
+            ring_right = cx + ring_w // 2 - 1
+            pygame.draw.line(surf, rope,
+                             (int(ae_l), int(anchor_y)),
+                             (ring_left, ring_cy), 1)
+            pygame.draw.line(surf, rope,
+                             (int(ae_r), int(anchor_y)),
+                             (ring_right, ring_cy), 1)
+        # Basket — a small gap below the ring
+        basket_top_y = ring_cy + 4
+        basket_w = max(10, int(w * 0.40))
+        basket_h = max(6, int(h * 0.20))
+        # 4 short taut ropes from ring down to basket corners
+        for x_off in (-ring_w // 2 + 1, -1, 1, ring_w // 2 - 1):
+            target_x = cx + int(x_off * (basket_w / max(1, ring_w)))
+            pygame.draw.line(surf, rope,
+                             (cx + x_off, ring_cy),
+                             (target_x, basket_top_y), 1)
+        _draw_basket(surf, cx, basket_top_y, basket_w, basket_h,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07a3 Suspension lattice ────────────
+
+def draw_balloons_paneled_lattice(surf: pygame.Surface, palette: dict) -> None:
+    """Paneled balloons with 8 mostly-parallel suspension cables running
+    from the envelope's underside straight down to a wider basket. Looks
+    like real suspension rigging."""
+    rope = (45, 30, 20)
+    for cx, cy, w, h, pa, pb, seam in _BALLOONS_SMALL:
+        cx, cy = int(cx), int(cy)
+        _draw_paneled_envelope(surf, cx, cy, w, h, pa, pb, seam)
+        env_bottom_y = int(cy + h / 2)
+        # Basket — wider so the lattice reads as parallel
+        basket_top_y = env_bottom_y + 6
+        basket_w = max(12, int(w * 0.55))
+        basket_h = max(6, int(h * 0.20))
+        bx0 = cx - basket_w // 2
+        # 8 suspension cables anchored along the envelope's lower curve,
+        # each running near-vertical to a corresponding point on the
+        # basket's top edge.
+        n_cables = 8
+        anchor_y = cy + h * 0.42
+        ae = _envelope_extent_at_y(cx, cy, w, h, anchor_y)
+        if ae is None:
+            continue
+        ae_l, ae_r = ae
+        for k in range(n_cables):
+            u = k / (n_cables - 1)
+            ax = ae_l + (ae_r - ae_l) * u
+            tx = bx0 + (basket_w - 1) * u
+            pygame.draw.line(surf, rope,
+                             (int(ax), int(anchor_y)),
+                             (int(tx), basket_top_y), 1)
+        _draw_basket(surf, cx, basket_top_y, basket_w, basket_h,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07a4 Throat connector ────────────
+
+def draw_balloons_paneled_throat(surf: pygame.Surface, palette: dict) -> None:
+    """Paneled balloons with a short trapezoidal 'throat' piece directly
+    connecting envelope to basket — minimal air gap, no exposed ropes."""
+    for cx, cy, w, h, pa, pb, seam in _BALLOONS_SMALL:
+        cx, cy = int(cx), int(cy)
+        _draw_paneled_envelope(surf, cx, cy, w, h, pa, pb, seam)
+        env_bottom_y = int(cy + h / 2)
+        # Throat trapezoid
+        throat_top_w = max(6, int(w * 0.30))
+        throat_h = max(4, int(h * 0.14))
+        basket_top_y = env_bottom_y + throat_h
+        basket_w = max(10, int(w * 0.45))
+        basket_h = max(6, int(h * 0.20))
+        # Trapezoid corners: top is throat_top_w wide at envelope mouth,
+        # bottom is basket_w wide at basket top.
+        throat_pts = [
+            (cx - throat_top_w // 2, env_bottom_y),
+            (cx + throat_top_w // 2, env_bottom_y),
+            (cx + basket_w // 2,     basket_top_y),
+            (cx - basket_w // 2,     basket_top_y),
+        ]
+        pygame.draw.polygon(surf, (95, 65, 35), throat_pts)
+        pygame.draw.polygon(surf, (50, 32, 18), throat_pts, 1)
+        # Two visible vertical seams on the throat
+        for x_off in (-throat_top_w // 4, throat_top_w // 4):
+            tx_top = cx + x_off
+            tx_bot = cx + int(x_off * (basket_w / max(1, throat_top_w)))
+            pygame.draw.line(surf, (60, 42, 22),
+                             (tx_top, env_bottom_y),
+                             (tx_bot, basket_top_y), 1)
+        _draw_basket(surf, cx, basket_top_y, basket_w, basket_h,
+                     weave=True, passenger=True)
+
+
+# ──────────── 07a5 Crown net ────────────
+
+def draw_balloons_paneled_crown(surf: pygame.Surface, palette: dict) -> None:
+    """Paneled balloons with crown ropes that start from HIGH on the
+    envelope sides (around the equator) and converge tightly down to a
+    small basket — feels like the basket is netted to the whole envelope."""
+    rope = (40, 28, 18)
+    for cx, cy, w, h, pa, pb, seam in _BALLOONS_SMALL:
+        cx, cy = int(cx), int(cy)
+        _draw_paneled_envelope(surf, cx, cy, w, h, pa, pb, seam)
+        env_bottom_y = int(cy + h / 2)
+        basket_top_y = env_bottom_y + 5
+        basket_w = max(10, int(w * 0.34))
+        basket_h = max(6, int(h * 0.20))
+        bx0 = cx - basket_w // 2
+        bx1 = cx + basket_w // 2
+        # 4 crown anchors per side, starting at envelope equator (cy)
+        # down to envelope mouth (cy + h*0.45). Each anchor sends one
+        # rope to a corresponding point along the basket top.
+        n_per_side = 4
+        for k in range(n_per_side):
+            u = k / (n_per_side - 1) if n_per_side > 1 else 0
+            anchor_y = cy + h * (-0.05 + u * 0.50)  # equator → mouth
+            ae = _envelope_extent_at_y(cx, cy, w, h, anchor_y)
+            if ae is None:
+                continue
+            ae_l, ae_r = ae
+            target_l = bx0 + int(u * (basket_w - 1))
+            target_r = bx1 - int(u * (basket_w - 1))
+            pygame.draw.line(surf, rope,
+                             (int(ae_l), int(anchor_y)),
+                             (target_l, basket_top_y), 1)
+            pygame.draw.line(surf, rope,
+                             (int(ae_r), int(anchor_y)),
+                             (target_r, basket_top_y), 1)
+        _draw_basket(surf, cx, basket_top_y, basket_w, basket_h,
                      weave=True, passenger=True)
 
 
@@ -900,6 +1173,11 @@ SCENES = [
     ("06_aurora",          0.78, draw_aurora),
     ("07_hot_air_balloons", 0.16, draw_hot_air_balloons),
     ("07a_balloons_paneled",   0.16, draw_balloons_paneled),
+    ("07a1_paneled_skirt",     0.16, draw_balloons_paneled_skirt),
+    ("07a2_paneled_loadring",  0.16, draw_balloons_paneled_loadring),
+    ("07a3_paneled_lattice",   0.16, draw_balloons_paneled_lattice),
+    ("07a4_paneled_throat",    0.16, draw_balloons_paneled_throat),
+    ("07a5_paneled_crown",     0.16, draw_balloons_paneled_crown),
     ("07b_balloons_glow",      0.16, draw_balloons_glow),
     ("07c_balloons_painterly", 0.16, draw_balloons_painterly),
     ("07d_balloons_festival",  0.16, draw_balloons_festival),
