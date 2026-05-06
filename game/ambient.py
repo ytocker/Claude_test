@@ -1,9 +1,10 @@
-"""Sparse ambient background scenes — distant flocks, distant fireworks, etc.
+"""Sparse ambient background scenes — distant flocks, distant fireworks,
+hot-air balloons, parrot-family flybys, and cherry-blossom drift.
 
-These are RARE punctuating events tied to biome phase (golden hour, night).
-Each event has a hard cooldown and a one-at-a-time cap so they enrich the
-world without crowding the screen. The intent: a player gets one or two
-of these per run, not a constant parade.
+These are RARE punctuating events tied to biome phase. Each event has
+a hard cooldown and a one-at-a-time cap so they enrich the world
+without crowding the screen. The intent: a player gets one or two of
+these per run, not a constant parade.
 """
 from __future__ import annotations
 
@@ -23,15 +24,20 @@ from game.config import W, H, GROUND_Y
 
 _FLOCK_PHASES = ((0.10, 0.22), (0.85, 0.95))   # golden hour + sunrise
 _FIREWORKS_PHASES = ((0.55, 0.72),)            # night
+_BALLOON_PHASES = ((0.10, 0.22),)              # golden hour
+_PARROTS_PHASES = ((0.96, 1.0), (0.0, 0.10))   # day (wraps around 0)
+_BLOSSOMS_PHASES = ((0.85, 0.95),)             # sunrise
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
+_BALLOON_COOLDOWN_S = 90.0
+_PARROTS_COOLDOWN_S = 80.0
 
-# Initial delay before the FIRST event of each kind in a run (avoids
-# popping one in the first 5 seconds while the player is still finding
-# their flap rhythm).
+# Initial delay before the FIRST event of each kind in a run.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
 _FIREWORKS_INITIAL_DELAY = (30.0, 60.0)
+_BALLOON_INITIAL_DELAY = (20.0, 40.0)
+_PARROTS_INITIAL_DELAY = (25.0, 50.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -165,21 +171,396 @@ class _Fireworks:
             surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
+# ── Hot-air balloon (paneled, 07a1 rigging style) ───────────────────────────
+
+_BALLOON_PALETTES = (
+    # panel_a, panel_b, seam
+    ((220,  60,  60), (250, 230, 200), ( 90,  50,  30)),  # red / cream
+    (( 40, 140, 200), (240, 240, 240), ( 30,  70, 110)),  # blue / white
+    ((245, 175,  80), ( 90,  60, 130), ( 90,  60,  25)),  # orange / purple
+    (( 90, 170,  90), (240, 240, 200), ( 40,  80,  30)),  # green / cream
+    ((220, 100, 180), (250, 220, 210), (110,  50,  90)),  # pink / blush
+)
+
+
+def _teardrop_polygon(cx: float, cy: float, w: float, h: float, n: int = 36):
+    """Closed polygon: rounded top, gently pinched bottom mouth."""
+    pts = []
+    rx, ry = w / 2, h / 2
+    for i in range(n):
+        ang = -math.pi / 2 + (i / n) * math.tau
+        x = math.cos(ang) * rx
+        y = math.sin(ang) * ry
+        if y > 0:
+            pinch = 1.0 - 0.62 * (y / ry) ** 2
+            x *= pinch
+        pts.append((cx + x, cy + y))
+    return pts
+
+
+def _envelope_extent_at_y(cx: float, cy: float, w: float, h: float, y: float):
+    rx, ry = w / 2, h / 2
+    dy = y - cy
+    if abs(dy) >= ry:
+        return None
+    x_ell = rx * math.sqrt(max(0.0, 1 - (dy / ry) ** 2))
+    if dy > 0:
+        x_ell *= 1.0 - 0.62 * (dy / ry) ** 2
+    return cx - x_ell, cx + x_ell
+
+
+_balloon_surface_cache: dict = {}
+
+
+def _build_balloon_surface(scale_idx: int, palette_idx: int) -> tuple:
+    """Render a paneled balloon (envelope + skirt + ropes + basket) onto a
+    SRCALPHA surface and return (surface, env_cx, env_cy) in surface-local
+    coordinates. Cached by (scale_idx, palette_idx)."""
+    key = (scale_idx, palette_idx)
+    cached = _balloon_surface_cache.get(key)
+    if cached is not None:
+        return cached
+
+    scales = (0.85, 1.0, 1.15)
+    scale = scales[scale_idx]
+    base_w, base_h = 30, 38
+    w = int(base_w * scale)
+    h = int(base_h * scale)
+    pa, pb, seam = _BALLOON_PALETTES[palette_idx]
+
+    basket_w = max(10, int(w * 0.36))
+    basket_h = max(6, int(h * 0.20))
+    rope_gap = 5
+    pad = 4
+    surf_w = max(w, basket_w) + pad * 2
+    surf_h = h + rope_gap + basket_h + pad + 2  # passenger head clearance
+    surf = pygame.Surface((surf_w, surf_h), pygame.SRCALPHA)
+
+    cx = surf_w // 2
+    cy = pad + h // 2
+
+    # Envelope — paneled multi-gore
+    outline = _teardrop_polygon(cx, cy, w, h)
+    pygame.draw.polygon(surf, pa, outline)
+    n_panels = 8
+    for i in range(n_panels):
+        if i % 2 == 0:
+            continue
+        x0 = cx - w / 2 + i * (w / n_panels)
+        x1 = cx - w / 2 + (i + 1) * (w / n_panels)
+        for y_int in range(int(cy - h / 2), int(cy + h / 2) + 1):
+            ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+            if ext is None:
+                continue
+            lx, rx_ = ext
+            dx0 = max(x0, lx)
+            dx1 = min(x1, rx_)
+            if dx1 > dx0:
+                pygame.draw.line(surf, pb,
+                                 (int(dx0), y_int), (int(dx1), y_int), 1)
+    for i in range(1, n_panels):
+        sx = cx - w / 2 + i * (w / n_panels)
+        for y_int in range(int(cy - h / 2 + 2), int(cy + h / 2 - 1)):
+            ext = _envelope_extent_at_y(cx, cy, w, h, y_int)
+            if ext is None:
+                continue
+            lx, rx_ = ext
+            if lx + 1 <= sx <= rx_ - 1:
+                surf.set_at((int(sx), y_int), seam)
+    ext = _envelope_extent_at_y(cx, cy, w, h, cy + 1)
+    if ext is not None:
+        lx, rx_ = ext
+        pygame.draw.line(surf, seam, (int(lx + 1), int(cy + 1)),
+                         (int(rx_ - 1), int(cy + 1)), 1)
+    pygame.draw.polygon(surf, seam, outline, 1)
+    # Highlight
+    hi = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.ellipse(hi, (255, 255, 255, 60),
+                        (3, 3, max(5, w // 3), max(5, h // 3)))
+    surf.blit(hi, (cx - w // 2, cy - h // 2))
+
+    # Skirt band (2-px darker stripe)
+    skirt_y = int(cy + h * 0.40)
+    skirt_color = (max(0, seam[0] - 10), max(0, seam[1] - 10), max(0, seam[2] - 10))
+    ext = _envelope_extent_at_y(cx, cy, w, h, skirt_y)
+    if ext is not None:
+        lx, rx_ = ext
+        for off in range(-1, 3):
+            pygame.draw.line(surf, skirt_color,
+                             (int(lx) + 1, skirt_y + off),
+                             (int(rx_) - 1, skirt_y + off), 1)
+
+    # Ropes — 6 fanning ropes from skirt anchors to basket-top points
+    env_bottom_y = int(cy + h / 2)
+    basket_top_y = env_bottom_y + rope_gap
+    bx0 = cx - basket_w // 2
+    bx1 = cx + basket_w // 2
+    rope = (40, 28, 18)
+    for k in range(3):
+        u = (k + 0.5) / 3
+        anchor_y = cy + h * (0.05 + u * 0.35)
+        ae = _envelope_extent_at_y(cx, cy, w, h, anchor_y)
+        if ae is None:
+            continue
+        ae_l, ae_r = ae
+        target_l = bx0 + (k * (basket_w - 1)) // 3
+        target_r = bx1 - (k * (basket_w - 1)) // 3
+        pygame.draw.line(surf, rope, (int(ae_l), int(anchor_y)),
+                         (target_l, basket_top_y), 1)
+        pygame.draw.line(surf, rope, (int(ae_r), int(anchor_y)),
+                         (target_r, basket_top_y), 1)
+
+    # Basket
+    pygame.draw.rect(surf, (130, 85, 40),
+                     (cx - basket_w // 2, basket_top_y, basket_w, basket_h))
+    pygame.draw.rect(surf, (60, 40, 20),
+                     (cx - basket_w // 2, basket_top_y, basket_w, basket_h), 1)
+    for k in range(1, 3):
+        ly = basket_top_y + basket_h * k // 3
+        pygame.draw.line(surf, (90, 60, 30),
+                         (cx - basket_w // 2 + 1, ly),
+                         (cx + basket_w // 2 - 1, ly), 1)
+    for vx in (cx - basket_w // 4, cx, cx + basket_w // 4):
+        pygame.draw.line(surf, (95, 65, 32),
+                         (vx, basket_top_y + 1),
+                         (vx, basket_top_y + basket_h - 1), 1)
+    # Passenger silhouette
+    pygame.draw.circle(surf, (35, 25, 20), (cx, basket_top_y - 2), 2)
+
+    _balloon_surface_cache[key] = (surf, cx, cy)
+    return surf, cx, cy
+
+
+class _PaneledBalloon:
+    """One paneled hot-air balloon drifting slowly leftward across the sky.
+    Pre-rendered to a cached surface; per-frame draw is a single blit."""
+    SPEED = 12.0
+    DURATION_MAX = 40.0
+
+    __slots__ = ("_surf", "_env_cx", "_env_cy", "x", "_y0",
+                 "_bob_phase", "t")
+
+    def __init__(self, rng: random.Random):
+        scale_idx = rng.randint(0, 2)
+        pal_idx = rng.randint(0, len(_BALLOON_PALETTES) - 1)
+        self._surf, self._env_cx, self._env_cy = _build_balloon_surface(
+            scale_idx, pal_idx)
+        self.x = float(W + self._surf.get_width())
+        self._y0 = rng.uniform(H * 0.22, H * 0.50)
+        self._bob_phase = rng.uniform(0, math.tau)
+        self.t = 0.0
+
+    def update(self, dt: float) -> None:
+        self.t += dt
+        self.x -= self.SPEED * dt
+
+    def is_done(self) -> bool:
+        return self.x < -self._surf.get_width() - 5 or self.t > self.DURATION_MAX
+
+    def draw(self, surf: pygame.Surface) -> None:
+        # Center of balloon envelope at (self.x, self._y0 + bob)
+        bob = math.sin(self.t * 0.55 + self._bob_phase) * 4
+        env_x = int(self.x)
+        env_y = int(self._y0 + bob)
+        surf.blit(self._surf,
+                  (env_x - self._env_cx, env_y - self._env_cy))
+
+
+# ── Parrot family flyby ──────────────────────────────────────────────────────
+
+_PARROT_BODY_PALETTE = (
+    (235,  60,  55),
+    (240, 180,  60),
+    ( 90, 170, 235),
+    ( 90, 200,  90),
+    (235, 110, 200),
+)
+
+
+class _ParrotFamily:
+    """Five small colorful parrots in a loose diagonal formation drifting
+    leftward across the sky during day phase."""
+    SPEED = 22.0
+    DURATION_MAX = 28.0
+    N_PARROTS = 5
+
+    __slots__ = ("x", "_y_top", "t", "_colors", "_offsets")
+
+    def __init__(self, rng: random.Random):
+        # Loose diagonal: each parrot is offset (-spacing_x, +spacing_y)
+        # from the previous, creating a left-sloping line.
+        sx, sy = 18, 8
+        self._offsets = tuple(
+            (i * sx, i * sy) for i in range(self.N_PARROTS)
+        )
+        colors = list(_PARROT_BODY_PALETTE)
+        rng.shuffle(colors)
+        self._colors = tuple(colors)
+        # Enter from off-screen right; pick altitude that keeps the entire
+        # diagonal in the upper half of the sky.
+        formation_h = sy * (self.N_PARROTS - 1)
+        self._y_top = rng.uniform(H * 0.20, H * 0.45 - formation_h)
+        # Position the leader off-screen right
+        self.x = float(W + 30)
+        self.t = 0.0
+
+    def update(self, dt: float) -> None:
+        self.t += dt
+        self.x -= self.SPEED * dt
+
+    def is_done(self) -> bool:
+        # Trailing parrot is the last in offsets list, at +sx*4 from leader.
+        last_x = self.x + self._offsets[-1][0]
+        return last_x < -25 or self.t > self.DURATION_MAX
+
+    def draw(self, surf: pygame.Surface) -> None:
+        # Wing flap toggle every 0.25 s
+        flap_up = (int(self.t * 4) % 2) == 0
+        for (ox, oy), color in zip(self._offsets, self._colors):
+            px = int(self.x + ox)
+            py = int(self._y_top + oy)
+            if px < -10 or px > W + 10:
+                continue
+            # Body
+            pygame.draw.ellipse(surf, color, (px - 5, py - 3, 10, 6))
+            # Wings (animated up/flat)
+            wing_dark = (max(0, color[0] - 90),
+                         max(0, color[1] - 90),
+                         max(0, color[2] - 90))
+            wing_y = py - 6 if flap_up else py - 4
+            pygame.draw.line(surf, wing_dark,
+                             (px - 4, py - 3), (px - 6, wing_y), 2)
+            pygame.draw.line(surf, wing_dark,
+                             (px + 4, py - 3), (px + 6, wing_y), 2)
+            # Beak (pointing left — direction of travel)
+            pygame.draw.polygon(surf, (240, 200, 80), [
+                (px - 5, py - 1), (px - 8, py), (px - 5, py + 1),
+            ])
+            # Eye
+            pygame.draw.circle(surf, (20, 15, 20), (px - 2, py - 1), 1)
+
+
+# ── Cherry-blossom drift ────────────────────────────────────────────────────
+
+_PETAL_COLORS = (
+    (255, 195, 215),
+    (250, 175, 200),
+    (245, 210, 225),
+    (255, 220, 230),
+)
+
+
+class _Petal:
+    __slots__ = ("x", "y", "vx", "vy", "spin", "phase", "color", "size")
+
+    def __init__(self, x, y, vx, vy, color, size):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.spin = random.uniform(0, math.tau)
+        self.phase = random.uniform(0, math.tau)
+        self.color = color
+        self.size = size
+
+    def update(self, dt: float) -> None:
+        self.phase += dt * 2.5
+        self.spin += dt * 1.6
+        self.x += (self.vx + math.sin(self.phase) * 14) * dt
+        self.y += self.vy * dt
+
+    def off_screen(self) -> bool:
+        return self.x < -10 or self.x > W + 10 or self.y > GROUND_Y
+
+    def draw(self, surf: pygame.Surface) -> None:
+        # Tilted ellipse: width modulates with cos(spin), so the petal
+        # appears to flutter as it falls.
+        sx = math.cos(self.spin)
+        rx = max(1, int(abs(sx) * self.size))
+        ry = self.size
+        pygame.draw.ellipse(surf, self.color,
+                            (int(self.x) - rx, int(self.y) - ry,
+                             rx * 2, ry * 2))
+
+
+def _blossom_intensity(phase: float) -> float:
+    """Smoothstep ramp through the sunrise window."""
+    lo, hi = _BLOSSOMS_PHASES[0]
+    if phase < lo or phase > hi:
+        return 0.0
+    t = (phase - lo) / (hi - lo)
+    # Bell curve: peak in the middle of the window, fade at edges.
+    bell = 1.0 - abs(t * 2 - 1)  # 0 at edges, 1 at center
+    return max(0.0, min(1.0, bell))
+
+
+class _CherryBlossomDrift:
+    """A continuous-but-bounded particle stream of pink petals across the
+    sky, gated by the sunrise phase window. Spawns gradually, drifts off
+    naturally as petals leave the screen."""
+    MAX_PETALS = 26
+
+    __slots__ = ("petals",)
+
+    def __init__(self):
+        self.petals: list[_Petal] = []
+
+    def update(self, dt: float, phase: float) -> None:
+        intensity = _blossom_intensity(phase)
+        target = int(intensity * self.MAX_PETALS)
+        # Top up the pool gradually
+        while len(self.petals) < target:
+            self._spawn(intensity)
+        # Tick all petals
+        for p in self.petals:
+            p.update(dt)
+        self.petals = [p for p in self.petals if not p.off_screen()]
+
+    def _spawn(self, intensity: float) -> None:
+        # Petals enter from the right or top edge, drifting left + down.
+        side = random.random()
+        if side < 0.7:
+            x = W + random.uniform(0, 40)
+            y = random.uniform(20, GROUND_Y - 80)
+        else:
+            x = random.uniform(0, W)
+            y = -random.uniform(0, 40)
+        vx = -random.uniform(28, 60)
+        vy = random.uniform(20, 50)
+        color = random.choice(_PETAL_COLORS)
+        size = random.choice((2, 2, 3, 3, 4))
+        self.petals.append(_Petal(x, y, vx, vy, color, size))
+
+    def is_done(self) -> bool:
+        # Drift is "active" as long as petals exist on screen; the controller
+        # treats it as a phase-gated continuous effect.
+        return False
+
+    def draw(self, surf: pygame.Surface) -> None:
+        for p in self.petals:
+            p.draw(surf)
+
+
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class AmbientScenes:
     """Sparse ambient event director.
 
-    One V-flock max + one fireworks set max active at any time. Each kind
-    has a phase window and a cooldown; outside the window the cooldown
-    counter pauses (no spawning until phase re-enters the window).
+    Five event types, each with its own phase window and cooldown. Hard
+    cap of one of each kind active at any time. Outside its window, an
+    event's cooldown counter pauses (no spawning until phase re-enters).
     """
 
     def __init__(self):
         self.flock: _VFlock | None = None
         self.fireworks: _Fireworks | None = None
+        self.balloon: _PaneledBalloon | None = None
+        self.parrots: _ParrotFamily | None = None
+        self.blossoms: _CherryBlossomDrift = _CherryBlossomDrift()  # always live, gated
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
+        self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
+        self._parrots_cool = random.uniform(*_PARROTS_INITIAL_DELAY)
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
@@ -209,8 +590,38 @@ class AmbientScenes:
                 self.fireworks = _Fireworks()
                 self._fireworks_cool = _FIREWORKS_COOLDOWN_S + random.uniform(-20, 40)
 
+        # ── Hot-air balloon ──
+        if self.balloon is not None:
+            self.balloon.update(dt)
+            if self.balloon.is_done():
+                self.balloon = None
+        elif self._in_window(phase, _BALLOON_PHASES):
+            self._balloon_cool -= dt
+            if self._balloon_cool <= 0:
+                self.balloon = _PaneledBalloon(random.Random())
+                self._balloon_cool = _BALLOON_COOLDOWN_S + random.uniform(-20, 40)
+
+        # ── Parrot family ──
+        if self.parrots is not None:
+            self.parrots.update(dt)
+            if self.parrots.is_done():
+                self.parrots = None
+        elif self._in_window(phase, _PARROTS_PHASES):
+            self._parrots_cool -= dt
+            if self._parrots_cool <= 0:
+                self.parrots = _ParrotFamily(random.Random())
+                self._parrots_cool = _PARROTS_COOLDOWN_S + random.uniform(-20, 40)
+
+        # ── Cherry blossoms (continuous, phase-gated) ──
+        self.blossoms.update(dt, phase)
+
     def draw(self, surf: pygame.Surface) -> None:
         if self.flock is not None:
             self.flock.draw(surf)
         if self.fireworks is not None:
             self.fireworks.draw(surf)
+        if self.balloon is not None:
+            self.balloon.draw(surf)
+        if self.parrots is not None:
+            self.parrots.draw(surf)
+        self.blossoms.draw(surf)
