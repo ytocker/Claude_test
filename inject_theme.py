@@ -110,7 +110,7 @@ NAME_OVERLAY = """
   </svg>
   <p class="ne-headline">You made it to the top 10!</p>
   <input id="name-input" type="text" inputmode="text"
-         autocapitalize="characters" autocorrect="off" autocomplete="off"
+         autocapitalize="off" autocorrect="off" autocomplete="off"
          spellcheck="false" maxlength="10"
          placeholder="TYPE YOUR NAME…"/>
   <p id="name-counter">0 / 10</p>
