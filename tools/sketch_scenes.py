@@ -1162,191 +1162,6 @@ def draw_parrot_family(surf: pygame.Surface, palette: dict) -> None:
         pygame.draw.circle(surf, (20, 15, 20), (px + 2, py - 1), 1)
 
 
-# ──────────────── 12 Rainbow ────────────────
-
-def draw_rainbow(surf: pygame.Surface, palette: dict) -> None:
-    """Soft semi-circular rainbow arc across the upper sky.
-
-    Drawn as 7 concentric arcs (ROYGBIV) with translucent blending so the
-    rainbow reads as atmospheric, not a flat decal."""
-    cx = W / 2
-    cy = GROUND_Y + 30   # below the screen so we only see the top arc
-    radius_outer = 270
-    band_w = 6
-    bands = (
-        (220,  90,  90),  # red
-        (240, 150,  70),  # orange
-        (240, 210,  90),  # yellow
-        (130, 200, 110),  # green
-        (100, 170, 230),  # blue
-        (130, 110, 220),  # indigo
-        (200, 110, 230),  # violet
-    )
-    layer = pygame.Surface((W, H), pygame.SRCALPHA)
-    # Each band drawn as a thick translucent arc + an outer thinner arc
-    # for soft edges.
-    for i, color in enumerate(bands):
-        r = radius_outer - i * band_w
-        rect = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
-        # Main band — 0..π in pygame is the top half of the circle
-        pygame.draw.arc(layer, (*color, 220), rect, 0, math.pi, band_w)
-        # Outer + inner soft edges for atmospheric blur
-        pygame.draw.arc(layer, (*color, 90),
-                        pygame.Rect(cx - r - 1, cy - r - 1, r * 2 + 2, r * 2 + 2),
-                        0, math.pi, band_w + 2)
-    surf.blit(layer, (0, 0))
-
-
-# ──────────────── 13 Sleeping village ────────────────
-
-def draw_sleeping_village(surf: pygame.Surface, palette: dict) -> None:
-    """Small cluster of cottages on a far hill with lit windows and a
-    chimney smoke wisp rising into the dusk sky."""
-    base_x = int(W * 0.50)
-    base_y = GROUND_Y - 38
-    silh = (140, 100, 70)
-    roof = (75, 50, 35)
-
-    # 4 cottages of varied size/position — sketched as small silhouettes
-    cottages = [
-        (-36, 1.15),
-        (-12, 1.45),
-        ( 12, 1.30),
-        ( 32, 1.10),
-    ]
-    win_layer = pygame.Surface((W, H), pygame.SRCALPHA)
-    for ox, scale in cottages:
-        cx = base_x + ox
-        cw = max(7, int(9 * scale))
-        ch = max(5, int(7 * scale))
-        body_top = base_y - ch
-        # Body
-        pygame.draw.rect(surf, silh, (cx - cw // 2, body_top, cw, ch))
-        # Pitched roof
-        roof_h = max(3, int(4 * scale))
-        pygame.draw.polygon(surf, roof, [
-            (cx - cw // 2 - 1, body_top),
-            (cx + cw // 2 + 1, body_top),
-            (cx, body_top - roof_h),
-        ])
-        # Lit windows — two small warm squares
-        for wx_off in (-cw // 4, cw // 4):
-            wy = body_top + ch // 2
-            pygame.draw.rect(surf, (240, 210, 110),
-                             (cx + wx_off - 1, wy - 1, 2, 2))
-            # Bloom
-            pygame.draw.circle(win_layer, (255, 220, 130, 70),
-                               (cx + wx_off, wy), 4)
-    surf.blit(win_layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-
-    # Chimney smoke from one cottage
-    smoke_x = base_x + 7
-    smoke_top_y = base_y - 14   # roof tip
-    smoke_layer = pygame.Surface((W, H), pygame.SRCALPHA)
-    for k in range(9):
-        u = k / 8.0
-        sy = int(smoke_top_y - u * 38)
-        sx_off = math.sin(u * 3.2) * 4
-        a = int(110 - u * 90)
-        if a <= 4:
-            continue
-        r = 2 + int(u * 3)
-        pygame.draw.circle(smoke_layer, (200, 200, 215, a),
-                           (smoke_x + int(sx_off), sy), r)
-    surf.blit(smoke_layer, (0, 0))
-
-    # Soft warm halo over the whole village (cosy glow). Small RGB
-    # values at full alpha so additive contribution stays subtle and
-    # doesn't saturate the cottage silhouettes to white.
-    halo = pygame.Surface((W, H), pygame.SRCALPHA)
-    pygame.draw.ellipse(halo, (35, 22,  8, 255),
-                        (base_x - 52, base_y - 30, 104, 38))
-    pygame.draw.ellipse(halo, (50, 32, 12, 255),
-                        (base_x - 36, base_y - 24, 72,  30))
-    surf.blit(halo, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-
-
-# ──────────────── 14 Pagoda + paper lanterns (elaborate) ────────────────
-
-def draw_pagoda_lanterns_full(surf: pygame.Surface, palette: dict) -> None:
-    """Multi-tier pagoda silhouette with lanterns hanging on each eave
-    plus a column of rising lanterns drifting up into the night sky."""
-    pag_x = int(W * 0.50)
-    pag_y = GROUND_Y - 22
-    silh = (90, 60, 80)        # lighter so the pagoda reads against night sky
-    eave_hi = (160, 110, 130)  # subtle moonlight on the eave fronts
-
-    # Three tiers: each is a body rect + a wider eave trapezoid above it.
-    # Drawn from bottom to top — proportions enlarged ~70 % vs the smaller
-    # 09_paper_lanterns variant.
-    tiers = [
-        # body_w, body_h, eave_extra_w, eave_h
-        (28, 22,  7, 4),   # ground floor
-        (20, 10,  6, 3),   # mid
-        (14,  8,  5, 3),   # top
-    ]
-    cur_y = pag_y
-    eave_anchors = []  # (left_x, right_x, anchor_y) for hanging lanterns
-    for body_w, body_h, eave_extra, eave_h in tiers:
-        # Body
-        pygame.draw.rect(surf, silh,
-                         (pag_x - body_w // 2, cur_y - body_h, body_w, body_h))
-        # Eave — wider trapezoid sitting on top of the body
-        eave_top_w = body_w
-        eave_bot_w = body_w + eave_extra * 2
-        eave_bot_y = cur_y - body_h
-        eave_top_y = eave_bot_y - eave_h
-        pygame.draw.polygon(surf, silh, [
-            (pag_x - eave_bot_w // 2, eave_bot_y),
-            (pag_x + eave_bot_w // 2, eave_bot_y),
-            (pag_x + eave_top_w // 2, eave_top_y),
-            (pag_x - eave_top_w // 2, eave_top_y),
-        ])
-        # Eave front-edge highlight
-        pygame.draw.line(surf, eave_hi,
-                         (pag_x - eave_bot_w // 2 + 1, eave_bot_y),
-                         (pag_x + eave_bot_w // 2 - 1, eave_bot_y), 1)
-        eave_anchors.append((pag_x - eave_bot_w // 2, pag_x + eave_bot_w // 2,
-                             eave_bot_y))
-        cur_y = eave_top_y
-    # Spire on top
-    pygame.draw.line(surf, silh, (pag_x, cur_y), (pag_x, cur_y - 8), 2)
-    pygame.draw.circle(surf, silh, (pag_x, cur_y - 9), 2)
-
-    layer = pygame.Surface((W, H), pygame.SRCALPHA)
-
-    # Hanging lanterns on each eave (corners only)
-    for lx, rx, ay in eave_anchors:
-        for ax in (lx + 1, rx - 1):
-            # Hanging string
-            pygame.draw.line(surf, silh, (ax, ay), (ax, ay + 3), 1)
-            lan_y = ay + 6
-            # Lantern body — small warm rectangle
-            pygame.draw.rect(layer, (255, 180, 100, 235),
-                             (ax - 2, lan_y - 2, 4, 4))
-            # Bloom
-            pygame.draw.circle(layer, (255, 200, 130, 100), (ax, lan_y), 5)
-            pygame.draw.circle(layer, (255, 230, 160, 50), (ax, lan_y), 9)
-
-    # Rising lanterns — denser column drifting up and outward
-    rnd = random.Random(914)
-    n_rising = 16
-    for i in range(n_rising):
-        u = i / max(1, n_rising - 1)
-        drift = rnd.uniform(-1, 1) * (8 + u * 70)
-        lx = pag_x + drift + rnd.uniform(-3, 3)
-        ly = (pag_y - 38) - u * 240 + rnd.uniform(-5, 5)
-        warm = (255, 190, 110)
-        pygame.draw.rect(layer, (*warm, max(150, 230 - int(u * 80))),
-                         (int(lx) - 1, int(ly) - 2, 3, 4))
-        pygame.draw.circle(layer, (255, 200, 130, max(40, 100 - int(u * 50))),
-                           (int(lx), int(ly)), 5)
-        pygame.draw.circle(layer, (255, 220, 160, max(20, 60 - int(u * 30))),
-                           (int(lx), int(ly)), 8)
-
-    surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-
-
 # ──────────────── 15 Campfire camp ────────────────
 
 def draw_campfire(surf: pygame.Surface, palette: dict) -> None:
@@ -1414,90 +1229,31 @@ def draw_campfire(surf: pygame.Surface, palette: dict) -> None:
         pygame.draw.circle(spark_layer, col, (sx, sy), 1)
     surf.blit(spark_layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
-    # Warm firelight halo — dim additive (small RGB values per pixel) so
-    # it tints the surrounding ground/tent with firelight without
-    # saturating to white.
-    halo = pygame.Surface((W, H), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (60, 30, 12, 255), (cx, base_y - 4), 28)
-    pygame.draw.circle(halo, (90, 45, 18, 255), (cx, base_y - 4), 18)
-    pygame.draw.circle(halo, (130, 60, 25, 255), (cx, base_y - 4), 10)
-    surf.blit(halo, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    # Warm firelight halo — smooth radial gradient (not concentric
+    # circles). Built per-pixel: distance from the fire centre is
+    # mapped through a quadratic falloff to RGB intensity, then blitted
+    # additively so the small per-pixel RGB values just tint the
+    # surrounding ground/tent without saturating to white.
+    halo_radius = 30
+    halo_size = halo_radius * 2 + 2
+    halo = pygame.Surface((halo_size, halo_size), pygame.SRCALPHA)
+    hcx = hcy = halo_size // 2
+    peak = (160, 80, 32)   # max additive contribution at the fire centre
+    for y in range(halo_size):
+        for x in range(halo_size):
+            d = math.hypot(x - hcx, y - hcy)
+            if d > halo_radius:
+                continue
+            u = d / halo_radius                    # 0 centre → 1 edge
+            intensity = (1.0 - u) ** 2.4           # smooth quadratic
+            r = int(peak[0] * intensity)
+            g = int(peak[1] * intensity)
+            b = int(peak[2] * intensity)
+            if r + g + b > 0:
+                halo.set_at((x, y), (r, g, b, 255))
+    halo_rect = halo.get_rect(center=(cx, base_y - 4))
+    surf.blit(halo, halo_rect.topleft, special_flags=pygame.BLEND_RGB_ADD)
 
-
-# ──────────────── 16 Pip's reflection in a still lake ────────────────
-
-def draw_lake_reflection(surf: pygame.Surface, palette: dict) -> None:
-    """Replace the foreground ground band with a still lake. A small
-    upside-down red parrot silhouette sits in the water near the centre
-    with concentric ripple rings. Sunset palette so the water glows
-    warm with horizontal highlight banding."""
-    water_top = GROUND_Y - 50
-    water_bot = H
-
-    # Water gradient — top glows with the warm horizon, deepening to a
-    # cooler blue at the bottom.
-    horizon = palette.get('sky_bot', (190, 130, 100))
-    deep = (
-        max(0, horizon[0] - 90),
-        max(0, horizon[1] - 80),
-        max(0, horizon[2] - 40),
-    )
-    water = pygame.Surface((W, water_bot - water_top))
-    for y in range(water_bot - water_top):
-        u = y / max(1, water_bot - water_top - 1)
-        r = int(horizon[0] * (1 - u) + deep[0] * u)
-        g = int(horizon[1] * (1 - u) + deep[1] * u)
-        b = int(horizon[2] * (1 - u) + deep[2] * u)
-        pygame.draw.line(water, (r, g, b), (0, y), (W, y))
-    surf.blit(water, (0, water_top))
-
-    # Horizontal highlight bands
-    bands = pygame.Surface((W, H), pygame.SRCALPHA)
-    for i in range(7):
-        y = water_top + 4 + i * 5
-        if y >= H:
-            break
-        a = max(20, 90 - i * 10)
-        pygame.draw.line(bands, (255, 240, 210, a), (0, y), (W, y), 1)
-    surf.blit(bands, (0, 0))
-
-    # Pip's reflection — small upside-down silhouette placed near centre.
-    # Body is a flattened ellipse, faint wing accent below it (closer to
-    # the bottom because upside-down), and a small beak pointing left.
-    pip_x = int(W * 0.30)
-    pip_y = water_top + 28
-    refl = pygame.Surface((W, H), pygame.SRCALPHA)
-    # Body — slightly translucent so it reads as a reflection
-    pygame.draw.ellipse(refl, (190,  55,  55, 200),
-                        (pip_x - 9, pip_y - 4, 18, 8))
-    # Eye
-    pygame.draw.circle(refl, (10, 8, 8, 220), (pip_x - 4, pip_y + 1), 1)
-    # Wing (now LOWER because mirrored)
-    pygame.draw.line(refl, (130,  35,  35, 220),
-                     (pip_x - 4, pip_y + 2), (pip_x - 8, pip_y + 5), 2)
-    # Beak — yellow, pointing left (since flipped)
-    pygame.draw.polygon(refl, (235, 195,  80, 200), [
-        (pip_x - 8, pip_y + 1),
-        (pip_x - 12, pip_y),
-        (pip_x - 8, pip_y - 1),
-    ])
-    # Tail (upside-down: extends to the right and downward in mirror)
-    pygame.draw.line(refl, (160,  40,  40, 200),
-                     (pip_x + 7, pip_y), (pip_x + 11, pip_y + 3), 2)
-
-    # Subtle distortion: smear the reflection vertically by drawing the
-    # same shapes again 1-2 px down with reduced alpha (water shimmer).
-    refl_blurred = refl.copy()
-    refl_blurred.set_alpha(80)
-    surf.blit(refl_blurred, (0, 2))
-    surf.blit(refl, (0, 0))
-
-    # Concentric ripple rings around the reflection
-    rings = pygame.Surface((W, H), pygame.SRCALPHA)
-    for r, a in ((9, 90), (15, 60), (22, 35)):
-        rect = pygame.Rect(pip_x - r, pip_y - r // 3, r * 2, max(2, r // 2))
-        pygame.draw.ellipse(rings, (255, 255, 255, a), rect, 1)
-    surf.blit(rings, (0, 0))
 
 
 # ──────────────── Driver ────────────────
@@ -1524,11 +1280,7 @@ SCENES = [
     ("09_paper_lanterns",  0.60, draw_paper_lanterns),
     ("10_cherry_blossoms", 0.92, draw_cherry_blossoms),
     ("11_parrot_family",   0.08, draw_parrot_family),
-    ("12_rainbow",                0.32, draw_rainbow),
-    ("13_sleeping_village",       0.42, draw_sleeping_village),
-    ("14_pagoda_lanterns_full",   0.60, draw_pagoda_lanterns_full),
     ("15_campfire_camp",          0.62, draw_campfire),
-    ("16_lake_reflection",        0.30, draw_lake_reflection),
 ]
 
 
