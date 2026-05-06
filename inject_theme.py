@@ -1074,17 +1074,19 @@ html = html.replace("</body>", INJECTION + "</body>", 1)
 # diagnose issues. Inert (display:none, no listeners trigger) on normal
 # loads — only the IIFE's own existence cost. Enabled by visiting:
 #   https://ytocker.github.io/skybit/?debug=1
+# Panel is HIDDEN during gameplay and only shows once the name-entry overlay
+# opens, so the user can actually play to reach top-10 first.
 DEBUG_INJECTION = """
 <div id="skybit-debug"></div>
 <style>
 #skybit-debug {
     position: fixed; top: 0; left: 0; right: 0;
     background: rgba(0, 0, 0, 0.92); color: #0f0;
-    font: 10px/1.25 ui-monospace, Menlo, Consolas, monospace;
-    padding: 4px 6px; z-index: 2147483646;
+    font: 9px/1.2 ui-monospace, Menlo, Consolas, monospace;
+    padding: 3px 5px; z-index: 2147483646;
     white-space: pre-wrap; pointer-events: none;
     display: none;
-    max-height: 50vh; overflow: hidden;
+    height: 160px; overflow: hidden;
 }
 </style>
 <script>
@@ -1092,7 +1094,6 @@ DEBUG_INJECTION = """
     if (!/[?&]debug=1\\b/.test(location.search)) return;
     var el = document.getElementById('skybit-debug');
     if (!el) return;
-    el.style.display = 'block';
     var lines = [];
     var t0 = Date.now();
     function fmt(x) {
@@ -1108,11 +1109,11 @@ DEBUG_INJECTION = """
     function log(msg) {
         var t = Date.now() - t0;
         lines.push(pad(t) + ' ' + msg);
-        if (lines.length > 24) lines.shift();
+        if (lines.length > 14) lines.shift();
         el.textContent = lines.join('\\n');
     }
     log('debug ON');
-    log('ua=' + (navigator.userAgent || '').slice(0, 60));
+    log('ua=' + (navigator.userAgent || '').slice(0, 50));
     document.addEventListener('focusin', function (e) {
         log('focusin ' + fmt(e.target));
     }, true);
@@ -1152,6 +1153,13 @@ DEBUG_INJECTION = """
             lastOverlay = os;
             log('overlay=' + os);
         }
+        // Show panel only when the name overlay is open (so the user
+        // can actually play to reach top-10 first; debug history is
+        // still being captured continuously during gameplay).
+        var shouldShow = (os === 'flex');
+        var isShown = (el.style.display === 'block');
+        if (shouldShow && !isShown) el.style.display = 'block';
+        else if (!shouldShow && isShown) el.style.display = 'none';
     }, 250);
 }());
 </script>
