@@ -696,30 +696,6 @@ body   { background: #0d0820 !important; }
        button. */
     var _lastPointerDownTargetId = null;
 
-    /* iOS soft-keyboard fix: pygbag/SDL calls canvas.focus() in
-       response to internal events (resize from soft-keyboard
-       appearance, animation-frame ticks, SDL state transitions).
-       When that fires after the user taps the name input on iPhone,
-       the canvas grabs focus, the input blurs, and iOS dismisses the
-       soft keyboard — every tap. While the overlay is open, replace
-       canvas.focus with a no-op so any pygbag attempt to grab focus
-       is silently dropped. Restored on every overlay-close path. */
-    var _canvasFocusBackup = null;
-    function _suppressCanvasFocus() {
-        var cv = document.getElementById('canvas');
-        if (cv && _canvasFocusBackup === null) {
-            _canvasFocusBackup = cv.focus;
-            cv.focus = function () { /* suppressed while name overlay is open */ };
-        }
-    }
-    function _restoreCanvasFocus() {
-        var cv = document.getElementById('canvas');
-        if (cv && _canvasFocusBackup !== null) {
-            cv.focus = _canvasFocusBackup;
-            _canvasFocusBackup = null;
-        }
-    }
-
     /* SDL shield. SDL2's Emscripten port (used by pygbag) listens on
        window for keyboard events (keydown / keyup / keypress) AND for
        mouse + touch events (mousedown / mouseup / touchstart / touchend
@@ -768,7 +744,6 @@ body   { background: #0d0820 !important; }
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             document.getElementById('name-overlay').style.display = 'none';
-            _restoreCanvasFocus();
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
@@ -826,53 +801,16 @@ body   { background: #0d0820 !important; }
         }
 
         ov.style.display = 'flex';
-        _suppressCanvasFocus();
         inp.value = '';
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
-        /* iOS branch: HTML <input> inside our overlay cannot reliably
-           hold focus on iPhone — pygbag/SDL keeps stealing focus to
-           the canvas and iOS dismisses the soft keyboard the moment
-           it appears. Multiple shield/defense attempts (event capture,
-           canvas.focus override, position swaps) did not work. Use
-           the NATIVE prompt() dialog instead — it has its own
-           keyboard context that pygbag/SDL cannot interfere with.
-           prompt() requires a user gesture on iOS Safari, so we
-           trigger it from the SUBMIT button's onclick (tap = gesture)
-           rather than calling it directly here. */
-        var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
-                     ((navigator.platform === 'MacIntel') &&
-                      (navigator.maxTouchPoints || 0) > 1);
-        var sub = document.getElementById('name-submit');
-        var skp = document.getElementById('name-skip');
-
-        if (_isIOS) {
-            inp.style.display = 'none';
-            if (ctr) ctr.style.display = 'none';
-            sub.textContent = 'TAP TO TYPE NAME';
-            sub.onclick = function () {
-                var n;
-                try {
-                    n = window.prompt('You made it to the top 10!\nEnter your name (max 10 characters):', '');
-                } catch (_) { n = null; }
-                if (n === null) return;          // canceled — keep overlay open
-                n = String(n).replace(/\s+/g, ' ').trim().slice(0, 10);
-                if (!n) return;                  // empty — keep overlay open
-                window._pendingName = n;
-                ov.style.display = 'none';
-                _restoreCanvasFocus();
-            };
-            skp.onclick = function () {
-                window._pendingName = '__skip__';
-                ov.style.display = 'none';
-                _restoreCanvasFocus();
-            };
-            return;
-        }
-
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. */
+           (or readies the cursor) without further user action. iOS
+           Safari blocks focus() outside a real user gesture, so this
+           call is a no-op there — the document-level pointerdown
+           listener above handles iOS by re-focusing the input
+           synchronously inside the player's tap. */
         setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
         /* Counter-only handler. We deliberately do NOT shield input /
@@ -889,14 +827,12 @@ body   { background: #0d0820 !important; }
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             ov.style.display = 'none';
-            _restoreCanvasFocus();
         }
-        sub.onclick = submit;
-        skp.onclick = function () {
+        document.getElementById('name-submit').onclick = submit;
+        document.getElementById('name-skip').onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
-            _restoreCanvasFocus();
         };
         // Enter / Escape are handled by the global capture-phase listener
         // above, since SDL would otherwise eat the input's own keydown.
