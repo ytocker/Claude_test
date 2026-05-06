@@ -805,39 +805,12 @@ body   { background: #0d0820 !important; }
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
-        /* iOS: the HTML <input> + pygbag soft-keyboard combo is
-           reliably broken on iPhone — the input cannot hold focus, so
-           the keyboard pops up and immediately dismisses. Multiple
-           fix attempts (event shielding, canvas.focus override,
-           position swaps, native prompt() fallback) did not resolve
-           it. To unblock iPhone players: hide the input + counter,
-           change the SUBMIT button into a single "OK — RECORD AS
-           PILOT" tap, and auto-submit with a default name so the
-           player still appears on the leaderboard. SKIP behaves the
-           same as elsewhere. */
-        var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
-                     ((navigator.platform === 'MacIntel') &&
-                      (navigator.maxTouchPoints || 0) > 1);
-        var sub = document.getElementById('name-submit');
-        var skp = document.getElementById('name-skip');
-
-        if (_isIOS) {
-            inp.style.display = 'none';
-            if (ctr) ctr.style.display = 'none';
-            sub.textContent = 'OK';
-            sub.onclick = function () {
-                window._pendingName = 'PILOT';
-                ov.style.display = 'none';
-            };
-            skp.onclick = function () {
-                window._pendingName = '__skip__';
-                ov.style.display = 'none';
-            };
-            return;
-        }
-
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. */
+           (or readies the cursor) without further user action. iOS
+           Safari blocks focus() outside a real user gesture, so this
+           call is a no-op there — the document-level pointerdown
+           listener above handles iOS by re-focusing the input
+           synchronously inside the player's tap. */
         setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
         /* Counter-only handler. We deliberately do NOT shield input /
