@@ -831,12 +831,48 @@ body   { background: #0d0820 !important; }
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
+        /* iOS branch: HTML <input> inside our overlay cannot reliably
+           hold focus on iPhone — pygbag/SDL keeps stealing focus to
+           the canvas and iOS dismisses the soft keyboard the moment
+           it appears. Multiple shield/defense attempts (event capture,
+           canvas.focus override, position swaps) did not work. Use
+           the NATIVE prompt() dialog instead — it has its own
+           keyboard context that pygbag/SDL cannot interfere with.
+           prompt() requires a user gesture on iOS Safari, so we
+           trigger it from the SUBMIT button's onclick (tap = gesture)
+           rather than calling it directly here. */
+        var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+                     ((navigator.platform === 'MacIntel') &&
+                      (navigator.maxTouchPoints || 0) > 1);
+        var sub = document.getElementById('name-submit');
+        var skp = document.getElementById('name-skip');
+
+        if (_isIOS) {
+            inp.style.display = 'none';
+            if (ctr) ctr.style.display = 'none';
+            sub.textContent = 'TAP TO TYPE NAME';
+            sub.onclick = function () {
+                var n;
+                try {
+                    n = window.prompt('You made it to the top 10!\nEnter your name (max 10 characters):', '');
+                } catch (_) { n = null; }
+                if (n === null) return;          // canceled — keep overlay open
+                n = String(n).replace(/\s+/g, ' ').trim().slice(0, 10);
+                if (!n) return;                  // empty — keep overlay open
+                window._pendingName = n;
+                ov.style.display = 'none';
+                _restoreCanvasFocus();
+            };
+            skp.onclick = function () {
+                window._pendingName = '__skip__';
+                ov.style.display = 'none';
+                _restoreCanvasFocus();
+            };
+            return;
+        }
+
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. iOS
-           Safari blocks focus() outside a real user gesture, so this
-           call is a no-op there — the document-level pointerdown
-           listener above handles iOS by re-focusing the input
-           synchronously inside the player's tap. */
+           (or readies the cursor) without further user action. */
         setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
         /* Counter-only handler. We deliberately do NOT shield input /
@@ -855,8 +891,8 @@ body   { background: #0d0820 !important; }
             ov.style.display = 'none';
             _restoreCanvasFocus();
         }
-        document.getElementById('name-submit').onclick = submit;
-        document.getElementById('name-skip').onclick = function () {
+        sub.onclick = submit;
+        skp.onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
