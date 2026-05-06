@@ -1068,6 +1068,96 @@ body   { background: #0d0820 !important; }
 """
 html = html.replace("</body>", INJECTION + "</body>", 1)
 
+# ── On-page debug overlay (only active when URL has ?debug=1) ──────────────
+# Captures focus / blur / pointerdown / viewport events and displays them on
+# the page itself, so iPhone users without Safari Web Inspector access can
+# diagnose issues. Inert (display:none, no listeners trigger) on normal
+# loads — only the IIFE's own existence cost. Enabled by visiting:
+#   https://ytocker.github.io/skybit/?debug=1
+DEBUG_INJECTION = """
+<div id="skybit-debug"></div>
+<style>
+#skybit-debug {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: rgba(0, 0, 0, 0.92); color: #0f0;
+    font: 10px/1.25 ui-monospace, Menlo, Consolas, monospace;
+    padding: 4px 6px; z-index: 2147483646;
+    white-space: pre-wrap; pointer-events: none;
+    display: none;
+    max-height: 50vh; overflow: hidden;
+}
+</style>
+<script>
+(function () {
+    if (!/[?&]debug=1\\b/.test(location.search)) return;
+    var el = document.getElementById('skybit-debug');
+    if (!el) return;
+    el.style.display = 'block';
+    var lines = [];
+    var t0 = Date.now();
+    function fmt(x) {
+        if (!x) return 'null';
+        var name = x.tagName || x.nodeName || '?';
+        return x.id ? name + '#' + x.id : name;
+    }
+    function pad(n) {
+        var s = '' + n;
+        while (s.length < 5) s = '0' + s;
+        return s;
+    }
+    function log(msg) {
+        var t = Date.now() - t0;
+        lines.push(pad(t) + ' ' + msg);
+        if (lines.length > 24) lines.shift();
+        el.textContent = lines.join('\\n');
+    }
+    log('debug ON');
+    log('ua=' + (navigator.userAgent || '').slice(0, 60));
+    document.addEventListener('focusin', function (e) {
+        log('focusin ' + fmt(e.target));
+    }, true);
+    document.addEventListener('focusout', function (e) {
+        log('focusout ' + fmt(e.target) + ' -> ' + fmt(e.relatedTarget) +
+            ' active=' + fmt(document.activeElement));
+    }, true);
+    document.addEventListener('pointerdown', function (e) {
+        log('pdown ' + fmt(e.target));
+    }, true);
+    document.addEventListener('touchstart', function (e) {
+        log('tstart ' + fmt(e.target));
+    }, true);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', function () {
+            log('vvport h=' + Math.round(window.visualViewport.height) +
+                ' top=' + Math.round(window.visualViewport.offsetTop));
+        });
+    }
+    window.addEventListener('resize', function () {
+        log('win h=' + window.innerHeight);
+    });
+    window.addEventListener('error', function (e) {
+        log('ERR ' + ((e && e.message) || '?').slice(0, 80));
+    });
+    var lastActive = '', lastOverlay = '';
+    setInterval(function () {
+        var a = document.activeElement;
+        var fa = fmt(a);
+        if (fa !== lastActive) {
+            lastActive = fa;
+            log('active=' + fa);
+        }
+        var ov = document.getElementById('name-overlay');
+        var os = ov ? (ov.style.display || 'none') : '-';
+        if (os !== lastOverlay) {
+            lastOverlay = os;
+            log('overlay=' + os);
+        }
+    }, 250);
+}());
+</script>
+"""
+html = html.replace("</body>", DEBUG_INJECTION + "</body>", 1)
+
 html = html.replace("__SB_URL__", _SB_URL)
 html = html.replace("__SB_KEY__", _SB_KEY)
 
