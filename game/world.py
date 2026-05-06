@@ -312,8 +312,11 @@ class World:
         sdt = dt * world_scale
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
-        # Ambient scenes (V-flocks, fireworks) — sparse, phase-gated.
-        self.ambient.update(sdt, self.biome_phase, self.biome_palette)
+        # Ambient scenes (V-flocks, fireworks, balloon, parrots, blossoms,
+        # campfire) — sparse, phase-gated. Campfire uses bg_scroll to ride
+        # the foreground parallax layer so it reads as world scenery.
+        self.ambient.update(sdt, self.biome_phase, self.biome_palette,
+                            self.bg_scroll)
 
         # While the "get ready" prompt is up, hold everything still except
         # a tiny idle animation on the bird. The freeze waits indefinitely
@@ -447,8 +450,9 @@ class World:
         logic — used by the Menu scene to keep visuals alive."""
         self.biome_time += dt
         self.weather.update(dt, self.biome_phase)
-        self.ambient.update(dt, self.biome_phase, self.biome_palette)
         self.bg_scroll += SCROLL_BASE * 0.5 * dt
+        self.ambient.update(dt, self.biome_phase, self.biome_palette,
+                            self.bg_scroll)
         for p in self.pipes:
             p.x -= SCROLL_BASE * 0.25 * dt
         for c in self.coins:

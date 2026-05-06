@@ -18,7 +18,7 @@ pygame.display.set_mode((1, 1))
 import imageio.v2 as imageio
 import numpy as np
 
-from game.config import W, H, GROUND_Y
+from game.config import W, H, GROUND_Y, SCROLL_BASE
 from game.world import World
 from game import biome as _biome
 from game.draw import (
@@ -103,9 +103,12 @@ def render_event_clip(slug: str, phase: float, duration_s: float,
     try:
         for _ in range(n_frames):
             world.biome_time = _phase_to_time(phase)  # pin the sky
-            # Step ambient controller manually (don't update entire world
-            # so the bird/pillars don't move and distract).
-            world.ambient.update(dt, world.biome_phase, world.biome_palette)
+            # Advance bg_scroll like the running game does so foreground
+            # parallax layers (and the world-anchored campfire) actually
+            # scroll across the screen.
+            world.bg_scroll += SCROLL_BASE * dt
+            world.ambient.update(dt, world.biome_phase, world.biome_palette,
+                                 world.bg_scroll)
 
             surf = pygame.Surface((W, H))
             _draw_backdrop(surf, world)
@@ -147,13 +150,13 @@ def setup_blossoms(world: World) -> None:
 
 def setup_campfire(world: World) -> None:
     fire = A._Campfire(random.Random(11))
-    # Start partway across so the clip captures it mid-drift, not just
-    # the right-edge entry.
-    fire.x = float(W * 0.85)
+    # Start the campfire just inside the right edge so it's visible from
+    # frame 1 and scrolls leftward across the screen.
+    fire.x = float(W * 0.95)
     world.ambient.campfire = fire
-    # Pre-tick spark physics so the clip opens with sparks already active.
+    # Pre-tick sparks so the clip opens with sparks already rising.
     for _ in range(40):
-        fire.update(1 / 30)
+        fire.update(1 / 30, world.bg_scroll)
 
 
 CLIPS = [

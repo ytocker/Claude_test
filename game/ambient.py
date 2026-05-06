@@ -647,18 +647,20 @@ _SPARK_COLORS = (
 
 
 class _Campfire:
-    """Night-time campsite (tent + flickering fire + sparks + warm halo)
-    drifting calmly leftward across the foothills.
+    """Night-time campsite (tent + flickering fire + sparks + warm halo).
 
-    Halo and tent are baked into shared cached surfaces; the flame
-    flickers via two summed sine waves and sparks are simulated as a
-    small particle pool that rises and fades."""
-    SPEED = 16.0          # slow horizontal drift, similar to mountains
-    DURATION_MAX = 35.0
+    Anchored to the world rather than drifting on its own — the campfire
+    is a piece of scenery the bird passes by. It scrolls at 0.7× the
+    background scroll rate, matching the foreground grass-blade texture
+    (see `draw_ground` in game/draw.py), so it visually sits on the same
+    plane as the ground."""
+    SCROLL_MULT = 0.7
+    DURATION_MAX = 60.0
     SPARK_INTERVAL = 0.10
     SPARK_CAP = 14
 
-    __slots__ = ("x", "y", "t", "_sparks", "_spark_t", "_flicker_seed")
+    __slots__ = ("x", "y", "t", "_sparks", "_spark_t",
+                 "_flicker_seed", "_prev_bg")
 
     def __init__(self, rng: random.Random):
         self.x = float(W + 20)
@@ -667,14 +669,20 @@ class _Campfire:
         self._sparks: list = []
         self._spark_t = 0.0
         self._flicker_seed = rng.uniform(0, math.tau)
+        self._prev_bg: float | None = None
         # Warm up caches the first time a campfire spawns
         _build_campfire_halo()
         _get_campfire_solid()
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, bg_scroll: float) -> None:
+        # World-anchored motion: x decreases by the change in bg_scroll
+        # since the previous tick (scaled by parallax multiplier).
+        if self._prev_bg is not None:
+            self.x -= (bg_scroll - self._prev_bg) * self.SCROLL_MULT
+        self._prev_bg = bg_scroll
+
         self.t += dt
-        self.x -= self.SPEED * dt
-        # Spark physics (tuple [rx, ry, vx, vy, life, color])
+        # Spark physics
         new = []
         for s in self._sparks:
             s[0] += s[2] * dt
@@ -766,7 +774,8 @@ class AmbientScenes:
     def _in_window(phase: float, windows) -> bool:
         return any(lo <= phase <= hi for lo, hi in windows)
 
-    def update(self, dt: float, phase: float, palette: dict) -> None:
+    def update(self, dt: float, phase: float, palette: dict,
+               bg_scroll: float) -> None:
         # ── V-flock ──
         if self.flock is not None:
             self.flock.update(dt)
@@ -814,7 +823,7 @@ class AmbientScenes:
 
         # ── Campfire ──
         if self.campfire is not None:
-            self.campfire.update(dt)
+            self.campfire.update(dt, bg_scroll)
             if self.campfire.is_done():
                 self.campfire = None
         elif self._in_window(phase, _CAMPFIRE_PHASES):
