@@ -265,15 +265,237 @@ def draw_aurora(surf: pygame.Surface, palette: dict) -> None:
     surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
+def draw_hot_air_balloons(surf: pygame.Surface, palette: dict) -> None:
+    """Three colorful hot-air balloons drifting at mid-distance."""
+    rnd = random.Random(303)
+    # (cx, cy, scale, body_color, accent_color)
+    balloons = [
+        (W * 0.20, H * 0.30, 1.10, (235,  90,  90), (250, 220, 100)),
+        (W * 0.55, H * 0.42, 0.90, (110, 170, 230), (240, 240, 240)),
+        (W * 0.83, H * 0.22, 0.80, (245, 175,  80), (180,  90, 150)),
+    ]
+    for cx, cy, sc, body, accent in balloons:
+        cx, cy = int(cx), int(cy)
+        bw = int(28 * sc)
+        bh = int(34 * sc)
+        # Envelope (teardrop-ish)
+        env = pygame.Rect(cx - bw // 2, cy - bh // 2, bw, bh)
+        pygame.draw.ellipse(surf, body, env)
+        # Vertical accent stripe
+        stripe = pygame.Rect(cx - 2, env.top, 4, bh)
+        pygame.draw.rect(surf, accent, stripe)
+        # Horizontal accent band near bottom of envelope
+        band = pygame.Rect(env.left + 2, env.bottom - int(6 * sc), bw - 4, max(2, int(3 * sc)))
+        pygame.draw.rect(surf, accent, band)
+        # Highlight on the upper-left of the envelope
+        hi = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        pygame.draw.ellipse(hi, (255, 255, 255, 60),
+                            (3, 3, max(4, bw // 2 - 4), max(4, bh // 2 - 4)))
+        surf.blit(hi, env.topleft)
+        # Ropes
+        rope_color = (40, 30, 20)
+        bx = env.left + 4
+        by = env.bottom
+        bx2 = env.right - 4
+        basket_top = env.bottom + int(7 * sc)
+        basket_w = int(11 * sc)
+        basket_h = int(7 * sc)
+        basket_x = cx - basket_w // 2
+        pygame.draw.line(surf, rope_color, (bx, by), (basket_x + 1, basket_top), 1)
+        pygame.draw.line(surf, rope_color, (bx2, by), (basket_x + basket_w - 1, basket_top), 1)
+        # Basket
+        pygame.draw.rect(surf, (110, 70, 35),
+                         (basket_x, basket_top, basket_w, basket_h))
+        pygame.draw.rect(surf, (70, 45, 22),
+                         (basket_x, basket_top, basket_w, basket_h), 1)
+
+
+def draw_windmill(surf: pygame.Surface, palette: dict) -> None:
+    """Silhouetted windmill on a far hill with 4-blade sails."""
+    # Sit on the silhouette of the near mountain — match its color slightly darker.
+    near = palette.get('mtn_near', (90, 90, 110))
+    silhouette = (max(0, near[0] - 35),
+                  max(0, near[1] - 35),
+                  max(0, near[2] - 35))
+
+    base_x = int(W * 0.32)
+    base_y = GROUND_Y - 22
+    # Trapezoidal tower (wider at base)
+    tower = [
+        (base_x - 10, base_y),
+        (base_x + 10, base_y),
+        (base_x + 6,  base_y - 28),
+        (base_x - 6,  base_y - 28),
+    ]
+    pygame.draw.polygon(surf, silhouette, tower)
+    # Roof cap (small triangle / dome)
+    pygame.draw.polygon(surf, silhouette, [
+        (base_x - 7, base_y - 28),
+        (base_x + 7, base_y - 28),
+        (base_x,     base_y - 35),
+    ])
+    # Hub
+    hub_x, hub_y = base_x, base_y - 30
+    pygame.draw.circle(surf, silhouette, (hub_x, hub_y), 2)
+    # Four sails — 45° X cross. Each sail = a thin rectangle rotated.
+    sail_len = 18
+    sail_w = 4
+    for k in range(4):
+        ang = math.pi / 4 + k * math.pi / 2  # 45, 135, 225, 315
+        # Rectangle from hub outward; built as polygon
+        cos, sin = math.cos(ang), math.sin(ang)
+        # Two perpendicular vectors
+        px, py = -sin, cos
+        # Sail corners
+        corners = [
+            (hub_x + px * sail_w * 0.5,                      hub_y + py * sail_w * 0.5),
+            (hub_x - px * sail_w * 0.5,                      hub_y - py * sail_w * 0.5),
+            (hub_x + cos * sail_len - px * sail_w * 0.5,     hub_y + sin * sail_len - py * sail_w * 0.5),
+            (hub_x + cos * sail_len + px * sail_w * 0.5,     hub_y + sin * sail_len + py * sail_w * 0.5),
+        ]
+        pygame.draw.polygon(surf, silhouette, corners)
+
+
+def draw_paper_lanterns(surf: pygame.Surface, palette: dict) -> None:
+    """Cluster of glowing paper lanterns rising from a small pagoda silhouette."""
+    # Tiny pagoda silhouette on a far hill
+    pag_x = int(W * 0.50)
+    pag_y = GROUND_Y - 18
+    silh = (15, 15, 25)
+    # Body
+    pygame.draw.rect(surf, silh, (pag_x - 6, pag_y - 14, 12, 14))
+    # Lower roof (wide trapezoid)
+    pygame.draw.polygon(surf, silh, [
+        (pag_x - 11, pag_y - 14),
+        (pag_x + 11, pag_y - 14),
+        (pag_x + 8,  pag_y - 17),
+        (pag_x - 8,  pag_y - 17),
+    ])
+    # Upper roof
+    pygame.draw.polygon(surf, silh, [
+        (pag_x - 8, pag_y - 17),
+        (pag_x + 8, pag_y - 17),
+        (pag_x + 5, pag_y - 21),
+        (pag_x - 5, pag_y - 21),
+    ])
+    # Spire
+    pygame.draw.line(surf, silh, (pag_x, pag_y - 21), (pag_x, pag_y - 26), 1)
+
+    # Lanterns rising — a vertical column of glowing dots, denser near the base
+    rnd = random.Random(404)
+    layer = pygame.Surface((W, H), pygame.SRCALPHA)
+    n_lanterns = 14
+    for i in range(n_lanterns):
+        u = i / max(1, n_lanterns - 1)  # 0 at base → 1 at sky
+        # Lateral drift increases as they rise
+        drift = (rnd.uniform(-1, 1)) * (10 + u * 60)
+        lx = pag_x + drift + rnd.uniform(-4, 4)
+        ly = (pag_y - 28) - u * 220 + rnd.uniform(-6, 6)
+        # Lantern intensity fades slightly as they rise (further away)
+        warm = (255, 190, 110)
+        glow_a = int(180 - u * 60)
+        bloom_a = int(70 - u * 20)
+        # Rectangle "lantern" body — tiny
+        body_w, body_h = 3, 4
+        rect = pygame.Rect(int(lx) - body_w // 2, int(ly) - body_h // 2, body_w, body_h)
+        pygame.draw.rect(layer, (*warm, max(140, glow_a)), rect)
+        # Bloom
+        pygame.draw.circle(layer, (255, 200, 130, max(20, bloom_a)),
+                           (int(lx), int(ly)), 5)
+        pygame.draw.circle(layer, (255, 220, 160, max(40, bloom_a + 30)),
+                           (int(lx), int(ly)), 2)
+    surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+
+def draw_cherry_blossoms(surf: pygame.Surface, palette: dict) -> None:
+    """Drifting pink cherry blossom petals across the screen."""
+    rnd = random.Random(505)
+    # 30 petals scattered, with size & opacity varying for depth
+    for _ in range(34):
+        x = rnd.randint(-6, W + 6)
+        y = rnd.randint(20, GROUND_Y - 20)
+        scale = rnd.uniform(0.6, 1.3)
+        r = max(2, int(3 * scale))
+        # Pink palette — vary lightness
+        pink = rnd.choice((
+            (255, 195, 215),
+            (250, 175, 200),
+            (245, 210, 225),
+            (255, 220, 230),
+        ))
+        # Tilt the petal — render as a rotated ellipse approximation:
+        # two overlapping ellipses at 45°.
+        ang = rnd.uniform(0, math.tau)
+        # Build a small rotated petal shape on a tiny surface
+        petal = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
+        pygame.draw.ellipse(petal, (*pink, 220),
+                            (0, r, r * 4, r * 2))
+        # Notch in the center to suggest the cleft
+        pygame.draw.circle(petal, (0, 0, 0, 0),
+                           (r * 2, r * 2), max(1, r // 2))
+        rotated = pygame.transform.rotate(petal, math.degrees(ang))
+        rect = rotated.get_rect(center=(x, y))
+        surf.blit(rotated, rect.topleft)
+
+
+def draw_parrot_family(surf: pygame.Surface, palette: dict) -> None:
+    """Distant flyby of small colorful parrots in a loose diagonal line.
+
+    Unlike the V-flock (silhouettes), Pip's family is recognizable as
+    parrots — colorful body + visible beak — but still small enough to
+    sit at mid-far parallax depth."""
+    rnd = random.Random(606)
+    # 5 parrots in a loose diagonal line, drifting up-and-right
+    leaders = [
+        (W * 0.12, H * 0.55),
+        (W * 0.30, H * 0.46),
+        (W * 0.48, H * 0.40),
+        (W * 0.66, H * 0.34),
+        (W * 0.84, H * 0.28),
+    ]
+    body_palette = [
+        (235,  60,  55),  # scarlet (Pip-like)
+        (240, 180,  60),  # gold
+        (90,  170, 235),  # blue
+        (90,  200,  90),  # green
+        (235, 110, 200),  # pink
+    ]
+    rnd.shuffle(body_palette)
+    for (px, py), color in zip(leaders, body_palette):
+        px, py = int(px), int(py)
+        # Body — small ellipse
+        pygame.draw.ellipse(surf, color, (px - 5, py - 3, 10, 6))
+        # Wing flaps — small dark stroke on top
+        wing_dark = (max(0, color[0] - 90),
+                     max(0, color[1] - 90),
+                     max(0, color[2] - 90))
+        # Two upstroke wing lines (mid-flap)
+        pygame.draw.line(surf, wing_dark, (px - 4, py - 3), (px - 6, py - 6), 2)
+        pygame.draw.line(surf, wing_dark, (px + 4, py - 3), (px + 6, py - 6), 2)
+        # Beak — tiny yellow triangle pointing right
+        pygame.draw.polygon(surf, (240, 200, 80), [
+            (px + 5, py - 1),
+            (px + 8, py),
+            (px + 5, py + 1),
+        ])
+        # Eye dot
+        pygame.draw.circle(surf, (20, 15, 20), (px + 2, py - 1), 1)
+
+
 # ──────────────── Driver ────────────────
 
 SCENES = [
-    ("01_shooting_stars", 0.62, draw_shooting_stars),
-    ("02_v_flock",        0.18, draw_v_flock),
-    ("03_lighthouse",     0.62, draw_lighthouse),
-    ("04_fireflies",      0.48, draw_fireflies),
-    ("05_fireworks",      0.62, draw_fireworks),
-    ("06_aurora",         0.78, draw_aurora),
+    ("01_shooting_stars",  0.62, draw_shooting_stars),
+    ("02_v_flock",         0.18, draw_v_flock),
+    ("03_lighthouse",      0.62, draw_lighthouse),
+    ("04_fireflies",       0.48, draw_fireflies),
+    ("05_fireworks",       0.62, draw_fireworks),
+    ("06_aurora",          0.78, draw_aurora),
+    ("07_hot_air_balloons", 0.16, draw_hot_air_balloons),
+    ("08_windmill",        0.04, draw_windmill),
+    ("09_paper_lanterns",  0.60, draw_paper_lanterns),
+    ("10_cherry_blossoms", 0.92, draw_cherry_blossoms),
+    ("11_parrot_family",   0.08, draw_parrot_family),
 ]
 
 

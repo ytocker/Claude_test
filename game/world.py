@@ -31,6 +31,7 @@ from game.draw import (
 from game import biome
 from game import audio
 from game.weather import Weather
+from game.ambient import AmbientScenes
 
 
 def _lerp(a, b, t):
@@ -99,6 +100,7 @@ class World:
         self._proof = ProofState()
 
         self.weather = Weather()
+        self.ambient = AmbientScenes()
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment
@@ -310,6 +312,8 @@ class World:
         sdt = dt * world_scale
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
+        # Ambient scenes (V-flocks, fireworks) — sparse, phase-gated.
+        self.ambient.update(sdt, self.biome_phase, self.biome_palette)
 
         # While the "get ready" prompt is up, hold everything still except
         # a tiny idle animation on the bird. The freeze waits indefinitely
@@ -443,6 +447,7 @@ class World:
         logic — used by the Menu scene to keep visuals alive."""
         self.biome_time += dt
         self.weather.update(dt, self.biome_phase)
+        self.ambient.update(dt, self.biome_phase, self.biome_palette)
         self.bg_scroll += SCROLL_BASE * 0.5 * dt
         for p in self.pipes:
             p.x -= SCROLL_BASE * 0.25 * dt

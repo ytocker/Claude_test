@@ -473,6 +473,10 @@ class App:
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
         draw_mountains(surf, scroll, GROUND_Y, W, palette['mtn_far'], palette['mtn_near'])
+        # Ambient scenes (V-flocks, fireworks) sit between mountains and the
+        # ground band so they read as "out there in the world" — behind
+        # gameplay entities (pipes, coins, bird) but in front of terrain.
+        self.world.ambient.draw(surf)
         draw_ground(surf, GROUND_Y, W, H, scroll,
                     palette['ground_top'], palette['ground_mid'], (60, 40, 25))
 
