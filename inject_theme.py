@@ -116,6 +116,12 @@ NAME_OVERLAY = """
   <p id="name-counter">0 / 10</p>
   <button id="name-submit" class="ne-submit">SUBMIT</button>
   <button id="name-skip" class="ne-skip">SKIP</button>
+  <!-- Diagnostic panel. Hidden unless ?debug=1 sets the .ne-debug-on
+       class on #name-overlay. Lives INSIDE the overlay so display:none
+       on the overlay (gameplay) makes it physically impossible to
+       render — earlier debug strips were body-level and leaked through
+       overlay state changes. -->
+  <pre id="ne-debug" aria-hidden="true"></pre>
 </div>
 """
 html = html.replace("<body>", "<body>\n" + OVERLAY + NAME_OVERLAY, 1)
@@ -389,6 +395,35 @@ body   { background: #0d0820 !important; }
 .ne-skip {
     margin-top: 14px;
 }
+
+/* ── Diagnostic panel (only when ?debug=1) ─────────────────────────
+   Absolutely positioned at the top of the overlay so it doesn't push
+   the flex children around, and `display:none` by default so the
+   element is inert until JS opts it in by adding .ne-debug-on to the
+   overlay. Sits ABOVE everything else in the overlay (z:9) but is
+   pointer-events:none so it never blocks taps. */
+#ne-debug {
+    display: none;
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    max-height: 36vh;
+    margin: 0;
+    padding: 5px 7px;
+    background: rgba(0, 0, 0, 0.88);
+    color: #4ec9b0;
+    font: 10px/1.3 ui-monospace, Menlo, Consolas, monospace;
+    white-space: pre;
+    overflow: hidden;
+    z-index: 9;
+    pointer-events: none;
+    border: 1px solid rgba(78, 201, 176, 0.35);
+    border-radius: 4px;
+    box-sizing: border-box;
+    text-align: left;
+}
+#name-overlay.ne-debug-on #ne-debug { display: block; }
 </style>
 
 <script>
@@ -831,6 +866,173 @@ body   { background: #0d0820 !important; }
         // Enter / Escape are handled by the global capture-phase listener
         // above, since SDL would otherwise eat the input's own keydown.
     };
+}());
+</script>
+
+<script>
+/* ── iPhone keyboard-dismissal diagnostic (?debug=1 only) ─────────────────
+   We've thrown 8 hypothesis-based fixes at this bug without ever
+   confirming which event sequence actually fires. Without Safari Web
+   Inspector access, the only way to make progress is to surface the
+   event stream on-screen. Strict design constraints learned the hard
+   way:
+
+     1. Inert in production. Listeners are not even attached unless the
+        URL contains ?debug=1, so normal users pay zero cost.
+     2. Cannot leak into gameplay. The output element is a *child of
+        #name-overlay*, so when the overlay is display:none (always,
+        during gameplay) the panel physically cannot render. Earlier
+        debug strips lived on <body> and toggled visibility manually,
+        which broke twice and made the user reject the whole approach.
+     3. Cannot push other UI around. position:absolute inside the
+        overlay so the existing flex layout (trophy, headline, input,
+        counter, buttons) is unaffected.
+
+   Captured signals chosen to identify the focus thief:
+     - focusin / focusout at document capture phase, with
+       relatedTarget — names exactly which element steals focus from
+       #name-input.
+     - document.activeElement poll (80 ms) — catches programmatic
+       focus moves that don't fire focusout (e.g. native focus() while
+       no element was focused).
+     - visualViewport.resize — iOS shrinks the visual viewport when
+       the soft keyboard appears; the height drop pinpoints the
+       exact moment the keyboard came up, and the recovery height
+       pinpoints when it went back down.
+     - pointerdown / touchstart / touchend at document capture phase
+       — what the user actually tapped.
+     - blur / input / beforeinput / composition* / keydown on the
+       input element — whether any character was delivered before the
+       blur, and whether IME was involved.
+
+   Usage: visit https://<deploy>/?debug=1, qualify for top-10, tap the
+   input, screenshot the panel. */
+(function () {
+    var qs = '';
+    try { qs = location.search || ''; } catch (_) {}
+    if (!/[?&]debug=1\b/.test(qs)) return;
+
+    function ready(fn) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else { fn(); }
+    }
+
+    ready(function () {
+        var ov  = document.getElementById('name-overlay');
+        var pre = document.getElementById('ne-debug');
+        var inp = document.getElementById('name-input');
+        if (!ov || !pre) return;
+        ov.classList.add('ne-debug-on');
+
+        var buf = [];
+        var t0 = 0;             /* reset to performance.now() each open */
+        var lastActive = '';
+        var MAX_LINES = 18;
+
+        function fmt(x) {
+            if (!x) return 'null';
+            if (x === document.body) return 'BODY';
+            if (x === document)      return 'DOC';
+            if (x === window)        return 'WIN';
+            var n = (x.tagName || x.nodeName || '?').toString().toUpperCase();
+            return x.id ? (n + '#' + x.id) : n;
+        }
+        function pad(n) {
+            var s = '' + n;
+            while (s.length < 4) s = ' ' + s;
+            return s;
+        }
+        function log(s) {
+            if (t0 === 0) t0 = performance.now();
+            var t = Math.round(performance.now() - t0);
+            buf.push('+' + pad(t) + ' ' + s);
+            while (buf.length > MAX_LINES) buf.shift();
+            pre.textContent = buf.join('\n');
+        }
+        function isOpen() { return ov.style.display === 'flex'; }
+
+        /* Reset the trace each time the overlay opens so the panel
+           shows the run we care about, not buffered stale lines. */
+        var openObs = new MutationObserver(function () {
+            if (!isOpen()) return;
+            t0 = performance.now();
+            buf.length = 0;
+            log('OPEN ' + (navigator.userAgent || '').slice(0, 70));
+            log('AE=' + fmt(document.activeElement));
+            if (window.visualViewport) {
+                log('VV0 h=' + Math.round(window.visualViewport.height) +
+                    ' s=' + window.visualViewport.scale.toFixed(2));
+            }
+            log('WIN0 ' + window.innerWidth + 'x' + window.innerHeight);
+        });
+        openObs.observe(ov, { attributes: true, attributeFilter: ['style'] });
+
+        /* Document-level capture phase — sees everything before any
+           SDL bubble-phase shield can stopPropagation. */
+        document.addEventListener('focusin', function (e) {
+            if (!isOpen()) return;
+            log('FIN ' + fmt(e.target));
+        }, true);
+        document.addEventListener('focusout', function (e) {
+            if (!isOpen()) return;
+            log('FOUT ' + fmt(e.target) + ' →' + fmt(e.relatedTarget));
+        }, true);
+        ['pointerdown', 'pointerup', 'touchstart', 'touchend'].forEach(function (n) {
+            document.addEventListener(n, function (e) {
+                if (!isOpen()) return;
+                var tag = n === 'pointerdown' ? 'PD'
+                        : n === 'pointerup'   ? 'PU'
+                        : n === 'touchstart'  ? 'TS' : 'TE';
+                log(tag + ' ' + fmt(e.target));
+            }, true);
+        });
+
+        if (inp) {
+            ['blur', 'input', 'beforeinput',
+             'compositionstart', 'compositionupdate', 'compositionend',
+             'keydown'].forEach(function (n) {
+                inp.addEventListener(n, function (e) {
+                    if (!isOpen()) return;
+                    var detail = '';
+                    if (n === 'blur' && e.relatedTarget) detail = ' →' + fmt(e.relatedTarget);
+                    else if (n === 'keydown') detail = ' k=' + (e.key || '?') + ' c=' + (e.keyCode || 0);
+                    else if (n === 'input' || n === 'beforeinput') detail = ' "' + (inp.value || '').slice(-6) + '"';
+                    else if (n.indexOf('composition') === 0) detail = ' "' + (e.data || '') + '"';
+                    log('inp.' + n + detail);
+                }, true);
+            });
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', function () {
+                if (!isOpen()) return;
+                log('VV h=' + Math.round(window.visualViewport.height) +
+                    ' s=' + window.visualViewport.scale.toFixed(2));
+            });
+        }
+        window.addEventListener('resize', function () {
+            if (!isOpen()) return;
+            log('WIN ' + window.innerWidth + 'x' + window.innerHeight);
+        });
+
+        /* Catch programmatic focus changes that don't fire focusout
+           (e.g. element.focus() called while document had no focused
+           element). 80 ms cadence keeps the timing useful without
+           burning CPU. */
+        setInterval(function () {
+            if (!isOpen()) return;
+            var a = fmt(document.activeElement);
+            if (a !== lastActive) { lastActive = a; log('AE=' + a); }
+        }, 80);
+
+        /* Surface uncaught errors in case SDL throws during the focus
+           transition and the throw is what actually closes the keyboard. */
+        window.addEventListener('error', function (e) {
+            if (!isOpen()) return;
+            log('ERR ' + ((e && e.message) || '?').toString().slice(0, 80));
+        });
+    });
 }());
 </script>
 
