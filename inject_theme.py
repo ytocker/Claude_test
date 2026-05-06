@@ -80,7 +80,7 @@ OVERLAY = """
 </div>
 """
 NAME_OVERLAY = """
-<dialog id="name-overlay">
+<div id="name-overlay">
   <svg class="mountains" viewBox="0 0 1440 200" preserveAspectRatio="none"
        xmlns="http://www.w3.org/2000/svg">
     <path d="M0,200 L0,130 L60,70 L120,110 L200,40 L280,90 L360,20
@@ -116,7 +116,7 @@ NAME_OVERLAY = """
   <p id="name-counter">0 / 10</p>
   <button id="name-submit" class="ne-submit">SUBMIT</button>
   <button id="name-skip" class="ne-skip">SKIP</button>
-</dialog>
+</div>
 """
 html = html.replace("<body>", "<body>\n" + OVERLAY + NAME_OVERLAY, 1)
 
@@ -284,70 +284,19 @@ body   { background: #0d0820 !important; }
     pointer-events: none;
 }
 
-/* ── Name-entry overlay ─────────────────────────────────────────────
-   Implemented as <dialog> + showModal() so the overlay lives in the
-   browser's TOP LAYER. That has two iOS-Safari-relevant effects the
-   prior CSS-only overlay couldn't get:
-
-   1. Top-layer rendering is its own stacking context outside the
-      document tree, so no z-index / position-fixed quirk in the page
-      can collide with it. iOS Safari has a documented bug where
-      focusing an input inside a position:fixed container during a
-      keyboard-induced visual-viewport resize blurs the input. The
-      top layer is positioned by the browser independently of the
-      page's containing block, side-stepping that path.
-
-   2. While a modal dialog is open, the browser marks every other
-      element in the document `inert` automatically. `inert` blocks
-      focus() at the browser layer — including HTMLElement.prototype
-      .focus.call(canvas), which a per-instance override (commit
-      40424b2, reverted) could not catch. So even if pygbag/SDL is
-      calling focus() on the canvas via Emscripten, the browser
-      refuses to move focus there while the dialog is modal.
-
-   Multiple prior fix attempts (pointer-events:none on canvas,
-   tabindex=-1, capture-phase mouse/touch/keyboard shields, position
-   fixed→absolute, canvas.focus override) could not stop the soft
-   keyboard from being dismissed on iPhone. They each addressed one
-   plausible cause; <dialog>.showModal() addresses the whole class.
-
-   The UA stylesheet for <dialog> sets a bunch of defaults
-   (position:absolute, padding:1em, border, fit-content sizing,
-   max-width/height capped) that we override below to match the old
-   full-viewport gradient look. */
+/* ── Name-entry overlay ─────────────────────────────────────── */
 #name-overlay {
     position: fixed;
     inset: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    max-height: 100%;
     z-index: 200;
     background: linear-gradient(180deg, #060115 0%, #12082a 50%, #0c1022 100%);
-    color: inherit;
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     font-family: Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
-}
-/* UA stylesheet sets `display: none` when the dialog is closed and
-   `display: block` while open. We want flex-centering when open, so
-   override the open state. The closed state inherits the UA's
-   display:none, no rule needed here. */
-#name-overlay[open] {
-    display: flex;
-}
-/* Default ::backdrop is a semi-transparent layer that would dim the
-   page behind the dialog. Our dialog is fully opaque (gradient
-   background covers the whole viewport), so we don't need or want a
-   backdrop. */
-#name-overlay::backdrop {
-    background: transparent;
 }
 .ne-trophy {
     width: clamp(56px, 14vw, 80px);
@@ -778,24 +727,7 @@ body   { background: #0d0820 !important; }
        iOS. */
     function _isNameOverlayOpen() {
         var ov = document.getElementById('name-overlay');
-        if (!ov) return false;
-        // <dialog>: `open` is an HTMLDialogElement property set true by
-        // show()/showModal() and cleared by close(). On legacy browsers
-        // without <dialog> support, fall back to checking inline display.
-        if ('open' in ov) return !!ov.open;
-        return ov.style.display === 'flex';
-    }
-    /* Centralised close so submit / skip / Enter / fall-through paths
-       all go through the same teardown. Closing via dialog.close() also
-       fires a `close` event which the openNameEntry block listens for
-       to set _pendingName for any path that didn't (Escape). */
-    function _closeNameOverlay() {
-        var ov = document.getElementById('name-overlay');
-        if (!ov) return;
-        if (typeof ov.close === 'function') {
-            try { if (ov.open) ov.close(); return; } catch (_) {}
-        }
-        ov.style.display = 'none';
+        return !!ov && ov.style.display === 'flex';
     }
     function _shieldKeyEvent(e) {
         if (!_isNameOverlayOpen()) return;
@@ -809,7 +741,7 @@ body   { background: #0d0820 !important; }
             var inp = document.getElementById('name-input');
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
-            _closeNameOverlay();
+            document.getElementById('name-overlay').style.display = 'none';
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
@@ -829,7 +761,8 @@ body   { background: #0d0820 !important; }
        _lastPointerDownTargetId note above). Gated on overlay
        visibility so it never fires during gameplay. */
     document.addEventListener('pointerdown', function (e) {
-        if (!_isNameOverlayOpen()) return;
+        var ov = document.getElementById('name-overlay');
+        if (!ov || ov.style.display !== 'flex') return;
         var t = e.target;
         _lastPointerDownTargetId = t && t.id ? t.id : null;
         // Don't steal focus from the SUBMIT / SKIP buttons — they
@@ -838,24 +771,6 @@ body   { background: #0d0820 !important; }
         var inp = document.getElementById('name-input');
         if (inp) try { inp.focus(); } catch (_) {}
     }, true);
-
-    /* Bind once: a `close` event fires whenever the dialog closes
-       (submit, skip, Enter, Escape, or programmatic close). Acts as a
-       safety net so any path that closes the dialog without setting
-       _pendingName resolves the Python-side poll as a skip rather than
-       leaving the game stuck on the '__pending__' sentinel. iOS
-       Safari closes a modal dialog on Escape natively — without this
-       listener that path would hang the game. */
-    var _nameOverlayCloseBound = false;
-    function _bindNameOverlayCloseOnce(ov) {
-        if (_nameOverlayCloseBound || !ov || !ov.addEventListener) return;
-        _nameOverlayCloseBound = true;
-        ov.addEventListener('close', function () {
-            if (window._pendingName === '__pending__') {
-                window._pendingName = '__skip__';
-            }
-        });
-    }
 
     window.openNameEntry = function () {
         var ov  = document.getElementById('name-overlay');
@@ -879,31 +794,10 @@ body   { background: #0d0820 !important; }
             }
         }
 
-        _bindNameOverlayCloseOnce(ov);
+        ov.style.display = 'flex';
         inp.value = '';
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
-
-        /* showModal() puts the dialog in the browser's top layer and
-           marks every other element in the document inert. On iPhone
-           Safari this is critical: `inert` blocks focus operations on
-           the canvas at the browser layer, so any pygbag/SDL focus
-           call cannot blur the input and dismiss the soft keyboard
-           the way it has on every previous iteration of this overlay.
-           Fall back to legacy show-by-display for browsers that
-           don't implement <dialog> (very old Safari < 15.4). */
-        if (typeof ov.showModal === 'function') {
-            try {
-                if (!ov.open) ov.showModal();
-            } catch (_) {
-                // showModal can throw InvalidStateError if already open
-                // or if the element somehow isn't a connected dialog.
-                // Fall back to manually flipping display.
-                ov.style.display = 'flex';
-            }
-        } else {
-            ov.style.display = 'flex';
-        }
 
         /* Desktop / Android: programmatic focus brings up the keyboard
            (or readies the cursor) without further user action. iOS
@@ -926,18 +820,16 @@ body   { background: #0d0820 !important; }
             if (_lastPointerDownTargetId !== 'name-submit') return;
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
-            _closeNameOverlay();
+            ov.style.display = 'none';
         }
         document.getElementById('name-submit').onclick = submit;
         document.getElementById('name-skip').onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
-            _closeNameOverlay();
+            ov.style.display = 'none';
         };
-        // Enter is handled by the global capture-phase listener above,
-        // since SDL would otherwise eat the input's own keydown.
-        // Escape closes the modal dialog natively — the close-event
-        // listener above sets _pendingName to '__skip__' for that path.
+        // Enter / Escape are handled by the global capture-phase listener
+        // above, since SDL would otherwise eat the input's own keydown.
     };
 }());
 </script>
