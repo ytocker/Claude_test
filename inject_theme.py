@@ -126,12 +126,6 @@ INJECTION = """
 /* ── Canvas base (shows behind pygame loading bar) ─── */
 canvas { background: #0d0820 !important; }
 body   { background: #0d0820 !important; }
-/* Full-height html/body so the name-entry overlay can use
-   position: absolute (instead of position: fixed) to avoid iOS
-   Safari's documented bug where focusing an input inside a
-   position: fixed element re-positions the element to absolute,
-   reflows the layout, and flickers the soft keyboard. */
-html, body { height: 100%; min-height: 100%; }
 
 /* ── Loading overlay ─────────────────────────────────
    Hardened: every pygbag template version has at one point shipped a
@@ -292,15 +286,8 @@ html, body { height: 100%; min-height: 100%; }
 
 /* ── Name-entry overlay ─────────────────────────────────────── */
 #name-overlay {
-    /* position: absolute (NOT fixed) — see iOS Safari bug note above
-       in html/body. The overlay's stacking context still puts it on top
-       via z-index, and html/body height: 100% makes 100% here the full
-       viewport. */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    inset: 0;
     z-index: 200;
     background: linear-gradient(180deg, #060115 0%, #12082a 50%, #0c1022 100%);
     display: none;
@@ -365,11 +352,6 @@ html, body { height: 100%; min-height: 100%; }
     transition: box-shadow 0.2s;
     position: relative;
     z-index: 1;
-    /* Disable iOS double-tap-zoom and the synthesised-mouse delay so the
-       tap → focus → keyboard sequence runs in a single user gesture
-       without any browser-level deferral that could split focus across
-       two animation frames. */
-    touch-action: manipulation;
 }
 #name-input:focus {
     box-shadow: 0 0 0 3px rgba(240, 192, 64, 0.35);
@@ -714,67 +696,42 @@ html, body { height: 100%; min-height: 100%; }
        button. */
     var _lastPointerDownTargetId = null;
 
-    /* iOS detection. iOS Safari has unique focus / soft-keyboard timing
-       quirks (see _setNameOverlayActive and the openNameEntry deferred
-       focus below). iPadOS reports as MacIntel with touch points, so we
-       check that branch too. */
-    var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
-                 ((navigator.platform === 'MacIntel') &&
-                  (navigator.maxTouchPoints || 0) > 1);
+    /* SDL shield. SDL2's Emscripten port (used by pygbag) listens on
+       window for keyboard events (keydown / keyup / keypress) AND for
+       mouse + touch events (mousedown / mouseup / touchstart / touchend
+       / touchmove / touchcancel). It calls preventDefault on many of
+       them — in particular keypress is preventDefaulted whenever
+       SDL_TEXTINPUT is enabled (always, for pygame), which swallows
+       the browser's default "type the character into the focused
+       input" action. On mobile, SDL also handles touch events that
+       compete with the input's natural focus path, which on iPhone
+       produces a multi-cycle soft-keyboard flicker as focus bounces
+       between the input and the canvas.
 
-    /* Lock down the canvas + body while the name overlay is open. This
-       isolates the input from any pygbag/SDL pointer or keyboard
-       interception:
-         - canvas pointer-events: none → no SDL mouse / touch handling
-         - canvas tabindex=-1        → canvas can't receive focus from
-                                       OS-level focus-cycling
-         - body overflow: hidden     → iOS can't scroll the page during
-                                       its keyboard-appearance reflow,
-                                       which has been observed to flicker
-                                       the soft keyboard open/closed.
-       Restored on every overlay-close path (submit, skip, Enter). */
-    function _setNameOverlayActive(active) {
-        var canvas = document.getElementById('canvas');
-        if (canvas) {
-            canvas.style.pointerEvents = active ? 'none' : '';
-            canvas.setAttribute('tabindex', active ? '-1' : '0');
-        }
-        document.body.style.overflow = active ? 'hidden' : '';
-    }
-
-    /* Mobile + desktop keyboard fix — neutralise SDL's three keyboard
-       listeners. SDL2's Emscripten port attaches keydown / keyup / keypress
-       on window in BUBBLE phase and calls preventDefault — keypress is
-       preventDefaulted whenever SDL_TEXTINPUT is enabled (always, for
-       pygame), and that swallows the browser's default "type the character
-       into the focused input" action. With caps mode off, mobile IMEs skip
-       the synthetic keydown-with-key path for printable chars and rely on
-       keypress / beforeinput, so a keydown-only shield isn't enough.
-
-       We register window-capture listeners on all three events SDL touches.
-       stopPropagation() in capture aborts the bubble phase, so SDL never
-       sees the event and never preventDefaults. The browser's default
-       action (insert character into focused <input>) still fires, because
-       default action is gated on preventDefault, not propagation. The
-       input's own oninput still fires too — it's a separate event after
-       the default action, not in the keydown propagation chain.
+       We register window-capture listeners on every event SDL touches.
+       stopPropagation() in capture aborts the bubble phase, so SDL
+       never sees the event and never preventDefaults. The browser's
+       default action (insert character into focused <input>, focus the
+       tapped element, etc.) still fires, because default action is
+       gated on preventDefault, not propagation. The input's own
+       oninput handler still fires too — it's a separate event after
+       the default action, not in the propagation chain we're cutting.
 
        We do NOT shield input / beforeinput / composition* — SDL doesn't
        listen for them, and a window-capture stopPropagation on `input`
        would prevent #name-input's own oninput from firing (the counter
-       would freeze). If a future SDL/pygbag version starts binding those,
-       the fallback is to preventDefault beforeinput, manually apply
-       e.data to inp.value, and dispatch a synthetic 'input' event.
+       would freeze).
 
-       Enter is intercepted here for desktop submit. On mobile the soft
-       keyboard's Go/Done emits Enter too. keyCode 229 / isComposing is
-       the IME "composing" placeholder — must NOT be treated as Enter, or
-       we'd close the overlay mid-character on iOS. */
+       Enter is intercepted here for desktop submit. On mobile the
+       soft keyboard's Go/Done emits Enter too. keyCode 229 /
+       isComposing is the IME "composing" placeholder — must NOT be
+       treated as Enter, or we'd close the overlay mid-character on
+       iOS. */
     function _isNameOverlayOpen() {
         var ov = document.getElementById('name-overlay');
         return !!ov && ov.style.display === 'flex';
     }
-    function _shieldKeyEvent(e) {
+    function _shieldEvent(e) {
         if (!_isNameOverlayOpen()) return;
         e.stopPropagation();
     }
@@ -787,53 +744,38 @@ html, body { height: 100%; min-height: 100%; }
             var v = (inp && inp.value || '').trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             document.getElementById('name-overlay').style.display = 'none';
-            _setNameOverlayActive(false);
         }
         // Escape skip removed — there's a clickable SKIP button now.
     }, true);
-    window.addEventListener('keyup',    _shieldKeyEvent, true);
-    window.addEventListener('keypress', _shieldKeyEvent, true);
+    ['keyup', 'keypress',
+     'mousedown', 'mouseup',
+     'touchstart', 'touchend', 'touchmove', 'touchcancel']
+    .forEach(function (evt) {
+        window.addEventListener(evt, _shieldEvent, true);
+    });
 
     /* iOS Safari fix: the soft keyboard only appears if focus() runs
-       inside a real user gesture. ``openNameEntry``'s setTimeout(focus)
-       fires after the gesture has ended, so iOS players see the overlay
-       but no keyboard, and tapping the input may not focus it either —
-       pygbag's SDL canvas listeners can swallow the synthesised click
-       before it reaches the field.
+       inside a real user gesture. openNameEntry's setTimeout(focus)
+       fires after the gesture has ended, so iOS players see the
+       overlay but no keyboard. Capture-phase pointerdown at the
+       document runs synchronously inside the player's tap and
+       re-focuses the input so iOS shows the keyboard.
 
-       Capture-phase pointerdown at the document runs before any SDL
-       listener and before any preventDefault, so we can re-focus the
-       input synchronously inside the player's tap. Gated on overlay
+       Also records the tap target so SUBMIT / SKIP onclick can reject
+       "ghost" clicks where iOS dispatches the synthetic click to a
+       different element than the one the user touched (see
+       _lastPointerDownTargetId note above). Gated on overlay
        visibility so it never fires during gameplay. */
     document.addEventListener('pointerdown', function (e) {
         var ov = document.getElementById('name-overlay');
         if (!ov || ov.style.display !== 'flex') return;
         var t = e.target;
         _lastPointerDownTargetId = t && t.id ? t.id : null;
-        // Keep SDL's bubble-phase pointer listener from re-focusing the
-        // canvas after our inp.focus() — on iOS that bounces focus
-        // input → canvas → input within the same gesture and the soft
-        // keyboard flickers open/closed several times before settling.
-        // Click events are generated by the browser independently of
-        // pointerdown propagation, so SUBMIT/SKIP onclick still fires.
-        e.stopPropagation();
-        // Don't steal focus from the SUBMIT / SKIP buttons — they need
-        // their own click handler to fire normally.
+        // Don't steal focus from the SUBMIT / SKIP buttons — they
+        // need their own click handler to fire normally.
         if (t && (t.id === 'name-submit' || t.id === 'name-skip')) return;
         var inp = document.getElementById('name-input');
-        // iOS: do NOT call inp.focus() here. With the capture-phase
-        // stopPropagation above, SDL never sees the tap, so iOS's
-        // natural tap-to-focus brings up the keyboard once on its own.
-        // A manual focus() call earlier in the same gesture (from
-        // capture phase, before the click is dispatched) creates an
-        // extra focus event that iOS uses to re-evaluate keyboard
-        // visibility and produces the multi-cycle flicker.
-        // Non-iOS: keep manual focus — Android / desktop don't have
-        // this quirk and the manual call ensures consistent behavior
-        // across pygbag's runtime.
-        if (inp && !_isIOS && document.activeElement !== inp) {
-            try { inp.focus(); } catch (_) {}
-        }
+        if (inp) try { inp.focus(); } catch (_) {}
     }, true);
 
     window.openNameEntry = function () {
@@ -859,27 +801,17 @@ html, body { height: 100%; min-height: 100%; }
         }
 
         ov.style.display = 'flex';
-        _setNameOverlayActive(true);
         inp.value = '';
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
         /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action.
-           iOS: SKIP this call entirely. iOS only opens the soft keyboard
-           when focus() runs inside a real user gesture; an async focus
-           after setTimeout is a no-op for the keyboard but DOES still
-           dispatch a focus event, and iOS uses focus events to re-arm
-           keyboard visibility — which can flicker the keyboard once the
-           player taps the field a moment later. The document-level
-           pointerdown listener above handles iOS focus on tap. */
-        if (!_isIOS) {
-            setTimeout(function () {
-                try {
-                    if (document.activeElement !== inp) inp.focus();
-                } catch (_) {}
-            }, 80);
-        }
+           (or readies the cursor) without further user action. iOS
+           Safari blocks focus() outside a real user gesture, so this
+           call is a no-op there — the document-level pointerdown
+           listener above handles iOS by re-focusing the input
+           synchronously inside the player's tap. */
+        setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
 
         /* Counter-only handler. We deliberately do NOT shield input /
            beforeinput / composition* at window-capture above: SDL
@@ -895,14 +827,12 @@ html, body { height: 100%; min-height: 100%; }
             var v = inp.value.trim();
             window._pendingName = v.length > 0 ? v : '__skip__';
             ov.style.display = 'none';
-            _setNameOverlayActive(false);
         }
         document.getElementById('name-submit').onclick = submit;
         document.getElementById('name-skip').onclick = function () {
             if (_lastPointerDownTargetId !== 'name-skip') return;
             window._pendingName = '__skip__';
             ov.style.display = 'none';
-            _setNameOverlayActive(false);
         };
         // Enter / Escape are handled by the global capture-phase listener
         // above, since SDL would otherwise eat the input's own keydown.
