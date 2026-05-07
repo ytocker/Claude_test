@@ -880,6 +880,91 @@ body   { background: #0d0820 !important; }
 </script>
 
 <script>
+/* ── iPhone keyboard-dismissal fix (synthetic-click focus theft) ────────
+   The user observed: a *long press* on the name input keeps the soft
+   keyboard up, while a normal tap dismisses it. That observation is
+   diagnostic. iOS Safari's tap sequence is
+
+       touchstart → touchend → (synthetic) mousedown → mouseup → click
+
+   A long press absorbs the synthetic click into the iOS callout (the
+   selection / "Look Up" bubble), so the click never fires. With no
+   click, no document-level handler runs, no focus is stolen — the
+   input keeps focus and the keyboard stays.
+
+   On a short tap the click fires normally, bubbles up past the
+   overlay, and reaches a document/window-level handler installed by
+   pygbag's SDL runtime. SDL refocuses the canvas on every click so
+   that key events flow back into the Pyodide loop. That focus move
+   blurs the input → iOS dismisses the keyboard.
+
+   Why the previous shield (5a7f87a, reverted in 2a43da9) failed:
+     - It was attached at *window capture phase*, which fires before
+       the input's own handlers. Stopping propagation there blocks
+       the input from focusing in the first place — net effect, no
+       keyboard at all, so the shield was rolled back.
+     - It also did not include the `click` event, which is the one
+       SDL listens for.
+
+   This fix attaches in *bubble phase on the overlay*. By that point
+   the input's own focus/native handling has already run, so nothing
+   useful is lost; we only stop propagation past the overlay so the
+   document/window SDL listener never sees the event.
+
+   Defense in depth: while the overlay is open, set `inert` and
+   `pointer-events: none` on the canvas itself. `inert` blocks both
+   programmatic and user-driven focus on the canvas and all its
+   descendants, even if some path bypasses the bubble shield.
+
+   No diagnostics dependency — both pieces are unconditional and
+   ship to all users. */
+(function () {
+    function init() {
+        var ov = document.getElementById('name-overlay');
+        if (!ov) return;
+
+        /* (a) Bubble-phase shield. Stops click & friends from reaching
+           any document / window listener once they've passed through
+           the overlay. Target-phase listeners on the input or the
+           SUBMIT / SKIP buttons run normally — they fire before bubble
+           reaches the overlay. */
+        var SHIELDED = ['click', 'mousedown', 'mouseup',
+                        'pointerdown', 'pointerup',
+                        'touchstart', 'touchend'];
+        SHIELDED.forEach(function (n) {
+            ov.addEventListener(n, function (e) { e.stopPropagation(); });
+        });
+
+        /* (b) Canvas inert toggle, driven by the overlay's display
+           attribute so all three close paths (submit, skip, Enter)
+           are covered without threading cleanup through each. */
+        var canvas = document.querySelector('canvas');
+        if (!canvas) return;
+        var origPE = null;
+        function activate() {
+            if (origPE === null) origPE = canvas.style.pointerEvents;
+            try { canvas.setAttribute('inert', ''); } catch (_) {}
+            canvas.style.pointerEvents = 'none';
+        }
+        function deactivate() {
+            try { canvas.removeAttribute('inert'); } catch (_) {}
+            canvas.style.pointerEvents = origPE || '';
+            origPE = null;
+        }
+        new MutationObserver(function () {
+            if (ov.style.display === 'flex') activate();
+            else                              deactivate();
+        }).observe(ov, { attributes: true, attributeFilter: ['style'] });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+}());
+</script>
+
+<script>
 /* ── iPhone keyboard-dismissal diagnostic (?debug=1 only) ─────────────────
    We've thrown 8 hypothesis-based fixes at this bug without ever
    confirming which event sequence actually fires. Without Safari Web
