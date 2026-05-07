@@ -266,12 +266,12 @@ body   { background: #0d0820 !important; }
 
 .sk-subtitle {
     font-family: Arial, sans-serif;
-    font-size: clamp(8px, 1.9vw, 11px);
+    font-size: clamp(6px, 1.3vw, 8px);
     font-weight: 700;
-    letter-spacing: 7px;
+    letter-spacing: 5px;
     color: #d8b855;
-    margin: 14px 0 56px;
-    opacity: 0.82;
+    margin: 10px 0 56px;
+    opacity: 0.78;
     text-transform: uppercase;
     pointer-events: none;
 }
@@ -484,10 +484,11 @@ body   { background: #0d0820 !important; }
 .sk-key.sk-special:active {
     background: linear-gradient(180deg, #a8300e 0%, #5e1402 100%);
 }
-/* Bottom action row spans the full 7-col grid as 2 + 3 + 2. */
+/* Bottom action rows: row 1 is ⌫ + SPACE (2 + 5 cols), row 2 is
+   SUBMIT spanning the full keyboard width on its own line. */
 .sk-key.sk-back  { grid-column: span 2; }
-.sk-key.sk-space { grid-column: span 3; letter-spacing: 4px; }
-.sk-key.sk-enter { grid-column: span 2; letter-spacing: 3px; }
+.sk-key.sk-space { grid-column: span 5; letter-spacing: 4px; }
+.sk-key.sk-enter { grid-column: 1 / -1; letter-spacing: 4px; }
 
 /* SKIP lives outside #sk-kbd and pins to the very bottom of the
    screen, separated from the keyboard so it reads as a different-
