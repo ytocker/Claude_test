@@ -269,12 +269,16 @@ body   { background: #0d0820 !important; }
 
 .sk-subtitle {
     font-family: Arial, sans-serif;
-    font-size: clamp(6px, 1.3vw, 8px);
+    /* Fixed px, NOT clamp(): the user reports the previous clamp-based
+       sizes appeared unchanged on their device. A fixed value makes
+       cache-vs-fresh easy to tell from one look — if the subtitle is
+       still big, the page is cached. */
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 5px;
+    letter-spacing: 4px;
     color: #d8b855;
-    margin: 10px 0 56px;
-    opacity: 0.78;
+    margin: 8px 0 56px;
+    opacity: 0.75;
     text-transform: uppercase;
     pointer-events: none;
 }
