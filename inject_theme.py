@@ -140,10 +140,9 @@ def _kbd_buttons():
                 '<button class="sk-key" data-k="{c}" '
                 'aria-label="{c}">{c}</button>'.format(c=ch)
             )
-    # Bottom action row: ⌫ | SPACE | SUBMIT, sized 2-3-2 columns to
-    # exactly fill the 7-col grid. SKIP is rendered OUTSIDE the
-    # keyboard and pinned to the bottom of the overlay (see
-    # NAME_HTML / CSS below).
+    # Bottom action rows: row 1 is ⌫ + SPACE + SHIFT (2 + 3 + 2 cols),
+    # row 2 is SUBMIT spanning full width on its own line. SKIP renders
+    # OUTSIDE the keyboard, pinned to the bottom of the overlay.
     parts.append(
         '<button class="sk-key sk-special sk-back" data-act="back" '
         'aria-label="delete">&#x232b;</button>'
@@ -151,6 +150,10 @@ def _kbd_buttons():
     parts.append(
         '<button class="sk-key sk-special sk-space" data-act="space" '
         'aria-label="space">SPACE</button>'
+    )
+    parts.append(
+        '<button class="sk-key sk-shift" data-act="shift" '
+        'aria-label="shift">&#x21e7;</button>'
     )
     parts.append(
         '<button class="sk-key sk-special sk-enter" data-act="enter" '
@@ -484,11 +487,32 @@ body   { background: #0d0820 !important; }
 .sk-key.sk-special:active {
     background: linear-gradient(180deg, #a8300e 0%, #5e1402 100%);
 }
-/* Bottom action rows: row 1 is ⌫ + SPACE (2 + 5 cols), row 2 is
-   SUBMIT spanning the full keyboard width on its own line. */
+/* Bottom action rows: row 1 is ⌫ + SPACE + SHIFT (2 + 3 + 2 cols);
+   row 2 is SUBMIT spanning the full keyboard width on its own line. */
 .sk-key.sk-back  { grid-column: span 2; }
-.sk-key.sk-space { grid-column: span 5; letter-spacing: 4px; }
+.sk-key.sk-space { grid-column: span 3; letter-spacing: 4px; }
+.sk-key.sk-shift { grid-column: span 2; font-size: clamp(16px, 4vw, 22px); }
 .sk-key.sk-enter { grid-column: 1 / -1; letter-spacing: 4px; }
+
+/* Shift state: when #sk-name-overlay carries .sk-caps-on, the next
+   letter typed is uppercase and the SHIFT button glows gold. The
+   class is removed automatically after the next letter (auto-shift
+   off) and on every fresh openNameEntry() the class is re-applied
+   so the FIRST character of a new name is always uppercase by
+   default — matching mobile-keyboard convention. Letter buttons
+   render lowercase when the class is absent so the keyboard
+   visually echoes the case the player will get. */
+#sk-name-overlay:not(.sk-caps-on) .sk-key[data-k] {
+    text-transform: lowercase;
+}
+#sk-name-overlay.sk-caps-on .sk-key.sk-shift {
+    background: linear-gradient(180deg, #f0c040 0%, #b88a2e 100%);
+    color: #2a1858;
+    border-color: #fff8c8;
+    box-shadow:
+        0 0 12px rgba(240, 192, 64, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
 
 /* SKIP lives outside #sk-kbd and pins to the very bottom of the
    screen, separated from the keyboard so it reads as a different-
@@ -998,9 +1022,20 @@ _NAME_ENTRY_JS = """
     var MAX = 10;
     var _buf = '';
     var _starsAdded = false;
+    /* Auto-shift: ON for the first character of a fresh name (so the
+       opening letter is capital), then auto-OFF after one tap.
+       Player can re-enable manually via the SHIFT key for any later
+       capital. Same convention as iOS / Android soft keyboards. */
+    var _shiftOn = true;
 
     /* Pre-resolve DOM refs — these elements are in the static HTML. */
     function el(id) { return document.getElementById(id); }
+    function applyShiftClass() {
+        var ov = el('sk-name-overlay');
+        if (!ov) return;
+        if (_shiftOn) ov.classList.add('sk-caps-on');
+        else          ov.classList.remove('sk-caps-on');
+    }
 
     function render() {
         var ov = el('sk-name-overlay');
@@ -1032,6 +1067,8 @@ _NAME_ENTRY_JS = """
         var ov = el('sk-name-overlay');
         if (!ov) return;
         _buf = '';
+        _shiftOn = true;          /* first letter is capital by default */
+        applyShiftClass();
         render();
         window._pendingName = '__pending__';
         ov.setAttribute('aria-hidden', 'false');
@@ -1089,13 +1126,25 @@ _NAME_ENTRY_JS = """
             close('__skip__');
             return;
         }
+        if (act === 'shift') {
+            _shiftOn = !_shiftOn;
+            applyShiftClass();
+            return;
+        }
         if (act === 'enter') {
             var v = _buf.replace(/\\s+$/, '').replace(/^\\s+/, '');
             close(v.length > 0 ? v : '__skip__');
             return;
         }
         if (k && _buf.length < MAX) {
-            _buf += k;
+            _buf += _shiftOn ? k : k.toLowerCase();
+            if (_shiftOn) {
+                /* Auto-shift off after one capital, matching mobile
+                   keyboard convention. The player re-taps SHIFT for
+                   any later capitals. */
+                _shiftOn = false;
+                applyShiftClass();
+            }
             render();
             if (typeof window.skyPlay === 'function') {
                 try { window.skyPlay('button', 0.4); } catch (_) {}
