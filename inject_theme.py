@@ -269,12 +269,12 @@ body   { background: #0d0820 !important; }
 
 .sk-subtitle {
     font-family: Arial, sans-serif;
-    font-size: clamp(10px, 2.6vw, 14px);
+    font-size: clamp(6px, 1.3vw, 8px);
     font-weight: 700;
-    letter-spacing: 9px;
+    letter-spacing: 5px;
     color: #d8b855;
-    margin: 14px 0 56px;
-    opacity: 0.82;
+    margin: 10px 0 56px;
+    opacity: 0.78;
     text-transform: uppercase;
     pointer-events: none;
 }
