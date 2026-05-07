@@ -419,7 +419,11 @@ body   { background: #0d0820 !important; }
     font: 9px/1.2 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre;
     overflow: hidden;
-    z-index: 99998;  /* one below #skybit-dbg-badge */
+    /* Match the loading overlay's z-index (2147483647 !important) so the
+       panel is not buried during the boot phase. The diagnostic <pre>
+       is appended to <body> by JS at runtime, so it's after the static
+       #skybit-loading in tree order — equal z-index → later wins. */
+    z-index: 2147483647 !important;
     pointer-events: none;
     border: 1px solid rgba(78, 201, 176, 0.35);
     border-radius: 4px;
@@ -1069,8 +1073,16 @@ body.ne-debug-on #ne-debug { display: block; }
             b.id = 'skybit-dbg-badge';
             b.textContent = 'DBG';
             b.setAttribute('aria-hidden', 'true');
+            /* z-index 2147483647 !important so the badge isn't buried by
+               #skybit-loading (which uses the same max-int z-index with
+               !important). Equal z-index → tree order decides; the
+               badge is appended to <body> at runtime, after the static
+               loading overlay, so it wins. Without !important the
+               badge's inline z-index would lose to the loading overlay's
+               !important rule. */
             b.style.cssText =
-                'position:fixed;top:4px;left:4px;z-index:99999;' +
+                'position:fixed;top:4px;left:4px;' +
+                'z-index:2147483647 !important;' +
                 'padding:2px 6px;font:bold 10px/1 ui-monospace,monospace;' +
                 'color:#fff;background:#c8246b;border:1px solid #fff;' +
                 'border-radius:3px;pointer-events:none;letter-spacing:1px;';
