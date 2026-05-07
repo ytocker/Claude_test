@@ -116,12 +116,6 @@ NAME_OVERLAY = """
   <p id="name-counter">0 / 10</p>
   <button id="name-submit" class="ne-submit">SUBMIT</button>
   <button id="name-skip" class="ne-skip">SKIP</button>
-  <!-- Diagnostic panel. Hidden unless ?debug=1 sets the .ne-debug-on
-       class on #name-overlay. Lives INSIDE the overlay so display:none
-       on the overlay (gameplay) makes it physically impossible to
-       render — earlier debug strips were body-level and leaked through
-       overlay state changes. -->
-  <pre id="ne-debug" aria-hidden="true"></pre>
 </div>
 """
 html = html.replace("<body>", "<body>\n" + OVERLAY + NAME_OVERLAY, 1)
@@ -412,13 +406,12 @@ body   { background: #0d0820 !important; }
    excess if the buffer ever overshoots the visible line count. */
 #ne-debug {
     display: none;
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    right: 6px;
+    position: fixed;
+    top: 22px;     /* below the DBG badge */
+    left: 4px;
+    right: 4px;
     max-height: 20vh;
     max-height: min(20vh, 160px);
-    max-width: calc(100% - 12px);
     margin: 0;
     padding: 4px 6px;
     background: rgba(0, 0, 0, 0.88);
@@ -426,14 +419,14 @@ body   { background: #0d0820 !important; }
     font: 9px/1.2 ui-monospace, Menlo, Consolas, monospace;
     white-space: pre;
     overflow: hidden;
-    z-index: 9;
+    z-index: 99998;  /* one below #skybit-dbg-badge */
     pointer-events: none;
     border: 1px solid rgba(78, 201, 176, 0.35);
     border-radius: 4px;
     box-sizing: border-box;
     text-align: left;
 }
-#name-overlay.ne-debug-on #ne-debug { display: block; }
+body.ne-debug-on #ne-debug { display: block; }
 </style>
 
 <script>
@@ -844,13 +837,15 @@ body   { background: #0d0820 !important; }
         if (ctr) ctr.textContent = '0 / 10';
         window._pendingName = '__pending__';
 
-        /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. iOS
-           Safari blocks focus() outside a real user gesture, so this
-           call is a no-op there — the document-level pointerdown
-           listener above handles iOS by re-focusing the input
-           synchronously inside the player's tap. */
-        setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
+        /* No deferred focus(). iOS only opens the soft keyboard for a
+           focus() that runs synchronously inside a real user gesture.
+           The document-level pointerdown listener above does exactly
+           that — re-focuses the input the instant the player taps,
+           inside the gesture. A setTimeout focus() here would race
+           that path on iOS while not adding anything desktop / Android
+           don't already get from the player's first click on the
+           input. (Trade-off: desktop / Android lose the auto-cursor on
+           overlay open. User taps once before typing — same as iOS.)*/
 
         /* Counter-only handler. We deliberately do NOT shield input /
            beforeinput / composition* at window-capture above: SDL
@@ -1060,29 +1055,40 @@ body   { background: #0d0820 !important; }
                 ls === '1';
     if (!gated) return;
 
-    /* Body-level "DBG" badge. Sole purpose is to confirm the gate
-       fired — if the user reports this is invisible, the panel-not-
-       appearing problem is upstream of this script (cache, wrong URL,
-       deploy not live), not in the panel's render path. Tiny and in
-       the corner so it's tolerable during gameplay. */
-    function addBadge() {
-        if (document.getElementById('skybit-dbg-badge')) return;
-        var b = document.createElement('div');
-        b.id = 'skybit-dbg-badge';
-        b.textContent = 'DBG';
-        b.setAttribute('aria-hidden', 'true');
-        b.style.cssText =
-            'position:fixed;top:4px;left:4px;z-index:99999;' +
-            'padding:2px 6px;font:bold 10px/1 ui-monospace,monospace;' +
-            'color:#fff;background:#c8246b;border:1px solid #fff;' +
-            'border-radius:3px;pointer-events:none;letter-spacing:1px;';
-        (document.body || document.documentElement).appendChild(b);
-        try { document.title = '[DBG] ' + document.title; } catch (_) {}
+    /* Body-level "DBG" badge + diagnostic <pre>. The badge confirms
+       the gate fired (if it's missing the URL never reached the page).
+       The <pre> is the trace panel — moved out of #name-overlay so its
+       visibility no longer depends on the overlay being display:flex,
+       and so iOS layout quirks inside the overlay can't hide it. Both
+       are appended to <body> at the highest practical z-index, with
+       pointer-events:none so neither blocks taps. */
+    function addBadgeAndPanel() {
+        var host = document.body || document.documentElement;
+        if (!document.getElementById('skybit-dbg-badge')) {
+            var b = document.createElement('div');
+            b.id = 'skybit-dbg-badge';
+            b.textContent = 'DBG';
+            b.setAttribute('aria-hidden', 'true');
+            b.style.cssText =
+                'position:fixed;top:4px;left:4px;z-index:99999;' +
+                'padding:2px 6px;font:bold 10px/1 ui-monospace,monospace;' +
+                'color:#fff;background:#c8246b;border:1px solid #fff;' +
+                'border-radius:3px;pointer-events:none;letter-spacing:1px;';
+            host.appendChild(b);
+            try { document.title = '[DBG] ' + document.title; } catch (_) {}
+        }
+        if (!document.getElementById('ne-debug')) {
+            var pre = document.createElement('pre');
+            pre.id = 'ne-debug';
+            pre.setAttribute('aria-hidden', 'true');
+            host.appendChild(pre);
+        }
+        document.body && document.body.classList.add('ne-debug-on');
     }
     if (document.body) {
-        addBadge();
+        addBadgeAndPanel();
     } else {
-        document.addEventListener('DOMContentLoaded', addBadge);
+        document.addEventListener('DOMContentLoaded', addBadgeAndPanel);
     }
 
     function ready(fn) {
@@ -1092,11 +1098,14 @@ body   { background: #0d0820 !important; }
     }
 
     ready(function () {
+        /* The badge + <pre> were created earlier by addBadgeAndPanel;
+           addBadgeAndPanel also added body.ne-debug-on so the panel is
+           visible. If somehow they didn't make it into the DOM (e.g.
+           a CSP we missed), bail out — there's nothing to log into. */
         var ov  = document.getElementById('name-overlay');
         var pre = document.getElementById('ne-debug');
         var inp = document.getElementById('name-input');
         if (!ov || !pre) return;
-        ov.classList.add('ne-debug-on');
 
         var buf = [];
         var t0 = 0;             /* reset to performance.now() each open */
@@ -1128,6 +1137,11 @@ body   { background: #0d0820 !important; }
             pre.textContent = buf.join('\n');
         }
         function isOpen() { return ov.style.display === 'flex'; }
+
+        /* One-shot READY line so the panel is non-empty before any
+           overlay open. Lets the user confirm visually that the gate
+           is live without having to qualify for top-10 first. */
+        log('READY ' + (location.search || location.hash || '(no qs)'));
 
         /* Reset the trace each time the overlay opens so the panel
            shows the run we care about, not buffered stale lines. */
