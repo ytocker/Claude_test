@@ -918,9 +918,50 @@ body   { background: #0d0820 !important; }
    Usage: visit https://<deploy>/?debug=1, qualify for top-10, tap the
    input, screenshot the panel. */
 (function () {
-    var qs = '';
-    try { qs = location.search || ''; } catch (_) {}
-    if (!/[?&]debug=1\b/.test(qs)) return;
+    /* Triple-gated so URL-stripping by pygbag boot, iOS PWA Home-Screen
+       installs (which can drop the query string), and aggressive
+       caching are all recoverable:
+         1. ?debug=1   — preferred, what we document.
+         2. #debug      — survives some redirect/cache schemes that
+                          rewrite the query string.
+         3. localStorage.skybitDebug === '1' — set once via Safari
+                          dev tools / a one-time visit; persists across
+                          reloads, including from a Home-Screen icon.
+       Any one is enough. Production users who don't set any pay zero
+       cost (early return below). */
+    var qs = '', hash = '', ls = null;
+    try { qs   = location.search || ''; } catch (_) {}
+    try { hash = location.hash   || ''; } catch (_) {}
+    try { ls   = localStorage.getItem('skybitDebug'); } catch (_) {}
+    var gated = /[?&]debug=1\b/.test(qs) ||
+                /(^|#|&)debug(=1)?\b/.test(hash) ||
+                ls === '1';
+    if (!gated) return;
+
+    /* Body-level "DBG" badge. Sole purpose is to confirm the gate
+       fired — if the user reports this is invisible, the panel-not-
+       appearing problem is upstream of this script (cache, wrong URL,
+       deploy not live), not in the panel's render path. Tiny and in
+       the corner so it's tolerable during gameplay. */
+    function addBadge() {
+        if (document.getElementById('skybit-dbg-badge')) return;
+        var b = document.createElement('div');
+        b.id = 'skybit-dbg-badge';
+        b.textContent = 'DBG';
+        b.setAttribute('aria-hidden', 'true');
+        b.style.cssText =
+            'position:fixed;top:4px;left:4px;z-index:99999;' +
+            'padding:2px 6px;font:bold 10px/1 ui-monospace,monospace;' +
+            'color:#fff;background:#c8246b;border:1px solid #fff;' +
+            'border-radius:3px;pointer-events:none;letter-spacing:1px;';
+        (document.body || document.documentElement).appendChild(b);
+        try { document.title = '[DBG] ' + document.title; } catch (_) {}
+    }
+    if (document.body) {
+        addBadge();
+    } else {
+        document.addEventListener('DOMContentLoaded', addBadge);
+    }
 
     function ready(fn) {
         if (document.readyState === 'loading') {
