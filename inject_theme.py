@@ -1,8 +1,41 @@
 #!/usr/bin/env python3
 """
-Post-process pygbag's generated build/web/index.html to inject:
-  - Skybit dark-purple night-sky loading overlay
-  - window.skyPlay() Web Audio synthesis (matches game/audio.py exactly)
+Post-process pygbag's generated build/web/index.html to add the Skybit
+chrome (loading splash, themed progress bar, name-entry overlay) and the
+JS bridge that connects the WASM-side Python game to the browser
+(leaderboard submit/fetch, telemetry log, Web Audio playback).
+
+Contracts the game/Python code depends on (do not change without
+updating the corresponding Python callers):
+
+  window.__sk(action, payload)       — see game/leaderboard.py, game/play_log.py
+      actions: submit / submit_done / fetch / fetch_done / fetch_error /
+               log    / log_done
+  window.skyPlay(name, volume)       — see game/audio.py
+  window.openNameEntry()             — see game/leaderboard.py
+  window._pendingName                — string sentinel, polled at 50 ms by
+                                       game/leaderboard.py until != '__pending__'
+  window.skybitGameReady             — set true by game/scenes.py first frame
+  window.MM.UME                      — set true here on splash dismiss
+  __SB_URL__ / __SB_KEY__            — build-time substitutions from env
+
+NAME ENTRY (the redesign):
+
+The previous implementation used <input id="name-input"> and was unfixably
+flaky on iOS Safari: every short tap raced SDL's window-level click
+listener, the canvas re-grabbed focus, and the soft keyboard dismissed.
+Eight patch attempts (canvas-focus override, dialog showModal, mouse/
+touch shield at three different phases, canvas inert observer, deferred-
+focus removal, max z-index lift) all failed or were reverted.
+
+This rewrite eliminates the underlying contention by removing the
+<input> entirely. The name overlay now hosts a 7-column on-screen
+virtual keyboard rendered as <button> elements (A-Z + space + ⌫ + ↵ +
+SKIP). Tapping a letter appends to a private buffer; ⌫ removes; ↵
+submits; SKIP cancels. The iOS soft keyboard is never invoked. SDL's
+click listener still fires for canvas clicks (gameplay) but every
+overlay click lands on a <button>, which natively absorbs the synthetic-
+click race. No focus(), no MutationObserver, no shield IIFEs.
 """
 import os
 import re
@@ -18,12 +51,13 @@ html = src.read_text(encoding="utf-8")
 _SB_URL = os.environ.get("SUPABASE_URL", "")
 _SB_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
-# Track how many color/background replacements actually matched. Used by the
-# post-write assertions below: a deploy where NONE of the loader colours
-# were patched almost certainly means pygbag changed its template and the
-# user will see the unthemed default progress bar (green rectangle, blue
-# text) — which has been observed in production as a stuck-loading state.
+# Track how many color/background replacements actually matched. The post-
+# write assertions below treat zero matches as a build failure: it almost
+# always means pygbag changed its template and the user is about to be
+# served the unthemed default progress bar (green rectangle, blue text)
+# — observed in production as a stuck-loading state.
 _color_subs = 0
+
 
 def _patch_re(pattern, replacement, html_in):
     global _color_subs
@@ -31,68 +65,104 @@ def _patch_re(pattern, replacement, html_in):
     _color_subs += n
     return new
 
+
 def _patch_str(needle, replacement, html_in):
     global _color_subs
     _color_subs += html_in.count(needle)
     return html_in.replace(needle, replacement)
 
-# ── 1. Dark body + canvas background (CSS) ───────────────────────────────────
+
+# ── 1. Patch pygbag's default loader chrome to the Skybit palette ────────────
+# These also keep _color_subs > 0 so the post-write assertion fires
+# correctly when pygbag's template drifts.
 html = _patch_str("background-color:powderblue", "background-color:#0d0820", html)
-# Inline style on <canvas> if present
 html = re.sub(
     r'(<canvas\b[^>]*style=["\'])([^"\']*)',
     lambda m: m.group(1) + "background:#0d0820;" + m.group(2),
     html,
 )
+html = _patch_str('"#7f7f7f"', '"#0d0820"', html)
+html = _patch_re(r'\(\s*0\s*,\s*255\s*,\s*0\s*\)',  '(240,192,64)', html)
+html = _patch_re(r'\(\s*10\s*,\s*10\s*,\s*10\s*\)', '(20,12,48)',   html)
+html = _patch_re(r',\s*True\s*,\s*"blue"\)',        ', True, (240,192,64))', html)
+html = _patch_str('"powderblue"',                   '"#0d0820"', html)
+html = _patch_str("'powderblue'",                   "'#0d0820'", html)
 
-# ── 2. Patch embedded Python progress-bar colors ──────────────────────────────
-# pygbag embeds custom_site() Python code as a comment inside a <script> tag.
-# Use regex so spaces inside tuples don't break the match.
-html = _patch_str('"#7f7f7f"', '"#0d0820"', html)                        # bg: gray → dark purple
-html = _patch_re(r'\(\s*0\s*,\s*255\s*,\s*0\s*\)', '(240,192,64)', html)   # bar: green → gold
-html = _patch_re(r'\(\s*10\s*,\s*10\s*,\s*10\s*\)', '(20,12,48)', html)    # track: near-black → deep purple
-html = _patch_re(r',\s*True\s*,\s*"blue"\)', ', True, (240,192,64))', html)  # text: blue → gold
-# Some pygbag versions name the bg color differently
-html = _patch_str('"powderblue"', '"#0d0820"', html)
-html = _patch_str("'powderblue'", "'#0d0820'", html)
 
-# ── 2. Loading overlay HTML (injected right after <body>) ─────────────────────
-OVERLAY = """
+# ── 2. HTML overlays injected after <body> ───────────────────────────────────
+# The decorative twin-mountain SVG appears on both overlays; declare once
+# as a Python constant so the same paths render in both places.
+_MOUNTAINS_SVG = """\
+<svg class="sk-mountains" viewBox="0 0 1440 200" preserveAspectRatio="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,200 L0,130 L60,70 L120,110 L200,40 L280,90 L360,20
+           L440,75 L520,45 L600,100 L680,15 L760,80 L840,35 L920,95
+           L1000,50 L1080,85 L1160,25 L1240,90 L1320,55 L1440,70 L1440,200 Z"
+        fill="#0e1a0c" opacity="0.95"/>
+  <path d="M0,200 L0,155 L80,125 L160,145 L240,108 L320,132 L400,95
+           L480,128 L560,105 L640,135 L720,88 L800,120 L880,100 L960,130
+           L1040,110 L1120,138 L1200,105 L1280,128 L1360,112 L1440,125 L1440,200 Z"
+        fill="#0a1208" opacity="0.75"/>
+</svg>
+"""
+
+LOADING_HTML = """
 <div id="skybit-loading">
-  <p class="skybit-title">SKYBIT</p>
-  <p class="skybit-sub">Pocket Sky Flyer</p>
-  <div id="skybit-btn" class="tap-btn">TAP &nbsp;&middot;&nbsp; CLICK &nbsp;&middot;&nbsp; SPACE</div>
-  <div class="skybit-progress" aria-hidden="true">
-    <div id="skybit-progress-fill" class="skybit-progress-fill"></div>
+  <p class="sk-title">SKYBIT</p>
+  <p class="sk-subtitle">Pocket Sky Flyer</p>
+  <div id="sk-cta" class="sk-cta">TAP &nbsp;&middot;&nbsp; CLICK &nbsp;&middot;&nbsp; SPACE</div>
+  <div class="sk-progress" aria-hidden="true">
+    <div id="sk-progress-fill" class="sk-progress-fill"></div>
   </div>
-  <p id="skybit-status" class="skybit-status"></p>
-  <svg class="mountains" viewBox="0 0 1440 200" preserveAspectRatio="none"
-       xmlns="http://www.w3.org/2000/svg">
-    <path d="M0,200 L0,130 L60,70 L120,110 L200,40 L280,90 L360,20
-             L440,75 L520,45 L600,100 L680,15 L760,80 L840,35 L920,95
-             L1000,50 L1080,85 L1160,25 L1240,90 L1320,55 L1440,70 L1440,200 Z"
-          fill="#0e1a0c" opacity="0.95"/>
-    <path d="M0,200 L0,155 L80,125 L160,145 L240,108 L320,132 L400,95
-             L480,128 L560,105 L640,135 L720,88 L800,120 L880,100 L960,130
-             L1040,110 L1120,138 L1200,105 L1280,128 L1360,112 L1440,125 L1440,200 Z"
-          fill="#0a1208" opacity="0.75"/>
-  </svg>
+  <p id="sk-status" class="sk-status"></p>
+""" + _MOUNTAINS_SVG + """\
 </div>
 """
-NAME_OVERLAY = """
-<div id="name-overlay">
-  <svg class="mountains" viewBox="0 0 1440 200" preserveAspectRatio="none"
-       xmlns="http://www.w3.org/2000/svg">
-    <path d="M0,200 L0,130 L60,70 L120,110 L200,40 L280,90 L360,20
-             L440,75 L520,45 L600,100 L680,15 L760,80 L840,35 L920,95
-             L1000,50 L1080,85 L1160,25 L1240,90 L1320,55 L1440,70 L1440,200 Z"
-          fill="#0e1a0c" opacity="0.95"/>
-    <path d="M0,200 L0,155 L80,125 L160,145 L240,108 L320,132 L400,95
-             L480,128 L560,105 L640,135 L720,88 L800,120 L880,100 L960,130
-             L1040,110 L1120,138 L1200,105 L1280,128 L1360,112 L1440,125 L1440,200 Z"
-          fill="#0a1208" opacity="0.75"/>
-  </svg>
-  <svg class="ne-trophy" viewBox="0 0 60 72"
+
+# Virtual keyboard rows. Generating from Python keeps the HTML compact
+# and makes the layout self-documenting (one row per Python list).
+_KBD_ROWS = [
+    list("ABCDEFG"),
+    list("HIJKLMN"),
+    list("OPQRSTU"),
+    list("VWXYZ"),
+]
+
+
+def _kbd_buttons():
+    parts = []
+    for row in _KBD_ROWS:
+        for ch in row:
+            parts.append(
+                '<button class="sk-key" data-k="{c}" '
+                'aria-label="{c}">{c}</button>'.format(c=ch)
+            )
+        # Each row is exactly 7 columns. Pad shorter rows with placeholder
+        # cells so the grid lines up, then add the back/enter cells inline
+        # at the end of the V-Z row.
+    # Last letter row only has 5 letters (V-Z); pack ⌫ and ↵ into cols 6/7.
+    parts.insert(
+        len(_KBD_ROWS[0]) + len(_KBD_ROWS[1]) + len(_KBD_ROWS[2]) + 5,
+        '<button class="sk-key sk-special" data-act="back" '
+        'aria-label="delete">&#x232b;</button>'
+        '<button class="sk-key sk-special" data-act="enter" '
+        'aria-label="enter">&#x21b5;</button>',
+    )
+    parts.append(
+        '<button class="sk-key sk-special sk-wide" data-act="space" '
+        'aria-label="space">SPACE</button>'
+    )
+    parts.append(
+        '<button class="sk-key sk-special sk-wide" data-act="skip" '
+        'aria-label="skip">SKIP</button>'
+    )
+    return "\n      ".join(parts)
+
+
+NAME_HTML = """
+<div id="sk-name-overlay" aria-hidden="true">
+""" + _MOUNTAINS_SVG + """\
+  <svg class="sk-trophy" viewBox="0 0 60 72"
        xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M10 18 Q 3 18 3 26 Q 3 35 11 36" fill="none"
           stroke="#f0c040" stroke-width="3" stroke-linecap="round"/>
@@ -108,31 +178,36 @@ NAME_OVERLAY = """
     <rect x="14" y="58" width="32" height="5"
           fill="#f0c040" stroke="#8c5a08" stroke-width="1"/>
   </svg>
-  <p class="ne-headline">You made it to the top 10!</p>
-  <input id="name-input" type="text" inputmode="text"
-         autocapitalize="off" autocorrect="off" autocomplete="off"
-         spellcheck="false" maxlength="10"
-         placeholder="TYPE YOUR NAME…"/>
-  <p id="name-counter">0 / 10</p>
-  <button id="name-submit" class="ne-submit">SUBMIT</button>
-  <button id="name-skip" class="ne-skip">SKIP</button>
+  <p class="sk-name-title">NEW HIGH SCORE!</p>
+  <div class="sk-buf-row">
+    <span class="sk-prompt">&gt;</span>
+    <span id="sk-buf" aria-live="polite">_ _ _ _ _ _ _ _ _ _</span>
+    <span id="sk-counter">0 / 10</span>
+  </div>
+  <div class="sk-kbd" id="sk-kbd">
+      """ + _kbd_buttons() + """
+  </div>
 </div>
 """
-html = html.replace("<body>", "<body>\n" + OVERLAY + NAME_OVERLAY, 1)
+
+html = html.replace("<body>", "<body>\n" + LOADING_HTML + NAME_HTML, 1)
+
 
 # ── 3. CSS + JS injected before </body> ──────────────────────────────────────
-INJECTION = """
+# Single string assembled from concern-scoped fragments below. Each JS
+# fragment is its own IIFE that exposes only the documented contract on
+# window — the previous monolithic script ran 1500 lines in one closure
+# and accumulated eight months of patches.
+
+_CSS = """\
 <style>
-/* ── Canvas base (shows behind pygame loading bar) ─── */
 canvas { background: #0d0820 !important; }
 body   { background: #0d0820 !important; }
 
-/* ── Loading overlay ─────────────────────────────────
-   Hardened: every pygbag template version has at one point shipped a
-   `<div id="status">` or canvas at a high z-index that ends up over
-   the user-facing splash. Force the Skybit overlay to win every
-   stacking-context fight by pinning to the maximum reachable z-index
-   and !important-ing display so a sibling rule can't toggle it off. */
+/* ── Loading overlay ─────────────────────────────────────────────────────
+   Pinned to the maximum reachable z-index with !important: pygbag has
+   shipped templates whose own status div / canvas ended up above
+   ours, and the user only sees a stuck unthemed pygbag default. */
 #skybit-loading {
     position: fixed !important;
     inset: 0 !important;
@@ -149,24 +224,22 @@ body   { background: #0d0820 !important; }
     opacity: 1;
     -webkit-tap-highlight-color: transparent;
 }
-.skybit-title { visibility: visible !important; opacity: 1 !important; }
 
-/* Twinkling stars (added by JS) */
-.star {
+/* Twinkling stars (created by JS once the overlay is in DOM). */
+.sk-star {
     position: absolute;
     background: #ffffff;
     border-radius: 50%;
     pointer-events: none;
-    animation: twinkle var(--dur, 2s) ease-in-out infinite;
+    animation: sk-twinkle var(--dur, 2s) ease-in-out infinite;
     animation-delay: var(--delay, 0s);
 }
-@keyframes twinkle {
+@keyframes sk-twinkle {
     0%, 100% { opacity: 0.12; transform: scale(1.0); }
     50%       { opacity: 0.95; transform: scale(1.4); }
 }
 
-/* "SKYBIT" title */
-.skybit-title {
+.sk-title {
     font-family: Arial Black, Arial, sans-serif;
     font-size: clamp(54px, 14vw, 90px);
     font-weight: 900;
@@ -179,16 +252,17 @@ body   { background: #0d0820 !important; }
          0   -3px 0 #a82010,
          0    3px 0 #a82010,
          0    9px 8px rgba(0, 0, 0, 0.85);
-    animation: float-title 3.4s ease-in-out infinite;
+    animation: sk-float 3.4s ease-in-out infinite;
     pointer-events: none;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
-@keyframes float-title {
+@keyframes sk-float {
     0%, 100% { transform: translateY(0px);   }
     50%       { transform: translateY(-14px); }
 }
 
-/* Subtitle */
-.skybit-sub {
+.sk-subtitle {
     font-family: Arial, sans-serif;
     font-size: clamp(10px, 2.6vw, 14px);
     font-weight: 700;
@@ -200,8 +274,7 @@ body   { background: #0d0820 !important; }
     pointer-events: none;
 }
 
-/* TAP TO PLAY button */
-.tap-btn {
+.sk-cta {
     font-family: Arial Black, Arial, sans-serif;
     font-size: clamp(13px, 3.6vw, 18px);
     font-weight: 900;
@@ -214,20 +287,16 @@ body   { background: #0d0820 !important; }
     box-shadow:
         0 5px 30px rgba(200, 64, 20, 0.65),
         inset 0 1px 0 rgba(255, 255, 255, 0.18);
-    animation: pulse-btn 1.8s ease-in-out infinite;
+    animation: sk-pulse 1.8s ease-in-out infinite;
     pointer-events: none;
     white-space: nowrap;
 }
-@keyframes pulse-btn {
+@keyframes sk-pulse {
     0%, 100% { opacity: 0.70; transform: scale(1.00); }
     50%       { opacity: 1.00; transform: scale(1.07); }
 }
 
-/* Smooth themed progress bar (replaces pygbag's chunky default).
-   Width is animated via CSS transition so each JS update glides
-   instead of snapping. Time-based ease-out keeps motion alive
-   while WASM downloads, then jumps to 100% on real boot. */
-.skybit-progress {
+.sk-progress {
     position: relative;
     width: clamp(180px, 56vw, 340px);
     height: 4px;
@@ -237,7 +306,7 @@ body   { background: #0d0820 !important; }
     overflow: hidden;
     pointer-events: none;
 }
-.skybit-progress-fill {
+.sk-progress-fill {
     height: 100%;
     width: 0%;
     background: linear-gradient(90deg, #b88a2e 0%, #f0c040 50%, #fff0b0 100%);
@@ -245,22 +314,17 @@ body   { background: #0d0820 !important; }
     transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: 0 0 10px rgba(240, 192, 64, 0.55);
 }
-.skybit-progress-fill.skybit-progress-stalled {
+.sk-progress-fill.sk-stalled {
     background: linear-gradient(90deg, #6a3a1a 0%, #a85a2a 100%);
     box-shadow: 0 0 8px rgba(168, 90, 42, 0.45);
-    animation: stall-shimmer 1.6s ease-in-out infinite;
+    animation: sk-stall 1.6s ease-in-out infinite;
 }
-@keyframes stall-shimmer {
+@keyframes sk-stall {
     0%, 100% { opacity: 0.55; }
     50%       { opacity: 1.00; }
 }
 
-/* Pygbag's progress chrome lives behind our z-index:100 overlay so the
-   user never sees it; no hide rule needed. (Earlier `display:none`
-   broke other things by removing elements pygbag's runtime expected.) */
-
-/* Loading watchdog status line (filled in by JS once stalled) */
-.skybit-status {
+.sk-status {
     font-family: Arial, sans-serif;
     font-size: clamp(11px, 2.6vw, 13px);
     font-weight: 600;
@@ -274,8 +338,7 @@ body   { background: #0d0820 !important; }
     text-align: center;
 }
 
-/* SVG mountain silhouette */
-.mountains {
+.sk-mountains {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -284,8 +347,8 @@ body   { background: #0d0820 !important; }
     pointer-events: none;
 }
 
-/* ── Name-entry overlay ─────────────────────────────────────── */
-#name-overlay {
+/* ── Name-entry overlay (virtual keyboard) ──────────────────────────────── */
+#sk-name-overlay {
     position: fixed;
     inset: 0;
     z-index: 200;
@@ -297,8 +360,10 @@ body   { background: #0d0820 !important; }
     overflow: hidden;
     font-family: Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    padding: 12px;
+    box-sizing: border-box;
 }
-.ne-trophy {
+.sk-trophy {
     width: clamp(56px, 14vw, 80px);
     height: auto;
     margin: 0 0 14px;
@@ -307,13 +372,13 @@ body   { background: #0d0820 !important; }
     position: relative;
     z-index: 1;
 }
-.ne-headline {
+.sk-name-title {
     font-family: Arial Black, Arial, sans-serif;
     font-size: clamp(20px, 5.4vw, 28px);
     font-weight: 900;
     letter-spacing: 2px;
     color: #f0c040;
-    margin: 0 0 24px;
+    margin: 0 0 18px;
     text-shadow:
         -2px  0   0 #a82010,
          2px  0   0 #a82010,
@@ -325,116 +390,118 @@ body   { background: #0d0820 !important; }
     z-index: 1;
     text-align: center;
 }
-.ne-sub {
-    font-size: 12px;
-    letter-spacing: 3px;
+
+/* Buffer display: monospace, gold, with placeholder underscores so the
+   user can see the slots fill in. */
+.sk-buf-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 14px;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(232, 104, 40, 0.45);
+    border-radius: 10px;
+    position: relative;
+    z-index: 1;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+}
+.sk-prompt {
     color: #d8b855;
     opacity: 0.65;
-    margin: 0 0 24px;
-    pointer-events: none;
-    text-transform: uppercase;
-    position: relative;
-    z-index: 1;
+    font: 700 18px/1 Arial Black, Arial, sans-serif;
 }
-#name-input {
-    background: #0d0820;
+#sk-buf {
     color: #f0c040;
-    border: 2px solid #e86828;
-    border-radius: 14px;
-    padding: 16px 28px;
-    font-size: clamp(20px, 5vw, 26px);
-    font-weight: 700;
+    font: 700 clamp(18px, 4.6vw, 22px)/1.1
+          ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     letter-spacing: 4px;
-    text-align: center;
-    outline: none;
-    width: min(78vw, 300px);
-    box-sizing: border-box;
-    transition: box-shadow 0.2s;
-    position: relative;
-    z-index: 1;
+    white-space: pre;
+    flex: 1 1 auto;
+    text-align: left;
 }
-#name-input:focus {
-    box-shadow: 0 0 0 3px rgba(240, 192, 64, 0.35);
-}
-#name-counter {
-    font-size: 13px;
+#sk-counter {
     color: #d8b855;
     opacity: 0.6;
-    margin: 8px 0 24px;
+    font: 600 12px Arial, sans-serif;
     letter-spacing: 1px;
-    pointer-events: none;
-    position: relative;
-    z-index: 1;
+    flex: 0 0 auto;
 }
-.ne-submit, .ne-skip {
-    /* Identical buttons: same width, same opacity, no animation, sit on
-       top of whatever's behind via z-index. */
-    font-family: Arial Black, Arial, sans-serif;
-    font-size: clamp(13px, 3.6vw, 18px);
-    font-weight: 900;
-    letter-spacing: 4px;
-    color: #ffffff;
-    background: linear-gradient(180deg, #c84018 0%, #7e1c02 100%);
-    border: 2px solid #e86828;
-    border-radius: 60px;
-    padding: 16px 24px;
-    min-width: 220px;
-    text-align: center;
-    cursor: pointer;
-    white-space: nowrap;
+
+/* On-screen keyboard. CSS Grid so all cells line up regardless of how
+   many letters land on the last row. 7 columns matches the layout
+   sketch (A-G / H-N / O-U / V-Z⌫↵), with SPACE and SKIP on full-width
+   rows below.
+
+   Apple HIG asks for 44 px minimum tap target; we hit min-height 44 px
+   and let width breathe between 36 px and 56 px so the grid auto-shrinks
+   on very narrow viewports without going below tap-friendly.
+   touch-action:manipulation suppresses the iOS double-tap-to-zoom
+   delay; user-select:none kills the long-press selection callout. */
+.sk-kbd {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(36px, 56px));
+    gap: 6px;
+    margin-top: 4px;
     position: relative;
     z-index: 2;
-    opacity: 1;
+    max-width: calc(100vw - 24px);
 }
-.ne-skip {
-    margin-top: 14px;
+.sk-key {
+    min-width: 36px;
+    min-height: 44px;
+    padding: 0;
+    background: linear-gradient(180deg, #1d1240 0%, #0f0828 100%);
+    color: #f0c040;
+    border: 1px solid #4e2a6a;
+    border-radius: 8px;
+    font-family: Arial Black, Arial, sans-serif;
+    font-size: clamp(14px, 3.4vw, 18px);
+    font-weight: 900;
+    letter-spacing: 0;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 130ms ease, background 130ms ease;
+}
+.sk-key:active {
+    transform: scale(0.93);
+    background: linear-gradient(180deg, #2a1858 0%, #170a3a 100%);
+}
+.sk-key.sk-special {
+    background: linear-gradient(180deg, #c84018 0%, #7e1c02 100%);
+    color: #ffffff;
+    border-color: #e86828;
+    box-shadow:
+        0 3px 14px rgba(200, 64, 20, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.sk-key.sk-special:active {
+    background: linear-gradient(180deg, #a8300e 0%, #5e1402 100%);
+}
+.sk-key.sk-wide {
+    grid-column: 1 / -1;
+    letter-spacing: 4px;
 }
 </style>
+"""
 
+# ─── Telemetry / leaderboard dispatcher (window.__sk) ───────────────────────
+# Closure-private state. Recomputes the same SHA-256 chain hash as
+# game/_proof.py so a console attacker can't paste a fake events list.
+# usedIds blocks trivial replays. The dispatcher is the only window
+# global; results are read back via the *_done actions.
+_TELEMETRY_JS = """
 <script>
-/* Boot diagnostics — surface whether the overlay HTML reached the DOM
-   and whether the build-time secret substitution was successful. Both
-   are silent failure modes today; this gives us visibility without
-   needing the user to dump page source. */
-(function () {
-    function once() {
-        try {
-            var ov = document.getElementById('skybit-loading');
-            console.log('[skybit/boot] overlay in DOM:', !!ov,
-                ov ? '(z-index=' + getComputedStyle(ov).zIndex +
-                ', display=' + getComputedStyle(ov).display + ')' : '');
-        } catch (_) {}
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', once);
-    } else {
-        once();
-    }
-})();
-</script>
-
-<script>
-/* ── Skybit bridge (closure-private; no global submit API) ──────────────
-   Everything score-related funnels through window.__sk(action, ...args).
-   The previous build exposed window.lbSubmitStart / lbFetchStart /
-   skyLogPlayStart directly on window, which made the casual cheat
-   "open the console and type lbSubmitStart('X', 999999)" a one-liner.
-   The dispatcher below requires a structured payload (with a SHA-256
-   chain hash that the JS side recomputes from the events list) and
-   tracks consumed run UUIDs to block trivial replay. None of this
-   stops a determined reader of the source — it raises the bar from
-   "60-second one-liner" to "construct a self-consistent proof." */
 (function () {
     var a = "__SB_URL__";
     var b = "__SB_KEY__";
 
-    /* Surface the build-time substitution result before any fetch runs.
-       Top-10 has been silently empty on deploys where the build env
-       didn't carry the secrets — this prints exactly what landed in
-       the HTML so it's obvious in DevTools whether the value reached
-       the page. The anon key is intentionally truncated so we can
-       confirm presence + length without leaking the whole token to
-       a casual screenshot. */
+    /* Surface build-time substitution result early so silently-empty
+       leaderboard deploys are debuggable from DevTools. */
     try {
         var urlOk = !!(a && a.indexOf('supabase') >= 0 && a.indexOf('__SB_') < 0);
         console.log('[skybit/lb] build-time substitution:',
@@ -444,11 +511,9 @@ body   { background: #0d0820 !important; }
                 : '(not substituted)');
     } catch (_) {}
 
-    /* Sanity ping: fire a minimal fetch on page load, independent of
-       the game's bridge / Python timing, so we can see whether the
-       Supabase REST path works at all from this origin. Result is
-       logged but never used — the real fetch path goes through
-       doFetch() below. Skipped silently if substitution failed. */
+    /* Independent sanity-ping at boot, never used by the game path. Just
+       proves whether the Supabase REST endpoint is reachable from this
+       origin under the current key. */
     try {
         if (a && b && a.indexOf('__SB_') < 0 && b.indexOf('__SB_') < 0) {
             setTimeout(function () {
@@ -461,26 +526,24 @@ body   { background: #0d0820 !important; }
                     console.log('[skybit/lb] sanity-ping body:',
                         typeof body === 'string' ? body.slice(0, 300) : body);
                 }).catch(function (e) {
-                    console.error('[skybit/lb] sanity-ping network error:', e && e.message || e);
+                    console.error('[skybit/lb] sanity-ping network error:',
+                                  e && e.message || e);
                 });
             }, 500);
         }
     } catch (_) {}
 
-    /* Internal result slots — never on window. Polled via __sk('*_done'). */
+    /* Result slots — closure-private, never on window. Polled via __sk('*_done'). */
     var rSubmit = null;
     var rFetch  = null;
     var rLog    = null;
-    /* Parallel error string for fetch_top10. Empty string = no error
-       (fetch is fine and returned 0 rows OR a populated array). Non-
-       empty = a specific failure mode the Python side can render to the
-       canvas so the user sees something other than a silent empty list. */
     var rFetchError = '';
 
-    /* Replay defense: each run_id can submit exactly once per page load.
-       Combined with the per-page-load handshake this means a captured
-       fetch can't be re-fired ten times from the console. */
-    var usedIds = (typeof Set === 'function') ? new Set() : {has:function(k){return !!this[k];}, add:function(k){this[k]=1;}};
+    /* One submit per run_id per page load. */
+    var usedIds = (typeof Set === 'function')
+        ? new Set()
+        : { has: function (k) { return !!this[k]; },
+            add: function (k) { this[k] = 1; } };
 
     function deviceId() {
         try {
@@ -501,27 +564,22 @@ body   { background: #0d0820 !important; }
         }
     }
 
-    /* Recompute the same chain hash that game/_proof.py builds. The
-       struct format is ">qIB" + 8-byte ASCII kind, identical to the
-       Python writer. Any drift here desynchronises legitimate runs. */
+    /* Mirrors game/_proof.py's >qIB + 8-byte ASCII kind layout exactly. */
     function packEvent(t, ds, kind) {
         var ms = Math.round(Number(t) * 1000);
         var buf = new ArrayBuffer(21);
         var dv  = new DataView(buf);
         var hi = Math.floor(ms / 0x100000000);
         var lo = ms >>> 0;
-        if (ms < 0) {
-            /* Two's complement for negative ms; not expected in legit runs. */
-            hi = (hi >>> 0); lo = (lo >>> 0);
-        }
         dv.setUint32(0, hi, false);
         dv.setUint32(4, lo, false);
         dv.setUint32(8, (Number(ds) >>> 0), false);
         var k = String(kind);
-        var kl = k.length;
-        dv.setUint8(12, kl & 0xff);
+        dv.setUint8(12, k.length & 0xff);
         var bytes = new Uint8Array(buf, 13, 8);
-        for (var i = 0; i < 8; i++) bytes[i] = (i < k.length) ? (k.charCodeAt(i) & 0x7f) : 0;
+        for (var i = 0; i < 8; i++) {
+            bytes[i] = (i < k.length) ? (k.charCodeAt(i) & 0x7f) : 0;
+        }
         return new Uint8Array(buf);
     }
     function concatU8(a8, b8) {
@@ -538,7 +596,7 @@ body   { background: #0d0820 !important; }
         return s;
     }
     async function chainHex(events) {
-        var c = new Uint8Array(32);  /* zero-seed, matches Python */
+        var c = new Uint8Array(32);  /* zero seed, matches Python */
         for (var i = 0; i < events.length; i++) {
             var ev = events[i];
             var packed = packEvent(ev[0], ev[1], ev[2]);
@@ -554,15 +612,15 @@ body   { background: #0d0820 !important; }
         try {
             if (!a || !b) { rSubmit = false; return; }
             var payload;
-            try { payload = (typeof rawPayload === 'string') ? JSON.parse(rawPayload) : rawPayload; }
-            catch (e) { rSubmit = false; return; }
+            try {
+                payload = (typeof rawPayload === 'string')
+                    ? JSON.parse(rawPayload) : rawPayload;
+            } catch (e) { rSubmit = false; return; }
             if (!payload || typeof payload !== 'object') { rSubmit = false; return; }
             var rid = String(payload.run_id || '');
             if (!rid || usedIds.has(rid)) { rSubmit = false; return; }
             var events = payload.events;
             if (!events || !events.length) { rSubmit = false; return; }
-            /* Recompute chain hash on the JS side. A casual paster who
-               supplies a fake events list with a guessed hash fails here. */
             var localHex = await chainHex(events);
             if (localHex !== String(payload.chain_hex || '')) { rSubmit = false; return; }
             usedIds.add(rid);
@@ -574,7 +632,10 @@ body   { background: #0d0820 !important; }
                     'Content-Type': 'application/json',
                     'Prefer': 'return=minimal'
                 },
-                body: JSON.stringify({name: String(payload.name), score: Number(payload.score)})
+                body: JSON.stringify({
+                    name:  String(payload.name),
+                    score: Number(payload.score)
+                })
             });
             rSubmit = r.ok;
         } catch (e) { rSubmit = false; }
@@ -585,22 +646,22 @@ body   { background: #0d0820 !important; }
         rFetchError = '';
         try {
             if (!a || !b) {
-                console.error('[skybit/lb] Supabase URL or KEY is empty — leaderboard cannot fetch.', {hasUrl: !!a, hasKey: !!b});
+                console.error('[skybit/lb] Supabase URL or KEY is empty — leaderboard cannot fetch.',
+                              {hasUrl: !!a, hasKey: !!b});
                 rFetchError = 'config missing';
                 rFetch = []; return;
             }
-            /* Pull a wider slice and apply the plausibility ceiling
-               client-side so a row injected by direct curl with score
-               999999 doesn't make it onto the visible top-10. */
+            /* Wider slice + client-side plausibility filter so an injected
+               row with score 999999 doesn't make it onto the visible top-10. */
             var url = a + '/rest/v1/scores?select=name,score&order=score.desc&limit=200';
-            var r = await fetch(
-                url,
-                { headers: {'apikey': b, 'Authorization': 'Bearer ' + b} }
-            );
+            var r = await fetch(url, {
+                headers: {'apikey': b, 'Authorization': 'Bearer ' + b}
+            });
             if (!r.ok) {
                 var bodyText = '';
                 try { bodyText = await r.text(); } catch (_) {}
-                console.error('[skybit/lb] fetch not ok:', r.status, r.statusText, '-', bodyText.slice(0, 200));
+                console.error('[skybit/lb] fetch not ok:',
+                              r.status, r.statusText, '-', bodyText.slice(0, 200));
                 rFetchError = 'http ' + r.status;
                 rFetch = []; return;
             }
@@ -614,15 +675,12 @@ body   { background: #0d0820 !important; }
                 if (sc < 0 || sc > 10000) continue;
                 filtered.push({name: nm, score: sc});
             }
-            console.log('[skybit/lb] fetched', rows.length, 'rows;', filtered.length, 'after filter');
-            /* 200 OK with zero rows is the classic RLS-without-policy
-               signature on Supabase — surface it so the leaderboard
-               scene can show "Top-10 unavailable" instead of an empty
-               list (silent empty looked identical to "no scores yet"
-               and made the regression invisible). */
-            if (rows.length === 0) {
-                rFetchError = 'rls or empty';
-            }
+            console.log('[skybit/lb] fetched', rows.length, 'rows;',
+                        filtered.length, 'after filter');
+            /* 200 + zero rows is the classic "RLS without policy" signature.
+               Surface it so the leaderboard scene shows an explicit
+               "Top-10 unavailable" instead of a silent empty list. */
+            if (rows.length === 0) rFetchError = 'rls or empty';
             rFetch = filtered;
         } catch (e) {
             console.error('[skybit/lb] fetch threw:', e && e.message || e);
@@ -636,8 +694,10 @@ body   { background: #0d0820 !important; }
         try {
             if (!a || !b) { rLog = false; return; }
             var payload;
-            try { payload = (typeof rawPayload === 'string') ? JSON.parse(rawPayload) : rawPayload; }
-            catch (e) { rLog = false; return; }
+            try {
+                payload = (typeof rawPayload === 'string')
+                    ? JSON.parse(rawPayload) : rawPayload;
+            } catch (e) { rLog = false; return; }
             if (!payload || typeof payload !== 'object') { rLog = false; return; }
             var body = {
                 score:       Number(payload.score),
@@ -662,200 +722,54 @@ body   { background: #0d0820 !important; }
         } catch (e) { rLog = false; }
     }
 
-    /* Single dispatcher. Reject unknown actions silently — no help for
-       attackers grepping for action strings in console errors. */
     function dispatch(action, payload) {
         switch (String(action || '')) {
             case 'submit':       doSubmit(payload); return null;
             case 'submit_done':  return rSubmit;
-            case 'fetch':        doFetch(); return null;
+            case 'fetch':        doFetch();         return null;
             case 'fetch_done':   return rFetch;
             case 'fetch_error':  return rFetchError;
-            case 'log':          doLog(payload); return null;
+            case 'log':          doLog(payload);    return null;
             case 'log_done':     return rLog;
             default:             return null;
         }
     }
 
-    /* Lock the property so a console attacker can't replace the
-       dispatcher with their own and have us call into it later. */
+    /* Frozen so a console attacker can't replace the dispatcher and have
+       us call into their version later. */
     Object.defineProperty(window, '__sk', {
         value: dispatch, writable: false, configurable: false, enumerable: false
     });
-
-    window._pendingName = "__pending__";
-    var _nameStarsAdded = false;
-    /* Last pointerdown target id while the overlay is open. Used by the
-       SUBMIT / SKIP onclick handlers to reject "ghost" clicks: on iOS,
-       the soft keyboard shrinks the visual viewport, the flex-centered
-       overlay re-centers, and #name-skip drifts upward under the user's
-       original tap on the input. iOS then dispatches the synthetic
-       `click` to whatever element is at those coordinates at click time
-       — landing on SKIP and dismissing the overlay. We only honor a
-       click on a button if its preceding pointerdown was on the same
-       button. */
-    var _lastPointerDownTargetId = null;
-
-    /* SDL keyboard shield. SDL2's Emscripten port attaches keydown /
-       keyup / keypress on window in BUBBLE phase and calls
-       preventDefault — keypress is preventDefaulted whenever
-       SDL_TEXTINPUT is enabled (always, for pygame), and that
-       swallows the browser's default "type the character into the
-       focused input" action. With caps mode off, mobile IMEs skip
-       the synthetic keydown-with-key path for printable chars and
-       rely on keypress / beforeinput, so a keydown-only shield
-       isn't enough.
-
-       We register window-capture listeners on the three keyboard
-       events SDL touches. stopPropagation() in capture aborts the
-       bubble phase, so SDL never sees the event and never
-       preventDefaults. The browser's default action (insert character
-       into focused <input>) still fires, because default action is
-       gated on preventDefault, not propagation. The input's own
-       oninput still fires too — it's a separate event after the
-       default action, not in the keydown propagation chain.
-
-       We do NOT shield input / beforeinput / composition* — SDL
-       doesn't listen for them, and a window-capture stopPropagation
-       on `input` would prevent #name-input's own oninput from
-       firing (the counter would freeze).
-
-       Enter is intercepted here for desktop submit. On mobile the
-       soft keyboard's Go/Done emits Enter too. keyCode 229 /
-       isComposing is the IME "composing" placeholder — must NOT be
-       treated as Enter, or we'd close the overlay mid-character on
-       iOS. */
-    function _isNameOverlayOpen() {
-        var ov = document.getElementById('name-overlay');
-        return !!ov && ov.style.display === 'flex';
-    }
-    function _shieldKeyEvent(e) {
-        if (!_isNameOverlayOpen()) return;
-        e.stopPropagation();
-    }
-    window.addEventListener('keydown', function (e) {
-        if (!_isNameOverlayOpen()) return;
-        e.stopPropagation();
-        if (e.keyCode === 229 || e.isComposing) return;
-        if (e.key === 'Enter') {
-            var inp = document.getElementById('name-input');
-            var v = (inp && inp.value || '').trim();
-            window._pendingName = v.length > 0 ? v : '__skip__';
-            document.getElementById('name-overlay').style.display = 'none';
-        }
-        // Escape skip removed — there's a clickable SKIP button now.
-    }, true);
-    window.addEventListener('keyup',    _shieldKeyEvent, true);
-    window.addEventListener('keypress', _shieldKeyEvent, true);
-
-    /* iOS Safari fix: the soft keyboard only appears if focus() runs
-       inside a real user gesture. openNameEntry's setTimeout(focus)
-       fires after the gesture has ended, so iOS players see the
-       overlay but no keyboard. Capture-phase pointerdown at the
-       document runs synchronously inside the player's tap and
-       re-focuses the input so iOS shows the keyboard.
-
-       Also records the tap target so SUBMIT / SKIP onclick can reject
-       "ghost" clicks where iOS dispatches the synthetic click to a
-       different element than the one the user touched (see
-       _lastPointerDownTargetId note above). Gated on overlay
-       visibility so it never fires during gameplay. */
-    document.addEventListener('pointerdown', function (e) {
-        var ov = document.getElementById('name-overlay');
-        if (!ov || ov.style.display !== 'flex') return;
-        var t = e.target;
-        _lastPointerDownTargetId = t && t.id ? t.id : null;
-        // Don't steal focus from the SUBMIT / SKIP buttons — they
-        // need their own click handler to fire normally.
-        if (t && (t.id === 'name-submit' || t.id === 'name-skip')) return;
-        var inp = document.getElementById('name-input');
-        if (inp) try { inp.focus(); } catch (_) {}
-    }, true);
-
-    window.openNameEntry = function () {
-        var ov  = document.getElementById('name-overlay');
-        var inp = document.getElementById('name-input');
-        var ctr = document.getElementById('name-counter');
-
-        /* Inject twinkling stars once (same pattern as loading screen) */
-        if (!_nameStarsAdded) {
-            _nameStarsAdded = true;
-            for (var i = 0; i < 40; i++) {
-                var s = document.createElement('div');
-                s.className = 'star';
-                var sz = (Math.random() * 2.2 + 0.6).toFixed(1);
-                s.style.cssText =
-                    'width:' + sz + 'px;height:' + sz + 'px;' +
-                    'top:'   + (Math.random() * 90).toFixed(1)  + '%;' +
-                    'left:'  + (Math.random() * 100).toFixed(1) + '%;' +
-                    '--dur:'   + (Math.random() * 3 + 1.3).toFixed(1) + 's;' +
-                    '--delay:' + (Math.random() * 4).toFixed(1) + 's;';
-                ov.insertBefore(s, ov.firstChild);
-            }
-        }
-
-        ov.style.display = 'flex';
-        inp.value = '';
-        if (ctr) ctr.textContent = '0 / 10';
-        window._pendingName = '__pending__';
-
-        /* Desktop / Android: programmatic focus brings up the keyboard
-           (or readies the cursor) without further user action. iOS
-           Safari blocks focus() outside a real user gesture, so this
-           call is a no-op there — the document-level pointerdown
-           listener above handles iOS by re-focusing the input
-           synchronously inside the player's tap. */
-        setTimeout(function () { try { inp.focus(); } catch (_) {} }, 80);
-
-        /* Counter-only handler. We deliberately do NOT shield input /
-           beforeinput / composition* at window-capture above: SDL
-           doesn't bind them, and shielding would prevent this handler
-           from firing. */
-        inp.oninput = function () {
-            if (ctr) ctr.textContent = inp.value.length + ' / 10';
-        };
-
-        function submit() {
-            // Reject ghost clicks whose pointerdown wasn't on this button.
-            if (_lastPointerDownTargetId !== 'name-submit') return;
-            var v = inp.value.trim();
-            window._pendingName = v.length > 0 ? v : '__skip__';
-            ov.style.display = 'none';
-        }
-        document.getElementById('name-submit').onclick = submit;
-        document.getElementById('name-skip').onclick = function () {
-            if (_lastPointerDownTargetId !== 'name-skip') return;
-            window._pendingName = '__skip__';
-            ov.style.display = 'none';
-        };
-        // Enter / Escape are handled by the global capture-phase listener
-        // above, since SDL would otherwise eat the input's own keydown.
-    };
 }());
 </script>
+"""
 
+# ─── Web Audio bridge (window.skyPlay) ──────────────────────────────────────
+# Same OGG files game/audio.py would play through pygame.mixer natively;
+# inject_theme.py copies them into build/web/sounds/ at the bottom of this
+# script so they're fetchable by the same name. AudioBuffers are decoded
+# once and cached. The shared AudioContext is exposed as
+# window.__skyResumeCtx so the loading dismiss handler can unlock it on
+# the user's real first gesture.
+_AUDIO_JS = """
 <script>
 (function () {
-    /* ── skyPlay: load + play CC0 OGG samples ─────────────────────────────
-       Same files (game/assets/sounds/*.ogg) are loaded by the native
-       backend via pygame.mixer. inject_theme.py copies the OGGs into
-       build/web/sounds/ at build time so the browser can fetch them via
-       a relative URL. AudioBuffers are decoded once and cached, then
-       played via short-lived AudioBufferSourceNode + GainNode each call. */
-
     var _ctx = null;
-    var _cache = {};      // name → AudioBuffer
-    var _pending = {};    // name → Promise<AudioBuffer>
+    var _cache = {};      /* name → AudioBuffer */
+    var _pending = {};    /* name → Promise<AudioBuffer> */
 
     function getCtx() {
         if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (_ctx.state === 'suspended') _ctx.resume();
         return _ctx;
     }
+    /* Loading module calls this on every gesture — keeps a single
+       AudioContext alive across the splash dismiss and the game itself. */
+    window.__skyResumeCtx = function () { try { getCtx(); } catch (_) {} };
 
     function loadSnd(name) {
-        if (_cache[name]) return Promise.resolve(_cache[name]);
-        if (_pending[name]) return _pending[name];
+        if (_cache[name])    return Promise.resolve(_cache[name]);
+        if (_pending[name])  return _pending[name];
         var ac = getCtx();
         var p = fetch('sounds/' + name + '.ogg')
             .then(function (r) { return r.arrayBuffer(); })
@@ -882,197 +796,326 @@ body   { background: #0d0820 !important; }
             }
         });
     };
+}());
+</script>
+"""
 
-    /* ── Animated stars ───────────────────────────────────────────────── */
+# ─── Loading splash + watchdog state machine ────────────────────────────────
+# 1. Decorates the splash with twinkling stars.
+# 2. Polls window.MM (set by pygbag's runtime when Pyodide is up). Until
+#    then, animates the progress bar on a 1-exp(-t/τ) curve so the user
+#    sees motion even on slow networks.
+# 3. After 8 s without boot: shows "Loading… Ns".
+# 4. After 25 s without boot: swaps the CTA to "TAP TO RELOAD" and
+#    cache-busts on tap (?_skb=<ts>).
+# 5. On dismiss: unlocks audio (window.__skyResumeCtx), sets MM.UME=true,
+#    dispatches a click on canvas (pygbag listens for it to wake the
+#    interpreter), then waits for window.skybitGameReady (set by
+#    game/scenes.py first frame) before fading the overlay.
+# `pygbagReady` token here is also what the post-write assertion checks for.
+_LOADING_JS = """
+<script>
+(function () {
+    /* Boot diagnostics — confirm overlay reached the DOM. */
+    try {
+        var ovProbe = document.getElementById('skybit-loading');
+        console.log('[skybit/boot] overlay in DOM:', !!ovProbe,
+            ovProbe ? '(z-index=' + getComputedStyle(ovProbe).zIndex +
+                      ', display=' + getComputedStyle(ovProbe).display + ')' : '');
+    } catch (_) {}
+
     var ov = document.getElementById('skybit-loading');
-    if (ov) {
-        for (var i = 0; i < 75; i++) {
-            var s = document.createElement('div');
-            s.className = 'star';
-            var sz = (Math.random() * 2.5 + 0.7).toFixed(1);
-            s.style.cssText =
-                'width:' + sz + 'px;height:' + sz + 'px;' +
-                'top:'  + (Math.random() * 90).toFixed(1) + '%;' +
-                'left:' + (Math.random() * 100).toFixed(1) + '%;' +
-                '--dur:'   + (Math.random() * 3 + 1.3).toFixed(1) + 's;' +
-                '--delay:' + (Math.random() * 4).toFixed(1) + 's;';
-            ov.insertBefore(s, ov.firstChild);
+    if (!ov) return;
+
+    /* 75 twinkling stars. Same params as the previous implementation. */
+    for (var i = 0; i < 75; i++) {
+        var s = document.createElement('div');
+        s.className = 'sk-star';
+        var sz = (Math.random() * 2.5 + 0.7).toFixed(1);
+        s.style.cssText =
+            'width:' + sz + 'px;height:' + sz + 'px;' +
+            'top:'  + (Math.random() * 90).toFixed(1) + '%;' +
+            'left:' + (Math.random() * 100).toFixed(1) + '%;' +
+            '--dur:'   + (Math.random() * 3 + 1.3).toFixed(1) + 's;' +
+            '--delay:' + (Math.random() * 4).toFixed(1) + 's;';
+        ov.insertBefore(s, ov.firstChild);
+    }
+
+    var btn    = document.getElementById('sk-cta');
+    var status = document.getElementById('sk-status');
+    var fill   = document.getElementById('sk-progress-fill');
+
+    var BTN_READY  = 'TAP  ·  CLICK  ·  SPACE';
+    var BTN_LOAD   = 'LOADING…';
+    var BTN_RELOAD = 'TAP TO RELOAD';
+    var STALL_MS   = 25000;
+    var INFO_MS    =  8000;
+    /* 1-exp(-t/τ) climbs fast then asymptotes. Reaches ~63% at 6 s,
+       ~86% at 12 s, ~95% at 18 s. We never let it hit 100% from time
+       alone — only a real window.MM detection snaps it there. */
+    var ASYMPTOTE  = 0.92;
+    var TAU_MS     = 6000;
+    var t0 = Date.now();
+    var pygbagReady = false;
+    var stalled = false;
+
+    if (btn) btn.textContent = BTN_LOAD;
+
+    function isReady() {
+        try { return typeof window.MM !== 'undefined' && window.MM !== null; }
+        catch (_) { return false; }
+    }
+    function setFill(pct) {
+        if (!fill) return;
+        if (pct < 0)   pct = 0;
+        if (pct > 100) pct = 100;
+        fill.style.width = pct.toFixed(2) + '%';
+    }
+
+    var pollId = setInterval(function () {
+        if (isReady() && !pygbagReady) {
+            pygbagReady = true;
+            stalled = false;
+            if (btn)    btn.textContent    = BTN_READY;
+            if (status) status.textContent = '';
+            if (fill)   fill.classList.remove('sk-stalled');
+            setFill(100);
+            return;
+        }
+        if (pygbagReady) return;
+        var elapsed = Date.now() - t0;
+        var pct = ASYMPTOTE * (1 - Math.exp(-elapsed / TAU_MS)) * 100;
+        setFill(pct);
+        if (elapsed >= STALL_MS && !stalled) {
+            stalled = true;
+            if (btn)    btn.textContent    = BTN_RELOAD;
+            if (status) status.textContent = 'Loading is stuck. Tap to reload.';
+            if (fill)   fill.classList.add('sk-stalled');
+        } else if (elapsed >= INFO_MS && status && !stalled) {
+            status.textContent = 'Loading… ' + Math.floor(elapsed / 1000) + 's';
+        }
+    }, 250);
+
+    function reloadBust() {
+        clearInterval(pollId);
+        try {
+            var u = new URL(window.location.href);
+            u.searchParams.set('_skb', String(Date.now()));
+            window.location.replace(u.toString());
+        } catch (_) {
+            window.location.reload();
         }
     }
 
-    /* ── Loading overlay state machine ────────────────────────────────────
-       In production, pygbag's WASM/asset bundle download sometimes stalls
-       (stale browser cache, CDN hiccup, slow mobile connection). The user
-       only sees Skybit's overlay over pygbag's own progress bar, so they
-       can't tell anything is wrong. The original dismiss handler also
-       removed its listeners on the very first tap, so a tap fired before
-       window.MM existed silently no-op'd UME and left the user staring
-       at a frozen canvas with no recovery.
+    function pulseBtn() {
+        if (!btn) return;
+        btn.style.transition = 'transform 120ms ease';
+        btn.style.transform  = 'scale(0.93)';
+        setTimeout(function () { btn.style.transform = ''; }, 130);
+    }
 
-       This state machine fixes both:
-         1. Polls window.MM every 250 ms; only marks the overlay as ready
-            once pygbag has actually booted.
-         2. After 8 s without boot, shows a "Loading… Ns" status line so
-            the user knows it's still trying.
-         3. After 25 s, swaps the button to "TAP TO RELOAD" with a
-            cache-busting hard reload (?_skb=<ts>) — the most common
-            fix for users wedged on a stale-cache state.
-         4. A tap before pygbag boots is harmless (button pulses, listeners
-            stay attached), so the user can retry instead of losing the
-            overlay.
-         5. Resumes the SHARED AudioContext (the same one skyPlay uses)
-            on every gesture, so the user's real touch unlocks audio for
-            the actual game session — the throw-away `new A()` of the
-            previous version wasted the gesture on an unused context. */
-    if (ov) {
-        var btn    = document.getElementById('skybit-btn');
-        var status = document.getElementById('skybit-status');
-        var fill   = document.getElementById('skybit-progress-fill');
-        var BTN_READY  = 'TAP  ·  CLICK  ·  SPACE';
-        var BTN_LOAD   = 'LOADING…';
-        var BTN_RELOAD = 'TAP TO RELOAD';
-        var STALL_MS   = 25000;
-        var INFO_MS    =  8000;
-        /* Asymptote target while WASM is still downloading. We never let
-           the bar reach 100 % from time alone — only a real `window.MM`
-           boot snaps it there. Time-constant chosen so the bar reaches
-           ~63 % at 6 s, ~86 % at 12 s, ~95 % at 18 s. The CSS transition
-           on .skybit-progress-fill smooths each sample into a glide. */
-        var ASYMPTOTE  = 0.92;
-        var TAU_MS     = 6000;
-        var t0 = Date.now();
-        var pygbagReady = false;
-        var stalled = false;
-
-        if (btn) btn.textContent = BTN_LOAD;
-
-        function isReady() {
-            try { return typeof window.MM !== 'undefined' && window.MM !== null; }
-            catch (_) { return false; }
+    function dismiss() {
+        /* Unlock the shared AudioContext on every gesture, even pre-ready
+           pulses — no harm in early resume. */
+        if (typeof window.__skyResumeCtx === 'function') {
+            try { window.__skyResumeCtx(); } catch (_) {}
         }
+        if (stalled)        { reloadBust(); return; }
+        if (!pygbagReady)   { pulseBtn();   return; }
 
-        function setFill(pct) {
-            if (!fill) return;
-            if (pct < 0) pct = 0;
-            if (pct > 100) pct = 100;
-            fill.style.width = pct.toFixed(2) + '%';
-        }
-
-        var pollId = setInterval(function () {
-            if (isReady() && !pygbagReady) {
-                pygbagReady = true;
-                stalled = false;
-                if (btn) btn.textContent = BTN_READY;
-                if (status) status.textContent = '';
-                if (fill) fill.classList.remove('skybit-progress-stalled');
-                setFill(100);
-                return;
-            }
-            if (pygbagReady) return;
-            var elapsed = Date.now() - t0;
-            /* 1 - exp(-t/τ) climbs fast then asymptotes — the bar always
-               looks alive even on slow networks, and the CSS transition
-               glides between samples so updates never snap. */
-            var pct = ASYMPTOTE * (1 - Math.exp(-elapsed / TAU_MS)) * 100;
-            setFill(pct);
-            if (elapsed >= STALL_MS && !stalled) {
-                stalled = true;
-                if (btn) btn.textContent = BTN_RELOAD;
-                if (status) status.textContent = 'Loading is stuck. Tap to reload.';
-                if (fill) fill.classList.add('skybit-progress-stalled');
-            } else if (elapsed >= INFO_MS && status && !stalled) {
-                status.textContent = 'Loading… ' + Math.floor(elapsed / 1000) + 's';
-            }
-        }, 250);
-
-        function reloadBust() {
-            clearInterval(pollId);
+        clearInterval(pollId);
+        try { if (window.MM) window.MM.UME = true; } catch (_) {}
+        var cv = document.getElementById('canvas');
+        if (cv) {
             try {
-                var u = new URL(window.location.href);
-                u.searchParams.set('_skb', String(Date.now()));
-                window.location.replace(u.toString());
-            } catch (_) {
-                window.location.reload();
+                cv.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true, cancelable: true
+                }));
+            } catch (_) {}
+        }
+        ov.removeEventListener('click',      dismiss);
+        ov.removeEventListener('touchstart', dismiss);
+        ov.removeEventListener('touchend',   dismiss);
+
+        /* Stay visible over the canvas while pygbag mounts the App and
+           game/scenes.py renders its first frame. Pointer-events:none so
+           subsequent taps reach the canvas behind us during this hold. */
+        if (btn)    btn.textContent    = 'STARTING…';
+        if (status) status.textContent = '';
+        ov.style.pointerEvents = 'none';
+
+        function fade() {
+            ov.style.transition = 'opacity 0.45s ease';
+            ov.style.opacity    = '0';
+            setTimeout(function () { ov.style.display = 'none'; }, 480);
+        }
+        var holdT0 = Date.now();
+        var holdId = setInterval(function () {
+            if (window.skybitGameReady === true ||
+                Date.now() - holdT0 > 12000) {
+                clearInterval(holdId);
+                fade();
+            }
+        }, 16);
+    }
+    ov.addEventListener('click',      dismiss);
+    ov.addEventListener('touchstart', dismiss);
+    ov.addEventListener('touchend',   dismiss);
+}());
+</script>
+"""
+
+# ─── Name-entry overlay (virtual keyboard) ──────────────────────────────────
+# No <input>, no .focus(), no key shields, no MutationObservers. Click
+# delegation on the keyboard grid maps each <button> to an action via
+# data-act / data-k attributes. window.openNameEntry shows the overlay
+# and resets _pendingName; any close path (back to skip / enter) writes
+# the result string and hides the overlay. Python polls _pendingName.
+_NAME_ENTRY_JS = """
+<script>
+(function () {
+    var MAX = 10;
+    var _buf = '';
+    var _starsAdded = false;
+
+    /* Pre-resolve DOM refs — these elements are in the static HTML. */
+    function el(id) { return document.getElementById(id); }
+
+    function render() {
+        var ov = el('sk-name-overlay');
+        if (!ov) return;
+        var bufEl = el('sk-buf');
+        var ctEl  = el('sk-counter');
+        if (bufEl) {
+            var slots = '';
+            for (var i = 0; i < MAX; i++) {
+                slots += (i < _buf.length ? _buf.charAt(i) : '_');
+                if (i < MAX - 1) slots += ' ';
+            }
+            bufEl.textContent = slots;
+        }
+        if (ctEl) ctEl.textContent = _buf.length + ' / ' + MAX;
+    }
+
+    function close(value) {
+        var ov = el('sk-name-overlay');
+        if (ov) {
+            ov.style.display = 'none';
+            ov.setAttribute('aria-hidden', 'true');
+        }
+        window._pendingName = value;
+    }
+
+    /* Public, called by Python (game/leaderboard.py) when player qualifies. */
+    window.openNameEntry = function () {
+        var ov = el('sk-name-overlay');
+        if (!ov) return;
+        _buf = '';
+        render();
+        window._pendingName = '__pending__';
+        ov.setAttribute('aria-hidden', 'false');
+
+        /* Inject the same twinkling-star layer used on the loading splash,
+           one-shot. Identical look, gated on a flag so re-opens don't
+           double up. */
+        if (!_starsAdded) {
+            _starsAdded = true;
+            for (var i = 0; i < 40; i++) {
+                var s = document.createElement('div');
+                s.className = 'sk-star';
+                var sz = (Math.random() * 2.2 + 0.6).toFixed(1);
+                s.style.cssText =
+                    'width:' + sz + 'px;height:' + sz + 'px;' +
+                    'top:'  + (Math.random() * 90).toFixed(1)  + '%;' +
+                    'left:' + (Math.random() * 100).toFixed(1) + '%;' +
+                    '--dur:'   + (Math.random() * 3 + 1.3).toFixed(1) + 's;' +
+                    '--delay:' + (Math.random() * 4).toFixed(1) + 's;';
+                ov.insertBefore(s, ov.firstChild);
             }
         }
 
-        function pulseBtn() {
-            if (!btn) return;
-            btn.style.transition = 'transform 120ms ease';
-            btn.style.transform  = 'scale(0.93)';
-            setTimeout(function () { btn.style.transform = ''; }, 130);
-        }
+        ov.style.display = 'flex';
+    };
 
-        function dismiss() {
-            /* Always unlock the shared audio context on any user gesture --
-               this is the same _ctx that skyPlay() uses later. */
-            try { getCtx(); } catch (_) {}
-
-            if (stalled) { reloadBust(); return; }
-            if (!pygbagReady) { pulseBtn(); return; }
-
-            clearInterval(pollId);
-            try { if (window.MM) window.MM.UME = true; } catch (_) {}
-            var cv = document.getElementById('canvas');
-            if (cv) {
-                try { cv.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true})); } catch (_) {}
-            }
-            ov.removeEventListener('click',      dismiss);
-            ov.removeEventListener('touchstart', dismiss);
-            ov.removeEventListener('touchend',   dismiss);
-            /* Stay visible (over the canvas) until Python signals first
-               frame is rendered. Pygbag's UME gate satisfaction kicks
-               off interpreter boot + asset extraction + App.__init__,
-               which on a cold load takes a couple of seconds. Without
-               this wait the user sees pygbag's own bare progress bar
-               between Skybit overlay and the rendered intro -- the
-               "separate screen" the user reported.
-               IMPORTANT: pointer-events:none is set BEFORE the wait
-               starts, so the overlay does not catch any clicks during
-               this hold window -- subsequent taps pass straight
-               through to the canvas. Do not change this. */
-            if (btn) btn.textContent = 'STARTING…';
-            if (status) status.textContent = '';
-            ov.style.pointerEvents = 'none';
-
-            function fade() {
-                ov.style.transition = 'opacity 0.45s ease';
-                ov.style.opacity = '0';
-                setTimeout(function () { ov.style.display = 'none'; }, 480);
-            }
-            /* Poll at 60 fps for the Python-side ready flag (set by
-               game/scenes.py async_run after the first display.flip).
-               Hard cap at 12 s so a stuck boot still hands the page
-               over to the user instead of pinning forever. */
-            var holdT0 = Date.now();
-            var holdId = setInterval(function () {
-                if (window.skybitGameReady === true ||
-                    Date.now() - holdT0 > 12000) {
-                    clearInterval(holdId);
-                    fade();
+    /* One delegated click handler for every key. Bubble-phase, no
+       preventDefault, no stopPropagation — SDL gets the click and
+       does whatever it wants with the canvas; the keyboard buttons
+       are simple <button> elements which natively absorb the
+       synthetic-click race that broke the previous input element. */
+    function onKbdClick(e) {
+        var t = e.target.closest && e.target.closest('.sk-key');
+        if (!t) return;
+        var act = t.getAttribute('data-act');
+        var k   = t.getAttribute('data-k');
+        if (act === 'back') {
+            if (_buf.length > 0) {
+                _buf = _buf.slice(0, -1);
+                render();
+                if (typeof window.skyPlay === 'function') {
+                    try { window.skyPlay('button', 0.4); } catch (_) {}
                 }
-            }, 16);
+            }
+            return;
         }
-        ov.addEventListener('click',      dismiss);
-        ov.addEventListener('touchstart', dismiss);
-        ov.addEventListener('touchend',   dismiss);
+        if (act === 'space') {
+            if (_buf.length < MAX) {
+                _buf += ' ';
+                render();
+            }
+            return;
+        }
+        if (act === 'skip') {
+            close('__skip__');
+            return;
+        }
+        if (act === 'enter') {
+            var v = _buf.replace(/\\s+$/, '').replace(/^\\s+/, '');
+            close(v.length > 0 ? v : '__skip__');
+            return;
+        }
+        if (k && _buf.length < MAX) {
+            _buf += k;
+            render();
+            if (typeof window.skyPlay === 'function') {
+                try { window.skyPlay('button', 0.4); } catch (_) {}
+            }
+        }
+    }
+
+    function attach() {
+        var kbd = el('sk-kbd');
+        if (kbd) kbd.addEventListener('click', onKbdClick);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attach);
+    } else {
+        attach();
+    }
+
+    /* Initialise the sentinel so Python's first poll, if it lands before
+       the overlay was opened, sees a deterministic value. */
+    if (typeof window._pendingName !== 'string') {
+        window._pendingName = '__pending__';
     }
 }());
 </script>
 """
-html = html.replace("</body>", INJECTION + "</body>", 1)
 
+INJECTION = _CSS + _TELEMETRY_JS + _AUDIO_JS + _LOADING_JS + _NAME_ENTRY_JS
+
+html = html.replace("</body>", INJECTION + "</body>", 1)
 html = html.replace("__SB_URL__", _SB_URL)
 html = html.replace("__SB_KEY__", _SB_KEY)
 
 src.write_text(html, encoding="utf-8")
 
-# ── 3. Post-write assertions ────────────────────────────────────────────────
-# This script previously silently no-op'd when pygbag's template changed
-# format: the .replace("<body>", ...) and re.sub(...) calls just didn't
-# match, the file was written unchanged, and Netlify happily deployed an
-# unthemed pygbag default that hung at a green loading bar. Fail the build
-# loudly here so Netlify keeps the previous good deploy instead.
+
+# ── 4. Post-write assertions ────────────────────────────────────────────────
+# These guard against silent template drift in pygbag: the
+# .replace("<body>", ...) and re.subn(...) calls all no-op if pygbag's
+# template changes shape, the file is written unchanged, and the deploy
+# happily ships the unthemed default. Fail loudly so the previous good
+# deploy is retained.
 _problems = []
 if "skybit-loading" not in html:
     _problems.append(
@@ -1096,12 +1139,21 @@ if "powderblue" in html:
         "'powderblue' still present in output — background-color "
         "replacements did not run as expected."
     )
+if "<input" in html.split("</body>")[0]:
+    # Belt-and-braces: the redesign is supposed to remove all <input>
+    # elements from the page. If pygbag's template ever ships one, we
+    # want to know — the iPhone keyboard regression we just spent a
+    # week on hinges on this invariant.
+    _problems.append(
+        "Unexpected <input> element present in output. The name-entry "
+        "redesign is incompatible with any focus-bearing input."
+    )
 if _problems:
     print("✗ inject_theme.py post-write assertions failed:", file=sys.stderr)
     for p in _problems:
         print("  - " + p, file=sys.stderr)
     print(
-        "Aborting non-zero so Netlify retains the previous good deploy.",
+        "Aborting non-zero so the previous good deploy is retained.",
         file=sys.stderr,
     )
     raise SystemExit(1)
@@ -1111,8 +1163,6 @@ print(f"  ({_color_subs} color replacements matched)")
 if _SB_URL and _SB_KEY:
     print(f"✓ Supabase URL set: {_SB_URL[:40]}...")
 elif _SB_URL or _SB_KEY:
-    # Half-set is a misconfiguration -- fail the build so the deploy
-    # owner notices, rather than shipping a leaderboard that 401s.
     missing = "SUPABASE_ANON_KEY" if _SB_URL else "SUPABASE_URL"
     print(
         f"✗ {missing} is missing while the other Supabase env var is set. "
@@ -1127,14 +1177,16 @@ else:
         "    The leaderboard will be EMPTY in the deployed site.\n"
         "    Set them as repository secrets at:\n"
         "      Settings → Secrets and variables → Actions → New repository secret\n"
-        "    Build is continuing because some deploys (e.g. local previews) intentionally\n"
+        "    Build is continuing because some deploys (e.g. local previews) "
+        "intentionally\n"
         "    skip the leaderboard, but production deploys MUST set these."
     )
 
-# ── 4. Copy CC0 sound files to build/web/sounds/ for browser fetch ──────────
-# Native pygame.mixer reads them straight from game/assets/sounds/. The
-# browser can't reach into the bundled APK, so the JS skyPlay() block fetches
-# them from this static path under the deployed site root.
+
+# ── 5. Copy CC0 sound files to build/web/sounds/ for browser fetch ──────────
+# Native pygame.mixer reads them from game/assets/sounds/. The browser
+# can't reach into the bundled APK, so window.skyPlay fetches them by
+# relative path under the deployed site root.
 import shutil
 _SND_SRC = Path("game/assets/sounds")
 _SND_DST = Path("build/web/sounds")
