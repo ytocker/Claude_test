@@ -935,6 +935,43 @@ body   { background: #0d0820 !important; }
             ov.addEventListener(n, function (e) { e.stopPropagation(); });
         });
 
+        /* (a2) Window-capture shield for `click` and `mousedown`. The
+           SDL/Pyodide runtime that pygbag installs typically listens at
+           the window level for these events to refocus the canvas. A
+           listener registered with `useCapture: true` at the window
+           runs BEFORE any descendant listener — earlier than (a),
+           earlier than the input's own focus handler, earlier than
+           SDL's bubble-phase listener.
+
+           Gating on `ov.style.display === 'flex'` means this never
+           fires during gameplay or on the loading / menu screens, so
+           the SDL runtime continues to receive every other click in
+           the game; only the brief window during which the name-entry
+           overlay is open gets shielded.
+
+           Why click/mousedown only and not the full set: capture-phase
+           preventDefault on touchstart would suppress the synthesized
+           click chain that the input relies on for focus on iOS;
+           click/mousedown happen AFTER the input has already focused,
+           so stopPropagation here is safe for the input but cuts off
+           SDL. */
+        function _isOpen() { return ov.style.display === 'flex'; }
+        ['click', 'mousedown'].forEach(function (n) {
+            window.addEventListener(n, function (e) {
+                if (!_isOpen()) return;
+                /* Don't kill events whose target IS the overlay or one
+                   of its descendants beyond cutting them off from the
+                   window/document level — they already reach the
+                   button's own onclick (target-phase fires before
+                   bubble reaches the overlay) before the SHIELDED
+                   bubble listener stops further travel. We just want
+                   to make sure the window-level SDL listener never
+                   sees them, and at capture phase that means stopping
+                   here too. stopPropagation, NOT preventDefault. */
+                e.stopPropagation();
+            }, true);
+        });
+
         /* (b) Canvas inert toggle, driven by the overlay's display
            attribute so all three close paths (submit, skip, Enter)
            are covered without threading cleanup through each. */
