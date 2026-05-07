@@ -119,46 +119,70 @@ LOADING_HTML = """
 </div>
 """
 
-# Virtual keyboard rows. Generating from Python keeps the HTML compact
-# and makes the layout self-documenting (one row per Python list).
+# Virtual keyboard rows. QWERTY layout — what every iPhone / Android
+# user already has muscle memory for. Top row 10 letters, middle 9
+# (visually offset half a key), bottom 7 letters with SHIFT on the
+# left and BACKSPACE on the right (the natural positions on a real
+# soft keyboard).
 _KBD_ROWS = [
-    list("ABCDEFG"),
-    list("HIJKLMN"),
-    list("OPQRSTU"),
-    list("VWXYZ"),
+    list("QWERTYUIOP"),
+    list("ASDFGHJKL"),
+    list("ZXCVBNM"),
 ]
 
 
 def _kbd_buttons():
     parts = []
-    # 26 letter buttons in 4 rows: A-G / H-N / O-U / V-Z. The first
-    # three rows fill all 7 grid columns; the V-Z row takes the first
-    # 5 cells with the remaining 2 left blank by the grid.
-    for row in _KBD_ROWS:
-        for ch in row:
-            parts.append(
-                '<button class="sk-key" data-k="{c}" '
-                'aria-label="{c}">{c}</button>'.format(c=ch)
-            )
-    # Bottom action rows: row 1 is ⌫ + SPACE + SHIFT (2 + 3 + 2 cols),
-    # row 2 is SUBMIT spanning full width on its own line. SKIP renders
-    # OUTSIDE the keyboard, pinned to the bottom of the overlay.
-    parts.append(
-        '<button class="sk-key sk-special sk-back" data-act="back" '
-        'aria-label="delete">&#x232b;</button>'
-    )
-    parts.append(
-        '<button class="sk-key sk-special sk-space" data-act="space" '
-        'aria-label="space">SPACE</button>'
-    )
+
+    def _letter(ch):
+        return ('<button class="sk-key" data-k="{c}" '
+                'aria-label="{c}">{c}</button>').format(c=ch)
+
+    # Row 1: Q-P (10 letters, full width).
+    parts.append('<div class="sk-kbd-row">')
+    for ch in _KBD_ROWS[0]:
+        parts.append(_letter(ch))
+    parts.append('</div>')
+
+    # Row 2: A-L (9 letters, half-key inset on each side so it reads
+    # as the staggered QWERTY middle row.)
+    parts.append('<div class="sk-kbd-row sk-kbd-row-mid">')
+    for ch in _KBD_ROWS[1]:
+        parts.append(_letter(ch))
+    parts.append('</div>')
+
+    # Row 3: SHIFT + Z-M (7 letters) + BACKSPACE. Shift on the left,
+    # backspace on the right — same positions as iOS/Android.
+    parts.append('<div class="sk-kbd-row">')
     parts.append(
         '<button class="sk-key sk-shift" data-act="shift" '
         'aria-label="shift">&#x21e7;</button>'
     )
+    for ch in _KBD_ROWS[2]:
+        parts.append(_letter(ch))
+    parts.append(
+        '<button class="sk-key sk-special sk-back" data-act="back" '
+        'aria-label="delete">&#x232b;</button>'
+    )
+    parts.append('</div>')
+
+    # Row 4: SPACE — full width, like a real spacebar.
+    parts.append('<div class="sk-kbd-row">')
+    parts.append(
+        '<button class="sk-key sk-special sk-space" data-act="space" '
+        'aria-label="space">SPACE</button>'
+    )
+    parts.append('</div>')
+
+    # Row 5: SUBMIT — full width, below the keyboard. SKIP is rendered
+    # OUTSIDE the keyboard, pinned to the bottom of the overlay.
+    parts.append('<div class="sk-kbd-row">')
     parts.append(
         '<button class="sk-key sk-special sk-enter" data-act="enter" '
         'aria-label="submit">SUBMIT</button>'
     )
+    parts.append('</div>')
+
     return "\n      ".join(parts)
 
 
@@ -438,27 +462,43 @@ body   { background: #0d0820 !important; }
     flex: 0 0 auto;
 }
 
-/* On-screen keyboard. CSS Grid so all cells line up regardless of how
-   many letters land on the last row. 7 columns matches the layout
-   sketch (A-G / H-N / O-U / V-Z⌫↵), with SPACE and SKIP on full-width
-   rows below.
+/* On-screen keyboard. QWERTY layout, one flex row per keyboard row
+   so each row can have a different number of keys and different
+   sizing rules (top row has 10, middle has 9, bottom has 7 letters
+   plus SHIFT and BACKSPACE) without a single fixed grid forcing
+   awkward gaps.
 
    Apple HIG asks for 44 px minimum tap target; we hit min-height 44 px
-   and let width breathe between 36 px and 56 px so the grid auto-shrinks
-   on very narrow viewports without going below tap-friendly.
-   touch-action:manipulation suppresses the iOS double-tap-to-zoom
-   delay; user-select:none kills the long-press selection callout. */
+   and let width grow with `flex: 1 1 0`. touch-action:manipulation
+   suppresses the iOS double-tap-to-zoom delay; user-select:none
+   kills the long-press selection callout. */
 .sk-kbd {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(36px, 56px));
+    display: flex;
+    flex-direction: column;
     gap: 6px;
     margin-top: 4px;
     position: relative;
     z-index: 2;
-    max-width: calc(100vw - 24px);
+    width: 100%;
+    max-width: calc(100vw - 16px);
+    box-sizing: border-box;
+    padding: 0 4px;
+}
+.sk-kbd-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    width: 100%;
+}
+/* Middle row (A-L) is one letter shorter than the top row, so half-
+   key padding on each side reproduces the iOS staggered look. */
+.sk-kbd-row-mid {
+    padding-left: 5%;
+    padding-right: 5%;
 }
 .sk-key {
-    min-width: 36px;
+    flex: 1 1 0;
+    min-width: 22px;
     min-height: 44px;
     padding: 0;
     background: linear-gradient(180deg, #1d1240 0%, #0f0828 100%);
@@ -466,7 +506,7 @@ body   { background: #0d0820 !important; }
     border: 1px solid #4e2a6a;
     border-radius: 8px;
     font-family: Arial Black, Arial, sans-serif;
-    font-size: clamp(14px, 3.4vw, 18px);
+    font-size: clamp(13px, 3.2vw, 18px);
     font-weight: 900;
     letter-spacing: 0;
     cursor: pointer;
@@ -491,12 +531,24 @@ body   { background: #0d0820 !important; }
 .sk-key.sk-special:active {
     background: linear-gradient(180deg, #a8300e 0%, #5e1402 100%);
 }
-/* Bottom action rows: row 1 is ⌫ + SPACE + SHIFT (2 + 3 + 2 cols);
-   row 2 is SUBMIT spanning the full keyboard width on its own line. */
-.sk-key.sk-back  { grid-column: span 2; }
-.sk-key.sk-space { grid-column: span 3; letter-spacing: 4px; }
-.sk-key.sk-shift { grid-column: span 2; font-size: clamp(16px, 4vw, 22px); }
-.sk-key.sk-enter { grid-column: 1 / -1; letter-spacing: 4px; }
+/* Shift and backspace are wider than letters on real keyboards
+   (~1.5x). They sit on the bottom letter row, flanking Z-M. */
+.sk-key.sk-shift, .sk-key.sk-back {
+    flex: 1.5 1 0;
+    font-size: clamp(15px, 3.8vw, 20px);
+}
+/* SPACE and SUBMIT each take their own full-width row; flex-grow
+   to the row's width and a bit more breathing room with letter-
+   spacing so they read as primary actions. */
+.sk-key.sk-space {
+    flex: 1 1 100%;
+    letter-spacing: 4px;
+}
+.sk-key.sk-enter {
+    flex: 1 1 100%;
+    letter-spacing: 4px;
+    margin-top: 4px;       /* gentle gap between SPACE and SUBMIT */
+}
 
 /* Shift state: when #sk-name-overlay carries .sk-caps-on, the next
    letter typed is uppercase and the SHIFT button glows gold. The
