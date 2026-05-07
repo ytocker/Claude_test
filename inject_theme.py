@@ -131,30 +131,30 @@ _KBD_ROWS = [
 
 def _kbd_buttons():
     parts = []
+    # 26 letter buttons in 4 rows: A-G / H-N / O-U / V-Z. The first
+    # three rows fill all 7 grid columns; the V-Z row takes the first
+    # 5 cells with the remaining 2 left blank by the grid.
     for row in _KBD_ROWS:
         for ch in row:
             parts.append(
                 '<button class="sk-key" data-k="{c}" '
                 'aria-label="{c}">{c}</button>'.format(c=ch)
             )
-        # Each row is exactly 7 columns. Pad shorter rows with placeholder
-        # cells so the grid lines up, then add the back/enter cells inline
-        # at the end of the V-Z row.
-    # Last letter row only has 5 letters (V-Z); pack ⌫ and ↵ into cols 6/7.
-    parts.insert(
-        len(_KBD_ROWS[0]) + len(_KBD_ROWS[1]) + len(_KBD_ROWS[2]) + 5,
-        '<button class="sk-key sk-special" data-act="back" '
+    # Bottom action row: ⌫ | SPACE | SUBMIT, sized 2-3-2 columns to
+    # exactly fill the 7-col grid. SKIP is rendered OUTSIDE the
+    # keyboard and pinned to the bottom of the overlay (see
+    # NAME_HTML / CSS below).
+    parts.append(
+        '<button class="sk-key sk-special sk-back" data-act="back" '
         'aria-label="delete">&#x232b;</button>'
-        '<button class="sk-key sk-special" data-act="enter" '
-        'aria-label="enter">&#x21b5;</button>',
     )
     parts.append(
-        '<button class="sk-key sk-special sk-wide" data-act="space" '
+        '<button class="sk-key sk-special sk-space" data-act="space" '
         'aria-label="space">SPACE</button>'
     )
     parts.append(
-        '<button class="sk-key sk-special sk-wide" data-act="skip" '
-        'aria-label="skip">SKIP</button>'
+        '<button class="sk-key sk-special sk-enter" data-act="enter" '
+        'aria-label="submit">SUBMIT</button>'
     )
     return "\n      ".join(parts)
 
@@ -187,6 +187,8 @@ NAME_HTML = """
   <div class="sk-kbd" id="sk-kbd">
       """ + _kbd_buttons() + """
   </div>
+  <button id="sk-skip" class="sk-key sk-special" data-act="skip"
+          aria-label="skip">SKIP</button>
 </div>
 """
 
@@ -264,9 +266,9 @@ body   { background: #0d0820 !important; }
 
 .sk-subtitle {
     font-family: Arial, sans-serif;
-    font-size: clamp(10px, 2.6vw, 14px);
+    font-size: clamp(8px, 1.9vw, 11px);
     font-weight: 700;
-    letter-spacing: 9px;
+    letter-spacing: 7px;
     color: #d8b855;
     margin: 14px 0 56px;
     opacity: 0.82;
@@ -482,9 +484,27 @@ body   { background: #0d0820 !important; }
 .sk-key.sk-special:active {
     background: linear-gradient(180deg, #a8300e 0%, #5e1402 100%);
 }
-.sk-key.sk-wide {
-    grid-column: 1 / -1;
+/* Bottom action row spans the full 7-col grid as 2 + 3 + 2. */
+.sk-key.sk-back  { grid-column: span 2; }
+.sk-key.sk-space { grid-column: span 3; letter-spacing: 4px; }
+.sk-key.sk-enter { grid-column: span 2; letter-spacing: 3px; }
+
+/* SKIP lives outside #sk-kbd and pins to the very bottom of the
+   screen, separated from the keyboard so it reads as a different-
+   class action. position:absolute against #sk-name-overlay (which
+   is position:fixed). */
+#sk-skip {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 180px;
+    padding: 12px 24px;
     letter-spacing: 4px;
+    z-index: 3;
+}
+#sk-skip:active {
+    transform: translateX(-50%) scale(0.93);
 }
 </style>
 """
@@ -1083,8 +1103,11 @@ _NAME_ENTRY_JS = """
     }
 
     function attach() {
-        var kbd = el('sk-kbd');
-        if (kbd) kbd.addEventListener('click', onKbdClick);
+        /* Listen on the overlay (parent of both #sk-kbd and #sk-skip)
+           so the same delegated handler routes letter / action / SKIP
+           clicks via .closest('.sk-key'). */
+        var ov = el('sk-name-overlay');
+        if (ov) ov.addEventListener('click', onKbdClick);
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', attach);
