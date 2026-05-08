@@ -1230,7 +1230,103 @@ _NAME_ENTRY_JS = """
 </script>
 """
 
-INJECTION = _CSS + _TELEMETRY_JS + _AUDIO_JS + _LOADING_JS + _NAME_ENTRY_JS
+# ─── Screen Wake Lock (keep mobile screens from auto-dimming) ───────────────
+# The intro is now ~21 s of fully passive playback (the only required input
+# is a tap to skip). Without input, both Android and iOS dim the screen
+# after their respective idle thresholds, which players read as "the
+# screen is fading on its own".
+#
+# Modern path: the standard Wake Lock API. Supported in Chrome (Android)
+# 84+, Safari (iOS) 16.4+, and most desktop browsers. Some browsers refuse
+# the request before any user gesture, so we also acquire on the first
+# click/touch (the same gesture that dismisses our splash).
+#
+# Older iOS / iPadOS path (< 16.4): no Wake Lock API. The standard fallback
+# is the "NoSleep" trick — play a 1-second muted, looping, in-line video.
+# Browsers count active media playback as "user activity" and keep the
+# screen awake while the video is playing. The data-URI below is a tiny
+# (~330-byte base64) silent black MP4 — small enough to ship inline and
+# big enough that AVFoundation accepts it.
+_WAKE_LOCK_JS = r"""
+<script>
+(function () {
+    var _wakeLock = null;
+    var _video = null;
+    var _videoStarted = false;
+    /* MIT-licensed tiny silent MP4 from the NoSleep.js project (Rich Tibbett),
+       used as a fallback wake-lock technique for browsers without the
+       standard Wake Lock API (notably iOS Safari < 16.4). */
+    var TINY_MP4 = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAAGF21kYXTeBAAAbGliZmFhYyAxLjI4AABCAJMgBDIARwAAArEGBf//rdxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNDIgcjIgOTU2YzhkOCAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMTQgLSBodHRwOi8vd3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVsbGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz02IGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlpbnRfbWluPTI1IHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCB2YnZfbWF4cmF0ZT03NjggdmJ2X2J1ZnNpemU9MzAwMCBjcmZfbWF4PTAuMCBuYWxfaHJkPW5vbmUgZmlsbGVyPTAgaXBfcmF0aW89MS40MCBhcT0xOjEuMDCAAAAAVliIQL//8m+P5OXfBeLGOfKE3xkODvFZuBflHv/+VwJIta6cbpIo4ABLoKBaYrCIIgQDb//7vKy1QO+v/h9PXsjwlaWWdNpUq/rCqcgmZG/Pn2QKEgFRAAAAAVQZqsj//8GHv/5lT5IL7p5gAa//AGT1OZsIRAOaAB22wAEABAQAEAAAAAFRBnsh//4j8/EokHpKtzSQAGuv/wDF8yT24eAAAAAAFLAA';
+
+    function tryAcquire() {
+        if (!('wakeLock' in navigator)) {
+            startVideoFallback();
+            return;
+        }
+        if (_wakeLock !== null) return;
+        navigator.wakeLock.request('screen').then(function (lock) {
+            _wakeLock = lock;
+            lock.addEventListener('release', function () {
+                _wakeLock = null;
+            });
+        }).catch(function () {
+            /* Refused (no user gesture, denied permission, etc.). The
+               first-interaction listener below will retry. */
+        });
+    }
+
+    function startVideoFallback() {
+        if (_videoStarted) return;
+        _videoStarted = true;
+        _video = document.createElement('video');
+        _video.setAttribute('playsinline', '');
+        _video.setAttribute('muted', '');
+        _video.setAttribute('autoplay', '');
+        _video.setAttribute('loop', '');
+        _video.muted = true;
+        _video.src = TINY_MP4;
+        _video.style.cssText =
+            'position:fixed;top:0;left:0;width:1px;height:1px;' +
+            'opacity:0;pointer-events:none;z-index:-1;';
+        document.body.appendChild(_video);
+        var p = _video.play();
+        if (p && typeof p.catch === 'function') {
+            p.catch(function () {
+                /* Autoplay blocked — will retry on first user gesture. */
+            });
+        }
+    }
+
+    function onFirstInteract() {
+        tryAcquire();
+        if (_video && _video.paused) {
+            _video.play().catch(function () {});
+        }
+        document.removeEventListener('click', onFirstInteract);
+        document.removeEventListener('touchstart', onFirstInteract);
+    }
+    document.addEventListener('click', onFirstInteract, { passive: true });
+    document.addEventListener('touchstart', onFirstInteract, { passive: true });
+
+    /* Try right away — works on Chrome/Android and most desktop browsers
+       without needing a user gesture. */
+    tryAcquire();
+
+    /* Re-acquire when the tab returns to the foreground; the OS releases
+       the lock when the page is hidden. */
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            tryAcquire();
+            if (_video && _video.paused) {
+                _video.play().catch(function () {});
+            }
+        }
+    });
+}());
+</script>
+"""
+
+INJECTION = _CSS + _TELEMETRY_JS + _AUDIO_JS + _LOADING_JS + _NAME_ENTRY_JS + _WAKE_LOCK_JS
 
 html = html.replace("</body>", INJECTION + "</body>", 1)
 html = html.replace("__SB_URL__", _SB_URL)
