@@ -34,11 +34,11 @@ from game.draw import (
 from game import biome as _biome
 from game import parrot as _parrot
 from game.pillar_variants import draw_pillar_pair
-from game.hud import _font
+from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
 from game.entities import Coin, PowerUp
 
 
-DURATION = 17.0
+DURATION = 21.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -929,13 +929,13 @@ def _journey_phase(u: float) -> float:
 
 
 # Tutorial sub-beats run inside the same time window the journey used to
-# occupy. Each one is 2.5 s wide so labels have ~1.7 s of full opacity
-# and entities scroll slowly enough to be read.
+# occupy. Each one is 3.5 s wide so labels can breathe and entities
+# linger on screen.
 _TUTORIAL_START = 4.0
-_TUTORIAL_END   = 14.0
-_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 10 s
+_TUTORIAL_END   = 18.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 14 s
 
-_SUB_LEN = _TUTORIAL_LEN / 4.0   # 2.5 s
+_SUB_LEN = _TUTORIAL_LEN / 4.0   # 3.5 s
 
 
 def _label_alpha(sub_u: float) -> int:
@@ -948,22 +948,27 @@ def _label_alpha(sub_u: float) -> int:
 
 
 def _draw_label_banner(surf: pygame.Surface, text: str, alpha: int) -> None:
-    """Top-of-screen tutorial label — same visual language as the in-game
-    "TAP TO FLY" prompt (`hud.py` `draw_play`): bold white text on a
-    semi-transparent dark ellipse plate, centred horizontally.
-
-    `alpha` controls the whole label's opacity for fade-in / fade-out."""
+    """Top-of-screen tutorial label — same gold-on-red-outline styling as
+    the SKYBIT logotype and the POWER-UPS header on the help screen, so
+    the tutorial reads as part of the game's visual family rather than a
+    separate overlay. `alpha` drives fade-in / fade-out."""
     if alpha <= 0:
         return
-    f = _font(22, True)
-    label = f.render(text, True, WHITE)
-    label.set_alpha(alpha)
-    lr = label.get_rect(center=(W // 2, 80))
-    plate = pygame.Surface((lr.width + 40, lr.height + 20), pygame.SRCALPHA)
-    pygame.draw.ellipse(plate, (0, 0, 20, int(180 * alpha / 255)),
-                        plate.get_rect())
-    surf.blit(plate, (W // 2 - plate.get_width() // 2, lr.y - 10))
-    surf.blit(label, lr.topleft)
+    f = _font(28, True)
+    fill = f.render(text, True, _GOLD_BRIGHT)
+    out  = f.render(text, True, _RED_OUTLINE)
+    sh   = f.render(text, True, NEAR_BLACK)
+    fill.set_alpha(alpha)
+    out.set_alpha(alpha)
+    sh.set_alpha(int(alpha * 0.66))
+
+    r = fill.get_rect(center=(W // 2, 80))
+    PX = 2
+    for ox, oy in ((-PX, 0), (PX, 0), (0, -PX), (0, PX),
+                   (-PX, -PX), (PX, -PX), (-PX, PX), (PX, PX)):
+        surf.blit(out, (r.x + ox, r.y + oy))
+    surf.blit(sh, (r.x + 2, r.y + 3))
+    surf.blit(fill, r.topleft)
 
 
 def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
@@ -982,7 +987,7 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 # by the same factor, so the trajectory shape and time-to-peak (~0.33 s)
 # stay identical to gameplay; only the magnitudes shrink.
 #
-# 2.5 s sub-beat is divided into:
+# 3.5 s sub-beat is divided into:
 #   0.00–0.30  natural fall (no flap yet — establishes "this is what
 #              happens if you don't tap")
 #   0.30       flap #1
@@ -990,9 +995,10 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 #   0.95–1.00  brief drop
 #   1.00       flap #2
 #   1.00–1.65  flap arc 2
-#   1.65–2.50  level-out: smooth ease back to baseline so the cut to
-#              the AVOID PILLARS sub-beat is seamless
-_JUMP_SLOW     = 0.60     # scales velocities + gravity proportionally
+#   1.65–3.50  level-out: smooth ease back to baseline + ~1.5 s of
+#              calm level flight so the cut to AVOID PILLARS feels
+#              relaxed instead of rushed
+_JUMP_SLOW     = 0.50     # scales velocities + gravity proportionally
 _JUMP_GRAVITY  = 1600.0 * _JUMP_SLOW
 _JUMP_FLAP_V   = -520.0 * _JUMP_SLOW
 _JUMP_MAX_FALL =  700.0 * _JUMP_SLOW
@@ -1114,7 +1120,7 @@ def _tutorial_pillars(scene: "IntroScene", surf: pygame.Surface,
 _COIN_COUNT     = 5
 _COIN_SPACING   = 60
 _COIN_X0        = float(W) + 50.0   # initial x of the first coin
-_COIN_SCROLL_PX = 240.0              # px/s the trail scrolls left
+_COIN_SCROLL_PX = 175.0              # px/s the trail scrolls left
 _COIN_AMP       = 28
 
 
@@ -1355,16 +1361,16 @@ def _dispatch_beat(scene: "IntroScene", surf: pygame.Surface) -> None:
     # the day→night biome the journey did.
     #   dawn      0.0–1.0    (1.0s)
     #   handoff   1.0–4.0    (3.0s)
-    #   tutorial  4.0–14.0  (10.0s) — four 2.5s sub-beats
-    #   arrival   14.0–17.0  (3.0s) — approach, deliver, exit off-screen
+    #   tutorial  4.0–18.0  (14.0s) — four 3.5s sub-beats
+    #   arrival   18.0–21.0  (3.0s) — approach, deliver, exit off-screen
     if t < 1.0:
         _beat_dawn(scene, surf, t / 1.0)
     elif t < 4.0:
         _beat_handoff(scene, surf, (t - 1.0) / 3.0)
-    elif t < 14.0:
-        _beat_tutorial(scene, surf, (t - 4.0) / 10.0)
+    elif t < 18.0:
+        _beat_tutorial(scene, surf, (t - 4.0) / 14.0)
     elif t < DURATION:
-        _beat_arrival(scene, surf, (t - 14.0) / 3.0)
+        _beat_arrival(scene, surf, (t - 18.0) / 3.0)
     else:
         _beat_arrival(scene, surf, 1.0)
 
