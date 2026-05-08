@@ -123,59 +123,52 @@ class App:
 
     def _flap_input(self, pos=None):
         if self.state == STATE_INTRO:
-            # Any tap during the cinematic skips it and the power-ups
-            # explainer too — the player has chosen to bail past the
-            # intro flow, so jump straight to the menu. Gate the skip
-            # by `_cooldown_t` so a fresh-launched intro (e.g. from the
-            # menu's HOW TO PLAY button) can't be instantly skipped by
-            # the same finger event echoing as a second FINGERDOWN /
-            # MOUSEBUTTONDOWN. The cooldown decrements during INTRO's
-            # _update so the player only waits a fraction of a second
-            # before a deliberate tap can skip.
+            # Any tap during the cinematic skips it. Gate by `_cooldown_t`
+            # so the same physical tap that opened the intro (FINGERDOWN
+            # → MOUSEBUTTONDOWN echo, or a duplicate FINGERDOWN on flaky
+            # devices) can't immediately skip it back out. The cooldown
+            # ticks down inside _update so a deliberate skip works a
+            # beat later.
             if self._cooldown_t > 0:
                 return
             self._finish_intro(skipped=True)
             return
         if self.state == STATE_POWERUPS:
-            # Tap on the explainer advances to the menu — but not during
-            # the entry cooldown, so a stray echo tap can't immediately
-            # bounce the player back to MENU and make the explainer
-            # appear to "flicker open".
+            # Same shape: gate the dismiss-tap on the entry cooldown so
+            # the explainer doesn't flicker straight back to MENU.
             if self._cooldown_t > 0:
                 return
             self.powerup_help = None
             self.state = STATE_MENU
-            self._cooldown_t = 0.6
+            self._cooldown_t = 0.25
             return
         if self.state == STATE_MENU:
-            # Explicit button hits bypass `_cooldown_t` — that gate exists
-            # only to stop an echo-tap from the previous state from
-            # accidentally starting a play session, and a deliberate hit on
-            # HOW TO PLAY / POWER-UPS is unambiguously not such an echo.
-            # Without this bypass the first tap on either secondary button
-            # right after the menu appears (within the 0.6 s cooldown set
-            # by _finish_intro / POWERUPS→MENU) gets silently eaten, which
-            # the player perceives as the buttons needing two taps.
+            # Single shared cooldown gate for every menu action. This is
+            # what stops a follow-up event from the same physical tap
+            # (e.g. the second FINGERDOWN that dismissed INTRO → MENU)
+            # from immediately dispatching a help-button hit at the same
+            # screen position. Kept short (0.25 s, set on every menu
+            # entry) so a deliberate first tap from a settled menu still
+            # feels instant — typical reaction time is well above 0.25 s.
+            if self._cooldown_t > 0:
+                return
             if pos and self.hud.menu_howto_rect \
                     and self.hud.menu_howto_rect.collidepoint(pos):
                 from game.intro import IntroScene
                 self.intro = IntroScene()
                 self._intro_from_menu = True
                 self.state = STATE_INTRO
-                self._cooldown_t = 0.4
+                self._cooldown_t = 0.25
                 return
             if pos and self.hud.menu_powerups_rect \
                     and self.hud.menu_powerups_rect.collidepoint(pos):
                 from game.powerup_help import PowerUpHelpScene
                 self.powerup_help = PowerUpHelpScene()
                 self.state = STATE_POWERUPS
-                self._cooldown_t = 0.4
+                self._cooldown_t = 0.25
                 return
-            # TAP TO START rect, keyboard (no pos), or any tap outside the
-            # secondary buttons — start a play session, but only after the
-            # entry cooldown has cleared (echo-tap protection).
-            if self._cooldown_t > 0:
-                return
+            # TAP TO START rect, keyboard (no pos), or any tap outside
+            # the secondary buttons — start a play session.
             self._start_play()
         elif self.state == STATE_PLAY:
             if pos and self.hud.pause_btn.contains(pos):
@@ -229,10 +222,15 @@ class App:
 
         Sets a brief cooldown so the same physical tap that triggered the
         skip can't echo into the now-MENU state and immediately call
-        ``_start_play``. 0.6 s covers:
+        ``_start_play`` or open one of the secondary menu buttons. 0.25 s
+        is enough to swallow:
           - SDL FINGERDOWN → MOUSEBUTTONDOWN echo (~tens of ms)
-          - browser DOM keydown auto-repeat (first repeat at ~500 ms)
-          - a fast double-tap by an impatient player
+          - a duplicate FINGERDOWN that flaky touch firmware can emit
+          - a fast follow-up tap that would otherwise cascade
+
+        and short enough that a deliberate first tap from a settled
+        menu (well past typical 200–300 ms reaction time) still feels
+        instant.
 
         Mirror of the STATE_LEADERBOARD → MENU pattern in ``_flap_input``."""
         if self.intro is not None:
@@ -249,7 +247,7 @@ class App:
             from game.powerup_help import PowerUpHelpScene
             self.powerup_help = PowerUpHelpScene()
             self.state = STATE_POWERUPS
-        self._cooldown_t = 0.6
+        self._cooldown_t = 0.25
 
     def _restart(self):
         # Same contract as `_start_play`: the tap that triggered the
