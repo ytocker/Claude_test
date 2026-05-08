@@ -976,7 +976,13 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 
 # ── Jump-demo physics ────────────────────────────────────────────────────────
 # Mirrors the in-game gravity / flap / max-fall constants so the demo
-# reads exactly like real gameplay. The 2.5 s sub-beat is divided into:
+# reads exactly like real gameplay — just dialled down by `_JUMP_SLOW`
+# so the bird's apparent vertical speed is closer to the calm sin-bob
+# of the other tutorial sub-beats. Both gravity and flap velocity scale
+# by the same factor, so the trajectory shape and time-to-peak (~0.33 s)
+# stay identical to gameplay; only the magnitudes shrink.
+#
+# 2.5 s sub-beat is divided into:
 #   0.00–0.30  natural fall (no flap yet — establishes "this is what
 #              happens if you don't tap")
 #   0.30       flap #1
@@ -986,9 +992,10 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 #   1.00–1.65  flap arc 2
 #   1.65–2.50  level-out: smooth ease back to baseline so the cut to
 #              the AVOID PILLARS sub-beat is seamless
-_JUMP_GRAVITY  = 1600.0   # px/s² — same as game/config.GRAVITY
-_JUMP_FLAP_V   = -520.0   # px/s   — same as game/config.FLAP_V
-_JUMP_MAX_FALL = 700.0    # px/s   — same as game/config.MAX_FALL
+_JUMP_SLOW     = 0.60     # scales velocities + gravity proportionally
+_JUMP_GRAVITY  = 1600.0 * _JUMP_SLOW
+_JUMP_FLAP_V   = -520.0 * _JUMP_SLOW
+_JUMP_MAX_FALL =  700.0 * _JUMP_SLOW
 _JUMP_FLAP_TIMES = (0.30, 1.00)
 _JUMP_SETTLE_T   = 1.65
 _JUMP_SUBSTEP    = 1.0 / 120.0
