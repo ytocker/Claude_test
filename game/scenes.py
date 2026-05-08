@@ -136,9 +136,14 @@ class App:
             self._cooldown_t = 0.6
             return
         if self.state == STATE_MENU:
-            if self._cooldown_t > 0:
-                return
-            # HOW TO PLAY → replay the intro tutorial, then return to MENU.
+            # Explicit button hits bypass `_cooldown_t` — that gate exists
+            # only to stop an echo-tap from the previous state from
+            # accidentally starting a play session, and a deliberate hit on
+            # HOW TO PLAY / POWER-UPS is unambiguously not such an echo.
+            # Without this bypass the first tap on either secondary button
+            # right after the menu appears (within the 0.6 s cooldown set
+            # by _finish_intro / POWERUPS→MENU) gets silently eaten, which
+            # the player perceives as the buttons needing two taps.
             if pos and self.hud.menu_howto_rect \
                     and self.hud.menu_howto_rect.collidepoint(pos):
                 from game.intro import IntroScene
@@ -147,7 +152,6 @@ class App:
                 self.state = STATE_INTRO
                 self._cooldown_t = 0.4
                 return
-            # POWER-UPS → power-ups explainer (replaces the old `?` button).
             if pos and self.hud.menu_powerups_rect \
                     and self.hud.menu_powerups_rect.collidepoint(pos):
                 from game.powerup_help import PowerUpHelpScene
@@ -156,7 +160,10 @@ class App:
                 self._cooldown_t = 0.4
                 return
             # TAP TO START rect, keyboard (no pos), or any tap outside the
-            # secondary buttons — start a play session.
+            # secondary buttons — start a play session, but only after the
+            # entry cooldown has cleared (echo-tap protection).
+            if self._cooldown_t > 0:
+                return
             self._start_play()
         elif self.state == STATE_PLAY:
             if pos and self.hud.pause_btn.contains(pos):
