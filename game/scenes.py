@@ -59,6 +59,7 @@ STATE_PAUSE = 4
 STATE_STATS = 5
 STATE_LEADERBOARD = 6
 STATE_INTRO = 7
+STATE_POWERUPS = 8
 
 
 class App:
@@ -78,6 +79,9 @@ class App:
         # the App stays alive and we already moved past STATE_INTRO.
         from game.intro import IntroScene
         self.intro: object | None = IntroScene()
+        # Built lazily when the intro auto-completes (not when the user
+        # skips it). Lives until the player taps once on the help screen.
+        self.powerup_help: object | None = None
         self.state = STATE_INTRO
         self._cloud_phase = 0.0
         self._running = True
@@ -115,10 +119,17 @@ class App:
 
     def _flap_input(self, pos=None):
         if self.state == STATE_INTRO:
-            # Any tap during the cinematic skips it and lands on the menu —
-            # the menu is where SKYBIT + the description + the click-to-start
-            # prompt live. The intro is recorded as seen so it never replays.
-            self._finish_intro()
+            # Any tap during the cinematic skips it and the power-ups
+            # explainer too — the player has chosen to bail past the
+            # intro flow, so jump straight to the menu.
+            self._finish_intro(skipped=True)
+            return
+        if self.state == STATE_POWERUPS:
+            # Tap on the explainer advances to the menu. Cooldown stops
+            # the same physical tap from also kicking off a play session.
+            self.powerup_help = None
+            self.state = STATE_MENU
+            self._cooldown_t = 0.6
             return
         if self.state == STATE_MENU:
             if self._cooldown_t <= 0:
@@ -163,9 +174,15 @@ class App:
         self.world.flap()
         self.state = STATE_PLAY
 
-    def _finish_intro(self):
-        """Hand off to the menu. Called on auto-completion or skip. The
-        intro is dropped so this session won't render it again.
+    def _finish_intro(self, skipped: bool):
+        """Hand off out of the intro. The next state depends on `skipped`:
+
+          * `skipped=True`  — the player tapped during the cinematic. They
+            wanted to bail past the intro flow, so we drop them straight
+            on the menu, bypassing the power-ups explainer.
+          * `skipped=False` — the cinematic ran to its natural end. Land
+            on the power-ups explainer, which stays up until the player
+            taps once more to reach the menu.
 
         Sets a brief cooldown so the same physical tap that triggered the
         skip can't echo into the now-MENU state and immediately call
@@ -178,7 +195,12 @@ class App:
         if self.intro is not None:
             self.intro.skip()
         self.intro = None
-        self.state = STATE_MENU
+        if skipped:
+            self.state = STATE_MENU
+        else:
+            from game.powerup_help import PowerUpHelpScene
+            self.powerup_help = PowerUpHelpScene()
+            self.state = STATE_POWERUPS
         self._cooldown_t = 0.6
 
     def _restart(self):
@@ -304,11 +326,18 @@ class App:
         if self.state == STATE_INTRO:
             if self.intro is None:
                 # Defensive: should never happen, but recover gracefully.
-                self._finish_intro()
+                self._finish_intro(skipped=True)
                 return
             self.intro.update(dt)
             if self.intro.done:
-                self._finish_intro()
+                # The cinematic ran out — show the power-ups explainer.
+                # (User-initiated skips already routed through _flap_input.)
+                self._finish_intro(skipped=False)
+            return
+        if self.state == STATE_POWERUPS:
+            if self.powerup_help is not None:
+                self.powerup_help.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
@@ -485,6 +514,10 @@ class App:
         # + parrot etc.) and bypasses the in-game world draw entirely.
         if self.state == STATE_INTRO and self.intro is not None:
             self.intro.render(self.screen)
+            return
+        # Power-ups explainer also paints its own background — no world.
+        if self.state == STATE_POWERUPS and self.powerup_help is not None:
+            self.powerup_help.render(self.screen)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)
