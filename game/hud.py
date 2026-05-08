@@ -511,6 +511,12 @@ class HUD:
              rng.choice((1, 1, 1, 2)), rng.uniform(0, 6.28))
             for _ in range(38)
         ]
+        # Menu pill hit-test rects — populated each frame by draw_menu, read
+        # by scenes.py click-handling. Pre-init to None so a click that
+        # arrives before the first menu render falls through harmlessly.
+        self.menu_start_rect: "pygame.Rect | None" = None
+        self.menu_howto_rect: "pygame.Rect | None" = None
+        self.menu_powerups_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf):
         self.title_t += 1 / 60
@@ -562,12 +568,32 @@ class HUD:
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
                          (W // 2 - 70, 208), (W // 2 + 70, 208), 1)
 
-        # Tap-to-play pill — keep a gentle breath but hold the floor high
-        # so the call-to-action is always solidly readable, not dim at the
-        # bottom of the pulse.
+        # Three stacked pill buttons replace the single tap-to-play pill
+        # and the corner `?` button. Centres are computed from each pill's
+        # actual rendered height so the white space between buttons is
+        # even regardless of font metrics; the block is anchored 14 px
+        # above the BEST score panel so the bottom pill always clears it.
+        def _pill_h(text: str, size: int) -> int:
+            return _font(size, True).render(text, True, WHITE).get_height() + 22
+
+        GAP = 12
+        h_start = _pill_h("TAP TO START", 22)
+        h_howto = _pill_h("HOW TO PLAY", 18)
+        h_power = _pill_h("POWER-UPS", 18)
+        y_power = (H - 110) - 14 - h_power // 2
+        y_howto = y_power - h_power // 2 - GAP - h_howto // 2
+        y_start = y_howto - h_howto // 2 - GAP - h_start // 2
+
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
-        _pill_btn(surf, (W // 2, H - 158), "TAP  ·  SPACE  ·  CLICK",
-                  size=18, alpha=btn_alpha)
+        self.menu_start_rect = _pill_btn(
+            surf, (W // 2, y_start), "TAP TO START",
+            size=22, alpha=btn_alpha, min_width=220)
+        self.menu_howto_rect = _pill_btn(
+            surf, (W // 2, y_howto), "HOW TO PLAY",
+            size=18, alpha=230, min_width=220)
+        self.menu_powerups_rect = _pill_btn(
+            surf, (W // 2, y_power), "POWER-UPS",
+            size=18, alpha=230, min_width=220)
 
         # Best score panel
         hi_rect = pygame.Rect(W // 2 - 72, H - 110, 144, 48)
@@ -580,8 +606,10 @@ class HUD:
         val = vf.render(str(best), True, _GOLD_BRIGHT)
         surf.blit(val, val.get_rect(center=(W // 2, H - 78)))
 
-        # Help button (top-left) — opens the power-ups explainer.
-        self.help_btn.draw(surf)
+        # The corner `?` help button is intentionally not drawn here —
+        # the POWER-UPS pill above replaces it. HelpButton class itself
+        # remains in this file unused so it can be revived without churn
+        # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
         # ── Score: centered, styled dark pill backdrop
