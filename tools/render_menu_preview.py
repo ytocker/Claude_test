@@ -78,12 +78,29 @@ def render_menu_mockup(t: float = 0.0, best: int = 42) -> pygame.Surface:
 
     # ── Three stacked pills (the redesign) ────────────────────────────────
     # Shared min_width = 220 keeps all three buttons the same visual width.
+    # Centres are computed from actual pill heights + a fixed inter-pill gap
+    # so the white space between buttons is even regardless of font metrics.
+    def _pill_h(text: str, size: int) -> int:
+        return _font(size, True).render(text, True, (255, 255, 255)).get_height() + 22
+
+    GAP = 12
+    h_start = _pill_h("TAP TO START", 22)
+    h_howto = _pill_h("HOW TO PLAY", 18)
+    h_power = _pill_h("POWER-UPS", 18)
+
+    # Anchor the block by its bottom edge, leaving a 14 px buffer above the
+    # BEST score panel (which sits at y = H - 110). Centres cascade upward
+    # with one shared GAP between every pair.
+    y_power = (H - 110) - 14 - h_power // 2
+    y_howto = y_power - h_power // 2 - GAP - h_howto // 2
+    y_start = y_howto - h_howto // 2 - GAP - h_start // 2
+
     btn_alpha = int(225 + math.sin(t * 3.6) * 30)
-    _pill_btn(surf, (W // 2, 388), "TAP TO START",
+    _pill_btn(surf, (W // 2, y_start), "TAP TO START",
               size=22, alpha=btn_alpha, min_width=220)
-    _pill_btn(surf, (W // 2, 442), "HOW TO PLAY",
+    _pill_btn(surf, (W // 2, y_howto), "HOW TO PLAY",
               size=18, alpha=230, min_width=220)
-    _pill_btn(surf, (W // 2, 488), "POWERUPS",
+    _pill_btn(surf, (W // 2, y_power), "POWER-UPS",
               size=18, alpha=230, min_width=220)
 
     # BEST score panel — unchanged from draw_menu (game/hud.py:573-581).
