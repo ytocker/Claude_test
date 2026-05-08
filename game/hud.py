@@ -540,6 +540,11 @@ class HUD:
 
         _draw_overlay_stars(surf, self._stars, self.title_t)
 
+        # Mountain silhouette belongs to the background, drawn before the
+        # foreground UI so the pill / BEST panel / help button sit cleanly
+        # on top of it instead of being darkened by the alpha-180 layer.
+        _draw_mountain_silhouette(surf, alpha=180)
+
         # Floating title — sits above the gameplay-opener post-house +
         # Pip composition (cottage top is at y≈208) so the text never
         # crosses the parrot.
@@ -577,8 +582,6 @@ class HUD:
 
         # Help button (top-left) — opens the power-ups explainer.
         self.help_btn.draw(surf)
-
-        _draw_mountain_silhouette(surf, alpha=180)
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
         # ── Score: centered, styled dark pill backdrop
