@@ -35,9 +35,10 @@ from game import biome as _biome
 from game import parrot as _parrot
 from game.pillar_variants import draw_pillar_pair
 from game.hud import _font
+from game.entities import Coin, PowerUp
 
 
-DURATION = 12.0
+DURATION = 13.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -927,46 +928,241 @@ def _journey_phase(u: float) -> float:
     return _JOURNEY_WAYPOINTS[-1][1]
 
 
-def _beat_journey(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
-    """The heart of the cinematic. Pip glides serenely while the world cycles
-    around him. Camera floats high — no ground in frame."""
-    phase = _journey_phase(u)
-    # Scroll continues from beat 2's end value (16) so the cloud parallax
-    # doesn't pop at the cut — it then accelerates across the beat.
-    scroll = 16.0 + u * 280.0
-    _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True)
+# Tutorial sub-beats run inside the same time window the journey used to
+# occupy (4.0–10.0 s, six seconds total), each one ~1.5 s wide.
+_TUTORIAL_START = 4.0
+_TUTORIAL_END   = 10.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START
 
-    # First slice of the beat: the pickup post-house is still drifting off
-    # the left edge as Pip "flies past" it, bridging the cut from beat 2.
-    if u < 0.18:
-        bridge_t = u / 0.18  # 0 at the cut, 1 when fully scrolled away
+_SUB_LEN = _TUTORIAL_LEN / 4.0   # 1.5 s
+
+
+def _label_alpha(sub_u: float) -> int:
+    """Fade-in 0–0.15, hold to 0.85, fade-out to 1.0 (per-sub-beat local-u)."""
+    if sub_u < 0.15:
+        return int(255 * (sub_u / 0.15))
+    if sub_u > 0.85:
+        return int(255 * max(0.0, 1.0 - (sub_u - 0.85) / 0.15))
+    return 255
+
+
+def _draw_label_banner(surf: pygame.Surface, text: str, alpha: int) -> None:
+    """Top-of-screen tutorial label — same visual language as the in-game
+    "TAP TO FLY" prompt (`hud.py` `draw_play`): bold white text on a
+    semi-transparent dark ellipse plate, centred horizontally.
+
+    `alpha` controls the whole label's opacity for fade-in / fade-out."""
+    if alpha <= 0:
+        return
+    f = _font(22, True)
+    label = f.render(text, True, WHITE)
+    label.set_alpha(alpha)
+    lr = label.get_rect(center=(W // 2, 80))
+    plate = pygame.Surface((lr.width + 40, lr.height + 20), pygame.SRCALPHA)
+    pygame.draw.ellipse(plate, (0, 0, 20, int(180 * alpha / 255)),
+                        plate.get_rect())
+    surf.blit(plate, (W // 2 - plate.get_width() // 2, lr.y - 10))
+    surf.blit(label, lr.topleft)
+
+
+def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
+                               pip_y: float) -> None:
+    """Blit the parcel tucked beneath Pip — same offset the journey used."""
+    par = _get_sprite("parcel")
+    surf.blit(par, (int(pip_x) - par.get_width() // 2,
+                    int(pip_y) + 10))
+
+
+def _tutorial_jump(scene: "IntroScene", surf: pygame.Surface,
+                   sub_u: float) -> None:
+    """Sub-beat 1 — TAP TO JUMP. Pip flies a clearly exaggerated flap arc
+    so the player sees what a tap does. Three hops in 1.5 s."""
+    # Bridge: the pickup post-house is still drifting off the left edge
+    # at the start of the tutorial, mirroring the journey's old bridge.
+    if sub_u < 0.36:
+        bridge_t = sub_u / 0.36
         house = _get_sprite("skyhouse_post")
-        # Match beat 2's last anchor (W*0.30, H*0.42), then translate left.
         anchor_cx = int(W * 0.30) - int(bridge_t * (W * 0.55))
         anchor_cy = int(H * 0.42)
         hx = anchor_cx - house.get_width() // 2
         hy = anchor_cy - house.get_height() // 2
-        # Fade out the cottage as it slides away.
         if bridge_t < 1.0:
             faded = house.copy()
             faded.set_alpha(int(255 * (1.0 - bridge_t)))
             surf.blit(faded, (hx, hy))
 
-    # Distant V-formation flock — drifts across once during the beat
-    if 0.55 < u < 0.85:
-        flock_u = (u - 0.55) / 0.30
-        fx = W + 40 - flock_u * (W + 80)
-        _draw_distant_flock(surf, scene.t, fx)
+    sub_t = sub_u * _SUB_LEN
+    # 2 Hz hop: ~3 visible flap arcs in 1.5 s.
+    period = 0.5
+    cycle = (sub_t % period) / period
+    # y_offset: 0 at cycle=0 → -PEAK at cycle=0.5 → 0 at cycle=1.
+    PEAK = 35
+    y_offset = -PEAK * (1.0 - math.cos(math.tau * cycle)) * 0.5
+    pip_x = W * 0.48
+    pip_y = H * 0.42 + y_offset
+    # Tilt: bank up while rising (cycle 0–0.5), down while falling.
+    tilt = -18.0 if cycle < 0.5 else 22.0
 
-    # Toward the END of the journey, the destination cottage scrolls in
-    # from off-screen-right at the same parallax-feel as the world,
-    # exposing itself on Pip's right as she approaches it. By the cut into
-    # beat 4 the cottage is already in place. Linear motion (no scale or
-    # alpha tricks) so it reads as a building approached from the air.
-    if u >= 0.65:
-        approach = (u - 0.65) / 0.35  # linear progress 0 → 1
+    _tutorial_pip_carry_parcel(surf, pip_x, pip_y)
+    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 6.0, tilt_deg=tilt)
+
+    _draw_label_banner(surf, "TAP TO JUMP", _label_alpha(sub_u))
+
+
+def _tutorial_pillars(scene: "IntroScene", surf: pygame.Surface,
+                      sub_u: float) -> None:
+    """Sub-beat 2 — AVOID PILLARS. A single pillar pair scrolls in from
+    the right with a 170-px gap aligned to Pip's altitude; Pip dips
+    slightly so he passes through it visibly."""
+    # Pillar slides from off-right to off-left across the sub-beat.
+    pipe_w = 58
+    gap_h  = 170
+    gap_y  = int(H * 0.42)
+    pillar_x = int(W + 30 - sub_u * (W + 90))
+
+    if pillar_x + pipe_w > 0 and pillar_x < W:
+        top_h = max(1, gap_y - gap_h // 2)
+        bot_y = gap_y + gap_h // 2
+        bot_h = max(1, GROUND_Y - bot_y)
+        top_rect = pygame.Rect(pillar_x, 0, pipe_w, top_h)
+        bot_rect = pygame.Rect(pillar_x, bot_y, pipe_w, bot_h)
+        # Resolve a palette from the current biome phase so the pillar
+        # tints with the day→night cycle just like in gameplay.
+        phase_now = _journey_phase(0.25)  # mid golden hour-ish
+        palette = _biome.palette_for_phase(phase_now)
+        draw_pillar_pair(surf, top_rect, bot_rect, palette, seed=4242)
+
+    # Pip — same calm bob the journey/arrival use so cuts are seamless.
+    pip_x = W * 0.48 + math.sin(scene.t * 0.8) * 18
+    pip_y = H * 0.42 + math.sin(scene.t * 1.5) * 14
+    tilt = math.sin(scene.t * 1.5) * -6.0
+
+    _tutorial_pip_carry_parcel(surf, pip_x, pip_y)
+    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 5.0, tilt_deg=tilt)
+
+    _draw_label_banner(surf, "AVOID PILLARS", _label_alpha(sub_u))
+
+
+# Coin trail config — five coins in a sine-wave pattern, scrolling in
+# from off-right and crossing Pip one after the other.
+_COIN_COUNT     = 5
+_COIN_SPACING   = 60
+_COIN_X0        = float(W) + 50.0   # initial x of the first coin
+_COIN_SCROLL_PX = 400.0              # px/s the trail scrolls left
+_COIN_AMP       = 28
+
+
+def _coin_x_at(idx: int, sub_t: float) -> float:
+    """Deterministic screen-x of coin `idx` at time `sub_t` into the
+    coins sub-beat."""
+    return _COIN_X0 + idx * _COIN_SPACING - sub_t * _COIN_SCROLL_PX
+
+
+def _coin_collect_t(idx: int, pip_x: float) -> float:
+    """Time (within the coins sub-beat) at which coin `idx` reaches Pip."""
+    return (_COIN_X0 + idx * _COIN_SPACING - pip_x) / _COIN_SCROLL_PX
+
+
+def _draw_pickup_sparkle(surf: pygame.Surface, cx: int, cy: int,
+                         age: float) -> None:
+    """6-particle gold/white sparkle burst, fades over 0.4 s."""
+    if age < 0 or age > 0.4:
+        return
+    fade = max(0.0, 1.0 - age / 0.4)
+    alpha = int(255 * fade)
+    for i in range(6):
+        ang = math.tau * i / 6
+        r = 4 + age * 60
+        px = int(cx + math.cos(ang) * r)
+        py = int(cy + math.sin(ang) * r)
+        col = (255, 230, 90) if i % 2 == 0 else (255, 250, 220)
+        s = pygame.Surface((6, 6), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*col, alpha), (3, 3), 2)
+        surf.blit(s, (px - 3, py - 3), special_flags=pygame.BLEND_ADD)
+
+
+def _tutorial_coins(scene: "IntroScene", surf: pygame.Surface,
+                    sub_u: float) -> None:
+    """Sub-beat 3 — PICK UP COINS. A trail of five coins scrolls in from
+    the right; each one pops with a sparkle as Pip passes through it."""
+    sub_t = sub_u * _SUB_LEN
+    # Same baseline bob as the journey/arrival so cuts are seamless.
+    pip_x = W * 0.48 + math.sin(scene.t * 0.8) * 18
+    pip_y = H * 0.42 + math.sin(scene.t * 1.5) * 14
+
+    # Cache one Coin per index on the scene so the spin animation
+    # advances smoothly across frames.
+    coins = getattr(scene, "_tutorial_coins_cache", None)
+    if coins is None:
+        coins = [Coin(0, 0) for _ in range(_COIN_COUNT)]
+        scene._tutorial_coins_cache = coins
+
+    for idx, coin in enumerate(coins):
+        # Update the spin/float animation every frame so coins look
+        # alive even before they reach Pip.
+        coin.update(1 / 60)
+        # Sine-wave y so the trail reads as an arc, not a flat line.
+        y_offset = math.sin(idx * 0.9) * _COIN_AMP
+        coin.x = _coin_x_at(idx, sub_t)
+        coin.y = H * 0.42 + y_offset
+
+        # Collection trigger uses the bob-baseline x so it's deterministic
+        # across frames — sin offset is small enough (±18 px) that visual
+        # alignment with Pip's drawn position stays convincing.
+        baseline_x = W * 0.48
+        collect_t = _coin_collect_t(idx, baseline_x)
+        if sub_t < collect_t:
+            # Not yet collected — draw normally if on-screen.
+            if -20 < coin.x < W + 20:
+                coin.draw(surf)
+        else:
+            # Collected — draw the sparkle burst and skip the coin.
+            age = sub_t - collect_t
+            _draw_pickup_sparkle(surf, int(baseline_x), int(coin.y), age)
+
+    _tutorial_pip_carry_parcel(surf, pip_x, pip_y)
+    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 5.5,
+              tilt_deg=math.sin(scene.t * 1.5) * -6.0)
+
+    _draw_label_banner(surf, "PICK UP COINS", _label_alpha(sub_u))
+
+
+# Power-up trail config — three power-ups, more spaced than the coins
+# so each one is clearly readable.
+_POWERUP_KINDS    = ("triple", "magnet", "slowmo")
+_POWERUP_SPACING  = 110
+_POWERUP_X0       = float(W) + 50.0
+_POWERUP_OFFSETS  = (-32, 22, -8)   # y-offsets per item, varied for shape
+
+
+def _tutorial_powerups(scene: "IntroScene", surf: pygame.Surface,
+                       sub_u: float) -> None:
+    """Sub-beat 4 — TAKE POWER-UPS. Three power-ups scroll past in Pip's
+    flight path. He doesn't collect them (per spec). The destination
+    cottage starts sliding in from off-screen-right during the last 60 %
+    of this sub-beat to bridge the cut into the arrival beat."""
+    sub_t = sub_u * _SUB_LEN
+
+    # Cache the PowerUp instances so .pulse advances smoothly.
+    pus = getattr(scene, "_tutorial_pus_cache", None)
+    if pus is None:
+        pus = [PowerUp(0, 0, kind) for kind in _POWERUP_KINDS]
+        scene._tutorial_pus_cache = pus
+
+    for idx, pu in enumerate(pus):
+        pu.update(1 / 60)
+        x = _POWERUP_X0 + idx * _POWERUP_SPACING - sub_t * _COIN_SCROLL_PX
+        pu.x = x
+        pu.y = H * 0.42 + _POWERUP_OFFSETS[idx]
+        if -30 < pu.x < W + 30:
+            pu.draw(surf)
+
+    # Destination cottage slide-in (last 60 % of this sub-beat). Endpoint
+    # matches the arrival beat's expected position so the cut is seamless.
+    if sub_u >= 0.40:
+        approach = (sub_u - 0.40) / 0.60
         home = _get_sprite("skyhouse_home")
-        home_cx_off = W + home.get_width() // 2 + 20  # fully off-screen-right
+        home_cx_off = W + home.get_width() // 2 + 20
         home_cx_end = W // 2
         home_cx_now = int(home_cx_off + (home_cx_end - home_cx_off) * approach)
         home_cy_now = int(H * 0.55) + int(math.sin(scene.t * 0.9) * 3)
@@ -974,17 +1170,46 @@ def _beat_journey(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
                   (home_cx_now - home.get_width() // 2,
                    home_cy_now - home.get_height() // 2))
 
-    # Pip — gentle sin-bob path centred at H*0.42 (matches beat 2's exit
-    # altitude exactly so the cut is invisible). Slow flap, almost-level
-    # tilt; he carries the parcel tucked beneath him.
+    # Match the journey/arrival baseline bob exactly so the cut into
+    # Beat 4 is pixel-perfect.
     pip_x = W * 0.48 + math.sin(scene.t * 0.8) * 18
     pip_y = H * 0.42 + math.sin(scene.t * 1.5) * 14
     tilt = math.sin(scene.t * 1.5) * -6.0
-    par = _get_sprite("parcel")
-    surf.blit(par, (int(pip_x) - par.get_width() // 2,
-                    int(pip_y) + 10))
-    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 5.0, tilt_deg=tilt,
-              scale=1.0)
+
+    _tutorial_pip_carry_parcel(surf, pip_x, pip_y)
+    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 5.0, tilt_deg=tilt)
+
+    _draw_label_banner(surf, "TAKE POWER-UPS", _label_alpha(sub_u))
+
+
+def _beat_tutorial(scene: "IntroScene", surf: pygame.Surface,
+                   u: float) -> None:
+    """Tutorial dispatcher — replaces the old `_beat_journey`. Splits the
+    six-second window into four sub-beats and keeps the day→night biome
+    cycle running across all of them, exactly like the journey did."""
+    # Same biome phase + scroll progression the journey beat used, just
+    # stretched across the new (slightly longer) tutorial window.
+    phase = _journey_phase(u)
+    scroll = 16.0 + u * 280.0
+    _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True)
+
+    # A distant V-flock keeps the world alive; same window the journey
+    # had it on (now expressed in tutorial-local-u).
+    if 0.55 < u < 0.85:
+        flock_u = (u - 0.55) / 0.30
+        fx = W + 40 - flock_u * (W + 80)
+        _draw_distant_flock(surf, scene.t, fx)
+
+    # Sub-beat dispatch. Each sub_u is the local 0–1 progress inside its
+    # own quarter of the tutorial window.
+    if u < 0.25:
+        _tutorial_jump(scene, surf, u / 0.25)
+    elif u < 0.50:
+        _tutorial_pillars(scene, surf, (u - 0.25) / 0.25)
+    elif u < 0.75:
+        _tutorial_coins(scene, surf, (u - 0.50) / 0.25)
+    else:
+        _tutorial_powerups(scene, surf, (u - 0.75) / 0.25)
 
 
 # ── beat 4: Arrival (10.0 – 11.0) ────────────────────────────────────────────
@@ -1059,20 +1284,21 @@ def _beat_arrival(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
 
 def _dispatch_beat(scene: "IntroScene", surf: pygame.Surface) -> None:
     t = scene.t
-    # Beat windows. The intro now ends as Pip flies off-screen at the end
-    # of beat 4 — there is no separate "title" beat any more.
-    #   dawn      0.0–1.0  (1.0s)
-    #   handoff   1.0–4.0  (3.0s) — Pip's pickup arrival uses most of this
-    #   journey   4.0–9.0  (5.0s)
-    #   arrival   9.0–12.0 (3.0s) — approach, deliver, exit off-screen
+    # Beat windows. The old "journey" beat was repurposed as a four-step
+    # gameplay tutorial (jump / pillars / coins / power-ups), still cycling
+    # the day→night biome the journey did.
+    #   dawn      0.0–1.0   (1.0s)
+    #   handoff   1.0–4.0   (3.0s)
+    #   tutorial  4.0–10.0  (6.0s) — four 1.5s sub-beats
+    #   arrival   10.0–13.0 (3.0s) — approach, deliver, exit off-screen
     if t < 1.0:
         _beat_dawn(scene, surf, t / 1.0)
     elif t < 4.0:
         _beat_handoff(scene, surf, (t - 1.0) / 3.0)
-    elif t < 9.0:
-        _beat_journey(scene, surf, (t - 4.0) / 5.0)
+    elif t < 10.0:
+        _beat_tutorial(scene, surf, (t - 4.0) / 6.0)
     elif t < DURATION:
-        _beat_arrival(scene, surf, (t - 9.0) / 3.0)
+        _beat_arrival(scene, surf, (t - 10.0) / 3.0)
     else:
         _beat_arrival(scene, surf, 1.0)
 
