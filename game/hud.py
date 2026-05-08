@@ -494,35 +494,6 @@ class HelpButton:
         surf.blit(q, q.get_rect(center=(cx, cy)))
 
 
-class BackButton:
-    """Top-left "<" arrow button on the power-ups screen. Click returns
-    to the menu. Same panel styling as HelpButton/PauseButton."""
-    def __init__(self):
-        self.rect = pygame.Rect(12, 12, 44, 44)
-
-    def contains(self, pos):
-        return self.rect.collidepoint(pos)
-
-    def draw(self, surf):
-        rounded_rect(surf, self.rect, 10, _PANEL_DARK, 200)
-        border = pygame.Surface((self.rect.width, self.rect.height),
-                                pygame.SRCALPHA)
-        pygame.draw.rect(border, (*_ORANGE_BORDER, 120),
-                         (0, 0, self.rect.width, self.rect.height),
-                         border_radius=10, width=1)
-        surf.blit(border, self.rect.topleft)
-        cx, cy = self.rect.center
-        # Solid chevron pointing left.
-        pygame.draw.polygon(surf, _GOLD_BRIGHT, [
-            (cx + 5, cy - 9),
-            (cx - 6, cy),
-            (cx + 5, cy + 9),
-            (cx + 5, cy + 5),
-            (cx - 1, cy),
-            (cx + 5, cy - 5),
-        ])
-
-
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
