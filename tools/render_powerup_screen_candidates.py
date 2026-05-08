@@ -38,13 +38,13 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 # Duration is reported once in the footer, never per-row.
 POWERUPS = [
-    ("triple",   "TRIPLE",   "Coins are worth 3x."),
-    ("magnet",   "MAGNET",   "Pulls nearby coins straight to Pip."),
-    ("slowmo",   "SLOW-MO",  "Slows the world. Taps stay snappy."),
-    ("kfc",      "KFC",      "Fried-chicken Pip. Coins turn to fries."),
-    ("ghost",    "GHOST",    "Phase through pillars. Floor still kills."),
-    ("grow",     "GROW",     "Pip grows 1.5x. Bigger and bolder."),
-    ("surprise", "SURPRISE", "Random pick from the six above."),
+    ("triple",   "TRIPLE",   "Coins are worth 3x"),
+    ("magnet",   "MAGNET",   "Pulls nearby coins"),
+    ("slowmo",   "SLOW-MO",  "Slows the world, jumps are the same"),
+    ("kfc",      "KFC",      "Fried chicken theme"),
+    ("ghost",    "GHOST",    "Go through pillars safely"),
+    ("grow",     "GROW",     "1.5x larger"),
+    ("surprise", "SURPRISE", "Picks random from above"),
 ]
 
 SCALE = 3   # 360x640 → 1080x1920
@@ -259,7 +259,7 @@ def candidate_2():
     surf.blit(nimg, (surprise_card.x + 80 * s, surprise_card.y + 10 * s))
 
     f = _font(12 * s, True)
-    blurb = "Gift box rerolls into one of the six above."
+    blurb = POWERUPS[-1][2]
     text_left = surprise_card.x + 80 * s
     text_right = surprise_card.right - 12 * s
     for li, line in enumerate(_wrap(f, blurb, text_right - text_left)[:2]):
