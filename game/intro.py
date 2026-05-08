@@ -954,7 +954,7 @@ def _draw_label_banner(surf: pygame.Surface, text: str, alpha: int) -> None:
     separate overlay. `alpha` drives fade-in / fade-out."""
     if alpha <= 0:
         return
-    f = _font(28, True)
+    f = _font(34, True)
     fill = f.render(text, True, _GOLD_BRIGHT)
     out  = f.render(text, True, _RED_OUTLINE)
     sh   = f.render(text, True, NEAR_BLACK)
@@ -962,8 +962,8 @@ def _draw_label_banner(surf: pygame.Surface, text: str, alpha: int) -> None:
     out.set_alpha(alpha)
     sh.set_alpha(int(alpha * 0.66))
 
-    r = fill.get_rect(center=(W // 2, 80))
-    PX = 2
+    r = fill.get_rect(center=(W // 2, 110))
+    PX = 3
     for ox, oy in ((-PX, 0), (PX, 0), (0, -PX), (0, PX),
                    (-PX, -PX), (PX, -PX), (-PX, PX), (PX, PX)):
         surf.blit(out, (r.x + ox, r.y + oy))
