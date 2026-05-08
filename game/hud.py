@@ -557,8 +557,10 @@ class HUD:
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
                          (W // 2 - 70, 208), (W // 2 + 70, 208), 1)
 
-        # Tap-to-play pill (pulsing)
-        btn_alpha = int(180 + math.sin(self.title_t * 3.6) * 70)
+        # Tap-to-play pill — keep a gentle breath but hold the floor high
+        # so the call-to-action is always solidly readable, not dim at the
+        # bottom of the pulse.
+        btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
         _pill_btn(surf, (W // 2, H - 158), "TAP  ·  SPACE  ·  CLICK",
                   size=18, alpha=btn_alpha)
 

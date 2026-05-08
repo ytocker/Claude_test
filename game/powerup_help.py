@@ -24,7 +24,7 @@ from game.draw import (
 )
 from game.hud import (
     _font, _draw_overlay_stars,
-    _GOLD_BRIGHT, _GOLD_MUTED, _ORANGE_BORDER, _RED_OUTLINE, _PANEL_DARK,
+    _GOLD_BRIGHT, _ORANGE_BORDER, _RED_OUTLINE, _PANEL_DARK,
 )
 from game.entities import PowerUp
 
@@ -134,10 +134,6 @@ class PowerUpHelpScene:
 
         _outlined_title(surf, "POWER-UPS", (W // 2, 46),
                         size=36, px=2, shadow_offset=(2, 3))
-        sub = _font(11, False).render("SIX BOOSTS PLUS A WILD CARD",
-                                      True, _GOLD_MUTED)
-        sub.set_alpha(190)
-        surf.blit(sub, sub.get_rect(center=(W // 2, 76)))
 
         # 2x3 grid for the six real kinds.
         grid_top = 96
