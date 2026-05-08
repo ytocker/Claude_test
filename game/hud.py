@@ -466,9 +466,67 @@ class PauseButton:
             pygame.draw.rect(surf, _GOLD_BRIGHT, (cx + 3, cy - 9, 5, 18), border_radius=2)
 
 
+class HelpButton:
+    """Top-left "?" button on the menu. Click opens the power-ups
+    explainer (STATE_POWERUPS). Mirrors PauseButton's panel styling so
+    the two top-corner buttons feel like a consistent family."""
+    def __init__(self):
+        self.rect = pygame.Rect(12, 12, 44, 44)
+
+    def contains(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def draw(self, surf):
+        rounded_rect(surf, self.rect, 10, _PANEL_DARK, 200)
+        border = pygame.Surface((self.rect.width, self.rect.height),
+                                pygame.SRCALPHA)
+        pygame.draw.rect(border, (*_ORANGE_BORDER, 120),
+                         (0, 0, self.rect.width, self.rect.height),
+                         border_radius=10, width=1)
+        surf.blit(border, self.rect.topleft)
+        cx, cy = self.rect.center
+        # Bold gold "?" with a soft shadow.
+        f = _font(28, True)
+        sh = f.render("?", True, NEAR_BLACK)
+        sh.set_alpha(150)
+        surf.blit(sh, sh.get_rect(center=(cx + 1, cy + 2)))
+        q = f.render("?", True, _GOLD_BRIGHT)
+        surf.blit(q, q.get_rect(center=(cx, cy)))
+
+
+class BackButton:
+    """Top-left "<" arrow button on the power-ups screen. Click returns
+    to the menu. Same panel styling as HelpButton/PauseButton."""
+    def __init__(self):
+        self.rect = pygame.Rect(12, 12, 44, 44)
+
+    def contains(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def draw(self, surf):
+        rounded_rect(surf, self.rect, 10, _PANEL_DARK, 200)
+        border = pygame.Surface((self.rect.width, self.rect.height),
+                                pygame.SRCALPHA)
+        pygame.draw.rect(border, (*_ORANGE_BORDER, 120),
+                         (0, 0, self.rect.width, self.rect.height),
+                         border_radius=10, width=1)
+        surf.blit(border, self.rect.topleft)
+        cx, cy = self.rect.center
+        # Solid chevron pointing left.
+        pygame.draw.polygon(surf, _GOLD_BRIGHT, [
+            (cx + 5, cy - 9),
+            (cx - 6, cy),
+            (cx + 5, cy + 9),
+            (cx + 5, cy + 5),
+            (cx - 1, cy),
+            (cx + 5, cy - 5),
+        ])
+
+
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
+        self.help_btn = HelpButton()
         self.title_t = 0.0
         # Name-entry button rects — populated each frame by draw_name_entry,
         # read by scenes.py click-handling. Pre-init to empty rects so the
@@ -543,6 +601,9 @@ class HUD:
         vf = _font(22, True)
         val = vf.render(str(best), True, _GOLD_BRIGHT)
         surf.blit(val, val.get_rect(center=(W // 2, H - 78)))
+
+        # Help button (top-left) — opens the power-ups explainer.
+        self.help_btn.draw(surf)
 
         _draw_mountain_silhouette(surf, alpha=180)
 

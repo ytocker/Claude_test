@@ -132,6 +132,14 @@ class App:
             self._cooldown_t = 0.6
             return
         if self.state == STATE_MENU:
+            # Click on the help button opens the power-ups explainer
+            # without kicking off a play session.
+            if pos and self.hud.help_btn.contains(pos):
+                from game.powerup_help import PowerUpHelpScene
+                self.powerup_help = PowerUpHelpScene()
+                self.state = STATE_POWERUPS
+                self._cooldown_t = 0.4
+                return
             if self._cooldown_t <= 0:
                 self._start_play()
         elif self.state == STATE_PLAY:

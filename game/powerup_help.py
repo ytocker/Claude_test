@@ -23,7 +23,7 @@ from game.draw import (
     UI_CREAM, NEAR_BLACK, WHITE,
 )
 from game.hud import (
-    _font, _draw_overlay_stars,
+    _font, _draw_overlay_stars, BackButton,
     _GOLD_BRIGHT, _GOLD_MUTED, _ORANGE_BORDER, _RED_OUTLINE, _PANEL_DARK,
 )
 from game.entities import PowerUp
@@ -124,6 +124,7 @@ class PowerUpHelpScene:
     def __init__(self) -> None:
         self.t = 0.0
         self._stars = _seeded_stars()
+        self.back_btn = BackButton()
 
     def update(self, dt: float) -> None:
         self.t += dt
@@ -189,3 +190,7 @@ class PowerUpHelpScene:
                                       True, _GOLD_BRIGHT)
         foot.set_alpha(230)
         surf.blit(foot, foot.get_rect(center=(W // 2, H - 22)))
+
+        # Back button (top-left) — returns to the menu. Tap-anywhere
+        # also returns, but this gives explicit affordance.
+        self.back_btn.draw(surf)
