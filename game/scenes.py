@@ -125,12 +125,24 @@ class App:
         if self.state == STATE_INTRO:
             # Any tap during the cinematic skips it and the power-ups
             # explainer too — the player has chosen to bail past the
-            # intro flow, so jump straight to the menu.
+            # intro flow, so jump straight to the menu. Gate the skip
+            # by `_cooldown_t` so a fresh-launched intro (e.g. from the
+            # menu's HOW TO PLAY button) can't be instantly skipped by
+            # the same finger event echoing as a second FINGERDOWN /
+            # MOUSEBUTTONDOWN. The cooldown decrements during INTRO's
+            # _update so the player only waits a fraction of a second
+            # before a deliberate tap can skip.
+            if self._cooldown_t > 0:
+                return
             self._finish_intro(skipped=True)
             return
         if self.state == STATE_POWERUPS:
-            # Tap on the explainer advances to the menu. Cooldown stops
-            # the same physical tap from also kicking off a play session.
+            # Tap on the explainer advances to the menu — but not during
+            # the entry cooldown, so a stray echo tap can't immediately
+            # bounce the player back to MENU and make the explainer
+            # appear to "flicker open".
+            if self._cooldown_t > 0:
+                return
             self.powerup_help = None
             self.state = STATE_MENU
             self._cooldown_t = 0.6
@@ -365,6 +377,10 @@ class App:
                 self._finish_intro(skipped=True)
                 return
             self.intro.update(dt)
+            # Tick the cooldown so a HOW-TO-PLAY-launched intro becomes
+            # skippable a beat after it opens (see the gate in
+            # _flap_input's STATE_INTRO branch).
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
             if self.intro.done:
                 # The cinematic ran out — show the power-ups explainer.
                 # (User-initiated skips already routed through _flap_input.)
