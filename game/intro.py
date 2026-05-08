@@ -38,7 +38,7 @@ from game.hud import _font
 from game.entities import Coin, PowerUp
 
 
-DURATION = 13.0
+DURATION = 17.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -929,12 +929,13 @@ def _journey_phase(u: float) -> float:
 
 
 # Tutorial sub-beats run inside the same time window the journey used to
-# occupy (4.0–10.0 s, six seconds total), each one ~1.5 s wide.
+# occupy. Each one is 2.5 s wide so labels have ~1.7 s of full opacity
+# and entities scroll slowly enough to be read.
 _TUTORIAL_START = 4.0
-_TUTORIAL_END   = 10.0
-_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START
+_TUTORIAL_END   = 14.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 10 s
 
-_SUB_LEN = _TUTORIAL_LEN / 4.0   # 1.5 s
+_SUB_LEN = _TUTORIAL_LEN / 4.0   # 2.5 s
 
 
 def _label_alpha(sub_u: float) -> int:
@@ -992,11 +993,12 @@ def _tutorial_jump(scene: "IntroScene", surf: pygame.Surface,
             surf.blit(faded, (hx, hy))
 
     sub_t = sub_u * _SUB_LEN
-    # 2 Hz hop: ~3 visible flap arcs in 1.5 s.
-    period = 0.5
+    # ~3 visible flap arcs in 2.5 s — one period close to gameplay's
+    # natural flap-fall cycle so the demo reads as actual jumps.
+    period = 0.8
     cycle = (sub_t % period) / period
     # y_offset: 0 at cycle=0 → -PEAK at cycle=0.5 → 0 at cycle=1.
-    PEAK = 35
+    PEAK = 38
     y_offset = -PEAK * (1.0 - math.cos(math.tau * cycle)) * 0.5
     pip_x = W * 0.48
     pip_y = H * 0.42 + y_offset
@@ -1048,7 +1050,7 @@ def _tutorial_pillars(scene: "IntroScene", surf: pygame.Surface,
 _COIN_COUNT     = 5
 _COIN_SPACING   = 60
 _COIN_X0        = float(W) + 50.0   # initial x of the first coin
-_COIN_SCROLL_PX = 400.0              # px/s the trail scrolls left
+_COIN_SCROLL_PX = 240.0              # px/s the trail scrolls left
 _COIN_AMP       = 28
 
 
@@ -1287,18 +1289,18 @@ def _dispatch_beat(scene: "IntroScene", surf: pygame.Surface) -> None:
     # Beat windows. The old "journey" beat was repurposed as a four-step
     # gameplay tutorial (jump / pillars / coins / power-ups), still cycling
     # the day→night biome the journey did.
-    #   dawn      0.0–1.0   (1.0s)
-    #   handoff   1.0–4.0   (3.0s)
-    #   tutorial  4.0–10.0  (6.0s) — four 1.5s sub-beats
-    #   arrival   10.0–13.0 (3.0s) — approach, deliver, exit off-screen
+    #   dawn      0.0–1.0    (1.0s)
+    #   handoff   1.0–4.0    (3.0s)
+    #   tutorial  4.0–14.0  (10.0s) — four 2.5s sub-beats
+    #   arrival   14.0–17.0  (3.0s) — approach, deliver, exit off-screen
     if t < 1.0:
         _beat_dawn(scene, surf, t / 1.0)
     elif t < 4.0:
         _beat_handoff(scene, surf, (t - 1.0) / 3.0)
-    elif t < 10.0:
-        _beat_tutorial(scene, surf, (t - 4.0) / 6.0)
+    elif t < 14.0:
+        _beat_tutorial(scene, surf, (t - 4.0) / 10.0)
     elif t < DURATION:
-        _beat_arrival(scene, surf, (t - 10.0) / 3.0)
+        _beat_arrival(scene, surf, (t - 14.0) / 3.0)
     else:
         _beat_arrival(scene, surf, 1.0)
 
