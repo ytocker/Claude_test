@@ -193,6 +193,14 @@ def candidate_1():
             img = f.render(line, True, UI_CREAM)
             surf.blit(img, (text_x, rect.y + 28 + li * 13))
 
+    # Footer note — duration applies to every effect.
+    pygame.draw.line(surf, (*_ORANGE_BORDER, 110),
+                     (W // 2 - 80, H - 36), (W // 2 + 80, H - 36), 1)
+    foot = _font(11, True).render("EFFECTS LAST 8 SECONDS",
+                                  True, _GOLD_BRIGHT)
+    foot.set_alpha(220)
+    surf.blit(foot, foot.get_rect(center=(W // 2, H - 22)))
+
     _save(surf, "candidate_1_list.png")
 
 
@@ -250,7 +258,13 @@ def candidate_2():
         max_w=surprise_card.right - (surprise_card.x + 80) - 12,
         size=11, line_h_extra=2)
 
-    _pill_btn(surf, (W // 2, H - 26), "TAP TO CONTINUE", size=13, alpha=220)
+    # Footer note — duration applies to every effect.
+    pygame.draw.line(surf, (*_ORANGE_BORDER, 110),
+                     (W // 2 - 80, H - 36), (W // 2 + 80, H - 36), 1)
+    foot = _font(11, True).render("EFFECTS LAST 8 SECONDS",
+                                  True, _GOLD_BRIGHT)
+    foot.set_alpha(220)
+    surf.blit(foot, foot.get_rect(center=(W // 2, H - 22)))
 
     _save(surf, "candidate_2_grid.png")
 
@@ -684,6 +698,14 @@ def candidate_1_hires():
             img = f.render(line, True, UI_CREAM)
             surf.blit(img, (text_x, rect.y + 28 * s + li * 13 * s))
 
+    pygame.draw.line(surf, (*_ORANGE_BORDER, 110),
+                     (sw // 2 - 80 * s, sh - 36 * s),
+                     (sw // 2 + 80 * s, sh - 36 * s), s)
+    foot = _font(11 * s, True).render("EFFECTS LAST 8 SECONDS",
+                                      True, _GOLD_BRIGHT)
+    foot.set_alpha(220)
+    surf.blit(foot, foot.get_rect(center=(sw // 2, sh - 22 * s)))
+
     path = os.path.join(OUT_DIR, "candidate_1_list_hires.png")
     pygame.image.save(surf, path)
     print(f"  saved {os.path.relpath(path)}  ({sw}x{sh})")
@@ -753,8 +775,13 @@ def candidate_2_hires():
                   img.get_rect(midleft=(text_left,
                                         surprise_card.y + 38 * s + li * 14 * s)))
 
-    _hires_pill_btn(surf, (sw // 2, sh - 26 * s),
-                    "TAP TO CONTINUE", size=13 * s, alpha=220)
+    pygame.draw.line(surf, (*_ORANGE_BORDER, 110),
+                     (sw // 2 - 80 * s, sh - 36 * s),
+                     (sw // 2 + 80 * s, sh - 36 * s), s)
+    foot = _font(11 * s, True).render("EFFECTS LAST 8 SECONDS",
+                                      True, _GOLD_BRIGHT)
+    foot.set_alpha(220)
+    surf.blit(foot, foot.get_rect(center=(sw // 2, sh - 22 * s)))
 
     path = os.path.join(OUT_DIR, "candidate_2_grid_hires.png")
     pygame.image.save(surf, path)
