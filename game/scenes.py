@@ -82,6 +82,10 @@ class App:
         # Built lazily when the intro auto-completes (not when the user
         # skips it). Lives until the player taps once on the help screen.
         self.powerup_help: object | None = None
+        # True when the intro was launched from the menu's HOW TO PLAY
+        # button. _finish_intro reads this to land back on MENU instead
+        # of the POWERUPS explainer.
+        self._intro_from_menu = False
         self.state = STATE_INTRO
         self._cloud_phase = 0.0
         self._running = True
@@ -132,16 +136,28 @@ class App:
             self._cooldown_t = 0.6
             return
         if self.state == STATE_MENU:
-            # Click on the help button opens the power-ups explainer
-            # without kicking off a play session.
-            if pos and self.hud.help_btn.contains(pos):
+            if self._cooldown_t > 0:
+                return
+            # HOW TO PLAY → replay the intro tutorial, then return to MENU.
+            if pos and self.hud.menu_howto_rect \
+                    and self.hud.menu_howto_rect.collidepoint(pos):
+                from game.intro import IntroScene
+                self.intro = IntroScene()
+                self._intro_from_menu = True
+                self.state = STATE_INTRO
+                self._cooldown_t = 0.4
+                return
+            # POWER-UPS → power-ups explainer (replaces the old `?` button).
+            if pos and self.hud.menu_powerups_rect \
+                    and self.hud.menu_powerups_rect.collidepoint(pos):
                 from game.powerup_help import PowerUpHelpScene
                 self.powerup_help = PowerUpHelpScene()
                 self.state = STATE_POWERUPS
                 self._cooldown_t = 0.4
                 return
-            if self._cooldown_t <= 0:
-                self._start_play()
+            # TAP TO START rect, keyboard (no pos), or any tap outside the
+            # secondary buttons — start a play session.
+            self._start_play()
         elif self.state == STATE_PLAY:
             if pos and self.hud.pause_btn.contains(pos):
                 self.state = STATE_PAUSE
@@ -203,7 +219,12 @@ class App:
         if self.intro is not None:
             self.intro.skip()
         self.intro = None
-        if skipped:
+        if self._intro_from_menu:
+            # HOW TO PLAY replay always returns to MENU regardless of
+            # whether the player tapped to skip or watched it through.
+            self.state = STATE_MENU
+            self._intro_from_menu = False
+        elif skipped:
             self.state = STATE_MENU
         else:
             from game.powerup_help import PowerUpHelpScene
