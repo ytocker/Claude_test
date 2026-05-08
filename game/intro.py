@@ -974,14 +974,76 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
                     int(pip_y) + 10))
 
 
+# ── Jump-demo physics ────────────────────────────────────────────────────────
+# Mirrors the in-game gravity / flap / max-fall constants so the demo
+# reads exactly like real gameplay. The 2.5 s sub-beat is divided into:
+#   0.00–0.30  natural fall (no flap yet — establishes "this is what
+#              happens if you don't tap")
+#   0.30       flap #1
+#   0.30–0.95  flap arc 1 (full ~0.65 s)
+#   0.95–1.00  brief drop
+#   1.00       flap #2
+#   1.00–1.65  flap arc 2
+#   1.65–2.50  level-out: smooth ease back to baseline so the cut to
+#              the AVOID PILLARS sub-beat is seamless
+_JUMP_GRAVITY  = 1600.0   # px/s² — same as game/config.GRAVITY
+_JUMP_FLAP_V   = -520.0   # px/s   — same as game/config.FLAP_V
+_JUMP_MAX_FALL = 700.0    # px/s   — same as game/config.MAX_FALL
+_JUMP_FLAP_TIMES = (0.30, 1.00)
+_JUMP_SETTLE_T   = 1.65
+_JUMP_SUBSTEP    = 1.0 / 120.0
+
+
+def _jump_simulate(sub_t: float) -> tuple[float, float]:
+    """Step-based simulation up to `sub_t` using the game's actual
+    GRAVITY / FLAP_V / MAX_FALL constants. Returns (y_offset, vy)."""
+    y = 0.0
+    vy = 0.0
+    flap_idx = 0
+    flaps = _JUMP_FLAP_TIMES
+    t = 0.0
+    while t < sub_t:
+        # Apply any flaps whose time has come.
+        while flap_idx < len(flaps) and t >= flaps[flap_idx]:
+            vy = _JUMP_FLAP_V
+            flap_idx += 1
+        step = min(_JUMP_SUBSTEP, sub_t - t)
+        vy = min(vy + _JUMP_GRAVITY * step, _JUMP_MAX_FALL)
+        y += vy * step
+        t += step
+    return y, vy
+
+
+def _jump_demo_state(sub_t: float) -> tuple[float, float]:
+    """Public state lookup for the jump sub-beat. Real physics through
+    the second flap arc (sub_t ≤ 1.65), then a smooth ease-out back to
+    (y, vy) = (0, 0) so the bird flies straight before the cut."""
+    if sub_t <= _JUMP_SETTLE_T:
+        return _jump_simulate(sub_t)
+    # Snapshot at start of settle, then ease everything to 0.
+    y0, vy0 = _jump_simulate(_JUMP_SETTLE_T)
+    span = _SUB_LEN - _JUMP_SETTLE_T
+    p = max(0.0, min(1.0, (sub_t - _JUMP_SETTLE_T) / span))
+    ease = 1.0 - (1.0 - p) * (1.0 - p)   # ease-out quadratic
+    return y0 * (1.0 - ease), vy0 * (1.0 - p)
+
+
+def _jump_tilt(vy: float) -> float:
+    """Same tilt formula the in-game `Bird.tilt_deg` property uses."""
+    t = max(-0.5, min(0.75, vy / 500.0))
+    return -t * 55.0
+
+
 def _tutorial_jump(scene: "IntroScene", surf: pygame.Surface,
                    sub_u: float) -> None:
-    """Sub-beat 1 — TAP TO JUMP. Pip flies a clearly exaggerated flap arc
-    so the player sees what a tap does. Three hops in 1.5 s."""
+    """Sub-beat 1 — TAP TO JUMP. Pip first falls naturally (gravity
+    only, no flap), then performs two real-physics jumps using the
+    game's actual GRAVITY / FLAP_V / MAX_FALL constants, then levels
+    out so the cut to AVOID PILLARS is smooth."""
     # Bridge: the pickup post-house is still drifting off the left edge
     # at the start of the tutorial, mirroring the journey's old bridge.
-    if sub_u < 0.36:
-        bridge_t = sub_u / 0.36
+    if sub_u < 0.22:
+        bridge_t = sub_u / 0.22
         house = _get_sprite("skyhouse_post")
         anchor_cx = int(W * 0.30) - int(bridge_t * (W * 0.55))
         anchor_cy = int(H * 0.42)
@@ -993,20 +1055,15 @@ def _tutorial_jump(scene: "IntroScene", surf: pygame.Surface,
             surf.blit(faded, (hx, hy))
 
     sub_t = sub_u * _SUB_LEN
-    # ~3 visible flap arcs in 2.5 s — one period close to gameplay's
-    # natural flap-fall cycle so the demo reads as actual jumps.
-    period = 0.8
-    cycle = (sub_t % period) / period
-    # y_offset: 0 at cycle=0 → -PEAK at cycle=0.5 → 0 at cycle=1.
-    PEAK = 38
-    y_offset = -PEAK * (1.0 - math.cos(math.tau * cycle)) * 0.5
-    pip_x = W * 0.48
+    y_offset, vy = _jump_demo_state(sub_t)
+
+    # Match the journey/arrival baseline x so cuts in/out are seamless.
+    pip_x = W * 0.48 + math.sin(scene.t * 0.8) * 18
     pip_y = H * 0.42 + y_offset
-    # Tilt: bank up while rising (cycle 0–0.5), down while falling.
-    tilt = -18.0 if cycle < 0.5 else 22.0
+    tilt = _jump_tilt(vy)
 
     _tutorial_pip_carry_parcel(surf, pip_x, pip_y)
-    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 6.0, tilt_deg=tilt)
+    _draw_pip(surf, pip_x, pip_y, frame_t=scene.t * 5.5, tilt_deg=tilt)
 
     _draw_label_banner(surf, "TAP TO JUMP", _label_alpha(sub_u))
 
