@@ -26,7 +26,6 @@ import math
 import random
 
 import pygame
-import pygame.gfxdraw as gfx
 
 
 # ---------------------------------------------------------------------------
@@ -93,11 +92,15 @@ def _shade(c, d):
 
 
 def _aa_filled_circle(surf, cx, cy, r, color):
+    """Filled circle. Named `_aa_*` for historical reasons - the original
+    implementation used pygame.gfxdraw for anti-aliasing, but that backend
+    raises `pygame.error: Parameter 'renderer' is invalid` on the mobile
+    SDL build. The rest of the game uses plain pygame.draw.circle, so we
+    match that and accept the slightly-aliased look for KFC pillars."""
     cx, cy, r = int(cx), int(cy), int(r)
     if r < 1:
         return
-    gfx.filled_circle(surf, cx, cy, r, color)
-    gfx.aacircle(surf, cx, cy, r, color)
+    pygame.draw.circle(surf, color, (cx, cy), r)
 
 
 # ---------------------------------------------------------------------------
