@@ -167,6 +167,9 @@ class World:
         gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
+        # Pipes spawned during KFC mode start fast-food-themed and stay
+        # that way for the rest of their life on screen.
+        p.is_kfc = self.kfc_timer > 0
         self.pipes.append(p)
         if is_rush:
             self._spawn_rush_coins(p)
@@ -704,6 +707,14 @@ class World:
     def _activate_kfc(self, m):
         self.kfc_timer = KFC_DURATION
         self.bird.kfc_active = True
+        # Retroactively flip every pipe currently on screen so the entire
+        # visible scene becomes fast-food at the moment of pickup. Each
+        # pipe's flag is sticky for the rest of its lifetime, so when the
+        # KFC timer expires these existing pipes keep their KFC look until
+        # they scroll off; only NEW pipes spawned after the timer ends
+        # revert to the normal stone style.
+        for p in self.pipes:
+            p.is_kfc = True
         self.shake_mag = max(self.shake_mag, 5.0)
         self.shake_t   = max(self.shake_t,   0.4)
         audio.play_poof()

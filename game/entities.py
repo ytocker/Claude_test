@@ -597,6 +597,13 @@ class Pipe:
         self.gap_h = gap_h
         self.scored = False
         self.is_rush = False
+        # Per-pipe sticky flag: set at spawn (if KFC was active when this pipe
+        # was created) or retroactively when the powerup is picked up (so
+        # pillars already on screen also flip). Once True it stays True for
+        # the rest of the pipe's life - the KFC look persists past the
+        # powerup timer expiring; only NEW pipes spawned afterwards revert
+        # to the normal stone style.
+        self.is_kfc = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
 
@@ -616,9 +623,9 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None, *, kfc_active=False):
+    def draw(self, surf, palette=None):
         palette = palette or _DEFAULT_PILLAR
-        if kfc_active:
+        if self.is_kfc:
             from game.pillar_kfc import draw_pillar_pair_kfc
             draw_pillar_pair_kfc(surf, self.top_rect, self.bot_rect,
                                  palette, self.seed)
