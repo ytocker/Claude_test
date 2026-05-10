@@ -257,7 +257,8 @@ def _draw_chili_pepper(surf, cx, cy):
 # ============================================================================
 
 def draw_v4_corn1(surf, top_rect, bot_rect, palette, seed):
-    """V4-corn1 Classic Golden - rich golden batter + honey-mustard drips."""
+    """V4-corn1 Classic Golden - rich golden batter + honey-mustard drips.
+    Plain wooden skewer at the gap (no ribbon)."""
     for r, side in ((top_rect, 'top'), (bot_rect, 'bot')):
         rod = _draw_rod_body(surf, r, batter_lo=CRUST_LO,
                              batter_mid=CRUST_MID, batter_hi=CRUST_HI)
@@ -270,9 +271,9 @@ def draw_v4_corn1(surf, top_rect, bot_rect, palette, seed):
                 draw_drip(surf, dx, dy, 22 + (i % 2) * 4,
                           color=HONEY_MID, hi=HONEY_HI, width=4)
     _draw_wood_stick(surf, top_rect.centerx, top_rect.bottom - 2, 26,
-                     ribbon_color=RIBBON_HI)
+                     ribbon_color=None)
     _draw_wood_stick(surf, bot_rect.centerx, bot_rect.top - 26, 26,
-                     ribbon_color=RIBBON_HI)
+                     ribbon_color=None)
 
 
 def draw_v4_corn2(surf, top_rect, bot_rect, palette, seed):
