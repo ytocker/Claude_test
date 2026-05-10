@@ -120,18 +120,29 @@ def draw_drip(surf, x, y, length, *, color, hi=None, width=4):
 
 # ----- Corn-dog body --------------------------------------------------------
 
-def _draw_rod_body(surf, rect, *, batter_lo, batter_mid, batter_hi):
-    """Rod-shaped batter body. Returns the rod rect for further decoration."""
+def _draw_rod_body(surf, rect, *, batter_lo, batter_mid, batter_hi,
+                   flat_top=False):
+    """Rod-shaped batter body. Returns the rod rect for further decoration.
+
+    `flat_top=True` squares off the top corners so the top pillar visually
+    connects to the ceiling instead of appearing to float just below it."""
     x, y, w, h = rect
     rod = pygame.Rect(x - 1, y, w + 2, h)
     radius = max(8, w // 2 + 2)
+    if flat_top:
+        rad_kwargs = dict(border_top_left_radius=0,
+                          border_top_right_radius=0,
+                          border_bottom_left_radius=radius,
+                          border_bottom_right_radius=radius)
+    else:
+        rad_kwargs = dict(border_radius=radius)
     # Drop shadow
     pygame.draw.rect(surf, (*SHADOW, 60),
-                     rod.inflate(6, 6).move(2, 2), border_radius=radius)
-    pygame.draw.rect(surf, OUTLINE, rod.inflate(4, 4), border_radius=radius)
-    pygame.draw.rect(surf, batter_lo, rod.inflate(2, 2), border_radius=radius)
-    pygame.draw.rect(surf, batter_mid, rod, border_radius=radius)
-    # Lit-side highlight (left third)
+                     rod.inflate(6, 6).move(2, 2), **rad_kwargs)
+    pygame.draw.rect(surf, OUTLINE, rod.inflate(4, 4), **rad_kwargs)
+    pygame.draw.rect(surf, batter_lo, rod.inflate(2, 2), **rad_kwargs)
+    pygame.draw.rect(surf, batter_mid, rod, **rad_kwargs)
+    # Lit-side highlight (left third) - always rounded, lives inside the rod
     hl = pygame.Rect(rod.x + 4, rod.y + 4,
                      max(3, rod.width // 3), rod.height - 8)
     pygame.draw.rect(surf, batter_hi, hl, border_radius=radius // 2)
@@ -258,10 +269,12 @@ def _draw_chili_pepper(surf, cx, cy):
 
 def draw_v4_corn1(surf, top_rect, bot_rect, palette, seed):
     """V4-corn1 Classic Golden - rich golden batter + honey-mustard drips.
-    Plain wooden skewer at the gap (no ribbon)."""
+    Plain wooden skewer at the gap (no ribbon). Top pillar's rod has a
+    flat top edge so it visually connects to the ceiling."""
     for r, side in ((top_rect, 'top'), (bot_rect, 'bot')):
         rod = _draw_rod_body(surf, r, batter_lo=CRUST_LO,
-                             batter_mid=CRUST_MID, batter_hi=CRUST_HI)
+                             batter_mid=CRUST_MID, batter_hi=CRUST_HI,
+                             flat_top=(side == 'top'))
         _scatter_round_bumps(surf, rod, lo=CRUST_LO, mid=CRUST_MID,
                              hi=CRUMB, seed=seed + (1 if side == 'top' else 2))
         # Honey-mustard drips (3 staggered)
