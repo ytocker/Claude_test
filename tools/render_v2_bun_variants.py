@@ -221,12 +221,12 @@ def _draw_bun_classic(surf, rect, *, hi=BUN_HI, mid=BUN_MID, lo=BUN_LO):
 
 
 def draw_v2_bun1(surf, top_rect, bot_rect, palette, seed):
-    """V2-bun1 Classic Side - smooth golden side strips."""
+    """V2-bun1 Classic Side - smooth golden side strips. No gap-edge
+    decorations: just bun + sausage + mustard zigzag + ketchup dots."""
     _draw_bun_classic(surf, top_rect)
     _draw_bun_classic(surf, bot_rect)
     _draw_sausage_segment(surf, top_rect, gap_side='bottom', seed=seed)
     _draw_sausage_segment(surf, bot_rect, gap_side='top', seed=seed)
-    _draw_chicken_wing_accents(surf, top_rect, bot_rect)
 
 
 # ----- v2_bun2 Soft Cradle --------------------------------------------------
