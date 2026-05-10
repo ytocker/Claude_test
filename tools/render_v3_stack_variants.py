@@ -504,17 +504,19 @@ VARIANT_FLAGS = (_flags_v1, _flags_v2, _flags_v3, _flags_v4, _flags_v5)
 
 def _stack_buckets(surf, rect, *, gap_side, label="KFC",
                    bucket_h=64, seed=0, pile_fn=None, flag_fn=None):
-    """Stack buckets in the rect. The gap-facing bucket gets the chicken
-    pile (and flag arrangement, if flag_fn is provided)."""
+    """Stack buckets in the rect with consecutive buckets FLUSH (no gaps).
+    The gap-facing bucket gets the chicken pile. On top pillars (flipped
+    buckets) the pile is mirrored vertically so the chicken hangs DOWN
+    out of the rim toward the gap, not up into the bucket interior."""
     x, y, w, h = rect
     n = max(1, h // bucket_h)
     rims = []
     for i in range(n):
         if gap_side == 'top':
             rb = pygame.Rect(x - 4, y + h - (i + 1) * bucket_h,
-                             w + 8, bucket_h - 4)
+                             w + 8, bucket_h)
         else:
-            rb = pygame.Rect(x - 4, y + i * bucket_h, w + 8, bucket_h - 4)
+            rb = pygame.Rect(x - 4, y + i * bucket_h, w + 8, bucket_h)
         if rb.bottom > y + h:
             rb.height -= rb.bottom - (y + h)
         if rb.top < y:
@@ -523,10 +525,10 @@ def _stack_buckets(surf, rect, *, gap_side, label="KFC",
         if rb.height < 18:
             continue
         if gap_side == 'bottom':
-            # Top pillar: flip vertically so rim points DOWN at gap
-            layer = pygame.Surface((rb.width, rb.height + 14),
-                                   pygame.SRCALPHA)
-            inner_rect = pygame.Rect(0, 4, rb.width, rb.height - 4)
+            # Top pillar: flip vertically. Layer height == rb.height so the
+            # bucket fills the slot and consecutive layers are flush.
+            layer = pygame.Surface((rb.width, rb.height), pygame.SRCALPHA)
+            inner_rect = pygame.Rect(0, 0, rb.width, rb.height)
             local_rim, local_label = _draw_bucket(
                 layer, inner_rect, label_text=label, draw_label=False)
             layer = pygame.transform.flip(layer, False, True)
@@ -545,7 +547,7 @@ def _stack_buckets(surf, rect, *, gap_side, label="KFC",
                 label_text=label)
             rims.append((rim, label_band))
 
-    # Draw upright text on flipped top-pillar buckets
+    # Upright text on flipped top-pillar buckets
     if gap_side == 'bottom':
         try:
             font = pygame.font.SysFont(None, 14, bold=True)
@@ -556,13 +558,26 @@ def _stack_buckets(surf, rect, *, gap_side, label="KFC",
         except Exception:
             pass
 
-    # Pile + flags only on gap-facing bucket
+    # Chicken pile placement
     if rims and pile_fn is not None:
         gap_rim = rims[-1][0]
-        pile_fn(surf, gap_rim, seed)
-        if flag_fn is not None and gap_side == 'top':
-            # Flags only on bottom pillar's top bucket (upright, not flipped)
-            flag_fn(surf, gap_rim)
+        if gap_side == 'bottom':
+            # Top pillar: render pile on temp surf, flip vertically so
+            # pieces hang DOWN out of the rim toward the gap.
+            pile_w = gap_rim.width + 80
+            pile_h = 50
+            pile_surf = pygame.Surface((pile_w, pile_h), pygame.SRCALPHA)
+            local_rim = pygame.Rect(40, pile_h - gap_rim.height,
+                                    gap_rim.width, gap_rim.height)
+            pile_fn(pile_surf, local_rim, seed + 100)
+            pile_surf = pygame.transform.flip(pile_surf, False, True)
+            surf.blit(pile_surf, (gap_rim.x - 40,
+                                  gap_rim.bottom - gap_rim.height))
+        else:
+            # Bottom pillar: pile overflows UP from the rim
+            pile_fn(surf, gap_rim, seed)
+            if flag_fn is not None:
+                flag_fn(surf, gap_rim)
 
 
 def _make_v3_stack_drawer(idx):
