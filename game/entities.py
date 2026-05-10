@@ -616,8 +616,13 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None):
+    def draw(self, surf, palette=None, *, kfc_active=False):
         palette = palette or _DEFAULT_PILLAR
+        if kfc_active:
+            from game.pillar_kfc import draw_pillar_pair_kfc
+            draw_pillar_pair_kfc(surf, self.top_rect, self.bot_rect,
+                                 palette, self.seed)
+            return
         draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
         # Mist halo at the base where the bottom pillar meets the ground
         bot = self.bot_rect

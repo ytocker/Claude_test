@@ -586,14 +586,14 @@ class App:
             return
 
         pipe_palette = self.world.biome_palette
+        kfc_active = self.world.bird.kfc_active
         for p in self.world.pipes:
-            p.draw(self.screen, pipe_palette)
+            p.draw(self.screen, pipe_palette, kfc_active=kfc_active)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)
 
-        kfc_active = self.world.bird.kfc_active
         triple_active = self.world.triple_timer > 0
         for c in self.world.coins:
             c.draw(self.screen, kfc_active=kfc_active,
