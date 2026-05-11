@@ -392,21 +392,18 @@ def draw_digit_candle(surf, cx, base_y, digit, *, height=60,
     # so it looks rooted, not floating.
     glyph_ink_top_y = canvas_top_y + PAD + int(bh * 0.08)
 
-    # ---- Wax pool sitting BELOW the digit ----
-    pool_w = max(28, int(height * 0.55))
-    pool = pygame.Rect(cx - pool_w // 2, base_y - 1, pool_w, 9)
-    pygame.draw.ellipse(surf, OUTLINE, pool.inflate(2, 2))
-    pygame.draw.ellipse(surf, (236, 226, 196), pool)
-    pygame.draw.ellipse(surf, KFC_WHITE,
-                        pygame.Rect(pool.x + 4, pool.y + 1,
-                                    pool.width // 2, 3))
-    # A small wax drip on one side
-    drip = [(pool.right - 6, pool.bottom - 2),
-            (pool.right - 2, pool.bottom + 7),
-            (pool.right - 10, pool.bottom + 5)]
-    pygame.draw.polygon(surf, OUTLINE,
-                        [(p[0] + 1, p[1] + 1) for p in drip])
-    pygame.draw.polygon(surf, (236, 226, 196), drip)
+    # Small dark grounding shadow under the candle so the eye reads it
+    # as inserted into the cake, not floating. No floating wax pool -
+    # the candle plunges through the rim band itself, so the digit's
+    # bottom is hidden BEHIND the rim band (drawn by the caller AFTER
+    # this function). The caller positions base_y so the digit ink
+    # bottom is INSIDE the rim band's vertical extent.
+    sh_w = max(28, int(height * 0.6))
+    shadow_strip = pygame.Surface((sh_w, 6), pygame.SRCALPHA)
+    pygame.draw.ellipse(shadow_strip, (0, 0, 0, 130),
+                        shadow_strip.get_rect())
+    surf.blit(shadow_strip,
+              (cx - sh_w // 2, base_y - 1))
 
     # ---- Wick rooted in the top of the digit, sticking up 6 px ----
     wick_root_y = glyph_ink_top_y + 3   # 3 px INTO the wax
@@ -804,11 +801,22 @@ def draw_v1a(surf):
                  (180, 220, 255))
     for (cx_d, dig, col, hi) in zip(
             candle_xs, digits, digit_colors, digit_his):
-        # base_y in the new candle design is where the BOTTOM of the
-        # digit ink lives (with the wax pool just below). Place it 2 px
-        # into the rim so the candle visibly roots into the bucket.
-        draw_digit_candle(surf, int(cx_d), rim.top + 2, dig,
+        # Plant each candle THROUGH the rim band: the digit ink bottom
+        # sits at rim.bottom - 2 (so the bottom 8-10 px of the digit
+        # plunges into the rim band).
+        draw_digit_candle(surf, int(cx_d), rim.bottom - 2, dig,
                            height=58, body_color=col, hi_color=hi)
+    # Now re-paint a slim slice of the rim band ON TOP of the candle
+    # bottoms so the candles visibly disappear into the rim - they
+    # read as "stuck through the cake top", not "sitting above it".
+    overlay_rim = pygame.Rect(rim.x, rim.bottom - 6, rim.width, 8)
+    pygame.draw.rect(surf, KFC_RED_D, overlay_rim, border_radius=4)
+    pygame.draw.rect(surf, KFC_RED,
+                     overlay_rim.inflate(-4, -2), border_radius=3)
+    # Re-stroke the rim outline so the seam is crisp
+    rim_outline = pygame.Rect(rim.x - 2, rim.y - 2,
+                              rim.width + 4, rim.height + 4)
+    pygame.draw.rect(surf, OUTLINE, rim_outline, border_radius=8, width=3)
 
     # Pip on top of bucket. Place him above the candles so the hat has
     # clearance.
@@ -819,14 +827,15 @@ def draw_v1a(surf):
     pip_x = W // 2 - pip_scaled.get_width() // 2
     pip_y = rim.top - pip_scaled.get_height() - 90   # raised above candles
     surf.blit(pip_scaled, (pip_x, pip_y))
-    # Party hat anchored to Pip's head crown. Measured empirically:
-    # the parrot sprite at +18deg tilt has its visible head crown ~22%
-    # of the height down from the layer top, slightly LEFT of centre
-    # because of the body tilt. The hat is anchored by `center=head_top`
-    # which (after symmetric padding in draw_party_hat) places the brim
-    # exactly on head_top regardless of tilt.
-    head_top = (pip_x + pip_scaled.get_width() // 2 - 4,
-                pip_y + int(pip_scaled.get_height() * 0.22))
+    # Party hat anchored to Pip's head crown. The parrot at +18deg
+    # tilt has its visible head crown ~30% down from the sprite top
+    # (and slightly LEFT of centre because the body is tilted). We
+    # actually push the anchor a few px BELOW the very top so the
+    # brim seats DOWN INTO the head feathers rather than perching on
+    # the highest pixel - same way a real party hat sits low on a
+    # head, not balanced on its very crown.
+    head_top = (pip_x + pip_scaled.get_width() // 2 - 8,
+                pip_y + int(pip_scaled.get_height() * 0.30))
     draw_party_hat(surf, head_top,
                     color1=(242, 90, 90),
                     color2=(252, 206, 56),
