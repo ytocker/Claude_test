@@ -1012,121 +1012,98 @@ def starfield(surf, n=40, seed=7):
 # ===========================================================================
 
 def draw_v1a(surf):
-    # ---- Warm-gradient party background + radial stage glow ----
-    stops = ((250, 200, 180), (245, 160, 170),
-             (180, 120, 200), (90,  60, 140))
-    n = len(stops) - 1
-    for y in range(H):
-        u = (y / (H - 1)) * n
-        i0 = int(u)
-        i1 = min(i0 + 1, n)
-        t = u - i0
-        c = tuple(int(stops[i0][k] + (stops[i1][k] - stops[i0][k]) * t)
-                  for k in range(3))
-        pygame.draw.line(surf, c, (0, y), (W - 1, y))
+    warm_radial_bg(surf, W // 2, H // 2 + 50)
 
-    # Stage-spotlight radial glow stack behind the cake (gives the
-    # composition focus + warmth)
-    cake_glow_cx, cake_glow_cy = W // 2, H // 2 + 60
-    for r, a in ((310, 28), (240, 40), (170, 60), (110, 90)):
-        glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(glow, (255, 220, 150, a), (r, r), r)
-        surf.blit(glow, (cake_glow_cx - r, cake_glow_cy - r))
+    # Headline at top: "3000 GAMES PLAYED!"
+    draw_outlined_text(surf, "3,000 GAMES", (W // 2, 50),
+                        size=44, fill=COIN_GOLD, outline_w=5, sparkles=8)
+    draw_outlined_text(surf, "PLAYED!", (W // 2, 100),
+                        size=44, fill=KFC_RED, outline_w=5, sparkles=0)
 
-    # ---- Headline at top ----
-    draw_outlined_text(surf, "3,000 GAMES", (W // 2, 54),
-                        size=44, fill=COIN_GOLD, outline_w=5, sparkles=10)
-    draw_outlined_text(surf, "PLAYED!", (W // 2, 104),
-                        size=44, fill=KFC_RED, outline_w=5)
-
-    # ---- Streamers crossing the upper sky (drawn behind balloons) ----
-    draw_streamer(surf, (-10, 150), (W // 2, 90), (W + 10, 170),
-                  (252, 206, 56), width=6)
-    draw_streamer(surf, (24, 220), (W // 2 - 20, 130), (W - 24, 230),
-                  (236, 110, 220), width=5)
-    draw_streamer(surf, (-10, 300), (W // 2 + 40, 200), (W + 10, 290),
-                  (90, 200, 80), width=4)
-
-    # ---- 5 balloons floating up (back layer, behind the cake) ----
+    # Balloons floating up (back layer, behind bucket)
     balloon_specs = [
-        (36,  280,  BALLOON_COLORS[0], -10, 30),
-        (84,  220,  BALLOON_COLORS[3],   6, 26),
-        (286, 230,  BALLOON_COLORS[4],  -6, 28),
-        (332, 290,  BALLOON_COLORS[2],   8, 26),
-        (16,  370,  BALLOON_COLORS[5],   0, 24),
+        (40,  240,  BALLOON_COLORS[0],  -8),
+        (90,  180,  BALLOON_COLORS[3],   6),
+        (260, 200,  BALLOON_COLORS[4],  -4),
+        (310, 270,  BALLOON_COLORS[2],   8),
+        (20,  340,  BALLOON_COLORS[5],   0),
+        (340, 350,  BALLOON_COLORS[1],  -6),
     ]
-    for cx_b, cy_b, col, tilt, sz in balloon_specs:
-        draw_balloon(surf, cx_b, cy_b, color=col, tilt_deg=tilt,
-                      size=sz, sway=cx_b * 0.1)
+    for cx_b, cy_b, col, tilt in balloon_specs:
+        draw_balloon(surf, cx_b, cy_b, color=col, tilt_deg=tilt, size=28,
+                     sway=cx_b * 0.1)
 
-    # ---- Bucket-cake ----
-    bucket_rect = pygame.Rect(W // 2 - 125, 380, 250, 210)
+    # Streamers
+    draw_streamer(surf, (-20, 140), (W // 2, 250), (W + 20, 130),
+                  (252, 206, 56), width=5)
+    draw_streamer(surf, (-10, 220), (W // 2 + 30, 320), (W + 10, 230),
+                  (236, 110, 220), width=4)
+
+    # Bucket
+    bucket_rect = pygame.Rect(W // 2 - 130, 360, 260, 230)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
-    # Frosting drip band on top of the rim (so the bucket reads as a cake)
-    frosting = make_frosting_drip_band(rim.width + 8,
-                                        color=(252, 248, 235),
-                                        height=22, n_drips=6)
-    surf.blit(frosting, (rim.x - 4, rim.bottom - 8))
-
-    # ---- Four cylindrical birthday candles "3 0 0 0" on the cake -----
-    # All centered evenly so the "3000" is clearly readable. Pip is
-    # placed ABOVE the cake (flying down) so he doesn't block them.
-    cake_top_y = rim.bottom + 2
-    candle_specs = [
-        # (digit, x_offset_from_centre, stripe_colour)
-        ("3", -72, (242,  60,  70)),
-        ("0", -24, (252, 200,  56)),
-        ("0",  24, ( 90, 200,  80)),
-        ("0",  72, ( 90, 160, 250)),
-    ]
-    for digit, dx, stripe_col in candle_specs:
-        sprite = make_cylindrical_candle(
-            digit, body_h=70, body_w=22,
+    # Four CYLINDRICAL birthday candles "3 0 0 0" - real-candle-shape
+    # wax cylinders with the digit printed on the face + wick + flame
+    # on top. Stripe colour varies per candle for visual variety.
+    digits = ("3", "0", "0", "0")
+    candle_xs = [bucket_rect.left + bucket_rect.width * u
+                  for u in (0.16, 0.39, 0.61, 0.84)]
+    stripe_colors = ((242,  60,  70),
+                     (252, 200,  56),
+                     ( 90, 200,  80),
+                     ( 90, 160, 250))
+    candle_sprites = [
+        make_cylindrical_candle(
+            d, body_h=66, body_w=22,
             wax_color=(252, 244, 226),
-            stripe_color=stripe_col,
+            stripe_color=col,
             digit_color=OUTLINE)
-        rect = sprite.get_rect(
-            midbottom=(W // 2 + dx, cake_top_y - 4))
+        for d, col in zip(digits, stripe_colors)
+    ]
+    # Plant each candle so the bottom 10 px disappears into the rim
+    # band, then re-paint the rim's lower strip ON TOP so the candles
+    # visibly plunge through the cake top.
+    for cx_d, sprite in zip(candle_xs, candle_sprites):
+        rect = sprite.get_rect(midbottom=(int(cx_d), rim.bottom + 6))
         surf.blit(sprite, rect.topleft)
+    overlay_rim = pygame.Rect(rim.x, rim.bottom - 6, rim.width, 12)
+    pygame.draw.rect(surf, KFC_RED_D, overlay_rim, border_radius=4)
+    pygame.draw.rect(surf, KFC_RED,
+                     overlay_rim.inflate(-4, -3), border_radius=3)
+    # Re-stroke the rim outline so the seam stays crisp
+    rim_outline = pygame.Rect(rim.x - 2, rim.y - 2,
+                              rim.width + 4, rim.height + 4)
+    pygame.draw.rect(surf, OUTLINE, rim_outline, border_radius=8, width=3)
 
-    # ---- Pip-with-hat OFF to the upper-right, diving toward the cake ---
-    # Smaller scale, tilted -25 (diving DOWN-LEFT toward the cake), so
-    # the cake with "3000" candles stays the visual hero.
-    pip_sprite = make_pip_with_hat(frame=0, tilt=-25, scale=1.15,
+    # Pip-with-hat as a SINGLE pre-built sprite. make_pip_with_hat
+    # walks the scaled parrot sprite's alpha to find its actual head
+    # crown, then composites the party hat on top with the brim seated
+    # 4 px into the head feathers. Result: hat is GUARANTEED on the
+    # head before we ever blit it onto the celebration.
+    pip_sprite = make_pip_with_hat(frame=0, tilt=18, scale=1.4,
                                     hat_color1=(242, 90, 90),
                                     hat_color2=(252, 206, 56),
-                                    hat_tilt=10)
-    pip_rect = pip_sprite.get_rect(midbottom=(W - 56, rim.top - 4))
+                                    hat_tilt=-4)
+    pip_rect = pip_sprite.get_rect(
+        midbottom=(W // 2, rim.top - 18))
     surf.blit(pip_sprite, pip_rect.topleft)
-
-    # ---- Sparkle burst around Pip ----
-    rng_sp = random.Random(7)
-    for _ in range(10):
-        sx = rng_sp.randint(pip_rect.left - 14, pip_rect.right + 14)
-        sy = rng_sp.randint(pip_rect.top - 6, pip_rect.bottom + 6)
-        r = rng_sp.randint(2, 4)
+    # Sparkles around the Pip sprite
+    rng = random.Random(7)
+    for _ in range(8):
+        sx = rng.randint(pip_rect.left - 16, pip_rect.right + 16)
+        sy = rng.randint(pip_rect.top, pip_rect.bottom)
+        r = rng.randint(2, 4)
         pygame.draw.circle(surf, OUTLINE, (sx, sy), r + 1)
         pygame.draw.circle(surf, GOLD_HI, (sx, sy), r)
         pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1),
                             max(1, r - 2))
 
-    # ---- Subtle sprinkles on the cake icing band ----
-    rng_spr = random.Random(9)
-    for _ in range(18):
-        sx = rng_spr.randint(rim.x + 6, rim.right - 6)
-        sy = rng_spr.randint(rim.bottom - 4, rim.bottom + 12)
-        col = rng_spr.choice(BALLOON_COLORS)
-        pygame.draw.rect(surf, OUTLINE,
-                          pygame.Rect(sx, sy, 4, 2), border_radius=1)
-        pygame.draw.rect(surf, col,
-                          pygame.Rect(sx + 1, sy, 3, 1))
+    # Confetti (on top of everything)
+    draw_confetti(surf, n_back=80, n_front=24, seed=3)
 
-    # ---- Dense confetti rain on top of everything ----
-    draw_confetti(surf, n_back=90, n_front=28, seed=3)
-
-    draw_tagline(surf, "Happy 3,000th! Keep flying.",
-                  H - 28, size=16)
+    draw_tagline(surf, "Happy 3,000th! Cake's on us. Keep flying.",
+                  H - 28, size=15)
 
 
 # ===========================================================================
