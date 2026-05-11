@@ -235,21 +235,81 @@ def draw_bucket(surf, rect, *, label_text=None, rainbow=False,
 
 # --- Specific celebration elements -----------------------------------------
 
-def draw_party_hat(surf, head_top, *, color1=(242, 90, 90),
-                   color2=(252, 206, 56), tilt_deg=-6):
-    """Cone-shaped birthday party hat with stripes + pom-pom on top.
-
-    `head_top` is the (x, y) point ON the wearer's head where the brim
-    of the hat should sit. The layer is built so the brim is the very
-    bottom row, and we anchor by midbottom -> the brim lands EXACTLY
-    on head_top. Rotation is handled with a tiny manual offset to
-    compensate for the rotated bbox shift.
+def _find_head_crown(sprite):
+    """Walk down the sprite's alpha and return (x, y) of the visible
+    head crown: the centre-x of the topmost row whose alpha-mass is
+    big enough to be the bird's head shape (not stray sparkle pixels).
     """
+    w, h = sprite.get_size()
+    THRESH = 30
+    MIN_RUN = 4   # need a connected run of >= this many non-transparent pxs
+    for y in range(h):
+        # Find the longest run of alpha>THRESH pixels in this row
+        best_run_start = -1
+        best_run_len = 0
+        run_start = -1
+        run_len = 0
+        for x in range(w):
+            if sprite.get_at((x, y))[3] > THRESH:
+                if run_start < 0:
+                    run_start = x
+                    run_len = 1
+                else:
+                    run_len += 1
+                if run_len > best_run_len:
+                    best_run_len = run_len
+                    best_run_start = run_start
+            else:
+                run_start = -1
+                run_len = 0
+        if best_run_len >= MIN_RUN:
+            cx = best_run_start + best_run_len // 2
+            return (cx, y)
+    return (w // 2, 0)
+
+
+def make_pip_with_hat(*, frame=0, tilt=18, scale=1.4,
+                      hat_color1=(242, 90, 90),
+                      hat_color2=(252, 206, 56),
+                      hat_tilt=-4):
+    """Build a STANDALONE sprite of Pip wearing the party hat, hat-
+    on-head correctly. Returns a single Surface that can be blitted as
+    one unit anywhere on the celebration image.
+    """
+    pip = parrot.get_parrot(frame, tilt)
+    pip_scaled = pygame.transform.smoothscale(
+        pip, (int(pip.get_width() * scale),
+              int(pip.get_height() * scale)))
+    # Find Pip's actual head crown by alpha-walking the scaled sprite
+    crown_local = _find_head_crown(pip_scaled)
+    # Build the hat at the requested colors / tilt
+    hat = _build_hat_layer(hat_color1, hat_color2, hat_tilt)
+    # Composite Pip + hat onto an oversized canvas so the hat doesn't
+    # clip. Hat brim should land 4 px below the crown so it visibly
+    # seats DOWN on the head feathers rather than perching on top.
+    top_pad = max(0, hat.get_height() - crown_local[1] + 4)
+    side_pad = max(0, hat.get_width() // 2 - crown_local[0] + 4)
+    canvas_w = pip_scaled.get_width() + side_pad * 2
+    canvas_h = pip_scaled.get_height() + top_pad
+    canvas = pygame.Surface((canvas_w, canvas_h), pygame.SRCALPHA)
+    # Pip goes at (side_pad, top_pad)
+    pip_x = side_pad
+    pip_y = top_pad
+    canvas.blit(pip_scaled, (pip_x, pip_y))
+    # Hat brim anchor in canvas coords: at the crown pixel, +4 px down
+    brim_canvas = (pip_x + crown_local[0], pip_y + crown_local[1] + 4)
+    hat_rect = hat.get_rect(center=brim_canvas)
+    canvas.blit(hat, hat_rect.topleft)
+    return canvas
+
+
+def _build_hat_layer(color1, color2, tilt_deg):
+    """Internal: build the rotation-padded hat layer used by both
+    make_pip_with_hat and the standalone draw_party_hat helper."""
     CONE_W = 54
-    CONE_H = 54         # height from apex to brim
-    PAD_X = 8           # side padding for rotation clearance
-    PAD_TOP = 4         # padding above apex for pom-pom outline
-    # No bottom padding - brim is in the LAST row of the layer.
+    CONE_H = 54
+    PAD_X = 8
+    PAD_TOP = 4
     layer_w = CONE_W + PAD_X * 2
     layer_h = CONE_H + PAD_TOP + 2
     layer = pygame.Surface((layer_w, layer_h), pygame.SRCALPHA)
@@ -257,12 +317,12 @@ def draw_party_hat(surf, head_top, *, color1=(242, 90, 90),
     brim_y = PAD_TOP + CONE_H
     bl = (PAD_X + 4, brim_y)
     br = (PAD_X + CONE_W - 4, brim_y)
-    # Drop shadow under cone
+    # Shadow under cone
     sh_pts = [(apex[0] + 2, apex[1] + 3),
               (bl[0] + 2, bl[1] + 1),
               (br[0] + 2, br[1] + 1)]
     pygame.draw.polygon(layer, (0, 0, 0, 90), sh_pts)
-    # Diagonal stripes filling the cone
+    # Stripes
     for i in range(9):
         u0 = i / 9
         u1 = (i + 1) / 9
@@ -277,20 +337,16 @@ def draw_party_hat(surf, head_top, *, color1=(242, 90, 90),
                             [(x0_l, y0), (x0_r, y0),
                              (x1_r, y1), (x1_l, y1)])
     pygame.draw.polygon(layer, OUTLINE, [apex, bl, br], 3)
-    # Pom-pom
     pygame.draw.circle(layer, OUTLINE, apex, 8)
     pygame.draw.circle(layer, (255, 250, 230), apex, 7)
     pygame.draw.circle(layer, (255, 255, 255),
                        (apex[0] - 2, apex[1] - 2), 3)
-    # White brim band at the very bottom row
     pygame.draw.line(layer, OUTLINE, (bl[0] - 2, brim_y),
                      (br[0] + 2, brim_y), 4)
     pygame.draw.line(layer, (255, 255, 255), bl, br, 3)
-    # Pad the layer symmetrically so the BRIM is at the vertical centre
-    # of the padded layer. pygame.transform.rotate rotates around the
-    # layer centre, so after rotation the brim point STILL lands at
-    # the centre of the (rotated) layer bbox. Anchoring by `center`
-    # therefore lands the brim exactly at `head_top` regardless of tilt.
+    # Symmetric padding below the brim so the brim is at the layer
+    # CENTRE - pygame.transform.rotate rotates around the centre, so
+    # the brim stays at the centre of the rotated bbox.
     extra_below = brim_y - (layer_h - brim_y)
     if extra_below > 0:
         pad_layer = pygame.Surface(
@@ -299,6 +355,16 @@ def draw_party_hat(surf, head_top, *, color1=(242, 90, 90),
         layer = pad_layer
     if tilt_deg:
         layer = pygame.transform.rotate(layer, tilt_deg)
+    return layer
+
+
+def draw_party_hat(surf, head_top, *, color1=(242, 90, 90),
+                   color2=(252, 206, 56), tilt_deg=-6):
+    """Stand-alone helper: builds the hat layer + blits at head_top.
+    Equivalent to make_pip_with_hat for callers that already have Pip
+    placed and only want a hat overlay.
+    """
+    layer = _build_hat_layer(color1, color2, tilt_deg)
     rect = layer.get_rect(center=head_top)
     surf.blit(layer, rect.topleft)
 
@@ -341,103 +407,111 @@ def draw_balloon(surf, cx, cy, *, color, tilt_deg=0, size=26, sway=0):
                        cy - bh // 2 - 8))
 
 
-def draw_digit_candle(surf, cx, base_y, digit, *, height=60,
-                      body_color=(242, 60, 70),
-                      hi_color=(255, 160, 170)):
-    """Number-shaped birthday-cake candle: the digit IS the wax candle,
-    sitting on a wax pool, with the wick rooted directly in the top of
-    the digit and the flame burning RIGHT on the wick tip - no floating
-    gap above. base_y = the y-coord of the bucket rim where the candle
-    sits.
+def make_number_candle(digit, *, height=60,
+                        body_color=(242, 60, 70),
+                        hi_color=(255, 160, 170)):
+    """Build a STANDALONE number-candle sprite (digit-shaped wax body +
+    wick + flame on top). Returns a Surface whose:
+
+        - top edge = tip of the flame
+        - bottom edge = bottom of the digit ink
+        - centre x = wick / centre of digit
+
+    Caller blits the result with `midbottom=(cx, rim_y)` to plant the
+    candle on the cake rim. Push it down a few px and re-paint a strip
+    of the rim back on top for the "plunged into cake" effect.
     """
-    # ---- Render the digit glyph (the wax body of the candle) ----
+    # ---- Render digit + outline + highlight ----
     fnt = _font(height, bold=True)
     body = fnt.render(digit, True, body_color)
     out_glyph = fnt.render(digit, True, OUTLINE)
     hi_glyph = fnt.render(digit, True, hi_color)
     bw, bh = body.get_size()
     PAD = 4
-    canvas = pygame.Surface((bw + PAD * 2, bh + PAD * 2), pygame.SRCALPHA)
-    # Thick outline (3-px ring of offsets)
+    digit_canvas = pygame.Surface((bw + PAD * 2, bh + PAD * 2),
+                                   pygame.SRCALPHA)
     for dx in range(-3, 4):
         for dy in range(-3, 4):
             if dx * dx + dy * dy <= 9:
-                canvas.blit(out_glyph, (PAD + dx, PAD + dy))
-    canvas.blit(body, (PAD, PAD))
-    # Inner highlight, alpha-masked to digit shape so it only paints
-    # inside the wax strokes
-    hi_layer = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+                digit_canvas.blit(out_glyph, (PAD + dx, PAD + dy))
+    digit_canvas.blit(body, (PAD, PAD))
+    # Highlight pass alpha-masked to digit shape
+    hi_layer = pygame.Surface(digit_canvas.get_size(), pygame.SRCALPHA)
     hi_layer.blit(hi_glyph, (PAD - 2, PAD - 2))
-    body_mask = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
+    body_mask = pygame.Surface(digit_canvas.get_size(), pygame.SRCALPHA)
     body_mask.blit(body, (PAD, PAD))
     hi_layer.blit(body_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    canvas.blit(hi_layer, (0, 0))
+    digit_canvas.blit(hi_layer, (0, 0))
 
-    # ---- Position so the BOTTOM of the digit ink sits at base_y ----
-    # The visible glyph bottom in the canvas is at y = PAD + bh.
-    # We want that to land at base_y on the screen, so canvas top is at
-    # base_y - PAD - bh.
-    digit_bottom_screen_y = base_y
-    canvas_top_y = digit_bottom_screen_y - (PAD + bh)
-    canvas_x = cx - canvas.get_width() // 2
-    # Shadow first (offset down-right)
-    shadow = out_glyph.copy()
-    shadow.set_alpha(110)
-    surf.blit(shadow, (canvas_x + PAD + 3, canvas_top_y + PAD + 4))
-    surf.blit(canvas, (canvas_x, canvas_top_y))
+    # Visible glyph ink top / bottom inside digit_canvas
+    glyph_top_in_canvas = PAD + int(bh * 0.08)
+    glyph_bot_in_canvas = PAD + bh
 
-    # Approximate the GLYPH-INK top in screen coords. Fonts pad the
-    # ascender area; for LiberationSans-Bold this is ~10% of the
-    # rendered surface height. We dip the wick a few px INTO the wax
-    # so it looks rooted, not floating.
-    glyph_ink_top_y = canvas_top_y + PAD + int(bh * 0.08)
+    # ---- Sizes for wick + flame ----
+    WICK_H = 6
+    FLAME_H = 22
 
-    # Small dark grounding shadow under the candle so the eye reads it
-    # as inserted into the cake, not floating. No floating wax pool -
-    # the candle plunges through the rim band itself, so the digit's
-    # bottom is hidden BEHIND the rim band (drawn by the caller AFTER
-    # this function). The caller positions base_y so the digit ink
-    # bottom is INSIDE the rim band's vertical extent.
-    sh_w = max(28, int(height * 0.6))
-    shadow_strip = pygame.Surface((sh_w, 6), pygame.SRCALPHA)
-    pygame.draw.ellipse(shadow_strip, (0, 0, 0, 130),
-                        shadow_strip.get_rect())
-    surf.blit(shadow_strip,
-              (cx - sh_w // 2, base_y - 1))
+    # ---- Final composite sprite ----
+    sprite_w = digit_canvas.get_width() + 8   # extra px for flame width
+    sprite_h = FLAME_H + WICK_H + (PAD + bh - glyph_top_in_canvas)
+    sprite = pygame.Surface((sprite_w, sprite_h), pygame.SRCALPHA)
+    sprite_cx = sprite_w // 2
 
-    # ---- Wick rooted in the top of the digit, sticking up 6 px ----
-    wick_root_y = glyph_ink_top_y + 3   # 3 px INTO the wax
-    wick_tip_y = glyph_ink_top_y - 5    # 5 px above the digit top
-    pygame.draw.line(surf, OUTLINE, (cx, wick_root_y),
-                     (cx, wick_tip_y), 3)
-    # Wick highlight (subtle)
-    pygame.draw.line(surf, (60, 50, 40), (cx, wick_root_y - 1),
-                     (cx, wick_tip_y + 1), 1)
+    # Where the digit canvas TOP lands inside the sprite. We want:
+    #   sprite top   = top of flame
+    #   sprite y at FLAME_H + WICK_H = top of digit GLYPH INK
+    #   -> canvas_top_y_in_sprite = FLAME_H + WICK_H - glyph_top_in_canvas
+    canvas_top_y_in_sprite = FLAME_H + WICK_H - glyph_top_in_canvas
 
-    # ---- Flame: base SITS on the wick tip, not floating ----
-    # Halo first (behind the flame), positioned around the flame mid
+    # Drop shadow behind the digit
+    shadow_surf = out_glyph.copy()
+    shadow_surf.set_alpha(110)
+    sprite.blit(shadow_surf,
+                 (sprite_cx - digit_canvas.get_width() // 2 + PAD + 3,
+                  canvas_top_y_in_sprite + PAD + 4))
+    sprite.blit(digit_canvas,
+                (sprite_cx - digit_canvas.get_width() // 2,
+                 canvas_top_y_in_sprite))
+
+    # Wick - rooted INTO the top of the digit ink
+    wick_root_y = canvas_top_y_in_sprite + glyph_top_in_canvas + 3
+    wick_tip_y = wick_root_y - WICK_H - 3
+    pygame.draw.line(sprite, OUTLINE,
+                     (sprite_cx, wick_root_y),
+                     (sprite_cx, wick_tip_y), 3)
+
+    # Flame halo
     flame_mid_y = wick_tip_y - 8
     for r_g, a_g in ((16, 60), (11, 110), (7, 170)):
         halo = pygame.Surface((r_g * 2, r_g * 2), pygame.SRCALPHA)
         pygame.draw.circle(halo, (255, 200, 80, a_g), (r_g, r_g), r_g)
-        surf.blit(halo, (cx - r_g, flame_mid_y - r_g))
-    # Flame layers - bottom of each flame layer = wick_tip_y exactly
-    flame_outer = [(cx, wick_tip_y - 18),
-                    (cx - 7, wick_tip_y),
-                    (cx + 7, wick_tip_y)]
-    pygame.draw.polygon(surf, (180, 50, 20), flame_outer)
-    flame_mid = [(cx, wick_tip_y - 13),
-                  (cx - 5, wick_tip_y),
-                  (cx + 5, wick_tip_y)]
-    pygame.draw.polygon(surf, (250, 160, 30), flame_mid)
-    flame_inner = [(cx, wick_tip_y - 9),
-                    (cx - 3, wick_tip_y),
-                    (cx + 3, wick_tip_y)]
-    pygame.draw.polygon(surf, (255, 220, 100), flame_inner)
-    pygame.draw.polygon(surf, (255, 255, 230),
-                        [(cx, wick_tip_y - 5),
-                         (cx - 2, wick_tip_y),
-                         (cx + 2, wick_tip_y)])
+        sprite.blit(halo, (sprite_cx - r_g, flame_mid_y - r_g))
+    # Flame body layers - bottom at wick_tip_y exactly
+    flame_outer = [(sprite_cx, wick_tip_y - 18),
+                    (sprite_cx - 7, wick_tip_y),
+                    (sprite_cx + 7, wick_tip_y)]
+    pygame.draw.polygon(sprite, (180, 50, 20), flame_outer)
+    flame_mid = [(sprite_cx, wick_tip_y - 13),
+                  (sprite_cx - 5, wick_tip_y),
+                  (sprite_cx + 5, wick_tip_y)]
+    pygame.draw.polygon(sprite, (250, 160, 30), flame_mid)
+    flame_inner = [(sprite_cx, wick_tip_y - 9),
+                    (sprite_cx - 3, wick_tip_y),
+                    (sprite_cx + 3, wick_tip_y)]
+    pygame.draw.polygon(sprite, (255, 220, 100), flame_inner)
+    pygame.draw.polygon(sprite, (255, 255, 230),
+                        [(sprite_cx, wick_tip_y - 5),
+                         (sprite_cx - 2, wick_tip_y),
+                         (sprite_cx + 2, wick_tip_y)])
+
+    # CROP the sprite's bottom so the bottom-most row is the digit-ink
+    # baseline (allows clean `midbottom=` placement). The canvas has
+    # PAD px below the glyph; the sprite's actual bottom row is at
+    # canvas_top_y_in_sprite + PAD + bh. Trim anything below that.
+    actual_h = canvas_top_y_in_sprite + PAD + bh
+    final = pygame.Surface((sprite_w, actual_h), pygame.SRCALPHA)
+    final.blit(sprite, (0, 0))
+    return final
 
 
 def draw_firework_burst(surf, cx, cy, *, color, r=70, n_arms=14, seed=0):
@@ -786,65 +860,63 @@ def draw_v1a(surf):
     bucket_rect = pygame.Rect(W // 2 - 130, 360, 260, 230)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
-    # Four BIG, chunky digit candles "3" "0" "0" "0" on the rim. Spaced
-    # wider apart so they don't crowd each other at the larger size.
+    # Four BIG digit candles "3" "0" "0" "0" - each is a pre-built
+    # standalone sprite (digit-shaped wax + wick + flame), built by
+    # make_number_candle(). The sprite's bottom edge is the bottom of
+    # the digit ink, so blitting with `midbottom=(cx, target_y)` plants
+    # the candle base at target_y.
     digits = ("3", "0", "0", "0")
     candle_xs = [bucket_rect.left + bucket_rect.width * u
                   for u in (0.16, 0.39, 0.61, 0.84)]
-    digit_colors = ((242, 60,  70),    # red 3
-                    (252, 200, 56),    # yellow 0
-                    (90,  200, 80),    # green 0
-                    (90,  160, 250))   # blue 0
+    digit_colors = ((242, 60,  70),
+                    (252, 200, 56),
+                    (90,  200, 80),
+                    (90,  160, 250))
     digit_his = ((255, 160, 170),
                  (255, 240, 160),
                  (180, 250, 180),
                  (180, 220, 255))
-    for (cx_d, dig, col, hi) in zip(
-            candle_xs, digits, digit_colors, digit_his):
-        # Plant each candle THROUGH the rim band: the digit ink bottom
-        # sits at rim.bottom - 2 (so the bottom 8-10 px of the digit
-        # plunges into the rim band).
-        draw_digit_candle(surf, int(cx_d), rim.bottom - 2, dig,
-                           height=58, body_color=col, hi_color=hi)
-    # Now re-paint a slim slice of the rim band ON TOP of the candle
-    # bottoms so the candles visibly disappear into the rim - they
-    # read as "stuck through the cake top", not "sitting above it".
-    overlay_rim = pygame.Rect(rim.x, rim.bottom - 6, rim.width, 8)
+    candle_sprites = [make_number_candle(d, height=58,
+                                          body_color=col,
+                                          hi_color=hi)
+                       for d, col, hi in zip(digits, digit_colors,
+                                              digit_his)]
+    # Plant each candle so the bottom 10 px disappears into the rim
+    # band. We blit by `midbottom=(cx, rim.bottom + 6)` so the candle
+    # base lands 6 px BELOW the rim's bottom edge - i.e. fully behind
+    # what we're about to repaint on top.
+    for cx_d, sprite in zip(candle_xs, candle_sprites):
+        rect = sprite.get_rect(midbottom=(int(cx_d), rim.bottom + 6))
+        surf.blit(sprite, rect.topleft)
+    # Re-paint the bottom strip of the rim ON TOP of the candle feet
+    # so the candles visibly plunge through the cake top instead of
+    # sitting above it.
+    overlay_rim = pygame.Rect(rim.x, rim.bottom - 6, rim.width, 12)
     pygame.draw.rect(surf, KFC_RED_D, overlay_rim, border_radius=4)
     pygame.draw.rect(surf, KFC_RED,
-                     overlay_rim.inflate(-4, -2), border_radius=3)
-    # Re-stroke the rim outline so the seam is crisp
+                     overlay_rim.inflate(-4, -3), border_radius=3)
+    # Re-stroke the rim outline so the seam stays crisp
     rim_outline = pygame.Rect(rim.x - 2, rim.y - 2,
                               rim.width + 4, rim.height + 4)
     pygame.draw.rect(surf, OUTLINE, rim_outline, border_radius=8, width=3)
 
-    # Pip on top of bucket. Place him above the candles so the hat has
-    # clearance.
-    pip = parrot.get_parrot(0, 18)
-    pip_scaled = pygame.transform.smoothscale(
-        pip, (int(pip.get_width() * 1.4),
-              int(pip.get_height() * 1.4)))
-    pip_x = W // 2 - pip_scaled.get_width() // 2
-    pip_y = rim.top - pip_scaled.get_height() - 90   # raised above candles
-    surf.blit(pip_scaled, (pip_x, pip_y))
-    # Party hat anchored to Pip's head crown. The parrot at +18deg
-    # tilt has its visible head crown ~30% down from the sprite top
-    # (and slightly LEFT of centre because the body is tilted). We
-    # actually push the anchor a few px BELOW the very top so the
-    # brim seats DOWN INTO the head feathers rather than perching on
-    # the highest pixel - same way a real party hat sits low on a
-    # head, not balanced on its very crown.
-    head_top = (pip_x + pip_scaled.get_width() // 2 - 8,
-                pip_y + int(pip_scaled.get_height() * 0.30))
-    draw_party_hat(surf, head_top,
-                    color1=(242, 90, 90),
-                    color2=(252, 206, 56),
-                    tilt_deg=-4)
-    # Sparkles around Pip
+    # Pip-with-hat as a SINGLE pre-built sprite. make_pip_with_hat
+    # walks the scaled parrot sprite's alpha to find its actual head
+    # crown, then composites the party hat on top with the brim seated
+    # 4 px into the head feathers. Result: hat is GUARANTEED on the
+    # head before we ever blit it onto the celebration.
+    pip_sprite = make_pip_with_hat(frame=0, tilt=18, scale=1.4,
+                                    hat_color1=(242, 90, 90),
+                                    hat_color2=(252, 206, 56),
+                                    hat_tilt=-4)
+    pip_rect = pip_sprite.get_rect(
+        midbottom=(W // 2, rim.top - 18))
+    surf.blit(pip_sprite, pip_rect.topleft)
+    # Sparkles around the Pip sprite
     rng = random.Random(7)
     for _ in range(8):
-        sx = rng.randint(pip_x - 16, pip_x + pip_scaled.get_width() + 16)
-        sy = rng.randint(pip_y - 20, pip_y + 30)
+        sx = rng.randint(pip_rect.left - 16, pip_rect.right + 16)
+        sy = rng.randint(pip_rect.top, pip_rect.bottom)
         r = rng.randint(2, 4)
         pygame.draw.circle(surf, OUTLINE, (sx, sy), r + 1)
         pygame.draw.circle(surf, GOLD_HI, (sx, sy), r)
