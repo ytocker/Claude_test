@@ -1012,7 +1012,7 @@ def starfield(surf, n=40, seed=7):
 # ===========================================================================
 
 def draw_v1a(surf):
-    # ---- Clean warm-gradient party background ----
+    # ---- Warm-gradient party background + radial stage glow ----
     stops = ((250, 200, 180), (245, 160, 170),
              (180, 120, 200), (90,  60, 140))
     n = len(stops) - 1
@@ -1025,11 +1025,12 @@ def draw_v1a(surf):
                   for k in range(3))
         pygame.draw.line(surf, c, (0, y), (W - 1, y))
 
-    # Subtle stage glow centered on the cake
+    # Stage-spotlight radial glow stack behind the cake (gives the
+    # composition focus + warmth)
     cake_glow_cx, cake_glow_cy = W // 2, H // 2 + 60
-    for r, a in ((280, 22), (200, 36), (130, 60)):
+    for r, a in ((310, 28), (240, 40), (170, 60), (110, 90)):
         glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-        pygame.draw.circle(glow, (255, 240, 200, a), (r, r), r)
+        pygame.draw.circle(glow, (255, 220, 150, a), (r, r), r)
         surf.blit(glow, (cake_glow_cx - r, cake_glow_cy - r))
 
     # ---- Headline at top ----
@@ -1038,18 +1039,31 @@ def draw_v1a(surf):
     draw_outlined_text(surf, "PLAYED!", (W // 2, 104),
                         size=44, fill=KFC_RED, outline_w=5)
 
-    # ---- Two balloons flanking the scene (only 2, not 6) ----
-    draw_balloon(surf, 36,  280, color=BALLOON_COLORS[0],
-                  tilt_deg=-8, size=32, sway=0)
-    draw_balloon(surf, W - 36, 280, color=BALLOON_COLORS[3],
-                  tilt_deg=8, size=32, sway=1.5)
+    # ---- Streamers crossing the upper sky (drawn behind balloons) ----
+    draw_streamer(surf, (-10, 150), (W // 2, 90), (W + 10, 170),
+                  (252, 206, 56), width=6)
+    draw_streamer(surf, (24, 220), (W // 2 - 20, 130), (W - 24, 230),
+                  (236, 110, 220), width=5)
+    draw_streamer(surf, (-10, 300), (W // 2 + 40, 200), (W + 10, 290),
+                  (90, 200, 80), width=4)
+
+    # ---- 5 balloons floating up (back layer, behind the cake) ----
+    balloon_specs = [
+        (36,  280,  BALLOON_COLORS[0], -10, 30),
+        (84,  220,  BALLOON_COLORS[3],   6, 26),
+        (286, 230,  BALLOON_COLORS[4],  -6, 28),
+        (332, 290,  BALLOON_COLORS[2],   8, 26),
+        (16,  370,  BALLOON_COLORS[5],   0, 24),
+    ]
+    for cx_b, cy_b, col, tilt, sz in balloon_specs:
+        draw_balloon(surf, cx_b, cy_b, color=col, tilt_deg=tilt,
+                      size=sz, sway=cx_b * 0.1)
 
     # ---- Bucket-cake ----
     bucket_rect = pygame.Rect(W // 2 - 125, 380, 250, 210)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
-    # ---- Frosting drip band over the bucket rim (so the bucket reads
-    #      as a CAKE not just a bucket) ----
+    # Frosting drip band on top of the rim (so the bucket reads as a cake)
     frosting = make_frosting_drip_band(rim.width + 8,
                                         color=(252, 248, 235),
                                         height=22, n_drips=6)
@@ -1086,6 +1100,17 @@ def draw_v1a(surf):
     pip_rect = pip_sprite.get_rect(midbottom=(W - 56, rim.top - 4))
     surf.blit(pip_sprite, pip_rect.topleft)
 
+    # ---- Sparkle burst around Pip ----
+    rng_sp = random.Random(7)
+    for _ in range(10):
+        sx = rng_sp.randint(pip_rect.left - 14, pip_rect.right + 14)
+        sy = rng_sp.randint(pip_rect.top - 6, pip_rect.bottom + 6)
+        r = rng_sp.randint(2, 4)
+        pygame.draw.circle(surf, OUTLINE, (sx, sy), r + 1)
+        pygame.draw.circle(surf, GOLD_HI, (sx, sy), r)
+        pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1),
+                            max(1, r - 2))
+
     # ---- Subtle sprinkles on the cake icing band ----
     rng_spr = random.Random(9)
     for _ in range(18):
@@ -1097,8 +1122,8 @@ def draw_v1a(surf):
         pygame.draw.rect(surf, col,
                           pygame.Rect(sx + 1, sy, 3, 1))
 
-    # ---- Light confetti rain (less than before, doesn't overpower) ----
-    draw_confetti(surf, n_back=40, n_front=12, seed=3)
+    # ---- Dense confetti rain on top of everything ----
+    draw_confetti(surf, n_back=90, n_front=28, seed=3)
 
     draw_tagline(surf, "Happy 3,000th! Keep flying.",
                   H - 28, size=16)
