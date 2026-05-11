@@ -368,8 +368,15 @@ def _shade(c, d):
 
 # --- Coin renderer (V3 hero) ----------------------------------------------
 
-def draw_coin(surf, cx, cy, r, *, edge_on=False, label=None, seed=0):
-    """Proper coin with rim, gradient body, embossed label, specular shine."""
+def draw_coin(surf, cx, cy, r, *, edge_on=False, tilt=1.0, label=None,
+              seed=0):
+    """Proper coin with rim, gradient body, embossed label, specular shine.
+
+    `tilt` (0..1) vertically squashes the coin so a value of 1.0 is a
+    full face-on circle and 0.4 is a heavily-tilted perspective ellipse.
+    `edge_on=True` overrides tilt and draws the coin as a thin vertical
+    stripe (seen exactly edge-on).
+    """
     if edge_on:
         ew = max(2, r // 3)
         rect = pygame.Rect(cx - ew, cy - r, ew * 2, r * 2)
@@ -380,18 +387,23 @@ def draw_coin(surf, cx, cy, r, *, edge_on=False, label=None, seed=0):
                               max(2, r * 2 - 4))
         pygame.draw.rect(surf, GOLD_HI, stripe)
         return
-    # Face-on coin
+    # Face-on coin - rendered onto a dedicated coin_surf so we can apply
+    # vertical squash at the end for perspective tilt without re-running
+    # the gradient math.
+    pad = 6
+    csize = r * 2 + pad * 2
+    coin_surf = pygame.Surface((csize, csize), pygame.SRCALPHA)
+    lcx, lcy = csize // 2, csize // 2
     # Outer rim shadow
-    pygame.draw.circle(surf, OUTLINE, (cx + 1, cy + 2), r + 1)
+    pygame.draw.circle(coin_surf, OUTLINE, (lcx + 1, lcy + 2), r + 1)
     # Rim
-    pygame.draw.circle(surf, GOLD_DK, (cx, cy), r + 1)
-    pygame.draw.circle(surf, GOLD_LO, (cx, cy), r)
+    pygame.draw.circle(coin_surf, GOLD_DK, (lcx, lcy), r + 1)
+    pygame.draw.circle(coin_surf, GOLD_LO, (lcx, lcy), r)
     # Inner body with vertical gradient
     inner_r = max(1, r - 2)
     body = pygame.Surface((inner_r * 2 + 2, inner_r * 2 + 2), pygame.SRCALPHA)
     for y in range(inner_r * 2):
         u = y / max(1, inner_r * 2 - 1)
-        # Mid -> light at top, mid -> dark at bottom
         if u < 0.5:
             t = (0.5 - u) / 0.5
             c = tuple(int(GOLD_MID[k] + (GOLD_HI[k] - GOLD_MID[k]) * t)
@@ -400,44 +412,54 @@ def draw_coin(surf, cx, cy, r, *, edge_on=False, label=None, seed=0):
             t = (u - 0.5) / 0.5
             c = tuple(int(GOLD_MID[k] + (GOLD_LO[k] - GOLD_MID[k]) * t)
                       for k in range(3))
-        # Clip to circle horizontally
         dx = math.sqrt(max(0, inner_r * inner_r - (y - inner_r) ** 2))
         pygame.draw.line(body, c,
                           (inner_r - dx + 1, y + 1),
                           (inner_r + dx + 1, y + 1))
-    surf.blit(body, (cx - inner_r, cy - inner_r))
+    coin_surf.blit(body, (lcx - inner_r, lcy - inner_r))
     # Specular crescent (upper-left)
     if r >= 8:
         spec = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(spec, (255, 255, 255, 200),
                             (r + 1, r + 1), r - 1)
-        pygame.draw.circle(spec, (0, 0, 0, 0),
-                            (r + 4, r + 4), r - 1)
         spec_clip = pygame.Surface((r * 2 + 2, r * 2 + 2),
                                     pygame.SRCALPHA)
         pygame.draw.circle(spec_clip, (255, 255, 255, 255),
                             (r + 1, r + 1), r - 1)
         spec.blit(spec_clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        # Crop the crescent to upper-left half
         crop = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
         crop.blit(spec, (0, 0))
-        # Mask out lower-right quadrant
+        # Mask out lower-right quadrant so only the upper-left crescent shows
         pygame.draw.rect(crop, (0, 0, 0, 0),
                           pygame.Rect(r + 1, r + 1, r + 1, r + 1))
-        surf.blit(crop, (cx - r - 1, cy - r - 1))
-    # Label "$" or custom
-    if label is None:
-        label = "$"
-    if r >= 7:
-        fsize = max(8, int(r * 1.2))
+        coin_surf.blit(crop, (lcx - r - 1, lcy - r - 1))
+    # Embossed label "$" / "3K"
+    eff_label = label if label is not None else "$"
+    if r >= 11 and eff_label == "$":
+        # Use a chunky bold $ that renders cleanly at small sizes
+        fsize = max(12, int(r * 1.3))
         fnt = _font(fsize, bold=True)
-        # Engraved: dark inset + bright highlight
-        dark = fnt.render(label, True, GOLD_DK)
-        light = fnt.render(label, True, GOLD_HI)
-        surf.blit(dark, (cx - dark.get_width() // 2 + 1,
-                          cy - dark.get_height() // 2 + 1))
-        surf.blit(light, (cx - light.get_width() // 2 - 1,
-                          cy - light.get_height() // 2 - 1))
+        dark = fnt.render(eff_label, True, GOLD_DK)
+        light = fnt.render(eff_label, True, GOLD_HI)
+        coin_surf.blit(dark, (lcx - dark.get_width() // 2 + 1,
+                              lcy - dark.get_height() // 2 + 1))
+        coin_surf.blit(light, (lcx - light.get_width() // 2 - 1,
+                                lcy - light.get_height() // 2 - 1))
+    elif r >= 12 and eff_label == "3K":
+        fsize = max(11, int(r * 1.0))
+        fnt = _font(fsize, bold=True)
+        dark = fnt.render(eff_label, True, GOLD_DK)
+        light = fnt.render(eff_label, True, (255, 252, 220))
+        coin_surf.blit(dark, (lcx - dark.get_width() // 2 + 1,
+                              lcy - dark.get_height() // 2 + 1))
+        coin_surf.blit(light, (lcx - light.get_width() // 2 - 1,
+                                lcy - light.get_height() // 2 - 1))
+    # Apply perspective squash if needed
+    if tilt < 0.95:
+        new_h = max(2, int(csize * tilt))
+        coin_surf = pygame.transform.smoothscale(coin_surf, (csize, new_h))
+    surf.blit(coin_surf, (cx - coin_surf.get_width() // 2,
+                            cy - coin_surf.get_height() // 2))
 
 
 # --- Backgrounds -----------------------------------------------------------
@@ -466,20 +488,30 @@ def starfield(surf, n=60, seed=7):
 # ===========================================================================
 
 def draw_v1(surf):
-    # Warm dusk biome backdrop so the gold confetti pops
+    # Warm dusk biome backdrop
     sky, pal = night_sky(0.62)
     surf.blit(sky, (0, 0))
-    starfield(surf, n=18, seed=1)
 
-    # Streamers in the upper half (drawn behind confetti and bucket)
-    draw_streamer(surf, (10, 30), (W // 2, -20), (W - 10, 60),
-                  (242, 90, 90), width=4)
-    draw_streamer(surf, (24, 70), (W // 2, 220), (W - 24, 50),
-                  (252, 206, 56), width=3)
-    draw_streamer(surf, (-10, 120), (W // 3, 40), (W - 30, 140),
-                  (90, 200, 80), width=3)
-    draw_streamer(surf, (40, 180), (W * 2 // 3, 60), (W + 10, 160),
-                  (90, 160, 250), width=3)
+    # ---- Big warm radial glow behind the bucket (stage-spotlight feel) ----
+    glow_cx, glow_cy = W // 2, H // 2 + 60
+    for i, (r, a) in enumerate(((260, 24), (200, 36), (140, 50), (90, 70))):
+        glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 200, 110, a), (r, r), r)
+        surf.blit(glow, (glow_cx - r, glow_cy - r))
+
+    starfield(surf, n=20, seed=1)
+
+    # Streamers - thicker, two layers of curls
+    draw_streamer(surf, (-10, 30), (W // 2, -10), (W + 10, 70),
+                  (242, 90, 90), width=6)
+    draw_streamer(surf, (24, 90), (W // 2, 210), (W - 24, 60),
+                  (252, 206, 56), width=5)
+    draw_streamer(surf, (-10, 140), (W // 3, 50), (W - 30, 150),
+                  (90, 200, 80), width=5)
+    draw_streamer(surf, (40, 190), (W * 2 // 3, 70), (W + 10, 170),
+                  (90, 160, 250), width=5)
+    draw_streamer(surf, (200, 30), (60, 110), (300, 200),
+                  (236, 110, 220), width=4)
 
     # ---- Big bucket (hero) ----
     bucket_top_w = 280
@@ -489,9 +521,9 @@ def draw_v1(surf):
     bh = bucket_bot_y - bucket_top_y
 
     # Drop shadow ellipse underneath
-    sh = pygame.Surface((bucket_bot_w + 60, 28), pygame.SRCALPHA)
-    pygame.draw.ellipse(sh, (0, 0, 0, 90), sh.get_rect())
-    surf.blit(sh, (W // 2 - sh.get_width() // 2, H - 56))
+    sh = pygame.Surface((bucket_bot_w + 70, 32), pygame.SRCALPHA)
+    pygame.draw.ellipse(sh, (0, 0, 0, 110), sh.get_rect())
+    surf.blit(sh, (W // 2 - sh.get_width() // 2, H - 58))
 
     tl = (W // 2 - bucket_top_w // 2, bucket_top_y)
     tr = (W // 2 + bucket_top_w // 2, bucket_top_y)
@@ -502,43 +534,88 @@ def draw_v1(surf):
     pygame.draw.polygon(surf, OUTLINE,
                         [(px, py + 2) for (px, py) in poly])
     pygame.draw.polygon(surf, KFC_WHITE, poly)
-    # Stripes - 7 evenly spaced
+    # Stripes - 7 evenly spaced, each shaded based on horizontal position
+    # (left = bright, centre = mid, right = dark) for 3D-cylinder feel
     n_stripes = 7
     for i in range(n_stripes):
         u0 = (i + 0.12) / n_stripes
         u1 = (i + 0.58) / n_stripes
+        # Horizontal position of stripe centre (0..1)
+        u_mid = (u0 + u1) / 2
+        # Shading: brighter on the lit side (left), darker on the right
+        if u_mid < 0.25:
+            sd = +25
+        elif u_mid < 0.5:
+            sd = +8
+        elif u_mid < 0.75:
+            sd = -12
+        else:
+            sd = -32
+        c = _shade(KFC_RED, sd)
         sx0_top = tl[0] + (tr[0] - tl[0]) * u0
         sx1_top = tl[0] + (tr[0] - tl[0]) * u1
         sx0_bot = bl[0] + (br[0] - bl[0]) * u0
         sx1_bot = bl[0] + (br[0] - bl[0]) * u1
         pygame.draw.polygon(
-            surf, KFC_RED,
+            surf, c,
             [(sx0_top, tl[1]), (sx1_top, tl[1]),
              (sx1_bot, br[1]), (sx0_bot, br[1])])
+    # Shade the WHITE areas similarly - lay an alpha gradient sweep over
+    # the whole bucket trapezoid so the unshaded stripes pick up the
+    # cylinder shading too
+    body_overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    for x in range(int(tl[0]), int(tr[0])):
+        u = (x - tl[0]) / max(1, bucket_top_w)
+        if u < 0.5:
+            a = int(40 * (0.5 - u) / 0.5 * (1 - 1))   # no overlay left
+            a = 0
+        else:
+            a = int(70 * (u - 0.5) / 0.5)
+        if a > 0:
+            pygame.draw.line(body_overlay, (40, 16, 12, a),
+                              (x, int(tl[1])), (x, int(bl[1])))
+    surf.blit(body_overlay, (0, 0))
     pygame.draw.polygon(surf, OUTLINE, poly, 3)
     # Top rim band
     rim = pygame.Rect(tl[0] - 4, tl[1] - 8, bucket_top_w + 8, 16)
     pygame.draw.rect(surf, OUTLINE, rim.inflate(2, 2), border_radius=6)
     pygame.draw.rect(surf, KFC_RED_D, rim, border_radius=6)
     pygame.draw.rect(surf, KFC_RED, rim.inflate(-6, -4), border_radius=4)
+    # Rim inner shadow line (suggests the bucket has an inside)
+    pygame.draw.line(surf, _shade(KFC_RED_D, -30),
+                     (tl[0] + 4, tl[1] + 1),
+                     (tr[0] - 4, tl[1] + 1), 2)
 
-    # Gold-foil "3,000 GAMES" label band
-    label_w = 200
-    label_h = 50
+    # Gold-foil "3,000 GAMES" label band - elevated above bucket centre
+    label_w = 210
+    label_h = 56
     label = pygame.Rect(W // 2 - label_w // 2,
                         bucket_top_y + bh // 2 - label_h // 2,
                         label_w, label_h)
+    # Drop shadow for label
+    pygame.draw.rect(surf, (0, 0, 0, 90),
+                     label.inflate(8, 8).move(3, 4), border_radius=8)
     # Outer red border
-    pygame.draw.rect(surf, OUTLINE, label.inflate(6, 6), border_radius=6)
-    pygame.draw.rect(surf, KFC_RED_D, label.inflate(4, 4), border_radius=6)
-    pygame.draw.rect(surf, KFC_RED, label.inflate(2, 2), border_radius=5)
+    pygame.draw.rect(surf, OUTLINE, label.inflate(6, 6), border_radius=8)
+    pygame.draw.rect(surf, KFC_RED_D, label.inflate(4, 4), border_radius=7)
+    pygame.draw.rect(surf, KFC_RED, label.inflate(2, 2), border_radius=6)
     # Gold inner panel
     draw_gold_gradient_rect(surf, label.inflate(-6, -6),
-                            border_radius=4)
+                            border_radius=5)
     pygame.draw.rect(surf, OUTLINE, label.inflate(-6, -6),
-                     border_radius=4, width=2)
+                     border_radius=5, width=2)
+    # Diagonal sheen overlay on the gold (lighter band sweeping across)
+    sheen = pygame.Surface(label.inflate(-6, -6).size, pygame.SRCALPHA)
+    sw, sh_ = sheen.get_size()
+    for y in range(sh_):
+        for x in range(sw):
+            # diagonal band
+            d = (x + y) % 64
+            if 24 < d < 36:
+                sheen.set_at((x, y), (255, 248, 220, 50))
+    surf.blit(sheen, label.inflate(-6, -6).topleft)
     # Embossed "3,000 GAMES"
-    fnt_label = _font(20, bold=True)
+    fnt_label = _font(22, bold=True)
     eng_dk = fnt_label.render("3,000 GAMES", True, GOLD_DK)
     eng_hi = fnt_label.render("3,000 GAMES", True, (255, 248, 220))
     surf.blit(eng_dk, (label.centerx - eng_dk.get_width() // 2 + 1,
@@ -549,82 +626,119 @@ def draw_v1(surf):
     crown_cx = W // 2
     crown_y = label.top - 14
     crown_pts = [
-        (crown_cx - 14, crown_y + 10),
-        (crown_cx - 14, crown_y + 2),
-        (crown_cx - 7, crown_y + 8),
-        (crown_cx, crown_y - 4),
-        (crown_cx + 7, crown_y + 8),
-        (crown_cx + 14, crown_y + 2),
-        (crown_cx + 14, crown_y + 10),
+        (crown_cx - 16, crown_y + 10),
+        (crown_cx - 16, crown_y + 2),
+        (crown_cx - 8, crown_y + 8),
+        (crown_cx, crown_y - 6),
+        (crown_cx + 8, crown_y + 8),
+        (crown_cx + 16, crown_y + 2),
+        (crown_cx + 16, crown_y + 10),
     ]
     pygame.draw.polygon(surf, OUTLINE,
                         [(p[0], p[1] + 1) for p in crown_pts])
     pygame.draw.polygon(surf, GOLD_LO,
                         [(p[0], p[1]) for p in crown_pts])
+    # crown highlight
+    pygame.draw.polygon(surf, GOLD_HI,
+                        [(crown_cx - 14, crown_y + 4),
+                         (crown_cx, crown_y - 3),
+                         (crown_cx + 14, crown_y + 4),
+                         (crown_cx + 10, crown_y + 6),
+                         (crown_cx, crown_y + 2),
+                         (crown_cx - 10, crown_y + 6)])
     # crown jewels
-    pygame.draw.circle(surf, KFC_RED, (crown_cx, crown_y - 1), 2)
-    pygame.draw.circle(surf, (255, 255, 255), (crown_cx - 7, crown_y + 7), 1)
-    pygame.draw.circle(surf, (255, 255, 255), (crown_cx + 7, crown_y + 7), 1)
+    pygame.draw.circle(surf, OUTLINE, (crown_cx, crown_y - 2), 3)
+    pygame.draw.circle(surf, KFC_RED, (crown_cx, crown_y - 2), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (crown_cx, crown_y - 3), 1)
+    for jx in (crown_cx - 8, crown_cx + 8):
+        pygame.draw.circle(surf, OUTLINE, (jx, crown_y + 8), 2)
+        pygame.draw.circle(surf, (90, 160, 250), (jx, crown_y + 8), 1)
 
-    # ---- Two candles flanking Pip (Pip takes the centre spot) ----
-    candle_xs = (tl[0] + bucket_top_w * 0.22,
-                 tl[0] + bucket_top_w * 0.78)
-    for cx_f in candle_xs:
-        cx_i = int(cx_f)
-        cand_h = 38
-        cand = pygame.Rect(cx_i - 5, rim.top - cand_h - 2, 10, cand_h)
-        pygame.draw.rect(surf, OUTLINE, cand.inflate(2, 2), border_radius=3)
-        pygame.draw.rect(surf, KFC_WHITE, cand, border_radius=3)
-        # 1 wax drip
+    # ---- Two candles flanking Pip ----
+    def _draw_candle(cx_i):
+        cand_h = 48
+        cand = pygame.Rect(cx_i - 6, rim.top - cand_h - 2, 12, cand_h)
+        # Candle drop shadow
+        pygame.draw.rect(surf, (0, 0, 0, 80),
+                         cand.move(2, 2).inflate(2, 2), border_radius=4)
+        pygame.draw.rect(surf, OUTLINE, cand.inflate(2, 2), border_radius=4)
+        pygame.draw.rect(surf, (220, 215, 200), cand, border_radius=4)
+        # Highlight stripe
+        pygame.draw.rect(surf, KFC_WHITE,
+                         pygame.Rect(cand.x + 2, cand.y + 2, 4,
+                                     cand.height - 4),
+                         border_radius=2)
+        # Wax drips
         pygame.draw.line(surf, OUTLINE,
-                          (cand.centerx + 2, cand.bottom - 6),
-                          (cand.centerx + 4, cand.bottom + 4), 2)
+                          (cand.centerx + 3, cand.bottom - 6),
+                          (cand.centerx + 5, cand.bottom + 5), 3)
+        pygame.draw.line(surf, (200, 195, 180),
+                          (cand.centerx + 3, cand.bottom - 6),
+                          (cand.centerx + 5, cand.bottom + 5), 2)
         # Wick
         pygame.draw.line(surf, OUTLINE, (cand.centerx, cand.top - 2),
-                         (cand.centerx, cand.top - 6), 2)
-        # Flame layers
-        flame = [(cand.centerx, cand.top - 24),
-                 (cand.centerx - 7, cand.top - 6),
-                 (cand.centerx, cand.top - 2),
-                 (cand.centerx + 7, cand.top - 6)]
-        pygame.draw.polygon(surf, (180, 50, 20), flame)
-        mid = [(cand.centerx, cand.top - 18),
-               (cand.centerx - 5, cand.top - 6),
-               (cand.centerx, cand.top - 2),
-               (cand.centerx + 5, cand.top - 6)]
-        pygame.draw.polygon(surf, (250, 160, 30), mid)
-        inner = [(cand.centerx, cand.top - 13),
-                 (cand.centerx - 3, cand.top - 6),
-                 (cand.centerx, cand.top - 2),
-                 (cand.centerx + 3, cand.top - 6)]
-        pygame.draw.polygon(surf, (255, 220, 100), inner)
-        pygame.draw.polygon(surf, (255, 255, 220),
-                            [(cand.centerx, cand.top - 8),
-                             (cand.centerx - 2, cand.top - 4),
-                             (cand.centerx, cand.top - 2),
-                             (cand.centerx + 2, cand.top - 4)])
+                         (cand.centerx, cand.top - 8), 2)
+        # Flame halo (soft glow)
+        for r_g, a_g in ((24, 50), (16, 90), (10, 140)):
+            halo = pygame.Surface((r_g * 2, r_g * 2), pygame.SRCALPHA)
+            pygame.draw.circle(halo, (255, 200, 80, a_g),
+                                (r_g, r_g), r_g)
+            surf.blit(halo, (cand.centerx - r_g, cand.top - 20 - r_g))
+        # Flame layers (taller)
+        flame_outer = [(cand.centerx, cand.top - 34),
+                        (cand.centerx - 9, cand.top - 10),
+                        (cand.centerx - 4, cand.top - 4),
+                        (cand.centerx + 4, cand.top - 4),
+                        (cand.centerx + 9, cand.top - 10)]
+        pygame.draw.polygon(surf, (180, 50, 20), flame_outer)
+        flame_mid = [(cand.centerx, cand.top - 26),
+                      (cand.centerx - 6, cand.top - 10),
+                      (cand.centerx, cand.top - 6),
+                      (cand.centerx + 6, cand.top - 10)]
+        pygame.draw.polygon(surf, (250, 160, 30), flame_mid)
+        flame_inner = [(cand.centerx, cand.top - 18),
+                        (cand.centerx - 4, cand.top - 10),
+                        (cand.centerx, cand.top - 6),
+                        (cand.centerx + 4, cand.top - 10)]
+        pygame.draw.polygon(surf, (255, 220, 100), flame_inner)
+        pygame.draw.polygon(surf, (255, 255, 230),
+                            [(cand.centerx, cand.top - 12),
+                             (cand.centerx - 2, cand.top - 8),
+                             (cand.centerx, cand.top - 6),
+                             (cand.centerx + 2, cand.top - 8)])
 
-    # ---- Pip on the rim, wings up, hopping victorious ----
+    candle_xs = (tl[0] + bucket_top_w * 0.20,
+                 tl[0] + bucket_top_w * 0.80)
+    for cx_f in candle_xs:
+        _draw_candle(int(cx_f))
+
+    # ---- Pip on the rim, 1.5x scaled, wings up, hopping victorious ----
     pip = parrot.get_parrot(0, 22)
-    pip_x = W // 2 - pip.get_width() // 2 - 4
-    pip_y = rim.top - pip.get_height() + 4
-    surf.blit(pip, (pip_x, pip_y))
-    # tiny "yay!" sparkle near pip
-    for sx, sy in ((pip_x - 8, pip_y + 16),
-                   (pip_x + pip.get_width() + 4, pip_y + 8),
-                   (pip_x - 4, pip_y - 4)):
-        pygame.draw.circle(surf, OUTLINE, (sx, sy), 4)
-        pygame.draw.circle(surf, GOLD_HI, (sx, sy), 3)
-        pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1), 1)
+    pip_scaled = pygame.transform.smoothscale(
+        pip, (int(pip.get_width() * 1.5),
+              int(pip.get_height() * 1.5)))
+    pip_x = W // 2 - pip_scaled.get_width() // 2
+    pip_y = rim.top - pip_scaled.get_height() + 12
+    surf.blit(pip_scaled, (pip_x, pip_y))
+    # Sparkle burst around Pip
+    rng = random.Random(7)
+    for _ in range(10):
+        sx = rng.randint(pip_x - 18, pip_x + pip_scaled.get_width() + 18)
+        sy = rng.randint(pip_y - 12, pip_y + pip_scaled.get_height() + 12)
+        r = rng.randint(2, 5)
+        pygame.draw.circle(surf, OUTLINE, (sx, sy), r + 1)
+        pygame.draw.circle(surf, GOLD_HI, (sx, sy), r)
+        pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1),
+                           max(1, r - 2))
 
     # ---- Headline + tagline ----
-    draw_big_text(surf, "3,000", (W // 2, 78), size=76,
-                  fill=COIN_GOLD, outline_w=5, sparkles=10)
+    draw_big_text(surf, "3,000", (W // 2, 78), size=80,
+                  fill=COIN_GOLD, outline_w=6, sparkles=12)
     draw_tagline(surf, "Next bucket's on you. Keep flying.",
                  H - 30, size=16, color=(255, 240, 200))
 
     # ---- Confetti rain (front layer ON TOP of everything) ----
-    draw_confetti_layered(surf, n_back=60, n_front=22, seed=3)
+    draw_confetti_layered(surf, n_back=80, n_front=32, seed=3)
 
 
 # ===========================================================================
@@ -637,14 +751,22 @@ def draw_v2(surf):
     # Faint stars
     starfield(surf, n=35, seed=2)
 
-    # Spotlight beam from upper center down to trophy
+    # Wider, more dramatic spotlight beam - bright top, gentle splash at base
     draw_spotlight_beam(surf,
-                        top_anchor=(W // 2, 30),
-                        length=H - 120,
-                        half_width_top=40,
-                        half_width_bot=170,
+                        top_anchor=(W // 2, 20),
+                        length=H - 100,
+                        half_width_top=70,
+                        half_width_bot=210,
                         color=(255, 240, 200),
-                        alpha=85)
+                        alpha=120)
+
+    # Soft warm glow halo where the spotlight lands on the trophy
+    halo_cx, halo_cy = W // 2, H // 2 + 30
+    for r_g, a_g in ((220, 30), (160, 50), (110, 75)):
+        halo = pygame.Surface((r_g * 2, r_g * 2), pygame.SRCALPHA)
+        pygame.draw.circle(halo, (255, 230, 150, a_g),
+                            (r_g, r_g), r_g)
+        surf.blit(halo, (halo_cx - r_g, halo_cy - r_g))
 
     cx = W // 2
     cy = H // 2 + 50
@@ -674,24 +796,47 @@ def draw_v2(surf):
                         [(p[0] - 2, p[1]) for p in local_pts])
     pygame.draw.polygon(body_layer, OUTLINE,
                         [(p[0] + 2, p[1]) for p in local_pts])
-    # Gold gradient body filling the trapezoid
+    # Gold gradient body filling the trapezoid - now combined with a
+    # HORIZONTAL shading pass so the trophy reads as a 3D cylinder
+    # (left side lit, right side in shadow)
     grad_rect = pygame.Rect(0, 0, body_layer.get_width(),
                               body_layer.get_height())
     grad_full = pygame.Surface(grad_rect.size, pygame.SRCALPHA)
     draw_gold_gradient_rect(grad_full, grad_rect)
-    # Mask gradient to trapezoid
+    # Horizontal cylinder shading overlay: dark band on the right, bright
+    # band on the left third
+    bw = grad_full.get_width()
+    cyl = pygame.Surface(grad_full.get_size(), pygame.SRCALPHA)
+    for x in range(bw):
+        u = x / max(1, bw - 1)
+        # u<0.20 bright lit; u>0.65 darker shadow
+        if u < 0.22:
+            a = int(110 * (0.22 - u) / 0.22)
+            pygame.draw.line(cyl, (255, 248, 220, a),
+                              (x, 0), (x, grad_full.get_height()))
+        elif u > 0.55:
+            a = int(140 * (u - 0.55) / 0.45)
+            pygame.draw.line(cyl, (40, 18, 4, a),
+                              (x, 0), (x, grad_full.get_height()))
+    grad_full.blit(cyl, (0, 0))
+    # Mask gradient + shading to trapezoid
     mask = pygame.Surface(grad_rect.size, pygame.SRCALPHA)
     pygame.draw.polygon(mask, (255, 255, 255, 255), local_pts)
     grad_full.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     body_layer.blit(grad_full, (0, 0))
-    # Soft specular on upper-left curve - smaller + softer
+    # Soft specular highlight ribbon on upper-left
     spec = pygame.Surface(grad_rect.size, pygame.SRCALPHA)
-    pygame.draw.ellipse(spec, (255, 255, 230, 90),
-                        pygame.Rect(local_pts[0][0] + 6, local_pts[0][1] + 8,
-                                    cup_top_w // 3, cup_h // 3))
+    pygame.draw.ellipse(spec, (255, 255, 240, 130),
+                        pygame.Rect(local_pts[0][0] + 8, local_pts[0][1] + 6,
+                                    cup_top_w // 4, cup_h // 4))
     spec.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     body_layer.blit(spec, (0, 0))
     surf.blit(body_layer, (cx - cup_top_w // 2 - 8, cup_top_y - 2))
+
+    # Rim-light: bright pixel-line along the top edge of the trophy cup
+    pygame.draw.line(surf, (255, 248, 220),
+                     (t_tl[0] + 4, t_tl[1] + 1),
+                     (t_tr[0] - 4, t_tr[1] + 1), 2)
     # Compute cup rect for downstream positioning (rim, engraving, base)
     cup = pygame.Rect(t_tl[0], t_tl[1] - 6, cup_top_w, cup_h)
     # Rim band (slightly darker gold at the top)
@@ -700,16 +845,25 @@ def draw_v2(surf):
     pygame.draw.rect(surf, GOLD_DK, rim, border_radius=8)
     pygame.draw.rect(surf, GOLD_LO, rim.inflate(-6, -4), border_radius=6)
 
-    # Engraved "3000"
-    fnt_engrave = _font(54, bold=True)
-    eng_dk = fnt_engrave.render("3000", True, GOLD_DK)
-    eng_hi = fnt_engrave.render("3000", True, (255, 248, 220))
+    # Engraved "3000" - multi-pass chisel for real carved depth.
+    # Stack: darkest inset (lower-right) -> dark -> midtone -> highlight
+    # (upper-left) -> brightest highlight pinpoint. Reads as a deep groove
+    # with a polished bright lip on the lit side.
+    fnt_engrave = _font(64, bold=True)
     ex = cup.centerx
     ey = cup.centery + 8
-    surf.blit(eng_dk, (ex - eng_dk.get_width() // 2 + 1,
-                        ey - eng_dk.get_height() // 2 + 1))
-    surf.blit(eng_hi, (ex - eng_hi.get_width() // 2 - 1,
-                        ey - eng_hi.get_height() // 2 - 1))
+    chisel_passes = (
+        (+2, +2, (40, 18, 4)),       # deep shadow well-bottom
+        (+1, +1, GOLD_DK),           # transitional shadow
+        ( 0,  0, (180, 120, 30)),    # midtone
+        (-1, -1, (255, 230, 130)),   # lit lip
+        (-2, -2, (255, 252, 220)),   # brightest highlight pinpoint
+    )
+    for dx, dy, col in chisel_passes:
+        pass_surf = fnt_engrave.render("3000", True, col)
+        surf.blit(pass_surf,
+                  (ex - pass_surf.get_width() // 2 + dx,
+                   ey - pass_surf.get_height() // 2 + dy))
 
     # Handles - proper open rings flanking the cup rim. Positioned to
     # visually attach at the upper edge of the goblet.
@@ -766,15 +920,34 @@ def draw_v2(surf):
                        color=KFC_RED, text_color=(255, 245, 230),
                        font_size=16, tilt_deg=-6)
 
-    # ---- Pip peeking out of the cup ----
-    pip = parrot.get_hat_parrot(0, -8)
+    # ---- Pip rising out of the cup, wings raised triumphantly ----
+    pip = parrot.get_hat_parrot(0, -12)
     pip_scaled = pygame.transform.smoothscale(
-        pip, (int(pip.get_width() * 1.15),
-              int(pip.get_height() * 1.15)))
-    # Position so the bottom half of Pip is hidden behind the rim
+        pip, (int(pip.get_width() * 1.5),
+              int(pip.get_height() * 1.5)))
+    # Position so the bottom third of Pip is hidden behind the cup rim
     pip_x = cx - pip_scaled.get_width() // 2
-    pip_y = cup.y - pip_scaled.get_height() // 2 - 4
+    pip_y = cup.y - pip_scaled.get_height() + 26
+    # Drop shadow behind Pip for separation against the trophy
+    pip_sh = pygame.Surface(
+        (pip_scaled.get_width() + 8, pip_scaled.get_height() + 4),
+        pygame.SRCALPHA)
+    pygame.draw.ellipse(pip_sh, (0, 0, 0, 110),
+                        pygame.Rect(0, pip_scaled.get_height() // 2,
+                                    pip_sh.get_width(),
+                                    pip_sh.get_height() // 2 - 4))
+    surf.blit(pip_sh, (pip_x - 4, pip_y - 2))
     surf.blit(pip_scaled, (pip_x, pip_y))
+    # Sparkle burst around Pip
+    rng = random.Random(4)
+    for _ in range(8):
+        sx = rng.randint(pip_x - 14, pip_x + pip_scaled.get_width() + 14)
+        sy = rng.randint(pip_y - 10, pip_y + 30)
+        r = rng.randint(2, 4)
+        pygame.draw.circle(surf, OUTLINE, (sx, sy), r + 1)
+        pygame.draw.circle(surf, GOLD_HI, (sx, sy), r)
+        pygame.draw.circle(surf, (255, 255, 255), (sx - 1, sy - 1),
+                           max(1, r - 2))
 
     # Gold-dust particles drifting upward
     draw_dust_particles(surf, n=35, color=GOLD_HI, seed=4,
@@ -809,52 +982,116 @@ def draw_v2(surf):
 def draw_v3(surf):
     draw_dawn_bg(surf)
 
-    # ---- Speed lines + diagonal coin storm in BG ----
+    # ---- Soft sun rays streaming from the upper-right corner ----
+    ray_origin = (W + 20, -20)
+    n_rays = 14
+    rays_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+    for i in range(n_rays):
+        # Angle sweep from straight-down to straight-left
+        ang = math.pi * (0.55 + i * 0.30 / n_rays)
+        L = max(W, H) + 50
+        ex = ray_origin[0] + math.cos(ang) * L
+        ey = ray_origin[1] + math.sin(ang) * L
+        # Wedge polygon for each ray (thin triangle)
+        spread = 0.022
+        pts = [
+            ray_origin,
+            (ray_origin[0] + math.cos(ang - spread) * L,
+             ray_origin[1] + math.sin(ang - spread) * L),
+            (ray_origin[0] + math.cos(ang + spread) * L,
+             ray_origin[1] + math.sin(ang + spread) * L),
+        ]
+        a = 28 if i % 2 == 0 else 18
+        pygame.draw.polygon(rays_layer, (255, 230, 150, a), pts)
+    # Bright glow near the ray origin (sun)
+    for r_g, a_g in ((180, 60), (110, 100), (60, 160)):
+        pygame.draw.circle(rays_layer, (255, 240, 180, a_g),
+                            ray_origin, r_g)
+    surf.blit(rays_layer, (0, 0))
+
+    # ---- Pip mid-flap, big, tilted aggressively forward ----
+    pip = parrot.get_parrot(0, 18)
+    pip_scaled = pygame.transform.smoothscale(
+        pip,
+        (int(pip.get_width() * 2.4),
+         int(pip.get_height() * 2.4)))
+    pip_cx = W // 3 - 16
+    pip_cy = H // 2 + 60
+    pip_x = pip_cx - pip_scaled.get_width() // 2
+    pip_y = pip_cy - pip_scaled.get_height() // 2
+
+    # ---- Diagonal coin storm (drawn in BG behind Pip) ----
     rng = random.Random(13)
-    # Diagonal coin river running from upper-right to lower-left
-    for _ in range(40):
-        # Bias coins along a diagonal band
+    bg_coins = []
+    for _ in range(48):
         cx = rng.randint(-30, W + 30)
         cy = rng.randint(-20, H + 20)
-        # Snap to a diagonal: lock cy to roughly cx*0.8 - bias
         cy = int(cy * 0.4 + cx * 0.7 - 40)
         if not (-30 <= cy <= H + 30):
             continue
         r = rng.randint(6, 18)
-        edge_on = rng.random() < 0.18
-        label = "3K" if (rng.random() < 0.15 and not edge_on and r >= 13) \
-                else "$"
+        edge_on = rng.random() < 0.16
+        tilt = rng.uniform(0.45, 1.0) if not edge_on else 1.0
+        is_3k = (rng.random() < 0.16 and not edge_on and r >= 13)
+        label = "3K" if is_3k else ("$" if r >= 11 else None)
+        bg_coins.append((cx, cy, r, edge_on, tilt, label, is_3k))
+    for cx, cy, r, edge_on, tilt, label, is_3k in bg_coins:
+        # Halo behind featured 3K coins
+        if is_3k:
+            halo = pygame.Surface((r * 4, r * 4), pygame.SRCALPHA)
+            for hr, ha in ((r * 2, 50), (int(r * 1.5), 90)):
+                pygame.draw.circle(halo, (255, 240, 130, ha),
+                                    (r * 2, r * 2), hr)
+            surf.blit(halo, (cx - r * 2, cy - r * 2))
         draw_coin(surf, cx, cy, r, edge_on=edge_on,
-                   label=label if r >= 9 else None,
-                   seed=cx * 7 + cy)
+                   tilt=tilt, label=label, seed=cx * 7 + cy)
 
-    # ---- Pip mid-flap on the left, flying through ----
-    pip = parrot.get_parrot(0, 15)
-    pip_scaled = pygame.transform.smoothscale(
-        pip,
-        (int(pip.get_width() * 2.2),
-         int(pip.get_height() * 2.2)))
-    pip_cx = W // 3 - 10
-    pip_cy = H // 2 + 50
-    pip_x = pip_cx - pip_scaled.get_width() // 2
-    pip_y = pip_cy - pip_scaled.get_height() // 2
-    # Speed lines behind Pip (drawn before pip so they go behind)
-    draw_speed_lines(surf, (pip_cx + 20, pip_cy),
-                      n=14, direction=(-1, 0.05),
-                      length_range=(50, 110), seed=21)
+    # Speed-line tails behind Pip
+    speed_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+    rng2 = random.Random(21)
+    for _ in range(18):
+        sy = rng2.randint(pip_cy - 60, pip_cy + 60)
+        sx_start = pip_cx + 30
+        L = rng2.randint(70, 150)
+        sx_end = sx_start - L
+        # Tapered streak
+        for k in range(6):
+            t0 = k / 6
+            t1 = (k + 1) / 6
+            a = int(220 * (1 - t0))
+            w = max(1, 5 - k)
+            x0 = sx_start + (sx_end - sx_start) * t0
+            x1 = sx_start + (sx_end - sx_start) * t1
+            pygame.draw.line(speed_layer, (255, 255, 255, a),
+                              (x0, sy), (x1, sy), w)
+    surf.blit(speed_layer, (0, 0))
+
+    # Drop shadow + Pip
+    pip_sh = pygame.Surface(
+        (pip_scaled.get_width() + 16, 20), pygame.SRCALPHA)
+    pygame.draw.ellipse(pip_sh, (0, 0, 0, 90), pip_sh.get_rect())
+    surf.blit(pip_sh,
+              (pip_x - 8, pip_y + pip_scaled.get_height() - 10))
     surf.blit(pip_scaled, (pip_x, pip_y))
 
-    # Foreground coins (a few in front of pip for depth)
-    for _ in range(8):
-        cx_f = rng.randint(W // 2, W + 20)
-        cy_f = rng.randint(40, H - 80)
-        r_f = rng.randint(10, 16)
+    # ---- Foreground coins overlapping Pip on the right for depth ----
+    for _ in range(10):
+        cx_f = rng.randint(W // 2 - 20, W + 20)
+        cy_f = rng.randint(30, H - 60)
+        r_f = rng.randint(10, 18)
         edge_on = rng.random() < 0.2
+        is_3k = (rng.random() < 0.18 and not edge_on and r_f >= 13)
+        label = "3K" if is_3k else ("$" if r_f >= 11 else None)
+        if is_3k:
+            halo = pygame.Surface((r_f * 4, r_f * 4), pygame.SRCALPHA)
+            for hr, ha in ((r_f * 2, 60), (int(r_f * 1.5), 100)):
+                pygame.draw.circle(halo, (255, 240, 130, ha),
+                                    (r_f * 2, r_f * 2), hr)
+            surf.blit(halo, (cx_f - r_f * 2, cy_f - r_f * 2))
         draw_coin(surf, cx_f, cy_f, r_f, edge_on=edge_on,
-                   label="$" if r_f >= 9 else None,
-                   seed=cx_f * 11)
+                   label=label, seed=cx_f * 11)
 
-    # ---- Hero ribbon banner with "3,000!" upper-right ----
+    # ---- Hero ribbon banner ----
     draw_ribbon_banner(surf, (W // 2 + 30, 95),
                        w=200, h=58,
                        text="3,000!",
