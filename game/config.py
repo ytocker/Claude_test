@@ -42,6 +42,9 @@ MAGNET_RADIUS      = 82.0
 SLOWMO_DURATION    = 8.0
 SLOWMO_SCALE       = 0.7
 KFC_DURATION       = 8.0
+KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
+                             # the powerup feel as generous as the bucket
+                             # variant already looks. Stacks with COIN_RUSH.
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
 GROW_SCALE         = 1.5
