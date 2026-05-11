@@ -1,26 +1,32 @@
-"""KFC powerup pillar pool: 4 fast-food-themed pillar designs.
+"""KFC powerup pillar pool: 3 fast-food-themed pillar designs.
 
 When the KFC powerup is active, every pillar on screen flips from the
-normal stone-and-foliage variants to one of the 4 designs below. The
-variant is picked deterministically per pillar via `seed % 4`, so the
-same Pipe stays visually stable across frames as it scrolls.
+normal stone-and-foliage variants to one of the designs below. The
+variant is picked deterministically per pillar via `seed % 4` against
+the KFC_DRAWERS tuple, in which the bucket is listed twice so the
+distribution comes out 50% bucket / 25% hot dog / 25% corn dog. Pipe
+seeds are stable for the lifetime of the Pipe instance, so a given
+pillar keeps the same look as it scrolls across the screen.
 
-  0  Hot Dog        side buns + sausage running through the gap +
-                    mustard zigzag + ketchup dots
-  1  Bucket Stack   stacked KFC bucket trapezoids (red+white striped)
-                    with overflowing chicken pile + a tiny pennant
-                    flag planted in the pile
-  2  Corn Dog       golden batter rod with crispy bumps + honey-
-                    mustard drips + plain wooden skewer at the gap
-  3  Sandwich       multi-layer tower (bun-top / fillet / cheese /
-                    lettuce / fillet / bun-bot) + toothpick skewer
-                    with red cellophane frill at the gap
+  Hot Dog        side buns + sausage running through the gap +
+                 mustard zigzag + ketchup dots                     (25%)
+  Bucket Stack   stacked KFC bucket trapezoids (red+white striped)
+                 with overflowing chicken pile + a tiny pennant
+                 flag planted in the pile                          (50%)
+  Corn Dog       golden batter rod with crispy bumps + honey-
+                 mustard drips + plain wooden skewer at the gap    (25%)
 
-For both the corn dog and the sandwich, the top pillar's first layer
-renders with flat top corners (no top-radius) so the rod / bun visually
-connects to the ceiling instead of floating below it. Bucket-stack top
-pillars use vertically flipped trapezoids so the rim faces the gap and
-chicken pile hangs DOWN from it toward the gap, not into the bucket.
+The corn dog's top pillar renders with flat top corners (no top-radius)
+so the rod visually connects to the ceiling instead of floating below
+it. Bucket-stack top pillars use vertically flipped trapezoids so the
+rim faces the gap and chicken pile hangs DOWN from it toward the gap,
+not into the bucket.
+
+A fourth design, `draw_pillar_kfc_sandwich`, is retained in this module
+(multi-layer tower of bun/fillet/cheese/lettuce + toothpick skewer)
+but is RETIRED from the active rotation - the layered silhouette was
+too hard to read at gameplay scale. Re-add it to KFC_DRAWERS to bring
+it back.
 """
 import math
 import random
@@ -716,17 +722,26 @@ def draw_pillar_kfc_sandwich(surf, top_rect, bot_rect, palette, seed):
 # Dispatcher
 # ===========================================================================
 
+# Active KFC pillar pool. Bucket appears TWICE so its `seed % 4` probability
+# is 50% (slots 1 and 3); hot dog and corn dog each get one slot for 25%.
+# The sandwich variant (draw_pillar_kfc_sandwich) is kept fully defined
+# above but is intentionally NOT listed here - it was hard to read at
+# gameplay scale and has been retired from the rotation. Re-add it to
+# this tuple to bring it back.
 KFC_DRAWERS = (
-    draw_pillar_kfc_hot_dog,
-    draw_pillar_kfc_bucket,
-    draw_pillar_kfc_corn_dog,
-    draw_pillar_kfc_sandwich,
+    draw_pillar_kfc_hot_dog,    # slot 0  → 25%
+    draw_pillar_kfc_bucket,     # slot 1  ┐
+    draw_pillar_kfc_corn_dog,   # slot 2  │ → 25%
+    draw_pillar_kfc_bucket,     # slot 3  ┘ → bucket total 50%
 )
 
 
 def draw_pillar_pair_kfc(surf, top_rect, bot_rect, palette, seed):
-    """Route to one of the 4 KFC pillar designs by `seed % 4`. Pipe seeds
+    """Route to one of the active KFC pillar designs by `seed % 4`.
+
+    Distribution is 50% bucket / 25% hot dog / 25% corn dog. Pipe seeds
     are stable for the lifetime of the Pipe instance, so a given pillar
-    keeps the same look as it scrolls across the screen."""
+    keeps the same look as it scrolls across the screen.
+    """
     KFC_DRAWERS[seed % len(KFC_DRAWERS)](surf, top_rect, bot_rect,
                                           palette, seed)
