@@ -483,9 +483,21 @@ def _stack_buckets(surf, rect, *, gap_side, label="KFC", bucket_h=64,
 
 
 def draw_pillar_kfc_bucket(surf, top_rect, bot_rect, palette, seed):
-    _stack_buckets(surf, top_rect, gap_side='bottom', bucket_h=64,
+    # Extend each stack's render rect by one bucket_h toward the gap so an
+    # extra non-collidable bucket protrudes into the gap area. Tightens
+    # the bucket variant's perceived gap (which otherwise looks too open
+    # vs the hot dog / corn dog / sandwich variants - they have a
+    # sausage / stick / skewer poking into the gap). Pipe.top_rect /
+    # bot_rect are unchanged, so the actual collision gap is the same
+    # KFC_GAP_BOOST x base; only the visual silhouette tightens.
+    bucket_h = 64
+    top_ext = pygame.Rect(top_rect.x, top_rect.y,
+                          top_rect.width, top_rect.height + bucket_h)
+    bot_ext = pygame.Rect(bot_rect.x, bot_rect.y - bucket_h,
+                          bot_rect.width, bot_rect.height + bucket_h)
+    _stack_buckets(surf, top_ext, gap_side='bottom', bucket_h=bucket_h,
                    seed=seed + 100)
-    _stack_buckets(surf, bot_rect, gap_side='top', bucket_h=64,
+    _stack_buckets(surf, bot_ext, gap_side='top', bucket_h=bucket_h,
                    seed=seed, with_flag=True)
 
 
