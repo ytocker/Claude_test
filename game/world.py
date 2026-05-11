@@ -14,7 +14,7 @@ from game.config import (
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
-    SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, GHOST_DURATION,
+    SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
     POWERUP_WEIGHTS,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
@@ -163,13 +163,19 @@ class World:
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
         if is_rush:
             gap_h = int(gap_h * COIN_RUSH_GAP_BOOST)
+        # Pipes spawned during KFC mode get a wider collision gap so the
+        # powerup is an actual gameplay reward, not just visual flair.
+        # Stacks with the rush boost if both happen on the same pipe.
+        kfc_spawn = self.kfc_timer > 0
+        if kfc_spawn:
+            gap_h = int(gap_h * KFC_GAP_BOOST)
         margin = 70
         gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
-        # Pipes spawned during KFC mode start fast-food-themed and stay
-        # that way for the rest of their life on screen.
-        p.is_kfc = self.kfc_timer > 0
+        # is_kfc sticks for the pipe's lifetime - the KFC look (and the
+        # boosted gap) outlive the powerup timer.
+        p.is_kfc = kfc_spawn
         self.pipes.append(p)
         if is_rush:
             self._spawn_rush_coins(p)
@@ -708,13 +714,20 @@ class World:
         self.kfc_timer = KFC_DURATION
         self.bird.kfc_active = True
         # Retroactively flip every pipe currently on screen so the entire
-        # visible scene becomes fast-food at the moment of pickup. Each
-        # pipe's flag is sticky for the rest of its lifetime, so when the
-        # KFC timer expires these existing pipes keep their KFC look until
-        # they scroll off; only NEW pipes spawned after the timer ends
-        # revert to the normal stone style.
+        # visible scene becomes fast-food at the moment of pickup, AND
+        # widen its collision gap. Each pipe's flag is sticky for the
+        # rest of its lifetime, so when the KFC timer expires these
+        # existing pipes keep their KFC look + wider gap until they
+        # scroll off; only NEW pipes spawned after the timer ends revert
+        # to the normal stone style and tighter gap.
+        #
+        # Guard against double-boost on the gap: only multiply if the
+        # pipe wasn't already KFC. Otherwise a second KFC pickup (or a
+        # pipe born during the active window) would compound 1.30 again.
         for p in self.pipes:
-            p.is_kfc = True
+            if not p.is_kfc:
+                p.gap_h = int(p.gap_h * KFC_GAP_BOOST)
+                p.is_kfc = True
         self.shake_mag = max(self.shake_mag, 5.0)
         self.shake_t   = max(self.shake_t,   0.4)
         audio.play_poof()
