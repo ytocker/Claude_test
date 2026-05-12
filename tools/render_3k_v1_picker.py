@@ -1043,9 +1043,23 @@ def draw_v1a(surf):
     bucket_rect = pygame.Rect(W // 2 - 130, 360, 260, 230)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
+    # Pip FIRST so the candles paint on top of him - his body is
+    # screened by the candles but his head + hat poke clearly above
+    # the candle wax. Frame 1 = calm wing-level pose, tilt 0 = body
+    # upright, so the head crown is CENTRED on the sprite and the hat
+    # sits naturally on top instead of leaning off to one side.
+    pip_sprite = make_pip_with_hat(frame=1, tilt=0, scale=1.4,
+                                    hat_color1=(242, 90, 90),
+                                    hat_color2=(252, 206, 56),
+                                    hat_tilt=0)
+    pip_rect = pip_sprite.get_rect(
+        midbottom=(W // 2, rim.top + 2))
+    surf.blit(pip_sprite, pip_rect.topleft)
+
     # Four CYLINDRICAL birthday candles "3 0 0 0" - real-candle-shape
     # wax cylinders with the digit printed on the face + wick + flame
-    # on top. Stripe colour varies per candle for visual variety.
+    # on top. Stripe colour varies per candle. Drawn AFTER Pip so the
+    # candle bodies cover his torso but his head/hat read above.
     digits = ("3", "0", "0", "0")
     candle_xs = [bucket_rect.left + bucket_rect.width * u
                   for u in (0.16, 0.39, 0.61, 0.84)]
@@ -1061,33 +1075,9 @@ def draw_v1a(surf):
             digit_color=OUTLINE)
         for d, col in zip(digits, stripe_colors)
     ]
-    # Plant each candle so the bottom 10 px disappears into the rim
-    # band, then re-paint the rim's lower strip ON TOP so the candles
-    # visibly plunge through the cake top.
     for cx_d, sprite in zip(candle_xs, candle_sprites):
-        rect = sprite.get_rect(midbottom=(int(cx_d), rim.bottom + 6))
+        rect = sprite.get_rect(midbottom=(int(cx_d), rim.top + 4))
         surf.blit(sprite, rect.topleft)
-    overlay_rim = pygame.Rect(rim.x, rim.bottom - 6, rim.width, 12)
-    pygame.draw.rect(surf, KFC_RED_D, overlay_rim, border_radius=4)
-    pygame.draw.rect(surf, KFC_RED,
-                     overlay_rim.inflate(-4, -3), border_radius=3)
-    # Re-stroke the rim outline so the seam stays crisp
-    rim_outline = pygame.Rect(rim.x - 2, rim.y - 2,
-                              rim.width + 4, rim.height + 4)
-    pygame.draw.rect(surf, OUTLINE, rim_outline, border_radius=8, width=3)
-
-    # Pip-with-hat as a SINGLE pre-built sprite. make_pip_with_hat
-    # walks the scaled parrot sprite's alpha to find its actual head
-    # crown, then composites the party hat on top with the brim seated
-    # 4 px into the head feathers. Result: hat is GUARANTEED on the
-    # head before we ever blit it onto the celebration.
-    pip_sprite = make_pip_with_hat(frame=0, tilt=18, scale=1.4,
-                                    hat_color1=(242, 90, 90),
-                                    hat_color2=(252, 206, 56),
-                                    hat_tilt=-4)
-    pip_rect = pip_sprite.get_rect(
-        midbottom=(W // 2, rim.top - 18))
-    surf.blit(pip_sprite, pip_rect.topleft)
     # Sparkles around the Pip sprite
     rng = random.Random(7)
     for _ in range(8):
