@@ -461,11 +461,19 @@ def make_pip_with_hat(*, frame=0, tilt=18, scale=1.4,
     """Build a STANDALONE sprite of Pip wearing the party hat, hat-
     on-head correctly. Returns a single Surface that can be blitted as
     one unit anywhere on the celebration image.
+
+    The parrot sprite is supersampled (rendered at 3x then smoothscaled
+    down to the target size) for visibly sharper edges than a direct
+    smoothscale would give - the 3x downscale acts as a low-pass
+    filter against the source's aliased pixel edges.
     """
-    pip = parrot.get_parrot(frame, tilt)
+    pip_native = parrot.get_parrot(frame, tilt)
+    nw, nh = pip_native.get_size()
+    # Supersample up 3x, then down to target (SS pass smooths edges)
+    super_sprite = pygame.transform.smoothscale(
+        pip_native, (nw * 3, nh * 3))
     pip_scaled = pygame.transform.smoothscale(
-        pip, (int(pip.get_width() * scale),
-              int(pip.get_height() * scale)))
+        super_sprite, (int(nw * scale), int(nh * scale)))
     # Find Pip's actual head crown by alpha-walking the scaled sprite
     crown_local = _find_head_crown(pip_scaled)
     # Build the hat at the requested colors / tilt
@@ -1048,14 +1056,14 @@ def draw_v1a(surf):
 
     # Pip-with-hat flying ABOVE the pink streamer (pink one arcs the
     # lowest, peaking around y=220 at the edges). Pre-built sprite via
-    # make_pip_with_hat so the hat is composited on the head crown
-    # before being placed. Frame 1 = calm wing-level pose, tilt 0 so
-    # the hat sits naturally on top.
-    pip_sprite = make_pip_with_hat(frame=1, tilt=0, scale=1.4,
+    # make_pip_with_hat - supersampled for sharper edges. Positioned
+    # so the pom-pom of his hat clears the "PLAYED!" headline (which
+    # ends around y=130).
+    pip_sprite = make_pip_with_hat(frame=1, tilt=0, scale=1.5,
                                     hat_color1=(242, 90, 90),
                                     hat_color2=(252, 206, 56),
                                     hat_tilt=0)
-    pip_rect = pip_sprite.get_rect(midbottom=(W // 2, 200))
+    pip_rect = pip_sprite.get_rect(midbottom=(W // 2, 290))
     surf.blit(pip_sprite, pip_rect.topleft)
 
     # Four CYLINDRICAL birthday candles "3 0 0 0" on the cake top -
