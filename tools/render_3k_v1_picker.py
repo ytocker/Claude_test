@@ -312,16 +312,19 @@ def make_cylindrical_candle(digit, *, body_h=70, body_w=24,
         pygame.draw.line(sprite, _shade(stripe_color, -40),
                          (x0, y0 + 4), (x1, y0 + 7), 1)
 
-    # ---- Digit printed on the front face ----
-    fnt = _font(int(body_h * 0.55), bold=True)
+    # ---- Digit printed on the front face: BIG, vivid, chunky outline ----
+    fnt = _font(int(body_h * 0.72), bold=True)
     d_dark = fnt.render(digit, True, OUTLINE)
     d_fill = fnt.render(digit, True, digit_color)
     d_w, d_h = d_fill.get_size()
     dx = cx - d_w // 2
     dy = body_top + (body_h - d_h) // 2
-    # Subtle outline pass behind the digit
-    for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-        sprite.blit(d_dark, (dx + ox, dy + oy))
+    # Thick 3-px outline ring around the digit so it pops off any
+    # background colour (wax or stripe)
+    for ox in range(-3, 4):
+        for oy in range(-3, 4):
+            if ox * ox + oy * oy <= 9:
+                sprite.blit(d_dark, (dx + ox, dy + oy))
     sprite.blit(d_fill, (dx, dy))
 
     # ---- Wick rooted INTO the top of the wax ----
@@ -1043,15 +1046,12 @@ def draw_v1a(surf):
     bucket_rect = pygame.Rect(W // 2 - 130, 360, 260, 230)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
-    # Pip FIRST so the candles paint on top of him - his body is
-    # screened by the candles but his head + hat poke clearly above
-    # the candle wax. Frame 1 = calm wing-level pose, tilt 0 = body
-    # upright, so the head crown is CENTRED on the sprite and the hat
-    # sits naturally on top instead of leaning off to one side.
-    pip_sprite = make_pip_with_hat(frame=1, tilt=0, scale=1.4,
-                                    hat_color1=(242, 90, 90),
-                                    hat_color2=(252, 206, 56),
-                                    hat_tilt=0)
+    # Pip FIRST so the candles paint on top of him. No hat - just
+    # plain Pip in his calm wing-level pose.
+    pip_native = parrot.get_parrot(1, 0)
+    pip_sprite = pygame.transform.smoothscale(
+        pip_native, (int(pip_native.get_width() * 1.4),
+                      int(pip_native.get_height() * 1.4)))
     pip_rect = pip_sprite.get_rect(
         midbottom=(W // 2, rim.top + 2))
     surf.blit(pip_sprite, pip_rect.topleft)
@@ -1059,7 +1059,7 @@ def draw_v1a(surf):
     # Four CYLINDRICAL birthday candles "3 0 0 0" - real-candle-shape
     # wax cylinders with the digit printed on the face + wick + flame
     # on top. Stripe colour varies per candle. Drawn AFTER Pip so the
-    # candle bodies cover his torso but his head/hat read above.
+    # candle bodies cover his torso but his head reads above.
     digits = ("3", "0", "0", "0")
     candle_xs = [bucket_rect.left + bucket_rect.width * u
                   for u in (0.16, 0.39, 0.61, 0.84)]
@@ -1067,16 +1067,21 @@ def draw_v1a(surf):
                      (252, 200,  56),
                      ( 90, 200,  80),
                      ( 90, 160, 250))
+    # Vivid digit colour: use the FULL saturated stripe colour for the
+    # digit fill and let the thick dark outline (rendered inside
+    # make_cylindrical_candle) carry the contrast against the stripes.
     candle_sprites = [
         make_cylindrical_candle(
-            d, body_h=66, body_w=22,
+            d, body_h=66, body_w=24,
             wax_color=(252, 244, 226),
             stripe_color=col,
-            digit_color=OUTLINE)
+            digit_color=col)
         for d, col in zip(digits, stripe_colors)
     ]
+    # Candle bottom sits EXACTLY at the cake top (rim.top), with no
+    # plunge into the rim - the candles stand on top of the cake.
     for cx_d, sprite in zip(candle_xs, candle_sprites):
-        rect = sprite.get_rect(midbottom=(int(cx_d), rim.top + 4))
+        rect = sprite.get_rect(midbottom=(int(cx_d), rim.top))
         surf.blit(sprite, rect.topleft)
     # Sparkles around the Pip sprite
     rng = random.Random(7)
