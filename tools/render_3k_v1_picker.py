@@ -1046,20 +1046,21 @@ def draw_v1a(surf):
     bucket_rect = pygame.Rect(W // 2 - 130, 360, 260, 230)
     rim, _ = draw_bucket(surf, bucket_rect, label_text="3,000 GAMES")
 
-    # Pip FIRST so the candles paint on top of him. No hat - just
-    # plain Pip in his calm wing-level pose.
-    pip_native = parrot.get_parrot(1, 0)
-    pip_sprite = pygame.transform.smoothscale(
-        pip_native, (int(pip_native.get_width() * 1.4),
-                      int(pip_native.get_height() * 1.4)))
-    pip_rect = pip_sprite.get_rect(
-        midbottom=(W // 2, rim.top + 2))
+    # Pip-with-hat flying ABOVE the pink streamer (pink one arcs the
+    # lowest, peaking around y=220 at the edges). Pre-built sprite via
+    # make_pip_with_hat so the hat is composited on the head crown
+    # before being placed. Frame 1 = calm wing-level pose, tilt 0 so
+    # the hat sits naturally on top.
+    pip_sprite = make_pip_with_hat(frame=1, tilt=0, scale=1.4,
+                                    hat_color1=(242, 90, 90),
+                                    hat_color2=(252, 206, 56),
+                                    hat_tilt=0)
+    pip_rect = pip_sprite.get_rect(midbottom=(W // 2, 200))
     surf.blit(pip_sprite, pip_rect.topleft)
 
-    # Four CYLINDRICAL birthday candles "3 0 0 0" - real-candle-shape
-    # wax cylinders with the digit printed on the face + wick + flame
-    # on top. Stripe colour varies per candle. Drawn AFTER Pip so the
-    # candle bodies cover his torso but his head reads above.
+    # Four CYLINDRICAL birthday candles "3 0 0 0" on the cake top -
+    # cylindrical wax stick with vivid digit + diagonal stripe + wick
+    # + flame. Pip no longer overlaps them, so all four read cleanly.
     digits = ("3", "0", "0", "0")
     candle_xs = [bucket_rect.left + bucket_rect.width * u
                   for u in (0.16, 0.39, 0.61, 0.84)]
@@ -1067,9 +1068,6 @@ def draw_v1a(surf):
                      (252, 200,  56),
                      ( 90, 200,  80),
                      ( 90, 160, 250))
-    # Vivid digit colour: use the FULL saturated stripe colour for the
-    # digit fill and let the thick dark outline (rendered inside
-    # make_cylindrical_candle) carry the contrast against the stripes.
     candle_sprites = [
         make_cylindrical_candle(
             d, body_h=66, body_w=24,
@@ -1078,8 +1076,6 @@ def draw_v1a(surf):
             digit_color=col)
         for d, col in zip(digits, stripe_colors)
     ]
-    # Candle bottom sits EXACTLY at the cake top (rim.top), with no
-    # plunge into the rim - the candles stand on top of the cake.
     for cx_d, sprite in zip(candle_xs, candle_sprites):
         rect = sprite.get_rect(midbottom=(int(cx_d), rim.top))
         surf.blit(sprite, rect.topleft)
