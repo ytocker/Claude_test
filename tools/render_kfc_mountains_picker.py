@@ -117,28 +117,43 @@ def draw_fry(surf, cx, cy, length, *, tilt_deg=0,
               light=FRY_LIGHT, gold=FRY_GOLD, deep=FRY_DEEP,
               outline=OUTLINE, salt_dots=0, seed=0):
     """A golden fry stick: rounded rectangle, dark outline, lit-side
-    highlight stripe + optional salt sprinkles. `length` is the fry's
-    visible length; width is auto-scaled."""
+    highlight stripe + optional salt sprinkles.
+
+    Supersampled 3x: everything is drawn on an oversized canvas at 3x
+    the target dimensions (so curves + rotations stay smooth), then
+    smoothscaled DOWN to target. The downscale acts as a low-pass
+    filter against the aliased edges of pygame.draw primitives.
+    """
+    SS = 3
     fw = max(4, length // 7)
-    layer = pygame.Surface((length + 6, fw + 6), pygame.SRCALPHA)
-    rect = pygame.Rect(3, 3, length, fw)
-    radius = fw // 2 + 1
-    pygame.draw.rect(layer, outline, rect.inflate(2, 2), border_radius=radius)
-    pygame.draw.rect(layer, deep, rect.inflate(1, 1), border_radius=radius)
+    big_len = length * SS
+    big_fw = fw * SS
+    layer = pygame.Surface((big_len + 18, big_fw + 18), pygame.SRCALPHA)
+    rect = pygame.Rect(9, 9, big_len, big_fw)
+    radius = big_fw // 2 + SS
+    pygame.draw.rect(layer, outline, rect.inflate(2 * SS, 2 * SS),
+                     border_radius=radius)
+    pygame.draw.rect(layer, deep, rect.inflate(SS, SS),
+                     border_radius=radius)
     pygame.draw.rect(layer, gold, rect, border_radius=radius)
     # Lit-side highlight along the top
-    hl = pygame.Rect(rect.x + 2, rect.y + 1, rect.width - 4,
-                     max(1, fw // 3))
-    pygame.draw.rect(layer, light, hl, border_radius=max(1, fw // 3))
+    hl = pygame.Rect(rect.x + 2 * SS, rect.y + SS, rect.width - 4 * SS,
+                     max(SS, big_fw // 3))
+    pygame.draw.rect(layer, light, hl,
+                     border_radius=max(SS, big_fw // 3))
     # Salt dots
     if salt_dots:
         rng = random.Random(seed)
         for _ in range(salt_dots):
-            sx = rng.randint(rect.left + 2, rect.right - 2)
-            sy = rng.randint(rect.top + 1, rect.bottom - 1)
-            pygame.draw.circle(layer, SALT, (sx, sy), 1)
+            sx = rng.randint(rect.left + 2 * SS, rect.right - 2 * SS)
+            sy = rng.randint(rect.top + SS, rect.bottom - SS)
+            pygame.draw.circle(layer, SALT, (sx, sy), SS)
     if tilt_deg:
         layer = pygame.transform.rotate(layer, tilt_deg)
+    # Smoothscale back down to 1x (the supersample pass acts as AA)
+    target_w = max(1, layer.get_width() // SS)
+    target_h = max(1, layer.get_height() // SS)
+    layer = pygame.transform.smoothscale(layer, (target_w, target_h))
     rect = layer.get_rect(center=(cx, cy))
     surf.blit(layer, rect.topleft)
 
