@@ -262,35 +262,39 @@ def draw_fry_carton(surf, base_x, base_y, w_top, h, *, stripe_color=KFC_RED,
 # ---- V1: Classic Spilled Fries --------------------------------------------
 
 def _v1_pile_layer(surf, scroll, ground_y, w, layer):
-    """Pile-of-spilled-fries silhouette: fill the layer's silhouette
-    polygon with cream pile-base then dapple the upper edge with
-    individual fry sticks sticking out at varied angles."""
-    pts = horizon_points(scroll, ground_y, w, layer, step=2)
-    poly = [(0, ground_y)] + pts + [(w, ground_y)]
-    # Pile body (kraft / golden base)
-    base_color = _layer_shade(FRY_GOLD, layer)
-    pygame.draw.polygon(surf, base_color, poly)
-    pygame.draw.lines(surf, _layer_shade(FRY_DEEP, layer), False, pts, 3)
-    # Individual fries along the upper edge
+    """Dense scatter of straight fry sticks filling the ENTIRE layer
+    silhouette - draw many short fries at random positions inside the
+    silhouette polygon so the pile reads as fries all the way through,
+    not a mountain with fries painted on top.
+    """
     fry_light = _layer_shade(FRY_LIGHT, layer)
     fry_gold = _layer_shade(FRY_GOLD, layer)
     fry_deep = _layer_shade(FRY_DEEP, layer)
     outline = _outline_for_layer(layer)
     rng = random.Random(layer * 1337)
-    spacing = (10, 14, 18)[layer]
-    length_range = ((10, 18), (14, 26), (18, 34))[layer]
+    n_fries = (300, 450, 700)[layer]
+    length_range = ((8, 14), (12, 22), (16, 30))[layer]
     salt_dots = (0, 1, 2)[layer]
-    for x in range(-spacing, w + spacing, spacing):
+    fries = []
+    for _ in range(n_fries):
+        x = rng.randint(-12, w + 12)
         hy = horizon_y(x, scroll, ground_y, layer)
-        tilt = rng.uniform(-65, 65)
+        if hy >= ground_y:
+            continue
+        y = rng.randint(hy, ground_y - 1)
+        tilt = rng.uniform(-85, 85)
         L = rng.randint(*length_range)
-        cy_off = rng.randint(-4, 6)
-        draw_fry(surf, x + rng.randint(-3, 3),
-                  hy + cy_off, L,
+        fries.append((y, x, L, tilt))
+    # Paint from BOTTOM to TOP (high y first, low y last) so fries
+    # higher in the pile draw on top - gives the natural overlap
+    # look you get when fries are heaped.
+    fries.sort(key=lambda f: -f[0])
+    for (y, x, L, tilt) in fries:
+        draw_fry(surf, x, y, L,
                   tilt_deg=tilt,
                   light=fry_light, gold=fry_gold, deep=fry_deep,
                   outline=outline, salt_dots=salt_dots,
-                  seed=x * 7 + layer)
+                  seed=x * 7 + y * 11 + layer)
 
 
 def draw_fries_v1(surf, scroll, ground_y, w):
@@ -345,34 +349,32 @@ def draw_fries_v2(surf, scroll, ground_y, w):
 # ---- V3: Curly Fry Spirals -------------------------------------------------
 
 def _v3_curly_layer(surf, scroll, ground_y, w, layer):
-    """Piles of curly fries: pile silhouette base + chaotic spiral curls
-    drawn along the upper edge."""
-    pts = horizon_points(scroll, ground_y, w, layer, step=2)
-    poly = [(0, ground_y)] + pts + [(w, ground_y)]
-    base_color = _layer_shade(FRY_DEEP, layer)
-    pygame.draw.polygon(surf, base_color, poly)
-    pygame.draw.lines(surf, _layer_shade(FRY_DARK, layer), False, pts, 3)
+    """Dense scatter of curly fries filling the silhouette interior so
+    the whole pile reads as overlapping spirals."""
     light = _layer_shade(FRY_LIGHT, layer)
     gold = _layer_shade(FRY_GOLD, layer)
     deep = _layer_shade(FRY_DEEP, layer)
     outline = _outline_for_layer(layer)
     rng = random.Random(layer * 311 + 11)
-    spacing = (16, 22, 28)[layer]
-    radius_range = ((6, 10), (9, 14), (12, 18))[layer]
-    for x in range(0, w + spacing, spacing):
+    n_curls = (160, 240, 360)[layer]
+    radius_range = ((4, 8), (6, 11), (9, 14))[layer]
+    curls = []
+    for _ in range(n_curls):
+        x = rng.randint(-12, w + 12)
         hy = horizon_y(x, scroll, ground_y, layer)
-        # 1-2 curly fries per slot
-        n = rng.randint(1, 2)
-        for _ in range(n):
-            r = rng.randint(*radius_range)
-            tilt = rng.uniform(-30, 30)
-            turns = rng.uniform(1.6, 2.6)
-            draw_curly_fry(
-                surf,
-                x + rng.randint(-spacing // 2, spacing // 2),
-                hy + rng.randint(-2, r // 2),
-                radius=r, turns=turns, color=gold, deep=deep,
-                outline=outline, light=light, tilt_deg=tilt)
+        if hy >= ground_y:
+            continue
+        y = rng.randint(hy, ground_y - 1)
+        r = rng.randint(*radius_range)
+        tilt = rng.uniform(-45, 45)
+        turns = rng.uniform(1.6, 2.6)
+        curls.append((y, x, r, tilt, turns))
+    curls.sort(key=lambda c: -c[0])
+    for (y, x, r, tilt, turns) in curls:
+        draw_curly_fry(
+            surf, x, y, radius=r, turns=turns,
+            color=gold, deep=deep, outline=outline, light=light,
+            tilt_deg=tilt)
 
 
 def draw_fries_v3(surf, scroll, ground_y, w):
@@ -383,27 +385,41 @@ def draw_fries_v3(surf, scroll, ground_y, w):
 # ---- V4: Waffle-Cut Stacks ------------------------------------------------
 
 def _v4_waffle_layer(surf, scroll, ground_y, w, layer):
-    """Stacked rows of waffle fries forming mountain silhouettes."""
+    """Stacked rows of waffle fries filling the silhouette - dense
+    grid with row offset so the pile reads as bricks of waffle, not
+    just a row along the top."""
     light = _layer_shade(FRY_LIGHT, layer)
     gold = _layer_shade(FRY_GOLD, layer)
     deep = _layer_shade(FRY_DEEP, layer)
     outline = _outline_for_layer(layer)
     size = (10, 14, 18)[layer]
-    cols_spacing = size + 2
+    cols_spacing = size - 1   # tighter packing for overlap feel
     rng = random.Random(layer * 73 + 17)
-    # For each column, stack waffles from ground_y up to horizon_y
-    for x in range(-cols_spacing // 2, w + cols_spacing, cols_spacing):
-        hy = horizon_y(x, scroll, ground_y, layer)
-        col_x = x + rng.randint(-2, 2)
-        # Stack waffle squares upward
-        y = ground_y - size // 2
-        while y > hy + size // 2:
+    # Walk rows from ground up; for each row, scan all x columns and
+    # place a waffle wherever the horizon allows.
+    y = ground_y - size // 2
+    row_idx = 0
+    while True:
+        # Earliest possible horizon (anywhere on the surf at this row)
+        # - keep going as long as the row still intersects some part of
+        # the silhouette.
+        offset = (cols_spacing // 2) if (row_idx % 2 == 1) else 0
+        any_placed = False
+        for x in range(-cols_spacing + offset, w + cols_spacing,
+                        cols_spacing):
+            hy = horizon_y(x, scroll, ground_y, layer)
+            if y < hy + size // 2:
+                continue   # this x column doesn't reach this row
             tilt = rng.choice((-4, 0, 0, 4))
-            draw_waffle_fry(surf, col_x + rng.randint(-1, 1), y,
+            draw_waffle_fry(surf, x + rng.randint(-1, 1), y,
                              size=size, color=gold, deep=deep,
                              outline=outline, light=light,
                              tilt_deg=tilt)
-            y -= size + 1
+            any_placed = True
+        if not any_placed:
+            break
+        y -= size + 1
+        row_idx += 1
 
 
 def draw_fries_v4(surf, scroll, ground_y, w):
@@ -414,11 +430,11 @@ def draw_fries_v4(surf, scroll, ground_y, w):
 # ---- V5: Loaded Cheesy Fries ----------------------------------------------
 
 def _v5_loaded_layer(surf, scroll, ground_y, w, layer):
-    """Same as V1 base, then cheese drips + ketchup zigzags + crumb
-    sprinkles on top of the near layer."""
+    """V1 dense fries pile + cheese drips + ketchup zigzag + crumb
+    sprinkles painted ON TOP of the near layer."""
     _v1_pile_layer(surf, scroll, ground_y, w, layer)
     if layer != 2:
-        return   # only the near layer gets toppings
+        return   # only the near layer gets toppings (back/far stay clean)
     rng = random.Random(123)
     cheese = _layer_shade(CHEESE, layer)
     cheese_hi = _layer_shade(CHEESE_HI, layer)
