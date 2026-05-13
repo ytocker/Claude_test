@@ -551,9 +551,14 @@ class App:
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
-        if self.world.kfc_timer > 0 and self.world.kfc_mountain_cache:
-            # Pre-rendered fries pile - cheap blit, no per-frame redraw.
-            surf.blit(self.world.kfc_mountain_cache, (0, 0))
+        if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
+            # Pre-rendered fries pile per parallax layer - blit cheaply
+            # at the offset since activation so the pile drifts at the
+            # same depth-cued speeds as the normal mountains.
+            from game.fries_mountains import blit_fries_mountains
+            scroll_offset = scroll - self.world.kfc_activation_scroll
+            blit_fries_mountains(surf, self.world.kfc_mountain_layers,
+                                  scroll_offset)
         else:
             draw_mountains(surf, scroll, GROUND_Y, W,
                             palette['mtn_far'], palette['mtn_near'])
