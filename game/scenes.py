@@ -551,7 +551,13 @@ class App:
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
-        draw_mountains(surf, scroll, GROUND_Y, W, palette['mtn_far'], palette['mtn_near'])
+        if self.world.kfc_timer > 0:
+            from game.fries_mountains import draw_kfc_mountains
+            draw_kfc_mountains(surf, scroll, GROUND_Y, W,
+                                self.world.kfc_mountain_variant)
+        else:
+            draw_mountains(surf, scroll, GROUND_Y, W,
+                            palette['mtn_far'], palette['mtn_near'])
         # Ambient scenes (V-flocks, fireworks) sit between mountains and the
         # ground band so they read as "out there in the world" — behind
         # gameplay entities (pipes, coins, bird) but in front of terrain.
