@@ -65,8 +65,11 @@ class World:
         self.kfc_timer    = 0.0
         # Random index into KFC_MOUNTAIN_DRAWERS, refreshed on each
         # _activate_kfc call so the background fries-pile style varies
-        # between powerup activations.
+        # between powerup activations. `kfc_mountain_cache` holds the
+        # pre-rendered fries Surface so PlayScene._draw_background can
+        # blit it instead of re-rasterising 700+ fries every frame.
         self.kfc_mountain_variant = 0
+        self.kfc_mountain_cache: "pygame.Surface | None" = None
         self.ghost_timer  = 0.0
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
@@ -717,13 +720,20 @@ class World:
     def _activate_kfc(self, m):
         self.kfc_timer = KFC_DURATION
         self.bird.kfc_active = True
-        # Pick a fries-mountain variant at random for this activation.
-        # game.fries_mountains has 3 variants (classic / boxes / curly);
-        # the chosen index is read by PlayScene._draw_background for as
+        # Pick a fries-mountain variant at random for this activation
+        # and pre-render it to a Surface. game.fries_mountains has 3
+        # variants (classic / boxes / curly); the chosen index +
+        # cached Surface are read by PlayScene._draw_background for as
         # long as kfc_timer > 0.
-        from game.fries_mountains import KFC_MOUNTAIN_DRAWERS
+        from game.fries_mountains import (
+            KFC_MOUNTAIN_DRAWERS, make_fries_mountain_cache,
+        )
         self.kfc_mountain_variant = random.randint(
             0, len(KFC_MOUNTAIN_DRAWERS) - 1)
+        # The cache build is heavy (hundreds of supersampled fries)
+        # but happens ONCE per activation, not every frame.
+        self.kfc_mountain_cache = make_fries_mountain_cache(
+            self.kfc_mountain_variant, GROUND_Y, W)
         # Retroactively flip every pipe currently on screen so the entire
         # visible scene becomes fast-food at the moment of pickup, AND
         # widen its collision gap. Each pipe's flag is sticky for the

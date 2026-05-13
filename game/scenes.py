@@ -551,10 +551,9 @@ class App:
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
-        if self.world.kfc_timer > 0:
-            from game.fries_mountains import draw_kfc_mountains
-            draw_kfc_mountains(surf, scroll, GROUND_Y, W,
-                                self.world.kfc_mountain_variant)
+        if self.world.kfc_timer > 0 and self.world.kfc_mountain_cache:
+            # Pre-rendered fries pile - cheap blit, no per-frame redraw.
+            surf.blit(self.world.kfc_mountain_cache, (0, 0))
         else:
             draw_mountains(surf, scroll, GROUND_Y, W,
                             palette['mtn_far'], palette['mtn_near'])
