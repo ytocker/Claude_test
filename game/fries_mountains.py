@@ -17,7 +17,9 @@ Variants:
 All variants keep the existing 3-layer parallax shape + scroll
 multipliers (back x0.06 / far x0.15 / near x0.28) from
 game.draw.draw_mountains so the depth feel is preserved - only the
-silhouette content changes.
+silhouette content changes. Each layer is rendered to its own
+Surface so PlayScene can blit them with independent parallax offsets,
+matching the depth feel of the normal mountains.
 """
 import math
 import random
@@ -26,8 +28,18 @@ import pygame
 
 from game.pillar_kfc import (
     OUTLINE, KFC_RED, KFC_RED_D, KFC_WHITE,
-    CRUST_HI, CRUST_MID, CRUST_LO, CRUMB,
 )
+
+
+# Parallax multipliers - must match game.draw.draw_mountains so the
+# fries pile drifts at the same depth-cued speed as normal mountains.
+PARALLAX_SPEEDS = (0.06, 0.15, 0.28)
+
+# How much extra width each cached layer carries beyond the screen so
+# parallax scroll never runs past the rendered content during a single
+# KFC buff window. SCROLL_BASE (~160 px/s) x KFC_DURATION (8s) x max
+# parallax (0.28) = 358 px, rounded up with headroom.
+CACHE_PAD = 420
 
 
 # --- Palette extensions for fries -----------------------------------------
@@ -35,7 +47,6 @@ from game.pillar_kfc import (
 FRY_LIGHT = (252, 220, 130)
 FRY_GOLD  = (244, 192,  82)
 FRY_DEEP  = (200, 140,  40)
-FRY_DARK  = (138,  84,  18)
 SALT      = (252, 248, 240)
 
 
@@ -64,55 +75,56 @@ def _outline_for_layer(layer):
 
 # --- Horizon shape (mirrors draw_mountains) -------------------------------
 
-def horizon_y(x, scroll, ground_y, layer):
-    """y-coordinate of the silhouette top at x for the given parallax
-    layer. Matches the sine stack used by game.draw.draw_mountains."""
+def horizon_y(x, ground_y, layer):
+    """y-coordinate of the silhouette top at world-x for the given layer.
+    Matches the sine stack used by game.draw.draw_mountains - scroll is
+    handled at blit time by parallax-shifting the cached Surface, so
+    each cache is rendered at scroll=0."""
     if layer == 0:
-        bx = x + scroll * 0.06
-        h = 105 + math.sin(bx * 0.008) * 32 + math.sin(bx * 0.023 + 2.1) * 14
+        h = 105 + math.sin(x * 0.008) * 32 + math.sin(x * 0.023 + 2.1) * 14
     elif layer == 1:
-        fx = x + scroll * 0.15
-        h = 80 + math.sin(fx * 0.012) * 42 + math.sin(fx * 0.031) * 22
+        h = 80 + math.sin(x * 0.012) * 42 + math.sin(x * 0.031) * 22
     else:
-        nx = x + scroll * 0.019 * 14
-        h = 55 + math.sin(nx * 0.019 + 1.4) * 34 + math.sin(nx * 0.047 + 0.7) * 16
+        h = 55 + math.sin(x * 0.019 + 1.4) * 34 + math.sin(x * 0.047 + 0.7) * 16
     return int(ground_y - h)
 
 
 # --- Single-fry sprite ----------------------------------------------------
 
-def draw_fry(surf, cx, cy, length, *, tilt_deg=0,
-              light=FRY_LIGHT, gold=FRY_GOLD, deep=FRY_DEEP,
-              outline=OUTLINE, salt_dots=0, seed=0):
-    """A golden fry stick. Supersampled 3x then smoothscaled down for
-    sharp rounded ends + clean rotation."""
-    SS = 3
-    fw = max(4, length // 7)
-    big_len = length * SS
-    big_fw = fw * SS
-    layer = pygame.Surface((big_len + 18, big_fw + 18), pygame.SRCALPHA)
-    rect = pygame.Rect(9, 9, big_len, big_fw)
-    radius = big_fw // 2 + SS
-    pygame.draw.rect(layer, outline, rect.inflate(2 * SS, 2 * SS),
-                     border_radius=radius)
-    pygame.draw.rect(layer, deep, rect.inflate(SS, SS), border_radius=radius)
-    pygame.draw.rect(layer, gold, rect, border_radius=radius)
-    hl = pygame.Rect(rect.x + 2 * SS, rect.y + SS, rect.width - 4 * SS,
-                     max(SS, big_fw // 3))
-    pygame.draw.rect(layer, light, hl, border_radius=max(SS, big_fw // 3))
+def _make_fry_sprite(length, fw, light, gold, deep, outline, salt_dots, seed):
+    """Build one fry sprite (axis-aligned) at native size."""
+    pad = 2
+    s = pygame.Surface((length + pad * 2, fw + pad * 2), pygame.SRCALPHA)
+    rect = pygame.Rect(pad, pad, length, fw)
+    radius = max(2, fw // 2)
+    pygame.draw.rect(s, outline, rect.inflate(2, 2), border_radius=radius)
+    pygame.draw.rect(s, deep, rect.inflate(0, 0), border_radius=radius)
+    pygame.draw.rect(s, gold, rect.inflate(-1, -1), border_radius=radius)
+    hl = pygame.Rect(rect.x + 2, rect.y + 1,
+                     max(2, rect.width - 4), max(1, fw // 3))
+    pygame.draw.rect(s, light, hl, border_radius=max(1, fw // 4))
     if salt_dots:
         rng = random.Random(seed)
         for _ in range(salt_dots):
-            sx = rng.randint(rect.left + 2 * SS, rect.right - 2 * SS)
-            sy = rng.randint(rect.top + SS, rect.bottom - SS)
-            pygame.draw.circle(layer, SALT, (sx, sy), SS)
+            sx = rng.randint(rect.left + 2, rect.right - 2)
+            sy = rng.randint(rect.top + 1, rect.bottom - 1)
+            s.set_at((sx, sy), SALT)
+    return s
+
+
+def draw_fry(surf, cx, cy, length, *, tilt_deg=0,
+              light=FRY_LIGHT, gold=FRY_GOLD, deep=FRY_DEEP,
+              outline=OUTLINE, salt_dots=0, seed=0):
+    """A golden fry stick at native render resolution. Rounded ends +
+    optional rotation. No supersampling - we trade a touch of pixel
+    grain for a ~10x faster cache build."""
+    fw = max(3, length // 6)
+    sprite = _make_fry_sprite(length, fw, light, gold, deep, outline,
+                               salt_dots, seed)
     if tilt_deg:
-        layer = pygame.transform.rotate(layer, tilt_deg)
-    target_w = max(1, layer.get_width() // SS)
-    target_h = max(1, layer.get_height() // SS)
-    layer = pygame.transform.smoothscale(layer, (target_w, target_h))
-    rect = layer.get_rect(center=(cx, cy))
-    surf.blit(layer, rect.topleft)
+        sprite = pygame.transform.rotate(sprite, tilt_deg)
+    rect = sprite.get_rect(center=(cx, cy))
+    surf.blit(sprite, rect.topleft)
 
 
 # --- Curly fry sprite -----------------------------------------------------
@@ -189,19 +201,19 @@ def draw_fry_carton(surf, base_x, base_y, w_top, h, *,
 # Variant 0: Classic Spilled Fries
 # ============================================================================
 
-def _classic_layer(surf, scroll, ground_y, w, layer):
+def _classic_layer(surf, ground_y, w, layer):
     fry_light = _layer_shade(FRY_LIGHT, layer)
     fry_gold = _layer_shade(FRY_GOLD, layer)
     fry_deep = _layer_shade(FRY_DEEP, layer)
     outline = _outline_for_layer(layer)
-    rng = random.Random(int(scroll) * 17 + layer * 1337)
-    n_fries = (300, 450, 700)[layer]
+    rng = random.Random(layer * 1337 + 7)
+    n_fries = (150, 230, 360)[layer]
     length_range = ((8, 14), (12, 22), (16, 30))[layer]
     salt_dots = (0, 1, 2)[layer]
     fries = []
     for _ in range(n_fries):
         x = rng.randint(-12, w + 12)
-        hy = horizon_y(x, scroll, ground_y, layer)
+        hy = horizon_y(x, ground_y, layer)
         if hy >= ground_y:
             continue
         y = rng.randint(hy, ground_y - 1)
@@ -216,27 +228,22 @@ def _classic_layer(surf, scroll, ground_y, w, layer):
                   seed=x * 7 + y * 11 + layer)
 
 
-def draw_fries_classic(surf, scroll, ground_y, w):
-    for layer in (0, 1, 2):
-        _classic_layer(surf, scroll, ground_y, w, layer)
-
-
 # ============================================================================
 # Variant 1: Fries Box Skyline
 # ============================================================================
 
-def _boxes_layer(surf, scroll, ground_y, w, layer):
+def _boxes_layer(surf, ground_y, w, layer):
     spacing = (60, 50, 44)[layer]
     carton_w_range = ((34, 50), (38, 56), (42, 64))[layer]
     fry_count_range = ((4, 6), (5, 8), (6, 10))[layer]
-    rng = random.Random(int(scroll) * 17 + layer * 99 + 7)
+    rng = random.Random(layer * 99 + 7)
     outline = _outline_for_layer(layer)
     fry_light = _layer_shade(FRY_LIGHT, layer)
     fry_gold = _layer_shade(FRY_GOLD, layer)
     fry_deep = _layer_shade(FRY_DEEP, layer)
     x = -spacing // 2
     while x < w + spacing // 2:
-        hy = horizon_y(x, scroll, ground_y, layer)
+        hy = horizon_y(x, ground_y, layer)
         carton_h = ground_y - hy + rng.randint(-6, 6)
         carton_h = max(40, carton_h)
         c_w = rng.randint(*carton_w_range)
@@ -255,27 +262,22 @@ def _boxes_layer(surf, scroll, ground_y, w, layer):
         x += spacing + rng.randint(-8, 8)
 
 
-def draw_fries_boxes(surf, scroll, ground_y, w):
-    for layer in (0, 1, 2):
-        _boxes_layer(surf, scroll, ground_y, w, layer)
-
-
 # ============================================================================
 # Variant 2: Curly Fry Spirals
 # ============================================================================
 
-def _curly_layer(surf, scroll, ground_y, w, layer):
+def _curly_layer(surf, ground_y, w, layer):
     light = _layer_shade(FRY_LIGHT, layer)
     gold = _layer_shade(FRY_GOLD, layer)
     deep = _layer_shade(FRY_DEEP, layer)
     outline = _outline_for_layer(layer)
-    rng = random.Random(int(scroll) * 17 + layer * 311 + 11)
-    n_curls = (160, 240, 360)[layer]
+    rng = random.Random(layer * 311 + 11)
+    n_curls = (90, 140, 220)[layer]
     radius_range = ((4, 8), (6, 11), (9, 14))[layer]
     curls = []
     for _ in range(n_curls):
         x = rng.randint(-12, w + 12)
-        hy = horizon_y(x, scroll, ground_y, layer)
+        hy = horizon_y(x, ground_y, layer)
         if hy >= ground_y:
             continue
         y = rng.randint(hy, ground_y - 1)
@@ -290,43 +292,46 @@ def _curly_layer(surf, scroll, ground_y, w, layer):
                         light=light, tilt_deg=tilt)
 
 
-def draw_fries_curly(surf, scroll, ground_y, w):
-    for layer in (0, 1, 2):
-        _curly_layer(surf, scroll, ground_y, w, layer)
-
-
 # ============================================================================
-# Dispatcher
+# Dispatcher + cache build/blit
 # ============================================================================
 
-KFC_MOUNTAIN_DRAWERS = (
-    draw_fries_classic,
-    draw_fries_boxes,
-    draw_fries_curly,
+LAYER_DRAWERS = (
+    _classic_layer,
+    _boxes_layer,
+    _curly_layer,
 )
 
-
-def draw_kfc_mountains(surf, scroll, ground_y, w, variant_idx):
-    """Route to one of the 3 fries-mountain variants. `variant_idx` is
-    stable for the duration of a single KFC powerup activation (set
-    on _activate_kfc in World)."""
-    KFC_MOUNTAIN_DRAWERS[variant_idx % len(KFC_MOUNTAIN_DRAWERS)](
-        surf, scroll, ground_y, w)
+# Public count - World picks an index into this range.
+KFC_MOUNTAIN_DRAWERS = LAYER_DRAWERS  # back-compat alias
 
 
 def make_fries_mountain_cache(variant_idx, ground_y, w):
-    """Pre-render the chosen fries-mountain variant to a transparent
-    Surface so it can be blitted statically each frame at near-zero
-    cost. Called once on `_activate_kfc` - the pile is then drawn ~480
-    times over the 8-second buff window by blitting this cache, vs.
-    re-rasterising 700+ supersampled fries every frame.
+    """Pre-render one fries-mountain variant to three per-layer Surfaces
+    so PlayScene can blit them each frame at the same parallax depths
+    as the normal mountains. Returns a tuple of 3 Surfaces (back,
+    far, near) each (w + CACHE_PAD) wide so the layer can scroll for
+    the full KFC buff window without exposing un-rendered edge.
 
-    The cache snapshots the variant at scroll=0; the fries pile stays
-    static on screen for the duration of the powerup (no parallax
-    scroll on the fries themselves). When the timer expires the
-    background reverts to the normal scrolling stone mountains, so
-    the static-during-buff feel is brief and intentional.
+    Called once on `_activate_kfc` - the surfaces are then drawn
+    by `blit_fries_mountains` at near-zero per-frame cost.
     """
-    cache = pygame.Surface((w, ground_y + 8), pygame.SRCALPHA)
-    draw_kfc_mountains(cache, 0.0, ground_y, w, variant_idx)
-    return cache
+    layer_fn = LAYER_DRAWERS[variant_idx % len(LAYER_DRAWERS)]
+    cache_w = w + CACHE_PAD
+    layers = []
+    for layer_idx in (0, 1, 2):
+        s = pygame.Surface((cache_w, ground_y + 8), pygame.SRCALPHA)
+        layer_fn(s, ground_y, cache_w, layer_idx)
+        layers.append(s)
+    return layers
+
+
+def blit_fries_mountains(surf, caches, scroll_offset):
+    """Blit the per-layer fries caches parallax-shifted by
+    `scroll_offset` (the bg_scroll delta since the buff activated).
+    Each layer shifts at its own parallax speed so the depth feel
+    matches the normal mountains. Layers are blitted back-to-front
+    so the near pile reads in front of the far/back ones."""
+    for layer_idx, cache in enumerate(caches):
+        ox = -int(scroll_offset * PARALLAX_SPEEDS[layer_idx])
+        surf.blit(cache, (ox, 0))
