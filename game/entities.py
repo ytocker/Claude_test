@@ -598,11 +598,13 @@ class Pipe:
         self.scored = False
         self.is_rush = False
         # Per-pipe sticky flag: set at spawn (if KFC was active when this pipe
-        # was created) or retroactively when the powerup is picked up (so
-        # pillars already on screen also flip). Once True it stays True for
-        # the rest of the pipe's life - the KFC look persists past the
-        # powerup timer expiring; only NEW pipes spawned afterwards revert
-        # to the normal stone style.
+        # was created) or retroactively when the powerup is picked up. Once
+        # True it stays True for the rest of the pipe's life and gates the
+        # one-time gap_h widening at activation so a second KFC pickup
+        # doesn't compound the boost. The KFC *visual* is gated separately
+        # on world.kfc_timer > 0 (see Pipe.draw) so the pillar reverts to
+        # stone at timer=0 alongside the fries mountain + fried Pip; only
+        # the wider gap outlives the timer.
         self.is_kfc = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
@@ -623,9 +625,9 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None):
+    def draw(self, surf, palette=None, kfc_visual=False):
         palette = palette or _DEFAULT_PILLAR
-        if self.is_kfc:
+        if self.is_kfc and kfc_visual:
             from game.pillar_kfc import draw_pillar_pair_kfc
             draw_pillar_pair_kfc(surf, self.top_rect, self.bot_rect,
                                  palette, self.seed)
