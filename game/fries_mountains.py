@@ -312,3 +312,21 @@ def draw_kfc_mountains(surf, scroll, ground_y, w, variant_idx):
     on _activate_kfc in World)."""
     KFC_MOUNTAIN_DRAWERS[variant_idx % len(KFC_MOUNTAIN_DRAWERS)](
         surf, scroll, ground_y, w)
+
+
+def make_fries_mountain_cache(variant_idx, ground_y, w):
+    """Pre-render the chosen fries-mountain variant to a transparent
+    Surface so it can be blitted statically each frame at near-zero
+    cost. Called once on `_activate_kfc` - the pile is then drawn ~480
+    times over the 8-second buff window by blitting this cache, vs.
+    re-rasterising 700+ supersampled fries every frame.
+
+    The cache snapshots the variant at scroll=0; the fries pile stays
+    static on screen for the duration of the powerup (no parallax
+    scroll on the fries themselves). When the timer expires the
+    background reverts to the normal scrolling stone mountains, so
+    the static-during-buff feel is brief and intentional.
+    """
+    cache = pygame.Surface((w, ground_y + 8), pygame.SRCALPHA)
+    draw_kfc_mountains(cache, 0.0, ground_y, w, variant_idx)
+    return cache
