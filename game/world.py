@@ -184,8 +184,10 @@ class World:
         gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
-        # is_kfc sticks for the pipe's lifetime - the KFC look (and the
-        # boosted gap) outlive the powerup timer.
+        # is_kfc is sticky for the pipe's lifetime - it gates the gap
+        # widening (see _activate_kfc) so the wider gap outlives the
+        # powerup timer. The visual reverts at timer=0 via the
+        # kfc_visual gate in Pipe.draw.
         p.is_kfc = kfc_spawn
         self.pipes.append(p)
         if is_rush:
@@ -744,15 +746,16 @@ class World:
         self.kfc_activation_scroll = self.bg_scroll
         # Retroactively flip every pipe currently on screen so the entire
         # visible scene becomes fast-food at the moment of pickup, AND
-        # widen its collision gap. Each pipe's flag is sticky for the
-        # rest of its lifetime, so when the KFC timer expires these
-        # existing pipes keep their KFC look + wider gap until they
-        # scroll off; only NEW pipes spawned after the timer ends revert
-        # to the normal stone style and tighter gap.
+        # widen its collision gap. The KFC *visual* is gated on
+        # kfc_timer > 0 (see Pipe.draw), so when the timer expires every
+        # pillar snaps back to stone alongside the fries mountain + Pip.
+        # The wider gap is sticky on the pipe instance, though: it stays
+        # for the rest of that pipe's life so the player isn't punished
+        # by a mid-flight gap shrink.
         #
-        # Guard against double-boost on the gap: only multiply if the
-        # pipe wasn't already KFC. Otherwise a second KFC pickup (or a
-        # pipe born during the active window) would compound 1.30 again.
+        # `is_kfc` is the sticky gap-widened flag and gates the
+        # double-boost guard below — a second KFC pickup (or a pipe born
+        # during the active window) must not compound 1.30 again.
         for p in self.pipes:
             if not p.is_kfc:
                 p.gap_h = int(p.gap_h * KFC_GAP_BOOST)
