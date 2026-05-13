@@ -63,6 +63,10 @@ class World:
         self.magnet_timer = 0.0
         self.slowmo_timer = 0.0
         self.kfc_timer    = 0.0
+        # Random index into KFC_MOUNTAIN_DRAWERS, refreshed on each
+        # _activate_kfc call so the background fries-pile style varies
+        # between powerup activations.
+        self.kfc_mountain_variant = 0
         self.ghost_timer  = 0.0
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
@@ -713,6 +717,13 @@ class World:
     def _activate_kfc(self, m):
         self.kfc_timer = KFC_DURATION
         self.bird.kfc_active = True
+        # Pick a fries-mountain variant at random for this activation.
+        # game.fries_mountains has 3 variants (classic / boxes / curly);
+        # the chosen index is read by PlayScene._draw_background for as
+        # long as kfc_timer > 0.
+        from game.fries_mountains import KFC_MOUNTAIN_DRAWERS
+        self.kfc_mountain_variant = random.randint(
+            0, len(KFC_MOUNTAIN_DRAWERS) - 1)
         # Retroactively flip every pipe currently on screen so the entire
         # visible scene becomes fast-food at the moment of pickup, AND
         # widen its collision gap. Each pipe's flag is sticky for the
