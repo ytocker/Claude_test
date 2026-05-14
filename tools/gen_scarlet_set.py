@@ -663,34 +663,69 @@ def draw_key(surf, x, y, w, h, label, sample_pressed=False):
     surf.blit(lf, lf.get_rect(center=(x + w // 2, y + h // 2)))
 
 
+def draw_shift_glyph(surf, cx, cy, size):
+    """iOS-style shift symbol: up-pointing chevron over a stub base, in
+    CREAM so it reads on the navy key face."""
+    h = size
+    w = size * 0.82
+    head_y = cy - h * 0.10  # top-of-base / bottom-of-chevron
+    pts = [
+        (cx,                cy - h * 0.50),  # tip
+        (cx + w * 0.50,     head_y),         # right shoulder
+        (cx + w * 0.22,     head_y),         # right inner
+        (cx + w * 0.22,     cy + h * 0.42),  # right base bottom
+        (cx - w * 0.22,     cy + h * 0.42),  # left base bottom
+        (cx - w * 0.22,     head_y),         # left inner
+        (cx - w * 0.50,     head_y),         # left shoulder
+    ]
+    pygame.draw.polygon(surf, CREAM, pts)
+
+
 def draw_keyboard(surf, top_y):
-    """3-row QWERTY keyboard below `top_y`. Bottom row has a backspace
-    on the right + a SPACE-style padding so the row balances."""
+    """3-row QWERTY keyboard below `top_y`. Bottom row has a SHIFT key
+    on the left and a BACKSPACE key on the right — same positions as
+    iOS / Android soft keyboards. Shift drives auto-capitalisation: ON
+    for the first character of a fresh name, OFF after one letter."""
     rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
     key_w = 30 * SCALE
     key_h = 36 * SCALE
     gap = 6 * SCALE
     row_pitch = key_h + 8 * SCALE
+    special_w = 50 * SCALE  # shift + backspace match-width
 
     for ridx, row in enumerate(rows):
         n = len(row)
         if ridx == 2:
-            # bottom row gets a backspace key on the right
-            total_w = n * key_w + (n - 1) * gap + (gap + 50 * SCALE)
+            # bottom row: SHIFT (left) + 7 letters + BACKSPACE (right)
+            total_w = n * key_w + (n - 1) * gap + 2 * (gap + special_w)
         else:
             total_w = n * key_w + (n - 1) * gap
         start_x = (W - total_w) // 2
         y = top_y + ridx * row_pitch
+
+        if ridx == 2:
+            # Shift key on the far left — same width as backspace.
+            # draw_key with an empty label gives us the face/border; the
+            # shift glyph is drawn on top as a polygon (font lacks ⇧).
+            draw_key(surf, start_x, y, special_w, key_h, "")
+            draw_shift_glyph(surf,
+                             start_x + special_w // 2,
+                             y + key_h // 2,
+                             size=18 * SCALE)
+            letters_x = start_x + special_w + gap
+        else:
+            letters_x = start_x
+
         # Pressed-state demo: highlight "I" so the user sees the
         # hover/tap rendering on a real letter
         for kidx, ch in enumerate(row):
-            x = start_x + kidx * (key_w + gap)
+            x = letters_x + kidx * (key_w + gap)
             draw_key(surf, x, y, key_w, key_h, ch,
                      sample_pressed=(ch == "I"))
         if ridx == 2:
-            # Backspace key — slightly wider
-            bx = start_x + n * (key_w + gap)
-            draw_key(surf, bx, y, 50 * SCALE, key_h, "<")
+            # Backspace key — far right, mirroring the shift width
+            bx = letters_x + n * (key_w + gap)
+            draw_key(surf, bx, y, special_w, key_h, "<")
 
 
 def screen_name_entry():
