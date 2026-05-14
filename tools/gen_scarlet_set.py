@@ -866,8 +866,8 @@ def screen_powerups():
     items = [
         ("triple",  "TRIPLE",   "Coins are worth 3x"),
         ("magnet",  "MAGNET",   "Pulls nearby coins"),
-        ("slowmo",  "SLOW-MO",  "Time slows, taps stay sharp"),
-        ("kfc",     "KFC",      "Fried-chicken pillars"),
+        ("slowmo",  "SLOW-MO",  "Time slows, jumps regular"),
+        ("kfc",     "KFC",      "Fried chicken theme"),
         ("ghost",   "GHOST",    "Pass through pillars"),
         ("grow",    "GROW",     "1.5x larger"),
     ]
@@ -909,8 +909,48 @@ def screen_powerups():
     s.blit(df, (sb_rect.x + 76 * SCALE,
                 sb_rect.centery + 4 * SCALE))
 
-    ribbon_banner(s, W // 2, sb_y + 88 * SCALE,
-                  "EFFECTS  LAST  8  SECONDS", w=200)
+    # Footer plaque — clean rounded dark-navy panel with a gold rim,
+    # a small clock ornament on the left, and gold-bright text. Same
+    # visual family as the BEST / TOP 10 / SCORE panels so it reads
+    # as part of the system instead of a separate ribbon.
+    fp_w = 280 * SCALE
+    fp_h = 38 * SCALE
+    fp_rect = pygame.Rect(W // 2 - fp_w // 2,
+                          sb_rect.bottom + 14 * SCALE,
+                          fp_w, fp_h)
+    fp = pygame.Surface(fp_rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(fp, (*PANEL_DARK, 230), (0, 0, fp_w, fp_h),
+                     border_radius=fp_h // 2)
+    pygame.draw.rect(fp, GOLD_BRIGHT, (0, 0, fp_w, fp_h),
+                     width=1 * SCALE, border_radius=fp_h // 2)
+    pygame.draw.line(fp, (*GOLD_BRIGHT, 110),
+                     (fp_h // 2, 3 * SCALE),
+                     (fp_w - fp_h // 2, 3 * SCALE), 1 * SCALE)
+    s.blit(fp, fp_rect.topleft)
+    # Tiny clock-face ornament on the left
+    clk_cx = fp_rect.x + 22 * SCALE
+    clk_cy = fp_rect.centery
+    pygame.draw.circle(s, GOLD_BRIGHT, (clk_cx, clk_cy), 9 * SCALE, 1 * SCALE)
+    # 12 o'clock + 3 o'clock tick marks
+    pygame.draw.line(s, GOLD_BRIGHT,
+                     (clk_cx, clk_cy - 9 * SCALE),
+                     (clk_cx, clk_cy - 6 * SCALE), 1 * SCALE)
+    pygame.draw.line(s, GOLD_BRIGHT,
+                     (clk_cx + 6 * SCALE, clk_cy),
+                     (clk_cx + 9 * SCALE, clk_cy), 1 * SCALE)
+    # Hour + minute hands
+    pygame.draw.line(s, GOLD_BRIGHT,
+                     (clk_cx, clk_cy), (clk_cx, clk_cy - 5 * SCALE),
+                     1 * SCALE)
+    pygame.draw.line(s, GOLD_BRIGHT,
+                     (clk_cx, clk_cy), (clk_cx + 4 * SCALE, clk_cy),
+                     1 * SCALE)
+    # Text — gold bright, centred (with a small offset right so the
+    # clock + text feel like one composition)
+    tf = font(13, True).render("EFFECTS  LAST  8  SECONDS",
+                               True, GOLD_BRIGHT)
+    s.blit(tf, tf.get_rect(center=(fp_rect.centerx + 8 * SCALE,
+                                   fp_rect.centery)))
 
     save("v3_scarlet_powerups.png", s)
 
