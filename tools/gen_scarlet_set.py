@@ -302,6 +302,76 @@ def score_panel(surf, rect, label, value, large=False):
     surf.blit(vf, vr)
 
 
+def score_emblem(surf, cx, cy, r, label, value, with_ribbon=False):
+    """Hero score display — circular gold medallion with scarlet accent
+    ring, dark-navy interior, radial laurel ticks, label at top, big
+    gold value centred. Optional scarlet ribbon tail beneath for the
+    celebratory moments. This is the appealing version of the
+    rectangular score_panel."""
+    # Soft drop shadow
+    sh = pygame.Surface((r * 2 + 16, r * 2 + 16), pygame.SRCALPHA)
+    pygame.draw.circle(sh, (0, 0, 0, 95), (r + 8, r + 8), r + 2)
+    surf.blit(sh, (cx - r - 8, cy - r + 4))
+
+    # Dark navy interior
+    pygame.draw.circle(surf, PANEL_DARK, (cx, cy), r)
+
+    # Subtle inner radial glow (warm light from inside)
+    glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    for rr in range(r - 6 * SCALE, 0, -SCALE):
+        a = int(14 * (1 - rr / (r - 6 * SCALE)))
+        pygame.draw.circle(glow, (255, 220, 140, a),
+                           (r, r - r // 4), rr)
+    surf.blit(glow, (cx - r, cy - r))
+
+    # Thick outer gold ring
+    pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), r, 3 * SCALE)
+    # Slim scarlet accent ring just inside (signature theme touch)
+    scarlet_r = r - 4 * SCALE
+    pygame.draw.circle(surf, SCARLET_TOP, (cx, cy), scarlet_r, 2 * SCALE)
+    # Thin gold inner ring
+    pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), r - 9 * SCALE, 1 * SCALE)
+
+    # Radial laurel ticks on the gold outer ring
+    for ang_deg in range(0, 360, 12):
+        a = math.radians(ang_deg - 90)
+        x1 = cx + math.cos(a) * (r - 1 * SCALE)
+        y1 = cy + math.sin(a) * (r - 1 * SCALE)
+        x2 = cx + math.cos(a) * (r + 2 * SCALE)
+        y2 = cy + math.sin(a) * (r + 2 * SCALE)
+        pygame.draw.line(surf, GOLD_DEEP, (x1, y1), (x2, y2), 1 * SCALE)
+
+    # Label at top
+    lbl_y = cy - int(r * 0.42)
+    lf = font(13, True).render(label, True, GOLD_MUTED)
+    lf.set_alpha(230)
+    surf.blit(lf, lf.get_rect(center=(cx, lbl_y)))
+
+    # Value — big, gold, with a soft black shadow
+    val_size = max(16, int(r * 0.55 / SCALE))
+    vf = font(val_size, True).render(str(value), True, GOLD_BRIGHT)
+    vs = font(val_size, True).render(str(value), True, NEAR_BLACK)
+    vs.set_alpha(180)
+    vr = vf.get_rect(center=(cx, cy + int(r * 0.15)))
+    surf.blit(vs, (vr.x + 2 * SCALE, vr.y + 3 * SCALE))
+    surf.blit(vf, vr)
+
+    # Optional scarlet ribbon tail beneath
+    if with_ribbon:
+        ribbon_pts = [
+            (cx - int(r * 0.42), cy + r - 2 * SCALE),
+            (cx + int(r * 0.42), cy + r - 2 * SCALE),
+            (cx + int(r * 0.32), cy + r + 16 * SCALE),
+            (cx,                 cy + r + 9 * SCALE),
+            (cx - int(r * 0.32), cy + r + 16 * SCALE),
+        ]
+        pygame.draw.polygon(surf, SCARLET_TOP, ribbon_pts)
+        pygame.draw.polygon(surf, SCARLET_SHADOW, ribbon_pts, 1 * SCALE)
+        pygame.draw.line(surf, (255, 110, 100),
+                         (cx, cy + r - 2 * SCALE),
+                         (cx, cy + r + 9 * SCALE), 1 * SCALE)
+
+
 # ── Trophy + ribbon banner + nameplate ──────────────────────────────────────
 
 def draw_trophy(surf, cx, cy, size):
@@ -536,10 +606,10 @@ def screen_pause():
     s = pygame.Surface((W, H))
     backdrop(s, dim=100)
 
-    # Live score panel at top
-    sp_w, sp_h = 140 * SCALE, 60 * SCALE
-    sp_rect = pygame.Rect(W // 2 - sp_w // 2, 78 * SCALE, sp_w, sp_h)
-    score_panel(s, sp_rect, "S C O R E", "12")
+    # Live score emblem at top — circular medallion replaces the
+    # rectangular block that read as plain.
+    score_emblem(s, W // 2, 118 * SCALE, 56 * SCALE,
+                 "S C O R E", "12")
 
     big_title(s, "PAUSED", (W // 2, 220 * SCALE), size=64)
     subtitle(s, "T A K E   A   B R E A T H",
@@ -572,10 +642,9 @@ def screen_stats():
     big_title(s, "RUN  SUMMARY", (W // 2, 70 * SCALE), size=36)
     divider(s, 100 * SCALE, width=140)
 
-    # Big score panel
-    sp_w, sp_h = 200 * SCALE, 100 * SCALE
-    sp_rect = pygame.Rect(W // 2 - sp_w // 2, 132 * SCALE, sp_w, sp_h)
-    score_panel(s, sp_rect, "S C O R E", "23", large=True)
+    # Hero score emblem — gold medallion with scarlet accent + ribbon
+    score_emblem(s, W // 2, 200 * SCALE, 78 * SCALE,
+                 "S C O R E", "23", with_ribbon=True)
 
     # 5-row stats card
     rows = [
@@ -621,24 +690,21 @@ def screen_gameover():
     big_title(s, "GAME  OVER", (W // 2, 90 * SCALE), size=44)
     ribbon_banner(s, W // 2, 156 * SCALE, "NEW  BEST !", w=170)
 
-    # Score panel with gold sparkle burst around it
-    sp_w, sp_h = 220 * SCALE, 116 * SCALE
-    sp_rect = pygame.Rect(W // 2 - sp_w // 2, 218 * SCALE, sp_w, sp_h)
-
-    # Sparkle burst around the panel
-    msc = (sp_rect.centerx, sp_rect.centery)
+    # Hero score emblem with gold sparkle burst around it
+    emblem_cx, emblem_cy, emblem_r = W // 2, 290 * SCALE, 80 * SCALE
     for i in range(20):
         ang = i * (2 * math.pi / 20) + math.pi / 20
-        d = 150 * SCALE
-        ex = msc[0] + math.cos(ang) * d
-        ey = msc[1] + math.sin(ang) * d
+        d = emblem_r + 35 * SCALE
+        ex = emblem_cx + math.cos(ang) * d
+        ey = emblem_cy + math.sin(ang) * d
         for dx, dy in [(0, -4 * SCALE), (4 * SCALE, 0),
                        (0, 4 * SCALE), (-4 * SCALE, 0)]:
             pygame.draw.line(s, GOLD_BRIGHT, (ex, ey), (ex + dx, ey + dy),
                              1 * SCALE)
         pygame.draw.circle(s, GOLD_BRIGHT, (int(ex), int(ey)), 1 * SCALE)
 
-    score_panel(s, sp_rect, "S C O R E", "23", large=True)
+    score_emblem(s, emblem_cx, emblem_cy, emblem_r,
+                 "S C O R E", "23")
 
     pill(s, (W // 2, 446 * SCALE), "TAP  TO  RETRY",
          size=23, min_w=246, h=54, primary=True)
@@ -665,7 +731,7 @@ def screen_name_entry():
     s.blit(halo, (tcx - 70 * SCALE, tcy - 70 * SCALE))
     draw_trophy(s, tcx, tcy, 22 * SCALE)
 
-    big_title(s, "TOP  10  COURIER", (W // 2, 220 * SCALE), size=28)
+    big_title(s, "YOU  MADE  IT !", (W // 2, 220 * SCALE), size=30)
     subtitle(s, "E N T E R   Y O U R   N A M E",
              (W // 2, 264 * SCALE), size=14)
     divider(s, 288 * SCALE, width=90)
@@ -693,8 +759,7 @@ def screen_leaderboard():
     for side in (-1, 1):
         tx = W // 2 + side * 110 * SCALE
         draw_trophy(s, tx, 70 * SCALE, 16 * SCALE)
-    subtitle(s, "C O U R I E R S", (W // 2, 116 * SCALE), size=12)
-    divider(s, 136 * SCALE, width=90)
+    divider(s, 112 * SCALE, width=90)
 
     entries = [
         ("Hawkins",   148, False),
@@ -874,10 +939,8 @@ def screen_intro():
     s = pygame.Surface((W, H))
     backdrop(s)
 
-    big_title(s, "HOW  TO  PLAY", (W // 2, 95 * SCALE), size=36)
-    subtitle(s, "A  POCKET  COURIER'S  GUIDE",
-             (W // 2, 138 * SCALE), size=12)
-    divider(s, 160 * SCALE, width=90)
+    big_title(s, "HOW  TO  PLAY", (W // 2, 110 * SCALE), size=38)
+    divider(s, 150 * SCALE, width=90)
 
     steps = [
         ("1", "FLAP",    "TAP  ·  CLICK  ·  SPACE"),
