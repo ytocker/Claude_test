@@ -1,14 +1,18 @@
-"""Generate v4 menu redesign mockups — 5 story-driven candidate themes.
+"""Generate v4 menu redesign mockups — 5 massive upgrades of the original
+v3 menu design.
 
-Each mockup is a 360x640 PNG matching the game's window size. Every
-theme is a *moment, place, or artifact from Pip's delivery journey*:
-the dispatch desk, the courier's logbook, the route map, the cockpit,
-and arrival at the starlit cottage. The functional layout (title,
-three buttons, BEST + TOP 10 tiles) is preserved across all five so
-the user can compare them head-to-head.
+Each variant keeps Skybit's brand identity (deep navy night sky,
+gold-on-red `SKYBIT` title, orange-bordered red pill buttons, BEST +
+TOP 10 panels, mountain silhouettes) and pushes ONE quality axis hard:
 
-Palette and font are pulled from Skybit's canonical UI colors
-(`game/hud.py:29-37`) and the bundled Liberation Sans family.
+  v1 ROYAL     — luxury polish (gold leaf, bevels, medallions)
+  v2 AVIATOR   — Pip's aviator identity (brass instruments, wings, beacons)
+  v3 PARCEL    — courier theme (the menu IS a parcel envelope)
+  v4 STARLIGHT — massively enhanced night sky (aurora, moon, constellations)
+  v5 FESTIVAL  — monastery / prayer-flag world (lantern garlands, bunting)
+
+All variants reuse the canonical Skybit palette
+(`game/hud.py:29-37`) and the bundled Liberation Sans font.
 """
 import math
 import os
@@ -28,23 +32,20 @@ FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "game", "assets")
 FONT_BOLD = os.path.join(FONT_DIR, "LiberationSans-Bold.ttf")
 FONT_REG  = os.path.join(FONT_DIR, "LiberationSans-Regular.ttf")
 
-# ── Skybit canonical palette (mirrors game/hud.py:29-37) ────────────────────
+# ── Skybit canonical palette ────────────────────────────────────────────────
 GOLD_BRIGHT   = (240, 192,  64)
 GOLD_MUTED    = (216, 184,  85)
+GOLD_DEEP     = (180, 130,  20)
 RED_OUTLINE   = (168,  32,  16)
 ORANGE_BORDER = (232, 104,  40)
 BTN_TOP       = (200,  64,  24)
 BTN_BOT       = (126,  28,   2)
 PANEL_DARK    = ( 12,   8,  38)
 NIGHT_DEEP    = (  6,   1,  21)
-PARCEL_TAN    = (180, 130,  80)
-PARCEL_HI     = (220, 175, 120)
-RIBBON_RED    = (200,  50,  60)
-COTTAGE_TEAL  = ( 38, 140, 120)
-COTTAGE_RED   = (200,  53,  30)
-
-WHITE      = (245, 245, 245)
-NEAR_BLACK = ( 12,   8,  18)
+NIGHT_MID     = ( 22,  14,  58)
+WHITE         = (245, 245, 245)
+NEAR_BLACK    = ( 12,   8,  18)
+CREAM         = (250, 232, 196)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -66,8 +67,7 @@ def gradient_v(surf, top, bot, rect=None):
 
 
 def stroked_text(surf, txt, center, size, fill, outline, px=2,
-                 shadow=(2, 3), shadow_alpha=170, bold=True):
-    """The canonical Skybit gold-on-red title treatment."""
+                 shadow=(3, 5), shadow_alpha=170, bold=True):
     f = font(size, bold)
     img = f.render(txt, True, fill)
     out = f.render(txt, True, outline)
@@ -84,131 +84,133 @@ def stroked_text(surf, txt, center, size, fill, outline, px=2,
     return r
 
 
-def skybit_title(surf, cx, cy, size=72, px=3):
-    """Reuse the v3 title treatment so every mockup keeps the brand mark."""
+def skybit_title(surf, cx, cy, size=68, px=3):
+    """Canonical v3 gold-on-red title."""
     return stroked_text(surf, "SKYBIT", (cx, cy), size,
                         fill=GOLD_BRIGHT, outline=RED_OUTLINE,
                         px=px, shadow=(3, 5))
 
 
-def draw_parcel(surf, cx, cy, size=22):
-    """Pip's kraft-tan parcel with red ribbon + bow. Mini version of
-    game/intro.py:_build_parcel."""
+def skybit_subtitle(surf, cx, cy, size=20, px=2):
+    return stroked_text(surf, "POCKET  SKY  FLYER", (cx, cy), size,
+                        fill=GOLD_BRIGHT, outline=RED_OUTLINE,
+                        px=px, shadow=(2, 3))
+
+
+def night_sky(surf, top=NIGHT_DEEP, mid=NIGHT_MID, mountains=True):
+    """Canonical v3 background: deep navy gradient + stars +
+    mountain silhouette."""
+    gradient_v(surf, top, mid)
+    # Stars
+    random.seed(42)
+    for _ in range(120):
+        x = random.randint(0, W - 1)
+        y = random.randint(0, 380)
+        r = random.choice([1, 1, 1, 2])
+        a = random.randint(120, 255)
+        col = (240, 240, 250)
+        s_dot = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(s_dot, (*col, a), (r + 1, r + 1), r)
+        surf.blit(s_dot, (x - r - 1, y - r - 1))
+    # Faint cloud puffs
+    for cx, cy, cw in [(60, 90, 100), (260, 70, 110), (320, 160, 80)]:
+        s_cloud = pygame.Surface((cw, 30), pygame.SRCALPHA)
+        pygame.draw.ellipse(s_cloud, (40, 30, 70, 80), (0, 0, cw, 28))
+        pygame.draw.ellipse(s_cloud, (50, 36, 78, 100),
+                            (cw // 4, 4, cw - cw // 2, 20))
+        surf.blit(s_cloud, (cx - cw // 2, cy - 14))
+    if mountains:
+        # Far + near silhouettes — same shape as game/hud.py:209
+        far = [(0, H), (0, 490), (60, 420), (120, 450), (200, 375),
+               (280, 430), (360, 360), (W, 400), (W, H)]
+        near = [(0, H), (0, 530), (80, 505), (160, 520), (240, 490),
+                (320, 510), (W, 495), (W, H)]
+        pygame.draw.polygon(surf, (14, 26, 50), far)
+        pygame.draw.polygon(surf, (10, 18, 36), near)
+
+
+def pill_btn(surf, center, text, size=22, w_min=240, h=52,
+             text_color=WHITE, accent=ORANGE_BORDER, glow=False,
+             inner_emboss=False):
+    """v3-style orange-bordered red-gradient pill. Returns rect."""
+    f = font(size, True)
+    img = f.render(text, True, text_color)
+    w = max(w_min, img.get_width() + 50)
+    x = center[0] - w // 2
+    y = center[1] - h // 2
+    pill = pygame.Surface((w, h), pygame.SRCALPHA)
+    # Gradient fill
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        c = lerp(BTN_TOP, BTN_BOT, t)
+        pygame.draw.line(pill, (*c, 255), (0, yy), (w, yy))
+    # Rounded mask
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=h // 2)
+    pill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # Orange border
+    pygame.draw.rect(pill, accent, (0, 0, w, h), width=2, border_radius=h // 2)
+    # Inner highlight at top
+    pygame.draw.line(pill, (255, 255, 255, 70),
+                     (h // 2, 3), (w - h // 2, 3))
+    if inner_emboss:
+        pygame.draw.line(pill, (255, 255, 255, 35),
+                         (h // 2, 5), (w - h // 2, 5))
+        pygame.draw.line(pill, (0, 0, 0, 60),
+                         (h // 2, h - 4), (w - h // 2, h - 4))
+    surf.blit(pill, (x, y))
+    if glow:
+        # Soft outer halo
+        for r in range(8, 0, -2):
+            a = int(40 * (r / 8))
+            halo = pygame.Surface((w + r * 2, h + r * 2), pygame.SRCALPHA)
+            pygame.draw.rect(halo, (*accent, a),
+                             (0, 0, w + r * 2, h + r * 2),
+                             width=2, border_radius=(h + r * 2) // 2)
+            surf.blit(halo, (x - r, y - r),
+                      special_flags=pygame.BLEND_PREMULTIPLIED)
+    # Text + drop shadow
+    sh = f.render(text, True, NEAR_BLACK)
+    sh.set_alpha(160)
+    tr = img.get_rect(center=center)
+    surf.blit(sh, (tr.x + 1, tr.y + 2))
+    surf.blit(img, tr)
+    return pygame.Rect(x, y, w, h)
+
+
+def dark_panel(surf, rect, radius=14, alpha=210, accent=ORANGE_BORDER):
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*PANEL_DARK, alpha),
+                     (0, 0, rect.w, rect.h), border_radius=radius)
+    pygame.draw.rect(pnl, (*accent, 90),
+                     (0, 0, rect.w, rect.h), width=1, border_radius=radius)
+    pygame.draw.line(pnl, (*accent, 180),
+                     (radius, 3), (rect.w - radius, 3))
+    surf.blit(pnl, rect.topleft)
+
+
+def draw_trophy(surf, cx, cy, size, color=GOLD_BRIGHT,
+                shadow=(140, 90, 8)):
     s = size
-    rect = pygame.Rect(cx - s, cy - s + 3, s * 2, s * 2 - 4)
-    pygame.draw.rect(surf, (26, 10, 12), rect.inflate(3, 3), border_radius=4)
-    pygame.draw.rect(surf, PARCEL_TAN, rect, border_radius=4)
-    pygame.draw.line(surf, PARCEL_HI, (rect.x + 2, rect.y + 2),
-                     (rect.right - 3, rect.y + 2), 1)
-    # ribbon cross
-    rv_w = max(3, s // 4)
-    pygame.draw.rect(surf, RIBBON_RED, (cx - rv_w // 2, rect.y, rv_w, rect.h))
-    rh_w = max(3, s // 4)
-    pygame.draw.rect(surf, RIBBON_RED,
-                     (rect.x, cy - rh_w // 2 + 1, rect.w, rh_w))
-    # bow
-    bow_r = max(2, s // 4)
-    pygame.draw.ellipse(surf, RIBBON_RED,
-                        (cx - bow_r * 2, rect.y - bow_r * 2,
-                         bow_r * 2, bow_r * 2))
-    pygame.draw.ellipse(surf, RIBBON_RED,
-                        (cx, rect.y - bow_r * 2,
-                         bow_r * 2, bow_r * 2))
-
-
-def draw_garrick(surf, cx, cy, scale=1.0):
-    """Mr. Garrick — pale-pink pelican silhouette in a white shirt,
-    holding a parcel. Simple but unambiguous."""
-    s = scale
-    # Body (egg-shape)
-    body_w, body_h = int(56 * s), int(72 * s)
-    body = pygame.Rect(cx - body_w // 2, cy - body_h // 2, body_w, body_h)
-    pygame.draw.ellipse(surf, (240, 200, 195), body)
-    pygame.draw.ellipse(surf, (200, 150, 145), body, 2)
-    # White shirt / chest
-    shirt = pygame.Rect(cx - int(20 * s), cy + int(2 * s),
-                        int(40 * s), int(36 * s))
-    pygame.draw.ellipse(surf, (250, 250, 245), shirt)
-    pygame.draw.ellipse(surf, (180, 160, 155), shirt, 1)
-    # Head
-    head_r = int(20 * s)
-    pygame.draw.circle(surf, (240, 200, 195), (cx, cy - body_h // 2 - head_r // 2 + 2), head_r)
-    pygame.draw.circle(surf, (200, 150, 145), (cx, cy - body_h // 2 - head_r // 2 + 2), head_r, 2)
-    # Beak — long pelican beak
-    beak_y = cy - body_h // 2 - head_r // 2 + 4
-    pygame.draw.polygon(surf, (255, 200, 90),
-                        [(cx + int(6 * s), beak_y - int(3 * s)),
-                         (cx + int(36 * s), beak_y + int(2 * s)),
-                         (cx + int(6 * s), beak_y + int(5 * s))])
-    pygame.draw.polygon(surf, (200, 140, 50),
-                        [(cx + int(6 * s), beak_y - int(3 * s)),
-                         (cx + int(36 * s), beak_y + int(2 * s)),
-                         (cx + int(6 * s), beak_y + int(5 * s))], 1)
-    # Eye
-    pygame.draw.circle(surf, (20, 20, 30),
-                       (cx + int(3 * s), cy - body_h // 2 - int(2 * s)),
-                       max(2, int(2 * s)))
-
-
-def draw_cottage(surf, cx, cy, scale=1.0, roof_col=COTTAGE_TEAL,
-                 wall_col=(240, 220, 180), with_lantern=True):
-    """A small cottage with shingled roof, chimney, door, window.
-    cx/cy is the centre of the cottage body."""
-    s = scale
-    body_w, body_h = int(90 * s), int(60 * s)
-    body = pygame.Rect(cx - body_w // 2, cy - body_h // 2, body_w, body_h)
-    # Wall
-    pygame.draw.rect(surf, wall_col, body)
-    pygame.draw.rect(surf, NEAR_BLACK, body, 2)
-    # Roof (triangular)
-    roof_pts = [
-        (body.x - int(8 * s), body.y),
-        (body.right + int(8 * s), body.y),
-        (cx, body.y - int(36 * s)),
-    ]
-    pygame.draw.polygon(surf, roof_col, roof_pts)
-    pygame.draw.polygon(surf, NEAR_BLACK, roof_pts, 2)
-    # Shingle stripes
-    for i in range(1, 4):
-        y = body.y - int(36 * s) + int(i * 9 * s)
-        x_in = int(36 * s) * (i / 4)
-        pygame.draw.line(surf, lerp(roof_col, NEAR_BLACK, 0.3),
-                         (cx - x_in, y), (cx + x_in, y), 1)
-    # Chimney
-    chim_x = body.x + int(15 * s)
-    chim_y = body.y - int(24 * s)
-    pygame.draw.rect(surf, (140, 70, 50),
-                     (chim_x, chim_y, int(10 * s), int(18 * s)))
-    pygame.draw.rect(surf, NEAR_BLACK,
-                     (chim_x, chim_y, int(10 * s), int(18 * s)), 1)
-    # Door
-    door_w, door_h = int(20 * s), int(34 * s)
-    door = pygame.Rect(cx - door_w // 2, body.bottom - door_h, door_w, door_h)
-    pygame.draw.rect(surf, (120, 70, 40), door)
-    pygame.draw.rect(surf, NEAR_BLACK, door, 1)
-    pygame.draw.circle(surf, GOLD_BRIGHT,
-                       (door.right - int(4 * s), door.centery),
-                       max(1, int(2 * s)))
-    # Window
-    win = pygame.Rect(body.x + int(12 * s), body.y + int(14 * s),
-                      int(20 * s), int(18 * s))
-    pygame.draw.rect(surf, (255, 230, 130), win)
-    pygame.draw.rect(surf, NEAR_BLACK, win, 1)
-    pygame.draw.line(surf, NEAR_BLACK, (win.centerx, win.y),
-                     (win.centerx, win.bottom), 1)
-    pygame.draw.line(surf, NEAR_BLACK, (win.x, win.centery),
-                     (win.right, win.centery), 1)
-    # Optional hanging paper lantern
-    if with_lantern:
-        lx, ly = body.right - int(6 * s), body.y + int(4 * s)
-        pygame.draw.line(surf, NEAR_BLACK, (lx, body.y - int(4 * s)),
-                         (lx, ly + int(2 * s)), 1)
-        pygame.draw.ellipse(surf, (255, 180, 80),
-                            (lx - int(6 * s), ly + int(2 * s),
-                             int(12 * s), int(14 * s)))
-        pygame.draw.ellipse(surf, (140, 70, 30),
-                            (lx - int(6 * s), ly + int(2 * s),
-                             int(12 * s), int(14 * s)), 1)
+    cup_top_y = cy - s + 2
+    cup_bot_y = cy + 2
+    pts = [(cx - s, cup_top_y), (cx + s, cup_top_y),
+           (cx + s - 3, cup_bot_y), (cx - s + 3, cup_bot_y)]
+    pygame.draw.polygon(surf, color, pts)
+    pygame.draw.polygon(surf, shadow, pts, 1)
+    # Handles
+    pygame.draw.arc(surf, color,
+                    (cx - s - 6, cup_top_y, 8, s + 2),
+                    math.pi / 2, math.pi * 3 / 2, 2)
+    pygame.draw.arc(surf, color,
+                    (cx + s - 2, cup_top_y, 8, s + 2),
+                    -math.pi / 2, math.pi / 2, 2)
+    # Stem + base
+    pygame.draw.rect(surf, color, (cx - 2, cup_bot_y, 4, s // 2))
+    pygame.draw.rect(surf, color,
+                     (cx - s, cup_bot_y + s // 2, s * 2, 3))
+    pygame.draw.rect(surf, color,
+                     (cx - s - 1, cup_bot_y + s // 2 + 3, s * 2 + 2, 2))
 
 
 def save(name, surf):
@@ -218,929 +220,730 @@ def save(name, surf):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Theme A — THE DISPATCH DESK (Mr. Garrick's Post Office)
+# v1 — ROYAL: luxury polish
 # ─────────────────────────────────────────────────────────────────────────────
-def theme_a_dispatch_desk():
+def v1_royal():
     s = pygame.Surface((W, H))
-    # Wood-panel wall (warm tan, vertical planks)
-    gradient_v(s, (130, 88, 52), (94, 60, 36))
-    for x in range(0, W, 40):
-        pygame.draw.line(s, (70, 44, 24), (x, 0), (x, H), 1)
-        pygame.draw.line(s, (150, 100, 64), (x + 1, 0), (x + 1, H), 1)
+    night_sky(s)
 
-    # Window upper-left showing a slice of teal-roof cottage on cloud
-    win_rect = pygame.Rect(20, 30, 100, 78)
-    pygame.draw.rect(s, (170, 210, 230), win_rect)
-    pygame.draw.rect(s, (40, 22, 10), win_rect, 3)
-    # Sky inside window
-    sky = pygame.Surface(win_rect.size)
-    gradient_v(sky, (200, 230, 245), (140, 200, 230))
-    s.blit(sky, win_rect.topleft)
-    # Cloud puff
-    pygame.draw.ellipse(s, (250, 250, 250),
-                        (win_rect.x + 14, win_rect.bottom - 24, 70, 22))
-    # Tiny teal cottage in window
-    draw_cottage(s, win_rect.centerx, win_rect.centery + 6, scale=0.4,
-                 roof_col=COTTAGE_TEAL, with_lantern=False)
-    # Window cross
-    pygame.draw.line(s, (40, 22, 10), (win_rect.centerx, win_rect.y),
-                     (win_rect.centerx, win_rect.bottom), 2)
-    pygame.draw.line(s, (40, 22, 10), (win_rect.x, win_rect.centery),
-                     (win_rect.right, win_rect.centery), 2)
+    # ── Gold-leaf decorative frame around the whole screen ──
+    # Outer thick border + inner thin border with corner medallions
+    frame_outer = pygame.Rect(8, 8, W - 16, H - 16)
+    pygame.draw.rect(s, (140, 96, 14), frame_outer, width=4, border_radius=12)
+    frame_inner = pygame.Rect(14, 14, W - 28, H - 28)
+    pygame.draw.rect(s, GOLD_BRIGHT, frame_inner, width=2, border_radius=10)
+    # Filigree along top + bottom inside the frame
+    for x in range(40, W - 40, 36):
+        # Tiny fleur ornaments
+        pygame.draw.circle(s, GOLD_BRIGHT, (x, 22), 3, 1)
+        pygame.draw.circle(s, GOLD_BRIGHT, (x, H - 22), 3, 1)
+        pygame.draw.line(s, GOLD_BRIGHT, (x - 6, 22), (x - 3, 22), 1)
+        pygame.draw.line(s, GOLD_BRIGHT, (x + 3, 22), (x + 6, 22), 1)
+        pygame.draw.line(s, GOLD_BRIGHT, (x - 6, H - 22), (x - 3, H - 22), 1)
+        pygame.draw.line(s, GOLD_BRIGHT, (x + 3, H - 22), (x + 6, H - 22), 1)
+    # Corner medallions
+    for cx, cy in [(20, 20), (W - 20, 20), (20, H - 20), (W - 20, H - 20)]:
+        pygame.draw.circle(s, (60, 40, 80), (cx, cy), 9)
+        pygame.draw.circle(s, GOLD_BRIGHT, (cx, cy), 9, 2)
+        pygame.draw.circle(s, GOLD_BRIGHT, (cx, cy), 3)
 
-    # Cork pin-board on the right wall with route-map
-    cork = pygame.Rect(180, 30, 160, 100)
-    pygame.draw.rect(s, (190, 145, 90), cork)
-    pygame.draw.rect(s, (90, 60, 30), cork, 3)
-    # Cork speckles
-    random.seed(7)
-    for _ in range(40):
-        pygame.draw.circle(s, (160, 115, 65),
-                           (random.randint(cork.x + 3, cork.right - 3),
-                            random.randint(cork.y + 3, cork.bottom - 3)), 1)
-    # Pinned route map
-    map_r = pygame.Rect(cork.x + 12, cork.y + 12, cork.w - 24, cork.h - 24)
-    pygame.draw.rect(s, (245, 226, 180), map_r)
-    pygame.draw.rect(s, (130, 90, 40), map_r, 1)
-    # Dotted route on map
-    pts = [(map_r.x + 8, map_r.bottom - 12),
-           (map_r.x + 40, map_r.bottom - 30),
-           (map_r.centerx, map_r.y + 22),
-           (map_r.right - 12, map_r.y + 16)]
-    for i in range(len(pts) - 1):
-        x1, y1 = pts[i]
-        x2, y2 = pts[i + 1]
-        steps = 10
-        for k in range(0, steps, 2):
-            xa = x1 + (x2 - x1) * k / steps
-            ya = y1 + (y2 - y1) * k / steps
-            pygame.draw.circle(s, (200, 50, 50), (int(xa), int(ya)), 1)
-    # Start (teal) & end (red) markers
-    pygame.draw.circle(s, COTTAGE_TEAL, pts[0], 3)
-    pygame.draw.circle(s, COTTAGE_RED, pts[-1], 3)
-    # Red pushpins
-    for px_, py_ in [(map_r.x + 4, map_r.y + 4),
-                     (map_r.right - 4, map_r.y + 4)]:
-        pygame.draw.circle(s, (200, 60, 60), (px_, py_), 3)
-        pygame.draw.circle(s, WHITE, (px_ - 1, py_ - 1), 1)
+    # ── Title with metallic gold-leaf bevel ──
+    # Big title — multiple-pass treatment: thick red outline → dark gold
+    # shadow → gold-bright fill → bright sheen line through the middle
+    title_y = 130
+    f = font(74, True)
+    base = f.render("SKYBIT", True, GOLD_BRIGHT)
+    base_rect = base.get_rect(center=(W // 2, title_y))
+    # Bigger red outline halo
+    out_red = f.render("SKYBIT", True, RED_OUTLINE)
+    for r in range(5, 0, -1):
+        for ang in range(0, 360, 30):
+            ox = int(math.cos(math.radians(ang)) * r)
+            oy = int(math.sin(math.radians(ang)) * r)
+            out_red.set_alpha(80 if r > 2 else 255)
+            s.blit(out_red, (base_rect.x + ox, base_rect.y + oy))
+    out_red.set_alpha(255)
+    # Dark-gold shadow underlay
+    sh = f.render("SKYBIT", True, GOLD_DEEP)
+    s.blit(sh, (base_rect.x + 3, base_rect.y + 5))
+    # Black soft shadow
+    bk = f.render("SKYBIT", True, NEAR_BLACK)
+    bk.set_alpha(180)
+    s.blit(bk, (base_rect.x + 4, base_rect.y + 7))
+    s.blit(base, base_rect)
+    # Subtle inner highlight on the top edge of each glyph — not a band
+    hl = f.render("SKYBIT", True, (255, 240, 180))
+    hl.set_alpha(80)
+    s.blit(hl, (base_rect.x, base_rect.y - 1))
+    # Sub
+    skybit_subtitle(s, W // 2, 188, size=18)
+    # Decorative divider — gold double-line with diamond
+    pygame.draw.line(s, GOLD_BRIGHT, (W // 2 - 70, 210), (W // 2 - 14, 210), 1)
+    pygame.draw.line(s, GOLD_BRIGHT, (W // 2 + 14, 210), (W // 2 + 70, 210), 1)
+    pygame.draw.polygon(s, GOLD_BRIGHT,
+                        [(W // 2, 206), (W // 2 + 6, 210), (W // 2, 214), (W // 2 - 6, 210)])
 
-    # Desk surface — large wooden plane across the bottom
-    desk = pygame.Rect(0, 410, W, H - 410)
-    gradient_v(s, (110, 72, 42), (70, 42, 22), desk)
-    pygame.draw.line(s, (160, 110, 64), (0, 410), (W, 410), 2)
-    # Wood grain on desk
-    for y in range(420, H, 18):
-        pygame.draw.line(s, (90, 56, 30), (10, y), (W - 10, y), 1)
-
-    # Title sign hanging from chains over the desk
-    sign_rect = pygame.Rect(W // 2 - 130, 130, 260, 70)
-    # Chains
-    for cxh in (sign_rect.x + 22, sign_rect.right - 22):
-        for k in range(0, 6):
-            yy = sign_rect.y - 26 + k * 5
-            pygame.draw.circle(s, (170, 170, 175), (cxh, yy), 3, 1)
-    pygame.draw.rect(s, (130, 86, 52), sign_rect, border_radius=8)
-    pygame.draw.rect(s, (50, 30, 16), sign_rect, 3, border_radius=8)
-    # Inner highlight
-    pygame.draw.line(s, (200, 160, 100),
-                     (sign_rect.x + 8, sign_rect.y + 6),
-                     (sign_rect.right - 8, sign_rect.y + 6), 1)
-    # SKYBIT stencilled
-    skybit_title(s, W // 2, sign_rect.centery - 4, size=48, px=2)
-    # Subtitle stamped beneath
-    stamp_w, stamp_h = 200, 22
-    stamp_rect = pygame.Rect(W // 2 - stamp_w // 2, 218, stamp_w, stamp_h)
-    pygame.draw.rect(s, (200, 60, 50), stamp_rect, 2)
-    sub = font(13, True).render("AIR  MAIL  ·  POCKET  SKY  FLYER",
-                                True, (200, 60, 50))
-    s.blit(sub, sub.get_rect(center=stamp_rect.center))
-
-    # Stack of parcels on the left of the desk
-    for i, (px_, py_, ds) in enumerate([(38, 510, 22), (32, 470, 20), (52, 490, 16)]):
-        draw_parcel(s, px_, py_, ds)
-    # Ink-stamp rack — three round stamps on the right
-    for i, (sx, sy) in enumerate([(310, 470), (288, 490), (332, 488)]):
-        pygame.draw.circle(s, (60, 36, 20), (sx, sy), 9)
-        pygame.draw.circle(s, (220, 180, 120), (sx, sy - 3), 6)
-        pygame.draw.rect(s, (220, 180, 120), (sx - 5, sy - 16, 10, 12))
-    # Open ledger on the desk — supports the BEST stamp
-    led = pygame.Rect(150, 478, 120, 80)
-    pygame.draw.rect(s, (245, 232, 195), led)
-    pygame.draw.rect(s, (130, 80, 40), led, 1)
-    pygame.draw.line(s, (200, 175, 130), (led.centerx, led.y),
-                     (led.centerx, led.bottom), 1)
-    for k in range(4):
-        yy = led.y + 12 + k * 12
-        pygame.draw.line(s, (150, 110, 70), (led.x + 6, yy), (led.centerx - 4, yy), 1)
-        pygame.draw.line(s, (150, 110, 70), (led.centerx + 4, yy), (led.right - 6, yy), 1)
-
-    # ── BUTTONS — parcel-tag labels tied with twine ─────────────────────
-    def tag_btn(center, text, big=False):
-        w, h = (240, 50) if big else (240, 40)
+    # ── Buttons — embossed pills with gold double-rim ──
+    def royal_pill(center, text, big=False):
+        h = 56 if big else 46
+        sz = 22 if big else 18
+        w = 250
         x = center[0] - w // 2
         y = center[1] - h // 2
-        # Twine going up to the sign
-        pygame.draw.line(s, (200, 175, 130),
-                         (center[0] - 60, y), (center[0] - 60, y - 18), 1)
-        pygame.draw.line(s, (200, 175, 130),
-                         (center[0] + 60, y), (center[0] + 60, y - 18), 1)
-        # Tag body — manila card with notched left side
-        tag = pygame.Surface((w, h), pygame.SRCALPHA)
-        notch = 14
-        pts = [(notch, 0), (w, 0), (w, h), (notch, h), (0, h // 2)]
-        pygame.draw.polygon(tag, (235, 215, 165), pts)
-        pygame.draw.polygon(tag, (110, 70, 30), pts, 2)
-        # Eyelet hole
-        pygame.draw.circle(tag, (110, 70, 30), (notch + 6, h // 2), 4, 1)
-        # Inner ink underline
-        pygame.draw.line(tag, (180, 130, 70),
-                         (notch + 18, h - 8), (w - 8, h - 8), 1)
-        s.blit(tag, (x, y))
-        ti = font(18 if big else 16, True).render(text, True, (60, 30, 10))
-        s.blit(ti, ti.get_rect(center=(center[0] + 6, center[1])))
-        return pygame.Rect(x, y, w, h)
-
-    tag_btn((W // 2, 270), "DISPATCH NOW", big=True)
-    tag_btn((W // 2, 325), "ROUTE GUIDE")
-    tag_btn((W // 2, 372), "CARGO MANIFEST")
-
-    # ── BEST + TOP 10 on the desk ───────────────────────────────────────
-    # BEST — wax-seal stamp on the ledger
-    bsx, bsy = led.centerx, led.centery + 10
-    pygame.draw.circle(s, (160, 30, 30), (bsx, bsy), 18)
-    pygame.draw.circle(s, (200, 50, 50), (bsx, bsy), 16)
-    pygame.draw.circle(s, (110, 20, 20), (bsx, bsy), 18, 2)
-    lbl = font(8, True).render("B E S T", True, (250, 220, 180))
-    s.blit(lbl, lbl.get_rect(center=(bsx, bsy - 6)))
-    vl = font(16, True).render("42", True, (250, 220, 180))
-    s.blit(vl, vl.get_rect(center=(bsx, bsy + 5)))
-
-    # TOP 10 — small brass trophy on the desk
-    tx, ty = 312, 540
-    # Plaque
-    plaque = pygame.Rect(tx - 36, ty + 18, 72, 32)
-    pygame.draw.rect(s, (90, 56, 30), plaque, border_radius=4)
-    pygame.draw.rect(s, NEAR_BLACK, plaque, 1, border_radius=4)
-    tl = font(9, True).render("TOP 10", True, GOLD_BRIGHT)
-    s.blit(tl, tl.get_rect(center=(plaque.centerx, plaque.centery - 6)))
-    tn = font(11, True).render("COURIERS", True, GOLD_BRIGHT)
-    s.blit(tn, tn.get_rect(center=(plaque.centerx, plaque.centery + 6)))
-    # Trophy on top of plaque
-    cup_pts = [(tx - 8, ty), (tx + 8, ty), (tx + 6, ty + 12), (tx - 6, ty + 12)]
-    pygame.draw.polygon(s, GOLD_BRIGHT, cup_pts)
-    pygame.draw.polygon(s, (140, 90, 8), cup_pts, 1)
-    pygame.draw.arc(s, GOLD_BRIGHT, (tx - 14, ty, 8, 12), math.pi / 2, math.pi * 1.5, 2)
-    pygame.draw.arc(s, GOLD_BRIGHT, (tx + 6, ty, 8, 12), -math.pi / 2, math.pi / 2, 2)
-    pygame.draw.rect(s, GOLD_BRIGHT, (tx - 2, ty + 12, 4, 5))
-    pygame.draw.rect(s, GOLD_BRIGHT, (tx - 8, ty + 17, 16, 3))
-
-    # Mr. Garrick peeking from behind the counter (right edge)
-    draw_garrick(s, W - 50, 540, scale=0.65)
-
-    save("theme_a_dispatch_desk.png", s)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Theme B — PIP'S LOGBOOK (The Courier's Journal)
-# ─────────────────────────────────────────────────────────────────────────────
-def theme_b_logbook():
-    s = pygame.Surface((W, H))
-    # Dark wood desk background with candle glow
-    gradient_v(s, (52, 32, 18), (24, 14, 8))
-
-    # Candle-lit halo behind the book
-    halo = pygame.Surface((W, H), pygame.SRCALPHA)
-    for r in range(280, 0, -10):
-        a = int(80 * (1 - r / 280))
-        pygame.draw.circle(halo, (255, 200, 110, a), (W // 2, H // 2), r)
-    s.blit(halo, (0, 0))
-
-    # Open journal — leather cover edges around two cream pages
-    book_rect = pygame.Rect(20, 70, W - 40, H - 130)
-    # Leather backing
-    pygame.draw.rect(s, (66, 38, 20), book_rect.inflate(12, 12), border_radius=10)
-    pygame.draw.rect(s, (30, 16, 8), book_rect.inflate(12, 12), 3, border_radius=10)
-    # Two pages (left/right) joined at spine
-    spine_x = book_rect.centerx
-    page_l = pygame.Rect(book_rect.x, book_rect.y,
-                          spine_x - book_rect.x, book_rect.h)
-    page_r = pygame.Rect(spine_x, book_rect.y,
-                          book_rect.right - spine_x, book_rect.h)
-    for p in (page_l, page_r):
-        gradient_v(s, (250, 238, 210), (235, 218, 175), p)
-    # Spine shadow
-    sh = pygame.Surface((26, book_rect.h), pygame.SRCALPHA)
-    for x in range(26):
-        a = int(120 * (1 - abs(x - 13) / 13))
-        pygame.draw.line(sh, (40, 20, 10, a), (x, 0), (x, book_rect.h))
-    s.blit(sh, (spine_x - 13, book_rect.y))
-
-    # Ruled lines on both pages (light brown)
-    for y in range(book_rect.y + 60, book_rect.bottom - 20, 16):
-        pygame.draw.line(s, (200, 175, 130), (page_l.x + 14, y),
-                         (page_l.right - 8, y), 1)
-        pygame.draw.line(s, (200, 175, 130), (page_r.x + 8, y),
-                         (page_r.right - 14, y), 1)
-
-    # Title — ink-styled "Skybit" using gold-on-red recipe (smaller for journal feel)
-    stroked_text(s, "Skybit", (W // 2, 120),
-                 size=58, fill=(60, 30, 16),
-                 outline=(120, 70, 30), px=1,
-                 shadow=(2, 3), shadow_alpha=80)
-    # Subtitle stamp
-    stamp = pygame.Rect(W // 2 - 92, 156, 184, 22)
-    pygame.draw.rect(s, (180, 50, 50), stamp, 2)
-    # Faint stamp imprint
-    impr = pygame.Surface(stamp.size, pygame.SRCALPHA)
-    impr.fill((180, 50, 50, 30))
-    s.blit(impr, stamp.topleft)
-    ssub = font(12, True).render("CERTIFIED  SKY  COURIER  ·  POCKET  SKY  FLYER",
-                                 True, (180, 50, 50))
-    s.blit(ssub, ssub.get_rect(center=stamp.center))
-
-    # Marginal sketches: little pillar landmarks down the left margin
-    def margin_sketch(cx, cy, kind):
-        if kind == "flag":
-            # Prayer-flag pole
-            pygame.draw.line(s, (90, 50, 24), (cx, cy + 10), (cx, cy - 14), 1)
-            for i, c in enumerate([(200, 60, 60), (60, 140, 200), (240, 200, 80)]):
-                pygame.draw.polygon(s, c,
-                                    [(cx, cy - 12 + i * 5),
-                                     (cx + 8, cy - 10 + i * 5),
-                                     (cx, cy - 8 + i * 5)])
-        elif kind == "lantern":
-            pygame.draw.line(s, (60, 30, 16), (cx, cy - 14), (cx, cy - 8), 1)
-            pygame.draw.ellipse(s, (200, 60, 60), (cx - 7, cy - 8, 14, 16))
-            pygame.draw.ellipse(s, (90, 30, 30), (cx - 7, cy - 8, 14, 16), 1)
-            pygame.draw.line(s, (255, 220, 140), (cx - 4, cy - 4), (cx + 4, cy - 4), 1)
-        elif kind == "monastery":
-            pygame.draw.rect(s, (200, 170, 130), (cx - 9, cy - 4, 18, 14))
-            pygame.draw.polygon(s, (140, 90, 50),
-                                [(cx - 11, cy - 4), (cx + 11, cy - 4), (cx, cy - 14)])
-        elif kind == "bucket":
-            pygame.draw.polygon(s, (220, 60, 60),
-                                [(cx - 10, cy - 8), (cx + 10, cy - 8),
-                                 (cx + 7, cy + 8), (cx - 7, cy + 8)])
-            for y in range(cy - 6, cy + 8, 3):
-                pygame.draw.line(s, (250, 240, 230), (cx - 9, y), (cx + 9, y), 1)
-        elif kind == "menhir":
-            pygame.draw.rect(s, (130, 120, 100), (cx - 5, cy - 12, 10, 22))
-            pygame.draw.line(s, (40, 20, 10), (cx - 4, cy - 10), (cx + 4, cy + 6), 1)
-
-    for k, kind in enumerate(["flag", "lantern", "monastery", "bucket", "menhir"]):
-        margin_sketch(page_l.x + 22, 230 + k * 38, kind)
-        cap = font(9, False).render(
-            {"flag": "lungta", "lantern": "lantern", "monastery": "monastery",
-             "bucket": "kfc!", "menhir": "menhir"}[kind],
-            True, (90, 60, 30))
-        s.blit(cap, (page_l.x + 36, 226 + k * 38))
-
-    # Pressed feather across the gutter
-    feather_pts = [(spine_x - 14, 360), (spine_x + 18, 348), (spine_x + 30, 338),
-                   (spine_x + 22, 360), (spine_x + 14, 380)]
-    pygame.draw.polygon(s, (200, 60, 60), feather_pts)
-    pygame.draw.polygon(s, (140, 25, 25), feather_pts, 1)
-    pygame.draw.line(s, (90, 20, 20), (spine_x - 14, 360), (spine_x + 26, 344), 1)
-
-    # ── BUTTONS — bookmark ribbon tabs ──────────────────────────────────
-    def ribbon_btn(center, text, color):
-        w, h = 220, 44
-        x = center[0] - w // 2
-        y = center[1] - h // 2
-        # Ribbon body with notched right end
-        pts = [(0, 0), (w - 14, 0), (w, h // 2), (w - 14, h), (0, h)]
-        rib = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.polygon(rib, color, pts)
-        pygame.draw.polygon(rib, lerp(color, NEAR_BLACK, 0.55), pts, 2)
-        # Fabric weave highlights
-        pygame.draw.line(rib, lerp(color, WHITE, 0.5), (6, 3), (w - 20, 3), 1)
-        pygame.draw.line(rib, lerp(color, NEAR_BLACK, 0.35),
-                         (6, h - 4), (w - 20, h - 4), 1)
-        s.blit(rib, (x, y))
-        ti = font(17, True).render(text, True, WHITE)
-        sh = font(17, True).render(text, True, NEAR_BLACK)
-        sh.set_alpha(140)
-        tr = ti.get_rect(center=(x + (w - 8) // 2, center[1]))
+        # Outer gold ring
+        pygame.draw.rect(s, GOLD_BRIGHT, (x - 3, y - 3, w + 6, h + 6),
+                         border_radius=(h + 6) // 2)
+        pygame.draw.rect(s, GOLD_DEEP, (x - 3, y - 3, w + 6, h + 6), width=1,
+                         border_radius=(h + 6) // 2)
+        # Inner gold ring
+        pygame.draw.rect(s, NEAR_BLACK, (x - 1, y - 1, w + 2, h + 2),
+                         border_radius=(h + 2) // 2)
+        pill = pygame.Surface((w, h), pygame.SRCALPHA)
+        for yy in range(h):
+            t = yy / max(1, h - 1)
+            c = lerp(BTN_TOP, BTN_BOT, t)
+            pygame.draw.line(pill, (*c, 255), (0, yy), (w, yy))
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=h // 2)
+        pill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        # Top sheen
+        pygame.draw.line(pill, (255, 255, 255, 110), (h // 2, 3), (w - h // 2, 3), 2)
+        # Bottom shadow
+        pygame.draw.line(pill, (0, 0, 0, 80), (h // 2, h - 4), (w - h // 2, h - 4))
+        s.blit(pill, (x, y))
+        ti = font(sz, True).render(text, True, GOLD_BRIGHT)
+        sh = font(sz, True).render(text, True, NEAR_BLACK)
+        sh.set_alpha(180)
+        tr = ti.get_rect(center=center)
         s.blit(sh, (tr.x + 1, tr.y + 2))
         s.blit(ti, tr)
 
-    ribbon_btn((W // 2 - 4, 408), "TAKE FLIGHT", (200, 60, 50))
-    ribbon_btn((W // 2 - 4, 458), "FIELD GUIDE", (60, 110, 160))
-    ribbon_btn((W // 2 - 4, 508), "POWER-UPS",   (140, 90, 30))
+    royal_pill((W // 2, 270), "TAP TO START", big=True)
+    royal_pill((W // 2, 332), "HOW TO PLAY")
+    royal_pill((W // 2, 388), "POWER-UPS")
 
-    # ── BEST + TOP 10 inset on the right page ───────────────────────────
-    # "Personal Best" in cursive (italic-feel) with quill
-    pb_x, pb_y = page_r.right - 88, page_r.bottom - 60
-    cap = font(12, True).render("Personal Best", True, (80, 40, 16))
-    s.blit(cap, cap.get_rect(center=(pb_x, pb_y - 14)))
-    pygame.draw.line(s, (120, 60, 30), (pb_x - 36, pb_y - 4),
-                     (pb_x + 36, pb_y - 4), 1)
-    val = font(28, True).render("42", True, (140, 30, 20))
-    s.blit(val, val.get_rect(center=(pb_x, pb_y + 12)))
-    # Tiny quill
-    pygame.draw.line(s, (90, 30, 16), (pb_x - 44, pb_y + 26),
-                     (pb_x - 28, pb_y + 6), 2)
-    pygame.draw.polygon(s, (200, 60, 60),
-                        [(pb_x - 44, pb_y + 26),
-                         (pb_x - 50, pb_y + 32),
-                         (pb_x - 38, pb_y + 22)])
+    # ── BEST + TOP 10 as ornate medallions ──
+    # Left medallion — BEST
+    mcx_l, mcy = 90, 500
+    pygame.draw.circle(s, (60, 40, 80), (mcx_l, mcy), 44)
+    pygame.draw.circle(s, GOLD_BRIGHT, (mcx_l, mcy), 44, 3)
+    pygame.draw.circle(s, GOLD_DEEP, (mcx_l, mcy), 38, 1)
+    # Laurel-like ticks
+    for ang_deg in range(0, 360, 15):
+        a = math.radians(ang_deg)
+        x1 = mcx_l + math.cos(a) * 38
+        y1 = mcy + math.sin(a) * 38
+        x2 = mcx_l + math.cos(a) * 44
+        y2 = mcy + math.sin(a) * 44
+        pygame.draw.line(s, GOLD_BRIGHT, (x1, y1), (x2, y2), 1)
+    lbl = font(10, True).render("BEST", True, GOLD_BRIGHT)
+    s.blit(lbl, lbl.get_rect(center=(mcx_l, mcy - 12)))
+    val = font(30, True).render("42", True, GOLD_BRIGHT)
+    sh = font(30, True).render("42", True, NEAR_BLACK)
+    sh.set_alpha(180)
+    vr = val.get_rect(center=(mcx_l, mcy + 8))
+    s.blit(sh, (vr.x + 1, vr.y + 2))
+    s.blit(val, vr)
+    # Ribbon underneath
+    pygame.draw.polygon(s, (200, 50, 40),
+                        [(mcx_l - 18, mcy + 42), (mcx_l + 18, mcy + 42),
+                         (mcx_l + 14, mcy + 60), (mcx_l, mcy + 54),
+                         (mcx_l - 14, mcy + 60)])
 
-    # "TOP 10 RANK" pressed ribbon on the left page bottom
-    tr_cx, tr_cy = page_l.x + 70, page_l.bottom - 36
-    ribbon = pygame.Rect(tr_cx - 50, tr_cy - 14, 100, 28)
-    pygame.draw.polygon(s, GOLD_BRIGHT,
-                        [(ribbon.x, ribbon.y), (ribbon.right, ribbon.y),
-                         (ribbon.right + 6, ribbon.centery),
-                         (ribbon.right, ribbon.bottom),
-                         (ribbon.x, ribbon.bottom),
-                         (ribbon.x - 6, ribbon.centery)])
-    pygame.draw.polygon(s, (140, 90, 8),
-                        [(ribbon.x, ribbon.y), (ribbon.right, ribbon.y),
-                         (ribbon.right + 6, ribbon.centery),
-                         (ribbon.right, ribbon.bottom),
-                         (ribbon.x, ribbon.bottom),
-                         (ribbon.x - 6, ribbon.centery)], 2)
-    rl = font(11, True).render("TOP 10", True, NEAR_BLACK)
-    s.blit(rl, rl.get_rect(center=(ribbon.centerx, ribbon.centery - 4)))
-    rsub = font(8, True).render("LEAGUE", True, NEAR_BLACK)
-    s.blit(rsub, rsub.get_rect(center=(ribbon.centerx, ribbon.centery + 8)))
+    # Right medallion — TOP 10 with trophy
+    mcx_r = W - 90
+    pygame.draw.circle(s, (60, 40, 80), (mcx_r, mcy), 44)
+    pygame.draw.circle(s, GOLD_BRIGHT, (mcx_r, mcy), 44, 3)
+    pygame.draw.circle(s, GOLD_DEEP, (mcx_r, mcy), 38, 1)
+    for ang_deg in range(0, 360, 15):
+        a = math.radians(ang_deg)
+        x1 = mcx_r + math.cos(a) * 38
+        y1 = mcy + math.sin(a) * 38
+        x2 = mcx_r + math.cos(a) * 44
+        y2 = mcy + math.sin(a) * 44
+        pygame.draw.line(s, GOLD_BRIGHT, (x1, y1), (x2, y2), 1)
+    lbl = font(10, True).render("TOP 10", True, GOLD_BRIGHT)
+    s.blit(lbl, lbl.get_rect(center=(mcx_r, mcy - 16)))
+    draw_trophy(s, mcx_r, mcy + 10, 11)
+    pygame.draw.polygon(s, (200, 50, 40),
+                        [(mcx_r - 18, mcy + 42), (mcx_r + 18, mcy + 42),
+                         (mcx_r + 14, mcy + 60), (mcx_r, mcy + 54),
+                         (mcx_r - 14, mcy + 60)])
 
-    save("theme_b_logbook.png", s)
+    save("v1_royal.png", s)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Theme C — THE CARTOGRAPHER'S CHART (Sky-Route Map)
+# v2 — AVIATOR
 # ─────────────────────────────────────────────────────────────────────────────
-def theme_c_route_map():
+def v2_aviator():
     s = pygame.Surface((W, H))
-    # Parchment background
-    gradient_v(s, (242, 222, 175), (218, 192, 138))
-    # Paper texture
-    random.seed(11)
-    for _ in range(2200):
-        x = random.randint(0, W - 1)
-        y = random.randint(0, H - 1)
-        c = random.randint(160, 220)
-        if random.random() < 0.2:
-            pygame.draw.circle(s, (c, c - 25, c - 60), (x, y), 1)
-    # Tea-stain blotches
-    for cx, cy, r in [(60, 80, 50), (300, 200, 40), (90, 530, 35), (310, 510, 30)]:
-        for k in range(r, 0, -3):
-            a = int(30 * (1 - k / r))
-            blot = pygame.Surface((k * 2, k * 2), pygame.SRCALPHA)
-            pygame.draw.circle(blot, (140, 80, 30, a), (k, k), k)
-            s.blit(blot, (cx - k, cy - k))
-    # Fold creases (vertical thirds + horizontal middle)
-    for x in (W // 3, 2 * W // 3):
-        line = pygame.Surface((1, H), pygame.SRCALPHA)
-        line.fill((90, 60, 30, 50))
-        s.blit(line, (x, 0))
-    line = pygame.Surface((W, 1), pygame.SRCALPHA)
-    line.fill((90, 60, 30, 50))
-    s.blit(line, (0, H // 2))
-
-    # Title scroll banner at top
-    title_y = 80
-    scroll = pygame.Rect(W // 2 - 140, title_y - 36, 280, 72)
-    pygame.draw.rect(s, (238, 212, 162), scroll, border_radius=8)
-    pygame.draw.rect(s, (130, 80, 40), scroll, 2, border_radius=8)
-    # Scroll roll edges
-    pygame.draw.rect(s, (180, 130, 70), (scroll.x - 10, scroll.y, 10, scroll.h))
-    pygame.draw.rect(s, (180, 130, 70), (scroll.right, scroll.y, 10, scroll.h))
-    pygame.draw.rect(s, (90, 60, 30), (scroll.x - 10, scroll.y, 10, scroll.h), 2)
-    pygame.draw.rect(s, (90, 60, 30), (scroll.right, scroll.y, 10, scroll.h), 2)
-    skybit_title(s, W // 2, title_y - 4, size=44, px=2)
-    sub = font(11, True).render("SKY  COURIER  ROUTE  ·  POCKET  SKY  FLYER",
-                                True, (90, 50, 20))
-    s.blit(sub, sub.get_rect(center=(W // 2, title_y + 22)))
-
-    # Map field — middle area
-    map_top, map_bot = 160, 470
-    # Faint compass rose lower right
-    cr_cx, cr_cy = W - 50, map_bot - 30
+    night_sky(s)
+    # Map-grid overlay — faint navigation lines
+    grid = pygame.Surface((W, H), pygame.SRCALPHA)
+    for x in range(0, W, 36):
+        pygame.draw.line(grid, (60, 200, 220, 18), (x, 0), (x, 400), 1)
+    for y in range(0, 400, 36):
+        pygame.draw.line(grid, (60, 200, 220, 18), (0, y), (W, y), 1)
+    s.blit(grid, (0, 0))
+    # Compass rose (faint, top-right) — navigation feel
+    cr_cx, cr_cy = W - 40, 50
+    pygame.draw.circle(s, (255, 200, 80, 80), (cr_cx, cr_cy), 22, 1)
     for ang_deg in range(0, 360, 45):
         a = math.radians(ang_deg)
         x1 = cr_cx + math.cos(a) * 4
         y1 = cr_cy + math.sin(a) * 4
         x2 = cr_cx + math.cos(a) * 22
         y2 = cr_cy + math.sin(a) * 22
-        pygame.draw.line(s, (90, 50, 20), (x1, y1), (x2, y2), 1)
-    pygame.draw.circle(s, (90, 50, 20), (cr_cx, cr_cy), 4)
-    pygame.draw.polygon(s, (140, 30, 20),
-                        [(cr_cx, cr_cy - 22), (cr_cx - 4, cr_cy),
-                         (cr_cx + 4, cr_cy)])
-    nlab = font(9, True).render("N", True, (90, 50, 20))
-    s.blit(nlab, nlab.get_rect(center=(cr_cx, cr_cy - 30)))
+        pygame.draw.line(s, (240, 200, 110), (x1, y1), (x2, y2), 1)
+    pygame.draw.polygon(s, RED_OUTLINE,
+                        [(cr_cx, cr_cy - 22), (cr_cx - 4, cr_cy), (cr_cx + 4, cr_cy)])
+    pygame.draw.polygon(s, GOLD_BRIGHT,
+                        [(cr_cx, cr_cy + 22), (cr_cx - 4, cr_cy), (cr_cx + 4, cr_cy)])
 
-    # Pencil-shaded mountains across the map field
-    for pts, fill in [
-        ([(0, 460), (40, 410), (90, 430), (140, 380), (200, 420), (260, 390), (320, 430), (360, 410), (360, 470), (0, 470)],
-         (200, 170, 120)),
-    ]:
-        pygame.draw.polygon(s, fill, pts)
-        for i in range(len(pts) - 2):
-            pygame.draw.line(s, (110, 70, 30), pts[i], pts[i + 1], 1)
+    # ── Title with wings flanking it ──
+    skybit_title(s, W // 2, 130, size=72, px=3)
+    # Wings — feathered chevrons left and right of title
+    def wing(cx, cy, dir):
+        for i in range(5):
+            length = 30 - i * 4
+            y_off = i * 5
+            pygame.draw.line(s, GOLD_BRIGHT,
+                             (cx, cy + y_off - 8),
+                             (cx + dir * length, cy + y_off - 4), 2)
+            pygame.draw.line(s, GOLD_DEEP,
+                             (cx, cy + y_off - 8),
+                             (cx + dir * length, cy + y_off - 4), 1)
+    wing(40, 130, +1)
+    wing(W - 40, 130, -1)
+    skybit_subtitle(s, W // 2, 188, size=20)
+    # Decorative line with airplane glyph
+    pygame.draw.line(s, GOLD_BRIGHT, (W // 2 - 70, 210), (W // 2 - 12, 210), 1)
+    pygame.draw.line(s, GOLD_BRIGHT, (W // 2 + 12, 210), (W // 2 + 70, 210), 1)
+    # Tiny plane silhouette in center
+    pygame.draw.polygon(s, GOLD_BRIGHT,
+                        [(W // 2 - 7, 210), (W // 2 + 6, 210),
+                         (W // 2 + 8, 213), (W // 2 + 6, 210),
+                         (W // 2 + 3, 208), (W // 2 + 3, 212)])
+    pygame.draw.line(s, GOLD_BRIGHT, (W // 2 - 2, 207), (W // 2 + 2, 213), 1)
 
-    # Route — dotted red line snaking from bottom-left (pickup) to top-right (delivery)
-    route_pts = [(50, 440), (90, 410), (130, 350), (180, 310),
-                 (230, 270), (270, 230), (310, 200)]
-    for i in range(len(route_pts) - 1):
-        x1, y1 = route_pts[i]
-        x2, y2 = route_pts[i + 1]
-        steps = 14
-        for k in range(0, steps):
-            t = k / steps
-            xa = x1 + (x2 - x1) * t
-            ya = y1 + (y2 - y1) * t
-            if k % 2 == 0:
-                pygame.draw.circle(s, (200, 50, 40), (int(xa), int(ya)), 2)
-
-    # Start cottage (teal)
-    draw_cottage(s, route_pts[0][0] + 6, route_pts[0][1] - 14, scale=0.4,
-                 roof_col=COTTAGE_TEAL, with_lantern=False)
-    sl = font(9, True).render("PICKUP", True, (40, 90, 70))
-    s.blit(sl, (route_pts[0][0] - 24, route_pts[0][1] + 4))
-
-    # End cottage (red)
-    draw_cottage(s, route_pts[-1][0] - 4, route_pts[-1][1] - 4, scale=0.4,
-                 roof_col=COTTAGE_RED, with_lantern=True)
-    el = font(9, True).render("DROP-OFF", True, (120, 30, 20))
-    s.blit(el, (route_pts[-1][0] - 24, route_pts[-1][1] + 18))
-
-    # Pillar landmarks along the route (mini icons + ink labels)
-    landmarks = [
-        (route_pts[1][0] + 18, route_pts[1][1] - 8, "flag",      "PRAYER FLAGS"),
-        (route_pts[2][0] - 20, route_pts[2][1] - 18, "lantern",  "LANTERN PEAK"),
-        (route_pts[3][0] + 24, route_pts[3][1] - 22, "monastery","MONASTERY"),
-        (route_pts[4][0] - 10, route_pts[4][1] - 18, "bucket",   "KFC HAZARD!"),
-    ]
-    for lx, ly, kind, label in landmarks:
-        # Same margin_sketch palette as theme B (inline)
-        if kind == "flag":
-            pygame.draw.line(s, (90, 50, 24), (lx, ly + 8), (lx, ly - 12), 1)
-            for i, c in enumerate([(200, 60, 60), (60, 140, 200), (240, 200, 80)]):
-                pygame.draw.polygon(s, c, [(lx, ly - 10 + i * 4),
-                                            (lx + 7, ly - 8 + i * 4),
-                                            (lx, ly - 6 + i * 4)])
-        elif kind == "lantern":
-            pygame.draw.line(s, (60, 30, 16), (lx, ly - 12), (lx, ly - 6), 1)
-            pygame.draw.ellipse(s, (200, 60, 60), (lx - 6, ly - 6, 12, 14))
-            pygame.draw.ellipse(s, (90, 30, 30), (lx - 6, ly - 6, 12, 14), 1)
-        elif kind == "monastery":
-            pygame.draw.rect(s, (200, 170, 130), (lx - 8, ly - 2, 16, 12))
-            pygame.draw.polygon(s, (140, 90, 50),
-                                [(lx - 10, ly - 2), (lx + 10, ly - 2), (lx, ly - 12)])
-        elif kind == "bucket":
-            pygame.draw.polygon(s, (220, 60, 60),
-                                [(lx - 9, ly - 7), (lx + 9, ly - 7),
-                                 (lx + 6, ly + 7), (lx - 6, ly + 7)])
-            for y in range(ly - 5, ly + 7, 3):
-                pygame.draw.line(s, (250, 240, 230), (lx - 8, y), (lx + 8, y), 1)
-        # Label
-        lab = font(9, True).render(label, True, (110, 30, 20) if "HAZARD" in label else (60, 30, 10))
-        s.blit(lab, (lx + 12, ly - 4))
-
-    # ── BUTTONS — wooden signposts ──────────────────────────────────────
-    def signpost(center, text, big=False):
-        w, h = (220, 42) if big else (220, 36)
+    # ── Buttons — brass-bordered enamel signs ──
+    def brass_btn(center, text, big=False):
+        h = 54 if big else 44
+        sz = 20 if big else 17
+        w = 250
         x = center[0] - w // 2
         y = center[1] - h // 2
-        # Post
-        pygame.draw.rect(s, (90, 60, 30), (center[0] - 2, y + h, 4, 16))
-        # Arrow plank
-        pts = [(0, 4), (w - 18, 4), (w - 2, h // 2), (w - 18, h - 4), (0, h - 4)]
-        sp = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.polygon(sp, (190, 140, 80), pts)
-        pygame.draw.polygon(sp, (90, 50, 20), pts, 2)
-        # Wood grain
-        for k in range(8, h - 6, 5):
-            pygame.draw.line(sp, (160, 110, 60), (10, k), (w - 26, k), 1)
-        # Nail heads
-        pygame.draw.circle(sp, (60, 40, 20), (16, h // 2), 2)
-        pygame.draw.circle(sp, (60, 40, 20), (w - 30, h // 2), 2)
-        s.blit(sp, (x, y))
-        ti = font(16 if big else 14, True).render(text, True, (40, 22, 10))
-        s.blit(ti, ti.get_rect(center=(x + (w - 12) // 2, center[1])))
-
-    signpost((W // 2 - 10, 500), "TO TAKEOFF →", big=True)
-    signpost((W // 2 - 10, 548), "TO BRIEFING →")
-    signpost((W // 2 - 10, 590), "TO CARGO LIST →")
-
-    # ── BEST wax seal + TOP 10 scroll in top-left margin ────────────────
-    # Wax seal
-    wsx, wsy = 50, 130
-    pygame.draw.circle(s, (140, 20, 20), (wsx, wsy), 24)
-    pygame.draw.circle(s, (200, 50, 40), (wsx, wsy), 22)
-    pygame.draw.circle(s, (100, 10, 10), (wsx, wsy), 24, 2)
-    bl = font(8, True).render("BEST", True, (245, 220, 180))
-    s.blit(bl, bl.get_rect(center=(wsx, wsy - 7)))
-    vl = font(18, True).render("42", True, (250, 220, 180))
-    s.blit(vl, vl.get_rect(center=(wsx, wsy + 6)))
-    # Ribbon tails
-    pygame.draw.polygon(s, (140, 20, 20),
-                        [(wsx - 6, wsy + 22), (wsx - 2, wsy + 22), (wsx - 14, wsy + 40)])
-    pygame.draw.polygon(s, (140, 20, 20),
-                        [(wsx + 2, wsy + 22), (wsx + 6, wsy + 22), (wsx + 18, wsy + 40)])
-
-    # TOP 10 rolled scroll at top-right
-    tsx, tsy = W - 50, 130
-    sc = pygame.Rect(tsx - 30, tsy - 18, 60, 36)
-    pygame.draw.rect(s, (245, 222, 170), sc, border_radius=6)
-    pygame.draw.rect(s, (130, 80, 40), sc, 2, border_radius=6)
-    # Roll ends
-    pygame.draw.circle(s, (180, 130, 70), (sc.x, sc.centery), 6)
-    pygame.draw.circle(s, (180, 130, 70), (sc.right, sc.centery), 6)
-    pygame.draw.circle(s, (90, 50, 20), (sc.x, sc.centery), 6, 1)
-    pygame.draw.circle(s, (90, 50, 20), (sc.right, sc.centery), 6, 1)
-    tlab = font(9, True).render("TOP 10", True, (90, 30, 10))
-    s.blit(tlab, tlab.get_rect(center=(tsx, tsy - 4)))
-    # Tiny trophy doodle
-    pygame.draw.polygon(s, (180, 130, 30),
-                        [(tsx - 5, tsy + 4), (tsx + 5, tsy + 4),
-                         (tsx + 4, tsy + 10), (tsx - 4, tsy + 10)])
-    pygame.draw.rect(s, (180, 130, 30), (tsx - 5, tsy + 11, 10, 2))
-    # Ribbon
-    pygame.draw.line(s, (200, 50, 40), (tsx - 12, tsy + 18), (tsx + 12, tsy + 18), 2)
-
-    save("theme_c_route_map.png", s)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Theme D — THE COCKPIT DASHBOARD (Captain's View)
-# ─────────────────────────────────────────────────────────────────────────────
-def theme_d_cockpit():
-    s = pygame.Surface((W, H))
-    # Polished-wood panel covers most of the screen
-    gradient_v(s, (88, 56, 32), (50, 32, 18))
-    # Wood grain horizontal streaks
-    for y in range(0, H, 8):
-        a = random.randint(20, 50)
-        line = pygame.Surface((W, 1), pygame.SRCALPHA)
-        line.fill((30, 18, 8, a))
-        s.blit(line, (0, y))
-
-    # Brass rivets in corners of the panel
-    for rx in (16, W - 16):
-        for ry in (200, H - 16):
-            pygame.draw.circle(s, GOLD_BRIGHT, (rx, ry), 4)
-            pygame.draw.circle(s, (140, 90, 8), (rx, ry), 4, 1)
+        # Brass plate behind (slightly bigger, brass color)
+        brass = pygame.Rect(x - 5, y - 5, w + 10, h + 10)
+        pygame.draw.rect(s, GOLD_BRIGHT, brass, border_radius=(h + 10) // 2)
+        pygame.draw.rect(s, GOLD_DEEP, brass, width=2, border_radius=(h + 10) // 2)
+        # Rivet heads on corners
+        for rx, ry in [(brass.x + 8, brass.y + brass.h // 2),
+                       (brass.right - 8, brass.y + brass.h // 2)]:
+            pygame.draw.circle(s, (160, 110, 30), (rx, ry), 3)
             pygame.draw.circle(s, (255, 240, 180), (rx - 1, ry - 1), 1)
-
-    # WINDSHIELD — curved glass at the top showing biome-sky horizon
-    ws_top = 10
-    ws_h = 200
-    ws_rect = pygame.Rect(20, ws_top, W - 40, ws_h)
-    # Sky in the windshield (Skybit twilight: deep blue to peach near horizon)
-    ws = pygame.Surface(ws_rect.size)
-    sky_colors = [(12, 18, 55), (40, 60, 120), (180, 100, 80), (255, 200, 110)]
-    seg_h = ws_h // (len(sky_colors) - 1)
-    for i in range(len(sky_colors) - 1):
-        for y in range(seg_h):
-            t = y / max(1, seg_h - 1)
-            c = lerp(sky_colors[i], sky_colors[i + 1], t)
-            pygame.draw.line(ws, c, (0, i * seg_h + y),
-                             (ws_rect.w, i * seg_h + y))
-    # Stars near top
-    random.seed(19)
-    for _ in range(30):
-        x = random.randint(0, ws_rect.w - 1)
-        y = random.randint(0, 60)
-        pygame.draw.circle(ws, (250, 250, 240), (x, y), 1)
-    # Distant mountain silhouette
-    pygame.draw.polygon(ws, (50, 30, 56),
-                        [(0, ws_h - 30), (40, ws_h - 50),
-                         (90, ws_h - 35), (140, ws_h - 60),
-                         (200, ws_h - 40), (260, ws_h - 55),
-                         (320, ws_h - 38), (ws_rect.w, ws_h - 45),
-                         (ws_rect.w, ws_h), (0, ws_h)])
-    # Tiny incoming pillar silhouette
-    pygame.draw.rect(ws, (60, 40, 80), (ws_rect.w - 80, ws_h - 90, 14, 60))
-    pygame.draw.rect(ws, (60, 40, 80), (ws_rect.w - 80, 0, 14, ws_h - 130))
-    # Tiny Pip flying — small dark dot with red tail
-    pip_x, pip_y = 70, 100
-    pygame.draw.circle(ws, (240, 55, 55), (pip_x, pip_y), 4)
-    pygame.draw.polygon(ws, (40, 100, 255),
-                        [(pip_x + 1, pip_y - 4), (pip_x + 6, pip_y - 1),
-                         (pip_x + 2, pip_y + 2)])
-    # Place the windshield with a black bezel
-    pygame.draw.rect(s, (10, 6, 4), ws_rect.inflate(8, 8), border_radius=24)
-    s.blit(ws, ws_rect.topleft)
-    # Mask windshield to rounded
-    mask = pygame.Surface(ws_rect.size, pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=20)
-    # Overdraw a glass sheen
-    sheen = pygame.Surface(ws_rect.size, pygame.SRCALPHA)
-    pygame.draw.polygon(sheen, (255, 255, 255, 35),
-                        [(20, 6), (90, 6), (50, 60), (10, 50)])
-    s.blit(sheen, ws_rect.topleft)
-    # Bezel ring
-    pygame.draw.rect(s, (20, 14, 8), ws_rect, 4, border_radius=20)
-    pygame.draw.rect(s, GOLD_BRIGHT, ws_rect, 1, border_radius=20)
-
-    # Title plaque mounted under the windshield
-    plaque = pygame.Rect(W // 2 - 110, 218, 220, 44)
-    pygame.draw.rect(s, (130, 84, 44), plaque, border_radius=6)
-    pygame.draw.rect(s, (40, 22, 10), plaque, 2, border_radius=6)
-    pygame.draw.line(s, (200, 160, 100),
-                     (plaque.x + 6, plaque.y + 4),
-                     (plaque.right - 6, plaque.y + 4), 1)
-    skybit_title(s, plaque.centerx, plaque.centery, size=30, px=2)
-    psub = font(9, True).render("CAPT. PIP · POCKET SKY FLYER", True, GOLD_BRIGHT)
-    s.blit(psub, psub.get_rect(center=(plaque.centerx, plaque.bottom + 10)))
-
-    # ── DASHBOARD GAUGES ────────────────────────────────────────────────
-    # Altimeter (left) — round brass dial
-    def gauge(cx, cy, r, label, value, accent=GOLD_BRIGHT, with_needle=True, needle_ang_deg=-30):
-        # Outer rim
-        pygame.draw.circle(s, (160, 110, 30), (cx, cy), r + 4)
-        pygame.draw.circle(s, (60, 40, 12), (cx, cy), r + 4, 2)
-        # Inner face
-        pygame.draw.circle(s, (245, 232, 195), (cx, cy), r)
-        pygame.draw.circle(s, (60, 40, 12), (cx, cy), r, 1)
-        # Tick marks
-        for ang_deg in range(0, 360, 30):
-            a = math.radians(ang_deg - 90)
-            x1 = cx + math.cos(a) * (r - 4)
-            y1 = cy + math.sin(a) * (r - 4)
-            x2 = cx + math.cos(a) * (r - 1)
-            y2 = cy + math.sin(a) * (r - 1)
-            pygame.draw.line(s, (60, 40, 12), (x1, y1), (x2, y2), 1)
-        # Center hub
-        pygame.draw.circle(s, (60, 40, 12), (cx, cy), 3)
-        # Needle
-        if with_needle:
-            a = math.radians(needle_ang_deg - 90)
-            nx = cx + math.cos(a) * (r - 6)
-            ny = cy + math.sin(a) * (r - 6)
-            pygame.draw.line(s, (180, 30, 30), (cx, cy), (nx, ny), 2)
-        # Label inside dial
-        lb = font(8, True).render(label, True, (60, 40, 12))
-        s.blit(lb, lb.get_rect(center=(cx, cy + r - 8)))
-        # Value
-        if value:
-            vf = font(13, True).render(value, True, (140, 30, 20))
-            s.blit(vf, vf.get_rect(center=(cx, cy - r + 14)))
-
-    # Two flanking gauges left and right of the title plaque, lower
-    gauge(50, 318, 30, "ALT", "320 ft", needle_ang_deg=60)
-    gauge(W - 50, 318, 30, "COIN", "x7", needle_ang_deg=110)
-
-    # ── BUTTONS — chrome push-buttons / toggle switches mounted on panel ─
-    def chrome_btn(center, text, big=False, glow=False):
-        w, h = (240, 50) if big else (200, 40)
-        x = center[0] - w // 2
-        y = center[1] - h // 2
-        # Recessed panel cutout
-        pygame.draw.rect(s, (28, 16, 8), (x - 4, y - 4, w + 8, h + 8), border_radius=h // 2 + 4)
-        # Chrome body — light vertical gradient
-        b = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Inner red enamel pill
+        pill = pygame.Surface((w, h), pygame.SRCALPHA)
         for yy in range(h):
             t = yy / max(1, h - 1)
-            c = lerp((240, 240, 250), (130, 130, 145), t)
-            pygame.draw.line(b, (*c, 255), (0, yy), (w, yy))
-        # Top sheen
-        pygame.draw.line(b, (255, 255, 255, 230), (h // 2, 3), (w - h // 2, 3), 2)
+            c = lerp(BTN_TOP, BTN_BOT, t)
+            pygame.draw.line(pill, (*c, 255), (0, yy), (w, yy))
         mask = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=h // 2)
-        b.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        # Brass rim
-        pygame.draw.rect(b, GOLD_BRIGHT, (0, 0, w, h), width=2, border_radius=h // 2)
-        s.blit(b, (x, y))
-        # Engraved text
-        sz = 19 if big else 16
-        ti = font(sz, True).render(text, True, (40, 22, 12))
-        sh = font(sz, True).render(text, True, (220, 220, 230))
-        sr = ti.get_rect(center=center)
-        s.blit(sh, (sr.x + 1, sr.y + 1))
-        s.blit(ti, sr)
-        if glow:
-            # Green "ARMED" LED on the right
-            led_x = x + w - 16
-            led_y = center[1]
-            pygame.draw.circle(s, (40, 200, 90), (led_x, led_y), 4)
-            pygame.draw.circle(s, (200, 255, 220), (led_x - 1, led_y - 1), 1)
-
-    chrome_btn((W // 2, 390), "FLIGHT  START", big=True, glow=True)
-    chrome_btn((W // 2, 448), "MANUAL")
-    chrome_btn((W // 2, 498), "POWER-UPS")
-
-    # ── BEST = odometer ─────────────────────────────────────────────────
-    odo = pygame.Rect(28, 548, 130, 56)
-    pygame.draw.rect(s, (16, 8, 4), odo, border_radius=6)
-    pygame.draw.rect(s, GOLD_BRIGHT, odo, 2, border_radius=6)
-    olab = font(9, True).render("BEST  RUN", True, GOLD_BRIGHT)
-    s.blit(olab, (odo.x + 10, odo.y + 6))
-    # Six digit rolls
-    for i, ch in enumerate("000042"):
-        cell = pygame.Rect(odo.x + 10 + i * 19, odo.y + 22, 17, 26)
-        pygame.draw.rect(s, (245, 232, 195), cell)
-        pygame.draw.rect(s, (50, 30, 14), cell, 1)
-        ti = font(18, True).render(ch, True, (170, 30, 20))
-        s.blit(ti, ti.get_rect(center=cell.center))
-
-    # ── TOP 10 = brass radio dial ───────────────────────────────────────
-    dial_cx, dial_cy = W - 70, 576
-    pygame.draw.circle(s, (160, 110, 30), (dial_cx, dial_cy), 32)
-    pygame.draw.circle(s, (220, 180, 90), (dial_cx, dial_cy), 28)
-    pygame.draw.circle(s, (60, 40, 12), (dial_cx, dial_cy), 32, 2)
-    # Knurled edge
-    for ang_deg in range(0, 360, 18):
-        a = math.radians(ang_deg)
-        x1 = dial_cx + math.cos(a) * 28
-        y1 = dial_cy + math.sin(a) * 28
-        x2 = dial_cx + math.cos(a) * 32
-        y2 = dial_cy + math.sin(a) * 32
-        pygame.draw.line(s, (60, 40, 12), (x1, y1), (x2, y2), 1)
-    # Indicator notch
-    pygame.draw.polygon(s, (180, 30, 20),
-                        [(dial_cx - 3, dial_cy - 30), (dial_cx + 3, dial_cy - 30),
-                         (dial_cx, dial_cy - 22)])
-    # Label plaque
-    pl = pygame.Rect(dial_cx - 36, dial_cy + 24, 72, 14)
-    pygame.draw.rect(s, (20, 12, 6), pl, border_radius=3)
-    tlab = font(8, True).render("TOP  COURIERS", True, GOLD_BRIGHT)
-    s.blit(tlab, tlab.get_rect(center=pl.center))
-
-    save("theme_d_cockpit.png", s)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Theme E — ARRIVAL AT THE STARLIT COTTAGE (Journey's End)
-# ─────────────────────────────────────────────────────────────────────────────
-def theme_e_arrival_cottage():
-    s = pygame.Surface((W, H))
-    # Deep night gradient
-    gradient_v(s, NIGHT_DEEP, (16, 8, 44))
-
-    # Twinkly stars
-    random.seed(17)
-    for _ in range(110):
-        x = random.randint(0, W - 1)
-        y = random.randint(0, 380)
-        r = random.choice([1, 1, 1, 2])
-        a = random.randint(120, 255)
-        pygame.draw.circle(s, (240, 245, 255), (x, y), r)
-
-    # Big sparkle stars forming the Pip+trophy constellation
-    constellation_pts = [
-        (W // 2 - 70, 90),
-        (W // 2 - 40, 70),
-        (W // 2,      60),
-        (W // 2 + 32, 76),
-        (W // 2 + 60, 100),
-        # tail
-        (W // 2 + 90, 130),
-        (W // 2 + 50, 140),
-        # trophy beside
-        (W // 2 - 110, 130),
-        (W // 2 - 95, 150),
-        (W // 2 - 80, 130),
-    ]
-    for cx, cy in constellation_pts:
-        pygame.draw.circle(s, (255, 255, 220), (cx, cy), 2)
-        pygame.draw.line(s, (255, 255, 220), (cx - 6, cy), (cx + 6, cy), 1)
-        pygame.draw.line(s, (255, 255, 220), (cx, cy - 6), (cx, cy + 6), 1)
-    # Connecting lines (Pip body)
-    for a, b in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (4, 6), (7, 8), (8, 9)]:
-        pygame.draw.aaline(s, (255, 255, 220, 120),
-                           constellation_pts[a], constellation_pts[b])
-
-    # Moon — soft glow
-    moon_cx, moon_cy = 80, 80
-    moon_glow = pygame.Surface((120, 120), pygame.SRCALPHA)
-    for r in range(58, 0, -2):
-        a = int(40 * (1 - r / 58))
-        pygame.draw.circle(moon_glow, (255, 245, 200, a), (60, 60), r)
-    s.blit(moon_glow, (moon_cx - 60, moon_cy - 60))
-    pygame.draw.circle(s, (250, 245, 220), (moon_cx, moon_cy), 18)
-    pygame.draw.circle(s, (220, 220, 200), (moon_cx + 5, moon_cy - 3), 14)
-
-    # Mountain silhouette deep in the back
-    pygame.draw.polygon(s, (20, 14, 48),
-                        [(0, 450), (60, 380), (120, 410), (180, 360),
-                         (240, 400), (300, 370), (360, 410), (360, 470), (0, 470)])
-    pygame.draw.polygon(s, (10, 6, 30),
-                        [(0, 490), (80, 460), (160, 480), (240, 450),
-                         (320, 470), (360, 460), (360, 540), (0, 540)])
-
-    # Title sign — wooden plaque hanging from a chain at top
-    title_y = 220
-    plaque = pygame.Rect(W // 2 - 140, title_y - 40, 280, 80)
-    # Chain from top
-    for k in range(0, 18, 3):
-        pygame.draw.circle(s, (170, 170, 175), (W // 2, k), 3, 1)
-    pygame.draw.rect(s, (88, 50, 24), plaque, border_radius=10)
-    pygame.draw.rect(s, (30, 14, 8), plaque, 3, border_radius=10)
-    pygame.draw.line(s, (200, 160, 100),
-                     (plaque.x + 8, plaque.y + 6),
-                     (plaque.right - 8, plaque.y + 6), 1)
-    skybit_title(s, plaque.centerx, plaque.centery - 8, size=46, px=2)
-    sub = font(11, True).render("DELIVERY  CONFIRMED  ·  POCKET  SKY  FLYER",
-                                True, GOLD_BRIGHT)
-    s.blit(sub, sub.get_rect(center=(plaque.centerx, plaque.bottom - 14)))
-
-    # The red-roofed delivery cottage (centre, larger)
-    draw_cottage(s, W // 2, 470, scale=1.05,
-                 roof_col=COTTAGE_RED, with_lantern=True)
-    # Smoke puffs from chimney
-    for i, (dx, dy, r) in enumerate([(-26, 380, 6), (-22, 366, 7), (-14, 350, 8), (-4, 336, 9)]):
-        smoke = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(smoke, (220, 220, 235, 130 - i * 20), (r + 1, r + 1), r)
-        s.blit(smoke, (W // 2 + dx, dy))
-
-    # Parcel on the doorstep
-    draw_parcel(s, W // 2, 510, size=16)
-
-    # Ground
-    pygame.draw.rect(s, (8, 18, 14), (0, 530, W, H - 530))
-    # Grass tufts
-    for x in range(0, W, 14):
-        pygame.draw.line(s, (12, 36, 22), (x, 530), (x - 2, 524), 1)
-        pygame.draw.line(s, (12, 36, 22), (x + 4, 530), (x + 6, 524), 1)
-
-    # ── BUTTONS — wood-burnished door plaques ───────────────────────────
-    def door_plaque(center, text, big=False):
-        w, h = (240, 46) if big else (220, 38)
-        x = center[0] - w // 2
-        y = center[1] - h // 2
-        pl = pygame.Surface((w, h), pygame.SRCALPHA)
-        # Wood
-        for yy in range(h):
-            t = yy / max(1, h - 1)
-            c = lerp((130, 86, 52), (70, 42, 22), t)
-            pygame.draw.line(pl, (*c, 255), (0, yy), (w, yy))
-        mask = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h), border_radius=8)
-        pl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        # Brass border
-        pygame.draw.rect(pl, GOLD_BRIGHT, (0, 0, w, h), width=2, border_radius=8)
-        # Top sheen
-        pygame.draw.line(pl, (220, 180, 110, 150), (10, 3), (w - 10, 3))
-        # Corner nails
-        for nx, ny in [(8, 8), (w - 8, 8), (8, h - 8), (w - 8, h - 8)]:
-            pygame.draw.circle(pl, (255, 230, 150), (nx, ny), 2)
-            pygame.draw.circle(pl, (90, 60, 8), (nx, ny), 2, 1)
-        s.blit(pl, (x, y))
-        # Engraved gold text
-        sz = 18 if big else 16
-        ti = font(sz, True).render(text, True, GOLD_BRIGHT)
+        pill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        pygame.draw.line(pill, (255, 255, 255, 110), (h // 2, 3), (w - h // 2, 3), 2)
+        s.blit(pill, (x, y))
+        ti = font(sz, True).render(text, True, WHITE)
         sh = font(sz, True).render(text, True, NEAR_BLACK)
+        sh.set_alpha(180)
         tr = ti.get_rect(center=center)
         s.blit(sh, (tr.x + 1, tr.y + 2))
         s.blit(ti, tr)
 
-    # Positioned to the side of the cottage, like signs nailed to the wall
-    door_plaque((W // 2, 320), "RING  THE  BELL", big=True)
-    door_plaque((W // 2 + 4, 372), "READ  THE  LETTER")
-    door_plaque((W // 2 + 4, 422), "OPEN  THE  BOX")
+    brass_btn((W // 2, 280), "TAP TO START", big=True)
+    brass_btn((W // 2, 342), "HOW TO PLAY")
+    brass_btn((W // 2, 396), "POWER-UPS")
 
-    # ── BEST = engraved mailbox plate (bottom-left) ────────────────────
-    mb_rect = pygame.Rect(28, 568, 120, 50)
-    # Mailbox post
-    pygame.draw.rect(s, (40, 24, 12), (mb_rect.x - 6, mb_rect.bottom - 4, 4, 22))
-    # Body
-    pygame.draw.rect(s, (60, 50, 60), mb_rect)
-    pygame.draw.rect(s, (16, 12, 16), mb_rect, 2)
-    # Brass plate
-    plate = pygame.Rect(mb_rect.x + 6, mb_rect.y + 6, mb_rect.w - 12, mb_rect.h - 12)
-    pygame.draw.rect(s, GOLD_BRIGHT, plate, border_radius=3)
-    pygame.draw.rect(s, (140, 90, 8), plate, 1, border_radius=3)
-    bl = font(9, True).render("BEST", True, NEAR_BLACK)
-    s.blit(bl, bl.get_rect(center=(plate.centerx, plate.y + 10)))
-    vl = font(20, True).render("42", True, NEAR_BLACK)
-    s.blit(vl, vl.get_rect(center=(plate.centerx, plate.y + 26)))
-    # Mailbox flag (raised)
-    pygame.draw.polygon(s, (200, 50, 40),
-                        [(mb_rect.right, mb_rect.y + 4),
-                         (mb_rect.right + 14, mb_rect.y + 10),
-                         (mb_rect.right, mb_rect.y + 16)])
+    # ── BEST + TOP 10 — round brass instrument bezels ──
+    def gauge_panel(cx, cy, label, value, with_trophy=False):
+        r = 50
+        pygame.draw.circle(s, GOLD_BRIGHT, (cx, cy), r + 3)
+        pygame.draw.circle(s, GOLD_DEEP, (cx, cy), r + 3, 2)
+        pygame.draw.circle(s, PANEL_DARK, (cx, cy), r)
+        pygame.draw.circle(s, (60, 200, 220), (cx, cy), r, 1)
+        # Inner tick marks
+        for ang_deg in range(0, 360, 30):
+            a = math.radians(ang_deg)
+            x1 = cx + math.cos(a) * (r - 4)
+            y1 = cy + math.sin(a) * (r - 4)
+            x2 = cx + math.cos(a) * (r - 1)
+            y2 = cy + math.sin(a) * (r - 1)
+            pygame.draw.line(s, GOLD_MUTED, (x1, y1), (x2, y2), 1)
+        # Rivets
+        for ang_deg in (135, 225, 45, -45):
+            a = math.radians(ang_deg)
+            rx = cx + math.cos(a) * (r + 1)
+            ry = cy + math.sin(a) * (r + 1)
+            pygame.draw.circle(s, GOLD_DEEP, (int(rx), int(ry)), 2)
+        # Label
+        lb = font(10, True).render(label, True, GOLD_BRIGHT)
+        s.blit(lb, lb.get_rect(center=(cx, cy - 22)))
+        if with_trophy:
+            draw_trophy(s, cx, cy + 8, 12)
+        else:
+            vf = font(32, True).render(value, True, GOLD_BRIGHT)
+            sh = font(32, True).render(value, True, NEAR_BLACK)
+            sh.set_alpha(160)
+            vr = vf.get_rect(center=(cx, cy + 8))
+            s.blit(sh, (vr.x + 1, vr.y + 2))
+            s.blit(vf, vr)
 
-    # ── TOP 10 = constellation badge (bottom-right) ────────────────────
-    badge_rect = pygame.Rect(W - 148, 568, 120, 50)
-    pygame.draw.rect(s, PANEL_DARK, badge_rect, border_radius=12)
-    pygame.draw.rect(s, GOLD_BRIGHT, badge_rect, 2, border_radius=12)
-    # Tiny constellation inside
-    inset_pts = [(20, 26), (40, 18), (60, 12), (80, 18), (100, 28),
-                 (76, 38), (40, 38)]
-    for px_, py_ in inset_pts:
-        pygame.draw.circle(s, (255, 250, 220), (badge_rect.x + px_, badge_rect.y + py_), 2)
-    for a, b in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]:
-        pygame.draw.aaline(s, (255, 250, 220, 130),
-                           (badge_rect.x + inset_pts[a][0], badge_rect.y + inset_pts[a][1]),
-                           (badge_rect.x + inset_pts[b][0], badge_rect.y + inset_pts[b][1]))
+    gauge_panel(86, 510, "BEST RUN", "42")
+    gauge_panel(W - 86, 510, "TOP 10", "", with_trophy=True)
+
+    # Tagline above gauges
+    tagline = font(9, True).render("CAPTAIN  PIP  ·  SCARLET  SQUADRON",
+                                   True, (200, 230, 240))
+    tagline.set_alpha(200)
+    s.blit(tagline, tagline.get_rect(center=(W // 2, 444)))
+
+    save("v2_aviator.png", s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v3 — PARCEL: the menu is a wrapped parcel
+# ─────────────────────────────────────────────────────────────────────────────
+def v3_parcel():
+    s = pygame.Surface((W, H))
+    night_sky(s)
+
+    # ── A wrapped-parcel envelope frame around the whole menu content ──
+    # Inset kraft-tan envelope card with red ribbon cross
+    env = pygame.Rect(20, 60, W - 40, H - 100)
+    pygame.draw.rect(s, NEAR_BLACK, env.inflate(6, 6), border_radius=14)
+    # Kraft body — gradient from warm tan to slightly darker
+    body = pygame.Surface(env.size, pygame.SRCALPHA)
+    for yy in range(env.h):
+        t = yy / max(1, env.h - 1)
+        c = lerp((215, 178, 130), (185, 140, 90), t)
+        pygame.draw.line(body, (*c, 245), (0, yy), (env.w, yy))
+    mask = pygame.Surface(env.size, pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, env.w, env.h), border_radius=10)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    s.blit(body, env.topleft)
+    # Paper grain noise
+    random.seed(8)
+    for _ in range(800):
+        x = random.randint(env.x + 4, env.right - 4)
+        y = random.randint(env.y + 4, env.bottom - 4)
+        if random.random() < 0.15:
+            pygame.draw.circle(s, (160, 120, 80), (x, y), 1)
+    # Dark border
+    pygame.draw.rect(s, (90, 56, 30), env, 3, border_radius=10)
+
+    # Red ribbon cross over the parcel
+    rv_w = 26
+    rv = pygame.Rect(env.centerx - rv_w // 2, env.y, rv_w, env.h)
+    pygame.draw.rect(s, (200, 50, 50), rv)
+    pygame.draw.line(s, (255, 110, 100), (rv.x + 4, rv.y), (rv.x + 4, rv.bottom), 2)
+    pygame.draw.line(s, (140, 20, 20), (rv.right - 1, rv.y), (rv.right - 1, rv.bottom), 1)
+    rh_w = 22
+    # Horizontal ribbon — under the buttons area
+    rh = pygame.Rect(env.x, 250 - rh_w // 2, env.w, rh_w)
+    pygame.draw.rect(s, (200, 50, 50), rh)
+    pygame.draw.line(s, (255, 110, 100), (rh.x, rh.y + 4), (rh.right, rh.y + 4), 2)
+    pygame.draw.line(s, (140, 20, 20), (rh.x, rh.bottom - 1), (rh.right, rh.bottom - 1), 1)
+    # Bow at the centre
+    bow_y = 250 - rh_w // 2 - 6
+    pygame.draw.ellipse(s, (200, 50, 50), (env.centerx - 30, bow_y - 22, 30, 36))
+    pygame.draw.ellipse(s, (140, 20, 20), (env.centerx - 30, bow_y - 22, 30, 36), 2)
+    pygame.draw.ellipse(s, (200, 50, 50), (env.centerx, bow_y - 22, 30, 36))
+    pygame.draw.ellipse(s, (140, 20, 20), (env.centerx, bow_y - 22, 30, 36), 2)
+    pygame.draw.rect(s, (200, 50, 50), (env.centerx - 6, bow_y - 6, 12, 18))
+    pygame.draw.rect(s, (140, 20, 20), (env.centerx - 6, bow_y - 6, 12, 18), 1)
+
+    # Corner postage stamps — small perforated squares in top corners
+    def stamp(cx, cy, color, glyph):
+        st = pygame.Rect(cx - 22, cy - 14, 44, 28)
+        pygame.draw.rect(s, WHITE, st)
+        pygame.draw.rect(s, NEAR_BLACK, st, 1)
+        # Perforations
+        for px_ in range(st.x + 2, st.right, 4):
+            pygame.draw.circle(s, (215, 178, 130), (px_, st.y), 1)
+            pygame.draw.circle(s, (215, 178, 130), (px_, st.bottom), 1)
+        for py_ in range(st.y + 2, st.bottom, 4):
+            pygame.draw.circle(s, (215, 178, 130), (st.x, py_), 1)
+            pygame.draw.circle(s, (215, 178, 130), (st.right, py_), 1)
+        # Inner color
+        pygame.draw.rect(s, color, st.inflate(-6, -6))
+        gf = font(11, True).render(glyph, True, WHITE)
+        s.blit(gf, gf.get_rect(center=st.center))
+
+    stamp(env.x + 30, env.y + 22, (60, 90, 160), "AIR")
+    stamp(env.right - 30, env.y + 22, (200, 50, 50), "$5")
+
+    # Postmark — circular black stamp lower-left, away from the title
+    pm_cx, pm_cy = 78, 270
+    pygame.draw.circle(s, NEAR_BLACK, (pm_cx, pm_cy), 28, 2)
+    pygame.draw.circle(s, NEAR_BLACK, (pm_cx, pm_cy), 22, 1)
+    pf = font(8, True).render("SKYBIT  AIR  MAIL", True, NEAR_BLACK)
+    pf_r = pf.get_rect(center=(pm_cx, pm_cy - 9))
+    s.blit(pf, pf_r)
+    pf2 = font(10, True).render("·  V4  ·", True, NEAR_BLACK)
+    s.blit(pf2, pf2.get_rect(center=(pm_cx, pm_cy)))
+    pf3 = font(7, True).render("DELIVERED", True, NEAR_BLACK)
+    s.blit(pf3, pf3.get_rect(center=(pm_cx, pm_cy + 9)))
+
+    # ── Title — stamped/embossed onto the kraft above the bow ──
+    skybit_title(s, W // 2, 130, size=66, px=3)
+    skybit_subtitle(s, W // 2, 180, size=16)
+
+    # ── Buttons — pill style sitting BELOW the bow ──
+    pill_btn(s, (W // 2, 322), "TAP TO START", size=22, w_min=240, h=54, glow=True)
+    pill_btn(s, (W // 2, 384), "HOW TO PLAY", size=18, w_min=240, h=46)
+    pill_btn(s, (W // 2, 440), "POWER-UPS", size=18, w_min=240, h=46)
+
+    # ── BEST + TOP 10 — wax-seal on the parcel ──
+    # Left wax seal
+    wcx, wcy = 70, 540
+    pygame.draw.circle(s, (140, 20, 20), (wcx, wcy), 30)
+    pygame.draw.circle(s, (200, 50, 40), (wcx, wcy), 28)
+    pygame.draw.circle(s, (100, 10, 10), (wcx, wcy), 30, 2)
+    # Drip
+    pygame.draw.polygon(s, (160, 20, 20),
+                        [(wcx + 28, wcy + 10), (wcx + 34, wcy + 22), (wcx + 22, wcy + 18)])
+    bl = font(9, True).render("BEST", True, GOLD_BRIGHT)
+    s.blit(bl, bl.get_rect(center=(wcx, wcy - 9)))
+    vl = font(22, True).render("42", True, GOLD_BRIGHT)
+    sh = font(22, True).render("42", True, NEAR_BLACK)
+    sh.set_alpha(180)
+    vr = vl.get_rect(center=(wcx, wcy + 7))
+    s.blit(sh, (vr.x + 1, vr.y + 2))
+    s.blit(vl, vr)
+
+    # Right wax seal — TOP 10 with trophy
+    tcx, tcy = W - 70, 540
+    pygame.draw.circle(s, (140, 20, 20), (tcx, tcy), 30)
+    pygame.draw.circle(s, (200, 50, 40), (tcx, tcy), 28)
+    pygame.draw.circle(s, (100, 10, 10), (tcx, tcy), 30, 2)
     tl = font(9, True).render("TOP 10", True, GOLD_BRIGHT)
-    s.blit(tl, tl.get_rect(center=(badge_rect.centerx, badge_rect.bottom - 8)))
+    s.blit(tl, tl.get_rect(center=(tcx, tcy - 11)))
+    draw_trophy(s, tcx, tcy + 6, 9, color=GOLD_BRIGHT)
 
-    save("theme_e_arrival_cottage.png", s)
+    save("v3_parcel.png", s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v4 — STARLIGHT: massively enhanced night sky
+# ─────────────────────────────────────────────────────────────────────────────
+def v4_starlight():
+    s = pygame.Surface((W, H))
+    # Background — slightly richer gradient than base
+    gradient_v(s, (4, 0, 18), (28, 18, 70))
+
+    # Aurora ribbons (subtle, behind stars)
+    aurora = pygame.Surface((W, H), pygame.SRCALPHA)
+    for col, base_y, amp, freq, sign in [
+        ((40, 130, 90), 120, 50, 1.1, 1),
+        ((90, 60, 160), 180, 40, 0.85, -1),
+        ((150, 40, 110), 240, 30, 1.3, 1),
+    ]:
+        for w_ in range(12, 0, -2):
+            pts_top, pts_bot = [], []
+            for x in range(0, W + 1, 4):
+                y_off = math.sin((x / W) * math.pi * freq) * amp * sign
+                pts_top.append((x, base_y + y_off - w_ * 3))
+                pts_bot.append((x, base_y + y_off + w_ * 3))
+            pts = pts_top + list(reversed(pts_bot))
+            a = max(2, 14 - w_)
+            pygame.draw.polygon(aurora, (*col, a), pts)
+    s.blit(aurora, (0, 0))
+
+    # Stars — denser than v3
+    random.seed(7)
+    for _ in range(220):
+        x = random.randint(0, W - 1)
+        y = random.randint(0, 460)
+        r = random.choices([1, 2, 3], weights=[8, 3, 1])[0]
+        a = random.randint(140, 255)
+        d = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(d, (240, 245, 255, a), (r + 1, r + 1), r)
+        s.blit(d, (x - r - 1, y - r - 1))
+    # Big "sparkle" stars with cross flares
+    for cx, cy in [(40, 100), (310, 120), (60, 250), (300, 220),
+                   (180, 60), (90, 380), (290, 340)]:
+        pygame.draw.circle(s, (255, 250, 230), (cx, cy), 3)
+        for dx, dy in [(-9, 0), (9, 0), (0, -9), (0, 9)]:
+            pygame.draw.aaline(s, (255, 250, 230, 200),
+                               (cx, cy), (cx + dx, cy + dy))
+
+    # Full moon top-left
+    moon_cx, moon_cy = 70, 80
+    glow = pygame.Surface((140, 140), pygame.SRCALPHA)
+    for r in range(68, 0, -3):
+        a = int(50 * (1 - r / 68))
+        pygame.draw.circle(glow, (255, 235, 180, a), (70, 70), r)
+    s.blit(glow, (moon_cx - 70, moon_cy - 70))
+    pygame.draw.circle(s, (250, 240, 215), (moon_cx, moon_cy), 22)
+    pygame.draw.circle(s, (220, 210, 190), (moon_cx + 6, moon_cy - 4), 18)
+    # Crater shadows
+    pygame.draw.circle(s, (200, 195, 175), (moon_cx + 5, moon_cy + 2), 4)
+    pygame.draw.circle(s, (200, 195, 175), (moon_cx - 3, moon_cy + 8), 3)
+
+    # Shooting star — diagonal streak top-right
+    ss_x, ss_y = 280, 60
+    for i in range(20):
+        a = int(180 * (1 - i / 20))
+        pygame.draw.line(s, (255, 250, 220, a),
+                         (ss_x + i * 3, ss_y + i * 2),
+                         (ss_x + (i + 1) * 3, ss_y + (i + 1) * 2), 2)
+    pygame.draw.circle(s, (255, 255, 230), (ss_x, ss_y), 3)
+
+    # Constellation lines between sparkle stars
+    constellation = [(40, 100), (180, 60), (310, 120),
+                     (300, 220), (290, 340), (90, 380), (60, 250)]
+    for i in range(len(constellation) - 1):
+        pygame.draw.aaline(s, (140, 180, 240, 90),
+                           constellation[i], constellation[i + 1])
+
+    # Pip silhouette flying across, slightly behind the title
+    pip_x, pip_y = 280, 168
+    # Body
+    pygame.draw.ellipse(s, (220, 50, 50), (pip_x - 10, pip_y - 8, 24, 16))
+    # Tail
+    pygame.draw.polygon(s, (200, 30, 30),
+                        [(pip_x - 12, pip_y), (pip_x - 22, pip_y - 4), (pip_x - 20, pip_y + 4)])
+    # Wing
+    pygame.draw.polygon(s, (40, 100, 220),
+                        [(pip_x - 2, pip_y - 4), (pip_x + 6, pip_y - 14),
+                         (pip_x + 12, pip_y - 4)])
+    # Beak
+    pygame.draw.polygon(s, (255, 200, 60),
+                        [(pip_x + 12, pip_y - 2), (pip_x + 18, pip_y),
+                         (pip_x + 12, pip_y + 2)])
+    # Parcel trailing
+    pygame.draw.rect(s, (180, 130, 80), (pip_x - 6, pip_y + 8, 10, 10))
+    pygame.draw.line(s, (200, 50, 50), (pip_x - 1, pip_y + 8), (pip_x - 1, pip_y + 18), 2)
+    # Motion trail
+    for i in range(8):
+        a = int(50 * (1 - i / 8))
+        pygame.draw.circle(s, (240, 245, 255, a),
+                           (pip_x - 14 - i * 4, pip_y - 1), 1)
+
+    # ── Title with stronger glow halo + sheen ──
+    # Halo behind title
+    halo = pygame.Surface((280, 110), pygame.SRCALPHA)
+    for r in range(70, 0, -4):
+        a = int(40 * (1 - r / 70))
+        pygame.draw.ellipse(halo, (180, 220, 255, a),
+                            (140 - r, 55 - r // 2, r * 2, r))
+    s.blit(halo, (W // 2 - 140, 80))
+    skybit_title(s, W // 2, 130, size=72, px=3)
+    # Sub
+    skybit_subtitle(s, W // 2, 192, size=20)
+    # Aurora-colored divider
+    line = pygame.Surface((180, 3), pygame.SRCALPHA)
+    for x in range(180):
+        t = x / 180
+        c = lerp((40, 200, 180), (200, 80, 180), t)
+        pygame.draw.line(line, (*c, 255), (x, 0), (x, 3))
+    s.blit(line, line.get_rect(center=(W // 2, 216)))
+
+    # ── Buttons — pills with cyan rim accent + soft outer glow ──
+    pill_btn(s, (W // 2, 290), "TAP TO START", size=22, w_min=240, h=54,
+             accent=ORANGE_BORDER, glow=True)
+    pill_btn(s, (W // 2, 354), "HOW TO PLAY", size=18, w_min=240, h=44)
+    pill_btn(s, (W // 2, 410), "POWER-UPS", size=18, w_min=240, h=44)
+
+    # ── BEST + TOP 10 — glass panels with starlight bleeding through ──
+    panel_w = 144
+    gap = 12
+    total = panel_w * 2 + gap
+    left_x = (W - total) // 2
+    cy = H - 80
+    # BEST
+    br = pygame.Rect(left_x, cy - 32, panel_w, 64)
+    glass = pygame.Surface(br.size, pygame.SRCALPHA)
+    pygame.draw.rect(glass, (*PANEL_DARK, 180), (0, 0, br.w, br.h), border_radius=14)
+    pygame.draw.rect(glass, (200, 230, 255, 200), (0, 0, br.w, br.h), width=1, border_radius=14)
+    pygame.draw.line(glass, (255, 255, 255, 120), (12, 3), (br.w - 12, 3))
+    s.blit(glass, br.topleft)
+    lf = font(10, False).render("B E S T", True, GOLD_MUTED)
+    lf.set_alpha(220)
+    s.blit(lf, lf.get_rect(center=(br.centerx, cy - 16)))
+    vf = font(28, True).render("42", True, GOLD_BRIGHT)
+    sh = font(28, True).render("42", True, NEAR_BLACK)
+    sh.set_alpha(160)
+    vr = vf.get_rect(center=(br.centerx, cy + 10))
+    s.blit(sh, (vr.x + 1, vr.y + 2))
+    s.blit(vf, vr)
+    # TOP 10
+    tr_rect = pygame.Rect(left_x + panel_w + gap, cy - 32, panel_w, 64)
+    glass2 = pygame.Surface(tr_rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(glass2, (*PANEL_DARK, 180), (0, 0, tr_rect.w, tr_rect.h), border_radius=14)
+    pygame.draw.rect(glass2, (255, 200, 230, 200), (0, 0, tr_rect.w, tr_rect.h), width=1, border_radius=14)
+    pygame.draw.line(glass2, (255, 255, 255, 120), (12, 3), (tr_rect.w - 12, 3))
+    s.blit(glass2, tr_rect.topleft)
+    tlf = font(10, False).render("T O P   10", True, GOLD_MUTED)
+    tlf.set_alpha(220)
+    s.blit(tlf, tlf.get_rect(center=(tr_rect.centerx, cy - 16)))
+    draw_trophy(s, tr_rect.centerx, cy + 12, 12)
+
+    save("v4_starlight.png", s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v5 — FESTIVAL: prayer-flag bunting + lantern garlands
+# ─────────────────────────────────────────────────────────────────────────────
+def v5_festival():
+    s = pygame.Surface((W, H))
+    night_sky(s)
+
+    # Prayer-flag bunting strung across the top
+    # Two strings — a flatter back string + draped front string
+    flag_colors = [(220, 60, 60), (60, 140, 200), (240, 200, 70),
+                   (60, 170, 100), (255, 130, 80)]
+    # Back string
+    for x in range(-10, W + 10, 22):
+        ix = (x + 10) // 22
+        y_off = int(4 * math.sin((x / W) * math.pi * 4))
+        col = flag_colors[ix % len(flag_colors)]
+        # Flag triangle pointing down
+        pygame.draw.polygon(s, col,
+                            [(x, 20 + y_off), (x + 18, 20 + y_off),
+                             (x + 9, 40 + y_off)])
+        pygame.draw.polygon(s, lerp(col, NEAR_BLACK, 0.3),
+                            [(x, 20 + y_off), (x + 18, 20 + y_off),
+                             (x + 9, 40 + y_off)], 1)
+    # String passing through the flag tops
+    for x in range(0, W, 2):
+        y = 20 + int(4 * math.sin((x / W) * math.pi * 4))
+        pygame.draw.circle(s, NEAR_BLACK, (x, y), 1)
+
+    # Front draped string of lanterns just below title
+    lantern_y = 222
+    for i, x in enumerate(range(30, W - 20, 50)):
+        y_off = int(8 * math.sin(i * 0.9))
+        ly = lantern_y + y_off
+        # String from above
+        pygame.draw.line(s, NEAR_BLACK, (x + 9, 0), (x + 9, ly - 4), 1)
+        # Lantern body
+        col = (240, 80, 70) if i % 2 == 0 else (240, 160, 60)
+        glow_r = pygame.Surface((38, 38), pygame.SRCALPHA)
+        for rr in range(18, 0, -2):
+            a = int(40 * (1 - rr / 18))
+            pygame.draw.circle(glow_r, (*col, a), (19, 19), rr)
+        s.blit(glow_r, (x - 10, ly - 19))
+        pygame.draw.ellipse(s, col, (x, ly - 10, 18, 22))
+        pygame.draw.ellipse(s, lerp(col, NEAR_BLACK, 0.45),
+                            (x, ly - 10, 18, 22), 1)
+        # Top cap + bottom cap
+        pygame.draw.rect(s, (40, 22, 12), (x + 4, ly - 11, 10, 3))
+        pygame.draw.rect(s, (40, 22, 12), (x + 4, ly + 10, 10, 3))
+        # Inner glow line
+        pygame.draw.line(s, (255, 240, 200), (x + 4, ly), (x + 14, ly), 1)
+        # Tassel
+        pygame.draw.line(s, GOLD_BRIGHT, (x + 9, ly + 13), (x + 9, ly + 20), 1)
+
+    # Decorative monastery on the mountain silhouette
+    # Replace one peak with a small monastery + flag
+    mon_cx, mon_cy = 180, 365
+    pygame.draw.polygon(s, (16, 24, 40),
+                        [(mon_cx - 24, mon_cy + 10), (mon_cx + 24, mon_cy + 10),
+                         (mon_cx + 18, mon_cy - 6), (mon_cx - 18, mon_cy - 6)])
+    pygame.draw.polygon(s, (8, 14, 28),
+                        [(mon_cx - 22, mon_cy - 6), (mon_cx + 22, mon_cy - 6),
+                         (mon_cx, mon_cy - 22)])
+    # Tiny window glow
+    pygame.draw.rect(s, (255, 200, 100), (mon_cx - 3, mon_cy - 2, 6, 6))
+    # Flag pole
+    pygame.draw.line(s, (40, 30, 60), (mon_cx, mon_cy - 22), (mon_cx, mon_cy - 36), 1)
+    pygame.draw.polygon(s, (200, 60, 60),
+                        [(mon_cx, mon_cy - 36), (mon_cx + 8, mon_cy - 34), (mon_cx, mon_cy - 30)])
+
+    # Rowan menhir on the right
+    rmx, rmy = W - 50, 408
+    pygame.draw.rect(s, (24, 32, 44), (rmx - 5, rmy, 10, 26))
+    # Red berries
+    for bx, by in [(rmx - 9, rmy - 6), (rmx - 5, rmy - 10), (rmx + 1, rmy - 8),
+                   (rmx + 6, rmy - 12), (rmx + 10, rmy - 6), (rmx - 12, rmy - 14)]:
+        pygame.draw.circle(s, (200, 50, 50), (bx, by), 2)
+
+    # ── Title with extra ornamental flourishes ──
+    skybit_title(s, W // 2, 140, size=70, px=3)
+    skybit_subtitle(s, W // 2, 198, size=18)
+
+    # ── Buttons — orange-bordered pills with prayer-flag pennants on the right ──
+    def festival_pill(center, text, big=False):
+        sz = 22 if big else 18
+        h = 54 if big else 46
+        rect = pill_btn(s, center, text, size=sz, w_min=240, h=h, glow=big)
+        # Pennant attached to right side
+        px_ = rect.right - 4
+        py_ = rect.centery
+        for i, c in enumerate([(220, 60, 60), (240, 200, 70), (60, 140, 200)]):
+            pygame.draw.polygon(s, c,
+                                [(px_ + i * 4 - 4, py_ - 6),
+                                 (px_ + i * 4 + 4, py_ - 6),
+                                 (px_ + i * 4, py_ + 2)])
+
+    festival_pill((W // 2, 286), "TAP TO START", big=True)
+    festival_pill((W // 2, 350), "HOW TO PLAY")
+    festival_pill((W // 2, 406), "POWER-UPS")
+
+    # ── BEST + TOP 10 — twin lanterns ──
+    def lantern_panel(cx, cy, label, value, with_trophy=False):
+        # Outer lantern silhouette (round)
+        lw, lh = 130, 64
+        rect = pygame.Rect(cx - lw // 2, cy - lh // 2, lw, lh)
+        # Lantern outline (top + bottom caps + body)
+        pygame.draw.rect(s, (40, 22, 12), (rect.x - 4, rect.y - 8, rect.w + 8, 6),
+                         border_radius=2)
+        pygame.draw.rect(s, (40, 22, 12), (rect.x - 4, rect.bottom + 2, rect.w + 8, 6),
+                         border_radius=2)
+        # Lantern body — red translucent glow
+        glow = pygame.Surface(rect.size, pygame.SRCALPHA)
+        for yy in range(rect.h):
+            t = abs(yy - rect.h / 2) / (rect.h / 2)
+            c = lerp((220, 80, 70), (140, 30, 30), t)
+            pygame.draw.line(glow, (*c, 230), (0, yy), (rect.w, yy))
+        mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, rect.w, rect.h), border_radius=18)
+        glow.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        pygame.draw.rect(glow, GOLD_BRIGHT, (0, 0, rect.w, rect.h), width=2, border_radius=18)
+        s.blit(glow, rect.topleft)
+        # Tassels
+        pygame.draw.line(s, GOLD_BRIGHT, (rect.centerx - 6, rect.bottom + 8),
+                         (rect.centerx - 6, rect.bottom + 18), 1)
+        pygame.draw.line(s, GOLD_BRIGHT, (rect.centerx + 6, rect.bottom + 8),
+                         (rect.centerx + 6, rect.bottom + 18), 1)
+        # Label
+        lf = font(10, True).render(label, True, GOLD_BRIGHT)
+        s.blit(lf, lf.get_rect(center=(rect.centerx, rect.y + 12)))
+        if with_trophy:
+            draw_trophy(s, rect.centerx, rect.y + 36, 11)
+        else:
+            vf = font(26, True).render(value, True, GOLD_BRIGHT)
+            sh = font(26, True).render(value, True, NEAR_BLACK)
+            sh.set_alpha(180)
+            vr = vf.get_rect(center=(rect.centerx, rect.y + 38))
+            s.blit(sh, (vr.x + 1, vr.y + 2))
+            s.blit(vf, vr)
+
+    lantern_panel(94, 510, "BEST RUN", "42")
+    lantern_panel(W - 94, 510, "TOP 10", "", with_trophy=True)
+
+    save("v5_festival.png", s)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("Generating Skybit story-themed menu mockups...")
-    theme_a_dispatch_desk()
-    theme_b_logbook()
-    theme_c_route_map()
-    theme_d_cockpit()
-    theme_e_arrival_cottage()
+    print("Generating Skybit v4 menu upgrade mockups...")
+    v1_royal()
+    v2_aviator()
+    v3_parcel()
+    v4_starlight()
+    v5_festival()
     print("Done.")
