@@ -1,11 +1,12 @@
 # Skybit v4 — Menu Redesign (Pip Scarlet)
 
-The selected and final 8-screen UI set. Every non-gameplay screen uses
+The selected and final 7-screen UI set. Every non-gameplay screen uses
 the same primitives — polished v3 night-sky backdrop, gold-on-red
 SKYBIT-style title, scarlet pills with gold trim, dark-navy
 gold-trimmed cards, hero circular score medallion. Rendered at
 **720 × 1280** (2× the game canvas) so every detail is crisp on web
-and on modern mobile.
+and on modern mobile. The how-to-play screen is not mocked — it
+remains the existing animated intro clip.
 
 Generator: [`tools/gen_scarlet_set.py`](../../tools/gen_scarlet_set.py)
 Earlier exploration rounds (5 polish directions, 5 safe pill colours,
@@ -18,10 +19,9 @@ in [`archive/`](archive/) for reference.
 | 2 | **Pause overlay** — score medallion + PAUSED + RESUME / RESTART / MAIN MENU | [v3_scarlet_pause.png](v3_scarlet_pause.png) |
 | 3 | **Run summary** — big score medallion w/ scarlet ribbon + 5-row stat card + TAP TO CONTINUE | [v3_scarlet_stats.png](v3_scarlet_stats.png) |
 | 4 | **Game over (NEW BEST)** — gold NEW BEST ribbon + score medallion inside gold sparkle burst + TAP TO RETRY / MAIN MENU | [v3_scarlet_gameover.png](v3_scarlet_gameover.png) |
-| 5 | **Name entry** — trophy + halo + YOU MADE IT ! + engraved nameplate + SUBMIT / SKIP | [v3_scarlet_name_entry.png](v3_scarlet_name_entry.png) |
+| 5 | **Name entry** — trophy + NEW HIGH SCORE! + engraved nameplate + on-screen QWERTY keyboard + SUBMIT / SKIP | [v3_scarlet_name_entry.png](v3_scarlet_name_entry.png) |
 | 6 | **Leaderboard** — TOP 10 between twin trophies + 10 ranked cards w/ gold/silver/bronze medals (top 3) + player row highlighted | [v3_scarlet_leaderboard.png](v3_scarlet_leaderboard.png) |
-| 7 | **Power-ups help** — 2×3 medallion-icon grid + Surprise Box card + EFFECTS LAST 8 SECONDS ribbon | [v3_scarlet_powerups.png](v3_scarlet_powerups.png) |
-| 8 | **How to play** — 3 numbered scarlet+gold badges (FLAP / THREAD / COLLECT) + TAP TO BEGIN primary pill | [v3_scarlet_intro.png](v3_scarlet_intro.png) |
+| 7 | **Power-ups help** — 2×3 card grid w/ the EXACT in-game power-up sprites + Surprise card + EFFECTS LAST 8 SECONDS ribbon | [v3_scarlet_powerups.png](v3_scarlet_powerups.png) |
 
 ## Brand bar
 

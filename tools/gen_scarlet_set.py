@@ -21,18 +21,23 @@ Output filenames:
   v3_scarlet_gameover.png     — game over w/ NEW BEST gold ribbon
   v3_scarlet_name_entry.png   — trophy + nameplate + SUBMIT/SKIP
   v3_scarlet_leaderboard.png  — 10 ranked cards w/ gold/silver/bronze
-  v3_scarlet_powerups.png     — 2x3 power-up grid w/ icons
-  v3_scarlet_intro.png        — 3 numbered cards + TAP TO BEGIN
+  v3_scarlet_powerups.png     — 2x3 power-up grid w/ in-game icons
 """
 import math
 import os
 import random
+import sys
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame
 
 pygame.init()
 pygame.display.set_mode((1, 1))
+
+# Make `game` importable so the powerup mockups reuse the in-game icon
+# rendering (game/entities.py PowerUp + game/powerup_help.py:_powerup_icon).
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from game.powerup_help import _powerup_icon as _ingame_powerup_icon  # noqa
 
 SCALE = 2
 W, H = 360 * SCALE, 640 * SCALE
@@ -455,108 +460,9 @@ def nameplate(surf, rect, sample_text=""):
         surf.blit(tf, tr)
 
 
-# ── Procedural power-up icons (small enough for a card centre) ──────────────
-
-def icon_triple(surf, cx, cy, r):
-    for dx, dy in [(-r * 0.5, r * 0.1), (0, -r * 0.3), (r * 0.5, r * 0.1)]:
-        pygame.draw.circle(surf, GOLD_BRIGHT,
-                           (int(cx + dx), int(cy + dy)), int(r * 0.35))
-        pygame.draw.circle(surf, GOLD_DARK := GOLD_DEEP,
-                           (int(cx + dx), int(cy + dy)), int(r * 0.35),
-                           1 * SCALE)
-        sf = font(11, True).render("$", True, (40, 110, 40))
-        surf.blit(sf, sf.get_rect(center=(int(cx + dx), int(cy + dy))))
-
-
-def icon_magnet(surf, cx, cy, r):
-    inner_r = int(r * 0.6)
-    outer_r = int(r * 0.95)
-    pygame.draw.arc(surf, SCARLET_TOP,
-                    (cx - outer_r, cy - outer_r, outer_r * 2, outer_r * 2),
-                    math.pi, 2 * math.pi, int(r * 0.3))
-    pygame.draw.rect(surf, SILVER,
-                     (cx - outer_r, cy - 2,
-                      outer_r - inner_r + 1, 6 * SCALE))
-    pygame.draw.rect(surf, SILVER,
-                     (cx + inner_r - 1, cy - 2,
-                      outer_r - inner_r + 1, 6 * SCALE))
-
-
-def icon_slowmo(surf, cx, cy, r):
-    w = int(r * 0.7)
-    h = int(r * 1.1)
-    top = [(cx - w, cy - h // 2), (cx + w, cy - h // 2),
-           (cx + 2 * SCALE, cy), (cx - 2 * SCALE, cy)]
-    bot = [(cx - 2 * SCALE, cy), (cx + 2 * SCALE, cy),
-           (cx + w, cy + h // 2), (cx - w, cy + h // 2)]
-    pygame.draw.polygon(surf, (180, 90, 220), top)
-    pygame.draw.polygon(surf, (180, 90, 220), bot)
-    pygame.draw.polygon(surf, GOLD_BRIGHT, top, 2 * SCALE)
-    pygame.draw.polygon(surf, GOLD_BRIGHT, bot, 2 * SCALE)
-
-
-def icon_kfc(surf, cx, cy, r):
-    bw = int(r * 1.0)
-    bh = int(r * 1.0)
-    pts = [(cx - bw // 2, cy - bh // 2),
-           (cx + bw // 2, cy - bh // 2),
-           (cx + bw // 2 - 3 * SCALE, cy + bh // 2),
-           (cx - bw // 2 + 3 * SCALE, cy + bh // 2)]
-    pygame.draw.polygon(surf, SCARLET_TOP, pts)
-    pygame.draw.polygon(surf, NEAR_BLACK, pts, 1 * SCALE)
-    for k in range(3):
-        y = cy - bh // 2 + (k + 1) * bh // 4
-        pygame.draw.line(surf, (250, 240, 230),
-                         (cx - bw // 2 + 2 * SCALE, y),
-                         (cx + bw // 2 - 2 * SCALE, y), 2 * SCALE)
-
-
-def icon_ghost(surf, cx, cy, r):
-    w = int(r * 1.1)
-    h = int(r * 1.2)
-    top_arc = pygame.Rect(cx - w // 2, cy - h // 2, w, h * 2 // 3)
-    pygame.draw.ellipse(surf, (200, 230, 255), top_arc)
-    pygame.draw.rect(surf, (200, 230, 255),
-                     (cx - w // 2, cy - h // 4, w, h // 2))
-    bw = w // 4
-    for i in range(4):
-        bx = cx - w // 2 + i * bw
-        pygame.draw.ellipse(surf, (200, 230, 255),
-                            (bx, cy + h // 4, bw, h // 5))
-    pygame.draw.circle(surf, NEAR_BLACK,
-                       (cx - w // 4, cy - h // 12), 2 * SCALE)
-    pygame.draw.circle(surf, NEAR_BLACK,
-                       (cx + w // 4, cy - h // 12), 2 * SCALE)
-
-
-def icon_grow(surf, cx, cy, r):
-    cap_w = int(r * 1.2)
-    cap_h = int(r * 0.7)
-    pygame.draw.ellipse(surf, (125, 30, 45),
-                        (cx - cap_w // 2, cy - cap_h - 1 * SCALE,
-                         cap_w, cap_h * 2))
-    stem_w = int(r * 0.5)
-    stem_h = int(r * 0.6)
-    pygame.draw.rect(surf, (245, 230, 200),
-                     (cx - stem_w // 2, cy + 2 * SCALE, stem_w, stem_h))
-    for dx, dy in [(-cap_w // 4, -cap_h // 3),
-                   (0, -cap_h // 4),
-                   (cap_w // 5, -cap_h // 3)]:
-        pygame.draw.circle(surf, (255, 235, 175),
-                           (cx + dx, cy + dy), 2 * SCALE)
-
-
-def icon_surprise(surf, cx, cy, r):
-    w = int(r * 1.2)
-    h = int(r * 1.1)
-    box = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    pygame.draw.rect(surf, PANEL_LIGHTER, box, border_radius=2 * SCALE)
-    pygame.draw.rect(surf, GOLD_BRIGHT, box, width=1 * SCALE,
-                     border_radius=2 * SCALE)
-    pygame.draw.rect(surf, SCARLET_TOP,
-                     (cx - 2 * SCALE, box.y, 4 * SCALE, box.h))
-    qf = font(20, True).render("?", True, GOLD_BRIGHT)
-    surf.blit(qf, qf.get_rect(center=(cx + 8 * SCALE, cy)))
+# Power-up icons come from the in-game `_powerup_icon` import at the top
+# of the file — no mockup-only stand-ins. Keeps the explainer screen in
+# perfect sync with whatever the player actually sees mid-flight.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -642,9 +548,12 @@ def screen_stats():
     big_title(s, "RUN  SUMMARY", (W // 2, 70 * SCALE), size=36)
     divider(s, 100 * SCALE, width=140)
 
-    # Hero score emblem — gold medallion with scarlet accent + ribbon
-    score_emblem(s, W // 2, 200 * SCALE, 78 * SCALE,
-                 "S C O R E", "23", with_ribbon=True)
+    # Hero score emblem — gold medallion with scarlet accent ring.
+    # No ribbon tail here; the stats card sits directly below and the
+    # ribbon would be clipped. Save the ribbon for celebratory moments
+    # (game-over hero).
+    score_emblem(s, W // 2, 200 * SCALE, 72 * SCALE,
+                 "S C O R E", "23")
 
     # 5-row stats card
     rows = [
@@ -654,8 +563,8 @@ def screen_stats():
         ("POWER-UPS",       "3"),
         ("NEAR  MISSES",    "3"),
     ]
-    card_rect = pygame.Rect(36 * SCALE, 268 * SCALE,
-                            W - 72 * SCALE, 230 * SCALE)
+    card_rect = pygame.Rect(36 * SCALE, 295 * SCALE,
+                            W - 72 * SCALE, 220 * SCALE)
     card(s, card_rect)
     row_h = card_rect.h // len(rows)
     for i, (label, value) in enumerate(rows):
@@ -715,35 +624,105 @@ def screen_gameover():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SCREEN 5 — NAME ENTRY
+# SCREEN 5 — NAME ENTRY (compact trophy + nameplate + on-screen keyboard)
 # ─────────────────────────────────────────────────────────────────────────────
+def draw_key(surf, x, y, w, h, label, sample_pressed=False):
+    """Single keyboard key — dark navy face, gold rim, cream letter.
+    `sample_pressed=True` shows it as the depressed state (slightly
+    darker, no shadow) to demonstrate hover/active state in mockup."""
+    key = pygame.Surface((w, h), pygame.SRCALPHA)
+    # Soft drop shadow below the key
+    if not sample_pressed:
+        sh = pygame.Surface((w + 2 * SCALE, h + 4 * SCALE), pygame.SRCALPHA)
+        pygame.draw.rect(sh, (0, 0, 0, 110),
+                         (0, 0, w + 2 * SCALE, h + 4 * SCALE),
+                         border_radius=8 * SCALE)
+        surf.blit(sh, (x - 1 * SCALE, y + 3 * SCALE))
+    # Face — slight vertical gradient navy → slightly darker
+    face_top = (38, 28, 80) if not sample_pressed else (22, 14, 56)
+    face_bot = (22, 14, 56) if not sample_pressed else (12, 6, 38)
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        c = lerp(face_top, face_bot, t)
+        pygame.draw.line(key, (*c, 250), (0, yy), (w, yy))
+    # Rounded mask
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h),
+                     border_radius=8 * SCALE)
+    key.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # Gold rim
+    pygame.draw.rect(key, GOLD_BRIGHT, (0, 0, w, h),
+                     width=1 * SCALE, border_radius=8 * SCALE)
+    # Top inner highlight
+    pygame.draw.line(key, (*GOLD_BRIGHT, 90),
+                     (5 * SCALE, 2 * SCALE),
+                     (w - 5 * SCALE, 2 * SCALE), 1 * SCALE)
+    surf.blit(key, (x, y))
+    # Letter
+    lf = font(15, True).render(label, True, CREAM)
+    surf.blit(lf, lf.get_rect(center=(x + w // 2, y + h // 2)))
+
+
+def draw_keyboard(surf, top_y):
+    """3-row QWERTY keyboard below `top_y`. Bottom row has a backspace
+    on the right + a SPACE-style padding so the row balances."""
+    rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
+    key_w = 30 * SCALE
+    key_h = 36 * SCALE
+    gap = 6 * SCALE
+    row_pitch = key_h + 8 * SCALE
+
+    for ridx, row in enumerate(rows):
+        n = len(row)
+        if ridx == 2:
+            # bottom row gets a backspace key on the right
+            total_w = n * key_w + (n - 1) * gap + (gap + 50 * SCALE)
+        else:
+            total_w = n * key_w + (n - 1) * gap
+        start_x = (W - total_w) // 2
+        y = top_y + ridx * row_pitch
+        # Pressed-state demo: highlight "I" so the user sees the
+        # hover/tap rendering on a real letter
+        for kidx, ch in enumerate(row):
+            x = start_x + kidx * (key_w + gap)
+            draw_key(surf, x, y, key_w, key_h, ch,
+                     sample_pressed=(ch == "I"))
+        if ridx == 2:
+            # Backspace key — slightly wider
+            bx = start_x + n * (key_w + gap)
+            draw_key(surf, bx, y, 50 * SCALE, key_h, "<")
+
+
 def screen_name_entry():
     s = pygame.Surface((W, H))
     backdrop(s, dim=50)
 
-    # Trophy with halo at top
-    tcx, tcy = W // 2, 110 * SCALE
-    halo = pygame.Surface((140 * SCALE, 140 * SCALE), pygame.SRCALPHA)
-    for r in range(60 * SCALE, 0, -2 * SCALE):
-        a = int(35 * (1 - r / (60 * SCALE)))
+    # Compact trophy with halo at top
+    tcx, tcy = W // 2, 80 * SCALE
+    halo = pygame.Surface((110 * SCALE, 110 * SCALE), pygame.SRCALPHA)
+    for r in range(48 * SCALE, 0, -2 * SCALE):
+        a = int(38 * (1 - r / (48 * SCALE)))
         pygame.draw.circle(halo, (255, 220, 130, a),
-                           (70 * SCALE, 70 * SCALE), r)
-    s.blit(halo, (tcx - 70 * SCALE, tcy - 70 * SCALE))
-    draw_trophy(s, tcx, tcy, 22 * SCALE)
+                           (55 * SCALE, 55 * SCALE), r)
+    s.blit(halo, (tcx - 55 * SCALE, tcy - 55 * SCALE))
+    draw_trophy(s, tcx, tcy, 16 * SCALE)
 
-    big_title(s, "YOU  MADE  IT !", (W // 2, 220 * SCALE), size=30)
-    subtitle(s, "E N T E R   Y O U R   N A M E",
-             (W // 2, 264 * SCALE), size=14)
-    divider(s, 288 * SCALE, width=90)
+    big_title(s, "NEW  HIGH  SCORE!", (W // 2, 158 * SCALE), size=28)
+    divider(s, 192 * SCALE, width=90)
 
-    plate = pygame.Rect(W // 2 - 142 * SCALE, 322 * SCALE,
-                        284 * SCALE, 64 * SCALE)
+    # Engraved nameplate
+    plate = pygame.Rect(W // 2 - 142 * SCALE, 212 * SCALE,
+                        284 * SCALE, 58 * SCALE)
     nameplate(s, plate, sample_text="PIP")
 
-    pill(s, (W // 2, 446 * SCALE), "SUBMIT",
+    # On-screen keyboard below the nameplate
+    draw_keyboard(s, 296 * SCALE)
+
+    # SUBMIT (primary) + SKIP buttons at the bottom
+    pill(s, (W // 2, H - 92 * SCALE), "SUBMIT",
          size=22, min_w=240, h=52, primary=True)
-    pill(s, (W // 2, 512 * SCALE), "SKIP",
-         size=19, min_w=240, h=46)
+    pill(s, (W // 2, H - 36 * SCALE), "SKIP",
+         size=16, min_w=160, h=36)
 
     save("v3_scarlet_name_entry.png", s)
 
@@ -882,13 +861,15 @@ def screen_powerups():
              (W // 2, 106 * SCALE), size=11)
     divider(s, 124 * SCALE, width=80)
 
+    # Mirrors the in-game POWERUPS list (game/powerup_help.py) so the
+    # mockup uses the exact same blurbs the player will read.
     items = [
-        ("TRIPLE",  "3x  COIN  VALUE",  icon_triple),
-        ("MAGNET",  "PULL  NEARBY  $",  icon_magnet),
-        ("SLOW-MO", "TIME  SLOWS",      icon_slowmo),
-        ("KFC",     "FAT-PIPE  GAPS",   icon_kfc),
-        ("GHOST",   "PASS  THROUGH",    icon_ghost),
-        ("GROW",    "BIG  BIRD",        icon_grow),
+        ("triple",  "TRIPLE",   "Coins are worth 3x"),
+        ("magnet",  "MAGNET",   "Pulls nearby coins"),
+        ("slowmo",  "SLOW-MO",  "Time slows, taps stay sharp"),
+        ("kfc",     "KFC",      "Fried-chicken pillars"),
+        ("ghost",   "GHOST",    "Pass through pillars"),
+        ("grow",    "GROW",     "1.5x larger"),
     ]
     cols = 2
     cell_w = (W - 56 * SCALE) // cols - 8 * SCALE
@@ -897,7 +878,7 @@ def screen_powerups():
     cell_gap_y = 10 * SCALE
     grid_top = 144 * SCALE
     grid_left = 28 * SCALE
-    for i, (name, desc, icon_fn) in enumerate(items):
+    for i, (kind, name, desc) in enumerate(items):
         col = i % cols
         row = i // cols
         x = grid_left + col * (cell_w + cell_gap_x)
@@ -905,86 +886,33 @@ def screen_powerups():
         rect = pygame.Rect(x, y, cell_w, cell_h)
         card(s, rect, border_alpha=160)
         icx = rect.centerx
-        icy = rect.y + 32 * SCALE
-        pygame.draw.circle(s, PANEL_LIGHTER, (icx, icy), 22 * SCALE)
-        pygame.draw.circle(s, GOLD_BRIGHT, (icx, icy), 22 * SCALE, 2 * SCALE)
-        icon_fn(s, icx, icy, 18 * SCALE)
+        icy = rect.y + 34 * SCALE
+        # In-game icon rendered at 48px native then scaled — matches
+        # what the player sees on the existing powerup_help screen.
+        _ingame_powerup_icon(s, kind, icx, icy, 48 * SCALE)
         nf = font(13, True).render(name, True, GOLD_BRIGHT)
-        s.blit(nf, nf.get_rect(center=(rect.centerx, rect.y + 68 * SCALE)))
+        s.blit(nf, nf.get_rect(center=(rect.centerx, rect.y + 70 * SCALE)))
         df = font(10, True).render(desc, True, GOLD_MUTED)
-        s.blit(df, df.get_rect(center=(rect.centerx, rect.y + 88 * SCALE)))
+        s.blit(df, df.get_rect(center=(rect.centerx, rect.y + 90 * SCALE)))
 
     sb_y = grid_top + 3 * (cell_h + cell_gap_y) + 2 * SCALE
-    sb_rect = pygame.Rect(28 * SCALE, sb_y, W - 56 * SCALE, 56 * SCALE)
+    sb_rect = pygame.Rect(28 * SCALE, sb_y, W - 56 * SCALE, 64 * SCALE)
     card(s, sb_rect, border_alpha=180)
-    icon_surprise(s, sb_rect.x + 28 * SCALE, sb_rect.centery, 16 * SCALE)
-    nf = font(13, True).render("SURPRISE  BOX", True, GOLD_BRIGHT)
-    s.blit(nf, (sb_rect.x + 60 * SCALE,
-                sb_rect.centery - 11 * SCALE))
-    df = font(10, True).render("RANDOM  ·  ANY  OF  THE  ABOVE",
-                               True, GOLD_MUTED)
-    s.blit(df, (sb_rect.x + 60 * SCALE,
+    _ingame_powerup_icon(s, "surprise",
+                         sb_rect.x + 36 * SCALE, sb_rect.centery,
+                         52 * SCALE)
+    nf = font(14, True).render("SURPRISE", True, GOLD_BRIGHT)
+    s.blit(nf, (sb_rect.x + 76 * SCALE,
+                sb_rect.centery - 14 * SCALE))
+    df = font(11, True).render("Picks random from above",
+                               True, CREAM)
+    s.blit(df, (sb_rect.x + 76 * SCALE,
                 sb_rect.centery + 4 * SCALE))
 
-    ribbon_banner(s, W // 2, sb_y + 80 * SCALE,
+    ribbon_banner(s, W // 2, sb_y + 88 * SCALE,
                   "EFFECTS  LAST  8  SECONDS", w=200)
 
     save("v3_scarlet_powerups.png", s)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SCREEN 8 — HOW TO PLAY
-# ─────────────────────────────────────────────────────────────────────────────
-def screen_intro():
-    s = pygame.Surface((W, H))
-    backdrop(s)
-
-    big_title(s, "HOW  TO  PLAY", (W // 2, 110 * SCALE), size=38)
-    divider(s, 150 * SCALE, width=90)
-
-    steps = [
-        ("1", "FLAP",    "TAP  ·  CLICK  ·  SPACE"),
-        ("2", "THREAD",  "AVOID  THE  PILLARS"),
-        ("3", "COLLECT", "COINS  &  POWER-UPS"),
-    ]
-    card_top = 200 * SCALE
-    card_h = 88 * SCALE
-    card_gap = 14 * SCALE
-    for i, (num, head, body) in enumerate(steps):
-        rect = pygame.Rect(40 * SCALE,
-                           card_top + i * (card_h + card_gap),
-                           W - 80 * SCALE, card_h)
-        card(s, rect, border_alpha=180)
-        # Number badge on the left — scarlet body + gold rim
-        ncx = rect.x + 38 * SCALE
-        ncy = rect.centery
-        nb_r = 24 * SCALE
-        pygame.draw.circle(s, SCARLET_BOT, (ncx, ncy), nb_r)
-        # Subtle inner highlight on a separate surface so alpha blends
-        hl = pygame.Surface((nb_r * 2, nb_r * 2), pygame.SRCALPHA)
-        for k in range(nb_r - 4, 0, -2):
-            a = int(40 * (1 - k / (nb_r - 4)))
-            pygame.draw.circle(hl, (255, 200, 160, a),
-                               (nb_r, nb_r - 4), k)
-        s.blit(hl, (ncx - nb_r, ncy - nb_r))
-        pygame.draw.circle(s, GOLD_BRIGHT, (ncx, ncy), nb_r, 2 * SCALE)
-        nf = font(22, True).render(num, True, CREAM)
-        sh = font(22, True).render(num, True, NEAR_BLACK)
-        sh.set_alpha(180)
-        nr = nf.get_rect(center=(ncx, ncy))
-        s.blit(sh, (nr.x + 1 * SCALE, nr.y + 2 * SCALE))
-        s.blit(nf, nr)
-        # Head
-        hf = font(18, True).render(head, True, GOLD_BRIGHT)
-        s.blit(hf, (rect.x + 80 * SCALE, rect.y + 22 * SCALE))
-        # Body
-        bf = font(13, True).render(body, True, CREAM)
-        s.blit(bf, (rect.x + 80 * SCALE, rect.y + 52 * SCALE))
-
-    pill(s, (W // 2, H - 84 * SCALE), "TAP  TO  BEGIN",
-         size=22, min_w=246, h=52, primary=True)
-
-    save("v3_scarlet_intro.png", s)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -998,5 +926,4 @@ if __name__ == "__main__":
     screen_name_entry()
     screen_leaderboard()
     screen_powerups()
-    screen_intro()
     print("Done.")
