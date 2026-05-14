@@ -1,123 +1,38 @@
-# Skybit — Menu Polish (5 candidates)
+# Skybit v4 — Menu Redesign (Pip Scarlet)
 
-**Brief:** take the existing v3 menu as-is and *polish it to
-extraordinary*. No new frames, no new themes, no story overlays — just
-five different ways to push the rendering quality so the menu looks
-premium without changing what's there.
+The selected and final 8-screen UI set. Every non-gameplay screen uses
+the same primitives — polished v3 night-sky backdrop, gold-on-red
+SKYBIT-style title, scarlet pills with gold trim, dark-navy
+gold-trimmed cards, hero circular score medallion. Rendered at
+**720 × 1280** (2× the game canvas) so every detail is crisp on web
+and on modern mobile.
 
-All five mockups are **720 × 1280** (2× the game's canvas) for crisp
-display on web and modern mobile. They use only Skybit's canonical
-palette (gold `#F0C040`, red `#A82010`, orange `#E86828`, deep purple
-`#0C0826`, night-deep `#060115`) and the bundled Liberation Sans font.
+Generator: [`tools/gen_scarlet_set.py`](../../tools/gen_scarlet_set.py)
+Earlier exploration rounds (5 polish directions, 5 safe pill colours,
+5 aggressive on-theme variants, the rejected ROYAL set, etc.) live
+in [`archive/`](archive/) for reference.
 
-The layout — SKYBIT title, POCKET SKY FLYER subtitle, orange divider,
-three red-gradient pills (TAP TO START / HOW TO PLAY / POWER-UPS),
-BEST + TOP 10 twin panels, mountain silhouettes — is identical across
-every variant. Each one pushes **one** quality axis.
+| # | Screen | File |
+|---|---|---|
+| 1 | **Main menu** — SKYBIT title, 3 scarlet pills, BEST + TOP 10 panels | [v3_scarlet_main.png](v3_scarlet_main.png) |
+| 2 | **Pause overlay** — score medallion + PAUSED + RESUME / RESTART / MAIN MENU | [v3_scarlet_pause.png](v3_scarlet_pause.png) |
+| 3 | **Run summary** — big score medallion w/ scarlet ribbon + 5-row stat card + TAP TO CONTINUE | [v3_scarlet_stats.png](v3_scarlet_stats.png) |
+| 4 | **Game over (NEW BEST)** — gold NEW BEST ribbon + score medallion inside gold sparkle burst + TAP TO RETRY / MAIN MENU | [v3_scarlet_gameover.png](v3_scarlet_gameover.png) |
+| 5 | **Name entry** — trophy + halo + YOU MADE IT ! + engraved nameplate + SUBMIT / SKIP | [v3_scarlet_name_entry.png](v3_scarlet_name_entry.png) |
+| 6 | **Leaderboard** — TOP 10 between twin trophies + 10 ranked cards w/ gold/silver/bronze medals (top 3) + player row highlighted | [v3_scarlet_leaderboard.png](v3_scarlet_leaderboard.png) |
+| 7 | **Power-ups help** — 2×3 medallion-icon grid + Surprise Box card + EFFECTS LAST 8 SECONDS ribbon | [v3_scarlet_powerups.png](v3_scarlet_powerups.png) |
+| 8 | **How to play** — 3 numbered scarlet+gold badges (FLAP / THREAD / COLLECT) + TAP TO BEGIN primary pill | [v3_scarlet_intro.png](v3_scarlet_intro.png) |
 
-Pick one and I'll roll the same polish across the remaining
-non-gameplay screens (pause / stats / game-over / name-entry /
-leaderboard / power-ups help / how-to-play).
+## Brand bar
 
----
-
-## 1 — Cinematic Sky
-
-![polish_1](polish_1_cinematic_sky.png)
-
-**Push axis:** atmosphere & depth.
-
-Same v3 layout. The sky gradient is deepened with a hint of warmth
-just above the horizon. A **soft full moon** sits top-right adding a
-quiet focal point. **180+ stars** in 4 size tiers, with soft halos on
-the largest ones. **Three mountain layers** instead of two, with a
-faint atmospheric haze band where mountains meet the sky. The title
-keeps its canonical gold-on-red treatment with a subtle moonlight rim
-on its top edge. Cloud puffs get softer multi-layer edges.
-
-**Best at:** depth and mood. Reads as the v3 menu rendered at a
-higher fidelity bar.
-
----
-
-## 2 — Refined Glass
-
-![polish_2](polish_2_refined_glass.png)
-
-**Push axis:** UI surface quality.
-
-Same v3 layout. The pills become **glassy**: the top half gains a
-subtle frost-light highlight, the bottoms get a soft drop shadow that
-lifts them off the page. The **BEST + TOP 10 panels become true
-glassmorphic cards** — more translucent, with a thin gold-leaf rim
-and a faint inner warm glow instead of v3's solid dark panel + orange
-border. A handful of cross-flare sparkle stars add tactile detail to
-the sky.
-
-**Best at:** making the touch targets feel premium without changing
-their colour or shape.
-
----
-
-## 3 — Stage Light
-
-![polish_3](polish_3_stage_light.png)
-
-**Push axis:** lighting & focus.
-
-Same v3 layout. A **very subtle warm spotlight halo** sits behind the
-title (you have to look for it — that's the point), giving the title
-region a quiet lift. The **mountain tops gain a thin warm rim light**
-along their silhouette where they catch the same warmth. The three
-pills sit on soft drop shadows for depth. Everything else is exactly
-v3.
-
-**Best at:** making the SKYBIT title feel like a *hero element*
-without altering the title art itself.
-
----
-
-## 4 — Living Scene
-
-![polish_4](polish_4_living_scene.png)
-
-**Push axis:** in-world life.
-
-Same v3 layout. **Pip is flying** through the menu — fully-rendered
-scarlet macaw with sunglasses + parcel trailing + motion-trail dots
-behind him, positioned just below the subtitle so he's clearly the
-star. A **shooting star streaks** across the upper-left sky. A few
-**cross-flare sparkle stars** punctuate the field. Mountains, title,
-pills, and panels are unchanged v3.
-
-**Best at:** the menu feels like a paused moment from the gameplay
-rather than a static splash screen.
-
----
-
-## 5 — Micro Ornament
-
-![polish_5](polish_5_micro_ornament.png)
-
-**Push axis:** refinement & taste.
-
-Same v3 layout. **Tiny gold corner flourishes** — L-shaped marks with
-a single dot inset — anchor the four corners (NOT a frame, just
-corner detailing). The orange divider under the title is **replaced
-with a hairline gold underline + tiny diamond accent** for a more
-elegant feel. The pill borders shift from `ORANGE_BORDER` to
-`GOLD_DEEP`, and the BEST + TOP 10 panel accents go to bright gold
-instead of orange. Everything else is unchanged v3.
-
-**Best at:** turning the dial just slightly more toward "premium"
-without spending a single new pixel of decoration.
-
----
-
-## How the chosen polish carries to the rest of the screens
-
-After you pick one, the same polish language will roll onto every
-other non-gameplay screen — pause overlay, run summary, game over,
-name entry, leaderboard, power-ups help, and how-to-play — keeping
-each screen's existing layout and just pushing it to the same
-fidelity bar.
+* **Palette** — gold `#F0C040`, scarlet `#F03737 → #941414`, deep
+  purple `#0C0826`, night-deep `#060115`, red outline `#A82010`,
+  cream text `#FAEED2`.
+* **Font** — bundled Liberation Sans (Bold + Regular) from
+  `game/assets/`.
+* **Primary action** — always a scarlet pill with a soft gold glow
+  halo so the player instantly knows what to tap.
+* **Hero score readout** — circular gold medallion with a slim
+  scarlet accent ring inside, radial laurel ticks, dark-navy
+  interior, label-at-top + big gold value, optional scarlet ribbon
+  tail for celebratory moments.
