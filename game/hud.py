@@ -517,6 +517,7 @@ class HUD:
         self.menu_start_rect: "pygame.Rect | None" = None
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
+        self.menu_top10_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf):
         self.title_t += 1 / 60
@@ -595,16 +596,38 @@ class HUD:
             surf, (W // 2, y_power), "POWER-UPS",
             size=18, alpha=230, min_width=220)
 
-        # Best score panel
-        hi_rect = pygame.Rect(W // 2 - 72, H - 110, 144, 48)
-        _dark_panel(surf, hi_rect, radius=14, alpha=190)
+        # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
+        # (right). Same pill dimensions side-by-side so they read as a
+        # pair. The trophy panel is the leaderboard hit-zone — scenes.py
+        # routes taps that land inside ``self.menu_top10_rect`` to
+        # STATE_LEADERBOARD.
+        panel_w = 132
+        gap = 8
+        total_w = panel_w * 2 + gap
+        left_x = (W - total_w) // 2
+        cy = H - 86  # vertical centre (matches the previous BEST y)
         lf = _font(12, False)
+        vf = _font(22, True)
+
+        # BEST panel (left)
+        best_cx = left_x + panel_w // 2
+        best_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
+        _dark_panel(surf, best_rect, radius=14, alpha=190)
         lbl = lf.render("B E S T", True, _GOLD_MUTED)
         lbl.set_alpha(180)
-        surf.blit(lbl, lbl.get_rect(center=(W // 2, H - 98)))
-        vf = _font(22, True)
+        surf.blit(lbl, lbl.get_rect(center=(best_cx, cy - 12)))
         val = vf.render(str(best), True, _GOLD_BRIGHT)
-        surf.blit(val, val.get_rect(center=(W // 2, H - 78)))
+        surf.blit(val, val.get_rect(center=(best_cx, cy + 8)))
+
+        # TOP 10 panel (right) — clickable trophy button
+        top_cx = left_x + panel_w + gap + panel_w // 2
+        top_rect = pygame.Rect(left_x + panel_w + gap, cy - 24, panel_w, 48)
+        _dark_panel(surf, top_rect, radius=14, alpha=190)
+        top_lbl = lf.render("T O P  10", True, _GOLD_MUTED)
+        top_lbl.set_alpha(180)
+        surf.blit(top_lbl, top_lbl.get_rect(center=(top_cx, cy - 12)))
+        _draw_trophy(surf, top_cx, cy + 10, 9)
+        self.menu_top10_rect = top_rect
 
         # The corner `?` help button is intentionally not drawn here —
         # the POWER-UPS pill above replaces it. HelpButton class itself
@@ -950,7 +973,8 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float, fetch_error: str = ""):
+                         cooldown: float, fetch_error: str = "",
+                         fetch_pending: bool = False):
         self.title_t += dt
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
@@ -972,10 +996,19 @@ class HUD:
 
         n = len(scores)
         if n == 0:
-            # Distinguish "table is genuinely empty" from "fetch failed":
-            # an unreachable Supabase / RLS-without-policy looks identical
-            # to a brand-new database without a friendlier message here.
-            if fetch_error:
+            # Distinguish three cases:
+            #   * fetch_pending — async browser fetch hasn't resolved yet
+            #     (only happens when opened from the menu trophy button)
+            #   * fetch_error — Supabase/RLS/network call failed
+            #   * neither — table is genuinely empty (brand-new database)
+            if fetch_pending:
+                pulse_a = int(180 + math.sin(self.title_t * 3.6) * 60)
+                loading = _font(18, True).render(
+                    "Loading top 10…", True, UI_CREAM)
+                loading.set_alpha(pulse_a)
+                surf.blit(loading,
+                          loading.get_rect(center=(W // 2, card_y + 60)))
+            elif fetch_error:
                 _text(surf, "Top-10 unavailable", (W // 2, card_y + 60),
                       size=18, color=UI_CREAM, shadow=True)
                 _text(surf, "Check the browser console", (W // 2, card_y + 94),
@@ -1062,7 +1095,7 @@ class HUD:
                                      (card_x + card_w - 8, ry + row_h - 1))
                 ry += row_h
 
-        if cooldown <= 0:
+        if cooldown <= 0 and not fetch_pending:
             alpha = int(150 + math.sin(self.title_t * 4) * 90)
             f2 = _font(18, True)
             prompt = f2.render("TAP TO MENU", True, WHITE)

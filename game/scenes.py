@@ -111,6 +111,7 @@ class App:
         self._final_score = 0
         self._name_task = None  # strong ref prevents GC killing the task mid-flight
         self._play_log_task = None  # strong ref for the per-run telemetry POST
+        self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -166,6 +167,10 @@ class App:
                 self.powerup_help = PowerUpHelpScene()
                 self.state = STATE_POWERUPS
                 self._cooldown_t = 0.25
+                return
+            if pos and self.hud.menu_top10_rect \
+                    and self.hud.menu_top10_rect.collidepoint(pos):
+                self._open_leaderboard_from_menu()
                 return
             # TAP TO START rect, keyboard (no pos), or any tap outside
             # the secondary buttons — start a play session.
@@ -461,6 +466,50 @@ class App:
             return True
         return score > scores[-1]["score"]
 
+    def _open_leaderboard_from_menu(self):
+        """Tap on the TOP 10 trophy panel in the main menu. Browser:
+        kick off an async Supabase fetch and switch to STATE_LEADERBOARD
+        immediately — the view shows 'Loading top 10…' until the scores
+        arrive. Native: synchronous local fetch.
+
+        No player highlight (``_lb_player_rank = -1``) because there's
+        no just-finished run to rank. The same STATE_LEADERBOARD → MENU
+        tap pattern that lives in ``_flap_input`` handles the way back."""
+        import sys
+        self._lb_player_rank = -1
+        if sys.platform == "emscripten":
+            self._lb_scores = []
+            self._lb_fetch_error = ""
+            self._fetch_pending = True
+            self.hud.title_t = 0.0
+            self.state = STATE_LEADERBOARD
+            self._cooldown_t = 1.0
+            import asyncio
+            try:
+                self._lb_task = asyncio.create_task(
+                    self._fetch_leaderboard_from_menu())
+            except RuntimeError:
+                # No running event loop (smoke tests). Mark fetch
+                # finished so the view doesn't sit on "Loading…" forever.
+                self._fetch_pending = False
+        else:
+            from game import leaderboard
+            scores = leaderboard._native_fetch()
+            self._show_leaderboard_native(scores, submitted=False)
+
+    async def _fetch_leaderboard_from_menu(self):
+        """Background task for the menu trophy button. Resolves into
+        ``_lb_scores`` and clears ``_fetch_pending`` once the Supabase
+        call returns (or fails — the view distinguishes both)."""
+        try:
+            from game import leaderboard
+            scores = await leaderboard.fetch_top10()
+            self._lb_scores = scores
+            self._lb_fetch_error = leaderboard.last_fetch_error()
+        except Exception:
+            pass
+        self._fetch_pending = False
+
     def _show_leaderboard_native(self, scores, submitted: bool):
         self._lb_scores = scores
         if scores and submitted:
@@ -725,6 +774,7 @@ class App:
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
+                fetch_pending=self._fetch_pending,
             )
         else:  # GAMEOVER
             self.hud.draw_gameover(
