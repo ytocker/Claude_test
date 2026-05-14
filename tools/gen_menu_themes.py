@@ -220,6 +220,203 @@ def save(name, surf):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Reusable ROYAL primitives (lifted from v1_royal so all 7 screens share them)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def royal_frame(surf):
+    """Gold-leaf outer + inner border + 4 corner medallions +
+    top/bottom filigree dots. Draws on top of an existing background."""
+    frame_outer = pygame.Rect(8, 8, W - 16, H - 16)
+    pygame.draw.rect(surf, (140, 96, 14), frame_outer, width=4, border_radius=12)
+    frame_inner = pygame.Rect(14, 14, W - 28, H - 28)
+    pygame.draw.rect(surf, GOLD_BRIGHT, frame_inner, width=2, border_radius=10)
+    for x in range(40, W - 40, 36):
+        pygame.draw.circle(surf, GOLD_BRIGHT, (x, 22), 3, 1)
+        pygame.draw.circle(surf, GOLD_BRIGHT, (x, H - 22), 3, 1)
+        pygame.draw.line(surf, GOLD_BRIGHT, (x - 6, 22), (x - 3, 22), 1)
+        pygame.draw.line(surf, GOLD_BRIGHT, (x + 3, 22), (x + 6, 22), 1)
+        pygame.draw.line(surf, GOLD_BRIGHT, (x - 6, H - 22), (x - 3, H - 22), 1)
+        pygame.draw.line(surf, GOLD_BRIGHT, (x + 3, H - 22), (x + 6, H - 22), 1)
+    for cx, cy in [(20, 20), (W - 20, 20), (20, H - 20), (W - 20, H - 20)]:
+        pygame.draw.circle(surf, (60, 40, 80), (cx, cy), 9)
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), 9, 2)
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), 3)
+
+
+def royal_title(surf, text, center, size=68):
+    """Beveled gold-on-red title — same recipe as the SKYBIT logo:
+    thick red outline halo + dark-gold underlay + black shadow +
+    gold-bright fill + subtle top-edge highlight."""
+    f = font(size, True)
+    base = f.render(text, True, GOLD_BRIGHT)
+    base_rect = base.get_rect(center=center)
+    out_red = f.render(text, True, RED_OUTLINE)
+    for r in range(5, 0, -1):
+        for ang in range(0, 360, 30):
+            ox = int(math.cos(math.radians(ang)) * r)
+            oy = int(math.sin(math.radians(ang)) * r)
+            out_red.set_alpha(80 if r > 2 else 255)
+            surf.blit(out_red, (base_rect.x + ox, base_rect.y + oy))
+    out_red.set_alpha(255)
+    sh = f.render(text, True, GOLD_DEEP)
+    surf.blit(sh, (base_rect.x + 3, base_rect.y + 5))
+    bk = f.render(text, True, NEAR_BLACK)
+    bk.set_alpha(180)
+    surf.blit(bk, (base_rect.x + 4, base_rect.y + 7))
+    surf.blit(base, base_rect)
+    hl = f.render(text, True, (255, 240, 180))
+    hl.set_alpha(80)
+    surf.blit(hl, (base_rect.x, base_rect.y - 1))
+    return base_rect
+
+
+def royal_divider(surf, cy, width=140):
+    """Gold double-line with a diamond in the middle."""
+    pygame.draw.line(surf, GOLD_BRIGHT,
+                     (W // 2 - width // 2, cy),
+                     (W // 2 - 14, cy), 1)
+    pygame.draw.line(surf, GOLD_BRIGHT,
+                     (W // 2 + 14, cy),
+                     (W // 2 + width // 2, cy), 1)
+    pygame.draw.polygon(surf, GOLD_BRIGHT,
+                        [(W // 2, cy - 4), (W // 2 + 6, cy),
+                         (W // 2, cy + 4), (W // 2 - 6, cy)])
+
+
+def royal_pill(surf, center, text, big=False, w=250, glow=False,
+               text_color=None):
+    """Double-rim red pill: outer gold leaf + inner black gap +
+    red gradient body + top sheen + bottom shadow. Returns rect."""
+    h = 56 if big else 46
+    sz = 22 if big else 18
+    x = center[0] - w // 2
+    y = center[1] - h // 2
+    if glow:
+        for r in range(10, 0, -2):
+            a = int(40 * (r / 10))
+            halo = pygame.Surface((w + r * 2 + 6, h + r * 2 + 6), pygame.SRCALPHA)
+            pygame.draw.rect(halo, (*GOLD_BRIGHT, a),
+                             (0, 0, w + r * 2 + 6, h + r * 2 + 6),
+                             width=2, border_radius=(h + r * 2 + 6) // 2)
+            surf.blit(halo, (x - r - 3, y - r - 3),
+                      special_flags=pygame.BLEND_PREMULTIPLIED)
+    # Outer gold ring
+    pygame.draw.rect(surf, GOLD_BRIGHT, (x - 3, y - 3, w + 6, h + 6),
+                     border_radius=(h + 6) // 2)
+    pygame.draw.rect(surf, GOLD_DEEP, (x - 3, y - 3, w + 6, h + 6), width=1,
+                     border_radius=(h + 6) // 2)
+    # Inner black gap
+    pygame.draw.rect(surf, NEAR_BLACK, (x - 1, y - 1, w + 2, h + 2),
+                     border_radius=(h + 2) // 2)
+    # Red gradient body
+    pill = pygame.Surface((w, h), pygame.SRCALPHA)
+    for yy in range(h):
+        t = yy / max(1, h - 1)
+        c = lerp(BTN_TOP, BTN_BOT, t)
+        pygame.draw.line(pill, (*c, 255), (0, yy), (w, yy))
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h),
+                     border_radius=h // 2)
+    pill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.line(pill, (255, 255, 255, 110),
+                     (h // 2, 3), (w - h // 2, 3), 2)
+    pygame.draw.line(pill, (0, 0, 0, 80),
+                     (h // 2, h - 4), (w - h // 2, h - 4))
+    surf.blit(pill, (x, y))
+    # Text
+    col = text_color or GOLD_BRIGHT
+    ti = font(sz, True).render(text, True, col)
+    sh = font(sz, True).render(text, True, NEAR_BLACK)
+    sh.set_alpha(180)
+    tr = ti.get_rect(center=center)
+    surf.blit(sh, (tr.x + 1, tr.y + 2))
+    surf.blit(ti, tr)
+    return pygame.Rect(x, y, w, h)
+
+
+def royal_medallion(surf, cx, cy, r=44, label=None, value=None,
+                    with_trophy=False, with_ribbon=True,
+                    value_size=30, label_size=10):
+    """Ornate gold medallion: dark-purple interior + thick gold ring +
+    thin inner gold ring + radial laurel ticks + optional label/value
+    or trophy + optional red ribbon tail."""
+    pygame.draw.circle(surf, (60, 40, 80), (cx, cy), r)
+    pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), r, 3)
+    pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), r - 6, 1)
+    for ang_deg in range(0, 360, 15):
+        a = math.radians(ang_deg)
+        x1 = cx + math.cos(a) * (r - 6)
+        y1 = cy + math.sin(a) * (r - 6)
+        x2 = cx + math.cos(a) * r
+        y2 = cy + math.sin(a) * r
+        pygame.draw.line(surf, GOLD_BRIGHT, (x1, y1), (x2, y2), 1)
+    if label:
+        lf = font(label_size, True).render(label, True, GOLD_BRIGHT)
+        ly = cy - (r // 4) if value or with_trophy else cy
+        surf.blit(lf, lf.get_rect(center=(cx, ly)))
+    if value is not None:
+        vf = font(value_size, True).render(str(value), True, GOLD_BRIGHT)
+        vsh = font(value_size, True).render(str(value), True, NEAR_BLACK)
+        vsh.set_alpha(180)
+        vy = cy + (r // 5) if label else cy
+        vr_rect = vf.get_rect(center=(cx, vy))
+        surf.blit(vsh, (vr_rect.x + 1, vr_rect.y + 2))
+        surf.blit(vf, vr_rect)
+    elif with_trophy:
+        draw_trophy(surf, cx, cy + (r // 4), max(8, r // 4))
+    if with_ribbon:
+        rw = int(r * 0.4)
+        ry = cy + r - 2
+        pygame.draw.polygon(surf, (200, 50, 40),
+                            [(cx - rw, ry), (cx + rw, ry),
+                             (cx + rw - 4, ry + 18),
+                             (cx, ry + 12),
+                             (cx - rw + 4, ry + 18)])
+        pygame.draw.polygon(surf, (140, 20, 20),
+                            [(cx - rw, ry), (cx + rw, ry),
+                             (cx + rw - 4, ry + 18),
+                             (cx, ry + 12),
+                             (cx - rw + 4, ry + 18)], 1)
+
+
+def royal_card(surf, rect, radius=12, alpha=215):
+    """Dark-purple panel with a gold-leaf border. Used for stat rows,
+    leaderboard rows, instruction cards, nameplate field, etc."""
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*PANEL_DARK, alpha),
+                     (0, 0, rect.w, rect.h), border_radius=radius)
+    pygame.draw.rect(pnl, GOLD_BRIGHT,
+                     (0, 0, rect.w, rect.h), width=2, border_radius=radius)
+    # Inner subtle highlight
+    pygame.draw.line(pnl, (255, 240, 180, 90),
+                     (radius, 3), (rect.w - radius, 3))
+    surf.blit(pnl, rect.topleft)
+
+
+def royal_ribbon_banner(surf, cx, cy, text, w=160, h=28):
+    """Hanging cloth banner — gold body with darker scalloped ends,
+    red trim, dark text. Used for 'NEW BEST!' and 'EFFECTS LAST 8 SECONDS'."""
+    rect = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
+    # Body
+    pygame.draw.rect(surf, GOLD_BRIGHT, rect)
+    pygame.draw.rect(surf, GOLD_DEEP, rect, 2)
+    # Notched ends
+    pygame.draw.polygon(surf, (10, 8, 18),
+                        [(rect.x, rect.y), (rect.x + 8, rect.centery),
+                         (rect.x, rect.bottom)])
+    pygame.draw.polygon(surf, (10, 8, 18),
+                        [(rect.right, rect.y), (rect.right - 8, rect.centery),
+                         (rect.right, rect.bottom)])
+    # Red trim lines top + bottom
+    pygame.draw.line(surf, (200, 50, 40),
+                     (rect.x + 6, rect.y + 4), (rect.right - 6, rect.y + 4), 1)
+    pygame.draw.line(surf, (200, 50, 40),
+                     (rect.x + 6, rect.bottom - 4), (rect.right - 6, rect.bottom - 4), 1)
+    ti = font(13, True).render(text, True, (90, 20, 10))
+    surf.blit(ti, ti.get_rect(center=rect.center))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # v1 — ROYAL: luxury polish
 # ─────────────────────────────────────────────────────────────────────────────
 def v1_royal():
@@ -938,6 +1135,485 @@ def v5_festival():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ROYAL — full UI set: 7 additional non-gameplay screens
+# ─────────────────────────────────────────────────────────────────────────────
+
+def royal_screen_pause():
+    """Pause overlay — gameplay dimmed underneath, ROYAL chrome on top."""
+    s = pygame.Surface((W, H))
+    # Faux 'in-flight' background — same night sky, a bit darker (since
+    # the overlay would normally dim the live gameplay scene).
+    night_sky(s)
+    # Dim layer
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 130))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Live-score medallion centred at top
+    royal_medallion(s, W // 2, 110, r=40,
+                    label="SCORE", value="17",
+                    value_size=26, label_size=10, with_ribbon=False)
+
+    # Title
+    royal_title(s, "PAUSED", (W // 2, 220), size=58)
+    royal_divider(s, 258, width=130)
+
+    # Buttons — primary RESUME + two secondaries
+    royal_pill(s, (W // 2, 320), "RESUME", big=True, glow=True)
+    royal_pill(s, (W // 2, 388), "RESTART RUN")
+    royal_pill(s, (W // 2, 448), "MAIN MENU")
+
+    # Helper hint at the bottom
+    hint = font(11, False).render("· TAP · P · ESC ·", True, GOLD_MUTED)
+    hint.set_alpha(180)
+    s.blit(hint, hint.get_rect(center=(W // 2, H - 60)))
+
+    save("v1_royal_pause.png", s)
+
+
+def royal_screen_stats():
+    """Run-summary screen — big SCORE medallion + 5-row stats card."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 90))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Title
+    royal_title(s, "RUN  SUMMARY", (W // 2, 72), size=32)
+    royal_divider(s, 100, width=160)
+
+    # Big central SCORE medallion
+    royal_medallion(s, W // 2, 180, r=58,
+                    label="SCORE", value="23",
+                    value_size=40, label_size=12, with_ribbon=True)
+
+    # Stats card
+    card = pygame.Rect(36, 290, W - 72, 230)
+    royal_card(s, card, radius=14, alpha=225)
+    rows = [
+        ("TIME  ALIVE",     "1:27"),
+        ("COINS",           "11"),
+        ("PILLARS  CLEARED", "23"),
+        ("POWER-UPS",       "3"),
+        ("NEAR  MISSES",    "3"),
+    ]
+    row_h = (card.h - 24) // len(rows)
+    for i, (label, value) in enumerate(rows):
+        y = card.y + 12 + i * row_h + row_h // 2
+        if i > 0:
+            pygame.draw.line(s, (*GOLD_DEEP, 60),
+                             (card.x + 16, y - row_h // 2),
+                             (card.right - 16, y - row_h // 2), 1)
+        lf = font(13, True).render(label, True, GOLD_MUTED)
+        s.blit(lf, lf.get_rect(midleft=(card.x + 22, y)))
+        vf = font(17, True).render(value, True, GOLD_BRIGHT)
+        vsh = font(17, True).render(value, True, NEAR_BLACK)
+        vsh.set_alpha(180)
+        vr_rect = vf.get_rect(midright=(card.right - 22, y))
+        s.blit(vsh, (vr_rect.x + 1, vr_rect.y + 2))
+        s.blit(vf, vr_rect)
+
+    # TAP TO CONTINUE prompt
+    prompt = font(16, True).render("TAP  TO  CONTINUE", True, GOLD_BRIGHT)
+    psh = font(16, True).render("TAP  TO  CONTINUE", True, NEAR_BLACK)
+    psh.set_alpha(160)
+    pr = prompt.get_rect(center=(W // 2, H - 60))
+    s.blit(psh, (pr.x + 1, pr.y + 2))
+    s.blit(prompt, pr)
+
+    save("v1_royal_stats.png", s)
+
+
+def royal_screen_gameover():
+    """Game over — title + score medallion + NEW BEST burst + retry pill."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 100))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Title
+    royal_title(s, "GAME  OVER", (W // 2, 110), size=42)
+    royal_divider(s, 144, width=170)
+
+    # Filigree burst around the score medallion
+    burst_cx, burst_cy = W // 2, 268
+    for i in range(16):
+        ang = i * (2 * math.pi / 16)
+        rx = burst_cx + math.cos(ang) * 92
+        ry = burst_cy + math.sin(ang) * 92
+        # Small fleur shape (line + dot)
+        pygame.draw.line(s, GOLD_BRIGHT, (burst_cx + math.cos(ang) * 76,
+                                          burst_cy + math.sin(ang) * 76),
+                         (rx, ry), 2)
+        pygame.draw.circle(s, GOLD_BRIGHT, (int(rx), int(ry)), 3)
+        pygame.draw.circle(s, GOLD_DEEP, (int(rx), int(ry)), 3, 1)
+
+    # NEW BEST banner above medallion
+    royal_ribbon_banner(s, W // 2, 184, "★  NEW  BEST!  ★", w=180, h=30)
+
+    # Score medallion
+    royal_medallion(s, burst_cx, burst_cy, r=64,
+                    label="FINAL  SCORE", value="23",
+                    value_size=44, label_size=11, with_ribbon=False)
+
+    # Buttons
+    royal_pill(s, (W // 2, 430), "TAP TO RETRY", big=True, glow=True)
+    royal_pill(s, (W // 2, 500), "MAIN MENU")
+
+    # Sub note for the non-new-best variant
+    note = font(10, False).render(
+        "(without 'NEW BEST', shows 'GAME OVER' + score only)",
+        True, GOLD_MUTED)
+    note.set_alpha(110)
+    s.blit(note, note.get_rect(center=(W // 2, H - 60)))
+
+    save("v1_royal_gameover.png", s)
+
+
+def royal_screen_name_entry():
+    """Top-10 qualification screen — trophy + engraved nameplate + 2 pills."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 110))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Trophy with halo at top
+    trophy_cy = 130
+    halo = pygame.Surface((180, 180), pygame.SRCALPHA)
+    for r in range(80, 0, -4):
+        a = int(50 * (1 - r / 80))
+        pygame.draw.circle(halo, (255, 220, 120, a), (90, 90), r)
+    s.blit(halo, (W // 2 - 90, trophy_cy - 90))
+    draw_trophy(s, W // 2, trophy_cy, 32)
+
+    # Title
+    royal_title(s, "TOP  10  COURIER", (W // 2, 242), size=26)
+    sub = font(15, False).render("Enter  your  name", True, GOLD_MUTED)
+    s.blit(sub, sub.get_rect(center=(W // 2, 280)))
+    royal_divider(s, 306, width=140)
+
+    # Engraved nameplate input field
+    plate = pygame.Rect(W // 2 - 130, 332, 260, 60)
+    # Outer gold rim
+    pygame.draw.rect(s, GOLD_BRIGHT, plate.inflate(6, 6), border_radius=12)
+    pygame.draw.rect(s, GOLD_DEEP, plate.inflate(6, 6), 1, border_radius=12)
+    # Inner dark plate
+    pygame.draw.rect(s, NEAR_BLACK, plate.inflate(2, 2), border_radius=10)
+    pygame.draw.rect(s, PANEL_DARK, plate, border_radius=10)
+    # Inner highlight at top
+    pygame.draw.line(s, (255, 240, 180, 90),
+                     (plate.x + 10, plate.y + 4),
+                     (plate.right - 10, plate.y + 4))
+    # Sample typed text
+    name_text = font(28, True).render("PIP", True, GOLD_BRIGHT)
+    sh = font(28, True).render("PIP", True, NEAR_BLACK)
+    sh.set_alpha(180)
+    nr = name_text.get_rect(center=plate.center)
+    s.blit(sh, (nr.x + 1, nr.y + 2))
+    s.blit(name_text, nr)
+    # Tiny corner rivets
+    for cx, cy in [(plate.x + 8, plate.y + 8), (plate.right - 8, plate.y + 8),
+                   (plate.x + 8, plate.bottom - 8), (plate.right - 8, plate.bottom - 8)]:
+        pygame.draw.circle(s, GOLD_BRIGHT, (cx, cy), 2)
+
+    # Two pills — SUBMIT primary + SKIP secondary
+    royal_pill(s, (W // 2, 452), "SUBMIT", big=True, glow=True, w=220)
+    royal_pill(s, (W // 2, 514), "SKIP", w=220)
+
+    save("v1_royal_name_entry.png", s)
+
+
+def royal_screen_leaderboard():
+    """TOP 10 leaderboard — title between trophies + 10 ranked rows."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 110))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Header — TOP 10 flanked by trophies
+    title_cy = 60
+    draw_trophy(s, 56, title_cy, 18)
+    draw_trophy(s, W - 56, title_cy, 18)
+    royal_title(s, "TOP  10", (W // 2, title_cy), size=34)
+    sub = font(11, True).render("COURIERS", True, GOLD_MUTED)
+    s.blit(sub, sub.get_rect(center=(W // 2, title_cy + 28)))
+    royal_divider(s, title_cy + 50, width=120)
+
+    # 10 rows
+    rows = [
+        (1, "ARIA",       "98"),
+        (2, "BRIK",       "91"),
+        (3, "CASSI",      "87"),
+        (4, "DANE",       "74"),
+        (5, "EZRA",       "68"),
+        (6, "FINN",       "61"),
+        (7, "PIP",        "42"),   # the player
+        (8, "GRETA",      "38"),
+        (9, "HARLOW",     "31"),
+        (10, "INDIGO",    "29"),
+    ]
+    rows_top = 130
+    row_h = 40
+    player_rank = 7
+    for rank, name, score in rows:
+        y = rows_top + (rank - 1) * row_h
+        rect = pygame.Rect(28, y, W - 56, row_h - 6)
+        royal_card(s, rect, radius=10, alpha=190)
+        # Highlight the player's row
+        if rank == player_rank:
+            pygame.draw.rect(s, GOLD_BRIGHT, rect, 3, border_radius=10)
+            # Inner soft glow
+            glow = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(glow, (*GOLD_BRIGHT, 26),
+                             (0, 0, rect.w, rect.h), border_radius=10)
+            s.blit(glow, rect.topleft)
+
+        # Rank badge — circle on the left
+        badge_cx, badge_cy = rect.x + 24, rect.centery
+        if rank == 1:
+            badge_col = GOLD_BRIGHT
+        elif rank == 2:
+            badge_col = (200, 200, 215)  # silver
+        elif rank == 3:
+            badge_col = (200, 130, 60)   # bronze
+        else:
+            badge_col = GOLD_DEEP
+        pygame.draw.circle(s, badge_col, (badge_cx, badge_cy), 14)
+        pygame.draw.circle(s, NEAR_BLACK, (badge_cx, badge_cy), 14, 1)
+        if rank <= 3:
+            # Tick laurel
+            for ang_deg in range(0, 360, 30):
+                a = math.radians(ang_deg)
+                x1 = badge_cx + math.cos(a) * 10
+                y1 = badge_cy + math.sin(a) * 10
+                x2 = badge_cx + math.cos(a) * 14
+                y2 = badge_cy + math.sin(a) * 14
+                pygame.draw.line(s, lerp(badge_col, NEAR_BLACK, 0.4),
+                                 (x1, y1), (x2, y2), 1)
+        rl = font(13, True).render(str(rank), True, NEAR_BLACK)
+        s.blit(rl, rl.get_rect(center=(badge_cx, badge_cy)))
+
+        # Name
+        nf = font(15, True).render(name, True, GOLD_BRIGHT)
+        s.blit(nf, nf.get_rect(midleft=(rect.x + 50, rect.centery)))
+        # "YOU" tag for the player row
+        if rank == player_rank:
+            tag = pygame.Rect(rect.x + 50 + nf.get_width() + 8,
+                              rect.centery - 8, 34, 16)
+            pygame.draw.rect(s, GOLD_BRIGHT, tag, border_radius=4)
+            yt = font(10, True).render("YOU", True, NEAR_BLACK)
+            s.blit(yt, yt.get_rect(center=tag.center))
+
+        # Score (right)
+        sf = font(16, True).render(score, True, GOLD_BRIGHT)
+        ssh = font(16, True).render(score, True, NEAR_BLACK)
+        ssh.set_alpha(160)
+        sr = sf.get_rect(midright=(rect.right - 20, rect.centery))
+        s.blit(ssh, (sr.x + 1, sr.y + 2))
+        s.blit(sf, sr)
+
+    # TAP TO MENU
+    prompt = font(13, True).render("TAP  TO  MENU", True, GOLD_BRIGHT)
+    psh = font(13, True).render("TAP  TO  MENU", True, NEAR_BLACK)
+    psh.set_alpha(160)
+    pr = prompt.get_rect(center=(W // 2, H - 45))
+    s.blit(psh, (pr.x + 1, pr.y + 2))
+    s.blit(prompt, pr)
+
+    save("v1_royal_leaderboard.png", s)
+
+
+def royal_screen_powerups():
+    """POWER-UPS help — 2x3 grid of medallion cards + surprise card + footer."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    dim = pygame.Surface((W, H), pygame.SRCALPHA)
+    dim.fill((6, 1, 21, 100))
+    s.blit(dim, (0, 0))
+    royal_frame(s)
+
+    # Title
+    royal_title(s, "POWER-UPS", (W // 2, 60), size=32)
+    royal_divider(s, 90, width=160)
+
+    # 2x3 grid of medallion-cards
+    powerups = [
+        ("TRIPLE", "Coins x3",  "triple"),
+        ("MAGNET", "Pull coins", "magnet"),
+        ("SLOW-MO", "Time slows", "slowmo"),
+        ("KFC",    "Tasty pillars", "kfc"),
+        ("GHOST",  "Phase pillars", "ghost"),
+        ("GROW",   "Big bird",  "grow"),
+    ]
+    grid_top = 116
+    cell_w = (W - 80) // 2
+    cell_h = 108
+    for i, (name, desc, kind) in enumerate(powerups):
+        col = i % 2
+        row = i // 2
+        x = 40 + col * (cell_w + 8)
+        y = grid_top + row * (cell_h + 10)
+        rect = pygame.Rect(x, y, cell_w - 8, cell_h)
+        royal_card(s, rect, radius=12, alpha=220)
+        # Inner medallion icon
+        icon_cx = rect.x + rect.w // 2
+        icon_cy = rect.y + 32
+        pygame.draw.circle(s, (60, 40, 80), (icon_cx, icon_cy), 22)
+        pygame.draw.circle(s, GOLD_BRIGHT, (icon_cx, icon_cy), 22, 2)
+        # Per-kind procedural icon
+        if kind == "triple":
+            # Three small coins
+            for ox in (-7, 0, 7):
+                pygame.draw.circle(s, GOLD_BRIGHT, (icon_cx + ox, icon_cy), 6)
+                pygame.draw.circle(s, GOLD_DEEP, (icon_cx + ox, icon_cy), 6, 1)
+                df = font(8, True).render("$", True, (10, 60, 20))
+                s.blit(df, df.get_rect(center=(icon_cx + ox, icon_cy)))
+        elif kind == "magnet":
+            # U-shaped horseshoe
+            pygame.draw.arc(s, (220, 40, 40),
+                            (icon_cx - 10, icon_cy - 12, 20, 22),
+                            math.pi, 2 * math.pi, 5)
+            pygame.draw.rect(s, (180, 180, 200), (icon_cx - 10, icon_cy - 2, 5, 6))
+            pygame.draw.rect(s, (180, 180, 200), (icon_cx + 5, icon_cy - 2, 5, 6))
+        elif kind == "slowmo":
+            # Hourglass
+            pygame.draw.polygon(s, (160, 100, 200),
+                                [(icon_cx - 8, icon_cy - 10), (icon_cx + 8, icon_cy - 10),
+                                 (icon_cx, icon_cy)])
+            pygame.draw.polygon(s, (160, 100, 200),
+                                [(icon_cx, icon_cy),
+                                 (icon_cx + 8, icon_cy + 10), (icon_cx - 8, icon_cy + 10)])
+            pygame.draw.line(s, (60, 40, 80), (icon_cx - 10, icon_cy - 11),
+                             (icon_cx + 10, icon_cy - 11), 2)
+            pygame.draw.line(s, (60, 40, 80), (icon_cx - 10, icon_cy + 11),
+                             (icon_cx + 10, icon_cy + 11), 2)
+        elif kind == "kfc":
+            # Red KFC bucket
+            pygame.draw.polygon(s, (220, 60, 60),
+                                [(icon_cx - 10, icon_cy - 8), (icon_cx + 10, icon_cy - 8),
+                                 (icon_cx + 7, icon_cy + 10), (icon_cx - 7, icon_cy + 10)])
+            for yy in range(icon_cy - 6, icon_cy + 9, 4):
+                pygame.draw.line(s, (250, 240, 230),
+                                 (icon_cx - 9 + (yy - icon_cy) // 5,
+                                  yy),
+                                 (icon_cx + 9 - (yy - icon_cy) // 5, yy), 1)
+        elif kind == "ghost":
+            # Pale phantom
+            pygame.draw.circle(s, (220, 220, 250), (icon_cx, icon_cy - 2), 10)
+            pygame.draw.rect(s, (220, 220, 250),
+                             (icon_cx - 10, icon_cy - 2, 20, 12))
+            # Wavy bottom
+            for k, dx in enumerate((-8, -4, 0, 4, 8)):
+                yy = icon_cy + 12 + (3 if k % 2 == 0 else -1)
+                pygame.draw.circle(s, (220, 220, 250), (icon_cx + dx, yy), 3)
+            pygame.draw.circle(s, (40, 30, 70), (icon_cx - 4, icon_cy - 2), 2)
+            pygame.draw.circle(s, (40, 30, 70), (icon_cx + 4, icon_cy - 2), 2)
+        elif kind == "grow":
+            # Witch hat
+            pygame.draw.polygon(s, (125, 30, 45),
+                                [(icon_cx, icon_cy - 12), (icon_cx + 9, icon_cy + 4),
+                                 (icon_cx - 9, icon_cy + 4)])
+            pygame.draw.rect(s, (245, 230, 200),
+                             (icon_cx - 11, icon_cy + 4, 22, 4))
+            pygame.draw.circle(s, (255, 235, 175), (icon_cx - 2, icon_cy - 2), 1)
+            pygame.draw.circle(s, (255, 235, 175), (icon_cx + 3, icon_cy + 2), 1)
+        # Name + description
+        nf = font(13, True).render(name, True, GOLD_BRIGHT)
+        s.blit(nf, nf.get_rect(center=(icon_cx, rect.y + 64)))
+        df_ = font(11, False).render(desc, True, GOLD_MUTED)
+        df_.set_alpha(220)
+        s.blit(df_, df_.get_rect(center=(icon_cx, rect.y + 84)))
+
+    # Surprise box card — wider, 7th item, with a ?
+    sb_rect = pygame.Rect(40, grid_top + 3 * (cell_h + 10) + 8, W - 80, 64)
+    royal_card(s, sb_rect, radius=12, alpha=225)
+    # Left mini medallion
+    pygame.draw.circle(s, (60, 40, 80),
+                       (sb_rect.x + 36, sb_rect.centery), 20)
+    pygame.draw.circle(s, GOLD_BRIGHT,
+                       (sb_rect.x + 36, sb_rect.centery), 20, 2)
+    qf = font(22, True).render("?", True, GOLD_BRIGHT)
+    s.blit(qf, qf.get_rect(center=(sb_rect.x + 36, sb_rect.centery)))
+    # Right text
+    nf = font(15, True).render("SURPRISE  BOX", True, GOLD_BRIGHT)
+    s.blit(nf, (sb_rect.x + 72, sb_rect.y + 12))
+    df = font(11, False).render("Re-rolls into any power-up", True, GOLD_MUTED)
+    s.blit(df, (sb_rect.x + 72, sb_rect.y + 36))
+
+    # Footer banner
+    royal_ribbon_banner(s, W // 2, H - 56, "EFFECTS  LAST  8  SECONDS",
+                        w=240, h=26)
+
+    save("v1_royal_powerups.png", s)
+
+
+def royal_screen_intro():
+    """HOW TO PLAY title card — 3 numbered instruction cards + start pill."""
+    s = pygame.Surface((W, H))
+    night_sky(s)
+    royal_frame(s)
+
+    # Title
+    royal_title(s, "HOW  TO  PLAY", (W // 2, 90), size=32)
+    royal_divider(s, 122, width=160)
+
+    # 3 numbered instruction cards
+    instructions = [
+        ("01", "TAP · CLICK · SPACE — FLAP"),
+        ("02", "THREAD THE PILLARS — CLEAR THE GAP"),
+        ("03", "GRAB COINS & POWER-UPS — STACK A STREAK"),
+    ]
+    card_top = 174
+    card_h = 76
+    for i, (num, text) in enumerate(instructions):
+        y = card_top + i * (card_h + 12)
+        rect = pygame.Rect(28, y, W - 56, card_h)
+        royal_card(s, rect, radius=12, alpha=215)
+        # Big numeral on the left in a small medallion
+        n_cx = rect.x + 32
+        n_cy = rect.centery
+        pygame.draw.circle(s, (60, 40, 80), (n_cx, n_cy), 22)
+        pygame.draw.circle(s, GOLD_BRIGHT, (n_cx, n_cy), 22, 2)
+        nf = font(22, True).render(num, True, GOLD_BRIGHT)
+        nsh = font(22, True).render(num, True, NEAR_BLACK)
+        nsh.set_alpha(180)
+        nr = nf.get_rect(center=(n_cx, n_cy))
+        s.blit(nsh, (nr.x + 1, nr.y + 2))
+        s.blit(nf, nr)
+        # Instruction text — split into two lines if too long
+        text_x = rect.x + 64
+        text_y = rect.centery
+        # Try single line first
+        tline = font(13, True).render(text, True, GOLD_BRIGHT)
+        if tline.get_width() <= rect.w - 76:
+            s.blit(tline, tline.get_rect(midleft=(text_x, text_y)))
+        else:
+            # Split at em-dash / first dash
+            parts = text.split(" — ", 1)
+            if len(parts) == 2:
+                l1 = font(13, True).render(parts[0] + " —", True, GOLD_BRIGHT)
+                l2 = font(13, True).render(parts[1], True, GOLD_MUTED)
+                s.blit(l1, l1.get_rect(midleft=(text_x, text_y - 10)))
+                s.blit(l2, l2.get_rect(midleft=(text_x, text_y + 10)))
+            else:
+                s.blit(tline, tline.get_rect(midleft=(text_x, text_y)))
+
+    # Begin pill
+    royal_pill(s, (W // 2, H - 80), "TAP TO BEGIN", big=True, glow=True)
+
+    save("v1_royal_intro.png", s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("Generating Skybit v4 menu upgrade mockups...")
@@ -946,4 +1622,12 @@ if __name__ == "__main__":
     v3_parcel()
     v4_starlight()
     v5_festival()
+    print("Generating ROYAL full-UI screen mockups...")
+    royal_screen_pause()
+    royal_screen_stats()
+    royal_screen_gameover()
+    royal_screen_name_entry()
+    royal_screen_leaderboard()
+    royal_screen_powerups()
+    royal_screen_intro()
     print("Done.")

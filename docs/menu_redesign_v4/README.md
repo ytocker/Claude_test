@@ -1,7 +1,85 @@
-# Skybit v4 — Menu Redesign Candidates
+# Skybit v4 — Menu Redesign
 
-Five **massive upgrades of the original v3 menu**, each pushing one
-quality axis hard while preserving Skybit's existing visual identity:
+**Selected direction: v1 ROYAL.** The full 8-screen ROYAL UI set is
+documented at the top of this file; the original 5 candidate variants
+follow below as the design-history record.
+
+---
+
+## ROYAL — full UI set (8 screens)
+
+The chosen ROYAL theme applied consistently across every non-gameplay
+screen. Every screen reuses the same primitives — gold-leaf frame,
+beveled gold-on-red title, double-rim red pills, ornate medallions
+with red ribbon tails, gold-bordered dark-purple cards — so the whole
+game reads as one cohesive premium UI. The bundled Liberation Sans
+font and Skybit's canonical palette (gold `#F0C040`, red `#A82010`,
+deep purple `#0C0826`, night-deep `#060115`) are reused unchanged.
+
+| # | Screen | Mockup | What it shows |
+|---|---|---|---|
+| 1 | **Main menu** | [v1_royal.png](v1_royal.png) | The selected direction. SKYBIT title under the gold-leaf frame, three double-rim pills, BEST + TOP 10 medallions with ribbons. |
+| 2 | **Pause overlay** | [v1_royal_pause.png](v1_royal_pause.png) | Live-score medallion + PAUSED title + RESUME (primary glowing) / RESTART RUN / MAIN MENU pills + key-hint at bottom. |
+| 3 | **Run summary** | [v1_royal_stats.png](v1_royal_stats.png) | RUN SUMMARY title + big SCORE medallion with ribbon + 5-row stats card with thin gold dividers + TAP TO CONTINUE prompt. |
+| 4 | **Game over** | [v1_royal_gameover.png](v1_royal_gameover.png) | GAME OVER title + NEW BEST! gold ribbon banner + filigree-burst around the score medallion + TAP TO RETRY (primary) / MAIN MENU pills. (Without NEW BEST, the banner + burst are omitted.) |
+| 5 | **Name entry** | [v1_royal_name_entry.png](v1_royal_name_entry.png) | Trophy + halo at top + TOP 10 COURIER title + engraved nameplate input (gold-rim, four rivets) + SUBMIT (primary glowing) / SKIP pills. |
+| 6 | **Leaderboard** | [v1_royal_leaderboard.png](v1_royal_leaderboard.png) | TOP 10 title between twin trophy emblems + 10 ranked cards. Top-3 rank badges are gold / silver / bronze medallions with laurel ticks; ranks 4-10 get a plain gold ring. The player's row is highlighted with a thicker gold border + YOU tag. |
+| 7 | **Power-ups help** | [v1_royal_powerups.png](v1_royal_powerups.png) | POWER-UPS title + 2×3 grid of gold-rim medallion cards (Triple / Magnet / Slow-Mo / KFC / Ghost / Grow) each with a procedural icon, name, and one-line effect description + wider Surprise Box card + EFFECTS LAST 8 SECONDS gold ribbon banner. |
+| 8 | **How to play** | [v1_royal_intro.png](v1_royal_intro.png) | Static instruction card alternative to the cinematic intro. HOW TO PLAY title + 3 numbered ROYAL cards (FLAP / THREAD / COLLECT) + TAP TO BEGIN glowing pill. |
+
+### Reused ROYAL primitives
+
+All 7 new screens compose the same building blocks (lifted to
+module-level helpers in `tools/gen_menu_themes.py`):
+
+* `royal_frame(surf)` — gold-leaf outer + inner border + corner
+  medallions + top/bottom filigree dots.
+* `royal_title(surf, text, center, size)` — beveled gold-on-red
+  treatment matching the SKYBIT logo: thick red outline halo +
+  dark-gold underlay + black shadow + gold-bright fill + top
+  highlight.
+* `royal_divider(surf, cy, width)` — gold double-line with diamond
+  centre ornament.
+* `royal_pill(surf, center, text, big=False, glow=False)` — double-rim
+  red pill (outer gold ring + inner black gap + red gradient body +
+  top sheen + bottom shadow + optional outer gold glow halo).
+* `royal_medallion(surf, cx, cy, r, label, value, with_trophy, with_ribbon)` — ornate gold medallion: dark-purple interior + thick gold ring +
+  thin inner gold ring + radial laurel ticks + label/value or trophy +
+  optional red ribbon tail.
+* `royal_card(surf, rect)` — dark-purple panel with a 2-px gold-leaf
+  border. Used for stat rows, leaderboard rows, instruction cards.
+* `royal_ribbon_banner(surf, cx, cy, text)` — hanging gold cloth
+  banner with notched ends and red trim lines.
+
+### How this carries to the game code (next round, not in this batch)
+
+The implementation pass after sign-off will:
+
+1. Add the royal primitives to a new `game/menu_theme.py` (or replace
+   the equivalent helpers in `game/hud.py:45-218`).
+2. Rewrite each `draw_*` method in `game/hud.py`
+   (`draw_menu`, `draw_pause_overlay`, `draw_play`'s overlays,
+   `draw_stats`, `draw_gameover`, `draw_name_entry`,
+   `draw_leaderboard`) to compose the new primitives.
+3. Restyle `game/powerup_help.py:PowerUpHelpScene.render()`.
+4. Either append a ROYAL title-card frame to `game/intro.py` or
+   replace the cinematic with the static instruction screen
+   (decision out of scope for the mockup round).
+5. Preserve all hit-test rects (`menu_start_rect`, `menu_howto_rect`,
+   `menu_powerups_rect`, `menu_top10_rect`, `name_submit_rect`,
+   `name_skip_rect`, plus the new pause/restart/menu rects) so input
+   handling in `game/scenes.py` continues to work unchanged.
+
+---
+
+## The 5 candidate variants (design history)
+
+Below are the 5 v3-menu upgrade variants generated during the
+exploration phase. v1 ROYAL won; v2-v5 are kept here as the design-
+history record so the decision can be revisited later.
+
+Each variant pushes one quality axis hard while preserving Skybit's
+existing visual identity:
 
 * **Deep navy night-sky** background with stars + mountain silhouettes
 * **Gold-on-red outlined `SKYBIT`** title in the canonical recipe
