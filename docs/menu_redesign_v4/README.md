@@ -1,141 +1,199 @@
-# Skybit v4 — Menu Redesign Themes
+# Skybit v4 — Story-Connected Menu Themes
 
-Five candidate visual themes for a top-to-bottom menu redesign. Every
-mockup is a 360×640 still of the **MAIN MENU** screen, with the exact
-same functional layout as v3 — title, TAP TO START, HOW TO PLAY,
-POWER-UPS, BEST score, TOP 10 trophy. Only the *visual treatment* changes.
+Round 2 of the menu redesign exploration. The first batch of themes
+(neon arcade, papercraft, retro CRT, glassmorphism, retrowave sunset)
+was rejected because they were generic visual styles bolted on top
+of the game. They had nothing to do with **Pip**, the **parcel**,
+**Mr. Garrick**, the cottages, the day-night cycle, or any of the
+landmarks the player flies past.
 
-The chosen theme will then be applied consistently across every menu:
-main menu, pause overlay, run-summary, game-over, name-entry, leaderboard.
+This round fixes that. Every theme is a **moment, place, or artifact
+from Pip's delivery journey** — the same world the player already
+flies through during a run, just freezing on a different beat of the
+story. Together the five themes trace the full delivery cycle:
 
-Pick one and I'll implement it on this branch (`v4_skybit_menu_redesign`).
+> 🛖 PICKUP COTTAGE → 📒 PLANNING THE ROUTE → 🗺️ THE MAP → ✈️ THE FLIGHT → 🌙 ARRIVAL
 
----
+Every mockup is a 360×640 PNG matching the game window. They use
+Skybit's canonical UI palette (gold `#F0C040`, red outline `#A82010`,
+orange border `#E86828`, deep-purple panel `#0C0826`) and the same
+Liberation Sans Bold/Regular font the game already bundles, so the
+chosen theme drops into `game/hud.py` without introducing new
+dependencies.
 
-## Theme 1 — Neon Arcade (Synthwave / Cyberpunk)
-
-![theme1](theme1_neon_arcade.png)
-
-**Vibe:** Late-80s arcade cabinet meets *Drive* soundtrack. Hot pink
-neon title with a cyan glow halo, a half-sunk retrowave sun behind a
-vanishing-point grid floor, and dark glass pills bordered in pulsing
-neon. Subtle scanlines tie the whole thing to a CRT.
-
-**Palette:** electric pink `#FF46AA`, cyan `#6CE0FF`, deep purple
-`#240658`, sun-yellow `#FFD23C`.
-
-**Why it works:** Maximum visual energy, instantly says "arcade".
-Every pill becomes a light source so the UI feels alive without animation.
-
-**Risks:** Loud, less family-friendly than v3. Heavy palette shift away
-from current orange/gold gold-on-red identity.
+Pick one and I'll implement it across every menu surface
+(`draw_menu`, `draw_pause_overlay`, `draw_stats`, `draw_gameover`,
+`draw_name_entry`, `draw_leaderboard`, plus the in-flight HUD).
 
 ---
 
-## Theme 2 — Storybook Papercraft
+## Theme A — *The Dispatch Desk* — Mr. Garrick's Post Office
 
-![theme2](theme2_storybook.png)
+![dispatch desk](theme_a_dispatch_desk.png)
 
-**Vibe:** Warm hand-drawn picture-book / scrapbook. Parchment background
-with paper-grain texture, watercolor wash behind the title, doodle stars
-and pencil-sketched mountains, washi-tape subtitle strip, and cards with
-stitched dashed borders for buttons.
+**Story beat:** Where every run begins. Pip is about to pick up the
+day's parcel.
 
-**Palette:** cream `#FCF0D2`, terracotta `#C86E32`, ink-brown `#46261A`,
-washi-tape ochre `#DCAA6E`.
+You're standing at the counter inside the **teal-roofed pickup
+cottage** (`game/intro.py:189-197`). Wood-plank wall behind you, a
+window to the left showing a slice of clear sky and the cottage's
+own roofline, a cork **pin-board** to the right with the day's
+route map pinned up. A wooden sign hung from chains over the desk
+reads **SKYBIT** with the subtitle stamped beneath: *AIR MAIL ·
+POCKET SKY FLYER*. **Mr. Garrick** (the pelican) peeks in from the
+right edge.
 
-**Why it works:** Stands out hard from every other Flappy-clone on the
-store — none of them look like a children's book. Casual and inviting.
-
-**Risks:** Loses the "night-flyer" mood. Day-tone parchment may clash
-with the in-game night sky unless the gameplay scene also shifts.
-
----
-
-## Theme 3 — Retro 8-Bit CRT
-
-![theme3](theme3_retro_crt.png)
-
-**Vibe:** NES start-screen authenticity. Pixel title with red-on-black
-arcade bevels, chunky 3-color buttons with the classic black-white-color
-NES bevel, pixel-stair mountain silhouette, an "HI-BEST 000042" 6-digit
-score readout strip at the bottom, and a blinking ▶ cursor showing the
-currently-selected button. CRT scanlines + soft vignette baked in.
-
-**Palette:** NES red `#FA5046`, NES blue `#2878C8`, NES green `#28A050`,
-arcade-yellow `#FAC83C`, near-black `#06060E`.
-
-**Why it works:** Deeply nostalgic, perfectly genre-appropriate for a
-one-button reflex game, and the chunky pixel buttons read big enough
-for thumbs.
-
-**Risks:** Will feel like a stylistic *step back* if marketed as "v4 —
-new and improved". Best framed as a deliberate retro mode.
+* **Buttons** → manila **parcel tags** strung from twine: `DISPATCH NOW` /
+  `ROUTE GUIDE` / `CARGO MANIFEST`.
+* **BEST** → a red **wax-seal stamp** on the open ledger.
+* **TOP 10** → a brass-plaque "TOP COURIERS" trophy on the desk shelf.
+* Decorative props: stacked parcels, ink-stamp rack, open ledger.
 
 ---
 
-## Theme 4 — Crystal Aurora (Glassmorphism / Premium)
+## Theme B — *Pip's Logbook* — The Courier's Journal
 
-![theme4](theme4_crystal_aurora.png)
+![logbook](theme_b_logbook.png)
 
-**Vibe:** Polished premium mobile game (Sky, Alto's Odyssey). Midnight-blue
-sky with translucent aurora ribbons (teal → purple → pink), bright
-sparkle-stars, floating soft-glow particles, frosted-glass title with a
-soft blue halo, true glassmorphism buttons (the primary is a purple→teal
-gradient, secondaries are dark frosted glass with light borders), and
-glass tiles for BEST / TOP 10.
+**Story beat:** Between flights, Pip journals. The menu *is* his open
+diary.
 
-**Palette:** midnight `#080C26`, aurora-green `#1EF0B4`, aurora-purple
-`#8C5AE6`, aurora-pink `#FF5AB4`, ice-white `#F5FAFF`.
+A leather-bound courier's logbook open on a desk, lit by a soft
+candle halo. Both cream pages have ruled lines like real notebook
+paper. The title **Skybit** is hand-inked at the top; the subtitle is
+a faded purple **CERTIFIED SKY COURIER** rubber stamp. Down the left
+margin, small ink sketches of the pillar variants Pip has identified
+on his routes — **lungta (prayer flags)**, **lantern peak**,
+**monastery**, **kfc!** (with a deliberately exclamation-pointed
+label), **menhir** — each captioned in his handwriting. A pressed
+**red feather** lies across the gutter.
 
-**Why it works:** Looks like a $5 app even though it's free. Closest
-in mood to v3's night sky — easiest to slot in without changing the
-gameplay backdrop. Highest "premium" perception.
-
-**Risks:** Glassmorphism is computationally cheap here (no real blur),
-but the look depends on careful gradient work — small palette deviations
-read as cheap.
-
----
-
-## Theme 5 — Tropical Miami Sunset
-
-![theme5](theme5_miami_sunset.png)
-
-**Vibe:** Vaporwave/retrowave palm-tree sunset. Vivid orange→pink→purple
-sky, full peach sun on the horizon with retrowave horizontal stripes,
-reflected sun-bars on the water, palm tree silhouettes flanking the
-buttons, and a chrome-pink gradient title with a metallic-strip highlight.
-Primary button is hot pink-to-peach with a gold border; secondaries are
-soft pearl-pink.
-
-**Palette:** sunset-peach `#FFC882`, hot-pink `#FF5AA0`, indigo
-`#240E50`, gold border `#FFDC82`.
-
-**Why it works:** Most "vacation arcade" — high warmth, instantly
-appealing thumbnail. Great for App Store featuring.
-
-**Risks:** Title currently reads a little dark against the bright sun
-behind it. Would tune the title fill / glow in implementation.
+* **Buttons** → tabbed **bookmark ribbons** sticking from the page edge:
+  `TAKE FLIGHT` (red) / `FIELD GUIDE` (blue) / `POWER-UPS` (brown).
+* **BEST** → "**Personal Best 42**" in cursive ink, with a small
+  quill drawn beside.
+* **TOP 10** → a gold-foil **LEAGUE** ribbon pressed into the page.
 
 ---
 
-## How they all keep v3's functionality
+## Theme C — *The Cartographer's Chart* — Sky-Route Map
 
-| Element             | Where it lives                      |
-|---------------------|-------------------------------------|
-| `SKYBIT` title      | Top third, big.                     |
-| Subtitle line       | Directly below title.               |
-| `TAP TO START`      | Primary pill, centred, ~y=360-380.  |
-| `HOW TO PLAY`       | Secondary pill, ~64 px below.       |
-| `POWER-UPS`         | Secondary pill, ~120 px below.      |
-| `BEST 42`           | Bottom-left tile.                   |
-| `TOP 10 🏆`         | Bottom-right tile (clickable).      |
-| Mountain silhouette | Bottom backdrop (every theme keeps a horizon). |
+![route map](theme_c_route_map.png)
 
-Once a theme is chosen, the same language extends to:
-* Pause overlay (`PAUSED` title + `TAP·P·ESC` pill)
-* Run summary (`RUN SUMMARY` + stat rows)
-* Game over (`GAME OVER` + `TAP TO RETRY`)
-* Name entry (`SUBMIT` / `SKIP` pair)
-* Leaderboard `TOP 10` table
+**Story beat:** Planning the route. The full delivery laid out as a
+weathered fold-out aerial map.
+
+A tea-stained parchment with fold creases visible. A **scroll banner**
+across the top frames the **SKYBIT** title and *SKY COURIER ROUTE*
+subtitle. The map field shows pencil-shaded mountains and a **dotted
+red flight path** snaking from a **teal pickup-cottage icon** at the
+bottom-left to a **red drop-off cottage** at the top-right. Pillar
+**landmarks** are dotted along the route with hand-lettered labels —
+*PRAYER FLAGS*, *LANTERN PEAK*, *MONASTERY*, *KFC HAZARD!* — same
+landmarks Pip will actually fly past during the run. A faint
+**compass rose** sits in the corner with a red N arrow.
+
+* **Buttons** → wooden **signposts at a crossroads** pointing forward:
+  `TO TAKEOFF →` / `TO BRIEFING →` / `TO CARGO LIST →`.
+* **BEST** → a red **wax-seal badge** in the top-left margin.
+* **TOP 10** → a tiny **rolled scroll** with a trophy doodle in the
+  top-right margin.
+
+---
+
+## Theme D — *The Cockpit Dashboard* — Captain's View
+
+![cockpit](theme_d_cockpit.png)
+
+**Story beat:** The flight itself. You are sitting *inside* Pip's
+flight harness, looking out.
+
+A vintage instrument panel mounted on polished wood with brass rivets
+in the corners. The top third is a **curved-glass windshield** showing
+the Skybit twilight sky — stars, deep-blue gradient down to peach
+horizon, distant mountain silhouette, and a **tiny incoming pillar
+silhouette** on the right (the next obstacle you'd fly through) and
+**Pip's tiny scarlet body with blue wing** off in the distance. Below
+the windshield a wooden plaque carries the **SKYBIT** title; *CAPT.
+PIP · POCKET SKY FLYER* beneath. Two brass **gauges** flank the
+plaque: altimeter (320 ft) on the left, coin meter (x7) on the right.
+
+* **Buttons** → chrome push-buttons mounted on the panel, each with
+  a brass rim and engraved label: `FLIGHT START` (with green ARMED
+  LED) / `MANUAL` / `POWER-UPS`.
+* **BEST** → a 6-digit brass **odometer** reading `000042`.
+* **TOP 10** → a brass-knurled **radio dial** with a "TOP COURIERS"
+  plaque beneath.
+
+This is the only theme where the menu screen visually *shows*
+gameplay in the windshield — which is a hook the in-flight HUD can
+borrow from later.
+
+---
+
+## Theme E — *Arrival at the Starlit Cottage* — Journey's End
+
+![arrival](theme_e_arrival_cottage.png)
+
+**Story beat:** You made it. The parcel has been delivered. The night
+is quiet.
+
+The **red-roofed delivery cottage** (`game/intro.py:442-469`) under a
+deep midnight sky, lantern glowing over the door, smoke curling from
+the chimney, **the parcel resting on the doorstep with its red bow**.
+A constellation in the sky overhead is shaped into a **Pip-and-trophy
+silhouette** — a literal celebration in the stars. A full moon glows
+softly to the left. The **SKYBIT** title hangs from a wooden plaque
+suspended from a chain, *DELIVERY CONFIRMED · POCKET SKY FLYER*
+stamped beneath.
+
+* **Buttons** → wood plaques **nailed to the cottage door** with brass
+  rims and corner nails: `RING THE BELL` / `READ THE LETTER` /
+  `OPEN THE BOX`.
+* **BEST** → an engraved **brass mailbox nameplate** at the bottom-left,
+  flag raised.
+* **TOP 10** → a navy badge with the **constellation pattern**
+  recreated in miniature.
+
+The most atmospheric of the five. Closest in mood to v3's existing
+night-sky menu, so the smallest visual jump for returning players —
+but with the journey wrapped in narrative meaning.
+
+---
+
+## How the same elements map across all five themes
+
+| Functional v3 element | A — Dispatch | B — Logbook | C — Route Map | D — Cockpit | E — Arrival |
+|---|---|---|---|---|---|
+| `SKYBIT` title | Sign over desk | Ink calligraphy on page | Top scroll banner | Wooden plaque | Plaque on chain |
+| Subtitle | Red stamp | Purple stamp | Sub-scroll line | Plaque sub-line | "Delivery confirmed" |
+| `TAP TO START` | Parcel tag (DISPATCH NOW) | Red ribbon tab (TAKE FLIGHT) | Wooden signpost (TO TAKEOFF) | Chrome button + LED (FLIGHT START) | Door plaque (RING THE BELL) |
+| `HOW TO PLAY` | Parcel tag (ROUTE GUIDE) | Blue ribbon (FIELD GUIDE) | Signpost (TO BRIEFING) | Chrome button (MANUAL) | Door plaque (READ THE LETTER) |
+| `POWER-UPS` | Parcel tag (CARGO MANIFEST) | Brown ribbon (POWER-UPS) | Signpost (TO CARGO LIST) | Chrome button (POWER-UPS) | Door plaque (OPEN THE BOX) |
+| `BEST 42` | Wax-seal stamp on ledger | "Personal Best" in cursive | Wax-seal badge in margin | 6-digit brass odometer | Mailbox brass plate |
+| `TOP 10 🏆` | Brass plaque + trophy | Pressed gold-foil LEAGUE ribbon | Rolled scroll with doodle | Brass radio dial | Constellation badge |
+| Background | Wooden post-office interior | Open journal pages | Tea-stained parchment | Polished cockpit panel | Night sky + cottage |
+| Recurring characters | Mr. Garrick peeking | Pip's handwriting | Pip's flight path | Pip flying in windshield | Pip's parcel on doorstep |
+
+---
+
+## How the chosen theme will apply game-wide
+
+After you pick one, the same visual language carries to every menu:
+
+* **Main menu** → the chosen theme (as shown).
+* **Pause overlay** → same frame, dimmed; `PAUSED` styled like the title.
+* **Run summary** → the stats card re-skinned in the theme's
+  background (e.g. ink-on-ledger for B, parchment notes for C).
+* **Game over** → the theme's "incident" treatment (parcel knocked
+  off the desk for A, scribbled-out journal page for B, "ROUTE
+  ABORTED" stamp for C, master-alarm red for D, no-arrival
+  pre-dawn cottage for E).
+* **Name entry** → the theme's input device (ledger sign-in for A,
+  journal entry for B, captain's roster for D, mailbox slot for E).
+* **TOP 10 leaderboard** → the theme's leaderboard artifact (couriers'
+  bulletin for A, league rankings page for B, scroll list for C,
+  radio scoreboard for D, constellation hall for E).
+
+Tell me which theme to build out and I'll implement it on
+`v4_skybit_menu_redesign`.
