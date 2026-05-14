@@ -62,8 +62,13 @@ GOLD_DEEP     = (180, 130,  20)
 RED_OUTLINE   = (168,  32,  16)
 RED_DEEP      = ( 90,  18,   8)
 ORANGE_BORDER = (232, 104,  40)
-BTN_TOP       = (200,  64,  24)
-BTN_BOT       = (126,  28,   2)
+# Pill body — refined wine/burgundy that sits in the night palette
+# instead of popping out as a bright orange-red.
+BTN_TOP       = (108,  32,  46)
+BTN_BOT       = ( 54,  14,  26)
+# Tertiary cream for pill text — premium, warm white that ties to the
+# canonical gold without losing readability on the dark pill body.
+PILL_TEXT     = (250, 238, 210)
 PANEL_DARK    = ( 12,   8,  38)
 NIGHT_DEEP    = (  6,   1,  21)
 NIGHT_MID     = ( 22,  14,  58)
@@ -191,10 +196,10 @@ def skybit_subtitle(surf, cx, cy, size=22):
 
 
 def divider(surf, cy, width=140):
-    """Single canonical orange divider — same alpha rule as accent strips
-    on the panels below, so all minor lines feel like one system."""
+    """Gold hairline — matches the title fill + the panel accents so
+    every minor line on the screen belongs to one gold accent system."""
     line = pygame.Surface((width * SCALE, 1 * SCALE), pygame.SRCALPHA)
-    line.fill((*ORANGE_BORDER, 120))
+    line.fill((*GOLD_BRIGHT, 120))
     surf.blit(line, line.get_rect(center=(W // 2, cy)))
 
 
@@ -207,18 +212,20 @@ def pill(surf, center, text, size=22, min_w=240, h=48, primary=False):
     h *= SCALE
     cx, cy = center
     f = font(size, True)
-    img = f.render(text, True, WHITE)
+    img = f.render(text, True, PILL_TEXT)
     w = max(min_w * SCALE, img.get_width() + 50 * SCALE)
     x = cx - w // 2
     y = cy - h // 2
 
     if primary:
-        # Outer orange glow halo — very faint, falls off to invisible
+        # Outer gold glow halo — very faint, falls off to invisible.
+        # Uses GOLD_BRIGHT (canonical) so the halo reads as warm
+        # rather than orange-plastic.
         glow = pygame.Surface((w + 28 * SCALE, h + 28 * SCALE),
                               pygame.SRCALPHA)
         for r in range(12 * SCALE, 0, -SCALE):
-            a = int(36 * r / (12 * SCALE))
-            pygame.draw.rect(glow, (*ORANGE_BORDER, a // 4),
+            a = int(40 * r / (12 * SCALE))
+            pygame.draw.rect(glow, (*GOLD_BRIGHT, a // 4),
                              (14 * SCALE - r, 14 * SCALE - r,
                               w + r * 2, h + r * 2),
                              border_radius=(h + r * 2) // 2)
@@ -254,13 +261,20 @@ def pill(surf, center, text, size=22, min_w=240, h=48, primary=False):
     pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, w, h),
                      border_radius=h // 2)
     p.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # Orange border — canonical
-    pygame.draw.rect(p, ORANGE_BORDER, (0, 0, w, h),
+    # Gold border — ties pills to the title fill + the BEST/TOP 10
+    # accent system so every interactive surface speaks the same
+    # gold-on-deep-night language.
+    pygame.draw.rect(p, GOLD_BRIGHT, (0, 0, w, h),
                      width=2 * SCALE, border_radius=h // 2)
+    # Thin inner gold hint at the very top inside the rim
+    pygame.draw.line(p, (*GOLD_BRIGHT, 110),
+                     (h // 2, 3 * SCALE),
+                     (w - h // 2, 3 * SCALE), 1 * SCALE)
     surf.blit(p, (x, y))
 
-    # Text — white, with a dark red shadow (in the family of the pill)
-    shadow = f.render(text, True, RED_DEEP)
+    # Text — cream-white with a deep-burgundy shadow (in the family of
+    # the pill body, not orange).
+    shadow = f.render(text, True, (30, 8, 16))
     shadow.set_alpha(220)
     tr = img.get_rect(center=(cx, cy))
     surf.blit(shadow, (tr.x + 2 * SCALE, tr.y + 2 * SCALE))
@@ -282,16 +296,16 @@ def best_panel(surf, rect, label, value):
     pygame.draw.rect(pnl, (*PANEL_DARK, 210),
                      (0, 0, rect.w, rect.h),
                      border_radius=14 * SCALE)
-    # Orange edge stroke (canonical, low alpha)
-    pygame.draw.rect(pnl, (*ORANGE_BORDER, 120),
+    # Gold edge stroke — matches the pill border + title fill
+    pygame.draw.rect(pnl, (*GOLD_BRIGHT, 130),
                      (0, 0, rect.w, rect.h),
                      width=1 * SCALE, border_radius=14 * SCALE)
-    # Top accent strip (same orange / alpha — system feel)
+    # Top accent strip — gold to match the system
     accent = pygame.Surface((rect.w - 28 * SCALE, 2), pygame.SRCALPHA)
-    accent.fill((*ORANGE_BORDER, 100))
+    accent.fill((*GOLD_BRIGHT, 110))
     pnl.blit(accent, (14 * SCALE, 4))
     # Hairline top highlight
-    pygame.draw.line(pnl, (255, 220, 140, 80),
+    pygame.draw.line(pnl, (255, 220, 140, 90),
                      (14 * SCALE, 2),
                      (rect.w - 14 * SCALE, 2), 1 * SCALE)
     surf.blit(pnl, rect.topleft)
@@ -321,13 +335,13 @@ def top10_panel(surf, rect):
     pygame.draw.rect(pnl, (*PANEL_DARK, 210),
                      (0, 0, rect.w, rect.h),
                      border_radius=14 * SCALE)
-    pygame.draw.rect(pnl, (*ORANGE_BORDER, 120),
+    pygame.draw.rect(pnl, (*GOLD_BRIGHT, 130),
                      (0, 0, rect.w, rect.h),
                      width=1 * SCALE, border_radius=14 * SCALE)
     accent = pygame.Surface((rect.w - 28 * SCALE, 2), pygame.SRCALPHA)
-    accent.fill((*ORANGE_BORDER, 100))
+    accent.fill((*GOLD_BRIGHT, 110))
     pnl.blit(accent, (14 * SCALE, 4))
-    pygame.draw.line(pnl, (255, 220, 140, 80),
+    pygame.draw.line(pnl, (255, 220, 140, 90),
                      (14 * SCALE, 2),
                      (rect.w - 14 * SCALE, 2), 1 * SCALE)
     surf.blit(pnl, rect.topleft)
