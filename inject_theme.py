@@ -968,19 +968,25 @@ _LOADING_JS = """
 
     /* Bar fills linearly toward staged milestones rather than along an
        exponential curve, so motion always feels like real progress:
-         0 →  70%  : while pygbag is downloading + booting Pyodide
+         0 →  60%  : while pygbag is downloading + booting Pyodide
                      (we have no real progress hook for this; the bar
-                     proportionally maps the typical 7 s load window).
-        70 →  95%  : while pygbag is ready but the game's first frame
+                     proportionally maps the typical 10 s load window).
+        60 →  80%  : slow creep after Pyodide is taking longer than
+                     expected — gives the bar visible motion past the
+                     "we don't know what's happening" plateau.
+        80 →  95%  : while pygbag is ready but the game's first frame
                      hasn't drawn yet. ~1.5 s window in practice.
         95 → 100%  : as soon as window.skybitGameReady === true (game
                      has actually rendered its first frame). 100% is
                      never reached from time alone, so a full bar
                      always means the game is on screen. */
-    var STAGE1_MS = 7000;
+    var STAGE1_MS = 10000;       // 0 → 60 % over 10 s of pygbag boot
+    var STAGE1_CAP = 60;
+    var STAGE1B_MS = 20000;      // 60 → 80 % over the next 20 s if pygbag still booting
+    var STAGE1B_CAP = 80;
     var STAGE2_MS = 1500;
-    var STALL_MS  = 25000;
-    var INFO_MS   = 8000;
+    var STALL_MS  = 18000;       // surface the recovery message earlier
+    var INFO_MS   = 4000;        // start showing "Loading… Ns" sooner
     /* Per-tick clamp on bar motion (in percentage points). At a 100 ms
        poll this maxes out at 12 %/s, fast enough to feel responsive
        when MM lands early, slow enough that the climb still reads as
@@ -1015,10 +1021,17 @@ _LOADING_JS = """
         if (isMMReady()) {
             if (t_mm === null) t_mm = Date.now();
             var p2 = (Date.now() - t_mm) / STAGE2_MS;
-            return Math.min(95, 70 + p2 * 25);
+            return Math.min(95, STAGE1B_CAP + p2 * (95 - STAGE1B_CAP));
         }
         var elapsed = Date.now() - t0;
-        return Math.min(70, (elapsed / STAGE1_MS) * 70);
+        if (elapsed < STAGE1_MS) {
+            return (elapsed / STAGE1_MS) * STAGE1_CAP;
+        }
+        // Slow creep into STAGE1_CAP → STAGE1B_CAP so the bar keeps
+        // moving on long pygbag boots — pure "Pyodide download still
+        // in flight" territory.
+        var over = Math.min(elapsed - STAGE1_MS, STAGE1B_MS);
+        return STAGE1_CAP + (over / STAGE1B_MS) * (STAGE1B_CAP - STAGE1_CAP);
     }
 
     /* As soon as pygbag exposes MM, set the user-made-event flag and
@@ -1068,8 +1081,17 @@ _LOADING_JS = """
             stalled = true;
             if (status) status.textContent = 'Loading is stuck. Tap to reload.';
             if (fill)   fill.classList.add('sk-stalled');
-        } else if (elapsed >= INFO_MS && status && !stalled && !isGameReady()) {
-            status.textContent = 'Loading… ' + Math.floor(elapsed / 1000) + 's';
+        } else if (status && !stalled) {
+            // Status line communicates which phase we're in so a long
+            // download or a slow first-frame doesn't look identical to
+            // a frozen splash.
+            if (isMMReady() && !isGameReady()) {
+                status.textContent =
+                    'Starting game… ' + Math.floor(elapsed / 1000) + 's';
+            } else if (!isMMReady() && elapsed >= INFO_MS) {
+                status.textContent =
+                    'Downloading runtime… ' + Math.floor(elapsed / 1000) + 's';
+            }
         }
     }, POLL_MS);
 
