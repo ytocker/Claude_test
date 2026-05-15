@@ -973,8 +973,7 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float, fetch_error: str = "",
-                         fetch_pending: bool = False):
+                         cooldown: float, fetch_error: str = ""):
         self.title_t += dt
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
@@ -996,19 +995,11 @@ class HUD:
 
         n = len(scores)
         if n == 0:
-            # Distinguish three cases:
-            #   * fetch_pending — async browser fetch hasn't resolved yet
-            #     (only happens when opened from the menu trophy button)
+            # Two cases (the player only reaches this view once the
+            # fetch has resolved, so there's no in-flight state):
             #   * fetch_error — Supabase/RLS/network call failed
             #   * neither — table is genuinely empty (brand-new database)
-            if fetch_pending:
-                pulse_a = int(180 + math.sin(self.title_t * 3.6) * 60)
-                loading = _font(18, True).render(
-                    "Loading top 10…", True, UI_CREAM)
-                loading.set_alpha(pulse_a)
-                surf.blit(loading,
-                          loading.get_rect(center=(W // 2, card_y + 60)))
-            elif fetch_error:
+            if fetch_error:
                 _text(surf, "Top-10 unavailable", (W // 2, card_y + 60),
                       size=18, color=UI_CREAM, shadow=True)
                 _text(surf, "Check the browser console", (W // 2, card_y + 94),
@@ -1095,7 +1086,7 @@ class HUD:
                                      (card_x + card_w - 8, ry + row_h - 1))
                 ry += row_h
 
-        if cooldown <= 0 and not fetch_pending:
+        if cooldown <= 0:
             alpha = int(150 + math.sin(self.title_t * 4) * 90)
             f2 = _font(18, True)
             prompt = f2.render("TAP TO MENU", True, WHITE)
