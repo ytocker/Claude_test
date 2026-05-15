@@ -680,7 +680,7 @@ class HUD:
         # Hero score medallion at the top so the player keeps a clear
         # read on the current run while paused (mockup convention).
         if score > 0:
-            _score_emblem(surf, W // 2, 130, 44,
+            _score_emblem(surf, W // 2, 150, 56,
                           "S C O R E", str(score))
 
         cy = H // 2 + 30
@@ -715,7 +715,7 @@ class HUD:
 
         # Subtitle — same gold-on-red outline as SKYBIT, just smaller and
         # with a tighter pixel outline so it reads as a partner line.
-        _outlined_text(surf, "POCKET SKY FLYER", (W // 2, 184),
+        _outlined_text(surf, "POCKET  SKY  FLYER", (W // 2, 184),
                         size=22, px=2, shadow_offset=(2, 3))
 
         # Divider
@@ -1042,7 +1042,7 @@ class HUD:
 
             # Hero score medallion with a subtle gold sparkle ring so the
             # final score reads as the celebratory anchor of the screen.
-            emblem_cx, emblem_cy, emblem_r = W // 2, 240, 56
+            emblem_cx, emblem_cy, emblem_r = W // 2, 260, 72
             for i in range(20):
                 ang = i * (2 * math.pi / 20) + math.pi / 20
                 d = emblem_r + 22
