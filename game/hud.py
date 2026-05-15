@@ -258,6 +258,205 @@ def _draw_overlay_stars(surf, stars, t):
         surf.blit(s, (x - r - 1, y - r - 1))
 
 
+# ── Top-10 #1 crown sprite + medal-row gradient helpers ─────────────────────
+# Procedural narrow-E3 ("Diamond Trio") crown that perches on the rank-1 row's
+# gold badge. Sprite is built once, then cached + blit each frame.
+
+_CROWN_OS = 2  # oversample factor — drawn at 2× target then smoothscaled
+
+_CROWN_GOLD_HI    = (255, 232, 132)
+_CROWN_GOLD       = (240, 192,  64)
+_CROWN_GOLD_LO    = (188, 138,  28)
+_CROWN_GOLD_DEEP  = (110,  72,   8)
+_CROWN_OUTLINE    = ( 28,  18,   4)
+_CROWN_RUBY       = (220,  40,  50)
+_CROWN_RUBY_HI    = (255, 180, 190)
+_CROWN_SAPPHIRE   = ( 64, 102, 220)
+_CROWN_SAPPHIRE_HI= (172, 200, 255)
+_CROWN_WHITE_HI   = (255, 255, 255)
+
+# Medal-row vertical gradients used on ranks 1, 2, 3 in draw_leaderboard
+_MEDAL_GRADIENTS = {
+    1: ((240, 192,  64), (180, 130,  20)),     # gold
+    2: ((215, 222, 232), (110, 125, 145)),     # silver
+    3: ((215, 150,  85), (125,  74,  28)),     # bronze
+}
+
+
+def _crown_aura(surf, cx, cy, radii, alphas):
+    """Soft concentric golden halo behind the crown."""
+    for r, a in zip(radii, alphas):
+        glow = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(glow,
+                            (_CROWN_GOLD[0], _CROWN_GOLD[1],
+                             _CROWN_GOLD[2], a),
+                            (0, 0, r * 2, r * 2))
+        surf.blit(glow, (cx - r, cy - r))
+
+
+def _crown_band(big, s, l, top, r, bot):
+    """Gold-gradient band with NEAR_BLACK perimeter outline."""
+    pygame.draw.rect(big, _CROWN_OUTLINE,
+                     (l - 1, top + s, r - l + 2, bot - top),
+                     border_radius=s)
+    h = bot - top
+    for yy in range(h):
+        u = yy / max(1, h - 1)
+        col = tuple(int(_CROWN_GOLD_HI[i] * (1 - u) + _CROWN_GOLD_LO[i] * u)
+                    for i in range(3))
+        pygame.draw.line(big, col + (255,),
+                         (l, top + yy), (r - 1, top + yy))
+    pygame.draw.rect(big, _CROWN_OUTLINE,
+                     (l, top, r - l, bot - top),
+                     border_radius=s, width=2 * s)
+
+
+def _crown_sheen(big, s, band_top, band_bot, band_l, band_r):
+    """Single GOLD_HI horizontal stripe ~25 % down the band — metallic glint."""
+    y = band_top + (band_bot - band_top) // 4
+    pygame.draw.line(big, _CROWN_GOLD_HI,
+                     (band_l + 2 * s, y), (band_r - 2 * s, y),
+                     max(1, s // 2))
+
+
+def _crown_outlined_polygon(surf, pts, fill, hi=None):
+    """Filled polygon with a NEAR_BLACK outline + optional highlight."""
+    pygame.draw.polygon(surf, _CROWN_OUTLINE, pts, max(2, _CROWN_OS * 2))
+    pygame.draw.polygon(surf, fill, pts)
+    if hi is not None and len(pts) >= 3:
+        mid = ((pts[0][0] + pts[1][0]) / 2,
+               (pts[0][1] + pts[1][1]) / 2)
+        pygame.draw.polygon(surf, hi, [pts[0], pts[1], mid])
+
+
+def _crown_outlined_gem(surf, cx, cy, r, col, hi):
+    """Round cabochon with NEAR_BLACK outline + white highlight."""
+    pygame.draw.circle(surf, _CROWN_OUTLINE, (cx, cy + 1), r + 1)
+    pygame.draw.circle(surf, col, (cx, cy), r)
+    pygame.draw.circle(surf, hi,
+                       (cx - max(1, r // 3), cy - max(1, r // 3)),
+                       max(1, r // 2))
+    pygame.draw.circle(surf, _CROWN_OUTLINE, (cx, cy), r,
+                       max(1, _CROWN_OS // 2))
+
+
+def _crown_with_shadow(img, offset=(2, 2), alpha=110):
+    """Composite soft drop shadow under the crown sprite."""
+    shadow = img.copy()
+    shadow.fill((0, 0, 0), special_flags=pygame.BLEND_RGB_MULT)
+    shadow.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+    composite = pygame.Surface(
+        (img.get_width() + offset[0], img.get_height() + offset[1]),
+        pygame.SRCALPHA)
+    composite.blit(shadow, offset)
+    composite.blit(img, (0, 0))
+    return composite
+
+
+def _crown_draw_e3_narrow(big, s):
+    """Narrow Diamond Trio — 3 peaks with kite-cut sapphire/ruby/sapphire,
+    aura behind, sparkles around. Sized for a 24 × 28 bbox so it tucks
+    inside the rank-1 gold badge (radius 13)."""
+    bw, bh = big.get_width(), big.get_height()
+    cx = bw // 2
+
+    _crown_aura(big, cx, bh - 9 * s,
+                radii=[9 * s, 6 * s, 4 * s],
+                alphas=[40, 65, 95])
+
+    band_h = 6 * s
+    band_top = bh - band_h
+    band_bot = bh
+    band_l = 1 * s
+    band_r = bw - 1 * s
+    _crown_band(big, s, band_l, band_top, band_r, band_bot)
+    _crown_sheen(big, s, band_top, band_bot, band_l, band_r)
+
+    band_cy = (band_top + band_bot) // 2
+    _crown_outlined_gem(big, cx, band_cy, int(1.2 * s),
+                        _CROWN_RUBY, _CROWN_RUBY_HI)
+
+    peak_xs = [cx - 6 * s, cx, cx + 6 * s]
+    peak_pw = max(2, int(1.7 * s))
+    peak_h = bh - band_h - 5 * s
+    gem_cols = [(_CROWN_SAPPHIRE, _CROWN_SAPPHIRE_HI),
+                (_CROWN_RUBY,     _CROWN_RUBY_HI),
+                (_CROWN_SAPPHIRE, _CROWN_SAPPHIRE_HI)]
+    for px, (gc, gh) in zip(peak_xs, gem_cols):
+        tip = (px, band_top - peak_h)
+        l   = (px - peak_pw, band_top)
+        r   = (px + peak_pw, band_top)
+        _crown_outlined_polygon(big, [tip, l, r],
+                                _CROWN_GOLD, _CROWN_GOLD_HI)
+        gem_top   = (px, tip[1] - int(2.5 * s))
+        gem_bot   = (px, tip[1] - int(0.3 * s))
+        gem_left  = (px - int(1.3 * s), tip[1] - int(1.4 * s))
+        gem_right = (px + int(1.3 * s), tip[1] - int(1.4 * s))
+        _crown_outlined_polygon(big,
+                                [gem_top, gem_right, gem_bot, gem_left],
+                                gc, gh)
+        pygame.draw.line(big, _CROWN_WHITE_HI,
+                         (gem_top[0] - 1, gem_top[1] + 1),
+                         (gem_top[0] - 1, gem_top[1] + int(1.5 * s)),
+                         max(1, s // 2))
+
+    # Tight sparkles around the bbox
+    cx_pix = bw // 2
+    cy_pix = bh // 2
+    for x_frac, y_frac in [(-0.85, -0.55), (0.85, -0.55),
+                            (-0.70,  0.25), (0.70,  0.25)]:
+        sx = int(cx_pix + x_frac * (bw // 2))
+        sy = int(cy_pix + y_frac * (bh // 2))
+        sx = max(2, min(bw - 2, sx))
+        sy = max(2, min(bh - 2, sy))
+        pygame.draw.line(big, _CROWN_WHITE_HI,
+                         (sx - int(1.5 * s), sy),
+                         (sx + int(1.5 * s), sy),
+                         max(1, s // 2))
+        pygame.draw.line(big, _CROWN_WHITE_HI,
+                         (sx, sy - int(1.5 * s)),
+                         (sx, sy + int(1.5 * s)),
+                         max(1, s // 2))
+
+
+_CROWN_SPRITE_CACHE: "pygame.Surface | None" = None
+
+
+def _get_crown_sprite() -> "pygame.Surface":
+    """Build the rank-1 crown sprite once, cache it. Identical every
+    frame — no animation, no per-row state."""
+    global _CROWN_SPRITE_CACHE
+    if _CROWN_SPRITE_CACHE is None:
+        bw, bh = 24, 28
+        big = pygame.Surface((bw * _CROWN_OS, bh * _CROWN_OS),
+                             pygame.SRCALPHA)
+        _crown_draw_e3_narrow(big, _CROWN_OS)
+        small = pygame.transform.smoothscale(big, (bw, bh))
+        _CROWN_SPRITE_CACHE = _crown_with_shadow(small)
+    return _CROWN_SPRITE_CACHE
+
+
+def _medal_row_pill(card_w, row_h, row_radius, rank):
+    """Render the gold/silver/bronze gradient pill surface for a top-3
+    rank. Returns a SRCALPHA surface ready to blit at the row origin."""
+    top_col, bot_col = _MEDAL_GRADIENTS[rank]
+    pnl = pygame.Surface((card_w, row_h), pygame.SRCALPHA)
+    for yy in range(row_h):
+        u = yy / max(1, row_h - 1)
+        r = int(top_col[0] * (1 - u) + bot_col[0] * u)
+        g = int(top_col[1] * (1 - u) + bot_col[1] * u)
+        b = int(top_col[2] * (1 - u) + bot_col[2] * u)
+        pygame.draw.line(pnl, (r, g, b, 255), (0, yy), (card_w, yy))
+    mask = pygame.Surface((card_w, row_h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (0, 0, card_w, row_h),
+                     border_radius=row_radius)
+    pnl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    pygame.draw.rect(pnl, NEAR_BLACK, (0, 0, card_w, row_h),
+                     width=2, border_radius=row_radius)
+    return pnl
+
+
 def _draw_trophy(surf, cx, cy, size):
     """Gold procedural trophy icon. `size` is approximate half-height.
     Drawn fully symmetric about a vertical axis through (cx, cy):
@@ -1252,24 +1451,28 @@ class HUD:
 
                 is_player = (i == player_rank)
                 row_cy = ry + row_h // 2
+                is_medal = rank in _MEDAL_GRADIENTS
 
-                # Row pill: dark navy fill with a thin gold border. The
-                # player's row gets a thicker, brighter gold halo so it
-                # reads as the highlighted entry.
+                # Row pill: medal rows (rank 1/2/3) get a gold/silver/
+                # bronze vertical gradient with a dark border;
+                # ranks 4-10 stay on dark navy with a thin gold trim.
                 row_rect = pygame.Rect(card_x, ry, card_w, row_h)
                 row_radius = row_h // 2
-                pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
-                pygame.draw.rect(pnl, (*_PANEL_DARK, 220),
-                                 (0, 0, card_w, row_h),
-                                 border_radius=row_radius)
-                if is_player:
-                    pygame.draw.rect(pnl, _GOLD_BRIGHT,
-                                     (0, 0, card_w, row_h),
-                                     width=3, border_radius=row_radius)
+                if is_medal:
+                    pnl = _medal_row_pill(card_w, row_h, row_radius, rank)
                 else:
-                    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
+                    pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
+                    pygame.draw.rect(pnl, (*_PANEL_DARK, 220),
                                      (0, 0, card_w, row_h),
-                                     width=1, border_radius=row_radius)
+                                     border_radius=row_radius)
+                    if is_player:
+                        pygame.draw.rect(pnl, _GOLD_BRIGHT,
+                                         (0, 0, card_w, row_h),
+                                         width=3, border_radius=row_radius)
+                    else:
+                        pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
+                                         (0, 0, card_w, row_h),
+                                         width=1, border_radius=row_radius)
                 surf.blit(pnl, row_rect.topleft)
 
                 # Rank badge: solid metallic disc for the top 3, gold
@@ -1288,8 +1491,21 @@ class HUD:
                 surf.blit(num_img,
                           num_img.get_rect(center=(badge_cx, row_cy)))
 
+                # Crown perches on top of the #1 badge (narrow E3 sprite).
+                # Anchor: band-bottom 2 px below badge top (row_cy - 13),
+                # i.e. crown bbox bottom = row_cy - 11.
+                if rank == 1:
+                    crown = _get_crown_sprite()
+                    c_w, c_h = crown.get_size()
+                    surf.blit(crown,
+                              (badge_cx - c_w // 2,
+                               row_cy - 11 - c_h))
+
                 nm = entry["name"][:10]
-                name_col = _GOLD_BRIGHT if is_player else WHITE
+                if is_medal:
+                    name_col = NEAR_BLACK
+                else:
+                    name_col = _GOLD_BRIGHT if is_player else WHITE
                 nm_img = f_name.render(nm, True, name_col)
                 nm_x = card_x + 44
                 surf.blit(nm_img,
@@ -1311,9 +1527,10 @@ class HUD:
                     surf.blit(you_pill, (pxr, pyr))
                     surf.blit(you_img, (pxr + 5, pyr + 3))
 
-                # Score is always gold for readability against the
-                # uniform dark row.
-                sc_img = f_score.render(str(entry["score"]), True, _GOLD_BRIGHT)
+                # Score: dark on the bright medal gradient, gold on
+                # the dark default rows.
+                score_col = NEAR_BLACK if is_medal else _GOLD_BRIGHT
+                sc_img = f_score.render(str(entry["score"]), True, score_col)
                 surf.blit(sc_img,
                           (card_x + card_w - 16 - sc_img.get_width(),
                            row_cy - sc_img.get_height() // 2))
