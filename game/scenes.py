@@ -90,6 +90,14 @@ class App:
         self._cloud_phase = 0.0
         self._running = True
         self._stats_t = 0.0
+        # True while the HTML splash overlay is still painted on top of
+        # the canvas; flips False on the first user-visible frame (in
+        # async_run, when first_frame_done is set). The intro update
+        # gates on this so the cinematic clock doesn't accumulate while
+        # pygbag is still booting — without it, by the time the splash
+        # dismisses the intro can be ~7 s in (opening on the "avoid
+        # pillars" sub-beat instead of the dawn one).
+        self._splash_covering = True
         # Touch dedup: SDL emits both FINGERDOWN and a synthetic MOUSEBUTTONDOWN
         # for one tap on mobile, so naive routing types every key twice. After
         # any FINGERDOWN, suppress mouse events for a 0.5 s window. On pure
@@ -289,6 +297,10 @@ class App:
             pygame.display.flip()
             if not first_frame_done:
                 first_frame_done = True
+                # Splash overlay is about to start fading — let the
+                # intro clock start ticking from here. See
+                # `self._splash_covering` for the rationale.
+                self._splash_covering = False
                 # Signal to the JS overlay (inject_theme.py's dismiss()
                 # waits on this) that the canvas now has a real Skybit
                 # frame on it. Without this, the overlay would fade off
@@ -383,7 +395,13 @@ class App:
                 # Defensive: should never happen, but recover gracefully.
                 self._finish_intro(skipped=True)
                 return
-            self.intro.update(dt)
+            # Hold the intro at t=0 while the HTML splash is still
+            # painting over the canvas — async_run flips this flag the
+            # moment the first visible frame fires. Without the gate
+            # the cinematic fast-forwards past the dawn beat during
+            # pygbag's boot.
+            if not self._splash_covering:
+                self.intro.update(dt)
             # Tick the cooldown so a HOW-TO-PLAY-launched intro becomes
             # skippable a beat after it opens (see the gate in
             # _flap_input's STATE_INTRO branch).
