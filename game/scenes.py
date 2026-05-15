@@ -172,7 +172,7 @@ class App:
                     and self.hud.menu_top10_rect.collidepoint(pos):
                 self._open_leaderboard_from_menu()
                 return
-            # Start a run only when the player hits TAP TO START (or
+            # Start a run only when the player hits the START pill (or
             # presses a key — no pos for keyboard events). Taps that
             # land anywhere else on the menu are a no-op so an accidental
             # touch outside the pill can't fling the player into play.

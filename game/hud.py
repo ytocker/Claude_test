@@ -738,7 +738,7 @@ class HUD:
             return _font(size, True).render(text, True, WHITE).get_height() + 22
 
         GAP = 12
-        h_start = _pill_h("TAP TO START", 22)
+        h_start = _pill_h("START", 22)
         h_howto = _pill_h("HOW TO PLAY", 18)
         h_power = _pill_h("POWER-UPS", 18)
         y_power = (H - 110) - 14 - h_power // 2
@@ -749,7 +749,7 @@ class HUD:
         # dim=True swaps the bright scarlet for the bordeaux variant so
         # the menu pills sit more quietly in the dark night-sky palette.
         self.menu_start_rect = _pill_btn(
-            surf, (W // 2, y_start), "TAP TO START",
+            surf, (W // 2, y_start), "START",
             size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
