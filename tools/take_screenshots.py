@@ -81,6 +81,28 @@ hud6 = HUD(); hud6.title_t = 0.7
 draw_bg(screen); w4.bird.draw(screen,0,0)
 hud6.draw_gameover(screen, 0, 0, new_best=False); save("06_gameover_tryagain.png")
 
+hud7 = HUD(); hud7.title_t = 1.4
+draw_bg(screen)
+scores = [
+    {"name": "Hawkins", "score": 148},
+    {"name": "Garrick", "score": 132},
+    {"name": "Atticus", "score": 117},
+    {"name": "Mira",    "score": 104},
+    {"name": "Quill",   "score":  96},
+    {"name": "Bo",      "score":  83},
+    {"name": "Pip",     "score":  42},
+    {"name": "Wren",    "score":  38},
+    {"name": "Stilt",   "score":  29},
+    {"name": "Cinder",  "score":  18},
+]
+hud7.draw_leaderboard(screen, 0, scores, player_rank=6, cooldown=0)
+save("10_leaderboard.png")
+
+hud8 = HUD(); hud8.title_t = 0.9
+draw_bg(screen)
+hud8.draw_name_entry(screen, 0, "PI")
+save("11_name_entry.png")
+
 # ── Entity close-ups (zoomed panel) ─────────────────────────────────────────
 def entity_panel(entities_data, filename):
     """Render entities on a dark panel for a clear close-up."""

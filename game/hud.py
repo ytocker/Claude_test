@@ -1142,84 +1142,106 @@ class HUD:
                 _text(surf, "Be the first.", (W // 2, card_y + 94),
                       size=14, color=UI_CREAM, shadow=False)
         else:
-            row_h = 46
-            card_h = n * row_h + 14
-            card_rect = pygame.Rect(card_x, card_y, card_w, card_h)
-            rounded_rect(surf, card_rect, 16, (10, 18, 48), 230)
+            # Each row is its own rounded pill with gold trim — matches
+            # the leaderboard mockup. Player's row gets a thick gold
+            # halo and a red "YOU" badge next to the name.
+            row_h = 42
+            row_gap = 4
 
             SILVER    = (185, 195, 205)
             BRONZE    = (185, 125,  55)
-            BADGE_NAV = ( 25,  35,  70)
 
             f_badge = _font(13, True)
-            f_name  = _font(16, False)
+            f_name  = _font(16, True)
             f_you   = _font(10, True)
             f_score = _font(17, True)
 
-            ry = card_y + 7
+            ry = card_y
             for i, entry in enumerate(scores):
                 rank = i + 1
                 if rank == 1:
-                    badge_col = UI_GOLD
+                    badge_col = _GOLD_BRIGHT
                 elif rank == 2:
                     badge_col = SILVER
                 elif rank == 3:
                     badge_col = BRONZE
                 else:
-                    badge_col = BADGE_NAV
+                    badge_col = _GOLD_BRIGHT  # outline-only for 4-10
 
                 is_player = (i == player_rank)
                 row_cy = ry + row_h // 2
 
+                # Row pill: dark navy fill with a thin gold border. The
+                # player's row gets a thicker, brighter gold halo so it
+                # reads as the highlighted entry.
+                row_rect = pygame.Rect(card_x, ry, card_w, row_h)
+                row_radius = row_h // 2
+                pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(pnl, (*_PANEL_DARK, 220),
+                                 (0, 0, card_w, row_h),
+                                 border_radius=row_radius)
                 if is_player:
-                    hl = pygame.Surface((card_w - 8, row_h - 4), pygame.SRCALPHA)
-                    hl.fill((15, 70, 20, 180))
-                    surf.blit(hl, (card_x + 4, ry))
-                    name_col  = UI_GOLD
-                    score_col = UI_GOLD
+                    pygame.draw.rect(pnl, _GOLD_BRIGHT,
+                                     (0, 0, card_w, row_h),
+                                     width=3, border_radius=row_radius)
                 else:
-                    name_col  = WHITE
-                    score_col = badge_col if rank <= 3 else UI_CREAM
+                    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
+                                     (0, 0, card_w, row_h),
+                                     width=1, border_radius=row_radius)
+                surf.blit(pnl, row_rect.topleft)
 
-                badge_cx = card_x + 22
-                pygame.draw.circle(surf, badge_col, (badge_cx, row_cy), 14)
+                # Rank badge: solid metallic disc for the top 3, gold
+                # outline-only ring for ranks 4-10 (per mockup).
+                badge_cx = card_x + 24
                 if rank <= 3:
-                    pygame.draw.circle(surf, (0, 0, 0), (badge_cx, row_cy), 14, 1)
-                num_img = f_badge.render(str(rank), True,
-                                         (25, 15, 0) if rank <= 3 else WHITE)
-                surf.blit(num_img, num_img.get_rect(center=(badge_cx, row_cy)))
+                    pygame.draw.circle(surf, badge_col, (badge_cx, row_cy), 13)
+                    pygame.draw.circle(surf, NEAR_BLACK,
+                                       (badge_cx, row_cy), 13, 1)
+                    num_col = NEAR_BLACK
+                else:
+                    pygame.draw.circle(surf, badge_col,
+                                       (badge_cx, row_cy), 13, 2)
+                    num_col = _GOLD_BRIGHT
+                num_img = f_badge.render(str(rank), True, num_col)
+                surf.blit(num_img,
+                          num_img.get_rect(center=(badge_cx, row_cy)))
 
                 nm = entry["name"][:10]
+                name_col = _GOLD_BRIGHT if is_player else WHITE
                 nm_img = f_name.render(nm, True, name_col)
                 nm_x = card_x + 44
-                surf.blit(nm_img, (nm_x, row_cy - nm_img.get_height() // 2))
+                surf.blit(nm_img,
+                          (nm_x, row_cy - nm_img.get_height() // 2))
 
+                # "YOU" red badge next to the player's name, mockup-style.
                 if is_player:
                     you_img = f_you.render("YOU", True, WHITE)
                     pw = you_img.get_width() + 10
                     ph = you_img.get_height() + 6
-                    px = nm_x + nm_img.get_width() + 7
-                    py = row_cy - ph // 2
+                    pxr = nm_x + nm_img.get_width() + 7
+                    pyr = row_cy - ph // 2
                     you_pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
-                    rounded_rect(you_pill, you_pill.get_rect(), 4, (15, 100, 35), 220)
-                    surf.blit(you_pill, (px, py))
-                    surf.blit(you_img, (px + 5, py + 3))
+                    pygame.draw.rect(you_pill, _SCARLET_TOP,
+                                     (0, 0, pw, ph), border_radius=ph // 2)
+                    pygame.draw.rect(you_pill, _GOLD_BRIGHT,
+                                     (0, 0, pw, ph),
+                                     width=1, border_radius=ph // 2)
+                    surf.blit(you_pill, (pxr, pyr))
+                    surf.blit(you_img, (pxr + 5, pyr + 3))
 
-                sc_img = f_score.render(str(entry["score"]), True, score_col)
+                # Score is always gold for readability against the
+                # uniform dark row.
+                sc_img = f_score.render(str(entry["score"]), True, _GOLD_BRIGHT)
                 surf.blit(sc_img,
-                          (card_x + card_w - 12 - sc_img.get_width(),
+                          (card_x + card_w - 16 - sc_img.get_width(),
                            row_cy - sc_img.get_height() // 2))
 
-                if i < n - 1:
-                    pygame.draw.line(surf, (25, 38, 75),
-                                     (card_x + 8, ry + row_h - 1),
-                                     (card_x + card_w - 8, ry + row_h - 1))
-                ry += row_h
+                ry += row_h + row_gap
 
         if cooldown <= 0:
-            alpha = int(150 + math.sin(self.title_t * 4) * 90)
-            f2 = _font(18, True)
-            prompt = f2.render("TAP TO MENU", True, WHITE)
+            alpha = int(170 + math.sin(self.title_t * 4) * 70)
+            f2 = _font(16, True)
+            prompt = f2.render("TAP  TO  MENU", True, _GOLD_MUTED)
             prompt.set_alpha(alpha)
-            pr = prompt.get_rect(center=(W // 2, H - 42))
+            pr = prompt.get_rect(center=(W // 2, H - 28))
             surf.blit(prompt, pr.topleft)
