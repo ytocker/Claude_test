@@ -147,10 +147,27 @@ def draw_pair(surf, cx, cy, t=0.0):
 
 def draw_tilted(surf, cx, cy, t=0.0):
     """Single straight-cut fry tilted +22° — same angle as the left fry
-    in PAIR but on its own. Dynamic, casual feel."""
-    f = _make_single_fry()
-    rot = pygame.transform.rotate(f, 22)
+    in PAIR but on its own. Dynamic, casual feel.
+
+    The sprite is identical every frame (fixed shape + fixed rotation),
+    so we build the rotated bitmap once and reuse it. KFC mode was
+    allocating two SRCALPHA surfaces and running pygame.transform.rotate
+    per coin per frame; with dozens of coins on screen that was the
+    main source of in-game lag while KFC was active."""
+    rot = _tilted_sprite()
     surf.blit(rot, rot.get_rect(center=(cx, cy)))
+
+
+_TILTED_CACHE: "pygame.Surface | None" = None
+
+
+def _tilted_sprite() -> pygame.Surface:
+    """Lazy-built, module-level cache of the tilted fry. Same look as
+    the previous per-frame allocation; the difference is purely cost."""
+    global _TILTED_CACHE
+    if _TILTED_CACHE is None:
+        _TILTED_CACHE = pygame.transform.rotate(_make_single_fry(), 22)
+    return _TILTED_CACHE
 
 
 # ── V6 — KFC carton ──────────────────────────────────────────────────────────

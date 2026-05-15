@@ -608,6 +608,14 @@ class Pipe:
         self.is_kfc = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
+        # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
+        # stable for a Pipe's lifetime) and never animates, so we render
+        # it once on first KFC frame and blit the bitmap each frame after.
+        # Without this every visible KFC pillar was allocating ~8
+        # SRCALPHA surfaces + running pygame.transform per frame —
+        # the dominant source of KFC-mode lag.
+        self._kfc_cache: "pygame.Surface | None" = None
+        self._kfc_cache_dx = 0  # x-offset between blit corner and self.x
 
     @property
     def top_rect(self):
@@ -628,14 +636,34 @@ class Pipe:
     def draw(self, surf, palette=None, kfc_visual=False):
         palette = palette or _DEFAULT_PILLAR
         if self.is_kfc and kfc_visual:
-            from game.pillar_kfc import draw_pillar_pair_kfc
-            draw_pillar_pair_kfc(surf, self.top_rect, self.bot_rect,
-                                 palette, self.seed)
+            if self._kfc_cache is None:
+                self._build_kfc_cache(palette)
+            surf.blit(self._kfc_cache,
+                      (int(self.x) + self._kfc_cache_dx, 0))
             return
         draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
         # Mist halo at the base where the bottom pillar meets the ground
         bot = self.bot_rect
         draw_pillar_mist(surf, bot.x + bot.width // 2, bot.bottom, bot.width, alpha=110)
+
+    def _build_kfc_cache(self, palette):
+        """Render the KFC pillar pair onto a per-instance SRCALPHA
+        surface once; subsequent frames blit the bitmap at the current
+        scrolling x. Margin covers buckets / hot-dog tilts / corn-dog
+        rotation that overhang the PIPE_W column."""
+        from game.pillar_kfc import draw_pillar_pair_kfc
+        margin = 64
+        cache_w = PIPE_W + margin * 2
+        cache_h = GROUND_Y
+        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        draw_pillar_pair_kfc(cache, local_top, local_bot, palette, self.seed)
+        self._kfc_cache = cache
+        self._kfc_cache_dx = -margin
 
 
 # ── Coin ─────────────────────────────────────────────────────────────────────
