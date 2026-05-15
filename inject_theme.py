@@ -267,10 +267,22 @@ body   { background: #0d0820 !important; }
     50%       { opacity: 0.95; transform: scale(1.4); }
 }
 
+/* Same font the canvas uses for SKYBIT + POCKET SKY FLYER (see
+   game/hud.py::_FONT_BOLD). Copied to build/web/ by inject_theme.py
+   so the splash typography reads identical to the in-game menu
+   instead of a heavier system bold. */
+@font-face {
+    font-family: 'SkybitMenu';
+    src: url('LiberationSans-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+}
+
 .sk-title {
-    font-family: Arial Black, Arial, sans-serif;
+    font-family: 'SkybitMenu', Arial, sans-serif;
     font-size: clamp(72px, 20vw, 148px);
-    font-weight: 900;
+    font-weight: 700;
     letter-spacing: 0;
     color: #f0c040;
     margin: 0;
@@ -295,9 +307,9 @@ body   { background: #0d0820 !important; }
 }
 
 .sk-subtitle {
-    font-family: Arial Black, Arial, sans-serif;
+    font-family: 'SkybitMenu', Arial, sans-serif;
     font-size: clamp(20px, 6vw, 44px);
-    font-weight: 900;
+    font-weight: 700;
     letter-spacing: 0;
     color: #f0c040;
     margin: 8px 0 56px;
@@ -1432,5 +1444,15 @@ if _SND_SRC.exists():
         shutil.copy(ogg, _SND_DST / ogg.name)
         n_copied += 1
     print(f"✓ Copied {n_copied} sound files → build/web/sounds/")
+
+# ── 6. Copy the menu font next to index.html so the splash @font-face ───────
+# can load the exact same typeface the canvas uses for SKYBIT + POCKET
+# SKY FLYER. Without this the splash falls back to a system bold which
+# renders perceptibly heavier than pygame's LiberationSans-Bold.
+_FONT_SRC = Path("game/assets/LiberationSans-Bold.ttf")
+_FONT_DST = Path("build/web/LiberationSans-Bold.ttf")
+if _FONT_SRC.exists():
+    shutil.copy(_FONT_SRC, _FONT_DST)
+    print("✓ Copied LiberationSans-Bold.ttf → build/web/")
 else:
     print(f"⚠ {_SND_SRC} not found — browser will play no sounds")
