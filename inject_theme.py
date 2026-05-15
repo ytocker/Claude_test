@@ -1044,17 +1044,24 @@ _LOADING_JS = """
         if (dismissed) return;
         kickCanvasIfReady();
 
+        /* When the game has rendered its first real frame, snap the bar
+           straight to 100 % and dismiss. Letting the STEP_PER_TICK climb
+           run from a low displayed value would keep the splash overlay
+           up for several extra seconds while pygbag's main loop was
+           already rendering the intro behind it — the cinematic would
+           then be deep into the tutorial by the time the player saw
+           anything. We're done; finish immediately. */
+        if (isGameReady()) {
+            setFill(100);
+            dismiss();
+            return;
+        }
+
         var target = targetPct();
         if (target > displayed) {
             displayed = Math.min(target, displayed + STEP_PER_TICK);
         }
         setFill(displayed);
-
-        if (isGameReady() && displayed >= 99.5) {
-            setFill(100);
-            dismiss();
-            return;
-        }
 
         var elapsed = Date.now() - t0;
         if (elapsed >= STALL_MS && !stalled && !isMMReady()) {
