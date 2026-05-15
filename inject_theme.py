@@ -922,17 +922,19 @@ _AUDIO_JS = """
 
 # ─── Loading splash + watchdog state machine ────────────────────────────────
 # 1. Decorates the splash with twinkling stars.
-# 2. Polls window.MM (set by pygbag's runtime when Pyodide is up). Until
-#    then, animates the progress bar on a 1-exp(-t/τ) curve so the user
-#    sees motion even on slow networks.
+# 2. Linear, staged progress bar — see the JS body for the exact bands.
+#    The bar reaches 100% only after window.skybitGameReady (set by
+#    game/scenes.py first frame), so "bar full" always means "game on
+#    screen" rather than "pygbag has booted but we're still waiting".
 # 3. After 8 s without boot: shows "Loading… Ns".
-# 4. After 25 s without boot: swaps the CTA to "TAP TO RELOAD" and
-#    cache-busts on tap (?_skb=<ts>).
-# 5. On dismiss: unlocks audio (window.__skyResumeCtx), sets MM.UME=true,
-#    dispatches a click on canvas (pygbag listens for it to wake the
-#    interpreter), then waits for window.skybitGameReady (set by
-#    game/scenes.py first frame) before fading the overlay.
-# `pygbagReady` token here is also what the post-write assertion checks for.
+# 4. After 25 s without MM: status reads "Loading is stuck. Tap to
+#    reload."; a tap anywhere on the splash cache-busts the URL.
+# 5. As soon as MM is up: set MM.UME=true and dispatch a click on the
+#    canvas (pygbag listens for it to wake its interpreter). This is
+#    decoupled from the splash fade so the game can boot in the
+#    background while the bar finishes climbing.
+# `kickCanvasIfReady` token here is what the post-write assertion
+# checks for to verify the watchdog state machine made it into html.
 _LOADING_JS = """
 <script>
 (function () {
@@ -961,29 +963,44 @@ _LOADING_JS = """
         ov.insertBefore(s, ov.firstChild);
     }
 
-    var btn    = document.getElementById('sk-cta');
     var status = document.getElementById('sk-status');
     var fill   = document.getElementById('sk-progress-fill');
 
-    var BTN_READY  = 'TAP  ·  CLICK  ·  SPACE';
-    var BTN_LOAD   = 'LOADING…';
-    var BTN_RELOAD = 'TAP TO RELOAD';
-    var STALL_MS   = 25000;
-    var INFO_MS    =  8000;
-    /* 1-exp(-t/τ) climbs fast then asymptotes. Reaches ~63% at 6 s,
-       ~86% at 12 s, ~95% at 18 s. We never let it hit 100% from time
-       alone — only a real window.MM detection snaps it there. */
-    var ASYMPTOTE  = 0.92;
-    var TAU_MS     = 6000;
+    /* Bar fills linearly toward staged milestones rather than along an
+       exponential curve, so motion always feels like real progress:
+         0 →  70%  : while pygbag is downloading + booting Pyodide
+                     (we have no real progress hook for this; the bar
+                     proportionally maps the typical 7 s load window).
+        70 →  95%  : while pygbag is ready but the game's first frame
+                     hasn't drawn yet. ~1.5 s window in practice.
+        95 → 100%  : as soon as window.skybitGameReady === true (game
+                     has actually rendered its first frame). 100% is
+                     never reached from time alone, so a full bar
+                     always means the game is on screen. */
+    var STAGE1_MS = 7000;
+    var STAGE2_MS = 1500;
+    var STALL_MS  = 25000;
+    var INFO_MS   = 8000;
+    /* Per-tick clamp on bar motion (in percentage points). At a 100 ms
+       poll this maxes out at 12 %/s, fast enough to feel responsive
+       when MM lands early, slow enough that the climb still reads as
+       motion rather than a snap. */
+    var STEP_PER_TICK = 1.2;
+    var POLL_MS = 100;
+
     var t0 = Date.now();
-    var pygbagReady = false;
+    var t_mm = null;
+    var canvasKicked = false;
+    var displayed = 0;
     var stalled = false;
     var dismissed = false;
 
-    if (btn) btn.textContent = BTN_LOAD;
-
-    function isReady() {
+    function isMMReady() {
         try { return typeof window.MM !== 'undefined' && window.MM !== null; }
+        catch (_) { return false; }
+    }
+    function isGameReady() {
+        try { return window.skybitGameReady === true; }
         catch (_) { return false; }
     }
     function setFill(pct) {
@@ -993,31 +1010,61 @@ _LOADING_JS = """
         fill.style.width = pct.toFixed(2) + '%';
     }
 
+    function targetPct() {
+        if (isGameReady()) return 100;
+        if (isMMReady()) {
+            if (t_mm === null) t_mm = Date.now();
+            var p2 = (Date.now() - t_mm) / STAGE2_MS;
+            return Math.min(95, 70 + p2 * 25);
+        }
+        var elapsed = Date.now() - t0;
+        return Math.min(70, (elapsed / STAGE1_MS) * 70);
+    }
+
+    /* As soon as pygbag exposes MM, set the user-made-event flag and
+       dispatch a click on the canvas — pygbag listens for it to wake
+       its interpreter loop. Doing this independently from the splash
+       fade means the bar can keep climbing while the Python side
+       boots, and the fade only fires once the first real frame lands. */
+    function kickCanvasIfReady() {
+        if (canvasKicked || !isMMReady()) return;
+        canvasKicked = true;
+        try { window.MM.UME = true; } catch (_) {}
+        var cv = document.getElementById('canvas');
+        if (cv) {
+            try {
+                cv.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true, cancelable: true
+                }));
+            } catch (_) {}
+        }
+    }
+
     var pollId = setInterval(function () {
-        if (isReady() && !pygbagReady) {
-            pygbagReady = true;
-            stalled = false;
-            if (btn)    btn.textContent    = BTN_READY;
-            if (status) status.textContent = '';
-            if (fill)   fill.classList.remove('sk-stalled');
+        if (dismissed) return;
+        kickCanvasIfReady();
+
+        var target = targetPct();
+        if (target > displayed) {
+            displayed = Math.min(target, displayed + STEP_PER_TICK);
+        }
+        setFill(displayed);
+
+        if (isGameReady() && displayed >= 99.5) {
             setFill(100);
-            /* Auto-boot: no tap required. dismiss() is idempotent. */
             dismiss();
             return;
         }
-        if (pygbagReady) return;
+
         var elapsed = Date.now() - t0;
-        var pct = ASYMPTOTE * (1 - Math.exp(-elapsed / TAU_MS)) * 100;
-        setFill(pct);
-        if (elapsed >= STALL_MS && !stalled) {
+        if (elapsed >= STALL_MS && !stalled && !isMMReady()) {
             stalled = true;
-            if (btn)    btn.textContent    = BTN_RELOAD;
             if (status) status.textContent = 'Loading is stuck. Tap to reload.';
             if (fill)   fill.classList.add('sk-stalled');
-        } else if (elapsed >= INFO_MS && status && !stalled) {
+        } else if (elapsed >= INFO_MS && status && !stalled && !isGameReady()) {
             status.textContent = 'Loading… ' + Math.floor(elapsed / 1000) + 's';
         }
-    }, 250);
+    }, POLL_MS);
 
     function reloadBust() {
         clearInterval(pollId);
@@ -1030,62 +1077,40 @@ _LOADING_JS = """
         }
     }
 
-    function pulseBtn() {
-        if (!btn) return;
-        btn.style.transition = 'transform 120ms ease';
-        btn.style.transform  = 'scale(0.93)';
-        setTimeout(function () { btn.style.transform = ''; }, 130);
-    }
-
     function dismiss() {
-        /* Unlock the shared AudioContext on every gesture, even pre-ready
-           pulses — no harm in early resume. */
+        if (dismissed) return;
+        dismissed = true;
+        clearInterval(pollId);
+
+        /* Try to unlock the shared AudioContext; without a user gesture
+           this is a no-op on iOS Safari — audio unlocks on the first
+           canvas tap during play. The canvas click was already
+           dispatched the moment MM came up, so the game has been
+           drawing in the background while the splash held. */
         if (typeof window.__skyResumeCtx === 'function') {
             try { window.__skyResumeCtx(); } catch (_) {}
         }
-        if (stalled)        { reloadBust(); return; }
-        if (!pygbagReady)   { pulseBtn();   return; }
-        if (dismissed) return;
-        dismissed = true;
 
-        clearInterval(pollId);
-        try { if (window.MM) window.MM.UME = true; } catch (_) {}
-        var cv = document.getElementById('canvas');
-        if (cv) {
-            try {
-                cv.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true, cancelable: true
-                }));
-            } catch (_) {}
-        }
-        ov.removeEventListener('click',      dismiss);
-        ov.removeEventListener('touchstart', dismiss);
-        ov.removeEventListener('touchend',   dismiss);
-
-        /* Stay visible over the canvas while pygbag mounts the App and
-           game/scenes.py renders its first frame. Pointer-events:none so
-           subsequent taps reach the canvas behind us during this hold. */
-        if (btn)    btn.textContent    = 'STARTING…';
         if (status) status.textContent = '';
         ov.style.pointerEvents = 'none';
-
-        function fade() {
-            ov.style.transition = 'opacity 0.45s ease';
-            ov.style.opacity    = '0';
-            setTimeout(function () { ov.style.display = 'none'; }, 480);
-        }
-        var holdT0 = Date.now();
-        var holdId = setInterval(function () {
-            if (window.skybitGameReady === true ||
-                Date.now() - holdT0 > 12000) {
-                clearInterval(holdId);
-                fade();
-            }
-        }, 16);
+        ov.style.transition = 'opacity 0.45s ease';
+        ov.style.opacity = '0';
+        setTimeout(function () { ov.style.display = 'none'; }, 480);
     }
-    ov.addEventListener('click',      dismiss);
-    ov.addEventListener('touchstart', dismiss);
-    ov.addEventListener('touchend',   dismiss);
+
+    /* Splash-level tap: only meaningful on stall (cache-busted reload).
+       While loading is healthy the splash is non-interactive; the bar
+       reaches 100% and fades on its own. Audio-unlock is attempted on
+       any tap so a user gesture banks the AudioContext resume. */
+    function onOverlayTap() {
+        if (typeof window.__skyResumeCtx === 'function') {
+            try { window.__skyResumeCtx(); } catch (_) {}
+        }
+        if (stalled) reloadBust();
+    }
+    ov.addEventListener('click',      onOverlayTap);
+    ov.addEventListener('touchstart', onOverlayTap);
+    ov.addEventListener('touchend',   onOverlayTap);
 }());
 </script>
 """
@@ -1372,10 +1397,10 @@ if "skybit-loading" not in html:
         "probably no longer contains a literal '<body>' tag. inject_theme.py "
         "needs updating to match pygbag's new template."
     )
-if "pygbagReady" not in html:
+if "kickCanvasIfReady" not in html:
     _problems.append(
-        "Watchdog state machine (pygbagReady) was not injected — pygbag's "
-        "HTML probably no longer contains a literal '</body>' tag."
+        "Watchdog state machine (kickCanvasIfReady) was not injected — "
+        "pygbag's HTML probably no longer contains a literal '</body>' tag."
     )
 if _color_subs == 0:
     _problems.append(
