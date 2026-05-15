@@ -1484,13 +1484,14 @@ if "powderblue" in html:
         "'powderblue' still present in output — background-color "
         "replacements did not run as expected."
     )
-if _cb_n == 0:
-    _problems.append(
-        "No asset URLs were cache-busted — pygbag's HTML template "
-        "may have changed shape (no <tag src='...' /> matches found). "
-        "Browsers will keep serving stale bundles after this deploy "
-        "until the disk cache expires."
-    )
+# Note: deliberately NOT failing the build when _cb_n == 0. Pygbag's
+# real index.html loads pythons.js from an absolute CDN URL and fetches
+# the game APK via inline JS — neither is a relative <tag src='...' />
+# attribute, so the regex above legitimately finds nothing to bust.
+# The <meta http-equiv="Cache-Control"> tag injected above is what
+# actually buys browser-side freshness; URL versioning would only kick
+# in if pygbag's template ever started emitting static relative-asset
+# tags. Zero matches is expected, not a failure.
 # NOTE: we used to check `if "<input" in html.split("</body>")[0]` here as
 # a belt-and-braces guard for the name-entry redesign. Removed because
 # pygbag's own template ships an <input> for SDL/Emscripten keyboard
