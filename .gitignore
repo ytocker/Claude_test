@@ -7,3 +7,4 @@ skybit_save.json
 skybit_scores.json
 tools/screenshots/
 node_modules/
+*-pygbag.py
