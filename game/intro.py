@@ -1378,19 +1378,23 @@ def _dispatch_beat(scene: "IntroScene", surf: pygame.Surface) -> None:
     t = scene.t
     # Beat windows. The old "journey" beat was repurposed as a four-step
     # gameplay tutorial (jump / pillars / coins / power-ups), still cycling
-    # the day→night biome the journey did.
-    #   dawn      0.0–1.0    (1.0s)
-    #   handoff   1.0–4.0    (3.0s)
-    #   tutorial  4.0–18.0  (14.0s) — four 3.5s sub-beats
-    #   arrival   18.0–21.0  (3.0s) — approach, deliver, exit off-screen
+    # the day→night biome the journey did. Lengths are derived from the
+    # constants above so trimming the tutorial doesn't strand the
+    # arrival beat past the new DURATION.
+    #   dawn      0.0 – 1.0
+    #   handoff   1.0 – _TUTORIAL_START          (handoff_len = _T_START - 1)
+    #   tutorial  _T_START – _T_END              (_TUTORIAL_LEN s)
+    #   arrival   _T_END – DURATION              (arrival_len = DURATION - _T_END)
+    handoff_len = _TUTORIAL_START - 1.0
+    arrival_len = DURATION - _TUTORIAL_END
     if t < 1.0:
         _beat_dawn(scene, surf, t / 1.0)
-    elif t < 4.0:
-        _beat_handoff(scene, surf, (t - 1.0) / 3.0)
-    elif t < 18.0:
-        _beat_tutorial(scene, surf, (t - 4.0) / 14.0)
+    elif t < _TUTORIAL_START:
+        _beat_handoff(scene, surf, (t - 1.0) / handoff_len)
+    elif t < _TUTORIAL_END:
+        _beat_tutorial(scene, surf, (t - _TUTORIAL_START) / _TUTORIAL_LEN)
     elif t < DURATION:
-        _beat_arrival(scene, surf, (t - 18.0) / 3.0)
+        _beat_arrival(scene, surf, (t - _TUTORIAL_END) / arrival_len)
     else:
         _beat_arrival(scene, surf, 1.0)
 
