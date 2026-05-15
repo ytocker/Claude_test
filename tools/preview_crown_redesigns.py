@@ -113,7 +113,8 @@ def _quad_bezier(p0, p1, p2, n=14):
 # ── Design 1: Royal Velvet ──────────────────────────────────────────────────
 
 def _draw_royal(big, s):
-    bw, bh = 30 * s, 22 * s
+    bw, bh = big.get_width(), big.get_height()
+    cx = bw // 2
     band_top = 14 * s
     band_bot = 21 * s
     band_l = 2 * s
@@ -141,7 +142,7 @@ def _draw_royal(big, s):
                       (band_r - band_l - 4 * s) // 3, band_top - velvet_top - s),
                      border_top_right_radius=3 * s)
     # 5 peaks (gold, multi-tone)
-    centers = [5 * s, 11 * s, 15 * s, 19 * s, 25 * s]
+    centers = [cx - 10 * s, cx - 4 * s, cx, cx + 4 * s, cx + 10 * s]
     heights = [4 * s,  7 * s, 11 * s,  7 * s,  4 * s]
     pw = 3 * s
     for px, ph in zip(centers, heights):
@@ -186,7 +187,7 @@ def draw_crown_royal(surf, cx, cy):
 # ── Design 2: Imperial Cross ────────────────────────────────────────────────
 
 def _draw_imperial(big, s):
-    bw, bh = 28 * s, 26 * s
+    bw, bh = big.get_width(), big.get_height()
     band_top = 18 * s
     band_bot = 24 * s
     band_l = 3 * s
@@ -271,7 +272,8 @@ def draw_crown_imperial(surf, cx, cy):
 # ── Design 3: Sharp Spires ──────────────────────────────────────────────────
 
 def _draw_spires(big, s):
-    bw, bh = 28 * s, 22 * s
+    bw, bh = big.get_width(), big.get_height()
+    cx = bw // 2
     band_top = 14 * s
     band_bot = 20 * s
     band_l = 2 * s
@@ -295,7 +297,7 @@ def _draw_spires(big, s):
                      (band_l, band_top, band_r - band_l, band_bot - band_top),
                      border_radius=s, width=max(1, s // 2))
     # 5 thin tall spires
-    xs = [4 * s, 9 * s, 14 * s, 19 * s, 24 * s]
+    xs = [cx - 10 * s, cx - 5 * s, cx, cx + 5 * s, cx + 10 * s]
     hs = [6 * s, 9 * s, 13 * s, 9 * s, 6 * s]
     pw = max(1, int(1.2 * s))
     for sx, sh in zip(xs, hs):
@@ -342,7 +344,7 @@ def draw_crown_spires(surf, cx, cy):
 # ── Design 4: Diamond Tiara ─────────────────────────────────────────────────
 
 def _draw_tiara(big, s):
-    bw, bh = 28 * s, 16 * s
+    bw, bh = big.get_width(), big.get_height()
     band_top = 10 * s
     band_bot = 15 * s
     band_l = 2 * s
@@ -412,7 +414,7 @@ def draw_crown_tiara(surf, cx, cy):
 # ── Design 5: Onion Dome ────────────────────────────────────────────────────
 
 def _draw_dome(big, s):
-    bw, bh = 22 * s, 28 * s
+    bw, bh = big.get_width(), big.get_height()
     # Ermine fur trim at base
     fur_top = 20 * s
     fur_bot = 26 * s
