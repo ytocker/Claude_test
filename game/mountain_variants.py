@@ -1,9 +1,11 @@
 """Mountain-rendering variants used for design exploration.
 
 Each ``draw_mountains_vN`` function is a drop-in replacement for
-``game.draw.draw_mountains`` — same signature, same parallax scrolling,
-same biome-palette integration via ``far_color`` / ``near_color``. The
-helper functions at the top are shared by multiple variants.
+``game.draw.draw_mountains`` — same signature, same parallax scrolling.
+Unlike the original, each variant has its OWN inherent palette and shape
+language. The biome ``far_color`` / ``near_color`` is applied at the end
+as a thin ambient overlay so the mountain identity dominates while the
+scene still feels right at day/sunset/night.
 """
 from __future__ import annotations
 
@@ -20,424 +22,754 @@ def _clamp(c):
 
 
 def _mix(a, b, t):
-    """Linear blend between two RGB tuples; t=0 → a, t=1 → b."""
     return (_clamp(a[0] + (b[0] - a[0]) * t),
             _clamp(a[1] + (b[1] - a[1]) * t),
             _clamp(a[2] + (b[2] - a[2]) * t))
 
 
 def _shade(c, delta):
-    """Add a flat amount to every channel (positive = lighter)."""
     return (_clamp(c[0] + delta), _clamp(c[1] + delta), _clamp(c[2] + delta))
 
 
-_SKY_TINT = (200, 210, 230)
+def _brightness(c) -> float:
+    """0..1 estimate of how 'bright' a biome colour is."""
+    return min(1.0, (c[0] + c[1] + c[2]) / 510.0)
 
 
-def _back_tint(far_color):
-    """Same back-layer tint used by the original draw_mountains."""
-    return _mix(far_color, _SKY_TINT, 0.5)
+def _warmth(c) -> float:
+    """Positive if the colour is warm-leaning (sunset/sunrise/golden)."""
+    return (c[0] - c[2]) / 255.0
 
 
-def _is_warm_phase(near_color):
-    """Heuristic: warm-tinted palettes (sunset / sunrise / golden hour) have
-    red >= blue. Used by variants that want to swing rim-light direction or
-    intensity at the warm phases."""
-    return near_color[0] >= near_color[2]
+def _ambient_overlay(surf, ground_y, w, near_color):
+    """Apply a translucent overlay that:
+      • darkens the mountains at night-leaning biomes,
+      • adds a warm wash at sunset/sunrise.
+    The overlay covers only the mountain band so the rest of the scene is
+    unaffected.
+    """
+    b = _brightness(near_color)
+    band = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+
+    if b < 0.6:
+        # Darken: fade toward the dark near_color.
+        alpha = int(160 * (0.6 - b))
+        band.fill((near_color[0] // 3, near_color[1] // 3,
+                   near_color[2] // 3, alpha))
+
+    w_amt = _warmth(near_color)
+    if w_amt > 0.05:
+        alpha = int(min(85, w_amt * 220))
+        warm = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+        warm.fill((255, 150, 90, alpha))
+        band.blit(warm, (0, 0))
+
+    surf.blit(band, (0, 0))
 
 
-# ── V1: detailed classic ───────────────────────────────────────────────────
-# Same sine-wave silhouette as today, plus snow caps, dotted rocks, a
-# rim-light edge on the near layer at warm phases, and a darker shadow
-# stripe along the base of the near layer.
+# ── V1: Crystal Geode Spires ───────────────────────────────────────────────
+
+_V1_BACK = (60, 70, 120)
+_V1_MID_SHARDS = [(80, 150, 200), (100, 110, 200), (140, 90, 190)]
+_V1_NEAR_SHARDS = [
+    (110, 230, 240),  # cyan
+    (170, 110, 230),  # violet
+    (230, 130, 220),  # magenta
+    (130, 240, 200),  # mint
+    (210, 180, 255),  # lilac
+    (240, 220, 130),  # gold tip
+]
+
+
+def _v1_shard(surf, base_x, base_y, height, width, color, lit_dir):
+    """Single crystal shard: triangle silhouette + lit facet + bright tip."""
+    half = width // 2
+    apex = (base_x, base_y - height)
+    left = (base_x - half, base_y)
+    right = (base_x + half, base_y)
+
+    # Base shadow side
+    shadow = _shade(color, -55)
+    pygame.draw.polygon(surf, shadow, [apex, left, right])
+
+    # Lit facet: triangle from apex down one side
+    lit = _mix(color, (255, 255, 255), 0.55)
+    mid_x = base_x + (half - 2) * lit_dir
+    pygame.draw.polygon(surf, color, [apex, (mid_x, base_y), right if lit_dir > 0 else left])
+    pygame.draw.polygon(surf, lit, [apex, (mid_x, base_y),
+                                    (base_x, base_y - 2)])
+
+    # Bright tip
+    tip = _mix(color, (255, 255, 255), 0.85)
+    pygame.draw.polygon(surf, tip,
+                        [apex,
+                         (base_x - 2, base_y - height + 6),
+                         (base_x + 2, base_y - height + 6)])
+
+    # Inner glow (subtle additive blob near base)
+    glow = pygame.Surface((width + 8, 14), pygame.SRCALPHA)
+    pygame.draw.ellipse(glow,
+                        (color[0], color[1], color[2], 90),
+                        glow.get_rect())
+    surf.blit(glow, (base_x - (width + 8) // 2, base_y - 8))
+
 
 def draw_mountains_v1(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color = far_color or (35, 45, 100)
-    near_color = near_color or (22, 30, 72)
-    back_color = _back_tint(far_color)
+    far_color = far_color or (50, 60, 110)
+    near_color = near_color or (30, 40, 80)
 
-    pts_back, pts_far, pts_near = [(0, ground_y)], [(0, ground_y)], [(0, ground_y)]
-    near_heights: list[tuple[int, int]] = []  # (x, peak_y) sampled for caps
-    far_heights: list[tuple[int, int]] = []
-    for x in range(0, w + 1, 2):
-        bx = x + scroll * 0.06
-        hb = int(105 + math.sin(bx * 0.008) * 32 + math.sin(bx * 0.023 + 2.1) * 14)
-        pts_back.append((x, ground_y - hb))
+    # ── BACK: distant crystal silhouette (smooth) ──
+    pts = [(0, ground_y)]
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.06
+        h = int(100 + math.sin(sx * 0.013) * 28 + math.sin(sx * 0.031 + 1.2) * 14)
+        pts.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V1_BACK, pts)
 
-        fx = x + scroll * 0.15
-        hf = int(80 + math.sin(fx * 0.012) * 42 + math.sin(fx * 0.031) * 22)
-        pts_far.append((x, ground_y - hf))
-        far_heights.append((x, ground_y - hf))
+    # ── MID: jagged crystal cluster (medium shards) ──
+    mid_step = 38
+    mid_phase = scroll * 0.15
+    first = int(mid_phase // mid_step) - 1
+    last = int((mid_phase + w) // mid_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random(k * 2654435761 & 0xFFFFFFFF)
+        wx = k * mid_step + rng.uniform(-8, 8)
+        sx = int(wx - mid_phase)
+        ht = rng.randint(55, 95)
+        wd = rng.randint(20, 32)
+        col = rng.choice(_V1_MID_SHARDS)
+        lit = rng.choice((-1, 1))
+        if -wd < sx < w + wd:
+            _v1_shard(surf, sx, ground_y, ht, wd, col, lit)
 
-        nx = x + scroll * 0.28
-        hn = int(55 + math.sin(nx * 0.019 + 1.4) * 34 + math.sin(nx * 0.047 + 0.7) * 16)
-        pts_near.append((x, ground_y - hn))
-        near_heights.append((x, ground_y - hn))
+    # ── NEAR: tall hero shards in vivid colours ──
+    near_step = 46
+    near_phase = scroll * 0.28
+    first = int(near_phase // near_step) - 1
+    last = int((near_phase + w) // near_step) + 2
+    near_centers: list[tuple[int, int, int]] = []  # (x, base_y, height)
+    for k in range(first, last + 1):
+        rng = random.Random((k * 73856093 + 19349663) & 0xFFFFFFFF)
+        wx = k * near_step + rng.uniform(-10, 10)
+        sx = int(wx - near_phase)
+        ht = rng.randint(75, 130)
+        wd = rng.randint(22, 38)
+        col = _V1_NEAR_SHARDS[k % len(_V1_NEAR_SHARDS)]
+        lit = rng.choice((-1, 1))
+        if -wd < sx < w + wd:
+            _v1_shard(surf, sx, ground_y, ht, wd, col, lit)
+            near_centers.append((sx, ground_y - ht, ht))
 
-    for pts in (pts_back, pts_far, pts_near):
-        pts.append((w, ground_y))
-    pygame.draw.polygon(surf, back_color, pts_back)
-    pygame.draw.polygon(surf, far_color, pts_far)
-    pygame.draw.polygon(surf, near_color, pts_near)
+    # ── Sparkles in the air above the shards ──
+    sparkle_rng = random.Random(int(scroll) // 5)
+    for _ in range(40):
+        sx = sparkle_rng.randrange(0, w)
+        sy = sparkle_rng.randrange(ground_y - 180, ground_y - 30)
+        sz = sparkle_rng.choice((1, 1, 2))
+        a = sparkle_rng.randint(140, 230)
+        pygame.draw.circle(surf, (255, 255, 255, a)[:3], (sx, sy), sz)
 
-    # Snow caps on the tallest near peaks. We find local maxima by scanning
-    # the sampled heights, then paint a small near-white triangle on top.
-    snow = _mix(near_color, (245, 248, 255), 0.85)
-    n = len(near_heights)
-    for i in range(2, n - 2):
-        y = near_heights[i][1]
-        # local minimum in y == local maximum in height
-        if (y < near_heights[i - 1][1] and y < near_heights[i - 2][1]
-                and y < near_heights[i + 1][1] and y < near_heights[i + 2][1]
-                and (ground_y - y) > 60):
-            x = near_heights[i][0]
-            cap = [(x - 6, y + 5), (x, y - 1), (x + 6, y + 4)]
-            pygame.draw.polygon(surf, snow, cap)
-
-    # A few snow caps on the far layer too (smaller, tinted closer to far).
-    far_snow = _mix(far_color, (235, 240, 250), 0.7)
-    for i in range(3, len(far_heights) - 3, 5):
-        y = far_heights[i][1]
-        if (y < far_heights[i - 2][1] and y < far_heights[i + 2][1]
-                and (ground_y - y) > 90):
-            x = far_heights[i][0]
-            pygame.draw.polygon(surf, far_snow,
-                                [(x - 4, y + 4), (x, y - 1), (x + 4, y + 3)])
-
-    # Dotted rocks along the near silhouette (just below the ridge).
-    rng = random.Random(int(scroll) // 4)
-    dark = _shade(near_color, -20)
-    for _ in range(12):
-        i = rng.randrange(4, n - 4)
-        x = near_heights[i][0]
-        y = near_heights[i][1] + rng.randint(8, 26)
-        if y < ground_y - 4:
-            pygame.draw.circle(surf, dark, (x, y), 2)
-
-    # Rim-light: 1-px highlight along the top of the near ridge at warm
-    # biome phases.
-    if _is_warm_phase(near_color):
-        rim = _mix(near_color, (255, 230, 190), 0.6)
-        for i in range(1, n):
-            x0, y0 = near_heights[i - 1]
-            x1, y1 = near_heights[i]
-            pygame.draw.line(surf, rim, (x0, y0 - 1), (x1, y1 - 1), 1)
-
-    # Shadow stripe along the base of the near layer — adds weight to the
-    # foreground without obscuring pillars.
-    base_band = pygame.Surface((w, 10), pygame.SRCALPHA)
-    base_band.fill((0, 0, 0, 35))
-    surf.blit(base_band, (0, ground_y - 10))
+    _ambient_overlay(surf, ground_y, w, near_color)
 
 
-# ── V2: misty layered ridges ───────────────────────────────────────────────
-# Same sine-wave family, expanded from 3 → 6 parallax bands. Each band
-# fades further toward the sky tint, producing strong atmospheric depth.
+# ── V2: Sakura Blossom Hills ───────────────────────────────────────────────
+
+_V2_BACK = (210, 180, 205)
+_V2_MID = (200, 140, 165)
+_V2_NEAR_GRASS = (135, 170, 110)
+_V2_TRUNK = (75, 50, 40)
+_V2_BLOSSOM = (255, 180, 205)
+_V2_BLOSSOM_HI = (255, 230, 235)
+_V2_BLOSSOM_DARK = (220, 130, 170)
+
+
+def _v2_cherry_tree(surf, base_x, base_y, scale=1.0):
+    """Cherry tree: brown trunk + pom-pom pink canopy with two highlight blobs."""
+    trunk_h = int(18 * scale)
+    canopy_r = int(14 * scale)
+    # Trunk
+    pygame.draw.line(surf, _V2_TRUNK,
+                     (base_x, base_y),
+                     (base_x, base_y - trunk_h), max(1, int(2 * scale)))
+    # Branches
+    pygame.draw.line(surf, _V2_TRUNK,
+                     (base_x, base_y - trunk_h + 4),
+                     (base_x - 5, base_y - trunk_h - 2), 1)
+    pygame.draw.line(surf, _V2_TRUNK,
+                     (base_x, base_y - trunk_h + 2),
+                     (base_x + 5, base_y - trunk_h - 4), 1)
+    # Canopy: 3 overlapping circles
+    cy = base_y - trunk_h - 4
+    pygame.draw.circle(surf, _V2_BLOSSOM_DARK,
+                       (base_x - canopy_r // 2, cy + 1), canopy_r)
+    pygame.draw.circle(surf, _V2_BLOSSOM_DARK,
+                       (base_x + canopy_r // 2, cy + 1), canopy_r)
+    pygame.draw.circle(surf, _V2_BLOSSOM_DARK,
+                       (base_x, cy - canopy_r // 3), canopy_r)
+    pygame.draw.circle(surf, _V2_BLOSSOM,
+                       (base_x - canopy_r // 2, cy), canopy_r - 2)
+    pygame.draw.circle(surf, _V2_BLOSSOM,
+                       (base_x + canopy_r // 2, cy), canopy_r - 2)
+    pygame.draw.circle(surf, _V2_BLOSSOM,
+                       (base_x, cy - canopy_r // 3), canopy_r - 2)
+    # Highlights
+    pygame.draw.circle(surf, _V2_BLOSSOM_HI,
+                       (base_x - canopy_r // 2 - 2, cy - 4), max(2, canopy_r // 3))
+    pygame.draw.circle(surf, _V2_BLOSSOM_HI,
+                       (base_x + canopy_r // 4, cy - canopy_r // 3 - 3),
+                       max(2, canopy_r // 4))
+
 
 def draw_mountains_v2(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color = far_color or (35, 45, 100)
-    near_color = near_color or (22, 30, 72)
+    far_color = far_color or (50, 60, 110)
+    near_color = near_color or (30, 40, 80)
 
-    bands = 6
-    # Speeds interpolated from 0.04 (deepest) → 0.30 (nearest).
-    # Heights interpolated from very low (~50) → tall (~90).
-    # Amplitudes scale with depth too so distant ridges are gentler.
-    for i in range(bands):
-        depth = i / (bands - 1)  # 0 = deepest, 1 = nearest
-        speed = 0.04 + depth * 0.26
-        base_h = 50 + depth * 40
-        amp_a = 18 + depth * 28
-        amp_b = 6 + depth * 18
-        freq_a = 0.006 + depth * 0.012
-        freq_b = 0.018 + depth * 0.025
-        phase_a = i * 0.7
-        phase_b = i * 1.9 + 2.0
+    # ── BACK: pale distant hills ──
+    pts = [(0, ground_y)]
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.06
+        h = int(95 + math.sin(sx * 0.010) * 22 + math.sin(sx * 0.027 + 0.8) * 10)
+        pts.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V2_BACK, pts)
 
-        color = _mix(_SKY_TINT, near_color, 0.18 + depth * 0.82)
-        # Mid bands lean toward far_color for warm/cool palette spread.
-        color = _mix(color, far_color, 0.25 * (1.0 - abs(depth - 0.6)))
+    # Scatter distant blossom dots on back hills
+    rng = random.Random(int(scroll) // 4 + 11)
+    for _ in range(45):
+        sx = rng.randrange(0, w)
+        sy = ground_y - rng.randint(35, 100)
+        pygame.draw.circle(surf, _V2_BLOSSOM, (sx, sy), 1)
 
-        pts = [(0, ground_y)]
-        for x in range(0, w + 1, 2):
-            sx = x + scroll * speed
-            h = int(base_h
-                    + math.sin(sx * freq_a + phase_a) * amp_a
-                    + math.sin(sx * freq_b + phase_b) * amp_b)
-            pts.append((x, ground_y - h))
-        pts.append((w, ground_y))
-        pygame.draw.polygon(surf, color, pts)
+    # ── MID: dusty rose hills ──
+    pts = [(0, ground_y)]
+    mid_heights: list[tuple[int, int]] = []
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.15
+        h = int(70 + math.sin(sx * 0.014) * 26 + math.sin(sx * 0.033 + 1.4) * 12)
+        pts.append((x, ground_y - h))
+        mid_heights.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V2_MID, pts)
 
-
-# ── V3: low-poly faceted peaks ─────────────────────────────────────────────
-# Triangular peaks built from explicit polygons. Each peak has a lit face
-# and a shadow face; midtone fills the gaps. Gives a crisp vector look.
-
-def _v3_layer(surf, ground_y, w, scroll, speed, base_h, peak_w, jitter,
-              color_mid, color_lit, color_shadow, seed_off):
-    """Draw one layer of faceted triangular peaks."""
-    # Peaks are anchored to world-x so they scroll smoothly. The "world"
-    # repeats every (peak_w * many) so we just generate enough to cover
-    # the screen with margin.
-    world_x_start = scroll * speed
-    first = int(world_x_start // peak_w) - 1
-    last = int((world_x_start + w) // peak_w) + 2
-
-    # Build a polyline of peak/valley vertices first, then fill triangles
-    # between consecutive peaks to form lit/shadow faces.
-    verts: list[tuple[int, int]] = []
+    # Distant cherry trees on mid hills (smaller)
+    mid_tree_step = 38
+    mid_tree_phase = scroll * 0.15
+    first = int(mid_tree_phase // mid_tree_step) - 1
+    last = int((mid_tree_phase + w) // mid_tree_step) + 2
     for k in range(first, last + 1):
-        # deterministic jitter per peak index
-        rng = random.Random(k * 73856093 ^ seed_off)
-        wx = k * peak_w + rng.uniform(-peak_w * 0.2, peak_w * 0.2)
-        h = base_h + rng.uniform(-jitter, jitter)
-        # Valleys halfway between peaks, deeper for taller peaks.
-        valley_wx = wx - peak_w * 0.5
-        valley_h = max(8, base_h * 0.35 + rng.uniform(-jitter * 0.4, jitter * 0.2))
-        verts.append((valley_wx - world_x_start, ground_y - valley_h))
-        verts.append((wx - world_x_start, ground_y - h))
-    # Close the silhouette so we can paint a base midtone underneath
-    # before stamping facets on top.
-    sil = [(verts[0][0], ground_y)] + verts + [(verts[-1][0], ground_y)]
-    pygame.draw.polygon(surf, color_mid, sil)
+        rng = random.Random((k * 1103515245 + 12345) & 0xFFFFFFFF)
+        wx = k * mid_tree_step + rng.uniform(-10, 10)
+        sx = int(wx - mid_tree_phase)
+        if 0 <= sx < w:
+            idx = min(len(mid_heights) - 1, max(0, sx // 3))
+            ridge_y = mid_heights[idx][1]
+            _v2_cherry_tree(surf, sx, ridge_y + 4, scale=0.55)
 
-    # Now stamp lit/shadow facets. Each peak (odd-indexed vertex) gets a
-    # left facet (shadow) from valley→peak, and a right facet (lit) from
-    # peak→next valley.
-    for i in range(1, len(verts) - 1, 2):
-        peak = verts[i]
-        left_valley = verts[i - 1]
-        right_valley = verts[i + 1] if i + 1 < len(verts) else (peak[0] + peak_w * 0.5, ground_y)
-        # Shadow face (left of peak)
-        pygame.draw.polygon(surf, color_shadow,
-                            [left_valley, peak, (peak[0], ground_y)])
-        # Lit face (right of peak)
-        pygame.draw.polygon(surf, color_lit,
-                            [peak, right_valley, (peak[0], ground_y)])
+    # ── NEAR: green foreground hills with cherry trees ──
+    pts = [(0, ground_y)]
+    near_heights: list[tuple[int, int]] = []
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.28
+        h = int(48 + math.sin(sx * 0.018) * 20 + math.sin(sx * 0.041 + 0.5) * 9)
+        pts.append((x, ground_y - h))
+        near_heights.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V2_NEAR_GRASS, pts)
+
+    # Hero cherry trees on near hills
+    near_tree_step = 28
+    near_tree_phase = scroll * 0.28
+    first = int(near_tree_phase // near_tree_step) - 1
+    last = int((near_tree_phase + w) // near_tree_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random((k * 2654435761 + 7) & 0xFFFFFFFF)
+        wx = k * near_tree_step + rng.uniform(-6, 6)
+        sx = int(wx - near_tree_phase)
+        if 0 <= sx < w:
+            idx = min(len(near_heights) - 1, max(0, sx // 3))
+            ridge_y = near_heights[idx][1]
+            _v2_cherry_tree(surf, sx, ridge_y + 4, scale=1.0)
+
+    # ── Drifting petals in the air ──
+    rng = random.Random(int(scroll) // 7)
+    for _ in range(35):
+        px = rng.randrange(0, w)
+        py = rng.randrange(ground_y - 200, ground_y - 30)
+        pygame.draw.ellipse(surf, _V2_BLOSSOM,
+                            (px, py, 4, 2))
+        if rng.random() < 0.4:
+            pygame.draw.ellipse(surf, _V2_BLOSSOM_HI,
+                                (px, py, 2, 1))
+
+    _ambient_overlay(surf, ground_y, w, near_color)
+
+
+# ── V3: Candy Land ─────────────────────────────────────────────────────────
+
+_V3_MINT_HILL = (170, 230, 180)
+_V3_MINT_HILL_DK = (130, 200, 150)
+_V3_PEPPERMINT_W = (255, 245, 240)
+_V3_PEPPERMINT_R = (240, 90, 110)
+_V3_FROST = (255, 255, 255)
+_V3_GUMDROP_COLORS = [(255, 130, 180), (255, 230, 100), (210, 150, 230),
+                      (130, 220, 230), (255, 180, 110)]
+_V3_LOLLIPOP_COLORS = [(255, 100, 130), (110, 200, 255), (255, 220, 80),
+                       (180, 130, 255)]
+_V3_SPRINKLE_COLORS = [(255, 100, 130), (110, 200, 255), (255, 220, 80),
+                       (180, 130, 255), (130, 230, 130), (255, 160, 80)]
+
+
+def _v3_peppermint_cone(surf, base_x, base_y, height, width):
+    """Striped peppermint candy cone: red and white diagonal stripes."""
+    half = width // 2
+    # Build silhouette polygon
+    apex = (base_x, base_y - height)
+    left = (base_x - half, base_y)
+    right = (base_x + half, base_y)
+
+    # Clip to the silhouette by drawing all stripes onto a temp surface
+    # the size of the cone bbox, then mask via the polygon.
+    bbox_w = width + 2
+    bbox_h = height + 2
+    temp = pygame.Surface((bbox_w, bbox_h), pygame.SRCALPHA)
+    # Base fill = white
+    pygame.draw.polygon(temp, _V3_PEPPERMINT_W,
+                        [(half + 1, 1),
+                         (1, bbox_h - 1),
+                         (bbox_w - 1, bbox_h - 1)])
+    # Diagonal red stripes
+    stripe_spacing = 8
+    for offset in range(-bbox_h, bbox_w + bbox_h, stripe_spacing):
+        pygame.draw.line(temp, _V3_PEPPERMINT_R,
+                         (offset, 0),
+                         (offset + bbox_h, bbox_h),
+                         3)
+    # Re-mask: redraw silhouette outline with the cone shape clipped via
+    # an alpha mask. Easier: just blit then redraw the silhouette polygon
+    # in WHITE then re-draw red stripes constrained to the polygon. Skip
+    # that and just blit the textured rect, accepting bleed outside — we
+    # mask by re-drawing the silhouette outline.
+    mask = pygame.Surface((bbox_w, bbox_h), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255),
+                        [(half + 1, 1),
+                         (1, bbox_h - 1),
+                         (bbox_w - 1, bbox_h - 1)])
+    masked = pygame.Surface((bbox_w, bbox_h), pygame.SRCALPHA)
+    masked.blit(temp, (0, 0))
+    masked.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(masked, (base_x - half - 1, base_y - height - 1))
+
+    # Frosting cap (white blob with drip on one side)
+    cap_w = max(4, width - 6)
+    pygame.draw.ellipse(surf, _V3_FROST,
+                        (base_x - cap_w // 2, base_y - height - 4,
+                         cap_w, 9))
+    pygame.draw.circle(surf, _V3_FROST,
+                       (base_x - cap_w // 3, base_y - height + 2), 3)
+
+
+def _v3_gumdrop(surf, base_x, base_y, width, color):
+    """Rounded gumdrop hill with shine and sprinkles."""
+    half = width // 2
+    height = int(width * 0.65)
+    pygame.draw.ellipse(surf, _shade(color, -25),
+                        (base_x - half, base_y - height, width, height * 2))
+    pygame.draw.ellipse(surf, color,
+                        (base_x - half + 1, base_y - height + 1,
+                         width - 2, height * 2 - 2))
+    # Highlight
+    pygame.draw.ellipse(surf, _mix(color, (255, 255, 255), 0.55),
+                        (base_x - half + 3, base_y - height + 2,
+                         width // 3, height // 2))
+    # Sprinkles
+    rng = random.Random(base_x * 37 + width)
+    for _ in range(int(width * 0.3)):
+        sx = base_x + rng.randint(-half + 2, half - 2)
+        sy = base_y - rng.randint(2, height - 2)
+        c = rng.choice(_V3_SPRINKLE_COLORS)
+        pygame.draw.line(surf, c, (sx, sy), (sx + 2, sy), 1)
+
+
+def _v3_lollipop(surf, base_x, base_y, height, color):
+    """Lollipop tree: white stick + swirl candy disc."""
+    pygame.draw.line(surf, (255, 250, 250),
+                     (base_x, base_y), (base_x, base_y - height), 2)
+    r = 7
+    cy = base_y - height
+    pygame.draw.circle(surf, (255, 255, 255), (base_x, cy), r + 1)
+    pygame.draw.circle(surf, color, (base_x, cy), r)
+    # Swirl
+    for i in range(3):
+        a = i * 2.1
+        for k in range(8):
+            ang = a + k * 0.6
+            radius = k * 0.7
+            px = int(base_x + math.cos(ang) * radius)
+            py = int(cy + math.sin(ang) * radius)
+            pygame.draw.circle(surf, _V3_PEPPERMINT_W, (px, py), 1)
 
 
 def draw_mountains_v3(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color = far_color or (35, 45, 100)
-    near_color = near_color or (22, 30, 72)
-    back_color = _back_tint(far_color)
+    far_color = far_color or (50, 60, 110)
+    near_color = near_color or (30, 40, 80)
 
-    warm = _is_warm_phase(near_color)
-    # Warm bias for lit face at golden hour / sunset / sunrise; cool at night.
-    lit_tint = (255, 220, 170) if warm else (190, 200, 230)
+    # ── BACK: pale mint hills with sprinkle dots ──
+    pts = [(0, ground_y)]
+    back_heights: list[tuple[int, int]] = []
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.06
+        h = int(85 + math.sin(sx * 0.012) * 22 + math.sin(sx * 0.029 + 1.0) * 10)
+        pts.append((x, ground_y - h))
+        back_heights.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V3_MINT_HILL, pts)
 
-    # back layer — very pale, gentle peaks
-    _v3_layer(surf, ground_y, w, scroll,
-              speed=0.06, base_h=95, peak_w=90, jitter=18,
-              color_mid=back_color,
-              color_lit=_mix(back_color, lit_tint, 0.45),
-              color_shadow=_shade(back_color, -15),
-              seed_off=11)
-    # far layer — medium peaks
-    _v3_layer(surf, ground_y, w, scroll,
-              speed=0.15, base_h=95, peak_w=70, jitter=24,
-              color_mid=far_color,
-              color_lit=_mix(far_color, lit_tint, 0.55),
-              color_shadow=_shade(far_color, -22),
-              seed_off=23)
-    # near layer — taller / sharper peaks
-    _v3_layer(surf, ground_y, w, scroll,
-              speed=0.28, base_h=80, peak_w=58, jitter=30,
-              color_mid=near_color,
-              color_lit=_mix(near_color, lit_tint, 0.55),
-              color_shadow=_shade(near_color, -28),
-              seed_off=37)
+    # Sprinkles on back hills
+    rng = random.Random(int(scroll) // 4 + 3)
+    for _ in range(35):
+        idx = rng.randrange(0, len(back_heights))
+        bx, by = back_heights[idx]
+        sy = by + rng.randint(4, 30)
+        if sy < ground_y - 3:
+            c = rng.choice(_V3_SPRINKLE_COLORS)
+            pygame.draw.line(surf, c, (bx, sy), (bx + 2, sy), 1)
+
+    # ── MID: peppermint cone peaks ──
+    cone_step = 56
+    cone_phase = scroll * 0.15
+    first = int(cone_phase // cone_step) - 1
+    last = int((cone_phase + w) // cone_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random((k * 1442695040888963407) & 0xFFFFFFFF)
+        wx = k * cone_step + rng.uniform(-8, 8)
+        sx = int(wx - cone_phase)
+        ht = rng.randint(65, 105)
+        wd = rng.randint(32, 50)
+        if -wd < sx < w + wd:
+            _v3_peppermint_cone(surf, sx, ground_y, ht, wd)
+
+    # ── NEAR: gumdrop hills + lollipop trees ──
+    # Foreground green slope first
+    pts = [(0, ground_y)]
+    near_heights: list[tuple[int, int]] = []
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.28
+        h = int(34 + math.sin(sx * 0.020) * 14 + math.sin(sx * 0.047 + 0.3) * 6)
+        pts.append((x, ground_y - h))
+        near_heights.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V3_MINT_HILL_DK, pts)
+
+    # Gumdrops
+    gum_step = 44
+    gum_phase = scroll * 0.28
+    first = int(gum_phase // gum_step) - 1
+    last = int((gum_phase + w) // gum_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random((k * 73856093 + 19) & 0xFFFFFFFF)
+        wx = k * gum_step + rng.uniform(-6, 6)
+        sx = int(wx - gum_phase)
+        if 0 <= sx < w:
+            idx = min(len(near_heights) - 1, max(0, sx // 3))
+            ridge_y = near_heights[idx][1]
+            wd = rng.randint(22, 36)
+            col = rng.choice(_V3_GUMDROP_COLORS)
+            _v3_gumdrop(surf, sx, ridge_y + 6, wd, col)
+
+    # Lollipop trees (sparser, between gumdrops)
+    lolly_step = 38
+    lolly_phase = scroll * 0.28
+    first = int(lolly_phase // lolly_step) - 1
+    last = int((lolly_phase + w) // lolly_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random((k * 2654435761 + 31337) & 0xFFFFFFFF)
+        if rng.random() < 0.55:
+            continue
+        wx = k * lolly_step + 20 + rng.uniform(-4, 4)
+        sx = int(wx - lolly_phase)
+        if 0 <= sx < w:
+            idx = min(len(near_heights) - 1, max(0, sx // 3))
+            ridge_y = near_heights[idx][1]
+            ht = rng.randint(18, 28)
+            col = rng.choice(_V3_LOLLIPOP_COLORS)
+            _v3_lollipop(surf, sx, ridge_y + 2, ht, col)
+
+    _ambient_overlay(surf, ground_y, w, near_color)
 
 
-# ── V4: forested hills + distant range ─────────────────────────────────────
-# Rounded foreground hills with scattered pine silhouettes, plus a taller
-# snow-capped range peeking up behind. Most character lives in the trees.
+# ── V4: Volcanic Range ─────────────────────────────────────────────────────
 
-def _v4_pine(surf, x, base_y, height, color):
-    """A small triangular pine silhouette pointing up."""
-    half = max(2, height // 3)
-    pygame.draw.polygon(surf, color,
-                        [(x, base_y - height),
-                         (x - half, base_y),
-                         (x + half, base_y)])
-    # Trunk hint
-    pygame.draw.line(surf, color, (x, base_y), (x, base_y + 1), 1)
+_V4_ROCK_BACK = (45, 35, 55)
+_V4_ROCK_MID = (30, 22, 38)
+_V4_ROCK_NEAR = (18, 14, 24)
+_V4_LAVA_HOT = (255, 220, 80)
+_V4_LAVA_MID = (255, 130, 40)
+_V4_LAVA_DEEP = (200, 60, 30)
+_V4_EMBER = (255, 200, 80)
+_V4_SMOKE = (130, 110, 110)
+
+
+def _v4_jagged_layer(surf, scroll, ground_y, w, speed, base_h, jitter, rock_color,
+                     peak_step, seed_off, with_lava=False):
+    """A jagged dark rocky silhouette. Returns peak (x, y) pairs."""
+    phase = scroll * speed
+    first = int(phase // peak_step) - 1
+    last = int((phase + w) // peak_step) + 2
+    pts = [(0, ground_y)]
+    peaks: list[tuple[int, int]] = []
+    # Use multiple sub-points between peaks to add jaggedness
+    for k in range(first, last + 1):
+        rng = random.Random((k * 73856093 ^ seed_off) & 0xFFFFFFFF)
+        wx = k * peak_step + rng.uniform(-peak_step * 0.2, peak_step * 0.2)
+        sx_peak = int(wx - phase)
+        h = base_h + rng.uniform(-jitter, jitter)
+        # valley before peak
+        valley_x = sx_peak - peak_step // 2 + rng.randint(-4, 4)
+        valley_h = max(15, base_h * 0.35 + rng.uniform(-jitter * 0.5, 0))
+        pts.append((valley_x, ground_y - valley_h))
+        # mid-rise jaggies
+        for j in range(2):
+            jx = valley_x + (sx_peak - valley_x) * (j + 1) // 3
+            jh = valley_h + (h - valley_h) * (j + 1) / 3 + rng.uniform(-6, 6)
+            pts.append((jx, ground_y - jh))
+        pts.append((sx_peak, ground_y - int(h)))
+        peaks.append((sx_peak, int(ground_y - h)))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, rock_color, pts)
+
+    if with_lava:
+        # Lava cracks: glowing veins radiating from peak down the rock face
+        for px, py in peaks:
+            if not (-30 < px < w + 30):
+                continue
+            rng = random.Random(px * 991)
+            for _ in range(2):
+                x1, y1 = px + rng.randint(-6, 6), py + rng.randint(2, 8)
+                x2, y2 = x1 + rng.randint(-12, 12), y1 + rng.randint(20, 50)
+                if y2 > ground_y - 2:
+                    y2 = ground_y - 2
+                pygame.draw.line(surf, _V4_LAVA_DEEP, (x1, y1), (x2, y2), 3)
+                pygame.draw.line(surf, _V4_LAVA_MID, (x1, y1), (x2, y2), 1)
+            # Bright crater
+            pygame.draw.circle(surf, _V4_LAVA_DEEP, (px, py + 2), 4)
+            pygame.draw.circle(surf, _V4_LAVA_MID, (px, py + 2), 3)
+            pygame.draw.circle(surf, _V4_LAVA_HOT, (px, py + 2), 1)
+
+    return peaks
 
 
 def draw_mountains_v4(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color = far_color or (35, 45, 100)
-    near_color = near_color or (22, 30, 72)
-    back_color = _back_tint(far_color)
+    far_color = far_color or (50, 60, 110)
+    near_color = near_color or (30, 40, 80)
 
-    # ── BACK: snow-capped distant range (sharper triangles) ──
-    back_speed = 0.05
-    pts_back = [(0, ground_y)]
-    peaks: list[tuple[int, int]] = []
-    range_step = 55
-    range_phase = scroll * back_speed
-    first = int(range_phase // range_step) - 1
-    last = int((range_phase + w) // range_step) + 2
-    pts_back = [(0, ground_y)]
-    prev_x = 0
-    for k in range(first, last + 1):
-        rng = random.Random(k * 2654435761 & 0xFFFFFFFF)
-        wx = k * range_step + rng.uniform(-12, 12)
-        sx = wx - range_phase
-        h = 95 + rng.uniform(-20, 25)
-        valley_h = 50 + rng.uniform(-10, 10)
-        # Left valley
-        pts_back.append((sx - range_step * 0.5, ground_y - valley_h))
-        # Peak
-        pts_back.append((sx, ground_y - h))
-        peaks.append((int(sx), int(ground_y - h)))
-        prev_x = sx
-    pts_back.append((w, ground_y))
-    pygame.draw.polygon(surf, back_color, pts_back)
+    _v4_jagged_layer(surf, scroll, ground_y, w,
+                     speed=0.06, base_h=95, jitter=18,
+                     rock_color=_V4_ROCK_BACK, peak_step=70, seed_off=11)
+    _v4_jagged_layer(surf, scroll, ground_y, w,
+                     speed=0.15, base_h=85, jitter=24,
+                     rock_color=_V4_ROCK_MID, peak_step=60, seed_off=23,
+                     with_lava=True)
+    near_peaks = _v4_jagged_layer(surf, scroll, ground_y, w,
+                                  speed=0.28, base_h=70, jitter=28,
+                                  rock_color=_V4_ROCK_NEAR, peak_step=54,
+                                  seed_off=37, with_lava=True)
 
-    # Snow caps on the back range
-    snow = _mix(back_color, (240, 245, 255), 0.85)
-    for px, py in peaks:
-        if -10 < px < w + 10:
-            pygame.draw.polygon(surf, snow,
-                                [(px - 5, py + 6), (px, py - 1), (px + 5, py + 5)])
+    # Smoke plumes from peak tops
+    smoke = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    for px, py in near_peaks:
+        if not (-20 < px < w + 20):
+            continue
+        rng = random.Random(px * 8675309)
+        for i in range(5):
+            drift = rng.randint(-4, 6)
+            r = 6 + i * 3
+            cy = py - 8 - i * 9
+            a = max(0, 90 - i * 18)
+            pygame.draw.circle(smoke,
+                               (_V4_SMOKE[0], _V4_SMOKE[1], _V4_SMOKE[2], a),
+                               (px + drift, cy), r)
+    surf.blit(smoke, (0, 0))
 
-    # ── FAR: rolling mid hills (rounded, sine-based) ──
-    far_pts = [(0, ground_y)]
-    far_heights: list[tuple[int, int]] = []
-    far_speed = 0.14
-    for x in range(0, w + 1, 2):
-        fx = x + scroll * far_speed
-        h = int(60 + math.sin(fx * 0.013) * 22 + math.sin(fx * 0.029 + 1.7) * 10)
-        far_pts.append((x, ground_y - h))
-        far_heights.append((x, ground_y - h))
-    far_pts.append((w, ground_y))
-    pygame.draw.polygon(surf, far_color, far_pts)
+    # Ember sparks rising
+    rng = random.Random(int(scroll) // 3)
+    for _ in range(35):
+        ex = rng.randrange(0, w)
+        ey = rng.randrange(ground_y - 150, ground_y - 20)
+        sz = rng.choice((1, 1, 2))
+        pygame.draw.circle(surf, _V4_EMBER, (ex, ey), sz)
+    # Brighter sparks (additive feel)
+    glow_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    for _ in range(10):
+        ex = rng.randrange(0, w)
+        ey = rng.randrange(ground_y - 100, ground_y - 10)
+        pygame.draw.circle(glow_layer, (255, 180, 60, 120), (ex, ey), 3)
+        pygame.draw.circle(glow_layer, (255, 230, 130, 200), (ex, ey), 1)
+    surf.blit(glow_layer, (0, 0))
 
-    # ── NEAR: rolling foreground hills with pine trees ──
-    near_pts = [(0, ground_y)]
-    near_heights: list[tuple[int, int]] = []
-    near_speed = 0.28
-    for x in range(0, w + 1, 2):
-        nx = x + scroll * near_speed
-        h = int(42 + math.sin(nx * 0.017) * 18 + math.sin(nx * 0.041 + 0.6) * 8)
-        near_pts.append((x, ground_y - h))
-        near_heights.append((x, ground_y - h))
-    near_pts.append((w, ground_y))
-    pygame.draw.polygon(surf, near_color, near_pts)
+    # Lava pool at the base (thin glowing strip)
+    pool = pygame.Surface((w, 6), pygame.SRCALPHA)
+    for x in range(0, w, 2):
+        h = int(2 + math.sin((x + scroll * 0.4) * 0.05) * 1.5)
+        pool.fill((255, 100, 30, 0))
+        pygame.draw.line(pool, (255, 130, 40, 160),
+                         (x, 6 - h), (x, 6), 1)
+    # The above only fills last column — replace with a simpler glow band:
+    pool = pygame.Surface((w, 5), pygame.SRCALPHA)
+    pool.fill((255, 110, 40, 90))
+    surf.blit(pool, (0, ground_y - 4))
 
-    # Pine silhouettes on the near layer. Spaced every ~24 px in world-x so
-    # they scroll consistently. Color is darker than near so they pop.
-    tree_color = _shade(near_color, -22)
-    tree_step = 22
-    tree_phase = scroll * near_speed
-    first_t = int(tree_phase // tree_step) - 1
-    last_t = int((tree_phase + w) // tree_step) + 2
-    for k in range(first_t, last_t + 1):
-        rng = random.Random((k * 1103515245 + 12345) & 0xFFFFFFFF)
-        wx = k * tree_step + rng.uniform(-6, 6)
-        sx = int(wx - tree_phase)
-        if 0 <= sx < w:
-            # Find ridge height at this sx (sampled near_heights are step=2)
-            idx = min(len(near_heights) - 1, max(0, sx // 2))
-            ridge_y = near_heights[idx][1]
-            ht = rng.randint(7, 14)
-            _v4_pine(surf, sx, ridge_y + 4, ht, tree_color)
+    _ambient_overlay(surf, ground_y, w, near_color)
 
 
-# ── V5: painterly stylised peaks ───────────────────────────────────────────
-# Jittered ridge lines (not pure sine), cross-hatched shadow flank, soft
-# rim-light glow on the lit side, faint texture noise.
+# ── V5: Mushroom Fairy Forest ──────────────────────────────────────────────
 
-def _v5_ridge(surf, scroll, ground_y, w, speed, base_h, amp, freq, jitter_seed,
-              fill_color, shadow_color, rim_color, hatch=True):
-    """Render one painterly ridge band with shadow hatching and rim glow."""
-    pts = [(0, ground_y)]
-    heights: list[tuple[int, int]] = []
-    # Use deterministic jitter so the line stays the same across frames at
-    # the same scroll. Sampling at step=3 gives a slightly chunky feel.
-    step = 3
-    for x in range(0, w + 1, step):
-        sx = x + scroll * speed
-        # Jitter via sin-of-prime sums — looks hand-drawn vs pure sine.
-        j = (math.sin(sx * 0.071 + jitter_seed) * 4.0
-             + math.sin(sx * 0.193 + jitter_seed * 1.6) * 2.0)
-        h = int(base_h + math.sin(sx * freq) * amp + j)
-        pts.append((x, ground_y - h))
-        heights.append((x, ground_y - h))
-    pts.append((w, ground_y))
-    pygame.draw.polygon(surf, fill_color, pts)
+_V5_FOREST_BACK = (45, 30, 75)
+_V5_FOREST_MID = (65, 45, 100)
+_V5_FLOOR = (40, 70, 55)
+_V5_STEM = (245, 230, 200)
+_V5_STEM_SHADE = (200, 180, 150)
+_V5_CAPS = [
+    (230, 70, 70),   # red
+    (90, 150, 230),  # blue
+    (180, 100, 220), # purple
+    (110, 210, 200), # teal
+    (255, 160, 90),  # orange
+    (230, 100, 170), # pink
+]
 
-    # Shadow flank: a translucent darker fill applied just below the ridge
-    # on the "left" side (since light comes from the right in this style).
-    if hatch:
-        shadow_surf = pygame.Surface((w, ground_y), pygame.SRCALPHA)
-        # Build a band from ridge down ~22 px, then mask to the silhouette.
-        for i in range(1, len(heights)):
-            x0, y0 = heights[i - 1]
-            x1, y1 = heights[i]
-            # If this segment slopes down to the right (left flank of a
-            # peak), draw a hatch line into shadow_surf.
-            if y1 > y0:
-                for d in (4, 9, 14):
-                    pygame.draw.line(shadow_surf,
-                                     (shadow_color[0], shadow_color[1],
-                                      shadow_color[2], 70),
-                                     (x0 + d, y0 + d),
-                                     (x1 + d, y1 + d), 1)
-        surf.blit(shadow_surf, (0, 0))
 
-    # Rim glow: 2-px soft highlight along the top edge, brightest where
-    # the ridge faces right (slope rises to the right).
-    glow = pygame.Surface((w, ground_y), pygame.SRCALPHA)
-    for i in range(1, len(heights)):
-        x0, y0 = heights[i - 1]
-        x1, y1 = heights[i]
-        # Slope rising right ↔ y decreasing as x increases.
-        if y1 <= y0:
-            a = 140
-            pygame.draw.line(glow,
-                             (rim_color[0], rim_color[1], rim_color[2], a),
-                             (x0, y0 - 1), (x1, y1 - 1), 2)
-    surf.blit(glow, (0, 0))
+def _v5_mushroom(surf, base_x, base_y, scale, cap_color, seed):
+    """Mushroom with stem, dome cap, and white spots."""
+    rng = random.Random(seed)
+    stem_w = max(3, int(6 * scale))
+    stem_h = int(30 * scale)
+    cap_w = int(28 * scale)
+    cap_h = int(18 * scale)
+
+    # Stem (rounded rectangle)
+    pygame.draw.rect(surf, _V5_STEM_SHADE,
+                     (base_x - stem_w // 2 - 1, base_y - stem_h,
+                      stem_w + 2, stem_h),
+                     border_radius=max(1, stem_w // 2))
+    pygame.draw.rect(surf, _V5_STEM,
+                     (base_x - stem_w // 2, base_y - stem_h,
+                      stem_w, stem_h - 2),
+                     border_radius=max(1, stem_w // 2))
+    # Cap (dome = ellipse cropped at midline)
+    cap_y = base_y - stem_h - cap_h // 3
+    pygame.draw.ellipse(surf, _shade(cap_color, -30),
+                        (base_x - cap_w // 2, cap_y - cap_h,
+                         cap_w, cap_h * 2))
+    pygame.draw.ellipse(surf, cap_color,
+                        (base_x - cap_w // 2 + 1, cap_y - cap_h + 1,
+                         cap_w - 2, cap_h * 2 - 2))
+    # Cover bottom half by stamping a rectangle of the background — instead,
+    # we crop the cap to a dome by drawing a flat rect under it that
+    # matches the layer's background. Simpler: just leave the full ellipse,
+    # it reads fine.
+
+    # Highlight on cap (lighter mix)
+    pygame.draw.ellipse(surf, _mix(cap_color, (255, 255, 255), 0.5),
+                        (base_x - cap_w // 3, cap_y - cap_h + 1,
+                         cap_w // 3, cap_h // 2))
+
+    # White spots on cap
+    n_spots = rng.randint(3, 5)
+    for _ in range(n_spots):
+        sx_off = rng.randint(-cap_w // 2 + 4, cap_w // 2 - 4)
+        sy_off = rng.randint(-cap_h, -2)
+        spot_r = max(1, int(2 * scale))
+        pygame.draw.circle(surf, (255, 250, 245),
+                           (base_x + sx_off, cap_y + sy_off), spot_r)
+
+    # Gill hint under cap
+    pygame.draw.line(surf, _shade(cap_color, -50),
+                     (base_x - cap_w // 3, cap_y + 1),
+                     (base_x + cap_w // 3, cap_y + 1), 1)
 
 
 def draw_mountains_v5(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color = far_color or (35, 45, 100)
-    near_color = near_color or (22, 30, 72)
-    back_color = _back_tint(far_color)
+    far_color = far_color or (50, 60, 110)
+    near_color = near_color or (30, 40, 80)
 
-    warm = _is_warm_phase(near_color)
-    rim_tint = (255, 225, 180) if warm else (210, 220, 245)
+    # ── BACK: dark forest silhouette ──
+    pts = [(0, ground_y)]
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.06
+        h = int(105 + math.sin(sx * 0.012) * 24 + math.sin(sx * 0.029 + 0.7) * 14)
+        pts.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V5_FOREST_BACK, pts)
 
-    _v5_ridge(surf, scroll, ground_y, w,
-              speed=0.06, base_h=100, amp=28, freq=0.010,
-              jitter_seed=0.7,
-              fill_color=back_color,
-              shadow_color=_shade(back_color, -10),
-              rim_color=_mix(back_color, rim_tint, 0.4),
-              hatch=False)
-    _v5_ridge(surf, scroll, ground_y, w,
-              speed=0.15, base_h=80, amp=38, freq=0.013,
-              jitter_seed=1.9,
-              fill_color=far_color,
-              shadow_color=_shade(far_color, -25),
-              rim_color=_mix(far_color, rim_tint, 0.55),
-              hatch=True)
-    _v5_ridge(surf, scroll, ground_y, w,
-              speed=0.28, base_h=58, amp=34, freq=0.018,
-              jitter_seed=3.1,
-              fill_color=near_color,
-              shadow_color=_shade(near_color, -30),
-              rim_color=_mix(near_color, rim_tint, 0.65),
-              hatch=True)
+    # Tree silhouettes (thin verticals)
+    rng = random.Random(int(scroll) // 4 + 9)
+    for _ in range(20):
+        tx = rng.randrange(0, w)
+        th = rng.randint(35, 75)
+        pygame.draw.line(surf, _shade(_V5_FOREST_BACK, -10),
+                         (tx, ground_y), (tx, ground_y - th), 2)
 
-    # Faint paper-grain noise over the whole mountain band.
-    noise = pygame.Surface((w, 140), pygame.SRCALPHA)
+    # ── MID: medium red-cap mushrooms ──
+    mid_step = 44
+    mid_phase = scroll * 0.15
+    first = int(mid_phase // mid_step) - 1
+    last = int((mid_phase + w) // mid_step) + 2
+    # mid forest band
+    pts = [(0, ground_y)]
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.15
+        h = int(70 + math.sin(sx * 0.014) * 18 + math.sin(sx * 0.032 + 1.2) * 10)
+        pts.append((x, ground_y - h))
+    pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V5_FOREST_MID, pts)
+
+    for k in range(first, last + 1):
+        rng = random.Random((k * 1442695 + 7) & 0xFFFFFFFF)
+        wx = k * mid_step + rng.uniform(-8, 8)
+        sx = int(wx - mid_phase)
+        if -20 < sx < w + 20:
+            scale = rng.uniform(0.55, 0.8)
+            col = _V5_CAPS[k % len(_V5_CAPS)]
+            _v5_mushroom(surf, sx, ground_y - 35, scale, col, k * 99)
+
+    # ── NEAR: forest floor + giant hero mushrooms ──
+    floor_pts = [(0, ground_y)]
+    floor_heights = []
+    for x in range(0, w + 1, 3):
+        sx = x + scroll * 0.28
+        h = int(30 + math.sin(sx * 0.020) * 10 + math.sin(sx * 0.045) * 5)
+        floor_pts.append((x, ground_y - h))
+        floor_heights.append((x, ground_y - h))
+    floor_pts.append((w, ground_y))
+    pygame.draw.polygon(surf, _V5_FLOOR, floor_pts)
+
+    near_step = 50
+    near_phase = scroll * 0.28
+    first = int(near_phase // near_step) - 1
+    last = int((near_phase + w) // near_step) + 2
+    for k in range(first, last + 1):
+        rng = random.Random((k * 2654435761 + 17) & 0xFFFFFFFF)
+        wx = k * near_step + rng.uniform(-10, 10)
+        sx = int(wx - near_phase)
+        if -30 < sx < w + 30:
+            idx = min(len(floor_heights) - 1, max(0, sx // 3))
+            base_y = floor_heights[idx][1] + 2
+            scale = rng.uniform(0.9, 1.4)
+            col = _V5_CAPS[(k * 3) % len(_V5_CAPS)]
+            _v5_mushroom(surf, sx, base_y, scale, col, k * 211)
+
+    # ── Glowing fireflies ──
+    fire_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
     rng = random.Random(int(scroll) // 6)
-    for _ in range(220):
-        nx = rng.randrange(0, w)
-        ny = rng.randrange(0, 140)
-        a = rng.randint(8, 22)
-        noise.set_at((nx, ny), (240, 235, 220, a))
-    surf.blit(noise, (0, ground_y - 140))
+    for _ in range(28):
+        fx = rng.randrange(0, w)
+        fy = rng.randrange(ground_y - 200, ground_y - 30)
+        pygame.draw.circle(fire_layer, (255, 240, 120, 80), (fx, fy), 4)
+        pygame.draw.circle(fire_layer, (255, 250, 200, 220), (fx, fy), 1)
+    surf.blit(fire_layer, (0, 0))
+
+    _ambient_overlay(surf, ground_y, w, near_color)
 
 
 # ── dispatcher ─────────────────────────────────────────────────────────────
@@ -451,9 +783,9 @@ VARIANTS = {
 }
 
 VARIANT_NAMES = {
-    1: "Detailed Classic",
-    2: "Misty Layered Ridges",
-    3: "Low-Poly Faceted Peaks",
-    4: "Forested Hills + Distant Range",
-    5: "Painterly Stylised Peaks",
+    1: "Crystal Geode Spires",
+    2: "Sakura Blossom Hills",
+    3: "Candy Land",
+    4: "Volcanic Range",
+    5: "Mushroom Fairy Forest",
 }
