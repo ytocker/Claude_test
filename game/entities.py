@@ -15,7 +15,7 @@ from game.config import (
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
 )
 from game.draw import (
-    blit_glow, draw_pillar_mist,
+    blit_glow,
     rounded_rect, lerp_color,
     COIN_GOLD, COIN_DARK,
     MUSH_CAP, MUSH_CAP2, MUSH_SPOT, MUSH_STEM,
@@ -642,9 +642,6 @@ class Pipe:
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
         draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
-        # Mist halo at the base where the bottom pillar meets the ground
-        bot = self.bot_rect
-        draw_pillar_mist(surf, bot.x + bot.width // 2, bot.bottom, bot.width, alpha=110)
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
