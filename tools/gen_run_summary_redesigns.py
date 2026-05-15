@@ -31,6 +31,7 @@ pygame.display.set_mode((1, 1))
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from game.powerup_help import _powerup_icon as _ingame_powerup_icon  # noqa
+from game.entities import _get_coin_face as _ingame_coin_face  # noqa
 
 SCALE = 2
 W, H = 360 * SCALE, 640 * SCALE
@@ -75,7 +76,11 @@ DATA = dict(
     coins=11,
     pillars=23,
     near_misses=3,
-    powerups_picked=[("triple", 1), ("magnet", 1), ("ghost", 1)],
+    # Per-kind counts. Only kinds with count > 0 are rendered. Layout
+    # has room for all 7 kinds (triple, magnet, slowmo, kfc, ghost,
+    # grow, surprise) — the scarlet macaw can grab more than one of
+    # the same kind in a long run, so counts can climb above 1.
+    powerups_picked=[("triple", 2), ("magnet", 1), ("ghost", 1)],
     # Synthetic timeline events for v4 (seconds_into_run, kind):
     timeline=[
         (4, "coin"), (9, "coin"), (14, "powerup_triple"),
@@ -443,14 +448,12 @@ def stat_icon(surf, kind, cx, cy, size):
                           cy + math.sin(ma) * s * 0.7), 2 * SCALE)
         pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), 2 * SCALE)
     elif kind == "coin":
-        pygame.draw.circle(surf, COIN_GOLD, (cx, cy), s)
-        pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), s, 2 * SCALE)
-        pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), max(2, s - 4 * SCALE),
-                           1 * SCALE)
-        # Glint
-        pygame.draw.line(surf, (255, 245, 200),
-                         (cx - s * 0.4, cy - s * 0.5),
-                         (cx - s * 0.1, cy - s * 0.1), 2 * SCALE)
+        # Use the actual in-game coin face — matches what the player sees
+        # mid-flight (twisted-rope rim, gold gradient, embossed parrot).
+        face = _ingame_coin_face()
+        target_d = int(s * 2.6)
+        scaled = pygame.transform.smoothscale(face, (target_d, target_d))
+        surf.blit(scaled, scaled.get_rect(center=(cx, cy)))
     elif kind == "pillar":
         # Small stone pillar silhouette
         w = s * 1.0
@@ -578,7 +581,9 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label):
 
 
 def powerup_chip(surf, cx, cy, kind, count, size=22):
-    """Small frosted chip showing a real in-game powerup icon + count."""
+    """Small frosted chip showing a real in-game powerup icon + count
+    badge. The badge is always rendered (even at count=1) so the player
+    can see exactly how many of each kind they grabbed."""
     chip_w = size * 2 * SCALE
     chip_h = size * 2 * SCALE + 4 * SCALE
     rect = pygame.Rect(cx - chip_w // 2, cy - chip_h // 2, chip_w, chip_h)
@@ -589,21 +594,25 @@ def powerup_chip(surf, cx, cy, kind, count, size=22):
                      width=1 * SCALE, border_radius=int(8 * SCALE))
     surf.blit(body, rect.topleft)
     _ingame_powerup_icon(surf, kind, rect.centerx, rect.centery - 2 * SCALE,
-                         int(size * 1.6 * SCALE))
-    # x{count} badge bottom-right
-    if count and count > 1:
-        bx = rect.right - 8 * SCALE
-        by = rect.bottom - 6 * SCALE
-        bf = font(10, True).render(f"x{count}", True, CREAM)
-        bbg = pygame.Surface((bf.get_width() + 6 * SCALE,
-                              bf.get_height() + 2 * SCALE),
-                             pygame.SRCALPHA)
-        pygame.draw.rect(bbg, (*SCARLET_BOT, 230),
-                         (0, 0, bbg.get_width(), bbg.get_height()),
+                         int(size * 1.55 * SCALE))
+    # Count badge — always shown, even at 1, per design spec
+    if count and count > 0:
+        bf_size = 10 if size >= 18 else 9
+        bf = font(bf_size, True).render(f"x{count}", True, CREAM)
+        bbg_w = bf.get_width() + 5 * SCALE
+        bbg_h = bf.get_height() + 2 * SCALE
+        bx = rect.right - 4 * SCALE
+        by = rect.bottom - 4 * SCALE
+        bbg = pygame.Surface((bbg_w, bbg_h), pygame.SRCALPHA)
+        pygame.draw.rect(bbg, (*SCARLET_BOT, 235),
+                         (0, 0, bbg_w, bbg_h),
                          border_radius=int(4 * SCALE))
-        surf.blit(bbg, (bx - bbg.get_width(), by - bbg.get_height()))
-        surf.blit(bf, (bx - bbg.get_width() + 3 * SCALE,
-                       by - bbg.get_height() + 1 * SCALE))
+        pygame.draw.rect(bbg, (*GOLD_BRIGHT, 200),
+                         (0, 0, bbg_w, bbg_h),
+                         width=1, border_radius=int(4 * SCALE))
+        surf.blit(bbg, (bx - bbg_w, by - bbg_h))
+        surf.blit(bf, (bx - bbg_w + 3 * SCALE,
+                       by - bbg_h + 1 * SCALE))
 
 
 # ── DESIGN 1 — Trophy Cinema ────────────────────────────────────────────────
@@ -719,20 +728,33 @@ def draw_v1_trophy_cinema(surf, data):
                         tile_w, tile_h)
         stat_tile_chunky(surf, r, k, v, lbl)
 
-    # Power-ups bar — show actual icons used
-    pu = data["powerups_picked"]
+    # Power-ups bar — chip per kind that was actually picked, with a
+    # count badge ("x2") on every chip. Sized so up to 7 different
+    # kinds (triple, magnet, slowmo, kfc, ghost, grow, surprise) all
+    # fit in the bar without wrapping.
+    pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
         bar_y = 470 * SCALE
         cap2 = font(11, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
         surf.blit(cap2, cap2.get_rect(center=(W // 2, bar_y - 6 * SCALE)))
-        chip_size = 22
-        chip_w = chip_size * 2 * SCALE + 8 * SCALE
-        total_cw = len(pu) * chip_w + (len(pu) - 1) * 6 * SCALE
+        # Adapt chip size to how many kinds are shown so the row is
+        # always centred and never overflows the screen
+        if len(pu) <= 4:
+            chip_size, chip_gap = 22, 8
+        elif len(pu) <= 5:
+            chip_size, chip_gap = 19, 7
+        elif len(pu) == 6:
+            chip_size, chip_gap = 17, 6
+        else:  # 7
+            chip_size, chip_gap = 15, 5
+        chip_w = chip_size * 2 * SCALE
+        chip_pitch = chip_w + chip_gap * SCALE
+        total_cw = len(pu) * chip_w + (len(pu) - 1) * chip_gap * SCALE
         sx = (W - total_cw) // 2 + chip_w // 2
         for i, (kind, count) in enumerate(pu):
-            powerup_chip(surf, sx + i * (chip_w + 6 * SCALE),
+            powerup_chip(surf, sx + i * chip_pitch,
                          bar_y + 32 * SCALE,
                          kind, count, size=chip_size)
 
@@ -1610,6 +1632,16 @@ def main():
         filenames.append(name)
     print("Stitching contact sheet...")
     make_contact_sheet(filenames)
+    # Worst-case stress test of v1: every kind picked at least once
+    # so we can verify the chip row never overflows the screen.
+    stress = dict(DATA)
+    stress["powerups_picked"] = [
+        ("triple", 3), ("magnet", 2), ("slowmo", 1),
+        ("kfc", 1), ("ghost", 2), ("grow", 1), ("surprise", 1),
+    ]
+    s = pygame.Surface((W, H))
+    draw_v1_trophy_cinema(s, stress)
+    save("v1_trophy_cinema_all7_powerups.png", s)
     print("Done.")
 
 
