@@ -40,6 +40,7 @@ click race. No focus(), no MutationObserver, no shield IIFEs.
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 src = Path("build/web/index.html")
@@ -50,6 +51,15 @@ html = src.read_text(encoding="utf-8")
 
 _SB_URL = os.environ.get("SUPABASE_URL", "")
 _SB_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+
+# Per-deploy cache-bust token, used at the end of this script to append
+# ?v=<token> to every relative asset URL pygbag emits in index.html.
+# In GitHub Actions, GITHUB_SHA is auto-exported to every step; for
+# local pygbag runs we fall back to a wall-clock timestamp.
+_CACHE_BUST = (
+    os.environ.get("GITHUB_SHA")
+    or str(int(time.time()))
+)[:12]
 
 # Track how many color/background replacements actually matched. The post-
 # write assertions below treat zero matches as a build failure: it almost
@@ -1410,6 +1420,38 @@ html = html.replace("</body>", INJECTION + "</body>", 1)
 html = html.replace("__SB_URL__", _SB_URL)
 html = html.replace("__SB_KEY__", _SB_KEY)
 
+# ── 3.5 Cache-bust relative asset URLs ──────────────────────────────────────
+# Pygbag's generated HTML references _pythons.js, _packages/*.js, and the
+# game APK by stable filenames — no content hash in the URL. After a
+# fresh deploy the browser's disk cache happily keeps serving the
+# previous build's bundle, so visible design changes don't land until
+# the cache expires (or the user does a hard reload / opens incognito).
+# Append ?v=<GITHUB_SHA-or-timestamp> to every relative asset URL so each
+# deploy invalidates the browser cache automatically.
+_cache_bust_pat = re.compile(
+    r'(\s(?:src|href)\s*=\s*["\'])'                         # 1: attr + quote
+    r'(?!https?://|//|data:|#|/)'                           # not absolute / data / anchor / root
+    r'([^"\'?\s>]+?\.(?:js|mjs|json|wasm|zip|apk|whl|css))' # 2: relative asset path
+    r'(["\'])',                                             # 3: close quote
+    re.IGNORECASE,
+)
+html, _cb_n = _cache_bust_pat.subn(
+    rf'\g<1>\g<2>?v={_CACHE_BUST}\g<3>', html
+)
+print(f"✓ Cache-bust v={_CACHE_BUST} applied to {_cb_n} asset URLs")
+
+# Belt-and-braces: instruct the browser side to revalidate on every
+# load. GitHub Pages CDN ignores this header, but URL versioning above
+# already handles the CDN side — this just stops Chrome / Firefox /
+# Safari from reusing a stale main-document HTML between deploys.
+if "Cache-Control" not in html:
+    html = html.replace(
+        "<head>",
+        '<head>\n    <meta http-equiv="Cache-Control" '
+        'content="no-store, must-revalidate">',
+        1,
+    )
+
 src.write_text(html, encoding="utf-8")
 
 
@@ -1441,6 +1483,13 @@ if "powderblue" in html:
     _problems.append(
         "'powderblue' still present in output — background-color "
         "replacements did not run as expected."
+    )
+if _cb_n == 0:
+    _problems.append(
+        "No asset URLs were cache-busted — pygbag's HTML template "
+        "may have changed shape (no <tag src='...' /> matches found). "
+        "Browsers will keep serving stale bundles after this deploy "
+        "until the disk cache expires."
     )
 # NOTE: we used to check `if "<input" in html.split("</body>")[0]` here as
 # a belt-and-braces guard for the name-entry redesign. Removed because
