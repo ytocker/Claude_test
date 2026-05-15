@@ -144,12 +144,37 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
 
 
 def _dark_panel(surf, rect, radius=16, alpha=210):
-    """Deep-purple frosted panel with faint orange top-edge accent."""
-    rounded_rect(surf, rect, radius, _PANEL_DARK, alpha)
-    # Thin orange accent line at the top
-    accent = pygame.Surface((rect.width - radius * 2, 2), pygame.SRCALPHA)
-    accent.fill((*_ORANGE_BORDER, 80))
-    surf.blit(accent, (rect.x + radius, rect.y + 3))
+    """Deep-navy panel with a thin gold trim, a gold accent rail just
+    under the top edge and a soft drop shadow — the canonical Pip
+    Scarlet card treatment shared by every menu / overlay screen.
+    Visual reference: tools/gen_scarlet_set.py::card."""
+    # Drop shadow under the card.
+    sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 90),
+                     (0, 0, rect.width + 4, rect.height + 4),
+                     border_radius=radius)
+    surf.blit(sh, (rect.x - 2, rect.y + 4))
+
+    # Body + thin gold border.
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
+                     (0, 0, rect.width, rect.height),
+                     border_radius=radius)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
+                     (0, 0, rect.width, rect.height),
+                     width=1, border_radius=radius)
+
+    # Gold accent rail just inside the top.
+    inset = max(radius - 2, 6)
+    rail_w = max(rect.width - inset * 2, 0)
+    if rail_w > 0:
+        accent = pygame.Surface((rail_w, 2), pygame.SRCALPHA)
+        accent.fill((*_GOLD_BRIGHT, 110))
+        pnl.blit(accent, (inset, 4))
+        pygame.draw.line(pnl, (255, 220, 140, 90),
+                         (inset, 2),
+                         (rect.width - inset, 2), 1)
+    surf.blit(pnl, rect.topleft)
 
 
 def _draw_overlay_stars(surf, stars, t):
