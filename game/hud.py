@@ -1063,41 +1063,66 @@ class HUD:
         # Trophy above the title — same emblem as the TOP 10 screen.
         _draw_trophy(surf, W // 2, H // 2 - 180, 22)
 
-        # Title
-        _outlined_text(surf, "You made it to the top 10!",
-                       (W // 2, H // 2 - 120),
-                       size=22, px=2, shadow_offset=(2, 3))
+        # Title — gold + red outline to match the mockup
+        _outlined_text(surf, "NEW  HIGH  SCORE!",
+                       (W // 2, H // 2 - 130),
+                       size=24, px=2, shadow_offset=(2, 3))
 
-        # Input field
+        # Divider line under the title (mockup convention).
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 130),
+                         (W // 2 - 50, H // 2 - 108),
+                         (W // 2 + 50, H // 2 - 108), 1)
+
+        # Engraved nameplate (gold rim + corner rivets + dark navy face)
+        # in place of the plain orange-bordered input field.
         fw, fh = 284, 54
-        fx, fy = W // 2 - fw // 2, H // 2 - 48
-        field = pygame.Surface((fw, fh), pygame.SRCALPHA)
-        pygame.draw.rect(field, (26, 15, 56, 255), (0, 0, fw, fh), border_radius=14)
-        pygame.draw.rect(field, (*_ORANGE_BORDER, 220), (0, 0, fw, fh),
-                         border_radius=14, width=2)
-        # Inner highlight line at top
-        pygame.draw.line(field, (255, 200, 100, 40), (14, 3), (fw - 14, 3))
-        surf.blit(field, (fx, fy))
+        fx, fy = W // 2 - fw // 2, H // 2 - 70
+        plate_rect = pygame.Rect(fx, fy, fw, fh)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, plate_rect, border_radius=8)
+        inner = plate_rect.inflate(-6, -6)
+        pygame.draw.rect(surf, _PANEL_DARK, inner, border_radius=6)
+        pygame.draw.rect(surf, _GOLD_DEEP, plate_rect,
+                         width=2, border_radius=8)
+        # Subtle cream highlight just inside the top edge.
+        pygame.draw.line(surf, (255, 240, 180),
+                         (plate_rect.x + 10, plate_rect.y + 3),
+                         (plate_rect.right - 10, plate_rect.y + 3), 1)
+        # Four corner rivets.
+        for rx, ry in (
+            (plate_rect.x + 8, plate_rect.y + 8),
+            (plate_rect.right - 8, plate_rect.y + 8),
+            (plate_rect.x + 8, plate_rect.bottom - 8),
+            (plate_rect.right - 8, plate_rect.bottom - 8),
+        ):
+            pygame.draw.circle(surf, _GOLD_DEEP, (rx, ry), 3)
+            pygame.draw.circle(surf, _GOLD_BRIGHT, (rx, ry), 3, 1)
+            pygame.draw.circle(surf, (255, 240, 180), (rx - 1, ry - 1), 1)
 
-        # Typed text — no cursor
+        # Typed text — gold with a soft black drop shadow, no cursor.
         tf = _font(26, True)
         if buf:
+            sh = tf.render(buf, True, NEAR_BLACK)
+            sh.set_alpha(180)
             txt = tf.render(buf, True, _GOLD_BRIGHT)
-            surf.blit(txt, txt.get_rect(center=(W // 2, fy + fh // 2)))
+            tr = txt.get_rect(center=(W // 2, fy + fh // 2))
+            surf.blit(sh, (tr.x + 1, tr.y + 2))
+            surf.blit(txt, tr)
         else:
-            placeholder = _font(18, False).render("TYPE YOUR NAME…", True, _GOLD_MUTED)
+            placeholder = _font(18, False).render("TYPE YOUR NAME…",
+                                                  True, _GOLD_MUTED)
             placeholder.set_alpha(100)
-            surf.blit(placeholder, placeholder.get_rect(center=(W // 2, fy + fh // 2)))
+            surf.blit(placeholder,
+                      placeholder.get_rect(center=(W // 2, fy + fh // 2)))
 
         # Mountain silhouette belongs to the backdrop — drawn before the
         # buttons so SUBMIT / SKIP sit on top of any scenery, never behind it.
         _draw_mountain_silhouette(surf, alpha=160)
 
-        # Paired action buttons. Identical size + fully opaque + no
-        # animation so neither button visually overpowers the other.
+        # Paired action buttons — SUBMIT promoted to the primary pill
+        # so it carries the gold halo in the mockup.
         self.name_submit_rect = _pill_btn(
             surf, (W // 2, H // 2 + 34), "SUBMIT",
-            size=18, alpha=255, min_width=200)
+            size=18, alpha=255, min_width=200, primary=True)
         self.name_skip_rect = _pill_btn(
             surf, (W // 2, H // 2 + 92), "SKIP",
             size=18, alpha=255, min_width=200)
