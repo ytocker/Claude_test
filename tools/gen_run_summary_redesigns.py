@@ -643,8 +643,8 @@ def draw_v1_trophy_cinema(surf, data):
               sub_label="R A N K")
 
     # Hero score plaque — large rounded engraved panel
-    plaque = pygame.Rect(36 * SCALE, 162 * SCALE,
-                         W - 72 * SCALE, 168 * SCALE)
+    plaque = pygame.Rect(36 * SCALE, 130 * SCALE,
+                         W - 72 * SCALE, 132 * SCALE)
     # Outer drop shadow
     sh = pygame.Surface((plaque.w + 8 * SCALE, plaque.h + 10 * SCALE),
                         pygame.SRCALPHA)
@@ -688,7 +688,7 @@ def draw_v1_trophy_cinema(surf, data):
     no = font(num_size, True).render(big_num, True, RED_OUTLINE)
     nsh = font(num_size, True).render(big_num, True, NEAR_BLACK)
     deep_inner = font(num_size, True).render(big_num, True, GOLD_DEEP)
-    nr = nf.get_rect(center=(W // 2, plaque.centery + 12 * SCALE))
+    nr = nf.get_rect(center=(W // 2, plaque.centery + 4 * SCALE))
     px = 4 * SCALE
     for ox in (-px, 0, px):
         for oy in (-px, 0, px):
@@ -721,39 +721,44 @@ def draw_v1_trophy_cinema(surf, data):
         ("crosshair", data["near_misses"], "MISSES"),
     ]
     tile_w = 70 * SCALE
-    tile_h = 78 * SCALE
+    tile_h = 70 * SCALE
     tile_gap = 10 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 354 * SCALE
+    tile_y = 278 * SCALE
     for i, (k, v, lbl) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
         stat_tile_chunky(surf, r, k, v, lbl)
 
-    # Power-ups bar — chip per kind that was actually picked, with a
-    # count badge ("x2") on every chip. Sized so up to 7 different
-    # kinds (triple, magnet, slowmo, kfc, ghost, grow, surprise) all
-    # fit in the bar without wrapping.
+    # Power-ups grid — chip per kind that was actually picked. The chip
+    # size is *fixed* regardless of how many kinds were grabbed; if more
+    # than 4 kinds appear, the row wraps to a second row so each icon
+    # always reads at the same comfortable size.
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        bar_y = 458 * SCALE
+        cap_y = 370 * SCALE
         cap2 = font(11, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
-        surf.blit(cap2, cap2.get_rect(center=(W // 2, bar_y - 6 * SCALE)))
-        # Fixed chip size — comfortably fits all 7 power-up kinds in
-        # a single centred row at the 360-wide game canvas (7 × 40 + 6
-        # × 8 = 328 logical px, leaving 32 px total margin).
-        chip_size, chip_gap = 20, 8
+        surf.blit(cap2, cap2.get_rect(center=(W // 2, cap_y)))
+        chip_size, chip_gap = 22, 8
+        max_per_row = 4
         chip_w = chip_size * 2 * SCALE
+        chip_h = chip_w + 18 * SCALE
         chip_pitch = chip_w + chip_gap * SCALE
-        total_cw = len(pu) * chip_w + (len(pu) - 1) * chip_gap * SCALE
-        sx = (W - total_cw) // 2 + chip_w // 2
-        for i, (kind, count) in enumerate(pu):
-            powerup_chip(surf, sx + i * chip_pitch,
-                         bar_y + 38 * SCALE,
-                         kind, count, size=chip_size)
+        row_pitch = chip_h + 8 * SCALE
+        rows = [pu[i:i + max_per_row]
+                for i in range(0, len(pu), max_per_row)]
+        rows_top = cap_y + 22 * SCALE
+        for ri, row in enumerate(rows):
+            total_cw = (len(row) * chip_w
+                        + max(0, len(row) - 1) * chip_gap * SCALE)
+            sx = (W - total_cw) // 2 + chip_w // 2
+            row_cy = rows_top + ri * row_pitch + chip_h // 2
+            for i, (kind, count) in enumerate(row):
+                powerup_chip(surf, sx + i * chip_pitch, row_cy,
+                             kind, count, size=chip_size)
 
     # Primary CTA + secondary
     pill(surf, (W // 2, 568 * SCALE), "PLAY  AGAIN",
