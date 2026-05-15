@@ -935,6 +935,10 @@ _TUTORIAL_START = 4.0
 _TUTORIAL_END   = 18.0
 _TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 14 s
 
+# Tutorial sub-beats — equal slices of the tutorial window. The TAP TO
+# JUMP beat fits three real-physics flaps inside its 3.5 s by spacing
+# the flaps closer together and shortening the level-out tail; see the
+# physics-constants block below for the timeline.
 _SUB_LEN = _TUTORIAL_LEN / 4.0   # 3.5 s
 
 
@@ -988,22 +992,23 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 # stay identical to gameplay; only the magnitudes shrink.
 #
 # 3.5 s sub-beat is divided into:
-#   0.00–0.30  natural fall (no flap yet — establishes "this is what
+#   0.00–0.25  natural fall (no flap yet — establishes "this is what
 #              happens if you don't tap")
-#   0.30       flap #1
-#   0.30–0.95  flap arc 1 (full ~0.65 s)
-#   0.95–1.00  brief drop
-#   1.00       flap #2
-#   1.00–1.65  flap arc 2
-#   1.65–3.50  level-out: smooth ease back to baseline + ~1.5 s of
-#              calm level flight so the cut to AVOID PILLARS feels
-#              relaxed instead of rushed
+#   0.25       flap #1
+#   0.25–0.85  flap arc 1
+#   0.85       flap #2
+#   0.85–1.45  flap arc 2
+#   1.45       flap #3
+#   1.45–2.05  flap arc 3
+#   2.05–3.50  short level-out tail back to baseline so the cut to
+#              AVOID PILLARS feels relaxed — trimmed from the old
+#              1.85 s tail to make room for the third flap.
 _JUMP_SLOW     = 0.50     # scales velocities + gravity proportionally
 _JUMP_GRAVITY  = 1600.0 * _JUMP_SLOW
 _JUMP_FLAP_V   = -520.0 * _JUMP_SLOW
 _JUMP_MAX_FALL =  700.0 * _JUMP_SLOW
-_JUMP_FLAP_TIMES = (0.30, 1.00)
-_JUMP_SETTLE_T   = 1.65
+_JUMP_FLAP_TIMES = (0.25, 0.85, 1.45)
+_JUMP_SETTLE_T   = 2.05
 _JUMP_SUBSTEP    = 1.0 / 120.0
 
 
@@ -1029,8 +1034,8 @@ def _jump_simulate(sub_t: float) -> tuple[float, float]:
 
 def _jump_demo_state(sub_t: float) -> tuple[float, float]:
     """Public state lookup for the jump sub-beat. Real physics through
-    the second flap arc (sub_t ≤ 1.65), then a smooth ease-out back to
-    (y, vy) = (0, 0) so the bird flies straight before the cut."""
+    the third flap arc (sub_t ≤ _JUMP_SETTLE_T), then a smooth ease-out
+    back to (y, vy) = (0, 0) so the bird flies straight before the cut."""
     if sub_t <= _JUMP_SETTLE_T:
         return _jump_simulate(sub_t)
     # Snapshot at start of settle, then ease everything to 0.
