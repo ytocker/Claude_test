@@ -81,10 +81,34 @@ def _outlined_title(surf, txt, center, size, px, shadow_offset):
 
 
 def _dark_panel(surf, rect, radius, alpha):
-    rounded_rect(surf, rect, radius, _PANEL_DARK, alpha)
-    accent = pygame.Surface((rect.width - radius * 2, 2), pygame.SRCALPHA)
-    accent.fill((*_ORANGE_BORDER, 80))
-    surf.blit(accent, (rect.x + radius, rect.y + 3))
+    """Mirror of hud._dark_panel — gold-trimmed Pip Scarlet card. Kept
+    as a local copy here only to avoid a circular import; the visual
+    output (and tools/gen_scarlet_set.py::card it derives from) is
+    identical to the menu / leaderboard / stats panels."""
+    sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 90),
+                     (0, 0, rect.width + 4, rect.height + 4),
+                     border_radius=radius)
+    surf.blit(sh, (rect.x - 2, rect.y + 4))
+
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
+                     (0, 0, rect.width, rect.height),
+                     border_radius=radius)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
+                     (0, 0, rect.width, rect.height),
+                     width=1, border_radius=radius)
+
+    inset = max(radius - 2, 6)
+    rail_w = max(rect.width - inset * 2, 0)
+    if rail_w > 0:
+        accent = pygame.Surface((rail_w, 2), pygame.SRCALPHA)
+        accent.fill((*_GOLD_BRIGHT, 110))
+        pnl.blit(accent, (inset, 4))
+        pygame.draw.line(pnl, (255, 220, 140, 90),
+                         (inset, 2),
+                         (rect.width - inset, 2), 1)
+    surf.blit(pnl, rect.topleft)
 
 
 def _powerup_icon(surf, kind, cx, cy, size_px):
@@ -132,11 +156,17 @@ class PowerUpHelpScene:
         _gradient_bg(surf)
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
-        _outlined_title(surf, "POWER-UPS", (W // 2, 46),
-                        size=36, px=2, shadow_offset=(2, 3))
+        _outlined_title(surf, "POWER-UPS", (W // 2, 36),
+                        size=32, px=2, shadow_offset=(2, 3))
+        _outlined_title(surf, "COLLECT  TO  BOOST", (W // 2, 70),
+                        size=14, px=1, shadow_offset=(1, 2))
+        # Divider under the subtitle to mirror the menu/run-summary lockup.
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 130),
+                         (W // 2 - 60, 90),
+                         (W // 2 + 60, 90), 1)
 
         # 2x3 grid for the six real kinds.
-        grid_top = 96
+        grid_top = 110
         card_w = 162
         card_h = 124
         gap = 8

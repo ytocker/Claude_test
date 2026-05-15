@@ -103,6 +103,14 @@ draw_bg(screen)
 hud8.draw_name_entry(screen, 0, "PI")
 save("11_name_entry.png")
 
+from game.powerup_help import PowerUpHelpScene
+sc = PowerUpHelpScene()
+sc.update(0.0)
+ps_screen = pygame.Surface((W, H))
+sc.render(ps_screen)
+pygame.image.save(ps_screen, os.path.join(OUT_DIR, "12_powerups_screen.png"))
+print("  saved 12_powerups_screen.png")
+
 # ── Entity close-ups (zoomed panel) ─────────────────────────────────────────
 def entity_panel(entities_data, filename):
     """Render entities on a dark panel for a clear close-up."""
