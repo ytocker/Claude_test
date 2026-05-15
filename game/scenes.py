@@ -441,15 +441,31 @@ class App:
         self._stats_t = 0.0
 
     def _advance_past_stats(self):
-        """A tap on the run-summary screen goes straight back to the
-        main menu. The leaderboard is still reachable from the menu's
-        TOP 10 trophy button, so we don't auto-route the player into
-        it (or into name entry) — the run-end flow stays simple."""
+        """Tap on run-summary: if the score qualifies for top 10, the
+        player flows into name entry and then the leaderboard view
+        (so they see where their name landed). Otherwise we route
+        straight back to the main menu — the leaderboard is still
+        one tap away from there via the TOP 10 trophy."""
+        import sys
         self._final_score = self.world.score
         self._name_input_buf = ""
-        self.hud.title_t = 0.0
-        self.state = STATE_MENU
-        self._cooldown_t = 0.25
+        if sys.platform == "emscripten":
+            # Browser: kick off async fetch; _on_name_submitted decides
+            # qualifies → NAMEENTRY → LEADERBOARD vs back to MENU.
+            self._lb_scores = []
+            self._lb_player_rank = -1
+            self._fetch_pending = True
+            self._start_name_entry = True
+        else:
+            # Native: top-10 lives in local JSON, fetch is sync.
+            from game import leaderboard
+            scores = leaderboard._native_fetch()
+            if self._qualifies_for_top10(scores, self._final_score):
+                self.state = STATE_NAMEENTRY
+            else:
+                self.hud.title_t = 0.0
+                self.state = STATE_MENU
+                self._cooldown_t = 0.25
 
     @staticmethod
     def _qualifies_for_top10(scores, score) -> bool:
@@ -531,15 +547,22 @@ class App:
         self._show_leaderboard_native(scores, submitted=bool(name))
 
     async def _on_name_submitted(self):
+        """Browser path triggered from _advance_past_stats. Fetches the
+        current top 10, then branches on qualification: qualifiers go
+        through name entry and land on the leaderboard so they can see
+        where their name placed; non-qualifiers go straight back to
+        the main menu instead of being parked on the leaderboard."""
+        qualified = False
         try:
             from game import leaderboard
             scores = await leaderboard.fetch_top10()
             self._lb_fetch_error = leaderboard.last_fetch_error()
             if self._qualifies_for_top10(scores, self._final_score):
-                # Now we know they qualify — flip to NAMEENTRY so the
-                # Python-side render and the JS overlay both come up
-                # together. Not before; otherwise non-qualifiers see a
-                # name-entry screen flash for the duration of the fetch.
+                qualified = True
+                # Flip to NAMEENTRY so the Python-side render and the
+                # JS overlay come up together — non-qualifiers must
+                # never see a name-entry flash for the duration of
+                # the fetch.
                 self.state = STATE_NAMEENTRY
                 name = await leaderboard.open_name_entry()
                 if name:
@@ -559,8 +582,12 @@ class App:
             pass
         self._fetch_pending = False
         self.hud.title_t = 0.0
-        self.state = STATE_LEADERBOARD
-        self._cooldown_t = 1.0
+        if qualified:
+            self.state = STATE_LEADERBOARD
+            self._cooldown_t = 1.0
+        else:
+            self.state = STATE_MENU
+            self._cooldown_t = 0.25
 
     # ── render ──────────────────────────────────────────────────────────────
 
