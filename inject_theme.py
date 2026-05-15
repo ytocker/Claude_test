@@ -110,7 +110,6 @@ LOADING_HTML = """
 <div id="skybit-loading">
   <p class="sk-title">SKYBIT</p>
   <p class="sk-subtitle">Pocket Sky Flyer</p>
-  <div id="sk-cta" class="sk-cta">TAP &nbsp;&middot;&nbsp; CLICK &nbsp;&middot;&nbsp; SPACE</div>
   <div class="sk-progress" aria-hidden="true">
     <div id="sk-progress-fill" class="sk-progress-fill"></div>
   </div>
@@ -959,6 +958,7 @@ _LOADING_JS = """
     var t0 = Date.now();
     var pygbagReady = false;
     var stalled = false;
+    var dismissed = false;
 
     if (btn) btn.textContent = BTN_LOAD;
 
@@ -981,6 +981,8 @@ _LOADING_JS = """
             if (status) status.textContent = '';
             if (fill)   fill.classList.remove('sk-stalled');
             setFill(100);
+            /* Auto-boot: no tap required. dismiss() is idempotent. */
+            dismiss();
             return;
         }
         if (pygbagReady) return;
@@ -1023,6 +1025,8 @@ _LOADING_JS = """
         }
         if (stalled)        { reloadBust(); return; }
         if (!pygbagReady)   { pulseBtn();   return; }
+        if (dismissed) return;
+        dismissed = true;
 
         clearInterval(pollId);
         try { if (window.MM) window.MM.UME = true; } catch (_) {}
