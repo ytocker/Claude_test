@@ -328,6 +328,35 @@ def _draw_trophy(surf, cx, cy, size):
     surf.blit(g, (cx - gx, cy - gy))
 
 
+def _ribbon_banner(surf, cx, cy, text, w=120):
+    """Hexagonal gold-cloth banner with notched ends + scarlet hairline
+    trim — ported from tools/gen_scarlet_set.py::ribbon_banner so the
+    game-over NEW BEST! readout uses the mockup's hero badge instead
+    of plain pulsing text."""
+    h = 26
+    notch = 10
+    x = cx - w // 2
+    y = cy - h // 2
+    body_pts = [
+        (x + notch, y),
+        (x + w - notch, y),
+        (x + w, y + h // 2),
+        (x + w - notch, y + h),
+        (x + notch, y + h),
+        (x, y + h // 2),
+    ]
+    pygame.draw.polygon(surf, _GOLD_BRIGHT, body_pts)
+    pygame.draw.polygon(surf, _GOLD_DEEP, body_pts, 2)
+    pygame.draw.line(surf, _SCARLET_BOT,
+                     (x + notch, y + 3),
+                     (x + w - notch, y + 3), 1)
+    pygame.draw.line(surf, _SCARLET_BOT,
+                     (x + notch, y + h - 4),
+                     (x + w - notch, y + h - 4), 1)
+    tf = _font(13, True).render(text, True, NEAR_BLACK)
+    surf.blit(tf, tf.get_rect(center=(cx, cy)))
+
+
 def _draw_mountain_silhouette(surf, alpha=200):
     """Mountain silhouettes at the bottom — matches the welcome-screen SVG."""
     mtn = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -1026,31 +1055,31 @@ class HUD:
                           "S C O R E", str(score))
 
             if new_best:
-                # NEW BEST! ribbon sits between the title and the score
-                # medallion — same vertical order as the mockup. Star
-                # burst pulses around the label for celebration energy.
+                # NEW BEST! sits between title and medallion as a
+                # hexagonal ribbon banner (mockup convention). A small
+                # gold sparkle burst pulses around it for celebration.
                 nb_cy = 160
                 for i in range(8):
                     ang = (i / 8) * math.pi * 2 + self.title_t * 2
-                    r = 36 + 4 * math.sin(self.title_t * 5 + i)
+                    r = 70 + 4 * math.sin(self.title_t * 5 + i)
                     dx, dy = math.cos(ang) * r, math.sin(ang) * r
                     a = max(0, min(255, int(100 + 120 * math.sin(self.title_t * 4 + i * 0.8))))
                     s = pygame.Surface((4, 4), pygame.SRCALPHA)
                     pygame.draw.circle(s, (*_GOLD_BRIGHT, a), (2, 2), 2)
                     surf.blit(s, (W // 2 + int(dx) - 2, nb_cy + int(dy) - 2))
-                pulse_nb = 1.0 + math.sin(self.title_t * 6) * 0.1
-                _outlined_text(surf, "NEW  BEST!", (W // 2, nb_cy),
-                                size=int(22 * pulse_nb), fill=UI_ORANGE,
-                                outline=_RED_OUTLINE, px=2)
+                _ribbon_banner(surf, W // 2, nb_cy, "NEW  BEST !", w=130)
         else:
             pulse = 1.0 + math.sin(self.title_t * 4) * 0.05
             _outlined_text(surf, "TRY  AGAIN!", (W // 2, H // 2 - 30),
                             size=int(30 * pulse), fill=UI_ORANGE,
                             outline=_RED_OUTLINE, px=2)
 
-        btn_alpha = int(150 + math.sin(self.title_t * 4) * 90)
-        _pill_btn(surf, (W // 2, H - 72), "TAP TO RETRY", size=19, alpha=btn_alpha)
+        # Mountains first so the pill sits cleanly on top.
         _draw_mountain_silhouette(surf, alpha=160)
+        # TAP TO RETRY pill — solid alpha + primary halo so it carries
+        # the mockup's hero treatment instead of pulsing low.
+        _pill_btn(surf, (W // 2, H - 56), "TAP TO RETRY",
+                  size=19, alpha=255, min_width=220, primary=True)
 
     def draw_name_entry(self, surf, dt, buf: str):
         self.title_t += dt
