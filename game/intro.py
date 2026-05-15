@@ -38,7 +38,7 @@ from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
 from game.entities import Coin, PowerUp
 
 
-DURATION = 20.0
+DURATION = 17.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -932,18 +932,17 @@ def _journey_phase(u: float) -> float:
 # occupy. Each one is 3.5 s wide so labels can breathe and entities
 # linger on screen.
 _TUTORIAL_START = 4.0
-_TUTORIAL_END   = 17.0
-_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 13 s
+_TUTORIAL_END   = 14.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 10 s
 
-# Sub-beat lengths. The TAP TO JUMP beat fits three real-physics flaps
-# tightly: by the third flap arc the bird is already settling, so the
-# old 1.45 s of level-flight tail (between settle and the cut to
-# AVOID PILLARS) was dead time. The beat is trimmed to 2.5 s — just
-# enough for the three flaps plus a quick ease-out to baseline — and
-# the pillars beat picks up immediately. The other three sub-beats
-# stay at 3.5 s.
+# Sub-beat lengths. All four tutorial beats now run at the same tight
+# 2.5 s pace — the previous mismatch (jump 2.5 s, the rest 3.5 s) made
+# TAP TO JUMP feel intense and AVOID PILLARS / PICK UP COINS /
+# TAKE POWER-UPS feel mellow by comparison. Sub-beat internals scale
+# off `sub_t = sub_u * _SUB_LEN`, so the per-beat animations compress
+# proportionally without further changes.
 _JUMP_SUB_LEN = 2.5
-_SUB_LEN = 3.5   # pillars / coins / powerups
+_SUB_LEN = 2.5   # pillars / coins / powerups
 
 
 def _label_alpha(sub_u: float) -> int:
