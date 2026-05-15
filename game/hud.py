@@ -33,8 +33,13 @@ _RED_OUTLINE    = (168,  32,  16)   # #a82010
 _ORANGE_BORDER  = (232, 104,  40)   # #e86828
 _SCARLET_TOP    = (240,  55,  55)   # #f03737  pill gradient top
 _SCARLET_BOT    = (148,  20,  20)   # #941414  pill gradient bottom
-_SCARLET_TOP_DIM = (170,  46,  46)  # #aa2e2e  dim variant for menu pills
-_SCARLET_BOT_DIM = ( 92,  18,  18)  # #5c1212  dim variant for menu pills
+# Dim pill colours used by the menu's three CTAs. Tuned so the bright
+# top of the gradient is literally _RED_OUTLINE — the same red that
+# rims the SKYBIT title on this screen — and the bottom is a darker
+# shade of that same red, so the buttons and the title read as the
+# same colour family rather than a pink-vs-rust mismatch.
+_SCARLET_TOP_DIM = (168,  32,  16)  # #a82010  == _RED_OUTLINE
+_SCARLET_BOT_DIM = ( 78,  14,   6)  # #4e0e06  half-luminance, same hue
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
