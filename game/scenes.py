@@ -766,7 +766,7 @@ class App:
             self.hud.draw_play(self.screen, self.world, self.best)
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
-            self.hud.draw_pause_overlay(self.screen)
+            self.hud.draw_pause_overlay(self.screen, score=self.world.score)
         elif self.state == STATE_STATS:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
                                 show_prompt=not self._fetch_pending)

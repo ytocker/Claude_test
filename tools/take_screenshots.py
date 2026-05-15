@@ -63,7 +63,7 @@ save("02_play_hud.png")
 hud3 = HUD(); hud3.title_t = 0.9
 draw_bg(screen); w2.bird.draw(screen,0,0)
 hud3.draw_play(screen, w2, 18, paused=True)
-hud3.draw_pause_overlay(screen);    save("03_pause.png")
+hud3.draw_pause_overlay(screen, score=w2.score);    save("03_pause.png")
 
 hud4 = HUD(); hud4.title_t = 1.4
 w4 = World()

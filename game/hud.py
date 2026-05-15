@@ -641,18 +641,20 @@ class HUD:
         self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
 
-    def draw_pause_overlay(self, surf):
+    def draw_pause_overlay(self, surf, score: int = 0):
         self.title_t += 1 / 60
         # Deep blue-purple dim
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((6, 2, 28, 165))
         surf.blit(dim, (0, 0))
 
-        cy = H // 2 - 20
-        # Frosted panel behind the pause text
-        panel = pygame.Rect(W // 2 - 120, cy - 48, 240, 100)
-        _dark_panel(surf, panel, radius=20, alpha=200)
+        # Hero score medallion at the top so the player keeps a clear
+        # read on the current run while paused (mockup convention).
+        if score > 0:
+            _score_emblem(surf, W // 2, 130, 44,
+                          "S C O R E", str(score))
 
+        cy = H // 2 + 30
         pulse = 1.0 + math.sin(self.title_t * 2.6) * 0.04
         _outlined_text(surf, "PAUSED", (W // 2, cy),
                         size=int(52 * pulse), px=3)
@@ -757,26 +759,29 @@ class HUD:
         # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
-        # ── Score: centered, styled dark pill backdrop
-        score_txt = str(world.score)
-        cf = _font(48, True)
-        img = cf.render(score_txt, True, WHITE)
-        out = cf.render(score_txt, True, _GOLD_BRIGHT)
-        sh  = cf.render(score_txt, True, NEAR_BLACK)
-        r = img.get_rect(center=(W // 2, 72))
-        back_w = max(r.width + 52, 80)
-        back_h = r.height + 16
-        back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-        pygame.draw.rect(back, (*_PANEL_DARK, 140), (0, 0, back_w, back_h),
-                         border_radius=back_h // 2)
-        pygame.draw.rect(back, (*_ORANGE_BORDER, 60), (0, 0, back_w, back_h),
-                         border_radius=back_h // 2, width=1)
-        surf.blit(back, (W // 2 - back_w // 2, r.y - 8))
-        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
-            surf.blit(out, (r.x + ox, r.y + oy))
-        sh.set_alpha(160)
-        surf.blit(sh, (r.x + 2, r.y + 3))
-        surf.blit(img, r.topleft)
+        # ── Score: centered, styled dark pill backdrop. Suppressed when
+        # paused — the pause overlay shows the same number on its hero
+        # medallion, and we don't want both reading at once.
+        if not paused:
+            score_txt = str(world.score)
+            cf = _font(48, True)
+            img = cf.render(score_txt, True, WHITE)
+            out = cf.render(score_txt, True, _GOLD_BRIGHT)
+            sh  = cf.render(score_txt, True, NEAR_BLACK)
+            r = img.get_rect(center=(W // 2, 72))
+            back_w = max(r.width + 52, 80)
+            back_h = r.height + 16
+            back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
+            pygame.draw.rect(back, (*_PANEL_DARK, 140), (0, 0, back_w, back_h),
+                             border_radius=back_h // 2)
+            pygame.draw.rect(back, (*_ORANGE_BORDER, 60), (0, 0, back_w, back_h),
+                             border_radius=back_h // 2, width=1)
+            surf.blit(back, (W // 2 - back_w // 2, r.y - 8))
+            for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+                surf.blit(out, (r.x + ox, r.y + oy))
+            sh.set_alpha(160)
+            surf.blit(sh, (r.x + 2, r.y + 3))
+            surf.blit(img, r.topleft)
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
@@ -996,31 +1001,38 @@ class HUD:
         if score > 0:
             # "GAME OVER" with red outline
             pulse_go = 1.0 + math.sin(self.title_t * 3.0) * 0.03
-            _outlined_text(surf, "GAME  OVER", (W // 2, 172),
+            _outlined_text(surf, "GAME  OVER", (W // 2, 100),
                             size=int(38 * pulse_go), px=3)
 
             # Decorative divider
             pygame.draw.line(surf, (*_ORANGE_BORDER, 140),
-                             (W // 2 - 80, 200), (W // 2 + 80, 200), 1)
+                             (W // 2 - 80, 128), (W // 2 + 80, 128), 1)
 
-            # Score block
-            score_panel = pygame.Rect(W // 2 - 90, 212, 180, 88)
-            _dark_panel(surf, score_panel, radius=18, alpha=210)
-            lf = _font(12, False)
-            lbl = lf.render("S C O R E", True, _GOLD_MUTED)
-            lbl.set_alpha(180)
-            surf.blit(lbl, lbl.get_rect(center=(W // 2, 228)))
-            pulse_sc = 1.0 + math.sin(self.title_t * 2.2) * 0.02
-            sf = _font(int(52 * pulse_sc), True)
-            sc = sf.render(str(score), True, _GOLD_BRIGHT)
-            surf.blit(sc, sc.get_rect(center=(W // 2, 268)))
+            # Hero score medallion with a subtle gold sparkle ring so the
+            # final score reads as the celebratory anchor of the screen.
+            emblem_cx, emblem_cy, emblem_r = W // 2, 240, 56
+            for i in range(20):
+                ang = i * (2 * math.pi / 20) + math.pi / 20
+                d = emblem_r + 22
+                ex = emblem_cx + math.cos(ang) * d
+                ey = emblem_cy + math.sin(ang) * d
+                a = max(0, min(255, int(120 +
+                    100 * math.sin(self.title_t * 3 + i * 0.6))))
+                spark = pygame.Surface((6, 6), pygame.SRCALPHA)
+                pygame.draw.line(spark, (*_GOLD_BRIGHT, a), (3, 0), (3, 5))
+                pygame.draw.line(spark, (*_GOLD_BRIGHT, a), (0, 3), (5, 3))
+                surf.blit(spark, (int(ex) - 3, int(ey) - 3))
+            _score_emblem(surf, emblem_cx, emblem_cy, emblem_r,
+                          "S C O R E", str(score))
 
             if new_best:
-                # Star burst dots around NEW BEST
-                nb_cy = 332
+                # NEW BEST! ribbon sits between the title and the score
+                # medallion — same vertical order as the mockup. Star
+                # burst pulses around the label for celebration energy.
+                nb_cy = 160
                 for i in range(8):
                     ang = (i / 8) * math.pi * 2 + self.title_t * 2
-                    r = 28 + 4 * math.sin(self.title_t * 5 + i)
+                    r = 36 + 4 * math.sin(self.title_t * 5 + i)
                     dx, dy = math.cos(ang) * r, math.sin(ang) * r
                     a = max(0, min(255, int(100 + 120 * math.sin(self.title_t * 4 + i * 0.8))))
                     s = pygame.Surface((4, 4), pygame.SRCALPHA)
