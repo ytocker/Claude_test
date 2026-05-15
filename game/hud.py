@@ -27,14 +27,15 @@ def _get_grow_parrot_hud() -> "pygame.Surface":
     return _grow_parrot_hud
 
 # ── Theme palette matching the HTML welcome screen ───────────────────────────
-_GOLD_BRIGHT   = (240, 192,  64)   # #f0c040
-_GOLD_MUTED    = (216, 184,  85)   # #d8b855
-_RED_OUTLINE   = (168,  32,  16)   # #a82010
-_ORANGE_BORDER = (232, 104,  40)   # #e86828
-_BTN_TOP       = (200,  64,  24)   # #c84018
-_BTN_BOT       = (126,  28,   2)   # #7e1c02
-_PANEL_DARK    = ( 12,   8,  38)   # deep purple panel
-_NIGHT_DEEP    = (  6,   1,  21)   # #060115
+_GOLD_BRIGHT    = (240, 192,  64)   # #f0c040
+_GOLD_MUTED     = (216, 184,  85)   # #d8b855
+_RED_OUTLINE    = (168,  32,  16)   # #a82010
+_ORANGE_BORDER  = (232, 104,  40)   # #e86828
+_SCARLET_TOP    = (240,  55,  55)   # #f03737  pill gradient top
+_SCARLET_BOT    = (148,  20,  20)   # #941414  pill gradient bottom
+_SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
+_PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
+_NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
 
 _fonts: dict = {}
@@ -60,11 +61,14 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
     return r
 
 
-def _pill_btn(surf, center, text, size=20, alpha=255, wide=False, min_width=None):
-    """Styled pill button with red gradient fill + orange border (welcome theme).
-    Returns the pygame.Rect of the rendered button so callers can hit-test
-    clicks against it. `min_width` lets paired buttons (SUBMIT + SKIP) share
-    one width regardless of label length."""
+def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
+              min_width=None, primary=False):
+    """Scarlet body + gold border + cream text, with drop shadow, top-half
+    frosting, gold accent line and (optionally) a gold glow when
+    ``primary=True`` — the canonical Pip Scarlet pill from the menu
+    mockup (see tools/gen_scarlet_set.py::pill). Returns the rect so
+    callers can hit-test clicks. ``min_width`` lets paired buttons
+    (SUBMIT + SKIP) share one width regardless of label length."""
     f = _font(size, True)
     img = f.render(text, True, WHITE)
     pad_x = 64 if wide else 44
@@ -72,31 +76,71 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False, min_width=None
     if min_width is not None:
         pw = max(pw, min_width)
     ph = img.get_height() + 22
+    cx, cy = center
+    x = cx - pw // 2
+    y = cy - ph // 2
+
+    # Optional gold halo on the primary action button.
+    if primary:
+        glow = pygame.Surface((pw + 24, ph + 24), pygame.SRCALPHA)
+        for r in range(12, 0, -1):
+            a = int(48 * r / 12 / 4)
+            pygame.draw.rect(glow, (*_GOLD_BRIGHT, a),
+                             (12 - r, 12 - r, pw + r * 2, ph + r * 2),
+                             border_radius=(ph + r * 2) // 2)
+        surf.blit(glow, (x - 12, y - 12))
+
+    # Drop shadow.
+    sh = pygame.Surface((pw + 4, ph + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 90),
+                     (0, 0, pw + 4, ph + 4),
+                     border_radius=(ph + 4) // 2)
+    surf.blit(sh, (x - 2, y + 6))
+
+    # Body: scarlet vertical gradient.
     pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
-    # Gradient fill
-    for y in range(ph):
-        t = y / max(1, ph - 1)
-        c = lerp_color(_BTN_TOP, _BTN_BOT, t)
-        pygame.draw.line(pill, c, (0, y), (pw - 1, y))
-    # Rounded border mask
+    for yy in range(ph):
+        t = yy / max(1, ph - 1)
+        c = lerp_color(_SCARLET_TOP, _SCARLET_BOT, t)
+        pygame.draw.line(pill, c, (0, yy), (pw - 1, yy))
+
+    # Frosting on the top half + bottom darkening on the lower half so the
+    # gradient reads as a glossy 3D pill rather than a flat colour ramp.
+    frost = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    for yy in range(ph // 2):
+        a = int(50 * (1 - yy / (ph / 2)))
+        pygame.draw.line(frost, (255, 245, 220, a), (0, yy), (pw, yy))
+    pill.blit(frost, (0, 0))
+    bsh = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    for yy in range(ph // 2, ph):
+        a = int(55 * (yy - ph // 2) / (ph / 2))
+        pygame.draw.line(bsh, (0, 0, 0, a), (0, yy), (pw, yy))
+    pill.blit(bsh, (0, 0))
+
+    # Clip to a rounded-rect mask.
     mask = pygame.Surface((pw, ph), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, pw, ph),
                      border_radius=ph // 2)
     pill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # Orange border
-    border = pygame.Surface((pw, ph), pygame.SRCALPHA)
-    pygame.draw.rect(border, (*_ORANGE_BORDER, 255), (0, 0, pw, ph),
+
+    # Gold border + thin gold accent line just inside the top.
+    pygame.draw.rect(pill, _GOLD_BRIGHT, (0, 0, pw, ph),
                      width=2, border_radius=ph // 2)
-    pill.blit(border, (0, 0))
-    # Inner highlight
-    pygame.draw.line(pill, (255, 255, 255, 40), (ph // 2, 2), (pw - ph // 2, 2))
-    ir = img.get_rect(center=(pw // 2, ph // 2))
-    pill.blit(img, ir.topleft)
+    pygame.draw.line(pill, (*_GOLD_BRIGHT, 110),
+                     (ph // 2, 3), (pw - ph // 2, 3), 1)
+
     pill.set_alpha(alpha)
-    cx, cy = center
-    top_left = (cx - pw // 2, cy - ph // 2)
-    surf.blit(pill, top_left)
-    return pygame.Rect(top_left[0], top_left[1], pw, ph)
+    surf.blit(pill, (x, y))
+
+    # Label: scarlet shadow then cream face, so the text feels embossed
+    # rather than floating on top of the gradient.
+    sh_img = f.render(text, True, _SCARLET_SHADOW)
+    sh_img.set_alpha(220)
+    tr = img.get_rect(center=(cx, cy))
+    surf.blit(sh_img, (tr.x + 1, tr.y + 1))
+    surf.blit(img, tr)
+
+    return pygame.Rect(x, y, pw, ph)
 
 
 def _dark_panel(surf, rect, radius=16, alpha=210):
@@ -588,7 +632,7 @@ class HUD:
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
         self.menu_start_rect = _pill_btn(
             surf, (W // 2, y_start), "TAP TO START",
-            size=22, alpha=btn_alpha, min_width=220)
+            size=22, alpha=btn_alpha, min_width=220, primary=True)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
             size=18, alpha=230, min_width=220)
