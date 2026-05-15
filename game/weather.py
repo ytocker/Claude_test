@@ -1,9 +1,9 @@
 """
-Biome-driven weather: rain streaks, lightning flashes, fog, wind-blown leaves.
+Biome-driven weather: rain streaks, lightning flashes, wind-blown leaves.
 
 Weather is keyed to `biome_phase` rather than `biome_time` so it follows the
-sky. Everything is procedural — particle-style rain streaks, a cached fog
-gradient, and a brief full-surface alpha pulse for lightning.
+sky. Everything is procedural — particle-style rain streaks and a brief
+full-surface alpha pulse for lightning.
 """
 from __future__ import annotations
 
@@ -52,11 +52,6 @@ def rain_color(phase: float):
 def lightning_active(phase: float) -> bool:
     """Lightning only during the night window."""
     return 0.55 <= phase <= 0.72
-
-
-def fog_intensity(phase: float) -> float:
-    """Patchy fog peaks in predawn (0.78), fades by sunrise (0.90)."""
-    return _bump(phase, 0.80, 0.10) * 0.9
 
 
 def wind_intensity(phase: float) -> float:
@@ -120,34 +115,6 @@ class _Leaf:
         rx = max(1, int(abs(sx) * r))
         pygame.draw.ellipse(surf, self.color,
                             (int(self.x) - rx, int(self.y) - r, rx * 2, r * 2))
-
-
-# ── fog overlay ─────────────────────────────────────────────────────────────
-
-_fog_cache: dict = {}
-
-
-def _get_fog_band(alpha_scale: float) -> pygame.Surface:
-    key = int(alpha_scale * 100)
-    cached = _fog_cache.get(key)
-    if cached is not None:
-        return cached
-    band_h = 200
-    surf = pygame.Surface((W, band_h), pygame.SRCALPHA)
-    for i in range(band_h):
-        # Fade in from the top, peak near the ground, fade out the last 20 px
-        t = i / (band_h - 1)
-        if t < 0.2:
-            a = t / 0.2 * 0.6
-        elif t > 0.85:
-            a = (1.0 - (t - 0.85) / 0.15) * 0.9
-        else:
-            a = 0.9
-        alpha = int(180 * a * alpha_scale)
-        pygame.draw.line(surf, (220, 225, 240, alpha),
-                         (0, i), (W - 1, i))
-    _fog_cache[key] = surf
-    return surf
 
 
 # ── main Weather controller ────────────────────────────────────────────────
@@ -234,11 +201,6 @@ class Weather:
         # Leaves
         for lf in self.leaves:
             lf.draw(surf)
-        # Fog near the ground
-        fog = fog_intensity(self.phase)
-        if fog > 0:
-            band = _get_fog_band(fog)
-            surf.blit(band, (0, GROUND_Y - 160))
         # Lightning flash — additive white-blue pulse
         if self.flash_remaining > 0:
             t = self.flash_remaining / 0.18
