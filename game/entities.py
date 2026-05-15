@@ -1571,15 +1571,16 @@ import os as _os
 
 _FLOAT_FONT_DIR = _os.path.join(_os.path.dirname(__file__), "assets")
 _FLOAT_BOLD = _os.path.join(_FLOAT_FONT_DIR, "LiberationSans-Bold.ttf")
-_FLOAT_REG  = _os.path.join(_FLOAT_FONT_DIR, "LiberationSans-Regular.ttf")
+# Regular variant retired; see game/hud.py for the rationale. The
+# `bold=False` parameter is kept for source-level call-site
+# compatibility but all renders now use the Bold face.
 
 
 def _get_float_font(size, bold=True):
-    key = (size, bold)
+    key = (size, True)
     f = _float_font_cache.get(key)
     if f is None:
-        path = _FLOAT_BOLD if bold else _FLOAT_REG
-        f = pygame.font.Font(path, size)
+        f = pygame.font.Font(_FLOAT_BOLD, size)
         _float_font_cache[key] = f
     return f
 

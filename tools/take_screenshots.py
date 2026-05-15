@@ -197,7 +197,7 @@ kfc_panel.blit(kfc_lbl, (W//2 - kfc_lbl.get_width()//2, 12))
 for fi in range(4):
     bx = int(W * 0.15 + fi * W * 0.22)
     by = int(H * 0.48)
-    frame = _parrot.KFC_FRAMES[fi]
+    frame = _parrot._get_kfc_frames()[fi]
     kfc_panel.blit(frame, (bx - frame.get_width()//2, by - frame.get_height()//2))
 
 pygame.image.save(kfc_panel, os.path.join(OUT_DIR, "09_kfc_chicken.png"))

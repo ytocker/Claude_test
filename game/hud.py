@@ -379,15 +379,19 @@ def _draw_mountain_silhouette(surf, alpha=200):
 # browser/pygbag build doesn't depend on a system font that isn't there.
 _FONT_DIR = os.path.join(os.path.dirname(__file__), "assets")
 _FONT_BOLD = os.path.join(_FONT_DIR, "LiberationSans-Bold.ttf")
-_FONT_REG  = os.path.join(_FONT_DIR, "LiberationSans-Regular.ttf")
+# LiberationSans-Regular.ttf used to live alongside Bold and back the
+# `bold=False` path here, but only two call sites ever passed False
+# (a stats-row caption + a name-entry placeholder) and visually they
+# read fine in the Bold face. Shipping the Regular file added ~400 KB
+# to the WASM bundle for no real gain, so the file was retired and
+# `bold=False` now falls through to the Bold ttf.
 
 
 def _font(size, bold=True):
-    k = (size, bold)
+    k = (size, True)
     f = _fonts.get(k)
     if f is None:
-        path = _FONT_BOLD if bold else _FONT_REG
-        f = pygame.font.Font(path, size)
+        f = pygame.font.Font(_FONT_BOLD, size)
         _fonts[k] = f
     return f
 

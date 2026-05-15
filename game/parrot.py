@@ -355,19 +355,33 @@ def _build_grow_frame(angle_deg):
     return pygame.transform.smoothscale(outlined, (_GROW_W, _GROW_H))
 
 
-GROW_FRAMES: list[pygame.Surface] = [_build_grow_frame(a) for a in _WING_ANGLES]
+GROW_FRAMES: "list[pygame.Surface] | None" = None
 
 _grow_rot_cache: dict = {}
+
+
+def _get_grow_frames() -> "list[pygame.Surface]":
+    """Lazy-build the 4 grow-mode parrot frames. At 4.5× supersample
+    each frame is expensive (~tens of ms on native, multiples of that
+    on WASM) and players who never pick up the GROW power-up never
+    need them — building them at import time was adding noticeable
+    latency to the splash-to-menu transition. Built once on first
+    call and cached for the rest of the session."""
+    global GROW_FRAMES
+    if GROW_FRAMES is None:
+        GROW_FRAMES = [_build_grow_frame(a) for a in _WING_ANGLES]
+    return GROW_FRAMES
 
 
 def get_grow_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     """Hi-res grow-mode parrot. Pre-built at full grow display size — the
     caller MUST NOT smoothscale-up further."""
-    frame_idx = frame_idx % len(GROW_FRAMES)
+    frames = _get_grow_frames()
+    frame_idx = frame_idx % len(frames)
     key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
     s = _grow_rot_cache.get(key)
     if s is None:
-        s = pygame.transform.rotozoom(GROW_FRAMES[frame_idx], key[1], 1.0)
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _grow_rot_cache[key] = s
     return s
 
@@ -619,18 +633,29 @@ def _build_fried_frame(wing_angle_deg):
     return surf
 
 
-KFC_FRAMES: list[pygame.Surface] = [_add_outline(_build_fried_frame(a)) for a in _WING_ANGLES]
+KFC_FRAMES: "list[pygame.Surface] | None" = None
 
 _kfc_rot_cache: dict = {}
 
 
+def _get_kfc_frames() -> "list[pygame.Surface]":
+    """Lazy-build the 4 KFC-mode parrot frames (same reasoning as
+    _get_grow_frames — players who never pick up the KFC power-up
+    never need them, so we don't pay the cost at boot)."""
+    global KFC_FRAMES
+    if KFC_FRAMES is None:
+        KFC_FRAMES = [_add_outline(_build_fried_frame(a)) for a in _WING_ANGLES]
+    return KFC_FRAMES
+
+
 def get_fried_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     """Return rotated fried-chicken parrot, cached by (frame, rounded-angle)."""
-    frame_idx = frame_idx % len(KFC_FRAMES)
+    frames = _get_kfc_frames()
+    frame_idx = frame_idx % len(frames)
     key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
     s = _kfc_rot_cache.get(key)
     if s is None:
-        s = pygame.transform.rotozoom(KFC_FRAMES[frame_idx], key[1], 1.0)
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _kfc_rot_cache[key] = s
     return s
 
