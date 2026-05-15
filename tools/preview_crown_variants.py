@@ -160,9 +160,11 @@ def _draw_crown(surf, cx, cy, size):
     surf.blit(g, (cx - g_w // 2, cy - g_h // 2))
 
 
-def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
+def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant,
+                             crown_drawer=None):
     """Replica of game.hud.HUD.draw_leaderboard with one extra knob
-    (variant in 1..5) that controls the #1 row's chrome."""
+    (variant in 1..6) that controls the #1 row's chrome. Pass
+    `crown_drawer=fn(surf, cx, cy)` to swap the perched-crown art."""
     dim = pygame.Surface((W, H), pygame.SRCALPHA)
     dim.fill((0, 0, 20, 200))
     surf.blit(dim, (0, 0))
@@ -304,7 +306,10 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
         if wants_crown:
             # Position so the crown's band overlaps the badge top by ~3px
             crown_cy = row_cy - badge_r - crown_size // 2 + 4
-            _draw_crown(surf, badge_cx, crown_cy, crown_size)
+            if crown_drawer is None:
+                _draw_crown(surf, badge_cx, crown_cy, crown_size)
+            else:
+                crown_drawer(surf, badge_cx, crown_cy)
 
         # ── sparkles around the crown (static for preview) ─────────────────
         if wants_sparkles:
