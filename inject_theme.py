@@ -109,7 +109,7 @@ _MOUNTAINS_SVG = """\
 LOADING_HTML = """
 <div id="skybit-loading">
   <p class="sk-title">SKYBIT</p>
-  <p class="sk-subtitle">Pocket Sky Flyer</p>
+  <p class="sk-subtitle">Pocket&nbsp;&nbsp;Sky&nbsp;&nbsp;Flyer</p>
   <div class="sk-progress" aria-hidden="true">
     <div id="sk-progress-fill" class="sk-progress-fill"></div>
   </div>
@@ -269,9 +269,9 @@ body   { background: #0d0820 !important; }
 
 .sk-title {
     font-family: Arial Black, Arial, sans-serif;
-    font-size: clamp(54px, 14vw, 90px);
+    font-size: clamp(72px, 20vw, 148px);
     font-weight: 900;
-    letter-spacing: 8px;
+    letter-spacing: 0;
     color: #f0c040;
     margin: 0;
     text-shadow:
@@ -279,6 +279,10 @@ body   { background: #0d0820 !important; }
          3px  0   0 #a82010,
          0   -3px 0 #a82010,
          0    3px 0 #a82010,
+        -3px -3px 0 #a82010,
+        -3px  3px 0 #a82010,
+         3px -3px 0 #a82010,
+         3px  3px 0 #a82010,
          0    9px 8px rgba(0, 0, 0, 0.85);
     animation: sk-float 3.4s ease-in-out infinite;
     pointer-events: none;
@@ -291,18 +295,22 @@ body   { background: #0d0820 !important; }
 }
 
 .sk-subtitle {
-    font-family: Arial, sans-serif;
-    /* Fixed px, NOT clamp(): the user reports the previous clamp-based
-       sizes appeared unchanged on their device. A fixed value makes
-       cache-vs-fresh easy to tell from one look — if the subtitle is
-       still big, the page is cached. */
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    color: #d8b855;
+    font-family: Arial Black, Arial, sans-serif;
+    font-size: clamp(20px, 6vw, 44px);
+    font-weight: 900;
+    letter-spacing: 0;
+    color: #f0c040;
     margin: 8px 0 56px;
-    opacity: 0.75;
     text-transform: uppercase;
+    text-shadow:
+        -2px  0   0 #a82010,
+         2px  0   0 #a82010,
+         0   -2px 0 #a82010,
+         0    2px 0 #a82010,
+        -2px -2px 0 #a82010,
+        -2px  2px 0 #a82010,
+         2px -2px 0 #a82010,
+         2px  2px 0 #a82010;
     pointer-events: none;
 }
 
