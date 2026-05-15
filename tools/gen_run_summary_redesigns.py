@@ -581,38 +581,41 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label):
 
 
 def powerup_chip(surf, cx, cy, kind, count, size=22):
-    """Small frosted chip showing a real in-game powerup icon + count
-    badge. The badge is always rendered (even at count=1) so the player
-    can see exactly how many of each kind they grabbed."""
-    chip_w = size * 2 * SCALE
-    chip_h = size * 2 * SCALE + 4 * SCALE
+    """Vertical chip — icon on top with breathing room, count rendered
+    as clean gold text underneath. The count never overlaps the icon
+    so even single-pixel power-up details (mushroom dot, ghost eye) stay
+    fully readable."""
+    icon_area = size * 2 * SCALE
+    count_area = 18 * SCALE if size >= 18 else 16 * SCALE
+    chip_w = icon_area
+    chip_h = icon_area + count_area
     rect = pygame.Rect(cx - chip_w // 2, cy - chip_h // 2, chip_w, chip_h)
     body = pygame.Surface(rect.size, pygame.SRCALPHA)
     pygame.draw.rect(body, (*PANEL_DARK, 220), (0, 0, rect.w, rect.h),
                      border_radius=int(8 * SCALE))
     pygame.draw.rect(body, (*GOLD_BRIGHT, 180), (0, 0, rect.w, rect.h),
                      width=1 * SCALE, border_radius=int(8 * SCALE))
+    # Hairline divider between icon and count
+    pygame.draw.line(body, (*GOLD_BRIGHT, 90),
+                     (6 * SCALE, icon_area - 1 * SCALE),
+                     (rect.w - 6 * SCALE, icon_area - 1 * SCALE),
+                     1)
     surf.blit(body, rect.topleft)
-    _ingame_powerup_icon(surf, kind, rect.centerx, rect.centery - 2 * SCALE,
+    # Icon — centered in the upper area, with a touch of headroom
+    _ingame_powerup_icon(surf, kind,
+                         rect.centerx,
+                         rect.y + icon_area // 2,
                          int(size * 1.55 * SCALE))
-    # Count badge — always shown, even at 1, per design spec
+    # Count — clean gold text in the lower area, no badge
     if count and count > 0:
-        bf_size = 10 if size >= 18 else 9
-        bf = font(bf_size, True).render(f"x{count}", True, CREAM)
-        bbg_w = bf.get_width() + 5 * SCALE
-        bbg_h = bf.get_height() + 2 * SCALE
-        bx = rect.right - 4 * SCALE
-        by = rect.bottom - 4 * SCALE
-        bbg = pygame.Surface((bbg_w, bbg_h), pygame.SRCALPHA)
-        pygame.draw.rect(bbg, (*SCARLET_BOT, 235),
-                         (0, 0, bbg_w, bbg_h),
-                         border_radius=int(4 * SCALE))
-        pygame.draw.rect(bbg, (*GOLD_BRIGHT, 200),
-                         (0, 0, bbg_w, bbg_h),
-                         width=1, border_radius=int(4 * SCALE))
-        surf.blit(bbg, (bx - bbg_w, by - bbg_h))
-        surf.blit(bf, (bx - bbg_w + 3 * SCALE,
-                       by - bbg_h + 1 * SCALE))
+        cnt_size = 12 if size >= 18 else (11 if size >= 16 else 10)
+        cf = font(cnt_size, True).render(f"×{count}", True, GOLD_BRIGHT)
+        cs = font(cnt_size, True).render(f"×{count}", True, NEAR_BLACK)
+        cs.set_alpha(170)
+        cr = cf.get_rect(center=(rect.centerx,
+                                 rect.y + icon_area + count_area // 2))
+        surf.blit(cs, (cr.x + 1 * SCALE, cr.y + 1 * SCALE))
+        surf.blit(cf, cr)
 
 
 # ── DESIGN 1 — Trophy Cinema ────────────────────────────────────────────────
@@ -734,7 +737,7 @@ def draw_v1_trophy_cinema(surf, data):
     # fit in the bar without wrapping.
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        bar_y = 470 * SCALE
+        bar_y = 458 * SCALE
         cap2 = font(11, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
@@ -755,7 +758,7 @@ def draw_v1_trophy_cinema(surf, data):
         sx = (W - total_cw) // 2 + chip_w // 2
         for i, (kind, count) in enumerate(pu):
             powerup_chip(surf, sx + i * chip_pitch,
-                         bar_y + 32 * SCALE,
+                         bar_y + 38 * SCALE,
                          kind, count, size=chip_size)
 
     # Primary CTA + secondary
