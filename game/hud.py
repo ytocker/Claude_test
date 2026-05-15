@@ -34,6 +34,7 @@ _ORANGE_BORDER  = (232, 104,  40)   # #e86828
 _SCARLET_TOP    = (240,  55,  55)   # #f03737  pill gradient top
 _SCARLET_BOT    = (148,  20,  20)   # #941414  pill gradient bottom
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
+_GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
 _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
@@ -175,6 +176,58 @@ def _dark_panel(surf, rect, radius=16, alpha=210):
                          (inset, 2),
                          (rect.width - inset, 2), 1)
     surf.blit(pnl, rect.topleft)
+
+
+def _score_emblem(surf, cx, cy, r, label, value):
+    """Hero score medallion — circular gold ring with a scarlet accent
+    band, dark navy interior, radial laurel ticks, label at top, big
+    gold value centred. Ported from tools/gen_scarlet_set.py::
+    score_emblem so the pause / stats / game-over screens get the
+    same hero treatment as the menu mockup."""
+    # Soft drop shadow
+    sh = pygame.Surface((r * 2 + 16, r * 2 + 16), pygame.SRCALPHA)
+    pygame.draw.circle(sh, (0, 0, 0, 95), (r + 8, r + 8), r + 2)
+    surf.blit(sh, (cx - r - 8, cy - r + 4))
+
+    # Dark navy interior
+    pygame.draw.circle(surf, _PANEL_DARK, (cx, cy), r)
+
+    # Warm inner radial glow so the medallion feels lit from inside.
+    inner_max = max(r - 6, 1)
+    glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    for rr in range(inner_max, 0, -1):
+        a = int(14 * (1 - rr / inner_max))
+        pygame.draw.circle(glow, (255, 220, 140, a),
+                           (r, r - r // 4), rr)
+    surf.blit(glow, (cx - r, cy - r))
+
+    # Thick outer gold ring + slim scarlet accent inside + thin inner gold.
+    pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), r, 3)
+    pygame.draw.circle(surf, _SCARLET_TOP, (cx, cy), max(r - 4, 1), 2)
+    pygame.draw.circle(surf, _GOLD_DEEP,   (cx, cy), max(r - 9, 1), 1)
+
+    # Radial laurel ticks around the outer ring.
+    for ang_deg in range(0, 360, 12):
+        a = math.radians(ang_deg - 90)
+        x1 = cx + math.cos(a) * (r - 1)
+        y1 = cy + math.sin(a) * (r - 1)
+        x2 = cx + math.cos(a) * (r + 2)
+        y2 = cy + math.sin(a) * (r + 2)
+        pygame.draw.line(surf, _GOLD_DEEP, (x1, y1), (x2, y2), 1)
+
+    # Label at top, value centred.
+    lbl_y = cy - int(r * 0.42)
+    lf = _font(13, True).render(label, True, _GOLD_MUTED)
+    lf.set_alpha(230)
+    surf.blit(lf, lf.get_rect(center=(cx, lbl_y)))
+
+    val_size = max(16, int(r * 0.55))
+    vf = _font(val_size, True).render(str(value), True, _GOLD_BRIGHT)
+    vs = _font(val_size, True).render(str(value), True, NEAR_BLACK)
+    vs.set_alpha(180)
+    vr = vf.get_rect(center=(cx, cy + int(r * 0.15)))
+    surf.blit(vs, (vr.x + 2, vr.y + 3))
+    surf.blit(vf, vr)
 
 
 def _draw_overlay_stars(surf, stars, t):
@@ -873,16 +926,12 @@ class HUD:
         card_y = int(58 + (1.0 - e) * 60)
 
         # Header — gold with red outline (matches the TOP 10 / WELCOME styling)
-        _outlined_text(surf, "RUN SUMMARY", (W // 2, card_y + 4),
+        _outlined_text(surf, "RUN SUMMARY", (W // 2, card_y - 4),
                         size=24, px=2, shadow_offset=(2, 3))
 
-        # Score block — dark panel with the score number outlined like TOP 10
-        score_panel = pygame.Rect(W // 2 - 80, card_y + 28, 160, 68)
-        _dark_panel(surf, score_panel, radius=16, alpha=200)
-        _outlined_text(surf, "S C O R E", (W // 2, card_y + 44),
-                       size=12, px=1, shadow_offset=(1, 2))
-        _outlined_text(surf, str(world.score), (W // 2, card_y + 76),
-                       size=34, px=2, shadow_offset=(2, 3))
+        # Hero score medallion in place of the rectangular score block.
+        _score_emblem(surf, W // 2, card_y + 56, 44,
+                      "S C O R E", str(world.score))
 
         # Stats card
         mins = int(world.time_alive) // 60
@@ -897,7 +946,7 @@ class HUD:
         ]
 
         row_h = 32
-        card_rect = pygame.Rect(18, card_y + 114, W - 36, len(rows) * row_h + 20)
+        card_rect = pygame.Rect(18, card_y + 118, W - 36, len(rows) * row_h + 20)
         _dark_panel(surf, card_rect, radius=16, alpha=210)
 
         ry = card_rect.y + 14
