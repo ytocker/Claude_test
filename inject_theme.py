@@ -110,6 +110,7 @@ LOADING_HTML = """
 <div id="skybit-loading">
   <p class="sk-title">SKYBIT</p>
   <p class="sk-subtitle">Pocket Sky Flyer</p>
+  <div id="sk-cta" class="sk-cta">TAP &nbsp;&middot;&nbsp; CLICK &nbsp;&middot;&nbsp; SPACE</div>
   <div class="sk-progress" aria-hidden="true">
     <div id="sk-progress-fill" class="sk-progress-fill"></div>
   </div>
@@ -304,6 +305,28 @@ body   { background: #0d0820 !important; }
     opacity: 0.75;
     text-transform: uppercase;
     pointer-events: none;
+}
+
+.sk-cta {
+    font-family: Arial Black, Arial, sans-serif;
+    font-size: clamp(13px, 3.6vw, 18px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #ffffff;
+    background: linear-gradient(180deg, #c84018 0%, #7e1c02 100%);
+    border: 2px solid #e86828;
+    border-radius: 60px;
+    padding: 16px 52px;
+    box-shadow:
+        0 5px 30px rgba(200, 64, 20, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    animation: sk-pulse 1.8s ease-in-out infinite;
+    pointer-events: none;
+    white-space: nowrap;
+}
+@keyframes sk-pulse {
+    0%, 100% { opacity: 0.70; transform: scale(1.00); }
+    50%       { opacity: 1.00; transform: scale(1.07); }
 }
 
 .sk-progress {
@@ -884,14 +907,12 @@ _AUDIO_JS = """
 #    then, animates the progress bar on a 1-exp(-t/τ) curve so the user
 #    sees motion even on slow networks.
 # 3. After 8 s without boot: shows "Loading… Ns".
-# 4. After 25 s without boot: shows "Loading is stuck. Tap to reload." —
-#    a tap anywhere on the splash cache-busts the URL (?_skb=<ts>).
-# 5. As soon as pygbag is ready, auto-dismiss without waiting for input:
-#    sets MM.UME=true, dispatches a click on canvas (pygbag listens for
-#    it to wake the interpreter), then waits for window.skybitGameReady
-#    (set by game/scenes.py first frame) before fading the overlay.
-#    Audio cannot unlock without a real user gesture, so the first canvas
-#    tap during play is what activates sound on iOS Safari.
+# 4. After 25 s without boot: swaps the CTA to "TAP TO RELOAD" and
+#    cache-busts on tap (?_skb=<ts>).
+# 5. On dismiss: unlocks audio (window.__skyResumeCtx), sets MM.UME=true,
+#    dispatches a click on canvas (pygbag listens for it to wake the
+#    interpreter), then waits for window.skybitGameReady (set by
+#    game/scenes.py first frame) before fading the overlay.
 # `pygbagReady` token here is also what the post-write assertion checks for.
 _LOADING_JS = """
 <script>
@@ -921,9 +942,13 @@ _LOADING_JS = """
         ov.insertBefore(s, ov.firstChild);
     }
 
+    var btn    = document.getElementById('sk-cta');
     var status = document.getElementById('sk-status');
     var fill   = document.getElementById('sk-progress-fill');
 
+    var BTN_READY  = 'TAP  ·  CLICK  ·  SPACE';
+    var BTN_LOAD   = 'LOADING…';
+    var BTN_RELOAD = 'TAP TO RELOAD';
     var STALL_MS   = 25000;
     var INFO_MS    =  8000;
     /* 1-exp(-t/τ) climbs fast then asymptotes. Reaches ~63% at 6 s,
@@ -934,9 +959,8 @@ _LOADING_JS = """
     var t0 = Date.now();
     var pygbagReady = false;
     var stalled = false;
-    var dismissed = false;
 
-    if (status) status.textContent = 'Loading…';
+    if (btn) btn.textContent = BTN_LOAD;
 
     function isReady() {
         try { return typeof window.MM !== 'undefined' && window.MM !== null; }
@@ -953,11 +977,10 @@ _LOADING_JS = """
         if (isReady() && !pygbagReady) {
             pygbagReady = true;
             stalled = false;
+            if (btn)    btn.textContent    = BTN_READY;
             if (status) status.textContent = '';
             if (fill)   fill.classList.remove('sk-stalled');
             setFill(100);
-            /* Auto-boot: no tap required. dismiss() is idempotent. */
-            dismiss();
             return;
         }
         if (pygbagReady) return;
@@ -966,6 +989,7 @@ _LOADING_JS = """
         setFill(pct);
         if (elapsed >= STALL_MS && !stalled) {
             stalled = true;
+            if (btn)    btn.textContent    = BTN_RELOAD;
             if (status) status.textContent = 'Loading is stuck. Tap to reload.';
             if (fill)   fill.classList.add('sk-stalled');
         } else if (elapsed >= INFO_MS && status && !stalled) {
@@ -984,18 +1008,21 @@ _LOADING_JS = """
         }
     }
 
-    function dismiss() {
-        if (dismissed) return;
-        dismissed = true;
+    function pulseBtn() {
+        if (!btn) return;
+        btn.style.transition = 'transform 120ms ease';
+        btn.style.transform  = 'scale(0.93)';
+        setTimeout(function () { btn.style.transform = ''; }, 130);
+    }
 
-        /* Try to unlock the shared AudioContext. When the auto-poll
-           calls dismiss() there is no user gesture, so this is a no-op
-           on iOS Safari — audio unlocks on the first canvas tap during
-           play. If the user happened to tap the splash on stall before
-           the reload, the gesture banks here for free. */
+    function dismiss() {
+        /* Unlock the shared AudioContext on every gesture, even pre-ready
+           pulses — no harm in early resume. */
         if (typeof window.__skyResumeCtx === 'function') {
             try { window.__skyResumeCtx(); } catch (_) {}
         }
+        if (stalled)        { reloadBust(); return; }
+        if (!pygbagReady)   { pulseBtn();   return; }
 
         clearInterval(pollId);
         try { if (window.MM) window.MM.UME = true; } catch (_) {}
@@ -1007,13 +1034,14 @@ _LOADING_JS = """
                 }));
             } catch (_) {}
         }
-        ov.removeEventListener('click',      onOverlayTap);
-        ov.removeEventListener('touchstart', onOverlayTap);
-        ov.removeEventListener('touchend',   onOverlayTap);
+        ov.removeEventListener('click',      dismiss);
+        ov.removeEventListener('touchstart', dismiss);
+        ov.removeEventListener('touchend',   dismiss);
 
         /* Stay visible over the canvas while pygbag mounts the App and
            game/scenes.py renders its first frame. Pointer-events:none so
            subsequent taps reach the canvas behind us during this hold. */
+        if (btn)    btn.textContent    = 'STARTING…';
         if (status) status.textContent = '';
         ov.style.pointerEvents = 'none';
 
@@ -1031,21 +1059,9 @@ _LOADING_JS = """
             }
         }, 16);
     }
-
-    /* Splash-level tap. Only meaningful when we've detected a stall: it
-       triggers the cache-busted reload. While loading is healthy the
-       splash is non-interactive — the game auto-boots once pygbag is
-       ready. Audio-unlock is attempted on any tap so the gesture is
-       banked for free if the player did interact. */
-    function onOverlayTap() {
-        if (typeof window.__skyResumeCtx === 'function') {
-            try { window.__skyResumeCtx(); } catch (_) {}
-        }
-        if (stalled) reloadBust();
-    }
-    ov.addEventListener('click',      onOverlayTap);
-    ov.addEventListener('touchstart', onOverlayTap);
-    ov.addEventListener('touchend',   onOverlayTap);
+    ov.addEventListener('click',      dismiss);
+    ov.addEventListener('touchstart', dismiss);
+    ov.addEventListener('touchend',   dismiss);
 }());
 </script>
 """
