@@ -742,16 +742,10 @@ def draw_v1_trophy_cinema(surf, data):
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
         surf.blit(cap2, cap2.get_rect(center=(W // 2, bar_y - 6 * SCALE)))
-        # Adapt chip size to how many kinds are shown so the row is
-        # always centred and never overflows the screen
-        if len(pu) <= 4:
-            chip_size, chip_gap = 22, 8
-        elif len(pu) <= 5:
-            chip_size, chip_gap = 19, 7
-        elif len(pu) == 6:
-            chip_size, chip_gap = 17, 6
-        else:  # 7
-            chip_size, chip_gap = 15, 5
+        # Fixed chip size — comfortably fits all 7 power-up kinds in
+        # a single centred row at the 360-wide game canvas (7 × 40 + 6
+        # × 8 = 328 logical px, leaving 32 px total margin).
+        chip_size, chip_gap = 20, 8
         chip_w = chip_size * 2 * SCALE
         chip_pitch = chip_w + chip_gap * SCALE
         total_cw = len(pu) * chip_w + (len(pu) - 1) * chip_gap * SCALE
