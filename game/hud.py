@@ -963,8 +963,11 @@ class HUD:
         _outlined_text(surf, "RUN SUMMARY", (W // 2, card_y - 4),
                         size=24, px=2, shadow_offset=(2, 3))
 
-        # Hero score medallion in place of the rectangular score block.
-        _score_emblem(surf, W // 2, card_y + 56, 44,
+        # Hero score medallion in place of the rectangular score block —
+        # sized to match the run-summary mockup proportionally (mockup
+        # uses r=72*SCALE on a 720-wide canvas; live canvas is 360 wide
+        # so the equivalent is r≈68).
+        _score_emblem(surf, W // 2, card_y + 82, 68,
                       "S C O R E", str(world.score))
 
         # Stats card
@@ -980,7 +983,7 @@ class HUD:
         ]
 
         row_h = 32
-        card_rect = pygame.Rect(18, card_y + 118, W - 36, len(rows) * row_h + 20)
+        card_rect = pygame.Rect(18, card_y + 162, W - 36, len(rows) * row_h + 20)
         _dark_panel(surf, card_rect, radius=16, alpha=210)
 
         ry = card_rect.y + 14
