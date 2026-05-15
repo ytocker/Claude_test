@@ -33,13 +33,15 @@ _RED_OUTLINE    = (168,  32,  16)   # #a82010
 _ORANGE_BORDER  = (232, 104,  40)   # #e86828
 _SCARLET_TOP    = (240,  55,  55)   # #f03737  pill gradient top
 _SCARLET_BOT    = (148,  20,  20)   # #941414  pill gradient bottom
-# Dim pill colours used by the menu's three CTAs. Tuned so the bright
-# top of the gradient is literally _RED_OUTLINE — the same red that
-# rims the SKYBIT title on this screen — and the bottom is a darker
-# shade of that same red, so the buttons and the title read as the
-# same colour family rather than a pink-vs-rust mismatch.
-_SCARLET_TOP_DIM = (168,  32,  16)  # #a82010  == _RED_OUTLINE
-_SCARLET_BOT_DIM = ( 78,  14,   6)  # #4e0e06  half-luminance, same hue
+# Dim pill colours used by the menu's three CTAs. Tuned so the gradient
+# is anchored on _RED_OUTLINE — the rust red that rims the SKYBIT title
+# on the same screen — with a brighter highlight above it and a darker
+# shade below. The dim path also skips the cream frost overlay (see
+# _pill_btn): on a saturated rust gradient the cream tinted the top
+# pinkish, which is exactly what made the buttons read as a different
+# colour family from the title.
+_SCARLET_TOP_DIM = (220,  45,  22)  # #dc2d16  brighter rust (top of grad)
+_SCARLET_BOT_DIM = (110,  22,  10)  # #6e160a  darker rust  (bottom of grad)
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
@@ -119,11 +121,16 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
 
     # Frosting on the top half + bottom darkening on the lower half so the
     # gradient reads as a glossy 3D pill rather than a flat colour ramp.
-    frost = pygame.Surface((pw, ph), pygame.SRCALPHA)
-    for yy in range(ph // 2):
-        a = int(50 * (1 - yy / (ph / 2)))
-        pygame.draw.line(frost, (255, 245, 220, a), (0, yy), (pw, yy))
-    pill.blit(frost, (0, 0))
+    # On dim pills the cream tinted the saturated rust gradient pinkish
+    # — exactly what made the menu CTAs read as a different colour
+    # family from the SKYBIT title outline — so we skip the cream
+    # frost there and rely on the gradient alone for top highlight.
+    if not dim:
+        frost = pygame.Surface((pw, ph), pygame.SRCALPHA)
+        for yy in range(ph // 2):
+            a = int(50 * (1 - yy / (ph / 2)))
+            pygame.draw.line(frost, (255, 245, 220, a), (0, yy), (pw, yy))
+        pill.blit(frost, (0, 0))
     bsh = pygame.Surface((pw, ph), pygame.SRCALPHA)
     for yy in range(ph // 2, ph):
         a = int(55 * (yy - ph // 2) / (ph / 2))
