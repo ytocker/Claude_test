@@ -441,26 +441,15 @@ class App:
         self._stats_t = 0.0
 
     def _advance_past_stats(self):
-        import sys
+        """A tap on the run-summary screen goes straight back to the
+        main menu. The leaderboard is still reachable from the menu's
+        TOP 10 trophy button, so we don't auto-route the player into
+        it (or into name entry) — the run-end flow stays simple."""
         self._final_score = self.world.score
         self._name_input_buf = ""
-        if sys.platform == "emscripten":
-            # Browser: stay on the stats screen while an async task fetches
-            # the top-10 from Supabase. When the task resolves it switches
-            # state to STATE_NAMEENTRY (qualifiers) or STATE_LEADERBOARD
-            # (everyone else) — no transitional loading screen.
-            self._lb_scores = []
-            self._lb_player_rank = -1
-            self._fetch_pending = True
-            self._start_name_entry = True
-        else:
-            # Native: top-10 lives in local JSON, fetch is sync.
-            from game import leaderboard
-            scores = leaderboard._native_fetch()
-            if self._qualifies_for_top10(scores, self._final_score):
-                self.state = STATE_NAMEENTRY
-            else:
-                self._show_leaderboard_native(scores, submitted=False)
+        self.hud.title_t = 0.0
+        self.state = STATE_MENU
+        self._cooldown_t = 0.25
 
     @staticmethod
     def _qualifies_for_top10(scores, score) -> bool:
