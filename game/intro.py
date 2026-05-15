@@ -38,7 +38,7 @@ from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
 from game.entities import Coin, PowerUp
 
 
-DURATION = 21.0
+DURATION = 20.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -932,14 +932,18 @@ def _journey_phase(u: float) -> float:
 # occupy. Each one is 3.5 s wide so labels can breathe and entities
 # linger on screen.
 _TUTORIAL_START = 4.0
-_TUTORIAL_END   = 18.0
-_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 14 s
+_TUTORIAL_END   = 17.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 13 s
 
-# Tutorial sub-beats — equal slices of the tutorial window. The TAP TO
-# JUMP beat fits three real-physics flaps inside its 3.5 s by spacing
-# the flaps closer together and shortening the level-out tail; see the
-# physics-constants block below for the timeline.
-_SUB_LEN = _TUTORIAL_LEN / 4.0   # 3.5 s
+# Sub-beat lengths. The TAP TO JUMP beat fits three real-physics flaps
+# tightly: by the third flap arc the bird is already settling, so the
+# old 1.45 s of level-flight tail (between settle and the cut to
+# AVOID PILLARS) was dead time. The beat is trimmed to 2.5 s — just
+# enough for the three flaps plus a quick ease-out to baseline — and
+# the pillars beat picks up immediately. The other three sub-beats
+# stay at 3.5 s.
+_JUMP_SUB_LEN = 2.5
+_SUB_LEN = 3.5   # pillars / coins / powerups
 
 
 def _label_alpha(sub_u: float) -> int:
@@ -991,7 +995,7 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 # by the same factor, so the trajectory shape and time-to-peak (~0.33 s)
 # stay identical to gameplay; only the magnitudes shrink.
 #
-# 3.5 s sub-beat is divided into:
+# 2.5 s sub-beat is divided into:
 #   0.00–0.25  natural fall (no flap yet — establishes "this is what
 #              happens if you don't tap")
 #   0.25       flap #1
@@ -1000,9 +1004,9 @@ def _tutorial_pip_carry_parcel(surf: pygame.Surface, pip_x: float,
 #   0.85–1.45  flap arc 2
 #   1.45       flap #3
 #   1.45–2.05  flap arc 3
-#   2.05–3.50  short level-out tail back to baseline so the cut to
-#              AVOID PILLARS feels relaxed — trimmed from the old
-#              1.85 s tail to make room for the third flap.
+#   2.05–2.50  quick ease-out back to baseline so the cut to AVOID
+#              PILLARS feels tight rather than dwelling on a level-
+#              flight tail.
 _JUMP_SLOW     = 0.50     # scales velocities + gravity proportionally
 _JUMP_GRAVITY  = 1600.0 * _JUMP_SLOW
 _JUMP_FLAP_V   = -520.0 * _JUMP_SLOW
@@ -1034,13 +1038,13 @@ def _jump_simulate(sub_t: float) -> tuple[float, float]:
 
 def _jump_demo_state(sub_t: float) -> tuple[float, float]:
     """Public state lookup for the jump sub-beat. Real physics through
-    the third flap arc (sub_t ≤ _JUMP_SETTLE_T), then a smooth ease-out
+    the third flap arc (sub_t ≤ _JUMP_SETTLE_T), then a quick ease-out
     back to (y, vy) = (0, 0) so the bird flies straight before the cut."""
     if sub_t <= _JUMP_SETTLE_T:
         return _jump_simulate(sub_t)
     # Snapshot at start of settle, then ease everything to 0.
     y0, vy0 = _jump_simulate(_JUMP_SETTLE_T)
-    span = _SUB_LEN - _JUMP_SETTLE_T
+    span = _JUMP_SUB_LEN - _JUMP_SETTLE_T
     p = max(0.0, min(1.0, (sub_t - _JUMP_SETTLE_T) / span))
     ease = 1.0 - (1.0 - p) * (1.0 - p)   # ease-out quadratic
     return y0 * (1.0 - ease), vy0 * (1.0 - p)
@@ -1072,7 +1076,7 @@ def _tutorial_jump(scene: "IntroScene", surf: pygame.Surface,
             faded.set_alpha(int(255 * (1.0 - bridge_t)))
             surf.blit(faded, (hx, hy))
 
-    sub_t = sub_u * _SUB_LEN
+    sub_t = sub_u * _JUMP_SUB_LEN
     y_offset, vy = _jump_demo_state(sub_t)
 
     # Match the journey/arrival baseline x so cuts in/out are seamless.
@@ -1277,16 +1281,21 @@ def _beat_tutorial(scene: "IntroScene", surf: pygame.Surface,
         fx = W + 40 - flock_u * (W + 80)
         _draw_distant_flock(surf, scene.t, fx)
 
-    # Sub-beat dispatch. Each sub_u is the local 0–1 progress inside its
-    # own quarter of the tutorial window.
-    if u < 0.25:
-        _tutorial_jump(scene, surf, u / 0.25)
-    elif u < 0.50:
-        _tutorial_pillars(scene, surf, (u - 0.25) / 0.25)
-    elif u < 0.75:
-        _tutorial_coins(scene, surf, (u - 0.50) / 0.25)
+    # Sub-beat dispatch. Slice lengths are no longer equal — TAP TO
+    # JUMP is shorter to skip the redundant level-flight tail — so the
+    # easiest path is to compute boundaries in tutorial-local seconds.
+    tt = u * _TUTORIAL_LEN
+    b1 = _JUMP_SUB_LEN
+    b2 = b1 + _SUB_LEN
+    b3 = b2 + _SUB_LEN
+    if tt < b1:
+        _tutorial_jump(scene, surf, tt / _JUMP_SUB_LEN)
+    elif tt < b2:
+        _tutorial_pillars(scene, surf, (tt - b1) / _SUB_LEN)
+    elif tt < b3:
+        _tutorial_coins(scene, surf, (tt - b2) / _SUB_LEN)
     else:
-        _tutorial_powerups(scene, surf, (u - 0.75) / 0.25)
+        _tutorial_powerups(scene, surf, (tt - b3) / _SUB_LEN)
 
 
 # ── beat 4: Arrival (10.0 – 11.0) ────────────────────────────────────────────
