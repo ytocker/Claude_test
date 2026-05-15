@@ -38,7 +38,7 @@ from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
 from game.entities import Coin, PowerUp
 
 
-DURATION = 17.0
+DURATION = 15.0
 
 
 # ── small easing helpers ─────────────────────────────────────────────────────
@@ -932,17 +932,16 @@ def _journey_phase(u: float) -> float:
 # occupy. Each one is 3.5 s wide so labels can breathe and entities
 # linger on screen.
 _TUTORIAL_START = 4.0
-_TUTORIAL_END   = 14.0
-_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 10 s
+_TUTORIAL_END   = 12.0
+_TUTORIAL_LEN   = _TUTORIAL_END - _TUTORIAL_START   # 8 s
 
-# Sub-beat lengths. All four tutorial beats now run at the same tight
-# 2.5 s pace — the previous mismatch (jump 2.5 s, the rest 3.5 s) made
-# TAP TO JUMP feel intense and AVOID PILLARS / PICK UP COINS /
-# TAKE POWER-UPS feel mellow by comparison. Sub-beat internals scale
-# off `sub_t = sub_u * _SUB_LEN`, so the per-beat animations compress
-# proportionally without further changes.
-_JUMP_SUB_LEN = 2.5
-_SUB_LEN = 2.5   # pillars / coins / powerups
+# Sub-beat lengths. All four tutorial beats run at the same tight 2.0 s
+# pace — paired with the faster world scroll below, the bird now flies
+# with real speed and the cinematic stops dragging. Sub-beat internals
+# scale off `sub_t = sub_u * _SUB_LEN`, so the per-beat animations
+# (pillar slide-in, coin trail, power-up trail) compress proportionally.
+_JUMP_SUB_LEN = 2.0
+_SUB_LEN = 2.0
 
 
 def _label_alpha(sub_u: float) -> int:
@@ -1128,7 +1127,10 @@ def _tutorial_pillars(scene: "IntroScene", surf: pygame.Surface,
 _COIN_COUNT     = 5
 _COIN_SPACING   = 60
 _COIN_X0        = float(W) + 50.0   # initial x of the first coin
-_COIN_SCROLL_PX = 175.0              # px/s the trail scrolls left
+_COIN_SCROLL_PX = 260.0              # px/s the trail scrolls left
+                                     # — bumped from 175 so the 5-coin
+                                     # / 3-power-up trails still cross
+                                     # Pip inside the 2.0 s sub-beat.
 _COIN_AMP       = 28
 
 
@@ -1270,7 +1272,11 @@ def _beat_tutorial(scene: "IntroScene", surf: pygame.Surface,
     # Same biome phase + scroll progression the journey beat used, just
     # stretched across the new (slightly longer) tutorial window.
     phase = _journey_phase(u)
-    scroll = 16.0 + u * 280.0
+    # Faster scroll across the tutorial — was 280 px over 14 s (~20 px/s),
+    # which made the bird feel becalmed compared to the in-game ~160 px/s
+    # base speed. 640 px over 8 s = 80 px/s reads as half-speed gameplay
+    # cruise. Arrival beat's starting scroll below continues from here.
+    scroll = 16.0 + u * 640.0
     _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True)
 
     # A distant V-flock keeps the world alive; same window the journey
@@ -1305,9 +1311,10 @@ def _beat_arrival(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
     house in the sky."""
     # Delivery happens at night — the journey ended there, so beat 4 holds
     # the same starlit phase Pip arrived under. Scroll continues from
-    # beat 3's end value (296) so the cloud parallax doesn't pop.
+    # the tutorial beat's end value (16 + 640 = 656) so the cloud
+    # parallax doesn't pop on the cut.
     phase = 0.62
-    _draw_world(surf, phase, scroll=296.0 + u * 30.0,
+    _draw_world(surf, phase, scroll=656.0 + u * 30.0,
                 cloud_phase=scene.t, ground=True)
 
     # Floating sky-house, centred. The cottage was approached during the
