@@ -1274,9 +1274,10 @@ def _beat_tutorial(scene: "IntroScene", surf: pygame.Surface,
     phase = _journey_phase(u)
     # Faster scroll across the tutorial — was 280 px over 14 s (~20 px/s),
     # which made the bird feel becalmed compared to the in-game ~160 px/s
-    # base speed. 640 px over 8 s = 80 px/s reads as half-speed gameplay
-    # cruise. Arrival beat's starting scroll below continues from here.
-    scroll = 16.0 + u * 640.0
+    # base speed. 480 px over 8 s = 60 px/s reads as a leisurely cruise:
+    # the bird is clearly travelling, not racing. Arrival beat's starting
+    # scroll below continues from here.
+    scroll = 16.0 + u * 480.0
     _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True)
 
     # A distant V-flock keeps the world alive; same window the journey
@@ -1311,10 +1312,10 @@ def _beat_arrival(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
     house in the sky."""
     # Delivery happens at night — the journey ended there, so beat 4 holds
     # the same starlit phase Pip arrived under. Scroll continues from
-    # the tutorial beat's end value (16 + 640 = 656) so the cloud
+    # the tutorial beat's end value (16 + 480 = 496) so the cloud
     # parallax doesn't pop on the cut.
     phase = 0.62
-    _draw_world(surf, phase, scroll=656.0 + u * 30.0,
+    _draw_world(surf, phase, scroll=496.0 + u * 30.0,
                 cloud_phase=scene.t, ground=True)
 
     # Floating sky-house, centred. The cottage was approached during the
