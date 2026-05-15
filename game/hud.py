@@ -33,6 +33,8 @@ _RED_OUTLINE    = (168,  32,  16)   # #a82010
 _ORANGE_BORDER  = (232, 104,  40)   # #e86828
 _SCARLET_TOP    = (240,  55,  55)   # #f03737  pill gradient top
 _SCARLET_BOT    = (148,  20,  20)   # #941414  pill gradient bottom
+_SCARLET_TOP_DIM = (170,  46,  46)  # #aa2e2e  dim variant for menu pills
+_SCARLET_BOT_DIM = ( 92,  18,  18)  # #5c1212  dim variant for menu pills
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
@@ -63,13 +65,16 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
 
 
 def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
-              min_width=None, primary=False):
+              min_width=None, primary=False, dim=False):
     """Scarlet body + gold border + cream text, with drop shadow, top-half
     frosting, gold accent line and (optionally) a gold glow when
     ``primary=True`` — the canonical Pip Scarlet pill from the menu
     mockup (see tools/gen_scarlet_set.py::pill). Returns the rect so
     callers can hit-test clicks. ``min_width`` lets paired buttons
-    (SUBMIT + SKIP) share one width regardless of label length."""
+    (SUBMIT + SKIP) share one width regardless of label length.
+    ``dim=True`` swaps the bright scarlet gradient for the dimmer
+    bordeaux pair so the menu trio sits more quietly in the night-sky
+    palette."""
     f = _font(size, True)
     img = f.render(text, True, WHITE)
     pad_x = 64 if wide else 44
@@ -80,6 +85,8 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
     cx, cy = center
     x = cx - pw // 2
     y = cy - ph // 2
+    grad_top = _SCARLET_TOP_DIM if dim else _SCARLET_TOP
+    grad_bot = _SCARLET_BOT_DIM if dim else _SCARLET_BOT
 
     # Optional gold halo on the primary action button.
     if primary:
@@ -102,7 +109,7 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
     pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
     for yy in range(ph):
         t = yy / max(1, ph - 1)
-        c = lerp_color(_SCARLET_TOP, _SCARLET_BOT, t)
+        c = lerp_color(grad_top, grad_bot, t)
         pygame.draw.line(pill, c, (0, yy), (pw - 1, yy))
 
     # Frosting on the top half + bottom darkening on the lower half so the
@@ -739,15 +746,17 @@ class HUD:
         y_start = y_howto - h_howto // 2 - GAP - h_start // 2
 
         btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
+        # dim=True swaps the bright scarlet for the bordeaux variant so
+        # the menu pills sit more quietly in the dark night-sky palette.
         self.menu_start_rect = _pill_btn(
             surf, (W // 2, y_start), "TAP TO START",
-            size=22, alpha=btn_alpha, min_width=220, primary=True)
+            size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
-            size=18, alpha=230, min_width=220)
+            size=18, alpha=230, min_width=220, dim=True)
         self.menu_powerups_rect = _pill_btn(
             surf, (W // 2, y_power), "POWER-UPS",
-            size=18, alpha=230, min_width=220)
+            size=18, alpha=230, min_width=220, dim=True)
 
         # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
         # (right). Same pill dimensions side-by-side so they read as a
@@ -759,7 +768,7 @@ class HUD:
         total_w = panel_w * 2 + gap
         left_x = (W - total_w) // 2
         cy = H - 86  # vertical centre (matches the previous BEST y)
-        lf = _font(12, False)
+        lf = _font(12, True)
         vf = _font(22, True)
 
         # BEST panel (left)
