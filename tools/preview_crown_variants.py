@@ -7,6 +7,7 @@ Outputs:
   tools/screenshots/crown_v3.png  — Velvet throne (V1 + scarlet row)
   tools/screenshots/crown_v4.png  — Golden throne (V1 + gold row)
   tools/screenshots/crown_v5.png  — Imperial majesty (maximalist)
+  tools/screenshots/crown_v6.png  — V4 chosen + silver/bronze medal rows
 
 Nothing here lands in game/hud.py until the user picks a variant.
 """
@@ -205,12 +206,29 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
         row_rect = pygame.Rect(card_x, ry, card_w, row_h)
         row_radius = row_h // 2
 
-        magnificent = (rank == 1)
-        wants_halo     = magnificent and variant in (2, 5)
-        wants_velvet   = magnificent and variant == 3
-        wants_gold_row = magnificent and variant in (4, 5)
-        wants_sparkles = magnificent and variant == 5
-        wants_big      = magnificent and variant == 5
+        wants_crown    = (rank == 1)
+        wants_halo     = (rank == 1) and variant in (2, 5)
+        wants_velvet   = (rank == 1) and variant == 3
+        wants_sparkles = (rank == 1) and variant == 5
+        wants_big      = (rank == 1) and variant == 5
+
+        # Decide the row's gradient (or None to fall back to dark navy):
+        # — variant 4/5/6 use a gold gradient for #1
+        # — variant 3 uses scarlet velvet for #1
+        # — variant 6 ALSO paints silver / bronze rows for #2 / #3
+        GOLD_GRAD   = ((240, 192,  64), (180, 130,  20))
+        VELVET_GRAD = ((210,  36,  48), (120,  14,  26))
+        SILVER_GRAD = ((215, 222, 232), (110, 125, 145))
+        BRONZE_GRAD = ((215, 150,  85), (125,  74,  28))
+        grad_top, grad_bot = None, None
+        if rank == 1 and variant in (4, 5, 6):
+            grad_top, grad_bot = GOLD_GRAD
+        elif rank == 1 and variant == 3:
+            grad_top, grad_bot = VELVET_GRAD
+        elif rank == 2 and variant == 6:
+            grad_top, grad_bot = SILVER_GRAD
+        elif rank == 3 and variant == 6:
+            grad_top, grad_bot = BRONZE_GRAD
 
         crown_size  = 14 if wants_big else 12
         badge_r     = 15 if wants_big else 13
@@ -228,42 +246,24 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
         # ── row pill ────────────────────────────────────────────────────────
         pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
 
-        if wants_gold_row:
-            # Gold gradient row (royal gold throne)
-            top = _GOLD_BRIGHT
-            bot = _GOLD_DEEP
+        if grad_top is not None:
+            # Vertical medal gradient (gold / velvet / silver / bronze)
             for yy in range(row_h):
                 u = yy / max(1, row_h - 1)
-                r = int(top[0] * (1 - 0.4 * u) + bot[0] * 0.4 * u)
-                g_ = int(top[1] * (1 - 0.4 * u) + bot[1] * 0.4 * u)
-                b = int(top[2] * (1 - 0.4 * u) + bot[2] * 0.4 * u)
+                r  = int(grad_top[0] * (1 - u) + grad_bot[0] * u)
+                g_ = int(grad_top[1] * (1 - u) + grad_bot[1] * u)
+                b  = int(grad_top[2] * (1 - u) + grad_bot[2] * u)
                 pygame.draw.line(pnl, (r, g_, b, 255),
                                  (0, yy), (card_w, yy))
+            # Mask to rounded corners
             mask = pygame.Surface(row_rect.size, pygame.SRCALPHA)
             pygame.draw.rect(mask, (255, 255, 255, 255),
                              (0, 0, card_w, row_h),
                              border_radius=row_radius)
             pnl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            pygame.draw.rect(pnl, NEAR_BLACK,
-                             (0, 0, card_w, row_h),
-                             width=2, border_radius=row_radius)
-        elif wants_velvet:
-            # Scarlet velvet gradient (royal seat)
-            top = (210, 36, 48)
-            bot = (120, 14, 26)
-            for yy in range(row_h):
-                u = yy / max(1, row_h - 1)
-                r = int(top[0] * (1 - u) + bot[0] * u)
-                g_ = int(top[1] * (1 - u) + bot[1] * u)
-                b = int(top[2] * (1 - u) + bot[2] * u)
-                pygame.draw.line(pnl, (r, g_, b, 255),
-                                 (0, yy), (card_w, yy))
-            mask = pygame.Surface(row_rect.size, pygame.SRCALPHA)
-            pygame.draw.rect(mask, (255, 255, 255, 255),
-                             (0, 0, card_w, row_h),
-                             border_radius=row_radius)
-            pnl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            pygame.draw.rect(pnl, _GOLD_BRIGHT,
+            # Border: velvet keeps the gold trim, all others use dark
+            border_col = _GOLD_BRIGHT if wants_velvet else NEAR_BLACK
+            pygame.draw.rect(pnl, border_col,
                              (0, 0, card_w, row_h),
                              width=2, border_radius=row_radius)
         else:
@@ -274,7 +274,7 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
                 pygame.draw.rect(pnl, _GOLD_BRIGHT,
                                  (0, 0, card_w, row_h),
                                  width=3, border_radius=row_radius)
-            elif magnificent:
+            elif rank == 1:
                 pygame.draw.rect(pnl, _GOLD_BRIGHT,
                                  (0, 0, card_w, row_h),
                                  width=2, border_radius=row_radius)
@@ -287,7 +287,7 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
         # ── rank badge ──────────────────────────────────────────────────────
         badge_cx = card_x + 24
         if rank <= 3:
-            this_r = badge_r if magnificent else 13
+            this_r = badge_r if rank == 1 else 13
             pygame.draw.circle(surf, badge_col, (badge_cx, row_cy), this_r)
             pygame.draw.circle(surf, NEAR_BLACK,
                                (badge_cx, row_cy), this_r, 1)
@@ -301,7 +301,7 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
                   num_img.get_rect(center=(badge_cx, row_cy)))
 
         # ── crown perched on top of #1's badge ─────────────────────────────
-        if magnificent:
+        if wants_crown:
             # Position so the crown's band overlaps the badge top by ~3px
             crown_cy = row_cy - badge_r - crown_size // 2 + 4
             _draw_crown(surf, badge_cx, crown_cy, crown_size)
@@ -331,7 +331,9 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
 
         # ── name + YOU badge + score ────────────────────────────────────────
         nm = entry["name"][:10]
-        if wants_gold_row:
+        # Velvet row keeps white on red; all other gradient rows
+        # (gold / silver / bronze) read better with dark text.
+        if grad_top is not None and not wants_velvet:
             name_col = NEAR_BLACK
         elif wants_velvet:
             name_col = WHITE
@@ -357,10 +359,8 @@ def draw_leaderboard_variant(surf, title_t, scores, player_rank, variant):
             surf.blit(you_pill, (pxr, pyr))
             surf.blit(you_img, (pxr + 5, pyr + 3))
 
-        if wants_gold_row:
+        if grad_top is not None and not wants_velvet:
             score_col = NEAR_BLACK
-        elif wants_velvet:
-            score_col = _GOLD_BRIGHT
         else:
             score_col = _GOLD_BRIGHT
         sc_img = f_score.render(str(entry["score"]), True, score_col)
@@ -394,7 +394,7 @@ SCORES = [
 
 def main():
     screen = pygame.Surface((W, H))
-    for variant in (1, 2, 3, 4, 5):
+    for variant in (1, 2, 3, 4, 5, 6):
         draw_bg(screen)
         draw_leaderboard_variant(
             screen, title_t=1.4, scores=SCORES,
