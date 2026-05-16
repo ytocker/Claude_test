@@ -703,36 +703,35 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
                      (8 * SCALE, 4 * SCALE),
                      (rect.w - 8 * SCALE, 4 * SCALE), 1 * SCALE)
     surf.blit(body, rect.topleft)
-    # Icon — large enough to be the dominant element at the top of the
-    # tile; the wings glyph in particular needs the room to register
-    stat_icon(surf, icon_kind, rect.centerx, rect.y + 26 * SCALE,
-              size=18)
+    # Icon — sized to read clearly without dominating the tile
+    stat_icon(surf, icon_kind, rect.centerx, rect.y + 22 * SCALE,
+              size=15)
     # Value
-    vf = font(32, True).render(str(value), True, GOLD_BRIGHT)
-    vs = font(32, True).render(str(value), True, NEAR_BLACK)
+    vf = font(26, True).render(str(value), True, GOLD_BRIGHT)
+    vs = font(26, True).render(str(value), True, NEAR_BLACK)
     vs.set_alpha(170)
-    vy = rect.y + 62 * SCALE if subline else rect.y + 68 * SCALE
+    vy = rect.y + 54 * SCALE if subline else rect.y + 58 * SCALE
     vr = vf.get_rect(center=(rect.centerx, vy))
     surf.blit(vs, (vr.x + 1 * SCALE, vr.y + 2 * SCALE))
     surf.blit(vf, vr)
     # Optional subline — gold-muted caption directly below the value
     # (used for COINS to surface "61%" alongside the raw count)
     if subline:
-        sf = font(13, True).render(subline, True, GOLD_MUTED)
+        sf = font(11, True).render(subline, True, GOLD_MUTED)
         sf.set_alpha(230)
         surf.blit(sf, sf.get_rect(center=(rect.centerx,
-                                          rect.y + 86 * SCALE)))
+                                          rect.y + 74 * SCALE)))
     # Label — shrinks one step if the longer captions would otherwise
     # crowd the tile edges
     max_label_w = rect.w - 10 * SCALE
-    lbl_size = 14
+    lbl_size = 12
     lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
-    while lf.get_width() > max_label_w and lbl_size > 11:
+    while lf.get_width() > max_label_w and lbl_size > 10:
         lbl_size -= 1
         lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
     lf.set_alpha(230)
     surf.blit(lf, lf.get_rect(center=(rect.centerx,
-                                      rect.y + rect.h - 14 * SCALE)))
+                                      rect.y + rect.h - 12 * SCALE)))
 
 
 def powerup_chip(surf, cx, cy, kind, count, size=22):
@@ -878,12 +877,12 @@ def draw_v1_trophy_cinema(surf, data):
         ("pillar", data["pillars"], "PILLARS", None),
         ("flap", data["flaps"], "FLAPS", None),
     ]
-    tile_w = 82 * SCALE
-    tile_h = 116 * SCALE  # much taller for bigger icon + bigger value + bigger label
-    tile_gap = 6 * SCALE
+    tile_w = 78 * SCALE
+    tile_h = 98 * SCALE
+    tile_gap = 8 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 276 * SCALE
+    tile_y = 282 * SCALE
     for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
@@ -895,7 +894,7 @@ def draw_v1_trophy_cinema(surf, data):
     # logical canvas (7 × 44 + 6 × 4 = 332 px → 28 px total margin).
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        cap_y = 420 * SCALE
+        cap_y = 408 * SCALE
         cap2 = font(14, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(230)
