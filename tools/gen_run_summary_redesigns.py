@@ -698,35 +698,35 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
                      (8 * SCALE, 4 * SCALE),
                      (rect.w - 8 * SCALE, 4 * SCALE), 1 * SCALE)
     surf.blit(body, rect.topleft)
-    # Icon
-    stat_icon(surf, icon_kind, rect.centerx, rect.y + 18 * SCALE,
-              size=8)
+    # Icon — larger so it reads at a glance, especially the wings glyph
+    stat_icon(surf, icon_kind, rect.centerx, rect.y + 24 * SCALE,
+              size=13)
     # Value
-    vf = font(20, True).render(str(value), True, GOLD_BRIGHT)
-    vs = font(20, True).render(str(value), True, NEAR_BLACK)
+    vf = font(26, True).render(str(value), True, GOLD_BRIGHT)
+    vs = font(26, True).render(str(value), True, NEAR_BLACK)
     vs.set_alpha(170)
-    vy = rect.y + 40 * SCALE if subline else rect.y + 42 * SCALE
+    vy = rect.y + 52 * SCALE if subline else rect.y + 56 * SCALE
     vr = vf.get_rect(center=(rect.centerx, vy))
     surf.blit(vs, (vr.x + 1 * SCALE, vr.y + 2 * SCALE))
     surf.blit(vf, vr)
     # Optional subline — small gold-muted caption directly below the
     # value (used for COINS to surface "61%" alongside the raw count)
     if subline:
-        sf = font(9, True).render(subline, True, GOLD_MUTED)
-        sf.set_alpha(220)
+        sf = font(11, True).render(subline, True, GOLD_MUTED)
+        sf.set_alpha(230)
         surf.blit(sf, sf.get_rect(center=(rect.centerx,
-                                          rect.y + 56 * SCALE)))
-    # Label — shrinks one step if the longer captions ("NEAR MISSES")
-    # would otherwise crowd the tile edges
-    max_label_w = rect.w - 8 * SCALE
-    lbl_size = 9
+                                          rect.y + 72 * SCALE)))
+    # Label — shrinks one step if the longer captions would otherwise
+    # crowd the tile edges
+    max_label_w = rect.w - 10 * SCALE
+    lbl_size = 12
     lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
-    while lf.get_width() > max_label_w and lbl_size > 7:
+    while lf.get_width() > max_label_w and lbl_size > 9:
         lbl_size -= 1
         lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
-    lf.set_alpha(220)
+    lf.set_alpha(230)
     surf.blit(lf, lf.get_rect(center=(rect.centerx,
-                                      rect.y + rect.h - 10 * SCALE)))
+                                      rect.y + rect.h - 12 * SCALE)))
 
 
 def powerup_chip(surf, cx, cy, kind, count, size=22):
@@ -827,8 +827,8 @@ def draw_v1_trophy_cinema(surf, data):
     glow.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     surf.blit(glow, face.topleft)
     # SCORE caption
-    sc = font(13, True).render("F I N A L   S C O R E", True, GOLD_MUTED)
-    sc.set_alpha(220)
+    sc = font(15, True).render("F I N A L   S C O R E", True, GOLD_MUTED)
+    sc.set_alpha(230)
     surf.blit(sc, sc.get_rect(center=(W // 2, plaque.y + 26 * SCALE)))
     # Massive engraved number
     big_num = str(data["score"])
@@ -857,10 +857,10 @@ def draw_v1_trophy_cinema(surf, data):
     else:
         cmp_text = f"BEST {data['best']}    {delta:+d}"
         cmp_color = GOLD_MUTED
-    cf = font(11, True).render(cmp_text, True, cmp_color)
+    cf = font(13, True).render(cmp_text, True, cmp_color)
     cf.set_alpha(230)
     surf.blit(cf, cf.get_rect(center=(W // 2,
-                                       plaque.bottom - 18 * SCALE)))
+                                       plaque.bottom - 20 * SCALE)))
 
     # Stat tile row (4 tiles)
     coins_pct = (round(data["coins"] / data["coins_total"] * 100)
@@ -872,12 +872,12 @@ def draw_v1_trophy_cinema(surf, data):
         ("pillar", data["pillars"], "PILLARS", None),
         ("flap", data["flaps"], "FLAPS", None),
     ]
-    tile_w = 70 * SCALE
-    tile_h = 76 * SCALE  # taller to accommodate the COINS subline
-    tile_gap = 10 * SCALE
+    tile_w = 78 * SCALE
+    tile_h = 96 * SCALE  # taller so the bigger icon + value + label all breathe
+    tile_gap = 8 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 280 * SCALE
+    tile_y = 282 * SCALE
     for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
@@ -889,27 +889,27 @@ def draw_v1_trophy_cinema(surf, data):
     # logical canvas (7 × 44 + 6 × 4 = 332 px → 28 px total margin).
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        cap_y = 396 * SCALE
-        cap2 = font(11, True).render("P O W E R - U P S   U S E D",
+        cap_y = 408 * SCALE
+        cap2 = font(13, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
-        cap2.set_alpha(220)
+        cap2.set_alpha(230)
         surf.blit(cap2, cap2.get_rect(center=(W // 2, cap_y)))
-        icon_logical = 22
+        icon_logical = 24
         icon_box = icon_logical * 2 * SCALE
         gap = 4 * SCALE
         pitch = icon_box + gap
         total_w = len(pu) * icon_box + max(0, len(pu) - 1) * gap
         sx = (W - total_w) // 2 + icon_box // 2
-        icon_cy = cap_y + 30 * SCALE
+        icon_cy = cap_y + 36 * SCALE
         for i, (kind, count) in enumerate(pu):
             cx = sx + i * pitch
             _ingame_powerup_icon(surf, kind, cx, icon_cy,
                                  int(icon_logical * 1.7 * SCALE))
-            cf = font(11, True).render(f"×{count}", True, GOLD_BRIGHT)
-            cs = font(11, True).render(f"×{count}", True, NEAR_BLACK)
+            cf = font(13, True).render(f"×{count}", True, GOLD_BRIGHT)
+            cs = font(13, True).render(f"×{count}", True, NEAR_BLACK)
             cs.set_alpha(170)
             cr = cf.get_rect(center=(cx, icon_cy
-                                     + int(icon_logical * 0.9) * SCALE))
+                                     + int(icon_logical * 0.95) * SCALE))
             surf.blit(cs, (cr.x + 1 * SCALE, cr.y + 1 * SCALE))
             surf.blit(cf, cr)
 
