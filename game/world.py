@@ -86,6 +86,12 @@ class World:
         self.pillars_passed = 0
         self.time_alive = 0.0
         self.near_misses = 0
+        self.flap_count = 0
+        # Every Coin construction increments this; the stats screen uses
+        # coin_count / max(1, coins_spawned - len(coins)) as the "% of
+        # encountered coins grabbed" figure (coins still on screen don't
+        # count as missed yet).
+        self.coins_spawned = 0
         self.powerups_picked = {"triple": 0, "magnet": 0, "slowmo": 0, "kfc": 0, "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0}
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -198,6 +204,7 @@ class World:
             self._maybe_spawn_powerup(p)
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
+        prev_count = len(self.coins)
         pattern = random.choice(("arc", "line", "cluster"))
         cx = pipe.x + PIPE_W + PIPE_SPACING * 0.5
         gy = pipe.gap_y
@@ -218,9 +225,11 @@ class World:
         else:  # cluster
             for dx, dy in ((0, 0), (-20, -14), (20, -14), (-20, 14), (20, 14)):
                 self.coins.append(Coin(cx + dx, gy + dy))
+        self.coins_spawned += len(self.coins) - prev_count
 
     def _spawn_rush_coins(self, pipe: Pipe):
         """Dense coin formation across the gap — random variant each rush."""
+        prev_count = len(self.coins)
         cx = pipe.x + PIPE_W + PIPE_SPACING * 0.45
         gy = pipe.gap_y
         span = PIPE_SPACING * 0.85
@@ -276,6 +285,8 @@ class World:
                 y = gy + amp * 0.4 - math.sin(math.pi * t) * amp * 0.3
                 self.coins.append(Coin(x, y))
 
+        self.coins_spawned += len(self.coins) - prev_count
+
     def _announce_rush(self, pipe: Pipe):
         """Gold sparkle burst when a rush pipe enters from the right edge."""
         x = pipe.x - 20
@@ -315,6 +326,7 @@ class World:
                 self.ready_t = 0.0
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
+            self.flap_count += 1
             audio.play_flap()
 
     # ── update ──────────────────────────────────────────────────────────────

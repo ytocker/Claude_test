@@ -13,6 +13,12 @@ from game.draw import (
 )
 from game import parrot
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin_hud
+# Run-summary stat-tile icons reuse the actual in-game art so the
+# COINS tile shows the spinning coin face the player saw mid-flight.
+# (game.powerup_help imports from game.hud — its `_powerup_icon` is
+# imported lazily inside draw_stats to avoid the circular import.)
+from game.entities import _get_coin_face as _ingame_coin_face
+from game.config import COIN_R
 
 _grow_parrot_hud: "pygame.Surface | None" = None
 
@@ -44,7 +50,9 @@ _SCARLET_TOP_DIM = (220,  45,  22)  # #dc2d16  brighter rust (top of grad)
 _SCARLET_BOT_DIM = (110,  22,  10)  # #6e160a  darker rust  (bottom of grad)
 _SCARLET_SHADOW = ( 60,   8,   8)   # #3c0808  pill text shadow
 _GOLD_DEEP      = (180, 130,  20)   # #b48214  inner laurel/ring tone
+_GOLD_PALE      = (255, 232, 168)   # #ffe8a8  bright highlight for engraving
 _PANEL_DARK     = ( 12,   8,  38)   # deep purple panel
+_PANEL_LIGHTER  = ( 26,  18,  62)   # navy gradient stop above PANEL_DARK
 _NIGHT_DEEP     = (  6,   1,  21)   # #060115
 
 
@@ -867,6 +875,221 @@ class HelpButton:
         surf.blit(q, q.get_rect(center=(cx, cy)))
 
 
+# ── Run-summary helpers ──────────────────────────────────────────────────────
+
+def _outline_pill_btn(surf, center, text, size=14, alpha=230,
+                      min_width=120, pad_x=24, pad_y=12):
+    """Secondary CTA — dark navy fill + gold border + gold text. Used
+    for MAIN MENU under the primary PLAY AGAIN pill so the hierarchy
+    reads cleanly. Returns the rect for hit-testing."""
+    f = _font(size, True)
+    img = f.render(text, True, _GOLD_BRIGHT)
+    pw = max(min_width, img.get_width() + pad_x)
+    ph = img.get_height() + pad_y
+    cx, cy = center
+    x = cx - pw // 2
+    y = cy - ph // 2
+    body = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    pygame.draw.rect(body, (*_PANEL_DARK, 200),
+                     (0, 0, pw, ph), border_radius=ph // 2)
+    pygame.draw.rect(body, _GOLD_BRIGHT, (0, 0, pw, ph),
+                     width=2, border_radius=ph // 2)
+    body.set_alpha(alpha)
+    surf.blit(body, (x, y))
+    surf.blit(img, img.get_rect(center=(cx, cy)))
+    return pygame.Rect(x, y, pw, ph)
+
+
+def _stat_tile_icon(surf, kind, cx, cy, size):
+    """Stat-tile icon glyph. ``size`` is the half-extent in pixels.
+    Supported kinds: ``time`` (clock face with hands), ``coin`` (real
+    in-game coin face, capped at native display size), ``pillar``
+    (small stone-column silhouette), ``flap`` (falcon wings pair)."""
+    s = size
+    if kind == "time":
+        pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), s, 2)
+        for ang in range(0, 360, 90):
+            a = math.radians(ang - 90)
+            x1 = cx + math.cos(a) * (s - 2)
+            y1 = cy + math.sin(a) * (s - 2)
+            x2 = cx + math.cos(a) * (s - 5)
+            y2 = cy + math.sin(a) * (s - 5)
+            pygame.draw.line(surf, _GOLD_BRIGHT, (x1, y1), (x2, y2), 1)
+        ha = math.radians(45 - 90)
+        ma = math.radians(160 - 90)
+        pygame.draw.line(surf, _GOLD_BRIGHT, (cx, cy),
+                         (cx + math.cos(ha) * s * 0.5,
+                          cy + math.sin(ha) * s * 0.5), 2)
+        pygame.draw.line(surf, _GOLD_BRIGHT, (cx, cy),
+                         (cx + math.cos(ma) * s * 0.7,
+                          cy + math.sin(ma) * s * 0.7), 2)
+        pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), 2)
+    elif kind == "coin":
+        face = _ingame_coin_face()
+        in_game_d = (COIN_R * 2 + 4)
+        target_d = min(int(s * 2.6), in_game_d)
+        scaled = pygame.transform.smoothscale(face, (target_d, target_d))
+        surf.blit(scaled, scaled.get_rect(center=(cx, cy)))
+    elif kind == "pillar":
+        w = int(s * 1.0)
+        pygame.draw.rect(surf, _GOLD_BRIGHT,
+                         (cx - w // 2, cy - s, w, s * 2),
+                         border_radius=2)
+        pygame.draw.rect(surf, _GOLD_DEEP,
+                         (cx - w // 2, cy - s, w, s * 2),
+                         width=1, border_radius=2)
+        pygame.draw.rect(surf, _GOLD_BRIGHT,
+                         (cx - w // 2 - 2, cy - s - 2, w + 4, 4),
+                         border_radius=1)
+        pygame.draw.rect(surf, _GOLD_DEEP,
+                         (cx - w // 2 - 2, cy - s - 2, w + 4, 4),
+                         width=1, border_radius=1)
+    elif kind == "flap":
+        # Falcon wings — slim swept-back pair, tile-tuned (chosen wing
+        # variant from docs/run_summary_redesign/wing_options_r9.png).
+        for sign in (-1, 1):
+            wing_pts = [
+                (cx + sign * s * 0.04, cy - s * 0.30),
+                (cx + sign * s * 0.30, cy - s * 0.60),
+                (cx + sign * s * 0.80, cy - s * 0.62),
+                (cx + sign * s * 1.20, cy - s * 0.18),
+                (cx + sign * s * 1.35, cy + s * 0.10),
+                (cx + sign * s * 1.05, cy + s * 0.20),
+                (cx + sign * s * 0.95, cy + s * 0.50),
+                (cx + sign * s * 0.65, cy + s * 0.25),
+                (cx + sign * s * 0.45, cy + s * 0.35),
+                (cx + sign * s * 0.22, cy + s * 0.12),
+                (cx + sign * s * 0.04, cy + s * 0.00),
+            ]
+            pygame.draw.polygon(surf, _GOLD_BRIGHT, wing_pts)
+            pygame.draw.polygon(surf, _GOLD_DEEP, wing_pts, 1)
+            for sf, tf in [((0.20, -0.42), (1.30, 0.05)),
+                           ((0.25, -0.32), (1.05, 0.18)),
+                           ((0.30, -0.15), (0.85, 0.40)),
+                           ((0.35, -0.00), (0.60, 0.25))]:
+                pygame.draw.line(
+                    surf, _GOLD_DEEP,
+                    (cx + sign * sf[0] * s, cy + sf[1] * s),
+                    (cx + sign * tf[0] * s, cy + tf[1] * s), 1)
+
+
+def _stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
+    """Single stat tile — beveled navy card with gradient body, gold
+    rim, icon at top, large value, optional subline ("61%"), bottom
+    label. Auto-shrinks the label one step if it would crowd."""
+    # Drop shadow
+    sh = pygame.Surface((rect.w + 4, rect.h + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 120),
+                     (0, 0, rect.w + 4, rect.h + 4), border_radius=10)
+    surf.blit(sh, (rect.x - 2, rect.y + 4))
+    # Body — vertical gradient
+    body = pygame.Surface(rect.size, pygame.SRCALPHA)
+    for yy in range(rect.h):
+        t = yy / max(1, rect.h - 1)
+        c = lerp_color(_PANEL_LIGHTER, _PANEL_DARK, t)
+        pygame.draw.line(body, (*c, 245), (0, yy), (rect.w, yy))
+    mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (0, 0, rect.w, rect.h), border_radius=10)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.rect(body, (*_GOLD_BRIGHT, 160), (0, 0, rect.w, rect.h),
+                     width=1, border_radius=10)
+    pygame.draw.line(body, (*_GOLD_PALE, 100),
+                     (10, 3), (rect.w - 10, 3), 1)
+    surf.blit(body, rect.topleft)
+    # Icon
+    _stat_tile_icon(surf, icon_kind, rect.centerx, rect.y + 22, size=15)
+    # Value
+    vf = _font(26, True).render(str(value), True, _GOLD_BRIGHT)
+    vs = _font(26, True).render(str(value), True, NEAR_BLACK)
+    vs.set_alpha(170)
+    vy = rect.y + 54 if subline else rect.y + 58
+    vr = vf.get_rect(center=(rect.centerx, vy))
+    surf.blit(vs, (vr.x + 1, vr.y + 2))
+    surf.blit(vf, vr)
+    # Optional subline
+    if subline:
+        sf = _font(11, True).render(subline, True, _GOLD_MUTED)
+        sf.set_alpha(230)
+        surf.blit(sf, sf.get_rect(center=(rect.centerx, rect.y + 74)))
+    # Label — auto-shrink for the longer captions
+    max_label_w = rect.w - 10
+    lbl_size = 12
+    lf = _font(lbl_size, True).render(label, True, _GOLD_MUTED)
+    while lf.get_width() > max_label_w and lbl_size > 10:
+        lbl_size -= 1
+        lf = _font(lbl_size, True).render(label, True, _GOLD_MUTED)
+    lf.set_alpha(230)
+    surf.blit(lf, lf.get_rect(center=(rect.centerx, rect.y + rect.h - 12)))
+
+
+def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
+    """Engraved gold-frame plaque with FINAL SCORE caption, massive
+    inset score numeral, and a BEST/delta line at the bottom."""
+    # Outer shadow
+    sh = pygame.Surface((rect.w + 8, rect.h + 10), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 130),
+                     (0, 0, rect.w + 8, rect.h + 10), border_radius=20)
+    surf.blit(sh, (rect.x - 4, rect.y + 6))
+    # Outer gold frame
+    pygame.draw.rect(surf, _GOLD_BRIGHT, rect, border_radius=20)
+    # Inner darker bevel
+    inner = rect.inflate(-8, -8)
+    pygame.draw.rect(surf, _GOLD_DEEP, inner, border_radius=16)
+    # Engraved face — gradient
+    face = inner.inflate(-6, -6)
+    grad = pygame.Surface(face.size, pygame.SRCALPHA)
+    for yy in range(face.h):
+        t = yy / max(1, face.h - 1)
+        c = lerp_color(_PANEL_LIGHTER, _NIGHT_DEEP, t)
+        pygame.draw.line(grad, (*c, 255), (0, yy), (face.w, yy))
+    mask = pygame.Surface(face.size, pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (0, 0, face.w, face.h), border_radius=12)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(grad, face.topleft)
+    # Radial light hint upper-left of face
+    glow = pygame.Surface(face.size, pygame.SRCALPHA)
+    for rr in range(int(face.w * 0.6), 0, -2):
+        a = int(18 * (1 - rr / (face.w * 0.6)))
+        pygame.draw.circle(glow, (255, 220, 140, a),
+                           (int(face.w * 0.35), int(face.h * 0.25)), rr)
+    glow.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(glow, face.topleft)
+    # FINAL SCORE caption
+    sc = _font(15, True).render("F I N A L   S C O R E", True, _GOLD_MUTED)
+    sc.set_alpha(230)
+    surf.blit(sc, sc.get_rect(center=(rect.centerx, rect.y + 26)))
+    # Massive engraved number
+    big_num = str(score)
+    nf = _font(88, True).render(big_num, True, _GOLD_BRIGHT)
+    no = _font(88, True).render(big_num, True, _RED_OUTLINE)
+    nsh = _font(88, True).render(big_num, True, NEAR_BLACK)
+    deep_inner = _font(88, True).render(big_num, True, _GOLD_DEEP)
+    nr = nf.get_rect(center=(rect.centerx, rect.centery + 4))
+    px = 4
+    for ox in (-px, 0, px):
+        for oy in (-px, 0, px):
+            if ox or oy:
+                surf.blit(no, (nr.x + ox, nr.y + oy))
+    nsh.set_alpha(180)
+    surf.blit(nsh, (nr.x + 4, nr.y + 6))
+    deep_inner.set_alpha(180)
+    surf.blit(deep_inner, (nr.x - 1, nr.y - 1))
+    surf.blit(nf, nr)
+    # Best/delta line
+    delta = score - best
+    if new_best:
+        cmp_text = f"NEW BEST  +{abs(delta)}"
+        cmp_color = _GOLD_BRIGHT
+    else:
+        cmp_text = f"BEST {best}    {delta:+d}"
+        cmp_color = _GOLD_MUTED
+    cf = _font(13, True).render(cmp_text, True, cmp_color)
+    cf.set_alpha(230)
+    surf.blit(cf, cf.get_rect(center=(rect.centerx, rect.bottom - 20)))
+
+
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
@@ -877,6 +1100,11 @@ class HUD:
         # first click before any draw is harmless.
         self.name_submit_rect = pygame.Rect(0, 0, 0, 0)
         self.name_skip_rect   = pygame.Rect(0, 0, 0, 0)
+        # Run-summary button rects — populated by draw_stats each frame
+        # so the STATE_STATS click handler in scenes.py can hit-test
+        # PLAY AGAIN vs MAIN MENU.
+        self.stats_play_again_rect = pygame.Rect(0, 0, 0, 0)
+        self.stats_main_menu_rect  = pygame.Rect(0, 0, 0, 0)
         # Precompute star positions for overlay screens (seeded for consistency)
         rng = random.Random(42)
         self._stars = [
@@ -1167,84 +1395,106 @@ class HUD:
         for ft in world.float_texts:
             ft.draw(surf)
 
-    def draw_stats(self, surf, world, dt, elapsed, show_prompt: bool = True):
+    def draw_stats(self, surf, world, dt, elapsed,
+                   best: int = 0, new_best: bool = False,
+                   show_prompt: bool = True):
+        """Run-summary screen — Trophy Cinema layout. RUN SUMMARY title,
+        engraved score plaque, 4 stat tiles (TIME · COINS+% · PILLARS ·
+        FLAPS), compact power-up icon strip, PLAY AGAIN primary +
+        MAIN MENU secondary buttons. ``show_prompt`` is kept for caller
+        compatibility but no longer drives a tap-to-continue prompt —
+        the buttons replace that affordance."""
         self.title_t += dt
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
-        dim.fill((6, 1, 21, 190))
+        dim.fill((*_NIGHT_DEEP, 190))
         surf.blit(dim, (0, 0))
 
         _draw_overlay_stars(surf, self._stars, self.title_t)
-        # Mountain silhouette belongs to the backdrop — drawn here so the
-        # score / stats cards layer on top instead of being clipped.
         _draw_mountain_silhouette(surf, alpha=160)
 
-        # Slide-in animation from below
-        slide_t = max(0.0, min(1.0, elapsed / 0.35))
-        e = slide_t * slide_t * (3 - 2 * slide_t)
-        card_y = int(58 + (1.0 - e) * 60)
+        # Title — canonical gold-on-red treatment, same family as SKYBIT
+        _outlined_text(surf, "RUN  SUMMARY", (W // 2, 56),
+                       size=34, px=3, shadow_offset=(3, 5))
 
-        # Header — gold with red outline (matches the TOP 10 / WELCOME styling)
-        _outlined_text(surf, "RUN SUMMARY", (W // 2, card_y - 4),
-                        size=24, px=2, shadow_offset=(2, 3))
+        # Hero score plaque
+        plaque = pygame.Rect(18, 104, W - 36, 156)
+        _score_plaque(surf, plaque, world.score, best, new_best)
 
-        # Hero score medallion in place of the rectangular score block —
-        # sized to match the run-summary mockup proportionally (mockup
-        # uses r=72*SCALE on a 720-wide canvas; live canvas is 360 wide
-        # so the equivalent is r≈68).
-        _score_emblem(surf, W // 2, card_y + 82, 68,
-                      "S C O R E", str(world.score))
-
-        # Stats card
+        # Stat tiles (TIME · COINS+% · PILLARS · FLAPS)
         mins = int(world.time_alive) // 60
         secs = int(world.time_alive) % 60
         time_str = f"{mins}:{secs:02d}" if mins else f"{secs}s"
-        rows = [
-            ("Time alive",     time_str),
-            ("Coins",          str(world.coin_count)),
-            ("Pillars cleared", str(world.pillars_passed)),
-            ("Power-ups",      str(sum(world.powerups_picked.values()))),
-            ("Near misses",    str(world.near_misses)),
+        # "Coins encountered" = coins that left the player's reach.
+        # Coins still on screen don't count as missed yet.
+        coins_encountered = max(0, world.coins_spawned - len(world.coins))
+        coins_pct = (round(world.coin_count / coins_encountered * 100)
+                     if coins_encountered > 0 else None)
+        coins_sub = f"{coins_pct}%" if coins_pct is not None else None
+        tiles = [
+            ("time",   time_str,                       "TIME",    None),
+            ("coin",   str(world.coin_count),          "COINS",   coins_sub),
+            ("pillar", str(world.pillars_passed),      "PILLARS", None),
+            ("flap",   str(world.flap_count),          "FLAPS",   None),
         ]
+        tile_w = 78
+        tile_h = 98
+        tile_gap = 8
+        total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
+        start_x = (W - total_w) // 2
+        tile_y = 282
+        for i, (kind, val, lbl, sub) in enumerate(tiles):
+            r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
+                            tile_w, tile_h)
+            _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
 
-        row_h = 32
-        card_rect = pygame.Rect(18, card_y + 162, W - 36, len(rows) * row_h + 20)
-        _dark_panel(surf, card_rect, radius=16, alpha=210)
+        # Power-ups row — caption + compact icon strip with ×N captions.
+        # No chip frame; bare icons all at the same size whether 1 or 7
+        # kinds were picked. Fits all 7 kinds in a single row.
+        pu = [(k, c) for k, c in world.powerups_picked.items() if c > 0]
+        if pu:
+            # Lazy import: game.powerup_help imports from game.hud, so
+            # we defer this until the first stats-screen render.
+            from game.powerup_help import (
+                _powerup_icon as _ingame_powerup_icon,
+            )
+            cap_y = 408
+            cap = _font(13, True).render("P O W E R - U P S   U S E D",
+                                         True, _GOLD_MUTED)
+            cap.set_alpha(230)
+            surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
+            icon_logical = 22
+            icon_box = icon_logical * 2
+            gap = 4
+            pitch = icon_box + gap
+            row_w = len(pu) * icon_box + max(0, len(pu) - 1) * gap
+            sx = (W - row_w) // 2 + icon_box // 2
+            icon_cy = cap_y + 30
+            for i, (kind, count) in enumerate(pu):
+                cx_chip = sx + i * pitch
+                _ingame_powerup_icon(surf, kind, cx_chip, icon_cy,
+                                     int(icon_logical * 1.7))
+                cf = _font(11, True).render(f"×{count}", True, _GOLD_BRIGHT)
+                cs = _font(11, True).render(f"×{count}", True, NEAR_BLACK)
+                cs.set_alpha(170)
+                cr = cf.get_rect(center=(cx_chip,
+                                         icon_cy + int(icon_logical * 0.9)))
+                surf.blit(cs, (cr.x + 1, cr.y + 1))
+                surf.blit(cf, cr)
 
-        ry = card_rect.y + 14
-        for i, (label, value) in enumerate(rows):
-            if i > 0:
-                div = pygame.Surface((card_rect.width - 24, 1), pygame.SRCALPHA)
-                div.fill((*_ORANGE_BORDER, 35))
-                surf.blit(div, (card_rect.x + 12, ry - 4))
-            # Per-character red-outline styling on every label and value —
-            # same writing style as the TOP 10 / RUN SUMMARY headers, just
-            # smaller. _outlined_text takes a centre point, so compute one
-            # from the desired left/right anchor.
-            kf = _font(13, True)
-            klbl = kf.render(label.upper(), True, _GOLD_BRIGHT)
-            kl_center = (card_rect.x + 16 + klbl.get_width() // 2, ry + klbl.get_height() // 2)
-            _outlined_text(surf, label.upper(), kl_center,
-                           size=13, px=1, shadow_offset=(1, 2))
-            vf = _font(15, True)
-            vimg = vf.render(value, True, _GOLD_BRIGHT)
-            vr_center = (card_rect.right - 16 - vimg.get_width() // 2, ry + vimg.get_height() // 2)
-            _outlined_text(surf, value, vr_center,
-                           size=15, px=1, shadow_offset=(1, 2))
-            ry += row_h
-
-        # Tap-to-continue prompt — also outlined (gold + red) so every line
-        # on the screen shares the same writing style.
-        if elapsed >= 0.6 and show_prompt:
-            alpha = max(80, min(255, int(150 + math.sin(self.title_t * 4) * 90)))
-            # Render the outlined text onto a temp surface so we can apply
-            # the pulsing alpha to the whole stack at once.
-            tmp_w, tmp_h = 280, 36
-            tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-            _outlined_text(tmp, "TAP TO CONTINUE",
-                           (tmp_w // 2, tmp_h // 2),
-                           size=18, px=2, shadow_offset=(2, 3))
-            tmp.set_alpha(alpha)
-            surf.blit(tmp, tmp.get_rect(center=(W // 2, H - 50)))
+        # Buttons — PLAY AGAIN primary, MAIN MENU secondary.
+        # Hide button hit rects until the 0.6s reveal gate has elapsed
+        # (matches the previous "tap to continue" debounce window so a
+        # stray tap from the death event doesn't immediately fire).
+        if elapsed >= 0.6:
+            self.stats_play_again_rect = _pill_btn(
+                surf, (W // 2, 568), "PLAY  AGAIN",
+                size=22, alpha=255, min_width=240, primary=True)
+            self.stats_main_menu_rect = _outline_pill_btn(
+                surf, (W // 2, 618), "MAIN MENU",
+                size=14, min_width=130)
+        else:
+            self.stats_play_again_rect = pygame.Rect(0, 0, 0, 0)
+            self.stats_main_menu_rect = pygame.Rect(0, 0, 0, 0)
 
     def draw_gameover(self, surf, dt, score: int, new_best: bool):
         self.title_t += dt

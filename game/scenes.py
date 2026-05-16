@@ -73,6 +73,12 @@ class App:
         self.hud = HUD()
         self.session_best = 0
         self._new_best = False
+        # Which action the player picked on the run-summary screen.
+        # Persists across STATE_NAMEENTRY / STATE_LEADERBOARD so that
+        # after a top-10 player dismisses the leaderboard they land
+        # where they originally chose. Reset on death so each run
+        # starts fresh.
+        self._post_leaderboard: str = "menu"
         # Intro plays once per program launch — start every session in
         # STATE_INTRO. Within the session (consecutive games after death,
         # menu-tap → play → die → menu) the intro is never replayed since
@@ -195,13 +201,30 @@ class App:
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
         elif self.state == STATE_STATS:
-            if self._stats_t >= 0.6 and not self._fetch_pending:
+            if self._stats_t < 0.6 or self._fetch_pending:
+                return
+            # Hit-test the run-summary buttons. The HUD populates these
+            # rects each frame in draw_stats; before the 0.6s reveal
+            # gate they are empty so taps in that window do nothing.
+            play_rect = getattr(self.hud, "stats_play_again_rect", None)
+            menu_rect = getattr(self.hud, "stats_main_menu_rect", None)
+            if pos and play_rect and play_rect.collidepoint(pos):
+                self._post_leaderboard = "play"
+                self._advance_past_stats()
+            elif pos and menu_rect and menu_rect.collidepoint(pos):
+                self._post_leaderboard = "menu"
                 self._advance_past_stats()
         elif self.state == STATE_NAMEENTRY:
             pass  # JS overlay handles input
         elif self.state == STATE_LEADERBOARD:
             if self._cooldown_t <= 0:
-                self.state = STATE_MENU
+                # Branch on the run-summary intent so the player lands
+                # where they chose on the stats screen after they've
+                # dismissed the leaderboard celebration.
+                if self._post_leaderboard == "play":
+                    self._restart()
+                else:
+                    self.state = STATE_MENU
                 # Keep the menu visible for a beat instead of letting the
                 # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
                 # echoes, or a fast double-click) skip straight into play.
@@ -457,6 +480,10 @@ class App:
         # at the moment of impact carries the whole "run ended" cue.
         self.state = STATE_STATS
         self._stats_t = 0.0
+        # Reset the run-summary intent so a freshly opened stats
+        # screen defaults to "main menu" until the player explicitly
+        # taps PLAY AGAIN.
+        self._post_leaderboard = "menu"
 
     def _advance_past_stats(self):
         """Tap on run-summary: if the score qualifies for top 10, the
@@ -481,8 +508,14 @@ class App:
             if self._qualifies_for_top10(scores, self._final_score):
                 self.state = STATE_NAMEENTRY
             else:
+                # Non-qualifying: honour the player's stats-screen
+                # choice. PLAY AGAIN starts a new run immediately;
+                # MAIN MENU lands them on the menu (legacy default).
                 self.hud.title_t = 0.0
-                self.state = STATE_MENU
+                if self._post_leaderboard == "play":
+                    self._restart()
+                else:
+                    self.state = STATE_MENU
                 self._cooldown_t = 0.25
 
     @staticmethod
@@ -604,7 +637,12 @@ class App:
             self.state = STATE_LEADERBOARD
             self._cooldown_t = 1.0
         else:
-            self.state = STATE_MENU
+            # Non-qualifying browser path: honour the player's stats
+            # button choice. PLAY AGAIN bypasses the menu entirely.
+            if self._post_leaderboard == "play":
+                self._restart()
+            else:
+                self.state = STATE_MENU
             self._cooldown_t = 0.25
 
     # ── render ──────────────────────────────────────────────────────────────
@@ -807,6 +845,7 @@ class App:
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)
         elif self.state == STATE_STATS:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
+                                best=self.best, new_best=self._new_best,
                                 show_prompt=not self._fetch_pending)
         elif self.state == STATE_NAMEENTRY:
             import sys as _sys
