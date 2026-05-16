@@ -1791,10 +1791,9 @@ class HUD:
 
         card_x, card_w = 14 * S, (W - 28) * S
 
-        # Slide-in from below (title_t reset to 0 on state entry)
-        slide_t = min(1.0, self.title_t / 0.4)
-        e = slide_t * slide_t * (3 - 2 * slide_t)
-        card_y = int((88 + (1.0 - e) * 80) * S)
+        # Rows appear immediately at their settled position — the
+        # slide-in-from-below animation was removed per design feedback.
+        card_y = 88 * S
 
         n = len(scores)
         if n == 0:
