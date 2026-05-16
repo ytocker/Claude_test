@@ -74,8 +74,11 @@ DATA = dict(
     time_str="1:27",
     duration_s=87,
     coins=11,
+    coins_total=18,  # for percentage caption
     pillars=23,
     near_misses=3,
+    flaps=127,
+    biome_reached="GOLDEN HOUR",
     # Per-kind counts. Only kinds with count > 0 are rendered. Layout
     # has room for all 7 kinds (triple, magnet, slowmo, kfc, ghost,
     # grow, surprise) — the scarlet macaw can grab more than one of
@@ -472,6 +475,23 @@ def stat_icon(surf, kind, cx, cy, size):
                          (cx - w // 2 - 2 * SCALE, cy - s - 2 * SCALE,
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
+    elif kind == "flap":
+        # Two stylised wing strokes suggesting a flap. Upper bright,
+        # lower deep-gold for depth.
+        pygame.draw.lines(surf, GOLD_BRIGHT, False, [
+            (cx - s, cy - s * 0.1),
+            (cx - s * 0.45, cy - s * 0.7),
+            (cx, cy - s * 0.2),
+            (cx + s * 0.45, cy - s * 0.7),
+            (cx + s, cy - s * 0.1),
+        ], 2 * SCALE)
+        pygame.draw.lines(surf, GOLD_DEEP, False, [
+            (cx - s * 0.75, cy + s * 0.4),
+            (cx - s * 0.3, cy + s * 0.0),
+            (cx, cy + s * 0.4),
+            (cx + s * 0.3, cy + s * 0.0),
+            (cx + s * 0.75, cy + s * 0.4),
+        ], 2 * SCALE)
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -532,7 +552,115 @@ def stat_icon(surf, kind, cx, cy, size):
                                (int(nx), int(ny)), 4 * SCALE, 1 * SCALE)
 
 
-def stat_tile_chunky(surf, rect, icon_kind, value, label):
+def draw_biome_icon(surf, biome_name, cx, cy, size):
+    """Tiny glyph representing a biome phase. Drawn in gold so the chip
+    keeps the established colour language regardless of which phase
+    was reached."""
+    s = size * SCALE
+    name = (biome_name or "DAY").upper()
+    if "NIGHT" in name:
+        # Crescent moon
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), int(s))
+        pygame.draw.circle(surf, PANEL_DARK,
+                           (int(cx + s * 0.35), cy - int(s * 0.05)),
+                           int(s * 0.85))
+    elif "DUSK" in name or "PREDAWN" in name:
+        # Half moon + small twinkle
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), int(s))
+        pygame.draw.rect(surf, PANEL_DARK,
+                         (cx - int(s), cy - int(s),
+                          int(s), int(s * 2)))
+        # Tiny star sparkle
+        pygame.draw.circle(surf, GOLD_BRIGHT,
+                           (int(cx + s * 1.2), int(cy - s * 0.6)),
+                           1 * SCALE)
+    elif "SUNRISE" in name or "SUNSET" in name:
+        # Sun half on horizon — semi-circle + horizon line
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy + 1), int(s))
+        pygame.draw.rect(surf, PANEL_DARK,
+                         (cx - int(s) - 2, cy + 1,
+                          int(s) * 2 + 4, int(s) + 4))
+        pygame.draw.line(surf, GOLD_BRIGHT,
+                         (cx - int(s * 1.4), cy + 1),
+                         (cx + int(s * 1.4), cy + 1), 1 * SCALE)
+        # Tiny rays
+        for dx in (-int(s * 0.6), 0, int(s * 0.6)):
+            pygame.draw.line(surf, GOLD_BRIGHT,
+                             (cx + dx, cy - int(s) - 1 * SCALE),
+                             (cx + dx, cy - int(s) - 4 * SCALE),
+                             1 * SCALE)
+    elif "GOLDEN" in name:
+        # Low sun with horizontal rays
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy + 1), int(s * 0.85))
+        for ang_deg in (-160, -110, -70, -20):
+            a = math.radians(ang_deg)
+            x1 = cx + math.cos(a) * (s + 1 * SCALE)
+            y1 = cy + 1 + math.sin(a) * (s + 1 * SCALE)
+            x2 = cx + math.cos(a) * (s + 4 * SCALE)
+            y2 = cy + 1 + math.sin(a) * (s + 4 * SCALE)
+            pygame.draw.line(surf, GOLD_BRIGHT, (x1, y1), (x2, y2),
+                             1 * SCALE)
+    else:  # DAY / default
+        # Full sun with radial rays
+        pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), int(s * 0.7))
+        for ang_deg in range(0, 360, 45):
+            a = math.radians(ang_deg)
+            x1 = cx + math.cos(a) * (s * 0.85)
+            y1 = cy + math.sin(a) * (s * 0.85)
+            x2 = cx + math.cos(a) * (s * 1.2)
+            y2 = cy + math.sin(a) * (s * 1.2)
+            pygame.draw.line(surf, GOLD_BRIGHT, (x1, y1), (x2, y2),
+                             1 * SCALE)
+
+
+def biome_chip(surf, center, biome_name, sub_label="REACHED"):
+    """Small pill showing the day-cycle phase the player flew through
+    by the time the run ended. Sits beside the rank medal in the
+    header strip."""
+    cx, cy = center
+    f = font(11, True)
+    txt = f.render(biome_name, True, GOLD_BRIGHT)
+    icon_box = 22 * SCALE
+    pad_l = 8 * SCALE
+    pad_r = 14 * SCALE
+    chip_w = pad_l + icon_box + 4 * SCALE + txt.get_width() + pad_r
+    chip_h = 32 * SCALE
+    rect = pygame.Rect(cx - chip_w // 2, cy - chip_h // 2, chip_w, chip_h)
+    # Shadow
+    sh = pygame.Surface((chip_w + 4 * SCALE, chip_h + 4 * SCALE),
+                        pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 110),
+                     (0, 0, chip_w + 4 * SCALE, chip_h + 4 * SCALE),
+                     border_radius=chip_h // 2)
+    surf.blit(sh, (rect.x - 2 * SCALE, rect.y + 4 * SCALE))
+    # Body
+    body = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(body, (*PANEL_DARK, 230),
+                     (0, 0, chip_w, chip_h), border_radius=chip_h // 2)
+    pygame.draw.rect(body, GOLD_BRIGHT,
+                     (0, 0, chip_w, chip_h),
+                     width=2 * SCALE, border_radius=chip_h // 2)
+    # Top inner highlight
+    pygame.draw.line(body, (*GOLD_PALE, 130),
+                     (chip_h // 2, 3 * SCALE),
+                     (chip_w - chip_h // 2, 3 * SCALE), 1 * SCALE)
+    surf.blit(body, rect.topleft)
+    # Icon (centered in icon_box)
+    draw_biome_icon(surf, biome_name,
+                    rect.x + pad_l + icon_box // 2,
+                    rect.centery,
+                    size=9)
+    # Text
+    tx = rect.x + pad_l + icon_box + 4 * SCALE
+    surf.blit(txt, (tx, rect.centery - txt.get_height() // 2))
+    # Small sub-label beneath
+    if sub_label:
+        sf = font(8, True).render(sub_label, True, GOLD_MUTED)
+        sf.set_alpha(220)
+        surf.blit(sf, sf.get_rect(center=(cx, rect.bottom + 12 * SCALE)))
+
+
+def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
     """Chunky engraved stat tile used in v1 (Trophy Cinema)."""
     # Drop shadow
     sh = pygame.Surface((rect.w + 4 * SCALE, rect.h + 4 * SCALE),
@@ -570,9 +698,17 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label):
     vf = font(20, True).render(str(value), True, GOLD_BRIGHT)
     vs = font(20, True).render(str(value), True, NEAR_BLACK)
     vs.set_alpha(170)
-    vr = vf.get_rect(center=(rect.centerx, rect.y + 42 * SCALE))
+    vy = rect.y + 40 * SCALE if subline else rect.y + 42 * SCALE
+    vr = vf.get_rect(center=(rect.centerx, vy))
     surf.blit(vs, (vr.x + 1 * SCALE, vr.y + 2 * SCALE))
     surf.blit(vf, vr)
+    # Optional subline — small gold-muted caption directly below the
+    # value (used for COINS to surface "61%" alongside the raw count)
+    if subline:
+        sf = font(9, True).render(subline, True, GOLD_MUTED)
+        sf.set_alpha(220)
+        surf.blit(sf, sf.get_rect(center=(rect.centerx,
+                                          rect.y + 56 * SCALE)))
     # Label — shrinks one step if the longer captions ("NEAR MISSES")
     # would otherwise crowd the tile edges
     max_label_w = rect.w - 8 * SCALE
@@ -643,10 +779,19 @@ def draw_v1_trophy_cinema(surf, data):
     cap.set_alpha(220)
     surf.blit(cap, cap.get_rect(center=(W // 2, 38 * SCALE)))
 
-    # Hex grade medal centered top
+    # Header row: BIOME chip on the left, hex RANK medal on the right,
+    # sharing the same vertical centre so they read as a paired set.
+    # Sub-labels are dropped — the medallion shape and the "GOLDEN
+    # HOUR"-style biome name both self-identify, and removing them
+    # frees up the strip below for the plaque.
     grade = grade_for(data["score"])
-    hex_medal(surf, W // 2, 92 * SCALE, size=32, letter=grade,
-              sub_label="R A N K")
+    header_cy = 96 * SCALE
+    biome_chip(surf,
+               (W // 2 - 70 * SCALE, header_cy),
+               data.get("biome_reached", "DAY"),
+               sub_label=None)
+    hex_medal(surf, W // 2 + 88 * SCALE, header_cy,
+              size=24, letter=grade, sub_label=None)
 
     # Hero score plaque — large rounded engraved panel
     plaque = pygame.Rect(36 * SCALE, 130 * SCALE,
@@ -720,22 +865,25 @@ def draw_v1_trophy_cinema(surf, data):
                                        plaque.bottom - 18 * SCALE)))
 
     # Stat tile row (4 tiles)
+    coins_pct = (round(data["coins"] / data["coins_total"] * 100)
+                 if data.get("coins_total") else None)
+    coins_sub = f"{coins_pct}%" if coins_pct is not None else None
     tiles = [
-        ("time", data["time_str"], "TIME"),
-        ("coin", data["coins"], "COINS"),
-        ("pillar", data["pillars"], "PILLARS"),
-        ("crosshair", data["near_misses"], "NEAR MISSES"),
+        ("time", data["time_str"], "TIME", None),
+        ("coin", data["coins"], "COINS", coins_sub),
+        ("pillar", data["pillars"], "PILLARS", None),
+        ("flap", data["flaps"], "FLAPS", None),
     ]
     tile_w = 70 * SCALE
-    tile_h = 70 * SCALE
+    tile_h = 76 * SCALE  # taller to accommodate the COINS subline
     tile_gap = 10 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 278 * SCALE
-    for i, (k, v, lbl) in enumerate(tiles):
+    tile_y = 274 * SCALE
+    for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
-        stat_tile_chunky(surf, r, k, v, lbl)
+        stat_tile_chunky(surf, r, k, v, lbl, subline=sub)
 
     # Power-ups grid — chip per kind that was actually picked. The chip
     # size is *fixed* regardless of how many kinds were grabbed; if more
