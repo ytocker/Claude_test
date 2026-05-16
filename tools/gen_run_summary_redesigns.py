@@ -573,8 +573,14 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label):
     vr = vf.get_rect(center=(rect.centerx, rect.y + 42 * SCALE))
     surf.blit(vs, (vr.x + 1 * SCALE, vr.y + 2 * SCALE))
     surf.blit(vf, vr)
-    # Label
-    lf = font(9, True).render(label, True, GOLD_MUTED)
+    # Label — shrinks one step if the longer captions ("NEAR MISSES")
+    # would otherwise crowd the tile edges
+    max_label_w = rect.w - 8 * SCALE
+    lbl_size = 9
+    lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
+    while lf.get_width() > max_label_w and lbl_size > 7:
+        lbl_size -= 1
+        lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
     lf.set_alpha(220)
     surf.blit(lf, lf.get_rect(center=(rect.centerx,
                                       rect.y + rect.h - 10 * SCALE)))
@@ -718,7 +724,7 @@ def draw_v1_trophy_cinema(surf, data):
         ("time", data["time_str"], "TIME"),
         ("coin", data["coins"], "COINS"),
         ("pillar", data["pillars"], "PILLARS"),
-        ("crosshair", data["near_misses"], "MISSES"),
+        ("crosshair", data["near_misses"], "NEAR MISSES"),
     ]
     tile_w = 70 * SCALE
     tile_h = 70 * SCALE
