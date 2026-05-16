@@ -72,37 +72,42 @@ _SHOOTING_STAR_COOLDOWN_S = 160.0
 _RAINBOW_COOLDOWN_S       = 300.0
 _LANTERN_COOLDOWN_S       = 260.0
 
-# Once a ground event's cooldown elapses (and the biome phase is right),
+# Once an ambient event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
-# actually firing. Tuned so expected wait once eligible is ~80 s, which on
-# top of the cooldown gives a rare, unpredictable appearance instead of a
-# fixed clock tick.
-_GROUND_EVENT_SPAWN_RATE = 1.0 / 80.0
+# actually firing. Tuned for typical 60-90 s plays with ~9 events
+# eligible in the day phase: at 1/200 per event, expected events per
+# 90 s play is ~9 × (1 - exp(-75/200)) ≈ 2.8 — rare enough to feel
+# special, frequent enough that players actually see them.
+_GROUND_EVENT_SPAWN_RATE = 1.0 / 200.0
 
 # Initial delay before the FIRST event of each kind in a run.
+# Tuned for typical play length: most plays end in 60-90 s (~100 score),
+# so delays sit in the 5-30 s range — events get a real chance to fire
+# during normal play. The probabilistic spawn rate below keeps the
+# overall flow rare even though many events are eligible early.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
 _FIREWORKS_INITIAL_DELAY = (30.0, 60.0)
 _BALLOON_INITIAL_DELAY = (20.0, 40.0)
 _PARROTS_INITIAL_DELAY = (25.0, 50.0)
 _CAMPFIRE_INITIAL_DELAY = (40.0, 80.0)
-_SHEEP_INITIAL_DELAY = (60.0, 120.0)
-_RABBITS_INITIAL_DELAY = (80.0, 150.0)
-_FOX_INITIAL_DELAY = (100.0, 180.0)
-_WELL_INITIAL_DELAY = (90.0, 170.0)
-_SCARECROW_INITIAL_DELAY = (80.0, 150.0)
-_MUSHRING_INITIAL_DELAY = (110.0, 200.0)
-_BENCH_INITIAL_DELAY = (70.0, 140.0)
-_NAPPER_INITIAL_DELAY = (110.0, 200.0)
-_DOG_INITIAL_DELAY = (60.0, 130.0)
+_SHEEP_INITIAL_DELAY = (8.0, 28.0)
+_RABBITS_INITIAL_DELAY = (10.0, 32.0)
+_FOX_INITIAL_DELAY = (15.0, 40.0)
+_WELL_INITIAL_DELAY = (10.0, 30.0)
+_SCARECROW_INITIAL_DELAY = (12.0, 35.0)
+_MUSHRING_INITIAL_DELAY = (15.0, 40.0)
+_BENCH_INITIAL_DELAY = (10.0, 30.0)
+_NAPPER_INITIAL_DELAY = (15.0, 40.0)
+_DOG_INITIAL_DELAY = (8.0, 28.0)
 
-_BANNER_PLANE_INITIAL_DELAY    = (70.0, 150.0)
-_BALLOON_CLUSTER_INITIAL_DELAY = (55.0, 120.0)
-_ZEPPELIN_INITIAL_DELAY      = (90.0, 180.0)
-_EAGLE_INITIAL_DELAY         = (70.0, 140.0)
-_BAT_INITIAL_DELAY           = (80.0, 160.0)
-_SHOOTING_STAR_INITIAL_DELAY = (40.0, 100.0)
-_RAINBOW_INITIAL_DELAY       = (120.0, 220.0)
-_LANTERN_INITIAL_DELAY       = (90.0, 170.0)
+_BANNER_PLANE_INITIAL_DELAY    = (10.0, 32.0)
+_BALLOON_CLUSTER_INITIAL_DELAY = (8.0, 28.0)
+_ZEPPELIN_INITIAL_DELAY      = (18.0, 45.0)
+_EAGLE_INITIAL_DELAY         = (12.0, 35.0)
+_BAT_INITIAL_DELAY           = (12.0, 35.0)
+_SHOOTING_STAR_INITIAL_DELAY = (8.0, 28.0)
+_RAINBOW_INITIAL_DELAY       = (25.0, 60.0)
+_LANTERN_INITIAL_DELAY       = (15.0, 40.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
