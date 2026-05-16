@@ -752,7 +752,33 @@ def draw_wing_pip(surf, cx, cy, s):
         pygame.draw.line(surf, BIRD_WING_DARK, P(30, 34), P(46, 32), thick)
 
 
-def draw_wing_angel(surf, cx, cy, s):
+def draw_wing_bird_silhouette(surf, cx, cy, s):
+    """Variant 2 — Bird-in-flight silhouette seen from below. The
+    universal "M-curve" wing shape used in every bird logo from
+    Twitter to airline emblems. Reads as wings INSTANTLY because
+    it's the silhouette every brain associates with birds."""
+    thick = max(3, int(SCALE * 1.6))
+    pts = [
+        (cx - s * 1.10, cy - s * 0.05),
+        (cx - s * 0.75, cy - s * 0.50),
+        (cx - s * 0.35, cy - s * 0.15),
+        (cx,            cy + s * 0.10),
+        (cx + s * 0.35, cy - s * 0.15),
+        (cx + s * 0.75, cy - s * 0.50),
+        (cx + s * 1.10, cy - s * 0.05),
+    ]
+    pygame.draw.lines(surf, GOLD_BRIGHT, False, pts, thick)
+    body_pts = [
+        (cx - s * 1.00, cy + s * 0.00),
+        (cx - s * 0.55, cy + s * 0.25),
+        (cx + s * 0.55, cy + s * 0.25),
+        (cx + s * 1.00, cy + s * 0.00),
+    ]
+    pygame.draw.lines(surf, GOLD_BRIGHT, False, body_pts,
+                      max(2, int(SCALE)))
+
+
+def _unused_angel_template(surf, cx, cy, s):  # kept for reference
     """Variant 2 — Classical angel: smooth leading edge, scalloped
     trailing edge with 5 feather tips, internal quill lines."""
     body_y_off = s * 0.08
@@ -787,7 +813,40 @@ def draw_wing_angel(surf, cx, cy, s):
                 max(1, int(SCALE)))
 
 
-def draw_wing_minimalist(surf, cx, cy, s):
+def draw_wing_cherub(surf, cx, cy, s):
+    """Variant 3 — Cherub / cupid wings: small, round, three-scallop
+    pair extending outward from a tiny heart-shaped centre. The
+    iconography you'd see on a stamp or a wax seal."""
+    for sign in (-1, 1):
+        scallops = [
+            (0.20, -0.30, 0.45, -0.45, 0.60, -0.20),
+            (0.20, -0.05, 0.55, -0.10, 0.75,  0.10),
+            (0.20,  0.20, 0.50,  0.30, 0.65,  0.40),
+        ]
+        wing_pts = [(cx + sign * s * 0.05, cy - s * 0.25)]
+        for ax, ay, bx, by, cx2, cy2 in scallops:
+            wing_pts.append((cx + sign * s * ax, cy + s * ay))
+            wing_pts.append((cx + sign * s * bx, cy + s * by))
+            wing_pts.append((cx + sign * s * cx2, cy + s * cy2))
+        wing_pts.append((cx + sign * s * 0.05, cy + s * 0.30))
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        for ax, ay, bx, by, cx2, cy2 in scallops[:-1]:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * s * ax, cy + s * ay),
+                (cx + sign * s * cx2, cy + s * cy2),
+                max(1, int(SCALE)))
+    h = max(3, int(s * 0.18))
+    pygame.draw.polygon(surf, GOLD_BRIGHT, [
+        (cx - h, cy - 1), (cx, cy + h * 1.2), (cx + h, cy - 1),
+        (cx + h * 0.5, cy - h * 0.7),
+        (cx, cy - h * 0.3),
+        (cx - h * 0.5, cy - h * 0.7),
+    ])
+
+
+def _unused_minimalist_template(surf, cx, cy, s):  # kept for reference
     """Variant 3 — Pure line-art: each wing is a single graceful curved
     stroke. The cleanest, most modern look — no fill, just an outline."""
     thick = max(3, int(SCALE * 2))
@@ -808,7 +867,50 @@ def draw_wing_minimalist(surf, cx, cy, s):
         pygame.draw.lines(surf, GOLD_BRIGHT, False, pts, thick)
 
 
-def draw_wing_phoenix(surf, cx, cy, s):
+def draw_wing_aviator_badge(surf, cx, cy, s):
+    """Variant 4 — Aviator wings badge: classic military pilot wings.
+    Wings extend HORIZONTALLY outward from a central insignia disc
+    with a small star inside. The most universally recognised "wings"
+    pictogram (military, airline, scouting)."""
+    disc_r = max(3, int(s * 0.22))
+    pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), disc_r + 1 * SCALE)
+    pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy), disc_r)
+    pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), disc_r,
+                       max(1, int(SCALE)))
+    star_r = max(1, int(s * 0.10))
+    star_pts = []
+    for i in range(10):
+        a = math.radians(i * 36 - 90)
+        r = star_r if i % 2 == 0 else int(star_r * 0.45)
+        star_pts.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
+    pygame.draw.polygon(surf, GOLD_DEEP, star_pts)
+    for sign in (-1, 1):
+        feathers = [
+            (0.90, -0.32, 0.05),
+            (1.10, -0.16, 0.06),
+            (1.30,  0.00, 0.07),
+            (1.10,  0.16, 0.06),
+            (0.90,  0.32, 0.05),
+        ]
+        for length, y_off, thick_f in feathers:
+            base_x = cx + sign * (disc_r + 1 * SCALE)
+            tip_x = cx + sign * s * length
+            y_mid = cy + s * y_off
+            ht = s * thick_f
+            pts = [
+                (base_x, y_mid - ht * 0.5),
+                (base_x + sign * s * length * 0.30, y_mid - ht),
+                (tip_x - sign * s * 0.05, y_mid - ht * 0.4),
+                (tip_x, y_mid),
+                (tip_x - sign * s * 0.05, y_mid + ht * 0.4),
+                (base_x + sign * s * length * 0.30, y_mid + ht),
+                (base_x, y_mid + ht * 0.5),
+            ]
+            pygame.draw.polygon(surf, GOLD_BRIGHT, pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, pts, max(1, int(SCALE)))
+
+
+def _unused_phoenix_template(surf, cx, cy, s):  # kept for reference
     """Variant 4 — Phoenix/flame wings: sharper, more aggressive
     angles. Trailing edge has long pointed flame-like feather tips."""
     for sign in (-1, 1):
@@ -843,7 +945,49 @@ def draw_wing_phoenix(surf, cx, cy, s):
                 max(1, int(SCALE)))
 
 
-def draw_wing_heraldic(surf, cx, cy, s):
+def draw_wing_feather(surf, cx, cy, s):
+    """Variant 5 — Single feather quill: a stylised plume with a curved
+    central spine and barb lines on each side. Universal feather icon
+    (matches the Font Awesome / Lucide style)."""
+    tip = (cx - s * 0.70, cy - s * 0.80)
+    base = (cx + s * 0.45, cy + s * 0.90)
+    blade_pts = [
+        tip,
+        (cx + s * 0.05, cy - s * 0.60),
+        (cx + s * 0.50, cy - s * 0.20),
+        (cx + s * 0.72, cy + s * 0.20),
+        (cx + s * 0.62, cy + s * 0.60),
+        base,
+        (cx + s * 0.10, cy + s * 0.45),
+        (cx - s * 0.20, cy + s * 0.05),
+        (cx - s * 0.50, cy - s * 0.35),
+    ]
+    pygame.draw.polygon(surf, GOLD_BRIGHT, blade_pts)
+    pygame.draw.polygon(surf, GOLD_DEEP, blade_pts, max(1, int(SCALE)))
+    pygame.draw.line(surf, GOLD_DEEP, tip, base,
+                     max(2, int(SCALE * 1.4)))
+    spine_segments = 8
+    dx = base[0] - tip[0]
+    dy = base[1] - tip[1]
+    length = math.hypot(dx, dy)
+    px = -dy / length
+    py = dx / length
+    for i in range(1, spine_segments):
+        t = i / spine_segments
+        sx = tip[0] + dx * t
+        sy = tip[1] + dy * t
+        barb_len = s * 0.30 * (1.0 - abs(t - 0.45) * 1.3)
+        if barb_len < 2:
+            continue
+        for bsign in (-1, 1):
+            tilt = 0.30
+            bx = sx + bsign * (px * barb_len - (dx / length) * barb_len * tilt)
+            by = sy + bsign * (py * barb_len - (dy / length) * barb_len * tilt)
+            pygame.draw.line(surf, GOLD_DEEP, (sx, sy), (bx, by),
+                             max(1, int(SCALE)))
+
+
+def _unused_heraldic_template(surf, cx, cy, s):  # kept for reference
     """Variant 5 — Heraldic crest wings: three distinct stacked
     feather tiers per side, scalloped, very geometric. Reads like a
     military patch or coat of arms."""
@@ -880,11 +1024,11 @@ def draw_wing_heraldic(surf, cx, cy, s):
 
 
 WING_VARIANTS = [
-    ("1.  PIP'S WING",   "blue + green tips",       draw_wing_pip),
-    ("2.  ANGEL",        "smooth + scalloped",      draw_wing_angel),
-    ("3.  LINE-ART",     "minimal outline",         draw_wing_minimalist),
-    ("4.  PHOENIX",      "flame feathers",          draw_wing_phoenix),
-    ("5.  CREST",        "heraldic 3-tier",         draw_wing_heraldic),
+    ("1.  PIP'S WING", "game-faithful, colour", draw_wing_pip),
+    ("2.  BIRD",       "flying-bird M shape",   draw_wing_bird_silhouette),
+    ("3.  CHERUB",     "scallop pair + heart",  draw_wing_cherub),
+    ("4.  AVIATOR",    "military pilot badge",  draw_wing_aviator_badge),
+    ("5.  FEATHER",    "single quill",          draw_wing_feather),
 ]
 
 
@@ -924,7 +1068,7 @@ def render_wing_options():
                     row_cy + 10 * SCALE))
     save("wing_options.png", s)
     # Cache-bust filename so the user definitely sees the latest version
-    save("wing_options_r5.png", s)
+    save("wing_options_r6.png", s)
 
 
 def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
