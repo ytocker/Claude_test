@@ -31,17 +31,12 @@ _CAMPFIRE_PHASES = ((0.55, 0.72),)             # night
 _SHEEP_PHASES = ((0.96, 1.0), (0.0, 0.15))     # day
 _RABBITS_PHASES = ((0.85, 0.95), (0.96, 1.0), (0.0, 0.10))  # sunrise + early day
 _FOX_PHASES = ((0.30, 0.40), (0.45, 0.55))     # sunset + dusk
-_BEEHIVE_PHASES = ((0.0, 0.20),)               # day
 _WELL_PHASES = ((0.0, 0.45), (0.78, 1.0))      # any non-night
 _SCARECROW_PHASES = ((0.10, 0.22),)            # golden hour
-_PICNIC_PHASES = ((0.96, 1.0), (0.0, 0.20))    # day
 _MUSHRING_PHASES = ((0.55, 0.72), (0.78, 0.88))  # night + predawn
-_CHEST_PHASES = ((0.0, 1.0),)                  # any (rare cooldown)
-_WISP_PHASES = ((0.55, 0.72), (0.78, 0.88))    # night + predawn
 _BENCH_PHASES = ((0.10, 0.22), (0.0, 0.10), (0.96, 1.0))  # golden hour + day
 _NAPPER_PHASES = ((0.0, 0.20), (0.30, 0.40))   # day + sunset
 _DOG_PHASES = ((0.0, 0.45),)                   # day → sunset
-_CLIMBER_PHASES = ((0.0, 0.30), (0.85, 1.0))   # day + sunrise (light to see him)
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
@@ -51,17 +46,12 @@ _CAMPFIRE_COOLDOWN_S = 130.0
 _SHEEP_COOLDOWN_S = 100.0
 _RABBITS_COOLDOWN_S = 110.0
 _FOX_COOLDOWN_S = 140.0
-_BEEHIVE_COOLDOWN_S = 120.0
 _WELL_COOLDOWN_S = 130.0
 _SCARECROW_COOLDOWN_S = 120.0
-_PICNIC_COOLDOWN_S = 140.0
 _MUSHRING_COOLDOWN_S = 150.0
-_CHEST_COOLDOWN_S = 200.0   # rare
-_WISP_COOLDOWN_S = 100.0
 _BENCH_COOLDOWN_S = 120.0
 _NAPPER_COOLDOWN_S = 140.0
 _DOG_COOLDOWN_S = 100.0
-_CLIMBER_COOLDOWN_S = 130.0
 
 # Initial delay before the FIRST event of each kind in a run.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
@@ -72,17 +62,12 @@ _CAMPFIRE_INITIAL_DELAY = (40.0, 80.0)
 _SHEEP_INITIAL_DELAY = (20.0, 40.0)
 _RABBITS_INITIAL_DELAY = (30.0, 55.0)
 _FOX_INITIAL_DELAY = (40.0, 70.0)
-_BEEHIVE_INITIAL_DELAY = (35.0, 60.0)
 _WELL_INITIAL_DELAY = (40.0, 70.0)
 _SCARECROW_INITIAL_DELAY = (35.0, 60.0)
-_PICNIC_INITIAL_DELAY = (50.0, 80.0)
 _MUSHRING_INITIAL_DELAY = (45.0, 75.0)
-_CHEST_INITIAL_DELAY = (80.0, 140.0)
-_WISP_INITIAL_DELAY = (30.0, 60.0)
 _BENCH_INITIAL_DELAY = (30.0, 55.0)
 _NAPPER_INITIAL_DELAY = (45.0, 75.0)
 _DOG_INITIAL_DELAY = (25.0, 50.0)
-_CLIMBER_INITIAL_DELAY = (45.0, 80.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -829,38 +814,110 @@ class _GroundEventBase:
                                  GROUND_Y - sh + 1 + y_off))
 
 
-# ── G1: Grazing sheep ────────────────────────────────────────────────────────
+# ── G1: Sheep pack ──────────────────────────────────────────────────────────
 
-def _build_sheep_sprite() -> pygame.Surface:
-    s = pygame.Surface((34, 22), pygame.SRCALPHA)
-    # Fluffy body
-    pygame.draw.ellipse(s, (240, 240, 235), (3, 6, 26, 12))
-    pygame.draw.ellipse(s, (215, 215, 210), (3, 6, 26, 12), 1)
-    # Wool bumps on top
-    for cx in (8, 13, 18, 23):
-        pygame.draw.circle(s, (250, 250, 245), (cx, 6), 2)
-    # Head (dark muzzle)
-    pygame.draw.ellipse(s, (60, 50, 45), (25, 9, 8, 8))
-    pygame.draw.ellipse(s, (90, 75, 65), (25, 9, 8, 5))
-    # Ear
-    pygame.draw.polygon(s, (50, 40, 35), [(26, 9), (28, 9), (27, 6)])
+_SHEEP_WOOL = (250, 248, 242)
+_SHEEP_WOOL_HI = (255, 253, 248)
+_SHEEP_WOOL_SHADE = (215, 213, 207)
+_SHEEP_FACE = (55, 42, 32)
+_SHEEP_FACE_DK = (30, 22, 18)
+_SHEEP_SNOUT = (195, 170, 150)
+_SHEEP_LEG = (40, 30, 25)
+
+
+def _build_sheep_sprite(adult: bool = True) -> pygame.Surface:
+    """Cute side-view sheep. ``adult=False`` returns a smaller lamb."""
+    if adult:
+        w, h = 24, 18
+        body_w, body_h = 17, 9
+        head_w, head_h = 7, 7
+        leg_h = 4
+        bump_r = 2
+    else:
+        w, h = 18, 14
+        body_w, body_h = 12, 6
+        head_w, head_h = 5, 5
+        leg_h = 3
+        bump_r = 2
+
+    s = pygame.Surface((w, h), pygame.SRCALPHA)
+    body_x = 1
+    body_y = h - body_h - leg_h - 1
+
+    # Tail fluff
+    pygame.draw.circle(s, _SHEEP_WOOL,
+                       (body_x, body_y + body_h // 2 + 1), 2 if adult else 2)
+
+    # Body cloud
+    pygame.draw.ellipse(s, _SHEEP_WOOL_SHADE,
+                       (body_x, body_y, body_w, body_h))
+    pygame.draw.ellipse(s, _SHEEP_WOOL,
+                       (body_x, body_y, body_w, body_h - 1))
+
+    # Wool bumps on top (overlapping for cloud texture)
+    bumps_y = body_y + bump_r - 1
+    step = bump_r * 2 - 1
+    cx = body_x + bump_r
+    while cx <= body_x + body_w - bump_r:
+        pygame.draw.circle(s, _SHEEP_WOOL_HI, (cx, bumps_y), bump_r)
+        cx += step
+
+    # Head — at front (right side)
+    head_x = body_x + body_w - 2
+    head_y = body_y + 1
+    pygame.draw.ellipse(s, _SHEEP_FACE_DK,
+                       (head_x, head_y, head_w, head_h))
+    pygame.draw.ellipse(s, _SHEEP_FACE,
+                       (head_x + 1, head_y + 1, head_w - 1, head_h - 2))
+    # Snout
+    pygame.draw.ellipse(s, _SHEEP_SNOUT,
+                       (head_x + head_w - 3, head_y + head_h - 3, 3, 2))
+    # Ear (small triangle on top of head)
+    pygame.draw.polygon(s, _SHEEP_FACE_DK,
+                       [(head_x + 1, head_y),
+                        (head_x + 3, head_y),
+                        (head_x + 2, head_y - 2)])
     # Eye
-    pygame.draw.circle(s, (240, 240, 235), (30, 12), 1)
-    # Legs
-    for lx in (8, 13, 19, 24):
-        pygame.draw.line(s, (50, 40, 35), (lx, 17), (lx, 21), 1)
+    pygame.draw.circle(s, _SHEEP_WOOL,
+                      (head_x + head_w - 2, head_y + 2), 1)
+
+    # 2 legs visible from side (front + back)
+    leg_y0 = body_y + body_h - 1
+    leg_y1 = leg_y0 + leg_h
+    front_x = body_x + body_w - 4
+    back_x = body_x + 3 if adult else body_x + 2
+    for lx in (front_x, back_x):
+        pygame.draw.line(s, _SHEEP_LEG, (lx, leg_y0), (lx, leg_y1), 1)
+        pygame.draw.line(s, _SHEEP_LEG,
+                         (lx - 1, leg_y1), (lx + 1, leg_y1), 1)
+
     return s
 
 
-class _Sheep(_GroundEventBase):
+class _SheepPack(_GroundEventBase):
+    """A small flock walking past — 3 adults plus a trailing lamb. Each
+    sheep has its own walking-bob phase so the pack feels alive."""
+    DURATION_MAX = 70.0
+    DESPAWN_MARGIN = 100  # wider than a single sheep
+
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
-        self._sprite = _build_sheep_sprite()
-        self._look_up_phase = self.rng.uniform(0, math.tau)
+        # (sprite, dx, dy, bob_phase)
+        self._members = [
+            (_build_sheep_sprite(adult=True), -30, 0, 0.0),
+            (_build_sheep_sprite(adult=True), -10, 2, 0.9),
+            (_build_sheep_sprite(adult=True), 12, 0, 1.7),
+            (_build_sheep_sprite(adult=False), 28, 3, 2.4),  # lamb trailing
+        ]
 
     def draw(self, surf):
-        bob = int(math.sin(self.t * 1.3 + self._look_up_phase) * 0.7)
-        self._blit_sprite(surf, y_off=-bob)
+        for sprite, dx, dy, phase in self._members:
+            sw, sh = sprite.get_size()
+            bob = math.sin(self.t * 2.6 + phase)
+            lift = max(0, bob) * 1.0   # walking bob — only up-swing lifts
+            x = int(self.x) + dx - sw // 2
+            y = GROUND_Y - sh + 1 + dy - int(round(lift))
+            surf.blit(sprite, (x, y))
 
 
 # ── G2: Rabbit hop trio ──────────────────────────────────────────────────────
@@ -960,56 +1017,6 @@ class _SleepingFox(_GroundEventBase):
             pygame.draw.line(layer, (215, 215, 230, a), (3, 0), (0, 3), 1)
             pygame.draw.line(layer, (215, 215, 230, a), (0, 3), (3, 3), 1)
             surf.blit(layer, (zx, zy))
-
-
-# ── G4: Beehive on stump ─────────────────────────────────────────────────────
-
-def _build_beehive_sprite() -> pygame.Surface:
-    s = pygame.Surface((24, 38), pygame.SRCALPHA)
-    # Stump
-    pygame.draw.rect(s, (115, 80, 50), (6, 28, 13, 10))
-    pygame.draw.rect(s, (85, 55, 30), (6, 28, 13, 10), 1)
-    pygame.draw.ellipse(s, (155, 115, 75), (5, 26, 14, 5))
-    pygame.draw.ellipse(s, (100, 70, 40), (8, 27, 8, 3))
-    # Hive (3 stacked layers)
-    for i in range(3):
-        y = 8 + i * 6
-        inset = 2 - i
-        x = 3 + inset
-        w = 18 - inset * 2
-        pygame.draw.ellipse(s, (200, 145, 70), (x, y, w, 8))
-        pygame.draw.ellipse(s, (155, 100, 50), (x, y, w, 8), 1)
-        pygame.draw.line(s, (170, 115, 55), (x + 1, y + 4), (x + w - 2, y + 4), 1)
-    # Top dome
-    pygame.draw.ellipse(s, (215, 160, 85), (8, 4, 8, 6))
-    pygame.draw.ellipse(s, (155, 100, 50), (8, 4, 8, 6), 1)
-    # Hole
-    pygame.draw.circle(s, (40, 25, 15), (12, 20), 2)
-    pygame.draw.circle(s, (90, 55, 25), (12, 20), 2, 1)
-    return s
-
-
-class _Beehive(_GroundEventBase):
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._sprite = _build_beehive_sprite()
-        # 5 bees, each with its own orbit phase and radius
-        self._bees = [
-            (self.rng.uniform(0, math.tau),
-             self.rng.uniform(6.0, 10.0),
-             self.rng.uniform(1.0, 1.6))
-            for _ in range(5)
-        ]
-
-    def draw(self, surf):
-        self._blit_sprite(surf)
-        cx = int(self.x)
-        cy = GROUND_Y - 22  # roughly at hive centre
-        for phase, radius, freq in self._bees:
-            bx = cx + int(math.cos(self.t * freq + phase) * radius)
-            by = cy + int(math.sin(self.t * freq * 1.3 + phase) * radius * 0.55)
-            pygame.draw.circle(surf, (245, 210, 70), (bx, by), 1)
-            pygame.draw.circle(surf, (30, 25, 20), (bx + 1, by), 1)
 
 
 # ── G5: Wishing well ─────────────────────────────────────────────────────────
@@ -1140,52 +1147,6 @@ class _Scarecrow(_GroundEventBase):
                              (sx + wind_dir * 3, sy), 1)
 
 
-# ── G7: Picnic blanket ───────────────────────────────────────────────────────
-
-def _build_picnic_sprite() -> pygame.Surface:
-    s = pygame.Surface((40, 18), pygame.SRCALPHA)
-    # Checkered blanket
-    for r in range(3):
-        for c in range(9):
-            x = c * 4 + 2
-            y = r * 3 + 7
-            col = (220, 60, 60) if (r + c) % 2 == 0 else (250, 245, 230)
-            pygame.draw.rect(s, col, (x, y, 4, 3))
-    pygame.draw.rect(s, (170, 35, 35), (2, 7, 36, 9), 1)
-    # Basket
-    pygame.draw.rect(s, (155, 105, 55), (4, 1, 9, 7))
-    pygame.draw.line(s, (95, 60, 30), (4, 1), (12, 1), 1)
-    pygame.draw.line(s, (130, 85, 40), (4, 3), (12, 3), 1)
-    pygame.draw.line(s, (130, 85, 40), (4, 5), (12, 5), 1)
-    pygame.draw.arc(s, (95, 60, 30), (4, -3, 9, 6), 0.0, math.pi, 1)
-    # Apples
-    pygame.draw.circle(s, (215, 50, 40), (18, 4), 2)
-    pygame.draw.circle(s, (245, 100, 80), (17, 3), 1)
-    pygame.draw.circle(s, (215, 50, 40), (24, 5), 2)
-    pygame.draw.circle(s, (245, 100, 80), (23, 4), 1)
-    # Glass / bottle
-    pygame.draw.rect(s, (90, 150, 90), (30, 1, 3, 7))
-    pygame.draw.rect(s, (140, 200, 140), (30, 1, 1, 7))
-    return s
-
-
-class _Picnic(_GroundEventBase):
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._sprite = _build_picnic_sprite()
-        self._butterfly_phase = self.rng.uniform(0, math.tau)
-
-    def draw(self, surf):
-        self._blit_sprite(surf)
-        # Occasional butterfly above basket
-        if math.sin(self.t * 0.4 + self._butterfly_phase) > 0.3:
-            bx = int(self.x) - 12 + int(math.cos(self.t * 1.6) * 2)
-            by = GROUND_Y - 22 + int(math.sin(self.t * 2.0) * 1)
-            col = (255, 220, 90)
-            pygame.draw.circle(surf, col, (bx - 1, by), 2)
-            pygame.draw.circle(surf, col, (bx + 2, by), 2)
-            pygame.draw.line(surf, (30, 20, 15), (bx, by - 1), (bx, by + 1), 1)
-
 
 # ── G8: Fairy mushroom ring ──────────────────────────────────────────────────
 
@@ -1234,72 +1195,6 @@ class _MushroomRing(_GroundEventBase):
         surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
-# ── G9: Treasure chest ───────────────────────────────────────────────────────
-
-def _build_chest_sprite() -> pygame.Surface:
-    s = pygame.Surface((28, 22), pygame.SRCALPHA)
-    # Lower box
-    pygame.draw.rect(s, (105, 70, 35), (3, 11, 22, 11))
-    pygame.draw.rect(s, (60, 35, 15), (3, 11, 22, 11), 1)
-    # Curved lid
-    pygame.draw.ellipse(s, (130, 90, 50), (3, 4, 22, 10))
-    pygame.draw.rect(s, (130, 90, 50), (3, 9, 22, 4))
-    pygame.draw.line(s, (60, 35, 15), (3, 10), (25, 10), 1)
-    pygame.draw.ellipse(s, (60, 35, 15), (3, 4, 22, 10), 1)
-    # Wood grain lines
-    pygame.draw.line(s, (85, 55, 25), (3, 14), (25, 14), 1)
-    pygame.draw.line(s, (85, 55, 25), (3, 17), (25, 17), 1)
-    # Iron bands
-    for bx in (6, 13, 20):
-        pygame.draw.rect(s, (65, 60, 55), (bx, 4, 2, 18))
-        pygame.draw.line(s, (110, 105, 100), (bx, 4), (bx, 22), 1)
-    # Brass lock plate
-    pygame.draw.rect(s, (215, 175, 75), (12, 12, 4, 5))
-    pygame.draw.rect(s, (150, 110, 35), (12, 12, 4, 5), 1)
-    # Keyhole
-    pygame.draw.circle(s, (60, 40, 20), (14, 14), 1)
-    pygame.draw.line(s, (60, 40, 20), (14, 14), (14, 16), 1)
-    # Grass tufts at base
-    pygame.draw.line(s, (60, 130, 60), (2, 22), (2, 19), 1)
-    pygame.draw.line(s, (60, 130, 60), (25, 22), (25, 19), 1)
-    return s
-
-
-class _TreasureChest(_GroundEventBase):
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._sprite = _build_chest_sprite()
-        self._glint_phase = self.rng.uniform(0, math.tau)
-
-    def draw(self, surf):
-        self._blit_sprite(surf)
-        # Gold glint near keyhole
-        if math.sin(self.t * 1.8 + self._glint_phase) > 0.85:
-            x = int(self.x)
-            y = GROUND_Y - 10
-            pygame.draw.circle(surf, (255, 235, 130), (x, y), 1)
-            pygame.draw.circle(surf, (255, 255, 220), (x - 1, y - 1), 1)
-
-
-# ── G10: Will-o-the-wisp ─────────────────────────────────────────────────────
-
-class _WillOWisp(_GroundEventBase):
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._bob_phase = self.rng.uniform(0, math.tau)
-        self._pulse_phase = self.rng.uniform(0, math.tau)
-
-    def draw(self, surf):
-        x = int(self.x)
-        bob = math.sin(self.t * 1.6 + self._bob_phase) * 4.0
-        y = GROUND_Y - 18 + int(bob)
-        pulse = 0.7 + 0.3 * math.sin(self.t * 2.4 + self._pulse_phase)
-        layer = pygame.Surface((W, H), pygame.SRCALPHA)
-        for r, base_a in ((12, 35), (8, 70), (5, 130), (3, 200)):
-            a = int(base_a * pulse)
-            pygame.draw.circle(layer, (170, 235, 255, a), (x, y), r)
-        surf.blit(layer, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-        pygame.draw.circle(surf, (235, 250, 255), (x, y), 1)
 
 
 # ── G11: Bench with two people ───────────────────────────────────────────────
@@ -1482,99 +1377,6 @@ class _RunningDog(_GroundEventBase):
                            GROUND_Y - sh + 1 + bob))
 
 
-# ── G14: Man climbing a pillar ───────────────────────────────────────────────
-
-def _build_climb_pillar_sprite() -> pygame.Surface:
-    """A small sandstone pillar — the climber's prop. Self-contained so
-    it doesn't conflict with the gameplay pillars."""
-    s = pygame.Surface((14, 46), pygame.SRCALPHA)
-    # Base plinth
-    pygame.draw.rect(s, (95, 80, 65), (0, 41, 14, 5))
-    pygame.draw.line(s, (45, 35, 25), (0, 41), (13, 41), 1)
-    pygame.draw.line(s, (135, 115, 90), (0, 42), (13, 42), 1)
-    # Shaft (slightly tapered)
-    pygame.draw.rect(s, (175, 150, 110), (3, 6, 8, 36))
-    pygame.draw.line(s, (130, 105, 75), (3, 6), (3, 41), 1)
-    pygame.draw.line(s, (210, 185, 140), (10, 6), (10, 41), 1)
-    # Stone-block divisions
-    for ydiv in (16, 26, 36):
-        pygame.draw.line(s, (130, 105, 75), (3, ydiv), (10, ydiv), 1)
-        pygame.draw.line(s, (200, 175, 130), (3, ydiv + 1), (10, ydiv + 1), 1)
-    # Capital (wider top)
-    pygame.draw.rect(s, (155, 130, 95), (1, 1, 12, 6))
-    pygame.draw.line(s, (45, 35, 25), (1, 1), (12, 1), 1)
-    pygame.draw.line(s, (210, 185, 140), (1, 2), (12, 2), 1)
-    pygame.draw.line(s, (45, 35, 25), (1, 6), (12, 6), 1)
-    return s
-
-
-_CLIMBER_SHIRT = (215, 75, 75)
-_CLIMBER_SHIRT_DK = (155, 35, 35)
-_CLIMBER_PANTS = (60, 70, 110)
-_CLIMBER_PANTS_DK = (35, 45, 80)
-_CLIMBER_SKIN = (235, 195, 150)
-_CLIMBER_HAIR = (75, 50, 30)
-
-
-def _draw_climber(surf, x: int, y: int, frame: int) -> None:
-    """Tiny man clinging to a wall — body center at (x, y), facing left
-    into the pillar (left side of the column). 2-frame climbing pose."""
-    # Body / shirt
-    pygame.draw.rect(surf, _CLIMBER_SHIRT_DK, (x - 1, y - 1, 3, 5))
-    pygame.draw.rect(surf, _CLIMBER_SHIRT, (x - 1, y - 1, 2, 4))
-    # Pants
-    pygame.draw.rect(surf, _CLIMBER_PANTS_DK, (x - 1, y + 4, 3, 3))
-    pygame.draw.rect(surf, _CLIMBER_PANTS, (x - 1, y + 4, 2, 3))
-    # Head
-    pygame.draw.circle(surf, _CLIMBER_SKIN, (x, y - 3), 2)
-    pygame.draw.polygon(surf, _CLIMBER_HAIR,
-                        [(x - 2, y - 4), (x + 2, y - 4), (x, y - 5)])
-    # Limbs reach toward the pillar (left side, where x < this point)
-    if frame == 0:
-        # Upper hand reaching high-left, lower hand near body
-        pygame.draw.line(surf, _CLIMBER_SKIN, (x, y), (x - 3, y - 3), 1)
-        pygame.draw.line(surf, _CLIMBER_SKIN, (x + 1, y + 1), (x - 1, y + 2), 1)
-        # Legs: upper foot up-left, lower foot down
-        pygame.draw.line(surf, _CLIMBER_PANTS, (x, y + 7), (x - 2, y + 6), 1)
-        pygame.draw.line(surf, _CLIMBER_PANTS, (x + 1, y + 7), (x + 1, y + 9), 1)
-    else:
-        # Swap: other hand reaches high
-        pygame.draw.line(surf, _CLIMBER_SKIN, (x + 1, y), (x - 2, y - 2), 1)
-        pygame.draw.line(surf, _CLIMBER_SKIN, (x, y + 1), (x - 3, y + 2), 1)
-        # Legs swap
-        pygame.draw.line(surf, _CLIMBER_PANTS, (x, y + 7), (x, y + 9), 1)
-        pygame.draw.line(surf, _CLIMBER_PANTS, (x + 1, y + 7), (x - 1, y + 6), 1)
-
-
-class _Climber(_GroundEventBase):
-    """A tiny figure scaling the side of a sandstone pillar. Slowly inches
-    upward over the event's lifetime; 2-frame limb animation sells the
-    motion."""
-    DURATION_MAX = 50.0
-
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._pillar = _build_climb_pillar_sprite()
-        self._climb_t = 0.0
-
-    def draw(self, surf):
-        sw, sh = self._pillar.get_size()
-        px = int(self.x) - sw // 2
-        py = GROUND_Y - sh + 1
-        surf.blit(self._pillar, (px, py))
-        # Climber inches up: from near-base to near-cap over ~35 s
-        progress = min(1.0, self.t / 35.0)
-        # Easing — slows slightly near the top
-        eased = progress * (1.05 - progress * 0.05)
-        climb_y = py + sh - 14 - int(eased * (sh - 22))
-        # Frame toggle (faster strides while reaching new holds)
-        frame = int(self.t * 3.5) % 2
-        # Body anchor on the LEFT side of the pillar (right side of body
-        # touches the column edge)
-        body_x = px + 3
-        _draw_climber(surf, body_x, climb_y, frame)
-
-
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class AmbientScenes:
@@ -1593,20 +1395,15 @@ class AmbientScenes:
         self.campfire: _Campfire | None = None
         self.blossoms: _CherryBlossomDrift = _CherryBlossomDrift()  # always live, gated
         # Ground events (drift-by scenery)
-        self.sheep: _Sheep | None = None
+        self.sheep: _SheepPack | None = None
         self.rabbits: _RabbitHop | None = None
         self.fox: _SleepingFox | None = None
-        self.beehive: _Beehive | None = None
         self.well: _WishingWell | None = None
         self.scarecrow: _Scarecrow | None = None
-        self.picnic: _Picnic | None = None
         self.mushring: _MushroomRing | None = None
-        self.chest: _TreasureChest | None = None
-        self.wisp: _WillOWisp | None = None
         self.bench: _Bench | None = None
         self.napper: _Napper | None = None
         self.dog: _RunningDog | None = None
-        self.climber: _Climber | None = None
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
         self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
@@ -1615,17 +1412,12 @@ class AmbientScenes:
         self._sheep_cool = random.uniform(*_SHEEP_INITIAL_DELAY)
         self._rabbits_cool = random.uniform(*_RABBITS_INITIAL_DELAY)
         self._fox_cool = random.uniform(*_FOX_INITIAL_DELAY)
-        self._beehive_cool = random.uniform(*_BEEHIVE_INITIAL_DELAY)
         self._well_cool = random.uniform(*_WELL_INITIAL_DELAY)
         self._scarecrow_cool = random.uniform(*_SCARECROW_INITIAL_DELAY)
-        self._picnic_cool = random.uniform(*_PICNIC_INITIAL_DELAY)
         self._mushring_cool = random.uniform(*_MUSHRING_INITIAL_DELAY)
-        self._chest_cool = random.uniform(*_CHEST_INITIAL_DELAY)
-        self._wisp_cool = random.uniform(*_WISP_INITIAL_DELAY)
         self._bench_cool = random.uniform(*_BENCH_INITIAL_DELAY)
         self._napper_cool = random.uniform(*_NAPPER_INITIAL_DELAY)
         self._dog_cool = random.uniform(*_DOG_INITIAL_DELAY)
-        self._climber_cool = random.uniform(*_CLIMBER_INITIAL_DELAY)
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
@@ -1691,34 +1483,24 @@ class AmbientScenes:
 
         # ── Ground events (all world-anchored, same pattern as campfire) ──
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
-            ("sheep", _Sheep, _SHEEP_PHASES, "_sheep_cool",
+            ("sheep", _SheepPack, _SHEEP_PHASES, "_sheep_cool",
              _SHEEP_COOLDOWN_S, 25),
             ("rabbits", _RabbitHop, _RABBITS_PHASES, "_rabbits_cool",
              _RABBITS_COOLDOWN_S, 30),
             ("fox", _SleepingFox, _FOX_PHASES, "_fox_cool",
              _FOX_COOLDOWN_S, 30),
-            ("beehive", _Beehive, _BEEHIVE_PHASES, "_beehive_cool",
-             _BEEHIVE_COOLDOWN_S, 25),
             ("well", _WishingWell, _WELL_PHASES, "_well_cool",
              _WELL_COOLDOWN_S, 30),
             ("scarecrow", _Scarecrow, _SCARECROW_PHASES, "_scarecrow_cool",
              _SCARECROW_COOLDOWN_S, 30),
-            ("picnic", _Picnic, _PICNIC_PHASES, "_picnic_cool",
-             _PICNIC_COOLDOWN_S, 35),
             ("mushring", _MushroomRing, _MUSHRING_PHASES, "_mushring_cool",
              _MUSHRING_COOLDOWN_S, 35),
-            ("chest", _TreasureChest, _CHEST_PHASES, "_chest_cool",
-             _CHEST_COOLDOWN_S, 50),
-            ("wisp", _WillOWisp, _WISP_PHASES, "_wisp_cool",
-             _WISP_COOLDOWN_S, 25),
             ("bench", _Bench, _BENCH_PHASES, "_bench_cool",
              _BENCH_COOLDOWN_S, 30),
             ("napper", _Napper, _NAPPER_PHASES, "_napper_cool",
              _NAPPER_COOLDOWN_S, 30),
             ("dog", _RunningDog, _DOG_PHASES, "_dog_cool",
              _DOG_COOLDOWN_S, 25),
-            ("climber", _Climber, _CLIMBER_PHASES, "_climber_cool",
-             _CLIMBER_COOLDOWN_S, 30),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -1748,9 +1530,9 @@ class AmbientScenes:
             self.campfire.draw(surf)
         # Ground events — static / opaque first, then glow events on top so
         # halos sit over (not under) the structures.
-        for slot_name in ("sheep", "rabbits", "fox", "beehive", "well",
-                          "scarecrow", "picnic", "chest", "bench", "napper",
-                          "dog", "climber", "mushring", "wisp"):
+        for slot_name in ("sheep", "rabbits", "fox", "well",
+                          "scarecrow", "bench", "napper",
+                          "dog", "mushring"):
             inst = getattr(self, slot_name)
             if inst is not None:
                 inst.draw(surf)
