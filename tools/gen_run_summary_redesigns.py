@@ -1583,12 +1583,213 @@ def draw_bird_macaw_pip(surf, cx, cy, s):
                 max(1, int(SCALE * 1.2)))
 
 
+def draw_wings_eagle(surf, cx, cy, s):
+    """Variant 1 — Eagle wings only: broad outstretched pair with 5
+    scalloped primary feathers per side and quill lines. The two
+    shoulders almost touch in the middle."""
+    for sign in (-1, 1):
+        wing_pts = [
+            (cx + sign * s * 0.04, cy - s * 0.25),
+            (cx + sign * s * 0.30, cy - s * 0.50),
+            (cx + sign * s * 0.80, cy - s * 0.55),
+            (cx + sign * s * 1.30, cy - s * 0.40),
+            (cx + sign * s * 1.55, cy - s * 0.10),
+            (cx + sign * s * 1.45, cy + s * 0.05),
+            (cx + sign * s * 1.50, cy + s * 0.35),    # feather tip 1
+            (cx + sign * s * 1.20, cy + s * 0.10),
+            (cx + sign * s * 1.20, cy + s * 0.42),    # feather tip 2
+            (cx + sign * s * 0.95, cy + s * 0.15),
+            (cx + sign * s * 0.90, cy + s * 0.45),    # feather tip 3
+            (cx + sign * s * 0.65, cy + s * 0.18),
+            (cx + sign * s * 0.55, cy + s * 0.42),    # feather tip 4
+            (cx + sign * s * 0.30, cy + s * 0.15),
+            (cx + sign * s * 0.20, cy + s * 0.35),    # feather tip 5
+            (cx + sign * s * 0.04, cy + s * 0.20),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        # Quill lines
+        for sf, tf in [((0.20, -0.30), (1.48, 0.32)),
+                       ((0.25, -0.30), (1.20, 0.40)),
+                       ((0.30, -0.25), (0.88, 0.42)),
+                       ((0.30, -0.18), (0.54, 0.40)),
+                       ((0.30, -0.10), (0.20, 0.32))]:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * sf[0] * s, cy + sf[1] * s),
+                (cx + sign * tf[0] * s, cy + tf[1] * s),
+                max(1, int(SCALE)))
+        # Secondary feather hint
+        pygame.draw.lines(
+            surf, GOLD_DEEP, False,
+            [(cx + sign * s * 0.20, cy - s * 0.15),
+             (cx + sign * s * 0.50, cy - s * 0.05),
+             (cx + sign * s * 0.90, cy + s * 0.00),
+             (cx + sign * s * 1.30, cy + s * 0.05)],
+            max(1, int(SCALE)))
+
+
+def draw_wings_falcon(surf, cx, cy, s):
+    """Variant 2 — Falcon wings: slim, pointed, swept back. Aerodynamic
+    silhouette without a body."""
+    for sign in (-1, 1):
+        wing_pts = [
+            (cx + sign * s * 0.04, cy - s * 0.20),
+            (cx + sign * s * 0.30, cy - s * 0.40),
+            (cx + sign * s * 0.85, cy - s * 0.40),
+            (cx + sign * s * 1.40, cy - s * 0.10),    # near tip
+            (cx + sign * s * 1.60, cy + s * 0.15),    # sweptback tip
+            (cx + sign * s * 1.25, cy + s * 0.20),
+            (cx + sign * s * 1.10, cy + s * 0.40),    # trailing flare
+            (cx + sign * s * 0.75, cy + s * 0.25),
+            (cx + sign * s * 0.55, cy + s * 0.32),
+            (cx + sign * s * 0.30, cy + s * 0.18),
+            (cx + sign * s * 0.04, cy + s * 0.05),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        # Sleek diagonal feather lines
+        for sf, tf in [((0.20, -0.28), (1.55, 0.10)),
+                       ((0.25, -0.22), (1.30, 0.20)),
+                       ((0.30, -0.12), (1.05, 0.32)),
+                       ((0.35, -0.02), (0.75, 0.25))]:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * sf[0] * s, cy + sf[1] * s),
+                (cx + sign * tf[0] * s, cy + tf[1] * s),
+                max(1, int(SCALE)))
+
+
+def draw_wings_heraldic(surf, cx, cy, s):
+    """Variant 3 — Heraldic wings: 3 stacked feather tiers per side,
+    scalloped trailing edges, geometric coat-of-arms style."""
+    for sign in (-1, 1):
+        tiers = [
+            (1.30, 0.18, -0.30, 4),
+            (1.50, 0.20, -0.05, 5),
+            (1.30, 0.18,  0.20, 4),
+        ]
+        for length, half_h, y_off, n_scallops in tiers:
+            pts = [(cx + sign * s * 0.06, cy + s * (y_off - half_h)),
+                   (cx + sign * s * length * 0.55,
+                    cy + s * (y_off - half_h * 1.10)),
+                   (cx + sign * s * length, cy + s * y_off)]
+            for i in range(n_scallops + 1):
+                t = 1.0 - i / n_scallops
+                vx = cx + sign * s * length * t
+                vy = cy + s * (y_off + half_h * 0.55)
+                pts.append((vx, vy))
+                if i < n_scallops:
+                    t_next = 1.0 - (i + 0.5) / n_scallops
+                    tx = cx + sign * s * length * t_next
+                    ty = cy + s * (y_off + half_h * 1.10)
+                    pts.append((tx, ty))
+            pts.append((cx + sign * s * 0.06, cy + s * (y_off + half_h)))
+            pygame.draw.polygon(surf, GOLD_BRIGHT, pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, pts, max(1, int(SCALE)))
+
+
+def draw_wings_phoenix(surf, cx, cy, s):
+    """Variant 4 — Phoenix wings: ornate, outstretched with upward
+    curled tips and decorative trailing plumes."""
+    for sign in (-1, 1):
+        wing_pts = [
+            (cx + sign * s * 0.06, cy - s * 0.25),
+            (cx + sign * s * 0.30, cy - s * 0.45),
+            (cx + sign * s * 0.85, cy - s * 0.60),       # shoulder peak
+            (cx + sign * s * 1.30, cy - s * 0.70),       # near tip
+            (cx + sign * s * 1.55, cy - s * 0.55),       # upcurled tip
+            (cx + sign * s * 1.40, cy - s * 0.25),       # back down
+            (cx + sign * s * 1.20, cy + s * 0.00),
+            (cx + sign * s * 1.30, cy + s * 0.30),       # plume tip 1
+            (cx + sign * s * 1.00, cy + s * 0.00),
+            (cx + sign * s * 1.05, cy + s * 0.40),       # plume tip 2
+            (cx + sign * s * 0.75, cy + s * 0.05),
+            (cx + sign * s * 0.75, cy + s * 0.40),       # plume tip 3
+            (cx + sign * s * 0.50, cy + s * 0.08),
+            (cx + sign * s * 0.45, cy + s * 0.35),       # plume tip 4
+            (cx + sign * s * 0.20, cy + s * 0.10),
+            (cx + sign * s * 0.06, cy + s * 0.00),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        for sf, tf in [((0.25, -0.35), (1.30, 0.28)),
+                       ((0.30, -0.30), (1.05, 0.36)),
+                       ((0.35, -0.25), (0.75, 0.36)),
+                       ((0.35, -0.18), (0.45, 0.30))]:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * sf[0] * s, cy + sf[1] * s),
+                (cx + sign * tf[0] * s, cy + tf[1] * s),
+                max(1, int(SCALE)))
+        pygame.draw.circle(surf, GOLD_DEEP,
+                           (int(cx + sign * s * 0.50),
+                            int(cy - s * 0.30)),
+                           max(1, int(s * 0.04)))
+
+
+def draw_wings_macaw(surf, cx, cy, s):
+    """Variant 5 — Macaw wings (Pip-style): both wings spread, cobalt
+    blue with lime green primary tips, yellow secondary stripe, dark
+    blue feather divider lines. Matches game/parrot.py's palette."""
+    BIRD_BLUE = (40, 100, 255)
+    BIRD_BLUE_D = (20, 55, 180)
+    BIRD_GREEN = (50, 220, 100)
+    YELLOW = (255, 200, 60)
+    for sign in (-1, 1):
+        wing_pts = [
+            (cx + sign * s * 0.06, cy - s * 0.20),
+            (cx + sign * s * 0.32, cy - s * 0.45),
+            (cx + sign * s * 0.90, cy - s * 0.55),
+            (cx + sign * s * 1.35, cy - s * 0.35),
+            (cx + sign * s * 1.55, cy - s * 0.05),
+            (cx + sign * s * 1.45, cy + s * 0.15),
+            (cx + sign * s * 1.10, cy + s * 0.20),
+            (cx + sign * s * 0.70, cy + s * 0.22),
+            (cx + sign * s * 0.32, cy + s * 0.12),
+            (cx + sign * s * 0.06, cy + s * 0.00),
+        ]
+        pygame.draw.polygon(surf, BIRD_BLUE, wing_pts)
+        pygame.draw.polygon(surf, BIRD_BLUE_D, wing_pts, max(1, int(SCALE)))
+        # Underside shadow triangle near body
+        pygame.draw.polygon(surf, BIRD_BLUE_D, [
+            (cx + sign * s * 0.06, cy - s * 0.05),
+            (cx + sign * s * 0.30, cy + s * 0.10),
+            (cx + sign * s * 0.06, cy + s * 0.00),
+        ])
+        # Lime green primary tip patch
+        tip_pts = [
+            (cx + sign * s * 1.28, cy - s * 0.40),
+            (cx + sign * s * 1.55, cy - s * 0.05),
+            (cx + sign * s * 1.42, cy + s * 0.10),
+            (cx + sign * s * 1.20, cy - s * 0.15),
+        ]
+        pygame.draw.polygon(surf, BIRD_GREEN, tip_pts)
+        # Yellow secondary stripe
+        stripe_pts = [
+            (cx + sign * s * 1.02, cy - s * 0.35),
+            (cx + sign * s * 1.28, cy - s * 0.20),
+            (cx + sign * s * 1.18, cy - s * 0.02),
+            (cx + sign * s * 0.92, cy - s * 0.18),
+        ]
+        pygame.draw.polygon(surf, YELLOW, stripe_pts)
+        # Feather divider lines
+        for sf, tf in [((0.25, -0.30), (1.32, 0.10)),
+                       ((0.30, -0.20), (1.10, 0.18)),
+                       ((0.35, -0.10), (0.85, 0.20))]:
+            pygame.draw.line(
+                surf, BIRD_BLUE_D,
+                (cx + sign * sf[0] * s, cy + sf[1] * s),
+                (cx + sign * tf[0] * s, cy + tf[1] * s),
+                max(2, int(SCALE * 1.2)))
+
+
 WING_VARIANTS = [
-    ("1.  EAGLE",      "mighty raptor, 5 feathers",  draw_bird_eagle_detailed),
-    ("2.  FALCON",     "swept-back, aerodynamic",    draw_bird_falcon_swept),
-    ("3.  HERALDIC",   "3-tier crest eagle",         draw_bird_heraldic_eagle),
-    ("4.  PHOENIX",    "ornate, curled tips, plumes", draw_bird_phoenix),
-    ("5.  MACAW (PIP)", "Pip's colour palette",      draw_bird_macaw_pip),
+    ("1.  EAGLE",     "broad raptor, 5 feathers",   draw_wings_eagle),
+    ("2.  FALCON",    "sweptback + aerodynamic",    draw_wings_falcon),
+    ("3.  HERALDIC",  "3-tier crest wings",         draw_wings_heraldic),
+    ("4.  PHOENIX",   "ornate, curled tips",        draw_wings_phoenix),
+    ("5.  MACAW",     "Pip's colour palette",       draw_wings_macaw),
 ]
 
 
@@ -1628,7 +1829,7 @@ def render_wing_options():
                     row_cy + 10 * SCALE))
     save("wing_options.png", s)
     # Cache-bust filename so the user definitely sees the latest version
-    save("wing_options_r8.png", s)
+    save("wing_options_r9.png", s)
 
 
 def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
