@@ -1003,15 +1003,21 @@ def _stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
     vf = _font(26, True).render(str(value), True, _GOLD_BRIGHT)
     vs = _font(26, True).render(str(value), True, NEAR_BLACK)
     vs.set_alpha(170)
-    vy = rect.y + 54 if subline else rect.y + 58
+    vy = rect.y + 52 if subline else rect.y + 58
     vr = vf.get_rect(center=(rect.centerx, vy))
     surf.blit(vs, (vr.x + 1, vr.y + 2))
     surf.blit(vf, vr)
-    # Optional subline
+    # Optional subline — bumped from 11pt muted to 13pt bright gold
+    # with a near-black shadow so the COINS percentage reads at a
+    # glance instead of fading into the tile shading.
     if subline:
-        sf = _font(11, True).render(subline, True, _GOLD_MUTED)
-        sf.set_alpha(230)
-        surf.blit(sf, sf.get_rect(center=(rect.centerx, rect.y + 74)))
+        sf = _font(13, True).render(subline, True, _GOLD_BRIGHT)
+        ss = _font(13, True).render(subline, True, NEAR_BLACK)
+        ss.set_alpha(200)
+        sub_center = (rect.centerx, rect.y + 76)
+        sr = sf.get_rect(center=sub_center)
+        surf.blit(ss, (sr.x + 1, sr.y + 2))
+        surf.blit(sf, sr)
     # Label — auto-shrink for the longer captions
     max_label_w = rect.w - 10
     lbl_size = 12
@@ -1437,7 +1443,9 @@ class HUD:
             ("flap",   str(world.flap_count),          "FLAPS",   None),
         ]
         tile_w = 78
-        tile_h = 98
+        # Tile height grew from 98 → 104 to give the bigger COINS-%
+        # subline (now 13pt bright) breathing room above the label.
+        tile_h = 104
         tile_gap = 8
         total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
         start_x = (W - total_w) // 2
