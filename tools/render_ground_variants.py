@@ -181,7 +181,7 @@ def main() -> None:
     _showcase(OUT / "_v3_within_run_variation.png",
               "V3 within one run (scrolling forward)",
               [(f"scroll {sv}", _within_run_frame(sv))
-               for sv in (80, 240, 480, 800)])
+               for sv in (80, 1200, 2400, 3600)])
 
     sheet = make_contact_sheet(images)
     sheet_path = OUT / "_contact_sheet.png"

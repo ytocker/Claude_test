@@ -104,13 +104,25 @@ set_run_seed()  # initialise on import
 
 
 def _density_at(world_x: float) -> float:
-    """Density factor 0..RUN_DENSITY_BASE driven by two phase-shifted sine
-    waves over world-x. Produces alternating lush/sparse patches across
-    a run; the per-run base scales the overall lushness."""
-    a = math.sin(world_x * 0.011 + RUN_SEED * 1.4e-3) * 0.5 + 0.5
-    b = math.sin(world_x * 0.005 + RUN_SEED * 3.1e-3 + 1.7) * 0.5 + 0.5
-    wave = a * 0.6 + b * 0.4  # 0..1
-    return wave * RUN_DENSITY_BASE
+    """Density factor 0..RUN_DENSITY_BASE driven by three phase-shifted sine
+    waves over world-x:
+
+    * a SLOW regional wave (wavelength ~4200 px) — the bird flies through
+      long stretches that feel sparse, then long stretches that feel
+      lush, all within one play;
+    * two FAST patch waves (~570 / ~900 px) — local clusters and gaps
+      inside each region;
+    * all three are phase-shifted by ``RUN_SEED`` so the regional pattern
+      also reshuffles every new play;
+    * the whole thing is then scaled by ``RUN_DENSITY_BASE`` so a play's
+      overall lushness also varies between runs.
+    """
+    slow = math.sin(world_x * 0.0015 + RUN_SEED * 7.3e-4) * 0.5 + 0.5
+    fast_a = math.sin(world_x * 0.011 + RUN_SEED * 1.4e-3) * 0.5 + 0.5
+    fast_b = math.sin(world_x * 0.005 + RUN_SEED * 3.1e-3 + 1.7) * 0.5 + 0.5
+    fast = fast_a * 0.6 + fast_b * 0.4
+    combined = slow * 0.6 + fast * 0.4  # slow dominates, fast adds patches
+    return combined * RUN_DENSITY_BASE
 
 
 def _scatter(scroll, w, speed, step, seed_off):
