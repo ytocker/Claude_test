@@ -476,22 +476,29 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # Two stylised wing strokes suggesting a flap. Upper bright,
-        # lower deep-gold for depth.
-        pygame.draw.lines(surf, GOLD_BRIGHT, False, [
-            (cx - s, cy - s * 0.1),
-            (cx - s * 0.45, cy - s * 0.7),
-            (cx, cy - s * 0.2),
-            (cx + s * 0.45, cy - s * 0.7),
-            (cx + s, cy - s * 0.1),
-        ], 2 * SCALE)
-        pygame.draw.lines(surf, GOLD_DEEP, False, [
-            (cx - s * 0.75, cy + s * 0.4),
-            (cx - s * 0.3, cy + s * 0.0),
-            (cx, cy + s * 0.4),
-            (cx + s * 0.3, cy + s * 0.0),
-            (cx + s * 0.75, cy + s * 0.4),
-        ], 2 * SCALE)
+        # A pair of outstretched bird wings — each wing is a leaf-shaped
+        # silhouette with a curved leading edge and tapered tip. The
+        # central "body" joins them as a thin pinch.
+        for sign in (-1, 1):
+            wing_pts = [
+                (cx + sign * s * 0.04, cy + s * 0.1),
+                (cx + sign * s * 0.35, cy - s * 0.45),
+                (cx + sign * s * 0.95, cy - s * 0.30),
+                (cx + sign * s * 1.05, cy - s * 0.05),
+                (cx + sign * s * 0.60, cy + s * 0.05),
+                (cx + sign * s * 0.20, cy + s * 0.25),
+            ]
+            pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, 1 * SCALE)
+            # Inner feather ridge for texture
+            pygame.draw.line(surf, GOLD_DEEP,
+                             (cx + sign * s * 0.20, cy - s * 0.05),
+                             (cx + sign * s * 0.80, cy - s * 0.20),
+                             1 * SCALE)
+        # Small body dot in the centre
+        pygame.draw.circle(surf, GOLD_DEEP,
+                           (cx, int(cy + s * 0.12)),
+                           max(1, int(s * 0.12)))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -779,23 +786,14 @@ def draw_v1_trophy_cinema(surf, data):
     cap.set_alpha(220)
     surf.blit(cap, cap.get_rect(center=(W // 2, 38 * SCALE)))
 
-    # Header row: BIOME chip on the left, hex RANK medal on the right,
-    # sharing the same vertical centre so they read as a paired set.
-    # Sub-labels are dropped — the medallion shape and the "GOLDEN
-    # HOUR"-style biome name both self-identify, and removing them
-    # frees up the strip below for the plaque.
-    grade = grade_for(data["score"])
-    header_cy = 96 * SCALE
-    biome_chip(surf,
-               (W // 2 - 70 * SCALE, header_cy),
-               data.get("biome_reached", "DAY"),
-               sub_label=None)
-    hex_medal(surf, W // 2 + 88 * SCALE, header_cy,
-              size=24, letter=grade, sub_label=None)
+    # The rank medal and biome chip are intentionally absent — both
+    # ended up reading as "condition the game ended in" without much
+    # actionable meaning. Removing them gives the plaque more room
+    # to breathe at the top.
 
     # Hero score plaque — large rounded engraved panel
-    plaque = pygame.Rect(36 * SCALE, 130 * SCALE,
-                         W - 72 * SCALE, 132 * SCALE)
+    plaque = pygame.Rect(36 * SCALE, 90 * SCALE,
+                         W - 72 * SCALE, 156 * SCALE)
     # Outer drop shadow
     sh = pygame.Surface((plaque.w + 8 * SCALE, plaque.h + 10 * SCALE),
                         pygame.SRCALPHA)
@@ -879,7 +877,7 @@ def draw_v1_trophy_cinema(surf, data):
     tile_gap = 10 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 274 * SCALE
+    tile_y = 264 * SCALE
     for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
@@ -891,7 +889,7 @@ def draw_v1_trophy_cinema(surf, data):
     # always reads at the same comfortable size.
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        cap_y = 370 * SCALE
+        cap_y = 364 * SCALE
         cap2 = font(11, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
