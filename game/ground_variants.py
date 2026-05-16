@@ -80,12 +80,26 @@ def _ambient_ground_overlay(surf, ground_y, w, h, mid_color):
     surf.blit(band, (0, ground_y))
 
 
+# Per-run seed mixed into every decoration position so two plays of the same
+# theme never look identical. Re-randomise via ``set_run_seed()`` on each
+# new game so the meadow reshuffles.
+RUN_SEED: int = random.randint(0, 0x7FFFFFFF)
+
+
+def set_run_seed(seed: int | None = None) -> None:
+    """Set the run seed. Pass ``None`` to draw a fresh random one — call this
+    once when starting a new game/play."""
+    global RUN_SEED
+    RUN_SEED = seed if seed is not None else random.randint(0, 0x7FFFFFFF)
+
+
 def _scatter(scroll, w, speed, step, seed_off):
     phase = scroll * speed
     first = int(phase // step) - 1
     last = int((phase + w) // step) + 2
     for k in range(first, last + 1):
-        rng = random.Random((k * 2654435761 ^ seed_off) & 0xFFFFFFFF)
+        rng = random.Random(
+            (k * 2654435761 ^ seed_off ^ RUN_SEED) & 0xFFFFFFFF)
         wx = k * step + rng.uniform(-step * 0.25, step * 0.25)
         sx = int(wx - phase)
         if -20 < sx < w + 20:
@@ -247,9 +261,12 @@ def _meadow_scene(surf, ground_y, w, h, scroll, mid_color, flower_fn,
             pygame.draw.line(surf, _GRASS_TOP,
                              (sx + 1, base_y), (sx + 1 + lean, base_y - tuft_h + 1), 1)
 
-    # Flowers — variant-specific
-    for sx, k, rng in _scatter(scroll, w, 0.7, 22, 37):
-        if 0 <= sx < w:
+    # Flowers — variant-specific. Tighter step (denser candidate positions)
+    # + per-position skip so the meadow naturally clusters and thins. The
+    # skip uses rng (which is seeded with RUN_SEED), so the cluster
+    # pattern reshuffles every new play.
+    for sx, k, rng in _scatter(scroll, w, 0.7, 14, 37):
+        if 0 <= sx < w and rng.random() < 0.65:
             flower_fn(surf, sx, ground_y, rng)
 
     # Dandelion puffballs (kept across variants — universal meadow accent)

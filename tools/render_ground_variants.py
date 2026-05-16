@@ -108,18 +108,45 @@ def make_contact_sheet(images: dict) -> pygame.Surface:
 
 
 def main() -> None:
+    from game import ground_variants as _gv
+
     for old in OUT.glob("*.png"):
         old.unlink()
 
     images: dict = {}
     for vid in (1, 2, 3, 4, 5):
         for pname, pval in PHASES:
-            random.seed(vid * 100 + int(pval * 1000))
+            # Different run seed per cell so the preview also exercises
+            # the per-run variability code path.
+            _gv.set_run_seed(vid * 7919 + int(pval * 10007))
             surf = render_scene(vid, pval)
             images[(vid, pname)] = surf
             out_path = OUT / f"v{vid}_{pname}.png"
             pygame.image.save(surf, out_path)
             print(f"wrote {out_path}")
+
+    # Per-run variation showcase: V3-day rendered 4 times with different
+    # RUN_SEEDs to prove no two plays look identical even on the same theme.
+    runs_w, runs_h = W // 2, H // 2
+    pad = 8
+    label_h = 22
+    n_runs = 4
+    runs_sheet = pygame.Surface(
+        (pad + n_runs * (runs_w + pad), pad + runs_h + label_h + pad))
+    runs_sheet.fill((24, 24, 28))
+    font = pygame.font.SysFont(None, 16)
+    for i in range(n_runs):
+        _gv.set_run_seed(91200 + i * 31337)
+        surf = render_scene(3, 0.05)  # V3 (tulip), day
+        thumb = pygame.transform.smoothscale(surf, (runs_w, runs_h))
+        x = pad + i * (runs_w + pad)
+        y = pad
+        runs_sheet.blit(thumb, (x, y))
+        label = font.render(f"V3 Tulip — run #{i + 1}", True, (220, 220, 220))
+        runs_sheet.blit(label, (x + 4, y + runs_h + 4))
+    runs_out = OUT / "_v3_runs_showcase.png"
+    pygame.image.save(runs_sheet, runs_out)
+    print(f"wrote {runs_out}")
 
     sheet = make_contact_sheet(images)
     sheet_path = OUT / "_contact_sheet.png"
