@@ -1,19 +1,19 @@
-"""Render preview screenshots of the 8 new air ambient events.
+"""Render preview screenshots of the 8 air ambient events.
 
 For each event, render a full W×H scene composite (sky + clouds +
 mountains + ground + the event advanced to a representative animation
 moment) at the event's preferred biome phase. Output goes to
-``screenshots/air_events/`` plus a 4×2 contact sheet.
+``./screenshots/`` plus a 4×2 contact sheet.
 
-Run:
-    python tools/render_air_events.py
+Run from anywhere:
+    python archive/air_event_design/render_air_events.py
 """
 import os, sys, pathlib, math, random
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 _HERE = pathlib.Path(__file__).parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parent.parent))
 
 import pygame
 pygame.init()
@@ -40,7 +40,7 @@ EVENTS = [
     ("a8_balloons",      "A8 Balloon cluster",      _amb._BalloonCluster,    0.10, 5.0),
 ]
 
-OUT = _HERE.parent / "screenshots" / "air_events"
+OUT = _HERE / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
 
