@@ -74,11 +74,9 @@ _LANTERN_COOLDOWN_S       = 260.0
 
 # Once an ambient event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
-# actually firing. Tuned for typical 60-90 s plays with ~9 events
-# eligible in the day phase: at 1/200 per event, expected events per
-# 90 s play is ~9 × (1 - exp(-75/200)) ≈ 2.8 — rare enough to feel
-# special, frequent enough that players actually see them.
-_GROUND_EVENT_SPAWN_RATE = 1.0 / 200.0
+# actually firing. Tuned so a typical 60-90 s play sees ~3-4 new events
+# with good variety across plays. Higher rate = more lively world.
+_GROUND_EVENT_SPAWN_RATE = 1.0 / 100.0
 
 # Initial delay before the FIRST event of each kind in a run.
 # Tuned for typical play length: most plays end in 60-90 s (~100 score),
