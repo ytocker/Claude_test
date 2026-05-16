@@ -848,90 +848,103 @@ _BANNER_PLANE_TEXT = "TOM FEEL WELL!"
 
 
 def _build_banner_plane_sprite() -> pygame.Surface:
-    """Substantial biplane silhouette — 52×30 px. Plane faces LEFT (nose
-    on the left, tail on the right). Propeller is drawn dynamically by
-    the class, not baked in. Tow point on the tail is at (50, 16)."""
-    s = pygame.Surface((52, 30), pygame.SRCALPHA)
+    """Big biplane silhouette — 78×44 px (1.5× the original). Faces LEFT
+    (nose on the left, tail on the right). Propeller is drawn dynamically
+    by the class, not baked in. Engine hub at sprite-local (6, 24);
+    tail-tow attach at (76, 24)."""
+    s = pygame.Surface((78, 44), pygame.SRCALPHA)
     red = (215, 65, 65)
     red_dk = (155, 30, 30)
+    red_hi = (255, 130, 130)
     cream = (248, 246, 235)
     cream_dk = (165, 160, 145)
     strut = (95, 80, 60)
     strut_dk = (55, 45, 30)
     metal = (50, 40, 30)
+    metal_hi = (155, 145, 130)
 
-    # Tail boom (narrowing fuselage section behind cockpit)
+    # Tail boom (narrowing rear fuselage)
     pygame.draw.polygon(s, red,
-                       [(34, 12), (50, 14), (50, 18), (34, 17)])
+                       [(51, 18), (76, 21), (76, 27), (51, 26)])
     pygame.draw.polygon(s, red_dk,
-                       [(34, 12), (50, 14), (50, 18), (34, 17)], 1)
-    # Vertical tail fin
-    pygame.draw.polygon(s, red_dk, [(45, 14), (50, 8), (50, 14)])
-    pygame.draw.polygon(s, (100, 25, 25),
-                       [(45, 14), (50, 8), (50, 14)], 1)
-    # Horizontal stabiliser (small tail wing)
-    pygame.draw.rect(s, cream, (43, 13, 8, 3))
-    pygame.draw.rect(s, cream_dk, (43, 13, 8, 3), 1)
-    pygame.draw.line(s, red, (44, 14), (50, 14), 1)
+                       [(51, 18), (76, 21), (76, 27), (51, 26)], 1)
 
-    # Main fuselage (rounded body)
-    pygame.draw.ellipse(s, red, (5, 11, 32, 11))
-    pygame.draw.ellipse(s, red_dk, (5, 11, 32, 11), 1)
-    # Belly highlight
-    pygame.draw.line(s, (255, 130, 130), (10, 13), (30, 13), 1)
+    # Vertical tail fin
+    pygame.draw.polygon(s, red_dk,
+                       [(67, 21), (76, 11), (76, 21)])
+    pygame.draw.polygon(s, (100, 25, 25),
+                       [(67, 21), (76, 11), (76, 21)], 1)
+
+    # Horizontal stabiliser
+    pygame.draw.rect(s, cream, (64, 19, 13, 4))
+    pygame.draw.rect(s, cream_dk, (64, 19, 13, 4), 1)
+    pygame.draw.line(s, red, (66, 21), (76, 21), 1)
+
+    # Main fuselage (large rounded body)
+    pygame.draw.ellipse(s, red, (8, 16, 48, 16))
+    pygame.draw.ellipse(s, red_dk, (8, 16, 48, 16), 1)
+    pygame.draw.line(s, red_hi, (14, 19), (46, 19), 1)
+    pygame.draw.line(s, red_hi, (16, 21), (44, 21), 1)
 
     # Nose cone (rounded front, ahead of propeller)
-    pygame.draw.ellipse(s, red_dk, (1, 13, 6, 7))
+    pygame.draw.ellipse(s, red_dk, (2, 20, 10, 10))
 
-    # Cockpit — open biplane style with pilot head
-    pygame.draw.ellipse(s, (35, 25, 20), (18, 9, 11, 7))
-    pygame.draw.ellipse(s, (15, 10, 8), (18, 9, 11, 7), 1)
+    # Cockpit — bigger open biplane cockpit, with pilot
+    pygame.draw.ellipse(s, (35, 25, 20), (26, 13, 17, 11))
+    pygame.draw.ellipse(s, (15, 10, 8), (26, 13, 17, 11), 2)
+
     # Pilot head + leather cap
-    pygame.draw.circle(s, (95, 65, 40), (23, 11), 3)
-    pygame.draw.circle(s, (55, 35, 20), (23, 10), 3)
-    # Goggles
-    pygame.draw.line(s, (210, 175, 90), (21, 11), (25, 11), 1)
-    pygame.draw.circle(s, (35, 30, 20), (21, 11), 1)
-    pygame.draw.circle(s, (35, 30, 20), (25, 11), 1)
-    # Scarf trailing
-    pygame.draw.line(s, (240, 235, 220), (25, 13), (30, 15), 1)
-    pygame.draw.line(s, (220, 215, 200), (25, 14), (29, 16), 1)
+    pygame.draw.circle(s, (95, 65, 40), (34, 16), 4)
+    pygame.draw.circle(s, (55, 35, 20), (34, 14), 4)
+    pygame.draw.circle(s, (40, 25, 15), (34, 14), 4, 1)
+    # Goggles strap + lenses
+    pygame.draw.line(s, (210, 175, 90), (31, 16), (37, 16), 2)
+    pygame.draw.circle(s, (35, 30, 20), (32, 16), 2)
+    pygame.draw.circle(s, (35, 30, 20), (36, 16), 2)
+    pygame.draw.circle(s, (170, 220, 245), (32, 16), 1)
+    pygame.draw.circle(s, (170, 220, 245), (36, 16), 1)
+    # Trailing scarf
+    pygame.draw.line(s, (240, 235, 220), (37, 19), (45, 22), 2)
+    pygame.draw.line(s, (220, 215, 200), (37, 21), (44, 24), 1)
+    pygame.draw.line(s, (200, 195, 180), (38, 22), (43, 25), 1)
 
-    # Lower wing (under fuselage, swept slightly back)
-    pygame.draw.rect(s, cream, (10, 19, 26, 4))
-    pygame.draw.rect(s, cream_dk, (10, 19, 26, 4), 1)
-    # Wing accent stripe
-    pygame.draw.line(s, red, (11, 20), (35, 20), 1)
-    pygame.draw.line(s, (180, 175, 160), (11, 22), (35, 22), 1)
+    # Lower wing
+    pygame.draw.rect(s, cream, (14, 29, 40, 6))
+    pygame.draw.rect(s, cream_dk, (14, 29, 40, 6), 1)
+    pygame.draw.line(s, red, (16, 30), (53, 30), 1)
+    pygame.draw.line(s, (180, 175, 160), (16, 33), (53, 33), 1)
 
-    # Upper wing (above fuselage, slightly forward)
-    pygame.draw.rect(s, cream, (8, 3, 30, 4))
-    pygame.draw.rect(s, cream_dk, (8, 3, 30, 4), 1)
-    pygame.draw.line(s, red, (9, 4), (37, 4), 1)
-    pygame.draw.line(s, (180, 175, 160), (9, 6), (37, 6), 1)
+    # Upper wing (slightly wider than lower, biplane style)
+    pygame.draw.rect(s, cream, (10, 4, 46, 6))
+    pygame.draw.rect(s, cream_dk, (10, 4, 46, 6), 1)
+    pygame.draw.line(s, red, (12, 5), (55, 5), 1)
+    pygame.draw.line(s, (180, 175, 160), (12, 8), (55, 8), 1)
 
     # Outer wing struts (vertical, connecting upper + lower wings)
-    pygame.draw.line(s, strut, (12, 7), (13, 19), 2)
-    pygame.draw.line(s, strut, (34, 7), (35, 19), 2)
-    # Center pylon (upper wing supports above cockpit)
-    pygame.draw.line(s, strut, (20, 7), (20, 10), 2)
-    pygame.draw.line(s, strut, (28, 7), (28, 10), 2)
-    # Diagonal bracing wires (thin)
-    pygame.draw.line(s, strut_dk, (12, 7), (35, 19), 1)
-    pygame.draw.line(s, strut_dk, (34, 7), (13, 19), 1)
+    pygame.draw.line(s, strut, (17, 10), (18, 29), 2)
+    pygame.draw.line(s, strut, (51, 10), (52, 29), 2)
+    # Inner wing struts (extra rigidity, biplane detail)
+    pygame.draw.line(s, strut, (24, 10), (24, 15), 2)
+    pygame.draw.line(s, strut, (44, 10), (44, 15), 2)
+    # Center pylons (upper wing supports above cockpit)
+    pygame.draw.line(s, strut, (30, 10), (30, 13), 2)
+    pygame.draw.line(s, strut, (38, 10), (38, 13), 2)
+    # Diagonal bracing wires (thin) — X pattern
+    pygame.draw.line(s, strut_dk, (17, 10), (52, 29), 1)
+    pygame.draw.line(s, strut_dk, (51, 10), (18, 29), 1)
 
-    # Landing-gear stub (just the V truss, wheels retracted in-flight feel)
-    pygame.draw.line(s, strut, (15, 22), (19, 26), 1)
-    pygame.draw.line(s, strut, (25, 22), (21, 26), 1)
-    pygame.draw.line(s, strut, (19, 26), (21, 26), 1)
-    pygame.draw.circle(s, metal, (20, 27), 2)
-    pygame.draw.circle(s, (25, 20, 15), (20, 27), 2, 1)
-    pygame.draw.circle(s, (140, 130, 115), (20, 27), 1)
+    # Landing gear — V truss + wheel
+    pygame.draw.line(s, strut, (22, 34), (29, 41), 2)
+    pygame.draw.line(s, strut, (38, 34), (31, 41), 2)
+    pygame.draw.line(s, strut, (29, 41), (31, 41), 2)
+    pygame.draw.circle(s, metal, (30, 42), 3)
+    pygame.draw.circle(s, (25, 20, 15), (30, 42), 3, 1)
+    pygame.draw.circle(s, metal_hi, (30, 42), 1)
 
-    # Engine cowling / propeller hub (front of fuselage)
-    pygame.draw.circle(s, metal, (4, 16), 3)
-    pygame.draw.circle(s, (25, 20, 15), (4, 16), 3, 1)
-    pygame.draw.circle(s, (155, 145, 130), (4, 16), 1)
+    # Engine cowling (front of fuselage, behind propeller hub)
+    pygame.draw.circle(s, metal, (6, 24), 4)
+    pygame.draw.circle(s, (25, 20, 15), (6, 24), 4, 1)
+    pygame.draw.circle(s, metal_hi, (6, 23), 1)
     return s
 
 
@@ -955,10 +968,10 @@ def _draw_propeller_blur(surf, hub_x: int, hub_y: int,
 
 def _build_banner_text_sprite(text: str) -> pygame.Surface:
     """Cream fabric banner with text — swallow-tailed trailing edge."""
-    font = pygame.font.SysFont(None, 18)
+    font = pygame.font.SysFont(None, 24)
     txt = font.render(text, True, (95, 35, 30))
     text_w, text_h = txt.get_size()
-    pad_x, pad_y = 9, 5
+    pad_x, pad_y = 12, 7
     body_w = text_w + pad_x * 2
     body_h = text_h + pad_y * 2
     tail_w = 8
@@ -979,8 +992,8 @@ def _build_banner_text_sprite(text: str) -> pygame.Surface:
                     (body_w + tail_w, body_h - 1),
                     (body_w + tail_w // 2, body_h // 2), 2)
     # Grommet at leading edge (rope attaches here)
-    pygame.draw.circle(s, (140, 110, 70), (3, body_h // 2), 2)
-    pygame.draw.circle(s, (60, 45, 30), (3, body_h // 2), 2, 1)
+    pygame.draw.circle(s, (140, 110, 70), (4, body_h // 2), 3)
+    pygame.draw.circle(s, (60, 45, 30), (4, body_h // 2), 3, 1)
     s.blit(txt, (pad_x, pad_y))
     return s
 
@@ -993,11 +1006,13 @@ class _BannerPlane(_AirEventBase):
         super().__init__(palette, rng)
         self._plane = _build_banner_plane_sprite()
         self._banner = _build_banner_text_sprite(_BANNER_PLANE_TEXT)
-        self.y = self.rng.uniform(H * 0.14, H * 0.30)
+        # Span the whole sky — from just below top edge to just above the
+        # highest mountain crest (~y=440 for back-layer peaks).
+        self.y = self.rng.uniform(H * 0.10, H * 0.66)
         self._wobble_phase = self.rng.uniform(0, math.tau)
         pw, _ = self._plane.get_size()
         bw, _ = self._banner.get_size()
-        self._tow_gap = 10
+        self._tow_gap = 14
         self._total_w = pw + self._tow_gap + bw
         # Position so the leading edge (plane) starts just off-screen right.
         # self.x is treated as the TRAILING edge of the composition.
@@ -1011,9 +1026,9 @@ class _BannerPlane(_AirEventBase):
         plane_y = int(self.y) - ph // 2 + wobble
         surf.blit(self._plane, (plane_x, plane_y))
 
-        # Animated propeller — hub at (4, 16) in sprite-local coords.
+        # Animated propeller — hub at sprite-local (6, 24).
         prop_angle = self.t * 28.0
-        _draw_propeller_blur(surf, plane_x + 4, plane_y + 16, prop_angle, 6)
+        _draw_propeller_blur(surf, plane_x + 6, plane_y + 24, prop_angle, 9)
 
         # Banner geometry — leading edge sits on the plane's tow attachment
         # (rear of fuselage). The whole banner flaps with a traveling wave
@@ -1021,20 +1036,19 @@ class _BannerPlane(_AirEventBase):
         banner_left = plane_x + pw + self._tow_gap
         banner_mid_y = int(self.y) - bh // 2
 
-        # Tow rope — from tail-tow on plane to leading-edge grommet on banner.
-        # Leading column has zero flap offset.
+        # Tow rope — from tail-tow on plane (sprite-local 76, 24) to
+        # leading-edge grommet on banner.
         rope_y_at_banner = banner_mid_y + bh // 2
         pygame.draw.line(surf, (80, 60, 40),
-                        (plane_x + pw - 2, plane_y + ph // 2),
-                        (banner_left + 3, rope_y_at_banner), 1)
+                        (plane_x + pw - 2, plane_y + 24),
+                        (banner_left + 4, rope_y_at_banner), 1)
 
         # Flap render: walk the banner in vertical strips, each shifted
-        # vertically by a traveling sine wave. Strips are 2 px wide for a
-        # smooth wave without paying the cost of per-pixel blits.
+        # vertically by a traveling sine wave. Strip = 2 px wide.
         strip_w = 2
         wave_speed = 4.5    # how fast the wave travels along the banner
-        wave_freq = 0.22    # wavelength in column-units (smaller = longer)
-        max_amp = 7.0       # peak flap at trailing edge (px)
+        wave_freq = 0.18    # wavelength (smaller = longer wavelength)
+        max_amp = 10.0      # peak flap at trailing edge (px) — bigger banner
         for col_x in range(0, bw, strip_w):
             t_frac = col_x / max(1, bw - 1)   # 0 leading → 1 trailing
             amp = max_amp * (t_frac ** 1.4)   # bias toward trailing
@@ -1088,7 +1102,7 @@ class _Zeppelin(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprite = _build_zeppelin_sprite()
-        self.y = self.rng.uniform(H * 0.10, H * 0.28)
+        self.y = self.rng.uniform(H * 0.08, H * 0.64)
         self._sway_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1146,7 +1160,7 @@ class _GlidingEagle(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprites = (_build_eagle_sprite(False), _build_eagle_sprite(True))
-        self.y = self.rng.uniform(H * 0.10, H * 0.30)
+        self.y = self.rng.uniform(H * 0.05, H * 0.66)
         self._flap_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1197,7 +1211,7 @@ class _BatSwarm(_AirEventBase):
         super().__init__(palette, rng)
         self._sprites = (_build_bat_sprite(False), _build_bat_sprite(True))
         n = self.rng.randint(5, 7)
-        self.y = self.rng.uniform(H * 0.14, H * 0.36)
+        self.y = self.rng.uniform(H * 0.08, H * 0.64)
         # Each bat: (dx, dy, flap_phase, flutter_phase, flutter_amp_x, flutter_amp_y)
         self._bats = []
         for _ in range(n):
@@ -1231,7 +1245,7 @@ class _ShootingStar(_AirEventBase):
         super().__init__(palette, rng)
         # Random diagonal trajectory from upper-right downward-left
         self.x = float(self.rng.uniform(W * 0.55, W * 0.95))
-        self.y = float(self.rng.uniform(H * 0.05, H * 0.18))
+        self.y = float(self.rng.uniform(H * 0.04, H * 0.45))
         speed = self.rng.uniform(280.0, 380.0)
         angle = self.rng.uniform(math.pi * 0.85, math.pi * 1.05)  # leftward, slight angle
         self._vx = math.cos(angle) * speed
@@ -2140,10 +2154,34 @@ class AmbientScenes:
         self._shooting_star_cool = random.uniform(*_SHOOTING_STAR_INITIAL_DELAY)
         self._rainbow_cool = random.uniform(*_RAINBOW_INITIAL_DELAY)
         self._lanterns_cool = random.uniform(*_LANTERN_INITIAL_DELAY)
+        # Global throttles for the NEW probabilistic events so the scene
+        # doesn't pile up several at once. Pre-existing scheduled events
+        # (flock / balloon / parrots / fireworks / campfire) bypass these.
+        self._spawn_gap_remaining = 0.0
+
+    # Min seconds between any two probabilistic-event spawns. Keeps
+    # ambient activity from bunching.
+    _MIN_SPAWN_GAP_S = 5.0
+    # Max simultaneous NEW (probabilistic) events alive on screen.
+    _MAX_CONCURRENT_NEW = 2
+    # Slot names of the new ground + air events — counted toward concurrency.
+    _NEW_EVENT_SLOTS = (
+        "sheep", "rabbits", "fox", "well", "scarecrow", "mushring",
+        "bench", "napper", "dog",
+        "banner_plane", "balloon_cluster", "zeppelin", "eagle",
+        "bats", "shooting_star", "rainbow", "lanterns",
+    )
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
         return any(lo <= phase <= hi for lo, hi in windows)
+
+    def _can_spawn_new(self) -> bool:
+        if self._spawn_gap_remaining > 0:
+            return False
+        live = sum(1 for s in self._NEW_EVENT_SLOTS
+                  if getattr(self, s) is not None)
+        return live < self._MAX_CONCURRENT_NEW
 
     def update(self, dt: float, phase: float, palette: dict,
                bg_scroll: float) -> None:
@@ -2203,6 +2241,10 @@ class AmbientScenes:
                 self.campfire = _Campfire(random.Random())
                 self._campfire_cool = _CAMPFIRE_COOLDOWN_S + random.uniform(-25, 50)
 
+        # Decrement the global gap each frame.
+        if self._spawn_gap_remaining > 0:
+            self._spawn_gap_remaining -= dt
+
         # ── Ground events (all world-anchored, same pattern as campfire) ──
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
             ("sheep", _SheepPack, _SHEEP_PHASES, "_sheep_cool",
@@ -2236,10 +2278,13 @@ class AmbientScenes:
                 else:
                     # Cooldown elapsed → roll the dice each frame so the
                     # actual appearance is unpredictable rather than a
-                    # scheduled tick.
-                    if random.random() < _GROUND_EVENT_SPAWN_RATE * dt:
+                    # scheduled tick. Global gap + concurrency cap keep
+                    # multiple events from piling onto the screen at once.
+                    if (self._can_spawn_new()
+                            and random.random() < _GROUND_EVENT_SPAWN_RATE * dt):
                         setattr(self, slot_name, cls(palette, random.Random()))
                         cool = cool_const + random.uniform(-jitter, jitter)
+                        self._spawn_gap_remaining = self._MIN_SPAWN_GAP_S
                 setattr(self, cool_attr, cool)
 
         # ── Air events (velocity-driven sky drift-bys) ──
@@ -2271,9 +2316,11 @@ class AmbientScenes:
                 if cool > 0:
                     cool -= dt
                 else:
-                    if random.random() < _GROUND_EVENT_SPAWN_RATE * dt:
+                    if (self._can_spawn_new()
+                            and random.random() < _GROUND_EVENT_SPAWN_RATE * dt):
                         setattr(self, slot_name, cls(palette, random.Random()))
                         cool = cool_const + random.uniform(-jitter, jitter)
+                        self._spawn_gap_remaining = self._MIN_SPAWN_GAP_S
                 setattr(self, cool_attr, cool)
 
         # ── Cherry blossoms (continuous, phase-gated) ──
