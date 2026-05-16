@@ -939,13 +939,27 @@ class _SleepingFox(_GroundEventBase):
         self._ear_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
-        # Static plus a tiny ear flick now and then
-        self._blit_sprite(surf)
-        if math.sin(self.t * 0.7 + self._ear_phase) > 0.95:
-            # Brief ear twitch — bright pixel near ear
-            x = int(self.x) - 8
-            y = GROUND_Y - 15
-            pygame.draw.line(surf, (240, 220, 200), (x, y), (x + 1, y - 1), 1)
+        # Slow breath rise/fall
+        breath = int(math.sin(self.t * 1.0) * 0.8)
+        self._blit_sprite(surf, y_off=-max(0, breath))
+        # Ear flick — more frequent so it reads on a still frame
+        flick = math.sin(self.t * 1.6 + self._ear_phase)
+        if flick > 0.6:
+            x = int(self.x) - 7
+            y = GROUND_Y - 14
+            pygame.draw.line(surf, (240, 220, 200), (x, y), (x + 1, y - 2), 1)
+            pygame.draw.line(surf, (240, 220, 200), (x + 3, y), (x + 4, y - 2), 1)
+        # Floating Z above its head once in a while
+        z_cycle = (self.t * 0.35 + self._ear_phase * 0.1) % 1.0
+        if z_cycle < 0.65:
+            zy = GROUND_Y - 18 - int(z_cycle * 18)
+            zx = int(self.x) - 11
+            a = int(220 * (1.0 - z_cycle / 0.65))
+            layer = pygame.Surface((6, 6), pygame.SRCALPHA)
+            pygame.draw.line(layer, (215, 215, 230, a), (0, 0), (3, 0), 1)
+            pygame.draw.line(layer, (215, 215, 230, a), (3, 0), (0, 3), 1)
+            pygame.draw.line(layer, (215, 215, 230, a), (0, 3), (3, 3), 1)
+            surf.blit(layer, (zx, zy))
 
 
 # ── G4: Beehive on stump ─────────────────────────────────────────────────────
@@ -1105,9 +1119,25 @@ class _Scarecrow(_GroundEventBase):
         super().__init__(palette, rng)
         has_crow = self.rng.random() < 0.5
         self._sprite = _build_scarecrow_sprite(has_crow)
+        self._sway_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
-        self._blit_sprite(surf)
+        # Gentle wind sway — whole figure leans ±1.5 px sideways
+        sway = math.sin(self.t * 0.9 + self._sway_phase) * 1.5
+        sw, sh = self._sprite.get_size()
+        x = int(self.x) - sw // 2 + int(round(sway))
+        y = GROUND_Y - sh + 1
+        surf.blit(self._sprite, (x, y))
+        # Loose straw drifting off in the wind direction
+        if math.sin(self.t * 1.5 + self._sway_phase) > 0.4:
+            wind_dir = 1 if sway > 0 else -1
+            sx = int(self.x) + wind_dir * 7
+            sy = GROUND_Y - 28
+            pygame.draw.line(surf, (220, 180, 80),
+                             (sx, sy), (sx + wind_dir * 2, sy - 1), 1)
+            pygame.draw.line(surf, (235, 200, 100),
+                             (sx + wind_dir, sy + 1),
+                             (sx + wind_dir * 3, sy), 1)
 
 
 # ── G7: Picnic blanket ───────────────────────────────────────────────────────
@@ -1275,55 +1305,79 @@ class _WillOWisp(_GroundEventBase):
 # ── G11: Bench with two people ───────────────────────────────────────────────
 
 def _build_bench_sprite() -> pygame.Surface:
+    """Just the bench itself — the 2 people are drawn dynamically each
+    frame so they can bob heads / gesture."""
     s = pygame.Surface((42, 28), pygame.SRCALPHA)
     bench_top_y = 19
-    # Seat
     pygame.draw.rect(s, (110, 75, 40), (2, bench_top_y, 38, 3))
     pygame.draw.line(s, (75, 50, 25), (2, bench_top_y), (40, bench_top_y), 1)
-    # Legs
     pygame.draw.rect(s, (75, 50, 25), (4, bench_top_y + 3, 3, 6))
     pygame.draw.rect(s, (75, 50, 25), (35, bench_top_y + 3, 3, 6))
-    # Backrest top rail
     pygame.draw.rect(s, (125, 85, 50), (2, 11, 38, 2))
-    # Backrest slats
     for sx in (6, 14, 22, 30):
         pygame.draw.line(s, (95, 65, 35), (sx, 13), (sx, bench_top_y), 1)
-    # Person 1 (left, pink shirt)
-    p1x = 12
-    pygame.draw.rect(s, (215, 85, 100), (p1x, 11, 6, 8))
-    pygame.draw.rect(s, (175, 50, 70), (p1x, 11, 6, 8), 1)
-    # Head + hair
-    pygame.draw.circle(s, (235, 195, 150), (p1x + 3, 8), 3)
-    pygame.draw.polygon(s, (80, 50, 30),
-                       [(p1x, 8), (p1x + 6, 8), (p1x + 3, 4)])
-    pygame.draw.circle(s, (30, 20, 15), (p1x + 2, 9), 0)
-    pygame.draw.circle(s, (30, 20, 15), (p1x + 4, 9), 0)
-    # Person 2 (right, blue shirt)
-    p2x = 26
-    pygame.draw.rect(s, (75, 120, 200), (p2x, 11, 6, 8))
-    pygame.draw.rect(s, (45, 80, 150), (p2x, 11, 6, 8), 1)
-    pygame.draw.circle(s, (235, 195, 150), (p2x + 3, 8), 3)
-    pygame.draw.polygon(s, (105, 75, 40),
-                       [(p2x, 8), (p2x + 6, 8), (p2x + 3, 4)])
-    pygame.draw.circle(s, (30, 20, 15), (p2x + 2, 9), 0)
-    pygame.draw.circle(s, (30, 20, 15), (p2x + 4, 9), 0)
-    # Arms / hands resting between them (suggests they're chatting)
-    pygame.draw.line(s, (215, 85, 100), (p1x + 6, 13), (p2x, 13), 1)
     return s
 
 
+def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair):
+    pygame.draw.rect(surf, shirt, (x_base, body_y, 6, 8))
+    pygame.draw.rect(surf, shirt_dk, (x_base, body_y, 6, 8), 1)
+    head_y = body_y - 3
+    pygame.draw.circle(surf, (235, 195, 150), (x_base + 3, head_y), 3)
+    pygame.draw.polygon(surf, hair,
+                       [(x_base, head_y), (x_base + 6, head_y),
+                        (x_base + 3, head_y - 4)])
+    pygame.draw.circle(surf, (30, 20, 15), (x_base + 2, head_y + 1), 0)
+    pygame.draw.circle(surf, (30, 20, 15), (x_base + 4, head_y + 1), 0)
+
+
 class _Bench(_GroundEventBase):
+    """Park bench with two people chatting. Bench cached; the two figures
+    bob and gesture each frame."""
+
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprite = _build_bench_sprite()
+        self._chat_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
-        self._blit_sprite(surf)
+        sw, sh = self._sprite.get_size()
+        x_base = int(self.x) - sw // 2
+        y_base = GROUND_Y - sh + 1
+        surf.blit(self._sprite, (x_base, y_base))
+        # Bench-top y in screen coords; people sit on top of seat
+        seat_y = y_base + 19
+        # Body positions
+        p1_x = x_base + 12
+        p2_x = x_base + 26
+        # Heads bob with offset phase so it reads as a back-and-forth chat
+        p1_bob = int(round(math.sin(self.t * 1.6 + self._chat_phase) * 0.8))
+        p2_bob = int(round(math.sin(self.t * 1.6 + self._chat_phase + math.pi) * 0.8))
+        _draw_bench_person(surf, p1_x, seat_y - 8 + p1_bob,
+                          (215, 85, 100), (175, 50, 70), (80, 50, 30))
+        _draw_bench_person(surf, p2_x, seat_y - 8 + p2_bob,
+                          (75, 120, 200), (45, 80, 150), (105, 75, 40))
+        # Gesturing arm — the speaker (lower bob = leaning forward) raises
+        gesture_amt = -math.sin(self.t * 1.6 + self._chat_phase)
+        arm_y = seat_y - 5 + int(round(gesture_amt * 1.5))
+        # Pink-shirt to blue-shirt arm reach
+        if gesture_amt > 0:
+            pygame.draw.line(surf, (215, 85, 100),
+                             (p1_x + 6, arm_y), (p2_x - 1, arm_y - 1), 1)
+            pygame.draw.line(surf, (235, 195, 150),
+                             (p2_x - 1, arm_y - 1), (p2_x, arm_y - 1), 1)
+        else:
+            pygame.draw.line(surf, (75, 120, 200),
+                             (p2_x, arm_y), (p1_x + 7, arm_y - 1), 1)
+            pygame.draw.line(surf, (235, 195, 150),
+                             (p1_x + 7, arm_y - 1), (p1_x + 8, arm_y - 1), 1)
 
 
 # ── G12: Napping person on the ground ────────────────────────────────────────
 
 def _build_napper_sprite() -> pygame.Surface:
+    """Napping figure on a mat — Z's are drawn dynamically each frame so
+    they rise + fade."""
     s = pygame.Surface((34, 14), pygame.SRCALPHA)
     # Sleeping pad / pillow
     pygame.draw.ellipse(s, (135, 95, 130), (1, 10, 32, 4))
@@ -1331,21 +1385,22 @@ def _build_napper_sprite() -> pygame.Surface:
     # Body lying horizontal (head right, feet left)
     pygame.draw.ellipse(s, (60, 130, 165), (5, 6, 22, 5))
     pygame.draw.ellipse(s, (30, 95, 130), (5, 6, 22, 5), 1)
-    # Arm tucked
     pygame.draw.ellipse(s, (235, 195, 150), (7, 9, 6, 2))
     # Head
     pygame.draw.circle(s, (235, 195, 150), (29, 8), 3)
     pygame.draw.ellipse(s, (100, 60, 30), (26, 5, 6, 4))
-    # Closed eye
     pygame.draw.line(s, (40, 25, 20), (28, 8), (30, 8), 1)
-    # Z's above for sleep
-    pygame.draw.line(s, (200, 200, 220), (14, 2), (17, 2), 1)
-    pygame.draw.line(s, (200, 200, 220), (17, 2), (14, 4), 1)
-    pygame.draw.line(s, (200, 200, 220), (14, 4), (17, 4), 1)
-    pygame.draw.line(s, (200, 200, 220), (19, 0), (21, 0), 1)
-    pygame.draw.line(s, (200, 200, 220), (21, 0), (19, 2), 1)
-    pygame.draw.line(s, (200, 200, 220), (19, 2), (21, 2), 1)
     return s
+
+
+def _draw_floating_z(surf, x, y, alpha):
+    if alpha <= 8:
+        return
+    layer = pygame.Surface((6, 6), pygame.SRCALPHA)
+    pygame.draw.line(layer, (215, 215, 235, alpha), (0, 0), (3, 0), 1)
+    pygame.draw.line(layer, (215, 215, 235, alpha), (3, 0), (0, 3), 1)
+    pygame.draw.line(layer, (215, 215, 235, alpha), (0, 3), (3, 3), 1)
+    surf.blit(layer, (x, y))
 
 
 class _Napper(_GroundEventBase):
@@ -1355,9 +1410,16 @@ class _Napper(_GroundEventBase):
         self._z_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
-        # Soft breath bob — body moves up/down by ~1 px slowly
-        bob = int(math.sin(self.t * 1.2 + self._z_phase) * 0.6)
-        self._blit_sprite(surf, y_off=bob)
+        # Visible breath bob — body rises 1 px during inhale half-cycle
+        breath = math.sin(self.t * 1.0 + self._z_phase)
+        self._blit_sprite(surf, y_off=-max(0, int(round(breath * 1.2))))
+        # 2 floating Z's that rise + fade in a staggered loop
+        for i in range(2):
+            cycle = ((self.t * 0.45) + i * 0.55) % 1.0
+            zy = GROUND_Y - 14 - int(cycle * 16)
+            zx = int(self.x) - 4 + i * 5 + int(math.sin(cycle * math.pi * 2) * 1)
+            a = int(230 * (1.0 - cycle))
+            _draw_floating_z(surf, zx, zy, a)
 
 
 # ── G13: Lightly running dog (2-frame anim) ─────────────────────────────────
