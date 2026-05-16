@@ -38,7 +38,8 @@ OUT = pathlib.Path(__file__).parent.parent / "screenshots" / "ground_variants"
 OUT.mkdir(parents=True, exist_ok=True)
 
 
-def render_scene(variant_id: int, phase: float) -> pygame.Surface:
+def render_scene(variant_id: int, phase: float,
+                 scroll: float = 80.0) -> pygame.Surface:
     palette = _biome.palette_for_phase(phase)
 
     surf = pygame.Surface((W, H))
@@ -50,7 +51,6 @@ def render_scene(variant_id: int, phase: float) -> pygame.Surface:
     surf.blit(sky, (0, 0))
 
     # Clouds for context
-    scroll = 80.0
     cloud_phase = 1.5
     for i, (bx, by, sc, variant) in enumerate((
             (40, 95, 0.9, 0), (200, 150, 1.0, 2),
@@ -125,28 +125,49 @@ def main() -> None:
             pygame.image.save(surf, out_path)
             print(f"wrote {out_path}")
 
-    # Per-run variation showcase: V3-day rendered 4 times with different
-    # RUN_SEEDs to prove no two plays look identical even on the same theme.
-    runs_w, runs_h = W // 2, H // 2
+    # Per-run variation: V3-day rendered 4 times with different RUN_SEEDs
+    # to prove no two plays look identical even on the same theme.
+    cell_w, cell_h = W // 2, H // 2
     pad = 8
     label_h = 22
-    n_runs = 4
-    runs_sheet = pygame.Surface(
-        (pad + n_runs * (runs_w + pad), pad + runs_h + label_h + pad))
-    runs_sheet.fill((24, 24, 28))
     font = pygame.font.SysFont(None, 16)
-    for i in range(n_runs):
-        _gv.set_run_seed(91200 + i * 31337)
-        surf = render_scene(3, 0.05)  # V3 (tulip), day
-        thumb = pygame.transform.smoothscale(surf, (runs_w, runs_h))
-        x = pad + i * (runs_w + pad)
-        y = pad
-        runs_sheet.blit(thumb, (x, y))
-        label = font.render(f"V3 Tulip — run #{i + 1}", True, (220, 220, 220))
-        runs_sheet.blit(label, (x + 4, y + runs_h + 4))
-    runs_out = OUT / "_v3_runs_showcase.png"
-    pygame.image.save(runs_sheet, runs_out)
-    print(f"wrote {runs_out}")
+
+    def _showcase(path, title, frames):
+        """frames is a list of (label, render_fn -> Surface)."""
+        sheet = pygame.Surface(
+            (pad + len(frames) * (cell_w + pad), pad + cell_h + label_h + pad))
+        sheet.fill((24, 24, 28))
+        for i, (lbl, fn) in enumerate(frames):
+            surf = fn()
+            thumb = pygame.transform.smoothscale(surf, (cell_w, cell_h))
+            x = pad + i * (cell_w + pad)
+            y = pad
+            sheet.blit(thumb, (x, y))
+            sheet.blit(font.render(lbl, True, (220, 220, 220)),
+                       (x + 4, y + cell_h + 4))
+        pygame.image.save(sheet, path)
+        print(f"wrote {path}")
+
+    # Per-run (between plays)
+    def _per_run_frame(i):
+        def _fn():
+            _gv.set_run_seed(91200 + i * 31337)
+            return render_scene(3, 0.05)
+        return _fn
+    _showcase(OUT / "_v3_per_run_variation.png",
+              "V3 across runs (different RUN_SEEDs)",
+              [(f"run #{i + 1}", _per_run_frame(i)) for i in range(4)])
+
+    # Within-run (during a single play): same RUN_SEED, scrolling forward
+    def _within_run_frame(scroll_val):
+        def _fn():
+            _gv.set_run_seed(42)  # locked seed for this showcase
+            return render_scene(3, 0.05, scroll=scroll_val)
+        return _fn
+    _showcase(OUT / "_v3_within_run_variation.png",
+              "V3 within one run (scrolling forward)",
+              [(f"scroll {sv}", _within_run_frame(sv))
+               for sv in (80, 240, 480, 800)])
 
     sheet = make_contact_sheet(images)
     sheet_path = OUT / "_contact_sheet.png"

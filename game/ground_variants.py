@@ -93,6 +93,19 @@ def set_run_seed(seed: int | None = None) -> None:
     RUN_SEED = seed if seed is not None else random.randint(0, 0x7FFFFFFF)
 
 
+def _density_at(world_x: float) -> float:
+    """Low-frequency 0.2..0.95 wave over world-x that drives flower density.
+
+    Combines two sines at different frequencies (phase-shifted by
+    ``RUN_SEED``) so the meadow alternates between lush patches and
+    sparse stretches as the bird scrolls — and the pattern of those
+    patches also reshuffles every new play.
+    """
+    a = math.sin(world_x * 0.013 + RUN_SEED * 1.4e-3) * 0.5 + 0.5
+    b = math.sin(world_x * 0.005 + RUN_SEED * 3.1e-3 + 1.7) * 0.5 + 0.5
+    return 0.2 + 0.75 * (a * 0.6 + b * 0.4)
+
+
 def _scatter(scroll, w, speed, step, seed_off):
     phase = scroll * speed
     first = int(phase // step) - 1
@@ -261,13 +274,17 @@ def _meadow_scene(surf, ground_y, w, h, scroll, mid_color, flower_fn,
             pygame.draw.line(surf, _GRASS_TOP,
                              (sx + 1, base_y), (sx + 1 + lean, base_y - tuft_h + 1), 1)
 
-    # Flowers — variant-specific. Tighter step (denser candidate positions)
-    # + per-position skip so the meadow naturally clusters and thins. The
-    # skip uses rng (which is seeded with RUN_SEED), so the cluster
-    # pattern reshuffles every new play.
-    for sx, k, rng in _scatter(scroll, w, 0.7, 14, 37):
-        if 0 <= sx < w and rng.random() < 0.65:
-            flower_fn(surf, sx, ground_y, rng)
+    # Flowers — variant-specific. Tighter step (denser candidate positions),
+    # skip probability driven by a per-world-x density wave so the bird
+    # flies through lush patches and sparse stretches as it scrolls.
+    # The wave phase is mixed with RUN_SEED so the pattern of lush vs
+    # sparse also reshuffles every new play.
+    flower_step = 14
+    for sx, k, rng in _scatter(scroll, w, 0.7, flower_step, 37):
+        if 0 <= sx < w:
+            world_x = k * flower_step
+            if rng.random() < _density_at(world_x):
+                flower_fn(surf, sx, ground_y, rng)
 
     # Dandelion puffballs (kept across variants — universal meadow accent)
     for sx, k, rng in _scatter(scroll, w, 0.7, 55, 53):
