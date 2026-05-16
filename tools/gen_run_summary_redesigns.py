@@ -709,6 +709,224 @@ def biome_chip(surf, center, biome_name, sub_label="REACHED"):
         surf.blit(sf, sf.get_rect(center=(cx, rect.bottom + 12 * SCALE)))
 
 
+# ── Wing variants for FLAPS tile (user is choosing between these) ──────────
+
+BIRD_WING_BLUE   = ( 40, 100, 255)
+BIRD_WING_DARK   = ( 20,  55, 180)
+BIRD_TIP_GREEN   = ( 50, 220, 100)
+BIRD_STRIPE      = (255, 200,  60)
+
+
+def draw_wing_pip(surf, cx, cy, s):
+    """Variant 1 — Pip's actual scarlet-macaw wing, mirrored for a pair.
+    Faithful port of game/parrot.py::_build_wing: cobalt blue body,
+    darker underside, lime-green primary tips, yellow secondary stripe,
+    deep-blue feather divider lines."""
+    # Source polygon lives on a 50×50 surface with the body anchor at
+    # (24, 24) and the wing tip at (44, 13). We rebase so the anchor
+    # lands on (cx, cy) and mirror x for the second wing.
+    scale = s / 13.0
+    for sign in (-1, 1):
+        def P(x, y):
+            return (cx + sign * (x - 24) * scale,
+                    cy + (y - 24) * scale)
+        # Drop shadow
+        pygame.draw.polygon(surf, (0, 0, 0, 110), [
+            P(24, 26), P(46, 14), P(50, 30), P(34, 44), P(18, 40)])
+        # Main feather body (vivid blue)
+        pygame.draw.polygon(surf, BIRD_WING_BLUE, [
+            P(24, 24), P(44, 13), P(48, 28), P(32, 42), P(18, 36)])
+        # Darker underside
+        pygame.draw.polygon(surf, BIRD_WING_DARK, [
+            P(24, 24), P(32, 42), P(18, 36)])
+        # Primary feather tips (macaw green)
+        pygame.draw.polygon(surf, BIRD_TIP_GREEN, [
+            P(44, 13), P(50, 18), P(48, 28)])
+        # Yellow secondary stripe
+        pygame.draw.polygon(surf, BIRD_STRIPE, [
+            P(42, 18), P(48, 22), P(46, 28), P(40, 24)])
+        # Feather divider lines
+        thick = max(1, int(scale * 0.9))
+        pygame.draw.line(surf, BIRD_WING_DARK, P(26, 25), P(42, 18), thick)
+        pygame.draw.line(surf, BIRD_WING_DARK, P(28, 30), P(44, 25), thick)
+        pygame.draw.line(surf, BIRD_WING_DARK, P(30, 34), P(46, 32), thick)
+
+
+def draw_wing_angel(surf, cx, cy, s):
+    """Variant 2 — Classical angel: smooth leading edge, scalloped
+    trailing edge with 5 feather tips, internal quill lines."""
+    body_y_off = s * 0.08
+    for sign in (-1, 1):
+        wing_pts_factors = [
+            (0.10, -0.05),
+            (0.40, -0.55), (0.85, -0.65), (1.25, -0.55),
+            (1.55, -0.20),
+            (1.40, 0.10),  (1.35, 0.32),
+            (1.15, 0.12),  (1.10, 0.40),
+            (0.85, 0.18),  (0.80, 0.42),
+            (0.55, 0.22),  (0.50, 0.40),
+            (0.30, 0.22),  (0.28, 0.34),
+            (0.10, 0.18),
+        ]
+        wing_pts = [(cx + sign * x * s, cy + y * s + body_y_off)
+                    for x, y in wing_pts_factors]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        feather_quills = [
+            ((1.10, -0.35), (1.32, 0.30)),
+            ((0.90, -0.45), (1.07, 0.38)),
+            ((0.65, -0.50), (0.78, 0.40)),
+            ((0.42, -0.42), (0.48, 0.38)),
+            ((0.22, -0.30), (0.27, 0.32)),
+        ]
+        for sf, tf in feather_quills:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * sf[0] * s, cy + sf[1] * s + body_y_off),
+                (cx + sign * tf[0] * s, cy + tf[1] * s + body_y_off),
+                max(1, int(SCALE)))
+
+
+def draw_wing_minimalist(surf, cx, cy, s):
+    """Variant 3 — Pure line-art: each wing is a single graceful curved
+    stroke. The cleanest, most modern look — no fill, just an outline."""
+    thick = max(3, int(SCALE * 2))
+    for sign in (-1, 1):
+        # Crisp single outline tracing leading-edge, tip, trailing-edge
+        # back to body — like a stylised flat icon you'd see in a UI
+        pts = [
+            (cx + sign * s * 0.05, cy + s * 0.18),       # body bottom
+            (cx + sign * s * 0.15, cy - s * 0.10),       # body top
+            (cx + sign * s * 0.45, cy - s * 0.55),       # shoulder
+            (cx + sign * s * 0.95, cy - s * 0.55),       # leading peak
+            (cx + sign * s * 1.30, cy - s * 0.20),       # tip
+            (cx + sign * s * 1.05, cy + s * 0.15),       # trailing curve
+            (cx + sign * s * 0.55, cy + s * 0.30),       # trailing inner
+            (cx + sign * s * 0.10, cy + s * 0.22),       # back to body
+            (cx + sign * s * 0.05, cy + s * 0.18),
+        ]
+        pygame.draw.lines(surf, GOLD_BRIGHT, False, pts, thick)
+
+
+def draw_wing_phoenix(surf, cx, cy, s):
+    """Variant 4 — Phoenix/flame wings: sharper, more aggressive
+    angles. Trailing edge has long pointed flame-like feather tips."""
+    for sign in (-1, 1):
+        wing_pts = [
+            (cx + sign * s * 0.08, cy - s * 0.05),
+            (cx + sign * s * 0.30, cy - s * 0.55),
+            (cx + sign * s * 0.65, cy - s * 0.70),
+            (cx + sign * s * 1.10, cy - s * 0.55),
+            (cx + sign * s * 1.55, cy - s * 0.15),
+            (cx + sign * s * 1.30, cy + s * 0.05),
+            (cx + sign * s * 1.50, cy + s * 0.40),
+            (cx + sign * s * 1.05, cy + s * 0.08),
+            (cx + sign * s * 1.15, cy + s * 0.50),
+            (cx + sign * s * 0.75, cy + s * 0.12),
+            (cx + sign * s * 0.80, cy + s * 0.55),
+            (cx + sign * s * 0.45, cy + s * 0.20),
+            (cx + sign * s * 0.40, cy + s * 0.45),
+            (cx + sign * s * 0.18, cy + s * 0.25),
+            (cx + sign * s * 0.08, cy + s * 0.10),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+        # Internal diagonal feather lines (sharp, energetic)
+        for sf, tf in [((0.30, -0.30), (1.40, 0.30)),
+                       ((0.50, -0.50), (1.15, 0.40)),
+                       ((0.75, -0.60), (0.85, 0.45)),
+                       ((0.25, -0.15), (0.45, 0.40))]:
+            pygame.draw.line(
+                surf, GOLD_DEEP,
+                (cx + sign * sf[0] * s, cy + sf[1] * s),
+                (cx + sign * tf[0] * s, cy + tf[1] * s),
+                max(1, int(SCALE)))
+
+
+def draw_wing_heraldic(surf, cx, cy, s):
+    """Variant 5 — Heraldic crest wings: three distinct stacked
+    feather tiers per side, scalloped, very geometric. Reads like a
+    military patch or coat of arms."""
+    tiers = [
+        # (length_factor, half_height, y_offset, scallop_count)
+        (1.20, 0.18, -0.35, 3),  # top tier — shortest
+        (1.40, 0.20,  0.00, 4),  # middle tier — widest
+        (1.25, 0.18,  0.30, 3),  # bottom tier — medium
+    ]
+    for sign in (-1, 1):
+        for length, half_h, y_off, n_scallops in tiers:
+            # Build a wedge with scalloped trailing edge along bottom
+            pts = [(cx + sign * s * 0.10, cy + s * (y_off - half_h)),  # body top
+                   (cx + sign * s * length * 0.6,
+                    cy + s * (y_off - half_h * 1.05)),                # outer top
+                   (cx + sign * s * length, cy + s * y_off)]          # tip
+            # Scalloped bottom going back to body
+            for i in range(n_scallops + 1):
+                t = 1.0 - i / n_scallops
+                # Valley between feathers
+                vx = cx + sign * s * length * t
+                vy = cy + s * (y_off + half_h * 0.6)
+                pts.append((vx, vy))
+                # Feather tip (lower than valley)
+                if i < n_scallops:
+                    t_next = 1.0 - (i + 0.5) / n_scallops
+                    tx = cx + sign * s * length * t_next
+                    ty = cy + s * (y_off + half_h * 1.15)
+                    pts.append((tx, ty))
+            # Close back to body
+            pts.append((cx + sign * s * 0.10, cy + s * (y_off + half_h)))
+            pygame.draw.polygon(surf, GOLD_BRIGHT, pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, pts, max(1, int(SCALE)))
+
+
+WING_VARIANTS = [
+    ("1.  PIP'S WING",   "blue + green tips",       draw_wing_pip),
+    ("2.  ANGEL",        "smooth + scalloped",      draw_wing_angel),
+    ("3.  LINE-ART",     "minimal outline",         draw_wing_minimalist),
+    ("4.  PHOENIX",      "flame feathers",          draw_wing_phoenix),
+    ("5.  CREST",        "heraldic 3-tier",         draw_wing_heraldic),
+]
+
+
+def render_wing_options():
+    """Render a 720×1280 sheet showing all 5 wing options stacked
+    vertically with labels, so the user can pick one."""
+    s = pygame.Surface((W, H))
+    backdrop(s, dim=70)
+    big_title(s, "PICK A WING", (W // 2, 56 * SCALE), size=30, px_scale=3)
+    row_h = (H - 100 * SCALE) // len(WING_VARIANTS)
+    base_y = 110 * SCALE
+    wing_scale = 36  # logical-ish "s" passed into the wing draw fn
+    for i, (label, desc, draw_fn) in enumerate(WING_VARIANTS):
+        row_cy = base_y + i * row_h + row_h // 2
+        card_rect = pygame.Rect(20 * SCALE, base_y + i * row_h + 6 * SCALE,
+                                W - 40 * SCALE, row_h - 12 * SCALE)
+        card(s, card_rect, border_alpha=120, accent_alpha=80, alpha=200,
+             radius=14)
+        # Render the wing in the centre-left of the card
+        wing_cx = card_rect.x + 120 * SCALE
+        draw_fn(s, wing_cx, row_cy, wing_scale * SCALE)
+        # Label (bold) + description (muted), both right-aligned with
+        # plenty of card-width
+        lf = font(16, True).render(label, True, GOLD_BRIGHT)
+        lo = font(16, True).render(label, True, RED_OUTLINE)
+        lr = lf.get_rect(midleft=(card_rect.x + 220 * SCALE,
+                                  row_cy - 12 * SCALE))
+        px = 2 * SCALE
+        for ox in (-px, 0, px):
+            for oy in (-px, 0, px):
+                if ox or oy:
+                    s.blit(lo, (lr.x + ox, lr.y + oy))
+        s.blit(lf, lr)
+        df = font(10, True).render(desc, True, GOLD_MUTED)
+        df.set_alpha(220)
+        s.blit(df, (card_rect.x + 220 * SCALE,
+                    row_cy + 10 * SCALE))
+    save("wing_options.png", s)
+    # Cache-bust filename so the user definitely sees the latest version
+    save("wing_options_r5.png", s)
+
+
 def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
     """Chunky engraved stat tile used in v1 (Trophy Cinema)."""
     # Drop shadow
@@ -1843,6 +2061,8 @@ def main():
     s = pygame.Surface((W, H))
     draw_v1_trophy_cinema(s, stress)
     save("v1_trophy_cinema_all7_powerups_r4.png", s)
+    print("Rendering wing options sheet...")
+    render_wing_options()
     print("Done.")
 
 
