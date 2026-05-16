@@ -83,27 +83,34 @@ def _ambient_ground_overlay(surf, ground_y, w, h, mid_color):
 # Per-run seed mixed into every decoration position so two plays of the same
 # theme never look identical. Re-randomise via ``set_run_seed()`` on each
 # new game so the meadow reshuffles.
-RUN_SEED: int = random.randint(0, 0x7FFFFFFF)
+RUN_SEED: int = 0
+# Per-run overall lushness in [0.35, 1.0]. Combined with the density wave
+# so each play has its own "personality" (sparse meadow ↔ jungle-thick)
+# in addition to the within-run patchiness.
+RUN_DENSITY_BASE: float = 0.7
 
 
 def set_run_seed(seed: int | None = None) -> None:
     """Set the run seed. Pass ``None`` to draw a fresh random one — call this
-    once when starting a new game/play."""
-    global RUN_SEED
+    once when starting a new game/play. Also derives a per-run density
+    baseline so sparsity itself varies between plays."""
+    global RUN_SEED, RUN_DENSITY_BASE
     RUN_SEED = seed if seed is not None else random.randint(0, 0x7FFFFFFF)
+    rng = random.Random(RUN_SEED ^ 0xCAFEBABE)
+    RUN_DENSITY_BASE = rng.uniform(0.35, 1.0)
+
+
+set_run_seed()  # initialise on import
 
 
 def _density_at(world_x: float) -> float:
-    """Low-frequency 0.2..0.95 wave over world-x that drives flower density.
-
-    Combines two sines at different frequencies (phase-shifted by
-    ``RUN_SEED``) so the meadow alternates between lush patches and
-    sparse stretches as the bird scrolls — and the pattern of those
-    patches also reshuffles every new play.
-    """
-    a = math.sin(world_x * 0.013 + RUN_SEED * 1.4e-3) * 0.5 + 0.5
+    """Density factor 0..RUN_DENSITY_BASE driven by two phase-shifted sine
+    waves over world-x. Produces alternating lush/sparse patches across
+    a run; the per-run base scales the overall lushness."""
+    a = math.sin(world_x * 0.011 + RUN_SEED * 1.4e-3) * 0.5 + 0.5
     b = math.sin(world_x * 0.005 + RUN_SEED * 3.1e-3 + 1.7) * 0.5 + 0.5
-    return 0.2 + 0.75 * (a * 0.6 + b * 0.4)
+    wave = a * 0.6 + b * 0.4  # 0..1
+    return wave * RUN_DENSITY_BASE
 
 
 def _scatter(scroll, w, speed, step, seed_off):

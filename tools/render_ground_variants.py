@@ -148,7 +148,7 @@ def main() -> None:
         pygame.image.save(sheet, path)
         print(f"wrote {path}")
 
-    # Per-run (between plays)
+    # Per-run (between plays) — different RUN_SEEDs reshuffle theme + sparsity
     def _per_run_frame(i):
         def _fn():
             _gv.set_run_seed(91200 + i * 31337)
@@ -158,10 +158,24 @@ def main() -> None:
               "V3 across runs (different RUN_SEEDs)",
               [(f"run #{i + 1}", _per_run_frame(i)) for i in range(4)])
 
+    # Sparsity per run — pin RUN_DENSITY_BASE so the difference is obvious
+    def _sparsity_frame(label, base):
+        def _fn():
+            _gv.set_run_seed(42)            # fix seed so positions are stable
+            _gv.RUN_DENSITY_BASE = base     # override the derived base
+            return render_scene(3, 0.05)
+        return _fn
+    _showcase(OUT / "_v3_sparsity_variation.png",
+              "V3 sparsity per run (RUN_DENSITY_BASE)",
+              [("very sparse (0.35)", _sparsity_frame("vs", 0.35)),
+               ("sparse (0.55)",      _sparsity_frame("s",  0.55)),
+               ("lush (0.80)",        _sparsity_frame("l",  0.80)),
+               ("jungle (1.00)",      _sparsity_frame("j",  1.00))])
+
     # Within-run (during a single play): same RUN_SEED, scrolling forward
     def _within_run_frame(scroll_val):
         def _fn():
-            _gv.set_run_seed(42)  # locked seed for this showcase
+            _gv.set_run_seed(42)
             return render_scene(3, 0.05, scroll=scroll_val)
         return _fn
     _showcase(OUT / "_v3_within_run_variation.png",
