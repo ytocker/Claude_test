@@ -39,6 +39,8 @@ _NAPPER_PHASES = ((0.0, 0.20), (0.30, 0.40))   # day + sunset
 _DOG_PHASES = ((0.0, 0.45),)                   # day → sunset
 
 # ── Air events (8 new sky drift-bys) ────────────────────────────────────────
+_BANNER_PLANE_PHASES  = ((0.96, 1.0), (0.0, 0.20))    # day
+_BALLOON_CLUSTER_PHASES = ((0.0, 0.30),)              # day
 _ZEPPELIN_PHASES      = ((0.10, 0.22), (0.30, 0.40))  # golden hour + sunset
 _EAGLE_PHASES         = ((0.96, 1.0), (0.0, 0.20))  # day
 _BAT_PHASES           = ((0.55, 0.72),)              # night
@@ -61,6 +63,8 @@ _BENCH_COOLDOWN_S = 240.0
 _NAPPER_COOLDOWN_S = 280.0
 _DOG_COOLDOWN_S = 200.0
 
+_BANNER_PLANE_COOLDOWN_S    = 260.0
+_BALLOON_CLUSTER_COOLDOWN_S = 230.0
 _ZEPPELIN_COOLDOWN_S      = 270.0
 _EAGLE_COOLDOWN_S         = 220.0
 _BAT_COOLDOWN_S           = 240.0
@@ -91,6 +95,8 @@ _BENCH_INITIAL_DELAY = (70.0, 140.0)
 _NAPPER_INITIAL_DELAY = (110.0, 200.0)
 _DOG_INITIAL_DELAY = (60.0, 130.0)
 
+_BANNER_PLANE_INITIAL_DELAY    = (70.0, 150.0)
+_BALLOON_CLUSTER_INITIAL_DELAY = (55.0, 120.0)
 _ZEPPELIN_INITIAL_DELAY      = (90.0, 180.0)
 _EAGLE_INITIAL_DELAY         = (70.0, 140.0)
 _BAT_INITIAL_DELAY           = (80.0, 160.0)
@@ -832,6 +838,98 @@ class _AirEventBase:
 
 
 
+# ── A1: Banner plane ────────────────────────────────────────────────────────
+
+_BANNER_PLANE_TEXT = "TOM FEEL WELL!"
+
+
+def _build_banner_plane_sprite() -> pygame.Surface:
+    s = pygame.Surface((24, 14), pygame.SRCALPHA)
+    pygame.draw.ellipse(s, (210, 60, 60), (3, 5, 18, 5))
+    pygame.draw.ellipse(s, (155, 30, 30), (3, 5, 18, 5), 1)
+    pygame.draw.polygon(s, (165, 35, 35), [(20, 5), (23, 1), (23, 6)])
+    pygame.draw.polygon(s, (165, 35, 35), [(20, 9), (23, 13), (23, 8)])
+    pygame.draw.rect(s, (245, 245, 240), (5, 2, 14, 2))
+    pygame.draw.rect(s, (170, 170, 165), (5, 2, 14, 2), 1)
+    pygame.draw.rect(s, (245, 245, 240), (6, 10, 12, 2))
+    pygame.draw.rect(s, (170, 170, 165), (6, 10, 12, 2), 1)
+    pygame.draw.line(s, (120, 120, 115), (8, 4), (8, 10), 1)
+    pygame.draw.line(s, (120, 120, 115), (16, 4), (16, 10), 1)
+    pygame.draw.rect(s, (140, 220, 255), (10, 6, 4, 2))
+    pygame.draw.line(s, (60, 50, 40), (2, 4), (2, 10), 2)
+    pygame.draw.circle(s, (40, 30, 20), (2, 7), 1)
+    return s
+
+
+def _build_banner_text_sprite(text: str) -> pygame.Surface:
+    """Cream fabric banner with text — swallow-tailed trailing edge."""
+    font = pygame.font.SysFont(None, 18)
+    txt = font.render(text, True, (95, 35, 30))
+    text_w, text_h = txt.get_size()
+    pad_x, pad_y = 9, 5
+    body_w = text_w + pad_x * 2
+    body_h = text_h + pad_y * 2
+    tail_w = 8
+    s = pygame.Surface((body_w + tail_w, body_h), pygame.SRCALPHA)
+    pygame.draw.rect(s, (250, 240, 210), (0, 0, body_w, body_h))
+    pygame.draw.rect(s, (190, 165, 110), (0, 0, body_w, body_h), 2)
+    # Swallow-tail: right edge has a V cut into it
+    pygame.draw.polygon(s, (250, 240, 210),
+                       [(body_w - 1, 0),
+                        (body_w + tail_w, 0),
+                        (body_w + tail_w // 2, body_h // 2),
+                        (body_w + tail_w, body_h - 1),
+                        (body_w - 1, body_h - 1)])
+    pygame.draw.line(s, (190, 165, 110),
+                    (body_w + tail_w, 0),
+                    (body_w + tail_w // 2, body_h // 2), 2)
+    pygame.draw.line(s, (190, 165, 110),
+                    (body_w + tail_w, body_h - 1),
+                    (body_w + tail_w // 2, body_h // 2), 2)
+    # Grommet at leading edge (rope attaches here)
+    pygame.draw.circle(s, (140, 110, 70), (3, body_h // 2), 2)
+    pygame.draw.circle(s, (60, 45, 30), (3, body_h // 2), 2, 1)
+    s.blit(txt, (pad_x, pad_y))
+    return s
+
+
+class _BannerPlane(_AirEventBase):
+    SPEED = 28.0
+    DURATION_MAX = 60.0
+
+    def __init__(self, palette, rng=None):
+        super().__init__(palette, rng)
+        self._plane = _build_banner_plane_sprite()
+        self._banner = _build_banner_text_sprite(_BANNER_PLANE_TEXT)
+        self.y = self.rng.uniform(H * 0.14, H * 0.30)
+        self._wobble_phase = self.rng.uniform(0, math.tau)
+        pw, _ = self._plane.get_size()
+        bw, _ = self._banner.get_size()
+        self._tow_gap = 10
+        self._total_w = pw + self._tow_gap + bw
+        # Position so the leading edge (plane) starts just off-screen right.
+        # self.x is treated as the TRAILING edge of the composition.
+        self.x = float(W + self._total_w + 8)
+
+    def draw(self, surf):
+        pw, ph = self._plane.get_size()
+        bw, bh = self._banner.get_size()
+        plane_x = int(self.x) - self._total_w
+        wobble = int(round(math.sin(self.t * 1.4 + self._wobble_phase) * 1.5))
+        plane_y = int(self.y) - ph // 2 + wobble
+        surf.blit(self._plane, (plane_x, plane_y))
+        banner_x = plane_x + pw + self._tow_gap
+        ripple = int(round(math.sin(self.t * 2.4 + self._wobble_phase) * 2.0))
+        banner_y = int(self.y) - bh // 2 + ripple
+        pygame.draw.line(surf, (80, 60, 40),
+                        (plane_x + pw - 1, plane_y + ph // 2),
+                        (banner_x + 3, banner_y + bh // 2), 1)
+        surf.blit(self._banner, (banner_x, banner_y))
+
+    def is_done(self) -> bool:
+        return self.x < -10 or self.t > self.DURATION_MAX
+
+
 # ── A2: Zeppelin / airship ──────────────────────────────────────────────────
 
 def _build_zeppelin_sprite() -> pygame.Surface:
@@ -1182,6 +1280,83 @@ class _LanternFestival(_AirEventBase):
             # String dangle
             pygame.draw.line(surf, (60, 40, 25), (lx, ly + 4), (lx, ly + 7), 1)
 
+
+
+# ── A8: Balloon cluster ─────────────────────────────────────────────────────
+
+def _build_balloon_sprite(color: tuple) -> pygame.Surface:
+    """Small round helium balloon with knot + dangling string."""
+    s = pygame.Surface((11, 20), pygame.SRCALPHA)
+    darker = tuple(max(0, c - 55) for c in color)
+    lighter = tuple(min(255, c + 60) for c in color)
+    # Body
+    pygame.draw.ellipse(s, color, (1, 0, 9, 12))
+    pygame.draw.ellipse(s, darker, (1, 0, 9, 12), 1)
+    # Highlight blob
+    pygame.draw.ellipse(s, lighter, (3, 2, 3, 4))
+    # Knot
+    pygame.draw.polygon(s, darker, [(4, 11), (6, 11), (5, 13)])
+    # String dangle
+    pygame.draw.line(s, (110, 90, 70), (5, 13), (5, 19), 1)
+    return s
+
+
+_BALLOON_PALETTE = (
+    (220, 75, 80),    # red
+    (75, 130, 210),   # blue
+    (250, 200, 75),   # yellow
+    (115, 195, 105),  # green
+    (190, 110, 200),  # purple
+    (255, 145, 95),   # orange
+)
+
+
+class _BalloonCluster(_AirEventBase):
+    """A small bouquet of helium balloons rising up from below."""
+    DURATION_MAX = 30.0
+
+    def __init__(self, palette, rng=None):
+        super().__init__(palette, rng)
+        self.x = 0.0
+        self.y = 0.0
+        n = self.rng.randint(4, 5)
+        colors = self.rng.sample(_BALLOON_PALETTE, n)
+        cluster_cx = self.rng.uniform(W * 0.25, W * 0.75)
+        self._balloons = []
+        for i, color in enumerate(colors):
+            self._balloons.append({
+                'sprite': _build_balloon_sprite(color),
+                'x': cluster_cx + self.rng.uniform(-22, 22),
+                'y': GROUND_Y + self.rng.uniform(6, 22),
+                'vy': self.rng.uniform(22.0, 32.0),
+                'sway_phase': self.rng.uniform(0, math.tau),
+                'sway_amp': self.rng.uniform(2.5, 4.5),
+                'launch_delay': i * self.rng.uniform(0.25, 0.55),
+            })
+
+    def update(self, dt: float) -> None:
+        self.t += dt
+        for b in self._balloons:
+            if self.t < b['launch_delay']:
+                continue
+            b['y'] -= b['vy'] * dt
+
+    def is_done(self) -> bool:
+        if self.t > self.DURATION_MAX:
+            return True
+        return all(b['y'] < -30 for b in self._balloons)
+
+    def draw(self, surf):
+        for b in self._balloons:
+            if self.t < b['launch_delay']:
+                continue
+            sw, sh = b['sprite'].get_size()
+            sway = math.sin(self.t * 0.9 + b['sway_phase']) * b['sway_amp']
+            x = int(b['x'] + sway) - sw // 2
+            y = int(b['y']) - sh
+            if y > H + 5 or y < -sh - 5:
+                continue
+            surf.blit(b['sprite'], (x, y))
 
 
 # ── Ground events (drift-by scenery) ─────────────────────────────────────────
@@ -1815,6 +1990,8 @@ class AmbientScenes:
         self.napper: _Napper | None = None
         self.dog: _RunningDog | None = None
         # Air events (drift-by sky)
+        self.banner_plane: _BannerPlane | None = None
+        self.balloon_cluster: _BalloonCluster | None = None
         self.zeppelin: _Zeppelin | None = None
         self.eagle: _GlidingEagle | None = None
         self.bats: _BatSwarm | None = None
@@ -1835,6 +2012,8 @@ class AmbientScenes:
         self._bench_cool = random.uniform(*_BENCH_INITIAL_DELAY)
         self._napper_cool = random.uniform(*_NAPPER_INITIAL_DELAY)
         self._dog_cool = random.uniform(*_DOG_INITIAL_DELAY)
+        self._banner_plane_cool = random.uniform(*_BANNER_PLANE_INITIAL_DELAY)
+        self._balloon_cluster_cool = random.uniform(*_BALLOON_CLUSTER_INITIAL_DELAY)
         self._zeppelin_cool = random.uniform(*_ZEPPELIN_INITIAL_DELAY)
         self._eagle_cool = random.uniform(*_EAGLE_INITIAL_DELAY)
         self._bats_cool = random.uniform(*_BAT_INITIAL_DELAY)
@@ -1945,6 +2124,10 @@ class AmbientScenes:
 
         # ── Air events (velocity-driven sky drift-bys) ──
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
+            ("banner_plane", _BannerPlane, _BANNER_PLANE_PHASES,
+             "_banner_plane_cool", _BANNER_PLANE_COOLDOWN_S, 35),
+            ("balloon_cluster", _BalloonCluster, _BALLOON_CLUSTER_PHASES,
+             "_balloon_cluster_cool", _BALLOON_CLUSTER_COOLDOWN_S, 35),
             ("zeppelin", _Zeppelin, _ZEPPELIN_PHASES,
              "_zeppelin_cool", _ZEPPELIN_COOLDOWN_S, 40),
             ("eagle", _GlidingEagle, _EAGLE_PHASES,
@@ -1997,7 +2180,8 @@ class AmbientScenes:
                 inst.draw(surf)
         # Air events — solid silhouettes first, then glow/additive overlays
         # (shooting star, lanterns) on top so halos read clearly.
-        for slot_name in ("zeppelin", "eagle", "bats",
+        for slot_name in ("zeppelin", "banner_plane", "balloon_cluster",
+                          "eagle", "bats",
                           "rainbow", "lanterns", "shooting_star"):
             inst = getattr(self, slot_name)
             if inst is not None:
