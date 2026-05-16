@@ -781,10 +781,10 @@ def draw_v1_trophy_cinema(surf, data):
                            (W // 2, H // 2 + 40 * SCALE), r)
     surf.blit(vign, (0, 0))
 
-    # Top label
-    cap = font(13, True).render("R U N   C O M P L E T E", True, GOLD_MUTED)
-    cap.set_alpha(220)
-    surf.blit(cap, cap.get_rect(center=(W // 2, 38 * SCALE)))
+    # Title — canonical Skybit gold-on-red treatment, larger so it
+    # owns the top of the screen
+    big_title(surf, "RUN  SUMMARY", (W // 2, 56 * SCALE), size=34,
+              px_scale=3)
 
     # The rank medal and biome chip are intentionally absent — both
     # ended up reading as "condition the game ended in" without much
@@ -792,7 +792,7 @@ def draw_v1_trophy_cinema(surf, data):
     # to breathe at the top.
 
     # Hero score plaque — large rounded engraved panel
-    plaque = pygame.Rect(36 * SCALE, 90 * SCALE,
+    plaque = pygame.Rect(36 * SCALE, 104 * SCALE,
                          W - 72 * SCALE, 156 * SCALE)
     # Outer drop shadow
     sh = pygame.Surface((plaque.w + 8 * SCALE, plaque.h + 10 * SCALE),
@@ -877,40 +877,41 @@ def draw_v1_trophy_cinema(surf, data):
     tile_gap = 10 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 264 * SCALE
+    tile_y = 280 * SCALE
     for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
         stat_tile_chunky(surf, r, k, v, lbl, subline=sub)
 
-    # Power-ups grid — chip per kind that was actually picked. The chip
-    # size is *fixed* regardless of how many kinds were grabbed; if more
-    # than 4 kinds appear, the row wraps to a second row so each icon
-    # always reads at the same comfortable size.
+    # Power-ups row — compact strip: bare icons with a small "×N"
+    # caption underneath, no chip frame. Same icon size whether 1 or 7
+    # kinds were picked. Sized to fit all 7 in a single row at the 360
+    # logical canvas (7 × 44 + 6 × 4 = 332 px → 28 px total margin).
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        cap_y = 364 * SCALE
+        cap_y = 396 * SCALE
         cap2 = font(11, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(220)
         surf.blit(cap2, cap2.get_rect(center=(W // 2, cap_y)))
-        chip_size, chip_gap = 22, 8
-        max_per_row = 4
-        chip_w = chip_size * 2 * SCALE
-        chip_h = chip_w + 18 * SCALE
-        chip_pitch = chip_w + chip_gap * SCALE
-        row_pitch = chip_h + 8 * SCALE
-        rows = [pu[i:i + max_per_row]
-                for i in range(0, len(pu), max_per_row)]
-        rows_top = cap_y + 22 * SCALE
-        for ri, row in enumerate(rows):
-            total_cw = (len(row) * chip_w
-                        + max(0, len(row) - 1) * chip_gap * SCALE)
-            sx = (W - total_cw) // 2 + chip_w // 2
-            row_cy = rows_top + ri * row_pitch + chip_h // 2
-            for i, (kind, count) in enumerate(row):
-                powerup_chip(surf, sx + i * chip_pitch, row_cy,
-                             kind, count, size=chip_size)
+        icon_logical = 22
+        icon_box = icon_logical * 2 * SCALE
+        gap = 4 * SCALE
+        pitch = icon_box + gap
+        total_w = len(pu) * icon_box + max(0, len(pu) - 1) * gap
+        sx = (W - total_w) // 2 + icon_box // 2
+        icon_cy = cap_y + 30 * SCALE
+        for i, (kind, count) in enumerate(pu):
+            cx = sx + i * pitch
+            _ingame_powerup_icon(surf, kind, cx, icon_cy,
+                                 int(icon_logical * 1.7 * SCALE))
+            cf = font(11, True).render(f"×{count}", True, GOLD_BRIGHT)
+            cs = font(11, True).render(f"×{count}", True, NEAR_BLACK)
+            cs.set_alpha(170)
+            cr = cf.get_rect(center=(cx, icon_cy
+                                     + int(icon_logical * 0.9) * SCALE))
+            surf.blit(cs, (cr.x + 1 * SCALE, cr.y + 1 * SCALE))
+            surf.blit(cf, cr)
 
     # Primary CTA + secondary
     pill(surf, (W // 2, 568 * SCALE), "PLAY  AGAIN",
