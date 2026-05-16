@@ -205,6 +205,47 @@ def _dark_panel(surf, rect, radius=16, alpha=210):
     surf.blit(pnl, rect.topleft)
 
 
+def _volume_panel(surf, rect, radius=14, alpha=235):
+    """Heavier emboss treatment for menu stat panels — gradient body
+    (_PANEL_LIGHTER → _PANEL_DARK), 2 px gold border, inner top sheen
+    + bottom shadow, and a 4-step drop shadow. Used by ``draw_menu`` for
+    the BEST + TOP 10 cards so they sit with real volume against the
+    scarlet pill buttons above them."""
+    # 4-step drop shadow — softer, more diffuse than _dark_panel's.
+    sh = pygame.Surface((rect.width + 8, rect.height + 8), pygame.SRCALPHA)
+    for k in range(4):
+        a = 80 - k * 16
+        pygame.draw.rect(sh, (0, 0, 0, a),
+                         (k, k * 2, rect.width + 8 - k * 2,
+                          rect.height + 8 - k * 2),
+                         border_radius=radius)
+    surf.blit(sh, (rect.x - 4, rect.y + 2))
+
+    # Gradient body — lighter at top, dark at bottom, fixed alpha.
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    for yy in range(rect.height):
+        t = yy / max(1, rect.height - 1)
+        r = int(_PANEL_LIGHTER[0] * (1 - t) + _PANEL_DARK[0] * t)
+        g = int(_PANEL_LIGHTER[1] * (1 - t) + _PANEL_DARK[1] * t)
+        b = int(_PANEL_LIGHTER[2] * (1 - t) + _PANEL_DARK[2] * t)
+        pygame.draw.line(pnl, (r, g, b, alpha),
+                         (0, yy), (rect.width - 1, yy))
+    # Clip to a rounded-rect mask.
+    mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255),
+                     (0, 0, rect.width, rect.height), border_radius=radius)
+    pnl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # 2 px gold border + inner top sheen + inner bottom shadow.
+    pygame.draw.rect(pnl, _GOLD_BRIGHT, (0, 0, rect.width, rect.height),
+                     width=2, border_radius=radius)
+    pygame.draw.line(pnl, (*_GOLD_PALE, 140),
+                     (10, 3), (rect.width - 10, 3), 1)
+    pygame.draw.line(pnl, (0, 0, 0, 80),
+                     (10, rect.height - 4),
+                     (rect.width - 10, rect.height - 4), 1)
+    surf.blit(pnl, rect.topleft)
+
+
 def _score_emblem(surf, cx, cy, r, label, value):
     """Hero score medallion — circular gold ring with a scarlet accent
     band, dark navy interior, radial laurel ticks, label at top, big
@@ -282,6 +323,8 @@ _CROWN_RUBY_HI    = (255, 180, 190)
 _CROWN_SAPPHIRE   = ( 64, 102, 220)
 _CROWN_SAPPHIRE_HI= (172, 200, 255)
 _CROWN_WHITE_HI   = (255, 255, 255)
+_CROWN_PEARL      = (240, 232, 215)   # warm off-white gem face
+_CROWN_PEARL_HI   = (255, 248, 230)   # bright highlight on the pearl gem
 
 # Medal-row vertical gradients used on ranks 1, 2, 3 in draw_leaderboard
 _MEDAL_GRADIENTS = {
@@ -384,29 +427,50 @@ def _crown_draw_e3_narrow(big, s):
     _crown_outlined_gem(big, cx, band_cy, int(1.2 * s),
                         _CROWN_RUBY, _CROWN_RUBY_HI)
 
-    peak_xs = [cx - 6 * s, cx, cx + 6 * s]
-    peak_pw = max(2, int(1.7 * s))
-    peak_h = bh - band_h - 5 * s
-    gem_cols = [(_CROWN_SAPPHIRE, _CROWN_SAPPHIRE_HI),
-                (_CROWN_RUBY,     _CROWN_RUBY_HI),
-                (_CROWN_SAPPHIRE, _CROWN_SAPPHIRE_HI)]
-    for px, (gc, gh) in zip(peak_xs, gem_cols):
-        tip = (px, band_top - peak_h)
-        l   = (px - peak_pw, band_top)
-        r   = (px + peak_pw, band_top)
+    # V4 tiered: 3 tall vertical main peaks + 2 shorter outer peaks
+    # leaning outward. Gem palette: ruby on the three centre peaks,
+    # sapphire on the two outer leaning peaks. Sits inside the original
+    # 24×28 bbox so the crown stays the same width as before.
+    full_peak_h  = bh - band_h - 5 * s
+    short_peak_h = int(full_peak_h * 0.62)
+    full_tip_y   = band_top - full_peak_h
+    short_tip_y  = band_top - short_peak_h
+
+    def _peak(base_x, tip_x, tip_y, base_pw, gem_half_w, gem_fill, gem_hi):
+        l   = (base_x - base_pw, band_top)
+        r   = (base_x + base_pw, band_top)
+        tip = (tip_x, tip_y)
         _crown_outlined_polygon(big, [tip, l, r],
                                 _CROWN_GOLD, _CROWN_GOLD_HI)
-        gem_top   = (px, tip[1] - int(2.5 * s))
-        gem_bot   = (px, tip[1] - int(0.3 * s))
-        gem_left  = (px - int(1.3 * s), tip[1] - int(1.4 * s))
-        gem_right = (px + int(1.3 * s), tip[1] - int(1.4 * s))
+        gem_top   = (tip_x, tip_y - int(2.5 * s))
+        gem_bot   = (tip_x, tip_y - int(0.3 * s))
+        gem_left  = (tip_x - int(gem_half_w * s), tip_y - int(1.4 * s))
+        gem_right = (tip_x + int(gem_half_w * s), tip_y - int(1.4 * s))
         _crown_outlined_polygon(big,
                                 [gem_top, gem_right, gem_bot, gem_left],
-                                gc, gh)
+                                gem_fill, gem_hi)
         pygame.draw.line(big, _CROWN_WHITE_HI,
                          (gem_top[0] - 1, gem_top[1] + 1),
                          (gem_top[0] - 1, gem_top[1] + int(1.5 * s)),
                          max(1, s // 2))
+
+    # Gem pattern numbered left-to-right (1..5):
+    #   1 sapphire — 2 pearl — 3 ruby — 4 pearl — 5 sapphire
+    inner_gems = [
+        (_CROWN_PEARL, _CROWN_PEARL_HI),   # peak 2 (left centre)
+        (_CROWN_RUBY,  _CROWN_RUBY_HI),    # peak 3 (centre)
+        (_CROWN_PEARL, _CROWN_PEARL_HI),   # peak 4 (right centre)
+    ]
+    # 3 tall vertical centre peaks
+    for px, (fill, hi) in zip((cx - 6 * s, cx, cx + 6 * s), inner_gems):
+        _peak(px, px, full_tip_y, max(2, int(1.4 * s)), 1.2, fill, hi)
+
+    # 2 outer shorter peaks leaning outward — sapphire gems (peaks 1, 5)
+    for sign in (-1, 1):
+        base_x = cx + sign * 9 * s
+        tip_x  = cx + sign * 11 * s
+        _peak(base_x, tip_x, short_tip_y, max(2, int(1.0 * s)), 0.7,
+              _CROWN_SAPPHIRE, _CROWN_SAPPHIRE_HI)
 
     # Tight sparkles around the bbox
     cx_pix = bw // 2
@@ -822,29 +886,35 @@ def _draw_buff_icon(surf, rect, kind):
 
 class PauseButton:
     def __init__(self):
-        self.rect = pygame.Rect(W - 56, 12, 44, 44)
+        # 38 px circular tap target sitting in the top-right corner.
+        # Keep the rect for hit-testing — the visible disc is inscribed.
+        self.rect = pygame.Rect(W - 50, 14, 38, 38)
         self.hover = False
 
     def contains(self, pos):
         return self.rect.collidepoint(pos)
 
     def draw(self, surf, paused=False):
-        rounded_rect(surf, self.rect, 10, _PANEL_DARK, 200)
-        # Orange border ring
-        border = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-        pygame.draw.rect(border, (*_ORANGE_BORDER, 120), (0, 0, self.rect.width,
-                         self.rect.height), border_radius=10, width=1)
-        surf.blit(border, self.rect.topleft)
+        # Gentle glass disc — same alpha + hairline as the coins pill,
+        # circular, with muted gold bars / play triangle. Reads as a
+        # quiet affordance rather than a feature button.
         cx, cy = self.rect.center
+        size = self.rect.width
+        disc = pygame.Surface((size, size), pygame.SRCALPHA)
+        pygame.draw.circle(disc, (*_PANEL_DARK, 100),
+                           (size // 2, size // 2), size // 2)
+        pygame.draw.circle(disc, (*_GOLD_BRIGHT, 80),
+                           (size // 2, size // 2), size // 2, 1)
+        surf.blit(disc, self.rect.topleft)
         if paused:
-            pygame.draw.polygon(surf, _GOLD_BRIGHT, [
-                (cx - 7, cy - 10),
-                (cx - 7, cy + 10),
-                (cx + 9, cy),
+            pygame.draw.polygon(surf, _GOLD_MUTED, [
+                (cx - 6, cy - 8),
+                (cx - 6, cy + 8),
+                (cx + 7, cy),
             ])
         else:
-            pygame.draw.rect(surf, _GOLD_BRIGHT, (cx - 8, cy - 9, 5, 18), border_radius=2)
-            pygame.draw.rect(surf, _GOLD_BRIGHT, (cx + 3, cy - 9, 5, 18), border_radius=2)
+            pygame.draw.rect(surf, _GOLD_MUTED, (cx - 5, cy - 7, 3, 14), border_radius=2)
+            pygame.draw.rect(surf, _GOLD_MUTED, (cx + 2, cy - 7, 3, 14), border_radius=2)
 
 
 class HelpButton:
@@ -1217,27 +1287,27 @@ class HUD:
         total_w = panel_w * 2 + gap
         left_x = (W - total_w) // 2
         cy = H - 86  # vertical centre (matches the previous BEST y)
-        lf = _font(12, True)
-        vf = _font(22, True)
+        lf = _font(13, True)
+        vf = _font(24, True)
 
-        # BEST panel (left)
+        # BEST panel (left) — heavier emboss treatment via _volume_panel.
         best_cx = left_x + panel_w // 2
         best_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
-        _dark_panel(surf, best_rect, radius=14, alpha=190)
-        lbl = lf.render("B E S T", True, _GOLD_MUTED)
-        lbl.set_alpha(180)
+        _volume_panel(surf, best_rect, radius=14)
+        lbl = lf.render("B E S T", True, _GOLD_PALE)
+        lbl.set_alpha(230)
         surf.blit(lbl, lbl.get_rect(center=(best_cx, cy - 12)))
         val = vf.render(str(best), True, _GOLD_BRIGHT)
-        surf.blit(val, val.get_rect(center=(best_cx, cy + 8)))
+        surf.blit(val, val.get_rect(center=(best_cx, cy + 9)))
 
-        # TOP 10 panel (right) — clickable trophy button
+        # TOP 10 panel (right) — same volume treatment, trophy glyph.
         top_cx = left_x + panel_w + gap + panel_w // 2
         top_rect = pygame.Rect(left_x + panel_w + gap, cy - 24, panel_w, 48)
-        _dark_panel(surf, top_rect, radius=14, alpha=190)
-        top_lbl = lf.render("T O P  10", True, _GOLD_MUTED)
-        top_lbl.set_alpha(180)
+        _volume_panel(surf, top_rect, radius=14)
+        top_lbl = lf.render("T O P  10", True, _GOLD_PALE)
+        top_lbl.set_alpha(230)
         surf.blit(top_lbl, top_lbl.get_rect(center=(top_cx, cy - 12)))
-        _draw_trophy(surf, top_cx, cy + 10, 9)
+        _draw_trophy(surf, top_cx, cy + 6, 9)
         self.menu_top10_rect = top_rect
 
         # The corner `?` help button is intentionally not drawn here —
@@ -1246,28 +1316,37 @@ class HUD:
         # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
-        # ── Score: centered, styled dark pill backdrop. Suppressed when
-        # paused — the pause overlay shows the same number on its hero
-        # medallion, and we don't want both reading at once.
+        # ── Score: Glass treatment. Cream face + 2 px deep-gold rim on a
+        # translucent dark pill with a subtle top sheen. Sits at y=92 so
+        # the backdrop (y=64..120) doesn't touch the coins pill above
+        # (which ends at y=44). Suppressed when paused — the pause
+        # overlay shows the same number on its hero medallion.
         if not paused:
             score_txt = str(world.score)
             cf = _font(48, True)
-            img = cf.render(score_txt, True, WHITE)
-            out = cf.render(score_txt, True, _GOLD_BRIGHT)
+            img = cf.render(score_txt, True, (252, 244, 220))
+            rim = cf.render(score_txt, True, _GOLD_DEEP)
             sh  = cf.render(score_txt, True, NEAR_BLACK)
-            r = img.get_rect(center=(W // 2, 72))
-            back_w = max(r.width + 52, 80)
-            back_h = r.height + 16
+            r = img.get_rect(center=(W // 2, 92))
+            back_w = max(r.width + 56, 96)
+            back_h = 56
             back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-            pygame.draw.rect(back, (*_PANEL_DARK, 140), (0, 0, back_w, back_h),
+            pygame.draw.rect(back, (*_PANEL_DARK, 120), (0, 0, back_w, back_h),
                              border_radius=back_h // 2)
-            pygame.draw.rect(back, (*_ORANGE_BORDER, 60), (0, 0, back_w, back_h),
+            pygame.draw.rect(back, (*_GOLD_BRIGHT, 160), (0, 0, back_w, back_h),
                              border_radius=back_h // 2, width=1)
-            surf.blit(back, (W // 2 - back_w // 2, r.y - 8))
-            for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
-                surf.blit(out, (r.x + ox, r.y + oy))
-            sh.set_alpha(160)
-            surf.blit(sh, (r.x + 2, r.y + 3))
+            sheen = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
+            for yy in range(back_h // 2):
+                a = int(20 * (1 - yy / (back_h / 2)))
+                pygame.draw.line(sheen, (255, 245, 220, a),
+                                 (8, yy + 2), (back_w - 8, yy + 2))
+            back.blit(sheen, (0, 0))
+            surf.blit(back, (W // 2 - back_w // 2, 92 - back_h // 2))
+            for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                           (-2, -2), (2, -2), (-2, 2), (2, 2)):
+                surf.blit(rim, (r.x + ox, r.y + oy))
+            sh.set_alpha(180)
+            surf.blit(sh, (r.x + 2, r.y + 4))
             surf.blit(img, r.topleft)
 
         # ── Pill alpha fades when bird is near top
@@ -1279,33 +1358,18 @@ class HUD:
         else:
             ui_alpha = int(40 + 215 * (bird_y - 20) / 60)
 
-        # BEST pill — dark panel with orange border
-        hi_pill = pygame.Surface((96, 36), pygame.SRCALPHA)
-        pygame.draw.rect(hi_pill, (*_PANEL_DARK, 210), (0, 0, 96, 36), border_radius=10)
-        pygame.draw.rect(hi_pill, (*_ORANGE_BORDER, 80), (0, 0, 96, 36),
-                         border_radius=10, width=1)
-        # Trophy icon — same procedural gold trophy used elsewhere in the
-        # leaderboard / theme; replaces the previous star-stub emblem.
-        _draw_trophy(hi_pill, 18, 18, 8)
-        bf = _font(11, False)
-        bl = bf.render("BEST", True, _GOLD_MUTED)
-        hi_pill.blit(bl, bl.get_rect(center=(60, 11)))
-        vf = _font(15, True)
-        vl = vf.render(str(best), True, _GOLD_BRIGHT)
-        hi_pill.blit(vl, vl.get_rect(center=(60, 25)))
-        hi_pill.set_alpha(ui_alpha)
-        surf.blit(hi_pill, (10, 14))
-
-        # Coin pill
-        cc_pill = pygame.Surface((90, 36), pygame.SRCALPHA)
-        pygame.draw.rect(cc_pill, (*_PANEL_DARK, 190), (0, 0, 90, 36), border_radius=10)
-        pygame.draw.rect(cc_pill, (*_ORANGE_BORDER, 70), (0, 0, 90, 36),
-                         border_radius=10, width=1)
-        _coin_icon(cc_pill, 18, 18, 10)
-        _text(cc_pill, f"x{world.coin_count}", (56, 18),
-              size=18, color=_GOLD_BRIGHT, shadow=False)
+        # ── Coins pill: compact single-row glass slab at top-left.
+        # BEST was retired from gameplay since the main menu and
+        # game-over screens already surface it.
+        cc_pill = pygame.Surface((60, 30), pygame.SRCALPHA)
+        pygame.draw.rect(cc_pill, (*_PANEL_DARK, 140), (0, 0, 60, 30), border_radius=8)
+        pygame.draw.rect(cc_pill, (*_GOLD_BRIGHT, 110), (0, 0, 60, 30),
+                         border_radius=8, width=1)
+        _coin_icon(cc_pill, 13, 15, 8)
+        _text(cc_pill, f"x{world.coin_count}", (38, 15),
+              size=16, color=_GOLD_BRIGHT, shadow=False)
         cc_pill.set_alpha(ui_alpha)
-        surf.blit(cc_pill, (W - 158, 14))
+        surf.blit(cc_pill, (10, 14))
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)
@@ -1683,77 +1747,111 @@ class HUD:
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
                          cooldown: float, fetch_error: str = ""):
+        # Internally render at 3× supersample so the leaderboard's text
+        # and circle edges come out clean on both desktop and mobile,
+        # then smoothscale-down to whatever target surface was passed.
+        # Callers that want the raw HD output (e.g. screenshot tools)
+        # can pass an HD-sized surface (W*3, H*3) and it'll be drawn
+        # into directly without the downsample step.
         self.title_t += dt
-        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        SCALE = 3
+        hd_w, hd_h = W * SCALE, H * SCALE
+        target_w, target_h = surf.get_size()
+        if (target_w, target_h) == (hd_w, hd_h):
+            hd = surf
+            blit_back = False
+        else:
+            hd = pygame.Surface((hd_w, hd_h), pygame.SRCALPHA)
+            blit_back = True
+
+        self._render_leaderboard(hd, scores, player_rank,
+                                 cooldown, fetch_error, SCALE)
+
+        if blit_back:
+            smaller = pygame.transform.smoothscale(hd, (target_w, target_h))
+            surf.blit(smaller, (0, 0))
+
+    def _render_leaderboard(self, surf, scores: list, player_rank: int,
+                            cooldown: float, fetch_error: str, S: int):
+        """Actual leaderboard drawing, scale-aware. ``surf`` is sized
+        ``(W*S, H*S)``; every coord, font size and stroke width is
+        multiplied by ``S``."""
+        Ws, Hs = W * S, H * S
+        dim = pygame.Surface((Ws, Hs), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
         surf.blit(dim, (0, 0))
 
         # Header: trophy icon — "TOP 10" — trophy icon
-        _outlined_text(surf, "TOP 10", (W // 2, 46), size=32, px=3)
+        _outlined_text(surf, "TOP 10", (Ws // 2, 46 * S), size=32 * S,
+                       px=3 * S, shadow_offset=(3 * S, 5 * S))
         for side in (-1, 1):
-            tx = W // 2 + side * 88
-            ty = 46
-            _draw_trophy(surf, tx, ty, 18)
+            tx = Ws // 2 + side * 88 * S
+            ty = 46 * S
+            _draw_trophy(surf, tx, ty, 18 * S)
 
-        card_x, card_w = 14, W - 28
+        card_x, card_w = 14 * S, (W - 28) * S
 
         # Slide-in from below (title_t reset to 0 on state entry)
         slide_t = min(1.0, self.title_t / 0.4)
         e = slide_t * slide_t * (3 - 2 * slide_t)
-        card_y = int(88 + (1.0 - e) * 80)
+        card_y = int((88 + (1.0 - e) * 80) * S)
 
         n = len(scores)
         if n == 0:
-            # Two cases (the player only reaches this view once the
-            # fetch has resolved, so there's no in-flight state):
-            #   * fetch_error — Supabase/RLS/network call failed
-            #   * neither — table is genuinely empty (brand-new database)
             if fetch_error:
-                _text(surf, "Top-10 unavailable", (W // 2, card_y + 60),
-                      size=18, color=UI_CREAM, shadow=True)
-                _text(surf, "Check the browser console", (W // 2, card_y + 94),
-                      size=12, color=UI_CREAM, shadow=False)
-                _text(surf, "(" + fetch_error + ")", (W // 2, card_y + 116),
-                      size=11, color=UI_CREAM, shadow=False)
+                _text(surf, "Top-10 unavailable",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
+                _text(surf, "Check the browser console",
+                      (Ws // 2, card_y + 94 * S),
+                      size=12 * S, color=UI_CREAM, shadow=False)
+                _text(surf, "(" + fetch_error + ")",
+                      (Ws // 2, card_y + 116 * S),
+                      size=11 * S, color=UI_CREAM, shadow=False)
             else:
-                _text(surf, "No scores yet!", (W // 2, card_y + 60),
-                      size=18, color=UI_CREAM, shadow=True)
-                _text(surf, "Be the first.", (W // 2, card_y + 94),
-                      size=14, color=UI_CREAM, shadow=False)
+                _text(surf, "No scores yet!",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
+                _text(surf, "Be the first.",
+                      (Ws // 2, card_y + 94 * S),
+                      size=14 * S, color=UI_CREAM, shadow=False)
         else:
-            # Each row is its own rounded pill with gold trim — matches
-            # the leaderboard mockup. Player's row gets a thick gold
-            # halo and a red "YOU" badge next to the name.
-            row_h = 42
-            row_gap = 4
+            row_h = 42 * S
+            row_gap = 4 * S
 
-            SILVER    = (185, 195, 205)
-            BRONZE    = (185, 125,  55)
+            SILVER = (185, 195, 205)
+            BRONZE = (185, 125,  55)
 
-            f_badge = _font(13, True)
-            f_name  = _font(16, True)
-            f_you   = _font(10, True)
-            f_score = _font(17, True)
+            f_badge = _font(13 * S, True)
+            f_name  = _font(16 * S, True)
+            f_you   = _font(10 * S, True)
+            f_score = _font(17 * S, True)
+
+            # Crown sprite at HD scale, built once per call.
+            if S == 1:
+                hd_crown = _get_crown_sprite()
+            else:
+                bw, bh = 24, 28
+                os_factor = _CROWN_OS * S
+                _big = pygame.Surface((bw * os_factor, bh * os_factor),
+                                      pygame.SRCALPHA)
+                _crown_draw_e3_narrow(_big, os_factor)
+                _small = pygame.transform.smoothscale(_big, (bw * S, bh * S))
+                hd_crown = _crown_with_shadow(_small,
+                                              offset=(2 * S, 2 * S))
 
             ry = card_y
             for i, entry in enumerate(scores):
                 rank = i + 1
-                if rank == 1:
-                    badge_col = _GOLD_BRIGHT
-                elif rank == 2:
-                    badge_col = SILVER
-                elif rank == 3:
-                    badge_col = BRONZE
-                else:
-                    badge_col = _GOLD_BRIGHT  # outline-only for 4-10
+                if rank == 1:    badge_col = _GOLD_BRIGHT
+                elif rank == 2:  badge_col = SILVER
+                elif rank == 3:  badge_col = BRONZE
+                else:            badge_col = _GOLD_BRIGHT
 
                 is_player = (i == player_rank)
                 row_cy = ry + row_h // 2
                 is_medal = rank in _MEDAL_GRADIENTS
 
-                # Row pill: medal rows (rank 1/2/3) get a gold/silver/
-                # bronze vertical gradient with a dark border;
-                # ranks 4-10 stay on dark navy with a thin gold trim.
                 row_rect = pygame.Rect(card_x, ry, card_w, row_h)
                 row_radius = row_h // 2
                 if is_medal:
@@ -1766,38 +1864,35 @@ class HUD:
                     if is_player:
                         pygame.draw.rect(pnl, _GOLD_BRIGHT,
                                          (0, 0, card_w, row_h),
-                                         width=3, border_radius=row_radius)
+                                         width=3 * S, border_radius=row_radius)
                     else:
                         pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
                                          (0, 0, card_w, row_h),
-                                         width=1, border_radius=row_radius)
+                                         width=1 * S, border_radius=row_radius)
                 surf.blit(pnl, row_rect.topleft)
 
-                # Rank badge: solid metallic disc for the top 3, gold
-                # outline-only ring for ranks 4-10 (per mockup).
-                badge_cx = card_x + 24
+                badge_cx = card_x + 24 * S
+                badge_r = 13 * S
                 if rank <= 3:
-                    pygame.draw.circle(surf, badge_col, (badge_cx, row_cy), 13)
+                    pygame.draw.circle(surf, badge_col,
+                                       (badge_cx, row_cy), badge_r)
                     pygame.draw.circle(surf, NEAR_BLACK,
-                                       (badge_cx, row_cy), 13, 1)
+                                       (badge_cx, row_cy), badge_r, 1 * S)
                     num_col = NEAR_BLACK
                 else:
                     pygame.draw.circle(surf, badge_col,
-                                       (badge_cx, row_cy), 13, 2)
+                                       (badge_cx, row_cy), badge_r, 2 * S)
                     num_col = _GOLD_BRIGHT
                 num_img = f_badge.render(str(rank), True, num_col)
                 surf.blit(num_img,
                           num_img.get_rect(center=(badge_cx, row_cy)))
 
-                # Crown perches on top of the #1 badge (narrow E3 sprite).
-                # Anchor: band-bottom 2 px below badge top (row_cy - 13),
-                # i.e. crown bbox bottom = row_cy - 11.
+                # Crown on #1
                 if rank == 1:
-                    crown = _get_crown_sprite()
-                    c_w, c_h = crown.get_size()
-                    surf.blit(crown,
+                    c_w, c_h = hd_crown.get_size()
+                    surf.blit(hd_crown,
                               (badge_cx - c_w // 2,
-                               row_cy - 11 - c_h))
+                               row_cy - 7 * S - c_h))
 
                 nm = entry["name"][:10]
                 if is_medal:
@@ -1805,40 +1900,37 @@ class HUD:
                 else:
                     name_col = _GOLD_BRIGHT if is_player else WHITE
                 nm_img = f_name.render(nm, True, name_col)
-                nm_x = card_x + 44
+                nm_x = card_x + 44 * S
                 surf.blit(nm_img,
                           (nm_x, row_cy - nm_img.get_height() // 2))
 
-                # "YOU" red badge next to the player's name, mockup-style.
                 if is_player:
                     you_img = f_you.render("YOU", True, WHITE)
-                    pw = you_img.get_width() + 10
-                    ph = you_img.get_height() + 6
-                    pxr = nm_x + nm_img.get_width() + 7
+                    pw = you_img.get_width() + 10 * S
+                    ph = you_img.get_height() + 6 * S
+                    pxr = nm_x + nm_img.get_width() + 7 * S
                     pyr = row_cy - ph // 2
                     you_pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
                     pygame.draw.rect(you_pill, _SCARLET_TOP,
                                      (0, 0, pw, ph), border_radius=ph // 2)
                     pygame.draw.rect(you_pill, _GOLD_BRIGHT,
                                      (0, 0, pw, ph),
-                                     width=1, border_radius=ph // 2)
+                                     width=1 * S, border_radius=ph // 2)
                     surf.blit(you_pill, (pxr, pyr))
-                    surf.blit(you_img, (pxr + 5, pyr + 3))
+                    surf.blit(you_img, (pxr + 5 * S, pyr + 3 * S))
 
-                # Score: dark on the bright medal gradient, gold on
-                # the dark default rows.
                 score_col = NEAR_BLACK if is_medal else _GOLD_BRIGHT
                 sc_img = f_score.render(str(entry["score"]), True, score_col)
                 surf.blit(sc_img,
-                          (card_x + card_w - 16 - sc_img.get_width(),
+                          (card_x + card_w - 16 * S - sc_img.get_width(),
                            row_cy - sc_img.get_height() // 2))
 
                 ry += row_h + row_gap
 
         if cooldown <= 0:
             alpha = int(170 + math.sin(self.title_t * 4) * 70)
-            f2 = _font(16, True)
+            f2 = _font(16 * S, True)
             prompt = f2.render("TAP  TO  MENU", True, _GOLD_MUTED)
             prompt.set_alpha(alpha)
-            pr = prompt.get_rect(center=(W // 2, H - 28))
+            pr = prompt.get_rect(center=(Ws // 2, Hs - 28 * S))
             surf.blit(prompt, pr.topleft)
