@@ -482,59 +482,65 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # Anime/angel-style wings — each side is a fan of three distinct
-        # primary feathers radiating from a small central body, with a
-        # clear leading edge and a serrated trailing fan. Reads as
-        # "wings" at a glance, not as a leaf.
-        body_y_off = s * 0.15
+        # Classic angel wings — each side is a single coherent silhouette
+        # with a smooth curving leading edge (top) and a scalloped
+        # trailing edge (bottom) where five feather tips are visible.
+        # All feathers point the same way (outward and slightly down)
+        # so it reads as a wing-of-an-angel rather than a butterfly.
+        body_y_off = s * 0.08
         for sign in (-1, 1):
-            # Three feather polygons per wing, fanning from the body
-            # outward at different angles. Drawn in order so the
-            # middle/longest feather sits underneath, the upper short
-            # feather overlaps near the shoulder, and the lower feather
-            # tucks in beneath.
-            feathers = [
-                # Middle (longest) primary feather — sweeps far outward
-                [(cx + sign * s * 0.05, cy - s * 0.00 + body_y_off),
-                 (cx + sign * s * 0.55, cy - s * 0.55 + body_y_off),
-                 (cx + sign * s * 1.20, cy - s * 0.40 + body_y_off),
-                 (cx + sign * s * 1.35, cy - s * 0.15 + body_y_off),
-                 (cx + sign * s * 1.00, cy - s * 0.05 + body_y_off),
-                 (cx + sign * s * 0.40, cy - s * 0.08 + body_y_off)],
-                # Top (shortest) secondary feather — points up-and-out
-                [(cx + sign * s * 0.08, cy - s * 0.05 + body_y_off),
-                 (cx + sign * s * 0.20, cy - s * 0.55 + body_y_off),
-                 (cx + sign * s * 0.55, cy - s * 0.65 + body_y_off),
-                 (cx + sign * s * 0.70, cy - s * 0.45 + body_y_off),
-                 (cx + sign * s * 0.40, cy - s * 0.30 + body_y_off)],
-                # Bottom feather — drops down-and-out
-                [(cx + sign * s * 0.05, cy + s * 0.05 + body_y_off),
-                 (cx + sign * s * 0.45, cy - s * 0.05 + body_y_off),
-                 (cx + sign * s * 1.05, cy + s * 0.15 + body_y_off),
-                 (cx + sign * s * 1.10, cy + s * 0.40 + body_y_off),
-                 (cx + sign * s * 0.75, cy + s * 0.40 + body_y_off),
-                 (cx + sign * s * 0.30, cy + s * 0.20 + body_y_off)],
+            wing_pts_factors = [
+                # Body attachment (top)
+                (0.10, -0.05),
+                # Leading edge (top of wing) — smooth arc up and out
+                (0.40, -0.55),
+                (0.85, -0.65),
+                (1.25, -0.55),
+                # Wingtip
+                (1.55, -0.20),
+                # Trailing edge — five feather tips and valleys alternating
+                # back toward the body. Tips are at higher y (further
+                # down on canvas), valleys are back up into the wing.
+                (1.40, 0.10),    # valley
+                (1.35, 0.32),    # feather tip 1 (largest, near wingtip)
+                (1.15, 0.12),    # valley
+                (1.10, 0.40),    # feather tip 2
+                (0.85, 0.18),    # valley
+                (0.80, 0.42),    # feather tip 3 (middle, longest)
+                (0.55, 0.22),    # valley
+                (0.50, 0.40),    # feather tip 4
+                (0.30, 0.22),    # valley
+                (0.28, 0.34),    # feather tip 5 (smallest, near body)
+                # Body attachment (bottom)
+                (0.10, 0.18),
             ]
-            outline_w = max(1, int(SCALE))
-            for pts in feathers:
-                pygame.draw.polygon(surf, GOLD_BRIGHT, pts)
-                pygame.draw.polygon(surf, GOLD_DEEP, pts, outline_w)
-            # Each feather gets a thin centre vein for a clear quill
-            # silhouette — anchored at body, tip at the feather's apex.
-            vein_tips = [
-                (cx + sign * s * 1.32, cy - s * 0.18 + body_y_off),
-                (cx + sign * s * 0.62, cy - s * 0.55 + body_y_off),
-                (cx + sign * s * 1.05, cy + s * 0.30 + body_y_off),
+            wing_pts = [(cx + sign * x * s, cy + y * s + body_y_off)
+                        for x, y in wing_pts_factors]
+            pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts,
+                                max(1, int(SCALE)))
+            # Internal quill lines — one per visible trailing-edge
+            # feather, running from inside the wing body down to each
+            # feather tip. Suggests the central vein of each plume.
+            feather_quills = [
+                ((1.10, -0.35), (1.32, 0.30)),  # feather 1 quill
+                ((0.90, -0.45), (1.07, 0.38)),  # feather 2 quill
+                ((0.65, -0.50), (0.78, 0.40)),  # feather 3 quill
+                ((0.42, -0.42), (0.48, 0.38)),  # feather 4 quill
+                ((0.22, -0.30), (0.27, 0.32)),  # feather 5 quill
             ]
-            body_anchor = (cx + sign * s * 0.18,
-                           cy - s * 0.02 + body_y_off)
-            for tip in vein_tips:
-                pygame.draw.line(surf, GOLD_DEEP, body_anchor, tip,
+            for start_f, tip_f in feather_quills:
+                start = (cx + sign * start_f[0] * s,
+                         cy + start_f[1] * s + body_y_off)
+                tip = (cx + sign * tip_f[0] * s,
+                       cy + tip_f[1] * s + body_y_off)
+                pygame.draw.line(surf, GOLD_DEEP, start, tip,
                                  max(1, int(SCALE)))
-        # Small body bead joining the two wings
-        pygame.draw.circle(surf, GOLD_DEEP,
-                           (cx, int(cy + body_y_off + s * 0.02)),
-                           max(2, int(s * 0.13)))
+        # Tiny body bead joining the two wings
+        pygame.draw.ellipse(
+            surf, GOLD_DEEP,
+            (cx - int(s * 0.10), int(cy + body_y_off - s * 0.05),
+             max(2, int(s * 0.20)), max(2, int(s * 0.30))))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -1803,7 +1809,7 @@ def make_contact_sheet(filenames, out_name="contact_sheet.png",
 
 VARIANTS = [
     ("v1_trophy_cinema.png", draw_v1_trophy_cinema),
-    ("v1_trophy_cinema_r3.png", draw_v1_trophy_cinema),
+    ("v1_trophy_cinema_r4.png", draw_v1_trophy_cinema),
     ("v2_pip_flight_log.png", draw_v2_pip_flight_log),
     ("v3_constellation_wheel.png", draw_v3_constellation_wheel),
     ("v4_storyboard_strip.png", draw_v4_storyboard_strip),
@@ -1822,7 +1828,7 @@ def main():
     print("Stitching contact sheet...")
     # Contact sheet only shows the canonical 5 (not cache-bust copies)
     sheet_files = [f for f in filenames
-                   if not (f.endswith("_r2.png") or f.endswith("_r3.png"))]
+                   if not (f.endswith("_r2.png") or f.endswith("_r4.png"))]
     make_contact_sheet(sheet_files)
     # Worst-case stress test of v1: every kind picked at least once
     # so we can verify the chip row never overflows the screen.
@@ -1836,7 +1842,7 @@ def main():
     save("v1_trophy_cinema_all7_powerups.png", s)
     s = pygame.Surface((W, H))
     draw_v1_trophy_cinema(s, stress)
-    save("v1_trophy_cinema_all7_powerups_r3.png", s)
+    save("v1_trophy_cinema_all7_powerups_r4.png", s)
     print("Done.")
 
 
