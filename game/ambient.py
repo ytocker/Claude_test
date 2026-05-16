@@ -844,21 +844,109 @@ _BANNER_PLANE_TEXT = "TOM FEEL WELL!"
 
 
 def _build_banner_plane_sprite() -> pygame.Surface:
-    s = pygame.Surface((24, 14), pygame.SRCALPHA)
-    pygame.draw.ellipse(s, (210, 60, 60), (3, 5, 18, 5))
-    pygame.draw.ellipse(s, (155, 30, 30), (3, 5, 18, 5), 1)
-    pygame.draw.polygon(s, (165, 35, 35), [(20, 5), (23, 1), (23, 6)])
-    pygame.draw.polygon(s, (165, 35, 35), [(20, 9), (23, 13), (23, 8)])
-    pygame.draw.rect(s, (245, 245, 240), (5, 2, 14, 2))
-    pygame.draw.rect(s, (170, 170, 165), (5, 2, 14, 2), 1)
-    pygame.draw.rect(s, (245, 245, 240), (6, 10, 12, 2))
-    pygame.draw.rect(s, (170, 170, 165), (6, 10, 12, 2), 1)
-    pygame.draw.line(s, (120, 120, 115), (8, 4), (8, 10), 1)
-    pygame.draw.line(s, (120, 120, 115), (16, 4), (16, 10), 1)
-    pygame.draw.rect(s, (140, 220, 255), (10, 6, 4, 2))
-    pygame.draw.line(s, (60, 50, 40), (2, 4), (2, 10), 2)
-    pygame.draw.circle(s, (40, 30, 20), (2, 7), 1)
+    """Substantial biplane silhouette — 52×30 px. Plane faces LEFT (nose
+    on the left, tail on the right). Propeller is drawn dynamically by
+    the class, not baked in. Tow point on the tail is at (50, 16)."""
+    s = pygame.Surface((52, 30), pygame.SRCALPHA)
+    red = (215, 65, 65)
+    red_dk = (155, 30, 30)
+    cream = (248, 246, 235)
+    cream_dk = (165, 160, 145)
+    strut = (95, 80, 60)
+    strut_dk = (55, 45, 30)
+    metal = (50, 40, 30)
+
+    # Tail boom (narrowing fuselage section behind cockpit)
+    pygame.draw.polygon(s, red,
+                       [(34, 12), (50, 14), (50, 18), (34, 17)])
+    pygame.draw.polygon(s, red_dk,
+                       [(34, 12), (50, 14), (50, 18), (34, 17)], 1)
+    # Vertical tail fin
+    pygame.draw.polygon(s, red_dk, [(45, 14), (50, 8), (50, 14)])
+    pygame.draw.polygon(s, (100, 25, 25),
+                       [(45, 14), (50, 8), (50, 14)], 1)
+    # Horizontal stabiliser (small tail wing)
+    pygame.draw.rect(s, cream, (43, 13, 8, 3))
+    pygame.draw.rect(s, cream_dk, (43, 13, 8, 3), 1)
+    pygame.draw.line(s, red, (44, 14), (50, 14), 1)
+
+    # Main fuselage (rounded body)
+    pygame.draw.ellipse(s, red, (5, 11, 32, 11))
+    pygame.draw.ellipse(s, red_dk, (5, 11, 32, 11), 1)
+    # Belly highlight
+    pygame.draw.line(s, (255, 130, 130), (10, 13), (30, 13), 1)
+
+    # Nose cone (rounded front, ahead of propeller)
+    pygame.draw.ellipse(s, red_dk, (1, 13, 6, 7))
+
+    # Cockpit — open biplane style with pilot head
+    pygame.draw.ellipse(s, (35, 25, 20), (18, 9, 11, 7))
+    pygame.draw.ellipse(s, (15, 10, 8), (18, 9, 11, 7), 1)
+    # Pilot head + leather cap
+    pygame.draw.circle(s, (95, 65, 40), (23, 11), 3)
+    pygame.draw.circle(s, (55, 35, 20), (23, 10), 3)
+    # Goggles
+    pygame.draw.line(s, (210, 175, 90), (21, 11), (25, 11), 1)
+    pygame.draw.circle(s, (35, 30, 20), (21, 11), 1)
+    pygame.draw.circle(s, (35, 30, 20), (25, 11), 1)
+    # Scarf trailing
+    pygame.draw.line(s, (240, 235, 220), (25, 13), (30, 15), 1)
+    pygame.draw.line(s, (220, 215, 200), (25, 14), (29, 16), 1)
+
+    # Lower wing (under fuselage, swept slightly back)
+    pygame.draw.rect(s, cream, (10, 19, 26, 4))
+    pygame.draw.rect(s, cream_dk, (10, 19, 26, 4), 1)
+    # Wing accent stripe
+    pygame.draw.line(s, red, (11, 20), (35, 20), 1)
+    pygame.draw.line(s, (180, 175, 160), (11, 22), (35, 22), 1)
+
+    # Upper wing (above fuselage, slightly forward)
+    pygame.draw.rect(s, cream, (8, 3, 30, 4))
+    pygame.draw.rect(s, cream_dk, (8, 3, 30, 4), 1)
+    pygame.draw.line(s, red, (9, 4), (37, 4), 1)
+    pygame.draw.line(s, (180, 175, 160), (9, 6), (37, 6), 1)
+
+    # Outer wing struts (vertical, connecting upper + lower wings)
+    pygame.draw.line(s, strut, (12, 7), (13, 19), 2)
+    pygame.draw.line(s, strut, (34, 7), (35, 19), 2)
+    # Center pylon (upper wing supports above cockpit)
+    pygame.draw.line(s, strut, (20, 7), (20, 10), 2)
+    pygame.draw.line(s, strut, (28, 7), (28, 10), 2)
+    # Diagonal bracing wires (thin)
+    pygame.draw.line(s, strut_dk, (12, 7), (35, 19), 1)
+    pygame.draw.line(s, strut_dk, (34, 7), (13, 19), 1)
+
+    # Landing-gear stub (just the V truss, wheels retracted in-flight feel)
+    pygame.draw.line(s, strut, (15, 22), (19, 26), 1)
+    pygame.draw.line(s, strut, (25, 22), (21, 26), 1)
+    pygame.draw.line(s, strut, (19, 26), (21, 26), 1)
+    pygame.draw.circle(s, metal, (20, 27), 2)
+    pygame.draw.circle(s, (25, 20, 15), (20, 27), 2, 1)
+    pygame.draw.circle(s, (140, 130, 115), (20, 27), 1)
+
+    # Engine cowling / propeller hub (front of fuselage)
+    pygame.draw.circle(s, metal, (4, 16), 3)
+    pygame.draw.circle(s, (25, 20, 15), (4, 16), 3, 1)
+    pygame.draw.circle(s, (155, 145, 130), (4, 16), 1)
     return s
+
+
+def _draw_propeller_blur(surf, hub_x: int, hub_y: int,
+                         angle: float, radius: int = 7) -> None:
+    """Spinning propeller — semi-transparent disc + one highlighted blade
+    showing rotational motion blur."""
+    disc = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+    pygame.draw.circle(disc, (35, 30, 25, 70),
+                      (radius + 2, radius + 2), radius)
+    surf.blit(disc, (hub_x - radius - 2, hub_y - radius - 2))
+    # Visible blade — single light streak
+    bx = int(math.cos(angle) * radius)
+    by = int(math.sin(angle) * radius)
+    pygame.draw.line(surf, (175, 165, 145),
+                    (hub_x - bx, hub_y - by),
+                    (hub_x + bx, hub_y + by), 2)
+    # Hub bolt highlight
+    pygame.draw.circle(surf, (220, 210, 190), (hub_x, hub_y), 1)
 
 
 def _build_banner_text_sprite(text: str) -> pygame.Surface:
@@ -918,13 +1006,41 @@ class _BannerPlane(_AirEventBase):
         wobble = int(round(math.sin(self.t * 1.4 + self._wobble_phase) * 1.5))
         plane_y = int(self.y) - ph // 2 + wobble
         surf.blit(self._plane, (plane_x, plane_y))
-        banner_x = plane_x + pw + self._tow_gap
-        ripple = int(round(math.sin(self.t * 2.4 + self._wobble_phase) * 2.0))
-        banner_y = int(self.y) - bh // 2 + ripple
+
+        # Animated propeller — hub at (4, 16) in sprite-local coords.
+        prop_angle = self.t * 28.0
+        _draw_propeller_blur(surf, plane_x + 4, plane_y + 16, prop_angle, 6)
+
+        # Banner geometry — leading edge sits on the plane's tow attachment
+        # (rear of fuselage). The whole banner flaps with a traveling wave
+        # whose amplitude scales linearly with distance from the rope.
+        banner_left = plane_x + pw + self._tow_gap
+        banner_mid_y = int(self.y) - bh // 2
+
+        # Tow rope — from tail-tow on plane to leading-edge grommet on banner.
+        # Leading column has zero flap offset.
+        rope_y_at_banner = banner_mid_y + bh // 2
         pygame.draw.line(surf, (80, 60, 40),
-                        (plane_x + pw - 1, plane_y + ph // 2),
-                        (banner_x + 3, banner_y + bh // 2), 1)
-        surf.blit(self._banner, (banner_x, banner_y))
+                        (plane_x + pw - 2, plane_y + ph // 2),
+                        (banner_left + 3, rope_y_at_banner), 1)
+
+        # Flap render: walk the banner in vertical strips, each shifted
+        # vertically by a traveling sine wave. Strips are 2 px wide for a
+        # smooth wave without paying the cost of per-pixel blits.
+        strip_w = 2
+        wave_speed = 4.5    # how fast the wave travels along the banner
+        wave_freq = 0.22    # wavelength in column-units (smaller = longer)
+        max_amp = 7.0       # peak flap at trailing edge (px)
+        for col_x in range(0, bw, strip_w):
+            t_frac = col_x / max(1, bw - 1)   # 0 leading → 1 trailing
+            amp = max_amp * (t_frac ** 1.4)   # bias toward trailing
+            wave = math.sin(self.t * wave_speed - col_x * wave_freq
+                            + self._wobble_phase)
+            offset_y = int(round(wave * amp))
+            strip_rect = pygame.Rect(col_x, 0, strip_w, bh)
+            surf.blit(self._banner,
+                     (banner_left + col_x, banner_mid_y + offset_y),
+                     strip_rect)
 
     def is_done(self) -> bool:
         return self.x < -10 or self.t > self.DURATION_MAX
