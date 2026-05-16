@@ -482,65 +482,56 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # Classic angel wings — each side is a single coherent silhouette
-        # with a smooth curving leading edge (top) and a scalloped
-        # trailing edge (bottom) where five feather tips are visible.
-        # All feathers point the same way (outward and slightly down)
-        # so it reads as a wing-of-an-angel rather than a butterfly.
-        body_y_off = s * 0.08
-        for sign in (-1, 1):
-            wing_pts_factors = [
-                # Body attachment (top)
-                (0.10, -0.05),
-                # Leading edge (top of wing) — smooth arc up and out
-                (0.40, -0.55),
-                (0.85, -0.65),
-                (1.25, -0.55),
-                # Wingtip
-                (1.55, -0.20),
-                # Trailing edge — five feather tips and valleys alternating
-                # back toward the body. Tips are at higher y (further
-                # down on canvas), valleys are back up into the wing.
-                (1.40, 0.10),    # valley
-                (1.35, 0.32),    # feather tip 1 (largest, near wingtip)
-                (1.15, 0.12),    # valley
-                (1.10, 0.40),    # feather tip 2
-                (0.85, 0.18),    # valley
-                (0.80, 0.42),    # feather tip 3 (middle, longest)
-                (0.55, 0.22),    # valley
-                (0.50, 0.40),    # feather tip 4
-                (0.30, 0.22),    # valley
-                (0.28, 0.34),    # feather tip 5 (smallest, near body)
-                # Body attachment (bottom)
-                (0.10, 0.18),
-            ]
-            wing_pts = [(cx + sign * x * s, cy + y * s + body_y_off)
-                        for x, y in wing_pts_factors]
-            pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
-            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts,
-                                max(1, int(SCALE)))
-            # Internal quill lines — one per visible trailing-edge
-            # feather, running from inside the wing body down to each
-            # feather tip. Suggests the central vein of each plume.
-            feather_quills = [
-                ((1.10, -0.35), (1.32, 0.30)),  # feather 1 quill
-                ((0.90, -0.45), (1.07, 0.38)),  # feather 2 quill
-                ((0.65, -0.50), (0.78, 0.40)),  # feather 3 quill
-                ((0.42, -0.42), (0.48, 0.38)),  # feather 4 quill
-                ((0.22, -0.30), (0.27, 0.32)),  # feather 5 quill
-            ]
-            for start_f, tip_f in feather_quills:
-                start = (cx + sign * start_f[0] * s,
-                         cy + start_f[1] * s + body_y_off)
-                tip = (cx + sign * tip_f[0] * s,
-                       cy + tip_f[1] * s + body_y_off)
-                pygame.draw.line(surf, GOLD_DEEP, start, tip,
-                                 max(1, int(SCALE)))
-        # Tiny body bead joining the two wings
+        # Two simple butterfly-style wings — symmetric rounded lobes
+        # extending outward from a thin central body. Clean silhouette
+        # that reads instantly as "wings" the way a butterfly does.
+        body_w = max(2, int(s * 0.08))
+        body_h = int(s * 0.70)
         pygame.draw.ellipse(
             surf, GOLD_DEEP,
-            (cx - int(s * 0.10), int(cy + body_y_off - s * 0.05),
-             max(2, int(s * 0.20)), max(2, int(s * 0.30))))
+            (cx - body_w, cy - body_h // 2, body_w * 2, body_h))
+        # Antennae — two short curves above the body
+        pygame.draw.line(
+            surf, GOLD_DEEP,
+            (cx - body_w, cy - body_h // 2),
+            (int(cx - s * 0.35), int(cy - body_h // 2 - s * 0.25)),
+            max(1, int(SCALE)))
+        pygame.draw.line(
+            surf, GOLD_DEEP,
+            (cx + body_w, cy - body_h // 2),
+            (int(cx + s * 0.35), int(cy - body_h // 2 - s * 0.25)),
+            max(1, int(SCALE)))
+        # Two wing lobes per side (upper + lower), classic butterfly
+        for sign in (-1, 1):
+            upper_wing = [
+                (cx + sign * body_w, cy - s * 0.25),
+                (cx + sign * s * 0.35, cy - s * 0.70),
+                (cx + sign * s * 0.85, cy - s * 0.60),
+                (cx + sign * s * 1.10, cy - s * 0.25),
+                (cx + sign * s * 0.95, cy + s * 0.00),
+                (cx + sign * s * 0.55, cy + s * 0.05),
+                (cx + sign * body_w, cy - s * 0.05),
+            ]
+            lower_wing = [
+                (cx + sign * body_w, cy + s * 0.05),
+                (cx + sign * s * 0.55, cy + s * 0.05),
+                (cx + sign * s * 0.85, cy + s * 0.30),
+                (cx + sign * s * 0.65, cy + s * 0.65),
+                (cx + sign * s * 0.25, cy + s * 0.55),
+                (cx + sign * body_w, cy + s * 0.30),
+            ]
+            pygame.draw.polygon(surf, GOLD_BRIGHT, upper_wing)
+            pygame.draw.polygon(surf, GOLD_DEEP, upper_wing,
+                                max(1, int(SCALE)))
+            pygame.draw.polygon(surf, GOLD_BRIGHT, lower_wing)
+            pygame.draw.polygon(surf, GOLD_DEEP, lower_wing,
+                                max(1, int(SCALE)))
+            # Decorative spot in upper wing — butterfly "eye"
+            pygame.draw.circle(
+                surf, GOLD_DEEP,
+                (int(cx + sign * s * 0.65),
+                 int(cy - s * 0.35)),
+                max(2, int(s * 0.10)))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -1023,12 +1014,196 @@ def _unused_heraldic_template(surf, cx, cy, s):  # kept for reference
             pygame.draw.polygon(surf, GOLD_DEEP, pts, max(1, int(SCALE)))
 
 
+def draw_wing_butterfly(surf, cx, cy, s):
+    """Variant 1 — Butterfly: two symmetric wing lobes per side
+    (upper + lower) with a slim central body and antennae. Clean
+    butterfly silhouette."""
+    body_w = max(2, int(s * 0.08))
+    body_h = int(s * 0.70)
+    pygame.draw.ellipse(
+        surf, GOLD_DEEP,
+        (cx - body_w, cy - body_h // 2, body_w * 2, body_h))
+    pygame.draw.line(
+        surf, GOLD_DEEP,
+        (cx - body_w, cy - body_h // 2),
+        (int(cx - s * 0.35), int(cy - body_h // 2 - s * 0.25)),
+        max(1, int(SCALE)))
+    pygame.draw.line(
+        surf, GOLD_DEEP,
+        (cx + body_w, cy - body_h // 2),
+        (int(cx + s * 0.35), int(cy - body_h // 2 - s * 0.25)),
+        max(1, int(SCALE)))
+    for sign in (-1, 1):
+        upper_wing = [
+            (cx + sign * body_w, cy - s * 0.25),
+            (cx + sign * s * 0.35, cy - s * 0.70),
+            (cx + sign * s * 0.85, cy - s * 0.60),
+            (cx + sign * s * 1.10, cy - s * 0.25),
+            (cx + sign * s * 0.95, cy + s * 0.00),
+            (cx + sign * s * 0.55, cy + s * 0.05),
+            (cx + sign * body_w, cy - s * 0.05),
+        ]
+        lower_wing = [
+            (cx + sign * body_w, cy + s * 0.05),
+            (cx + sign * s * 0.55, cy + s * 0.05),
+            (cx + sign * s * 0.85, cy + s * 0.30),
+            (cx + sign * s * 0.65, cy + s * 0.65),
+            (cx + sign * s * 0.25, cy + s * 0.55),
+            (cx + sign * body_w, cy + s * 0.30),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, upper_wing)
+        pygame.draw.polygon(surf, GOLD_DEEP, upper_wing, max(1, int(SCALE)))
+        pygame.draw.polygon(surf, GOLD_BRIGHT, lower_wing)
+        pygame.draw.polygon(surf, GOLD_DEEP, lower_wing, max(1, int(SCALE)))
+        pygame.draw.circle(
+            surf, GOLD_DEEP,
+            (int(cx + sign * s * 0.65), int(cy - s * 0.35)),
+            max(2, int(s * 0.10)))
+
+
+def draw_bird_overhead(surf, cx, cy, s):
+    """Variant 2 — Bird from above: the classic M-silhouette + body
+    line of a bird in flight seen from below. Most iconic 'bird in
+    flight' shape used in logos worldwide."""
+    thick = max(3, int(SCALE * 1.6))
+    pts = [
+        (cx - s * 1.10, cy - s * 0.05),
+        (cx - s * 0.75, cy - s * 0.50),
+        (cx - s * 0.35, cy - s * 0.15),
+        (cx,            cy + s * 0.10),
+        (cx + s * 0.35, cy - s * 0.15),
+        (cx + s * 0.75, cy - s * 0.50),
+        (cx + s * 1.10, cy - s * 0.05),
+    ]
+    pygame.draw.lines(surf, GOLD_BRIGHT, False, pts, thick)
+    body_pts = [
+        (cx - s * 1.00, cy + s * 0.00),
+        (cx - s * 0.55, cy + s * 0.25),
+        (cx + s * 0.55, cy + s * 0.25),
+        (cx + s * 1.00, cy + s * 0.00),
+    ]
+    pygame.draw.lines(surf, GOLD_BRIGHT, False, body_pts,
+                      max(2, int(SCALE)))
+
+
+def draw_bird_spread_eagle(surf, cx, cy, s):
+    """Variant 3 — Spread eagle: full bird body with wings outstretched
+    horizontally to each side. Has a body, head, and tail — reads as a
+    raptor seen from below."""
+    # Body (vertical oval) + head circle + small tail wedge
+    body_w = max(3, int(s * 0.18))
+    body_h = int(s * 0.6)
+    pygame.draw.ellipse(
+        surf, GOLD_BRIGHT,
+        (cx - body_w, cy - body_h // 2, body_w * 2, body_h))
+    pygame.draw.ellipse(
+        surf, GOLD_DEEP,
+        (cx - body_w, cy - body_h // 2, body_w * 2, body_h),
+        max(1, int(SCALE)))
+    # Head
+    head_r = max(2, int(s * 0.13))
+    pygame.draw.circle(surf, GOLD_BRIGHT, (cx, cy - body_h // 2 - head_r // 2),
+                       head_r)
+    pygame.draw.circle(surf, GOLD_DEEP, (cx, cy - body_h // 2 - head_r // 2),
+                       head_r, max(1, int(SCALE)))
+    # Tail (downward triangle below body)
+    tail_pts = [
+        (cx - body_w // 2, cy + body_h // 2 - 1 * SCALE),
+        (cx + body_w // 2, cy + body_h // 2 - 1 * SCALE),
+        (cx, cy + body_h // 2 + int(s * 0.30)),
+    ]
+    pygame.draw.polygon(surf, GOLD_BRIGHT, tail_pts)
+    pygame.draw.polygon(surf, GOLD_DEEP, tail_pts, max(1, int(SCALE)))
+    # Wings: large outstretched horizontal triangles each side
+    for sign in (-1, 1):
+        wing = [
+            (cx + sign * body_w, cy - s * 0.15),
+            (cx + sign * s * 1.30, cy - s * 0.35),
+            (cx + sign * s * 1.30, cy + s * 0.05),
+            (cx + sign * body_w, cy + s * 0.15),
+        ]
+        pygame.draw.polygon(surf, GOLD_BRIGHT, wing)
+        pygame.draw.polygon(surf, GOLD_DEEP, wing, max(1, int(SCALE)))
+
+
+def draw_bird_dove(surf, cx, cy, s):
+    """Variant 4 — Stylised flying dove (peace-dove style): a single
+    fluid bird silhouette with a curved body, raised wings, and a
+    sweeping tail. Reads instantly as 'bird'."""
+    # Body — single fluid polygon
+    body_pts = [
+        (cx - s * 0.95, cy + s * 0.10),    # tail tip
+        (cx - s * 0.55, cy + s * 0.05),    # tail base upper
+        (cx - s * 0.30, cy + s * 0.30),    # belly low
+        (cx + s * 0.10, cy + s * 0.40),    # belly far
+        (cx + s * 0.60, cy + s * 0.10),    # chest
+        (cx + s * 0.95, cy - s * 0.20),    # head/beak tip
+        (cx + s * 0.50, cy - s * 0.20),    # head back
+        (cx + s * 0.10, cy - s * 0.05),    # neck back
+        (cx - s * 0.10, cy - s * 0.20),    # wing-attach
+        (cx - s * 0.30, cy + s * 0.00),    # back
+        (cx - s * 0.55, cy + s * 0.15),    # tail base lower
+    ]
+    pygame.draw.polygon(surf, GOLD_BRIGHT, body_pts)
+    pygame.draw.polygon(surf, GOLD_DEEP, body_pts, max(1, int(SCALE)))
+    # Raised wing — single sweeping curved shape above body
+    wing_pts = [
+        (cx - s * 0.05, cy - s * 0.15),
+        (cx - s * 0.25, cy - s * 0.60),
+        (cx + s * 0.20, cy - s * 0.85),
+        (cx + s * 0.50, cy - s * 0.60),
+        (cx + s * 0.45, cy - s * 0.30),
+        (cx + s * 0.20, cy - s * 0.20),
+    ]
+    pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+    pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+    # Eye dot
+    pygame.draw.circle(surf, GOLD_DEEP,
+                       (int(cx + s * 0.65), int(cy - s * 0.18)),
+                       max(1, int(s * 0.05)))
+
+
+def draw_bird_wing_side(surf, cx, cy, s):
+    """Variant 5 — Side view of a single bird wing: like the wing on a
+    heraldic emblem. Smooth top edge, tapered tip, scalloped trailing
+    edge with three feather notches."""
+    # Single side-view wing pointing right (with mirror disabled)
+    # Centered so the wing fills the icon area horizontally
+    wing_pts = [
+        (cx - s * 1.05, cy + s * 0.25),    # body attach bottom
+        (cx - s * 0.85, cy - s * 0.20),    # body attach top
+        (cx - s * 0.40, cy - s * 0.65),    # shoulder
+        (cx + s * 0.20, cy - s * 0.70),    # leading edge
+        (cx + s * 0.85, cy - s * 0.45),    # leading top
+        (cx + s * 1.15, cy - s * 0.05),    # tip
+        # Trailing edge with 3 feather notches
+        (cx + s * 0.85, cy + s * 0.10),
+        (cx + s * 0.95, cy + s * 0.45),    # feather tip 1
+        (cx + s * 0.50, cy + s * 0.20),
+        (cx + s * 0.60, cy + s * 0.55),    # feather tip 2
+        (cx + s * 0.15, cy + s * 0.30),
+        (cx + s * 0.20, cy + s * 0.55),    # feather tip 3
+        (cx - s * 0.30, cy + s * 0.40),
+    ]
+    pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+    pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, max(1, int(SCALE)))
+    # 3 internal feather divider lines
+    for sf, tf in [((-0.65, -0.30), (0.95, 0.40)),
+                   ((-0.35, -0.50), (0.60, 0.50)),
+                   ((+0.05, -0.55), (0.20, 0.50))]:
+        pygame.draw.line(
+            surf, GOLD_DEEP,
+            (cx + sf[0] * s, cy + sf[1] * s),
+            (cx + tf[0] * s, cy + tf[1] * s),
+            max(1, int(SCALE)))
+
+
 WING_VARIANTS = [
-    ("1.  PIP'S WING", "game-faithful, colour", draw_wing_pip),
-    ("2.  BIRD",       "flying-bird M shape",   draw_wing_bird_silhouette),
-    ("3.  CHERUB",     "scallop pair + heart",  draw_wing_cherub),
-    ("4.  AVIATOR",    "military pilot badge",  draw_wing_aviator_badge),
-    ("5.  FEATHER",    "single quill",          draw_wing_feather),
+    ("1.  BUTTERFLY",   "4-lobe symmetric wings",  draw_wing_butterfly),
+    ("2.  BIRD M",      "overhead flight curve",   draw_bird_overhead),
+    ("3.  EAGLE",       "spread-eagle body+wings", draw_bird_spread_eagle),
+    ("4.  DOVE",        "peace-dove silhouette",   draw_bird_dove),
+    ("5.  WING (SIDE)", "single heraldic wing",    draw_bird_wing_side),
 ]
 
 
@@ -1068,7 +1243,7 @@ def render_wing_options():
                     row_cy + 10 * SCALE))
     save("wing_options.png", s)
     # Cache-bust filename so the user definitely sees the latest version
-    save("wing_options_r6.png", s)
+    save("wing_options_r7.png", s)
 
 
 def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
