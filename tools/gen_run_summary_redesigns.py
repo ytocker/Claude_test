@@ -32,6 +32,7 @@ pygame.display.set_mode((1, 1))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from game.powerup_help import _powerup_icon as _ingame_powerup_icon  # noqa
 from game.entities import _get_coin_face as _ingame_coin_face  # noqa
+from game.config import COIN_R  # noqa
 
 SCALE = 2
 W, H = 360 * SCALE, 640 * SCALE
@@ -451,10 +452,15 @@ def stat_icon(surf, kind, cx, cy, size):
                           cy + math.sin(ma) * s * 0.7), 2 * SCALE)
         pygame.draw.circle(surf, GOLD_DEEP, (cx, cy), 2 * SCALE)
     elif kind == "coin":
-        # Use the actual in-game coin face — matches what the player sees
-        # mid-flight (twisted-rope rim, gold gradient, embossed parrot).
+        # Use the actual in-game coin face — matches what the player
+        # sees mid-flight (twisted-rope rim, gold gradient, embossed
+        # parrot). Capped at the in-game native display size so the
+        # coin reads at the same scale the player's eye is calibrated
+        # to from gameplay (never blown up beyond its true on-screen
+        # footprint).
         face = _ingame_coin_face()
-        target_d = int(s * 2.6)
+        in_game_d = (COIN_R * 2 + 4) * SCALE
+        target_d = min(int(s * 2.6), in_game_d)
         scaled = pygame.transform.smoothscale(face, (target_d, target_d))
         surf.blit(scaled, scaled.get_rect(center=(cx, cy)))
     elif kind == "pillar":
@@ -691,17 +697,14 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
     pygame.draw.rect(mask, (255, 255, 255, 255),
                      (0, 0, rect.w, rect.h), border_radius=10 * SCALE)
     body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    # Gold rim
-    pygame.draw.rect(body, GOLD_BRIGHT, (0, 0, rect.w, rect.h),
-                     width=2 * SCALE, border_radius=10 * SCALE)
-    pygame.draw.rect(body, GOLD_DEEP, (1 * SCALE, 1 * SCALE,
-                                       rect.w - 2 * SCALE,
-                                       rect.h - 2 * SCALE),
-                     width=1 * SCALE, border_radius=9 * SCALE)
+    # Slimmer gold rim — lighter touch so the row reads as a refined
+    # stat strip rather than a row of heavy bordered boxes
+    pygame.draw.rect(body, (*GOLD_BRIGHT, 160), (0, 0, rect.w, rect.h),
+                     width=1 * SCALE, border_radius=10 * SCALE)
     # Top inner highlight
-    pygame.draw.line(body, (*GOLD_PALE, 130),
-                     (8 * SCALE, 4 * SCALE),
-                     (rect.w - 8 * SCALE, 4 * SCALE), 1 * SCALE)
+    pygame.draw.line(body, (*GOLD_PALE, 100),
+                     (10 * SCALE, 3 * SCALE),
+                     (rect.w - 10 * SCALE, 3 * SCALE), 1 * SCALE)
     surf.blit(body, rect.topleft)
     # Icon — sized to read clearly without dominating the tile
     stat_icon(surf, icon_kind, rect.centerx, rect.y + 22 * SCALE,
@@ -1775,6 +1778,7 @@ def make_contact_sheet(filenames, out_name="contact_sheet.png",
 
 VARIANTS = [
     ("v1_trophy_cinema.png", draw_v1_trophy_cinema),
+    ("v1_trophy_cinema_r2.png", draw_v1_trophy_cinema),
     ("v2_pip_flight_log.png", draw_v2_pip_flight_log),
     ("v3_constellation_wheel.png", draw_v3_constellation_wheel),
     ("v4_storyboard_strip.png", draw_v4_storyboard_strip),
@@ -1791,7 +1795,9 @@ def main():
         save(name, s)
         filenames.append(name)
     print("Stitching contact sheet...")
-    make_contact_sheet(filenames)
+    # Contact sheet only shows the canonical 5 (not cache-bust copies)
+    sheet_files = [f for f in filenames if not f.endswith("_r2.png")]
+    make_contact_sheet(sheet_files)
     # Worst-case stress test of v1: every kind picked at least once
     # so we can verify the chip row never overflows the screen.
     stress = dict(DATA)
@@ -1802,6 +1808,9 @@ def main():
     s = pygame.Surface((W, H))
     draw_v1_trophy_cinema(s, stress)
     save("v1_trophy_cinema_all7_powerups.png", s)
+    s = pygame.Surface((W, H))
+    draw_v1_trophy_cinema(s, stress)
+    save("v1_trophy_cinema_all7_powerups_r2.png", s)
     print("Done.")
 
 
