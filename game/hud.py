@@ -492,6 +492,7 @@ def _crown_draw_e3_narrow(big, s):
 
 
 _CROWN_SPRITE_CACHE: "pygame.Surface | None" = None
+_CROWN_HD_CACHE: "dict[int, pygame.Surface]" = {}
 
 
 def _get_crown_sprite() -> "pygame.Surface":
@@ -506,6 +507,23 @@ def _get_crown_sprite() -> "pygame.Surface":
         small = pygame.transform.smoothscale(big, (bw, bh))
         _CROWN_SPRITE_CACHE = _crown_with_shadow(small)
     return _CROWN_SPRITE_CACHE
+
+
+def _get_crown_sprite_hd(S: int) -> "pygame.Surface":
+    """HD crown sprite at S × native, cached per scale factor."""
+    if S == 1:
+        return _get_crown_sprite()
+    cached = _CROWN_HD_CACHE.get(S)
+    if cached is None:
+        bw, bh = 24, 28
+        os_factor = _CROWN_OS * S
+        big = pygame.Surface((bw * os_factor, bh * os_factor),
+                             pygame.SRCALPHA)
+        _crown_draw_e3_narrow(big, os_factor)
+        small = pygame.transform.smoothscale(big, (bw * S, bh * S))
+        cached = _crown_with_shadow(small, offset=(2 * S, 2 * S))
+        _CROWN_HD_CACHE[S] = cached
+    return cached
 
 
 def _medal_row_pill(card_w, row_h, row_radius, rank):
@@ -1171,6 +1189,10 @@ class HUD:
         self.pause_btn = PauseButton()
         self.help_btn = HelpButton()
         self.title_t = 0.0
+        # Cached leaderboard layout (static parts). Rebuilt only when
+        # scores / rank / error / pending / target size change.
+        self._lb_cache: "pygame.Surface | None" = None
+        self._lb_cache_key: tuple = ()
         # Name-entry button rects — populated each frame by draw_name_entry,
         # read by scenes.py click-handling. Pre-init to empty rects so the
         # first click before any draw is harmless.
@@ -1746,36 +1768,53 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float, fetch_error: str = ""):
+                         cooldown: float, fetch_error: str = "",
+                         pending: bool = False):
         # Internally render at 3× supersample so the leaderboard's text
-        # and circle edges come out clean on both desktop and mobile,
-        # then smoothscale-down to whatever target surface was passed.
-        # Callers that want the raw HD output (e.g. screenshot tools)
-        # can pass an HD-sized surface (W*3, H*3) and it'll be drawn
-        # into directly without the downsample step.
+        # and circle edges come out clean on both desktop and mobile.
+        # The whole static layout is cached (keyed on scores + rank +
+        # error + pending + target surface size); only the animated
+        # TAP TO MENU prompt is re-rendered per frame.
         self.title_t += dt
         SCALE = 3
-        hd_w, hd_h = W * SCALE, H * SCALE
         target_w, target_h = surf.get_size()
-        if (target_w, target_h) == (hd_w, hd_h):
-            hd = surf
-            blit_back = False
-        else:
+
+        scores_key = tuple((e["name"], e["score"]) for e in scores)
+        key = (target_w, target_h, scores_key, player_rank,
+               fetch_error, pending)
+
+        if self._lb_cache_key != key:
+            hd_w, hd_h = W * SCALE, H * SCALE
             hd = pygame.Surface((hd_w, hd_h), pygame.SRCALPHA)
-            blit_back = True
+            self._render_leaderboard(hd, scores, player_rank,
+                                     fetch_error, pending, SCALE)
+            if (target_w, target_h) == (hd_w, hd_h):
+                self._lb_cache = hd
+            else:
+                self._lb_cache = pygame.transform.smoothscale(
+                    hd, (target_w, target_h))
+            self._lb_cache_key = key
 
-        self._render_leaderboard(hd, scores, player_rank,
-                                 cooldown, fetch_error, SCALE)
+        surf.blit(self._lb_cache, (0, 0))
 
-        if blit_back:
-            smaller = pygame.transform.smoothscale(hd, (target_w, target_h))
-            surf.blit(smaller, (0, 0))
+        # TAP TO MENU prompt — pulses every frame, so rendered live on
+        # top of the cached static layout. Show whenever the user can
+        # dismiss the view (cooldown elapsed) including during loading.
+        if cooldown <= 0:
+            out_scale = max(1, target_w // W)
+            alpha = int(170 + math.sin(self.title_t * 4) * 70)
+            f2 = _font(16 * out_scale, True)
+            prompt = f2.render("TAP  TO  MENU", True, _GOLD_MUTED)
+            prompt.set_alpha(alpha)
+            pr = prompt.get_rect(center=(target_w // 2,
+                                         target_h - 28 * out_scale))
+            surf.blit(prompt, pr.topleft)
 
     def _render_leaderboard(self, surf, scores: list, player_rank: int,
-                            cooldown: float, fetch_error: str, S: int):
-        """Actual leaderboard drawing, scale-aware. ``surf`` is sized
-        ``(W*S, H*S)``; every coord, font size and stroke width is
-        multiplied by ``S``."""
+                            fetch_error: str, pending: bool, S: int):
+        """Static leaderboard layout (no TAP TO MENU prompt) at scale S.
+        ``surf`` is sized ``(W*S, H*S)``; every coord, font size and
+        stroke width is multiplied by ``S``."""
         Ws, Hs = W * S, H * S
         dim = pygame.Surface((Ws, Hs), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
@@ -1790,14 +1829,17 @@ class HUD:
             _draw_trophy(surf, tx, ty, 18 * S)
 
         card_x, card_w = 14 * S, (W - 28) * S
-
         # Rows appear immediately at their settled position — the
         # slide-in-from-below animation was removed per design feedback.
         card_y = 88 * S
 
         n = len(scores)
         if n == 0:
-            if fetch_error:
+            if pending:
+                _text(surf, "Loading top 10…",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
+            elif fetch_error:
                 _text(surf, "Top-10 unavailable",
                       (Ws // 2, card_y + 60 * S),
                       size=18 * S, color=UI_CREAM, shadow=True)
@@ -1826,18 +1868,7 @@ class HUD:
             f_you   = _font(10 * S, True)
             f_score = _font(17 * S, True)
 
-            # Crown sprite at HD scale, built once per call.
-            if S == 1:
-                hd_crown = _get_crown_sprite()
-            else:
-                bw, bh = 24, 28
-                os_factor = _CROWN_OS * S
-                _big = pygame.Surface((bw * os_factor, bh * os_factor),
-                                      pygame.SRCALPHA)
-                _crown_draw_e3_narrow(_big, os_factor)
-                _small = pygame.transform.smoothscale(_big, (bw * S, bh * S))
-                hd_crown = _crown_with_shadow(_small,
-                                              offset=(2 * S, 2 * S))
+            hd_crown = _get_crown_sprite_hd(S)
 
             ry = card_y
             for i, entry in enumerate(scores):
@@ -1886,7 +1917,6 @@ class HUD:
                 surf.blit(num_img,
                           num_img.get_rect(center=(badge_cx, row_cy)))
 
-                # Crown on #1
                 if rank == 1:
                     c_w, c_h = hd_crown.get_size()
                     surf.blit(hd_crown,
@@ -1925,11 +1955,3 @@ class HUD:
                            row_cy - sc_img.get_height() // 2))
 
                 ry += row_h + row_gap
-
-        if cooldown <= 0:
-            alpha = int(170 + math.sin(self.title_t * 4) * 70)
-            f2 = _font(16 * S, True)
-            prompt = f2.render("TAP  TO  MENU", True, _GOLD_MUTED)
-            prompt.set_alpha(alpha)
-            pr = prompt.get_rect(center=(Ws // 2, Hs - 28 * S))
-            surf.blit(prompt, pr.topleft)
