@@ -111,15 +111,39 @@ def _dark_panel(surf, rect, radius, alpha):
     surf.blit(pnl, rect.topleft)
 
 
+_PULSE_FOR_ICON = 1.6
+# Each in-world PowerUp.draw applies a per-kind vertical bob driven by
+# `self.pulse` so the floating sprite waftily rises and falls during
+# play. In static icon contexts (help cards, run-summary chips) the
+# bob makes the icon sit visibly low on its anchor point — most
+# noticeably the ghost, whose bob sums two sin terms (~+4 px at the
+# canonical pulse of 1.6). We compute the bob analytically per kind
+# and subtract it from the blit center so the rendered icon visually
+# centers on (cx, cy) regardless of where in its idle-cycle it sits.
+_ICON_BOB_AT_PULSE = {
+    "ghost":    math.sin(_PULSE_FOR_ICON * 0.9) * 4
+              + math.sin(_PULSE_FOR_ICON * 1.8) * 1.5,
+    "magnet":   math.sin(_PULSE_FOR_ICON * 1.1) * 3,
+    "slowmo":   math.sin(_PULSE_FOR_ICON * 0.7) * 3,
+    "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
+    "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
+    "grow":     math.sin(_PULSE_FOR_ICON * 1.2) * 2,
+}
+
+
 def _powerup_icon(surf, kind, cx, cy, size_px):
     """Render the in-world PowerUp sprite at native ~28px footprint, then
-    smoothscale to size_px. Keeps the procedural detail pixel-true."""
+    smoothscale to size_px. Keeps the procedural detail pixel-true.
+    Compensates for the kind's bob so the icon visually centers on
+    (cx, cy) — see ``_ICON_BOB_AT_PULSE``."""
     small = pygame.Surface((64, 64), pygame.SRCALPHA)
     p = PowerUp(32, 32, kind)
-    p.pulse = 1.6
+    p.pulse = _PULSE_FOR_ICON
     p.draw(small)
     big = pygame.transform.smoothscale(small, (size_px, size_px))
-    surf.blit(big, big.get_rect(center=(cx, cy)))
+    bob = _ICON_BOB_AT_PULSE.get(kind, 0.0)
+    y_adj = -int(round(bob * size_px / 64))
+    surf.blit(big, big.get_rect(center=(cx, cy + y_adj)))
 
 
 def _wrap(font_obj, blurb, max_w):

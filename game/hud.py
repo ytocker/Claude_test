@@ -1455,9 +1455,12 @@ class HUD:
                             tile_w, tile_h)
             _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
 
-        # Power-ups row — caption + compact icon strip with ×N captions.
-        # No chip frame; bare icons all at the same size whether 1 or 7
-        # kinds were picked. Fits all 7 kinds in a single row.
+        # Power-ups row — Variant C "Horizontal Pills": each power-up
+        # rendered as a navy gold-bordered chip with [icon | ×N] laid
+        # out side-by-side. Strong text legibility and clear visual
+        # separation between kinds. When more chips than will fit in
+        # one row are picked (rare — 6+ distinct kinds in one run) we
+        # wrap to two rows split evenly so the strip stays readable.
         pu = [(k, c) for k, c in world.powerups_picked.items() if c > 0]
         if pu:
             # Lazy import: game.powerup_help imports from game.hud, so
@@ -1465,29 +1468,66 @@ class HUD:
             from game.powerup_help import (
                 _powerup_icon as _ingame_powerup_icon,
             )
-            cap_y = 408
+            cap_y = 414
             cap = _font(13, True).render("P O W E R - U P S   U S E D",
                                          True, _GOLD_MUTED)
             cap.set_alpha(230)
             surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
-            icon_logical = 22
-            icon_box = icon_logical * 2
-            gap = 4
-            pitch = icon_box + gap
-            row_w = len(pu) * icon_box + max(0, len(pu) - 1) * gap
-            sx = (W - row_w) // 2 + icon_box // 2
-            icon_cy = cap_y + 30
-            for i, (kind, count) in enumerate(pu):
-                cx_chip = sx + i * pitch
-                _ingame_powerup_icon(surf, kind, cx_chip, icon_cy,
-                                     int(icon_logical * 1.7))
-                cf = _font(11, True).render(f"×{count}", True, _GOLD_BRIGHT)
-                cs = _font(11, True).render(f"×{count}", True, NEAR_BLACK)
-                cs.set_alpha(170)
-                cr = cf.get_rect(center=(cx_chip,
-                                         icon_cy + int(icon_logical * 0.9)))
-                surf.blit(cs, (cr.x + 1, cr.y + 1))
-                surf.blit(cf, cr)
+
+            chip_h = 40
+            icon_size = 30
+            chip_radius = chip_h // 2
+            pad_l, pad_r = 3, 8
+            count_font = _font(16, True)
+            chips = []
+            for kind, count in pu:
+                tf = count_font.render(f"×{count}", True, _GOLD_BRIGHT)
+                chip_w = pad_l + icon_size + 2 + tf.get_width() + pad_r
+                chips.append((kind, count, chip_w, tf))
+
+            gap = 5
+            available = W - 10
+            total = sum(c[2] for c in chips) + gap * (len(chips) - 1)
+            if total <= available:
+                rows = [chips]
+                first_row_y = cap_y + 38
+            else:
+                # Split into two roughly even rows.
+                half = (len(chips) + 1) // 2
+                rows = [chips[:half], chips[half:]]
+                first_row_y = cap_y + 30
+
+            for ri, row_chips in enumerate(rows):
+                row_total = (sum(c[2] for c in row_chips)
+                             + gap * (len(row_chips) - 1))
+                sx = (W - row_total) // 2
+                y = first_row_y + ri * (chip_h + 8)
+                for kind, count, chip_w, tf in row_chips:
+                    body = pygame.Surface((chip_w, chip_h),
+                                          pygame.SRCALPHA)
+                    for yy in range(chip_h):
+                        t = yy / max(1, chip_h - 1)
+                        c = lerp_color(_PANEL_LIGHTER, _PANEL_DARK, t)
+                        pygame.draw.line(body, (*c, 245),
+                                         (0, yy), (chip_w, yy))
+                    mask = pygame.Surface((chip_w, chip_h),
+                                          pygame.SRCALPHA)
+                    pygame.draw.rect(mask, (255, 255, 255, 255),
+                                     (0, 0, chip_w, chip_h),
+                                     border_radius=chip_radius)
+                    body.blit(mask, (0, 0),
+                              special_flags=pygame.BLEND_RGBA_MIN)
+                    pygame.draw.rect(body, _GOLD_BRIGHT,
+                                     (0, 0, chip_w, chip_h),
+                                     width=1, border_radius=chip_radius)
+                    surf.blit(body, (sx, y - chip_h // 2))
+                    _ingame_powerup_icon(
+                        surf, kind,
+                        sx + pad_l + icon_size // 2 + 2, y,
+                        int(icon_size * 1.5))
+                    surf.blit(tf, tf.get_rect(
+                        midright=(sx + chip_w - pad_r, y)))
+                    sx += chip_w + gap
 
         # Buttons — PLAY AGAIN primary, MAIN MENU secondary.
         # Hide button hit rects until the 0.6s reveal gate has elapsed
