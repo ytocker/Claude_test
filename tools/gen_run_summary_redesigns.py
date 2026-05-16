@@ -482,34 +482,59 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # Two outstretched bird wings, drawn as a bold silhouette pair
-        # for unmistakable readability at small sizes. Each wing is a
-        # broad teardrop that tapers to a pointed tip; three feather
-        # ridges in deep-gold give a sense of plumage without busy lines.
+        # Anime/angel-style wings — each side is a fan of three distinct
+        # primary feathers radiating from a small central body, with a
+        # clear leading edge and a serrated trailing fan. Reads as
+        # "wings" at a glance, not as a leaf.
+        body_y_off = s * 0.15
         for sign in (-1, 1):
-            wing_pts = [
-                (cx + sign * s * 0.08, cy + s * 0.05),    # body attach top
-                (cx + sign * s * 0.45, cy - s * 0.55),    # leading shoulder
-                (cx + sign * s * 0.95, cy - s * 0.55),    # leading peak
-                (cx + sign * s * 1.20, cy - s * 0.20),    # tip
-                (cx + sign * s * 0.95, cy + s * 0.10),    # trailing bend
-                (cx + sign * s * 0.55, cy + s * 0.30),    # trailing inner
-                (cx + sign * s * 0.18, cy + s * 0.40),    # body attach bot
+            # Three feather polygons per wing, fanning from the body
+            # outward at different angles. Drawn in order so the
+            # middle/longest feather sits underneath, the upper short
+            # feather overlaps near the shoulder, and the lower feather
+            # tucks in beneath.
+            feathers = [
+                # Middle (longest) primary feather — sweeps far outward
+                [(cx + sign * s * 0.05, cy - s * 0.00 + body_y_off),
+                 (cx + sign * s * 0.55, cy - s * 0.55 + body_y_off),
+                 (cx + sign * s * 1.20, cy - s * 0.40 + body_y_off),
+                 (cx + sign * s * 1.35, cy - s * 0.15 + body_y_off),
+                 (cx + sign * s * 1.00, cy - s * 0.05 + body_y_off),
+                 (cx + sign * s * 0.40, cy - s * 0.08 + body_y_off)],
+                # Top (shortest) secondary feather — points up-and-out
+                [(cx + sign * s * 0.08, cy - s * 0.05 + body_y_off),
+                 (cx + sign * s * 0.20, cy - s * 0.55 + body_y_off),
+                 (cx + sign * s * 0.55, cy - s * 0.65 + body_y_off),
+                 (cx + sign * s * 0.70, cy - s * 0.45 + body_y_off),
+                 (cx + sign * s * 0.40, cy - s * 0.30 + body_y_off)],
+                # Bottom feather — drops down-and-out
+                [(cx + sign * s * 0.05, cy + s * 0.05 + body_y_off),
+                 (cx + sign * s * 0.45, cy - s * 0.05 + body_y_off),
+                 (cx + sign * s * 1.05, cy + s * 0.15 + body_y_off),
+                 (cx + sign * s * 1.10, cy + s * 0.40 + body_y_off),
+                 (cx + sign * s * 0.75, cy + s * 0.40 + body_y_off),
+                 (cx + sign * s * 0.30, cy + s * 0.20 + body_y_off)],
             ]
-            pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
-            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, 2)
-            # Feather ridges — three subtle curves along the wing chord
-            for k in (0.15, 0.0, -0.15):
-                pygame.draw.line(
-                    surf, GOLD_DEEP,
-                    (cx + sign * s * 0.30, cy + s * (0.12 + k)),
-                    (cx + sign * s * 0.95, cy + s * (-0.18 + k)),
-                    1 * SCALE)
-        # Small body dot connecting the wings
-        pygame.draw.ellipse(
-            surf, GOLD_DEEP,
-            (cx - int(s * 0.12), int(cy + s * 0.10),
-             max(2, int(s * 0.24)), max(2, int(s * 0.30))))
+            outline_w = max(1, int(SCALE))
+            for pts in feathers:
+                pygame.draw.polygon(surf, GOLD_BRIGHT, pts)
+                pygame.draw.polygon(surf, GOLD_DEEP, pts, outline_w)
+            # Each feather gets a thin centre vein for a clear quill
+            # silhouette — anchored at body, tip at the feather's apex.
+            vein_tips = [
+                (cx + sign * s * 1.32, cy - s * 0.18 + body_y_off),
+                (cx + sign * s * 0.62, cy - s * 0.55 + body_y_off),
+                (cx + sign * s * 1.05, cy + s * 0.30 + body_y_off),
+            ]
+            body_anchor = (cx + sign * s * 0.18,
+                           cy - s * 0.02 + body_y_off)
+            for tip in vein_tips:
+                pygame.draw.line(surf, GOLD_DEEP, body_anchor, tip,
+                                 max(1, int(SCALE)))
+        # Small body bead joining the two wings
+        pygame.draw.circle(surf, GOLD_DEEP,
+                           (cx, int(cy + body_y_off + s * 0.02)),
+                           max(2, int(s * 0.13)))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -1778,7 +1803,7 @@ def make_contact_sheet(filenames, out_name="contact_sheet.png",
 
 VARIANTS = [
     ("v1_trophy_cinema.png", draw_v1_trophy_cinema),
-    ("v1_trophy_cinema_r2.png", draw_v1_trophy_cinema),
+    ("v1_trophy_cinema_r3.png", draw_v1_trophy_cinema),
     ("v2_pip_flight_log.png", draw_v2_pip_flight_log),
     ("v3_constellation_wheel.png", draw_v3_constellation_wheel),
     ("v4_storyboard_strip.png", draw_v4_storyboard_strip),
@@ -1796,7 +1821,8 @@ def main():
         filenames.append(name)
     print("Stitching contact sheet...")
     # Contact sheet only shows the canonical 5 (not cache-bust copies)
-    sheet_files = [f for f in filenames if not f.endswith("_r2.png")]
+    sheet_files = [f for f in filenames
+                   if not (f.endswith("_r2.png") or f.endswith("_r3.png"))]
     make_contact_sheet(sheet_files)
     # Worst-case stress test of v1: every kind picked at least once
     # so we can verify the chip row never overflows the screen.
@@ -1810,7 +1836,7 @@ def main():
     save("v1_trophy_cinema_all7_powerups.png", s)
     s = pygame.Surface((W, H))
     draw_v1_trophy_cinema(s, stress)
-    save("v1_trophy_cinema_all7_powerups_r2.png", s)
+    save("v1_trophy_cinema_all7_powerups_r3.png", s)
     print("Done.")
 
 
