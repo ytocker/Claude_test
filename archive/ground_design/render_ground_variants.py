@@ -6,14 +6,15 @@ Output goes to ``screenshots/ground_variants/``. A contact sheet
 ``_contact_sheet.png`` (5 rows × 3 cols) is also written for quick
 side-by-side comparison.
 
-Run:
-    python tools/render_ground_variants.py
+Run from anywhere:
+    python archive/ground_design/render_ground_variants.py
 """
 import os, sys, pathlib, math, random
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+_HERE = pathlib.Path(__file__).parent
+sys.path.insert(0, str(_HERE.parent.parent))
 
 import pygame
 pygame.init()
@@ -34,7 +35,7 @@ PHASES = [
     ("night",  0.62),
 ]
 
-OUT = pathlib.Path(__file__).parent.parent / "screenshots" / "ground_variants"
+OUT = _HERE / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
 

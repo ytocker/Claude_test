@@ -46,6 +46,12 @@ class World:
     SPAWN_GRACE = 1.5
 
     def __init__(self):
+        # Reshuffle the meadow at the start of every new World — picks a
+        # fresh ground theme + sparsity baseline + decoration positions
+        # so no two plays look the same.
+        from game import ground_variants
+        ground_variants.set_run_seed(None)
+
         self.bird = Bird()
         self.pipes: list[Pipe] = []
         self.coins: list[Coin] = []

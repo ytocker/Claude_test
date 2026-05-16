@@ -1,18 +1,19 @@
-"""Render preview screenshots of the 13 ground ambient events.
+"""Render preview screenshots of the 9 ground ambient events.
 
 For each event, render a full W×H scene composite (sky + clouds +
 mountains + ground + the event force-spawned at screen-center) at the
-event's preferred biome phase. Output goes to ``screenshots/ground_events/``
-plus a contact sheet.
+event's preferred biome phase. Output goes to ``./screenshots/`` plus a
+contact sheet.
 
-Run:
-    python tools/render_ground_events.py
+Run from anywhere:
+    python archive/ground_event_design/render_ground_events.py
 """
 import os, sys, pathlib, math, random
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+_HERE = pathlib.Path(__file__).parent
+sys.path.insert(0, str(_HERE.parent.parent))
 
 import pygame
 pygame.init()
@@ -40,7 +41,7 @@ EVENTS = [
     ("g13_dog",        "G13 Running dog",       _amb._RunningDog,    0.05, 0.06),
 ]
 
-OUT = pathlib.Path(__file__).parent.parent / "screenshots" / "ground_events"
+OUT = _HERE / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
 

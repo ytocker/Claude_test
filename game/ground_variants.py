@@ -88,16 +88,29 @@ RUN_SEED: int = 0
 # so each play has its own "personality" (sparse meadow ↔ jungle-thick)
 # in addition to the within-run patchiness.
 RUN_DENSITY_BASE: float = 0.7
+# Which of the 5 themes this run uses — also derived from RUN_SEED so it
+# reshuffles every play. The live game's ``draw_ground`` reads this.
+RUN_VARIANT_ID: int = 1
 
 
 def set_run_seed(seed: int | None = None) -> None:
     """Set the run seed. Pass ``None`` to draw a fresh random one — call this
-    once when starting a new game/play. Also derives a per-run density
-    baseline so sparsity itself varies between plays."""
-    global RUN_SEED, RUN_DENSITY_BASE
+    once when starting a new game/play. Derives a density baseline AND
+    picks which of the 5 themes this play uses, from the same seed, so
+    everything reshuffles together."""
+    global RUN_SEED, RUN_DENSITY_BASE, RUN_VARIANT_ID
     RUN_SEED = seed if seed is not None else random.randint(0, 0x7FFFFFFF)
     rng = random.Random(RUN_SEED ^ 0xCAFEBABE)
     RUN_DENSITY_BASE = rng.uniform(0.35, 1.0)
+    RUN_VARIANT_ID = rng.choice((1, 2, 3, 4, 5))
+
+
+def draw_run_ground(surf, ground_y, w, h, scroll,
+                    top_color=None, mid_color=None, bot_color=None):
+    """Drop-in replacement for ``game.draw.draw_ground`` that dispatches
+    to whichever variant ``RUN_VARIANT_ID`` currently names."""
+    VARIANTS[RUN_VARIANT_ID](surf, ground_y, w, h, scroll,
+                             top_color, mid_color, bot_color)
 
 
 set_run_seed()  # initialise on import
