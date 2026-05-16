@@ -39,14 +39,12 @@ _NAPPER_PHASES = ((0.0, 0.20), (0.30, 0.40))   # day + sunset
 _DOG_PHASES = ((0.0, 0.45),)                   # day → sunset
 
 # ── Air events (8 new sky drift-bys) ────────────────────────────────────────
-_PAPER_PLANE_PHASES   = ((0.96, 1.0), (0.0, 0.20))  # day
 _ZEPPELIN_PHASES      = ((0.10, 0.22), (0.30, 0.40))  # golden hour + sunset
 _EAGLE_PHASES         = ((0.96, 1.0), (0.0, 0.20))  # day
 _BAT_PHASES           = ((0.55, 0.72),)              # night
 _SHOOTING_STAR_PHASES = ((0.55, 0.72), (0.78, 0.88))  # night + predawn
 _RAINBOW_PHASES       = ((0.38, 0.48), (0.85, 0.95))  # late sunset + sunrise
 _LANTERN_PHASES       = ((0.48, 0.62),)              # dusk
-_BUBBLES_PHASES       = ((0.0, 0.30),)               # day
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
@@ -63,14 +61,12 @@ _BENCH_COOLDOWN_S = 240.0
 _NAPPER_COOLDOWN_S = 280.0
 _DOG_COOLDOWN_S = 200.0
 
-_PAPER_PLANE_COOLDOWN_S   = 200.0
 _ZEPPELIN_COOLDOWN_S      = 270.0
 _EAGLE_COOLDOWN_S         = 220.0
 _BAT_COOLDOWN_S           = 240.0
 _SHOOTING_STAR_COOLDOWN_S = 160.0
 _RAINBOW_COOLDOWN_S       = 300.0
 _LANTERN_COOLDOWN_S       = 260.0
-_BUBBLES_COOLDOWN_S       = 200.0
 
 # Once a ground event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
@@ -95,14 +91,12 @@ _BENCH_INITIAL_DELAY = (70.0, 140.0)
 _NAPPER_INITIAL_DELAY = (110.0, 200.0)
 _DOG_INITIAL_DELAY = (60.0, 130.0)
 
-_PAPER_PLANE_INITIAL_DELAY   = (50.0, 110.0)
 _ZEPPELIN_INITIAL_DELAY      = (90.0, 180.0)
 _EAGLE_INITIAL_DELAY         = (70.0, 140.0)
 _BAT_INITIAL_DELAY           = (80.0, 160.0)
 _SHOOTING_STAR_INITIAL_DELAY = (40.0, 100.0)
 _RAINBOW_INITIAL_DELAY       = (120.0, 220.0)
 _LANTERN_INITIAL_DELAY       = (90.0, 170.0)
-_BUBBLES_INITIAL_DELAY       = (50.0, 110.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -837,39 +831,6 @@ class _AirEventBase:
         return self.x < -100 or self.t > self.DURATION_MAX
 
 
-# ── A1: Paper airplane ──────────────────────────────────────────────────────
-
-def _build_paper_plane_sprite() -> pygame.Surface:
-    s = pygame.Surface((20, 9), pygame.SRCALPHA)
-    # Body triangle (white)
-    pygame.draw.polygon(s, (250, 250, 245),
-                       [(0, 4), (19, 0), (15, 4), (19, 8)])
-    # Wing crease (darker fold)
-    pygame.draw.polygon(s, (200, 200, 195),
-                       [(2, 4), (19, 0), (15, 4)])
-    # Outline
-    pygame.draw.line(s, (135, 135, 130), (0, 4), (19, 0), 1)
-    pygame.draw.line(s, (135, 135, 130), (0, 4), (19, 8), 1)
-    pygame.draw.line(s, (165, 165, 160), (15, 4), (19, 0), 1)
-    pygame.draw.line(s, (165, 165, 160), (15, 4), (19, 8), 1)
-    return s
-
-
-class _PaperAirplane(_AirEventBase):
-    SPEED = 36.0
-    DURATION_MAX = 22.0
-
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        self._sprite = _build_paper_plane_sprite()
-        self.y = self.rng.uniform(H * 0.16, H * 0.46)
-        self._wobble_phase = self.rng.uniform(0, math.tau)
-
-    def draw(self, surf):
-        wobble = math.sin(self.t * 2.1 + self._wobble_phase) * 4.0
-        sw, sh = self._sprite.get_size()
-        surf.blit(self._sprite, (int(self.x) - sw, int(self.y + wobble) - sh // 2))
-
 
 # ── A2: Zeppelin / airship ──────────────────────────────────────────────────
 
@@ -1221,69 +1182,6 @@ class _LanternFestival(_AirEventBase):
             # String dangle
             pygame.draw.line(surf, (60, 40, 25), (lx, ly + 4), (lx, ly + 7), 1)
 
-
-# ── A8: Soap bubbles ────────────────────────────────────────────────────────
-
-class _SoapBubbles(_AirEventBase):
-    DURATION_MAX = 16.0
-
-    def __init__(self, palette, rng=None):
-        super().__init__(palette, rng)
-        n = self.rng.randint(4, 6)
-        self.x = 0.0
-        self.y = 0.0
-        self._bubbles = []
-        for _ in range(n):
-            self._bubbles.append({
-                'x': self.rng.uniform(W * 0.05, W * 0.95),
-                'y': self.rng.uniform(H * 0.55, H * 0.85),
-                'vx': self.rng.uniform(-12.0, 12.0),
-                'vy': self.rng.uniform(-22.0, -10.0),
-                'r': self.rng.uniform(3.0, 6.5),
-                'hue': self.rng.uniform(0, math.tau),
-                'pop_at': self.rng.uniform(6.0, 14.0),
-                'popped': False,
-            })
-
-    def update(self, dt: float) -> None:
-        self.t += dt
-        for b in self._bubbles:
-            if b['popped']:
-                continue
-            if self.t >= b['pop_at']:
-                b['popped'] = True
-                continue
-            b['x'] += b['vx'] * dt
-            b['y'] += b['vy'] * dt
-            # Gentle horizontal sway
-            b['vx'] += math.sin(self.t * 1.7 + b['hue']) * 4.0 * dt
-
-    def is_done(self) -> bool:
-        if self.t > self.DURATION_MAX:
-            return True
-        return all(b['popped'] or b['y'] < -10 for b in self._bubbles)
-
-    def draw(self, surf):
-        for b in self._bubbles:
-            if b['popped']:
-                continue
-            x, y, r = int(b['x']), int(b['y']), int(b['r'])
-            if y < -10 or x < -10 or x > W + 10:
-                continue
-            # Soft iridescent rim
-            hue = b['hue']
-            tint_r = int(160 + math.sin(hue) * 60)
-            tint_g = int(180 + math.sin(hue + 2.1) * 50)
-            tint_b = int(200 + math.sin(hue + 4.2) * 40)
-            # Outline (thin pearl ring)
-            pygame.draw.circle(surf, (tint_r, tint_g, tint_b, 200), (x, y), r, 1)
-            # Subtle inner fill (very low alpha)
-            fill = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-            pygame.draw.circle(fill, (tint_r, tint_g, tint_b, 30),
-                              (r + 1, r + 1), r)
-            surf.blit(fill, (x - r - 1, y - r - 1))
-            # Bright highlight (top-left)
-            pygame.draw.circle(surf, (255, 255, 255), (x - r // 2, y - r // 2), 1)
 
 
 # ── Ground events (drift-by scenery) ─────────────────────────────────────────
@@ -1917,14 +1815,12 @@ class AmbientScenes:
         self.napper: _Napper | None = None
         self.dog: _RunningDog | None = None
         # Air events (drift-by sky)
-        self.paper_plane: _PaperAirplane | None = None
         self.zeppelin: _Zeppelin | None = None
         self.eagle: _GlidingEagle | None = None
         self.bats: _BatSwarm | None = None
         self.shooting_star: _ShootingStar | None = None
         self.rainbow: _RainbowArc | None = None
         self.lanterns: _LanternFestival | None = None
-        self.bubbles: _SoapBubbles | None = None
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
         self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
@@ -1939,14 +1835,12 @@ class AmbientScenes:
         self._bench_cool = random.uniform(*_BENCH_INITIAL_DELAY)
         self._napper_cool = random.uniform(*_NAPPER_INITIAL_DELAY)
         self._dog_cool = random.uniform(*_DOG_INITIAL_DELAY)
-        self._paper_plane_cool = random.uniform(*_PAPER_PLANE_INITIAL_DELAY)
         self._zeppelin_cool = random.uniform(*_ZEPPELIN_INITIAL_DELAY)
         self._eagle_cool = random.uniform(*_EAGLE_INITIAL_DELAY)
         self._bats_cool = random.uniform(*_BAT_INITIAL_DELAY)
         self._shooting_star_cool = random.uniform(*_SHOOTING_STAR_INITIAL_DELAY)
         self._rainbow_cool = random.uniform(*_RAINBOW_INITIAL_DELAY)
         self._lanterns_cool = random.uniform(*_LANTERN_INITIAL_DELAY)
-        self._bubbles_cool = random.uniform(*_BUBBLES_INITIAL_DELAY)
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
@@ -2051,8 +1945,6 @@ class AmbientScenes:
 
         # ── Air events (velocity-driven sky drift-bys) ──
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
-            ("paper_plane", _PaperAirplane, _PAPER_PLANE_PHASES,
-             "_paper_plane_cool", _PAPER_PLANE_COOLDOWN_S, 30),
             ("zeppelin", _Zeppelin, _ZEPPELIN_PHASES,
              "_zeppelin_cool", _ZEPPELIN_COOLDOWN_S, 40),
             ("eagle", _GlidingEagle, _EAGLE_PHASES,
@@ -2065,8 +1957,6 @@ class AmbientScenes:
              "_rainbow_cool", _RAINBOW_COOLDOWN_S, 50),
             ("lanterns", _LanternFestival, _LANTERN_PHASES,
              "_lanterns_cool", _LANTERN_COOLDOWN_S, 35),
-            ("bubbles", _SoapBubbles, _BUBBLES_PHASES,
-             "_bubbles_cool", _BUBBLES_COOLDOWN_S, 30),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -2107,8 +1997,8 @@ class AmbientScenes:
                 inst.draw(surf)
         # Air events — solid silhouettes first, then glow/additive overlays
         # (shooting star, lanterns) on top so halos read clearly.
-        for slot_name in ("zeppelin", "paper_plane", "eagle", "bats",
-                          "rainbow", "bubbles", "lanterns", "shooting_star"):
+        for slot_name in ("zeppelin", "eagle", "bats",
+                          "rainbow", "lanterns", "shooting_star"):
             inst = getattr(self, slot_name)
             if inst is not None:
                 inst.draw(surf)
