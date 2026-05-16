@@ -2,18 +2,20 @@
 
 For each variant V1..V5 and each phase (day, sunset, night) renders a full
 W×H game-style composite (sky + clouds + mountains + ground + a couple of
-pillars). Output goes to ``screenshots/mountain_variants/``. A contact
-sheet ``_contact_sheet.png`` (5 rows × 3 cols) is also written for quick
+pillars). Output goes to ``./screenshots/``. A contact sheet
+``_contact_sheet.png`` (5 rows × 3 cols) is also written for quick
 side-by-side comparison.
 
-Run:
-    python tools/render_mountain_variants.py
+Run from anywhere:
+    python archive/mountain_design/render_mountain_variants.py
 """
 import os, sys, pathlib, math, random
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+_HERE = pathlib.Path(__file__).parent
+sys.path.insert(0, str(_HERE.parent.parent))  # repo root → game/ package
+sys.path.insert(0, str(_HERE))                # this dir → mountain_variants
 
 import pygame
 pygame.init()
@@ -24,7 +26,7 @@ from game import biome as _biome
 from game.draw import (
     get_sky_surface_biome, draw_cloud, draw_ground,
 )
-from game.mountain_variants import VARIANTS, VARIANT_NAMES
+from mountain_variants import VARIANTS, VARIANT_NAMES
 from game.pillar_variants import draw_pillar_pair
 
 
@@ -34,7 +36,7 @@ PHASES = [
     ("night",  0.62),
 ]
 
-OUT = pathlib.Path(__file__).parent.parent / "screenshots" / "mountain_variants"
+OUT = _HERE / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
 
