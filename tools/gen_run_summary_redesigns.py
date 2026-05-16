@@ -476,29 +476,34 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # A pair of outstretched bird wings — each wing is a leaf-shaped
-        # silhouette with a curved leading edge and tapered tip. The
-        # central "body" joins them as a thin pinch.
+        # Two outstretched bird wings, drawn as a bold silhouette pair
+        # for unmistakable readability at small sizes. Each wing is a
+        # broad teardrop that tapers to a pointed tip; three feather
+        # ridges in deep-gold give a sense of plumage without busy lines.
         for sign in (-1, 1):
             wing_pts = [
-                (cx + sign * s * 0.04, cy + s * 0.1),
-                (cx + sign * s * 0.35, cy - s * 0.45),
-                (cx + sign * s * 0.95, cy - s * 0.30),
-                (cx + sign * s * 1.05, cy - s * 0.05),
-                (cx + sign * s * 0.60, cy + s * 0.05),
-                (cx + sign * s * 0.20, cy + s * 0.25),
+                (cx + sign * s * 0.08, cy + s * 0.05),    # body attach top
+                (cx + sign * s * 0.45, cy - s * 0.55),    # leading shoulder
+                (cx + sign * s * 0.95, cy - s * 0.55),    # leading peak
+                (cx + sign * s * 1.20, cy - s * 0.20),    # tip
+                (cx + sign * s * 0.95, cy + s * 0.10),    # trailing bend
+                (cx + sign * s * 0.55, cy + s * 0.30),    # trailing inner
+                (cx + sign * s * 0.18, cy + s * 0.40),    # body attach bot
             ]
             pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
-            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, 1 * SCALE)
-            # Inner feather ridge for texture
-            pygame.draw.line(surf, GOLD_DEEP,
-                             (cx + sign * s * 0.20, cy - s * 0.05),
-                             (cx + sign * s * 0.80, cy - s * 0.20),
-                             1 * SCALE)
-        # Small body dot in the centre
-        pygame.draw.circle(surf, GOLD_DEEP,
-                           (cx, int(cy + s * 0.12)),
-                           max(1, int(s * 0.12)))
+            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts, 2)
+            # Feather ridges — three subtle curves along the wing chord
+            for k in (0.15, 0.0, -0.15):
+                pygame.draw.line(
+                    surf, GOLD_DEEP,
+                    (cx + sign * s * 0.30, cy + s * (0.12 + k)),
+                    (cx + sign * s * 0.95, cy + s * (-0.18 + k)),
+                    1 * SCALE)
+        # Small body dot connecting the wings
+        pygame.draw.ellipse(
+            surf, GOLD_DEEP,
+            (cx - int(s * 0.12), int(cy + s * 0.10),
+             max(2, int(s * 0.24)), max(2, int(s * 0.30))))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -698,35 +703,36 @@ def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
                      (8 * SCALE, 4 * SCALE),
                      (rect.w - 8 * SCALE, 4 * SCALE), 1 * SCALE)
     surf.blit(body, rect.topleft)
-    # Icon — larger so it reads at a glance, especially the wings glyph
-    stat_icon(surf, icon_kind, rect.centerx, rect.y + 24 * SCALE,
-              size=13)
+    # Icon — large enough to be the dominant element at the top of the
+    # tile; the wings glyph in particular needs the room to register
+    stat_icon(surf, icon_kind, rect.centerx, rect.y + 26 * SCALE,
+              size=18)
     # Value
-    vf = font(26, True).render(str(value), True, GOLD_BRIGHT)
-    vs = font(26, True).render(str(value), True, NEAR_BLACK)
+    vf = font(32, True).render(str(value), True, GOLD_BRIGHT)
+    vs = font(32, True).render(str(value), True, NEAR_BLACK)
     vs.set_alpha(170)
-    vy = rect.y + 52 * SCALE if subline else rect.y + 56 * SCALE
+    vy = rect.y + 62 * SCALE if subline else rect.y + 68 * SCALE
     vr = vf.get_rect(center=(rect.centerx, vy))
     surf.blit(vs, (vr.x + 1 * SCALE, vr.y + 2 * SCALE))
     surf.blit(vf, vr)
-    # Optional subline — small gold-muted caption directly below the
-    # value (used for COINS to surface "61%" alongside the raw count)
+    # Optional subline — gold-muted caption directly below the value
+    # (used for COINS to surface "61%" alongside the raw count)
     if subline:
-        sf = font(11, True).render(subline, True, GOLD_MUTED)
+        sf = font(13, True).render(subline, True, GOLD_MUTED)
         sf.set_alpha(230)
         surf.blit(sf, sf.get_rect(center=(rect.centerx,
-                                          rect.y + 72 * SCALE)))
+                                          rect.y + 86 * SCALE)))
     # Label — shrinks one step if the longer captions would otherwise
     # crowd the tile edges
     max_label_w = rect.w - 10 * SCALE
-    lbl_size = 12
+    lbl_size = 14
     lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
-    while lf.get_width() > max_label_w and lbl_size > 9:
+    while lf.get_width() > max_label_w and lbl_size > 11:
         lbl_size -= 1
         lf = font(lbl_size, True).render(label, True, GOLD_MUTED)
     lf.set_alpha(230)
     surf.blit(lf, lf.get_rect(center=(rect.centerx,
-                                      rect.y + rect.h - 12 * SCALE)))
+                                      rect.y + rect.h - 14 * SCALE)))
 
 
 def powerup_chip(surf, cx, cy, kind, count, size=22):
@@ -872,12 +878,12 @@ def draw_v1_trophy_cinema(surf, data):
         ("pillar", data["pillars"], "PILLARS", None),
         ("flap", data["flaps"], "FLAPS", None),
     ]
-    tile_w = 78 * SCALE
-    tile_h = 96 * SCALE  # taller so the bigger icon + value + label all breathe
-    tile_gap = 8 * SCALE
+    tile_w = 82 * SCALE
+    tile_h = 116 * SCALE  # much taller for bigger icon + bigger value + bigger label
+    tile_gap = 6 * SCALE
     total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
     start_x = (W - total_w) // 2
-    tile_y = 282 * SCALE
+    tile_y = 276 * SCALE
     for i, (k, v, lbl, sub) in enumerate(tiles):
         r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                         tile_w, tile_h)
@@ -889,8 +895,8 @@ def draw_v1_trophy_cinema(surf, data):
     # logical canvas (7 × 44 + 6 × 4 = 332 px → 28 px total margin).
     pu = [(k, c) for k, c in data["powerups_picked"] if c and c > 0]
     if pu:
-        cap_y = 408 * SCALE
-        cap2 = font(13, True).render("P O W E R - U P S   U S E D",
+        cap_y = 420 * SCALE
+        cap2 = font(14, True).render("P O W E R - U P S   U S E D",
                                      True, GOLD_MUTED)
         cap2.set_alpha(230)
         surf.blit(cap2, cap2.get_rect(center=(W // 2, cap_y)))
@@ -900,13 +906,13 @@ def draw_v1_trophy_cinema(surf, data):
         pitch = icon_box + gap
         total_w = len(pu) * icon_box + max(0, len(pu) - 1) * gap
         sx = (W - total_w) // 2 + icon_box // 2
-        icon_cy = cap_y + 36 * SCALE
+        icon_cy = cap_y + 38 * SCALE
         for i, (kind, count) in enumerate(pu):
             cx = sx + i * pitch
             _ingame_powerup_icon(surf, kind, cx, icon_cy,
                                  int(icon_logical * 1.7 * SCALE))
-            cf = font(13, True).render(f"×{count}", True, GOLD_BRIGHT)
-            cs = font(13, True).render(f"×{count}", True, NEAR_BLACK)
+            cf = font(14, True).render(f"×{count}", True, GOLD_BRIGHT)
+            cs = font(14, True).render(f"×{count}", True, NEAR_BLACK)
             cs.set_alpha(170)
             cr = cf.get_rect(center=(cx, icon_cy
                                      + int(icon_logical * 0.95) * SCALE))
