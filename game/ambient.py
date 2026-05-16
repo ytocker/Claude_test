@@ -41,6 +41,7 @@ _WISP_PHASES = ((0.55, 0.72), (0.78, 0.88))    # night + predawn
 _BENCH_PHASES = ((0.10, 0.22), (0.0, 0.10), (0.96, 1.0))  # golden hour + day
 _NAPPER_PHASES = ((0.0, 0.20), (0.30, 0.40))   # day + sunset
 _DOG_PHASES = ((0.0, 0.45),)                   # day → sunset
+_CLIMBER_PHASES = ((0.0, 0.30), (0.85, 1.0))   # day + sunrise (light to see him)
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
@@ -60,6 +61,7 @@ _WISP_COOLDOWN_S = 100.0
 _BENCH_COOLDOWN_S = 120.0
 _NAPPER_COOLDOWN_S = 140.0
 _DOG_COOLDOWN_S = 100.0
+_CLIMBER_COOLDOWN_S = 130.0
 
 # Initial delay before the FIRST event of each kind in a run.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
@@ -80,6 +82,7 @@ _WISP_INITIAL_DELAY = (30.0, 60.0)
 _BENCH_INITIAL_DELAY = (30.0, 55.0)
 _NAPPER_INITIAL_DELAY = (45.0, 75.0)
 _DOG_INITIAL_DELAY = (25.0, 50.0)
+_CLIMBER_INITIAL_DELAY = (45.0, 80.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -1417,6 +1420,99 @@ class _RunningDog(_GroundEventBase):
                            GROUND_Y - sh + 1 + bob))
 
 
+# ── G14: Man climbing a pillar ───────────────────────────────────────────────
+
+def _build_climb_pillar_sprite() -> pygame.Surface:
+    """A small sandstone pillar — the climber's prop. Self-contained so
+    it doesn't conflict with the gameplay pillars."""
+    s = pygame.Surface((14, 46), pygame.SRCALPHA)
+    # Base plinth
+    pygame.draw.rect(s, (95, 80, 65), (0, 41, 14, 5))
+    pygame.draw.line(s, (45, 35, 25), (0, 41), (13, 41), 1)
+    pygame.draw.line(s, (135, 115, 90), (0, 42), (13, 42), 1)
+    # Shaft (slightly tapered)
+    pygame.draw.rect(s, (175, 150, 110), (3, 6, 8, 36))
+    pygame.draw.line(s, (130, 105, 75), (3, 6), (3, 41), 1)
+    pygame.draw.line(s, (210, 185, 140), (10, 6), (10, 41), 1)
+    # Stone-block divisions
+    for ydiv in (16, 26, 36):
+        pygame.draw.line(s, (130, 105, 75), (3, ydiv), (10, ydiv), 1)
+        pygame.draw.line(s, (200, 175, 130), (3, ydiv + 1), (10, ydiv + 1), 1)
+    # Capital (wider top)
+    pygame.draw.rect(s, (155, 130, 95), (1, 1, 12, 6))
+    pygame.draw.line(s, (45, 35, 25), (1, 1), (12, 1), 1)
+    pygame.draw.line(s, (210, 185, 140), (1, 2), (12, 2), 1)
+    pygame.draw.line(s, (45, 35, 25), (1, 6), (12, 6), 1)
+    return s
+
+
+_CLIMBER_SHIRT = (215, 75, 75)
+_CLIMBER_SHIRT_DK = (155, 35, 35)
+_CLIMBER_PANTS = (60, 70, 110)
+_CLIMBER_PANTS_DK = (35, 45, 80)
+_CLIMBER_SKIN = (235, 195, 150)
+_CLIMBER_HAIR = (75, 50, 30)
+
+
+def _draw_climber(surf, x: int, y: int, frame: int) -> None:
+    """Tiny man clinging to a wall — body center at (x, y), facing left
+    into the pillar (left side of the column). 2-frame climbing pose."""
+    # Body / shirt
+    pygame.draw.rect(surf, _CLIMBER_SHIRT_DK, (x - 1, y - 1, 3, 5))
+    pygame.draw.rect(surf, _CLIMBER_SHIRT, (x - 1, y - 1, 2, 4))
+    # Pants
+    pygame.draw.rect(surf, _CLIMBER_PANTS_DK, (x - 1, y + 4, 3, 3))
+    pygame.draw.rect(surf, _CLIMBER_PANTS, (x - 1, y + 4, 2, 3))
+    # Head
+    pygame.draw.circle(surf, _CLIMBER_SKIN, (x, y - 3), 2)
+    pygame.draw.polygon(surf, _CLIMBER_HAIR,
+                        [(x - 2, y - 4), (x + 2, y - 4), (x, y - 5)])
+    # Limbs reach toward the pillar (left side, where x < this point)
+    if frame == 0:
+        # Upper hand reaching high-left, lower hand near body
+        pygame.draw.line(surf, _CLIMBER_SKIN, (x, y), (x - 3, y - 3), 1)
+        pygame.draw.line(surf, _CLIMBER_SKIN, (x + 1, y + 1), (x - 1, y + 2), 1)
+        # Legs: upper foot up-left, lower foot down
+        pygame.draw.line(surf, _CLIMBER_PANTS, (x, y + 7), (x - 2, y + 6), 1)
+        pygame.draw.line(surf, _CLIMBER_PANTS, (x + 1, y + 7), (x + 1, y + 9), 1)
+    else:
+        # Swap: other hand reaches high
+        pygame.draw.line(surf, _CLIMBER_SKIN, (x + 1, y), (x - 2, y - 2), 1)
+        pygame.draw.line(surf, _CLIMBER_SKIN, (x, y + 1), (x - 3, y + 2), 1)
+        # Legs swap
+        pygame.draw.line(surf, _CLIMBER_PANTS, (x, y + 7), (x, y + 9), 1)
+        pygame.draw.line(surf, _CLIMBER_PANTS, (x + 1, y + 7), (x - 1, y + 6), 1)
+
+
+class _Climber(_GroundEventBase):
+    """A tiny figure scaling the side of a sandstone pillar. Slowly inches
+    upward over the event's lifetime; 2-frame limb animation sells the
+    motion."""
+    DURATION_MAX = 50.0
+
+    def __init__(self, palette, rng=None):
+        super().__init__(palette, rng)
+        self._pillar = _build_climb_pillar_sprite()
+        self._climb_t = 0.0
+
+    def draw(self, surf):
+        sw, sh = self._pillar.get_size()
+        px = int(self.x) - sw // 2
+        py = GROUND_Y - sh + 1
+        surf.blit(self._pillar, (px, py))
+        # Climber inches up: from near-base to near-cap over ~35 s
+        progress = min(1.0, self.t / 35.0)
+        # Easing — slows slightly near the top
+        eased = progress * (1.05 - progress * 0.05)
+        climb_y = py + sh - 14 - int(eased * (sh - 22))
+        # Frame toggle (faster strides while reaching new holds)
+        frame = int(self.t * 3.5) % 2
+        # Body anchor on the LEFT side of the pillar (right side of body
+        # touches the column edge)
+        body_x = px + 3
+        _draw_climber(surf, body_x, climb_y, frame)
+
+
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class AmbientScenes:
@@ -1448,6 +1544,7 @@ class AmbientScenes:
         self.bench: _Bench | None = None
         self.napper: _Napper | None = None
         self.dog: _RunningDog | None = None
+        self.climber: _Climber | None = None
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
         self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
@@ -1466,6 +1563,7 @@ class AmbientScenes:
         self._bench_cool = random.uniform(*_BENCH_INITIAL_DELAY)
         self._napper_cool = random.uniform(*_NAPPER_INITIAL_DELAY)
         self._dog_cool = random.uniform(*_DOG_INITIAL_DELAY)
+        self._climber_cool = random.uniform(*_CLIMBER_INITIAL_DELAY)
 
     @staticmethod
     def _in_window(phase: float, windows) -> bool:
@@ -1557,6 +1655,8 @@ class AmbientScenes:
              _NAPPER_COOLDOWN_S, 30),
             ("dog", _RunningDog, _DOG_PHASES, "_dog_cool",
              _DOG_COOLDOWN_S, 25),
+            ("climber", _Climber, _CLIMBER_PHASES, "_climber_cool",
+             _CLIMBER_COOLDOWN_S, 30),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -1588,7 +1688,7 @@ class AmbientScenes:
         # halos sit over (not under) the structures.
         for slot_name in ("sheep", "rabbits", "fox", "beehive", "well",
                           "scarecrow", "picnic", "chest", "bench", "napper",
-                          "dog", "mushring", "wisp"):
+                          "dog", "climber", "mushring", "wisp"):
             inst = getattr(self, slot_name)
             if inst is not None:
                 inst.draw(surf)

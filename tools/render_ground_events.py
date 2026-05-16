@@ -42,6 +42,7 @@ EVENTS = [
     ("g11_bench",      "G11 Bench (2 people)",  _amb._Bench,         0.05, 0.0),
     ("g12_napper",     "G12 Napping person",    _amb._Napper,        0.05, 0.4),
     ("g13_dog",        "G13 Running dog",       _amb._RunningDog,    0.05, 0.06),
+    ("g14_climber",    "G14 Man climbing pillar", _amb._Climber,     0.10, 15.0),
 ]
 
 OUT = pathlib.Path(__file__).parent.parent / "screenshots" / "ground_events"
