@@ -482,56 +482,37 @@ def stat_icon(surf, kind, cx, cy, size):
                           w + 4 * SCALE, 4 * SCALE),
                          width=1 * SCALE, border_radius=int(1 * SCALE))
     elif kind == "flap":
-        # Two simple butterfly-style wings — symmetric rounded lobes
-        # extending outward from a thin central body. Clean silhouette
-        # that reads instantly as "wings" the way a butterfly does.
-        body_w = max(2, int(s * 0.08))
-        body_h = int(s * 0.70)
-        pygame.draw.ellipse(
-            surf, GOLD_DEEP,
-            (cx - body_w, cy - body_h // 2, body_w * 2, body_h))
-        # Antennae — two short curves above the body
-        pygame.draw.line(
-            surf, GOLD_DEEP,
-            (cx - body_w, cy - body_h // 2),
-            (int(cx - s * 0.35), int(cy - body_h // 2 - s * 0.25)),
-            max(1, int(SCALE)))
-        pygame.draw.line(
-            surf, GOLD_DEEP,
-            (cx + body_w, cy - body_h // 2),
-            (int(cx + s * 0.35), int(cy - body_h // 2 - s * 0.25)),
-            max(1, int(SCALE)))
-        # Two wing lobes per side (upper + lower), classic butterfly
+        # Falcon wings — chosen variant. Inlined here at a slightly
+        # compressed aspect ratio so the wingspan fits the tile width
+        # and the vertical height matches the visual weight of the
+        # clock/coin/pillar icons.
         for sign in (-1, 1):
-            upper_wing = [
-                (cx + sign * body_w, cy - s * 0.25),
-                (cx + sign * s * 0.35, cy - s * 0.70),
-                (cx + sign * s * 0.85, cy - s * 0.60),
-                (cx + sign * s * 1.10, cy - s * 0.25),
-                (cx + sign * s * 0.95, cy + s * 0.00),
-                (cx + sign * s * 0.55, cy + s * 0.05),
-                (cx + sign * body_w, cy - s * 0.05),
+            wing_pts = [
+                (cx + sign * s * 0.04, cy - s * 0.30),
+                (cx + sign * s * 0.30, cy - s * 0.60),
+                (cx + sign * s * 0.80, cy - s * 0.62),
+                (cx + sign * s * 1.20, cy - s * 0.18),
+                (cx + sign * s * 1.35, cy + s * 0.10),
+                (cx + sign * s * 1.05, cy + s * 0.20),
+                (cx + sign * s * 0.95, cy + s * 0.50),
+                (cx + sign * s * 0.65, cy + s * 0.25),
+                (cx + sign * s * 0.45, cy + s * 0.35),
+                (cx + sign * s * 0.22, cy + s * 0.12),
+                (cx + sign * s * 0.04, cy + s * 0.00),
             ]
-            lower_wing = [
-                (cx + sign * body_w, cy + s * 0.05),
-                (cx + sign * s * 0.55, cy + s * 0.05),
-                (cx + sign * s * 0.85, cy + s * 0.30),
-                (cx + sign * s * 0.65, cy + s * 0.65),
-                (cx + sign * s * 0.25, cy + s * 0.55),
-                (cx + sign * body_w, cy + s * 0.30),
-            ]
-            pygame.draw.polygon(surf, GOLD_BRIGHT, upper_wing)
-            pygame.draw.polygon(surf, GOLD_DEEP, upper_wing,
+            pygame.draw.polygon(surf, GOLD_BRIGHT, wing_pts)
+            pygame.draw.polygon(surf, GOLD_DEEP, wing_pts,
                                 max(1, int(SCALE)))
-            pygame.draw.polygon(surf, GOLD_BRIGHT, lower_wing)
-            pygame.draw.polygon(surf, GOLD_DEEP, lower_wing,
-                                max(1, int(SCALE)))
-            # Decorative spot in upper wing — butterfly "eye"
-            pygame.draw.circle(
-                surf, GOLD_DEEP,
-                (int(cx + sign * s * 0.65),
-                 int(cy - s * 0.35)),
-                max(2, int(s * 0.10)))
+            # Sleek diagonal feather lines for detail
+            for sf, tf in [((0.20, -0.42), (1.30, 0.05)),
+                           ((0.25, -0.32), (1.05, 0.18)),
+                           ((0.30, -0.15), (0.85, 0.40)),
+                           ((0.35, -0.00), (0.60, 0.25))]:
+                pygame.draw.line(
+                    surf, GOLD_DEEP,
+                    (cx + sign * sf[0] * s, cy + sf[1] * s),
+                    (cx + sign * tf[0] * s, cy + tf[1] * s),
+                    max(1, int(SCALE)))
     elif kind == "bolt":
         pts = [(cx - s * 0.3, cy - s),
                (cx + s * 0.5, cy - s * 0.1),
@@ -1829,7 +1810,7 @@ def render_wing_options():
                     row_cy + 10 * SCALE))
     save("wing_options.png", s)
     # Cache-bust filename so the user definitely sees the latest version
-    save("wing_options_r9.png", s)
+    save("wing_options_r11.png", s)
 
 
 def stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
@@ -2932,7 +2913,7 @@ def make_contact_sheet(filenames, out_name="contact_sheet.png",
 
 VARIANTS = [
     ("v1_trophy_cinema.png", draw_v1_trophy_cinema),
-    ("v1_trophy_cinema_r4.png", draw_v1_trophy_cinema),
+    ("v1_trophy_cinema_r11.png", draw_v1_trophy_cinema),
     ("v2_pip_flight_log.png", draw_v2_pip_flight_log),
     ("v3_constellation_wheel.png", draw_v3_constellation_wheel),
     ("v4_storyboard_strip.png", draw_v4_storyboard_strip),
@@ -2951,7 +2932,7 @@ def main():
     print("Stitching contact sheet...")
     # Contact sheet only shows the canonical 5 (not cache-bust copies)
     sheet_files = [f for f in filenames
-                   if not (f.endswith("_r2.png") or f.endswith("_r4.png"))]
+                   if not (f.endswith("_r2.png") or f.endswith("_r11.png"))]
     make_contact_sheet(sheet_files)
     # Worst-case stress test of v1: every kind picked at least once
     # so we can verify the chip row never overflows the screen.
@@ -2965,7 +2946,7 @@ def main():
     save("v1_trophy_cinema_all7_powerups.png", s)
     s = pygame.Surface((W, H))
     draw_v1_trophy_cinema(s, stress)
-    save("v1_trophy_cinema_all7_powerups_r4.png", s)
+    save("v1_trophy_cinema_all7_powerups_r11.png", s)
     print("Rendering wing options sheet...")
     render_wing_options()
     print("Done.")
