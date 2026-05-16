@@ -83,111 +83,157 @@ def _scatter_trees(scroll, w, speed, step, seed_off):
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# V1: Twisted Bonsai
+# V1: Rocky Cliffs with Pillar Ruins
 # ──────────────────────────────────────────────────────────────────────────
 
-_V1_BACK = (170, 195, 195)
-_V1_MID = (105, 140, 120)
-_V1_NEAR = (70, 105, 85)
-_V1_TRUNK = (55, 40, 30)
-_V1_FOLIAGE = (60, 130, 70)
-_V1_FOLIAGE_DK = (38, 90, 50)
-_V1_FOLIAGE_HI = (130, 200, 110)
-_V1_LEAF_RED = (215, 80, 70)
+_V1_STONE_LIGHT = (195, 175, 145)
+_V1_STONE_MID = (140, 120, 100)
+_V1_STONE_DARK = (80, 65, 55)
+_V1_STONE_DEEP = (45, 35, 30)
+_V1_CRACK = (25, 18, 18)
+_V1_PILLAR_HI = (225, 205, 175)
+_V1_PILLAR_MID = (165, 145, 120)
+_V1_PILLAR_LO = (95, 80, 65)
+_V1_PILLAR_BASE = (55, 42, 32)
 
 
-def _tree_bonsai(surf, x, y, scale=1.0):
-    """Gnarled twisted bonsai with dense foliage cushions."""
-    s = scale
-    # Twisted trunk: zigzag of 4 points
-    p1 = (x, y)
-    p2 = (x - int(4 * s), y - int(10 * s))
-    p3 = (x + int(3 * s), y - int(18 * s))
-    p4 = (x, y - int(23 * s))
-    pygame.draw.lines(surf, _V1_TRUNK, False, [p1, p2, p3, p4],
-                      max(2, int(2 * s)))
-    # Branch reaching right
-    branch_end = (x + int(9 * s), y - int(20 * s))
-    pygame.draw.line(surf, _V1_TRUNK, p3, branch_end, max(1, int(2 * s)))
-    # Branch reaching left
-    branch_left = (x - int(7 * s), y - int(22 * s))
-    pygame.draw.line(surf, _V1_TRUNK, p3, branch_left, max(1, int(2 * s)))
+def _v1_rocky_texture(surf, heights, ground_y, light, mid, dark, seed,
+                      density=1.0, stratum_count=3):
+    """Mottled spots + horizontal strata bands + vertical cracks. Texture is
+    always painted BELOW the ridge so it stays within the polygon."""
+    rng = random.Random(seed)
+    n_spots = int(75 * density)
+    for _ in range(n_spots):
+        idx = rng.randrange(0, len(heights))
+        x, ridge_y = heights[idx]
+        if ridge_y >= ground_y - 4:
+            continue
+        y = rng.randint(ridge_y + 1, ground_y - 3)
+        col = rng.choice([light, mid, dark, dark])
+        size = rng.choice([1, 1, 1, 2, 2])
+        pygame.draw.circle(surf, col, (x, y), size)
 
-    # Foliage cushions at branch tips and top
-    r = max(3, int(5 * s))
-    cushions = [
-        (x - int(6 * s), y - int(24 * s)),
-        (x, y - int(27 * s)),
-        (x + int(5 * s), y - int(25 * s)),
-        (x + int(10 * s), y - int(20 * s)),
-        (x - int(7 * s), y - int(22 * s)),
-    ]
-    for cx, cy in cushions:
-        pygame.draw.circle(surf, _V1_FOLIAGE_DK, (cx, cy + 1), r + 1)
-        pygame.draw.circle(surf, _V1_FOLIAGE, (cx, cy), r)
-    # Highlight on top cushion
-    pygame.draw.circle(surf, _V1_FOLIAGE_HI, (cushions[1][0] - 1, cushions[1][1] - 1),
-                       max(1, int(2 * s)))
-    # Red leaf accents
-    pygame.draw.circle(surf, _V1_LEAF_RED, cushions[0], max(1, int(2 * s)))
-    pygame.draw.circle(surf, _V1_LEAF_RED, (cushions[3][0] - 1, cushions[3][1] + 1),
-                       max(1, int(1.5 * s)))
+    # Horizontal strata — sample a couple of ridge-following bands so they
+    # follow the hill's contour instead of cutting straight across.
+    for stratum_i in range(stratum_count):
+        y_off = 6 + stratum_i * 9
+        col = dark if stratum_i % 2 == 0 else light
+        for i in range(0, len(heights) - 4, 4):
+            x1, y1 = heights[i]
+            x2, y2 = heights[i + 4]
+            sy1 = y1 + y_off
+            sy2 = y2 + y_off
+            if sy1 < ground_y - 2 and sy2 < ground_y - 2:
+                pygame.draw.line(surf, col, (x1, sy1), (x2, sy2), 1)
+
+    # Cracks
+    for _ in range(int(6 * density)):
+        idx = rng.randrange(0, len(heights))
+        x, ridge_y = heights[idx]
+        top = ridge_y + rng.randint(3, 8)
+        bot = min(ground_y - 3, top + rng.randint(12, 22))
+        if top < bot:
+            pygame.draw.line(surf, _V1_CRACK,
+                             (x, top),
+                             (x + rng.randint(-3, 3), bot), 1)
+
+
+def _v1_tiny_pillar(surf, x, base_y, height, width=6, silhouette=False):
+    """Tiny standing stone pillar — mini version of the game's own pillars
+    with cap rim + base flange. Use ``silhouette=True`` for distant pillars
+    (single dark rect, no detail)."""
+    if silhouette:
+        pygame.draw.rect(surf, _V1_STONE_DEEP,
+                         (x - width // 2, base_y - height, width, height))
+        return
+
+    # Base flange (wider + dark)
+    base_w = width + 4
+    pygame.draw.rect(surf, _V1_PILLAR_BASE,
+                     (x - base_w // 2, base_y - 3, base_w, 3))
+    pygame.draw.line(surf, _V1_PILLAR_MID,
+                     (x - base_w // 2 + 1, base_y - 3),
+                     (x + base_w // 2 - 2, base_y - 3), 1)
+
+    # Column body
+    col_top = base_y - height
+    pygame.draw.rect(surf, _V1_PILLAR_LO,
+                     (x - width // 2, col_top, width, height))
+    pygame.draw.rect(surf, _V1_PILLAR_MID,
+                     (x - width // 2, col_top, width - 1, height))
+    # Lit left edge
+    pygame.draw.line(surf, _V1_PILLAR_HI,
+                     (x - width // 2, col_top + 1),
+                     (x - width // 2, base_y - 3), 1)
+
+    # Cap rim
+    cap_w = width + 4
+    pygame.draw.rect(surf, _V1_PILLAR_BASE,
+                     (x - cap_w // 2, col_top - 3, cap_w, 3))
+    pygame.draw.line(surf, _V1_PILLAR_HI,
+                     (x - cap_w // 2, col_top - 3),
+                     (x + cap_w // 2 - 1, col_top - 3), 1)
 
 
 def draw_mountains_v1(surf, scroll, ground_y, w, far_color=None, near_color=None):
     near_color = near_color or (30, 40, 80)
 
-    pts, _ = _hill_polygon(w, ground_y, scroll, 0.06, 95,
-                           0.010, 22, 0.027, 10, phase_b=0.8)
-    pygame.draw.polygon(surf, _V1_BACK, pts)
+    # ── BACK: smooth distant stone ──
+    pts, back_h = _hill_polygon(w, ground_y, scroll, 0.06, 95,
+                                0.010, 22, 0.027, 10, phase_b=0.8)
+    pygame.draw.polygon(surf, _V1_STONE_MID, pts)
+    _v1_rocky_texture(surf, back_h, ground_y,
+                      _V1_STONE_LIGHT, _V1_STONE_MID, _V1_STONE_DARK,
+                      seed=int(scroll) // 4 + 91,
+                      density=0.5, stratum_count=2)
+    # A few tiny pillar silhouettes on the back ridge
+    for sx, k, rng in _scatter_trees(scroll, w, 0.06, 80, 911):
+        if 0 <= sx < w and rng.random() < 0.55:
+            idx = min(len(back_h) - 1, max(0, sx // 3))
+            ridge_y = back_h[idx][1]
+            ph = rng.randint(8, 14)
+            _v1_tiny_pillar(surf, sx, ridge_y + 1, ph, width=3,
+                            silhouette=True)
 
-    # Distant pagoda silhouette every now and then on mid hills
+    # ── MID: rocky strata + medium pillars ──
     pts, mid_h = _hill_polygon(w, ground_y, scroll, 0.15, 70,
                                0.014, 26, 0.033, 12, phase_b=1.4)
-    pygame.draw.polygon(surf, _V1_MID, pts)
-    for sx, k, rng in _scatter_trees(scroll, w, 0.15, 38, 7):
+    pygame.draw.polygon(surf, _V1_STONE_DARK, pts)
+    _v1_rocky_texture(surf, mid_h, ground_y,
+                      _V1_STONE_MID, _V1_STONE_DARK, _V1_STONE_DEEP,
+                      seed=int(scroll) // 4 + 19,
+                      density=1.0, stratum_count=3)
+    for sx, k, rng in _scatter_trees(scroll, w, 0.15, 40, 73):
         if 0 <= sx < w:
             idx = min(len(mid_h) - 1, max(0, sx // 3))
             ridge_y = mid_h[idx][1]
-            _tree_bonsai(surf, sx, ridge_y + 4, scale=0.55)
-    # Optional small pagoda silhouettes — sparse, deterministic
-    for sx, k, rng in _scatter_trees(scroll, w, 0.15, 120, 91):
-        if 0 <= sx < w and rng.random() < 0.55:
-            idx = min(len(mid_h) - 1, max(0, sx // 3))
-            ridge_y = mid_h[idx][1]
-            _v1_pagoda_silhouette(surf, sx, ridge_y + 2,
-                                  _shade(_V1_MID, -28))
+            ph = rng.randint(12, 20)
+            _v1_tiny_pillar(surf, sx, ridge_y + 2, ph, width=4)
 
+    # ── NEAR: rocky with strong strata + hero pillars ──
     pts, near_h = _hill_polygon(w, ground_y, scroll, 0.28, 48,
                                 0.018, 20, 0.041, 9, phase_b=0.5)
-    pygame.draw.polygon(surf, _V1_NEAR, pts)
-    for sx, k, rng in _scatter_trees(scroll, w, 0.28, 30, 13):
+    pygame.draw.polygon(surf, _V1_STONE_DEEP, pts)
+    _v1_rocky_texture(surf, near_h, ground_y,
+                      _V1_STONE_DARK, _V1_STONE_DEEP, _V1_STONE_MID,
+                      seed=int(scroll) // 4 + 37,
+                      density=1.2, stratum_count=4)
+    for sx, k, rng in _scatter_trees(scroll, w, 0.28, 30, 137):
         if 0 <= sx < w:
             idx = min(len(near_h) - 1, max(0, sx // 3))
             ridge_y = near_h[idx][1]
-            _tree_bonsai(surf, sx, ridge_y + 4, scale=1.0)
+            ph = rng.randint(18, 30)
+            pw = rng.choice([5, 6, 7])
+            _v1_tiny_pillar(surf, sx, ridge_y + 2, ph, width=pw)
 
-    # Drifting red leaves in the air
-    rng = random.Random(int(scroll) // 7)
+    # Dust motes drifting in the air
+    rng = random.Random(int(scroll) // 7 + 5)
     for _ in range(28):
-        lx = rng.randrange(0, w)
-        ly = rng.randrange(ground_y - 200, ground_y - 30)
-        pygame.draw.circle(surf, _V1_LEAF_RED, (lx, ly), 1)
-        if rng.random() < 0.5:
-            pygame.draw.circle(surf, (240, 140, 110), (lx + 1, ly), 1)
+        dx = rng.randrange(0, w)
+        dy = rng.randrange(ground_y - 200, ground_y - 30)
+        pygame.draw.circle(surf, (210, 195, 170), (dx, dy), 1)
 
     _ambient_overlay(surf, ground_y, w, near_color)
-
-
-def _v1_pagoda_silhouette(surf, x, base_y, color):
-    """Tiny 3-tier pagoda silhouette as scene accent."""
-    pygame.draw.rect(surf, color, (x - 3, base_y - 4, 6, 4))
-    pygame.draw.polygon(surf, color,
-                        [(x - 5, base_y - 4), (x + 5, base_y - 4), (x, base_y - 8)])
-    pygame.draw.rect(surf, color, (x - 2, base_y - 11, 4, 3))
-    pygame.draw.polygon(surf, color,
-                        [(x - 4, base_y - 11), (x + 4, base_y - 11), (x, base_y - 14)])
-    pygame.draw.line(surf, color, (x, base_y - 14), (x, base_y - 17), 1)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -609,7 +655,7 @@ VARIANTS = {
 }
 
 VARIANT_NAMES = {
-    1: "Twisted Bonsai",
+    1: "Rocky Cliffs with Pillar Ruins",
     2: "Autumn Maple",
     3: "Bioluminescent Alien",
     4: "Dr. Seuss Truffula",
