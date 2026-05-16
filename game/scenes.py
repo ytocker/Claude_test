@@ -527,12 +527,11 @@ class App:
         return score > scores[-1]["score"]
 
     def _open_leaderboard_from_menu(self):
-        """Tap on the TOP 10 trophy panel in the main menu. Switch state
-        to STATE_LEADERBOARD *immediately* so the player gets instant
-        feedback; on the browser path the async Supabase fetch runs in
-        the background and ``_lb_scores`` is empty + ``_fetch_pending``
-        is True, which makes ``HUD.draw_leaderboard`` render a brief
-        "Loading top 10…" line until the rows arrive.
+        """Tap on the TOP 10 trophy panel in the main menu. Browser:
+        kick off an async Supabase fetch but stay on the menu — the
+        async task switches state to STATE_LEADERBOARD once the scores
+        are in hand, so the player never sees a 'Loading top 10…'
+        flash. Native: synchronous local fetch.
 
         No player highlight (``_lb_player_rank = -1``) because there's
         no just-finished run to rank. The same STATE_LEADERBOARD → MENU
@@ -547,16 +546,13 @@ class App:
             self._lb_scores = []
             self._lb_fetch_error = ""
             self._fetch_pending = True
-            self.hud.title_t = 0.0
-            self.state = STATE_LEADERBOARD
-            self._cooldown_t = 0.25
             import asyncio
             try:
                 self._lb_task = asyncio.create_task(
                     self._fetch_leaderboard_from_menu())
             except RuntimeError:
                 # No running event loop (smoke tests). Skip the fetch;
-                # the empty-state copy keeps the screen readable.
+                # the player stays on the menu.
                 self._fetch_pending = False
         else:
             from game import leaderboard
@@ -564,10 +560,10 @@ class App:
             self._show_leaderboard_native(scores, submitted=False)
 
     async def _fetch_leaderboard_from_menu(self):
-        """Background task that resolves the Supabase top-10 after
-        ``_open_leaderboard_from_menu`` already switched state. We just
-        populate ``_lb_scores`` and drop the pending flag — the UI is
-        already on STATE_LEADERBOARD showing a loading indicator."""
+        """Background task for the menu trophy button. Fetches Supabase
+        top-10, stores it on the scene, then switches to
+        STATE_LEADERBOARD — keeping the player on the menu until the
+        scores are ready avoids the transient 'Loading…' screen."""
         try:
             from game import leaderboard
             scores = await leaderboard.fetch_top10()
@@ -576,6 +572,9 @@ class App:
         except Exception:
             pass
         self._fetch_pending = False
+        self.hud.title_t = 0.0
+        self.state = STATE_LEADERBOARD
+        self._cooldown_t = 0.25
 
     def _show_leaderboard_native(self, scores, submitted: bool):
         self._lb_scores = scores
@@ -858,7 +857,6 @@ class App:
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
-                pending=self._fetch_pending,
             )
         else:  # GAMEOVER
             self.hud.draw_gameover(

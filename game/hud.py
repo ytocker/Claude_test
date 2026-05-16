@@ -1768,26 +1768,24 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float, fetch_error: str = "",
-                         pending: bool = False):
+                         cooldown: float, fetch_error: str = ""):
         # Internally render at 3× supersample so the leaderboard's text
         # and circle edges come out clean on both desktop and mobile.
         # The whole static layout is cached (keyed on scores + rank +
-        # error + pending + target surface size); only the animated
-        # TAP TO MENU prompt is re-rendered per frame.
+        # error + target surface size); only the animated TAP TO MENU
+        # prompt is re-rendered per frame.
         self.title_t += dt
         SCALE = 3
         target_w, target_h = surf.get_size()
 
         scores_key = tuple((e["name"], e["score"]) for e in scores)
-        key = (target_w, target_h, scores_key, player_rank,
-               fetch_error, pending)
+        key = (target_w, target_h, scores_key, player_rank, fetch_error)
 
         if self._lb_cache_key != key:
             hd_w, hd_h = W * SCALE, H * SCALE
             hd = pygame.Surface((hd_w, hd_h), pygame.SRCALPHA)
             self._render_leaderboard(hd, scores, player_rank,
-                                     fetch_error, pending, SCALE)
+                                     fetch_error, SCALE)
             if (target_w, target_h) == (hd_w, hd_h):
                 self._lb_cache = hd
             else:
@@ -1811,7 +1809,7 @@ class HUD:
             surf.blit(prompt, pr.topleft)
 
     def _render_leaderboard(self, surf, scores: list, player_rank: int,
-                            fetch_error: str, pending: bool, S: int):
+                            fetch_error: str, S: int):
         """Static leaderboard layout (no TAP TO MENU prompt) at scale S.
         ``surf`` is sized ``(W*S, H*S)``; every coord, font size and
         stroke width is multiplied by ``S``."""
@@ -1835,11 +1833,7 @@ class HUD:
 
         n = len(scores)
         if n == 0:
-            if pending:
-                _text(surf, "Loading top 10…",
-                      (Ws // 2, card_y + 60 * S),
-                      size=18 * S, color=UI_CREAM, shadow=True)
-            elif fetch_error:
+            if fetch_error:
                 _text(surf, "Top-10 unavailable",
                       (Ws // 2, card_y + 60 * S),
                       size=18 * S, color=UI_CREAM, shadow=True)
