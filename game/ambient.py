@@ -43,15 +43,22 @@ _FIREWORKS_COOLDOWN_S = 110.0
 _BALLOON_COOLDOWN_S = 90.0
 _PARROTS_COOLDOWN_S = 80.0
 _CAMPFIRE_COOLDOWN_S = 130.0
-_SHEEP_COOLDOWN_S = 100.0
-_RABBITS_COOLDOWN_S = 110.0
-_FOX_COOLDOWN_S = 140.0
-_WELL_COOLDOWN_S = 130.0
-_SCARECROW_COOLDOWN_S = 120.0
-_MUSHRING_COOLDOWN_S = 150.0
-_BENCH_COOLDOWN_S = 120.0
-_NAPPER_COOLDOWN_S = 140.0
-_DOG_COOLDOWN_S = 100.0
+_SHEEP_COOLDOWN_S = 210.0
+_RABBITS_COOLDOWN_S = 230.0
+_FOX_COOLDOWN_S = 280.0
+_WELL_COOLDOWN_S = 260.0
+_SCARECROW_COOLDOWN_S = 240.0
+_MUSHRING_COOLDOWN_S = 300.0
+_BENCH_COOLDOWN_S = 240.0
+_NAPPER_COOLDOWN_S = 280.0
+_DOG_COOLDOWN_S = 200.0
+
+# Once a ground event's cooldown elapses (and the biome phase is right),
+# spawning is still probabilistic — each frame has a small chance of
+# actually firing. Tuned so expected wait once eligible is ~80 s, which on
+# top of the cooldown gives a rare, unpredictable appearance instead of a
+# fixed clock tick.
+_GROUND_EVENT_SPAWN_RATE = 1.0 / 80.0
 
 # Initial delay before the FIRST event of each kind in a run.
 _FLOCK_INITIAL_DELAY = (15.0, 35.0)
@@ -59,15 +66,15 @@ _FIREWORKS_INITIAL_DELAY = (30.0, 60.0)
 _BALLOON_INITIAL_DELAY = (20.0, 40.0)
 _PARROTS_INITIAL_DELAY = (25.0, 50.0)
 _CAMPFIRE_INITIAL_DELAY = (40.0, 80.0)
-_SHEEP_INITIAL_DELAY = (20.0, 40.0)
-_RABBITS_INITIAL_DELAY = (30.0, 55.0)
-_FOX_INITIAL_DELAY = (40.0, 70.0)
-_WELL_INITIAL_DELAY = (40.0, 70.0)
-_SCARECROW_INITIAL_DELAY = (35.0, 60.0)
-_MUSHRING_INITIAL_DELAY = (45.0, 75.0)
-_BENCH_INITIAL_DELAY = (30.0, 55.0)
-_NAPPER_INITIAL_DELAY = (45.0, 75.0)
-_DOG_INITIAL_DELAY = (25.0, 50.0)
+_SHEEP_INITIAL_DELAY = (60.0, 120.0)
+_RABBITS_INITIAL_DELAY = (80.0, 150.0)
+_FOX_INITIAL_DELAY = (100.0, 180.0)
+_WELL_INITIAL_DELAY = (90.0, 170.0)
+_SCARECROW_INITIAL_DELAY = (80.0, 150.0)
+_MUSHRING_INITIAL_DELAY = (110.0, 200.0)
+_BENCH_INITIAL_DELAY = (70.0, 140.0)
+_NAPPER_INITIAL_DELAY = (110.0, 200.0)
+_DOG_INITIAL_DELAY = (60.0, 130.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -1508,10 +1515,16 @@ class AmbientScenes:
                 if inst.is_done():
                     setattr(self, slot_name, None)
             elif self._in_window(phase, phases):
-                cool = getattr(self, cool_attr) - dt
-                if cool <= 0:
-                    setattr(self, slot_name, cls(palette, random.Random()))
-                    cool = cool_const + random.uniform(-jitter, jitter)
+                cool = getattr(self, cool_attr)
+                if cool > 0:
+                    cool -= dt
+                else:
+                    # Cooldown elapsed → roll the dice each frame so the
+                    # actual appearance is unpredictable rather than a
+                    # scheduled tick.
+                    if random.random() < _GROUND_EVENT_SPAWN_RATE * dt:
+                        setattr(self, slot_name, cls(palette, random.Random()))
+                        cool = cool_const + random.uniform(-jitter, jitter)
                 setattr(self, cool_attr, cool)
 
         # ── Cherry blossoms (continuous, phase-gated) ──
