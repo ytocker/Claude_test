@@ -184,9 +184,10 @@ CYCLE_SECONDS = 300.0   # 5 minutes
 
 
 def phase_for_time(elapsed_seconds: float) -> float:
-    """Return a phase in [0,1). Offset 0.04 so t=0 sits in bright mid-morning
-    rather than cold dawn, matching the menu-screen mood."""
-    return ((elapsed_seconds / CYCLE_SECONDS) + 0.04) % 1.0
+    """Return a phase in [0,1). t=0 lands exactly on the DAY keyframe so
+    the first 30+ seconds of a run sit in bright daylight before the
+    transition toward golden hour starts to read on screen."""
+    return (elapsed_seconds / CYCLE_SECONDS) % 1.0
 
 
 def _blend(a: dict, b: dict, t: float) -> dict:
