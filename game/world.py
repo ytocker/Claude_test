@@ -11,7 +11,7 @@ import pygame
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, RAMP_PIPES,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_COOLDOWN,
@@ -170,6 +170,9 @@ class World:
     def _current_scroll(self):
         return _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
 
+    def _current_spacing(self):
+        return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
+
     # ── spawning ─────────────────────────────────────────────────────────────
 
     def _seed_first_pipes(self):
@@ -178,9 +181,10 @@ class World:
         # behind Pip before the first pillar arrives.
         offset = int(self.SPAWN_GRACE * SCROLL_BASE)
         x = W + 60 + offset
+        spacing = self._current_spacing()
         for _ in range(3):
             self._spawn_pipe(x)
-            x += PIPE_SPACING
+            x += spacing
 
     def _spawn_pipe(self, x):
         gap_h = self._current_gap()
@@ -216,7 +220,7 @@ class World:
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
         pattern = random.choice(("arc", "line", "cluster"))
-        cx = pipe.x + PIPE_W + PIPE_SPACING * 0.5
+        cx = pipe.x + PIPE_W + self._current_spacing() * 0.5
         gy = pipe.gap_y
         if pattern == "arc":
             n = 5
@@ -240,9 +244,10 @@ class World:
     def _spawn_rush_coins(self, pipe: Pipe):
         """Dense coin formation across the gap — random variant each rush."""
         prev_count = len(self.coins)
-        cx = pipe.x + PIPE_W + PIPE_SPACING * 0.45
+        spacing = self._current_spacing()
+        cx = pipe.x + PIPE_W + spacing * 0.45
         gy = pipe.gap_y
-        span = PIPE_SPACING * 0.85
+        span = spacing * 0.85
         amp = min(pipe.gap_h * 0.32, 65)
         n = COIN_RUSH_COINS
 
@@ -321,7 +326,7 @@ class World:
         kinds = [k for k, _ in POWERUP_WEIGHTS]
         weights = [w for _, w in POWERUP_WEIGHTS]
         kind = random.choices(kinds, weights=weights, k=1)[0]
-        x = pipe.x + PIPE_W + PIPE_SPACING * 0.5 + random.uniform(-20, 20)
+        x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
         y = pipe.gap_y + random.uniform(-10, 10)
         self.powerups.append(PowerUp(x, y, kind=kind))
         self.powerup_cooldown = POWERUP_COOLDOWN
@@ -405,8 +410,9 @@ class World:
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
 
             # spawn more pipes
-            if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
-                self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
+            spacing = self._current_spacing()
+            if self.pipes and self.pipes[-1].x < W - spacing:
+                self._spawn_pipe(self.pipes[-1].x + spacing)
 
             # scoring: pass a pipe
             bx = self.bird.x

@@ -74,13 +74,15 @@ POWERUP_WEIGHTS    = (
 PIPE_HITBOX_SHRINK = 4
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
-# Keyed on pillars_passed: every pipe scored nudges the gap and scroll one
-# notch closer to the regular endpoints (GAP_START / SCROLL_BASE). After
-# RAMP_PIPES the ramp is complete and the game stays at today's regular
-# tuning forever — no late-game tightening to GAP_MIN / SCROLL_MAX.
-RAMP_PIPES         = 30
-GAP_NEWBIE_START   = 240
-SCROLL_NEWBIE_BASE = 115.0
+# Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
+# spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE
+# / PIPE_SPACING). After RAMP_PIPES the ramp is complete and the game stays
+# at today's regular tuning forever — no late-game tightening to GAP_MIN /
+# SCROLL_MAX.
+RAMP_PIPES           = 30
+GAP_NEWBIE_START     = 240
+SCROLL_NEWBIE_BASE   = 115.0
+PIPE_SPACING_NEWBIE  = 360
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
