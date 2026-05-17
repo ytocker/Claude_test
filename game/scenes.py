@@ -128,17 +128,23 @@ class App:
         self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
 
-        # ── Pre-warm expensive power-up assets ──────────────────────────────
-        # Two power-ups had per-pickup build cost causing visible stutters
-        # mid-game: GROW's hi-res 4.5× supersampled bird frames (~50 ms
-        # one-time build), and KFC's fries-mountain layer cache (7-37 ms
-        # per variant, randomly picked on each KFC pickup). Both are now
-        # built here under the HTML splash so first-pickup-ever and every
-        # subsequent pickup are O(1) cache hits — no frame spike.
+        # ── Deferred pre-warm queue ─────────────────────────────────────────
+        # Two power-ups had per-pickup build cost (GROW: ~50 ms first
+        # build; KFC: 7-37 ms per variant per pickup). Building both at
+        # startup made initial load 150+ ms slower. Instead we queue the
+        # builds and drain ONE per frame in ``_update`` after the first
+        # paint — startup pays nothing, and the cache fills over the
+        # next ~4 frames (during the intro animation where the small
+        # per-frame cost is masked). ``get_cached_mountain`` builds on
+        # demand if a pickup happens before its variant is warm.
         from game import parrot
-        parrot._get_grow_frames()
-        from game.fries_mountains import prewarm_all as _prewarm_fries
-        _prewarm_fries(GROUND_Y, W)
+        from game.fries_mountains import LAYER_DRAWERS, get_cached_mountain
+        self._prewarm_queue = [
+            ("grow",    lambda: parrot._get_grow_frames()),
+            ("kfc0",    lambda: get_cached_mountain(0, GROUND_Y, W)),
+            ("kfc1",    lambda: get_cached_mountain(1, GROUND_Y, W)),
+            ("kfc2",    lambda: get_cached_mountain(2, GROUND_Y, W)),
+        ]
 
     # ── helpers ─────────────────────────────────────────────────────────────
 
@@ -425,6 +431,12 @@ class App:
 
     def _update(self, dt):
         self._cloud_phase += dt
+        # Drain one prewarm task per frame after the splash has lifted, so
+        # the GROW + KFC caches fill incrementally during the intro
+        # rather than blocking startup. Each task takes 7-55 ms.
+        if self._prewarm_queue and not self._splash_covering:
+            _, task = self._prewarm_queue.pop(0)
+            task()
         if self.state == STATE_INTRO:
             if self.intro is None:
                 # Defensive: should never happen, but recover gracefully.
