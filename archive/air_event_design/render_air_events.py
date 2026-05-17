@@ -30,10 +30,10 @@ from game import ground_variants as _gv
 
 # (slug, label, class, preview phase, animation t to use)
 EVENTS = [
-    ("a1_banner_plane",  "A1 Banner plane",         _amb._BannerPlane,       0.05, 12.0),
-    ("a2_zeppelin",      "A2 Zeppelin",             _amb._Zeppelin,          0.35, 9.0),
-    ("a3_eagle",         "A3 Gliding eagle",        _amb._GlidingEagle,      0.05, 7.0),
-    ("a4_bats",          "A4 Bat swarm",            _amb._BatSwarm,          0.62, 4.5),
+    ("a1_banner_plane",  "A1 Banner plane",         _amb._BannerPlane,       0.05, 5.5),
+    ("a2_zeppelin",      "A2 Zeppelin",             _amb._Zeppelin,          0.35, 18.0),
+    ("a3_eagle",         "A3 Gliding eagle",        _amb._GlidingEagle,      0.05, 5.5),
+    ("a4_bats",          "A4 Bat swarm",            _amb._BatSwarm,          0.62, 4.0),
     ("a5_shooting_star", "A5 Shooting star",        _amb._ShootingStar,      0.62, 0.55),
     ("a6_rainbow",       "A6 Rainbow arc",          _amb._RainbowArc,        0.90, 4.5),
     ("a7_lanterns",      "A7 Lantern festival",     _amb._LanternFestival,   0.55, 7.0),

@@ -999,8 +999,8 @@ def _build_banner_text_sprite(text: str) -> pygame.Surface:
 
 
 class _BannerPlane(_AirEventBase):
-    SPEED = 28.0
-    DURATION_MAX = 60.0
+    SPEED = 65.0   # powered aircraft — fastest of the air events
+    DURATION_MAX = 30.0
 
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
@@ -1096,8 +1096,8 @@ def _build_zeppelin_sprite() -> pygame.Surface:
 
 
 class _Zeppelin(_AirEventBase):
-    SPEED = 14.0
-    DURATION_MAX = 55.0
+    SPEED = 10.0   # lumbering blimp — slowest of the air events
+    DURATION_MAX = 70.0
 
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
@@ -1126,36 +1126,65 @@ class _Zeppelin(_AirEventBase):
 # ── A3: Gliding eagle ───────────────────────────────────────────────────────
 
 def _build_eagle_sprite(wings_up: bool) -> pygame.Surface:
+    """Eagle silhouette gliding LEFT (top-down view). Wings are two
+    *separate convex* polygons (one above body, one below) — the prior
+    single-polygon approach was non-convex and pygame.draw.polygon
+    rendered it with a hollow centre."""
     s = pygame.Surface((28, 14), pygame.SRCALPHA)
-    body = (75, 55, 35)
     body_dk = (45, 30, 20)
-    head = (245, 235, 215)
+    body = (75, 55, 35)
+    wing_dk = (55, 38, 25)
+    wing = (90, 65, 40)
+    wing_hi = (135, 100, 65)
+    beak_col = (240, 175, 65)
+    beak_dk = (180, 130, 40)
+    head_pale = (245, 240, 220)
+    eye = (15, 15, 15)
+
+    # Tail fan (back of bird = right side, since eagle flies LEFT)
+    pygame.draw.polygon(s, body_dk,
+                       [(20, 6), (27, 5), (27, 9), (20, 8)])
+    pygame.draw.line(s, body, (23, 5), (23, 9), 1)
+
+    # Body — slim horizontal ellipse
+    pygame.draw.ellipse(s, body_dk, (8, 6, 14, 4))
+    pygame.draw.ellipse(s, body, (9, 7, 12, 2))
+
+    # Head + beak — leading edge, LEFT side
+    pygame.draw.circle(s, body_dk, (8, 7), 3)
+    pygame.draw.circle(s, head_pale, (7, 7), 2)
+    pygame.draw.circle(s, eye, (5, 7), 0)
+    pygame.draw.polygon(s, beak_col, [(3, 7), (6, 6), (6, 8)])
+    pygame.draw.line(s, beak_dk, (3, 7), (6, 6), 1)
+    pygame.draw.line(s, beak_dk, (3, 7), (6, 8), 1)
+
+    # Wings — one above body, one below. Each a convex polygon so the
+    # fill is reliable on every pygame version.
     if wings_up:
-        # Wings raised — bent up at tips
-        pygame.draw.polygon(s, body,
-                           [(2, 8), (8, 1), (14, 3), (20, 1), (26, 8),
-                            (22, 9), (14, 6), (6, 9)])
-        pygame.draw.line(s, body_dk, (8, 1), (14, 3), 1)
-        pygame.draw.line(s, body_dk, (14, 3), (20, 1), 1)
+        # Mid-flap, wings raised — both wings angled upward toward sky.
+        # Top wing peaks high (apex y=1); bottom wing is foreshortened
+        # (still mostly below body, but smaller than the flat-glide pose).
+        top_wing = [(9, 6), (6, 2), (12, 1), (16, 2), (14, 5), (11, 6)]
+        bot_wing = [(9, 9), (7, 11), (12, 12), (16, 11), (14, 10), (11, 9)]
+        feather_hi = ((6, 4), (12, 3))
     else:
-        # Wings down — flat outstretched glide
-        pygame.draw.polygon(s, body,
-                           [(2, 7), (8, 9), (14, 8), (20, 9), (26, 7),
-                            (22, 11), (14, 10), (6, 11)])
-        pygame.draw.line(s, body_dk, (2, 7), (26, 7), 1)
-    # Body
-    pygame.draw.ellipse(s, body_dk, (11, 6, 6, 5))
-    # Head + beak
-    pygame.draw.circle(s, head, (15, 6), 2)
-    pygame.draw.polygon(s, (235, 175, 65),
-                       [(16, 6), (19, 6), (17, 7)])
-    pygame.draw.circle(s, (15, 15, 15), (15, 6), 0)
+        # Wings extended — flat glide pose, wings swept wide.
+        top_wing = [(10, 6), (3, 3), (10, 2), (17, 3), (15, 5), (12, 6)]
+        bot_wing = [(10, 9), (3, 12), (10, 13), (17, 12), (15, 10), (12, 9)]
+        feather_hi = ((5, 4), (15, 4))
+
+    pygame.draw.polygon(s, wing, top_wing)
+    pygame.draw.polygon(s, body_dk, top_wing, 1)
+    pygame.draw.polygon(s, wing_dk, bot_wing)
+    pygame.draw.polygon(s, body_dk, bot_wing, 1)
+    pygame.draw.line(s, wing_hi, feather_hi[0], feather_hi[1], 1)
+
     return s
 
 
 class _GlidingEagle(_AirEventBase):
-    SPEED = 24.0
-    DURATION_MAX = 28.0
+    SPEED = 38.0   # active glide — faster than the lazy flock
+    DURATION_MAX = 22.0
 
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
@@ -1204,8 +1233,8 @@ def _build_bat_sprite(wings_up: bool) -> pygame.Surface:
 
 
 class _BatSwarm(_AirEventBase):
-    SPEED = 26.0
-    DURATION_MAX = 30.0
+    SPEED = 45.0   # rapid erratic flapping — quicker than the eagle
+    DURATION_MAX = 20.0
 
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)

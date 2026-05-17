@@ -553,12 +553,23 @@ def _draw_trophy(surf, cx, cy, size):
       * Cup widths use the same ±half-width on left & right
       * Handles drawn on a temp surface and mirrored via transform.flip
       * Stem / base / foot use odd widths so they centre exactly
+    All sub-element widths/thicknesses scale with ``size`` so the
+    silhouette reads as a trophy (cup + handles + base) at any render
+    scale — at retina S=2/3, hardcoded 2-3 px features would otherwise
+    smoothscale into invisible threads.
     """
-    s = size
-    # Surface big enough for cup (full width 2s) + handle ears + foot overflow.
-    pad   = 6
+    s = int(round(size))
+    # Scaled sub-element dimensions
+    h_w           = max(5, s // 3)        # handle ear half-width
+    arc_thickness = max(2, s // 6)        # handle stroke
+    stem_w        = max(3, (s // 6) | 1)  # stem width — odd for centring
+    rim_h         = max(1, s // 10)       # cup-rim highlight
+    base_h        = max(3, s // 6)        # base height
+    foot_h        = max(2, s // 9)        # foot pad height
+
+    pad   = h_w + 2
     g_w   = (s + pad) * 2 + 1   # odd → exact centre column
-    g_h   = s * 3 + 4
+    g_h   = s * 3 + 6
     g     = pygame.Surface((g_w, g_h), pygame.SRCALPHA)
     gx    = g_w // 2
     gy    = s + 2
@@ -595,16 +606,15 @@ def _draw_trophy(surf, cx, cy, size):
                      (gx + half_bot, bot_y), 1)
     pygame.draw.line(g, WHITE,
                      (gx - half_top + 2, top_y + 1),
-                     (gx + half_top - 2, top_y + 1), 1)
+                     (gx + half_top - 2, top_y + 1), rim_h)
 
     # ── Handles — draw the left ear once, then horizontal-flip for right ──
-    h_w  = 5
     h_h  = max(4, s - 2)
     h_y  = top_y + 2
     ear  = pygame.Surface((h_w, h_h), pygame.SRCALPHA)
     # Left half of an ellipse — gives a nice C-shape opening right
     pygame.draw.arc(ear, GOLD, (0, 0, h_w * 2 - 1, h_h),
-                    math.pi * 0.5, math.pi * 1.5, 2)
+                    math.pi * 0.5, math.pi * 1.5, arc_thickness)
     # Mirror about the cup's vertical centre. Left ear ends at gx - half_top;
     # right ear starts at gx + half_top + 1 so the two ears occupy mirrored
     # column ranges.
@@ -615,7 +625,6 @@ def _draw_trophy(surf, cx, cy, size):
            (right_ear_x, h_y))
 
     # ── Stem — odd width, exact centre ────────────────────────────────────
-    stem_w  = 3
     stem_h  = s // 2
     stem_x  = gx - stem_w // 2
     pygame.draw.rect(g, DARK,  (stem_x - 1, bot_y + 1, stem_w + 2, stem_h + 1))
@@ -625,13 +634,14 @@ def _draw_trophy(surf, cx, cy, size):
     base_w = (s - 1) * 2 + 1
     base_x = gx - base_w // 2
     base_y = bot_y + stem_h
-    pygame.draw.rect(g, DARK,  (base_x - 1, base_y + 1, base_w + 2, 4))
-    pygame.draw.rect(g, GOLD,  (base_x,     base_y,     base_w,     3))
+    pygame.draw.rect(g, DARK,  (base_x - 1, base_y + 1, base_w + 2, base_h + 1))
+    pygame.draw.rect(g, GOLD,  (base_x,     base_y,     base_w,     base_h))
 
     foot_w = base_w + 2
     foot_x = gx - foot_w // 2
-    pygame.draw.rect(g, DARK,  (foot_x - 1, base_y + 5, foot_w + 2, 3))
-    pygame.draw.rect(g, GOLD,  (foot_x,     base_y + 4, foot_w,     2))
+    foot_y = base_y + base_h
+    pygame.draw.rect(g, DARK,  (foot_x - 1, foot_y + 1, foot_w + 2, foot_h + 1))
+    pygame.draw.rect(g, GOLD,  (foot_x,     foot_y,     foot_w,     foot_h))
 
     surf.blit(g, (cx - gx, cy - gy))
 
