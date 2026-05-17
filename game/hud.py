@@ -1390,15 +1390,20 @@ class HUD:
         else:
             ui_alpha = int(40 + 215 * (bird_y - 20) / 60)
 
-        # ── Coins pill: compact single-row glass slab at top-left.
-        # BEST was retired from gameplay since the main menu and
-        # game-over screens already surface it.
-        cc_pill = pygame.Surface((60, 30), pygame.SRCALPHA)
-        pygame.draw.rect(cc_pill, (*_PANEL_DARK, 140), (0, 0, 60, 30), border_radius=8)
-        pygame.draw.rect(cc_pill, (*_GOLD_BRIGHT, 110), (0, 0, 60, 30),
+        # ── Coins pill: glass slab at top-left, auto-grows with count so
+        # triple-digit / quadruple-digit values don't clip the right edge.
+        coin_text = f"x{world.coin_count}"
+        text_w = _font(16, True).size(coin_text)[0]
+        ICON_AREA = 26   # icon centre col (13) + radius + gap to text
+        RIGHT_PAD = 10
+        pill_w = max(60, ICON_AREA + text_w + RIGHT_PAD)
+        cc_pill = pygame.Surface((pill_w, 30), pygame.SRCALPHA)
+        pygame.draw.rect(cc_pill, (*_PANEL_DARK, 140), (0, 0, pill_w, 30),
+                        border_radius=8)
+        pygame.draw.rect(cc_pill, (*_GOLD_BRIGHT, 110), (0, 0, pill_w, 30),
                          border_radius=8, width=1)
         _coin_icon(cc_pill, 13, 15, 8)
-        _text(cc_pill, f"x{world.coin_count}", (38, 15),
+        _text(cc_pill, coin_text, (ICON_AREA + text_w // 2, 15),
               size=16, color=_GOLD_BRIGHT, shadow=False)
         cc_pill.set_alpha(ui_alpha)
         surf.blit(cc_pill, (10, 14))
