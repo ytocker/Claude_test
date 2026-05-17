@@ -47,6 +47,7 @@ _BAT_PHASES           = ((0.55, 0.72),)              # night
 _SHOOTING_STAR_PHASES = ((0.55, 0.72), (0.78, 0.88))  # night + predawn
 _RAINBOW_PHASES       = ((0.38, 0.48), (0.85, 0.95))  # late sunset + sunrise
 _LANTERN_PHASES       = ((0.48, 0.62),)              # dusk
+_DOG_DASH_PHASES      = ((0.0, 0.45),)               # day → sunset
 
 _FLOCK_COOLDOWN_S = 75.0
 _FIREWORKS_COOLDOWN_S = 110.0
@@ -71,6 +72,7 @@ _BAT_COOLDOWN_S           = 240.0
 _SHOOTING_STAR_COOLDOWN_S = 160.0
 _RAINBOW_COOLDOWN_S       = 300.0
 _LANTERN_COOLDOWN_S       = 260.0
+_DOG_DASH_COOLDOWN_S      = 220.0
 
 # Once an ambient event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
@@ -107,6 +109,7 @@ _BAT_INITIAL_DELAY           = (5.0, 18.0)
 _SHOOTING_STAR_INITIAL_DELAY = (3.0, 14.0)
 _RAINBOW_INITIAL_DELAY       = (12.0, 30.0)
 _LANTERN_INITIAL_DELAY       = (6.0, 20.0)
+_DOG_DASH_INITIAL_DELAY      = (4.0, 16.0)
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -2125,6 +2128,61 @@ class _RunningDog(_GroundEventBase):
                            GROUND_Y - sh + 1 + bob))
 
 
+# ── G15: Dog dashing across the screen ──────────────────────────────────────
+
+class _DashingDog(_AirEventBase):
+    """A dog running lightly along the bottom of the screen, just above
+    the grass. Reuses the cute 2-frame leg + tail-wag sprite from
+    ``_RunningDog`` but here the dog moves at its own screen velocity
+    (not anchored to world scroll) — so it visibly runs from one edge
+    to the other rather than being passively carried past.
+
+    Direction is random per spawn: 50/50 chance of running LEFT or
+    RIGHT, with the sprite horizontally flipped for the leftward case
+    so the dog always faces its direction of motion."""
+    SPEED = 78.0       # lightly running pace, faster than world scroll
+    DURATION_MAX = 14.0
+
+    def __init__(self, palette, rng=None):
+        super().__init__(palette, rng)
+        frames = _build_dog_frames()
+        self._going_left = self.rng.random() < 0.5
+        if self._going_left:
+            # Sprite faces right by default — flip for leftward dog.
+            self._frames = [pygame.transform.flip(f, True, False)
+                           for f in frames]
+        else:
+            self._frames = frames
+        sw, _ = self._frames[0].get_size()
+        if self._going_left:
+            self.x = float(W + sw // 2 + 4)
+        else:
+            self.x = float(-sw // 2 - 4)
+
+    def update(self, dt: float) -> None:
+        if self._going_left:
+            self.x -= self.SPEED * dt
+        else:
+            self.x += self.SPEED * dt
+        self.t += dt
+
+    def is_done(self) -> bool:
+        sw, _ = self._frames[0].get_size()
+        if self._going_left:
+            return self.x < -sw or self.t > self.DURATION_MAX
+        return self.x > W + sw or self.t > self.DURATION_MAX
+
+    def draw(self, surf):
+        frame_idx = int(self.t * 11) % 2
+        sprite = self._frames[frame_idx]
+        sw, sh = sprite.get_size()
+        # Body bob in sync with strides — slightly more bounce than the
+        # world-anchored dog since this one is actively running.
+        bob = int(math.sin(self.t * 22) * 1.0)
+        surf.blit(sprite, (int(self.x) - sw // 2,
+                          GROUND_Y - sh + 1 + bob))
+
+
 # ── Controller ───────────────────────────────────────────────────────────────
 
 class AmbientScenes:
@@ -2161,6 +2219,7 @@ class AmbientScenes:
         self.shooting_star: _ShootingStar | None = None
         self.rainbow: _RainbowArc | None = None
         self.lanterns: _LanternFestival | None = None
+        self.dog_dash: _DashingDog | None = None
         self._flock_cool = random.uniform(*_FLOCK_INITIAL_DELAY)
         self._fireworks_cool = random.uniform(*_FIREWORKS_INITIAL_DELAY)
         self._balloon_cool = random.uniform(*_BALLOON_INITIAL_DELAY)
@@ -2183,6 +2242,7 @@ class AmbientScenes:
         self._shooting_star_cool = random.uniform(*_SHOOTING_STAR_INITIAL_DELAY)
         self._rainbow_cool = random.uniform(*_RAINBOW_INITIAL_DELAY)
         self._lanterns_cool = random.uniform(*_LANTERN_INITIAL_DELAY)
+        self._dog_dash_cool = random.uniform(*_DOG_DASH_INITIAL_DELAY)
         # Global throttles for the NEW probabilistic events so the scene
         # doesn't pile up several at once. Pre-existing scheduled events
         # (flock / balloon / parrots / fireworks / campfire) bypass these.
@@ -2202,7 +2262,7 @@ class AmbientScenes:
         "sheep", "rabbits", "fox", "well", "scarecrow", "mushring",
         "bench", "napper", "dog",
         "banner_plane", "balloon_cluster", "zeppelin", "eagle",
-        "bats", "shooting_star", "rainbow", "lanterns",
+        "bats", "shooting_star", "rainbow", "lanterns", "dog_dash",
     )
 
     @staticmethod
@@ -2338,6 +2398,8 @@ class AmbientScenes:
              "_rainbow_cool", _RAINBOW_COOLDOWN_S, 50),
             ("lanterns", _LanternFestival, _LANTERN_PHASES,
              "_lanterns_cool", _LANTERN_COOLDOWN_S, 35),
+            ("dog_dash", _DashingDog, _DOG_DASH_PHASES,
+             "_dog_dash_cool", _DOG_DASH_COOLDOWN_S, 30),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -2379,8 +2441,11 @@ class AmbientScenes:
             if inst is not None:
                 inst.draw(surf)
         # Air events — solid silhouettes first, then glow/additive overlays
-        # (shooting star, lanterns) on top so halos read clearly.
-        for slot_name in ("zeppelin", "banner_plane", "balloon_cluster",
+        # (shooting star, lanterns) on top so halos read clearly. The
+        # dashing dog runs along the ground line so we draw it BEFORE
+        # the sky events (it should never occlude an airborne event).
+        for slot_name in ("dog_dash",
+                          "zeppelin", "banner_plane", "balloon_cluster",
                           "eagle", "bats",
                           "rainbow", "lanterns", "shooting_star"):
             inst = getattr(self, slot_name)
