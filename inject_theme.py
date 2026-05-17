@@ -286,7 +286,7 @@ body   { background: #0d0820 !important; }
     src: url('LiberationSans-Bold.ttf') format('truetype');
     font-weight: 700;
     font-style: normal;
-    font-display: block;
+    font-display: swap;
 }
 
 .sk-title {
@@ -754,19 +754,28 @@ _TELEMETRY_JS = """
             var localHex = await chainHex(events);
             if (localHex !== String(payload.chain_hex || '')) { rSubmit = false; return; }
             usedIds.add(rid);
-            var r = await fetch(a + '/rest/v1/scores', {
-                method: 'POST',
-                headers: {
-                    'apikey': b,
-                    'Authorization': 'Bearer ' + b,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
-                },
-                body: JSON.stringify({
-                    name:  String(payload.name),
-                    score: Number(payload.score)
-                })
-            });
+            /* 6 s deadline — without it, a hung TCP socket can keep the
+               submit pending far longer than Python's poll timeout, and
+               the bridge state is then ambiguous on the next round. */
+            var ac = new AbortController();
+            var tid = setTimeout(function () { ac.abort(); }, 6000);
+            var r;
+            try {
+                r = await fetch(a + '/rest/v1/scores', {
+                    method: 'POST',
+                    headers: {
+                        'apikey': b,
+                        'Authorization': 'Bearer ' + b,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        name:  String(payload.name),
+                        score: Number(payload.score)
+                    }),
+                    signal: ac.signal
+                });
+            } finally { clearTimeout(tid); }
             rSubmit = r.ok;
         } catch (e) { rSubmit = false; }
     }
@@ -784,9 +793,18 @@ _TELEMETRY_JS = """
             /* Wider slice + client-side plausibility filter so an injected
                row with score 999999 doesn't make it onto the visible top-10. */
             var url = a + '/rest/v1/scores?select=name,score&order=score.desc&limit=200';
-            var r = await fetch(url, {
-                headers: {'apikey': b, 'Authorization': 'Bearer ' + b}
-            });
+            /* 6 s deadline — the startup probe fires this fetch on page
+               load; a half-open socket would keep the bridge in a
+               pending state and stack up with the next request. */
+            var ac = new AbortController();
+            var tid = setTimeout(function () { ac.abort(); }, 6000);
+            var r;
+            try {
+                r = await fetch(url, {
+                    headers: {'apikey': b, 'Authorization': 'Bearer ' + b},
+                    signal: ac.signal
+                });
+            } finally { clearTimeout(tid); }
             if (!r.ok) {
                 var bodyText = '';
                 try { bodyText = await r.text(); } catch (_) {}
@@ -1044,24 +1062,89 @@ _LOADING_JS = """
         return STAGE1_CAP + (over / STAGE1B_MS) * (STAGE1B_CAP - STAGE1_CAP);
     }
 
-    /* As soon as pygbag exposes MM, set the user-made-event flag and
-       dispatch a click on the canvas — pygbag listens for it to wake
-       its interpreter loop. Doing this independently from the splash
-       fade means the bar can keep climbing while the Python side
-       boots, and the fade only fires once the first real frame lands. */
+    /* Pygbag's interpreter loop is gated behind a "user-made event" (UME).
+       A real tap satisfies both pygbag and the browser's user-activation
+       policy; a synthetic dispatch satisfies pygbag only — which is enough
+       for first-frame paint, so audio-less boot can happen without the
+       user touching anything. The previous one-shot synthetic `click`
+       worked on most pygbag/browser combinations but not all (Safari +
+       certain pygbag versions ignored it), producing the "tap to make it
+       faster" reports. We now:
+         (a) poll for MM at 25 ms cadence so MM.UME is set the *instant*
+             pygbag exposes the bridge, not on the next 100 ms splash tick.
+         (b) dispatch the full pointer/mouse/touch gesture sequence rather
+             than a lone `click`, on canvas + document + window, so
+             whichever event pygbag listens to lands.
+         (c) keep retrying every 250 ms until skybitGameReady flips (the
+             game has actually painted), capped at 30 s so we never spin
+             forever. */
+    var GESTURE_RETRY_MS  = 250;
+    var GESTURE_RETRY_CAP_MS = 30000;
+    var MM_POLL_MS        = 25;
+    var gestureRetryId    = null;
+    var mmPollId          = null;
+
+    function fireSyntheticGesture() {
+        var cv = document.getElementById('canvas');
+        var targets = [cv, document.body, document.documentElement, window];
+        var coords = { bubbles: true, cancelable: true, clientX: 1, clientY: 1,
+                       button: 0, pointerType: 'mouse' };
+        for (var i = 0; i < targets.length; i++) {
+            var t = targets[i];
+            if (!t) continue;
+            try { t.dispatchEvent(new PointerEvent('pointerdown', coords)); } catch (_) {}
+            try { t.dispatchEvent(new PointerEvent('pointerup',   coords)); } catch (_) {}
+            try { t.dispatchEvent(new MouseEvent('mousedown', coords)); } catch (_) {}
+            try { t.dispatchEvent(new MouseEvent('mouseup',   coords)); } catch (_) {}
+            try { t.dispatchEvent(new MouseEvent('click',     coords)); } catch (_) {}
+            /* Touch events use a different constructor signature; wrap
+               separately because not every browser supports
+               `new TouchEvent(...)` directly. */
+            try {
+                t.dispatchEvent(new TouchEvent('touchstart',
+                    { bubbles: true, cancelable: true, touches: [] }));
+                t.dispatchEvent(new TouchEvent('touchend',
+                    { bubbles: true, cancelable: true, touches: [] }));
+            } catch (_) {}
+        }
+    }
+
     function kickCanvasIfReady() {
         if (canvasKicked || !isMMReady()) return;
         canvasKicked = true;
         try { window.MM.UME = true; } catch (_) {}
-        var cv = document.getElementById('canvas');
-        if (cv) {
-            try {
-                cv.dispatchEvent(new MouseEvent('click', {
-                    bubbles: true, cancelable: true
-                }));
-            } catch (_) {}
-        }
+        fireSyntheticGesture();
+        /* If the first synthetic kick didn't take (pygbag still hasn't
+           painted), retry. Bail out the moment skybitGameReady flips,
+           and absolutely stop after GESTURE_RETRY_CAP_MS so a wedged
+           pygbag doesn't have us pounding the canvas forever. */
+        var startedAt = Date.now();
+        gestureRetryId = setInterval(function () {
+            if (isGameReady() || Date.now() - startedAt > GESTURE_RETRY_CAP_MS) {
+                clearInterval(gestureRetryId);
+                gestureRetryId = null;
+                return;
+            }
+            try { window.MM.UME = true; } catch (_) {}
+            fireSyntheticGesture();
+        }, GESTURE_RETRY_MS);
     }
+
+    /* Watch for MM at a tighter cadence than the main splash poll so we
+       set UME the instant pygbag exposes it. Clears itself as soon as
+       MM appears (kickCanvasIfReady takes over the retry loop). */
+    mmPollId = setInterval(function () {
+        if (canvasKicked) {
+            clearInterval(mmPollId);
+            mmPollId = null;
+            return;
+        }
+        if (isMMReady()) {
+            clearInterval(mmPollId);
+            mmPollId = null;
+            kickCanvasIfReady();
+        }
+    }, MM_POLL_MS);
 
     var pollId = setInterval(function () {
         if (dismissed) return;
@@ -1120,6 +1203,8 @@ _LOADING_JS = """
         if (dismissed) return;
         dismissed = true;
         clearInterval(pollId);
+        if (gestureRetryId) { clearInterval(gestureRetryId); gestureRetryId = null; }
+        if (mmPollId)       { clearInterval(mmPollId);       mmPollId = null; }
 
         /* Try to unlock the shared AudioContext; without a user gesture
            this is a no-op on iOS Safari — audio unlocks on the first

@@ -195,7 +195,18 @@ def _add_outline(src: pygame.Surface, outline_color=(20, 12, 18, 220)) -> pygame
 
 # Four wing angles — up, mid-up, level, down
 _WING_ANGLES = (50, 20, -10, -40)
-FRAMES: list[pygame.Surface] = [_add_outline(_build_frame(a)) for a in _WING_ANGLES]
+
+# Lazy: building all four outlined frames cost ~100-300 ms on the WASM
+# cold path. Deferring lets the splash paint first; the work runs the
+# first time anything actually reads a frame (intro, menu, gameplay).
+# Module `__getattr__` keeps `parrot.FRAMES` working for external code.
+_FRAMES: "list[pygame.Surface] | None" = None
+
+def _get_frames() -> "list[pygame.Surface]":
+    global _FRAMES
+    if _FRAMES is None:
+        _FRAMES = [_add_outline(_build_frame(a)) for a in _WING_ANGLES]
+    return _FRAMES
 
 
 # ── Hi-res GROW-mode frames ──────────────────────────────────────────────────
@@ -502,14 +513,18 @@ def _build_parcel_variant(palette: dict) -> pygame.Surface:
     return pygame.transform.smoothscale(surf, (PARCEL_SIZE, PARCEL_SIZE))
 
 
-_PARCELS: dict[str, pygame.Surface] = {
-    name: _build_parcel_variant(pal) for name, pal in _PARCEL_PALETTES.items()
-}
+# Lazy: building all four parcel variants up front costs ~40-80 ms on
+# the WASM cold path. Built on first get_parcel() call instead.
+_PARCELS: "dict[str, pygame.Surface] | None" = None
 
 
 def get_parcel(mode: str = "normal") -> pygame.Surface:
     """Return the parcel sprite for a visual mode. Falls back to 'normal'
     on unknown keys so the parcel never disappears."""
+    global _PARCELS
+    if _PARCELS is None:
+        _PARCELS = {name: _build_parcel_variant(pal)
+                    for name, pal in _PARCEL_PALETTES.items()}
     return _PARCELS.get(mode, _PARCELS["normal"])
 
 
@@ -518,13 +533,23 @@ _rot_cache: dict = {}
 
 def get_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     """Return rotated parrot surface, cached by (frame, rounded-angle)."""
-    frame_idx = frame_idx % len(FRAMES)
+    frames = _get_frames()
+    frame_idx = frame_idx % len(frames)
     key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
     s = _rot_cache.get(key)
     if s is None:
-        s = pygame.transform.rotozoom(FRAMES[frame_idx], key[1], 1.0)
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _rot_cache[key] = s
     return s
+
+
+def __getattr__(name: str):
+    """Lazy module attribute: external code reading `parrot.FRAMES`
+    triggers the build on first access. Keeps the previous public API
+    working without forcing every caller to switch to `_get_frames()`."""
+    if name == "FRAMES":
+        return _get_frames()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # ── Fried-chicken variant (KFC powerup) ──────────────────────────────────────
