@@ -24,7 +24,7 @@ from game.draw import lerp_color
 # phase -> palette dict. Phases MUST be sorted ascending (0..1).
 
 _KEYFRAMES: list[tuple[float, dict]] = [
-    (0.00, dict(  # DAY — bright cyan sky, warm tan sandstone, lush green canopy
+    (0.00000, dict(  # DAY — bright cyan sky, warm tan sandstone, lush green canopy
         sky_top=(40, 110, 200),
         sky_mid=(90, 170, 230),
         sky_bot=(170, 220, 245),
@@ -43,7 +43,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(255, 240, 120),
         star_alpha=0,
     )),
-    (0.18, dict(  # GOLDEN HOUR — amber warmth
+    (0.23125, dict(  # GOLDEN HOUR — amber warmth
         sky_top=(80, 120, 200),
         sky_mid=(220, 175, 140),
         sky_bot=(255, 210, 160),
@@ -62,7 +62,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(255, 200, 80),
         star_alpha=0,
     )),
-    (0.32, dict(  # SUNSET — rose stone, autumn canopy
+    (0.36250, dict(  # SUNSET — rose stone, autumn canopy
         sky_top=(90, 50, 130),
         sky_mid=(230, 95, 120),
         sky_bot=(255, 160, 90),
@@ -81,7 +81,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(255, 160, 80),
         star_alpha=20,
     )),
-    (0.48, dict(  # DUSK — lavender stone, teal foliage
+    (0.51250, dict(  # DUSK — lavender stone, teal foliage
         sky_top=(25, 20, 70),
         sky_mid=(70, 45, 130),
         sky_bot=(170, 95, 140),
@@ -100,7 +100,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(180, 220, 200),
         star_alpha=130,
     )),
-    (0.62, dict(  # NIGHT — moonlit cool stone, dark teal canopy
+    (0.64375, dict(  # NIGHT — moonlit cool stone, dark teal canopy
         sky_top=(5, 8, 30),
         sky_mid=(15, 25, 70),
         sky_bot=(35, 55, 115),
@@ -119,7 +119,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(160, 220, 230),
         star_alpha=235,
     )),
-    (0.78, dict(  # PREDAWN — cool pink stone, muted canopy
+    (0.79375, dict(  # PREDAWN — cool pink stone, muted canopy
         sky_top=(30, 30, 80),
         sky_mid=(70, 60, 140),
         sky_bot=(200, 130, 180),
@@ -138,7 +138,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(200, 220, 180),
         star_alpha=90,
     )),
-    (0.90, dict(  # SUNRISE — peach stone, fresh canopy
+    (0.90625, dict(  # SUNRISE — peach stone, fresh canopy
         sky_top=(50, 100, 180),
         sky_mid=(255, 150, 150),
         sky_bot=(255, 220, 170),
@@ -157,7 +157,7 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(255, 210, 130),
         star_alpha=0,
     )),
-    (1.00, dict(  # loop back to DAY
+    (1.00000, dict(  # loop back to DAY
         sky_top=(40, 110, 200),
         sky_mid=(90, 170, 230),
         sky_bot=(170, 220, 245),
@@ -180,7 +180,11 @@ _KEYFRAMES: list[tuple[float, dict]] = [
 
 
 # One full day-cycle every CYCLE_SECONDS seconds of gameplay.
-CYCLE_SECONDS = 300.0   # 5 minutes
+# The day phase spans 0.00 -> 0.23125 = 74s; the remaining six phases
+# (golden hour through sunrise) each preserve their original 300s-cycle
+# wall-clock durations. Extending the cycle past 320 should shift the
+# non-day keyframes proportionally — don't change CYCLE_SECONDS alone.
+CYCLE_SECONDS = 320.0
 
 
 def phase_for_time(elapsed_seconds: float) -> float:
