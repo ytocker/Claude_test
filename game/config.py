@@ -79,10 +79,10 @@ PIPE_HITBOX_SHRINK = 4
 # / PIPE_SPACING). After RAMP_PIPES the ramp is complete and the game stays
 # at today's regular tuning forever — no late-game tightening to GAP_MIN /
 # SCROLL_MAX.
-RAMP_PIPES           = 30
-GAP_NEWBIE_START     = 240
-SCROLL_NEWBIE_BASE   = 115.0
-PIPE_SPACING_NEWBIE  = 400
+RAMP_PIPES           = 25
+GAP_NEWBIE_START     = 225
+SCROLL_NEWBIE_BASE   = 125.0
+PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"

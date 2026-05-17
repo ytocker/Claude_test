@@ -92,10 +92,10 @@ interpolation:
 
 | Constant              | Newbie | Regular |
 |-----------------------|-------:|--------:|
-| `RAMP_PIPES`          |        |      30 |
-| `GAP_NEWBIE_START`    |    240 | 170 (`GAP_START`)         |
-| `SCROLL_NEWBIE_BASE`  |    115 | 160 (`SCROLL_BASE`)       |
-| `PIPE_SPACING_NEWBIE` |    400 | 280 (`PIPE_SPACING`)      |
+| `RAMP_PIPES`          |        |      25 |
+| `GAP_NEWBIE_START`    |    225 | 170 (`GAP_START`)         |
+| `SCROLL_NEWBIE_BASE`  |    125 | 160 (`SCROLL_BASE`)       |
+| `PIPE_SPACING_NEWBIE` |    370 | 280 (`PIPE_SPACING`)      |
 
 After `RAMP_PIPES` the game stays at the regular endpoints forever —
 `GAP_MIN = 115` and `SCROLL_MAX = 290` are defined but unused. See

@@ -69,9 +69,9 @@ fresh each rush. No power-ups during a rush; just dive in.
 
 ## Difficulty
 
-The first 30 pillars are an onboarding ramp: gaps tighten (240 → 170 px),
-scroll speed climbs (115 → 160 px/s), and pillar spacing shortens
-(400 → 280 px) one notch per pillar you clear. After pillar 30 the game
+The first 25 pillars are an onboarding ramp: gaps tighten (225 → 170 px),
+scroll speed climbs (125 → 160 px/s), and pillar spacing shortens
+(370 → 280 px) one notch per pillar you clear. After pillar 25 the game
 settles at its regular tuning and stays there — no late-game cliff.
 
 Two forgiveness gestures keep the feel honest while you learn the
