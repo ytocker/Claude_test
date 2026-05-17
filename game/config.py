@@ -67,5 +67,22 @@ POWERUP_WEIGHTS    = (
     ("surprise", 1),
 )
 
+# ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
+# Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
+# Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without
+# letting the bird visibly clip through.
+PIPE_HITBOX_SHRINK = 4
+
+# ── Stepped warmup ramp ──────────────────────────────────────────────────────
+# Keyed on pillars_passed. Within each phase the gap and scroll are constant;
+# crossing into the next phase steps both values toward the regular endpoints
+# (GAP_START / SCROLL_BASE). After RAMP_PHASES the ramp is complete and the
+# game stays at today's regular tuning forever — no late-game tightening to
+# GAP_MIN / SCROLL_MAX.
+PIPES_PER_PHASE    = 5
+RAMP_PHASES        = 10   # 10 × 5 = 50-pipe onboarding ramp
+GAP_NEWBIE_START   = 240
+SCROLL_NEWBIE_BASE = 110.0
+
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"

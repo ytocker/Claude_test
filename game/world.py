@@ -10,7 +10,9 @@ import pygame
 
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
-    GAP_START, GAP_MIN, SCROLL_BASE, SCROLL_MAX,
+    GAP_START, SCROLL_BASE,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPES_PER_PHASE, RAMP_PHASES,
+    PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
@@ -145,10 +147,14 @@ class World:
 
     # ── difficulty ───────────────────────────────────────────────────────────
 
-    def _diff_t(self):
-        # Constant difficulty — coins do not speed up the scroll or shrink
-        # the pipe gap. The game stays at SCROLL_BASE / GAP_START always.
-        return 0.0
+    def _ramp_t(self):
+        # Stepped onboarding ramp keyed on pillars passed. Each phase covers
+        # PIPES_PER_PHASE pipes of constant difficulty; the gap and scroll
+        # advance one notch toward the regular endpoints at every boundary.
+        # After RAMP_PHASES the ramp is complete and t pins to 1.0 so the
+        # game stays at GAP_START / SCROLL_BASE for the rest of the run.
+        phase = min(RAMP_PHASES, self.pillars_passed // PIPES_PER_PHASE)
+        return phase / RAMP_PHASES
 
     # ── biome ────────────────────────────────────────────────────────────────
 
@@ -161,10 +167,10 @@ class World:
         return biome.palette_for_phase(self.biome_phase)
 
     def _current_gap(self):
-        return int(_lerp(GAP_START, GAP_MIN, self._diff_t()))
+        return int(_lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t()))
 
     def _current_scroll(self):
-        return _lerp(SCROLL_BASE, SCROLL_MAX, self._diff_t())
+        return _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
 
     # ── spawning ─────────────────────────────────────────────────────────────
 
@@ -524,7 +530,15 @@ class World:
     def _check_collisions(self):
         bx, by = self.bird.x, self.bird.y
         br = self.bird_radius()
-        if by + br > GROUND_Y or by - br < 0:
+        # Ceiling: clamp Pip and zero upward velocity instead of killing.
+        # Bonking the top edge feels accidental and was a recurring "unfair
+        # death" complaint; the ground still kills.
+        if by - br < 0:
+            self.bird.y = br
+            if self.bird.vy < 0:
+                self.bird.vy = 0.0
+            by = self.bird.y
+        if by + br > GROUND_Y:
             self._die()
             return
         if self.ghost_timer > 0:
@@ -542,7 +556,7 @@ class World:
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
         for p in self.pipes:
-            if p.collides_circle(bx, by, br - 2):
+            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
                 self._die()
                 return
             if p.collides_circle(px, py, pr - 1):
