@@ -534,19 +534,17 @@ class World:
     def _check_collisions(self):
         bx, by = self.bird.x, self.bird.y
         br = self.bird_radius()
-        # Ceiling and ground both clamp Pip + zero velocity into the wall
-        # instead of killing. The only lethal collision is a pipe — Pip
-        # can ride along the floor until a pillar arrives.
+        # Ceiling: clamp Pip and zero upward velocity instead of killing.
+        # Bonking the top edge feels accidental and was a recurring "unfair
+        # death" complaint; the ground still kills.
         if by - br < 0:
             self.bird.y = br
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
         if by + br > GROUND_Y:
-            self.bird.y = GROUND_Y - br
-            if self.bird.vy > 0:
-                self.bird.vy = 0.0
-            by = self.bird.y
+            self._die()
+            return
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
