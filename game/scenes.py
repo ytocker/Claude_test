@@ -162,6 +162,16 @@ class App:
             # devices) can't immediately skip it back out. The cooldown
             # ticks down inside _update so a deliberate skip works a
             # beat later.
+            #
+            # Also bail while `_splash_covering` is still True: the HTML
+            # splash overlay is on top of the canvas, so the player can't
+            # see the intro and isn't tapping it deliberately. The pygbag
+            # boot kick (inject_theme.fireSyntheticGesture) dispatches a
+            # full pointer/mouse/touch sequence to satisfy the UME gate,
+            # and those events reach this handler — without the gate they
+            # silently skip the intro before the first frame ever renders.
+            if self._splash_covering:
+                return
             if self._cooldown_t > 0:
                 return
             self._finish_intro(skipped=True)
@@ -342,6 +352,13 @@ class App:
                 # intro clock start ticking from here. See
                 # `self._splash_covering` for the rationale.
                 self._splash_covering = False
+                # The boot kick (inject_theme.fireSyntheticGesture) retries
+                # every 250 ms until it sees skybitGameReady. We just set
+                # that flag, but events fired in the last retry interval
+                # may still be sitting in the pygame queue. Set a short
+                # cooldown so those trailing synthetic taps can't skip the
+                # intro the instant the splash lifts.
+                self._cooldown_t = max(self._cooldown_t, 0.4)
                 # Signal to the JS overlay (inject_theme.py's dismiss()
                 # waits on this) that the canvas now has a real Skybit
                 # frame on it. Without this, the overlay would fade off
