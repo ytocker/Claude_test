@@ -114,7 +114,10 @@ Two forgiveness gestures live in `World._check_collisions`:
 
 Defined in `game/config.py`:
 
-- `POWERUP_CHANCE = 0.24` per non-rush pillar gate
+- `POWERUP_CHANCE = 0.24` per non-rush pillar gate (regular)
+- `POWERUP_CHANCE_NEWBIE = 0.10` at the start of the run; ramps to the
+  regular value on the same `_ramp_t()` curve as gap/scroll/spacing so
+  the opening 25 pillars don't drown in power-ups
 - `POWERUP_COOLDOWN = 5.5` seconds between spawns
 - Every active kind lasts 8 seconds (`*_DURATION`)
 - `POWERUP_WEIGHTS` is equally weighted across the six kinds + surprise

@@ -35,6 +35,9 @@ COIN_RUSH_COINS    = 14
 
 POWERUP_R          = 14    # collision + footprint radius for every power-up
 POWERUP_CHANCE     = 0.24  # chance to spawn a power-up after a pipe gate
+POWERUP_CHANCE_NEWBIE = 0.10  # warmup starting chance; ramps to POWERUP_CHANCE
+                              # on the same _ramp_t() curve as gap/scroll/spacing
+                              # so the opening doesn't feel like a powerup parade
 POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
 TRIPLE_DURATION    = 8.0
 MAGNET_DURATION    = 8.0

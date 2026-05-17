@@ -14,7 +14,7 @@ from game.config import (
     GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
-    POWERUP_CHANCE, POWERUP_COOLDOWN,
+    POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
     SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
@@ -173,6 +173,9 @@ class World:
     def _current_spacing(self):
         return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
 
+    def _current_powerup_chance(self):
+        return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
+
     # ── spawning ─────────────────────────────────────────────────────────────
 
     def _seed_first_pipes(self):
@@ -321,7 +324,7 @@ class World:
     def _maybe_spawn_powerup(self, pipe: Pipe):
         if self.powerup_cooldown > 0:
             return
-        if random.random() >= POWERUP_CHANCE:
+        if random.random() >= self._current_powerup_chance():
             return
         kinds = [k for k, _ in POWERUP_WEIGHTS]
         weights = [w for _, w in POWERUP_WEIGHTS]
