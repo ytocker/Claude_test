@@ -2189,10 +2189,14 @@ class AmbientScenes:
         self._spawn_gap_remaining = 0.0
 
     # Min seconds between any two probabilistic-event spawns. Keeps
-    # ambient activity from bunching.
-    _MIN_SPAWN_GAP_S = 5.0
+    # ambient activity from bunching — one new event drifts across,
+    # finishes its arc, then a clear pause before the next.
+    _MIN_SPAWN_GAP_S = 8.0
     # Max simultaneous NEW (probabilistic) events alive on screen.
-    _MAX_CONCURRENT_NEW = 2
+    # Hard-capped to 1 so the player is never overwhelmed by multiple
+    # competing focal points; the pre-existing flock / balloon /
+    # parrots may still overlap (they have their own schedules).
+    _MAX_CONCURRENT_NEW = 1
     # Slot names of the new ground + air events — counted toward concurrency.
     _NEW_EVENT_SLOTS = (
         "sheep", "rabbits", "fox", "well", "scarecrow", "mushring",
