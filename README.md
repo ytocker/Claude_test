@@ -140,7 +140,7 @@ ground/ceiling can still kill him.
 
 ### Grow — GROW!
 
-Red-and-white Mario-style mushroom. Scales Pip up by `GROW_SCALE = 1.5`
+Red-and-white Mario-style mushroom. Scales Pip up by `GROW_SCALE = 1.3`
 for **8 seconds** (collision footprint, parcel, everything). The cached
 grow-parrot is built once at first use.
 

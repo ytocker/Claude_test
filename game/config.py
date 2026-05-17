@@ -47,7 +47,7 @@ KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
                              # variant already looks. Stacks with COIN_RUSH.
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
-GROW_SCALE         = 1.5
+GROW_SCALE         = 1.3
 REVERSE_DURATION   = 8.0
 
 # Spawn weights for power-up kinds. Must sum to anything — they're

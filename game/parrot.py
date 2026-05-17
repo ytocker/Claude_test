@@ -7,6 +7,7 @@ cached by (frame, rounded-angle).
 import math
 import pygame
 
+from game.config import GROW_SCALE
 from game.draw import (
     BIRD_RED, BIRD_RED_D, BIRD_WING, BIRD_WING_D, BIRD_TIP,
     BIRD_BELLY, BIRD_BEAK, BIRD_BEAK_D, WHITE, BLACK, NEAR_BLACK,
@@ -205,9 +206,9 @@ FRAMES: list[pygame.Surface] = [_add_outline(_build_frame(a)) for a in _WING_ANG
 # multiplied by `s`. This produces a crisp grow-mode bird without
 # upscaling the small 68×64 base sprite (the prior path's blur source).
 
-_GROW_SS = 4.5                                       # 3× supersample of 1.5×
-_GROW_W  = int((SPRITE_W + 4) * 1.5)                 # 102
-_GROW_H  = int((SPRITE_H + 4) * 1.5)                 # 96
+_GROW_SS = 3.0 * GROW_SCALE                          # 3× supersample of GROW_SCALE
+_GROW_W  = int((SPRITE_W + 4) * GROW_SCALE)
+_GROW_H  = int((SPRITE_H + 4) * GROW_SCALE)
 
 
 def _Sg(v, s): return int(round(v * s))

@@ -36,7 +36,7 @@ POWERUPS = (
     ("slowmo",   "SLOW-MO",  "Slows the world, jumps are the same"),
     ("kfc",      "KFC",      "Fried chicken theme"),
     ("ghost",    "GHOST",    "Go through pillars safely"),
-    ("grow",     "GROW",     "1.5x larger"),
+    ("grow",     "GROW",     "1.3x larger"),
     ("surprise", "SURPRISE", "Picks random from above"),
 )
 

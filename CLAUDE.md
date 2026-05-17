@@ -106,7 +106,7 @@ These are project identity. Don't violate without explicit user OK.
 ## Power-ups (6 active + Surprise)
 
 Triple (3× coins), Magnet, Slow-Mo, KFC (fry-skin), Ghost (phase
-through pillars), Grow (1.5× scale), Surprise Box (re-rolls to one of
+through pillars), Grow (1.3× scale), Surprise Box (re-rolls to one of
 the six at pickup). Each lasts 8 s. 14% spawn chance per non-rush
 pillar, 5.5 s cooldown. Float-text labels share a unified
 gradient-fill + outline + 8-sparkle style.
