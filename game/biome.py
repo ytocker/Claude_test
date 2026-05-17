@@ -43,6 +43,28 @@ _KEYFRAMES: list[tuple[float, dict]] = [
         foliage_accent=(255, 240, 120),
         star_alpha=0,
     )),
+    (0.06250, dict(  # DAY (plateau end) — identical to phase 0.0; holds the
+                    # DAY palette flat for the first 20s of the cycle so a
+                    # fresh run actually exhibits clear daytime instead of
+                    # smoothstep-drifting toward golden hour from frame one.
+        sky_top=(40, 110, 200),
+        sky_mid=(90, 170, 230),
+        sky_bot=(170, 220, 245),
+        horizon=(255, 240, 200),
+        mtn_far=(80, 120, 170),
+        mtn_near=(55, 95, 145),
+        ground_top=(80, 200, 80),
+        ground_mid=(40, 150, 40),
+        stone_light=(225, 195, 155),
+        stone_mid=(175, 140, 105),
+        stone_dark=(95, 70, 55),
+        stone_accent=(255, 220, 170),
+        foliage_top=(140, 220, 110),
+        foliage_mid=(70, 170, 75),
+        foliage_dark=(30, 100, 50),
+        foliage_accent=(255, 240, 120),
+        star_alpha=0,
+    )),
     (0.23125, dict(  # GOLDEN HOUR — amber warmth
         sky_top=(80, 120, 200),
         sky_mid=(220, 175, 140),
