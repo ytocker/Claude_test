@@ -83,11 +83,11 @@ _DOG_DASH_COOLDOWN_S        = _AMBIENT_EVENT_COOLDOWN_S
 
 # Once an ambient event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
-# actually firing. Tuned so short plays (30-60 s, ~50-100 score) feel
-# lively: a 30 s play sees ~2-3 new events, 60 s sees ~4-5. The game is
-# meant to be fun and entertaining; events should feel like welcome
-# punctuation, not rare easter eggs.
-_GROUND_EVENT_SPAWN_RATE = 1.0 / 50.0
+# actually firing. Tuned for typical short plays (50-100 score, ~30-60 s)
+# so events feel like welcome punctuation, not rare easter eggs. The
+# concurrency cap + min spawn gap below keep the screen from being
+# overwhelmed even with the higher per-event rate.
+_GROUND_EVENT_SPAWN_RATE = 1.0 / 35.0
 
 # Initial delay before the FIRST event of each kind in a run. Tuned for
 # very short plays: most players don't last 60 s, so most events have
@@ -100,8 +100,9 @@ _PARROTS_INITIAL_DELAY = (5.0, 20.0)
 _CAMPFIRE_INITIAL_DELAY = (5.0, 20.0)
 # All new probabilistic events share one initial-delay range too —
 # any event can be the first one to fire in a play; the only thing
-# that decides which is the random roll.
-_AMBIENT_EVENT_INITIAL_DELAY = (5.0, 20.0)
+# that decides which is the random roll. Tuned for short 30-60 s plays
+# (typical 50-100 score) so the first event lands inside that window.
+_AMBIENT_EVENT_INITIAL_DELAY = (3.0, 12.0)
 
 _SHEEP_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
 _RABBITS_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
@@ -2277,7 +2278,7 @@ class AmbientScenes:
     # Min seconds between any two probabilistic-event spawns. Keeps
     # ambient activity from bunching — one new event drifts across,
     # finishes its arc, then a clear pause before the next.
-    _MIN_SPAWN_GAP_S = 8.0
+    _MIN_SPAWN_GAP_S = 6.0
     # Max simultaneous NEW (probabilistic) events alive on screen.
     # Hard-capped to 1 so the player is never overwhelmed by multiple
     # competing focal points; the pre-existing flock / balloon /
