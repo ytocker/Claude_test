@@ -58,7 +58,7 @@ def returning_rate_7d(df: pd.DataFrame) -> float:
     card shows 0% rather than NaN."""
     if df.empty:
         return 0.0
-    cutoff = pd.Timestamp.utcnow() - pd.Timedelta(days=7)
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=7)
     recent = df[df["played_at"] >= cutoff]
     if recent.empty:
         return 0.0
@@ -69,6 +69,51 @@ def returning_rate_7d(df: pd.DataFrame) -> float:
     total = len(days_per_player)
     repeated = int((days_per_player >= 2).sum())
     return repeated / total if total else 0.0
+
+
+def one_shot_count(df: pd.DataFrame, days: int = 7) -> int:
+    """Number of devices in the window with exactly one play. The "bounce"
+    signal for a casual game — high values mean the first-run experience
+    isn't converting curious clicks into a second attempt. Hyper-casual
+    benchmarks expect 60–75% of players to be one-shots."""
+    if df.empty:
+        return 0
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)
+    recent = df[df["played_at"] >= cutoff]
+    if recent.empty:
+        return 0
+    plays_per_device = recent.groupby("device_id").size()
+    return int((plays_per_device == 1).sum())
+
+
+def engagement_segments(df: pd.DataFrame, days: int = 30) -> pd.DataFrame:
+    """Count of players in each play-count bucket: 1 / 2–5 / 6–20 / 21+.
+    Returned as a long frame with stable ordering so the bar chart
+    renders the segments top-to-bottom in increasing engagement."""
+    buckets = [
+        ("1 play",     1, 1),
+        ("2–5 plays",  2, 5),
+        ("6–20 plays", 6, 20),
+        ("21+ plays",  21, 10**9),
+    ]
+    empty = pd.DataFrame({
+        "segment": [b[0] for b in buckets],
+        "players": [0] * len(buckets),
+    })
+    if df.empty:
+        return empty
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)
+    recent = df[df["played_at"] >= cutoff]
+    if recent.empty:
+        return empty
+    plays_per_device = recent.groupby("device_id").size()
+    rows = []
+    for label, lo, hi in buckets:
+        rows.append({
+            "segment": label,
+            "players": int(((plays_per_device >= lo) & (plays_per_device <= hi)).sum()),
+        })
+    return pd.DataFrame(rows)
 
 
 # ── Time series ──────────────────────────────────────────────────────────────
@@ -238,5 +283,13 @@ def roster(df: pd.DataFrame, days: int = 30, top_n: int = 50) -> pd.DataFrame:
         avg_duration_s=("duration_s", "mean"),
         last_seen=("played_at", "max"),
     ).reset_index()
-    grouped = grouped[grouped["plays"] >= 2]  # one-shot players are noise
-    return grouped.sort_values("plays", ascending=False).head(top_n).reset_index(drop=True)
+    # Single-play devices are kept — they're the bounce signal for the
+    # game's first-run experience and previously got hidden, which made
+    # the dashboard pretend they didn't exist. Sort by plays desc, then
+    # by last_seen desc so the most recent one-shots still appear near
+    # the top when there's a tie.
+    return (
+        grouped.sort_values(["plays", "last_seen"], ascending=[False, False])
+               .head(top_n)
+               .reset_index(drop=True)
+    )

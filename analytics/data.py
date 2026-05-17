@@ -108,7 +108,7 @@ def fetch_plays(days: int = 90) -> pd.DataFrame:
     if _use_fixture():
         with open(_FIXTURE_PATH, "r", encoding="utf-8") as f:
             return _normalise_plays(json.load(f))
-    cutoff_iso = (pd.Timestamp.utcnow() - pd.Timedelta(days=days)).isoformat()
+    cutoff_iso = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)).isoformat()
     qs = parse.urlencode({
         "select": "id,device_id,played_at,score,duration_s,coins,"
                   "pillars,near_misses,powerups",

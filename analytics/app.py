@@ -86,7 +86,7 @@ if df.empty:
 
 st.markdown("## Today")
 
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 
 dau_today = metrics.dau_today(df)
 dau_yest = metrics.dau_yesterday(df)
@@ -116,6 +116,16 @@ k4.metric(
     f"{ret * 100:.0f}%",
     help="Share of last-7-day players who played on ≥2 distinct UTC days. "
          "Hyper-casual benchmark for D1 retention is 25–35%.",
+)
+
+one_shots = metrics.one_shot_count(df, days=7)
+k5.metric(
+    "One-shot players (7d)",
+    f"{one_shots:,}",
+    help="Players who tried the game exactly once in the last 7 days. "
+         "High values mean the first-run experience isn't pulling people "
+         "back for a second attempt. Hyper-casual benchmark: 60–75% of "
+         "unique players are one-shots.",
 )
 
 
@@ -177,12 +187,19 @@ st.caption(
 
 # ── Section E — Player roster ────────────────────────────────────────────────
 
-st.markdown("## Active players")
+st.markdown("## Players")
+
+st.plotly_chart(
+    charts.engagement_segments(
+        metrics.engagement_segments(df, days=window), days=window,
+    ),
+    use_container_width=True,
+)
 
 ros = metrics.roster(df, days=window, top_n=50)
 
 if ros.empty:
-    st.info("No player has run ≥2 plays in this window yet.")
+    st.info("No plays in this window yet.")
 else:
     # Resolve display names + color swatches.
     nick_color = ros["device_id"].apply(identity.for_device)
@@ -221,5 +238,6 @@ else:
 
 st.caption(
     f"Showing top {len(ros)} of {df['device_id'].nunique()} unique players "
-    f"in the last {window} days. Players with only one play are hidden."
+    f"in the last {window} days. One-shot players are included — sorted "
+    f"first by total plays, then by most recent."
 )

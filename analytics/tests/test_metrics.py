@@ -172,16 +172,74 @@ def test_powerup_totals_sums_across_rows():
 # ── Roster ───────────────────────────────────────────────────────────────────
 
 
-def test_roster_excludes_single_play_devices():
+def test_roster_includes_single_play_devices():
+    """One-shot players used to be filtered out — that hid the most
+    important churn signal for a casual game. They're now included."""
     df = _frame([
         _row(id_=1, device_id="loyal", offset=pd.Timedelta(hours=1)),
         _row(id_=2, device_id="loyal", offset=pd.Timedelta(hours=2)),
         _row(id_=3, device_id="oneshot", offset=pd.Timedelta(hours=3)),
     ])
     out = metrics.roster(df, days=30, top_n=50)
-    assert set(out["device_id"]) == {"loyal"}
+    assert set(out["device_id"]) == {"loyal", "oneshot"}
+    # Loyal (2 plays) should sort above oneshot (1 play).
+    assert list(out["device_id"]) == ["loyal", "oneshot"]
 
 
 def test_roster_empty():
     out = metrics.roster(_empty_df(), days=30)
     assert out.empty
+
+
+# ── One-shot players ─────────────────────────────────────────────────────────
+
+
+def test_one_shot_count_counts_devices_with_exactly_one_play():
+    df = _frame([
+        _row(id_=1, device_id="loyal", offset=pd.Timedelta(hours=1)),
+        _row(id_=2, device_id="loyal", offset=pd.Timedelta(hours=2)),
+        _row(id_=3, device_id="oneshot_a", offset=pd.Timedelta(hours=3)),
+        _row(id_=4, device_id="oneshot_b", offset=pd.Timedelta(days=2)),
+    ])
+    assert metrics.one_shot_count(df, days=7) == 2
+
+
+def test_one_shot_count_respects_window():
+    df = _frame([
+        _row(id_=1, device_id="old", offset=pd.Timedelta(days=10)),
+        _row(id_=2, device_id="recent", offset=pd.Timedelta(days=1)),
+    ])
+    assert metrics.one_shot_count(df, days=7) == 1
+
+
+def test_one_shot_count_empty():
+    assert metrics.one_shot_count(_empty_df(), days=7) == 0
+
+
+# ── Engagement segments ──────────────────────────────────────────────────────
+
+
+def test_engagement_segments_buckets_correctly():
+    rows = []
+    # 3 one-shot players
+    for i, dev in enumerate(("a", "b", "c")):
+        rows.append(_row(id_=i, device_id=dev, offset=pd.Timedelta(hours=1)))
+    # 1 player with 3 plays (falls in 2-5 bucket)
+    rows += [_row(id_=10 + i, device_id="d", offset=pd.Timedelta(hours=i + 1))
+             for i in range(3)]
+    # 1 player with 10 plays (falls in 6-20 bucket)
+    rows += [_row(id_=20 + i, device_id="e", offset=pd.Timedelta(hours=i + 1))
+             for i in range(10)]
+    df = _frame(rows)
+    seg = metrics.engagement_segments(df, days=30)
+    counts = dict(zip(seg["segment"], seg["players"]))
+    assert counts["1 play"] == 3
+    assert counts["2–5 plays"] == 1
+    assert counts["6–20 plays"] == 1
+    assert counts["21+ plays"] == 0
+
+
+def test_engagement_segments_empty_returns_zeroed_buckets():
+    seg = metrics.engagement_segments(_empty_df(), days=30)
+    assert list(seg["segment"]) == ["1 play", "2–5 plays", "6–20 plays", "21+ plays"]
+    assert (seg["players"] == 0).all()

@@ -156,6 +156,39 @@ def powerup_mix(totals: pd.DataFrame) -> go.Figure:
     return _style(fig, "Power-up pickups (7d)")
 
 
+def engagement_segments(seg_df: pd.DataFrame, days: int) -> go.Figure:
+    """Horizontal bar of player counts per play-count bucket. The 1-play
+    bar is intentionally drawn in gold so the bounce segment pops — it's
+    the most actionable number for a casual game."""
+    fig = go.Figure()
+    if seg_df.empty:
+        return _style(fig, f"Players by engagement ({days}d)")
+    colors = [GOLD if seg == "1 play" else SKY for seg in seg_df["segment"]]
+    fig.add_bar(
+        x=seg_df["players"], y=seg_df["segment"], orientation="h",
+        marker_color=colors,
+        text=seg_df["players"],
+        textposition="outside",
+        hovertemplate="%{y}: %{x} players<extra></extra>",
+    )
+    total = int(seg_df["players"].sum())
+    one_shot = int(seg_df.loc[seg_df["segment"] == "1 play", "players"].sum())
+    subtitle = (
+        f"{one_shot}/{total} players ({one_shot / total * 100:.0f}%) "
+        f"played only once" if total else "no players in window"
+    )
+    fig.update_layout(
+        xaxis_title="Players",
+        yaxis=dict(autorange="reversed"),
+        annotations=[dict(
+            text=subtitle, xref="paper", yref="paper",
+            x=0, y=1.10, showarrow=False,
+            font=dict(size=11, color="#9AA7BD"),
+        )],
+    )
+    return _style(fig, f"Players by engagement ({days}d)")
+
+
 def powerups_per_run(df: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     if df.empty:
