@@ -1009,9 +1009,11 @@ class _BannerPlane(_AirEventBase):
         super().__init__(palette, rng)
         self._plane = _build_banner_plane_sprite()
         self._banner = _build_banner_text_sprite(_BANNER_PLANE_TEXT)
-        # Span the whole sky — from just below top edge to just above the
-        # highest mountain crest (~y=440 for back-layer peaks).
-        self.y = self.rng.uniform(H * 0.10, H * 0.66)
+        # Truly span the airspace edge-to-edge — from a sprite-half above
+        # the top edge (so the plane is still fully visible) down to
+        # just above the highest back-mountain crest at y≈444.
+        # Banner plane sprite is 44 tall, so y_top_min = 22+8.
+        self.y = self.rng.uniform(30, 430)
         self._wobble_phase = self.rng.uniform(0, math.tau)
         pw, _ = self._plane.get_size()
         bw, _ = self._banner.get_size()
@@ -1105,7 +1107,8 @@ class _Zeppelin(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprite = _build_zeppelin_sprite()
-        self.y = self.rng.uniform(H * 0.08, H * 0.64)
+        # Sprite 30 tall, so y_top_min = 15+8 = 23.
+        self.y = self.rng.uniform(25, 425)
         self._sway_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1192,7 +1195,8 @@ class _GlidingEagle(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprites = (_build_eagle_sprite(False), _build_eagle_sprite(True))
-        self.y = self.rng.uniform(H * 0.05, H * 0.66)
+        # Sprite 14 tall, so y_top_min = 7+8 = 15.
+        self.y = self.rng.uniform(18, 430)
         self._flap_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1243,7 +1247,8 @@ class _BatSwarm(_AirEventBase):
         super().__init__(palette, rng)
         self._sprites = (_build_bat_sprite(False), _build_bat_sprite(True))
         n = self.rng.randint(5, 7)
-        self.y = self.rng.uniform(H * 0.08, H * 0.64)
+        # Bats spread ±20 from centre vertically, so leave that margin too.
+        self.y = self.rng.uniform(35, 410)
         # Each bat: (dx, dy, flap_phase, flutter_phase, flutter_amp_x, flutter_amp_y)
         self._bats = []
         for _ in range(n):
