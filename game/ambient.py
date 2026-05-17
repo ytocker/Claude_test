@@ -49,30 +49,37 @@ _RAINBOW_PHASES       = ((0.38, 0.48), (0.85, 0.95))  # late sunset + sunrise
 _LANTERN_PHASES       = ((0.48, 0.62),)              # dusk
 _DOG_DASH_PHASES      = ((0.0, 0.45),)               # day → sunset
 
-_FLOCK_COOLDOWN_S = 75.0
-_FIREWORKS_COOLDOWN_S = 110.0
-_BALLOON_COOLDOWN_S = 90.0
-_PARROTS_COOLDOWN_S = 80.0
-_CAMPFIRE_COOLDOWN_S = 130.0
-_SHEEP_COOLDOWN_S = 210.0
-_RABBITS_COOLDOWN_S = 230.0
-_FOX_COOLDOWN_S = 280.0
-_WELL_COOLDOWN_S = 260.0
-_SCARECROW_COOLDOWN_S = 240.0
-_MUSHRING_COOLDOWN_S = 300.0
-_BENCH_COOLDOWN_S = 240.0
-_NAPPER_COOLDOWN_S = 280.0
-_DOG_COOLDOWN_S = 200.0
+# All ambient events — pre-existing AND new — share one cooldown so no
+# individual event is rarer than another. They're differentiated only
+# by their air/ground category and the time-of-day phase they're allowed
+# to appear in.
+_AMBIENT_EVENT_COOLDOWN_S = 240.0
 
-_BANNER_PLANE_COOLDOWN_S    = 260.0
-_BALLOON_CLUSTER_COOLDOWN_S = 230.0
-_ZEPPELIN_COOLDOWN_S      = 270.0
-_EAGLE_COOLDOWN_S         = 220.0
-_BAT_COOLDOWN_S           = 240.0
-_SHOOTING_STAR_COOLDOWN_S = 160.0
-_RAINBOW_COOLDOWN_S       = 300.0
-_LANTERN_COOLDOWN_S       = 260.0
-_DOG_DASH_COOLDOWN_S      = 220.0
+_FLOCK_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_FIREWORKS_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_BALLOON_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_PARROTS_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_CAMPFIRE_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+
+_SHEEP_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_RABBITS_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_FOX_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_WELL_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_SCARECROW_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_MUSHRING_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_BENCH_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_NAPPER_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_DOG_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+
+_BANNER_PLANE_COOLDOWN_S    = _AMBIENT_EVENT_COOLDOWN_S
+_BALLOON_CLUSTER_COOLDOWN_S = _AMBIENT_EVENT_COOLDOWN_S
+_ZEPPELIN_COOLDOWN_S        = _AMBIENT_EVENT_COOLDOWN_S
+_EAGLE_COOLDOWN_S           = _AMBIENT_EVENT_COOLDOWN_S
+_BAT_COOLDOWN_S             = _AMBIENT_EVENT_COOLDOWN_S
+_SHOOTING_STAR_COOLDOWN_S   = _AMBIENT_EVENT_COOLDOWN_S
+_RAINBOW_COOLDOWN_S         = _AMBIENT_EVENT_COOLDOWN_S
+_LANTERN_COOLDOWN_S         = _AMBIENT_EVENT_COOLDOWN_S
+_DOG_DASH_COOLDOWN_S        = _AMBIENT_EVENT_COOLDOWN_S
 
 # Once an ambient event's cooldown elapses (and the biome phase is right),
 # spawning is still probabilistic — each frame has a small chance of
@@ -86,30 +93,35 @@ _GROUND_EVENT_SPAWN_RATE = 1.0 / 50.0
 # very short plays: most players don't last 60 s, so most events have
 # their first chance within ~5-15 s. Combined with the spawn rate below,
 # this means a 30 s play sees ~2-3 events and a 60 s play sees ~4-5.
-_FLOCK_INITIAL_DELAY = (8.0, 20.0)
-_FIREWORKS_INITIAL_DELAY = (15.0, 35.0)
-_BALLOON_INITIAL_DELAY = (10.0, 25.0)
-_PARROTS_INITIAL_DELAY = (12.0, 28.0)
-_CAMPFIRE_INITIAL_DELAY = (20.0, 45.0)
-_SHEEP_INITIAL_DELAY = (3.0, 15.0)
-_RABBITS_INITIAL_DELAY = (4.0, 16.0)
-_FOX_INITIAL_DELAY = (6.0, 18.0)
-_WELL_INITIAL_DELAY = (4.0, 16.0)
-_SCARECROW_INITIAL_DELAY = (5.0, 17.0)
-_MUSHRING_INITIAL_DELAY = (6.0, 20.0)
-_BENCH_INITIAL_DELAY = (4.0, 16.0)
-_NAPPER_INITIAL_DELAY = (6.0, 18.0)
-_DOG_INITIAL_DELAY = (3.0, 15.0)
+_FLOCK_INITIAL_DELAY = (5.0, 20.0)
+_FIREWORKS_INITIAL_DELAY = (5.0, 20.0)
+_BALLOON_INITIAL_DELAY = (5.0, 20.0)
+_PARROTS_INITIAL_DELAY = (5.0, 20.0)
+_CAMPFIRE_INITIAL_DELAY = (5.0, 20.0)
+# All new probabilistic events share one initial-delay range too —
+# any event can be the first one to fire in a play; the only thing
+# that decides which is the random roll.
+_AMBIENT_EVENT_INITIAL_DELAY = (5.0, 20.0)
 
-_BANNER_PLANE_INITIAL_DELAY    = (5.0, 18.0)
-_BALLOON_CLUSTER_INITIAL_DELAY = (4.0, 16.0)
-_ZEPPELIN_INITIAL_DELAY      = (8.0, 22.0)
-_EAGLE_INITIAL_DELAY         = (5.0, 18.0)
-_BAT_INITIAL_DELAY           = (5.0, 18.0)
-_SHOOTING_STAR_INITIAL_DELAY = (3.0, 14.0)
-_RAINBOW_INITIAL_DELAY       = (12.0, 30.0)
-_LANTERN_INITIAL_DELAY       = (6.0, 20.0)
-_DOG_DASH_INITIAL_DELAY      = (4.0, 16.0)
+_SHEEP_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_RABBITS_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_FOX_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_WELL_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_SCARECROW_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_MUSHRING_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_BENCH_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_NAPPER_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_DOG_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+
+_BANNER_PLANE_INITIAL_DELAY    = _AMBIENT_EVENT_INITIAL_DELAY
+_BALLOON_CLUSTER_INITIAL_DELAY = _AMBIENT_EVENT_INITIAL_DELAY
+_ZEPPELIN_INITIAL_DELAY        = _AMBIENT_EVENT_INITIAL_DELAY
+_EAGLE_INITIAL_DELAY           = _AMBIENT_EVENT_INITIAL_DELAY
+_BAT_INITIAL_DELAY             = _AMBIENT_EVENT_INITIAL_DELAY
+_SHOOTING_STAR_INITIAL_DELAY   = _AMBIENT_EVENT_INITIAL_DELAY
+_RAINBOW_INITIAL_DELAY         = _AMBIENT_EVENT_INITIAL_DELAY
+_LANTERN_INITIAL_DELAY         = _AMBIENT_EVENT_INITIAL_DELAY
+_DOG_DASH_INITIAL_DELAY        = _AMBIENT_EVENT_INITIAL_DELAY
 
 
 # ── V-formation flock ────────────────────────────────────────────────────────
@@ -128,7 +140,9 @@ class _VFlock:
 
     __slots__ = ("color", "x", "y", "t", "_offsets")
 
-    def __init__(self, palette: dict, screen_y: float):
+    def __init__(self, palette: dict, rng=None):
+        rng = rng or random.Random()
+        screen_y = rng.uniform(30, 430)
         base = palette.get('mtn_far', (90, 90, 110))
         self.color = (max(0, base[0] - 60),
                       max(0, base[1] - 60),
@@ -189,16 +203,19 @@ class _Fireworks:
         (140, 255, 160),
     )
 
-    def __init__(self, rng: random.Random | None = None):
+    def __init__(self, palette=None, rng: random.Random | None = None):
         rnd = rng or random.Random()
         self.bursts: list[tuple[int, int, tuple[int, int, int], float]] = []
         # Spread the 3 bursts horizontally so they don't overlap.
+        # Y is uniform across the full airspace (top edge → just above
+        # mountain crests) so fireworks aren't constrained to the
+        # low-horizon band any more.
         for i in range(self.NUM_BURSTS):
             slot_w = (W - 80) / self.NUM_BURSTS
             xmin = int(40 + i * slot_w)
             xmax = int(40 + (i + 1) * slot_w)
             cx = rnd.randint(xmin, max(xmin + 10, xmax))
-            cy = GROUND_Y - rnd.randint(70, 130)
+            cy = rnd.randint(40, 420)
             color = rnd.choice(self._PALETTE)
             t_ignite = i * self.BURST_INTERVAL
             self.bursts.append((cx, cy, color, t_ignite))
@@ -417,13 +434,17 @@ class _PaneledBalloon:
     __slots__ = ("_surf", "_env_cx", "_env_cy", "x", "_y0",
                  "_bob_phase", "t")
 
-    def __init__(self, rng: random.Random):
+    def __init__(self, palette=None, rng: random.Random | None = None):
+        rng = rng or random.Random()
         scale_idx = rng.randint(0, 2)
         pal_idx = rng.randint(0, len(_BALLOON_PALETTES) - 1)
         self._surf, self._env_cx, self._env_cy = _build_balloon_surface(
             scale_idx, pal_idx)
         self.x = float(W + self._surf.get_width())
-        self._y0 = rng.uniform(H * 0.22, H * 0.50)
+        # Uniform across the full airspace — top edge (with sprite half +
+        # margin) down to just above the mountain crests.
+        bh = self._surf.get_height()
+        self._y0 = rng.uniform(bh // 2 + 10, 430)
         self._bob_phase = rng.uniform(0, math.tau)
         self.t = 0.0
 
@@ -463,7 +484,8 @@ class _ParrotFamily:
 
     __slots__ = ("x", "_y_top", "t", "_colors", "_offsets")
 
-    def __init__(self, rng: random.Random):
+    def __init__(self, palette=None, rng: random.Random | None = None):
+        rng = rng or random.Random()
         # Loose diagonal: each parrot is offset (-spacing_x, +spacing_y)
         # from the previous, creating a left-sloping line.
         sx, sy = 18, 8
@@ -473,10 +495,10 @@ class _ParrotFamily:
         colors = list(_PARROT_BODY_PALETTE)
         rng.shuffle(colors)
         self._colors = tuple(colors)
-        # Enter from off-screen right; pick altitude that keeps the entire
-        # diagonal in the upper half of the sky.
+        # Uniform across the full airspace — top edge (with formation
+        # height + sprite margin) down to just above the mountain crests.
         formation_h = sy * (self.N_PARROTS - 1)
-        self._y_top = rng.uniform(H * 0.20, H * 0.45 - formation_h)
+        self._y_top = rng.uniform(20, 430 - formation_h)
         # Position the leader off-screen right
         self.x = float(W + 30)
         self.t = 0.0
@@ -731,7 +753,8 @@ class _Campfire:
     __slots__ = ("x", "y", "t", "_sparks", "_spark_t",
                  "_flicker_seed", "_prev_bg")
 
-    def __init__(self, rng: random.Random):
+    def __init__(self, palette=None, rng: random.Random | None = None):
+        rng = rng or random.Random()
         self.x = float(W + 20)
         self.y = float(GROUND_Y - 24)
         self.t = 0.0
@@ -823,22 +846,6 @@ class _Campfire:
 # events) and reports ``is_done()`` when it should be despawned. Constructor
 # signature is uniform — ``(palette, rng)`` — so ``AmbientScenes`` can use a
 # generic spawn loop.
-
-
-def _airspace_y(rng: random.Random, y_min: float, y_max: float) -> float:
-    """Pick a y in [y_min, y_max] biased toward the top and bottom thirds
-    of the airspace.
-
-    Uniform sampling places the mean at mid-screen, which makes players
-    perceive event clustering there even though every individual y is
-    equally likely. Weighting (3, 1, 3) across the three vertical bands
-    gives ~43% top / 14% middle / 43% bottom — events still occasionally
-    appear in the middle (otherwise it'd feel like a forced no-fly zone)
-    but the perceptual centre of mass shifts to the extremes."""
-    band = rng.choices((0, 1, 2), weights=(3, 1, 3))[0]
-    span = y_max - y_min
-    third = span / 3.0
-    return rng.uniform(y_min + band * third, y_min + (band + 1) * third)
 
 
 class _AirEventBase:
@@ -1025,10 +1032,9 @@ class _BannerPlane(_AirEventBase):
         super().__init__(palette, rng)
         self._plane = _build_banner_plane_sprite()
         self._banner = _build_banner_text_sprite(_BANNER_PLANE_TEXT)
-        # Spread across the full airspace, biased away from the middle so
-        # events register at top + bottom as much as the visual centre.
-        # Banner plane sprite is 44 tall, so y_top_min = 22+8.
-        self.y = _airspace_y(self.rng, 30, 430)
+        # Uniform across the full airspace — top edge (sprite-half + margin)
+        # down to just above mountain crests.
+        self.y = self.rng.uniform(30, 430)
         self._wobble_phase = self.rng.uniform(0, math.tau)
         pw, _ = self._plane.get_size()
         bw, _ = self._banner.get_size()
@@ -1122,8 +1128,8 @@ class _Zeppelin(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprite = _build_zeppelin_sprite()
-        # Sprite 30 tall, so y_top_min = 15+8 = 23.
-        self.y = _airspace_y(self.rng, 25, 425)
+        # Uniform across the full airspace.
+        self.y = self.rng.uniform(25, 425)
         self._sway_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1210,8 +1216,8 @@ class _GlidingEagle(_AirEventBase):
     def __init__(self, palette, rng=None):
         super().__init__(palette, rng)
         self._sprites = (_build_eagle_sprite(False), _build_eagle_sprite(True))
-        # Sprite 14 tall, so y_top_min = 7+8 = 15.
-        self.y = _airspace_y(self.rng, 18, 430)
+        # Uniform across the full airspace.
+        self.y = self.rng.uniform(18, 430)
         self._flap_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1262,8 +1268,8 @@ class _BatSwarm(_AirEventBase):
         super().__init__(palette, rng)
         self._sprites = (_build_bat_sprite(False), _build_bat_sprite(True))
         n = self.rng.randint(5, 7)
-        # Bats spread ±20 from centre vertically, so leave that margin too.
-        self.y = _airspace_y(self.rng, 35, 410)
+        # Uniform across the airspace (cluster spread ±20 from centre).
+        self.y = self.rng.uniform(35, 410)
         # Each bat: (dx, dy, flap_phase, flutter_phase, flutter_amp_x, flutter_amp_y)
         self._bats = []
         for _ in range(n):
@@ -2278,9 +2284,16 @@ class AmbientScenes:
     # parrots may still overlap (they have their own schedules).
     _MAX_CONCURRENT_NEW = 1
     # Slot names of the new ground + air events — counted toward concurrency.
+    # All probabilistic events — pre-existing + new — share the
+    # concurrency cap so a flock + a balloon + an eagle can never all
+    # be on screen at once.
     _NEW_EVENT_SLOTS = (
+        # Pre-existing (formerly scheduled), now in the unified pool
+        "flock", "fireworks", "balloon", "parrots", "campfire",
+        # Ground events
         "sheep", "rabbits", "fox", "well", "scarecrow", "mushring",
         "bench", "napper", "dog",
+        # Air events
         "banner_plane", "balloon_cluster", "zeppelin", "eagle",
         "bats", "shooting_star", "rainbow", "lanterns", "dog_dash",
     )
@@ -2298,62 +2311,6 @@ class AmbientScenes:
 
     def update(self, dt: float, phase: float, palette: dict,
                bg_scroll: float) -> None:
-        # ── V-flock ──
-        if self.flock is not None:
-            self.flock.update(dt)
-            if self.flock.is_done():
-                self.flock = None
-        elif self._in_window(phase, _FLOCK_PHASES):
-            self._flock_cool -= dt
-            if self._flock_cool <= 0:
-                y = random.uniform(H * 0.18, H * 0.40)
-                self.flock = _VFlock(palette, y)
-                self._flock_cool = _FLOCK_COOLDOWN_S + random.uniform(-15, 30)
-
-        # ── Fireworks ──
-        if self.fireworks is not None:
-            self.fireworks.update(dt)
-            if self.fireworks.is_done():
-                self.fireworks = None
-        elif self._in_window(phase, _FIREWORKS_PHASES):
-            self._fireworks_cool -= dt
-            if self._fireworks_cool <= 0:
-                self.fireworks = _Fireworks()
-                self._fireworks_cool = _FIREWORKS_COOLDOWN_S + random.uniform(-20, 40)
-
-        # ── Hot-air balloon ──
-        if self.balloon is not None:
-            self.balloon.update(dt)
-            if self.balloon.is_done():
-                self.balloon = None
-        elif self._in_window(phase, _BALLOON_PHASES):
-            self._balloon_cool -= dt
-            if self._balloon_cool <= 0:
-                self.balloon = _PaneledBalloon(random.Random())
-                self._balloon_cool = _BALLOON_COOLDOWN_S + random.uniform(-20, 40)
-
-        # ── Parrot family ──
-        if self.parrots is not None:
-            self.parrots.update(dt)
-            if self.parrots.is_done():
-                self.parrots = None
-        elif self._in_window(phase, _PARROTS_PHASES):
-            self._parrots_cool -= dt
-            if self._parrots_cool <= 0:
-                self.parrots = _ParrotFamily(random.Random())
-                self._parrots_cool = _PARROTS_COOLDOWN_S + random.uniform(-20, 40)
-
-        # ── Campfire ──
-        if self.campfire is not None:
-            self.campfire.update(dt, bg_scroll)
-            if self.campfire.is_done():
-                self.campfire = None
-        elif self._in_window(phase, _CAMPFIRE_PHASES):
-            self._campfire_cool -= dt
-            if self._campfire_cool <= 0:
-                self.campfire = _Campfire(random.Random())
-                self._campfire_cool = _CAMPFIRE_COOLDOWN_S + random.uniform(-25, 50)
-
         # Decrement the global gap each frame.
         if self._spawn_gap_remaining > 0:
             self._spawn_gap_remaining -= dt
@@ -2361,23 +2318,25 @@ class AmbientScenes:
         # ── Ground events (all world-anchored, same pattern as campfire) ──
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
             ("sheep", _SheepPack, _SHEEP_PHASES, "_sheep_cool",
-             _SHEEP_COOLDOWN_S, 25),
+             _SHEEP_COOLDOWN_S, 20),
             ("rabbits", _RabbitHop, _RABBITS_PHASES, "_rabbits_cool",
-             _RABBITS_COOLDOWN_S, 30),
+             _RABBITS_COOLDOWN_S, 20),
             ("fox", _SleepingFox, _FOX_PHASES, "_fox_cool",
-             _FOX_COOLDOWN_S, 30),
+             _FOX_COOLDOWN_S, 20),
             ("well", _WishingWell, _WELL_PHASES, "_well_cool",
-             _WELL_COOLDOWN_S, 30),
+             _WELL_COOLDOWN_S, 20),
             ("scarecrow", _Scarecrow, _SCARECROW_PHASES, "_scarecrow_cool",
-             _SCARECROW_COOLDOWN_S, 30),
+             _SCARECROW_COOLDOWN_S, 20),
             ("mushring", _MushroomRing, _MUSHRING_PHASES, "_mushring_cool",
-             _MUSHRING_COOLDOWN_S, 35),
+             _MUSHRING_COOLDOWN_S, 20),
             ("bench", _Bench, _BENCH_PHASES, "_bench_cool",
-             _BENCH_COOLDOWN_S, 30),
+             _BENCH_COOLDOWN_S, 20),
             ("napper", _Napper, _NAPPER_PHASES, "_napper_cool",
-             _NAPPER_COOLDOWN_S, 30),
+             _NAPPER_COOLDOWN_S, 20),
             ("dog", _RunningDog, _DOG_PHASES, "_dog_cool",
-             _DOG_COOLDOWN_S, 25),
+             _DOG_COOLDOWN_S, 20),
+            ("campfire", _Campfire, _CAMPFIRE_PHASES, "_campfire_cool",
+             _CAMPFIRE_COOLDOWN_S, 20),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -2401,25 +2360,35 @@ class AmbientScenes:
                 setattr(self, cool_attr, cool)
 
         # ── Air events (velocity-driven sky drift-bys) ──
+        # All entries share the same cooldown / initial-delay / spawn
+        # rate / concurrency cap. Only phase windows and class differ.
         for slot_name, cls, phases, cool_attr, cool_const, jitter in (
+            ("flock", _VFlock, _FLOCK_PHASES,
+             "_flock_cool", _FLOCK_COOLDOWN_S, 20),
+            ("fireworks", _Fireworks, _FIREWORKS_PHASES,
+             "_fireworks_cool", _FIREWORKS_COOLDOWN_S, 20),
+            ("balloon", _PaneledBalloon, _BALLOON_PHASES,
+             "_balloon_cool", _BALLOON_COOLDOWN_S, 20),
+            ("parrots", _ParrotFamily, _PARROTS_PHASES,
+             "_parrots_cool", _PARROTS_COOLDOWN_S, 20),
             ("banner_plane", _BannerPlane, _BANNER_PLANE_PHASES,
-             "_banner_plane_cool", _BANNER_PLANE_COOLDOWN_S, 35),
+             "_banner_plane_cool", _BANNER_PLANE_COOLDOWN_S, 20),
             ("balloon_cluster", _BalloonCluster, _BALLOON_CLUSTER_PHASES,
-             "_balloon_cluster_cool", _BALLOON_CLUSTER_COOLDOWN_S, 35),
+             "_balloon_cluster_cool", _BALLOON_CLUSTER_COOLDOWN_S, 20),
             ("zeppelin", _Zeppelin, _ZEPPELIN_PHASES,
-             "_zeppelin_cool", _ZEPPELIN_COOLDOWN_S, 40),
+             "_zeppelin_cool", _ZEPPELIN_COOLDOWN_S, 20),
             ("eagle", _GlidingEagle, _EAGLE_PHASES,
-             "_eagle_cool", _EAGLE_COOLDOWN_S, 35),
+             "_eagle_cool", _EAGLE_COOLDOWN_S, 20),
             ("bats", _BatSwarm, _BAT_PHASES,
-             "_bats_cool", _BAT_COOLDOWN_S, 35),
+             "_bats_cool", _BAT_COOLDOWN_S, 20),
             ("shooting_star", _ShootingStar, _SHOOTING_STAR_PHASES,
-             "_shooting_star_cool", _SHOOTING_STAR_COOLDOWN_S, 30),
+             "_shooting_star_cool", _SHOOTING_STAR_COOLDOWN_S, 20),
             ("rainbow", _RainbowArc, _RAINBOW_PHASES,
-             "_rainbow_cool", _RAINBOW_COOLDOWN_S, 50),
+             "_rainbow_cool", _RAINBOW_COOLDOWN_S, 20),
             ("lanterns", _LanternFestival, _LANTERN_PHASES,
-             "_lanterns_cool", _LANTERN_COOLDOWN_S, 35),
+             "_lanterns_cool", _LANTERN_COOLDOWN_S, 20),
             ("dog_dash", _DashingDog, _DOG_DASH_PHASES,
-             "_dog_dash_cool", _DOG_DASH_COOLDOWN_S, 30),
+             "_dog_dash_cool", _DOG_DASH_COOLDOWN_S, 20),
         ):
             inst = getattr(self, slot_name)
             if inst is not None:
@@ -2442,19 +2411,10 @@ class AmbientScenes:
         self.blossoms.update(dt, phase)
 
     def draw(self, surf: pygame.Surface) -> None:
-        if self.flock is not None:
-            self.flock.draw(surf)
-        if self.fireworks is not None:
-            self.fireworks.draw(surf)
-        if self.balloon is not None:
-            self.balloon.draw(surf)
-        if self.parrots is not None:
-            self.parrots.draw(surf)
-        if self.campfire is not None:
-            self.campfire.draw(surf)
         # Ground events — static / opaque first, then glow events on top so
-        # halos sit over (not under) the structures.
-        for slot_name in ("sheep", "rabbits", "fox", "well",
+        # halos sit over (not under) the structures. Campfire is in here
+        # too (world-anchored, ground-level).
+        for slot_name in ("sheep", "rabbits", "fox", "well", "campfire",
                           "scarecrow", "bench", "napper",
                           "dog", "mushring"):
             inst = getattr(self, slot_name)
@@ -2465,9 +2425,11 @@ class AmbientScenes:
         # dashing dog runs along the ground line so we draw it BEFORE
         # the sky events (it should never occlude an airborne event).
         for slot_name in ("dog_dash",
+                          "flock", "balloon", "parrots",
                           "zeppelin", "banner_plane", "balloon_cluster",
                           "eagle", "bats",
-                          "rainbow", "lanterns", "shooting_star"):
+                          "rainbow", "lanterns",
+                          "fireworks", "shooting_star"):
             inst = getattr(self, slot_name)
             if inst is not None:
                 inst.draw(surf)
