@@ -1604,23 +1604,29 @@ class HUD:
                 sx = (W - row_total) // 2
                 y = first_row_y + ri * (chip_h + 8)
                 for kind, count, chip_w, tf in row_chips:
-                    body = pygame.Surface((chip_w, chip_h),
-                                          pygame.SRCALPHA)
-                    for yy in range(chip_h):
-                        t = yy / max(1, chip_h - 1)
+                    # Render the chip body at 2× then smoothscale down so
+                    # the rounded corners + gold border are anti-aliased
+                    # instead of pixel-stepped.
+                    OS = 2
+                    ow, oh = chip_w * OS, chip_h * OS
+                    o_radius = chip_radius * OS
+                    body_big = pygame.Surface((ow, oh), pygame.SRCALPHA)
+                    for yy in range(oh):
+                        t = yy / max(1, oh - 1)
                         c = lerp_color(_PANEL_LIGHTER, _PANEL_DARK, t)
-                        pygame.draw.line(body, (*c, 245),
-                                         (0, yy), (chip_w, yy))
-                    mask = pygame.Surface((chip_w, chip_h),
-                                          pygame.SRCALPHA)
-                    pygame.draw.rect(mask, (255, 255, 255, 255),
-                                     (0, 0, chip_w, chip_h),
-                                     border_radius=chip_radius)
-                    body.blit(mask, (0, 0),
-                              special_flags=pygame.BLEND_RGBA_MIN)
-                    pygame.draw.rect(body, _GOLD_BRIGHT,
-                                     (0, 0, chip_w, chip_h),
-                                     width=1, border_radius=chip_radius)
+                        pygame.draw.line(body_big, (*c, 245),
+                                         (0, yy), (ow, yy))
+                    mask_big = pygame.Surface((ow, oh), pygame.SRCALPHA)
+                    pygame.draw.rect(mask_big, (255, 255, 255, 255),
+                                     (0, 0, ow, oh),
+                                     border_radius=o_radius)
+                    body_big.blit(mask_big, (0, 0),
+                                  special_flags=pygame.BLEND_RGBA_MIN)
+                    pygame.draw.rect(body_big, _GOLD_BRIGHT,
+                                     (0, 0, ow, oh),
+                                     width=2 * OS, border_radius=o_radius)
+                    body = pygame.transform.smoothscale(body_big,
+                                                       (chip_w, chip_h))
                     surf.blit(body, (sx, y - chip_h // 2))
                     _ingame_powerup_icon(
                         surf, kind,
