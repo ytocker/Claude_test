@@ -313,8 +313,9 @@ def make_fries_mountain_cache(variant_idx, ground_y, w):
     far, near) each (w + CACHE_PAD) wide so the layer can scroll for
     the full KFC buff window without exposing un-rendered edge.
 
-    Called once on `_activate_kfc` - the surfaces are then drawn
-    by `blit_fries_mountains` at near-zero per-frame cost.
+    Heavy — 7-37 ms per variant. Use ``get_cached_mountain`` for the
+    per-pickup hot path so the actual build runs at most once per
+    variant for the whole session.
     """
     layer_fn = LAYER_DRAWERS[variant_idx % len(LAYER_DRAWERS)]
     cache_w = w + CACHE_PAD
@@ -324,6 +325,35 @@ def make_fries_mountain_cache(variant_idx, ground_y, w):
         layer_fn(s, ground_y, cache_w, layer_idx)
         layers.append(s)
     return layers
+
+
+# Per-variant memo of built layers. Each entry is a list of 3 Surfaces
+# (back/far/near) or ``None`` if that variant has never been built yet.
+# Keyed by (variant_idx, ground_y, w) so the cache stays valid even if
+# screen geometry changes between sessions (it doesn't today, but the
+# explicit key makes the invariant obvious).
+_VARIANT_CACHE: dict = {}
+
+
+def get_cached_mountain(variant_idx, ground_y, w):
+    """Return the per-layer Surfaces for ``variant_idx``, building on
+    first request and reusing thereafter. Called from
+    ``World._activate_kfc`` so KFC pickup is O(1) (cache hit) instead
+    of triggering a 7-37 ms build mid-game."""
+    key = (variant_idx % len(LAYER_DRAWERS), ground_y, w)
+    cached = _VARIANT_CACHE.get(key)
+    if cached is None:
+        cached = make_fries_mountain_cache(variant_idx, ground_y, w)
+        _VARIANT_CACHE[key] = cached
+    return cached
+
+
+def prewarm_all(ground_y, w):
+    """Build every variant's per-layer cache. Call once during app
+    startup (under the HTML splash) so the first KFC pickup in-game
+    has zero build cost."""
+    for v in range(len(LAYER_DRAWERS)):
+        get_cached_mountain(v, ground_y, w)
 
 
 def blit_fries_mountains(surf, caches, scroll_offset):

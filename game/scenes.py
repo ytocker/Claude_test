@@ -128,6 +128,18 @@ class App:
         self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
 
+        # ── Pre-warm expensive power-up assets ──────────────────────────────
+        # Two power-ups had per-pickup build cost causing visible stutters
+        # mid-game: GROW's hi-res 4.5× supersampled bird frames (~50 ms
+        # one-time build), and KFC's fries-mountain layer cache (7-37 ms
+        # per variant, randomly picked on each KFC pickup). Both are now
+        # built here under the HTML splash so first-pickup-ever and every
+        # subsequent pickup are O(1) cache hits — no frame spike.
+        from game import parrot
+        parrot._get_grow_frames()
+        from game.fries_mountains import prewarm_all as _prewarm_fries
+        _prewarm_fries(GROUND_Y, W)
+
     # ── helpers ─────────────────────────────────────────────────────────────
 
     @property

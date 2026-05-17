@@ -750,14 +750,14 @@ class World:
         # cached Surface are read by PlayScene._draw_background for as
         # long as kfc_timer > 0.
         from game.fries_mountains import (
-            KFC_MOUNTAIN_DRAWERS, make_fries_mountain_cache,
+            KFC_MOUNTAIN_DRAWERS, get_cached_mountain,
         )
         self.kfc_mountain_variant = random.randint(
             0, len(KFC_MOUNTAIN_DRAWERS) - 1)
-        # The cache build runs ONCE per activation, not every frame.
-        # Three per-layer Surfaces (back / far / near) are then blitted
-        # with independent parallax offsets each frame.
-        self.kfc_mountain_layers = make_fries_mountain_cache(
+        # Module-level cache built once per variant — App.__init__ prewarms
+        # all variants under the splash, so this is a guaranteed cache hit
+        # at pickup time (no frame spike).
+        self.kfc_mountain_layers = get_cached_mountain(
             self.kfc_mountain_variant, GROUND_Y, W)
         # Snapshot scroll at pickup so PlayScene can derive the parallax
         # offset (bg_scroll - kfc_activation_scroll) for each layer.
