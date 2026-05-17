@@ -80,7 +80,7 @@ PIPE_HITBOX_SHRINK = 4
 # game stays at today's regular tuning forever — no late-game tightening to
 # GAP_MIN / SCROLL_MAX.
 PIPES_PER_PHASE    = 5
-RAMP_PHASES        = 5    # 5 × 5 = 25-pipe onboarding ramp
+RAMP_PHASES        = 6    # 6 × 5 = 30-pipe onboarding ramp
 GAP_NEWBIE_START   = 240
 SCROLL_NEWBIE_BASE = 130.0
 
