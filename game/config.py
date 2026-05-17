@@ -73,14 +73,12 @@ POWERUP_WEIGHTS    = (
 # letting the bird visibly clip through.
 PIPE_HITBOX_SHRINK = 4
 
-# ── Stepped warmup ramp ──────────────────────────────────────────────────────
-# Keyed on pillars_passed. Within each phase the gap and scroll are constant;
-# crossing into the next phase steps both values toward the regular endpoints
-# (GAP_START / SCROLL_BASE). After RAMP_PHASES the ramp is complete and the
-# game stays at today's regular tuning forever — no late-game tightening to
-# GAP_MIN / SCROLL_MAX.
-PIPES_PER_PHASE    = 5
-RAMP_PHASES        = 6    # 6 × 5 = 30-pipe onboarding ramp
+# ── Onboarding warmup ramp ──────────────────────────────────────────────────
+# Keyed on pillars_passed: every pipe scored nudges the gap and scroll one
+# notch closer to the regular endpoints (GAP_START / SCROLL_BASE). After
+# RAMP_PIPES the ramp is complete and the game stays at today's regular
+# tuning forever — no late-game tightening to GAP_MIN / SCROLL_MAX.
+RAMP_PIPES         = 30
 GAP_NEWBIE_START   = 240
 SCROLL_NEWBIE_BASE = 115.0
 

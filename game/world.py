@@ -11,7 +11,7 @@ import pygame
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPES_PER_PHASE, RAMP_PHASES,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, RAMP_PIPES,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_COOLDOWN,
@@ -148,13 +148,11 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Stepped onboarding ramp keyed on pillars passed. Each phase covers
-        # PIPES_PER_PHASE pipes of constant difficulty; the gap and scroll
-        # advance one notch toward the regular endpoints at every boundary.
-        # After RAMP_PHASES the ramp is complete and t pins to 1.0 so the
-        # game stays at GAP_START / SCROLL_BASE for the rest of the run.
-        phase = min(RAMP_PHASES, self.pillars_passed // PIPES_PER_PHASE)
-        return phase / RAMP_PHASES
+        # Continuous onboarding ramp: every pipe scored advances t by
+        # 1/RAMP_PIPES so the gap and scroll change smoothly along the way
+        # instead of in stepped jumps. After RAMP_PIPES, t pins to 1.0 and
+        # the game stays at GAP_START / SCROLL_BASE for the rest of the run.
+        return min(1.0, self.pillars_passed / RAMP_PIPES)
 
     # ── biome ────────────────────────────────────────────────────────────────
 
