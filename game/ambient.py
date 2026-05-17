@@ -825,6 +825,22 @@ class _Campfire:
 # generic spawn loop.
 
 
+def _airspace_y(rng: random.Random, y_min: float, y_max: float) -> float:
+    """Pick a y in [y_min, y_max] biased toward the top and bottom thirds
+    of the airspace.
+
+    Uniform sampling places the mean at mid-screen, which makes players
+    perceive event clustering there even though every individual y is
+    equally likely. Weighting (3, 1, 3) across the three vertical bands
+    gives ~43% top / 14% middle / 43% bottom — events still occasionally
+    appear in the middle (otherwise it'd feel like a forced no-fly zone)
+    but the perceptual centre of mass shifts to the extremes."""
+    band = rng.choices((0, 1, 2), weights=(3, 1, 3))[0]
+    span = y_max - y_min
+    third = span / 3.0
+    return rng.uniform(y_min + band * third, y_min + (band + 1) * third)
+
+
 class _AirEventBase:
     SPEED = 22.0
     DURATION_MAX = 30.0
@@ -1009,11 +1025,10 @@ class _BannerPlane(_AirEventBase):
         super().__init__(palette, rng)
         self._plane = _build_banner_plane_sprite()
         self._banner = _build_banner_text_sprite(_BANNER_PLANE_TEXT)
-        # Truly span the airspace edge-to-edge — from a sprite-half above
-        # the top edge (so the plane is still fully visible) down to
-        # just above the highest back-mountain crest at y≈444.
+        # Spread across the full airspace, biased away from the middle so
+        # events register at top + bottom as much as the visual centre.
         # Banner plane sprite is 44 tall, so y_top_min = 22+8.
-        self.y = self.rng.uniform(30, 430)
+        self.y = _airspace_y(self.rng, 30, 430)
         self._wobble_phase = self.rng.uniform(0, math.tau)
         pw, _ = self._plane.get_size()
         bw, _ = self._banner.get_size()
@@ -1108,7 +1123,7 @@ class _Zeppelin(_AirEventBase):
         super().__init__(palette, rng)
         self._sprite = _build_zeppelin_sprite()
         # Sprite 30 tall, so y_top_min = 15+8 = 23.
-        self.y = self.rng.uniform(25, 425)
+        self.y = _airspace_y(self.rng, 25, 425)
         self._sway_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1196,7 +1211,7 @@ class _GlidingEagle(_AirEventBase):
         super().__init__(palette, rng)
         self._sprites = (_build_eagle_sprite(False), _build_eagle_sprite(True))
         # Sprite 14 tall, so y_top_min = 7+8 = 15.
-        self.y = self.rng.uniform(18, 430)
+        self.y = _airspace_y(self.rng, 18, 430)
         self._flap_phase = self.rng.uniform(0, math.tau)
 
     def draw(self, surf):
@@ -1248,7 +1263,7 @@ class _BatSwarm(_AirEventBase):
         self._sprites = (_build_bat_sprite(False), _build_bat_sprite(True))
         n = self.rng.randint(5, 7)
         # Bats spread ±20 from centre vertically, so leave that margin too.
-        self.y = self.rng.uniform(35, 410)
+        self.y = _airspace_y(self.rng, 35, 410)
         # Each bat: (dx, dy, flap_phase, flutter_phase, flutter_amp_x, flutter_amp_y)
         self._bats = []
         for _ in range(n):
