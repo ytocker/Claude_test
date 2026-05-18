@@ -53,10 +53,12 @@ DEFAULT_RINGS = (
 
 V3_RINGS = (
     (1.00, 0.0,  170, 3, 1.00, (255, 220, 100)),
-    (0.84, 0.4,  150, 2, 0.92, (255, 205,  80)),
-    (0.68, 0.8,  130, 2, 0.85, (255, 195,  60)),
+    (0.88, 0.3,  155, 2, 0.94, (255, 210,  90)),
+    (0.76, 0.6,  140, 2, 0.88, (255, 200,  70)),
+    (0.64, 0.9,  125, 2, 0.82, (250, 190,  55)),
     (0.52, 1.2,  110, 2, 0.75, (240, 175,  45)),
-    (0.36, 1.6,   90, 2, 0.65, (220, 155,  30)),
+    (0.40, 1.5,   95, 2, 0.68, (225, 160,  35)),
+    (0.28, 1.8,   80, 2, 0.60, (210, 145,  25)),
 )
 
 
@@ -223,8 +225,8 @@ def main():
     _label(composite, 0, H, W, BAND_H,
            "REGULAR", f"r = {MAGNET_RADIUS:.0f}px (game/scenes.py)")
     _label(composite, W + 4, H, W, BAND_H,
-           "MEGA — V3 (2.0× + 5 rings)",
-           f"r = {MAGNET_RADIUS * 2.0:.0f}px, 5 nested rings")
+           "MEGA — V3 (2.0× + 7 rings)",
+           f"r = {MAGNET_RADIUS * 2.0:.0f}px, 7 nested rings")
     pygame.image.save(composite,
                       os.path.join(_OUT, "v3_in_game_compare.png"))
 
