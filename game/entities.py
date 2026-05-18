@@ -743,78 +743,141 @@ class Bird:
 
     # ── Secret-powerup wearable overlays ────────────────────────────────────
     def _draw_helmet(self, surf, cx, cy, flipped):
-        """Tiny skater helmet — half-dome on top of Pip's head with chinstrap.
-
-        Drawn programmatically (no asset). Renders smaller when shrink_active
-        to scale with Pip; mirrors vertically when reverse-gravity is on.
+        """Skull-skater helmet — matches the skull deck. Black dome with
+        a white bone-fin mohawk + skull decal + chinstrap. Anchor sits
+        on the head's x-centre (+15 from Pip centre, matching the
+        triple-mode top-hat in dollar_parrot_hat.py:34); vents + strap
+        are what read as "helmet, not hat" at game scale.
         """
         s = self.shrink_scale
-        head_top_offset = int(-16 * s)
-        helmet_w = int(28 * s)
-        helmet_h = int(14 * s)
-        hx = int(cx - helmet_w // 2)
-        hy = int(cy + (head_top_offset if not flipped else -head_top_offset - helmet_h))
-        # Dome (filled red), highlight band (lighter red), rim (dark).
-        helmet_rect = pygame.Rect(hx, hy, helmet_w, helmet_h * 2)
-        pygame.draw.ellipse(surf, (210, 50, 60), helmet_rect)
-        # Highlight strip on the front-top of the dome.
-        hi_w = max(2, int(helmet_w * 0.35))
-        hi_h = max(2, int(helmet_h * 0.5))
-        hi_rect = pygame.Rect(hx + int(helmet_w * 0.18), hy + 2, hi_w, hi_h)
-        pygame.draw.ellipse(surf, (255, 150, 160), hi_rect)
-        # Dark rim around the bottom edge.
-        rim_rect = pygame.Rect(hx, hy + helmet_h - 2, helmet_w, 4)
-        pygame.draw.ellipse(surf, (110, 20, 30), rim_rect)
-        # Chinstrap: a thin line that hangs down to Pip's chin.
-        strap_y0 = hy + helmet_h
-        strap_y1 = int(cy + 2 * s)
-        pygame.draw.line(surf, (90, 90, 90),
-                         (int(cx - helmet_w * 0.25), strap_y0),
-                         (int(cx - helmet_w * 0.15), strap_y1), max(1, int(2 * s)))
-        pygame.draw.line(surf, (90, 90, 90),
-                         (int(cx + helmet_w * 0.25), strap_y0),
-                         (int(cx + helmet_w * 0.15), strap_y1), max(1, int(2 * s)))
+        hw = int(24 * s)
+        hh = int(15 * s)
+        pad = 4
+        drop = int(12 * s)
+        helm = pygame.Surface(
+            (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
+        # Dome + glossy highlight.
+        pygame.draw.ellipse(helm, (18, 18, 22),
+                            pygame.Rect(pad, pad, hw, hh * 2))
+        pygame.draw.ellipse(helm, (55, 55, 65),
+                            pygame.Rect(pad + 3, pad + 1,
+                                        max(2, hw - 8), max(2, hh - 4)))
+        # Air vents — 3 short dark slits on the dome top.
+        vent_y = pad + hh // 2 - 2
+        for vx_frac in (0.30, 0.50, 0.70):
+            vx = pad + int(hw * vx_frac)
+            pygame.draw.line(helm, (5, 5, 8),
+                             (vx - 1, vent_y), (vx + 1, vent_y), 1)
+        # Dark rim band.
+        pygame.draw.ellipse(helm, (8, 8, 12),
+                            pygame.Rect(pad - 1, pad + hh - 1, hw + 2, 3))
+        # Bone-fin mohawk — white wedge along the dome centreline.
+        fin_top_y = pad - 3
+        fin_base_y = pad + 2
+        cx_s = pad + hw // 2
+        pygame.draw.polygon(helm, (240, 235, 220),
+                            [(cx_s - hw // 4, fin_base_y),
+                             (cx_s - hw // 5, fin_top_y),
+                             (cx_s + hw // 5, fin_top_y),
+                             (cx_s + hw // 4, fin_base_y)])
+        pygame.draw.polygon(helm, (140, 130, 110),
+                            [(cx_s - hw // 4, fin_base_y),
+                             (cx_s - hw // 5, fin_top_y),
+                             (cx_s + hw // 5, fin_top_y),
+                             (cx_s + hw // 4, fin_base_y)], 1)
+        # Skull decal on the front of the dome.
+        sk_w = max(4, int(7 * s))
+        sk_h = max(3, int(5 * s))
+        sk_rect = pygame.Rect(0, 0, sk_w, sk_h)
+        sk_rect.center = (cx_s, pad + hh - 4)
+        pygame.draw.ellipse(helm, (240, 235, 220), sk_rect)
+        pygame.draw.ellipse(helm, (15, 15, 18), sk_rect, 1)
+        eye_y = sk_rect.centery
+        pygame.draw.circle(helm, (15, 15, 18),
+                           (sk_rect.centerx - 1, eye_y), 1)
+        pygame.draw.circle(helm, (15, 15, 18),
+                           (sk_rect.centerx + 1, eye_y), 1)
+        # Chinstrap — 2 straps from rim shoulders down to a buckle dot.
+        left_shoulder  = (pad + 3,      pad + hh + 1)
+        right_shoulder = (pad + hw - 3, pad + hh + 1)
+        buckle = (pad + hw // 2, pad + hh + drop - 2)
+        pygame.draw.line(helm, (40, 40, 50), left_shoulder,  buckle, 2)
+        pygame.draw.line(helm, (40, 40, 50), right_shoulder, buckle, 2)
+        pygame.draw.circle(helm, (180, 180, 190), buckle, 2)
+
+        # Anchor on the parrot head x-centre (+15, -11). Rotates with
+        # tilt so the helmet banks with Pip and carries backflip spin.
+        # Reverse-gravity flips both the y-offset sign and the sprite.
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        y_off = 11 * s if flipped else -11 * s
+        offset = pygame.math.Vector2(15 * s, y_off)
+        offset = offset.rotate(-tilt)
+        rotated = pygame.transform.rotate(helm, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(cx + offset.x),
+                                     int(cy + offset.y)))
+        surf.blit(rotated, r.topleft)
 
     def _draw_skateboard(self, surf, cx, cy, flipped):
-        """Tiny skateboard under Pip's feet — replaces the parcel sprite.
-
-        Board + 2 spinning wheels (spin advances with frame_t for visual
-        motion). Mirrors vertically when reverse-gravity is on.
+        """Skull skateboard under Pip's feet — black deck with a chrome
+        outline, white skull centred, white crossbones diagonals. Cream
+        wheels with red bullseye. Matches the skull helmet (kit).
         """
         from game.config import PARCEL_Y_OFFSET
         s = self.shrink_scale
         board_w = int(34 * s)
-        board_h = max(2, int(5 * s))
-        # Position the board where the parcel used to be — below Pip's centre,
-        # banking with his tilt.
+        deck_h = max(4, int(7 * s))
         y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
         offset = pygame.math.Vector2(0, y_off + 4 * s)
         offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
         bx = cx + offset.x
         by = cy + offset.y
-        # Build the board on a small surface so we can rotate it with tilt.
-        pad = 8
+        pad = 10
         board_surf = pygame.Surface(
-            (board_w + pad * 2, board_h * 4 + pad * 2), pygame.SRCALPHA)
-        bsx, bsy = board_w // 2 + pad, board_h * 2 + pad
-        # Deck: dark wood plank.
-        deck_rect = pygame.Rect(pad, bsy - board_h // 2, board_w, board_h)
-        pygame.draw.rect(board_surf, (60, 35, 25), deck_rect, border_radius=2)
-        pygame.draw.rect(board_surf, (120, 80, 50), deck_rect.inflate(-4, -2),
+            (board_w + pad * 2, deck_h * 5 + pad * 2), pygame.SRCALPHA)
+        bsx, bsy = board_surf.get_width() // 2, board_surf.get_height() // 2 - 2
+        deck = pygame.Rect(0, 0, board_w, deck_h)
+        deck.center = (bsx, bsy)
+        # Chrome outline + black fill.
+        pygame.draw.rect(board_surf, (200, 200, 210), deck, border_radius=3)
+        pygame.draw.rect(board_surf, (10, 10, 18), deck.inflate(-2, -2),
                          border_radius=2)
-        # Wheels (2). Spin is purely cosmetic — draw a tiny spoke.
+        # Crossbones diagonals.
+        pygame.draw.line(board_surf, (235, 235, 225),
+                         (deck.left + 4, deck.top + 1),
+                         (deck.right - 4, deck.bottom - 1), 1)
+        pygame.draw.line(board_surf, (235, 235, 225),
+                         (deck.left + 4, deck.bottom - 1),
+                         (deck.right - 4, deck.top + 1), 1)
+        # Skull logo at deck centre.
+        sk_w = max(5, int(7 * s))
+        sk_h = max(3, int(5 * s))
+        sk_rect = pygame.Rect(0, 0, sk_w, sk_h)
+        sk_rect.center = (bsx, deck.centery - 1)
+        pygame.draw.ellipse(board_surf, (240, 240, 230), sk_rect)
+        pygame.draw.ellipse(board_surf, (10, 10, 18), sk_rect, 1)
+        eye_y = sk_rect.centery - 1
+        pygame.draw.circle(board_surf, (10, 10, 18),
+                           (sk_rect.centerx - 1, eye_y), 1)
+        pygame.draw.circle(board_surf, (10, 10, 18),
+                           (sk_rect.centerx + 1, eye_y), 1)
+        # Trucks + cream wheels with red bullseye.
+        truck_h = max(1, int(2 * s))
         wheel_r = max(2, int(3 * s))
         spin = self.frame_t * 4.0
         for sign in (-1, 1):
+            tx = bsx + sign * int(board_w * 0.32) - 3
+            pygame.draw.rect(board_surf, (60, 60, 70),
+                             (tx, deck.bottom, 6, truck_h))
             wx = bsx + sign * int(board_w * 0.32)
-            wy = bsy + board_h // 2 + wheel_r
-            pygame.draw.circle(board_surf, (40, 40, 45), (wx, wy), wheel_r + 1)
-            pygame.draw.circle(board_surf, (200, 200, 210), (wx, wy), wheel_r)
-            # Spoke
-            sx = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.7)
-            sy = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.7)
-            pygame.draw.line(board_surf, (90, 90, 100), (wx, wy), (sx, sy), 1)
-        # Rotate the whole board to match Pip's tilt, then blit centered.
+            wy = deck.bottom + truck_h + wheel_r
+            pygame.draw.circle(board_surf, (50, 50, 60), (wx, wy), wheel_r + 1)
+            pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy), wheel_r)
+            pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1)
+            sx = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
+            sy = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
+            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy), (sx, sy), 1)
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         rotated = pygame.transform.rotate(board_surf, tilt)
         if flipped:
