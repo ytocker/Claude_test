@@ -124,52 +124,82 @@ def _draw_vault_on_pipe(surf, pipe):
     pygame.draw.circle(surf, (90, 60, 20), (vx + 12, vy + 9), 2)
 
 
+_PINE_DK = ( 70,  45,  25)
+_PINE    = (135,  90,  50)
+_PINE_HI = (180, 130,  75)
+_IRON_DK = ( 50,  45,  45)
+_IRON    = (110, 100,  95)
+_IRON_HI = (190, 180, 175)
+
+
 def _draw_rails(surf, rail_pipes):
-    """Glowing golden rail along the top of each rail-marked pillar, with
-    a bridge segment connecting consecutive pipes so it reads as one
-    continuous grindrail. RAIL TRACK secret powerup."""
+    """Western Trestle rail across every rail-tagged pipe top: pine ties
+    + twin iron rails. One continuous polyline so bridges between pipes
+    keep their ties (sells the "this is a real railway" read)."""
     from game.config import PIPE_W
     if not rail_pipes:
         return
-    # Sort by x so the bridges connect adjacent pipes in scroll order.
     pipes_sorted = sorted(rail_pipes, key=lambda p: p.x)
-    for i, p in enumerate(pipes_sorted):
+    pts = []
+    for p in pipes_sorted:
         rail_y = int(p.gap_y + p.gap_h / 2)
-        # Rail segment on top of this pipe.
-        _draw_rail_segment(surf, int(p.x), int(p.x + PIPE_W), rail_y)
-        # Bridge to the next pipe if it's not too far.
-        if i + 1 < len(pipes_sorted):
-            nxt = pipes_sorted[i + 1]
-            nxt_rail_y = int(nxt.gap_y + nxt.gap_h / 2)
-            # Bridge spans the gap between this pipe's right edge and
-            # next pipe's left edge, sloping linearly if heights differ.
-            _draw_rail_bridge(surf, int(p.x + PIPE_W), rail_y,
-                              int(nxt.x), nxt_rail_y)
+        pts.append((int(p.x), rail_y))
+        pts.append((int(p.x + PIPE_W), rail_y))
+    _draw_trestle_rail(surf, pts)
 
 
-def _draw_rail_segment(surf, x0, x1, y):
-    """One straight rail piece anchored on a pipe top."""
-    # Dark shadow underneath
-    pygame.draw.line(surf, (90, 60, 20), (x0, y + 1), (x1, y + 1), 4)
-    # Gold rail
-    pygame.draw.line(surf, (220, 165, 50), (x0, y), (x1, y), 3)
-    # Bright highlight
-    pygame.draw.line(surf, (255, 230, 130), (x0, y - 1), (x1, y - 1), 1)
-    # Crossties (every 6 px)
-    for tx in range(x0, x1, 8):
-        pygame.draw.rect(surf, (60, 40, 20),
-                         pygame.Rect(tx, y + 1, 2, 5))
+def _draw_trestle_rail(surf, pts):
+    """Pine ties + twin iron rails along a polyline. Same composition the
+    cart-design renders use, scaled for the native 360×640 game canvas."""
+    if len(pts) < 2:
+        return
+    import math as _math
 
+    # 1) Pine ties perpendicular to the local rail direction.
+    segs, total = [], 0.0
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        d = _math.hypot(x1 - x0, y1 - y0)
+        segs.append((d, (x0, y0), (x1, y1)))
+        total += d
+    spacing = 8
+    length = 14
+    half = length / 2
+    n = max(1, int(total / spacing))
+    for k in range(n + 1):
+        target = (k / n) * total
+        acc = 0.0
+        for d, p0, p1 in segs:
+            if acc + d >= target:
+                f = (target - acc) / max(1.0, d)
+                cx = int(p0[0] + (p1[0] - p0[0]) * f)
+                cy = int(p0[1] + (p1[1] - p0[1]) * f)
+                dx = p1[0] - p0[0]
+                dy = p1[1] - p0[1]
+                seg_len = max(1.0, _math.hypot(dx, dy))
+                nx = -dy / seg_len
+                ny = dx / seg_len
+                a = (int(cx + nx * half), int(cy + ny * half))
+                b = (int(cx - nx * half), int(cy - ny * half))
+                pygame.draw.line(surf, _PINE_DK, a, b, 5)
+                pygame.draw.line(surf, _PINE, a, b, 3)
+                hi_a = (int(cx + nx * half * 0.55),
+                        int(cy + ny * half * 0.55))
+                hi_b = (int(cx - nx * half * 0.55),
+                        int(cy - ny * half * 0.55))
+                pygame.draw.line(surf, _PINE_HI, hi_a, hi_b, 1)
+                break
+            acc += d
 
-def _draw_rail_bridge(surf, x0, y0, x1, y1):
-    """Connect two rail segments with a sloped suspension piece."""
-    # Underglow first
-    pygame.draw.line(surf, (140, 100, 30), (x0, y0 + 1), (x1, y1 + 1), 4)
-    pygame.draw.line(surf, (220, 165, 50), (x0, y0), (x1, y1), 3)
-    pygame.draw.line(surf, (255, 230, 130), (x0, y0 - 1), (x1, y1 - 1), 1)
-    # Sparks where the rail kinks
-    pygame.draw.circle(surf, (255, 240, 180), (x0, y0), 2)
-    pygame.draw.circle(surf, (255, 240, 180), (x1, y1), 2)
+    # 2) Twin iron rails — narrow 6-game-px gauge above the ties.
+    for dy_off, col, w in (
+        ( 3, _IRON_DK, 3), (-3, _IRON_DK, 3),
+        ( 3, _IRON,    2), (-3, _IRON,    2),
+        ( 2, _IRON_HI, 1), (-4, _IRON_HI, 1),
+    ):
+        shifted = [(x, y + dy_off) for x, y in pts]
+        pygame.draw.lines(surf, col, False, shifted, w)
 
 
 def _draw_lottery_reveal(surf, anim):

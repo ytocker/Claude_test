@@ -584,6 +584,16 @@ class World:
             # Rail: drop pipes that have scrolled off-screen from the rail list.
             if self.rail_pipes:
                 self.rail_pipes = [p for p in self.rail_pipes if not p.off_screen()]
+            # End the cart ride once every tagged pillar has scrolled off
+            # AND no more are pending to spawn. Pip drops back into free
+            # flight with vy=0 so he doesn't pancake the moment the cart
+            # disappears.
+            if (self.bird.cart_active
+                    and not self.rail_pipes
+                    and self.rail_pending == 0):
+                self.bird.cart_active = False
+                self.bird.cart_locked = False
+                self.bird.vy = 0.0
             # Vacuum: lerp coins toward the bird; pickup when they arrive.
             if self.vacuum_anim:
                 still_animating = []
@@ -703,6 +713,8 @@ class World:
                 return
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
+        if self.bird.cart_locked:
+            return  # rail has taken over — cart can't collide with pipes
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
@@ -800,20 +812,57 @@ class World:
                     gravity=200,
                 ))
 
+    # Pip's centre-y when the cart is locked on the rail — chosen so the
+    # wagon body sits with its wheels exactly on the rail line.
+    _CART_LOCKED_OFFSET = 32
+
     def _apply_rail_lock(self, bx, by, br):
-        """While Pip's feet brush a rail segment, snap his y to the rail.
-        A flap (sets bird.flap_boost > 0) breaks the lock for that tap."""
-        if self.bird.flap_boost > 0.2:
-            return  # just flapped — release the rail for one beat
+        """Cart-rail mechanic. While cart_active, check for wheel-rail
+        contact; once locked, snap Pip's y to the rail (with bridge
+        interpolation between consecutive rail pipes)."""
+        if not self.bird.cart_active:
+            return
+
+        if self.bird.cart_locked:
+            self._snap_cart_to_rail(bx)
+            return
+
+        # Pre-lock: cart is mid-air, gravity pulling it down. Check if the
+        # bottom of the wagon wheels touched any tagged rail segment.
+        wheel_bot_y = by + 22 + 5   # body offset + wheel radius
         for p in self.rail_pipes:
             if p.x - 6 <= bx <= p.x + PIPE_W + 6:
-                rail_y = p.gap_y + p.gap_h / 2  # top of lower pillar
-                # Snap when feet are near or below the rail height.
-                feet_y = by + br
-                if rail_y - 14 <= feet_y <= rail_y + 14:
-                    self.bird.y = rail_y - br
-                    self.bird.vy = 0.0
-                    self._maybe_skateboard_dust(bx, rail_y)
+                rail_y = p.gap_y + p.gap_h / 2
+                if rail_y - 4 <= wheel_bot_y <= rail_y + 18:
+                    self.bird.cart_locked = True
+                    self._snap_cart_to_rail(bx)
+                    self.shake_mag = max(self.shake_mag, 2.5)
+                    self.shake_t = max(self.shake_t, 0.15)
+                    return
+
+    def _snap_cart_to_rail(self, bx):
+        """Snap bird.y so the wagon wheels ride the current rail segment,
+        interpolating across the bridge between two consecutive rail
+        pipes."""
+        sorted_pipes = sorted(self.rail_pipes, key=lambda p: p.x)
+        offset = self._CART_LOCKED_OFFSET
+
+        for p in sorted_pipes:
+            if p.x - 6 <= bx <= p.x + PIPE_W + 6:
+                rail_y = p.gap_y + p.gap_h / 2
+                self.bird.y = rail_y - offset
+                self.bird.vy = 0.0
+                return
+
+        for i in range(len(sorted_pipes) - 1):
+            p1, p2 = sorted_pipes[i], sorted_pipes[i + 1]
+            if p1.x + PIPE_W <= bx <= p2.x:
+                span = max(1, p2.x - (p1.x + PIPE_W))
+                t = (bx - (p1.x + PIPE_W)) / span
+                y1 = p1.gap_y + p1.gap_h / 2
+                y2 = p2.gap_y + p2.gap_h / 2
+                self.bird.y = (y1 + (y2 - y1) * t) - offset
+                self.bird.vy = 0.0
                 return
 
     def _die(self):
@@ -1281,8 +1330,8 @@ class World:
 
     def _activate_rail(self, m):
         # Tag the next N unpassed pipes with rail flags. Render layer
-        # paints a glowing rail along their lower-pillar tops. When all
-        # tagged pipes have scrolled off, self.rail_pipes empties out.
+        # paints the Western Trestle rail along their lower-pillar tops.
+        # When all tagged pipes have scrolled off, self.rail_pipes empties.
         chosen = []
         for p in self.pipes:
             if not p.scored and p.x + PIPE_W > self.bird.x and not getattr(p, "rail_active", False):
@@ -1294,6 +1343,11 @@ class World:
         # are picked up at the next pipe spawn via the same flag check.
         self.rail_pipes = chosen
         self.rail_pending = max(0, RAIL_PILLAR_COUNT - len(chosen))
+        # Cart wraps Pip instantly. Gravity still applies until wheels
+        # touch any rail segment; cart_locked then flips on, taps are
+        # ignored, and the rail auto-drives Pip through all tagged pipes.
+        self.bird.cart_active = True
+        self.bird.cart_locked = False
         self.shake_mag = max(self.shake_mag, 3.0)
         self.shake_t = max(self.shake_t, 0.25)
         audio.play_rail()

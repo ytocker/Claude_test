@@ -84,7 +84,7 @@ SKATEBOARD_DURATION   = 8.0
 BLUEPRINT_DURATION    = 8.0
 BLUEPRINT_PREVIEW_N   = 3       # number of upcoming pillars to telegraph
 NIGHTGLOW_DURATION    = 12.0
-RAIL_PILLAR_COUNT     = 3       # number of pillars the rail spans
+RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 VAULT_COIN_REWARD     = 15
 VACUUM_TRAVEL_TIME    = 0.4
 
