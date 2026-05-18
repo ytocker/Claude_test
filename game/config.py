@@ -83,6 +83,14 @@ PIPE_HITBOX_SHRINK = 4
 # at today's regular tuning forever — no late-game tightening to GAP_MIN /
 # SCROLL_MAX.
 RAMP_PIPES           = 25
+# Pillars at the very start of a run that hold the full newbie tuning
+# (gap / scroll / spacing / powerup chance) flat before the ease-out ramp
+# in World._ramp_t kicks in. Gives complete first-timers a short
+# predictable runway to internalize flap timing without anything
+# tightening underneath them. Five pillars is ~15 s at PIPE_SPACING_NEWBIE
+# / SCROLL_NEWBIE_BASE — short enough that experienced players don't
+# perceive a "tutorial mode."
+PLATEAU_PIPES        = 5
 GAP_NEWBIE_START     = 225
 SCROLL_NEWBIE_BASE   = 125.0
 PIPE_SPACING_NEWBIE  = 370

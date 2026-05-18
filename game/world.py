@@ -12,6 +12,7 @@ from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
     GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
+    PLATEAU_PIPES,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
@@ -148,11 +149,22 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Continuous onboarding ramp: every pipe scored advances t by
-        # 1/RAMP_PIPES so the gap and scroll change smoothly along the way
-        # instead of in stepped jumps. After RAMP_PIPES, t pins to 1.0 and
-        # the game stays at GAP_START / SCROLL_BASE for the rest of the run.
-        return min(1.0, self.pillars_passed / RAMP_PIPES)
+        # Plateau-then-ease-out onboarding curve. The first PLATEAU_PIPES
+        # pillars hold the full newbie tuning so a brand-new player has a
+        # short runway to internalize flap timing without anything
+        # tightening underneath them. From there the ramp eases out
+        # (1-(1-x)^2) so the bulk of the tightening lands in the middle
+        # pillars and the last few settle gently into GAP_START /
+        # SCROLL_BASE — no last-mile cliff right where a struggling player
+        # is most fragile. Linear interpolation tested badly because its
+        # biggest absolute deltas landed at the end of the ramp, exactly
+        # the wrong place for newbies.
+        pp = self.pillars_passed
+        if pp < PLATEAU_PIPES:
+            return 0.0
+        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
+        x = min(1.0, x)
+        return 1.0 - (1.0 - x) ** 2
 
     # ── biome ────────────────────────────────────────────────────────────────
 

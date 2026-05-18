@@ -87,12 +87,19 @@ often.
 
 ## Difficulty model
 
-The onboarding ramp is keyed on pillars passed and is a single linear
-interpolation:
+The onboarding ramp is keyed on pillars passed. The first
+`PLATEAU_PIPES` pillars hold the full newbie tuning flat, then the
+remaining pillars ease out (`1 - (1 - x)^2`) toward the regular
+endpoints — bulk of the tightening lands in the middle pillars and
+the last few settle gently rather than slamming into a last-mile
+cliff. Linear interpolation was tried first and felt wrong precisely
+because its largest deltas landed at the end of the ramp, exactly
+where a struggling player is most fragile.
 
 | Constant              | Newbie | Regular |
 |-----------------------|-------:|--------:|
 | `RAMP_PIPES`          |        |      25 |
+| `PLATEAU_PIPES`       |      5 |         |
 | `GAP_NEWBIE_START`    |    225 | 170 (`GAP_START`)         |
 | `SCROLL_NEWBIE_BASE`  |    125 | 160 (`SCROLL_BASE`)       |
 | `PIPE_SPACING_NEWBIE` |    370 | 280 (`PIPE_SPACING`)      |
