@@ -460,11 +460,19 @@ class Bird:
         self.kfc_active = False
         self.ghost_active = False
         self.grow_active = False
+        # Visual scale eases toward GROW_SCALE while grow_active and back
+        # to 1.0 when it clears, mirroring shrink_scale on the opposite
+        # side of 1.0. Collisions snap; only the visible sprite eases.
+        self.grow_scale = 1.0
         self.triple_active = False
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
         # Secret late-game powerup flags (timer state lives on World).
         self.skateboard_active = False
         self.shrink_active = False
+        # Visual scale eases toward SHRINK_SCALE while shrink_active and
+        # back to 1.0 when it clears, so the size change reads as a
+        # transformation across SHRINK_TRANSITION rather than a one-frame snap.
+        self.shrink_scale = 1.0
         self.nightglow_active = False
 
     @property
@@ -497,12 +505,38 @@ class Bird:
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
+        from game.config import (
+            SHRINK_SCALE, SHRINK_TRANSITION,
+            GROW_SCALE, GROW_TRANSITION,
+        )
+        target_s = SHRINK_SCALE if self.shrink_active else 1.0
+        step_s = (1.0 - SHRINK_SCALE) * (dt / SHRINK_TRANSITION)
+        if self.shrink_scale < target_s:
+            self.shrink_scale = min(target_s, self.shrink_scale + step_s)
+        elif self.shrink_scale > target_s:
+            self.shrink_scale = max(target_s, self.shrink_scale - step_s)
+        target_g = GROW_SCALE if self.grow_active else 1.0
+        step_g = (GROW_SCALE - 1.0) * (dt / GROW_TRANSITION)
+        if self.grow_scale < target_g:
+            self.grow_scale = min(target_g, self.grow_scale + step_g)
+        elif self.grow_scale > target_g:
+            self.grow_scale = max(target_g, self.grow_scale - step_g)
+
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
+        from game.config import GROW_SCALE
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
         # When flipped (reverse-gravity buff), negate the tilt so a rising
         # bird's head still leads in the direction of motion after the
         # vertical mirror is applied below.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        has_combo = (self.kfc_active or self.ghost_active or self.triple_active)
+        # Hi-res grow sprite is only valid when at the GROW_SCALE peak AND
+        # no combo overlay is active. Mid-transition or combo'd, we fall
+        # through to the normal base sprite and smoothscale it by the eased
+        # grow_scale so the size change reads as a transformation rather
+        # than a teleport.
+        use_grow_hires = (not has_combo
+                          and self.grow_scale >= GROW_SCALE - 1e-3)
         # Combo-aware sprite cascade. The four reachable stacks each have
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
@@ -521,31 +555,28 @@ class Bird:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
         elif self.triple_active:
             img = parrot.get_hat_parrot(frame_idx, tilt)
-        elif self.grow_active:
-            # Hi-res grow-mode bird: pre-built at full grow display size by
-            # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
-            # downscale). Skips the smoothscale-up that produced the prior
-            # blur. Combo modes (kfc / ghost / triple + grow) still use
-            # the legacy upscale below — they pre-empt this branch.
+        elif use_grow_hires:
+            # Hi-res grow-mode bird: pre-built at full grow display size
+            # by `parrot._build_grow_frame` (round-9 v3 = 3× supersample
+            # → 1.5× downscale). Used only at the GROW_SCALE peak so the
+            # smoothscale-up blur is avoided once the transition completes.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
-        if self.grow_active and (self.kfc_active or self.ghost_active
-                                  or self.triple_active):
-            # Combo + grow: smoothscale-up the variant sprite. No hi-res
-            # combo frames yet; this preserves correctness at the cost of
-            # the same upscale blur the base bird used to have.
-            from game.config import GROW_SCALE
+        if self.grow_scale > 1.0 and not use_grow_hires:
+            # Mid-transition (any sprite) or peak + combo (no hi-res combo
+            # frames yet): smoothscale by the eased grow_scale.
             w, h = img.get_size()
-            img = pygame.transform.smoothscale(
-                img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
-        if self.shrink_active:
-            # SHRINK: counterpart to GROW. Smoothscale down by SHRINK_SCALE.
-            # Wins over GROW if both ever happen (shouldn't, but be safe).
-            from game.config import SHRINK_SCALE
+            s = self.grow_scale
+            img = pygame.transform.smoothscale(img, (int(w * s), int(h * s)))
+        if self.shrink_scale < 1.0:
+            # SHRINK: counterpart to GROW. Smoothscale down by the eased
+            # shrink_scale (animates between 1.0 and SHRINK_SCALE over
+            # SHRINK_TRANSITION). Wins over GROW if both ever happen.
             w, h = img.get_size()
+            s = self.shrink_scale
             img = pygame.transform.smoothscale(
-                img, (max(1, int(w * SHRINK_SCALE)), max(1, int(h * SHRINK_SCALE))))
+                img, (max(1, int(w * s)), max(1, int(h * s))))
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -585,10 +616,10 @@ class Bird:
         else:
             mode = "normal"
         parcel = parrot.get_parcel(mode)
-        from game.config import GROW_SCALE, SHRINK_SCALE, PARCEL_Y_OFFSET
-        scale = GROW_SCALE if self.grow_active else 1.0
-        if self.shrink_active:
-            scale = SHRINK_SCALE
+        from game.config import PARCEL_Y_OFFSET
+        scale = self.grow_scale
+        if self.shrink_scale < 1.0:
+            scale = self.shrink_scale
         if scale != 1.0:
             pw, ph = parcel.get_size()
             parcel = pygame.transform.smoothscale(
@@ -620,8 +651,7 @@ class Bird:
         Drawn programmatically (no asset). Renders smaller when shrink_active
         to scale with Pip; mirrors vertically when reverse-gravity is on.
         """
-        from game.config import SHRINK_SCALE
-        s = SHRINK_SCALE if self.shrink_active else 1.0
+        s = self.shrink_scale
         head_top_offset = int(-16 * s)
         helmet_w = int(28 * s)
         helmet_h = int(14 * s)
@@ -654,8 +684,8 @@ class Bird:
         Board + 2 spinning wheels (spin advances with frame_t for visual
         motion). Mirrors vertically when reverse-gravity is on.
         """
-        from game.config import SHRINK_SCALE, PARCEL_Y_OFFSET
-        s = SHRINK_SCALE if self.shrink_active else 1.0
+        from game.config import PARCEL_Y_OFFSET
+        s = self.shrink_scale
         board_w = int(34 * s)
         board_h = max(2, int(5 * s))
         # Position the board where the parcel used to be — below Pip's centre,
@@ -1622,14 +1652,14 @@ class PowerUp:
     # ── SECRET LATE-GAME POWER-UP ICONS ─────────────────────────────────────
 
     def _draw_shrink_mushroom(self, surf):
-        """Sibling-to-GROW mushroom: short squat wide cap, deep blue velvet,
-        cream spots in the same canonical layout, cyan pulsing halo. Reads
-        as the same fungal family as GROW but unmistakably different."""
+        """Sibling-to-GROW mushroom in red velvet: wide flat parasol disc on
+        a flared flat-bottomed stem, cream-butter spots, magenta pulsing
+        halo. Reads as the same fungal family as GROW; the silhouette is
+        the only thing that distinguishes the two pickups at glance."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.1) * 2)
-        # Cyan halo first (mirrors GROW's pulsing magenta halo style).
         _draw_grow_halo(surf, cx, cy, self.pulse,
-                        color_rgb=(80, 220, 230), radius=36, peak_y_off=0)
+                        color_rgb=_GROW_HALO_RGB, radius=40, peak_y_off=0)
         sprite = _get_shrink_body_sprite()
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
@@ -1806,30 +1836,31 @@ class PowerUp:
         surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
 
 
-# ── SHRINK power-up sprite (squat blue velvet toadstool — sibling to GROW) ───
-# Same canonical 4-spot ornament layout + velvet-sheen pattern as GROW so they
-# read as one fungal family, but flipped along three axes:
-#   - Shape: short squat wide cap (vs GROW's tall narrow Liberty-Cap cone)
-#   - Palette: cool deep-blue/teal velvet (vs GROW's warm red velvet)
-#   - Halo (drawn separately in _draw_shrink_mushroom): cyan vs magenta
-# Built at supersample then smoothscaled and cached, same as GROW.
+# ── SHRINK power-up sprite (red velvet pancake parasol — sibling to GROW) ───
+# Same red velvet palette + cream-butter spots + magenta halo as GROW so
+# the two pickups read as one fungal family. The silhouette is the only
+# differentiator at glance:
+#   - Cap: wide flat parasol disc (vs GROW's tall narrow Liberty-Cap cone)
+#   - Stem: flared flat-bottomed pedestal (vs GROW's bulbed pointed stem)
+# Built at supersample then smoothscaled and cached, same pipeline as GROW.
 _SHRINK_SS = 5
-_SHRINK_CAP_W, _SHRINK_CAP_H = 26, 14            # wider + shorter than GROW
-_SHRINK_STEM_W, _SHRINK_STEM_H = 14, 14
-_SHRINK_VELVET_OUTLINE = ( 15,  35,  70)
-_SHRINK_VELVET_BODY    = ( 40, 120, 200)
-_SHRINK_VELVET_HI      = (110, 200, 240)
-_SHRINK_VELVET_SHEEN   = (180, 230, 250, 130)
-_SHRINK_SPOT_HALO      = (180, 220, 230)
-_SHRINK_STEM_OUTLINE   = (140, 130, 110)
-_SHRINK_STEM_BODY      = (245, 240, 220)
-_SHRINK_STEM_HI        = (255, 252, 235)
+_SHRINK_CAP_W,  _SHRINK_CAP_H  = 30, 8
+_SHRINK_STEM_W, _SHRINK_STEM_H = 14, 22
+_SHRINK_VELVET_OUTLINE = ( 60,  15,  25)
+_SHRINK_VELVET_BODY    = MUSH_CAP
+_SHRINK_VELVET_HI      = MUSH_CAP2
+_SHRINK_SPOT_HALO      = (195, 165, 110)
+_SHRINK_STEM_OUTLINE   = (150, 120,  90)
+_SHRINK_STEM_HI        = (255, 250, 230)
 
+# 4 cream-butter spots in a GROW-style asymmetric scatter across the
+# flat disc — they don't form a uniform grid, mirroring the way GROW's
+# 4 canonical spots are off-axis on the cone.
 _SHRINK_ORNAMENT_SLOTS = (
-    (0.50, 0.30),
-    (0.32, 0.50),
-    (0.70, 0.50),
-    (0.50, 0.72),
+    (0.18, 0.48),
+    (0.40, 0.30),
+    (0.62, 0.55),
+    (0.82, 0.36),
 )
 
 _shrink_body_sprite: "pygame.Surface | None" = None
@@ -1841,56 +1872,66 @@ def _get_shrink_body_sprite() -> "pygame.Surface":
     SS = _SHRINK_SS
     CAP_W, CAP_H = _SHRINK_CAP_W, _SHRINK_CAP_H
     STEM_W, STEM_H = _SHRINK_STEM_W, _SHRINK_STEM_H
-    sprite_w = max(CAP_W, STEM_W) + 4
+    sprite_w = max(CAP_W, STEM_W) + 2
     sprite_h = CAP_H + STEM_H + 4
     big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
-    # Cap centered horizontally at sprite_w/2.
-    cap_cx = (sprite_w * SS) // 2
-    cap_cy = (CAP_H // 2 + 1) * SS
-    # Stem below the cap.
-    stem_cx = cap_cx
-    stem_top_y = (CAP_H + 1) * SS
-    # ── Stem (chubby bulbed ivory, narrower than GROW) ────────────────────
-    stem_rect = pygame.Rect(stem_cx - (STEM_W // 2) * SS, stem_top_y,
-                            STEM_W * SS, STEM_H * SS)
-    pygame.draw.ellipse(big, _SHRINK_STEM_BODY, stem_rect)
-    pygame.draw.ellipse(big, _SHRINK_STEM_OUTLINE, stem_rect, SS)
-    # Stem highlight (vertical streak)
-    hi_x = stem_cx - 3 * SS
+    cap_ox  = ((sprite_w - CAP_W)  // 2) * SS
+    cap_oy  = 0
+    stem_ox = ((sprite_w - STEM_W) // 2) * SS
+    stem_oy = (CAP_H + 2) * SS
+
+    # ── Stem: flared flat-bottomed pedestal ───────────────────────────────
+    # Widest at the base (y=1.0) with a shoulder at y=0.88 so the mushroom
+    # sits squarely instead of balancing on a tapered tip.
+    stem_pts = [
+        (int(0.42 * STEM_W * SS), int(0.00 * STEM_H * SS)),
+        (int(0.58 * STEM_W * SS), int(0.00 * STEM_H * SS)),
+        (int(0.66 * STEM_W * SS), int(0.40 * STEM_H * SS)),
+        (int(0.78 * STEM_W * SS), int(0.66 * STEM_H * SS)),
+        (int(0.96 * STEM_W * SS), int(0.88 * STEM_H * SS)),
+        (int(0.96 * STEM_W * SS), int(1.00 * STEM_H * SS)),
+        (int(0.04 * STEM_W * SS), int(1.00 * STEM_H * SS)),
+        (int(0.04 * STEM_W * SS), int(0.88 * STEM_H * SS)),
+        (int(0.22 * STEM_W * SS), int(0.66 * STEM_H * SS)),
+        (int(0.34 * STEM_W * SS), int(0.40 * STEM_H * SS)),
+    ]
+    stem_pts = [(p[0] + stem_ox, p[1] + stem_oy) for p in stem_pts]
+    pygame.draw.polygon(big, MUSH_STEM,            stem_pts)
+    pygame.draw.polygon(big, _SHRINK_STEM_OUTLINE, stem_pts, width=SS)
+    hi_x = stem_ox + int(0.40 * STEM_W * SS)
     pygame.draw.line(big, _SHRINK_STEM_HI,
-                     (hi_x, stem_top_y + 3 * SS),
-                     (hi_x, stem_top_y + (STEM_H - 4) * SS), SS)
-    # ── Cap: squat wide ellipse (short height, wide footprint) ───────────
-    cap_rect = pygame.Rect(cap_cx - (CAP_W // 2) * SS,
-                           cap_cy - (CAP_H // 2 + 1) * SS,
-                           CAP_W * SS, (CAP_H + 1) * SS)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE, cap_rect)
-    inner = cap_rect.inflate(-3 * SS, -3 * SS)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_BODY, inner)
-    # Highlight crescent (top-left of cap)
-    hi_rect = pygame.Rect(cap_cx - (CAP_W // 2 - 2) * SS,
-                          cap_cy - (CAP_H // 2 - 1) * SS,
-                          (CAP_W // 3) * SS, (CAP_H // 3) * SS)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_HI, hi_rect)
-    # Velvet sheen alpha blob
-    sheen = pygame.Surface(big.get_size(), pygame.SRCALPHA)
-    pygame.draw.ellipse(sheen, _SHRINK_VELVET_SHEEN,
-                        pygame.Rect(cap_cx - (CAP_W // 4) * SS,
-                                    cap_cy - (CAP_H // 3) * SS,
-                                    (CAP_W // 2) * SS,
-                                    (CAP_H // 2) * SS))
-    cone_mask = pygame.Surface(big.get_size(), pygame.SRCALPHA)
-    pygame.draw.ellipse(cone_mask, (255, 255, 255, 255), inner)
-    sheen.blit(cone_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    big.blit(sheen, (0, 0))
-    # Cream-butter spots (same canonical layout as GROW)
+                     (hi_x, stem_oy + int(0.10 * STEM_H * SS)),
+                     (hi_x, stem_oy + int(0.78 * STEM_H * SS)), SS)
+
+    # ── Cap: wide flat disc with a hint of pancake thickness ─────────────
+    outer = pygame.Rect(cap_ox, cap_oy, CAP_W * SS, CAP_H * SS)
+    inner = outer.inflate(-SS * 2, -SS * 2)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE, outer)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_BODY,    inner)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_HI,
+                        pygame.Rect(cap_ox + int(CAP_W * SS * 0.20),
+                                    cap_oy + int(CAP_H * SS * 0.10),
+                                    int(CAP_W * SS * 0.50),
+                                    int(CAP_H * SS * 0.32)))
+    # Lower under-disc shadow hints at pancake thickness so the cap
+    # doesn't read as a single 2D ellipse.
+    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE,
+                        pygame.Rect(cap_ox + SS,
+                                    cap_oy + int(CAP_H * SS * 0.65),
+                                    (CAP_W - 2) * SS,
+                                    int(CAP_H * SS * 0.55)))
+
+    # ── Cream-butter spots (same render style as GROW: halo + body + glint).
     for fx_frac, fy_frac in _SHRINK_ORNAMENT_SLOTS:
-        fx = cap_cx - (CAP_W // 2) * SS + int(CAP_W * fx_frac * SS)
-        fy = cap_cy - (CAP_H // 2) * SS + int(CAP_H * fy_frac * SS)
-        pygame.draw.circle(big, _SHRINK_SPOT_HALO, (fx, fy), int(2.2 * SS))
-        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(1.8 * SS))
-        pygame.draw.circle(big, (255, 255, 250),
+        fx = cap_ox + int(CAP_W * fx_frac * SS)
+        fy = cap_oy + int(CAP_H * fy_frac * SS)
+        r_body = 1.7
+        pygame.draw.circle(big, _SHRINK_SPOT_HALO, (fx, fy),
+                           int((r_body + 0.4) * SS))
+        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(r_body * SS))
+        pygame.draw.circle(big, (255, 250, 220),
                            (fx - SS // 2, fy - SS // 2), max(1, SS // 2))
+
     _shrink_body_sprite = pygame.transform.smoothscale(big, (sprite_w, sprite_h))
     return _shrink_body_sprite
 
