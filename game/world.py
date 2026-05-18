@@ -25,7 +25,8 @@ from game.config import (
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BLUEPRINT_DURATION, NIGHTGLOW_DURATION,
-    RAIL_PILLAR_COUNT, VAULT_COIN_REWARD, VACUUM_TRAVEL_TIME,
+    RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
+    VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT,
 )
@@ -108,9 +109,11 @@ class World:
         # to claim if not enough existed at activation time.
         self.rail_pipes: list = []
         self.rail_pending = 0
-        # Vault (BANK HEIST): attached to the next-to-spawn pipe.
-        self.vault_pending = False
-        self.vault_pipe = None
+        # Treasure box (formerly BANK HEIST): a duration-based buff. While
+        # treasure_box_timer > 0 the chest hangs under Pip's belly and
+        # each flap drops TREASURE_BOX_COINS_PER_FLAP coins straight into
+        # his score (scaled by triple if also active).
+        self.treasure_box_timer = 0.0
         # Vacuum (MEGA MAGNET) animation queue: list of dicts with coin ref +
         # start position + age. Driven by update() for VACUUM_TRAVEL_TIME.
         self.vacuum_anim: list[dict] = []
@@ -265,18 +268,12 @@ class World:
         # powerup timer. The visual reverts at timer=0 via the
         # kfc_visual gate in Pipe.draw.
         p.is_kfc = kfc_spawn
-        # Secret-powerup pipe flags initialized off; attached below if
-        # an active heist/rail powerup wants this pipe.
-        p.has_vault = False
-        p.vault_popped = False
+        # Secret-powerup pipe flag initialized off; the rail powerup
+        # tags this pipe below if it still needs more rail pillars.
+        # (Vault-on-pillar attachment for the old bank-heist is gone —
+        # the treasure box is now a duration buff carried by Pip.)
         p.rail_active = False
         self.pipes.append(p)
-        # BANK HEIST: if a vault is queued and this isn't a rush pipe,
-        # attach the vault to this new pipe.
-        if self.vault_pending and not is_rush:
-            p.has_vault = True
-            self.vault_pipe = p
-            self.vault_pending = False
         # RAIL TRACK: if rail powerup is still trying to claim pipes,
         # tag this one until RAIL_PILLAR_COUNT is satisfied.
         if getattr(self, "rail_pending", 0) > 0 and not is_rush:
@@ -439,6 +436,14 @@ class World:
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
             audio.play_flap()
+            # Treasure-box buff: every flap rattles coins out of the
+            # chest hanging under Pip's belly, and Pip gains them
+            # instantly. Skipped during the ready freeze (we just
+            # cleared ready_t above, so the first flap of a fresh run
+            # never produces drops — the buff has to be picked up
+            # first anyway).
+            if self.treasure_box_timer > 0:
+                self._drop_treasure_box_coins()
 
     # ── update ──────────────────────────────────────────────────────────────
 
@@ -566,6 +571,8 @@ class World:
             self.bird.ghost_active = self.ghost_timer > 0
             if self.grow_timer > 0:
                 self.grow_timer = max(0.0, self.grow_timer - dt)
+            if self.treasure_box_timer > 0:
+                self.treasure_box_timer = max(0.0, self.treasure_box_timer - dt)
             self.bird.grow_active = self.grow_timer > 0
             if self.reverse_timer > 0:
                 self.reverse_timer = max(0.0, self.reverse_timer - dt)
@@ -855,46 +862,47 @@ class World:
             if dx * dx + dy * dy < (br + POWERUP_R) ** 2:
                 m.collected = True
                 self._on_powerup(m)
-        # BANK HEIST vault payout: bird brushes the vault (anchored to
-        # vault_pipe's base) → instant 15-coin burst.
-        if (self.vault_pipe is not None
-                and getattr(self.vault_pipe, "has_vault", False)
-                and not getattr(self.vault_pipe, "vault_popped", False)):
-            vp = self.vault_pipe
-            vx = vp.x + PIPE_W / 2
-            vy = vp.gap_y + vp.gap_h / 2 + 36  # below the gap, embedded in lower pillar
-            if abs(vx - bx) < 28 and abs(vy - by) < 36:
-                vp.vault_popped = True
-                self._pop_vault(vp, vx, vy)
-                self.vault_pipe = None
+        # (The old BANK HEIST vault-on-pillar collision lived here. The
+        # treasure-box redesign moved the payout to the per-flap coin
+        # drop in `flap()`, so there's nothing to brush off a pillar.)
 
-    def _pop_vault(self, pipe, vx, vy):
-        """Spawn the JACKPOT! payout from a popped Bank Heist vault."""
-        self.score += VAULT_COIN_REWARD
-        # NOTE: coin_count is NOT bumped — the plausibility check enforces
-        # coin_count == len(coin events). Vault payouts are scored under a
-        # distinct "vault" event kind so they add to the ledger score
-        # without inflating the coin event count.
-        self._proof.record(self.time_alive, VAULT_COIN_REWARD, "vault")
-        audio.play_heist()
-        self.shake_mag = max(self.shake_mag, 5.0)
-        self.shake_t = max(self.shake_t, 0.4)
-        # Dollar-bill confetti + gold burst.
-        for _ in range(40):
+    def _drop_treasure_box_coins(self):
+        """Called on each flap while the treasure-box buff is active.
+        Each flap rattles TREASURE_BOX_COINS_PER_FLAP coins loose;
+        triple multiplies as it does for normal coin pickups. The coins
+        are added straight to score (no in-world coin entities), with a
+        small visual burst at the chest position so the cause/effect
+        reads clearly. coin_count is NOT bumped — the plausibility check
+        enforces coin_count == len(coin events), so per-flap drops are
+        recorded under a distinct "treasure_box" event kind."""
+        base = TREASURE_BOX_COINS_PER_FLAP
+        mult = 3 if self.triple_timer > 0 else 1
+        gain = base * mult
+        self.score += gain
+        self._proof.record(self.time_alive, gain, "treasure_box")
+        # Spawn position: where the chest is rendered (below Pip's belly).
+        cx = self.bird.x + 4
+        cy = self.bird.y + 56
+        # Quick gold/cream burst at the chest
+        for _ in range(8):
             ang = random.uniform(0, math.tau)
-            spd = random.uniform(140, 360)
-            col = random.choice((UI_GOLD, UI_ORANGE, UI_CREAM, (90, 200, 90), WHITE))
+            spd = random.uniform(80, 200)
+            col = random.choice((UI_GOLD, UI_ORANGE, UI_CREAM, WHITE))
             self.particles.append(Particle(
-                vx, vy,
-                math.cos(ang) * spd, math.sin(ang) * spd - 80,
-                random.uniform(0.6, 1.2),
-                random.randint(3, 5),
-                col, gravity=600,
+                cx, cy - 8,
+                math.cos(ang) * spd, math.sin(ang) * spd - 60,
+                random.uniform(0.4, 0.8),
+                random.randint(2, 4),
+                col, gravity=420,
             ))
+        # Float text — "+N" rising above the chest. Match the +1/+3
+        # gradient-fill-and-outline style used by normal coin pickups.
+        color = UI_ORANGE if mult == 3 else UI_GOLD
         self.float_texts.append(FloatText(
-            f"JACKPOT! +{VAULT_COIN_REWARD}", vx, vy - 30, UI_GOLD,
-            size=30, life=1.5, vy=-40, style="powerup",
+            f"+{gain}", cx, cy - 18, color,
+            size=24, life=0.7, vy=-50, style="powerup",
         ))
+        audio.play_coin()
 
     def _apply_magnet(self, dt):
         """Tug uncollected coins within MAGNET_RADIUS toward the bird."""
@@ -1232,30 +1240,16 @@ class World:
         ))
 
     def _activate_heist(self, m):
-        # Mark the next-to-spawn pipe so we can attach a vault to it
-        # when it spawns. If a pipe already exists ahead of the bird
-        # that's eligible (not scored, not rush, no vault yet), use it
-        # instead so payout happens sooner.
-        target = None
-        for p in self.pipes:
-            if not p.scored and p.x > self.bird.x + PIPE_W and \
-                    not getattr(p, "is_rush", False) and \
-                    not getattr(p, "has_vault", False):
-                target = p
-                break
-        if target is not None:
-            target.has_vault = True
-            self.vault_pipe = target
-            self.vault_pending = False
-        else:
-            self.vault_pending = True
-            self.vault_pipe = None
+        # Treasure box: start the duration buff. While it's active the
+        # chest hangs under Pip's belly (drawn by PlayScene) and each
+        # flap drops coins via _drop_treasure_box_coins().
+        self.treasure_box_timer = TREASURE_BOX_DURATION
         self.shake_mag = max(self.shake_mag, 3.0)
         self.shake_t = max(self.shake_t, 0.25)
         audio.play_heist()
         self._pickup_burst(m, (UI_GOLD, UI_ORANGE, UI_CREAM, WHITE), n=26)
         self.float_texts.append(FloatText(
-            "VAULT INCOMING!", m.x, m.y - 26, UI_GOLD,
+            "TREASURE BOX!", m.x, m.y - 26, UI_GOLD,
             size=26, life=1.5, vy=-30, style="powerup",
         ))
 

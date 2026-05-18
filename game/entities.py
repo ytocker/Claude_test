@@ -1714,32 +1714,25 @@ class PowerUp:
         pygame.draw.line(surf, WHITE, (cx - 11, cy - 11), (cx - 11, cy - 5), 2)
 
     def _draw_heist_icon(self, surf):
+        """Planked-oak treasure chest pickup token. The pickup uses the
+        same chest art as the carried-buff render, so the player can
+        read 'I'm about to grab the thing I'll be carrying' in one
+        glance."""
+        from game.treasure_box_variants import draw_chest_at
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.2) * 2)
-        # Halo
-        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        # Soft warm halo behind the chest so the pickup pulses like
+        # the other powerup tokens.
+        halo = pygame.Surface((54, 54), pygame.SRCALPHA)
         a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse)))
-        pygame.draw.circle(halo, (255, 220, 100, a // 2), (24, 24), 22)
-        surf.blit(halo, (cx - 24, cy - 24))
-        # Vault body: gold square with dark border + dial.
-        vault = pygame.Rect(cx - 13, cy - 13, 26, 26)
-        pygame.draw.rect(surf, (130, 90, 30), vault, border_radius=4)
-        pygame.draw.rect(surf, (255, 215, 80), vault.inflate(-4, -4),
-                         border_radius=3)
-        # Dial centre with $ embossed
-        pygame.draw.circle(surf, (90, 60, 20), (cx, cy), 6)
-        pygame.draw.circle(surf, (200, 160, 60), (cx, cy), 4)
-        # Dollar sign in dark gold
-        from game.draw import COIN_DARK
-        try:
-            font = pygame.font.SysFont(None, 14, bold=True)
-            txt = font.render("$", True, COIN_DARK)
-            surf.blit(txt, txt.get_rect(center=(cx, cy)))
-        except Exception:
-            pass
-        # Hinges
-        pygame.draw.circle(surf, (90, 60, 20), (cx + 10, cy - 9), 2)
-        pygame.draw.circle(surf, (90, 60, 20), (cx + 10, cy + 9), 2)
+        pygame.draw.circle(halo, (255, 215, 110, a // 2), (27, 27), 24)
+        pygame.draw.circle(halo, (255, 215, 110, a),      (27, 27), 14)
+        surf.blit(halo, (cx - 27, cy - 27))
+        # The shared chest renderer paints at native size (~42×30). The
+        # PowerUp footprint is 28 px, so this is a touch larger than the
+        # collision circle — same overflow the kfc/grow icons use to
+        # read clearly against a noisy background.
+        draw_chest_at(surf, cx, cy)
 
     def _draw_vacuum_icon(self, surf):
         cx = int(self.x)

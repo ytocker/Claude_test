@@ -6,7 +6,7 @@ These cover:
   - SKATEBOARD collision overrides (ground / ceiling survive, side kills).
   - SHRINK collision radius.
   - LOTTERY tier application with floor-at-zero on losses.
-  - BANK HEIST vault payout.
+  - TREASURE BOX per-flap coin drop.
   - MEGA MAGNET coin vacuum.
   - Plausibility chain stays valid with the new event kinds.
 """
@@ -25,7 +25,8 @@ pygame.display.set_mode((360, 640))
 from game import _plausibility, biome
 from game.config import (
     BIRD_R, SHRINK_SCALE, GROUND_Y, LATE_GAME_SCORE,
-    VAULT_COIN_REWARD, SECRET_POWERUP_WEIGHTS,
+    TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
+    SECRET_POWERUP_WEIGHTS,
 )
 from game.entities import PowerUp, Coin
 from game.world import World
@@ -173,22 +174,30 @@ def test_lottery_jackpot_adds_full_amount():
     assert w.score == 600
 
 
-def test_bank_heist_pays_out_on_pipe_brush():
+def test_treasure_box_arms_buff_and_drops_coins_per_flap():
     w = World()
     w.ready_t = 0
-    initial = w.score
+    assert w.treasure_box_timer == 0
     w._activate_heist(PowerUp(0, 0, kind="heist"))
-    # The activator picks the next eligible pipe; if none was available,
-    # the test still passes once the vault attaches at next spawn.
-    if w.vault_pipe is None:
-        pytest.skip("no eligible pipe at activation; tested via vault_pending elsewhere")
-    vp = w.vault_pipe
-    vx = vp.x + 29  # pipe centre
-    vy = vp.gap_y + vp.gap_h / 2 + 36
-    w.bird.x = vx
-    w.bird.y = vy
-    w._check_pickups()
-    assert w.score == initial + VAULT_COIN_REWARD
+    assert w.treasure_box_timer == TREASURE_BOX_DURATION
+
+    initial = w.score
+    w.flap()
+    assert w.score == initial + TREASURE_BOX_COINS_PER_FLAP
+
+    # Triple buff multiplies the per-flap drop x3.
+    from game.config import TRIPLE_DURATION
+    w.triple_timer = TRIPLE_DURATION
+    pre = w.score
+    w.flap()
+    assert w.score == pre + TREASURE_BOX_COINS_PER_FLAP * 3
+
+    # Buff expires after TREASURE_BOX_DURATION seconds.
+    w.update(TREASURE_BOX_DURATION + 0.1)
+    assert w.treasure_box_timer == 0
+    no_buff_pre = w.score
+    w.flap()
+    assert w.score == no_buff_pre  # no drop once the buff has expired
 
 
 def test_vacuum_collects_all_coins():
@@ -229,17 +238,17 @@ def test_rail_claims_pipes():
     assert total >= 1
 
 
-def test_plausibility_chain_survives_vault_and_lottery():
+def test_plausibility_chain_survives_treasure_box_and_lottery():
     """Chain hash + ledger total must still pass plausibility after a
     score-affecting secret powerup."""
     random.seed(99)
     w = World()
     w.ready_t = 0
-    # Pretend the player picked up a vault (auto-pop manually).
+    # Pretend the player picked up a treasure box and flapped a couple
+    # of times so the ledger records "treasure_box" event kinds.
     w._activate_heist(PowerUp(0, 0, kind="heist"))
-    if w.vault_pipe is not None:
-        vp = w.vault_pipe
-        w._pop_vault(vp, vp.x + 30, vp.gap_y + vp.gap_h / 2 + 36)
+    w.flap()
+    w.flap()
     # And lottery winning + losing rolls.
     w.score = 100
     w.lottery_anim = {
