@@ -150,6 +150,72 @@ def test_skateboard_side_still_lethal():
     assert w.game_over is True, "side hit should still kill during skateboard"
 
 
+def test_backflip_triggers_on_3_taps_within_window():
+    from game.config import BACKFLIP_DURATION
+    w = World()
+    w.ready_t = 0
+    w._activate_skateboard(PowerUp(0, 0, kind="skateboard"))
+    assert w.bird.backflip_t == 0
+    w.flap(); w.flap(); w.flap()
+    assert w.bird.backflip_t == BACKFLIP_DURATION
+
+
+def test_backflip_does_not_trigger_without_skateboard():
+    w = World()
+    w.ready_t = 0
+    assert w.skateboard_timer == 0
+    w.flap(); w.flap(); w.flap()
+    assert w.bird.backflip_t == 0
+
+
+def test_backflip_does_not_chain_while_active():
+    from game.config import BACKFLIP_DURATION
+    w = World()
+    w.ready_t = 0
+    w._activate_skateboard(PowerUp(0, 0, kind="skateboard"))
+    w.flap(); w.flap(); w.flap()
+    assert w.bird.backflip_t == BACKFLIP_DURATION
+    # 3 more taps mid-flip must NOT reset the timer to full duration.
+    w.bird.backflip_t = BACKFLIP_DURATION / 2
+    w.flap(); w.flap(); w.flap()
+    assert w.bird.backflip_t == BACKFLIP_DURATION / 2
+
+
+def test_backflip_window_resets_streak_on_slow_taps():
+    from game.config import BACKFLIP_TAP_WINDOW
+    w = World()
+    w.ready_t = 0
+    w._activate_skateboard(PowerUp(0, 0, kind="skateboard"))
+    # First two taps land in the window.
+    w.flap(); w.flap()
+    assert w._tap_streak == 2
+    # Advance the world clock past the window so the next tap restarts
+    # the streak rather than completing it.
+    w._idle_t += BACKFLIP_TAP_WINDOW + 0.1
+    w.flap()
+    assert w._tap_streak == 1
+    assert w.bird.backflip_t == 0
+
+
+def test_backflip_rotates_tilt_360():
+    from game.config import BACKFLIP_DURATION
+    w = World()
+    w.ready_t = 0
+    w._activate_skateboard(PowerUp(0, 0, kind="skateboard"))
+    w.bird.vy = 0
+    base = w.bird.tilt_deg
+    w.bird.backflip_t = BACKFLIP_DURATION
+    w.bird.backflip_dur = BACKFLIP_DURATION
+    # At t=0 progress is 0 → tilt matches base.
+    assert abs(w.bird.tilt_deg - base) < 1e-3
+    # At mid-flip → +180°.
+    w.bird.backflip_t = BACKFLIP_DURATION / 2
+    assert abs(w.bird.tilt_deg - base - 180) < 1e-3
+    # At end → +360° (equivalent to base + 360, full rotation).
+    w.bird.backflip_t = 0.001
+    assert abs(w.bird.tilt_deg - base - 360) < 5
+
+
 def test_lottery_bust_capped_at_zero():
     w = World()
     w.ready_t = 0

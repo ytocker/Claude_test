@@ -24,7 +24,8 @@ from game.config import (
     # Secret late-game powerups
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
     SHRINK_DURATION, SHRINK_SCALE,
-    SKATEBOARD_DURATION, NIGHTGLOW_DURATION,
+    SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
+    NIGHTGLOW_DURATION,
     RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -102,6 +103,11 @@ class World:
         # Each is gated on score >= LATE_GAME_SCORE (see _maybe_spawn_powerup).
         # Undocumented in powerup_help.py by design.
         self.skateboard_timer = 0.0
+        # Backflip trick: 3 fast taps during the skateboard window spin
+        # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
+        # only triggered when the streak reaches 3 and no flip is mid-air.
+        self._last_tap_t = -999.0
+        self._tap_streak = 0
         self.shrink_timer     = 0.0
         self.nightglow_timer  = 0.0
         # Rail: a 3-pillar grindrail. We snapshot which Pipe instances carry
@@ -445,6 +451,32 @@ class World:
             # first anyway).
             if self.treasure_box_timer > 0:
                 self._drop_treasure_box_coins()
+            # SKATEBOARD trick: 3 taps within BACKFLIP_TAP_WINDOW spin
+            # Pip 360°. Only tracked while the powerup is active and no
+            # flip is already in progress.
+            if self.skateboard_timer > 0 and self.bird.backflip_t <= 0:
+                self._track_backflip_taps()
+
+    def _track_backflip_taps(self):
+        now = self._idle_t
+        if now - self._last_tap_t <= BACKFLIP_TAP_WINDOW:
+            self._tap_streak += 1
+        else:
+            self._tap_streak = 1
+        self._last_tap_t = now
+        if self._tap_streak >= 3:
+            self._trigger_backflip()
+            self._tap_streak = 0
+
+    def _trigger_backflip(self):
+        self.bird.backflip_t = BACKFLIP_DURATION
+        self.bird.backflip_dur = BACKFLIP_DURATION
+        audio.play_backflip()
+        self.float_texts.append(FloatText(
+            "BACKFLIP!", self.bird.x, self.bird.y - 30,
+            (110, 230, 110),
+            size=28, life=1.2, vy=-30, style="powerup",
+        ))
 
     # ── update ──────────────────────────────────────────────────────────────
 
@@ -1254,6 +1286,8 @@ class World:
     def _activate_skateboard(self, m):
         self.skateboard_timer = SKATEBOARD_DURATION
         self.bird.skateboard_active = True
+        self._tap_streak = 0
+        self._last_tap_t = -999.0
         self.shake_mag = max(self.shake_mag, 4.0)
         self.shake_t = max(self.shake_t, 0.3)
         audio.play_skateboard()

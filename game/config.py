@@ -95,6 +95,11 @@ SHRINK_SCALE          = 0.6
 # is immediate; only the visible scale animates.
 SHRINK_TRANSITION     = 0.45
 SKATEBOARD_DURATION   = 8.0
+# SKATEBOARD trick: 3 taps with no more than this many seconds between
+# consecutive taps trigger a 360° backflip. New flips cannot chain
+# until the current one finishes.
+BACKFLIP_TAP_WINDOW   = 0.45
+BACKFLIP_DURATION     = 0.55
 NIGHTGLOW_DURATION    = 12.0
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under

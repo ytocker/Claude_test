@@ -480,6 +480,9 @@ class Bird:
         # auto-drives Pip and taps are ignored.
         self.cart_active = False
         self.cart_locked = False
+        # Backflip trick: ticks down while a 360° spin animation plays.
+        self.backflip_t = 0.0
+        self.backflip_dur = 0.0
 
     @property
     def tilt_deg(self):
@@ -487,7 +490,14 @@ class Bird:
         if self.cart_active:
             return 0.0
         t = max(-0.5, min(0.75, self.vy / 500.0))
-        return -t * 55.0
+        base = -t * 55.0
+        # During a backflip, ride a full 360° rotation on top of the base
+        # tilt. pygame's rotate is modulo-360 internally so values beyond
+        # the normal clamp are fine.
+        if self.backflip_t > 0 and self.backflip_dur > 0:
+            progress = 1.0 - self.backflip_t / self.backflip_dur
+            return base + progress * 360.0
+        return base
 
     def flap(self, gravity_sign=1):
         if self.alive and not self.cart_active:
@@ -538,6 +548,7 @@ class Bird:
             base_hz = max(3.0, base_hz - 4.0)
         self.frame_t = (self.frame_t + dt * base_hz)
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
+        self.backflip_t = max(0.0, self.backflip_t - dt)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
