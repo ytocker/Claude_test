@@ -1,26 +1,23 @@
-"""Render 5 polished NIGHTGLOW star icons — high-end casual-mobile style.
+"""Render 5 smooth-gradient NIGHTGLOW star icons.
 
-User wants a plain 5-point star that looks like a powerup token in a
-top-tier casual mobile game (Royal Match, Candy Crush, Coin Master,
-Subway Surfers). No external halos. Just the star itself, but with
-internal depth — bevels, gradients, gloss highlights — that make it
-read as a polished, premium icon.
+User picked variant 1 (GRADIENT) but said the transitions need to be
+gradual / smooth. Previous version used only 5 concentric stars,
+which produced visible banding. This version uses ~40 overlapping
+layers with finely-interpolated colours so the gradient reads as
+truly smooth at the eye.
 
-5 takes:
+5 takes on the smooth-gradient theme:
 
-    1. SMOOTH GRADIENT — clean radial bright→dark fall-off, soft.
-    2. CLASSIC BEVEL   — bright top half, darker bottom half (3D).
-    3. GLOSSY GEM      — beveled + glossy top highlight (Candy-Crush
-                          style).
-    4. FACETED         — each star point a jewel-facet with its own
-                          light/dark sides.
-    5. RIM-LIT         — solid star + crisp bright inner rim along
-                          the silhouette edge (the high-end "neon
-                          inset" look).
+    1. CLASSIC     — linear bright-centre → dark-edge ramp
+    2. SOFT        — ease-out curve: more of the star sits in bright
+                      tones, edge darkens quickly only at the rim
+    3. PUNCHY      — ease-in curve: smaller bright core, most of the
+                      star is mid-tone
+    4. COOL        — same as CLASSIC but with a slightly cooler
+                      (mint-cyan) hot centre
+    5. OUTLINED    — CLASSIC + a thin dark outline for shape definition
 
-The chosen design gets ported into entities.py:_draw_nightglow_icon
-at ~52 px native scale.
-
+Geometry stays the canonical 5-point used in the prior icon set.
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
         python tools/render_nightglow_icons.py
@@ -46,15 +43,11 @@ pygame.display.set_mode((1, 1))
 CANVAS = 240
 CENTER = CANVAS // 2
 
-# Palette tuned around V5 PUNCH+'s greens — the in-world effect's
-# colour family. Ramps from deep shadow → mid → bright → white-hot.
-GREEN_DEEP   = ( 30, 150,  30)
-GREEN_SHADOW = ( 60, 200,  50)
-GREEN_MID    = (140, 250, 110)
-GREEN_LIGHT  = (190, 255, 160)
-GREEN_HOT    = (235, 255, 215)
-
-OUTLINE      = ( 25, 110,  20)
+# Colour stops, all in the V5 PUNCH+ green family.
+GREEN_DEEP   = ( 30, 150,  30)   # outermost rim
+GREEN_HOT    = (235, 255, 215)   # innermost centre
+GREEN_COOL_HOT = (210, 255, 230) # cooler hot for COOL variant
+OUTLINE      = ( 15,  90,  15)
 
 
 def _dark_backdrop() -> pygame.Surface:
@@ -83,169 +76,106 @@ def _star_points(cx, cy, r_outer, r_inner, n=5, rot=-math.pi / 2):
     return pts
 
 
-def _aa_star_surface(r_outer, r_inner, color, outline_color=None,
-                     outline_width=0):
-    """Anti-aliased star on its own surface via 4× supersample.
-    Returns a surface big enough to contain the star + outline."""
+def _aa_star(cx, cy, r_outer, r_inner, color):
+    """Anti-aliased star via 4× supersample + smoothscale."""
     SS = 4
-    margin = max(outline_width + 4, 6)
+    margin = 6
     big_size = (r_outer * 2 + margin * 2) * SS
     s = pygame.Surface((big_size, big_size), pygame.SRCALPHA)
     bcx = big_size // 2
     pts = _star_points(bcx, bcx, r_outer * SS, r_inner * SS)
     pygame.draw.polygon(s, color, pts)
-    if outline_color is not None and outline_width > 0:
-        pygame.draw.polygon(s, outline_color, pts, outline_width * SS)
     out_size = big_size // SS
     return pygame.transform.smoothscale(s, (out_size, out_size))
 
 
-def _blit_star(surf, cx, cy, r_outer, r_inner, color,
-               outline_color=None, outline_width=0):
-    star = _aa_star_surface(r_outer, r_inner, color,
-                            outline_color, outline_width)
+def _blit_star(surf, cx, cy, r_outer, r_inner, color):
+    star = _aa_star(cx, cy, r_outer, r_inner, color)
     surf.blit(star, (cx - star.get_width() // 2,
                      cy - star.get_height() // 2))
 
 
-# Star geometry shared by every variant — same canonical 5-point shape.
+def _smooth_gradient_star(surf, cx, cy, r_out, r_in,
+                          deep_color, hot_color, layers=42,
+                          shrink_to=0.04,   # innermost layer is 4% of r_out
+                          curve=None):
+    """Render a star with a smooth radial colour gradient by stacking
+    `layers` finely-interpolated concentric stars. With ~40 layers the
+    eye reads it as a true gradient, not a sequence of rings."""
+    if curve is None:
+        curve = lambda t: t
+    for i in range(layers + 1):
+        t = i / layers                       # 0 outer → 1 inner
+        ro = r_out * ((1.0 - shrink_to) * (1.0 - t) + shrink_to)
+        ri = r_in  * ((1.0 - shrink_to) * (1.0 - t) + shrink_to)
+        if ro < 3:
+            continue
+        ct = curve(t)
+        color = tuple(int(deep_color[c] + (hot_color[c] - deep_color[c]) * ct)
+                      for c in range(3))
+        _blit_star(surf, cx, cy, int(round(ro)), int(round(ri)), color)
+
+
 R_OUT, R_IN = 78, 33
 
 
-# ─── VARIANT 1 — SMOOTH GRADIENT ────────────────────────────────────────────
-# Layered shrinking stars, each a step lighter — soft radial gradient
-# from deep edge to bright centre.
+# ─── easing curves ──────────────────────────────────────────────────────────
 
-def variant_gradient(surf):
-    cx, cy = CENTER, CENTER
-    # Subtle dark outline for definition
-    _blit_star(surf, cx, cy, R_OUT, R_IN, OUTLINE)
-    # Walk inward in shrinking colour rings
-    layers = [
-        (R_OUT - 2,  R_IN - 1,  GREEN_DEEP),
-        (R_OUT - 8,  R_IN - 3,  GREEN_SHADOW),
-        (R_OUT - 16, R_IN - 6,  GREEN_MID),
-        (R_OUT - 26, R_IN - 10, GREEN_LIGHT),
-        (R_OUT - 36, R_IN - 14, GREEN_HOT),
-    ]
-    for ro, ri, col in layers:
-        _blit_star(surf, cx, cy, ro, ri, col)
+def _linear(t):     return t
+def _ease_out(t):   return 1 - (1 - t) ** 2.2     # slows toward bright
+def _ease_in(t):    return t ** 2.2               # bright core small
 
 
-# ─── VARIANT 2 — CLASSIC BEVEL ──────────────────────────────────────────────
-# Bright TOP half, darker BOTTOM half — light coming from above.
+# ─── VARIANT 1 — CLASSIC SMOOTH ─────────────────────────────────────────────
 
-def variant_bevel(surf):
-    cx, cy = CENTER, CENTER
-    # Outline
-    _blit_star(surf, cx, cy, R_OUT, R_IN, OUTLINE)
-    # Bottom half (darker) — draw full star then overlay top half bright
-    _blit_star(surf, cx, cy, R_OUT - 2, R_IN - 1, GREEN_SHADOW)
-
-    # Build a bright top half: full bright star, then erase the bottom.
-    bright = _aa_star_surface(R_OUT - 2, R_IN - 1, GREEN_LIGHT)
-    # Mask out the bottom half of `bright` so only its top survives.
-    cut = pygame.Surface(bright.get_size(), pygame.SRCALPHA)
-    cut.fill((0, 0, 0, 0))
-    # Black-with-alpha=255 in the bottom region → BLEND_RGBA_SUB? Use
-    # BLEND_RGBA_MIN: alpha = min(bright_alpha, cut_alpha). Cut alpha is
-    # 255 in top half, 0 in bottom → bright keeps alpha only in top.
-    pygame.draw.rect(cut, (255, 255, 255, 255),
-                     pygame.Rect(0, 0, cut.get_width(), cut.get_height() // 2))
-    bright.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(bright, (cx - bright.get_width() // 2,
-                       cy - bright.get_height() // 2))
+def variant_classic(surf):
+    _smooth_gradient_star(surf, CENTER, CENTER, R_OUT, R_IN,
+                          GREEN_DEEP, GREEN_HOT,
+                          layers=42, curve=_linear)
 
 
-# ─── VARIANT 3 — GLOSSY GEM ─────────────────────────────────────────────────
-# Beveled base + glossy white highlight ribbon over the upper portion.
+# ─── VARIANT 2 — SOFT (ease-out: wider bright zone) ─────────────────────────
 
-def variant_glossy(surf):
-    cx, cy = CENTER, CENTER
-    # Beveled base
-    _blit_star(surf, cx, cy, R_OUT, R_IN, OUTLINE)
-    _blit_star(surf, cx, cy, R_OUT - 2, R_IN - 1, GREEN_MID)
-    # Upper-half lighten — same masking trick as variant_bevel.
-    light = _aa_star_surface(R_OUT - 2, R_IN - 1, GREEN_LIGHT)
-    cut = pygame.Surface(light.get_size(), pygame.SRCALPHA)
-    pygame.draw.rect(cut, (255, 255, 255, 255),
-                     pygame.Rect(0, 0, cut.get_width(),
-                                 int(cut.get_height() * 0.55)))
-    light.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(light, (cx - light.get_width() // 2,
-                      cy - light.get_height() // 2))
-
-    # Glossy ribbon — a small bright-white elliptical highlight in the
-    # upper-left, sized to sit cleanly inside one of the star's lobes.
-    gloss = pygame.Surface((68, 22), pygame.SRCALPHA)
-    pygame.draw.ellipse(gloss, (*GREEN_HOT, 230), gloss.get_rect())
-    pygame.draw.ellipse(gloss, (255, 255, 255, 180),
-                        gloss.get_rect().inflate(-12, -6))
-    surf.blit(gloss, (cx - 32, cy - 44))
+def variant_soft(surf):
+    _smooth_gradient_star(surf, CENTER, CENTER, R_OUT, R_IN,
+                          GREEN_DEEP, GREEN_HOT,
+                          layers=46, curve=_ease_out)
 
 
-# ─── VARIANT 4 — FACETED (each star point has its own bevel) ────────────────
+# ─── VARIANT 3 — PUNCHY (ease-in: small concentrated bright core) ───────────
 
-def variant_faceted(surf):
-    cx, cy = CENTER, CENTER
-    # Outline + base
-    _blit_star(surf, cx, cy, R_OUT, R_IN, OUTLINE)
-    _blit_star(surf, cx, cy, R_OUT - 2, R_IN - 1, GREEN_SHADOW)
-
-    # Compute the star points + inner valleys, then for each outer
-    # point draw two triangles (centre→outer tip→left valley in bright,
-    # centre→outer tip→right valley in dark) for a faceted gem look.
-    outer = []
-    inner = []
-    for i in range(5):
-        a = -math.pi / 2 + i * math.tau / 5
-        outer.append((cx + (R_OUT - 4) * math.cos(a),
-                      cy + (R_OUT - 4) * math.sin(a)))
-    for i in range(5):
-        a = -math.pi / 2 + (i + 0.5) * math.tau / 5
-        inner.append((cx + (R_IN - 1) * math.cos(a),
-                      cy + (R_IN - 1) * math.sin(a)))
-
-    for i in range(5):
-        tip = outer[i]
-        left_valley = inner[(i - 1) % 5]
-        right_valley = inner[i % 5]
-        # Bright facet (left side of point)
-        pygame.draw.polygon(surf, GREEN_LIGHT,
-                            [(cx, cy), tip, left_valley])
-        # Dark facet (right side of point)
-        pygame.draw.polygon(surf, GREEN_DEEP,
-                            [(cx, cy), tip, right_valley])
-
-    # Centre highlight pop
-    pygame.draw.circle(surf, GREEN_HOT, (cx, cy), 6)
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 2, cy - 2), 2)
+def variant_punchy(surf):
+    _smooth_gradient_star(surf, CENTER, CENTER, R_OUT, R_IN,
+                          GREEN_DEEP, GREEN_HOT,
+                          layers=46, curve=_ease_in)
 
 
-# ─── VARIANT 5 — RIM-LIT (solid star + bright inner rim) ────────────────────
+# ─── VARIANT 4 — COOL (mint-cyan hot centre) ────────────────────────────────
 
-def variant_rim(surf):
-    cx, cy = CENTER, CENTER
-    # Dark outline
-    _blit_star(surf, cx, cy, R_OUT, R_IN, OUTLINE)
-    # Mid-tone body
-    _blit_star(surf, cx, cy, R_OUT - 2, R_IN - 1, GREEN_MID)
-    # Bright inner rim — slightly smaller bright star erased by a
-    # smaller mid-green star, leaves a thin bright ring along the edge.
-    _blit_star(surf, cx, cy, R_OUT - 5, R_IN - 2, GREEN_LIGHT)
-    _blit_star(surf, cx, cy, R_OUT - 10, R_IN - 5, GREEN_MID)
-    # Centre highlight dot
-    pygame.draw.circle(surf, GREEN_HOT, (cx, cy), 5)
+def variant_cool(surf):
+    _smooth_gradient_star(surf, CENTER, CENTER, R_OUT, R_IN,
+                          GREEN_DEEP, GREEN_COOL_HOT,
+                          layers=42, curve=_linear)
+
+
+# ─── VARIANT 5 — OUTLINED (classic + thin dark rim for definition) ──────────
+
+def variant_outlined(surf):
+    # Dark outline pass first — slightly larger star in deep colour.
+    _blit_star(surf, CENTER, CENTER, R_OUT + 2, R_IN + 1, OUTLINE)
+    _smooth_gradient_star(surf, CENTER, CENTER, R_OUT, R_IN,
+                          GREEN_DEEP, GREEN_HOT,
+                          layers=42, curve=_linear)
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 ICONS = [
-    ("icon_1_gradient.png", variant_gradient),
-    ("icon_2_bevel.png",    variant_bevel),
-    ("icon_3_glossy.png",   variant_glossy),
-    ("icon_4_faceted.png",  variant_faceted),
-    ("icon_5_rim.png",      variant_rim),
+    ("icon_1_classic.png",  variant_classic),
+    ("icon_2_soft.png",     variant_soft),
+    ("icon_3_punchy.png",   variant_punchy),
+    ("icon_4_cool.png",     variant_cool),
+    ("icon_5_outlined.png", variant_outlined),
 ]
 
 
