@@ -170,24 +170,31 @@ def _dark_overlay(surf, alpha, tint=(4, 8, 16)):
 
 
 def _halo(targets: pygame.Surface, scale: float, color, alpha: int):
-    """Silhouette-clean halo. Paint a uniform `color` onto the alpha
-    mask of `targets`, blur, and scale the per-pixel alpha by `alpha`.
+    """Silhouette-clean halo. Paint a uniform `color` over the alpha
+    mask of `targets`, blur, then PRE-MULTIPLY the RGB by alpha so
+    additive blending is gated by silhouette coverage.
 
-    CRITICAL: pygame.Surface.set_alpha() is IGNORED on SRCALPHA
-    surfaces (per pygame docs) — to actually attenuate the halo we
-    must multiply the per-pixel alpha array directly. Without this
-    the additive blit slams the full silhouette colour onto every
-    pixel near an entity and washes the whole scene green.
+    CRITICAL: pygame's BLEND_RGBA_ADD adds source RGB to dest RGB
+    UNCONDITIONALLY — source alpha is NOT used to gate the RGB
+    contribution. So a silhouette with uniform colour and sparse alpha
+    will, under additive blending, paint its colour onto every pixel
+    of the destination regardless of alpha. The only way to confine the
+    halo to entity neighbourhoods is to bake `RGB *= alpha/255` into
+    the silhouette before blitting.
 
-    `scale` = downsample fraction (larger = TIGHTER halo)."""
+    `scale` = downsample fraction (larger = TIGHTER halo).
+    `alpha` = halo strength 0–255."""
     sil = pygame.Surface((W, H), pygame.SRCALPHA)
     sil.fill((*color, 255))
     pygame.surfarray.pixels_alpha(sil)[:] = pygame.surfarray.array_alpha(targets)
     sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
     small = pygame.transform.smoothscale(sil, (sw, sh))
     big = pygame.transform.smoothscale(small, (W, H))
-    a = pygame.surfarray.pixels_alpha(big)
-    a[:] = (a.astype(np.uint32) * alpha // 255).astype(np.uint8)
+    rgb = pygame.surfarray.pixels3d(big)
+    a   = pygame.surfarray.array_alpha(big).astype(np.float32) / 255.0
+    factor = a * (alpha / 255.0)
+    rgb[:] = np.clip(rgb.astype(np.float32) * factor[..., None],
+                     0, 255).astype(np.uint8)
     return big
 
 
