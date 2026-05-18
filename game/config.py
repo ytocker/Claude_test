@@ -70,6 +70,51 @@ POWERUP_WEIGHTS    = (
     ("surprise", 1),
 )
 
+# ── SECRET LATE-GAME POWER-UPS ───────────────────────────────────────────────
+# These intentionally do NOT appear in game/powerup_help.py — players are meant
+# to discover them organically in a deep run. They only enter the spawn pool
+# once score >= LATE_GAME_SCORE (nightglow is additionally biome-gated to
+# night in World._maybe_spawn_powerup). They never resolve from a `surprise`
+# box either; each has its own roll so the visual is always genuinely new.
+LATE_GAME_SCORE       = 500
+
+SHRINK_DURATION       = 8.0
+SHRINK_SCALE          = 0.6
+SKATEBOARD_DURATION   = 8.0
+BLUEPRINT_DURATION    = 8.0
+BLUEPRINT_PREVIEW_N   = 3       # number of upcoming pillars to telegraph
+NIGHTGLOW_DURATION    = 12.0
+RAIL_PILLAR_COUNT     = 3       # number of pillars the rail spans
+VAULT_COIN_REWARD     = 15
+VACUUM_TRAVEL_TIME    = 0.4
+
+# Lottery tiers: (label, weight, coin_delta). Slight positive EV (~+10) so it
+# feels rewarding overall, but loss tiers add real tension. Losses cap at
+# current score (can't go negative).
+LOTTERY_TIERS = (
+    ("JACKPOT",  5,  100),
+    ("BIG WIN", 15,   40),
+    ("WIN",     30,   15),
+    ("NOTHING", 15,    0),
+    ("LOSS",    25,  -10),
+    ("BUST",    10,  -25),
+)
+LOTTERY_REVEAL_TIME   = 1.0
+
+# Each secret is 1/8 the weight of a normal powerup. With 8 secrets eligible
+# and 7 normal weights summing to 7, total secret-pickup probability is
+# ~12.5% per spawn after the threshold.
+SECRET_POWERUP_WEIGHTS = (
+    ("skateboard", 0.125),
+    ("shrink",     0.125),
+    ("blueprint",  0.125),
+    ("heist",      0.125),
+    ("vacuum",     0.125),
+    ("rail",       0.125),
+    ("nightglow",  0.125),   # additionally biome-gated to night in world.py
+    ("lottery",    0.125),
+)
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without

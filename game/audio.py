@@ -191,3 +191,19 @@ def play_gameover() -> None:    _play("gameover", 0.70)
 def play_poof() -> None:        _play("poof", 0.88)
 def play_ghost() -> None:       _play("ghost", 0.70)
 def play_grow() -> None:        _play("grow", 0.80)
+
+# ── Secret late-game powerup SFX (placeholders re-using existing OGGs) ──────
+# No new audio assets ship in this pass; these wrappers reuse what's already
+# loaded. Drop new .ogg files in game/assets/sounds/ and re-point _play()
+# calls below if/when bespoke sounds are commissioned.
+def play_skateboard() -> None: _play("grow", 0.70); _play("poof", 0.55)
+def play_shrink() -> None:     _play("grow", 0.55)
+def play_blueprint() -> None:  _play("poof", 0.50)
+def play_heist() -> None:      _play("triple_coin", 0.95); _play("coin_triple", 0.85)
+def play_vacuum() -> None:     _play("magnet", 0.95)
+def play_rail() -> None:       _play("grow", 0.70)
+def play_nightglow() -> None:  _play("ghost", 0.90)
+def play_helmet_bonk() -> None: _play("thunder", 0.50)
+def play_lottery_roll() -> None: _play("magnet", 0.45)
+def play_lottery_win() -> None:  _play("triple_coin", 0.95)
+def play_lottery_bust() -> None: _play("death", 0.55)

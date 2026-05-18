@@ -45,7 +45,7 @@ def _recompute_chain(events: tuple) -> bytes:
         t_ms = int(round(float(t_alive) * 1000))
         kind_b = kind.encode("ascii")[:8]
         kind_b = kind_b + b"\x00" * (8 - len(kind_b))
-        packed = struct.pack(">qIB", t_ms, int(dscore), len(kind)) + kind_b
+        packed = struct.pack(">qiB", t_ms, int(dscore), len(kind)) + kind_b
         chain = hashlib.sha256(chain + packed).digest()
     return chain
 

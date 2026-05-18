@@ -128,6 +128,17 @@ _ICON_BOB_AT_PULSE = {
     "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
     "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
     "grow":     math.sin(_PULSE_FOR_ICON * 1.2) * 2,
+    # Secret late-game powerups — used only for run-summary icon centering
+    # (they are NOT shown on the help screen; POWERUPS tuple intentionally
+    # excludes them).
+    "shrink":     math.sin(_PULSE_FOR_ICON * 1.1) * 2,
+    "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
+    "blueprint":  math.sin(_PULSE_FOR_ICON * 0.9) * 2,
+    "heist":      math.sin(_PULSE_FOR_ICON * 1.2) * 2,
+    "vacuum":     math.sin(_PULSE_FOR_ICON * 0.7) * 2,
+    "rail":       math.sin(_PULSE_FOR_ICON * 1.0) * 2,
+    "nightglow":  math.sin(_PULSE_FOR_ICON * 0.6) * 2,
+    "lottery":    math.sin(_PULSE_FOR_ICON * 0.8) * 2,
 }
 
 

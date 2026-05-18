@@ -21,6 +21,7 @@ from game.draw import (
     MUSH_CAP, MUSH_CAP2, MUSH_SPOT, MUSH_STEM,
     PARTICLE_GOLD, PARTICLE_ORNG, PARTICLE_WHT, PARTICLE_CRIM,
     NEAR_BLACK, WHITE,
+    UI_GOLD, UI_ORANGE, UI_CREAM,
 )
 from game import parrot
 from game.pillar_variants import draw_pillar_pair
@@ -461,6 +462,10 @@ class Bird:
         self.grow_active = False
         self.triple_active = False
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
+        # Secret late-game powerup flags (timer state lives on World).
+        self.skateboard_active = False
+        self.shrink_active = False
+        self.nightglow_active = False
 
     @property
     def tilt_deg(self):
@@ -534,6 +539,13 @@ class Bird:
             w, h = img.get_size()
             img = pygame.transform.smoothscale(
                 img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
+        if self.shrink_active:
+            # SHRINK: counterpart to GROW. Smoothscale down by SHRINK_SCALE.
+            # Wins over GROW if both ever happen (shouldn't, but be safe).
+            from game.config import SHRINK_SCALE
+            w, h = img.get_size()
+            img = pygame.transform.smoothscale(
+                img, (max(1, int(w * SHRINK_SCALE)), max(1, int(h * SHRINK_SCALE))))
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -542,12 +554,28 @@ class Bird:
             img = img.copy()
             pulse = 0.5 + 0.5 * math.sin(self.ghost_pulse)
             img.set_alpha(int(90 + pulse * 80))
+        # NIGHTGLOW: bright cyan halo behind Pip while the powerup is active.
+        if self.nightglow_active:
+            halo = pygame.Surface((80, 80), pygame.SRCALPHA)
+            cyc = 0.5 + 0.5 * math.sin(self.frame_t * 0.5)
+            base_a = int(80 + 60 * cyc)
+            for r_glow, a in ((36, base_a // 3), (26, base_a // 2), (18, base_a)):
+                pygame.draw.circle(halo, (90, 240, 230, a), (40, 40), r_glow)
+            surf.blit(halo, (self.x + shake_x - 40, self.y + shake_y - 40))
         r = img.get_rect(center=(self.x + shake_x, self.y + shake_y))
         surf.blit(img, r.topleft)
+        # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
+        if self.skateboard_active:
+            self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
         # the active palette; alpha-breathes in ghost mode; grow-scaled.
+        # SKATEBOARD: parcel transforms into a tiny skateboard. The original
+        # parcel hitbox is disabled in world.py for the duration.
+        if self.skateboard_active:
+            self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y, flipped)
+            return
         if self.kfc_active:
             mode = "kfc"
         elif self.ghost_active:
@@ -557,12 +585,14 @@ class Bird:
         else:
             mode = "normal"
         parcel = parrot.get_parcel(mode)
-        from game.config import GROW_SCALE, PARCEL_Y_OFFSET
+        from game.config import GROW_SCALE, SHRINK_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
+        if self.shrink_active:
+            scale = SHRINK_SCALE
         if scale != 1.0:
             pw, ph = parcel.get_size()
             parcel = pygame.transform.smoothscale(
-                parcel, (int(pw * scale), int(ph * scale)))
+                parcel, (max(1, int(pw * scale)), max(1, int(ph * scale))))
         # When reverse-gravity is active, the parcel mirrors with Pip:
         # the sprite flips vertically, the y-offset negates so the parcel
         # rides ABOVE Pip's centre, and the tilt direction inverts so the
@@ -582,6 +612,88 @@ class Bird:
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
+
+    # ── Secret-powerup wearable overlays ────────────────────────────────────
+    def _draw_helmet(self, surf, cx, cy, flipped):
+        """Tiny skater helmet — half-dome on top of Pip's head with chinstrap.
+
+        Drawn programmatically (no asset). Renders smaller when shrink_active
+        to scale with Pip; mirrors vertically when reverse-gravity is on.
+        """
+        from game.config import SHRINK_SCALE
+        s = SHRINK_SCALE if self.shrink_active else 1.0
+        head_top_offset = int(-16 * s)
+        helmet_w = int(28 * s)
+        helmet_h = int(14 * s)
+        hx = int(cx - helmet_w // 2)
+        hy = int(cy + (head_top_offset if not flipped else -head_top_offset - helmet_h))
+        # Dome (filled red), highlight band (lighter red), rim (dark).
+        helmet_rect = pygame.Rect(hx, hy, helmet_w, helmet_h * 2)
+        pygame.draw.ellipse(surf, (210, 50, 60), helmet_rect)
+        # Highlight strip on the front-top of the dome.
+        hi_w = max(2, int(helmet_w * 0.35))
+        hi_h = max(2, int(helmet_h * 0.5))
+        hi_rect = pygame.Rect(hx + int(helmet_w * 0.18), hy + 2, hi_w, hi_h)
+        pygame.draw.ellipse(surf, (255, 150, 160), hi_rect)
+        # Dark rim around the bottom edge.
+        rim_rect = pygame.Rect(hx, hy + helmet_h - 2, helmet_w, 4)
+        pygame.draw.ellipse(surf, (110, 20, 30), rim_rect)
+        # Chinstrap: a thin line that hangs down to Pip's chin.
+        strap_y0 = hy + helmet_h
+        strap_y1 = int(cy + 2 * s)
+        pygame.draw.line(surf, (90, 90, 90),
+                         (int(cx - helmet_w * 0.25), strap_y0),
+                         (int(cx - helmet_w * 0.15), strap_y1), max(1, int(2 * s)))
+        pygame.draw.line(surf, (90, 90, 90),
+                         (int(cx + helmet_w * 0.25), strap_y0),
+                         (int(cx + helmet_w * 0.15), strap_y1), max(1, int(2 * s)))
+
+    def _draw_skateboard(self, surf, cx, cy, flipped):
+        """Tiny skateboard under Pip's feet — replaces the parcel sprite.
+
+        Board + 2 spinning wheels (spin advances with frame_t for visual
+        motion). Mirrors vertically when reverse-gravity is on.
+        """
+        from game.config import SHRINK_SCALE, PARCEL_Y_OFFSET
+        s = SHRINK_SCALE if self.shrink_active else 1.0
+        board_w = int(34 * s)
+        board_h = max(2, int(5 * s))
+        # Position the board where the parcel used to be — below Pip's centre,
+        # banking with his tilt.
+        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
+        offset = pygame.math.Vector2(0, y_off + 4 * s)
+        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
+        bx = cx + offset.x
+        by = cy + offset.y
+        # Build the board on a small surface so we can rotate it with tilt.
+        pad = 8
+        board_surf = pygame.Surface(
+            (board_w + pad * 2, board_h * 4 + pad * 2), pygame.SRCALPHA)
+        bsx, bsy = board_w // 2 + pad, board_h * 2 + pad
+        # Deck: dark wood plank.
+        deck_rect = pygame.Rect(pad, bsy - board_h // 2, board_w, board_h)
+        pygame.draw.rect(board_surf, (60, 35, 25), deck_rect, border_radius=2)
+        pygame.draw.rect(board_surf, (120, 80, 50), deck_rect.inflate(-4, -2),
+                         border_radius=2)
+        # Wheels (2). Spin is purely cosmetic — draw a tiny spoke.
+        wheel_r = max(2, int(3 * s))
+        spin = self.frame_t * 4.0
+        for sign in (-1, 1):
+            wx = bsx + sign * int(board_w * 0.32)
+            wy = bsy + board_h // 2 + wheel_r
+            pygame.draw.circle(board_surf, (40, 40, 45), (wx, wy), wheel_r + 1)
+            pygame.draw.circle(board_surf, (200, 200, 210), (wx, wy), wheel_r)
+            # Spoke
+            sx = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.7)
+            sy = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.7)
+            pygame.draw.line(board_surf, (90, 90, 100), (wx, wy), (sx, sy), 1)
+        # Rotate the whole board to match Pip's tilt, then blit centered.
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        rotated = pygame.transform.rotate(board_surf, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(bx), int(by)))
+        surf.blit(rotated, r.topleft)
 
 
 # ── Pipe (nature pillar) ─────────────────────────────────────────────────────
@@ -1217,6 +1329,23 @@ class PowerUp:
             self._draw_reverse(surf)
         elif self.kind == "surprise":
             self._draw_surprise(surf)
+        # ── Secret late-game powerups (intentionally not in powerup_help.py) ──
+        elif self.kind == "skateboard":
+            self._draw_skateboard_icon(surf)
+        elif self.kind == "shrink":
+            self._draw_shrink_mushroom(surf)
+        elif self.kind == "blueprint":
+            self._draw_blueprint_icon(surf)
+        elif self.kind == "heist":
+            self._draw_heist_icon(surf)
+        elif self.kind == "vacuum":
+            self._draw_vacuum_icon(surf)
+        elif self.kind == "rail":
+            self._draw_rail_icon(surf)
+        elif self.kind == "nightglow":
+            self._draw_nightglow_icon(surf)
+        elif self.kind == "lottery":
+            self._draw_lottery_icon(surf)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):
@@ -1489,6 +1618,281 @@ class PowerUp:
                 icon, (int(iw * scale), int(ih * scale)))
         surf.blit(icon, (cx - icon.get_width() // 2,
                          cy - icon.get_height() // 2))
+
+    # ── SECRET LATE-GAME POWER-UP ICONS ─────────────────────────────────────
+
+    def _draw_shrink_mushroom(self, surf):
+        """Sibling-to-GROW mushroom: short squat wide cap, deep blue velvet,
+        cream spots in the same canonical layout, cyan pulsing halo. Reads
+        as the same fungal family as GROW but unmistakably different."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.1) * 2)
+        # Cyan halo first (mirrors GROW's pulsing magenta halo style).
+        _draw_grow_halo(surf, cx, cy, self.pulse,
+                        color_rgb=(80, 220, 230), radius=36, peak_y_off=0)
+        sprite = _get_shrink_body_sprite()
+        surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
+
+    def _draw_skateboard_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+        # Helmet (red dome above the board), board (dark plank), 2 wheels.
+        # Halo glow
+        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        a = int(60 + 30 * (0.5 + 0.5 * math.sin(self.pulse)))
+        pygame.draw.circle(halo, (255, 180, 120, a), (24, 24), 22)
+        surf.blit(halo, (cx - 24, cy - 24))
+        # Helmet: red half-dome above center.
+        helmet_rect = pygame.Rect(cx - 11, cy - 13, 22, 12)
+        pygame.draw.ellipse(surf, (210, 50, 60), pygame.Rect(cx - 11, cy - 13, 22, 22))
+        pygame.draw.ellipse(surf, (255, 150, 160), pygame.Rect(cx - 7, cy - 12, 8, 5))
+        pygame.draw.ellipse(surf, (110, 20, 30), pygame.Rect(cx - 11, cy - 4, 22, 4))
+        # Board
+        deck_rect = pygame.Rect(cx - 14, cy + 4, 28, 4)
+        pygame.draw.rect(surf, (60, 35, 25), deck_rect, border_radius=2)
+        pygame.draw.rect(surf, (140, 90, 55), deck_rect.inflate(-2, -1),
+                         border_radius=2)
+        # Wheels
+        for sign in (-1, 1):
+            wx = cx + sign * 9
+            wy = cy + 11
+            pygame.draw.circle(surf, (40, 40, 45), (wx, wy), 3)
+            pygame.draw.circle(surf, (210, 210, 220), (wx, wy), 2)
+
+    def _draw_blueprint_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        # Cyan-blue scroll with grid lines and small ruler.
+        a = int(90 + 30 * (0.5 + 0.5 * math.sin(self.pulse * 1.3)))
+        # Halo
+        halo = pygame.Surface((52, 52), pygame.SRCALPHA)
+        pygame.draw.circle(halo, (90, 180, 250, a // 3), (26, 26), 24)
+        surf.blit(halo, (cx - 26, cy - 26))
+        # Paper background
+        paper = pygame.Rect(cx - 14, cy - 14, 28, 24)
+        pygame.draw.rect(surf, (40, 90, 180), paper, border_radius=3)
+        pygame.draw.rect(surf, (110, 180, 255), paper.inflate(-4, -4), border_radius=2)
+        # Grid lines (lighter cyan)
+        for gx in range(cx - 11, cx + 12, 5):
+            pygame.draw.line(surf, (60, 140, 220),
+                             (gx, cy - 11), (gx, cy + 8), 1)
+        for gy in range(cy - 11, cy + 9, 5):
+            pygame.draw.line(surf, (60, 140, 220),
+                             (cx - 12, gy), (cx + 11, gy), 1)
+        # A tiny "blueprint" T-square corner mark in white
+        pygame.draw.line(surf, WHITE, (cx - 11, cy - 11), (cx - 5, cy - 11), 2)
+        pygame.draw.line(surf, WHITE, (cx - 11, cy - 11), (cx - 11, cy - 5), 2)
+
+    def _draw_heist_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.2) * 2)
+        # Halo
+        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse)))
+        pygame.draw.circle(halo, (255, 220, 100, a // 2), (24, 24), 22)
+        surf.blit(halo, (cx - 24, cy - 24))
+        # Vault body: gold square with dark border + dial.
+        vault = pygame.Rect(cx - 13, cy - 13, 26, 26)
+        pygame.draw.rect(surf, (130, 90, 30), vault, border_radius=4)
+        pygame.draw.rect(surf, (255, 215, 80), vault.inflate(-4, -4),
+                         border_radius=3)
+        # Dial centre with $ embossed
+        pygame.draw.circle(surf, (90, 60, 20), (cx, cy), 6)
+        pygame.draw.circle(surf, (200, 160, 60), (cx, cy), 4)
+        # Dollar sign in dark gold
+        from game.draw import COIN_DARK
+        try:
+            font = pygame.font.SysFont(None, 14, bold=True)
+            txt = font.render("$", True, COIN_DARK)
+            surf.blit(txt, txt.get_rect(center=(cx, cy)))
+        except Exception:
+            pass
+        # Hinges
+        pygame.draw.circle(surf, (90, 60, 20), (cx + 10, cy - 9), 2)
+        pygame.draw.circle(surf, (90, 60, 20), (cx + 10, cy + 9), 2)
+
+    def _draw_vacuum_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.7) * 2)
+        # Spinning tornado swirl: 3 nested spiral arcs rotating with pulse.
+        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        a = int(60 + 30 * (0.5 + 0.5 * math.sin(self.pulse * 2)))
+        pygame.draw.circle(halo, (60, 200, 220, a // 2), (24, 24), 22)
+        surf.blit(halo, (cx - 24, cy - 24))
+        # Funnel: 3 concentric ellipses, narrowing toward bottom.
+        rot = self.pulse * 60.0
+        for i, (rw, rh, alpha) in enumerate(((22, 8, 240), (16, 6, 220), (10, 5, 200))):
+            tornado_surf = pygame.Surface((rw * 2 + 4, rh * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.ellipse(tornado_surf, (50, 100, 180, alpha),
+                                pygame.Rect(0, 0, rw * 2, rh * 2), 2)
+            pygame.draw.ellipse(tornado_surf, (90, 190, 220, alpha),
+                                pygame.Rect(2, 2, rw * 2 - 4, rh * 2 - 4), 2)
+            r = pygame.transform.rotate(tornado_surf, rot + i * 20)
+            ry = cy - 10 + i * 7
+            surf.blit(r, r.get_rect(center=(cx, ry)))
+        # Tiny coin getting sucked in (gold dot near top)
+        suck_y = cy - 14 + int(math.sin(self.pulse * 2) * 3)
+        pygame.draw.circle(surf, UI_GOLD, (cx, suck_y), 2)
+
+    def _draw_rail_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+        # Halo
+        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse * 1.6)))
+        pygame.draw.circle(halo, (255, 220, 80, a // 2), (24, 24), 22)
+        surf.blit(halo, (cx - 24, cy - 24))
+        # 2 parallel gold rails with crossties (like a tiny railroad track)
+        for rail_y in (cy - 4, cy + 6):
+            pygame.draw.line(surf, (140, 90, 30), (cx - 14, rail_y), (cx + 14, rail_y), 4)
+            pygame.draw.line(surf, (255, 220, 80), (cx - 14, rail_y), (cx + 14, rail_y), 2)
+        # Crossties
+        for tie_x in (cx - 10, cx - 2, cx + 6):
+            pygame.draw.rect(surf, (90, 60, 30),
+                             pygame.Rect(tie_x, cy - 6, 3, 14))
+        # Sparks
+        for i, sx in enumerate((cx - 12, cx + 11)):
+            sy = cy - 8 + (i * 4) + int(math.sin(self.pulse * 3 + i) * 2)
+            pygame.draw.circle(surf, UI_CREAM, (sx, sy), 2)
+
+    def _draw_nightglow_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.6) * 2)
+        # Glowing crescent moon + 3 small stars, cyan-teal palette.
+        # Halo
+        halo = pygame.Surface((52, 52), pygame.SRCALPHA)
+        a = int(90 + 50 * (0.5 + 0.5 * math.sin(self.pulse * 1.4)))
+        pygame.draw.circle(halo, (60, 230, 230, a // 2), (26, 26), 24)
+        pygame.draw.circle(halo, (60, 230, 230, a), (26, 26), 14)
+        surf.blit(halo, (cx - 26, cy - 26))
+        # Crescent moon (large filled circle minus shifted circle)
+        moon_layer = pygame.Surface((40, 40), pygame.SRCALPHA)
+        pygame.draw.circle(moon_layer, (240, 250, 230), (20, 20), 13)
+        pygame.draw.circle(moon_layer, (0, 0, 0, 0), (26, 17), 12)
+        surf.blit(moon_layer, (cx - 20, cy - 20))
+        # 3 small stars
+        for i, (sx_o, sy_o) in enumerate(((-13, -10), (12, -14), (10, 12))):
+            tw = 3 + int(math.sin(self.pulse * 2 + i) > 0)
+            pygame.draw.circle(surf, (255, 250, 230), (cx + sx_o, cy + sy_o), tw)
+
+    def _draw_lottery_icon(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
+        # Halo
+        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
+        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse * 1.7)))
+        pygame.draw.circle(halo, (255, 200, 90, a // 2), (24, 24), 22)
+        surf.blit(halo, (cx - 24, cy - 24))
+        # Scratch-off card: tilted rectangle with gold border + question marks.
+        # Slight tilt by drawing on a small surface then rotating.
+        card_w, card_h = 30, 22
+        card_surf = pygame.Surface((card_w + 6, card_h + 6), pygame.SRCALPHA)
+        card_rect = pygame.Rect(3, 3, card_w, card_h)
+        pygame.draw.rect(card_surf, (180, 130, 30), card_rect, border_radius=3)
+        pygame.draw.rect(card_surf, (255, 220, 90), card_rect.inflate(-4, -4),
+                         border_radius=2)
+        # Scratch panel (silvery patch with question marks)
+        scratch_rect = pygame.Rect(7, 8, card_w - 8, card_h - 10)
+        pygame.draw.rect(card_surf, (180, 180, 200), scratch_rect, border_radius=2)
+        try:
+            font = pygame.font.SysFont(None, 14, bold=True)
+            for px, py in ((11, 11), (17, 11), (23, 11)):
+                txt = font.render("?", True, (40, 40, 70))
+                card_surf.blit(txt, (px, py))
+        except Exception:
+            pass
+        tilt = math.sin(self.pulse * 0.7) * 8
+        rotated = pygame.transform.rotate(card_surf, tilt)
+        surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
+
+
+# ── SHRINK power-up sprite (squat blue velvet toadstool — sibling to GROW) ───
+# Same canonical 4-spot ornament layout + velvet-sheen pattern as GROW so they
+# read as one fungal family, but flipped along three axes:
+#   - Shape: short squat wide cap (vs GROW's tall narrow Liberty-Cap cone)
+#   - Palette: cool deep-blue/teal velvet (vs GROW's warm red velvet)
+#   - Halo (drawn separately in _draw_shrink_mushroom): cyan vs magenta
+# Built at supersample then smoothscaled and cached, same as GROW.
+_SHRINK_SS = 5
+_SHRINK_CAP_W, _SHRINK_CAP_H = 26, 14            # wider + shorter than GROW
+_SHRINK_STEM_W, _SHRINK_STEM_H = 14, 14
+_SHRINK_VELVET_OUTLINE = ( 15,  35,  70)
+_SHRINK_VELVET_BODY    = ( 40, 120, 200)
+_SHRINK_VELVET_HI      = (110, 200, 240)
+_SHRINK_VELVET_SHEEN   = (180, 230, 250, 130)
+_SHRINK_SPOT_HALO      = (180, 220, 230)
+_SHRINK_STEM_OUTLINE   = (140, 130, 110)
+_SHRINK_STEM_BODY      = (245, 240, 220)
+_SHRINK_STEM_HI        = (255, 252, 235)
+
+_SHRINK_ORNAMENT_SLOTS = (
+    (0.50, 0.30),
+    (0.32, 0.50),
+    (0.70, 0.50),
+    (0.50, 0.72),
+)
+
+_shrink_body_sprite: "pygame.Surface | None" = None
+
+def _get_shrink_body_sprite() -> "pygame.Surface":
+    global _shrink_body_sprite
+    if _shrink_body_sprite is not None:
+        return _shrink_body_sprite
+    SS = _SHRINK_SS
+    CAP_W, CAP_H = _SHRINK_CAP_W, _SHRINK_CAP_H
+    STEM_W, STEM_H = _SHRINK_STEM_W, _SHRINK_STEM_H
+    sprite_w = max(CAP_W, STEM_W) + 4
+    sprite_h = CAP_H + STEM_H + 4
+    big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
+    # Cap centered horizontally at sprite_w/2.
+    cap_cx = (sprite_w * SS) // 2
+    cap_cy = (CAP_H // 2 + 1) * SS
+    # Stem below the cap.
+    stem_cx = cap_cx
+    stem_top_y = (CAP_H + 1) * SS
+    # ── Stem (chubby bulbed ivory, narrower than GROW) ────────────────────
+    stem_rect = pygame.Rect(stem_cx - (STEM_W // 2) * SS, stem_top_y,
+                            STEM_W * SS, STEM_H * SS)
+    pygame.draw.ellipse(big, _SHRINK_STEM_BODY, stem_rect)
+    pygame.draw.ellipse(big, _SHRINK_STEM_OUTLINE, stem_rect, SS)
+    # Stem highlight (vertical streak)
+    hi_x = stem_cx - 3 * SS
+    pygame.draw.line(big, _SHRINK_STEM_HI,
+                     (hi_x, stem_top_y + 3 * SS),
+                     (hi_x, stem_top_y + (STEM_H - 4) * SS), SS)
+    # ── Cap: squat wide ellipse (short height, wide footprint) ───────────
+    cap_rect = pygame.Rect(cap_cx - (CAP_W // 2) * SS,
+                           cap_cy - (CAP_H // 2 + 1) * SS,
+                           CAP_W * SS, (CAP_H + 1) * SS)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE, cap_rect)
+    inner = cap_rect.inflate(-3 * SS, -3 * SS)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_BODY, inner)
+    # Highlight crescent (top-left of cap)
+    hi_rect = pygame.Rect(cap_cx - (CAP_W // 2 - 2) * SS,
+                          cap_cy - (CAP_H // 2 - 1) * SS,
+                          (CAP_W // 3) * SS, (CAP_H // 3) * SS)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_HI, hi_rect)
+    # Velvet sheen alpha blob
+    sheen = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, _SHRINK_VELVET_SHEEN,
+                        pygame.Rect(cap_cx - (CAP_W // 4) * SS,
+                                    cap_cy - (CAP_H // 3) * SS,
+                                    (CAP_W // 2) * SS,
+                                    (CAP_H // 2) * SS))
+    cone_mask = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(cone_mask, (255, 255, 255, 255), inner)
+    sheen.blit(cone_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    big.blit(sheen, (0, 0))
+    # Cream-butter spots (same canonical layout as GROW)
+    for fx_frac, fy_frac in _SHRINK_ORNAMENT_SLOTS:
+        fx = cap_cx - (CAP_W // 2) * SS + int(CAP_W * fx_frac * SS)
+        fy = cap_cy - (CAP_H // 2) * SS + int(CAP_H * fy_frac * SS)
+        pygame.draw.circle(big, _SHRINK_SPOT_HALO, (fx, fy), int(2.2 * SS))
+        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(1.8 * SS))
+        pygame.draw.circle(big, (255, 255, 250),
+                           (fx - SS // 2, fy - SS // 2), max(1, SS // 2))
+    _shrink_body_sprite = pygame.transform.smoothscale(big, (sprite_w, sprite_h))
+    return _shrink_body_sprite
 
 
 # Back-compat alias — some callers (e.g. snapshot/playtest scripts) still say Mushroom.

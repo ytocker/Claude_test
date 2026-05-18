@@ -51,6 +51,171 @@ def _draw_opener(surf: pygame.Surface, world) -> None:
     # opener no longer needs its own parcel pass.
 
 
+# ── Secret late-game powerup render helpers (called from App._render) ──────
+
+def _draw_blueprint_previews(surf, world):
+    """Ghost wireframe outlines of the next 2-3 unspawned pillars at the
+    right edge. Players use it as tactical foresight before the pillar
+    enters the play area."""
+    from game.config import PIPE_W, GROUND_Y, BLUEPRINT_PREVIEW_N
+    if not world.pipes:
+        return
+    spacing = world._current_spacing()
+    gap_default = world._current_gap()
+    # Render 2-3 ghost pillars to the right of the last real pipe.
+    last_x = world.pipes[-1].x
+    blueprint_col = (110, 180, 255)
+    # Fade alpha by how recent the powerup is (stronger when fresh).
+    from game.config import BLUEPRINT_DURATION
+    frac = world.blueprint_timer / max(BLUEPRINT_DURATION, 0.001)
+    base_a = int(160 * min(1.0, frac * 1.3))
+    rng = __import__("random").Random(int(world.pipes_spawned) + 1)
+    for i in range(BLUEPRINT_PREVIEW_N):
+        ghost_x = last_x + spacing * (i + 1)
+        if ghost_x > W + 80:
+            break  # too far to be useful preview
+        # Approximate gap_y the same way _spawn_pipe does (random within margin).
+        margin = 70
+        gy = rng.randint(margin + gap_default // 2,
+                         GROUND_Y - margin - gap_default // 2)
+        gap_top = gy - gap_default / 2
+        gap_bot = gy + gap_default / 2
+        a = max(40, base_a - i * 40)
+        layer = pygame.Surface((PIPE_W + 4, GROUND_Y + 4), pygame.SRCALPHA)
+        # Upper pillar wireframe
+        upper = pygame.Rect(2, 0, PIPE_W, int(gap_top))
+        pygame.draw.rect(layer, (*blueprint_col, a), upper, 2, border_radius=2)
+        # Lower pillar wireframe
+        lower = pygame.Rect(2, int(gap_bot), PIPE_W, GROUND_Y - int(gap_bot))
+        pygame.draw.rect(layer, (*blueprint_col, a), lower, 2, border_radius=2)
+        # Gap markers (thin dashes on the gap edges)
+        pygame.draw.line(layer, (*blueprint_col, a // 2),
+                         (2, int(gap_top)), (PIPE_W + 2, int(gap_top)), 1)
+        pygame.draw.line(layer, (*blueprint_col, a // 2),
+                         (2, int(gap_bot)), (PIPE_W + 2, int(gap_bot)), 1)
+        surf.blit(layer, (int(ghost_x) - 2, 0))
+
+
+def _draw_vault_on_pipe(surf, pipe):
+    """Golden vault attached to the base of a pipe — BANK HEIST payout."""
+    from game.config import PIPE_W
+    vx = int(pipe.x + PIPE_W / 2)
+    vy = int(pipe.gap_y + pipe.gap_h / 2 + 36)
+    # Soft golden halo behind the vault
+    halo = pygame.Surface((56, 56), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (255, 220, 100, 90), (28, 28), 22)
+    pygame.draw.circle(halo, (255, 220, 100, 140), (28, 28), 14)
+    surf.blit(halo, (vx - 28, vy - 28))
+    # Vault body
+    vault = pygame.Rect(vx - 16, vy - 14, 32, 28)
+    pygame.draw.rect(surf, (130, 90, 30), vault, border_radius=4)
+    pygame.draw.rect(surf, (255, 215, 80), vault.inflate(-6, -6), border_radius=3)
+    # Dial
+    pygame.draw.circle(surf, (90, 60, 20), (vx, vy), 7)
+    pygame.draw.circle(surf, (200, 160, 60), (vx, vy), 5)
+    try:
+        f = _font(16, True)
+        txt = f.render("$", True, (50, 30, 10))
+        surf.blit(txt, txt.get_rect(center=(vx, vy)))
+    except Exception:
+        pass
+    # Hinges
+    pygame.draw.circle(surf, (90, 60, 20), (vx + 12, vy - 9), 2)
+    pygame.draw.circle(surf, (90, 60, 20), (vx + 12, vy + 9), 2)
+
+
+def _draw_rails(surf, rail_pipes):
+    """Glowing golden rail along the top of each rail-marked pillar, with
+    a bridge segment connecting consecutive pipes so it reads as one
+    continuous grindrail. RAIL TRACK secret powerup."""
+    from game.config import PIPE_W
+    if not rail_pipes:
+        return
+    # Sort by x so the bridges connect adjacent pipes in scroll order.
+    pipes_sorted = sorted(rail_pipes, key=lambda p: p.x)
+    for i, p in enumerate(pipes_sorted):
+        rail_y = int(p.gap_y + p.gap_h / 2)
+        # Rail segment on top of this pipe.
+        _draw_rail_segment(surf, int(p.x), int(p.x + PIPE_W), rail_y)
+        # Bridge to the next pipe if it's not too far.
+        if i + 1 < len(pipes_sorted):
+            nxt = pipes_sorted[i + 1]
+            nxt_rail_y = int(nxt.gap_y + nxt.gap_h / 2)
+            # Bridge spans the gap between this pipe's right edge and
+            # next pipe's left edge, sloping linearly if heights differ.
+            _draw_rail_bridge(surf, int(p.x + PIPE_W), rail_y,
+                              int(nxt.x), nxt_rail_y)
+
+
+def _draw_rail_segment(surf, x0, x1, y):
+    """One straight rail piece anchored on a pipe top."""
+    # Dark shadow underneath
+    pygame.draw.line(surf, (90, 60, 20), (x0, y + 1), (x1, y + 1), 4)
+    # Gold rail
+    pygame.draw.line(surf, (220, 165, 50), (x0, y), (x1, y), 3)
+    # Bright highlight
+    pygame.draw.line(surf, (255, 230, 130), (x0, y - 1), (x1, y - 1), 1)
+    # Crossties (every 6 px)
+    for tx in range(x0, x1, 8):
+        pygame.draw.rect(surf, (60, 40, 20),
+                         pygame.Rect(tx, y + 1, 2, 5))
+
+
+def _draw_rail_bridge(surf, x0, y0, x1, y1):
+    """Connect two rail segments with a sloped suspension piece."""
+    # Underglow first
+    pygame.draw.line(surf, (140, 100, 30), (x0, y0 + 1), (x1, y1 + 1), 4)
+    pygame.draw.line(surf, (220, 165, 50), (x0, y0), (x1, y1), 3)
+    pygame.draw.line(surf, (255, 230, 130), (x0, y0 - 1), (x1, y1 - 1), 1)
+    # Sparks where the rail kinks
+    pygame.draw.circle(surf, (255, 240, 180), (x0, y0), 2)
+    pygame.draw.circle(surf, (255, 240, 180), (x1, y1), 2)
+
+
+def _draw_lottery_reveal(surf, anim):
+    """Slot-reel tile-roll animation for the LOTTERY card. Shows over the
+    bird until ~1.2s after reveal."""
+    from game.config import LOTTERY_REVEAL_TIME
+    t = anim["t"]
+    cx, cy = int(anim["x"]), int(anim["y"] - 50)
+    # Card backdrop
+    w, h = 80, 36
+    card = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(card, (40, 25, 5, 240),
+                     pygame.Rect(0, 0, w, h), border_radius=5)
+    pygame.draw.rect(card, (200, 160, 50, 240),
+                     pygame.Rect(2, 2, w - 4, h - 4), border_radius=4)
+    if t < LOTTERY_REVEAL_TIME:
+        # Spinning reels — 3 tile slots with cycling glyphs.
+        glyphs = ("?", "$", "★", "?", "$", "★", "?", "$")
+        for i in range(3):
+            slot_x = 8 + i * 22
+            # Each reel ticks at a different rate
+            idx = int((t * (8 + i * 2)) + i) % len(glyphs)
+            ch = glyphs[idx]
+            try:
+                f = _font(14, True)
+                txt = f.render(ch, True, (50, 30, 10))
+                card.blit(txt, txt.get_rect(center=(slot_x + 10, h // 2)))
+            except Exception:
+                pass
+    else:
+        # Reveal: show the tier label centered in the card.
+        try:
+            f = _font(13, True)
+            tier = anim["tier"]
+            delta = anim["delta"]
+            sign = "+" if delta > 0 else ""
+            label = f"{tier} {sign}{delta}" if delta != 0 else tier
+            color = (50, 200, 50) if delta > 0 else \
+                    ((220, 60, 50) if delta < 0 else (60, 60, 60))
+            txt = f.render(label, True, color)
+            card.blit(txt, txt.get_rect(center=(w // 2, h // 2)))
+        except Exception:
+            pass
+    surf.blit(card, (cx - w // 2, cy - h // 2))
+
+
 STATE_MENU = 0
 STATE_PLAY = 1
 STATE_NAMEENTRY = 2
@@ -815,6 +980,54 @@ class App:
             tint = pygame.Surface((W, H), pygame.SRCALPHA)
             tint.fill((140, 180, 255, 18))
             self.screen.blit(tint, (0, 0))
+
+        # NIGHTGLOW (secret): deep-dark overlay + cyan ambient haze. Pip's
+        # own cyan halo is rendered inside Bird.draw — this is the
+        # "world goes dark, everything else glows" piece. Strongest near
+        # start of timer, eases as it expires.
+        if getattr(self.world, "nightglow_timer", 0) > 0:
+            from game.config import NIGHTGLOW_DURATION
+            frac = self.world.nightglow_timer / max(NIGHTGLOW_DURATION, 0.001)
+            dark_a = int(110 * min(1.0, frac * 2.0))
+            cyan_a = int(22 * min(1.0, frac * 2.0))
+            tint = pygame.Surface((W, H), pygame.SRCALPHA)
+            tint.fill((5, 10, 30, dark_a))
+            self.screen.blit(tint, (0, 0))
+            cyan_tint = pygame.Surface((W, H), pygame.SRCALPHA)
+            cyan_tint.fill((60, 230, 230, cyan_a))
+            self.screen.blit(cyan_tint, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # SKATEBOARD (secret): timer-end warning flash when <1s left and
+        # Pip is touching a surface, so the player knows to flap off.
+        # Cheap subtle red pulse along the bottom edge.
+        if getattr(self.world, "skateboard_timer", 0) > 0 and \
+                self.world.skateboard_timer < 1.5:
+            import math as _math
+            pulse = 0.5 + 0.5 * _math.sin(self._cloud_phase * 16)
+            band_a = int(60 * pulse * (1.5 - self.world.skateboard_timer) / 1.5)
+            warn = pygame.Surface((W, 18), pygame.SRCALPHA)
+            warn.fill((220, 40, 40, band_a))
+            self.screen.blit(warn, (0, H - 18))
+
+        # BLUEPRINT VISION (secret): render ghost wireframes for the next
+        # 2-3 unspawned pillars at the right edge, drawn AFTER the world
+        # but BEFORE the HUD so they overlay coins/particles cleanly.
+        if getattr(self.world, "blueprint_timer", 0) > 0:
+            _draw_blueprint_previews(self.screen, self.world)
+
+        # BANK HEIST vault sprite on the marked pipe.
+        vp = getattr(self.world, "vault_pipe", None)
+        if vp is not None and getattr(vp, "has_vault", False) \
+                and not getattr(vp, "vault_popped", False):
+            _draw_vault_on_pipe(self.screen, vp)
+
+        # RAIL TRACK glowing rail across the next 3 marked pillar tops.
+        if getattr(self.world, "rail_pipes", None):
+            _draw_rails(self.screen, self.world.rail_pipes)
+
+        # LOTTERY reveal animation: tile-roll overlay near pickup point.
+        if getattr(self.world, "lottery_anim", None) is not None:
+            _draw_lottery_reveal(self.screen, self.world.lottery_anim)
 
         # Magnet force-field — Solar Gold palette: warm amber-gold rings
         # + golden glow with a coherent dramatic breath. All elements

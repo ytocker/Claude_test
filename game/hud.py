@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, BLUEPRINT_DURATION, NIGHTGLOW_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -910,6 +910,64 @@ def _draw_buff_icon(surf, rect, kind):
         icon = _get_reverse_icon(diameter)
         surf.blit(icon, (cx - icon.get_width() // 2,
                          cy - icon.get_height() // 2))
+    # ── Secret late-game powerup HUD icons (mini versions) ──────────────
+    elif kind == "skateboard":
+        # Red helmet + dark board with 2 wheels.
+        pygame.draw.ellipse(surf, (210, 50, 60),
+                            pygame.Rect(cx - 7, cy - 7, 14, 9))
+        pygame.draw.ellipse(surf, (110, 20, 30),
+                            pygame.Rect(cx - 7, cy - 3, 14, 3))
+        pygame.draw.rect(surf, (60, 35, 25),
+                         pygame.Rect(cx - 8, cy + 4, 16, 3), border_radius=1)
+        pygame.draw.circle(surf, (40, 40, 45), (cx - 5, cy + 8), 2)
+        pygame.draw.circle(surf, (40, 40, 45), (cx + 5, cy + 8), 2)
+    elif kind == "shrink":
+        # Tiny squat blue mushroom — mirrors GROW's icon style at HUD scale.
+        pygame.draw.ellipse(surf, (15, 35, 70),
+                            pygame.Rect(cx - 7, cy - 5, 14, 8))
+        pygame.draw.ellipse(surf, (40, 120, 200),
+                            pygame.Rect(cx - 6, cy - 4, 12, 6))
+        pygame.draw.ellipse(surf, (110, 200, 240),
+                            pygame.Rect(cx - 4, cy - 4, 4, 2))
+        # 3 cream spots
+        for sx, sy in ((cx, cy - 3), (cx - 3, cy - 1), (cx + 3, cy - 1)):
+            pygame.draw.circle(surf, (255, 250, 220), (sx, sy), 1)
+        # Stem
+        pygame.draw.ellipse(surf, (245, 240, 220),
+                            pygame.Rect(cx - 3, cy + 2, 6, 7))
+        pygame.draw.ellipse(surf, (140, 130, 110),
+                            pygame.Rect(cx - 3, cy + 2, 6, 7), 1)
+    elif kind == "blueprint":
+        # Tiny blueprint scroll: blue rectangle with white T-square corner.
+        pygame.draw.rect(surf, (40, 90, 180),
+                         pygame.Rect(cx - 8, cy - 7, 16, 14), border_radius=2)
+        pygame.draw.rect(surf, (110, 180, 255),
+                         pygame.Rect(cx - 6, cy - 5, 12, 10), border_radius=1)
+        # Grid hints
+        for gx in range(cx - 4, cx + 5, 3):
+            pygame.draw.line(surf, (60, 140, 220),
+                             (gx, cy - 4), (gx, cy + 4), 1)
+        for gy in range(cy - 4, cy + 5, 3):
+            pygame.draw.line(surf, (60, 140, 220),
+                             (cx - 5, gy), (cx + 4, gy), 1)
+        # T-square corner
+        pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 2, cy - 5), 1)
+        pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 5, cy - 2), 1)
+    elif kind == "nightglow":
+        # Glowing crescent + tiny stars, cyan-teal palette.
+        # Soft halo
+        halo = pygame.Surface((24, 24), pygame.SRCALPHA)
+        pygame.draw.circle(halo, (60, 230, 230, 90), (12, 12), 11)
+        pygame.draw.circle(halo, (60, 230, 230, 180), (12, 12), 7)
+        surf.blit(halo, (cx - 12, cy - 12))
+        # Crescent moon via overlap.
+        moon_layer = pygame.Surface((18, 18), pygame.SRCALPHA)
+        pygame.draw.circle(moon_layer, (240, 250, 230), (9, 9), 6)
+        pygame.draw.circle(moon_layer, (0, 0, 0, 0), (12, 7), 5)
+        surf.blit(moon_layer, (cx - 9, cy - 9))
+        # 2 small stars
+        for sx, sy in ((cx - 6, cy - 4), (cx + 5, cy + 4)):
+            pygame.draw.circle(surf, (255, 250, 230), (sx, sy), 1)
 
 
 class PauseButton:
@@ -1447,6 +1505,16 @@ class HUD:
             active.append(("grow", world.grow_timer, GROW_DURATION))
         if world.reverse_timer > 0:
             active.append(("reverse", world.reverse_timer, REVERSE_DURATION))
+        # Secret late-game powerup timer bars (still undocumented on the
+        # help screen — players discover them through gameplay).
+        if getattr(world, "skateboard_timer", 0) > 0:
+            active.append(("skateboard", world.skateboard_timer, SKATEBOARD_DURATION))
+        if getattr(world, "shrink_timer", 0) > 0:
+            active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
+        if getattr(world, "blueprint_timer", 0) > 0:
+            active.append(("blueprint", world.blueprint_timer, BLUEPRINT_DURATION))
+        if getattr(world, "nightglow_timer", 0) > 0:
+            active.append(("nightglow", world.nightglow_timer, NIGHTGLOW_DURATION))
 
         if active:
             icon_size = 24
