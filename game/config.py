@@ -51,6 +51,12 @@ KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
 GROW_SCALE         = 1.3
+# Mirror of SHRINK_TRANSITION but running the opposite direction
+# (1.0 → GROW_SCALE on activation, GROW_SCALE → 1.0 on expiry). Same
+# 0.20s / ~12-frame arc so the two pickups feel like a matched pair.
+# Collisions snap to GROW_SCALE on frame 1 (World.bird_radius / pipe
+# overlap); only the visible sprite eases.
+GROW_TRANSITION    = 0.20
 REVERSE_DURATION   = 8.0
 
 # Spawn weights for power-up kinds. Must sum to anything — they're

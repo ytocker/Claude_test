@@ -1,12 +1,18 @@
-"""Smoke-test the eased shrink transition.
+"""Smoke-test the eased SHRINK and GROW transitions side by side.
 
-Renders Pip once per 60-FPS frame across BOTH halves of the lifecycle:
-  Row 1 — SHRINK     (scale eases 1.00 → SHRINK_SCALE over SHRINK_TRANSITION)
-  Row 2 — UN-SHRINK  (scale eases SHRINK_SCALE → 1.00 over SHRINK_TRANSITION)
+Both buffs share the same per-frame easing pipeline in Bird.update —
+they just run in opposite directions across the 1.0 mark. This tool
+renders Pip once per 60-FPS frame across each buff's full lifecycle
+so reviewers can confirm the animations match in duration / frame
+count and behave symmetrically:
 
-so the same easing logic drives both the activation and the
-restore-after-expiry. Cell labels show the frame index and the current
-shrink_scale. Run headless:
+  Row 1 — SHRINK             scale eases 1.000 → SHRINK_SCALE
+  Row 2 — SHRINK → RESTORE   scale eases SHRINK_SCALE → 1.000
+  Row 3 — GROW               scale eases 1.000 → GROW_SCALE
+  Row 4 — GROW → RESTORE     scale eases GROW_SCALE → 1.000
+
+Cell labels show the frame index, elapsed ms, and the live scale.
+Run headless:
 
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
         python tools/render_shrink_transition_strip.py
@@ -29,18 +35,21 @@ if _REPO not in sys.path:
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.config import SHRINK_TRANSITION, SHRINK_SCALE, FPS
+from game.config import (
+    SHRINK_TRANSITION, SHRINK_SCALE,
+    GROW_TRANSITION, GROW_SCALE,
+    FPS,
+)
 from game.entities import Bird
 
 DT          = 1.0 / FPS
-TRANS_FRAMES = int(round(SHRINK_TRANSITION * FPS))     # 12 frames @ 60 FPS
-HOLD_FRAMES  = 2                                       # locked-at-target tail
-N_FRAMES     = TRANS_FRAMES + 1 + HOLD_FRAMES          # incl. t=0 start frame
+TRANS_FRAMES = int(round(SHRINK_TRANSITION * FPS))     # 12 @ 60 FPS
+HOLD_FRAMES  = 2
+N_FRAMES     = TRANS_FRAMES + 1 + HOLD_FRAMES
 
-CELL_W, CELL_H = 78, 110
+CELL_W, CELL_H = 82, 130            # taller cells — grow needs vertical room
 PAD       = 4
-LABEL_H   = 28
-ROW_GAP   = 22
+ROW_GAP   = 18
 TITLE_H   = 22
 BG        = (28, 38, 60)
 BG_DEEP   = (14, 18, 32)
@@ -48,23 +57,31 @@ LBL       = (220, 230, 250)
 TITLE_C   = (200, 220, 255)
 
 
-def _tick_bird(activating: bool):
-    """Build a Bird at the START of the transition for the given direction.
-    Returns the bird; caller advances it with bird.update(DT) per frame."""
+def _build_bird(buff: str, activating: bool) -> Bird:
+    """Build a Bird at the START of the chosen buff's transition.
+    `buff` ∈ {'shrink', 'grow'}; `activating` True for the on-arc and
+    False for the restore-arc."""
     bird = Bird()
-    bird.x, bird.y = CELL_W // 2, CELL_H // 2 + 4
+    bird.x, bird.y = CELL_W // 2, CELL_H // 2 + 8
     bird.frame_t = 0.4
-    bird.shrink_active = activating
-    bird.shrink_scale = 1.0 if activating else SHRINK_SCALE
     bird.vy = 0
+    if buff == "shrink":
+        bird.shrink_active = activating
+        bird.shrink_scale = 1.0 if activating else SHRINK_SCALE
+    else:
+        bird.grow_active = activating
+        bird.grow_scale = 1.0 if activating else GROW_SCALE
     return bird
+
+
+def _live_scale(bird: Bird, buff: str) -> float:
+    return bird.shrink_scale if buff == "shrink" else bird.grow_scale
 
 
 def _cell(bird: Bird, label_top: str, label_bot: str) -> pygame.Surface:
     cell = pygame.Surface((CELL_W, CELL_H)).convert()
     cell.fill(BG)
-    # Pinch the bird's y back so flapping idle doesn't drift across cells.
-    bird.y = CELL_H // 2 + 4
+    bird.y = CELL_H // 2 + 8
     bird.draw(cell)
     font_top = pygame.font.SysFont(None, 14)
     font_bot = pygame.font.SysFont(None, 13)
@@ -75,7 +92,7 @@ def _cell(bird: Bird, label_top: str, label_bot: str) -> pygame.Surface:
     return cell
 
 
-def _row(activating: bool, title: str) -> pygame.Surface:
+def _row(buff: str, activating: bool, title: str) -> pygame.Surface:
     width  = PAD + (CELL_W + PAD) * N_FRAMES
     height = TITLE_H + CELL_H + PAD * 2
     row = pygame.Surface((width, height)).convert()
@@ -84,17 +101,16 @@ def _row(activating: bool, title: str) -> pygame.Surface:
     title_surf = title_font.render(title, True, TITLE_C)
     row.blit(title_surf, (PAD + 2, 2))
 
-    bird = _tick_bird(activating)
+    bird = _build_bird(buff, activating)
     for i in range(N_FRAMES):
         is_held = i > TRANS_FRAMES
         label_top = f"f={i:>2}  t={i * DT * 1000:>4.0f}ms"
-        label_bot = f"scale={bird.shrink_scale:.3f}"
+        label_bot = f"scale={_live_scale(bird, buff):.3f}"
         if is_held:
             label_bot += "  (held)"
         cell = _cell(bird, label_top, label_bot)
         x = PAD + i * (CELL_W + PAD)
         row.blit(cell, (x, TITLE_H + PAD))
-        # advance one 60-FPS frame for the NEXT cell
         bird.update(DT, gravity_sign=0)
     return row
 
@@ -102,21 +118,30 @@ def _row(activating: bool, title: str) -> pygame.Surface:
 def main():
     out_dir = os.path.join(_REPO, "docs", "shrink_pickup_variants")
     os.makedirs(out_dir, exist_ok=True)
-    row_shrink = _row(activating=True,
-                      title=f"SHRINK  (shrink_active=True, target={SHRINK_SCALE})")
-    row_restore = _row(activating=False,
-                       title="RESTORE  (shrink_active=False, target=1.000)")
 
-    strip_w = max(row_shrink.get_width(), row_restore.get_width())
-    strip_h = row_shrink.get_height() + ROW_GAP + row_restore.get_height()
+    rows = (
+        _row("shrink", True,
+             f"SHRINK            shrink_active=True, target={SHRINK_SCALE:.3f}"),
+        _row("shrink", False,
+             "SHRINK → RESTORE  shrink_active=False, target=1.000"),
+        _row("grow", True,
+             f"GROW              grow_active=True,   target={GROW_SCALE:.3f}"),
+        _row("grow", False,
+             "GROW → RESTORE    grow_active=False,   target=1.000"),
+    )
+
+    strip_w = max(r.get_width() for r in rows)
+    strip_h = sum(r.get_height() for r in rows) + ROW_GAP * (len(rows) - 1)
     strip = pygame.Surface((strip_w, strip_h)).convert()
     strip.fill(BG_DEEP)
-    strip.blit(row_shrink,  (0, 0))
-    strip.blit(row_restore, (0, row_shrink.get_height() + ROW_GAP))
+    y = 0
+    for r in rows:
+        strip.blit(r, (0, y))
+        y += r.get_height() + ROW_GAP
 
     path = os.path.join(out_dir, "transition_strip.png")
     pygame.image.save(strip, path)
-    print(f"wrote {path}  ({N_FRAMES} frames × 2 rows)")
+    print(f"wrote {path}  ({N_FRAMES} frames × {len(rows)} rows)")
 
 
 if __name__ == "__main__":

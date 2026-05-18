@@ -460,6 +460,10 @@ class Bird:
         self.kfc_active = False
         self.ghost_active = False
         self.grow_active = False
+        # Visual scale eases toward GROW_SCALE while grow_active and back
+        # to 1.0 when it clears, mirroring shrink_scale on the opposite
+        # side of 1.0. Collisions snap; only the visible sprite eases.
+        self.grow_scale = 1.0
         self.triple_active = False
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
         # Secret late-game powerup flags (timer state lives on World).
@@ -501,20 +505,38 @@ class Bird:
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
-        from game.config import SHRINK_SCALE, SHRINK_TRANSITION
-        target = SHRINK_SCALE if self.shrink_active else 1.0
-        step = (1.0 - SHRINK_SCALE) * (dt / SHRINK_TRANSITION)
-        if self.shrink_scale < target:
-            self.shrink_scale = min(target, self.shrink_scale + step)
-        elif self.shrink_scale > target:
-            self.shrink_scale = max(target, self.shrink_scale - step)
+        from game.config import (
+            SHRINK_SCALE, SHRINK_TRANSITION,
+            GROW_SCALE, GROW_TRANSITION,
+        )
+        target_s = SHRINK_SCALE if self.shrink_active else 1.0
+        step_s = (1.0 - SHRINK_SCALE) * (dt / SHRINK_TRANSITION)
+        if self.shrink_scale < target_s:
+            self.shrink_scale = min(target_s, self.shrink_scale + step_s)
+        elif self.shrink_scale > target_s:
+            self.shrink_scale = max(target_s, self.shrink_scale - step_s)
+        target_g = GROW_SCALE if self.grow_active else 1.0
+        step_g = (GROW_SCALE - 1.0) * (dt / GROW_TRANSITION)
+        if self.grow_scale < target_g:
+            self.grow_scale = min(target_g, self.grow_scale + step_g)
+        elif self.grow_scale > target_g:
+            self.grow_scale = max(target_g, self.grow_scale - step_g)
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
+        from game.config import GROW_SCALE
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
         # When flipped (reverse-gravity buff), negate the tilt so a rising
         # bird's head still leads in the direction of motion after the
         # vertical mirror is applied below.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        has_combo = (self.kfc_active or self.ghost_active or self.triple_active)
+        # Hi-res grow sprite is only valid when at the GROW_SCALE peak AND
+        # no combo overlay is active. Mid-transition or combo'd, we fall
+        # through to the normal base sprite and smoothscale it by the eased
+        # grow_scale so the size change reads as a transformation rather
+        # than a teleport.
+        use_grow_hires = (not has_combo
+                          and self.grow_scale >= GROW_SCALE - 1e-3)
         # Combo-aware sprite cascade. The four reachable stacks each have
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
@@ -533,24 +555,20 @@ class Bird:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
         elif self.triple_active:
             img = parrot.get_hat_parrot(frame_idx, tilt)
-        elif self.grow_active:
-            # Hi-res grow-mode bird: pre-built at full grow display size by
-            # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
-            # downscale). Skips the smoothscale-up that produced the prior
-            # blur. Combo modes (kfc / ghost / triple + grow) still use
-            # the legacy upscale below — they pre-empt this branch.
+        elif use_grow_hires:
+            # Hi-res grow-mode bird: pre-built at full grow display size
+            # by `parrot._build_grow_frame` (round-9 v3 = 3× supersample
+            # → 1.5× downscale). Used only at the GROW_SCALE peak so the
+            # smoothscale-up blur is avoided once the transition completes.
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
-        if self.grow_active and (self.kfc_active or self.ghost_active
-                                  or self.triple_active):
-            # Combo + grow: smoothscale-up the variant sprite. No hi-res
-            # combo frames yet; this preserves correctness at the cost of
-            # the same upscale blur the base bird used to have.
-            from game.config import GROW_SCALE
+        if self.grow_scale > 1.0 and not use_grow_hires:
+            # Mid-transition (any sprite) or peak + combo (no hi-res combo
+            # frames yet): smoothscale by the eased grow_scale.
             w, h = img.get_size()
-            img = pygame.transform.smoothscale(
-                img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
+            s = self.grow_scale
+            img = pygame.transform.smoothscale(img, (int(w * s), int(h * s)))
         if self.shrink_scale < 1.0:
             # SHRINK: counterpart to GROW. Smoothscale down by the eased
             # shrink_scale (animates between 1.0 and SHRINK_SCALE over
@@ -598,8 +616,8 @@ class Bird:
         else:
             mode = "normal"
         parcel = parrot.get_parcel(mode)
-        from game.config import GROW_SCALE, PARCEL_Y_OFFSET
-        scale = GROW_SCALE if self.grow_active else 1.0
+        from game.config import PARCEL_Y_OFFSET
+        scale = self.grow_scale
         if self.shrink_scale < 1.0:
             scale = self.shrink_scale
         if scale != 1.0:
