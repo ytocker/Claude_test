@@ -1,20 +1,20 @@
-"""Render 5 NIGHTGLOW powerup ICON design candidates.
+"""Render 5 NIGHTGLOW powerup ICON design candidates — sticker style.
 
-V5 PUNCH+ was approved as the in-world visual treatment. Now the icon
-on the pickup token itself needs to HINT at what the powerup does
-("world goes dark, important things glow neon green"). Five distinct
-visual metaphors are explored, each drawn at 2× game scale on a dark
-night background so the details read clearly:
+The previous icon set was too painterly. The user asked for a
+glow-in-the-dark sticker aesthetic: flat solid shapes, lime-green
+phosphorescent fill, dark outline, slight ambient halo on the dark
+backdrop. Five recognisable GITD-sticker silhouettes that each hint at
+the NIGHTGLOW effect ("world goes dark, things glow neon-green"):
 
-    1. CRESCENT — moon + sparkles → "night begins"
-    2. LANTERN  — light source in dark → "stuff will glow"
-    3. ORB      — pure energy sphere → "magical illumination"
-    4. EYE      — nocturnal eye → "night vision"
-    5. FIREFLY  — bioluminescent bug → "small green glow"
+    1. STAR      — the classic 5-point ceiling sticker
+    2. MOON      — sleepy crescent moon with face
+    3. GHOST     — friendly cartoon ghost
+    4. MUSHROOM  — speckled toadstool
+    5. BOLT      — lightning bolt
 
-Each PNG is 240×240, a single icon centred so the user can compare
-designs side-by-side without external context. The chosen design will
-then be ported into entities.py's _draw_nightglow_icon at native scale.
+Each PNG is 240×240, a single sticker centred on a dark night
+backdrop. The chosen design will be ported into entities.py's
+_draw_nightglow_icon at ~52×52 native scale.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -41,231 +41,292 @@ pygame.display.set_mode((1, 1))
 CANVAS = 240
 CENTER = CANVAS // 2
 
-# Approved palette from V5_punch_plus.
-GREEN_DEEP   = (40, 200, 30)
-GREEN_MID    = (90, 240, 70)
-GREEN_BRIGHT = (140, 250, 110)
-GREEN_GLOW   = (180, 255, 160)
-WHITE_HOT    = (230, 255, 220)
+# Phosphorescent green-yellow — the classic GITD-pigment colour. Brighter
+# and more yellow than the in-world halo green so the sticker visibly
+# pops as a printed-vinyl thing under dark light.
+STICKER_FILL      = (185, 255, 130)
+STICKER_HIGHLIGHT = (235, 255, 200)
+STICKER_OUTLINE   = (60, 160, 40)
+STICKER_DEEP      = (35, 110, 25)
 
 
 def _dark_backdrop() -> pygame.Surface:
     surf = pygame.Surface((CANVAS, CANVAS)).convert()
-    # Vertical gradient: night top → slightly lighter night bottom.
     for y in range(CANVAS):
         t = y / CANVAS
         r = int(4 + (12 - 4) * t)
         g = int(8 + (20 - 8) * t)
         b = int(22 + (38 - 22) * t)
         pygame.draw.line(surf, (r, g, b), (0, y), (CANVAS, y))
-    # Scatter a few stars for context.
     import random as _r
     rng = _r.Random(11)
     for _ in range(18):
         x = rng.randint(0, CANVAS - 1)
         y = rng.randint(0, CANVAS - 1)
-        a = rng.randint(140, 220)
         pygame.draw.circle(surf, (220, 220, 200), (x, y), 1)
     return surf
 
 
-def _add_radial_aura(surf, cx, cy, radius, color, alpha_peak):
-    """Smooth additive radial aura at (cx, cy) — the V5 PUNCH+ glow
-    signature compressed into a single icon-scale halo."""
+def _ambient_halo(surf, cx, cy, radius, alpha_peak):
+    """Soft ambient glow that says 'this is glowing in the dark'."""
     pad = radius + 4
     aura = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     for r in range(radius, 0, -2):
-        t = r / radius                    # 1.0 outer → ~0 inner
+        t = r / radius
         a = int(alpha_peak * (1.0 - t) ** 1.5)
         if a <= 0:
             continue
-        pygame.draw.circle(aura, (*color, a), (pad, pad), r)
-    surf.blit(aura, (cx - pad, cy - pad), special_flags=pygame.BLEND_RGBA_ADD)
+        pygame.draw.circle(aura, (130, 240, 90, a), (pad, pad), r)
+    surf.blit(aura, (cx - pad, cy - pad),
+              special_flags=pygame.BLEND_RGBA_ADD)
 
 
-# ─── ICON 1 — CRESCENT (moon + sparkles) ────────────────────────────────────
+def _sticker_polygon(surf, points, highlight_offset_y=-4):
+    """Draw a flat polygon sticker: fill + outline + top highlight rim."""
+    pygame.draw.polygon(surf, STICKER_OUTLINE,
+                        [(x + dx, y + dy) for x, y in points
+                         for dx, dy in [(0, 0)]],
+                        0)  # base/outline (slightly larger via outline thickness)
+    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 0)
+    # Fill, inset by 3px (achieved by drawing fill, then a darker outline 3px wide)
+    pygame.draw.polygon(surf, STICKER_FILL, points, 0)
+    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 4)
 
-def icon_crescent(surf):
+
+# ─── ICON 1 — STAR (classic 5-point ceiling sticker) ────────────────────────
+
+def icon_star(surf):
     cx, cy = CENTER, CENTER
+    _ambient_halo(surf, cx, cy, 95, 170)
 
-    # Wide aura
-    _add_radial_aura(surf, cx, cy, 80, GREEN_DEEP, 140)
-    _add_radial_aura(surf, cx, cy, 60, GREEN_MID, 180)
+    # 5-point star
+    r_outer = 78
+    r_inner = 33
+    points = []
+    for i in range(10):
+        a = -math.pi / 2 + i * math.pi / 5
+        r = r_outer if i % 2 == 0 else r_inner
+        points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
 
-    # Crescent: filled circle minus a shifted darker circle.
-    moon_layer = pygame.Surface((140, 140), pygame.SRCALPHA)
-    pygame.draw.circle(moon_layer, GREEN_GLOW, (70, 70), 42)
-    pygame.draw.circle(moon_layer, WHITE_HOT, (70, 70), 38)
-    pygame.draw.circle(moon_layer, (0, 0, 0, 0), (90, 60), 36)  # bite-out
-    surf.blit(moon_layer, (cx - 70, cy - 70))
+    pygame.draw.polygon(surf, STICKER_FILL, points)
+    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 5)
 
-    # Sparkle stars (4-point flares) scattered around.
-    sparkles = ((-58, -42, 5), (52, -50, 4), (60, 40, 6), (-50, 50, 4),
-                (-30, -70, 3), (35, 65, 3))
-    for sx_o, sy_o, sz in sparkles:
-        x, y = cx + sx_o, cy + sy_o
-        pygame.draw.line(surf, WHITE_HOT, (x - sz, y), (x + sz, y), 2)
-        pygame.draw.line(surf, WHITE_HOT, (x, y - sz), (x, y + sz), 2)
-        pygame.draw.circle(surf, WHITE_HOT, (x, y), 1)
+    # Top-edge highlight — a smaller star, offset up, drawn in highlight colour.
+    hl = []
+    for i in range(10):
+        a = -math.pi / 2 + i * math.pi / 5
+        r = (r_outer - 14) if i % 2 == 0 else (r_inner - 6)
+        hl.append((cx + r * math.cos(a), cy - 6 + r * math.sin(a)))
+    pygame.draw.polygon(surf, STICKER_HIGHLIGHT, hl)
+    pygame.draw.polygon(surf, STICKER_FILL, hl, 3)  # blend back to fill
+
+    # Tiny central white pop
+    pygame.draw.circle(surf, (255, 255, 255), (cx - 4, cy - 14), 4)
 
 
-# ─── ICON 2 — LANTERN (light source in the dark) ────────────────────────────
+# ─── ICON 2 — MOON (sleepy crescent with face) ──────────────────────────────
 
-def icon_lantern(surf):
+def icon_moon(surf):
     cx, cy = CENTER, CENTER
+    _ambient_halo(surf, cx, cy, 95, 170)
 
-    # Wide green aura
-    _add_radial_aura(surf, cx, cy + 6, 90, GREEN_DEEP, 150)
-    _add_radial_aura(surf, cx, cy + 6, 65, GREEN_MID, 180)
+    # Crescent: large fill circle minus a shifted "bite" circle.
+    # Render onto its own SRCALPHA layer so we can punch the bite cleanly.
+    layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
+    pygame.draw.circle(layer, STICKER_OUTLINE, (cx, cy), 76)
+    pygame.draw.circle(layer, STICKER_FILL,    (cx, cy), 72)
+    pygame.draw.circle(layer, (0, 0, 0, 0),    (cx + 28, cy - 18), 64)
 
-    # Top hook + chain
-    pygame.draw.arc(surf, (180, 180, 170),
-                    pygame.Rect(cx - 10, cy - 78, 20, 14), 0, math.pi, 2)
-    pygame.draw.line(surf, (180, 180, 170),
-                     (cx, cy - 70), (cx, cy - 50), 2)
+    # Highlight rim along the left edge of the crescent (top-left where light hits)
+    pygame.draw.circle(layer, STICKER_HIGHLIGHT, (cx - 4, cy - 4), 70)
+    pygame.draw.circle(layer, STICKER_FILL,      (cx - 1, cy - 1), 66)
+    pygame.draw.circle(layer, (0, 0, 0, 0),      (cx + 28, cy - 18), 64)
 
-    # Lantern frame: rectangle with rounded top + base.
-    frame = pygame.Rect(cx - 28, cy - 50, 56, 80)
-    pygame.draw.rect(surf, (40, 40, 50), frame.inflate(8, 8), border_radius=6)
-    pygame.draw.rect(surf, (90, 90, 100), frame, border_radius=4)
+    surf.blit(layer, (0, 0))
 
-    # Glass panel
-    glass = frame.inflate(-10, -16)
-    pygame.draw.rect(surf, (15, 35, 22), glass, border_radius=3)
-
-    # Inner glow — bright green flame core
-    flame = pygame.Surface((glass.width, glass.height), pygame.SRCALPHA)
-    fcx, fcy = glass.width // 2, glass.height // 2 + 4
-    for r, col in ((24, GREEN_DEEP),
-                   (18, GREEN_MID),
-                   (12, GREEN_BRIGHT),
-                   (7,  WHITE_HOT)):
-        pygame.draw.circle(flame, col, (fcx, fcy), r)
-    surf.blit(flame, glass.topleft)
-
-    # Cross-brace silhouette on glass
-    pygame.draw.line(surf, (60, 60, 70),
-                     (glass.left, glass.centery), (glass.right, glass.centery), 1)
-    pygame.draw.line(surf, (60, 60, 70),
-                     (glass.centerx, glass.top), (glass.centerx, glass.bottom), 1)
+    # Face: closed sleepy eye + tiny smile, positioned on the visible (left) lobe.
+    eye_x, eye_y = cx - 22, cy - 4
+    # Closed eye = a small arc
+    pygame.draw.arc(surf, STICKER_DEEP,
+                    pygame.Rect(eye_x - 9, eye_y - 5, 18, 10),
+                    math.pi, math.tau, 3)
+    # Tiny smile
+    pygame.draw.arc(surf, STICKER_DEEP,
+                    pygame.Rect(cx - 30, cy + 14, 18, 12),
+                    math.pi + 0.3, math.tau - 0.3, 3)
+    # Cheek blush
+    pygame.draw.circle(surf, (140, 220, 90), (cx - 30, cy + 8), 3)
 
 
-# ─── ICON 3 — ORB (pure energy sphere) ──────────────────────────────────────
+# ─── ICON 3 — GHOST (friendly cartoon ghost) ────────────────────────────────
 
-def icon_orb(surf):
+def icon_ghost(surf):
     cx, cy = CENTER, CENTER
+    _ambient_halo(surf, cx + 2, cy, 95, 175)
 
-    # Extra wide aura — this icon IS the glow
-    _add_radial_aura(surf, cx, cy, 110, GREEN_DEEP, 170)
-    _add_radial_aura(surf, cx, cy, 80,  GREEN_MID,  200)
-    _add_radial_aura(surf, cx, cy, 55,  GREEN_BRIGHT, 210)
+    # Body: rounded-top + wavy bottom hem.
+    # Build silhouette as a polygon: a big half-circle on top, vertical sides,
+    # wavy zig-zag bottom.
+    top_r = 60
+    body_w = top_r * 2
+    body_h = 120
+    left  = cx - top_r
+    right = cx + top_r
+    top_y = cy - 56
+    bot_y = top_y + body_h
 
-    # Solid core
-    pygame.draw.circle(surf, GREEN_BRIGHT, (cx, cy), 32)
-    pygame.draw.circle(surf, GREEN_GLOW,   (cx, cy), 24)
-    pygame.draw.circle(surf, WHITE_HOT,    (cx, cy), 14)
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 5, cy - 5), 5)
+    pts = []
+    # Top arc — 19 samples
+    for i in range(19):
+        a = math.pi + (math.pi * i / 18)
+        pts.append((cx + top_r * math.cos(a), top_y + top_r + top_r * math.sin(a)))
+    # Right side down
+    pts.append((right, bot_y - 16))
+    # Wavy hem (3 humps)
+    hem_xs = [right, right - 20, right - 40, right - 60, right - 80, right - 100, left]
+    hem_ys = [bot_y - 16, bot_y - 4, bot_y - 16, bot_y - 4, bot_y - 16, bot_y - 4, bot_y - 16]
+    for x, y in zip(hem_xs, hem_ys):
+        pts.append((x, y))
+    # Close back up left side
+    pts.append((left, top_y + top_r))
 
-    # Two thin orbiting rings (energy field hint)
-    ring = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
-    pygame.draw.ellipse(ring, (*GREEN_GLOW, 160),
-                        pygame.Rect(cx - 70, cy - 22, 140, 44), 2)
-    pygame.draw.ellipse(ring, (*GREEN_GLOW, 130),
-                        pygame.Rect(cx - 60, cy - 60, 120, 120), 1)
-    surf.blit(ring, (0, 0))
+    pygame.draw.polygon(surf, STICKER_OUTLINE, pts)
+    # Inset fill
+    fill_pts = [(x + (1 if x > cx else -1) * 4, y - 1) for x, y in pts]
+    pygame.draw.polygon(surf, STICKER_FILL, fill_pts)
+    pygame.draw.polygon(surf, STICKER_OUTLINE, fill_pts, 4)
+
+    # Highlight strip down the left side
+    pygame.draw.line(surf, STICKER_HIGHLIGHT,
+                     (cx - top_r + 14, top_y + 30), (cx - top_r + 14, bot_y - 30), 6)
+
+    # Face: two oval eyes + 'o' mouth
+    pygame.draw.ellipse(surf, STICKER_DEEP,
+                        pygame.Rect(cx - 22, cy - 16, 12, 18))
+    pygame.draw.ellipse(surf, STICKER_DEEP,
+                        pygame.Rect(cx + 10, cy - 16, 12, 18))
+    # Eye highlight pops
+    pygame.draw.circle(surf, (255, 255, 255), (cx - 14, cy - 11), 2)
+    pygame.draw.circle(surf, (255, 255, 255), (cx + 18, cy - 11), 2)
+    # Mouth
+    pygame.draw.ellipse(surf, STICKER_DEEP,
+                        pygame.Rect(cx - 7, cy + 12, 14, 16))
 
 
-# ─── ICON 4 — EYE (nocturnal night-vision) ──────────────────────────────────
+# ─── ICON 4 — MUSHROOM (speckled toadstool) ─────────────────────────────────
 
-def icon_eye(surf):
+def icon_mushroom(surf):
     cx, cy = CENTER, CENTER
+    _ambient_halo(surf, cx, cy - 6, 95, 165)
 
-    # Aura
-    _add_radial_aura(surf, cx, cy, 90, GREEN_DEEP, 150)
-    _add_radial_aura(surf, cx, cy, 65, GREEN_MID, 175)
+    # Stem
+    stem_rect = pygame.Rect(cx - 18, cy + 6, 36, 60)
+    pygame.draw.rect(surf, STICKER_OUTLINE, stem_rect.inflate(4, 4),
+                     border_radius=8)
+    pygame.draw.rect(surf, STICKER_FILL, stem_rect, border_radius=6)
+    pygame.draw.rect(surf, STICKER_HIGHLIGHT,
+                     pygame.Rect(cx - 14, cy + 10, 8, 50), border_radius=4)
 
-    # Almond eye outline — two arcs forming the eye shape.
-    eye_w, eye_h = 110, 56
-    eye_rect = pygame.Rect(cx - eye_w // 2, cy - eye_h // 2, eye_w, eye_h)
-    # Lid (top + bottom arcs)
-    pygame.draw.ellipse(surf, WHITE_HOT, eye_rect, 3)
-    # White sclera fill
-    sclera_layer = pygame.Surface((eye_w, eye_h), pygame.SRCALPHA)
-    pygame.draw.ellipse(sclera_layer, (210, 240, 215), sclera_layer.get_rect())
-    surf.blit(sclera_layer, eye_rect.topleft)
-    # Iris: glowing green disc
-    pygame.draw.circle(surf, GREEN_DEEP, (cx, cy), 24)
-    pygame.draw.circle(surf, GREEN_MID, (cx, cy), 20)
-    pygame.draw.circle(surf, GREEN_BRIGHT, (cx, cy), 14)
-    # Slit pupil (vertical, cat-like)
-    pygame.draw.ellipse(surf, (10, 30, 15),
-                        pygame.Rect(cx - 3, cy - 14, 6, 28))
-    # Iris highlight
-    pygame.draw.circle(surf, WHITE_HOT, (cx - 6, cy - 6), 4)
-    # Eyelash hints
-    for dx in (-44, -28, 28, 44):
-        pygame.draw.line(surf, WHITE_HOT,
-                         (cx + dx, cy - eye_h // 2 - 2),
-                         (cx + dx + (1 if dx > 0 else -1), cy - eye_h // 2 - 9),
-                         2)
+    # Cap — wide half-dome (drawn as a rotated ellipse via Rect clipping).
+    cap_w, cap_h = 150, 90
+    cap_top = cy - 50
+    cap_rect = pygame.Rect(cx - cap_w // 2, cap_top, cap_w, cap_h)
+    # Outline
+    outline_layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
+    pygame.draw.ellipse(outline_layer, STICKER_OUTLINE, cap_rect.inflate(8, 8))
+    pygame.draw.ellipse(outline_layer, STICKER_FILL, cap_rect)
+    # Crop the bottom half so it reads as a dome
+    pygame.draw.rect(outline_layer, (0, 0, 0, 0),
+                     pygame.Rect(0, cy + 8, CANVAS, CANVAS))
+    surf.blit(outline_layer, (0, 0))
+
+    # Cap base line (curved underside)
+    pygame.draw.line(surf, STICKER_OUTLINE,
+                     (cx - cap_w // 2, cy + 6), (cx + cap_w // 2, cy + 6), 4)
+    # Highlight rim along top of the cap
+    hl_rect = cap_rect.inflate(-20, -20)
+    hl_rect.y -= 8
+    hl_layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
+    pygame.draw.ellipse(hl_layer, STICKER_HIGHLIGHT, hl_rect)
+    pygame.draw.rect(hl_layer, (0, 0, 0, 0),
+                     pygame.Rect(0, cy - 12, CANVAS, CANVAS))
+    surf.blit(hl_layer, (0, 0))
+
+    # Spots
+    for sx, sy, sr in ((cx - 36, cy - 30, 10),
+                       (cx + 28, cy - 26, 12),
+                       (cx + 50, cy - 8, 7),
+                       (cx - 60, cy - 10, 7),
+                       (cx + 4,  cy - 36, 8)):
+        pygame.draw.circle(surf, STICKER_OUTLINE, (sx, sy), sr + 1)
+        pygame.draw.circle(surf, STICKER_DEEP,    (sx, sy), sr)
 
 
-# ─── ICON 5 — FIREFLY (bioluminescent bug) ──────────────────────────────────
+# ─── ICON 5 — BOLT (lightning) ──────────────────────────────────────────────
 
-def icon_firefly(surf):
-    # Diagonal motion — bug in mid-flight, glowing rear trailing back.
+def icon_bolt(surf):
     cx, cy = CENTER, CENTER
+    _ambient_halo(surf, cx, cy, 95, 175)
 
-    # Trail of light particles (behind / lower-left)
-    trail = ((-70, 50, 14, 60),
-             (-55, 38, 18, 90),
-             (-40, 25, 22, 130),
-             (-22, 12, 26, 170))
-    for dx, dy, r, a in trail:
-        _add_radial_aura(surf, cx + dx, cy + dy, r, GREEN_MID, a)
+    # Classic Z-zigzag bolt — narrow at top, wider in middle, narrow at bottom.
+    bolt = [
+        (cx - 12, cy - 85),
+        (cx + 26, cy - 85),
+        (cx + 6,  cy - 18),
+        (cx + 36, cy - 18),
+        (cx - 10, cy + 85),
+        (cx + 6,  cy + 18),
+        (cx - 30, cy + 18),
+        (cx - 4,  cy - 18),
+        (cx - 26, cy - 18),
+    ]
+    # Outline pad
+    pygame.draw.polygon(surf, STICKER_OUTLINE, bolt)
+    # Inset fill
+    inset = []
+    for px, py in bolt:
+        dx = 4 if px > cx else -4
+        dy = 4 if py > cy else -4
+        inset.append((px + dx, py + dy))
+    # Just shrink toward centre by 4px for the fill
+    inset = [((px + cx) // 2 if False else int(cx + (px - cx) * 0.92),
+              int(cy + (py - cy) * 0.92)) for px, py in bolt]
+    pygame.draw.polygon(surf, STICKER_FILL, inset)
+    pygame.draw.polygon(surf, STICKER_OUTLINE, inset, 3)
 
-    # Wide bright aura at firefly body
-    _add_radial_aura(surf, cx, cy, 95, GREEN_DEEP, 170)
-    _add_radial_aura(surf, cx, cy, 60, GREEN_MID, 200)
-
-    # Body — small dark beetle shape
-    pygame.draw.ellipse(surf, (35, 50, 30),
-                        pygame.Rect(cx - 18, cy - 12, 38, 24))
-    pygame.draw.ellipse(surf, (60, 80, 50),
-                        pygame.Rect(cx - 16, cy - 11, 28, 20))
-    # Wing split line
-    pygame.draw.line(surf, (25, 35, 22),
-                     (cx, cy - 11), (cx, cy + 11), 1)
-    # Head
-    pygame.draw.circle(surf, (45, 60, 40), (cx - 18, cy), 6)
-    # Antennae
-    pygame.draw.line(surf, (45, 60, 40), (cx - 22, cy - 3), (cx - 30, cy - 14), 1)
-    pygame.draw.line(surf, (45, 60, 40), (cx - 22, cy + 3), (cx - 30, cy + 14), 1)
-    # Tiny eye dots
-    pygame.draw.circle(surf, WHITE_HOT, (cx - 21, cy - 1), 1)
-
-    # Glowing tail — the signature firefly lantern.
-    tail_cx = cx + 20
-    pygame.draw.circle(surf, GREEN_BRIGHT, (tail_cx, cy), 12)
-    pygame.draw.circle(surf, GREEN_GLOW,   (tail_cx, cy), 9)
-    pygame.draw.circle(surf, WHITE_HOT,    (tail_cx, cy), 5)
-    pygame.draw.circle(surf, (255, 255, 255), (tail_cx, cy), 2)
+    # Bright highlight stripe along the left edge of the bolt
+    hl_pts = [
+        (cx - 8, cy - 78),
+        (cx - 2, cy - 78),
+        (cx - 16, cy - 12),
+        (cx - 10, cy - 12),
+        (cx - 4, cy + 80),
+        (cx - 10, cy + 80),
+        (cx - 4, cy + 12),
+        (cx - 12, cy + 12),
+    ]
+    pygame.draw.polygon(surf, STICKER_HIGHLIGHT, hl_pts)
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 ICONS = [
-    ("icon_1_crescent.png", icon_crescent),
-    ("icon_2_lantern.png",  icon_lantern),
-    ("icon_3_orb.png",      icon_orb),
-    ("icon_4_eye.png",      icon_eye),
-    ("icon_5_firefly.png",  icon_firefly),
+    ("icon_1_star.png",     icon_star),
+    ("icon_2_moon.png",     icon_moon),
+    ("icon_3_ghost.png",    icon_ghost),
+    ("icon_4_mushroom.png", icon_mushroom),
+    ("icon_5_bolt.png",     icon_bolt),
 ]
 
 
 def main() -> int:
     out_dir = os.path.join(_REPO, "docs", "screenshots", "nightglow_icons")
     os.makedirs(out_dir, exist_ok=True)
+    # Wipe any previous candidates so the directory only ever shows the
+    # current set.
+    for fn in os.listdir(out_dir):
+        if fn.endswith(".png"):
+            os.remove(os.path.join(out_dir, fn))
     for fname, fn in ICONS:
         scene = _dark_backdrop()
         fn(scene)
