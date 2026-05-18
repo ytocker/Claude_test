@@ -1,15 +1,24 @@
 """Render 5 NIGHTGLOW visual-variant mockups for review.
 
-Each variant paints the same canonical scene (night sky + 2 pillars + 2
-coins + 1 powerup token + Pip mid-flap) with a different neon-green glow
-treatment, then saves a 360×640 PNG. The user picks one; the live game
-render path is updated separately.
+Approach: render the canonical scene (night sky + mountains + ground +
+2 pillars + 2 coins + 1 powerup token + Pip mid-flap) ONCE, then for
+each variant **preserve the original entity texture** and only
+
+  (1) tint the visible colors toward neon green, and
+  (2) add an aura around each entity silhouette
+
+The previous approach (painting flat green shapes over the entities)
+destroyed all texture detail and looked amateur. This one keeps the
+sandstone pillar grain, the coin gradient, and Pip's sprite intact —
+the rendering looks like the same scene shifted into a green-light
+night vision, with a glow around the parts that matter.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
         python tools/render_nightglow_variants.py
 """
 
+import math
 import os
 import sys
 
@@ -18,51 +27,22 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame
 
-# Ensure the repo root is on sys.path so `game` imports work when this
-# file is invoked from the repo root or from anywhere else.
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
 pygame.init()
-pygame.display.set_mode((1, 1))  # required for some Surface ops
+pygame.display.set_mode((1, 1))
 
 from game import biome
 from game.config import W, H, PIPE_W, COIN_R, POWERUP_R, GROUND_Y, BIRD_X
+from game.draw import draw_mountains, draw_ground
 from game.entities import Bird, Coin, PowerUp, Pipe
 
 
-NEON       = (57, 255, 20)
-NEON_CORE  = (170, 255, 140)
-NEON_DEEP  = (20, 120, 40)
-
-
-# ─── canonical scene ────────────────────────────────────────────────────────
-
-def _night_sky(surf: pygame.Surface) -> None:
-    pal = biome.palette_for_phase(0.64375)
-    top, mid, bot = pal["sky_top"], pal["sky_mid"], pal["sky_bot"]
-    for y in range(H):
-        if y < H * 0.45:
-            t = y / (H * 0.45)
-            r = int(top[0] + (mid[0] - top[0]) * t)
-            g = int(top[1] + (mid[1] - top[1]) * t)
-            b = int(top[2] + (mid[2] - top[2]) * t)
-        else:
-            t = (y - H * 0.45) / (H * 0.55)
-            r = int(mid[0] + (bot[0] - mid[0]) * t)
-            g = int(mid[1] + (bot[1] - mid[1]) * t)
-            b = int(mid[2] + (bot[2] - mid[2]) * t)
-        pygame.draw.line(surf, (r, g, b), (0, y), (W, y))
-
-
-def _ground_band(surf: pygame.Surface) -> None:
-    pygame.draw.rect(surf, (18, 28, 50), (0, GROUND_Y, W, H - GROUND_Y))
-    pygame.draw.line(surf, (60, 90, 130), (0, GROUND_Y), (W, GROUND_Y), 1)
-
+# ─── scene composition (shared by every variant) ────────────────────────────
 
 def _build_entities():
-    """Returns (pipes, coins, powerup, bird) positioned for the mockup."""
     pal = biome.palette_for_phase(0.64375)
     pipes = [
         Pipe(x=70.0,  gap_y=H * 0.50, gap_h=170.0),
@@ -80,22 +60,62 @@ def _build_entities():
     return pipes, coins, powerup, bird, pal
 
 
-def render_base() -> tuple[pygame.Surface, dict]:
-    """One Surface containing the un-glowed scene + the entity refs we
-    later overlay glows onto."""
-    surf = pygame.Surface((W, H)).convert()
-    _night_sky(surf)
-    _ground_band(surf)
+def _night_sky(surf):
+    pal = biome.palette_for_phase(0.64375)
+    top, mid, bot = pal["sky_top"], pal["sky_mid"], pal["sky_bot"]
+    for y in range(H):
+        if y < H * 0.45:
+            t = y / (H * 0.45)
+            c = tuple(int(top[i] + (mid[i] - top[i]) * t) for i in range(3))
+        else:
+            t = (y - H * 0.45) / (H * 0.55)
+            c = tuple(int(mid[i] + (bot[i] - mid[i]) * t) for i in range(3))
+        pygame.draw.line(surf, c, (0, y), (W, y))
 
+
+def _scatter_stars(surf, seed=7):
+    import random as _r
+    rng = _r.Random(seed)
+    for _ in range(40):
+        x = rng.randint(0, W - 1)
+        y = rng.randint(0, int(H * 0.55))
+        a = rng.randint(120, 220)
+        pygame.draw.circle(surf, (240, 240, 230), (x, y), 1)
+        if rng.random() < 0.15:
+            # tiny twinkle cross on a few of them
+            pygame.draw.line(surf, (255, 250, 220, a),
+                             (x - 2, y), (x + 2, y))
+            pygame.draw.line(surf, (255, 250, 220, a),
+                             (x, y - 2), (x, y + 2))
+
+
+def render_base() -> tuple[pygame.Surface, pygame.Surface, dict]:
+    """Returns (background_only, entities_only, refs).
+
+    Splitting the scene into "background" and "entities" layers lets each
+    variant darken the background while applying glow effects only to the
+    entities — without re-rendering them and without losing texture."""
     pipes, coins, powerup, bird, pal = _build_entities()
-    for p in pipes:
-        p.draw(surf, pal)
-    for c in coins:
-        c.draw(surf)
-    powerup.draw(surf)
-    bird.draw(surf, 0, 0)
 
-    return surf, {
+    bg = pygame.Surface((W, H)).convert()
+    _night_sky(bg)
+    _scatter_stars(bg)
+    draw_mountains(bg, scroll=120.0, ground_y=GROUND_Y, w=W,
+                   far_color=(40, 50, 100), near_color=(20, 30, 70))
+    draw_ground(bg, ground_y=GROUND_Y, w=W, h=H, scroll=120.0,
+                top_color=(35, 50, 80),
+                mid_color=(20, 30, 55),
+                bot_color=(10, 15, 30))
+
+    entities = pygame.Surface((W, H), pygame.SRCALPHA).convert_alpha()
+    for p in pipes:
+        p.draw(entities, pal)
+    for c in coins:
+        c.draw(entities)
+    powerup.draw(entities)
+    bird.draw(entities, 0, 0)
+
+    return bg, entities, {
         "pipes":   pipes,
         "coins":   coins,
         "powerup": powerup,
@@ -103,250 +123,282 @@ def render_base() -> tuple[pygame.Surface, dict]:
     }
 
 
-# ─── shared helpers ─────────────────────────────────────────────────────────
+# ─── reusable building blocks ───────────────────────────────────────────────
 
-def _dark_overlay(surf: pygame.Surface, alpha: int) -> None:
+def _green_tint_preserving_texture(entities: pygame.Surface,
+                                   tint=(70, 255, 90),
+                                   strength: float = 1.0) -> pygame.Surface:
+    """Multiply the entities layer by a green tint so red/blue channels
+    drop while the green-channel luminance (and therefore the
+    texture-detail gradients) survive. `strength` blends between original
+    and fully-tinted: 0.0 = no tint, 1.0 = full tint."""
+    full = entities.copy()
+    tint_surf = pygame.Surface(full.get_size(), pygame.SRCALPHA)
+    tint_surf.fill((*tint, 255))
+    full.blit(tint_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    if strength >= 1.0:
+        return full
+    # Cross-fade original ↔ tinted by `strength`.
+    out = entities.copy()
+    full.set_alpha(int(255 * strength))
+    out.blit(full, (0, 0))
+    return out
+
+
+def _silhouette_alpha(entities: pygame.Surface) -> pygame.Surface:
+    """A solid-white silhouette of the entities (alpha === entities alpha)
+    — useful as a stamp for outlines/halos."""
+    sil = pygame.Surface(entities.get_size(), pygame.SRCALPHA)
+    sil.fill((255, 255, 255, 255))
+    sil.blit(entities, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    return sil
+
+
+def _blurred_silhouette(entities: pygame.Surface,
+                       scale: float,
+                       color=(70, 255, 90)) -> pygame.Surface:
+    """Downsample-and-back blur of the entity silhouette, recoloured —
+    cheap glow halo. Smaller `scale` ⇒ softer, wider blur."""
+    sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
+    small = pygame.transform.smoothscale(entities, (sw, sh))
+    blurred = pygame.transform.smoothscale(small, (W, H))
+    # Recolour: multiply by `color`, keep blurred alpha.
     tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    tint.fill((4, 6, 14, alpha))
-    surf.blit(tint, (0, 0))
+    tint.fill((*color, 255))
+    blurred.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return blurred
 
 
-def _pipe_rects(pipe):
-    top_h = max(0, int(pipe.gap_y - pipe.gap_h / 2))
-    bot_y = int(pipe.gap_y + pipe.gap_h / 2)
-    bot_h = max(0, GROUND_Y - bot_y)
-    return int(pipe.x), top_h, bot_y, bot_h
-
-
-def _entity_centers(refs):
-    pts = []
-    for c in refs["coins"]:
-        pts.append(("coin",    int(c.x), int(c.y), COIN_R))
-    pts.append(("powerup",
-                int(refs["powerup"].x), int(refs["powerup"].y), POWERUP_R))
-    pts.append(("bird",
-                int(refs["bird"].x), int(refs["bird"].y), 14))
-    return pts
-
-
-# ─── VARIANT 1 — OUTLINE (sharp Tron edges) ─────────────────────────────────
-
-def variant_outline(surf: pygame.Surface, refs: dict) -> None:
-    _dark_overlay(surf, 145)
-
-    # Pillars: thin vertical edge lines + horizontal caps.
-    for p in refs["pipes"]:
-        x, top_h, bot_y, bot_h = _pipe_rects(p)
-        if top_h > 0:
-            pygame.draw.line(surf, NEON, (x, 0), (x, top_h), 2)
-            pygame.draw.line(surf, NEON,
-                             (x + PIPE_W - 1, 0), (x + PIPE_W - 1, top_h), 2)
-            pygame.draw.line(surf, NEON_CORE,
-                             (x - 2, top_h), (x + PIPE_W + 1, top_h), 2)
-        if bot_h > 0:
-            pygame.draw.line(surf, NEON, (x, bot_y), (x, GROUND_Y), 2)
-            pygame.draw.line(surf, NEON,
-                             (x + PIPE_W - 1, bot_y),
-                             (x + PIPE_W - 1, GROUND_Y), 2)
-            pygame.draw.line(surf, NEON_CORE,
-                             (x - 2, bot_y), (x + PIPE_W + 1, bot_y), 2)
-
-    # Coins / powerup / bird: ring outlines.
-    for kind, cx, cy, r in _entity_centers(refs):
-        pygame.draw.circle(surf, NEON, (cx, cy), r + 3, 2)
-        pygame.draw.circle(surf, NEON_CORE, (cx, cy), r + 1, 1)
-
-
-# ─── VARIANT 2 — BLOOM (soft radial halo) ───────────────────────────────────
-
-def _radial(surf, cx, cy, r, layers):
-    """Multi-layer additive radial halo at (cx, cy)."""
-    s = pygame.Surface((r * 2 + 6, r * 2 + 6), pygame.SRCALPHA)
-    for rr, a, col in layers:
-        if rr <= 0:
-            continue
-        pygame.draw.circle(s, (*col, a), (r + 3, r + 3), rr)
-    surf.blit(s, (cx - r - 3, cy - r - 3), special_flags=pygame.BLEND_RGBA_ADD)
-
-
-def variant_bloom(surf: pygame.Surface, refs: dict) -> None:
-    _dark_overlay(surf, 120)
-
-    for p in refs["pipes"]:
-        x, top_h, bot_y, bot_h = _pipe_rects(p)
-        # Pillar bloom: 3 vertical bands of decreasing width / increasing alpha.
-        for w_off, alpha in ((26, 16), (14, 32), (6, 60)):
-            for ry, rh in ((-w_off, top_h + w_off), (bot_y, bot_h + w_off)):
-                if rh <= 0:
-                    continue
-                band = pygame.Surface(
-                    (PIPE_W + w_off * 2, rh), pygame.SRCALPHA)
-                band.fill((*NEON, alpha))
-                surf.blit(band, (x - w_off, ry),
-                          special_flags=pygame.BLEND_RGBA_ADD)
-
-    # Coins/powerup/bird: 4-layer soft halo.
-    for kind, cx, cy, r in _entity_centers(refs):
-        budget = r + (16 if kind == "coin" else
-                      22 if kind == "powerup" else 30)
-        _radial(surf, cx, cy, budget, (
-            (budget,             18, NEON),
-            (int(budget * 0.7),  36, NEON),
-            (int(budget * 0.45), 65, NEON),
-            (int(budget * 0.2), 110, NEON_CORE),
-        ))
-
-
-# ─── VARIANT 3 — SCANLINE (CRT phosphor) ────────────────────────────────────
-
-def _build_scanlines() -> pygame.Surface:
-    s = pygame.Surface((W, H), pygame.SRCALPHA)
-    for y in range(0, H, 2):
-        pygame.draw.line(s, (0, 0, 0, 70), (0, y), (W, y))
-    return s
-
-
-def variant_scanline(surf: pygame.Surface, refs: dict) -> None:
-    _dark_overlay(surf, 105)
-
-    # Moderate bloom first.
-    for p in refs["pipes"]:
-        x, top_h, bot_y, bot_h = _pipe_rects(p)
-        for w_off, alpha in ((18, 24), (8, 52)):
-            for ry, rh in ((-w_off, top_h + w_off), (bot_y, bot_h + w_off)):
-                if rh <= 0:
-                    continue
-                band = pygame.Surface(
-                    (PIPE_W + w_off * 2, rh), pygame.SRCALPHA)
-                band.fill((*NEON, alpha))
-                surf.blit(band, (x - w_off, ry),
-                          special_flags=pygame.BLEND_RGBA_ADD)
-
-    for kind, cx, cy, r in _entity_centers(refs):
-        budget = r + 14
-        _radial(surf, cx, cy, budget, (
-            (budget,             28, NEON),
-            (int(budget * 0.6),  60, NEON),
-            (int(budget * 0.3), 110, NEON_CORE),
-        ))
-
-    # Phosphor smear: tinted offset blits before the scanlines mute the frame.
-    teal_tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    teal_tint.fill((30, 120, 90, 18))
-    surf.blit(teal_tint, (-1, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    green_tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    green_tint.fill((40, 180, 60, 22))
-    surf.blit(green_tint, (1, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
-    surf.blit(_build_scanlines(), (0, 0))
-
-
-# ─── VARIANT 4 — WIREFRAME (stroke-only, no fills) ──────────────────────────
-
-def variant_wireframe(surf: pygame.Surface, refs: dict) -> None:
-    _dark_overlay(surf, 180)  # heavier — entities almost vanish.
-
-    # Pillars: open rectangle outlines + hatched interior verticals.
-    for p in refs["pipes"]:
-        x, top_h, bot_y, bot_h = _pipe_rects(p)
-        if top_h > 0:
-            pygame.draw.rect(surf, NEON,
-                             pygame.Rect(x, 0, PIPE_W, top_h), 2)
-            for vx in range(x + 8, x + PIPE_W - 4, 12):
-                pygame.draw.line(surf, NEON_DEEP, (vx, 0), (vx, top_h), 1)
-        if bot_h > 0:
-            pygame.draw.rect(surf, NEON,
-                             pygame.Rect(x, bot_y, PIPE_W, bot_h), 2)
-            for vx in range(x + 8, x + PIPE_W - 4, 12):
-                pygame.draw.line(surf, NEON_DEEP,
-                                 (vx, bot_y), (vx, GROUND_Y), 1)
-
-    # Coins: a single neon ring.
-    for c in refs["coins"]:
-        pygame.draw.circle(surf, NEON_CORE, (int(c.x), int(c.y)), COIN_R + 2, 2)
-        pygame.draw.circle(surf, NEON, (int(c.x), int(c.y)), COIN_R - 2, 1)
-
-    # Powerup: hollow diamond + inner ring.
-    px, py = int(refs["powerup"].x), int(refs["powerup"].y)
-    r = POWERUP_R + 6
-    pygame.draw.polygon(surf, NEON,
-        [(px, py - r), (px + r, py), (px, py + r), (px - r, py)], 2)
-    pygame.draw.circle(surf, NEON_CORE, (px, py), POWERUP_R - 1, 1)
-
-    # Bird: traced outline from sprite mask.
-    bird = refs["bird"]
-    # Sample what pygame drew of the bird so we can extract its silhouette.
-    sample = pygame.Surface((48, 48), pygame.SRCALPHA)
-    bird_copy = Bird()
-    bird_copy.x = 24
-    bird_copy.y = 24
-    bird_copy.frame_t = bird.frame_t
-    bird_copy.draw(sample, 0, 0)
-    mask = pygame.mask.from_surface(sample)
-    outline_pts = mask.outline(2)
-    if outline_pts:
-        offset = (int(bird.x) - 24, int(bird.y) - 24)
-        traced = [(p[0] + offset[0], p[1] + offset[1]) for p in outline_pts]
-        if len(traced) >= 3:
-            pygame.draw.lines(surf, NEON, True, traced, 2)
-
-
-# ─── VARIANT 5 — PLASMA (pulsing energy field) ──────────────────────────────
-
-def variant_plasma(surf: pygame.Surface, refs: dict) -> None:
-    _dark_overlay(surf, 125)
-
-    # Pillars as vertical energy columns: 3 stacked vertically-stretched
-    # ellipses with hot inner core.
-    for p in refs["pipes"]:
-        x, top_h, bot_y, bot_h = _pipe_rects(p)
-        cx = x + PIPE_W // 2
-        for ry, rh in ((0, top_h), (bot_y, bot_h)):
-            if rh <= 0:
+def _dilated_rim(entities: pygame.Surface,
+                width: int,
+                color=(110, 255, 130, 255)) -> pygame.Surface:
+    """A solid-colour silhouette larger than `entities` by `width` pixels
+    on each side — i.e. an outline you can blit *behind* the entities
+    to make a thick rim. Implemented via mask + grow."""
+    mask = pygame.mask.from_surface(entities, threshold=20)
+    big = mask
+    for _ in range(width):
+        big = big.connected_component()  # noop fallback if empty
+        break
+    # Pygame masks don't expose a true dilation; we emulate by stamping
+    # the silhouette at every (dx, dy) within radius `width`.
+    rim_surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    stamp = pygame.Surface((W, H), pygame.SRCALPHA)
+    stamp.fill((*color[:3], color[3]))
+    stamp.blit(entities, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # Replace stamp's RGB with the rim colour, keep its alpha.
+    stamp_recolour = pygame.Surface((W, H), pygame.SRCALPHA)
+    stamp_recolour.fill((*color[:3], 255))
+    stamp.blit(stamp_recolour, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    for dy in range(-width, width + 1):
+        for dx in range(-width, width + 1):
+            if dx * dx + dy * dy > width * width:
                 continue
-            col_w = PIPE_W + 36
-            col = pygame.Surface((col_w, rh), pygame.SRCALPHA)
-            # Outer faint glow
-            pygame.draw.ellipse(col, (*NEON, 22),
-                                pygame.Rect(0, 0, col_w, rh))
-            # Mid ring
-            margin = 12
-            pygame.draw.ellipse(col, (*NEON, 55),
-                pygame.Rect(margin, 0, col_w - margin * 2, rh))
-            # Hot core
-            core_m = col_w // 3
-            pygame.draw.ellipse(col, (*NEON_CORE, 130),
-                pygame.Rect(core_m, 0, col_w - core_m * 2, rh))
-            surf.blit(col, (cx - col_w // 2, ry),
-                      special_flags=pygame.BLEND_RGBA_ADD)
+            rim_surf.blit(stamp, (dx, dy))
+    return rim_surf
 
-    # Coins/powerup/bird: triple-ring pulse, sampled at one phase so the
-    # rings sit at staggered radii.
-    for kind, cx, cy, r in _entity_centers(refs):
-        base = r + (10 if kind == "coin" else
-                    18 if kind == "powerup" else 26)
-        for rfac, alpha, col, width in (
-                (1.00,  90, NEON,      2),
-                (0.74, 140, NEON,      2),
-                (0.48, 200, NEON_CORE, 2)):
-            rr = max(1, int(base * rfac))
-            ring = pygame.Surface((rr * 2 + 4, rr * 2 + 4), pygame.SRCALPHA)
-            pygame.draw.circle(ring, (*col, alpha),
-                               (rr + 2, rr + 2), rr, width)
-            surf.blit(ring, (cx - rr - 2, cy - rr - 2),
-                      special_flags=pygame.BLEND_RGBA_ADD)
-        # Hot center dot.
-        pygame.draw.circle(surf, (255, 255, 255), (cx, cy), 2)
+
+def _apply_dark_overlay(scene: pygame.Surface, alpha: int,
+                       tint=(4, 8, 16)) -> None:
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((*tint, alpha))
+    scene.blit(overlay, (0, 0))
+
+
+# ─── VARIANT 1 — PHOSPHOR ────────────────────────────────────────────────────
+# Soft green tint preserves texture; one wide soft halo behind entities.
+
+def variant_phosphor(bg, entities, refs) -> pygame.Surface:
+    scene = bg.copy()
+    _apply_dark_overlay(scene, 110)
+
+    halo = _blurred_silhouette(entities, scale=0.10, color=(60, 220, 80))
+    halo.set_alpha(170)
+    scene.blit(halo, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    tinted = _green_tint_preserving_texture(entities, tint=(80, 255, 100))
+    scene.blit(tinted, (0, 0))
+    # Tiny additive top-up so highlights pop without losing texture.
+    top = _green_tint_preserving_texture(entities, tint=(50, 180, 70))
+    top.set_alpha(110)
+    scene.blit(top, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    return scene
+
+
+# ─── VARIANT 2 — RIM LIGHT ──────────────────────────────────────────────────
+# Original sprite untouched colours; bright green rim hugs the silhouette.
+
+def variant_rimlight(bg, entities, refs) -> pygame.Surface:
+    scene = bg.copy()
+    _apply_dark_overlay(scene, 130)
+
+    # Wide soft outer halo (cheap blur).
+    far_halo = _blurred_silhouette(entities, scale=0.06, color=(50, 200, 70))
+    far_halo.set_alpha(140)
+    scene.blit(far_halo, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # Tight rim behind the entities (so it shows just at the edges).
+    rim = _dilated_rim(entities, width=2, color=(140, 255, 160, 255))
+    rim.set_alpha(220)
+    scene.blit(rim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # Slight green wash on the entity itself (keeps colour, shifts hue).
+    washed = _green_tint_preserving_texture(entities,
+                                            tint=(190, 255, 200),
+                                            strength=0.65)
+    scene.blit(washed, (0, 0))
+    return scene
+
+
+# ─── VARIANT 3 — DOUBLE BLOOM ───────────────────────────────────────────────
+# Green-tinted texture + multi-radius bloom for that big "Tron 2.0" look.
+
+def variant_bloom(bg, entities, refs) -> pygame.Surface:
+    scene = bg.copy()
+    _apply_dark_overlay(scene, 115)
+
+    # Three blur radii combined additively → smooth wide bloom.
+    for scale, col, alpha in (
+            (0.04, (40, 180, 60),  150),
+            (0.10, (70, 220, 90),  170),
+            (0.20, (110, 255, 130),180)):
+        layer = _blurred_silhouette(entities, scale=scale, color=col)
+        layer.set_alpha(alpha)
+        scene.blit(layer, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    tinted = _green_tint_preserving_texture(entities, tint=(90, 255, 110))
+    scene.blit(tinted, (0, 0))
+    # Highlight pop.
+    pop = _green_tint_preserving_texture(entities, tint=(70, 220, 90))
+    pop.set_alpha(130)
+    scene.blit(pop, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    return scene
+
+
+# ─── VARIANT 4 — GODRAYS ────────────────────────────────────────────────────
+# Tinted entity + radial light beams fanning out from each centre.
+
+def _draw_rays(scene: pygame.Surface, cx: int, cy: int,
+              length: int, count: int, color, alpha_start: int,
+              phase: float = 0.0, width: int = 2) -> None:
+    rays = pygame.Surface((length * 2 + 4, length * 2 + 4), pygame.SRCALPHA)
+    for i in range(count):
+        a = (i / count) * math.tau + phase
+        x2 = length + length * math.cos(a)
+        y2 = length + length * math.sin(a)
+        # Per-ray gradient: fade alpha by distance along line.
+        for step in range(8, length, 4):
+            t = step / length
+            alpha = int(alpha_start * (1.0 - t) ** 2)
+            if alpha <= 0:
+                continue
+            px = length + step * math.cos(a)
+            py = length + step * math.sin(a)
+            pygame.draw.circle(rays, (*color, alpha),
+                               (int(px), int(py)), width)
+    scene.blit(rays, (cx - length, cy - length),
+               special_flags=pygame.BLEND_RGBA_ADD)
+
+
+def variant_godrays(bg, entities, refs) -> pygame.Surface:
+    scene = bg.copy()
+    _apply_dark_overlay(scene, 125)
+
+    NEON = (90, 255, 120)
+    # Faint wide halo so the rays plant on something soft.
+    halo = _blurred_silhouette(entities, scale=0.08, color=(50, 180, 70))
+    halo.set_alpha(130)
+    scene.blit(halo, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # Rays per entity centre.
+    for c in refs["coins"]:
+        _draw_rays(scene, int(c.x), int(c.y),
+                   length=70, count=10, color=NEON,
+                   alpha_start=140, phase=0.3, width=1)
+    m = refs["powerup"]
+    _draw_rays(scene, int(m.x), int(m.y),
+               length=110, count=14, color=NEON,
+               alpha_start=170, phase=0.0, width=2)
+    b = refs["bird"]
+    _draw_rays(scene, int(b.x), int(b.y),
+               length=130, count=16, color=NEON,
+               alpha_start=180, phase=0.6, width=2)
+    # Pillars get vertical "beam columns" via short horizontal rays.
+    for p in refs["pipes"]:
+        cx = int(p.x + PIPE_W / 2)
+        cy = int(p.gap_y - p.gap_h / 2 - 30)
+        _draw_rays(scene, cx, cy,
+                   length=90, count=8, color=NEON,
+                   alpha_start=120, phase=math.pi / 8, width=1)
+        cy2 = int(p.gap_y + p.gap_h / 2 + 30)
+        _draw_rays(scene, cx, cy2,
+                   length=90, count=8, color=NEON,
+                   alpha_start=120, phase=math.pi / 8, width=1)
+
+    tinted = _green_tint_preserving_texture(entities, tint=(110, 255, 130))
+    scene.blit(tinted, (0, 0))
+    return scene
+
+
+# ─── VARIANT 5 — ECHO RINGS ─────────────────────────────────────────────────
+# Tinted entity + concentric pulsing rings around each (one frame of pulse).
+
+def variant_echo(bg, entities, refs) -> pygame.Surface:
+    scene = bg.copy()
+    _apply_dark_overlay(scene, 120)
+
+    # Soft tint halo first so the rings have a hint of glow underneath.
+    halo = _blurred_silhouette(entities, scale=0.10, color=(40, 170, 60))
+    halo.set_alpha(120)
+    scene.blit(halo, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    def rings(cx, cy, base_r, ring_count, alpha_start, ring_w=2):
+        for i in range(ring_count):
+            rr = int(base_r * (1 + i * 0.55))
+            a  = max(0, alpha_start - i * 60)
+            if a <= 0:
+                continue
+            s = pygame.Surface((rr * 2 + 4, rr * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(s, (90, 255, 120, a),
+                               (rr + 2, rr + 2), rr, ring_w)
+            # Inner bright accent
+            pygame.draw.circle(s, (180, 255, 200, a // 2),
+                               (rr + 2, rr + 2), rr, 1)
+            scene.blit(s, (cx - rr - 2, cy - rr - 2),
+                       special_flags=pygame.BLEND_RGBA_ADD)
+
+    for c in refs["coins"]:
+        rings(int(c.x), int(c.y), base_r=COIN_R + 6, ring_count=3,
+              alpha_start=180)
+    m = refs["powerup"]
+    rings(int(m.x), int(m.y), base_r=POWERUP_R + 8, ring_count=4,
+          alpha_start=200)
+    b = refs["bird"]
+    rings(int(b.x), int(b.y), base_r=22, ring_count=4, alpha_start=210)
+
+    # Pillar "echo": one pair of staggered rings around each pillar top/bottom.
+    for p in refs["pipes"]:
+        cx = int(p.x + PIPE_W / 2)
+        cy_top = int(p.gap_y - p.gap_h / 2)
+        cy_bot = int(p.gap_y + p.gap_h / 2)
+        rings(cx, cy_top, base_r=PIPE_W // 2 + 8, ring_count=3,
+              alpha_start=140)
+        rings(cx, cy_bot, base_r=PIPE_W // 2 + 8, ring_count=3,
+              alpha_start=140)
+
+    tinted = _green_tint_preserving_texture(entities, tint=(80, 255, 100))
+    scene.blit(tinted, (0, 0))
+    return scene
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("variant_1_outline.png",   variant_outline),
-    ("variant_2_bloom.png",     variant_bloom),
-    ("variant_3_scanline.png",  variant_scanline),
-    ("variant_4_wireframe.png", variant_wireframe),
-    ("variant_5_plasma.png",    variant_plasma),
+    ("variant_1_phosphor.png", variant_phosphor),
+    ("variant_2_rimlight.png", variant_rimlight),
+    ("variant_3_bloom.png",    variant_bloom),
+    ("variant_4_godrays.png",  variant_godrays),
+    ("variant_5_echo.png",     variant_echo),
 ]
 
 
@@ -354,10 +406,9 @@ def main() -> int:
     out_dir = os.path.join(_REPO, "docs", "screenshots", "nightglow_variants")
     os.makedirs(out_dir, exist_ok=True)
 
-    base, refs = render_base()
+    bg, entities, refs = render_base()
     for fname, fn in VARIANTS:
-        frame = base.copy()
-        fn(frame, refs)
+        frame = fn(bg, entities, refs)
         out_path = os.path.join(out_dir, fname)
         pygame.image.save(frame, out_path)
         print(f"wrote {out_path}")
