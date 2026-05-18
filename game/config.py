@@ -115,6 +115,13 @@ SECRET_POWERUP_WEIGHTS = (
     ("lottery",    0.125),
 )
 
+# ── v5_powerups TEST MODE — REMOVE before merging to v4/main ─────────────────
+# Bypasses the score>=500 gate so QA can verify every secret powerup quickly.
+# Set TEST_SECRETS_FIRST_N_PILLARS = 0 to disable the forced spawn.
+# Set TEST_START_AT_NIGHT = False to keep the normal day-start.
+TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
+TEST_START_AT_NIGHT          = True  # start at NIGHT biome so nightglow is eligible
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without

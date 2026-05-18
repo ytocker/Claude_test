@@ -27,6 +27,7 @@ from game.config import (
     SKATEBOARD_DURATION, BLUEPRINT_DURATION, NIGHTGLOW_DURATION,
     RAIL_PILLAR_COUNT, VAULT_COIN_REWARD, VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
+    TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -149,6 +150,10 @@ class World:
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
         self.biome_time = 0.0
+        # v5_powerups TEST MODE: jump to the NIGHT keyframe (phase 0.64375)
+        # so the NIGHTGLOW secret powerup is eligible from frame 1.
+        if TEST_START_AT_NIGHT:
+            self.biome_time = biome.CYCLE_SECONDS * 0.64
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -387,6 +392,20 @@ class World:
             ))
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
+        # v5_powerups TEST MODE: first N pillars guarantee a secret
+        # powerup with no cooldown so QA can verify every secret quickly.
+        # Bypasses the score>=500 gate AND the nightglow biome gate.
+        if (TEST_SECRETS_FIRST_N_PILLARS > 0
+                and self.pipes_spawned <= TEST_SECRETS_FIRST_N_PILLARS):
+            kinds = [k for k, _ in SECRET_POWERUP_WEIGHTS]
+            weights = [w for _, w in SECRET_POWERUP_WEIGHTS]
+            kind = random.choices(kinds, weights=weights, k=1)[0]
+            x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
+            y = pipe.gap_y + random.uniform(-10, 10)
+            self.powerups.append(PowerUp(x, y, kind=kind))
+            # NOTE: cooldown deliberately NOT set during test mode so every
+            # pillar in the test window gets a fresh pickup.
+            return
         if self.powerup_cooldown > 0:
             return
         if random.random() >= self._current_powerup_chance():

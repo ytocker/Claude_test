@@ -36,9 +36,14 @@ SECRET_KINDS = {k for k, _ in SECRET_POWERUP_WEIGHTS}
 
 def _force_spawn_attempts(world, n, score, biome_phase_t=0.0):
     """Repeatedly run _maybe_spawn_powerup, collecting each spawned kind.
-    Returns the set of kinds that appeared."""
+    Returns the set of kinds that appeared.
+
+    Bumps `pipes_spawned` above the v5_powerups TEST_SECRETS_FIRST_N_PILLARS
+    window so the production-behavior tests still see the normal spawn pool
+    (test mode would otherwise force secrets regardless of score)."""
     world.score = score
     world.biome_time = biome_phase_t
+    world.pipes_spawned = 10_000  # bypass v5_powerups forced-secret window
     seen = set()
     for _ in range(n):
         world.powerup_cooldown = 0

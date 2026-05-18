@@ -1,15 +1,14 @@
-name: Deploy v3 (root) + v4 (/v4/) to GitHub Pages
+name: Deploy v3 (root) + v4 (/v4/) + v5_powerups (/v5_powerups/) to GitHub Pages
 
 # One Pages site per repo means a single artifact replaces the whole
-# deploy each time. To keep both v3 (active players, root URL) and v4
-# (preview, /v4/ sub-path) reachable, every triggered run rebuilds
-# BOTH branches and ships them as one combined artifact. This file
-# is intentionally identical on v3_skybit and v4_skybit so a push to
-# either branch produces the same deploy.
+# deploy each time. To keep v3 (active players, root URL), v4 (preview,
+# /v4/ sub-path), and the v5_powerups test deploy (/v5_powerups/
+# sub-path) reachable, every triggered run rebuilds ALL three branches
+# and ships them as one combined artifact.
 
 on:
   push:
-    branches: [v3_skybit, v4_skybit]
+    branches: [v3_skybit, v4_skybit, v5_powerups]
   workflow_dispatch:
 
 permissions:
@@ -36,6 +35,12 @@ jobs:
         with:
           ref: v4_skybit
           path: v4_src
+
+      - name: Checkout v5_powerups
+        uses: actions/checkout@v4
+        with:
+          ref: v5_powerups
+          path: v5_src
 
       - uses: actions/setup-python@v5
         with:
@@ -66,12 +71,25 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Combine v3 (root) + v4 (/v4/)
+      - name: Build v5_powerups WASM bundle
+        working-directory: v5_src
+        run: python -m pygbag --build main.py
+
+      - name: Inject theme + Supabase into v5_powerups
+        working-directory: v5_src
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Combine v3 (root) + v4 (/v4/) + v5_powerups (/v5_powerups/)
         run: |
           mkdir -p combined
           cp -r v3_src/build/web/. combined/
           mkdir -p combined/v4
           cp -r v4_src/build/web/. combined/v4/
+          mkdir -p combined/v5_powerups
+          cp -r v5_src/build/web/. combined/v5_powerups/
           # GitHub Pages routes through Jekyll by default, which skips
           # paths beginning with `_`. Pygbag emits `_pythons.js`,
           # `_packages/`, etc. — the marker disables Jekyll for the
@@ -80,8 +98,9 @@ jobs:
 
       - name: List combined build artifacts
         run: |
-          echo "root:"; ls -la combined
-          echo "v4:";   ls -la combined/v4
+          echo "root:";        ls -la combined
+          echo "v4:";          ls -la combined/v4
+          echo "v5_powerups:"; ls -la combined/v5_powerups
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
