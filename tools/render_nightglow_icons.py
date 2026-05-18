@@ -1,27 +1,24 @@
-"""Render 5 GLOW-IN-THE-DARK STAR sticker candidates for NIGHTGLOW.
+"""Render 5 plain NIGHTGLOW star sticker candidates — no halos.
 
-User confirmed STAR (icon 1) is the right concept but the execution
-needs to feel like an actual phosphor vinyl sticker — not a flat
-cartoon shape with a thick outline. Reference: IKEA / Universe-brand
-ceiling glow-stars in a dark room. They have:
+User: "just make it a plain star. No background circles. Greenish
+aura-light colour matching the V5 PUNCH+ effect." So the previous
+icon set's layered ambient halos are gone — each variant is the star
+silhouette and nothing else, on the dark backdrop.
 
-  • A pale lime-pistachio fill (strontium-aluminate phosphor, roughly
-    (200, 250, 130) — yellower than pure neon green).
-  • NO hard outline. The shape edge softens into the surrounding glow.
-  • A strong ambient halo around them ("re-emission" of stored light).
-  • Often a faint glossy highlight from the vinyl top surface.
+Colour matches the bright halo green from V5 PUNCH+ — around
+(140, 250, 110) — which is what the player sees in-world during the
+glow effect.
 
-Five star treatments to pick from, all on the same dark backdrop:
+5 shape/treatment variations to pick from:
 
-    1. CLASSIC — soft-edged 5-point, even halo, the canonical take.
-    2. GLOSSY  — same star + a slim plastic-vinyl gloss highlight.
-    3. CHUNKY  — rounded points, fatter body (older sticker style).
-    4. SHARP   — long pointy 5-point, dramatic spikes.
-    5. SHEET   — main star + two tiny companion stars (sticker-sheet
-                  layout — gives the icon a sense of "set of stars").
+    1. PLAIN    — clean flat 5-point star (balanced proportions)
+    2. SHARP    — long pointy spikes
+    3. CHUNKY   — rounded points, fatter body
+    4. BEVELED  — flat star + slightly darker inner star for depth
+    5. TWINKLE  — main star + 1 tiny accent twinkle nearby
 
-The chosen one gets ported into entities.py's _draw_nightglow_icon at
-~52 px native scale.
+The chosen design gets ported into entities.py:_draw_nightglow_icon
+at ~52 px native scale.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -48,14 +45,10 @@ pygame.display.set_mode((1, 1))
 CANVAS = 240
 CENTER = CANVAS // 2
 
-# Strontium-aluminate phosphor green — slightly yellow-leaning, the
-# colour real GITD stickers actually emit. NOT pure neon green.
-PHOSPHOR_CORE  = (215, 252, 145)   # solid sticker fill
-PHOSPHOR_RIM   = (170, 235, 110)   # slightly darker rim for soft edge
-PHOSPHOR_HOT   = (245, 255, 215)   # vinyl gloss highlight
-HALO_DEEP      = (90, 200, 50)
-HALO_MID       = (140, 240, 100)
-HALO_BRIGHT    = (190, 255, 150)
+# Match V5 PUNCH+'s bright halo green — the "greenish aura light"
+# colour the player actually sees in-world during the effect.
+STAR_GREEN       = (140, 250, 110)
+STAR_GREEN_INNER = ( 95, 220,  70)   # slightly darker, for beveled variant
 
 
 def _dark_backdrop() -> pygame.Surface:
@@ -76,7 +69,6 @@ def _dark_backdrop() -> pygame.Surface:
 
 
 def _star_points(cx, cy, r_outer, r_inner, n=5, rot=-math.pi / 2):
-    """N-point star polygon."""
     pts = []
     for i in range(n * 2):
         a = rot + i * math.pi / n
@@ -86,11 +78,12 @@ def _star_points(cx, cy, r_outer, r_inner, n=5, rot=-math.pi / 2):
 
 
 def _aa_star(cx, cy, r_outer, r_inner, color):
-    """Render an anti-aliased star: draw it at 4× on a transparent
-    surface, then smoothscale down. Result has soft edges that look
-    like a real die-cut sticker, not jaggy pixel polygons."""
+    """Anti-aliased star via 4× supersample + smoothscale. Soft edges
+    only — no halo. Returns the surface and the top-left position to
+    blit it at so the star is centred on (cx, cy)."""
     SS = 4
-    big_size = (r_outer * 2 + 8) * SS
+    margin = 6
+    big_size = (r_outer * 2 + margin * 2) * SS
     s = pygame.Surface((big_size, big_size), pygame.SRCALPHA)
     bcx = big_size // 2
     pts = _star_points(bcx, bcx, r_outer * SS, r_inner * SS)
@@ -100,133 +93,72 @@ def _aa_star(cx, cy, r_outer, r_inner, color):
     return out, (cx - out_size // 2, cy - out_size // 2)
 
 
-def _ambient_halo(surf, cx, cy, radius, alpha_peak, color=HALO_MID):
-    """Soft additive radial halo — the 'phosphor glow' signature."""
-    pad = radius + 4
-    aura = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
-    for r in range(radius, 0, -2):
-        t = r / radius
-        a = int(alpha_peak * (1.0 - t) ** 1.6)
-        if a <= 0:
-            continue
-        pygame.draw.circle(aura, (*color, a), (pad, pad), r)
-    surf.blit(aura, (cx - pad, cy - pad),
-              special_flags=pygame.BLEND_RGBA_ADD)
+# ─── VARIANT 1 — PLAIN (balanced 5-point) ───────────────────────────────────
+
+def variant_plain(surf):
+    star, pos = _aa_star(CENTER, CENTER,
+                         r_outer=72, r_inner=30, color=STAR_GREEN)
+    surf.blit(star, pos)
 
 
-# ─── VARIANT 1 — CLASSIC ────────────────────────────────────────────────────
+# ─── VARIANT 2 — SHARP (long pointy spikes) ─────────────────────────────────
 
-def variant_classic(surf):
-    cx, cy = CENTER, CENTER
-    # Layered halos — wide soft + tight bright = phosphor glow.
-    _ambient_halo(surf, cx, cy, 105, 130, HALO_DEEP)
-    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
-    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
-
-    # Soft-edged star body
-    star_img, pos = _aa_star(cx, cy, r_outer=70, r_inner=29, color=PHOSPHOR_CORE)
-    surf.blit(star_img, pos)
-    # Subtle inner rim (slightly darker) — sticker depth without an outline
-    inner, ipos = _aa_star(cx, cy, r_outer=66, r_inner=27, color=PHOSPHOR_CORE)
-    surf.blit(inner, ipos)
-
-
-# ─── VARIANT 2 — GLOSSY (vinyl finish highlight) ────────────────────────────
-
-def variant_glossy(surf):
-    cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 105, 130, HALO_DEEP)
-    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
-    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
-
-    star_img, pos = _aa_star(cx, cy, r_outer=70, r_inner=29, color=PHOSPHOR_CORE)
-    surf.blit(star_img, pos)
-
-    # Glossy vinyl sheen: a small bright elliptical highlight blip in
-    # the upper-left lobe of the star where light would catch on a
-    # plastic surface. Drawn directly on top of the star body — sized
-    # so it sits inside the silhouette without any masking gymnastics.
-    gloss_layer = pygame.Surface((60, 28), pygame.SRCALPHA)
-    pygame.draw.ellipse(gloss_layer, (*PHOSPHOR_HOT, 200),
-                        gloss_layer.get_rect())
-    # Smooth the edge by re-blitting at slight offsets in lower alpha
-    soft = pygame.Surface((60, 28), pygame.SRCALPHA)
-    pygame.draw.ellipse(soft, (*PHOSPHOR_HOT, 90),
-                        soft.get_rect().inflate(8, 4))
-    surf.blit(soft, (cx - 38, cy - 36),
-              special_flags=pygame.BLEND_RGBA_ADD)
-    surf.blit(gloss_layer, (cx - 30, cy - 32))
-
-    # Tiny sparkle pop at the upper-right corner of the star — sells the
-    # "shiny vinyl" read further.
-    pygame.draw.circle(surf, (255, 255, 255), (cx + 26, cy - 24), 2)
+def variant_sharp(surf):
+    star, pos = _aa_star(CENTER, CENTER,
+                         r_outer=84, r_inner=22, color=STAR_GREEN)
+    surf.blit(star, pos)
 
 
 # ─── VARIANT 3 — CHUNKY (rounded points, fatter body) ───────────────────────
 
 def variant_chunky(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 110, 140, HALO_DEEP)
-    _ambient_halo(surf, cx, cy, 85,  180, HALO_MID)
-    _ambient_halo(surf, cx, cy, 55,  150, HALO_BRIGHT)
-
-    # Chunkier: inner radius bumped up so points are stubbier.
-    star_img, pos = _aa_star(cx, cy, r_outer=72, r_inner=42, color=PHOSPHOR_CORE)
-    surf.blit(star_img, pos)
-
-    # Round each tip by drawing a small circle there.
+    star, pos = _aa_star(cx, cy,
+                         r_outer=72, r_inner=42, color=STAR_GREEN)
+    surf.blit(star, pos)
+    # Soft rounding at each tip — a small disc plopped on each outer point.
     for i in range(5):
         a = -math.pi / 2 + i * math.tau / 5
-        tx = cx + 72 * math.cos(a)
-        ty = cy + 72 * math.sin(a)
-        pygame.draw.circle(surf, PHOSPHOR_CORE, (int(tx), int(ty)), 7)
+        tx = int(cx + 72 * math.cos(a))
+        ty = int(cy + 72 * math.sin(a))
+        pygame.draw.circle(surf, STAR_GREEN, (tx, ty), 8)
 
 
-# ─── VARIANT 4 — SHARP (long dramatic points) ───────────────────────────────
+# ─── VARIANT 4 — BEVELED (subtle inner darker star for depth) ───────────────
 
-def variant_sharp(surf):
+def variant_beveled(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 110, 130, HALO_DEEP)
-    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
-    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
+    # Outer star (bright green)
+    outer, opos = _aa_star(cx, cy,
+                           r_outer=72, r_inner=30, color=STAR_GREEN)
+    surf.blit(outer, opos)
+    # Inner star slightly smaller, darker — creates a beveled-rim illusion
+    inner, ipos = _aa_star(cx, cy,
+                           r_outer=56, r_inner=24, color=STAR_GREEN_INNER)
+    surf.blit(inner, ipos)
 
-    # Sharper: smaller inner radius gives long pointy spikes.
-    star_img, pos = _aa_star(cx, cy, r_outer=82, r_inner=22, color=PHOSPHOR_CORE)
-    surf.blit(star_img, pos)
 
+# ─── VARIANT 5 — TWINKLE (main star + 1 small accent) ───────────────────────
 
-# ─── VARIANT 5 — SHEET (main star + 2 companions, sticker-sheet layout) ─────
-
-def variant_sheet(surf):
+def variant_twinkle(surf):
     cx, cy = CENTER, CENTER
-
-    # Main star
-    _ambient_halo(surf, cx, cy, 100, 130, HALO_DEEP)
-    _ambient_halo(surf, cx, cy, 75,  170, HALO_MID)
-    main, mpos = _aa_star(cx, cy, r_outer=58, r_inner=24, color=PHOSPHOR_CORE)
+    main, mpos = _aa_star(cx, cy,
+                          r_outer=64, r_inner=27, color=STAR_GREEN)
     surf.blit(main, mpos)
-
-    # Companion 1 — upper right
-    _ambient_halo(surf, cx + 70, cy - 65, 38, 130, HALO_MID)
-    c1, c1pos = _aa_star(cx + 70, cy - 65, r_outer=24, r_inner=10,
-                          color=PHOSPHOR_CORE)
-    surf.blit(c1, c1pos)
-
-    # Companion 2 — lower left
-    _ambient_halo(surf, cx - 70, cy + 55, 32, 130, HALO_MID)
-    c2, c2pos = _aa_star(cx - 70, cy + 55, r_outer=18, r_inner=8,
-                          color=PHOSPHOR_CORE)
-    surf.blit(c2, c2pos)
+    # One tiny accent twinkle — upper-right, like a sparkle next to the star.
+    tiny, tpos = _aa_star(cx + 70, cy - 64,
+                          r_outer=18, r_inner=7, color=STAR_GREEN)
+    surf.blit(tiny, tpos)
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 ICONS = [
-    ("icon_1_classic.png", variant_classic),
-    ("icon_2_glossy.png",  variant_glossy),
+    ("icon_1_plain.png",   variant_plain),
+    ("icon_2_sharp.png",   variant_sharp),
     ("icon_3_chunky.png",  variant_chunky),
-    ("icon_4_sharp.png",   variant_sharp),
-    ("icon_5_sheet.png",   variant_sheet),
+    ("icon_4_beveled.png", variant_beveled),
+    ("icon_5_twinkle.png", variant_twinkle),
 ]
 
 
