@@ -96,32 +96,18 @@ def _draw_blueprint_previews(surf, world):
         surf.blit(layer, (int(ghost_x) - 2, 0))
 
 
-def _draw_vault_on_pipe(surf, pipe):
-    """Golden vault attached to the base of a pipe — BANK HEIST payout."""
-    from game.config import PIPE_W
-    vx = int(pipe.x + PIPE_W / 2)
-    vy = int(pipe.gap_y + pipe.gap_h / 2 + 36)
-    # Soft golden halo behind the vault
-    halo = pygame.Surface((56, 56), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (255, 220, 100, 90), (28, 28), 22)
-    pygame.draw.circle(halo, (255, 220, 100, 140), (28, 28), 14)
-    surf.blit(halo, (vx - 28, vy - 28))
-    # Vault body
-    vault = pygame.Rect(vx - 16, vy - 14, 32, 28)
-    pygame.draw.rect(surf, (130, 90, 30), vault, border_radius=4)
-    pygame.draw.rect(surf, (255, 215, 80), vault.inflate(-6, -6), border_radius=3)
-    # Dial
-    pygame.draw.circle(surf, (90, 60, 20), (vx, vy), 7)
-    pygame.draw.circle(surf, (200, 160, 60), (vx, vy), 5)
-    try:
-        f = _font(16, True)
-        txt = f.render("$", True, (50, 30, 10))
-        surf.blit(txt, txt.get_rect(center=(vx, vy)))
-    except Exception:
-        pass
-    # Hinges
-    pygame.draw.circle(surf, (90, 60, 20), (vx + 12, vy - 9), 2)
-    pygame.draw.circle(surf, (90, 60, 20), (vx + 12, vy + 9), 2)
+def _draw_treasure_box_on_bird(surf, world):
+    """Planked-oak treasure chest hanging by two ropes from Pip's
+    talons. Drawn every frame while world.treasure_box_timer > 0. The
+    chest itself stays put under Pip's belly; the per-flap coin drop
+    is a separate particle burst handled inside world._drop_..."""
+    from game.treasure_box_variants import draw_chest_at, draw_carry_ropes_to
+    bx = int(world.bird.x)
+    by = int(world.bird.y)
+    chest_cx = bx + 4
+    chest_cy = by + 56
+    draw_carry_ropes_to(surf, bx, by, chest_cx, chest_cy)
+    draw_chest_at(surf, chest_cx, chest_cy)
 
 
 def _draw_rails(surf, rail_pipes):
@@ -1015,11 +1001,11 @@ class App:
         if getattr(self.world, "blueprint_timer", 0) > 0:
             _draw_blueprint_previews(self.screen, self.world)
 
-        # BANK HEIST vault sprite on the marked pipe.
-        vp = getattr(self.world, "vault_pipe", None)
-        if vp is not None and getattr(vp, "has_vault", False) \
-                and not getattr(vp, "vault_popped", False):
-            _draw_vault_on_pipe(self.screen, vp)
+        # TREASURE BOX (secret): the chest hangs under Pip's belly while
+        # the buff is active. Per-flap coin drops are handled by the
+        # world (particle burst + float text), not here.
+        if getattr(self.world, "treasure_box_timer", 0) > 0:
+            _draw_treasure_box_on_bird(self.screen, self.world)
 
         # RAIL TRACK glowing rail across the next 3 marked pillar tops.
         if getattr(self.world, "rail_pipes", None):

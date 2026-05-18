@@ -85,7 +85,14 @@ BLUEPRINT_DURATION    = 8.0
 BLUEPRINT_PREVIEW_N   = 3       # number of upcoming pillars to telegraph
 NIGHTGLOW_DURATION    = 12.0
 RAIL_PILLAR_COUNT     = 3       # number of pillars the rail spans
-VAULT_COIN_REWARD     = 15
+# TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
+# his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
+# loose — the player instantly gains TREASURE_BOX_COINS_PER_FLAP coins
+# (multiplied by 3 if the triple buff is also active). No vault attached
+# to a pillar anymore; the value is now paced over the buff's lifetime
+# instead of paid out in a single brush.
+TREASURE_BOX_DURATION       = 8.0
+TREASURE_BOX_COINS_PER_FLAP = 2
 VACUUM_TRAVEL_TIME    = 0.4
 
 # Lottery tiers: (label, weight, coin_delta). Slight positive EV (~+10) so it

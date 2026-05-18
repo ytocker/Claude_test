@@ -348,24 +348,40 @@ def _draw_lock_plate(surf, body):
 # CLASSIC OAK — FLAT TOP — PLANKED
 # ════════════════════════════════════════════════════════════════════════════
 
-def draw_planked_oak(surf, bird_cx, bird_cy, t=0.0):
-    cx = bird_cx + 4
-    cy = bird_cy + 56
+def draw_chest_at(surf, cx, cy, *, with_shake_lines=False):
+    """Paint the planked-oak treasure chest centred at (cx, cy). Used by
+    the in-world PowerUp icon (the pickup token Pip flies into) AND by
+    the active-buff renderer that hangs the chest below Pip while the
+    treasure-box buff is running. `with_shake_lines` adds the motion
+    hashes — on for the carried-buff render, off for the still pickup."""
     body = _box_rect(cx, cy)
-
-    lid_y = body.y - LID_H
-    _draw_carry_ropes(surf, bird_cx, bird_cy, body, lid_y)
-
     lid = _draw_chest(surf, body)
-
     _draw_wrap_strap(surf, body, lid, dx_from_centre=-10)
     _draw_wrap_strap(surf, body, lid, dx_from_centre= 10)
-
     _draw_corner_studs(surf, body)
     _draw_corner_studs(surf, lid)
     _draw_lock_plate(surf, body)
+    if with_shake_lines:
+        _shake_lines(surf, cx, body.y - LID_H // 2, w=BOX_W,
+                     color=(45, 28, 12))
 
-    _shake_lines(surf, cx, body.y - LID_H // 2, w=BOX_W, color=(45, 28, 12))
+
+def draw_carry_ropes_to(surf, bird_cx, bird_cy, chest_cx, chest_cy):
+    """Two short hemp ropes from Pip's talons down to the top-front
+    corners of the carried chest. Called by the active-buff renderer."""
+    body = _box_rect(chest_cx, chest_cy)
+    _draw_carry_ropes(surf, bird_cx, bird_cy, body, body.y - LID_H)
+
+
+def draw_planked_oak(surf, bird_cx, bird_cy, t=0.0):
+    """Design-preview composition (Pip + carried chest + spill cascade)
+    used by tools/render_treasure_box_variants.py. The live-game render
+    path uses draw_chest_at + draw_carry_ropes_to directly."""
+    cx = bird_cx + 4
+    cy = bird_cy + 56
+    draw_carry_ropes_to(surf, bird_cx, bird_cy, cx, cy)
+    draw_chest_at(surf, cx, cy, with_shake_lines=True)
+    body = _box_rect(cx, cy)
     _spill_trail(surf, body.x - 4, body.y, side=-1)
 
 
