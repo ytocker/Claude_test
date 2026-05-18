@@ -134,11 +134,6 @@ def paint_rail_hires(surf, pipes):
     for dy in (+2 * SCALE, -4 * SCALE):
         _line(surf, pts, iron_hi, 1 * SCALE, dy=dy)
 
-    # Hex spikes at tie ends.
-    _spikes(surf, pts, spacing=16 * SCALE,
-            offset=5 * SCALE, radius=2 * SCALE,
-            dark=iron_dk, hi=iron_hi)
-
     # Rust patches — randomised along the rail, sized for high res.
     rng = random.Random(31)
     for _ in range(14):
