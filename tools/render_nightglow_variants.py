@@ -222,105 +222,102 @@ def _compose(backdrop, bodies, targets, dark_alpha,
     return scene
 
 
-# All 5 variants are tunings of the V1 "TRUE GLOW" family — pure
-# luminance→green recolour, silhouette-clean green halos around every
-# affected element (Pip, coins, powerups, pillar vegetation). They
-# differ only in halo width, layer count, and how bright the halos
-# stack. NO godrays. NO chromatic ribbons. NO multi-coloured aurora.
+# All 5 variants are tunings of the V1 "TRUE GLOW" family. Bright
+# recolour endpoint (220, 255, 230) was approved previously. Strong
+# silhouette-clean halos at high alpha bring the AURA back — same
+# intensity as the version the user approved, but with zero warm-hue
+# bleed (the silhouette technique replaces the entire halo RGB with a
+# chosen green before pre-multiplying by alpha for the additive blit).
+# NO godrays. NO chromatic ribbons.
 
 
-def _green_recolour(targets, bright_peak=(180, 240, 195)):
-    """Standard recolour shared by all variants. `bright_peak` caps the
-    brightest pixel — keeping it BELOW (255, 255, 255) leaves headroom
-    for the additive halos so the entity centres glow brighter without
-    saturating to pure white (which is what made Pip look bad before)."""
+def _green_recolour(targets):
     return luminance_to_palette(targets,
-                                dark=(8, 55, 20),
-                                bright=bright_peak)
+                                dark=(8, 60, 22),
+                                bright=(220, 255, 230))
 
 
-# ─── VARIANT 1 — TIGHT (clean, focused halos) ───────────────────────────────
+# ─── VARIANT 1 — RADIANT (3-layer balanced bloom) ───────────────────────────
 
-def variant_tight(backdrop, bodies, targets, refs):
-    recol = _green_recolour(targets, bright_peak=(185, 245, 200))
+def variant_radiant(backdrop, bodies, targets, refs):
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=130,
+        aura_layers=(
+            (0.04, (40, 200, 30),  200),   # wide outer aura
+            (0.10, (70, 235, 60),  220),   # mid bloom
+            (0.22, (110, 250, 100),200),   # tight inner glow
+        ),
+        recoloured=_green_recolour(targets),
+    )
+
+
+# ─── VARIANT 2 — VIVID (more saturated, slightly tighter) ───────────────────
+
+def variant_vivid(backdrop, bodies, targets, refs):
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=130,
+        aura_layers=(
+            (0.05, (50, 210, 40),  210),
+            (0.12, (85, 240, 70),  220),
+            (0.25, (120, 252, 110),200),
+        ),
+        recoloured=_green_recolour(targets),
+    )
+
+
+# ─── VARIANT 3 — DEEP (wider outer, deeper green core) ──────────────────────
+
+def variant_deep(backdrop, bodies, targets, refs):
     return _compose(
         backdrop, bodies, targets, dark_alpha=135,
         aura_layers=(
-            (0.55, (70, 230, 110),  85),   # tight inner halo
-            (0.30, (50, 200, 90),   60),   # mid halo
+            (0.03, (30, 180, 20),  200),   # very wide outer
+            (0.07, (55, 215, 45),  210),
+            (0.15, (85, 240, 70),  200),
+            (0.28, (120, 250, 100),180),
         ),
-        recoloured=recol,
+        recoloured=_green_recolour(targets),
     )
 
 
-# ─── VARIANT 2 — SOFT (wider, more diffuse) ─────────────────────────────────
+# ─── VARIANT 4 — PUNCH (bright + extra glow top-up) ─────────────────────────
 
-def variant_soft(backdrop, bodies, targets, refs):
-    recol = _green_recolour(targets, bright_peak=(175, 235, 190))
+def variant_punch(backdrop, bodies, targets, refs):
     return _compose(
-        backdrop, bodies, targets, dark_alpha=135,
+        backdrop, bodies, targets, dark_alpha=130,
         aura_layers=(
-            (0.45, (60, 220, 100),  70),
-            (0.25, (45, 185, 85),   55),
-            (0.12, (35, 150, 70),   40),
+            (0.05, (60, 220, 50),  220),
+            (0.13, (95, 245, 80),  230),
+            (0.28, (130, 252, 115),200),
         ),
-        recoloured=recol,
+        recoloured=_green_recolour(targets),
+        extra_top=(
+            (0.18, (110, 250, 100), 130),
+        ),
     )
 
 
-# ─── VARIANT 3 — BRIGHT (punchier, two-layer focused) ───────────────────────
+# ─── VARIANT 5 — MELLOW (single wide + single tight, low contrast) ──────────
 
-def variant_bright(backdrop, bodies, targets, refs):
-    recol = _green_recolour(targets, bright_peak=(195, 250, 210))
+def variant_mellow(backdrop, bodies, targets, refs):
     return _compose(
-        backdrop, bodies, targets, dark_alpha=140,
+        backdrop, bodies, targets, dark_alpha=125,
         aura_layers=(
-            (0.60, (90, 240, 130), 110),   # bright tight core halo
-            (0.32, (60, 210, 100),  75),   # mid halo
+            (0.04, (45, 200, 35),  180),   # wide soft outer
+            (0.18, (95, 240, 80),  200),   # tight inner
         ),
-        recoloured=recol,
-    )
-
-
-# ─── VARIANT 4 — WIDE (subtle, atmospheric) ─────────────────────────────────
-
-def variant_wide(backdrop, bodies, targets, refs):
-    recol = _green_recolour(targets, bright_peak=(170, 230, 185))
-    return _compose(
-        backdrop, bodies, targets, dark_alpha=140,
-        aura_layers=(
-            (0.50, (55, 210, 100),  65),
-            (0.28, (40, 175, 80),   50),
-            (0.14, (30, 140, 65),   38),
-            (0.07, (25, 110, 55),   30),
-        ),
-        recoloured=recol,
-    )
-
-
-# ─── VARIANT 5 — MODERATE (balanced — splits the difference) ────────────────
-
-def variant_moderate(backdrop, bodies, targets, refs):
-    recol = _green_recolour(targets, bright_peak=(180, 240, 200))
-    return _compose(
-        backdrop, bodies, targets, dark_alpha=135,
-        aura_layers=(
-            (0.50, (70, 220, 110),  80),
-            (0.30, (50, 195, 90),   60),
-            (0.16, (35, 155, 70),   42),
-        ),
-        recoloured=recol,
+        recoloured=_green_recolour(targets),
     )
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("variant_1_tight.png",    variant_tight),
-    ("variant_2_soft.png",     variant_soft),
-    ("variant_3_bright.png",   variant_bright),
-    ("variant_4_wide.png",     variant_wide),
-    ("variant_5_moderate.png", variant_moderate),
+    ("variant_1_radiant.png", variant_radiant),
+    ("variant_2_vivid.png",   variant_vivid),
+    ("variant_3_deep.png",    variant_deep),
+    ("variant_4_punch.png",   variant_punch),
+    ("variant_5_mellow.png",  variant_mellow),
 ]
 
 
