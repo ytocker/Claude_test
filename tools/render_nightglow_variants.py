@@ -222,13 +222,13 @@ def _compose(backdrop, bodies, targets, dark_alpha,
     return scene
 
 
-# All 5 variants are tunings of the V1 "TRUE GLOW" family. Bright
-# recolour endpoint (220, 255, 230) was approved previously. Strong
-# silhouette-clean halos at high alpha bring the AURA back — same
-# intensity as the version the user approved, but with zero warm-hue
-# bleed (the silhouette technique replaces the entire halo RGB with a
-# chosen green before pre-multiplying by alpha for the additive blit).
-# NO godrays. NO chromatic ribbons.
+# All 5 variants build on V4_PUNCH (user's pick) with two adjustments:
+#   (1) drop or dial down the extra_top layer — that's what was making
+#       Pip's silhouette too bright (recoloured + extra glow on top
+#       saturated entity centres);
+#   (2) add a very wide outer halo layer (scale 0.015–0.025) for more
+#       spread — that's the "more aura" the user asked for.
+# Bright recolour endpoint stays at (220, 255, 230) — the approved colour.
 
 
 def _green_recolour(targets):
@@ -237,87 +237,93 @@ def _green_recolour(targets):
                                 bright=(220, 255, 230))
 
 
-# ─── VARIANT 1 — RADIANT (3-layer balanced bloom) ───────────────────────────
+# ─── VARIANT 1 — WIDE GLOW (one wide outer + V4's 3 core layers, dimmed) ────
 
-def variant_radiant(backdrop, bodies, targets, refs):
+def variant_wide_glow(backdrop, bodies, targets, refs):
     return _compose(
         backdrop, bodies, targets, dark_alpha=130,
         aura_layers=(
-            (0.04, (40, 200, 30),  200),   # wide outer aura
-            (0.10, (70, 235, 60),  220),   # mid bloom
-            (0.22, (110, 250, 100),200),   # tight inner glow
+            (0.025, (30, 170, 25),  160),   # NEW wide outer aura
+            (0.05,  (55, 215, 45),  180),
+            (0.13,  (85, 240, 70),  190),
+            (0.28,  (115, 250, 100),160),
         ),
         recoloured=_green_recolour(targets),
     )
 
 
-# ─── VARIANT 2 — VIVID (more saturated, slightly tighter) ───────────────────
+# ─── VARIANT 2 — ATMOSPHERIC (5 layers, gentle wide-to-tight progression) ───
 
-def variant_vivid(backdrop, bodies, targets, refs):
+def variant_atmospheric(backdrop, bodies, targets, refs):
     return _compose(
         backdrop, bodies, targets, dark_alpha=130,
         aura_layers=(
-            (0.05, (50, 210, 40),  210),
-            (0.12, (85, 240, 70),  220),
-            (0.25, (120, 252, 110),200),
+            (0.02,  (25, 160, 20),  150),
+            (0.05,  (50, 210, 40),  170),
+            (0.10,  (70, 230, 55),  180),
+            (0.20,  (100, 245, 85), 165),
+            (0.32,  (120, 250, 100),130),
         ),
         recoloured=_green_recolour(targets),
     )
 
 
-# ─── VARIANT 3 — DEEP (wider outer, deeper green core) ──────────────────────
+# ─── VARIANT 3 — DOUBLE-WIDE (two outer aura layers + tight inner) ──────────
 
-def variant_deep(backdrop, bodies, targets, refs):
+def variant_double_wide(backdrop, bodies, targets, refs):
     return _compose(
-        backdrop, bodies, targets, dark_alpha=135,
+        backdrop, bodies, targets, dark_alpha=130,
         aura_layers=(
-            (0.03, (30, 180, 20),  200),   # very wide outer
-            (0.07, (55, 215, 45),  210),
-            (0.15, (85, 240, 70),  200),
-            (0.28, (120, 250, 100),180),
+            (0.018, (25, 155, 18),  155),   # ultra-wide outer
+            (0.04,  (40, 195, 30),  170),   # mid-wide
+            (0.12,  (80, 235, 65),  180),
+            (0.25,  (110, 248, 95), 150),
         ),
         recoloured=_green_recolour(targets),
     )
 
 
-# ─── VARIANT 4 — PUNCH (bright + extra glow top-up) ─────────────────────────
+# ─── VARIANT 4 — DEEP AURA (very wide outer, 4 layers, soft) ────────────────
 
-def variant_punch(backdrop, bodies, targets, refs):
+def variant_deep_aura(backdrop, bodies, targets, refs):
     return _compose(
         backdrop, bodies, targets, dark_alpha=130,
         aura_layers=(
-            (0.05, (60, 220, 50),  220),
-            (0.13, (95, 245, 80),  230),
-            (0.28, (130, 252, 115),200),
+            (0.015, (22, 145, 16),  160),   # extreme wide outer
+            (0.05,  (50, 205, 40),  165),
+            (0.13,  (85, 235, 70),  175),
+            (0.28,  (115, 248, 100),150),
+        ),
+        recoloured=_green_recolour(targets),
+    )
+
+
+# ─── VARIANT 5 — PUNCH+ (V4 base but with toned-down extra-top + wide outer) ─
+
+def variant_punch_plus(backdrop, bodies, targets, refs):
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=130,
+        aura_layers=(
+            (0.022, (30, 170, 25),  160),   # NEW wide outer for the aura
+            (0.05,  (55, 215, 45),  185),
+            (0.13,  (90, 240, 75),  195),
+            (0.28,  (120, 250, 105),170),
         ),
         recoloured=_green_recolour(targets),
         extra_top=(
-            (0.18, (110, 250, 100), 130),
+            (0.20, (90, 230, 75), 70),       # much lower than V4's 130
         ),
-    )
-
-
-# ─── VARIANT 5 — MELLOW (single wide + single tight, low contrast) ──────────
-
-def variant_mellow(backdrop, bodies, targets, refs):
-    return _compose(
-        backdrop, bodies, targets, dark_alpha=125,
-        aura_layers=(
-            (0.04, (45, 200, 35),  180),   # wide soft outer
-            (0.18, (95, 240, 80),  200),   # tight inner
-        ),
-        recoloured=_green_recolour(targets),
     )
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("variant_1_radiant.png", variant_radiant),
-    ("variant_2_vivid.png",   variant_vivid),
-    ("variant_3_deep.png",    variant_deep),
-    ("variant_4_punch.png",   variant_punch),
-    ("variant_5_mellow.png",  variant_mellow),
+    ("variant_1_wide_glow.png",    variant_wide_glow),
+    ("variant_2_atmospheric.png",  variant_atmospheric),
+    ("variant_3_double_wide.png",  variant_double_wide),
+    ("variant_4_deep_aura.png",    variant_deep_aura),
+    ("variant_5_punch_plus.png",   variant_punch_plus),
 ]
 
 
