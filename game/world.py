@@ -24,7 +24,7 @@ from game.config import (
     # Secret late-game powerups
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
     SHRINK_DURATION, SHRINK_SCALE,
-    SKATEBOARD_DURATION, BLUEPRINT_DURATION, NIGHTGLOW_DURATION,
+    SKATEBOARD_DURATION, NIGHTGLOW_DURATION,
     RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -102,7 +102,6 @@ class World:
         # Undocumented in powerup_help.py by design.
         self.skateboard_timer = 0.0
         self.shrink_timer     = 0.0
-        self.blueprint_timer  = 0.0
         self.nightglow_timer  = 0.0
         # Rail: a 3-pillar grindrail. We snapshot which Pipe instances carry
         # the rail when the powerup activates; the rail vanishes once they've
@@ -140,7 +139,7 @@ class World:
             "grow": 0, "reverse": 0, "surprise": 0,
             # Secret late-game kinds (still tracked so run summary can show
             # what was picked even though the help screen omits them).
-            "skateboard": 0, "shrink": 0, "blueprint": 0, "heist": 0,
+            "skateboard": 0, "shrink": 0, "heist": 0,
             "vacuum": 0, "rail": 0, "nightglow": 0, "lottery": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
@@ -584,8 +583,6 @@ class World:
             if self.shrink_timer > 0:
                 self.shrink_timer = max(0.0, self.shrink_timer - dt)
             self.bird.shrink_active = self.shrink_timer > 0
-            if self.blueprint_timer > 0:
-                self.blueprint_timer = max(0.0, self.blueprint_timer - dt)
             if self.nightglow_timer > 0:
                 self.nightglow_timer = max(0.0, self.nightglow_timer - dt)
             self.bird.nightglow_active = self.nightglow_timer > 0
@@ -1054,8 +1051,6 @@ class World:
             self._activate_skateboard(m)
         elif kind == "shrink":
             self._activate_shrink(m)
-        elif kind == "blueprint":
-            self._activate_blueprint(m)
         elif kind == "heist":
             self._activate_heist(m)
         elif kind == "vacuum":
@@ -1282,18 +1277,6 @@ class World:
         self.float_texts.append(FloatText(
             "SHRINK!", m.x, m.y - 26, SHRINK_HI,
             size=30, life=1.3, vy=-30, style="powerup",
-        ))
-
-    def _activate_blueprint(self, m):
-        BP_BLUE = (110, 180, 255)
-        self.blueprint_timer = BLUEPRINT_DURATION
-        self.shake_mag = max(self.shake_mag, 2.0)
-        self.shake_t = max(self.shake_t, 0.2)
-        audio.play_blueprint()
-        self._pickup_burst(m, (BP_BLUE, (60, 120, 200), WHITE), n=22, speed_hi=240)
-        self.float_texts.append(FloatText(
-            "BLUEPRINT!", m.x, m.y - 26, BP_BLUE,
-            size=28, life=1.3, vy=-30, style="powerup",
         ))
 
     def _activate_heist(self, m):

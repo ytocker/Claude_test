@@ -1512,8 +1512,6 @@ class PowerUp:
             self._draw_skateboard_icon(surf)
         elif self.kind == "shrink":
             self._draw_shrink_mushroom(surf)
-        elif self.kind == "blueprint":
-            self._draw_blueprint_icon(surf)
         elif self.kind == "heist":
             self._draw_heist_icon(surf)
         elif self.kind == "vacuum":
@@ -1836,30 +1834,6 @@ class PowerUp:
             wy = cy + 11
             pygame.draw.circle(surf, (40, 40, 45), (wx, wy), 3)
             pygame.draw.circle(surf, (210, 210, 220), (wx, wy), 2)
-
-    def _draw_blueprint_icon(self, surf):
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        # Cyan-blue scroll with grid lines and small ruler.
-        a = int(90 + 30 * (0.5 + 0.5 * math.sin(self.pulse * 1.3)))
-        # Halo
-        halo = pygame.Surface((52, 52), pygame.SRCALPHA)
-        pygame.draw.circle(halo, (90, 180, 250, a // 3), (26, 26), 24)
-        surf.blit(halo, (cx - 26, cy - 26))
-        # Paper background
-        paper = pygame.Rect(cx - 14, cy - 14, 28, 24)
-        pygame.draw.rect(surf, (40, 90, 180), paper, border_radius=3)
-        pygame.draw.rect(surf, (110, 180, 255), paper.inflate(-4, -4), border_radius=2)
-        # Grid lines (lighter cyan)
-        for gx in range(cx - 11, cx + 12, 5):
-            pygame.draw.line(surf, (60, 140, 220),
-                             (gx, cy - 11), (gx, cy + 8), 1)
-        for gy in range(cy - 11, cy + 9, 5):
-            pygame.draw.line(surf, (60, 140, 220),
-                             (cx - 12, gy), (cx + 11, gy), 1)
-        # A tiny "blueprint" T-square corner mark in white
-        pygame.draw.line(surf, WHITE, (cx - 11, cy - 11), (cx - 5, cy - 11), 2)
-        pygame.draw.line(surf, WHITE, (cx - 11, cy - 11), (cx - 11, cy - 5), 2)
 
     def _draw_heist_icon(self, surf):
         """Planked-oak treasure chest pickup token. The pickup uses the

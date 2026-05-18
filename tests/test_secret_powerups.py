@@ -213,13 +213,6 @@ def test_vacuum_collects_all_coins():
     assert w.score - initial_score >= 3
 
 
-def test_blueprint_sets_timer():
-    w = World()
-    w.ready_t = 0
-    assert w.blueprint_timer == 0
-    w._activate_blueprint(PowerUp(0, 0, kind="blueprint"))
-    assert w.blueprint_timer > 0
-
 
 def test_nightglow_sets_state():
     w = World()

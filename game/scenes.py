@@ -54,49 +54,6 @@ def _draw_opener(surf: pygame.Surface, world) -> None:
 
 # ── Secret late-game powerup render helpers (called from App._render) ──────
 
-def _draw_blueprint_previews(surf, world):
-    """Ghost wireframe outlines of the next 2-3 unspawned pillars at the
-    right edge. Players use it as tactical foresight before the pillar
-    enters the play area."""
-    from game.config import PIPE_W, GROUND_Y, BLUEPRINT_PREVIEW_N
-    if not world.pipes:
-        return
-    spacing = world._current_spacing()
-    gap_default = world._current_gap()
-    # Render 2-3 ghost pillars to the right of the last real pipe.
-    last_x = world.pipes[-1].x
-    blueprint_col = (110, 180, 255)
-    # Fade alpha by how recent the powerup is (stronger when fresh).
-    from game.config import BLUEPRINT_DURATION
-    frac = world.blueprint_timer / max(BLUEPRINT_DURATION, 0.001)
-    base_a = int(160 * min(1.0, frac * 1.3))
-    rng = __import__("random").Random(int(world.pipes_spawned) + 1)
-    for i in range(BLUEPRINT_PREVIEW_N):
-        ghost_x = last_x + spacing * (i + 1)
-        if ghost_x > W + 80:
-            break  # too far to be useful preview
-        # Approximate gap_y the same way _spawn_pipe does (random within margin).
-        margin = 70
-        gy = rng.randint(margin + gap_default // 2,
-                         GROUND_Y - margin - gap_default // 2)
-        gap_top = gy - gap_default / 2
-        gap_bot = gy + gap_default / 2
-        a = max(40, base_a - i * 40)
-        layer = pygame.Surface((PIPE_W + 4, GROUND_Y + 4), pygame.SRCALPHA)
-        # Upper pillar wireframe
-        upper = pygame.Rect(2, 0, PIPE_W, int(gap_top))
-        pygame.draw.rect(layer, (*blueprint_col, a), upper, 2, border_radius=2)
-        # Lower pillar wireframe
-        lower = pygame.Rect(2, int(gap_bot), PIPE_W, GROUND_Y - int(gap_bot))
-        pygame.draw.rect(layer, (*blueprint_col, a), lower, 2, border_radius=2)
-        # Gap markers (thin dashes on the gap edges)
-        pygame.draw.line(layer, (*blueprint_col, a // 2),
-                         (2, int(gap_top)), (PIPE_W + 2, int(gap_top)), 1)
-        pygame.draw.line(layer, (*blueprint_col, a // 2),
-                         (2, int(gap_bot)), (PIPE_W + 2, int(gap_bot)), 1)
-        surf.blit(layer, (int(ghost_x) - 2, 0))
-
-
 def _draw_treasure_box_on_bird(surf, world):
     """Planked-oak treasure chest hanging by two ropes from Pip's
     talons. Drawn every frame while world.treasure_box_timer > 0. The
@@ -990,12 +947,6 @@ class App:
             warn = pygame.Surface((W, 18), pygame.SRCALPHA)
             warn.fill((220, 40, 40, band_a))
             self.screen.blit(warn, (0, H - 18))
-
-        # BLUEPRINT VISION (secret): render ghost wireframes for the next
-        # 2-3 unspawned pillars at the right edge, drawn AFTER the world
-        # but BEFORE the HUD so they overlay coins/particles cleanly.
-        if getattr(self.world, "blueprint_timer", 0) > 0:
-            _draw_blueprint_previews(self.screen, self.world)
 
         # TREASURE BOX (secret): the chest hangs under Pip's belly while
         # the buff is active. Per-flap coin drops are handled by the

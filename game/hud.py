@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, BLUEPRINT_DURATION, NIGHTGLOW_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, NIGHTGLOW_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -937,22 +937,6 @@ def _draw_buff_icon(surf, rect, kind):
                             pygame.Rect(cx - 3, cy + 2, 6, 7))
         pygame.draw.ellipse(surf, (140, 130, 110),
                             pygame.Rect(cx - 3, cy + 2, 6, 7), 1)
-    elif kind == "blueprint":
-        # Tiny blueprint scroll: blue rectangle with white T-square corner.
-        pygame.draw.rect(surf, (40, 90, 180),
-                         pygame.Rect(cx - 8, cy - 7, 16, 14), border_radius=2)
-        pygame.draw.rect(surf, (110, 180, 255),
-                         pygame.Rect(cx - 6, cy - 5, 12, 10), border_radius=1)
-        # Grid hints
-        for gx in range(cx - 4, cx + 5, 3):
-            pygame.draw.line(surf, (60, 140, 220),
-                             (gx, cy - 4), (gx, cy + 4), 1)
-        for gy in range(cy - 4, cy + 5, 3):
-            pygame.draw.line(surf, (60, 140, 220),
-                             (cx - 5, gy), (cx + 4, gy), 1)
-        # T-square corner
-        pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 2, cy - 5), 1)
-        pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 5, cy - 2), 1)
     elif kind == "nightglow":
         from game.entities import get_nightglow_star
         size = min(rect.width, rect.height)
@@ -1501,8 +1485,6 @@ class HUD:
             active.append(("skateboard", world.skateboard_timer, SKATEBOARD_DURATION))
         if getattr(world, "shrink_timer", 0) > 0:
             active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
-        if getattr(world, "blueprint_timer", 0) > 0:
-            active.append(("blueprint", world.blueprint_timer, BLUEPRINT_DURATION))
         if getattr(world, "nightglow_timer", 0) > 0:
             active.append(("nightglow", world.nightglow_timer, NIGHTGLOW_DURATION))
 

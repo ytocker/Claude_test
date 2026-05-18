@@ -133,7 +133,6 @@ _ICON_BOB_AT_PULSE = {
     # excludes them).
     "shrink":     math.sin(_PULSE_FOR_ICON * 1.1) * 2,
     "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
-    "blueprint":  math.sin(_PULSE_FOR_ICON * 0.9) * 2,
     "heist":      math.sin(_PULSE_FOR_ICON * 1.2) * 2,
     "vacuum":     math.sin(_PULSE_FOR_ICON * 0.7) * 2,
     "rail":       math.sin(_PULSE_FOR_ICON * 1.0) * 2,

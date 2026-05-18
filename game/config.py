@@ -92,8 +92,6 @@ SHRINK_SCALE          = 0.6
 # benefit is immediate; only the visible scale animates.
 SHRINK_TRANSITION     = 0.20
 SKATEBOARD_DURATION   = 8.0
-BLUEPRINT_DURATION    = 8.0
-BLUEPRINT_PREVIEW_N   = 3       # number of upcoming pillars to telegraph
 NIGHTGLOW_DURATION    = 12.0
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
@@ -129,7 +127,6 @@ LOTTERY_REVEAL_TIME   = 1.0
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
     ("shrink",     0.125),
-    ("blueprint",  0.125),
     ("heist",      0.125),
     ("vacuum",     0.125),
     ("rail",       0.125),
