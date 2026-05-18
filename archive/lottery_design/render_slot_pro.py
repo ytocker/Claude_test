@@ -2,27 +2,36 @@
 tiers as discrete reel outcomes.
 
 The wheel mockups grabbed too much screen real estate; the slot cabinet
-collapses to roughly 120 x 80 px in the top-left corner instead. Same
-six tiers from game/config.py LOTTERY_TIERS:
+collapses to roughly 120 x 80 px in the top-left corner instead.
 
-  $ $ $   ->  JACKPOT  +100   (5 % weight)
-  7 7 7   ->  BIG WIN  +40    (15 %)
-  * * *   ->  WIN      +15    (30 %)
-  mixed   ->  NOTHING    0    (15 %)
-  X X *   ->  LOSS     -10    (25 %)   two skulls, one other
-  X X X   ->  BUST     -25    (10 %)   three skulls — the worst
+Proposed tier values + weights (the game's LOTTERY_TIERS in config.py
+will need to match once a design is locked in):
 
-So roughly half the spins (NOTHING + LOSS + BUST = 50 %) don't pay out,
-and 10 % actively cost the player coins. The visual makes that risk
-visible: skulls in the reel window read as a warning, not a payout.
+  $ $ $   ->  JACKPOT  +100   (5 %)    matching gold dollars
+  7 7 7   ->  BIG WIN  +40    (12 %)   matching red sevens
+  * * *   ->  WIN      +15    (20 %)   matching gold stars
+  mixed   ->  NOTHING    0    (35 %)   most common — modal outcome
+  X X *   ->  LOSS     -10    (20 %)   two skulls + filler
+  X X X   ->  BUST     -50    (8 %)    three skulls, deep loss
+
+Probability bands:
+  wins     37 %   (JACKPOT + BIG WIN + WIN)
+  nothing  35 %   (most common — the slot doesn't always pay)
+  losses   28 %   (LOSS + BUST)
+
+Expected value per spin: +6.8 coins — slightly positive so the powerup
+feels rewarding overall, but a single BUST wipes out ~7 average spins
+of progress, which makes the risk real.
 
 Everything (cabinet, reels, marquee, result strip) lives inside the
 top-left footprint. The result strip flips from "LOTTERY" during the
 spin to the tier name + value at reveal.
 
 Output:
-  ./screenshots/slot_pro_triptych.png    spin/settling/reveal arc (JACKPOT)
-  ./screenshots/slot_pro_outcomes.png    all 6 tier outcomes side by side
+  ./screenshots/slot_pro_triptych.png        spin/settling/reveal arc
+  ./screenshots/slot_pro_outcomes.png        6 outcomes at native size
+  ./screenshots/slot_pro_outcomes_grid.png   2x3 zoomed comparison
+  ./screenshots/slot_pro_zoom.png            4x JACKPOT close-up
 
 Run:
     python archive/lottery_design/render_slot_pro.py
@@ -198,8 +207,23 @@ TIER_VALUE = {
     "WIN":      +15,
     "NOTHING":    0,
     "LOSS":     -10,
-    "BUST":     -25,
+    "BUST":     -50,
 }
+
+# Proposed re-tuning — game/config.py LOTTERY_TIERS will need to match
+# once a design is locked in. NOTHING becomes the modal outcome (35 %),
+# wins stay enticing but rarer, and BUST is the new -50 deep loss.
+# Expected value works out to +6.8 coins/spin — slightly positive so
+# the powerup feels rewarding overall while still real risk.
+TIER_WEIGHT = {
+    "JACKPOT":  5,
+    "BIG WIN": 12,
+    "WIN":     20,
+    "NOTHING": 35,
+    "LOSS":    20,
+    "BUST":     8,
+}
+assert sum(TIER_WEIGHT.values()) == 100
 
 
 def _value_str(v: int) -> str:
@@ -449,12 +473,17 @@ def _build_outcomes_sheet() -> pygame.Surface:
     return sheet
 
 
+def _expected_value() -> float:
+    return sum(TIER_VALUE[t] * TIER_WEIGHT[t] for t in TIER_VALUE) / 100.0
+
+
 def _build_outcomes_grid() -> pygame.Surface:
     """Compact 2x3 grid of just the slot cabinet at each tier outcome —
     same content as outcomes_sheet but laid out for easy at-a-glance
-    comparison without the surrounding gameplay backdrop."""
+    comparison without the surrounding gameplay backdrop. Labels and
+    weights are driven by TIER_WEIGHT / TIER_VALUE so the grid stays
+    in sync if those are tuned."""
     order = ("JACKPOT", "BIG WIN", "WIN", "NOTHING", "LOSS", "BUST")
-    # Crop just the cabinet area (top-left 140 x 110) from a full frame.
     crops = []
     for tier in order:
         frame = _render_frame(1.0, tier=tier)
@@ -463,27 +492,43 @@ def _build_outcomes_grid() -> pygame.Surface:
     scale_w, scale_h = 350, 275       # 2.5x of the 140x110 crop
     cols, rows = 3, 2
     pad = 12
-    header_h = 32
+    header_h = 56
     label_h = 28
     sheet_w = pad + cols * (scale_w + pad)
     sheet_h = header_h + pad + rows * (scale_h + pad + label_h)
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((10, 8, 22))
-    sheet.blit(_pro_font(16).render(
-        "Slot machine - all 6 tier outcomes at reveal "
-        "(half of spins net zero or negative)", True, GOLD_BRIGHT), (pad, 6))
-    labels = (
-        "JACKPOT +100  (5%)",  "BIG WIN +40  (15%)",  "WIN +15  (30%)",
-        "NOTHING 0  (15%)",    "LOSS -10  (25%)",     "BUST -25  (10%)",
-    )
-    for i, (crop, lbl) in enumerate(zip(crops, labels)):
+
+    # Top title.
+    sheet.blit(_pro_font(18).render(
+        "Slot machine - 6 tier outcomes at reveal", True, GOLD_BRIGHT),
+        (pad, 6))
+    # Probability breakdown summary.
+    pos = sum(TIER_WEIGHT[t] for t in ("JACKPOT", "BIG WIN", "WIN"))
+    neg = sum(TIER_WEIGHT[t] for t in ("LOSS", "BUST"))
+    nil = TIER_WEIGHT["NOTHING"]
+    ev = _expected_value()
+    summary = (f"wins {pos}%   nothing {nil}%   losses {neg}%"
+               f"     expected value per spin: {ev:+.1f} coins")
+    sheet.blit(_pro_font(13).render(summary, True, GOLD_PALE),
+               (pad, 30))
+
+    for i, (tier, crop) in enumerate(zip(order, crops)):
         row, col = divmod(i, cols)
         x = pad + col * (scale_w + pad)
         y = header_h + pad + row * (scale_h + pad + label_h)
         big = pygame.transform.scale(crop, (scale_w, scale_h))
         sheet.blit(big, (x, y))
-        sheet.blit(_pro_font(13).render(lbl, True, GOLD_PALE),
-                   (x + 4, y + scale_h + 4))
+        value = TIER_VALUE[tier]
+        weight = TIER_WEIGHT[tier]
+        # Render the line in two colours: tier+value in GOLD_PALE,
+        # weight % in a softer cream so it reads as the secondary stat.
+        head = f"{tier}  {_value_str(value)}"
+        head_img = _pro_font(13).render(head, True, GOLD_PALE)
+        wt_img = _pro_font(12).render(f"   ({weight} %)", True, CREAM)
+        sheet.blit(head_img, (x + 4, y + scale_h + 4))
+        sheet.blit(wt_img, (x + 4 + head_img.get_width(),
+                            y + scale_h + 5))
     return sheet
 
 
