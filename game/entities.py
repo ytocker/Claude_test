@@ -1408,6 +1408,65 @@ def _get_reverse_icon(diameter: int = (POWERUP_R + 8) * 2) -> pygame.Surface:
     return cached
 
 
+# ── NIGHTGLOW icon: smooth gradient star in the in-world recolour palette ───
+# Shared by the in-world pickup token (Bird._draw_nightglow_icon) AND the
+# HUD active-buff timer pill (hud._draw_buff_icon). Per-pixel radial gradient
+# from dark=(8, 60, 22) → bright=(220, 255, 230) — the EXACT V5 PUNCH+ recolour
+# endpoints, so the pickup reads as a literal piece of the glowing scene. Lazy
+# cache: built once on first call at a given pixel size, then reused.
+_NIGHTGLOW_STAR_CACHE: "dict[int, pygame.Surface]" = {}
+
+
+def _build_nightglow_star(size: int) -> pygame.Surface:
+    """Smooth-gradient 5-point star sized to fit a `size`×`size`
+    surface. Anti-aliased silhouette via 4× supersample polygon then
+    smoothscale, with per-pixel radial colour lerp via PixelArray —
+    no numpy at runtime, no banding by construction (every pixel
+    gets its own interpolated colour)."""
+    margin = 2
+    r_outer = (size - margin * 2) // 2
+    r_inner = max(3, int(round(r_outer * 0.42)))
+    cx = cy = size // 2
+
+    SS = 4
+    big = pygame.Surface((size * SS, size * SS), pygame.SRCALPHA)
+    bcx = (size * SS) // 2
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        r = (r_outer if i % 2 == 0 else r_inner) * SS
+        pts.append((bcx + r * math.cos(ang), bcx + r * math.sin(ang)))
+    pygame.draw.polygon(big, (255, 255, 255, 255), pts)
+    sil = pygame.transform.smoothscale(big, (size, size))
+
+    dark   = (8,   60,  22)
+    bright = (220, 255, 230)
+    pa = pygame.PixelArray(sil)
+    for px in range(size):
+        for py in range(size):
+            current = sil.unmap_rgb(pa[px, py])
+            alpha = current[3]
+            if alpha == 0:
+                continue
+            dx = px - cx
+            dy = py - cy
+            t = min(1.0, math.sqrt(dx * dx + dy * dy) / r_outer)
+            r = int(bright[0] + (dark[0] - bright[0]) * t)
+            g = int(bright[1] + (dark[1] - bright[1]) * t)
+            b = int(bright[2] + (dark[2] - bright[2]) * t)
+            pa[px, py] = sil.map_rgb((r, g, b, alpha))
+    del pa
+    return sil
+
+
+def get_nightglow_star(size: int) -> pygame.Surface:
+    cached = _NIGHTGLOW_STAR_CACHE.get(size)
+    if cached is None:
+        cached = _build_nightglow_star(size)
+        _NIGHTGLOW_STAR_CACHE[size] = cached
+    return cached
+
+
 class PowerUp:
     """A collectible buff. `kind` selects visuals and pickup effect:
        triple   — red mushroom, 3x coin value for TRIPLE_DURATION
@@ -1870,22 +1929,8 @@ class PowerUp:
     def _draw_nightglow_icon(self, surf):
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.6) * 2)
-        # Glowing crescent moon + 3 small stars, cyan-teal palette.
-        # Halo
-        halo = pygame.Surface((52, 52), pygame.SRCALPHA)
-        a = int(90 + 50 * (0.5 + 0.5 * math.sin(self.pulse * 1.4)))
-        pygame.draw.circle(halo, (60, 230, 230, a // 2), (26, 26), 24)
-        pygame.draw.circle(halo, (60, 230, 230, a), (26, 26), 14)
-        surf.blit(halo, (cx - 26, cy - 26))
-        # Crescent moon (large filled circle minus shifted circle)
-        moon_layer = pygame.Surface((40, 40), pygame.SRCALPHA)
-        pygame.draw.circle(moon_layer, (240, 250, 230), (20, 20), 13)
-        pygame.draw.circle(moon_layer, (0, 0, 0, 0), (26, 17), 12)
-        surf.blit(moon_layer, (cx - 20, cy - 20))
-        # 3 small stars
-        for i, (sx_o, sy_o) in enumerate(((-13, -10), (12, -14), (10, 12))):
-            tw = 3 + int(math.sin(self.pulse * 2 + i) > 0)
-            pygame.draw.circle(surf, (255, 250, 230), (cx + sx_o, cy + sy_o), tw)
+        star = get_nightglow_star(50)
+        surf.blit(star, (cx - 25, cy - 25))
 
     def _draw_lottery_icon(self, surf):
         cx = int(self.x)

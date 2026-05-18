@@ -960,21 +960,24 @@ class App:
             tint.fill((140, 180, 255, 18))
             self.screen.blit(tint, (0, 0))
 
-        # NIGHTGLOW (secret): deep-dark overlay + cyan ambient haze. Pip's
-        # own cyan halo is rendered inside Bird.draw — this is the
-        # "world goes dark, everything else glows" piece. Strongest near
-        # start of timer, eases as it expires.
+        # NIGHTGLOW (secret): V5 PUNCH+ composite — world dims, pillar
+        # stone bodies stay grounded, pillar vegetation + coins +
+        # powerups + Pip get a luminance→green palette swap with a
+        # 4-layer aura stack. Implementation in game.nightglow_effect.
+        # Strength ramps in over the first 0.4 s and out over the
+        # last 1.0 s of the buff so activation/expiry feel smooth.
         if getattr(self.world, "nightglow_timer", 0) > 0:
             from game.config import NIGHTGLOW_DURATION
-            frac = self.world.nightglow_timer / max(NIGHTGLOW_DURATION, 0.001)
-            dark_a = int(110 * min(1.0, frac * 2.0))
-            cyan_a = int(22 * min(1.0, frac * 2.0))
-            tint = pygame.Surface((W, H), pygame.SRCALPHA)
-            tint.fill((5, 10, 30, dark_a))
-            self.screen.blit(tint, (0, 0))
-            cyan_tint = pygame.Surface((W, H), pygame.SRCALPHA)
-            cyan_tint.fill((60, 230, 230, cyan_a))
-            self.screen.blit(cyan_tint, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            from game.nightglow_effect import apply_nightglow
+            t = self.world.nightglow_timer
+            d = NIGHTGLOW_DURATION
+            elapsed = d - t
+            strength = 1.0
+            if elapsed < 0.4:
+                strength = elapsed / 0.4
+            elif t < 1.0:
+                strength = t / 1.0
+            apply_nightglow(self.screen, self.world, sx, sy, strength)
 
         # SKATEBOARD (secret): timer-end warning flash when <1s left and
         # Pip is touching a surface, so the player knows to flap off.

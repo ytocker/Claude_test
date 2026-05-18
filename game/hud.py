@@ -954,20 +954,10 @@ def _draw_buff_icon(surf, rect, kind):
         pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 2, cy - 5), 1)
         pygame.draw.line(surf, WHITE, (cx - 5, cy - 5), (cx - 5, cy - 2), 1)
     elif kind == "nightglow":
-        # Glowing crescent + tiny stars, cyan-teal palette.
-        # Soft halo
-        halo = pygame.Surface((24, 24), pygame.SRCALPHA)
-        pygame.draw.circle(halo, (60, 230, 230, 90), (12, 12), 11)
-        pygame.draw.circle(halo, (60, 230, 230, 180), (12, 12), 7)
-        surf.blit(halo, (cx - 12, cy - 12))
-        # Crescent moon via overlap.
-        moon_layer = pygame.Surface((18, 18), pygame.SRCALPHA)
-        pygame.draw.circle(moon_layer, (240, 250, 230), (9, 9), 6)
-        pygame.draw.circle(moon_layer, (0, 0, 0, 0), (12, 7), 5)
-        surf.blit(moon_layer, (cx - 9, cy - 9))
-        # 2 small stars
-        for sx, sy in ((cx - 6, cy - 4), (cx + 5, cy + 4)):
-            pygame.draw.circle(surf, (255, 250, 230), (sx, sy), 1)
+        from game.entities import get_nightglow_star
+        size = min(rect.width, rect.height)
+        star = get_nightglow_star(size)
+        surf.blit(star, (cx - size // 2, cy - size // 2))
 
 
 class PauseButton:
