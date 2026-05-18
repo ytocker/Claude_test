@@ -1,20 +1,27 @@
-"""Render 5 NIGHTGLOW powerup ICON design candidates — sticker style.
+"""Render 5 GLOW-IN-THE-DARK STAR sticker candidates for NIGHTGLOW.
 
-The previous icon set was too painterly. The user asked for a
-glow-in-the-dark sticker aesthetic: flat solid shapes, lime-green
-phosphorescent fill, dark outline, slight ambient halo on the dark
-backdrop. Five recognisable GITD-sticker silhouettes that each hint at
-the NIGHTGLOW effect ("world goes dark, things glow neon-green"):
+User confirmed STAR (icon 1) is the right concept but the execution
+needs to feel like an actual phosphor vinyl sticker — not a flat
+cartoon shape with a thick outline. Reference: IKEA / Universe-brand
+ceiling glow-stars in a dark room. They have:
 
-    1. STAR      — the classic 5-point ceiling sticker
-    2. MOON      — sleepy crescent moon with face
-    3. GHOST     — friendly cartoon ghost
-    4. MUSHROOM  — speckled toadstool
-    5. BOLT      — lightning bolt
+  • A pale lime-pistachio fill (strontium-aluminate phosphor, roughly
+    (200, 250, 130) — yellower than pure neon green).
+  • NO hard outline. The shape edge softens into the surrounding glow.
+  • A strong ambient halo around them ("re-emission" of stored light).
+  • Often a faint glossy highlight from the vinyl top surface.
 
-Each PNG is 240×240, a single sticker centred on a dark night
-backdrop. The chosen design will be ported into entities.py's
-_draw_nightglow_icon at ~52×52 native scale.
+Five star treatments to pick from, all on the same dark backdrop:
+
+    1. CLASSIC — soft-edged 5-point, even halo, the canonical take.
+    2. GLOSSY  — same star + a slim plastic-vinyl gloss highlight.
+    3. CHUNKY  — rounded points, fatter body (older sticker style).
+    4. SHARP   — long pointy 5-point, dramatic spikes.
+    5. SHEET   — main star + two tiny companion stars (sticker-sheet
+                  layout — gives the icon a sense of "set of stars").
+
+The chosen one gets ported into entities.py's _draw_nightglow_icon at
+~52 px native scale.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -41,13 +48,14 @@ pygame.display.set_mode((1, 1))
 CANVAS = 240
 CENTER = CANVAS // 2
 
-# Phosphorescent green-yellow — the classic GITD-pigment colour. Brighter
-# and more yellow than the in-world halo green so the sticker visibly
-# pops as a printed-vinyl thing under dark light.
-STICKER_FILL      = (185, 255, 130)
-STICKER_HIGHLIGHT = (235, 255, 200)
-STICKER_OUTLINE   = (60, 160, 40)
-STICKER_DEEP      = (35, 110, 25)
+# Strontium-aluminate phosphor green — slightly yellow-leaning, the
+# colour real GITD stickers actually emit. NOT pure neon green.
+PHOSPHOR_CORE  = (215, 252, 145)   # solid sticker fill
+PHOSPHOR_RIM   = (170, 235, 110)   # slightly darker rim for soft edge
+PHOSPHOR_HOT   = (245, 255, 215)   # vinyl gloss highlight
+HALO_DEEP      = (90, 200, 50)
+HALO_MID       = (140, 240, 100)
+HALO_BRIGHT    = (190, 255, 150)
 
 
 def _dark_backdrop() -> pygame.Surface:
@@ -67,263 +75,164 @@ def _dark_backdrop() -> pygame.Surface:
     return surf
 
 
-def _ambient_halo(surf, cx, cy, radius, alpha_peak):
-    """Soft ambient glow that says 'this is glowing in the dark'."""
+def _star_points(cx, cy, r_outer, r_inner, n=5, rot=-math.pi / 2):
+    """N-point star polygon."""
+    pts = []
+    for i in range(n * 2):
+        a = rot + i * math.pi / n
+        r = r_outer if i % 2 == 0 else r_inner
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def _aa_star(cx, cy, r_outer, r_inner, color):
+    """Render an anti-aliased star: draw it at 4× on a transparent
+    surface, then smoothscale down. Result has soft edges that look
+    like a real die-cut sticker, not jaggy pixel polygons."""
+    SS = 4
+    big_size = (r_outer * 2 + 8) * SS
+    s = pygame.Surface((big_size, big_size), pygame.SRCALPHA)
+    bcx = big_size // 2
+    pts = _star_points(bcx, bcx, r_outer * SS, r_inner * SS)
+    pygame.draw.polygon(s, color, pts)
+    out_size = big_size // SS
+    out = pygame.transform.smoothscale(s, (out_size, out_size))
+    return out, (cx - out_size // 2, cy - out_size // 2)
+
+
+def _ambient_halo(surf, cx, cy, radius, alpha_peak, color=HALO_MID):
+    """Soft additive radial halo — the 'phosphor glow' signature."""
     pad = radius + 4
     aura = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     for r in range(radius, 0, -2):
         t = r / radius
-        a = int(alpha_peak * (1.0 - t) ** 1.5)
+        a = int(alpha_peak * (1.0 - t) ** 1.6)
         if a <= 0:
             continue
-        pygame.draw.circle(aura, (130, 240, 90, a), (pad, pad), r)
+        pygame.draw.circle(aura, (*color, a), (pad, pad), r)
     surf.blit(aura, (cx - pad, cy - pad),
               special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def _sticker_polygon(surf, points, highlight_offset_y=-4):
-    """Draw a flat polygon sticker: fill + outline + top highlight rim."""
-    pygame.draw.polygon(surf, STICKER_OUTLINE,
-                        [(x + dx, y + dy) for x, y in points
-                         for dx, dy in [(0, 0)]],
-                        0)  # base/outline (slightly larger via outline thickness)
-    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 0)
-    # Fill, inset by 3px (achieved by drawing fill, then a darker outline 3px wide)
-    pygame.draw.polygon(surf, STICKER_FILL, points, 0)
-    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 4)
+# ─── VARIANT 1 — CLASSIC ────────────────────────────────────────────────────
 
-
-# ─── ICON 1 — STAR (classic 5-point ceiling sticker) ────────────────────────
-
-def icon_star(surf):
+def variant_classic(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 95, 170)
+    # Layered halos — wide soft + tight bright = phosphor glow.
+    _ambient_halo(surf, cx, cy, 105, 130, HALO_DEEP)
+    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
+    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
 
-    # 5-point star
-    r_outer = 78
-    r_inner = 33
-    points = []
-    for i in range(10):
-        a = -math.pi / 2 + i * math.pi / 5
-        r = r_outer if i % 2 == 0 else r_inner
-        points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
-
-    pygame.draw.polygon(surf, STICKER_FILL, points)
-    pygame.draw.polygon(surf, STICKER_OUTLINE, points, 5)
-
-    # Top-edge highlight — a smaller star, offset up, drawn in highlight colour.
-    hl = []
-    for i in range(10):
-        a = -math.pi / 2 + i * math.pi / 5
-        r = (r_outer - 14) if i % 2 == 0 else (r_inner - 6)
-        hl.append((cx + r * math.cos(a), cy - 6 + r * math.sin(a)))
-    pygame.draw.polygon(surf, STICKER_HIGHLIGHT, hl)
-    pygame.draw.polygon(surf, STICKER_FILL, hl, 3)  # blend back to fill
-
-    # Tiny central white pop
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 4, cy - 14), 4)
+    # Soft-edged star body
+    star_img, pos = _aa_star(cx, cy, r_outer=70, r_inner=29, color=PHOSPHOR_CORE)
+    surf.blit(star_img, pos)
+    # Subtle inner rim (slightly darker) — sticker depth without an outline
+    inner, ipos = _aa_star(cx, cy, r_outer=66, r_inner=27, color=PHOSPHOR_CORE)
+    surf.blit(inner, ipos)
 
 
-# ─── ICON 2 — MOON (sleepy crescent with face) ──────────────────────────────
+# ─── VARIANT 2 — GLOSSY (vinyl finish highlight) ────────────────────────────
 
-def icon_moon(surf):
+def variant_glossy(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 95, 170)
+    _ambient_halo(surf, cx, cy, 105, 130, HALO_DEEP)
+    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
+    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
 
-    # Crescent: large fill circle minus a shifted "bite" circle.
-    # Render onto its own SRCALPHA layer so we can punch the bite cleanly.
-    layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
-    pygame.draw.circle(layer, STICKER_OUTLINE, (cx, cy), 76)
-    pygame.draw.circle(layer, STICKER_FILL,    (cx, cy), 72)
-    pygame.draw.circle(layer, (0, 0, 0, 0),    (cx + 28, cy - 18), 64)
+    star_img, pos = _aa_star(cx, cy, r_outer=70, r_inner=29, color=PHOSPHOR_CORE)
+    surf.blit(star_img, pos)
 
-    # Highlight rim along the left edge of the crescent (top-left where light hits)
-    pygame.draw.circle(layer, STICKER_HIGHLIGHT, (cx - 4, cy - 4), 70)
-    pygame.draw.circle(layer, STICKER_FILL,      (cx - 1, cy - 1), 66)
-    pygame.draw.circle(layer, (0, 0, 0, 0),      (cx + 28, cy - 18), 64)
+    # Glossy vinyl sheen: a small bright elliptical highlight blip in
+    # the upper-left lobe of the star where light would catch on a
+    # plastic surface. Drawn directly on top of the star body — sized
+    # so it sits inside the silhouette without any masking gymnastics.
+    gloss_layer = pygame.Surface((60, 28), pygame.SRCALPHA)
+    pygame.draw.ellipse(gloss_layer, (*PHOSPHOR_HOT, 200),
+                        gloss_layer.get_rect())
+    # Smooth the edge by re-blitting at slight offsets in lower alpha
+    soft = pygame.Surface((60, 28), pygame.SRCALPHA)
+    pygame.draw.ellipse(soft, (*PHOSPHOR_HOT, 90),
+                        soft.get_rect().inflate(8, 4))
+    surf.blit(soft, (cx - 38, cy - 36),
+              special_flags=pygame.BLEND_RGBA_ADD)
+    surf.blit(gloss_layer, (cx - 30, cy - 32))
 
-    surf.blit(layer, (0, 0))
-
-    # Face: closed sleepy eye + tiny smile, positioned on the visible (left) lobe.
-    eye_x, eye_y = cx - 22, cy - 4
-    # Closed eye = a small arc
-    pygame.draw.arc(surf, STICKER_DEEP,
-                    pygame.Rect(eye_x - 9, eye_y - 5, 18, 10),
-                    math.pi, math.tau, 3)
-    # Tiny smile
-    pygame.draw.arc(surf, STICKER_DEEP,
-                    pygame.Rect(cx - 30, cy + 14, 18, 12),
-                    math.pi + 0.3, math.tau - 0.3, 3)
-    # Cheek blush
-    pygame.draw.circle(surf, (140, 220, 90), (cx - 30, cy + 8), 3)
+    # Tiny sparkle pop at the upper-right corner of the star — sells the
+    # "shiny vinyl" read further.
+    pygame.draw.circle(surf, (255, 255, 255), (cx + 26, cy - 24), 2)
 
 
-# ─── ICON 3 — GHOST (friendly cartoon ghost) ────────────────────────────────
+# ─── VARIANT 3 — CHUNKY (rounded points, fatter body) ───────────────────────
 
-def icon_ghost(surf):
+def variant_chunky(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx + 2, cy, 95, 175)
+    _ambient_halo(surf, cx, cy, 110, 140, HALO_DEEP)
+    _ambient_halo(surf, cx, cy, 85,  180, HALO_MID)
+    _ambient_halo(surf, cx, cy, 55,  150, HALO_BRIGHT)
 
-    # Body: rounded-top + wavy bottom hem.
-    # Build silhouette as a polygon: a big half-circle on top, vertical sides,
-    # wavy zig-zag bottom.
-    top_r = 60
-    body_w = top_r * 2
-    body_h = 120
-    left  = cx - top_r
-    right = cx + top_r
-    top_y = cy - 56
-    bot_y = top_y + body_h
+    # Chunkier: inner radius bumped up so points are stubbier.
+    star_img, pos = _aa_star(cx, cy, r_outer=72, r_inner=42, color=PHOSPHOR_CORE)
+    surf.blit(star_img, pos)
 
-    pts = []
-    # Top arc — 19 samples
-    for i in range(19):
-        a = math.pi + (math.pi * i / 18)
-        pts.append((cx + top_r * math.cos(a), top_y + top_r + top_r * math.sin(a)))
-    # Right side down
-    pts.append((right, bot_y - 16))
-    # Wavy hem (3 humps)
-    hem_xs = [right, right - 20, right - 40, right - 60, right - 80, right - 100, left]
-    hem_ys = [bot_y - 16, bot_y - 4, bot_y - 16, bot_y - 4, bot_y - 16, bot_y - 4, bot_y - 16]
-    for x, y in zip(hem_xs, hem_ys):
-        pts.append((x, y))
-    # Close back up left side
-    pts.append((left, top_y + top_r))
-
-    pygame.draw.polygon(surf, STICKER_OUTLINE, pts)
-    # Inset fill
-    fill_pts = [(x + (1 if x > cx else -1) * 4, y - 1) for x, y in pts]
-    pygame.draw.polygon(surf, STICKER_FILL, fill_pts)
-    pygame.draw.polygon(surf, STICKER_OUTLINE, fill_pts, 4)
-
-    # Highlight strip down the left side
-    pygame.draw.line(surf, STICKER_HIGHLIGHT,
-                     (cx - top_r + 14, top_y + 30), (cx - top_r + 14, bot_y - 30), 6)
-
-    # Face: two oval eyes + 'o' mouth
-    pygame.draw.ellipse(surf, STICKER_DEEP,
-                        pygame.Rect(cx - 22, cy - 16, 12, 18))
-    pygame.draw.ellipse(surf, STICKER_DEEP,
-                        pygame.Rect(cx + 10, cy - 16, 12, 18))
-    # Eye highlight pops
-    pygame.draw.circle(surf, (255, 255, 255), (cx - 14, cy - 11), 2)
-    pygame.draw.circle(surf, (255, 255, 255), (cx + 18, cy - 11), 2)
-    # Mouth
-    pygame.draw.ellipse(surf, STICKER_DEEP,
-                        pygame.Rect(cx - 7, cy + 12, 14, 16))
+    # Round each tip by drawing a small circle there.
+    for i in range(5):
+        a = -math.pi / 2 + i * math.tau / 5
+        tx = cx + 72 * math.cos(a)
+        ty = cy + 72 * math.sin(a)
+        pygame.draw.circle(surf, PHOSPHOR_CORE, (int(tx), int(ty)), 7)
 
 
-# ─── ICON 4 — MUSHROOM (speckled toadstool) ─────────────────────────────────
+# ─── VARIANT 4 — SHARP (long dramatic points) ───────────────────────────────
 
-def icon_mushroom(surf):
+def variant_sharp(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy - 6, 95, 165)
+    _ambient_halo(surf, cx, cy, 110, 130, HALO_DEEP)
+    _ambient_halo(surf, cx, cy, 80,  170, HALO_MID)
+    _ambient_halo(surf, cx, cy, 50,  140, HALO_BRIGHT)
 
-    # Stem
-    stem_rect = pygame.Rect(cx - 18, cy + 6, 36, 60)
-    pygame.draw.rect(surf, STICKER_OUTLINE, stem_rect.inflate(4, 4),
-                     border_radius=8)
-    pygame.draw.rect(surf, STICKER_FILL, stem_rect, border_radius=6)
-    pygame.draw.rect(surf, STICKER_HIGHLIGHT,
-                     pygame.Rect(cx - 14, cy + 10, 8, 50), border_radius=4)
-
-    # Cap — wide half-dome (drawn as a rotated ellipse via Rect clipping).
-    cap_w, cap_h = 150, 90
-    cap_top = cy - 50
-    cap_rect = pygame.Rect(cx - cap_w // 2, cap_top, cap_w, cap_h)
-    # Outline
-    outline_layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
-    pygame.draw.ellipse(outline_layer, STICKER_OUTLINE, cap_rect.inflate(8, 8))
-    pygame.draw.ellipse(outline_layer, STICKER_FILL, cap_rect)
-    # Crop the bottom half so it reads as a dome
-    pygame.draw.rect(outline_layer, (0, 0, 0, 0),
-                     pygame.Rect(0, cy + 8, CANVAS, CANVAS))
-    surf.blit(outline_layer, (0, 0))
-
-    # Cap base line (curved underside)
-    pygame.draw.line(surf, STICKER_OUTLINE,
-                     (cx - cap_w // 2, cy + 6), (cx + cap_w // 2, cy + 6), 4)
-    # Highlight rim along top of the cap
-    hl_rect = cap_rect.inflate(-20, -20)
-    hl_rect.y -= 8
-    hl_layer = pygame.Surface((CANVAS, CANVAS), pygame.SRCALPHA)
-    pygame.draw.ellipse(hl_layer, STICKER_HIGHLIGHT, hl_rect)
-    pygame.draw.rect(hl_layer, (0, 0, 0, 0),
-                     pygame.Rect(0, cy - 12, CANVAS, CANVAS))
-    surf.blit(hl_layer, (0, 0))
-
-    # Spots
-    for sx, sy, sr in ((cx - 36, cy - 30, 10),
-                       (cx + 28, cy - 26, 12),
-                       (cx + 50, cy - 8, 7),
-                       (cx - 60, cy - 10, 7),
-                       (cx + 4,  cy - 36, 8)):
-        pygame.draw.circle(surf, STICKER_OUTLINE, (sx, sy), sr + 1)
-        pygame.draw.circle(surf, STICKER_DEEP,    (sx, sy), sr)
+    # Sharper: smaller inner radius gives long pointy spikes.
+    star_img, pos = _aa_star(cx, cy, r_outer=82, r_inner=22, color=PHOSPHOR_CORE)
+    surf.blit(star_img, pos)
 
 
-# ─── ICON 5 — BOLT (lightning) ──────────────────────────────────────────────
+# ─── VARIANT 5 — SHEET (main star + 2 companions, sticker-sheet layout) ─────
 
-def icon_bolt(surf):
+def variant_sheet(surf):
     cx, cy = CENTER, CENTER
-    _ambient_halo(surf, cx, cy, 95, 175)
 
-    # Classic Z-zigzag bolt — narrow at top, wider in middle, narrow at bottom.
-    bolt = [
-        (cx - 12, cy - 85),
-        (cx + 26, cy - 85),
-        (cx + 6,  cy - 18),
-        (cx + 36, cy - 18),
-        (cx - 10, cy + 85),
-        (cx + 6,  cy + 18),
-        (cx - 30, cy + 18),
-        (cx - 4,  cy - 18),
-        (cx - 26, cy - 18),
-    ]
-    # Outline pad
-    pygame.draw.polygon(surf, STICKER_OUTLINE, bolt)
-    # Inset fill
-    inset = []
-    for px, py in bolt:
-        dx = 4 if px > cx else -4
-        dy = 4 if py > cy else -4
-        inset.append((px + dx, py + dy))
-    # Just shrink toward centre by 4px for the fill
-    inset = [((px + cx) // 2 if False else int(cx + (px - cx) * 0.92),
-              int(cy + (py - cy) * 0.92)) for px, py in bolt]
-    pygame.draw.polygon(surf, STICKER_FILL, inset)
-    pygame.draw.polygon(surf, STICKER_OUTLINE, inset, 3)
+    # Main star
+    _ambient_halo(surf, cx, cy, 100, 130, HALO_DEEP)
+    _ambient_halo(surf, cx, cy, 75,  170, HALO_MID)
+    main, mpos = _aa_star(cx, cy, r_outer=58, r_inner=24, color=PHOSPHOR_CORE)
+    surf.blit(main, mpos)
 
-    # Bright highlight stripe along the left edge of the bolt
-    hl_pts = [
-        (cx - 8, cy - 78),
-        (cx - 2, cy - 78),
-        (cx - 16, cy - 12),
-        (cx - 10, cy - 12),
-        (cx - 4, cy + 80),
-        (cx - 10, cy + 80),
-        (cx - 4, cy + 12),
-        (cx - 12, cy + 12),
-    ]
-    pygame.draw.polygon(surf, STICKER_HIGHLIGHT, hl_pts)
+    # Companion 1 — upper right
+    _ambient_halo(surf, cx + 70, cy - 65, 38, 130, HALO_MID)
+    c1, c1pos = _aa_star(cx + 70, cy - 65, r_outer=24, r_inner=10,
+                          color=PHOSPHOR_CORE)
+    surf.blit(c1, c1pos)
+
+    # Companion 2 — lower left
+    _ambient_halo(surf, cx - 70, cy + 55, 32, 130, HALO_MID)
+    c2, c2pos = _aa_star(cx - 70, cy + 55, r_outer=18, r_inner=8,
+                          color=PHOSPHOR_CORE)
+    surf.blit(c2, c2pos)
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 ICONS = [
-    ("icon_1_star.png",     icon_star),
-    ("icon_2_moon.png",     icon_moon),
-    ("icon_3_ghost.png",    icon_ghost),
-    ("icon_4_mushroom.png", icon_mushroom),
-    ("icon_5_bolt.png",     icon_bolt),
+    ("icon_1_classic.png", variant_classic),
+    ("icon_2_glossy.png",  variant_glossy),
+    ("icon_3_chunky.png",  variant_chunky),
+    ("icon_4_sharp.png",   variant_sharp),
+    ("icon_5_sheet.png",   variant_sheet),
 ]
 
 
 def main() -> int:
     out_dir = os.path.join(_REPO, "docs", "screenshots", "nightglow_icons")
     os.makedirs(out_dir, exist_ok=True)
-    # Wipe any previous candidates so the directory only ever shows the
-    # current set.
     for fn in os.listdir(out_dir):
         if fn.endswith(".png"):
             os.remove(os.path.join(out_dir, fn))
