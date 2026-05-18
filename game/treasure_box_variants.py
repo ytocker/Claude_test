@@ -1,18 +1,17 @@
-"""Five visual treatments for the TREASURE BOX power-up — round 4.
+"""Five visual treatments for the TREASURE BOX power-up — round 5.
 
-Round 4 brief: the user picked round 3's PADLOCKED OAK as the keeper.
-This round generates 5 sibling chests in that same family — small,
-closed, locked wooden boxes carried tight under Pip — and varies a
-single thing each: lock count, band material, wood tone, rivet
-density, or an added chain wrap.
-
-No drop shadow (user explicitly asked to drop the shade).
+Round 4 read more like a briefcase (flat lid + side handles + front
+hasp). Round 5 commits to the iconic pirate-chest silhouette: small
+CLOSED box with a curved DOMED LID, iron straps that wrap up over the
+dome from the body's front face, a central lock plate, and brass
+corner studs. No side handles (those were the briefcase tell). Pip
+carries every variant by two short ropes from his talons to the front
+corners of the body.
 
 Each `draw_<name>(surf, bird_cx, bird_cy, t=0.0)` paints the carry
-ropes, the chest, the variant-specific hardware accent, motion lines,
-and the 4-coin spill cascade. The bird itself is positioned by the
-caller before invoking the overlay so every variant uses the exact
-same Pip sprite.
+ropes, the chest, the variant-specific accent, motion lines, and the
+4-coin spill cascade. The bird itself is positioned by the caller so
+all variants share Pip's exact frame.
 
 Preview-only — nothing in game/ imports this yet."""
 import math
@@ -42,6 +41,10 @@ ROPE_DARK  = ( 60,  35,  15)
 WOOD_OAK_HI    = (185, 130,  70)
 WOOD_OAK_MID   = (140,  88,  44)
 WOOD_OAK_DARK  = ( 78,  44,  16)
+
+WOOD_DOME_HI   = (165, 115,  62)
+WOOD_DOME_MID  = (120,  78,  38)
+WOOD_DOME_DARK = ( 68,  38,  14)
 
 WOOD_WALNUT_HI   = ( 95,  62,  36)
 WOOD_WALNUT_MID  = ( 58,  34,  18)
@@ -123,12 +126,14 @@ def _shake_lines(surf, cx, cy, w=18, *, color=(40, 30, 20)):
 
 # ── geometry constants ──────────────────────────────────────────────────────
 
-BOX_W  = 42
-BODY_H = 22
-LID_H  = 12
+BOX_W  = 40       # body width (lid is the same)
+BODY_H = 18       # rectangular body height
+DOME_H = 14       # how far the curved lid arcs above the body
 
 
 def _box_rect(cx, cy):
+    """Body rect of the closed chest. cy is the body's vertical centre.
+    The domed lid arcs DOME_H px above body.y."""
     return pygame.Rect(cx - BOX_W // 2, cy - BODY_H // 2, BOX_W, BODY_H)
 
 
@@ -148,207 +153,171 @@ def _gradient_rect(surf, rect, top_col, bot_col, *, radius=3):
 
 
 def _draw_carry_ropes(surf, bird_cx, bird_cy, body_rect):
-    handle_y = body_rect.y + BODY_H // 2
-    for tx, talon_dx in ((body_rect.x - 1, -3), (body_rect.right + 1, 3)):
-        pygame.draw.line(surf, ROPE_DARK,
-                         (bird_cx + talon_dx, bird_cy + 22),
-                         (tx, handle_y), 4)
-        pygame.draw.line(surf, ROPE_BASE,
-                         (bird_cx + talon_dx, bird_cy + 22),
-                         (tx, handle_y), 2)
-        rx = int((bird_cx + talon_dx + tx) / 2)
-        ry = int(((bird_cy + 22) + handle_y) / 2)
+    """Two short hemp ropes from Pip's talons to the front-top corners
+    of the body (where they'd loop under brass eyelets on a real chest)."""
+    # Anchor points on the chest: just inside each top corner of the body.
+    for tx, talon_dx in ((body_rect.x + 3, -3), (body_rect.right - 4, 3)):
+        sx, sy = bird_cx + talon_dx, bird_cy + 22
+        ex, ey = tx, body_rect.y - 1
+        pygame.draw.line(surf, ROPE_DARK, (sx, sy), (ex, ey), 4)
+        pygame.draw.line(surf, ROPE_BASE, (sx, sy), (ex, ey), 2)
+        # Single fiber-hatch at the midpoint
+        rx = (sx + ex) // 2
+        ry = (sy + ey) // 2
         pygame.draw.line(surf, ROPE_DARK, (rx - 2, ry - 1), (rx + 2, ry + 1), 1)
 
 
-def _draw_side_handles(surf, body, wood_dark, *, brass_base=BRASS_BASE,
-                      brass_dark=BRASS_DK):
-    for hx in (body.x - 1, body.right):
-        pygame.draw.circle(surf, NEAR_BLACK, (hx, body.centery), 4, 0)
-        pygame.draw.circle(surf, brass_dark, (hx, body.centery), 3, 0)
-        pygame.draw.circle(surf, brass_base, (hx, body.centery), 3, 1)
-        pygame.draw.circle(surf, wood_dark,  (hx, body.centery), 1, 0)
+def _dome_height_at(body, dx):
+    """Height of the half-ellipse dome above body.y at horizontal offset
+    `dx` from the body's centre. Returns 0 outside the dome footprint."""
+    a = body.w / 2
+    b = DOME_H
+    if abs(dx) >= a:
+        return 0
+    return int(b * math.sqrt(max(0.0, 1.0 - (dx * dx) / (a * a))))
 
 
-def _draw_corner_studs(surf, body, *, color=BRASS_BASE,
-                       dark=BRASS_DK, hi=BRASS_HI, size=2):
-    for cnx, cny in (
-        (body.x + 2,     body.y + 2),
-        (body.right - 3, body.y + 2),
-        (body.x + 2,     body.bottom - 3),
-        (body.right - 3, body.bottom - 3),
-    ):
-        pygame.draw.circle(surf, dark,  (cnx, cny), size, 0)
-        pygame.draw.circle(surf, color, (cnx, cny), size - 1, 0)
-        pygame.draw.circle(surf, hi,    (cnx - 1, cny - 1), 1, 0)
+def _draw_dome_and_body(surf, body, *, wood_hi, wood_mid, wood_dark):
+    """Iconic pirate-chest silhouette: domed lid + rectangular body, both
+    in the given wood palette. Returns the bounding rect of the dome."""
+    # ── Dome (filled half-ellipse on top of the body) ──
+    dome_box = pygame.Rect(body.x, body.y - DOME_H, body.w, DOME_H * 2)
+    # Outline (slightly enlarged ellipse behind)
+    pygame.draw.ellipse(surf, DK_OUTLINE, dome_box.inflate(4, 4))
+    # Gradient-filled dome, masked to the upper half of the ellipse
+    dome_layer = pygame.Surface(dome_box.size, pygame.SRCALPHA)
+    for y in range(dome_box.h):
+        t = y / max(1, dome_box.h - 1)
+        c = lerp_color(wood_hi, wood_mid, t) + (255,)
+        dome_layer.fill(c, pygame.Rect(0, y, dome_box.w, 1))
+    mask = pygame.Surface(dome_box.size, pygame.SRCALPHA)
+    pygame.draw.ellipse(mask, (255, 255, 255, 255), mask.get_rect())
+    dome_layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # Cut off the lower half (we only want the dome arc above the body)
+    dome_layer.fill((0, 0, 0, 0),
+                    pygame.Rect(0, dome_box.h // 2, dome_box.w, dome_box.h),
+                    special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(dome_layer, dome_box.topleft)
 
+    # Faint wood-grain arcs across the dome (3 concentric thin curves)
+    for i in range(3):
+        r_offset = 2 + i * 3
+        arc_rect = pygame.Rect(body.x + r_offset, body.y - DOME_H + r_offset,
+                               body.w - 2 * r_offset, (DOME_H - r_offset) * 2)
+        if arc_rect.w > 0 and arc_rect.h > 0:
+            pygame.draw.arc(surf, wood_dark, arc_rect,
+                            math.radians(10), math.radians(170), 1)
 
-def _wood_grain(surf, body, dark, *, n=3):
-    step = body.w // (n + 1)
-    for i in range(1, n + 1):
-        gx = body.x + step * i
-        pygame.draw.line(surf, dark,
-                         (gx, body.y + 3),
-                         (gx, body.bottom - 3), 1)
-
-
-def _draw_lid_and_body(surf, body, wood_hi, wood_mid, wood_dark, *,
-                       grain_n=3):
-    """Common: flat lid + dark seam + body w/ vertical grain. Returns
-    the lid rect for callers that want to draw locks/hasps on the lid."""
-    lid = pygame.Rect(body.x - 2, body.y - LID_H, body.w + 4, LID_H)
-    pygame.draw.rect(surf, DK_OUTLINE, lid.inflate(2, 2), border_radius=2)
-    _gradient_rect(surf, lid, wood_hi, wood_mid, radius=2)
+    # ── Dark seam line where the lid meets the body ──
     pygame.draw.rect(surf, NEAR_BLACK,
                      pygame.Rect(body.x, body.y - 1, body.w, 2))
 
+    # ── Body (rectangular, with vertical grain) ──
     pygame.draw.rect(surf, DK_OUTLINE, body.inflate(2, 2), border_radius=2)
     _gradient_rect(surf, body, wood_mid, wood_dark, radius=2)
-    _wood_grain(surf, body, wood_dark, n=grain_n)
-    return lid
+    # Vertical grain streaks
+    for i in range(1, 4):
+        gx = body.x + (body.w * i) // 4
+        pygame.draw.line(surf, wood_dark,
+                         (gx, body.y + 2), (gx, body.bottom - 3), 1)
+
+    return dome_box
 
 
-def _draw_strap(surf, body, by, *,
-                strap_dark=IRON_DARK, strap_mid=IRON_BASE,
-                strap_hi=IRON_HI, thickness=4, rivets=2):
-    """One horizontal metal strap across the body at `by` (top edge of
-    the strap). `rivets` = how many rivet heads to stamp evenly across."""
-    strap = pygame.Rect(body.x - 1, by, body.w + 2, thickness)
-    pygame.draw.rect(surf, strap_dark, strap)
-    pygame.draw.rect(surf, strap_mid,  strap.inflate(0, -2))
-    pygame.draw.line(surf, strap_hi,
-                     (strap.x + 2, strap.y + 1),
-                     (strap.right - 2, strap.y + 1), 1)
-    # Rivet heads at evenly spaced positions
-    if rivets >= 2:
-        for i in range(rivets):
-            t = i / (rivets - 1) if rivets > 1 else 0.5
-            rx = int(body.x + 2 + (body.w - 4) * t)
-            pygame.draw.circle(surf, strap_dark, (rx, by + thickness // 2), 2)
-            pygame.draw.circle(surf, strap_hi,   (rx, by + thickness // 2), 1)
-
-
-def _draw_padlock(surf, cx, cy, *, size="big", shackle_color=IRON_DARK,
-                  shackle_hi=IRON_HI, body_top=IRON_HI, body_bot=IRON_DARK):
-    """Padlock at (cx, cy). `size` ∈ {"small", "big"}. The lock body is
-    drawn centred on (cx, cy); the U-shackle bends up out of the top."""
-    if size == "small":
-        w, h = 8, 8
-        shackle_w, shackle_h = 6, 8
-    else:
-        w, h = 12, 11
-        shackle_w, shackle_h = 10, 12
-
-    pad = pygame.Rect(cx - w // 2, cy - h // 2, w, h)
-    # Shackle arc behind the lock body
-    pygame.draw.arc(surf, shackle_color,
-                    pygame.Rect(cx - shackle_w // 2,
-                                pad.y - shackle_h // 2 - 1,
-                                shackle_w, shackle_h),
-                    math.radians(0), math.radians(180), 3)
-    pygame.draw.arc(surf, shackle_hi,
-                    pygame.Rect(cx - shackle_w // 2,
-                                pad.y - shackle_h // 2 - 1,
-                                shackle_w, shackle_h),
-                    math.radians(20), math.radians(160), 1)
-    # Lock body
-    pygame.draw.rect(surf, DK_OUTLINE, pad.inflate(2, 2), border_radius=2)
-    _gradient_rect(surf, pad, body_top, body_bot, radius=2)
-    # Keyhole
-    pygame.draw.circle(surf, NEAR_BLACK, (pad.centerx, pad.centery), 2)
-    pygame.draw.rect(surf, NEAR_BLACK,
-                     pygame.Rect(pad.centerx - 1, pad.centery, 2, 3))
-
-
-def _draw_hasp(surf, lid, body, *,
-               width=10, dark=IRON_DARK, mid=IRON_BASE, hi=IRON_HI):
-    """Vertical hasp plate from the lid down past the seam onto the
-    body. The padlock's shackle would loop through the protruding lug
-    at the bottom."""
-    hasp = pygame.Rect(lid.centerx - width // 2, lid.y + 3, width, LID_H - 2)
-    pygame.draw.rect(surf, dark, hasp)
-    pygame.draw.rect(surf, mid,  hasp.inflate(-2, -2))
+def _draw_wrap_strap(surf, body, dx_from_centre, *,
+                     strap_w=4,
+                     dark=IRON_DARK, mid=IRON_BASE, hi=IRON_HI):
+    """A single iron strap that wraps from the body's front (vertical
+    band on the body) UP over the dome (vertical band rising from
+    body.y to the dome's height at that x). `dx_from_centre` is the
+    horizontal offset of the strap's centre from the body's centre."""
+    strap_cx = body.centerx + dx_from_centre
+    # Body portion — full-height vertical band on the body
+    body_part = pygame.Rect(strap_cx - strap_w // 2, body.y,
+                            strap_w, body.h)
+    pygame.draw.rect(surf, dark, body_part)
+    pygame.draw.rect(surf, mid,  body_part.inflate(-2, 0))
     pygame.draw.line(surf, hi,
-                     (hasp.x + 1, hasp.y + 1),
-                     (hasp.right - 2, hasp.y + 1), 1)
+                     (body_part.x + 1, body_part.y + 1),
+                     (body_part.x + 1, body_part.bottom - 1), 1)
+    # Rivet at the bottom of the body strap
+    pygame.draw.circle(surf, dark, (strap_cx, body.bottom - 3), 2)
+    pygame.draw.circle(surf, hi,   (strap_cx, body.bottom - 3), 1)
+
+    # Dome portion — vertical band from body.y UP to the dome's curve
+    dh = _dome_height_at(body, dx_from_centre)
+    if dh > 2:
+        dome_part = pygame.Rect(strap_cx - strap_w // 2, body.y - dh,
+                                strap_w, dh)
+        pygame.draw.rect(surf, dark, dome_part)
+        pygame.draw.rect(surf, mid,  dome_part.inflate(-2, 0))
+        pygame.draw.line(surf, hi,
+                         (dome_part.x + 1, dome_part.y + 1),
+                         (dome_part.x + 1, dome_part.bottom - 1), 1)
+        # Tiny rivet head where the strap crests the dome
+        pygame.draw.circle(surf, dark, (strap_cx, body.y - dh + 2), 1)
+
+
+def _draw_corner_studs(surf, body, *, color=BRASS_BASE,
+                       dark=BRASS_DK, hi=BRASS_HI):
+    for cnx, cny in (
+        (body.x + 2,     body.y + 3),
+        (body.right - 3, body.y + 3),
+        (body.x + 2,     body.bottom - 3),
+        (body.right - 3, body.bottom - 3),
+    ):
+        pygame.draw.circle(surf, dark,  (cnx, cny), 2, 0)
+        pygame.draw.circle(surf, color, (cnx, cny), 1, 0)
+        pygame.draw.circle(surf, hi,    (cnx - 1, cny - 1), 1, 0)
+
+
+def _draw_lock_plate(surf, body, *,
+                     dark=BRASS_DK, base=BRASS_BASE, hi=BRASS_HI):
+    """Oval brass keyhole plate centred on the body's front face."""
+    lp = pygame.Rect(body.centerx - 6, body.centery - 4, 12, 9)
+    pygame.draw.ellipse(surf, dark, lp.inflate(2, 2))
+    pygame.draw.ellipse(surf, base, lp)
+    pygame.draw.arc(surf, hi, lp.inflate(-2, -2),
+                    math.radians(180), math.radians(360), 1)
+    # Keyhole
+    pygame.draw.circle(surf, NEAR_BLACK, (lp.centerx, lp.centery - 1), 2)
+    pygame.draw.rect(surf, NEAR_BLACK,
+                     pygame.Rect(lp.centerx - 1, lp.centery, 2, 3))
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# VARIANT 1 — TWIN PADLOCKED
+# VARIANT 1 — CLASSIC OAK
 # ════════════════════════════════════════════════════════════════════════════
-# Round 3's padlocked-oak chest, but with TWO smaller padlocks
-# side-by-side on the lid instead of one big central one. Doubles the
-# "extra-secure" read without changing the silhouette.
+# Warm oak body + domed lid. Two iron straps wrap from the front of the
+# body up over the dome. Central brass keyhole plate on the front body.
+# The default pirate treasure chest read.
 
-def draw_twin_padlocked(surf, bird_cx, bird_cy, t=0.0):
+def draw_classic_oak(surf, bird_cx, bird_cy, t=0.0):
     cx = bird_cx + 4
     cy = bird_cy + 56
     body = _box_rect(cx, cy)
 
     _draw_carry_ropes(surf, bird_cx, bird_cy, body)
+    _draw_dome_and_body(surf, body,
+                        wood_hi=WOOD_DOME_HI, wood_mid=WOOD_DOME_MID,
+                        wood_dark=WOOD_DOME_DARK)
 
-    lid = _draw_lid_and_body(surf, body, WOOD_OAK_HI, WOOD_OAK_MID, WOOD_OAK_DARK)
-
-    # Two iron straps with 2 rivets each
-    _draw_strap(surf, body, body.y + 4, rivets=2)
-    _draw_strap(surf, body, body.bottom - 7, rivets=2)
+    # Two iron wrap-straps, evenly placed away from centre
+    _draw_wrap_strap(surf, body, dx_from_centre=-10)
+    _draw_wrap_strap(surf, body, dx_from_centre= 10)
 
     _draw_corner_studs(surf, body)
-    _draw_side_handles(surf, body, WOOD_OAK_DARK)
+    _draw_lock_plate(surf, body)
 
-    # TWO smaller hasps + padlocks, one to each side of centre.
-    for dx in (-10, 10):
-        # Hasp
-        hasp = pygame.Rect(lid.centerx + dx - 3, lid.y + 4, 6, LID_H - 3)
-        pygame.draw.rect(surf, IRON_DARK, hasp)
-        pygame.draw.rect(surf, IRON_BASE, hasp.inflate(-2, -2))
-        # Padlock (small)
-        _draw_padlock(surf, body.centerx + dx, body.y + 6, size="small")
-
-    _shake_lines(surf, cx, body.y - 4, w=BOX_W, color=(45, 28, 12))
+    _shake_lines(surf, cx, body.y - DOME_H, w=BOX_W, color=(45, 28, 12))
     _spill_trail(surf, body.x - 4, body.y, side=-1)
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# VARIANT 2 — BRASS-BANDED
+# VARIANT 2 — DARK WALNUT
 # ════════════════════════════════════════════════════════════════════════════
-# Same oak chest + single padlock, but the strapping is BRASS instead
-# of iron. Reads as a "decorated / valuable" version of the same chest.
-
-def draw_brass_banded(surf, bird_cx, bird_cy, t=0.0):
-    cx = bird_cx + 4
-    cy = bird_cy + 56
-    body = _box_rect(cx, cy)
-
-    _draw_carry_ropes(surf, bird_cx, bird_cy, body)
-
-    lid = _draw_lid_and_body(surf, body, WOOD_OAK_HI, WOOD_OAK_MID, WOOD_OAK_DARK)
-
-    # Two BRASS bands (replacing iron) — same geometry, gold palette.
-    for by in (body.y + 4, body.bottom - 7):
-        _draw_strap(surf, body, by,
-                    strap_dark=BRASS_DK, strap_mid=BRASS_BASE,
-                    strap_hi=BRASS_HI, rivets=3)
-
-    _draw_corner_studs(surf, body)
-    _draw_side_handles(surf, body, WOOD_OAK_DARK)
-
-    # Single brass padlock (centre) + brass hasp
-    _draw_hasp(surf, lid, body, width=10,
-               dark=BRASS_DK, mid=BRASS_BASE, hi=BRASS_HI)
-    _draw_padlock(surf, body.centerx, body.y + 6, size="big",
-                  shackle_color=BRASS_DK, shackle_hi=BRASS_HI,
-                  body_top=BRASS_HI, body_bot=BRASS_DK)
-
-    _shake_lines(surf, cx, body.y - 4, w=BOX_W, color=(45, 28, 12))
-    _spill_trail(surf, body.x - 4, body.y, side=-1)
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# VARIANT 3 — DARK WALNUT
-# ════════════════════════════════════════════════════════════════════════════
-# Same form factor, same single-padlock layout, but in dark walnut wood
-# instead of warm oak. Iron hardware stays. The "richer / older" feel.
+# Same domed chest shape, same iron straps, same brass plate — but in
+# dark walnut wood instead of warm oak. "Older / richer" sibling.
 
 def draw_dark_walnut(surf, bird_cx, bird_cy, t=0.0):
     cx = bird_cx + 4
@@ -356,67 +325,93 @@ def draw_dark_walnut(surf, bird_cx, bird_cy, t=0.0):
     body = _box_rect(cx, cy)
 
     _draw_carry_ropes(surf, bird_cx, bird_cy, body)
+    _draw_dome_and_body(surf, body,
+                        wood_hi=WOOD_WALNUT_HI, wood_mid=WOOD_WALNUT_MID,
+                        wood_dark=WOOD_WALNUT_DARK)
 
-    lid = _draw_lid_and_body(surf, body,
-                             WOOD_WALNUT_HI, WOOD_WALNUT_MID, WOOD_WALNUT_DARK)
-
-    _draw_strap(surf, body, body.y + 4, rivets=2)
-    _draw_strap(surf, body, body.bottom - 7, rivets=2)
+    _draw_wrap_strap(surf, body, dx_from_centre=-10)
+    _draw_wrap_strap(surf, body, dx_from_centre= 10)
 
     _draw_corner_studs(surf, body)
-    _draw_side_handles(surf, body, WOOD_WALNUT_DARK)
+    _draw_lock_plate(surf, body)
 
-    _draw_hasp(surf, lid, body)
-    _draw_padlock(surf, body.centerx, body.y + 6, size="big")
-
-    _shake_lines(surf, cx, body.y - 4, w=BOX_W, color=(22, 12, 4))
+    _shake_lines(surf, cx, body.y - DOME_H, w=BOX_W, color=(22, 12, 4))
     _spill_trail(surf, body.x - 4, body.y, side=-1)
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# VARIANT 4 — HEAVY-RIVETED
+# VARIANT 3 — BRASS-STRAPPED
 # ════════════════════════════════════════════════════════════════════════════
-# Same warm oak + single padlock, but the iron strapping is THICKER and
-# studded with many more rivets along its length — the "fortified
-# / extra-secure" read.
+# Same oak dome, but the wrap-straps + corner studs are BRASS instead
+# of iron. Reads as the "decorated / valuable" sibling.
 
-def draw_heavy_riveted(surf, bird_cx, bird_cy, t=0.0):
+def draw_brass_strapped(surf, bird_cx, bird_cy, t=0.0):
     cx = bird_cx + 4
     cy = bird_cy + 56
     body = _box_rect(cx, cy)
 
     _draw_carry_ropes(surf, bird_cx, bird_cy, body)
+    _draw_dome_and_body(surf, body,
+                        wood_hi=WOOD_DOME_HI, wood_mid=WOOD_DOME_MID,
+                        wood_dark=WOOD_DOME_DARK)
 
-    lid = _draw_lid_and_body(surf, body, WOOD_OAK_HI, WOOD_OAK_MID, WOOD_OAK_DARK)
+    _draw_wrap_strap(surf, body, dx_from_centre=-10,
+                     dark=BRASS_DK, mid=BRASS_BASE, hi=BRASS_HI)
+    _draw_wrap_strap(surf, body, dx_from_centre= 10,
+                     dark=BRASS_DK, mid=BRASS_BASE, hi=BRASS_HI)
 
-    # Three thicker straps with 5 rivets each (1 top, 1 mid below the
-    # lock area, 1 bottom)
-    _draw_strap(surf, body, body.y + 3,         thickness=5, rivets=5)
-    _draw_strap(surf, body, body.bottom - 8,    thickness=5, rivets=5)
+    _draw_corner_studs(surf, body)
+    _draw_lock_plate(surf, body)
 
-    # Bigger corner studs
-    _draw_corner_studs(surf, body, size=3)
-    _draw_side_handles(surf, body, WOOD_OAK_DARK)
+    _shake_lines(surf, cx, body.y - DOME_H, w=BOX_W, color=(45, 28, 12))
+    _spill_trail(surf, body.x - 4, body.y, side=-1)
 
-    # Padlock + hasp (slightly chunkier hasp)
-    _draw_hasp(surf, lid, body, width=12)
-    _draw_padlock(surf, body.centerx, body.y + 7, size="big")
 
-    # Extra rivets along the centre line of the body (around the lock)
-    for sx in (body.x + 4, body.right - 5):
-        pygame.draw.circle(surf, IRON_DARK, (sx, body.centery), 2)
-        pygame.draw.circle(surf, IRON_HI,   (sx, body.centery), 1)
+# ════════════════════════════════════════════════════════════════════════════
+# VARIANT 4 — TRIPLE-STRAPPED
+# ════════════════════════════════════════════════════════════════════════════
+# Same oak dome, but with THREE iron wrap-straps (centre + two side
+# straps) instead of two. The "heavily reinforced" sibling. The centre
+# strap takes the place of the lock plate.
 
-    _shake_lines(surf, cx, body.y - 4, w=BOX_W, color=(45, 28, 12))
+def draw_triple_strapped(surf, bird_cx, bird_cy, t=0.0):
+    cx = bird_cx + 4
+    cy = bird_cy + 56
+    body = _box_rect(cx, cy)
+
+    _draw_carry_ropes(surf, bird_cx, bird_cy, body)
+    _draw_dome_and_body(surf, body,
+                        wood_hi=WOOD_DOME_HI, wood_mid=WOOD_DOME_MID,
+                        wood_dark=WOOD_DOME_DARK)
+
+    # Three iron straps: one centre + two flanking. Slightly thicker.
+    _draw_wrap_strap(surf, body, dx_from_centre=-13, strap_w=4)
+    _draw_wrap_strap(surf, body, dx_from_centre=  0, strap_w=5)
+    _draw_wrap_strap(surf, body, dx_from_centre= 13, strap_w=4)
+
+    _draw_corner_studs(surf, body)
+
+    # Lock plate is mounted ON the centre strap — small brass medallion
+    # with a keyhole.
+    kh_cx, kh_cy = body.centerx, body.centery
+    pygame.draw.circle(surf, BRASS_DK,   (kh_cx, kh_cy), 4)
+    pygame.draw.circle(surf, BRASS_BASE, (kh_cx, kh_cy), 3)
+    pygame.draw.line(surf, BRASS_HI,
+                     (kh_cx - 2, kh_cy - 2), (kh_cx + 1, kh_cy - 2), 1)
+    pygame.draw.circle(surf, NEAR_BLACK, (kh_cx, kh_cy - 1), 1)
+    pygame.draw.rect(surf, NEAR_BLACK,
+                     pygame.Rect(kh_cx - 1, kh_cy, 2, 3))
+
+    _shake_lines(surf, cx, body.y - DOME_H, w=BOX_W, color=(45, 28, 12))
     _spill_trail(surf, body.x - 4, body.y, side=-1)
 
 
 # ════════════════════════════════════════════════════════════════════════════
 # VARIANT 5 — CHAINED
 # ════════════════════════════════════════════════════════════════════════════
-# Same warm oak chest, but with an iron CHAIN wrapped horizontally
-# around the body in addition to the padlock — the "double-secured /
-# nobody-opens-this" read.
+# Same oak dome + two iron straps + brass plate, plus an iron CHAIN
+# wrapped horizontally around the body below the dome. The
+# "double-secured" sibling.
 
 def draw_chained(surf, bird_cx, bird_cy, t=0.0):
     cx = bird_cx + 4
@@ -424,41 +419,48 @@ def draw_chained(surf, bird_cx, bird_cy, t=0.0):
     body = _box_rect(cx, cy)
 
     _draw_carry_ropes(surf, bird_cx, bird_cy, body)
+    _draw_dome_and_body(surf, body,
+                        wood_hi=WOOD_DOME_HI, wood_mid=WOOD_DOME_MID,
+                        wood_dark=WOOD_DOME_DARK)
 
-    lid = _draw_lid_and_body(surf, body, WOOD_OAK_HI, WOOD_OAK_MID, WOOD_OAK_DARK)
-
-    # Single iron strap near the bottom only (the chain replaces the
-    # other one across the upper-middle)
-    _draw_strap(surf, body, body.bottom - 7, rivets=2)
+    _draw_wrap_strap(surf, body, dx_from_centre=-10)
+    _draw_wrap_strap(surf, body, dx_from_centre= 10)
 
     _draw_corner_studs(surf, body)
-    _draw_side_handles(surf, body, WOOD_OAK_DARK)
 
-    # Horizontal chain wrap — overlapping oval links across the body
-    chain_y = body.y + body.h // 2 - 1
-    link_w = 6
+    # Horizontal chain wrap — overlapping oval iron links across the
+    # lower half of the body.
+    chain_y = body.y + body.h * 2 // 3
+    link_w = 5
     for lx in range(body.x - 2, body.right + 2, link_w - 1):
-        link_rect = pygame.Rect(lx, chain_y - 3, link_w, 6)
+        link_rect = pygame.Rect(lx, chain_y - 2, link_w, 5)
         pygame.draw.ellipse(surf, NEAR_BLACK, link_rect)
         pygame.draw.ellipse(surf, IRON_BASE, link_rect.inflate(-2, -2))
         pygame.draw.line(surf, IRON_HI,
-                         (link_rect.x + 2, link_rect.y + 1),
+                         (link_rect.x + 1, link_rect.y + 1),
                          (link_rect.right - 2, link_rect.y + 1), 1)
 
-    # Hasp + padlock anchoring the chain at the centre-front
-    _draw_hasp(surf, lid, body, width=10)
-    _draw_padlock(surf, body.centerx, body.y + 6, size="big")
+    # Padlock holding the chain on the centre-front (covers the lock plate)
+    pad = pygame.Rect(body.centerx - 5, body.centery - 4, 10, 9)
+    pygame.draw.arc(surf, IRON_DARK,
+                    pygame.Rect(pad.centerx - 4, pad.y - 5, 8, 10),
+                    math.radians(0), math.radians(180), 3)
+    pygame.draw.rect(surf, DK_OUTLINE, pad.inflate(2, 2), border_radius=2)
+    _gradient_rect(surf, pad, IRON_HI, IRON_DARK, radius=2)
+    pygame.draw.circle(surf, NEAR_BLACK, (pad.centerx, pad.centery), 2)
+    pygame.draw.rect(surf, NEAR_BLACK,
+                     pygame.Rect(pad.centerx - 1, pad.centery, 2, 3))
 
-    _shake_lines(surf, cx, body.y - 4, w=BOX_W, color=(45, 28, 12))
+    _shake_lines(surf, cx, body.y - DOME_H, w=BOX_W, color=(45, 28, 12))
     _spill_trail(surf, body.x - 4, body.y, side=-1)
 
 
 # ── Registry ────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("twin_padlocked", "TWIN PADLOCKED",  draw_twin_padlocked),
-    ("brass_banded",   "BRASS-BANDED",    draw_brass_banded),
-    ("dark_walnut",    "DARK WALNUT",     draw_dark_walnut),
-    ("heavy_riveted",  "HEAVY-RIVETED",   draw_heavy_riveted),
-    ("chained",        "CHAINED",         draw_chained),
+    ("classic_oak",      "CLASSIC OAK DOMED",     draw_classic_oak),
+    ("dark_walnut",      "DARK WALNUT DOMED",     draw_dark_walnut),
+    ("brass_strapped",   "BRASS-STRAPPED DOMED",  draw_brass_strapped),
+    ("triple_strapped",  "TRIPLE-STRAPPED DOMED", draw_triple_strapped),
+    ("chained",          "CHAINED DOMED",         draw_chained),
 ]
