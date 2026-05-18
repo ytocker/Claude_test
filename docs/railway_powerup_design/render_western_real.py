@@ -120,7 +120,6 @@ def paint_rail_hires(surf, pipes):
     iron_dk  = ( 50,  45,  45)
     iron     = (110, 100,  95)
     iron_hi  = (190, 180, 175)
-    rust     = (170,  80,  35)
 
     # Ties — every 8 game-px = 32 target-px. Thickness 4 game-px = 16 target-px.
     _ties(surf, pts, spacing=8 * SCALE, length=14 * SCALE,
@@ -133,13 +132,6 @@ def paint_rail_hires(surf, pipes):
         _line(surf, pts, iron, 2 * SCALE, dy=dy)
     for dy in (+2 * SCALE, -4 * SCALE):
         _line(surf, pts, iron_hi, 1 * SCALE, dy=dy)
-
-    # Rust patches — randomised along the rail, sized for high res.
-    rng = random.Random(31)
-    for _ in range(14):
-        rx, ry = _sample(pts, rng.random())
-        pygame.draw.circle(surf, rust, (rx, ry + 3 * SCALE),
-                           rng.randint(2, 3) * SCALE)
 
     # Dust trail behind Pip's feet — on the centre pipe's rail.
     mid = sorted(pipes, key=lambda p: p.x)[1]
