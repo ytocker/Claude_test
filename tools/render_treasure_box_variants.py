@@ -40,8 +40,8 @@ from game.pillar_variants import _VARIANTS as PILLAR_VARIANTS, VARIANT_COUNT, _p
 from game.treasure_box_variants import VARIANTS
 
 SCALE   = 3
-PAD     = 16
-TITLE_H = 56
+PAD     = 12
+TITLE_H = 48
 
 
 def _font(size):
@@ -129,9 +129,9 @@ def _render_contact_sheet(rendered: list[tuple[str, pygame.Surface]]) -> pygame.
     if not rendered:
         return pygame.Surface((1, 1))
     cell_w, cell_h = rendered[0][1].get_size()
-    gap = 24
+    gap = 6
     out_w = cell_w * len(rendered) + gap * (len(rendered) + 1)
-    out_h = cell_h + gap * 2 + 56
+    out_h = cell_h
     out = pygame.Surface((out_w, out_h))
     for y in range(out_h):
         t = y / max(1, out_h - 1)
@@ -139,13 +139,7 @@ def _render_contact_sheet(rendered: list[tuple[str, pygame.Surface]]) -> pygame.
         pygame.draw.line(out, c, (0, y), (out_w - 1, y))
     for i, (_name, surf) in enumerate(rendered):
         x = gap + i * (cell_w + gap)
-        out.blit(surf, (x, gap + 40))
-    f = _font(34)
-    title = f.render("TREASURE BOX — 5 design directions", True, UI_GOLD)
-    sh    = f.render("TREASURE BOX — 5 design directions", True, NEAR_BLACK)
-    tr    = title.get_rect(center=(out_w // 2, 28))
-    out.blit(sh, (tr.x + 2, tr.y + 2))
-    out.blit(title, tr.topleft)
+        out.blit(surf, (x, 0))
     return out
 
 
