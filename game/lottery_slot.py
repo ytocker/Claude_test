@@ -49,11 +49,14 @@ _RED_OUTLINE  = (168,  32,  16)
 _RED_DEEP     = (110,  18,  10)
 _CREAM        = (245, 230, 200)
 
-# Cabinet footprint in the top-left. Briefly covers the coins pill at
-# (10..70, 14..44) during the ~2.2 s reveal — acceptable for a rare
-# powerup since the player's attention is on the result anyway.
-CAB_X, CAB_Y = 8, 8
-CAB_W, CAB_H = 118, 86
+# Cabinet footprint in the top-left, anchored just BELOW the coins pill
+# (10..70, 14..44 in hud.draw_play) and sized to clear the buff timer
+# row that starts at y=122. The score plaque centre (x=180) is well to
+# the right of the cabinet's x=126 right edge. The HUD also draws after
+# this renderer, so any incidental overlap is the HUD on top of us —
+# never the reverse.
+CAB_X, CAB_Y = 8, 48
+CAB_W, CAB_H = 118, 72
 
 
 # ── engraved text (cream face + tinted rim + dark shadow) ───────────────────
@@ -252,7 +255,7 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                      border_radius=5)
 
     # Marquee.
-    marquee = pygame.Rect(cabinet.x + 6, cabinet.y + 6,
+    marquee = pygame.Rect(cabinet.x + 6, cabinet.y + 5,
                           cabinet.width - 12, 14)
     pygame.draw.rect(surf, _RED_DEEP, marquee, border_radius=3)
     pygame.draw.rect(surf, _GOLD_BRIGHT, marquee, width=1, border_radius=3)
@@ -264,9 +267,10 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
     lbl = _engraved_text("LOTTERY", 11, rim=_RIM_GOLD)
     surf.blit(lbl, lbl.get_rect(center=marquee.center))
 
-    # Reels.
-    reel_w, reel_h = 22, 32
-    reel_y = marquee.bottom + 6
+    # Reels. Trimmed reel_h + smaller symbols so the full cabinet still
+    # clears the buff-timer row that starts at y=122.
+    reel_w, reel_h = 22, 24
+    reel_y = marquee.bottom + 4
     reels_x0 = cabinet.x + 14
     reel_gap = 6
 
@@ -282,14 +286,14 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                              (reel.right - 1, reel.y + 1 + k))
 
         if reel_progress[i] >= 1.0 and locked_tier is not None:
-            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](18)
+            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](14)
             surf.blit(sym, sym.get_rect(center=reel.center))
         else:
             speed = 14 + i * 2
             offset = (t * speed * (reel_h - 6)) % (reel_h - 6)
             for k in (-1, 0, 1, 2):
                 idx = (int(t * speed) + k + i) % len(_SPIN_CYCLE)
-                sym = _SYM_FN[_SPIN_CYCLE[idx]](14)
+                sym = _SYM_FN[_SPIN_CYCLE[idx]](12)
                 sy = reel.y + 6 + k * (reel_h - 6) - int(offset)
                 if -14 < sy - reel.y < reel.height:
                     sub_rect = sym.get_rect(center=(reel.centerx,
@@ -313,8 +317,8 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                      (reels_x0 + 3 * reel_w + 2 * reel_gap + 2, pl_y), 1)
 
     # Lever.
-    lev_top = (cabinet.right - 4, cabinet.y + 26)
-    lev_bot = (cabinet.right + 3, cabinet.y + 42)
+    lev_top = (cabinet.right - 4, cabinet.y + 24)
+    lev_bot = (cabinet.right + 3, cabinet.y + 38)
     pygame.draw.line(surf, _GOLD_DEEP, lev_top, lev_bot, 3)
     pygame.draw.circle(surf, _RED_OUTLINE, lev_top, 3)
     pygame.draw.circle(surf, _GOLD_BRIGHT, lev_top, 3, 1)
@@ -333,10 +337,12 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
 
 def _draw_result_strip(surf, tier, delta):
     """Cream pill with tier name + value. Rim tinted by sign so the
-    player's eye catches win-vs-loss before parsing the digits."""
+    player's eye catches win-vs-loss before parsing the digits. Layout
+    math here mirrors _draw_cabinet (top_pad 5 + marquee 14 + gap 4 +
+    reel_h 24 + gap 4) — keep them in sync if either is retuned."""
     cabinet = pygame.Rect(CAB_X, CAB_Y, CAB_W, CAB_H)
-    reel_y = cabinet.y + 6 + 14 + 6
-    strip = pygame.Rect(cabinet.x + 8, reel_y + 32 + 4,
+    reel_y = cabinet.y + 5 + 14 + 4
+    strip = pygame.Rect(cabinet.x + 8, reel_y + 24 + 4,
                         cabinet.width - 16, 14)
     rim = _rim_for_delta(delta)
     pygame.draw.rect(surf, _CREAM_FACE, strip,
