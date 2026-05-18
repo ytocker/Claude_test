@@ -86,6 +86,22 @@ and hex-headed spikes, with a sparse dust trail behind Pip's feet.
 [Schematic-style mockup](04_western_trestle.png) (matching the other
 four) for reference.
 
+### 04 — Polished iterations
+
+Five tighter, more material-aware takes on the Western Trestle look,
+each on a real in-game frame at a biome phase that reinforces the
+material story.
+
+| # | Variant | Biome phase | What's doing the work |
+|---|---------|-------------|-----------------------|
+| a | [Pullman](04a_pullman.png) | 0.78 (late dusk) | 4-layer brass rails on walnut ties + gold pinstripe + brass finials |
+| b | [Midnight Limited](04b_midnight.png) | 0.65 (night) | Silver iron rim-lit by cool cyan moonlight + soft cyan underglow |
+| c | [Ember Forge](04c_ember.png) | 0.55 (dusk) | Iron jacket containing a molten amber core + rising sparks + heat haze |
+| d | [Onyx Vault](04d_onyx.png) | 0.05 (day) | Matte black ties + gunmetal rails + brass rivets (restrained luxury) |
+| e | [Storybook](04e_storybook.png) | 0.30 (golden hour) | Painterly brushstroke ties + soft cream halo + sienna rails |
+
+Renderer: [`render_western_pro.py`](render_western_pro.py).
+
 - **Existing-art hooks:** dust particles reuse the SKATEBOARD dust palette
   (`(220, 215, 200)` / `(200, 195, 180)`) from `world.py:799`. Sunset wash
   could lean on the existing biome system's dusk phase if active
