@@ -43,20 +43,22 @@ pygame.display.set_mode((1, 1))
 from game.entities import (
     _get_grow_body_sprite, _get_shrink_body_sprite, _draw_grow_halo,
 )
-from game.draw import MUSH_SPOT, MUSH_STEM
+from game.draw import MUSH_CAP, MUSH_CAP2, MUSH_SPOT, MUSH_STEM
 
 
-# ── Shared shrink-variant palette (cyan/blue mirror of the GROW palette) ────
+# ── Shared shrink-variant palette (red velvet — matches GROW so the only ──
+#     thing that distinguishes shrink from grow is the cap silhouette).
 
 SS = 5
-VELVET_OUTLINE = ( 15,  35,  70)
-VELVET_BODY    = ( 40, 120, 200)
-VELVET_HI      = (110, 200, 240)
-VELVET_SHEEN   = (180, 230, 250, 130)
-SPOT_HALO      = (180, 220, 230)
-STEM_OUTLINE   = (140, 130, 110)
-STEM_HI        = (255, 252, 235)
-HALO_RGB       = ( 80, 220, 230)
+VELVET_OUTLINE = ( 60,  15,  25)        # = _GROW_VELVET_OUTLINE
+VELVET_BODY    = MUSH_CAP                # = (125, 30, 45)
+VELVET_HI      = MUSH_CAP2               # = (180, 60, 75)
+VELVET_SHEEN   = (220, 130, 150, 130)   # = _GROW_VELVET_SHEEN
+VELVET_RIM_HI  = (220, 120, 130)        # = _GROW_VELVET_RIM_HI
+SPOT_HALO      = (195, 165, 110)        # = _GROW_SPOT_HALO
+STEM_OUTLINE   = (150, 120,  90)        # = _GROW_STEM_OUTLINE
+STEM_HI        = (255, 250, 230)        # = _GROW_STEM_HI
+HALO_RGB       = (180,  90, 110)        # = _GROW_HALO_RGB
 
 # Canonical 4-spot ornament layout — same fractions GROW uses.
 ORNAMENT_SLOTS = (
@@ -137,7 +139,7 @@ def _draw_scalloped_rim(big, rim_x, rim_y, rim_w, count=5):
         center = (rim_x + i * curl_w + curl_w // 2, rim_y)
         pygame.draw.circle(big, VELVET_BODY,    center, curl_w // 2)
         pygame.draw.circle(big, VELVET_OUTLINE, center, curl_w // 2, SS)
-        pygame.draw.circle(big, VELVET_HI,
+        pygame.draw.circle(big, VELVET_RIM_HI,
                            (center[0] - curl_w // 5, center[1] - curl_w // 5),
                            max(1, curl_w // 4))
 
