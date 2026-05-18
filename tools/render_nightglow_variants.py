@@ -1,18 +1,24 @@
 """Render 5 NIGHTGLOW visual-variant mockups for review.
 
-Iteration 3 — building on Variant 3 (BLOOM) from the previous pass:
+Iteration 4 — building on V2 INCANDESCENT, with TRUE colour replacement:
 
-  • The neon-green effect is now more DOMINANT — the tint actually
-    overrides the original hue, not just nudges it.
-  • Auras are MUCH wider/brighter.
-  • The effect is applied ONLY to Pip + coins + powerups + the pillar
-    VEGETATION (foliage on top). Pillar STONE BODIES stay in their
-    natural moonlit-sandstone colour so the world still feels grounded.
+The previous iteration tinted via BLEND_RGBA_MULT which only darkens
+non-green channels — a red pixel (255,0,0) ended up (70,0,0), still
+visibly red. The user wants "no trace of regular colours" (cf. how the
+GHOST powerup fully recolours the parrot to a cool-blue spectral
+palette).
 
-To isolate vegetation from stone we render pipes in two passes by
-calling `_paint_stone` (body) and the variant's `decorate` callable
-(vegetation) onto separate Surfaces — see `_VARIANTS` in
-`game/pillar_variants.py`.
+The fix is a luminance→palette ramp via numpy/surfarray:
+    L  = 0.30·R + 0.59·G + 0.11·B          (per-pixel brightness)
+    out = lerp(dark_palette, bright_palette, L)
+Every source colour is replaced by a green of equivalent brightness,
+matching how GHOST replaces every parrot colour by a blue of equivalent
+hue role (`game/dollar_parrot_ghost.py:146-177` defines `P_SPECTRAL`).
+
+Numpy is fine here — this tool runs headless on the desktop, not in
+the WASM build. For the eventual live-game implementation, the recolour
+would be pre-cached once on NIGHTGLOW activation (mirroring
+`_ensure_ghost_frames` in `game/parrot.py:700-707`).
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -26,7 +32,9 @@ import sys
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
+import numpy as np
 import pygame
+import pygame.surfarray
 
 _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO not in sys.path:
@@ -42,21 +50,18 @@ from game.entities import Bird, Coin, PowerUp, Pipe
 from game.pillar_variants import _VARIANTS, VARIANT_COUNT, _paint_stone
 
 
-# ─── scene composition ──────────────────────────────────────────────────────
+# ─── scene composition (unchanged from iter 3) ──────────────────────────────
 
 def _build_entities():
     pal = biome.palette_for_phase(0.64375)
-    # Force a vegetation-rich variant on both pipes so the screenshot reliably
-    # shows the body/vegetation split.
     pipe_a = Pipe(x=70.0,  gap_y=H * 0.50, gap_h=170.0)
     pipe_b = Pipe(x=240.0, gap_y=H * 0.42, gap_h=160.0)
-    # Pin to "overgrown" variant idx if present so foliage is generous.
     overgrown_idx = next(
         (i for i, v in enumerate(_VARIANTS)
          if v[2].__name__ == "decorate_overgrown"),
         0,
     )
-    pipe_a.seed = overgrown_idx + VARIANT_COUNT * 7        # stays at overgrown
+    pipe_a.seed = overgrown_idx + VARIANT_COUNT * 7
     pipe_b.seed = overgrown_idx + VARIANT_COUNT * 13
     pipes = [pipe_a, pipe_b]
     coins = [
@@ -94,16 +99,6 @@ def _scatter_stars(surf, seed=7):
 
 
 def render_layers():
-    """Return four layers + refs:
-
-        backdrop       — sky + mountains + ground.
-        pillar_bodies  — stone columns only (NO vegetation). Unaffected
-                         by the night-glow treatment; sits on top of
-                         the darkened backdrop.
-        glow_targets   — vegetation + coins + powerup + Pip — the
-                         elements that get tinted/auraed.
-        empty (unused) — kept for clarity, callers ignore.
-    """
     pipes, coins, powerup, bird, pal = _build_entities()
 
     backdrop = pygame.Surface((W, H)).convert()
@@ -119,8 +114,6 @@ def render_layers():
     pillar_bodies = pygame.Surface((W, H), pygame.SRCALPHA).convert_alpha()
     glow_targets  = pygame.Surface((W, H), pygame.SRCALPHA).convert_alpha()
 
-    # Pillars: paint stone onto pillar_bodies, paint decorate (vegetation +
-    # ornaments) onto glow_targets.
     for p in pipes:
         top_sil, bot_sil, decorate = _VARIANTS[p.seed % VARIANT_COUNT]
         _paint_stone(pillar_bodies, p.top_rect, top_sil, pal, p.seed)
@@ -140,7 +133,36 @@ def render_layers():
     }
 
 
-# ─── shared building blocks ─────────────────────────────────────────────────
+# ─── the new replacement primitive ──────────────────────────────────────────
+
+def luminance_to_palette(surface: pygame.Surface,
+                         dark=(8, 60, 20),
+                         bright=(220, 255, 230),
+                         gamma: float = 1.0) -> pygame.Surface:
+    """Return a NEW Surface where every visible pixel is replaced by a
+    colour interpolated from `dark` (at luminance 0) through `bright`
+    (at luminance 1). `gamma` < 1 brightens, > 1 darkens. Alpha is
+    preserved exactly so the silhouette is unchanged.
+
+    This is the standard luminance-ramp colour-swap technique. It fully
+    erases the source hue — a red pixel and a blue pixel of the same
+    brightness become exactly the same green."""
+    src = surface.copy()
+    rgb_view = pygame.surfarray.pixels3d(src).astype(np.float32)
+    L = (0.30 * rgb_view[..., 0]
+       + 0.59 * rgb_view[..., 1]
+       + 0.11 * rgb_view[..., 2]) / 255.0
+    if gamma != 1.0:
+        L = np.power(np.clip(L, 0.0, 1.0), gamma)
+    dark_arr   = np.array(dark,   dtype=np.float32)
+    bright_arr = np.array(bright, dtype=np.float32)
+    out = dark_arr + (bright_arr - dark_arr) * L[..., None]
+    out = np.clip(out, 0, 255).astype(np.uint8)
+    pygame.surfarray.pixels3d(src)[:] = out
+    return src
+
+
+# ─── shared building blocks (unchanged) ─────────────────────────────────────
 
 def _dark_overlay(surf, alpha, tint=(4, 8, 16)):
     layer = pygame.Surface((W, H), pygame.SRCALPHA)
@@ -148,190 +170,44 @@ def _dark_overlay(surf, alpha, tint=(4, 8, 16)):
     surf.blit(layer, (0, 0))
 
 
-def _dominant_green(targets, tint_mid=(70, 255, 100),
-                    overlay_color=(50, 200, 70),
-                    overlay_alpha=140):
-    """Strong override: multiply pushes hue toward green; then a coloured
-    overlay (alpha-blended) pushes texture further into green-only.
-    Returns a NEW surface — the input is not mutated."""
-    out = targets.copy()
-    mul = pygame.Surface(out.get_size(), pygame.SRCALPHA)
-    mul.fill((*tint_mid, 255))
-    out.blit(mul, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    # Re-stamp the alpha so the overlay is gated by the silhouette.
-    overlay = pygame.Surface(out.get_size(), pygame.SRCALPHA)
-    overlay.fill((*overlay_color, overlay_alpha))
-    overlay.blit(targets, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    out.blit(overlay, (0, 0))
-    return out
-
-
-def _blur(surface, scale, color=None):
-    """Cheap downsample-upsample blur. If color is given, multiply into it."""
-    sw = max(2, int(W * scale))
-    sh = max(2, int(H * scale))
-    small = pygame.transform.smoothscale(surface, (sw, sh))
+def _halo(targets: pygame.Surface, scale: float, color, alpha: int):
+    """Additive halo via multiply-tint of a blurred source. The blur
+    spreads the source's alpha smoothly; the tint pushes any warm
+    source pixels to near-black so the halo reads as the chosen colour
+    when blended additively. Scale = downsample fraction (smaller = wider)."""
+    sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
+    small = pygame.transform.smoothscale(targets, (sw, sh))
     big = pygame.transform.smoothscale(small, (W, H))
-    if color is not None:
-        tint = pygame.Surface((W, H), pygame.SRCALPHA)
-        tint.fill((*color, 255))
-        big.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    tint = pygame.Surface((W, H), pygame.SRCALPHA)
+    tint.fill((*color, 255))
+    big.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    big.set_alpha(alpha)
     return big
 
 
-def _bloom_stack(scene, targets, layers, blend=pygame.BLEND_RGBA_ADD):
-    """Apply a stack of blurred-silhouette glows to `scene` (additive
-    by default). `layers` is an iterable of (scale, color_rgb, alpha)."""
+def _bloom_stack(scene, targets, layers):
+    """layers = iterable of (scale, color_rgb, alpha). Additively blitted."""
     for scale, col, alpha in layers:
-        glow = _blur(targets, scale, col)
-        glow.set_alpha(alpha)
-        scene.blit(glow, (0, 0), special_flags=blend)
+        scene.blit(_halo(targets, scale, col, alpha),
+                   (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def _compose(backdrop, pillar_bodies, glow_targets, dark_alpha,
-             aura_layers, tinted, extra_top_glow=None):
-    """Standard 5-pass composite shared by every variant:
-        1. backdrop                — sky/mountains/ground
-        2. dark overlay            — dims the world
-        3. pillar bodies           — un-tinted, restored on top of darkness
-        4. aura/bloom stack        — wide additive glows behind targets
-        5. tinted glow targets     — the actual sprites in green form
-        (optional) extra_top_glow  — a final additive top-up
-    """
+def _compose(backdrop, bodies, targets, dark_alpha,
+             aura_layers, recoloured, extra_top=None):
+    """Standard composite: backdrop → dark overlay → pillar bodies →
+    coloured halos → recoloured entities (full colour replacement) →
+    optional extra-top glows. The recoloured layer guarantees that
+    every entity pixel the player looks AT is pure green; any halo
+    bleed from the source colours sits BEHIND that layer."""
     scene = backdrop.copy()
     _dark_overlay(scene, dark_alpha)
-    scene.blit(pillar_bodies, (0, 0))
-    _bloom_stack(scene, glow_targets, aura_layers)
-    scene.blit(tinted, (0, 0))
-    if extra_top_glow is not None:
-        for scale, col, alpha in extra_top_glow:
-            glow = _blur(glow_targets, scale, col)
-            glow.set_alpha(alpha)
-            scene.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    return scene
-
-
-# ─── VARIANT 1 — RADIANT ────────────────────────────────────────────────────
-# Strong tint + dual bloom (tight + wide). Reads as "moonlit phosphor".
-
-def variant_radiant(backdrop, bodies, targets, refs):
-    tinted = _dominant_green(targets,
-                             tint_mid=(60, 255, 90),
-                             overlay_color=(40, 220, 70),
-                             overlay_alpha=160)
-    return _compose(
-        backdrop, bodies, targets, dark_alpha=130,
-        aura_layers=(
-            (0.04, (50, 200, 70),  200),
-            (0.10, (90, 255, 110), 220),
-            (0.22, (120, 255, 140),190),
-        ),
-        tinted=tinted,
-        extra_top_glow=((0.05, (180, 255, 200), 100),),
-    )
-
-
-# ─── VARIANT 2 — INCANDESCENT ───────────────────────────────────────────────
-# Bright near-white hot cores on top of green-tinted sprite + dramatic outer
-# halo. Looks like the targets are glowing embers.
-
-def variant_incandescent(backdrop, bodies, targets, refs):
-    tinted = _dominant_green(targets,
-                             tint_mid=(80, 255, 110),
-                             overlay_color=(40, 220, 60),
-                             overlay_alpha=170)
-    scene = _compose(
-        backdrop, bodies, targets, dark_alpha=140,
-        aura_layers=(
-            (0.05, (50, 200, 70),  220),
-            (0.13, (90, 255, 120), 200),
-            (0.28, (60, 230, 80),  170),
-        ),
-        tinted=tinted,
-    )
-    # Hot core: tightest blur recoloured white-green, blended additively.
-    core = _blur(targets, 0.30, (220, 255, 230))
-    core.set_alpha(150)
-    scene.blit(core, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    core2 = _blur(targets, 0.50, (255, 255, 255))
-    core2.set_alpha(120)
-    scene.blit(core2, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    return scene
-
-
-# ─── VARIANT 3 — MEGABLOOM ──────────────────────────────────────────────────
-# 5-radius bloom stack for maximum haze, plus a strong tint. The "this
-# thing is RADIATING" option.
-
-def variant_megabloom(backdrop, bodies, targets, refs):
-    tinted = _dominant_green(targets,
-                             tint_mid=(70, 255, 100),
-                             overlay_color=(40, 210, 60),
-                             overlay_alpha=180)
-    return _compose(
-        backdrop, bodies, targets, dark_alpha=125,
-        aura_layers=(
-            (0.03, (40, 180, 60),   180),
-            (0.06, (60, 220, 80),   200),
-            (0.12, (90, 255, 110),  220),
-            (0.20, (110, 255, 130), 200),
-            (0.32, (140, 255, 160), 170),
-        ),
-        tinted=tinted,
-        extra_top_glow=(
-            (0.06, (140, 255, 160), 120),
-            (0.16, (180, 255, 200), 90),
-        ),
-    )
-
-
-# ─── VARIANT 4 — TOXIC ──────────────────────────────────────────────────────
-# Vivid almost-monochrome green + chromatic ghost (slight offset) +
-# blue-cyan outer rim suggesting radioactive plant glow.
-
-def variant_toxic(backdrop, bodies, targets, refs):
-    tinted = _dominant_green(targets,
-                             tint_mid=(50, 255, 80),
-                             overlay_color=(20, 230, 40),
-                             overlay_alpha=210)
-
-    scene = backdrop.copy()
-    _dark_overlay(scene, 135)
     scene.blit(bodies, (0, 0))
-
-    # Outer rim: wide blue-cyan halo behind everything else.
-    cyan_rim = _blur(targets, 0.06, (60, 220, 200))
-    cyan_rim.set_alpha(170)
-    scene.blit(cyan_rim, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
-    # Mid green bloom.
-    for scale, col, a in (
-            (0.05, (40, 200, 60),  220),
-            (0.11, (70, 255, 100), 220),
-            (0.22, (110, 255, 140),190),
-    ):
-        glow = _blur(targets, scale, col)
-        glow.set_alpha(a)
-        scene.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
-    # Chromatic ghost: same tinted layer offset by ±1 px in opposite hues.
-    ghost_a = tinted.copy()
-    ghost_a.set_alpha(95)
-    scene.blit(ghost_a, (-1, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    # main:
-    scene.blit(tinted, (0, 0))
-    # cyan smear on the far side:
-    cyan_smear = pygame.Surface((W, H), pygame.SRCALPHA)
-    cyan_smear.fill((60, 220, 200, 255))
-    cyan_smear.blit(targets, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    cyan_smear.set_alpha(80)
-    scene.blit(cyan_smear, (2, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    _bloom_stack(scene, targets, aura_layers)
+    scene.blit(recoloured, (0, 0))
+    if extra_top is not None:
+        _bloom_stack(scene, targets, extra_top)
     return scene
 
-
-# ─── VARIANT 5 — OVERDRIVE ──────────────────────────────────────────────────
-# Strong tint + bloom + radial sun-rays + central white-hot core. Maximum
-# "this is ALIVE" feel.
 
 def _draw_radial_rays(scene, cx, cy, length, count, color,
                       alpha_start, phase=0.0, width=2):
@@ -352,27 +228,88 @@ def _draw_radial_rays(scene, cx, cy, length, count, color,
                special_flags=pygame.BLEND_RGBA_ADD)
 
 
-def variant_overdrive(backdrop, bodies, targets, refs):
-    tinted = _dominant_green(targets,
-                             tint_mid=(70, 255, 100),
-                             overlay_color=(40, 220, 60),
-                             overlay_alpha=190)
+# ─── VARIANT 1 — TRUE GLOW (the family reference) ───────────────────────────
 
+def variant_true_glow(backdrop, bodies, targets, refs):
+    recol = luminance_to_palette(targets,
+                                 dark=(8, 60, 20),
+                                 bright=(220, 255, 230))
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=130,
+        aura_layers=(
+            (0.04, (50, 200, 70),   200),
+            (0.10, (90, 255, 110),  220),
+            (0.22, (130, 255, 160), 200),
+        ),
+        recoloured=recol,
+        extra_top=((0.05, (180, 255, 200), 90),),
+    )
+
+
+# ─── VARIANT 2 — EMBER (hot white cores) ────────────────────────────────────
+
+def variant_ember(backdrop, bodies, targets, refs):
+    recol = luminance_to_palette(targets,
+                                 dark=(15, 50, 25),
+                                 bright=(255, 255, 255),
+                                 gamma=0.85)
+    scene = _compose(
+        backdrop, bodies, targets, dark_alpha=140,
+        aura_layers=(
+            (0.05, (50, 200, 70),   220),
+            (0.13, (90, 255, 120),  220),
+            (0.28, (60, 230, 80),   190),
+        ),
+        recoloured=recol,
+    )
+    # White-hot ember cores additively on top. The tight inner blur
+    # (scale 0.30+) keeps the brightening confined to entity centres.
+    for scale, col, a in ((0.30, (200, 255, 220), 100),
+                          (0.50, (220, 255, 230),  75)):
+        scene.blit(_halo(targets, scale, col, a),
+                   (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    return scene
+
+
+# ─── VARIANT 3 — DEEP GLOW (moody, atmospheric) ─────────────────────────────
+
+def variant_deep_glow(backdrop, bodies, targets, refs):
+    recol = luminance_to_palette(targets,
+                                 dark=(5, 40, 15),
+                                 bright=(140, 230, 170))
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=145,
+        aura_layers=(
+            (0.03, (35, 140, 50),   180),
+            (0.06, (55, 190, 75),   200),
+            (0.12, (80, 220, 100),  210),
+            (0.20, (100, 240, 130), 200),
+            (0.32, (130, 255, 160), 180),
+        ),
+        recoloured=recol,
+        extra_top=(
+            (0.08, (140, 240, 180),  90),
+            (0.18, (170, 255, 210),  70),
+        ),
+    )
+
+
+# ─── VARIANT 4 — LANTERN (light beams) ──────────────────────────────────────
+
+def variant_lantern(backdrop, bodies, targets, refs):
+    recol = luminance_to_palette(targets,
+                                 dark=(10, 70, 25),
+                                 bright=(230, 255, 230))
     scene = backdrop.copy()
     _dark_overlay(scene, 135)
     scene.blit(bodies, (0, 0))
 
-    # Bloom backdrop.
-    for scale, col, a in (
-            (0.05, (50, 200, 70),  220),
-            (0.12, (90, 255, 110), 220),
-            (0.25, (130, 255, 150),190),
-    ):
-        glow = _blur(targets, scale, col)
-        glow.set_alpha(a)
-        scene.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    _bloom_stack(scene, targets, (
+        (0.05, (50, 200, 70),   220),
+        (0.12, (90, 255, 110),  220),
+        (0.25, (130, 255, 160), 190),
+    ))
 
-    # Radial rays from each glow-eligible centre.
     NEON = (140, 255, 170)
     for c in refs["coins"]:
         _draw_radial_rays(scene, int(c.x), int(c.y),
@@ -386,7 +323,6 @@ def variant_overdrive(backdrop, bodies, targets, refs):
     _draw_radial_rays(scene, int(b.x), int(b.y),
                       length=120, count=16, color=NEON,
                       alpha_start=210, phase=0.6, width=2)
-    # Vegetation crowns (above each pillar top) get short rays too.
     for p in refs["pipes"]:
         cx = int(p.x + PIPE_W / 2)
         cy = int(p.gap_y - p.gap_h / 2 - 20)
@@ -394,23 +330,44 @@ def variant_overdrive(backdrop, bodies, targets, refs):
                           length=80, count=10, color=NEON,
                           alpha_start=160, phase=math.pi / 8, width=1)
 
-    scene.blit(tinted, (0, 0))
+    scene.blit(recol, (0, 0))
 
-    # White-hot inner cores on top.
-    core = _blur(targets, 0.40, (255, 255, 255))
-    core.set_alpha(170)
-    scene.blit(core, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    scene.blit(_halo(targets, 0.40, (220, 255, 230), 110),
+               (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
     return scene
+
+
+# ─── VARIANT 5 — AURORA (chromatic ribbon) ──────────────────────────────────
+
+def variant_aurora(backdrop, bodies, targets, refs):
+    # Slight cyan tilt at the bright end so highlights shimmer.
+    recol = luminance_to_palette(targets,
+                                 dark=(10, 80, 40),
+                                 bright=(200, 255, 240))
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=130,
+        aura_layers=(
+            (0.04, (40, 200, 100),  200),  # deep green inner
+            (0.10, (80, 240, 150),  220),  # mid green
+            (0.20, (140, 255, 200), 210),  # mint
+            (0.34, (170, 255, 230), 180),  # outer mint-cyan ribbon
+        ),
+        recoloured=recol,
+        extra_top=(
+            (0.07, (180, 255, 220), 100),
+            (0.20, (200, 255, 240),  75),
+        ),
+    )
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("variant_1_radiant.png",      variant_radiant),
-    ("variant_2_incandescent.png", variant_incandescent),
-    ("variant_3_megabloom.png",    variant_megabloom),
-    ("variant_4_toxic.png",        variant_toxic),
-    ("variant_5_overdrive.png",    variant_overdrive),
+    ("variant_1_true_glow.png",  variant_true_glow),
+    ("variant_2_ember.png",      variant_ember),
+    ("variant_3_deep_glow.png",  variant_deep_glow),
+    ("variant_4_lantern.png",    variant_lantern),
+    ("variant_5_aurora.png",     variant_aurora),
 ]
 
 
