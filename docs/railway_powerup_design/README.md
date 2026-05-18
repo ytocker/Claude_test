@@ -76,12 +76,15 @@ while grinding. Reads as *the track is paying you to ride it*.
 
 ## 04 — Western Trestle
 
-![Western Trestle](04_western_trestle.png)
+![Western Trestle in real game frame](04_western_trestle_real.png)
 
-**Frontier railroad — weathered timber and iron spikes.** Sunset wash
-shifts the sky amber/violet, the rail is dull iron with rust patches and
-hex-headed spikes, tumbleweeds drift in the lower frame, dust kicks up
-under Pip's feet.
+**Frontier railroad — weathered timber and iron spikes,** painted on top
+of an actual in-game frame (real procedural pillars, real Pip, dusk biome
+palette driving the sunset sky). The rail is dull iron with rust patches
+and hex-headed spikes, with a sparse dust trail behind Pip's feet.
+
+[Schematic-style mockup](04_western_trestle.png) (matching the other
+four) for reference.
 
 - **Existing-art hooks:** dust particles reuse the SKATEBOARD dust palette
   (`(220, 215, 200)` / `(200, 195, 180)`) from `world.py:799`. Sunset wash
