@@ -1643,7 +1643,7 @@ class HUD:
         if elapsed >= 0.6:
             self.stats_play_again_rect = _pill_btn(
                 surf, (W // 2, 568), "PLAY  AGAIN",
-                size=22, alpha=255, min_width=240, primary=True)
+                size=22, alpha=255, min_width=240, primary=True, dim=True)
             self.stats_main_menu_rect = _outline_pill_btn(
                 surf, (W // 2, 618), "MAIN MENU",
                 size=14, min_width=130)
