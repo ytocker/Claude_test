@@ -104,6 +104,7 @@ def _draw_shrunk_bird(surf, cx, cy):
     bird.x, bird.y = cx, cy
     bird.frame_t = 0.4
     bird.shrink_active = True
+    bird.shrink_scale = SHRINK_SCALE      # static mock: skip the eased ramp
     bird.draw(surf)
 
 

@@ -465,6 +465,10 @@ class Bird:
         # Secret late-game powerup flags (timer state lives on World).
         self.skateboard_active = False
         self.shrink_active = False
+        # Visual scale eases toward SHRINK_SCALE while shrink_active and
+        # back to 1.0 when it clears, so the size change reads as a
+        # transformation across SHRINK_TRANSITION rather than a one-frame snap.
+        self.shrink_scale = 1.0
         self.nightglow_active = False
 
     @property
@@ -496,6 +500,14 @@ class Bird:
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
+
+        from game.config import SHRINK_SCALE, SHRINK_TRANSITION
+        target = SHRINK_SCALE if self.shrink_active else 1.0
+        step = (1.0 - SHRINK_SCALE) * (dt / SHRINK_TRANSITION)
+        if self.shrink_scale < target:
+            self.shrink_scale = min(target, self.shrink_scale + step)
+        elif self.shrink_scale > target:
+            self.shrink_scale = max(target, self.shrink_scale - step)
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
@@ -539,13 +551,14 @@ class Bird:
             w, h = img.get_size()
             img = pygame.transform.smoothscale(
                 img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
-        if self.shrink_active:
-            # SHRINK: counterpart to GROW. Smoothscale down by SHRINK_SCALE.
-            # Wins over GROW if both ever happen (shouldn't, but be safe).
-            from game.config import SHRINK_SCALE
+        if self.shrink_scale < 1.0:
+            # SHRINK: counterpart to GROW. Smoothscale down by the eased
+            # shrink_scale (animates between 1.0 and SHRINK_SCALE over
+            # SHRINK_TRANSITION). Wins over GROW if both ever happen.
             w, h = img.get_size()
+            s = self.shrink_scale
             img = pygame.transform.smoothscale(
-                img, (max(1, int(w * SHRINK_SCALE)), max(1, int(h * SHRINK_SCALE))))
+                img, (max(1, int(w * s)), max(1, int(h * s))))
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -585,10 +598,10 @@ class Bird:
         else:
             mode = "normal"
         parcel = parrot.get_parcel(mode)
-        from game.config import GROW_SCALE, SHRINK_SCALE, PARCEL_Y_OFFSET
+        from game.config import GROW_SCALE, PARCEL_Y_OFFSET
         scale = GROW_SCALE if self.grow_active else 1.0
-        if self.shrink_active:
-            scale = SHRINK_SCALE
+        if self.shrink_scale < 1.0:
+            scale = self.shrink_scale
         if scale != 1.0:
             pw, ph = parcel.get_size()
             parcel = pygame.transform.smoothscale(
@@ -620,8 +633,7 @@ class Bird:
         Drawn programmatically (no asset). Renders smaller when shrink_active
         to scale with Pip; mirrors vertically when reverse-gravity is on.
         """
-        from game.config import SHRINK_SCALE
-        s = SHRINK_SCALE if self.shrink_active else 1.0
+        s = self.shrink_scale
         head_top_offset = int(-16 * s)
         helmet_w = int(28 * s)
         helmet_h = int(14 * s)
@@ -654,8 +666,8 @@ class Bird:
         Board + 2 spinning wheels (spin advances with frame_t for visual
         motion). Mirrors vertically when reverse-gravity is on.
         """
-        from game.config import SHRINK_SCALE, PARCEL_Y_OFFSET
-        s = SHRINK_SCALE if self.shrink_active else 1.0
+        from game.config import PARCEL_Y_OFFSET
+        s = self.shrink_scale
         board_w = int(34 * s)
         board_h = max(2, int(5 * s))
         # Position the board where the parcel used to be — below Pip's centre,
