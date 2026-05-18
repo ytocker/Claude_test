@@ -133,43 +133,10 @@ def paint_rail_hires(surf, pipes):
     for dy in (+2 * SCALE, -4 * SCALE):
         _line(surf, pts, iron_hi, 1 * SCALE, dy=dy)
 
-    # Dust trail behind Pip's feet — on the centre pipe's rail.
-    mid = sorted(pipes, key=lambda p: p.x)[1]
-    feet_x = int((mid.x + PIPE_W / 2) * SCALE)
-    feet_y = int((mid.gap_y + mid.gap_h / 2) * SCALE)
-    dust = pygame.Surface((W2, H2), pygame.SRCALPHA)
-    rng = random.Random(7)
-    for _ in range(10):
-        dx = feet_x + rng.randint(-22, -2) * SCALE
-        dy = feet_y + rng.randint(-3, 4) * SCALE
-        r = rng.randint(2, 3) * SCALE
-        a = rng.randint(110, 180)
-        pygame.draw.circle(dust, (225, 200, 160, a), (dx, dy), r)
-    surf.blit(dust, (0, 0))
-
 
 def _line(surf, pts, color, thickness, *, dy=0):
     shifted = [(x, y + dy) for x, y in pts]
     pygame.draw.lines(surf, color, False, shifted, thickness)
-
-
-def _sample(pts, t):
-    segs, total = [], 0.0
-    for i in range(len(pts) - 1):
-        x0, y0 = pts[i]
-        x1, y1 = pts[i + 1]
-        d = math.hypot(x1 - x0, y1 - y0)
-        segs.append((d, (x0, y0), (x1, y1)))
-        total += d
-    target = t * total
-    acc = 0.0
-    for d, p0, p1 in segs:
-        if acc + d >= target:
-            f = (target - acc) / max(1.0, d)
-            return (int(p0[0] + (p1[0] - p0[0]) * f),
-                    int(p0[1] + (p1[1] - p0[1]) * f))
-        acc += d
-    return pts[-1]
 
 
 def _ties(surf, pts, *, spacing, length, thickness, edge, body, hi):
@@ -206,24 +173,6 @@ def _ties(surf, pts, *, spacing, length, thickness, edge, body, hi):
                 pygame.draw.line(surf, hi, h0, h1, max(1, thickness - 2))
                 break
             acc += d
-
-
-def _spikes(surf, pts, *, spacing, offset, radius, dark, hi):
-    segs, total = [], 0.0
-    for i in range(len(pts) - 1):
-        x0, y0 = pts[i]
-        x1, y1 = pts[i + 1]
-        d = math.hypot(x1 - x0, y1 - y0)
-        segs.append((d, (x0, y0), (x1, y1)))
-        total += d
-    n = max(1, int(total / spacing))
-    for k in range(n + 1):
-        rx, ry = _sample(pts, k / n)
-        for sign in (-1, 1):
-            pygame.draw.circle(surf, dark, (rx, ry + sign * offset), radius)
-            pygame.draw.circle(surf, hi,
-                               (rx - radius // 2, ry + sign * offset - radius // 2),
-                               max(1, radius // 2))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -264,17 +213,6 @@ def paint_label_hires(surf, pipes):
                    (off - 1, -off + 1), (off - 1, off - 1)):
         surf.blit(outline, (label_x - bw // 2 + ox, label_y - bh // 2 + oy))
     surf.blit(body, (label_x - bw // 2, label_y - bh // 2))
-
-    # 8 sparkles around the label.
-    cream = (250, 240, 215)
-    rng = random.Random(hash(text) & 0xFFFF)
-    for _ in range(8):
-        sx = label_x + rng.randint(-bw, bw)
-        sy = label_y + rng.randint(-bh, bh)
-        r = rng.randint(3, 6) * SCALE // 2
-        pygame.draw.circle(surf, cream, (sx, sy), r)
-        pygame.draw.circle(surf, (255, 255, 255), (sx, sy),
-                           max(1, r - SCALE // 2))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
