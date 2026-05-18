@@ -474,20 +474,32 @@ class Bird:
         # transformation across SHRINK_TRANSITION rather than a one-frame snap.
         self.shrink_scale = 1.0
         self.nightglow_active = False
+        # RAIL: cart_active starts at pickup, stays True until the last
+        # rail pipe scrolls off. cart_locked flips True the moment the
+        # cart wheels touch any rail segment — from then on the track
+        # auto-drives Pip and taps are ignored.
+        self.cart_active = False
+        self.cart_locked = False
 
     @property
     def tilt_deg(self):
-        # Clamp the downward dive so a fast-falling bird doesn't read as
-        # already crashing (REVIEW.md feedback).
+        # The wagon stays level on the rail — no banking with vy.
+        if self.cart_active:
+            return 0.0
         t = max(-0.5, min(0.75, self.vy / 500.0))
         return -t * 55.0
 
     def flap(self, gravity_sign=1):
-        if self.alive:
+        if self.alive and not self.cart_active:
             self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
+        if self.cart_locked:
+            # Track has taken over — World._snap_cart_to_rail owns y/vy.
+            # Just tick the idle wing animation.
+            self.frame_t = (self.frame_t + dt * 6.0)
+            return
         new_vy = self.vy + GRAVITY * gravity_sign * dt
         if gravity_sign >= 0:
             self.vy = min(new_vy, MAX_FALL)
@@ -593,11 +605,21 @@ class Bird:
             for r_glow, a in ((36, base_a // 3), (26, base_a // 2), (18, base_a)):
                 pygame.draw.circle(halo, (90, 240, 230, a), (40, 40), r_glow)
             surf.blit(halo, (self.x + shake_x - 40, self.y + shake_y - 40))
-        r = img.get_rect(center=(self.x + shake_x, self.y + shake_y))
+        cx_int = int(self.x + shake_x)
+        cy_int = int(self.y + shake_y)
+        # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
+        # on top of them; the body is drawn after Pip so it covers his
+        # lower half and the parcel.
+        if self.cart_active:
+            self._draw_wagon_wheels(surf, cx_int, cy_int)
+        r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
         if self.skateboard_active:
             self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
+        if self.cart_active:
+            self._draw_wagon_body(surf, cx_int, cy_int)
+            return  # parcel is hidden inside the wagon
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
@@ -643,6 +665,73 @@ class Bird:
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
+
+    # ── RAIL wagon (renders around Pip while cart_active) ──────────────────
+    def _draw_wagon_wheels(self, surf, cx, cy):
+        """Two wooden spoke wheels with iron tires, sitting on the rail.
+
+        When cart_locked, World._snap_cart_to_rail has placed bird.y such
+        that these wheels land on the rail line (rail_y = bird.y + 27).
+        Pre-lock (mid-air), the wheels just hang under Pip wherever he is.
+        """
+        WHEEL_R = 5
+        DX = 15
+        wheel_y = cy + 22
+        pine_dk = ( 70,  45,  25)
+        pine    = (135,  90,  50)
+        iron_dk = ( 40,  35,  30)
+        iron    = (110, 100,  95)
+        spin = self.frame_t * 0.8
+        for dx in (-DX, DX):
+            wx = cx + dx
+            pygame.draw.circle(surf, iron_dk, (wx, wheel_y), WHEEL_R)
+            pygame.draw.circle(surf, iron,    (wx, wheel_y), WHEEL_R - 1)
+            pygame.draw.circle(surf, pine_dk, (wx, wheel_y), WHEEL_R - 2)
+            for i in range(6):
+                ang = spin + (i / 6) * math.tau
+                ex = wx + int(math.cos(ang) * (WHEEL_R - 2))
+                ey = wheel_y + int(math.sin(ang) * (WHEEL_R - 2))
+                pygame.draw.line(surf, pine_dk, (wx, wheel_y), (ex, ey), 1)
+            pygame.draw.circle(surf, iron_dk, (wx, wheel_y), 1)
+
+    def _draw_wagon_body(self, surf, cx, cy):
+        """Pine plank cart body with two iron hoop bands."""
+        W = 42
+        H = 18
+        body_top = cy + 4
+        body_bot = cy + 4 + H
+        pine_dk = ( 70,  45,  25)
+        pine    = (135,  90,  50)
+        pine_hi = (180, 130,  75)
+        iron_dk = ( 40,  35,  30)
+        iron    = (110, 100,  95)
+        iron_hi = (180, 170, 160)
+        # Outline
+        pygame.draw.rect(surf, pine_dk,
+                         pygame.Rect(cx - W // 2 - 1, body_top - 1,
+                                     W + 2, H + 2))
+        # Body
+        pygame.draw.rect(surf, pine,
+                         pygame.Rect(cx - W // 2, body_top, W, H))
+        # Plank seams every 6 game-px
+        for i in range(1, W // 6):
+            px = cx - W // 2 + i * 6
+            pygame.draw.line(surf, pine_dk,
+                             (px, body_top + 1), (px, body_bot - 1), 1)
+            pygame.draw.line(surf, pine_hi,
+                             (px + 1, body_top + 1),
+                             (px + 1, body_bot - 1), 1)
+        # Iron hoops — top and bottom horizontal bands
+        for band_y in (body_top + 2, body_bot - 5):
+            pygame.draw.rect(surf, iron_dk,
+                             pygame.Rect(cx - W // 2 - 1, band_y,
+                                         W + 2, 3))
+            pygame.draw.rect(surf, iron,
+                             pygame.Rect(cx - W // 2 - 1, band_y + 1,
+                                         W + 2, 1))
+            pygame.draw.line(surf, iron_hi,
+                             (cx - W // 2 - 1, band_y),
+                             (cx + W // 2 + 1, band_y), 1)
 
     # ── Secret-powerup wearable overlays ────────────────────────────────────
     def _draw_helmet(self, surf, cx, cy, flipped):

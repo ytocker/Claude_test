@@ -95,7 +95,7 @@ SKATEBOARD_DURATION   = 8.0
 BLUEPRINT_DURATION    = 8.0
 BLUEPRINT_PREVIEW_N   = 3       # number of upcoming pillars to telegraph
 NIGHTGLOW_DURATION    = 12.0
-RAIL_PILLAR_COUNT     = 3       # number of pillars the rail spans
+RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
 # loose — the player instantly gains TREASURE_BOX_COINS_PER_FLAP coins
