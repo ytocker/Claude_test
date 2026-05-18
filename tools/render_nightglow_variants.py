@@ -25,7 +25,6 @@ Run headless:
         python tools/render_nightglow_variants.py
 """
 
-import math
 import os
 import sys
 
@@ -171,17 +170,24 @@ def _dark_overlay(surf, alpha, tint=(4, 8, 16)):
 
 
 def _halo(targets: pygame.Surface, scale: float, color, alpha: int):
-    """Additive halo via multiply-tint of a blurred source. The blur
-    spreads the source's alpha smoothly; the tint pushes any warm
-    source pixels to near-black so the halo reads as the chosen colour
-    when blended additively. Scale = downsample fraction (smaller = wider)."""
+    """Silhouette-clean halo. Paint a uniform `color` onto the alpha
+    mask of `targets`, blur, and scale the per-pixel alpha by `alpha`.
+
+    CRITICAL: pygame.Surface.set_alpha() is IGNORED on SRCALPHA
+    surfaces (per pygame docs) — to actually attenuate the halo we
+    must multiply the per-pixel alpha array directly. Without this
+    the additive blit slams the full silhouette colour onto every
+    pixel near an entity and washes the whole scene green.
+
+    `scale` = downsample fraction (larger = TIGHTER halo)."""
+    sil = pygame.Surface((W, H), pygame.SRCALPHA)
+    sil.fill((*color, 255))
+    pygame.surfarray.pixels_alpha(sil)[:] = pygame.surfarray.array_alpha(targets)
     sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
-    small = pygame.transform.smoothscale(targets, (sw, sh))
+    small = pygame.transform.smoothscale(sil, (sw, sh))
     big = pygame.transform.smoothscale(small, (W, H))
-    tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    tint.fill((*color, 255))
-    big.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    big.set_alpha(alpha)
+    a = pygame.surfarray.pixels_alpha(big)
+    a[:] = (a.astype(np.uint32) * alpha // 255).astype(np.uint8)
     return big
 
 
@@ -209,165 +215,105 @@ def _compose(backdrop, bodies, targets, dark_alpha,
     return scene
 
 
-def _draw_radial_rays(scene, cx, cy, length, count, color,
-                      alpha_start, phase=0.0, width=2):
-    pad = length + 4
-    rays = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
-    for i in range(count):
-        a = (i / count) * math.tau + phase
-        for step in range(10, length, 5):
-            t = step / length
-            alpha = int(alpha_start * (1.0 - t) ** 1.6)
-            if alpha <= 0:
-                continue
-            px = pad + step * math.cos(a)
-            py = pad + step * math.sin(a)
-            pygame.draw.circle(rays, (*color, alpha),
-                               (int(px), int(py)), width)
-    scene.blit(rays, (cx - pad, cy - pad),
-               special_flags=pygame.BLEND_RGBA_ADD)
+# All 5 variants are tunings of the V1 "TRUE GLOW" family — pure
+# luminance→green recolour, silhouette-clean green halos around every
+# affected element (Pip, coins, powerups, pillar vegetation). They
+# differ only in halo width, layer count, and how bright the halos
+# stack. NO godrays. NO chromatic ribbons. NO multi-coloured aurora.
 
 
-# ─── VARIANT 1 — TRUE GLOW (the family reference) ───────────────────────────
+def _green_recolour(targets, bright_peak=(180, 240, 195)):
+    """Standard recolour shared by all variants. `bright_peak` caps the
+    brightest pixel — keeping it BELOW (255, 255, 255) leaves headroom
+    for the additive halos so the entity centres glow brighter without
+    saturating to pure white (which is what made Pip look bad before)."""
+    return luminance_to_palette(targets,
+                                dark=(8, 55, 20),
+                                bright=bright_peak)
 
-def variant_true_glow(backdrop, bodies, targets, refs):
-    recol = luminance_to_palette(targets,
-                                 dark=(8, 60, 20),
-                                 bright=(220, 255, 230))
+
+# ─── VARIANT 1 — TIGHT (clean, focused halos) ───────────────────────────────
+
+def variant_tight(backdrop, bodies, targets, refs):
+    recol = _green_recolour(targets, bright_peak=(185, 245, 200))
     return _compose(
-        backdrop, bodies, targets, dark_alpha=130,
+        backdrop, bodies, targets, dark_alpha=135,
         aura_layers=(
-            (0.04, (50, 200, 70),   200),
-            (0.10, (90, 255, 110),  220),
-            (0.22, (130, 255, 160), 200),
+            (0.55, (70, 230, 110),  85),   # tight inner halo
+            (0.30, (50, 200, 90),   60),   # mid halo
         ),
         recoloured=recol,
-        extra_top=((0.05, (180, 255, 200), 90),),
     )
 
 
-# ─── VARIANT 2 — EMBER (hot white cores) ────────────────────────────────────
+# ─── VARIANT 2 — SOFT (wider, more diffuse) ─────────────────────────────────
 
-def variant_ember(backdrop, bodies, targets, refs):
-    recol = luminance_to_palette(targets,
-                                 dark=(15, 50, 25),
-                                 bright=(255, 255, 255),
-                                 gamma=0.85)
-    scene = _compose(
+def variant_soft(backdrop, bodies, targets, refs):
+    recol = _green_recolour(targets, bright_peak=(175, 235, 190))
+    return _compose(
+        backdrop, bodies, targets, dark_alpha=135,
+        aura_layers=(
+            (0.45, (60, 220, 100),  70),
+            (0.25, (45, 185, 85),   55),
+            (0.12, (35, 150, 70),   40),
+        ),
+        recoloured=recol,
+    )
+
+
+# ─── VARIANT 3 — BRIGHT (punchier, two-layer focused) ───────────────────────
+
+def variant_bright(backdrop, bodies, targets, refs):
+    recol = _green_recolour(targets, bright_peak=(195, 250, 210))
+    return _compose(
         backdrop, bodies, targets, dark_alpha=140,
         aura_layers=(
-            (0.05, (50, 200, 70),   220),
-            (0.13, (90, 255, 120),  220),
-            (0.28, (60, 230, 80),   190),
+            (0.60, (90, 240, 130), 110),   # bright tight core halo
+            (0.32, (60, 210, 100),  75),   # mid halo
         ),
         recoloured=recol,
     )
-    # White-hot ember cores additively on top. The tight inner blur
-    # (scale 0.30+) keeps the brightening confined to entity centres.
-    for scale, col, a in ((0.30, (200, 255, 220), 100),
-                          (0.50, (220, 255, 230),  75)):
-        scene.blit(_halo(targets, scale, col, a),
-                   (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    return scene
 
 
-# ─── VARIANT 3 — DEEP GLOW (moody, atmospheric) ─────────────────────────────
+# ─── VARIANT 4 — WIDE (subtle, atmospheric) ─────────────────────────────────
 
-def variant_deep_glow(backdrop, bodies, targets, refs):
-    recol = luminance_to_palette(targets,
-                                 dark=(5, 40, 15),
-                                 bright=(140, 230, 170))
+def variant_wide(backdrop, bodies, targets, refs):
+    recol = _green_recolour(targets, bright_peak=(170, 230, 185))
     return _compose(
-        backdrop, bodies, targets, dark_alpha=145,
+        backdrop, bodies, targets, dark_alpha=140,
         aura_layers=(
-            (0.03, (35, 140, 50),   180),
-            (0.06, (55, 190, 75),   200),
-            (0.12, (80, 220, 100),  210),
-            (0.20, (100, 240, 130), 200),
-            (0.32, (130, 255, 160), 180),
+            (0.50, (55, 210, 100),  65),
+            (0.28, (40, 175, 80),   50),
+            (0.14, (30, 140, 65),   38),
+            (0.07, (25, 110, 55),   30),
         ),
         recoloured=recol,
-        extra_top=(
-            (0.08, (140, 240, 180),  90),
-            (0.18, (170, 255, 210),  70),
-        ),
     )
 
 
-# ─── VARIANT 4 — LANTERN (light beams) ──────────────────────────────────────
+# ─── VARIANT 5 — MODERATE (balanced — splits the difference) ────────────────
 
-def variant_lantern(backdrop, bodies, targets, refs):
-    recol = luminance_to_palette(targets,
-                                 dark=(10, 70, 25),
-                                 bright=(230, 255, 230))
-    scene = backdrop.copy()
-    _dark_overlay(scene, 135)
-    scene.blit(bodies, (0, 0))
-
-    _bloom_stack(scene, targets, (
-        (0.05, (50, 200, 70),   220),
-        (0.12, (90, 255, 110),  220),
-        (0.25, (130, 255, 160), 190),
-    ))
-
-    NEON = (140, 255, 170)
-    for c in refs["coins"]:
-        _draw_radial_rays(scene, int(c.x), int(c.y),
-                          length=80, count=12, color=NEON,
-                          alpha_start=170, phase=0.4, width=1)
-    m = refs["powerup"]
-    _draw_radial_rays(scene, int(m.x), int(m.y),
-                      length=110, count=14, color=NEON,
-                      alpha_start=200, phase=0.0, width=2)
-    b = refs["bird"]
-    _draw_radial_rays(scene, int(b.x), int(b.y),
-                      length=120, count=16, color=NEON,
-                      alpha_start=210, phase=0.6, width=2)
-    for p in refs["pipes"]:
-        cx = int(p.x + PIPE_W / 2)
-        cy = int(p.gap_y - p.gap_h / 2 - 20)
-        _draw_radial_rays(scene, cx, cy,
-                          length=80, count=10, color=NEON,
-                          alpha_start=160, phase=math.pi / 8, width=1)
-
-    scene.blit(recol, (0, 0))
-
-    scene.blit(_halo(targets, 0.40, (220, 255, 230), 110),
-               (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    return scene
-
-
-# ─── VARIANT 5 — AURORA (chromatic ribbon) ──────────────────────────────────
-
-def variant_aurora(backdrop, bodies, targets, refs):
-    # Slight cyan tilt at the bright end so highlights shimmer.
-    recol = luminance_to_palette(targets,
-                                 dark=(10, 80, 40),
-                                 bright=(200, 255, 240))
+def variant_moderate(backdrop, bodies, targets, refs):
+    recol = _green_recolour(targets, bright_peak=(180, 240, 200))
     return _compose(
-        backdrop, bodies, targets, dark_alpha=130,
+        backdrop, bodies, targets, dark_alpha=135,
         aura_layers=(
-            (0.04, (40, 200, 100),  200),  # deep green inner
-            (0.10, (80, 240, 150),  220),  # mid green
-            (0.20, (140, 255, 200), 210),  # mint
-            (0.34, (170, 255, 230), 180),  # outer mint-cyan ribbon
+            (0.50, (70, 220, 110),  80),
+            (0.30, (50, 195, 90),   60),
+            (0.16, (35, 155, 70),   42),
         ),
         recoloured=recol,
-        extra_top=(
-            (0.07, (180, 255, 220), 100),
-            (0.20, (200, 255, 240),  75),
-        ),
     )
 
 
 # ─── driver ─────────────────────────────────────────────────────────────────
 
 VARIANTS = [
-    ("variant_1_true_glow.png",  variant_true_glow),
-    ("variant_2_ember.png",      variant_ember),
-    ("variant_3_deep_glow.png",  variant_deep_glow),
-    ("variant_4_lantern.png",    variant_lantern),
-    ("variant_5_aurora.png",     variant_aurora),
+    ("variant_1_tight.png",    variant_tight),
+    ("variant_2_soft.png",     variant_soft),
+    ("variant_3_bright.png",   variant_bright),
+    ("variant_4_wide.png",     variant_wide),
+    ("variant_5_moderate.png", variant_moderate),
 ]
 
 
