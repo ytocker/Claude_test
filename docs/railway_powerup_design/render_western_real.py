@@ -1,16 +1,28 @@
-"""Render the Western Trestle rail treatment on top of an ACTUAL game frame.
+"""Render Western Trestle on a real game frame, at 4× resolution (1440×2560).
 
-Unlike `render_mockups.py` (which redraws simplified pillars/bird from
-scratch), this script boots the real game modules — `game.draw` for sky
-and ground, `game.entities.Pipe` for sandstone pillars with their
-vegetation/ornament variants, `game.entities.Bird` for Pip — and only
-overrides the rail visual on top.
+The trick to getting genuine resolution out of a 360×640 game (vs. a
+nearest-neighbour blowup): render every "hero" element directly at the
+target resolution and only smoothscale the atmospheric backdrop.
 
-The point: when we evaluate the Western Trestle look, we evaluate it
-against the real game's art, not a stand-in.
+Pipeline:
+  1. Compose sky + clouds + mountains + ground + sandstone pillars at
+     native 360×640 using the real `game.draw` + `game.entities.Pipe`
+     functions.
+  2. Smoothscale that base 4× → 1440×2560. The result is a soft
+     atmospheric backdrop; pillar silhouettes stay visually crisp
+     because they're vector-style polygons that anti-alias cleanly.
+  3. Build Pip at scale=4 using `parrot._build_frame_scaled` +
+     `_add_outline_scaled` — the same supersample path the in-game
+     GROW power-up uses to keep big-Pip sharp. Blit at the high-res
+     bird centre.
+  4. Paint the Western Trestle rail (ties, iron, spikes, dust) with
+     thicknesses and coordinates scaled by 4 so every line is one
+     full target-pixel thick.
+  5. Build a "RAILS UP!" label at 4× font size, replicating the
+     FloatText `style="powerup"` recipe (gradient fill + dark outline
+     + 8 sparkles).
 
 Run:  python docs/railway_powerup_design/render_western_real.py
-Outputs `04_western_trestle_real.png` next to this script (2× upscaled).
 """
 from __future__ import annotations
 
@@ -19,8 +31,6 @@ import os
 import random
 import sys
 
-# Make the repo root importable so `from game.* import ...` resolves when
-# this script runs from anywhere.
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
@@ -32,104 +42,77 @@ import pygame  # noqa: E402
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-# Real game modules — these are the same imports scenes.py uses.
-from game.config import W, H, GROUND_Y, PIPE_W, BIRD_X  # noqa: E402
-from game import biome  # noqa: E402
+from game.config import W, H, GROUND_Y, PIPE_W, BIRD_R  # noqa: E402
+from game import biome, parrot  # noqa: E402
 from game.draw import (  # noqa: E402
     get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground,
 )
-from game.entities import Pipe, Bird, FloatText  # noqa: E402
+from game.entities import Pipe  # noqa: E402
+
+SCALE = 4
+W2, H2 = W * SCALE, H * SCALE  # 1440 × 2560
+
+PIPE_LAYOUT = (
+    ( 50, 285, 170),
+    (170, 235, 170),
+    (290, 300, 170),
+)
+
+CLOUD_LAYOUT = (
+    (20, 90, 0.9, 0), (180, 140, 1.1, 2),
+    (60, 220, 0.8, 3), (230, 60, 0.7, 1),
+    (320, 180, 0.9, 4),
+)
 
 
-def render_frame() -> pygame.Surface:
-    """Compose one in-game frame at native 360×640, no upscaling yet."""
+# ──────────────────────────────────────────────────────────────────────────────
+# Base scene at native, then smoothscale up
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_base_native(pipes, palette, bucket) -> pygame.Surface:
+    """Sky + clouds + mountains + ground + pillars — no rail, no bird."""
     surf = pygame.Surface((W, H))
-
-    # Dusk biome phase — drives the warm sky/ground palette automatically,
-    # so the "sunset wash" comes from the game's own biome system rather
-    # than a hand-painted overlay.
-    phase = 0.78  # late golden hour into dusk
-    palette = biome.palette_for_phase(phase)
-    bucket = biome.phase_bucket(phase)
-
-    # Sky.
     sky = get_sky_surface_biome(W, H, GROUND_Y, palette, bucket)
     surf.blit(sky, (0, 0))
-
-    # Background clouds — same layout block scenes._draw_background uses.
-    for i, (bx, by, sc, variant) in enumerate((
-            (20, 90, 0.9, 0), (180, 140, 1.1, 2),
-            (60, 220, 0.8, 3), (230, 60, 0.7, 1),
-            (320, 180, 0.9, 4))):
-        draw_cloud(surf, bx, by, sc, variant=variant)
-
-    # Mountains + ground.
+    for bx, by, sc, var in CLOUD_LAYOUT:
+        draw_cloud(surf, bx, by, sc, variant=var)
     draw_mountains(surf, 0.0, GROUND_Y, W,
                    palette['mtn_far'], palette['mtn_near'])
     draw_ground(surf, GROUND_Y, W, H, 0.0,
                 palette['ground_top'], palette['ground_mid'], (60, 40, 25))
-
-    # 3 pillars — same staggered layout as the mockup script. Real Pipe
-    # instances pick their pillar_variant deterministically from x/gap_y
-    # so the silhouettes are stable.
-    pipes = [
-        Pipe( 50, 285, 170),
-        Pipe(170, 235, 170),
-        Pipe(290, 300, 170),
-    ]
     for p in pipes:
-        p.rail_active = True
         p.draw(surf, palette)
-
-    # Bird at the centre pipe's rail height — same lock the real game's
-    # _apply_rail_lock produces: feet on top of the lower pillar.
-    bird = Bird()
-    mid = pipes[1]
-    bird.x = mid.x + PIPE_W / 2
-    rail_y = mid.gap_y + mid.gap_h / 2
-    bird.y = rail_y - 14  # BIRD_R = 14
-    bird.vy = 0.0
-    bird.frame_t = 1.0  # mid-flap frame (not idle)
-    bird.draw(surf)
-
-    # Western Trestle rail treatment, replacing the default _draw_rails.
-    _draw_western_trestle_rails(surf, pipes)
-
-    # RAILS UP! pickup label, using the real FloatText class so style
-    # ("powerup" gradient + outline + sparkles) matches what the game
-    # actually shows. Positioned in the clear gap between pipes 1 & 2 so
-    # it doesn't collide with a pillar silhouette.
-    label_x = (pipes[0].x + PIPE_W + pipes[1].x) / 2
-    label_y = pipes[1].gap_y - pipes[1].gap_h / 2 - 18
-    label = FloatText(
-        "RAILS UP!", label_x, label_y,
-        (220, 150, 80),  # warm amber for western theme
-        size=24, life=1.3, vy=-30, style="powerup",
-    )
-    label.draw(surf)
-
     return surf
 
 
-def _draw_western_trestle_rails(surf, pipes):
-    """Weathered timber + iron grindrail across the 3 marked pillar tops.
+# ──────────────────────────────────────────────────────────────────────────────
+# Hi-res Pip — bypasses the cached native-size frames
+# ──────────────────────────────────────────────────────────────────────────────
 
-    Builds the same rails-list scenes._draw_rails uses (sorted by x), then
-    paints in this order so each layer overlays the previous cleanly:
-      1. wooden ties (perpendicular planks, every ~14 game-px)
-      2. dark-iron shadow polyline (gives the rail depth)
-      3. mid-iron rail polyline
-      4. light-iron highlight polyline (1 px above for specular)
-      5. hex-headed spikes at every other tie
-      6. rust patches scattered along the rail
-      7. dust kick-up under Pip's centre-pipe feet
+def blit_hires_bird(surf, bird_cx_hi, bird_cy_hi):
+    """Build Pip at SCALE× using parrot's existing supersample API.
+
+    `_build_frame_scaled(angle, s)` is the same code path the GROW
+    sprite uses (with s=_GROW_SS), so it's a supported way to get a
+    high-resolution Pip without smoothscale-up blur.
     """
-    pipes_sorted = sorted(pipes, key=lambda p: p.x)
-    rail_pts: list[tuple[int, int]] = []
-    for p in pipes_sorted:
-        rail_y = int(p.gap_y + p.gap_h / 2)
-        rail_pts.append((int(p.x), rail_y))
-        rail_pts.append((int(p.x + PIPE_W), rail_y))
+    frame = parrot._build_frame_scaled(0, SCALE)         # wing at rest
+    outlined = parrot._add_outline_scaled(frame, SCALE)
+    rect = outlined.get_rect(center=(bird_cx_hi, bird_cy_hi))
+    surf.blit(outlined, rect.topleft)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Western Trestle rail — drawn at SCALE so every line is full target pixels
+# ──────────────────────────────────────────────────────────────────────────────
+
+def paint_rail_hires(surf, pipes):
+    """Wooden ties + iron rails + spikes + rust + dust, all at SCALE×."""
+    pts = []
+    for p in sorted(pipes, key=lambda p: p.x):
+        rail_y = int((p.gap_y + p.gap_h / 2) * SCALE)
+        pts.append((int(p.x * SCALE), rail_y))
+        pts.append((int((p.x + PIPE_W) * SCALE), rail_y))
 
     pine_dk  = ( 70,  45,  25)
     pine     = (135,  90,  50)
@@ -139,142 +122,208 @@ def _draw_western_trestle_rails(surf, pipes):
     iron_hi  = (190, 180, 175)
     rust     = (170,  80,  35)
 
-    # 1) Wooden ties.
-    _draw_ties(surf, rail_pts, spacing=8,
-               length=14, thickness=4,
-               color_dk=pine_dk, color_hi=pine_hi, wood_grain=True)
+    # Ties — every 8 game-px = 32 target-px. Thickness 4 game-px = 16 target-px.
+    _ties(surf, pts, spacing=8 * SCALE, length=14 * SCALE,
+          thickness=4 * SCALE, edge=pine_dk, body=pine, hi=pine_hi)
 
-    # 2-4) Two parallel iron rails (a 6-game-px gauge — narrow because
-    # the pillars are only 58 px wide).
-    for dy in (+3, -3):
-        _draw_rail_polyline(surf, rail_pts, iron_dk, 3, dy=dy)
-    for dy in (+3, -3):
-        _draw_rail_polyline(surf, rail_pts, iron, 2, dy=dy)
-    for dy in (+2, -4):
-        _draw_rail_polyline(surf, rail_pts, iron_hi, 1, dy=dy)
+    # Twin iron rails — 6 game-px gauge means dy = ±3 game-px = ±12 target-px.
+    for dy in (+3 * SCALE, -3 * SCALE):
+        _line(surf, pts, iron_dk, 3 * SCALE, dy=dy)
+    for dy in (+3 * SCALE, -3 * SCALE):
+        _line(surf, pts, iron, 2 * SCALE, dy=dy)
+    for dy in (+2 * SCALE, -4 * SCALE):
+        _line(surf, pts, iron_hi, 1 * SCALE, dy=dy)
 
-    # 5) Hex spikes at tie ends, every other tie.
-    _draw_spikes(surf, rail_pts, spacing=16, offset=5,
-                 dark=iron_dk, hi=iron_hi)
+    # Hex spikes at tie ends.
+    _spikes(surf, pts, spacing=16 * SCALE,
+            offset=5 * SCALE, radius=2 * SCALE,
+            dark=iron_dk, hi=iron_hi)
 
-    # 6) Rust patches — randomized along the rail so each render is
-    # similar but not identical.
+    # Rust patches — randomised along the rail, sized for high res.
     rng = random.Random(31)
     for _ in range(14):
-        rx, ry = _rail_lerp(rail_pts, rng.random())
-        pygame.draw.circle(surf, rust, (rx, ry + 3), rng.randint(2, 3))
+        rx, ry = _sample(pts, rng.random())
+        pygame.draw.circle(surf, rust, (rx, ry + 3 * SCALE),
+                           rng.randint(2, 3) * SCALE)
 
-    # 7) Dust trail behind Pip's feet — sparse, low-opacity, drifting back.
-    mid_pipe = pipes_sorted[len(pipes_sorted) // 2]
-    feet_x = int(mid_pipe.x + PIPE_W / 2)
-    feet_y = int(mid_pipe.gap_y + mid_pipe.gap_h / 2)
+    # Dust trail behind Pip's feet — on the centre pipe's rail.
+    mid = sorted(pipes, key=lambda p: p.x)[1]
+    feet_x = int((mid.x + PIPE_W / 2) * SCALE)
+    feet_y = int((mid.gap_y + mid.gap_h / 2) * SCALE)
+    dust = pygame.Surface((W2, H2), pygame.SRCALPHA)
     rng = random.Random(7)
-    dust_layer = pygame.Surface((W, H), pygame.SRCALPHA)
     for _ in range(10):
-        dx = feet_x + rng.randint(-22, -2)   # behind (left of) the bird
-        dy = feet_y + rng.randint(-3, 4)
-        r = rng.randint(2, 3)
-        a = rng.randint(90, 160)
-        pygame.draw.circle(dust_layer, (225, 200, 160, a), (dx, dy), r)
-    surf.blit(dust_layer, (0, 0))
+        dx = feet_x + rng.randint(-22, -2) * SCALE
+        dy = feet_y + rng.randint(-3, 4) * SCALE
+        r = rng.randint(2, 3) * SCALE
+        a = rng.randint(110, 180)
+        pygame.draw.circle(dust, (225, 200, 160, a), (dx, dy), r)
+    surf.blit(dust, (0, 0))
 
 
-def _draw_rail_polyline(surf, pts, color, thickness, *, dy=0):
-    """Draw a polyline through every point, offset vertically by dy."""
+def _line(surf, pts, color, thickness, *, dy=0):
     shifted = [(x, y + dy) for x, y in pts]
     pygame.draw.lines(surf, color, False, shifted, thickness)
 
 
-def _rail_lerp(pts, t):
-    """Sample (x, y) at parametric t∈[0,1] along the full polyline."""
-    segs = []
-    total = 0.0
+def _sample(pts, t):
+    segs, total = [], 0.0
     for i in range(len(pts) - 1):
         x0, y0 = pts[i]
         x1, y1 = pts[i + 1]
         d = math.hypot(x1 - x0, y1 - y0)
-        segs.append(d)
+        segs.append((d, (x0, y0), (x1, y1)))
         total += d
     target = t * total
     acc = 0.0
-    for i, d in enumerate(segs):
+    for d, p0, p1 in segs:
         if acc + d >= target:
             f = (target - acc) / max(1.0, d)
-            x0, y0 = pts[i]
-            x1, y1 = pts[i + 1]
-            return int(x0 + (x1 - x0) * f), int(y0 + (y1 - y0) * f)
+            return (int(p0[0] + (p1[0] - p0[0]) * f),
+                    int(p0[1] + (p1[1] - p0[1]) * f))
         acc += d
     return pts[-1]
 
 
-def _draw_ties(surf, pts, *, spacing, length, thickness,
-               color_dk, color_hi, wood_grain=False):
-    """Perpendicular ties along the polyline."""
-    segs = []
-    total = 0.0
+def _ties(surf, pts, *, spacing, length, thickness, edge, body, hi):
+    segs, total = [], 0.0
     for i in range(len(pts) - 1):
         x0, y0 = pts[i]
         x1, y1 = pts[i + 1]
         d = math.hypot(x1 - x0, y1 - y0)
-        segs.append(d)
+        segs.append((d, (x0, y0), (x1, y1)))
         total += d
     n = max(1, int(total / spacing))
+    half = length / 2
     for k in range(n + 1):
-        t = k / n
-        target = t * total
+        target = (k / n) * total
         acc = 0.0
-        for i, d in enumerate(segs):
+        for d, p0, p1 in segs:
             if acc + d >= target:
                 f = (target - acc) / max(1.0, d)
-                x0, y0 = pts[i]
-                x1, y1 = pts[i + 1]
-                cx = int(x0 + (x1 - x0) * f)
-                cy = int(y0 + (y1 - y0) * f)
-                dx = x1 - x0
-                dy = y1 - y0
+                cx = int(p0[0] + (p1[0] - p0[0]) * f)
+                cy = int(p0[1] + (p1[1] - p0[1]) * f)
+                dx = p1[0] - p0[0]
+                dy = p1[1] - p0[1]
                 seg_len = max(1.0, math.hypot(dx, dy))
                 nx = -dy / seg_len
                 ny = dx / seg_len
-                half = length / 2
-                p0 = (int(cx + nx * half), int(cy + ny * half))
-                p1 = (int(cx - nx * half), int(cy - ny * half))
-                pygame.draw.line(surf, color_dk, p0, p1, thickness)
-                hi0 = (int(cx + nx * half * 0.55),
-                       int(cy + ny * half * 0.55))
-                hi1 = (int(cx - nx * half * 0.55),
-                       int(cy - ny * half * 0.55))
-                pygame.draw.line(surf, color_hi, hi0, hi1,
-                                 max(1, thickness - 2))
+                a = (int(cx + nx * half), int(cy + ny * half))
+                b = (int(cx - nx * half), int(cy - ny * half))
+                pygame.draw.line(surf, edge, a, b, thickness + 2)
+                pygame.draw.line(surf, body, a, b, thickness)
+                h0 = (int(cx + nx * half * 0.55),
+                      int(cy + ny * half * 0.55))
+                h1 = (int(cx - nx * half * 0.55),
+                      int(cy - ny * half * 0.55))
+                pygame.draw.line(surf, hi, h0, h1, max(1, thickness - 2))
                 break
             acc += d
 
 
-def _draw_spikes(surf, pts, *, spacing, offset, dark, hi):
-    """Small hex-headed spikes at tie ends, every `spacing` game-px."""
-    segs = []
-    total = 0.0
+def _spikes(surf, pts, *, spacing, offset, radius, dark, hi):
+    segs, total = [], 0.0
     for i in range(len(pts) - 1):
         x0, y0 = pts[i]
         x1, y1 = pts[i + 1]
         d = math.hypot(x1 - x0, y1 - y0)
-        segs.append(d)
+        segs.append((d, (x0, y0), (x1, y1)))
         total += d
     n = max(1, int(total / spacing))
     for k in range(n + 1):
-        t = k / n
-        rx, ry = _rail_lerp(pts, t)
-        for off in (-offset, offset):
-            pygame.draw.circle(surf, dark, (rx, ry + off), 2)
-            pygame.draw.circle(surf, hi, (rx - 1, ry + off - 1), 1)
+        rx, ry = _sample(pts, k / n)
+        for sign in (-1, 1):
+            pygame.draw.circle(surf, dark, (rx, ry + sign * offset), radius)
+            pygame.draw.circle(surf, hi,
+                               (rx - radius // 2, ry + sign * offset - radius // 2),
+                               max(1, radius // 2))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# "RAILS UP!" label — 4× font size, matches FloatText "powerup" style
+# ──────────────────────────────────────────────────────────────────────────────
+
+def paint_label_hires(surf, pipes):
+    """Reimplements FloatText.draw(style="powerup") at SCALE× directly so
+    the text isn't blurred by an upscale."""
+    base_col = (220, 150, 80)
+    text = "RAILS UP!"
+    size = 24 * SCALE
+
+    # Position: clear sky between pipes 1 and 2, slightly above the gap.
+    label_x = int(((pipes[0].x + PIPE_W + pipes[1].x) / 2) * SCALE)
+    label_y = int((pipes[1].gap_y - pipes[1].gap_h / 2 - 18) * SCALE)
+
+    font = pygame.font.SysFont("Arial", size, bold=True)
+    base = font.render(text, True, base_col)
+    bw, bh = base.get_size()
+
+    # Gradient fill — top 45% toward white, bottom = base.
+    light = tuple(int(base_col[i] + (255 - base_col[i]) * 0.45) for i in range(3))
+    grad = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    for y in range(bh):
+        t = y / max(1, bh - 1)
+        c = tuple(int(light[i] + (base_col[i] - light[i]) * t) for i in range(3))
+        pygame.draw.line(grad, c, (0, y), (bw, y))
+    body = base.copy()
+    body.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+    # Outline.
+    dark = tuple(max(0, c // 4) for c in base_col)
+    outline = font.render(text, True, dark)
+    off = max(2, SCALE)
+    for ox, oy in ((-off, 0), (off, 0), (0, -off), (0, off),
+                   (-off + 1, -off + 1), (-off + 1, off - 1),
+                   (off - 1, -off + 1), (off - 1, off - 1)):
+        surf.blit(outline, (label_x - bw // 2 + ox, label_y - bh // 2 + oy))
+    surf.blit(body, (label_x - bw // 2, label_y - bh // 2))
+
+    # 8 sparkles around the label.
+    cream = (250, 240, 215)
+    rng = random.Random(hash(text) & 0xFFFF)
+    for _ in range(8):
+        sx = label_x + rng.randint(-bw, bw)
+        sy = label_y + rng.randint(-bh, bh)
+        r = rng.randint(3, 6) * SCALE // 2
+        pygame.draw.circle(surf, cream, (sx, sy), r)
+        pygame.draw.circle(surf, (255, 255, 255), (sx, sy),
+                           max(1, r - SCALE // 2))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Driver
+# ──────────────────────────────────────────────────────────────────────────────
+
+def render_hires() -> pygame.Surface:
+    phase = 0.78
+    palette = biome.palette_for_phase(phase)
+    bucket = biome.phase_bucket(phase)
+
+    pipes = [Pipe(x, gy, gh) for (x, gy, gh) in PIPE_LAYOUT]
+    for p in pipes:
+        p.rail_active = True
+
+    # 1) Native base.
+    base = build_base_native(pipes, palette, bucket)
+    # 2) Smoothscale up.
+    big = pygame.transform.smoothscale(base, (W2, H2))
+    # 3) Rail at 4×.
+    paint_rail_hires(big, pipes)
+    # 4) Pip at 4×.
+    mid = pipes[1]
+    bx = (mid.x + PIPE_W / 2) * SCALE
+    by = (mid.gap_y + mid.gap_h / 2 - BIRD_R) * SCALE
+    blit_hires_bird(big, int(bx), int(by))
+    # 5) Label at 4×.
+    paint_label_hires(big, pipes)
+    return big
 
 
 def main():
-    surf = render_frame()
-    # Upscale 2× with nearest-neighbour for a crisp pixel look on GitHub.
-    big = pygame.transform.scale(surf, (W * 2, H * 2))
+    surf = render_hires()
     out = os.path.join(HERE, "04_western_trestle_real.png")
-    pygame.image.save(big, out)
-    print(f"wrote {out}")
+    pygame.image.save(surf, out)
+    print(f"wrote {out} ({surf.get_width()}x{surf.get_height()})")
 
 
 if __name__ == "__main__":
