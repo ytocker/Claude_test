@@ -500,6 +500,14 @@ class Bird:
             # Just tick the idle wing animation.
             self.frame_t = (self.frame_t + dt * 6.0)
             return
+        # Cart auto-jump: while the cart is mid-air looking for the rail,
+        # bounce upward whenever it starts falling fast. The hop is small
+        # so the cart trends downward toward the rail at a reasonable
+        # rate (~100 px/s) — it just arrives in a series of leaps instead
+        # of a straight drop. Stops the moment the wheels lock on.
+        if self.cart_active and self.vy > 260:
+            self.vy = FLAP_V * 0.2
+            self.flap_boost = 0.45
         new_vy = self.vy + GRAVITY * gravity_sign * dt
         if gravity_sign >= 0:
             self.vy = min(new_vy, MAX_FALL)

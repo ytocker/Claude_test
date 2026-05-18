@@ -29,6 +29,7 @@ from game.config import (
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT,
+    FLAP_V,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -1331,8 +1332,11 @@ class World:
         # Cart wraps Pip instantly. Gravity still applies until wheels
         # touch any rail segment; cart_locked then flips on, taps are
         # ignored, and the rail auto-drives Pip through all tagged pipes.
+        # Bird.update auto-hops the cart while airborne so the descent
+        # reads as a series of jumps; kick it off with one full leap.
         self.bird.cart_active = True
         self.bird.cart_locked = False
+        self.bird.vy = FLAP_V * 0.55
         self.shake_mag = max(self.shake_mag, 3.0)
         self.shake_t = max(self.shake_t, 0.25)
         audio.play_rail()
