@@ -5,6 +5,21 @@ aura that pulses around the bird while the powerup is in effect).
 Each shown side-by-side with the live regular Magnet field for direct
 scale comparison.
 
+## Chosen: V3 — 2.0× scale + 5 rings · in-game previews
+
+The V3 field rendered over a real gameplay frame (bird, pipes, coins,
+biome sky, weather, mountains, ground — all the real layers), paired
+with the regular Magnet on the same scene:
+
+* Side-by-side: `v3_in_game_compare.png`
+* Mega alone: `v3_in_game_mega.png`
+* Regular alone: `v3_in_game_regular.png`
+
+![V3 side-by-side in-game](v3_in_game_compare.png)
+![V3 mega in-game](v3_in_game_mega.png)
+
+---
+
 The REGULAR cell in every frame is the verbatim renderer from
 `game/scenes.py:1032-1085`: 3 nested gold rings + inner radial glow,
 all breathing on one pulse, at `MAGNET_RADIUS = 82 px`. The Mega
