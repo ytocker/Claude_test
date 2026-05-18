@@ -1,12 +1,13 @@
-"""Render 5 MEGA MAGNET icon candidates next to the live regular Magnet.
+"""Render 5 MEGA MAGNET icon candidates (Twin-Coil family) next to the
+live regular Magnet.
 
-The regular Magnet icon is rendered through the actual game code
-(`game.entities.PowerUp` with `kind="magnet"`) so every comparison
-sits next to the real in-game silhouette — no re-drawing.
+Iteration 2 — based on V3 from round 1. Direction:
+  * Twin-coil silhouette (copper windings on each leg)
+  * Overall footprint matched to the regular powerup
+  * Body arms thicker than the regular magnet
+  * No wire connector across the top of the arch
 
-Each Mega variant is a function that draws into a square cell at a
-given center. We pair each variant with the live regular icon at a
-matched pulse so the two read as the same instant of bob/crackle.
+Each variant is one treatment of the leg coils.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -32,29 +33,23 @@ os.makedirs(_OUT, exist_ok=True)
 pygame.init()
 pygame.font.init()
 
-from game.entities import PowerUp  # noqa: E402  — needs init first
+from game.entities import PowerUp  # noqa: E402
 
 
-# ── helpers ─────────────────────────────────────────────────────────────────
+# ── shared primitives ───────────────────────────────────────────────────────
 
 
-# Use the in-game sky-mid colour so every icon sits on the backdrop it
-# actually ships against. Matches `game/draw.py:SKY_MID`.
 SKY_BG = (25, 60, 130)
 
 
 def draw_regular_magnet(surf, cx, cy, pulse):
-    """Calls the live game renderer for the regular Magnet icon."""
+    """Live game renderer for the regular Magnet icon."""
     p = PowerUp(cx, cy, "magnet")
     p.pulse = pulse
     p.draw(surf)
 
 
-# ── 5 mega variants ─────────────────────────────────────────────────────────
-
-
 def _chrome_pole(surf, tip_cx, leg_bot, arm_w):
-    """Reused chrome pole tip from _draw_magnet (entities.py:1408)."""
     pygame.draw.rect(surf, (40, 42, 60),
                      (tip_cx - arm_w // 2 - 1, leg_bot - 4, arm_w + 2, 9),
                      border_radius=4)
@@ -69,325 +64,246 @@ def _chrome_pole(surf, tip_cx, leg_bot, arm_w):
 def _horseshoe_body(surf, cx, arch_cy, leg_bot, outer_r, inner_r,
                     body_col=(235, 35, 45), shadow_col=(80, 5, 8),
                     hi_col=(255, 95, 95)):
-    """Mirrors the regular _draw_magnet body construction at any size."""
+    """Same construction as game/entities.py:_draw_magnet but parametric."""
     sz = (outer_r + 4) * 2 + max(0, leg_bot - arch_cy)
     scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
     scx = sz // 2
     scy = outer_r + 4
-    # Shadow rim
     pygame.draw.circle(scratch, shadow_col, (scx, scy), outer_r + 2)
     pygame.draw.rect(scratch, shadow_col,
                      (scx - outer_r - 2, scy,
                       (outer_r + 2) * 2, leg_bot - arch_cy + 4))
-    # Body
     pygame.draw.circle(scratch, body_col, (scx, scy), outer_r + 1)
     pygame.draw.rect(scratch, body_col,
                      (scx - outer_r - 1, scy,
                       (outer_r + 1) * 2, leg_bot - arch_cy + 3))
-    # Highlight rings
     pygame.draw.circle(scratch, hi_col, (scx, scy), inner_r + 1, 2)
     pygame.draw.circle(scratch, hi_col, (scx, scy), outer_r, 2)
-    # Punch hollow
     pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), inner_r)
     pygame.draw.rect(scratch, (0, 0, 0, 0),
                      (scx - inner_r, scy, inner_r * 2, sz - scy))
     surf.blit(scratch, (cx - scx, arch_cy - scy))
 
 
-def _crackle(surf, cx, cy, pulse, count=2, span=8, thick=2):
-    """Yellow-white lightning crackle around (cx, cy)."""
-    YELLOW = (255, 220, 60)
-    WHITE = (255, 250, 220)
-    for i in range(count):
-        ang = i * (math.tau / count) + pulse * 1.3
-        pts = []
-        for k in range(4):
-            r = (k / 3) * span
-            jit = math.sin(pulse * 9 + i + k) * 2
-            pts.append((cx + math.cos(ang + jit * 0.1) * r,
-                        cy + math.sin(ang + jit * 0.1) * r + jit))
-        pygame.draw.lines(surf, YELLOW, False, pts, thick)
-        pygame.draw.lines(surf, WHITE, False, pts, max(1, thick - 1))
+def _lightning_arc(surf, left_cx, right_cx, arc_y0, pulse, segs=6):
+    pts = [(left_cx, arc_y0)]
+    for i in range(1, segs):
+        t = i / segs
+        x = int(left_cx + (right_cx - left_cx) * t)
+        y = int(arc_y0 + math.sin(pulse * 11 + i * 1.7) * 4)
+        pts.append((x, y))
+    pts.append((right_cx, arc_y0))
+    pygame.draw.lines(surf, (100, 195, 255), False, pts, 2)
 
 
-# ── V1. SCALED UP — same silhouette, ~1.6× bigger, soft red glow halo ──────
+# ── shared base geometry ────────────────────────────────────────────────────
+# Same footprint as the regular Magnet (outer_r=13) so the icon visually
+# sits in the same size class as every other powerup. Inner radius is
+# smaller (3 vs 6) — that's the "thicker" the user asked for.
+
+BASE_OUTER_R = 13
+BASE_INNER_R = 3
 
 
-def draw_mega_v1_scaled(surf, cx, cy, pulse):
-    cy = cy + int(math.sin(pulse * 1.1) * 3)
-    outer_r = 22
-    inner_r = 10
-    arch_cy = cy - 5
-    leg_bot = cy + 22
-    # Soft warm halo behind — width-1 rings stacked tight so the glow
-    # reads as a continuous gradient rather than concentric bands.
-    halo = pygame.Surface((120, 120), pygame.SRCALPHA)
-    a_peak = 24 + int(10 * (0.5 + 0.5 * math.sin(pulse * 2)))
-    halo_outer = outer_r + 22
-    halo_inner = outer_r + 3
-    for rr in range(halo_outer, halo_inner - 1, -1):
-        falloff = (rr - halo_inner) / max(1, (halo_outer - halo_inner))
-        a = int(a_peak * (1 - falloff) ** 1.6)
-        if a > 0:
-            pygame.draw.circle(halo, (255, 140, 60, a), (60, 60), rr, width=1)
-    surf.blit(halo, (cx - 60, arch_cy - 60),
-              special_flags=pygame.BLEND_RGBA_ADD)
-    _horseshoe_body(surf, cx, arch_cy, leg_bot, outer_r, inner_r)
+def _base_geom(cy, pulse):
+    cy_bob = cy + int(math.sin(pulse * 1.1) * 3)
+    arch_cy = cy_bob - 3
+    leg_bot = cy_bob + 13
+    return cy_bob, arch_cy, leg_bot
+
+
+def _common_finish(surf, cx, leg_bot, pulse,
+                   outer_r=BASE_OUTER_R, inner_r=BASE_INNER_R):
+    """Pole tips + lightning arc — identical across the 5 coil variants."""
     arm_w = outer_r - inner_r
     left_cx = cx - inner_r - arm_w // 2
     right_cx = cx + inner_r + arm_w // 2
     _chrome_pole(surf, left_cx, leg_bot, arm_w)
     _chrome_pole(surf, right_cx, leg_bot, arm_w)
-    # Lightning arc between poles, proportionally taller.
-    arc_y0 = leg_bot + 8
-    arc_pts = [(left_cx, arc_y0)]
-    for i in range(1, 8):
-        t = i / 8
-        x = int(left_cx + (right_cx - left_cx) * t)
-        y = int(arc_y0 + math.sin(pulse * 11 + i * 1.7) * 6)
-        arc_pts.append((x, y))
-    arc_pts.append((right_cx, arc_y0))
-    pygame.draw.lines(surf, (100, 195, 255), False, arc_pts, 3)
-    pygame.draw.lines(surf, (220, 240, 255), False, arc_pts, 1)
-    # Two extra crackle plumes per pole
-    for tip_cx in (left_cx, right_cx):
-        _crackle(surf, tip_cx, leg_bot + 2, pulse, count=2, span=9, thick=2)
+    _lightning_arc(surf, left_cx, right_cx, leg_bot + 6, pulse)
 
 
-# ── V2. INDUSTRIAL — broader proportions, bolt-head studs, hazard stripe ────
+# ── V1. Classic Copper — tight horizontal copper bands ─────────────────────
 
 
-def draw_mega_v2_industrial(surf, cx, cy, pulse):
-    cy = cy + int(math.sin(pulse * 1.1) * 3)
-    outer_r = 20
-    inner_r = 11
-    arch_cy = cy - 5
-    leg_bot = cy + 22
-    # Body with a darker, more "cast iron" red
-    _horseshoe_body(surf, cx, arch_cy, leg_bot, outer_r, inner_r,
-                    body_col=(200, 35, 40),
-                    shadow_col=(45, 0, 5),
-                    hi_col=(245, 110, 100))
-    # Hazard stripes diagonally across the arch (3 short angled lines)
-    for off in (-7, 0, 7):
-        x0 = cx + off - 3
-        y0 = arch_cy - outer_r + 6
-        pygame.draw.line(surf, (245, 215, 30),
-                         (x0, y0), (x0 + 6, y0 + 6), 2)
-    # Bolt-head studs around the rim — 6 small dark circles
-    for ang_deg in (135, 165, 195, 225, 255, 285):
-        ang = math.radians(ang_deg)
-        sx = cx + int(math.cos(ang) * (outer_r + 1))
-        sy = arch_cy + int(math.sin(ang) * (outer_r + 1))
-        pygame.draw.circle(surf, (35, 20, 25), (sx, sy), 2)
-        pygame.draw.circle(surf, (155, 155, 165), (sx, sy), 1)
-    # Chrome poles a bit wider
-    arm_w = outer_r - inner_r
-    left_cx = cx - inner_r - arm_w // 2
-    right_cx = cx + inner_r + arm_w // 2
-    _chrome_pole(surf, left_cx, leg_bot, arm_w + 2)
-    _chrome_pole(surf, right_cx, leg_bot, arm_w + 2)
-    # Single fat lightning arc
-    arc_y0 = leg_bot + 6
-    arc_pts = [(left_cx, arc_y0)]
-    for i in range(1, 7):
-        t = i / 7
-        x = int(left_cx + (right_cx - left_cx) * t)
-        y = int(arc_y0 + math.sin(pulse * 9 + i * 1.5) * 4)
-        arc_pts.append((x, y))
-    arc_pts.append((right_cx, arc_y0))
-    pygame.draw.lines(surf, (100, 195, 255), False, arc_pts, 3)
-
-
-# ── V3. TWIN-COIL ELECTROMAGNET — copper windings around each leg ──────────
-
-
-def draw_mega_v3_twincoil(surf, cx, cy, pulse):
-    cy = cy + int(math.sin(pulse * 1.1) * 3)
-    outer_r = 20
-    inner_r = 8
-    arch_cy = cy - 5
-    leg_bot = cy + 26
-    _horseshoe_body(surf, cx, arch_cy, leg_bot, outer_r, inner_r)
-    # Copper coil bands wrapping each leg.
-    arm_w = outer_r - inner_r
-    left_outer = cx - outer_r
-    right_inner = cx + inner_r
-    band_h = 3
+def draw_v1_copper_tight(surf, cx, cy, pulse):
+    cy_bob, arch_cy, leg_bot = _base_geom(cy, pulse)
+    _horseshoe_body(surf, cx, arch_cy, leg_bot, BASE_OUTER_R, BASE_INNER_R)
+    arm_w = BASE_OUTER_R - BASE_INNER_R
+    left_outer = cx - BASE_OUTER_R
+    right_inner = cx + BASE_INNER_R
+    band_h = 2
     gap = 1
-    band_n = 6
-    leg_top = arch_cy + 1
-    for i in range(band_n):
+    leg_top = arch_cy + 2
+    for i in range(8):
         by = leg_top + i * (band_h + gap)
-        if by + band_h > leg_bot + 3:
+        if by + band_h > leg_bot - 1:
             break
-        # Left leg
-        pygame.draw.rect(surf, (90, 45, 15),
-                         (left_outer - 1, by, arm_w + 2, band_h))
-        pygame.draw.rect(surf, (210, 130, 50),
-                         (left_outer, by, arm_w, band_h - 1))
-        pygame.draw.line(surf, (255, 200, 110),
-                         (left_outer + 1, by),
-                         (left_outer + arm_w - 2, by), 1)
-        # Right leg
-        pygame.draw.rect(surf, (90, 45, 15),
-                         (right_inner - 1, by, arm_w + 2, band_h))
-        pygame.draw.rect(surf, (210, 130, 50),
-                         (right_inner, by, arm_w, band_h - 1))
-        pygame.draw.line(surf, (255, 200, 110),
-                         (right_inner + 1, by),
-                         (right_inner + arm_w - 2, by), 1)
-    # Wire connector arcing over the top of the arch
-    wire_top = arch_cy - outer_r - 4
-    pygame.draw.line(surf, (40, 25, 10), (cx - 10, wire_top + 1),
-                     (cx + 10, wire_top + 1), 4)
-    pygame.draw.line(surf, (210, 130, 50), (cx - 10, wire_top),
-                     (cx + 10, wire_top), 2)
-    # Chrome poles + arc
-    left_cx = cx - inner_r - arm_w // 2
-    right_cx = cx + inner_r + arm_w // 2
-    _chrome_pole(surf, left_cx, leg_bot, arm_w)
-    _chrome_pole(surf, right_cx, leg_bot, arm_w)
-    arc_y0 = leg_bot + 7
-    arc_pts = [(left_cx, arc_y0)]
-    for i in range(1, 7):
-        t = i / 7
-        x = int(left_cx + (right_cx - left_cx) * t)
-        y = int(arc_y0 + math.sin(pulse * 11 + i * 1.7) * 5)
-        arc_pts.append((x, y))
-    arc_pts.append((right_cx, arc_y0))
-    pygame.draw.lines(surf, (100, 195, 255), False, arc_pts, 3)
-    pygame.draw.lines(surf, (240, 250, 255), False, arc_pts, 1)
+        for x0 in (left_outer, right_inner):
+            pygame.draw.rect(surf, (95, 50, 18), (x0, by, arm_w, band_h))
+            pygame.draw.rect(surf, (215, 135, 55),
+                             (x0, by, arm_w, max(1, band_h - 1)))
+            pygame.draw.line(surf, (255, 205, 120),
+                             (x0 + 1, by),
+                             (x0 + arm_w - 2, by), 1)
+    _common_finish(surf, cx, leg_bot, pulse)
 
 
-# ── V4. STACKED DOUBLE — two horseshoes layered for 3D depth ────────────────
+# ── V2. Chunky 3-band — 3 thick copper bands per leg with rivet dots ────────
 
 
-def draw_mega_v4_stacked(surf, cx, cy, pulse):
-    cy = cy + int(math.sin(pulse * 1.1) * 3)
-    outer_r = 18
-    inner_r = 8
-    arch_cy = cy - 4
-    leg_bot = cy + 20
-    # Two horseshoes side by side, the right one offset back+right so
-    # both silhouettes are clearly visible (not just a shadow stack).
-    offset_x = outer_r + 4
-    offset_y = 4
-    # Back horseshoe — darker, behind
-    _horseshoe_body(surf, cx + offset_x, arch_cy + offset_y,
-                    leg_bot + offset_y,
-                    outer_r, inner_r,
-                    body_col=(170, 25, 30),
-                    shadow_col=(45, 0, 0),
-                    hi_col=(210, 80, 80))
-    arm_w_back = outer_r - inner_r
-    left_cx_b = (cx + offset_x) - inner_r - arm_w_back // 2
-    right_cx_b = (cx + offset_x) + inner_r + arm_w_back // 2
-    _chrome_pole(surf, left_cx_b, leg_bot + offset_y, arm_w_back)
-    _chrome_pole(surf, right_cx_b, leg_bot + offset_y, arm_w_back)
-    # Front horseshoe — vivid, slightly forward
-    _horseshoe_body(surf, cx - offset_x // 2, arch_cy, leg_bot,
-                    outer_r, inner_r,
-                    body_col=(235, 35, 45),
-                    shadow_col=(80, 5, 8),
-                    hi_col=(255, 95, 95))
-    arm_w = outer_r - inner_r
-    left_cx = (cx - offset_x // 2) - inner_r - arm_w // 2
-    right_cx = (cx - offset_x // 2) + inner_r + arm_w // 2
-    _chrome_pole(surf, left_cx, leg_bot, arm_w)
-    _chrome_pole(surf, right_cx, leg_bot, arm_w)
-    # Lightning arc spanning BOTH magnets — outermost left pole to
-    # outermost right pole, conveying "doubled field".
-    arc_y0 = leg_bot + 8
-    span_l, span_r = left_cx, right_cx_b
-    arc_pts = [(span_l, arc_y0)]
-    for i in range(1, 9):
-        t = i / 9
-        x = int(span_l + (span_r - span_l) * t)
-        y = int(arc_y0 + math.sin(pulse * 11 + i * 1.4) * 6)
-        arc_pts.append((x, y))
-    arc_pts.append((span_r, arc_y0))
-    pygame.draw.lines(surf, (100, 195, 255), False, arc_pts, 3)
-    pygame.draw.lines(surf, (240, 250, 255), False, arc_pts, 1)
-    # Crackle at each outer pole
-    for tip in (left_cx, right_cx_b):
-        _crackle(surf, tip, leg_bot + 2, pulse, count=2, span=8, thick=2)
+def draw_v2_copper_chunky(surf, cx, cy, pulse):
+    cy_bob, arch_cy, leg_bot = _base_geom(cy, pulse)
+    _horseshoe_body(surf, cx, arch_cy, leg_bot, BASE_OUTER_R, BASE_INNER_R)
+    arm_w = BASE_OUTER_R - BASE_INNER_R
+    left_outer = cx - BASE_OUTER_R
+    right_inner = cx + BASE_INNER_R
+    leg_top = arch_cy + 2
+    leg_span = (leg_bot - 1) - leg_top
+    band_n = 3
+    band_h = 3
+    gap = (leg_span - band_n * band_h) // (band_n + 1)
+    for i in range(band_n):
+        by = leg_top + gap + i * (band_h + gap)
+        for x0 in (left_outer, right_inner):
+            pygame.draw.rect(surf, (75, 35, 12), (x0, by, arm_w, band_h))
+            pygame.draw.rect(surf, (220, 140, 60),
+                             (x0, by, arm_w, band_h - 1))
+            pygame.draw.line(surf, (255, 215, 130),
+                             (x0 + 1, by),
+                             (x0 + arm_w - 2, by), 1)
+            # Rivet dot centered in the band
+            rx = x0 + arm_w // 2
+            ry = by + band_h // 2
+            pygame.draw.circle(surf, (60, 30, 10), (rx, ry), 1)
+    _common_finish(surf, cx, leg_bot, pulse)
 
 
-# ── V5. PLASMA CROWN — orb between poles + radiating bolt corona ────────────
+# ── V3. Gold Bands — brighter palette (electroplated gold windings) ─────────
 
 
-def draw_mega_v5_plasma(surf, cx, cy, pulse):
-    cy = cy + int(math.sin(pulse * 1.1) * 3)
-    outer_r = 19
-    inner_r = 8
-    arch_cy = cy - 5
-    leg_bot = cy + 22
-    # Body
-    _horseshoe_body(surf, cx, arch_cy, leg_bot, outer_r, inner_r)
-    arm_w = outer_r - inner_r
-    left_cx = cx - inner_r - arm_w // 2
-    right_cx = cx + inner_r + arm_w // 2
-    _chrome_pole(surf, left_cx, leg_bot, arm_w)
-    _chrome_pole(surf, right_cx, leg_bot, arm_w)
-    # Plasma orb floating between the poles, breathing on pulse.
-    orb_cy = leg_bot + 9
-    orb_r = 6 + int(2 * math.sin(pulse * 3))
-    orb = pygame.Surface((orb_r * 4, orb_r * 4), pygame.SRCALPHA)
-    oc = (orb_r * 2, orb_r * 2)
-    # Outer corona
-    for i in range(8, 0, -1):
-        a = int(140 * (1 - i / 8) ** 1.2)
-        rr = int(orb_r * 2 * i / 8)
-        col = (110, 200, 255) if i > 3 else (220, 240, 255)
-        pygame.draw.circle(orb, (*col, a), oc, rr)
-    # Hot core
-    pygame.draw.circle(orb, (255, 255, 255, 240), oc, max(2, orb_r - 4))
-    surf.blit(orb, (cx - orb_r * 2, orb_cy - orb_r * 2),
+def draw_v3_gold(surf, cx, cy, pulse):
+    cy_bob, arch_cy, leg_bot = _base_geom(cy, pulse)
+    _horseshoe_body(surf, cx, arch_cy, leg_bot, BASE_OUTER_R, BASE_INNER_R)
+    arm_w = BASE_OUTER_R - BASE_INNER_R
+    left_outer = cx - BASE_OUTER_R
+    right_inner = cx + BASE_INNER_R
+    band_h = 2
+    gap = 1
+    leg_top = arch_cy + 2
+    for i in range(8):
+        by = leg_top + i * (band_h + gap)
+        if by + band_h > leg_bot - 1:
+            break
+        for x0 in (left_outer, right_inner):
+            pygame.draw.rect(surf, (130, 90, 0), (x0, by, arm_w, band_h))
+            pygame.draw.rect(surf, (255, 200, 30),
+                             (x0, by, arm_w, max(1, band_h - 1)))
+            pygame.draw.line(surf, (255, 240, 140),
+                             (x0 + 1, by),
+                             (x0 + arm_w - 2, by), 1)
+    _common_finish(surf, cx, leg_bot, pulse)
+
+
+# ── V4. Spiral Wind — visible wire spiralling around each leg ───────────────
+
+
+def draw_v4_spiral(surf, cx, cy, pulse):
+    cy_bob, arch_cy, leg_bot = _base_geom(cy, pulse)
+    _horseshoe_body(surf, cx, arch_cy, leg_bot, BASE_OUTER_R, BASE_INNER_R)
+    arm_w = BASE_OUTER_R - BASE_INNER_R
+    left_outer = cx - BASE_OUTER_R
+    right_inner = cx + BASE_INNER_R
+    leg_top = arch_cy + 2
+    leg_bottom = leg_bot - 1
+    # Render the coil as a stack of shallow ellipses — each "wrap" of the
+    # wire is one ellipse showing the leg cross-section. Front of the
+    # ellipse is bright (visible side of the wire), back is dark.
+    wraps = 5
+    for w in range(wraps):
+        t = w / max(1, wraps - 1)
+        wy = int(leg_top + t * (leg_bottom - leg_top - 2))
+        for x0 in (left_outer, right_inner):
+            # Dark back-side of the wrap (top half of the ellipse)
+            pygame.draw.ellipse(surf, (70, 35, 12),
+                                pygame.Rect(x0 - 1, wy - 1, arm_w + 2, 4))
+            # Bright front of the wrap (bottom half) — only draw the lower
+            # arc so the back stays slightly darker than the front.
+            front = pygame.Surface((arm_w + 2, 5), pygame.SRCALPHA)
+            pygame.draw.ellipse(front, (225, 145, 60),
+                                pygame.Rect(0, -2, arm_w + 2, 5))
+            surf.blit(front, (x0 - 1, wy))
+            # Highlight curve along the bottom-front of the wrap
+            pygame.draw.arc(surf, (255, 215, 140),
+                            pygame.Rect(x0, wy, arm_w, 4),
+                            math.pi, 2 * math.pi, 1)
+    _common_finish(surf, cx, leg_bot, pulse)
+
+
+# ── V5. Energized — copper bands + amber glow + spark dots ──────────────────
+
+
+def draw_v5_energized(surf, cx, cy, pulse):
+    cy_bob, arch_cy, leg_bot = _base_geom(cy, pulse)
+    # Faint amber glow behind the legs only (not the arch) — signals
+    # "current is flowing through the windings".
+    glow = pygame.Surface((50, 30), pygame.SRCALPHA)
+    a_peak = 50 + int(20 * (0.5 + 0.5 * math.sin(pulse * 4)))
+    for rr in range(14, 4, -1):
+        falloff = (14 - rr) / 10
+        a = int(a_peak * (1 - falloff) ** 1.4)
+        if a > 0:
+            pygame.draw.ellipse(glow, (255, 180, 60, a),
+                                pygame.Rect(25 - rr, 15 - rr // 2,
+                                            rr * 2, rr))
+    surf.blit(glow, (cx - 25, leg_bot - 8),
               special_flags=pygame.BLEND_RGBA_ADD)
-    # Bolts from BOTH pole tips into the orb (electric leashes)
-    for tip_cx in (left_cx, right_cx):
-        jitter = math.sin(pulse * 13 + tip_cx) * 2
-        pts = [
-            (tip_cx, leg_bot + 1),
-            (tip_cx + (cx - tip_cx) * 0.4, leg_bot + 5 + jitter),
-            (cx, orb_cy - 2),
-        ]
-        pygame.draw.lines(surf, (110, 200, 255), False, pts, 3)
-        pygame.draw.lines(surf, (240, 250, 255), False, pts, 1)
-    # 8-direction bolt corona radiating from the magnet body
-    for k in range(8):
-        ang = k * (math.tau / 8) + pulse * 0.4
-        r0 = outer_r + 2
-        r1 = outer_r + 14 + int(3 * math.sin(pulse * 5 + k))
-        x0 = cx + math.cos(ang) * r0
-        y0 = arch_cy + math.sin(ang) * r0
-        mx = cx + math.cos(ang) * (r0 + r1) * 0.55
-        my = arch_cy + math.sin(ang) * (r0 + r1) * 0.55
-        x1 = cx + math.cos(ang) * r1
-        y1 = arch_cy + math.sin(ang) * r1
-        jit_x = math.sin(pulse * 7 + k) * 1.5
-        jit_y = math.cos(pulse * 7 + k) * 1.5
-        pts = [(x0, y0), (mx + jit_x, my + jit_y), (x1, y1)]
-        pygame.draw.lines(surf, (255, 220, 60), False, pts, 2)
-        pygame.draw.lines(surf, (255, 250, 220), False, pts, 1)
+    _horseshoe_body(surf, cx, arch_cy, leg_bot, BASE_OUTER_R, BASE_INNER_R)
+    arm_w = BASE_OUTER_R - BASE_INNER_R
+    left_outer = cx - BASE_OUTER_R
+    right_inner = cx + BASE_INNER_R
+    band_h = 2
+    gap = 1
+    leg_top = arch_cy + 2
+    bands = []
+    for i in range(8):
+        by = leg_top + i * (band_h + gap)
+        if by + band_h > leg_bot - 1:
+            break
+        for x0 in (left_outer, right_inner):
+            pygame.draw.rect(surf, (95, 50, 18), (x0, by, arm_w, band_h))
+            pygame.draw.rect(surf, (215, 135, 55),
+                             (x0, by, arm_w, max(1, band_h - 1)))
+            pygame.draw.line(surf, (255, 215, 130),
+                             (x0 + 1, by),
+                             (x0 + arm_w - 2, by), 1)
+            bands.append((x0, by))
+    # Pulsing spark dots — appear on one band per leg, cycling on pulse
+    if bands:
+        per_leg = len(bands) // 2
+        if per_leg > 0:
+            idx = int(pulse * 3) % per_leg
+            for leg_i in range(2):
+                bx, by = bands[leg_i * per_leg + idx]
+                sx = bx + arm_w // 2
+                sy = by + band_h // 2
+                pygame.draw.circle(surf, (255, 250, 200), (sx, sy), 2)
+                pygame.draw.circle(surf, (255, 220, 60), (sx, sy), 1)
+    _common_finish(surf, cx, leg_bot, pulse)
 
 
 # ── compositing ─────────────────────────────────────────────────────────────
 
 
 VARIANTS = (
-    ("v1_scaled",      "MEGA — Scaled Up",     draw_mega_v1_scaled),
-    ("v2_industrial",  "MEGA — Industrial",    draw_mega_v2_industrial),
-    ("v3_twincoil",    "MEGA — Twin-Coil",     draw_mega_v3_twincoil),
-    ("v4_stacked",     "MEGA — Stacked Dual",  draw_mega_v4_stacked),
-    ("v5_plasma",      "MEGA — Plasma Crown",  draw_mega_v5_plasma),
+    ("v1_copper_tight",  "MEGA — Copper Tight",  draw_v1_copper_tight),
+    ("v2_copper_chunky", "MEGA — Copper Chunky", draw_v2_copper_chunky),
+    ("v3_gold",          "MEGA — Gold Bands",    draw_v3_gold),
+    ("v4_spiral",        "MEGA — Spiral Wind",   draw_v4_spiral),
+    ("v5_energized",     "MEGA — Energized",     draw_v5_energized),
 )
 
 
-# Cell layout. Each comparison frame is 360×220:
-#   [ regular | mega ] icons each in a 180×170 cell, with a label band
-#   at the bottom (50 px) per cell.
 CELL_W = 180
 CELL_H = 170
 BAND_H = 50
@@ -396,8 +312,6 @@ FRAME_H = CELL_H + BAND_H
 
 
 def _cell_bg(cell):
-    # Vertical sky gradient swatch — same colour family as `game/draw.py`
-    # so each icon sits on the backdrop it actually ships against.
     top = (40, 90, 160)
     bot = (18, 45, 105)
     for y in range(CELL_H):
@@ -423,20 +337,15 @@ def _label(surf, x, y, w, h, line1, line2=None):
 
 
 def render_comparison(title, draw_mega):
-    """One 360×220 side-by-side frame: regular vs this variant."""
     frame = pygame.Surface((FRAME_W, FRAME_H))
-    # Two icon cells
     for ci, drawer in enumerate((
             lambda s, cx, cy: draw_regular_magnet(s, cx, cy, pulse=1.2),
             lambda s, cx, cy: draw_mega(s, cx, cy, pulse=1.2))):
         cell = pygame.Surface((CELL_W, CELL_H))
         _cell_bg(cell)
-        # Icon centered horizontally, biased upward so lightning sits low
         drawer(cell, CELL_W // 2, CELL_H // 2 - 8)
         frame.blit(cell, (ci * CELL_W, 0))
-    # Divider line between cells
     pygame.draw.line(frame, (10, 20, 40), (CELL_W, 0), (CELL_W, CELL_H), 2)
-    # Labels
     _label(frame, 0, CELL_H, CELL_W, BAND_H,
            "REGULAR", "current magnet (game/entities.py)")
     _label(frame, CELL_W, CELL_H, CELL_W, BAND_H, title)
@@ -444,7 +353,6 @@ def render_comparison(title, draw_mega):
 
 
 def render_contact_sheet():
-    """Single column: 5 comparison frames stacked vertically."""
     sheet = pygame.Surface((FRAME_W, FRAME_H * len(VARIANTS) + 2 * (len(VARIANTS) - 1)))
     sheet.fill((5, 10, 20))
     for i, (_slug, title, fn) in enumerate(VARIANTS):

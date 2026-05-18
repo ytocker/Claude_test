@@ -1,50 +1,48 @@
-# Mega Magnet — icon candidates
+# Mega Magnet — icon candidates (round 2)
 
-Five candidate icons for the **Mega Magnet** upgrade, each shown
-next to the live regular Magnet icon for direct comparison.
+Round-2 candidates building on round 1's V3 (Twin-Coil). Direction
+locked in for this round:
 
-The "REGULAR" cell in every comparison is rendered through the real
-game code (`PowerUp(kind="magnet").draw()` in `game/entities.py:1364`),
-not redrawn — so what you see is exactly what currently spawns in
-gameplay. The Mega variant in the right cell uses the same horseshoe
-primitives at scaled-up dimensions.
+* Twin-coil silhouette — copper-style windings on each leg
+* Overall footprint matched to the regular powerup (same `outer_r`)
+* Body arms thicker than the regular magnet (`inner_r` 3 vs 6)
+* No wire connector across the top of the arch
 
-Effect / pickup animation is **not** part of this round — only the
-pickup-icon silhouette.
+Five variations of the coil treatment itself. Effect / pickup
+animation still out of scope for this round.
 
 ## Variants
 
-Side-by-side (REGULAR | MEGA) on the live sky-mid background colour
-(`game/draw.py:SKY_MID = (25, 60, 130)`).
+Each frame is REGULAR | MEGA. The REGULAR cell is rendered through
+the live game code (`PowerUp(kind="magnet").draw()`,
+`game/entities.py:1364`).
 
-### V1 — Scaled Up
-![Scaled Up](v1_scaled.png)
-Same horseshoe geometry, 1.7× linear scale, soft warm-orange halo behind.
-The simplest "more powerful" read — same idea, bigger field.
+### V1 — Copper Tight
+![Copper Tight](v1_copper_tight.png)
+Eight narrow copper bands tightly stacked on each leg. Reads as
+"densely wound electromagnet".
 
-### V2 — Industrial
-![Industrial](v2_industrial.png)
-Broader, beefier proportions with a yellow-black hazard stripe across
-the arch and six bolt-head studs around the rim. Cast-iron palette
-(darker shadow, slightly desaturated red). Reads as "heavy-duty".
+### V2 — Copper Chunky
+![Copper Chunky](v2_copper_chunky.png)
+Three fat copper bands per leg with a dark rivet dot centered in
+each band. Industrial / heavy-duty feel.
 
-### V3 — Twin-Coil
-![Twin-Coil](v3_twincoil.png)
-Standard-ish horseshoe with copper coil windings wrapping each leg and
-a wire connector arcing over the top. Reads as a real electromagnet —
-"this one has windings, the regular one is just a fridge magnet".
+### V3 — Gold Bands
+![Gold Bands](v3_gold.png)
+Same tight-band layout as V1 but in a brighter electroplated-gold
+palette. Pops harder against the blue sky background.
 
-### V4 — Stacked Dual
-![Stacked Dual](v4_stacked.png)
-Two horseshoes paired side-by-side (back one darker, offset for depth)
-with a single lightning arc spanning all four poles. Reads as
-"double magnet = double pull".
+### V4 — Spiral Wind
+![Spiral Wind](v4_spiral.png)
+Bands rendered as flat ellipses with a darker back-arc and a brighter
+front-arc, so each "wrap" reads as a 3D coil of wire wound around the
+leg rather than a stack of flat rings.
 
-### V5 — Plasma Crown
-![Plasma Crown](v5_plasma.png)
-Standard horseshoe with eight crackling lightning bolts radiating
-outward from the body and a hot plasma orb suspended between the
-poles. Reads as "the field is overflowing".
+### V5 — Energized
+![Energized](v5_energized.png)
+V1's copper bands plus a soft amber glow under the legs and a
+travelling spark dot that cycles through the bands on the pulse —
+signals "current is flowing through the windings".
 
 ## Contact sheet
 
@@ -56,7 +54,3 @@ poles. Reads as "the field is overflowing".
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
     python tools/render_mega_magnet_icon_candidates.py
 ```
-
-The renderer imports `game.entities.PowerUp` for the regular cell and
-reuses the same horseshoe-body / chrome-pole / lightning-arc primitives
-for the Mega variants — no PNG sprites.
