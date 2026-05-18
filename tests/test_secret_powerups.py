@@ -154,7 +154,7 @@ def test_lottery_bust_capped_at_zero():
     w.ready_t = 0
     w.score = 10
     w.lottery_anim = {
-        "t": 0.0, "tier": "BUST", "delta": -25,
+        "t": 0.0, "tier": "BUST", "delta": -50,
         "x": 100, "y": 100, "applied": False,
     }
     w._apply_lottery_result()
