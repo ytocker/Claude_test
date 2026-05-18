@@ -77,21 +77,22 @@ def _shift(pts, ox, oy):
 
 
 def _stem_polygon(w, h):
-    """Generic bulbed-ivory stem at supersample. `(w, h)` are display px;
-    the polygon is auto-scaled so the routine works for slim, fat, short,
-    or tall stems."""
-    # Profile keyed off the GROW silhouette but parameterised:
-    #   neck at (0.40 w, 0)..(0.60 w, 0), bulb at (0.10..0.90 w, 0.85 h),
-    #   bottom at (0.50 w, 1.0 h). Mid-waist at (0.35, 0.55) and
-    #   (0.65, 0.55) so slim stems stay slim and fat stems flare.
+    """Generic bulbed-ivory stem at supersample with a FLAT bottom edge —
+    the bulb still flares mid-stem but the base is a horizontal line
+    instead of tapering to a point, so the mushroom sits squarely on
+    the world rather than balancing on a single tip. `(w, h)` are
+    display px; the polygon auto-scales for slim/fat/short/tall stems."""
     pts = [
-        (0.40 * w, 0.00 * h),
-        (0.60 * w, 0.00 * h),
-        (0.66 * w, 0.55 * h),
-        (0.78 * w, 0.85 * h),
-        (0.50 * w, 1.00 * h),
-        (0.22 * w, 0.85 * h),
-        (0.34 * w, 0.55 * h),
+        (0.42 * w, 0.00 * h),      # top-left (narrow neck)
+        (0.58 * w, 0.00 * h),
+        (0.66 * w, 0.40 * h),      # waist-right
+        (0.78 * w, 0.66 * h),      # mid bulb right
+        (0.96 * w, 0.88 * h),      # flared base shoulder right
+        (0.96 * w, 1.00 * h),      # flat base right (widest point)
+        (0.04 * w, 1.00 * h),      # flat base left
+        (0.04 * w, 0.88 * h),
+        (0.22 * w, 0.66 * h),      # mid bulb left
+        (0.34 * w, 0.40 * h),      # waist-left
     ]
     return [(int(x * SS), int(y * SS)) for (x, y) in pts]
 
@@ -418,7 +419,7 @@ def variant_puffball():
 
 def variant_pancake():
     CAP_W, CAP_H = 30, 8
-    STEM_W, STEM_H = 10, 22
+    STEM_W, STEM_H = 14, 22
     sprite_w = max(CAP_W, STEM_W) + 2
     sprite_h = CAP_H + STEM_H + 4
     big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
@@ -448,13 +449,18 @@ def variant_pancake():
                                     (CAP_W - 2) * SS,
                                     int(CAP_H * SS * 0.55)))
 
-    # Spots: 5 across in a single row.
-    for k in range(5):
-        fx_frac = 0.14 + 0.18 * k
-        fy_frac = 0.45 + (0.06 if k % 2 else -0.04)
+    # Spots: 4 cream-butter spots in a GROW-style scatter (asymmetric so
+    # they don't read as a uniform grid). Cream colour + halo + glint
+    # rendering matches the canonical GROW spot exactly.
+    for fx_frac, fy_frac in (
+        (0.18, 0.48),
+        (0.40, 0.30),
+        (0.62, 0.55),
+        (0.82, 0.36),
+    ):
         fx = cap_ox + int(CAP_W * fx_frac * SS)
         fy = cap_oy + int(CAP_H * fy_frac * SS)
-        _draw_spot(big, fx, fy, 1.5, SPOT_TEAL)
+        _draw_spot(big, fx, fy, 1.7, SPOT_CREAM)
 
     return _finalize(big, sprite_w, sprite_h), CAP_H
 
@@ -540,7 +546,7 @@ def main():
         ("V2 tower",     "tall cone  ·  ice-blue",   variant_tower),
         ("V3 twin-bud",  "cap+bud  ·  cream",        variant_twin_bud),
         ("V4 puffball",  "round ball  ·  magenta",   variant_puffball),
-        ("V5 pancake",   "flat disc  ·  teal",       variant_pancake),
+        ("V5 pancake",   "flat disc  ·  cream (picked)", variant_pancake),
     )
     variant_cells = []
     variant_sprites = {}
