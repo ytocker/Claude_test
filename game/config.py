@@ -106,16 +106,20 @@ TREASURE_BOX_DURATION       = 8.0
 TREASURE_BOX_COINS_PER_FLAP = 2
 VACUUM_TRAVEL_TIME    = 0.4
 
-# Lottery tiers: (label, weight, coin_delta). Slight positive EV (~+10) so it
-# feels rewarding overall, but loss tiers add real tension. Losses cap at
-# current score (can't go negative).
+# Lottery tiers: (label, weight, coin_delta). NOTHING is the modal
+# outcome (35 %); roughly 37 % of spins win, 28 % lose, 35 % zero. With
+# BUST at -50 a deep loss wipes ~7 average spins of progress, which
+# makes the gamble feel real instead of a guaranteed payday. EV per
+# spin works out to +6.8 coins — slightly positive so the powerup is
+# rewarding overall. Losses still cap at the player's current score so
+# total coins never go negative (see World._apply_lottery_result).
 LOTTERY_TIERS = (
     ("JACKPOT",  5,  100),
-    ("BIG WIN", 15,   40),
-    ("WIN",     30,   15),
-    ("NOTHING", 15,    0),
-    ("LOSS",    25,  -10),
-    ("BUST",    10,  -25),
+    ("BIG WIN", 12,   40),
+    ("WIN",     20,   15),
+    ("NOTHING", 35,    0),
+    ("LOSS",    20,  -10),
+    ("BUST",     8,  -50),
 )
 LOTTERY_REVEAL_TIME   = 1.0
 

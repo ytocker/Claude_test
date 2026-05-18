@@ -16,6 +16,7 @@ from game import audio
 from game import play_log
 from game.config import BIRD_X, SCROLL_BASE
 from game import intro as _intro
+from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
@@ -188,48 +189,10 @@ def _draw_trestle_rail(surf, pts):
         pygame.draw.lines(surf, col, False, shifted, w)
 
 
-def _draw_lottery_reveal(surf, anim):
-    """Slot-reel tile-roll animation for the LOTTERY card. Shows over the
-    bird until ~1.2s after reveal."""
-    from game.config import LOTTERY_REVEAL_TIME
-    t = anim["t"]
-    cx, cy = int(anim["x"]), int(anim["y"] - 50)
-    # Card backdrop
-    w, h = 80, 36
-    card = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.rect(card, (40, 25, 5, 240),
-                     pygame.Rect(0, 0, w, h), border_radius=5)
-    pygame.draw.rect(card, (200, 160, 50, 240),
-                     pygame.Rect(2, 2, w - 4, h - 4), border_radius=4)
-    if t < LOTTERY_REVEAL_TIME:
-        # Spinning reels — 3 tile slots with cycling glyphs.
-        glyphs = ("?", "$", "★", "?", "$", "★", "?", "$")
-        for i in range(3):
-            slot_x = 8 + i * 22
-            # Each reel ticks at a different rate
-            idx = int((t * (8 + i * 2)) + i) % len(glyphs)
-            ch = glyphs[idx]
-            try:
-                f = _font(14, True)
-                txt = f.render(ch, True, (50, 30, 10))
-                card.blit(txt, txt.get_rect(center=(slot_x + 10, h // 2)))
-            except Exception:
-                pass
-    else:
-        # Reveal: show the tier label centered in the card.
-        try:
-            f = _font(13, True)
-            tier = anim["tier"]
-            delta = anim["delta"]
-            sign = "+" if delta > 0 else ""
-            label = f"{tier} {sign}{delta}" if delta != 0 else tier
-            color = (50, 200, 50) if delta > 0 else \
-                    ((220, 60, 50) if delta < 0 else (60, 60, 60))
-            txt = f.render(label, True, color)
-            card.blit(txt, txt.get_rect(center=(w // 2, h // 2)))
-        except Exception:
-            pass
-    surf.blit(card, (cx - w // 2, cy - h // 2))
+# LOTTERY reveal lives in game/lottery_slot.py — see draw_reveal. The
+# old in-place tile-roll over the bird was replaced with a polished
+# top-left slot-machine cabinet (~118x86 px) so the animation sits in
+# the HUD corner instead of the pillar-approach lane.
 
 
 STATE_MENU = 0
