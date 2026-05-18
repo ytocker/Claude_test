@@ -537,8 +537,8 @@ def main():
                   halo_color=(180, 90, 110), halo_radius=46,
                   label="GROW (reference)"),
         _ref_cell(shrink_sprite, shrink_dx, shrink_dy,
-                  halo_color=(80, 220, 230), halo_radius=36,
-                  label="SHRINK (current)"),
+                  halo_color=HALO_RGB, halo_radius=40,
+                  label="SHRINK (live)"),
     )
 
     builders = (
