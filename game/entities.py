@@ -2101,6 +2101,79 @@ class Particle:
         surf.blit(s, (int(self.x - rr - 1), int(self.y - rr - 1)), special_flags=pygame.BLEND_ADD)
 
 
+# ── TreasureCoinParticle ─────────────────────────────────────────────────────
+
+class TreasureCoinParticle:
+    """Spinning gold doubloon that pops up out of the treasure box on
+    each flap, arcs upward briefly, then falls back under gravity. The
+    score gain happens instantly in World — this is pure visual feedback
+    so the player SEES the coins they just earned jump out of the lid."""
+
+    __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "spin", "spin_rate", "r")
+
+    def __init__(self, x, y, vx, vy, *, life=0.65, r=7, spin_rate=8.0):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.life = life
+        self.life_max = life
+        # Random starting spin phase so the 2 coins from a single flap
+        # aren't squeezed to the same width.
+        self.spin = random.uniform(0, math.tau)
+        self.spin_rate = spin_rate
+        self.r = r
+
+    def update(self, dt):
+        # Slightly lighter than the default Particle gravity (900) so the
+        # coin hangs at the apex a beat longer — reads as a deliberate
+        # "pop" rather than a quick toss.
+        self.vy += 760.0 * dt
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.spin += self.spin_rate * dt
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        from game.draw import COIN_DARK, COIN_LIGHT, lerp_color
+        t = max(0.0, self.life / self.life_max)
+        # Hold full alpha for the first half of life, then fade.
+        alpha = int(255 * min(1.0, t * 2.0))
+        r = self.r
+        # Spinning squeeze on the horizontal axis (same recipe as the
+        # in-world Coin sprite — keeps the look consistent).
+        cos_s = math.cos(self.spin)
+        squeeze = max(0.12, abs(cos_s))
+        w = max(2, int(r * 2 * squeeze))
+        h = r * 2
+        disc = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
+        # Dark outline
+        pygame.draw.ellipse(disc, (12, 6, 4, alpha),
+                            pygame.Rect(0, 0, w + 2, h + 2))
+        # Rope-rim
+        pygame.draw.ellipse(disc, (*COIN_DARK, alpha),
+                            pygame.Rect(1, 1, w, h))
+        # Vertical-gradient face
+        inner = pygame.Rect(2, 2, max(0, w - 2), max(0, h - 2))
+        if inner.w > 0 and inner.h > 0:
+            for y in range(inner.h):
+                ti = y / max(1, inner.h - 1)
+                col = lerp_color(COIN_LIGHT, COIN_DARK, ti)
+                pygame.draw.line(disc, (*col, alpha),
+                                 (inner.x, inner.y + y),
+                                 (inner.x + inner.w - 1, inner.y + y))
+            # Top sheen arc when the coin is close to face-on
+            if abs(cos_s) > 0.5 and inner.w >= 4:
+                pygame.draw.arc(disc, (255, 235, 150, alpha),
+                                pygame.Rect(2, 2, inner.w, inner.h - 2),
+                                math.radians(40), math.radians(140), 1)
+        surf.blit(disc, (int(self.x) - disc.get_width() // 2,
+                         int(self.y) - disc.get_height() // 2))
+
+
 # ── CloudPuff ────────────────────────────────────────────────────────────────
 
 class CloudPuff:

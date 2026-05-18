@@ -32,6 +32,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
+    TreasureCoinParticle,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -929,26 +930,33 @@ class World:
         gain = base * mult
         self.score += gain
         self._proof.record(self.time_alive, gain, "treasure_box")
-        # Spawn position: where the chest is rendered (below Pip's belly).
+        # Spawn position: top of the chest where the lid seam sits, so
+        # the coins look like they're popping out of the lid.
         cx = self.bird.x + 4
-        cy = self.bird.y + 56
-        # Quick gold/cream burst at the chest
-        for _ in range(8):
-            ang = random.uniform(0, math.tau)
-            spd = random.uniform(80, 200)
-            col = random.choice((UI_GOLD, UI_ORANGE, UI_CREAM, WHITE))
-            self.particles.append(Particle(
-                cx, cy - 8,
-                math.cos(ang) * spd, math.sin(ang) * spd - 60,
-                random.uniform(0.4, 0.8),
-                random.randint(2, 4),
-                col, gravity=420,
+        cy = self.bird.y + 56 - 9   # body.y of the chest (lid-body seam)
+        # Spawn one TreasureCoinParticle per coin earned. They pop UP
+        # out of the lid with a fan-out spread, arc, and fall back
+        # under gravity. The score gain has already been applied above
+        # — these are pure visual feedback so the player SEES the coins.
+        for i in range(gain):
+            # Even horizontal spread across the cluster, plus jitter.
+            if gain == 1:
+                spread = 0.0
+            else:
+                spread = (i / (gain - 1) - 0.5) * 36  # ±18 px across the fan
+            vx0 = spread * 4.5 + random.uniform(-25, 25)
+            vy0 = random.uniform(-280, -210)
+            self.particles.append(TreasureCoinParticle(
+                cx + spread * 0.4, cy,
+                vx0, vy0,
+                life=0.65,
+                spin_rate=random.uniform(6.0, 10.0),
             ))
         # Float text — "+N" rising above the chest. Match the +1/+3
         # gradient-fill-and-outline style used by normal coin pickups.
         color = UI_ORANGE if mult == 3 else UI_GOLD
         self.float_texts.append(FloatText(
-            f"+{gain}", cx, cy - 18, color,
+            f"+{gain}", cx, cy - 12, color,
             size=24, life=0.7, vy=-50, style="powerup",
         ))
         audio.play_coin()
