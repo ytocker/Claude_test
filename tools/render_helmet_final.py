@@ -131,7 +131,7 @@ def main():
                (12, 12 + zh))
     sheet.blit(_label_band(zw, "AFTER",
                            "punk_mohawk_side — side-view dome, "
-                           "single fin + strap, anchor (+20, -20)",
+                           "single fin + strap, anchor (+18, -18)",
                            height=band_h),
                (12 + zw + gap, 12 + zh))
     sheet_path = os.path.join(_OUT, "FINAL_before_after.png")

@@ -1185,13 +1185,15 @@ class Bird:
         pygame.draw.line(helm, (60, 60, 70), rear, buckle, 2)
         pygame.draw.circle(helm, (200, 50, 50), buckle, 2)
 
-        # Anchor (+20, -20) — chosen by iteration so the helmet sits
-        # naturally on Pip's crown. Rotates with tilt so the helmet
-        # banks with Pip and carries backflip spin. Reverse-gravity
-        # flips both the y-offset sign and the sprite.
+        # Anchor (+18, -18) — chosen by iteration so the helmet sits
+        # naturally on Pip's crown: rim rests at the top of the
+        # sunglasses, dome covers the crown, mohawk fin clearly
+        # visible above the head silhouette. Rotates with tilt so
+        # the helmet banks with Pip and carries backflip spin.
+        # Reverse-gravity flips both the y-offset sign and the sprite.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        y_off = 20 * s if flipped else -20 * s
-        offset = pygame.math.Vector2(20 * s, y_off)
+        y_off = 18 * s if flipped else -18 * s
+        offset = pygame.math.Vector2(18 * s, y_off)
         offset = offset.rotate(-tilt)
         rotated = pygame.transform.rotate(helm, tilt)
         if flipped:
