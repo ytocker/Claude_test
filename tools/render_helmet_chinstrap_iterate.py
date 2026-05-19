@@ -880,17 +880,41 @@ def cs_h5_bhsi_lighter(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
+def _h4_variant_at(fa_x, ra_x, jx, cx):
+    """H4-style chinstrap (BHSI V + adjuster + clip) at the given
+    x positions. Y positions fixed."""
+    def fn(bird, surf, scx, scy, flipped):
+        helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+        _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+        rim_y = pad + hh + 1
+        _bhsi_chinstrap(
+            helm,
+            front_anchor=(fa_x, rim_y),
+            rear_anchor=(ra_x, rim_y),
+            junction=(jx, 30),
+            clip_centre=(cx, 37),
+            strap_w=2,
+            draw_adjuster=True,
+        )
+        _anchor_and_blit(bird, surf, helm, scx, scy, flipped)
+    return fn
+
+
+# H4 used (fa=12, ra=6, jx=9, cx=13). The lens left edge is at
+# surface x=11. The user wants the strap moved left so it stays on
+# the red feathers (x ≤ 11) and never touches the lens. Five
+# progressive left shifts.
 CHINSTRAP_VARIANTS = [
-    ("H1_bhsi_basic",      cs_h1_bhsi_basic,
-     "H1: BHSI-correct V — front strap crosses temple (lens↔ear)"),
-    ("H2_bhsi_thicker",    cs_h2_bhsi_thicker,
-     "H2: H1 with 3-px straps (more visible)"),
-    ("H3_bhsi_adjuster",   cs_h3_bhsi_with_adjuster,
-     "H3: H1 + plastic adjuster slider at V-junction"),
-    ("H4_bhsi_lens_bite",  cs_h4_bhsi_lens_bite,
-     "H4: H3 with front anchor +1 (strap crosses back of lens)"),
-    ("H5_bhsi_lighter",    cs_h5_bhsi_lighter,
-     "H5: H3 with lighter grey strap (90,90,105)"),
+    ("L1_h4_minus_1",         _h4_variant_at(fa_x=11, ra_x=5, jx=8, cx=12),
+     "L1: H4 shifted 1 px left (whole strap)"),
+    ("L2_h4_minus_2",         _h4_variant_at(fa_x=10, ra_x=4, jx=7, cx=11),
+     "L2: H4 shifted 2 px left (whole strap)"),
+    ("L3_h4_minus_3",         _h4_variant_at(fa_x=9,  ra_x=3, jx=6, cx=10),
+     "L3: H4 shifted 3 px left (boldly behind lens)"),
+    ("L4_front_left_clip_fwd", _h4_variant_at(fa_x=10, ra_x=4, jx=7, cx=13),
+     "L4: strap path 2 left, clip back at original (angles forward)"),
+    ("L5_only_front_left",    _h4_variant_at(fa_x=10, ra_x=6, jx=9, cx=13),
+     "L5: only front anchor shifted left (rear + clip stay)"),
 ]
 
 
