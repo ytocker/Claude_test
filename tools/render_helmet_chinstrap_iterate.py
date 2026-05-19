@@ -766,17 +766,131 @@ def cs_g5_thick_lighter(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
+def _bhsi_chinstrap(helm, front_anchor, rear_anchor, junction,
+                    clip_centre, strap_col=(15, 15, 22), strap_w=2,
+                    draw_adjuster=False):
+    """BHSI-correct chinstrap: front strap visibly crosses the temple
+    between the lens and the ear, rear strap drops behind the ear,
+    both meet at a V-junction below+forward of the ear, single
+    strap continues to buckle at the throat."""
+    OUT     = (15, 15, 22)
+    CHROME  = (200, 200, 210)
+    BUCKLE  = (200, 50, 50)
+    pygame.draw.line(helm, strap_col, front_anchor, junction, strap_w)
+    pygame.draw.line(helm, strap_col, rear_anchor,  junction, strap_w)
+    pygame.draw.line(helm, strap_col, junction, clip_centre, strap_w)
+    if draw_adjuster:
+        adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
+        pygame.draw.rect(helm, (30, 30, 40), adj)
+        pygame.draw.rect(helm, CHROME, adj, 1)
+    clip = pygame.Rect(clip_centre[0] - 2, clip_centre[1] - 2, 5, 4)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT,
+                     (clip.x + 2, clip.y),
+                     (clip.x + 2, clip.bottom - 1), 1)
+
+
+def cs_h1_bhsi_basic(bird, surf, cx, cy, flipped):
+    """H1 — BHSI-correct anatomy. Front anchor above the eye, rear
+    anchor at back of helmet, V-junction below+forward of ear,
+    buckle at throat. Front strap crosses the temple between lens
+    and ear."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    rim_y = pad + hh + 1
+    _bhsi_chinstrap(
+        helm,
+        front_anchor=(11, rim_y),
+        rear_anchor=(6, rim_y),
+        junction=(9, 30),
+        clip_centre=(13, 37),
+        strap_w=2,
+    )
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_h2_bhsi_thicker(bird, surf, cx, cy, flipped):
+    """H2 — H1 with 3-px straps (more visible)."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    rim_y = pad + hh + 1
+    _bhsi_chinstrap(
+        helm,
+        front_anchor=(11, rim_y),
+        rear_anchor=(6, rim_y),
+        junction=(9, 30),
+        clip_centre=(13, 37),
+        strap_w=3,
+    )
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_h3_bhsi_with_adjuster(bird, surf, cx, cy, flipped):
+    """H3 — H1 with a plastic adjuster slider at the V-junction."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    rim_y = pad + hh + 1
+    _bhsi_chinstrap(
+        helm,
+        front_anchor=(11, rim_y),
+        rear_anchor=(6, rim_y),
+        junction=(9, 30),
+        clip_centre=(13, 37),
+        strap_w=2,
+        draw_adjuster=True,
+    )
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_h4_bhsi_lens_bite(bird, surf, cx, cy, flipped):
+    """H4 — Front anchor moved 1 px right so the strap clearly
+    crosses the back edge of the lens on its way to the V-junction."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    rim_y = pad + hh + 1
+    _bhsi_chinstrap(
+        helm,
+        front_anchor=(12, rim_y),
+        rear_anchor=(6, rim_y),
+        junction=(9, 30),
+        clip_centre=(13, 37),
+        strap_w=2,
+        draw_adjuster=True,
+    )
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_h5_bhsi_lighter(bird, surf, cx, cy, flipped):
+    """H5 — H3 with lighter grey strap (90,90,105) for visibility
+    on Pip's red feathers."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    rim_y = pad + hh + 1
+    _bhsi_chinstrap(
+        helm,
+        front_anchor=(11, rim_y),
+        rear_anchor=(6, rim_y),
+        junction=(9, 30),
+        clip_centre=(13, 37),
+        strap_col=(90, 90, 105),
+        strap_w=2,
+        draw_adjuster=True,
+    )
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
 CHINSTRAP_VARIANTS = [
-    ("G1_single_thin",     cs_g1_single_thin,
-     "G1: single 2-px dark strap, rim → chin (clean)"),
-    ("G2_single_thick",    cs_g2_single_thick,
-     "G2: single 3-px dark strap"),
-    ("G3_lighter_grey",    cs_g3_lighter_grey,
-     "G3: 2-px lighter grey (90,90,105) — pops against red"),
-    ("G4_outlined_strap",  cs_g4_outlined_strap,
-     "G4: 3-px outline + 1-px lighter core (volumetric rope)"),
-    ("G5_thick_lighter",   cs_g5_thick_lighter,
-     "G5: 3-px lighter grey — boldest"),
+    ("H1_bhsi_basic",      cs_h1_bhsi_basic,
+     "H1: BHSI-correct V — front strap crosses temple (lens↔ear)"),
+    ("H2_bhsi_thicker",    cs_h2_bhsi_thicker,
+     "H2: H1 with 3-px straps (more visible)"),
+    ("H3_bhsi_adjuster",   cs_h3_bhsi_with_adjuster,
+     "H3: H1 + plastic adjuster slider at V-junction"),
+    ("H4_bhsi_lens_bite",  cs_h4_bhsi_lens_bite,
+     "H4: H3 with front anchor +1 (strap crosses back of lens)"),
+    ("H5_bhsi_lighter",    cs_h5_bhsi_lighter,
+     "H5: H3 with lighter grey strap (90,90,105)"),
 ]
 
 
