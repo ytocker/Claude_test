@@ -194,6 +194,17 @@ SECRET_POWERUP_WEIGHTS = (
 TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 TEST_START_AT_NIGHT          = True  # start at NIGHT biome so nightglow is eligible
 
+# Forced-spawn pool used during the test-mode window. Includes every
+# secret in SECRET_POWERUP_WEIGHTS PLUS vacuum (which lives in the
+# normal POWERUP_WEIGHTS pool but is one of the powerups this branch
+# wants QA to verify alongside the secrets). Equal weight per kind so
+# the 15-pillar window samples each at least once with reasonable
+# probability.
+TEST_FORCED_KINDS = (
+    "skateboard", "shrink", "heist", "rail",
+    "nightglow", "lottery", "phoenix", "vacuum",
+)
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without

@@ -30,7 +30,7 @@ from game.config import (
     RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
-    TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT,
+    TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT, TEST_FORCED_KINDS,
     FLAP_V,
 )
 from game.entities import (
@@ -416,14 +416,14 @@ class World:
             ))
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
-        # v5_powerups TEST MODE: first N pillars guarantee a secret
-        # powerup with no cooldown so QA can verify every secret quickly.
-        # Bypasses the score>=500 gate AND the nightglow biome gate.
+        # v5_powerups TEST MODE: first N pillars guarantee a forced
+        # pickup with no cooldown so QA can verify every revised
+        # powerup quickly. Pool is TEST_FORCED_KINDS (every secret +
+        # vacuum) — equal probability per kind. Bypasses the
+        # score>=500 gate AND the nightglow biome gate.
         if (TEST_SECRETS_FIRST_N_PILLARS > 0
                 and self.pipes_spawned <= TEST_SECRETS_FIRST_N_PILLARS):
-            kinds = [k for k, _ in SECRET_POWERUP_WEIGHTS]
-            weights = [w for _, w in SECRET_POWERUP_WEIGHTS]
-            kind = random.choices(kinds, weights=weights, k=1)[0]
+            kind = random.choice(TEST_FORCED_KINDS)
             x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
             y = pipe.gap_y + random.uniform(-10, 10)
             self.powerups.append(PowerUp(x, y, kind=kind))
