@@ -994,7 +994,9 @@ class World:
             # (ash cloud + falling egg + safe-gap respawn). Variant
             # routes the revive animation only.
             if PHOENIX_VARIANT in ("ashes", "imperial", "fenghuang",
-                                   "dragon", "comet", "royal"):
+                                   "dragon", "comet", "royal",
+                                   "blaze", "sunburst", "twin",
+                                   "swift", "grand"):
                 self._revive_ashes()
             elif PHOENIX_VARIANT == "solar":
                 self._revive_solar()

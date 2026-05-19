@@ -921,9 +921,10 @@ class Bird:
             hx, hy = self.x + shake_x, self.y + shake_y
             if _PV == "solar":
                 _draw_phoenix_solar_halo(surf, hx, hy, self.frame_t)
-            elif _PV in ("mythic", "imperial"):
-                # Imperial gets the mythic-sized halo so the spread
-                # wings catch some of the fire-aura behind them.
+            elif _PV in ("mythic", "imperial", "blaze", "sunburst",
+                         "twin", "swift", "grand"):
+                # Imperial + fire-fenghuang hybrids share the mythic
+                # halo — fits their fire palette and crown silhouettes.
                 _draw_phoenix_mythic_halo(surf, hx, hy, self.frame_t)
             elif _PV == "fenghuang":
                 _draw_phoenix_fenghuang_halo(surf, hx, hy, self.frame_t)
@@ -2344,11 +2345,13 @@ class PowerUp:
         from game.config import PHOENIX_VARIANT as _PV
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        grandiose = {"imperial", "fenghuang", "dragon", "comet", "royal"}
+        grandiose = {"imperial", "fenghuang", "dragon", "comet", "royal",
+                     "blaze", "sunburst", "twin", "swift", "grand"}
         # 1. Variant-specific halo behind everything
         if _PV == "solar":
             self._draw_phoenix_icon_solar_halo(surf, cx, cy)
-        elif _PV in ("mythic", "imperial", "royal"):
+        elif _PV in ("mythic", "imperial", "royal", "blaze", "sunburst",
+                     "twin", "swift", "grand"):
             self._draw_phoenix_icon_mythic_halo(surf, cx, cy)
         elif _PV == "fenghuang":
             self._draw_phoenix_icon_fenghuang_halo(surf, cx, cy)

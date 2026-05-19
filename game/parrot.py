@@ -1702,6 +1702,373 @@ def _build_royal_frame(wing_angle_deg):
     return surf
 
 
+# ────────────────────────────────────────────────────────────────────────────
+# Fire-Fenghuang variants — Imperial fire palette + Fenghuang silhouette
+# (slim S-curve body, peacock fan-tail, ornate curling crest).
+# Five versions vary tail-fan layout, crest, and wing geometry.
+# ────────────────────────────────────────────────────────────────────────────
+
+# Shared Imperial fire palette (re-used from _IMPERIAL_FLAME above).
+_FF_FLAME = _IMPERIAL_FLAME       # [crimson, orange, gold, yellow, white-hot]
+_FF_BODY  = [
+    (115, 22, 28), (215, 60, 38),
+    (250, 140, 60), (255, 215, 110),
+]
+
+
+def _build_ff_wing(angle_deg, length: int = 36, layered: int = 3):
+    """Compact ornate flame-feather wing for fire-fenghuang variants.
+    `length` controls the wing reach; `layered` (3 / 4) controls the
+    number of feather tiers."""
+    box = max(56, length + 20)
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    cx_, cy_ = box // 2, box // 2
+    tip = (cx_ + length // 2 + 4, cy_ - length // 3 - 4)
+    # Outer crimson sweep
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        (cx_ - 4, cy_ + 4), (tip[0] + 1, tip[1] + 1),
+        (tip[0] + 6, tip[1] + 8), (cx_, cy_ + 12),
+    ])
+    pygame.draw.polygon(w, f[0], [
+        (cx_ - 4, cy_ + 2), tip,
+        (tip[0] + 4, tip[1] + 8), (cx_ + 2, cy_ + 10),
+    ])
+    # Orange
+    pygame.draw.polygon(w, f[1], [
+        (cx_ - 2, cy_ + 2), (tip[0] - 2, tip[1] + 2),
+        (tip[0] + 2, tip[1] + 6), (cx_ + 2, cy_ + 8),
+    ])
+    # Gold
+    pygame.draw.polygon(w, f[2], [
+        (cx_, cy_ + 2), (tip[0] - 4, tip[1] + 4),
+        (tip[0], tip[1] + 6), (cx_ + 2, cy_ + 6),
+    ])
+    if layered >= 4:
+        # Bright yellow inner accent
+        pygame.draw.polygon(w, f[3], [
+            (cx_ + 2, cy_ + 3), (tip[0] - 6, tip[1] + 5),
+            (tip[0] - 2, tip[1] + 6),
+        ])
+    # 3 distinct primary feathers off the wingtip
+    n_primaries = 3 if layered == 3 else 4
+    for k in range(n_primaries):
+        t = k / max(1, n_primaries - 1)
+        # Distribute primaries radially around the tip
+        ang = math.radians(-30 + t * 60)
+        plen = length // 2
+        p_tip = (tip[0] + int(math.cos(ang) * plen),
+                 tip[1] + int(math.sin(ang) * plen))
+        pygame.draw.line(w, f[0], tip, p_tip, 2)
+        pygame.draw.line(w, f[3], tip, p_tip, 1)
+        pygame.draw.circle(w, f[4], p_tip, 1)
+    # White-hot leading-edge highlight
+    pygame.draw.line(w, f[4], (cx_ - 2, cy_ + 2), tip, 1)
+    # Feather divider strokes
+    pygame.draw.line(w, f[0],
+                     (cx_ - 2, cy_ + 4), (tip[0] - 2, tip[1] + 4), 1)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _paint_ff_body_and_neck(surf, cx, cy, neck_shape: str = "s_curve"):
+    """Common slim phoenix body + S-curve neck + head. `neck_shape`:
+      's_curve' — classic fenghuang S
+      'upright' — straight vertical neck
+      'forward' — neck angled forward (motion-implying)
+    Returns (head_x, head_y) for the caller to attach crest + beak."""
+    b = _FF_BODY
+    # 1. Slim body (smaller than parrot)
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(cx - 7, cy - 4, 18, 22))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(cx - 6, cy - 3, 16, 20))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(cx - 4, cy - 0, 10,  8))
+    pygame.draw.ellipse(surf, b[3],
+                        pygame.Rect(cx - 3, cy + 6,  8,  6))
+    # 2. Neck (chain of small circles)
+    if neck_shape == "upright":
+        path = [(cx + 2, cy - 4), (cx + 2, cy - 8),
+                (cx + 2, cy - 12), (cx + 2, cy - 16),
+                (cx + 2, cy - 20)]
+    elif neck_shape == "forward":
+        path = [(cx + 3, cy - 4), (cx + 6, cy - 8),
+                (cx + 9, cy - 12), (cx + 12, cy - 15),
+                (cx + 15, cy - 18)]
+    else:  # s_curve
+        path = [(cx + 3, cy - 4), (cx + 5, cy - 8),
+                (cx + 7, cy - 12), (cx + 8, cy - 16),
+                (cx + 9, cy - 20)]
+    for nx, ny in path:
+        pygame.draw.circle(surf, b[0], (nx, ny), 3)
+        pygame.draw.circle(surf, b[1], (nx, ny), 2)
+    head_x, head_y = path[-1][0], path[-1][1] - 2
+    # 3. Head
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(head_x - 5, head_y - 4, 12, 10))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(head_x - 4, head_y - 3, 10,  8))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(head_x - 2, head_y - 0,  4,  3))
+    # 4. Beak (hooked gold)
+    pygame.draw.polygon(surf, (255, 200, 60), [
+        (head_x + 5, head_y - 2), (head_x + 11, head_y),
+        (head_x + 7, head_y + 2), (head_x + 5, head_y)])
+    pygame.draw.polygon(surf, (140,  90, 20), [
+        (head_x + 5, head_y - 2), (head_x + 11, head_y),
+        (head_x + 7, head_y + 2), (head_x + 5, head_y)], 1)
+    # 5. Eye
+    _draw_small_eye(surf, head_x + 2, head_y - 1, glow=True)
+    return head_x, head_y
+
+
+def _paint_ff_tail_fan(surf, ox, oy, plume_specs):
+    """Paint a fan of fire plumes radiating from (ox, oy).
+    `plume_specs` is a list of (angle_deg, length, half_width) tuples."""
+    f = _FF_FLAME
+    for ang_deg, length, hw in plume_specs:
+        ang = math.radians(ang_deg)
+        tx = ox + math.cos(ang) * length
+        ty = oy + math.sin(ang) * length
+        perp_x = -math.sin(ang)
+        perp_y =  math.cos(ang)
+        base_l = (int(ox + perp_x * hw), int(oy + perp_y * hw))
+        base_r = (int(ox - perp_x * hw), int(oy - perp_y * hw))
+        tip = (int(tx), int(ty))
+        # Drop shadow
+        pygame.draw.polygon(surf, (10, 5, 12, 120), [
+            (base_l[0] + 1, base_l[1] + 1),
+            (base_r[0] + 1, base_r[1] + 1),
+            (tip[0] + 1, tip[1] + 1)])
+        # Outer crimson layer
+        pygame.draw.polygon(surf, f[0], [base_l, base_r, tip])
+        # Orange mid
+        mid_w = max(1, hw - 1)
+        ml = (int(ox + perp_x * mid_w + math.cos(ang) * 2),
+              int(oy + perp_y * mid_w + math.sin(ang) * 2))
+        mr = (int(ox - perp_x * mid_w + math.cos(ang) * 2),
+              int(oy - perp_y * mid_w + math.sin(ang) * 2))
+        pygame.draw.polygon(surf, f[1], [ml, mr, tip])
+        # Gold inner
+        in_w = max(1, hw - 2)
+        il = (int(ox + perp_x * in_w + math.cos(ang) * 4),
+              int(oy + perp_y * in_w + math.sin(ang) * 4))
+        ir = (int(ox - perp_x * in_w + math.cos(ang) * 4),
+              int(oy - perp_y * in_w + math.sin(ang) * 4))
+        pygame.draw.polygon(surf, f[2], [il, ir, tip])
+        # Yellow tip blob
+        pygame.draw.circle(surf, f[3], tip, max(2, hw - 1))
+        # White-hot tip pinpoint
+        pygame.draw.circle(surf, f[4], tip, 1)
+        # Stripe down the centre
+        pygame.draw.line(surf, f[3], (int(ox), int(oy)), tip, 1)
+
+
+def _paint_ff_crest(surf, head_x, head_y, style: str):
+    """Crest of curling flame-tinted feathers above the head.
+    `style`: 'curl3', 'tall1+2', 'twin_trail', 'short3', 'grand5'."""
+    f = _FF_FLAME
+    # Helper to draw one curling feather as a teardrop polygon + stripe
+    def _curl(sx, sy, cx_c, cy_c, ex, ey, hw, color):
+        pygame.draw.polygon(surf, color, [
+            (sx, sy), (cx_c - hw, cy_c), (ex, ey),
+            (ex + hw, ey + hw), (cx_c + hw, cy_c + hw)])
+        pygame.draw.line(surf, f[4], (sx, sy), (ex, ey), 1)
+
+    if style == "curl3":
+        _curl(head_x - 2, head_y - 4, head_x - 4, head_y - 10,
+              head_x -  8, head_y - 8,  1, f[0])
+        _curl(head_x,     head_y - 5, head_x - 2, head_y - 13,
+              head_x -  6, head_y - 14, 1, f[2])
+        _curl(head_x + 2, head_y - 4, head_x + 1, head_y - 11,
+              head_x -  3, head_y - 14, 1, f[1])
+    elif style == "tall1+2":
+        # Single tall central flame plume
+        pygame.draw.polygon(surf, f[0], [
+            (head_x - 3, head_y - 4),
+            (head_x + 3, head_y - 4),
+            (head_x, head_y - 22)])
+        pygame.draw.polygon(surf, f[2], [
+            (head_x - 2, head_y - 5),
+            (head_x + 2, head_y - 5),
+            (head_x, head_y - 20)])
+        pygame.draw.polygon(surf, f[4], [
+            (head_x - 1, head_y - 6),
+            (head_x + 1, head_y - 6),
+            (head_x, head_y - 17)])
+        # Two short curling side feathers
+        _curl(head_x - 4, head_y - 2, head_x - 6, head_y - 8,
+              head_x - 10, head_y - 6, 1, f[2])
+        _curl(head_x + 4, head_y - 2, head_x + 6, head_y - 8,
+              head_x + 10, head_y - 6, 1, f[2])
+    elif style == "twin_trail":
+        # Two LONG trailing crest feathers (signature)
+        _curl(head_x - 1, head_y - 5, head_x - 6, head_y - 12,
+              head_x - 14, head_y - 8, 2, f[0])
+        _curl(head_x + 1, head_y - 5, head_x - 2, head_y - 14,
+              head_x - 10, head_y - 16, 2, f[2])
+    elif style == "short3":
+        # 3 short flame nubs swept BACK over the neck (motion implied)
+        for ox, oy, length, col in (
+            (-1, -4, 8, f[0]), (-3, -3, 6, f[2]), (-5, -1, 5, f[3])
+        ):
+            sx, sy = head_x + ox, head_y + oy
+            tx, ty = sx - length, sy - length // 2
+            pygame.draw.polygon(surf, col, [
+                (sx, sy), (sx + 1, sy + 2), (tx, ty)])
+            pygame.draw.line(surf, f[4], (sx, sy), (tx, ty), 1)
+    elif style == "grand5":
+        # Central tall flame + 4 curling sides
+        pygame.draw.polygon(surf, f[0], [
+            (head_x - 3, head_y - 4), (head_x + 3, head_y - 4),
+            (head_x, head_y - 24)])
+        pygame.draw.polygon(surf, f[2], [
+            (head_x - 2, head_y - 5), (head_x + 2, head_y - 5),
+            (head_x, head_y - 22)])
+        pygame.draw.polygon(surf, f[4], [
+            (head_x - 1, head_y - 6), (head_x + 1, head_y - 6),
+            (head_x, head_y - 18)])
+        _curl(head_x - 3, head_y - 4, head_x - 6, head_y - 10,
+              head_x - 11, head_y - 12, 1, f[0])
+        _curl(head_x + 3, head_y - 4, head_x + 6, head_y - 10,
+              head_x + 11, head_y - 12, 1, f[0])
+        _curl(head_x - 4, head_y - 2, head_x - 9, head_y - 4,
+              head_x - 14, head_y - 2, 1, f[2])
+        _curl(head_x + 4, head_y - 2, head_x + 9, head_y - 4,
+              head_x + 14, head_y - 2, 1, f[2])
+
+
+# ── Fire-Fenghuang variant configs ──────────────────────────────────────
+
+# Each entry: (tail_fan_specs, crest_style, wing_length, wing_layered, neck_shape).
+# Tail fan specs anchor at (cx - 8, cy + 4) — same as the original fenghuang.
+_FF_VARIANTS = {
+    # 1. BLAZE — balanced moderate fan, classic curling crest
+    "blaze": dict(
+        tail_origin_off=(-8, 4),
+        tail_fan=[
+            (200, 36, 4),   # back-upper
+            (190, 44, 5),   # mid-upper
+            (180, 48, 5),   # CENTRE longest
+            (170, 44, 5),   # mid-lower
+            (160, 38, 4),   # back-lower
+            (215, 26, 3),   # top short
+        ],
+        crest="curl3",
+        wing_length=36,
+        wing_layered=3,
+        neck="s_curve",
+    ),
+    # 2. SUNBURST — wide radial spread, single tall crown plume
+    "sunburst": dict(
+        tail_origin_off=(-4, 0),
+        tail_fan=[
+            (260, 28, 3),   # back-top
+            (220, 38, 3),   # upper plumes
+            (200, 44, 4),
+            (180, 50, 5),   # CENTRE longest
+            (160, 44, 4),
+            (140, 38, 3),
+            (120, 30, 3),   # lower-back
+            (100, 24, 2),
+            ( 80, 20, 2),   # nearly straight down
+        ],
+        crest="tall1+2",
+        wing_length=40,
+        wing_layered=4,
+        neck="upright",
+    ),
+    # 3. TWIN — minimalist 5-plume tail, twin-trail signature crest
+    "twin": dict(
+        tail_origin_off=(-6, 4),
+        tail_fan=[
+            (200, 32, 3),
+            (185, 42, 4),
+            (175, 46, 4),   # CENTRE
+            (165, 40, 4),
+            (150, 32, 3),
+        ],
+        crest="twin_trail",
+        wing_length=30,
+        wing_layered=3,
+        neck="s_curve",
+    ),
+    # 4. SWIFT — all plumes trailing back (motion), swept-back crest
+    "swift": dict(
+        tail_origin_off=(-4, 2),
+        tail_fan=[
+            (192, 28, 2),
+            (188, 38, 3),
+            (184, 46, 4),
+            (180, 50, 4),   # straight-back CENTRE longest
+            (176, 46, 4),
+            (172, 38, 3),
+            (168, 28, 2),
+        ],
+        crest="short3",
+        wing_length=38,
+        wing_layered=3,
+        neck="forward",
+    ),
+    # 5. GRAND — ornate 9-plume wide fan, elaborate central crown
+    "grand": dict(
+        tail_origin_off=(-8, 4),
+        tail_fan=[
+            (230, 30, 3),
+            (210, 42, 4),
+            (195, 48, 5),
+            (180, 54, 5),   # CENTRE longest
+            (165, 48, 5),
+            (150, 42, 4),
+            (130, 32, 3),
+            (245, 20, 2),
+            (115, 20, 2),
+        ],
+        crest="grand5",
+        wing_length=42,
+        wing_layered=4,
+        neck="s_curve",
+    ),
+}
+
+
+def _build_ff_variant(angle_deg, config: dict):
+    """Generic fire-fenghuang frame builder driven by a config dict."""
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    f = _FF_FLAME
+    # 1. Tail fan — HERO ELEMENT, painted first so the body overlaps it
+    ox = cx + config["tail_origin_off"][0]
+    oy = cy + config["tail_origin_off"][1]
+    _paint_ff_tail_fan(surf, ox, oy, config["tail_fan"])
+    # 2. Body + neck + head (returns head anchor for the crest)
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy,
+                                              neck_shape=config["neck"])
+    # 3. Wings (compact ornate, tucked above/beside body)
+    wing_right = _build_ff_wing(angle_deg, length=config["wing_length"],
+                                layered=config["wing_layered"])
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right,
+              wing_right.get_rect(center=(cx + 8, cy - 6)).topleft)
+    surf.blit(wing_left,
+              wing_left.get_rect(center=(cx - 12, cy - 6)).topleft)
+    # 4. Crest
+    _paint_ff_crest(surf, head_x, head_y, config["crest"])
+    # 5. Ember sparks scattered around the silhouette
+    for ex, ey in ((-30, -16), (-38, 0), (-42, 14), (-32, 28),
+                   (12, -18), (16, 6), (-20, 18), (22, 16)):
+        col = f[3] if (ex + ey) % 2 == 0 else f[2]
+        pygame.draw.circle(surf, col, (cx + ex, cy + ey), 1)
+    return surf
+
+
+def _build_blaze_frame(angle):     return _build_ff_variant(angle, _FF_VARIANTS["blaze"])
+def _build_sunburst_frame(angle):  return _build_ff_variant(angle, _FF_VARIANTS["sunburst"])
+def _build_twin_frame(angle):      return _build_ff_variant(angle, _FF_VARIANTS["twin"])
+def _build_swift_frame(angle):     return _build_ff_variant(angle, _FF_VARIANTS["swift"])
+def _build_grand_frame(angle):     return _build_ff_variant(angle, _FF_VARIANTS["grand"])
+
+
 # Dispatch table the lazy frame-builder reads in `_get_phoenix_frames`.
 _GRANDIOSE_BUILDERS = {
     "imperial":  _build_imperial_frame,
@@ -1709,6 +2076,12 @@ _GRANDIOSE_BUILDERS = {
     "dragon":    _build_dragon_frame,
     "comet":     _build_comet_frame,
     "royal":     _build_royal_frame,
+    # Fire-fenghuang hybrids (imperial palette + fenghuang silhouette)
+    "blaze":     _build_blaze_frame,
+    "sunburst":  _build_sunburst_frame,
+    "twin":      _build_twin_frame,
+    "swift":     _build_swift_frame,
+    "grand":     _build_grand_frame,
 }
 
 
