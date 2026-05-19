@@ -73,7 +73,6 @@ POWERUP_WEIGHTS    = (
     ("kfc",      1),
     ("ghost",    1),
     ("grow",     1),
-    ("mega_magnet", 1),
     ("surprise", 1),
 )
 
@@ -154,11 +153,6 @@ RAIL_SCROLL_MULT      = 3.0     # world scrolls 3x faster during the ride
 # instead of paid out in a single brush.
 TREASURE_BOX_DURATION       = 8.0
 TREASURE_BOX_COINS_PER_FLAP = 2
-# MEGA MAGNET — a stronger MAGNET that pulls coins from anywhere on the
-# screen for the same duration. Implemented by reusing _apply_magnet
-# with a much larger radius multiplier.
-MEGA_MAGNET_DURATION    = 8.0
-MEGA_MAGNET_RADIUS_MULT = 5.0     # 82 px * 5 = 410 px → entire 360-wide canvas
 
 # Lottery tiers: (label, weight, coin_delta). NOTHING is the modal
 # outcome (35 %); roughly 37 % of spins win, 28 % lose, 35 % zero. With
@@ -194,15 +188,12 @@ SECRET_POWERUP_WEIGHTS = (
 # Set TEST_SECRETS_FIRST_N_PILLARS = 0 to disable the forced spawn.
 TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 
-# Forced-spawn pool used during the test-mode window. Includes every
-# secret in SECRET_POWERUP_WEIGHTS PLUS mega_magnet (which lives in
-# the normal POWERUP_WEIGHTS pool but is one of the powerups this
-# branch wants QA to verify alongside the secrets). Equal weight per
-# kind so the 15-pillar window samples each at least once with
-# reasonable probability.
+# Forced-spawn pool used during the test-mode window: every secret
+# in SECRET_POWERUP_WEIGHTS, equal weight per kind so the 15-pillar
+# window samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
     "skateboard", "shrink", "heist", "rail",
-    "lottery", "phoenix", "mega_magnet",
+    "lottery", "phoenix",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
