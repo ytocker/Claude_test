@@ -1692,12 +1692,12 @@ class World:
         #     with him. Short by design (0.6 s) so it doesn't cover the
         #     game for long.
         seed = int(self._idle_t * 1000) & 0xFFFF
-        self.skateboard_caption_dur = 2.5
+        self.skateboard_caption_dur = 4.0
         self.skateboard_caption_t = self.skateboard_caption_dur
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
         )
-        self.skateboard_burst_dur = 0.6
+        self.skateboard_burst_dur = 0.9
         self.skateboard_burst_t = self.skateboard_burst_dur
         self.skateboard_burst_surface = render_starburst_surface(
             rng_seed=seed,
