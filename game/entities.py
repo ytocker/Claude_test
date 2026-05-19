@@ -1968,8 +1968,8 @@ class PowerUp:
             self._draw_shrink_mushroom(surf)
         elif self.kind == "heist":
             self._draw_heist_icon(surf)
-        elif self.kind == "vacuum":
-            self._draw_vacuum_icon(surf)
+        elif self.kind == "mega_magnet":
+            self._draw_mega_magnet_icon(surf)
         elif self.kind == "rail":
             self._draw_rail_icon(surf)
         elif self.kind == "nightglow":
@@ -2315,28 +2315,63 @@ class PowerUp:
         # read clearly against a noisy background.
         draw_chest_at(surf, cx, cy)
 
-    def _draw_vacuum_icon(self, surf):
+    def _draw_mega_magnet_icon(self, surf):
+        """MEGA MAGNET pickup token: oversized red horseshoe magnet
+        (15% bigger than the regular magnet) with three pulsing
+        concentric rings around it telegraphing the much wider pull
+        radius. Same colour family as the regular magnet so the
+        relationship reads at a glance, but the pulse rings make it
+        unmistakably the bigger version."""
         cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.7) * 2)
-        # Spinning tornado swirl: 3 nested spiral arcs rotating with pulse.
-        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
-        a = int(60 + 30 * (0.5 + 0.5 * math.sin(self.pulse * 2)))
-        pygame.draw.circle(halo, (60, 200, 220, a // 2), (24, 24), 22)
-        surf.blit(halo, (cx - 24, cy - 24))
-        # Funnel: 3 concentric ellipses, narrowing toward bottom.
-        rot = self.pulse * 60.0
-        for i, (rw, rh, alpha) in enumerate(((22, 8, 240), (16, 6, 220), (10, 5, 200))):
-            tornado_surf = pygame.Surface((rw * 2 + 4, rh * 2 + 4), pygame.SRCALPHA)
-            pygame.draw.ellipse(tornado_surf, (50, 100, 180, alpha),
-                                pygame.Rect(0, 0, rw * 2, rh * 2), 2)
-            pygame.draw.ellipse(tornado_surf, (90, 190, 220, alpha),
-                                pygame.Rect(2, 2, rw * 2 - 4, rh * 2 - 4), 2)
-            r = pygame.transform.rotate(tornado_surf, rot + i * 20)
-            ry = cy - 10 + i * 7
-            surf.blit(r, r.get_rect(center=(cx, ry)))
-        # Tiny coin getting sucked in (gold dot near top)
-        suck_y = cy - 14 + int(math.sin(self.pulse * 2) * 3)
-        pygame.draw.circle(surf, UI_GOLD, (cx, suck_y), 2)
+        cy = int(self.y + math.sin(self.pulse * 1.1) * 3)
+        # Pulse rings — three concentric, alpha drops with radius;
+        # synchronous pulse breathing makes the icon read as "actively
+        # pulling".
+        breath = int(math.sin(self.pulse * 2.0) * 2)
+        for ring_r, alpha in ((26, 60), (20, 95), (14, 135)):
+            ring = pygame.Surface((ring_r * 2 + 6, ring_r * 2 + 6),
+                                  pygame.SRCALPHA)
+            pygame.draw.circle(ring, (40, 180, 240, alpha),
+                               (ring_r + 3, ring_r + 3),
+                               ring_r + breath, 2)
+            surf.blit(ring, (cx - ring_r - 3, cy - ring_r - 3))
+        # Horseshoe magnet — 15% larger than _draw_magnet.
+        outer_r = 15
+        inner_r = 7
+        arch_cy = cy - 3
+        leg_bot = cy + 14
+        sz = 48
+        scx = sz // 2
+        scy = outer_r + 5
+        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        # Dark shadow rim
+        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), outer_r + 2)
+        pygame.draw.rect(scratch, (80, 5, 8),
+                         (scx - outer_r - 2, scy,
+                          (outer_r + 2) * 2, leg_bot - arch_cy + 4))
+        # Vivid crimson body
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(scratch, RED_HI, (scx, scy), outer_r + 1)
+        pygame.draw.rect(scratch, RED_HI,
+                         (scx - outer_r - 1, scy,
+                          (outer_r + 1) * 2, leg_bot - arch_cy + 3))
+        # Punch the inner hollow
+        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), inner_r)
+        pygame.draw.rect(scratch, (0, 0, 0, 0),
+                         (scx - inner_r, scy,
+                          inner_r * 2, leg_bot - arch_cy + 2))
+        # Silver pole caps at the leg bottoms
+        SILVER = (220, 220, 230)
+        pygame.draw.rect(scratch, SILVER,
+                         (scx - outer_r - 1, leg_bot - arch_cy + 1,
+                          outer_r - inner_r + 2, 4))
+        pygame.draw.rect(scratch, SILVER,
+                         (scx + inner_r - 1, leg_bot - arch_cy + 1,
+                          outer_r - inner_r + 2, 4))
+        # Top-arc highlight
+        pygame.draw.circle(scratch, (255, 130, 140),
+                           (scx, scy), outer_r + 1, 1)
+        surf.blit(scratch, (cx - scx, cy - scy))
 
     def _draw_rail_icon(self, surf):
         cx = int(self.x)

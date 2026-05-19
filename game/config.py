@@ -73,7 +73,7 @@ POWERUP_WEIGHTS    = (
     ("kfc",      1),
     ("ghost",    1),
     ("grow",     1),
-    ("vacuum",   1),
+    ("mega_magnet", 1),
     ("surprise", 1),
 )
 
@@ -155,7 +155,11 @@ RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # instead of paid out in a single brush.
 TREASURE_BOX_DURATION       = 8.0
 TREASURE_BOX_COINS_PER_FLAP = 2
-VACUUM_TRAVEL_TIME    = 0.4
+# MEGA MAGNET — a stronger MAGNET that pulls coins from anywhere on the
+# screen for the same duration. Implemented by reusing _apply_magnet
+# with a much larger radius multiplier.
+MEGA_MAGNET_DURATION    = 8.0
+MEGA_MAGNET_RADIUS_MULT = 5.0     # 82 px * 5 = 410 px → entire 360-wide canvas
 
 # Lottery tiers: (label, weight, coin_delta). NOTHING is the modal
 # outcome (35 %); roughly 37 % of spins win, 28 % lose, 35 % zero. With
@@ -195,14 +199,14 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 TEST_START_AT_NIGHT          = True  # start at NIGHT biome so nightglow is eligible
 
 # Forced-spawn pool used during the test-mode window. Includes every
-# secret in SECRET_POWERUP_WEIGHTS PLUS vacuum (which lives in the
-# normal POWERUP_WEIGHTS pool but is one of the powerups this branch
-# wants QA to verify alongside the secrets). Equal weight per kind so
-# the 15-pillar window samples each at least once with reasonable
-# probability.
+# secret in SECRET_POWERUP_WEIGHTS PLUS mega_magnet (which lives in
+# the normal POWERUP_WEIGHTS pool but is one of the powerups this
+# branch wants QA to verify alongside the secrets). Equal weight per
+# kind so the 15-pillar window samples each at least once with
+# reasonable probability.
 TEST_FORCED_KINDS = (
     "skateboard", "shrink", "heist", "rail",
-    "nightglow", "lottery", "phoenix", "vacuum",
+    "nightglow", "lottery", "phoenix", "mega_magnet",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
