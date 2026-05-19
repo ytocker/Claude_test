@@ -880,9 +880,9 @@ def cs_h5_bhsi_lighter(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
-def _h4_variant_at(fa_x, ra_x, jx, cx):
+def _h4_variant_at(fa_x, ra_x, jx, cx, jy=30, cy=37):
     """H4-style chinstrap (BHSI V + adjuster + clip) at the given
-    x positions. Y positions fixed."""
+    positions. Default Y positions match H4."""
     def fn(bird, surf, scx, scy, flipped):
         helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
         _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
@@ -891,8 +891,8 @@ def _h4_variant_at(fa_x, ra_x, jx, cx):
             helm,
             front_anchor=(fa_x, rim_y),
             rear_anchor=(ra_x, rim_y),
-            junction=(jx, 30),
-            clip_centre=(cx, 37),
+            junction=(jx, jy),
+            clip_centre=(cx, cy),
             strap_w=2,
             draw_adjuster=True,
         )
@@ -900,21 +900,22 @@ def _h4_variant_at(fa_x, ra_x, jx, cx):
     return fn
 
 
-# H4 baseline: (fa=12, ra=6, jx=9, cx=13). User wants 4-7 px further
-# left. Rear anchor clamps at x=4 (the dome's left edge); the front
-# anchor, V-junction and clip shift freely. At surface x=4-7 the
-# strap path sits cleanly on the red feather area behind the lens.
+# M5 baseline: (fa=8, ra=4, jx=5, cx=11). User wants the LOWER part
+# of the strap (V-junction → clip) closer to Pip's actual chin. The
+# upper anchors (front=8, rear=4) and V-junction (x=5, y=30) stay
+# on the left as in M5; the clip moves forward toward surface
+# (13-16, 36-37) which is Pip's chin/throat region.
 CHINSTRAP_VARIANTS = [
-    ("M1_minus_4",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=9),
-     "M1: H4 shifted 4 px left (front=8, junction=5, clip=9)"),
-    ("M2_minus_5",  _h4_variant_at(fa_x=7, ra_x=4, jx=4, cx=8),
-     "M2: H4 shifted 5 px left (front=7, junction=4, clip=8)"),
-    ("M3_minus_6",  _h4_variant_at(fa_x=6, ra_x=4, jx=3, cx=7),
-     "M3: H4 shifted 6 px left (front=6, junction=3, clip=7)"),
-    ("M4_minus_7",  _h4_variant_at(fa_x=5, ra_x=4, jx=2, cx=6),
-     "M4: H4 shifted 7 px left (front=5, junction=2, clip=6)"),
-    ("M5_minus_4_clip_fwd", _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=11),
-     "M5: H4 -4 left but clip kept at x=11 (path angles forward)"),
+    ("N1_clip_at_chin",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=13),
+     "N1: M5 + clip at (13, 37) — exactly at the chin"),
+    ("N2_clip_under_beak", _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=14),
+     "N2: M5 + clip at (14, 37) — just under the beak"),
+    ("N3_clip_forward",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=15),
+     "N3: M5 + clip at (15, 37) — clearly forward under the beak"),
+    ("N4_clip_higher_chin", _h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14),
+     "N4: M5 + junction nudged 1 right (6) + clip at (14, 37) — softer angle"),
+    ("N5_junction_low",  _h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14, jy=33),
+     "N5: junction dropped to y=33 + clip at (14, 37) — shorter lower segment, tight against chin"),
 ]
 
 
