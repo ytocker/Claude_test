@@ -103,6 +103,13 @@ class World:
         # Each is gated on score >= LATE_GAME_SCORE (see _maybe_spawn_powerup).
         # Undocumented in powerup_help.py by design.
         self.skateboard_timer = 0.0
+        # One-shot activation FX (chosen V4.3 starburst + caption + POW!
+        # composition, see game/skateboard_fx.py). Overlay is rendered
+        # once at pickup, then blit by scenes.py with a linear fade until
+        # the timer expires.
+        self.skateboard_activation_t = 0.0
+        self.skateboard_activation_dur = 0.0
+        self.skateboard_activation_overlay = None
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -613,6 +620,11 @@ class World:
             if self.skateboard_timer > 0:
                 self.skateboard_timer = max(0.0, self.skateboard_timer - dt)
             self.bird.skateboard_active = self.skateboard_timer > 0
+            if self.skateboard_activation_t > 0:
+                self.skateboard_activation_t = max(
+                    0.0, self.skateboard_activation_t - dt)
+                if self.skateboard_activation_t <= 0:
+                    self.skateboard_activation_overlay = None
             if self.shrink_timer > 0:
                 self.shrink_timer = max(0.0, self.shrink_timer - dt)
             self.bird.shrink_active = self.shrink_timer > 0
@@ -1284,6 +1296,7 @@ class World:
     # ── SECRET LATE-GAME ACTIVATORS ─────────────────────────────────────────
 
     def _activate_skateboard(self, m):
+        from game.skateboard_fx import render_activation_overlay
         self.skateboard_timer = SKATEBOARD_DURATION
         self.bird.skateboard_active = True
         self._tap_streak = 0
@@ -1293,10 +1306,17 @@ class World:
         audio.play_skateboard()
         self._spawn_poof(self.bird.x, self.bird.y)
         self._pickup_burst(m, ((60, 60, 70), (180, 180, 190), UI_ORANGE, UI_GOLD), n=28)
-        self.float_texts.append(FloatText(
-            "SKATEBOARD!", m.x, m.y - 26, UI_GOLD,
-            size=28, life=1.4, vy=-30, style="powerup",
-        ))
+        # Chosen V4.3 activation FX — bake the starburst + corner slashes
+        # + tilted SKATEBOARD! caption + POW! badge into a one-shot overlay
+        # anchored at the bird's screen position. scenes.py fades it out
+        # linearly over skateboard_activation_dur. No float text — the
+        # tilted caption on the red plate IS the caption now.
+        self.skateboard_activation_dur = 0.6
+        self.skateboard_activation_t = self.skateboard_activation_dur
+        self.skateboard_activation_overlay = render_activation_overlay(
+            int(self.bird.x), int(self.bird.y),
+            rng_seed=int(self._idle_t * 1000) & 0xFFFF,
+        )
 
     def _activate_shrink(self, m):
         SHRINK_HI  = (80, 180, 240)

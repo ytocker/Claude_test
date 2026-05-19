@@ -890,6 +890,25 @@ class App:
         if self.state == STATE_PLAY:
             _draw_opener(self.screen, self.world)
 
+        # SKATEBOARD (secret) activation FX — blit BEFORE the bird so
+        # Pip pops on top of the starburst the way the chosen V4.3
+        # mockup composes it. Caption + POW! sit at fixed screen
+        # positions above Pip's typical flight area so they're rarely
+        # occluded. Linear fade-out: hold full alpha for the first 25%
+        # of the activation window, then ease to zero.
+        if getattr(self.world, "skateboard_activation_t", 0) > 0 and \
+                self.world.skateboard_activation_overlay is not None:
+            t = self.world.skateboard_activation_t
+            d = self.world.skateboard_activation_dur
+            elapsed = (d - t) / d if d > 0 else 1.0
+            if elapsed < 0.25:
+                alpha = 255
+            else:
+                alpha = int(255 * (1.0 - (elapsed - 0.25) / 0.75))
+            self.world.skateboard_activation_overlay.set_alpha(alpha)
+            self.screen.blit(self.world.skateboard_activation_overlay,
+                             (0, 0))
+
         self.world.bird.draw(self.screen, sx, sy,
                              flipped=self.world.reverse_timer > 0)
 
