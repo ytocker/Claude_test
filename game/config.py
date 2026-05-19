@@ -88,10 +88,12 @@ LATE_GAME_SCORE       = 500
 SHRINK_DURATION       = 8.0
 SHRINK_SCALE          = 0.6
 # Bird sprite eases between 1.0 and SHRINK_SCALE over this many seconds
-# when the buff turns on/off — ~12 frames at 60 FPS. Collisions snap on
-# frame 1 (see World.bird_radius / Bird vs Pipe collision) so the gameplay
-# benefit is immediate; only the visible scale animates.
-SHRINK_TRANSITION     = 0.20
+# when the buff turns on/off — ~27 frames at 60 FPS so the morph is
+# clearly visible during play (the previous 0.20 s / 12-frame ramp went
+# by too quickly to read). Collisions snap on frame 1 (see
+# World.bird_radius / Bird vs Pipe collision) so the gameplay benefit
+# is immediate; only the visible scale animates.
+SHRINK_TRANSITION     = 0.45
 SKATEBOARD_DURATION   = 8.0
 NIGHTGLOW_DURATION    = 12.0
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
