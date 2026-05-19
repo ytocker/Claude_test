@@ -964,13 +964,15 @@ class App:
                              (0, 0))
         if getattr(self.world, "skateboard_burst_t", 0) > 0 and \
                 self.world.skateboard_burst_surface is not None:
+            # Burst holds at full alpha for the first (dur - 0.8) s
+            # and only starts fading in the final 0.8 s. Quadratic
+            # ease-out tail.
             t = self.world.skateboard_burst_t
-            d = self.world.skateboard_burst_dur
-            elapsed = (d - t) / d if d > 0 else 1.0
-            if elapsed < 0.20:
+            FADE = 0.8
+            if t > FADE:
                 alpha = 255
             else:
-                x = (elapsed - 0.20) / 0.80
+                x = 1.0 - t / FADE
                 alpha = int(255 * (1.0 - x) ** 2)
             burst = self.world.skateboard_burst_surface
             burst.set_alpha(alpha)

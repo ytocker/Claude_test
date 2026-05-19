@@ -1705,7 +1705,9 @@ class World:
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
         )
-        self.skateboard_burst_dur = 2.5
+        # Burst beats: 1.5 s held at full alpha, then a 0.8 s fade.
+        # scenes.py keys the fade off the trailing 0.8 s of the timer.
+        self.skateboard_burst_dur = 2.3
         self.skateboard_burst_t = self.skateboard_burst_dur
         self.skateboard_burst_surface = render_starburst_surface(
             rng_seed=seed,
