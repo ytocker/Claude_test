@@ -17,6 +17,12 @@ from game import play_log
 from game.config import BIRD_X, SCROLL_BASE
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
+# Top-level import so pygbag's bundle analyzer picks up
+# game.nightglow_effect's transitive numpy dependency. A lazy import
+# inside _render() would be invisible to pygbag's static scan and the
+# WASM build would ship without numpy, crashing on first nightglow
+# pickup.
+from game.nightglow_effect import apply_nightglow as _apply_nightglow
 
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
@@ -944,7 +950,6 @@ class App:
         # last 1.0 s of the buff so activation/expiry feel smooth.
         if getattr(self.world, "nightglow_timer", 0) > 0:
             from game.config import NIGHTGLOW_DURATION
-            from game.nightglow_effect import apply_nightglow
             t = self.world.nightglow_timer
             d = NIGHTGLOW_DURATION
             elapsed = d - t
@@ -953,7 +958,7 @@ class App:
                 strength = elapsed / 0.4
             elif t < 1.0:
                 strength = t / 1.0
-            apply_nightglow(self.screen, self.world, sx, sy, strength)
+            _apply_nightglow(self.screen, self.world, sx, sy, strength)
 
         # SKATEBOARD (secret): timer-end warning flash when <1s left and
         # Pip is touching a surface, so the player knows to flap off.
