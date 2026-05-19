@@ -573,13 +573,196 @@ def cs_y7_thin_clean(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
+def _side_anchor_xy(hw, hh, pad, drop):
+    """Strap attachment points on the SIDE of the helmet, just above
+    the ear. A real skate helmet rim covers the ear and straps come
+    out near the back-side of the rim — NOT at the front of the
+    brow. Two anchors close together so the V doesn't cross Pip's
+    face."""
+    rim_y = pad + hh + 1
+    front_side = (pad + 8,         rim_y)   # ear-front
+    rear_side  = (pad + 4,         rim_y)   # ear-back
+    return front_side, rear_side
+
+
+def cs_t1_tight_v(bird, surf, cx, cy, flipped):
+    """T1 — Tight V with both anchors on the helmet's side panel
+    (over the ear). Straps drop nearly vertically, no face cross."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_side, rear_side = _side_anchor_xy(hw, hh, pad, drop)
+    OUT = (15, 15, 22)
+    pygame.draw.line(helm, OUT, front_side, (jx, jy), 2)
+    pygame.draw.line(helm, OUT, rear_side,  (jx, jy), 2)
+    pygame.draw.line(helm, OUT, (jx, jy), (bx, by), 2)
+    adj = pygame.Rect(jx - 2, jy - 1, 4, 3)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, (200, 50, 50), clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_t2_tight_v_no_adjuster(bird, surf, cx, cy, flipped):
+    """T2 — T1 without the adjuster slider (cleaner)."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_side, rear_side = _side_anchor_xy(hw, hh, pad, drop)
+    OUT = (15, 15, 22)
+    pygame.draw.line(helm, OUT, front_side, (jx, jy), 2)
+    pygame.draw.line(helm, OUT, rear_side,  (jx, jy), 2)
+    pygame.draw.line(helm, OUT, (jx, jy), (bx, by), 2)
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, (200, 50, 50), clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_t3_single_side_strap(bird, surf, cx, cy, flipped):
+    """T3 — Single strap from a side anchor (over the ear) dropping
+    to the chin clip. The simplest "skate helmet chinstrap" read."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    front_side, rear_side = _side_anchor_xy(hw, hh, pad, drop)
+    # Anchor mid-way between front and rear on the side rim.
+    side = ((front_side[0] + rear_side[0]) // 2, front_side[1])
+    OUT = (15, 15, 22)
+    pygame.draw.line(helm, OUT, side, (bx, by), 2)
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, (200, 50, 50), clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_t4_tight_v_lighter(bird, surf, cx, cy, flipped):
+    """T4 — T2 with a slightly lighter strap (40, 40, 50) so the
+    line doesn't read as harsh black against Pip's red feathers."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_side, rear_side = _side_anchor_xy(hw, hh, pad, drop)
+    STR = (40, 40, 50)
+    OUT = (15, 15, 22)
+    pygame.draw.line(helm, STR, front_side, (jx, jy), 2)
+    pygame.draw.line(helm, STR, rear_side,  (jx, jy), 2)
+    pygame.draw.line(helm, STR, (jx, jy), (bx, by), 2)
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, (200, 50, 50), clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_t5_curved_single(bird, surf, cx, cy, flipped):
+    """T5 — Single strap from side anchor, curving forward via a
+    midpoint near the lower jaw to the chin clip. Simulates the
+    strap following the head's curvature."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    front_side, rear_side = _side_anchor_xy(hw, hh, pad, drop)
+    side = ((front_side[0] + rear_side[0]) // 2, front_side[1])
+    # Midpoint near the lower jaw — bias toward Pip's silhouette.
+    mid = (side[0] + 1, side[1] + 8)
+    OUT = (15, 15, 22)
+    pygame.draw.line(helm, OUT, side, mid, 2)
+    pygame.draw.line(helm, OUT, mid, (bx, by), 2)
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, (200, 50, 50), clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def _live_chinstrap(helm, hw, hh, pad, drop, strap_col, clip_w=4, clip_h=3,
+                    strap_thick=2):
+    """The live (post-redesign) chinstrap painter, parameterised."""
+    OUT     = (15, 15, 22)
+    CHROME  = (200, 200, 210)
+    BUCKLE  = (200, 50, 50)
+    front_anchor = (pad + 8, pad + hh + 1)
+    rear_anchor  = (pad + 4, pad + hh + 1)
+    junction     = (10, 30)
+    clip_centre  = (14, 37)
+    pygame.draw.line(helm, strap_col, front_anchor, junction, strap_thick)
+    pygame.draw.line(helm, strap_col, rear_anchor,  junction, strap_thick)
+    pygame.draw.line(helm, strap_col, junction, clip_centre, strap_thick)
+    adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, CHROME, adj, 1)
+    clip = pygame.Rect(clip_centre[0] - clip_w // 2,
+                        clip_centre[1] - clip_h // 2, clip_w, clip_h)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT,
+                     (clip.centerx, clip.y),
+                     (clip.centerx, clip.bottom - 1), 1)
+
+
+def cs_v1_live(bird, surf, cx, cy, flipped):
+    """V1 — the current live implementation (40,40,50) strap + 4x3 clip."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _live_chinstrap(helm, hw, hh, pad, drop, (40, 40, 50))
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_v2_darker(bird, surf, cx, cy, flipped):
+    """V2 — darker strap (15,15,22) for higher contrast on red."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22))
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_v3_bigger_clip(bird, surf, cx, cy, flipped):
+    """V3 — V1 with a 5×4 clip (more visible)."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
+                    clip_w=5, clip_h=4)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_v4_thicker_strap(bird, surf, cx, cy, flipped):
+    """V4 — V2 with 3-px strap thickness."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
+                    strap_thick=3)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_v5_combined(bird, surf, cx, cy, flipped):
+    """V5 — dark strap + 5×4 clip — full visibility."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
+                    clip_w=5, clip_h=4, strap_thick=2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
 CHINSTRAP_VARIANTS = [
-    ("Y3_outlined",    cs_y3_outlined,
-     "Y3 (no adjuster): outlined Y straps + side-release clip"),
-    ("Y6_full_kit",    cs_y6_full_kit,
-     "Y6: outlined Y + adjuster slider + side-release clip"),
-    ("Y7_thin_clean",  cs_y7_thin_clean,
-     "Y7: 2-px straps (not outlined) + adjuster + clip"),
+    ("V1_live",           cs_v1_live,
+     "V1 (current live): (40,40,50) strap, 4×3 clip"),
+    ("V2_darker_strap",   cs_v2_darker,
+     "V2: near-black (15,15,22) strap"),
+    ("V3_bigger_clip",    cs_v3_bigger_clip,
+     "V3: V2 + 5×4 clip (more visible buckle)"),
+    ("V4_thicker_strap",  cs_v4_thicker_strap,
+     "V4: V2 + 3-px strap"),
+    ("V5_combined",       cs_v5_combined,
+     "V5: V2 + 5×4 clip (full visibility)"),
 ]
 
 
