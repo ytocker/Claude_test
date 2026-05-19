@@ -491,7 +491,13 @@ class Bird:
 
     def flap(self, gravity_sign=1):
         if self.alive and not self.cart_active:
-            self.vy = FLAP_V * gravity_sign
+            # Jump strength scales with Pip's collision size during
+            # SHRINK so a 0.6× bird gets a 0.6× flap. Keeps "tap timing"
+            # consistent — without this the impulse felt cartoonishly
+            # over-powered for the tiny silhouette.
+            from game.config import SHRINK_SCALE
+            scale = SHRINK_SCALE if self.shrink_active else 1.0
+            self.vy = FLAP_V * gravity_sign * scale
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
