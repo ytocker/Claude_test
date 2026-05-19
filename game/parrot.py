@@ -687,131 +687,261 @@ def get_fried_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
 
 
 # ── Phoenix variants ────────────────────────────────────────────────────────
-# Five variant builders share the same scaffolding: take the base parrot
-# frame, apply a per-variant tint, then paint per-variant decoration
-# (flame crown, glow eyes, plume tail, etc). The chosen variant is picked
-# at module import time via PHOENIX_VARIANT.
-#
-#   classic / ember / ashes — fiery amber tint + 3-plume crown
-#   solar                    — pale-gold tint, no crown (halo does the work)
-#   mythic                   — fiery tint + 5-plume crown + plume tail + glow eyes
-#
-# Lazy-built and cached per-variant so importing the module is cheap.
+# Hand-painted phoenix sprite — built from scratch rather than tinting Pip,
+# so the silhouette is visibly different from the base parrot: long flame-
+# plume tail, sweeping flame-feathered wings, multi-layer crown of fire,
+# molten-gold body gradient, and embedded ember sparks around the body.
+# Sunglasses and beak are kept so Pip is still recognizable inside the
+# fire. Per-variant differentiation is purely a palette swap — every
+# variant gets the same hand-painted base.
 
 _PHOENIX_FRAMES_BY_VARIANT: "dict[str, list[pygame.Surface]]" = {}
 _phoenix_rot_cache_by_variant: "dict[str, dict]" = {}
 
+# Each palette is (outer→inner) for fire layers + body colour stops + crown
+# stack + ember dot colour + whether the eye glows through the sunglasses.
+# The five fire layers run deepest→hottest (outer dark crimson edge through
+# white-hot core) so polygons can be stacked outermost-first.
+PHOENIX_PALETTES = {
+    "classic": dict(
+        flame=[(120, 18, 26), (215, 55, 30), (255, 130, 40),
+               (255, 215,  85), (255, 245, 180)],
+        body_shadow=(120, 28,  28),
+        body_base  =(230, 65,  40),
+        body_hi    =(255, 150, 60),
+        body_belly =(255, 215, 110),
+        body_sheen =(255, 240, 200, 170),
+        crown      =[(240, 100, 30), (255, 200, 80), (255, 245, 180)],
+        ember      =(255, 220, 110),
+        eye_glow   =False,
+    ),
+    "solar": dict(
+        # Solar is the Eastern fenghuang/hō-ō reading — gold and white-hot
+        # rather than red and burning. Body stays warm-gold so it doesn't
+        # vanish against the sun-ray halo.
+        flame=[(180,  95, 30), (240, 170, 50), (255, 220, 100),
+               (255, 245, 170), (255, 252, 230)],
+        body_shadow=(170, 110,  40),
+        body_base  =(245, 195,  70),
+        body_hi    =(255, 230, 150),
+        body_belly =(255, 248, 215),
+        body_sheen =(255, 252, 230, 180),
+        crown      =[(220, 150, 50), (255, 220, 110), (255, 252, 230)],
+        ember      =(255, 245, 180),
+        eye_glow   =True,
+    ),
+    # Ember/Mythic/Ashes share the classic palette — they differentiate
+    # at the halo / rebirth / perk layers, not at the body palette.
+    "ember":  None,
+    "mythic": None,
+    "ashes":  None,
+}
+PHOENIX_PALETTES["ember"]  = PHOENIX_PALETTES["classic"]
+PHOENIX_PALETTES["ashes"]  = PHOENIX_PALETTES["classic"]
+# Mythic copies classic but flips the eye glow on and brightens the crown
+# tip so the storybook variant reads as more elaborate.
+_mythic = dict(PHOENIX_PALETTES["classic"])
+_mythic["eye_glow"] = True
+_mythic["crown"]    = [(220,  80, 30), (255, 180, 70), (255, 252, 220)]
+PHOENIX_PALETTES["mythic"] = _mythic
 
-def _paint_amber_tint(out, base):
-    glow = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    glow.fill((255, 120, 40, 255))
-    glow.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    out.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    hi = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    pygame.draw.ellipse(hi, (255, 230, 120, 130), pygame.Rect(20, 24, 18, 8))
-    out.blit(hi, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+def _build_phoenix_wing(angle_deg, palette):
+    """A sweeping flame-feather wing — 5 stacked layers from deepest
+    crimson down through orange / gold / white-hot, with three feather
+    divider lines etched in the deep crimson. Bigger and more dramatic
+    than `_build_wing` so the bird's silhouette reads as 'wings on fire'
+    rather than 'parrot with extra red.'"""
+    box = 60
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = palette["flame"]
+    # Drop shadow silhouette (translucent black so the wing looks lit
+    # from inside against any background).
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        (22, 32), (36, 12), (52, 8), (58, 22), (52, 38), (32, 46), (18, 38),
+    ])
+    # 1. Deep crimson outer feather (longest sweep top-back, longest plume bottom)
+    pygame.draw.polygon(w, f[0], [
+        (22, 30), (36, 10), (50, 6), (56, 20), (50, 36), (32, 44), (18, 36),
+    ])
+    # 2. Orange mid feather
+    pygame.draw.polygon(w, f[1], [
+        (22, 30), (34, 14), (46, 12), (50, 22), (44, 34), (28, 40), (20, 34),
+    ])
+    # 3. Gold inner feather
+    pygame.draw.polygon(w, f[2], [
+        (22, 30), (32, 18), (42, 18), (44, 26), (38, 34), (26, 36), (22, 34),
+    ])
+    # 4. Bright yellow accent
+    pygame.draw.polygon(w, f[3], [
+        (24, 30), (32, 22), (38, 24), (36, 30), (28, 32),
+    ])
+    # 5. White-hot pinpoint along the leading edge
+    pygame.draw.line(w, f[4], (25, 30), (38, 12), 1)
+    pygame.draw.line(w, f[4], (26, 33), (44, 20), 1)
+    # Feather divider strokes in deep crimson — give the wing visible
+    # plumage lines without breaking the gradient.
+    pygame.draw.line(w, f[0], (24, 30), (46, 12), 2)
+    pygame.draw.line(w, f[0], (26, 34), (48, 22), 2)
+    pygame.draw.line(w, f[0], (28, 38), (44, 32), 2)
+    # Trailing ember sparks off the wing tips.
+    pygame.draw.circle(w, f[3], (52,  8), 1)
+    pygame.draw.circle(w, f[3], (56, 20), 1)
+    pygame.draw.circle(w, f[3], (52, 38), 1)
+    return pygame.transform.rotate(w, angle_deg)
 
 
-def _paint_solar_tint(out, base):
-    # Brighter, paler gold — pushes the bird toward sun-bird / fenghuang.
-    glow = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    glow.fill((255, 220, 120, 255))
-    glow.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    out.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-    # Bigger white-gold sheen so the bird glows hotter than classic.
-    hi = pygame.Surface(base.get_size(), pygame.SRCALPHA)
-    pygame.draw.ellipse(hi, (255, 250, 200, 170), pygame.Rect(18, 22, 22, 10))
-    out.blit(hi, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+def _paint_phoenix_tail(surf, palette):
+    """Long multi-layered flame plume trailing back from the body.
+    Five stacked flame tongues with outermost = darkest crimson, innermost
+    = white-hot. Anchored at the body and sweeping left+down, with a
+    secondary plume curling up-back so the silhouette reads as a banner
+    of fire rather than a tail."""
+    f = palette["flame"]
+    # Drop shadow under the tail for depth.
+    pygame.draw.polygon(surf, (10, 5, 12, 130), [
+        (22, 30), (4, 26), (-3, 31), (2, 39), (12, 41), (22, 36),
+    ])
+    # Layer 1 — deepest crimson outer flame plume
+    pygame.draw.polygon(surf, f[0], [
+        (22, 28), (4, 23), (-3, 28), (1, 37), (10, 40), (22, 36),
+    ])
+    # Secondary upper plume (curls up over the back)
+    pygame.draw.polygon(surf, f[0], [
+        (22, 26), (8, 16), (3, 18), (12, 26),
+    ])
+    # Layer 2 — orange
+    pygame.draw.polygon(surf, f[1], [
+        (22, 28), (6, 24), (1, 28), (4, 35), (12, 38), (22, 34),
+    ])
+    pygame.draw.polygon(surf, f[1], [
+        (22, 26), (10, 18), (6, 19), (14, 26),
+    ])
+    # Layer 3 — gold
+    pygame.draw.polygon(surf, f[2], [
+        (22, 28), (10, 26), (6, 29), (8, 33), (14, 35), (22, 32),
+    ])
+    # Layer 4 — bright yellow inner
+    pygame.draw.polygon(surf, f[3], [
+        (22, 28), (14, 27), (12, 30), (14, 33), (20, 33),
+    ])
+    # Layer 5 — white-hot core line
+    pygame.draw.line(surf, f[4], (4, 28), (20, 30), 1)
+    pygame.draw.line(surf, f[4], (8, 32), (18, 32), 1)
+    # Ember sparks drifting off the tail tip.
+    pygame.draw.circle(surf, f[3], (-2, 30), 1)
+    pygame.draw.circle(surf, f[3], (-4, 33), 1)
+    pygame.draw.circle(surf, f[3], (1, 22), 1)
 
 
-def _paint_flame_crown(out, plumes):
-    """Paint a row of flame plumes above the head. `plumes` is an iterable
-    of (fx, fy_top, half_width, height, tip_colour) tuples."""
-    for fx, fy_top, hw, hh, tip in plumes:
+def _paint_phoenix_crown(surf, palette):
+    """5-plume flame crown rising from the top of the head. Each plume
+    is three stacked triangles (crimson base, orange mid, hot tip) so
+    the crown reads as a layered fire rather than a single triangle."""
+    crown = palette["crown"]
+    for fx, fy_top, hw, hh in (
+        (47,  0,  6, 14),  # tallest central plume
+        (41,  6,  4, 10),
+        (53,  6,  4, 10),
+        (36, 10,  3,  6),  # outer wing plumes
+        (58, 10,  3,  6),
+    ):
         base_y = fy_top + hh
-        pygame.draw.polygon(out, (240,  90,  30), [
+        pygame.draw.polygon(surf, crown[0], [
             (fx - hw, base_y),
             (fx + hw, base_y),
             (fx,      fy_top),
         ])
-        pygame.draw.polygon(out, tip, [
-            (fx - hw // 2, base_y - 2),
-            (fx + hw // 2, base_y - 2),
-            (fx,           fy_top + 3),
+        pygame.draw.polygon(surf, crown[1], [
+            (fx - max(1, hw - 1), base_y - 1),
+            (fx + max(1, hw - 1), base_y - 1),
+            (fx,                  fy_top + 3),
+        ])
+        pygame.draw.polygon(surf, crown[2], [
+            (fx - max(1, hw // 2), base_y - 2),
+            (fx + max(1, hw // 2), base_y - 2),
+            (fx,                   fy_top + 5),
         ])
 
 
-def _paint_tail_ember(out):
-    pygame.draw.polygon(out, (255, 180,  60), [
-        (4, 30), (-2, 27), (2, 36),
-    ])
-    pygame.draw.polygon(out, (255, 230, 130), [
-        (4, 31), (1, 30), (3, 35),
-    ])
-
-
-def _paint_plume_tail(out):
-    """Variant-4 tail: 4-flame plume that visibly trails behind Pip,
-    replacing the modest tail ember of the classic variant."""
-    pygame.draw.polygon(out, (220,  60,  30), [
-        (4, 28), (-10, 22), (-6, 32), (4, 36),
-    ])
-    pygame.draw.polygon(out, (255, 130,  40), [
-        (3, 29), (-7, 24), (-4, 31), (3, 35),
-    ])
-    pygame.draw.polygon(out, (255, 200,  80), [
-        (2, 30), (-4, 26), (-2, 30), (2, 33),
-    ])
-    pygame.draw.polygon(out, (255, 240, 160), [
-        (1, 31), (-2, 28), (0, 30), (1, 32),
-    ])
-
-
-def _paint_glow_eye(out):
-    """Variant-4 only: a small gold glow point near the existing
-    sunglass eyepiece, sells the 'eyes of fire' read."""
-    glow = pygame.Surface((10, 10), pygame.SRCALPHA)
-    pygame.draw.circle(glow, (255, 230, 120, 200), (5, 5), 4)
-    pygame.draw.circle(glow, (255, 250, 200, 255), (5, 5), 2)
-    out.blit(glow, (45, 16), special_flags=pygame.BLEND_RGBA_ADD)
-
-
 def _build_phoenix_frame(wing_angle_deg, variant: str) -> pygame.Surface:
-    base = _add_outline(_build_frame(wing_angle_deg))
-    out = base.copy()
-    if variant == "solar":
-        _paint_solar_tint(out, base)
-        # Solar doesn't get a flame crown — the rotating sun-ray halo
-        # behind Pip carries the identity. Skip tail ember too so the
-        # gold look stays clean.
-        return out
-    # All other variants share the fiery-amber base.
-    _paint_amber_tint(out, base)
-    if variant == "mythic":
-        _paint_flame_crown(out, (
-            (47, 1,  5, 13, (255, 240, 160)),  # tallest central plume
-            (41, 7,  3,  9, (255, 200,  80)),
-            (53, 7,  3,  9, (255, 200,  80)),
-            (37, 11, 2,  6, (255, 180,  60)),  # outer wings of the crown
-            (57, 11, 2,  6, (255, 180,  60)),
-        ))
-        _paint_plume_tail(out)
-        _paint_glow_eye(out)
-    else:
-        # classic / ember / ashes — modest 3-plume crown + tail ember.
-        _paint_flame_crown(out, (
-            (47, 4,  4, 12, (255, 230, 130)),
-            (41, 9,  3,  8, (255, 200,  80)),
-            (53, 9,  3,  8, (255, 200,  80)),
-        ))
-        _paint_tail_ember(out)
-    return out
+    """One hand-painted phoenix frame. Drawn from scratch so the silhouette
+    is genuinely a phoenix (long flame tail + flame wings + crown) rather
+    than a tinted parrot. Coordinates are native (64×60); the existing
+    rotation/cache pipeline handles the rest."""
+    palette = PHOENIX_PALETTES[variant]
+    surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+
+    # 1. Tail — long flame plume painted BEFORE the body so the body
+    #    overlaps it at the anchor seam.
+    _paint_phoenix_tail(surf, palette)
+
+    # 2. Body — molten-gold gradient. Slightly bigger drop shadow than
+    #    the base parrot to ground the bird against the flame plume.
+    _aaellipse(surf, palette["body_shadow"], (34, 35), 20, 14)
+    _aaellipse(surf, palette["body_base"],   (32, 32), 19, 14)
+    _aaellipse(surf, palette["body_hi"],     (30, 28), 14, 8)
+    _aaellipse(surf, palette["body_belly"],  (28, 38), 12, 6)
+    # Glossy top sheen — pushes the body's centre toward bright gold.
+    sheen = pygame.Surface((30, 6), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, palette["body_sheen"], sheen.get_rect())
+    surf.blit(sheen, (21, 21))
+
+    # 3. Wing (dynamic — rotated per `_WING_ANGLES` for flap animation).
+    wing = _build_phoenix_wing(wing_angle_deg, palette)
+    wr = wing.get_rect(center=(34, 27))
+    surf.blit(wing, wr.topleft)
+
+    # 4. Head — same molten gradient as the body so the bird reads as one
+    #    creature rather than a body wearing a head.
+    _aaellipse(surf, palette["body_shadow"], (48, 23), 12, 11)
+    _aaellipse(surf, palette["body_base"],   (47, 21), 12, 11)
+    _aaellipse(surf, palette["body_hi"],     (44, 24),  4,  3)
+    _aaellipse(surf, palette["body_belly"],  (46, 16),  7,  3)
+
+    # 5. Crown of flame (drawn ON TOP of the head so the plumes overlap
+    #    the head's upper rim).
+    _paint_phoenix_crown(surf, palette)
+
+    # 6. Sunglasses (Pip's identity — same coordinates as the base parrot).
+    _draw_sunglasses(surf, 50, 20)
+    # Optional eye glow that pierces through the lens — used by solar
+    # and mythic to sell "the bird's eyes are alight."
+    if palette.get("eye_glow"):
+        glow = pygame.Surface((14, 14), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 240, 160, 220), (7, 7), 6)
+        pygame.draw.circle(glow, (255, 255, 230, 255), (7, 7), 3)
+        pygame.draw.circle(glow, (255, 255, 255, 255), (7, 7), 1)
+        surf.blit(glow, (50 - 7, 20 - 7), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # 7. Beak — hooked, with a glossy highlight matching the base parrot.
+    beak_pts = [(56, 21), (62, 24), (58, 28), (53, 26)]
+    pygame.draw.polygon(surf, BIRD_BEAK,   beak_pts)
+    pygame.draw.polygon(surf, BIRD_BEAK_D, beak_pts, 1)
+    pygame.draw.line(surf,    (255, 240, 180), (56, 22), (60, 24), 1)
+    pygame.draw.line(surf,    BIRD_BEAK_D,     (54, 25), (60, 26), 1)
+
+    # 8. Body ember sparks — small bright pixel dots scattered around
+    #    the silhouette so the bird visibly throws sparks at rest.
+    ember = palette["ember"]
+    for ex, ey in (
+        (16, 18), (24, 12), (38, 10), (50, 8),
+        (60,  28), (58, 38), (44, 46), (28, 48),
+        (12, 36), (8, 22), (32, 14), (20, 26),
+    ):
+        pygame.draw.circle(surf, ember, (ex, ey), 1)
+    # Two slightly bigger highlight sparks
+    pygame.draw.circle(surf, palette["body_belly"], (44, 12), 2)
+    pygame.draw.circle(surf, palette["body_belly"], (16, 40), 2)
+
+    return surf
 
 
 def _get_phoenix_frames(variant: str) -> "list[pygame.Surface]":
     frames = _PHOENIX_FRAMES_BY_VARIANT.get(variant)
     if frames is None:
-        frames = [_build_phoenix_frame(a, variant) for a in _WING_ANGLES]
+        frames = [_add_outline(_build_phoenix_frame(a, variant))
+                  for a in _WING_ANGLES]
         _PHOENIX_FRAMES_BY_VARIANT[variant] = frames
         _phoenix_rot_cache_by_variant[variant] = {}
     return frames

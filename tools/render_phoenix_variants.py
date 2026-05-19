@@ -188,10 +188,10 @@ def render_contact_sheet() -> pygame.Surface:
         if i > 0:
             pygame.draw.line(sheet, (60, 50, 90),
                              (24, y0 - 6), (sheet_w - 24, y0 - 6), 1)
-        # Pip sprite + halo (rendered onto a 180×180 transparent surface;
-        # Pip himself is upscaled 2× via render_pip_sprite).
-        pip_box = render_pip_sprite(variant, size=180, pip_scale=2.0)
-        sheet.blit(pip_box, (40, y0))
+        # Pip sprite + halo (rendered onto a 220×220 transparent surface;
+        # Pip himself is upscaled 2.4× via render_pip_sprite).
+        pip_box = render_pip_sprite(variant, size=220, pip_scale=2.4)
+        sheet.blit(pip_box, (20, y0 - 6))
         # Pickup icon
         pickup = render_pickup_icon(variant, size=110)
         sheet.blit(pickup, (244, y0 + 36))

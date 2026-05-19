@@ -730,63 +730,87 @@ def _coin_icon(surf, cx, cy, r=10):
     surf.blit(target, rect.topleft)
 
 
-def _draw_phoenix_classic_glyph(surf, cx, cy):
-    """HUD glyph for the classic / ember / ashes phoenix variants."""
-    halo = pygame.Surface((22, 22), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (255, 120,  40, 120), (11, 11), 10)
-    pygame.draw.circle(halo, (255, 200,  80, 160), (11, 11),  6)
-    surf.blit(halo, (cx - 11, cy - 11))
-    for fx, fy_base, hw, hh, tip in (
-        (cx,     cy - 3, 3, 7, (255, 230, 130)),
-        (cx - 4, cy - 1, 2, 4, (255, 200,  80)),
-        (cx + 4, cy - 1, 2, 4, (255, 200,  80)),
+def _draw_phoenix_classic_glyph(surf, cx, cy, palette=None):
+    """HUD glyph for the classic/ember/ashes phoenix — compact stylized
+    phoenix silhouette with sweeping wings, a flame crown, and a tail
+    plume. Reads cleanly at 24×24 px because each element is reduced
+    to its essential silhouette."""
+    if palette is None:
+        palette = dict(
+            flame=[(120, 18, 26), (215, 55, 30), (255, 130, 40),
+                   (255, 215, 85), (255, 245, 180)],
+            body=[(130, 30, 30), (230, 65, 40), (255, 150, 60), (255, 215, 110)],
+            crown=[(240, 100, 30), (255, 200, 80), (255, 245, 180)],
+        )
+    f = palette["flame"]
+    b = palette["body"]
+    crown = palette["crown"]
+    # Halo (small fire glow behind the bird)
+    halo = pygame.Surface((28, 28), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (255,  80,  30, 110), (14, 14), 13)
+    pygame.draw.circle(halo, (255, 150,  40, 150), (14, 14),  9)
+    pygame.draw.circle(halo, (255, 220, 100, 200), (14, 14),  5)
+    surf.blit(halo, (cx - 14, cy - 14))
+    # Trailing flame tail (left of the body)
+    pygame.draw.polygon(surf, f[0],
+                        [(cx - 3, cy - 1), (cx - 9, cy - 3),
+                         (cx - 11, cy + 2), (cx - 8, cy + 6),
+                         (cx - 3, cy + 4)])
+    pygame.draw.polygon(surf, f[1],
+                        [(cx - 3, cy + 0), (cx - 7, cy - 2),
+                         (cx - 9, cy + 2), (cx - 7, cy + 5),
+                         (cx - 3, cy + 3)])
+    pygame.draw.polygon(surf, f[2],
+                        [(cx - 3, cy + 1), (cx - 5, cy + 0),
+                         (cx - 6, cy + 3), (cx - 4, cy + 4)])
+    # Upper wing (sweep up-right)
+    pygame.draw.polygon(surf, f[0],
+                        [(cx, cy - 1), (cx + 4, cy - 6),
+                         (cx + 6, cy - 4), (cx + 3, cy - 1)])
+    pygame.draw.polygon(surf, f[1],
+                        [(cx + 1, cy - 1), (cx + 4, cy - 5),
+                         (cx + 5, cy - 3)])
+    # Body
+    pygame.draw.ellipse(surf, b[0], pygame.Rect(cx - 3, cy - 1, 11, 8))
+    pygame.draw.ellipse(surf, b[1], pygame.Rect(cx - 2, cy + 0, 9, 6))
+    pygame.draw.ellipse(surf, b[2], pygame.Rect(cx - 1, cy + 2, 6, 3))
+    # Head + crown
+    pygame.draw.ellipse(surf, b[0], pygame.Rect(cx + 3, cy - 5, 7, 6))
+    pygame.draw.ellipse(surf, b[1], pygame.Rect(cx + 4, cy - 4, 5, 4))
+    # 3-plume crown
+    for fx, fy_top, hw, hh in (
+        (cx + 6, cy - 11, 2, 5),     # tall central
+        (cx + 4, cy - 9, 1, 3),
+        (cx + 8, cy - 9, 1, 3),
     ):
-        pygame.draw.polygon(surf, (220,  70,  20), [
-            (fx - hw, fy_base), (fx + hw, fy_base),
-            (fx,      fy_base - hh)])
-        pygame.draw.polygon(surf, tip, [
-            (fx - hw // 2, fy_base - 1), (fx + hw // 2, fy_base - 1),
-            (fx,           fy_base - hh + 2)])
-    pygame.draw.ellipse(surf, ( 90,  10,  20),
-                        pygame.Rect(cx - 7, cy + 2, 14, 9))
-    pygame.draw.ellipse(surf, (210,  40,  30),
-                        pygame.Rect(cx - 6, cy + 3, 12, 7))
-    pygame.draw.ellipse(surf, (255, 170,  40),
-                        pygame.Rect(cx - 4, cy + 5, 8, 4))
-    pygame.draw.polygon(surf, (255, 200,  60), [
-        (cx + 6, cy + 5), (cx + 9, cy + 6), (cx + 6, cy + 7)])
+        base_y = fy_top + hh
+        pygame.draw.polygon(surf, crown[0],
+                            [(fx - hw, base_y), (fx + hw, base_y),
+                             (fx, fy_top)])
+        # Hot tip — a single bright line up the centre of the plume
+        pygame.draw.line(surf, crown[2],
+                         (fx, base_y - 1), (fx, fy_top + 1), 1)
+    # Beak
+    pygame.draw.polygon(surf, (255, 200,  60),
+                        [(cx + 9, cy - 3), (cx + 11, cy - 2),
+                         (cx + 9, cy - 1)])
 
 
 def _draw_phoenix_mythic_glyph(surf, cx, cy):
-    """HUD glyph for the mythic phoenix variant — 5-plume crown + bigger halo."""
-    halo = pygame.Surface((24, 24), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (255,  60,  20, 100), (12, 12), 11)
-    pygame.draw.circle(halo, (255, 140,  40, 140), (12, 12),  8)
-    pygame.draw.circle(halo, (255, 220, 100, 200), (12, 12),  4)
-    surf.blit(halo, (cx - 12, cy - 12))
-    for fx, fy_base, hw, hh, tip in (
-        (cx,     cy - 4, 3, 8, (255, 240, 170)),
-        (cx - 4, cy - 2, 2, 5, (255, 200,  80)),
-        (cx + 4, cy - 2, 2, 5, (255, 200,  80)),
-        (cx - 7, cy - 1, 2, 3, (255, 180,  60)),
-        (cx + 7, cy - 1, 2, 3, (255, 180,  60)),
+    """Mythic variant: same silhouette as classic plus a 5-plume crown
+    and a gold-glow eye, signalling the storybook variant at HUD scale."""
+    _draw_phoenix_classic_glyph(surf, cx, cy)
+    # Two extra outer plumes (smaller, lower)
+    for fx, fy_top, hw, hh in (
+        (cx + 2,  cy - 7, 1, 2),
+        (cx + 10, cy - 7, 1, 2),
     ):
-        pygame.draw.polygon(surf, (220,  70,  20), [
-            (fx - hw, fy_base), (fx + hw, fy_base),
-            (fx,      fy_base - hh)])
-        pygame.draw.polygon(surf, tip, [
-            (fx - hw // 2, fy_base - 1), (fx + hw // 2, fy_base - 1),
-            (fx,           fy_base - hh + 2)])
-    pygame.draw.ellipse(surf, ( 90,  10,  20),
-                        pygame.Rect(cx - 7, cy + 2, 14, 9))
-    pygame.draw.ellipse(surf, (210,  40,  30),
-                        pygame.Rect(cx - 6, cy + 3, 12, 7))
-    pygame.draw.ellipse(surf, (255, 170,  40),
-                        pygame.Rect(cx - 4, cy + 5, 8, 4))
-    # Gold-glowing eye dot
-    pygame.draw.circle(surf, (255, 230, 130), (cx + 3, cy + 4), 1)
-    pygame.draw.polygon(surf, (255, 200,  60), [
-        (cx + 6, cy + 5), (cx + 9, cy + 6), (cx + 6, cy + 7)])
+        base_y = fy_top + hh
+        pygame.draw.polygon(surf, (220, 80, 30),
+                            [(fx - hw, base_y), (fx + hw, base_y),
+                             (fx, fy_top)])
+    # Gold-glow eye dot
+    pygame.draw.circle(surf, (255, 240, 140), (cx + 6, cy - 3), 1)
 
 
 def _draw_buff_icon(surf, rect, kind):
@@ -1002,23 +1026,29 @@ def _draw_buff_icon(surf, rect, kind):
         star = get_nightglow_star(size)
         surf.blit(star, (cx - size // 2, cy - size // 2))
     elif kind == "phoenix":
-        # Mini flame-bird glyph. Dispatches on PHOENIX_VARIANT so the
-        # HUD row matches Pip's current look.
+        # Mini phoenix glyph. Dispatches on PHOENIX_VARIANT so the HUD
+        # row matches Pip's current look.
         from game.config import PHOENIX_VARIANT as _PV
         if _PV == "solar":
-            # Gold sun with bird silhouette in centre.
-            pygame.draw.circle(surf, (255, 230, 130, 200), (cx, cy), 10)
+            # Rotating sun behind a small gold phoenix
             for i in range(8):
-                ang = i * (math.pi / 4)
-                ex = cx + math.cos(ang) * 11
-                ey = cy + math.sin(ang) * 11
-                pygame.draw.line(surf, (255, 240, 170),
-                                 (cx, cy), (int(ex), int(ey)), 2)
-            pygame.draw.circle(surf, (255, 250, 220), (cx, cy), 5)
-            # Gold mini-body
-            pygame.draw.ellipse(surf, (250, 200,  70),
-                                pygame.Rect(cx - 5, cy + 1, 10, 6))
-            pygame.draw.circle(surf, (40, 30, 10), (cx + 2, cy + 2), 1)
+                ang = i * (math.pi / 4) + math.pi / 8
+                ex = cx + math.cos(ang) * 12
+                ey = cy + math.sin(ang) * 12
+                pygame.draw.polygon(surf, (255, 240, 130), [
+                    (cx + int(math.cos(ang - 0.18) * 5),
+                     cy + int(math.sin(ang - 0.18) * 5)),
+                    (cx + int(math.cos(ang + 0.18) * 5),
+                     cy + int(math.sin(ang + 0.18) * 5)),
+                    (int(ex), int(ey))])
+            pygame.draw.circle(surf, (255, 250, 220, 220), (cx, cy), 7)
+            _draw_phoenix_classic_glyph(surf, cx, cy, palette=dict(
+                flame=[(180,  95, 30), (240, 170, 50), (255, 220, 100),
+                       (255, 245, 170), (255, 252, 230)],
+                body=[(170, 110, 40), (245, 195, 70),
+                      (255, 230, 150), (255, 248, 215)],
+                crown=[(220, 150, 50), (255, 220, 110), (255, 252, 230)],
+            ))
         elif _PV == "ember":
             # Classic glyph + a 3-dot fading trail behind it.
             for dx, sz, alpha in ((4, 2, 200), (8, 2, 130), (12, 1, 70)):
