@@ -1224,6 +1224,13 @@ class Bird:
         pygame.draw.line(helm, OUT,
                          (clip.x + 2, clip.y),
                          (clip.x + 2, clip.bottom - 1), 1)
+        # RIGHT chinstrap (variant R5): short forward-only segment
+        # from the buckle to (22, 35) — suggests the strap continues
+        # under the chin to the far-side helmet rim (hidden in side
+        # view). Connects to the LEFT strap at the buckle so the
+        # chinstrap reads as a full loop around the head, the way a
+        # real helmet's two-piece chinstrap actually looks.
+        pygame.draw.line(helm, STRAP, clip_centre, (22, 35), 2)
 
         # Anchor (+18, -10) — x unchanged from the approved (+18, -18)
         # pose, y compensated +8 because extending drop from 12 → 28
