@@ -21,11 +21,22 @@ Numpy/surfarray is used per frame for the luminance recolour and the
 halo alpha pre-multiplication (BLEND_RGBA_ADD ignores source alpha
 for RGB, so the only way to confine a uniform-colour silhouette halo
 to entity neighbourhoods is to bake `RGB *= alpha` in).
+
+If numpy is unavailable (e.g. on a stripped pygbag bundle), the
+import is caught and `apply_nightglow` falls back to a simple dim-
+plus-tint composite that still reads as "night mode + green glow"
+but skips the per-pixel recolour. That way picking up the buff
+NEVER crashes the run, regardless of bundle contents.
 """
 
-import numpy as np
+try:
+    import numpy as np
+    import pygame.surfarray
+    _HAS_NUMPY = True
+except ImportError:
+    _HAS_NUMPY = False
+
 import pygame
-import pygame.surfarray
 
 from game.config import W, H
 from game.pillar_variants import _VARIANTS, VARIANT_COUNT, _paint_stone
@@ -123,12 +134,29 @@ def _build_layers(world, sx: int, sy: int):
     return bodies, glow_targets
 
 
+def _apply_fallback(screen: pygame.Surface, strength: float) -> None:
+    """Numpy-free degraded effect: dim the scene + drop a faint green
+    ambient haze. Used when numpy is unavailable so the buff still
+    visibly fires without crashing. No per-entity recolour and no
+    silhouette halos — both need numpy."""
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((*_DARK_OVERLAY_TINT,
+                  int(_DARK_OVERLAY_ALPHA * strength)))
+    screen.blit(overlay, (0, 0))
+    haze = pygame.Surface((W, H), pygame.SRCALPHA)
+    haze.fill((50, 200, 70, int(28 * strength)))
+    screen.blit(haze, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
 def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
                     strength: float) -> None:
     """Apply the V5 PUNCH+ composite to `screen` AFTER entities are
     already drawn. `strength` ∈ [0, 1] scales every alpha so the
     effect can fade in at activation and fade out at expiry."""
     if strength <= 0:
+        return
+    if not _HAS_NUMPY:
+        _apply_fallback(screen, strength)
         return
     bodies, glow_targets = _build_layers(world, sx, sy)
 
