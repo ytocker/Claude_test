@@ -143,7 +143,7 @@ PHOENIX_INVULN        = 1.5
 #   "eternal_friend" — friendlier face (bigger eye, soft beak)
 #   "eternal_lite"   — all-in: warm + rounded + short + friendly
 PHOENIX_VARIANT       = "eternal_warm"
-RAIL_PILLAR_COUNT     = 7       # cart rides over exactly N pillars then releases
+RAIL_PILLAR_COUNT     = 5       # cart rides over exactly N pillars then releases
 RAIL_SCROLL_MULT      = 2.5     # world scrolls 2.5x faster during the ride
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
