@@ -32,14 +32,20 @@ from game import parrot, entities, hud
 
 
 VARIANTS = ("classic", "solar", "ember", "mythic", "ashes")
+GRANDIOSE_VARIANTS = ("imperial", "fenghuang", "dragon", "comet", "royal")
 
 
 PERK_CAPTION = {
-    "classic": "Pure revive, no extra perk.",
-    "solar":   "Weak coin-magnet while active.",
-    "ember":   "Ember trail behind Pip; coins worth 2x.",
-    "mythic":  "Egg-crack cinematic on rebirth (0.6 s pause).",
-    "ashes":   "Ash + falling egg; respawns in next safe gap.",
+    "classic":   "Pure revive, no extra perk.",
+    "solar":     "Weak coin-magnet while active.",
+    "ember":     "Ember trail behind Pip; coins worth 2x.",
+    "mythic":    "Egg-crack cinematic on rebirth (0.6 s pause).",
+    "ashes":     "Ash + falling egg; respawns in next safe gap.",
+    "imperial":  "Eagle of fire — full-width wings, raptor pose.",
+    "fenghuang": "Eastern phoenix — 7-plume peacock fan-tail.",
+    "dragon":    "Sinuous body + flame banners + wispy comet tail.",
+    "comet":     "Tiny bird pulling a massive flame-trail tail.",
+    "royal":     "Halo-crown of 9 plumes radiating like a sunburst.",
 }
 
 
@@ -69,8 +75,14 @@ def render_pip_sprite(variant: str, size: int = 120,
     halo_t = math.pi / (2 * 0.7)
     if variant == "solar":
         entities._draw_phoenix_solar_halo(surf, cx, cy, halo_t)
-    elif variant == "mythic":
+    elif variant in ("mythic", "imperial"):
         entities._draw_phoenix_mythic_halo(surf, cx, cy, halo_t)
+    elif variant == "fenghuang":
+        entities._draw_phoenix_fenghuang_halo(surf, cx, cy, halo_t)
+    elif variant == "royal":
+        entities._draw_phoenix_royal_halo(surf, cx, cy, halo_t)
+    elif variant in ("dragon", "comet"):
+        pass  # halo-less; identity carried in the sprite
     else:
         entities._draw_phoenix_fire_halo(surf, cx, cy, halo_t)
     # EMBER: paint a static ember trail behind Pip so the design read
@@ -156,11 +168,13 @@ def _outlined(surf, text, size, fill, outline=(0, 0, 0)):
 # ── contact sheet layout ───────────────────────────────────────────
 
 
-def render_contact_sheet() -> pygame.Surface:
+def render_contact_sheet(variants=VARIANTS,
+                         title_text="PHOENIX — 5 design variants",
+                         pip_scale=2.4) -> pygame.Surface:
     row_h = 200
     sheet_w = 920
     header_h = 64
-    sheet_h = header_h + row_h * len(VARIANTS) + 24
+    sheet_h = header_h + row_h * len(variants) + 24
     sheet = pygame.Surface((sheet_w, sheet_h), pygame.SRCALPHA)
     # Dark velvet background gradient
     for y in range(sheet_h):
@@ -168,8 +182,7 @@ def render_contact_sheet() -> pygame.Surface:
         col = (int(20 + 6 * t), int(14 + 10 * t), int(36 + 14 * t))
         pygame.draw.line(sheet, col, (0, y), (sheet_w, y))
 
-    title = _outlined(sheet, "PHOENIX — 5 design variants",
-                      36, (255, 220, 100))
+    title = _outlined(sheet, title_text, 36, (255, 220, 100))
     sheet.blit(title, ((sheet_w - title.get_width()) // 2, 14))
 
     # Column headers
@@ -182,15 +195,15 @@ def render_contact_sheet() -> pygame.Surface:
     name_font = pygame.font.SysFont(None, 22, bold=True)
     perk_font = pygame.font.SysFont(None, 18)
 
-    for i, variant in enumerate(VARIANTS):
+    for i, variant in enumerate(variants):
         y0 = header_h + 16 + i * row_h
         # Faint row separator
         if i > 0:
             pygame.draw.line(sheet, (60, 50, 90),
                              (24, y0 - 6), (sheet_w - 24, y0 - 6), 1)
         # Pip sprite + halo (rendered onto a 220×220 transparent surface;
-        # Pip himself is upscaled 2.4× via render_pip_sprite).
-        pip_box = render_pip_sprite(variant, size=220, pip_scale=2.4)
+        # Pip himself is upscaled per `pip_scale`).
+        pip_box = render_pip_sprite(variant, size=220, pip_scale=pip_scale)
         sheet.blit(pip_box, (20, y0 - 6))
         # Pickup icon
         pickup = render_pickup_icon(variant, size=110)
@@ -225,32 +238,46 @@ def render_contact_sheet() -> pygame.Surface:
     return sheet
 
 
+def _render_tile(variant: str, out_dir: str, pip_scale: float = 1.8):
+    """Per-variant tile: a 300×260 swatch with the sprite + pickup + HUD."""
+    tile_w, tile_h = 300, 260
+    tile = pygame.Surface((tile_w, tile_h), pygame.SRCALPHA)
+    for y in range(tile_h):
+        t = y / max(1, tile_h - 1)
+        tile.fill((int(20 + 6 * t), int(14 + 10 * t), int(36 + 14 * t)),
+                  pygame.Rect(0, y, tile_w, 1))
+    pip = render_pip_sprite(variant, size=180, pip_scale=pip_scale)
+    tile.blit(pip, ((tile_w - 180) // 2, 8))
+    pickup = render_pickup_icon(variant, size=80)
+    tile.blit(pickup, (32, 188))
+    hud_g = render_hud_glyph(variant, size=44)
+    tile.blit(hud_g, (148, 208))
+    name = _outlined(tile, variant.upper(), 26, (255, 220, 100))
+    tile.blit(name, (200, 198))
+    pygame.image.save(tile, os.path.join(out_dir, f"v_{variant}.png"))
+    print(f"wrote v_{variant}.png")
+
+
 def main():
     out_dir = os.path.join(_REPO, "docs", "phoenix_design")
     os.makedirs(out_dir, exist_ok=True)
-    # Per-variant tile renders (300×220 each) so each design can be
-    # inspected on its own without cropping the contact sheet.
+    # Original 5 (legacy 64×60 canvas)
     for variant in VARIANTS:
-        tile = pygame.Surface((300, 220), pygame.SRCALPHA)
-        # Velvet background
-        for y in range(220):
-            t = y / 219
-            tile.fill((int(20 + 6 * t), int(14 + 10 * t), int(36 + 14 * t)),
-                      pygame.Rect(0, y, 300, 1))
-        pip = render_pip_sprite(variant, size=140)
-        tile.blit(pip, ((300 - 140) // 2, 12))
-        pickup = render_pickup_icon(variant, size=80)
-        tile.blit(pickup, (32, 150))
-        hud_g = render_hud_glyph(variant, size=44)
-        tile.blit(hud_g, (148, 168))
-        name = _outlined(tile, variant.upper(), 26, (255, 220, 100))
-        tile.blit(name, (200, 160))
-        pygame.image.save(tile, os.path.join(out_dir, f"v_{variant}.png"))
-        print(f"wrote v_{variant}.png")
-    sheet = render_contact_sheet()
-    out = os.path.join(out_dir, "_contact_sheet.png")
-    pygame.image.save(sheet, out)
-    print(f"wrote {out}")
+        _render_tile(variant, out_dir, pip_scale=2.0)
+    sheet = render_contact_sheet(
+        VARIANTS, "PHOENIX — original 5 variants", pip_scale=2.4)
+    pygame.image.save(sheet, os.path.join(out_dir, "_contact_sheet.png"))
+    print(f"wrote _contact_sheet.png")
+    # Grandiose 5 (100×76 canvas — bigger sprites already, so a smaller
+    # render-time upscale)
+    for variant in GRANDIOSE_VARIANTS:
+        _render_tile(variant, out_dir, pip_scale=1.6)
+    sheet = render_contact_sheet(
+        GRANDIOSE_VARIANTS,
+        "PHOENIX — grandiose 5 (Ashes lineage)",
+        pip_scale=1.8)
+    pygame.image.save(sheet, os.path.join(out_dir, "_grandiose_contact_sheet.png"))
+    print(f"wrote _grandiose_contact_sheet.png")
 
 
 if __name__ == "__main__":

@@ -1029,6 +1029,19 @@ def _draw_buff_icon(surf, rect, kind):
         # Mini phoenix glyph. Dispatches on PHOENIX_VARIANT so the HUD
         # row matches Pip's current look.
         from game.config import PHOENIX_VARIANT as _PV
+        # Grandiose variants: just render the actual sprite scaled to
+        # fit inside the HUD slot. Keeps the HUD glyph identical to
+        # what Pip looks like in-flight.
+        if _PV in ("imperial", "fenghuang", "dragon", "comet", "royal"):
+            from game import parrot
+            sprite = parrot.get_phoenix_parrot(0, 0.0, variant=_PV)
+            sw, sh = sprite.get_size()
+            target = max(rect.width, rect.height) - 2
+            scale = target / max(sw, sh)
+            scaled = pygame.transform.smoothscale(
+                sprite, (max(1, int(sw * scale)), max(1, int(sh * scale))))
+            surf.blit(scaled, scaled.get_rect(center=rect.center).topleft)
+            return
         if _PV == "solar":
             # Rotating sun behind a small gold phoenix
             for i in range(8):

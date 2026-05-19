@@ -937,11 +937,792 @@ def _build_phoenix_frame(wing_angle_deg, variant: str) -> pygame.Surface:
     return surf
 
 
+# ── Grandiose phoenix variants (Ashes lineage) ──────────────────────────────
+# Five hand-painted phoenix designs that BREAK the parrot silhouette: bigger
+# canvas (100×76), longer wings, dramatic tails, distinctive body shapes.
+# All inherit the Ashes gameplay (ash + falling egg + safe-gap respawn).
+#
+#   imperial  — eagle-of-fire, wings spread the full width of the canvas
+#   fenghuang — Eastern phoenix, 7-plume fan-tail in iridescent colours
+#   dragon    — sinuous S-curve body, flame banners instead of feathers
+#   comet     — small bird at the front of a massive flame-trail tail
+#   royal     — halo-crown of 9 plumes radiating around the head
+
+GRAND_W, GRAND_H = 100, 76
+GRAND_CX, GRAND_CY = GRAND_W // 2, GRAND_H // 2  # body anchor
+
+
+def _grand_canvas() -> pygame.Surface:
+    return pygame.Surface((GRAND_W, GRAND_H), pygame.SRCALPHA)
+
+
+def _draw_small_eye(surf, x, y, glow=False):
+    """Tiny eye glyph used by the grandiose variants — replaces the
+    full sunglasses with a single sclera + pupil so the head isn't
+    dominated by aviator frames at the new larger sprite scale."""
+    pygame.draw.circle(surf, (255, 250, 220), (x, y), 2)
+    pygame.draw.circle(surf, ( 20,  10,  10), (x, y), 1)
+    if glow:
+        glow_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (255, 240, 160, 220), (5, 5), 4)
+        pygame.draw.circle(glow_surf, (255, 255, 230, 255), (5, 5), 2)
+        surf.blit(glow_surf, (x - 5, y - 5),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Variant 1 — IMPERIAL PHOENIX (eagle of fire)
+# ────────────────────────────────────────────────────────────────────────────
+
+_IMPERIAL_FLAME = [
+    (110,  18, 26), (200,  55, 30), (245, 120, 40),
+    (255, 200,  80), (255, 245, 180),
+]
+_IMPERIAL_BODY = [
+    (110, 25, 28), (210,  55,  40),
+    (245, 130,  60), (255, 200, 100),
+]
+
+
+def _build_imperial_wing(angle_deg):
+    """Eagle wing: long, sweeping, with 5 distinct primary feathers
+    fanned at the wingtip. Rendered as a deep-crimson silhouette with
+    orange / gold / yellow / white-hot accents along the leading edge."""
+    box = 72
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _IMPERIAL_FLAME
+    # Drop shadow under the wing silhouette
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        (36, 38), (62, 18), (70, 30), (64, 42), (50, 52), (28, 46),
+    ])
+    # Outer layer (deep crimson silhouette)
+    pygame.draw.polygon(w, f[0], [
+        (36, 36), (60, 16), (68, 28), (62, 40), (48, 50), (28, 44),
+    ])
+    # 5 distinct primary feathers fanned at the wingtip
+    primaries = [
+        # (root_x, root_y, tip_x, tip_y, half_w)
+        (52, 18, 68,  6, 3),
+        (54, 22, 70, 14, 3),
+        (56, 26, 72, 22, 3),
+        (54, 32, 70, 32, 3),
+        (52, 38, 66, 42, 3),
+    ]
+    for rx, ry, tx, ty, hw in primaries:
+        # Each primary is a long thin teardrop in deep crimson
+        pygame.draw.polygon(w, f[0], [
+            (rx - hw, ry), (rx + hw, ry),
+            (tx + 1, ty), (tx - 1, ty),
+        ])
+        # Gold mid-stripe down the feather
+        pygame.draw.line(w, f[2], (rx, ry + 1), (tx, ty), 1)
+    # Inner orange feather layer
+    pygame.draw.polygon(w, f[1], [
+        (36, 36), (54, 22), (60, 30), (54, 38), (40, 44),
+    ])
+    # Gold inner sheen
+    pygame.draw.polygon(w, f[2], [
+        (38, 36), (50, 28), (54, 32), (48, 38),
+    ])
+    # White-hot edge highlight along the leading sweep
+    pygame.draw.line(w, f[4], (38, 36), (54, 20), 1)
+    pygame.draw.line(w, f[4], (40, 39), (58, 28), 1)
+    # Feather divider strokes
+    pygame.draw.line(w, f[0], (38, 38), (58, 18), 2)
+    pygame.draw.line(w, f[0], (40, 42), (58, 28), 2)
+    pygame.draw.line(w, f[0], (42, 46), (54, 38), 2)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_imperial_frame(wing_angle_deg):
+    surf = _grand_canvas()
+    f = _IMPERIAL_FLAME
+    b = _IMPERIAL_BODY
+    cx, cy = GRAND_CX, GRAND_CY
+    # 1. Tail — banded flame fan trailing down (eagle has a SHORT tail)
+    tail_layers = [
+        (f[0], [(cx - 12, cy + 12), (cx + 12, cy + 12),
+                (cx + 16, cy + 30), (cx + 8, cy + 36),
+                (cx, cy + 38), (cx - 8, cy + 36),
+                (cx - 16, cy + 30)]),
+        (f[1], [(cx - 10, cy + 14), (cx + 10, cy + 14),
+                (cx + 12, cy + 28), (cx + 4, cy + 34),
+                (cx, cy + 36), (cx - 4, cy + 34),
+                (cx - 12, cy + 28)]),
+        (f[2], [(cx - 7, cy + 16), (cx + 7, cy + 16),
+                (cx + 8, cy + 26), (cx, cy + 32), (cx - 8, cy + 26)]),
+        (f[3], [(cx - 4, cy + 18), (cx + 4, cy + 18),
+                (cx + 4, cy + 24), (cx, cy + 28), (cx - 4, cy + 24)]),
+    ]
+    for col, pts in tail_layers:
+        pygame.draw.polygon(surf, col, pts)
+    # 2. Body — slim vertical oval (eagle proportions)
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(cx - 9, cy - 12, 18, 28))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(cx - 8, cy - 11, 16, 26))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(cx - 6, cy - 6, 12, 14))
+    pygame.draw.ellipse(surf, b[3],
+                        pygame.Rect(cx - 4, cy + 0, 8, 8))
+    # 3. Wings — built and rotated by _build_imperial_wing
+    wing_right = _build_imperial_wing(wing_angle_deg)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 16, cy - 4)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 16, cy - 4)).topleft)
+    # 4. Head — small raptor head, forward-facing
+    pygame.draw.ellipse(surf, b[0], pygame.Rect(cx - 7, cy - 24, 14, 14))
+    pygame.draw.ellipse(surf, b[1], pygame.Rect(cx - 6, cy - 23, 12, 12))
+    pygame.draw.ellipse(surf, b[2], pygame.Rect(cx - 4, cy - 19,  6,  4))
+    # 5. Hooked raptor beak (replaces the parrot's rounded beak)
+    pygame.draw.polygon(surf, (255, 200,  60), [
+        (cx + 5, cy - 18), (cx + 11, cy - 14),
+        (cx + 7, cy - 12), (cx + 5, cy - 14),
+    ])
+    pygame.draw.polygon(surf, (140,  90,  20), [
+        (cx + 5, cy - 18), (cx + 11, cy - 14),
+        (cx + 7, cy - 12), (cx + 5, cy - 14),
+    ], 1)
+    # 6. Fierce forward-facing eye
+    _draw_small_eye(surf, cx + 3, cy - 18, glow=True)
+    # 7. Crown — 5 tall plumes rising from the head crown
+    for fx_off, fy_top, hw, hh in (
+        (cx + 0, cy - 38, 4, 14),  # tallest centre
+        (cx - 6, cy - 32, 3,  9),
+        (cx + 6, cy - 32, 3,  9),
+        (cx -11, cy - 28, 2,  6),  # outer plumes
+        (cx +11, cy - 28, 2,  6),
+    ):
+        base_y = fy_top + hh
+        pygame.draw.polygon(surf, f[0], [
+            (fx_off - hw, base_y), (fx_off + hw, base_y),
+            (fx_off, fy_top)])
+        pygame.draw.polygon(surf, f[2], [
+            (fx_off - max(1, hw - 1), base_y - 1),
+            (fx_off + max(1, hw - 1), base_y - 1),
+            (fx_off, fy_top + 3)])
+        pygame.draw.polygon(surf, f[4], [
+            (fx_off - max(1, hw // 2), base_y - 2),
+            (fx_off + max(1, hw // 2), base_y - 2),
+            (fx_off, fy_top + 5)])
+    # 8. Body ember sparks scattered around
+    for ex, ey in ((-18, -12), (-8, -20), (8, -20), (18, -8),
+                   (20, 10), (12, 28), (-12, 28), (-20, 8),
+                   (-30, -4), (30, -4), (-26, 18), (26, 18)):
+        pygame.draw.circle(surf, f[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Variant 2 — FENGHUANG (Eastern phoenix)
+# ────────────────────────────────────────────────────────────────────────────
+
+# Iridescent Eastern palette: teal-blue base, gold mid, red highlights.
+_FENGHUANG_BLUE   = ( 40,  80, 140)
+_FENGHUANG_TEAL   = ( 60, 130, 170)
+_FENGHUANG_AQUA   = (110, 200, 210)
+_FENGHUANG_GOLD   = (255, 200,  80)
+_FENGHUANG_AMBER  = (255, 160,  50)
+_FENGHUANG_RED    = (220,  60,  50)
+_FENGHUANG_WHITE  = (255, 250, 220)
+_FENGHUANG_PURPLE = (140,  60, 160)
+
+
+def _build_fenghuang_wing(angle_deg):
+    """Smaller ornate wing with scaled feather pattern in iridescent
+    blue → teal → aqua tones. Three primary feathers at the tip
+    rendered in gold-red so the wing reads as 'jeweled' rather than 'on fire.'"""
+    box = 56
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 12, 30, 150), [
+        (26, 28), (44, 14), (48, 24), (40, 36), (24, 38),
+    ])
+    # Outer blue layer
+    pygame.draw.polygon(w, _FENGHUANG_BLUE, [
+        (26, 26), (42, 12), (46, 22), (38, 34), (24, 36),
+    ])
+    # Teal mid layer
+    pygame.draw.polygon(w, _FENGHUANG_TEAL, [
+        (26, 26), (38, 14), (42, 22), (36, 30), (26, 32),
+    ])
+    # Aqua inner sheen
+    pygame.draw.polygon(w, _FENGHUANG_AQUA, [
+        (28, 26), (36, 18), (38, 24), (32, 28),
+    ])
+    # 3 gold-red primary feathers at the wingtip
+    for rx, ry, tx, ty in ((38, 14, 46, 8), (40, 18, 48, 16), (42, 22, 48, 24)):
+        pygame.draw.polygon(w, _FENGHUANG_GOLD, [
+            (rx - 1, ry), (rx + 1, ry), (tx, ty)])
+        pygame.draw.line(w, _FENGHUANG_RED, (rx, ry), (tx, ty), 1)
+    # Scale dots (jewel texture) scattered on the wing body
+    for sx, sy in ((30, 22), (32, 26), (34, 30), (28, 30), (36, 24)):
+        pygame.draw.circle(w, _FENGHUANG_GOLD, (sx, sy), 1)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_fenghuang_frame(wing_angle_deg):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # 1. HERO TAIL FAN — 7 long curving plumes radiating back from the
+    #    body, each individually gradient-rendered. This is the dominant
+    #    silhouette element.
+    tail_origin = (cx - 8, cy + 4)
+    plume_specs = [
+        # (tip_x_off, tip_y_off, mid_color, tip_color, half_width)
+        (-44,  -8, _FENGHUANG_GOLD, _FENGHUANG_RED, 4),    # top plume
+        (-46,   6, _FENGHUANG_TEAL, _FENGHUANG_GOLD, 5),   # upper mid
+        (-48,  20, _FENGHUANG_BLUE, _FENGHUANG_GOLD, 5),   # CENTRE longest
+        (-44,  30, _FENGHUANG_TEAL, _FENGHUANG_RED, 5),    # lower mid
+        (-38,  38, _FENGHUANG_GOLD, _FENGHUANG_AMBER, 4),  # lowest
+        (-32, -18, _FENGHUANG_PURPLE, _FENGHUANG_GOLD, 3), # top short
+        (-28,  44, _FENGHUANG_AMBER, _FENGHUANG_RED, 3),   # bottom short
+    ]
+    ox, oy = tail_origin
+    for tx_off, ty_off, mid, tip, hw in plume_specs:
+        tx, ty = ox + tx_off, oy + ty_off
+        # Drop shadow first (offset 2,2)
+        pygame.draw.polygon(surf, (10, 12, 30, 130), [
+            (ox + 1, oy - hw + 1), (ox + 1, oy + hw + 1),
+            (tx + 2, ty + 1)])
+        # Outer dark blue silhouette
+        pygame.draw.polygon(surf, _FENGHUANG_BLUE, [
+            (ox, oy - hw), (ox, oy + hw), (tx, ty)])
+        # Mid colour (gradient)
+        pygame.draw.polygon(surf, mid, [
+            (ox + 2, oy - max(1, hw - 1)),
+            (ox + 2, oy + max(1, hw - 1)),
+            (tx - max(2, abs(tx_off) // 8), ty)])
+        # Tip highlight
+        pygame.draw.circle(surf, tip,
+                           (tx, ty), max(2, hw - 1))
+        pygame.draw.circle(surf, _FENGHUANG_WHITE, (tx, ty), 1)
+        # Plume divider line down the centre
+        pygame.draw.line(surf, _FENGHUANG_GOLD, (ox, oy), (tx, ty), 1)
+    # 2. Body — slim oval, blue base
+    pygame.draw.ellipse(surf, _FENGHUANG_BLUE,
+                        pygame.Rect(cx - 6, cy - 6, 18, 18))
+    pygame.draw.ellipse(surf, _FENGHUANG_TEAL,
+                        pygame.Rect(cx - 5, cy - 5, 16, 16))
+    pygame.draw.ellipse(surf, _FENGHUANG_AQUA,
+                        pygame.Rect(cx - 3, cy - 2, 10, 6))
+    # Gold belly accent
+    pygame.draw.ellipse(surf, _FENGHUANG_GOLD,
+                        pygame.Rect(cx - 4, cy + 4, 12, 6))
+    # 3. Wings (small + ornate, tucked above the body)
+    wing_right = _build_fenghuang_wing(wing_angle_deg)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 6, cy - 6)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 12, cy - 6)).topleft)
+    # 4. S-curve neck (3 px wide, drawn as a chain of small circles)
+    for nx, ny in ((cx + 3, cy - 4), (cx + 5, cy - 8),
+                   (cx + 7, cy - 12), (cx + 8, cy - 16),
+                   (cx + 9, cy - 20)):
+        pygame.draw.circle(surf, _FENGHUANG_BLUE, (nx, ny), 3)
+        pygame.draw.circle(surf, _FENGHUANG_TEAL, (nx, ny), 2)
+    # 5. Head — small jewel head
+    head_x, head_y = cx + 11, cy - 22
+    pygame.draw.ellipse(surf, _FENGHUANG_BLUE,
+                        pygame.Rect(head_x - 5, head_y - 4, 12, 10))
+    pygame.draw.ellipse(surf, _FENGHUANG_TEAL,
+                        pygame.Rect(head_x - 4, head_y - 3, 10, 8))
+    pygame.draw.ellipse(surf, _FENGHUANG_GOLD,
+                        pygame.Rect(head_x - 2, head_y, 4, 3))
+    # 6. Long curved beak — gold
+    pygame.draw.polygon(surf, _FENGHUANG_GOLD, [
+        (head_x + 5, head_y - 2), (head_x + 11, head_y),
+        (head_x + 8, head_y + 2), (head_x + 5, head_y)])
+    pygame.draw.polygon(surf, _FENGHUANG_RED, [
+        (head_x + 5, head_y - 2), (head_x + 11, head_y),
+        (head_x + 8, head_y + 2), (head_x + 5, head_y)], 1)
+    # 7. Ornate crest — 4 curling feathers flowing back over the neck
+    crest_specs = [
+        # (start_x, start_y, ctrl_x, ctrl_y, end_x, end_y, color)
+        (head_x - 2, head_y - 4, head_x - 4, head_y - 10,
+         head_x - 10, head_y - 8, _FENGHUANG_GOLD),
+        (head_x,     head_y - 5, head_x - 2, head_y - 13,
+         head_x -  8, head_y - 14, _FENGHUANG_RED),
+        (head_x + 2, head_y - 4, head_x + 2, head_y - 12,
+         head_x -  4, head_y - 16, _FENGHUANG_GOLD),
+        (head_x + 4, head_y - 3, head_x + 5, head_y - 10,
+         head_x +  1, head_y - 14, _FENGHUANG_PURPLE),
+    ]
+    for sx, sy, cx_c, cy_c, ex, ey, col in crest_specs:
+        # Curved feather drawn as a teardrop polygon
+        pygame.draw.polygon(surf, col, [
+            (sx, sy), (cx_c - 1, cy_c), (ex, ey),
+            (ex + 1, ey + 2), (cx_c + 1, cy_c + 2)])
+        # Highlight stripe down the centre
+        pygame.draw.line(surf, _FENGHUANG_WHITE, (sx, sy), (ex, ey), 1)
+    # 8. Eye
+    _draw_small_eye(surf, head_x + 2, head_y - 1, glow=False)
+    # 9. Jewel ember sparks (gold + red)
+    for ex, ey in ((-40, -20), (-44, 0), (-46, 20), (-34, 40),
+                   (16, -22), (20, 14), (-22, 18), (8, 20)):
+        col = _FENGHUANG_GOLD if (ex + ey) % 2 == 0 else _FENGHUANG_RED
+        pygame.draw.circle(surf, col, (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Variant 3 — DRAGON PHOENIX (sinuous, flame banners, mane)
+# ────────────────────────────────────────────────────────────────────────────
+
+_DRAGON_FLAME = [
+    (100, 16, 24), (190,  50, 30), (240, 110, 40),
+    (255, 200,  80), (255, 245, 180),
+]
+_DRAGON_BODY = [
+    (90, 18, 22), (190,  50,  40),
+    (240, 130,  60), (255, 210, 110),
+]
+
+
+def _build_dragon_wing(angle_deg):
+    """Flame BANNER (not a feathered wing) — a tall curved sweep of
+    layered flame that reads as a cloak of fire trailing the body."""
+    box = 80
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _DRAGON_FLAME
+    # Outer crimson sweep — a long curved banner
+    pygame.draw.polygon(w, f[0], [
+        (40, 50), (38, 40), (32, 28), (24, 16),
+        (16,  6), (12, 18), (20, 32), (32, 46), (40, 54),
+    ])
+    # Orange inner layer
+    pygame.draw.polygon(w, f[1], [
+        (40, 48), (36, 38), (30, 28), (22, 18),
+        (18, 12), (18, 22), (26, 34), (34, 44), (40, 50),
+    ])
+    # Gold core
+    pygame.draw.polygon(w, f[2], [
+        (40, 46), (36, 38), (30, 28), (24, 22),
+        (24, 26), (30, 34), (36, 42), (40, 48),
+    ])
+    # Yellow inner streak
+    pygame.draw.polygon(w, f[3], [
+        (40, 44), (34, 34), (30, 28), (32, 28),
+        (38, 36), (40, 46),
+    ])
+    # White-hot core line
+    pygame.draw.line(w, f[4], (38, 44), (28, 24), 2)
+    pygame.draw.line(w, f[4], (40, 42), (32, 28), 1)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_dragon_frame(wing_angle_deg):
+    surf = _grand_canvas()
+    f = _DRAGON_FLAME
+    b = _DRAGON_BODY
+    cx, cy = GRAND_CX, GRAND_CY
+    # 1. Long wispy tail extending back-left into a comet trail.
+    # Each layer narrows to the tip.
+    tail_pts_outer = [
+        (cx - 4, cy + 8), (cx - 16, cy + 16),
+        (cx - 30, cy + 20), (cx - 42, cy + 22),
+        (cx - 50, cy + 18), (cx - 44, cy + 12),
+        (cx - 30, cy + 6), (cx - 16, cy + 4),
+    ]
+    pygame.draw.polygon(surf, (10, 5, 12, 130), tail_pts_outer)  # shadow
+    pygame.draw.polygon(surf, f[0], tail_pts_outer)
+    tail_pts_mid = [
+        (cx - 4, cy + 8), (cx - 14, cy + 14),
+        (cx - 28, cy + 16), (cx - 40, cy + 18),
+        (cx - 44, cy + 14), (cx - 36, cy + 10),
+        (cx - 24, cy + 8), (cx - 14, cy + 6),
+    ]
+    pygame.draw.polygon(surf, f[1], tail_pts_mid)
+    tail_pts_inner = [
+        (cx - 4, cy + 9), (cx - 12, cy + 12),
+        (cx - 24, cy + 14), (cx - 32, cy + 14),
+        (cx - 30, cy + 10), (cx - 18, cy + 9),
+    ]
+    pygame.draw.polygon(surf, f[2], tail_pts_inner)
+    # White-hot core line through the tail
+    pygame.draw.line(surf, f[4], (cx - 4, cy + 10), (cx - 40, cy + 14), 1)
+    # Ember sparks trailing further behind
+    for ex, ey in ((-50, 14), (-54, 20), (-58, 16), (-60, 22)):
+        pygame.draw.circle(surf, f[3], (cx + ex, cy + ey), 1)
+    # 2. S-curve sinuous body — chain of overlapping ellipses.
+    body_segs = [
+        # (x, y, rx, ry)
+        (cx - 8, cy + 6, 10, 8),
+        (cx - 2, cy + 2, 11, 9),
+        (cx + 4, cy - 4,  9, 8),
+        (cx + 9, cy - 11, 7, 7),
+        (cx + 13, cy - 18, 6, 5),
+    ]
+    for x, y, rx, ry in body_segs:
+        pygame.draw.ellipse(surf, b[0],
+                            pygame.Rect(x - rx, y - ry, rx * 2, ry * 2))
+        pygame.draw.ellipse(surf, b[1],
+                            pygame.Rect(x - rx + 1, y - ry + 1,
+                                        rx * 2 - 2, ry * 2 - 2))
+    # Belly highlight along the lower curve
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(cx - 12, cy + 8,  10,  4))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(cx -  4, cy + 4,  10,  4))
+    pygame.draw.ellipse(surf, b[3],
+                        pygame.Rect(cx + 4, cy - 4, 6, 3))
+    # 3. Flame banner wings — left + right (via flip)
+    wing_right = _build_dragon_wing(wing_angle_deg)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 14, cy - 18)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 18, cy - 12)).topleft)
+    # 4. Flame mane along the neck — 5 short flame tufts
+    for nx, ny, h in ((cx +  5, cy -  3,  8), (cx +  8, cy -  9, 10),
+                      (cx + 11, cy - 15,  9), (cx + 14, cy - 22, 8),
+                      (cx + 16, cy - 27,  6)):
+        pygame.draw.polygon(surf, f[0], [
+            (nx - 3, ny), (nx + 3, ny), (nx + 2, ny - h),
+        ])
+        pygame.draw.polygon(surf, f[2], [
+            (nx - 2, ny - 1), (nx + 2, ny - 1), (nx + 1, ny - h + 2),
+        ])
+        pygame.draw.line(surf, f[4], (nx, ny), (nx + 1, ny - h + 1), 1)
+    # 5. Dragon head — small, elongated
+    head_x, head_y = cx + 17, cy - 28
+    pygame.draw.ellipse(surf, b[0], pygame.Rect(head_x - 5, head_y - 4, 14, 10))
+    pygame.draw.ellipse(surf, b[1], pygame.Rect(head_x - 4, head_y - 3, 12, 8))
+    pygame.draw.ellipse(surf, b[2], pygame.Rect(head_x - 2, head_y, 4, 3))
+    # 6. Two horn-shaped flame plumes on the head
+    for fx, fy_top, hw, hh in (
+        (head_x - 2, head_y - 14, 2, 10),
+        (head_x + 4, head_y - 14, 2, 10),
+    ):
+        base_y = fy_top + hh
+        pygame.draw.polygon(surf, f[0], [
+            (fx - hw, base_y), (fx + hw, base_y), (fx + 1, fy_top)])
+        # Hot inner stripe — a thin bright line up the centre of the horn
+        pygame.draw.line(surf, f[2],
+                         (fx, base_y - 1), (fx + 1, fy_top + 2), 1)
+    # 7. Long dragon snout
+    pygame.draw.polygon(surf, b[0], [
+        (head_x + 5, head_y - 1), (head_x + 12, head_y),
+        (head_x + 10, head_y + 3), (head_x + 5, head_y + 2),
+    ])
+    pygame.draw.polygon(surf, (255, 200, 60), [
+        (head_x + 10, head_y), (head_x + 13, head_y + 1),
+        (head_x + 10, head_y + 2)])
+    # 8. Eye — golden glow
+    _draw_small_eye(surf, head_x + 3, head_y, glow=True)
+    # 9. Ember sparks around the whole creature
+    for ex, ey in ((-40, -10), (-30, -20), (-10, -28),
+                   (22, -34), (28, -20), (24, 6), (4, 14)):
+        pygame.draw.circle(surf, f[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Variant 4 — COMET PHOENIX (massive flame trail, small bird at the front)
+# ────────────────────────────────────────────────────────────────────────────
+
+_COMET_FLAME = [
+    (180,  30, 20), (240,  90, 30), (255, 160, 50),
+    (255, 220,  80), (255, 250, 220),
+]
+_COMET_BODY = [
+    (120, 28, 30), (220,  60,  40),
+    (255, 130,  60), (255, 220, 110),
+]
+
+
+def _build_comet_wing(angle_deg):
+    """Tiny streamlined wing — barely visible, swept tight against the
+    body. The hero element is the tail, not the wings."""
+    box = 36
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _COMET_FLAME
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 5, 12, 130), [
+        (18, 20), (28, 12), (32, 18), (26, 24), (18, 24),
+    ])
+    pygame.draw.polygon(w, f[0], [
+        (18, 18), (28, 10), (30, 16), (24, 22), (18, 22),
+    ])
+    pygame.draw.polygon(w, f[1], [
+        (18, 18), (26, 12), (28, 16), (22, 20),
+    ])
+    pygame.draw.line(w, f[3], (18, 18), (28, 11), 1)
+    pygame.draw.line(w, f[4], (19, 19), (26, 14), 1)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_comet_frame(wing_angle_deg):
+    surf = _grand_canvas()
+    f = _COMET_FLAME
+    b = _COMET_BODY
+    cx, cy = GRAND_CX, GRAND_CY
+    # Comet body sits forward (right) — body anchor (cx + 22, cy)
+    body_x = cx + 22
+    body_y = cy
+    # 1. MASSIVE FLAME TRAIL extending back to the left, widest in the
+    #    middle and tapering at both ends. Five layers outer → inner.
+    # Layer 1 — deepest crimson outer envelope
+    pygame.draw.polygon(surf, (10, 5, 12, 130), [
+        (body_x - 8, body_y),
+        (body_x - 32, body_y - 18), (body_x - 56, body_y - 22),
+        (body_x - 72, body_y - 14), (body_x - 80, body_y - 4),
+        (body_x - 80, body_y + 4),  (body_x - 72, body_y + 14),
+        (body_x - 56, body_y + 22), (body_x - 32, body_y + 18),
+    ])
+    pygame.draw.polygon(surf, f[0], [
+        (body_x - 8, body_y - 2),
+        (body_x - 32, body_y - 16), (body_x - 56, body_y - 20),
+        (body_x - 70, body_y - 12), (body_x - 78, body_y - 4),
+        (body_x - 78, body_y + 4),  (body_x - 70, body_y + 12),
+        (body_x - 56, body_y + 20), (body_x - 32, body_y + 16),
+    ])
+    # Layer 2 — orange mid
+    pygame.draw.polygon(surf, f[1], [
+        (body_x - 8, body_y),
+        (body_x - 28, body_y - 12), (body_x - 50, body_y - 14),
+        (body_x - 64, body_y -  8), (body_x - 68, body_y),
+        (body_x - 64, body_y +  8), (body_x - 50, body_y + 14),
+        (body_x - 28, body_y + 12),
+    ])
+    # Layer 3 — gold
+    pygame.draw.polygon(surf, f[2], [
+        (body_x - 8, body_y),
+        (body_x - 24, body_y - 8), (body_x - 44, body_y - 10),
+        (body_x - 54, body_y -  6), (body_x - 56, body_y),
+        (body_x - 54, body_y +  6), (body_x - 44, body_y + 10),
+        (body_x - 24, body_y +  8),
+    ])
+    # Layer 4 — bright yellow inner
+    pygame.draw.polygon(surf, f[3], [
+        (body_x - 8, body_y),
+        (body_x - 20, body_y - 4), (body_x - 36, body_y - 6),
+        (body_x - 44, body_y - 2), (body_x - 44, body_y + 2),
+        (body_x - 36, body_y + 6), (body_x - 20, body_y + 4),
+    ])
+    # Layer 5 — white-hot core line through the tail
+    pygame.draw.line(surf, f[4], (body_x - 8, body_y),
+                     (body_x - 50, body_y), 3)
+    pygame.draw.line(surf, f[4], (body_x - 12, body_y - 2),
+                     (body_x - 38, body_y - 2), 1)
+    pygame.draw.line(surf, f[4], (body_x - 12, body_y + 2),
+                     (body_x - 38, body_y + 2), 1)
+    # 2. Ember sparks trailing further behind the tail
+    for ex, ey in ((-86, -2), (-90, 4), (-94, -6),
+                   (-96, 8), (-100, 0)):
+        pygame.draw.circle(surf, f[3], (body_x + ex, body_y + ey), 1)
+        pygame.draw.circle(surf, f[2], (body_x + ex - 1, body_y + ey + 1), 1)
+    # 3. Compact body — small forward-leaning oval
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(body_x - 6, body_y - 7, 14, 14))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(body_x - 5, body_y - 6, 12, 12))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(body_x - 3, body_y - 3, 6, 6))
+    pygame.draw.ellipse(surf, b[3],
+                        pygame.Rect(body_x - 2, body_y + 0, 4, 3))
+    # 4. Tucked wings (small, swept back)
+    wing_right = _build_comet_wing(wing_angle_deg)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(body_x - 2, body_y - 6)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(body_x - 6, body_y + 4)).topleft)
+    # 5. Forward-leaning head
+    head_x, head_y = body_x + 8, body_y - 4
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(head_x - 4, head_y - 4, 10, 10))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(head_x - 3, head_y - 3,  8,  8))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(head_x - 1, head_y - 1,  4,  3))
+    # 6. Forward-pointing beak
+    pygame.draw.polygon(surf, (255, 200, 60), [
+        (head_x + 4, head_y - 1), (head_x + 9, head_y),
+        (head_x + 4, head_y + 2)])
+    # 7. Eye with glow
+    _draw_small_eye(surf, head_x + 2, head_y, glow=True)
+    # 8. Streamlined crown — a single short flame off the head
+    pygame.draw.polygon(surf, f[0], [
+        (head_x - 1, head_y - 5), (head_x + 3, head_y - 5),
+        (head_x - 4, head_y - 11)])
+    pygame.draw.polygon(surf, f[2], [
+        (head_x, head_y - 5), (head_x + 2, head_y - 5),
+        (head_x - 3, head_y - 10)])
+    pygame.draw.line(surf, f[4], (head_x + 1, head_y - 5),
+                     (head_x - 3, head_y - 10), 1)
+    return surf
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Variant 5 — ROYAL PHOENIX (halo-crown of 9 plumes radiating outward)
+# ────────────────────────────────────────────────────────────────────────────
+
+_ROYAL_FLAME = [
+    (120, 18, 28), (215,  55, 30), (255, 130, 40),
+    (255, 215,  85), (255, 250, 220),
+]
+_ROYAL_BODY = [
+    (110, 25, 30), (210,  55,  40),
+    (245, 130,  60), (255, 200, 100),
+]
+
+
+def _build_royal_wing(angle_deg):
+    """Mid-size ornate flame wing — half-spread regal pose, three
+    feather tiers from crimson through gold."""
+    box = 56
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _ROYAL_FLAME
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        (26, 30), (44, 12), (50, 22), (44, 36), (26, 40),
+    ])
+    pygame.draw.polygon(w, f[0], [
+        (26, 28), (42, 10), (48, 22), (42, 34), (26, 38),
+    ])
+    pygame.draw.polygon(w, f[1], [
+        (26, 28), (38, 14), (44, 22), (38, 32), (28, 34),
+    ])
+    pygame.draw.polygon(w, f[2], [
+        (28, 28), (36, 18), (40, 24), (34, 30),
+    ])
+    pygame.draw.polygon(w, f[3], [
+        (30, 28), (34, 22), (36, 26), (32, 28),
+    ])
+    pygame.draw.line(w, f[4], (28, 28), (40, 12), 1)
+    pygame.draw.line(w, f[4], (29, 31), (42, 22), 1)
+    # Feather divider strokes
+    pygame.draw.line(w, f[0], (28, 30), (42, 14), 1)
+    pygame.draw.line(w, f[0], (30, 34), (44, 26), 1)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_royal_frame(wing_angle_deg):
+    surf = _grand_canvas()
+    f = _ROYAL_FLAME
+    b = _ROYAL_BODY
+    cx, cy = GRAND_CX, GRAND_CY
+    # 1. Long ornate tail — 3 plumes radiating back
+    tail_specs = [
+        # (tip_x_off, tip_y_off, hw)
+        (-24, 18, 5),   # lower-left longest
+        (-26, 28, 4),
+        (-22,  6, 4),
+    ]
+    for tx_off, ty_off, hw in tail_specs:
+        tx, ty = cx + tx_off, cy + ty_off
+        ox, oy = cx - 4, cy + 8
+        # Outer crimson plume
+        pygame.draw.polygon(surf, f[0], [
+            (ox, oy - hw), (ox, oy + hw), (tx, ty)])
+        # Gold mid
+        pygame.draw.polygon(surf, f[2], [
+            (ox + 2, oy - hw + 1), (ox + 2, oy + hw - 1),
+            (tx - 4, ty)])
+        # Yellow tip
+        pygame.draw.circle(surf, f[3], (tx, ty), max(2, hw - 2))
+        pygame.draw.circle(surf, f[4], (tx, ty), 1)
+        # Stripe
+        pygame.draw.line(surf, f[3], (ox, oy), (tx, ty), 1)
+    # 2. Elegant upright body
+    pygame.draw.ellipse(surf, b[0],
+                        pygame.Rect(cx - 8, cy - 6, 18, 24))
+    pygame.draw.ellipse(surf, b[1],
+                        pygame.Rect(cx - 7, cy - 5, 16, 22))
+    pygame.draw.ellipse(surf, b[2],
+                        pygame.Rect(cx - 5, cy - 2, 10, 10))
+    pygame.draw.ellipse(surf, b[3],
+                        pygame.Rect(cx - 4, cy + 6, 8, 6))
+    # 3. Half-spread wings
+    wing_right = _build_royal_wing(wing_angle_deg)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 16, cy - 2)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 16, cy - 2)).topleft)
+    # 4. Forward-facing head
+    pygame.draw.ellipse(surf, b[0], pygame.Rect(cx - 6, cy - 22, 14, 14))
+    pygame.draw.ellipse(surf, b[1], pygame.Rect(cx - 5, cy - 21, 12, 12))
+    pygame.draw.ellipse(surf, b[2], pygame.Rect(cx - 3, cy - 17, 4, 3))
+    # 5. Beak
+    pygame.draw.polygon(surf, (255, 200, 60), [
+        (cx + 6, cy - 17), (cx + 12, cy - 14),
+        (cx + 6, cy - 12)])
+    pygame.draw.polygon(surf, (140, 90, 20), [
+        (cx + 6, cy - 17), (cx + 12, cy - 14),
+        (cx + 6, cy - 12)], 1)
+    # 6. Gold-glow eye
+    _draw_small_eye(surf, cx + 3, cy - 16, glow=True)
+    # 7. THE HALO-CROWN — 9 plumes radiating outward from the head
+    head_cx, head_cy = cx + 1, cy - 16
+    halo_specs = []
+    for i in range(9):
+        # Spread plumes across a ~280° arc above the head (avoid the chin)
+        ang = math.radians(-140 + i * (280 / 8))
+        # Vary plume length: top plume longest, sides medium, bottom-outer shortest
+        if 3 <= i <= 5:
+            length = 22  # top plumes
+            hw = 4
+        elif 1 <= i <= 6:
+            length = 17
+            hw = 3
+        else:
+            length = 12  # outer-bottom
+            hw = 2
+        halo_specs.append((ang, length, hw))
+    for ang, length, hw in halo_specs:
+        # Plume runs from the head outward along the angle
+        root_x = head_cx + int(math.cos(ang) * 8)
+        root_y = head_cy + int(math.sin(ang) * 8)
+        tip_x  = head_cx + int(math.cos(ang) * (8 + length))
+        tip_y  = head_cy + int(math.sin(ang) * (8 + length))
+        # Perpendicular vector for the plume's base width
+        perp_x = -math.sin(ang)
+        perp_y =  math.cos(ang)
+        base_l = (int(root_x + perp_x * hw), int(root_y + perp_y * hw))
+        base_r = (int(root_x - perp_x * hw), int(root_y - perp_y * hw))
+        # Outer crimson layer
+        pygame.draw.polygon(surf, f[0], [base_l, base_r, (tip_x, tip_y)])
+        # Gold mid
+        mid_w = max(1, hw - 1)
+        base_l2 = (int(root_x + perp_x * mid_w + math.cos(ang) * 2),
+                   int(root_y + perp_y * mid_w + math.sin(ang) * 2))
+        base_r2 = (int(root_x - perp_x * mid_w + math.cos(ang) * 2),
+                   int(root_y - perp_y * mid_w + math.sin(ang) * 2))
+        pygame.draw.polygon(surf, f[2], [
+            base_l2, base_r2,
+            (int(tip_x - math.cos(ang) * 2),
+             int(tip_y - math.sin(ang) * 2))])
+        # White-hot tip dot
+        pygame.draw.circle(surf, f[4], (tip_x, tip_y), 1)
+    # 8. Bright white halo glow centered on the head
+    halo = pygame.Surface((50, 50), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (255, 240, 160,  60), (25, 25), 24)
+    pygame.draw.circle(halo, (255, 250, 220, 100), (25, 25), 14)
+    pygame.draw.circle(halo, (255, 255, 240, 160), (25, 25),  8)
+    surf.blit(halo, (head_cx - 25, head_cy - 25),
+              special_flags=pygame.BLEND_RGBA_ADD)
+    # 9. Body ember sparks
+    for ex, ey in ((-30, -12), (-20, -28), (8, -32), (24, -22),
+                   (28, 0), (24, 18), (-26, 14), (-32, -2)):
+        pygame.draw.circle(surf, f[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# Dispatch table the lazy frame-builder reads in `_get_phoenix_frames`.
+_GRANDIOSE_BUILDERS = {
+    "imperial":  _build_imperial_frame,
+    "fenghuang": _build_fenghuang_frame,
+    "dragon":    _build_dragon_frame,
+    "comet":     _build_comet_frame,
+    "royal":     _build_royal_frame,
+}
+
+
 def _get_phoenix_frames(variant: str) -> "list[pygame.Surface]":
     frames = _PHOENIX_FRAMES_BY_VARIANT.get(variant)
     if frames is None:
-        frames = [_add_outline(_build_phoenix_frame(a, variant))
-                  for a in _WING_ANGLES]
+        # Grandiose variants build on a bigger canvas via their own
+        # dispatchers; the legacy variants share `_build_phoenix_frame`.
+        if variant in _GRANDIOSE_BUILDERS:
+            builder = _GRANDIOSE_BUILDERS[variant]
+            frames = [_add_outline(builder(a)) for a in _WING_ANGLES]
+        else:
+            frames = [_add_outline(_build_phoenix_frame(a, variant))
+                      for a in _WING_ANGLES]
         _PHOENIX_FRAMES_BY_VARIANT[variant] = frames
         _phoenix_rot_cache_by_variant[variant] = {}
     return frames

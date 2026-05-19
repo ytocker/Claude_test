@@ -990,14 +990,18 @@ class World:
         if self.bird.phoenix_active:
             self.phoenix_timer = 0.0
             self.bird.phoenix_active = False
-            if PHOENIX_VARIANT == "solar":
+            # Grandiose variants all share the Ashes-style rebirth
+            # (ash cloud + falling egg + safe-gap respawn). Variant
+            # routes the revive animation only.
+            if PHOENIX_VARIANT in ("ashes", "imperial", "fenghuang",
+                                   "dragon", "comet", "royal"):
+                self._revive_ashes()
+            elif PHOENIX_VARIANT == "solar":
                 self._revive_solar()
             elif PHOENIX_VARIANT == "ember":
                 self._revive_ember()
             elif PHOENIX_VARIANT == "mythic":
                 self._revive_mythic()
-            elif PHOENIX_VARIANT == "ashes":
-                self._revive_ashes()
             else:
                 self._revive_classic()
             return

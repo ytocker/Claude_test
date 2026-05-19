@@ -345,6 +345,42 @@ def _draw_phoenix_mythic_halo(surf, x, y, frame_t):
     surf.blit(halo, (int(x) - 58, int(y) - 58))
 
 
+def _draw_phoenix_fenghuang_halo(surf, x, y, frame_t):
+    """Cooler iridescent halo for the Eastern fenghuang variant —
+    teal-blue outer wash with gold inner core, no fiery red. Reads as
+    a jeweled aura rather than a fire halo."""
+    halo = pygame.Surface((110, 110), pygame.SRCALPHA)
+    cyc = 0.5 + 0.5 * math.sin(frame_t * 0.6)
+    base_a = int(90 + 70 * cyc)
+    for r_glow, col in (
+        (52, ( 40,  80, 140, base_a // 4)),
+        (40, ( 60, 130, 170, base_a // 3)),
+        (28, (110, 200, 210, base_a // 2)),
+        (18, (255, 200,  80, base_a)),
+    ):
+        pygame.draw.circle(halo, col, (55, 55), r_glow)
+    surf.blit(halo, (int(x) - 55, int(y) - 55))
+
+
+def _draw_phoenix_royal_halo(surf, x, y, frame_t):
+    """Giant white-hot sunburst halo for the Royal variant — matches
+    the in-sprite halo-crown's pure-white core fading to crimson at
+    the rim. Larger than every other halo so the bird reads as the
+    sun itself."""
+    halo = pygame.Surface((140, 140), pygame.SRCALPHA)
+    cyc = 0.5 + 0.5 * math.sin(frame_t * 0.7)
+    base_a = int(120 + 90 * cyc)
+    for r_glow, col in (
+        (66, (200,  40,  20, base_a // 6)),
+        (54, (255,  90,  30, base_a // 4)),
+        (42, (255, 160,  50, base_a // 3)),
+        (30, (255, 230, 130, base_a // 2)),
+        (18, (255, 250, 220, base_a)),
+    ):
+        pygame.draw.circle(halo, col, (70, 70), r_glow)
+    surf.blit(halo, (int(x) - 70, int(y) - 70))
+
+
 # ── Hand-painted phoenix pickup body ────────────────────────────────────────
 # A proper phoenix silhouette for the in-world pickup: layered flame wings
 # sweeping outward, a long flame plume tail, multi-layer crown of fire,
@@ -882,15 +918,24 @@ class Bird:
         #            ring so the storybook phoenix reads as larger-than-life.
         if self.phoenix_active:
             from game.config import PHOENIX_VARIANT as _PV
+            hx, hy = self.x + shake_x, self.y + shake_y
             if _PV == "solar":
-                _draw_phoenix_solar_halo(
-                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
-            elif _PV == "mythic":
-                _draw_phoenix_mythic_halo(
-                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
+                _draw_phoenix_solar_halo(surf, hx, hy, self.frame_t)
+            elif _PV in ("mythic", "imperial"):
+                # Imperial gets the mythic-sized halo so the spread
+                # wings catch some of the fire-aura behind them.
+                _draw_phoenix_mythic_halo(surf, hx, hy, self.frame_t)
+            elif _PV == "fenghuang":
+                _draw_phoenix_fenghuang_halo(surf, hx, hy, self.frame_t)
+            elif _PV == "royal":
+                _draw_phoenix_royal_halo(surf, hx, hy, self.frame_t)
+            elif _PV in ("dragon", "comet"):
+                # Dragon and Comet skip the halo — Dragon has its own
+                # flame mane in-sprite, Comet's trail particles cover
+                # the same visual role.
+                pass
             else:  # classic / ember / ashes
-                _draw_phoenix_fire_halo(
-                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
+                _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
         # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
@@ -2299,11 +2344,17 @@ class PowerUp:
         from game.config import PHOENIX_VARIANT as _PV
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        grandiose = {"imperial", "fenghuang", "dragon", "comet", "royal"}
         # 1. Variant-specific halo behind everything
         if _PV == "solar":
             self._draw_phoenix_icon_solar_halo(surf, cx, cy)
-        elif _PV == "mythic":
+        elif _PV in ("mythic", "imperial", "royal"):
             self._draw_phoenix_icon_mythic_halo(surf, cx, cy)
+        elif _PV == "fenghuang":
+            self._draw_phoenix_icon_fenghuang_halo(surf, cx, cy)
+        elif _PV in ("dragon", "comet"):
+            # No halo — these variants carry their identity in-sprite.
+            pass
         else:
             self._draw_phoenix_icon_fire_halo(surf, cx, cy)
         # 2. Ember pre-trail (variant 3 only) — drawn behind the bird
@@ -2312,8 +2363,26 @@ class PowerUp:
                                   (22, 2, 110), (28, 1, 70)):
                 pygame.draw.circle(surf, (255, 200,  90, alpha),
                                    (cx - 18 - dx, cy + 6), sz)
-        # 3. Hand-painted phoenix body (shared by all variants)
-        _draw_phoenix_pickup_body(surf, cx, cy, _PV, self.pulse)
+        # 3. Body — grandiose variants render the actual sprite scaled
+        #    down so the pickup looks identical to what Pip becomes.
+        if _PV in grandiose:
+            from game import parrot
+            sprite = parrot.get_phoenix_parrot(0, 0.0, variant=_PV)
+            sw, sh = sprite.get_size()
+            # Scale to about 56 px wide so the pickup remains a sensible
+            # ~32 px footprint after the wings (which can extend ±40 px
+            # from the body) are folded into the icon.
+            scale = 56 / max(sw, sh)
+            new_w = max(1, int(sw * scale))
+            new_h = max(1, int(sh * scale))
+            scaled = pygame.transform.smoothscale(sprite, (new_w, new_h))
+            surf.blit(scaled,
+                      scaled.get_rect(center=(cx, cy)).topleft)
+        else:
+            # Classic / solar / ember / mythic / ashes use the hand-
+            # painted compact pickup body (different style from the
+            # grandiose sprites by design).
+            _draw_phoenix_pickup_body(surf, cx, cy, _PV, self.pulse)
         # 4. Egg accessory (ashes only) — small egg under the bird
         if _PV == "ashes":
             pygame.draw.ellipse(surf, (130, 100,  60),
@@ -2353,6 +2422,18 @@ class PowerUp:
         pygame.draw.circle(halo, (255, 130,  40, a // 3), (36, 36), 25)
         pygame.draw.circle(halo, (255, 200,  80, a // 2), (36, 36), 17)
         pygame.draw.circle(halo, (255, 245, 180, a),      (36, 36),  9)
+        surf.blit(halo, (cx - 36, cy - 36))
+
+    def _draw_phoenix_icon_fenghuang_halo(self, surf, cx, cy):
+        """Cool teal-and-gold halo for the Eastern fenghuang pickup —
+        matches the in-game Fenghuang halo."""
+        halo = pygame.Surface((72, 72), pygame.SRCALPHA)
+        cyc = 0.5 + 0.5 * math.sin(self.pulse * 1.2)
+        a = int(90 + 80 * cyc)
+        pygame.draw.circle(halo, ( 40,  80, 140, a // 4), (36, 36), 32)
+        pygame.draw.circle(halo, ( 60, 130, 170, a // 3), (36, 36), 24)
+        pygame.draw.circle(halo, (110, 200, 210, a // 2), (36, 36), 16)
+        pygame.draw.circle(halo, (255, 200,  80, a),      (36, 36),  9)
         surf.blit(halo, (cx - 36, cy - 36))
 
     # ── Phoenix icon variants ───────────────────────────────────────

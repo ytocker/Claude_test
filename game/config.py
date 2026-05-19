@@ -110,16 +110,26 @@ NIGHTGLOW_DURATION    = 12.0
 # instantly re-collide with the pillar that killed him.
 PHOENIX_DURATION      = 30.0
 PHOENIX_INVULN        = 1.5
-# Visual / perk flavour for the phoenix powerup. Five variants are
+# Visual / perk flavour for the phoenix powerup. Ten variants are
 # implemented behind this switch so the user can A/B-compare designs
-# without changing branches. All five share the 30s / one-shot /
+# without changing branches. All share the 30s / one-shot /
 # death-intercept gameplay core; only the look, the revive animation,
 # and the optional accompanying perk differ.
+#
+# Original 5 (legacy 64×60 canvas — Pip-shaped):
 #   "classic" — red→gold tint, fire halo, no extra perk (shipped).
 #   "solar"   — gold-white tint, sun-ray halo, weak coin magnet.
 #   "ember"   — fiery tint + ember trail, coins worth 2x during phoenix.
 #   "mythic"  — 5-plume crown, plume tail, glowing eyes, egg-crack rebirth.
 #   "ashes"   — egg-and-ash rebirth animation on death (mythology-literal).
+#
+# Grandiose 5 (bigger 100×76 canvas, hand-painted from scratch — NOT
+# Pip-shaped. All inherit the Ashes-style rebirth animation):
+#   "imperial"  — eagle-of-fire silhouette, full-width spread wings.
+#   "fenghuang" — Eastern phoenix, 7-plume peacock fan-tail, jewel palette.
+#   "dragon"    — sinuous S-curve body, flame banner wings, wispy tail.
+#   "comet"     — small bird at the front of a massive flame-trail tail.
+#   "royal"     — halo-crown of 9 plumes radiating around the head.
 PHOENIX_VARIANT       = "classic"
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
