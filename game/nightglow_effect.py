@@ -63,14 +63,17 @@ def _recolour_in_place(surface: pygame.Surface) -> None:
     """Replace every visible RGB on `surface` with a green of equivalent
     brightness on the V5 ramp. Alpha is untouched so the silhouette
     survives. Per-pixel work via numpy/surfarray — ~5–10 ms for a
-    360×640 surface."""
+    360×640 surface.
+
+    Ramp: L=0 (black) → dark green, L=1 (white) → bright green-white.
+    Matches tools/render_nightglow_variants.py:luminance_to_palette."""
     rgb = pygame.surfarray.pixels3d(surface).astype(np.float32)
     L = (0.30 * rgb[..., 0]
        + 0.59 * rgb[..., 1]
        + 0.11 * rgb[..., 2]) / 255.0
     bright = np.array(_RECOL_BRIGHT, dtype=np.float32)
     dark   = np.array(_RECOL_DARK,   dtype=np.float32)
-    out = bright + (dark - bright) * L[..., None]
+    out = dark + (bright - dark) * L[..., None]
     pygame.surfarray.pixels3d(surface)[:] = np.clip(out, 0, 255).astype(np.uint8)
 
 
