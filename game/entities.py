@@ -759,15 +759,30 @@ class Bird:
         # auto-drives Pip and taps are ignored.
         self.cart_active = False
         self.cart_locked = False
+        # While cart_locked, World._snap_cart_to_rail writes the local
+        # rail slope here in degrees (negative = nose-down on a
+        # downhill segment, positive = nose-up on an uphill). The
+        # tilt_deg property reads it so Pip's sprite AND the wagon
+        # graphics rotate together to track the rail's curvature
+        # rather than skating along it horizontally.
+        self.cart_tilt_deg = 0.0
         # Backflip trick: ticks down while a 360° spin animation plays.
         self.backflip_t = 0.0
         self.backflip_dur = 0.0
 
     @property
     def tilt_deg(self):
-        # The wagon stays level on the rail — no banking with vy.
-        if self.cart_active:
-            return 0.0
+        # On the rail (cart_locked): track the local rail slope. World.
+        # _snap_cart_to_rail writes this from consecutive rail-pipe
+        # gap centres each frame, so Pip + wagon visibly roll along
+        # the curvature instead of skating horizontally.
+        if self.cart_locked:
+            return self.cart_tilt_deg
+        # Pre-lock (cart_active without cart_locked) AND free flight:
+        # vy-based banking — pitch forward when falling, back when
+        # rising. The pre-lock case lets the player aim Pip onto the
+        # rail with regular flap; the wagon hanging below tracks
+        # Pip's pitch.
         t = max(-0.5, min(0.75, self.vy / 500.0))
         base = -t * 55.0
         # During a backflip, ride a full 360° rotation on top of the base
@@ -1002,13 +1017,24 @@ class Bird:
         surf.blit(parcel_rot, pr.topleft)
 
     # ── RAIL wagon (renders around Pip while cart_active) ──────────────────
-    def _draw_wagon_wheels(self, surf, cx, cy):
-        """Two wooden spoke wheels with iron tires, sitting on the rail.
+    # Wagon pieces are composited onto a side surface, rotated by tilt_deg,
+    # then blitted centred on Pip — that way the whole cart visibly rolls
+    # along the rail's curvature instead of skating horizontally. The rear
+    # wheel sits a little lower than the front on a downhill segment, etc.
+    # Pip's sprite rotates by the same tilt_deg via the property override
+    # so bird + cart move as one rigid assembly.
 
-        When cart_locked, World._snap_cart_to_rail has placed bird.y such
-        that these wheels land on the rail line (rail_y = bird.y + 27).
-        Pre-lock (mid-air), the wheels just hang under Pip wherever he is.
-        """
+    # Side-buffer size — must fit the wagon's bounding box at any rotation.
+    # Cart extends roughly ±21 px in x and 0..+27 in y from Pip's centre;
+    # 80×80 with Pip's centre at (40, 40) leaves room for the full assembly
+    # plus the expansion pygame.transform.rotate adds when the axis tilts.
+    _WAGON_SIDE = 80
+
+    def _render_wagon_wheels(self, surf, cx, cy):
+        """Pure render — paints two wooden spoke wheels with iron tires
+        relative to (cx, cy). No rotation/composing here, just the pixel
+        work. Called from `_draw_wagon_wheels` with cx,cy = surface
+        centre so the wheels sit at Pip's local-y + 22."""
         WHEEL_R = 5
         DX = 15
         wheel_y = cy + 22
@@ -1029,8 +1055,8 @@ class Bird:
                 pygame.draw.line(surf, pine_dk, (wx, wheel_y), (ex, ey), 1)
             pygame.draw.circle(surf, iron_dk, (wx, wheel_y), 1)
 
-    def _draw_wagon_body(self, surf, cx, cy):
-        """Pine plank cart body with two iron hoop bands."""
+    def _render_wagon_body(self, surf, cx, cy):
+        """Pure render — pine plank cart body with two iron hoop bands."""
         W = 42
         H = 18
         body_top = cy + 4
@@ -1067,6 +1093,28 @@ class Bird:
             pygame.draw.line(surf, iron_hi,
                              (cx - W // 2 - 1, band_y),
                              (cx + W // 2 + 1, band_y), 1)
+
+    def _draw_wagon_piece(self, surf, cx, cy, render_fn):
+        """Shared rotate+blit shell. Builds a transparent side surface,
+        invokes `render_fn(side, mid, mid)` to draw the piece at local
+        centre, rotates by tilt_deg so the assembly tracks the rail
+        slope, then blits centred at (cx, cy)."""
+        SIDE = self._WAGON_SIDE
+        side = pygame.Surface((SIDE, SIDE), pygame.SRCALPHA)
+        mid = SIDE // 2
+        render_fn(side, mid, mid)
+        tilt = self.tilt_deg
+        if abs(tilt) > 0.5:
+            side = pygame.transform.rotate(side, tilt)
+        surf.blit(side, side.get_rect(center=(cx, cy)))
+
+    def _draw_wagon_wheels(self, surf, cx, cy):
+        """Composite + rotate the wheels."""
+        self._draw_wagon_piece(surf, cx, cy, self._render_wagon_wheels)
+
+    def _draw_wagon_body(self, surf, cx, cy):
+        """Composite + rotate the cart body."""
+        self._draw_wagon_piece(surf, cx, cy, self._render_wagon_body)
 
     # ── Secret-powerup wearable overlays ────────────────────────────────────
     def _draw_helmet(self, surf, cx, cy, flipped):

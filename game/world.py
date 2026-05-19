@@ -830,7 +830,13 @@ class World:
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
         if self.bird.cart_locked:
-            return  # rail has taken over — cart can't collide with pipes
+            # Rail has taken over — re-snap Pip onto the rail EVERY frame
+            # (interpolated y between consecutive rail pipes, slope written
+            # to bird.cart_tilt_deg so the cart sprite rotates with the
+            # curvature). Then skip pipe-collision checks; the rail makes
+            # Pip phase through tagged pillars.
+            self._snap_cart_to_rail(self.bird.x)
+            return
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
@@ -959,17 +965,33 @@ class World:
     def _snap_cart_to_rail(self, bx):
         """Snap bird.y so the wagon wheels ride the current rail segment,
         interpolating across the bridge between two consecutive rail
-        pipes."""
+        pipes. Also writes the local rail slope (degrees) onto
+        bird.cart_tilt_deg so the Bird.draw cart-assembly rotation
+        tracks the curvature — keeps Pip + wagon from skating
+        horizontally over a sloped rail."""
         sorted_pipes = sorted(self.rail_pipes, key=lambda p: p.x)
         offset = self._CART_LOCKED_OFFSET
 
-        for p in sorted_pipes:
+        # "On" a pipe: bird is over a single rail pipe. Use that pipe's
+        # rail height; for the slope, look at the NEXT pipe ahead (if any)
+        # so the cart starts tipping toward the upcoming segment before
+        # it falls off the current pipe.
+        for i, p in enumerate(sorted_pipes):
             if p.x - 6 <= bx <= p.x + PIPE_W + 6:
                 rail_y = p.gap_y + p.gap_h / 2
                 self.bird.y = rail_y - offset
                 self.bird.vy = 0.0
+                if i + 1 < len(sorted_pipes):
+                    nxt = sorted_pipes[i + 1]
+                    self.bird.cart_tilt_deg = self._rail_slope_deg(
+                        p.x + PIPE_W, rail_y,
+                        nxt.x, nxt.gap_y + nxt.gap_h / 2)
+                else:
+                    self.bird.cart_tilt_deg = 0.0
                 return
 
+        # "Between" two pipes: linear interp y, slope = constant for this
+        # bridge segment.
         for i in range(len(sorted_pipes) - 1):
             p1, p2 = sorted_pipes[i], sorted_pipes[i + 1]
             if p1.x + PIPE_W <= bx <= p2.x:
@@ -979,7 +1001,29 @@ class World:
                 y2 = p2.gap_y + p2.gap_h / 2
                 self.bird.y = (y1 + (y2 - y1) * t) - offset
                 self.bird.vy = 0.0
+                self.bird.cart_tilt_deg = self._rail_slope_deg(
+                    p1.x + PIPE_W, y1, p2.x, y2)
                 return
+
+    @staticmethod
+    def _rail_slope_deg(x1: float, y1: float,
+                        x2: float, y2: float) -> float:
+        """Tilt (degrees, pygame convention) for a rail segment from
+        (x1, y1) to (x2, y2). NEGATIVE = downhill-right → nose down;
+        POSITIVE = uphill-right → nose up. Capped at ±45° so a wildly
+        steep bridge between two pipes doesn't flip the cart upside-
+        down — visually too much."""
+        dx = x2 - x1
+        if dx <= 0.5:
+            return 0.0
+        dy = y2 - y1
+        # screen y grows downward; positive dy = rail descending. To make
+        # the cart nose-DOWN on descent (visually rolling downhill), the
+        # tilt_deg must be NEGATIVE (pygame.transform.rotate ccw +,
+        # negative tilts the top to the right = nose down for an
+        # upright sprite).
+        return max(-45.0, min(45.0,
+                              -math.degrees(math.atan2(dy, dx))))
 
     def _die(self):
         if self.game_over:
