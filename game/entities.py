@@ -1110,15 +1110,21 @@ class Bird:
 
     # ── Secret-powerup wearable overlays ────────────────────────────────────
     def _draw_helmet(self, surf, cx, cy, flipped):
-        """Skull-skater helmet — exact palette match with _draw_skateboard
-        so the pair reads as one kit:
-          • dome fill            = deck fill            (10, 10, 18)
-          • rim band             = deck outline         (200, 200, 210)
-          • skull + bone mohawk  = deck skull body      (240, 240, 230)
-          • bone outline + eyes  = deck fill            (10, 10, 18)
-          • chinstrap            = deck trucks          (60, 60, 70)
-          • buckle               = deck wheel-centre    (200, 50, 50)
-        """
+        """Side-view punk-mohawk skater helmet (variant 4 from the
+        v5_powerups design pass) — half-dome with a flat horizontal
+        rim, a single bone fin running front-to-back along the top,
+        chrome rim band, side skull decal, and ONE diagonal chinstrap
+        from rear-temple to a buckle in front of the jaw. Palette
+        kit-matched to `_draw_skateboard`:
+          • dome fill / vent / outlines = deck fill   (10, 10, 18)
+          • dome highlight              = wheel ring  (50, 50, 60)
+          • chrome rim band             = deck outline (200, 200, 210)
+          • bone fin / skull            = deck skull  (240, 240, 230)
+          • chinstrap                   = deck trucks (60, 60, 70)
+          • buckle                      = wheel centre (200, 50, 50)
+        Anchor (+20, -20) chosen by self-critique iteration so the
+        helmet sits naturally on Pip's crown — rim above the
+        sunglasses, mohawk fin clearly visible above the head."""
         s = self.shrink_scale
         hw = int(24 * s)
         hh = int(15 * s)
@@ -1126,62 +1132,66 @@ class Bird:
         drop = int(12 * s)
         helm = pygame.Surface(
             (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
-        # Dome — same near-black as the deck fill.
-        pygame.draw.ellipse(helm, (10, 10, 18),
-                            pygame.Rect(pad, pad, hw, hh * 2))
-        # Glossy highlight — same dark slate as the wheel outer ring.
-        pygame.draw.ellipse(helm, (50, 50, 60),
-                            pygame.Rect(pad + 3, pad + 1,
-                                        max(2, hw - 8), max(2, hh - 4)))
-        # Air vents — same near-black as the deck fill.
-        vent_y = pad + hh // 2 - 2
-        for vx_frac in (0.30, 0.50, 0.70):
-            vx = pad + int(hw * vx_frac)
-            pygame.draw.line(helm, (10, 10, 18),
-                             (vx - 1, vent_y), (vx + 1, vent_y), 1)
-        # Chrome rim band — same chrome as the deck outline.
-        pygame.draw.ellipse(helm, (200, 200, 210),
-                            pygame.Rect(pad - 1, pad + hh - 1, hw + 2, 3))
-        # Bone-fin mohawk — same bone-white as the deck skull body, with
-        # the same near-black outline.
-        fin_top_y = pad - 3
-        fin_base_y = pad + 2
-        cx_s = pad + hw // 2
-        fin_pts = [(cx_s - hw // 4, fin_base_y),
-                   (cx_s - hw // 5, fin_top_y),
-                   (cx_s + hw // 5, fin_top_y),
-                   (cx_s + hw // 4, fin_base_y)]
-        pygame.draw.polygon(helm, (240, 240, 230), fin_pts)
-        pygame.draw.polygon(helm, (10, 10, 18), fin_pts, 1)
-        # Skull decal on the front of the dome — same colours as the
-        # deck's centred skull.
-        sk_w = max(4, int(7 * s))
-        sk_h = max(3, int(5 * s))
-        sk_rect = pygame.Rect(0, 0, sk_w, sk_h)
-        sk_rect.center = (cx_s, pad + hh - 4)
-        pygame.draw.ellipse(helm, (240, 240, 230), sk_rect)
-        pygame.draw.ellipse(helm, (10, 10, 18), sk_rect, 1)
-        eye_y = sk_rect.centery
-        pygame.draw.circle(helm, (10, 10, 18),
-                           (sk_rect.centerx - 1, eye_y), 1)
-        pygame.draw.circle(helm, (10, 10, 18),
-                           (sk_rect.centerx + 1, eye_y), 1)
-        # Chinstrap — same dark slate as the deck trucks. Buckle echoes
-        # the wheel-centre red so the only non-grayscale accent appears
-        # on both pieces.
-        left_shoulder  = (pad + 3,      pad + hh + 1)
-        right_shoulder = (pad + hw - 3, pad + hh + 1)
-        buckle = (pad + hw // 2, pad + hh + drop - 2)
-        pygame.draw.line(helm, (60, 60, 70), left_shoulder,  buckle, 2)
-        pygame.draw.line(helm, (60, 60, 70), right_shoulder, buckle, 2)
+
+        # Top-half dome — flat horizontal rim line at y = pad + hh.
+        # Draw the full ellipse to a temp surface, then blit only the
+        # top half onto helm so we get a half-dome silhouette.
+        full = pygame.Surface((hw, hh * 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(full, (10, 10, 18),
+                            pygame.Rect(0, 0, hw, hh * 2))
+        helm.blit(full, (pad, pad), area=pygame.Rect(0, 0, hw, hh))
+        # Forward-upper-quadrant highlight only — Pip faces right.
+        if hw > 9 and hh > 5:
+            hl = pygame.Surface((hw - 8, hh - 4), pygame.SRCALPHA)
+            pygame.draw.ellipse(hl, (50, 50, 60),
+                                pygame.Rect(0, 0, hw - 8, hh - 4))
+            helm.blit(hl, (pad + 4, pad + 1),
+                      area=pygame.Rect((hw - 8) // 2, 0,
+                                       (hw - 8) // 2, (hh - 4) // 2 + 1))
+
+        # Bone mohawk fin — SINGLE side-profile sail running front to
+        # back along the dome top.
+        fin = [
+            (pad + 3,           pad + 1),
+            (pad + hw // 2 - 2, pad - 3),
+            (pad + hw // 2 + 3, pad - 2),
+            (pad + hw - 4,      pad + 2),
+        ]
+        pygame.draw.polygon(helm, (240, 240, 230), fin)
+        pygame.draw.polygon(helm, (10, 10, 18), fin, 1)
+        for sx in (pad + hw // 2 - 3, pad + hw // 2 + 2):
+            spike = [(sx, pad - 2), (sx + 1, pad - 5), (sx + 2, pad - 2)]
+            pygame.draw.polygon(helm, (240, 240, 230), spike)
+            pygame.draw.polygon(helm, (10, 10, 18), spike, 1)
+
+        # Single side vent on the visible panel.
+        pygame.draw.line(helm, (10, 10, 18),
+                         (pad + hw // 2 - 2, pad + hh - 3),
+                         (pad + hw // 2 + 2, pad + hh - 3), 1)
+        # Chrome rim band — straight horizontal at the rim line.
+        pygame.draw.rect(helm, (200, 200, 210),
+                         pygame.Rect(pad - 1, pad + hh - 1, hw + 2, 2))
+        # Side skull decal near the rear of the dome.
+        sk_w = max(3, int(5 * s))
+        sk_h = max(2, int(4 * s))
+        sk = pygame.Rect(0, 0, sk_w, sk_h)
+        sk.center = (pad + hw // 2 - 5, pad + hh - 4)
+        pygame.draw.ellipse(helm, (240, 240, 230), sk)
+        pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
+
+        # Single chinstrap — rear-temple → buckle in front of jaw.
+        rear = (pad + 3, pad + hh + 1)
+        buckle = (pad + hw - 3, pad + hh + drop - 3)
+        pygame.draw.line(helm, (60, 60, 70), rear, buckle, 2)
         pygame.draw.circle(helm, (200, 50, 50), buckle, 2)
 
-        # Anchor on the parrot head x-centre (+15, -11). Rotates with
-        # tilt so the helmet banks with Pip and carries backflip spin.
-        # Reverse-gravity flips both the y-offset sign and the sprite.
+        # Anchor (+20, -20) — chosen by iteration so the helmet sits
+        # naturally on Pip's crown. Rotates with tilt so the helmet
+        # banks with Pip and carries backflip spin. Reverse-gravity
+        # flips both the y-offset sign and the sprite.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        y_off = 11 * s if flipped else -11 * s
-        offset = pygame.math.Vector2(15 * s, y_off)
+        y_off = 20 * s if flipped else -20 * s
+        offset = pygame.math.Vector2(20 * s, y_off)
         offset = offset.rotate(-tilt)
         rotated = pygame.transform.rotate(helm, tilt)
         if flipped:
