@@ -1189,14 +1189,11 @@ class Bird:
         # Chinstrap — modelled after a real skate helmet (Triple 8 /
         # Pro-Tec). The V-junction sits "just below + slightly
         # forward of the ear" (BHSI fit rule). The strap path stays
-        # on Pip's red feathers, behind the sunglasses lens.
-        #
-        # Surface coords (anchor (+18, -10), drop=28 → world_y =
-        # surface_y - 35.5). Picked variant N4:
-        #   front_anchor = (8, 20)  — on the rim, well behind lens
-        #   rear_anchor  = (4, 20)  — on the rim's left edge
-        #                             (= helm pad, the dome edge)
-        #   junction     = (6, 30)  — V-junction below the ear
+        # on Pip's red feathers, behind the sunglasses lens. Picked
+        # variant N4 from the chinstrap iteration. Surface coords:
+        #   front_anchor = (pad+8, 20) = (12, 20)
+        #   rear_anchor  = (pad+4, 20) = (8, 20)
+        #   junction     = (6, 30) — V-junction below the ear
         #   chin clip    = (14, 37) — at Pip's chin/throat
         OUT     = (15, 15, 22)
         CHROME  = (200, 200, 210)
@@ -1205,9 +1202,8 @@ class Bird:
         # part of the helmet rather than a separate piece. The
         # clip's red body is the only chromatic accent.
         STRAP   = OUT
-        rim_y = pad + hh + 1
-        front_anchor = (8, rim_y)
-        rear_anchor  = (4, rim_y)
+        front_anchor = (pad + 8, pad + hh + 1)
+        rear_anchor  = (pad + 4, pad + hh + 1)
         junction     = (6, 30)
         clip_centre  = (14, 37)
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2)
