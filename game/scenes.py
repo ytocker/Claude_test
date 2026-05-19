@@ -1058,34 +1058,33 @@ class App:
         # driven by a single pulse factor so the field shrinks and
         # grows as one volume. Pulse rate 5.5 ⇒ ~1.14 s cycle.
         #
-        # MEGA MAGNET uses the V3 stack from the design exploration
-        # (claude/design-magnet-powerup-wnLjL → 23f5389): rad = 2.0×
-        # MAGNET_RADIUS with 7 nested rings stepping 0.12 in scale
-        # from 1.00 → 0.28. The force radius (MEGA_MAGNET_RADIUS_MULT
-        # = 5×) intentionally exceeds the visual — the V3 design was
-        # picked for legibility, not field-coverage realism.
-        # Reference: tools/render_mega_magnet_v3_in_game.py.
+        # MEGA MAGNET = the regular field, verbatim, with two extra
+        # outer rings extending past the regular outer (rfac 1.20 and
+        # 1.45) — same gold gradient, just a bigger reach. Negative
+        # phases on the outer pair so the pulse wave appears to flow
+        # INWARD (read: "sucking coins in"). The force radius
+        # (MEGA_MAGNET_RADIUS_MULT = 5×) lives separately in world.py
+        # and is intentionally larger than the visual.
         #
         # Drawn directly onto self.screen (no intermediate SRCALPHA
-        # buffer) so we don't allocate a multi-MB surface per frame.
+        # buffer).
         if self.world.magnet_timer > 0 or self.world.mega_magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
             t_pulse = self._cloud_phase * 5.5
             mega = self.world.mega_magnet_timer > 0
+            rad = MAGNET_RADIUS
             if mega:
-                rad = int(MAGNET_RADIUS * 2.0)
                 rings = (
-                    (1.00, 0.0,  170, 3, 1.00, (255, 220, 100)),
-                    (0.88, 0.3,  155, 2, 0.94, (255, 210,  90)),
-                    (0.76, 0.6,  140, 2, 0.88, (255, 200,  70)),
-                    (0.64, 0.9,  125, 2, 0.82, (250, 190,  55)),
-                    (0.52, 1.2,  110, 2, 0.75, (240, 175,  45)),
-                    (0.40, 1.5,   95, 2, 0.68, (225, 160,  35)),
-                    (0.28, 1.8,   80, 2, 0.60, (210, 145,  25)),
+                    # Two new outer halos extending past the regular.
+                    (1.45, -1.2, 110, 2, 0.70, (252, 222, 120)),
+                    (1.20, -0.6, 150, 2, 0.85, (252, 218, 105)),
+                    # Original 3 rings — verbatim from regular MAGNET.
+                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
+                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
+                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
                 )
             else:
-                rad = MAGNET_RADIUS
                 rings = (
                     (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
                     (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
@@ -1102,7 +1101,9 @@ class App:
             glow_rad = rad * outer_factor
 
             # Inner radial glow — bell-curve falloff peaking near the
-            # outer edge, gold colour, scaled by the same pulse.
+            # outer edge, gold colour, scaled by the same pulse. Stays
+            # at the regular MAGNET radius in mega too — the outer
+            # rings ARE the mega's reach, the glow is the core ball.
             GLOW_COL = (245, 175, 40)
             for i in range(18, 0, -1):
                 r = int(glow_rad * i / 18)
@@ -1114,7 +1115,6 @@ class App:
                                        (cx_screen, cy_screen), r)
 
             # Rings with per-ring gold tints, slightly out of phase.
-            # Regular MAGNET ships 3 rings, MEGA MAGNET ships 7.
             AA_COL = (255, 240, 180)
             for rfac, phase, alpha, width, breath_scale, ring_col in rings:
                 amp = BREATH * breath_scale
