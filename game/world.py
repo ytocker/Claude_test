@@ -105,12 +105,16 @@ class World:
         # Undocumented in powerup_help.py by design.
         self.skateboard_timer = 0.0
         # One-shot activation FX (chosen V4.3 starburst + caption + POW!
-        # composition, see game/skateboard_fx.py). Overlay is rendered
-        # once at pickup, then blit by scenes.py with a linear fade until
-        # the timer expires.
-        self.skateboard_activation_t = 0.0
-        self.skateboard_activation_dur = 0.0
-        self.skateboard_activation_overlay = None
+        # composition, see game/skateboard_fx.py). Split into two
+        # timed pieces — caption (static at top, lingers ~2.5 s) and
+        # spike burst (small surface that follows Pip's screen
+        # position for ~0.6 s).
+        self.skateboard_caption_t = 0.0
+        self.skateboard_caption_dur = 0.0
+        self.skateboard_caption_overlay = None
+        self.skateboard_burst_t = 0.0
+        self.skateboard_burst_dur = 0.0
+        self.skateboard_burst_surface = None
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -701,11 +705,16 @@ class World:
             if self.skateboard_timer > 0:
                 self.skateboard_timer = max(0.0, self.skateboard_timer - dt)
             self.bird.skateboard_active = self.skateboard_timer > 0
-            if self.skateboard_activation_t > 0:
-                self.skateboard_activation_t = max(
-                    0.0, self.skateboard_activation_t - dt)
-                if self.skateboard_activation_t <= 0:
-                    self.skateboard_activation_overlay = None
+            if self.skateboard_caption_t > 0:
+                self.skateboard_caption_t = max(
+                    0.0, self.skateboard_caption_t - dt)
+                if self.skateboard_caption_t <= 0:
+                    self.skateboard_caption_overlay = None
+            if self.skateboard_burst_t > 0:
+                self.skateboard_burst_t = max(
+                    0.0, self.skateboard_burst_t - dt)
+                if self.skateboard_burst_t <= 0:
+                    self.skateboard_burst_surface = None
             if self.shrink_timer > 0:
                 self.shrink_timer = max(0.0, self.shrink_timer - dt)
             self.bird.shrink_active = self.shrink_timer > 0
@@ -1678,7 +1687,9 @@ class World:
     # ── SECRET LATE-GAME ACTIVATORS ─────────────────────────────────────────
 
     def _activate_skateboard(self, m):
-        from game.skateboard_fx import render_activation_overlay
+        from game.skateboard_fx import (
+            render_caption_overlay, render_starburst_surface,
+        )
         self.skateboard_timer = SKATEBOARD_DURATION
         self.bird.skateboard_active = True
         self._tap_streak = 0
@@ -1688,18 +1699,24 @@ class World:
         audio.play_skateboard()
         self._spawn_poof(self.bird.x, self.bird.y)
         self._pickup_burst(m, ((60, 60, 70), (180, 180, 190), UI_ORANGE, UI_GOLD), n=28)
-        # Chosen V4.3 activation FX — bake the starburst + corner slashes
-        # + tilted SKATEBOARD! caption + POW! badge into a one-shot overlay
-        # anchored at the bird's screen position. scenes.py fades it out
-        # linearly over skateboard_activation_dur. No float text — the
-        # tilted caption on the red plate IS the caption now.
-        # Duration bumped 0.6 → 1.4 s so the caption + starburst beat is
-        # noticeable in play; the previous 0.6 s flickered by too fast.
-        self.skateboard_activation_dur = 1.4
-        self.skateboard_activation_t = self.skateboard_activation_dur
-        self.skateboard_activation_overlay = render_activation_overlay(
-            int(self.bird.x), int(self.bird.y),
-            rng_seed=int(self._idle_t * 1000) & 0xFFFF,
+        # Activation FX split:
+        #   * caption — tilted SKATEBOARD! plate + POW! badge + corner
+        #     slashes — STATIC at top of screen, fades over 2.5 s so
+        #     the player has time to read it.
+        #   * burst — the 14-spike starburst, small surface centered on
+        #     Pip's current position each frame so it APPEARS to ride
+        #     with him. Short by design (0.6 s) so it doesn't cover the
+        #     game for long.
+        seed = int(self._idle_t * 1000) & 0xFFFF
+        self.skateboard_caption_dur = 2.5
+        self.skateboard_caption_t = self.skateboard_caption_dur
+        self.skateboard_caption_overlay = render_caption_overlay(
+            int(self.bird.x), int(self.bird.y), rng_seed=seed,
+        )
+        self.skateboard_burst_dur = 0.6
+        self.skateboard_burst_t = self.skateboard_burst_dur
+        self.skateboard_burst_surface = render_starburst_surface(
+            rng_seed=seed,
         )
 
     def _activate_shrink(self, m):

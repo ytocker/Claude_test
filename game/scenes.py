@@ -935,28 +935,49 @@ class App:
             _draw_opener(self.screen, self.world)
 
         # SKATEBOARD (secret) activation FX — blit BEFORE the bird so
-        # Pip pops on top of the starburst the way the chosen V4.3
-        # mockup composes it. Caption + POW! sit at fixed screen
-        # positions above Pip's typical flight area so they're rarely
-        # occluded. Linear fade-out: hold full alpha for the first 25%
-        # of the activation window, then ease to zero.
-        if getattr(self.world, "skateboard_activation_t", 0) > 0 and \
-                self.world.skateboard_activation_overlay is not None:
-            t = self.world.skateboard_activation_t
-            d = self.world.skateboard_activation_dur
+        # Pip pops on top of the starburst.
+        #
+        # The activation is split:
+        #   * caption (SKATEBOARD! plate + POW! badge + corner slashes)
+        #     sits at fixed screen positions and fades over its own
+        #     ~2.5 s window — gives the player time to read it.
+        #   * spike starburst is a small surface drawn each frame
+        #     centered on Pip's CURRENT screen position so it appears
+        #     to follow him; short ~0.6 s window so it doesn't cover
+        #     the game.
+        # Both use quadratic ease-out for the tail: alpha = 255*(1-x)²
+        # past the 30 % hold mark.
+        if getattr(self.world, "skateboard_caption_t", 0) > 0 and \
+                self.world.skateboard_caption_overlay is not None:
+            t = self.world.skateboard_caption_t
+            d = self.world.skateboard_caption_dur
             elapsed = (d - t) / d if d > 0 else 1.0
-            # Hold at full alpha for first 30% (~0.42 s at d=1.4) so the
-            # caption beat reads, then ease-out fade across the remaining
-            # 70% (~0.98 s). Quadratic ease-out (1-(1-x)²) gives a softer
-            # tail than the previous linear ramp.
             if elapsed < 0.30:
                 alpha = 255
             else:
                 x = (elapsed - 0.30) / 0.70
                 alpha = int(255 * (1.0 - x) ** 2)
-            self.world.skateboard_activation_overlay.set_alpha(alpha)
-            self.screen.blit(self.world.skateboard_activation_overlay,
+            self.world.skateboard_caption_overlay.set_alpha(alpha)
+            self.screen.blit(self.world.skateboard_caption_overlay,
                              (0, 0))
+        if getattr(self.world, "skateboard_burst_t", 0) > 0 and \
+                self.world.skateboard_burst_surface is not None:
+            t = self.world.skateboard_burst_t
+            d = self.world.skateboard_burst_dur
+            elapsed = (d - t) / d if d > 0 else 1.0
+            if elapsed < 0.20:
+                alpha = 255
+            else:
+                x = (elapsed - 0.20) / 0.80
+                alpha = int(255 * (1.0 - x) ** 2)
+            burst = self.world.skateboard_burst_surface
+            burst.set_alpha(alpha)
+            bcx = int(self.world.bird.x) + sx
+            bcy = int(self.world.bird.y) + sy
+            self.screen.blit(
+                burst,
+                burst.get_rect(center=(bcx, bcy)),
+            )
 
         # Phoenix rebirth: draw an egg sprite at Pip's position instead
         # of the bird while the egg is mid-hatch. Mythic freezes in

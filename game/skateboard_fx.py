@@ -1,15 +1,16 @@
-"""SKATEBOARD pickup activation FX — the chosen V4.3 design ported to
-live code.
+"""SKATEBOARD pickup activation FX — split into two pieces so the
+caption can linger at the top of the screen while the spike burst
+follows Pip for a short beat without covering gameplay long-term.
 
-Composition (rendered ONCE per pickup, then blit with decreasing alpha
-over the activation duration):
-
-  • 14-spike yellow starburst at the pickup position, with an inner
-    red ring, both outlined in ink.
-  • 4 corner ink speed-slashes radiating toward the pickup position.
-  • Tilted "SKATEBOARD!" caption on a red plate at the top of the
-    screen (yellow→orange gradient, ink outline, plate tilted +5°).
-  • Tilted "POW!" badge in the upper-right (red gradient, +15°).
+* render_caption_overlay(cx, cy, rng_seed) — STATIC (W × H) surface
+  with the tilted SKATEBOARD! caption near the top, POW! badge upper-
+  right, and 4 corner ink slashes pointing at the original pickup
+  position. Lives ~2.5 s.
+* render_starburst_surface(rng_seed) — small (~320 × 320) surface
+  with the 14-spike yellow/red starburst centered. scenes.py blits
+  this each frame at Pip's CURRENT screen position so the burst
+  appears to ride with him. Lives ~0.6 s — short by design so the
+  game stays visible.
 
 Original mockup: docs/screenshots/skateboard_variants/final/chosen.png
 and tools/render_skateboard_final.py.
@@ -29,6 +30,10 @@ YELLOW = (255, 220, 30)
 RED = (230, 60, 50)
 PLATE_RED = (220, 50, 40)
 WHITE = (255, 255, 255)
+
+# Self-contained starburst surface size — comfortably bigger than the
+# spikes' outer radius (~165 px) so the polygon never clips.
+BURST_SIZE = 360
 
 
 def _gradient_text(text, size, top_col, bot_col, outline, outline_w=3):
@@ -55,31 +60,14 @@ def _gradient_text(text, size, top_col, bot_col, outline, outline_w=3):
     return surf
 
 
-def render_activation_overlay(cx: int, cy: int,
-                              rng_seed: int = 22) -> pygame.Surface:
-    """Build the full activation overlay anchored at (cx, cy) in screen
-    coords. Returns a transparent (W × H) surface — caller blits with
-    a decreasing alpha to fade out. Pure function, deterministic given
-    the same seed."""
-    rng = random.Random(rng_seed)
+def render_caption_overlay(cx: int, cy: int,
+                           rng_seed: int = 22) -> pygame.Surface:
+    """Top-of-screen caption + POW! badge + 4 ink slashes pointing at
+    the original pickup position. Returns a (W × H) surface; caller
+    blits at (0, 0) with a decreasing alpha to fade out."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
 
-    # ── 14-spike starburst behind Pip (yellow outer, red inner). ────────
-    spikes = 14
-    inner_r = 70
-    pts = []
-    for i in range(spikes * 2):
-        ang = i * math.pi / spikes - math.pi / 2
-        r = (140 + rng.randint(-20, 25)) if i % 2 == 0 else inner_r
-        pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
-    pygame.draw.polygon(surf, YELLOW, pts)
-    pygame.draw.polygon(surf, INK, pts, 5)
-    inner_pts = [(cx + (p[0] - cx) * 0.65, cy + (p[1] - cy) * 0.65)
-                 for p in pts]
-    pygame.draw.polygon(surf, RED, inner_pts)
-    pygame.draw.polygon(surf, INK, inner_pts, 3)
-
-    # ── 4-corner ink speed-slashes pointing at the starburst. ───────────
+    # 4-corner ink speed-slashes pointing at the original pickup spot.
     for x0, y0 in ((20, 20), (W - 20, 20),
                    (20, H - 80), (W - 20, H - 80)):
         for off in range(3):
@@ -91,7 +79,7 @@ def render_activation_overlay(cx: int, cy: int,
                              (x0 + ox, y0 + oy),
                              (x0 + ox + dx, y0 + oy + dy), 4)
 
-    # ── SKATEBOARD! caption on a red plate, tilted +5°. ─────────────────
+    # SKATEBOARD! caption on a red plate, tilted +5°.
     txt = _gradient_text("SKATEBOARD!", 42,
                          top_col=(255, 255, 110),
                          bot_col=(255, 180, 10),
@@ -108,7 +96,7 @@ def render_activation_overlay(cx: int, cy: int,
     rotated = pygame.transform.rotate(composite, 5)
     surf.blit(rotated, rotated.get_rect(center=(W // 2, 75)))
 
-    # ── POW! badge upper-right, tilted +15°. ────────────────────────────
+    # POW! badge upper-right, tilted +15°.
     pow_txt = _gradient_text("POW!", 32,
                              top_col=(255, 90, 90),
                              bot_col=(220, 30, 30),
@@ -116,4 +104,29 @@ def render_activation_overlay(cx: int, cy: int,
     pow_rot = pygame.transform.rotate(pow_txt, 15)
     surf.blit(pow_rot, pow_rot.get_rect(center=(W - 60, 130)))
 
+    return surf
+
+
+def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
+    """Self-contained 14-spike yellow/red starburst on a transparent
+    BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
+    centered on Pip's current screen position each frame so the
+    burst appears to follow him."""
+    rng = random.Random(rng_seed)
+    surf = pygame.Surface((BURST_SIZE, BURST_SIZE), pygame.SRCALPHA)
+    cx = cy = BURST_SIZE // 2
+
+    spikes = 14
+    inner_r = 70
+    pts = []
+    for i in range(spikes * 2):
+        ang = i * math.pi / spikes - math.pi / 2
+        r = (140 + rng.randint(-20, 25)) if i % 2 == 0 else inner_r
+        pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
+    pygame.draw.polygon(surf, YELLOW, pts)
+    pygame.draw.polygon(surf, INK, pts, 5)
+    inner_pts = [(cx + (p[0] - cx) * 0.65, cy + (p[1] - cy) * 0.65)
+                 for p in pts]
+    pygame.draw.polygon(surf, RED, inner_pts)
+    pygame.draw.polygon(surf, INK, inner_pts, 3)
     return surf
