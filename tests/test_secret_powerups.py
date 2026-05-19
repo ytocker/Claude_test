@@ -301,20 +301,20 @@ def test_nightglow_sets_state():
 
 
 def test_rail_locks_immediately_and_extends_off_canvas():
-    """RAIL is a duration buff. At activation:
+    """RAIL is a pillar-limited buff. At activation:
       * cart_active + cart_locked = True (no aim phase)
-      * rail_timer = RAIL_DURATION
+      * rail_pillars_left = RAIL_PILLAR_COUNT
       * rail polyline spans BEHIND Pip (x < bird.x) AND past the right
         edge (x > W) — the user's "always visible left-to-right"
         requirement
       * flap is a no-op for the entire ride
     """
-    from game.config import RAIL_DURATION, W, PIPE_W
+    from game.config import RAIL_PILLAR_COUNT, W
     w = World()
     w.ready_t = 0
     bird_y_before = w.bird.y
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    assert w.rail_timer == RAIL_DURATION
+    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
     assert w.bird.cart_active is True
     assert w.bird.cart_locked is True
     # Track must span the canvas: at least one rail pipe behind Pip and
@@ -331,6 +331,49 @@ def test_rail_locks_immediately_and_extends_off_canvas():
     vy_before = w.bird.vy
     w.bird.flap()
     assert w.bird.vy == vy_before
+
+
+def test_rail_ride_ends_after_n_pillars_with_jump():
+    """After RAIL_PILLAR_COUNT real pillars pass Pip the ride ends,
+    cart_active flips off, and Pip gets an upward "jump" (vy < 0) so
+    the player has air control immediately."""
+    from game.config import RAIL_PILLAR_COUNT, FLAP_V
+    import random as _r
+    _r.seed(5)
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
+    # Tick the world long enough to scroll the rail pipes past Pip.
+    # Worst case is the player starting on the newbie scroll ramp:
+    # ~120 frames per pillar even with the 1.5× cart multiplier, so
+    # 7 pillars ≈ 850 frames. 2000 is a comfortable upper bound.
+    for _ in range(2000):
+        w.update(1 / 60)
+        if not w.bird.cart_active:
+            break
+    assert w.bird.cart_active is False, "cart never released"
+    assert w.bird.cart_locked is False
+    assert w.rail_pillars_left == 0
+    assert w.bird.vy <= FLAP_V * 0.5, (
+        f"Pip didn't jump on release (vy={w.bird.vy:.1f}, FLAP_V={FLAP_V})")
+    # Now the player should regain flap control.
+    vy_after_jump = w.bird.vy
+    w.bird.flap()
+    assert w.bird.vy == FLAP_V or w.bird.vy != vy_after_jump
+
+
+def test_rail_world_scrolls_faster_during_ride():
+    """The world scrolls RAIL_SCROLL_MULT × the normal speed while the
+    cart is active."""
+    from game.config import RAIL_SCROLL_MULT
+    w = World()
+    w.ready_t = 0
+    baseline = w._current_scroll()
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    rail_scroll = w._current_scroll()
+    assert rail_scroll > baseline
+    assert abs(rail_scroll - baseline * RAIL_SCROLL_MULT) < 0.01
 
 
 def test_plausibility_chain_survives_treasure_box_and_lottery():

@@ -27,7 +27,7 @@ from game.config import (
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     NIGHTGLOW_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
-    RAIL_PILLAR_COUNT, RAIL_DURATION,
+    RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -130,14 +130,17 @@ class World:
         # 0.8 s ash-fall + egg-fall + auto-position). None when no
         # rebirth is in progress. See _resolve_phoenix_rebirth.
         self.phoenix_rebirth: "dict | None" = None
-        # RAIL TRACK: duration buff. While rail_timer > 0 the cart is
-        # locked on a track that extends across the whole canvas. New
-        # rail-tagged pipes are spawned off-screen-right each frame as
-        # the rightmost one approaches the right edge; off-screen-left
-        # rail pipes are kept in self.pipes (not culled) so the polyline
-        # always extends behind Pip too. Flap is ignored for the entire
-        # ride (see Bird.flap gate on cart_active).
-        self.rail_timer = 0.0
+        # RAIL TRACK: pillar-limited buff. The cart rides over exactly
+        # RAIL_PILLAR_COUNT real pillars (the synthesized anchor pipes
+        # behind Pip don't count) then releases with an upward "jump"
+        # so the player gets control back mid-air. While cart_active,
+        # the world scrolls at RAIL_SCROLL_MULT × normal speed; new
+        # rail-tagged pipes are spawned off-screen-right each frame and
+        # off-screen-left rail pipes are kept in self.pipes (not
+        # culled) so the polyline always spans the canvas. Flap is
+        # silently ignored for the entire ride (Bird.flap gate on
+        # cart_active).
+        self.rail_pillars_left = 0
         self.rail_pipes: list = []
         self.rail_pending = 0  # legacy — unused after the rail rewrite
         # Treasure box (formerly BANK HEIST): a duration-based buff. While
@@ -258,7 +261,12 @@ class World:
         return int(_lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t()))
 
     def _current_scroll(self):
-        return _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        base = _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        # RAIL TRACK: the world rushes by 1.5x while Pip rides the cart
+        # so the ride feels like a thrill, not a free escalator.
+        if self.bird.cart_active:
+            base *= RAIL_SCROLL_MULT
+        return base
 
     def _current_spacing(self):
         return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
@@ -635,6 +643,15 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     self._proof.record(self.time_alive, 1, "pipe")
+                    # RAIL: count down the per-ride pillar budget. The
+                    # synthesized anchor pipes are scored=True at spawn
+                    # so they don't trigger this path.
+                    if (self.bird.cart_active
+                            and getattr(p, "rail_active", False)
+                            and self.rail_pillars_left > 0):
+                        self.rail_pillars_left -= 1
+                        if self.rail_pillars_left == 0:
+                            self._end_rail_ride()
 
             # Near-miss detection: once per pipe, flag if the bird was within
             # a narrow band of either edge without hitting. Fires as the pipe
@@ -709,15 +726,16 @@ class World:
             self.bird.phoenix_active = self.phoenix_timer > 0
             if self.phoenix_invuln > 0:
                 self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
-            # Rail: duration buff. While rail_timer > 0 keep the track
-            # anchored across the canvas by spawning new rail pipes
-            # off-screen-right whenever the rightmost has drifted
+            # Rail: pillar-limited buff. While cart_active keep the
+            # track anchored across the canvas by spawning new rail
+            # pipes off-screen-right whenever the rightmost has drifted
             # close to the right edge. self.rail_pipes is rebuilt from
-            # self.pipes' rail_active flags each frame, so once
-            # _untag_rail flips those flags off, rail_pipes empties on
-            # the next tick.
-            if self.rail_timer > 0:
-                self.rail_timer = max(0.0, self.rail_timer - dt)
+            # self.pipes' rail_active flags each frame. The end
+            # condition lives in the scoring loop (rail_pillars_left
+            # decrement) — when the 7th real pillar passes Pip, the
+            # ride ends with an upward "jump" so the player has air
+            # control immediately.
+            if self.bird.cart_active:
                 rail_spacing = self._current_spacing()
                 rail_xs = [p.x for p in self.pipes
                            if getattr(p, "rail_active", False)]
@@ -729,17 +747,6 @@ class World:
                         rightmost = self.pipes[-1].x
                 self.rail_pipes = [p for p in self.pipes
                                    if getattr(p, "rail_active", False)]
-                if self.rail_timer == 0:
-                    # Buff just ended this frame. Untag every rail pipe
-                    # so the off-screen-left ones are culled next tick,
-                    # release Pip into free flight with vy=0 so he
-                    # doesn't pancake.
-                    for p in self.pipes:
-                        p.rail_active = False
-                    self.rail_pipes = []
-                    self.bird.cart_active = False
-                    self.bird.cart_locked = False
-                    self.bird.vy = 0.0
             # Lottery: tick the reveal animation; apply score delta on reveal.
             if self.lottery_anim is not None:
                 self.lottery_anim["t"] += dt
@@ -1756,14 +1763,16 @@ class World:
         ))
 
     def _activate_rail(self, m):
-        """RAIL TRACK — duration buff. Locks Pip onto a cart for
-        RAIL_DURATION seconds. The track is always visible from the
-        left canvas edge to the right; new rail pipes spawn off-screen-
-        right as the existing ones scroll past, off-screen-left rail
-        pipes are kept in self.pipes (not culled) so the polyline still
-        extends behind Pip. Flap is suppressed for the entire ride
-        (see Bird.flap gate on cart_active)."""
-        self.rail_timer = RAIL_DURATION
+        """RAIL TRACK — pillar-limited buff. Locks Pip onto a cart that
+        rides over exactly RAIL_PILLAR_COUNT real pillars before
+        releasing him with a "jump" (upward vy) so he regains control
+        in the air. The track is always visible from the left canvas
+        edge to the right; new rail pipes spawn off-screen-right as
+        the existing ones scroll past, off-screen-left rail pipes are
+        kept in self.pipes (not culled) so the polyline still extends
+        behind Pip. Flap is suppressed for the entire ride (see
+        Bird.flap gate on cart_active)."""
+        self.rail_pillars_left = RAIL_PILLAR_COUNT
         self.bird.cart_active = True
         self.bird.cart_locked = True
         self.bird.vy = 0.0
@@ -1823,6 +1832,22 @@ class World:
             "RAILS UP!", m.x, m.y - 26, UI_GOLD,
             size=28, life=1.3, vy=-30, style="powerup",
         ))
+
+    def _end_rail_ride(self):
+        """Release Pip from the cart with an upward "jump" so the player
+        regains air control on the same frame the ride ends. Clears
+        every rail_active flag (off-canvas-left pipes get culled next
+        tick) and zeroes out the cart state."""
+        for p in self.pipes:
+            p.rail_active = False
+        self.rail_pipes = []
+        self.bird.cart_active = False
+        self.bird.cart_locked = False
+        self.bird.cart_tilt_deg = 0.0
+        sign = -1 if self.reverse_timer > 0 else 1
+        self.bird.vy = FLAP_V * sign
+        self.bird.flap_boost = 0.45
+        audio.play_flap()
 
     def _activate_nightglow(self, m):
         NIGHT_CYAN = (60, 230, 230)
