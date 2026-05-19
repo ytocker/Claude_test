@@ -73,6 +73,7 @@ POWERUP_WEIGHTS    = (
     ("kfc",      1),
     ("ghost",    1),
     ("grow",     1),
+    ("vacuum",   1),
     ("surprise", 1),
 )
 
@@ -128,7 +129,6 @@ SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
     ("shrink",     0.125),
     ("heist",      0.125),
-    ("vacuum",     0.125),
     ("rail",       0.125),
     ("nightglow",  0.125),   # additionally biome-gated to night in world.py
     ("lottery",    0.125),
