@@ -114,6 +114,12 @@ class World:
         self.skateboard_burst_t = 0.0
         self.skateboard_burst_dur = 0.0
         self.skateboard_burst_surface = None
+        # Screen position where the burst was anchored at pickup. Saved
+        # once at activation; scenes blits the burst at this fixed
+        # point so the spikes stay where they first appeared instead
+        # of trailing Pip around.
+        self.skateboard_burst_cx = 0
+        self.skateboard_burst_cy = 0
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -1697,11 +1703,13 @@ class World:
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
         )
-        self.skateboard_burst_dur = 1.5
+        self.skateboard_burst_dur = 2.5
         self.skateboard_burst_t = self.skateboard_burst_dur
         self.skateboard_burst_surface = render_starburst_surface(
             rng_seed=seed,
         )
+        self.skateboard_burst_cx = int(self.bird.x)
+        self.skateboard_burst_cy = int(self.bird.y)
 
     def _activate_shrink(self, m):
         SHRINK_HI  = (80, 180, 240)

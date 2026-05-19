@@ -972,8 +972,10 @@ class App:
                 alpha = int(255 * (1.0 - x) ** 2)
             burst = self.world.skateboard_burst_surface
             burst.set_alpha(alpha)
-            bcx = int(self.world.bird.x) + sx
-            bcy = int(self.world.bird.y) + sy
+            # Anchored at the screen position captured at pickup —
+            # the burst stays put while Pip rolls away.
+            bcx = self.world.skateboard_burst_cx + sx
+            bcy = self.world.skateboard_burst_cy + sy
             self.screen.blit(
                 burst,
                 burst.get_rect(center=(bcx, bcy)),
