@@ -508,13 +508,7 @@ class Bird:
 
     def flap(self, gravity_sign=1):
         if self.alive and not self.cart_active:
-            # Jump strength scales with Pip's collision size during
-            # SHRINK so a 0.6× bird gets a 0.6× flap. Keeps "tap timing"
-            # consistent — without this the impulse felt cartoonishly
-            # over-powered for the tiny silhouette.
-            from game.config import SHRINK_SCALE
-            scale = SHRINK_SCALE if self.shrink_active else 1.0
-            self.vy = FLAP_V * gravity_sign * scale
+            self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
@@ -531,21 +525,11 @@ class Bird:
         if self.cart_active and self.vy > 260:
             self.vy = FLAP_V * 0.2
             self.flap_boost = 0.45
-        # Gravity scales with Pip's size while SHRINK is active — a 0.6×
-        # bird "weighs" 0.6× so he drops less heavily. Pairs with the
-        # matching flap-impulse scaling in Bird.flap, keeping the
-        # apex-of-arc behaviour consistent between normal and shrunk
-        # states (jump height also scales proportionally). Terminal
-        # fall speed scales the same way so the small bird doesn't
-        # bottom out at the heavy bird's max fall speed.
-        from game.config import SHRINK_SCALE
-        scale = SHRINK_SCALE if self.shrink_active else 1.0
-        new_vy = self.vy + GRAVITY * scale * gravity_sign * dt
-        max_fall_scaled = MAX_FALL * scale
+        new_vy = self.vy + GRAVITY * gravity_sign * dt
         if gravity_sign >= 0:
-            self.vy = min(new_vy, max_fall_scaled)
+            self.vy = min(new_vy, MAX_FALL)
         else:
-            self.vy = max(new_vy, -max_fall_scaled)
+            self.vy = max(new_vy, -MAX_FALL)
         self.y += self.vy * dt
 
         base_hz = 9.0 + self.flap_boost * 20.0
