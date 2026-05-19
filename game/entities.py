@@ -1187,17 +1187,23 @@ class Bird:
         pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
 
         # Chinstrap — modelled after a real skate helmet (Triple 8 /
-        # Pro-Tec). Both strap anchors sit on the SIDE of the rim
-        # (over the ear), close together — NOT one over the brow
-        # and one over the nape. A plastic slider sits just below
-        # the rim at the ear, then a single strap angles down-and-
-        # forward to a side-release clip under Pip's chin. The
-        # strap hugs the side of the head; it never crosses the eye
-        # or beak. Surface coords (with anchor (+18, -10) and the
-        # taller drop=28 surface, world_y = surface_y - 35.5):
-        #   front_anchor = (12, 20) — front of ear, on the rim
-        #   rear_anchor  = ( 8, 20) — back of ear, on the rim
-        #   junction     = (10, 30) — adjuster slider at world y=-5.5
+        # Pro-Tec). The V-junction sits "just below + slightly
+        # forward of the ear" (BHSI fit rule). The strap path stays
+        # on Pip's red feathers, behind the sunglasses lens. The
+        # lower segment (junction → chin clip) is drawn 3 px thick
+        # for visibility — it's the part the eye reads as "the
+        # strap holding the helmet on".
+        #
+        # Surface coords (anchor (+18, -10), drop=28 → world_y =
+        # surface_y - 35.5):
+        #   front_anchor = (pad+8, 20) = (12, 20) — on the rim
+        #   rear_anchor  = (pad+4, 20) = (8, 20)  — on the rim
+        #                                          (rear clamped to
+        #                                          the dome's left
+        #                                          edge so the strap
+        #                                          attaches visibly)
+        #   junction     = (6, 30) — adjuster at world y=-5.5,
+        #                            left of the ear
         #   chin clip    = (14, 37) — chin at world y=+1.5
         OUT     = (15, 15, 22)
         CHROME  = (200, 200, 210)
@@ -1208,11 +1214,14 @@ class Bird:
         STRAP   = OUT
         front_anchor = (pad + 8, pad + hh + 1)
         rear_anchor  = (pad + 4, pad + hh + 1)
-        junction     = (10, 30)
+        junction     = (6, 30)
         clip_centre  = (14, 37)
+        # Upper V — two 2-px straps from rim to junction.
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2)
         pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2)
-        pygame.draw.line(helm, STRAP, junction, clip_centre, 2)
+        # Lower strap — 3 px thick so the bottom segment reads
+        # clearly as the chin-securing strap.
+        pygame.draw.line(helm, STRAP, junction, clip_centre, 3)
         # Plastic adjuster slider at the ear junction — tiny 3×2
         # body with a chrome outline.
         adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
