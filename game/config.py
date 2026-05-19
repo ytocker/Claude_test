@@ -99,7 +99,10 @@ SKATEBOARD_DURATION   = 8.0
 # consecutive taps trigger a 360° backflip. New flips cannot chain
 # until the current one finishes.
 BACKFLIP_TAP_WINDOW   = 0.45
-BACKFLIP_DURATION     = 0.55
+# Bumped 0.55 → 0.85 s so the flip reads as a deliberate trick rather
+# than a quick spin. Pairs with smootherstep easing in Bird.tilt_deg
+# so the rotation is slow→fast→slow instead of constant-rate.
+BACKFLIP_DURATION     = 0.85
 NIGHTGLOW_DURATION    = 12.0
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under

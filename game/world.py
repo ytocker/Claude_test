@@ -1311,7 +1311,9 @@ class World:
         # anchored at the bird's screen position. scenes.py fades it out
         # linearly over skateboard_activation_dur. No float text — the
         # tilted caption on the red plate IS the caption now.
-        self.skateboard_activation_dur = 0.6
+        # Duration bumped 0.6 → 1.4 s so the caption + starburst beat is
+        # noticeable in play; the previous 0.6 s flickered by too fast.
+        self.skateboard_activation_dur = 1.4
         self.skateboard_activation_t = self.skateboard_activation_dur
         self.skateboard_activation_overlay = render_activation_overlay(
             int(self.bird.x), int(self.bird.y),

@@ -494,9 +494,16 @@ class Bird:
         # During a backflip, ride a full 360° rotation on top of the base
         # tilt. pygame's rotate is modulo-360 internally so values beyond
         # the normal clamp are fine.
+        # Smootherstep easing (6t⁵ − 15t⁴ + 10t³) — zero acceleration at
+        # both endpoints — so the spin eases in (slow start), ramps
+        # through 180° at the midpoint, then eases out. The flat tail
+        # also closes the 360° loop to within ~0.03° at the last frame,
+        # so the post-flip transition back to velocity-banked posture
+        # is visually seamless ("lands on Pip's normal posture").
         if self.backflip_t > 0 and self.backflip_dur > 0:
-            progress = 1.0 - self.backflip_t / self.backflip_dur
-            return base + progress * 360.0
+            p = 1.0 - self.backflip_t / self.backflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            return base + eased * 360.0
         return base
 
     def flap(self, gravity_sign=1):

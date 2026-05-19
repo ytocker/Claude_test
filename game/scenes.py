@@ -907,10 +907,15 @@ class App:
             t = self.world.skateboard_activation_t
             d = self.world.skateboard_activation_dur
             elapsed = (d - t) / d if d > 0 else 1.0
-            if elapsed < 0.25:
+            # Hold at full alpha for first 30% (~0.42 s at d=1.4) so the
+            # caption beat reads, then ease-out fade across the remaining
+            # 70% (~0.98 s). Quadratic ease-out (1-(1-x)²) gives a softer
+            # tail than the previous linear ramp.
+            if elapsed < 0.30:
                 alpha = 255
             else:
-                alpha = int(255 * (1.0 - (elapsed - 0.25) / 0.75))
+                x = (elapsed - 0.30) / 0.70
+                alpha = int(255 * (1.0 - x) ** 2)
             self.world.skateboard_activation_overlay.set_alpha(alpha)
             self.screen.blit(self.world.skateboard_activation_overlay,
                              (0, 0))
