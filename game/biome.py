@@ -223,11 +223,6 @@ def palette_for_time(elapsed_seconds: float) -> dict:
     return palette_for_phase(phase_for_time(elapsed_seconds))
 
 
-def is_night(phase: float) -> bool:
-    """True while the sky reads as 'night' — anywhere between DUSK and PREDAWN
-    keyframes. Used by the secret NIGHTGLOW powerup to gate its spawn."""
-    p = phase % 1.0
-    return 0.51 <= p < 0.79
 
 
 # ── cached-palette bucket helpers ────────────────────────────────────────────

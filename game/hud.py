@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, NIGHTGLOW_DURATION, PHOENIX_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, PHOENIX_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -1020,11 +1020,6 @@ def _draw_buff_icon(surf, rect, kind):
                             pygame.Rect(cx - 3, cy + 2, 6, 7))
         pygame.draw.ellipse(surf, (140, 130, 110),
                             pygame.Rect(cx - 3, cy + 2, 6, 7), 1)
-    elif kind == "nightglow":
-        from game.entities import get_nightglow_star
-        size = min(rect.width, rect.height)
-        star = get_nightglow_star(size)
-        surf.blit(star, (cx - size // 2, cy - size // 2))
     elif kind == "phoenix":
         # Mini phoenix glyph. Dispatches on PHOENIX_VARIANT so the HUD
         # row matches Pip's current look.
@@ -1626,8 +1621,6 @@ class HUD:
             active.append(("skateboard", world.skateboard_timer, SKATEBOARD_DURATION))
         if getattr(world, "shrink_timer", 0) > 0:
             active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
-        if getattr(world, "nightglow_timer", 0) > 0:
-            active.append(("nightglow", world.nightglow_timer, NIGHTGLOW_DURATION))
         if getattr(world, "phoenix_timer", 0) > 0:
             active.append(("phoenix", world.phoenix_timer, PHOENIX_DURATION))
 

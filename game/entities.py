@@ -749,7 +749,6 @@ class Bird:
         # back to 1.0 when it clears, so the size change reads as a
         # transformation across SHRINK_TRANSITION rather than a one-frame snap.
         self.shrink_scale = 1.0
-        self.nightglow_active = False
         # PHOENIX: fiery skin while phoenix_active; the death-revive is
         # owned by World._die().
         self.phoenix_active = False
@@ -918,14 +917,6 @@ class Bird:
             img = img.copy()
             pulse = 0.5 + 0.5 * math.sin(self.ghost_pulse)
             img.set_alpha(int(90 + pulse * 80))
-        # NIGHTGLOW: bright cyan halo behind Pip while the powerup is active.
-        if self.nightglow_active:
-            halo = pygame.Surface((80, 80), pygame.SRCALPHA)
-            cyc = 0.5 + 0.5 * math.sin(self.frame_t * 0.5)
-            base_a = int(80 + 60 * cyc)
-            for r_glow, a in ((36, base_a // 3), (26, base_a // 2), (18, base_a)):
-                pygame.draw.circle(halo, (90, 240, 230, a), (40, 40), r_glow)
-            surf.blit(halo, (self.x + shake_x - 40, self.y + shake_y - 40))
         # PHOENIX: halo style varies by PHOENIX_VARIANT.
         #   classic / ember / ashes — layered red→orange→gold fire halo.
         #   solar  — rotating 8-spoke sun ray + gold core, plus orbiting
@@ -1863,65 +1854,6 @@ def _get_reverse_icon(diameter: int = (POWERUP_R + 8) * 2) -> pygame.Surface:
     return cached
 
 
-# ── NIGHTGLOW icon: smooth gradient star in the in-world recolour palette ───
-# Shared by the in-world pickup token (Bird._draw_nightglow_icon) AND the
-# HUD active-buff timer pill (hud._draw_buff_icon). Per-pixel radial gradient
-# from dark=(8, 60, 22) → bright=(220, 255, 230) — the EXACT V5 PUNCH+ recolour
-# endpoints, so the pickup reads as a literal piece of the glowing scene. Lazy
-# cache: built once on first call at a given pixel size, then reused.
-_NIGHTGLOW_STAR_CACHE: "dict[int, pygame.Surface]" = {}
-
-
-def _build_nightglow_star(size: int) -> pygame.Surface:
-    """Smooth-gradient 5-point star sized to fit a `size`×`size`
-    surface. Anti-aliased silhouette via 4× supersample polygon then
-    smoothscale, with per-pixel radial colour lerp via PixelArray —
-    no numpy at runtime, no banding by construction (every pixel
-    gets its own interpolated colour)."""
-    margin = 2
-    r_outer = (size - margin * 2) // 2
-    r_inner = max(3, int(round(r_outer * 0.42)))
-    cx = cy = size // 2
-
-    SS = 4
-    big = pygame.Surface((size * SS, size * SS), pygame.SRCALPHA)
-    bcx = (size * SS) // 2
-    pts = []
-    for i in range(10):
-        ang = -math.pi / 2 + i * math.pi / 5
-        r = (r_outer if i % 2 == 0 else r_inner) * SS
-        pts.append((bcx + r * math.cos(ang), bcx + r * math.sin(ang)))
-    pygame.draw.polygon(big, (255, 255, 255, 255), pts)
-    sil = pygame.transform.smoothscale(big, (size, size))
-
-    dark   = (8,   60,  22)
-    bright = (220, 255, 230)
-    pa = pygame.PixelArray(sil)
-    for px in range(size):
-        for py in range(size):
-            current = sil.unmap_rgb(pa[px, py])
-            alpha = current[3]
-            if alpha == 0:
-                continue
-            dx = px - cx
-            dy = py - cy
-            t = min(1.0, math.sqrt(dx * dx + dy * dy) / r_outer)
-            r = int(bright[0] + (dark[0] - bright[0]) * t)
-            g = int(bright[1] + (dark[1] - bright[1]) * t)
-            b = int(bright[2] + (dark[2] - bright[2]) * t)
-            pa[px, py] = sil.map_rgb((r, g, b, alpha))
-    del pa
-    return sil
-
-
-def get_nightglow_star(size: int) -> pygame.Surface:
-    cached = _NIGHTGLOW_STAR_CACHE.get(size)
-    if cached is None:
-        cached = _build_nightglow_star(size)
-        _NIGHTGLOW_STAR_CACHE[size] = cached
-    return cached
-
-
 class PowerUp:
     """A collectible buff. `kind` selects visuals and pickup effect:
        triple   — red mushroom, 3x coin value for TRIPLE_DURATION
@@ -1973,8 +1905,6 @@ class PowerUp:
             self._draw_mega_magnet_icon(surf)
         elif self.kind == "rail":
             self._draw_rail_icon(surf)
-        elif self.kind == "nightglow":
-            self._draw_nightglow_icon(surf)
         elif self.kind == "lottery":
             self._draw_lottery_icon(surf)
         elif self.kind == "phoenix":
@@ -2299,17 +2229,10 @@ class PowerUp:
         """Planked-oak treasure chest pickup token. The pickup uses the
         same chest art as the carried-buff render, so the player can
         read 'I'm about to grab the thing I'll be carrying' in one
-        glance."""
+        glance. No halo behind it — clean silhouette on the world."""
         from game.treasure_box_variants import draw_chest_at
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.2) * 2)
-        # Soft warm halo behind the chest so the pickup pulses like
-        # the other powerup tokens.
-        halo = pygame.Surface((54, 54), pygame.SRCALPHA)
-        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse)))
-        pygame.draw.circle(halo, (255, 215, 110, a // 2), (27, 27), 24)
-        pygame.draw.circle(halo, (255, 215, 110, a),      (27, 27), 14)
-        surf.blit(halo, (cx - 27, cy - 27))
         # The shared chest renderer paints at native size (~42×30). The
         # PowerUp footprint is 28 px, so this is a touch larger than the
         # collision circle — same overflow the kfc/grow icons use to
@@ -2395,37 +2318,73 @@ class PowerUp:
             sy = cy - 8 + (i * 4) + int(math.sin(self.pulse * 3 + i) * 2)
             pygame.draw.circle(surf, UI_CREAM, (sx, sy), 2)
 
-    def _draw_nightglow_icon(self, surf):
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.6) * 2)
-        star = get_nightglow_star(50)
-        surf.blit(star, (cx - 25, cy - 25))
-
     def _draw_lottery_icon(self, surf):
+        """Scratch-off lottery card — built at 4× supersample so the
+        rotation + edge anti-aliasing read crisply when scaled down
+        to the in-world ~40×30 footprint. Layers: gold body with a
+        top-down highlight band → dark-gold edge stroke → inset
+        silvery scratch panel → big "?" cluster → corner sparkle."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
-        # Scratch-off card: tilted bright-gold rectangle with question
-        # marks. No halo behind it and no dark-gold backing rect — the
-        # card sits on the world cleanly with nothing tinting its
-        # silhouette.
-        card_w, card_h = 30, 22
-        card_surf = pygame.Surface((card_w + 6, card_h + 6), pygame.SRCALPHA)
-        card_rect = pygame.Rect(3, 3, card_w, card_h)
-        pygame.draw.rect(card_surf, (255, 220, 90), card_rect,
-                         border_radius=3)
-        # Scratch panel (silvery patch with question marks)
-        scratch_rect = pygame.Rect(7, 8, card_w - 8, card_h - 10)
-        pygame.draw.rect(card_surf, (180, 180, 200), scratch_rect, border_radius=2)
+
+        SS = 4
+        FINAL_W, FINAL_H = 40, 30
+        sw, sh = FINAL_W * SS, FINAL_H * SS
+        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
+
+        # Card body — solid gold with rounded corners.
+        card = pygame.Rect(2 * SS, 2 * SS, 36 * SS, 26 * SS)
+        pygame.draw.rect(big, (255, 220, 90), card, border_radius=4 * SS)
+
+        # Top-down highlight: lighter cream tone fading out over the
+        # upper third — sells the laminated-card sheen.
+        hi_h = card.height // 3
+        hi = pygame.Surface((card.width, hi_h), pygame.SRCALPHA)
+        for y in range(hi_h):
+            a = int(80 * (1.0 - y / hi_h))
+            pygame.draw.line(hi, (255, 245, 180, a),
+                             (0, y), (hi.get_width(), y))
+        big.blit(hi, (card.x, card.y))
+
+        # Dark-gold edge stroke at the supersampled width.
+        pygame.draw.rect(big, (200, 150, 30), card,
+                         width=SS, border_radius=4 * SS)
+
+        # Scratch panel — silvery rect inset from the card edges.
+        panel = pygame.Rect(card.x + 4 * SS, card.y + 7 * SS,
+                            card.width - 8 * SS, card.height - 13 * SS)
+        pygame.draw.rect(big, (215, 220, 230), panel,
+                         border_radius=2 * SS)
+        # Inset shadow inside the scratch panel — slate-grey 1-SS edge.
+        pygame.draw.rect(big, (115, 120, 140), panel,
+                         width=SS, border_radius=2 * SS)
+
+        # "? ? ?" centered in the scratch panel. SysFont is host-
+        # dependent, so wrap in try/except and fall back silently.
         try:
-            font = pygame.font.SysFont(None, 14, bold=True)
-            for px, py in ((11, 11), (17, 11), (23, 11)):
-                txt = font.render("?", True, (40, 40, 70))
-                card_surf.blit(txt, (px, py))
+            font = pygame.font.SysFont(None,
+                                       int(panel.height * 0.95),
+                                       bold=True)
+            q_img = font.render("? ? ?", True, (50, 60, 85))
+            big.blit(q_img, q_img.get_rect(center=panel.center))
         except Exception:
             pass
+
+        # Sparkle dot at the top-right corner — visual hint that the
+        # card hides a prize. Two concentric circles for a soft glint.
+        sx = card.right - 6 * SS
+        sy = card.y + 5 * SS
+        pygame.draw.circle(big, (255, 255, 220), (sx, sy), 2 * SS)
+        pygame.draw.circle(big, (255, 215, 80),  (sx, sy),
+                           3 * SS, max(1, SS // 2))
+
+        # Rotate at supersample then smoothscale down so the tilted
+        # edges stay clean.
         tilt = math.sin(self.pulse * 0.7) * 8
-        rotated = pygame.transform.rotate(card_surf, tilt)
-        surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
+        surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_phoenix_icon(self, surf):
         """In-world phoenix pickup — a hand-painted phoenix with sweeping

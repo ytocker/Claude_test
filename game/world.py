@@ -25,13 +25,12 @@ from game.config import (
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
-    NIGHTGLOW_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
-    TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT, TEST_FORCED_KINDS,
+    TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
     FLAP_V,
 )
 from game.entities import (
@@ -118,7 +117,6 @@ class World:
         self._last_tap_t = -999.0
         self._tap_streak = 0
         self.shrink_timer     = 0.0
-        self.nightglow_timer  = 0.0
         # PHOENIX: 30 s fiery skin + one-shot death revive. While
         # phoenix_timer > 0 the bird sprite renders as a phoenix and the
         # next call to _die() is suppressed (ends the buff + grants
@@ -176,7 +174,7 @@ class World:
             # Secret late-game kinds (still tracked so run summary can show
             # what was picked even though the help screen omits them).
             "skateboard": 0, "shrink": 0, "heist": 0,
-            "mega_magnet": 0, "rail": 0, "nightglow": 0, "lottery": 0,
+            "mega_magnet": 0, "rail": 0, "lottery": 0,
             "phoenix": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
@@ -190,10 +188,6 @@ class World:
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
         self.biome_time = 0.0
-        # v5_powerups TEST MODE: jump to the NIGHT keyframe (phase 0.64375)
-        # so the NIGHTGLOW secret powerup is eligible from frame 1.
-        if TEST_START_AT_NIGHT:
-            self.biome_time = biome.CYCLE_SECONDS * 0.64
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -435,7 +429,7 @@ class World:
         # pickup with no cooldown so QA can verify every revised
         # powerup quickly. Pool is TEST_FORCED_KINDS (every secret +
         # mega_magnet) — equal probability per kind. Bypasses the
-        # score>=500 gate AND the nightglow biome gate.
+        # score>=500 gate.
         if (TEST_SECRETS_FIRST_N_PILLARS > 0
                 and self.pipes_spawned <= TEST_SECRETS_FIRST_N_PILLARS):
             kind = random.choice(TEST_FORCED_KINDS)
@@ -452,12 +446,9 @@ class World:
         kinds = [k for k, _ in POWERUP_WEIGHTS]
         weights = [w for _, w in POWERUP_WEIGHTS]
         # Secret late-game pool: only enters the roll once score crosses
-        # the gate. NIGHTGLOW additionally requires the current biome to
-        # read as night. Undocumented on purpose — discovery is the point.
+        # the gate. Undocumented on purpose — discovery is the point.
         if self.score >= LATE_GAME_SCORE:
             for k, w in SECRET_POWERUP_WEIGHTS:
-                if k == "nightglow" and not biome.is_night(self.biome_phase):
-                    continue
                 kinds.append(k)
                 weights.append(w)
         kind = random.choices(kinds, weights=weights, k=1)[0]
@@ -718,9 +709,6 @@ class World:
             if self.shrink_timer > 0:
                 self.shrink_timer = max(0.0, self.shrink_timer - dt)
             self.bird.shrink_active = self.shrink_timer > 0
-            if self.nightglow_timer > 0:
-                self.nightglow_timer = max(0.0, self.nightglow_timer - dt)
-            self.bird.nightglow_active = self.nightglow_timer > 0
             if self.phoenix_timer > 0:
                 self.phoenix_timer = max(0.0, self.phoenix_timer - dt)
             self.bird.phoenix_active = self.phoenix_timer > 0
@@ -1496,8 +1484,6 @@ class World:
             self._activate_mega_magnet(m)
         elif kind == "rail":
             self._activate_rail(m)
-        elif kind == "nightglow":
-            self._activate_nightglow(m)
         elif kind == "lottery":
             self._activate_lottery(m)
         elif kind == "phoenix":
@@ -1848,19 +1834,6 @@ class World:
         self.bird.vy = FLAP_V * sign
         self.bird.flap_boost = 0.45
         audio.play_flap()
-
-    def _activate_nightglow(self, m):
-        NIGHT_CYAN = (60, 230, 230)
-        self.nightglow_timer = NIGHTGLOW_DURATION
-        self.bird.nightglow_active = True
-        self.shake_mag = max(self.shake_mag, 2.0)
-        self.shake_t = max(self.shake_t, 0.2)
-        audio.play_nightglow()
-        self._pickup_burst(m, (NIGHT_CYAN, (100, 255, 200), (40, 80, 180), WHITE), n=30)
-        self.float_texts.append(FloatText(
-            "NIGHTGLOW!", m.x, m.y - 26, NIGHT_CYAN,
-            size=28, life=1.4, vy=-30, style="powerup",
-        ))
 
     def _apply_lottery_result(self):
         anim = self.lottery_anim

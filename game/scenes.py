@@ -17,16 +17,6 @@ from game import play_log
 from game.config import BIRD_X, SCROLL_BASE
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
-# NOTE: game.nightglow_effect is imported LAZILY at the call site
-# (inside the `if nightglow_timer > 0` block in _render). Importing
-# it eagerly here triggers `import numpy` at game launch, which on
-# pygbag/WASM has to download and initialise a multi-MB wheel before
-# the game can paint its first frame — that turned cold-start into
-# a 90 s+ stall. pygbag picks up numpy from pyproject.toml's
-# [project.dependencies] so the WASM bundle still ships it, but the
-# import (and its initialisation cost) is deferred until the player
-# actually picks up nightglow — a one-time hitch on first activation
-# that the user never sees during the loading splash.
 
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
@@ -1001,31 +991,6 @@ class App:
             tint = pygame.Surface((W, H), pygame.SRCALPHA)
             tint.fill((140, 180, 255, 18))
             self.screen.blit(tint, (0, 0))
-
-        # NIGHTGLOW (secret): V5 PUNCH+ composite — world dims, pillar
-        # stone bodies stay grounded, pillar vegetation + coins +
-        # powerups + Pip get a luminance→green palette swap with a
-        # 4-layer aura stack. Implementation in game.nightglow_effect.
-        # Strength ramps in over the first 0.4 s and out over the
-        # last 1.0 s of the buff so activation/expiry feel smooth.
-        if getattr(self.world, "nightglow_timer", 0) > 0:
-            from game.config import NIGHTGLOW_DURATION
-            # Lazy import: defers numpy/pygame.surfarray load until the
-            # player actually picks up nightglow. pygbag still bundles
-            # numpy from pyproject.toml so the WASM module is available
-            # when this fires; the first nightglow pickup pays a small
-            # one-time import cost, but the game's cold start no longer
-            # has to wait for numpy to download + initialise.
-            from game.nightglow_effect import apply_nightglow
-            t = self.world.nightglow_timer
-            d = NIGHTGLOW_DURATION
-            elapsed = d - t
-            strength = 1.0
-            if elapsed < 0.4:
-                strength = elapsed / 0.4
-            elif t < 1.0:
-                strength = t / 1.0
-            apply_nightglow(self.screen, self.world, sx, sy, strength)
 
         # SKATEBOARD (secret): timer-end warning flash when <1s left and
         # Pip is touching a surface, so the player knows to flap off.

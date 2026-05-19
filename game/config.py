@@ -80,8 +80,7 @@ POWERUP_WEIGHTS    = (
 # ── SECRET LATE-GAME POWER-UPS ───────────────────────────────────────────────
 # These intentionally do NOT appear in game/powerup_help.py — players are meant
 # to discover them organically in a deep run. They only enter the spawn pool
-# once score >= LATE_GAME_SCORE (nightglow is additionally biome-gated to
-# night in World._maybe_spawn_powerup). They never resolve from a `surprise`
+# once score >= LATE_GAME_SCORE. They never resolve from a `surprise`
 # box either; each has its own roll so the visual is always genuinely new.
 LATE_GAME_SCORE       = 500
 
@@ -103,7 +102,6 @@ BACKFLIP_TAP_WINDOW   = 0.45
 # than a quick spin. Pairs with smootherstep easing in Bird.tilt_deg
 # so the rotation is slow→fast→slow instead of constant-rate.
 BACKFLIP_DURATION     = 0.85
-NIGHTGLOW_DURATION    = 12.0
 # PHOENIX: 30-second fiery transformation. If Pip would die during the
 # window, World._die() intercepts the death, ends the buff, and grants
 # PHOENIX_INVULN seconds of grace so the just-revived bird doesn't
@@ -147,7 +145,7 @@ PHOENIX_INVULN        = 1.5
 #   "eternal_lite"   — all-in: warm + rounded + short + friendly
 PHOENIX_VARIANT       = "eternal_warm"
 RAIL_PILLAR_COUNT     = 7       # cart rides over exactly N pillars then releases
-RAIL_SCROLL_MULT      = 2.0     # world scrolls 2x faster during the ride
+RAIL_SCROLL_MULT      = 3.0     # world scrolls 3x faster during the ride
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
 # loose — the player instantly gains TREASURE_BOX_COINS_PER_FLAP coins
@@ -187,7 +185,6 @@ SECRET_POWERUP_WEIGHTS = (
     ("shrink",     0.125),
     ("heist",      0.125),
     ("rail",       0.125),
-    ("nightglow",  0.125),   # additionally biome-gated to night in world.py
     ("lottery",    0.125),
     ("phoenix",    0.125),
 )
@@ -195,9 +192,7 @@ SECRET_POWERUP_WEIGHTS = (
 # ── v5_powerups TEST MODE — REMOVE before merging to v4/main ─────────────────
 # Bypasses the score>=500 gate so QA can verify every secret powerup quickly.
 # Set TEST_SECRETS_FIRST_N_PILLARS = 0 to disable the forced spawn.
-# Set TEST_START_AT_NIGHT = False to keep the normal day-start.
 TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
-TEST_START_AT_NIGHT          = True  # start at NIGHT biome so nightglow is eligible
 
 # Forced-spawn pool used during the test-mode window. Includes every
 # secret in SECRET_POWERUP_WEIGHTS PLUS mega_magnet (which lives in
@@ -207,7 +202,7 @@ TEST_START_AT_NIGHT          = True  # start at NIGHT biome so nightglow is elig
 # reasonable probability.
 TEST_FORCED_KINDS = (
     "skateboard", "shrink", "heist", "rail",
-    "nightglow", "lottery", "phoenix", "mega_magnet",
+    "lottery", "phoenix", "mega_magnet",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────

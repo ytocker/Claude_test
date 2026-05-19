@@ -2,7 +2,7 @@
 
 These cover:
   - Spawn gating: nothing leaks below LATE_GAME_SCORE, everything is
-    eligible at/above it (except NIGHTGLOW which is biome-gated).
+    eligible at/above it.
   - SKATEBOARD collision overrides (ground / ceiling survive, side kills).
   - SHRINK collision radius.
   - LOTTERY tier application with floor-at-zero on losses.
@@ -22,7 +22,7 @@ import pytest
 pygame.init()
 pygame.display.set_mode((360, 640))
 
-from game import _plausibility, biome
+from game import _plausibility
 from game.config import (
     BIRD_R, SHRINK_SCALE, GROUND_Y, LATE_GAME_SCORE,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
@@ -35,7 +35,7 @@ from game.world import World
 SECRET_KINDS = {k for k, _ in SECRET_POWERUP_WEIGHTS}
 
 
-def _force_spawn_attempts(world, n, score, biome_phase_t=0.0):
+def _force_spawn_attempts(world, n, score):
     """Repeatedly run _maybe_spawn_powerup, collecting each spawned kind.
     Returns the set of kinds that appeared.
 
@@ -43,7 +43,6 @@ def _force_spawn_attempts(world, n, score, biome_phase_t=0.0):
     window so the production-behavior tests still see the normal spawn pool
     (test mode would otherwise force secrets regardless of score)."""
     world.score = score
-    world.biome_time = biome_phase_t
     world.pipes_spawned = 10_000  # bypass v5_powerups forced-secret window
     seen = set()
     for _ in range(n):
@@ -69,28 +68,13 @@ def test_secrets_locked_below_threshold():
     assert not leaked, f"secrets leaked below threshold: {leaked}"
 
 
-def test_secrets_unlocked_at_threshold_day():
+def test_secrets_unlocked_at_threshold():
     random.seed(123)
     w = World()
     w.ready_t = 0
-    seen = _force_spawn_attempts(w, 5000, score=LATE_GAME_SCORE,
-                                 biome_phase_t=0.0)  # day
-    # Everything except nightglow should appear given 5000 attempts.
-    expected = SECRET_KINDS - {"nightglow"}
-    missing = expected - seen
-    assert not missing, f"expected secrets missing at threshold (day): {missing}"
-    # nightglow must NOT leak in day biome.
-    assert "nightglow" not in seen, "nightglow leaked during day biome"
-
-
-def test_nightglow_requires_night():
-    random.seed(7)
-    w = World()
-    w.ready_t = 0
-    # Night biome (NIGHT keyframe at phase 0.64375)
-    seen = _force_spawn_attempts(w, 5000, score=LATE_GAME_SCORE,
-                                 biome_phase_t=biome.CYCLE_SECONDS * 0.64)
-    assert "nightglow" in seen, "nightglow should appear at night biome"
+    seen = _force_spawn_attempts(w, 5000, score=LATE_GAME_SCORE)
+    missing = SECRET_KINDS - seen
+    assert not missing, f"expected secrets missing at threshold: {missing}"
 
 
 def test_shrink_changes_collision_radius():
@@ -290,14 +274,6 @@ def test_mega_magnet_sets_timer_and_pulls_far_coins():
         f"mega-magnet didn't tug a far coin: x stayed at {c.x:.1f} "
         f"(started {start_x:.1f})")
 
-
-
-def test_nightglow_sets_state():
-    w = World()
-    w.ready_t = 0
-    w._activate_nightglow(PowerUp(0, 0, kind="nightglow"))
-    assert w.nightglow_timer > 0
-    assert w.bird.nightglow_active is True
 
 
 def test_rail_locks_immediately_and_extends_off_canvas():

@@ -137,7 +137,6 @@ _ICON_BOB_AT_PULSE = {
     "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
     "heist":      math.sin(_PULSE_FOR_ICON * 1.2) * 2,
     "rail":       math.sin(_PULSE_FOR_ICON * 1.0) * 2,
-    "nightglow":  math.sin(_PULSE_FOR_ICON * 0.6) * 2,
     "lottery":    math.sin(_PULSE_FOR_ICON * 0.8) * 2,
     "phoenix":    math.sin(_PULSE_FOR_ICON * 0.9) * 2,
 }
