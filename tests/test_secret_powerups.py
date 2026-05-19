@@ -300,13 +300,37 @@ def test_nightglow_sets_state():
     assert w.bird.nightglow_active is True
 
 
-def test_rail_claims_pipes():
+def test_rail_locks_immediately_and_extends_off_canvas():
+    """RAIL is a duration buff. At activation:
+      * cart_active + cart_locked = True (no aim phase)
+      * rail_timer = RAIL_DURATION
+      * rail polyline spans BEHIND Pip (x < bird.x) AND past the right
+        edge (x > W) — the user's "always visible left-to-right"
+        requirement
+      * flap is a no-op for the entire ride
+    """
+    from game.config import RAIL_DURATION, W, PIPE_W
     w = World()
     w.ready_t = 0
+    bird_y_before = w.bird.y
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    # Either claimed some immediately or queued the rest.
-    total = len(w.rail_pipes) + w.rail_pending
-    assert total >= 1
+    assert w.rail_timer == RAIL_DURATION
+    assert w.bird.cart_active is True
+    assert w.bird.cart_locked is True
+    # Track must span the canvas: at least one rail pipe behind Pip and
+    # at least one past the right edge.
+    rail_xs = [p.x for p in w.rail_pipes]
+    assert any(x < w.bird.x for x in rail_xs), (
+        f"no rail pipe behind Pip at x={w.bird.x}; rail_xs={rail_xs}")
+    assert any(x > W for x in rail_xs), (
+        f"no rail pipe past the right edge W={W}; rail_xs={rail_xs}")
+    # Pip's y should NOT jump on activation — the anchor pipe was
+    # synthesized at his current gap-center.
+    assert abs(w.bird.y - bird_y_before) <= 1
+    # Flap is silently ignored while cart_active.
+    vy_before = w.bird.vy
+    w.bird.flap()
+    assert w.bird.vy == vy_before
 
 
 def test_plausibility_chain_survives_treasure_box_and_lottery():

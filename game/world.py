@@ -27,7 +27,8 @@ from game.config import (
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     NIGHTGLOW_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
-    RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
+    RAIL_PILLAR_COUNT, RAIL_DURATION,
+    TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_START_AT_NIGHT, TEST_FORCED_KINDS,
@@ -129,12 +130,16 @@ class World:
         # 0.8 s ash-fall + egg-fall + auto-position). None when no
         # rebirth is in progress. See _resolve_phoenix_rebirth.
         self.phoenix_rebirth: "dict | None" = None
-        # Rail: a 3-pillar grindrail. We snapshot which Pipe instances carry
-        # the rail when the powerup activates; the rail vanishes once they've
-        # all scrolled off screen. rail_pending counts the remaining pipes
-        # to claim if not enough existed at activation time.
+        # RAIL TRACK: duration buff. While rail_timer > 0 the cart is
+        # locked on a track that extends across the whole canvas. New
+        # rail-tagged pipes are spawned off-screen-right each frame as
+        # the rightmost one approaches the right edge; off-screen-left
+        # rail pipes are kept in self.pipes (not culled) so the polyline
+        # always extends behind Pip too. Flap is ignored for the entire
+        # ride (see Bird.flap gate on cart_active).
+        self.rail_timer = 0.0
         self.rail_pipes: list = []
-        self.rail_pending = 0
+        self.rail_pending = 0  # legacy — unused after the rail rewrite
         # Treasure box (formerly BANK HEIST): a duration-based buff. While
         # treasure_box_timer > 0 the chest hangs under Pip's belly and
         # each flap drops TREASURE_BOX_COINS_PER_FLAP coins straight into
@@ -594,8 +599,15 @@ class World:
                     self._ember_trail_accum = 0.0
                     self._spawn_ember_trail_particle()
 
-            # cull off-screen
-            self.pipes = [p for p in self.pipes if not p.off_screen()]
+            # cull off-screen — but keep rail-active pipes intact while
+            # the RAIL buff is running so the polyline still extends
+            # off-canvas-left BEHIND Pip (the user's "track always
+            # visible left-to-right" requirement). When the timer
+            # expires, _untag_rail clears rail_active and these all get
+            # culled normally on the next frame.
+            self.pipes = [p for p in self.pipes
+                          if not p.off_screen()
+                          or getattr(p, "rail_active", False)]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
 
@@ -697,19 +709,37 @@ class World:
             self.bird.phoenix_active = self.phoenix_timer > 0
             if self.phoenix_invuln > 0:
                 self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
-            # Rail: drop pipes that have scrolled off-screen from the rail list.
-            if self.rail_pipes:
-                self.rail_pipes = [p for p in self.rail_pipes if not p.off_screen()]
-            # End the cart ride once every tagged pillar has scrolled off
-            # AND no more are pending to spawn. Pip drops back into free
-            # flight with vy=0 so he doesn't pancake the moment the cart
-            # disappears.
-            if (self.bird.cart_active
-                    and not self.rail_pipes
-                    and self.rail_pending == 0):
-                self.bird.cart_active = False
-                self.bird.cart_locked = False
-                self.bird.vy = 0.0
+            # Rail: duration buff. While rail_timer > 0 keep the track
+            # anchored across the canvas by spawning new rail pipes
+            # off-screen-right whenever the rightmost has drifted
+            # close to the right edge. self.rail_pipes is rebuilt from
+            # self.pipes' rail_active flags each frame, so once
+            # _untag_rail flips those flags off, rail_pipes empties on
+            # the next tick.
+            if self.rail_timer > 0:
+                self.rail_timer = max(0.0, self.rail_timer - dt)
+                rail_spacing = self._current_spacing()
+                rail_xs = [p.x for p in self.pipes
+                           if getattr(p, "rail_active", False)]
+                if rail_xs:
+                    rightmost = max(rail_xs)
+                    while rightmost < W + PIPE_W:
+                        self._spawn_pipe(rightmost + rail_spacing)
+                        self.pipes[-1].rail_active = True
+                        rightmost = self.pipes[-1].x
+                self.rail_pipes = [p for p in self.pipes
+                                   if getattr(p, "rail_active", False)]
+                if self.rail_timer == 0:
+                    # Buff just ended this frame. Untag every rail pipe
+                    # so the off-screen-left ones are culled next tick,
+                    # release Pip into free flight with vy=0 so he
+                    # doesn't pancake.
+                    for p in self.pipes:
+                        p.rail_active = False
+                    self.rail_pipes = []
+                    self.bird.cart_active = False
+                    self.bird.cart_locked = False
+                    self.bird.vy = 0.0
             # Lottery: tick the reveal animation; apply score delta on reveal.
             if self.lottery_anim is not None:
                 self.lottery_anim["t"] += dt
@@ -1726,52 +1756,65 @@ class World:
         ))
 
     def _activate_rail(self, m):
-        # Tag the next N unpassed pipes with rail flags. Render layer
-        # paints the Western Trestle rail along their lower-pillar tops.
-        # When all tagged pipes have scrolled off, self.rail_pipes empties.
-        chosen = []
-        for p in self.pipes:
-            if not p.scored and p.x + PIPE_W > self.bird.x and not getattr(p, "rail_active", False):
-                p.rail_active = True
-                chosen.append(p)
-                if len(chosen) >= RAIL_PILLAR_COUNT:
-                    break
-        self.rail_pipes = chosen
-        # Pre-spawn whatever's missing so the full RAIL_PILLAR_COUNT-pillar
-        # track is visible from frame one — the player can read where
-        # future pillars will appear, all the way off the right edge of
-        # the screen. The natural _maybe_spawn_pipe distance gate pauses
-        # further organic spawns while these pre-spawned pipes are still
-        # to the right of the right edge, so the rail doesn't get inter-
-        # spersed with non-rail pipes.
-        needed = RAIL_PILLAR_COUNT - len(chosen)
-        self.rail_pending = needed
-        if needed > 0:
-            last_x = max((p.x for p in self.pipes), default=self.bird.x)
-            spacing = self._current_spacing()
-            for _ in range(needed):
-                last_x += spacing
-                self._spawn_pipe(last_x)
-                new_p = self.pipes[-1]
-                # _spawn_pipe auto-tags rail when rail_pending > 0 AND not
-                # is_rush. If the pipe landed on a coin-rush slot we
-                # force-tag it anyway so the full 7-pillar track is
-                # uninterrupted.
-                if not new_p.rail_active:
-                    new_p.rail_active = True
-                    self.rail_pipes.append(new_p)
-                    self.rail_pending = max(0, self.rail_pending - 1)
-        # All RAIL_PILLAR_COUNT slots are filled now; any future organic
-        # pipe spawns must NOT auto-tag.
-        self.rail_pending = 0
-        # Cart wraps Pip instantly. The player keeps regular flap control
-        # while in the air (Bird.flap is gated on cart_locked, not
-        # cart_active). On rail contact, cart_locked flips on, flap is
-        # silently ignored, and _snap_cart_to_rail auto-drives Pip
-        # through all RAIL_PILLAR_COUNT tagged pipes before releasing.
+        """RAIL TRACK — duration buff. Locks Pip onto a cart for
+        RAIL_DURATION seconds. The track is always visible from the
+        left canvas edge to the right; new rail pipes spawn off-screen-
+        right as the existing ones scroll past, off-screen-left rail
+        pipes are kept in self.pipes (not culled) so the polyline still
+        extends behind Pip. Flap is suppressed for the entire ride
+        (see Bird.flap gate on cart_active)."""
+        self.rail_timer = RAIL_DURATION
         self.bird.cart_active = True
-        self.bird.cart_locked = False
-        self.bird.vy = FLAP_V * 0.55
+        self.bird.cart_locked = True
+        self.bird.vy = 0.0
+        self.rail_pending = 0
+        # Wipe any stale rail tags before re-building.
+        for p in self.pipes:
+            p.rail_active = False
+        # Tag every currently-spawned pipe as rail-active. The cart's
+        # snap follows the rail polyline, so EVERY visible pipe needs
+        # to be on the polyline — otherwise the cart would skate over
+        # an untagged stub mid-ride and look broken.
+        for p in self.pipes:
+            p.rail_active = True
+        # Synthesize an "anchor" pipe right at Pip's current position
+        # with its gap-center matching his y, so the cart appears
+        # exactly where he is — no jarring Y jump at activation.
+        # The anchor is `scored = True` so it doesn't contribute to
+        # the score sweep when it scrolls past.
+        anchor_gap_h = 150
+        anchor_gap_y = int(self.bird.y + self._CART_LOCKED_OFFSET
+                           - anchor_gap_h / 2)
+        anchor = Pipe(self.bird.x - PIPE_W // 2,
+                      anchor_gap_y, anchor_gap_h)
+        anchor.scored = True
+        anchor.rail_active = True
+        self.pipes.insert(0, anchor)
+        # Extend the track off-screen LEFT so the polyline anchors past
+        # the left canvas edge from frame one. Same gap-y as the cart's
+        # anchor so the "behind Pip" segment is flat.
+        left_anchor = Pipe(self.bird.x - PIPE_W * 2,
+                           anchor_gap_y, anchor_gap_h)
+        left_anchor.scored = True
+        left_anchor.rail_active = True
+        self.pipes.insert(0, left_anchor)
+        # Extend the track off-screen RIGHT — keep spawning until the
+        # rightmost rail pipe sits past W + PIPE_W.
+        spacing = self._current_spacing()
+        while True:
+            rightmost = max(p.x for p in self.pipes)
+            if rightmost > W + PIPE_W:
+                break
+            self._spawn_pipe(rightmost + spacing)
+            self.pipes[-1].rail_active = True
+        # Rebuild rail_pipes as a view of the rail-tagged pipes for the
+        # renderer (scenes._draw_rails iterates this list).
+        self.rail_pipes = [p for p in self.pipes if p.rail_active]
+        # Snap Pip immediately onto the rail (his y is already at the
+        # anchor's gap-center thanks to the synthesized gap_y, so this
+        # is a no-op at activation but locks the slope for the next
+        # frame's render).
+        self._snap_cart_to_rail(self.bird.x)
         self.shake_mag = max(self.shake_mag, 3.0)
         self.shake_t = max(self.shake_t, 0.25)
         audio.play_rail()
