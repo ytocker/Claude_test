@@ -110,27 +110,42 @@ NIGHTGLOW_DURATION    = 12.0
 # instantly re-collide with the pillar that killed him.
 PHOENIX_DURATION      = 30.0
 PHOENIX_INVULN        = 1.5
-# Visual / perk flavour for the phoenix powerup. Ten variants are
-# implemented behind this switch so the user can A/B-compare designs
-# without changing branches. All share the 30s / one-shot /
-# death-intercept gameplay core; only the look, the revive animation,
-# and the optional accompanying perk differ.
+# Visual / perk flavour for the phoenix powerup. The canonical pick
+# is "eternal_warm" — slim Imperial-fire body, graceful S-curve wing
+# pose, 4-plume cascade ribbon-tail, brighter mid-red palette (less
+# blood-crimson, so it reads as a flying phoenix rather than ominous).
+# All variants share the 30s / one-shot / death-intercept gameplay
+# core; alternatives are kept behind this switch for fast A/B testing
+# without branching.
 #
-# Original 5 (legacy 64×60 canvas — Pip-shaped):
-#   "classic" — red→gold tint, fire halo, no extra perk (shipped).
+# Original 5 (legacy 64×60 canvas — tinted Pip):
+#   "classic" — red→gold tint, fire halo, no extra perk.
 #   "solar"   — gold-white tint, sun-ray halo, weak coin magnet.
 #   "ember"   — fiery tint + ember trail, coins worth 2x during phoenix.
-#   "mythic"  — 5-plume crown, plume tail, glowing eyes, egg-crack rebirth.
-#   "ashes"   — egg-and-ash rebirth animation on death (mythology-literal).
+#   "mythic"  — 5-plume crown, plume tail, egg-crack rebirth.
+#   "ashes"   — egg-and-ash rebirth animation.
 #
-# Grandiose 5 (bigger 100×76 canvas, hand-painted from scratch — NOT
-# Pip-shaped. All inherit the Ashes-style rebirth animation):
-#   "imperial"  — eagle-of-fire silhouette, full-width spread wings.
-#   "fenghuang" — Eastern phoenix, 7-plume peacock fan-tail, jewel palette.
-#   "dragon"    — sinuous S-curve body, flame banner wings, wispy tail.
-#   "comet"     — small bird at the front of a massive flame-trail tail.
+# Grandiose 5 (100×76 canvas, hand-painted — non-Pip silhouettes):
+#   "imperial"  — eagle-of-fire, full-width spread wings.
+#   "fenghuang" — Eastern phoenix, 7-plume peacock fan-tail.
+#   "dragon"    — sinuous body, flame banner wings, wispy tail.
+#   "comet"     — small bird pulling a massive flame-trail tail.
 #   "royal"     — halo-crown of 9 plumes radiating around the head.
-PHOENIX_VARIANT       = "classic"
+#
+# Fire-fenghuang 5 (Imperial palette + Fenghuang posture):
+#   "blaze" / "sunburst" / "twin" / "swift" / "grand"
+#
+# Wide-wing Grand-lineage 5 (long wings + short cascade tail — fixes
+# the "turkey" tail-fan of the fire-fenghuang lot):
+#   "soar" / "rise" / "stoop" / "dive" / "eternal"
+#
+# Less-creepy Eternal iterations (eternal_warm is canonical):
+#   "eternal_warm"   — brighter mid-red palette, classic silhouette ★
+#   "eternal_soft"   — rounded feather tips, lighter shadow
+#   "eternal_dawn"   — daybreak palette, shorter tail
+#   "eternal_friend" — friendlier face (bigger eye, soft beak)
+#   "eternal_lite"   — all-in: warm + rounded + short + friendly
+PHOENIX_VARIANT       = "eternal_warm"
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
