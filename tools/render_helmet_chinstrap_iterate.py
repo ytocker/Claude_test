@@ -409,17 +409,177 @@ def cs_l5_outlined_dark(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
+def _ear_junction_xy(hw, hh, pad, drop):
+    """Y-strap junction at Pip's ear — world (+12, -6) maps to
+    helm surface (10, 29) with the compensated anchor."""
+    return 10, 29
+
+
+def cs_y1_classic_skate(bird, surf, cx, cy, flipped):
+    """Y1 — Classic skateboard chinstrap: two short straps from the
+    rim converge at a side adjuster near the ear, then a single
+    strap drops under the chin to a side-release buckle."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    # Two short straps from rim → ear-level junction.
+    pygame.draw.line(helm, STRAP, front_temple, (jx, jy), 2)
+    pygame.draw.line(helm, STRAP, rear_temple,  (jx, jy), 2)
+    # Single strap from junction → chin buckle.
+    pygame.draw.line(helm, STRAP, (jx, jy), (bx, by), 2)
+    pygame.draw.circle(helm, BUCKLE, (bx, by), 2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y2_with_adjuster(bird, surf, cx, cy, flipped):
+    """Y2 — Y1 + a small adjuster slider at the Y junction.
+    Black rect with chrome edge = the plastic adjuster."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    pygame.draw.line(helm, STRAP, front_temple, (jx, jy), 2)
+    pygame.draw.line(helm, STRAP, rear_temple,  (jx, jy), 2)
+    pygame.draw.line(helm, STRAP, (jx, jy), (bx, by), 2)
+    # Adjuster — small black rectangle with chrome outline at the
+    # junction point.
+    adj = pygame.Rect(jx - 2, jy - 1, 4, 3)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+    pygame.draw.circle(helm, BUCKLE, (bx, by), 2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y3_outlined(bird, surf, cx, cy, flipped):
+    """Y3 — Y1 with the 3-px-outlined-rope style from L5 applied to
+    each segment + side-release clip at the chin."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    OUT  = (15, 15, 22)
+    CORE = (110, 110, 125)
+    # 3-px outlined straps + 1-px lighter core through the middle.
+    for a, b in ((front_temple, (jx, jy)),
+                 (rear_temple,  (jx, jy)),
+                 ((jx, jy),     (bx, by))):
+        pygame.draw.line(helm, OUT,  a, b, 3)
+        pygame.draw.line(helm, CORE, a, b, 1)
+    # Side-release clip — chunky 5×4 rectangle at the chin, two
+    # halves split vertically (visible groove).
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y4_bright(bird, surf, cx, cy, flipped):
+    """Y4 — Y1 but with the brighter (90, 90, 105) strap colour so
+    the lines pop against Pip's red feathers."""
+    bright = (95, 95, 110)
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    pygame.draw.line(helm, bright, front_temple, (jx, jy), 2)
+    pygame.draw.line(helm, bright, rear_temple,  (jx, jy), 2)
+    pygame.draw.line(helm, bright, (jx, jy), (bx, by), 2)
+    pygame.draw.circle(helm, BUCKLE, (bx, by), 2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y5_y2_bright(bird, surf, cx, cy, flipped):
+    """Y5 — Y2 + brighter strap colour. The skateboard chinstrap
+    look with a visible adjuster AND high contrast straps."""
+    bright = (95, 95, 110)
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    pygame.draw.line(helm, bright, front_temple, (jx, jy), 2)
+    pygame.draw.line(helm, bright, rear_temple,  (jx, jy), 2)
+    pygame.draw.line(helm, bright, (jx, jy), (bx, by), 2)
+    adj = pygame.Rect(jx - 2, jy - 1, 4, 3)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+    pygame.draw.circle(helm, BUCKLE, (bx, by), 2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y6_full_kit(bird, surf, cx, cy, flipped):
+    """Y6 — Full skate-helmet chinstrap kit: outlined Y straps +
+    plastic adjuster slider at the ear junction + side-release
+    clip at the chin. The complete real-life helmet hardware."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    OUT  = (15, 15, 22)
+    CORE = (110, 110, 125)
+    for a, b in ((front_temple, (jx, jy)),
+                 (rear_temple,  (jx, jy)),
+                 ((jx, jy),     (bx, by))):
+        pygame.draw.line(helm, OUT,  a, b, 3)
+        pygame.draw.line(helm, CORE, a, b, 1)
+    # Plastic adjuster slider at the Y junction.
+    adj = pygame.Rect(jx - 2, jy - 1, 4, 3)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+    # Side-release clip at the chin — red rect with dark outline
+    # and a vertical groove suggesting the two-half clip body.
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_y7_thin_clean(bird, surf, cx, cy, flipped):
+    """Y7 — Same skate-helmet kit but with 2-px straps (not
+    outlined 3) — cleaner, less chunky look."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    bx, by = _chin_buckle_xy(hw, hh, pad, drop)
+    jx, jy = _ear_junction_xy(hw, hh, pad, drop)
+    front_temple = (pad + hw - 3, pad + hh + 1)
+    rear_temple  = (pad + 3,      pad + hh + 1)
+    OUT  = (15, 15, 22)
+    pygame.draw.line(helm, OUT, front_temple, (jx, jy), 2)
+    pygame.draw.line(helm, OUT, rear_temple,  (jx, jy), 2)
+    pygame.draw.line(helm, OUT, (jx, jy), (bx, by), 2)
+    # Adjuster slider.
+    adj = pygame.Rect(jx - 2, jy - 1, 4, 3)
+    pygame.draw.rect(helm, (30, 30, 40), adj)
+    pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+    # Side-release clip.
+    clip = pygame.Rect(bx - 2, by - 2, 5, 4)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT, (bx + 1, by - 2), (bx + 1, by + 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
 CHINSTRAP_VARIANTS = [
-    ("L1_baseline",      cs_l1_baseline,
-     "L1: 3 px (60,60,70) strap + 2 px red buckle"),
-    ("L2_brighter",      cs_l2_brighter,
-     "L2: 3 px (90,90,105) brighter strap"),
-    ("L3_big_buckle",    cs_l3_big_buckle,
-     "L3: 3 px strap + 3 px red buckle (bigger clip)"),
-    ("L4_bone_strap",    cs_l4_bone_strap,
-     "L4: 3 px dark outline + 1 px bone-white core (matches mohawk)"),
-    ("L5_outlined_dark", cs_l5_outlined_dark,
-     "L5: 3 px dark outline + 1 px lighter grey core + outlined buckle"),
+    ("Y3_outlined",    cs_y3_outlined,
+     "Y3 (no adjuster): outlined Y straps + side-release clip"),
+    ("Y6_full_kit",    cs_y6_full_kit,
+     "Y6: outlined Y + adjuster slider + side-release clip"),
+    ("Y7_thin_clean",  cs_y7_thin_clean,
+     "Y7: 2-px straps (not outlined) + adjuster + clip"),
 ]
 
 

@@ -1120,8 +1120,9 @@ class Bird:
           • dome highlight              = wheel ring  (50, 50, 60)
           • chrome rim band             = deck outline (200, 200, 210)
           • bone fin / skull            = deck skull  (240, 240, 230)
-          • chinstrap outline / core    = (15,15,22) / (110,110,125)
-          • buckle                      = wheel centre (200, 50, 50)
+          • chinstrap                   = near-black  (15, 15, 22)
+          • adjuster / clip outline     = chrome     (200, 200, 210)
+          • side-release clip body      = wheel centre (200, 50, 50)
         Anchor (+18, -18) chosen by self-critique iteration so the
         helmet sits naturally on Pip's crown — rim above the
         sunglasses, mohawk fin clearly visible above the head. The
@@ -1185,20 +1186,35 @@ class Bird:
         pygame.draw.ellipse(helm, (240, 240, 230), sk)
         pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
 
-        # Chinstrap — SINGLE FRONT-temple strap dropping past the
-        # cheek to a buckle UNDER the chin. Side-view-correct routing
-        # (the rear strap goes behind the head silhouette in real
-        # life, hidden). Strap is a 3 px dark outline + 1 px lighter
-        # grey core so it reads as a 3D rope; buckle is a red
-        # circle with a dark outline so it reads as a real clip.
-        # Buckle target = Pip's chin at helm surface (13, 37) given
-        # the extended drop + compensated anchor below.
+        # Chinstrap — classic skateboard helmet harness: TWO straps
+        # come down from the helmet rim (front-temple + rear-temple)
+        # and converge at a plastic side-adjuster slider near Pip's
+        # ear, then a SINGLE strap drops past the jaw to a side-
+        # release clip at the chin. Surface coords:
+        #   front_temple = (pad+hw-3, pad+hh+1)
+        #   rear_temple  = (pad+3,    pad+hh+1)
+        #   ear junction = (10, 29) — world (+12, -6) = Pip's ear
+        #   chin clip    = (13, 37) — world (+15, +2) = Pip's chin
+        OUT = (15, 15, 22)
         front_temple = (pad + hw - 3, pad + hh + 1)
-        buckle = (13, 37)
-        pygame.draw.line(helm, (15, 15, 22), front_temple, buckle, 3)
-        pygame.draw.line(helm, (110, 110, 125), front_temple, buckle, 1)
-        pygame.draw.circle(helm, (200, 50, 50), buckle, 3)
-        pygame.draw.circle(helm, (15, 15, 22), buckle, 3, 1)
+        rear_temple  = (pad + 3,      pad + hh + 1)
+        ear   = (10, 29)
+        clip_c = (13, 37)
+        pygame.draw.line(helm, OUT, front_temple, ear,    2)
+        pygame.draw.line(helm, OUT, rear_temple,  ear,    2)
+        pygame.draw.line(helm, OUT, ear,          clip_c, 2)
+        # Plastic adjuster slider at the ear junction.
+        adj = pygame.Rect(ear[0] - 2, ear[1] - 1, 4, 3)
+        pygame.draw.rect(helm, (30, 30, 40), adj)
+        pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+        # Side-release clip at the chin — red two-half body with a
+        # vertical groove showing where the clip splits.
+        clip = pygame.Rect(clip_c[0] - 2, clip_c[1] - 2, 5, 4)
+        pygame.draw.rect(helm, (200, 50, 50), clip)
+        pygame.draw.rect(helm, OUT, clip, 1)
+        pygame.draw.line(helm, OUT,
+                         (clip_c[0] + 1, clip_c[1] - 2),
+                         (clip_c[0] + 1, clip_c[1] + 1), 1)
 
         # Anchor (+18, -10) — x unchanged from the approved (+18, -18)
         # pose, y compensated +8 because extending drop from 12 → 28
