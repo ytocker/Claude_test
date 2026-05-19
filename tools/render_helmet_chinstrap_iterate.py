@@ -684,20 +684,14 @@ def cs_t5_curved_single(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
-def _live_chinstrap_at(helm, hw, hh, pad, drop,
-                       fa, ra, junction, clip_centre,
-                       strap_col=(15, 15, 22)):
-    """Live chinstrap painter, parameterised on anchor / junction /
-    clip positions. fa = front anchor, ra = rear anchor."""
+def _single_strap_chinstrap(helm, hw, hh, pad, drop,
+                            anchor, clip_centre,
+                            strap_col=(15, 15, 22),
+                            thick=2):
+    """Single straight strap from helmet rim to chin clip + clip."""
     OUT     = (15, 15, 22)
-    CHROME  = (200, 200, 210)
     BUCKLE  = (200, 50, 50)
-    pygame.draw.line(helm, strap_col, fa, junction, 2)
-    pygame.draw.line(helm, strap_col, ra, junction, 2)
-    pygame.draw.line(helm, strap_col, junction, clip_centre, 2)
-    adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
-    pygame.draw.rect(helm, (30, 30, 40), adj)
-    pygame.draw.rect(helm, CHROME, adj, 1)
+    pygame.draw.line(helm, strap_col, anchor, clip_centre, thick)
     clip = pygame.Rect(clip_centre[0] - 2, clip_centre[1] - 2, 5, 4)
     pygame.draw.rect(helm, BUCKLE, clip)
     pygame.draw.rect(helm, OUT, clip, 1)
@@ -706,36 +700,83 @@ def _live_chinstrap_at(helm, hw, hh, pad, drop,
                      (clip.x + 2, clip.bottom - 1), 1)
 
 
-def _mk_variant(fa_x, ra_x, jx, cx):
-    """Build a variant function for the given anchor/junction/clip
-    x offsets. Keeps y positions consistent (rim, ear, chin)."""
-    def fn(bird, surf, scx, scy, flipped):
-        helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-        _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-        rim_y = pad + hh + 1
-        _live_chinstrap_at(helm, hw, hh, pad, drop,
-                           fa=(pad + fa_x, rim_y),
-                           ra=(pad + ra_x, rim_y),
-                           junction=(jx, 30),
-                           clip_centre=(cx, 37))
-        _anchor_and_blit(bird, surf, helm, scx, scy, flipped)
-    return fn
+def cs_g1_single_thin(bird, surf, cx, cy, flipped):
+    """G1 — Single 2-px strap, dark, from rim to chin. Clean line
+    overlaying Pip's face on the left of the sunglasses."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _single_strap_chinstrap(helm, hw, hh, pad, drop,
+                            anchor=(10, pad + hh + 1),
+                            clip_centre=(13, 37), thick=2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
-# Sunglasses left edge sits around helm surface x=13. Push the strap
-# path progressively forward (higher x) in 1-px increments so the
-# strap grazes the back edge of the lens.
+def cs_g2_single_thick(bird, surf, cx, cy, flipped):
+    """G2 — Single 3-px strap. Thicker, more visible."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _single_strap_chinstrap(helm, hw, hh, pad, drop,
+                            anchor=(10, pad + hh + 1),
+                            clip_centre=(13, 37), thick=3)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_g3_lighter_grey(bird, surf, cx, cy, flipped):
+    """G3 — 2-px strap with lighter grey colour (90, 90, 105) so it
+    pops against Pip's red feathers."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _single_strap_chinstrap(helm, hw, hh, pad, drop,
+                            anchor=(10, pad + hh + 1),
+                            clip_centre=(13, 37),
+                            strap_col=(90, 90, 105), thick=2)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_g4_outlined_strap(bird, surf, cx, cy, flipped):
+    """G4 — Outlined strap: 3-px dark outline + 1-px lighter core
+    so the strap has visible volume."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    OUT  = (15, 15, 22)
+    CORE = (110, 110, 125)
+    anchor = (10, pad + hh + 1)
+    clip_centre = (13, 37)
+    pygame.draw.line(helm, OUT,  anchor, clip_centre, 3)
+    pygame.draw.line(helm, CORE, anchor, clip_centre, 1)
+    BUCKLE = (200, 50, 50)
+    clip = pygame.Rect(clip_centre[0] - 2, clip_centre[1] - 2, 5, 4)
+    pygame.draw.rect(helm, BUCKLE, clip)
+    pygame.draw.rect(helm, OUT, clip, 1)
+    pygame.draw.line(helm, OUT,
+                     (clip.x + 2, clip.y),
+                     (clip.x + 2, clip.bottom - 1), 1)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
+def cs_g5_thick_lighter(bird, surf, cx, cy, flipped):
+    """G5 — 3-px strap in lighter grey. The boldest, most visible
+    single-strap option."""
+    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+    _single_strap_chinstrap(helm, hw, hh, pad, drop,
+                            anchor=(10, pad + hh + 1),
+                            clip_centre=(13, 37),
+                            strap_col=(90, 90, 105), thick=3)
+    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+
+
 CHINSTRAP_VARIANTS = [
-    ("F1_live",      _mk_variant(fa_x=8,  ra_x=4,  jx=10, cx=14),
-     "F1: current live — strap behind the lens"),
-    ("F2_p1",        _mk_variant(fa_x=9,  ra_x=5,  jx=11, cx=15),
-     "F2: +1 px forward — touches lens edge"),
-    ("F3_p2",        _mk_variant(fa_x=10, ra_x=6,  jx=12, cx=15),
-     "F3: +2 px forward — bites the lens"),
-    ("F4_p3",        _mk_variant(fa_x=11, ra_x=7,  jx=13, cx=16),
-     "F4: +3 px forward — clear bite into lens"),
-    ("F5_front_only_p2", _mk_variant(fa_x=11, ra_x=5, jx=12, cx=15),
-     "F5: front anchor +3 / rear stays — asymmetric (front strap grazes lens)"),
+    ("G1_single_thin",     cs_g1_single_thin,
+     "G1: single 2-px dark strap, rim → chin (clean)"),
+    ("G2_single_thick",    cs_g2_single_thick,
+     "G2: single 3-px dark strap"),
+    ("G3_lighter_grey",    cs_g3_lighter_grey,
+     "G3: 2-px lighter grey (90,90,105) — pops against red"),
+    ("G4_outlined_strap",  cs_g4_outlined_strap,
+     "G4: 3-px outline + 1-px lighter core (volumetric rope)"),
+    ("G5_thick_lighter",   cs_g5_thick_lighter,
+     "G5: 3-px lighter grey — boldest"),
 ]
 
 
