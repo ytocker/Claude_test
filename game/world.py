@@ -1697,7 +1697,7 @@ class World:
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
         )
-        self.skateboard_burst_dur = 0.9
+        self.skateboard_burst_dur = 1.5
         self.skateboard_burst_t = self.skateboard_burst_dur
         self.skateboard_burst_surface = render_starburst_surface(
             rng_seed=seed,
