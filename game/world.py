@@ -1698,7 +1698,9 @@ class World:
         #     with him. Short by design (0.6 s) so it doesn't cover the
         #     game for long.
         seed = int(self._idle_t * 1000) & 0xFFFF
-        self.skateboard_caption_dur = 4.0
+        # Caption beats: 4.0 s held at full alpha, then a 0.8 s fade.
+        # scenes.py keys the fade off the trailing 0.8 s of the timer.
+        self.skateboard_caption_dur = 4.8
         self.skateboard_caption_t = self.skateboard_caption_dur
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,

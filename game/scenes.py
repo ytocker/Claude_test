@@ -949,13 +949,15 @@ class App:
         # past the 30 % hold mark.
         if getattr(self.world, "skateboard_caption_t", 0) > 0 and \
                 self.world.skateboard_caption_overlay is not None:
+            # Caption holds at full alpha for the first (dur - 0.8) s
+            # and only starts fading in the final 0.8 s. Quadratic
+            # ease-out tail.
             t = self.world.skateboard_caption_t
-            d = self.world.skateboard_caption_dur
-            elapsed = (d - t) / d if d > 0 else 1.0
-            if elapsed < 0.30:
+            FADE = 0.8
+            if t > FADE:
                 alpha = 255
             else:
-                x = (elapsed - 0.30) / 0.70
+                x = 1.0 - t / FADE
                 alpha = int(255 * (1.0 - x) ** 2)
             self.world.skateboard_caption_overlay.set_alpha(alpha)
             self.screen.blit(self.world.skateboard_caption_overlay,
