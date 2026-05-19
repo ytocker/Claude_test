@@ -1,58 +1,51 @@
 """V5 PUNCH+ in-world NIGHTGLOW visual effect.
 
-When NIGHTGLOW is active, this module composites the agreed-upon
-"world goes dark, important things glow neon green" treatment over
-the rendered frame:
+Faithful port of tools/render_nightglow_variants.py:variant_punch_plus
+(lines 303–316 of that file). The user approved
+docs/screenshots/nightglow_variants/variant_5_punch_plus.png as the
+agreed in-world design; this module produces the same composite.
 
-    1. Dim the whole scene (sky/mountains/ground/pillars).
-    2. Restore pillar STONE BODIES on top — they stay un-dimmed.
-    3. Silhouette-clean green halos around Pip + coins + powerups +
-       pillar VEGETATION.
-    4. Tint those glow targets toward green so the original sprite
-       hues read as green-dominant.
-    5. Brightening additive lift (silhouette-gated) so mid-tones don't
-       look muddy.
-    6. One extra additive top glow.
+Recipe (mirrors the tool's `_compose`, lines 208–222):
 
-Direct port of tools/render_nightglow_variants.py:variant_punch_plus.
+    1. Dim the whole scene (alpha-130 dark overlay).
+    2. Restore pillar STONE BODIES on top — un-dimmed sandstone.
+    3. 4 silhouette-clean additive aura halos around the glow
+       targets (vegetation + coins + powerups + Pip).
+    4. Recolour those glow targets via a luminance→green palette
+       ramp so the original sprite colours are fully replaced
+       (no warm bleed-through). Blit normally on top.
+    5. One extra silhouette-clean additive halo for the bright
+       rim accent.
 
-Implementation uses ONLY built-in pygame (no numpy, no surfarray) so
-the buff stays fast on every build target (native desktop AND
-pygbag/WASM) — early iterations did per-frame numpy ops that caused
-severe lag on WASM. The trick that lets the halos avoid numpy is
-Surface.premul_alpha(), which bakes `RGB *= alpha/255` into the
-surface so BLEND_RGBA_ADD can be gated by the entity silhouette.
+Numpy is imported at module load so the init cost is paid once at
+game launch instead of as a stutter on first nightglow pickup.
+Per-frame cost on dummy SDL: ~9–11 ms (vs ~7 ms baseline).
 """
 
+import numpy as np
 import pygame
+import pygame.surfarray
 
 from game.config import W, H
 from game.pillar_variants import _VARIANTS, VARIANT_COUNT, _paint_stone
 
 
-# V5 PUNCH+ palette — tuned to read like the approved screenshot but
-# kept cheap so the buff stays smooth on every build target.
+# Constants — EXACT copies of tools/render_nightglow_variants.py's
+# variant_punch_plus parameters. Do not touch without re-doing the
+# variant comparison screenshots the user already signed off on.
 _DARK_OVERLAY_TINT  = (4, 8, 16)
 _DARK_OVERLAY_ALPHA = 130
 
-# Two halo layers (was 5) — each smoothscale + premul_alpha is ~4 ms
-# at 360×640, so dropping the wide outer and the extra-top saved
-# ~12 ms/frame. The remaining two cover the visible aura range: one
-# mid-spread for atmospheric glow, one tighter for the bright rim.
-_AURA_LAYERS = (
-    (0.08, (60, 220, 60),  190),   # mid-spread atmospheric glow
-    (0.22, (110, 245, 95), 195),   # tight bright rim
-)
+_RECOL_DARK   = (8,   60,  22)
+_RECOL_BRIGHT = (220, 255, 230)
 
-# Entity recolour: multiply-tint + silhouette-gated additive lift.
-# Multiply pushes hues toward green-dominant; lift compensates for the
-# multiply darkening (warm-channel sprites collapse to dim greys after
-# multiply, which the lift brightens back into a mid-tone green). This
-# is cheaper than the numpy luminance ramp by ~5 ms/frame and gives a
-# close-enough visual match to V5 PUNCH+.
-_ENTITY_TINT     = (110, 240, 130)
-_LIFT_TINT       = (60, 200, 80)
-_LIFT_STRENGTH   = 180
+_AURA_LAYERS = (
+    (0.022, (30, 170, 25),   160),   # wide outer aura
+    (0.05,  (55, 215, 45),   185),
+    (0.13,  (90, 240, 75),   195),
+    (0.28,  (120, 250, 105), 170),
+)
+_EXTRA_TOP_LAYER = (0.20, (90, 230, 75), 70)
 
 
 def _build_layers(world, sx: int, sy: int):
@@ -61,12 +54,12 @@ def _build_layers(world, sx: int, sy: int):
       bodies        — pillar stone columns only (no decorations)
       glow_targets  — pillar VEGETATION + coins + powerups + Pip
 
-    These are re-renders of what's already on screen, but split into
-    the two roles the composite needs. KFC pillars draw as one cached
-    bitmap so they go onto `bodies` whole (their fries/buckets won't
-    glow during nightglow — minor cost for a corner-case overlap of
-    two powerups). The split for normal pipes uses _paint_stone +
-    the variant's decorate callable from game.pillar_variants."""
+    These are re-renders of what's already on screen, split into
+    the two roles the composite needs. KFC pillars draw as one
+    cached bitmap so they go onto `bodies` whole (their fries/
+    buckets won't glow during nightglow — corner-case overlap of
+    two powerups). The split for normal pipes uses `_paint_stone` +
+    the variant's `decorate` callable from game.pillar_variants."""
     pal = world.biome_palette
     bodies       = pygame.Surface((W, H), pygame.SRCALPHA).convert_alpha()
     glow_targets = pygame.Surface((W, H), pygame.SRCALPHA).convert_alpha()
@@ -94,26 +87,55 @@ def _build_layers(world, sx: int, sy: int):
     return bodies, glow_targets
 
 
-def _halo(targets: pygame.Surface, scale: float,
-          color: tuple, alpha: int) -> pygame.Surface:
-    """One additive halo layer. Multiply-tints `targets` by `color`
-    (so warm channels collapse to near-zero, leaving green-dominant
-    blur material), downsample-upsamples for blur, pre-multiplies
-    RGB by alpha via Surface.premul_alpha() so the additive blit is
-    GATED BY THE ENTITY SILHOUETTE (otherwise BLEND_RGBA_ADD would
-    paint the halo colour onto the whole canvas regardless of source
-    alpha). Final BLEND_RGBA_MULT fill attenuates RGB by `alpha`
-    for overall strength control."""
-    base = targets.copy()
-    tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    tint.fill((*color, 255))
-    base.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+def _recolour_in_place(surface: pygame.Surface) -> None:
+    """Replace every visible RGB on `surface` with a green of
+    equivalent brightness on the V5 ramp. Alpha is untouched so
+    the silhouette survives. Per-pixel numpy work — ~3 ms for a
+    360×640 surface on dummy SDL.
+
+    Ramp: L=0 (black)→dark green, L=1 (white)→bright green-white.
+    Matches tools/render_nightglow_variants.py:luminance_to_palette
+    (lines 137–161 of that file)."""
+    rgb = pygame.surfarray.array3d(surface).astype(np.float32)
+    L = (0.30 * rgb[..., 0]
+       + 0.59 * rgb[..., 1]
+       + 0.11 * rgb[..., 2]) / 255.0
+    bright = np.array(_RECOL_BRIGHT, dtype=np.float32)
+    dark   = np.array(_RECOL_DARK,   dtype=np.float32)
+    out = np.clip(dark + (bright - dark) * L[..., None],
+                  0, 255).astype(np.uint8)
+    px = pygame.surfarray.pixels3d(surface)
+    px[:] = out
+    del px  # release surface lock before caller blits
+
+
+def _silhouette_halo(targets: pygame.Surface, scale: float,
+                    color: tuple, alpha: int) -> pygame.Surface:
+    """One additive halo layer. Paints uniform `color` over the
+    alpha mask of `targets`, blurs via downsample+upsample, then
+    pre-multiplies RGB by the per-pixel alpha so BLEND_RGBA_ADD
+    contributes only where the silhouette has coverage. `alpha`
+    controls overall halo strength.
+
+    Mirrors tools/render_nightglow_variants.py:_halo (lines 172–
+    200 of that file)."""
+    sil = pygame.Surface((W, H), pygame.SRCALPHA)
+    sil.fill((*color, 255))
+    src_a = pygame.surfarray.array_alpha(targets)
+    sil_a = pygame.surfarray.pixels_alpha(sil)
+    sil_a[:] = src_a
+    del sil_a  # release lock before smoothscale
     sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
-    small = pygame.transform.smoothscale(base, (sw, sh))
+    small = pygame.transform.smoothscale(sil, (sw, sh))
     big = pygame.transform.smoothscale(small, (W, H))
-    pm = big.premul_alpha()
-    pm.fill((alpha, alpha, alpha, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    return pm
+    a_arr = pygame.surfarray.array_alpha(big).astype(np.float32) / 255.0
+    factor = a_arr * (alpha / 255.0)
+    rgb_view = pygame.surfarray.pixels3d(big)
+    rgb_view[:] = np.clip(rgb_view.astype(np.float32)
+                           * factor[..., None],
+                           0, 255).astype(np.uint8)
+    del rgb_view  # release lock before caller blits
+    return big
 
 
 def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
@@ -122,15 +144,8 @@ def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
     already drawn. `strength` ∈ [0, 1] scales every alpha so the
     effect can fade in at activation and fade out at expiry.
 
-    Lean four-pass composite:
-      1. Dim the whole scene.
-      2. Restore pillar STONE BODIES on top (un-dimmed sandstone).
-      3. Two silhouette-gated additive green halos around the
-         glow targets (vegetation + coins + powerups + Pip).
-      4. Recoloured entities painted on top — MIN-cap warm channels,
-         MAX-floor the green to produce pure green-dominant pixels
-         that read the same as the luminance-ramp variant but cost
-         nothing per pixel (just two RGB-only fills + a blit)."""
+    Five-pass composite matching the screenshot tool's `_compose`
+    (lines 208–222 of tools/render_nightglow_variants.py)."""
     if strength <= 0:
         return
     bodies, glow_targets = _build_layers(world, sx, sy)
@@ -144,28 +159,30 @@ def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
     # 2. Restore pillar bodies un-dimmed.
     screen.blit(bodies, (0, 0))
 
-    # 3. Silhouette-gated aura halos.
+    # 3. Four additive aura halos.
     for scale, col, a in _AURA_LAYERS:
-        screen.blit(_halo(glow_targets, scale, col, int(a * strength)),
-                    (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        screen.blit(
+            _silhouette_halo(glow_targets, scale, col,
+                             int(a * strength)),
+            (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-    # 4. Green-tinted entities via multiply + silhouette-gated lift.
-    tinted = glow_targets.copy()
-    tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    tint.fill((*_ENTITY_TINT, 255))
-    tinted.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    # 4. Luminance-recoloured entities on top — full colour
+    #    replacement, no warm bleed.
+    recol = glow_targets.copy()
+    _recolour_in_place(recol)
     if strength < 1.0:
-        tinted.fill((255, 255, 255, int(255 * strength)),
-                    special_flags=pygame.BLEND_RGBA_MULT)
-    screen.blit(tinted, (0, 0))
+        # Fade the recolour layer in at activation / out at expiry
+        # by scaling per-pixel alpha. Without this, partial-strength
+        # frames would still fully replace entity colours.
+        a = pygame.surfarray.pixels_alpha(recol)
+        a[:] = (a.astype(np.uint32)
+                * int(255 * strength) // 255).astype(np.uint8)
+        del a
+    screen.blit(recol, (0, 0))
 
-    # 5. Brightening additive lift confined to the silhouette via
-    #    premul_alpha (so the lift never bleeds into surrounding sky).
-    lift = glow_targets.copy()
-    lift_tint = pygame.Surface((W, H), pygame.SRCALPHA)
-    lift_tint.fill((*_LIFT_TINT, 255))
-    lift.blit(lift_tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    lift = lift.premul_alpha()
-    s = int(_LIFT_STRENGTH * strength)
-    lift.fill((s, s, s, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    screen.blit(lift, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # 5. Extra top glow — bright rim accent.
+    scale, col, a = _EXTRA_TOP_LAYER
+    screen.blit(
+        _silhouette_halo(glow_targets, scale, col,
+                         int(a * strength)),
+        (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
