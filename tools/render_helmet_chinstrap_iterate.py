@@ -900,22 +900,54 @@ def _h4_variant_at(fa_x, ra_x, jx, cx, jy=30, cy=37):
     return fn
 
 
-# M5 baseline: (fa=8, ra=4, jx=5, cx=11). User wants the LOWER part
-# of the strap (V-junction → clip) closer to Pip's actual chin. The
-# upper anchors (front=8, rear=4) and V-junction (x=5, y=30) stay
-# on the left as in M5; the clip moves forward toward surface
-# (13-16, 36-37) which is Pip's chin/throat region.
+# R-series: add the RIGHT chin strap that connects to the LEFT one at
+# the buckle. The LEFT strap (N4) is kept verbatim — front anchor (8,
+# rim_y), rear anchor (4, rim_y), junction (6, 30), clip (14, 37).
+# The RIGHT strap is the new addition — it emerges from the buckle
+# and goes forward+up, representing the far-side strap as it would
+# appear in a 3/4 or oblique side view. Five candidate routings.
+
+def _r_variant(right_end, *, right_thick=2, has_junction_marker=False):
+    """N4 (left strap) + an additional right-side strap from the
+    chin clip going to `right_end` (surface coords). Optionally
+    draws a tiny junction marker at the right end too."""
+    def fn(bird, surf, scx, scy, flipped):
+        helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+        _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+        rim_y = pad + hh + 1
+        # LEFT strap = N4 verbatim.
+        _bhsi_chinstrap(
+            helm,
+            front_anchor=(8, rim_y),
+            rear_anchor=(4, rim_y),
+            junction=(6, 30),
+            clip_centre=(14, 37),
+            strap_w=2,
+            draw_adjuster=True,
+        )
+        # RIGHT strap — from the chin clip out to `right_end`.
+        STRAP = (15, 15, 22)
+        pygame.draw.line(helm, STRAP, (14, 37), right_end, right_thick)
+        if has_junction_marker:
+            jx, jy = right_end
+            adj = pygame.Rect(jx - 1, jy - 1, 3, 2)
+            pygame.draw.rect(helm, (30, 30, 40), adj)
+            pygame.draw.rect(helm, (200, 200, 210), adj, 1)
+        _anchor_and_blit(bird, surf, helm, scx, scy, flipped)
+    return fn
+
+
 CHINSTRAP_VARIANTS = [
-    ("N1_clip_at_chin",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=13),
-     "N1: M5 + clip at (13, 37) — exactly at the chin"),
-    ("N2_clip_under_beak", _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=14),
-     "N2: M5 + clip at (14, 37) — just under the beak"),
-    ("N3_clip_forward",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=15),
-     "N3: M5 + clip at (15, 37) — clearly forward under the beak"),
-    ("N4_clip_higher_chin", _h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14),
-     "N4: M5 + junction nudged 1 right (6) + clip at (14, 37) — softer angle"),
-    ("N5_junction_low",  _h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14, jy=33),
-     "N5: junction dropped to y=33 + clip at (14, 37) — shorter lower segment, tight against chin"),
+    ("R1_short_stub_up_fwd",   _r_variant(right_end=(20, 30)),
+     "R1: short stub up-forward to (20, 30) — disappears behind beak"),
+    ("R2_to_brow_anchor",      _r_variant(right_end=(22, 22)),
+     "R2: longer strap up-forward to (22, 22) — toward brow"),
+    ("R3_far_rim_attachment",  _r_variant(right_end=(20, 20)),
+     "R3: up to the helmet rim at (20, 20) — clear far-side anchor"),
+    ("R4_with_far_junction",   _r_variant(right_end=(18, 28), has_junction_marker=True),
+     "R4: short with adjuster marker at the far-side junction (18, 28)"),
+    ("R5_short_horizontal",    _r_variant(right_end=(22, 35)),
+     "R5: short forward-only segment to (22, 35) — flat under-chin extension"),
 ]
 
 
