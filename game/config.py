@@ -104,6 +104,12 @@ BACKFLIP_TAP_WINDOW   = 0.45
 # so the rotation is slow→fast→slow instead of constant-rate.
 BACKFLIP_DURATION     = 0.85
 NIGHTGLOW_DURATION    = 12.0
+# PHOENIX: 30-second fiery transformation. If Pip would die during the
+# window, World._die() intercepts the death, ends the buff, and grants
+# PHOENIX_INVULN seconds of grace so the just-revived bird doesn't
+# instantly re-collide with the pillar that killed him.
+PHOENIX_DURATION      = 30.0
+PHOENIX_INVULN        = 1.5
 RAIL_PILLAR_COUNT     = 7       # number of pillars the rail spans
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
@@ -132,9 +138,9 @@ LOTTERY_TIERS = (
 )
 LOTTERY_REVEAL_TIME   = 1.0
 
-# Each secret is 1/8 the weight of a normal powerup. With 8 secrets eligible
-# and 7 normal weights summing to 7, total secret-pickup probability is
-# ~12.5% per spawn after the threshold.
+# Each secret is 1/8 the weight of a normal powerup. With 7 secrets eligible
+# and 8 normal weights summing to 8, total secret-pickup probability is
+# ~9.8% per spawn after the threshold.
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
     ("shrink",     0.125),
@@ -142,6 +148,7 @@ SECRET_POWERUP_WEIGHTS = (
     ("rail",       0.125),
     ("nightglow",  0.125),   # additionally biome-gated to night in world.py
     ("lottery",    0.125),
+    ("phoenix",    0.125),
 )
 
 # ── v5_powerups TEST MODE — REMOVE before merging to v4/main ─────────────────

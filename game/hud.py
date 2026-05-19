@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, NIGHTGLOW_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, NIGHTGLOW_DURATION, PHOENIX_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -942,6 +942,43 @@ def _draw_buff_icon(surf, rect, kind):
         size = min(rect.width, rect.height)
         star = get_nightglow_star(size)
         surf.blit(star, (cx - size // 2, cy - size // 2))
+    elif kind == "phoenix":
+        # Mini flame-bird glyph: dark-red body + three flame plumes
+        # above + tail ember. Matches the in-world pickup at HUD scale.
+        # Halo
+        halo = pygame.Surface((22, 22), pygame.SRCALPHA)
+        pygame.draw.circle(halo, (255, 120,  40, 120), (11, 11), 10)
+        pygame.draw.circle(halo, (255, 200,  80, 160), (11, 11),  6)
+        surf.blit(halo, (cx - 11, cy - 11))
+        # Flame plumes (centre tallest)
+        for fx, fy_base, hw, hh, tip in (
+            (cx,     cy - 3, 3, 7, (255, 230, 130)),
+            (cx - 4, cy - 1, 2, 4, (255, 200,  80)),
+            (cx + 4, cy - 1, 2, 4, (255, 200,  80)),
+        ):
+            pygame.draw.polygon(surf, (220,  70,  20), [
+                (fx - hw, fy_base),
+                (fx + hw, fy_base),
+                (fx,      fy_base - hh),
+            ])
+            pygame.draw.polygon(surf, tip, [
+                (fx - hw // 2, fy_base - 1),
+                (fx + hw // 2, fy_base - 1),
+                (fx,           fy_base - hh + 2),
+            ])
+        # Body — small red oval with golden belly
+        pygame.draw.ellipse(surf, ( 90,  10,  20),
+                            pygame.Rect(cx - 7, cy + 2, 14, 9))
+        pygame.draw.ellipse(surf, (210,  40,  30),
+                            pygame.Rect(cx - 6, cy + 3, 12, 7))
+        pygame.draw.ellipse(surf, (255, 170,  40),
+                            pygame.Rect(cx - 4, cy + 5, 8, 4))
+        # Tiny beak
+        pygame.draw.polygon(surf, (255, 200,  60), [
+            (cx + 6, cy + 5),
+            (cx + 9, cy + 6),
+            (cx + 6, cy + 7),
+        ])
 
 
 class PauseButton:
@@ -1487,6 +1524,8 @@ class HUD:
             active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
         if getattr(world, "nightglow_timer", 0) > 0:
             active.append(("nightglow", world.nightglow_timer, NIGHTGLOW_DURATION))
+        if getattr(world, "phoenix_timer", 0) > 0:
+            active.append(("phoenix", world.phoenix_timer, PHOENIX_DURATION))
 
         if active:
             icon_size = 24

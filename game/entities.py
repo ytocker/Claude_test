@@ -474,6 +474,9 @@ class Bird:
         # transformation across SHRINK_TRANSITION rather than a one-frame snap.
         self.shrink_scale = 1.0
         self.nightglow_active = False
+        # PHOENIX: fiery skin while phoenix_active; the death-revive is
+        # owned by World._die().
+        self.phoenix_active = False
         # RAIL: cart_active starts at pickup, stays True until the last
         # rail pipe scrolls off. cart_locked flips True the moment the
         # cart wheels touch any rail segment — from then on the track
@@ -575,7 +578,11 @@ class Bird:
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
         # crispy-hat sprite instead of falling through to plain kfc.
-        if self.kfc_active and self.ghost_active and self.triple_active:
+        # PHOENIX wins over every other skin while active — the buff is
+        # rare enough that the player should see its identity clearly.
+        if self.phoenix_active:
+            img = parrot.get_phoenix_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.ghost_active and self.triple_active:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active:
             img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
@@ -627,6 +634,19 @@ class Bird:
             for r_glow, a in ((36, base_a // 3), (26, base_a // 2), (18, base_a)):
                 pygame.draw.circle(halo, (90, 240, 230, a), (40, 40), r_glow)
             surf.blit(halo, (self.x + shake_x - 40, self.y + shake_y - 40))
+        # PHOENIX: layered red→orange→gold halo behind Pip, slightly
+        # larger than nightglow's so the bird reads as wreathed in fire.
+        if self.phoenix_active:
+            halo = pygame.Surface((96, 96), pygame.SRCALPHA)
+            cyc = 0.5 + 0.5 * math.sin(self.frame_t * 0.7)
+            base_a = int(90 + 70 * cyc)
+            for r_glow, col in (
+                (44, (255,  80,  30, base_a // 4)),
+                (32, (255, 140,  40, base_a // 2)),
+                (22, (255, 210,  90, base_a)),
+            ):
+                pygame.draw.circle(halo, col, (48, 48), r_glow)
+            surf.blit(halo, (self.x + shake_x - 48, self.y + shake_y - 48))
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
         # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
@@ -1611,6 +1631,8 @@ class PowerUp:
             self._draw_nightglow_icon(surf)
         elif self.kind == "lottery":
             self._draw_lottery_icon(surf)
+        elif self.kind == "phoenix":
+            self._draw_phoenix_icon(surf)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):
@@ -2024,6 +2046,66 @@ class PowerUp:
         tilt = math.sin(self.pulse * 0.7) * 8
         rotated = pygame.transform.rotate(card_surf, tilt)
         surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
+
+    def _draw_phoenix_icon(self, surf):
+        """In-world phoenix pickup: a small flame-feathered bird sitting
+        on a pulsing fire halo. Body is a deep-red disc with a golden
+        underbelly highlight; three flame plumes rise above the head,
+        the centre plume taller than the side plumes. Bobs gently with
+        self.pulse."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        # Pulsing halo (red core, amber rim)
+        halo = pygame.Surface((56, 56), pygame.SRCALPHA)
+        cyc = 0.5 + 0.5 * math.sin(self.pulse * 1.6)
+        a = int(70 + 70 * cyc)
+        pygame.draw.circle(halo, (255,  80,  30, a // 3), (28, 28), 26)
+        pygame.draw.circle(halo, (255, 150,  40, a // 2), (28, 28), 18)
+        pygame.draw.circle(halo, (255, 220, 100, a),      (28, 28), 10)
+        surf.blit(halo, (cx - 28, cy - 28))
+        # Flame plumes above the head (tallest in centre)
+        plumes = (
+            (cx,      cy - 16, 6, 14, (255, 230, 120), (240,  90,  30)),
+            (cx - 6,  cy - 11, 4,  9, (255, 200,  80), (220,  70,  20)),
+            (cx + 6,  cy - 11, 4,  9, (255, 200,  80), (220,  70,  20)),
+        )
+        flicker = int(math.sin(self.pulse * 4.0) * 1)
+        for fx, fy, hw, hh, tip_col, base_col in plumes:
+            tip_y = fy - hh + flicker
+            pygame.draw.polygon(surf, base_col, [
+                (fx - hw, fy + 2),
+                (fx + hw, fy + 2),
+                (fx,      tip_y),
+            ])
+            pygame.draw.polygon(surf, tip_col, [
+                (fx - hw // 2, fy - 1),
+                (fx + hw // 2, fy - 1),
+                (fx,           tip_y + 2),
+            ])
+        # Bird body — deep red oval with golden belly + dark eye + tiny beak
+        pygame.draw.ellipse(surf, ( 90,  10,  20), (cx - 11, cy -  4, 22, 16))   # outline
+        pygame.draw.ellipse(surf, (210,  40,  30), (cx - 10, cy -  3, 20, 14))   # body
+        pygame.draw.ellipse(surf, (255, 170,  40), (cx -  7, cy +  1, 14,  9))   # belly highlight
+        # Eye
+        pygame.draw.circle(surf, (255, 250, 220), (cx + 4, cy - 1), 2)
+        pygame.draw.circle(surf, ( 20,  10,  10), (cx + 4, cy - 1), 1)
+        # Beak
+        pygame.draw.polygon(surf, (255, 200,  60), [
+            (cx +  9, cy + 1),
+            (cx + 13, cy + 2),
+            (cx +  9, cy + 4),
+        ])
+        # Tail flame spike at the back
+        pygame.draw.polygon(surf, (240, 100,  30), [
+            (cx -  9, cy + 0),
+            (cx - 16, cy - 2),
+            (cx - 10, cy + 4),
+        ])
+        pygame.draw.polygon(surf, (255, 200,  80), [
+            (cx -  9, cy + 1),
+            (cx - 13, cy + 0),
+            (cx - 10, cy + 4),
+        ])
 
 
 # ── SHRINK power-up sprite (red velvet pancake parasol — sibling to GROW) ───

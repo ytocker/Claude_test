@@ -26,6 +26,7 @@ from game.config import (
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     NIGHTGLOW_DURATION,
+    PHOENIX_DURATION, PHOENIX_INVULN,
     RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -117,6 +118,12 @@ class World:
         self._tap_streak = 0
         self.shrink_timer     = 0.0
         self.nightglow_timer  = 0.0
+        # PHOENIX: 30 s fiery skin + one-shot death revive. While
+        # phoenix_timer > 0 the bird sprite renders as a phoenix and the
+        # next call to _die() is suppressed (ends the buff + grants
+        # phoenix_invuln seconds of collision grace).
+        self.phoenix_timer    = 0.0
+        self.phoenix_invuln   = 0.0
         # Rail: a 3-pillar grindrail. We snapshot which Pipe instances carry
         # the rail when the powerup activates; the rail vanishes once they've
         # all scrolled off screen. rail_pending counts the remaining pipes
@@ -155,6 +162,7 @@ class World:
             # what was picked even though the help screen omits them).
             "skateboard": 0, "shrink": 0, "heist": 0,
             "vacuum": 0, "rail": 0, "nightglow": 0, "lottery": 0,
+            "phoenix": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -641,6 +649,11 @@ class World:
             if self.nightglow_timer > 0:
                 self.nightglow_timer = max(0.0, self.nightglow_timer - dt)
             self.bird.nightglow_active = self.nightglow_timer > 0
+            if self.phoenix_timer > 0:
+                self.phoenix_timer = max(0.0, self.phoenix_timer - dt)
+            self.bird.phoenix_active = self.phoenix_timer > 0
+            if self.phoenix_invuln > 0:
+                self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
             # Rail: drop pipes that have scrolled off-screen from the rail list.
             if self.rail_pipes:
                 self.rail_pipes = [p for p in self.rail_pipes if not p.off_screen()]
@@ -761,6 +774,12 @@ class World:
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
+        # PHOENIX grace: short window after a phoenix revive where Pip is
+        # immune to ground + pipe collisions, so the just-revived bird
+        # has a moment to clear the obstacle that killed him. Ceiling
+        # clamp above still applies (it's non-lethal anyway).
+        if self.phoenix_invuln > 0:
+            return
         if by + br > GROUND_Y:
             if skating:
                 # Slide along the ground. Snap, zero vy, dust puff.
@@ -927,6 +946,39 @@ class World:
 
     def _die(self):
         if self.game_over:
+            return
+        # PHOENIX revive: if the buff is active, consume it instead of
+        # dying. Ends the buff (one-shot), grants a short collision grace
+        # so the next frame doesn't re-trigger this branch, and gives Pip
+        # an automatic upward boost so the camera reads "rebirth" rather
+        # than "stalled mid-pillar."
+        if self.bird.phoenix_active:
+            self.phoenix_timer = 0.0
+            self.bird.phoenix_active = False
+            self.phoenix_invuln = PHOENIX_INVULN
+            self.bird.vy = FLAP_V * 0.9
+            self.shake_mag = max(self.shake_mag, 6.0)
+            self.shake_t   = max(self.shake_t,   0.3)
+            audio.play_ghost()
+            audio.play_thunder()
+            for _ in range(36):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(160, 420)
+                col = random.choice((
+                    (255,  90,  30), (255, 180,  60),
+                    (255, 230, 130), WHITE,
+                ))
+                self.particles.append(Particle(
+                    self.bird.x, self.bird.y,
+                    math.cos(ang) * spd, math.sin(ang) * spd,
+                    random.uniform(0.5, 1.2),
+                    random.randint(3, 6),
+                    col, gravity=180,
+                ))
+            self.float_texts.append(FloatText(
+                "REBORN!", self.bird.x, self.bird.y - 32, (255, 140, 40),
+                size=30, life=1.4, vy=-36, style="powerup",
+            ))
             return
         self.game_over = True
         self.bird.alive = False
@@ -1116,6 +1168,8 @@ class World:
             self._activate_nightglow(m)
         elif kind == "lottery":
             self._activate_lottery(m)
+        elif kind == "phoenix":
+            self._activate_phoenix(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -1511,6 +1565,22 @@ class World:
         self.float_texts.append(FloatText(
             "LOTTERY!", m.x, m.y - 26, UI_GOLD,
             size=26, life=1.0, vy=-30, style="powerup",
+        ))
+
+    def _activate_phoenix(self, m):
+        PHOENIX_RED  = (240,  50,  30)
+        PHOENIX_GOLD = (255, 190,  60)
+        self.phoenix_timer = PHOENIX_DURATION
+        self.bird.phoenix_active = True
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t   = max(self.shake_t,   0.3)
+        audio.play_phoenix()
+        self._spawn_poof(self.bird.x, self.bird.y)
+        self._pickup_burst(m, (PHOENIX_RED, PHOENIX_GOLD, WHITE, UI_CREAM),
+                           n=32, speed_hi=320)
+        self.float_texts.append(FloatText(
+            "PHOENIX!", m.x, m.y - 26, PHOENIX_GOLD,
+            size=30, life=1.4, vy=-32, style="powerup",
         ))
 
     # ── utility ──────────────────────────────────────────────────────────────

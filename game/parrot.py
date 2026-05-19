@@ -686,6 +686,81 @@ def get_fried_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── Phoenix variant ──────────────────────────────────────────────────────────
+# Phoenix takes the base parrot frame and pushes it into fiery territory:
+# an additive amber tint masked to the silhouette brightens the bird into
+# molten-gold colours, then we paint a crown of flame plumes above the head
+# and a tail-tip ember so the silhouette reads as wreathed in fire. Mirrors
+# the lazy-build / per-angle cache pattern used by KFC_FRAMES.
+
+_PHOENIX_FRAMES: "list[pygame.Surface] | None" = None
+_phoenix_rot_cache: dict = {}
+
+
+def _build_phoenix_frame(wing_angle_deg) -> pygame.Surface:
+    base = _add_outline(_build_frame(wing_angle_deg))
+    out = base.copy()
+    # Masked amber tint: silhouette-only additive glow so transparent
+    # pixels stay transparent. BLEND_RGBA_MIN on a solid-coloured glow
+    # surface using the base sprite as the mask gives us "colour wherever
+    # the bird has pixels, fully transparent elsewhere", which we then
+    # add onto the base to brighten it without affecting the outline.
+    glow = pygame.Surface(base.get_size(), pygame.SRCALPHA)
+    glow.fill((255, 120, 40, 255))
+    glow.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    out.blit(glow, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # Highlight pass — small bright-gold sheen on the breast peak so the
+    # bird reads as glowing from within rather than just orange-tinted.
+    hi = pygame.Surface(base.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(hi, (255, 230, 120, 130), pygame.Rect(20, 24, 18, 8))
+    out.blit(hi, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # Flame crown — three plumes above the head (centre tallest).
+    # Anchor at the head position used by _build_frame (~(47, 21)).
+    for fx, fy_top, hw, hh, tip in (
+        (47, 4,  4, 12, (255, 230, 130)),
+        (41, 9,  3,  8, (255, 200,  80)),
+        (53, 9,  3,  8, (255, 200,  80)),
+    ):
+        base_y = fy_top + hh
+        pygame.draw.polygon(out, (240,  90,  30), [
+            (fx - hw, base_y),
+            (fx + hw, base_y),
+            (fx,      fy_top),
+        ])
+        pygame.draw.polygon(out, tip, [
+            (fx - hw // 2, base_y - 2),
+            (fx + hw // 2, base_y - 2),
+            (fx,           fy_top + 3),
+        ])
+    # Tail ember — small flame off the tail tip for extra readability.
+    pygame.draw.polygon(out, (255, 180,  60), [
+        (4, 30), (-2, 27), (2, 36),
+    ])
+    pygame.draw.polygon(out, (255, 230, 130), [
+        (4, 31), (1, 30), (3, 35),
+    ])
+    return out
+
+
+def _get_phoenix_frames() -> "list[pygame.Surface]":
+    global _PHOENIX_FRAMES
+    if _PHOENIX_FRAMES is None:
+        _PHOENIX_FRAMES = [_build_phoenix_frame(a) for a in _WING_ANGLES]
+    return _PHOENIX_FRAMES
+
+
+def get_phoenix_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Return rotated phoenix-mode parrot, cached by (frame, rounded-angle)."""
+    frames = _get_phoenix_frames()
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    s = _phoenix_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        _phoenix_rot_cache[key] = s
+    return s
+
+
 # ── Ghost variant ─────────────────────────────────────────────────────────────
 #
 # The ghost-parrot frames are built procedurally in
