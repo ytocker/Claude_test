@@ -1113,23 +1113,29 @@ class Bird:
         """Side-view punk-mohawk skater helmet (variant 4 from the
         v5_powerups design pass) — half-dome with a flat horizontal
         rim, a single bone fin running front-to-back along the top,
-        chrome rim band, side skull decal, and ONE diagonal chinstrap
-        from rear-temple to a buckle in front of the jaw. Palette
-        kit-matched to `_draw_skateboard`:
+        chrome rim band, side skull decal, and a single FRONT-temple
+        chinstrap dropping past the cheek to a buckle UNDER the chin.
+        Palette kit-matched to `_draw_skateboard`:
           • dome fill / vent / outlines = deck fill   (10, 10, 18)
           • dome highlight              = wheel ring  (50, 50, 60)
           • chrome rim band             = deck outline (200, 200, 210)
           • bone fin / skull            = deck skull  (240, 240, 230)
-          • chinstrap                   = deck trucks (60, 60, 70)
+          • chinstrap outline / core    = (15,15,22) / (110,110,125)
           • buckle                      = wheel centre (200, 50, 50)
-        Anchor (+20, -20) chosen by self-critique iteration so the
+        Anchor (+18, -18) chosen by self-critique iteration so the
         helmet sits naturally on Pip's crown — rim above the
-        sunglasses, mohawk fin clearly visible above the head."""
+        sunglasses, mohawk fin clearly visible above the head. The
+        helm surface is extended below the rim (drop=28) so the
+        chinstrap can route past the jaw to a buckle at Pip's chin
+        without clipping; anchor y compensated so the dome stays put."""
         s = self.shrink_scale
         hw = int(24 * s)
         hh = int(15 * s)
         pad = 4
-        drop = int(12 * s)
+        # Drop extended so the chinstrap can route below the chin.
+        # Anchor_y must compensate or the dome drifts up — see anchor
+        # block below.
+        drop = int(28 * s)
         helm = pygame.Surface(
             (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
 
@@ -1179,20 +1185,31 @@ class Bird:
         pygame.draw.ellipse(helm, (240, 240, 230), sk)
         pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
 
-        # Single chinstrap — rear-temple → buckle in front of jaw.
-        rear = (pad + 3, pad + hh + 1)
-        buckle = (pad + hw - 3, pad + hh + drop - 3)
-        pygame.draw.line(helm, (60, 60, 70), rear, buckle, 2)
-        pygame.draw.circle(helm, (200, 50, 50), buckle, 2)
+        # Chinstrap — SINGLE FRONT-temple strap dropping past the
+        # cheek to a buckle UNDER the chin. Side-view-correct routing
+        # (the rear strap goes behind the head silhouette in real
+        # life, hidden). Strap is a 3 px dark outline + 1 px lighter
+        # grey core so it reads as a 3D rope; buckle is a red
+        # circle with a dark outline so it reads as a real clip.
+        # Buckle target = Pip's chin at helm surface (13, 37) given
+        # the extended drop + compensated anchor below.
+        front_temple = (pad + hw - 3, pad + hh + 1)
+        buckle = (13, 37)
+        pygame.draw.line(helm, (15, 15, 22), front_temple, buckle, 3)
+        pygame.draw.line(helm, (110, 110, 125), front_temple, buckle, 1)
+        pygame.draw.circle(helm, (200, 50, 50), buckle, 3)
+        pygame.draw.circle(helm, (15, 15, 22), buckle, 3, 1)
 
-        # Anchor (+18, -18) — chosen by iteration so the helmet sits
-        # naturally on Pip's crown: rim rests at the top of the
-        # sunglasses, dome covers the crown, mohawk fin clearly
-        # visible above the head silhouette. Rotates with tilt so
-        # the helmet banks with Pip and carries backflip spin.
-        # Reverse-gravity flips both the y-offset sign and the sprite.
+        # Anchor (+18, -10) — x unchanged from the approved (+18, -18)
+        # pose, y compensated +8 because extending drop from 12 → 28
+        # shifted the helm surface centre down by 8 px. Without
+        # compensation the rotated rect's get_rect(center=...) would
+        # drift the dome up by 8 px. The dome's WORLD position is
+        # preserved. Rotates with tilt so the helmet banks with Pip
+        # and carries backflip spin. Reverse-gravity flips both the
+        # y-offset sign and the sprite.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        y_off = 18 * s if flipped else -18 * s
+        y_off = 10 * s if flipped else -10 * s
         offset = pygame.math.Vector2(18 * s, y_off)
         offset = offset.rotate(-tilt)
         rotated = pygame.transform.rotate(helm, tilt)
