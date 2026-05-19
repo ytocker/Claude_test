@@ -550,10 +550,20 @@ class World:
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
 
-            # spawn more pipes
+            # spawn more pipes. Suppressed while RAIL is active so no
+            # untagged pipe slips in between the pre-spawned 7-pillar
+            # track and the right edge of the screen — without this,
+            # an "interloper" non-rail pipe would scroll in toward Pip
+            # right as the cart unlocks and kill him on contact. Once
+            # the rail finishes, the pipe list may be empty (all rail
+            # pipes just culled off-screen); re-seed one fresh pipe at
+            # the right edge so the player has something to navigate.
             spacing = self._current_spacing()
-            if self.pipes and self.pipes[-1].x < W - spacing:
-                self._spawn_pipe(self.pipes[-1].x + spacing)
+            if not self.bird.cart_active:
+                if not self.pipes:
+                    self._spawn_pipe(W + 60)
+                elif self.pipes[-1].x < W - spacing:
+                    self._spawn_pipe(self.pipes[-1].x + spacing)
 
             # scoring: pass a pipe
             bx = self.bird.x
@@ -1381,15 +1391,39 @@ class World:
                 chosen.append(p)
                 if len(chosen) >= RAIL_PILLAR_COUNT:
                     break
-        # If fewer than RAIL_PILLAR_COUNT are eligible (rare), the rest
-        # are picked up at the next pipe spawn via the same flag check.
         self.rail_pipes = chosen
-        self.rail_pending = max(0, RAIL_PILLAR_COUNT - len(chosen))
-        # Cart wraps Pip instantly. Gravity still applies until wheels
-        # touch any rail segment; cart_locked then flips on, taps are
-        # ignored, and the rail auto-drives Pip through all tagged pipes.
-        # Bird.update auto-hops the cart while airborne so the descent
-        # reads as a series of jumps; kick it off with one full leap.
+        # Pre-spawn whatever's missing so the full RAIL_PILLAR_COUNT-pillar
+        # track is visible from frame one — the player can read where
+        # future pillars will appear, all the way off the right edge of
+        # the screen. The natural _maybe_spawn_pipe distance gate pauses
+        # further organic spawns while these pre-spawned pipes are still
+        # to the right of the right edge, so the rail doesn't get inter-
+        # spersed with non-rail pipes.
+        needed = RAIL_PILLAR_COUNT - len(chosen)
+        self.rail_pending = needed
+        if needed > 0:
+            last_x = max((p.x for p in self.pipes), default=self.bird.x)
+            spacing = self._current_spacing()
+            for _ in range(needed):
+                last_x += spacing
+                self._spawn_pipe(last_x)
+                new_p = self.pipes[-1]
+                # _spawn_pipe auto-tags rail when rail_pending > 0 AND not
+                # is_rush. If the pipe landed on a coin-rush slot we
+                # force-tag it anyway so the full 7-pillar track is
+                # uninterrupted.
+                if not new_p.rail_active:
+                    new_p.rail_active = True
+                    self.rail_pipes.append(new_p)
+                    self.rail_pending = max(0, self.rail_pending - 1)
+        # All RAIL_PILLAR_COUNT slots are filled now; any future organic
+        # pipe spawns must NOT auto-tag.
+        self.rail_pending = 0
+        # Cart wraps Pip instantly. The player keeps regular flap control
+        # while in the air (Bird.flap is gated on cart_locked, not
+        # cart_active). On rail contact, cart_locked flips on, flap is
+        # silently ignored, and _snap_cart_to_rail auto-drives Pip
+        # through all RAIL_PILLAR_COUNT tagged pipes before releasing.
         self.bird.cart_active = True
         self.bird.cart_locked = False
         self.bird.vy = FLAP_V * 0.55
