@@ -998,7 +998,10 @@ class World:
                                    "blaze", "sunburst", "twin",
                                    "swift", "grand",
                                    "soar", "rise", "stoop",
-                                   "dive", "eternal"):
+                                   "dive", "eternal",
+                                   "eternal_warm", "eternal_soft",
+                                   "eternal_dawn", "eternal_friend",
+                                   "eternal_lite"):
                 self._revive_ashes()
             elif PHOENIX_VARIANT == "solar":
                 self._revive_solar()

@@ -33,14 +33,15 @@ from game.config import W, H, GROUND_Y, BIRD_X, PIPE_W
 from game.entities import PowerUp, Pipe, Coin
 
 
-VARIANTS = ("soar", "rise", "stoop", "dive", "eternal")
+VARIANTS = ("eternal_warm", "eternal_soft", "eternal_dawn",
+            "eternal_friend", "eternal_lite")
 
 CAPTIONS = {
-    "soar":    "Horizontal wingspan, tips back",
-    "rise":    "Wings raised UP, rising pose",
-    "stoop":   "Wings swept back, falcon stoop",
-    "dive":    "Wings angled forward, strike pose",
-    "eternal": "S-curve wings, long ribbon-tail",
+    "eternal_warm":   "Warmer palette, brighter fire",
+    "eternal_soft":   "Rounded feather tips, lighter shadow",
+    "eternal_dawn":   "Daybreak palette, shorter tail",
+    "eternal_friend": "Friendlier face, soft beak, catch-light eye",
+    "eternal_lite":   "All-in: warm + soft + short + friendly",
 }
 
 
@@ -121,10 +122,10 @@ def render_contact_sheet(shots: dict) -> pygame.Surface:
     # Title
     title_font = pygame.font.SysFont(None, 36, bold=True)
     title_img = title_font.render(
-        "PHOENIX — 5 Grand iterations: long wings + short cascade tail",
+        "PHOENIX — Eternal, 5 less-creepy variations",
         True, (255, 220, 100))
     title_out = title_font.render(
-        "PHOENIX — 5 Grand iterations: long wings + short cascade tail",
+        "PHOENIX — Eternal, 5 less-creepy variations",
         True, (0, 0, 0))
     tx = (sheet_w - title_img.get_width()) // 2
     for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
@@ -145,8 +146,10 @@ def render_contact_sheet(shots: dict) -> pygame.Surface:
         pygame.draw.rect(sheet, (140, 100, 40),
                          pygame.Rect(x0 - 1, y0 - 1, shot_w + 2, shot_h + 2),
                          width=2, border_radius=4)
-        # Label + caption
-        label = label_font.render(variant.upper(), True, (255, 220, 100))
+        # Label + caption (strip the "eternal_" prefix on the v3 sheet
+        # since they're all Eternal iterations — the prefix is noise).
+        short_name = variant.replace("eternal_", "").upper() or variant.upper()
+        label = label_font.render(short_name, True, (255, 220, 100))
         lbx = x0 + (shot_w - label.get_width()) // 2
         sheet.blit(label, (lbx, y0 + shot_h + 6))
         caption = caption_font.render(CAPTIONS[variant], True, (220, 220, 240))
@@ -156,7 +159,7 @@ def render_contact_sheet(shots: dict) -> pygame.Surface:
 
 
 def main():
-    out_dir = os.path.join(_REPO, "docs", "phoenix_design", "ingame_v2")
+    out_dir = os.path.join(_REPO, "docs", "phoenix_design", "ingame_v3")
     os.makedirs(out_dir, exist_ok=True)
     shots = {}
     for variant in VARIANTS:

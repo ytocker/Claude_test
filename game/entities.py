@@ -923,9 +923,11 @@ class Bird:
                 _draw_phoenix_solar_halo(surf, hx, hy, self.frame_t)
             elif _PV in ("mythic", "imperial", "blaze", "sunburst",
                          "twin", "swift", "grand",
-                         "soar", "rise", "stoop", "dive", "eternal"):
+                         "soar", "rise", "stoop", "dive", "eternal",
+                         "eternal_warm", "eternal_soft", "eternal_dawn",
+                         "eternal_friend", "eternal_lite"):
                 # Imperial + fire-fenghuang hybrids + wide-wing v2
-                # share the mythic halo — fits their fire palette.
+                # + less-creepy Eternal iterations share the mythic halo.
                 _draw_phoenix_mythic_halo(surf, hx, hy, self.frame_t)
             elif _PV == "fenghuang":
                 _draw_phoenix_fenghuang_halo(surf, hx, hy, self.frame_t)
@@ -2348,13 +2350,17 @@ class PowerUp:
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
         grandiose = {"imperial", "fenghuang", "dragon", "comet", "royal",
                      "blaze", "sunburst", "twin", "swift", "grand",
-                     "soar", "rise", "stoop", "dive", "eternal"}
+                     "soar", "rise", "stoop", "dive", "eternal",
+                     "eternal_warm", "eternal_soft", "eternal_dawn",
+                     "eternal_friend", "eternal_lite"}
         # 1. Variant-specific halo behind everything
         if _PV == "solar":
             self._draw_phoenix_icon_solar_halo(surf, cx, cy)
         elif _PV in ("mythic", "imperial", "royal", "blaze", "sunburst",
                      "twin", "swift", "grand",
-                     "soar", "rise", "stoop", "dive", "eternal"):
+                     "soar", "rise", "stoop", "dive", "eternal",
+                     "eternal_warm", "eternal_soft", "eternal_dawn",
+                     "eternal_friend", "eternal_lite"):
             self._draw_phoenix_icon_mythic_halo(surf, cx, cy)
         elif _PV == "fenghuang":
             self._draw_phoenix_icon_fenghuang_halo(surf, cx, cy)

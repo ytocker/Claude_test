@@ -1034,7 +1034,9 @@ def _draw_buff_icon(surf, rect, kind):
         # what Pip looks like in-flight.
         if _PV in ("imperial", "fenghuang", "dragon", "comet", "royal",
                    "blaze", "sunburst", "twin", "swift", "grand",
-                   "soar", "rise", "stoop", "dive", "eternal"):
+                   "soar", "rise", "stoop", "dive", "eternal",
+                   "eternal_warm", "eternal_soft", "eternal_dawn",
+                   "eternal_friend", "eternal_lite"):
             from game import parrot
             sprite = parrot.get_phoenix_parrot(0, 0.0, variant=_PV)
             sw, sh = sprite.get_size()

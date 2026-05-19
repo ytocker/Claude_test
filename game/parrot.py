@@ -956,15 +956,24 @@ def _grand_canvas() -> pygame.Surface:
     return pygame.Surface((GRAND_W, GRAND_H), pygame.SRCALPHA)
 
 
-def _draw_small_eye(surf, x, y, glow=False):
-    """Tiny eye glyph used by the grandiose variants — replaces the
-    full sunglasses with a single sclera + pupil so the head isn't
-    dominated by aviator frames at the new larger sprite scale."""
-    pygame.draw.circle(surf, (255, 250, 220), (x, y), 2)
-    pygame.draw.circle(surf, ( 20,  10,  10), (x, y), 1)
+def _draw_small_eye(surf, x, y, glow=False, size: int = 2,
+                    glow_color=(255, 240, 160, 220), friendly: bool = False):
+    """Tiny eye glyph used by the grandiose variants. `size` scales the
+    sclera/pupil; `friendly=True` adds a soft sclera + downsized pupil
+    (less menacing read); `glow_color` lets variants tone down the
+    intense gold eye-glow."""
+    sclera_r = size + (1 if friendly else 0)
+    pupil_r  = max(1, size - (1 if friendly else 1))
+    pygame.draw.circle(surf, (255, 250, 220), (x, y), sclera_r + 1)
+    pygame.draw.circle(surf, ( 20,  10,  10), (x, y), pupil_r)
+    # Tiny white catch-light gives a friendlier "alive" eye
+    if friendly:
+        pygame.draw.circle(surf, (255, 255, 255),
+                           (x - max(0, pupil_r - 1),
+                            y - max(0, pupil_r - 1)), 1)
     if glow:
         glow_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
-        pygame.draw.circle(glow_surf, (255, 240, 160, 220), (5, 5), 4)
+        pygame.draw.circle(glow_surf, glow_color, (5, 5), 4)
         pygame.draw.circle(glow_surf, (255, 255, 230, 255), (5, 5), 2)
         surf.blit(glow_surf, (x - 5, y - 5),
                   special_flags=pygame.BLEND_RGBA_ADD)
@@ -1770,13 +1779,18 @@ def _build_ff_wing(angle_deg, length: int = 36, layered: int = 3):
     return pygame.transform.rotate(w, angle_deg)
 
 
-def _paint_ff_body_and_neck(surf, cx, cy, neck_shape: str = "s_curve"):
+def _paint_ff_body_and_neck(surf, cx, cy, neck_shape: str = "s_curve",
+                            body_palette=None, friendly_face: bool = False,
+                            eye_glow_color=(255, 240, 160, 220)):
     """Common slim phoenix body + S-curve neck + head. `neck_shape`:
       's_curve' — classic fenghuang S
       'upright' — straight vertical neck
       'forward' — neck angled forward (motion-implying)
+    `body_palette` lets variants override the molten-gold gradient.
+    `friendly_face` enables a bigger sclera + catch-light + softer
+    beak so the bird reads as cute rather than predatory.
     Returns (head_x, head_y) for the caller to attach crest + beak."""
-    b = _FF_BODY
+    b = body_palette if body_palette is not None else _FF_BODY
     # 1. Slim body (smaller than parrot)
     pygame.draw.ellipse(surf, b[0],
                         pygame.Rect(cx - 7, cy - 4, 18, 22))
@@ -1810,15 +1824,26 @@ def _paint_ff_body_and_neck(surf, cx, cy, neck_shape: str = "s_curve"):
                         pygame.Rect(head_x - 4, head_y - 3, 10,  8))
     pygame.draw.ellipse(surf, b[2],
                         pygame.Rect(head_x - 2, head_y - 0,  4,  3))
-    # 4. Beak (hooked gold)
-    pygame.draw.polygon(surf, (255, 200, 60), [
-        (head_x + 5, head_y - 2), (head_x + 11, head_y),
-        (head_x + 7, head_y + 2), (head_x + 5, head_y)])
-    pygame.draw.polygon(surf, (140,  90, 20), [
-        (head_x + 5, head_y - 2), (head_x + 11, head_y),
-        (head_x + 7, head_y + 2), (head_x + 5, head_y)], 1)
+    # 4. Beak — hooked gold (friendly variant softens the hook into a
+    # rounded triangle that reads as cute rather than predatory).
+    if friendly_face:
+        pygame.draw.polygon(surf, (255, 200, 60), [
+            (head_x + 5, head_y - 1), (head_x + 9, head_y + 1),
+            (head_x + 5, head_y + 3)])
+        pygame.draw.polygon(surf, (180, 120, 30), [
+            (head_x + 5, head_y - 1), (head_x + 9, head_y + 1),
+            (head_x + 5, head_y + 3)], 1)
+    else:
+        pygame.draw.polygon(surf, (255, 200, 60), [
+            (head_x + 5, head_y - 2), (head_x + 11, head_y),
+            (head_x + 7, head_y + 2), (head_x + 5, head_y)])
+        pygame.draw.polygon(surf, (140,  90, 20), [
+            (head_x + 5, head_y - 2), (head_x + 11, head_y),
+            (head_x + 7, head_y + 2), (head_x + 5, head_y)], 1)
     # 5. Eye
-    _draw_small_eye(surf, head_x + 2, head_y - 1, glow=True)
+    _draw_small_eye(surf, head_x + 2, head_y - 1, glow=True,
+                    size=(3 if friendly_face else 2),
+                    glow_color=eye_glow_color, friendly=friendly_face)
     return head_x, head_y
 
 
@@ -1864,10 +1889,12 @@ def _paint_ff_tail_fan(surf, ox, oy, plume_specs):
         pygame.draw.line(surf, f[3], (int(ox), int(oy)), tip, 1)
 
 
-def _paint_ff_crest(surf, head_x, head_y, style: str):
+def _paint_ff_crest(surf, head_x, head_y, style: str,
+                    flame_palette=None):
     """Crest of curling flame-tinted feathers above the head.
-    `style`: 'curl3', 'tall1+2', 'twin_trail', 'short3', 'grand5'."""
-    f = _FF_FLAME
+    `style`: 'curl3', 'tall1+2', 'twin_trail', 'short3', 'grand5'.
+    `flame_palette` lets variants tint the crest (e.g. warmer)."""
+    f = flame_palette if flame_palette is not None else _FF_FLAME
     # Helper to draw one curling feather as a teardrop polygon + stripe
     def _curl(sx, sy, cx_c, cy_c, ex, ey, hw, color):
         pygame.draw.polygon(surf, color, [
@@ -2143,25 +2170,34 @@ def _paint_cascade_tail(surf, ox, oy, plumes,
 
 
 def _draw_primary_feathers(w, tip, count: int, radial_deg: float,
-                           fan_deg: float = 50.0, length: int = 14):
+                           fan_deg: float = 50.0, length: int = 14,
+                           flame_palette=None,
+                           rounded: bool = False):
     """Paint `count` distinct primary feathers radiating from `tip` in a
-    fan. `radial_deg` is the centre angle of the fan; `fan_deg` is the
-    total angular spread. Each feather is drawn as a tapered line so the
-    wingtip reads as fingered primaries rather than a smooth blob."""
-    f = _FF_FLAME
+    fan. `rounded=True` ends each feather in a soft gold circle (less
+    spiky), `flame_palette` lets variants brighten the feather tones."""
+    f = flame_palette if flame_palette is not None else _FF_FLAME
     for k in range(count):
         t = k / max(1, count - 1)
         ang = math.radians(radial_deg + (t - 0.5) * fan_deg)
         plen = length + int(t * 3)        # outer primaries a touch longer
         ptip = (int(tip[0] + math.cos(ang) * plen),
                 int(tip[1] + math.sin(ang) * plen))
-        # Tapered triangle for the feather body
-        perp = (-math.sin(ang) * 1.4, math.cos(ang) * 1.4)
-        base_l = (int(tip[0] + perp[0]), int(tip[1] + perp[1]))
-        base_r = (int(tip[0] - perp[0]), int(tip[1] - perp[1]))
-        pygame.draw.polygon(w, f[0], [base_l, base_r, ptip])
-        pygame.draw.line(w, f[2], tip, ptip, 1)
-        pygame.draw.circle(w, f[4], ptip, 1)
+        if rounded:
+            # Rounder primary: thicker line + filled gold tip circle
+            # (no sharp triangle), reads as feather pad not spike.
+            pygame.draw.line(w, f[1], tip, ptip, 3)
+            pygame.draw.line(w, f[2], tip, ptip, 1)
+            pygame.draw.circle(w, f[3], ptip, 2)
+            pygame.draw.circle(w, f[4], ptip, 1)
+        else:
+            # Original sharp-triangle primary
+            perp = (-math.sin(ang) * 1.4, math.cos(ang) * 1.4)
+            base_l = (int(tip[0] + perp[0]), int(tip[1] + perp[1]))
+            base_r = (int(tip[0] - perp[0]), int(tip[1] - perp[1]))
+            pygame.draw.polygon(w, f[0], [base_l, base_r, ptip])
+            pygame.draw.line(w, f[2], tip, ptip, 1)
+            pygame.draw.circle(w, f[4], ptip, 1)
 
 
 # ── 1. SOAR — horizontal sweep with tips back ──────────────────────────────
@@ -2423,17 +2459,21 @@ def _build_dive_frame(angle):
 
 # ── 5. ETERNAL — wings in a graceful S-curve, long ribbon-tail ──────────────
 
-def _build_eternal_wing(angle_deg):
+def _build_eternal_wing(angle_deg, flame_palette=None,
+                        shadow_alpha: int = 150,
+                        rounded_tips: bool = False,
+                        primary_count: int = 6):
     """The storybook eternal phoenix wing: 60 px long with a graceful
     S-curve — top edge sweeps up then back, bottom edge sweeps down then
-    back. 6 primaries at the tip with extra layering for ornate detail."""
+    back. Tweakables let less-creepy variants tone down the dark
+    shadow, soften primary feather tips, and shift the palette warmer."""
     box = 88
     w = pygame.Surface((box, box), pygame.SRCALPHA)
-    f = _FF_FLAME
+    f = flame_palette if flame_palette is not None else _FF_FLAME
     shoulder = (box // 2 - 26, box // 2)
     tip = (box // 2 + 26, box // 2 - 4)
-    # Drop shadow
-    pygame.draw.polygon(w, (10, 5, 12, 150), [
+    # Drop shadow (alpha tunable — friendly variants halve it)
+    pygame.draw.polygon(w, (10, 5, 12, shadow_alpha), [
         shoulder,
         (shoulder[0] + 6, shoulder[1] - 14),
         (shoulder[0] + 22, shoulder[1] - 16),
@@ -2480,37 +2520,144 @@ def _build_eternal_wing(angle_deg):
                               (tip[0] - 8, tip[1] + 1), 1)
     pygame.draw.line(w, f[0], (shoulder[0] + 4, shoulder[1] + 2),
                               (tip[0] - 10, tip[1] + 3), 1)
-    # 6 primaries fanned at the tip (broader fan than other variants)
-    _draw_primary_feathers(w, tip, count=6, radial_deg=175,
-                           fan_deg=85, length=15)
+    # 6 primaries fanned at the tip (broader fan than other variants).
+    # Tunable: friendly variants use fewer + rounder tips.
+    _draw_primary_feathers(w, tip, count=primary_count, radial_deg=175,
+                           fan_deg=85, length=15,
+                           flame_palette=f, rounded=rounded_tips)
     return pygame.transform.rotate(w, angle_deg)
 
 
 def _build_eternal_frame(angle):
+    return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal"])
+
+
+# ── Less-creepy Eternal palettes ───────────────────────────────────────────
+# The original Eternal reads as creepy because of the dark blood-red outer
+# crimson + sharp triangular primaries + heavy drop shadow + cold gold-glow
+# eye + 4 long trailing tail ribbons. Each less-creepy palette/config tones
+# one or more of those down.
+
+# Warmer — brighter mid-red instead of dark crimson; everything else default.
+_FF_FLAME_WARM = [
+    (200,  60, 35), (240, 120, 45), (255, 175, 60),
+    (255, 225,  95), (255, 248, 200),
+]
+_FF_BODY_WARM = [
+    (180,  80,  45), (235, 120,  55),
+    (255, 175,  80), (255, 225, 120),
+]
+
+# Dawn — warm yellow/gold/peach dominant, NO dark red. The "daybreak phoenix."
+_FF_FLAME_DAWN = [
+    (230, 130,  50), (255, 180,  80), (255, 220, 110),
+    (255, 245, 170), (255, 252, 230),
+]
+_FF_BODY_DAWN = [
+    (210, 130,  60), (250, 190,  90),
+    (255, 225, 130), (255, 248, 200),
+]
+
+# Each entry mixes a palette choice with shape softness, tail size, and
+# face friendliness so the 5 alternatives sit at different points on the
+# "creepy ←→ cute" axis.
+_ETERNAL_VARIANTS = {
+    # Reference (current shipped Eternal) — kept here for symmetry; the
+    # dispatcher routes "eternal" to it for the legacy contact sheets.
+    "eternal": dict(
+        flame=_FF_FLAME, body=_FF_BODY,
+        tail=[(200, 32, 5, 0.8), (190, 36, 5, 0.9),
+              (180, 34, 4, 0.7), (170, 28, 4, 0.6)],
+        shadow_alpha=150, rounded_tips=False, primary_count=6,
+        friendly_face=False,
+        eye_glow=(255, 240, 160, 220),
+    ),
+    # 1. WARM — palette only: lighter, warmer fire; same silhouette.
+    "eternal_warm": dict(
+        flame=_FF_FLAME_WARM, body=_FF_BODY_WARM,
+        tail=[(200, 32, 5, 0.8), (190, 36, 5, 0.9),
+              (180, 34, 4, 0.7), (170, 28, 4, 0.6)],
+        shadow_alpha=150, rounded_tips=False, primary_count=6,
+        friendly_face=False,
+        eye_glow=(255, 230, 140, 200),
+    ),
+    # 2. SOFT — original palette + rounded primary tips + light drop shadow.
+    "eternal_soft": dict(
+        flame=_FF_FLAME, body=_FF_BODY,
+        tail=[(200, 32, 5, 0.8), (190, 36, 5, 0.9),
+              (180, 34, 4, 0.7), (170, 28, 4, 0.6)],
+        shadow_alpha=70, rounded_tips=True, primary_count=5,
+        friendly_face=False,
+        eye_glow=(255, 240, 160, 180),
+    ),
+    # 3. DAWN — much brighter palette; short 3-plume tail; gentler curve.
+    "eternal_dawn": dict(
+        flame=_FF_FLAME_DAWN, body=_FF_BODY_DAWN,
+        tail=[(195, 26, 4, 0.5), (185, 30, 4, 0.6),
+              (175, 24, 3, 0.4)],
+        shadow_alpha=60, rounded_tips=True, primary_count=5,
+        friendly_face=False,
+        eye_glow=(255, 250, 200, 160),
+    ),
+    # 4. FRIEND — original palette + bigger sclera + soft beak + catch-light.
+    "eternal_friend": dict(
+        flame=_FF_FLAME, body=_FF_BODY,
+        tail=[(200, 32, 5, 0.8), (190, 36, 5, 0.9),
+              (180, 34, 4, 0.7), (170, 28, 4, 0.6)],
+        shadow_alpha=110, rounded_tips=False, primary_count=6,
+        friendly_face=True,
+        eye_glow=(255, 240, 160, 120),
+    ),
+    # 5. LITE — everything turned friendly. Warm palette + soft tips +
+    # short tail + light shadow + friendly face. The "all-in" cute pick.
+    "eternal_lite": dict(
+        flame=_FF_FLAME_WARM, body=_FF_BODY_WARM,
+        tail=[(195, 26, 4, 0.5), (185, 30, 4, 0.6),
+              (175, 24, 3, 0.4)],
+        shadow_alpha=60, rounded_tips=True, primary_count=5,
+        friendly_face=True,
+        eye_glow=(255, 230, 140, 140),
+    ),
+}
+
+
+def _build_eternal_variant(angle, cfg):
     surf = _grand_canvas()
     cx, cy = GRAND_CX, GRAND_CY
-    # 4 LONG ribbon-flames cascading DOWN and back (the most prominent
-    # tail of the 5, but still a cascade — not a fan).
-    _paint_cascade_tail(surf, cx - 4, cy + 12, [
-        (200, 32, 5, 0.8),   # uppermost, strong down-curl
-        (190, 36, 5, 0.9),   # CENTRE longest, longest curl
-        (180, 34, 4, 0.7),
-        (170, 28, 4, 0.6),   # lowermost
-    ])
-    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="s_curve")
-    # Wings — graceful S-curve, fully spread
-    wing_right = _build_eternal_wing(angle)
+    # 1. Cascade tail (palette + plume list configurable)
+    _paint_cascade_tail(surf, cx - 4, cy + 12,
+                         cfg["tail"], flame_palette=cfg["flame"])
+    # 2. Body + neck + head + beak + eye
+    head_x, head_y = _paint_ff_body_and_neck(
+        surf, cx, cy, neck_shape="s_curve",
+        body_palette=cfg["body"],
+        friendly_face=cfg["friendly_face"],
+        eye_glow_color=cfg["eye_glow"])
+    # 3. Wings — graceful S-curve, fully spread
+    wing_right = _build_eternal_wing(
+        angle, flame_palette=cfg["flame"],
+        shadow_alpha=cfg["shadow_alpha"],
+        rounded_tips=cfg["rounded_tips"],
+        primary_count=cfg["primary_count"])
     wing_left  = pygame.transform.flip(wing_right, True, False)
     surf.blit(wing_right, wing_right.get_rect(center=(cx + 30, cy - 4)).topleft)
     surf.blit(wing_left,  wing_left.get_rect(center=(cx - 30, cy - 4)).topleft)
-    # 5-feather elaborate crown (kept from original Grand — user liked it)
-    _paint_ff_crest(surf, head_x, head_y, "grand5")
-    # Ember sparks — elaborate scatter
+    # 4. 5-feather elaborate crown (palette tinted)
+    _paint_ff_crest(surf, head_x, head_y, "grand5",
+                    flame_palette=cfg["flame"])
+    # 5. Ember sparks — elaborate scatter (palette tinted)
     for ex, ey in ((-46, -6), (46, -6), (-38, -18), (38, -18),
                    (-24, -32), (24, -32), (-32, 22), (32, 22),
                    (-20, 28), (20, 28), (0, -42)):
-        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+        pygame.draw.circle(surf, cfg["flame"][3], (cx + ex, cy + ey), 1)
     return surf
+
+
+def _build_eternal_warm_frame(angle):   return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal_warm"])
+def _build_eternal_soft_frame(angle):   return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal_soft"])
+def _build_eternal_dawn_frame(angle):   return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal_dawn"])
+def _build_eternal_friend_frame(angle): return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal_friend"])
+def _build_eternal_lite_frame(angle):   return _build_eternal_variant(angle, _ETERNAL_VARIANTS["eternal_lite"])
 
 
 # Dispatch table the lazy frame-builder reads in `_get_phoenix_frames`.
@@ -2526,6 +2673,12 @@ _GRANDIOSE_BUILDERS = {
     "stoop":     _build_stoop_frame,
     "dive":      _build_dive_frame,
     "eternal":   _build_eternal_frame,
+    # Less-creepy Eternal iterations (palette + softness + face tweaks)
+    "eternal_warm":   _build_eternal_warm_frame,
+    "eternal_soft":   _build_eternal_soft_frame,
+    "eternal_dawn":   _build_eternal_dawn_frame,
+    "eternal_friend": _build_eternal_friend_frame,
+    "eternal_lite":   _build_eternal_lite_frame,
     # Fire-fenghuang hybrids (imperial palette + fenghuang silhouette)
     "blaze":     _build_blaze_frame,
     "sunburst":  _build_sunburst_frame,
