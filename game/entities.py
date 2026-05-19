@@ -2023,14 +2023,14 @@ class PowerUp:
         a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse * 1.7)))
         pygame.draw.circle(halo, (255, 200, 90, a // 2), (24, 24), 22)
         surf.blit(halo, (cx - 24, cy - 24))
-        # Scratch-off card: tilted rectangle with gold border + question marks.
-        # Slight tilt by drawing on a small surface then rotating.
+        # Scratch-off card: tilted bright-gold rectangle with question
+        # marks. Shadow frame removed — the card is a single clean
+        # gold fill, no dark-gold backing rect behind it.
         card_w, card_h = 30, 22
         card_surf = pygame.Surface((card_w + 6, card_h + 6), pygame.SRCALPHA)
         card_rect = pygame.Rect(3, 3, card_w, card_h)
-        pygame.draw.rect(card_surf, (180, 130, 30), card_rect, border_radius=3)
-        pygame.draw.rect(card_surf, (255, 220, 90), card_rect.inflate(-4, -4),
-                         border_radius=2)
+        pygame.draw.rect(card_surf, (255, 220, 90), card_rect,
+                         border_radius=3)
         # Scratch panel (silvery patch with question marks)
         scratch_rect = pygame.Rect(7, 8, card_w - 8, card_h - 10)
         pygame.draw.rect(card_surf, (180, 180, 200), scratch_rect, border_radius=2)
