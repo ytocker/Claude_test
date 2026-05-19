@@ -1189,22 +1189,15 @@ class Bird:
         # Chinstrap — modelled after a real skate helmet (Triple 8 /
         # Pro-Tec). The V-junction sits "just below + slightly
         # forward of the ear" (BHSI fit rule). The strap path stays
-        # on Pip's red feathers, behind the sunglasses lens. The
-        # lower segment (junction → chin clip) is drawn 3 px thick
-        # for visibility — it's the part the eye reads as "the
-        # strap holding the helmet on".
+        # on Pip's red feathers, behind the sunglasses lens.
         #
         # Surface coords (anchor (+18, -10), drop=28 → world_y =
-        # surface_y - 35.5):
-        #   front_anchor = (pad+8, 20) = (12, 20) — on the rim
-        #   rear_anchor  = (pad+4, 20) = (8, 20)  — on the rim
-        #                                          (rear clamped to
-        #                                          the dome's left
-        #                                          edge so the strap
-        #                                          attaches visibly)
-        #   junction     = (6, 30) — adjuster at world y=-5.5,
-        #                            left of the ear
-        #   chin clip    = (14, 37) — chin at world y=+1.5
+        # surface_y - 35.5). Picked variant N4:
+        #   front_anchor = (8, 20)  — on the rim, well behind lens
+        #   rear_anchor  = (4, 20)  — on the rim's left edge
+        #                             (= helm pad, the dome edge)
+        #   junction     = (6, 30)  — V-junction below the ear
+        #   chin clip    = (14, 37) — at Pip's chin/throat
         OUT     = (15, 15, 22)
         CHROME  = (200, 200, 210)
         BUCKLE  = (200, 50, 50)
@@ -1212,16 +1205,14 @@ class Bird:
         # part of the helmet rather than a separate piece. The
         # clip's red body is the only chromatic accent.
         STRAP   = OUT
-        front_anchor = (pad + 8, pad + hh + 1)
-        rear_anchor  = (pad + 4, pad + hh + 1)
+        rim_y = pad + hh + 1
+        front_anchor = (8, rim_y)
+        rear_anchor  = (4, rim_y)
         junction     = (6, 30)
         clip_centre  = (14, 37)
-        # Upper V — two 2-px straps from rim to junction.
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2)
         pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2)
-        # Lower strap — 3 px thick so the bottom segment reads
-        # clearly as the chin-securing strap.
-        pygame.draw.line(helm, STRAP, junction, clip_centre, 3)
+        pygame.draw.line(helm, STRAP, junction, clip_centre, 2)
         # Plastic adjuster slider at the ear junction — tiny 3×2
         # body with a chrome outline.
         adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
