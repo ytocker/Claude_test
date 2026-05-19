@@ -26,7 +26,7 @@ from game.config import (
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     NIGHTGLOW_DURATION,
-    PHOENIX_DURATION, PHOENIX_INVULN,
+    PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
     RAIL_PILLAR_COUNT, TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     VACUUM_TRAVEL_TIME,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -124,6 +124,11 @@ class World:
         # phoenix_invuln seconds of collision grace).
         self.phoenix_timer    = 0.0
         self.phoenix_invuln   = 0.0
+        # phoenix_rebirth: optional state dict for variants whose revive
+        # plays out over multiple frames (mythic: 0.6 s pause; ashes:
+        # 0.8 s ash-fall + egg-fall + auto-position). None when no
+        # rebirth is in progress. See _resolve_phoenix_rebirth.
+        self.phoenix_rebirth: "dict | None" = None
         # Rail: a 3-pillar grindrail. We snapshot which Pipe instances carry
         # the rail when the powerup activates; the rail vanishes once they've
         # all scrolled off screen. rail_pending counts the remaining pipes
@@ -497,6 +502,23 @@ class World:
 
     def update(self, dt):
         self._idle_t += dt
+        # Phoenix rebirth: variants whose revive animation plays out
+        # over multiple frames drive their state machine here. Mythic
+        # freezes the world; ashes lets it scroll. Both early-return
+        # the rest of the simulation appropriately.
+        if self.phoenix_rebirth is not None:
+            self._resolve_phoenix_rebirth(dt)
+            if (self.phoenix_rebirth is not None
+                    and self.phoenix_rebirth["kind"] == "mythic_egg"):
+                # Mythic: freeze the world. Only update particles and
+                # float texts so the egg pulse + crack stays animated.
+                for p in self.particles:
+                    p.update(dt)
+                self.particles = [p for p in self.particles if p.alive()]
+                for t in self.float_texts:
+                    t.update(dt)
+                self.float_texts = [t for t in self.float_texts if t.alive()]
+                return
         # The biome cycle only advances once the run has actually started.
         # While ready_t > 0 the sky stays frozen at the dawn palette — the
         # day/night arc was rolling forward earlier even when Pip was
@@ -552,6 +574,19 @@ class World:
             # Magnet pull — tug uncollected coins toward the bird.
             if self.magnet_timer > 0:
                 self._apply_magnet(dt)
+            # Phoenix-solar variant pulls coins at half strength while
+            # active. Reuses the magnet routine with weaker multipliers
+            # so the real MAGNET buff stays strictly stronger.
+            elif (self.phoenix_timer > 0 and PHOENIX_VARIANT == "solar"):
+                self._apply_magnet(dt, radius_mult=0.55, strength_mult=0.4)
+            # Phoenix-ember variant: emit an ember roughly every other
+            # frame at Pip's tail position. Reuses the existing Particle
+            # entity so we don't pay the cost of a new class.
+            if self.phoenix_timer > 0 and PHOENIX_VARIANT == "ember":
+                self._ember_trail_accum = getattr(self, "_ember_trail_accum", 0.0) + dt
+                if self._ember_trail_accum >= 0.033:
+                    self._ember_trail_accum = 0.0
+                    self._spawn_ember_trail_particle()
 
             # cull off-screen
             self.pipes = [p for p in self.pipes if not p.off_screen()]
@@ -777,8 +812,10 @@ class World:
         # PHOENIX grace: short window after a phoenix revive where Pip is
         # immune to ground + pipe collisions, so the just-revived bird
         # has a moment to clear the obstacle that killed him. Ceiling
-        # clamp above still applies (it's non-lethal anyway).
-        if self.phoenix_invuln > 0:
+        # clamp above still applies (it's non-lethal anyway). Phoenix-
+        # rebirth state machine (ashes egg) also short-circuits here so
+        # the egg can sail through pipes during the hatch window.
+        if self.phoenix_invuln > 0 or self.phoenix_rebirth is not None:
             return
         if by + br > GROUND_Y:
             if skating:
@@ -948,37 +985,21 @@ class World:
         if self.game_over:
             return
         # PHOENIX revive: if the buff is active, consume it instead of
-        # dying. Ends the buff (one-shot), grants a short collision grace
-        # so the next frame doesn't re-trigger this branch, and gives Pip
-        # an automatic upward boost so the camera reads "rebirth" rather
-        # than "stalled mid-pillar."
+        # dying. The revive animation varies by PHOENIX_VARIANT — see
+        # the per-variant helper methods below.
         if self.bird.phoenix_active:
             self.phoenix_timer = 0.0
             self.bird.phoenix_active = False
-            self.phoenix_invuln = PHOENIX_INVULN
-            self.bird.vy = FLAP_V * 0.9
-            self.shake_mag = max(self.shake_mag, 6.0)
-            self.shake_t   = max(self.shake_t,   0.3)
-            audio.play_ghost()
-            audio.play_thunder()
-            for _ in range(36):
-                ang = random.uniform(0, math.tau)
-                spd = random.uniform(160, 420)
-                col = random.choice((
-                    (255,  90,  30), (255, 180,  60),
-                    (255, 230, 130), WHITE,
-                ))
-                self.particles.append(Particle(
-                    self.bird.x, self.bird.y,
-                    math.cos(ang) * spd, math.sin(ang) * spd,
-                    random.uniform(0.5, 1.2),
-                    random.randint(3, 6),
-                    col, gravity=180,
-                ))
-            self.float_texts.append(FloatText(
-                "REBORN!", self.bird.x, self.bird.y - 32, (255, 140, 40),
-                size=30, life=1.4, vy=-36, style="powerup",
-            ))
+            if PHOENIX_VARIANT == "solar":
+                self._revive_solar()
+            elif PHOENIX_VARIANT == "ember":
+                self._revive_ember()
+            elif PHOENIX_VARIANT == "mythic":
+                self._revive_mythic()
+            elif PHOENIX_VARIANT == "ashes":
+                self._revive_ashes()
+            else:
+                self._revive_classic()
             return
         self.game_over = True
         self.bird.alive = False
@@ -994,6 +1015,196 @@ class World:
                 random.choice((PARTICLE_CRIM, PARTICLE_ORNG, PARTICLE_WHT)),
                 gravity=900,
             ))
+
+    # ── Phoenix revive helpers (one per PHOENIX_VARIANT) ────────────────────
+
+    def _revive_classic(self):
+        """The shipped revive: orange/red/white fire burst around Pip,
+        auto-flap upward, REBORN! float text. Pip stays where he was."""
+        self.phoenix_invuln = PHOENIX_INVULN
+        self.bird.vy = FLAP_V * 0.9
+        self.shake_mag = max(self.shake_mag, 6.0)
+        self.shake_t   = max(self.shake_t,   0.3)
+        audio.play_ghost()
+        audio.play_thunder()
+        for _ in range(36):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(160, 420)
+            col = random.choice((
+                (255,  90,  30), (255, 180,  60),
+                (255, 230, 130), WHITE,
+            ))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.5, 1.2),
+                random.randint(3, 6),
+                col, gravity=180,
+            ))
+        self.float_texts.append(FloatText(
+            "REBORN!", self.bird.x, self.bird.y - 32, (255, 140, 40),
+            size=30, life=1.4, vy=-36, style="powerup",
+        ))
+
+    def _revive_solar(self):
+        """Solar revive: gold-white expanding ring, no red. Brighter,
+        more 'sun-flash' than fire-burst."""
+        self.phoenix_invuln = PHOENIX_INVULN
+        self.bird.vy = FLAP_V * 0.9
+        self.shake_mag = max(self.shake_mag, 5.0)
+        self.shake_t   = max(self.shake_t,   0.25)
+        audio.play_thunder()
+        # 48 particles in a uniform ring (not random) so it reads as a
+        # single bloom rather than fire spray.
+        for i in range(48):
+            ang = (i / 48) * math.tau
+            spd = random.uniform(260, 360)
+            col = random.choice((
+                (255, 240, 180), (255, 250, 220),
+                (255, 220, 120), WHITE,
+            ))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.5, 1.0),
+                random.randint(2, 4),
+                col, gravity=120,
+            ))
+        self.float_texts.append(FloatText(
+            "REBORN!", self.bird.x, self.bird.y - 32, (255, 230, 130),
+            size=30, life=1.4, vy=-36, style="powerup",
+        ))
+
+    def _revive_ember(self):
+        """Ember revive: classic burst but the trail particles already
+        on screen flare brighter (we add a second wave of brighter
+        embers along Pip's recent path)."""
+        self._revive_classic()
+        # Lay down a brighter trail-flash behind Pip.
+        for i in range(18):
+            ang = math.pi + random.uniform(-0.4, 0.4)
+            spd = random.uniform(180, 360)
+            col = random.choice(((255, 230, 130), (255, 250, 220), WHITE))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.4, 0.8),
+                random.randint(2, 4),
+                col, gravity=80,
+            ))
+
+    def _revive_mythic(self):
+        """Mythic revive: the world freezes for 0.6 s while a flame egg
+        pulses and cracks at Pip's position. Standard auto-flap + invuln
+        kick in when the egg-crack completes (see _resolve_phoenix_rebirth)."""
+        # Defer the invuln + auto-flap to when the rebirth_pause ends.
+        self.phoenix_rebirth = {
+            "kind": "mythic_egg",
+            "t": 0.0,
+            "duration": 0.6,
+            "x": self.bird.x,
+            "y": self.bird.y,
+        }
+        self.bird.vy = 0.0
+        self.shake_mag = max(self.shake_mag, 4.0)
+        self.shake_t   = max(self.shake_t,   0.2)
+        audio.play_thunder()
+        # Initial fiery pulse to mark the egg's appearance.
+        for _ in range(20):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(80, 200)
+            col = random.choice(((255, 100, 30), (255, 200, 80), WHITE))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.4, 0.7),
+                random.randint(2, 4),
+                col, gravity=80,
+            ))
+
+    def _revive_ashes(self):
+        """Ashes revive: Pip collapses to ash, an egg falls through the
+        air, and after 0.8 s hatches at the centre of the next safe gap
+        ahead. World keeps scrolling normally during the egg phase."""
+        self.phoenix_rebirth = {
+            "kind": "ashes_egg",
+            "t": 0.0,
+            "duration": 0.8,
+            "x": self.bird.x,
+            "y": self.bird.y,
+            "egg_y": self.bird.y,
+            "egg_vy": 40.0,  # initial downward drift
+        }
+        audio.play_poof()
+        audio.play_thunder()
+        # 14-particle grey-and-amber ash cloud at Pip's last position.
+        for _ in range(14):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(40, 140)
+            col = random.choice((
+                (180, 170, 160), (140, 130, 120),
+                (220, 180, 110), ( 90,  80,  70),
+            ))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.6, 1.2),
+                random.randint(3, 5),
+                col, gravity=120,
+            ))
+
+    def _resolve_phoenix_rebirth(self, dt: float):
+        """Called every frame while `self.phoenix_rebirth` is set. Drives
+        the per-variant rebirth state machine to completion, then snaps
+        Pip back into play with PHOENIX_INVULN grace."""
+        st = self.phoenix_rebirth
+        st["t"] += dt
+        if st["kind"] == "ashes_egg":
+            # Egg drifts down + forward, ignoring pipes. Track its y
+            # so the renderer can draw an egg sprite where the bird
+            # would have been.
+            st["egg_vy"] = min(st["egg_vy"] + 320 * dt, 200.0)
+            st["egg_y"] += st["egg_vy"] * dt
+        if st["t"] < st["duration"]:
+            return
+        # Time to hatch / wake up.
+        if st["kind"] == "ashes_egg":
+            # Auto-position Pip at the centre of the next safe gap
+            # ahead of his current x. If no pipe is ahead, just snap
+            # him to mid-screen so he's not falling through the floor.
+            target_y = H * 0.4
+            for p in sorted(self.pipes, key=lambda q: q.x):
+                if p.x + PIPE_W > self.bird.x - 10:
+                    target_y = p.gap_y + p.gap_h / 2
+                    break
+            self.bird.y = max(40, min(GROUND_Y - 40, target_y))
+            self.bird.vy = 0.0
+        else:  # mythic_egg
+            self.bird.vy = FLAP_V * 0.9
+            # Final crack burst.
+            for _ in range(30):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(180, 420)
+                col = random.choice((
+                    (255, 100, 30), (255, 200, 80),
+                    (255, 240, 160), WHITE,
+                ))
+                self.particles.append(Particle(
+                    self.bird.x, self.bird.y,
+                    math.cos(ang) * spd, math.sin(ang) * spd,
+                    random.uniform(0.5, 1.0),
+                    random.randint(3, 5),
+                    col, gravity=160,
+                ))
+            audio.play_poof()
+        self.phoenix_invuln = PHOENIX_INVULN
+        self.shake_mag = max(self.shake_mag, 5.0)
+        self.shake_t   = max(self.shake_t,   0.3)
+        self.float_texts.append(FloatText(
+            "REBORN!", self.bird.x, self.bird.y - 32, (255, 200, 80),
+            size=30, life=1.4, vy=-36, style="powerup",
+        ))
+        self.phoenix_rebirth = None
 
     # ── pickups ──────────────────────────────────────────────────────────────
 
@@ -1065,12 +1276,15 @@ class World:
         ))
         audio.play_coin()
 
-    def _apply_magnet(self, dt):
-        """Tug uncollected coins within MAGNET_RADIUS toward the bird."""
+    def _apply_magnet(self, dt, radius_mult: float = 1.0,
+                      strength_mult: float = 1.0):
+        """Tug uncollected coins within MAGNET_RADIUS toward the bird.
+        `radius_mult` / `strength_mult` let weaker pseudo-magnets reuse
+        this routine (e.g. the solar phoenix variant pulls coins at 55%
+        radius and 40% strength)."""
         bx, by = self.bird.x, self.bird.y
-        r2 = MAGNET_RADIUS * MAGNET_RADIUS
-        # Strength falls off linearly with distance, capped so close coins
-        # don't teleport.
+        radius = MAGNET_RADIUS * radius_mult
+        r2 = radius * radius
         for c in self.coins:
             if c.collected:
                 continue
@@ -1080,12 +1294,47 @@ class World:
             if d2 > r2 or d2 < 1.0:
                 continue
             d = math.sqrt(d2)
-            pull = 520 * (1.0 - d / MAGNET_RADIUS)
+            pull = 520 * strength_mult * (1.0 - d / radius)
             c.x += (dx / d) * pull * dt
             c.y += (dy / d) * pull * dt
 
+    def _spawn_ember_trail_particle(self):
+        """Ember-trail variant: spawn a single small ember at Pip's tail
+        position with slight backward velocity so it lags behind as the
+        world scrolls forward, fading naturally via the Particle's life."""
+        col = random.choice((
+            (255,  90,  30), (255, 180,  60),
+            (255, 230, 130), WHITE,
+        ))
+        # Tail position — roughly behind Pip's body, scaled with grow.
+        scale = 1.0
+        if self.grow_timer > 0:
+            scale = GROW_SCALE
+        elif self.shrink_timer > 0:
+            scale = SHRINK_SCALE
+        tx = self.bird.x - 12 * scale + random.uniform(-2, 2)
+        ty = self.bird.y +  2 * scale + random.uniform(-3, 3)
+        # Slight backward drift so the trail lags behind a moving Pip.
+        vx = random.uniform(-40, -10)
+        vy = random.uniform(-25, 25)
+        self.particles.append(Particle(
+            tx, ty, vx, vy,
+            random.uniform(0.4, 0.7),
+            random.randint(2, 4),
+            col, gravity=30,
+        ))
+
     def _on_coin(self, coin: Coin):
-        value = 3 if self.triple_timer > 0 else 1
+        # Triple buff is the canonical ×3 multiplier. The ember-trail
+        # phoenix variant doubles coin value, but stacks NEVER exceed
+        # ×3 — phoenix alone gives ×2, phoenix+triple stays at ×3 (no
+        # double-dip to 6×).
+        if self.triple_timer > 0:
+            value = 3
+        elif (self.phoenix_timer > 0 and PHOENIX_VARIANT == "ember"):
+            value = 2
+        else:
+            value = 1
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")

@@ -255,6 +255,96 @@ def _draw_grow_halo(surf, cx, cy, pulse,
     surf.blit(halo, (cx - hcx, cy - hcy + peak_y_off))
 
 
+# ── Phoenix halos (one per variant) ──────────────────────────────────────────
+
+def _draw_phoenix_fire_halo(surf, x, y, frame_t):
+    """Classic / ember / ashes fire halo: 3 concentric circles, layered
+    red→orange→gold, pulsing on `frame_t`."""
+    halo = pygame.Surface((96, 96), pygame.SRCALPHA)
+    cyc = 0.5 + 0.5 * math.sin(frame_t * 0.7)
+    base_a = int(90 + 70 * cyc)
+    for r_glow, col in (
+        (44, (255,  80,  30, base_a // 4)),
+        (32, (255, 140,  40, base_a // 2)),
+        (22, (255, 210,  90, base_a)),
+    ):
+        pygame.draw.circle(halo, col, (48, 48), r_glow)
+    surf.blit(halo, (x - 48, y - 48))
+
+
+# Cache for the static (un-rotated) sun-ray template so we only paint it once.
+_phoenix_sun_template: "pygame.Surface | None" = None
+
+
+def _get_phoenix_sun_template() -> "pygame.Surface":
+    """8-spoke sun-ray template — rotated per frame in Bird.draw to give
+    the impression of a slowly turning halo. Pre-painted once, never
+    mutated, so rotating it is cheap."""
+    global _phoenix_sun_template
+    if _phoenix_sun_template is None:
+        size = 108
+        s = pygame.Surface((size, size), pygame.SRCALPHA)
+        c = size // 2
+        # Outer pale-gold rays
+        ray_r_outer = 52
+        ray_r_inner = 26
+        for i in range(8):
+            ang = i * (math.tau / 8)
+            cos_a, sin_a = math.cos(ang), math.sin(ang)
+            # Each ray is a triangle from a small base near the inner
+            # ring out to a sharp tip at ray_r_outer.
+            tip = (c + cos_a * ray_r_outer, c + sin_a * ray_r_outer)
+            # Perpendicular axis for the base width.
+            px, py = -sin_a, cos_a
+            base_l = (c + cos_a * ray_r_inner + px * 6,
+                      c + sin_a * ray_r_inner + py * 6)
+            base_r = (c + cos_a * ray_r_inner - px * 6,
+                      c + sin_a * ray_r_inner - py * 6)
+            pygame.draw.polygon(s, (255, 230, 130, 130), (tip, base_l, base_r))
+        _phoenix_sun_template = s
+    return _phoenix_sun_template
+
+
+def _draw_phoenix_solar_halo(surf, x, y, frame_t):
+    """Solar halo: rotating 8-spoke sun template + golden core glow +
+    orbiting embers around Pip. Reads as 'blessing of the sun.'"""
+    tpl = _get_phoenix_sun_template()
+    rot = pygame.transform.rotate(tpl, (frame_t * 18) % 360)
+    rrect = rot.get_rect(center=(int(x), int(y)))
+    surf.blit(rot, rrect.topleft)
+    # Golden core
+    core = pygame.Surface((44, 44), pygame.SRCALPHA)
+    cyc = 0.5 + 0.5 * math.sin(frame_t * 1.3)
+    a = int(140 + 60 * cyc)
+    pygame.draw.circle(core, (255, 240, 180, a // 2), (22, 22), 20)
+    pygame.draw.circle(core, (255, 250, 220, a),      (22, 22), 12)
+    surf.blit(core, (int(x) - 22, int(y) - 22))
+    # Six orbiting embers on a circular path.
+    for i in range(6):
+        ang = (frame_t * 1.2 + i * (math.tau / 6)) % math.tau
+        ex = x + math.cos(ang) * 30
+        ey = y + math.sin(ang) * 30
+        pygame.draw.circle(surf, (255, 230, 130), (int(ex), int(ey)), 2)
+        pygame.draw.circle(surf, (255, 250, 220), (int(ex), int(ey)), 1)
+
+
+def _draw_phoenix_mythic_halo(surf, x, y, frame_t):
+    """Mythic halo: larger fire halo than classic, with a fourth outer
+    ring + denser inner core so the storybook phoenix reads as a bigger
+    bird mid-air."""
+    halo = pygame.Surface((116, 116), pygame.SRCALPHA)
+    cyc = 0.5 + 0.5 * math.sin(frame_t * 0.7)
+    base_a = int(110 + 80 * cyc)
+    for r_glow, col in (
+        (56, (255,  60,  20, base_a // 5)),
+        (44, (255, 110,  40, base_a // 3)),
+        (32, (255, 170,  60, base_a // 2)),
+        (22, (255, 230, 130, base_a)),
+    ):
+        pygame.draw.circle(halo, col, (58, 58), r_glow)
+    surf.blit(halo, (int(x) - 58, int(y) - 58))
+
+
 # ── KFC logo sprite (lazy-loaded once at first draw) ─────────────────────────
 _kfc_sprite: "pygame.Surface | None" = None
 
@@ -634,19 +724,23 @@ class Bird:
             for r_glow, a in ((36, base_a // 3), (26, base_a // 2), (18, base_a)):
                 pygame.draw.circle(halo, (90, 240, 230, a), (40, 40), r_glow)
             surf.blit(halo, (self.x + shake_x - 40, self.y + shake_y - 40))
-        # PHOENIX: layered red→orange→gold halo behind Pip, slightly
-        # larger than nightglow's so the bird reads as wreathed in fire.
+        # PHOENIX: halo style varies by PHOENIX_VARIANT.
+        #   classic / ember / ashes — layered red→orange→gold fire halo.
+        #   solar  — rotating 8-spoke sun ray + gold core, plus orbiting
+        #            embers around Pip.
+        #   mythic — bigger, more saturated fire halo with extra outer
+        #            ring so the storybook phoenix reads as larger-than-life.
         if self.phoenix_active:
-            halo = pygame.Surface((96, 96), pygame.SRCALPHA)
-            cyc = 0.5 + 0.5 * math.sin(self.frame_t * 0.7)
-            base_a = int(90 + 70 * cyc)
-            for r_glow, col in (
-                (44, (255,  80,  30, base_a // 4)),
-                (32, (255, 140,  40, base_a // 2)),
-                (22, (255, 210,  90, base_a)),
-            ):
-                pygame.draw.circle(halo, col, (48, 48), r_glow)
-            surf.blit(halo, (self.x + shake_x - 48, self.y + shake_y - 48))
+            from game.config import PHOENIX_VARIANT as _PV
+            if _PV == "solar":
+                _draw_phoenix_solar_halo(
+                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
+            elif _PV == "mythic":
+                _draw_phoenix_mythic_halo(
+                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
+            else:  # classic / ember / ashes
+                _draw_phoenix_fire_halo(
+                    surf, self.x + shake_x, self.y + shake_y, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
         # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
@@ -2048,14 +2142,42 @@ class PowerUp:
         surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
 
     def _draw_phoenix_icon(self, surf):
-        """In-world phoenix pickup: a small flame-feathered bird sitting
-        on a pulsing fire halo. Body is a deep-red disc with a golden
-        underbelly highlight; three flame plumes rise above the head,
-        the centre plume taller than the side plumes. Bobs gently with
-        self.pulse."""
+        """In-world phoenix pickup. Dispatches on PHOENIX_VARIANT for
+        the look while keeping the same 32x32 footprint and bob."""
+        from game.config import PHOENIX_VARIANT as _PV
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        # Pulsing halo (red core, amber rim)
+        if _PV == "solar":
+            self._draw_phoenix_icon_solar(surf, cx, cy)
+        elif _PV == "mythic":
+            self._draw_phoenix_icon_mythic(surf, cx, cy)
+        elif _PV == "ember":
+            self._draw_phoenix_icon_ember(surf, cx, cy)
+        elif _PV == "ashes":
+            self._draw_phoenix_icon_ashes(surf, cx, cy)
+        else:
+            self._draw_phoenix_icon_classic(surf, cx, cy)
+
+    # ── Phoenix icon variants ───────────────────────────────────────
+    def _draw_phoenix_body(self, surf, cx, cy):
+        """Shared red-bird body used by classic / ember / ashes / mythic."""
+        pygame.draw.ellipse(surf, ( 90,  10,  20), (cx - 11, cy -  4, 22, 16))
+        pygame.draw.ellipse(surf, (210,  40,  30), (cx - 10, cy -  3, 20, 14))
+        pygame.draw.ellipse(surf, (255, 170,  40), (cx -  7, cy +  1, 14,  9))
+        pygame.draw.circle(surf, (255, 250, 220), (cx + 4, cy - 1), 2)
+        pygame.draw.circle(surf, ( 20,  10,  10), (cx + 4, cy - 1), 1)
+        pygame.draw.polygon(surf, (255, 200,  60), [
+            (cx +  9, cy + 1), (cx + 13, cy + 2), (cx +  9, cy + 4),
+        ])
+        # Tail flame spike at the back
+        pygame.draw.polygon(surf, (240, 100,  30), [
+            (cx -  9, cy + 0), (cx - 16, cy - 2), (cx - 10, cy + 4),
+        ])
+        pygame.draw.polygon(surf, (255, 200,  80), [
+            (cx -  9, cy + 1), (cx - 13, cy + 0), (cx - 10, cy + 4),
+        ])
+
+    def _draw_phoenix_fire_halo_icon(self, surf, cx, cy):
         halo = pygame.Surface((56, 56), pygame.SRCALPHA)
         cyc = 0.5 + 0.5 * math.sin(self.pulse * 1.6)
         a = int(70 + 70 * cyc)
@@ -2063,49 +2185,97 @@ class PowerUp:
         pygame.draw.circle(halo, (255, 150,  40, a // 2), (28, 28), 18)
         pygame.draw.circle(halo, (255, 220, 100, a),      (28, 28), 10)
         surf.blit(halo, (cx - 28, cy - 28))
-        # Flame plumes above the head (tallest in centre)
-        plumes = (
+
+    def _draw_phoenix_3_plumes(self, surf, cx, cy):
+        flicker = int(math.sin(self.pulse * 4.0) * 1)
+        for fx, fy, hw, hh, tip_col, base_col in (
             (cx,      cy - 16, 6, 14, (255, 230, 120), (240,  90,  30)),
             (cx - 6,  cy - 11, 4,  9, (255, 200,  80), (220,  70,  20)),
             (cx + 6,  cy - 11, 4,  9, (255, 200,  80), (220,  70,  20)),
-        )
-        flicker = int(math.sin(self.pulse * 4.0) * 1)
-        for fx, fy, hw, hh, tip_col, base_col in plumes:
+        ):
             tip_y = fy - hh + flicker
             pygame.draw.polygon(surf, base_col, [
-                (fx - hw, fy + 2),
-                (fx + hw, fy + 2),
-                (fx,      tip_y),
-            ])
+                (fx - hw, fy + 2), (fx + hw, fy + 2), (fx, tip_y)])
             pygame.draw.polygon(surf, tip_col, [
-                (fx - hw // 2, fy - 1),
-                (fx + hw // 2, fy - 1),
-                (fx,           tip_y + 2),
-            ])
-        # Bird body — deep red oval with golden belly + dark eye + tiny beak
-        pygame.draw.ellipse(surf, ( 90,  10,  20), (cx - 11, cy -  4, 22, 16))   # outline
-        pygame.draw.ellipse(surf, (210,  40,  30), (cx - 10, cy -  3, 20, 14))   # body
-        pygame.draw.ellipse(surf, (255, 170,  40), (cx -  7, cy +  1, 14,  9))   # belly highlight
-        # Eye
+                (fx - hw // 2, fy - 1), (fx + hw // 2, fy - 1),
+                (fx,           tip_y + 2)])
+
+    def _draw_phoenix_icon_classic(self, surf, cx, cy):
+        self._draw_phoenix_fire_halo_icon(surf, cx, cy)
+        self._draw_phoenix_3_plumes(surf, cx, cy)
+        self._draw_phoenix_body(surf, cx, cy)
+
+    def _draw_phoenix_icon_solar(self, surf, cx, cy):
+        # Rotating 8-spoke sun in gold-white, bird in gold tone.
+        tpl = _get_phoenix_sun_template()
+        rot = pygame.transform.rotate(tpl, (self.pulse * 25) % 360)
+        rrect = rot.get_rect(center=(cx, cy))
+        surf.blit(rot, rrect.topleft)
+        # Gold core
+        cyc = 0.5 + 0.5 * math.sin(self.pulse * 1.6)
+        a = int(140 + 60 * cyc)
+        pygame.draw.circle(surf, (255, 240, 180, a // 2), (cx, cy), 16)
+        pygame.draw.circle(surf, (255, 250, 220, a),      (cx, cy), 9)
+        # Bird body — gold-tinted variant of the shared body.
+        pygame.draw.ellipse(surf, (160,  90,  30), (cx - 11, cy -  4, 22, 16))
+        pygame.draw.ellipse(surf, (250, 200,  70), (cx - 10, cy -  3, 20, 14))
+        pygame.draw.ellipse(surf, (255, 240, 180), (cx -  7, cy +  1, 14,  9))
         pygame.draw.circle(surf, (255, 250, 220), (cx + 4, cy - 1), 2)
         pygame.draw.circle(surf, ( 20,  10,  10), (cx + 4, cy - 1), 1)
-        # Beak
-        pygame.draw.polygon(surf, (255, 200,  60), [
-            (cx +  9, cy + 1),
-            (cx + 13, cy + 2),
-            (cx +  9, cy + 4),
-        ])
-        # Tail flame spike at the back
-        pygame.draw.polygon(surf, (240, 100,  30), [
-            (cx -  9, cy + 0),
-            (cx - 16, cy - 2),
-            (cx - 10, cy + 4),
-        ])
-        pygame.draw.polygon(surf, (255, 200,  80), [
-            (cx -  9, cy + 1),
-            (cx - 13, cy + 0),
-            (cx - 10, cy + 4),
-        ])
+        pygame.draw.polygon(surf, (255, 230, 130), [
+            (cx +  9, cy + 1), (cx + 13, cy + 2), (cx +  9, cy + 4)])
+
+    def _draw_phoenix_icon_ember(self, surf, cx, cy):
+        # Classic look but with a small fade-trail of ember dots behind.
+        for i, (dx, sz, alpha) in enumerate(((6, 3, 220), (12, 2, 150), (18, 1, 90))):
+            ember = pygame.Surface((6, 6), pygame.SRCALPHA)
+            pygame.draw.circle(ember, (255, 180, 60, alpha), (3, 3), sz)
+            surf.blit(ember, (cx - 16 - dx, cy + 1 - sz // 2))
+        self._draw_phoenix_fire_halo_icon(surf, cx, cy)
+        self._draw_phoenix_3_plumes(surf, cx, cy)
+        self._draw_phoenix_body(surf, cx, cy)
+
+    def _draw_phoenix_icon_mythic(self, surf, cx, cy):
+        # Bigger halo + 5-plume crown + slightly more wing flare.
+        halo = pygame.Surface((64, 64), pygame.SRCALPHA)
+        cyc = 0.5 + 0.5 * math.sin(self.pulse * 1.4)
+        a = int(90 + 90 * cyc)
+        pygame.draw.circle(halo, (255,  60,  20, a // 4), (32, 32), 30)
+        pygame.draw.circle(halo, (255, 110,  40, a // 3), (32, 32), 22)
+        pygame.draw.circle(halo, (255, 180,  60, a // 2), (32, 32), 15)
+        pygame.draw.circle(halo, (255, 230, 130, a),      (32, 32), 8)
+        surf.blit(halo, (cx - 32, cy - 32))
+        # 5-plume crown
+        flicker = int(math.sin(self.pulse * 4.5) * 1)
+        for fx, fy, hw, hh, tip_col, base_col in (
+            (cx,      cy - 18, 6, 16, (255, 240, 170), (240,  90,  30)),
+            (cx - 7,  cy - 12, 4, 10, (255, 200,  80), (220,  70,  20)),
+            (cx + 7,  cy - 12, 4, 10, (255, 200,  80), (220,  70,  20)),
+            (cx - 13, cy -  8, 3,  6, (255, 180,  60), (200,  60,  20)),
+            (cx + 13, cy -  8, 3,  6, (255, 180,  60), (200,  60,  20)),
+        ):
+            tip_y = fy - hh + flicker
+            pygame.draw.polygon(surf, base_col, [
+                (fx - hw, fy + 2), (fx + hw, fy + 2), (fx, tip_y)])
+            pygame.draw.polygon(surf, tip_col, [
+                (fx - hw // 2, fy - 1), (fx + hw // 2, fy - 1),
+                (fx,           tip_y + 2)])
+        self._draw_phoenix_body(surf, cx, cy)
+        # Extra: gold glint in the eye to match the in-game sprite.
+        pygame.draw.circle(surf, (255, 230, 130), (cx + 4, cy - 1), 1)
+
+    def _draw_phoenix_icon_ashes(self, surf, cx, cy):
+        # Classic look + a small egg sketched under the bird's belly.
+        self._draw_phoenix_fire_halo_icon(surf, cx, cy)
+        self._draw_phoenix_3_plumes(surf, cx, cy)
+        self._draw_phoenix_body(surf, cx, cy)
+        # Egg under the belly (soft cream with darker rim).
+        pygame.draw.ellipse(surf, (140, 110,  60),
+                            pygame.Rect(cx - 5, cy + 8, 10, 7))
+        pygame.draw.ellipse(surf, (245, 230, 190),
+                            pygame.Rect(cx - 4, cy + 9, 8, 5))
+        pygame.draw.line(surf, (180, 140,  80),
+                         (cx - 2, cy + 11), (cx + 2, cy + 12), 1)
 
 
 # ── SHRINK power-up sprite (red velvet pancake parasol — sibling to GROW) ───

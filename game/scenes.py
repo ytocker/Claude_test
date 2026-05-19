@@ -64,6 +64,50 @@ def _draw_opener(surf: pygame.Surface, world) -> None:
 
 # ── Secret late-game powerup render helpers (called from App._render) ──────
 
+def _draw_phoenix_egg(surf, rebirth_state, frame_t, shake_x=0, shake_y=0):
+    """Render the phoenix-rebirth egg in place of Pip while the egg is
+    pulsing / cracking. Mythic shows a static pulsing egg; ashes shows
+    a falling egg drifting along egg_y."""
+    kind = rebirth_state["kind"]
+    t = rebirth_state["t"]
+    duration = rebirth_state["duration"]
+    progress = max(0.0, min(1.0, t / duration))
+    x = rebirth_state["x"] + shake_x
+    y = (rebirth_state.get("egg_y", rebirth_state["y"])
+         if kind == "ashes_egg" else rebirth_state["y"]) + shake_y
+    # Pulsing fire halo behind the egg, brighter near the hatch moment.
+    halo_alpha = int(120 + 100 * progress)
+    pulse_r = 28 + int(math.sin(frame_t * 6.0) * 3) + int(progress * 6)
+    halo = pygame.Surface((pulse_r * 4, pulse_r * 4), pygame.SRCALPHA)
+    cx, cy = halo.get_size()[0] // 2, halo.get_size()[1] // 2
+    pygame.draw.circle(halo, (255,  80,  30, halo_alpha // 4), (cx, cy), pulse_r + 8)
+    pygame.draw.circle(halo, (255, 140,  40, halo_alpha // 2), (cx, cy), pulse_r)
+    pygame.draw.circle(halo, (255, 220, 100, halo_alpha),      (cx, cy), max(6, pulse_r // 2))
+    surf.blit(halo, (int(x) - cx, int(y) - cy))
+    # Egg body — cream oval with a darker rim and a faint mottle.
+    egg_w, egg_h = 22, 30
+    egg_x = int(x) - egg_w // 2
+    egg_y = int(y) - egg_h // 2
+    pygame.draw.ellipse(surf, (130, 100,  60),
+                        pygame.Rect(egg_x, egg_y, egg_w, egg_h))
+    pygame.draw.ellipse(surf, (245, 230, 190),
+                        pygame.Rect(egg_x + 1, egg_y + 1, egg_w - 2, egg_h - 2))
+    # Crack lines that grow as t/duration progresses
+    crack_len = int(progress * 14)
+    if crack_len > 2:
+        pygame.draw.line(surf, ( 80,  60,  30),
+                         (int(x), int(y) - 6),
+                         (int(x) + crack_len // 2, int(y) - 2),
+                         max(1, crack_len // 6))
+        pygame.draw.line(surf, ( 80,  60,  30),
+                         (int(x) + crack_len // 2, int(y) - 2),
+                         (int(x) - crack_len // 3, int(y) + 4),
+                         max(1, crack_len // 6))
+    # Small mottle dots so the egg doesn't read as a perfect ellipse
+    pygame.draw.circle(surf, (200, 160,  90), (int(x) - 4, int(y) + 4), 1)
+    pygame.draw.circle(surf, (200, 160,  90), (int(x) + 5, int(y) - 6), 1)
+
+
 def _draw_treasure_box_on_bird(surf, world):
     """Planked-oak treasure chest hanging by two ropes from Pip's
     talons. Drawn every frame while world.treasure_box_timer > 0. The
@@ -924,8 +968,15 @@ class App:
             self.screen.blit(self.world.skateboard_activation_overlay,
                              (0, 0))
 
-        self.world.bird.draw(self.screen, sx, sy,
-                             flipped=self.world.reverse_timer > 0)
+        # Phoenix rebirth: draw an egg sprite at Pip's position instead
+        # of the bird while the egg is mid-hatch. Mythic freezes in
+        # place; ashes lets the egg fall through.
+        if self.world.phoenix_rebirth is not None:
+            _draw_phoenix_egg(self.screen, self.world.phoenix_rebirth,
+                              self.world._idle_t, sx, sy)
+        else:
+            self.world.bird.draw(self.screen, sx, sy,
+                                 flipped=self.world.reverse_timer > 0)
 
         for p in self.world.particles:
             p.draw(self.screen)
