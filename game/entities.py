@@ -2404,14 +2404,10 @@ class PowerUp:
     def _draw_lottery_icon(self, surf):
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
-        # Halo
-        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
-        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse * 1.7)))
-        pygame.draw.circle(halo, (255, 200, 90, a // 2), (24, 24), 22)
-        surf.blit(halo, (cx - 24, cy - 24))
         # Scratch-off card: tilted bright-gold rectangle with question
-        # marks. Shadow frame removed — the card is a single clean
-        # gold fill, no dark-gold backing rect behind it.
+        # marks. No halo behind it and no dark-gold backing rect — the
+        # card sits on the world cleanly with nothing tinting its
+        # silhouette.
         card_w, card_h = 30, 22
         card_surf = pygame.Surface((card_w + 6, card_h + 6), pygame.SRCALPHA)
         card_rect = pygame.Rect(3, 3, card_w, card_h)

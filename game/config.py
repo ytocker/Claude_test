@@ -147,7 +147,7 @@ PHOENIX_INVULN        = 1.5
 #   "eternal_lite"   — all-in: warm + rounded + short + friendly
 PHOENIX_VARIANT       = "eternal_warm"
 RAIL_PILLAR_COUNT     = 7       # cart rides over exactly N pillars then releases
-RAIL_SCROLL_MULT      = 1.5     # world scrolls 1.5x faster during the ride
+RAIL_SCROLL_MULT      = 2.0     # world scrolls 2x faster during the ride
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
 # loose — the player instantly gains TREASURE_BOX_COINS_PER_FLAP coins
