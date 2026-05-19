@@ -1186,15 +1186,16 @@ class Bird:
         pygame.draw.ellipse(helm, (240, 240, 230), sk)
         pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
 
-        # Chinstrap — modelled after a real skate helmet (Triple 8 /
-        # Pro-Tec). The V-junction sits "just below + slightly
-        # forward of the ear" (BHSI fit rule). The strap path stays
-        # on Pip's red feathers, behind the sunglasses lens. Picked
-        # variant N4 from the chinstrap iteration. Surface coords:
-        #   front_anchor = (pad+8, 20) = (12, 20)
-        #   rear_anchor  = (pad+4, 20) = (8, 20)
-        #   junction     = (6, 30) — V-junction below the ear
-        #   chin clip    = (14, 37) — at Pip's chin/throat
+        # Chinstrap — picked variant N4 from commit 8464059's
+        # iterator: `_h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14)`.
+        # The V-junction sits "just below + slightly forward of
+        # the ear" (BHSI fit rule). The strap path stays on Pip's
+        # red feathers, behind the sunglasses lens. Surface coords
+        # are RAW (not pad-offset) — fa_x=8 means surface x=8.
+        #   front_anchor = (8, 20)
+        #   rear_anchor  = (4, 20)
+        #   junction     = (6, 30)
+        #   chin clip    = (14, 37)
         OUT     = (15, 15, 22)
         CHROME  = (200, 200, 210)
         BUCKLE  = (200, 50, 50)
@@ -1202,8 +1203,9 @@ class Bird:
         # part of the helmet rather than a separate piece. The
         # clip's red body is the only chromatic accent.
         STRAP   = OUT
-        front_anchor = (pad + 8, pad + hh + 1)
-        rear_anchor  = (pad + 4, pad + hh + 1)
+        rim_y = pad + hh + 1
+        front_anchor = (8, rim_y)
+        rear_anchor  = (4, rim_y)
         junction     = (6, 30)
         clip_centre  = (14, 37)
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2)
