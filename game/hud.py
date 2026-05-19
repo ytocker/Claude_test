@@ -1033,7 +1033,8 @@ def _draw_buff_icon(surf, rect, kind):
         # fit inside the HUD slot. Keeps the HUD glyph identical to
         # what Pip looks like in-flight.
         if _PV in ("imperial", "fenghuang", "dragon", "comet", "royal",
-                   "blaze", "sunburst", "twin", "swift", "grand"):
+                   "blaze", "sunburst", "twin", "swift", "grand",
+                   "soar", "rise", "stoop", "dive", "eternal"):
             from game import parrot
             sprite = parrot.get_phoenix_parrot(0, 0.0, variant=_PV)
             sw, sh = sprite.get_size()

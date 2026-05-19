@@ -996,7 +996,9 @@ class World:
             if PHOENIX_VARIANT in ("ashes", "imperial", "fenghuang",
                                    "dragon", "comet", "royal",
                                    "blaze", "sunburst", "twin",
-                                   "swift", "grand"):
+                                   "swift", "grand",
+                                   "soar", "rise", "stoop",
+                                   "dive", "eternal"):
                 self._revive_ashes()
             elif PHOENIX_VARIANT == "solar":
                 self._revive_solar()

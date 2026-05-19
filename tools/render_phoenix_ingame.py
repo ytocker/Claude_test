@@ -33,14 +33,14 @@ from game.config import W, H, GROUND_Y, BIRD_X, PIPE_W
 from game.entities import PowerUp, Pipe, Coin
 
 
-VARIANTS = ("blaze", "sunburst", "twin", "swift", "grand")
+VARIANTS = ("soar", "rise", "stoop", "dive", "eternal")
 
 CAPTIONS = {
-    "blaze":    "Balanced fan + curling crest",
-    "sunburst": "9-plume radial spread + tall crown",
-    "twin":     "Minimal fan + twin trailing crest",
-    "swift":    "All plumes trailing back (motion)",
-    "grand":    "Wide majestic fan + 5-feather crown",
+    "soar":    "Horizontal wingspan, tips back",
+    "rise":    "Wings raised UP, rising pose",
+    "stoop":   "Wings swept back, falcon stoop",
+    "dive":    "Wings angled forward, strike pose",
+    "eternal": "S-curve wings, long ribbon-tail",
 }
 
 
@@ -121,10 +121,10 @@ def render_contact_sheet(shots: dict) -> pygame.Surface:
     # Title
     title_font = pygame.font.SysFont(None, 36, bold=True)
     title_img = title_font.render(
-        "PHOENIX — 5 fire-fenghuang variants (in-game)",
+        "PHOENIX — 5 Grand iterations: long wings + short cascade tail",
         True, (255, 220, 100))
     title_out = title_font.render(
-        "PHOENIX — 5 fire-fenghuang variants (in-game)",
+        "PHOENIX — 5 Grand iterations: long wings + short cascade tail",
         True, (0, 0, 0))
     tx = (sheet_w - title_img.get_width()) // 2
     for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
@@ -156,7 +156,7 @@ def render_contact_sheet(shots: dict) -> pygame.Surface:
 
 
 def main():
-    out_dir = os.path.join(_REPO, "docs", "phoenix_design", "ingame")
+    out_dir = os.path.join(_REPO, "docs", "phoenix_design", "ingame_v2")
     os.makedirs(out_dir, exist_ok=True)
     shots = {}
     for variant in VARIANTS:

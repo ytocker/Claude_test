@@ -2069,6 +2069,450 @@ def _build_swift_frame(angle):     return _build_ff_variant(angle, _FF_VARIANTS[
 def _build_grand_frame(angle):     return _build_ff_variant(angle, _FF_VARIANTS["grand"])
 
 
+# ────────────────────────────────────────────────────────────────────────────
+# Wide-Wing phoenix iterations (Grand-lineage v2)
+#
+# The original fire-fenghuang variants had radial fan tails which read as
+# "turkey." These five iterations fix that: longer wings (the hero element),
+# short cascade tails (flowing ribbon-flames trailing down/back, NOT a fan),
+# slim Imperial-fire body inherited from `_paint_ff_body_and_neck`.
+#
+# All five share Ashes-style gameplay via the dispatch in world.py.
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def _paint_cascade_tail(surf, ox, oy, plumes,
+                        flame_palette=_FF_FLAME):
+    """Paint a phoenix tail as a *cascade* of flowing ribbon-flames
+    trailing back / down from (ox, oy). Each plume is a curved teardrop
+    polygon, NOT a radial fan slice — width tapers along the length,
+    creating the flowing-ribbon read of a phoenix tail.
+
+    `plumes` is a list of (angle_deg, length, base_half_w, curve_strength)
+    tuples. `curve_strength` (0.0 = straight, 1.0 = strong curl) bends
+    the plume toward gravity so it reads as flowing rather than radiating."""
+    f = flame_palette
+    for ang_deg, length, hw, curve in plumes:
+        ang = math.radians(ang_deg)
+        # End point (straight ray)
+        ex = ox + math.cos(ang) * length
+        ey = oy + math.sin(ang) * length
+        # Curve the tip toward downward gravity for the ribbon look
+        ex += curve * length * 0.15
+        ey += abs(curve) * length * 0.35
+        # Mid control point for the curve
+        mx = ox + math.cos(ang) * (length * 0.55)
+        my = oy + math.sin(ang) * (length * 0.55) + abs(curve) * length * 0.15
+        # Perpendicular at root
+        perp_x = -math.sin(ang)
+        perp_y =  math.cos(ang)
+        # Plume edges: wider at root, tapering to the tip
+        root_l = (int(ox + perp_x * hw), int(oy + perp_y * hw))
+        root_r = (int(ox - perp_x * hw), int(oy - perp_y * hw))
+        mid_l  = (int(mx + perp_x * (hw - 0.5)),
+                  int(my + perp_y * (hw - 0.5)))
+        mid_r  = (int(mx - perp_x * (hw - 0.5)),
+                  int(my - perp_y * (hw - 0.5)))
+        tip    = (int(ex), int(ey))
+        # 6-point teardrop polygon — root_l, mid_l, tip, mid_r, root_r
+        outer_poly = [root_l, mid_l, tip, mid_r, root_r]
+        # Drop shadow
+        shadow_poly = [(p[0] + 1, p[1] + 2) for p in outer_poly]
+        pygame.draw.polygon(surf, (10, 5, 12, 130), shadow_poly)
+        # Outer crimson layer
+        pygame.draw.polygon(surf, f[0], outer_poly)
+        # Orange mid layer (one px inset)
+        mid_w = max(1, hw - 1)
+        mid_root_l = (int(ox + perp_x * mid_w),
+                      int(oy + perp_y * mid_w))
+        mid_root_r = (int(ox - perp_x * mid_w),
+                      int(oy - perp_y * mid_w))
+        mid_mid_l  = (int(mx + perp_x * (mid_w - 0.5)),
+                      int(my + perp_y * (mid_w - 0.5)))
+        mid_mid_r  = (int(mx - perp_x * (mid_w - 0.5)),
+                      int(my - perp_y * (mid_w - 0.5)))
+        pygame.draw.polygon(surf, f[1],
+                            [mid_root_l, mid_mid_l, tip,
+                             mid_mid_r, mid_root_r])
+        # Gold inner core stripe
+        pygame.draw.line(surf, f[2], (int(ox), int(oy)), tip, 2)
+        # Bright yellow rachis line
+        pygame.draw.line(surf, f[3], (int(ox), int(oy)), tip, 1)
+        # White-hot tip pinpoint
+        pygame.draw.circle(surf, f[4], tip, 1)
+
+
+def _draw_primary_feathers(w, tip, count: int, radial_deg: float,
+                           fan_deg: float = 50.0, length: int = 14):
+    """Paint `count` distinct primary feathers radiating from `tip` in a
+    fan. `radial_deg` is the centre angle of the fan; `fan_deg` is the
+    total angular spread. Each feather is drawn as a tapered line so the
+    wingtip reads as fingered primaries rather than a smooth blob."""
+    f = _FF_FLAME
+    for k in range(count):
+        t = k / max(1, count - 1)
+        ang = math.radians(radial_deg + (t - 0.5) * fan_deg)
+        plen = length + int(t * 3)        # outer primaries a touch longer
+        ptip = (int(tip[0] + math.cos(ang) * plen),
+                int(tip[1] + math.sin(ang) * plen))
+        # Tapered triangle for the feather body
+        perp = (-math.sin(ang) * 1.4, math.cos(ang) * 1.4)
+        base_l = (int(tip[0] + perp[0]), int(tip[1] + perp[1]))
+        base_r = (int(tip[0] - perp[0]), int(tip[1] - perp[1]))
+        pygame.draw.polygon(w, f[0], [base_l, base_r, ptip])
+        pygame.draw.line(w, f[2], tip, ptip, 1)
+        pygame.draw.circle(w, f[4], ptip, 1)
+
+
+# ── 1. SOAR — horizontal sweep with tips back ──────────────────────────────
+
+def _build_soar_wing(angle_deg):
+    """Eagle-glider wing: 56 px long, sweeping outward and slightly back,
+    with 6 distinct primary feathers fanned at the tip."""
+    box = 84
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    shoulder = (box // 2 - 26, box // 2)
+    tip = (box // 2 + 24, box // 2 - 6)
+    # Drop shadow silhouette
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        shoulder, (shoulder[0] + 8, shoulder[1] - 12),
+        (tip[0] - 4, tip[1] - 2), (tip[0] + 1, tip[1] + 1),
+        (tip[0] - 6, tip[1] + 8), (shoulder[0] + 10, shoulder[1] + 8),
+    ])
+    # Outer crimson layer
+    pygame.draw.polygon(w, f[0], [
+        shoulder, (shoulder[0] + 8, shoulder[1] - 10),
+        tip, (tip[0] - 6, tip[1] + 6), (shoulder[0] + 10, shoulder[1] + 6),
+    ])
+    # Orange mid
+    pygame.draw.polygon(w, f[1], [
+        shoulder, (shoulder[0] + 10, shoulder[1] - 7),
+        (tip[0] - 4, tip[1] + 1), (tip[0] - 8, tip[1] + 4),
+        (shoulder[0] + 12, shoulder[1] + 4),
+    ])
+    # Gold inner
+    pygame.draw.polygon(w, f[2], [
+        shoulder, (shoulder[0] + 14, shoulder[1] - 4),
+        (tip[0] - 10, tip[1] + 2), (shoulder[0] + 16, shoulder[1] + 2),
+    ])
+    # Feather divider strokes
+    pygame.draw.line(w, f[0], (shoulder[0] + 4, shoulder[1] + 2),
+                              (tip[0] - 6, tip[1] + 2), 1)
+    pygame.draw.line(w, f[0], (shoulder[0] + 4, shoulder[1] - 1),
+                              (tip[0] - 8, tip[1]), 1)
+    # White-hot leading-edge highlight
+    pygame.draw.line(w, f[4], shoulder, tip, 1)
+    # 6 primaries fanned from the tip going back (angles ~150°–210°)
+    _draw_primary_feathers(w, tip, count=6, radial_deg=170,
+                           fan_deg=80, length=14)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_soar_frame(angle):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # Cascade tail — 3 ribbon-flames trailing down-back from the body base
+    _paint_cascade_tail(surf, cx - 4, cy + 12, [
+        # (angle_deg, length, half_w, curve_strength)
+        (200, 30, 4, 0.6),   # upper, gentle down-back curl
+        (190, 32, 5, 0.7),   # CENTRE longest, more pronounced curl
+        (180, 28, 4, 0.5),
+    ])
+    # Body + neck + head + crest base
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="s_curve")
+    # Wings — horizontal sweep with tips back
+    wing_right = _build_soar_wing(angle)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 28, cy - 4)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 28, cy - 4)).topleft)
+    # 3-plume crest (medium)
+    _paint_ff_crest(surf, head_x, head_y, "curl3")
+    # Ember sparks
+    for ex, ey in ((-44, -8), (-40, 8), (44, -8), (40, 10),
+                   (-30, -22), (30, -22), (-20, 26), (20, 24)):
+        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ── 2. RISE — wings raised UP ───────────────────────────────────────────────
+
+def _build_rise_wing(angle_deg):
+    """Wing raised upward: 48 px long, swept up and slightly out."""
+    box = 72
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    shoulder = (box // 2 - 8, box // 2 + 16)
+    tip = (box // 2 + 14, box // 2 - 26)
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        shoulder, (shoulder[0] - 4, shoulder[1] - 6),
+        (tip[0] - 6, tip[1] + 2), (tip[0] + 1, tip[1] + 1),
+        (tip[0] + 6, tip[1] + 8), (shoulder[0] + 8, shoulder[1] - 4),
+    ])
+    # Outer crimson — long sweeping curve up
+    pygame.draw.polygon(w, f[0], [
+        shoulder, (shoulder[0] - 4, shoulder[1] - 8),
+        (tip[0] - 6, tip[1]), tip, (tip[0] + 4, tip[1] + 6),
+        (shoulder[0] + 8, shoulder[1] - 6),
+    ])
+    # Orange mid
+    pygame.draw.polygon(w, f[1], [
+        shoulder, (shoulder[0] - 2, shoulder[1] - 6),
+        (tip[0] - 4, tip[1] + 2), (tip[0] + 2, tip[1] + 5),
+        (shoulder[0] + 8, shoulder[1] - 4),
+    ])
+    # Gold inner
+    pygame.draw.polygon(w, f[2], [
+        shoulder, (shoulder[0], shoulder[1] - 4),
+        (tip[0] - 2, tip[1] + 4), (shoulder[0] + 6, shoulder[1] - 2),
+    ])
+    # White-hot leading edge
+    pygame.draw.line(w, f[4], shoulder, tip, 1)
+    # 5 primaries fanned UP from the tip (angles ~250°–310°, pointing upward)
+    _draw_primary_feathers(w, tip, count=5, radial_deg=280,
+                           fan_deg=60, length=13)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_rise_frame(angle):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # Single short cascade plume trailing straight back
+    _paint_cascade_tail(surf, cx - 4, cy + 10, [
+        (185, 24, 4, 0.5),
+    ])
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="upright")
+    # Wings — raised up + outward
+    wing_right = _build_rise_wing(angle)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 18, cy - 12)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 18, cy - 12)).topleft)
+    # Tall central plume + 2 short sides
+    _paint_ff_crest(surf, head_x, head_y, "tall1+2")
+    # Ember sparks — concentrated above where the rising wings reach
+    for ex, ey in ((-30, -28), (30, -28), (-12, -36), (14, -36),
+                   (0, -42), (-40, -10), (40, -10), (0, 24)):
+        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ── 3. STOOP — wings swept BACK along the body ──────────────────────────────
+
+def _build_stoop_wing(angle_deg):
+    """Falcon-stoop wing: swept back from shoulder along body. 56 px tucked."""
+    box = 76
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    shoulder = (box // 2 + 18, box // 2 - 4)
+    tip = (box // 2 - 26, box // 2 + 6)
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        shoulder, (shoulder[0] - 4, shoulder[1] - 8),
+        (tip[0] + 4, tip[1] - 1), (tip[0] - 1, tip[1] + 1),
+        (tip[0] + 6, tip[1] + 5), (shoulder[0] - 6, shoulder[1] + 8),
+    ])
+    # Outer crimson — long sweep back along body
+    pygame.draw.polygon(w, f[0], [
+        shoulder, (shoulder[0] - 6, shoulder[1] - 8),
+        tip, (tip[0] + 6, tip[1] + 5), (shoulder[0] - 6, shoulder[1] + 6),
+    ])
+    # Orange mid
+    pygame.draw.polygon(w, f[1], [
+        shoulder, (shoulder[0] - 8, shoulder[1] - 4),
+        (tip[0] + 6, tip[1]), (tip[0] + 8, tip[1] + 3),
+        (shoulder[0] - 6, shoulder[1] + 4),
+    ])
+    # Gold inner
+    pygame.draw.polygon(w, f[2], [
+        shoulder, (shoulder[0] - 12, shoulder[1] - 2),
+        (tip[0] + 10, tip[1] + 2), (shoulder[0] - 6, shoulder[1] + 2),
+    ])
+    # White-hot leading edge
+    pygame.draw.line(w, f[4], shoulder, tip, 1)
+    # 4 primaries streaming back from the tip (angles ~150°–210°)
+    _draw_primary_feathers(w, tip, count=4, radial_deg=180,
+                           fan_deg=40, length=12)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_stoop_frame(angle):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # 3 plumes streaming straight back (no down-curl — motion implied)
+    _paint_cascade_tail(surf, cx - 4, cy + 6, [
+        (185, 28, 3, 0.1),    # almost-straight upper
+        (180, 32, 4, 0.05),   # CENTRE longest, straight back
+        (175, 26, 3, 0.1),    # almost-straight lower
+    ])
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="forward")
+    # Wings — swept back along the body
+    wing_right = _build_stoop_wing(angle)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 4, cy - 4)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 12, cy + 2)).topleft)
+    # Mohawk crest (short flame nubs swept back)
+    _paint_ff_crest(surf, head_x, head_y, "short3")
+    # Ember sparks trailing back (motion lines)
+    for ex, ey in ((-44, 4), (-50, 0), (-46, 12), (-40, -4),
+                   (-30, -10), (-30, 16), (-10, -22)):
+        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ── 4. DIVE — wings spread + angled FORWARD ─────────────────────────────────
+
+def _build_dive_wing(angle_deg):
+    """Predator-strike wing: swept forward and outward. 50 px reaching forward."""
+    box = 76
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    shoulder = (box // 2 - 8, box // 2 - 4)
+    tip = (box // 2 + 22, box // 2 + 10)
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        shoulder, (shoulder[0] - 2, shoulder[1] - 6),
+        (tip[0] - 2, tip[1] - 5), (tip[0] + 1, tip[1] + 1),
+        (tip[0] - 6, tip[1] + 6), (shoulder[0] - 4, shoulder[1] + 8),
+    ])
+    # Outer crimson sweep — angled forward
+    pygame.draw.polygon(w, f[0], [
+        shoulder, (shoulder[0] - 2, shoulder[1] - 8),
+        (tip[0] - 4, tip[1] - 4), tip,
+        (tip[0] - 8, tip[1] + 4), (shoulder[0] - 4, shoulder[1] + 6),
+    ])
+    pygame.draw.polygon(w, f[1], [
+        shoulder, (shoulder[0], shoulder[1] - 5),
+        (tip[0] - 4, tip[1] - 2), (tip[0] - 6, tip[1] + 3),
+        (shoulder[0], shoulder[1] + 4),
+    ])
+    pygame.draw.polygon(w, f[2], [
+        shoulder, (shoulder[0] + 4, shoulder[1] - 3),
+        (tip[0] - 8, tip[1]), (shoulder[0] + 2, shoulder[1] + 3),
+    ])
+    pygame.draw.line(w, f[4], shoulder, tip, 1)
+    # 5 primaries fanned forward (angles ~330°–30°)
+    _draw_primary_feathers(w, tip, count=5, radial_deg=10,
+                           fan_deg=60, length=13)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_dive_frame(angle):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # 3 plumes tucked under and short (out of the wings' way)
+    _paint_cascade_tail(surf, cx - 2, cy + 12, [
+        (215, 18, 3, 0.4),   # tucked-back upper
+        (205, 20, 3, 0.5),
+        (195, 18, 3, 0.4),
+    ])
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="forward")
+    # Wings angled FORWARD
+    wing_right = _build_dive_wing(angle)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 24, cy)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 24, cy)).topleft)
+    # 5-plume elaborate crown
+    _paint_ff_crest(surf, head_x, head_y, "grand5")
+    # Ember sparks scattered around the strike pose
+    for ex, ey in ((-40, 8), (40, 8), (-30, -16), (30, -16),
+                   (0, -28), (-20, 22), (20, 22)):
+        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
+# ── 5. ETERNAL — wings in a graceful S-curve, long ribbon-tail ──────────────
+
+def _build_eternal_wing(angle_deg):
+    """The storybook eternal phoenix wing: 60 px long with a graceful
+    S-curve — top edge sweeps up then back, bottom edge sweeps down then
+    back. 6 primaries at the tip with extra layering for ornate detail."""
+    box = 88
+    w = pygame.Surface((box, box), pygame.SRCALPHA)
+    f = _FF_FLAME
+    shoulder = (box // 2 - 26, box // 2)
+    tip = (box // 2 + 26, box // 2 - 4)
+    # Drop shadow
+    pygame.draw.polygon(w, (10, 5, 12, 150), [
+        shoulder,
+        (shoulder[0] + 6, shoulder[1] - 14),
+        (shoulder[0] + 22, shoulder[1] - 16),
+        (tip[0] - 4, tip[1] - 2),
+        (tip[0] + 1, tip[1] + 1),
+        (tip[0] - 6, tip[1] + 8),
+        (shoulder[0] + 18, shoulder[1] + 10),
+        (shoulder[0] + 6, shoulder[1] + 6),
+    ])
+    # Outer crimson — S-curve top edge
+    pygame.draw.polygon(w, f[0], [
+        shoulder,
+        (shoulder[0] + 6, shoulder[1] - 12),
+        (shoulder[0] + 22, shoulder[1] - 14),
+        tip,
+        (tip[0] - 6, tip[1] + 6),
+        (shoulder[0] + 18, shoulder[1] + 8),
+        (shoulder[0] + 6, shoulder[1] + 4),
+    ])
+    # Orange mid
+    pygame.draw.polygon(w, f[1], [
+        shoulder,
+        (shoulder[0] + 8, shoulder[1] - 9),
+        (shoulder[0] + 22, shoulder[1] - 10),
+        (tip[0] - 4, tip[1] + 1),
+        (tip[0] - 8, tip[1] + 4),
+        (shoulder[0] + 18, shoulder[1] + 6),
+    ])
+    # Gold inner
+    pygame.draw.polygon(w, f[2], [
+        shoulder, (shoulder[0] + 12, shoulder[1] - 5),
+        (shoulder[0] + 26, shoulder[1] - 6), (tip[0] - 10, tip[1] + 2),
+        (shoulder[0] + 20, shoulder[1] + 4),
+    ])
+    # Bright yellow inner streak (extra layer, ornate)
+    pygame.draw.polygon(w, f[3], [
+        shoulder, (shoulder[0] + 16, shoulder[1] - 1),
+        (tip[0] - 16, tip[1] + 2), (shoulder[0] + 22, shoulder[1] + 2),
+    ])
+    # White-hot leading-edge highlight
+    pygame.draw.line(w, f[4], shoulder, tip, 1)
+    # Feather divider strokes (S-curve hints)
+    pygame.draw.line(w, f[0], (shoulder[0] + 6, shoulder[1] - 6),
+                              (tip[0] - 8, tip[1] + 1), 1)
+    pygame.draw.line(w, f[0], (shoulder[0] + 4, shoulder[1] + 2),
+                              (tip[0] - 10, tip[1] + 3), 1)
+    # 6 primaries fanned at the tip (broader fan than other variants)
+    _draw_primary_feathers(w, tip, count=6, radial_deg=175,
+                           fan_deg=85, length=15)
+    return pygame.transform.rotate(w, angle_deg)
+
+
+def _build_eternal_frame(angle):
+    surf = _grand_canvas()
+    cx, cy = GRAND_CX, GRAND_CY
+    # 4 LONG ribbon-flames cascading DOWN and back (the most prominent
+    # tail of the 5, but still a cascade — not a fan).
+    _paint_cascade_tail(surf, cx - 4, cy + 12, [
+        (200, 32, 5, 0.8),   # uppermost, strong down-curl
+        (190, 36, 5, 0.9),   # CENTRE longest, longest curl
+        (180, 34, 4, 0.7),
+        (170, 28, 4, 0.6),   # lowermost
+    ])
+    head_x, head_y = _paint_ff_body_and_neck(surf, cx, cy, neck_shape="s_curve")
+    # Wings — graceful S-curve, fully spread
+    wing_right = _build_eternal_wing(angle)
+    wing_left  = pygame.transform.flip(wing_right, True, False)
+    surf.blit(wing_right, wing_right.get_rect(center=(cx + 30, cy - 4)).topleft)
+    surf.blit(wing_left,  wing_left.get_rect(center=(cx - 30, cy - 4)).topleft)
+    # 5-feather elaborate crown (kept from original Grand — user liked it)
+    _paint_ff_crest(surf, head_x, head_y, "grand5")
+    # Ember sparks — elaborate scatter
+    for ex, ey in ((-46, -6), (46, -6), (-38, -18), (38, -18),
+                   (-24, -32), (24, -32), (-32, 22), (32, 22),
+                   (-20, 28), (20, 28), (0, -42)):
+        pygame.draw.circle(surf, _FF_FLAME[3], (cx + ex, cy + ey), 1)
+    return surf
+
+
 # Dispatch table the lazy frame-builder reads in `_get_phoenix_frames`.
 _GRANDIOSE_BUILDERS = {
     "imperial":  _build_imperial_frame,
@@ -2076,6 +2520,12 @@ _GRANDIOSE_BUILDERS = {
     "dragon":    _build_dragon_frame,
     "comet":     _build_comet_frame,
     "royal":     _build_royal_frame,
+    # Wide-Wing Grand-lineage v2 (longer wings, short cascade tails)
+    "soar":      _build_soar_frame,
+    "rise":      _build_rise_frame,
+    "stoop":     _build_stoop_frame,
+    "dive":      _build_dive_frame,
+    "eternal":   _build_eternal_frame,
     # Fire-fenghuang hybrids (imperial palette + fenghuang silhouette)
     "blaze":     _build_blaze_frame,
     "sunburst":  _build_sunburst_frame,
