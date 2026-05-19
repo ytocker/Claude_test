@@ -1123,123 +1123,122 @@ class Bird:
           • chinstrap                   = OUT (15, 15, 22) — matches dome
           • adjuster / clip outline     = chrome     (200, 200, 210)
           • side-release clip body      = wheel centre (200, 50, 50)
-        Anchor (+18, -18) chosen by self-critique iteration so the
-        helmet sits naturally on Pip's crown — rim above the
-        sunglasses, mohawk fin clearly visible above the head. The
-        helm surface is extended below the rim (drop=28) so the
-        chinstrap can route past the jaw to a buckle at Pip's chin
-        without clipping; anchor y compensated so the dome stays put."""
+        Anchor (+18, -10) chosen by self-critique iteration so the
+        helmet sits naturally on Pip's crown. The helm surface is
+        extended below the rim (drop=28) so the chinstrap can route
+        past the jaw to a buckle at Pip's chin without clipping.
+
+        4× SUPERSAMPLE: all painting happens at 4× resolution, the
+        rotated result is smoothscale'd down before blit. Gives
+        anti-aliased edges on the dome curve, mohawk fin polygon,
+        skull decal ellipse, chinstrap lines and clip — much
+        smoother than pixel-snapped pygame primitives at the native
+        24×15 helm size."""
         s = self.shrink_scale
-        hw = int(24 * s)
-        hh = int(15 * s)
-        pad = 4
-        # Drop extended so the chinstrap can route below the chin.
-        # Anchor_y must compensate or the dome drifts up — see anchor
-        # block below.
-        drop = int(28 * s)
+        SS = 4  # supersample factor
+        # Logical (native) dimensions — coords below are conceptual
+        # and get multiplied by SS for the actual paint surface.
+        hw_n = int(24 * s)
+        hh_n = int(15 * s)
+        pad_n = 4
+        drop_n = int(28 * s)
+        # Supersampled paint dimensions.
+        hw = hw_n * SS
+        hh = hh_n * SS
+        pad = pad_n * SS
+        drop = drop_n * SS
         helm = pygame.Surface(
             (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
 
         # Top-half dome — flat horizontal rim line at y = pad + hh.
-        # Draw the full ellipse to a temp surface, then blit only the
-        # top half onto helm so we get a half-dome silhouette.
+        # Drawing the ellipse at 4× resolution produces a much
+        # smoother curve before smoothscale-down.
         full = pygame.Surface((hw, hh * 2), pygame.SRCALPHA)
         pygame.draw.ellipse(full, (10, 10, 18),
                             pygame.Rect(0, 0, hw, hh * 2))
         helm.blit(full, (pad, pad), area=pygame.Rect(0, 0, hw, hh))
         # Forward-upper-quadrant highlight only — Pip faces right.
-        if hw > 9 and hh > 5:
-            hl = pygame.Surface((hw - 8, hh - 4), pygame.SRCALPHA)
+        if hw > 9 * SS and hh > 5 * SS:
+            hl_w = hw - 8 * SS
+            hl_h = hh - 4 * SS
+            hl = pygame.Surface((hl_w, hl_h), pygame.SRCALPHA)
             pygame.draw.ellipse(hl, (50, 50, 60),
-                                pygame.Rect(0, 0, hw - 8, hh - 4))
-            helm.blit(hl, (pad + 4, pad + 1),
-                      area=pygame.Rect((hw - 8) // 2, 0,
-                                       (hw - 8) // 2, (hh - 4) // 2 + 1))
+                                pygame.Rect(0, 0, hl_w, hl_h))
+            helm.blit(hl, (pad + 4 * SS, pad + 1 * SS),
+                      area=pygame.Rect(hl_w // 2, 0,
+                                       hl_w // 2, hl_h // 2 + 1))
 
         # Bone mohawk fin — SINGLE side-profile sail running front to
-        # back along the dome top.
+        # back along the dome top. Polygon vertices upscaled SS.
         fin = [
-            (pad + 3,           pad + 1),
-            (pad + hw // 2 - 2, pad - 3),
-            (pad + hw // 2 + 3, pad - 2),
-            (pad + hw - 4,      pad + 2),
+            (pad + 3 * SS,             pad + 1 * SS),
+            (pad + hw // 2 - 2 * SS,   pad - 3 * SS),
+            (pad + hw // 2 + 3 * SS,   pad - 2 * SS),
+            (pad + hw - 4 * SS,        pad + 2 * SS),
         ]
         pygame.draw.polygon(helm, (240, 240, 230), fin)
-        pygame.draw.polygon(helm, (10, 10, 18), fin, 1)
-        for sx in (pad + hw // 2 - 3, pad + hw // 2 + 2):
-            spike = [(sx, pad - 2), (sx + 1, pad - 5), (sx + 2, pad - 2)]
+        pygame.draw.polygon(helm, (10, 10, 18), fin, SS)
+        for sx in (pad + hw // 2 - 3 * SS, pad + hw // 2 + 2 * SS):
+            spike = [(sx, pad - 2 * SS),
+                     (sx + 1 * SS, pad - 5 * SS),
+                     (sx + 2 * SS, pad - 2 * SS)]
             pygame.draw.polygon(helm, (240, 240, 230), spike)
-            pygame.draw.polygon(helm, (10, 10, 18), spike, 1)
+            pygame.draw.polygon(helm, (10, 10, 18), spike, SS)
 
         # Single side vent on the visible panel.
         pygame.draw.line(helm, (10, 10, 18),
-                         (pad + hw // 2 - 2, pad + hh - 3),
-                         (pad + hw // 2 + 2, pad + hh - 3), 1)
+                         (pad + hw // 2 - 2 * SS, pad + hh - 3 * SS),
+                         (pad + hw // 2 + 2 * SS, pad + hh - 3 * SS), SS)
         # Chrome rim band — straight horizontal at the rim line.
         pygame.draw.rect(helm, (200, 200, 210),
-                         pygame.Rect(pad - 1, pad + hh - 1, hw + 2, 2))
+                         pygame.Rect(pad - 1 * SS, pad + hh - 1 * SS,
+                                     hw + 2 * SS, 2 * SS))
         # Side skull decal near the rear of the dome.
-        sk_w = max(3, int(5 * s))
-        sk_h = max(2, int(4 * s))
+        sk_w = max(3 * SS, int(5 * s * SS))
+        sk_h = max(2 * SS, int(4 * s * SS))
         sk = pygame.Rect(0, 0, sk_w, sk_h)
-        sk.center = (pad + hw // 2 - 5, pad + hh - 4)
+        sk.center = (pad + hw // 2 - 5 * SS, pad + hh - 4 * SS)
         pygame.draw.ellipse(helm, (240, 240, 230), sk)
-        pygame.draw.ellipse(helm, (10, 10, 18), sk, 1)
+        pygame.draw.ellipse(helm, (10, 10, 18), sk, SS)
 
-        # Chinstrap — picked variant N4 from commit 8464059's
-        # iterator: `_h4_variant_at(fa_x=8, ra_x=4, jx=6, cx=14)`.
-        # The V-junction sits "just below + slightly forward of
-        # the ear" (BHSI fit rule). The strap path stays on Pip's
-        # red feathers, behind the sunglasses lens. Surface coords
-        # are RAW (not pad-offset) — fa_x=8 means surface x=8.
-        #   front_anchor = (8, 20)
-        #   rear_anchor  = (4, 20)
-        #   junction     = (6, 30)
-        #   chin clip    = (14, 37)
+        # Chinstrap — N4 from commit 8464059 + R5 right strap.
+        # Coords at native resolution then multiplied by SS.
         OUT     = (15, 15, 22)
         CHROME  = (200, 200, 210)
         BUCKLE  = (200, 50, 50)
-        # Strap colour matches the dome so the chinstrap reads as
-        # part of the helmet rather than a separate piece. The
-        # clip's red body is the only chromatic accent.
         STRAP   = OUT
-        rim_y = pad + hh + 1
-        front_anchor = (8, rim_y)
-        rear_anchor  = (4, rim_y)
-        junction     = (6, 30)
-        clip_centre  = (14, 37)
-        pygame.draw.line(helm, STRAP, front_anchor, junction, 2)
-        pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2)
-        pygame.draw.line(helm, STRAP, junction, clip_centre, 2)
-        # Plastic adjuster slider at the ear junction — tiny 3×2
-        # body with a chrome outline.
-        adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
+        rim_y = pad + hh + 1 * SS
+        front_anchor = (8 * SS, rim_y)
+        rear_anchor  = (4 * SS, rim_y)
+        junction     = (6 * SS, 30 * SS)
+        clip_centre  = (14 * SS, 37 * SS)
+        pygame.draw.line(helm, STRAP, front_anchor, junction, 2 * SS)
+        pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2 * SS)
+        pygame.draw.line(helm, STRAP, junction, clip_centre, 2 * SS)
+        # Plastic adjuster slider at the ear junction.
+        adj = pygame.Rect(junction[0] - 1 * SS, junction[1] - 1 * SS,
+                          3 * SS, 2 * SS)
         pygame.draw.rect(helm, (30, 30, 40), adj)
-        pygame.draw.rect(helm, CHROME, adj, 1)
-        # Side-release clip at the chin — 5×4 red body with a dark
-        # outline and a vertical groove where the two halves meet.
-        clip = pygame.Rect(clip_centre[0] - 2, clip_centre[1] - 2, 5, 4)
+        pygame.draw.rect(helm, CHROME, adj, SS)
+        # Side-release clip at the chin.
+        clip = pygame.Rect(clip_centre[0] - 2 * SS,
+                           clip_centre[1] - 2 * SS, 5 * SS, 4 * SS)
         pygame.draw.rect(helm, BUCKLE, clip)
-        pygame.draw.rect(helm, OUT, clip, 1)
+        pygame.draw.rect(helm, OUT, clip, SS)
         pygame.draw.line(helm, OUT,
-                         (clip.x + 2, clip.y),
-                         (clip.x + 2, clip.bottom - 1), 1)
-        # RIGHT chinstrap (variant R5): short forward-only segment
-        # from the buckle to (22, 35) — suggests the strap continues
-        # under the chin to the far-side helmet rim (hidden in side
-        # view). Connects to the LEFT strap at the buckle so the
-        # chinstrap reads as a full loop around the head, the way a
-        # real helmet's two-piece chinstrap actually looks.
-        pygame.draw.line(helm, STRAP, clip_centre, (22, 35), 2)
+                         (clip.x + 2 * SS, clip.y),
+                         (clip.x + 2 * SS, clip.bottom - 1 * SS), SS)
+        # RIGHT chinstrap (R5).
+        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, 35 * SS),
+                         2 * SS)
 
-        # Anchor (+18, -10) — x unchanged from the approved (+18, -18)
-        # pose, y compensated +8 because extending drop from 12 → 28
-        # shifted the helm surface centre down by 8 px. Without
-        # compensation the rotated rect's get_rect(center=...) would
-        # drift the dome up by 8 px. The dome's WORLD position is
-        # preserved. Rotates with tilt so the helmet banks with Pip
-        # and carries backflip spin. Reverse-gravity flips both the
-        # y-offset sign and the sprite.
+        # Anchor block — first scale helm DOWN to native resolution
+        # (smoothscale gives the anti-aliased edges), then rotate
+        # and blit as before. Rotating after scale-down keeps the
+        # surface size small for the transform.
+        native_size = (hw_n + pad_n * 2,
+                       hh_n + pad_n * 2 + drop_n)
+        helm = pygame.transform.smoothscale(helm, native_size)
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         y_off = 10 * s if flipped else -10 * s
         offset = pygame.math.Vector2(18 * s, y_off)
@@ -1255,65 +1254,86 @@ class Bird:
         """Skull skateboard under Pip's feet — black deck with a chrome
         outline, white skull centred, white crossbones diagonals. Cream
         wheels with red bullseye. Matches the skull helmet (kit).
+
+        4× SUPERSAMPLE — same approach as `_draw_helmet`. The deck's
+        rounded corners, the skull ellipse, the wheel circles, the
+        crossbone diagonals all benefit from the smoother curves /
+        anti-aliased edges that come from painting at 4× then
+        smoothscale-down.
         """
         from game.config import PARCEL_Y_OFFSET
         s = self.shrink_scale
-        # Deck length bumped 34 → 48 so the board reads as a proper
-        # skateboard plank under Pip rather than a short stub. Truck/
-        # wheel positions key off board_w (board_w * 0.32) so they
-        # scale with the deck automatically.
-        board_w = int(48 * s)
-        deck_h = max(4, int(7 * s))
+        SS = 4
+        # Native (logical) dimensions.
+        board_w_n = int(48 * s)
+        deck_h_n  = max(4, int(7 * s))
+        pad_n     = 10
+        native_w  = board_w_n + pad_n * 2
+        native_h  = deck_h_n * 5 + pad_n * 2
+        # Supersampled paint dimensions.
+        board_w = board_w_n * SS
+        deck_h  = deck_h_n * SS
+        pad     = pad_n * SS
+
         y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
         offset = pygame.math.Vector2(0, y_off + 4 * s)
         offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
         bx = cx + offset.x
         by = cy + offset.y
-        pad = 10
         board_surf = pygame.Surface(
             (board_w + pad * 2, deck_h * 5 + pad * 2), pygame.SRCALPHA)
-        bsx, bsy = board_surf.get_width() // 2, board_surf.get_height() // 2 - 2
+        bsx = board_surf.get_width() // 2
+        bsy = board_surf.get_height() // 2 - 2 * SS
         deck = pygame.Rect(0, 0, board_w, deck_h)
         deck.center = (bsx, bsy)
         # Chrome outline + black fill.
-        pygame.draw.rect(board_surf, (200, 200, 210), deck, border_radius=3)
-        pygame.draw.rect(board_surf, (10, 10, 18), deck.inflate(-2, -2),
-                         border_radius=2)
+        pygame.draw.rect(board_surf, (200, 200, 210), deck,
+                         border_radius=3 * SS)
+        pygame.draw.rect(board_surf, (10, 10, 18),
+                         deck.inflate(-2 * SS, -2 * SS),
+                         border_radius=2 * SS)
         # Crossbones diagonals.
         pygame.draw.line(board_surf, (235, 235, 225),
-                         (deck.left + 4, deck.top + 1),
-                         (deck.right - 4, deck.bottom - 1), 1)
+                         (deck.left + 4 * SS, deck.top + 1 * SS),
+                         (deck.right - 4 * SS, deck.bottom - 1 * SS), SS)
         pygame.draw.line(board_surf, (235, 235, 225),
-                         (deck.left + 4, deck.bottom - 1),
-                         (deck.right - 4, deck.top + 1), 1)
+                         (deck.left + 4 * SS, deck.bottom - 1 * SS),
+                         (deck.right - 4 * SS, deck.top + 1 * SS), SS)
         # Skull logo at deck centre.
-        sk_w = max(5, int(7 * s))
-        sk_h = max(3, int(5 * s))
+        sk_w = max(5 * SS, int(7 * s * SS))
+        sk_h = max(3 * SS, int(5 * s * SS))
         sk_rect = pygame.Rect(0, 0, sk_w, sk_h)
-        sk_rect.center = (bsx, deck.centery - 1)
+        sk_rect.center = (bsx, deck.centery - 1 * SS)
         pygame.draw.ellipse(board_surf, (240, 240, 230), sk_rect)
-        pygame.draw.ellipse(board_surf, (10, 10, 18), sk_rect, 1)
-        eye_y = sk_rect.centery - 1
+        pygame.draw.ellipse(board_surf, (10, 10, 18), sk_rect, SS)
+        eye_y = sk_rect.centery - 1 * SS
         pygame.draw.circle(board_surf, (10, 10, 18),
-                           (sk_rect.centerx - 1, eye_y), 1)
+                           (sk_rect.centerx - 1 * SS, eye_y), 1 * SS)
         pygame.draw.circle(board_surf, (10, 10, 18),
-                           (sk_rect.centerx + 1, eye_y), 1)
+                           (sk_rect.centerx + 1 * SS, eye_y), 1 * SS)
         # Trucks + cream wheels with red bullseye.
-        truck_h = max(1, int(2 * s))
-        wheel_r = max(2, int(3 * s))
+        truck_h = max(1 * SS, int(2 * s * SS))
+        wheel_r = max(2 * SS, int(3 * s * SS))
         spin = self.frame_t * 4.0
         for sign in (-1, 1):
-            tx = bsx + sign * int(board_w * 0.32) - 3
+            tx = bsx + sign * int(board_w * 0.32) - 3 * SS
             pygame.draw.rect(board_surf, (60, 60, 70),
-                             (tx, deck.bottom, 6, truck_h))
+                             (tx, deck.bottom, 6 * SS, truck_h))
             wx = bsx + sign * int(board_w * 0.32)
             wy = deck.bottom + truck_h + wheel_r
-            pygame.draw.circle(board_surf, (50, 50, 60), (wx, wy), wheel_r + 1)
-            pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy), wheel_r)
-            pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1)
-            sx = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
-            sy = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
-            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy), (sx, sy), 1)
+            pygame.draw.circle(board_surf, (50, 50, 60), (wx, wy),
+                               wheel_r + 1 * SS)
+            pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy),
+                               wheel_r)
+            pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1 * SS)
+            sx_p = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
+            sy_p = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
+            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy),
+                             (sx_p, sy_p), SS)
+        # Smoothscale down to native size BEFORE rotation so the
+        # rotated bitmap stays small (cheaper transform).
+        board_surf = pygame.transform.smoothscale(board_surf,
+                                                  (native_w, native_h))
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         rotated = pygame.transform.rotate(board_surf, tilt)
         if flipped:
