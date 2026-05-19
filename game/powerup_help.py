@@ -37,7 +37,7 @@ POWERUPS = (
     ("kfc",      "KFC",      "Fried chicken theme"),
     ("ghost",    "GHOST",    "Go through pillars safely"),
     ("grow",     "GROW",     "1.3x larger"),
-    ("vacuum",   "VACUUM",   "Sucks in every coin on screen"),
+    ("vacuum",   "MEGA MAGNET",   "Sucks in every coin on screen"),
     ("surprise", "SURPRISE", "Picks random from above"),
 )
 

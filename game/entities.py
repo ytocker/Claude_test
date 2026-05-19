@@ -1205,7 +1205,11 @@ class Bird:
         """
         from game.config import PARCEL_Y_OFFSET
         s = self.shrink_scale
-        board_w = int(34 * s)
+        # Deck length bumped 34 → 48 so the board reads as a proper
+        # skateboard plank under Pip rather than a short stub. Truck/
+        # wheel positions key off board_w (board_w * 0.32) so they
+        # scale with the deck automatically.
+        board_w = int(48 * s)
         deck_h = max(4, int(7 * s))
         y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
         offset = pygame.math.Vector2(0, y_off + 4 * s)
@@ -2275,14 +2279,17 @@ class PowerUp:
         pygame.draw.ellipse(surf, (210, 50, 60), pygame.Rect(cx - 11, cy - 13, 22, 22))
         pygame.draw.ellipse(surf, (255, 150, 160), pygame.Rect(cx - 7, cy - 12, 8, 5))
         pygame.draw.ellipse(surf, (110, 20, 30), pygame.Rect(cx - 11, cy - 4, 22, 4))
-        # Board
-        deck_rect = pygame.Rect(cx - 14, cy + 4, 28, 4)
+        # Board (deck length bumped 28 → 38 to match the in-play
+        # skateboard sprite which got the same proportional increase).
+        deck_rect = pygame.Rect(cx - 19, cy + 4, 38, 4)
         pygame.draw.rect(surf, (60, 35, 25), deck_rect, border_radius=2)
         pygame.draw.rect(surf, (140, 90, 55), deck_rect.inflate(-2, -1),
                          border_radius=2)
-        # Wheels
+        # Wheels — pushed outward to track the longer deck (was ±9 on
+        # the 28-wide deck, now ±13 on the 38-wide deck — same ~5 px
+        # inset from each edge).
         for sign in (-1, 1):
-            wx = cx + sign * 9
+            wx = cx + sign * 13
             wy = cy + 11
             pygame.draw.circle(surf, (40, 40, 45), (wx, wy), 3)
             pygame.draw.circle(surf, (210, 210, 220), (wx, wy), 2)

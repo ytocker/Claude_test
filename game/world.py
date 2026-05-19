@@ -1734,8 +1734,8 @@ class World:
         audio.play_vacuum()
         self._pickup_burst(m, ((30, 200, 220), (60, 140, 220), UI_GOLD, WHITE), n=32)
         self.float_texts.append(FloatText(
-            "VACUUM!", m.x, m.y - 26, (60, 200, 230),
-            size=30, life=1.3, vy=-30, style="powerup",
+            "MEGA MAGNET!", m.x, m.y - 26, (60, 200, 230),
+            size=26, life=1.3, vy=-30, style="powerup",
         ))
 
     def _activate_rail(self, m):
