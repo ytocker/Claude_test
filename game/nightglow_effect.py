@@ -137,18 +137,81 @@ def _build_layers(world, sx: int, sy: int):
     return bodies, glow_targets
 
 
-def _apply_fallback(screen: pygame.Surface, strength: float) -> None:
-    """Numpy-free degraded effect: dim the scene + drop a faint green
-    ambient haze. Used when numpy is unavailable so the buff still
-    visibly fires without crashing. No per-entity recolour and no
-    silhouette halos — both need numpy."""
+def _halo_no_numpy(targets: pygame.Surface, scale: float,
+                  color: tuple, alpha: int) -> pygame.Surface:
+    """Halo layer built without numpy. Multiply-tints the source by
+    `color` (so warm channels get crushed), blurs via downsample +
+    upsample, then uses Surface.premul_alpha() to pre-multiply RGB by
+    the per-pixel alpha — that gates the additive blit by the entity
+    silhouette so the green doesn't paint the whole canvas. Final
+    fill(BLEND_RGBA_MULT) scales the RGB by `alpha` for strength."""
+    base = targets.copy()
+    tint = pygame.Surface((W, H), pygame.SRCALPHA)
+    tint.fill((*color, 255))
+    base.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    sw, sh = max(2, int(W * scale)), max(2, int(H * scale))
+    small = pygame.transform.smoothscale(base, (sw, sh))
+    big = pygame.transform.smoothscale(small, (W, H))
+    pm = big.premul_alpha()
+    pm.fill((alpha, alpha, alpha, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    return pm
+
+
+def _apply_fallback(screen: pygame.Surface, world, sx: int, sy: int,
+                    strength: float) -> None:
+    """Numpy-free composite that still confines the green to Pip +
+    coins + powerups + pillar vegetation — NEVER paints over the
+    whole canvas. Uses multiply-tint instead of per-pixel luminance
+    recolour, so entity colours retain a slight warm bleed (red
+    feathers will look a touch warm-green vs the numpy path's pure
+    green-white). Halo gating uses Surface.premul_alpha() so additive
+    layers are confined to entity silhouettes."""
+    bodies, glow_targets = _build_layers(world, sx, sy)
+
+    # 1. Dim the scene.
     overlay = pygame.Surface((W, H), pygame.SRCALPHA)
     overlay.fill((*_DARK_OVERLAY_TINT,
                   int(_DARK_OVERLAY_ALPHA * strength)))
     screen.blit(overlay, (0, 0))
-    haze = pygame.Surface((W, H), pygame.SRCALPHA)
-    haze.fill((50, 200, 70, int(28 * strength)))
-    screen.blit(haze, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # 2. Restore pillar bodies un-dimmed.
+    screen.blit(bodies, (0, 0))
+
+    # 3. Aura halo stack — silhouette-clean via premul_alpha.
+    for scale, col, a in _AURA_LAYERS:
+        screen.blit(_halo_no_numpy(glow_targets, scale, col,
+                                   int(a * strength)),
+                    (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # 4. Green-tinted entities. Multiply by a bright green crushes
+    #    the warm channels (red→dark-red, blue→dark-blue, green stays
+    #    near full), then a brightening additive pass lifts the
+    #    mids so they don't read as muddy.
+    tinted = glow_targets.copy()
+    tint = pygame.Surface((W, H), pygame.SRCALPHA)
+    tint.fill((110, 240, 130, 255))
+    tinted.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    if strength < 1.0:
+        tinted.fill((255, 255, 255, int(255 * strength)),
+                    special_flags=pygame.BLEND_RGBA_MULT)
+    screen.blit(tinted, (0, 0))
+    # Bright additive top-up confined to the entity silhouette via
+    # premul_alpha, so even the multiply-darkened mids get lifted.
+    lift = glow_targets.copy()
+    lift_tint = pygame.Surface((W, H), pygame.SRCALPHA)
+    lift_tint.fill((60, 200, 80, 255))
+    lift.blit(lift_tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    lift = lift.premul_alpha()
+    lift.fill((int(180 * strength), int(180 * strength),
+               int(180 * strength), 255),
+              special_flags=pygame.BLEND_RGBA_MULT)
+    screen.blit(lift, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+    # 5. Extra top glow.
+    scale, col, a = _EXTRA_TOP_LAYER
+    screen.blit(_halo_no_numpy(glow_targets, scale, col,
+                               int(a * strength)),
+                (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
 
 def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
@@ -159,7 +222,7 @@ def apply_nightglow(screen: pygame.Surface, world, sx: int, sy: int,
     if strength <= 0:
         return
     if not _HAS_NUMPY:
-        _apply_fallback(screen, strength)
+        _apply_fallback(screen, world, sx, sy, strength)
         return
     bodies, glow_targets = _build_layers(world, sx, sy)
 
