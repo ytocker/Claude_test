@@ -900,21 +900,21 @@ def _h4_variant_at(fa_x, ra_x, jx, cx):
     return fn
 
 
-# H4 used (fa=12, ra=6, jx=9, cx=13). The lens left edge is at
-# surface x=11. The user wants the strap moved left so it stays on
-# the red feathers (x ≤ 11) and never touches the lens. Five
-# progressive left shifts.
+# H4 baseline: (fa=12, ra=6, jx=9, cx=13). User wants 4-7 px further
+# left. Rear anchor clamps at x=4 (the dome's left edge); the front
+# anchor, V-junction and clip shift freely. At surface x=4-7 the
+# strap path sits cleanly on the red feather area behind the lens.
 CHINSTRAP_VARIANTS = [
-    ("L1_h4_minus_1",         _h4_variant_at(fa_x=11, ra_x=5, jx=8, cx=12),
-     "L1: H4 shifted 1 px left (whole strap)"),
-    ("L2_h4_minus_2",         _h4_variant_at(fa_x=10, ra_x=4, jx=7, cx=11),
-     "L2: H4 shifted 2 px left (whole strap)"),
-    ("L3_h4_minus_3",         _h4_variant_at(fa_x=9,  ra_x=3, jx=6, cx=10),
-     "L3: H4 shifted 3 px left (boldly behind lens)"),
-    ("L4_front_left_clip_fwd", _h4_variant_at(fa_x=10, ra_x=4, jx=7, cx=13),
-     "L4: strap path 2 left, clip back at original (angles forward)"),
-    ("L5_only_front_left",    _h4_variant_at(fa_x=10, ra_x=6, jx=9, cx=13),
-     "L5: only front anchor shifted left (rear + clip stay)"),
+    ("M1_minus_4",  _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=9),
+     "M1: H4 shifted 4 px left (front=8, junction=5, clip=9)"),
+    ("M2_minus_5",  _h4_variant_at(fa_x=7, ra_x=4, jx=4, cx=8),
+     "M2: H4 shifted 5 px left (front=7, junction=4, clip=8)"),
+    ("M3_minus_6",  _h4_variant_at(fa_x=6, ra_x=4, jx=3, cx=7),
+     "M3: H4 shifted 6 px left (front=6, junction=3, clip=7)"),
+    ("M4_minus_7",  _h4_variant_at(fa_x=5, ra_x=4, jx=2, cx=6),
+     "M4: H4 shifted 7 px left (front=5, junction=2, clip=6)"),
+    ("M5_minus_4_clip_fwd", _h4_variant_at(fa_x=8, ra_x=4, jx=5, cx=11),
+     "M5: H4 -4 left but clip kept at x=11 (path angles forward)"),
 ]
 
 
