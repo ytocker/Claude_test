@@ -684,85 +684,58 @@ def cs_t5_curved_single(bird, surf, cx, cy, flipped):
     _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
 
 
-def _live_chinstrap(helm, hw, hh, pad, drop, strap_col, clip_w=4, clip_h=3,
-                    strap_thick=2):
-    """The live (post-redesign) chinstrap painter, parameterised."""
+def _live_chinstrap_at(helm, hw, hh, pad, drop,
+                       fa, ra, junction, clip_centre,
+                       strap_col=(15, 15, 22)):
+    """Live chinstrap painter, parameterised on anchor / junction /
+    clip positions. fa = front anchor, ra = rear anchor."""
     OUT     = (15, 15, 22)
     CHROME  = (200, 200, 210)
     BUCKLE  = (200, 50, 50)
-    front_anchor = (pad + 8, pad + hh + 1)
-    rear_anchor  = (pad + 4, pad + hh + 1)
-    junction     = (10, 30)
-    clip_centre  = (14, 37)
-    pygame.draw.line(helm, strap_col, front_anchor, junction, strap_thick)
-    pygame.draw.line(helm, strap_col, rear_anchor,  junction, strap_thick)
-    pygame.draw.line(helm, strap_col, junction, clip_centre, strap_thick)
+    pygame.draw.line(helm, strap_col, fa, junction, 2)
+    pygame.draw.line(helm, strap_col, ra, junction, 2)
+    pygame.draw.line(helm, strap_col, junction, clip_centre, 2)
     adj = pygame.Rect(junction[0] - 1, junction[1] - 1, 3, 2)
     pygame.draw.rect(helm, (30, 30, 40), adj)
     pygame.draw.rect(helm, CHROME, adj, 1)
-    clip = pygame.Rect(clip_centre[0] - clip_w // 2,
-                        clip_centre[1] - clip_h // 2, clip_w, clip_h)
+    clip = pygame.Rect(clip_centre[0] - 2, clip_centre[1] - 2, 5, 4)
     pygame.draw.rect(helm, BUCKLE, clip)
     pygame.draw.rect(helm, OUT, clip, 1)
     pygame.draw.line(helm, OUT,
-                     (clip.centerx, clip.y),
-                     (clip.centerx, clip.bottom - 1), 1)
+                     (clip.x + 2, clip.y),
+                     (clip.x + 2, clip.bottom - 1), 1)
 
 
-def cs_v1_live(bird, surf, cx, cy, flipped):
-    """V1 — the current live implementation (40,40,50) strap + 4x3 clip."""
-    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-    _live_chinstrap(helm, hw, hh, pad, drop, (40, 40, 50))
-    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
+def _mk_variant(fa_x, ra_x, jx, cx):
+    """Build a variant function for the given anchor/junction/clip
+    x offsets. Keeps y positions consistent (rim, ear, chin)."""
+    def fn(bird, surf, scx, scy, flipped):
+        helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
+        _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
+        rim_y = pad + hh + 1
+        _live_chinstrap_at(helm, hw, hh, pad, drop,
+                           fa=(pad + fa_x, rim_y),
+                           ra=(pad + ra_x, rim_y),
+                           junction=(jx, 30),
+                           clip_centre=(cx, 37))
+        _anchor_and_blit(bird, surf, helm, scx, scy, flipped)
+    return fn
 
 
-def cs_v2_darker(bird, surf, cx, cy, flipped):
-    """V2 — darker strap (15,15,22) for higher contrast on red."""
-    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22))
-    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
-
-
-def cs_v3_bigger_clip(bird, surf, cx, cy, flipped):
-    """V3 — V1 with a 5×4 clip (more visible)."""
-    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
-                    clip_w=5, clip_h=4)
-    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
-
-
-def cs_v4_thicker_strap(bird, surf, cx, cy, flipped):
-    """V4 — V2 with 3-px strap thickness."""
-    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
-                    strap_thick=3)
-    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
-
-
-def cs_v5_combined(bird, surf, cx, cy, flipped):
-    """V5 — dark strap + 5×4 clip — full visibility."""
-    helm, hw, hh, pad, drop = _new_helm(bird.shrink_scale)
-    _paint_dome(helm, hw, hh, pad, bird.shrink_scale)
-    _live_chinstrap(helm, hw, hh, pad, drop, (15, 15, 22),
-                    clip_w=5, clip_h=4, strap_thick=2)
-    _anchor_and_blit(bird, surf, helm, cx, cy, flipped)
-
-
+# Sunglasses left edge sits around helm surface x=13. Push the strap
+# path progressively forward (higher x) in 1-px increments so the
+# strap grazes the back edge of the lens.
 CHINSTRAP_VARIANTS = [
-    ("V1_live",           cs_v1_live,
-     "V1 (current live): (40,40,50) strap, 4×3 clip"),
-    ("V2_darker_strap",   cs_v2_darker,
-     "V2: near-black (15,15,22) strap"),
-    ("V3_bigger_clip",    cs_v3_bigger_clip,
-     "V3: V2 + 5×4 clip (more visible buckle)"),
-    ("V4_thicker_strap",  cs_v4_thicker_strap,
-     "V4: V2 + 3-px strap"),
-    ("V5_combined",       cs_v5_combined,
-     "V5: V2 + 5×4 clip (full visibility)"),
+    ("F1_live",      _mk_variant(fa_x=8,  ra_x=4,  jx=10, cx=14),
+     "F1: current live — strap behind the lens"),
+    ("F2_p1",        _mk_variant(fa_x=9,  ra_x=5,  jx=11, cx=15),
+     "F2: +1 px forward — touches lens edge"),
+    ("F3_p2",        _mk_variant(fa_x=10, ra_x=6,  jx=12, cx=15),
+     "F3: +2 px forward — bites the lens"),
+    ("F4_p3",        _mk_variant(fa_x=11, ra_x=7,  jx=13, cx=16),
+     "F4: +3 px forward — clear bite into lens"),
+    ("F5_front_only_p2", _mk_variant(fa_x=11, ra_x=5, jx=12, cx=15),
+     "F5: front anchor +3 / rear stays — asymmetric (front strap grazes lens)"),
 ]
 
 
