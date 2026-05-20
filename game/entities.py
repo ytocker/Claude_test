@@ -2443,12 +2443,13 @@ class PowerUp:
         draw_chest_at(surf, cx, cy)
 
     def _draw_rail_icon(self, surf):
-        """RAIL pickup — plain wooden minecart with iron hoops on
-        4-spoke iron-rim wheels. No halo, no track, no coins. The
-        cart silhouette previews the experience Pip gets during
-        the rail buff (see `_render_wagon_body` for the in-world
-        cousin). Painted at 6× supersample on a 64×48 native
-        canvas, smoothscaled down."""
+        """RAIL pickup — Victorian engraved train ticket (RT2): sepia
+        paper card with a thick black outer perimeter, a lighter
+        engraved inner border, a small "RAILWAY" caption, and a
+        detailed steam-locomotive silhouette centred on the card.
+        Painted at 6× supersample on a 64×48 native canvas, rotated
+        at supersample and smoothscaled down so the tilted edges
+        stay clean."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
 
@@ -2457,104 +2458,198 @@ class PowerUp:
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
         big = pygame.Surface((sw, sh), pygame.SRCALPHA)
 
-        # Palette — pine planks + iron + dark stroke.
-        WOOD_DARK = ( 78,  50,  26)
-        WOOD_MID  = (135,  88,  44)
-        WOOD_HI   = (185, 130,  70)
-        IRON      = ( 70,  70,  80)
-        IRON_HI   = (150, 155, 170)
-        STROKE    = ( 20,  16,  14)
-        SHADOW    = (  0,   0,   0,  90)
+        # ── palette ──
+        SEPIA      = (228, 210, 170)
+        CREAM      = (238, 225, 195)
+        NEAR_BLACK = ( 18,  14,  10)
+        INK        = ( 30,  25,  20)
+        SHADOW     = (  0,   0,   0,  90)
 
-        # ── helpers (close over `big` + `SS`) ──
+        # ── card body + thick perimeter ──
+        card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
+        # Drop shadow.
+        sh_surf = pygame.Surface(
+            (card.width + 4 * SS, card.height + 4 * SS),
+            pygame.SRCALPHA)
+        pygame.draw.rect(sh_surf, SHADOW, sh_surf.get_rect(),
+                         border_radius=int(SS * 0.7))
+        big.blit(sh_surf, sh_surf.get_rect(
+            center=(card.centerx, card.centery + SS + 1)))
+        # Sepia paper fill.
+        pygame.draw.rect(big, SEPIA, card)
+        # THICK black outer perimeter — 2 SS wide.
+        pygame.draw.rect(big, NEAR_BLACK, card, max(2, int(SS * 2)))
+        # Lighter engraved inner border, inset 3.5 SS.
+        inner = card.inflate(-int(SS * 3.5), -int(SS * 3.5))
+        pygame.draw.rect(big, NEAR_BLACK, inner,
+                         max(1, int(SS * 0.6)))
 
-        def vgrad(rect, top_col, bot_col, radius=0):
-            tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
-            h = rect.height
-            for y in range(h):
-                t = y / max(1, h - 1)
-                col = (int(top_col[0] * (1 - t) + bot_col[0] * t),
-                       int(top_col[1] * (1 - t) + bot_col[1] * t),
-                       int(top_col[2] * (1 - t) + bot_col[2] * t))
-                pygame.draw.line(tmp, col, (0, y), (rect.width, y))
-            if radius:
-                mask = pygame.Surface(rect.size, pygame.SRCALPHA)
-                pygame.draw.rect(mask, (255, 255, 255, 255),
-                                 mask.get_rect(),
-                                 border_radius=radius)
-                tmp.blit(mask, (0, 0),
-                         special_flags=pygame.BLEND_RGBA_MIN)
-            big.blit(tmp, rect.topleft)
+        # ── locomotive helper (nested closure so the method stays
+        #     self-contained without importing from tools/) ──
 
-        def cart_body(rect):
-            # Drop shadow.
-            sh_surf = pygame.Surface(
-                (rect.width + 2 * SS, rect.height + 2 * SS),
-                pygame.SRCALPHA)
-            pygame.draw.rect(sh_surf, SHADOW, sh_surf.get_rect(),
-                             border_radius=int(SS * 0.7))
-            big.blit(sh_surf, sh_surf.get_rect(
-                center=(rect.centerx, rect.centery + SS + 1)))
-            # Wood gradient body.
-            vgrad(rect, WOOD_HI, WOOD_DARK, radius=int(SS * 0.7))
-            # 4 vertical plank seams.
-            for i in range(1, 4):
-                px = rect.left + i * rect.width // 4
-                pygame.draw.line(big, WOOD_DARK,
-                                 (px, rect.top + SS),
-                                 (px, rect.bottom - SS),
-                                 max(1, SS // 2))
-            # 2 iron hoop bands.
-            band_h = max(2, int(SS * 0.9))
-            for band_y in (rect.top + int(rect.height * 0.22),
-                           rect.bottom
-                           - int(rect.height * 0.22) - band_h):
-                pygame.draw.rect(big, IRON,
-                                 (rect.left - SS, band_y,
-                                  rect.width + 2 * SS, band_h))
-                pygame.draw.line(big, IRON_HI,
-                                 (rect.left - SS, band_y),
-                                 (rect.right + SS, band_y),
-                                 max(1, SS // 3))
-            # Outline.
-            pygame.draw.rect(big, STROKE, rect,
-                             max(1, int(SS * 0.5)),
-                             border_radius=int(SS * 0.7))
+        def locomotive(loco_cx, loco_cy, scale=1.0):
+            # Boiler — centred at (loco_cx, loco_cy).
+            boiler_w = int(SS * 20 * scale)
+            boiler_h = int(SS * 7 * scale)
+            boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
+            boiler.center = (loco_cx, loco_cy)
+            pygame.draw.rect(big, INK, boiler,
+                             border_radius=max(1, int(SS * 0.8 * scale)))
+            # 2 iron-hoop bands across the boiler.
+            for band_t in (0.30, 0.65):
+                bx = boiler.left + int(boiler.width * band_t)
+                pygame.draw.line(big, CREAM,
+                                 (bx, boiler.top + max(1, SS // 3)),
+                                 (bx, boiler.bottom - max(1, SS // 3)),
+                                 max(1, int(SS * 0.4 * scale)))
+            # Back-plate cap on the left end.
+            plate_w = max(2, int(SS * 1.2 * scale))
+            plate = pygame.Rect(
+                boiler.left - plate_w,
+                boiler.top - max(1, int(SS * 0.5 * scale)),
+                plate_w,
+                boiler.height + max(2, int(SS * 1 * scale)))
+            pygame.draw.rect(big, INK, plate,
+                             border_radius=max(1, SS // 3))
 
-        def spoked_wheel(wcx, wcy, r, spokes=4):
-            pygame.draw.circle(big, (0, 0, 0, 70),
-                               (wcx, wcy + SS // 2 + 1),
-                               r + SS // 2)
-            pygame.draw.circle(big, IRON, (wcx, wcy), r)
-            pygame.draw.circle(big, WOOD_MID, (wcx, wcy),
-                               max(1, r - SS))
-            for i in range(spokes):
-                ang = math.radians(i * (360 / spokes))
-                x2 = wcx + math.cos(ang) * (r - SS)
-                y2 = wcy + math.sin(ang) * (r - SS)
-                pygame.draw.line(big, IRON, (wcx, wcy),
-                                 (int(x2), int(y2)),
-                                 max(1, int(SS * 0.6)))
-            pygame.draw.circle(big, IRON_HI, (wcx, wcy),
-                               max(1, int(SS * 0.8)))
-            pygame.draw.circle(big, STROKE, (wcx, wcy), r,
-                               max(1, SS // 2))
+            # Smokestack with flared cap.
+            stack_w = max(2, int(SS * 2.0 * scale))
+            stack_h = max(3, int(SS * 4.5 * scale))
+            stack_x = boiler.right - int(SS * 5 * scale) - stack_w // 2
+            stack_rect = pygame.Rect(stack_x, boiler.top - stack_h,
+                                      stack_w, stack_h)
+            pygame.draw.rect(big, INK, stack_rect)
+            flare_w = int(stack_w * 1.9)
+            flare_h = max(1, int(SS * 0.9 * scale))
+            flare = pygame.Rect(0, 0, flare_w, flare_h)
+            flare.midbottom = (stack_rect.centerx, stack_rect.top)
+            pygame.draw.rect(big, INK, flare)
 
-        # ── paint the cart ──
-        cart_w = int(SS * 36)
-        cart_h = int(SS * 16)
-        cart = pygame.Rect(0, 0, cart_w, cart_h)
-        cart.center = (sw // 2, sh // 2 + int(SS * 1))
-        cart_body(cart)
-        wheel_r = int(SS * 4.5)
-        wheel_cy = cart.bottom + int(SS * 0.5)
-        for sign in (-1, 1):
-            wcx = cart.centerx + sign * (cart.width // 2
-                                          - int(SS * 5))
-            spoked_wheel(wcx, wheel_cy, wheel_r)
+            # Steam dome.
+            dome_w = max(3, int(SS * 2.4 * scale))
+            dome_h = max(2, int(SS * 1.8 * scale))
+            dome_cx = boiler.left + int(boiler.width * 0.32)
+            dome_rect = pygame.Rect(0, 0, dome_w, dome_h * 2)
+            dome_rect.midbottom = (dome_cx,
+                                    boiler.top + max(1, SS // 3))
+            pygame.draw.ellipse(big, INK, dome_rect)
+            dcap = pygame.Rect(0, 0, int(dome_w * 1.4),
+                                max(1, int(SS * 0.5 * scale)))
+            dcap.midbottom = (dome_cx,
+                               dome_rect.midbottom[1] - dome_h)
+            pygame.draw.rect(big, INK, dcap)
+
+            # Sand dome.
+            sand_w = max(2, int(SS * 1.8 * scale))
+            sand_h = max(2, int(SS * 1.4 * scale))
+            sand_cx = boiler.left + int(boiler.width * 0.52)
+            sand_rect = pygame.Rect(0, 0, sand_w, sand_h * 2)
+            sand_rect.midbottom = (sand_cx,
+                                    boiler.top + max(1, SS // 3))
+            pygame.draw.ellipse(big, INK, sand_rect)
+
+            # Headlight.
+            hl_r = max(2, int(SS * 1.3 * scale))
+            hl_cx = boiler.right - hl_r - int(SS * 0.5 * scale)
+            hl_cy = boiler.top + int(boiler.height * 0.42)
+            pygame.draw.circle(big, INK, (hl_cx, hl_cy),
+                               hl_r + max(1, SS // 3))
+            pygame.draw.circle(big, CREAM, (hl_cx, hl_cy),
+                               max(1, int(hl_r * 0.65)))
+
+            # Wheel sizing + common rail line.
+            big_wheel_r = max(3, int(SS * 2.5 * scale))
+            small_wheel_r = max(2, int(SS * 1.5 * scale))
+            ground_y = (boiler.bottom + int(SS * 2.2 * scale)
+                        + big_wheel_r)
+
+            # Cowcatcher — slants forward+down but stops above the
+            # rail line and ahead of the leading wheel.
+            cow_top_inner = boiler.bottom - max(1,
+                                                 int(SS * 0.4 * scale))
+            cow_outer_x = boiler.right + int(SS * 4 * scale)
+            cow_bot_y = ground_y - int(small_wheel_r * 1.1)
+            cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
+            cow_pts = [
+                (boiler.right, cow_top_inner),
+                (cow_outer_x, cow_top_outer_y),
+                (cow_outer_x, cow_bot_y),
+                (boiler.right, cow_bot_y - int(SS * 0.6 * scale)),
+            ]
+            pygame.draw.polygon(big, INK, cow_pts)
+            for f in (0.30, 0.55, 0.80):
+                vx = cow_pts[0][0] + int(
+                    (cow_pts[1][0] - cow_pts[0][0]) * f)
+                v_top = cow_top_inner + int(SS * 1 * scale * f)
+                v_bot = cow_bot_y - max(1, SS // 3)
+                pygame.draw.line(big, CREAM, (vx, v_top),
+                                 (vx, v_bot), max(1, SS // 3))
+
+            # Driving wheels + leading wheel.
+            drive_y = ground_y - big_wheel_r
+            drive_xs = (
+                boiler.left + int(boiler.width * 0.28),
+                boiler.left + int(boiler.width * 0.55),
+            )
+            for wx in drive_xs:
+                pygame.draw.circle(big, INK, (wx, drive_y),
+                                   big_wheel_r)
+                for ang_deg in (0, 60, 120, 180, 240, 300):
+                    ang = math.radians(ang_deg)
+                    x2 = wx + math.cos(ang) * (big_wheel_r - SS // 2)
+                    y2 = drive_y + math.sin(ang) * (big_wheel_r
+                                                     - SS // 2)
+                    pygame.draw.line(big, CREAM, (wx, drive_y),
+                                     (int(x2), int(y2)),
+                                     max(1, int(SS * 0.45 * scale)))
+                pygame.draw.circle(big, CREAM, (wx, drive_y),
+                                   max(1, int(SS * 0.7 * scale)))
+                pygame.draw.circle(big, INK, (wx, drive_y),
+                                   big_wheel_r,
+                                   max(1, int(SS * 0.35 * scale)))
+            lead_wx = boiler.left + int(boiler.width * 0.82)
+            lead_wy = ground_y - small_wheel_r
+            pygame.draw.circle(big, INK, (lead_wx, lead_wy),
+                               small_wheel_r)
+            pygame.draw.circle(big, CREAM, (lead_wx, lead_wy),
+                               max(1, int(SS * 0.45 * scale)))
+
+            # Coupling rod.
+            rod_h = max(2, int(SS * 0.6 * scale))
+            rod_y = drive_y - int(big_wheel_r * 0.20) - rod_h // 2
+            pygame.draw.rect(big, INK,
+                             (drive_xs[0], rod_y,
+                              drive_xs[1] - drive_xs[0], rod_h))
+            for wx in drive_xs:
+                pygame.draw.circle(big, CREAM,
+                                   (wx, rod_y + rod_h // 2),
+                                   max(1, int(SS * 0.5 * scale)))
+
+            # Smoke puffs above the stack.
+            smoke_x = stack_rect.centerx
+            smoke_y = stack_rect.top - int(SS * 1.5 * scale)
+            for dx, dy, sr in (
+                (0,                       0,                       int(SS * 1.7 * scale)),
+                (int(SS * -1.6 * scale),  int(SS * -2.8 * scale),  int(SS * 2.0 * scale)),
+                (int(SS *  1.8 * scale),  int(SS * -5.0 * scale),  int(SS * 1.8 * scale)),
+                (int(SS *  0.4 * scale),  int(SS * -7.5 * scale),  int(SS * 1.4 * scale)),
+            ):
+                pygame.draw.circle(big, INK,
+                                    (smoke_x + dx, smoke_y + dy),
+                                    max(1, sr))
+
+        # ── small RAILWAY caption at the top ──
+        f_hdr = _get_float_font(int(SS * 2.8))
+        hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
+        big.blit(hdr, hdr.get_rect(
+            center=(card.centerx, card.top + int(SS * 5.5))))
+
+        # ── locomotive centred on the card ──
+        locomotive(card.centerx, card.centery + int(SS * 2),
+                   scale=1.40)
 
         # Rotate at supersample then smoothscale down so the tilted
-        # edges stay clean. Slight ±4° tilt for the "alive" feel.
+        # edges stay clean. ±4° tilt for the "alive" feel.
         tilt = math.sin(self.pulse * 0.7) * 4
         rotated = pygame.transform.rotate(big, tilt)
         rw, rh = rotated.get_size()

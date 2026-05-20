@@ -212,37 +212,47 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
     pygame.draw.circle(big, window_col, (hl_cx, hl_cy),
                        max(1, int(hl_r * 0.65)))
 
-    # Common rail-line — every wheel touches this ground.
+    # Common rail-line — every wheel touches this ground. The
+    # cowcatcher floats ABOVE the rail (real pilots are deflectors,
+    # not snowploughs).
     big_wheel_r = max(3, int(SS * 2.5 * scale))
     small_wheel_r = max(2, int(SS * 1.5 * scale))
     ground_y = boiler.bottom + int(SS * 2.2 * scale) + big_wheel_r
 
     # ── Cowcatcher / pilot at the front-bottom ──
-    cow_top = boiler.bottom - max(1, SS // 3)
+    # Inner edge attaches to the bottom-front of the boiler; outer
+    # edge slopes forward+down but stops well ABOVE the rail line
+    # (and above the leading wheel's bottom) so it reads as a
+    # deflector hanging in front of the wheel rather than overlapping
+    # with the rail-and-wheel assembly.
+    cow_top_inner = boiler.bottom - max(1, int(SS * 0.4 * scale))
+    cow_outer_x = boiler.right + int(SS * 4 * scale)
+    cow_bot_y = ground_y - int(small_wheel_r * 1.1)
+    cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
     cow_pts = [
-        (boiler.right - int(SS * 1 * scale), cow_top),
-        (boiler.right + int(SS * 3.5 * scale),
-         ground_y - small_wheel_r),
-        (boiler.right + int(SS * 3.5 * scale), ground_y),
-        (boiler.right - int(SS * 1 * scale),
-         ground_y - int(SS * 0.4 * scale)),
+        (boiler.right, cow_top_inner),
+        (cow_outer_x, cow_top_outer_y),
+        (cow_outer_x, cow_bot_y),
+        (boiler.right, cow_bot_y - int(SS * 0.6 * scale)),
     ]
     pygame.draw.polygon(big, colour, cow_pts)
     # 3 vertical vanes hinting at the pilot grille.
     for f in (0.30, 0.55, 0.80):
         vx = cow_pts[0][0] + int((cow_pts[1][0] - cow_pts[0][0]) * f)
-        v_top = cow_top + int(SS * 1 * scale * f)
-        v_bot = ground_y - max(1, SS // 2)
+        v_top = cow_top_inner + int(SS * 1 * scale * f)
+        v_bot = cow_bot_y - max(1, SS // 3)
         pygame.draw.line(big, window_col, (vx, v_top), (vx, v_bot),
                          max(1, SS // 3))
 
     # ── Driving wheels (2 big, spoked) + leading wheel (1 small) ──
-    # All three wheels share `ground_y`, so their centres differ in
-    # vertical position by exactly `big_wheel_r − small_wheel_r`.
+    # All three wheels share `ground_y`. Drivers spaced 28% / 55%
+    # of boiler width so they sit visibly under the boiler centre;
+    # leading wheel at 82% so it's clearly between the front driver
+    # and the cowcatcher.
     drive_y = ground_y - big_wheel_r
     drive_xs = (
-        boiler.left + int(boiler.width * 0.30),
-        boiler.left + int(boiler.width * 0.62),
+        boiler.left + int(boiler.width * 0.28),
+        boiler.left + int(boiler.width * 0.55),
     )
     for wx in drive_xs:
         pygame.draw.circle(big, colour, (wx, drive_y),
@@ -262,10 +272,9 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
         pygame.draw.circle(big, colour, (wx, drive_y),
                            big_wheel_r,
                            max(1, int(SS * 0.35 * scale)))
-    # Leading wheel (pony truck) — in FRONT of the front driver,
-    # BEHIND the cowcatcher. Sits visually higher because of the
-    # smaller radius, but rests on the same ground line.
-    lead_wx = boiler.right - int(SS * 1.5 * scale) - small_wheel_r
+    # Leading wheel (pony truck) — clearly between the front
+    # driver and the cowcatcher. No spokes (too small to read).
+    lead_wx = boiler.left + int(boiler.width * 0.82)
     lead_wy = ground_y - small_wheel_r
     pygame.draw.circle(big, colour, (lead_wx, lead_wy),
                        small_wheel_r)
