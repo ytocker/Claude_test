@@ -123,14 +123,17 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
                 window_col=CREAM):
     """Detailed classic steam-locomotive silhouette anchored at its
     centre. Period-appropriate for an old-school train ticket.
+    Cab/back-of-train block omitted per user feedback ("not clear
+    what is in the back part") — silhouette is now boiler-only,
+    showing the chuffing front section of the loco.
+
     Components, drawn back-to-front:
 
-      * cab (left tall block) with overhanging roof + window
-      * boiler (right horizontal cylinder) with 2 lighter iron
-        hoop bands
+      * boiler (horizontal cylinder) with 2 lighter iron-hoop
+        bands and a small back-plate cap on the left end
       * smokestack with flared cap
-      * steam dome between cab and stack
-      * sand dome between dome and stack (smaller)
+      * steam dome on top of the boiler
+      * sand dome (smaller) between steam dome and stack
       * headlight (lamp) on the front of the boiler
       * cowcatcher (slanted pilot) at the front-bottom
       * 2 large spoked driving wheels + 1 small leading wheel,
@@ -139,16 +142,14 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
 
     All sizes scale with `scale` so the same recipe fits every
     ticket layout."""
-    # Base footprint at scale=1.0 is 28 SS × 14 SS — already much
-    # bigger than the earlier 14 SS × 6.5 SS silhouette.
-    w = int(SS * 28 * scale)
-    h = int(SS * 14 * scale)
+    # Boiler-only footprint: width 20 SS × height 7 SS at
+    # scale=1.0 (vs the earlier with-cab 28 SS × 14 SS).
+    boiler_w = int(SS * 20 * scale)
+    boiler_h = int(SS * 7 * scale)
 
-    # ── Boiler (rounded horizontal cylinder on the right) ──
-    boiler_w = int(w * 0.66)
-    boiler_h = int(h * 0.50)
+    # ── Boiler — centred at (cx, cy) ──
     boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
-    boiler.midright = (cx + w // 2, cy + int(SS * 0.5 * scale))
+    boiler.center = (cx, cy)
     pygame.draw.rect(big, colour, boiler,
                      border_radius=max(1, int(SS * 0.8 * scale)))
     # 2 iron-hoop bands across the boiler (light strokes).
@@ -158,26 +159,15 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
                          (bx, boiler.top + max(1, SS // 3)),
                          (bx, boiler.bottom - max(1, SS // 3)),
                          max(1, int(SS * 0.4 * scale)))
-
-    # ── Cab (taller block on the left) ──
-    cab_w = int(w * 0.30)
-    cab_h = int(h * 0.85)
-    cab = pygame.Rect(0, 0, cab_w, cab_h)
-    cab.midleft = (cx - w // 2, cy + int(SS * 1 * scale))
-    pygame.draw.rect(big, colour, cab,
-                     border_radius=max(1, int(SS * 0.7 * scale)))
-    # Cab roof overhang.
-    roof_w = int(cab_w * 1.20)
-    roof_h = max(2, int(SS * 0.9 * scale))
-    roof = pygame.Rect(0, 0, roof_w, roof_h)
-    roof.midbottom = (cab.centerx + max(1, int(SS * 0.4 * scale)),
-                       cab.top + roof_h)
-    pygame.draw.rect(big, colour, roof)
-    # Window — lighter rectangle inside the cab.
-    win = pygame.Rect(0, 0, int(cab_w * 0.55), int(cab_h * 0.32))
-    win.center = (cab.centerx, cab.top + int(cab_h * 0.32))
-    pygame.draw.rect(big, window_col, win)
-    pygame.draw.rect(big, colour, win, max(1, SS // 3))
+    # Small back-plate cap on the left end so the boiler reads as
+    # the cut-off "firebox" face, not as randomly truncated.
+    plate_w = max(2, int(SS * 1.2 * scale))
+    plate = pygame.Rect(boiler.left - plate_w,
+                        boiler.top - max(1, int(SS * 0.5 * scale)),
+                        plate_w,
+                        boiler.height + max(2, int(SS * 1 * scale)))
+    pygame.draw.rect(big, colour, plate,
+                     border_radius=max(1, SS // 3))
 
     # ── Smokestack with flared cap ──
     stack_w = max(2, int(SS * 2.0 * scale))
@@ -247,7 +237,7 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
     small_wheel_r = max(2, int(SS * 1.5 * scale))
     wheel_y = boiler.bottom + big_wheel_r - int(SS * 0.5 * scale)
     drive_xs = (
-        cab.right + int(SS * 1 * scale) + big_wheel_r // 2,
+        boiler.left + int(boiler.width * 0.18),
         boiler.left + int(boiler.width * 0.55),
     )
     for wx in drive_xs:
