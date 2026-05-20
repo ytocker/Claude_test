@@ -706,15 +706,23 @@ class World:
                     self._ember_trail_accum = 0.0
                     self._spawn_ember_trail_particle()
 
-            # cull off-screen — but keep rail-active pipes intact while
-            # the RAIL buff is running so the polyline still extends
-            # off-canvas-left BEHIND Pip (the user's "track always
-            # visible left-to-right" requirement). When the timer
-            # expires, _untag_rail clears rail_active and these all get
-            # culled normally on the next frame.
+            # cull off-screen — but keep rail-active pipes intact ONLY
+            # while the cart is still actively riding (cart_active),
+            # so the polyline extends off-canvas-left BEHIND Pip
+            # during the ride. After `_end_rail_ride` flips cart_active
+            # False, tagged pipes that scroll past the left edge are
+            # culled normally (otherwise they'd accumulate as a leak —
+            # `_end_rail_ride` no longer wipes their tags).
             self.pipes = [p for p in self.pipes
                           if not p.off_screen()
-                          or getattr(p, "rail_active", False)]
+                          or (getattr(p, "rail_active", False)
+                              and self.bird.cart_active)]
+            # Refresh the rail_pipes view EVERY frame so the renderer
+            # still sees the on-screen tail of tagged pipes after the
+            # ride ends (the aggressive-loop block at line ~858 only
+            # runs while cart_active and won't refresh after expiry).
+            self.rail_pipes = [p for p in self.pipes
+                               if getattr(p, "rail_active", False)]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
             self.ramps = [r for r in self.ramps if not r.off_screen()]
@@ -2053,12 +2061,12 @@ class World:
 
     def _end_rail_ride(self):
         """Release Pip from the cart with an upward "jump" so the player
-        regains air control on the same frame the ride ends. Clears
-        every rail_active flag (off-canvas-left pipes get culled next
-        tick) and zeroes out the cart state."""
-        for p in self.pipes:
-            p.rail_active = False
-        self.rail_pipes = []
+        regains air control on the same frame the ride ends. The
+        existing rail_active flags on already-tagged pipes are NOT
+        cleared — the on-screen tail of track stays visible and
+        scrolls off naturally. The aggressive spawn-and-tag loop in
+        `update()` is gated on `cart_active`, so flipping it False
+        here is enough to stop new pipes from picking up the tag."""
         self.bird.cart_active = False
         self.bird.cart_locked = False
         self.bird.cart_tilt_deg = 0.0
