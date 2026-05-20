@@ -107,6 +107,256 @@ def render_caption_overlay(cx: int, cy: int,
     return surf
 
 
+# ── comic-inspired add-on overlays ──────────────────────────────────────────
+#
+# Each returns a screen-space (W × H) surface that callers blit at (0, 0)
+# on top of `render_caption_overlay`'s output. Designed to extend (not
+# replace) the existing SKATEBOARD! caption + POW! + corner slashes; the
+# add-on sits behind the caption in z-order so the caption stays readable.
+
+
+_PALETTE_KAPOW = (
+    # (label, fill, accent, rot_deg, offset_from_pip)
+    ("KAPOW!", (255, 220,  30), (230,  60,  50),  -8, (-120, -80)),  # NW
+    ("BAM!",   (255, 100, 180), (255, 245, 200),  10, ( 130, -90)),  # NE
+    ("SMASH!", ( 95, 200, 220), ( 30,  60, 120),  -6, (-140,  90)),  # SW
+    ("WHAM!",  (255, 165,  60), (220,  40,  40),   8, ( 120,  95)),  # SE
+)
+
+
+def _jagged_burst(surf, cx, cy, ro, ri, spikes, fill, outline,
+                  outline_w=3, jitter=0):
+    rng = random.Random(int(cx) * 31 + int(cy) * 17 + spikes)
+    pts = []
+    for i in range(spikes * 2):
+        ang = i * math.pi / spikes - math.pi / 2
+        r = ro if i % 2 == 0 else ri
+        if jitter:
+            r += rng.randint(-jitter, jitter)
+        pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
+    pygame.draw.polygon(surf, fill, pts)
+    pygame.draw.polygon(surf, outline, pts, outline_w)
+    return pts
+
+
+def render_kapow_chorus_overlay(cx: int, cy: int,
+                                  rng_seed: int = 22) -> pygame.Surface:
+    """C1 — Onomatopoeia chorus. 4 comic-burst badges (KAPOW! / BAM! /
+    SMASH! / WHAM!) placed in the four quadrants around Pip, each in
+    its own jagged star burst with a distinct pop-art colorway.
+    Stacks on top of the existing single POW! badge."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    for label, fill, accent, rot_deg, (dx, dy) in _PALETTE_KAPOW:
+        bx = max(60, min(W - 60, cx + dx))
+        by = max(110, min(H - 80, cy + dy))
+        # Outer + inner jagged-edge bursts.
+        _jagged_burst(surf, bx, by, 56, 30, spikes=10,
+                      fill=fill, outline=INK, outline_w=4, jitter=4)
+        _jagged_burst(surf, bx, by, 38, 22, spikes=10,
+                      fill=accent, outline=INK, outline_w=2)
+        # Text on the burst.
+        size = 24 if len(label) > 4 else 28
+        txt = _gradient_text(label, size,
+                             top_col=(255, 250, 240),
+                             bot_col=fill,
+                             outline=INK, outline_w=3)
+        rot = pygame.transform.rotate(txt, rot_deg)
+        surf.blit(rot, rot.get_rect(center=(bx, by)))
+    return surf
+
+
+def render_halftone_aura_overlay(cx: int, cy: int,
+                                   rng_seed: int = 22) -> pygame.Surface:
+    """C2 — Lichtenstein halftone aura. Red+yellow dot field radiating
+    from Pip, dots get LARGER toward the rim with a thin ink outline
+    so they read as comic-panel pop dots even against bright sky.
+    Densest at the rim (the "explosion edge") and sparse in the
+    middle so Pip + the existing starburst stay visible."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    inner_r = 130   # start just outside the live 14-spike starburst
+    outer_r = 260
+    ring_step = 14
+    for ring_idx, r in enumerate(range(inner_r, outer_r, ring_step)):
+        t = (r - inner_r) / max(1, outer_r - inner_r)
+        dot_r = int(4 + t * 5)
+        alpha = int(235 - t * 90)  # 235 -> 145, stays punchy
+        col = RED if ring_idx % 2 == 0 else YELLOW
+        col_a = (*col, alpha)
+        circumference = 2 * math.pi * r
+        n = max(10, int(circumference / 24))
+        phase = (ring_idx * math.pi / 5)
+        for k in range(n):
+            ang = phase + k * 2 * math.pi / n
+            x = cx + math.cos(ang) * r
+            y = cy + math.sin(ang) * r
+            if -dot_r < x < W + dot_r and -dot_r < y < H + dot_r:
+                # Thin ink rim so dots read against the sky.
+                pygame.draw.circle(surf, (*INK, alpha),
+                                   (int(x), int(y)), dot_r + 1)
+                pygame.draw.circle(surf, col_a,
+                                   (int(x), int(y)), dot_r)
+    return surf
+
+
+def render_speech_bubble_overlay(cx: int, cy: int,
+                                   rng_seed: int = 22) -> pygame.Surface:
+    """C3 — Round comic speech bubble tail-pointing from Pip's helmet
+    with "SHRED!" gradient text. Cream fill + thick ink outline; the
+    tail is a triangle wedge directed back at Pip. Placed upper-left
+    so it doesn't overlap the SKATEBOARD! caption strip."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    # Bubble centre — upper-left of Pip, clamped onto the screen.
+    bcx = max(110, min(W - 110, cx - 130))
+    bcy = max(170, min(H - 110, cy - 90))
+    # Tail triangle from the bubble edge toward Pip.
+    ang = math.atan2(cy - bcy, cx - bcx)
+    rx, ry = 95, 70  # bubble half-axes
+    tail_anchor_x = bcx + math.cos(ang) * rx * 0.92
+    tail_anchor_y = bcy + math.sin(ang) * ry * 0.92
+    perp = ang + math.pi / 2
+    spread = 22
+    tail = [
+        (tail_anchor_x + math.cos(perp) * spread,
+         tail_anchor_y + math.sin(perp) * spread),
+        (tail_anchor_x - math.cos(perp) * spread,
+         tail_anchor_y - math.sin(perp) * spread),
+        (cx, cy - 12),
+    ]
+    pygame.draw.polygon(surf, (255, 248, 220), tail)
+    pygame.draw.polygon(surf, INK, tail, 4)
+    # Bubble body — ellipse with thick black outline.
+    bub_rect = pygame.Rect(bcx - rx, bcy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, (255, 248, 220), bub_rect)
+    pygame.draw.ellipse(surf, INK, bub_rect, 5)
+    # SHRED! text inside the bubble.
+    txt = _gradient_text("SHRED!", 36,
+                          top_col=(255, 220,  50),
+                          bot_col=(230,  60,  50),
+                          outline=INK, outline_w=4)
+    surf.blit(txt, txt.get_rect(center=(bcx, bcy)))
+    return surf
+
+
+def _lightning_bolt(surf, x0, y0, x1, y1, width=14,
+                    fill=YELLOW, highlight=WHITE, outline=INK):
+    """Jagged 4-point lightning polygon between (x0,y0) and (x1,y1).
+    Adds an inner cream highlight stripe down the centre."""
+    dx, dy = x1 - x0, y1 - y0
+    length = max(1.0, math.hypot(dx, dy))
+    ux, uy = dx / length, dy / length          # along axis
+    nx, ny = -uy, ux                            # perpendicular
+    # Quarter-and-three-quarter offsets create the zig-zag.
+    p_q1 = (x0 + ux * length * 0.30 + nx * width * 0.7,
+            y0 + uy * length * 0.30 + ny * width * 0.7)
+    p_q2 = (x0 + ux * length * 0.55 - nx * width * 0.3,
+            y0 + uy * length * 0.55 - ny * width * 0.3)
+    p_q3 = (x0 + ux * length * 0.78 + nx * width * 0.6,
+            y0 + uy * length * 0.78 + ny * width * 0.6)
+    half = width * 0.5
+    pts = [
+        (x0 + nx * half, y0 + ny * half),
+        p_q1,
+        p_q2,
+        p_q3,
+        (x1 + nx * half * 0.2, y1 + ny * half * 0.2),
+        (x1 - nx * half * 0.2, y1 - ny * half * 0.2),
+        (p_q3[0] - nx * width * 0.5, p_q3[1] - ny * width * 0.5),
+        (p_q2[0] - nx * width * 0.4, p_q2[1] - ny * width * 0.4),
+        (p_q1[0] - nx * width * 0.5, p_q1[1] - ny * width * 0.5),
+        (x0 - nx * half, y0 - ny * half),
+    ]
+    pygame.draw.polygon(surf, fill, pts)
+    pygame.draw.polygon(surf, outline, pts, 3)
+    # Centre highlight stripe.
+    mid_pts = [
+        (x0 + ux * length * 0.05, y0 + uy * length * 0.05),
+        p_q1, p_q2, p_q3,
+        (x1 - ux * length * 0.05, y1 - uy * length * 0.05),
+    ]
+    pygame.draw.lines(surf, highlight, False, mid_pts, 2)
+
+
+def render_lightning_bolts_overlay(cx: int, cy: int,
+                                     rng_seed: int = 22) -> pygame.Surface:
+    """C4 — Yellow comic lightning bolts radiating outward from Pip,
+    with a small ZZAP! badge to the side. Bolts start just OUTSIDE
+    the 14-spike starburst (radius ~140 px) and extend further out so
+    most of each bolt is visible past the burst. Thick polygon body +
+    ink outline + cream highlight stripe so they pop against the
+    sky."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    # 6 bolts radiating in a rough sunburst.
+    angles_deg = (-145, -100, -55, -10, 35, 80)
+    inner_r = 95   # bolt base — just past inner burst
+    outer_r = 230  # bolt tip — well past the 14-spike rim (~140)
+    for ang_deg in angles_deg:
+        ang = math.radians(ang_deg + 90)  # 0 deg -> straight down
+        base_x = cx + math.cos(ang) * inner_r
+        base_y = cy + math.sin(ang) * inner_r
+        tip_x = cx + math.cos(ang) * outer_r
+        tip_y = cy + math.sin(ang) * outer_r
+        # Clamp into screen with a generous margin.
+        tip_x = max(20, min(W - 20, tip_x))
+        tip_y = max(165, min(H - 30, tip_y))
+        _lightning_bolt(surf, base_x, base_y, tip_x, tip_y,
+                        width=22, fill=YELLOW,
+                        highlight=(255, 255, 220), outline=INK)
+    # ZZAP! badge — small yellow jagged burst to the upper-right.
+    bx = max(80, min(W - 60, cx + 110))
+    by = max(165, min(H - 100, cy - 70))
+    _jagged_burst(surf, bx, by, 44, 24, spikes=12,
+                  fill=YELLOW, outline=INK, outline_w=4, jitter=3)
+    _jagged_burst(surf, bx, by, 28, 16, spikes=12,
+                  fill=RED, outline=INK, outline_w=2)
+    zap = _gradient_text("ZZAP!", 24,
+                          top_col=(255, 250, 240),
+                          bot_col=YELLOW,
+                          outline=INK, outline_w=3)
+    rot = pygame.transform.rotate(zap, -10)
+    surf.blit(rot, rot.get_rect(center=(bx, by)))
+    return surf
+
+
+def render_comic_panel_overlay(cx: int, cy: int,
+                                 rng_seed: int = 22) -> pygame.Surface:
+    """C5 — Bold black comic-panel frame around the pickup region with
+    a yellow narration caption box in the top-left corner reading
+    "NEW BOARD!". Frames Pip + the existing FX like a comic snapshot."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    pw, ph = 280, 220
+    panel = pygame.Rect(0, 0, pw, ph)
+    panel.center = (cx, cy)
+    # Keep the panel onscreen with a margin.
+    panel.left   = max(8, panel.left)
+    panel.top    = max(48, panel.top)
+    panel.right  = min(W - 8, panel.right)
+    panel.bottom = min(H - 48, panel.bottom)
+    # Thick black frame — drawn 4 separate edges so the interior stays
+    # see-through.
+    border_w = 6
+    pygame.draw.rect(surf, INK, panel, border_w)
+    # Subtle drop-shadow on the right + bottom edges for depth.
+    shadow_w = 4
+    shadow_col = (0, 0, 0, 140)
+    pygame.draw.rect(surf, shadow_col,
+                     pygame.Rect(panel.right, panel.top + shadow_w,
+                                 shadow_w, panel.height))
+    pygame.draw.rect(surf, shadow_col,
+                     pygame.Rect(panel.left + shadow_w, panel.bottom,
+                                 panel.width, shadow_w))
+    # Yellow narration caption box in the top-left of the panel.
+    cap_w, cap_h = 150, 36
+    cap = pygame.Rect(panel.left + 8, panel.top + 8, cap_w, cap_h)
+    pygame.draw.rect(surf, (255, 225,  60), cap)
+    pygame.draw.rect(surf, INK, cap, 3)
+    txt = _gradient_text("NEW BOARD!", 22,
+                          top_col=(60, 30, 10),
+                          bot_col=(20, 10,  5),
+                          outline=(255, 245, 200), outline_w=2)
+    surf.blit(txt, txt.get_rect(center=cap.center))
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
