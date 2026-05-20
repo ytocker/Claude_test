@@ -2279,8 +2279,11 @@ class PowerUp:
         """SKATEBOARD pickup token (variant S4 — Jolly Roger): bone
         skull centred over two crossed skateboard decks in an X
         shape, in the in-world kit palette (black + chrome + bone
-        + red). Painted at 4× supersample for clean edges. NO halo
-        — user wants the icon to sit cleanly on the world."""
+        + red). NO halo — clean silhouette on the world.
+
+        Painted at 6× supersample then smoothscale'd down to a 72×72
+        native footprint — ~30 % larger and finer-edged than the
+        earlier 4× / 56 px iteration."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
 
@@ -2291,17 +2294,18 @@ class PowerUp:
         CREAM  = (245, 240, 230)
         RED    = (200, 50, 50)
 
-        SS = 4
-        NATIVE_W = NATIVE_H = 56
+        SS = 6
+        NATIVE_W = NATIVE_H = 72
         big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2
         by = big.get_height() // 2
 
         # Two crossed skateboard decks behind the skull, ±35°.
+        # Deck is ~28 % bigger than the previous icon (was 36×5).
         for angle in (35, -35):
-            sub_w = 36 * SS
-            sub_h = 5 * SS
+            sub_w = 46 * SS
+            sub_h = 6 * SS
             sub = pygame.Surface(
                 (sub_w + 4 * SS, sub_h + 4 * SS), pygame.SRCALPHA)
             d = pygame.Rect(0, 0, sub_w, sub_h)
@@ -2313,35 +2317,39 @@ class PowerUp:
             # Wheel dot at each end of the deck.
             for sign in (-1, 1):
                 wx = d.centerx + sign * (sub_w // 2 - 3 * SS)
-                pygame.draw.circle(sub, CREAM, (wx, d.centery), 2 * SS)
-                pygame.draw.circle(sub, RED, (wx, d.centery), SS)
+                pygame.draw.circle(sub, CREAM, (wx, d.centery),
+                                   int(2.5 * SS))
+                pygame.draw.circle(sub, RED, (wx, d.centery), int(1.2 * SS))
             rotated = pygame.transform.rotate(sub, angle)
             big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
-        # Big bone skull centred on top.
-        sk = pygame.Rect(0, 0, 18 * SS, 14 * SS)
+        # Big bone skull centred on top (was 18×14).
+        sk = pygame.Rect(0, 0, 23 * SS, 18 * SS)
         sk.center = (bx, by - SS)
         pygame.draw.ellipse(big, BONE, sk)
-        pygame.draw.ellipse(big, DOME, sk, SS)
+        pygame.draw.ellipse(big, DOME, sk, int(1.2 * SS))
         # Eye sockets — dramatic.
-        for ex in (sk.centerx - 4 * SS, sk.centerx + 2 * SS):
+        for ex in (sk.centerx - 5 * SS, sk.centerx + 3 * SS):
             pygame.draw.circle(big, DOME,
-                               (ex + SS, sk.centery - SS), 2 * SS)
+                               (ex + SS, sk.centery - SS),
+                               int(2.5 * SS))
         # Nose triangle.
         pygame.draw.polygon(big, DOME, [
-            (sk.centerx - SS, sk.centery + 2 * SS),
-            (sk.centerx + SS, sk.centery + 2 * SS),
-            (sk.centerx, sk.centery + 4 * SS),
+            (sk.centerx - SS,          sk.centery + 3 * SS),
+            (sk.centerx + SS,          sk.centery + 3 * SS),
+            (sk.centerx,               sk.centery + int(5.5 * SS)),
         ])
         # Jaw line.
         pygame.draw.line(big, DOME,
-                         (sk.centerx - 5 * SS, sk.bottom - 2 * SS),
-                         (sk.centerx + 5 * SS, sk.bottom - 2 * SS), SS)
+                         (sk.centerx - 6 * SS, sk.bottom - 2 * SS),
+                         (sk.centerx + 6 * SS, sk.bottom - 2 * SS),
+                         int(1.2 * SS))
         # Teeth gaps.
-        for tx in (-3 * SS, 0, 3 * SS):
+        for tx in (-4 * SS, 0, 4 * SS):
             pygame.draw.line(big, DOME,
-                             (sk.centerx + tx, sk.bottom - 4 * SS),
-                             (sk.centerx + tx, sk.bottom - SS), SS)
+                             (sk.centerx + tx, sk.bottom - 5 * SS),
+                             (sk.centerx + tx, sk.bottom - SS),
+                             int(1.2 * SS))
 
         # Smoothscale down to native size for anti-aliased edges.
         icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
