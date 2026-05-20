@@ -1364,6 +1364,11 @@ class Pipe:
         # stone at timer=0 alongside the fries mountain + fried Pip; only
         # the wider gap outlives the timer.
         self.is_kfc = False
+        # SKATEBOARD: True when a Ramp is spawned on this pipe's
+        # lower-pillar top. Pipe.draw forwards this to
+        # draw_pillar_pair which then overpaints the crown
+        # vegetation so it doesn't poke through the ramp.
+        self.has_ramp = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
         # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
@@ -1399,7 +1404,8 @@ class Pipe:
             surf.blit(self._kfc_cache,
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
-        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
+        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette,
+                         self.seed, skip_bot_crown=self.has_ramp)
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA

@@ -488,6 +488,9 @@ class World:
         max_x_offset = PIPE_W - ramp_w
         rx = pipe.x + random.uniform(0, max_x_offset)
         self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
+        # Tag the pipe so its crown vegetation is hidden under the
+        # ramp when the pipe is drawn.
+        pipe.has_ramp = True
 
     # ── public control ──────────────────────────────────────────────────────
 
