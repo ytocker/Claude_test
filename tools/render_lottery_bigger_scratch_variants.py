@@ -321,13 +321,29 @@ def _gold_card_base_no_shadow(big, SS):
     return card, inner
 
 
+def _ss_paint_then_rotate(paint_fn, tilt_deg,
+                            native_w=56, native_h=42, ss=6):
+    """Paint at supersample, ROTATE at supersample, THEN smoothscale.
+    Rotating before smoothscale gives anti-aliased rotated edges; the
+    other order (smoothscale → rotate) was what was giving B5's chrome
+    rim an asymmetric thickness at the bottom-right."""
+    big = pygame.Surface((native_w * ss, native_h * ss), pygame.SRCALPHA)
+    paint_fn(big, ss)
+    if abs(tilt_deg) > 0.1:
+        big = pygame.transform.rotate(big, tilt_deg)
+    rw, rh = big.get_size()
+    return pygame.transform.smoothscale(big, (rw // ss, rh // ss))
+
+
 def draw_b5_triple_cell(surf, cx, cy, pulse):
     """B5 — Three large scratch cells side-by-side, each with a
     single big "?". Mimics a real-world scratch ticket where each
     box is its own panel. Tiny LUCKY chip riding the top edge.
 
-    Uses the no-shadow card base so the chrome rim sits parallel to
-    the gold-ticket borders without a bottom-right gray tail."""
+    Uses the no-shadow card base + rotate-at-supersample so the chrome
+    rim is a uniform-thickness parallel border around the gold ticket
+    on all 4 sides (the previous rotate-at-native order was creating
+    a thicker chrome strip on the bottom from native-pixel aliasing)."""
 
     def paint(big, SS):
         card, inner = _gold_card_base_no_shadow(big, SS)
@@ -359,10 +375,9 @@ def draw_b5_triple_cell(surf, cx, cy, pulse):
             _draw_question_marks(big, cell, text="?", font_frac=0.95,
                                   pad_x_frac=0.18, pad_y_frac=0.18)
 
-    icon = _ss_paint(paint)
     tilt = math.sin(pulse * 0.7) * 5
-    rot = pygame.transform.rotate(icon, tilt)
-    surf.blit(rot, rot.get_rect(center=(cx, cy)))
+    icon = _ss_paint_then_rotate(paint, tilt)
+    surf.blit(icon, icon.get_rect(center=(cx, cy)))
 
 
 VARIANTS = [
