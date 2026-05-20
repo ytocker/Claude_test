@@ -1008,53 +1008,85 @@ class World:
         return False
 
     def _maybe_skateboard_dust(self, x, y_ground):
-        """Spark shower off the back of the board — bright hot
-        flecks shooting backward in a narrow arc like a real
-        skateboard grind. Particles use BLEND_ADD (see
-        Particle.draw) so overlapping sparks glow brighter."""
-        if random.random() >= 0.75:
-            return
-        # Hot-to-cool spark palette — yellow/orange/near-white.
-        spark_colors = (
-            (255, 240, 180),
-            (255, 220, 120),
-            (255, 190,  70),
-            (255, 160,  40),
-            (255, 245, 220),
-        )
-        # 5-8 fast small sparks per burst — the main shower.
-        n = random.randint(5, 8)
-        for _ in range(n):
-            # Mostly backward (cos(ang) ≈ -1), slight upward bias.
-            ang = math.pi + random.uniform(-0.45, 0.55)
-            spd = random.uniform(160, 320)
+        """Tiny animated FIRE plume bursting from the back of the
+        board — layered hot core + orange body + red flicker +
+        occasional ember sparks shooting off. Particles spawn at
+        a tight point behind the board with small velocities so
+        the flame stays close instead of flying off into the
+        background. All Particle.draw calls use BLEND_ADD, so
+        overlapping particles stack into a bright glowing core."""
+        # Anchor the plume just behind / above the contact surface
+        # (where the board is sitting). Drifts a touch backward
+        # via the world scroll, but the per-frame emission keeps
+        # the source visually pinned to Pip.
+        fx = x - 8
+        fy = y_ground - 2
+        # ── HOT CORE — bright white-yellow, tight cluster ───────
+        for _ in range(2):
             self.particles.append(Particle(
-                x - random.uniform(0, 6),
-                y_ground - random.uniform(0, 3),
-                math.cos(ang) * spd,
-                -abs(math.sin(ang) * spd * 0.85),
-                random.uniform(0.18, 0.36),
-                random.randint(1, 2),
-                random.choice(spark_colors),
-                gravity=380,
-            ))
-        # 1-2 longer streak sparks that fly further before fading.
-        for _ in range(random.randint(1, 2)):
-            ang = math.pi + random.uniform(-0.25, 0.45)
-            spd = random.uniform(240, 380)
-            self.particles.append(Particle(
-                x - random.uniform(2, 10),
-                y_ground - random.uniform(1, 4),
-                math.cos(ang) * spd,
-                -abs(math.sin(ang) * spd * 0.75),
-                random.uniform(0.30, 0.55),
+                fx + random.uniform(-2, 2),
+                fy + random.uniform(-1, 1),
+                random.uniform(-25, 15),       # mild backward drift
+                random.uniform(-90, -130),     # strong rise
+                random.uniform(0.18, 0.28),
                 random.randint(2, 3),
                 random.choice((
-                    (255, 240, 190),
-                    (255, 215, 130),
+                    (255, 255, 220),
+                    (255, 240, 180),
+                    (255, 230, 150),
                 )),
-                gravity=340,
+                gravity=-60,
             ))
+        # ── MID LAYER — orange flame body ───────────────────────
+        for _ in range(3):
+            self.particles.append(Particle(
+                fx + random.uniform(-3, 3),
+                fy + random.uniform(-1, 2),
+                random.uniform(-40, 20),
+                random.uniform(-65, -105),
+                random.uniform(0.28, 0.46),
+                random.randint(3, 5),
+                random.choice((
+                    (255, 180, 80),
+                    (255, 150, 50),
+                    (255, 200, 100),
+                )),
+                gravity=-40,
+            ))
+        # ── OUTER FLICKER — deep red, occasional so the flame
+        # tongue wobbles instead of reading as a uniform blob.
+        if random.random() < 0.65:
+            for _ in range(random.randint(1, 2)):
+                self.particles.append(Particle(
+                    fx + random.uniform(-5, 4),
+                    fy + random.uniform(0, 3),
+                    random.uniform(-30, 15),
+                    random.uniform(-50, -85),
+                    random.uniform(0.36, 0.58),
+                    random.randint(4, 6),
+                    random.choice((
+                        (220, 80, 30),
+                        (200, 60, 20),
+                        (240, 110, 40),
+                    )),
+                    gravity=-25,
+                ))
+        # ── EMBER SPARKS — bright pin-pricks that pop off the tip
+        # of the flame and arc downward under positive gravity.
+        if random.random() < 0.40:
+            for _ in range(random.randint(1, 2)):
+                ang = math.pi + random.uniform(-0.6, 0.5)
+                spd = random.uniform(180, 310)
+                self.particles.append(Particle(
+                    fx + random.uniform(-2, 2),
+                    fy + random.uniform(-1, 1),
+                    math.cos(ang) * spd,
+                    -abs(math.sin(ang) * spd * 0.9),
+                    random.uniform(0.14, 0.28),
+                    1,
+                    (255, 240, 180),
+                    gravity=380,
+                ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so the
     # wagon body sits with its wheels exactly on the rail line.
