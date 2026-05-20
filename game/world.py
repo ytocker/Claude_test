@@ -1008,84 +1008,20 @@ class World:
         return False
 
     def _maybe_skateboard_dust(self, x, y_ground):
-        """Tiny animated FIRE plume bursting from the back of the
-        board — layered hot core + orange body + red flicker +
-        occasional ember sparks shooting off. Particles spawn at
-        a tight point behind the board with small velocities so
-        the flame stays close instead of flying off into the
-        background. All Particle.draw calls use BLEND_ADD, so
-        overlapping particles stack into a bright glowing core."""
-        # Anchor the plume just behind / above the contact surface
-        # (where the board is sitting). Drifts a touch backward
-        # via the world scroll, but the per-frame emission keeps
-        # the source visually pinned to Pip.
-        fx = x - 8
-        fy = y_ground - 2
-        # ── HOT CORE — bright white-yellow, tight cluster ───────
-        for _ in range(2):
-            self.particles.append(Particle(
-                fx + random.uniform(-2, 2),
-                fy + random.uniform(-1, 1),
-                random.uniform(-25, 15),       # mild backward drift
-                random.uniform(-90, -130),     # strong rise
-                random.uniform(0.18, 0.28),
-                random.randint(2, 3),
-                random.choice((
-                    (255, 255, 220),
-                    (255, 240, 180),
-                    (255, 230, 150),
-                )),
-                gravity=-60,
-            ))
-        # ── MID LAYER — orange flame body ───────────────────────
-        for _ in range(3):
-            self.particles.append(Particle(
-                fx + random.uniform(-3, 3),
-                fy + random.uniform(-1, 2),
-                random.uniform(-40, 20),
-                random.uniform(-65, -105),
-                random.uniform(0.28, 0.46),
-                random.randint(3, 5),
-                random.choice((
-                    (255, 180, 80),
-                    (255, 150, 50),
-                    (255, 200, 100),
-                )),
-                gravity=-40,
-            ))
-        # ── OUTER FLICKER — deep red, occasional so the flame
-        # tongue wobbles instead of reading as a uniform blob.
-        if random.random() < 0.65:
-            for _ in range(random.randint(1, 2)):
+        """Occasional dust puff while sliding — throttled, not every frame."""
+        if random.random() < 0.35:
+            for _ in range(2):
+                ang = random.uniform(math.pi * 0.9, math.pi * 1.1)
+                spd = random.uniform(40, 110)
                 self.particles.append(Particle(
-                    fx + random.uniform(-5, 4),
-                    fy + random.uniform(0, 3),
-                    random.uniform(-30, 15),
-                    random.uniform(-50, -85),
-                    random.uniform(0.36, 0.58),
-                    random.randint(4, 6),
-                    random.choice((
-                        (220, 80, 30),
-                        (200, 60, 20),
-                        (240, 110, 40),
-                    )),
-                    gravity=-25,
-                ))
-        # ── EMBER SPARKS — bright pin-pricks that pop off the tip
-        # of the flame and arc downward under positive gravity.
-        if random.random() < 0.40:
-            for _ in range(random.randint(1, 2)):
-                ang = math.pi + random.uniform(-0.6, 0.5)
-                spd = random.uniform(180, 310)
-                self.particles.append(Particle(
-                    fx + random.uniform(-2, 2),
-                    fy + random.uniform(-1, 1),
+                    x - random.uniform(0, 10),
+                    y_ground - 2,
                     math.cos(ang) * spd,
-                    -abs(math.sin(ang) * spd * 0.9),
-                    random.uniform(0.14, 0.28),
-                    1,
-                    (255, 240, 180),
-                    gravity=380,
+                    -abs(math.sin(ang) * spd * 0.4),
+                    random.uniform(0.25, 0.45),
+                    random.randint(2, 3),
+                    random.choice(((220, 215, 200), (200, 195, 180), WHITE)),
+                    gravity=200,
                 ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so the
