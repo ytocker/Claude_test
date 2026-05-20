@@ -467,26 +467,25 @@ class World:
     def _maybe_spawn_ramp(self, pipe: Pipe):
         """During the SKATEBOARD window, sometimes drop a wooden
         ramp on top of this pipe's LOWER pillar. Max 1 ramp per
-        pillar (some pillars skipped). Ramps are steeper than the
-        ground variant (taller-to-wider ratio) so the slide gives
-        Pip a noticeable launch. Skipped entirely when SKATEBOARD
-        isn't active so the player only sees ramps during the
-        powerup window."""
+        pillar (~55 % chance per pipe, some skipped). User picked
+        the A1 gentle incline (38×22, height-to-width ratio 0.58)
+        — a small ±2 px jitter is allowed per spawn so the wedges
+        look hand-placed rather than stamped. The ramp is RIGHT-
+        ALIGNED on the pillar so the kicker sits flush with the
+        pillar's right edge."""
         if self.skateboard_timer <= 0:
             return
         if random.random() >= 0.55:
             return
-        # Steep wedge: height-to-width ratio ~0.55–0.85 (was ~0.4).
-        ramp_w = random.randint(30, 44)
-        ramp_h = random.randint(22, 32)
-        if ramp_w > PIPE_W - 4:
-            ramp_w = PIPE_W - 4
+        ramp_w = 38 + random.randint(-2, 2)
+        ramp_h = 22 + random.randint(-2, 2)
+        ramp_w = min(ramp_w, PIPE_W - 2)
         # Place the ramp on top of the lower pillar so its base
-        # rests at pipe.gap_y + pipe.gap_h/2. X offset within the
-        # pillar's column so the kicker doesn't hang off the edge.
+        # rests at pipe.gap_y + pipe.gap_h/2.  Right edge aligns
+        # with the pillar's right edge (kicker flush at the
+        # pillar's right side).
         base_y = pipe.gap_y + pipe.gap_h / 2
-        max_x_offset = PIPE_W - ramp_w
-        rx = pipe.x + random.uniform(0, max_x_offset)
+        rx = pipe.x + PIPE_W - ramp_w
         self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
         # Tag the pipe so its crown vegetation is hidden under the
         # ramp when the pipe is drawn.
