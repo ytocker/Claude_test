@@ -194,6 +194,129 @@ def _mouth_pirate_grin(big, sk, jaw_y):
         pygame.draw.rect(big, DOME, rect)
 
 
+# ── 5 punk-style mouths (research: Misfits, Black Flag, Vans,
+# Suicidal Tendencies, Powell Peralta, classic Jolly Roger). ──
+
+def _mouth_p1_misfits(big, sk, jaw_y):
+    """P1 — Misfits "Crimson Ghost" grin. A horizontal upper-jaw
+    line with 7 downward-pointing triangle teeth hanging from
+    it. No bottom jaw bar — the line IS the upper jaw, the teeth
+    hang below it like in the Misfits skull logo."""
+    span = 12 * SS
+    upper_y = jaw_y - int(SS * 0.5)
+    # Upper-jaw line.
+    pygame.draw.line(big, DOME,
+                     (sk.centerx - span // 2, upper_y),
+                     (sk.centerx + span // 2, upper_y),
+                     max(1, int(1.2 * SS)))
+    # 7 downward triangles hanging from the line.
+    n = 7
+    tooth_h = int(2.4 * SS)
+    half_w = max(1, int(SS * 0.55))
+    for i in range(n):
+        t = i / (n - 1)
+        tx = sk.centerx - span // 2 + int(t * span)
+        pygame.draw.polygon(big, DOME, [
+            (tx - half_w, upper_y),
+            (tx + half_w, upper_y),
+            (tx,          upper_y + tooth_h),
+        ])
+
+
+def _mouth_p2_sawtooth(big, sk, jaw_y):
+    """P2 — Pure zigzag / W-shape sawtooth at jaw_y, no horizontal
+    jaw bar. Spike-y stencil-punk vibe."""
+    span = 13 * SS
+    peaks = 5            # number of valleys (the W has 5 valleys)
+    amp = int(2.5 * SS)
+    pts = []
+    n_segs = peaks * 2
+    for i in range(n_segs + 1):
+        t = i / n_segs
+        x = sk.centerx - span // 2 + int(t * span)
+        y = jaw_y + (amp if (i % 2 == 0) else -amp)
+        pts.append((x, y))
+    pygame.draw.lines(big, DOME, False, pts,
+                      max(1, int(1.4 * SS)))
+
+
+def _mouth_p3_stitched(big, sk, jaw_y):
+    """P3 — Stitched bandana. Horizontal bar with 4 diagonal X
+    cross-stitches across it. Reads as sewn-shut punk mouth."""
+    span = 11 * SS
+    pygame.draw.line(big, DOME,
+                     (sk.centerx - span // 2, jaw_y),
+                     (sk.centerx + span // 2, jaw_y),
+                     max(1, int(1.4 * SS)))
+    stitch_h = int(2.0 * SS)
+    stitch_w = int(2.0 * SS)
+    n = 4
+    for i in range(n):
+        t = (i + 0.5) / n
+        cx0 = sk.centerx - span // 2 + int(t * span)
+        # Two short diagonal strokes forming an X centred on the bar.
+        pygame.draw.line(big, DOME,
+                         (cx0 - stitch_w // 2, jaw_y - stitch_h // 2),
+                         (cx0 + stitch_w // 2, jaw_y + stitch_h // 2),
+                         max(1, int(SS * 0.7)))
+        pygame.draw.line(big, DOME,
+                         (cx0 - stitch_w // 2, jaw_y + stitch_h // 2),
+                         (cx0 + stitch_w // 2, jaw_y - stitch_h // 2),
+                         max(1, int(SS * 0.7)))
+
+
+def _mouth_p4_missing_tooth(big, sk, jaw_y):
+    """P4 — Missing-tooth grin. Like M2's square teeth row but the
+    CENTRE tooth is missing (gap), plus a small downward red
+    triangle drip hanging from the gap (tiny punk accent)."""
+    pygame.draw.line(big, DOME,
+                     (sk.centerx - 6 * SS, jaw_y),
+                     (sk.centerx + 6 * SS, jaw_y),
+                     max(1, int(1.2 * SS)))
+    teeth_n = 5
+    tooth_w = int(1.6 * SS)
+    tooth_h = int(2.6 * SS)
+    span = 10 * SS
+    for i in range(teeth_n):
+        if i == teeth_n // 2:
+            continue  # missing centre tooth
+        t = i / (teeth_n - 1)
+        tx = sk.centerx - span // 2 + int(t * span)
+        rect = pygame.Rect(0, 0, tooth_w, tooth_h)
+        rect.midbottom = (tx, jaw_y - max(1, SS // 3))
+        pygame.draw.rect(big, DOME, rect)
+    # Red drip hanging from the centre gap.
+    drip_top_y = jaw_y + int(SS * 0.4)
+    pygame.draw.polygon(big, RED, [
+        (sk.centerx - int(SS * 0.9), drip_top_y),
+        (sk.centerx + int(SS * 0.9), drip_top_y),
+        (sk.centerx,                  drip_top_y + int(2.4 * SS)),
+    ])
+
+
+def _mouth_p5_checker(big, sk, jaw_y):
+    """P5 — Vans-checkerboard. 5 alternating black/white square
+    teeth sitting on a jaw line. Pure skate-culture quotation."""
+    pygame.draw.line(big, DOME,
+                     (sk.centerx - 6 * SS, jaw_y),
+                     (sk.centerx + 6 * SS, jaw_y),
+                     max(1, int(1.2 * SS)))
+    teeth_n = 5
+    tooth_w = int(1.8 * SS)
+    tooth_h = int(2.6 * SS)
+    span = 10 * SS
+    for i in range(teeth_n):
+        t = i / (teeth_n - 1)
+        tx = sk.centerx - span // 2 + int(t * span)
+        rect = pygame.Rect(0, 0, tooth_w, tooth_h)
+        rect.midbottom = (tx, jaw_y - max(1, SS // 3))
+        col = DOME if (i % 2 == 0) else BONE
+        pygame.draw.rect(big, col, rect)
+        # Tiny dark outline so the white squares still read against
+        # the bone skull.
+        pygame.draw.rect(big, DOME, rect, max(1, SS // 3))
+
+
 def draw_m1_smile_arc(surf, cx, cy, pulse):
     _paint_face(surf, cx, cy, pulse, _mouth_smile_arc)
 
@@ -214,6 +337,26 @@ def draw_m5_pirate_grin(surf, cx, cy, pulse):
     _paint_face(surf, cx, cy, pulse, _mouth_pirate_grin)
 
 
+def draw_p1_misfits(surf, cx, cy, pulse):
+    _paint_face(surf, cx, cy, pulse, _mouth_p1_misfits)
+
+
+def draw_p2_sawtooth(surf, cx, cy, pulse):
+    _paint_face(surf, cx, cy, pulse, _mouth_p2_sawtooth)
+
+
+def draw_p3_stitched(surf, cx, cy, pulse):
+    _paint_face(surf, cx, cy, pulse, _mouth_p3_stitched)
+
+
+def draw_p4_missing_tooth(surf, cx, cy, pulse):
+    _paint_face(surf, cx, cy, pulse, _mouth_p4_missing_tooth)
+
+
+def draw_p5_checker(surf, cx, cy, pulse):
+    _paint_face(surf, cx, cy, pulse, _mouth_p5_checker)
+
+
 VARIANTS = [
     ("M1_smile_arc",     draw_m1_smile_arc,
      "M1: single curved smile arc, no teeth — friendliest"),
@@ -225,7 +368,24 @@ VARIANTS = [
      "M4: just a horizontal bar, no teeth — minimalist"),
     ("M5_pirate_grin",   draw_m5_pirate_grin,
      "M5: curved arc + 2 tooth hints — happy pirate"),
+    ("P1_misfits",       draw_p1_misfits,
+     "P1: Misfits Crimson-Ghost grin — 7 triangle fangs"),
+    ("P2_sawtooth",      draw_p2_sawtooth,
+     "P2: pure W-shape sawtooth — stencil-punk spike"),
+    ("P3_stitched",      draw_p3_stitched,
+     "P3: stitched bandana — bar + 4 X-stitches"),
+    ("P4_missing_tooth", draw_p4_missing_tooth,
+     "P4: missing-tooth grin + red drip — pirate rocker"),
+    ("P5_checker",       draw_p5_checker,
+     "P5: Vans-checker — alternating black/white square teeth"),
 ]
+
+# Subset used for the 6-cell M5+punk comparison sheet.
+COMPARISON_LABELS = (
+    "M5_pirate_grin",
+    "P1_misfits", "P2_sawtooth", "P3_stitched",
+    "P4_missing_tooth", "P5_checker",
+)
 
 
 # ── output ──────────────────────────────────────────────────────────────────
@@ -266,18 +426,42 @@ def main():
     cell_h = saved[0][2].get_height()
     band_h = 56
     gap    = 12
-    sheet_w = len(saved) * cell_w + (len(saved) - 1) * gap + 24
-    sheet_h = cell_h + band_h + 24
-    sheet = pygame.Surface((sheet_w, sheet_h))
-    sheet.fill((10, 12, 24))
-    for idx, (label, caption, icon) in enumerate(saved):
-        x = 12 + idx * (cell_w + gap)
-        sheet.blit(icon, (x, 12))
-        band = _label_band(cell_w, label, caption, height=band_h)
-        sheet.blit(band, (x, 12 + cell_h))
-    sheet_path = os.path.join(_OUT, "00_contact_sheet.png")
-    pygame.image.save(sheet, sheet_path)
-    print(f"saved {sheet_path}")
+
+    def _build_sheet(cells, columns=None):
+        """Lay out cells in a grid. `columns` defaults to len(cells)
+        (single row). Returns the rendered surface."""
+        if columns is None:
+            columns = len(cells)
+        rows = (len(cells) + columns - 1) // columns
+        s_w = columns * cell_w + (columns - 1) * gap + 24
+        s_h = rows * (cell_h + band_h) + (rows - 1) * gap + 24
+        s = pygame.Surface((s_w, s_h))
+        s.fill((10, 12, 24))
+        for idx, (label, caption, icon) in enumerate(cells):
+            r = idx // columns
+            c = idx % columns
+            x = 12 + c * (cell_w + gap)
+            y = 12 + r * (cell_h + band_h + gap)
+            s.blit(icon, (x, y))
+            band = _label_band(cell_w, label, caption, height=band_h)
+            s.blit(band, (x, y + cell_h))
+        return s
+
+    # Full 10-cell contact sheet (M1-M5 + P1-P5) — 5 per row.
+    full = _build_sheet(saved, columns=5)
+    full_path = os.path.join(_OUT, "00_contact_sheet.png")
+    pygame.image.save(full, full_path)
+    print(f"saved {full_path}")
+
+    # 6-cell punk-comparison sheet (M5 + P1-P5) — 3 per row.
+    by_label = {label: (label, caption, icon)
+                for (label, caption, icon) in saved}
+    comparison_cells = [by_label[l] for l in COMPARISON_LABELS
+                        if l in by_label]
+    punk = _build_sheet(comparison_cells, columns=3)
+    punk_path = os.path.join(_OUT, "00_punk_comparison.png")
+    pygame.image.save(punk, punk_path)
+    print(f"saved {punk_path}")
 
     base = ("https://raw.githubusercontent.com/ytocker/skybit/"
             "v5_powerups/docs/screenshots/skateboard_mouth_variants")
