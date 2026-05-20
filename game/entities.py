@@ -2443,25 +2443,124 @@ class PowerUp:
         draw_chest_at(surf, cx, cy)
 
     def _draw_rail_icon(self, surf):
+        """RAIL pickup — plain wooden minecart with iron hoops on
+        4-spoke iron-rim wheels. No halo, no track, no coins. The
+        cart silhouette previews the experience Pip gets during
+        the rail buff (see `_render_wagon_body` for the in-world
+        cousin). Painted at 6× supersample on a 64×48 native
+        canvas, smoothscaled down."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
-        # Halo
-        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
-        a = int(80 + 40 * (0.5 + 0.5 * math.sin(self.pulse * 1.6)))
-        pygame.draw.circle(halo, (255, 220, 80, a // 2), (24, 24), 22)
-        surf.blit(halo, (cx - 24, cy - 24))
-        # 2 parallel gold rails with crossties (like a tiny railroad track)
-        for rail_y in (cy - 4, cy + 6):
-            pygame.draw.line(surf, (140, 90, 30), (cx - 14, rail_y), (cx + 14, rail_y), 4)
-            pygame.draw.line(surf, (255, 220, 80), (cx - 14, rail_y), (cx + 14, rail_y), 2)
-        # Crossties
-        for tie_x in (cx - 10, cx - 2, cx + 6):
-            pygame.draw.rect(surf, (90, 60, 30),
-                             pygame.Rect(tie_x, cy - 6, 3, 14))
-        # Sparks
-        for i, sx in enumerate((cx - 12, cx + 11)):
-            sy = cy - 8 + (i * 4) + int(math.sin(self.pulse * 3 + i) * 2)
-            pygame.draw.circle(surf, UI_CREAM, (sx, sy), 2)
+
+        SS = 6
+        NATIVE_W, NATIVE_H = 64, 48
+        sw, sh = NATIVE_W * SS, NATIVE_H * SS
+        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
+
+        # Palette — pine planks + iron + dark stroke.
+        WOOD_DARK = ( 78,  50,  26)
+        WOOD_MID  = (135,  88,  44)
+        WOOD_HI   = (185, 130,  70)
+        IRON      = ( 70,  70,  80)
+        IRON_HI   = (150, 155, 170)
+        STROKE    = ( 20,  16,  14)
+        SHADOW    = (  0,   0,   0,  90)
+
+        # ── helpers (close over `big` + `SS`) ──
+
+        def vgrad(rect, top_col, bot_col, radius=0):
+            tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
+            h = rect.height
+            for y in range(h):
+                t = y / max(1, h - 1)
+                col = (int(top_col[0] * (1 - t) + bot_col[0] * t),
+                       int(top_col[1] * (1 - t) + bot_col[1] * t),
+                       int(top_col[2] * (1 - t) + bot_col[2] * t))
+                pygame.draw.line(tmp, col, (0, y), (rect.width, y))
+            if radius:
+                mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(mask, (255, 255, 255, 255),
+                                 mask.get_rect(),
+                                 border_radius=radius)
+                tmp.blit(mask, (0, 0),
+                         special_flags=pygame.BLEND_RGBA_MIN)
+            big.blit(tmp, rect.topleft)
+
+        def cart_body(rect):
+            # Drop shadow.
+            sh_surf = pygame.Surface(
+                (rect.width + 2 * SS, rect.height + 2 * SS),
+                pygame.SRCALPHA)
+            pygame.draw.rect(sh_surf, SHADOW, sh_surf.get_rect(),
+                             border_radius=int(SS * 0.7))
+            big.blit(sh_surf, sh_surf.get_rect(
+                center=(rect.centerx, rect.centery + SS + 1)))
+            # Wood gradient body.
+            vgrad(rect, WOOD_HI, WOOD_DARK, radius=int(SS * 0.7))
+            # 4 vertical plank seams.
+            for i in range(1, 4):
+                px = rect.left + i * rect.width // 4
+                pygame.draw.line(big, WOOD_DARK,
+                                 (px, rect.top + SS),
+                                 (px, rect.bottom - SS),
+                                 max(1, SS // 2))
+            # 2 iron hoop bands.
+            band_h = max(2, int(SS * 0.9))
+            for band_y in (rect.top + int(rect.height * 0.22),
+                           rect.bottom
+                           - int(rect.height * 0.22) - band_h):
+                pygame.draw.rect(big, IRON,
+                                 (rect.left - SS, band_y,
+                                  rect.width + 2 * SS, band_h))
+                pygame.draw.line(big, IRON_HI,
+                                 (rect.left - SS, band_y),
+                                 (rect.right + SS, band_y),
+                                 max(1, SS // 3))
+            # Outline.
+            pygame.draw.rect(big, STROKE, rect,
+                             max(1, int(SS * 0.5)),
+                             border_radius=int(SS * 0.7))
+
+        def spoked_wheel(wcx, wcy, r, spokes=4):
+            pygame.draw.circle(big, (0, 0, 0, 70),
+                               (wcx, wcy + SS // 2 + 1),
+                               r + SS // 2)
+            pygame.draw.circle(big, IRON, (wcx, wcy), r)
+            pygame.draw.circle(big, WOOD_MID, (wcx, wcy),
+                               max(1, r - SS))
+            for i in range(spokes):
+                ang = math.radians(i * (360 / spokes))
+                x2 = wcx + math.cos(ang) * (r - SS)
+                y2 = wcy + math.sin(ang) * (r - SS)
+                pygame.draw.line(big, IRON, (wcx, wcy),
+                                 (int(x2), int(y2)),
+                                 max(1, int(SS * 0.6)))
+            pygame.draw.circle(big, IRON_HI, (wcx, wcy),
+                               max(1, int(SS * 0.8)))
+            pygame.draw.circle(big, STROKE, (wcx, wcy), r,
+                               max(1, SS // 2))
+
+        # ── paint the cart ──
+        cart_w = int(SS * 36)
+        cart_h = int(SS * 16)
+        cart = pygame.Rect(0, 0, cart_w, cart_h)
+        cart.center = (sw // 2, sh // 2 + int(SS * 1))
+        cart_body(cart)
+        wheel_r = int(SS * 4.5)
+        wheel_cy = cart.bottom + int(SS * 0.5)
+        for sign in (-1, 1):
+            wcx = cart.centerx + sign * (cart.width // 2
+                                          - int(SS * 5))
+            spoked_wheel(wcx, wheel_cy, wheel_r)
+
+        # Rotate at supersample then smoothscale down so the tilted
+        # edges stay clean. Slight ±4° tilt for the "alive" feel.
+        tilt = math.sin(self.pulse * 0.7) * 4
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated,
+                                              (rw // SS, rh // SS))
+        surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_lottery_icon(self, surf):
         """Scratch-off lottery card ("LUCKY" variant) — gold body with
