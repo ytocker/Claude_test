@@ -244,15 +244,16 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
         pygame.draw.line(big, window_col, (vx, v_top), (vx, v_bot),
                          max(1, SS // 3))
 
-    # ── Driving wheels (2 big, spoked) + leading wheel (1 small) ──
-    # All three wheels share `ground_y`. Drivers spaced 28% / 55%
-    # of boiler width so they sit visibly under the boiler centre;
-    # leading wheel at 82% so it's clearly between the front driver
-    # and the cowcatcher.
+    # ── 4-4-0 "American" wheel arrangement ──
+    # 2 big driving wheels at the BACK (left half of the boiler)
+    # + 2 small leading wheels at the FRONT (right half, ahead of
+    # the drivers and behind the cowcatcher). All four wheels share
+    # `ground_y`; the small front pair sits visually higher because
+    # of the smaller radius.
     drive_y = ground_y - big_wheel_r
     drive_xs = (
-        boiler.left + int(boiler.width * 0.28),
-        boiler.left + int(boiler.width * 0.55),
+        boiler.left + int(boiler.width * 0.18),
+        boiler.left + int(boiler.width * 0.42),
     )
     for wx in drive_xs:
         pygame.draw.circle(big, colour, (wx, drive_y),
@@ -272,14 +273,18 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
         pygame.draw.circle(big, colour, (wx, drive_y),
                            big_wheel_r,
                            max(1, int(SS * 0.35 * scale)))
-    # Leading wheel (pony truck) — clearly between the front
-    # driver and the cowcatcher. No spokes (too small to read).
-    lead_wx = boiler.left + int(boiler.width * 0.82)
-    lead_wy = ground_y - small_wheel_r
-    pygame.draw.circle(big, colour, (lead_wx, lead_wy),
-                       small_wheel_r)
-    pygame.draw.circle(big, window_col, (lead_wx, lead_wy),
-                       max(1, int(SS * 0.45 * scale)))
+    # 2 leading wheels (pony truck) — sit ahead of the drivers,
+    # behind the cowcatcher. Small enough that spokes would muddy.
+    lead_y = ground_y - small_wheel_r
+    lead_xs = (
+        boiler.left + int(boiler.width * 0.66),
+        boiler.left + int(boiler.width * 0.86),
+    )
+    for wx in lead_xs:
+        pygame.draw.circle(big, colour, (wx, lead_y),
+                           small_wheel_r)
+        pygame.draw.circle(big, window_col, (wx, lead_y),
+                           max(1, int(SS * 0.45 * scale)))
 
     # ── Coupling rod connecting the driving wheels ──
     rod_h = max(2, int(SS * 0.6 * scale))

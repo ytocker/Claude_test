@@ -2585,11 +2585,12 @@ class PowerUp:
                 pygame.draw.line(big, CREAM, (vx, v_top),
                                  (vx, v_bot), max(1, SS // 3))
 
-            # Driving wheels + leading wheel.
+            # 4-4-0 "American" wheel arrangement: 2 big drivers at
+            # the back, 2 small leading wheels at the front.
             drive_y = ground_y - big_wheel_r
             drive_xs = (
-                boiler.left + int(boiler.width * 0.28),
-                boiler.left + int(boiler.width * 0.55),
+                boiler.left + int(boiler.width * 0.18),
+                boiler.left + int(boiler.width * 0.42),
             )
             for wx in drive_xs:
                 pygame.draw.circle(big, INK, (wx, drive_y),
@@ -2607,12 +2608,17 @@ class PowerUp:
                 pygame.draw.circle(big, INK, (wx, drive_y),
                                    big_wheel_r,
                                    max(1, int(SS * 0.35 * scale)))
-            lead_wx = boiler.left + int(boiler.width * 0.82)
-            lead_wy = ground_y - small_wheel_r
-            pygame.draw.circle(big, INK, (lead_wx, lead_wy),
-                               small_wheel_r)
-            pygame.draw.circle(big, CREAM, (lead_wx, lead_wy),
-                               max(1, int(SS * 0.45 * scale)))
+            # 2 small leading wheels at the front.
+            lead_y = ground_y - small_wheel_r
+            lead_xs = (
+                boiler.left + int(boiler.width * 0.66),
+                boiler.left + int(boiler.width * 0.86),
+            )
+            for wx in lead_xs:
+                pygame.draw.circle(big, INK, (wx, lead_y),
+                                   small_wheel_r)
+                pygame.draw.circle(big, CREAM, (wx, lead_y),
+                                   max(1, int(SS * 0.45 * scale)))
 
             # Coupling rod.
             rod_h = max(2, int(SS * 0.6 * scale))
