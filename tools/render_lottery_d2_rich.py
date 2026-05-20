@@ -1,16 +1,18 @@
 """Render the LOTTERY scratch-card icon — D2 polished and richer.
 
 User picked D2 (LUCKY arched red banner) as the direction. This
-version (v2):
+version (v3):
 
-  * native footprint bumped 56×42 → 76×56 (1.35x linear, 1.8x
-    pixel area) so all text + detail reads sharply
-  * black outer perimeter slimmed from 2 SS to 1 SS so it reads
-    as a clean outline rather than a heavy frame
-  * banner height bumped 6 SS → 9 SS — "LUCKY" caption is now
-    ~7 native px tall instead of ~5
-  * "WIN!" stamp height bumped 4 SS → 6 SS
-  * "? ? ?" panel font scales with the larger panel automatically
+  * native footprint 64×48 — slightly smaller than v2's 76×56
+    (closer to the original 40×30 live icon) but still ~38%
+    bigger than v1 so the text reads sharply
+  * black outer perimeter is 1 SS thin (kept from v2)
+  * banner height 9 SS (kept from v2) — "LUCKY" reads crisply
+  * "WIN!" stamp height 6 SS (kept from v2)
+  * tilt animation restored to the original ±8° amplitude
+    (was ±5° in v1/v2)
+  * vertical bob from the original live icon is preserved by
+    the final integration — see the comment in draw_d2_rich
 
 Still keeps every richness element from v1:
   * 2 cream sparkle stars flanking "LUCKY" on the banner
@@ -63,12 +65,11 @@ os.makedirs(_OUT, exist_ok=True)
 BLACK = (8, 8, 14)
 TEAL  = (90, 175, 175)
 
-# Bigger native footprint = more display pixels per icon. The
-# powerup collision radius is unchanged (POWERUP_R = 14); the
-# visual just runs a touch larger than the hitbox, same as the
-# skateboard icon (72×72) does.
-NATIVE_W = 76
-NATIVE_H = 56
+# Slightly smaller than v2 (was 76×56) — closer to the live
+# icon's original footprint, but still significantly larger than
+# the 40×30 live size so the new richness reads.
+NATIVE_W = 64
+NATIVE_H = 48
 
 
 def _gold_card_base_black_rim(big, SS):
@@ -112,9 +113,14 @@ def _gold_card_base_black_rim(big, SS):
 
 
 def draw_d2_rich(surf, cx, cy, pulse):
-    """D2 rich v2 — LUCKY banner + clover + coin + WIN stamp +
-    light rays + confetti + black outer perimeter on a 76×56 canvas
-    for sharper text + detail."""
+    """D2 rich v3 — LUCKY banner + clover + coin + WIN stamp +
+    light rays + confetti + black outer perimeter on a 64×48
+    canvas. Tilt amplitude restored to the original ±8°.
+
+    Live integration note: the original _draw_lottery_icon also
+    bobs vertically by sin(pulse * 0.8) * 2 px around its
+    anchor — that should be added at the entities.py call site
+    (not here, since the static renderer can't show motion)."""
 
     def paint(big, SS):
         card, inner = _gold_card_base_black_rim(big, SS)
@@ -238,7 +244,10 @@ def draw_d2_rich(surf, cx, cy, pulse):
                  int(SS * 2.2), colour=(255, 230, 120))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
-    tilt = math.sin(pulse * 0.7) * 5
+    # Tilt amplitude matches the original live _draw_lottery_icon
+    # (±8°) so the new card has the same "alive" feel as the
+    # previous one.
+    tilt = math.sin(pulse * 0.7) * 8
     rotated = pygame.transform.rotate(icon, tilt)
     surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
 
