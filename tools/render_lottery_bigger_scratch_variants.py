@@ -93,10 +93,25 @@ os.makedirs(_OUT, exist_ok=True)
 
 
 def _draw_question_marks(big, panel, text="? ? ?",
-                          font_frac=0.85, shadow=True):
+                          font_frac=0.85, shadow=True,
+                          pad_x_frac=0.06, pad_y_frac=0.08):
     """Bold navy "? ? ?" centred in the panel with a cream highlight
-    above + soft dark shadow below for legibility on the silver foil."""
-    f = _font(int(panel.height * font_frac))
+    above + a dark stroke shadow for legibility on the silver foil.
+
+    Auto-scales the font down so the rendered text fits within
+    `panel` minus a fractional horizontal+vertical padding, so the
+    glyphs never crash into the panel border."""
+    max_w = max(1, panel.width - int(panel.width * pad_x_frac * 2))
+    max_h = max(1, panel.height - int(panel.height * pad_y_frac * 2))
+    size = max(4, int(panel.height * font_frac))
+    # Walk down by 2 px until the rendered text fits both dimensions.
+    while size > 6:
+        f = _font(size)
+        w_, h_ = f.size(text)
+        if w_ <= max_w and h_ <= max_h:
+            break
+        size -= 2
+    f = _font(size)
     txt = f.render(text, True, NAVY)
     hl  = f.render(text, True, CREAM)
     tr = txt.get_rect(center=panel.center)
@@ -170,7 +185,10 @@ def draw_b1_slim_banner(surf, cx, cy, pulse):
                             inner.width - 4 * SS,
                             inner.bottom - banner.bottom - 3 * SS)
         _silver_panel(big, panel, radius=2 * SS)
-        _draw_question_marks(big, panel, font_frac=0.85)
+        # Wider horizontal padding so the outer "?"s don't kiss the
+        # silver foil border.
+        _draw_question_marks(big, panel, font_frac=0.85,
+                              pad_x_frac=0.12, pad_y_frac=0.10)
 
     icon = _ss_paint(paint)
     tilt = math.sin(pulse * 0.7) * 5
@@ -310,7 +328,10 @@ def draw_b5_triple_cell(surf, cx, cy, pulse):
             x0 = inner.left + 2 * SS + i * (cell_w + gap)
             cell = pygame.Rect(x0, cell_top, cell_w, cell_h)
             _silver_panel(big, cell, radius=int(SS * 1.5))
-            _draw_question_marks(big, cell, text="?", font_frac=0.95)
+            # Generous inset so the "?" sits comfortably inside the
+            # silver cell, not bleeding past the navy border.
+            _draw_question_marks(big, cell, text="?", font_frac=0.95,
+                                  pad_x_frac=0.18, pad_y_frac=0.18)
 
     icon = _ss_paint(paint)
     tilt = math.sin(pulse * 0.7) * 5
