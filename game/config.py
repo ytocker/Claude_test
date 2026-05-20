@@ -145,6 +145,14 @@ PHOENIX_INVULN        = 1.5
 PHOENIX_VARIANT       = "eternal_warm"
 RAIL_PILLAR_COUNT     = 5       # cart rides over exactly N pillars then releases
 RAIL_SCROLL_MULT      = 2.5     # world scrolls 2.5x faster during the ride
+# SKATEBOARD slide boost — world scrolls faster while Pip is
+# actually grinding a surface (ground, pillar top, or ramp).
+# Ramps up over SKATE_SLIDE_ATTACK and decays over
+# SKATE_SLIDE_RELEASE when Pip jumps off, so the boost reads as a
+# smooth "skate rush, gentle coast" rather than a hard speed snap.
+SKATE_SLIDE_MULT      = 1.5
+SKATE_SLIDE_ATTACK    = 0.18
+SKATE_SLIDE_RELEASE   = 0.55
 # TREASURE BOX (formerly BANK HEIST): Pip carries the locked chest under
 # his belly for TREASURE_BOX_DURATION seconds. Each flap rattles a coin
 # loose — the player instantly gains TREASURE_BOX_COINS_PER_FLAP coins

@@ -27,6 +27,7 @@ from game.config import (
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
+    SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK, SKATE_SLIDE_RELEASE,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
@@ -124,6 +125,11 @@ class World:
         # can skate up. Spawned per-pipe during the skateboard
         # window (max 1 per pillar gap, some gaps skipped).
         self.ramps: list = []
+        # SKATEBOARD slide boost — 0.0 = normal speed, 1.0 = full
+        # SKATE_SLIDE_MULT scroll. Ramps up while Pip is grinding a
+        # surface and decays when he goes airborne.
+        self.slide_boost = 0.0
+        self._sliding_this_frame = False
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -267,6 +273,11 @@ class World:
         # so the ride feels like a thrill, not a free escalator.
         if self.bird.cart_active:
             base *= RAIL_SCROLL_MULT
+        # SKATEBOARD grind: lerp from 1.0 to SKATE_SLIDE_MULT based on
+        # the slide-boost envelope so the speed-up eases in/out instead
+        # of snapping.
+        if self.slide_boost > 0:
+            base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
         return base
 
     def _current_spacing(self):
@@ -732,6 +743,16 @@ class World:
             if self.skateboard_timer > 0:
                 self.skateboard_timer = max(0.0, self.skateboard_timer - dt)
             self.bird.skateboard_active = self.skateboard_timer > 0
+            # Slide-boost envelope: attack while Pip is grinding a
+            # surface during the skateboard window, decay otherwise.
+            # Reset hard once the buff itself expires so the boost
+            # doesn't linger into normal flight.
+            if self.bird.skateboard_active and self._sliding_this_frame:
+                self.slide_boost = min(
+                    1.0, self.slide_boost + dt / SKATE_SLIDE_ATTACK)
+            else:
+                self.slide_boost = max(
+                    0.0, self.slide_boost - dt / SKATE_SLIDE_RELEASE)
             if self.skateboard_caption_t > 0:
                 self.skateboard_caption_t = max(
                     0.0, self.skateboard_caption_t - dt)
@@ -853,6 +874,10 @@ class World:
         # it instead of dying. The helmet handles ceiling spikes (see
         # pillar loop below). Spawns occasional dust puffs.
         skating = self.skateboard_timer > 0
+        # Reset each frame; the snap blocks below flip this to True
+        # while Pip is actually grinding a surface so update() can
+        # ramp the slide-boost up or fade it back to zero.
+        self._sliding_this_frame = False
         # Ceiling: clamp Pip and zero upward velocity instead of killing.
         # Bonking the top edge feels accidental and was a recurring "unfair
         # death" complaint; the ground still kills.
@@ -883,6 +908,7 @@ class World:
                         self.bird.vy = 0.0
                         by = self.bird.y
                         self._maybe_skateboard_dust(bx, surface_y)
+                        self._sliding_this_frame = True
                     break  # only one ramp under Pip at a time
         if by + br > GROUND_Y:
             if skating:
@@ -891,6 +917,7 @@ class World:
                 self.bird.vy = 0.0
                 by = self.bird.y
                 self._maybe_skateboard_dust(self.bird.x, GROUND_Y)
+                self._sliding_this_frame = True
             else:
                 self._die()
                 return
@@ -926,6 +953,7 @@ class World:
                     self.bird.vy = 0.0
                     by = self.bird.y
                     self._maybe_skateboard_dust(bx, gap_bot)
+                    self._sliding_this_frame = True
                     break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
@@ -982,6 +1010,7 @@ class World:
             self.bird.y = gap_bot - br
             self.bird.vy = 0.0
             self._maybe_skateboard_dust(bx, gap_bot)
+            self._sliding_this_frame = True
             return True
         # Approach from below onto the upper pillar's underside.
         if in_column and by > gap_top and self.bird.vy <= 50 and (by - br) <= gap_top:
