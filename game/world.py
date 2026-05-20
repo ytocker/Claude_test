@@ -854,6 +854,29 @@ class World:
             # Pip phase through tagged pillars.
             self._snap_cart_to_rail(self.bird.x)
             return
+        # SKATEBOARD proactive pillar-top snap. The pipe collision below
+        # uses a SHRUNKEN hitbox (PIPE_HITBOX_SHRINK), which creates a
+        # few-pixel deadband above the pillar top where gravity pulls
+        # Pip below the snap target before the collision re-snaps him —
+        # visible as jitter. This block snaps every frame Pip's full-
+        # radius bottom reaches the lower-pillar top, exactly the way
+        # the GROUND_Y check does, so the slide reads smooth. Dust puff
+        # fires per snap so the trail off the back of the board is
+        # consistent with floor sliding.
+        if skating:
+            for p in self.pipes:
+                in_column = (p.x - br < bx < p.x + PIPE_W + br)
+                if not in_column:
+                    continue
+                gap_bot = p.gap_y + p.gap_h / 2
+                if ((by + br) >= gap_bot - 1
+                        and self.bird.vy >= -50
+                        and by < gap_bot):
+                    self.bird.y = gap_bot - br
+                    self.bird.vy = 0.0
+                    by = self.bird.y
+                    self._maybe_skateboard_dust(bx, gap_bot)
+                    break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
