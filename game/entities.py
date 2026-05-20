@@ -2591,13 +2591,16 @@ class PowerUp:
             flare.midbottom = (stack.centerx, stack.top)
             pygame.draw.rect(big, INK, flare)
 
-            # 2 spoked driving wheels just below the boiler.
+            # 2 spoked driving wheels. The REAR wheel sits under
+            # the cab at the most-left position in the train; the
+            # FRONT wheel sits under the front of the boiler. The
+            # coupling rod spans the (longer) gap between them.
             wheel_r = max(3, int(SS * 2.6 * scale))
             gap = max(1, int(SS * 0.4 * scale))
             wheel_cy = boiler.bottom + wheel_r + gap
             ground_y = wheel_cy + wheel_r
             wheel_xs = (
-                boiler.left + int(boiler.width * 0.28),
+                cab.left + cab_w // 4,
                 boiler.left + int(boiler.width * 0.72),
             )
 

@@ -171,13 +171,14 @@ def _paint_train_v1_classic_steam(big, scale, cx, cy):
                          max(1, int(SS * 0.7 * scale)))
     flare.midbottom = (stack.centerx, stack.top)
     pygame.draw.rect(big, INK, flare)
-    # Wheels — 2 spoked drivers connected by a coupling rod.
+    # Wheels — 2 spoked drivers. REAR wheel under the cab (most-
+    # left position in the train); FRONT under the boiler's front.
     wheel_r = max(3, int(SS * 2.4 * scale))
     gap = max(1, int(SS * 0.4 * scale))
     wheel_cy = boiler.bottom + wheel_r + gap
     ground_y = wheel_cy + wheel_r
     drive_xs = (
-        boiler.left + int(boiler.width * 0.28),
+        cab.left + cab_w // 4,
         boiler.left + int(boiler.width * 0.72),
     )
     rod_h = max(2, int(SS * 0.9 * scale))
