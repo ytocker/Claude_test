@@ -773,6 +773,15 @@ class Bird:
         # so the trick feels like a quick board-flick, not a body spin.
         self.kickflip_t = 0.0
         self.kickflip_dur = 0.0
+        # Heelflip trick (2 very-slow taps): mirror of the kickflip —
+        # the deck spins 360° in the OPPOSITE direction.
+        self.heelflip_t = 0.0
+        self.heelflip_dur = 0.0
+        # Pop Shuvit trick (2 medium taps): the deck does a 180° flat-
+        # spin around its vertical axis. Visual is a horizontal
+        # scale-X = cos(p·π) on the rendered board.
+        self.popshuvit_t = 0.0
+        self.popshuvit_dur = 0.0
 
     @property
     def tilt_deg(self):
@@ -840,6 +849,8 @@ class Bird:
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         self.backflip_t = max(0.0, self.backflip_t - dt)
         self.kickflip_t = max(0.0, self.kickflip_t - dt)
+        self.heelflip_t = max(0.0, self.heelflip_t - dt)
+        self.popshuvit_t = max(0.0, self.popshuvit_t - dt)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
@@ -1354,7 +1365,26 @@ class Bird:
             p = 1.0 - self.kickflip_t / self.kickflip_dur
             eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
             tilt += eased * 360.0
+        # HEELFLIP — mirror of kickflip, board spins −360°.
+        if self.heelflip_t > 0 and self.heelflip_dur > 0:
+            p = 1.0 - self.heelflip_t / self.heelflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            tilt -= eased * 360.0
         rotated = pygame.transform.rotate(board_surf, tilt)
+        # POP SHUVIT — horizontal scale-X = cos(p·π) on top of
+        # whatever rotation is in `rotated`. Board flattens edge-on
+        # at p=0.5 then flips and returns. Done AFTER rotation so
+        # the scale tracks the (rotated) board's bounding box.
+        if self.popshuvit_t > 0 and self.popshuvit_dur > 0:
+            p_ps = 1.0 - self.popshuvit_t / self.popshuvit_dur
+            scale_x = math.cos(p_ps * math.pi)
+            abs_scale = max(abs(scale_x), 0.02)
+            rw, rh = rotated.get_size()
+            rotated = pygame.transform.scale(
+                rotated, (max(1, int(rw * abs_scale)), rh))
+            if scale_x < 0:
+                rotated = pygame.transform.flip(rotated,
+                                                True, False)
         if flipped:
             rotated = pygame.transform.flip(rotated, False, True)
         r = rotated.get_rect(center=(int(bx), int(by)))

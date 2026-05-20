@@ -26,6 +26,9 @@ from game.config import (
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX, KICKFLIP_DURATION,
+    POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX, POPSHUVIT_DURATION,
+    HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX, HEELFLIP_DURATION,
+    TREFLIP_UPGRADE_WINDOW,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK, SKATE_SLIDE_RELEASE,
@@ -523,38 +526,61 @@ class World:
             # first anyway).
             if self.treasure_box_timer > 0:
                 self._drop_treasure_box_coins()
-            # SKATEBOARD tricks. Only tracked while the powerup is
-            # active and no flip is already in progress.
-            #   - 3 FAST taps  (gap ≤ BACKFLIP_TAP_WINDOW)  → backflip
-            #   - 2 SLOW taps  (KICKFLIP_TAP_GAP_MIN ≤ gap
-            #                    ≤ KICKFLIP_TAP_GAP_MAX)   → kickflip
-            # The two windows are disjoint, so a given tap can only
-            # advance one of the two streaks.
-            if (self.skateboard_timer > 0
-                    and self.bird.backflip_t <= 0
-                    and self.bird.kickflip_t <= 0):
+            # SKATEBOARD tricks. The detector handles 5 patterns:
+            #   1) 3 FAST taps  (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
+            #   2) 4th FAST tap during a fresh backflip       → TRE FLIP
+            #      (upgrades the in-progress backflip — the deck
+            #       spins on top of Pip's body spin)
+            #   3) 2 MEDIUM taps (POPSHUVIT_TAP_GAP_MIN-MAX) → pop shuvit
+            #   4) 2 SLOW taps   (KICKFLIP_TAP_GAP_MIN-MAX)  → kickflip
+            #   5) 2 VERY-SLOW   (HEELFLIP_TAP_GAP_MIN-MAX)  → heelflip
+            # Windows are disjoint so a tap advances at most one
+            # pattern. The trick is only tracked while the
+            # skateboard buff is active; backflip's gate (no flip in
+            # progress) is enforced inside the detector so the
+            # Tre Flip upgrade can still fire while backflip is on.
+            if self.skateboard_timer > 0:
                 self._track_skateboard_tricks()
 
     def _track_skateboard_tricks(self):
         now = self._idle_t
         gap = now - self._last_tap_t
-        # 3-fast-tap backflip streak.
-        if gap <= BACKFLIP_TAP_WINDOW:
-            self._tap_streak += 1
+        # 3-fast-tap backflip streak (only when no flip in progress).
+        if (self.bird.backflip_t <= 0
+                and self.bird.kickflip_t <= 0
+                and self.bird.heelflip_t <= 0
+                and self.bird.popshuvit_t <= 0):
+            if gap <= BACKFLIP_TAP_WINDOW:
+                self._tap_streak += 1
+            else:
+                self._tap_streak = 1
+            self._last_tap_t = now
+            if self._tap_streak >= 3:
+                self._trigger_backflip()
+                self._tap_streak = 0
+                return
         else:
-            self._tap_streak = 1
-        self._last_tap_t = now
-        if self._tap_streak >= 3:
-            self._trigger_backflip()
-            self._tap_streak = 0
+            # A flip is mid-air. The only relevant pattern is the
+            # 4th-fast-tap TRE FLIP upgrade.
+            self._last_tap_t = now
+            if (self.bird.backflip_t > 0
+                    and (self.bird.backflip_dur - self.bird.backflip_t)
+                        < TREFLIP_UPGRADE_WINDOW
+                    and self.bird.kickflip_t <= 0
+                    and gap <= TREFLIP_UPGRADE_WINDOW):
+                self._trigger_treflip_upgrade()
             return
-        # 2-slow-tap kickflip — fires on the SECOND tap when the gap
-        # from the previous tap falls in the slow window. The
-        # backflip streak above has already absorbed the fast case
-        # (gap ≤ BACKFLIP_TAP_WINDOW), so this branch only runs for
-        # genuinely slow rhythms.
+        # 2-medium-tap pop shuvit.
+        if POPSHUVIT_TAP_GAP_MIN <= gap <= POPSHUVIT_TAP_GAP_MAX:
+            self._trigger_popshuvit()
+            return
+        # 2-slow-tap kickflip.
         if KICKFLIP_TAP_GAP_MIN <= gap <= KICKFLIP_TAP_GAP_MAX:
             self._trigger_kickflip()
+            return
+        # 2-very-slow-tap heelflip.
+        if HEELFLIP_TAP_GAP_MIN <= gap <= HEELFLIP_TAP_GAP_MAX:
+            self._trigger_heelflip()
 
     def _trigger_backflip(self):
         self.bird.backflip_t = BACKFLIP_DURATION
@@ -579,6 +605,45 @@ class World:
             "KICKFLIP!", self.bird.x, self.bird.y + 38,
             (120, 200, 235),
             size=26, life=1.1, vy=30, style="powerup",
+        ))
+
+    def _trigger_heelflip(self):
+        self.bird.heelflip_t = HEELFLIP_DURATION
+        self.bird.heelflip_dur = HEELFLIP_DURATION
+        audio.play_backflip()
+        self.float_texts.append(FloatText(
+            "HEELFLIP!", self.bird.x, self.bird.y + 38,
+            (170, 140, 230),
+            size=26, life=1.1, vy=30, style="powerup",
+        ))
+
+    def _trigger_popshuvit(self):
+        self.bird.popshuvit_t = POPSHUVIT_DURATION
+        self.bird.popshuvit_dur = POPSHUVIT_DURATION
+        audio.play_backflip()
+        self.float_texts.append(FloatText(
+            "POP SHUVIT!", self.bird.x, self.bird.y + 38,
+            (230, 130, 180),
+            size=26, life=1.1, vy=30, style="powerup",
+        ))
+
+    def _trigger_treflip_upgrade(self):
+        # Add a kickflip rotation on top of the in-progress
+        # backflip — same `kickflip_t` machinery the kickflip trick
+        # uses, so the board rotates 360° simultaneously with Pip's
+        # body. Then swap the recently-spawned "BACKFLIP!" float-
+        # text for "TRE FLIP!".
+        self.bird.kickflip_t = KICKFLIP_DURATION
+        self.bird.kickflip_dur = KICKFLIP_DURATION
+        audio.play_backflip()
+        for i in range(len(self.float_texts) - 1, -1, -1):
+            if self.float_texts[i].text == "BACKFLIP!":
+                del self.float_texts[i]
+                break
+        self.float_texts.append(FloatText(
+            "TRE FLIP!", self.bird.x, self.bird.y + 38,
+            (250, 220,  90),
+            size=30, life=1.3, vy=30, style="powerup",
         ))
 
     # ── update ──────────────────────────────────────────────────────────────

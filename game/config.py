@@ -109,6 +109,29 @@ BACKFLIP_DURATION     = 0.85
 KICKFLIP_TAP_GAP_MIN  = 0.55
 KICKFLIP_TAP_GAP_MAX  = 0.75
 KICKFLIP_DURATION     = 0.55
+# SKATEBOARD trick: 2 MEDIUM taps (gap above the backflip-fast
+# ceiling, below the kickflip-slow floor) trigger a Pop Shuvit —
+# the deck does a 180° flat-spin around the vertical axis under
+# Pip's feet. Narrow 0.08 s window so the rhythm is deliberate
+# and never aliases into the fast / slow patterns.
+POPSHUVIT_TAP_GAP_MIN = 0.46
+POPSHUVIT_TAP_GAP_MAX = 0.54
+POPSHUVIT_DURATION    = 0.45
+# SKATEBOARD trick: 2 VERY-SLOW taps (gap above the kickflip-slow
+# ceiling) trigger a Heelflip — the deck spins 360° in the
+# OPPOSITE direction to a kickflip. Disjoint from kickflip's
+# window so the player has to deliberately slow down to summon
+# the mirror version.
+HEELFLIP_TAP_GAP_MIN  = 0.85
+HEELFLIP_TAP_GAP_MAX  = 1.05
+HEELFLIP_DURATION     = 0.55
+# SKATEBOARD trick: a 4th fast tap (gap ≤ TREFLIP_UPGRADE_WINDOW)
+# landing while the backflip is still in its early phase upgrades
+# the in-progress backflip to a TRE FLIP (360 Flip) — the deck
+# spins 360° on top of Pip's body spin. The 3-tap backflip still
+# fires immediately at tap 3, so the player gets instant feedback
+# and a 0.40 s window to "go for the upgrade."
+TREFLIP_UPGRADE_WINDOW = 0.40
 # PHOENIX: 30-second fiery transformation. If Pip would die during the
 # window, World._die() intercepts the death, ends the buff, and grants
 # PHOENIX_INVULN seconds of grace so the just-revived bird doesn't
