@@ -1048,26 +1048,28 @@ class World:
         # Parcel shouldn't graze the ground unless the bird already would
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
+        # RAIL: parked-cart hitbox. Only touching the cart itself
+        # (a small rect sitting in the gap of rail_cart_pipe) locks
+        # Pip onto the rail. Hitting the pillar body of that same
+        # pipe — or any other tagged pillar — is fatal like any
+        # other pillar.
+        cart_pipe = getattr(self, "rail_cart_pipe", None)
+        if (self.bird.cart_active
+                and not self.bird.cart_locked
+                and cart_pipe is not None):
+            if (self._circle_hits_cart(cart_pipe, bx, by, br)
+                    or (pr > 0
+                        and self._circle_hits_cart(
+                            cart_pipe, px, py, pr))):
+                self._lock_pip_on_cart()
+                return
         for p in self.pipes:
             if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
-                # RAIL: any contact with the parked cart's pillar
-                # (pre-lock) locks Pip onto the rail instead of
-                # killing him. Pillars 2-5 still kill.
-                if (self.bird.cart_active
-                        and not self.bird.cart_locked
-                        and p is getattr(self, "rail_cart_pipe", None)):
-                    self._lock_pip_on_cart()
-                    return
                 if skating and self._skateboard_handle_pipe(p, bx, by, br):
                     continue
                 self._die()
                 return
             if pr > 0 and p.collides_circle(px, py, pr - 1):
-                if (self.bird.cart_active
-                        and not self.bird.cart_locked
-                        and p is getattr(self, "rail_cart_pipe", None)):
-                    self._lock_pip_on_cart()
-                    return
                 self._die()
                 return
         # Rail: lock Pip's y to the rail height when his feet (bottom of
@@ -1217,6 +1219,29 @@ class World:
         wheel-rail proximity, so this is just the snap path."""
         if self.bird.cart_locked:
             self._snap_cart_to_rail(bx)
+
+    # Parked-cart hitbox — bounds match the visual painted by
+    # scenes._draw_parked_cart so what the player sees as "the cart"
+    # is exactly what triggers the lock.
+    _CART_HALF_W = 22       # body half-width + a touch
+    _CART_TOP_OFF = 28      # pixels above rail line to cart top
+    _CART_BOT_OFF = 5       # pixels above rail line to wheel bottom
+
+    def _circle_hits_cart(self, pipe, cx, cy, r):
+        """True if the circle at (cx, cy) with radius r overlaps the
+        parked-cart rect sitting on `pipe`. The cart lives inside the
+        pillar's gap (between gap_top and gap_bot), so touching the
+        pillar BODY (above gap_top or below gap_bot) returns False
+        and falls through to normal pipe collision."""
+        cart_cx = pipe.x + PIPE_W // 2
+        rail_y = pipe.gap_y + pipe.gap_h / 2
+        left = cart_cx - self._CART_HALF_W
+        right = cart_cx + self._CART_HALF_W
+        top = rail_y - self._CART_TOP_OFF
+        bot = rail_y - self._CART_BOT_OFF
+        nx = max(left, min(cx, right))
+        ny = max(top, min(cy, bot))
+        return (cx - nx) ** 2 + (cy - ny) ** 2 <= r * r
 
     def _lock_pip_on_cart(self):
         """Touched the parked cart — flip into locked-ride mode. Snaps

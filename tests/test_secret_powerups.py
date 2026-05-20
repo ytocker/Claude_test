@@ -283,20 +283,46 @@ def test_rail_pickup_parks_cart_and_keeps_flap_alive():
     assert w.bird.vy == FLAP_V
 
 
-def test_rail_collision_with_cart_pillar_locks_pip():
-    """Touching the cart pillar (any side) flips cart_locked = True
-    instead of killing Pip. Other tagged pillars still kill."""
+def test_rail_touching_cart_locks_pip():
+    """Touching the parked cart (the small rect sitting in the gap)
+    flips cart_locked = True instead of killing Pip."""
+    from game.config import PIPE_W
     w = World()
     w.ready_t = 0
     w._activate_rail(PowerUp(0, 0, kind="rail"))
     cart = w.rail_cart_pipe
     assert cart is not None
-    # Teleport Pip into the cart pillar's column at its gap-bottom.
-    w.bird.x = cart.x + 5
-    w.bird.y = cart.gap_y + cart.gap_h / 2  # right on the rail
+    rail_y = cart.gap_y + cart.gap_h / 2
+    # Centre Pip horizontally over the cart, ~16 px above the rail —
+    # right inside the cart's body rect (top off=28, bot off=5).
+    w.bird.x = cart.x + PIPE_W // 2
+    w.bird.y = rail_y - 16
     w._check_collisions()
-    assert w.bird.cart_locked is True, "cart pillar touch should lock Pip"
+    assert w.bird.cart_locked is True, "touching the cart should lock Pip"
     assert w.bird.alive is True, "lock must NOT kill"
+
+
+def test_rail_touching_cart_pillar_body_kills_not_locks():
+    """Bug fix — hitting the BODY of the cart pillar (above gap_top
+    or below gap_bot, not the cart itself) must kill Pip the same as
+    any other pillar. Previously any contact with rail_cart_pipe was
+    treated as a lock."""
+    from game.config import PIPE_W
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    cart = w.rail_cart_pipe
+    assert cart is not None
+    # Put Pip deep in the lower pillar of the cart pipe, far below
+    # the gap. The cart hitbox sits in the gap, so we shouldn't touch
+    # it — only the pillar body.
+    w.bird.x = cart.x + PIPE_W // 2
+    w.bird.y = cart.gap_y + cart.gap_h / 2 + 80
+    w._check_collisions()
+    assert w.bird.cart_locked is False, (
+        "hitting the pillar body must NOT lock")
+    assert w.bird.alive is False, (
+        "hitting the pillar body of the cart pipe must kill")
 
 
 def test_rail_collision_with_non_cart_tagged_pillar_kills():
@@ -338,26 +364,23 @@ def test_rail_ride_ends_with_jump_after_lock():
 
 
 def test_rail_expires_silently_if_pip_never_locks():
-    """If Pip never lands on the cart, all 5 tagged pillars scroll
-    past and the powerup ends without the "jump" cue."""
-    import random as _r
-    _r.seed(7)
+    """If Pip never lands on the cart, the powerup ends without the
+    "jump" cue (no vy reset to FLAP_V). Verified by driving
+    _end_rail_ride directly from the never-locked state."""
+    from game.config import FLAP_V
     w = World()
     w.ready_t = 0
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    vy_before = w.bird.vy
-    for _ in range(3000):
-        # Keep Pip flapping so he doesn't drop into a tagged pillar.
-        if w.bird.vy > -100:
-            w.bird.flap()
-        w.update(1 / 60)
-        if not w.bird.cart_active:
-            break
+    assert w.bird.cart_active is True
+    assert w.bird.cart_locked is False
+    w.bird.vy = 42.0  # arbitrary non-FLAP_V value
+    w._end_rail_ride()
     assert w.bird.cart_active is False
     assert w.bird.cart_locked is False
     assert w.rail_cart_pipe is None
-    # No jump applied — vy should NOT have been forced to FLAP_V by
-    # _end_rail_ride (the silent-expire path skips that).
+    # The silent-expire branch must NOT have stomped vy with FLAP_V.
+    assert w.bird.vy == 42.0, (
+        f"silent expire shouldn't apply the release jump (vy={w.bird.vy})")
 
 
 def test_rail_pickup_while_locked_extends_ride():
