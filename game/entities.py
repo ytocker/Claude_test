@@ -2687,29 +2687,28 @@ class PowerUp:
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_lottery_icon(self, surf):
-        """Scratch-off lottery card ("LUCKY" variant) — gold body with
-        a chrome perimeter, slim black outer ring, dashed dark-gold
-        inner stroke, red "LUCKY" arch banner across the top, silver
-        "? ? ?" foil panel, clover + "WIN!" stamp + "$" coin along the
-        bottom, plus sun-rays, confetti dots, and corner sparkles.
+        """Scratch-off lottery card ("B5" — three big match-3 cells +
+        tiny LUCKY chip). Gold body with a chrome perimeter, dashed
+        dark-gold inner stroke, a red LUCKY chip riding the top edge,
+        and 3 large silver scratch cells each with a single "?" so
+        the "scratch ticket" reads strongly even at icon scale.
 
-        Painted at 6× supersample on a 64×48 native canvas, then
-        rotated at supersample and smoothscaled down so the tilted
-        edges stay clean. Bob + ±8° tilt match the original animation.
-        """
+        Painted at 6× supersample on a 56×42 native canvas. Rotation
+        happens at supersample BEFORE smoothscale so the chrome rim
+        stays a uniform-thickness parallel border on all 4 sides
+        (rotating at native creates per-side aliasing). No drop
+        shadow — the live shadow leaked an asymmetric gray tail at
+        the bottom-right when the ticket tilted."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
 
         SS = 6
-        NATIVE_W, NATIVE_H = 48, 36
+        NATIVE_W, NATIVE_H = 56, 42
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
         big = pygame.Surface((sw, sh), pygame.SRCALPHA)
 
-        # Palette.
         GOLD_HI   = (255, 230, 110)
-        GOLD_MID  = (250, 200,  70)
         GOLD_LO   = (220, 175,  50)
-        GOLD_DEEP = (180, 130,  20)
         STROKE    = (110,  75,  10)
         CHROME    = (225, 225, 232)
         SILVER_HI = (245, 245, 252)
@@ -2718,17 +2717,12 @@ class PowerUp:
         NAVY      = ( 30,  40,  80)
         RED       = (190,  40,  55)
         RED_HI    = (230,  80,  90)
-        BLACK     = (  8,   8,  14)
-        CLOVER_GR = ( 60, 140,  70)
-        TEAL      = ( 90, 175, 175)
-
-        # ── helpers (close over `big` + `SS`) ──
 
         def vgrad(rect, top_col, bot_col, radius=0):
             tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
-            h = rect.height
-            for y in range(h):
-                t = y / max(1, h - 1)
+            h_ = rect.height
+            for y in range(h_):
+                t = y / max(1, h_ - 1)
                 col = (int(top_col[0] * (1 - t) + bot_col[0] * t),
                        int(top_col[1] * (1 - t) + bot_col[1] * t),
                        int(top_col[2] * (1 - t) + bot_col[2] * t))
@@ -2740,20 +2734,6 @@ class PowerUp:
                 tmp.blit(mask, (0, 0),
                          special_flags=pygame.BLEND_RGBA_MIN)
             big.blit(tmp, rect.topleft)
-
-        def star_pts(cx0, cy0, ro, ri, points, rot_deg=0):
-            out = []
-            for i in range(points * 2):
-                ang = math.radians(rot_deg - 90
-                                   + i * (180.0 / points))
-                r = ro if i % 2 == 0 else ri
-                out.append((cx0 + math.cos(ang) * r,
-                            cy0 + math.sin(ang) * r))
-            return out
-
-        def sparkle(cx0, cy0, r, colour=CREAM):
-            pygame.draw.polygon(big, colour,
-                                star_pts(cx0, cy0, r, r * 0.32, 4))
 
         def dashed_rect(rect, colour, dash, gap, width):
             def seg(p0, p1):
@@ -2777,69 +2757,67 @@ class PowerUp:
             seg((rect.right, rect.bottom), (rect.left, rect.bottom))
             seg((rect.left, rect.bottom), (rect.left, rect.top))
 
-        def silver_panel(rect, radius):
-            vgrad(rect, SILVER_HI, SILVER_LO, radius=radius)
-            step = max(8, rect.height // 6)
-            for off in range(-rect.height, rect.width, step):
-                x0 = rect.left + off
-                x1 = x0 + rect.height
-                pygame.draw.line(big, (180, 185, 200, 90),
-                                 (x0, rect.top), (x1, rect.bottom),
+        def silver_cell(rect, radius):
+            # Paint to a sub-surface so the diagonal hatch can't bleed
+            # past the cell rect onto the gold body.
+            sub = pygame.Surface(rect.size, pygame.SRCALPHA)
+            sub_rect = sub.get_rect()
+            tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
+            for y in range(rect.height):
+                t = y / max(1, rect.height - 1)
+                col = (int(SILVER_HI[0] * (1 - t) + SILVER_LO[0] * t),
+                       int(SILVER_HI[1] * (1 - t) + SILVER_LO[1] * t),
+                       int(SILVER_HI[2] * (1 - t) + SILVER_LO[2] * t))
+                pygame.draw.line(tmp, col, (0, y), (rect.width, y))
+            mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255, 255),
+                             mask.get_rect(), border_radius=radius)
+            tmp.blit(mask, (0, 0),
+                     special_flags=pygame.BLEND_RGBA_MIN)
+            sub.blit(tmp, (0, 0))
+            hatch = pygame.Surface(rect.size, pygame.SRCALPHA)
+            for off in range(-rect.height, rect.width,
+                              max(8, rect.height // 6)):
+                pygame.draw.line(hatch, (180, 185, 200, 90),
+                                 (off, 0),
+                                 (off + rect.height, rect.height),
                                  max(1, rect.height // 60))
-            pygame.draw.rect(big, NAVY, rect,
+            hatch.blit(mask, (0, 0),
+                       special_flags=pygame.BLEND_RGBA_MIN)
+            sub.blit(hatch, (0, 0))
+            pygame.draw.rect(sub, NAVY, sub_rect,
                              width=max(1, rect.height // 18),
                              border_radius=radius)
+            big.blit(sub, rect.topleft)
 
-        def coin_disc(ccx, ccy, r, label="$"):
-            pygame.draw.circle(big, (0, 0, 0, 60),
-                               (ccx, ccy + SS + 1), r + SS)
-            for shrink, col in ((1.00, GOLD_DEEP),
-                                (0.86, GOLD_LO),
-                                (0.70, GOLD_MID),
-                                (0.52, GOLD_HI)):
-                pygame.draw.circle(big, col, (ccx, ccy),
-                                   max(1, int(r * shrink)))
-            pygame.draw.circle(big, CHROME, (ccx, ccy), r,
-                               max(1, SS // 2))
-            pygame.draw.circle(big, STROKE, (ccx, ccy), r,
-                               max(1, SS // 3))
-            f = _get_float_font(int(r * 1.7))
-            glyph = f.render(label, True, STROKE)
-            hl    = f.render(label, True, CREAM)
-            gr = glyph.get_rect(center=(ccx, ccy))
-            big.blit(hl, hl.get_rect(center=(gr.centerx,
-                                              gr.centery - SS)))
-            big.blit(glyph, gr)
+        def fit_question_mark(panel, text="?", font_frac=0.95,
+                               pad_x_frac=0.18, pad_y_frac=0.18):
+            max_w = max(1, panel.width
+                        - int(panel.width * pad_x_frac * 2))
+            max_h = max(1, panel.height
+                        - int(panel.height * pad_y_frac * 2))
+            size = max(4, int(panel.height * font_frac))
+            while size > 6:
+                f = _get_float_font(size)
+                w_, h_ = f.size(text)
+                if w_ <= max_w and h_ <= max_h:
+                    break
+                size -= 2
+            f = _get_float_font(size)
+            sh_ = f.render(text, True, STROKE)
+            hl  = f.render(text, True, CREAM)
+            tx  = f.render(text, True, NAVY)
+            tr = tx.get_rect(center=panel.center)
+            big.blit(sh_, sh_.get_rect(center=(tr.centerx + 1,
+                                                 tr.centery + 1)))
+            big.blit(hl, hl.get_rect(center=(tr.centerx,
+                                              tr.centery - 1)))
+            big.blit(tx, tr)
 
-        def clover(ccx, ccy, leaf_r):
-            for ox, oy in ((-leaf_r // 2, -leaf_r // 2),
-                           ( leaf_r // 2, -leaf_r // 2),
-                           (-leaf_r // 2,  leaf_r // 2),
-                           ( leaf_r // 2,  leaf_r // 2)):
-                pygame.draw.circle(big, CLOVER_GR,
-                                   (ccx + ox, ccy + oy), leaf_r)
-                pygame.draw.circle(big, STROKE,
-                                   (ccx + ox, ccy + oy), leaf_r,
-                                   max(1, SS // 3))
-            pygame.draw.line(big, STROKE,
-                             (ccx, ccy + leaf_r),
-                             (ccx + SS, ccy + int(leaf_r * 2.2)),
-                             max(1, SS // 2))
-
-        # ── card chassis (gold body + chrome perimeter + black rim +
-        #     dashed inner stroke). ──
+        # ── card chassis (gold body + chrome perimeter + dashed
+        #     inner stroke). No drop shadow. ──
         card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
-        # Drop shadow.
-        sh_surf = pygame.Surface((card.width + 4 * SS,
-                                   card.height + 4 * SS),
-                                  pygame.SRCALPHA)
-        pygame.draw.rect(sh_surf, (0, 0, 0, 90),
-                         sh_surf.get_rect(), border_radius=4 * SS)
-        big.blit(sh_surf, sh_surf.get_rect(
-            center=(card.centerx, card.centery + SS + 1)))
-        # Gold gradient body.
         vgrad(card, GOLD_HI, GOLD_LO, radius=4 * SS)
-        # Top sheen — cream alpha fade over the upper third.
         hi_h = card.height // 3
         hi = pygame.Surface((card.width, hi_h), pygame.SRCALPHA)
         for y in range(hi_h):
@@ -2847,123 +2825,41 @@ class PowerUp:
             pygame.draw.line(hi, (255, 250, 220, a),
                              (0, y), (hi.get_width(), y))
         big.blit(hi, (card.x, card.y))
-        # Chrome perimeter.
         pygame.draw.rect(big, CHROME, card, width=2 * SS,
                          border_radius=4 * SS)
-        # Slim black outer ring.
-        black_rect = card.inflate(2 * SS, 2 * SS)
-        pygame.draw.rect(big, BLACK, black_rect, width=1 * SS,
-                         border_radius=5 * SS)
-        # Dashed dark-gold inner stroke.
         inner = card.inflate(-4 * SS, -4 * SS)
         dashed_rect(inner, STROKE, dash=4 * SS, gap=3 * SS,
                     width=max(1, SS // 2))
 
-        # ── LUCKY banner ──
-        banner_h = int(9 * SS)
-        banner = pygame.Rect(card.left + 6 * SS, card.top + SS,
-                             card.width - 12 * SS, banner_h)
-        vgrad(banner, RED_HI, RED, radius=2 * SS)
-        pygame.draw.rect(big, STROKE, banner, max(1, SS // 2),
-                         border_radius=2 * SS)
-        notch_w = int(2.5 * SS)
-        pygame.draw.polygon(big, RED, [
-            (banner.left, banner.top),
-            (banner.left - notch_w, banner.centery),
-            (banner.left, banner.bottom),
-        ])
-        pygame.draw.polygon(big, RED, [
-            (banner.right, banner.top),
-            (banner.right + notch_w, banner.centery),
-            (banner.right, banner.bottom),
-        ])
+        # ── LUCKY chip riding the top edge ──
+        chip = pygame.Rect(0, 0, 20 * SS, 5 * SS)
+        chip.midtop = (inner.centerx, inner.top + 1)
+        vgrad(chip, RED_HI, RED, radius=int(SS * 1.5))
+        pygame.draw.rect(big, STROKE, chip, max(1, SS // 2),
+                         border_radius=int(SS * 1.5))
+        fc = _get_float_font(int(chip.height * 0.88))
+        sh_ = fc.render("LUCKY", True, STROKE)
+        ct  = fc.render("LUCKY", True, CREAM)
+        big.blit(sh_, sh_.get_rect(center=(chip.centerx + 1,
+                                             chip.centery + 1)))
+        big.blit(ct, ct.get_rect(center=chip.center))
 
-        # ── Sun-rays radiating downward from the banner ──
-        ray_origin = (banner.centerx, banner.bottom)
-        for ang_deg in (-32, -12, 12, 32):
-            ang = math.radians(90 + ang_deg)
-            x2 = ray_origin[0] + math.cos(ang) * int(banner.width * 0.55)
-            y2 = ray_origin[1] + math.sin(ang) * int(banner.width * 0.55)
-            ray = pygame.Surface(big.get_size(), pygame.SRCALPHA)
-            pygame.draw.line(ray, (255, 245, 170, 130),
-                             ray_origin, (x2, y2), max(1, SS))
-            big.blit(ray, (0, 0))
-
-        # ── LUCKY caption + banner sparkles ──
-        f_banner = _get_float_font(int(banner_h * 0.82))
-        bt_sh = f_banner.render("LUCKY", True, STROKE)
-        bt    = f_banner.render("LUCKY", True, CREAM)
-        big.blit(bt_sh, bt_sh.get_rect(
-            center=(banner.centerx + SS // 2,
-                    banner.centery + SS // 2)))
-        big.blit(bt, bt.get_rect(center=banner.center))
-        sparkle(banner.left + 5 * SS, banner.centery,
-                int(SS * 1.6))
-        sparkle(banner.right - 5 * SS, banner.centery,
-                int(SS * 1.6))
-
-        # ── Foil panel + "? ? ?" ──
-        bot_row_h = 10 * SS
-        panel = pygame.Rect(inner.left + 2 * SS,
-                            banner.bottom + 2 * SS,
-                            inner.width - 4 * SS,
-                            inner.bottom - banner.bottom - bot_row_h)
-        silver_panel(panel, radius=2 * SS)
-        f_q = _get_float_font(int(panel.height * 0.78))
-        q_sh   = f_q.render("? ? ?", True, STROKE)
-        q_hl   = f_q.render("? ? ?", True, CREAM)
-        q_fill = f_q.render("? ? ?", True, NAVY)
-        qr = q_fill.get_rect(center=panel.center)
-        big.blit(q_sh, q_sh.get_rect(
-            center=(qr.centerx + SS // 2, qr.centery + SS // 2)))
-        big.blit(q_hl, q_hl.get_rect(
-            center=(qr.centerx, qr.centery - SS // 2)))
-        big.blit(q_fill, qr)
-
-        # ── Bottom row: clover, WIN! stamp, coin ──
-        bot_y = panel.bottom + int(5 * SS)
-        clover(card.left + 8 * SS, bot_y, int(SS * 1.9))
-        win_h = 6 * SS
-        win_rect = pygame.Rect(0, 0, int(16 * SS), win_h)
-        win_rect.center = (card.centerx, bot_y)
-        vgrad(win_rect, RED_HI, RED, radius=int(SS * 2))
-        pygame.draw.rect(big, STROKE, win_rect, max(1, SS // 2),
-                         border_radius=int(SS * 2))
-        fw = _get_float_font(int(win_h * 0.82))
-        wt_sh = fw.render("WIN!", True, STROKE)
-        wt    = fw.render("WIN!", True, CREAM)
-        big.blit(wt_sh, wt_sh.get_rect(
-            center=(win_rect.centerx + SS // 2,
-                    win_rect.centery + SS // 2)))
-        big.blit(wt, wt.get_rect(center=win_rect.center))
-        coin_disc(card.right - 8 * SS, bot_y, int(SS * 2.8),
-                  label="$")
-
-        # ── Confetti dots ──
-        for x, y, col in (
-            (card.left  + 5 * SS,  card.top    + 15 * SS, TEAL),
-            (card.right - 5 * SS,  card.top    + 16 * SS, RED_HI),
-            (card.left  + 4 * SS,  card.bottom - 17 * SS, CREAM),
-            (card.right - 4 * SS,  card.bottom - 16 * SS, TEAL),
-            (card.centerx - 22 * SS, card.bottom - 11 * SS, CREAM),
-            (card.centerx + 22 * SS, card.bottom - 11 * SS, RED_HI),
-        ):
-            pygame.draw.circle(big, col, (x, y),
-                               max(1, int(SS * 1.2)))
-            pygame.draw.circle(big, STROKE, (x, y),
-                               max(1, int(SS * 1.2)),
-                               max(1, SS // 3))
-
-        # ── Corner sparkles (kept from the original L1) ──
-        sparkle(card.right - 7 * SS, card.top + 13 * SS, 3 * SS)
-        sparkle(card.left + 10 * SS, card.bottom - 11 * SS, 2 * SS)
-        sparkle(card.right - 12 * SS, card.bottom - 8 * SS,
-                int(SS * 2.2), colour=(255, 230, 120))
+        # ── 3 large scratch cells below the chip ──
+        cell_top = chip.bottom + 2 * SS
+        cell_bot = inner.bottom - 2 * SS
+        cell_h = cell_bot - cell_top
+        gap = 1 * SS
+        cell_w = (inner.width - 4 * SS - 2 * gap) // 3
+        for i in range(3):
+            x0 = inner.left + 2 * SS + i * (cell_w + gap)
+            cell = pygame.Rect(x0, cell_top, cell_w, cell_h)
+            silver_cell(cell, radius=int(SS * 1.5))
+            fit_question_mark(cell)
 
         # Rotate at supersample then smoothscale down so the tilted
-        # edges stay clean. Tilt amplitude matches the original
-        # ±8° animation.
-        tilt = math.sin(self.pulse * 0.7) * 8
+        # edges stay clean and the chrome rim sits as a uniform-
+        # thickness parallel border on all 4 sides. ±5° tilt.
+        tilt = math.sin(self.pulse * 0.7) * 5
         rotated = pygame.transform.rotate(big, tilt)
         rw, rh = rotated.get_size()
         final = pygame.transform.smoothscale(rotated,
