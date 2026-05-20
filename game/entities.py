@@ -2366,7 +2366,7 @@ class PowerUp:
         RED    = (200, 50, 50)
 
         SS = 6
-        NATIVE_W = NATIVE_H = 72
+        NATIVE_W = NATIVE_H = 84
         big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2
@@ -2476,7 +2476,7 @@ class PowerUp:
         cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
 
         SS = 6
-        NATIVE_W, NATIVE_H = 64, 48
+        NATIVE_W, NATIVE_H = 56, 42
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
         big = pygame.Surface((sw, sh), pygame.SRCALPHA)
 
