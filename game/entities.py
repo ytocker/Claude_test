@@ -2634,8 +2634,11 @@ class PowerUp:
             center=(card.centerx, card.top + int(SS * 5.5))))
 
         # ── locomotive centred on the card ──
+        # Scale 1.0 (was 1.4 on the larger 64x48 canvas) so the
+        # smokestack + smoke puffs stay inside the slimmer 48x36
+        # ticket without overflowing the top edge.
         locomotive(card.centerx, card.centery + int(SS * 2),
-                   scale=1.40)
+                   scale=1.0)
 
         # Rotate at supersample then smoothscale down so the tilted
         # edges stay clean. ±4° tilt for the "alive" feel.
