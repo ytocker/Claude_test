@@ -2571,41 +2571,9 @@ class PowerUp:
             pygame.draw.rect(big, INK, plate,
                              border_radius=max(1, SS // 3))
 
-            # Smokestack with flared cap.
-            stack_w = max(2, int(SS * 2.0 * scale))
-            stack_h = max(3, int(SS * 4.5 * scale))
-            stack_x = boiler.right - int(SS * 5 * scale) - stack_w // 2
-            stack_rect = pygame.Rect(stack_x, boiler.top - stack_h,
-                                      stack_w, stack_h)
-            pygame.draw.rect(big, INK, stack_rect)
-            flare_w = int(stack_w * 1.9)
-            flare_h = max(1, int(SS * 0.9 * scale))
-            flare = pygame.Rect(0, 0, flare_w, flare_h)
-            flare.midbottom = (stack_rect.centerx, stack_rect.top)
-            pygame.draw.rect(big, INK, flare)
-
-            # Steam dome.
-            dome_w = max(3, int(SS * 2.4 * scale))
-            dome_h = max(2, int(SS * 1.8 * scale))
-            dome_cx = boiler.left + int(boiler.width * 0.32)
-            dome_rect = pygame.Rect(0, 0, dome_w, dome_h * 2)
-            dome_rect.midbottom = (dome_cx,
-                                    boiler.top + max(1, SS // 3))
-            pygame.draw.ellipse(big, INK, dome_rect)
-            dcap = pygame.Rect(0, 0, int(dome_w * 1.4),
-                                max(1, int(SS * 0.5 * scale)))
-            dcap.midbottom = (dome_cx,
-                               dome_rect.midbottom[1] - dome_h)
-            pygame.draw.rect(big, INK, dcap)
-
-            # Sand dome.
-            sand_w = max(2, int(SS * 1.8 * scale))
-            sand_h = max(2, int(SS * 1.4 * scale))
-            sand_cx = boiler.left + int(boiler.width * 0.52)
-            sand_rect = pygame.Rect(0, 0, sand_w, sand_h * 2)
-            sand_rect.midbottom = (sand_cx,
-                                    boiler.top + max(1, SS // 3))
-            pygame.draw.ellipse(big, INK, sand_rect)
+            # (Smokestack, steam dome, sand dome and smoke puffs
+            # all removed per user request — the loco is now a
+            # clean boiler + headlight + cowcatcher + wheels.)
 
             # Headlight.
             hl_r = max(2, int(SS * 1.3 * scale))
@@ -2680,19 +2648,6 @@ class PowerUp:
                 pygame.draw.circle(big, CREAM,
                                    (wx, rod_y + rod_h // 2),
                                    max(1, int(SS * 0.6 * scale)))
-
-            # Smoke puffs above the stack.
-            smoke_x = stack_rect.centerx
-            smoke_y = stack_rect.top - int(SS * 1.5 * scale)
-            for dx, dy, sr in (
-                (0,                       0,                       int(SS * 1.7 * scale)),
-                (int(SS * -1.6 * scale),  int(SS * -2.8 * scale),  int(SS * 2.0 * scale)),
-                (int(SS *  1.8 * scale),  int(SS * -5.0 * scale),  int(SS * 1.8 * scale)),
-                (int(SS *  0.4 * scale),  int(SS * -7.5 * scale),  int(SS * 1.4 * scale)),
-            ):
-                pygame.draw.circle(big, INK,
-                                    (smoke_x + dx, smoke_y + dy),
-                                    max(1, sr))
 
         # ── small RAILWAY caption at the top ──
         f_hdr = _get_float_font(int(SS * 2.8))
