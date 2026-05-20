@@ -56,21 +56,20 @@ def render_one(label, ramp_w, ramp_h):
         w.world_idle_tick(1 / 60)
     w._activate_skateboard(PowerUp(0, 0, kind="skateboard"))
 
-    # Place one pipe under Pip's column.
-    pipe = Pipe(BIRD_X - PIPE_W // 2 + 6, 360, 130)
+    # Place a pipe + ramp clearly RIGHT of Pip so the wedge is
+    # unobstructed in the screenshot. Bird stays at its idle hover
+    # position on the left — we render it but it doesn't cover
+    # the ramp.
+    pipe = Pipe(220, 360, 130)
     w.pipes = [pipe]
     pipe.has_ramp = True
     gap_bot = pipe.gap_y + pipe.gap_h / 2
-    # Pin the ramp so the kicker sits roughly under Pip.x — gives a
-    # clear "Pip approaching the kicker" reading per variant.
-    rx = pipe.x + max(0, PIPE_W - ramp_w - 4)
+    rx = pipe.x + max(0, (PIPE_W - ramp_w) // 2)
     w.ramps = [Ramp(rx, ramp_w, ramp_h, base_y=gap_bot)]
-
-    # Drop Pip onto the ramp.
-    w.bird.y = gap_bot - BIRD_R - 30
-    w.bird.vy = 200
-    for _ in range(8):
-        w.update(1 / 60)
+    # Hold Pip a little above mid-screen so he's visible but not
+    # near the ramp.
+    w.bird.y = H * 0.38
+    w.bird.vy = 0
 
     frame = render_play_scene(w)
     # render_play_scene doesn't include ramps; draw them + the bird

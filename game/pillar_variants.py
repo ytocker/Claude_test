@@ -817,25 +817,17 @@ def _paint_stone(surf, rect, polygon_fn, palette, body_seed):
 def draw_pillar_pair(surf, top_rect, bot_rect, palette, seed,
                      skip_bot_crown=False):
     """Paint both pillar bodies + decorate according to the variant
-    keyed by seed. If ``skip_bot_crown=True`` the crown vegetation
-    on top of the bottom pillar is overpainted with stone so it
-    doesn't poke up through a SKATEBOARD ramp resting there."""
+    keyed by seed. If ``skip_bot_crown=True`` the variant
+    decoration is skipped entirely — the pillars render as bare
+    stone so a SKATEBOARD ramp resting on the lower pillar's top
+    doesn't have trees / banners / moss poking through it. Upper
+    pillar's moss strands are sacrificed too (the alternative was
+    a tall sky-coloured overpaint that would also erase the gap
+    backdrop)."""
     variant_id = seed % VARIANT_COUNT
     top_sil, bot_sil, decorate = _VARIANTS[variant_id]
     _paint_stone(surf, top_rect, top_sil, palette, seed)
     _paint_stone(surf, bot_rect, bot_sil, palette, seed + 1)
-    decorate(surf, top_rect, bot_rect, palette, seed)
-    if skip_bot_crown and bot_rect.height > 0:
-        # Repaint the top 42 px of the bottom pillar so the crown
-        # vegetation drawn by `decorate` is hidden under the ramp.
-        crown_h = min(42, bot_rect.height)
-        # Solid stone fill keeps things simple and reads as bare
-        # rock where the ramp meets the pillar surface.
-        pygame.draw.rect(surf, palette['stone_mid'],
-                         pygame.Rect(bot_rect.x, bot_rect.y,
-                                     bot_rect.width, crown_h))
-        # Subtle highlight band along the very top edge.
-        pygame.draw.line(surf, palette['stone_light'],
-                         (bot_rect.x, bot_rect.y),
-                         (bot_rect.right - 1, bot_rect.y), 1)
+    if not skip_bot_crown:
+        decorate(surf, top_rect, bot_rect, palette, seed)
 
