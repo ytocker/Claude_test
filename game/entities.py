@@ -2656,21 +2656,25 @@ class PowerUp:
                                    (wx, rod_y + rod_h // 2),
                                    max(1, int(SS * 0.6 * scale)))
 
-        # ── RAILWAY + EXPRESS captions at the top ──
-        f_hdr = _get_float_font(int(SS * 2.8))
-        hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
-        big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 3.8))))
-        f_sub = _get_float_font(int(SS * 1.9))
-        sub = f_sub.render("EXPRESS", True, NEAR_BLACK)
-        big.blit(sub, sub.get_rect(
-            center=(card.centerx, card.top + int(SS * 7))))
+        # ── Big bold "TRAIN" caption at the top ──
+        # Sized to fill most of the vertical room between the
+        # inner engraving line and the chimney top. set_bold on
+        # top of the already-bold vendored font + an extra
+        # 1-paint-pixel offset-stamp thicken the strokes so the
+        # word reads at game pickup scale.
+        f_hdr = _get_float_font(int(SS * 9))
+        f_hdr.set_bold(True)
+        for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
+            hdr = f_hdr.render("TRAIN", True, NEAR_BLACK)
+            big.blit(hdr, hdr.get_rect(
+                center=(card.centerx + dx,
+                         card.top + int(SS * 5) + dy)))
 
         # ── locomotive centred on the card ──
-        # Scale 1.0 (was 1.4 on the larger 64x48 canvas) so the
-        # smokestack + smoke puffs stay inside the slimmer 48x36
-        # ticket without overflowing the top edge.
-        locomotive(card.centerx, card.centery + int(SS * 2),
+        # Nudged a touch lower (centery + 3*SS) so the now-much-
+        # bigger "TRAIN" caption has clear vertical room above
+        # the chimney.
+        locomotive(card.centerx, card.centery + int(SS * 3),
                    scale=1.0)
 
         # Rotate at supersample then smoothscale down so the tilted
