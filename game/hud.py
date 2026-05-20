@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -910,6 +910,44 @@ def _draw_buff_icon(surf, rect, kind):
         icon = _get_reverse_icon(diameter)
         surf.blit(icon, (cx - icon.get_width() // 2,
                          cy - icon.get_height() // 2))
+    elif kind == "shrink":
+        # Tiny squat blue mushroom — mirrors GROW's icon style at HUD scale
+        # but with a flat parasol disc and a different palette so the two
+        # are distinguishable at a glance.
+        pygame.draw.ellipse(surf, (15, 35, 70),
+                            pygame.Rect(cx - 7, cy - 5, 14, 8))
+        pygame.draw.ellipse(surf, (40, 120, 200),
+                            pygame.Rect(cx - 6, cy - 4, 12, 6))
+        pygame.draw.ellipse(surf, (110, 200, 240),
+                            pygame.Rect(cx - 4, cy - 4, 4, 2))
+        for sx, sy in ((cx, cy - 3), (cx - 3, cy - 1), (cx + 3, cy - 1)):
+            pygame.draw.circle(surf, (255, 250, 220), (sx, sy), 1)
+        pygame.draw.ellipse(surf, (245, 240, 220),
+                            pygame.Rect(cx - 3, cy + 2, 6, 7))
+        pygame.draw.ellipse(surf, (140, 130, 110),
+                            pygame.Rect(cx - 3, cy + 2, 6, 7), 1)
+    elif kind == "rail":
+        # Tiny minecart: dark wagon body with two wheel dots and a
+        # short horizontal rail line under it. Reads as "cart on a
+        # track" at 20×20 px.
+        # Rail line
+        pygame.draw.line(surf, (120, 110, 100),
+                         (cx - 9, cy + 7), (cx + 9, cy + 7), 1)
+        # Body
+        pygame.draw.rect(surf, (60, 40, 25),
+                         pygame.Rect(cx - 7, cy - 2, 14, 7),
+                         border_radius=1)
+        pygame.draw.rect(surf, (135, 90, 50),
+                         pygame.Rect(cx - 6, cy - 1, 12, 5),
+                         border_radius=1)
+        # Iron bands
+        pygame.draw.line(surf, (40, 35, 30),
+                         (cx - 7, cy + 1), (cx + 7, cy + 1), 1)
+        # Wheels
+        pygame.draw.circle(surf, (40, 40, 45), (cx - 4, cy + 6), 2)
+        pygame.draw.circle(surf, (40, 40, 45), (cx + 4, cy + 6), 2)
+        pygame.draw.circle(surf, (160, 150, 140), (cx - 4, cy + 6), 1)
+        pygame.draw.circle(surf, (160, 150, 140), (cx + 4, cy + 6), 1)
 
 
 class PauseButton:
@@ -1447,6 +1485,13 @@ class HUD:
             active.append(("grow", world.grow_timer, GROW_DURATION))
         if world.reverse_timer > 0:
             active.append(("reverse", world.reverse_timer, REVERSE_DURATION))
+        if getattr(world, "shrink_timer", 0) > 0:
+            active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
+        # Rail intentionally has NO HUD timer bar: it's pillar-budgeted
+        # rather than seconds-budgeted, and the on-world track + cart
+        # already show the remaining ride at a glance.
+        # Lottery is one-shot — the slot-machine reveal overlay carries
+        # the result feedback; no HUD bar needed.
 
         if active:
             icon_size = 24
