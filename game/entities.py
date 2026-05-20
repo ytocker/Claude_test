@@ -2656,11 +2656,15 @@ class PowerUp:
                                    (wx, rod_y + rod_h // 2),
                                    max(1, int(SS * 0.6 * scale)))
 
-        # ── small RAILWAY caption at the top ──
+        # ── RAILWAY + EXPRESS captions at the top ──
         f_hdr = _get_float_font(int(SS * 2.8))
         hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 5.5))))
+            center=(card.centerx, card.top + int(SS * 3.8))))
+        f_sub = _get_float_font(int(SS * 1.9))
+        sub = f_sub.render("EXPRESS", True, NEAR_BLACK)
+        big.blit(sub, sub.get_rect(
+            center=(card.centerx, card.top + int(SS * 7))))
 
         # ── locomotive centred on the card ──
         # Scale 1.0 (was 1.4 on the larger 64x48 canvas) so the
