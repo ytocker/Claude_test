@@ -360,6 +360,46 @@ def test_rail_expires_silently_if_pip_never_locks():
     # _end_rail_ride (the silent-expire path skips that).
 
 
+def test_rail_pickup_while_locked_extends_ride():
+    """If Pip picks up another rail powerup while locked on the cart,
+    the ride extends by RAIL_PILLAR_COUNT more pillars from his
+    current position. No new cart spawns; cart_locked stays True;
+    rail_pillars_left resets to RAIL_PILLAR_COUNT."""
+    from game.config import RAIL_PILLAR_COUNT
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    w._lock_pip_on_cart()
+    assert w.bird.cart_locked is True
+    # Tick a bit so some tagged pillars scroll past.
+    for _ in range(120):
+        w.update(1 / 60)
+        if not w.bird.cart_active:
+            break
+    assert w.bird.cart_active is True, "ride should still be in progress"
+    pillars_before_ext = w.rail_pillars_left
+    tagged_before = sum(1 for p in w.pipes
+                        if getattr(p, "rail_active", False)
+                        and p.x > w.bird.x)
+    # Mid-ride pickup.
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    # State preserved.
+    assert w.bird.cart_locked is True
+    assert w.bird.cart_active is True
+    # Budget reset.
+    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
+    # At least as many tagged ahead as before (may be more — extension
+    # tops up to RAIL_PILLAR_COUNT ahead).
+    tagged_after = sum(1 for p in w.pipes
+                       if getattr(p, "rail_active", False)
+                       and p.x > w.bird.x)
+    assert tagged_after >= RAIL_PILLAR_COUNT, (
+        f"after extension expected >= {RAIL_PILLAR_COUNT} tagged ahead, "
+        f"got {tagged_after}")
+    assert tagged_after >= tagged_before, (
+        "extension shouldn't lose any already-tagged pillars")
+
+
 def test_rail_world_scroll_only_speeds_up_after_lock():
     """Pre-lock the world scrolls at normal speed (so the player can
     aim onto the cart calmly). RAIL_SCROLL_MULT only kicks in once

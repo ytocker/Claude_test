@@ -2003,7 +2003,13 @@ class World:
         tagged pillars. Pillars 2-5 still have track but no cart —
         touching them kills Pip like any obstacle. If Pip never lands
         on the cart, the 5 tagged pillars scroll past and the powerup
-        expires silently."""
+        expires silently. If picked up WHILE Pip is already locked on
+        the rail (he can't dodge), extend the current ride by 5 more
+        pillars from his current position — no new cart, no state
+        reset."""
+        if self.bird.cart_locked:
+            self._extend_rail_ride(m)
+            return
         self.rail_pillars_left = RAIL_PILLAR_COUNT
         self.bird.cart_active = True
         self.bird.cart_locked = False
@@ -2051,6 +2057,45 @@ class World:
         self.float_texts.append(FloatText(
             "RAILS UP!", m.x, m.y - 26, UI_GOLD,
             size=28, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _extend_rail_ride(self, m):
+        """Mid-ride pickup: extend the current locked ride by tagging
+        more pillars ahead so there are RAIL_PILLAR_COUNT tagged in
+        front of Pip, then reset the per-ride budget to that count. No
+        new cart spawns (Pip is already on one). Force-spawns if fewer
+        than RAIL_PILLAR_COUNT pipes are in flight ahead."""
+        ahead = sorted(
+            (p for p in self.pipes
+             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
+            key=lambda p: p.x)
+        tagged_ahead = sum(1 for p in ahead
+                           if getattr(p, "rail_active", False))
+        for p in ahead:
+            if tagged_ahead >= RAIL_PILLAR_COUNT:
+                break
+            if not getattr(p, "rail_active", False):
+                p.rail_active = True
+                tagged_ahead += 1
+        need = RAIL_PILLAR_COUNT - tagged_ahead
+        if need > 0:
+            self.rail_pending = need
+            spacing = self._current_spacing()
+            next_x = (max((p.x for p in self.pipes), default=self.bird.x)
+                      + spacing)
+            guard = need * 3
+            while self.rail_pending > 0 and guard > 0:
+                self._spawn_pipe(next_x)
+                next_x += spacing
+                guard -= 1
+            self.rail_pending = 0
+        self.rail_pipes = [p for p in self.pipes if p.rail_active]
+        self.rail_pillars_left = RAIL_PILLAR_COUNT
+        audio.play_rail()
+        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, (255, 220, 100), WHITE), n=18)
+        self.float_texts.append(FloatText(
+            "+5 RAILS", m.x, m.y - 26, UI_GOLD,
+            size=26, life=1.2, vy=-30, style="powerup",
         ))
 
     def _end_rail_ride(self):
