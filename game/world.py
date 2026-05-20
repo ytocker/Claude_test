@@ -466,27 +466,28 @@ class World:
 
     def _maybe_spawn_ramp(self, pipe: Pipe):
         """During the SKATEBOARD window, sometimes drop a wooden
-        ramp in the gap between this pipe and the next one. Max 1
-        ramp per gap, ~55 % chance to spawn (some gaps skipped).
-        Skipped entirely when SKATEBOARD isn't active so the player
-        only sees ramps during the powerup window."""
+        ramp on top of this pipe's LOWER pillar. Max 1 ramp per
+        pillar (some pillars skipped). Ramps are steeper than the
+        ground variant (taller-to-wider ratio) so the slide gives
+        Pip a noticeable launch. Skipped entirely when SKATEBOARD
+        isn't active so the player only sees ramps during the
+        powerup window."""
         if self.skateboard_timer <= 0:
             return
         if random.random() >= 0.55:
             return
-        spacing = self._current_spacing()
-        # Place the ramp mid-gap (between this pipe's right edge and
-        # the next pipe's left edge, which sits roughly spacing px
-        # further right). Random offset within a safe band so two
-        # consecutive ramps don't always land at the same spot.
-        ramp_w = random.randint(36, 52)
-        ramp_h = random.randint(14, 22)
-        gap_left  = pipe.x + PIPE_W + 12
-        gap_right = pipe.x + spacing - ramp_w - 12
-        if gap_right <= gap_left:
-            return
-        rx = random.uniform(gap_left, gap_right)
-        self.ramps.append(Ramp(rx, ramp_w, ramp_h))
+        # Steep wedge: height-to-width ratio ~0.55–0.85 (was ~0.4).
+        ramp_w = random.randint(30, 44)
+        ramp_h = random.randint(22, 32)
+        if ramp_w > PIPE_W - 4:
+            ramp_w = PIPE_W - 4
+        # Place the ramp on top of the lower pillar so its base
+        # rests at pipe.gap_y + pipe.gap_h/2. X offset within the
+        # pillar's column so the kicker doesn't hang off the edge.
+        base_y = pipe.gap_y + pipe.gap_h / 2
+        max_x_offset = PIPE_W - ramp_w
+        rx = pipe.x + random.uniform(0, max_x_offset)
+        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
 
     # ── public control ──────────────────────────────────────────────────────
 
