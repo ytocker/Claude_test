@@ -1676,6 +1676,67 @@ def _get_coin_face_triple() -> pygame.Surface:
     return _TRIPLE_COIN_FACE_CACHE
 
 
+class Ramp:
+    """SKATEBOARD ramp — a wooden wedge sitting on the ground that
+    Pip can skate up while the SKATEBOARD powerup is active.
+    Shape ``/|`` : the slope rises LEFT→RIGHT and the vertical
+    kicker face is on the RIGHT. Because Pip is stationary and the
+    world scrolls left, the ramp scrolls under him from his
+    rightside: first the ramp's LEFT (ground) edge meets Pip, then
+    he climbs the slope as it scrolls, peaks at the right edge,
+    and then goes airborne when the kicker passes."""
+
+    def __init__(self, x: float, w: float, h: float):
+        self.x = x      # left edge of the wedge (ground side)
+        self.w = w      # horizontal extent
+        self.h = h      # peak height (top-right corner above GROUND_Y)
+
+    def off_screen(self) -> bool:
+        return self.x + self.w + 8 < 0
+
+    def surface_y_at(self, px: float) -> float:
+        """Top surface y at world x. Outside the wedge footprint
+        returns GROUND_Y (no rise). At ramp.x (left/foot) returns
+        the ground; at ramp.x + ramp.w (right/kicker) returns the
+        peak."""
+        from game.config import GROUND_Y as _GY
+        if px < self.x or px > self.x + self.w:
+            return _GY
+        t = (px - self.x) / self.w   # 0 at left (ground), 1 at right (peak)
+        return _GY - self.h * t
+
+    def draw(self, surf, palette=None):
+        from game.config import GROUND_Y as _GY
+        WOOD     = (140, 100, 65)
+        WOOD_DK  = (95,  70,  45)
+        WOOD_HI  = (200, 165, 105)
+        EDGE     = (40,  25,  18)
+        x0 = int(self.x)
+        x1 = int(self.x + self.w)
+        y0 = _GY
+        y_top = y0 - int(self.h)
+        # Filled wedge — vertical kicker on the RIGHT side.
+        # Triangle vertices: bottom-left, bottom-right, top-right.
+        pts = [(x0, y0), (x1, y0), (x1, y_top)]
+        pygame.draw.polygon(surf, WOOD, pts)
+        # Diagonal highlight band along the skating surface
+        # (bottom-left to top-right).
+        pygame.draw.line(surf, WOOD_HI, (x0 + 1, y0 - 1),
+                         (x1 - 1, y_top + 1), 2)
+        # Dark base shadow strip.
+        pygame.draw.line(surf, WOOD_DK, (x0, y0), (x1, y0), 2)
+        # Plank seams — vertical lines on the slope face.
+        for frac in (0.33, 0.66):
+            xp = int(self.x + self.w * frac)
+            yp = int(_GY - self.h * frac)
+            pygame.draw.line(surf, WOOD_DK, (xp, yp + 1), (xp, y0 - 1), 1)
+        # Outline.
+        pygame.draw.polygon(surf, EDGE, pts, 1)
+        # Kicker-face highlight (vertical right edge).
+        pygame.draw.line(surf, WOOD_HI, (x1 - 1, y_top + 2),
+                         (x1 - 1, y0 - 1), 1)
+
+
 class Coin:
     """Spinning gold parrot medallion. Built once at 4x super-sample with a
     bold dark outline + vertical gold gradient + embossed parrot + soft

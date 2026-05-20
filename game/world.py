@@ -34,7 +34,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
-    TreasureCoinParticle,
+    TreasureCoinParticle, Ramp,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -120,6 +120,10 @@ class World:
         # of trailing Pip around.
         self.skateboard_burst_cx = 0
         self.skateboard_burst_cy = 0
+        # SKATEBOARD ramps — wooden wedges on the ground that Pip
+        # can skate up. Spawned per-pipe during the skateboard
+        # window (max 1 per pillar gap, some gaps skipped).
+        self.ramps: list = []
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -325,6 +329,7 @@ class World:
         else:
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
+        self._maybe_spawn_ramp(p)
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
@@ -459,6 +464,30 @@ class World:
         self.powerups.append(PowerUp(x, y, kind=kind))
         self.powerup_cooldown = POWERUP_COOLDOWN
 
+    def _maybe_spawn_ramp(self, pipe: Pipe):
+        """During the SKATEBOARD window, sometimes drop a wooden
+        ramp in the gap between this pipe and the next one. Max 1
+        ramp per gap, ~55 % chance to spawn (some gaps skipped).
+        Skipped entirely when SKATEBOARD isn't active so the player
+        only sees ramps during the powerup window."""
+        if self.skateboard_timer <= 0:
+            return
+        if random.random() >= 0.55:
+            return
+        spacing = self._current_spacing()
+        # Place the ramp mid-gap (between this pipe's right edge and
+        # the next pipe's left edge, which sits roughly spacing px
+        # further right). Random offset within a safe band so two
+        # consecutive ramps don't always land at the same spot.
+        ramp_w = random.randint(36, 52)
+        ramp_h = random.randint(14, 22)
+        gap_left  = pipe.x + PIPE_W + 12
+        gap_right = pipe.x + spacing - ramp_w - 12
+        if gap_right <= gap_left:
+            return
+        rx = random.uniform(gap_left, gap_right)
+        self.ramps.append(Ramp(rx, ramp_w, ramp_h))
+
     # ── public control ──────────────────────────────────────────────────────
 
     def flap(self):
@@ -578,6 +607,8 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
+            for r in self.ramps:
+                r.x -= speed * sdt
 
             # Magnet pull — tug uncollected coins toward the bird.
             if self.magnet_timer > 0:
@@ -607,6 +638,7 @@ class World:
                           or getattr(p, "rail_active", False)]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
+            self.ramps = [r for r in self.ramps if not r.off_screen()]
 
             # spawn more pipes. Suppressed while RAIL is active so no
             # untagged pipe slips in between the pre-spawned 7-pillar
@@ -834,6 +866,21 @@ class World:
         # the egg can sail through pipes during the hatch window.
         if self.phoenix_invuln > 0 or self.phoenix_rebirth is not None:
             return
+        # SKATEBOARD: ramp-surface snap (must come BEFORE the ground
+        # check). If Pip is over a wooden wedge while skating, snap
+        # to the ramp's slope so he rolls UP the incline. The ramp
+        # surface sits above GROUND_Y on the slope portion, so this
+        # naturally takes precedence over the plain ground slide.
+        if skating and self.ramps:
+            for r in self.ramps:
+                if r.x <= bx <= r.x + r.w:
+                    surface_y = r.surface_y_at(bx)
+                    if by + br >= surface_y - 1 and self.bird.vy >= -50:
+                        self.bird.y = surface_y - br
+                        self.bird.vy = 0.0
+                        by = self.bird.y
+                        self._maybe_skateboard_dust(bx, surface_y)
+                    break  # only one ramp under Pip at a time
         if by + br > GROUND_Y:
             if skating:
                 # Slide along the ground. Snap, zero vy, dust puff.
@@ -958,21 +1005,45 @@ class World:
         return False
 
     def _maybe_skateboard_dust(self, x, y_ground):
-        """Occasional dust puff while sliding — throttled, not every frame."""
-        if random.random() < 0.35:
-            for _ in range(2):
-                ang = random.uniform(math.pi * 0.9, math.pi * 1.1)
-                spd = random.uniform(40, 110)
-                self.particles.append(Particle(
-                    x - random.uniform(0, 10),
-                    y_ground - 2,
-                    math.cos(ang) * spd,
-                    -abs(math.sin(ang) * spd * 0.4),
-                    random.uniform(0.25, 0.45),
-                    random.randint(2, 3),
-                    random.choice(((220, 215, 200), (200, 195, 180), WHITE)),
-                    gravity=200,
-                ))
+        """Grandiose dust plume off the back of the board — fires
+        ~70 % of frames, 4-6 particles per burst, mix of fast spark-
+        size dust and a couple of bigger trailing puffs. Comes out
+        behind the board (-x direction) with a slight upward bias."""
+        if random.random() >= 0.7:
+            return
+        # Main dust cloud — 4-5 fast small particles.
+        n_small = random.randint(4, 5)
+        for _ in range(n_small):
+            ang = random.uniform(math.pi * 0.85, math.pi * 1.15)
+            spd = random.uniform(80, 200)
+            col = random.choice((
+                (235, 230, 215), (210, 205, 190),
+                (180, 175, 165), WHITE,
+            ))
+            self.particles.append(Particle(
+                x - random.uniform(0, 14),
+                y_ground - 2 + random.uniform(-2, 2),
+                math.cos(ang) * spd,
+                -abs(math.sin(ang) * spd * 0.55),
+                random.uniform(0.35, 0.65),
+                random.randint(3, 5),
+                col,
+                gravity=180,
+            ))
+        # 1-2 bigger, slower trailing puffs that hang for longer.
+        for _ in range(random.randint(1, 2)):
+            ang = random.uniform(math.pi * 0.95, math.pi * 1.05)
+            spd = random.uniform(40, 90)
+            self.particles.append(Particle(
+                x - random.uniform(2, 10),
+                y_ground - random.uniform(2, 6),
+                math.cos(ang) * spd,
+                -abs(math.sin(ang) * spd * 0.7),
+                random.uniform(0.6, 1.0),
+                random.randint(4, 6),
+                random.choice(((230, 225, 210), (210, 205, 190))),
+                gravity=120,
+            ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so the
     # wagon body sits with its wheels exactly on the rail line.
