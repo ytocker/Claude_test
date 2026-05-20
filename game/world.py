@@ -1008,44 +1008,52 @@ class World:
         return False
 
     def _maybe_skateboard_dust(self, x, y_ground):
-        """Grandiose dust plume off the back of the board — fires
-        ~70 % of frames, 4-6 particles per burst, mix of fast spark-
-        size dust and a couple of bigger trailing puffs. Comes out
-        behind the board (-x direction) with a slight upward bias."""
-        if random.random() >= 0.7:
+        """Spark shower off the back of the board — bright hot
+        flecks shooting backward in a narrow arc like a real
+        skateboard grind. Particles use BLEND_ADD (see
+        Particle.draw) so overlapping sparks glow brighter."""
+        if random.random() >= 0.75:
             return
-        # Main dust cloud — 4-5 fast small particles.
-        n_small = random.randint(4, 5)
-        for _ in range(n_small):
-            ang = random.uniform(math.pi * 0.85, math.pi * 1.15)
-            spd = random.uniform(80, 200)
-            col = random.choice((
-                (235, 230, 215), (210, 205, 190),
-                (180, 175, 165), WHITE,
-            ))
+        # Hot-to-cool spark palette — yellow/orange/near-white.
+        spark_colors = (
+            (255, 240, 180),
+            (255, 220, 120),
+            (255, 190,  70),
+            (255, 160,  40),
+            (255, 245, 220),
+        )
+        # 5-8 fast small sparks per burst — the main shower.
+        n = random.randint(5, 8)
+        for _ in range(n):
+            # Mostly backward (cos(ang) ≈ -1), slight upward bias.
+            ang = math.pi + random.uniform(-0.45, 0.55)
+            spd = random.uniform(160, 320)
             self.particles.append(Particle(
-                x - random.uniform(0, 14),
-                y_ground - 2 + random.uniform(-2, 2),
+                x - random.uniform(0, 6),
+                y_ground - random.uniform(0, 3),
                 math.cos(ang) * spd,
-                -abs(math.sin(ang) * spd * 0.55),
-                random.uniform(0.35, 0.65),
-                random.randint(3, 5),
-                col,
-                gravity=180,
+                -abs(math.sin(ang) * spd * 0.85),
+                random.uniform(0.18, 0.36),
+                random.randint(1, 2),
+                random.choice(spark_colors),
+                gravity=380,
             ))
-        # 1-2 bigger, slower trailing puffs that hang for longer.
+        # 1-2 longer streak sparks that fly further before fading.
         for _ in range(random.randint(1, 2)):
-            ang = random.uniform(math.pi * 0.95, math.pi * 1.05)
-            spd = random.uniform(40, 90)
+            ang = math.pi + random.uniform(-0.25, 0.45)
+            spd = random.uniform(240, 380)
             self.particles.append(Particle(
                 x - random.uniform(2, 10),
-                y_ground - random.uniform(2, 6),
+                y_ground - random.uniform(1, 4),
                 math.cos(ang) * spd,
-                -abs(math.sin(ang) * spd * 0.7),
-                random.uniform(0.6, 1.0),
-                random.randint(4, 6),
-                random.choice(((230, 225, 210), (210, 205, 190))),
-                gravity=120,
+                -abs(math.sin(ang) * spd * 0.75),
+                random.uniform(0.30, 0.55),
+                random.randint(2, 3),
+                random.choice((
+                    (255, 240, 190),
+                    (255, 215, 130),
+                )),
+                gravity=340,
             ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so the

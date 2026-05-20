@@ -793,10 +793,14 @@ class Bird:
         # also closes the 360° loop to within ~0.03° at the last frame,
         # so the post-flip transition back to velocity-banked posture
         # is visually seamless ("lands on Pip's normal posture").
+        # The velocity-banked `base` term is also blended OUT as the
+        # flip progresses (`base_blend = 1 - eased`) so Pip exits the
+        # spin in a flat horizontal posture rather than nose-down
+        # under a falling vy.
         if self.backflip_t > 0 and self.backflip_dur > 0:
             p = 1.0 - self.backflip_t / self.backflip_dur
             eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
-            return base + eased * 360.0
+            return base * (1.0 - eased) + eased * 360.0
         return base
 
     def flap(self, gravity_sign=1):
