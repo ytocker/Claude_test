@@ -212,55 +212,61 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
     pygame.draw.circle(big, window_col, (hl_cx, hl_cy),
                        max(1, int(hl_r * 0.65)))
 
+    # Common rail-line — every wheel touches this ground.
+    big_wheel_r = max(3, int(SS * 2.5 * scale))
+    small_wheel_r = max(2, int(SS * 1.5 * scale))
+    ground_y = boiler.bottom + int(SS * 2.2 * scale) + big_wheel_r
+
     # ── Cowcatcher / pilot at the front-bottom ──
+    cow_top = boiler.bottom - max(1, SS // 3)
     cow_pts = [
-        (boiler.right - int(SS * 1 * scale),
-         boiler.bottom - max(1, SS // 3)),
+        (boiler.right - int(SS * 1 * scale), cow_top),
         (boiler.right + int(SS * 3.5 * scale),
-         boiler.bottom + int(SS * 1.5 * scale)),
-        (boiler.right + int(SS * 3.5 * scale),
-         boiler.bottom + int(SS * 3.5 * scale)),
+         ground_y - small_wheel_r),
+        (boiler.right + int(SS * 3.5 * scale), ground_y),
         (boiler.right - int(SS * 1 * scale),
-         boiler.bottom + int(SS * 3 * scale)),
+         ground_y - int(SS * 0.4 * scale)),
     ]
     pygame.draw.polygon(big, colour, cow_pts)
     # 3 vertical vanes hinting at the pilot grille.
     for f in (0.30, 0.55, 0.80):
         vx = cow_pts[0][0] + int((cow_pts[1][0] - cow_pts[0][0]) * f)
-        v_top = boiler.bottom + int(SS * 1 * scale * f)
-        v_bot = boiler.bottom + int(SS * 3 * scale)
+        v_top = cow_top + int(SS * 1 * scale * f)
+        v_bot = ground_y - max(1, SS // 2)
         pygame.draw.line(big, window_col, (vx, v_top), (vx, v_bot),
                          max(1, SS // 3))
 
     # ── Driving wheels (2 big, spoked) + leading wheel (1 small) ──
-    big_wheel_r = max(3, int(SS * 2.5 * scale))
-    small_wheel_r = max(2, int(SS * 1.5 * scale))
-    wheel_y = boiler.bottom + big_wheel_r - int(SS * 0.5 * scale)
+    # All three wheels share `ground_y`, so their centres differ in
+    # vertical position by exactly `big_wheel_r − small_wheel_r`.
+    drive_y = ground_y - big_wheel_r
     drive_xs = (
-        boiler.left + int(boiler.width * 0.18),
-        boiler.left + int(boiler.width * 0.55),
+        boiler.left + int(boiler.width * 0.30),
+        boiler.left + int(boiler.width * 0.62),
     )
     for wx in drive_xs:
-        pygame.draw.circle(big, colour, (wx, wheel_y),
+        pygame.draw.circle(big, colour, (wx, drive_y),
                            big_wheel_r)
         # 6 spokes.
         for ang_deg in (0, 60, 120, 180, 240, 300):
             ang = math.radians(ang_deg)
             x2 = wx + math.cos(ang) * (big_wheel_r - SS // 2)
-            y2 = wheel_y + math.sin(ang) * (big_wheel_r - SS // 2)
-            pygame.draw.line(big, window_col, (wx, wheel_y),
+            y2 = drive_y + math.sin(ang) * (big_wheel_r - SS // 2)
+            pygame.draw.line(big, window_col, (wx, drive_y),
                              (int(x2), int(y2)),
                              max(1, int(SS * 0.45 * scale)))
         # Hub centre.
-        pygame.draw.circle(big, window_col, (wx, wheel_y),
+        pygame.draw.circle(big, window_col, (wx, drive_y),
                            max(1, int(SS * 0.7 * scale)))
         # Inner tyre edge.
-        pygame.draw.circle(big, colour, (wx, wheel_y),
+        pygame.draw.circle(big, colour, (wx, drive_y),
                            big_wheel_r,
                            max(1, int(SS * 0.35 * scale)))
-    # Leading wheel (front).
-    lead_wx = boiler.right - int(SS * 0.5 * scale)
-    lead_wy = boiler.bottom + small_wheel_r + int(SS * 1 * scale)
+    # Leading wheel (pony truck) — in FRONT of the front driver,
+    # BEHIND the cowcatcher. Sits visually higher because of the
+    # smaller radius, but rests on the same ground line.
+    lead_wx = boiler.right - int(SS * 1.5 * scale) - small_wheel_r
+    lead_wy = ground_y - small_wheel_r
     pygame.draw.circle(big, colour, (lead_wx, lead_wy),
                        small_wheel_r)
     pygame.draw.circle(big, window_col, (lead_wx, lead_wy),
@@ -270,7 +276,7 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
     rod_h = max(2, int(SS * 0.6 * scale))
     rod_left = drive_xs[0]
     rod_right = drive_xs[1]
-    rod_y = wheel_y - int(big_wheel_r * 0.20) - rod_h // 2
+    rod_y = drive_y - int(big_wheel_r * 0.20) - rod_h // 2
     pygame.draw.rect(big, colour,
                      (rod_left, rod_y,
                       rod_right - rod_left, rod_h))
@@ -297,43 +303,72 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
 # ── 5 old-school ticket variants ────────────────────────────────────────────
 
 def draw_o1_br_edmondson(surf, cx, cy, pulse):
-    """O1 — BR-style Edmondson cardstock, 1960s. Flat cream paper,
-    single black border, big serif "RAIL" + "TICKET" stacked, red
-    diagonal stripe top-left, single punch hole upper-right,
-    locomotive silhouette at the bottom."""
+    """RT1 — BR Edmondson cardstock. Text-forward: origin →
+    destination is the visual hero. No train illustration. Red
+    diagonal triangle in the upper-LEFT corner signals first class.
+    Compact fields strip across the bottom: class / fare / number."""
 
     def paint(big, SS):
         w, h = big.get_width(), big.get_height()
         card = pygame.Rect(3 * SS, 3 * SS, w - 6 * SS, h - 6 * SS)
         _flat_body(big, card, CREAM,
-                   border_col=NEAR_BLACK, border_w=max(1, int(SS * 0.6)))
-        # Red diagonal stripe in the top-left corner.
-        stripe_pts = [
+                   border_col=NEAR_BLACK,
+                   border_w=max(1, int(SS * 0.6)))
+        # First-class red corner stripe.
+        pygame.draw.polygon(big, RED_FADE, [
             (card.left, card.top),
-            (card.left + int(SS * 9), card.top),
-            (card.left, card.top + int(SS * 9)),
-        ]
-        pygame.draw.polygon(big, RED_FADE, stripe_pts)
-        # Hole punch upper-right.
+            (card.left + int(SS * 11), card.top),
+            (card.left, card.top + int(SS * 11)),
+        ])
+        # "RAILWAY" thin caption near the top centre.
+        f_hdr = _font(int(SS * 2.2))
+        hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
+        big.blit(hdr, hdr.get_rect(
+            center=(card.centerx + int(SS * 4),
+                    card.top + int(SS * 3))))
+        # Punch hole upper-right.
         _punch_hole(big, SS,
                     card.right - int(SS * 4),
-                    card.top + int(SS * 4),
-                    int(SS * 1.6))
-        # "RAIL TICKET" wordmark — compact header so the big train
-        # has room to dominate.
-        f_hdr = _font(int(SS * 3.6))
-        hdr = f_hdr.render("RAIL TICKET", True, NEAR_BLACK)
-        big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 6))))
-        # Large detailed locomotive centred on the ticket.
-        _locomotive(big, SS,
-                    card.centerx, card.centery + int(SS * 4),
-                    scale=1.55)
-        # Tiny "ADULT" subtext along the bottom.
-        f_tiny = _font(int(SS * 1.9))
-        ad = f_tiny.render("ADULT FARE", True, INK)
-        big.blit(ad, ad.get_rect(midbottom=(card.centerx,
-                                              card.bottom - int(SS * 1))))
+                    card.top + int(SS * 3.5),
+                    int(SS * 1.3))
+        # Origin → destination — the visual hero.
+        f_city = _font(int(SS * 4.0))
+        london = f_city.render("LONDON", True, NEAR_BLACK)
+        big.blit(london, london.get_rect(
+            center=(card.centerx, card.top + int(SS * 11))))
+        f_to = _font(int(SS * 2.2))
+        to = f_to.render("to", True, INK)
+        big.blit(to, to.get_rect(
+            center=(card.centerx, card.top + int(SS * 15.5))))
+        brighton = f_city.render("BRIGHTON", True, NEAR_BLACK)
+        big.blit(brighton, brighton.get_rect(
+            center=(card.centerx, card.top + int(SS * 20))))
+        # Fields strip across the bottom.
+        f_field = _font(int(SS * 1.9))
+        strip_y = card.bottom - int(SS * 4)
+        # Bottom rule above the strip.
+        pygame.draw.line(big, NEAR_BLACK,
+                         (card.left + int(SS * 2),
+                          strip_y - int(SS * 2.5)),
+                         (card.right - int(SS * 2),
+                          strip_y - int(SS * 2.5)),
+                         max(1, SS // 3))
+        for text, x_frac in (
+            ("1ST CL",  0.20),
+            ("FARE 4/6", 0.50),
+            ("N° 7842", 0.82),
+        ):
+            t = f_field.render(text, True, NEAR_BLACK)
+            big.blit(t, t.get_rect(
+                center=(card.left + int(card.width * x_frac),
+                         strip_y)))
+        # Thin vertical separators between the fields.
+        for x_frac in (0.35, 0.66):
+            sep_x = card.left + int(card.width * x_frac)
+            pygame.draw.line(big, INK,
+                             (sep_x, strip_y - int(SS * 1.6)),
+                             (sep_x, strip_y + int(SS * 1.6)),
+                             max(1, SS // 3))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -342,10 +377,11 @@ def draw_o1_br_edmondson(surf, cx, cy, pulse):
 
 
 def draw_o2_victorian(surf, cx, cy, pulse):
-    """O2 — Victorian engraved ticket. Sepia paper, ornate
-    double-line border with corner flourishes, "RAILWAY" header in
-    bold serif spacing, locomotive in the centre, "ONE PASSAGE"
-    small caps below."""
+    """RT2 — Victorian engraved card. Sepia paper, double-line
+    border with corner pip flourishes, small steam locomotive at
+    the top framed by two thin maroon rules, then "GREAT WESTERN
+    R.W." header, "ONE PASSAGE" subline, ticket number lower-right,
+    date lower-left."""
 
     def paint(big, SS):
         w, h = big.get_width(), big.get_height()
@@ -353,14 +389,12 @@ def draw_o2_victorian(surf, cx, cy, pulse):
         _flat_body(big, card, SEPIA,
                    border_col=NEAR_BLACK,
                    border_w=max(1, int(SS * 0.4)))
-        # Double border — outer thick + inner thin, 1-SS gap.
         _double_border(big, card.inflate(-int(SS * 2), -int(SS * 2)),
                        NEAR_BLACK,
                        outer_w=max(1, int(SS * 0.4)),
                        inner_w=max(1, SS // 3),
                        gap=int(SS * 1.2))
-        # Corner flourishes — 3-dot triangle pips just inside the
-        # inner border.
+        # Corner pip flourishes.
         margin = int(SS * 4.5)
         for cx0, cy0, sx, sy in (
             (card.left + margin,  card.top + margin,     1,  1),
@@ -376,21 +410,37 @@ def draw_o2_victorian(surf, cx, cy, pulse):
             pygame.draw.circle(big, INK,
                                (cx0, cy0 + sy * int(SS * 1.4)),
                                max(1, SS // 3))
-        # "RAILWAY" header — slimmer so the train can dominate.
-        f_hdr = _font(int(SS * 3.4))
-        hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
-        big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 5.5))))
-        # Large detailed locomotive centred.
+        # Locomotive band at the top — small loco between 2 rules.
+        rule_top = card.top + int(SS * 4)
+        rule_bot = card.top + int(SS * 10)
+        for ry in (rule_top, rule_bot):
+            pygame.draw.line(big, RED_DK,
+                             (card.left + int(SS * 7), ry),
+                             (card.right - int(SS * 7), ry),
+                             max(1, SS // 3))
         _locomotive(big, SS,
-                    card.centerx,
-                    card.centery + int(SS * 4),
-                    scale=1.65)
-        # "ONE PASSAGE" small caps along the bottom.
-        f_sub = _font(int(SS * 2.0))
+                    card.centerx, (rule_top + rule_bot) // 2,
+                    scale=0.55)
+        # Header text.
+        f_hdr = _font(int(SS * 2.8))
+        hdr = f_hdr.render("GREAT WESTERN R.W.", True, NEAR_BLACK)
+        big.blit(hdr, hdr.get_rect(
+            center=(card.centerx, card.top + int(SS * 14))))
+        # "ONE PASSAGE" small caps.
+        f_sub = _font(int(SS * 2.4))
         sub = f_sub.render("ONE PASSAGE", True, INK)
         big.blit(sub, sub.get_rect(
-            midbottom=(card.centerx, card.bottom - int(SS * 2.5))))
+            center=(card.centerx, card.top + int(SS * 19))))
+        # Lower-left date / lower-right ticket number.
+        f_meta = _font(int(SS * 1.7))
+        dt = f_meta.render("OCT 26", True, INK)
+        big.blit(dt, dt.get_rect(
+            bottomleft=(card.left + int(SS * 5),
+                         card.bottom - int(SS * 2))))
+        nu = f_meta.render("N° 1234", True, INK)
+        big.blit(nu, nu.get_rect(
+            bottomright=(card.right - int(SS * 5),
+                          card.bottom - int(SS * 2))))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -399,10 +449,10 @@ def draw_o2_victorian(surf, cx, cy, pulse):
 
 
 def draw_o3_two_tone(surf, cx, cy, pulse):
-    """O3 — Cream cardstock with a faded red horizontal band across
-    the middle (classic two-tone ticket). Black "RAIL CO." above
-    and "EXPRESS" below, locomotive on the left, "FARE 25" on the
-    right, two punch holes in the upper corners."""
+    """RT4 — Two-tone with FROM/TO form. Cream cardstock with a
+    faded red diagonal stripe top-left, header at top, labeled
+    form fields (FROM / TO / FARE / N°), tiny loco silhouette
+    lower-left, date lower-right."""
 
     def paint(big, SS):
         w, h = big.get_width(), big.get_height()
@@ -410,35 +460,57 @@ def draw_o3_two_tone(surf, cx, cy, pulse):
         _flat_body(big, card, CREAM,
                    border_col=NEAR_BLACK,
                    border_w=max(1, int(SS * 0.5)))
-        # Faded red horizontal band across the middle ~30% of the
-        # ticket.
-        band_h = int(card.height * 0.30)
-        band = pygame.Rect(card.left, card.centery - band_h // 2,
-                            card.width, band_h)
-        pygame.draw.rect(big, RED_FADE, band)
-        # "RAIL CO." caption (small, above the band).
+        # Diagonal faded-red corner stripe band running bottom-left
+        # to upper-right (clipped to the card via the polygon).
+        pygame.draw.polygon(big, RED_FADE, [
+            (card.right, card.top),
+            (card.right, card.top + int(SS * 5)),
+            (card.left, card.bottom),
+            (card.left, card.bottom - int(SS * 5)),
+        ])
+        # Header "RAIL TICKET" — above the stripe area.
         f_hdr = _font(int(SS * 2.6))
-        hdr = f_hdr.render("RAIL CO.", True, NEAR_BLACK)
+        hdr = f_hdr.render("RAIL TICKET", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 4.5))))
-        # "EXPRESS" in cream on the red band.
-        f_express = _font(int(SS * 3.0))
-        ex = f_express.render("EXPRESS", True, CREAM)
-        big.blit(ex, ex.get_rect(center=band.center))
-        # Large detailed locomotive centred below the band.
-        _locomotive(big, SS,
-                    card.centerx,
-                    card.bottom - int(SS * 7),
-                    scale=1.40)
-        # 2 punch holes upper corners.
-        _punch_hole(big, SS,
-                    card.left + int(SS * 4),
-                    card.top + int(SS * 4),
-                    int(SS * 1.4))
+            center=(card.centerx, card.top + int(SS * 3.5))))
+        # Punch hole upper-right.
         _punch_hole(big, SS,
                     card.right - int(SS * 4),
-                    card.top + int(SS * 4),
-                    int(SS * 1.4))
+                    card.top + int(SS * 3.5),
+                    int(SS * 1.2))
+        # Form fields — labels in INK_LITE, values in NEAR_BLACK,
+        # underlined like an actual form.
+        f_label = _font(int(SS * 1.7))
+        f_value = _font(int(SS * 2.6))
+        rows = [
+            ("FROM",  "TERMINUS"),
+            ("TO",    "CENTRAL"),
+        ]
+        row_y0 = card.top + int(SS * 8)
+        row_dy = int(SS * 7)
+        for i, (lbl, val) in enumerate(rows):
+            y = row_y0 + i * row_dy
+            lt = f_label.render(lbl, True, INK_LITE)
+            big.blit(lt, lt.get_rect(
+                topleft=(card.left + int(SS * 4), y)))
+            vt = f_value.render(val, True, NEAR_BLACK)
+            big.blit(vt, vt.get_rect(
+                topleft=(card.left + int(SS * 13), y - int(SS * 0.5))))
+            # Underline.
+            pygame.draw.line(big, INK,
+                             (card.left + int(SS * 13),
+                              y + int(SS * 3.3)),
+                             (card.right - int(SS * 4),
+                              y + int(SS * 3.3)),
+                             max(1, SS // 3))
+        # Fare and number on a strip below.
+        strip_y = row_y0 + 2 * row_dy + int(SS * 1)
+        fare = f_value.render("FARE 25", True, NEAR_BLACK)
+        big.blit(fare, fare.get_rect(
+            topleft=(card.left + int(SS * 4), strip_y)))
+        num = f_value.render("N° 4582", True, NEAR_BLACK)
+        big.blit(num, num.get_rect(
+            topright=(card.right - int(SS * 4), strip_y)))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -447,50 +519,68 @@ def draw_o3_two_tone(surf, cx, cy, pulse):
 
 
 def draw_o4_conductor_punch(surf, cx, cy, pulse):
-    """O4 — Tan ticket with heavy filigree corners, "TRAIN PASS"
-    wordmark, a faded red rubber-stamp circle ("VOID") in the
-    upper-right, locomotive in the centre, date stamp lower-right."""
+    """RT3 — Pullman first-class. Parchment with two thin maroon
+    side stripes, "PULLMAN" header, big "FIRST CLASS" centred,
+    "COACH B" / "SEAT 12" fields on the left, tiny loco silhouette
+    on the right, "TRANSCONTINENTAL R.R." footer."""
 
     def paint(big, SS):
         w, h = big.get_width(), big.get_height()
         card = pygame.Rect(3 * SS, 3 * SS, w - 6 * SS, h - 6 * SS)
-        _flat_body(big, card, TAN,
+        _flat_body(big, card, PARCH,
                    border_col=NEAR_BLACK,
-                   border_w=max(1, int(SS * 0.55)))
-        # Inner border line.
-        pygame.draw.rect(big, INK,
-                         card.inflate(-int(SS * 2),
-                                       -int(SS * 2)),
+                   border_w=max(1, int(SS * 0.5)))
+        # Two thin maroon vertical stripes inside the border.
+        for stripe_x in (card.left + int(SS * 3),
+                         card.right - int(SS * 3)):
+            pygame.draw.line(big, RED_DK,
+                             (stripe_x, card.top + int(SS * 3)),
+                             (stripe_x, card.bottom - int(SS * 3)),
+                             max(1, int(SS * 0.7)))
+        # Inner thin black rectangle between the stripes.
+        inner = pygame.Rect(card.left + int(SS * 5),
+                             card.top + int(SS * 2),
+                             card.width - int(SS * 10),
+                             card.height - int(SS * 4))
+        pygame.draw.rect(big, NEAR_BLACK, inner,
                          max(1, SS // 3))
-        # Heavy filigree at each corner.
-        margin = int(SS * 4)
-        _corner_flourish(big, SS,
-                         card.left + margin, card.top + margin,
-                         scale=1.2)
-        _corner_flourish(big, SS,
-                         card.right - margin, card.top + margin,
-                         scale=1.2)
-        _corner_flourish(big, SS,
-                         card.left + margin, card.bottom - margin,
-                         scale=1.2)
-        _corner_flourish(big, SS,
-                         card.right - margin, card.bottom - margin,
-                         scale=1.2)
-        # "TRAIN PASS" wordmark — compact at the top.
-        f_hdr = _font(int(SS * 3.0))
-        hdr = f_hdr.render("TRAIN PASS", True, NEAR_BLACK)
+        # Header "PULLMAN".
+        f_hdr = _font(int(SS * 2.6))
+        hdr = f_hdr.render("PULLMAN", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 6))))
-        # Large detailed locomotive dominating the centre.
-        _locomotive(big, SS, card.centerx,
-                    card.centery + int(SS * 4),
-                    scale=1.55)
-        # Date stamp lower-right.
-        f_date = _font(int(SS * 1.8))
-        dt = f_date.render("OCT 26", True, INK)
-        big.blit(dt, dt.get_rect(
-            midright=(card.right - int(SS * 4),
-                       card.bottom - int(SS * 2))))
+            center=(card.centerx, inner.top + int(SS * 3))))
+        # Top rule.
+        pygame.draw.line(big, NEAR_BLACK,
+                         (inner.left + int(SS * 2),
+                          inner.top + int(SS * 5.5)),
+                         (inner.right - int(SS * 2),
+                          inner.top + int(SS * 5.5)),
+                         max(1, SS // 3))
+        # Big "FIRST CLASS" — visual hero.
+        f_main = _font(int(SS * 3.2))
+        ft = f_main.render("FIRST CLASS", True, NEAR_BLACK)
+        big.blit(ft, ft.get_rect(
+            center=(card.centerx, inner.top + int(SS * 10))))
+        # Field labels.
+        f_field = _font(int(SS * 2.0))
+        coach = f_field.render("COACH B", True, INK)
+        big.blit(coach, coach.get_rect(
+            topleft=(inner.left + int(SS * 3),
+                      inner.top + int(SS * 15))))
+        seat = f_field.render("SEAT 12", True, INK)
+        big.blit(seat, seat.get_rect(
+            topleft=(inner.left + int(SS * 3),
+                      inner.top + int(SS * 19.5))))
+        # Small loco silhouette on the right.
+        _locomotive(big, SS,
+                    inner.right - int(SS * 11),
+                    inner.top + int(SS * 18),
+                    scale=0.55)
+        # Footer "TRANSCONTINENTAL R.R."
+        f_foot = _font(int(SS * 1.5))
+        foot = f_foot.render("TRANSCONTINENTAL R.R.", True, INK)
+        big.blit(foot, foot.get_rect(
+            midbottom=(card.centerx, inner.bottom - int(SS * 1))))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -499,60 +589,71 @@ def draw_o4_conductor_punch(surf, cx, cy, pulse):
 
 
 def draw_o5_pullman(surf, cx, cy, pulse):
-    """O5 — Pullman first-class with two thin maroon side stripes,
-    ornate decorative border with corner flourishes, "FIRST CLASS"
-    in 2-line bold serif, locomotive in the centre with smoke,
-    "PULLMAN" small subtext at the bottom."""
+    """RT5 — Carnival ride-pass strip. Bright red body with a cream
+    perimeter band, serrated short edges, "ADMIT ONE" + star pips
+    in the top third, "RAIL DAY PASS" subhead, tiny loco silhouette
+    at the bottom centre."""
 
     def paint(big, SS):
         w, h = big.get_width(), big.get_height()
-        card = pygame.Rect(3 * SS, 3 * SS, w - 6 * SS, h - 6 * SS)
-        _flat_body(big, card, PARCH,
+        # Cream outer band.
+        outer = pygame.Rect(2 * SS, 2 * SS, w - 4 * SS, h - 4 * SS)
+        _flat_body(big, outer, CREAM,
                    border_col=NEAR_BLACK,
-                   border_w=max(1, int(SS * 0.55)))
-        # Two thin maroon vertical side stripes 4 SS inside the
-        # border.
-        for stripe_x in (card.left + int(SS * 4),
-                         card.right - int(SS * 4)):
-            pygame.draw.line(big, RED_DK,
-                             (stripe_x, card.top + int(SS * 4)),
-                             (stripe_x, card.bottom - int(SS * 4)),
-                             max(1, int(SS * 0.7)))
-        # Inner border line tracing around between the stripes.
-        inner = pygame.Rect(card.left + int(SS * 6),
-                             card.top + int(SS * 2),
-                             card.width - int(SS * 12),
-                             card.height - int(SS * 4))
-        pygame.draw.rect(big, NEAR_BLACK, inner,
-                         max(1, SS // 3))
-        # Corner flourishes inside.
-        margin = int(SS * 1.5)
-        _corner_flourish(big, SS,
-                         inner.left + margin, inner.top + margin,
-                         scale=0.9)
-        _corner_flourish(big, SS,
-                         inner.right - margin, inner.top + margin,
-                         scale=0.9)
-        _corner_flourish(big, SS,
-                         inner.left + margin,
-                         inner.bottom - margin, scale=0.9)
-        _corner_flourish(big, SS,
-                         inner.right - margin,
-                         inner.bottom - margin, scale=0.9)
-        # "FIRST CLASS" on one line (was 2) so the big train has
-        # vertical room below.
-        f_big = _font(int(SS * 2.6))
-        ft = f_big.render("FIRST CLASS", True, NEAR_BLACK)
-        big.blit(ft, ft.get_rect(
-            center=(card.centerx, inner.top + int(SS * 3.5))))
-        # Large detailed locomotive centred.
-        _locomotive(big, SS, card.centerx,
-                    inner.centery + int(SS * 4), scale=1.40)
-        # "PULLMAN" small subtext at the bottom.
-        f_sub = _font(int(SS * 1.8))
-        sb = f_sub.render("PULLMAN", True, INK)
-        big.blit(sb, sb.get_rect(
-            midbottom=(card.centerx, inner.bottom - int(SS * 1))))
+                   border_w=max(1, int(SS * 0.4)))
+        # Inner red body.
+        inner = outer.inflate(-int(SS * 2.5), -int(SS * 2.5))
+        pygame.draw.rect(big, RIDE_RED_INNER := (210, 65, 75), inner)
+        pygame.draw.rect(big, NEAR_BLACK, inner, max(1, SS // 3))
+        # Serrated notches on the SHORT (left + right) edges only.
+        notches = 6
+        notch_step = inner.height // notches
+        notch_w = int(SS * 1.3)
+        for i in range(notches):
+            cy_n = inner.top + i * notch_step + notch_step // 2
+            # Left edge (notch points right, into the red).
+            pygame.draw.polygon(big, CREAM, [
+                (inner.left,             cy_n - notch_step // 3),
+                (inner.left,             cy_n + notch_step // 3),
+                (inner.left + notch_w,   cy_n),
+            ])
+            # Right edge (mirror).
+            pygame.draw.polygon(big, CREAM, [
+                (inner.right,            cy_n - notch_step // 3),
+                (inner.right,            cy_n + notch_step // 3),
+                (inner.right - notch_w,  cy_n),
+            ])
+        # "ADMIT ONE" caption in cream across the top.
+        f_admit = _font(int(SS * 3.4))
+        admit = f_admit.render("ADMIT ONE", True, CREAM)
+        big.blit(admit, admit.get_rect(
+            center=(inner.centerx, inner.top + int(SS * 5))))
+        # Star pips flanking the ADMIT ONE caption.
+        from tools.render_lottery_scratch_variants import _sparkle
+        _sparkle(big, inner.left + int(SS * 5),
+                  inner.top + int(SS * 5), int(SS * 1.6),
+                  colour=CREAM)
+        _sparkle(big, inner.right - int(SS * 5),
+                  inner.top + int(SS * 5), int(SS * 1.6),
+                  colour=CREAM)
+        # "RAIL DAY PASS" subhead.
+        f_sub = _font(int(SS * 2.4))
+        sub = f_sub.render("RAIL DAY PASS", True, CREAM)
+        big.blit(sub, sub.get_rect(
+            center=(inner.centerx, inner.top + int(SS * 11))))
+        # Top + bottom rules in cream.
+        for ry in (inner.top + int(SS * 8.5),
+                   inner.top + int(SS * 14)):
+            pygame.draw.line(big, CREAM,
+                             (inner.left + int(SS * 6), ry),
+                             (inner.right - int(SS * 6), ry),
+                             max(1, SS // 3))
+        # Tiny loco silhouette at the bottom centre in cream.
+        _locomotive(big, SS,
+                    inner.centerx,
+                    inner.bottom - int(SS * 5),
+                    scale=0.55,
+                    colour=CREAM, window_col=RIDE_RED_INNER)
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -562,15 +663,15 @@ def draw_o5_pullman(surf, cx, cy, pulse):
 
 VARIANTS = [
     ("O1_br_edmondson",     draw_o1_br_edmondson,
-     "O1: BR Edmondson cardstock — RAIL TICKET + red corner stripe"),
+     "RT1: Edmondson LONDON-to-BRIGHTON + red 1st-class corner"),
     ("O2_victorian",        draw_o2_victorian,
-     "O2: Victorian engraved — double border + corner pips"),
+     "RT2: Victorian engraved with loco band + GREAT WESTERN R.W."),
     ("O3_two_tone",         draw_o3_two_tone,
-     "O3: Cream + faded red band — RAIL CO. EXPRESS + FARE 25"),
+     "RT3: FROM/TO form ticket with diagonal red corner stripe"),
     ("O4_conductor_punch",  draw_o4_conductor_punch,
-     "O4: TRAIN PASS with filigree corners + red OK stamp"),
+     "RT4: Pullman FIRST CLASS / COACH B / SEAT 12"),
     ("O5_pullman",          draw_o5_pullman,
-     "O5: Pullman first-class with maroon side stripes"),
+     "RT5: Carnival ADMIT ONE day pass with serrated edges"),
 ]
 
 
