@@ -1,18 +1,24 @@
 """Render the LOTTERY scratch-card icon — D2 polished and richer.
 
 User picked D2 (LUCKY arched red banner) as the direction. This
-version adds:
+version (v2):
 
-  * a thick BLACK outer perimeter line outside the chrome ring
+  * native footprint bumped 56×42 → 76×56 (1.35x linear, 1.8x
+    pixel area) so all text + detail reads sharply
+  * black outer perimeter slimmed from 2 SS to 1 SS so it reads
+    as a clean outline rather than a heavy frame
+  * banner height bumped 6 SS → 9 SS — "LUCKY" caption is now
+    ~7 native px tall instead of ~5
+  * "WIN!" stamp height bumped 4 SS → 6 SS
+  * "? ? ?" panel font scales with the larger panel automatically
+
+Still keeps every richness element from v1:
   * 2 cream sparkle stars flanking "LUCKY" on the banner
-  * 4 thin gold sun-rays radiating downward from beneath the
-    banner, painted across the upper gold body
-  * a small red "WIN!" mini-stamp at the bottom-centre between
-    the clover and the coin
-  * 5 confetti dots scattered across the card in mixed colours
-
-The clover, coin, foil "? ? ?" panel, and 3 corner sparkles
-from the original D2 are preserved.
+  * 4 thin gold sun-rays radiating downward beneath the banner
+  * small red "WIN!" mini-stamp at the bottom-centre
+  * 5 confetti dots scattered around the card
+  * clover stamp lower-left, gold "$" coin lower-right
+  * 3 corner sparkle stars
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
@@ -57,15 +63,21 @@ os.makedirs(_OUT, exist_ok=True)
 BLACK = (8, 8, 14)
 TEAL  = (90, 175, 175)
 
+# Bigger native footprint = more display pixels per icon. The
+# powerup collision radius is unchanged (POWERUP_R = 14); the
+# visual just runs a touch larger than the hitbox, same as the
+# skateboard icon (72×72) does.
+NATIVE_W = 76
+NATIVE_H = 56
+
 
 def _gold_card_base_black_rim(big, SS):
-    """Variant of L1's _gold_card_base with an outer BLACK perimeter
-    ring outside the chrome. Layers, outermost first:
-        BLACK 2-SS ring  →  chrome 2-SS ring  →  dashed dark-gold
+    """L1 chassis with a thin BLACK outer ring outside the chrome.
+    Layers, outermost first:
+        BLACK 1-SS ring  →  chrome 2-SS ring  →  dashed dark-gold
         inner stroke  →  gold body + top sheen.
     Returns (card_rect, inner_rect)."""
     w, h = big.get_width(), big.get_height()
-    # Card body — slightly tighter so the black ring fits outside.
     card = pygame.Rect(3 * SS, 3 * SS, w - 6 * SS, h - 6 * SS)
     # Drop shadow.
     sh = pygame.Surface((card.width + 4 * SS, card.height + 4 * SS),
@@ -87,9 +99,10 @@ def _gold_card_base_black_rim(big, SS):
     # Chrome perimeter (2 SS).
     pygame.draw.rect(big, CHROME, card, width=2 * SS,
                      border_radius=4 * SS)
-    # BLACK outer perimeter — sits 1 SS outside the chrome ring.
+    # BLACK outer perimeter — slimmer (1 SS) than the v1's 2 SS so
+    # it reads as a crisp outline.
     black_rect = card.inflate(2 * SS, 2 * SS)
-    pygame.draw.rect(big, BLACK, black_rect, width=2 * SS,
+    pygame.draw.rect(big, BLACK, black_rect, width=1 * SS,
                      border_radius=5 * SS)
     # Dashed dark-gold inner stroke.
     inner = card.inflate(-4 * SS, -4 * SS)
@@ -99,20 +112,24 @@ def _gold_card_base_black_rim(big, SS):
 
 
 def draw_d2_rich(surf, cx, cy, pulse):
-    """D2 rich — LUCKY banner + clover + coin + WIN stamp +
-    light rays + confetti + black outer perimeter."""
+    """D2 rich v2 — LUCKY banner + clover + coin + WIN stamp +
+    light rays + confetti + black outer perimeter on a 76×56 canvas
+    for sharper text + detail."""
 
     def paint(big, SS):
         card, inner = _gold_card_base_black_rim(big, SS)
 
-        # Red arched banner across the top, pinned over the chrome.
+        # Red arched banner across the top. Taller than v1 (9 SS vs
+        # 6 SS) so "LUCKY" is ~7 native px instead of ~5 — crisp at
+        # game scale.
+        banner_h = int(9 * SS)
         banner = pygame.Rect(card.left + 6 * SS, card.top + SS,
-                             card.width - 12 * SS, int(6 * SS))
+                             card.width - 12 * SS, banner_h)
         _v_gradient_rect(big, banner, RED_HI, RED, radius=2 * SS)
         pygame.draw.rect(big, STROKE, banner, max(1, SS // 2),
                          border_radius=2 * SS)
         # Ribbon-fold notches at the ends.
-        notch_w = 2 * SS
+        notch_w = int(2.5 * SS)
         pygame.draw.polygon(big, RED, [
             (banner.left, banner.top),
             (banner.left - notch_w, banner.centery),
@@ -125,81 +142,102 @@ def draw_d2_rich(surf, cx, cy, pulse):
         ])
 
         # 4 gold sun-rays radiating downward from beneath the banner
-        # across the upper gold body — gives the "burst of luck"
-        # feel. Drawn before the foil panel so the panel hides their
-        # bottoms cleanly.
+        # across the upper gold body — "burst of luck" feel.
         ray_origin = (banner.centerx, banner.bottom)
-        for i, ang_deg in enumerate((-28, -10, 10, 28)):
+        for ang_deg in (-32, -12, 12, 32):
             ang = math.radians(90 + ang_deg)
-            x2 = ray_origin[0] + math.cos(ang) * int(banner.width * 0.6)
-            y2 = ray_origin[1] + math.sin(ang) * int(banner.width * 0.6)
+            x2 = ray_origin[0] + math.cos(ang) * int(banner.width * 0.55)
+            y2 = ray_origin[1] + math.sin(ang) * int(banner.width * 0.55)
             ray = pygame.Surface(big.get_size(), pygame.SRCALPHA)
-            pygame.draw.line(ray, (255, 245, 170, 120),
+            pygame.draw.line(ray, (255, 245, 170, 130),
                               ray_origin, (x2, y2), max(1, SS))
             big.blit(ray, (0, 0))
 
         # LUCKY caption + 2 cream sparkles flanking the text inside
-        # the banner.
-        f = _font(int(banner.height * 0.88))
-        bt = f.render("LUCKY", True, CREAM)
+        # the banner. Two-pass render (dark shadow + cream fill)
+        # gives crisper edges at game scale.
+        f = _font(int(banner_h * 0.82))
+        bt_sh = f.render("LUCKY", True, STROKE)
+        bt    = f.render("LUCKY", True, CREAM)
+        big.blit(bt_sh, bt_sh.get_rect(
+            center=(banner.centerx + SS // 2,
+                    banner.centery + SS // 2)))
         big.blit(bt, bt.get_rect(center=banner.center))
         sp_y = banner.centery
-        _sparkle(big, banner.left + 4 * SS, sp_y, int(SS * 1.4),
+        _sparkle(big, banner.left + 5 * SS, sp_y, int(SS * 1.6),
                  colour=CREAM)
-        _sparkle(big, banner.right - 4 * SS, sp_y, int(SS * 1.4),
+        _sparkle(big, banner.right - 5 * SS, sp_y, int(SS * 1.6),
                  colour=CREAM)
 
         # Foil panel between banner and bottom-row stamps.
-        bot_row_h = 7 * SS  # reserved for clover / coin / WIN stamp
+        bot_row_h = 10 * SS  # reserved for clover / coin / WIN stamp
         panel = pygame.Rect(inner.left + 2 * SS,
                             banner.bottom + 2 * SS,
                             inner.width - 4 * SS,
-                            inner.bottom - banner.bottom - bot_row_h
-                            - SS)
-        _l1_panel_and_text(big, panel, SS)
+                            inner.bottom - banner.bottom - bot_row_h)
+        _silver_panel(big, panel, radius=2 * SS)
+        # Two-pass "? ? ?" — STROKE shadow under CREAM highlight
+        # under bold NAVY fill for the crispest possible read at
+        # smoothscale-down time.
+        f_q = _font(int(panel.height * 0.78))
+        q_sh   = f_q.render("? ? ?", True, STROKE)
+        q_hl   = f_q.render("? ? ?", True, CREAM)
+        q_fill = f_q.render("? ? ?", True, NAVY)
+        qr = q_fill.get_rect(center=panel.center)
+        big.blit(q_sh, q_sh.get_rect(
+            center=(qr.centerx + SS // 2, qr.centery + SS // 2)))
+        big.blit(q_hl, q_hl.get_rect(
+            center=(qr.centerx, qr.centery - SS // 2)))
+        big.blit(q_fill, qr)
 
         # Bottom-row decorations: clover left, WIN stamp centre,
         # coin right.
-        bot_y = panel.bottom + int(3.5 * SS)
-        _clover(big, card.left + 7 * SS, bot_y,
-                int(SS * 1.6), SS)
-        # Centre "WIN!" mini stamp on the gold body.
-        win_rect = pygame.Rect(0, 0, int(13 * SS), int(4 * SS))
+        bot_y = panel.bottom + int(5 * SS)
+        _clover(big, card.left + 8 * SS, bot_y,
+                int(SS * 1.9), SS)
+        # Centre "WIN!" mini stamp. Taller (6 SS vs v1's 4 SS) for
+        # readable letters.
+        win_h = 6 * SS
+        win_rect = pygame.Rect(0, 0, int(16 * SS), win_h)
         win_rect.center = (card.centerx, bot_y)
         _v_gradient_rect(big, win_rect, RED_HI, RED,
-                         radius=int(SS * 1.5))
+                         radius=int(SS * 2))
         pygame.draw.rect(big, STROKE, win_rect, max(1, SS // 2),
-                         border_radius=int(SS * 1.5))
-        fw = _font(int(win_rect.height * 0.95))
-        wt = fw.render("WIN!", True, CREAM)
+                         border_radius=int(SS * 2))
+        fw = _font(int(win_h * 0.82))
+        wt_sh = fw.render("WIN!", True, STROKE)
+        wt    = fw.render("WIN!", True, CREAM)
+        big.blit(wt_sh, wt_sh.get_rect(center=(win_rect.centerx + SS // 2,
+                                                 win_rect.centery + SS // 2)))
         big.blit(wt, wt.get_rect(center=win_rect.center))
         # Coin lower-right.
-        _coin_disc(big, card.right - 7 * SS, bot_y,
-                   int(SS * 2.4), SS, label="$")
+        _coin_disc(big, card.right - 8 * SS, bot_y,
+                   int(SS * 2.8), SS, label="$")
 
         # Confetti dots scattered around the card — mixed accent
-        # colours to break up the gold. Skip positions that would
-        # collide with the banner / panel / bottom row.
+        # colours. Tuned positions for the larger 76×56 canvas.
         confetti_specs = [
-            (card.left  + 4 * SS,  card.top    + 11 * SS, TEAL),
-            (card.right - 4 * SS,  card.top    + 12 * SS, RED_HI),
-            (card.left  + 3 * SS,  card.bottom - 13 * SS, CREAM),
-            (card.right - 3 * SS,  card.bottom - 12 * SS, TEAL),
-            (card.centerx - 16 * SS, card.bottom - 9 * SS, CREAM),
+            (card.left  + 5 * SS,  card.top    + 15 * SS, TEAL),
+            (card.right - 5 * SS,  card.top    + 16 * SS, RED_HI),
+            (card.left  + 4 * SS,  card.bottom - 17 * SS, CREAM),
+            (card.right - 4 * SS,  card.bottom - 16 * SS, TEAL),
+            (card.centerx - 22 * SS, card.bottom - 11 * SS, CREAM),
+            (card.centerx + 22 * SS, card.bottom - 11 * SS, RED_HI),
         ]
         for x, y, col in confetti_specs:
-            pygame.draw.circle(big, col, (x, y), max(1, int(SS * 1.1)))
+            pygame.draw.circle(big, col, (x, y), max(1, int(SS * 1.2)))
             pygame.draw.circle(big, STROKE, (x, y),
-                               max(1, int(SS * 1.1)),
+                               max(1, int(SS * 1.2)),
                                max(1, SS // 3))
 
-        # L1's 3 corner sparkles (kept).
-        _sparkle(big, card.right - 6 * SS, card.top + 6 * SS, 3 * SS)
-        _sparkle(big, card.left + 8 * SS, card.bottom - 8 * SS, 2 * SS)
-        _sparkle(big, card.right - 10 * SS, card.bottom - 5 * SS,
-                 2 * SS, colour=(255, 230, 120))
+        # L1's 3 corner sparkles (kept), repositioned for the larger
+        # canvas.
+        _sparkle(big, card.right - 7 * SS, card.top + 13 * SS, 3 * SS)
+        _sparkle(big, card.left + 10 * SS, card.bottom - 11 * SS, 2 * SS)
+        _sparkle(big, card.right - 12 * SS, card.bottom - 8 * SS,
+                 int(SS * 2.2), colour=(255, 230, 120))
 
-    icon = _ss_paint(paint)
+    icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 5
     rotated = pygame.transform.rotate(icon, tilt)
     surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
@@ -208,10 +246,10 @@ def draw_d2_rich(surf, cx, cy, pulse):
 # ── output ──────────────────────────────────────────────────────────────────
 
 def main():
-    # 56×42 zoom scaled 6× for review.
-    base = pygame.Surface((56, 42), pygame.SRCALPHA)
-    draw_d2_rich(base, 28, 21, pulse=1.6)
-    zoom = pygame.transform.scale(base, (56 * 6, 42 * 6))
+    # Native zoom scaled 6× for review.
+    base = pygame.Surface((NATIVE_W, NATIVE_H), pygame.SRCALPHA)
+    draw_d2_rich(base, NATIVE_W // 2, NATIVE_H // 2, pulse=1.6)
+    zoom = pygame.transform.scale(base, (NATIVE_W * 6, NATIVE_H * 6))
     pygame.draw.rect(zoom, (255, 215, 0), zoom.get_rect(), 2)
     zoom_path = os.path.join(_OUT, "D2_rich.png")
     pygame.image.save(zoom, zoom_path)
@@ -222,8 +260,8 @@ def main():
     frame = render_play_scene(world)
     icon_cx = int(world.bird.x) + 110
     icon_cy = int(world.bird.y)
-    base_ig = pygame.Surface((56, 42), pygame.SRCALPHA)
-    draw_d2_rich(base_ig, 28, 21, pulse=1.6)
+    base_ig = pygame.Surface((NATIVE_W, NATIVE_H), pygame.SRCALPHA)
+    draw_d2_rich(base_ig, NATIVE_W // 2, NATIVE_H // 2, pulse=1.6)
     frame.blit(base_ig, base_ig.get_rect(center=(icon_cx, icon_cy)))
     ingame_path = os.path.join(_OUT, "D2_rich_ingame.png")
     pygame.image.save(frame, ingame_path)
