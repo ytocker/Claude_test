@@ -2438,28 +2438,14 @@ class PowerUp:
             (sk.centerx + SS, nose_top_y),
             (sk.centerx,      nose_bot_y),
         ])
-        # P1-Misfits "Crimson Ghost" mouth at jaw_y = 0.78 of skull
-        # height (the L2 lower-mouth pick). Upper jaw bar (1.2 SS
-        # stroke, 12 SS span) + 7 small downward fang triangles
-        # (h=2.4 SS, half_w=0.55 SS) hanging from it.
+        # Single black horizontal mouth bar at jaw_y = 0.78 of
+        # skull height (B2 pick: 12 SS span × 1.4 SS stroke).
         jaw_y = sk.top + int(SK_H * SS * 0.78)
-        upper_y = jaw_y - int(SS * 0.8)
         span = 12 * SS
         pygame.draw.line(big, DOME,
-                         (sk.centerx - span // 2, upper_y),
-                         (sk.centerx + span // 2, upper_y),
-                         max(1, int(1.2 * SS)))
-        n_fangs = 7
-        tooth_h = int(2.4 * SS)
-        half_w = max(1, int(SS * 0.55))
-        for i in range(n_fangs):
-            t = i / (n_fangs - 1)
-            tx = sk.centerx - span // 2 + int(t * span)
-            pygame.draw.polygon(big, DOME, [
-                (tx - half_w, upper_y),
-                (tx + half_w, upper_y),
-                (tx,          upper_y + tooth_h),
-            ])
+                         (sk.centerx - span // 2, jaw_y),
+                         (sk.centerx + span // 2, jaw_y),
+                         max(1, int(1.4 * SS)))
 
         # Smoothscale down to native size for anti-aliased edges.
         icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
