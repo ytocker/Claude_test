@@ -804,16 +804,9 @@ class Bird:
         # Pip's pitch.
         t = max(-0.5, min(0.75, self.vy / 500.0))
         base = -t * 55.0
-        # GRIND: while the random grind is active, the board pivots
-        # around either its nose (front truck on the surface, tail
-        # in the air) or its tail (back truck on, nose in the air).
-        # Pip's tilt has to match the board so they look balanced.
-        # In side-view going right, "nose" is the right end of the
-        # board and "tail" is the left end.
-        if self.grind_type == "nose":
-            base += -28.0  # nose down → tail in the air
-        elif self.grind_type == "tail":
-            base += 28.0   # nose up → tail planted
+        # GRIND tilt is applied ONLY to the board (inside
+        # _draw_skateboard) so Pip stays upright; tiny parrot legs
+        # render in the gap between his body and the tilted deck.
         # During a backflip, ride a full 360° rotation on top of the base
         # tilt. pygame's rotate is modulo-360 internally so values beyond
         # the normal clamp are fine.
@@ -1006,6 +999,13 @@ class Bird:
         # SKATEBOARD: parcel transforms into a tiny skateboard. The original
         # parcel hitbox is disabled in world.py for the duration.
         if self.skateboard_active:
+            # GRIND legs — small parrot-orange shins from Pip's
+            # underside down to the (tilted) board. Drawn BEFORE
+            # the board so the deck covers the bottom of the legs.
+            if self.grind_type is not None:
+                self._draw_grind_legs(surf,
+                                       self.x + shake_x,
+                                       self.y + shake_y)
             self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y, flipped)
             return
         if self.kfc_active:
@@ -1287,6 +1287,37 @@ class Bird:
                                      int(cy + offset.y)))
         surf.blit(rotated, r.topleft)
 
+    def _draw_grind_legs(self, surf, cx, cy):
+        """Tiny parrot-leg "shins" connecting Pip's underside to
+        the tilted skateboard deck. Only drawn while a grind is
+        active. The board renders on top of the legs' lower ends
+        so the visual reads as "legs into the deck."
+
+        For a NOSE grind (nose-down on the right) the LEFT side has
+        a bigger Pip-to-deck gap, so the left leg is drawn longer.
+        For a TAIL grind it's mirrored."""
+        ORANGE = (220, 130, 30)
+        DARK   = (140,  70,  10)
+        leg_top_y = int(cy + 8)
+        # Per-side leg length picks up the slack from the 28° tilt.
+        if self.grind_type == "nose":
+            left_len, right_len = 16, 6
+        else:
+            left_len, right_len = 6, 16
+        for sign, length in ((-1, left_len), (+1, right_len)):
+            x = int(cx + sign * 4)
+            # Leg shank.
+            pygame.draw.rect(surf, ORANGE,
+                             (x - 1, leg_top_y, 3, length))
+            pygame.draw.rect(surf, DARK,
+                             (x - 1, leg_top_y, 3, length), 1)
+            # Tiny claw at the bottom — 3-toe parrot foot hint.
+            foot_y = leg_top_y + length - 1
+            for dx in (-2, 0, 2):
+                pygame.draw.line(surf, DARK,
+                                 (x + dx, foot_y),
+                                 (x + dx, foot_y + 2), 1)
+
     def _draw_skateboard(self, surf, cx, cy, flipped):
         """Skull skateboard under Pip's feet — black deck with a chrome
         outline, white skull centred, white crossbones diagonals. Cream
@@ -1386,6 +1417,13 @@ class Bird:
             p = 1.0 - self.heelflip_t / self.heelflip_dur
             eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
             tilt -= eased * 360.0
+        # GRIND — board-only tilt while one of the trucks is on
+        # the rail. Pip himself stays upright; the parrot-leg
+        # rendering below picks up the slack visually.
+        if self.grind_type == "nose":
+            tilt -= 28.0    # nose down → tail in the air
+        elif self.grind_type == "tail":
+            tilt += 28.0    # nose up → tail planted
         rotated = pygame.transform.rotate(board_surf, tilt)
         # POP SHUVIT — horizontal scale-X = cos(p·π) on top of
         # whatever rotation is in `rotated`. Board flattens edge-on
