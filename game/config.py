@@ -106,8 +106,8 @@ BACKFLIP_DURATION     = 0.85
 # upright. The gap window starts above BACKFLIP_TAP_WINDOW so the
 # kickflip detector and the 3-fast-tap backflip streak never alias
 # into each other.
-KICKFLIP_TAP_GAP_MIN  = 0.50
-KICKFLIP_TAP_GAP_MAX  = 1.20
+KICKFLIP_TAP_GAP_MIN  = 0.55
+KICKFLIP_TAP_GAP_MAX  = 0.75
 KICKFLIP_DURATION     = 0.55
 # PHOENIX: 30-second fiery transformation. If Pip would die during the
 # window, World._die() intercepts the death, ends the buff, and grants
