@@ -2372,11 +2372,12 @@ class PowerUp:
         bx = big.get_width() // 2
         by = big.get_height() // 2
 
-        # Two crossed skateboard decks behind the skull, ±35°.
-        # Deck is ~28 % bigger than the previous icon (was 36×5).
+        # Two crossed skateboard decks behind the skull, ±35°. Deck
+        # height bumped 6 SS → 9 SS so the X shape reads as bold,
+        # chunky crossbones rather than thin bars behind the skull.
         for angle in (35, -35):
             sub_w = 46 * SS
-            sub_h = 6 * SS
+            sub_h = 9 * SS
             sub = pygame.Surface(
                 (sub_w + 4 * SS, sub_h + 4 * SS), pygame.SRCALPHA)
             d = pygame.Rect(0, 0, sub_w, sub_h)
@@ -2389,8 +2390,9 @@ class PowerUp:
             for sign in (-1, 1):
                 wx = d.centerx + sign * (sub_w // 2 - 3 * SS)
                 pygame.draw.circle(sub, CREAM, (wx, d.centery),
-                                   int(2.5 * SS))
-                pygame.draw.circle(sub, RED, (wx, d.centery), int(1.2 * SS))
+                                   int(3 * SS))
+                pygame.draw.circle(sub, RED, (wx, d.centery),
+                                   int(1.4 * SS))
             rotated = pygame.transform.rotate(sub, angle)
             big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
