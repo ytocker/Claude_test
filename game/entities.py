@@ -2547,54 +2547,58 @@ class PowerUp:
         #     self-contained without importing from tools/) ──
 
         def locomotive(loco_cx, loco_cy, scale=1.0):
-            # Boiler — centred at (loco_cx, loco_cy).
-            boiler_w = int(SS * 20 * scale)
-            boiler_h = int(SS * 7 * scale)
+            # Stripped-down classic steam loco (V1 from the
+            # render_rail_train_variants pass): cab + boiler +
+            # smokestack + cowcatcher + 2 spoked drivers + coupling
+            # rod. No iron bands, no back-plate, no headlight, no
+            # leading wheel, no dome, no smoke — the iconic
+            # 🚂-emoji silhouette.
+
+            # Boiler — anchored so the whole loco sits roughly
+            # centred on (loco_cx, loco_cy).
+            boiler_w = int(SS * 14 * scale)
+            boiler_h = int(SS * 6 * scale)
             boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
-            boiler.center = (loco_cx, loco_cy)
+            boiler.midright = (loco_cx + int(SS * 7 * scale),
+                                loco_cy)
             pygame.draw.rect(big, INK, boiler,
-                             border_radius=max(1, int(SS * 0.8 * scale)))
-            # 2 iron-hoop bands across the boiler.
-            for band_t in (0.30, 0.65):
-                bx = boiler.left + int(boiler.width * band_t)
-                pygame.draw.line(big, CREAM,
-                                 (bx, boiler.top + max(1, SS // 3)),
-                                 (bx, boiler.bottom - max(1, SS // 3)),
-                                 max(1, int(SS * 0.4 * scale)))
-            # Back-plate cap on the left end.
-            plate_w = max(2, int(SS * 1.2 * scale))
-            plate = pygame.Rect(
-                boiler.left - plate_w,
-                boiler.top - max(1, int(SS * 0.5 * scale)),
-                plate_w,
-                boiler.height + max(2, int(SS * 1 * scale)))
-            pygame.draw.rect(big, INK, plate,
-                             border_radius=max(1, SS // 3))
+                             border_radius=max(1, int(SS * 0.7 * scale)))
 
-            # (Smokestack, steam dome, sand dome and smoke puffs
-            # all removed per user request — the loco is now a
-            # clean boiler + headlight + cowcatcher + wheels.)
+            # Cab — solid block on the left, no window.
+            cab_w = int(SS * 5 * scale)
+            cab_h = int(SS * 7.5 * scale)
+            cab = pygame.Rect(0, 0, cab_w, cab_h)
+            cab.midright = (boiler.left, loco_cy)
+            pygame.draw.rect(big, INK, cab,
+                             border_radius=max(1, int(SS * 0.5 * scale)))
+            # Cab roof overhang.
+            roof = pygame.Rect(0, 0, cab_w + int(SS * 1.2 * scale),
+                                max(1, int(SS * 0.8 * scale)))
+            roof.midbottom = (cab.centerx,
+                               cab.top + max(1, SS // 3))
+            pygame.draw.rect(big, INK, roof)
 
-            # Headlight.
-            hl_r = max(2, int(SS * 1.3 * scale))
-            hl_cx = boiler.right - hl_r - int(SS * 0.5 * scale)
-            hl_cy = boiler.top + int(boiler.height * 0.42)
-            pygame.draw.circle(big, INK, (hl_cx, hl_cy),
-                               hl_r + max(1, SS // 3))
-            pygame.draw.circle(big, CREAM, (hl_cx, hl_cy),
-                               max(1, int(hl_r * 0.65)))
+            # Smokestack with flared cap.
+            stack_w = max(2, int(SS * 1.6 * scale))
+            stack_h = max(3, int(SS * 3.2 * scale))
+            stack_x = (boiler.right - int(SS * 3.5 * scale)
+                       - stack_w // 2)
+            stack = pygame.Rect(stack_x, boiler.top - stack_h,
+                                 stack_w, stack_h)
+            pygame.draw.rect(big, INK, stack)
+            flare = pygame.Rect(0, 0, int(stack_w * 1.8),
+                                 max(1, int(SS * 0.6 * scale)))
+            flare.midbottom = (stack.centerx, stack.top)
+            pygame.draw.rect(big, INK, flare)
 
-            # 2 driving wheels, fully BELOW the boiler — classic
-            # Victorian-engraving simplification. Equally-sized
-            # discs spread under the boiler, tops just below
-            # boiler.bottom so they never overlap.
-            wheel_r = max(3, int(SS * 3.2 * scale))
-            gap = max(1, int(SS * 0.5 * scale))
+            # 2 spoked driving wheels just below the boiler.
+            wheel_r = max(3, int(SS * 2.6 * scale))
+            gap = max(1, int(SS * 0.4 * scale))
             wheel_cy = boiler.bottom + wheel_r + gap
             ground_y = wheel_cy + wheel_r
             wheel_xs = (
-                boiler.left + int(boiler.width * 0.18),
-                boiler.left + int(boiler.width * 0.80),
+                boiler.left + int(boiler.width * 0.28),
+                boiler.left + int(boiler.width * 0.72),
             )
 
             # Cowcatcher — slants forward+down from the front of

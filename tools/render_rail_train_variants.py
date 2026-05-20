@@ -137,38 +137,30 @@ def _coupling_rod(big, cx_a, cx_b, cy, h, colour=INK,
 # ── 5 variant painters ─────────────────────────────────────────────────────
 
 def _paint_train_v1_classic_steam(big, scale, cx, cy):
-    """Steam loco: cab + boiler + chimney + dome + drivers +
-    leading wheel + cowcatcher."""
+    """Stripped-down steam loco — the iconic 🚂-emoji silhouette:
+    cab + boiler + chimney + cowcatcher + 2 spoked drivers
+    connected by a coupling rod. No dome, no leading wheel, no
+    headlight, no iron bands on the boiler — those were
+    "add-ons" the user wanted to remove."""
     boiler_w = int(SS * 18 * scale)
     boiler_h = int(SS * 6.5 * scale)
     boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
     boiler.midright = (cx + int(SS * 8 * scale), cy)
     pygame.draw.rect(big, INK, boiler,
                      border_radius=max(1, int(SS * 0.8 * scale)))
-    # Iron hoops.
-    for band_t in (0.35, 0.70):
-        bx = boiler.left + int(boiler.width * band_t)
-        pygame.draw.line(big, CREAM,
-                         (bx, boiler.top + SS // 3),
-                         (bx, boiler.bottom - SS // 3),
-                         max(1, int(SS * 0.4 * scale)))
-    # Cab on the left.
+    # Cab on the left — solid block, no window.
     cab_w = int(SS * 6 * scale)
     cab_h = int(SS * 8 * scale)
     cab = pygame.Rect(0, 0, cab_w, cab_h)
     cab.midright = (boiler.left, cy)
     pygame.draw.rect(big, INK, cab,
                      border_radius=max(1, int(SS * 0.6 * scale)))
+    # Cab roof overhang.
     roof = pygame.Rect(0, 0, cab_w + int(SS * 1.2 * scale),
                         max(1, int(SS * 0.8 * scale)))
     roof.midbottom = (cab.centerx, cab.top + max(1, SS // 3))
     pygame.draw.rect(big, INK, roof)
-    # Cab window.
-    win = pygame.Rect(0, 0, int(cab_w * 0.55), int(cab_h * 0.35))
-    win.center = (cab.centerx, cab.top + int(cab_h * 0.42))
-    pygame.draw.rect(big, CREAM, win)
-    pygame.draw.rect(big, INK, win, max(1, SS // 3))
-    # Smokestack with flare + 3 smoke puffs.
+    # Smokestack with flared cap.
     stack_w = max(2, int(SS * 1.8 * scale))
     stack_h = max(3, int(SS * 3.5 * scale))
     stack_x = boiler.right - int(SS * 4 * scale) - stack_w // 2
@@ -179,41 +171,14 @@ def _paint_train_v1_classic_steam(big, scale, cx, cy):
                          max(1, int(SS * 0.7 * scale)))
     flare.midbottom = (stack.centerx, stack.top)
     pygame.draw.rect(big, INK, flare)
-    # 3 smoke puffs.
-    for dx, dy, sr in (
-        (0,                       -int(SS * 0.8 * scale), int(SS * 1.4 * scale)),
-        (int(SS * -1.4 * scale),  -int(SS * 2.8 * scale), int(SS * 1.6 * scale)),
-        (int(SS *  1.4 * scale),  -int(SS * 4.8 * scale), int(SS * 1.2 * scale)),
-    ):
-        pygame.draw.circle(big, INK,
-                            (stack.centerx + dx,
-                             stack.top + dy),
-                            max(1, sr))
-    # Steam dome.
-    dome_w = max(2, int(SS * 2.0 * scale))
-    dome_h = max(2, int(SS * 1.6 * scale))
-    dome_cx = boiler.left + int(boiler.width * 0.30)
-    dome_rect = pygame.Rect(0, 0, dome_w, dome_h * 2)
-    dome_rect.midbottom = (dome_cx, boiler.top + max(1, SS // 3))
-    pygame.draw.ellipse(big, INK, dome_rect)
-    # Headlight at front of boiler.
-    hl_r = max(2, int(SS * 1.1 * scale))
-    pygame.draw.circle(big, INK,
-                       (boiler.right - hl_r - int(SS * 0.4 * scale),
-                        boiler.top + int(boiler.height * 0.45)),
-                       hl_r + max(1, SS // 3))
-    pygame.draw.circle(big, CREAM,
-                       (boiler.right - hl_r - int(SS * 0.4 * scale),
-                        boiler.top + int(boiler.height * 0.45)),
-                       max(1, int(hl_r * 0.6)))
-    # Wheels — 2 large drivers + 1 small leading.
+    # Wheels — 2 spoked drivers connected by a coupling rod.
     wheel_r = max(3, int(SS * 2.4 * scale))
     gap = max(1, int(SS * 0.4 * scale))
     wheel_cy = boiler.bottom + wheel_r + gap
     ground_y = wheel_cy + wheel_r
     drive_xs = (
-        boiler.left + int(boiler.width * 0.30),
-        boiler.left + int(boiler.width * 0.65),
+        boiler.left + int(boiler.width * 0.28),
+        boiler.left + int(boiler.width * 0.72),
     )
     rod_h = max(2, int(SS * 0.9 * scale))
     rod_y = wheel_cy - int(wheel_r * 0.30) - rod_h // 2
@@ -224,12 +189,7 @@ def _paint_train_v1_classic_steam(big, scale, cx, cy):
         _spoked_wheel(big, wx, wheel_cy, wheel_r, scale)
         pygame.draw.circle(big, CREAM, (wx, rod_y + rod_h // 2),
                            max(1, int(SS * 0.5 * scale)))
-    # Leading wheel.
-    lead_r = max(2, int(SS * 1.6 * scale))
-    lead_wx = boiler.right - int(SS * 1 * scale) - lead_r
-    lead_wy = ground_y - lead_r
-    _plain_wheel(big, lead_wx, lead_wy, lead_r)
-    # Cowcatcher.
+    # Cowcatcher / pilot at the front-bottom.
     _cowcatcher(big,
                 (boiler.right, boiler.bottom - SS // 3),
                 ground_y, scale)
