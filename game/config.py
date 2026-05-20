@@ -100,8 +100,8 @@ POWERUP_WEIGHTS    = (
 # unrestricted (gate of 0). Lets late-game pickups stay rare for new
 # players while showing up reliably once the run has built momentum.
 POWERUP_SCORE_GATES = {
-    "grow":    250,
-    "rail":    150,
+    "rail":    100,
+    "grow":    200,
     "lottery": 250,
 }
 
