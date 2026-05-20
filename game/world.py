@@ -815,7 +815,10 @@ class World:
             # "reverse" is intentionally excluded — feels too disorienting
             # in stacks. The activation code is still wired up; add it back
             # to this tuple (and to POWERUP_WEIGHTS in config.py) to enable.
-            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "grow"))
+            # `grow` is excluded too — it's a late-game-gated pickup
+            # (POWERUP_SCORE_GATES["grow"] == 250). Letting a Surprise
+            # Box resolve to grow would bypass the gate.
+            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "shrink"))
             self._spawn_surprise_reveal(m)
         self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":

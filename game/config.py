@@ -72,23 +72,25 @@ LOTTERY_REVEAL_TIME = 1.0
 
 # Spawn weights for power-up kinds. Must sum to anything — they're
 # normalized at pick time. `surprise` resolves at pickup-time to one of
-# the six "real" kinds chosen at random (see World._on_powerup).
+# the six "real" early-game kinds (triple/magnet/slowmo/kfc/ghost/shrink)
+# chosen at random — see World._on_powerup.
 # `reverse` is intentionally excluded — the implementation is kept in
 # place but the power-up doesn't spawn or resolve from a surprise box.
 # To re-enable: add ("reverse", 1) below AND restore "reverse" in the
 # random.choice() inside World._on_powerup.
-# `shrink`, `rail`, and `lottery` are intentionally NOT in the surprise
-# pool either — they have score gates (see POWERUP_SCORE_GATES) so
-# letting a surprise re-roll bypass the gate would break the gate.
+# `grow`, `rail`, and `lottery` are late-game late-game-gated (see
+# POWERUP_SCORE_GATES below) and intentionally NOT in the surprise
+# re-roll pool — letting surprise bypass the gate would defeat the
+# purpose of the gate.
 POWERUP_WEIGHTS    = (
     ("triple",   1),
     ("slowmo",   1),
     ("magnet",   1),
     ("kfc",      1),
     ("ghost",    1),
-    ("grow",     1),
-    ("surprise", 1),
     ("shrink",   1),
+    ("surprise", 1),
+    ("grow",     1),
     ("rail",     1),
     ("lottery",  1),
 )
@@ -98,6 +100,7 @@ POWERUP_WEIGHTS    = (
 # unrestricted (gate of 0). Lets late-game pickups stay rare for new
 # players while showing up reliably once the run has built momentum.
 POWERUP_SCORE_GATES = {
+    "grow":    250,
     "rail":    150,
     "lottery": 250,
 }

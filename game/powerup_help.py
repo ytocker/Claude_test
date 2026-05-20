@@ -36,7 +36,7 @@ POWERUPS = (
     ("slowmo",   "SLOW-MO",  "Slows the world, jumps are the same"),
     ("kfc",      "KFC",      "Fried chicken theme"),
     ("ghost",    "GHOST",    "Go through pillars safely"),
-    ("grow",     "GROW",     "1.3x larger"),
+    ("shrink",   "SHRINK",   "0.6x smaller"),
     ("surprise", "SURPRISE", "Picks random from above"),
 )
 
@@ -127,7 +127,7 @@ _ICON_BOB_AT_PULSE = {
     "slowmo":   math.sin(_PULSE_FOR_ICON * 0.7) * 3,
     "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
     "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
-    "grow":     math.sin(_PULSE_FOR_ICON * 1.2) * 2,
+    "shrink":   math.sin(_PULSE_FOR_ICON * 1.1) * 2,
 }
 
 
