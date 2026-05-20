@@ -250,54 +250,82 @@ def test_treasure_box_arms_buff_and_drops_coins_per_flap():
 
 
 
-def test_rail_locks_immediately_and_extends_off_canvas():
+def test_rail_pickup_parks_cart_and_keeps_flap_alive():
     """RAIL is a pillar-limited buff. At activation:
-      * cart_active + cart_locked = True (no aim phase)
+      * cart_active = True, cart_locked = False (Pip stays in flight,
+        the cart sits stationary on the first tagged pillar)
       * rail_pillars_left = RAIL_PILLAR_COUNT
-      * rail polyline spans BEHIND Pip (x < bird.x) AND past the right
-        edge (x > W) — the user's "always visible left-to-right"
-        requirement
-      * flap is a no-op for the entire ride
+      * Exactly RAIL_PILLAR_COUNT pillars get tagged AHEAD of Pip; no
+        pipes behind Pip get tagged (no anchor synthesis anymore)
+      * rail_cart_pipe references the leftmost tagged pillar
+      * Flap STILL works (only locks suppress flap)
     """
-    from game.config import RAIL_PILLAR_COUNT, W
+    from game.config import RAIL_PILLAR_COUNT, FLAP_V
     w = World()
     w.ready_t = 0
     bird_y_before = w.bird.y
     w._activate_rail(PowerUp(0, 0, kind="rail"))
     assert w.rail_pillars_left == RAIL_PILLAR_COUNT
     assert w.bird.cart_active is True
-    assert w.bird.cart_locked is True
-    # Track must span the canvas: at least one rail pipe behind Pip and
-    # at least one past the right edge.
+    assert w.bird.cart_locked is False
     rail_xs = [p.x for p in w.rail_pipes]
-    assert any(x < w.bird.x for x in rail_xs), (
-        f"no rail pipe behind Pip at x={w.bird.x}; rail_xs={rail_xs}")
-    assert any(x > W for x in rail_xs), (
-        f"no rail pipe past the right edge W={W}; rail_xs={rail_xs}")
-    # Pip's y should NOT jump on activation — the anchor pipe was
-    # synthesized at his current gap-center.
+    assert len(rail_xs) == RAIL_PILLAR_COUNT
+    assert all(x > w.bird.x for x in rail_xs), (
+        f"rail pipes should all be AHEAD of Pip; got {rail_xs}")
+    assert w.rail_cart_pipe is not None
+    assert w.rail_cart_pipe.x == min(rail_xs), (
+        "cart should park on the leftmost (closest) tagged pillar")
+    # Pip's y is unchanged at activation (no auto-snap pre-lock).
     assert abs(w.bird.y - bird_y_before) <= 1
-    # Flap is silently ignored while cart_active.
-    vy_before = w.bird.vy
+    # Flap works during pre-lock.
+    w.bird.vy = 100
     w.bird.flap()
-    assert w.bird.vy == vy_before
+    assert w.bird.vy == FLAP_V
 
 
-def test_rail_ride_ends_after_n_pillars_with_jump():
-    """After RAIL_PILLAR_COUNT real pillars pass Pip the ride ends,
-    cart_active flips off, and Pip gets an upward "jump" (vy < 0) so
-    the player has air control immediately."""
+def test_rail_collision_with_cart_pillar_locks_pip():
+    """Touching the cart pillar (any side) flips cart_locked = True
+    instead of killing Pip. Other tagged pillars still kill."""
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    cart = w.rail_cart_pipe
+    assert cart is not None
+    # Teleport Pip into the cart pillar's column at its gap-bottom.
+    w.bird.x = cart.x + 5
+    w.bird.y = cart.gap_y + cart.gap_h / 2  # right on the rail
+    w._check_collisions()
+    assert w.bird.cart_locked is True, "cart pillar touch should lock Pip"
+    assert w.bird.alive is True, "lock must NOT kill"
+
+
+def test_rail_collision_with_non_cart_tagged_pillar_kills():
+    """Tagged pillars 2-5 are pure hazards pre-lock: touching them
+    kills, even though they have rail track on top."""
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    # Find a tagged pillar that is NOT the cart pillar.
+    other = next(p for p in w.rail_pipes if p is not w.rail_cart_pipe)
+    w.bird.x = other.x + 5
+    w.bird.y = other.gap_y + other.gap_h / 2 + 80  # well below the gap
+    w._check_collisions()
+    assert w.bird.alive is False, "non-cart tagged pillar must kill"
+    assert w.bird.cart_locked is False
+
+
+def test_rail_ride_ends_with_jump_after_lock():
+    """After Pip locks AND RAIL_PILLAR_COUNT pillars pass, the ride
+    ends, cart_active flips off, and Pip gets an upward "jump"."""
     from game.config import RAIL_PILLAR_COUNT, FLAP_V
     import random as _r
     _r.seed(5)
     w = World()
     w.ready_t = 0
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
-    # Tick the world long enough to scroll the rail pipes past Pip.
-    # Worst case is the player starting on the newbie scroll ramp:
-    # ~120 frames per pillar even with the 1.5× cart multiplier, so
-    # 7 pillars ≈ 850 frames. 2000 is a comfortable upper bound.
+    # Force a lock (sim Pip landing on the cart).
+    w._lock_pip_on_cart()
+    assert w.bird.cart_locked is True
     for _ in range(2000):
         w.update(1 / 60)
         if not w.bird.cart_active:
@@ -307,23 +335,45 @@ def test_rail_ride_ends_after_n_pillars_with_jump():
     assert w.rail_pillars_left == 0
     assert w.bird.vy <= FLAP_V * 0.5, (
         f"Pip didn't jump on release (vy={w.bird.vy:.1f}, FLAP_V={FLAP_V})")
-    # Now the player should regain flap control.
-    vy_after_jump = w.bird.vy
-    w.bird.flap()
-    assert w.bird.vy == FLAP_V or w.bird.vy != vy_after_jump
 
 
-def test_rail_world_scrolls_faster_during_ride():
-    """The world scrolls RAIL_SCROLL_MULT × the normal speed while the
-    cart is active."""
+def test_rail_expires_silently_if_pip_never_locks():
+    """If Pip never lands on the cart, all 5 tagged pillars scroll
+    past and the powerup ends without the "jump" cue."""
+    import random as _r
+    _r.seed(7)
+    w = World()
+    w.ready_t = 0
+    w._activate_rail(PowerUp(0, 0, kind="rail"))
+    vy_before = w.bird.vy
+    for _ in range(3000):
+        # Keep Pip flapping so he doesn't drop into a tagged pillar.
+        if w.bird.vy > -100:
+            w.bird.flap()
+        w.update(1 / 60)
+        if not w.bird.cart_active:
+            break
+    assert w.bird.cart_active is False
+    assert w.bird.cart_locked is False
+    assert w.rail_cart_pipe is None
+    # No jump applied — vy should NOT have been forced to FLAP_V by
+    # _end_rail_ride (the silent-expire path skips that).
+
+
+def test_rail_world_scroll_only_speeds_up_after_lock():
+    """Pre-lock the world scrolls at normal speed (so the player can
+    aim onto the cart calmly). RAIL_SCROLL_MULT only kicks in once
+    cart_locked flips True."""
     from game.config import RAIL_SCROLL_MULT
     w = World()
     w.ready_t = 0
     baseline = w._current_scroll()
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    rail_scroll = w._current_scroll()
-    assert rail_scroll > baseline
-    assert abs(rail_scroll - baseline * RAIL_SCROLL_MULT) < 0.01
+    assert abs(w._current_scroll() - baseline) < 0.01, (
+        "pre-lock scroll should match baseline")
+    w._lock_pip_on_cart()
+    locked_scroll = w._current_scroll()
+    assert abs(locked_scroll - baseline * RAIL_SCROLL_MULT) < 0.01
 
 
 def test_plausibility_chain_survives_treasure_box_and_lottery():

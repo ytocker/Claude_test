@@ -120,6 +120,69 @@ _IRON    = (110, 100,  95)
 _IRON_HI = (190, 180, 175)
 
 
+def _draw_parked_cart(surf, pipe):
+    """Stationary wagon sitting on the cart pillar's rail line — the
+    pre-lock cart waiting for Pip to land on it. Same pine-plank +
+    iron-hoop visual as the riding wagon (entities.Bird._render_wagon_*)
+    but painted directly at the pillar's gap-bottom with no tilt and
+    no wheel spin."""
+    from game.config import PIPE_W
+    cx = int(pipe.x + PIPE_W // 2)
+    rail_y = int(pipe.gap_y + pipe.gap_h / 2)
+    # Match the locked-ride offset so the parked cart sits visually
+    # identical to the cart once Pip locks onto it.
+    cy = rail_y - 32
+    # Wheels (pine-spoke wheel + iron tire)
+    WHEEL_R = 5
+    DX = 15
+    wheel_y = cy + 22
+    pine_dk = (70, 45, 25)
+    pine = (135, 90, 50)
+    iron_dk = (40, 35, 30)
+    iron = (110, 100, 95)
+    for dx in (-DX, DX):
+        wx = cx + dx
+        pygame.draw.circle(surf, iron_dk, (wx, wheel_y), WHEEL_R)
+        pygame.draw.circle(surf, iron, (wx, wheel_y), WHEEL_R - 1)
+        pygame.draw.circle(surf, pine_dk, (wx, wheel_y), WHEEL_R - 2)
+        import math as _m
+        for i in range(6):
+            ang = (i / 6) * _m.tau
+            ex = wx + int(_m.cos(ang) * (WHEEL_R - 2))
+            ey = wheel_y + int(_m.sin(ang) * (WHEEL_R - 2))
+            pygame.draw.line(surf, pine_dk, (wx, wheel_y), (ex, ey), 1)
+        pygame.draw.circle(surf, iron_dk, (wx, wheel_y), 1)
+    # Body (pine planks + iron hoop bands)
+    W_ = 42
+    H_ = 18
+    body_top = cy + 4
+    body_bot = cy + 4 + H_
+    pine_hi = (180, 130, 75)
+    iron_hi = (180, 170, 160)
+    pygame.draw.rect(surf, pine_dk,
+                     pygame.Rect(cx - W_ // 2 - 1, body_top - 1,
+                                 W_ + 2, H_ + 2))
+    pygame.draw.rect(surf, pine,
+                     pygame.Rect(cx - W_ // 2, body_top, W_, H_))
+    for i in range(1, W_ // 6):
+        px = cx - W_ // 2 + i * 6
+        pygame.draw.line(surf, pine_dk,
+                         (px, body_top + 1), (px, body_bot - 1), 1)
+        pygame.draw.line(surf, pine_hi,
+                         (px + 1, body_top + 1),
+                         (px + 1, body_bot - 1), 1)
+    for band_y in (body_top + 2, body_bot - 5):
+        pygame.draw.rect(surf, iron_dk,
+                         pygame.Rect(cx - W_ // 2 - 1, band_y,
+                                     W_ + 2, 3))
+        pygame.draw.rect(surf, iron,
+                         pygame.Rect(cx - W_ // 2 - 1, band_y + 1,
+                                     W_ + 2, 1))
+        pygame.draw.line(surf, iron_hi,
+                         (cx - W_ // 2 - 1, band_y),
+                         (cx + W_ // 2 + 1, band_y), 1)
+
+
 def _draw_rails(surf, rail_pipes):
     """Western Trestle rail across every rail-tagged pipe top: pine ties
     + twin iron rails. One continuous polyline so bridges between pipes
@@ -1046,6 +1109,13 @@ class App:
         # RAIL TRACK glowing rail across the next 3 marked pillar tops.
         if getattr(self.world, "rail_pipes", None):
             _draw_rails(self.screen, self.world.rail_pipes)
+        # RAIL TRACK pre-lock cart: stationary wagon parked on the
+        # FIRST tagged pillar's rail line, waiting for Pip to land on
+        # it. Hidden the moment Pip locks (the wagon then renders on
+        # Pip himself) or after the cart pillar scrolls past.
+        cart_pipe = getattr(self.world, "rail_cart_pipe", None)
+        if cart_pipe is not None and not self.world.bird.cart_locked:
+            _draw_parked_cart(self.screen, cart_pipe)
 
         # LOTTERY reveal animation: tile-roll overlay near pickup point.
         if getattr(self.world, "lottery_anim", None) is not None:

@@ -832,12 +832,11 @@ class Bird:
         return base
 
     def flap(self, gravity_sign=1):
-        # Flap is silently ignored for the ENTIRE rail ride. cart_active
-        # is set the instant the powerup picks up and stays True for the
-        # full RAIL_DURATION — cart_locked is set on the same frame so
-        # there's no pre-lock aim phase anymore. The user gives up
-        # control for 8 s and the cart auto-follows the track.
-        if self.alive and not self.cart_active:
+        # Flap is silently ignored only while Pip is LOCKED on the
+        # rail (cart_locked). Pre-lock (cart_active but not yet
+        # locked) flap works normally so the player can aim onto the
+        # parked cart sitting on the first tagged pillar.
+        if self.alive and not self.cart_locked:
             self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45
 
@@ -987,14 +986,14 @@ class Bird:
         # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
         # on top of them; the body is drawn after Pip so it covers his
         # lower half and the parcel.
-        if self.cart_active:
+        if self.cart_locked:
             self._draw_wagon_wheels(surf, cx_int, cy_int)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
         if self.skateboard_active:
             self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
-        if self.cart_active:
+        if self.cart_locked:
             self._draw_wagon_body(surf, cx_int, cy_int)
             return  # parcel is hidden inside the wagon
 
