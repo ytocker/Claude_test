@@ -134,6 +134,10 @@ class World:
         # surface and decays when he goes airborne.
         self.slide_boost = 0.0
         self._sliding_this_frame = False
+        # Previous-frame snapshot used to detect rising-edge
+        # (landing) and falling-edge (lift-off) transitions for the
+        # random-grind feature.
+        self._sliding_prev_frame = False
         # Backflip trick: 3 fast taps during the skateboard window spin
         # Pip 360°. _last_tap_t / _tap_streak track the streak; a flip is
         # only triggered when the streak reaches 3 and no flip is mid-air.
@@ -1085,6 +1089,34 @@ class World:
         # via bird.flap_boost > 0 sentinel (set by flap()).
         if self.rail_pipes:
             self._apply_rail_lock(bx, by, br)
+
+        # SKATEBOARD random grind. On the rising edge of
+        # `_sliding_this_frame` (Pip just landed on the ground or a
+        # pillar top while skateboard is active), roll a 25% chance
+        # to start a random grind. On the falling edge (Pip lifts
+        # off), clear the grind. Both edges keyed off the per-frame
+        # flag versus the value from the previous frame.
+        if (self._sliding_this_frame
+                and not self._sliding_prev_frame
+                and self.skateboard_timer > 0
+                and self.bird.grind_type is None):
+            if random.random() < 0.25:
+                gtype = random.choice(("nose", "tail"))
+                self.bird.grind_type = gtype
+                # Spawn a tiny "NOSE GRIND!" / "TAIL GRIND!" float-
+                # text BELOW the bird so it doesn't cover the
+                # tilted board.
+                self.float_texts.append(FloatText(
+                    f"{gtype.upper()} GRIND!",
+                    self.bird.x, self.bird.y + 38,
+                    (255, 215, 110),
+                    size=22, life=1.0, vy=30, style="powerup",
+                ))
+        if (not self._sliding_this_frame
+                and self._sliding_prev_frame
+                and self.bird.grind_type is not None):
+            self.bird.grind_type = None
+        self._sliding_prev_frame = self._sliding_this_frame
 
     def _skateboard_handle_pipe(self, p, bx, by, br) -> bool:
         """When SKATEBOARD is active, intercept lethal pipe collisions.

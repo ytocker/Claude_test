@@ -782,6 +782,12 @@ class Bird:
         # scale-X = cos(p·π) on the rendered board.
         self.popshuvit_t = 0.0
         self.popshuvit_dur = 0.0
+        # Random-grind: when Pip lands on the ground / a pillar top
+        # in skateboard mode, World rolls a 0.25 probability and
+        # picks one of {'nose', 'tail'}; the board+Pip tilt
+        # ∓15° to fake a nose-only / tail-only grind. Cleared
+        # when Pip lifts off the surface.
+        self.grind_type = None
 
     @property
     def tilt_deg(self):
@@ -798,6 +804,16 @@ class Bird:
         # Pip's pitch.
         t = max(-0.5, min(0.75, self.vy / 500.0))
         base = -t * 55.0
+        # GRIND: while the random grind is active, the board pivots
+        # around either its nose (front truck on the surface, tail
+        # in the air) or its tail (back truck on, nose in the air).
+        # Pip's tilt has to match the board so they look balanced.
+        # In side-view going right, "nose" is the right end of the
+        # board and "tail" is the left end.
+        if self.grind_type == "nose":
+            base += -18.0  # nose down → tail in the air
+        elif self.grind_type == "tail":
+            base += 18.0   # nose up → tail planted
         # During a backflip, ride a full 360° rotation on top of the base
         # tilt. pygame's rotate is modulo-360 internally so values beyond
         # the normal clamp are fine.
