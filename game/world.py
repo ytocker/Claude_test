@@ -14,7 +14,7 @@ from game.config import (
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
-    SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, GHOST_DURATION,
+    SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
     POWERUP_WEIGHTS,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
@@ -31,6 +31,7 @@ from game.draw import (
 from game import biome
 from game import audio
 from game.weather import Weather
+from game.ambient import AmbientScenes
 
 
 def _lerp(a, b, t):
@@ -62,6 +63,17 @@ class World:
         self.magnet_timer = 0.0
         self.slowmo_timer = 0.0
         self.kfc_timer    = 0.0
+        # Random index into KFC_MOUNTAIN_DRAWERS, refreshed on each
+        # _activate_kfc call so the background fries-pile style varies
+        # between powerup activations. `kfc_mountain_layers` holds the
+        # three pre-rendered per-parallax-layer Surfaces;
+        # `kfc_activation_scroll` snapshots bg_scroll at pickup time so
+        # PlayScene can compute the parallax offset for each layer and
+        # make the fries pile drift at the same speed as the normal
+        # mountains do.
+        self.kfc_mountain_variant = 0
+        self.kfc_mountain_layers: "list[pygame.Surface] | None" = None
+        self.kfc_activation_scroll = 0.0
         self.ghost_timer  = 0.0
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
@@ -99,6 +111,7 @@ class World:
         self._proof = ProofState()
 
         self.weather = Weather()
+        self.ambient = AmbientScenes()
 
         # "Get ready" freeze at the start of a round: physics paused until
         # the player flaps or the timer expires. Gives new players a moment
@@ -161,10 +174,21 @@ class World:
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
         if is_rush:
             gap_h = int(gap_h * COIN_RUSH_GAP_BOOST)
+        # Pipes spawned during KFC mode get a wider collision gap so the
+        # powerup is an actual gameplay reward, not just visual flair.
+        # Stacks with the rush boost if both happen on the same pipe.
+        kfc_spawn = self.kfc_timer > 0
+        if kfc_spawn:
+            gap_h = int(gap_h * KFC_GAP_BOOST)
         margin = 70
         gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
+        # is_kfc is sticky for the pipe's lifetime - it gates the gap
+        # widening (see _activate_kfc) so the wider gap outlives the
+        # powerup timer. The visual reverts at timer=0 via the
+        # kfc_visual gate in Pipe.draw.
+        p.is_kfc = kfc_spawn
         self.pipes.append(p)
         if is_rush:
             self._spawn_rush_coins(p)
@@ -310,6 +334,11 @@ class World:
         sdt = dt * world_scale
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
+        # Ambient scenes (V-flocks, fireworks, balloon, parrots, blossoms,
+        # campfire) — sparse, phase-gated. Campfire uses bg_scroll to ride
+        # the foreground parallax layer so it reads as world scenery.
+        self.ambient.update(sdt, self.biome_phase, self.biome_palette,
+                            self.bg_scroll)
 
         # While the "get ready" prompt is up, hold everything still except
         # a tiny idle animation on the bird. The freeze waits indefinitely
@@ -444,6 +473,8 @@ class World:
         self.biome_time += dt
         self.weather.update(dt, self.biome_phase)
         self.bg_scroll += SCROLL_BASE * 0.5 * dt
+        self.ambient.update(dt, self.biome_phase, self.biome_palette,
+                            self.bg_scroll)
         for p in self.pipes:
             p.x -= SCROLL_BASE * 0.25 * dt
         for c in self.coins:
@@ -695,6 +726,40 @@ class World:
     def _activate_kfc(self, m):
         self.kfc_timer = KFC_DURATION
         self.bird.kfc_active = True
+        # Pick a fries-mountain variant at random for this activation
+        # and pre-render it to a Surface. game.fries_mountains has 3
+        # variants (classic / boxes / curly); the chosen index +
+        # cached Surface are read by PlayScene._draw_background for as
+        # long as kfc_timer > 0.
+        from game.fries_mountains import (
+            KFC_MOUNTAIN_DRAWERS, make_fries_mountain_cache,
+        )
+        self.kfc_mountain_variant = random.randint(
+            0, len(KFC_MOUNTAIN_DRAWERS) - 1)
+        # The cache build runs ONCE per activation, not every frame.
+        # Three per-layer Surfaces (back / far / near) are then blitted
+        # with independent parallax offsets each frame.
+        self.kfc_mountain_layers = make_fries_mountain_cache(
+            self.kfc_mountain_variant, GROUND_Y, W)
+        # Snapshot scroll at pickup so PlayScene can derive the parallax
+        # offset (bg_scroll - kfc_activation_scroll) for each layer.
+        self.kfc_activation_scroll = self.bg_scroll
+        # Retroactively flip every pipe currently on screen so the entire
+        # visible scene becomes fast-food at the moment of pickup, AND
+        # widen its collision gap. The KFC *visual* is gated on
+        # kfc_timer > 0 (see Pipe.draw), so when the timer expires every
+        # pillar snaps back to stone alongside the fries mountain + Pip.
+        # The wider gap is sticky on the pipe instance, though: it stays
+        # for the rest of that pipe's life so the player isn't punished
+        # by a mid-flight gap shrink.
+        #
+        # `is_kfc` is the sticky gap-widened flag and gates the
+        # double-boost guard below — a second KFC pickup (or a pipe born
+        # during the active window) must not compound 1.30 again.
+        for p in self.pipes:
+            if not p.is_kfc:
+                p.gap_h = int(p.gap_h * KFC_GAP_BOOST)
+                p.is_kfc = True
         self.shake_mag = max(self.shake_mag, 5.0)
         self.shake_t   = max(self.shake_t,   0.4)
         audio.play_poof()

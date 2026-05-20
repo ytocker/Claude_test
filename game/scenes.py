@@ -59,6 +59,7 @@ STATE_PAUSE = 4
 STATE_STATS = 5
 STATE_LEADERBOARD = 6
 STATE_INTRO = 7
+STATE_POWERUPS = 8
 
 
 class App:
@@ -78,6 +79,13 @@ class App:
         # the App stays alive and we already moved past STATE_INTRO.
         from game.intro import IntroScene
         self.intro: object | None = IntroScene()
+        # Built lazily when the intro auto-completes (not when the user
+        # skips it). Lives until the player taps once on the help screen.
+        self.powerup_help: object | None = None
+        # True when the intro was launched from the menu's HOW TO PLAY
+        # button. _finish_intro reads this to land back on MENU instead
+        # of the POWERUPS explainer.
+        self._intro_from_menu = False
         self.state = STATE_INTRO
         self._cloud_phase = 0.0
         self._running = True
@@ -91,11 +99,19 @@ class App:
         # Leaderboard state
         self._lb_scores: list = []
         self._lb_player_rank = -1
+        # Last browser-side fetch error code (empty when the fetch
+        # succeeded, even if it returned zero rows from a brand-new
+        # database). Set by _on_name_submitted / _show_leaderboard_native
+        # before flipping to STATE_LEADERBOARD; rendered by the scene
+        # when scores is empty so a network/RLS failure doesn't look
+        # like "no scores yet."
+        self._lb_fetch_error: str = ""
         self._start_name_entry = False
         self._fetch_pending = False
         self._final_score = 0
         self._name_task = None  # strong ref prevents GC killing the task mid-flight
         self._play_log_task = None  # strong ref for the per-run telemetry POST
+        self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
 
     # ── helpers ─────────────────────────────────────────────────────────────
@@ -108,12 +124,56 @@ class App:
 
     def _flap_input(self, pos=None):
         if self.state == STATE_INTRO:
-            # Any tap during the cinematic skips it and lands on the menu —
-            # the menu is where SKYBIT + the description + the click-to-start
-            # prompt live. The intro is recorded as seen so it never replays.
-            self._finish_intro()
+            # Any tap during the cinematic skips it. Gate by `_cooldown_t`
+            # so the same physical tap that opened the intro (FINGERDOWN
+            # → MOUSEBUTTONDOWN echo, or a duplicate FINGERDOWN on flaky
+            # devices) can't immediately skip it back out. The cooldown
+            # ticks down inside _update so a deliberate skip works a
+            # beat later.
+            if self._cooldown_t > 0:
+                return
+            self._finish_intro(skipped=True)
+            return
+        if self.state == STATE_POWERUPS:
+            # Same shape: gate the dismiss-tap on the entry cooldown so
+            # the explainer doesn't flicker straight back to MENU.
+            if self._cooldown_t > 0:
+                return
+            self.powerup_help = None
+            self.state = STATE_MENU
+            self._cooldown_t = 0.25
             return
         if self.state == STATE_MENU:
+            # Single shared cooldown gate for every menu action. This is
+            # what stops a follow-up event from the same physical tap
+            # (e.g. the second FINGERDOWN that dismissed INTRO → MENU)
+            # from immediately dispatching a help-button hit at the same
+            # screen position. Kept short (0.25 s, set on every menu
+            # entry) so a deliberate first tap from a settled menu still
+            # feels instant — typical reaction time is well above 0.25 s.
+            if self._cooldown_t > 0:
+                return
+            if pos and self.hud.menu_howto_rect \
+                    and self.hud.menu_howto_rect.collidepoint(pos):
+                from game.intro import IntroScene
+                self.intro = IntroScene()
+                self._intro_from_menu = True
+                self.state = STATE_INTRO
+                self._cooldown_t = 0.25
+                return
+            if pos and self.hud.menu_powerups_rect \
+                    and self.hud.menu_powerups_rect.collidepoint(pos):
+                from game.powerup_help import PowerUpHelpScene
+                self.powerup_help = PowerUpHelpScene()
+                self.state = STATE_POWERUPS
+                self._cooldown_t = 0.25
+                return
+            if pos and self.hud.menu_top10_rect \
+                    and self.hud.menu_top10_rect.collidepoint(pos):
+                self._open_leaderboard_from_menu()
+                return
+            # TAP TO START rect, keyboard (no pos), or any tap outside
+            # the secondary buttons — start a play session.
             self._start_play()
         elif self.state == STATE_PLAY:
             if pos and self.hud.pause_btn.contains(pos):
@@ -130,6 +190,10 @@ class App:
         elif self.state == STATE_LEADERBOARD:
             if self._cooldown_t <= 0:
                 self.state = STATE_MENU
+                # Keep the menu visible for a beat instead of letting the
+                # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
+                # echoes, or a fast double-click) skip straight into play.
+                self._cooldown_t = 0.4
         elif self.state == STATE_GAMEOVER:
             if self._cooldown_t <= 0:
                 self._restart()
@@ -151,13 +215,44 @@ class App:
         self.world.flap()
         self.state = STATE_PLAY
 
-    def _finish_intro(self):
-        """Hand off to the menu. Called on auto-completion or skip. The
-        intro is dropped so this session won't render it again."""
+    def _finish_intro(self, skipped: bool):
+        """Hand off out of the intro. The next state depends on `skipped`:
+
+          * `skipped=True`  — the player tapped during the cinematic. They
+            wanted to bail past the intro flow, so we drop them straight
+            on the menu, bypassing the power-ups explainer.
+          * `skipped=False` — the cinematic ran to its natural end. Land
+            on the power-ups explainer, which stays up until the player
+            taps once more to reach the menu.
+
+        Sets a brief cooldown so the same physical tap that triggered the
+        skip can't echo into the now-MENU state and immediately call
+        ``_start_play`` or open one of the secondary menu buttons. 0.25 s
+        is enough to swallow:
+          - SDL FINGERDOWN → MOUSEBUTTONDOWN echo (~tens of ms)
+          - a duplicate FINGERDOWN that flaky touch firmware can emit
+          - a fast follow-up tap that would otherwise cascade
+
+        and short enough that a deliberate first tap from a settled
+        menu (well past typical 200–300 ms reaction time) still feels
+        instant.
+
+        Mirror of the STATE_LEADERBOARD → MENU pattern in ``_flap_input``."""
         if self.intro is not None:
             self.intro.skip()
         self.intro = None
-        self.state = STATE_MENU
+        if self._intro_from_menu:
+            # HOW TO PLAY replay always returns to MENU regardless of
+            # whether the player tapped to skip or watched it through.
+            self.state = STATE_MENU
+            self._intro_from_menu = False
+        elif skipped:
+            self.state = STATE_MENU
+        else:
+            from game.powerup_help import PowerUpHelpScene
+            self.powerup_help = PowerUpHelpScene()
+            self.state = STATE_POWERUPS
+        self._cooldown_t = 0.25
 
     def _restart(self):
         # Same contract as `_start_play`: the tap that triggered the
@@ -177,8 +272,10 @@ class App:
 
     async def async_run(self):
         import asyncio
+        import sys as _sys
         self._cooldown_t = 0.0
         self._start_name_entry = False
+        first_frame_done = False
         while self._running:
             dt = min(self.clock.tick(FPS) / 1000.0, 1 / 20.0)
             for e in pygame.event.get():
@@ -186,6 +283,20 @@ class App:
             self._update(dt)
             self._render()
             pygame.display.flip()
+            if not first_frame_done:
+                first_frame_done = True
+                # Signal to the JS overlay (inject_theme.py's dismiss()
+                # waits on this) that the canvas now has a real Skybit
+                # frame on it. Without this, the overlay would fade off
+                # while pygbag's bare progress display was still visible
+                # underneath -- the "separate screen" the user reported
+                # between Skybit splash and the rendered intro.
+                if _sys.platform == "emscripten":
+                    try:
+                        import js  # type: ignore
+                        js.window.skybitGameReady = True
+                    except Exception:
+                        pass
             if self._start_name_entry:
                 self._start_name_entry = False
                 # create_task keeps the game loop running every frame while the
@@ -266,14 +377,26 @@ class App:
         if self.state == STATE_INTRO:
             if self.intro is None:
                 # Defensive: should never happen, but recover gracefully.
-                self._finish_intro()
+                self._finish_intro(skipped=True)
                 return
             self.intro.update(dt)
+            # Tick the cooldown so a HOW-TO-PLAY-launched intro becomes
+            # skippable a beat after it opens (see the gate in
+            # _flap_input's STATE_INTRO branch).
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
             if self.intro.done:
-                self._finish_intro()
+                # The cinematic ran out — show the power-ups explainer.
+                # (User-initiated skips already routed through _flap_input.)
+                self._finish_intro(skipped=False)
+            return
+        if self.state == STATE_POWERUPS:
+            if self.powerup_help is not None:
+                self.powerup_help.update(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
             return
         if self.state == STATE_MENU:
             self.world.world_idle_tick(dt)
+            self._cooldown_t = max(0.0, self._cooldown_t - dt)
         elif self.state == STATE_PLAY:
             self.world.update(dt)
             if self.world.game_over:
@@ -343,6 +466,50 @@ class App:
             return True
         return score > scores[-1]["score"]
 
+    def _open_leaderboard_from_menu(self):
+        """Tap on the TOP 10 trophy panel in the main menu. Browser:
+        kick off an async Supabase fetch and switch to STATE_LEADERBOARD
+        immediately — the view shows 'Loading top 10…' until the scores
+        arrive. Native: synchronous local fetch.
+
+        No player highlight (``_lb_player_rank = -1``) because there's
+        no just-finished run to rank. The same STATE_LEADERBOARD → MENU
+        tap pattern that lives in ``_flap_input`` handles the way back."""
+        import sys
+        self._lb_player_rank = -1
+        if sys.platform == "emscripten":
+            self._lb_scores = []
+            self._lb_fetch_error = ""
+            self._fetch_pending = True
+            self.hud.title_t = 0.0
+            self.state = STATE_LEADERBOARD
+            self._cooldown_t = 1.0
+            import asyncio
+            try:
+                self._lb_task = asyncio.create_task(
+                    self._fetch_leaderboard_from_menu())
+            except RuntimeError:
+                # No running event loop (smoke tests). Mark fetch
+                # finished so the view doesn't sit on "Loading…" forever.
+                self._fetch_pending = False
+        else:
+            from game import leaderboard
+            scores = leaderboard._native_fetch()
+            self._show_leaderboard_native(scores, submitted=False)
+
+    async def _fetch_leaderboard_from_menu(self):
+        """Background task for the menu trophy button. Resolves into
+        ``_lb_scores`` and clears ``_fetch_pending`` once the Supabase
+        call returns (or fails — the view distinguishes both)."""
+        try:
+            from game import leaderboard
+            scores = await leaderboard.fetch_top10()
+            self._lb_scores = scores
+            self._lb_fetch_error = leaderboard.last_fetch_error()
+        except Exception:
+            pass
+        self._fetch_pending = False
+
     def _show_leaderboard_native(self, scores, submitted: bool):
         self._lb_scores = scores
         if scores and submitted:
@@ -368,6 +535,7 @@ class App:
         try:
             from game import leaderboard
             scores = await leaderboard.fetch_top10()
+            self._lb_fetch_error = leaderboard.last_fetch_error()
             if self._qualifies_for_top10(scores, self._final_score):
                 # Now we know they qualify — flip to NAMEENTRY so the
                 # Python-side render and the JS overlay both come up
@@ -378,6 +546,7 @@ class App:
                 if name:
                     await leaderboard.submit(name, self.world)
                     scores = await leaderboard.fetch_top10()
+                    self._lb_fetch_error = leaderboard.last_fetch_error()
                     self._lb_player_rank = next(
                         (i for i, e in enumerate(scores) if e["score"] == self._final_score),
                         -1,
@@ -431,7 +600,21 @@ class App:
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
-        draw_mountains(surf, scroll, GROUND_Y, W, palette['mtn_far'], palette['mtn_near'])
+        if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
+            # Pre-rendered fries pile per parallax layer - blit cheaply
+            # at the offset since activation so the pile drifts at the
+            # same depth-cued speeds as the normal mountains.
+            from game.fries_mountains import blit_fries_mountains
+            scroll_offset = scroll - self.world.kfc_activation_scroll
+            blit_fries_mountains(surf, self.world.kfc_mountain_layers,
+                                  scroll_offset)
+        else:
+            draw_mountains(surf, scroll, GROUND_Y, W,
+                            palette['mtn_far'], palette['mtn_near'])
+        # Ambient scenes (V-flocks, fireworks) sit between mountains and the
+        # ground band so they read as "out there in the world" — behind
+        # gameplay entities (pipes, coins, bird) but in front of terrain.
+        self.world.ambient.draw(surf)
         draw_ground(surf, GROUND_Y, W, H, scroll,
                     palette['ground_top'], palette['ground_mid'], (60, 40, 25))
 
@@ -440,6 +623,10 @@ class App:
         # + parrot etc.) and bypasses the in-game world draw entirely.
         if self.state == STATE_INTRO and self.intro is not None:
             self.intro.render(self.screen)
+            return
+        # Power-ups explainer also paints its own background — no world.
+        if self.state == STATE_POWERUPS and self.powerup_help is not None:
+            self.powerup_help.render(self.screen)
             return
         sx, sy = self.world.shake_offset() if self.state == STATE_PLAY else (0, 0)
         sx, sy = int(sx), int(sy)
@@ -458,16 +645,18 @@ class App:
             return
 
         pipe_palette = self.world.biome_palette
+        kfc_active = self.world.bird.kfc_active
         for p in self.world.pipes:
-            p.draw(self.screen, pipe_palette)
+            p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)
 
-        kfc_active = self.world.bird.kfc_active
+        triple_active = self.world.triple_timer > 0
         for c in self.world.coins:
-            c.draw(self.screen, kfc_active=kfc_active)
+            c.draw(self.screen, kfc_active=kfc_active,
+                   triple_active=triple_active)
         for m in self.world.powerups:
             m.draw(self.screen)
 
@@ -584,6 +773,8 @@ class App:
                 self.screen, 1 / 60,
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
+                fetch_error=self._lb_fetch_error,
+                fetch_pending=self._fetch_pending,
             )
         else:  # GAMEOVER
             self.hud.draw_gameover(

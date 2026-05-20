@@ -54,6 +54,206 @@ def _get_grow_parrot() -> "pygame.Surface":
     return _grow_parrot
 
 
+# ── GROW power-up icon (velvet witch-hat) ────────────────────────────────────
+# Tall conical Liberty-Cap silhouette with a curled scalloped rim, slim
+# bulbed ivory stem, cream ornaments. Body is static — built once at 5×
+# supersample then smoothscaled and cached. The pulsing halo behind it is
+# redrawn each frame.
+
+_GROW_SS = 5                                 # supersample factor
+_GROW_CAP_W, _GROW_CAP_H = 22, 24            # cap footprint in display px
+_GROW_STEM_W, _GROW_STEM_H = 20, 22          # stem footprint in display px
+_GROW_VELVET_OUTLINE = ( 60,  15,  25)
+_GROW_VELVET_RIM_HI  = (220, 120, 130)
+_GROW_VELVET_SHEEN   = (220, 130, 150, 130)
+_GROW_SPOT_HALO      = (195, 165, 110)
+_GROW_SPOT_HI        = (255, 250, 220)
+_GROW_STEM_OUTLINE   = (150, 120,  90)
+_GROW_STEM_HI        = (255, 250, 230)
+_GROW_HALO_RGB       = (180,  90, 110)
+_GROW_HALO_RADIUS    = 46                    # round-8 V3 pick
+
+# Spot positions as fractions of (CAP_W, CAP_H) — same canonical layout
+# the picker rounds used for the witch-hat family.
+_GROW_ORNAMENT_SLOTS = (
+    (0.50, 0.18),
+    (0.62, 0.42),
+    (0.40, 0.62),
+    (0.70, 0.72),
+)
+
+# Cone polygon vertex helpers (computed at SS resolution).
+def _grow_cone_outline_pts():
+    SS = _GROW_SS
+    W, H = _GROW_CAP_W, _GROW_CAP_H
+    return [
+        (W // 2 * SS, 0),
+        (int(W * 0.86 * SS), int(H * 0.78 * SS)),
+        (int(W * 0.95 * SS), int(H * 0.92 * SS)),
+        (int(W * 0.05 * SS), int(H * 0.92 * SS)),
+        (int(W * 0.14 * SS), int(H * 0.78 * SS)),
+    ]
+
+def _grow_cone_body_pts():
+    SS = _GROW_SS
+    W, H = _GROW_CAP_W, _GROW_CAP_H
+    return [
+        (W // 2 * SS, 1 * SS),
+        (int(W * 0.82 * SS), int(H * 0.78 * SS)),
+        (int(W * 0.91 * SS), int(H * 0.90 * SS)),
+        (int(W * 0.09 * SS), int(H * 0.90 * SS)),
+        (int(W * 0.18 * SS), int(H * 0.78 * SS)),
+    ]
+
+def _grow_cone_hi_pts():
+    SS = _GROW_SS
+    W, H = _GROW_CAP_W, _GROW_CAP_H
+    return [
+        (W // 2 * SS - 1 * SS,           1 * SS),
+        (int(W * 0.32 * SS),             int(H * 0.55 * SS)),
+        (int(W * 0.22 * SS),             int(H * 0.85 * SS)),
+        (int(W * 0.34 * SS),             int(H * 0.85 * SS)),
+        (int(W * 0.42 * SS),             int(H * 0.55 * SS)),
+    ]
+
+
+_grow_body_sprite: "pygame.Surface | None" = None
+_grow_body_offset: "tuple[int, int] | None" = None
+
+def _get_grow_body_sprite() -> "tuple[pygame.Surface, int, int]":
+    """Build the static witch-hat body sprite (cap + stem + sheen + spots)
+    once, return it plus the (dx, dy) offset from the powerup centre to
+    the sprite's top-left corner."""
+    global _grow_body_sprite, _grow_body_offset
+    if _grow_body_sprite is not None and _grow_body_offset is not None:
+        return _grow_body_sprite, _grow_body_offset[0], _grow_body_offset[1]
+
+    SS = _GROW_SS
+    CAP_W, CAP_H = _GROW_CAP_W, _GROW_CAP_H
+    STEM_W, STEM_H = _GROW_STEM_W, _GROW_STEM_H
+
+    # Sprite footprint: cap (22 wide × 24 tall) sits above stem
+    # (20 wide × 22 tall). Stem extends below the cap base by a few px.
+    # Origin (0,0) of the sprite corresponds to the top-left of the cap.
+    sprite_w = max(CAP_W, STEM_W) + 2
+    sprite_h = CAP_H + STEM_H + 4
+    big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
+
+    # Cap origin at (1, 0) in display coords → (1*SS, 0) in big coords.
+    cap_ox = 1 * SS
+    cap_oy = 0
+
+    # Stem origin at (2, CAP_H + 2) in display coords (centred under cap).
+    stem_ox = 2 * SS
+    stem_oy = (CAP_H + 2) * SS
+
+    # ── Stem ──────────────────────────────────────────────────────────
+    stem_pts = [
+        (8 * SS,  0 * SS),
+        (12 * SS, 0 * SS),
+        (13 * SS, 12 * SS),
+        (15 * SS, 18 * SS),
+        (10 * SS, 21 * SS),
+        ( 5 * SS, 18 * SS),
+        ( 7 * SS, 12 * SS),
+    ]
+    stem_pts_offset = [(p[0] + stem_ox, p[1] + stem_oy) for p in stem_pts]
+    pygame.draw.polygon(big, MUSH_STEM,           stem_pts_offset)
+    pygame.draw.polygon(big, _GROW_STEM_OUTLINE,  stem_pts_offset, width=SS)
+    pygame.draw.line(
+        big, _GROW_STEM_HI,
+        (9 * SS + stem_ox, 2 * SS + stem_oy),
+        (9 * SS + stem_ox, 18 * SS + stem_oy), SS,
+    )
+
+    # ── Cap (cone) ────────────────────────────────────────────────────
+    def _shift(pts, ox, oy):
+        return [(p[0] + ox, p[1] + oy) for p in pts]
+
+    pygame.draw.polygon(big, _GROW_VELVET_OUTLINE,
+                        _shift(_grow_cone_outline_pts(), cap_ox, cap_oy))
+    pygame.draw.polygon(big, MUSH_CAP,
+                        _shift(_grow_cone_body_pts(),    cap_ox, cap_oy))
+    pygame.draw.polygon(big, MUSH_CAP2,
+                        _shift(_grow_cone_hi_pts(),      cap_ox, cap_oy))
+
+    # Curled scalloped rim
+    rim_w = int(CAP_W * 0.86 * SS)
+    rim_x = int(CAP_W * 0.07 * SS) + cap_ox
+    rim_y = int(CAP_H * 0.93 * SS) + cap_oy
+    rim_count = 5
+    curl_w = rim_w // rim_count
+    for i in range(rim_count):
+        center = (rim_x + i * curl_w + curl_w // 2, rim_y)
+        pygame.draw.circle(big, MUSH_CAP,             center, curl_w // 2)
+        pygame.draw.circle(big, _GROW_VELVET_OUTLINE, center, curl_w // 2, SS)
+        pygame.draw.circle(big, _GROW_VELVET_RIM_HI,
+                           (center[0] - curl_w // 5, center[1] - curl_w // 5),
+                           max(1, curl_w // 4))
+
+    # Velvet inner sheen blob — alpha ellipse masked to the cone shape.
+    sheen = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, _GROW_VELVET_SHEEN,
+                        pygame.Rect(int(CAP_W * 0.34 * SS) + cap_ox,
+                                    int(CAP_H * 0.16 * SS) + cap_oy,
+                                    int(CAP_W * 0.20 * SS),
+                                    int(CAP_H * 0.42 * SS)))
+    cone_mask = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(cone_mask, (255, 255, 255, 255),
+                        _shift(_grow_cone_body_pts(), cap_ox, cap_oy))
+    sheen.blit(cone_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    big.blit(sheen, (0, 0))
+
+    # Cream-butter spots
+    for fx_frac, fy_frac in _GROW_ORNAMENT_SLOTS:
+        fx = int(CAP_W * fx_frac * SS) + cap_ox
+        fy = int(CAP_H * fy_frac * SS) + cap_oy
+        r_body = 2.0
+        pygame.draw.circle(big, _GROW_SPOT_HALO, (fx, fy),
+                           int((r_body + 0.4) * SS))
+        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(r_body * SS))
+        pygame.draw.circle(big, _GROW_SPOT_HI,
+                           (fx - SS // 2, fy - SS // 2), max(1, SS // 2))
+
+    sprite = pygame.transform.smoothscale(big, (sprite_w, sprite_h))
+
+    # Offset from the in-world (cx, cy) anchor to the sprite's top-left.
+    # The original mushroom anchor placed the cap at (cx - 15, cy - 12)
+    # and the stem at (cx - 7, cy). The new icon centres the cap
+    # horizontally on cx and lets the stem hang from there. We want the
+    # icon's centre of mass roughly aligned with (cx, cy) so the existing
+    # POWERUP_R collision feels right.
+    dx = -sprite_w // 2 + 1                              # centre horizontally
+    dy = -CAP_H + 2                                       # cap top above cy
+    _grow_body_sprite = sprite
+    _grow_body_offset = (dx, dy)
+    return sprite, dx, dy
+
+
+def _draw_grow_halo(surf, cx, cy, pulse,
+                    color_rgb=_GROW_HALO_RGB,
+                    radius=_GROW_HALO_RADIUS,
+                    falloff=2.2,
+                    peak_y_off=-2):
+    """Smooth radial halo (~60 concentric circles, quadratic falloff).
+    `pulse` drives the brightness pulse; same curve as the picker rounds."""
+    pulse_t = 0.5 + 0.5 * math.sin(pulse * 1.2)
+    max_alpha = int(140 + 25 * pulse_t)
+    steps = max(60, radius * 2)
+    w = radius * 2 + 4
+    halo = pygame.Surface((w, w), pygame.SRCALPHA)
+    hcx = hcy = w // 2
+    for i in range(steps):
+        r = max(0, radius - (i * radius) // steps)
+        if r <= 0:
+            break
+        t = i / max(1, steps - 1)
+        a = int(max_alpha * (t ** falloff))
+        if a > 0:
+            pygame.draw.circle(halo, (*color_rgb, a), (hcx, hcy), r)
+    surf.blit(halo, (cx - hcx, cy - hcy + peak_y_off))
+
+
 # ── KFC logo sprite (lazy-loaded once at first draw) ─────────────────────────
 _kfc_sprite: "pygame.Surface | None" = None
 
@@ -87,7 +287,7 @@ def _get_kfc_sprite() -> "pygame.Surface":
 
 # ── GHOST power-up sprite (procedural, cached on first draw) ────────────────
 # Holographic foil body (diagonal pearl-pink → cyan → mint → ivory) inside a
-# 2-px premium navy outline ring + crisp eyes + soft sheen.
+# 0.5-px black hairline outline + crisp eyes + soft sheen.
 _ghost_sprite: "pygame.Surface | None" = None
 _GHOST_HEAD_OFFSET_X = 16   # head-circle centre x in the sprite
 _GHOST_HEAD_OFFSET_Y = 14   # head-circle centre y in the sprite
@@ -141,9 +341,13 @@ def _get_ghost_sprite() -> "pygame.Surface":
     # Left side back up to head's leftmost point
     perimeter.append((gcx - hr, gcy))
 
-    OUTLINE_COLOR = (40, 50, 90)
-    THICKNESS_PX  = 2
-    t_big = THICKNESS_PX * SS
+    OUTLINE_COLOR = (0, 0, 0)
+    # 0.5-px hairline. SS=16 means t_big=8 super-pixels = exactly 0.5 final
+    # pixels of visible outline (line stroke runs both sides of the
+    # perimeter; the inner half is covered by the gradient blit below, so
+    # only the outer half is visible).
+    THICKNESS_PX  = 0.5
+    t_big = int(THICKNESS_PX * SS)
 
     # 1) Outline ring — stroke each perimeter edge as a thick line, plus a
     #    circle at every vertex so corners join cleanly without gaps. This
@@ -294,18 +498,42 @@ class Bird:
         # bird's head still leads in the direction of motion after the
         # vertical mirror is applied below.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        if self.kfc_active:
+        # Combo-aware sprite cascade. The four reachable stacks each have
+        # a dedicated themed sprite so no powerup is silently lost; check
+        # combos before single-mode flags so e.g. kfc+triple picks the
+        # crispy-hat sprite instead of falling through to plain kfc.
+        if self.kfc_active and self.ghost_active and self.triple_active:
+            img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.ghost_active:
+            img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.triple_active:
+            img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
+        elif self.ghost_active and self.triple_active:
+            img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
+        elif self.kfc_active:
             img = parrot.get_fried_parrot(frame_idx, tilt)
         elif self.ghost_active:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
         elif self.triple_active:
             img = parrot.get_hat_parrot(frame_idx, tilt)
+        elif self.grow_active:
+            # Hi-res grow-mode bird: pre-built at full grow display size by
+            # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
+            # downscale). Skips the smoothscale-up that produced the prior
+            # blur. Combo modes (kfc / ghost / triple + grow) still use
+            # the legacy upscale below — they pre-empt this branch.
+            img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
-        if self.grow_active:
+        if self.grow_active and (self.kfc_active or self.ghost_active
+                                  or self.triple_active):
+            # Combo + grow: smoothscale-up the variant sprite. No hi-res
+            # combo frames yet; this preserves correctness at the cost of
+            # the same upscale blur the base bird used to have.
             from game.config import GROW_SCALE
             w, h = img.get_size()
-            img = pygame.transform.smoothscale(img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
+            img = pygame.transform.smoothscale(
+                img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -369,6 +597,15 @@ class Pipe:
         self.gap_h = gap_h
         self.scored = False
         self.is_rush = False
+        # Per-pipe sticky flag: set at spawn (if KFC was active when this pipe
+        # was created) or retroactively when the powerup is picked up. Once
+        # True it stays True for the rest of the pipe's life and gates the
+        # one-time gap_h widening at activation so a second KFC pickup
+        # doesn't compound the boost. The KFC *visual* is gated separately
+        # on world.kfc_timer > 0 (see Pipe.draw) so the pillar reverts to
+        # stone at timer=0 alongside the fries mountain + fried Pip; only
+        # the wider gap outlives the timer.
+        self.is_kfc = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
 
@@ -388,8 +625,13 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None):
+    def draw(self, surf, palette=None, kfc_visual=False):
         palette = palette or _DEFAULT_PILLAR
+        if self.is_kfc and kfc_visual:
+            from game.pillar_kfc import draw_pillar_pair_kfc
+            draw_pillar_pair_kfc(surf, self.top_rect, self.bot_rect,
+                                 palette, self.seed)
+            return
         draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
         # Mist halo at the base where the bottom pillar meets the ground
         bot = self.bot_rect
@@ -399,10 +641,11 @@ class Pipe:
 # ── Coin ─────────────────────────────────────────────────────────────────────
 
 _COIN_FACE_CACHE: "pygame.Surface | None" = None
+_TRIPLE_COIN_FACE_CACHE: "pygame.Surface | None" = None
 
 
 def _get_coin_face() -> pygame.Surface:
-    """Build the face-on coin sprite once at 4x super-sample. Layers:
+    """Build the face-on coin sprite once at 8x super-sample. Layers:
     dark-amber outline, a twisted-rope rim (alternating dark/light
     segments around the perimeter), a vertical gold gradient body, an
     embossed parrot silhouette, and a soft upper-left specular highlight.
@@ -411,9 +654,14 @@ def _get_coin_face() -> pygame.Surface:
     global _COIN_FACE_CACHE
     if _COIN_FACE_CACHE is not None:
         return _COIN_FACE_CACHE
-    SS = 4
-    final_d = COIN_R * 2 + 4
+    SS = 8
+    # Cache at 4x display so the per-frame spin smoothscale is the AA pass.
+    DISPLAY_D = COIN_R * 2 + 4
+    CACHE_MUL = 4
+    final_d = DISPLAY_D * CACHE_MUL
     size = final_d * SS
+    # U scales the parrot with the cache; SS stays for 1-px AA margins only.
+    U = SS * CACHE_MUL
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     cx = cy = size // 2
     r_outer = size // 2 - SS
@@ -426,6 +674,8 @@ def _get_coin_face() -> pygame.Surface:
     OUTLINE_DK = ( 95,  50,   0)
     OUTLINE_LT = (150,  90,  10)
     EMBOSS     = (130,  80,   0)
+    EMBOSS_DK  = ( 90,  50,   0)
+    EMBOSS_HI  = (180, 120,  10)
     DARK_AMBER = ( 75,  35,   0)
     LITE_AMBER = (210, 165,  50)
 
@@ -479,14 +729,51 @@ def _get_coin_face() -> pygame.Surface:
         surf.blit(rotated, r_rect.topleft)
 
     # 4) Embossed parrot silhouette inside the rope rim.
+    #    Flying-pose, head pointing left. Body + tail + tucked wing +
+    #    head + hooked beak + eye dot. Two emboss tones (mid + dark)
+    #    plus a gold highlight give the figure enough volume to read
+    #    as a bird at the 26 px coin size, instead of a flat blob.
+
+    # Body — oval, slightly elongated horizontally.
     pygame.draw.ellipse(surf, EMBOSS,
-                        (cx - 2 * SS, cy - 1 * SS, 7 * SS, 5 * SS))
-    pygame.draw.circle(surf, EMBOSS, (cx - 1 * SS, cy - 3 * SS), 3 * SS)
+                        (cx - 2 * U, cy - 1 * U, 7 * U, 5 * U))
+
+    # Tail — tapered fan extending right past the body.
     pygame.draw.polygon(surf, EMBOSS,
-                        [(cx - 3 * SS, cy - 3 * SS),
-                         (cx - 6 * SS, cy - 2 * SS),
-                         (cx - 3 * SS, cy - 1 * SS)])
-    pygame.draw.circle(surf, GOLD_HI, (cx, cy - 4 * SS), max(1, SS - 1))
+                        [(cx + 4 * U, cy + 0 * U),
+                         (cx + 7 * U, cy + 1 * U),
+                         (cx + 6 * U, cy + 3 * U),
+                         (cx + 4 * U, cy + 2 * U)])
+
+    # Wing — darker tucked shape on the body (lower-right of body),
+    # suggests a folded wing in flight.
+    pygame.draw.polygon(surf, EMBOSS_DK,
+                        [(cx + 0 * U, cy + 0 * U),
+                         (cx + 3 * U, cy + 0 * U),
+                         (cx + 4 * U, cy + 2 * U),
+                         (cx + 1 * U, cy + 3 * U)])
+
+    # Head — circle, upper-left.
+    head_cx, head_cy = cx - 1 * U, cy - 3 * U
+    pygame.draw.circle(surf, EMBOSS, (head_cx, head_cy), 3 * U)
+
+    # Beak — main hooked triangle pointing left.
+    pygame.draw.polygon(surf, EMBOSS,
+                        [(cx - 3 * U, cy - 3 * U),
+                         (cx - 6 * U, cy - 2 * U),
+                         (cx - 3 * U, cy - 1 * U)])
+    # Beak shadow — small darker wedge under the hook for curvature.
+    pygame.draw.polygon(surf, EMBOSS_DK,
+                        [(cx - 5 * U, cy - 2 * U),
+                         (cx - 6 * U, cy - 2 * U),
+                         (cx - 4 * U, cy - 1 * U)])
+
+    # Eye — small bright dot on the head (replaces the original
+    # floating "highlight" with a positioned eye that gives the bird
+    # a face).
+    pygame.draw.circle(surf, GOLD_HI,
+                       (head_cx + U // 2, head_cy - U // 2),
+                       max(1, U // 2))
 
     # 5) Specular highlight crescent on the upper-left, masked to body.
     hl = pygame.Surface((size, size), pygame.SRCALPHA)
@@ -499,6 +786,111 @@ def _get_coin_face() -> pygame.Surface:
 
     _COIN_FACE_CACHE = pygame.transform.smoothscale(surf, (final_d, final_d))
     return _COIN_FACE_CACHE
+
+
+def _get_coin_face_triple() -> pygame.Surface:
+    """3X-mode coin face: same rim/body/rope/specular as the standard coin,
+    but the embossed parrot is replaced by a large `$` in the original
+    EMBOSS amber. Reads as struck into the gold body, same recipe the
+    parrot uses (flat amber on gold, no outline, no shadow). Cached
+    identically to _get_coin_face."""
+    global _TRIPLE_COIN_FACE_CACHE
+    if _TRIPLE_COIN_FACE_CACHE is not None:
+        return _TRIPLE_COIN_FACE_CACHE
+    SS = 8
+    DISPLAY_D = COIN_R * 2 + 4
+    CACHE_MUL = 4
+    final_d = DISPLAY_D * CACHE_MUL
+    size = final_d * SS
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    cx = cy = size // 2
+    r_outer = size // 2 - SS
+    r_outline = max(SS * 2, r_outer // 6)
+    r_body = r_outer - r_outline
+
+    GOLD_HI    = (255, 232, 130)
+    GOLD_MID   = (240, 195,  55)
+    GOLD_LO    = (190, 130,  20)
+    OUTLINE_DK = ( 95,  50,   0)
+    OUTLINE_LT = (150,  90,  10)
+    DARK_AMBER = ( 75,  35,   0)
+    LITE_AMBER = (210, 165,  50)
+    EMBOSS     = (130,  80,   0)
+
+    # Layers 1-3 + 5: rim, gradient body, rope rim, specular highlight —
+    # identical to _get_coin_face (parrot section omitted; `$` stamped
+    # post-smoothscale at display resolution for crisp Liberation-Sans
+    # rendering).
+    pygame.draw.circle(surf, OUTLINE_DK, (cx, cy), r_outer)
+    pygame.draw.circle(surf, OUTLINE_LT, (cx, cy), r_outer - SS)
+
+    body_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    y0, y1 = cy - r_body, cy + r_body
+    for yy in range(y0, y1 + 1):
+        t = (yy - y0) / max(1, (y1 - y0))
+        if t < 0.4:
+            u = t / 0.4
+            col = (
+                int(GOLD_HI[0]  + (GOLD_MID[0] - GOLD_HI[0])  * u),
+                int(GOLD_HI[1]  + (GOLD_MID[1] - GOLD_HI[1])  * u),
+                int(GOLD_HI[2]  + (GOLD_MID[2] - GOLD_HI[2])  * u),
+            )
+        else:
+            u = (t - 0.4) / 0.6
+            col = (
+                int(GOLD_MID[0] + (GOLD_LO[0]  - GOLD_MID[0]) * u),
+                int(GOLD_MID[1] + (GOLD_LO[1]  - GOLD_MID[1]) * u),
+                int(GOLD_MID[2] + (GOLD_LO[2]  - GOLD_MID[2]) * u),
+            )
+        pygame.draw.line(body_surf, col, (0, yy), (size, yy))
+    body_mask = pygame.Surface((size, size), pygame.SRCALPHA)
+    pygame.draw.circle(body_mask, (255, 255, 255, 255), (cx, cy), r_body)
+    body_surf.blit(body_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(body_surf, (0, 0))
+
+    n_segs = 22
+    ring_r = r_outer - r_outline // 2
+    seg_w = max(SS * 3, r_outline + SS)
+    for i in range(n_segs):
+        ang = i * (math.tau / n_segs)
+        ang_next = (i + 1) * (math.tau / n_segs)
+        mid = (ang + ang_next) / 2
+        sx = cx + math.cos(mid) * ring_r
+        sy = cy + math.sin(mid) * ring_r
+        seg_len = int((math.tau / n_segs) * ring_r * 0.95)
+        seg = pygame.Surface((seg_len, seg_w), pygame.SRCALPHA)
+        col       = DARK_AMBER if i % 2 == 0 else LITE_AMBER
+        highlight = LITE_AMBER if i % 2 == 0 else GOLD_HI
+        pygame.draw.ellipse(seg, col, seg.get_rect())
+        pygame.draw.ellipse(seg, highlight, seg.get_rect().inflate(-SS, -SS))
+        rotated = pygame.transform.rotate(seg, -math.degrees(mid))
+        r_rect = rotated.get_rect(center=(int(sx), int(sy)))
+        surf.blit(rotated, r_rect.topleft)
+
+    hl = pygame.Surface((size, size), pygame.SRCALPHA)
+    hl_rect = pygame.Rect(cx - r_body + r_body // 5,
+                          cy - r_body + r_body // 6,
+                          int(r_body * 1.1), int(r_body * 0.5))
+    pygame.draw.ellipse(hl, (255, 255, 235, 110), hl_rect)
+    hl.blit(body_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(hl, (0, 0))
+
+    face = pygame.transform.smoothscale(surf, (final_d, final_d))
+
+    # Stamp `$` at display resolution, 3× super-sampled for crisp edges.
+    import pathlib as _pl
+    glyph_size = 80
+    SS_G = 3
+    fpath = str(_pl.Path(__file__).parent / "assets" / "LiberationSans-Bold.ttf")
+    f = pygame.font.Font(fpath, glyph_size * SS_G)
+    big = f.render("$", True, EMBOSS)
+    bw, bh = big.get_size()
+    glyph = pygame.transform.smoothscale(big, (bw // SS_G, bh // SS_G))
+    fcx = fcy = face.get_width() // 2
+    face.blit(glyph, glyph.get_rect(center=(fcx, fcy + 1)).topleft)
+
+    _TRIPLE_COIN_FACE_CACHE = face
+    return _TRIPLE_COIN_FACE_CACHE
 
 
 class Coin:
@@ -523,7 +915,7 @@ class Coin:
         self.spin = (self.spin + dt * self.SPIN_RATE) % math.tau
         self.float_t += dt
 
-    def draw(self, surf, kfc_active=False):
+    def draw(self, surf, kfc_active=False, triple_active=False):
         cx = int(self.x)
         cy = int(self.y + math.sin(self.float_t * 2.2) * 2)
 
@@ -538,17 +930,18 @@ class Coin:
 
         # Spin animation: the cached face is smoothscaled horizontally by
         # |cos(spin)| every frame, so the rope rim, outline, gradient, and
-        # embossed parrot are all preserved across every angle of the
+        # embossed parrot/$ are all preserved across every angle of the
         # rotation — including near-edge-on slivers. A small floor on the
         # squeeze (10% width) keeps the edge-on frame readable instead of
         # collapsing to a 1-px line.
         cos_s = math.cos(self.spin)
         r = COIN_R
         squeeze = max(0.10, abs(cos_s))
-        face = _get_coin_face()
-        fw, fh = face.get_size()
-        target_w = max(2, int(fw * squeeze))
-        squeezed = pygame.transform.smoothscale(face, (target_w, fh))
+        face = _get_coin_face_triple() if triple_active else _get_coin_face()
+        # Source is 4x display; downsample target is on-screen size, not face size.
+        display_h = COIN_R * 2 + 4
+        display_w = max(2, int(display_h * squeeze))
+        squeezed = pygame.transform.smoothscale(face, (display_w, display_h))
         rect = squeezed.get_rect(center=(cx, cy))
         surf.blit(squeezed, rect.topleft)
 
@@ -804,33 +1197,9 @@ class PowerUp:
     def _draw_mushroom(self, surf):
         cx = int(self.x)
         cy = int(self.y)
-
-        # Stem with vivid highlight
-        stem = pygame.Rect(cx - 7, cy, 14, 13)
-        rounded_rect(surf, stem, 5, MUSH_STEM, 255)
-        pygame.draw.line(surf, (255, 255, 230), (cx - 4, cy + 2), (cx - 4, cy + 11), 2)
-        pygame.draw.line(surf, (200, 180, 145), (cx + 3, cy + 2), (cx + 3, cy + 11), 1)
-
-        cap_rect = pygame.Rect(cx - POWERUP_R - 1, cy - POWERUP_R + 2, (POWERUP_R + 1) * 2, POWERUP_R + 5)
-
-        # Cap base (deep crimson outline) then vivid red
-        pygame.draw.ellipse(surf, (130, 10, 20), cap_rect.inflate(2, 2))
-        pygame.draw.ellipse(surf, MUSH_CAP,     cap_rect)
-        # Upper highlight arc (hot pink / orange)
-        hi = pygame.Rect(cap_rect.x + 3, cap_rect.y + 2, cap_rect.width - 6, 7)
-        pygame.draw.ellipse(surf, MUSH_CAP2, hi)
-        # Specular sheen
-        sh2 = pygame.Surface((cap_rect.width - 14, 3), pygame.SRCALPHA)
-        pygame.draw.ellipse(sh2, (255, 230, 220, 200), sh2.get_rect())
-        surf.blit(sh2, (cap_rect.x + 7, cap_rect.y + 3))
-
-        # Spots with a soft ring so they read clearly
-        for sx, sy, sr in ((cx - 7, cy - 5, 3),
-                           (cx + 6, cy - 7, 4),
-                           (cx + 2, cy + 1, 3),
-                           (cx - 3, cy + 2, 2)):
-            pygame.draw.circle(surf, (220, 190, 200), (sx, sy), sr + 1)
-            pygame.draw.circle(surf, MUSH_SPOT,       (sx, sy), sr)
+        _draw_grow_halo(surf, cx, cy, self.pulse)
+        sprite, dx, dy = _get_grow_body_sprite()
+        surf.blit(sprite, (cx + dx, cy + dy))
 
     def _draw_surprise(self, surf):
         cx = int(self.x)

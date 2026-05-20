@@ -261,14 +261,48 @@ def _draw_buff_icon(surf, rect, kind):
     """Tiny 20x20-ish icon for an active buff. Matches in-world sprites."""
     cx, cy = rect.center
     if kind == "grow":
-        # Red mushroom cap + stem (Mario super-mushroom feel for the GROW power-up)
-        pygame.draw.rect(surf, (245, 225, 195), (cx - 3, cy + 1, 6, 7), border_radius=1)
-        pygame.draw.ellipse(surf, (130, 10, 20),
-                            (cx - 9, cy - 6, 18, 10))
-        pygame.draw.ellipse(surf, (220, 30, 30),
-                            (cx - 8, cy - 5, 16, 8))
-        pygame.draw.circle(surf, WHITE, (cx - 3, cy - 3), 1)
-        pygame.draw.circle(surf, WHITE, (cx + 3, cy - 2), 1)
+        # Mini velvet witch-hat: tall conical wine cone + slim ivory stem +
+        # cream-butter spots. Mirrors the in-world powerup at HUD scale.
+        # Cone outline (dark wine) + body
+        cone_outline = [
+            (cx,     cy - 8),   # peak
+            (cx + 6, cy + 2),
+            (cx + 7, cy + 4),
+            (cx - 7, cy + 4),
+            (cx - 6, cy + 2),
+        ]
+        cone_body = [
+            (cx,     cy - 7),
+            (cx + 5, cy + 2),
+            (cx + 6, cy + 4),
+            (cx - 6, cy + 4),
+            (cx - 5, cy + 2),
+        ]
+        pygame.draw.polygon(surf, ( 60, 15, 25), cone_outline)
+        pygame.draw.polygon(surf, (125, 30, 45), cone_body)
+        # Pink highlight stripe down the left side of the cone
+        pygame.draw.polygon(surf, (180, 60, 75), [
+            (cx,     cy - 6),
+            (cx - 2, cy - 1),
+            (cx - 3, cy + 3),
+            (cx - 1, cy + 3),
+            (cx,     cy - 1),
+        ])
+        # Cream spots scattered down the cone
+        pygame.draw.circle(surf, (255, 235, 175), (cx,     cy - 4), 1)
+        pygame.draw.circle(surf, (255, 235, 175), (cx + 2, cy + 0), 1)
+        pygame.draw.circle(surf, (255, 235, 175), (cx - 1, cy + 3), 1)
+        # Slim ivory stem with a tiny bulb at the bottom
+        pygame.draw.polygon(surf, (245, 230, 200), [
+            (cx - 2, cy + 4),
+            (cx + 2, cy + 4),
+            (cx + 3, cy + 8),
+            (cx + 1, cy + 9),
+            (cx - 1, cy + 9),
+            (cx - 2, cy + 8),
+        ])
+        pygame.draw.line(surf, (255, 250, 230),
+                         (cx - 1, cy + 5), (cx - 1, cy + 8), 1)
     elif kind == "magnet":
         # Polished horseshoe magnet — rendered at 2× on a scratch surface
         # so the arc smooths under `smoothscale`. Has a dark silhouette
@@ -432,9 +466,38 @@ class PauseButton:
             pygame.draw.rect(surf, _GOLD_BRIGHT, (cx + 3, cy - 9, 5, 18), border_radius=2)
 
 
+class HelpButton:
+    """Top-left "?" button on the menu. Click opens the power-ups
+    explainer (STATE_POWERUPS). Mirrors PauseButton's panel styling so
+    the two top-corner buttons feel like a consistent family."""
+    def __init__(self):
+        self.rect = pygame.Rect(12, 12, 44, 44)
+
+    def contains(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def draw(self, surf):
+        rounded_rect(surf, self.rect, 10, _PANEL_DARK, 200)
+        border = pygame.Surface((self.rect.width, self.rect.height),
+                                pygame.SRCALPHA)
+        pygame.draw.rect(border, (*_ORANGE_BORDER, 120),
+                         (0, 0, self.rect.width, self.rect.height),
+                         border_radius=10, width=1)
+        surf.blit(border, self.rect.topleft)
+        cx, cy = self.rect.center
+        # Bold gold "?" with a soft shadow.
+        f = _font(28, True)
+        sh = f.render("?", True, NEAR_BLACK)
+        sh.set_alpha(150)
+        surf.blit(sh, sh.get_rect(center=(cx + 1, cy + 2)))
+        q = f.render("?", True, _GOLD_BRIGHT)
+        surf.blit(q, q.get_rect(center=(cx, cy)))
+
+
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
+        self.help_btn = HelpButton()
         self.title_t = 0.0
         # Name-entry button rects — populated each frame by draw_name_entry,
         # read by scenes.py click-handling. Pre-init to empty rects so the
@@ -448,6 +511,13 @@ class HUD:
              rng.choice((1, 1, 1, 2)), rng.uniform(0, 6.28))
             for _ in range(38)
         ]
+        # Menu pill hit-test rects — populated each frame by draw_menu, read
+        # by scenes.py click-handling. Pre-init to None so a click that
+        # arrives before the first menu render falls through harmlessly.
+        self.menu_start_rect: "pygame.Rect | None" = None
+        self.menu_howto_rect: "pygame.Rect | None" = None
+        self.menu_powerups_rect: "pygame.Rect | None" = None
+        self.menu_top10_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf):
         self.title_t += 1 / 60
@@ -477,6 +547,11 @@ class HUD:
 
         _draw_overlay_stars(surf, self._stars, self.title_t)
 
+        # Mountain silhouette belongs to the background, drawn before the
+        # foreground UI so the pill / BEST panel / help button sit cleanly
+        # on top of it instead of being darkened by the alpha-180 layer.
+        _draw_mountain_silhouette(surf, alpha=180)
+
         # Floating title — sits above the gameplay-opener post-house +
         # Pip composition (cottage top is at y≈208) so the text never
         # crosses the parrot.
@@ -494,23 +569,70 @@ class HUD:
         pygame.draw.line(surf, (*_ORANGE_BORDER, 120),
                          (W // 2 - 70, 208), (W // 2 + 70, 208), 1)
 
-        # Tap-to-play pill (pulsing)
-        btn_alpha = int(180 + math.sin(self.title_t * 3.6) * 70)
-        _pill_btn(surf, (W // 2, H - 158), "TAP  ·  SPACE  ·  CLICK",
-                  size=18, alpha=btn_alpha)
+        # Three stacked pill buttons replace the single tap-to-play pill
+        # and the corner `?` button. Centres are computed from each pill's
+        # actual rendered height so the white space between buttons is
+        # even regardless of font metrics; the block is anchored 14 px
+        # above the BEST score panel so the bottom pill always clears it.
+        def _pill_h(text: str, size: int) -> int:
+            return _font(size, True).render(text, True, WHITE).get_height() + 22
 
-        # Best score panel
-        hi_rect = pygame.Rect(W // 2 - 72, H - 110, 144, 48)
-        _dark_panel(surf, hi_rect, radius=14, alpha=190)
+        GAP = 12
+        h_start = _pill_h("TAP TO START", 22)
+        h_howto = _pill_h("HOW TO PLAY", 18)
+        h_power = _pill_h("POWER-UPS", 18)
+        y_power = (H - 110) - 14 - h_power // 2
+        y_howto = y_power - h_power // 2 - GAP - h_howto // 2
+        y_start = y_howto - h_howto // 2 - GAP - h_start // 2
+
+        btn_alpha = int(225 + math.sin(self.title_t * 3.6) * 30)
+        self.menu_start_rect = _pill_btn(
+            surf, (W // 2, y_start), "TAP TO START",
+            size=22, alpha=btn_alpha, min_width=220)
+        self.menu_howto_rect = _pill_btn(
+            surf, (W // 2, y_howto), "HOW TO PLAY",
+            size=18, alpha=230, min_width=220)
+        self.menu_powerups_rect = _pill_btn(
+            surf, (W // 2, y_power), "POWER-UPS",
+            size=18, alpha=230, min_width=220)
+
+        # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
+        # (right). Same pill dimensions side-by-side so they read as a
+        # pair. The trophy panel is the leaderboard hit-zone — scenes.py
+        # routes taps that land inside ``self.menu_top10_rect`` to
+        # STATE_LEADERBOARD.
+        panel_w = 132
+        gap = 8
+        total_w = panel_w * 2 + gap
+        left_x = (W - total_w) // 2
+        cy = H - 86  # vertical centre (matches the previous BEST y)
         lf = _font(12, False)
+        vf = _font(22, True)
+
+        # BEST panel (left)
+        best_cx = left_x + panel_w // 2
+        best_rect = pygame.Rect(left_x, cy - 24, panel_w, 48)
+        _dark_panel(surf, best_rect, radius=14, alpha=190)
         lbl = lf.render("B E S T", True, _GOLD_MUTED)
         lbl.set_alpha(180)
-        surf.blit(lbl, lbl.get_rect(center=(W // 2, H - 98)))
-        vf = _font(22, True)
+        surf.blit(lbl, lbl.get_rect(center=(best_cx, cy - 12)))
         val = vf.render(str(best), True, _GOLD_BRIGHT)
-        surf.blit(val, val.get_rect(center=(W // 2, H - 78)))
+        surf.blit(val, val.get_rect(center=(best_cx, cy + 8)))
 
-        _draw_mountain_silhouette(surf, alpha=180)
+        # TOP 10 panel (right) — clickable trophy button
+        top_cx = left_x + panel_w + gap + panel_w // 2
+        top_rect = pygame.Rect(left_x + panel_w + gap, cy - 24, panel_w, 48)
+        _dark_panel(surf, top_rect, radius=14, alpha=190)
+        top_lbl = lf.render("T O P  10", True, _GOLD_MUTED)
+        top_lbl.set_alpha(180)
+        surf.blit(top_lbl, top_lbl.get_rect(center=(top_cx, cy - 12)))
+        _draw_trophy(surf, top_cx, cy + 10, 9)
+        self.menu_top10_rect = top_rect
+
+        # The corner `?` help button is intentionally not drawn here —
+        # the POWER-UPS pill above replaces it. HelpButton class itself
+        # remains in this file unused so it can be revived without churn
+        # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
         # ── Score: centered, styled dark pill backdrop
@@ -851,7 +973,8 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float):
+                         cooldown: float, fetch_error: str = "",
+                         fetch_pending: bool = False):
         self.title_t += dt
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
@@ -873,10 +996,30 @@ class HUD:
 
         n = len(scores)
         if n == 0:
-            _text(surf, "No scores yet!", (W // 2, card_y + 60),
-                  size=18, color=UI_CREAM, shadow=True)
-            _text(surf, "Be the first.", (W // 2, card_y + 94),
-                  size=14, color=UI_CREAM, shadow=False)
+            # Distinguish three cases:
+            #   * fetch_pending — async browser fetch hasn't resolved yet
+            #     (only happens when opened from the menu trophy button)
+            #   * fetch_error — Supabase/RLS/network call failed
+            #   * neither — table is genuinely empty (brand-new database)
+            if fetch_pending:
+                pulse_a = int(180 + math.sin(self.title_t * 3.6) * 60)
+                loading = _font(18, True).render(
+                    "Loading top 10…", True, UI_CREAM)
+                loading.set_alpha(pulse_a)
+                surf.blit(loading,
+                          loading.get_rect(center=(W // 2, card_y + 60)))
+            elif fetch_error:
+                _text(surf, "Top-10 unavailable", (W // 2, card_y + 60),
+                      size=18, color=UI_CREAM, shadow=True)
+                _text(surf, "Check the browser console", (W // 2, card_y + 94),
+                      size=12, color=UI_CREAM, shadow=False)
+                _text(surf, "(" + fetch_error + ")", (W // 2, card_y + 116),
+                      size=11, color=UI_CREAM, shadow=False)
+            else:
+                _text(surf, "No scores yet!", (W // 2, card_y + 60),
+                      size=18, color=UI_CREAM, shadow=True)
+                _text(surf, "Be the first.", (W // 2, card_y + 94),
+                      size=14, color=UI_CREAM, shadow=False)
         else:
             row_h = 46
             card_h = n * row_h + 14
@@ -952,7 +1095,7 @@ class HUD:
                                      (card_x + card_w - 8, ry + row_h - 1))
                 ry += row_h
 
-        if cooldown <= 0:
+        if cooldown <= 0 and not fetch_pending:
             alpha = int(150 + math.sin(self.title_t * 4) * 90)
             f2 = _font(18, True)
             prompt = f2.render("TAP TO MENU", True, WHITE)
