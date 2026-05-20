@@ -2276,33 +2276,76 @@ class PowerUp:
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
     def _draw_skateboard_icon(self, surf):
+        """SKATEBOARD pickup token (variant S4 — Jolly Roger): bone
+        skull centred over two crossed skateboard decks in an X
+        shape, in the in-world kit palette (black + chrome + bone
+        + red). Painted at 4× supersample for clean edges. NO halo
+        — user wants the icon to sit cleanly on the world."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
-        # Helmet (red dome above the board), board (dark plank), 2 wheels.
-        # Halo glow
-        halo = pygame.Surface((48, 48), pygame.SRCALPHA)
-        a = int(60 + 30 * (0.5 + 0.5 * math.sin(self.pulse)))
-        pygame.draw.circle(halo, (255, 180, 120, a), (24, 24), 22)
-        surf.blit(halo, (cx - 24, cy - 24))
-        # Helmet: red half-dome above center.
-        helmet_rect = pygame.Rect(cx - 11, cy - 13, 22, 12)
-        pygame.draw.ellipse(surf, (210, 50, 60), pygame.Rect(cx - 11, cy - 13, 22, 22))
-        pygame.draw.ellipse(surf, (255, 150, 160), pygame.Rect(cx - 7, cy - 12, 8, 5))
-        pygame.draw.ellipse(surf, (110, 20, 30), pygame.Rect(cx - 11, cy - 4, 22, 4))
-        # Board (deck length bumped 28 → 38 to match the in-play
-        # skateboard sprite which got the same proportional increase).
-        deck_rect = pygame.Rect(cx - 19, cy + 4, 38, 4)
-        pygame.draw.rect(surf, (60, 35, 25), deck_rect, border_radius=2)
-        pygame.draw.rect(surf, (140, 90, 55), deck_rect.inflate(-2, -1),
-                         border_radius=2)
-        # Wheels — pushed outward to track the longer deck (was ±9 on
-        # the 28-wide deck, now ±13 on the 38-wide deck — same ~5 px
-        # inset from each edge).
-        for sign in (-1, 1):
-            wx = cx + sign * 13
-            wy = cy + 11
-            pygame.draw.circle(surf, (40, 40, 45), (wx, wy), 3)
-            pygame.draw.circle(surf, (210, 210, 220), (wx, wy), 2)
+
+        # Kit palette (matches _draw_helmet / _draw_skateboard).
+        DOME   = (10, 10, 18)
+        CHROME = (200, 200, 210)
+        BONE   = (240, 240, 230)
+        CREAM  = (245, 240, 230)
+        RED    = (200, 50, 50)
+
+        SS = 4
+        NATIVE_W = NATIVE_H = 56
+        big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
+                             pygame.SRCALPHA)
+        bx = big.get_width() // 2
+        by = big.get_height() // 2
+
+        # Two crossed skateboard decks behind the skull, ±35°.
+        for angle in (35, -35):
+            sub_w = 36 * SS
+            sub_h = 5 * SS
+            sub = pygame.Surface(
+                (sub_w + 4 * SS, sub_h + 4 * SS), pygame.SRCALPHA)
+            d = pygame.Rect(0, 0, sub_w, sub_h)
+            d.center = (sub.get_width() // 2, sub.get_height() // 2)
+            pygame.draw.rect(sub, CHROME, d, border_radius=2 * SS)
+            pygame.draw.rect(sub, DOME,
+                             d.inflate(-2 * SS, -2 * SS),
+                             border_radius=SS)
+            # Wheel dot at each end of the deck.
+            for sign in (-1, 1):
+                wx = d.centerx + sign * (sub_w // 2 - 3 * SS)
+                pygame.draw.circle(sub, CREAM, (wx, d.centery), 2 * SS)
+                pygame.draw.circle(sub, RED, (wx, d.centery), SS)
+            rotated = pygame.transform.rotate(sub, angle)
+            big.blit(rotated, rotated.get_rect(center=(bx, by)))
+
+        # Big bone skull centred on top.
+        sk = pygame.Rect(0, 0, 18 * SS, 14 * SS)
+        sk.center = (bx, by - SS)
+        pygame.draw.ellipse(big, BONE, sk)
+        pygame.draw.ellipse(big, DOME, sk, SS)
+        # Eye sockets — dramatic.
+        for ex in (sk.centerx - 4 * SS, sk.centerx + 2 * SS):
+            pygame.draw.circle(big, DOME,
+                               (ex + SS, sk.centery - SS), 2 * SS)
+        # Nose triangle.
+        pygame.draw.polygon(big, DOME, [
+            (sk.centerx - SS, sk.centery + 2 * SS),
+            (sk.centerx + SS, sk.centery + 2 * SS),
+            (sk.centerx, sk.centery + 4 * SS),
+        ])
+        # Jaw line.
+        pygame.draw.line(big, DOME,
+                         (sk.centerx - 5 * SS, sk.bottom - 2 * SS),
+                         (sk.centerx + 5 * SS, sk.bottom - 2 * SS), SS)
+        # Teeth gaps.
+        for tx in (-3 * SS, 0, 3 * SS):
+            pygame.draw.line(big, DOME,
+                             (sk.centerx + tx, sk.bottom - 4 * SS),
+                             (sk.centerx + tx, sk.bottom - SS), SS)
+
+        # Smoothscale down to native size for anti-aliased edges.
+        icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
+        surf.blit(icon, icon.get_rect(center=(cx, cy)))
 
     def _draw_heist_icon(self, surf):
         """Planked-oak treasure chest pickup token. The pickup uses the
