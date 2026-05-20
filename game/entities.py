@@ -2411,33 +2411,55 @@ class PowerUp:
             rotated = pygame.transform.rotate(sub, angle)
             big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
-        # Big bone skull centred on top (was 18×14).
-        sk = pygame.Rect(0, 0, 23 * SS, 18 * SS)
+        # Bone skull centred over the crossed decks. Skull sized
+        # 27 × 22 SS (V1 base). Eyes / nose / mouth all anchored
+        # to FRACTIONS of skull height so they sit cleanly inside
+        # the ellipse.
+        SK_W = 27
+        SK_H = 22
+        sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
         sk.center = (bx, by - SS)
         pygame.draw.ellipse(big, BONE, sk)
         pygame.draw.ellipse(big, DOME, sk, int(1.2 * SS))
-        # Eye sockets — dramatic.
-        for ex in (sk.centerx - 5 * SS, sk.centerx + 3 * SS):
-            pygame.draw.circle(big, DOME,
-                               (ex + SS, sk.centery - SS),
-                               int(2.5 * SS))
-        # Nose triangle.
+        # Eye sockets — at 0.36 fractional y, radius + offset scale
+        # with skull width.
+        eye_r = int(SK_W * SS * 0.108)
+        eye_x_off = int(SK_W * SS * 0.20)
+        eye_y = sk.top + int(SK_H * SS * 0.36)
+        for ex in (sk.centerx - eye_x_off,
+                   sk.centerx + eye_x_off):
+            pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
+        # Nose triangle — fixed dimensions (±SS half-width, 2.5 SS
+        # tall) anchored at 0.55 fractional y.
+        nose_top_y = sk.top + int(SK_H * SS * 0.55)
+        nose_bot_y = nose_top_y + int(2.5 * SS)
         pygame.draw.polygon(big, DOME, [
-            (sk.centerx - SS,          sk.centery + 3 * SS),
-            (sk.centerx + SS,          sk.centery + 3 * SS),
-            (sk.centerx,               sk.centery + int(5.5 * SS)),
+            (sk.centerx - SS, nose_top_y),
+            (sk.centerx + SS, nose_top_y),
+            (sk.centerx,      nose_bot_y),
         ])
-        # Jaw line.
+        # P1-Misfits "Crimson Ghost" mouth at jaw_y = 0.78 of skull
+        # height (the L2 lower-mouth pick). Upper jaw bar (1.2 SS
+        # stroke, 12 SS span) + 7 small downward fang triangles
+        # (h=2.4 SS, half_w=0.55 SS) hanging from it.
+        jaw_y = sk.top + int(SK_H * SS * 0.78)
+        upper_y = jaw_y - int(SS * 0.8)
+        span = 12 * SS
         pygame.draw.line(big, DOME,
-                         (sk.centerx - 6 * SS, sk.bottom - 2 * SS),
-                         (sk.centerx + 6 * SS, sk.bottom - 2 * SS),
-                         int(1.2 * SS))
-        # Teeth gaps.
-        for tx in (-4 * SS, 0, 4 * SS):
-            pygame.draw.line(big, DOME,
-                             (sk.centerx + tx, sk.bottom - 5 * SS),
-                             (sk.centerx + tx, sk.bottom - SS),
-                             int(1.2 * SS))
+                         (sk.centerx - span // 2, upper_y),
+                         (sk.centerx + span // 2, upper_y),
+                         max(1, int(1.2 * SS)))
+        n_fangs = 7
+        tooth_h = int(2.4 * SS)
+        half_w = max(1, int(SS * 0.55))
+        for i in range(n_fangs):
+            t = i / (n_fangs - 1)
+            tx = sk.centerx - span // 2 + int(t * span)
+            pygame.draw.polygon(big, DOME, [
+                (tx - half_w, upper_y),
+                (tx + half_w, upper_y),
+                (tx,          upper_y + tooth_h),
+            ])
 
         # Smoothscale down to native size for anti-aliased edges.
         icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
