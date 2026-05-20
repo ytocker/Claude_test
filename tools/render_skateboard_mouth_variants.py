@@ -47,8 +47,14 @@ RED    = (200, 50, 50)
 
 SS = 6
 NATIVE_W = NATIVE_H = 96
-SK_W = 27       # fixed face size for this batch
-SK_H = 22
+# Iteration 2: skull bumped 27×22 → 40×32 SS so the mouth/eyes
+# survive the smoothscale-down to game pickup scale. The crossed
+# decks are correspondingly shortened so the skull dominates
+# instead of being framed by oversized X bars.
+SK_W = 40
+SK_H = 32
+DECK_W = 38     # was 46 — narrower so the skull reads as the hero
+DECK_H = 10     # was 9 — chunkier deck for visual weight
 
 
 # ── shared face painter ─────────────────────────────────────────────────────
@@ -66,8 +72,8 @@ def _paint_face(surf, cx, cy, pulse, mouth_fn):
 
     # Two crossed skateboard decks behind the skull.
     for angle in (35, -35):
-        sub_w = 46 * SS
-        sub_h = 9 * SS
+        sub_w = DECK_W * SS
+        sub_h = DECK_H * SS
         sub = pygame.Surface((sub_w + 4 * SS, sub_h + 4 * SS),
                               pygame.SRCALPHA)
         d = pygame.Rect(0, 0, sub_w, sub_h)
@@ -176,20 +182,18 @@ def _mouth_simple_bar(big, sk, jaw_y):
 
 
 def _mouth_pirate_grin(big, sk, jaw_y):
-    """M5 — Curved smile with 2 small tooth dots — happy pirate /
-    skater vibe. The arc is the lower half of an ellipse (same
-    geometry as M1) plus 2 small filled squares hanging from the
-    arc for tooth hints."""
-    arc_w = 14 * SS
-    arc_h = 5 * SS
+    """M5 — Curved smile with 2 tooth hints. Sized up for the
+    larger 40-SS skull so the arc + tooth squares survive
+    smoothscale-down."""
+    arc_w = 18 * SS
+    arc_h = 7 * SS
     arc_rect = pygame.Rect(0, 0, arc_w, arc_h)
     arc_rect.midtop = (sk.centerx, jaw_y - 2 * SS)
     pygame.draw.arc(big, DOME, arc_rect,
                     math.radians(180), math.radians(360),
-                    max(1, int(1.4 * SS)))
-    # 2 small filled-square tooth hints on the arc's upper edge.
-    for tx in (-2 * SS, 2 * SS):
-        rect = pygame.Rect(0, 0, int(1.6 * SS), int(1.8 * SS))
+                    max(2, int(2.0 * SS)))
+    for tx in (-int(3 * SS), int(3 * SS)):
+        rect = pygame.Rect(0, 0, int(2.4 * SS), int(2.4 * SS))
         rect.midtop = (sk.centerx + tx, jaw_y - 2 * SS)
         pygame.draw.rect(big, DOME, rect)
 
@@ -198,21 +202,19 @@ def _mouth_pirate_grin(big, sk, jaw_y):
 # Suicidal Tendencies, Powell Peralta, classic Jolly Roger). ──
 
 def _mouth_p1_misfits(big, sk, jaw_y):
-    """P1 — Misfits "Crimson Ghost" grin. A horizontal upper-jaw
-    line with 7 downward-pointing triangle teeth hanging from
-    it. No bottom jaw bar — the line IS the upper jaw, the teeth
-    hang below it like in the Misfits skull logo."""
-    span = 12 * SS
-    upper_y = jaw_y - int(SS * 0.5)
-    # Upper-jaw line.
+    """P1 — Misfits "Crimson Ghost" grin. A bold horizontal upper-
+    jaw line with 3 BIG SHARP downward triangle fangs hanging
+    from it. Fewer + bigger so each fang reads as a triangle
+    silhouette after smoothscale instead of merging into a bar."""
+    span = 14 * SS
+    upper_y = jaw_y - int(SS * 0.8)
     pygame.draw.line(big, DOME,
                      (sk.centerx - span // 2, upper_y),
                      (sk.centerx + span // 2, upper_y),
-                     max(1, int(1.2 * SS)))
-    # 7 downward triangles hanging from the line.
-    n = 7
-    tooth_h = int(2.4 * SS)
-    half_w = max(1, int(SS * 0.55))
+                     max(2, int(2.0 * SS)))
+    n = 3
+    tooth_h = int(5.0 * SS)
+    half_w = int(SS * 1.8)
     for i in range(n):
         t = i / (n - 1)
         tx = sk.centerx - span // 2 + int(t * span)
@@ -225,10 +227,11 @@ def _mouth_p1_misfits(big, sk, jaw_y):
 
 def _mouth_p2_sawtooth(big, sk, jaw_y):
     """P2 — Pure zigzag / W-shape sawtooth at jaw_y, no horizontal
-    jaw bar. Spike-y stencil-punk vibe."""
-    span = 13 * SS
-    peaks = 5            # number of valleys (the W has 5 valleys)
-    amp = int(2.5 * SS)
+    jaw bar. Fewer + bigger peaks so the zigzag survives
+    smoothscale instead of collapsing to a fuzzy bar."""
+    span = 16 * SS
+    peaks = 3            # 3 valleys + 3 peaks → clear W silhouette
+    amp = int(4.0 * SS)
     pts = []
     n_segs = peaks * 2
     for i in range(n_segs + 1):
@@ -237,46 +240,46 @@ def _mouth_p2_sawtooth(big, sk, jaw_y):
         y = jaw_y + (amp if (i % 2 == 0) else -amp)
         pts.append((x, y))
     pygame.draw.lines(big, DOME, False, pts,
-                      max(1, int(1.4 * SS)))
+                      max(2, int(2.2 * SS)))
 
 
 def _mouth_p3_stitched(big, sk, jaw_y):
-    """P3 — Stitched bandana. Horizontal bar with 4 diagonal X
-    cross-stitches across it. Reads as sewn-shut punk mouth."""
-    span = 11 * SS
+    """P3 — Stitched bandana. 3 BOLD diagonal X cross-stitches
+    along a horizontal bar. Stitches are now 5 SS across with
+    2-SS strokes so they read as discrete Xs at game scale."""
+    span = 14 * SS
     pygame.draw.line(big, DOME,
                      (sk.centerx - span // 2, jaw_y),
                      (sk.centerx + span // 2, jaw_y),
-                     max(1, int(1.4 * SS)))
-    stitch_h = int(2.0 * SS)
-    stitch_w = int(2.0 * SS)
-    n = 4
+                     max(2, int(1.6 * SS)))
+    stitch_h = int(5.0 * SS)
+    stitch_w = int(4.5 * SS)
+    n = 3
     for i in range(n):
         t = (i + 0.5) / n
         cx0 = sk.centerx - span // 2 + int(t * span)
-        # Two short diagonal strokes forming an X centred on the bar.
         pygame.draw.line(big, DOME,
                          (cx0 - stitch_w // 2, jaw_y - stitch_h // 2),
                          (cx0 + stitch_w // 2, jaw_y + stitch_h // 2),
-                         max(1, int(SS * 0.7)))
+                         max(2, int(1.8 * SS)))
         pygame.draw.line(big, DOME,
                          (cx0 - stitch_w // 2, jaw_y + stitch_h // 2),
                          (cx0 + stitch_w // 2, jaw_y - stitch_h // 2),
-                         max(1, int(SS * 0.7)))
+                         max(2, int(1.8 * SS)))
 
 
 def _mouth_p4_missing_tooth(big, sk, jaw_y):
-    """P4 — Missing-tooth grin. Like M2's square teeth row but the
-    CENTRE tooth is missing (gap), plus a small downward red
-    triangle drip hanging from the gap (tiny punk accent)."""
+    """P4 — Missing-tooth grin. 5 CHUNKY square teeth above a
+    jaw line with the CENTRE tooth missing, plus a bold red
+    triangle drip hanging from the gap."""
     pygame.draw.line(big, DOME,
-                     (sk.centerx - 6 * SS, jaw_y),
-                     (sk.centerx + 6 * SS, jaw_y),
-                     max(1, int(1.2 * SS)))
+                     (sk.centerx - 8 * SS, jaw_y),
+                     (sk.centerx + 8 * SS, jaw_y),
+                     max(2, int(1.8 * SS)))
     teeth_n = 5
-    tooth_w = int(1.6 * SS)
-    tooth_h = int(2.6 * SS)
-    span = 10 * SS
+    tooth_w = int(2.6 * SS)
+    tooth_h = int(3.6 * SS)
+    span = 13 * SS
     for i in range(teeth_n):
         if i == teeth_n // 2:
             continue  # missing centre tooth
@@ -286,25 +289,27 @@ def _mouth_p4_missing_tooth(big, sk, jaw_y):
         rect.midbottom = (tx, jaw_y - max(1, SS // 3))
         pygame.draw.rect(big, DOME, rect)
     # Red drip hanging from the centre gap.
-    drip_top_y = jaw_y + int(SS * 0.4)
+    drip_top_y = jaw_y + int(SS * 0.6)
     pygame.draw.polygon(big, RED, [
-        (sk.centerx - int(SS * 0.9), drip_top_y),
-        (sk.centerx + int(SS * 0.9), drip_top_y),
-        (sk.centerx,                  drip_top_y + int(2.4 * SS)),
+        (sk.centerx - int(SS * 1.4), drip_top_y),
+        (sk.centerx + int(SS * 1.4), drip_top_y),
+        (sk.centerx,                  drip_top_y + int(3.6 * SS)),
     ])
 
 
 def _mouth_p5_checker(big, sk, jaw_y):
-    """P5 — Vans-checkerboard. 5 alternating black/white square
-    teeth sitting on a jaw line. Pure skate-culture quotation."""
+    """P5 — Vans-checkerboard. 4 alternating black/white CHUNKY
+    square teeth sitting on a jaw line (fewer + bigger so the
+    checker pattern reads instead of grey-blurring)."""
     pygame.draw.line(big, DOME,
-                     (sk.centerx - 6 * SS, jaw_y),
-                     (sk.centerx + 6 * SS, jaw_y),
-                     max(1, int(1.2 * SS)))
-    teeth_n = 5
-    tooth_w = int(1.8 * SS)
-    tooth_h = int(2.6 * SS)
-    span = 10 * SS
+                     (sk.centerx - 8 * SS, jaw_y),
+                     (sk.centerx + 8 * SS, jaw_y),
+                     max(2, int(1.8 * SS)))
+    teeth_n = 4
+    tooth_w = int(3.2 * SS)
+    tooth_h = int(3.8 * SS)
+    span = 13 * SS
+    # Step over n-1 intervals so the outer teeth land at ±span/2.
     for i in range(teeth_n):
         t = i / (teeth_n - 1)
         tx = sk.centerx - span // 2 + int(t * span)
@@ -312,9 +317,7 @@ def _mouth_p5_checker(big, sk, jaw_y):
         rect.midbottom = (tx, jaw_y - max(1, SS // 3))
         col = DOME if (i % 2 == 0) else BONE
         pygame.draw.rect(big, col, rect)
-        # Tiny dark outline so the white squares still read against
-        # the bone skull.
-        pygame.draw.rect(big, DOME, rect, max(1, SS // 3))
+        pygame.draw.rect(big, DOME, rect, max(2, int(SS * 0.6)))
 
 
 def draw_m1_smile_arc(surf, cx, cy, pulse):
