@@ -2668,14 +2668,15 @@ class PowerUp:
             hdr = f_hdr.render("TRAIN", True, NEAR_BLACK)
             big.blit(hdr, hdr.get_rect(
                 center=(card.centerx + dx,
-                         card.top + int(SS * 5) + dy)))
+                         card.top + int(SS * 6.5) + dy)))
 
         # ── locomotive centred on the card ──
-        # Nudged a touch lower (centery + 3*SS) so the now-much-
-        # bigger "TRAIN" caption has clear vertical room above
-        # the chimney.
-        locomotive(card.centerx, card.centery + int(SS * 3),
-                   scale=1.0)
+        # Scaled 1.15x so the train reads larger; nudged a touch
+        # lower (centery + 3.5*SS) so the now-much-bigger TRAIN
+        # caption (moved DOWN to +6.5*SS) still has clear room
+        # above the chimney.
+        locomotive(card.centerx, card.centery + int(SS * 3.5),
+                   scale=1.15)
 
         # Rotate at supersample then smoothscale down so the tilted
         # edges stay clean. ±4° tilt for the "alive" feel.
