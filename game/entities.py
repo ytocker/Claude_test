@@ -811,9 +811,9 @@ class Bird:
         # In side-view going right, "nose" is the right end of the
         # board and "tail" is the left end.
         if self.grind_type == "nose":
-            base += -18.0  # nose down → tail in the air
+            base += -28.0  # nose down → tail in the air
         elif self.grind_type == "tail":
-            base += 18.0   # nose up → tail planted
+            base += 28.0   # nose up → tail planted
         # During a backflip, ride a full 360° rotation on top of the base
         # tilt. pygame's rotate is modulo-360 internally so values beyond
         # the normal clamp are fine.

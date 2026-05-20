@@ -1009,6 +1009,7 @@ class World:
                         self.bird.vy = 0.0
                         by = self.bird.y
                         self._maybe_skateboard_dust(bx, surface_y)
+                        self._maybe_grind_sparks(surface_y)
                         self._sliding_this_frame = True
                     break  # only one ramp under Pip at a time
         if by + br > GROUND_Y:
@@ -1016,6 +1017,7 @@ class World:
                 # Slide along the ground. Snap, zero vy, dust puff.
                 self.bird.y = GROUND_Y - br
                 self.bird.vy = 0.0
+                self._maybe_grind_sparks(GROUND_Y)
                 by = self.bird.y
                 self._maybe_skateboard_dust(self.bird.x, GROUND_Y)
                 self._sliding_this_frame = True
@@ -1054,6 +1056,7 @@ class World:
                     self.bird.vy = 0.0
                     by = self.bird.y
                     self._maybe_skateboard_dust(bx, gap_bot)
+                    self._maybe_grind_sparks(gap_bot)
                     self._sliding_this_frame = True
                     break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
@@ -1139,6 +1142,7 @@ class World:
             self.bird.y = gap_bot - br
             self.bird.vy = 0.0
             self._maybe_skateboard_dust(bx, gap_bot)
+            self._maybe_grind_sparks(gap_bot)
             self._sliding_this_frame = True
             return True
         # Approach from below onto the upper pillar's underside.
@@ -1180,6 +1184,42 @@ class World:
                     random.randint(2, 3),
                     random.choice(((220, 215, 200), (200, 195, 180), WHITE)),
                     gravity=200,
+                ))
+
+    def _maybe_grind_sparks(self, y_ground):
+        """Bright spark spray at the grinding wheel — front wheel
+        for a nose grind, back wheel for a tail grind. Sprays
+        backward (opposite Pip's motion) with a little upward
+        kick, fast settle. Brighter + denser than the regular
+        slide-dust so the grind reads as metal-on-concrete."""
+        if self.bird.grind_type is None:
+            return
+        # Wheel offset from bird.x — board's wheel centres sit at
+        # roughly ±14 px under Pip's feet at game scale.
+        if self.bird.grind_type == "nose":
+            wheel_dx = +14
+        else:  # "tail"
+            wheel_dx = -14
+        wx = self.bird.x + wheel_dx
+        if random.random() < 0.85:
+            for _ in range(random.randint(3, 5)):
+                # Sparks fan backward (against direction of motion)
+                # with a slight upward kick — π ± 0.5 rad.
+                ang = random.uniform(math.pi * 0.7, math.pi * 1.3)
+                spd = random.uniform(100, 230)
+                colour = random.choice((PARTICLE_ORNG,
+                                         PARTICLE_GOLD,
+                                         PARTICLE_WHT,
+                                         (255, 220, 130)))
+                self.particles.append(Particle(
+                    wx + random.uniform(-2, 2),
+                    y_ground - 2,
+                    math.cos(ang) * spd,
+                    math.sin(ang) * spd - random.uniform(20, 60),
+                    random.uniform(0.18, 0.38),
+                    random.randint(1, 3),
+                    colour,
+                    gravity=500,
                 ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so the
