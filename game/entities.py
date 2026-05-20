@@ -2557,18 +2557,26 @@ class PowerUp:
             pygame.draw.circle(big, CREAM, (hl_cx, hl_cy),
                                max(1, int(hl_r * 0.65)))
 
-            # Wheel sizing + common rail line.
-            big_wheel_r = max(3, int(SS * 2.5 * scale))
-            small_wheel_r = max(2, int(SS * 1.5 * scale))
-            ground_y = (boiler.bottom + int(SS * 2.2 * scale)
-                        + big_wheel_r)
+            # 2 driving wheels, fully BELOW the boiler — classic
+            # Victorian-engraving simplification. Equally-sized
+            # discs spread under the boiler, tops just below
+            # boiler.bottom so they never overlap.
+            wheel_r = max(3, int(SS * 3.2 * scale))
+            gap = max(1, int(SS * 0.5 * scale))
+            wheel_cy = boiler.bottom + wheel_r + gap
+            ground_y = wheel_cy + wheel_r
+            wheel_xs = (
+                boiler.left + int(boiler.width * 0.18),
+                boiler.left + int(boiler.width * 0.80),
+            )
 
-            # Cowcatcher — slants forward+down but stops above the
-            # rail line and ahead of the leading wheel.
+            # Cowcatcher — slants forward+down from the front of
+            # the boiler. Stops above the rail line (deflector,
+            # not snowplough).
             cow_top_inner = boiler.bottom - max(1,
                                                  int(SS * 0.4 * scale))
             cow_outer_x = boiler.right + int(SS * 4 * scale)
-            cow_bot_y = ground_y - int(small_wheel_r * 1.1)
+            cow_bot_y = ground_y - max(1, int(SS * 0.5 * scale))
             cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
             cow_pts = [
                 (boiler.right, cow_top_inner),
@@ -2585,51 +2593,34 @@ class PowerUp:
                 pygame.draw.line(big, CREAM, (vx, v_top),
                                  (vx, v_bot), max(1, SS // 3))
 
-            # 4-4-0 "American" wheel arrangement: 2 big drivers at
-            # the back, 2 small leading wheels at the front.
-            drive_y = ground_y - big_wheel_r
-            drive_xs = (
-                boiler.left + int(boiler.width * 0.18),
-                boiler.left + int(boiler.width * 0.42),
-            )
-            for wx in drive_xs:
-                pygame.draw.circle(big, INK, (wx, drive_y),
-                                   big_wheel_r)
+            # Coupling rod — drawn first so wheels stamp on top.
+            rod_h = max(2, int(SS * 1.0 * scale))
+            rod_y = wheel_cy - int(wheel_r * 0.35) - rod_h // 2
+            pygame.draw.rect(big, INK,
+                             (wheel_xs[0], rod_y,
+                              wheel_xs[1] - wheel_xs[0], rod_h))
+
+            # Wheels — 6-spoke spoked drivers.
+            for wx in wheel_xs:
+                pygame.draw.circle(big, INK, (wx, wheel_cy),
+                                   wheel_r)
                 for ang_deg in (0, 60, 120, 180, 240, 300):
                     ang = math.radians(ang_deg)
-                    x2 = wx + math.cos(ang) * (big_wheel_r - SS // 2)
-                    y2 = drive_y + math.sin(ang) * (big_wheel_r
-                                                     - SS // 2)
-                    pygame.draw.line(big, CREAM, (wx, drive_y),
+                    x2 = wx + math.cos(ang) * (wheel_r - SS // 2)
+                    y2 = wheel_cy + math.sin(ang) * (wheel_r
+                                                      - SS // 2)
+                    pygame.draw.line(big, CREAM, (wx, wheel_cy),
                                      (int(x2), int(y2)),
                                      max(1, int(SS * 0.45 * scale)))
-                pygame.draw.circle(big, CREAM, (wx, drive_y),
+                pygame.draw.circle(big, CREAM, (wx, wheel_cy),
                                    max(1, int(SS * 0.7 * scale)))
-                pygame.draw.circle(big, INK, (wx, drive_y),
-                                   big_wheel_r,
+                pygame.draw.circle(big, INK, (wx, wheel_cy),
+                                   wheel_r,
                                    max(1, int(SS * 0.35 * scale)))
-            # 2 small leading wheels at the front.
-            lead_y = ground_y - small_wheel_r
-            lead_xs = (
-                boiler.left + int(boiler.width * 0.66),
-                boiler.left + int(boiler.width * 0.86),
-            )
-            for wx in lead_xs:
-                pygame.draw.circle(big, INK, (wx, lead_y),
-                                   small_wheel_r)
-                pygame.draw.circle(big, CREAM, (wx, lead_y),
-                                   max(1, int(SS * 0.45 * scale)))
-
-            # Coupling rod.
-            rod_h = max(2, int(SS * 0.6 * scale))
-            rod_y = drive_y - int(big_wheel_r * 0.20) - rod_h // 2
-            pygame.draw.rect(big, INK,
-                             (drive_xs[0], rod_y,
-                              drive_xs[1] - drive_xs[0], rod_h))
-            for wx in drive_xs:
+                # Crank pin on top of the coupling rod.
                 pygame.draw.circle(big, CREAM,
                                    (wx, rod_y + rod_h // 2),
-                                   max(1, int(SS * 0.5 * scale)))
+                                   max(1, int(SS * 0.6 * scale)))
 
             # Smoke puffs above the stack.
             smoke_x = stack_rect.centerx

@@ -212,22 +212,28 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
     pygame.draw.circle(big, window_col, (hl_cx, hl_cy),
                        max(1, int(hl_r * 0.65)))
 
-    # Common rail-line — every wheel touches this ground. The
-    # cowcatcher floats ABOVE the rail (real pilots are deflectors,
-    # not snowploughs).
-    big_wheel_r = max(3, int(SS * 2.5 * scale))
-    small_wheel_r = max(2, int(SS * 1.5 * scale))
-    ground_y = boiler.bottom + int(SS * 2.2 * scale) + big_wheel_r
+    # ── 2 driving wheels, fully BELOW the boiler ──
+    # Equally-sized discs evenly spaced under the boiler centre,
+    # tops just below boiler.bottom so they never overlap the
+    # body. Coupling rod connects them at axle height. This is
+    # the simplified Victorian-engraving look used on classic
+    # ticket art. Wheel radius is ~45% of the boiler height so
+    # the wheels read as a meaningful share of the silhouette.
+    wheel_r = max(3, int(SS * 3.2 * scale))
+    gap = max(1, int(SS * 0.5 * scale))
+    wheel_cy = boiler.bottom + wheel_r + gap
+    ground_y = wheel_cy + wheel_r
+    wheel_xs = (
+        boiler.left + int(boiler.width * 0.18),
+        boiler.left + int(boiler.width * 0.80),
+    )
 
-    # ── Cowcatcher / pilot at the front-bottom ──
-    # Inner edge attaches to the bottom-front of the boiler; outer
-    # edge slopes forward+down but stops well ABOVE the rail line
-    # (and above the leading wheel's bottom) so it reads as a
-    # deflector hanging in front of the wheel rather than overlapping
-    # with the rail-and-wheel assembly.
+    # Cowcatcher / pilot — slants forward+down from the front of
+    # the boiler. Sits AHEAD of the front wheel and stops just
+    # above the rail line (deflector, not snowplough).
     cow_top_inner = boiler.bottom - max(1, int(SS * 0.4 * scale))
     cow_outer_x = boiler.right + int(SS * 4 * scale)
-    cow_bot_y = ground_y - int(small_wheel_r * 1.1)
+    cow_bot_y = ground_y - max(1, int(SS * 0.5 * scale))
     cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
     cow_pts = [
         (boiler.right, cow_top_inner),
@@ -236,7 +242,6 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
         (boiler.right, cow_bot_y - int(SS * 0.6 * scale)),
     ]
     pygame.draw.polygon(big, colour, cow_pts)
-    # 3 vertical vanes hinting at the pilot grille.
     for f in (0.30, 0.55, 0.80):
         vx = cow_pts[0][0] + int((cow_pts[1][0] - cow_pts[0][0]) * f)
         v_top = cow_top_inner + int(SS * 1 * scale * f)
@@ -244,61 +249,38 @@ def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
         pygame.draw.line(big, window_col, (vx, v_top), (vx, v_bot),
                          max(1, SS // 3))
 
-    # ── 4-4-0 "American" wheel arrangement ──
-    # 2 big driving wheels at the BACK (left half of the boiler)
-    # + 2 small leading wheels at the FRONT (right half, ahead of
-    # the drivers and behind the cowcatcher). All four wheels share
-    # `ground_y`; the small front pair sits visually higher because
-    # of the smaller radius.
-    drive_y = ground_y - big_wheel_r
-    drive_xs = (
-        boiler.left + int(boiler.width * 0.18),
-        boiler.left + int(boiler.width * 0.42),
-    )
-    for wx in drive_xs:
-        pygame.draw.circle(big, colour, (wx, drive_y),
-                           big_wheel_r)
+    # Coupling rod — drawn first so the wheels stamp on top of
+    # the rod ends (cleaner edge). Sits slightly above axle height
+    # so it reads as a separate horizontal bar, not part of the
+    # wheel itself.
+    rod_h = max(2, int(SS * 1.0 * scale))
+    rod_y = wheel_cy - int(wheel_r * 0.35) - rod_h // 2
+    pygame.draw.rect(big, colour,
+                     (wheel_xs[0], rod_y,
+                      wheel_xs[1] - wheel_xs[0], rod_h))
+
+    # Wheels.
+    for wx in wheel_xs:
+        pygame.draw.circle(big, colour, (wx, wheel_cy), wheel_r)
         # 6 spokes.
         for ang_deg in (0, 60, 120, 180, 240, 300):
             ang = math.radians(ang_deg)
-            x2 = wx + math.cos(ang) * (big_wheel_r - SS // 2)
-            y2 = drive_y + math.sin(ang) * (big_wheel_r - SS // 2)
-            pygame.draw.line(big, window_col, (wx, drive_y),
+            x2 = wx + math.cos(ang) * (wheel_r - SS // 2)
+            y2 = wheel_cy + math.sin(ang) * (wheel_r - SS // 2)
+            pygame.draw.line(big, window_col, (wx, wheel_cy),
                              (int(x2), int(y2)),
                              max(1, int(SS * 0.45 * scale)))
         # Hub centre.
-        pygame.draw.circle(big, window_col, (wx, drive_y),
+        pygame.draw.circle(big, window_col, (wx, wheel_cy),
                            max(1, int(SS * 0.7 * scale)))
         # Inner tyre edge.
-        pygame.draw.circle(big, colour, (wx, drive_y),
-                           big_wheel_r,
+        pygame.draw.circle(big, colour, (wx, wheel_cy), wheel_r,
                            max(1, int(SS * 0.35 * scale)))
-    # 2 leading wheels (pony truck) — sit ahead of the drivers,
-    # behind the cowcatcher. Small enough that spokes would muddy.
-    lead_y = ground_y - small_wheel_r
-    lead_xs = (
-        boiler.left + int(boiler.width * 0.66),
-        boiler.left + int(boiler.width * 0.86),
-    )
-    for wx in lead_xs:
-        pygame.draw.circle(big, colour, (wx, lead_y),
-                           small_wheel_r)
-        pygame.draw.circle(big, window_col, (wx, lead_y),
-                           max(1, int(SS * 0.45 * scale)))
-
-    # ── Coupling rod connecting the driving wheels ──
-    rod_h = max(2, int(SS * 0.6 * scale))
-    rod_left = drive_xs[0]
-    rod_right = drive_xs[1]
-    rod_y = drive_y - int(big_wheel_r * 0.20) - rod_h // 2
-    pygame.draw.rect(big, colour,
-                     (rod_left, rod_y,
-                      rod_right - rod_left, rod_h))
-    # Crank pins.
-    for wx in drive_xs:
+        # Crank pin on top of the coupling rod (offset above axle
+        # so it visually attaches to the rod, not the hub).
         pygame.draw.circle(big, window_col,
                            (wx, rod_y + rod_h // 2),
-                           max(1, int(SS * 0.5 * scale)))
+                           max(1, int(SS * 0.6 * scale)))
 
     # ── Smoke puffs above the stack ──
     smoke_x = stack_rect.centerx
