@@ -570,10 +570,15 @@ class World:
         self.bird.kickflip_t = KICKFLIP_DURATION
         self.bird.kickflip_dur = KICKFLIP_DURATION
         audio.play_backflip()
+        # Spawn the "KICKFLIP!" text BELOW the bird (and below
+        # the board's rotational sweep, which goes up to ~bird.y
+        # ± 16 during the 360° spin) so the float-text never
+        # covers the spinning board. Drifts DOWNWARD so it stays
+        # clear of the bird as it lingers.
         self.float_texts.append(FloatText(
-            "KICKFLIP!", self.bird.x, self.bird.y - 30,
+            "KICKFLIP!", self.bird.x, self.bird.y + 38,
             (120, 200, 235),
-            size=26, life=1.1, vy=-30, style="powerup",
+            size=26, life=1.1, vy=30, style="powerup",
         ))
 
     # ── update ──────────────────────────────────────────────────────────────
