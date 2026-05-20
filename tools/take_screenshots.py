@@ -63,7 +63,7 @@ save("02_play_hud.png")
 hud3 = HUD(); hud3.title_t = 0.9
 draw_bg(screen); w2.bird.draw(screen,0,0)
 hud3.draw_play(screen, w2, 18, paused=True)
-hud3.draw_pause_overlay(screen);    save("03_pause.png")
+hud3.draw_pause_overlay(screen, score=w2.score);    save("03_pause.png")
 
 hud4 = HUD(); hud4.title_t = 1.4
 w4 = World()
@@ -80,6 +80,36 @@ hud5.draw_gameover(screen, 0, 23, new_best=True); save("05_gameover_best.png")
 hud6 = HUD(); hud6.title_t = 0.7
 draw_bg(screen); w4.bird.draw(screen,0,0)
 hud6.draw_gameover(screen, 0, 0, new_best=False); save("06_gameover_tryagain.png")
+
+hud7 = HUD(); hud7.title_t = 1.4
+draw_bg(screen)
+scores = [
+    {"name": "Hawkins", "score": 148},
+    {"name": "Garrick", "score": 132},
+    {"name": "Atticus", "score": 117},
+    {"name": "Mira",    "score": 104},
+    {"name": "Quill",   "score":  96},
+    {"name": "Bo",      "score":  83},
+    {"name": "Pip",     "score":  42},
+    {"name": "Wren",    "score":  38},
+    {"name": "Stilt",   "score":  29},
+    {"name": "Cinder",  "score":  18},
+]
+hud7.draw_leaderboard(screen, 0, scores, player_rank=6, cooldown=0)
+save("10_leaderboard.png")
+
+hud8 = HUD(); hud8.title_t = 0.9
+draw_bg(screen)
+hud8.draw_name_entry(screen, 0, "PI")
+save("11_name_entry.png")
+
+from game.powerup_help import PowerUpHelpScene
+sc = PowerUpHelpScene()
+sc.update(0.0)
+ps_screen = pygame.Surface((W, H))
+sc.render(ps_screen)
+pygame.image.save(ps_screen, os.path.join(OUT_DIR, "12_powerups_screen.png"))
+print("  saved 12_powerups_screen.png")
 
 # ── Entity close-ups (zoomed panel) ─────────────────────────────────────────
 def entity_panel(entities_data, filename):
@@ -167,7 +197,7 @@ kfc_panel.blit(kfc_lbl, (W//2 - kfc_lbl.get_width()//2, 12))
 for fi in range(4):
     bx = int(W * 0.15 + fi * W * 0.22)
     by = int(H * 0.48)
-    frame = _parrot.KFC_FRAMES[fi]
+    frame = _parrot._get_kfc_frames()[fi]
     kfc_panel.blit(frame, (bx - frame.get_width()//2, by - frame.get_height()//2))
 
 pygame.image.save(kfc_panel, os.path.join(OUT_DIR, "09_kfc_chicken.png"))

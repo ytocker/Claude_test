@@ -35,6 +35,9 @@ COIN_RUSH_COINS    = 14
 
 POWERUP_R          = 14    # collision + footprint radius for every power-up
 POWERUP_CHANCE     = 0.24  # chance to spawn a power-up after a pipe gate
+POWERUP_CHANCE_NEWBIE = 0.10  # warmup starting chance; ramps to POWERUP_CHANCE
+                              # on the same _ramp_t() curve as gap/scroll/spacing
+                              # so the opening doesn't feel like a powerup parade
 POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
 TRIPLE_DURATION    = 8.0
 MAGNET_DURATION    = 8.0
@@ -47,7 +50,7 @@ KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
                              # variant already looks. Stacks with COIN_RUSH.
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
-GROW_SCALE         = 1.5
+GROW_SCALE         = 1.3
 REVERSE_DURATION   = 8.0
 
 # Spawn weights for power-up kinds. Must sum to anything — they're
@@ -66,6 +69,31 @@ POWERUP_WEIGHTS    = (
     ("grow",     1),
     ("surprise", 1),
 )
+
+# ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
+# Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
+# Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without
+# letting the bird visibly clip through.
+PIPE_HITBOX_SHRINK = 4
+
+# ── Onboarding warmup ramp ──────────────────────────────────────────────────
+# Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
+# spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE
+# / PIPE_SPACING). After RAMP_PIPES the ramp is complete and the game stays
+# at today's regular tuning forever — no late-game tightening to GAP_MIN /
+# SCROLL_MAX.
+RAMP_PIPES           = 25
+# Pillars at the very start of a run that hold the full newbie tuning
+# (gap / scroll / spacing / powerup chance) flat before the ease-out ramp
+# in World._ramp_t kicks in. Gives complete first-timers a short
+# predictable runway to internalize flap timing without anything
+# tightening underneath them. Five pillars is ~15 s at PIPE_SPACING_NEWBIE
+# / SCROLL_NEWBIE_BASE — short enough that experienced players don't
+# perceive a "tutorial mode."
+PLATEAU_PIPES        = 5
+GAP_NEWBIE_START     = 225
+SCROLL_NEWBIE_BASE   = 125.0
+PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"

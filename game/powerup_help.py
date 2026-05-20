@@ -36,7 +36,7 @@ POWERUPS = (
     ("slowmo",   "SLOW-MO",  "Slows the world, jumps are the same"),
     ("kfc",      "KFC",      "Fried chicken theme"),
     ("ghost",    "GHOST",    "Go through pillars safely"),
-    ("grow",     "GROW",     "1.5x larger"),
+    ("grow",     "GROW",     "1.3x larger"),
     ("surprise", "SURPRISE", "Picks random from above"),
 )
 
@@ -81,21 +81,69 @@ def _outlined_title(surf, txt, center, size, px, shadow_offset):
 
 
 def _dark_panel(surf, rect, radius, alpha):
-    rounded_rect(surf, rect, radius, _PANEL_DARK, alpha)
-    accent = pygame.Surface((rect.width - radius * 2, 2), pygame.SRCALPHA)
-    accent.fill((*_ORANGE_BORDER, 80))
-    surf.blit(accent, (rect.x + radius, rect.y + 3))
+    """Mirror of hud._dark_panel — gold-trimmed Pip Scarlet card. Kept
+    as a local copy here only to avoid a circular import; the visual
+    output (and tools/gen_scarlet_set.py::card it derives from) is
+    identical to the menu / leaderboard / stats panels."""
+    sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 90),
+                     (0, 0, rect.width + 4, rect.height + 4),
+                     border_radius=radius)
+    surf.blit(sh, (rect.x - 2, rect.y + 4))
+
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
+                     (0, 0, rect.width, rect.height),
+                     border_radius=radius)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
+                     (0, 0, rect.width, rect.height),
+                     width=1, border_radius=radius)
+
+    inset = max(radius - 2, 6)
+    rail_w = max(rect.width - inset * 2, 0)
+    if rail_w > 0:
+        accent = pygame.Surface((rail_w, 2), pygame.SRCALPHA)
+        accent.fill((*_GOLD_BRIGHT, 110))
+        pnl.blit(accent, (inset, 4))
+        pygame.draw.line(pnl, (255, 220, 140, 90),
+                         (inset, 2),
+                         (rect.width - inset, 2), 1)
+    surf.blit(pnl, rect.topleft)
+
+
+_PULSE_FOR_ICON = 1.6
+# Each in-world PowerUp.draw applies a per-kind vertical bob driven by
+# `self.pulse` so the floating sprite waftily rises and falls during
+# play. In static icon contexts (help cards, run-summary chips) the
+# bob makes the icon sit visibly low on its anchor point — most
+# noticeably the ghost, whose bob sums two sin terms (~+4 px at the
+# canonical pulse of 1.6). We compute the bob analytically per kind
+# and subtract it from the blit center so the rendered icon visually
+# centers on (cx, cy) regardless of where in its idle-cycle it sits.
+_ICON_BOB_AT_PULSE = {
+    "ghost":    math.sin(_PULSE_FOR_ICON * 0.9) * 4
+              + math.sin(_PULSE_FOR_ICON * 1.8) * 1.5,
+    "magnet":   math.sin(_PULSE_FOR_ICON * 1.1) * 3,
+    "slowmo":   math.sin(_PULSE_FOR_ICON * 0.7) * 3,
+    "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
+    "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
+    "grow":     math.sin(_PULSE_FOR_ICON * 1.2) * 2,
+}
 
 
 def _powerup_icon(surf, kind, cx, cy, size_px):
     """Render the in-world PowerUp sprite at native ~28px footprint, then
-    smoothscale to size_px. Keeps the procedural detail pixel-true."""
+    smoothscale to size_px. Keeps the procedural detail pixel-true.
+    Compensates for the kind's bob so the icon visually centers on
+    (cx, cy) — see ``_ICON_BOB_AT_PULSE``."""
     small = pygame.Surface((64, 64), pygame.SRCALPHA)
     p = PowerUp(32, 32, kind)
-    p.pulse = 1.6
+    p.pulse = _PULSE_FOR_ICON
     p.draw(small)
     big = pygame.transform.smoothscale(small, (size_px, size_px))
-    surf.blit(big, big.get_rect(center=(cx, cy)))
+    bob = _ICON_BOB_AT_PULSE.get(kind, 0.0)
+    y_adj = -int(round(bob * size_px / 64))
+    surf.blit(big, big.get_rect(center=(cx, cy + y_adj)))
 
 
 def _wrap(font_obj, blurb, max_w):
@@ -132,11 +180,17 @@ class PowerUpHelpScene:
         _gradient_bg(surf)
         _draw_overlay_stars(surf, self._stars, self.t + 1.4)
 
-        _outlined_title(surf, "POWER-UPS", (W // 2, 46),
-                        size=36, px=2, shadow_offset=(2, 3))
+        _outlined_title(surf, "POWER-UPS", (W // 2, 36),
+                        size=32, px=2, shadow_offset=(2, 3))
+        _outlined_title(surf, "COLLECT  TO  BOOST", (W // 2, 70),
+                        size=14, px=1, shadow_offset=(1, 2))
+        # Divider under the subtitle to mirror the menu/run-summary lockup.
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 130),
+                         (W // 2 - 60, 90),
+                         (W // 2 + 60, 90), 1)
 
         # 2x3 grid for the six real kinds.
-        grid_top = 96
+        grid_top = 110
         card_w = 162
         card_h = 124
         gap = 8

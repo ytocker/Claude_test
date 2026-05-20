@@ -1,8 +1,15 @@
-name: Deploy to GitHub Pages (v3_skybit)
+name: Deploy v3 (root) + v4 (/v4/) to GitHub Pages
+
+# One Pages site per repo means a single artifact replaces the whole
+# deploy each time. To keep both v3 (active players, root URL) and v4
+# (preview, /v4/ sub-path) reachable, every triggered run rebuilds
+# BOTH branches and ships them as one combined artifact. This file
+# is intentionally identical on v3_skybit and v4_skybit so a push to
+# either branch produces the same deploy.
 
 on:
   push:
-    branches: [v3_skybit]
+    branches: [v3_skybit, v4_skybit]
   workflow_dispatch:
 
 permissions:
@@ -18,7 +25,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout v3
+        uses: actions/checkout@v4
+        with:
+          ref: v3_skybit
+          path: v3_src
+
+      - name: Checkout v4
+        uses: actions/checkout@v4
+        with:
+          ref: v4_skybit
+          path: v4_src
 
       - uses: actions/setup-python@v5
         with:
@@ -27,29 +44,49 @@ jobs:
       - name: Install pygbag
         run: pip install pygame 'pygbag==0.9.2'
 
-      - name: Build WASM bundle
+      - name: Build v3 WASM bundle
+        working-directory: v3_src
         run: python -m pygbag --build main.py
 
-      - name: Inject theme and Supabase leaderboard
+      - name: Inject theme + Supabase into v3
+        working-directory: v3_src
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      # GitHub Pages serves through Jekyll by default, which silently
-      # skips files/directories whose names start with `_`. Pygbag emits
-      # `_pythons.js`, `_packages/`, etc. — without this marker the game
-      # 404s on its core runtime and the menu never renders.
-      - name: Disable Jekyll (.nojekyll)
-        run: touch build/web/.nojekyll
+      - name: Build v4 WASM bundle
+        working-directory: v4_src
+        run: python -m pygbag --build main.py
 
-      - name: List build artifacts
-        run: ls -la build/web && echo "---" && find build/web -maxdepth 2 -type f | head -40
+      - name: Inject theme + Supabase into v4
+        working-directory: v4_src
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python inject_theme.py
+
+      - name: Combine v3 (root) + v4 (/v4/)
+        run: |
+          mkdir -p combined
+          cp -r v3_src/build/web/. combined/
+          mkdir -p combined/v4
+          cp -r v4_src/build/web/. combined/v4/
+          # GitHub Pages routes through Jekyll by default, which skips
+          # paths beginning with `_`. Pygbag emits `_pythons.js`,
+          # `_packages/`, etc. — the marker disables Jekyll for the
+          # whole site (one at root is enough).
+          touch combined/.nojekyll
+
+      - name: List combined build artifacts
+        run: |
+          echo "root:"; ls -la combined
+          echo "v4:";   ls -la combined/v4
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: combined
 
   deploy:
     environment:

@@ -73,6 +73,12 @@ class App:
         self.hud = HUD()
         self.session_best = 0
         self._new_best = False
+        # Which action the player picked on the run-summary screen.
+        # Persists across STATE_NAMEENTRY / STATE_LEADERBOARD so that
+        # after a top-10 player dismisses the leaderboard they land
+        # where they originally chose. Reset on death so each run
+        # starts fresh.
+        self._post_leaderboard: str = "menu"
         # Intro plays once per program launch — start every session in
         # STATE_INTRO. Within the session (consecutive games after death,
         # menu-tap → play → die → menu) the intro is never replayed since
@@ -90,6 +96,14 @@ class App:
         self._cloud_phase = 0.0
         self._running = True
         self._stats_t = 0.0
+        # True while the HTML splash overlay is still painted on top of
+        # the canvas; flips False on the first user-visible frame (in
+        # async_run, when first_frame_done is set). The intro update
+        # gates on this so the cinematic clock doesn't accumulate while
+        # pygbag is still booting — without it, by the time the splash
+        # dismisses the intro can be ~7 s in (opening on the "avoid
+        # pillars" sub-beat instead of the dawn one).
+        self._splash_covering = True
         # Touch dedup: SDL emits both FINGERDOWN and a synthetic MOUSEBUTTONDOWN
         # for one tap on mobile, so naive routing types every key twice. After
         # any FINGERDOWN, suppress mouse events for a 0.5 s window. On pure
@@ -114,6 +128,24 @@ class App:
         self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
 
+        # ── Deferred pre-warm queue ─────────────────────────────────────────
+        # Two power-ups had per-pickup build cost (GROW: ~50 ms first
+        # build; KFC: 7-37 ms per variant per pickup). Building both at
+        # startup made initial load 150+ ms slower. Instead we queue the
+        # builds and drain ONE per frame in ``_update`` after the first
+        # paint — startup pays nothing, and the cache fills over the
+        # next ~4 frames (during the intro animation where the small
+        # per-frame cost is masked). ``get_cached_mountain`` builds on
+        # demand if a pickup happens before its variant is warm.
+        from game import parrot
+        from game.fries_mountains import LAYER_DRAWERS, get_cached_mountain
+        self._prewarm_queue = [
+            ("grow",    lambda: parrot._get_grow_frames()),
+            ("kfc0",    lambda: get_cached_mountain(0, GROUND_Y, W)),
+            ("kfc1",    lambda: get_cached_mountain(1, GROUND_Y, W)),
+            ("kfc2",    lambda: get_cached_mountain(2, GROUND_Y, W)),
+        ]
+
     # ── helpers ─────────────────────────────────────────────────────────────
 
     @property
@@ -130,6 +162,16 @@ class App:
             # devices) can't immediately skip it back out. The cooldown
             # ticks down inside _update so a deliberate skip works a
             # beat later.
+            #
+            # Also bail while `_splash_covering` is still True: the HTML
+            # splash overlay is on top of the canvas, so the player can't
+            # see the intro and isn't tapping it deliberately. The pygbag
+            # boot kick (inject_theme.fireSyntheticGesture) dispatches a
+            # full pointer/mouse/touch sequence to satisfy the UME gate,
+            # and those events reach this handler — without the gate they
+            # silently skip the intro before the first frame ever renders.
+            if self._splash_covering:
+                return
             if self._cooldown_t > 0:
                 return
             self._finish_intro(skipped=True)
@@ -172,9 +214,13 @@ class App:
                     and self.hud.menu_top10_rect.collidepoint(pos):
                 self._open_leaderboard_from_menu()
                 return
-            # TAP TO START rect, keyboard (no pos), or any tap outside
-            # the secondary buttons — start a play session.
-            self._start_play()
+            # Start a run only when the player hits the START pill (or
+            # presses a key — no pos for keyboard events). Taps that
+            # land anywhere else on the menu are a no-op so an accidental
+            # touch outside the pill can't fling the player into play.
+            if pos is None or (self.hud.menu_start_rect
+                               and self.hud.menu_start_rect.collidepoint(pos)):
+                self._start_play()
         elif self.state == STATE_PLAY:
             if pos and self.hud.pause_btn.contains(pos):
                 self.state = STATE_PAUSE
@@ -183,13 +229,30 @@ class App:
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
         elif self.state == STATE_STATS:
-            if self._stats_t >= 0.6 and not self._fetch_pending:
+            if self._stats_t < 0.6 or self._fetch_pending:
+                return
+            # Hit-test the run-summary buttons. The HUD populates these
+            # rects each frame in draw_stats; before the 0.6s reveal
+            # gate they are empty so taps in that window do nothing.
+            play_rect = getattr(self.hud, "stats_play_again_rect", None)
+            menu_rect = getattr(self.hud, "stats_main_menu_rect", None)
+            if pos and play_rect and play_rect.collidepoint(pos):
+                self._post_leaderboard = "play"
+                self._advance_past_stats()
+            elif pos and menu_rect and menu_rect.collidepoint(pos):
+                self._post_leaderboard = "menu"
                 self._advance_past_stats()
         elif self.state == STATE_NAMEENTRY:
             pass  # JS overlay handles input
         elif self.state == STATE_LEADERBOARD:
             if self._cooldown_t <= 0:
-                self.state = STATE_MENU
+                # Branch on the run-summary intent so the player lands
+                # where they chose on the stats screen after they've
+                # dismissed the leaderboard celebration.
+                if self._post_leaderboard == "play":
+                    self._restart()
+                else:
+                    self.state = STATE_MENU
                 # Keep the menu visible for a beat instead of letting the
                 # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
                 # echoes, or a fast double-click) skip straight into play.
@@ -285,6 +348,17 @@ class App:
             pygame.display.flip()
             if not first_frame_done:
                 first_frame_done = True
+                # Splash overlay is about to start fading — let the
+                # intro clock start ticking from here. See
+                # `self._splash_covering` for the rationale.
+                self._splash_covering = False
+                # The boot kick (inject_theme.fireSyntheticGesture) retries
+                # every 250 ms until it sees skybitGameReady. We just set
+                # that flag, but events fired in the last retry interval
+                # may still be sitting in the pygame queue. Set a short
+                # cooldown so those trailing synthetic taps can't skip the
+                # intro the instant the splash lifts.
+                self._cooldown_t = max(self._cooldown_t, 0.4)
                 # Signal to the JS overlay (inject_theme.py's dismiss()
                 # waits on this) that the canvas now has a real Skybit
                 # frame on it. Without this, the overlay would fade off
@@ -374,12 +448,24 @@ class App:
 
     def _update(self, dt):
         self._cloud_phase += dt
+        # Drain one prewarm task per frame after the splash has lifted, so
+        # the GROW + KFC caches fill incrementally during the intro
+        # rather than blocking startup. Each task takes 7-55 ms.
+        if self._prewarm_queue and not self._splash_covering:
+            _, task = self._prewarm_queue.pop(0)
+            task()
         if self.state == STATE_INTRO:
             if self.intro is None:
                 # Defensive: should never happen, but recover gracefully.
                 self._finish_intro(skipped=True)
                 return
-            self.intro.update(dt)
+            # Hold the intro at t=0 while the HTML splash is still
+            # painting over the canvas — async_run flips this flag the
+            # moment the first visible frame fires. Without the gate
+            # the cinematic fast-forwards past the dawn beat during
+            # pygbag's boot.
+            if not self._splash_covering:
+                self.intro.update(dt)
             # Tick the cooldown so a HOW-TO-PLAY-launched intro becomes
             # skippable a beat after it opens (see the gate in
             # _flap_input's STATE_INTRO branch).
@@ -435,16 +521,23 @@ class App:
         # at the moment of impact carries the whole "run ended" cue.
         self.state = STATE_STATS
         self._stats_t = 0.0
+        # Reset the run-summary intent so a freshly opened stats
+        # screen defaults to "main menu" until the player explicitly
+        # taps PLAY AGAIN.
+        self._post_leaderboard = "menu"
 
     def _advance_past_stats(self):
+        """Tap on run-summary: if the score qualifies for top 10, the
+        player flows into name entry and then the leaderboard view
+        (so they see where their name landed). Otherwise we route
+        straight back to the main menu — the leaderboard is still
+        one tap away from there via the TOP 10 trophy."""
         import sys
         self._final_score = self.world.score
         self._name_input_buf = ""
         if sys.platform == "emscripten":
-            # Browser: stay on the stats screen while an async task fetches
-            # the top-10 from Supabase. When the task resolves it switches
-            # state to STATE_NAMEENTRY (qualifiers) or STATE_LEADERBOARD
-            # (everyone else) — no transitional loading screen.
+            # Browser: kick off async fetch; _on_name_submitted decides
+            # qualifies → NAMEENTRY → LEADERBOARD vs back to MENU.
             self._lb_scores = []
             self._lb_player_rank = -1
             self._fetch_pending = True
@@ -456,7 +549,15 @@ class App:
             if self._qualifies_for_top10(scores, self._final_score):
                 self.state = STATE_NAMEENTRY
             else:
-                self._show_leaderboard_native(scores, submitted=False)
+                # Non-qualifying: honour the player's stats-screen
+                # choice. PLAY AGAIN starts a new run immediately;
+                # MAIN MENU lands them on the menu (legacy default).
+                self.hud.title_t = 0.0
+                if self._post_leaderboard == "play":
+                    self._restart()
+                else:
+                    self.state = STATE_MENU
+                self._cooldown_t = 0.25
 
     @staticmethod
     def _qualifies_for_top10(scores, score) -> bool:
@@ -468,9 +569,10 @@ class App:
 
     def _open_leaderboard_from_menu(self):
         """Tap on the TOP 10 trophy panel in the main menu. Browser:
-        kick off an async Supabase fetch and switch to STATE_LEADERBOARD
-        immediately — the view shows 'Loading top 10…' until the scores
-        arrive. Native: synchronous local fetch.
+        kick off an async Supabase fetch but stay on the menu — the
+        async task switches state to STATE_LEADERBOARD once the scores
+        are in hand, so the player never sees a 'Loading top 10…'
+        flash. Native: synchronous local fetch.
 
         No player highlight (``_lb_player_rank = -1``) because there's
         no just-finished run to rank. The same STATE_LEADERBOARD → MENU
@@ -478,19 +580,20 @@ class App:
         import sys
         self._lb_player_rank = -1
         if sys.platform == "emscripten":
+            if self._fetch_pending:
+                # An earlier tap is still in flight — ignore re-taps
+                # so we don't spawn parallel fetch tasks.
+                return
             self._lb_scores = []
             self._lb_fetch_error = ""
             self._fetch_pending = True
-            self.hud.title_t = 0.0
-            self.state = STATE_LEADERBOARD
-            self._cooldown_t = 1.0
             import asyncio
             try:
                 self._lb_task = asyncio.create_task(
                     self._fetch_leaderboard_from_menu())
             except RuntimeError:
-                # No running event loop (smoke tests). Mark fetch
-                # finished so the view doesn't sit on "Loading…" forever.
+                # No running event loop (smoke tests). Skip the fetch;
+                # the player stays on the menu.
                 self._fetch_pending = False
         else:
             from game import leaderboard
@@ -498,9 +601,10 @@ class App:
             self._show_leaderboard_native(scores, submitted=False)
 
     async def _fetch_leaderboard_from_menu(self):
-        """Background task for the menu trophy button. Resolves into
-        ``_lb_scores`` and clears ``_fetch_pending`` once the Supabase
-        call returns (or fails — the view distinguishes both)."""
+        """Background task for the menu trophy button. Fetches Supabase
+        top-10, stores it on the scene, then switches to
+        STATE_LEADERBOARD — keeping the player on the menu until the
+        scores are ready avoids the transient 'Loading…' screen."""
         try:
             from game import leaderboard
             scores = await leaderboard.fetch_top10()
@@ -509,6 +613,9 @@ class App:
         except Exception:
             pass
         self._fetch_pending = False
+        self.hud.title_t = 0.0
+        self.state = STATE_LEADERBOARD
+        self._cooldown_t = 0.25
 
     def _show_leaderboard_native(self, scores, submitted: bool):
         self._lb_scores = scores
@@ -521,7 +628,7 @@ class App:
             self._lb_player_rank = -1
         self.hud.title_t = 0.0
         self.state = STATE_LEADERBOARD
-        self._cooldown_t = 1.0
+        self._cooldown_t = 0.25
 
     def _submit_name_native(self, name: str):
         """Finish native name-entry: save to local JSON, show leaderboard."""
@@ -532,15 +639,22 @@ class App:
         self._show_leaderboard_native(scores, submitted=bool(name))
 
     async def _on_name_submitted(self):
+        """Browser path triggered from _advance_past_stats. Fetches the
+        current top 10, then branches on qualification: qualifiers go
+        through name entry and land on the leaderboard so they can see
+        where their name placed; non-qualifiers go straight back to
+        the main menu instead of being parked on the leaderboard."""
+        qualified = False
         try:
             from game import leaderboard
             scores = await leaderboard.fetch_top10()
             self._lb_fetch_error = leaderboard.last_fetch_error()
             if self._qualifies_for_top10(scores, self._final_score):
-                # Now we know they qualify — flip to NAMEENTRY so the
-                # Python-side render and the JS overlay both come up
-                # together. Not before; otherwise non-qualifiers see a
-                # name-entry screen flash for the duration of the fetch.
+                qualified = True
+                # Flip to NAMEENTRY so the Python-side render and the
+                # JS overlay come up together — non-qualifiers must
+                # never see a name-entry flash for the duration of
+                # the fetch.
                 self.state = STATE_NAMEENTRY
                 name = await leaderboard.open_name_entry()
                 if name:
@@ -560,8 +674,17 @@ class App:
             pass
         self._fetch_pending = False
         self.hud.title_t = 0.0
-        self.state = STATE_LEADERBOARD
-        self._cooldown_t = 1.0
+        if qualified:
+            self.state = STATE_LEADERBOARD
+            self._cooldown_t = 0.25
+        else:
+            # Non-qualifying browser path: honour the player's stats
+            # button choice. PLAY AGAIN bypasses the menu entirely.
+            if self._post_leaderboard == "play":
+                self._restart()
+            else:
+                self.state = STATE_MENU
+            self._cooldown_t = 0.25
 
     # ── render ──────────────────────────────────────────────────────────────
 
@@ -760,9 +883,10 @@ class App:
             self.hud.draw_play(self.screen, self.world, self.best)
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
-            self.hud.draw_pause_overlay(self.screen)
+            self.hud.draw_pause_overlay(self.screen, score=self.world.score)
         elif self.state == STATE_STATS:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
+                                best=self.best, new_best=self._new_best,
                                 show_prompt=not self._fetch_pending)
         elif self.state == STATE_NAMEENTRY:
             import sys as _sys
@@ -774,7 +898,6 @@ class App:
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
-                fetch_pending=self._fetch_pending,
             )
         else:  # GAMEOVER
             self.hud.draw_gameover(

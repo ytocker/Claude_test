@@ -10,9 +10,12 @@ import pygame
 
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
-    GAP_START, GAP_MIN, SCROLL_BASE, SCROLL_MAX,
+    GAP_START, SCROLL_BASE,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
+    PLATEAU_PIPES,
+    PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
-    POWERUP_CHANCE, POWERUP_COOLDOWN,
+    POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
     SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
@@ -46,6 +49,12 @@ class World:
     SPAWN_GRACE = 1.5
 
     def __init__(self):
+        # Reshuffle the meadow at the start of every new World — picks a
+        # fresh ground theme + sparsity baseline + decoration positions
+        # so no two plays look the same.
+        from game import ground_variants
+        ground_variants.set_run_seed(None)
+
         self.bird = Bird()
         self.pipes: list[Pipe] = []
         self.coins: list[Coin] = []
@@ -86,6 +95,12 @@ class World:
         self.pillars_passed = 0
         self.time_alive = 0.0
         self.near_misses = 0
+        self.flap_count = 0
+        # Every Coin construction increments this; the stats screen uses
+        # coin_count / max(1, coins_spawned - len(coins)) as the "% of
+        # encountered coins grabbed" figure (coins still on screen don't
+        # count as missed yet).
+        self.coins_spawned = 0
         self.powerups_picked = {"triple": 0, "magnet": 0, "slowmo": 0, "kfc": 0, "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0}
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -133,10 +148,23 @@ class World:
 
     # ── difficulty ───────────────────────────────────────────────────────────
 
-    def _diff_t(self):
-        # Constant difficulty — coins do not speed up the scroll or shrink
-        # the pipe gap. The game stays at SCROLL_BASE / GAP_START always.
-        return 0.0
+    def _ramp_t(self):
+        # Plateau-then-ease-out onboarding curve. The first PLATEAU_PIPES
+        # pillars hold the full newbie tuning so a brand-new player has a
+        # short runway to internalize flap timing without anything
+        # tightening underneath them. From there the ramp eases out
+        # (1-(1-x)^2) so the bulk of the tightening lands in the middle
+        # pillars and the last few settle gently into GAP_START /
+        # SCROLL_BASE — no last-mile cliff right where a struggling player
+        # is most fragile. Linear interpolation tested badly because its
+        # biggest absolute deltas landed at the end of the ramp, exactly
+        # the wrong place for newbies.
+        pp = self.pillars_passed
+        if pp < PLATEAU_PIPES:
+            return 0.0
+        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
+        x = min(1.0, x)
+        return 1.0 - (1.0 - x) ** 2
 
     # ── biome ────────────────────────────────────────────────────────────────
 
@@ -149,10 +177,16 @@ class World:
         return biome.palette_for_phase(self.biome_phase)
 
     def _current_gap(self):
-        return int(_lerp(GAP_START, GAP_MIN, self._diff_t()))
+        return int(_lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t()))
 
     def _current_scroll(self):
-        return _lerp(SCROLL_BASE, SCROLL_MAX, self._diff_t())
+        return _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+
+    def _current_spacing(self):
+        return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
+
+    def _current_powerup_chance(self):
+        return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
 
     # ── spawning ─────────────────────────────────────────────────────────────
 
@@ -162,9 +196,10 @@ class World:
         # behind Pip before the first pillar arrives.
         offset = int(self.SPAWN_GRACE * SCROLL_BASE)
         x = W + 60 + offset
+        spacing = self._current_spacing()
         for _ in range(3):
             self._spawn_pipe(x)
-            x += PIPE_SPACING
+            x += spacing
 
     def _spawn_pipe(self, x):
         gap_h = self._current_gap()
@@ -198,8 +233,9 @@ class World:
             self._maybe_spawn_powerup(p)
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
+        prev_count = len(self.coins)
         pattern = random.choice(("arc", "line", "cluster"))
-        cx = pipe.x + PIPE_W + PIPE_SPACING * 0.5
+        cx = pipe.x + PIPE_W + self._current_spacing() * 0.5
         gy = pipe.gap_y
         if pattern == "arc":
             n = 5
@@ -218,12 +254,15 @@ class World:
         else:  # cluster
             for dx, dy in ((0, 0), (-20, -14), (20, -14), (-20, 14), (20, 14)):
                 self.coins.append(Coin(cx + dx, gy + dy))
+        self.coins_spawned += len(self.coins) - prev_count
 
     def _spawn_rush_coins(self, pipe: Pipe):
         """Dense coin formation across the gap — random variant each rush."""
-        cx = pipe.x + PIPE_W + PIPE_SPACING * 0.45
+        prev_count = len(self.coins)
+        spacing = self._current_spacing()
+        cx = pipe.x + PIPE_W + spacing * 0.45
         gy = pipe.gap_y
-        span = PIPE_SPACING * 0.85
+        span = spacing * 0.85
         amp = min(pipe.gap_h * 0.32, 65)
         n = COIN_RUSH_COINS
 
@@ -276,6 +315,8 @@ class World:
                 y = gy + amp * 0.4 - math.sin(math.pi * t) * amp * 0.3
                 self.coins.append(Coin(x, y))
 
+        self.coins_spawned += len(self.coins) - prev_count
+
     def _announce_rush(self, pipe: Pipe):
         """Gold sparkle burst when a rush pipe enters from the right edge."""
         x = pipe.x - 20
@@ -295,12 +336,12 @@ class World:
     def _maybe_spawn_powerup(self, pipe: Pipe):
         if self.powerup_cooldown > 0:
             return
-        if random.random() >= POWERUP_CHANCE:
+        if random.random() >= self._current_powerup_chance():
             return
         kinds = [k for k, _ in POWERUP_WEIGHTS]
         weights = [w for _, w in POWERUP_WEIGHTS]
         kind = random.choices(kinds, weights=weights, k=1)[0]
-        x = pipe.x + PIPE_W + PIPE_SPACING * 0.5 + random.uniform(-20, 20)
+        x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
         y = pipe.gap_y + random.uniform(-10, 10)
         self.powerups.append(PowerUp(x, y, kind=kind))
         self.powerup_cooldown = POWERUP_COOLDOWN
@@ -315,6 +356,7 @@ class World:
                 self.ready_t = 0.0
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.flap(gravity_sign=sign)
+            self.flap_count += 1
             audio.play_flap()
 
     # ── update ──────────────────────────────────────────────────────────────
@@ -383,8 +425,9 @@ class World:
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
 
             # spawn more pipes
-            if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
-                self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
+            spacing = self._current_spacing()
+            if self.pipes and self.pipes[-1].x < W - spacing:
+                self._spawn_pipe(self.pipes[-1].x + spacing)
 
             # scoring: pass a pipe
             bx = self.bird.x
@@ -506,7 +549,15 @@ class World:
     def _check_collisions(self):
         bx, by = self.bird.x, self.bird.y
         br = self.bird_radius()
-        if by + br > GROUND_Y or by - br < 0:
+        # Ceiling: clamp Pip and zero upward velocity instead of killing.
+        # Bonking the top edge feels accidental and was a recurring "unfair
+        # death" complaint; the ground still kills.
+        if by - br < 0:
+            self.bird.y = br
+            if self.bird.vy < 0:
+                self.bird.vy = 0.0
+            by = self.bird.y
+        if by + br > GROUND_Y:
             self._die()
             return
         if self.ghost_timer > 0:
@@ -524,7 +575,7 @@ class World:
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
         for p in self.pipes:
-            if p.collides_circle(bx, by, br - 2):
+            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
                 self._die()
                 return
             if p.collides_circle(px, py, pr - 1):
@@ -732,14 +783,14 @@ class World:
         # cached Surface are read by PlayScene._draw_background for as
         # long as kfc_timer > 0.
         from game.fries_mountains import (
-            KFC_MOUNTAIN_DRAWERS, make_fries_mountain_cache,
+            KFC_MOUNTAIN_DRAWERS, get_cached_mountain,
         )
         self.kfc_mountain_variant = random.randint(
             0, len(KFC_MOUNTAIN_DRAWERS) - 1)
-        # The cache build runs ONCE per activation, not every frame.
-        # Three per-layer Surfaces (back / far / near) are then blitted
-        # with independent parallax offsets each frame.
-        self.kfc_mountain_layers = make_fries_mountain_cache(
+        # Module-level cache built once per variant — App.__init__ prewarms
+        # all variants under the splash, so this is a guaranteed cache hit
+        # at pickup time (no frame spike).
+        self.kfc_mountain_layers = get_cached_mountain(
             self.kfc_mountain_variant, GROUND_Y, W)
         # Snapshot scroll at pickup so PlayScene can derive the parallax
         # offset (bg_scroll - kfc_activation_scroll) for each layer.
