@@ -2477,8 +2477,9 @@ class PowerUp:
             center=(card.centerx, card.centery + SS + 1)))
         # Sepia paper fill.
         pygame.draw.rect(big, SEPIA, card)
-        # THICK black outer perimeter — 2 SS wide.
-        pygame.draw.rect(big, NEAR_BLACK, card, max(2, int(SS * 2)))
+        # Slimmer black outer perimeter — 1.4 SS wide (was 2 SS).
+        pygame.draw.rect(big, NEAR_BLACK, card,
+                         max(2, int(SS * 1.4)))
         # Lighter engraved inner border, inset 3.5 SS.
         inner = card.inflate(-int(SS * 3.5), -int(SS * 3.5))
         pygame.draw.rect(big, NEAR_BLACK, inner,
