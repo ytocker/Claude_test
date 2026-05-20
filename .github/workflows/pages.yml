@@ -1,15 +1,15 @@
-name: Deploy v3 (root) + v4 (/v4/) to GitHub Pages
+name: Deploy main (root) + v4 (/v4/) to GitHub Pages
 
 # One Pages site per repo means a single artifact replaces the whole
-# deploy each time. To keep both v3 (active players, root URL) and v4
-# (preview, /v4/ sub-path) reachable, every triggered run rebuilds
+# deploy each time. To keep both main (active players, root URL) and
+# v4 (preview, /v4/ sub-path) reachable, every triggered run rebuilds
 # BOTH branches and ships them as one combined artifact. This file
-# is intentionally identical on v3_skybit and v4_skybit so a push to
+# is intentionally identical on main and v4_skybit so a push to
 # either branch produces the same deploy.
 
 on:
   push:
-    branches: [v3_skybit, v4_skybit]
+    branches: [main, v4_skybit]
   workflow_dispatch:
 
 permissions:
@@ -25,11 +25,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout v3
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: v3_skybit
-          path: v3_src
+          ref: main
+          path: main_src
 
       - name: Checkout v4
         uses: actions/checkout@v4
@@ -44,12 +44,12 @@ jobs:
       - name: Install pygbag
         run: pip install pygame 'pygbag==0.9.2'
 
-      - name: Build v3 WASM bundle
-        working-directory: v3_src
+      - name: Build main WASM bundle
+        working-directory: main_src
         run: python -m pygbag --build main.py
 
-      - name: Inject theme + Supabase into v3
-        working-directory: v3_src
+      - name: Inject theme + Supabase into main
+        working-directory: main_src
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -66,10 +66,10 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Combine v3 (root) + v4 (/v4/)
+      - name: Combine main (root) + v4 (/v4/)
         run: |
           mkdir -p combined
-          cp -r v3_src/build/web/. combined/
+          cp -r main_src/build/web/. combined/
           mkdir -p combined/v4
           cp -r v4_src/build/web/. combined/v4/
           # GitHub Pages routes through Jekyll by default, which skips
