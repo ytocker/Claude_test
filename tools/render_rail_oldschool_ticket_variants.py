@@ -119,73 +119,189 @@ def _rubber_stamp(big, SS, cx, cy, r, text, rot_deg=-12):
     big.blit(rotated, rotated.get_rect(center=(cx, cy)))
 
 
-def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK):
-    """Tiny classic steam-locomotive silhouette anchored at its
-    centre. Composed of: cab (left tall block), boiler (right
-    horizontal cylinder), smokestack (small chimney on top of
-    boiler), 3 driving wheels, small smoke puff above the stack.
-    Period-appropriate for an old-school train ticket."""
-    w = int(SS * 14 * scale)
-    h = int(SS * 6.5 * scale)
-    # Boiler — horizontal cylinder body on the right.
-    boiler = pygame.Rect(0, 0, int(w * 0.62), int(h * 0.55))
-    boiler.midright = (cx + w // 2, cy + int(SS * 0.4 * scale))
+def _locomotive(big, SS, cx, cy, scale=1.0, colour=INK,
+                window_col=CREAM):
+    """Detailed classic steam-locomotive silhouette anchored at its
+    centre. Period-appropriate for an old-school train ticket.
+    Components, drawn back-to-front:
+
+      * cab (left tall block) with overhanging roof + window
+      * boiler (right horizontal cylinder) with 2 lighter iron
+        hoop bands
+      * smokestack with flared cap
+      * steam dome between cab and stack
+      * sand dome between dome and stack (smaller)
+      * headlight (lamp) on the front of the boiler
+      * cowcatcher (slanted pilot) at the front-bottom
+      * 2 large spoked driving wheels + 1 small leading wheel,
+        connected by a coupling rod
+      * 4 stacked smoke puffs above the stack
+
+    All sizes scale with `scale` so the same recipe fits every
+    ticket layout."""
+    # Base footprint at scale=1.0 is 28 SS × 14 SS — already much
+    # bigger than the earlier 14 SS × 6.5 SS silhouette.
+    w = int(SS * 28 * scale)
+    h = int(SS * 14 * scale)
+
+    # ── Boiler (rounded horizontal cylinder on the right) ──
+    boiler_w = int(w * 0.66)
+    boiler_h = int(h * 0.50)
+    boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
+    boiler.midright = (cx + w // 2, cy + int(SS * 0.5 * scale))
     pygame.draw.rect(big, colour, boiler,
-                     border_radius=max(1, int(SS * 0.6 * scale)))
-    # Cab — taller block on the left.
-    cab_w = int(w * 0.32)
+                     border_radius=max(1, int(SS * 0.8 * scale)))
+    # 2 iron-hoop bands across the boiler (light strokes).
+    for band_t in (0.30, 0.65):
+        bx = boiler.left + int(boiler.width * band_t)
+        pygame.draw.line(big, window_col,
+                         (bx, boiler.top + max(1, SS // 3)),
+                         (bx, boiler.bottom - max(1, SS // 3)),
+                         max(1, int(SS * 0.4 * scale)))
+
+    # ── Cab (taller block on the left) ──
+    cab_w = int(w * 0.30)
     cab_h = int(h * 0.85)
     cab = pygame.Rect(0, 0, cab_w, cab_h)
-    cab.midleft = (cx - w // 2, cy + int(SS * 0.10 * scale))
+    cab.midleft = (cx - w // 2, cy + int(SS * 1 * scale))
     pygame.draw.rect(big, colour, cab,
-                     border_radius=max(1, int(SS * 0.6 * scale)))
-    # Cab window — small lighter rectangle.
-    win = pygame.Rect(0, 0, int(cab_w * 0.5), int(cab_h * 0.35))
-    win.center = (cab.centerx, cab.top + int(cab_h * 0.30))
-    pygame.draw.rect(big, CREAM, win)
-    # Smokestack — small chimney on top of the boiler near the
-    # front.
-    stack_w = max(1, int(SS * 1.6 * scale))
-    stack_h = max(1, int(SS * 2.4 * scale))
-    stack_x = boiler.right - int(SS * 2.5 * scale) - stack_w // 2
-    pygame.draw.rect(big, colour,
-                     (stack_x, boiler.top - stack_h,
-                      stack_w, stack_h))
-    # Stack flare (slight widening at the top).
-    flare_w = int(stack_w * 1.5)
-    flare = pygame.Rect(0, 0, flare_w, max(1, int(SS * 0.6 * scale)))
-    flare.midbottom = (stack_x + stack_w // 2, boiler.top - stack_h)
+                     border_radius=max(1, int(SS * 0.7 * scale)))
+    # Cab roof overhang.
+    roof_w = int(cab_w * 1.20)
+    roof_h = max(2, int(SS * 0.9 * scale))
+    roof = pygame.Rect(0, 0, roof_w, roof_h)
+    roof.midbottom = (cab.centerx + max(1, int(SS * 0.4 * scale)),
+                       cab.top + roof_h)
+    pygame.draw.rect(big, colour, roof)
+    # Window — lighter rectangle inside the cab.
+    win = pygame.Rect(0, 0, int(cab_w * 0.55), int(cab_h * 0.32))
+    win.center = (cab.centerx, cab.top + int(cab_h * 0.32))
+    pygame.draw.rect(big, window_col, win)
+    pygame.draw.rect(big, colour, win, max(1, SS // 3))
+
+    # ── Smokestack with flared cap ──
+    stack_w = max(2, int(SS * 2.0 * scale))
+    stack_h = max(3, int(SS * 4.5 * scale))
+    stack_x = boiler.right - int(SS * 5 * scale) - stack_w // 2
+    stack_rect = pygame.Rect(stack_x, boiler.top - stack_h,
+                              stack_w, stack_h)
+    pygame.draw.rect(big, colour, stack_rect)
+    flare_w = int(stack_w * 1.9)
+    flare_h = max(1, int(SS * 0.9 * scale))
+    flare = pygame.Rect(0, 0, flare_w, flare_h)
+    flare.midbottom = (stack_rect.centerx, stack_rect.top)
     pygame.draw.rect(big, colour, flare)
-    # Smoke puff above the stack (3 small circles).
-    smoke_x = stack_x + stack_w // 2
-    smoke_y = boiler.top - stack_h - int(SS * 2 * scale)
+
+    # ── Steam dome (between cab and stack) ──
+    dome_w = max(3, int(SS * 2.4 * scale))
+    dome_h = max(2, int(SS * 1.8 * scale))
+    dome_cx = boiler.left + int(boiler.width * 0.32)
+    dome_rect = pygame.Rect(0, 0, dome_w, dome_h * 2)
+    dome_rect.midbottom = (dome_cx, boiler.top + max(1, SS // 3))
+    pygame.draw.ellipse(big, colour, dome_rect)
+    # Iron cap on the steam dome.
+    cap = pygame.Rect(0, 0, int(dome_w * 1.4),
+                       max(1, int(SS * 0.5 * scale)))
+    cap.midbottom = (dome_cx, dome_rect.midbottom[1] - dome_h)
+    pygame.draw.rect(big, colour, cap)
+
+    # ── Sand dome (smaller, between steam dome and stack) ──
+    sand_w = max(2, int(SS * 1.8 * scale))
+    sand_h = max(2, int(SS * 1.4 * scale))
+    sand_cx = boiler.left + int(boiler.width * 0.52)
+    sand_rect = pygame.Rect(0, 0, sand_w, sand_h * 2)
+    sand_rect.midbottom = (sand_cx, boiler.top + max(1, SS // 3))
+    pygame.draw.ellipse(big, colour, sand_rect)
+
+    # ── Headlight on the front of the boiler ──
+    hl_r = max(2, int(SS * 1.3 * scale))
+    hl_cx = boiler.right - hl_r - int(SS * 0.5 * scale)
+    hl_cy = boiler.top + int(boiler.height * 0.42)
+    pygame.draw.circle(big, colour, (hl_cx, hl_cy),
+                       hl_r + max(1, SS // 3))
+    pygame.draw.circle(big, window_col, (hl_cx, hl_cy),
+                       max(1, int(hl_r * 0.65)))
+
+    # ── Cowcatcher / pilot at the front-bottom ──
+    cow_pts = [
+        (boiler.right - int(SS * 1 * scale),
+         boiler.bottom - max(1, SS // 3)),
+        (boiler.right + int(SS * 3.5 * scale),
+         boiler.bottom + int(SS * 1.5 * scale)),
+        (boiler.right + int(SS * 3.5 * scale),
+         boiler.bottom + int(SS * 3.5 * scale)),
+        (boiler.right - int(SS * 1 * scale),
+         boiler.bottom + int(SS * 3 * scale)),
+    ]
+    pygame.draw.polygon(big, colour, cow_pts)
+    # 3 vertical vanes hinting at the pilot grille.
+    for f in (0.30, 0.55, 0.80):
+        vx = cow_pts[0][0] + int((cow_pts[1][0] - cow_pts[0][0]) * f)
+        v_top = boiler.bottom + int(SS * 1 * scale * f)
+        v_bot = boiler.bottom + int(SS * 3 * scale)
+        pygame.draw.line(big, window_col, (vx, v_top), (vx, v_bot),
+                         max(1, SS // 3))
+
+    # ── Driving wheels (2 big, spoked) + leading wheel (1 small) ──
+    big_wheel_r = max(3, int(SS * 2.5 * scale))
+    small_wheel_r = max(2, int(SS * 1.5 * scale))
+    wheel_y = boiler.bottom + big_wheel_r - int(SS * 0.5 * scale)
+    drive_xs = (
+        cab.right + int(SS * 1 * scale) + big_wheel_r // 2,
+        boiler.left + int(boiler.width * 0.55),
+    )
+    for wx in drive_xs:
+        pygame.draw.circle(big, colour, (wx, wheel_y),
+                           big_wheel_r)
+        # 6 spokes.
+        for ang_deg in (0, 60, 120, 180, 240, 300):
+            ang = math.radians(ang_deg)
+            x2 = wx + math.cos(ang) * (big_wheel_r - SS // 2)
+            y2 = wheel_y + math.sin(ang) * (big_wheel_r - SS // 2)
+            pygame.draw.line(big, window_col, (wx, wheel_y),
+                             (int(x2), int(y2)),
+                             max(1, int(SS * 0.45 * scale)))
+        # Hub centre.
+        pygame.draw.circle(big, window_col, (wx, wheel_y),
+                           max(1, int(SS * 0.7 * scale)))
+        # Inner tyre edge.
+        pygame.draw.circle(big, colour, (wx, wheel_y),
+                           big_wheel_r,
+                           max(1, int(SS * 0.35 * scale)))
+    # Leading wheel (front).
+    lead_wx = boiler.right - int(SS * 0.5 * scale)
+    lead_wy = boiler.bottom + small_wheel_r + int(SS * 1 * scale)
+    pygame.draw.circle(big, colour, (lead_wx, lead_wy),
+                       small_wheel_r)
+    pygame.draw.circle(big, window_col, (lead_wx, lead_wy),
+                       max(1, int(SS * 0.45 * scale)))
+
+    # ── Coupling rod connecting the driving wheels ──
+    rod_h = max(2, int(SS * 0.6 * scale))
+    rod_left = drive_xs[0]
+    rod_right = drive_xs[1]
+    rod_y = wheel_y - int(big_wheel_r * 0.20) - rod_h // 2
+    pygame.draw.rect(big, colour,
+                     (rod_left, rod_y,
+                      rod_right - rod_left, rod_h))
+    # Crank pins.
+    for wx in drive_xs:
+        pygame.draw.circle(big, window_col,
+                           (wx, rod_y + rod_h // 2),
+                           max(1, int(SS * 0.5 * scale)))
+
+    # ── Smoke puffs above the stack ──
+    smoke_x = stack_rect.centerx
+    smoke_y = stack_rect.top - int(SS * 1.5 * scale)
     for dx, dy, sr in (
-        (0,                    0,                       int(SS * 1.2 * scale)),
-        (int(SS * -1.2 * scale), int(SS * -1.5 * scale), int(SS * 1.0 * scale)),
-        (int(SS *  1.2 * scale), int(SS * -2.5 * scale), int(SS * 0.9 * scale)),
+        (0,                       0,                       int(SS * 1.7 * scale)),
+        (int(SS * -1.6 * scale),  int(SS * -2.8 * scale),  int(SS * 2.0 * scale)),
+        (int(SS *  1.8 * scale),  int(SS * -5.0 * scale),  int(SS * 1.8 * scale)),
+        (int(SS *  0.4 * scale),  int(SS * -7.5 * scale),  int(SS * 1.4 * scale)),
     ):
         pygame.draw.circle(big, colour,
                             (smoke_x + dx, smoke_y + dy),
                             max(1, sr))
-    # 3 driving wheels along the bottom.
-    wheel_r = max(1, int(SS * 1.6 * scale))
-    wheel_y = boiler.bottom + wheel_r - int(SS * 0.5 * scale)
-    wheel_xs = (cab.right + int(SS * 1 * scale),
-                boiler.left + int(boiler.width * 0.35),
-                boiler.right - int(SS * 2 * scale))
-    for wx in wheel_xs:
-        pygame.draw.circle(big, colour, (wx, wheel_y), wheel_r)
-        # Small cream hub.
-        pygame.draw.circle(big, CREAM, (wx, wheel_y),
-                           max(1, int(wheel_r * 0.35)))
-    # Cowcatcher — small triangle at the front of the boiler.
-    cow_pts = [
-        (boiler.right, boiler.bottom - int(SS * 0.5 * scale)),
-        (boiler.right + int(SS * 2 * scale),
-         wheel_y - int(SS * 0.5 * scale)),
-        (boiler.right, wheel_y - int(SS * 0.5 * scale)),
-    ]
-    pygame.draw.polygon(big, colour, cow_pts)
 
 
 # ── 5 old-school ticket variants ────────────────────────────────────────────
@@ -213,23 +329,19 @@ def draw_o1_br_edmondson(surf, cx, cy, pulse):
                     card.right - int(SS * 4),
                     card.top + int(SS * 4),
                     int(SS * 1.6))
-        # Big "RAIL" wordmark.
-        f_big = _font(int(SS * 7))
-        rail = f_big.render("RAIL", True, NEAR_BLACK)
-        big.blit(rail, rail.get_rect(
-            center=(card.centerx, card.top + int(SS * 11))))
-        # "TICKET" smaller underneath.
-        f_sub = _font(int(SS * 3.4))
-        tk = f_sub.render("TICKET", True, NEAR_BLACK)
-        big.blit(tk, tk.get_rect(
-            center=(card.centerx, card.top + int(SS * 17))))
-        # Locomotive silhouette at the bottom.
+        # "RAIL TICKET" wordmark — compact header so the big train
+        # has room to dominate.
+        f_hdr = _font(int(SS * 3.6))
+        hdr = f_hdr.render("RAIL TICKET", True, NEAR_BLACK)
+        big.blit(hdr, hdr.get_rect(
+            center=(card.centerx, card.top + int(SS * 6))))
+        # Large detailed locomotive centred on the ticket.
         _locomotive(big, SS,
-                    card.centerx, card.bottom - int(SS * 7),
-                    scale=0.95)
-        # Tiny "ADULT" subtext under the loco.
-        f_tiny = _font(int(SS * 1.8))
-        ad = f_tiny.render("ADULT", True, INK)
+                    card.centerx, card.centery + int(SS * 4),
+                    scale=1.55)
+        # Tiny "ADULT" subtext along the bottom.
+        f_tiny = _font(int(SS * 1.9))
+        ad = f_tiny.render("ADULT FARE", True, INK)
         big.blit(ad, ad.get_rect(midbottom=(card.centerx,
                                               card.bottom - int(SS * 1))))
 
@@ -274,22 +386,21 @@ def draw_o2_victorian(surf, cx, cy, pulse):
             pygame.draw.circle(big, INK,
                                (cx0, cy0 + sy * int(SS * 1.4)),
                                max(1, SS // 3))
-        # "RAILWAY" header — bold, with letter-spacing implied via
-        # plain render.
-        f_hdr = _font(int(SS * 4.8))
+        # "RAILWAY" header — slimmer so the train can dominate.
+        f_hdr = _font(int(SS * 3.4))
         hdr = f_hdr.render("RAILWAY", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 9))))
-        # Locomotive centre.
+            center=(card.centerx, card.top + int(SS * 5.5))))
+        # Large detailed locomotive centred.
         _locomotive(big, SS,
                     card.centerx,
-                    card.centery + int(SS * 2),
-                    scale=1.05)
-        # "ONE PASSAGE" small caps below the loco.
-        f_sub = _font(int(SS * 2.4))
+                    card.centery + int(SS * 4),
+                    scale=1.65)
+        # "ONE PASSAGE" small caps along the bottom.
+        f_sub = _font(int(SS * 2.0))
         sub = f_sub.render("ONE PASSAGE", True, INK)
         big.blit(sub, sub.get_rect(
-            midbottom=(card.centerx, card.bottom - int(SS * 4))))
+            midbottom=(card.centerx, card.bottom - int(SS * 2.5))))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -315,26 +426,20 @@ def draw_o3_two_tone(surf, cx, cy, pulse):
         band = pygame.Rect(card.left, card.centery - band_h // 2,
                             card.width, band_h)
         pygame.draw.rect(big, RED_FADE, band)
-        # Top "RAIL CO." caption.
-        f_hdr = _font(int(SS * 3.6))
+        # "RAIL CO." caption (small, above the band).
+        f_hdr = _font(int(SS * 2.6))
         hdr = f_hdr.render("RAIL CO.", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 5.5))))
+            center=(card.centerx, card.top + int(SS * 4.5))))
         # "EXPRESS" in cream on the red band.
-        f_express = _font(int(SS * 3.4))
+        f_express = _font(int(SS * 3.0))
         ex = f_express.render("EXPRESS", True, CREAM)
         big.blit(ex, ex.get_rect(center=band.center))
-        # Locomotive lower-left.
+        # Large detailed locomotive centred below the band.
         _locomotive(big, SS,
-                    card.left + int(SS * 11),
-                    card.bottom - int(SS * 5),
-                    scale=0.75)
-        # "FARE 25" on the lower-right.
-        f_fare = _font(int(SS * 2.6))
-        fare = f_fare.render("FARE 25", True, NEAR_BLACK)
-        big.blit(fare, fare.get_rect(
-            midright=(card.right - int(SS * 3),
-                       card.bottom - int(SS * 4))))
+                    card.centerx,
+                    card.bottom - int(SS * 7),
+                    scale=1.40)
         # 2 punch holes upper corners.
         _punch_hole(big, SS,
                     card.left + int(SS * 4),
@@ -381,27 +486,21 @@ def draw_o4_conductor_punch(surf, cx, cy, pulse):
         _corner_flourish(big, SS,
                          card.right - margin, card.bottom - margin,
                          scale=1.2)
-        # "TRAIN PASS" big bold wordmark.
-        f_hdr = _font(int(SS * 4.8))
+        # "TRAIN PASS" wordmark — compact at the top.
+        f_hdr = _font(int(SS * 3.0))
         hdr = f_hdr.render("TRAIN PASS", True, NEAR_BLACK)
         big.blit(hdr, hdr.get_rect(
-            center=(card.centerx, card.top + int(SS * 9))))
-        # Locomotive centre.
+            center=(card.centerx, card.top + int(SS * 6))))
+        # Large detailed locomotive dominating the centre.
         _locomotive(big, SS, card.centerx,
                     card.centery + int(SS * 4),
-                    scale=0.95)
+                    scale=1.55)
         # Date stamp lower-right.
-        f_date = _font(int(SS * 2.2))
+        f_date = _font(int(SS * 1.8))
         dt = f_date.render("OCT 26", True, INK)
         big.blit(dt, dt.get_rect(
             midright=(card.right - int(SS * 4),
-                       card.bottom - int(SS * 3))))
-        # Red rubber stamp in upper-right.
-        _rubber_stamp(big, SS,
-                      card.right - int(SS * 8),
-                      card.top + int(SS * 9),
-                      int(SS * 5),
-                      "OK")
+                       card.bottom - int(SS * 2))))
 
     icon = _ss_paint(paint, native_w=NATIVE_W, native_h=NATIVE_H)
     tilt = math.sin(pulse * 0.7) * 4
@@ -450,19 +549,17 @@ def draw_o5_pullman(surf, cx, cy, pulse):
         _corner_flourish(big, SS,
                          inner.right - margin,
                          inner.bottom - margin, scale=0.9)
-        # "FIRST" + "CLASS" on two lines.
-        f_big = _font(int(SS * 3.4))
-        ft = f_big.render("FIRST", True, NEAR_BLACK)
+        # "FIRST CLASS" on one line (was 2) so the big train has
+        # vertical room below.
+        f_big = _font(int(SS * 2.6))
+        ft = f_big.render("FIRST CLASS", True, NEAR_BLACK)
         big.blit(ft, ft.get_rect(
-            center=(card.centerx, inner.top + int(SS * 4.5))))
-        cl = f_big.render("CLASS", True, NEAR_BLACK)
-        big.blit(cl, cl.get_rect(
-            center=(card.centerx, inner.top + int(SS * 8))))
-        # Locomotive centred just below the header.
+            center=(card.centerx, inner.top + int(SS * 3.5))))
+        # Large detailed locomotive centred.
         _locomotive(big, SS, card.centerx,
-                    inner.top + int(SS * 14), scale=0.85)
+                    inner.centery + int(SS * 4), scale=1.40)
         # "PULLMAN" small subtext at the bottom.
-        f_sub = _font(int(SS * 2.2))
+        f_sub = _font(int(SS * 1.8))
         sb = f_sub.render("PULLMAN", True, INK)
         big.blit(sb, sb.get_rect(
             midbottom=(card.centerx, inner.bottom - int(SS * 1))))
