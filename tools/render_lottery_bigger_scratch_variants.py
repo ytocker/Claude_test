@@ -298,13 +298,39 @@ def draw_b4_full_bleed(surf, cx, cy, pulse):
     surf.blit(rot, rot.get_rect(center=(cx, cy)))
 
 
+def _gold_card_base_no_shadow(big, SS):
+    """Same as `_gold_card_base` but skips the drop shadow so the
+    chrome rim reads as a clean parallel border wrapping the ticket,
+    with no asymmetric gray bleed at the bottom-right corner."""
+    from tools.render_lottery_scratch_variants import _dashed_rect
+    w, h = big.get_width(), big.get_height()
+    card = pygame.Rect(3 * SS, 3 * SS, w - 6 * SS, h - 6 * SS)
+    _v_gradient_rect(big, card, GOLD_HI, GOLD_LO, radius=4 * SS)
+    hi_h = card.height // 3
+    hi = pygame.Surface((card.width, hi_h), pygame.SRCALPHA)
+    for y in range(hi_h):
+        a = int(110 * (1.0 - y / hi_h))
+        pygame.draw.line(hi, (255, 250, 220, a),
+                         (0, y), (hi.get_width(), y))
+    big.blit(hi, (card.x, card.y))
+    pygame.draw.rect(big, CHROME, card, width=2 * SS,
+                     border_radius=4 * SS)
+    inner = card.inflate(-4 * SS, -4 * SS)
+    _dashed_rect(big, inner, STROKE, dash=4 * SS, gap=3 * SS,
+                 width=max(1, SS // 2))
+    return card, inner
+
+
 def draw_b5_triple_cell(surf, cx, cy, pulse):
     """B5 — Three large scratch cells side-by-side, each with a
     single big "?". Mimics a real-world scratch ticket where each
-    box is its own panel. Tiny LUCKY chip riding the top edge."""
+    box is its own panel. Tiny LUCKY chip riding the top edge.
+
+    Uses the no-shadow card base so the chrome rim sits parallel to
+    the gold-ticket borders without a bottom-right gray tail."""
 
     def paint(big, SS):
-        card, inner = _gold_card_base(big, SS)
+        card, inner = _gold_card_base_no_shadow(big, SS)
         # Tiny LUCKY chip riding the top.
         chip = pygame.Rect(0, 0, 20 * SS, 5 * SS)
         chip.midtop = (inner.centerx, inner.top + 1)
