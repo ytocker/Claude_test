@@ -80,11 +80,14 @@ def _paint_icon(surf, cx, cy, pulse, sk_w, sk_h):
         rotated = pygame.transform.rotate(sub, angle)
         big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
-    # Skull. The skull ellipse and the eyes / nose scale with
-    # sk_w / sk_h; the MOUTH (jaw + 3 teeth) below uses the
-    # original live-icon dimensions verbatim, so the mouth looks
-    # identical across every variant — only the surrounding face
-    # changes.
+    # Skull. The ellipse and eyes scale with sk_w / sk_h. The
+    # NOSE + MOUTH (jaw + 3 teeth) keep their original absolute
+    # sizes verbatim from the live icon, but their VERTICAL
+    # POSITION is now fraction-based (0.55 / 0.72 of skull height
+    # from the top) so they always sit clearly inside the ellipse
+    # — even on larger skulls. This fixes the prior issue where
+    # the mouth was anchored to `sk.bottom - X` and looked like
+    # it poked past the chin curve.
     sk = pygame.Rect(0, 0, sk_w * SS, sk_h * SS)
     sk.center = (bx, by - SS)
     pygame.draw.ellipse(big, BONE, sk)
@@ -93,34 +96,38 @@ def _paint_icon(surf, cx, cy, pulse, sk_w, sk_h):
     # Eye sockets — radius and offset scale with skull width.
     eye_r = int(sk_w * SS * 0.108)            # was 2.5 SS on a 23-SS skull
     eye_x_off = int(sk_w * SS * 0.20)         # was ~5 SS
-    eye_y_off = int(sk_h * SS * 0.06)         # was ~1 SS above centre
+    eye_y = sk.top + int(sk_h * SS * 0.36)    # upper third of face
     for ex in (sk.centerx - eye_x_off,
                sk.centerx + eye_x_off):
-        pygame.draw.circle(big, DOME,
-                           (ex, sk.centery - eye_y_off), eye_r)
+        pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
 
-    # Nose triangle — height + half-width scale with skull height.
-    nose_top_y = sk.centery + int(sk_h * SS * 0.18)
-    nose_bot_y = sk.centery + int(sk_h * SS * 0.32)
-    nose_hw = int(sk_w * SS * 0.045)
+    # Nose — VERBATIM size from the original (±1 SS half-width,
+    # 2.5 SS tall). Top + bottom are positioned at fractions of
+    # the skull height so the nose sits just below the eye line
+    # regardless of face size.
+    nose_top_y = sk.top + int(sk_h * SS * 0.55)
+    nose_bot_y = nose_top_y + int(2.5 * SS)
     pygame.draw.polygon(big, DOME, [
-        (sk.centerx - nose_hw, nose_top_y),
-        (sk.centerx + nose_hw, nose_top_y),
-        (sk.centerx,           nose_bot_y),
+        (sk.centerx - SS, nose_top_y),
+        (sk.centerx + SS, nose_top_y),
+        (sk.centerx,      nose_bot_y),
     ])
 
-    # ── Mouth — VERBATIM from the original live icon. ──
-    # Jaw line — ±6 SS half-width, 2 SS above skull.bottom, 1.2 SS
-    # stroke. Teeth — 3 vertical lines at offsets −4 / 0 / +4 SS,
-    # from skull.bottom-5 SS to skull.bottom-1 SS.
+    # ── Mouth — VERBATIM size from the original live icon ──
+    # Jaw: ±6 SS half-width, 1.2 SS stroke. Teeth: 3 vertical
+    # lines at offsets −4 / 0 / +4 SS, 4 SS tall. Position
+    # anchored at 0.72 of skull height from the top — well inside
+    # the ellipse curve so the bottom of the teeth never reads as
+    # poking past the chin.
+    jaw_y = sk.top + int(sk_h * SS * 0.72)
     pygame.draw.line(big, DOME,
-                     (sk.centerx - 6 * SS, sk.bottom - 2 * SS),
-                     (sk.centerx + 6 * SS, sk.bottom - 2 * SS),
+                     (sk.centerx - 6 * SS, jaw_y),
+                     (sk.centerx + 6 * SS, jaw_y),
                      int(1.2 * SS))
     for tx in (-4 * SS, 0, 4 * SS):
         pygame.draw.line(big, DOME,
-                         (sk.centerx + tx, sk.bottom - 5 * SS),
-                         (sk.centerx + tx, sk.bottom - SS),
+                         (sk.centerx + tx, jaw_y - 3 * SS),
+                         (sk.centerx + tx, jaw_y + 1 * SS),
                          int(1.2 * SS))
 
     # Smoothscale-down + blit.
@@ -129,36 +136,36 @@ def _paint_icon(surf, cx, cy, pulse, sk_w, sk_h):
 
 
 def draw_v1_subtle(surf, cx, cy, pulse):
-    _paint_icon(surf, cx, cy, pulse, sk_w=26, sk_h=21)
+    _paint_icon(surf, cx, cy, pulse, sk_w=25, sk_h=20)
 
 
 def draw_v2_moderate(surf, cx, cy, pulse):
-    _paint_icon(surf, cx, cy, pulse, sk_w=28, sk_h=23)
+    _paint_icon(surf, cx, cy, pulse, sk_w=26, sk_h=21)
 
 
 def draw_v3_clear(surf, cx, cy, pulse):
-    _paint_icon(surf, cx, cy, pulse, sk_w=30, sk_h=25)
+    _paint_icon(surf, cx, cy, pulse, sk_w=27, sk_h=22)
 
 
 def draw_v4_bold(surf, cx, cy, pulse):
-    _paint_icon(surf, cx, cy, pulse, sk_w=33, sk_h=27)
+    _paint_icon(surf, cx, cy, pulse, sk_w=28, sk_h=23)
 
 
 def draw_v5_max(surf, cx, cy, pulse):
-    _paint_icon(surf, cx, cy, pulse, sk_w=36, sk_h=29)
+    _paint_icon(surf, cx, cy, pulse, sk_w=30, sk_h=24)
 
 
 VARIANTS = [
     ("V1_subtle",   draw_v1_subtle,
-     "V1: skull 26x21 SS (+13% w, +17% h) — smallest readable bump"),
+     "V1: skull 25x20 SS (+9% w, +11% h)"),
     ("V2_moderate", draw_v2_moderate,
-     "V2: skull 28x23 SS (+22% w, +28% h) — mouth clearly readable"),
+     "V2: skull 26x21 SS (+13% w, +17% h)"),
     ("V3_clear",    draw_v3_clear,
-     "V3: skull 30x25 SS (+30% w, +39% h) — skull dominant"),
+     "V3: skull 27x22 SS (+17% w, +22% h)"),
     ("V4_bold",     draw_v4_bold,
-     "V4: skull 33x27 SS (+43% w, +50% h) — skull is the silhouette"),
+     "V4: skull 28x23 SS (+22% w, +28% h)"),
     ("V5_max",      draw_v5_max,
-     "V5: skull 36x29 SS (+57% w, +61% h) — decks frame the edges"),
+     "V5: skull 30x24 SS (+30% w, +33% h)"),
 ]
 
 
