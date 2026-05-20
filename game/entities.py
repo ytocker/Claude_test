@@ -2463,18 +2463,9 @@ class PowerUp:
         CREAM      = (238, 225, 195)
         NEAR_BLACK = ( 18,  14,  10)
         INK        = ( 30,  25,  20)
-        SHADOW     = (  0,   0,   0,  90)
 
         # ── card body + thick perimeter ──
         card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
-        # Drop shadow.
-        sh_surf = pygame.Surface(
-            (card.width + 4 * SS, card.height + 4 * SS),
-            pygame.SRCALPHA)
-        pygame.draw.rect(sh_surf, SHADOW, sh_surf.get_rect(),
-                         border_radius=int(SS * 0.7))
-        big.blit(sh_surf, sh_surf.get_rect(
-            center=(card.centerx, card.centery + SS + 1)))
         # Sepia paper fill.
         pygame.draw.rect(big, SEPIA, card)
         # Slimmer black outer perimeter — 1.4 SS wide (was 2 SS).
