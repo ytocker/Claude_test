@@ -80,8 +80,11 @@ def _paint_icon(surf, cx, cy, pulse, sk_w, sk_h):
         rotated = pygame.transform.rotate(sub, angle)
         big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
-    # Skull. All features below derive from this rect, so the
-    # whole face scales uniformly.
+    # Skull. The skull ellipse and the eyes / nose scale with
+    # sk_w / sk_h; the MOUTH (jaw + 3 teeth) below uses the
+    # original live-icon dimensions verbatim, so the mouth looks
+    # identical across every variant — only the surrounding face
+    # changes.
     sk = pygame.Rect(0, 0, sk_w * SS, sk_h * SS)
     sk.center = (bx, by - SS)
     pygame.draw.ellipse(big, BONE, sk)
@@ -106,26 +109,19 @@ def _paint_icon(surf, cx, cy, pulse, sk_w, sk_h):
         (sk.centerx,           nose_bot_y),
     ])
 
-    # Jaw line — width tracks skull width; sits 2 SS above bottom.
-    jaw_hw = int(sk_w * SS * 0.26)
-    jaw_y = sk.bottom - int(sk_h * SS * 0.12)
+    # ── Mouth — VERBATIM from the original live icon. ──
+    # Jaw line — ±6 SS half-width, 2 SS above skull.bottom, 1.2 SS
+    # stroke. Teeth — 3 vertical lines at offsets −4 / 0 / +4 SS,
+    # from skull.bottom-5 SS to skull.bottom-1 SS.
     pygame.draw.line(big, DOME,
-                     (sk.centerx - jaw_hw, jaw_y),
-                     (sk.centerx + jaw_hw, jaw_y),
-                     max(1, int(1.2 * SS)))
-
-    # Teeth — 5 short vertical lines instead of 3 so larger
-    # skulls show off more teeth without looking sparse.
-    teeth_n = 5
-    teeth_span = int(sk_w * SS * 0.40)
-    teeth_top = jaw_y - int(sk_h * SS * 0.18)
-    teeth_bot = jaw_y + int(sk_h * SS * 0.08)
-    for i in range(teeth_n):
-        t = i / (teeth_n - 1)
-        tx = sk.centerx - teeth_span // 2 + int(t * teeth_span)
-        pygame.draw.line(big, DOME, (tx, teeth_top),
-                         (tx, teeth_bot),
-                         max(1, int(1.2 * SS)))
+                     (sk.centerx - 6 * SS, sk.bottom - 2 * SS),
+                     (sk.centerx + 6 * SS, sk.bottom - 2 * SS),
+                     int(1.2 * SS))
+    for tx in (-4 * SS, 0, 4 * SS):
+        pygame.draw.line(big, DOME,
+                         (sk.centerx + tx, sk.bottom - 5 * SS),
+                         (sk.centerx + tx, sk.bottom - SS),
+                         int(1.2 * SS))
 
     # Smoothscale-down + blit.
     icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
