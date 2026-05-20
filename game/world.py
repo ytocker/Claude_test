@@ -25,6 +25,7 @@ from game.config import (
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
     SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
+    KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX, KICKFLIP_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK, SKATE_SLIDE_RELEASE,
@@ -522,15 +523,23 @@ class World:
             # first anyway).
             if self.treasure_box_timer > 0:
                 self._drop_treasure_box_coins()
-            # SKATEBOARD trick: 3 taps within BACKFLIP_TAP_WINDOW spin
-            # Pip 360°. Only tracked while the powerup is active and no
-            # flip is already in progress.
-            if self.skateboard_timer > 0 and self.bird.backflip_t <= 0:
-                self._track_backflip_taps()
+            # SKATEBOARD tricks. Only tracked while the powerup is
+            # active and no flip is already in progress.
+            #   - 3 FAST taps  (gap ≤ BACKFLIP_TAP_WINDOW)  → backflip
+            #   - 2 SLOW taps  (KICKFLIP_TAP_GAP_MIN ≤ gap
+            #                    ≤ KICKFLIP_TAP_GAP_MAX)   → kickflip
+            # The two windows are disjoint, so a given tap can only
+            # advance one of the two streaks.
+            if (self.skateboard_timer > 0
+                    and self.bird.backflip_t <= 0
+                    and self.bird.kickflip_t <= 0):
+                self._track_skateboard_tricks()
 
-    def _track_backflip_taps(self):
+    def _track_skateboard_tricks(self):
         now = self._idle_t
-        if now - self._last_tap_t <= BACKFLIP_TAP_WINDOW:
+        gap = now - self._last_tap_t
+        # 3-fast-tap backflip streak.
+        if gap <= BACKFLIP_TAP_WINDOW:
             self._tap_streak += 1
         else:
             self._tap_streak = 1
@@ -538,6 +547,14 @@ class World:
         if self._tap_streak >= 3:
             self._trigger_backflip()
             self._tap_streak = 0
+            return
+        # 2-slow-tap kickflip — fires on the SECOND tap when the gap
+        # from the previous tap falls in the slow window. The
+        # backflip streak above has already absorbed the fast case
+        # (gap ≤ BACKFLIP_TAP_WINDOW), so this branch only runs for
+        # genuinely slow rhythms.
+        if KICKFLIP_TAP_GAP_MIN <= gap <= KICKFLIP_TAP_GAP_MAX:
+            self._trigger_kickflip()
 
     def _trigger_backflip(self):
         self.bird.backflip_t = BACKFLIP_DURATION
@@ -547,6 +564,16 @@ class World:
             "BACKFLIP!", self.bird.x, self.bird.y - 30,
             (110, 230, 110),
             size=28, life=1.2, vy=-30, style="powerup",
+        ))
+
+    def _trigger_kickflip(self):
+        self.bird.kickflip_t = KICKFLIP_DURATION
+        self.bird.kickflip_dur = KICKFLIP_DURATION
+        audio.play_backflip()
+        self.float_texts.append(FloatText(
+            "KICKFLIP!", self.bird.x, self.bird.y - 30,
+            (120, 200, 235),
+            size=26, life=1.1, vy=-30, style="powerup",
         ))
 
     # ── update ──────────────────────────────────────────────────────────────

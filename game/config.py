@@ -101,6 +101,14 @@ BACKFLIP_TAP_WINDOW   = 0.45
 # than a quick spin. Pairs with smootherstep easing in Bird.tilt_deg
 # so the rotation is slow→fast→slow instead of constant-rate.
 BACKFLIP_DURATION     = 0.85
+# SKATEBOARD trick: 2 taps with a deliberate "slow" rhythm trigger
+# a kickflip — the deck spins 360° under Pip's feet while he stays
+# upright. The gap window starts above BACKFLIP_TAP_WINDOW so the
+# kickflip detector and the 3-fast-tap backflip streak never alias
+# into each other.
+KICKFLIP_TAP_GAP_MIN  = 0.50
+KICKFLIP_TAP_GAP_MAX  = 1.20
+KICKFLIP_DURATION     = 0.55
 # PHOENIX: 30-second fiery transformation. If Pip would die during the
 # window, World._die() intercepts the death, ends the buff, and grants
 # PHOENIX_INVULN seconds of grace so the just-revived bird doesn't

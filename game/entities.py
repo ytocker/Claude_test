@@ -768,6 +768,11 @@ class Bird:
         # Backflip trick: ticks down while a 360° spin animation plays.
         self.backflip_t = 0.0
         self.backflip_dur = 0.0
+        # Kickflip trick (2 slow taps): the deck spins 360° under Pip
+        # while he stays upright. Animation is shorter than backflip
+        # so the trick feels like a quick board-flick, not a body spin.
+        self.kickflip_t = 0.0
+        self.kickflip_dur = 0.0
 
     @property
     def tilt_deg(self):
@@ -834,6 +839,7 @@ class Bird:
         self.frame_t = (self.frame_t + dt * base_hz)
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         self.backflip_t = max(0.0, self.backflip_t - dt)
+        self.kickflip_t = max(0.0, self.kickflip_t - dt)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
@@ -1339,6 +1345,15 @@ class Bird:
         board_surf = pygame.transform.smoothscale(board_surf,
                                                   (native_w, native_h))
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # KICKFLIP — 360° board-only spin layered on top of Pip's
+        # tilt. Pip himself stays at his normal velocity-banked
+        # posture (tilt_deg excludes kickflip); only the board
+        # rotates, which sells the "flick the deck under your
+        # feet" trick.
+        if self.kickflip_t > 0 and self.kickflip_dur > 0:
+            p = 1.0 - self.kickflip_t / self.kickflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            tilt += eased * 360.0
         rotated = pygame.transform.rotate(board_surf, tilt)
         if flipped:
             rotated = pygame.transform.flip(rotated, False, True)
