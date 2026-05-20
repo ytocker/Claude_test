@@ -2600,7 +2600,7 @@ class PowerUp:
             wheel_cy = boiler.bottom + wheel_r + gap
             ground_y = wheel_cy + wheel_r
             wheel_xs = (
-                cab.left + cab_w // 4,
+                boiler.left + int(boiler.width * 0.05),
                 boiler.left + int(boiler.width * 0.72),
             )
 
