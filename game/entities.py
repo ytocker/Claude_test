@@ -832,12 +832,13 @@ class Bird:
         return base
 
     def flap(self, gravity_sign=1):
-        # Flap is silently ignored for the ENTIRE rail ride. cart_active
-        # is set the instant the powerup picks up and stays True for the
-        # full RAIL_DURATION — cart_locked is set on the same frame so
-        # there's no pre-lock aim phase anymore. The user gives up
-        # control for 8 s and the cart auto-follows the track.
-        if self.alive and not self.cart_active:
+        # Flap is suppressed ONLY while the cart is actually locked
+        # to the rail (Phase 2 of the rewritten rail powerup).
+        # Phase 1 (cart on Pip, pre-lock) and Phase 3 (post-ride,
+        # cart still active but unlocked) both allow flap so the
+        # player keeps control while looking for / having left
+        # the track.
+        if self.alive and not self.cart_locked:
             self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45
 

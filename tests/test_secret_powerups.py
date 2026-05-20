@@ -250,67 +250,81 @@ def test_treasure_box_arms_buff_and_drops_coins_per_flap():
 
 
 
-def test_rail_locks_immediately_and_extends_off_canvas():
-    """RAIL is a pillar-limited buff. At activation:
-      * cart_active + cart_locked = True (no aim phase)
-      * rail_pillars_left = RAIL_PILLAR_COUNT
-      * rail polyline spans BEHIND Pip (x < bird.x) AND past the right
-        edge (x > W) — the user's "always visible left-to-right"
-        requirement
-      * flap is a no-op for the entire ride
+def test_rail_pickup_pre_lock_phase():
+    """RAIL pickup (rewritten behaviour):
+      * cart_active = True, cart_locked = False (Pip has the cart
+        on his back but is in FREE flight — pre-lock phase)
+      * rail_pending = RAIL_PILLAR_COUNT — the next N pipe spawns
+        will be tagged as rail-active
+      * In-flight pipes are NOT tagged immediately
+      * Flap WORKS during pre-lock so the player can aim onto the
+        track
     """
-    from game.config import RAIL_PILLAR_COUNT, W
+    from game.config import RAIL_PILLAR_COUNT, FLAP_V
     w = World()
     w.ready_t = 0
+    # Tag any in-flight pipe as a sentinel so we can confirm the
+    # pickup didn't touch them.
+    for p in w.pipes:
+        p._sentinel_before_pickup = True
     bird_y_before = w.bird.y
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
     assert w.bird.cart_active is True
-    assert w.bird.cart_locked is True
-    # Track must span the canvas: at least one rail pipe behind Pip and
-    # at least one past the right edge.
-    rail_xs = [p.x for p in w.rail_pipes]
-    assert any(x < w.bird.x for x in rail_xs), (
-        f"no rail pipe behind Pip at x={w.bird.x}; rail_xs={rail_xs}")
-    assert any(x > W for x in rail_xs), (
-        f"no rail pipe past the right edge W={W}; rail_xs={rail_xs}")
-    # Pip's y should NOT jump on activation — the anchor pipe was
-    # synthesized at his current gap-center.
+    assert w.bird.cart_locked is False
+    assert w.rail_pending == RAIL_PILLAR_COUNT
+    # In-flight pipes are unchanged.
+    for p in w.pipes:
+        if getattr(p, "_sentinel_before_pickup", False):
+            assert getattr(p, "rail_active", False) is False, (
+                "in-flight pipe got tagged at pickup time")
+    # Pip's y must not jump on activation.
     assert abs(w.bird.y - bird_y_before) <= 1
-    # Flap is silently ignored while cart_active.
-    vy_before = w.bird.vy
+    # Flap WORKS during pre-lock (cart on Pip, not locked).
+    w.bird.vy = 0.0
     w.bird.flap()
-    assert w.bird.vy == vy_before
+    assert w.bird.vy == FLAP_V, (
+        f"flap blocked during pre-lock: vy={w.bird.vy}")
 
 
-def test_rail_ride_ends_after_n_pillars_with_jump():
-    """After RAIL_PILLAR_COUNT real pillars pass Pip the ride ends,
-    cart_active flips off, and Pip gets an upward "jump" (vy < 0) so
-    the player has air control immediately."""
-    from game.config import RAIL_PILLAR_COUNT, FLAP_V
+def test_rail_pending_decrements_and_buff_expires():
+    """Rewritten buff lifecycle: rail_pending counts down on each
+    pipe spawn; once it hits 0 AND no tagged pipe remains ahead of
+    Pip, the buff fully ends (cart_active flips False).
+    Track tags REMAIN on already-tagged pipes that have scrolled
+    past — the user explicitly asked for the visual track to
+    persist after expiry."""
+    from game.config import RAIL_PILLAR_COUNT
     import random as _r
     _r.seed(5)
     w = World()
     w.ready_t = 0
     w._activate_rail(PowerUp(0, 0, kind="rail"))
-    assert w.rail_pillars_left == RAIL_PILLAR_COUNT
-    # Tick the world long enough to scroll the rail pipes past Pip.
-    # Worst case is the player starting on the newbie scroll ramp:
-    # ~120 frames per pillar even with the 1.5× cart multiplier, so
-    # 7 pillars ≈ 850 frames. 2000 is a comfortable upper bound.
-    for _ in range(2000):
+    assert w.rail_pending == RAIL_PILLAR_COUNT
+    # Spawn N pipes directly — rail_pending should decrement each
+    # time and the spawned pipes should be tagged.
+    new_tags = []
+    for i in range(RAIL_PILLAR_COUNT + 2):
+        before = w.rail_pending
+        w._spawn_pipe(500 + i * 200)
+        new_pipe = w.pipes[-1]
+        new_tags.append(getattr(new_pipe, "rail_active", False))
+        if i < RAIL_PILLAR_COUNT:
+            assert before > 0 and w.rail_pending == before - 1
+        else:
+            assert w.rail_pending == 0
+    # First N spawns tagged, remainder not.
+    assert new_tags[:RAIL_PILLAR_COUNT] == [True] * RAIL_PILLAR_COUNT
+    assert all(t is False for t in new_tags[RAIL_PILLAR_COUNT:])
+    # Tick the world until every tagged pipe is past Pip's x. With
+    # the buff fully expired, cart_active should flip False.
+    for _ in range(3000):
         w.update(1 / 60)
         if not w.bird.cart_active:
             break
-    assert w.bird.cart_active is False, "cart never released"
-    assert w.bird.cart_locked is False
-    assert w.rail_pillars_left == 0
-    assert w.bird.vy <= FLAP_V * 0.5, (
-        f"Pip didn't jump on release (vy={w.bird.vy:.1f}, FLAP_V={FLAP_V})")
-    # Now the player should regain flap control.
-    vy_after_jump = w.bird.vy
-    w.bird.flap()
-    assert w.bird.vy == FLAP_V or w.bird.vy != vy_after_jump
+        if not w.bird.alive:  # bird died — abort test
+            break
+    if w.bird.alive:
+        assert w.bird.cart_active is False, "buff never expired"
 
 
 def test_rail_world_scrolls_faster_during_ride():

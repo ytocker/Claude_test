@@ -743,15 +743,20 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     self._proof.record(self.time_alive, 1, "pipe")
-                    # RAIL: count down the per-ride pillar budget. The
-                    # synthesized anchor pipes are scored=True at spawn
-                    # so they don't trigger this path.
+                    # RAIL: buff fully ends once we've stopped
+                    # tagging new pipes (rail_pending == 0) AND no
+                    # tagged pipe remains ahead of (or under) Pip.
+                    # Tracked pipes that have already passed Pip
+                    # keep their rail_active flag so the track
+                    # visual persists until they scroll off-screen.
                     if (self.bird.cart_active
-                            and getattr(p, "rail_active", False)
-                            and self.rail_pillars_left > 0):
-                        self.rail_pillars_left -= 1
-                        if self.rail_pillars_left == 0:
-                            self._end_rail_ride()
+                            and not self.bird.cart_locked
+                            and self.rail_pending == 0
+                            and not any(
+                                getattr(q, "rail_active", False)
+                                and q.x + PIPE_W > bx
+                                for q in self.pipes)):
+                        self._end_rail_ride()
 
             # Near-miss detection: once per pipe, flag if the bird was within
             # a narrow band of either edge without hitting. Fires as the pipe
@@ -846,15 +851,11 @@ class World:
             # ride ends with an upward "jump" so the player has air
             # control immediately.
             if self.bird.cart_active:
-                rail_spacing = self._current_spacing()
-                rail_xs = [p.x for p in self.pipes
-                           if getattr(p, "rail_active", False)]
-                if rail_xs:
-                    rightmost = max(rail_xs)
-                    while rightmost < W + PIPE_W:
-                        self._spawn_pipe(rightmost + rail_spacing)
-                        self.pipes[-1].rail_active = True
-                        rightmost = self.pipes[-1].x
+                # Rebuild the view-list. New pipes pick up
+                # rail_active inside `_spawn_pipe` while
+                # rail_pending > 0; we no longer force-spawn
+                # ahead since Pip is free-flying in the pre-lock
+                # phase and the normal spacing handles it.
                 self.rail_pipes = [p for p in self.pipes
                                    if getattr(p, "rail_active", False)]
             # Lottery: tick the reveal animation; apply score delta on reveal.
@@ -1256,6 +1257,17 @@ class World:
                 self.bird.cart_tilt_deg = self._rail_slope_deg(
                     p1.x + PIPE_W, y1, p2.x, y2)
                 return
+
+        # Fell off the end of the rail polyline (no pipe over Pip
+        # and no bridge under him). Pop him off the lock so he can
+        # flap again; the Phase-3 → Phase-4 gate in the scoring
+        # loop will eventually clear cart_active once no tagged
+        # pipe remains ahead.
+        self.bird.cart_locked = False
+        self.bird.cart_tilt_deg = 0.0
+        sign = -1 if self.reverse_timer > 0 else 1
+        self.bird.vy = FLAP_V * sign
+        self.bird.flap_boost = 0.45
 
     @staticmethod
     def _rail_slope_deg(x1: float, y1: float,
@@ -1990,52 +2002,29 @@ class World:
         kept in self.pipes (not culled) so the polyline still extends
         behind Pip. Flap is suppressed for the entire ride (see
         Bird.flap gate on cart_active)."""
-        self.rail_pillars_left = RAIL_PILLAR_COUNT
+        # NEW BEHAVIOUR (replaces the old "lock immediately + tag
+        # every visible pipe + insert anchor pipes" flow):
+        #
+        #   * cart_active = True, cart_locked = False — Pip flies
+        #     with the cart visible on his back and can still flap.
+        #   * rail_pending = RAIL_PILLAR_COUNT — the next N pipes
+        #     that spawn get rail_active=True (see `_spawn_pipe`'s
+        #     existing tag-on-spawn logic).
+        #   * In-flight pipes are LEFT ALONE so the player sees
+        #     track appear from the next spawn onward.
+        #   * When Pip lands on a tagged pipe, `_apply_rail_lock`
+        #     flips cart_locked = True and the ride starts.
+        #   * When the buff expires (no more pending tags AND no
+        #     tagged pipe ahead of Pip), `_end_rail_ride` clears
+        #     cart_active but LEAVES rail_active flags on remaining
+        #     pipes so the track persists until they scroll off.
         self.bird.cart_active = True
-        self.bird.cart_locked = True
-        self.bird.vy = 0.0
-        self.rail_pending = 0
-        # Wipe any stale rail tags before re-building.
-        for p in self.pipes:
-            p.rail_active = False
-        # Tag every currently-spawned pipe as rail-active. The cart's
-        # snap follows the rail polyline, so EVERY visible pipe needs
-        # to be on the polyline — otherwise the cart would skate over
-        # an untagged stub mid-ride and look broken.
-        for p in self.pipes:
-            p.rail_active = True
-        # Synthesize an "anchor" pipe right at Pip's current position
-        # with its gap-center matching his y, so the cart appears
-        # exactly where he is — no jarring Y jump at activation.
-        # The anchor is `scored = True` so it doesn't contribute to
-        # the score sweep when it scrolls past.
-        anchor_gap_h = 150
-        anchor_gap_y = int(self.bird.y + self._CART_LOCKED_OFFSET
-                           - anchor_gap_h / 2)
-        anchor = Pipe(self.bird.x - PIPE_W // 2,
-                      anchor_gap_y, anchor_gap_h)
-        anchor.scored = True
-        anchor.rail_active = True
-        self.pipes.insert(0, anchor)
-        # Extend the track off-screen LEFT so the polyline anchors past
-        # the left canvas edge from frame one. Same gap-y as the cart's
-        # anchor so the "behind Pip" segment is flat.
-        left_anchor = Pipe(self.bird.x - PIPE_W * 2,
-                           anchor_gap_y, anchor_gap_h)
-        left_anchor.scored = True
-        left_anchor.rail_active = True
-        self.pipes.insert(0, left_anchor)
-        # Extend the track off-screen RIGHT — keep spawning until the
-        # rightmost rail pipe sits past W + PIPE_W.
-        spacing = self._current_spacing()
-        while True:
-            rightmost = max(p.x for p in self.pipes)
-            if rightmost > W + PIPE_W:
-                break
-            self._spawn_pipe(rightmost + spacing)
-            self.pipes[-1].rail_active = True
-        # Rebuild rail_pipes as a view of the rail-tagged pipes for the
-        # renderer (scenes._draw_rails iterates this list).
+        self.bird.cart_locked = False
+        self.rail_pending = RAIL_PILLAR_COUNT
+        # rail_pillars_left is now unused but kept zero so the
+        # legacy scoring-decrement gate (still in the scoring loop
+        # for now) never fires.
+        self.rail_pillars_left = 0
         self.rail_pipes = [p for p in self.pipes if p.rail_active]
         # Snap Pip immediately onto the rail (his y is already at the
         # anchor's gap-center thanks to the synthesized gap_y, so this
@@ -2052,20 +2041,17 @@ class World:
         ))
 
     def _end_rail_ride(self):
-        """Release Pip from the cart with an upward "jump" so the player
-        regains air control on the same frame the ride ends. Clears
-        every rail_active flag (off-canvas-left pipes get culled next
-        tick) and zeroes out the cart state."""
-        for p in self.pipes:
-            p.rail_active = False
-        self.rail_pipes = []
+        """Buff fully expires: clear cart state, but LEAVE rail_active
+        flags on already-tagged pipes so the track persists on them
+        until they scroll off naturally. New pipes won't pick up the
+        flag because rail_pending is already 0 by this point."""
         self.bird.cart_active = False
         self.bird.cart_locked = False
         self.bird.cart_tilt_deg = 0.0
-        sign = -1 if self.reverse_timer > 0 else 1
-        self.bird.vy = FLAP_V * sign
-        self.bird.flap_boost = 0.45
-        audio.play_flap()
+        # Note: NOT giving an upward jump here — Pip is already in
+        # free flight (Phase-3 → Phase-4 only fires when not locked).
+        # And NOT clearing rail_active flags — already-tagged pipes
+        # keep their visual track until they scroll off-screen.
 
     def _apply_lottery_result(self):
         anim = self.lottery_anim
