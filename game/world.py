@@ -844,27 +844,18 @@ class World:
             self.bird.phoenix_active = self.phoenix_timer > 0
             if self.phoenix_invuln > 0:
                 self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
-            # Rail: pillar-limited buff. While cart_active keep the
-            # track anchored across the canvas by spawning new rail
-            # pipes off-screen-right whenever the rightmost has drifted
-            # close to the right edge. self.rail_pipes is rebuilt from
-            # self.pipes' rail_active flags each frame. The end
-            # condition lives in the scoring loop (rail_pillars_left
-            # decrement) — when the 7th real pillar passes Pip, the
-            # ride ends with an upward "jump" so the player has air
-            # control immediately.
-            if self.bird.cart_active:
-                rail_spacing = self._current_spacing()
-                rail_xs = [p.x for p in self.pipes
-                           if getattr(p, "rail_active", False)]
-                if rail_xs:
-                    rightmost = max(rail_xs)
-                    while rightmost < W + PIPE_W:
-                        self._spawn_pipe(rightmost + rail_spacing)
-                        self.pipes[-1].rail_active = True
-                        rightmost = self.pipes[-1].x
-                self.rail_pipes = [p for p in self.pipes
-                                   if getattr(p, "rail_active", False)]
+            # Rail: pillar-limited buff. Tagging is fixed at activation
+            # — exactly RAIL_PILLAR_COUNT pillars get rail_active set
+            # in _activate_rail and nothing else picks up the tag
+            # afterward. The natural pipe spawner above is gated on
+            # `not cart_active` so no untagged pipes slip in either.
+            # self.rail_pipes is rebuilt from self.pipes' rail_active
+            # flags every frame in the cull block above (so the
+            # renderer still sees the on-screen tail after expiry).
+            # The end condition lives in the scoring loop
+            # (rail_pillars_left decrement) — when the 5th tagged
+            # pillar passes Pip, the ride ends with an upward "jump"
+            # so the player has air control immediately.
             # Lottery: tick the reveal animation; apply score delta on reveal.
             if self.lottery_anim is not None:
                 self.lottery_anim["t"] += dt
@@ -1992,11 +1983,13 @@ class World:
         """RAIL TRACK — pillar-limited buff. Locks Pip onto a cart that
         rides over exactly RAIL_PILLAR_COUNT real pillars before
         releasing him with a "jump" (upward vy) so he regains control
-        in the air. The track is always visible from the left canvas
-        edge to the right; new rail pipes spawn off-screen-right as
-        the existing ones scroll past, off-screen-left rail pipes are
-        kept in self.pipes (not culled) so the polyline still extends
-        behind Pip. Flap is suppressed for the entire ride (see
+        in the air. Track is tagged on exactly the next 5 pillars
+        ahead of Pip (force-spawned if fewer than 5 are already in
+        flight) — natural pipe spawning is suppressed during the ride
+        (see update() spawn gate), so no further pipes get tagged.
+        Two synthetic "anchor" pipes are inserted at/behind Pip so the
+        polyline starts under the cart from frame one and extends past
+        the left edge. Flap is suppressed for the entire ride (see
         Bird.flap gate on cart_active)."""
         self.rail_pillars_left = RAIL_PILLAR_COUNT
         self.bird.cart_active = True
@@ -2006,12 +1999,16 @@ class World:
         # Wipe any stale rail tags before re-building.
         for p in self.pipes:
             p.rail_active = False
-        # Tag every currently-spawned pipe as rail-active. The cart's
-        # snap follows the rail polyline, so EVERY visible pipe needs
-        # to be on the polyline — otherwise the cart would skate over
-        # an untagged stub mid-ride and look broken.
-        for p in self.pipes:
+        # Tag only the next RAIL_PILLAR_COUNT real pipes AHEAD of Pip
+        # (skipping rush pipes). These are the pillars Pip will actually
+        # ride through — no others get tagged during this powerup.
+        ahead = sorted(
+            (p for p in self.pipes
+             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
+            key=lambda p: p.x)
+        for p in ahead[:RAIL_PILLAR_COUNT]:
             p.rail_active = True
+        tagged_ahead = min(len(ahead), RAIL_PILLAR_COUNT)
         # Synthesize an "anchor" pipe right at Pip's current position
         # with its gap-center matching his y, so the cart appears
         # exactly where he is — no jarring Y jump at activation.
@@ -2033,15 +2030,24 @@ class World:
         left_anchor.scored = True
         left_anchor.rail_active = True
         self.pipes.insert(0, left_anchor)
-        # Extend the track off-screen RIGHT — keep spawning until the
-        # rightmost rail pipe sits past W + PIPE_W.
-        spacing = self._current_spacing()
-        while True:
-            rightmost = max(p.x for p in self.pipes)
-            if rightmost > W + PIPE_W:
-                break
-            self._spawn_pipe(rightmost + spacing)
-            self.pipes[-1].rail_active = True
+        # If fewer than RAIL_PILLAR_COUNT pipes were already in flight
+        # ahead of Pip, force-spawn additional pipes at the natural
+        # spacing so the player gets a full 5-pillar ride. Use
+        # rail_pending so _spawn_pipe's tag-on-spawn block claims them
+        # and auto-skips rush pipes.
+        need = RAIL_PILLAR_COUNT - tagged_ahead
+        if need > 0:
+            self.rail_pending = need
+            spacing = self._current_spacing()
+            next_x = (max((p.x for p in self.pipes
+                           if not getattr(p, "scored", False) or p.x > self.bird.x),
+                          default=self.bird.x) + spacing)
+            guard = need * 3  # safety cap in case of rush-pipe skips
+            while self.rail_pending > 0 and guard > 0:
+                self._spawn_pipe(next_x)
+                next_x += spacing
+                guard -= 1
+            self.rail_pending = 0
         # Rebuild rail_pipes as a view of the rail-tagged pipes for the
         # renderer (scenes._draw_rails iterates this list).
         self.rail_pipes = [p for p in self.pipes if p.rail_active]
