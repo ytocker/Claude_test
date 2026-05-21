@@ -1153,6 +1153,43 @@ def render_caption_h6_banner_text_lowered(cx: int, cy: int, score: int,
 # explore tilt direction, gap width, and stagger.
 
 
+def _one_piece_two_word_plate(left_word, right_word, font_size,
+                                plate_pad, gap_w):
+    """Single CONTINUOUS red plate with `left_word` aligned to the
+    left interior + `right_word` aligned to the right, with `gap_w`
+    of empty red space between them. Returns a composite surface
+    centred around its midpoint — caller blits it at the target
+    centre. One piece — not two plates."""
+    left_txt = _gradient_text(left_word, font_size,
+                                top_col=(255, 255, 110),
+                                bot_col=(255, 180, 10),
+                                outline=INK, outline_w=5)
+    right_txt = _gradient_text(right_word, font_size,
+                                 top_col=(255, 255, 110),
+                                 bot_col=(255, 180, 10),
+                                 outline=INK, outline_w=5)
+    pad_x, pad_y = plate_pad
+    plate_w = (left_txt.get_width() + gap_w
+                + right_txt.get_width() + pad_x * 2)
+    plate_h = max(left_txt.get_height(),
+                   right_txt.get_height()) + pad_y * 2
+    composite = pygame.Surface((plate_w + 12, plate_h + 12),
+                                pygame.SRCALPHA)
+    ccx = composite.get_width() // 2
+    ccy = composite.get_height() // 2
+    plate_rect = pygame.Rect(0, 0, plate_w, plate_h)
+    plate_rect.center = (ccx + 4, ccy + 4)
+    pygame.draw.rect(composite, PLATE_RED, plate_rect, border_radius=10)
+    pygame.draw.rect(composite, INK, plate_rect, 4, border_radius=10)
+    # Left word — left edge of left text sits at pad_x inside the plate
+    composite.blit(left_txt, left_txt.get_rect(
+        midleft=(plate_rect.left + pad_x, plate_rect.centery)))
+    # Right word — right edge of right text sits at pad_x inside
+    composite.blit(right_txt, right_txt.get_rect(
+        midright=(plate_rect.right - pad_x, plate_rect.centery)))
+    return composite
+
+
 def _two_plates_around_score(surf, score_str,
                               font_size, plate_pad, gap,
                               tilt_l, tilt_r,
@@ -1259,6 +1296,109 @@ def render_caption_i5_staggered(cx: int, cy: int, score: int,
                               score_ro=44, score_ri=28,
                               score_font_size=38,
                               left_dy=10, right_dy=-10)
+    return surf
+
+
+# ── J variants — ONE-PIECE banner with gap for the score ────────────────────
+#
+# Five takes on a SINGLE continuous red plate. Inside the plate, SKATE
+# sits on the left, BOARD! on the right, with a gap between where the D5
+# score burst lives. The plate is one piece — not two separate plates.
+
+
+def render_caption_j1_score_fits(cx: int, cy: int, score: int,
+                                   rng_seed: int = 22) -> pygame.Surface:
+    """J1 — One-piece banner, gap sized so the D5 score burst fits
+    inside the plate's height. Score sits comfortably IN the gap;
+    the red plate body wraps around the score (visible above + below
+    + on either side of it). Cleanest "score is part of the banner"
+    read."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _one_piece_two_word_plate("SKATE", "BOARD!",
+                                        font_size=30,
+                                        plate_pad=(16, 14),
+                                        gap_w=72)
+    rot = pygame.transform.rotate(plate, 5)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=30, ri=18, font_size=26)
+    return surf
+
+
+def render_caption_j2_score_punches_through(cx: int, cy: int, score: int,
+                                              rng_seed: int = 22) -> pygame.Surface:
+    """J2 — One-piece banner; score is LARGER than the plate height
+    so the burst pops above and below the banner. The plate stays
+    one continuous piece (you can see the red running behind the
+    score burst's narrowed waist), but the burst's spikes punch out
+    top + bottom."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _one_piece_two_word_plate("SKATE", "BOARD!",
+                                        font_size=32,
+                                        plate_pad=(16, 12),
+                                        gap_w=90)
+    rot = pygame.transform.rotate(plate, 5)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=52, ri=32, font_size=44)
+    return surf
+
+
+def render_caption_j3_compact(cx: int, cy: int, score: int,
+                                rng_seed: int = 22) -> pygame.Surface:
+    """J3 — Compact one-piece banner: smaller everything, tighter
+    gap, mini score. Reads as one wide gold-on-red banner with a
+    small comic emblem in the middle. Most "ribbon" feeling."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _one_piece_two_word_plate("SKATE", "BOARD!",
+                                        font_size=28,
+                                        plate_pad=(14, 10),
+                                        gap_w=56)
+    rot = pygame.transform.rotate(plate, 5)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=24, ri=14, font_size=22)
+    return surf
+
+
+def render_caption_j4_wide_big_score(cx: int, cy: int, score: int,
+                                       rng_seed: int = 22) -> pygame.Surface:
+    """J4 — Wide one-piece banner stretching to canvas edges with a
+    BIG gap holding a BIG score. Plate is taller too so the bigger
+    score fits inside vertically without punching out. Score
+    dominates the centre of a long horizontal ribbon."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _one_piece_two_word_plate("SKATE", "BOARD!",
+                                        font_size=28,
+                                        plate_pad=(20, 22),
+                                        gap_w=110)
+    rot = pygame.transform.rotate(plate, 3)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=44, ri=28, font_size=38)
+    return surf
+
+
+def render_caption_j5_tilted(cx: int, cy: int, score: int,
+                               rng_seed: int = 22) -> pygame.Surface:
+    """J5 — Same one-piece banner as J1 but more dramatically
+    TILTED (-10° instead of the live +5°), so the whole composite
+    leans the opposite way. Gives the banner more "deck sticker
+    slapped on at an angle" energy."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _one_piece_two_word_plate("SKATE", "BOARD!",
+                                        font_size=30,
+                                        plate_pad=(16, 14),
+                                        gap_w=78)
+    rot = pygame.transform.rotate(plate, -10)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=32, ri=20, font_size=28)
     return surf
 
 
