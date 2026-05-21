@@ -1226,14 +1226,25 @@ class App:
             s_outer = _math.sin(t_pulse + 0.0)
             u_outer = (s_outer + 1) / 2
             outer_factor = 1.0 - BREATH * (1.0 - u_outer)
-            glow_rad = rad * outer_factor
+            # Glow extends to the OUTERMOST ring (rfac=1.30) so the
+            # two new outer halos get the same gold backing as the
+            # inner rings — no more transparent outlines.
+            glow_rad = rad * 1.30 * outer_factor
 
+            # MEGA-specific bell curve: peak shifted from 0.85 (regular)
+            # to 1.0 so the brightest gold sits AT the outermost ring
+            # ("the maximum should be at the outer circles" per the user)
+            # and a wider falloff (0.40 vs 0.15) keeps the gradient
+            # smoothly flowing across all 7 rings instead of dying
+            # halfway in. Alpha bumped from 72 → 100 so the outer
+            # halos read boldly even though their ring outlines stay
+            # the same width as the rest.
             GLOW_COL = (245, 175, 40)
-            for i in range(18, 0, -1):
-                r = int(glow_rad * i / 18)
-                inner_t = i / 18
-                bell = _math.exp(-((inner_t - 0.85) ** 2) / 0.15)
-                a = int(72 * bell)
+            for i in range(28, 0, -1):
+                r = int(glow_rad * i / 28)
+                inner_t = i / 28
+                bell = _math.exp(-((inner_t - 1.0) ** 2) / 0.40)
+                a = int(100 * bell)
                 if a > 0:
                     pygame.draw.circle(field, (*GLOW_COL, a),
                                        (lcx, lcy), r)
