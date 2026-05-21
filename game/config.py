@@ -198,7 +198,18 @@ SECRET_POWERUP_WEIGHTS = (
     ("heist",      0.125),
     ("lottery",    0.125),
     ("phoenix",    0.125),
+    ("genie",      0.125),
 )
+
+# ── Genie Lamp tuning ────────────────────────────────────────────────────────
+# On pickup the Genie spawns N "offer" pickups ahead of Pip — unique
+# random kinds — and the first one Pip touches activates while the
+# other two disappear in a puff. Offers are tagged is_genie_offer so
+# the cleanup is targeted (a normal-spawn powerup nearby is safe).
+GENIE_OFFER_COUNT       = 3
+GENIE_OFFER_X_START     = 200   # px ahead of bird.x for the first offer
+GENIE_OFFER_X_STEP      = 60    # spacing between offers along x
+GENIE_OFFER_Y_SLOTS     = (220, 320, 420)  # mid-band y positions, top→bottom
 
 # ── v5_powerups TEST MODE — REMOVE before merging to v4/main ─────────────────
 # Bypasses the score>=500 gate so QA can verify every secret powerup quickly.
@@ -210,7 +221,7 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 # samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
     "skateboard", "heist",
-    "lottery", "phoenix",
+    "lottery", "phoenix", "genie",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────

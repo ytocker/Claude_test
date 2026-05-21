@@ -36,6 +36,8 @@ from game.config import (
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
     WEATHER_COIN_SLIDE_RATE, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX,
+    GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
+    GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -194,7 +196,7 @@ class World:
             # what was picked even though the help screen omits them).
             "skateboard": 0, "heist": 0,
             "lottery": 0,
-            "phoenix": 0,
+            "phoenix": 0, "genie": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -1624,6 +1626,11 @@ class World:
             audio.play_coin()
 
     def _on_powerup(self, m: PowerUp):
+        # Genie offer: collecting any one of the 3 spawned offers cancels
+        # the other two with a mauve poof. Done BEFORE the normal
+        # activation so the chosen kind's activator runs normally.
+        if getattr(m, "is_genie_offer", False):
+            self._cull_genie_offers_except(m)
         # Surprise box: roll a random "real" kind at pickup time, then route
         # through that kind's activator. The resolved activator plays the
         # matching sound — there's no dedicated surprise SFX.
@@ -1659,6 +1666,8 @@ class World:
             self._activate_lottery(m)
         elif kind == "phoenix":
             self._activate_phoenix(m)
+        elif kind == "genie":
+            self._activate_genie(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -1984,6 +1993,78 @@ class World:
             "PHOENIX!", m.x, m.y - 26, PHOENIX_GOLD,
             size=30, life=1.4, vy=-32, style="powerup",
         ))
+
+    def _activate_genie(self, m):
+        """Genie Lamp — instead of granting a buff directly, spawn
+        GENIE_OFFER_COUNT alternate powerup pickups in the play field
+        ahead of Pip. All offers are unique kinds drawn from
+        POWERUP_WEIGHTS (minus 'surprise' and 'genie' itself). The
+        player flies into the offer they want; the others get culled
+        the moment any one is picked up (see _on_powerup branch on
+        is_genie_offer). One-button compatible — no new input."""
+        eligible = [k for (k, _w) in POWERUP_WEIGHTS
+                    if k not in ("surprise", "genie")]
+        # Add secret kinds the player has unlocked (score >= LATE_GAME_SCORE).
+        if self.score >= LATE_GAME_SCORE:
+            for (k, _w) in SECRET_POWERUP_WEIGHTS:
+                if k not in ("genie",) and k not in eligible:
+                    eligible.append(k)
+        if len(eligible) < GENIE_OFFER_COUNT:
+            # Degenerate fallback — pool too small, treat as surprise.
+            kind = random.choice(eligible) if eligible else "triple"
+            self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
+            self._on_powerup(PowerUp(m.x, m.y, kind=kind))
+            return
+        chosen = random.sample(eligible, GENIE_OFFER_COUNT)
+        # Stagger offers ahead of Pip with one in each y slot — first
+        # offer in a random y, then the others fill remaining slots
+        # left-to-right by x so the layout reads as "three coming at
+        # you". Random y assignment keeps the player from memorising
+        # which slot is "best".
+        slots = list(GENIE_OFFER_Y_SLOTS[:GENIE_OFFER_COUNT])
+        random.shuffle(slots)
+        for i, kind in enumerate(chosen):
+            ox = self.bird.x + GENIE_OFFER_X_START + i * GENIE_OFFER_X_STEP
+            oy = slots[i]
+            offer = PowerUp(ox, oy, kind=kind)
+            offer.is_genie_offer = True
+            self.powerups.append(offer)
+        # Smoke + brass burst at pickup site.
+        self.shake_mag = max(self.shake_mag, 2.0)
+        self.shake_t   = max(self.shake_t, 0.2)
+        try:
+            audio.play_genie()
+        except Exception:
+            pass
+        self._pickup_burst(
+            m, ((185, 130, 45), (250, 215, 130),
+                (170, 130, 195), (220, 200, 240)),
+            n=24, speed_hi=260,
+        )
+        self.float_texts.append(FloatText(
+            "GENIE!", m.x, m.y - 26, (250, 215, 130),
+            size=28, life=1.3, vy=-28, style="powerup",
+        ))
+
+    def _cull_genie_offers_except(self, chosen: "PowerUp"):
+        """Mark every other is_genie_offer pickup as collected (so the
+        regular off-screen/collected sweep removes them next frame) and
+        puff a small cloud where each sibling stood so the player sees
+        the unchosen wishes evaporate."""
+        for p in self.powerups:
+            if p is chosen or not getattr(p, "is_genie_offer", False):
+                continue
+            p.collected = True
+            # Tiny mauve puff to read "wish evaporates".
+            for _ in range(8):
+                ang = random.uniform(0, math.tau)
+                sp = random.uniform(40, 90)
+                self.particles.append(Particle(
+                    p.x, p.y,
+                    math.cos(ang) * sp, math.sin(ang) * sp - 30,
+                    life=0.5, r=3, color=(170, 130, 195),
+                    gravity=200,
+                ))
 
     # ── utility ──────────────────────────────────────────────────────────────
 

@@ -197,6 +197,7 @@ def play_grow() -> None:        _play("grow", 0.80)
 # loaded. Drop new .ogg files in game/assets/sounds/ and re-point _play()
 # calls below if/when bespoke sounds are commissioned.
 def play_skateboard() -> None: _play("grow", 0.70); _play("poof", 0.55)
+def play_genie() -> None:      _play("magnet", 0.70); _play("poof", 0.55)
 def play_backflip() -> None:   _play("coin_triple", 0.70); _play("poof", 0.35)
 def play_heist() -> None:      _play("triple_coin", 0.95); _play("coin_triple", 0.85)
 def play_helmet_bonk() -> None: _play("thunder", 0.50)
