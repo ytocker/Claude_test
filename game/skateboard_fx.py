@@ -580,6 +580,109 @@ def render_kapow_halftone_filled_overlay(cx: int, cy: int,
     return surf
 
 
+# ── D5 (halftone-filled bursts) sub-variants for the SCORE display ──────────
+#
+# During the skateboard effect the user wants the SCORE itself painted in the
+# D5 halftone-comic style so it doesn't compete with the SKATEBOARD! caption
+# strip at y=75 (the live glass-pill score sits at y=92 and clashes with the
+# caption). These overlays persist for the whole effect duration — the caller
+# blits them at fixed alpha while skateboard_active is True, unlike the
+# caption (which fades) or the starburst (which is short).
+
+
+def _halftone_score_badge(surf, cx, cy, score_str,
+                           ro=48, ri=28, font_size=32,
+                           label=None, base_col=(255, 220, 30),
+                           dot_col=(230, 60, 50)):
+    """Paint a D5-style halftone-filled burst at (cx, cy) with the
+    score number (and optional small label) inside."""
+    _halftone_filled_burst(surf, cx, cy, ro, ri, spikes=10,
+                            dot_col=dot_col, base_col=base_col)
+    if label:
+        lbl_font_size = max(12, int(font_size * 0.42))
+        lbl = _gradient_text(label, lbl_font_size,
+                              top_col=(255, 250, 240),
+                              bot_col=dot_col,
+                              outline=INK, outline_w=2)
+        surf.blit(lbl, lbl.get_rect(
+            center=(cx, cy - int(font_size * 0.42))))
+        num = _gradient_text(score_str, font_size,
+                              top_col=(255, 250, 240),
+                              bot_col=dot_col,
+                              outline=INK, outline_w=3)
+        surf.blit(num, num.get_rect(
+            center=(cx, cy + int(font_size * 0.22))))
+    else:
+        num = _gradient_text(score_str, font_size,
+                              top_col=(255, 250, 240),
+                              bot_col=dot_col,
+                              outline=INK, outline_w=3)
+        surf.blit(num, num.get_rect(center=(cx, cy)))
+
+
+def render_skateboard_score_e1(score: int) -> pygame.Surface:
+    """E1 — Compact halftone burst in the UPPER-RIGHT corner, just the
+    score number inside. Smallest footprint of the bunch; clears the
+    SKATEBOARD! caption strip entirely."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _halftone_score_badge(surf, W - 58, 118, str(score),
+                           ro=48, ri=28, font_size=30)
+    return surf
+
+
+def render_skateboard_score_e2(score: int) -> pygame.Surface:
+    """E2 — BIG halftone burst centred just below the SKATEBOARD!
+    caption (y≈185). The biggest and most prominent option — the
+    score IS the comic burst, cleanly clear of the caption strip
+    which ends around y=109."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _halftone_score_badge(surf, W // 2, 185, str(score),
+                           ro=74, ri=44, font_size=52)
+    return surf
+
+
+def render_skateboard_score_e3(score: int) -> pygame.Surface:
+    """E3 — Medium halftone burst centred BELOW the SKATEBOARD!
+    caption strip (~y=150), so the caption stays at the very top and
+    the score sits cleanly underneath."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _halftone_score_badge(surf, W // 2, 150, str(score),
+                           ro=58, ri=34, font_size=38)
+    return surf
+
+
+def render_skateboard_score_e4(score: int) -> pygame.Surface:
+    """E4 — Halftone burst upper-right with a small "SCORE" label
+    stacked above the number — explicit two-line layout so the
+    number reads as a SCORE even out of context."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _halftone_score_badge(surf, W - 68, 130, str(score),
+                           ro=66, ri=40, font_size=36, label="SCORE")
+    return surf
+
+
+def render_skateboard_score_e5(score: int) -> pygame.Surface:
+    """E5 — Composite: small "SCORE" burst in cyan/navy beside a
+    bigger number burst in yellow/red, both upper-right. Two
+    side-by-side badges read as a scoreboard inset rather than a
+    single emblem. Cyan label contrasts the yellow number so they
+    don't blur together."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    # Small SCORE label burst (left).
+    _halftone_filled_burst(surf, W - 124, 132, 38, 22, spikes=10,
+                            dot_col=(30, 60, 120),
+                            base_col=(95, 200, 220))
+    lbl = _gradient_text("SCORE", 18,
+                          top_col=(255, 250, 240),
+                          bot_col=(30, 60, 120),
+                          outline=INK, outline_w=2)
+    surf.blit(lbl, lbl.get_rect(center=(W - 124, 132)))
+    # Bigger number burst (right, well clear of the SCORE chip).
+    _halftone_score_badge(surf, W - 50, 132, str(score),
+                           ro=46, ri=28, font_size=32)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
