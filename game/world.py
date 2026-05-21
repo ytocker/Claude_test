@@ -23,7 +23,6 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     # Secret late-game powerups
     LATE_GAME_SCORE, SECRET_POWERUP_WEIGHTS,
-    SHRINK_DURATION, SHRINK_SCALE,
     SKATEBOARD_DURATION, BACKFLIP_TAP_WINDOW, BACKFLIP_DURATION,
     KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX, KICKFLIP_DURATION,
     POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX, POPSHUVIT_DURATION,
@@ -32,7 +31,6 @@ from game.config import (
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK, SKATE_SLIDE_RELEASE,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
-    MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
     FLAP_V,
@@ -154,7 +152,6 @@ class World:
         # only triggered when the streak reaches 3 and no flip is mid-air.
         self._last_tap_t = -999.0
         self._tap_streak = 0
-        self.shrink_timer     = 0.0
         # PHOENIX: 30 s fiery skin + one-shot death revive. While
         # phoenix_timer > 0 the bird sprite renders as a phoenix and the
         # next call to _die() is suppressed (ends the buff + grants
@@ -184,11 +181,6 @@ class World:
         # each flap drops TREASURE_BOX_COINS_PER_FLAP coins straight into
         # his score (scaled by triple if also active).
         self.treasure_box_timer = 0.0
-        # MEGA MAGNET timer: while > 0 the magnet routine fires with
-        # MEGA_MAGNET_RADIUS_MULT so coins are tugged from anywhere on
-        # the screen instead of only the close-radius normal-magnet
-        # zone. Same _apply_magnet code path as the regular magnet.
-        self.mega_magnet_timer = 0.0
         # Lottery reveal animation. None when not rolling; a dict {t, tier,
         # delta} while the scratch-card reels are ticking.
         self.lottery_anim: dict | None = None
@@ -211,8 +203,8 @@ class World:
             "grow": 0, "reverse": 0, "surprise": 0,
             # Secret late-game kinds (still tracked so run summary can show
             # what was picked even though the help screen omits them).
-            "skateboard": 0, "shrink": 0, "heist": 0,
-            "mega_magnet": 0, "rail": 0, "lottery": 0,
+            "skateboard": 0, "heist": 0,
+            "rail": 0, "lottery": 0,
             "phoenix": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
@@ -473,8 +465,8 @@ class World:
     def _maybe_spawn_powerup(self, pipe: Pipe):
         # v5_powerups TEST MODE: first N pillars guarantee a forced
         # pickup with no cooldown so QA can verify every revised
-        # powerup quickly. Pool is TEST_FORCED_KINDS (every secret +
-        # mega_magnet) — equal probability per kind. Bypasses the
+        # powerup quickly. Pool is TEST_FORCED_KINDS — equal
+        # probability per kind. Bypasses the
         # score>=500 gate.
         if (TEST_SECRETS_FIRST_N_PILLARS > 0
                 and self.pipes_spawned <= TEST_SECRETS_FIRST_N_PILLARS):
@@ -721,11 +713,7 @@ class World:
                 r.x -= speed * sdt
 
             # Magnet pull — tug uncollected coins toward the bird.
-            # MEGA MAGNET wins if both timers are running (its bigger
-            # radius covers more, so the smaller one is redundant).
-            if self.mega_magnet_timer > 0:
-                self._apply_magnet(dt, radius_mult=MEGA_MAGNET_RADIUS_MULT)
-            elif self.magnet_timer > 0:
+            if self.magnet_timer > 0:
                 self._apply_magnet(dt)
             # Phoenix-solar variant pulls coins at half strength while
             # active. Reuses the magnet routine with weaker multipliers
@@ -835,8 +823,6 @@ class World:
             self.bird.triple_active = self.triple_timer > 0
             if self.magnet_timer > 0:
                 self.magnet_timer = max(0.0, self.magnet_timer - dt)
-            if self.mega_magnet_timer > 0:
-                self.mega_magnet_timer = max(0.0, self.mega_magnet_timer - dt)
             if self.slowmo_timer > 0:
                 self.slowmo_timer = max(0.0, self.slowmo_timer - dt)
             if self.kfc_timer > 0:
@@ -878,9 +864,6 @@ class World:
                     0.0, self.skateboard_burst_t - dt)
                 if self.skateboard_burst_t <= 0:
                     self.skateboard_burst_surface = None
-            if self.shrink_timer > 0:
-                self.shrink_timer = max(0.0, self.shrink_timer - dt)
-            self.bird.shrink_active = self.shrink_timer > 0
             if self.phoenix_timer > 0:
                 self.phoenix_timer = max(0.0, self.phoenix_timer - dt)
             self.bird.phoenix_active = self.phoenix_timer > 0
@@ -967,11 +950,6 @@ class World:
     # ── collisions ───────────────────────────────────────────────────────────
 
     def bird_radius(self) -> float:
-        # Both timers active at once is rare (different secret pool) but
-        # if it happened, SHRINK wins because it's the more recent pickup
-        # effect for the player.
-        if self.shrink_timer > 0:
-            return BIRD_R * SHRINK_SCALE
         if self.grow_timer > 0:
             return BIRD_R * GROW_SCALE
         return BIRD_R
@@ -1071,8 +1049,6 @@ class World:
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
         scale = GROW_SCALE if self.grow_timer > 0 else 1.0
-        if self.shrink_timer > 0:
-            scale = SHRINK_SCALE
         parcel_offset = pygame.math.Vector2(
             0, PARCEL_Y_OFFSET * scale).rotate(-self.bird.tilt_deg)
         px = bx + parcel_offset.x
@@ -1689,8 +1665,6 @@ class World:
         scale = 1.0
         if self.grow_timer > 0:
             scale = GROW_SCALE
-        elif self.shrink_timer > 0:
-            scale = SHRINK_SCALE
         tx = self.bird.x - 12 * scale + random.uniform(-2, 2)
         ty = self.bird.y +  2 * scale + random.uniform(-3, 3)
         # Slight backward drift so the trail lags behind a moving Pip.
@@ -1764,7 +1738,7 @@ class World:
             # "reverse" is intentionally excluded — feels too disorienting
             # in stacks. The activation code is still wired up; add it back
             # to this tuple (and to POWERUP_WEIGHTS in config.py) to enable.
-            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "grow", "mega_magnet"))
+            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "grow"))
             self._spawn_surprise_reveal(m)
         self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":
@@ -1784,12 +1758,8 @@ class World:
         # Secret late-game powerups
         elif kind == "skateboard":
             self._activate_skateboard(m)
-        elif kind == "shrink":
-            self._activate_shrink(m)
         elif kind == "heist":
             self._activate_heist(m)
-        elif kind == "mega_magnet":
-            self._activate_mega_magnet(m)
         elif kind == "rail":
             self._activate_rail(m)
         elif kind == "lottery":
@@ -2028,22 +1998,6 @@ class World:
         self.skateboard_burst_cx = int(self.bird.x)
         self.skateboard_burst_cy = int(self.bird.y)
 
-    def _activate_shrink(self, m):
-        SHRINK_HI  = (80, 180, 240)
-        SHRINK_OUT = (30, 90, 160)
-        self.shrink_timer = SHRINK_DURATION
-        self.bird.shrink_active = True
-        self.shake_mag = max(self.shake_mag, 3.0)
-        self.shake_t = max(self.shake_t, 0.25)
-        audio.play_shrink()
-        audio.play_poof()
-        self._spawn_poof(self.bird.x, self.bird.y)
-        self._pickup_burst(m, (SHRINK_HI, SHRINK_OUT, WHITE, UI_CREAM), n=30, speed_hi=280)
-        self.float_texts.append(FloatText(
-            "SHRINK!", m.x, m.y - 26, SHRINK_HI,
-            size=30, life=1.3, vy=-30, style="powerup",
-        ))
-
     def _activate_heist(self, m):
         # Treasure box: start the duration buff. While it's active the
         # chest hangs under Pip's belly (drawn by PlayScene) and each
@@ -2056,22 +2010,6 @@ class World:
         self.float_texts.append(FloatText(
             "TREASURE BOX!", m.x, m.y - 26, UI_GOLD,
             size=26, life=1.5, vy=-30, style="powerup",
-        ))
-
-    def _activate_mega_magnet(self, m):
-        # Start the timer; the magnet routine in update() automatically
-        # uses MEGA_MAGNET_RADIUS_MULT while this timer is running so
-        # coins from anywhere on the screen are pulled toward Pip for
-        # MEGA_MAGNET_DURATION seconds. Pairs cleanly with the regular
-        # MAGNET pickup (timers are independent).
-        self.mega_magnet_timer = MEGA_MAGNET_DURATION
-        self.shake_mag = max(self.shake_mag, 3.5)
-        self.shake_t = max(self.shake_t, 0.3)
-        audio.play_mega_magnet()
-        self._pickup_burst(m, ((30, 200, 220), (60, 140, 220), UI_GOLD, WHITE), n=32)
-        self.float_texts.append(FloatText(
-            "MEGA MAGNET!", m.x, m.y - 26, (60, 200, 230),
-            size=26, life=1.3, vy=-30, style="powerup",
         ))
 
     def _activate_rail(self, m):

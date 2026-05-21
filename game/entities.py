@@ -737,18 +737,12 @@ class Bird:
         self.ghost_active = False
         self.grow_active = False
         # Visual scale eases toward GROW_SCALE while grow_active and back
-        # to 1.0 when it clears, mirroring shrink_scale on the opposite
-        # side of 1.0. Collisions snap; only the visible sprite eases.
+        # to 1.0 when it clears. Collisions snap; only the visible sprite eases.
         self.grow_scale = 1.0
         self.triple_active = False
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
         # Secret late-game powerup flags (timer state lives on World).
         self.skateboard_active = False
-        self.shrink_active = False
-        # Visual scale eases toward SHRINK_SCALE while shrink_active and
-        # back to 1.0 when it clears, so the size change reads as a
-        # transformation across SHRINK_TRANSITION rather than a one-frame snap.
-        self.shrink_scale = 1.0
         # PHOENIX: fiery skin while phoenix_active; the death-revive is
         # owned by World._die().
         self.phoenix_active = False
@@ -867,16 +861,7 @@ class Bird:
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
-        from game.config import (
-            SHRINK_SCALE, SHRINK_TRANSITION,
-            GROW_SCALE, GROW_TRANSITION,
-        )
-        target_s = SHRINK_SCALE if self.shrink_active else 1.0
-        step_s = (1.0 - SHRINK_SCALE) * (dt / SHRINK_TRANSITION)
-        if self.shrink_scale < target_s:
-            self.shrink_scale = min(target_s, self.shrink_scale + step_s)
-        elif self.shrink_scale > target_s:
-            self.shrink_scale = max(target_s, self.shrink_scale - step_s)
+        from game.config import GROW_SCALE, GROW_TRANSITION
         target_g = GROW_SCALE if self.grow_active else 1.0
         step_g = (GROW_SCALE - 1.0) * (dt / GROW_TRANSITION)
         if self.grow_scale < target_g:
@@ -935,14 +920,6 @@ class Bird:
             w, h = img.get_size()
             s = self.grow_scale
             img = pygame.transform.smoothscale(img, (int(w * s), int(h * s)))
-        if self.shrink_scale < 1.0:
-            # SHRINK: counterpart to GROW. Smoothscale down by the eased
-            # shrink_scale (animates between 1.0 and SHRINK_SCALE over
-            # SHRINK_TRANSITION). Wins over GROW if both ever happen.
-            w, h = img.get_size()
-            s = self.shrink_scale
-            img = pygame.transform.smoothscale(
-                img, (max(1, int(w * s)), max(1, int(h * s))))
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -1016,8 +993,6 @@ class Bird:
         parcel = parrot.get_parcel(mode)
         from game.config import PARCEL_Y_OFFSET
         scale = self.grow_scale
-        if self.shrink_scale < 1.0:
-            scale = self.shrink_scale
         if scale != 1.0:
             pw, ph = parcel.get_size()
             parcel = pygame.transform.smoothscale(
@@ -1168,7 +1143,7 @@ class Bird:
         skull decal ellipse, chinstrap lines and clip — much
         smoother than pixel-snapped pygame primitives at the native
         24×15 helm size."""
-        s = self.shrink_scale
+        s = 1.0
         SS = 4  # supersample factor
         # Logical (native) dimensions — coords below are conceptual
         # and get multiplied by SS for the actual paint surface.
@@ -1296,7 +1271,7 @@ class Bird:
         smoothscale-down.
         """
         from game.config import PARCEL_Y_OFFSET
-        s = self.shrink_scale
+        s = 1.0
         SS = 4
         # Native (logical) dimensions.
         board_w_n = int(48 * s)
@@ -2107,12 +2082,8 @@ class PowerUp:
         # ── Secret late-game powerups (intentionally not in powerup_help.py) ──
         elif self.kind == "skateboard":
             self._draw_skateboard_icon(surf)
-        elif self.kind == "shrink":
-            self._draw_shrink_mushroom(surf)
         elif self.kind == "heist":
             self._draw_heist_icon(surf)
-        elif self.kind == "mega_magnet":
-            self._draw_mega_magnet_icon(surf)
         elif self.kind == "rail":
             self._draw_rail_icon(surf)
         elif self.kind == "lottery":
@@ -2394,18 +2365,6 @@ class PowerUp:
 
     # ── SECRET LATE-GAME POWER-UP ICONS ─────────────────────────────────────
 
-    def _draw_shrink_mushroom(self, surf):
-        """Sibling-to-GROW mushroom in red velvet: wide flat parasol disc on
-        a flared flat-bottomed stem, cream-butter spots, magenta pulsing
-        halo. Reads as the same fungal family as GROW; the silhouette is
-        the only thing that distinguishes the two pickups at glance."""
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 1.1) * 2)
-        _draw_grow_halo(surf, cx, cy, self.pulse,
-                        color_rgb=_GROW_HALO_RGB, radius=40, peak_y_off=0)
-        sprite = _get_shrink_body_sprite()
-        surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
-
     def _draw_skateboard_icon(self, surf):
         """SKATEBOARD pickup token (variant S4 — Jolly Roger): bone
         skull centred over two crossed skateboard decks in an X
@@ -2509,64 +2468,6 @@ class PowerUp:
         # collision circle — same overflow the kfc/grow icons use to
         # read clearly against a noisy background.
         draw_chest_at(surf, cx, cy)
-
-    def _draw_mega_magnet_icon(self, surf):
-        """MEGA MAGNET pickup token: oversized red horseshoe magnet
-        (15% bigger than the regular magnet) with three pulsing
-        concentric rings around it telegraphing the much wider pull
-        radius. Same colour family as the regular magnet so the
-        relationship reads at a glance, but the pulse rings make it
-        unmistakably the bigger version."""
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 1.1) * 3)
-        # Pulse rings — three concentric, alpha drops with radius;
-        # synchronous pulse breathing makes the icon read as "actively
-        # pulling".
-        breath = int(math.sin(self.pulse * 2.0) * 2)
-        for ring_r, alpha in ((26, 60), (20, 95), (14, 135)):
-            ring = pygame.Surface((ring_r * 2 + 6, ring_r * 2 + 6),
-                                  pygame.SRCALPHA)
-            pygame.draw.circle(ring, (40, 180, 240, alpha),
-                               (ring_r + 3, ring_r + 3),
-                               ring_r + breath, 2)
-            surf.blit(ring, (cx - ring_r - 3, cy - ring_r - 3))
-        # Horseshoe magnet — 15% larger than _draw_magnet.
-        outer_r = 15
-        inner_r = 7
-        arch_cy = cy - 3
-        leg_bot = cy + 14
-        sz = 48
-        scx = sz // 2
-        scy = outer_r + 5
-        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        # Dark shadow rim
-        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), outer_r + 2)
-        pygame.draw.rect(scratch, (80, 5, 8),
-                         (scx - outer_r - 2, scy,
-                          (outer_r + 2) * 2, leg_bot - arch_cy + 4))
-        # Vivid crimson body
-        RED_HI = (235, 35, 45)
-        pygame.draw.circle(scratch, RED_HI, (scx, scy), outer_r + 1)
-        pygame.draw.rect(scratch, RED_HI,
-                         (scx - outer_r - 1, scy,
-                          (outer_r + 1) * 2, leg_bot - arch_cy + 3))
-        # Punch the inner hollow
-        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), inner_r)
-        pygame.draw.rect(scratch, (0, 0, 0, 0),
-                         (scx - inner_r, scy,
-                          inner_r * 2, leg_bot - arch_cy + 2))
-        # Silver pole caps at the leg bottoms
-        SILVER = (220, 220, 230)
-        pygame.draw.rect(scratch, SILVER,
-                         (scx - outer_r - 1, leg_bot - arch_cy + 1,
-                          outer_r - inner_r + 2, 4))
-        pygame.draw.rect(scratch, SILVER,
-                         (scx + inner_r - 1, leg_bot - arch_cy + 1,
-                          outer_r - inner_r + 2, 4))
-        # Top-arc highlight
-        pygame.draw.circle(scratch, (255, 130, 140),
-                           (scx, scy), outer_r + 1, 1)
-        surf.blit(scratch, (cx - scx, cy - scy))
 
     def _draw_rail_icon(self, surf):
         """RAIL pickup — Victorian engraved train ticket (RT2): sepia
@@ -3035,106 +2936,6 @@ class PowerUp:
         surf.blit(halo, (cx - 36, cy - 36))
 
     # ── Phoenix icon variants ───────────────────────────────────────
-
-# ── SHRINK power-up sprite (red velvet pancake parasol — sibling to GROW) ───
-# Same red velvet palette + cream-butter spots + magenta halo as GROW so
-# the two pickups read as one fungal family. The silhouette is the only
-# differentiator at glance:
-#   - Cap: wide flat parasol disc (vs GROW's tall narrow Liberty-Cap cone)
-#   - Stem: flared flat-bottomed pedestal (vs GROW's bulbed pointed stem)
-# Built at supersample then smoothscaled and cached, same pipeline as GROW.
-_SHRINK_SS = 5
-_SHRINK_CAP_W,  _SHRINK_CAP_H  = 30, 8
-_SHRINK_STEM_W, _SHRINK_STEM_H = 14, 22
-_SHRINK_VELVET_OUTLINE = ( 60,  15,  25)
-_SHRINK_VELVET_BODY    = MUSH_CAP
-_SHRINK_VELVET_HI      = MUSH_CAP2
-_SHRINK_SPOT_HALO      = (195, 165, 110)
-_SHRINK_STEM_OUTLINE   = (150, 120,  90)
-_SHRINK_STEM_HI        = (255, 250, 230)
-
-# 4 cream-butter spots in a GROW-style asymmetric scatter across the
-# flat disc — they don't form a uniform grid, mirroring the way GROW's
-# 4 canonical spots are off-axis on the cone.
-_SHRINK_ORNAMENT_SLOTS = (
-    (0.18, 0.48),
-    (0.40, 0.30),
-    (0.62, 0.55),
-    (0.82, 0.36),
-)
-
-_shrink_body_sprite: "pygame.Surface | None" = None
-
-def _get_shrink_body_sprite() -> "pygame.Surface":
-    global _shrink_body_sprite
-    if _shrink_body_sprite is not None:
-        return _shrink_body_sprite
-    SS = _SHRINK_SS
-    CAP_W, CAP_H = _SHRINK_CAP_W, _SHRINK_CAP_H
-    STEM_W, STEM_H = _SHRINK_STEM_W, _SHRINK_STEM_H
-    sprite_w = max(CAP_W, STEM_W) + 2
-    sprite_h = CAP_H + STEM_H + 4
-    big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
-    cap_ox  = ((sprite_w - CAP_W)  // 2) * SS
-    cap_oy  = 0
-    stem_ox = ((sprite_w - STEM_W) // 2) * SS
-    stem_oy = (CAP_H + 2) * SS
-
-    # ── Stem: flared flat-bottomed pedestal ───────────────────────────────
-    # Widest at the base (y=1.0) with a shoulder at y=0.88 so the mushroom
-    # sits squarely instead of balancing on a tapered tip.
-    stem_pts = [
-        (int(0.42 * STEM_W * SS), int(0.00 * STEM_H * SS)),
-        (int(0.58 * STEM_W * SS), int(0.00 * STEM_H * SS)),
-        (int(0.66 * STEM_W * SS), int(0.40 * STEM_H * SS)),
-        (int(0.78 * STEM_W * SS), int(0.66 * STEM_H * SS)),
-        (int(0.96 * STEM_W * SS), int(0.88 * STEM_H * SS)),
-        (int(0.96 * STEM_W * SS), int(1.00 * STEM_H * SS)),
-        (int(0.04 * STEM_W * SS), int(1.00 * STEM_H * SS)),
-        (int(0.04 * STEM_W * SS), int(0.88 * STEM_H * SS)),
-        (int(0.22 * STEM_W * SS), int(0.66 * STEM_H * SS)),
-        (int(0.34 * STEM_W * SS), int(0.40 * STEM_H * SS)),
-    ]
-    stem_pts = [(p[0] + stem_ox, p[1] + stem_oy) for p in stem_pts]
-    pygame.draw.polygon(big, MUSH_STEM,            stem_pts)
-    pygame.draw.polygon(big, _SHRINK_STEM_OUTLINE, stem_pts, width=SS)
-    hi_x = stem_ox + int(0.40 * STEM_W * SS)
-    pygame.draw.line(big, _SHRINK_STEM_HI,
-                     (hi_x, stem_oy + int(0.10 * STEM_H * SS)),
-                     (hi_x, stem_oy + int(0.78 * STEM_H * SS)), SS)
-
-    # ── Cap: wide flat disc with a hint of pancake thickness ─────────────
-    outer = pygame.Rect(cap_ox, cap_oy, CAP_W * SS, CAP_H * SS)
-    inner = outer.inflate(-SS * 2, -SS * 2)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE, outer)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_BODY,    inner)
-    pygame.draw.ellipse(big, _SHRINK_VELVET_HI,
-                        pygame.Rect(cap_ox + int(CAP_W * SS * 0.20),
-                                    cap_oy + int(CAP_H * SS * 0.10),
-                                    int(CAP_W * SS * 0.50),
-                                    int(CAP_H * SS * 0.32)))
-    # Lower under-disc shadow hints at pancake thickness so the cap
-    # doesn't read as a single 2D ellipse.
-    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE,
-                        pygame.Rect(cap_ox + SS,
-                                    cap_oy + int(CAP_H * SS * 0.65),
-                                    (CAP_W - 2) * SS,
-                                    int(CAP_H * SS * 0.55)))
-
-    # ── Cream-butter spots (same render style as GROW: halo + body + glint).
-    for fx_frac, fy_frac in _SHRINK_ORNAMENT_SLOTS:
-        fx = cap_ox + int(CAP_W * fx_frac * SS)
-        fy = cap_oy + int(CAP_H * fy_frac * SS)
-        r_body = 1.7
-        pygame.draw.circle(big, _SHRINK_SPOT_HALO, (fx, fy),
-                           int((r_body + 0.4) * SS))
-        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(r_body * SS))
-        pygame.draw.circle(big, (255, 250, 220),
-                           (fx - SS // 2, fy - SS // 2), max(1, SS // 2))
-
-    _shrink_body_sprite = pygame.transform.smoothscale(big, (sprite_w, sprite_h))
-    return _shrink_body_sprite
-
 
 # Back-compat alias — some callers (e.g. snapshot/playtest scripts) still say Mushroom.
 Mushroom = PowerUp

@@ -51,11 +51,9 @@ KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
 GROW_SCALE         = 1.3
-# Mirror of SHRINK_TRANSITION but running the opposite direction
-# (1.0 → GROW_SCALE on activation, GROW_SCALE → 1.0 on expiry). Same
-# 0.20s / ~12-frame arc so the two pickups feel like a matched pair.
-# Collisions snap to GROW_SCALE on frame 1 (World.bird_radius / pipe
-# overlap); only the visible sprite eases.
+# 1.0 → GROW_SCALE on activation, GROW_SCALE → 1.0 on expiry. ~0.20s
+# / ~12-frame arc. Collisions snap to GROW_SCALE on frame 1
+# (World.bird_radius / pipe overlap); only the visible sprite eases.
 GROW_TRANSITION    = 0.20
 REVERSE_DURATION   = 8.0
 
@@ -73,7 +71,6 @@ POWERUP_WEIGHTS    = (
     ("kfc",      1),
     ("ghost",    1),
     ("grow",     1),
-    ("mega_magnet", 1),
     ("surprise", 1),
 )
 
@@ -84,15 +81,6 @@ POWERUP_WEIGHTS    = (
 # box either; each has its own roll so the visual is always genuinely new.
 LATE_GAME_SCORE       = 500
 
-SHRINK_DURATION       = 8.0
-SHRINK_SCALE          = 0.6
-# Bird sprite eases between 1.0 and SHRINK_SCALE over this many seconds
-# when the buff turns on/off — ~27 frames at 60 FPS so the morph is
-# clearly visible during play (the previous 0.20 s / 12-frame ramp went
-# by too quickly to read). Collisions snap on frame 1 (see
-# World.bird_radius / Bird vs Pipe collision) so the gameplay benefit
-# is immediate; only the visible scale animates.
-SHRINK_TRANSITION     = 0.45
 SKATEBOARD_DURATION   = 8.0
 # SKATEBOARD trick: 3 taps with no more than this many seconds between
 # consecutive taps trigger a 360° backflip. New flips cannot chain
@@ -186,16 +174,6 @@ SKATE_SLIDE_RELEASE   = 0.55
 # instead of paid out in a single brush.
 TREASURE_BOX_DURATION       = 8.0
 TREASURE_BOX_COINS_PER_FLAP = 2
-# MEGA MAGNET — a stronger MAGNET that pulls coins from anywhere on the
-# screen for the same duration. Implemented by reusing _apply_magnet
-# with a much larger radius multiplier.
-MEGA_MAGNET_DURATION    = 8.0
-# Pull radius matches the OUTERMOST visible ring of the mega force
-# field (rad * 1.30 with rad = MAGNET_RADIUS * 1.5 → 1.95 ×
-# MAGNET_RADIUS). Only coins actually touching the visible field
-# get pulled — supersedes the old "vacuum" 5.0× behaviour that
-# sucked in every coin on screen regardless of position.
-MEGA_MAGNET_RADIUS_MULT = 1.95
 
 # Lottery tiers: (label, weight, coin_delta). NOTHING is the modal
 # outcome (35 %); roughly 37 % of spins win, 28 % lose, 35 % zero. With
@@ -219,7 +197,6 @@ LOTTERY_REVEAL_TIME   = 1.0
 # ~9.8% per spawn after the threshold.
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
-    ("shrink",     0.125),
     ("heist",      0.125),
     ("rail",       0.125),
     ("lottery",    0.125),
@@ -231,15 +208,12 @@ SECRET_POWERUP_WEIGHTS = (
 # Set TEST_SECRETS_FIRST_N_PILLARS = 0 to disable the forced spawn.
 TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 
-# Forced-spawn pool used during the test-mode window. Includes every
-# secret in SECRET_POWERUP_WEIGHTS PLUS mega_magnet (which lives in
-# the normal POWERUP_WEIGHTS pool but is one of the powerups this
-# branch wants QA to verify alongside the secrets). Equal weight per
-# kind so the 15-pillar window samples each at least once with
-# reasonable probability.
+# Forced-spawn pool used during the test-mode window — every secret in
+# SECRET_POWERUP_WEIGHTS, equal weight per kind so the 15-pillar window
+# samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
-    "skateboard", "shrink", "heist", "rail",
-    "lottery", "phoenix", "mega_magnet",
+    "skateboard", "heist", "rail",
+    "lottery", "phoenix",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────

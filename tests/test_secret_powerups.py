@@ -4,10 +4,8 @@ These cover:
   - Spawn gating: nothing leaks below LATE_GAME_SCORE, everything is
     eligible at/above it.
   - SKATEBOARD collision overrides (ground / ceiling survive, side kills).
-  - SHRINK collision radius.
   - LOTTERY tier application with floor-at-zero on losses.
   - TREASURE BOX per-flap coin drop.
-  - MEGA MAGNET duration buff (pulls coins from anywhere on the screen).
   - Plausibility chain stays valid with the new event kinds.
 """
 import os
@@ -24,7 +22,7 @@ pygame.display.set_mode((360, 640))
 
 from game import _plausibility
 from game.config import (
-    BIRD_R, SHRINK_SCALE, GROUND_Y, LATE_GAME_SCORE,
+    BIRD_R, GROUND_Y, LATE_GAME_SCORE,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     SECRET_POWERUP_WEIGHTS,
 )
@@ -75,15 +73,6 @@ def test_secrets_unlocked_at_threshold():
     seen = _force_spawn_attempts(w, 5000, score=LATE_GAME_SCORE)
     missing = SECRET_KINDS - seen
     assert not missing, f"expected secrets missing at threshold: {missing}"
-
-
-def test_shrink_changes_collision_radius():
-    w = World()
-    w.ready_t = 0
-    assert w.bird_radius() == BIRD_R  # baseline
-    w._activate_shrink(PowerUp(0, 0, kind="shrink"))
-    assert abs(w.bird_radius() - BIRD_R * SHRINK_SCALE) < 1e-6
-    assert w.bird.shrink_active is True
 
 
 def test_skateboard_survives_ground():
@@ -248,53 +237,6 @@ def test_treasure_box_arms_buff_and_drops_coins_per_flap():
     no_buff_pre = w.score
     w.flap()
     assert w.score == no_buff_pre  # no drop once the buff has expired
-
-
-def test_mega_magnet_sets_timer_and_pulls_coins_in_visible_field():
-    from game.config import (
-        MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT, MAGNET_RADIUS,
-    )
-    w = World()
-    w.ready_t = 0
-    assert w.mega_magnet_timer == 0
-    w._activate_mega_magnet(PowerUp(0, 0, kind="mega_magnet"))
-    assert w.mega_magnet_timer == MEGA_MAGNET_DURATION
-
-    bx, by = w.bird.x, w.bird.y
-    # A coin INSIDE the mega visible field but OUTSIDE the regular
-    # field (1.5 × MAGNET_RADIUS sits between them) should be tugged.
-    in_dist = MAGNET_RADIUS * 1.5
-    c = Coin(bx + in_dist, by)
-    w.coins = [c]
-    start_x = c.x
-    for _ in range(5):
-        w._apply_magnet(1 / 60, radius_mult=MEGA_MAGNET_RADIUS_MULT)
-    assert c.x < start_x, (
-        f"mega-magnet didn't tug a coin at 1.5x MAGNET_RADIUS: "
-        f"x stayed at {c.x:.1f} (started {start_x:.1f})")
-
-
-def test_mega_magnet_does_not_pull_coins_outside_visible_field():
-    """The visible mega field reaches MAGNET_RADIUS * 1.95 (outermost
-    ring). A coin past that (e.g., at 2.5 × MAGNET_RADIUS) must NOT
-    be tugged — the old vacuum 5× behaviour is gone."""
-    from game.config import MEGA_MAGNET_RADIUS_MULT, MAGNET_RADIUS
-    w = World()
-    w.ready_t = 0
-    w._activate_mega_magnet(PowerUp(0, 0, kind="mega_magnet"))
-
-    bx, by = w.bird.x, w.bird.y
-    far_dist = MAGNET_RADIUS * 2.5  # safely past the 1.95 outer ring
-    c = Coin(bx + far_dist, by)
-    w.coins = [c]
-    start_x = c.x
-    for _ in range(5):
-        w._apply_magnet(1 / 60, radius_mult=MEGA_MAGNET_RADIUS_MULT)
-    assert c.x == start_x, (
-        f"mega-magnet pulled a coin OUTSIDE the visible field "
-        f"(at {far_dist:.0f} px from Pip): x moved to {c.x:.1f} "
-        f"from {start_x:.1f}")
-
 
 
 def test_rail_pickup_parks_cart_and_keeps_flap_alive():

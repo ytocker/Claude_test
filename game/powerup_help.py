@@ -37,7 +37,6 @@ POWERUPS = (
     ("kfc",      "KFC",      "Fried chicken theme"),
     ("ghost",    "GHOST",    "Go through pillars safely"),
     ("grow",     "GROW",     "1.3x larger"),
-    ("mega_magnet", "MEGA MAGNET", "Pulls every coin on screen for 8 s"),
     ("surprise", "SURPRISE", "Picks random from above"),
 )
 
@@ -129,11 +128,9 @@ _ICON_BOB_AT_PULSE = {
     "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
     "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
     "grow":     math.sin(_PULSE_FOR_ICON * 1.2) * 2,
-    "mega_magnet": math.sin(_PULSE_FOR_ICON * 1.1) * 3,
     # Secret late-game powerups — used only for run-summary icon centering
     # (they are NOT shown on the help screen; POWERUPS tuple intentionally
     # excludes them).
-    "shrink":     math.sin(_PULSE_FOR_ICON * 1.1) * 2,
     "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
     "heist":      math.sin(_PULSE_FOR_ICON * 1.2) * 2,
     "rail":       math.sin(_PULSE_FOR_ICON * 1.0) * 2,

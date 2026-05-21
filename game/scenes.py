@@ -19,48 +19,6 @@ from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
 
-# Pre-rendered MEGA MAGNET radial gradient texture. Computed ONCE on
-# first access (a per-pixel bell-curve fill — slow as a pure-Python
-# loop but only runs at startup) and then smoothscale'd per frame to
-# match the pulsing glow radius. Pre-rendering avoids the visible
-# banding that nested annuli produced and the centre-accumulation
-# that nested filled circles produced. The 200×200 source texture
-# scales up to ≤ ~320 px gracefully.
-_MEGA_GRADIENT_SURFACE = None
-_MEGA_GRADIENT_SIZE = 200
-
-
-def _get_mega_gradient_surface():
-    global _MEGA_GRADIENT_SURFACE
-    if _MEGA_GRADIENT_SURFACE is not None:
-        return _MEGA_GRADIENT_SURFACE
-    GLOW_COL = (245, 175, 40)
-    sz = _MEGA_GRADIENT_SIZE
-    surf = pygame.Surface((sz, sz), pygame.SRCALPHA)
-    cx = cy = sz / 2
-    max_r = sz / 2
-    for y in range(sz):
-        for x in range(sz):
-            dx = x - cx
-            dy = y - cy
-            d = math.sqrt(dx * dx + dy * dy)
-            if d > max_r:
-                continue
-            inner_t = d / max_r
-            # Bell curve peaks at inner_t = 0.85 (same as regular
-            # magnet's calibration), falloff 0.15, alpha mult 72 —
-            # this is the SOFT gradient the user picked over the
-            # earlier "aggressive" peak-at-outer alpha-160 variant.
-            # The boldness of the field comes from the outer RING
-            # tuples (B1 stack — alpha 200/220, width 3) rather
-            # than from a dense gold glow.
-            bell = math.exp(-((inner_t - 0.85) ** 2) / 0.15)
-            a = int(72 * bell)
-            if a > 0:
-                surf.set_at((x, y), (*GLOW_COL, a))
-    _MEGA_GRADIENT_SURFACE = surf
-    return surf
-
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
 # overlay shuts itself off.
@@ -1167,28 +1125,9 @@ class App:
 
         # Magnet force-field — Solar Gold palette: warm amber-gold rings
         # + golden glow with a coherent dramatic breath. All elements
-        # driven by a single pulse factor so the field shrinks and
-        # grows as one volume. Pulse rate 5.5 ⇒ ~1.14 s cycle.
-        #
-        # MEGA MAGNET = the regular field SCALED UP — same alpha-blended
-        # bell-curve glow + same per-ring gold gradient + same anti-
-        # alias satellite passes, just rendered at 1.5× the radius
-        # with 5 rings spread across the bigger area (vs the regular's
-        # 3 rings) so the visual density per pixel stays identical.
-        # No solid-fill "halos" — every layer uses the regular's
-        # alpha-on-screen draw, so the bigger field reads as the
-        # regular's bigger sibling rather than a different effect.
-        # The force radius (MEGA_MAGNET_RADIUS_MULT = 5×) lives in
-        # world.py and intentionally exceeds the visual.
-        #
-        # Magnet force-field — Solar Gold palette: warm amber-gold rings
-        # + golden glow with a coherent dramatic breath. All elements
         # (3 rings + inner radial glow) driven by a single pulse factor
         # so the field shrinks and grows as one volume. Pulse rate 5.5
-        # ⇒ ~1.14 s cycle (slightly faster than the original 1.57 s).
-        # Source: origin/main game/scenes.py — kept verbatim so the
-        # regular magnet looks identical to the shipped v4_skybit/main
-        # build.
+        # ⇒ ~1.14 s cycle.
         if self.world.magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
@@ -1228,91 +1167,6 @@ class App:
                 u = (s + 1) / 2
                 rr = int(rad * rfac * (1.0 - amp * (1.0 - u)))
                 # Anti-alias ring with two ⅓-alpha satellites + main pass
-                pygame.draw.circle(field, (*AA_COL, alpha // 3),
-                                   (lcx, lcy), rr + 1, width)
-                pygame.draw.circle(field, (*AA_COL, alpha // 3),
-                                   (lcx, lcy), rr - 1, width)
-                pygame.draw.circle(field, (*ring_col, alpha),
-                                   (lcx, lcy), rr, width)
-
-            self.screen.blit(field,
-                             (int(self.world.bird.x) + sx - lcx,
-                              int(self.world.bird.y) + sy - lcy))
-
-        # MEGA MAGNET = the same code path as the regular magnet above,
-        # word for word, with three differences only:
-        #   * rad = MAGNET_RADIUS * 1.5 (bigger glow / mid-ring anchor)
-        #   * 7 rings instead of 3 — the regular's outer-3 PLUS 2
-        #     extra outer halos (rfac 1.15 and 1.30) extending past
-        #     the glow PLUS 2 inner steps (rfac 0.85 and 0.55) for
-        #     denser inward coverage
-        #   * sub-surface sized to outermost ring (rfac=1.30) so the
-        #     two outer halos fit without clipping
-        # The outermost visible ring sits at rad * 1.30 = MAGNET_RADIUS
-        # * 1.95 — MEGA_MAGNET_RADIUS_MULT matches this so only coins
-        # actually touching the visible field get pulled.
-        # Every other constant — glow palette, glow alpha curve,
-        # BREATH amount, per-ring satellite passes, blit-once — is
-        # identical to the regular field.
-        if self.world.mega_magnet_timer > 0:
-            from game.config import MAGNET_RADIUS
-            import math as _math
-            t_pulse = self._cloud_phase * 5.5
-            rad = int(MAGNET_RADIUS * 1.5)
-            # Surface needs to hold the OUTERMOST ring at rfac=1.30.
-            outer_r = int(rad * 1.30) + 4
-            field = pygame.Surface((outer_r * 2, outer_r * 2),
-                                   pygame.SRCALPHA)
-            lcx, lcy = outer_r, outer_r
-
-            BREATH = 0.30
-            s_outer = _math.sin(t_pulse + 0.0)
-            u_outer = (s_outer + 1) / 2
-            outer_factor = 1.0 - BREATH * (1.0 - u_outer)
-            # Tie the gradient's outer edge to the OUTERMOST ring's
-            # exact pulsing radius (rfac=1.30, phase=-0.6, breath
-            # scale=0.62) so the gold gradient always reaches the
-            # outer ring's border — no gap where the ring sits
-            # outside the gradient at certain phase points.
-            outer_ring_amp = BREATH * 0.62
-            u_outer_ring = (_math.sin(t_pulse + (-0.6)) + 1) / 2
-            outer_ring_factor = (1.0 - outer_ring_amp
-                                  * (1.0 - u_outer_ring))
-            glow_rad = rad * 1.30 * outer_ring_factor
-
-            # Pre-rendered radial gradient texture (see
-            # _get_mega_gradient_surface above for the bell-curve
-            # construction). Scaled to the current pulsing glow_rad
-            # and blitted ONCE — gives a perfectly smooth gradient
-            # without the banding from annuli or the centre-bias
-            # accumulation from nested filled circles.
-            grad_src = _get_mega_gradient_surface()
-            target = int(glow_rad * 2)
-            if target > 0:
-                scaled = pygame.transform.smoothscale(
-                    grad_src, (target, target))
-                field.blit(scaled,
-                            (lcx - target // 2, lcy - target // 2))
-
-            AA_COL = (255, 240, 180)
-            for rfac, phase, alpha, width, breath_scale, ring_col in (
-                    # B1 — outer halos extend the regular's bold-
-                    # outward pattern (alpha + width climb with rfac).
-                    # 1.00 ships at alpha 180/w3; 1.15 bumps to 200/w3
-                    # and 1.30 to 220/w3 so the field reads bolder
-                    # as the rings grow, matching the regular magnet's
-                    # gradient direction.
-                    (1.30, -0.6, 220, 3, 0.62, (255, 230, 120)),
-                    (1.15, -0.3, 200, 3, 0.78, (255, 225, 110)),
-                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
-                    (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
-                    (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),
-                    (0.55, 0.9,  130, 2, 0.78, (240, 180,  50)),
-                    (0.40, 1.2,  110, 2, 0.70, (225, 165,  35))):
-                amp = BREATH * breath_scale
-                s = _math.sin(t_pulse + phase)
-                u = (s + 1) / 2
-                rr = int(rad * rfac * (1.0 - amp * (1.0 - u)))
                 pygame.draw.circle(field, (*AA_COL, alpha // 3),
                                    (lcx, lcy), rr + 1, width)
                 pygame.draw.circle(field, (*AA_COL, alpha // 3),
