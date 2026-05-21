@@ -239,6 +239,14 @@ def _confetti_burst(surf, cx, cy, t, seed):
 def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
     cabinet = pygame.Rect(CAB_X, CAB_Y, CAB_W, CAB_H)
 
+    # Drop shadow.
+    sh = pygame.Surface((cabinet.width + 6, cabinet.height + 6),
+                        pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 160),
+                     (0, 0, cabinet.width + 6, cabinet.height + 6),
+                     border_radius=10)
+    surf.blit(sh, (cabinet.x - 3, cabinet.y + 4))
+
     # Cabinet body — red outer / gold middle / dark inner.
     pygame.draw.rect(surf, _RED_OUTLINE, cabinet, border_radius=8)
     pygame.draw.rect(surf, _GOLD_DEEP, cabinet.inflate(-4, -4),
