@@ -1138,37 +1138,21 @@ class App:
         # The force radius (MEGA_MAGNET_RADIUS_MULT = 5×) lives in
         # world.py and intentionally exceeds the visual.
         #
-        # Painted to a per-frame SRCALPHA sub-surface then blit-ONCE to
-        # the screen — the polished V1 approach. Direct-to-screen
-        # drawing (introduced in commit e74339a to save the buffer
-        # alloc) accumulates alpha pixel-by-pixel as each of the 18
-        # glow circles + 3 ring passes hit the screen, baking the
-        # centre into a solid gold blob and losing the see-through
-        # ring outlines. With rad=1.5×, the buffer is ~250 KB —
-        # trivial on WASM.
-        if self.world.magnet_timer > 0 or self.world.mega_magnet_timer > 0:
+        # Magnet force-field — Solar Gold palette: warm amber-gold rings
+        # + golden glow with a coherent dramatic breath. All elements
+        # (3 rings + inner radial glow) driven by a single pulse factor
+        # so the field shrinks and grows as one volume. Pulse rate 5.5
+        # ⇒ ~1.14 s cycle (slightly faster than the original 1.57 s).
+        # Source: origin/main game/scenes.py — kept verbatim so the
+        # regular magnet looks identical to the shipped v4_skybit/main
+        # build.
+        if self.world.magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
             t_pulse = self._cloud_phase * 5.5
-            mega = self.world.mega_magnet_timer > 0
-            if mega:
-                rad = int(MAGNET_RADIUS * 1.5)
-                rings = (
-                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
-                    (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
-                    (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),
-                    (0.55, 0.9,  130, 2, 0.78, (240, 180,  50)),
-                    (0.40, 1.2,  110, 2, 0.70, (225, 165,  35)),
-                )
-            else:
-                rad = MAGNET_RADIUS
-                rings = (
-                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
-                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
-                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
-                )
+            rad = MAGNET_RADIUS
             field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
-                                    pygame.SRCALPHA)
+                                   pygame.SRCALPHA)
             lcx, lcy = rad + 4, rad + 4
 
             # Outer-ring pulse factor — drives BOTH the rings and the glow
@@ -1180,27 +1164,83 @@ class App:
 
             # Inner radial glow — bell-curve falloff peaking near the
             # outer edge, gold colour, scaled by the same pulse.
-            # Alpha 40 matches the polished V1 calibration (was bumped
-            # to 72 in the direct-to-screen detour, causing the gold
-            # to look solid after 18 overlapping draws).
             GLOW_COL = (245, 175, 40)
             for i in range(18, 0, -1):
                 r = int(glow_rad * i / 18)
                 inner_t = i / 18
                 bell = _math.exp(-((inner_t - 0.85) ** 2) / 0.15)
-                a = int(40 * bell)
+                a = int(72 * bell)
                 if a > 0:
                     pygame.draw.circle(field, (*GLOW_COL, a),
                                        (lcx, lcy), r)
 
-            # Rings with per-ring gold tints, slightly out of phase.
+            # 3 rings with per-ring gold tints, slightly out of phase.
             AA_COL = (255, 240, 180)
-            for rfac, phase, alpha, width, breath_scale, ring_col in rings:
+            for rfac, phase, alpha, width, breath_scale, ring_col in (
+                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
+                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
+                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35))):
                 amp = BREATH * breath_scale
                 s = _math.sin(t_pulse + phase)
                 u = (s + 1) / 2
                 rr = int(rad * rfac * (1.0 - amp * (1.0 - u)))
                 # Anti-alias ring with two ⅓-alpha satellites + main pass
+                pygame.draw.circle(field, (*AA_COL, alpha // 3),
+                                   (lcx, lcy), rr + 1, width)
+                pygame.draw.circle(field, (*AA_COL, alpha // 3),
+                                   (lcx, lcy), rr - 1, width)
+                pygame.draw.circle(field, (*ring_col, alpha),
+                                   (lcx, lcy), rr, width)
+
+            self.screen.blit(field,
+                             (int(self.world.bird.x) + sx - lcx,
+                              int(self.world.bird.y) + sy - lcy))
+
+        # MEGA MAGNET = the same code path as the regular magnet above,
+        # word for word, with two differences only:
+        #   * rad = MAGNET_RADIUS * 1.5 (bigger reach)
+        #   * 5 rings instead of 3, spread evenly across the bigger
+        #     area so the per-pixel ring density stays the same as
+        #     the regular magnet's 3 rings inside MAGNET_RADIUS
+        # Every other constant — glow palette, glow alpha curve,
+        # BREATH amount, per-ring satellite passes, blit-once — is
+        # identical to the regular field.
+        if self.world.mega_magnet_timer > 0:
+            from game.config import MAGNET_RADIUS
+            import math as _math
+            t_pulse = self._cloud_phase * 5.5
+            rad = int(MAGNET_RADIUS * 1.5)
+            field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
+                                   pygame.SRCALPHA)
+            lcx, lcy = rad + 4, rad + 4
+
+            BREATH = 0.30
+            s_outer = _math.sin(t_pulse + 0.0)
+            u_outer = (s_outer + 1) / 2
+            outer_factor = 1.0 - BREATH * (1.0 - u_outer)
+            glow_rad = rad * outer_factor
+
+            GLOW_COL = (245, 175, 40)
+            for i in range(18, 0, -1):
+                r = int(glow_rad * i / 18)
+                inner_t = i / 18
+                bell = _math.exp(-((inner_t - 0.85) ** 2) / 0.15)
+                a = int(72 * bell)
+                if a > 0:
+                    pygame.draw.circle(field, (*GLOW_COL, a),
+                                       (lcx, lcy), r)
+
+            AA_COL = (255, 240, 180)
+            for rfac, phase, alpha, width, breath_scale, ring_col in (
+                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
+                    (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
+                    (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),
+                    (0.55, 0.9,  130, 2, 0.78, (240, 180,  50)),
+                    (0.40, 1.2,  110, 2, 0.70, (225, 165,  35))):
+                amp = BREATH * breath_scale
+                s = _math.sin(t_pulse + phase)
+                u = (s + 1) / 2
+                rr = int(rad * rfac * (1.0 - amp * (1.0 - u)))
                 pygame.draw.circle(field, (*AA_COL, alpha // 3),
                                    (lcx, lcy), rr + 1, width)
                 pygame.draw.circle(field, (*AA_COL, alpha // 3),
