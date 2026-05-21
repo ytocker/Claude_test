@@ -267,3 +267,145 @@ room), the natural prototyping sequence is:
 
 All four are score 8+ and pass every rubric criterion. Anything below
 score 7 should stay on the shelf unless game-design intent shifts.
+
+---
+
+# Expansion concepts (orthogonal to current backlog)
+
+The catalogue above covers obvious categories: parcel-as-X, pillar
+manipulation, spatial verbs, coin economy, atmosphere, wearables,
+vision, narrative. This section adds a different axis — **currencies
+and hooks the game already has but never reads**, paired with
+**design-space holes nothing in the catalogue addresses**.
+
+## Missing categories
+
+What no existing or backlogged powerup does:
+
+1. **Near-miss as a resource.** `world.near_misses` is incremented on
+   every close-call but only displayed in post-run stats. The game
+   has a hidden "bravery" stat the player can't see or spend.
+2. **Weather as a gameplay input.** Rain, lightning, fog, wind all
+   render in `game/weather.py` but never affect physics or scoring.
+   Weather is decoration, not a partner.
+3. **Sacrifice / chosen trade.** Every existing powerup is pure
+   positive. LOTTERY has downside but that's passive RNG; the player
+   never makes an *active* in-the-moment trade.
+4. **Restraint-rewarding.** Every powerup rewards taps (HEIST, TRIPLE,
+   SKATEBOARD tricks) or fires regardless of input. Nothing rewards
+   NOT flapping.
+5. **Conditional / context-aware.** No powerup reads the world state
+   at pickup. The biome cycle is a 5-minute clock that no powerup
+   ever consults.
+6. **Streak / momentum meta.** No persistent meter survives between
+   pickups. Pillars-passed is counted but not "perfect streak".
+
+## Unpolished gems (under-leveraged code already in the repo)
+
+| Asset | File | What it does today | What it could feed |
+|---|---|---|---|
+| `world.near_misses` | `world.py` | Written, never read live | A "bravery" currency |
+| Weather phase | `weather.py` | Renders rain / lightning / wind / fog with zero gameplay effect | Conditional powerup behaviour |
+| Biome phase | `biome.py` | Drives only sky palette | Time-of-day-conditional buffs |
+| `Pipe.seed` | `entities.py` | Deterministic decoration only | Per-pillar danger / loot tags |
+| `Bird.grind_type` | `entities.py` | Tilts Pip ±18°, never scores | Grind-chain combos |
+| `world.flap_count` | `world.py` | Stat-only post-run display | Restraint-reward systems |
+| `coins_spawned vs grabbed` | `world.py` | Stat-only; never read live | Dynamic spawn modulation |
+| 18 ambient events | `ambient.py` | Single 240 s cooldown for all | Per-event time-of-day loot tables |
+
+## Six original concepts (each ties to one gem + one missing category)
+
+### 1. BRAVADO — score 9
+
+**Hook:** for 8 s, every near-miss bumps a visible multiplier
+(1× → 2× → 3× → cap 5×). Coins collected pay out at the live
+multiplier. Pillar hit (death) drops back to 1×. Pip visibly shivers
+a feather on each near-miss so the bank is *felt*.
+
+*Uses: `world.near_misses` (live consumer for the first time). Fills:
+near-miss-as-currency, streak rewards. Rationale: first powerup that
+actively wants the boldest play, not the safest.*
+
+### 2. STORM RIDER — score 8
+
+**Hook:** pickup does nothing visible. For 8 s, the effect depends on
+current weather:
+
+- **Clear** → magnet
+- **Rain** → coins slide an extra 30 px toward Pip (slippery)
+- **Fog** → screen dims but every coin is worth ×3
+- **Lightning** → every flash auto-collects all on-screen coins
+
+HUD shows a tiny weather icon next to the timer so the rule is
+learnable.
+
+*Uses: `weather.py` phase (live consumer). Fills: conditional powerup,
+weather as partner. Rationale: same pickup, four expressions — the
+world becomes a strategy axis.*
+
+### 3. TRADE WIND — score 8
+
+**Hook:** on pickup, a 1 s ring closes around Pip. Tap during the
+ring = surrender half your current score, gain a 10 s ×3 coin storm.
+Don't tap = the powerup does nothing. The decision is the gameplay;
+the existing tap input becomes a yes/no choice.
+
+*Uses: `world.score` as currency to spend. Fills: sacrifice mechanic,
+active in-buff choice. Rationale: first powerup where the player
+decides something meaningful IN the buff, not just by picking it up.
+No new input — tap is the canonical verb.*
+
+### 4. MIGRATION — score 8
+
+**Hook:** same icon, different effect by biome phase at pickup:
+
+- **Day** → standard magnet
+- **Golden hour / dusk** → ghost-through-next-3-pillars
+- **Night** → all coins on screen become $5 (instead of $1) for 8 s
+- **Dawn** → refresh every other active powerup timer to full
+
+The pickup's in-world icon morphs to show the current variant before
+collection, so the player can read the world clock.
+
+*Uses: `biome.py` phase (live consumer for the first time). Fills:
+conditional / context-aware. Rationale: makes the 5-minute biome cycle
+a strategy variable for free — players save the pickup for night to
+bank the high-value variant.*
+
+### 5. THERMAL — score 8
+
+**Hook:** for 8 s, every second Pip goes WITHOUT flapping awards +1
+coin with a small particle puff so the bank is felt. Gravity is
+unchanged — if you wait too long, you hit the ground.
+
+*Uses: `world.flap_count` (read live for the first time). Fills:
+restraint reward, no-input-as-input. Rationale: every other powerup
+rewards taps; this is the first that rewards stillness. Parrots glide
+on thermals — most thematically on-brand idea in the entire backlog.*
+
+### 6. WINDFALL — score 7
+
+**Hook:** on pickup, the next 5 pillars' gaps shrink by 30 % (harder),
+but every coin in those 5 pillars is worth ×5. Hard-edged, advertised
+cost. No RNG.
+
+*Uses: per-pillar tagging infrastructure (mirrors `Pipe.is_kfc` sticky
+flag). Fills: sacrifice via difficulty, not score. Rationale: pure
+expression of "voluntary constraint = multiplier"; players grab this
+only when they feel sharp.*
+
+## Recommendation (expansion set)
+
+| If you want… | Pick |
+|---|---|
+| Cleanest activation of a dormant system | **BRAVADO** (near-miss counter) |
+| Most Skybit-thematic | **THERMAL** (parrots glide on a thermal) |
+| Deepest mechanical ceiling | **MIGRATION** (turns the biome system into strategy) |
+| First true sacrifice mechanic | **TRADE WIND** (flexible) or **WINDFALL** (dramatic) |
+| Weather as a real partner | **STORM RIDER** |
+
+Together with the catalogue above, Skybit gets ~10 distinct mechanical
+hooks to draw from. None of these copy any specific game — each is
+grounded in a Skybit-only asset (the parcel, biome cycle, weather,
+near-miss counter, flap economy) and addresses a design hole nothing
+else fills.
