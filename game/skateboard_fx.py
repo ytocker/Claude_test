@@ -644,14 +644,12 @@ def render_skateboard_score_e2(score: int) -> pygame.Surface:
 
 
 def render_skateboard_score_e3(score: int) -> pygame.Surface:
-    """E3 — Medium halftone burst OVERLAYED on the SKATEBOARD!
-    caption: centred at y=75 (the live banner's centre) so the score
-    appears as a comic badge stamped on top of the banner. Burst
-    body covers the centre of the SKATEBOARD! text but the score
-    digits read on top in cream-on-red gradient."""
+    """E3 — Medium halftone burst centred BELOW the SKATEBOARD!
+    caption strip (~y=150), so the caption stays at the very top and
+    the score sits cleanly underneath."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
-    _halftone_score_badge(surf, W // 2, 75, str(score),
-                           ro=46, ri=28, font_size=38)
+    _halftone_score_badge(surf, W // 2, 150, str(score),
+                           ro=58, ri=34, font_size=38)
     return surf
 
 
