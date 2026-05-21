@@ -1520,8 +1520,12 @@ class HUD:
         # translucent dark pill with a subtle top sheen. Sits at y=92 so
         # the backdrop (y=64..120) doesn't touch the coins pill above
         # (which ends at y=44). Suppressed when paused — the pause
-        # overlay shows the same number on its hero medallion.
-        if not paused:
+        # overlay shows the same number on its hero medallion. ALSO
+        # suppressed while the SKATEBOARD secret powerup is active —
+        # the D5 halftone-burst score (rendered below) takes its place
+        # so the player can read the score against the comic-themed FX.
+        skateboard_active = getattr(world.bird, "skateboard_active", False)
+        if not paused and not skateboard_active:
             score_txt = str(world.score)
             cf = _font(48, True)
             img = cf.render(score_txt, True, (252, 244, 220))
@@ -1548,6 +1552,24 @@ class HUD:
             sh.set_alpha(180)
             surf.blit(sh, (r.x + 2, r.y + 4))
             surf.blit(img, r.topleft)
+        elif not paused and skateboard_active:
+            # SKATEBOARD score in D5 halftone-burst style. Fades IN as
+            # the SKATEBOARD! caption fades OUT (caption_t in the
+            # [0, FADE] tail), then persists at full alpha for the rest
+            # of the 8 s effect.
+            from game.skateboard_fx import render_skateboard_score_e6
+            cap_t = getattr(world, "skateboard_caption_t", 0.0)
+            FADE = 0.8
+            if cap_t > FADE:
+                score_alpha = 0
+            elif cap_t > 0:
+                score_alpha = int(255 * (1.0 - cap_t / FADE))
+            else:
+                score_alpha = 255
+            if score_alpha > 0:
+                score_surf = render_skateboard_score_e6(world.score)
+                score_surf.set_alpha(score_alpha)
+                surf.blit(score_surf, (0, 0))
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
