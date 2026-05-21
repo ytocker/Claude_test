@@ -1187,6 +1187,17 @@ class App:
             self.hud.draw_menu(self.screen, 1 / 60, self.best)
         elif self.state == STATE_PLAY:
             self.hud.draw_play(self.screen, self.world, self.best)
+            # While SKATEBOARD is active, Pip must stay ON TOP of the
+            # comic-themed HUD overlays (score burst, trick bubbles,
+            # timer bar) — same convention already used for the caption
+            # + starburst earlier in this render pass. Redraw the bird
+            # AFTER the HUD layer so nothing skateboard-related covers
+            # the parrot.
+            if (self.world.bird.skateboard_active
+                    and self.world.bird.alive
+                    and self.world.phoenix_rebirth is None):
+                self.world.bird.draw(self.screen, sx, sy,
+                                     flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)

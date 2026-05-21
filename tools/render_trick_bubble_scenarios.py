@@ -82,8 +82,14 @@ def _frame(tricks, *, caption_t=6.0, age_first=0.0, seed=7):
     if a > 0 and world.skateboard_caption_overlay is not None:
         cap = world.skateboard_caption_overlay.copy()
         cap.set_alpha(a)
-        frame.blit(cap, (0, 0))
+        lift_y = getattr(world, "_skateboard_lift_y", 0)
+        frame.blit(cap, (0, -lift_y))
     HUD().draw_play(frame, world, best=0)
+    # Pip is always in front of any SKATEBOARD-effect graphic — same
+    # convention scenes.py applies during STATE_PLAY when
+    # skateboard_active.
+    if world.bird.skateboard_active and world.bird.alive:
+        world.bird.draw(frame, 0, 0, flipped=False)
     return frame
 
 
