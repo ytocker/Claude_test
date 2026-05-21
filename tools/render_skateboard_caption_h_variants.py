@@ -40,6 +40,7 @@ from game.skateboard_fx import (
     render_caption_h3_compact_flat,
     render_caption_h4_offset_below,
     render_caption_h5_wide_banner,
+    render_caption_h6_banner_text_lowered,
 )
 
 
@@ -62,6 +63,8 @@ VARIANTS = [
      "H4: plate offset DOWN to y=120, score sits above"),
     ("H5_wide_banner",         render_caption_h5_wide_banner,
      "H5: wide-banner plate at y=92, score punches centre"),
+    ("H6_banner_text_lowered", render_caption_h6_banner_text_lowered,
+     "H6: H5 refined — banner drops down so text sits BELOW score"),
 ]
 
 

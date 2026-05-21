@@ -1127,6 +1127,25 @@ def render_caption_h5_wide_banner(cx: int, cy: int, score: int,
     return surf
 
 
+def render_caption_h6_banner_text_lowered(cx: int, cy: int, score: int,
+                                            rng_seed: int = 22) -> pygame.Surface:
+    """H6 — H5 (wide banner) refined: the SKATEBOARD! text is
+    dropped DOWN so the score numbers stay clear of it. The red
+    banner body still extends up into the score row and overlaps
+    the score's halftone bubble (the burst around the digits) but
+    the digits themselves never get covered. Banner center at
+    y=140, text fully below the score's number footprint."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 32, plate_pad=(60, 12))
+    rot = pygame.transform.rotate(plate, -4)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 140)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
