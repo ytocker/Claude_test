@@ -28,7 +28,6 @@ from game.config import (
     POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX, POPSHUVIT_DURATION,
     HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX, HEELFLIP_DURATION,
     PHOENIX_DURATION, PHOENIX_INVULN, PHOENIX_VARIANT,
-    RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK, SKATE_SLIDE_RELEASE,
     TREASURE_BOX_DURATION, TREASURE_BOX_COINS_PER_FLAP,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -163,19 +162,6 @@ class World:
         # 0.8 s ash-fall + egg-fall + auto-position). None when no
         # rebirth is in progress. See _resolve_phoenix_rebirth.
         self.phoenix_rebirth: "dict | None" = None
-        # RAIL TRACK: pillar-limited buff. The cart rides over exactly
-        # RAIL_PILLAR_COUNT real pillars (the synthesized anchor pipes
-        # behind Pip don't count) then releases with an upward "jump"
-        # so the player gets control back mid-air. Pickup tags 5 pipes
-        # ahead and parks a stationary cart on the first of them; Pip
-        # keeps normal flap until he touches that cart pillar, at which
-        # point cart_locked flips and the RAIL_SCROLL_MULT ride takes
-        # over. If Pip never lands on the cart the powerup expires
-        # silently when all 5 tagged pillars have scrolled past.
-        self.rail_pillars_left = 0
-        self.rail_pipes: list = []
-        self.rail_cart_pipe = None  # the pillar the parked cart sits on
-        self.rail_pending = 0
         # Treasure box (formerly BANK HEIST): a duration-based buff. While
         # treasure_box_timer > 0 the chest hangs under Pip's belly and
         # each flap drops TREASURE_BOX_COINS_PER_FLAP coins straight into
@@ -204,7 +190,7 @@ class World:
             # Secret late-game kinds (still tracked so run summary can show
             # what was picked even though the help screen omits them).
             "skateboard": 0, "heist": 0,
-            "rail": 0, "lottery": 0,
+            "lottery": 0,
             "phoenix": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
@@ -286,12 +272,6 @@ class World:
 
     def _current_scroll(self):
         base = _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
-        # RAIL TRACK: the world rushes by RAIL_SCROLL_MULT× while Pip
-        # is actually riding the rail (cart_locked). Pre-lock the
-        # world scrolls at normal speed so the player can take their
-        # time deciding whether to land on the waiting cart.
-        if self.bird.cart_locked:
-            base *= RAIL_SCROLL_MULT
         # SKATEBOARD grind: lerp from 1.0 to SKATE_SLIDE_MULT based on
         # the slide-boost envelope so the speed-up eases in/out instead
         # of snapping.
@@ -341,18 +321,7 @@ class World:
         # powerup timer. The visual reverts at timer=0 via the
         # kfc_visual gate in Pipe.draw.
         p.is_kfc = kfc_spawn
-        # Secret-powerup pipe flag initialized off; the rail powerup
-        # tags this pipe below if it still needs more rail pillars.
-        # (Vault-on-pillar attachment for the old bank-heist is gone —
-        # the treasure box is now a duration buff carried by Pip.)
-        p.rail_active = False
         self.pipes.append(p)
-        # RAIL TRACK: if rail powerup is still trying to claim pipes,
-        # tag this one until RAIL_PILLAR_COUNT is satisfied.
-        if getattr(self, "rail_pending", 0) > 0 and not is_rush:
-            p.rail_active = True
-            self.rail_pipes.append(p)
-            self.rail_pending -= 1
         if is_rush:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
@@ -729,40 +698,16 @@ class World:
                     self._ember_trail_accum = 0.0
                     self._spawn_ember_trail_particle()
 
-            # cull off-screen — but keep rail-active pipes intact ONLY
-            # while Pip is actively LOCKED on the rail (cart_locked),
-            # so the polyline extends off-canvas-left BEHIND Pip
-            # during the ride. Pre-lock and post-ride, tagged pipes
-            # that scroll past the left edge are culled normally so
-            # they don't accumulate as a leak.
-            self.pipes = [p for p in self.pipes
-                          if not p.off_screen()
-                          or (getattr(p, "rail_active", False)
-                              and self.bird.cart_locked)]
-            # Refresh the rail_pipes view EVERY frame so the renderer
-            # still sees the on-screen tail of tagged pipes after the
-            # ride ends (the aggressive-loop block at line ~858 only
-            # runs while cart_active and won't refresh after expiry).
-            self.rail_pipes = [p for p in self.pipes
-                               if getattr(p, "rail_active", False)]
+            self.pipes = [p for p in self.pipes if not p.off_screen()]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
             self.ramps = [r for r in self.ramps if not r.off_screen()]
 
-            # spawn more pipes. Suppressed while RAIL is active so no
-            # untagged pipe slips in between the pre-spawned 7-pillar
-            # track and the right edge of the screen — without this,
-            # an "interloper" non-rail pipe would scroll in toward Pip
-            # right as the cart unlocks and kill him on contact. Once
-            # the rail finishes, the pipe list may be empty (all rail
-            # pipes just culled off-screen); re-seed one fresh pipe at
-            # the right edge so the player has something to navigate.
             spacing = self._current_spacing()
-            if not self.bird.cart_active:
-                if not self.pipes:
-                    self._spawn_pipe(W + 60)
-                elif self.pipes[-1].x < W - spacing:
-                    self._spawn_pipe(self.pipes[-1].x + spacing)
+            if not self.pipes:
+                self._spawn_pipe(W + 60)
+            elif self.pipes[-1].x < W - spacing:
+                self._spawn_pipe(self.pipes[-1].x + spacing)
 
             # scoring: pass a pipe
             bx = self.bird.x
@@ -773,21 +718,6 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     self._proof.record(self.time_alive, 1, "pipe")
-                    # RAIL: count down the per-ride pillar budget. Fires
-                    # whether or not Pip locked — if all 5 tagged pipes
-                    # pass without a lock the powerup expires silently.
-                    if (self.bird.cart_active
-                            and getattr(p, "rail_active", False)
-                            and self.rail_pillars_left > 0):
-                        self.rail_pillars_left -= 1
-                        # If the cart's pillar was the one that just
-                        # passed without Pip catching it, the cart is
-                        # gone — clear the reference so the renderer
-                        # stops drawing the static cart.
-                        if p is getattr(self, "rail_cart_pipe", None):
-                            self.rail_cart_pipe = None
-                        if self.rail_pillars_left == 0:
-                            self._end_rail_ride()
 
             # Near-miss detection: once per pipe, flag if the bird was within
             # a narrow band of either edge without hitting. Fires as the pipe
@@ -869,18 +799,6 @@ class World:
             self.bird.phoenix_active = self.phoenix_timer > 0
             if self.phoenix_invuln > 0:
                 self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
-            # Rail: pillar-limited buff. Tagging is fixed at activation
-            # — exactly RAIL_PILLAR_COUNT pillars get rail_active set
-            # in _activate_rail and nothing else picks up the tag
-            # afterward. The natural pipe spawner above is gated on
-            # `not cart_active` so no untagged pipes slip in either.
-            # self.rail_pipes is rebuilt from self.pipes' rail_active
-            # flags every frame in the cull block above (so the
-            # renderer still sees the on-screen tail after expiry).
-            # The end condition lives in the scoring loop
-            # (rail_pillars_left decrement) — when the 5th tagged
-            # pillar passes Pip, the ride ends with an upward "jump"
-            # so the player has air control immediately.
             # Lottery: tick the reveal animation; apply score delta on reveal.
             if self.lottery_anim is not None:
                 self.lottery_anim["t"] += dt
@@ -1012,14 +930,6 @@ class World:
                 return
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
-        if self.bird.cart_locked:
-            # Rail has taken over — re-snap Pip onto the rail EVERY frame
-            # (interpolated y between consecutive rail pipes, slope written
-            # to bird.cart_tilt_deg so the cart sprite rotates with the
-            # curvature). Then skip pipe-collision checks; the rail makes
-            # Pip phase through tagged pillars.
-            self._snap_cart_to_rail(self.bird.x)
-            return
         # SKATEBOARD proactive pillar-top snap. The pipe collision below
         # uses a SHRUNKEN hitbox (PIPE_HITBOX_SHRINK), which creates a
         # few-pixel deadband above the pillar top where gravity pulls
@@ -1062,21 +972,6 @@ class World:
         # Parcel shouldn't graze the ground unless the bird already would
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
-        # RAIL: parked-cart hitbox. Only touching the cart itself
-        # (a small rect sitting in the gap of rail_cart_pipe) locks
-        # Pip onto the rail. Hitting the pillar body of that same
-        # pipe — or any other tagged pillar — is fatal like any
-        # other pillar.
-        cart_pipe = getattr(self, "rail_cart_pipe", None)
-        if (self.bird.cart_active
-                and not self.bird.cart_locked
-                and cart_pipe is not None):
-            if (self._circle_hits_cart(cart_pipe, bx, by, br)
-                    or (pr > 0
-                        and self._circle_hits_cart(
-                            cart_pipe, px, py, pr))):
-                self._lock_pip_on_cart()
-                return
         for p in self.pipes:
             if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
                 if skating and self._skateboard_handle_pipe(p, bx, by, br):
@@ -1086,11 +981,6 @@ class World:
             if pr > 0 and p.collides_circle(px, py, pr - 1):
                 self._die()
                 return
-        # Rail: lock Pip's y to the rail height when his feet (bottom of
-        # the body circle) touch a rail-pipe's top. Flap clears the lock
-        # via bird.flap_boost > 0 sentinel (set by flap()).
-        if self.rail_pipes:
-            self._apply_rail_lock(bx, by, br)
 
         # SKATEBOARD random grind. On the rising edge of
         # `_sliding_this_frame` (Pip just landed on the ground or a
@@ -1215,115 +1105,6 @@ class World:
                     colour,
                     gravity=500,
                 ))
-
-    # Pip's centre-y when the cart is locked on the rail — chosen so the
-    # wagon body sits with its wheels exactly on the rail line.
-    _CART_LOCKED_OFFSET = 32
-
-    def _apply_rail_lock(self, bx, by, br):
-        """Once Pip is locked on the rail, snap his y to the rail
-        polyline every frame (with bridge interpolation between
-        consecutive rail pipes). Locking is now triggered by collision
-        with the cart pillar in `_check_collisions`, not by per-frame
-        wheel-rail proximity, so this is just the snap path."""
-        if self.bird.cart_locked:
-            self._snap_cart_to_rail(bx)
-
-    # Parked-cart hitbox — bounds match the visual painted by
-    # scenes._draw_parked_cart so what the player sees as "the cart"
-    # is exactly what triggers the lock.
-    _CART_HALF_W = 22       # body half-width + a touch
-    _CART_TOP_OFF = 28      # pixels above rail line to cart top
-    _CART_BOT_OFF = 5       # pixels above rail line to wheel bottom
-
-    def _circle_hits_cart(self, pipe, cx, cy, r):
-        """True if the circle at (cx, cy) with radius r overlaps the
-        parked-cart rect sitting on `pipe`. The cart lives inside the
-        pillar's gap (between gap_top and gap_bot), so touching the
-        pillar BODY (above gap_top or below gap_bot) returns False
-        and falls through to normal pipe collision."""
-        cart_cx = pipe.x + PIPE_W // 2
-        rail_y = pipe.gap_y + pipe.gap_h / 2
-        left = cart_cx - self._CART_HALF_W
-        right = cart_cx + self._CART_HALF_W
-        top = rail_y - self._CART_TOP_OFF
-        bot = rail_y - self._CART_BOT_OFF
-        nx = max(left, min(cx, right))
-        ny = max(top, min(cy, bot))
-        return (cx - nx) ** 2 + (cy - ny) ** 2 <= r * r
-
-    def _lock_pip_on_cart(self):
-        """Touched the parked cart — flip into locked-ride mode. Snaps
-        Pip onto the rail at the cart pillar's gap-center and gives a
-        small shake + audio cue."""
-        self.bird.cart_locked = True
-        self._snap_cart_to_rail(self.bird.x)
-        self.shake_mag = max(self.shake_mag, 3.0)
-        self.shake_t = max(self.shake_t, 0.2)
-        audio.play_rail()
-
-    def _snap_cart_to_rail(self, bx):
-        """Snap bird.y so the wagon wheels ride the current rail segment,
-        interpolating across the bridge between two consecutive rail
-        pipes. Also writes the local rail slope (degrees) onto
-        bird.cart_tilt_deg so the Bird.draw cart-assembly rotation
-        tracks the curvature — keeps Pip + wagon from skating
-        horizontally over a sloped rail."""
-        sorted_pipes = sorted(self.rail_pipes, key=lambda p: p.x)
-        offset = self._CART_LOCKED_OFFSET
-
-        # "On" a pipe: bird is over a single rail pipe. Use that pipe's
-        # rail height; for the slope, look at the NEXT pipe ahead (if any)
-        # so the cart starts tipping toward the upcoming segment before
-        # it falls off the current pipe.
-        for i, p in enumerate(sorted_pipes):
-            if p.x - 6 <= bx <= p.x + PIPE_W + 6:
-                rail_y = p.gap_y + p.gap_h / 2
-                self.bird.y = rail_y - offset
-                self.bird.vy = 0.0
-                if i + 1 < len(sorted_pipes):
-                    nxt = sorted_pipes[i + 1]
-                    self.bird.cart_tilt_deg = self._rail_slope_deg(
-                        p.x + PIPE_W, rail_y,
-                        nxt.x, nxt.gap_y + nxt.gap_h / 2)
-                else:
-                    self.bird.cart_tilt_deg = 0.0
-                return
-
-        # "Between" two pipes: linear interp y, slope = constant for this
-        # bridge segment.
-        for i in range(len(sorted_pipes) - 1):
-            p1, p2 = sorted_pipes[i], sorted_pipes[i + 1]
-            if p1.x + PIPE_W <= bx <= p2.x:
-                span = max(1, p2.x - (p1.x + PIPE_W))
-                t = (bx - (p1.x + PIPE_W)) / span
-                y1 = p1.gap_y + p1.gap_h / 2
-                y2 = p2.gap_y + p2.gap_h / 2
-                self.bird.y = (y1 + (y2 - y1) * t) - offset
-                self.bird.vy = 0.0
-                self.bird.cart_tilt_deg = self._rail_slope_deg(
-                    p1.x + PIPE_W, y1, p2.x, y2)
-                return
-
-    @staticmethod
-    def _rail_slope_deg(x1: float, y1: float,
-                        x2: float, y2: float) -> float:
-        """Tilt (degrees, pygame convention) for a rail segment from
-        (x1, y1) to (x2, y2). NEGATIVE = downhill-right → nose down;
-        POSITIVE = uphill-right → nose up. Capped at ±45° so a wildly
-        steep bridge between two pipes doesn't flip the cart upside-
-        down — visually too much."""
-        dx = x2 - x1
-        if dx <= 0.5:
-            return 0.0
-        dy = y2 - y1
-        # screen y grows downward; positive dy = rail descending. To make
-        # the cart nose-DOWN on descent (visually rolling downhill), the
-        # tilt_deg must be NEGATIVE (pygame.transform.rotate ccw +,
-        # negative tilts the top to the right = nose down for an
-        # upright sprite).
-        return max(-45.0, min(45.0,
-                              -math.degrees(math.atan2(dy, dx))))
 
     def _die(self):
         if self.game_over:
@@ -1760,8 +1541,6 @@ class World:
             self._activate_skateboard(m)
         elif kind == "heist":
             self._activate_heist(m)
-        elif kind == "rail":
-            self._activate_rail(m)
         elif kind == "lottery":
             self._activate_lottery(m)
         elif kind == "phoenix":
@@ -2011,131 +1790,6 @@ class World:
             "TREASURE BOX!", m.x, m.y - 26, UI_GOLD,
             size=26, life=1.5, vy=-30, style="powerup",
         ))
-
-    def _activate_rail(self, m):
-        """RAIL TRACK — pillar-limited buff. Tags the next 5 pillars
-        ahead with rail track and parks a stationary cart on the FIRST
-        of them. Pip is NOT auto-locked: he keeps flying with normal
-        flap. If he touches the cart pillar (anywhere — top, side,
-        body) the cart locks him in and rides through the remaining
-        tagged pillars. Pillars 2-5 still have track but no cart —
-        touching them kills Pip like any obstacle. If Pip never lands
-        on the cart, the 5 tagged pillars scroll past and the powerup
-        expires silently. If picked up WHILE Pip is already locked on
-        the rail (he can't dodge), extend the current ride by 5 more
-        pillars from his current position — no new cart, no state
-        reset."""
-        if self.bird.cart_locked:
-            self._extend_rail_ride(m)
-            return
-        self.rail_pillars_left = RAIL_PILLAR_COUNT
-        self.bird.cart_active = True
-        self.bird.cart_locked = False
-        self.rail_pending = 0
-        # Wipe any stale rail tags before re-building.
-        for p in self.pipes:
-            p.rail_active = False
-        # Tag only the next RAIL_PILLAR_COUNT real pipes AHEAD of Pip
-        # (skipping rush pipes). These are the pillars Pip will see
-        # rail track on; no other pipes get tagged during this powerup.
-        ahead = sorted(
-            (p for p in self.pipes
-             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
-            key=lambda p: p.x)
-        for p in ahead[:RAIL_PILLAR_COUNT]:
-            p.rail_active = True
-        tagged_ahead = min(len(ahead), RAIL_PILLAR_COUNT)
-        # If fewer than RAIL_PILLAR_COUNT pipes were already in flight
-        # ahead of Pip, force-spawn additional pipes at the natural
-        # spacing. Use rail_pending so _spawn_pipe's tag-on-spawn block
-        # claims them and auto-skips rush pipes.
-        need = RAIL_PILLAR_COUNT - tagged_ahead
-        if need > 0:
-            self.rail_pending = need
-            spacing = self._current_spacing()
-            next_x = (max((p.x for p in self.pipes), default=self.bird.x)
-                      + spacing)
-            guard = need * 3  # safety cap in case of rush-pipe skips
-            while self.rail_pending > 0 and guard > 0:
-                self._spawn_pipe(next_x)
-                next_x += spacing
-                guard -= 1
-            self.rail_pending = 0
-        # Rebuild rail_pipes as a view of the rail-tagged pipes for the
-        # renderer (scenes._draw_rails iterates this list).
-        self.rail_pipes = [p for p in self.pipes if p.rail_active]
-        # Park the cart on the FIRST tagged pillar (the leftmost of the
-        # rail-tagged set). The scene renderer paints a stationary cart
-        # over this pillar's rail line until Pip either lands on it
-        # (lock) or it scrolls past him (cart lost).
-        self.rail_cart_pipe = (sorted(self.rail_pipes, key=lambda p: p.x)[0]
-                               if self.rail_pipes else None)
-        audio.play_rail()
-        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, (255, 220, 100), WHITE), n=28)
-        self.float_texts.append(FloatText(
-            "RAILS UP!", m.x, m.y - 26, UI_GOLD,
-            size=28, life=1.3, vy=-30, style="powerup",
-        ))
-
-    def _extend_rail_ride(self, m):
-        """Mid-ride pickup: extend the current locked ride by tagging
-        more pillars ahead so there are RAIL_PILLAR_COUNT tagged in
-        front of Pip, then reset the per-ride budget to that count. No
-        new cart spawns (Pip is already on one). Force-spawns if fewer
-        than RAIL_PILLAR_COUNT pipes are in flight ahead."""
-        ahead = sorted(
-            (p for p in self.pipes
-             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
-            key=lambda p: p.x)
-        tagged_ahead = sum(1 for p in ahead
-                           if getattr(p, "rail_active", False))
-        for p in ahead:
-            if tagged_ahead >= RAIL_PILLAR_COUNT:
-                break
-            if not getattr(p, "rail_active", False):
-                p.rail_active = True
-                tagged_ahead += 1
-        need = RAIL_PILLAR_COUNT - tagged_ahead
-        if need > 0:
-            self.rail_pending = need
-            spacing = self._current_spacing()
-            next_x = (max((p.x for p in self.pipes), default=self.bird.x)
-                      + spacing)
-            guard = need * 3
-            while self.rail_pending > 0 and guard > 0:
-                self._spawn_pipe(next_x)
-                next_x += spacing
-                guard -= 1
-            self.rail_pending = 0
-        self.rail_pipes = [p for p in self.pipes if p.rail_active]
-        self.rail_pillars_left = RAIL_PILLAR_COUNT
-        audio.play_rail()
-        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, (255, 220, 100), WHITE), n=18)
-        self.float_texts.append(FloatText(
-            "+5 RAILS", m.x, m.y - 26, UI_GOLD,
-            size=26, life=1.2, vy=-30, style="powerup",
-        ))
-
-    def _end_rail_ride(self):
-        """End the rail powerup. Two paths:
-          (a) Pip rode and ran out the 5 pillars — release with an
-              upward "jump" so the player gets air control on the
-              same frame.
-          (b) Pip never landed on the cart and the 5 tagged pillars
-              simply scrolled past — clean up silently, no jump.
-        Either way, existing rail_active flags on already-tagged pipes
-        are NOT cleared; the on-screen tail of track scrolls off
-        naturally."""
-        was_locked = self.bird.cart_locked
-        self.bird.cart_active = False
-        self.bird.cart_locked = False
-        self.bird.cart_tilt_deg = 0.0
-        self.rail_cart_pipe = None
-        if was_locked:
-            sign = -1 if self.reverse_timer > 0 else 1
-            self.bird.vy = FLAP_V * sign
-            self.bird.flap_boost = 0.45
-            audio.play_flap()
 
     def _apply_lottery_result(self):
         anim = self.lottery_anim

@@ -746,19 +746,6 @@ class Bird:
         # PHOENIX: fiery skin while phoenix_active; the death-revive is
         # owned by World._die().
         self.phoenix_active = False
-        # RAIL: cart_active starts at pickup, stays True until the last
-        # rail pipe scrolls off. cart_locked flips True the moment the
-        # cart wheels touch any rail segment — from then on the track
-        # auto-drives Pip and taps are ignored.
-        self.cart_active = False
-        self.cart_locked = False
-        # While cart_locked, World._snap_cart_to_rail writes the local
-        # rail slope here in degrees (negative = nose-down on a
-        # downhill segment, positive = nose-up on an uphill). The
-        # tilt_deg property reads it so Pip's sprite AND the wagon
-        # graphics rotate together to track the rail's curvature
-        # rather than skating along it horizontally.
-        self.cart_tilt_deg = 0.0
         # Backflip trick: ticks down while a 360° spin animation plays.
         self.backflip_t = 0.0
         self.backflip_dur = 0.0
@@ -785,17 +772,6 @@ class Bird:
 
     @property
     def tilt_deg(self):
-        # On the rail (cart_locked): track the local rail slope. World.
-        # _snap_cart_to_rail writes this from consecutive rail-pipe
-        # gap centres each frame, so Pip + wagon visibly roll along
-        # the curvature instead of skating horizontally.
-        if self.cart_locked:
-            return self.cart_tilt_deg
-        # Pre-lock (cart_active without cart_locked) AND free flight:
-        # vy-based banking — pitch forward when falling, back when
-        # rising. The pre-lock case lets the player aim Pip onto the
-        # rail with regular flap; the wagon hanging below tracks
-        # Pip's pitch.
         t = max(-0.5, min(0.75, self.vy / 500.0))
         base = -t * 55.0
         # GRIND: while a random grind is active, tilt Pip's whole
@@ -826,20 +802,11 @@ class Bird:
         return base
 
     def flap(self, gravity_sign=1):
-        # Flap is silently ignored only while Pip is LOCKED on the
-        # rail (cart_locked). Pre-lock (cart_active but not yet
-        # locked) flap works normally so the player can aim onto the
-        # parked cart sitting on the first tagged pillar.
-        if self.alive and not self.cart_locked:
+        if self.alive:
             self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
-        if self.cart_locked:
-            # Track has taken over — World._snap_cart_to_rail owns y/vy.
-            # Just tick the idle wing animation.
-            self.frame_t = (self.frame_t + dt * 6.0)
-            return
         new_vy = self.vy + GRAVITY * gravity_sign * dt
         if gravity_sign >= 0:
             self.vy = min(new_vy, MAX_FALL)
@@ -960,19 +927,11 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
-        # RAIL cart: wheels are drawn BEFORE Pip so his silhouette sits
-        # on top of them; the body is drawn after Pip so it covers his
-        # lower half and the parcel.
-        if self.cart_locked:
-            self._draw_wagon_wheels(surf, cx_int, cy_int)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
         if self.skateboard_active:
             self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
-        if self.cart_locked:
-            self._draw_wagon_body(surf, cx_int, cy_int)
-            return  # parcel is hidden inside the wagon
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
@@ -1016,106 +975,6 @@ class Bird:
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
-
-    # ── RAIL wagon (renders around Pip while cart_active) ──────────────────
-    # Wagon pieces are composited onto a side surface, rotated by tilt_deg,
-    # then blitted centred on Pip — that way the whole cart visibly rolls
-    # along the rail's curvature instead of skating horizontally. The rear
-    # wheel sits a little lower than the front on a downhill segment, etc.
-    # Pip's sprite rotates by the same tilt_deg via the property override
-    # so bird + cart move as one rigid assembly.
-
-    # Side-buffer size — must fit the wagon's bounding box at any rotation.
-    # Cart extends roughly ±21 px in x and 0..+27 in y from Pip's centre;
-    # 80×80 with Pip's centre at (40, 40) leaves room for the full assembly
-    # plus the expansion pygame.transform.rotate adds when the axis tilts.
-    _WAGON_SIDE = 80
-
-    def _render_wagon_wheels(self, surf, cx, cy):
-        """Pure render — paints two wooden spoke wheels with iron tires
-        relative to (cx, cy). No rotation/composing here, just the pixel
-        work. Called from `_draw_wagon_wheels` with cx,cy = surface
-        centre so the wheels sit at Pip's local-y + 22."""
-        WHEEL_R = 5
-        DX = 15
-        wheel_y = cy + 22
-        pine_dk = ( 70,  45,  25)
-        pine    = (135,  90,  50)
-        iron_dk = ( 40,  35,  30)
-        iron    = (110, 100,  95)
-        spin = self.frame_t * 0.8
-        for dx in (-DX, DX):
-            wx = cx + dx
-            pygame.draw.circle(surf, iron_dk, (wx, wheel_y), WHEEL_R)
-            pygame.draw.circle(surf, iron,    (wx, wheel_y), WHEEL_R - 1)
-            pygame.draw.circle(surf, pine_dk, (wx, wheel_y), WHEEL_R - 2)
-            for i in range(6):
-                ang = spin + (i / 6) * math.tau
-                ex = wx + int(math.cos(ang) * (WHEEL_R - 2))
-                ey = wheel_y + int(math.sin(ang) * (WHEEL_R - 2))
-                pygame.draw.line(surf, pine_dk, (wx, wheel_y), (ex, ey), 1)
-            pygame.draw.circle(surf, iron_dk, (wx, wheel_y), 1)
-
-    def _render_wagon_body(self, surf, cx, cy):
-        """Pure render — pine plank cart body with two iron hoop bands."""
-        W = 42
-        H = 18
-        body_top = cy + 4
-        body_bot = cy + 4 + H
-        pine_dk = ( 70,  45,  25)
-        pine    = (135,  90,  50)
-        pine_hi = (180, 130,  75)
-        iron_dk = ( 40,  35,  30)
-        iron    = (110, 100,  95)
-        iron_hi = (180, 170, 160)
-        # Outline
-        pygame.draw.rect(surf, pine_dk,
-                         pygame.Rect(cx - W // 2 - 1, body_top - 1,
-                                     W + 2, H + 2))
-        # Body
-        pygame.draw.rect(surf, pine,
-                         pygame.Rect(cx - W // 2, body_top, W, H))
-        # Plank seams every 6 game-px
-        for i in range(1, W // 6):
-            px = cx - W // 2 + i * 6
-            pygame.draw.line(surf, pine_dk,
-                             (px, body_top + 1), (px, body_bot - 1), 1)
-            pygame.draw.line(surf, pine_hi,
-                             (px + 1, body_top + 1),
-                             (px + 1, body_bot - 1), 1)
-        # Iron hoops — top and bottom horizontal bands
-        for band_y in (body_top + 2, body_bot - 5):
-            pygame.draw.rect(surf, iron_dk,
-                             pygame.Rect(cx - W // 2 - 1, band_y,
-                                         W + 2, 3))
-            pygame.draw.rect(surf, iron,
-                             pygame.Rect(cx - W // 2 - 1, band_y + 1,
-                                         W + 2, 1))
-            pygame.draw.line(surf, iron_hi,
-                             (cx - W // 2 - 1, band_y),
-                             (cx + W // 2 + 1, band_y), 1)
-
-    def _draw_wagon_piece(self, surf, cx, cy, render_fn):
-        """Shared rotate+blit shell. Builds a transparent side surface,
-        invokes `render_fn(side, mid, mid)` to draw the piece at local
-        centre, rotates by tilt_deg so the assembly tracks the rail
-        slope, then blits centred at (cx, cy)."""
-        SIDE = self._WAGON_SIDE
-        side = pygame.Surface((SIDE, SIDE), pygame.SRCALPHA)
-        mid = SIDE // 2
-        render_fn(side, mid, mid)
-        tilt = self.tilt_deg
-        if abs(tilt) > 0.5:
-            side = pygame.transform.rotate(side, tilt)
-        surf.blit(side, side.get_rect(center=(cx, cy)))
-
-    def _draw_wagon_wheels(self, surf, cx, cy):
-        """Composite + rotate the wheels."""
-        self._draw_wagon_piece(surf, cx, cy, self._render_wagon_wheels)
-
-    def _draw_wagon_body(self, surf, cx, cy):
-        """Composite + rotate the cart body."""
-        self._draw_wagon_piece(surf, cx, cy, self._render_wagon_body)
 
     # ── Secret-powerup wearable overlays ────────────────────────────────────
     def _draw_helmet(self, surf, cx, cy, flipped):
@@ -2084,8 +1943,6 @@ class PowerUp:
             self._draw_skateboard_icon(surf)
         elif self.kind == "heist":
             self._draw_heist_icon(surf)
-        elif self.kind == "rail":
-            self._draw_rail_icon(surf)
         elif self.kind == "lottery":
             self._draw_lottery_icon(surf)
         elif self.kind == "phoenix":
@@ -2468,184 +2325,6 @@ class PowerUp:
         # collision circle — same overflow the kfc/grow icons use to
         # read clearly against a noisy background.
         draw_chest_at(surf, cx, cy)
-
-    def _draw_rail_icon(self, surf):
-        """RAIL pickup — Victorian engraved train ticket (RT2): sepia
-        paper card with a thick black outer perimeter, a lighter
-        engraved inner border, a small "RAILWAY" caption, and a
-        detailed steam-locomotive silhouette centred on the card.
-        Painted at 6× supersample on a 64×48 native canvas, rotated
-        at supersample and smoothscaled down so the tilted edges
-        stay clean."""
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
-
-        SS = 6
-        NATIVE_W, NATIVE_H = 48, 36
-        sw, sh = NATIVE_W * SS, NATIVE_H * SS
-        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
-
-        # ── palette ──
-        SEPIA      = (228, 210, 170)
-        CREAM      = (238, 225, 195)
-        NEAR_BLACK = ( 18,  14,  10)
-        INK        = ( 30,  25,  20)
-
-        # ── card body + thick perimeter ──
-        card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
-        # Sepia paper fill.
-        pygame.draw.rect(big, SEPIA, card)
-        # Slimmer black outer perimeter — 1.4 SS wide (was 2 SS).
-        pygame.draw.rect(big, NEAR_BLACK, card,
-                         max(2, int(SS * 1.4)))
-        # Lighter engraved inner border, inset 3.5 SS.
-        inner = card.inflate(-int(SS * 3.5), -int(SS * 3.5))
-        pygame.draw.rect(big, NEAR_BLACK, inner,
-                         max(1, int(SS * 0.6)))
-
-        # ── locomotive helper (nested closure so the method stays
-        #     self-contained without importing from tools/) ──
-
-        def locomotive(loco_cx, loco_cy, scale=1.0):
-            # Stripped-down classic steam loco (V1 from the
-            # render_rail_train_variants pass): cab + boiler +
-            # smokestack + cowcatcher + 2 spoked drivers + coupling
-            # rod. No iron bands, no back-plate, no headlight, no
-            # leading wheel, no dome, no smoke — the iconic
-            # 🚂-emoji silhouette.
-
-            # Boiler — anchored so the whole loco sits roughly
-            # centred on (loco_cx, loco_cy).
-            boiler_w = int(SS * 14 * scale)
-            boiler_h = int(SS * 6 * scale)
-            boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
-            boiler.midright = (loco_cx + int(SS * 7 * scale),
-                                loco_cy)
-            pygame.draw.rect(big, INK, boiler,
-                             border_radius=max(1, int(SS * 0.7 * scale)))
-
-            # Cab — solid block on the left, no window.
-            cab_w = int(SS * 5 * scale)
-            cab_h = int(SS * 7.5 * scale)
-            cab = pygame.Rect(0, 0, cab_w, cab_h)
-            cab.midright = (boiler.left, loco_cy)
-            pygame.draw.rect(big, INK, cab,
-                             border_radius=max(1, int(SS * 0.5 * scale)))
-            # Cab roof overhang.
-            roof = pygame.Rect(0, 0, cab_w + int(SS * 1.2 * scale),
-                                max(1, int(SS * 0.8 * scale)))
-            roof.midbottom = (cab.centerx,
-                               cab.top + max(1, SS // 3))
-            pygame.draw.rect(big, INK, roof)
-
-            # Smokestack with flared cap.
-            stack_w = max(2, int(SS * 1.6 * scale))
-            stack_h = max(3, int(SS * 3.2 * scale))
-            stack_x = (boiler.right - int(SS * 3.5 * scale)
-                       - stack_w // 2)
-            stack = pygame.Rect(stack_x, boiler.top - stack_h,
-                                 stack_w, stack_h)
-            pygame.draw.rect(big, INK, stack)
-            flare = pygame.Rect(0, 0, int(stack_w * 1.8),
-                                 max(1, int(SS * 0.6 * scale)))
-            flare.midbottom = (stack.centerx, stack.top)
-            pygame.draw.rect(big, INK, flare)
-
-            # 2 spoked driving wheels. The REAR wheel sits under
-            # the cab at the most-left position in the train; the
-            # FRONT wheel sits under the front of the boiler. The
-            # coupling rod spans the (longer) gap between them.
-            wheel_r = max(3, int(SS * 2.6 * scale))
-            gap = max(1, int(SS * 0.4 * scale))
-            wheel_cy = boiler.bottom + wheel_r + gap
-            ground_y = wheel_cy + wheel_r
-            wheel_xs = (
-                boiler.left + int(boiler.width * 0.05),
-                boiler.left + int(boiler.width * 0.72),
-            )
-
-            # Cowcatcher — slants forward+down from the front of
-            # the boiler. Stops above the rail line (deflector,
-            # not snowplough).
-            cow_top_inner = boiler.bottom - max(1,
-                                                 int(SS * 0.4 * scale))
-            cow_outer_x = boiler.right + int(SS * 4 * scale)
-            cow_bot_y = ground_y - max(1, int(SS * 0.5 * scale))
-            cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
-            cow_pts = [
-                (boiler.right, cow_top_inner),
-                (cow_outer_x, cow_top_outer_y),
-                (cow_outer_x, cow_bot_y),
-                (boiler.right, cow_bot_y - int(SS * 0.6 * scale)),
-            ]
-            pygame.draw.polygon(big, INK, cow_pts)
-            for f in (0.30, 0.55, 0.80):
-                vx = cow_pts[0][0] + int(
-                    (cow_pts[1][0] - cow_pts[0][0]) * f)
-                v_top = cow_top_inner + int(SS * 1 * scale * f)
-                v_bot = cow_bot_y - max(1, SS // 3)
-                pygame.draw.line(big, CREAM, (vx, v_top),
-                                 (vx, v_bot), max(1, SS // 3))
-
-            # Coupling rod — drawn first so wheels stamp on top.
-            rod_h = max(2, int(SS * 1.0 * scale))
-            rod_y = wheel_cy - int(wheel_r * 0.35) - rod_h // 2
-            pygame.draw.rect(big, INK,
-                             (wheel_xs[0], rod_y,
-                              wheel_xs[1] - wheel_xs[0], rod_h))
-
-            # Wheels — 6-spoke spoked drivers.
-            for wx in wheel_xs:
-                pygame.draw.circle(big, INK, (wx, wheel_cy),
-                                   wheel_r)
-                for ang_deg in (0, 60, 120, 180, 240, 300):
-                    ang = math.radians(ang_deg)
-                    x2 = wx + math.cos(ang) * (wheel_r - SS // 2)
-                    y2 = wheel_cy + math.sin(ang) * (wheel_r
-                                                      - SS // 2)
-                    pygame.draw.line(big, CREAM, (wx, wheel_cy),
-                                     (int(x2), int(y2)),
-                                     max(1, int(SS * 0.45 * scale)))
-                pygame.draw.circle(big, CREAM, (wx, wheel_cy),
-                                   max(1, int(SS * 0.7 * scale)))
-                pygame.draw.circle(big, INK, (wx, wheel_cy),
-                                   wheel_r,
-                                   max(1, int(SS * 0.35 * scale)))
-                # Crank pin on top of the coupling rod.
-                pygame.draw.circle(big, CREAM,
-                                   (wx, rod_y + rod_h // 2),
-                                   max(1, int(SS * 0.6 * scale)))
-
-        # ── Big bold "TRAIN" caption at the top ──
-        # Sized to fill most of the vertical room between the
-        # inner engraving line and the chimney top. set_bold on
-        # top of the already-bold vendored font + an extra
-        # 1-paint-pixel offset-stamp thicken the strokes so the
-        # word reads at game pickup scale.
-        f_hdr = _get_float_font(int(SS * 9))
-        f_hdr.set_bold(True)
-        for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
-            hdr = f_hdr.render("TRAIN", True, NEAR_BLACK)
-            big.blit(hdr, hdr.get_rect(
-                center=(card.centerx + dx,
-                         card.top + int(SS * 6.5) + dy)))
-
-        # ── locomotive centred on the card ──
-        # Scaled 1.15x so the train reads larger; nudged a touch
-        # lower (centery + 3.5*SS) so the now-much-bigger TRAIN
-        # caption (moved DOWN to +6.5*SS) still has clear room
-        # above the chimney.
-        locomotive(card.centerx, card.centery + int(SS * 3.5),
-                   scale=1.15)
-
-        # Rotate at supersample then smoothscale down so the tilted
-        # edges stay clean. ±4° tilt for the "alive" feel.
-        tilt = math.sin(self.pulse * 0.7) * 4
-        rotated = pygame.transform.rotate(big, tilt)
-        rw, rh = rotated.get_size()
-        final = pygame.transform.smoothscale(rotated,
-                                              (rw // SS, rh // SS))
-        surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_lottery_icon(self, surf):
         """Scratch-off lottery card ("B5" — three big match-3 cells +

@@ -156,8 +156,6 @@ PHOENIX_INVULN        = 1.5
 #   "eternal_friend" — friendlier face (bigger eye, soft beak)
 #   "eternal_lite"   — all-in: warm + rounded + short + friendly
 PHOENIX_VARIANT       = "eternal_warm"
-RAIL_PILLAR_COUNT     = 5       # cart rides over exactly N pillars then releases
-RAIL_SCROLL_MULT      = 2.5     # world scrolls 2.5x faster during the ride
 # SKATEBOARD slide boost — world scrolls faster while Pip is
 # actually grinding a surface (ground, pillar top, or ramp).
 # Ramps up over SKATE_SLIDE_ATTACK and decays over
@@ -198,7 +196,6 @@ LOTTERY_REVEAL_TIME   = 1.0
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
     ("heist",      0.125),
-    ("rail",       0.125),
     ("lottery",    0.125),
     ("phoenix",    0.125),
 )
@@ -212,7 +209,7 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 # SECRET_POWERUP_WEIGHTS, equal weight per kind so the 15-pillar window
 # samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
-    "skateboard", "heist", "rail",
+    "skateboard", "heist",
     "lottery", "phoenix",
 )
 
