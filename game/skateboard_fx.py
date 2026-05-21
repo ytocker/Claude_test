@@ -1034,6 +1034,99 @@ def render_caption_g5_huge_bg(cx: int, cy: int, score: int,
     return surf
 
 
+# ── SAME plate design, played with placement / tilt / size ──────────────────
+#
+# User feedback on G (watermark-style text fills) was "not good — same
+# design, just placed / tilted / sized differently". These H-variants
+# keep the live caption's exact plate-design (red gradient plate with
+# yellow-orange gradient text, ink outline) and only vary where it sits,
+# how it tilts, and how big it is. The D5 score burst lives at its
+# native y=92 spot on top in all five.
+
+
+def render_caption_h1_bigger_tilted(cx: int, cy: int, score: int,
+                                      rng_seed: int = 22) -> pygame.Surface:
+    """H1 — Same plate, parked AT the score's y=92 spot, font bumped
+    from 42 to 48 and tilted to +12° (vs the live +5°). Score burst
+    sits in the middle as a badge — same plate, just bigger + more
+    dynamic."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 48, plate_pad=(32, 18))
+    rot = pygame.transform.rotate(plate, 12)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_h2_xl_tilted_other_way(cx: int, cy: int, score: int,
+                                            rng_seed: int = 22) -> pygame.Surface:
+    """H2 — Same plate at the score's y=92 spot, even BIGGER (font
+    52), tilted the OPPOSITE way to the live caption (-10°) so the
+    composition feels different at a glance."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 52, plate_pad=(34, 20))
+    rot = pygame.transform.rotate(plate, -10)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_h3_compact_flat(cx: int, cy: int, score: int,
+                                     rng_seed: int = 22) -> pygame.Surface:
+    """H3 — Same plate but SMALLER (font 30) and FLAT (no tilt),
+    centred under the score. The score dominates; the plate plays
+    a quiet supporting role tucked behind."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 30, plate_pad=(22, 12))
+    surf.blit(plate, plate.get_rect(center=(W // 2, 92)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_h4_offset_below(cx: int, cy: int, score: int,
+                                     rng_seed: int = 22) -> pygame.Surface:
+    """H4 — Same plate design, but VERTICALLY OFFSET below the score
+    (y=120 instead of y=92). The score number sits ABOVE the
+    caption, both readable, both at their best size — like the
+    score is a label hovering over the SKATEBOARD! sign."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 42, plate_pad=(30, 16))
+    rot = pygame.transform.rotate(plate, 6)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 120)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=44, ri=28, font_size=40)
+    return surf
+
+
+def render_caption_h5_wide_banner(cx: int, cy: int, score: int,
+                                    rng_seed: int = 22) -> pygame.Surface:
+    """H5 — Same plate design but STRETCHED HORIZONTALLY — wider
+    horizontal padding (60 vs 30) makes the plate read as a long
+    banner across the score's row, with the score badge punching
+    through the centre. Plate text stays at the live 42 px font but
+    sits inside extra red real-estate left & right of the score."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 42, plate_pad=(70, 18))
+    rot = pygame.transform.rotate(plate, -4)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 92)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
