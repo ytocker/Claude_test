@@ -184,6 +184,9 @@ def play_coin_triple() -> None:
 
 def play_triple_coin() -> None: _play("triple_coin", 0.85)
 def play_magnet() -> None:      _play("magnet", 0.75)
+# Reuses the magnet sample at a louder mix so the upgrade reads as
+# beefier without shipping a bespoke OGG.
+def play_megamagnet() -> None:  _play("magnet", 0.95)
 def play_slowmo() -> None:      _play("slowmo", 0.75)
 def play_thunder() -> None:     _play("thunder", 0.85)
 def play_death() -> None:       _play("death", 0.75)
@@ -191,3 +194,12 @@ def play_gameover() -> None:    _play("gameover", 0.70)
 def play_poof() -> None:        _play("poof", 0.88)
 def play_ghost() -> None:       _play("ghost", 0.70)
 def play_grow() -> None:        _play("grow", 0.80)
+
+# Cart / shrink / lottery wrappers reuse existing OGGs (no new audio assets
+# ship with these power-ups yet). Re-point _play() calls if/when bespoke
+# sounds are commissioned.
+def play_shrink() -> None:       _play("grow", 0.55)
+def play_rail() -> None:         _play("grow", 0.70)
+def play_lottery_roll() -> None: _play("magnet", 0.45)
+def play_lottery_win() -> None:  _play("triple_coin", 0.95)
+def play_lottery_bust() -> None: _play("death", 0.55)

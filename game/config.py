@@ -42,6 +42,12 @@ POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
 TRIPLE_DURATION    = 8.0
 MAGNET_DURATION    = 8.0
 MAGNET_RADIUS      = 82.0
+# Megamagnet — the late-game upgrade form of `magnet`. Same duration,
+# 2x pull radius. Magnet is REPLACED by megamagnet at the score
+# threshold below — both never spawn simultaneously (see
+# POWERUP_REPLACED_AT + the spawn filter in World._maybe_spawn_powerup).
+MEGAMAGNET_DURATION = 8.0
+MEGAMAGNET_RADIUS   = MAGNET_RADIUS * 2.0   # = 164
 SLOWMO_DURATION    = 8.0
 SLOWMO_SCALE       = 0.7
 KFC_DURATION       = 8.0
@@ -50,25 +56,71 @@ KFC_GAP_BOOST      = 1.30    # gap_h multiplier on KFC-flagged pipes - makes
                              # variant already looks. Stacks with COIN_RUSH.
 GHOST_DURATION     = 8.0
 GROW_DURATION      = 8.0
-GROW_SCALE         = 1.3
+GROW_SCALE         = 1.4
 REVERSE_DURATION   = 8.0
+SHRINK_DURATION    = 8.0
+SHRINK_SCALE       = 0.6
+SHRINK_TRANSITION  = 0.45
+RAIL_PILLAR_COUNT  = 5       # cart rides over exactly N pillars then releases
+RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
+# Lottery tiers: (label, weight, coin_delta). Weights need not sum to anything
+# — normalized at pick time. Loss tiers clamp at score 0 (see
+# World._apply_lottery_result), so total coins never go negative.
+LOTTERY_TIERS = (
+    ("JACKPOT",  5,  100),
+    ("BIG WIN", 12,   40),
+    ("WIN",     20,   15),
+    ("NOTHING", 35,    0),
+    ("LOSS",    20,  -10),
+    ("BUST",     8,  -50),
+)
+LOTTERY_REVEAL_TIME = 1.0
 
 # Spawn weights for power-up kinds. Must sum to anything — they're
 # normalized at pick time. `surprise` resolves at pickup-time to one of
-# the six "real" kinds chosen at random (see World._on_powerup).
+# the six "real" early-game kinds (triple/magnet/slowmo/kfc/ghost/shrink)
+# chosen at random — see World._on_powerup.
 # `reverse` is intentionally excluded — the implementation is kept in
 # place but the power-up doesn't spawn or resolve from a surprise box.
 # To re-enable: add ("reverse", 1) below AND restore "reverse" in the
 # random.choice() inside World._on_powerup.
+# `grow`, `rail`, and `lottery` are late-game late-game-gated (see
+# POWERUP_SCORE_GATES below) and intentionally NOT in the surprise
+# re-roll pool — letting surprise bypass the gate would defeat the
+# purpose of the gate.
 POWERUP_WEIGHTS    = (
-    ("triple",   1),
-    ("slowmo",   1),
-    ("magnet",   1),
-    ("kfc",      1),
-    ("ghost",    1),
-    ("grow",     1),
-    ("surprise", 1),
+    ("triple",     1),
+    ("slowmo",     1),
+    ("magnet",     1),
+    ("kfc",        1),
+    ("ghost",      1),
+    ("shrink",     1),
+    ("surprise",   1),
+    ("grow",       1),
+    ("rail",       1),
+    ("lottery",    1),
+    ("megamagnet", 1),
 )
+
+# Per-kind minimum score before a power-up enters the spawn roll.
+# Filter applied in World._maybe_spawn_powerup. Omitted kinds are
+# unrestricted (gate of 0). Lets late-game pickups stay rare for new
+# players while showing up reliably once the run has built momentum.
+POWERUP_SCORE_GATES = {
+    "rail":       100,
+    "grow":       200,
+    "lottery":    250,
+    "megamagnet": 250,
+}
+
+# Per-kind score at which the kind is REMOVED from the spawn pool.
+# Used to implement upgrade-style swaps: when the run hits this
+# score, the listed kind stops spawning (presumably replaced by an
+# upgraded variant that gates IN at the same score). Filter applied
+# in World._maybe_spawn_powerup alongside POWERUP_SCORE_GATES.
+POWERUP_REPLACED_AT = {
+    "magnet": 250,   # at 250+, megamagnet (radius 2x) takes over
+}
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.

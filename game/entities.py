@@ -461,6 +461,22 @@ class Bird:
         self.grow_active = False
         self.triple_active = False
         self.ghost_pulse = 0.0    # advances while ghost_active for fade effect
+        # Shrink: collision-relevant flag flips at activation; the
+        # visible sprite scale eases between 1.0 and SHRINK_SCALE over
+        # SHRINK_TRANSITION seconds so the morph reads on screen.
+        self.shrink_active = False
+        self.shrink_scale = 1.0
+        # Cart / rail state. cart_active gates pipe-spawn suppression
+        # and the rail-pillar bookkeeping; cart_locked gates the
+        # RAIL_SCROLL_MULT scroll boost and means Pip is physically on
+        # the cart. Both clear at _end_rail_ride.
+        self.cart_active = False
+        self.cart_locked = False
+        # Local slope of the rail segment Pip is currently riding,
+        # written by World._snap_cart_to_rail. Drives the cart sprite
+        # rotation in scenes._draw_cart_on_bird so the wagon tilts
+        # with the polyline curvature.
+        self.cart_tilt_deg = 0.0
 
     @property
     def tilt_deg(self):
@@ -491,6 +507,17 @@ class Bird:
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
+        # Ease shrink_scale toward its target (SHRINK_SCALE while active,
+        # 1.0 otherwise) over SHRINK_TRANSITION seconds. Collisions snap on
+        # frame 1 via World.bird_radius — only the visible sprite eases.
+        from game.config import SHRINK_SCALE, SHRINK_TRANSITION
+        target = SHRINK_SCALE if self.shrink_active else 1.0
+        if self.shrink_scale != target:
+            step = (1.0 - SHRINK_SCALE) * dt / SHRINK_TRANSITION
+            if self.shrink_scale > target:
+                self.shrink_scale = max(target, self.shrink_scale - step)
+            else:
+                self.shrink_scale = min(target, self.shrink_scale + step)
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
@@ -534,6 +561,17 @@ class Bird:
             w, h = img.get_size()
             img = pygame.transform.smoothscale(
                 img, (int(w * GROW_SCALE), int(h * GROW_SCALE)))
+        # Shrink eases the sprite down on top of whichever combo sprite
+        # was chosen. Skipped while grow is animating up (the two buffs
+        # don't stack — activator clears the other timer), but still
+        # works mid-easing on activation/expiry.
+        if self.shrink_scale != 1.0 and not self.grow_active:
+            sw, sh = img.get_size()
+            img = pygame.transform.smoothscale(
+                img,
+                (max(1, int(sw * self.shrink_scale)),
+                 max(1, int(sh * self.shrink_scale))),
+            )
         if flipped:
             img = pygame.transform.flip(img, False, True)
         if self.ghost_active:
@@ -1189,6 +1227,9 @@ class PowerUp:
        surprise — gold "?" block; resolves at pickup to one of the seven
                   effects above (the matching sound plays, no separate
                   surprise sound).
+       shrink   — red-velvet mushroom; bird scales to SHRINK_SCALE
+       rail     — train ticket; cart ride over RAIL_PILLAR_COUNT pillars
+       lottery  — scratch card; rolls a tier and applies its coin delta
     """
     def __init__(self, x, y, kind="triple"):
         self.x = x
@@ -1205,6 +1246,8 @@ class PowerUp:
             _draw_dollar_coin(surf, int(self.x), int(self.y), pulse=self.pulse)
         elif self.kind == "magnet":
             self._draw_magnet(surf)
+        elif self.kind == "megamagnet":
+            self._draw_megamagnet(surf)
         elif self.kind == "slowmo":
             self._draw_slowmo(surf)
         elif self.kind == "kfc":
@@ -1217,6 +1260,12 @@ class PowerUp:
             self._draw_reverse(surf)
         elif self.kind == "surprise":
             self._draw_surprise(surf)
+        elif self.kind == "shrink":
+            self._draw_shrink_mushroom(surf)
+        elif self.kind == "rail":
+            self._draw_rail_icon(surf)
+        elif self.kind == "lottery":
+            self._draw_lottery_icon(surf)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):
@@ -1344,6 +1393,121 @@ class PowerUp:
             # Bright dot at the pole tip — discharge origin
             pygame.draw.circle(surf, WHITE,  (tip_cx, tip_y), 2)
             pygame.draw.circle(surf, YELLOW, (tip_cx, tip_y), 1)
+
+    # Megamagnet sprite — the late-game upgrade form of `magnet`.
+    # Beefier crimson body (outer_r 13->14, inner_r 6->5, arm width
+    # 7->9 px), copper coil wraps down each arm, thick cyan zigzag
+    # arc between the pole tips, and glowing yellow-white discharge
+    # balls at each pole. Locked-in spec from
+    # tools/snapshot_megamagnet_final.py (see
+    # docs/screenshots/powerups/megamagnet/icon_final.png).
+    def _draw_megamagnet(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.1) * 3)
+
+        OUTER_R, INNER_R = 14, 5
+        ARM_W = OUTER_R - INNER_R   # = 9
+        # Coil cluster has the legacy 11 px width (HALF_SPAN=5) and is
+        # shifted outward asymmetrically — the half-pixel rounding in
+        # left_cx puts the legacy tip_cx 0.5 px inside the arm centre,
+        # so the left arm wants 1 extra px outward to read centred.
+        HALF_SPAN = 5
+        LEFT_SHIFT, RIGHT_SHIFT = 2, 1
+        BALL_R = 3
+        BALL_HALO_R = 7
+
+        arch_cy = cy - 3
+        leg_bot = cy + 13
+
+        # Build the horseshoe on an SRCALPHA scratch surface so the
+        # hollow can be punched cleanly with alpha=0 overdraw.
+        sz = 52
+        scx = sz // 2
+        scy = OUTER_R + 4
+
+        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), OUTER_R + 2)
+        pygame.draw.rect(scratch, (80, 5, 8),
+                         (scx - OUTER_R - 2, scy,
+                          (OUTER_R + 2) * 2, leg_bot - arch_cy + 4))
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(scratch, RED_HI, (scx, scy), OUTER_R + 1)
+        pygame.draw.rect(scratch, RED_HI,
+                         (scx - OUTER_R - 1, scy,
+                          (OUTER_R + 1) * 2, leg_bot - arch_cy + 3))
+        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), INNER_R + 1, 2)
+        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), OUTER_R, 2)
+        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), INNER_R)
+        pygame.draw.rect(scratch, (0, 0, 0, 0),
+                         (scx - INNER_R, scy, INNER_R * 2, sz - scy))
+        surf.blit(scratch, (cx - scx, arch_cy - scy))
+
+        left_cx = cx - INNER_R - ARM_W // 2
+        right_cx = cx + INNER_R + ARM_W // 2
+        for tip_cx in (left_cx, right_cx):
+            pygame.draw.rect(surf, (40, 42, 60),
+                             (tip_cx - ARM_W // 2 - 1, leg_bot - 4,
+                              ARM_W + 2, 9), border_radius=4)
+            pygame.draw.rect(surf, (195, 210, 232),
+                             (tip_cx - ARM_W // 2, leg_bot - 3,
+                              ARM_W, 7), border_radius=3)
+            pygame.draw.rect(surf, (238, 246, 255),
+                             (tip_cx - ARM_W // 2 + 1, leg_bot - 3,
+                              ARM_W - 2, 3), border_radius=2)
+
+        # Copper coil — 4 wraps per arm with alternating-dip lines.
+        COPPER_LO = (110, 55, 14)
+        COPPER_HI = (220, 130, 55)
+        COPPER_HI_HL = (255, 225, 160)
+        for tip_cx, shift in ((left_cx - LEFT_SHIFT, 0),
+                              (right_cx + RIGHT_SHIFT, 0)):
+            for i in range(4):
+                wy = cy + 2 + i * 3
+                left_x = tip_cx - HALF_SPAN
+                right_x = tip_cx + HALF_SPAN
+                mid_x = tip_cx
+                dip = 1 if (i % 2 == 0) else -1
+                pygame.draw.lines(surf, COPPER_LO, False,
+                                  [(left_x, wy + 1),
+                                   (mid_x, wy + 1 + dip),
+                                   (right_x, wy + 1)], 2)
+                pygame.draw.lines(surf, COPPER_HI, False,
+                                  [(left_x, wy),
+                                   (mid_x, wy + dip),
+                                   (right_x, wy)], 1)
+                pygame.draw.line(surf, COPPER_HI_HL,
+                                 (left_x + 1, wy), (mid_x - 1, wy))
+
+        # Beefy 4 px-thick cyan zigzag arc + yellow-white discharge balls.
+        y0 = leg_bot + 7
+        arc_pts = [(left_cx, y0)]
+        for i in range(1, 6):
+            t = i / 6
+            ax = int(left_cx + (right_cx - left_cx) * t)
+            ay = int(y0 + math.sin(self.pulse * 11 + i * 1.7) * 5)
+            arc_pts.append((ax, ay))
+        arc_pts.append((right_cx, y0))
+        arc_surf = pygame.Surface(
+            (right_cx - left_cx + 16, 20), pygame.SRCALPHA)
+        shifted = [(p[0] - left_cx + 8, p[1] - y0 + 8) for p in arc_pts]
+        pygame.draw.lines(arc_surf, (110, 195, 255, 230), False, shifted, 4)
+        pygame.draw.lines(arc_surf, (220, 240, 255, 255), False, shifted, 2)
+        surf.blit(arc_surf, (left_cx - 8, y0 - 8))
+
+        for tip_cx in (left_cx, right_cx):
+            ball_cy = leg_bot + 2
+            glow = pygame.Surface((BALL_HALO_R * 2 + 2, BALL_HALO_R * 2 + 2),
+                                  pygame.SRCALPHA)
+            gcx = BALL_HALO_R + 1
+            for r in range(BALL_HALO_R, 0, -1):
+                tt = r / BALL_HALO_R
+                a = int(180 * (1 - tt * 0.85))
+                pygame.draw.circle(glow, (130, 210, 255, a), (gcx, gcx), r)
+            surf.blit(glow, (tip_cx - gcx, ball_cy - gcx))
+            pygame.draw.circle(surf, (255, 230, 100),
+                               (tip_cx, ball_cy), BALL_R)
+            pygame.draw.circle(surf, (255, 255, 240),
+                               (tip_cx, ball_cy), max(1, BALL_R - 2))
 
     def _draw_slowmo(self, surf):
         cx = int(self.x)
@@ -1489,6 +1653,377 @@ class PowerUp:
                 icon, (int(iw * scale), int(ih * scale)))
         surf.blit(icon, (cx - icon.get_width() // 2,
                          cy - icon.get_height() // 2))
+
+    def _draw_shrink_mushroom(self, surf):
+        """Sibling-to-GROW mushroom in red velvet: wide flat parasol disc on
+        a flared flat-bottomed stem, cream-butter spots, magenta pulsing
+        halo. Reads as the same fungal family as GROW; the silhouette is
+        the only thing that distinguishes the two pickups at glance."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.1) * 2)
+        _draw_grow_halo(surf, cx, cy, self.pulse,
+                        color_rgb=_GROW_HALO_RGB, radius=40, peak_y_off=0)
+        sprite = _get_shrink_body_sprite()
+        surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
+
+    def _draw_rail_icon(self, surf):
+        """RAIL pickup — Victorian engraved train ticket (RT2): sepia
+        paper card with a thick black outer perimeter, a lighter
+        engraved inner border, a small "TRAIN" caption, and a
+        detailed steam-locomotive silhouette centred on the card."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+
+        SS = 6
+        NATIVE_W, NATIVE_H = 48, 36
+        sw, sh = NATIVE_W * SS, NATIVE_H * SS
+        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
+
+        SEPIA      = (228, 210, 170)
+        CREAM      = (238, 225, 195)
+        NEAR_BLACK = ( 18,  14,  10)
+        INK        = ( 30,  25,  20)
+
+        card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
+        pygame.draw.rect(big, SEPIA, card)
+        pygame.draw.rect(big, NEAR_BLACK, card, max(2, int(SS * 1.4)))
+        inner = card.inflate(-int(SS * 3.5), -int(SS * 3.5))
+        pygame.draw.rect(big, NEAR_BLACK, inner, max(1, int(SS * 0.6)))
+
+        def locomotive(loco_cx, loco_cy, scale=1.0):
+            boiler_w = int(SS * 14 * scale)
+            boiler_h = int(SS * 6 * scale)
+            boiler = pygame.Rect(0, 0, boiler_w, boiler_h)
+            boiler.midright = (loco_cx + int(SS * 7 * scale), loco_cy)
+            pygame.draw.rect(big, INK, boiler,
+                             border_radius=max(1, int(SS * 0.7 * scale)))
+            cab_w = int(SS * 5 * scale)
+            cab_h = int(SS * 7.5 * scale)
+            cab = pygame.Rect(0, 0, cab_w, cab_h)
+            cab.midright = (boiler.left, loco_cy)
+            pygame.draw.rect(big, INK, cab,
+                             border_radius=max(1, int(SS * 0.5 * scale)))
+            roof = pygame.Rect(0, 0, cab_w + int(SS * 1.2 * scale),
+                                max(1, int(SS * 0.8 * scale)))
+            roof.midbottom = (cab.centerx, cab.top + max(1, SS // 3))
+            pygame.draw.rect(big, INK, roof)
+            stack_w = max(2, int(SS * 1.6 * scale))
+            stack_h = max(3, int(SS * 3.2 * scale))
+            stack_x = (boiler.right - int(SS * 3.5 * scale) - stack_w // 2)
+            stack = pygame.Rect(stack_x, boiler.top - stack_h, stack_w, stack_h)
+            pygame.draw.rect(big, INK, stack)
+            flare = pygame.Rect(0, 0, int(stack_w * 1.8),
+                                 max(1, int(SS * 0.6 * scale)))
+            flare.midbottom = (stack.centerx, stack.top)
+            pygame.draw.rect(big, INK, flare)
+            wheel_r = max(3, int(SS * 2.6 * scale))
+            gap = max(1, int(SS * 0.4 * scale))
+            wheel_cy = boiler.bottom + wheel_r + gap
+            ground_y = wheel_cy + wheel_r
+            wheel_xs = (
+                boiler.left + int(boiler.width * 0.05),
+                boiler.left + int(boiler.width * 0.72),
+            )
+            cow_top_inner = boiler.bottom - max(1, int(SS * 0.4 * scale))
+            cow_outer_x = boiler.right + int(SS * 4 * scale)
+            cow_bot_y = ground_y - max(1, int(SS * 0.5 * scale))
+            cow_top_outer_y = cow_top_inner + int(SS * 1.5 * scale)
+            cow_pts = [
+                (boiler.right, cow_top_inner),
+                (cow_outer_x, cow_top_outer_y),
+                (cow_outer_x, cow_bot_y),
+                (boiler.right, cow_bot_y - int(SS * 0.6 * scale)),
+            ]
+            pygame.draw.polygon(big, INK, cow_pts)
+            for f in (0.30, 0.55, 0.80):
+                vx = cow_pts[0][0] + int((cow_pts[1][0] - cow_pts[0][0]) * f)
+                v_top = cow_top_inner + int(SS * 1 * scale * f)
+                v_bot = cow_bot_y - max(1, SS // 3)
+                pygame.draw.line(big, CREAM, (vx, v_top), (vx, v_bot),
+                                 max(1, SS // 3))
+            rod_h = max(2, int(SS * 1.0 * scale))
+            rod_y = wheel_cy - int(wheel_r * 0.35) - rod_h // 2
+            pygame.draw.rect(big, INK,
+                             (wheel_xs[0], rod_y,
+                              wheel_xs[1] - wheel_xs[0], rod_h))
+            for wx in wheel_xs:
+                pygame.draw.circle(big, INK, (wx, wheel_cy), wheel_r)
+                for ang_deg in (0, 60, 120, 180, 240, 300):
+                    ang = math.radians(ang_deg)
+                    x2 = wx + math.cos(ang) * (wheel_r - SS // 2)
+                    y2 = wheel_cy + math.sin(ang) * (wheel_r - SS // 2)
+                    pygame.draw.line(big, CREAM, (wx, wheel_cy),
+                                     (int(x2), int(y2)),
+                                     max(1, int(SS * 0.45 * scale)))
+                pygame.draw.circle(big, CREAM, (wx, wheel_cy),
+                                   max(1, int(SS * 0.7 * scale)))
+                pygame.draw.circle(big, INK, (wx, wheel_cy), wheel_r,
+                                   max(1, int(SS * 0.35 * scale)))
+                pygame.draw.circle(big, CREAM,
+                                   (wx, rod_y + rod_h // 2),
+                                   max(1, int(SS * 0.6 * scale)))
+
+        f_hdr = _get_float_font(int(SS * 9))
+        f_hdr.set_bold(True)
+        for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
+            hdr = f_hdr.render("TRAIN", True, NEAR_BLACK)
+            big.blit(hdr, hdr.get_rect(
+                center=(card.centerx + dx,
+                         card.top + int(SS * 6.5) + dy)))
+
+        locomotive(card.centerx, card.centery + int(SS * 3.5), scale=1.15)
+
+        tilt = math.sin(self.pulse * 0.7) * 4
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
+        surf.blit(final, final.get_rect(center=(cx, cy)))
+
+    def _draw_lottery_icon(self, surf):
+        """Scratch-off lottery card: gold body with a chrome perimeter,
+        a red LUCKY chip riding the top edge, and 3 large silver
+        scratch cells each with a single "?"."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
+
+        SS = 6
+        NATIVE_W, NATIVE_H = 56, 42
+        sw, sh = NATIVE_W * SS, NATIVE_H * SS
+        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
+
+        GOLD_HI   = (255, 230, 110)
+        GOLD_LO   = (220, 175,  50)
+        STROKE    = (110,  75,  10)
+        CHROME    = (225, 225, 232)
+        SILVER_HI = (245, 245, 252)
+        SILVER_LO = (175, 180, 195)
+        CREAM     = (255, 245, 200)
+        NAVY      = ( 30,  40,  80)
+        RED       = (190,  40,  55)
+        RED_HI    = (230,  80,  90)
+
+        def vgrad(rect, top_col, bot_col, radius=0):
+            tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
+            h_ = rect.height
+            for y in range(h_):
+                t = y / max(1, h_ - 1)
+                col = (int(top_col[0] * (1 - t) + bot_col[0] * t),
+                       int(top_col[1] * (1 - t) + bot_col[1] * t),
+                       int(top_col[2] * (1 - t) + bot_col[2] * t))
+                pygame.draw.line(tmp, col, (0, y), (rect.width, y))
+            if radius:
+                mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(mask, (255, 255, 255, 255),
+                                 mask.get_rect(), border_radius=radius)
+                tmp.blit(mask, (0, 0),
+                         special_flags=pygame.BLEND_RGBA_MIN)
+            big.blit(tmp, rect.topleft)
+
+        def dashed_rect(rect, colour, dash, gap, width):
+            def seg(p0, p1):
+                x0, y0 = p0
+                x1, y1 = p1
+                length = math.hypot(x1 - x0, y1 - y0)
+                if length <= 0:
+                    return
+                dx = (x1 - x0) / length
+                dy = (y1 - y0) / length
+                t = 0.0
+                while t < length:
+                    t2 = min(t + dash, length)
+                    pygame.draw.line(big, colour,
+                                     (x0 + dx * t,  y0 + dy * t),
+                                     (x0 + dx * t2, y0 + dy * t2),
+                                     width)
+                    t += dash + gap
+            seg((rect.left, rect.top), (rect.right, rect.top))
+            seg((rect.right, rect.top), (rect.right, rect.bottom))
+            seg((rect.right, rect.bottom), (rect.left, rect.bottom))
+            seg((rect.left, rect.bottom), (rect.left, rect.top))
+
+        def silver_cell(rect, radius):
+            sub = pygame.Surface(rect.size, pygame.SRCALPHA)
+            sub_rect = sub.get_rect()
+            tmp = pygame.Surface(rect.size, pygame.SRCALPHA)
+            for y in range(rect.height):
+                t = y / max(1, rect.height - 1)
+                col = (int(SILVER_HI[0] * (1 - t) + SILVER_LO[0] * t),
+                       int(SILVER_HI[1] * (1 - t) + SILVER_LO[1] * t),
+                       int(SILVER_HI[2] * (1 - t) + SILVER_LO[2] * t))
+                pygame.draw.line(tmp, col, (0, y), (rect.width, y))
+            mask = pygame.Surface(rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255, 255),
+                             mask.get_rect(), border_radius=radius)
+            tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            sub.blit(tmp, (0, 0))
+            hatch = pygame.Surface(rect.size, pygame.SRCALPHA)
+            for off in range(-rect.height, rect.width,
+                              max(8, rect.height // 6)):
+                pygame.draw.line(hatch, (180, 185, 200, 90),
+                                 (off, 0),
+                                 (off + rect.height, rect.height),
+                                 max(1, rect.height // 60))
+            hatch.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            sub.blit(hatch, (0, 0))
+            pygame.draw.rect(sub, NAVY, sub_rect,
+                             width=max(1, rect.height // 18),
+                             border_radius=radius)
+            big.blit(sub, rect.topleft)
+
+        def fit_question_mark(panel, text="?", font_frac=0.95,
+                               pad_x_frac=0.18, pad_y_frac=0.18):
+            max_w = max(1, panel.width
+                        - int(panel.width * pad_x_frac * 2))
+            max_h = max(1, panel.height
+                        - int(panel.height * pad_y_frac * 2))
+            size = max(4, int(panel.height * font_frac))
+            while size > 6:
+                f = _get_float_font(size)
+                w_, h_ = f.size(text)
+                if w_ <= max_w and h_ <= max_h:
+                    break
+                size -= 2
+            f = _get_float_font(size)
+            sh_ = f.render(text, True, STROKE)
+            hl  = f.render(text, True, CREAM)
+            tx  = f.render(text, True, NAVY)
+            tr = tx.get_rect(center=panel.center)
+            big.blit(sh_, sh_.get_rect(center=(tr.centerx + 1,
+                                                 tr.centery + 1)))
+            big.blit(hl, hl.get_rect(center=(tr.centerx,
+                                              tr.centery - 1)))
+            big.blit(tx, tr)
+
+        card = pygame.Rect(3 * SS, 3 * SS, sw - 6 * SS, sh - 6 * SS)
+        vgrad(card, GOLD_HI, GOLD_LO, radius=4 * SS)
+        hi_h = card.height // 3
+        hi = pygame.Surface((card.width, hi_h), pygame.SRCALPHA)
+        for y in range(hi_h):
+            a = int(110 * (1.0 - y / hi_h))
+            pygame.draw.line(hi, (255, 250, 220, a),
+                             (0, y), (hi.get_width(), y))
+        big.blit(hi, (card.x, card.y))
+        pygame.draw.rect(big, CHROME, card, width=2 * SS,
+                         border_radius=4 * SS)
+        inner = card.inflate(-4 * SS, -4 * SS)
+        dashed_rect(inner, STROKE, dash=4 * SS, gap=3 * SS,
+                    width=max(1, SS // 2))
+
+        chip = pygame.Rect(0, 0, 20 * SS, 5 * SS)
+        chip.midtop = (inner.centerx, inner.top + 1)
+        vgrad(chip, RED_HI, RED, radius=int(SS * 1.5))
+        pygame.draw.rect(big, STROKE, chip, max(1, SS // 2),
+                         border_radius=int(SS * 1.5))
+        fc = _get_float_font(int(chip.height * 0.88))
+        sh_ = fc.render("LUCKY", True, STROKE)
+        ct  = fc.render("LUCKY", True, CREAM)
+        big.blit(sh_, sh_.get_rect(center=(chip.centerx + 1,
+                                             chip.centery + 1)))
+        big.blit(ct, ct.get_rect(center=chip.center))
+
+        cell_top = chip.bottom + 2 * SS
+        cell_bot = inner.bottom - 2 * SS
+        cell_h = cell_bot - cell_top
+        gap = 1 * SS
+        cell_w = (inner.width - 4 * SS - 2 * gap) // 3
+        for i in range(3):
+            x0 = inner.left + 2 * SS + i * (cell_w + gap)
+            cell = pygame.Rect(x0, cell_top, cell_w, cell_h)
+            silver_cell(cell, radius=int(SS * 1.5))
+            fit_question_mark(cell)
+
+        tilt = math.sin(self.pulse * 0.7) * 5
+        rotated = pygame.transform.rotate(big, tilt)
+        rw, rh = rotated.get_size()
+        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
+        surf.blit(final, final.get_rect(center=(cx, cy)))
+
+
+# ── Shrink mushroom sprite (sibling to GROW's body sprite) ───────────────────
+# Same red velvet palette + cream-butter spots + magenta halo as GROW so
+# the two pickups read as one fungal family. Built at supersample then
+# smoothscaled and cached.
+_SHRINK_SS = 5
+_SHRINK_CAP_W,  _SHRINK_CAP_H  = 30, 8
+_SHRINK_STEM_W, _SHRINK_STEM_H = 14, 22
+_SHRINK_VELVET_OUTLINE = ( 60,  15,  25)
+_SHRINK_VELVET_BODY    = MUSH_CAP
+_SHRINK_VELVET_HI      = MUSH_CAP2
+_SHRINK_SPOT_HALO      = (195, 165, 110)
+_SHRINK_STEM_OUTLINE   = (150, 120,  90)
+_SHRINK_STEM_HI        = (255, 250, 230)
+
+_SHRINK_ORNAMENT_SLOTS = (
+    (0.18, 0.48),
+    (0.40, 0.30),
+    (0.62, 0.55),
+    (0.82, 0.36),
+)
+
+_shrink_body_sprite: "pygame.Surface | None" = None
+
+def _get_shrink_body_sprite() -> "pygame.Surface":
+    global _shrink_body_sprite
+    if _shrink_body_sprite is not None:
+        return _shrink_body_sprite
+    SS = _SHRINK_SS
+    CAP_W, CAP_H = _SHRINK_CAP_W, _SHRINK_CAP_H
+    STEM_W, STEM_H = _SHRINK_STEM_W, _SHRINK_STEM_H
+    sprite_w = max(CAP_W, STEM_W) + 2
+    sprite_h = CAP_H + STEM_H + 4
+    big = pygame.Surface((sprite_w * SS, sprite_h * SS), pygame.SRCALPHA)
+    cap_ox  = ((sprite_w - CAP_W)  // 2) * SS
+    cap_oy  = 0
+    stem_ox = ((sprite_w - STEM_W) // 2) * SS
+    stem_oy = (CAP_H + 2) * SS
+
+    stem_pts = [
+        (int(0.42 * STEM_W * SS), int(0.00 * STEM_H * SS)),
+        (int(0.58 * STEM_W * SS), int(0.00 * STEM_H * SS)),
+        (int(0.66 * STEM_W * SS), int(0.40 * STEM_H * SS)),
+        (int(0.78 * STEM_W * SS), int(0.66 * STEM_H * SS)),
+        (int(0.96 * STEM_W * SS), int(0.88 * STEM_H * SS)),
+        (int(0.96 * STEM_W * SS), int(1.00 * STEM_H * SS)),
+        (int(0.04 * STEM_W * SS), int(1.00 * STEM_H * SS)),
+        (int(0.04 * STEM_W * SS), int(0.88 * STEM_H * SS)),
+        (int(0.22 * STEM_W * SS), int(0.66 * STEM_H * SS)),
+        (int(0.34 * STEM_W * SS), int(0.40 * STEM_H * SS)),
+    ]
+    stem_pts = [(p[0] + stem_ox, p[1] + stem_oy) for p in stem_pts]
+    pygame.draw.polygon(big, MUSH_STEM,            stem_pts)
+    pygame.draw.polygon(big, _SHRINK_STEM_OUTLINE, stem_pts, width=SS)
+    hi_x = stem_ox + int(0.40 * STEM_W * SS)
+    pygame.draw.line(big, _SHRINK_STEM_HI,
+                     (hi_x, stem_oy + int(0.10 * STEM_H * SS)),
+                     (hi_x, stem_oy + int(0.78 * STEM_H * SS)), SS)
+
+    outer = pygame.Rect(cap_ox, cap_oy, CAP_W * SS, CAP_H * SS)
+    inner = outer.inflate(-SS * 2, -SS * 2)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE, outer)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_BODY,    inner)
+    pygame.draw.ellipse(big, _SHRINK_VELVET_HI,
+                        pygame.Rect(cap_ox + int(CAP_W * SS * 0.20),
+                                    cap_oy + int(CAP_H * SS * 0.10),
+                                    int(CAP_W * SS * 0.50),
+                                    int(CAP_H * SS * 0.32)))
+    pygame.draw.ellipse(big, _SHRINK_VELVET_OUTLINE,
+                        pygame.Rect(cap_ox + SS,
+                                    cap_oy + int(CAP_H * SS * 0.65),
+                                    (CAP_W - 2) * SS,
+                                    int(CAP_H * SS * 0.55)))
+
+    for fx_frac, fy_frac in _SHRINK_ORNAMENT_SLOTS:
+        fx = cap_ox + int(CAP_W * fx_frac * SS)
+        fy = cap_oy + int(CAP_H * fy_frac * SS)
+        r_body = 1.7
+        pygame.draw.circle(big, _SHRINK_SPOT_HALO, (fx, fy),
+                           int((r_body + 0.4) * SS))
+        pygame.draw.circle(big, MUSH_SPOT, (fx, fy), int(r_body * SS))
+        pygame.draw.circle(big, (255, 250, 220),
+                           (fx - SS // 2, fy - SS // 2), max(1, SS // 2))
+
+    _shrink_body_sprite = pygame.transform.smoothscale(big, (sprite_w, sprite_h))
+    return _shrink_body_sprite
 
 
 # Back-compat alias — some callers (e.g. snapshot/playtest scripts) still say Mushroom.

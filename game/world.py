@@ -17,9 +17,14 @@ from game.config import (
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
+    MEGAMAGNET_DURATION, MEGAMAGNET_RADIUS,
     SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
-    POWERUP_WEIGHTS,
+    POWERUP_WEIGHTS, POWERUP_SCORE_GATES, POWERUP_REPLACED_AT,
+    SHRINK_DURATION, SHRINK_SCALE,
+    RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
+    LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
+    FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
 )
 from game.entities import (
@@ -70,6 +75,7 @@ class World:
 
         self.triple_timer = 0.0
         self.magnet_timer = 0.0
+        self.megamagnet_timer = 0.0
         self.slowmo_timer = 0.0
         self.kfc_timer    = 0.0
         # Random index into KFC_MOUNTAIN_DRAWERS, refreshed on each
@@ -86,6 +92,22 @@ class World:
         self.ghost_timer  = 0.0
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
+        self.shrink_timer = 0.0
+        # RAIL TRACK: pillar-limited buff. Tagging is fixed at activation
+        # — exactly RAIL_PILLAR_COUNT pillars get rail_active set in
+        # _activate_rail and nothing else picks up the tag afterward.
+        # rail_pipes is rebuilt from self.pipes' rail_active flags every
+        # frame so the renderer still sees the on-screen tail of tagged
+        # pipes after expiry. rail_pending is the count of force-spawned
+        # pipes the next _spawn_pipe call should tag.
+        self.rail_pillars_left = 0
+        self.rail_pipes: list = []
+        self.rail_cart_pipe = None
+        self.rail_pending = 0
+        # Lottery reveal animation. None when not rolling; a dict
+        # {t, tier, delta, x, y, applied} while the scratch-card reels
+        # are ticking. Result lands at LOTTERY_REVEAL_TIME.
+        self.lottery_anim: "dict | None" = None
         self.powerup_cooldown = 0.0
 
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
@@ -101,7 +123,11 @@ class World:
         # encountered coins grabbed" figure (coins still on screen don't
         # count as missed yet).
         self.coins_spawned = 0
-        self.powerups_picked = {"triple": 0, "magnet": 0, "slowmo": 0, "kfc": 0, "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0}
+        self.powerups_picked = {
+            "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
+            "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
+            "shrink": 0, "rail": 0, "lottery": 0,
+        }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -180,7 +206,13 @@ class World:
         return int(_lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t()))
 
     def _current_scroll(self):
-        return _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        base = _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        # RAIL: world rushes by RAIL_SCROLL_MULT× while Pip is locked on
+        # the cart. Pre-lock, normal speed so the player can take their
+        # time deciding whether to land on the parked cart.
+        if self.bird.cart_locked:
+            base *= RAIL_SCROLL_MULT
+        return base
 
     def _current_spacing(self):
         return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
@@ -224,7 +256,15 @@ class World:
         # powerup timer. The visual reverts at timer=0 via the
         # kfc_visual gate in Pipe.draw.
         p.is_kfc = kfc_spawn
+        # Rail tag: claimed at spawn if _activate_rail is force-spawning
+        # pillars to fill out the 5-pillar track and this pipe isn't a
+        # rush pillar.
+        p.rail_active = False
         self.pipes.append(p)
+        if getattr(self, "rail_pending", 0) > 0 and not is_rush:
+            p.rail_active = True
+            self.rail_pipes.append(p)
+            self.rail_pending -= 1
         if is_rush:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
@@ -338,8 +378,23 @@ class World:
             return
         if random.random() >= self._current_powerup_chance():
             return
-        kinds = [k for k, _ in POWERUP_WEIGHTS]
-        weights = [w for _, w in POWERUP_WEIGHTS]
+        # Score-gated kinds drop out of the pool until the run's score
+        # crosses each kind's threshold. Lets late-game pickups stay
+        # rare for new players while showing up reliably once the run
+        # has built momentum. POWERUP_REPLACED_AT is the inverse:
+        # kinds drop OUT once the score crosses their replacement
+        # threshold (used to swap magnet -> megamagnet at 250).
+        kinds, weights = [], []
+        for k, w in POWERUP_WEIGHTS:
+            if POWERUP_SCORE_GATES.get(k, 0) > self.score:
+                continue
+            replaced_at = POWERUP_REPLACED_AT.get(k)
+            if replaced_at is not None and self.score >= replaced_at:
+                continue
+            kinds.append(k)
+            weights.append(w)
+        if not kinds:
+            return
         kind = random.choices(kinds, weights=weights, k=1)[0]
         x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
         y = pipe.gap_y + random.uniform(-10, 10)
@@ -416,18 +471,49 @@ class World:
                 m.update(sdt)
 
             # Magnet pull — tug uncollected coins toward the bird.
-            if self.magnet_timer > 0:
+            # Either timer triggers; the bigger radius wins if both
+            # are somehow active simultaneously (shouldn't happen
+            # under the swap-at-250 rule but defensive anyway).
+            if self.magnet_timer > 0 or self.megamagnet_timer > 0:
                 self._apply_magnet(dt)
 
-            # cull off-screen
-            self.pipes = [p for p in self.pipes if not p.off_screen()]
+            # cull off-screen — but keep rail-active pipes alive past
+            # the normal off-screen threshold so the polyline's left
+            # bridge segment is fully off-screen before its anchor
+            # pipe culls. Without this, when the player flies above
+            # the cart without locking, each rail pipe culls the
+            # instant its right edge crosses the left screen edge,
+            # and the still-on-screen ~100-150 px bridge from that
+            # pipe to the next pipe "pops" off, making chunks of
+            # the track disappear behind the parrot.
+            # While Pip is locked on the cart, keep rail pipes
+            # indefinitely past off-screen so the polyline extends
+            # far behind during the ride for visual flair.
+            self.pipes = [
+                p for p in self.pipes
+                if not p.off_screen()
+                or (getattr(p, "rail_active", False)
+                    and (self.bird.cart_locked or p.x + PIPE_W > -300))
+            ]
+            # Refresh rail_pipes every frame so the renderer still sees
+            # the on-screen tail of tagged pipes after expiry.
+            self.rail_pipes = [
+                p for p in self.pipes if getattr(p, "rail_active", False)
+            ]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
 
-            # spawn more pipes
+            # spawn more pipes. Suppressed while the rail powerup is
+            # active so no untagged pipe slips between the pre-spawned
+            # track and the right edge. After the ride ends the pipe
+            # list may be empty (all rail pipes culled); re-seed one
+            # fresh pipe so the player has something to navigate.
             spacing = self._current_spacing()
-            if self.pipes and self.pipes[-1].x < W - spacing:
-                self._spawn_pipe(self.pipes[-1].x + spacing)
+            if not self.bird.cart_active:
+                if not self.pipes:
+                    self._spawn_pipe(W + 60)
+                elif self.pipes[-1].x < W - spacing:
+                    self._spawn_pipe(self.pipes[-1].x + spacing)
 
             # scoring: pass a pipe
             bx = self.bird.x
@@ -438,6 +524,17 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     self._proof.record(self.time_alive, 1, "pipe")
+                    # RAIL: count down the per-ride pillar budget. Fires
+                    # whether or not Pip locked — if all 5 tagged pipes
+                    # pass without a lock the powerup expires silently.
+                    if (self.bird.cart_active
+                            and getattr(p, "rail_active", False)
+                            and self.rail_pillars_left > 0):
+                        self.rail_pillars_left -= 1
+                        if p is getattr(self, "rail_cart_pipe", None):
+                            self.rail_cart_pipe = None
+                        if self.rail_pillars_left == 0:
+                            self._end_rail_ride()
 
             # Near-miss detection: once per pipe, flag if the bird was within
             # a narrow band of either edge without hitting. Fires as the pipe
@@ -473,6 +570,8 @@ class World:
             self.bird.triple_active = self.triple_timer > 0
             if self.magnet_timer > 0:
                 self.magnet_timer = max(0.0, self.magnet_timer - dt)
+            if self.megamagnet_timer > 0:
+                self.megamagnet_timer = max(0.0, self.megamagnet_timer - dt)
             if self.slowmo_timer > 0:
                 self.slowmo_timer = max(0.0, self.slowmo_timer - dt)
             if self.kfc_timer > 0:
@@ -488,6 +587,21 @@ class World:
             self.bird.grow_active = self.grow_timer > 0
             if self.reverse_timer > 0:
                 self.reverse_timer = max(0.0, self.reverse_timer - dt)
+            if self.shrink_timer > 0:
+                self.shrink_timer = max(0.0, self.shrink_timer - dt)
+            self.bird.shrink_active = self.shrink_timer > 0
+            # Lottery reveal ticks every frame regardless of any other
+            # timer. _apply_lottery_result fires once at the reveal
+            # mark; the dict lingers a moment after so the confetti /
+            # tier label still renders, then clears.
+            if self.lottery_anim is not None:
+                self.lottery_anim["t"] += dt
+                if (not self.lottery_anim["applied"]
+                        and self.lottery_anim["t"] >= LOTTERY_REVEAL_TIME):
+                    self._apply_lottery_result()
+                    self.lottery_anim["applied"] = True
+                if self.lottery_anim["t"] >= LOTTERY_REVEAL_TIME + 1.4:
+                    self.lottery_anim = None
             if self.powerup_cooldown > 0:
                 self.powerup_cooldown -= dt
             if self.hit_flash > 0:
@@ -544,7 +658,11 @@ class World:
     # ── collisions ───────────────────────────────────────────────────────────
 
     def bird_radius(self) -> float:
-        return BIRD_R * GROW_SCALE if self.grow_timer > 0 else BIRD_R
+        if self.grow_timer > 0:
+            return BIRD_R * GROW_SCALE
+        if self.shrink_timer > 0:
+            return BIRD_R * SHRINK_SCALE
+        return BIRD_R
 
     def _check_collisions(self):
         bx, by = self.bird.x, self.bird.y
@@ -562,15 +680,39 @@ class World:
             return
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
+        if self.bird.cart_locked:
+            # Rail has taken over — re-snap Pip onto the rail every
+            # frame (interpolated y between consecutive rail pipes,
+            # slope written to bird.cart_tilt_deg). Phase through
+            # tagged pillars; the rail bridges them.
+            self._snap_cart_to_rail(self.bird.x)
+            return
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
-        scale = GROW_SCALE if self.grow_timer > 0 else 1.0
+        if self.grow_timer > 0:
+            scale = GROW_SCALE
+        elif self.shrink_timer > 0:
+            scale = SHRINK_SCALE
+        else:
+            scale = 1.0
         parcel_offset = pygame.math.Vector2(
             0, PARCEL_Y_OFFSET * scale).rotate(-self.bird.tilt_deg)
         px = bx + parcel_offset.x
         py = by + parcel_offset.y
         pr = PARCEL_R * scale
+        # RAIL: parked-cart hitbox. Only touching the cart itself (a
+        # small rect sitting in the gap of rail_cart_pipe) locks Pip
+        # onto the rail. Hitting the pillar BODY of that same pipe —
+        # or any other tagged pillar — is fatal like any other pillar.
+        cart_pipe = getattr(self, "rail_cart_pipe", None)
+        if (self.bird.cart_active
+                and not self.bird.cart_locked
+                and cart_pipe is not None):
+            if (self._circle_hits_cart(cart_pipe, bx, by, br)
+                    or self._circle_hits_cart(cart_pipe, px, py, pr)):
+                self._lock_pip_on_cart()
+                return
         # Parcel shouldn't graze the ground unless the bird already would
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
@@ -623,11 +765,12 @@ class World:
                 self._on_powerup(m)
 
     def _apply_magnet(self, dt):
-        """Tug uncollected coins within MAGNET_RADIUS toward the bird."""
+        """Tug uncollected coins toward the bird. Pull radius is
+        MEGAMAGNET_RADIUS when the megamagnet timer is active,
+        otherwise MAGNET_RADIUS. Pull strength is the same."""
+        radius = MEGAMAGNET_RADIUS if self.megamagnet_timer > 0 else MAGNET_RADIUS
+        r2 = radius * radius
         bx, by = self.bird.x, self.bird.y
-        r2 = MAGNET_RADIUS * MAGNET_RADIUS
-        # Strength falls off linearly with distance, capped so close coins
-        # don't teleport.
         for c in self.coins:
             if c.collected:
                 continue
@@ -637,7 +780,7 @@ class World:
             if d2 > r2 or d2 < 1.0:
                 continue
             d = math.sqrt(d2)
-            pull = 520 * (1.0 - d / MAGNET_RADIUS)
+            pull = 520 * (1.0 - d / radius)
             c.x += (dx / d) * pull * dt
             c.y += (dy / d) * pull * dt
 
@@ -693,13 +836,25 @@ class World:
             # "reverse" is intentionally excluded — feels too disorienting
             # in stacks. The activation code is still wired up; add it back
             # to this tuple (and to POWERUP_WEIGHTS in config.py) to enable.
-            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "grow"))
+            # `grow` is excluded too — it's a late-game-gated pickup
+            # (POWERUP_SCORE_GATES["grow"] == 250). Letting a Surprise
+            # Box resolve to grow would bypass the gate.
+            # Surprise honours the magnet -> megamagnet swap rule: once
+            # the run hits POWERUP_REPLACED_AT["magnet"], surprise rolls
+            # megamagnet instead of magnet so the box doesn't sneak the
+            # downgrade past the threshold.
+            magnet_kind = ("megamagnet"
+                           if self.score >= POWERUP_REPLACED_AT.get("magnet", 1 << 30)
+                           else "magnet")
+            kind = random.choice(("triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"))
             self._spawn_surprise_reveal(m)
         self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":
             self._activate_triple(m)
         elif kind == "magnet":
             self._activate_magnet(m)
+        elif kind == "megamagnet":
+            self._activate_megamagnet(m)
         elif kind == "slowmo":
             self._activate_slowmo(m)
         elif kind == "kfc":
@@ -710,6 +865,12 @@ class World:
             self._activate_grow(m)
         elif kind == "reverse":
             self._activate_reverse(m)
+        elif kind == "shrink":
+            self._activate_shrink(m)
+        elif kind == "rail":
+            self._activate_rail(m)
+        elif kind == "lottery":
+            self._activate_lottery(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -761,6 +922,18 @@ class World:
         self.float_texts.append(FloatText(
             "MAGNET!", m.x, m.y - 26, BIRD_RED,
             size=28, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _activate_megamagnet(self, m):
+        self.megamagnet_timer = MEGAMAGNET_DURATION
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t = max(self.shake_t, 0.3)
+        audio.play_megamagnet()
+        self._pickup_burst(m, (BIRD_RED, (220, 30, 40), UI_CREAM, WHITE),
+                           n=42, speed_hi=380)
+        self.float_texts.append(FloatText(
+            "MEGAMAGNET!", m.x, m.y - 26, BIRD_RED,
+            size=32, life=1.4, vy=-32, style="powerup",
         ))
 
     def _activate_slowmo(self, m):
@@ -895,6 +1068,273 @@ class World:
         self.float_texts.append(FloatText(
             "FLIP!", m.x, m.y - 26, (190, 130, 245),
             size=30, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _activate_shrink(self, m):
+        SHRINK_HI  = (80, 180, 240)
+        SHRINK_OUT = (30, 90, 160)
+        self.shrink_timer = SHRINK_DURATION
+        self.bird.shrink_active = True
+        self.shake_mag = max(self.shake_mag, 3.0)
+        self.shake_t = max(self.shake_t, 0.25)
+        audio.play_shrink()
+        audio.play_poof()
+        self._spawn_poof(self.bird.x, self.bird.y)
+        self._pickup_burst(m, (SHRINK_HI, SHRINK_OUT, WHITE, UI_CREAM),
+                           n=30, speed_hi=280)
+        self.float_texts.append(FloatText(
+            "SHRINK!", m.x, m.y - 26, SHRINK_HI,
+            size=30, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _activate_rail(self, m):
+        """RAIL TRACK — pillar-limited buff. Tags the next 5 pillars
+        ahead with rail track and parks a stationary cart on the FIRST
+        of them. Pip is NOT auto-locked: he keeps flying with normal
+        flap. If he touches the cart pillar the cart locks him in and
+        rides through the remaining tagged pillars. Pillars 2-5 still
+        have track but no cart — touching them kills Pip like any
+        obstacle. If picked up WHILE Pip is already locked on the rail
+        (he can't dodge), extend the current ride by 5 more pillars."""
+        if self.bird.cart_locked:
+            self._extend_rail_ride(m)
+            return
+        self.rail_pillars_left = RAIL_PILLAR_COUNT
+        self.bird.cart_active = True
+        self.bird.cart_locked = False
+        self.rail_pending = 0
+        for p in self.pipes:
+            p.rail_active = False
+        ahead = sorted(
+            (p for p in self.pipes
+             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
+            key=lambda p: p.x)
+        for p in ahead[:RAIL_PILLAR_COUNT]:
+            p.rail_active = True
+        tagged_ahead = min(len(ahead), RAIL_PILLAR_COUNT)
+        need = RAIL_PILLAR_COUNT - tagged_ahead
+        if need > 0:
+            self.rail_pending = need
+            spacing = self._current_spacing()
+            next_x = (max((p.x for p in self.pipes), default=self.bird.x)
+                      + spacing)
+            guard = need * 3
+            while self.rail_pending > 0 and guard > 0:
+                self._spawn_pipe(next_x)
+                next_x += spacing
+                guard -= 1
+            self.rail_pending = 0
+        self.rail_pipes = [p for p in self.pipes if p.rail_active]
+        self.rail_cart_pipe = (sorted(self.rail_pipes, key=lambda p: p.x)[0]
+                               if self.rail_pipes else None)
+        audio.play_rail()
+        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, (255, 220, 100), WHITE), n=28)
+        self.float_texts.append(FloatText(
+            "RAILS UP!", m.x, m.y - 26, UI_GOLD,
+            size=28, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _extend_rail_ride(self, m):
+        """Mid-ride pickup: extend the current locked ride by tagging
+        more pillars ahead so there are RAIL_PILLAR_COUNT tagged in
+        front of Pip, then reset the per-ride budget."""
+        ahead = sorted(
+            (p for p in self.pipes
+             if p.x > self.bird.x and not getattr(p, "is_rush", False)),
+            key=lambda p: p.x)
+        tagged_ahead = sum(1 for p in ahead
+                           if getattr(p, "rail_active", False))
+        for p in ahead:
+            if tagged_ahead >= RAIL_PILLAR_COUNT:
+                break
+            if not getattr(p, "rail_active", False):
+                p.rail_active = True
+                tagged_ahead += 1
+        need = RAIL_PILLAR_COUNT - tagged_ahead
+        if need > 0:
+            self.rail_pending = need
+            spacing = self._current_spacing()
+            next_x = (max((p.x for p in self.pipes), default=self.bird.x)
+                      + spacing)
+            guard = need * 3
+            while self.rail_pending > 0 and guard > 0:
+                self._spawn_pipe(next_x)
+                next_x += spacing
+                guard -= 1
+            self.rail_pending = 0
+        self.rail_pipes = [p for p in self.pipes if p.rail_active]
+        self.rail_pillars_left = RAIL_PILLAR_COUNT
+        audio.play_rail()
+        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, (255, 220, 100), WHITE), n=18)
+        self.float_texts.append(FloatText(
+            "+5 RAILS", m.x, m.y - 26, UI_GOLD,
+            size=26, life=1.2, vy=-30, style="powerup",
+        ))
+
+    # Pip's centre-y when the cart is locked on the rail — chosen so
+    # the wagon body sits with its wheels exactly on the rail line.
+    _CART_LOCKED_OFFSET = 32
+
+    # Parked-cart hitbox — bounds match the visual painted by
+    # scenes._draw_parked_cart so what the player sees as "the cart"
+    # is exactly what triggers the lock.
+    _CART_HALF_W = 22
+    _CART_TOP_OFF = 28
+    _CART_BOT_OFF = 5
+
+    def _circle_hits_cart(self, pipe, cx, cy, r):
+        """True if the circle at (cx, cy) with radius r overlaps the
+        parked-cart rect sitting on `pipe`. The cart lives inside the
+        pillar's gap, so touching the pillar BODY of the same pipe
+        returns False and falls through to normal pipe collision."""
+        cart_cx = pipe.x + PIPE_W // 2
+        rail_y = pipe.gap_y + pipe.gap_h / 2
+        left = cart_cx - self._CART_HALF_W
+        right = cart_cx + self._CART_HALF_W
+        top = rail_y - self._CART_TOP_OFF
+        bot = rail_y - self._CART_BOT_OFF
+        nx = max(left, min(cx, right))
+        ny = max(top, min(cy, bot))
+        return (cx - nx) ** 2 + (cy - ny) ** 2 <= r * r
+
+    def _lock_pip_on_cart(self):
+        """Touched the parked cart — flip into locked-ride mode. Snaps
+        Pip onto the rail at the cart pillar's gap-center."""
+        self.bird.cart_locked = True
+        self._snap_cart_to_rail(self.bird.x)
+        self.shake_mag = max(self.shake_mag, 3.0)
+        self.shake_t = max(self.shake_t, 0.2)
+        audio.play_rail()
+
+    def _snap_cart_to_rail(self, bx):
+        """Snap bird.y so the wagon wheels ride the current rail
+        segment, interpolating across the bridge between two
+        consecutive rail pipes. Also writes the local rail slope to
+        bird.cart_tilt_deg so the cart sprite rotates with the curve."""
+        sorted_pipes = sorted(self.rail_pipes, key=lambda p: p.x)
+        offset = self._CART_LOCKED_OFFSET
+
+        for i, p in enumerate(sorted_pipes):
+            if p.x - 6 <= bx <= p.x + PIPE_W + 6:
+                rail_y = p.gap_y + p.gap_h / 2
+                self.bird.y = rail_y - offset
+                self.bird.vy = 0.0
+                if i + 1 < len(sorted_pipes):
+                    nxt = sorted_pipes[i + 1]
+                    self.bird.cart_tilt_deg = self._rail_slope_deg(
+                        p.x + PIPE_W, rail_y,
+                        nxt.x, nxt.gap_y + nxt.gap_h / 2)
+                else:
+                    self.bird.cart_tilt_deg = 0.0
+                return
+
+        for i in range(len(sorted_pipes) - 1):
+            p1, p2 = sorted_pipes[i], sorted_pipes[i + 1]
+            if p1.x + PIPE_W <= bx <= p2.x:
+                span = max(1, p2.x - (p1.x + PIPE_W))
+                t = (bx - (p1.x + PIPE_W)) / span
+                y1 = p1.gap_y + p1.gap_h / 2
+                y2 = p2.gap_y + p2.gap_h / 2
+                self.bird.y = (y1 + (y2 - y1) * t) - offset
+                self.bird.vy = 0.0
+                self.bird.cart_tilt_deg = self._rail_slope_deg(
+                    p1.x + PIPE_W, y1, p2.x, y2)
+                return
+
+    @staticmethod
+    def _rail_slope_deg(x1: float, y1: float,
+                        x2: float, y2: float) -> float:
+        """Tilt (degrees, pygame convention) for a rail segment.
+        NEGATIVE = downhill-right → nose down; POSITIVE = uphill-right
+        → nose up. Capped at ±45° so a wildly steep bridge doesn't
+        flip the cart upside-down."""
+        dx = x2 - x1
+        if dx <= 0.5:
+            return 0.0
+        dy = y2 - y1
+        deg = -math.degrees(math.atan2(dy, dx))
+        return max(-45.0, min(45.0, deg))
+
+    def _end_rail_ride(self):
+        """End the rail powerup. If Pip rode the cart, release with an
+        upward "jump" so the player gets air control on the same
+        frame. If he never landed on the cart, clean up silently.
+        Existing rail_active flags on already-tagged pipes are NOT
+        cleared — the on-screen tail of track scrolls off naturally."""
+        was_locked = self.bird.cart_locked
+        self.bird.cart_active = False
+        self.bird.cart_locked = False
+        self.bird.cart_tilt_deg = 0.0
+        self.rail_cart_pipe = None
+        if was_locked:
+            sign = -1 if self.reverse_timer > 0 else 1
+            self.bird.vy = FLAP_V * sign
+            self.bird.flap_boost = 0.45
+            audio.play_flap()
+
+    def _apply_lottery_result(self):
+        anim = self.lottery_anim
+        if anim is None:
+            return
+        delta = anim["delta"]
+        tier = anim["tier"]
+        # Score delta clamps at 0 — total coins never go negative.
+        # coin_count is NOT touched (plausibility requires coin_count
+        # == len(coin events)); deltas record as a "lottery" event.
+        if delta > 0:
+            self.score += delta
+            self._proof.record(self.time_alive, delta, "lottery")
+            color = UI_GOLD if delta >= 40 else UI_ORANGE
+            audio.play_lottery_win()
+        elif delta < 0:
+            actual = -min(self.score, -delta)
+            self.score += actual
+            if actual != 0:
+                self._proof.record(self.time_alive, actual, "lottery")
+            color = (220, 70, 60)
+            audio.play_lottery_bust()
+        else:
+            color = (200, 200, 200)
+        sign = "+" if delta > 0 else ""
+        label = f"{tier}! {sign}{delta}" if delta != 0 else f"{tier}!"
+        self.float_texts.append(FloatText(
+            label, self.bird.x, self.bird.y - 40, color,
+            size=28, life=1.4, vy=-30, style="powerup",
+        ))
+        if delta >= 100:
+            self._pickup_burst(self.bird,
+                               (UI_GOLD, UI_ORANGE, UI_CREAM, WHITE),
+                               n=40, speed_hi=380)
+        elif delta >= 15:
+            self._pickup_burst(self.bird, (UI_GOLD, UI_CREAM, WHITE), n=20)
+        elif delta < 0:
+            self._pickup_burst(self.bird,
+                               ((220, 70, 60), (140, 30, 30), (80, 80, 80)),
+                               n=18)
+
+    def _activate_lottery(self, m):
+        # Roll the tier immediately; the reveal animation delays the
+        # score change for showmanship.
+        labels = [t[0] for t in LOTTERY_TIERS]
+        weights = [t[1] for t in LOTTERY_TIERS]
+        deltas = {t[0]: t[2] for t in LOTTERY_TIERS}
+        tier = random.choices(labels, weights=weights, k=1)[0]
+        delta = deltas[tier]
+        self.lottery_anim = {
+            "t": 0.0,
+            "tier": tier,
+            "delta": delta,
+            "x": m.x,
+            "y": m.y,
+            "applied": False,
+        }
+        self.shake_mag = max(self.shake_mag, 2.5)
+        self.shake_t = max(self.shake_t, 0.2)
+        audio.play_lottery_roll()
+        self._pickup_burst(m, (UI_GOLD, UI_ORANGE, UI_CREAM, WHITE), n=22)
+        self.float_texts.append(FloatText(
+            "LOTTERY!", m.x, m.y - 26, UI_GOLD,
+            size=26, life=1.0, vy=-30, style="powerup",
         ))
 
     # ── utility ──────────────────────────────────────────────────────────────

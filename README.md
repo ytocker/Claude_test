@@ -56,7 +56,7 @@ that re-rolls into one of the six at pickup. Each lasts 8 seconds.
 | Slow-Mo      | The world slows to 0.7×; your taps stay full-speed                |
 | KFC          | Pip becomes a fried-chicken macaw; coins become fries; gaps widen |
 | Ghost        | Pip phases through pillars (ground/ceiling still count)           |
-| Grow         | Pip and his parcel scale up by 1.3×                               |
+| Grow         | Pip and his parcel scale up by 1.4×                               |
 | Surprise Box | Re-rolls at pickup into one of the six above                      |
 
 A seventh power-up (Reverse) is built but intentionally disabled.

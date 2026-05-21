@@ -16,6 +16,7 @@ from game import audio
 from game import play_log
 from game.config import BIRD_X, SCROLL_BASE
 from game import intro as _intro
+from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
@@ -49,6 +50,209 @@ def _draw_opener(surf: pygame.Surface, world) -> None:
             surf.blit(house, (hx, hy))
     # The parcel itself is now drawn permanently by Bird.draw, so the
     # opener no longer needs its own parcel pass.
+
+
+# ── Rail powerup render helpers (called from App._render) ──────────────────
+
+_PINE_DK = ( 70,  45,  25)
+_PINE    = (135,  90,  50)
+_PINE_HI = (180, 130,  75)
+_IRON_DK = ( 50,  45,  45)
+_IRON    = (110, 100,  95)
+_IRON_HI = (190, 180, 175)
+
+
+def _draw_parked_cart_at(surf, cx, cy, tilt_deg=0.0):
+    """Stationary pine-plank wagon at the given screen position. Used
+    both for the pre-lock parked cart on rail_cart_pipe and for the
+    locked-ride cart drawn on top of Pip. Tilt rotates the whole
+    wagon to follow the rail slope."""
+    # Paint to a scratch surface so we can rotate as one piece.
+    SW, SH = 60, 38
+    scratch = pygame.Surface((SW, SH), pygame.SRCALPHA)
+    scx = SW // 2
+    scy = SH // 2 - 2
+
+    # Wheels (pine-spoke wheel + iron tire)
+    WHEEL_R = 5
+    DX = 15
+    wheel_y = scy + 22
+    for dx in (-DX, DX):
+        wx = scx + dx
+        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), WHEEL_R)
+        pygame.draw.circle(scratch, _IRON,    (wx, wheel_y), WHEEL_R - 1)
+        pygame.draw.circle(scratch, _PINE_DK, (wx, wheel_y), WHEEL_R - 2)
+        for i in range(6):
+            ang = (i / 6) * math.tau
+            ex = wx + int(math.cos(ang) * (WHEEL_R - 2))
+            ey = wheel_y + int(math.sin(ang) * (WHEEL_R - 2))
+            pygame.draw.line(scratch, _PINE_DK, (wx, wheel_y), (ex, ey), 1)
+        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), 1)
+
+    # Body (pine planks + iron hoop bands)
+    BW = 42
+    BH = 18
+    body_top = scy + 4
+    body_bot = scy + 4 + BH
+    pygame.draw.rect(scratch, _PINE_DK,
+                     pygame.Rect(scx - BW // 2 - 1, body_top - 1,
+                                 BW + 2, BH + 2))
+    pygame.draw.rect(scratch, _PINE,
+                     pygame.Rect(scx - BW // 2, body_top, BW, BH))
+    for i in range(1, BW // 6):
+        px = scx - BW // 2 + i * 6
+        pygame.draw.line(scratch, _PINE_DK,
+                         (px, body_top + 1), (px, body_bot - 1), 1)
+        pygame.draw.line(scratch, _PINE_HI,
+                         (px + 1, body_top + 1),
+                         (px + 1, body_bot - 1), 1)
+    for band_y in (body_top + 2, body_bot - 5):
+        pygame.draw.rect(scratch, _IRON_DK,
+                         pygame.Rect(scx - BW // 2 - 1, band_y,
+                                     BW + 2, 3))
+        pygame.draw.rect(scratch, _IRON,
+                         pygame.Rect(scx - BW // 2 - 1, band_y + 1,
+                                     BW + 2, 1))
+        pygame.draw.line(scratch, _IRON_HI,
+                         (scx - BW // 2 - 1, band_y),
+                         (scx + BW // 2 + 1, band_y), 1)
+
+    if abs(tilt_deg) > 0.5:
+        scratch = pygame.transform.rotate(scratch, tilt_deg)
+    rect = scratch.get_rect(center=(int(cx), int(cy)))
+    surf.blit(scratch, rect.topleft)
+
+
+def _draw_parked_cart(surf, pipe):
+    """Pre-lock cart parked on the rail line of `pipe` (the first
+    tagged pillar). Removed once Pip locks or the pillar scrolls past."""
+    from game.config import PIPE_W
+    cx = pipe.x + PIPE_W // 2
+    rail_y = pipe.gap_y + pipe.gap_h / 2
+    # 32-px lift matches World._CART_LOCKED_OFFSET so the parked cart
+    # sits visually identical to the locked-ride cart.
+    _draw_parked_cart_at(surf, cx, rail_y - 16)
+
+
+def _draw_cart_on_bird(surf, world, sx, sy):
+    """Locked-ride cart drawn at Pip's screen position with the local
+    rail slope rotation. Pip himself still renders separately on top."""
+    bx = world.bird.x + sx
+    by = world.bird.y + sy
+    # Bird sits 32 px above the rail line; the cart wheels need to be
+    # on the rail, so anchor the cart slightly below the bird centre.
+    _draw_parked_cart_at(surf, bx, by + 16, tilt_deg=world.bird.cart_tilt_deg)
+
+
+def _draw_rails(surf, rail_pipes):
+    """Continuous pine-tie + twin iron-rail polyline across every
+    rail-tagged pipe top."""
+    from game.config import PIPE_W
+    if not rail_pipes:
+        return
+    pipes_sorted = sorted(rail_pipes, key=lambda p: p.x)
+    pts = []
+    for p in pipes_sorted:
+        rail_y = int(p.gap_y + p.gap_h / 2)
+        pts.append((int(p.x), rail_y))
+        pts.append((int(p.x + PIPE_W), rail_y))
+    _draw_trestle_rail(surf, pts)
+
+
+def _draw_trestle_rail(surf, pts):
+    """Pine ties + twin iron rails along a polyline. Bridges between
+    consecutive pipes keep their ties so the result reads as one
+    continuous railway."""
+    if len(pts) < 2:
+        return
+
+    segs, total = [], 0.0
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        d = math.hypot(x1 - x0, y1 - y0)
+        segs.append((d, (x0, y0), (x1, y1)))
+        total += d
+    spacing = 8
+    length = 14
+    half = length / 2
+    n = max(1, int(total / spacing))
+    for k in range(n + 1):
+        target = (k / n) * total
+        acc = 0.0
+        for d, p0, p1 in segs:
+            if acc + d >= target:
+                f = (target - acc) / max(1.0, d)
+                cx = int(p0[0] + (p1[0] - p0[0]) * f)
+                cy = int(p0[1] + (p1[1] - p0[1]) * f)
+                dx = p1[0] - p0[0]
+                dy = p1[1] - p0[1]
+                seg_len = max(1.0, math.hypot(dx, dy))
+                nx = -dy / seg_len
+                ny = dx / seg_len
+                a = (int(cx + nx * half), int(cy + ny * half))
+                b = (int(cx - nx * half), int(cy - ny * half))
+                pygame.draw.line(surf, _PINE_DK, a, b, 5)
+                pygame.draw.line(surf, _PINE, a, b, 3)
+                hi_a = (int(cx + nx * half * 0.55),
+                        int(cy + ny * half * 0.55))
+                hi_b = (int(cx - nx * half * 0.55),
+                        int(cy - ny * half * 0.55))
+                pygame.draw.line(surf, _PINE_HI, hi_a, hi_b, 1)
+                break
+            acc += d
+
+    for dy_off, col, w in (
+        ( 3, _IRON_DK, 3), (-3, _IRON_DK, 3),
+        ( 3, _IRON,    2), (-3, _IRON,    2),
+        ( 2, _IRON_HI, 1), (-4, _IRON_HI, 1),
+    ):
+        shifted = [(x, y + dy_off) for x, y in pts]
+        pygame.draw.lines(surf, col, False, shifted, w)
+
+
+# Hex grid overlay for the magnet force-field. Built once per radius
+# and re-blit each frame — the rings pulse but the hex pattern is
+# static, so building it lazily here keeps the per-frame work in the
+# magnet draw loop bounded (one blit instead of ~225 polygon draws
+# at MAGNET_RADIUS). Cells fade from invisible at the centre to full
+# alpha at the rim so the bird stays the focal point.
+_MAGNET_HEX_GRID_CACHE: "dict[int, pygame.Surface]" = {}
+
+
+def _magnet_hex_grid(radius: int) -> pygame.Surface:
+    cached = _MAGNET_HEX_GRID_CACHE.get(radius)
+    if cached is not None:
+        return cached
+    surf = pygame.Surface((radius * 2 + 8, radius * 2 + 8),
+                          pygame.SRCALPHA)
+    cx, cy = radius + 4, radius + 4
+    hex_r = max(5, int(radius * 0.085))
+    hex_w = hex_r * math.sqrt(3)
+    hex_h = hex_r * 1.5
+    rows = int(radius * 2 / hex_h) + 3
+    cols = int(radius * 2 / hex_w) + 3
+    for ri in range(-rows // 2, rows // 2 + 1):
+        for ci in range(-cols // 2, cols // 2 + 1):
+            hx = cx + ci * hex_w + (hex_w / 2 if ri % 2 else 0)
+            hy = cy + ri * hex_h
+            dx = hx - cx
+            dy = hy - cy
+            d = math.hypot(dx, dy)
+            if d > radius * 0.92:
+                continue
+            falloff = d / radius
+            a = int(160 * (falloff ** 1.5))
+            if a < 12:
+                continue
+            verts = []
+            for v in range(6):
+                ang = math.tau * v / 6 + math.pi / 6
+                verts.append((hx + math.cos(ang) * hex_r,
+                              hy + math.sin(ang) * hex_r))
+            pygame.draw.polygon(surf, (255, 215, 100, a), verts, 1)
+    _MAGNET_HEX_GRID_CACHE[radius] = surf
+    return surf
 
 
 STATE_MENU = 0
@@ -789,6 +993,16 @@ class App:
         if self.state == STATE_PLAY:
             _draw_opener(self.screen, self.world)
 
+        # RAIL: track polyline + parked / locked cart go UNDER the bird
+        # so Pip always reads on top.
+        if getattr(self.world, "rail_pipes", None):
+            _draw_rails(self.screen, self.world.rail_pipes)
+        cart_pipe = getattr(self.world, "rail_cart_pipe", None)
+        if cart_pipe is not None and not self.world.bird.cart_locked:
+            _draw_parked_cart(self.screen, cart_pipe)
+        if self.world.bird.cart_locked:
+            _draw_cart_on_bird(self.screen, self.world, sx, sy)
+
         self.world.bird.draw(self.screen, sx, sy,
                              flipped=self.world.reverse_timer > 0)
 
@@ -816,16 +1030,27 @@ class App:
             tint.fill((140, 180, 255, 18))
             self.screen.blit(tint, (0, 0))
 
+        # LOTTERY reveal: top-left slot-machine cabinet shows the
+        # roll for ~2.2 s. Drawn ON TOP of the world tints so the
+        # tier label stays legible.
+        if getattr(self.world, "lottery_anim", None) is not None:
+            _draw_lottery_reveal(self.screen, self.world.lottery_anim)
+
         # Magnet force-field — Solar Gold palette: warm amber-gold rings
-        # + golden glow with a coherent dramatic breath. All elements
-        # (3 rings + inner radial glow) driven by a single pulse factor
-        # so the field shrinks and grows as one volume. Pulse rate 5.5
-        # ⇒ ~1.14 s cycle (slightly faster than the original 1.57 s).
-        if self.world.magnet_timer > 0:
-            from game.config import MAGNET_RADIUS
+        # + golden glow + sci-fi hex-grid shield, with a coherent
+        # dramatic breath. The rings + glow pulse; the hex grid is
+        # static (cached at module load via `_magnet_hex_grid`) so we
+        # blit the prebuilt overlay each frame instead of redrawing
+        # ~225 polygons. Pulse rate 5.5 ⇒ ~1.14 s cycle.
+        if self.world.magnet_timer > 0 or self.world.megamagnet_timer > 0:
+            from game.config import MAGNET_RADIUS, MEGAMAGNET_RADIUS
             import math as _math
             t_pulse = self._cloud_phase * 5.5
-            rad = MAGNET_RADIUS
+            # Megamagnet renders the same field at 2x radius. The hex
+            # grid cache builds a second entry for the larger size on
+            # first activation; rings + glow scale by `rad` naturally.
+            rad = (MEGAMAGNET_RADIUS if self.world.megamagnet_timer > 0
+                   else MAGNET_RADIUS)
             field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
                                    pygame.SRCALPHA)
             lcx, lcy = rad + 4, rad + 4
@@ -848,6 +1073,24 @@ class App:
                 if a > 0:
                     pygame.draw.circle(field, (*GLOW_COL, a),
                                        (lcx, lcy), r)
+
+            # Hex-grid overlay — sits on top of the warm glow, under
+            # the rings, so the rings remain the brightest read. The
+            # cached grid is rendered at full radius once; each frame
+            # we smoothscale it down to (rad * outer_factor) so the
+            # hex breathes in lockstep with the outer ring instead of
+            # sitting statically at full size while everything else
+            # pulses. SRCALPHA is preserved through smoothscale.
+            hex_full = _magnet_hex_grid(rad)
+            scaled_d = int(rad * outer_factor) * 2 + 8
+            full_d = int(rad) * 2 + 8
+            if scaled_d != full_d:
+                hex_layer = pygame.transform.smoothscale(
+                    hex_full, (scaled_d, scaled_d))
+                offset = (full_d - scaled_d) // 2
+                field.blit(hex_layer, (offset, offset))
+            else:
+                field.blit(hex_full, (0, 0))
 
             # 3 rings with per-ring gold tints, slightly out of phase.
             AA_COL = (255, 240, 180)
