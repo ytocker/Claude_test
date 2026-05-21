@@ -683,6 +683,19 @@ def render_skateboard_score_e5(score: int) -> pygame.Surface:
     return surf
 
 
+def render_skateboard_score_e6(score: int) -> pygame.Surface:
+    """E6 — Score painted at the EXACT live-pill position (y=92) —
+    same spot the score sits during normal play, just restyled into
+    a D5 halftone-comic burst. Minimal-change option: only the
+    graphic swaps; the player's eyes still find the score where they
+    always look. Width roughly matches the existing glass pill so
+    the silhouette stays familiar."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this

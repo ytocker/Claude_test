@@ -43,6 +43,7 @@ from game.skateboard_fx import (
     render_skateboard_score_e3,
     render_skateboard_score_e4,
     render_skateboard_score_e5,
+    render_skateboard_score_e6,
 )
 
 
@@ -65,6 +66,8 @@ VARIANTS = [
      "E4: SCORE label stacked above the number"),
     ("E5_side_by_side",      render_skateboard_score_e5,
      "E5: small SCORE chip + bigger number chip side-by-side"),
+    ("E6_same_place",        render_skateboard_score_e6,
+     "E6: SAME live-pill position (y=92), graphic-only restyle"),
 ]
 
 
