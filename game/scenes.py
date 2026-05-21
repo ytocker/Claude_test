@@ -1127,13 +1127,16 @@ class App:
         # driven by a single pulse factor so the field shrinks and
         # grows as one volume. Pulse rate 5.5 ⇒ ~1.14 s cycle.
         #
-        # MEGA MAGNET = the regular field, verbatim, with two extra
-        # outer rings extending past the regular outer (rfac 1.20 and
-        # 1.45) — same gold gradient, just a bigger reach. Negative
-        # phases on the outer pair so the pulse wave appears to flow
-        # INWARD (read: "sucking coins in"). The force radius
-        # (MEGA_MAGNET_RADIUS_MULT = 5×) lives separately in world.py
-        # and is intentionally larger than the visual.
+        # MEGA MAGNET = the regular field SCALED UP — same alpha-blended
+        # bell-curve glow + same per-ring gold gradient + same anti-
+        # alias satellite passes, just rendered at 1.5× the radius
+        # with 5 rings spread across the bigger area (vs the regular's
+        # 3 rings) so the visual density per pixel stays identical.
+        # No solid-fill "halos" — every layer uses the regular's
+        # alpha-on-screen draw, so the bigger field reads as the
+        # regular's bigger sibling rather than a different effect.
+        # The force radius (MEGA_MAGNET_RADIUS_MULT = 5×) lives in
+        # world.py and intentionally exceeds the visual.
         #
         # Drawn directly onto self.screen (no intermediate SRCALPHA
         # buffer).
@@ -1142,18 +1145,17 @@ class App:
             import math as _math
             t_pulse = self._cloud_phase * 5.5
             mega = self.world.mega_magnet_timer > 0
-            rad = MAGNET_RADIUS
             if mega:
+                rad = int(MAGNET_RADIUS * 1.5)
                 rings = (
-                    # Two new outer halos extending past the regular.
-                    (1.45, -1.2, 110, 2, 0.70, (252, 222, 120)),
-                    (1.20, -0.6, 150, 2, 0.85, (252, 218, 105)),
-                    # Original 3 rings — verbatim from regular MAGNET.
                     (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
-                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
-                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
+                    (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
+                    (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),
+                    (0.55, 0.9,  130, 2, 0.78, (240, 180,  50)),
+                    (0.40, 1.2,  110, 2, 0.70, (225, 165,  35)),
                 )
             else:
+                rad = MAGNET_RADIUS
                 rings = (
                     (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
                     (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
