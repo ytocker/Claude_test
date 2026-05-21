@@ -2811,6 +2811,58 @@ class Particle:
 
 # ── TreasureCoinParticle ─────────────────────────────────────────────────────
 
+class FlyingCoinParticle:
+    """Full-detail Coin medallion with particle physics. Used by the
+    storm jolt so the coins flying off Pip read as the SAME currency
+    he just lost — not the smaller doubloons the treasure box uses.
+    Wraps an internal Coin so all the gradient / outline / parrot /
+    sparkle work is unchanged; this class only adds motion, gravity,
+    life, and alpha fade-out."""
+
+    def __init__(self, x, y, vx, vy, *, life=0.95):
+        self._coin = Coin(x, y)
+        self._coin.spin = random.uniform(0, math.tau)
+        self.vx = vx
+        self.vy = vy
+        self.life = life
+        self.life_max = life
+
+    def update(self, dt):
+        # Slightly heavier than TreasureCoinParticle so the arc reads
+        # like real coins, not a champagne pop.
+        self.vy += 800.0 * dt
+        self._coin.x += self.vx * dt
+        self._coin.y += self.vy * dt
+        # Spin faster than a stationary Coin (flung outward = tumbling).
+        self._coin.spin = (self._coin.spin + dt * 9.0) % math.tau
+        self._coin.float_t += dt
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        t = max(0.0, self.life / self.life_max)
+        if t >= 0.5:
+            # Full opacity during the bright half — draw straight to surf.
+            self._coin.draw(surf)
+            return
+        # Fade phase: render to a transparent buffer, then alpha-blit.
+        # Buffer is sized generously so the squeeze + sparkles fit.
+        BUF = 48
+        scratch = pygame.Surface((BUF, BUF), pygame.SRCALPHA)
+        # Trick: temporarily override the coin's x/y to the buffer centre
+        # so its own draw places it cleanly inside the scratch surface,
+        # then restore.
+        saved_x, saved_y = self._coin.x, self._coin.y
+        self._coin.x, self._coin.y = BUF // 2, BUF // 2
+        self._coin.draw(scratch)
+        self._coin.x, self._coin.y = saved_x, saved_y
+        scratch.set_alpha(int(255 * (t * 2)))
+        surf.blit(scratch, (int(saved_x) - BUF // 2,
+                            int(saved_y) - BUF // 2))
+
+
 class TreasureCoinParticle:
     """Spinning gold doubloon that pops up out of the treasure box on
     each flap, arcs upward briefly, then falls back under gravity. The

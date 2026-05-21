@@ -41,7 +41,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
-    TreasureCoinParticle, Ramp, TrickBubble,
+    TreasureCoinParticle, FlyingCoinParticle, Ramp, TrickBubble,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -1504,7 +1504,10 @@ class World:
         self.shake_t = max(self.shake_t, 0.45)
         # Lockout so a single storm doesn't fire repeatedly.
         self._storm_jolt_lockout = 25.0
-        # Scatter — coins fly outward from Pip's belly in a 360° spread.
+        # Scatter — full-detail Coin medallions fly outward from Pip's
+        # belly in a 360° spread. Using FlyingCoinParticle (not the
+        # smaller TreasureCoinParticle) so the scattering pieces read
+        # as the actual currency Pip just lost.
         bx, by = self.bird.x, self.bird.y + 8
         n = min(lost, 20)
         for i in range(n):
@@ -1512,10 +1515,8 @@ class World:
             speed = random.uniform(160.0, 260.0)
             vx = math.cos(ang) * speed
             vy = math.sin(ang) * speed - 60.0   # slight upward bias
-            self.particles.append(TreasureCoinParticle(
-                bx, by, vx, vy,
-                life=0.95,
-                spin_rate=random.uniform(8.0, 14.0),
+            self.particles.append(FlyingCoinParticle(
+                bx, by, vx, vy, life=0.95,
             ))
         # Red minus-text + audio sting.
         self.float_texts.append(FloatText(
