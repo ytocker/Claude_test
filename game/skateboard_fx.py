@@ -860,6 +860,180 @@ def render_caption_v2_split_around(cx: int, cy: int, score: int,
     return surf
 
 
+# ── SKATEBOARD! text as a "watermark" BEHIND the score ─────────────────────
+#
+# User wants the caption painted at the same position as the score (the
+# live pill at y=92) but in a way that the score on top can still be read.
+# Five techniques here, each painting the SKATEBOARD! word in a different
+# "see-through" style so the foreground score isn't covered. The score
+# itself sits on top as the D5 halftone burst (matching the chosen chorus
+# vocabulary).
+
+
+def _hollow_text(text, size, outline_col, outline_w=4):
+    """Outline-only text — no fill. Built by rendering the text in
+    outline_col around a circle of offsets, then SUBTRACTING the
+    text mask so the interior becomes transparent."""
+    font = _font(size)
+    mask = font.render(text, True, (255, 255, 255, 255))
+    bw, bh = mask.get_size()
+    pad = outline_w + 2
+    surf = pygame.Surface((bw + pad * 2, bh + pad * 2), pygame.SRCALPHA)
+    out_glyph = font.render(text, True, outline_col)
+    for dx in range(-outline_w, outline_w + 1):
+        for dy in range(-outline_w, outline_w + 1):
+            if dx * dx + dy * dy <= outline_w * outline_w and (dx or dy):
+                surf.blit(out_glyph, (pad + dx, pad + dy))
+    # Subtract the inner mask alpha so the interior of each letter
+    # goes transparent (only the outer ring of outline_col remains).
+    cutter = pygame.Surface((bw + pad * 2, bh + pad * 2), pygame.SRCALPHA)
+    cutter.blit(mask, (pad, pad))
+    surf.blit(cutter, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+    return surf
+
+
+def _patterned_text(text, size, pattern_fn, outline_col, outline_w=4):
+    """Text filled with whatever `pattern_fn(surf, w, h)` paints,
+    masked to the letter shapes, with outline_col stroke around the
+    outside. Used by G2 (halftone dots) and G4 (horizontal stripes)."""
+    font = _font(size)
+    mask = font.render(text, True, (255, 255, 255, 255))
+    bw, bh = mask.get_size()
+    pad = outline_w + 2
+    # 1. Pattern surface, then mask to the letter shape.
+    pattern = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    pattern_fn(pattern, bw, bh)
+    pattern.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    # 2. Outline blit ring around the text.
+    surf = pygame.Surface((bw + pad * 2, bh + pad * 2), pygame.SRCALPHA)
+    out_glyph = font.render(text, True, outline_col)
+    for dx in range(-outline_w, outline_w + 1):
+        for dy in range(-outline_w, outline_w + 1):
+            if dx * dx + dy * dy <= outline_w * outline_w and (dx or dy):
+                surf.blit(out_glyph, (pad + dx, pad + dy))
+    surf.blit(pattern, (pad, pad))
+    return surf
+
+
+def _fit_to_canvas(surf, max_w):
+    """Shrink-to-fit so a wide stylised SKATEBOARD! never clips off
+    the canvas edges. Returns the same surface if it already fits."""
+    if surf.get_width() <= max_w:
+        return surf
+    ratio = max_w / surf.get_width()
+    new_w = int(surf.get_width() * ratio)
+    new_h = int(surf.get_height() * ratio)
+    return pygame.transform.smoothscale(surf, (new_w, new_h))
+
+
+def render_caption_g1_hollow(cx: int, cy: int, score: int,
+                              rng_seed: int = 22) -> pygame.Surface:
+    """G1 — Hollow outline-only SKATEBOARD! text behind the score.
+    Letters are just ink rings; the interior of each letter is
+    transparent so the sky shows through and the score in front
+    reads cleanly."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    txt = _hollow_text("SKATEBOARD!", 46, outline_col=INK,
+                        outline_w=5)
+    txt = _fit_to_canvas(txt, W - 16)
+    surf.blit(txt, txt.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_g2_halftone_text(cx: int, cy: int, score: int,
+                                      rng_seed: int = 22) -> pygame.Surface:
+    """G2 — Halftone-dot SKATEBOARD! text behind the score. Each
+    letter is filled with red dots on a yellow base masked to the
+    glyph shape — Lichtenstein vocabulary, consistent with the D5
+    chorus pick."""
+    def dot_pattern(surf_, w, h):
+        surf_.fill((255, 220, 30, 255))
+        for gy in range(2, h, 6):
+            offset = 3 if ((gy // 6) % 2 == 1) else 0
+            for gx in range(2 + offset, w, 6):
+                pygame.draw.circle(surf_, (230, 60, 50, 255),
+                                   (gx, gy), 2)
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    txt = _patterned_text("SKATEBOARD!", 46,
+                           pattern_fn=dot_pattern,
+                           outline_col=INK, outline_w=5)
+    txt = _fit_to_canvas(txt, W - 16)
+    surf.blit(txt, txt.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_g3_ghost(cx: int, cy: int, score: int,
+                              rng_seed: int = 22) -> pygame.Surface:
+    """G3 — Ghost/watermark SKATEBOARD! text behind the score. Full
+    gradient fill but at low alpha (~110/255) so the text reads as a
+    subtle background watermark and the score punches through in
+    full brightness."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    txt = _gradient_text("SKATEBOARD!", 50,
+                          top_col=(255, 255, 110),
+                          bot_col=(255, 180, 10),
+                          outline=INK, outline_w=5)
+    txt = _fit_to_canvas(txt, W - 16)
+    txt = txt.copy()
+    txt.set_alpha(110)
+    surf.blit(txt, txt.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_g4_striped(cx: int, cy: int, score: int,
+                                rng_seed: int = 22) -> pygame.Surface:
+    """G4 — Striped SKATEBOARD! text behind the score. Each letter
+    filled with horizontal red-and-cream barber-pole stripes; reads
+    as a comic shading hatch that doesn't fully fill the glyph."""
+    def stripe_pattern(surf_, w, h):
+        stripe_h = 5
+        for gy in range(0, h, stripe_h):
+            col = (220, 50, 40, 255) if (gy // stripe_h) % 2 == 0 \
+                  else (255, 245, 200, 255)
+            pygame.draw.rect(surf_, col, (0, gy, w, stripe_h))
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    txt = _patterned_text("SKATEBOARD!", 46,
+                           pattern_fn=stripe_pattern,
+                           outline_col=INK, outline_w=5)
+    txt = _fit_to_canvas(txt, W - 16)
+    surf.blit(txt, txt.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
+def render_caption_g5_huge_bg(cx: int, cy: int, score: int,
+                                rng_seed: int = 22) -> pygame.Surface:
+    """G5 — Huge SKATEBOARD! text spanning the full canvas width as
+    a low-alpha background slab behind the score. The text is so
+    large that the score sits inside its central "..BOARD.." region
+    while "SKATE" peeks on the left edge and "!" on the right —
+    feels like the word is the backdrop for the score."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    txt = _gradient_text("SKATEBOARD!", 78,
+                          top_col=(255, 255, 110),
+                          bot_col=(255, 180, 10),
+                          outline=INK, outline_w=6)
+    # Auto-scale down if rendered text is wider than the canvas.
+    if txt.get_width() > W - 8:
+        ratio = (W - 8) / txt.get_width()
+        new_w = int(txt.get_width() * ratio)
+        new_h = int(txt.get_height() * ratio)
+        txt = pygame.transform.smoothscale(txt, (new_w, new_h))
+    txt = txt.copy()
+    txt.set_alpha(130)
+    surf.blit(txt, txt.get_rect(center=(W // 2, 92)))
+    _halftone_score_badge(surf, W // 2, 92, str(score),
+                           ro=48, ri=30, font_size=42)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
