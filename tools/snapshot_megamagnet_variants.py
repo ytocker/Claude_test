@@ -361,6 +361,7 @@ def main():
     # contracted and expanded — same value used by snapshot_magnet_field.py.
     t_pulse = 0.18 * 5.5
 
+    rendered = []
     for name, draw_fn in VARIANTS:
         screen = pygame.Surface((W, H))
         draw_bg(screen)
@@ -381,6 +382,62 @@ def main():
         out_path = os.path.join(OUT_DIR, f"variant_{name}.png")
         pygame.image.save(screen, out_path)
         print(f"saved {out_path}")
+        rendered.append((name, screen))
+
+    _write_combined_sheet(rendered)
+
+
+def _write_combined_sheet(rendered):
+    """3-column / 2-row comparison sheet. Bottom row has 2 cells
+    centred, since 5 variants leave one cell empty."""
+    cell_label_h = 36
+    pad = 16
+    margin = 24
+    header_h = 56
+
+    cell_w, cell_h = W, H + cell_label_h
+    cols, rows = 3, 2
+    sheet_w = cols * cell_w + (cols - 1) * pad + 2 * margin
+    sheet_h = header_h + rows * cell_h + (rows - 1) * pad + 2 * margin
+
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((22, 22, 28))
+
+    title_font = pygame.font.SysFont(None, 30, bold=True)
+    label_font = pygame.font.SysFont(None, 26, bold=True)
+
+    title = title_font.render(
+        "Megamagnet force-field — 5 design variants (2x magnet radius)",
+        True, (240, 240, 245))
+    sheet.blit(title, (margin, margin + 6))
+
+    positions = (
+        (0, 0), (1, 0), (2, 0),
+        (0, 1), (1, 1),
+    )
+    for (name, surf), (col, row) in zip(rendered, positions):
+        # Centre the 2-cell bottom row.
+        if row == 1:
+            col_offset = (cols - 2) / 2  # 0.5 → half-cell shift right
+            x = int(margin + (col + col_offset) * (cell_w + pad))
+        else:
+            x = margin + col * (cell_w + pad)
+        y = margin + header_h + row * (cell_h + pad)
+
+        # Label strip.
+        pygame.draw.rect(sheet, (40, 40, 50),
+                         (x, y, cell_w, cell_label_h))
+        pretty = name.split("_", 1)[1].replace("_", " ").title()
+        idx = name.split("_", 1)[0]
+        lbl = label_font.render(f"#{idx}  {pretty}", True, (250, 220, 130))
+        sheet.blit(lbl, (x + 12, y + 6))
+
+        # Variant image below label.
+        sheet.blit(surf, (x, y + cell_label_h))
+
+    out_path = os.path.join(OUT_DIR, "all_variants.png")
+    pygame.image.save(sheet, out_path)
+    print(f"saved {out_path}")
 
 
 if __name__ == "__main__":
