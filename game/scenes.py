@@ -211,6 +211,50 @@ def _draw_trestle_rail(surf, pts):
         pygame.draw.lines(surf, col, False, shifted, w)
 
 
+# Hex grid overlay for the magnet force-field. Built once per radius
+# and re-blit each frame — the rings pulse but the hex pattern is
+# static, so building it lazily here keeps the per-frame work in the
+# magnet draw loop bounded (one blit instead of ~225 polygon draws
+# at MAGNET_RADIUS). Cells fade from invisible at the centre to full
+# alpha at the rim so the bird stays the focal point.
+_MAGNET_HEX_GRID_CACHE: "dict[int, pygame.Surface]" = {}
+
+
+def _magnet_hex_grid(radius: int) -> pygame.Surface:
+    cached = _MAGNET_HEX_GRID_CACHE.get(radius)
+    if cached is not None:
+        return cached
+    surf = pygame.Surface((radius * 2 + 8, radius * 2 + 8),
+                          pygame.SRCALPHA)
+    cx, cy = radius + 4, radius + 4
+    hex_r = max(5, int(radius * 0.085))
+    hex_w = hex_r * math.sqrt(3)
+    hex_h = hex_r * 1.5
+    rows = int(radius * 2 / hex_h) + 3
+    cols = int(radius * 2 / hex_w) + 3
+    for ri in range(-rows // 2, rows // 2 + 1):
+        for ci in range(-cols // 2, cols // 2 + 1):
+            hx = cx + ci * hex_w + (hex_w / 2 if ri % 2 else 0)
+            hy = cy + ri * hex_h
+            dx = hx - cx
+            dy = hy - cy
+            d = math.hypot(dx, dy)
+            if d > radius * 0.92:
+                continue
+            falloff = d / radius
+            a = int(160 * (falloff ** 1.5))
+            if a < 12:
+                continue
+            verts = []
+            for v in range(6):
+                ang = math.tau * v / 6 + math.pi / 6
+                verts.append((hx + math.cos(ang) * hex_r,
+                              hy + math.sin(ang) * hex_r))
+            pygame.draw.polygon(surf, (255, 215, 100, a), verts, 1)
+    _MAGNET_HEX_GRID_CACHE[radius] = surf
+    return surf
+
+
 STATE_MENU = 0
 STATE_PLAY = 1
 STATE_NAMEENTRY = 2
@@ -993,10 +1037,11 @@ class App:
             _draw_lottery_reveal(self.screen, self.world.lottery_anim)
 
         # Magnet force-field — Solar Gold palette: warm amber-gold rings
-        # + golden glow with a coherent dramatic breath. All elements
-        # (3 rings + inner radial glow) driven by a single pulse factor
-        # so the field shrinks and grows as one volume. Pulse rate 5.5
-        # ⇒ ~1.14 s cycle (slightly faster than the original 1.57 s).
+        # + golden glow + sci-fi hex-grid shield, with a coherent
+        # dramatic breath. The rings + glow pulse; the hex grid is
+        # static (cached at module load via `_magnet_hex_grid`) so we
+        # blit the prebuilt overlay each frame instead of redrawing
+        # ~225 polygons. Pulse rate 5.5 ⇒ ~1.14 s cycle.
         if self.world.magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
@@ -1024,6 +1069,10 @@ class App:
                 if a > 0:
                     pygame.draw.circle(field, (*GLOW_COL, a),
                                        (lcx, lcy), r)
+
+            # Hex-grid overlay — sits on top of the warm glow, under
+            # the rings, so the rings remain the brightest read.
+            field.blit(_magnet_hex_grid(rad), (0, 0))
 
             # 3 rings with per-ring gold tints, slightly out of phase.
             AA_COL = (255, 240, 180)

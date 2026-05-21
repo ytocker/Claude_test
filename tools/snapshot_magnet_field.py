@@ -23,6 +23,7 @@ from game.draw import (
     get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground,
 )
 from game.entities import Bird, Coin
+from game.scenes import _magnet_hex_grid
 
 
 OUT_DIR = os.path.join(
@@ -85,6 +86,8 @@ def draw_magnet_field(surf, bird_x, bird_y, cloud_phase):
         a = int(72 * bell)
         if a > 0:
             pygame.draw.circle(field, (*GLOW_COL, a), (lcx, lcy), r)
+
+    field.blit(_magnet_hex_grid(int(rad)), (0, 0))
 
     AA_COL = (255, 240, 180)
     for rfac, phase, alpha, width, breath_scale, ring_col in (
