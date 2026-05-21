@@ -477,15 +477,23 @@ class World:
             if self.magnet_timer > 0 or self.megamagnet_timer > 0:
                 self._apply_magnet(dt)
 
-            # cull off-screen — but keep rail-active pipes alive while
-            # Pip is locked on the cart, so the polyline extends past
-            # the left edge BEHIND him during the ride. Pre-lock and
-            # post-ride, tagged pipes scroll off normally so they
-            # don't accumulate.
+            # cull off-screen — but keep rail-active pipes alive past
+            # the normal off-screen threshold so the polyline's left
+            # bridge segment is fully off-screen before its anchor
+            # pipe culls. Without this, when the player flies above
+            # the cart without locking, each rail pipe culls the
+            # instant its right edge crosses the left screen edge,
+            # and the still-on-screen ~100-150 px bridge from that
+            # pipe to the next pipe "pops" off, making chunks of
+            # the track disappear behind the parrot.
+            # While Pip is locked on the cart, keep rail pipes
+            # indefinitely past off-screen so the polyline extends
+            # far behind during the ride for visual flair.
             self.pipes = [
                 p for p in self.pipes
                 if not p.off_screen()
-                or (getattr(p, "rail_active", False) and self.bird.cart_locked)
+                or (getattr(p, "rail_active", False)
+                    and (self.bird.cart_locked or p.x + PIPE_W > -300))
             ]
             # Refresh rail_pipes every frame so the renderer still sees
             # the on-screen tail of tagged pipes after expiry.
