@@ -68,8 +68,9 @@ def _frame(tricks, *, caption_t=6.0, age_first=0.0, seed=7):
             world.trick_bubbles[1].life = max(
                 0.2, world.trick_bubbles[1].life - age_first * 0.6)
     frame = render_play_scene(world)
-    HUD().draw_play(frame, world, best=0)
-    # Caption overlay (mirrors scenes.py fade calc).
+    # Caption overlay first (matches scenes.py — caption is drawn
+    # right after the play scene, BEFORE the HUD layer, so the
+    # HUD-rendered score can overlay it).
     FADE = 0.8
     if caption_t > FADE:
         a = 255
@@ -82,6 +83,7 @@ def _frame(tricks, *, caption_t=6.0, age_first=0.0, seed=7):
         cap = world.skateboard_caption_overlay.copy()
         cap.set_alpha(a)
         frame.blit(cap, (0, 0))
+    HUD().draw_play(frame, world, best=0)
     return frame
 
 
