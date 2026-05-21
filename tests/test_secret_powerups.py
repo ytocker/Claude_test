@@ -7,6 +7,7 @@ These cover:
   - SHRINK collision radius.
   - LOTTERY tier application with floor-at-zero on losses.
   - TREASURE BOX per-flap coin drop.
+  - MEGA MAGNET duration buff (pulls coins from anywhere on the screen).
   - Plausibility chain stays valid with the new event kinds.
 """
 import os
@@ -247,6 +248,31 @@ def test_treasure_box_arms_buff_and_drops_coins_per_flap():
     no_buff_pre = w.score
     w.flap()
     assert w.score == no_buff_pre  # no drop once the buff has expired
+
+
+def test_mega_magnet_sets_timer_and_pulls_far_coins():
+    from game.config import MEGA_MAGNET_DURATION, MAGNET_RADIUS
+    w = World()
+    w.ready_t = 0
+    assert w.mega_magnet_timer == 0
+    w._activate_mega_magnet(PowerUp(0, 0, kind="mega_magnet"))
+    assert w.mega_magnet_timer == MEGA_MAGNET_DURATION
+
+    # Place a coin well OUTSIDE the regular MAGNET_RADIUS so we know
+    # any movement toward Pip is courtesy of the mega-radius multiplier.
+    bx, by = w.bird.x, w.bird.y
+    far_dist = MAGNET_RADIUS * 2  # safely outside the regular pull
+    c = Coin(bx + far_dist, by)
+    w.coins = [c]
+    start_x = c.x
+    # Tick a few frames of the magnet routine (skip the rest of update
+    # to avoid scroll culling the coin off-screen).
+    for _ in range(5):
+        w._apply_magnet(1 / 60, radius_mult=5.0)
+    # The coin should have moved toward Pip (smaller x).
+    assert c.x < start_x, (
+        f"mega-magnet didn't tug a far coin: x stayed at {c.x:.1f} "
+        f"(started {start_x:.1f})")
 
 
 

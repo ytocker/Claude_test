@@ -1126,18 +1126,39 @@ class App:
         # + golden glow with a coherent dramatic breath. All elements
         # driven by a single pulse factor so the field shrinks and
         # grows as one volume. Pulse rate 5.5 ⇒ ~1.14 s cycle.
+        #
+        # MEGA MAGNET = the regular field, verbatim, with two extra
+        # outer rings extending past the regular outer (rfac 1.20 and
+        # 1.45) — same gold gradient, just a bigger reach. Negative
+        # phases on the outer pair so the pulse wave appears to flow
+        # INWARD (read: "sucking coins in"). The force radius
+        # (MEGA_MAGNET_RADIUS_MULT = 5×) lives separately in world.py
+        # and is intentionally larger than the visual.
+        #
         # Drawn directly onto self.screen (no intermediate SRCALPHA
         # buffer).
-        if self.world.magnet_timer > 0:
+        if self.world.magnet_timer > 0 or self.world.mega_magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
             t_pulse = self._cloud_phase * 5.5
+            mega = self.world.mega_magnet_timer > 0
             rad = MAGNET_RADIUS
-            rings = (
-                (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
-                (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
-                (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
-            )
+            if mega:
+                rings = (
+                    # Two new outer halos extending past the regular.
+                    (1.45, -1.2, 110, 2, 0.70, (252, 222, 120)),
+                    (1.20, -0.6, 150, 2, 0.85, (252, 218, 105)),
+                    # Original 3 rings — verbatim from regular MAGNET.
+                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
+                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
+                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
+                )
+            else:
+                rings = (
+                    (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
+                    (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
+                    (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
+                )
             cx_screen = int(self.world.bird.x) + sx
             cy_screen = int(self.world.bird.y) + sy
 
