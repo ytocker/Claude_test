@@ -357,6 +357,229 @@ def render_comic_panel_overlay(cx: int, cy: int,
     return surf
 
 
+# ── C1 (kapow chorus) sub-variants — 5 spins on the same idea ───────────────
+
+
+def _burst_word(surf, bx, by, label, fill, accent, rot_deg,
+                ro=56, ri=30, font_size=None):
+    """Two-layer jagged burst + tilted gradient text — the building
+    block shared by all D-variants below."""
+    _jagged_burst(surf, bx, by, ro, ri, spikes=10,
+                  fill=fill, outline=INK, outline_w=4, jitter=4)
+    _jagged_burst(surf, bx, by, int(ro * 0.68), int(ri * 0.73),
+                  spikes=10, fill=accent, outline=INK, outline_w=2)
+    if font_size is None:
+        font_size = 28 if len(label) <= 5 else 24
+    txt = _gradient_text(label, font_size,
+                          top_col=(255, 250, 240),
+                          bot_col=fill,
+                          outline=INK, outline_w=3)
+    rot = pygame.transform.rotate(txt, rot_deg)
+    surf.blit(rot, rot.get_rect(center=(bx, by)))
+
+
+def render_kapow_skate_slang_overlay(cx: int, cy: int,
+                                       rng_seed: int = 22) -> pygame.Surface:
+    """D1 — Same 4-corner KAPOW layout but with SKATE-SPECIFIC slang
+    in the bursts: RAD! / GNARLY! / SICK! / SHRED!. Each burst
+    keeps a distinct pop-art colorway. Reads as more on-brand for a
+    skate powerup than the generic KAPOW/BAM."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    palette = (
+        # (label, fill, accent, rot_deg, dx, dy)
+        ("RAD!",    (255, 220,  30), (230,  60,  50),  -8, -120, -85),
+        ("GNARLY!", (255, 100, 180), (255, 245, 200),  10,  135, -90),
+        ("SICK!",   ( 95, 200, 220), ( 30,  60, 120),  -6, -140,  90),
+        ("SHRED!",  (255, 165,  60), (220,  40,  40),   8,  125,  95),
+    )
+    for label, fill, accent, rot_deg, dx, dy in palette:
+        bx = max(60, min(W - 60, cx + dx))
+        by = max(110, min(H - 80, cy + dy))
+        _burst_word(surf, bx, by, label, fill, accent, rot_deg)
+    return surf
+
+
+def render_kapow_hierarchy_overlay(cx: int, cy: int,
+                                     rng_seed: int = 22) -> pygame.Surface:
+    """D2 — Dominant burst + satellites. One BIG KABOOM! anchors the
+    upper-right (replacing the role of the live POW!), with 3
+    smaller satellite bursts (BAM!, SMASH!, ZAP!) around Pip. Size
+    hierarchy gives a clear focal point instead of 4 equal-weight
+    corner bursts."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    # Dominant burst — bigger ro/ri so it visually anchors.
+    big_x = min(W - 80, cx + 130)
+    big_y = max(170, cy - 70)
+    _burst_word(surf, big_x, big_y,
+                "KABOOM!", (255, 220, 30), (230, 60, 50),
+                rot_deg=-12, ro=80, ri=42, font_size=34)
+    # Satellites — smaller bursts at NW, SW, SE.
+    sats = (
+        ("BAM!",   (255, 100, 180), (255, 245, 200),  12, -130, -75),
+        ("SMASH!", ( 95, 200, 220), ( 30,  60, 120),  -8, -135,  90),
+        ("ZAP!",   (255, 165,  60), (220,  40,  40),  14,  120, 100),
+    )
+    for label, fill, accent, rot_deg, dx, dy in sats:
+        bx = max(60, min(W - 60, cx + dx))
+        by = max(110, min(H - 80, cy + dy))
+        _burst_word(surf, bx, by, label, fill, accent, rot_deg,
+                    ro=44, ri=24)
+    return surf
+
+
+def render_kapow_radial_ring_overlay(cx: int, cy: int,
+                                       rng_seed: int = 22) -> pygame.Surface:
+    """D3 — 6 bursts evenly spaced in a circle around Pip, each
+    rotated to face outward. Surrounds Pip with onomatopoeia
+    instead of pinning bursts to the corners — more dynamic and
+    radial in feel."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    words = (
+        ("KAPOW!", (255, 220,  30), (230,  60,  50)),
+        ("BAM!",   (255, 100, 180), (255, 245, 200)),
+        ("SMASH!", ( 95, 200, 220), ( 30,  60, 120)),
+        ("WHAM!",  (255, 165,  60), (220,  40,  40)),
+        ("ZAP!",   (140, 220, 110), ( 30,  80,  40)),
+        ("BOOM!",  (220, 140, 255), ( 80,  30, 120)),
+    )
+    ring_r = 165
+    n = len(words)
+    for i, (label, fill, accent) in enumerate(words):
+        # Distribute starting from the upper-right (skips the
+        # SKATEBOARD! caption strip clamp at the top).
+        ang = -math.pi / 2 + (i + 0.5) * (2 * math.pi / n)
+        bx = cx + math.cos(ang) * ring_r
+        by = cy + math.sin(ang) * ring_r
+        bx = max(50, min(W - 50, bx))
+        by = max(150, min(H - 60, by))
+        # Mild varied tilt — clamped to ±18° so text stays readable
+        # all around the ring (true radial alignment makes the side
+        # bursts go 90° vertical and lose legibility).
+        rot_deg = 18 * math.sin(ang * 2 + i * 0.5)
+        _burst_word(surf, int(bx), int(by), label, fill, accent,
+                    rot_deg, ro=46, ri=26, font_size=22)
+    return surf
+
+
+def _sticker_burst(surf, cx, cy, ro, ri, spikes, fill, jitter=4):
+    """Sticker-style burst — drop shadow + flat fill + thick white
+    inner border + black outer border. Looks like a skate-deck sticker
+    pinned to the screen."""
+    # Drop shadow — same polygon nudged down-right with dark alpha.
+    shadow = pygame.Surface((W, H), pygame.SRCALPHA)
+    rng = random.Random(int(cx) * 31 + int(cy) * 17 + spikes)
+    pts = []
+    for i in range(spikes * 2):
+        ang = i * math.pi / spikes - math.pi / 2
+        r = ro if i % 2 == 0 else ri
+        if jitter:
+            r += rng.randint(-jitter, jitter)
+        pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
+    sh_pts = [(p[0] + 4, p[1] + 5) for p in pts]
+    pygame.draw.polygon(shadow, (0, 0, 0, 110), sh_pts)
+    surf.blit(shadow, (0, 0))
+    # Outer black border (drawn as a slightly larger polygon underneath).
+    pygame.draw.polygon(surf, INK, pts)
+    # Inner fill polygon — same shape, scaled in slightly.
+    inner_pts = [(cx + (p[0] - cx) * 0.92,
+                  cy + (p[1] - cy) * 0.92) for p in pts]
+    pygame.draw.polygon(surf, WHITE, inner_pts)
+    inner_pts2 = [(cx + (p[0] - cx) * 0.80,
+                   cy + (p[1] - cy) * 0.80) for p in pts]
+    pygame.draw.polygon(surf, fill, inner_pts2)
+
+
+def render_kapow_sticker_overlay(cx: int, cy: int,
+                                   rng_seed: int = 22) -> pygame.Surface:
+    """D4 — Punk-sticker collage. Same 4-corner KAPOW layout but each
+    burst is painted as a skate-deck sticker: drop shadow + thick
+    white inner border + thick black outer border, flat fill (no
+    nested colored core). Punk-rock zine vibe."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    palette = (
+        ("KAPOW!", (230,  60,  50),  -8, -120, -85),
+        ("BAM!",   (255, 100, 180),  10,  135, -90),
+        ("SMASH!", ( 95, 200, 220),  -6, -140,  90),
+        ("WHAM!",  (255, 165,  60),   8,  125,  95),
+    )
+    for label, fill, rot_deg, dx, dy in palette:
+        bx = max(70, min(W - 70, cx + dx))
+        by = max(120, min(H - 80, cy + dy))
+        _sticker_burst(surf, bx, by, 58, 32, spikes=10, fill=fill)
+        font_size = 28 if len(label) <= 5 else 24
+        txt = _gradient_text(label, font_size,
+                              top_col=(255, 250, 240),
+                              bot_col=(20, 20, 20),
+                              outline=WHITE, outline_w=2)
+        rot = pygame.transform.rotate(txt, rot_deg)
+        surf.blit(rot, rot.get_rect(center=(bx, by)))
+    return surf
+
+
+def _halftone_filled_burst(surf, cx, cy, ro, ri, spikes,
+                            dot_col, base_col, outline_w=4, jitter=4):
+    """Burst polygon filled with Lichtenstein halftone dots instead
+    of solid color. Renders the dots onto a sub-surface, then masks
+    them with the burst polygon shape so they only show inside."""
+    rng = random.Random(int(cx) * 31 + int(cy) * 17 + spikes)
+    pts = []
+    for i in range(spikes * 2):
+        ang = i * math.pi / spikes - math.pi / 2
+        r = ro if i % 2 == 0 else ri
+        if jitter:
+            r += rng.randint(-jitter, jitter)
+        pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
+    pygame.draw.polygon(surf, base_col, pts)
+    # Halftone dots — grid sample inside the burst bbox.
+    bbox_l = int(min(p[0] for p in pts)) - 2
+    bbox_t = int(min(p[1] for p in pts)) - 2
+    bbox_r = int(max(p[0] for p in pts)) + 2
+    bbox_b = int(max(p[1] for p in pts)) + 2
+    dot_surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    step = 8
+    for gy in range(bbox_t, bbox_b, step):
+        offset = (step // 2) if ((gy // step) % 2 == 1) else 0
+        for gx in range(bbox_l + offset, bbox_r, step):
+            pygame.draw.circle(dot_surf, dot_col,
+                               (gx, gy), 2)
+    # Mask the dots to the burst polygon — paint the polygon as
+    # opaque alpha onto a mask surface, then RGBA_MIN.
+    mask = pygame.Surface((W, H), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), pts)
+    dot_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(dot_surf, (0, 0))
+    pygame.draw.polygon(surf, INK, pts, outline_w)
+
+
+def render_kapow_halftone_filled_overlay(cx: int, cy: int,
+                                           rng_seed: int = 22) -> pygame.Surface:
+    """D5 — 4-corner KAPOW chorus, each burst FILLED with a halftone
+    dot pattern instead of solid color. Combines the C1 onomatopoeia
+    layout with the C2 Lichtenstein dot vocabulary inside each
+    burst. Most overtly "pop-art comic page" of the bunch."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    palette = (
+        # (label, base, dot_col, rot_deg, dx, dy)
+        ("KAPOW!", (255, 220,  30), (230,  60,  50),  -8, -120, -85),
+        ("BAM!",   (255, 100, 180), ( 90,  20,  90),  10,  135, -90),
+        ("SMASH!", ( 95, 200, 220), ( 20,  40,  90),  -6, -140,  90),
+        ("WHAM!",  (255, 165,  60), (180,  30,  30),   8,  125,  95),
+    )
+    for label, base, dot_col, rot_deg, dx, dy in palette:
+        bx = max(60, min(W - 60, cx + dx))
+        by = max(110, min(H - 80, cy + dy))
+        _halftone_filled_burst(surf, bx, by, 58, 32, spikes=10,
+                                dot_col=dot_col, base_col=base)
+        font_size = 28 if len(label) <= 5 else 24
+        txt = _gradient_text(label, font_size,
+                              top_col=(255, 250, 240),
+                              bot_col=base,
+                              outline=INK, outline_w=3)
+        rot = pygame.transform.rotate(txt, rot_deg)
+        surf.blit(rot, rot.get_rect(center=(bx, by)))
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
