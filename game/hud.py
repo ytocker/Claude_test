@@ -1701,6 +1701,11 @@ class HUD:
         # Float texts
         for ft in world.float_texts:
             ft.draw(surf)
+        # SKATEBOARD trick bubbles — comic halftone bursts stacked
+        # near the E3 score. Drawn after float_texts so they read on
+        # top if anything else lands at the same spot.
+        for tb in getattr(world, "trick_bubbles", ()):
+            tb.draw(surf)
 
     def draw_stats(self, surf, world, dt, elapsed,
                    best: int = 0, new_best: bool = False,

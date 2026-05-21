@@ -38,7 +38,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
-    TreasureCoinParticle, Ramp,
+    TreasureCoinParticle, Ramp, TrickBubble,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -76,6 +76,10 @@ class World:
         self.powerups: list[PowerUp] = []
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
+        # SKATEBOARD trick bubbles — comic halftone bursts that
+        # stack/overlay at a fixed anchor near the E3 score whenever
+        # Pip performs a kick/heel/pop/back-flip or a nose/tail grind.
+        self.trick_bubbles: list = []
 
         self.scroll_speed = SCROLL_BASE
         self.bg_scroll = 0.0
@@ -575,45 +579,43 @@ class World:
         self.bird.backflip_t = BACKFLIP_DURATION
         self.bird.backflip_dur = BACKFLIP_DURATION
         audio.play_backflip()
-        self.float_texts.append(FloatText(
-            "BACKFLIP!", self.bird.x, self.bird.y - 30,
-            (110, 230, 110),
-            size=28, life=1.2, vy=-30, style="powerup",
-        ))
+        self._spawn_trick_bubble("BACKFLIP!")
 
     def _trigger_kickflip(self):
         self.bird.kickflip_t = KICKFLIP_DURATION
         self.bird.kickflip_dur = KICKFLIP_DURATION
         audio.play_backflip()
-        # Spawn the "KICKFLIP!" text BELOW the bird (and below
-        # the board's rotational sweep, which goes up to ~bird.y
-        # ± 16 during the 360° spin) so the float-text never
-        # covers the spinning board. Drifts DOWNWARD so it stays
-        # clear of the bird as it lingers.
-        self.float_texts.append(FloatText(
-            "KICKFLIP!", self.bird.x, self.bird.y + 38,
-            (120, 200, 235),
-            size=26, life=1.1, vy=30, style="powerup",
-        ))
+        self._spawn_trick_bubble("KICKFLIP!")
 
     def _trigger_heelflip(self):
         self.bird.heelflip_t = HEELFLIP_DURATION
         self.bird.heelflip_dur = HEELFLIP_DURATION
         audio.play_backflip()
-        self.float_texts.append(FloatText(
-            "HEELFLIP!", self.bird.x, self.bird.y + 38,
-            (170, 140, 230),
-            size=26, life=1.1, vy=30, style="powerup",
-        ))
+        self._spawn_trick_bubble("HEELFLIP!")
 
     def _trigger_popshuvit(self):
         self.bird.popshuvit_t = POPSHUVIT_DURATION
         self.bird.popshuvit_dur = POPSHUVIT_DURATION
         audio.play_backflip()
-        self.float_texts.append(FloatText(
-            "POP SHUVIT!", self.bird.x, self.bird.y + 38,
-            (230, 130, 180),
-            size=26, life=1.1, vy=30, style="powerup",
+        self._spawn_trick_bubble("POP SHUVIT!")
+
+    # Trick bubbles share a fixed anchor zone RIGHT of the E3 score
+    # burst (which sits at (W/2, 150)); the right side stays clear of
+    # the pause button up at (W-50, 14..52). Each bubble lands at the
+    # anchor with a small random tilt + offset so multiple stacking
+    # bubbles read as collaged stickers, not perfectly-aligned blocks.
+    _TRICK_ANCHOR_X = W - 70
+    _TRICK_ANCHOR_Y = 165
+
+    def _spawn_trick_bubble(self, label: str):
+        ox = random.randint(-10, 10)
+        oy = random.randint(-10, 10)
+        tilt = random.uniform(-18, 18)
+        self.trick_bubbles.append(TrickBubble(
+            label,
+            self._TRICK_ANCHOR_X + ox,
+            self._TRICK_ANCHOR_Y + oy,
+            tilt_deg=tilt,
         ))
 
     # ── update ──────────────────────────────────────────────────────────────
@@ -636,6 +638,10 @@ class World:
                 for t in self.float_texts:
                     t.update(dt)
                 self.float_texts = [t for t in self.float_texts if t.alive()]
+                for b in self.trick_bubbles:
+                    b.update(dt)
+                self.trick_bubbles = [b for b in self.trick_bubbles
+                                      if b.alive()]
                 return
         # The biome cycle only advances once the run has actually started.
         # While ready_t > 0 the sky stays frozen at the dawn palette — the
@@ -672,6 +678,10 @@ class World:
             for t in self.float_texts:
                 t.update(dt)
             self.float_texts = [t for t in self.float_texts if t.alive()]
+            for b in self.trick_bubbles:
+                b.update(dt)
+            self.trick_bubbles = [b for b in self.trick_bubbles
+                                  if b.alive()]
             return
 
         if not self.game_over:
@@ -894,6 +904,9 @@ class World:
         for t in self.float_texts:
             t.update(dt)
         self.float_texts = [t for t in self.float_texts if t.alive()]
+        for b in self.trick_bubbles:
+            b.update(dt)
+        self.trick_bubbles = [b for b in self.trick_bubbles if b.alive()]
 
     def world_idle_tick(self, dt):
         """Run the background without handling bird death/pipe spawning
@@ -1091,15 +1104,10 @@ class World:
             if random.random() < 0.25:
                 gtype = random.choice(("nose", "tail"))
                 self.bird.grind_type = gtype
-                # Spawn a tiny "NOSE GRIND!" / "TAIL GRIND!" float-
-                # text BELOW the bird so it doesn't cover the
-                # tilted board.
-                self.float_texts.append(FloatText(
-                    f"{gtype.upper()} GRIND!",
-                    self.bird.x, self.bird.y + 38,
-                    (255, 215, 110),
-                    size=22, life=1.0, vy=30, style="powerup",
-                ))
+                # Trick name shows as a comic halftone bubble near
+                # the E3 score (matches the SKATEBOARD powerup's
+                # pop-art identity); see _spawn_trick_bubble.
+                self._spawn_trick_bubble(f"{gtype.upper()} GRIND!")
         if (not self._sliding_this_frame
                 and self._sliding_prev_frame
                 and self.bird.grind_type is not None):
