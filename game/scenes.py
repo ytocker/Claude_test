@@ -1197,11 +1197,17 @@ class App:
                               int(self.world.bird.y) + sy - lcy))
 
         # MEGA MAGNET = the same code path as the regular magnet above,
-        # word for word, with two differences only:
-        #   * rad = MAGNET_RADIUS * 1.5 (bigger reach)
-        #   * 5 rings instead of 3, spread evenly across the bigger
-        #     area so the per-pixel ring density stays the same as
-        #     the regular magnet's 3 rings inside MAGNET_RADIUS
+        # word for word, with three differences only:
+        #   * rad = MAGNET_RADIUS * 1.5 (bigger glow / mid-ring anchor)
+        #   * 7 rings instead of 3 — the regular's outer-3 PLUS 2
+        #     extra outer halos (rfac 1.15 and 1.30) extending past
+        #     the glow PLUS 2 inner steps (rfac 0.85 and 0.55) for
+        #     denser inward coverage
+        #   * sub-surface sized to outermost ring (rfac=1.30) so the
+        #     two outer halos fit without clipping
+        # The outermost visible ring sits at rad * 1.30 = MAGNET_RADIUS
+        # * 1.95 — MEGA_MAGNET_RADIUS_MULT matches this so only coins
+        # actually touching the visible field get pulled.
         # Every other constant — glow palette, glow alpha curve,
         # BREATH amount, per-ring satellite passes, blit-once — is
         # identical to the regular field.
@@ -1210,9 +1216,11 @@ class App:
             import math as _math
             t_pulse = self._cloud_phase * 5.5
             rad = int(MAGNET_RADIUS * 1.5)
-            field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
+            # Surface needs to hold the OUTERMOST ring at rfac=1.30.
+            outer_r = int(rad * 1.30) + 4
+            field = pygame.Surface((outer_r * 2, outer_r * 2),
                                    pygame.SRCALPHA)
-            lcx, lcy = rad + 4, rad + 4
+            lcx, lcy = outer_r, outer_r
 
             BREATH = 0.30
             s_outer = _math.sin(t_pulse + 0.0)
@@ -1232,6 +1240,8 @@ class App:
 
             AA_COL = (255, 240, 180)
             for rfac, phase, alpha, width, breath_scale, ring_col in (
+                    (1.30, -0.6, 130, 2, 0.62, (255, 225, 115)),
+                    (1.15, -0.3, 150, 2, 0.78, (255, 220, 105)),
                     (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
                     (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
                     (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),

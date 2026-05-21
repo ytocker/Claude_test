@@ -250,29 +250,50 @@ def test_treasure_box_arms_buff_and_drops_coins_per_flap():
     assert w.score == no_buff_pre  # no drop once the buff has expired
 
 
-def test_mega_magnet_sets_timer_and_pulls_far_coins():
-    from game.config import MEGA_MAGNET_DURATION, MAGNET_RADIUS
+def test_mega_magnet_sets_timer_and_pulls_coins_in_visible_field():
+    from game.config import (
+        MEGA_MAGNET_DURATION, MEGA_MAGNET_RADIUS_MULT, MAGNET_RADIUS,
+    )
     w = World()
     w.ready_t = 0
     assert w.mega_magnet_timer == 0
     w._activate_mega_magnet(PowerUp(0, 0, kind="mega_magnet"))
     assert w.mega_magnet_timer == MEGA_MAGNET_DURATION
 
-    # Place a coin well OUTSIDE the regular MAGNET_RADIUS so we know
-    # any movement toward Pip is courtesy of the mega-radius multiplier.
     bx, by = w.bird.x, w.bird.y
-    far_dist = MAGNET_RADIUS * 2  # safely outside the regular pull
+    # A coin INSIDE the mega visible field but OUTSIDE the regular
+    # field (1.5 × MAGNET_RADIUS sits between them) should be tugged.
+    in_dist = MAGNET_RADIUS * 1.5
+    c = Coin(bx + in_dist, by)
+    w.coins = [c]
+    start_x = c.x
+    for _ in range(5):
+        w._apply_magnet(1 / 60, radius_mult=MEGA_MAGNET_RADIUS_MULT)
+    assert c.x < start_x, (
+        f"mega-magnet didn't tug a coin at 1.5x MAGNET_RADIUS: "
+        f"x stayed at {c.x:.1f} (started {start_x:.1f})")
+
+
+def test_mega_magnet_does_not_pull_coins_outside_visible_field():
+    """The visible mega field reaches MAGNET_RADIUS * 1.95 (outermost
+    ring). A coin past that (e.g., at 2.5 × MAGNET_RADIUS) must NOT
+    be tugged — the old vacuum 5× behaviour is gone."""
+    from game.config import MEGA_MAGNET_RADIUS_MULT, MAGNET_RADIUS
+    w = World()
+    w.ready_t = 0
+    w._activate_mega_magnet(PowerUp(0, 0, kind="mega_magnet"))
+
+    bx, by = w.bird.x, w.bird.y
+    far_dist = MAGNET_RADIUS * 2.5  # safely past the 1.95 outer ring
     c = Coin(bx + far_dist, by)
     w.coins = [c]
     start_x = c.x
-    # Tick a few frames of the magnet routine (skip the rest of update
-    # to avoid scroll culling the coin off-screen).
     for _ in range(5):
-        w._apply_magnet(1 / 60, radius_mult=5.0)
-    # The coin should have moved toward Pip (smaller x).
-    assert c.x < start_x, (
-        f"mega-magnet didn't tug a far coin: x stayed at {c.x:.1f} "
-        f"(started {start_x:.1f})")
+        w._apply_magnet(1 / 60, radius_mult=MEGA_MAGNET_RADIUS_MULT)
+    assert c.x == start_x, (
+        f"mega-magnet pulled a coin OUTSIDE the visible field "
+        f"(at {far_dist:.0f} px from Pip): x moved to {c.x:.1f} "
+        f"from {start_x:.1f}")
 
 
 

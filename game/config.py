@@ -190,7 +190,12 @@ TREASURE_BOX_COINS_PER_FLAP = 2
 # screen for the same duration. Implemented by reusing _apply_magnet
 # with a much larger radius multiplier.
 MEGA_MAGNET_DURATION    = 8.0
-MEGA_MAGNET_RADIUS_MULT = 5.0     # 82 px * 5 = 410 px → entire 360-wide canvas
+# Pull radius matches the OUTERMOST visible ring of the mega force
+# field (rad * 1.30 with rad = MAGNET_RADIUS * 1.5 → 1.95 ×
+# MAGNET_RADIUS). Only coins actually touching the visible field
+# get pulled — supersedes the old "vacuum" 5.0× behaviour that
+# sucked in every coin on screen regardless of position.
+MEGA_MAGNET_RADIUS_MULT = 1.95
 
 # Lottery tiers: (label, weight, coin_delta). NOTHING is the modal
 # outcome (35 %); roughly 37 % of spins win, 28 % lose, 35 % zero. With
