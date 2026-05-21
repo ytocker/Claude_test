@@ -33,6 +33,9 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
     FLAP_V,
+    WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
+    WEATHER_COIN_SLIDE_RATE, WEATHER_PIP_SHIVER_AMP,
+    WEATHER_FLAP_DAMPEN_MAX,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -42,11 +45,11 @@ from game._proof import ProofState
 from game.draw import (
     COIN_GOLD, COIN_LIGHT,
     PARTICLE_GOLD, PARTICLE_ORNG, PARTICLE_WHT, PARTICLE_CRIM,
-    UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, BIRD_RED,
+    UI_GOLD, UI_ORANGE, UI_CREAM, UI_RED, WHITE, BIRD_RED,
 )
 from game import biome
 from game import audio
-from game.weather import Weather
+from game.weather import Weather, rain_intensity as _rain_intensity
 from game.ambient import AmbientScenes
 
 
@@ -217,6 +220,11 @@ class World:
         self._proof = ProofState()
 
         self.weather = Weather()
+        # Storm jolt: at peak rain a sudden gust shakes Pip and tears
+        # ~50 coins off his belly in a 360° spread. Random fire window
+        # while at peak; long lockout after firing so the gag doesn't
+        # spam in a single storm.
+        self._storm_jolt_lockout = 0.0
         self.ambient = AmbientScenes()
 
         # "Get ready" freeze at the start of a round: physics paused until
@@ -680,6 +688,12 @@ class World:
                 m.update(sdt)
             for r in self.ramps:
                 r.x -= speed * sdt
+
+            # Weather → gameplay: light rain wobbles coins (visual-only
+            # x-offset); heavy rain (intensity > threshold) slides them
+            # leftward and shivers Pip + dampens his flap so the storm
+            # feels like wind pushing him back.
+            self._apply_weather_effects(sdt)
 
             # Magnet pull — tug uncollected coins toward the bird.
             if self.magnet_timer > 0:
@@ -1411,6 +1425,106 @@ class World:
             size=24, life=0.7, vy=-50, style="powerup",
         ))
         audio.play_coin()
+
+    def _apply_weather_effects(self, dt):
+        """Route current rain intensity to coins (shake / slide) and Pip
+        (shiver + flap dampen). Pure read of weather.rain_intensity — no
+        randomness in the storm trigger, the biome phase decides when
+        weather kicks in. Coin shake is visual-only (weather_dx).
+        Coin slide is a real x decrement so collision follows the visual.
+        Pip shiver is visual-only (shiver_x/y) so collisions stay fair.
+        Flap dampen reduces the next tap's lift, which IS a real
+        physics change — that's the felt "wind is pushing me down" cue."""
+        ri = _rain_intensity(self.weather.phase)
+        if ri <= 0:
+            # Clear any lingering offsets so a brief drizzle that drops back
+            # to 0 doesn't leave coins permanently nudged.
+            for c in self.coins:
+                c.weather_dx = 0.0
+            self.bird.shiver_x = 0.0
+            self.bird.shiver_y = 0.0
+            self.bird.flap_dampen = 0.0
+            return
+        # Coin shake — sinusoidal sway, per-coin phase so they don't
+        # oscillate in lockstep. Amplitude scales with intensity.
+        amp = WEATHER_COIN_SHAKE_AMP * min(1.0, ri / WEATHER_HEAVY_THRESHOLD)
+        heavy = ri > WEATHER_HEAVY_THRESHOLD
+        for c in self.coins:
+            c._weather_phase += dt * 4.5
+            c.weather_dx = math.sin(c._weather_phase) * amp
+            if heavy:
+                # Slide leftward — feels like rain washing the coin off.
+                c.x -= WEATHER_COIN_SLIDE_RATE * (ri - WEATHER_HEAVY_THRESHOLD) \
+                       / (1.0 - WEATHER_HEAVY_THRESHOLD) * dt
+        # Pip: shiver + flap dampen only above the heavy threshold so
+        # ordinary drizzle doesn't make controls feel broken.
+        if heavy:
+            heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
+            # Extra jolt during a lightning flash so the strike reads.
+            flash_kick = 1.5 if self.weather.flash_remaining > 0 else 1.0
+            self.bird.shiver_x = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+            self.bird.shiver_y = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+            self.bird.flap_dampen = WEATHER_FLAP_DAMPEN_MAX * heavy_t
+        else:
+            self.bird.shiver_x = 0.0
+            self.bird.shiver_y = 0.0
+            self.bird.flap_dampen = 0.0
+
+        # Storm jolt: only at near-peak intensity, after the lockout, and
+        # only if Pip actually has coins to lose. Random fire on a small
+        # per-frame chance (~0.06 / frame at 60fps ≈ once every ~17 s on
+        # average while at peak). Lockout 25 s after firing so a long
+        # dusk storm doesn't keep hammering.
+        if self._storm_jolt_lockout > 0:
+            self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
+        elif (ri > 0.85
+              and self.coin_count > 0
+              and not self.game_over
+              and self.ready_t <= 0
+              and random.random() < 0.06 * dt * 60):
+            self._fire_storm_jolt()
+
+    def _fire_storm_jolt(self):
+        """Sudden storm gust shakes Pip and rips up to 50 coins off his
+        belly in a 360° spread. Visual: TreasureCoinParticles flung
+        outward (radial-symmetric vy/vx so they fly off in every
+        direction, not just up). The score and coin_count drop by the
+        same amount; ProofState logs a negative `weather_jolt` event so
+        the ledger stays consistent."""
+        lost = min(50, self.coin_count)
+        if lost <= 0:
+            return
+        self.score = max(0, self.score - lost)
+        self.coin_count -= lost
+        self._proof.record(self.time_alive, -lost, "weather_jolt")
+        # Strong, brief shake — louder than the lightning-flash kick.
+        self.shake_mag = max(self.shake_mag, 6.0)
+        self.shake_t = max(self.shake_t, 0.45)
+        # Lockout so a single storm doesn't fire repeatedly.
+        self._storm_jolt_lockout = 25.0
+        # Scatter — coins fly outward from Pip's belly in a 360° spread.
+        bx, by = self.bird.x, self.bird.y + 8
+        n = min(lost, 20)
+        for i in range(n):
+            ang = (i / n) * math.tau + random.uniform(-0.15, 0.15)
+            speed = random.uniform(160.0, 260.0)
+            vx = math.cos(ang) * speed
+            vy = math.sin(ang) * speed - 60.0   # slight upward bias
+            self.particles.append(TreasureCoinParticle(
+                bx, by, vx, vy,
+                life=0.95,
+                spin_rate=random.uniform(8.0, 14.0),
+            ))
+        # Red minus-text + audio sting.
+        self.float_texts.append(FloatText(
+            f"-{lost}!", self.bird.x, self.bird.y - 30, UI_RED,
+            size=30, life=1.4, vy=-30, style="powerup",
+        ))
+        try:
+            audio.play_poof()
+            audio.play_thunder()
+        except Exception:
+            pass
 
     def _apply_magnet(self, dt, radius_mult: float = 1.0,
                       strength_mult: float = 1.0):

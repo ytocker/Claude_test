@@ -219,6 +219,16 @@ TEST_FORCED_KINDS = (
 # letting the bird visibly clip through.
 PIPE_HITBOX_SHRINK = 4
 
+# ── Weather → gameplay ──────────────────────────────────────────────────────
+# Layer 1 of weather-as-input: light rain wobbles coins, heavy rain slides
+# them and shivers Pip + dampens his flap. All values derived from
+# weather.rain_intensity(phase) which already exists.
+WEATHER_HEAVY_THRESHOLD  = 0.5
+WEATHER_COIN_SHAKE_AMP   = 2.5
+WEATHER_COIN_SLIDE_RATE  = 15.0
+WEATHER_PIP_SHIVER_AMP   = 1.5
+WEATHER_FLAP_DAMPEN_MAX  = 0.18
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE

@@ -769,6 +769,13 @@ class Bird:
         # ∓15° to fake a nose-only / tail-only grind. Cleared
         # when Pip lifts off the surface.
         self.grind_type = None
+        # Weather → Pip. World writes shiver_x/y (visual jitter under heavy
+        # rain / lightning) and flap_dampen (0..WEATHER_FLAP_DAMPEN_MAX,
+        # subtracted from FLAP_V on the next tap so storms feel like the
+        # wind is pushing Pip down).
+        self.shiver_x = 0.0
+        self.shiver_y = 0.0
+        self.flap_dampen = 0.0
 
     @property
     def tilt_deg(self):
@@ -803,7 +810,7 @@ class Bird:
 
     def flap(self, gravity_sign=1):
         if self.alive:
-            self.vy = FLAP_V * gravity_sign
+            self.vy = FLAP_V * (1.0 - self.flap_dampen) * gravity_sign
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
@@ -838,6 +845,11 @@ class Bird:
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
         from game.config import GROW_SCALE
+        # Weather shiver: world-driven per-frame jitter under heavy rain /
+        # lightning. Visual only — kept out of the physics shake_x/shake_y
+        # path so collision is unaffected.
+        shake_x += self.shiver_x
+        shake_y += self.shiver_y
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
         # When flipped (reverse-gravity buff), negate the tilt so a rising
         # bird's head still leads in the direction of motion after the
@@ -1656,13 +1668,19 @@ class Coin:
         self.float_t = random.uniform(0, math.tau)
         # Random sparkle phase per-coin so they don't all twinkle in sync.
         self._sparkle_phase = random.uniform(0, math.tau)
+        # Weather wobble (visual-only horizontal jitter under light/moderate
+        # rain). Heavy-rain slide is applied directly to self.x by World so
+        # collision follows the visual.
+        self.weather_dx = 0.0
+        # Random phase so coins don't sway in lockstep.
+        self._weather_phase = random.uniform(0, math.tau)
 
     def update(self, dt):
         self.spin = (self.spin + dt * self.SPIN_RATE) % math.tau
         self.float_t += dt
 
     def draw(self, surf, kfc_active=False, triple_active=False):
-        cx = int(self.x)
+        cx = int(self.x + self.weather_dx)
         cy = int(self.y + math.sin(self.float_t * 2.2) * 2)
 
         # During KFC: coins look like a tilted french fry instead of a gold
