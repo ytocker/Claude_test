@@ -47,11 +47,15 @@ def _get_mega_gradient_surface():
             if d > max_r:
                 continue
             inner_t = d / max_r
-            # Bell curve peaks at inner_t = 1.0 so the brightest gold
-            # sits AT the outermost ring. Wide falloff (0.40) keeps a
-            # gentle tint flowing all the way to the centre.
-            bell = math.exp(-((inner_t - 1.0) ** 2) / 0.40)
-            a = int(160 * bell)
+            # Bell curve peaks at inner_t = 0.85 (same as regular
+            # magnet's calibration), falloff 0.15, alpha mult 72 —
+            # this is the SOFT gradient the user picked over the
+            # earlier "aggressive" peak-at-outer alpha-160 variant.
+            # The boldness of the field comes from the outer RING
+            # tuples (B1 stack — alpha 200/220, width 3) rather
+            # than from a dense gold glow.
+            bell = math.exp(-((inner_t - 0.85) ** 2) / 0.15)
+            a = int(72 * bell)
             if a > 0:
                 surf.set_at((x, y), (*GLOW_COL, a))
     _MEGA_GRADIENT_SURFACE = surf
@@ -1292,8 +1296,14 @@ class App:
 
             AA_COL = (255, 240, 180)
             for rfac, phase, alpha, width, breath_scale, ring_col in (
-                    (1.30, -0.6, 130, 2, 0.62, (255, 225, 115)),
-                    (1.15, -0.3, 150, 2, 0.78, (255, 220, 105)),
+                    # B1 — outer halos extend the regular's bold-
+                    # outward pattern (alpha + width climb with rfac).
+                    # 1.00 ships at alpha 180/w3; 1.15 bumps to 200/w3
+                    # and 1.30 to 220/w3 so the field reads bolder
+                    # as the rings grow, matching the regular magnet's
+                    # gradient direction.
+                    (1.30, -0.6, 220, 3, 0.62, (255, 230, 120)),
+                    (1.15, -0.3, 200, 3, 0.78, (255, 225, 110)),
                     (1.00, 0.0,  180, 3, 1.00, (255, 220, 100)),
                     (0.85, 0.3,  165, 2, 0.92, (255, 210,  85)),
                     (0.70, 0.6,  150, 2, 0.85, (250, 195,  65)),
