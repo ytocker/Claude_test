@@ -1656,7 +1656,15 @@ class HUD:
             row_pitch = max(icon_size, bar_h) + row_gap
             row_w     = icon_size + 6 + bar_w
             base_x    = (W - row_w) // 2
-            top_y     = 128
+            # Default sits just below the live glass-pill score
+            # (y=92, h=56 → bottom ≈ 120). While SKATEBOARD is
+            # active the score is the E3 halftone burst centred at
+            # y=150 (ro=58 → bottom ≈ 208), so the row shifts down
+            # below the burst's bottom edge.
+            if getattr(world.bird, "skateboard_active", False):
+                top_y = 220
+            else:
+                top_y = 128
 
             for i, (kind, remain, total) in enumerate(active):
                 y = top_y + i * row_pitch
