@@ -696,6 +696,170 @@ def render_skateboard_score_e6(score: int) -> pygame.Surface:
     return surf
 
 
+# ── SKATEBOARD! caption layouts that don't collide with the score ───────────
+#
+# The live `render_caption_overlay` plate sits at (W // 2, 75) and the live
+# glass-pill score sits at (W // 2, 92) — they overlap. These 5 alternative
+# caption layouts each clear the score's vertical band (or combine the
+# SKATEBOARD! text WITH the score number in one composite). Pair F1/F3/F4
+# with a separate D5 score overlay; F2/F5 already bake the score in.
+
+
+def _corner_slashes(surf, cx, cy):
+    """4-corner ink speed-slashes pointing at (cx, cy) — same primitive
+    the live caption uses; shared across the F-variants for
+    consistency."""
+    for x0, y0 in ((20, 20), (W - 20, 20),
+                   (20, H - 80), (W - 20, H - 80)):
+        for off in range(3):
+            dx = (cx - x0) * 0.18
+            dy = (cy - y0) * 0.18
+            ox = (-1 if x0 < cx else 1) * (off * 8)
+            oy = off * 4
+            pygame.draw.line(surf, INK,
+                             (x0 + ox, y0 + oy),
+                             (x0 + ox + dx, y0 + oy + dy), 4)
+
+
+def _pow_badge(surf, center, tilt_deg=15):
+    """Standard POW! badge for the F-variants. Caller picks the
+    centre so different layouts can park it where they have room."""
+    pow_txt = _gradient_text("POW!", 28,
+                              top_col=(255, 90, 90),
+                              bot_col=(220, 30, 30),
+                              outline=INK, outline_w=4)
+    pow_rot = pygame.transform.rotate(pow_txt, tilt_deg)
+    surf.blit(pow_rot, pow_rot.get_rect(center=center))
+
+
+def _red_plate(text, font_size, plate_pad=(30, 18)):
+    """Build a SKATEBOARD!-style gradient-on-red rounded plate
+    (no rotation applied). Returns the composite surface."""
+    txt = _gradient_text(text, font_size,
+                          top_col=(255, 255, 110),
+                          bot_col=(255, 180, 10),
+                          outline=INK, outline_w=5)
+    px, py = plate_pad
+    bw = txt.get_width() + px
+    bh = txt.get_height() + py
+    composite = pygame.Surface((bw + 12, bh + 12), pygame.SRCALPHA)
+    ccx = composite.get_width() // 2
+    ccy = composite.get_height() // 2
+    plate_rect = pygame.Rect(0, 0, bw, bh)
+    plate_rect.center = (ccx + 4, ccy + 4)
+    pygame.draw.rect(composite, PLATE_RED, plate_rect, border_radius=10)
+    pygame.draw.rect(composite, INK, plate_rect, 4, border_radius=10)
+    composite.blit(txt, txt.get_rect(center=(ccx, ccy)).topleft)
+    return composite
+
+
+def render_caption_v2_topleft(cx: int, cy: int,
+                                rng_seed: int = 22) -> pygame.Surface:
+    """F1 — Smaller SKATEBOARD! plate parked in the TOP-LEFT corner.
+    POW! mirrors over to the top-right. Whole upper-center band
+    (where the score lives at y=92) stays clear."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 28, plate_pad=(24, 14))
+    rot = pygame.transform.rotate(plate, -4)
+    surf.blit(rot, rot.get_rect(midleft=(8, 38)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=12)
+    return surf
+
+
+def render_caption_v2_combined_banner(cx: int, cy: int, score: int,
+                                        rng_seed: int = 22) -> pygame.Surface:
+    """F2 — Combined banner: a single wide red plate across the top
+    holding "SKATEBOARD!" on the left AND the live score number on
+    the right (each with their own outlined gradient text).  The
+    plate IS the caption AND the score — no separate score overlay
+    needed."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate_w = W - 24
+    plate_h = 56
+    plate_rect = pygame.Rect(0, 0, plate_w, plate_h)
+    plate_rect.center = (W // 2, 50)
+    # Drop shadow
+    sh_rect = plate_rect.move(4, 4)
+    pygame.draw.rect(surf, (0, 0, 0, 120), sh_rect, border_radius=12)
+    # Plate
+    pygame.draw.rect(surf, PLATE_RED, plate_rect, border_radius=12)
+    pygame.draw.rect(surf, INK, plate_rect, 4, border_radius=12)
+    # SKATEBOARD! text — left aligned
+    skate = _gradient_text("SKATEBOARD!", 32,
+                            top_col=(255, 255, 110),
+                            bot_col=(255, 180, 10),
+                            outline=INK, outline_w=4)
+    surf.blit(skate, skate.get_rect(
+        midleft=(plate_rect.left + 14, plate_rect.centery)))
+    # Divider — thin ink vertical bar between caption and score.
+    div_x = plate_rect.left + plate_w - 110
+    pygame.draw.line(surf, INK,
+                     (div_x, plate_rect.top + 8),
+                     (div_x, plate_rect.bottom - 8), 3)
+    # SCORE number on the right, in halftone-burst style so the
+    # comic vocabulary stays consistent with the D5 chorus pick.
+    score_cx = (div_x + plate_rect.right) // 2
+    score_cy = plate_rect.centery
+    _halftone_score_badge(surf, score_cx, score_cy, str(score),
+                           ro=24, ri=16, font_size=28)
+    return surf
+
+
+def render_caption_v2_below_score(cx: int, cy: int,
+                                    rng_seed: int = 22) -> pygame.Surface:
+    """F3 — SKATEBOARD! plate moved DOWN below the score band
+    (centered around y=150). Score keeps its native y=92 spot
+    above; caption sits just below where the chorus bursts top out
+    so it stays clear of the score forever."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 40, plate_pad=(30, 18))
+    rot = pygame.transform.rotate(plate, 5)
+    surf.blit(rot, rot.get_rect(center=(W // 2, 150)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    return surf
+
+
+def render_caption_v2_vertical_left(cx: int, cy: int,
+                                      rng_seed: int = 22) -> pygame.Surface:
+    """F4 — SKATEBOARD! rotated 90° on the LEFT edge — like a vertical
+    deck-sticker ribbon hanging down the side. Whole top of the
+    screen frees up for the score. POW! goes top-right."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    plate = _red_plate("SKATEBOARD!", 32, plate_pad=(28, 14))
+    rot = pygame.transform.rotate(plate, 90)
+    surf.blit(rot, rot.get_rect(midleft=(6, H // 2 - 30)))
+    _pow_badge(surf, (W - 50, 38), tilt_deg=15)
+    return surf
+
+
+def render_caption_v2_split_around(cx: int, cy: int, score: int,
+                                     rng_seed: int = 22) -> pygame.Surface:
+    """F5 — Caption SPLIT in two halves wrapping the score: "SKATE"
+    plate on the left, "BOARD!" plate on the right, both around
+    y=72, with the D5 score burst sitting between/below them at
+    y=92. Whole composite reads as one wide unit but the score has
+    its own clear centre spot. Plates sized tight enough to stay
+    fully on-canvas (no clipped letters)."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    # Tight plates that fit inside the canvas.
+    skate = _red_plate("SKATE", 26, plate_pad=(16, 10))
+    skate_rot = pygame.transform.rotate(skate, -5)
+    surf.blit(skate_rot, skate_rot.get_rect(midright=(W // 2 - 50, 56)))
+    board = _red_plate("BOARD!", 26, plate_pad=(16, 10))
+    board_rot = pygame.transform.rotate(board, 5)
+    surf.blit(board_rot, board_rot.get_rect(midleft=(W // 2 + 50, 56)))
+    # D5 score burst between the halves — slightly larger so it
+    # reads as the centrepiece anchoring the split caption.
+    _halftone_score_badge(surf, W // 2, 80, str(score),
+                           ro=46, ri=28, font_size=38)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
