@@ -1146,6 +1146,122 @@ def render_caption_h6_banner_text_lowered(cx: int, cy: int, score: int,
     return surf
 
 
+# ── "SKATE  [score]  BOARD!" — score wedged between the two halves ──────────
+#
+# Same red-plate design as the live caption, split into a "SKATE" half and a
+# "BOARD!" half with the D5 score burst nested between them. Five variations
+# explore tilt direction, gap width, and stagger.
+
+
+def _two_plates_around_score(surf, score_str,
+                              font_size, plate_pad, gap,
+                              tilt_l, tilt_r,
+                              score_ro=44, score_ri=28,
+                              score_font_size=38,
+                              left_dy=0, right_dy=0,
+                              score_cy=92, score_cx=None):
+    """Paint a SKATE plate (left, tilt_l) + BOARD! plate (right,
+    tilt_r) at score_cy, with the D5 halftone score burst centred
+    between them at score_cx (default W/2, score_cy). Optional
+    left_dy/right_dy stagger the two plates vertically. Score sits
+    in the gap between the plate inner edges."""
+    if score_cx is None:
+        score_cx = W // 2
+    skate = _red_plate("SKATE", font_size, plate_pad=plate_pad)
+    skate_rot = pygame.transform.rotate(skate, tilt_l)
+    surf.blit(skate_rot, skate_rot.get_rect(
+        midright=(score_cx - gap // 2, score_cy + left_dy)))
+    board = _red_plate("BOARD!", font_size, plate_pad=plate_pad)
+    board_rot = pygame.transform.rotate(board, tilt_r)
+    surf.blit(board_rot, board_rot.get_rect(
+        midleft=(score_cx + gap // 2, score_cy + right_dy)))
+    _halftone_score_badge(surf, score_cx, score_cy, score_str,
+                           ro=score_ro, ri=score_ri,
+                           font_size=score_font_size)
+
+
+def render_caption_i1_inward_v(cx: int, cy: int, score: int,
+                                 rng_seed: int = 22) -> pygame.Surface:
+    """I1 — Plates tilt INWARD toward the score: SKATE leans
+    down-right (+8°), BOARD! leans down-left (-8°). The two plates
+    form a V pointing up at the score burst. Most dynamic of the
+    bunch."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    _two_plates_around_score(surf, str(score),
+                              font_size=28, plate_pad=(16, 12),
+                              gap=92, tilt_l=8, tilt_r=-8,
+                              score_ro=44, score_ri=28,
+                              score_font_size=38)
+    return surf
+
+
+def render_caption_i2_outward_lambda(cx: int, cy: int, score: int,
+                                       rng_seed: int = 22) -> pygame.Surface:
+    """I2 — Plates tilt OUTWARD away from the score: SKATE leans
+    up-right (-8°), BOARD! leans up-left (+8°). The plates fan
+    away from the centre, making the score the apex of an
+    inverted V."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    _two_plates_around_score(surf, str(score),
+                              font_size=28, plate_pad=(16, 12),
+                              gap=92, tilt_l=-8, tilt_r=8,
+                              score_ro=44, score_ri=28,
+                              score_font_size=38)
+    return surf
+
+
+def render_caption_i3_tight_compact(cx: int, cy: int, score: int,
+                                      rng_seed: int = 22) -> pygame.Surface:
+    """I3 — Tight + compact: plates pulled close together with a
+    SMALL score burst between them. The whole composite is more
+    compressed; reads as one wide unit rather than two halves
+    flanking a focal point."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    _two_plates_around_score(surf, str(score),
+                              font_size=30, plate_pad=(14, 10),
+                              gap=58, tilt_l=-3, tilt_r=3,
+                              score_ro=30, score_ri=18,
+                              score_font_size=26)
+    return surf
+
+
+def render_caption_i4_wide_big_score(cx: int, cy: int, score: int,
+                                       rng_seed: int = 22) -> pygame.Surface:
+    """I4 — Wide gap, BIG score: plates pushed to the edges of the
+    canvas with a large score burst dominating the centre. Score
+    is the star; the SKATE/BOARD halves bracket it."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    _two_plates_around_score(surf, str(score),
+                              font_size=24, plate_pad=(12, 10),
+                              gap=130, tilt_l=-3, tilt_r=3,
+                              score_ro=58, score_ri=36,
+                              score_font_size=48)
+    return surf
+
+
+def render_caption_i5_staggered(cx: int, cy: int, score: int,
+                                  rng_seed: int = 22) -> pygame.Surface:
+    """I5 — Staggered: SKATE plate sits slightly LOWER (+10 px) and
+    BOARD! sits slightly HIGHER (-10 px), so the two halves
+    diagonally bracket the centred score. Adds a hand-pinned-up
+    "deck sticker" feel to the composition. Both plates share a
+    mild negative tilt so the eye reads the stagger as
+    intentional, not an alignment error."""
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    _corner_slashes(surf, cx, cy)
+    _two_plates_around_score(surf, str(score),
+                              font_size=28, plate_pad=(16, 12),
+                              gap=92, tilt_l=-5, tilt_r=-5,
+                              score_ro=44, score_ri=28,
+                              score_font_size=38,
+                              left_dy=10, right_dy=-10)
+    return surf
+
+
 def render_starburst_surface(rng_seed: int = 22) -> pygame.Surface:
     """Self-contained 14-spike yellow/red starburst on a transparent
     BURST_SIZE × BURST_SIZE surface, centered. scenes.py blits this
