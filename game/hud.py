@@ -1553,21 +1553,23 @@ class HUD:
             surf.blit(sh, (r.x + 2, r.y + 4))
             surf.blit(img, r.topleft)
         elif not paused and skateboard_active:
-            # SKATEBOARD score in D5 halftone-burst style. Fades IN as
-            # the SKATEBOARD! caption fades OUT (caption_t in the
-            # [0, FADE] tail), then persists at full alpha for the rest
-            # of the 8 s effect.
-            from game.skateboard_fx import render_skateboard_score_e6
+            # SKATEBOARD score in D5 halftone-burst style (E3 layout —
+            # centred below the SKATEBOARD! caption at y=150). Held at
+            # full alpha for the same window as the caption, then fades
+            # together with the caption in the trailing 0.8 s so both
+            # exit gracefully when the powerup ends.
+            from game.skateboard_fx import render_skateboard_score_e3
             cap_t = getattr(world, "skateboard_caption_t", 0.0)
             FADE = 0.8
             if cap_t > FADE:
-                score_alpha = 0
-            elif cap_t > 0:
-                score_alpha = int(255 * (1.0 - cap_t / FADE))
-            else:
                 score_alpha = 255
+            elif cap_t > 0:
+                x = 1.0 - cap_t / FADE
+                score_alpha = int(255 * (1.0 - x) ** 2)
+            else:
+                score_alpha = 0
             if score_alpha > 0:
-                score_surf = render_skateboard_score_e6(world.score)
+                score_surf = render_skateboard_score_e3(world.score)
                 score_surf.set_alpha(score_alpha)
                 surf.blit(score_surf, (0, 0))
 

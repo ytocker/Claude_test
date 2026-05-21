@@ -67,9 +67,11 @@ def render_caption_overlay(cx: int, cy: int,
     blits at (0, 0) with a decreasing alpha to fade out."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
 
-    # 4-corner ink speed-slashes pointing at the original pickup spot.
-    for x0, y0 in ((20, 20), (W - 20, 20),
-                   (20, H - 80), (W - 20, H - 80)):
+    # 2-corner ink speed-slashes pointing at the original pickup spot
+    # — only the TOP corners. The bottom corner slashes were stripped
+    # because they read as gameplay obstacles rather than caption FX
+    # over the lower half of the playfield.
+    for x0, y0 in ((20, 20), (W - 20, 20)):
         for off in range(3):
             dx = (cx - x0) * 0.18
             dy = (cy - y0) * 0.18
@@ -706,11 +708,10 @@ def render_skateboard_score_e6(score: int) -> pygame.Surface:
 
 
 def _corner_slashes(surf, cx, cy):
-    """4-corner ink speed-slashes pointing at (cx, cy) — same primitive
-    the live caption uses; shared across the F-variants for
-    consistency."""
-    for x0, y0 in ((20, 20), (W - 20, 20),
-                   (20, H - 80), (W - 20, H - 80)):
+    """2-corner ink speed-slashes pointing at (cx, cy) — same primitive
+    the live caption uses; bottom corners dropped because they read as
+    gameplay obstacles in the lower half of the playfield."""
+    for x0, y0 in ((20, 20), (W - 20, 20)):
         for off in range(3):
             dx = (cx - x0) * 0.18
             dy = (cy - y0) * 0.18

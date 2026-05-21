@@ -1972,9 +1972,13 @@ class World:
         #     with him. Short by design (0.6 s) so it doesn't cover the
         #     game for long.
         seed = int(self._idle_t * 1000) & 0xFFFF
-        # Caption beats: 3.0 s held at full alpha, then a 0.8 s fade.
-        # scenes.py keys the fade off the trailing 0.8 s of the timer.
-        self.skateboard_caption_dur = 3.8
+        # Caption beats: held at full alpha for the entire skateboard
+        # duration MINUS the trailing 0.8 s, then a 0.8 s fade. scenes.py
+        # keys the fade off the trailing 0.8 s of the timer. Matching
+        # SKATEBOARD_DURATION means the banner is visible for the whole
+        # effect (the user wants the D5 score under the banner to coexist
+        # with it the entire time).
+        self.skateboard_caption_dur = SKATEBOARD_DURATION
         self.skateboard_caption_t = self.skateboard_caption_dur
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
