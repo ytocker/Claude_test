@@ -106,7 +106,7 @@ These are project identity. Don't violate without explicit user OK.
 ## Power-ups (6 active + Surprise)
 
 Triple (3× coins), Magnet, Slow-Mo, KFC (fry-skin), Ghost (phase
-through pillars), Grow (1.3× scale), Surprise Box (re-rolls to one of
+through pillars), Grow (1.4× scale), Surprise Box (re-rolls to one of
 the six at pickup). Each lasts 8 s. 14% spawn chance per non-rush
 pillar, 5.5 s cooldown. Float-text labels share a unified
 gradient-fill + outline + 8-sparkle style.
@@ -130,6 +130,41 @@ Known gap: Supabase anon key + permissive RLS still ship in the
 bundle. A motivated attacker can `curl` the table directly. Moving
 `_plausibility.check` into a Supabase Edge Function with tight RLS is
 the priority anti-cheat upgrade — see `UPGRADE_BRIEF.md`.
+
+## Deploy hygiene (CI-side)
+
+Pygbag 0.9.2 bundles every file in the directory it runs in — there
+is **no include / exclude flag**. The CI workflow
+(`.github/workflows/pages.yml`) stages a minimal source tree
+(`main.py`, `inject_theme.py`, `pyproject.toml`, `game/`) into a
+`<branch>_stage/` dir before each pygbag build, so the player-facing
+`.apk` stays ~544 KB instead of pulling in `docs/`, `archive/`,
+`tools/`, etc. (~33 MB before the fix).
+
+Two guards in the same workflow:
+
+- **Bundle-size ceiling.** The `Report bundle sizes + size guard`
+  step fails the build if any branch's `.apk` exceeds **5 MB**.
+  Raise the ceiling deliberately if you ship a genuine asset push
+  past it; never raise it to silence a regression you don't
+  understand.
+- **Unit tests.** `python -m pytest tests/` runs on every branch's
+  full checkout before any pygbag build. A regression to
+  `test_plausibility.py` halts the deploy.
+
+Practical rules:
+
+- All runtime assets live in `game/assets/` (vendored fonts, KFC
+  logo, OGG audio) per the long-standing convention. New sprites
+  and audio belong there.
+- If you ever add a **new top-level dir** the runtime imports, you
+  must also update the workflow's `Stage minimal source` step.
+  By convention, don't — keep it under `game/`.
+- The workflow is intentionally identical on all four deploy
+  branches (`main`, `v4_skybit`, `v4_skybit_powerups`,
+  `v5_powerups`). Any edit needs syncing across all four — see
+  the sequential checkout pattern in the session history if doing
+  this by hand.
 
 ## Where to find more
 

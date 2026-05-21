@@ -67,7 +67,22 @@ jobs:
           python-version: "3.11"
 
       - name: Install pygbag
-        run: pip install pygame 'pygbag==0.9.2'
+        run: pip install pygame 'pygbag==0.9.2' pytest
+
+      - name: Run unit tests on every deploy branch
+        # Tests live in each branch's full checkout (not in the
+        # staged minimal tree). If any branch's pytest suite fails,
+        # the deploy is halted — better to leave the previous
+        # deploy live than ship a regression to all four URLs.
+        run: |
+          for src in main_src v4_src pup_src v5p_src; do
+            if [ -d "$src/tests" ]; then
+              echo "=== $src/tests ==="
+              ( cd "$src" && python -m pytest tests/ -q ) || exit 1
+            else
+              echo "=== $src: no tests/ dir, skipping ==="
+            fi
+          done
 
       - name: Stage minimal source for each branch
         run: |
@@ -148,13 +163,29 @@ jobs:
           # whole site (one at root is enough).
           touch combined/.nojekyll
 
-      - name: Report bundle sizes
+      - name: Report bundle sizes + size guard
+        # Hard ceiling per .apk. Today's minimal bundle is ~544 KB
+        # (just main.py + game/) so 5 MB leaves ~9x headroom for
+        # legit growth (new sprites, audio, etc.) while still catching
+        # the kind of silent bloat that put 33 MB of design PNGs +
+        # archive + tools into the player-facing download. Raise the
+        # threshold deliberately if a genuine asset push exceeds it.
         run: |
+          MAX_BYTES=$((5 * 1024 * 1024))
+          fail=0
           echo "=== built bundle sizes ==="
           for stage in main_stage v4_stage pup_stage v5p_stage; do
             apk=$(ls "$stage"/build/web/*.apk 2>/dev/null | head -1)
-            [ -f "$apk" ] && printf '  %-12s  %s\n' "$stage" "$(du -h "$apk" | awk '{print $1}')"
+            if [ -f "$apk" ]; then
+              bytes=$(stat -c%s "$apk")
+              printf '  %-12s  %-8s  (%d bytes)\n' "$stage" "$(du -h "$apk" | awk '{print $1}')" "$bytes"
+              if [ "$bytes" -gt "$MAX_BYTES" ]; then
+                echo "::error::$apk exceeds the 5 MB bundle ceiling ($bytes > $MAX_BYTES bytes). Something heavy slipped into the Stage step's copy list — audit the staging block in this workflow."
+                fail=1
+              fi
+            fi
           done
+          if [ "$fail" = "1" ]; then exit 1; fi
           echo "=== combined deploy artifact ==="
           du -sh combined
 
