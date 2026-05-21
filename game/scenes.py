@@ -1075,8 +1075,22 @@ class App:
                                        (lcx, lcy), r)
 
             # Hex-grid overlay — sits on top of the warm glow, under
-            # the rings, so the rings remain the brightest read.
-            field.blit(_magnet_hex_grid(rad), (0, 0))
+            # the rings, so the rings remain the brightest read. The
+            # cached grid is rendered at full radius once; each frame
+            # we smoothscale it down to (rad * outer_factor) so the
+            # hex breathes in lockstep with the outer ring instead of
+            # sitting statically at full size while everything else
+            # pulses. SRCALPHA is preserved through smoothscale.
+            hex_full = _magnet_hex_grid(rad)
+            scaled_d = int(rad * outer_factor) * 2 + 8
+            full_d = int(rad) * 2 + 8
+            if scaled_d != full_d:
+                hex_layer = pygame.transform.smoothscale(
+                    hex_full, (scaled_d, scaled_d))
+                offset = (full_d - scaled_d) // 2
+                field.blit(hex_layer, (offset, offset))
+            else:
+                field.blit(hex_full, (0, 0))
 
             # 3 rings with per-ring gold tints, slightly out of phase.
             AA_COL = (255, 240, 180)
