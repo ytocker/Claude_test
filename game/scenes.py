@@ -1029,8 +1029,9 @@ class App:
                 x = 1.0 - t / FADE
                 alpha = int(255 * (1.0 - x) ** 2)
             self.world.skateboard_caption_overlay.set_alpha(alpha)
+            lift_y = getattr(self.world, "_skateboard_lift_y", 0)
             self.screen.blit(self.world.skateboard_caption_overlay,
-                             (0, 0))
+                             (0, -lift_y))
         if getattr(self.world, "skateboard_burst_t", 0) > 0 and \
                 self.world.skateboard_burst_surface is not None:
             # Burst holds at full alpha for the first (dur - 0.8) s

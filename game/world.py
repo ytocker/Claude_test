@@ -80,6 +80,13 @@ class World:
         # stack/overlay at a fixed anchor near the E3 score whenever
         # Pip performs a kick/heel/pop/back-flip or a nose/tail grind.
         self.trick_bubbles: list = []
+        # Uniform Y offset applied to all SKATEBOARD-effect overlays
+        # (banner caption, E3 score, timer bar, trick-bubble anchor).
+        # 0 = current live position; positive values lift the whole
+        # stack UPWARD by N pixels. Used by the lift-variant render
+        # tool to compare options; set it on the world instance before
+        # the relevant draws fire.
+        self._skateboard_lift_y = 0
 
         self.scroll_speed = SCROLL_BASE
         self.bg_scroll = 0.0
@@ -618,7 +625,7 @@ class World:
         self.trick_bubbles.append(TrickBubble(
             label,
             anchor_x + ox,
-            self._TRICK_ANCHOR_Y + oy,
+            self._TRICK_ANCHOR_Y - self._skateboard_lift_y + oy,
             tilt_deg=tilt,
         ))
 

@@ -1571,7 +1571,8 @@ class HUD:
             if score_alpha > 0:
                 score_surf = render_skateboard_score_e3(world.score)
                 score_surf.set_alpha(score_alpha)
-                surf.blit(score_surf, (0, 0))
+                lift_y = getattr(world, "_skateboard_lift_y", 0)
+                surf.blit(score_surf, (0, -lift_y))
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
@@ -1660,9 +1661,10 @@ class HUD:
             # (y=92, h=56 → bottom ≈ 120). While SKATEBOARD is
             # active the score is the E3 halftone burst centred at
             # y=150 (ro=58 → bottom ≈ 208), so the row shifts down
-            # below the burst's bottom edge.
+            # below the burst's bottom edge — and lifts back up by
+            # the world's optional _skateboard_lift_y offset.
             if getattr(world.bird, "skateboard_active", False):
-                top_y = 220
+                top_y = 220 - getattr(world, "_skateboard_lift_y", 0)
             else:
                 top_y = 128
 
