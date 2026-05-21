@@ -1042,11 +1042,15 @@ class App:
         # static (cached at module load via `_magnet_hex_grid`) so we
         # blit the prebuilt overlay each frame instead of redrawing
         # ~225 polygons. Pulse rate 5.5 ⇒ ~1.14 s cycle.
-        if self.world.magnet_timer > 0:
-            from game.config import MAGNET_RADIUS
+        if self.world.magnet_timer > 0 or self.world.megamagnet_timer > 0:
+            from game.config import MAGNET_RADIUS, MEGAMAGNET_RADIUS
             import math as _math
             t_pulse = self._cloud_phase * 5.5
-            rad = MAGNET_RADIUS
+            # Megamagnet renders the same field at 2x radius. The hex
+            # grid cache builds a second entry for the larger size on
+            # first activation; rings + glow scale by `rad` naturally.
+            rad = (MEGAMAGNET_RADIUS if self.world.megamagnet_timer > 0
+                   else MAGNET_RADIUS)
             field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
                                    pygame.SRCALPHA)
             lcx, lcy = rad + 4, rad + 4

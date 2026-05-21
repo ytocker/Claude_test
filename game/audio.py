@@ -184,6 +184,9 @@ def play_coin_triple() -> None:
 
 def play_triple_coin() -> None: _play("triple_coin", 0.85)
 def play_magnet() -> None:      _play("magnet", 0.75)
+# Reuses the magnet sample at a louder mix so the upgrade reads as
+# beefier without shipping a bespoke OGG.
+def play_megamagnet() -> None:  _play("magnet", 0.95)
 def play_slowmo() -> None:      _play("slowmo", 0.75)
 def play_thunder() -> None:     _play("thunder", 0.85)
 def play_death() -> None:       _play("death", 0.75)

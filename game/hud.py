@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -833,6 +833,18 @@ def _draw_buff_icon(surf, rect, kind):
 
         icon = pygame.transform.smoothscale(m, (rect.w, rect.h))
         surf.blit(icon, rect.topleft)
+    elif kind == "megamagnet":
+        # Renders the magnet icon then overlays a small gold "++" so
+        # the upgrade reads at chip size without redrawing the whole
+        # sprite. Delegates back to the magnet branch via recursion.
+        _draw_buff_icon(surf, rect, "magnet")
+        badge_font = _font(max(10, rect.h // 3), bold=True)
+        plus = badge_font.render("++", True, (255, 215, 70))
+        shadow = badge_font.render("++", True, (60, 30, 8))
+        bx = rect.x + rect.w // 2 - plus.get_width() // 2
+        by = rect.y + rect.h // 2 - plus.get_height() // 2 - 2
+        surf.blit(shadow, (bx + 1, by + 1))
+        surf.blit(plus, (bx, by))
     elif kind == "slowmo":
         # Tiny clock face on SRCALPHA scratch
         r = 7
@@ -1475,6 +1487,8 @@ class HUD:
             active.append(("triple", world.triple_timer, TRIPLE_DURATION))
         if world.magnet_timer > 0:
             active.append(("magnet", world.magnet_timer, MAGNET_DURATION))
+        if getattr(world, "megamagnet_timer", 0) > 0:
+            active.append(("megamagnet", world.megamagnet_timer, MEGAMAGNET_DURATION))
         if world.slowmo_timer > 0:
             active.append(("slowmo", world.slowmo_timer, SLOWMO_DURATION))
         if world.kfc_timer > 0:

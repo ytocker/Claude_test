@@ -1246,6 +1246,8 @@ class PowerUp:
             _draw_dollar_coin(surf, int(self.x), int(self.y), pulse=self.pulse)
         elif self.kind == "magnet":
             self._draw_magnet(surf)
+        elif self.kind == "megamagnet":
+            self._draw_megamagnet(surf)
         elif self.kind == "slowmo":
             self._draw_slowmo(surf)
         elif self.kind == "kfc":
@@ -1391,6 +1393,121 @@ class PowerUp:
             # Bright dot at the pole tip — discharge origin
             pygame.draw.circle(surf, WHITE,  (tip_cx, tip_y), 2)
             pygame.draw.circle(surf, YELLOW, (tip_cx, tip_y), 1)
+
+    # Megamagnet sprite — the late-game upgrade form of `magnet`.
+    # Beefier crimson body (outer_r 13->14, inner_r 6->5, arm width
+    # 7->9 px), copper coil wraps down each arm, thick cyan zigzag
+    # arc between the pole tips, and glowing yellow-white discharge
+    # balls at each pole. Locked-in spec from
+    # tools/snapshot_megamagnet_final.py (see
+    # docs/screenshots/powerups/megamagnet/icon_final.png).
+    def _draw_megamagnet(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.1) * 3)
+
+        OUTER_R, INNER_R = 14, 5
+        ARM_W = OUTER_R - INNER_R   # = 9
+        # Coil cluster has the legacy 11 px width (HALF_SPAN=5) and is
+        # shifted outward asymmetrically — the half-pixel rounding in
+        # left_cx puts the legacy tip_cx 0.5 px inside the arm centre,
+        # so the left arm wants 1 extra px outward to read centred.
+        HALF_SPAN = 5
+        LEFT_SHIFT, RIGHT_SHIFT = 2, 1
+        BALL_R = 3
+        BALL_HALO_R = 7
+
+        arch_cy = cy - 3
+        leg_bot = cy + 13
+
+        # Build the horseshoe on an SRCALPHA scratch surface so the
+        # hollow can be punched cleanly with alpha=0 overdraw.
+        sz = 52
+        scx = sz // 2
+        scy = OUTER_R + 4
+
+        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), OUTER_R + 2)
+        pygame.draw.rect(scratch, (80, 5, 8),
+                         (scx - OUTER_R - 2, scy,
+                          (OUTER_R + 2) * 2, leg_bot - arch_cy + 4))
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(scratch, RED_HI, (scx, scy), OUTER_R + 1)
+        pygame.draw.rect(scratch, RED_HI,
+                         (scx - OUTER_R - 1, scy,
+                          (OUTER_R + 1) * 2, leg_bot - arch_cy + 3))
+        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), INNER_R + 1, 2)
+        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), OUTER_R, 2)
+        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), INNER_R)
+        pygame.draw.rect(scratch, (0, 0, 0, 0),
+                         (scx - INNER_R, scy, INNER_R * 2, sz - scy))
+        surf.blit(scratch, (cx - scx, arch_cy - scy))
+
+        left_cx = cx - INNER_R - ARM_W // 2
+        right_cx = cx + INNER_R + ARM_W // 2
+        for tip_cx in (left_cx, right_cx):
+            pygame.draw.rect(surf, (40, 42, 60),
+                             (tip_cx - ARM_W // 2 - 1, leg_bot - 4,
+                              ARM_W + 2, 9), border_radius=4)
+            pygame.draw.rect(surf, (195, 210, 232),
+                             (tip_cx - ARM_W // 2, leg_bot - 3,
+                              ARM_W, 7), border_radius=3)
+            pygame.draw.rect(surf, (238, 246, 255),
+                             (tip_cx - ARM_W // 2 + 1, leg_bot - 3,
+                              ARM_W - 2, 3), border_radius=2)
+
+        # Copper coil — 4 wraps per arm with alternating-dip lines.
+        COPPER_LO = (110, 55, 14)
+        COPPER_HI = (220, 130, 55)
+        COPPER_HI_HL = (255, 225, 160)
+        for tip_cx, shift in ((left_cx - LEFT_SHIFT, 0),
+                              (right_cx + RIGHT_SHIFT, 0)):
+            for i in range(4):
+                wy = cy + 2 + i * 3
+                left_x = tip_cx - HALF_SPAN
+                right_x = tip_cx + HALF_SPAN
+                mid_x = tip_cx
+                dip = 1 if (i % 2 == 0) else -1
+                pygame.draw.lines(surf, COPPER_LO, False,
+                                  [(left_x, wy + 1),
+                                   (mid_x, wy + 1 + dip),
+                                   (right_x, wy + 1)], 2)
+                pygame.draw.lines(surf, COPPER_HI, False,
+                                  [(left_x, wy),
+                                   (mid_x, wy + dip),
+                                   (right_x, wy)], 1)
+                pygame.draw.line(surf, COPPER_HI_HL,
+                                 (left_x + 1, wy), (mid_x - 1, wy))
+
+        # Beefy 4 px-thick cyan zigzag arc + yellow-white discharge balls.
+        y0 = leg_bot + 7
+        arc_pts = [(left_cx, y0)]
+        for i in range(1, 6):
+            t = i / 6
+            ax = int(left_cx + (right_cx - left_cx) * t)
+            ay = int(y0 + math.sin(self.pulse * 11 + i * 1.7) * 5)
+            arc_pts.append((ax, ay))
+        arc_pts.append((right_cx, y0))
+        arc_surf = pygame.Surface(
+            (right_cx - left_cx + 16, 20), pygame.SRCALPHA)
+        shifted = [(p[0] - left_cx + 8, p[1] - y0 + 8) for p in arc_pts]
+        pygame.draw.lines(arc_surf, (110, 195, 255, 230), False, shifted, 4)
+        pygame.draw.lines(arc_surf, (220, 240, 255, 255), False, shifted, 2)
+        surf.blit(arc_surf, (left_cx - 8, y0 - 8))
+
+        for tip_cx in (left_cx, right_cx):
+            ball_cy = leg_bot + 2
+            glow = pygame.Surface((BALL_HALO_R * 2 + 2, BALL_HALO_R * 2 + 2),
+                                  pygame.SRCALPHA)
+            gcx = BALL_HALO_R + 1
+            for r in range(BALL_HALO_R, 0, -1):
+                tt = r / BALL_HALO_R
+                a = int(180 * (1 - tt * 0.85))
+                pygame.draw.circle(glow, (130, 210, 255, a), (gcx, gcx), r)
+            surf.blit(glow, (tip_cx - gcx, ball_cy - gcx))
+            pygame.draw.circle(surf, (255, 230, 100),
+                               (tip_cx, ball_cy), BALL_R)
+            pygame.draw.circle(surf, (255, 255, 240),
+                               (tip_cx, ball_cy), max(1, BALL_R - 2))
 
     def _draw_slowmo(self, surf):
         cx = int(self.x)

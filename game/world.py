@@ -17,9 +17,10 @@ from game.config import (
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
+    MEGAMAGNET_DURATION, MEGAMAGNET_RADIUS,
     SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
-    POWERUP_WEIGHTS, POWERUP_SCORE_GATES,
+    POWERUP_WEIGHTS, POWERUP_SCORE_GATES, POWERUP_REPLACED_AT,
     SHRINK_DURATION, SHRINK_SCALE,
     RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
@@ -74,6 +75,7 @@ class World:
 
         self.triple_timer = 0.0
         self.magnet_timer = 0.0
+        self.megamagnet_timer = 0.0
         self.slowmo_timer = 0.0
         self.kfc_timer    = 0.0
         # Random index into KFC_MOUNTAIN_DRAWERS, refreshed on each
@@ -122,7 +124,7 @@ class World:
         # count as missed yet).
         self.coins_spawned = 0
         self.powerups_picked = {
-            "triple": 0, "magnet": 0, "slowmo": 0, "kfc": 0,
+            "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
             "shrink": 0, "rail": 0, "lottery": 0,
         }
@@ -379,10 +381,15 @@ class World:
         # Score-gated kinds drop out of the pool until the run's score
         # crosses each kind's threshold. Lets late-game pickups stay
         # rare for new players while showing up reliably once the run
-        # has built momentum.
+        # has built momentum. POWERUP_REPLACED_AT is the inverse:
+        # kinds drop OUT once the score crosses their replacement
+        # threshold (used to swap magnet -> megamagnet at 250).
         kinds, weights = [], []
         for k, w in POWERUP_WEIGHTS:
             if POWERUP_SCORE_GATES.get(k, 0) > self.score:
+                continue
+            replaced_at = POWERUP_REPLACED_AT.get(k)
+            if replaced_at is not None and self.score >= replaced_at:
                 continue
             kinds.append(k)
             weights.append(w)
@@ -464,7 +471,10 @@ class World:
                 m.update(sdt)
 
             # Magnet pull — tug uncollected coins toward the bird.
-            if self.magnet_timer > 0:
+            # Either timer triggers; the bigger radius wins if both
+            # are somehow active simultaneously (shouldn't happen
+            # under the swap-at-250 rule but defensive anyway).
+            if self.magnet_timer > 0 or self.megamagnet_timer > 0:
                 self._apply_magnet(dt)
 
             # cull off-screen — but keep rail-active pipes alive while
@@ -552,6 +562,8 @@ class World:
             self.bird.triple_active = self.triple_timer > 0
             if self.magnet_timer > 0:
                 self.magnet_timer = max(0.0, self.magnet_timer - dt)
+            if self.megamagnet_timer > 0:
+                self.megamagnet_timer = max(0.0, self.megamagnet_timer - dt)
             if self.slowmo_timer > 0:
                 self.slowmo_timer = max(0.0, self.slowmo_timer - dt)
             if self.kfc_timer > 0:
@@ -745,11 +757,12 @@ class World:
                 self._on_powerup(m)
 
     def _apply_magnet(self, dt):
-        """Tug uncollected coins within MAGNET_RADIUS toward the bird."""
+        """Tug uncollected coins toward the bird. Pull radius is
+        MEGAMAGNET_RADIUS when the megamagnet timer is active,
+        otherwise MAGNET_RADIUS. Pull strength is the same."""
+        radius = MEGAMAGNET_RADIUS if self.megamagnet_timer > 0 else MAGNET_RADIUS
+        r2 = radius * radius
         bx, by = self.bird.x, self.bird.y
-        r2 = MAGNET_RADIUS * MAGNET_RADIUS
-        # Strength falls off linearly with distance, capped so close coins
-        # don't teleport.
         for c in self.coins:
             if c.collected:
                 continue
@@ -759,7 +772,7 @@ class World:
             if d2 > r2 or d2 < 1.0:
                 continue
             d = math.sqrt(d2)
-            pull = 520 * (1.0 - d / MAGNET_RADIUS)
+            pull = 520 * (1.0 - d / radius)
             c.x += (dx / d) * pull * dt
             c.y += (dy / d) * pull * dt
 
@@ -818,13 +831,22 @@ class World:
             # `grow` is excluded too — it's a late-game-gated pickup
             # (POWERUP_SCORE_GATES["grow"] == 250). Letting a Surprise
             # Box resolve to grow would bypass the gate.
-            kind = random.choice(("triple", "magnet", "slowmo", "kfc", "ghost", "shrink"))
+            # Surprise honours the magnet -> megamagnet swap rule: once
+            # the run hits POWERUP_REPLACED_AT["magnet"], surprise rolls
+            # megamagnet instead of magnet so the box doesn't sneak the
+            # downgrade past the threshold.
+            magnet_kind = ("megamagnet"
+                           if self.score >= POWERUP_REPLACED_AT.get("magnet", 1 << 30)
+                           else "magnet")
+            kind = random.choice(("triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"))
             self._spawn_surprise_reveal(m)
         self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":
             self._activate_triple(m)
         elif kind == "magnet":
             self._activate_magnet(m)
+        elif kind == "megamagnet":
+            self._activate_megamagnet(m)
         elif kind == "slowmo":
             self._activate_slowmo(m)
         elif kind == "kfc":
@@ -892,6 +914,18 @@ class World:
         self.float_texts.append(FloatText(
             "MAGNET!", m.x, m.y - 26, BIRD_RED,
             size=28, life=1.3, vy=-30, style="powerup",
+        ))
+
+    def _activate_megamagnet(self, m):
+        self.megamagnet_timer = MEGAMAGNET_DURATION
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t = max(self.shake_t, 0.3)
+        audio.play_megamagnet()
+        self._pickup_burst(m, (BIRD_RED, (220, 30, 40), UI_CREAM, WHITE),
+                           n=42, speed_hi=380)
+        self.float_texts.append(FloatText(
+            "MEGAMAGNET!", m.x, m.y - 26, BIRD_RED,
+            size=32, life=1.4, vy=-32, style="powerup",
         ))
 
     def _activate_slowmo(self, m):

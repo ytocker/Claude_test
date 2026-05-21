@@ -42,6 +42,12 @@ POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
 TRIPLE_DURATION    = 8.0
 MAGNET_DURATION    = 8.0
 MAGNET_RADIUS      = 82.0
+# Megamagnet — the late-game upgrade form of `magnet`. Same duration,
+# 2x pull radius. Magnet is REPLACED by megamagnet at the score
+# threshold below — both never spawn simultaneously (see
+# POWERUP_REPLACED_AT + the spawn filter in World._maybe_spawn_powerup).
+MEGAMAGNET_DURATION = 8.0
+MEGAMAGNET_RADIUS   = MAGNET_RADIUS * 2.0   # = 164
 SLOWMO_DURATION    = 8.0
 SLOWMO_SCALE       = 0.7
 KFC_DURATION       = 8.0
@@ -83,16 +89,17 @@ LOTTERY_REVEAL_TIME = 1.0
 # re-roll pool — letting surprise bypass the gate would defeat the
 # purpose of the gate.
 POWERUP_WEIGHTS    = (
-    ("triple",   1),
-    ("slowmo",   1),
-    ("magnet",   1),
-    ("kfc",      1),
-    ("ghost",    1),
-    ("shrink",   1),
-    ("surprise", 1),
-    ("grow",     1),
-    ("rail",     1),
-    ("lottery",  1),
+    ("triple",     1),
+    ("slowmo",     1),
+    ("magnet",     1),
+    ("kfc",        1),
+    ("ghost",      1),
+    ("shrink",     1),
+    ("surprise",   1),
+    ("grow",       1),
+    ("rail",       1),
+    ("lottery",    1),
+    ("megamagnet", 1),
 )
 
 # Per-kind minimum score before a power-up enters the spawn roll.
@@ -100,9 +107,19 @@ POWERUP_WEIGHTS    = (
 # unrestricted (gate of 0). Lets late-game pickups stay rare for new
 # players while showing up reliably once the run has built momentum.
 POWERUP_SCORE_GATES = {
-    "rail":    100,
-    "grow":    200,
-    "lottery": 250,
+    "rail":       100,
+    "grow":       200,
+    "lottery":    250,
+    "megamagnet": 250,
+}
+
+# Per-kind score at which the kind is REMOVED from the spawn pool.
+# Used to implement upgrade-style swaps: when the run hits this
+# score, the listed kind stops spawning (presumably replaced by an
+# upgraded variant that gates IN at the same score). Filter applied
+# in World._maybe_spawn_powerup alongside POWERUP_SCORE_GATES.
+POWERUP_REPLACED_AT = {
+    "magnet": 250,   # at 250+, megamagnet (radius 2x) takes over
 }
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
