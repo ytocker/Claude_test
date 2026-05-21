@@ -599,21 +599,25 @@ class World:
         audio.play_backflip()
         self._spawn_trick_bubble("POP SHUVIT!")
 
-    # Trick bubbles share a fixed anchor zone RIGHT of the E3 score
-    # burst (which sits at (W/2, 150)); the right side stays clear of
-    # the pause button up at (W-50, 14..52). Each bubble lands at the
-    # anchor with a small random tilt + offset so multiple stacking
-    # bubbles read as collaged stickers, not perfectly-aligned blocks.
-    _TRICK_ANCHOR_X = W - 70
+    # Trick bubbles spawn at one of two anchor zones — RIGHT of the
+    # E3 score burst (default home of the original POW! badge) OR a
+    # mirror LEFT anchor below the coins pill. Each new bubble picks
+    # a side at random, so multi-trick stacks spread across both
+    # sides instead of piling onto one corner.
+    _TRICK_ANCHOR_X_RIGHT = W - 70
+    _TRICK_ANCHOR_X_LEFT = 70
     _TRICK_ANCHOR_Y = 165
 
     def _spawn_trick_bubble(self, label: str):
+        anchor_x = (self._TRICK_ANCHOR_X_LEFT
+                     if random.random() < 0.5
+                     else self._TRICK_ANCHOR_X_RIGHT)
         ox = random.randint(-10, 10)
         oy = random.randint(-10, 10)
         tilt = random.uniform(-18, 18)
         self.trick_bubbles.append(TrickBubble(
             label,
-            self._TRICK_ANCHOR_X + ox,
+            anchor_x + ox,
             self._TRICK_ANCHOR_Y + oy,
             tilt_deg=tilt,
         ))
