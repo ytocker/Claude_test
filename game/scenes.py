@@ -1138,8 +1138,14 @@ class App:
         # The force radius (MEGA_MAGNET_RADIUS_MULT = 5×) lives in
         # world.py and intentionally exceeds the visual.
         #
-        # Drawn directly onto self.screen (no intermediate SRCALPHA
-        # buffer).
+        # Painted to a per-frame SRCALPHA sub-surface then blit-ONCE to
+        # the screen — the polished V1 approach. Direct-to-screen
+        # drawing (introduced in commit e74339a to save the buffer
+        # alloc) accumulates alpha pixel-by-pixel as each of the 18
+        # glow circles + 3 ring passes hit the screen, baking the
+        # centre into a solid gold blob and losing the see-through
+        # ring outlines. With rad=1.5×, the buffer is ~250 KB —
+        # trivial on WASM.
         if self.world.magnet_timer > 0 or self.world.mega_magnet_timer > 0:
             from game.config import MAGNET_RADIUS
             import math as _math
@@ -1161,8 +1167,9 @@ class App:
                     (0.78, 0.6,  140, 2, 0.85, (255, 195,  60)),
                     (0.55, 1.2,  100, 2, 0.70, (235, 165,  35)),
                 )
-            cx_screen = int(self.world.bird.x) + sx
-            cy_screen = int(self.world.bird.y) + sy
+            field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
+                                    pygame.SRCALPHA)
+            lcx, lcy = rad + 4, rad + 4
 
             # Outer-ring pulse factor — drives BOTH the rings and the glow
             BREATH = 0.30
@@ -1172,18 +1179,19 @@ class App:
             glow_rad = rad * outer_factor
 
             # Inner radial glow — bell-curve falloff peaking near the
-            # outer edge, gold colour, scaled by the same pulse. Stays
-            # at the regular MAGNET radius in mega too — the outer
-            # rings ARE the mega's reach, the glow is the core ball.
+            # outer edge, gold colour, scaled by the same pulse.
+            # Alpha 40 matches the polished V1 calibration (was bumped
+            # to 72 in the direct-to-screen detour, causing the gold
+            # to look solid after 18 overlapping draws).
             GLOW_COL = (245, 175, 40)
             for i in range(18, 0, -1):
                 r = int(glow_rad * i / 18)
                 inner_t = i / 18
                 bell = _math.exp(-((inner_t - 0.85) ** 2) / 0.15)
-                a = int(72 * bell)
+                a = int(40 * bell)
                 if a > 0:
-                    pygame.draw.circle(self.screen, (*GLOW_COL, a),
-                                       (cx_screen, cy_screen), r)
+                    pygame.draw.circle(field, (*GLOW_COL, a),
+                                       (lcx, lcy), r)
 
             # Rings with per-ring gold tints, slightly out of phase.
             AA_COL = (255, 240, 180)
@@ -1193,12 +1201,16 @@ class App:
                 u = (s + 1) / 2
                 rr = int(rad * rfac * (1.0 - amp * (1.0 - u)))
                 # Anti-alias ring with two ⅓-alpha satellites + main pass
-                pygame.draw.circle(self.screen, (*AA_COL, alpha // 3),
-                                   (cx_screen, cy_screen), rr + 1, width)
-                pygame.draw.circle(self.screen, (*AA_COL, alpha // 3),
-                                   (cx_screen, cy_screen), rr - 1, width)
-                pygame.draw.circle(self.screen, (*ring_col, alpha),
-                                   (cx_screen, cy_screen), rr, width)
+                pygame.draw.circle(field, (*AA_COL, alpha // 3),
+                                   (lcx, lcy), rr + 1, width)
+                pygame.draw.circle(field, (*AA_COL, alpha // 3),
+                                   (lcx, lcy), rr - 1, width)
+                pygame.draw.circle(field, (*ring_col, alpha),
+                                   (lcx, lcy), rr, width)
+
+            self.screen.blit(field,
+                             (int(self.world.bird.x) + sx - lcx,
+                              int(self.world.bird.y) + sy - lcy))
 
         if self.world.hit_flash > 0:
             t = self.world.hit_flash / 0.35
