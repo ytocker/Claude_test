@@ -18,6 +18,45 @@ from game.config import BIRD_X, SCROLL_BASE
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
+
+# Pre-rendered MEGA MAGNET radial gradient texture. Computed ONCE on
+# first access (a per-pixel bell-curve fill — slow as a pure-Python
+# loop but only runs at startup) and then smoothscale'd per frame to
+# match the pulsing glow radius. Pre-rendering avoids the visible
+# banding that nested annuli produced and the centre-accumulation
+# that nested filled circles produced. The 200×200 source texture
+# scales up to ≤ ~320 px gracefully.
+_MEGA_GRADIENT_SURFACE = None
+_MEGA_GRADIENT_SIZE = 200
+
+
+def _get_mega_gradient_surface():
+    global _MEGA_GRADIENT_SURFACE
+    if _MEGA_GRADIENT_SURFACE is not None:
+        return _MEGA_GRADIENT_SURFACE
+    GLOW_COL = (245, 175, 40)
+    sz = _MEGA_GRADIENT_SIZE
+    surf = pygame.Surface((sz, sz), pygame.SRCALPHA)
+    cx = cy = sz / 2
+    max_r = sz / 2
+    for y in range(sz):
+        for x in range(sz):
+            dx = x - cx
+            dy = y - cy
+            d = math.sqrt(dx * dx + dy * dy)
+            if d > max_r:
+                continue
+            inner_t = d / max_r
+            # Bell curve peaks at inner_t = 1.0 so the brightest gold
+            # sits AT the outermost ring. Wide falloff (0.40) keeps a
+            # gentle tint flowing all the way to the centre.
+            bell = math.exp(-((inner_t - 1.0) ** 2) / 0.40)
+            a = int(160 * bell)
+            if a > 0:
+                surf.set_at((x, y), (*GLOW_COL, a))
+    _MEGA_GRADIENT_SURFACE = surf
+    return surf
+
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
 # overlay shuts itself off.
@@ -1226,28 +1265,30 @@ class App:
             s_outer = _math.sin(t_pulse + 0.0)
             u_outer = (s_outer + 1) / 2
             outer_factor = 1.0 - BREATH * (1.0 - u_outer)
-            # Glow extends to the OUTERMOST ring (rfac=1.30) so the
-            # two new outer halos get the same gold backing as the
-            # inner rings — no more transparent outlines.
-            glow_rad = rad * 1.30 * outer_factor
+            # Tie the gradient's outer edge to the OUTERMOST ring's
+            # exact pulsing radius (rfac=1.30, phase=-0.6, breath
+            # scale=0.62) so the gold gradient always reaches the
+            # outer ring's border — no gap where the ring sits
+            # outside the gradient at certain phase points.
+            outer_ring_amp = BREATH * 0.62
+            u_outer_ring = (_math.sin(t_pulse + (-0.6)) + 1) / 2
+            outer_ring_factor = (1.0 - outer_ring_amp
+                                  * (1.0 - u_outer_ring))
+            glow_rad = rad * 1.30 * outer_ring_factor
 
-            # MEGA-specific bell curve: peak shifted from 0.85 (regular)
-            # to 1.0 so the brightest gold sits AT the outermost ring
-            # ("the maximum should be at the outer circles" per the user)
-            # and a wider falloff (0.40 vs 0.15) keeps the gradient
-            # smoothly flowing across all 7 rings instead of dying
-            # halfway in. Alpha bumped from 72 → 100 so the outer
-            # halos read boldly even though their ring outlines stay
-            # the same width as the rest.
-            GLOW_COL = (245, 175, 40)
-            for i in range(28, 0, -1):
-                r = int(glow_rad * i / 28)
-                inner_t = i / 28
-                bell = _math.exp(-((inner_t - 1.0) ** 2) / 0.40)
-                a = int(100 * bell)
-                if a > 0:
-                    pygame.draw.circle(field, (*GLOW_COL, a),
-                                       (lcx, lcy), r)
+            # Pre-rendered radial gradient texture (see
+            # _get_mega_gradient_surface above for the bell-curve
+            # construction). Scaled to the current pulsing glow_rad
+            # and blitted ONCE — gives a perfectly smooth gradient
+            # without the banding from annuli or the centre-bias
+            # accumulation from nested filled circles.
+            grad_src = _get_mega_gradient_surface()
+            target = int(glow_rad * 2)
+            if target > 0:
+                scaled = pygame.transform.smoothscale(
+                    grad_src, (target, target))
+                field.blit(scaled,
+                            (lcx - target // 2, lcy - target // 2))
 
             AA_COL = (255, 240, 180)
             for rfac, phase, alpha, width, breath_scale, ring_col in (
