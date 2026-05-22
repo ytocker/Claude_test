@@ -1022,57 +1022,47 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
-        # X-Ray Sparks AURA — outline-glow that follows Pip's actual
-        # silhouette, NOT a circle. Builds a mask from the current
-        # sprite's alpha channel and paints a tinted copy of that
-        # silhouette at 8 offset positions per layer, so the result
-        # reads as a coloured rim glow hugging his body, wings,
-        # tail, beak. Three layers in the lightning palette
-        # (outer purple plasma → mid purple → cyan halo) with
-        # progressively smaller dilation so the rim fades from
-        # cyan-close to purple-far. Pulse-modulated alpha at ~5 Hz.
-        # Drawn BEFORE the bird sprite so the sprite covers the
-        # in-silhouette areas, leaving only the offset rings visible
-        # as a halo. We need `r` (the sprite's destination rect)
-        # which is computed below — compute it here first so the
-        # aura uses the same anchor.
+        # X-Ray Sparks rim glow — a TIGHT coloured trim drawn
+        # directly on Pip's silhouette edge using the boundary
+        # points from pygame.mask.from_surface(img).outline().
+        # No dilation, no offset blits, no halo rings — just a
+        # multi-stroke polyline centred on the silhouette contour
+        # so only ~half of each stroke shows outside Pip's body
+        # (the inner half is covered when his sprite blits on
+        # top). 3 stacked widths give a coloured gradient rim:
+        # outer purple → cyan → bright white core. Pulse-modulated
+        # alpha at ~5 Hz for the electric breathing. Drawn BEFORE
+        # the bird sprite so the inner half of each stroke is
+        # cleanly hidden by the blit.
         rect_pre = img.get_rect(center=(cx_int, cy_int))
         if self.skeleton_flash_t > 0.0:
             pulse = 0.5 + 0.5 * math.sin(self.frame_t * 30.0)
             try:
                 sil_mask = pygame.mask.from_surface(img, threshold=20)
-                aura_layers = (
-                    ((130,  80, 220),  60, 5),  # outer purple plasma
-                    ((180, 100, 255),  95, 3),  # mid purple glow
-                    ((140, 220, 255), 130, 2),  # cyan halo
-                )
-                base_x, base_y = rect_pre.topleft
-                for col, a_base, dil in aura_layers:
-                    tinted = sil_mask.to_surface(
-                        setcolor=(*col, 255),
-                        unsetcolor=(0, 0, 0, 0),
-                    )
-                    a_pulsed = int(a_base * (0.65 + 0.35 * pulse))
-                    tinted.set_alpha(max(0, min(255, a_pulsed)))
-                    # 8-direction offset dilation
-                    for dx, dy in (
-                        (-dil,  0), (dil,  0), (0, -dil), (0,  dil),
-                        (-dil, -dil), (dil, -dil), (-dil, dil), (dil, dil),
+                outline_pts = sil_mask.outline(every=1)
+                if len(outline_pts) >= 2:
+                    base_x, base_y = rect_pre.topleft
+                    # Render strokes into a scratch SRCALPHA surface
+                    # sized to the sprite so we can apply a single
+                    # pulse alpha across the whole rim coherently.
+                    glow = pygame.Surface(img.get_size(),
+                                          pygame.SRCALPHA)
+                    # Closed polyline along the silhouette contour
+                    for width, col in (
+                        (5, (180, 100, 255)),  # outer purple glow
+                        (3, (140, 220, 255)),  # cyan mid
+                        (1, (255, 255, 255)),  # bright white core
                     ):
-                        surf.blit(tinted, (base_x + dx, base_y + dy))
+                        pygame.draw.lines(glow, col, True,
+                                          outline_pts, width)
+                    a_pulsed = int(220 * (0.6 + 0.4 * pulse))
+                    glow.set_alpha(max(0, min(255, a_pulsed)))
+                    surf.blit(glow, (base_x, base_y))
             except (pygame.error, AttributeError):
-                # Some pygame builds (notably older WASM) may not
-                # expose mask.from_surface; fall back to a soft
-                # circular glow so the aura still reads.
-                aura = pygame.Surface((100, 100), pygame.SRCALPHA)
-                for r_n, col, a_base in (
-                        (46, (130,  80, 220),  55),
-                        (37, (180, 100, 255),  90),
-                        (29, (140, 220, 255), 130),
-                ):
-                    ap = int(a_base * (0.65 + 0.35 * pulse))
-                    pygame.draw.circle(aura, (*col, ap), (50, 50), r_n)
-                surf.blit(aura, (cx_int - 50, cy_int - 50))
+                # Older pygame builds without mask.outline — skip
+                # the aura rather than fall back to circles (which
+                # is exactly the look we're moving AWAY from).
+                pass
         # Biome ambient-light: vertical-gradient multiply onto Pip's
         # sprite so the top edge catches more light and the underside
         # falls into shadow. Falls back to a uniform tint if only the
