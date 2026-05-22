@@ -236,12 +236,12 @@ def palette_for_time(elapsed_seconds: float) -> dict:
 _LIGHT_GRADIENT_KEYFRAMES = [
     # (phase,    top,   bot)
     (0.00000, (1.00,  1.00)),   # DAY — uniform full bright
-    (0.23125, (0.96,  0.88)),   # GOLDEN HOUR — slight underside shadow
-    (0.36250, (0.85,  0.65)),   # SUNSET — clearly directional
-    (0.51250, (0.70,  0.50)),   # DUSK — strong shadow
-    (0.64375, (0.60,  0.40)),   # NIGHT — peak gradient, floor=0.40
-    (0.79375, (0.65,  0.50)),   # PREDAWN — light returning, less contrast
-    (0.90625, (0.90,  0.80)),   # SUNRISE — almost back to flat
+    (0.23125, (0.99,  0.92)),   # GOLDEN HOUR — barely dimmed, hint of underside
+    (0.36250, (0.97,  0.78)),   # SUNSET — top stays bright, underside dims
+    (0.51250, (0.92,  0.68)),   # DUSK — clear directional, still bright
+    (0.64375, (0.88,  0.60)),   # NIGHT — moonlit top, underside in shadow
+    (0.79375, (0.92,  0.70)),   # PREDAWN — light returning, mirrors DUSK
+    (0.90625, (0.98,  0.85)),   # SUNRISE — almost flat again
     (1.00000, (1.00,  1.00)),   # wraps to DAY
 ]
 
