@@ -201,28 +201,59 @@ def _baggy_thigh(big, cx, side, hip_w=20, top_y=248,
 
 
 def _full_shin(big, cx, side, knee_x, knee_y, foot_x, foot_y,
-               width=20):
-    """Beefier shin polygon — wider and with a knee-meets-shin
-    bulge so it doesn't look like a stick."""
-    # knee end (wider)
-    knee_in = (knee_x - side * s(width // 2), knee_y - s(2))
-    knee_out = (knee_x + side * s(width // 2), knee_y + s(width // 2))
-    # foot end (narrower)
-    foot_in = (foot_x - side * s(width // 2 - 2), foot_y - s(width // 2))
-    foot_out = (foot_x + side * s(width // 2 - 2), foot_y + s(2))
-    pts = [knee_in, knee_out, foot_out, foot_in]
-    _pant_polygon(big, pts)
-    # Pleat down the shin
-    pygame.draw.line(big, P["PANT_LO"],
-                     ((knee_in[0] + knee_out[0]) // 2,
-                      (knee_in[1] + knee_out[1]) // 2),
-                     ((foot_in[0] + foot_out[0]) // 2,
-                      (foot_in[1] + foot_out[1]) // 2),
-                     max(2, s(1)))
-    # Outer flank highlight
+               knee_width=44, mid_width=40, ankle_width=22):
+    """BAGGY shin polygon — bulges out near the knee + mid-shin so the
+    lower leg reads as harem-pant fabric rather than a stick, then
+    tapers to a cinched ankle. Six anchor points along each side."""
+    # Direction vector along the shin (knee → foot)
+    dx, dy = foot_x - knee_x, foot_y - knee_y
+    length = max(1.0, math.hypot(dx, dy))
+    # Perpendicular unit vector
+    px, py = -dy / length, dx / length
+
+    # 4 sample points along the shin centreline.
+    def along(t):
+        return (knee_x + dx * t, knee_y + dy * t)
+    pts_centre = [along(0.0), along(0.35), along(0.7), along(1.0)]
+    widths = [s(knee_width), s(mid_width), s(mid_width - 6), s(ankle_width)]
+
+    # Outer side (away from body)
+    outer = [(c[0] + px * w / 2, c[1] + py * w / 2)
+             for c, w in zip(pts_centre, widths)]
+    # Inner side
+    inner = [(c[0] - px * w / 2, c[1] - py * w / 2)
+             for c, w in zip(pts_centre, widths)]
+    pts = outer + list(reversed(inner))
+    _pant_polygon(big, [(int(x), int(y)) for x, y in pts])
+
+    # Knee bulge — extra darker ellipse at the knee end for volume
+    kb = pygame.Surface((s(knee_width + 4), s(knee_width // 2 + 4)),
+                        pygame.SRCALPHA)
+    pygame.draw.ellipse(kb, (*P["PANT_LO"], 200),
+                        (0, 0, s(knee_width + 4), s(knee_width // 2 + 4)))
+    angle_deg = math.degrees(math.atan2(dy, dx)) - 90
+    kb_rot = pygame.transform.rotate(kb, angle_deg)
+    rect = kb_rot.get_rect(center=(int(knee_x), int(knee_y)))
+    big.blit(kb_rot, rect.topleft)
+
+    # Pleat ripples down the shin (3 lines parallel to centreline)
+    for off in (-s(8), 0, s(8)):
+        p_start = (along(0.15)[0] + px * off, along(0.15)[1] + py * off)
+        p_end   = (along(0.85)[0] + px * off * 0.5,
+                   along(0.85)[1] + py * off * 0.5)
+        pygame.draw.line(big, P["PANT_LO"],
+                         (int(p_start[0]), int(p_start[1])),
+                         (int(p_end[0]), int(p_end[1])),
+                         max(2, s(1)))
+
+    # Outer-flank gloss highlight
     pygame.draw.line(big, P["PANT_HI"],
-                     (knee_in[0], knee_in[1] + s(2)),
-                     (foot_in[0], foot_in[1] + s(2)),
+                     (int(outer[0][0]), int(outer[0][1])),
+                     (int(outer[2][0]), int(outer[2][1])),
+                     s(3))
+    pygame.draw.line(big, P["PANT_HI"],
+                     (int(outer[2][0]), int(outer[2][1])),
+                     (int(outer[3][0]), int(outer[3][1])),
                      s(2))
 
 
@@ -292,29 +323,35 @@ def _full_lotus_pose(big, cx, hip_w=20, widest_w=60, knee_w=44,
                                  max(1, s(1)))
 
     # ── SHINS (lotus — feet curve UP on top of opposite thigh) ──────
-    # RIGHT shin runs from right knee up + inward, foot lands on top
-    # of LEFT thigh.
+    # Steeper angle now so the shin reads as bent UP, not horizontal.
+    # RIGHT shin: from right knee outer-down to ankle resting on LEFT
+    # thigh outer-upper. Wider and tapered.
     _full_shin(big, cx, side=+1,
-               knee_x=cx + s(widest_w - 4), knee_y=widest_y + s(2),
-               foot_x=cx - s(knee_w // 2 - 2), foot_y=foot_y + s(4),
-               width=22)
-    # LEFT shin mirrored — foot on right thigh
+               knee_x=cx + s(widest_w - 4), knee_y=widest_y + s(8),
+               foot_x=cx - s(widest_w - 20), foot_y=foot_y + s(2),
+               knee_width=46, mid_width=40, ankle_width=24)
+    # LEFT shin mirrored
     _full_shin(big, cx, side=-1,
-               knee_x=cx - s(widest_w - 4), knee_y=widest_y + s(2),
-               foot_x=cx + s(knee_w // 2 - 2), foot_y=foot_y + s(4),
-               width=22)
+               knee_x=cx - s(widest_w - 4), knee_y=widest_y + s(8),
+               foot_x=cx + s(widest_w - 20), foot_y=foot_y + s(2),
+               knee_width=46, mid_width=40, ankle_width=24)
 
-    # ── Slippers ON TOP of opposite thighs ──────────────────────────
-    # Right foot on left thigh
-    _slipper(big, cx - s(knee_w // 2 + 8), foot_y - s(2),
-             angle_deg=12, mirror=True, scale=slipper_scale)
-    _gold_ankle_cuff(big, cx - s(knee_w // 2 - 2), foot_y,
-                     angle_deg=18, w_native=22)
-    # Left foot on right thigh
-    _slipper(big, cx + s(knee_w // 2 + 8), foot_y - s(2),
-             angle_deg=-12, scale=slipper_scale)
-    _gold_ankle_cuff(big, cx + s(knee_w // 2 - 2), foot_y,
-                     angle_deg=-18, w_native=22)
+    # ── Slippers + ankle cuffs ON TOP of opposite thighs ───────────
+    # Pushed further out so they sit on the thigh bulge, not over
+    # the central sash buckle. Bigger scale so they balance the
+    # fuller pants.
+    big_sl_scale = slipper_scale * 1.15
+    big_cuff_w   = 26
+    # Right foot on left thigh outer
+    _slipper(big, cx - s(widest_w - 22), foot_y - s(2),
+             angle_deg=12, mirror=True, scale=big_sl_scale)
+    _gold_ankle_cuff(big, cx - s(widest_w - 12), foot_y + s(2),
+                     angle_deg=22, w_native=big_cuff_w)
+    # Left foot on right thigh outer
+    _slipper(big, cx + s(widest_w - 22), foot_y - s(2),
+             angle_deg=-12, scale=big_sl_scale)
+    _gold_ankle_cuff(big, cx + s(widest_w - 12), foot_y + s(2),
+                     angle_deg=-22, w_native=big_cuff_w)
 
     # ── Optional gold trim along the knee bulge ─────────────────────
     if gold_trim:
