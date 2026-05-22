@@ -2199,7 +2199,12 @@ class World:
         # (see GenieCharacter in game/entities.py). The lamp's own
         # pickup-site burst / float text / audio still fire below.
         from game.entities import GenieCharacter
-        gx = self.bird.x + GENIE_OFFER_X_START + GENIE_OFFER_X_STEP
+        # Genie spawns far enough ahead that even after ~1.6 s of
+        # world-scroll the first cast offer (spawned at -X_STEP from
+        # genie at t=0.65 s) still sits clearly to the right of Pip
+        # when the last cast fires. Empirically: scroll ≈ 160 px/s
+        # × 0.8 s + X_STEP = ~190 px lead.
+        gx = self.bird.x + GENIE_OFFER_X_START + GENIE_OFFER_X_STEP * 3
         gy = 130
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(
