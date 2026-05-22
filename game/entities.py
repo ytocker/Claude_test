@@ -3668,18 +3668,24 @@ class GenieCharacter:
         for sxc in (-s(12), s(12)):
             pygame.draw.circle(big, HAIR,
                                (cx + sxc, head_cy + s(8)), s(2))
-        # Friendly grin mouth — pink interior + soft tooth band
+        # Mouth — original A1 (v5) style: trapezoidal dark interior +
+        # large white teeth polygon (NO vertical bar separators — those
+        # were the v6 "creepy" bit) + tiny ruby tongue dot.
         mt_y = head_cy + s(11)
-        pygame.draw.ellipse(big, (135, 50, 65),
-                            (cx - s(8), mt_y - s(2), s(16), s(8)))
-        pygame.draw.ellipse(big, (160, 60, 80),
-                            (cx - s(7), mt_y - s(1), s(14), s(7)))
-        # Single rounded tooth band
-        pygame.draw.ellipse(big, WHITE,
-                            (cx - s(6), mt_y + s(1), s(12), s(3)))
-        # Lower lip
-        pygame.draw.ellipse(big, (190, 85, 100),
-                            (cx - s(7), mt_y + s(6), s(14), s(3)))
+        # Dark interior trapezoid (mouth opening)
+        pygame.draw.polygon(big, HAIR,
+                            [(cx - s(8), mt_y),
+                             (cx + s(8), mt_y),
+                             (cx + s(6), mt_y + s(7)),
+                             (cx - s(6), mt_y + s(7))])
+        # White teeth — single trapezoid, no separator bars
+        pygame.draw.polygon(big, WHITE,
+                            [(cx - s(7), mt_y + s(1)),
+                             (cx + s(7), mt_y + s(1)),
+                             (cx + s(5), mt_y + s(5)),
+                             (cx - s(5), mt_y + s(5))])
+        # Tongue dot at the bottom centre of the smile (ruby)
+        pygame.draw.circle(big, RUBY, (cx, mt_y + s(6)), max(1, s(1)))
         # Goatee
         pygame.draw.polygon(big, HAIR,
                             [(cx - s(4), mt_y + s(8)),
