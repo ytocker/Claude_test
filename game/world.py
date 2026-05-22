@@ -1979,6 +1979,25 @@ class World:
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
+    def _spawn_genie_reveal_poof(self, x, y):
+        """Tiny magical poof at each Genie-offer reveal site. Smaller +
+        gentler than _spawn_poof, tinted lavender/cream to read as a
+        wisp of lamp-smoke rather than a transformation cloud."""
+        puff_colors = [
+            (245, 235, 255), (230, 220, 250),
+            (215, 200, 240), (250, 235, 200),
+        ]
+        for _ in range(8):
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(25, 70)
+            vx    = math.cos(angle) * speed
+            vy    = math.sin(angle) * speed - random.uniform(8, 24)
+            life  = random.uniform(0.28, 0.42)
+            r0    = random.randint(3, 6)
+            r1    = random.randint(8, 14)
+            color = random.choice(puff_colors)
+            self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
+
     def _activate_reverse(self, m):
         self.reverse_timer = REVERSE_DURATION
         # Zero vy so the flip feels snappy instead of inheriting downward speed.
@@ -2166,6 +2185,9 @@ class World:
             offer = PowerUp(ox, oy, kind=kind)
             offer.is_genie_offer = True
             self.powerups.append(offer)
+            # Reveal each offer with a small magical poof so it reads
+            # as conjured by the lamp, not pre-existing.
+            self._spawn_genie_reveal_poof(ox, oy)
         # Smoke + brass burst at pickup site.
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t, 0.2)
