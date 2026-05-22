@@ -41,13 +41,15 @@ os.makedirs(OUT_DIR, exist_ok=True)
 #   320 × 0.28 ≈  90 × 129 px on screen  (~25% of W)
 #   320 × 0.32 = 102 × 147 px on screen  (~28% of W)  ← current
 POSITION_OPTIONS = [
-    # (label,                       gx,  gy,  scale)
-    ("1: top-LEFT corner, small",    70,  78, 0.22),
-    ("2: top-RIGHT corner, small",  300,  78, 0.22),
-    ("3: below score, central, sm", 180, 170, 0.22),
-    ("4: mid-LEFT, near parrot",     90, 230, 0.24),
-    ("5: mid-RIGHT, opposite",      290, 230, 0.24),
-    ("6: top-RIGHT, slightly big",  290, 100, 0.28),
+    # (label,                            gx,  gy,  scale)
+    # v2 — bigger genie (0.30-0.36), positions that still clear the
+    # score pill (centre x ≈ 180, spans y=64-120).
+    ("1: below score, centred, M",       180, 220, 0.30),
+    ("2: below score, centred, BIG",     180, 215, 0.34),
+    ("3: top-RIGHT corner, level w/ sc", 290, 110, 0.32),
+    ("4: below score, slight LEFT",      130, 220, 0.32),
+    ("5: alongside parrot, R side",      230, 270, 0.32),
+    ("6: below score, very BIG",         180, 240, 0.36),
 ]
 
 
@@ -157,13 +159,15 @@ def main():
         sheet.blit(small,
                    (margin + col * (sw + margin),
                     margin + row * (sh + margin)))
-    out = os.path.join(OUT_DIR, "positions_v1.png")
+    import sys
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v1"
+    out = os.path.join(OUT_DIR, f"positions_{tag}.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
     # Also save each option full-size
     for opt, fr in zip(POSITION_OPTIONS, frames):
         idx = POSITION_OPTIONS.index(opt) + 1
-        path = os.path.join(OUT_DIR, f"position_{idx}_v1.png")
+        path = os.path.join(OUT_DIR, f"position_{idx}_{tag}.png")
         pygame.image.save(fr, path)
 
 
