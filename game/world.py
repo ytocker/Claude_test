@@ -1663,9 +1663,11 @@ class World:
             self.weather.flash_remaining, 0.14)
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t = max(self.shake_t, 0.20)
-        # Soft thunder, lower volume than the real strike.
+        # Distant thunder for the bg bolts — quieter than the real
+        # strike + slight per-bolt volume variation so successive
+        # claps feel naturalistic rather than copy-pasted.
         try:
-            audio.play_thunder()
+            audio.play_thunder(volume=random.uniform(0.35, 0.55))
         except Exception:
             pass
 
@@ -1790,10 +1792,16 @@ class World:
             size=30, life=1.6, vy=-26, style="powerup",
         ))
 
-        # ── Audio: thunder + poof for the impact gust.
+        # ── Audio: layered impact stack so the strike is clearly
+        # the loudest event in the storm. Thunder cranked to 0.98
+        # (vs the 0.35-0.55 distant-bg claps), poof for the impact
+        # gust, and the magnet chime layered low as an "electric
+        # crackle" tail so the listener hears the discharge, not
+        # just the rumble.
         try:
-            audio.play_thunder()
+            audio.play_thunder(volume=0.98)
             audio.play_poof()
+            audio.play_magnet(volume=0.55)
         except Exception:
             pass
 
