@@ -630,6 +630,23 @@ _TELEMETRY_JS = """
     var a = "__SB_URL__";
     var b = "__SB_KEY__";
 
+    // Branch-level no-submit guard. The /v5_powerups/ deploy is a
+    // test environment (fake starting score + coin count, etc.);
+    // writing its runs to the public `plays` / `scores` tables
+    // would pollute real data. Detect the path NOW (top of IIFE)
+    // and short-circuit doLog + doSubmit below.
+    var _isTestBranch = (function () {
+        try {
+            return /\/v5_powerups\//.test(window.location.pathname);
+        } catch (e) { return false; }
+    })();
+    try {
+        if (_isTestBranch) {
+            console.log('[skybit/lb] v5_powerups test branch — '
+                + 'leaderboard + telemetry POSTs disabled');
+        }
+    } catch (_) {}
+
     /* Surface build-time substitution result early so silently-empty
        leaderboard deploys are debuggable from DevTools. */
     try {
@@ -739,6 +756,9 @@ _TELEMETRY_JS = """
 
     async function doSubmit(rawPayload) {
         rSubmit = null;
+        // v5_powerups is a test deploy — pretend success without
+        // actually writing to the public scores table.
+        if (_isTestBranch) { rSubmit = true; return; }
         try {
             if (!a || !b) { rSubmit = false; return; }
             var payload;
@@ -839,6 +859,7 @@ _TELEMETRY_JS = """
 
     async function doLog(rawPayload) {
         rLog = null;
+        if (_isTestBranch) { rLog = false; return; }
         try {
             if (!a || !b) { rLog = false; return; }
             var payload;
