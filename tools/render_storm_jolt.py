@@ -69,6 +69,9 @@ def render_world(world, target):
         t.draw(target)
     # Weather render on top of everything so rain streaks read.
     world.weather.draw(target)
+    # Lightning bolt — drawn last so the bright core sits over weather.
+    from game.scenes import _draw_lightning_bolt
+    _draw_lightning_bolt(target, world.lightning_strike)
 
 
 def setup_storm_world():
@@ -143,48 +146,67 @@ def main():
     frames.append(save_frame(surf, "01_pre_jolt.png",
                              "1: storm — Pip shivering"))
 
-    # Frame 2: Fire the jolt at t=0. Coins spawn at Pip's belly with
-    # outward velocities; -50! text appears.
+    # Frame 2: LIGHTNING strikes. Advance ~6 frames so the full-screen
+    # flash has dropped to ~30% (Pip stays readable) but the bolt is
+    # still mid-life (0.18 - 6*1/60 = 0.08s) and the coin scatter has
+    # had a beat to spread.
     w._fire_storm_jolt()
-    # One physics tick so velocities propagate a tiny bit (otherwise
-    # all 20 coins overlap and read as one blob).
-    for p in w.particles:
-        p.update(0.04)
-    for t in w.float_texts:
-        t.update(0.04)
+    for _ in range(6):
+        for p in w.particles:
+            p.update(1 / 60)
+        for t in w.float_texts:
+            t.update(1 / 60)
+        # Decay flash and bolt in lockstep — same path World.update uses.
+        w.weather.flash_remaining = max(0.0, w.weather.flash_remaining - 1 / 60)
+        if w.lightning_strike is not None:
+            w.lightning_strike["life"] -= 1 / 60
+            if w.lightning_strike["life"] <= 0:
+                w.lightning_strike = None
     render_world(w, surf)
     frames.append(save_frame(surf, "02_fire.png",
-                             "2: jolt — coins exploding"))
+                             "2: LIGHTNING strikes Pip — ZAP!"))
 
     # Frame 3: ~0.25 s in — radial spread peaks.
-    for _ in range(12):
-        for p in w.particles:
-            p.update(1 / 60)
-        for t in w.float_texts:
-            t.update(1 / 60)
+    def tick_world(steps):
+        """Advance just enough state for the screenshot — particles,
+        float texts, flash + bolt decay, and scorch wisp spawns from
+        Pip. We don't run World.update() because that would also tick
+        physics and clear our staged conditions."""
+        for _ in range(steps):
+            for p in w.particles:
+                p.update(1 / 60)
+            for t in w.float_texts:
+                t.update(1 / 60)
+            w.particles = [p for p in w.particles if p.alive()]
+            w.weather.flash_remaining = max(0.0,
+                w.weather.flash_remaining - 1 / 60)
+            if w.lightning_strike is not None:
+                w.lightning_strike["life"] -= 1 / 60
+                if w.lightning_strike["life"] <= 0:
+                    w.lightning_strike = None
+            # Scorch wisps off Pip while the scorch state is live.
+            if w._lightning_scorch_t > 0:
+                w._lightning_scorch_t = max(0.0,
+                    w._lightning_scorch_t - 1 / 60)
+                w._scorch_smoke_accum += 1 / 60
+                while w._scorch_smoke_accum >= 0.025:
+                    w._scorch_smoke_accum -= 0.025
+                    w._spawn_scorch_wisp()
+
+    tick_world(12)
     render_world(w, surf)
     frames.append(save_frame(surf, "03_spread.png",
-                             "3: spread — coins fly outward"))
+                             "3: spread — coins fly, sparks crackle"))
 
-    # Frame 4: ~0.55 s in — coins arc out under gravity; text still showing.
-    for _ in range(18):
-        for p in w.particles:
-            p.update(1 / 60)
-        for t in w.float_texts:
-            t.update(1 / 60)
+    # Frame 4: ~0.55 s in — coins arcing; scorch smoke wisps off Pip.
+    tick_world(18)
     render_world(w, surf)
     frames.append(save_frame(surf, "04_settle.png",
-                             "4: settle — coins arcing away"))
+                             "4: settle — scorch smoke off Pip"))
 
-    # Frame 5: ~1.1 s in — particles mostly gone, score reads -50.
-    for _ in range(30):
-        for p in w.particles:
-            p.update(1 / 60)
-        for t in w.float_texts:
-            t.update(1 / 60)
-        # cull dead so the frame is clean
-        w.particles = [p for p in w.particles if p.alive()]
-        w.float_texts = [t for t in w.float_texts if t.alive()]
+    # Frame 5: ~1.1 s in — coins faded, lingering smoke.
+    tick_world(30)
+    w.float_texts = [t for t in w.float_texts if t.alive()]
     render_world(w, surf)
     frames.append(save_frame(surf, "05_after.png",
                              "5: after — score down by 50"))

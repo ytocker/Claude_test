@@ -113,6 +113,41 @@ def _draw_treasure_box_on_bird(surf, world):
     draw_chest_at(surf, chest_cx, chest_cy)
 
 
+# ── Lightning bolt (storm-jolt visual) ─────────────────────────────────────
+
+def _draw_lightning_bolt(surf, strike):
+    """Paint the lightning bolt that strikes Pip during a storm jolt.
+    Three concentric layers — outer purple glow, cyan halo, white core
+    — drawn along the polyline in `strike["path"]`. Alpha scales with
+    remaining `life / life_max` so the bolt fades out cleanly."""
+    if strike is None or strike.get("life", 0) <= 0:
+        return
+    path = strike.get("path") or []
+    if len(path) < 2:
+        return
+    life = strike["life"]
+    life_max = strike["life_max"]
+    t = max(0.0, min(1.0, life / life_max))   # 1 = fresh, 0 = gone
+    # Three layers, drawn back-to-front so the bright core sits on top.
+    layers = (
+        ((180, 100, 255), int(140 * t), 8),  # outer purple glow
+        ((140, 220, 255), int(220 * t), 4),  # cyan halo
+        ((255, 255, 255), int(255 * t), 2),  # white core
+    )
+    sw, sh = surf.get_size()
+    for col, alpha, width in layers:
+        if alpha <= 0 or width <= 0:
+            continue
+        layer = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        pts = [(int(x), int(y)) for (x, y) in path]
+        pygame.draw.lines(layer, (*col, alpha), False, pts, width)
+        # Endcap circles smooth the sharp polyline corners.
+        for px, py in pts:
+            pygame.draw.circle(layer, (*col, alpha), (px, py),
+                               max(1, width // 2))
+        surf.blit(layer, (0, 0))
+
+
 # LOTTERY reveal lives in game/lottery_slot.py — see draw_reveal. The
 # old in-place tile-roll over the bird was replaced with a polished
 # top-left slot-machine cabinet (~118x86 px) so the animation sits in
@@ -849,6 +884,11 @@ class App:
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)
+
+        # Lightning bolt — drawn ABOVE weather so it sits on top of rain
+        # streaks but BELOW the bird, so Pip himself stays on top of the
+        # impact. Decays out via lightning_strike["life"] in World.update.
+        _draw_lightning_bolt(self.screen, self.world.lightning_strike)
 
         triple_active = self.world.triple_timer > 0
         for c in self.world.coins:

@@ -222,11 +222,19 @@ class World:
         self._proof = ProofState()
 
         self.weather = Weather()
-        # Storm jolt: at peak rain a sudden gust shakes Pip and tears
-        # ~50 coins off his belly in a 360° spread. Random fire window
-        # while at peak; long lockout after firing so the gag doesn't
-        # spam in a single storm.
+        # Storm jolt: at peak rain LIGHTNING STRIKES Pip — bolt cracks
+        # down from the cloud line, world flashes, ~50 coins blast off
+        # in a 360° spread. Random fire window while at peak; long
+        # lockout after firing so the gag doesn't spam in a single storm.
         self._storm_jolt_lockout = 0.0
+        # Active lightning bolt visual state. None when no strike is
+        # in flight; otherwise a dict {path, life, life_max} that the
+        # scene renderer reads to paint the bolt.
+        self.lightning_strike = None
+        # Seconds left of the "scorched" sub-state where dark smoke
+        # wisps off Pip's body to sell the after-effect of the strike.
+        self._lightning_scorch_t = 0.0
+        self._scorch_smoke_accum = 0.0
         self.ambient = AmbientScenes()
 
         # "Get ready" freeze at the start of a round: physics paused until
@@ -829,6 +837,20 @@ class World:
                 self.powerup_cooldown -= dt
             if self.hit_flash > 0:
                 self.hit_flash = max(0.0, self.hit_flash - dt)
+            # Lightning bolt: decay the visual life; expire when life hits 0.
+            if self.lightning_strike is not None:
+                self.lightning_strike["life"] -= dt
+                if self.lightning_strike["life"] <= 0:
+                    self.lightning_strike = None
+            # Scorch state: emit dark smoke wisps off Pip's silhouette
+            # for the duration. Decays so the after-effect fades out.
+            if self._lightning_scorch_t > 0:
+                self._lightning_scorch_t = max(0.0, self._lightning_scorch_t - dt)
+                self._scorch_smoke_accum += dt
+                # ~40 wisps/s while the scorch is fresh.
+                while self._scorch_smoke_accum >= 0.025:
+                    self._scorch_smoke_accum -= 0.025
+                    self._spawn_scorch_wisp()
         else:
             # freeze world but let particles + float texts drift
             pass
@@ -1487,47 +1509,141 @@ class World:
             self._fire_storm_jolt()
 
     def _fire_storm_jolt(self):
-        """Sudden storm gust shakes Pip and rips up to 50 coins off his
-        belly in a 360° spread. Visual: TreasureCoinParticles flung
-        outward (radial-symmetric vy/vx so they fly off in every
-        direction, not just up). The score and coin_count drop by the
-        same amount; ProofState logs a negative `weather_jolt` event so
-        the ledger stays consistent."""
+        """LIGHTNING STRIKES PIP. A brilliant white-blue bolt cracks
+        down from the cloud line to Pip's head; the screen flashes;
+        the world shakes hard; up to 50 coins are blasted off in a
+        360° spread; cyan electric sparks crackle around the impact;
+        Pip enters a short 'scorched' sub-state where dark smoke
+        wisps off his body. Plausibility ledger logs the loss as a
+        negative weather_jolt event."""
         lost = min(50, self.coin_count)
         if lost <= 0:
             return
         self.score = max(0, self.score - lost)
         self.coin_count -= lost
         self._proof.record(self.time_alive, -lost, "weather_jolt")
-        # Strong, brief shake — louder than the lightning-flash kick.
-        self.shake_mag = max(self.shake_mag, 6.0)
-        self.shake_t = max(self.shake_t, 0.45)
-        # Lockout so a single storm doesn't fire repeatedly.
+
+        # ── Lightning bolt path: jagged polyline from a cloud above
+        # Pip down to a point just above his head, with horizontal
+        # jitter at each waypoint so no two strikes look the same.
+        bx, by = self.bird.x, self.bird.y
+        # Bolt terminates ON Pip's body (slightly past his crown) so the
+        # impact reads as "the strike is hitting him", not "the strike
+        # is hovering above him". Final waypoint at by - 2 places the
+        # bright tip squarely inside his upper body silhouette.
+        target_y = by - 2
+        # Bolt origin: somewhere along the cloud line, slightly off
+        # to either side of Pip so the trace reads diagonal not vertical.
+        origin_x = bx + random.uniform(-50, 50)
+        path = [(origin_x, 0.0)]
+        segs = 12
+        for i in range(1, segs):
+            t = i / segs
+            # Lerp x toward Pip, plus jitter that tightens near the
+            # impact point so the bolt converges cleanly.
+            jx = random.uniform(-28, 28) * (1.0 - t * 0.7)
+            cx = origin_x * (1 - t) + bx * t + jx
+            cy = target_y * t
+            path.append((cx, cy))
+        path.append((bx, target_y))
+
+        self.lightning_strike = {
+            "path": path,
+            "life": 0.18,
+            "life_max": 0.18,
+        }
+        # Force a bright full-screen white pulse so the strike reads.
+        self.weather.flash_remaining = max(
+            self.weather.flash_remaining, 0.22)
+        # Stronger, longer shake than a regular jolt.
+        self.shake_mag = max(self.shake_mag, 9.0)
+        self.shake_t = max(self.shake_t, 0.55)
+        # Lockout — one strike per ~25s of peak storm.
         self._storm_jolt_lockout = 25.0
-        # Scatter — full-detail Coin medallions fly outward from Pip's
-        # belly in a 360° spread. Using FlyingCoinParticle (not the
-        # smaller TreasureCoinParticle) so the scattering pieces read
-        # as the actual currency Pip just lost.
-        bx, by = self.bird.x, self.bird.y + 8
+        # Scorch sub-state — smoke wisps off Pip for the next 0.7s.
+        self._lightning_scorch_t = 0.7
+        self._scorch_smoke_accum = 0.0
+
+        # ── Coin blast: faster spread than the previous gust version
+        # so the lightning impulse reads as the cause.
+        scatter_bx, scatter_by = self.bird.x, self.bird.y + 4
         n = min(lost, 20)
         for i in range(n):
             ang = (i / n) * math.tau + random.uniform(-0.15, 0.15)
-            speed = random.uniform(160.0, 260.0)
+            speed = random.uniform(200.0, 320.0)   # faster than the gust
             vx = math.cos(ang) * speed
-            vy = math.sin(ang) * speed - 60.0   # slight upward bias
+            vy = math.sin(ang) * speed - 80.0      # slight upward bias
             self.particles.append(FlyingCoinParticle(
-                bx, by, vx, vy, life=0.95,
+                scatter_bx, scatter_by, vx, vy, life=0.95,
             ))
-        # Red minus-text + audio sting.
+
+        # ── Electric sparks: cyan/white tendrils flying outward from
+        # the impact point. Slightly bigger + longer life than typical
+        # so the crackle reads in a single frame and across the next
+        # 0.5s of decay.
+        for _ in range(40):
+            ang = random.uniform(0, math.tau)
+            sp = random.uniform(140, 280)
+            spark_col = random.choice((
+                (220, 240, 255), (180, 220, 255),
+                (255, 255, 255), (140, 200, 255),
+                (255, 240, 180),   # warmer flash highlight
+            ))
+            self.particles.append(Particle(
+                scatter_bx, scatter_by - 12,
+                math.cos(ang) * sp, math.sin(ang) * sp,
+                life=random.uniform(0.35, 0.60),
+                r=random.choice((3, 3, 4)),
+                color=spark_col,
+                gravity=180,
+            ))
+
+        # ── Text: cyan ZAP! above the red -50!
         self.float_texts.append(FloatText(
-            f"-{lost}!", self.bird.x, self.bird.y - 30, UI_RED,
+            "ZAP!", self.bird.x, self.bird.y - 48, (180, 220, 255),
+            size=34, life=1.2, vy=-34, style="powerup",
+        ))
+        self.float_texts.append(FloatText(
+            f"-{lost}!", self.bird.x, self.bird.y - 26, UI_RED,
             size=30, life=1.4, vy=-30, style="powerup",
         ))
+
+        # ── Audio: thunder + poof for the impact gust.
         try:
-            audio.play_poof()
             audio.play_thunder()
+            audio.play_poof()
         except Exception:
             pass
+
+    def _spawn_scorch_wisp(self):
+        """Larger dark smoke puff drifting up off Pip's silhouette.
+        Used by the scorched sub-state after a lightning strike;
+        fades out as `_lightning_scorch_t` decays. Sized + coloured
+        to read clearly against the storm sky."""
+        bx, by = self.bird.x, self.bird.y
+        # Slight random offset so wisps come off Pip's body and tail,
+        # not just his centre.
+        ox = random.uniform(-12, 12)
+        oy = random.uniform(-8, 8)
+        # Bias upward — wisps rise. Speed is slow so the trail lingers.
+        vx = random.uniform(-18, 18)
+        vy = random.uniform(-70, -35)
+        # Light grey / cream wisps so they CONTRAST with the dark
+        # storm sky. Real smoke off something scorched would be sooty
+        # but visually the lighter palette reads as a smoke trail
+        # against a purple-blue dusk.
+        col = random.choice((
+            (170, 165, 175), (200, 195, 200),
+            (150, 145, 155), (220, 215, 220),
+            (185, 180, 190),
+        ))
+        self.particles.append(Particle(
+            bx + ox, by + oy, vx, vy,
+            life=random.uniform(0.70, 1.05),
+            r=random.randint(5, 8),       # bigger puffs read better
+            color=col,
+            gravity=-30,                  # more buoyancy
+        ))
 
     def _apply_magnet(self, dt, radius_mult: float = 1.0,
                       strength_mult: float = 1.0):
