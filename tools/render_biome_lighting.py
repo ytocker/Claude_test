@@ -58,15 +58,16 @@ def render_phase(world, target, phase):
     # Render an example pipe pair so the user can verify pillar tint vs Pip's tint.
     for p in world.pipes:
         p.draw(target, palette=pal)
-    light = _biome.light_level_for_phase(phase)
-    world.bird.draw(target, light_level=light)
+    grad = _biome.light_gradient_for_phase(phase)
+    world.bird.draw(target, light_gradient=grad)
 
 
 def save(surf, name, label):
     out = surf.copy()
     font = pygame.font.SysFont("Arial", 13, bold=True)
-    light = _biome.light_level_for_phase(float(label_to_phase[label]))
-    txt = f"{label} (light={light:.2f})"
+    top, bot = _biome.light_gradient_for_phase(
+        float(label_to_phase[label]))
+    txt = f"{label} (top={top:.2f} bot={bot:.2f})"
     img = font.render(txt, True, (255, 255, 255))
     bg = pygame.Surface((img.get_width() + 12, img.get_height() + 6),
                         pygame.SRCALPHA)

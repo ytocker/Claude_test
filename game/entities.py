@@ -725,19 +725,53 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
-def _apply_ambient_light(sprite: pygame.Surface, level: float) -> pygame.Surface:
-    """Return a darkened copy of `sprite` whose RGB channels are
-    multiplied by `level` (0..1). Alpha is preserved so the silhouette
-    keeps clean edges. Used by `Bird.draw` (and the parcel blit) so
-    Pip's sprite tracks the biome's ambient light — full bright at
-    noon, deeply shaded at midnight, restored through sunrise."""
-    lvl = max(0.0, min(1.0, level))
+# Cache of vertical gradient surfaces keyed on (width, height, top, bot)
+# rounded to 0.02 so we don't churn the cache as biome phase ticks. ~50
+# entries max per typical sprite size.
+_LIGHT_GRADIENT_CACHE: "dict[tuple, pygame.Surface]" = {}
+
+
+def _get_light_gradient(w: int, h: int,
+                       top: float, bot: float) -> pygame.Surface:
+    """Vertical gradient surface (w x h): top row at brightness `top`,
+    bottom row at brightness `bot`, linear interp between. Used as a
+    BLEND_RGBA_MULT mask so the sprite's RGB is multiplied by the
+    gradient. Cached by quantised (top, bot) so building is one-shot
+    per bucket."""
+    key = (w, h, round(top, 2), round(bot, 2))
+    cached = _LIGHT_GRADIENT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    grad = pygame.Surface((w, h), pygame.SRCALPHA)
+    # Per-scanline solid colour — one horizontal line per row, so this
+    # stays O(h) draw calls instead of O(w*h) set_at calls.
+    inv_h = 1.0 / max(1, h - 1)
+    for y in range(h):
+        t = y * inv_h
+        v = top + (bot - top) * t
+        v = max(0.0, min(1.0, v))
+        c = int(255 * v)
+        pygame.draw.line(grad, (c, c, c, 255), (0, y), (w - 1, y))
+    _LIGHT_GRADIENT_CACHE[key] = grad
+    return grad
+
+
+def _apply_ambient_light(sprite: pygame.Surface,
+                         top_level: float,
+                         bot_level: float) -> pygame.Surface:
+    """Return a copy of `sprite` whose RGB is multiplied by a vertical
+    gradient — `top_level` at the top edge, `bot_level` at the bottom,
+    interpolated per row. This produces a directional shadow (light
+    from above) instead of a flat uniform darken; reads as natural
+    dusk/night shading where the top of Pip still catches the
+    skylight but his underside falls into shadow. Alpha is preserved
+    via the gradient's alpha=255, so the silhouette stays crisp."""
+    if top_level >= 0.999 and bot_level >= 0.999:
+        return sprite
     out = sprite.copy()
-    # BLEND_RGBA_MULT multiplies each channel by colour/255; a fill of
-    # (lvl*255, lvl*255, lvl*255, 255) scales RGB by `lvl` and leaves
-    # alpha untouched.
-    v = int(255 * lvl)
-    out.fill((v, v, v, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    w, h = out.get_size()
+    grad = _get_light_gradient(w, h, top_level, bot_level)
+    out.blit(grad, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     return out
 
 
@@ -860,7 +894,7 @@ class Bird:
             self.grow_scale = max(target_g, self.grow_scale - step_g)
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False,
-             light_level=1.0):
+             light_level=1.0, light_gradient=None):
         from game.config import GROW_SCALE
         # Weather shiver: world-driven per-frame jitter under heavy rain /
         # lightning. Visual only — kept out of the physics shake_x/shake_y
@@ -956,12 +990,16 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
-        # Biome ambient-light darkening — RGB multiply by light_level so
-        # Pip's sprite tracks the sky's lighting (dim at night, full at
-        # day). Kept under 1.0 only — at noon (light=1.0) we skip the
-        # copy so the cached sprite goes straight to the screen.
-        if light_level < 0.999:
-            img = _apply_ambient_light(img, light_level)
+        # Biome ambient-light: vertical-gradient multiply onto Pip's
+        # sprite so the top edge catches more light and the underside
+        # falls into shadow. Falls back to a uniform tint if only the
+        # legacy `light_level` scalar was passed.
+        if light_gradient is not None:
+            top_l, bot_l = light_gradient
+            if top_l < 0.999 or bot_l < 0.999:
+                img = _apply_ambient_light(img, top_l, bot_l)
+        elif light_level < 0.999:
+            img = _apply_ambient_light(img, light_level, light_level)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
@@ -1009,8 +1047,14 @@ class Bird:
             parcel_rot.set_alpha(int(90 + pulse * 80))
         # Darken the parcel under the same ambient light as the bird so
         # the pair reads as one silhouette under shared lighting.
-        if light_level < 0.999:
-            parcel_rot = _apply_ambient_light(parcel_rot, light_level)
+        if light_gradient is not None:
+            top_l, bot_l = light_gradient
+            if top_l < 0.999 or bot_l < 0.999:
+                parcel_rot = _apply_ambient_light(
+                    parcel_rot, top_l, bot_l)
+        elif light_level < 0.999:
+            parcel_rot = _apply_ambient_light(
+                parcel_rot, light_level, light_level)
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)

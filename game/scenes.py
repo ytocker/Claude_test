@@ -867,7 +867,7 @@ class App:
             hy = int(H * 0.42) - house.get_height() // 2
             self.screen.blit(house, (hx, hy))
             self.world.bird.draw(self.screen, sx, sy,
-                                 light_level=_biome.light_level_for_phase(
+                                 light_gradient=_biome.light_gradient_for_phase(
                                      self.world.biome_phase))
             self.hud.draw_menu(self.screen, 1 / 60, self.best)
             return
@@ -966,7 +966,7 @@ class App:
         else:
             self.world.bird.draw(self.screen, sx, sy,
                                  flipped=self.world.reverse_timer > 0,
-                                 light_level=_biome.light_level_for_phase(
+                                 light_gradient=_biome.light_gradient_for_phase(
                                      self.world.biome_phase))
 
         for p in self.world.particles:
@@ -1091,7 +1091,7 @@ class App:
                     and self.world.phoenix_rebirth is None):
                 self.world.bird.draw(self.screen, sx, sy,
                                      flipped=self.world.reverse_timer > 0,
-                                     light_level=_biome.light_level_for_phase(
+                                     light_gradient=_biome.light_gradient_for_phase(
                                          self.world.biome_phase))
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)

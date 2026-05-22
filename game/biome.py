@@ -223,38 +223,54 @@ def palette_for_time(elapsed_seconds: float) -> dict:
     return palette_for_phase(phase_for_time(elapsed_seconds))
 
 
-# ── scene ambient light level ───────────────────────────────────────────────
-# A 0..1 multiplier that follows the biome cycle: 1.0 in full daylight,
-# dips to ~0.25 at peak night, recovers through predawn → sunrise → day.
-# Used to darken Pip's parrot sprite (and anything else that should look
-# lit by the sun) so the whole picture matches the sky / pillar palette.
-# Keyframed at the SAME phases as the palette so the dial moves in
-# lockstep with the visible sky transitions; linearly interpolated
-# between keyframes.
-_LIGHT_KEYFRAMES = [
-    (0.00000, 1.00),   # DAY — full bright
-    (0.23125, 0.90),   # GOLDEN HOUR — warm but slightly dimmer
-    (0.36250, 0.65),   # SUNSET — colour shifts, lots of shadow
-    (0.51250, 0.42),   # DUSK — fading fast
-    (0.64375, 0.25),   # NIGHT — deepest dark
-    (0.79375, 0.40),   # PREDAWN — first hint of light returning
-    (0.90625, 0.78),   # SUNRISE — coming back fast
-    (1.00000, 1.00),   # wraps to DAY
+# ── scene ambient light ─────────────────────────────────────────────────────
+# A pair of brightness multipliers (top, bottom) that follows the biome
+# cycle. The TOP value is the brightness at the top edge of Pip's sprite,
+# the BOTTOM value at the bottom edge — a vertical gradient is interpolated
+# between them. This reads as "light from above" so dusk/night don't darken
+# Pip uniformly; the underside is shadowed while the top still catches
+# moonlight. Floor is kept above 0.4 so Pip is always trackable.
+#
+# Keyframed at the SAME phases as the palette so the dial moves in lockstep
+# with the visible sky transitions; linearly interpolated between keyframes.
+_LIGHT_GRADIENT_KEYFRAMES = [
+    # (phase,    top,   bot)
+    (0.00000, (1.00,  1.00)),   # DAY — uniform full bright
+    (0.23125, (0.96,  0.88)),   # GOLDEN HOUR — slight underside shadow
+    (0.36250, (0.85,  0.65)),   # SUNSET — clearly directional
+    (0.51250, (0.70,  0.50)),   # DUSK — strong shadow
+    (0.64375, (0.60,  0.40)),   # NIGHT — peak gradient, floor=0.40
+    (0.79375, (0.65,  0.50)),   # PREDAWN — light returning, less contrast
+    (0.90625, (0.90,  0.80)),   # SUNRISE — almost back to flat
+    (1.00000, (1.00,  1.00)),   # wraps to DAY
 ]
 
 
-def light_level_for_phase(phase: float) -> float:
-    """Ambient light multiplier (0..1) for the given biome phase.
-    Linearly interpolated between the keyframes above."""
+def light_gradient_for_phase(phase: float) -> "tuple[float, float]":
+    """(top, bot) brightness multipliers (0..1) at the given biome
+    phase. The renderer interpolates linearly between them across the
+    sprite's vertical extent to produce the directional shadow."""
     p = phase % 1.0
-    for i in range(len(_LIGHT_KEYFRAMES) - 1):
-        p0, v0 = _LIGHT_KEYFRAMES[i]
-        p1, v1 = _LIGHT_KEYFRAMES[i + 1]
+    for i in range(len(_LIGHT_GRADIENT_KEYFRAMES) - 1):
+        p0, v0 = _LIGHT_GRADIENT_KEYFRAMES[i]
+        p1, v1 = _LIGHT_GRADIENT_KEYFRAMES[i + 1]
         if p0 <= p <= p1:
             span = max(1e-9, p1 - p0)
             t = (p - p0) / span
-            return v0 + (v1 - v0) * t
-    return 1.0
+            return (v0[0] + (v1[0] - v0[0]) * t,
+                    v0[1] + (v1[1] - v0[1]) * t)
+    return (1.0, 1.0)
+
+
+def light_gradient_for_time(elapsed_seconds: float) -> "tuple[float, float]":
+    return light_gradient_for_phase(phase_for_time(elapsed_seconds))
+
+
+# Back-compat: average of the gradient. Kept so callers that want a
+# single scalar still work.
+def light_level_for_phase(phase: float) -> float:
+    top, bot = light_gradient_for_phase(phase)
+    return (top + bot) * 0.5
 
 
 def light_level_for_time(elapsed_seconds: float) -> float:
