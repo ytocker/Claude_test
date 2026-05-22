@@ -216,13 +216,13 @@ class World:
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
-        # TEST MODE on v5_powerups: start at phase ~0.27 (light visible
-        # drizzle, rain_intensity ≈ 0.14, below the 0.20 coin-shake
-        # threshold) so weather mechanics can be reproduced quickly.
-        # As the cycle ticks forward through play, rain builds and the
-        # storm-jolt window opens organically. Restore to 0.0 for a
-        # normal noon-start.
-        self.biome_time = biome.CYCLE_SECONDS * 0.27
+        # TEST MODE on v5_powerups: start at phase ~0.46 (heavy dusk
+        # storm — rain_intensity ≈ 0.66, well above the 0.20 coin-shake
+        # threshold so coins are visibly wobbling from frame 1, and
+        # ~5-7 s of biome progression takes the rain past the 0.85
+        # storm-jolt trigger so the lightning strike fires within the
+        # first ~20 s of play). Restore to 0.0 for a normal noon-start.
+        self.biome_time = biome.CYCLE_SECONDS * 0.46
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
