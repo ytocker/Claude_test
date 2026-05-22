@@ -2603,134 +2603,25 @@ class PowerUp:
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_genie_icon(self, surf):
-        """In-world genie lamp pickup — brass Aladdin-style lamp with a
-        curved spout, looped handle, and a wispy mauve smoke plume
-        rising from the spout. Painted at 5× supersample then
-        smoothscaled. Smoke ribbons sway with the pulse so the lamp
-        reads as 'about to be rubbed', not static."""
+        """In-world genie lamp pickup — Amber Crystal cut-glass lamp
+        with diamond facets, gold rim collar, multi-gem stopper
+        (emerald + sapphire + ruby), gold torus handle with an amber
+        centre gem, gold foot ring with emerald gem dots, dark-navy
+        outline glow for sky-colour separation, smoke + sparkles.
+        The full Amber Crystal design from
+        `tools/render_a1_lamp_variants.py` is rendered once at SS=8
+        and cached in `game._lamp_assets`; per frame we just tilt +
+        bob + blit the cached sprite."""
+        from game._lamp_assets import get_lamp_sprite
+
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-
-        SS = 5
-        NATIVE_W, NATIVE_H = 44, 44
-        sw, sh = NATIVE_W * SS, NATIVE_H * SS
-        big = pygame.Surface((sw, sh), pygame.SRCALPHA)
-
-        # Palette — brass + mauve smoke
-        BRASS_DK = ( 95,  60,  18)
-        BRASS    = (185, 130,  45)
-        BRASS_HI = (250, 215, 130)
-        SMOKE_DK = ( 95,  60, 110)
-        SMOKE    = (170, 130, 195)
-        SMOKE_HI = (220, 200, 240)
-        NEAR_BLK = ( 18,  14,  10)
-
-        # ── lamp body (squat oval, lower half of canvas) ──
-        body_cx = sw // 2
-        body_cy = int(sh * 0.65)
-        body_w  = int(NATIVE_W * SS * 0.55)
-        body_h  = int(NATIVE_H * SS * 0.30)
-        body_rect = pygame.Rect(0, 0, body_w, body_h)
-        body_rect.center = (body_cx, body_cy)
-        pygame.draw.ellipse(big, NEAR_BLK, body_rect.inflate(SS, SS))
-        pygame.draw.ellipse(big, BRASS_DK, body_rect)
-        inner = body_rect.inflate(-int(SS * 1.5), -int(SS * 1.5))
-        pygame.draw.ellipse(big, BRASS, inner)
-        # Highlight band across the upper half of the body.
-        hi = pygame.Rect(0, 0, int(body_w * 0.55), int(body_h * 0.30))
-        hi.center = (body_cx - int(body_w * 0.06),
-                     body_cy - int(body_h * 0.22))
-        pygame.draw.ellipse(big, BRASS_HI, hi)
-
-        # ── flat base under the body ──
-        base = pygame.Rect(0, 0, int(body_w * 0.55), int(SS * 1.6))
-        base.midtop = (body_cx, body_cy + body_h // 2 - SS)
-        pygame.draw.rect(big, BRASS_DK, base, border_radius=SS // 2)
-
-        # ── spout (curved, juts up-right from body) ──
-        spout_pts_outer = [
-            (body_cx + int(body_w * 0.42), body_cy - int(body_h * 0.15)),
-            (body_cx + int(body_w * 0.70), body_cy - int(body_h * 0.55)),
-            (body_cx + int(body_w * 0.88), body_cy - int(body_h * 0.95)),
-            (body_cx + int(body_w * 0.80), body_cy - int(body_h * 1.10)),
-            (body_cx + int(body_w * 0.62), body_cy - int(body_h * 0.78)),
-            (body_cx + int(body_w * 0.42), body_cy - int(body_h * 0.45)),
-        ]
-        pygame.draw.polygon(big, NEAR_BLK, spout_pts_outer)
-        # Inset for brass fill
-        inset_pts = [
-            (body_cx + int(body_w * 0.45), body_cy - int(body_h * 0.20)),
-            (body_cx + int(body_w * 0.68), body_cy - int(body_h * 0.55)),
-            (body_cx + int(body_w * 0.83), body_cy - int(body_h * 0.92)),
-            (body_cx + int(body_w * 0.78), body_cy - int(body_h * 1.03)),
-            (body_cx + int(body_w * 0.62), body_cy - int(body_h * 0.75)),
-            (body_cx + int(body_w * 0.45), body_cy - int(body_h * 0.45)),
-        ]
-        pygame.draw.polygon(big, BRASS, inset_pts)
-        # Spout highlight stripe.
-        pygame.draw.line(big, BRASS_HI,
-                         (body_cx + int(body_w * 0.50), body_cy - int(body_h * 0.30)),
-                         (body_cx + int(body_w * 0.78), body_cy - int(body_h * 0.90)),
-                         max(1, SS // 2))
-
-        # ── looped handle (left side, oval ring) ──
-        handle_cx = body_cx - int(body_w * 0.55)
-        handle_cy = body_cy - int(body_h * 0.15)
-        handle_w = int(body_w * 0.30)
-        handle_h = int(body_h * 0.85)
-        handle_outer = pygame.Rect(0, 0, handle_w, handle_h)
-        handle_outer.center = (handle_cx, handle_cy)
-        pygame.draw.ellipse(big, NEAR_BLK, handle_outer)
-        pygame.draw.ellipse(big, BRASS, handle_outer.inflate(-int(SS * 1.2),
-                                                              -int(SS * 1.2)))
-        # Inner cutout so the handle looks like a ring.
-        cutout = handle_outer.inflate(-int(SS * 3.5), -int(SS * 3.5))
-        pygame.draw.ellipse(big, (0, 0, 0, 0), cutout)
-        # Use the brass dark to redraw the inner edge cleanly
-        pygame.draw.ellipse(big, BRASS_DK, cutout, max(1, SS // 2))
-
-        # ── smoke plume (3 sway-animated ribbons rising from spout tip) ──
-        sway = math.sin(self.pulse * 1.4) * 0.18
-        plume_origin_x = body_cx + int(body_w * 0.80)
-        plume_origin_y = body_cy - int(body_h * 1.10)
-        for ribbon_i, (alpha_base, scale, drift) in enumerate(
-                ((110, 1.0, 0.0), (170, 0.85, 0.10), (230, 0.70, -0.10))):
-            # Build a 4-point smoke ribbon curving up and away.
-            pts = []
-            r_steps = 5
-            for s in range(r_steps + 1):
-                t = s / r_steps
-                # x rises with curl from sway
-                cx_r = plume_origin_x \
-                    + int(math.sin(self.pulse * 1.3 + ribbon_i * 1.7 + t * 2.5)
-                          * SS * 4.0 * scale * (1.0 + sway + drift))
-                cy_r = plume_origin_y - int(t * NATIVE_H * SS * 0.55 * scale)
-                rad  = int(SS * (1.4 - t * 0.8) * scale * (1.0 + 0.1 * math.sin(self.pulse + ribbon_i)))
-                if rad < 1:
-                    rad = 1
-                col = SMOKE_HI if t < 0.3 else (SMOKE if t < 0.7 else SMOKE_DK)
-                # Use alpha-blit so ribbons stack softly
-                puff = pygame.Surface((rad * 2 + 4, rad * 2 + 4),
-                                      pygame.SRCALPHA)
-                pygame.draw.circle(puff, (*col, alpha_base),
-                                   (rad + 2, rad + 2), rad)
-                big.blit(puff, (cx_r - rad - 2, cy_r - rad - 2))
-                pts.append((cx_r, cy_r))
-
-        # ── a single sparkle dot to the side of the spout ──
-        spark_x = body_cx + int(body_w * 0.95)
-        spark_y = body_cy - int(body_h * 0.50)
-        spark_r = max(2, SS // 2)
-        pygame.draw.circle(big, BRASS_HI, (spark_x, spark_y), spark_r + SS // 3)
-        pygame.draw.circle(big, (255, 255, 230), (spark_x, spark_y), spark_r)
-
-        # Tilt slightly for the "alive" feel.
+        sprite = get_lamp_sprite(target_height=52)
+        # Gentle tilt for the "alive" feel — same idiom as the old
+        # brass lamp's ±3° sway.
         tilt = math.sin(self.pulse * 0.8) * 3
-        rotated = pygame.transform.rotate(big, tilt)
-        rw, rh = rotated.get_size()
-        final = pygame.transform.smoothscale(rotated,
-                                              (rw // SS, rh // SS))
-        surf.blit(final, final.get_rect(center=(cx, cy)))
+        rotated = pygame.transform.rotate(sprite, tilt)
+        surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
 
     def _draw_phoenix_icon(self, surf):
         """In-world phoenix pickup — a hand-painted phoenix with sweeping
