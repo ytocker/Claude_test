@@ -926,25 +926,25 @@ class Bird:
         # crispy-hat sprite instead of falling through to plain kfc.
         # X-RAY SPARKS wins over EVERYTHING (including phoenix) — the
         # storm-jolt strike is a special, momentary event and during
-        # the 2.3 s flash Pip's normal/powered-up identity is
+        # the 3.5 s flash Pip's normal/powered-up identity is
         # overridden by the classic Looney-Tunes electrocution
         # silhouette. Two-phase timing:
         #   * First 0.5 s — SOLID skeleton hold (no strobe) so the
         #     X-ray view is unmistakably readable.
-        #   * Last 1.8 s — slow strobe with 0.30 s per segment
-        #     (3.33 Hz toggle, 1.67 Hz full cycle): 6 segments
-        #     alternating skel/norm/skel/norm/skel/norm so each
-        #     pose stalls long enough to clearly register and the
-        #     player sees Pip swap between forms several times
-        #     before the flash releases into scorch wisps.
+        #   * Last 3.0 s — slow strobe with 0.30 s per segment
+        #     (same frequency as before, just longer total period):
+        #     10 segments alternating skel/norm/skel/norm/.../norm
+        #     so the player clearly sees Pip swap between his
+        #     skeleton and his normal sprite FIVE full times before
+        #     the flash releases into scorch wisps.
         skeleton_visible = False
         if self.skeleton_flash_t > 0.0:
-            if self.skeleton_flash_t > 1.8:
-                # Solid hold phase — first 0.5 s of the 2.3 s window
+            if self.skeleton_flash_t > 3.0:
+                # Solid hold phase — first 0.5 s of the 3.5 s window
                 skeleton_visible = True
             else:
-                # Strobe phase — last 1.8 s, segment = 0.30 s
-                elapsed_strobe = 1.8 - self.skeleton_flash_t
+                # Strobe phase — last 3.0 s, segment = 0.30 s
+                elapsed_strobe = 3.0 - self.skeleton_flash_t
                 bucket = int(elapsed_strobe / 0.30)
                 skeleton_visible = (bucket % 2 == 0)
         if skeleton_visible:
@@ -1022,25 +1022,57 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
-        # X-Ray Sparks AURA — drawn BEFORE the bird sprite so it
-        # haloes around Pip's silhouette. Four concentric circles
-        # in the same palette as the lightning bolt (purple plasma
-        # → cyan → white core glow), each pulsing at ~5 Hz so the
-        # aura breathes electrically. Lives only while the
-        # skeleton-flash timer is active.
+        # X-Ray Sparks AURA — outline-glow that follows Pip's actual
+        # silhouette, NOT a circle. Builds a mask from the current
+        # sprite's alpha channel and paints a tinted copy of that
+        # silhouette at 8 offset positions per layer, so the result
+        # reads as a coloured rim glow hugging his body, wings,
+        # tail, beak. Three layers in the lightning palette
+        # (outer purple plasma → mid purple → cyan halo) with
+        # progressively smaller dilation so the rim fades from
+        # cyan-close to purple-far. Pulse-modulated alpha at ~5 Hz.
+        # Drawn BEFORE the bird sprite so the sprite covers the
+        # in-silhouette areas, leaving only the offset rings visible
+        # as a halo. We need `r` (the sprite's destination rect)
+        # which is computed below — compute it here first so the
+        # aura uses the same anchor.
+        rect_pre = img.get_rect(center=(cx_int, cy_int))
         if self.skeleton_flash_t > 0.0:
             pulse = 0.5 + 0.5 * math.sin(self.frame_t * 30.0)
-            aura = pygame.Surface((100, 100), pygame.SRCALPHA)
-            for r_n, col, a_base in (
-                    (46, (130,  80, 220),  55),  # outer purple plasma
-                    (37, (180, 100, 255),  90),  # mid purple glow
-                    (29, (140, 220, 255), 130),  # cyan halo
-                    (22, (255, 255, 255),  75),  # white inner glow
-            ):
-                a_pulsed = int(a_base * (0.65 + 0.35 * pulse))
-                pygame.draw.circle(aura, (*col, a_pulsed),
-                                   (50, 50), r_n)
-            surf.blit(aura, (cx_int - 50, cy_int - 50))
+            try:
+                sil_mask = pygame.mask.from_surface(img, threshold=20)
+                aura_layers = (
+                    ((130,  80, 220),  60, 5),  # outer purple plasma
+                    ((180, 100, 255),  95, 3),  # mid purple glow
+                    ((140, 220, 255), 130, 2),  # cyan halo
+                )
+                base_x, base_y = rect_pre.topleft
+                for col, a_base, dil in aura_layers:
+                    tinted = sil_mask.to_surface(
+                        setcolor=(*col, 255),
+                        unsetcolor=(0, 0, 0, 0),
+                    )
+                    a_pulsed = int(a_base * (0.65 + 0.35 * pulse))
+                    tinted.set_alpha(max(0, min(255, a_pulsed)))
+                    # 8-direction offset dilation
+                    for dx, dy in (
+                        (-dil,  0), (dil,  0), (0, -dil), (0,  dil),
+                        (-dil, -dil), (dil, -dil), (-dil, dil), (dil, dil),
+                    ):
+                        surf.blit(tinted, (base_x + dx, base_y + dy))
+            except (pygame.error, AttributeError):
+                # Some pygame builds (notably older WASM) may not
+                # expose mask.from_surface; fall back to a soft
+                # circular glow so the aura still reads.
+                aura = pygame.Surface((100, 100), pygame.SRCALPHA)
+                for r_n, col, a_base in (
+                        (46, (130,  80, 220),  55),
+                        (37, (180, 100, 255),  90),
+                        (29, (140, 220, 255), 130),
+                ):
+                    ap = int(a_base * (0.65 + 0.35 * pulse))
+                    pygame.draw.circle(aura, (*col, ap), (50, 50), r_n)
+                surf.blit(aura, (cx_int - 50, cy_int - 50))
         # Biome ambient-light: vertical-gradient multiply onto Pip's
         # sprite so the top edge catches more light and the underside
         # falls into shadow. Falls back to a uniform tint if only the
