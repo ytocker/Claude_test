@@ -256,6 +256,12 @@ PIPE_HITBOX_SHRINK = 4
 WEATHER_HEAVY_THRESHOLD  = 0.5
 WEATHER_COIN_SHAKE_AMP   = 2.5
 WEATHER_COIN_SLIDE_RATE  = 15.0
+# Vertical "drip" amplitude (visual-only sinusoidal sag) and the
+# downward drift rate that lets coins genuinely sink as the storm
+# intensifies, so the wobble reads as "rain is washing them off"
+# rather than a tidy left-right hover.
+WEATHER_COIN_DRIP_AMP    = 1.6
+WEATHER_COIN_DRIP_RATE   = 7.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 

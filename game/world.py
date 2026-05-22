@@ -34,7 +34,8 @@ from game.config import (
     TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
     FLAP_V,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
-    WEATHER_COIN_SLIDE_RATE, WEATHER_PIP_SHIVER_AMP,
+    WEATHER_COIN_SLIDE_RATE, WEATHER_COIN_DRIP_AMP,
+    WEATHER_COIN_DRIP_RATE, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX,
     GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
     GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
@@ -255,6 +256,15 @@ class World:
         # wisps off Pip's body to sell the after-effect of the strike.
         self._lightning_scorch_t = 0.0
         self._scorch_smoke_accum = 0.0
+        # Lightning-buildup state. When the storm-jolt trigger fires
+        # we DON'T immediately strike Pip — we queue several background
+        # bolts as a telegraph, then the final hit. List of
+        # (clock_remaining_seconds, event_kind) tuples; `event_kind` is
+        # "bg_left" | "bg_right" | "strike". `_storm_buildup_t` is the
+        # running clock since the buildup started; events fire when
+        # t >= the head item's scheduled time.
+        self._storm_buildup_seq = []
+        self._storm_buildup_t = 0.0
         self.ambient = AmbientScenes()
 
         # "Get ready" freeze at the start of a round: physics paused until
@@ -1502,21 +1512,37 @@ class World:
             # to 0 doesn't leave coins permanently nudged.
             for c in self.coins:
                 c.weather_dx = 0.0
+                c.weather_dy = 0.0
             self.bird.shiver_x = 0.0
             self.bird.shiver_y = 0.0
             self.bird.flap_dampen = 0.0
             return
         # Coin shake — sinusoidal sway, per-coin phase so they don't
-        # oscillate in lockstep. Amplitude scales with intensity.
-        amp = WEATHER_COIN_SHAKE_AMP * min(1.0, ri / WEATHER_HEAVY_THRESHOLD)
+        # oscillate in lockstep. Horizontal amplitude scales with
+        # intensity up to the heavy threshold (then the real slide
+        # takes over).
+        amp_x = WEATHER_COIN_SHAKE_AMP * min(1.0, ri / WEATHER_HEAVY_THRESHOLD)
+        # Vertical drip amplitude — fades in starting at moderate rain
+        # (ri ≈ 0.3) and tops out at peak. Keeps coins purely
+        # left-right at the very lightest drizzle so the "drip" feel
+        # is reserved for genuine storm weather.
+        DRIP_FADE_IN = 0.3
+        drip_t = max(0.0, (ri - DRIP_FADE_IN) / max(1e-6, 1.0 - DRIP_FADE_IN))
+        amp_y = WEATHER_COIN_DRIP_AMP * drip_t
         heavy = ri > WEATHER_HEAVY_THRESHOLD
+        heavy_t = ((ri - WEATHER_HEAVY_THRESHOLD)
+                   / max(1e-6, 1.0 - WEATHER_HEAVY_THRESHOLD)) if heavy else 0.0
         for c in self.coins:
             c._weather_phase += dt * 4.5
-            c.weather_dx = math.sin(c._weather_phase) * amp
+            c.weather_dx = math.sin(c._weather_phase) * amp_x
+            # Offset the dy phase so the drip motion is out of sync
+            # with the wobble — produces a small figure-8 feel.
+            c.weather_dy = math.sin(c._weather_phase * 0.7 + 1.2) * amp_y
             if heavy:
-                # Slide leftward — feels like rain washing the coin off.
-                c.x -= WEATHER_COIN_SLIDE_RATE * (ri - WEATHER_HEAVY_THRESHOLD) \
-                       / (1.0 - WEATHER_HEAVY_THRESHOLD) * dt
+                # Slide down-and-leftward — feels like rain pulling
+                # the coin off its perch.
+                c.x -= WEATHER_COIN_SLIDE_RATE * heavy_t * dt
+                c.y += WEATHER_COIN_DRIP_RATE * heavy_t * dt
         # Pip: shiver + flap dampen only above the heavy threshold so
         # ordinary drizzle doesn't make controls feel broken.
         if heavy:
@@ -1535,15 +1561,93 @@ class World:
         # only if Pip actually has coins to lose. Random fire on a small
         # per-frame chance (~0.06 / frame at 60fps ≈ once every ~17 s on
         # average while at peak). Lockout 25 s after firing so a long
-        # dusk storm doesn't keep hammering.
+        # dusk storm doesn't keep hammering. The trigger doesn't strike
+        # Pip directly — it kicks off a ~1.9-second BUILDUP of 3
+        # background lightning bolts that miss him, then the real strike
+        # lands on the 4th flash.
         if self._storm_jolt_lockout > 0:
             self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
         elif (ri > 0.85
               and self.coin_count > 0
               and not self.game_over
               and self.ready_t <= 0
+              and not self._storm_buildup_seq
               and random.random() < 0.06 * dt * 60):
-            self._fire_storm_jolt()
+            self._start_storm_buildup()
+
+        # Advance the buildup if one is running. Events at the head of
+        # the queue fire when the running clock reaches their scheduled
+        # time. The strike event is the final entry — once it fires we
+        # clear the queue.
+        if self._storm_buildup_seq:
+            self._storm_buildup_t += dt
+            while (self._storm_buildup_seq
+                   and self._storm_buildup_t >= self._storm_buildup_seq[0][0]):
+                _, kind = self._storm_buildup_seq.pop(0)
+                if kind == "strike":
+                    self._fire_storm_jolt()
+                    self._storm_buildup_seq = []
+                else:
+                    side = -1 if kind.endswith("left") else 1
+                    self._fire_background_lightning(side=side)
+
+    def _start_storm_buildup(self):
+        """Telegraph the incoming strike with background lightning.
+        Queues 3 near-miss bolts on alternating sides (each a real
+        flash + bolt + light shake but NO coin loss) over ~1.4 s, then
+        the real `_fire_storm_jolt` lands at t=1.9 s. Lockout is set
+        immediately so the trigger can't re-fire mid-buildup; the
+        25-second cooldown starts from the buildup, not the strike."""
+        self._storm_buildup_seq = [
+            (0.00, "bg_left"),
+            (0.60, "bg_right"),
+            (1.20, "bg_left"),
+            (1.90, "strike"),
+        ]
+        self._storm_buildup_t = 0.0
+        # Reserve the slot — prevents re-trigger during buildup.
+        self._storm_jolt_lockout = 25.0
+
+    def _fire_background_lightning(self, side: int = -1):
+        """Non-damaging background lightning bolt — same visual
+        ingredients as the real strike (jagged bolt path + flash +
+        shake) but the bolt lands on a random sky point well off to
+        Pip's side, with reduced flash / shake. Sells "the storm is
+        cracking around him" before the real hit. `side` is -1 (left
+        of Pip) or +1 (right)."""
+        bx, by = self.bird.x, self.bird.y
+        # Origin: cloud-line, way over on the chosen side
+        origin_x = bx + side * random.uniform(110, 170)
+        # Strike point: an air target NOT on Pip — somewhere in the
+        # sky on the same side, at varied height so successive bolts
+        # don't all look the same.
+        impact_x = bx + side * random.uniform(80, 150)
+        impact_y = random.uniform(by - 80, by + 80)
+        path = [(origin_x, 0.0)]
+        segs = 12
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-32, 32) * (1.0 - t * 0.6)
+            cx = origin_x * (1 - t) + impact_x * t + jx
+            cy = impact_y * t
+            path.append((cx, cy))
+        path.append((impact_x, impact_y))
+        self.lightning_strike = {
+            "path": path,
+            "life": 0.16,
+            "life_max": 0.16,
+        }
+        # Smaller flash + shake than the real strike — telegraph,
+        # not impact.
+        self.weather.flash_remaining = max(
+            self.weather.flash_remaining, 0.14)
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t = max(self.shake_t, 0.20)
+        # Soft thunder, lower volume than the real strike.
+        try:
+            audio.play_thunder()
+        except Exception:
+            pass
 
     def _fire_storm_jolt(self):
         """LIGHTNING STRIKES PIP. A brilliant white-blue bolt cracks
