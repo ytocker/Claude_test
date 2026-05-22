@@ -3040,26 +3040,21 @@ class CloudPuff:
 
 
 def _lazy_import_genie_design():
-    """Import the design-tool modules used by GenieCharacter +
-    GenieShineParticle. Monkey-patches pygame.display.set_mode to a
-    no-op DURING the import so the tools' module-level
-    `pygame.display.set_mode((1, 1))` doesn't resize the game window.
-    Caches the modules so subsequent calls are free."""
+    """Import the consolidated genie-design module (palette, helpers,
+    body-part drawing functions). The data lives in game/_genie_assets.py
+    instead of tools/ because the deploy workflow strips tools/ from
+    the bundle — if we imported from tools at runtime, the deployed
+    build would crash on Genie pickup with ImportError.
+
+    All five tool modules' contents are consolidated into a single
+    namespace, so the returned 5-tuple just re-binds the same module
+    five times. (The 5-tuple shape is kept so existing callers
+    `_ref, _legs, _arms, _shines, _carpets = _lazy_import_genie_design()`
+    keep working.)"""
     if hasattr(_lazy_import_genie_design, "_cached"):
         return _lazy_import_genie_design._cached
-    original_set_mode = pygame.display.set_mode
-    pygame.display.set_mode = (
-        lambda *args, **kwargs: pygame.display.get_surface()
-    )
-    try:
-        from tools import render_a1_refined as _ref
-        from tools import render_a1_crossed_legs_variants as _legs
-        from tools import render_a1_arms_variants as _arms
-        from tools import render_a1_shine_variants as _shines
-        from tools import render_a1_carpet_variants as _carpets
-    finally:
-        pygame.display.set_mode = original_set_mode
-    cache = (_ref, _legs, _arms, _shines, _carpets)
+    from game import _genie_assets as _ga
+    cache = (_ga, _ga, _ga, _ga, _ga)
     _lazy_import_genie_design._cached = cache
     return cache
 
