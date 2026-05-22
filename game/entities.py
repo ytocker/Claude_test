@@ -3082,7 +3082,7 @@ class GenieShineParticle:
         self.kind = kind
         self.world = world
         self._t = 0.0
-        self.duration = 0.30
+        self.duration = 0.55
         self._fired = False
         # Pre-rolled spin offset so each shine rotates slightly
         # differently in flight.
@@ -3162,11 +3162,11 @@ class GenieCharacter:
     and ``draw(surf)``. ``alive()`` returns False when the vanish
     phase completes so World sweeps it from the list."""
 
-    DURATION = 2.05
-    RISE_END   = 0.45
-    CAST_BEATS = (0.65, 1.05, 1.45)
-    CAST_ENDS  = (0.85, 1.25, 1.65)
-    VANISH_END = 2.05
+    DURATION = 3.40
+    RISE_END   = 0.70
+    CAST_BEATS = (1.00, 1.65, 2.30)
+    CAST_ENDS  = (1.35, 2.00, 2.65)
+    VANISH_END = 3.40
 
     def __init__(self, x, y, vx, offers, world):
         # offers: list of (kind, target_y) triples, ordered by cast index.
@@ -3194,7 +3194,7 @@ class GenieCharacter:
         self._native_w = 320
         self._native_h = 460
         self._ss = 6
-        self._display_scale = 0.55         # 320 → 176 px wide on screen
+        self._display_scale = 0.42         # 320 → 134 px wide on screen (~37%)
         # Palm offsets in REFERENCE native px from the genie's centre.
         # draw_offering_arms_with_shine puts wrists at (cx ± 54, 214),
         # palms just past the cuff at (cx ± 58, 210). Canvas centre

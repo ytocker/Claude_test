@@ -1997,23 +1997,56 @@ class World:
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
     def _spawn_genie_reveal_poof(self, x, y):
-        """Tiny magical poof at each Genie-offer reveal site. Smaller +
-        gentler than _spawn_poof, tinted lavender/cream to read as a
-        wisp of lamp-smoke rather than a transformation cloud."""
+        """Big dramatic poof when a Genie offer materialises — modelled
+        on _spawn_poof (the KFC transformation cloud) so the powerup
+        appears in a CLEAR puff of magical cloud, not a wisp.
+        Lavender + cream + gold palette so it reads as genie magic
+        rather than the KFC transformation."""
         puff_colors = [
-            (245, 235, 255), (230, 220, 250),
-            (215, 200, 240), (250, 235, 200),
+            (250, 240, 255), (235, 220, 255),
+            (220, 200, 250), (255, 240, 200),
+            (255, 220, 140), (200, 180, 240),
         ]
-        for _ in range(8):
+        # Big cloud burst (18 puffs, larger radii + life than the
+        # original tiny wisp).
+        for _ in range(18):
             angle = random.uniform(0, math.pi * 2)
-            speed = random.uniform(25, 70)
+            speed = random.uniform(60, 150)
             vx    = math.cos(angle) * speed
-            vy    = math.sin(angle) * speed - random.uniform(8, 24)
-            life  = random.uniform(0.28, 0.42)
-            r0    = random.randint(3, 6)
-            r1    = random.randint(8, 14)
+            vy    = math.sin(angle) * speed - random.uniform(12, 40)
+            life  = random.uniform(0.40, 0.65)
+            r0    = random.randint(5, 11)
+            r1    = random.randint(16, 28)
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
+        # A bright central flash burst — a few high-alpha puffs that
+        # POP at the centre to sell the "magical appearance" beat.
+        for _ in range(4):
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(20, 50)
+            vx    = math.cos(angle) * speed
+            vy    = math.sin(angle) * speed - random.uniform(8, 20)
+            self.particles.append(CloudPuff(
+                x, y, vx, vy,
+                random.uniform(0.18, 0.28),
+                10, 22, (255, 250, 235)))
+        # Gold sparkle accents (use the existing Particle class so
+        # they twinkle as small gravity-affected dots).
+        for _ in range(10):
+            angle = random.uniform(0, math.pi * 2)
+            speed = random.uniform(80, 160)
+            vx    = math.cos(angle) * speed
+            vy    = math.sin(angle) * speed - random.uniform(20, 50)
+            self.particles.append(Particle(
+                x, y, vx, vy,
+                life=random.uniform(0.45, 0.75),
+                r=random.randint(2, 3),
+                color=random.choice([
+                    (255, 230, 140), (255, 250, 215),
+                    (255, 200, 220),
+                ]),
+                gravity=120,
+            ))
 
     def _activate_reverse(self, m):
         self.reverse_timer = REVERSE_DURATION
