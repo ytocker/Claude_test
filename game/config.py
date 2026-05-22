@@ -263,6 +263,19 @@ WEATHER_COIN_SHAKE_AMP   = 4.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 
+# Headwind event (predawn, phase ~0.85). Two effects scaled by
+# weather.wind_intensity(phase):
+#   - WEATHER_WIND_LEAN_AMP: max leftward visual x-offset on the
+#     bird (in screen pixels) when wind = 1.0. Pure visual — does
+#     not affect collision (Bird.x stays at BIRD_X). Negative
+#     direction is leftward, applied via Bird.draw shake_x.
+#   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
+#     is reduced at peak wind. At wind 1.0 the scroll runs at
+#     (1 - factor) × normal so pipes/coins approach more slowly
+#     and the player makes less progress per second.
+WEATHER_WIND_LEAN_AMP     = 4.0
+WEATHER_WIND_SCROLL_FACTOR = 0.20
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE

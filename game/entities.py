@@ -826,6 +826,11 @@ class Bird:
         self.shiver_x = 0.0
         self.shiver_y = 0.0
         self.flap_dampen = 0.0
+        # Headwind lean — leftward visual x-offset (negative)
+        # written by World._apply_weather_effects each frame
+        # while the predawn wind event is active. Visual-only;
+        # collisions use Bird.x which stays at BIRD_X.
+        self.wind_lean = 0.0
         # X-Ray Sparks flash. Set to 0.5 s by World._fire_storm_jolt
         # when the real strike lands on Pip; Bird.draw alternates Pip's
         # sprite between the normal frame and a skeleton-overlay frame
@@ -905,7 +910,7 @@ class Bird:
         # Weather shiver: world-driven per-frame jitter under heavy rain /
         # lightning. Visual only — kept out of the physics shake_x/shake_y
         # path so collision is unaffected.
-        shake_x += self.shiver_x
+        shake_x += self.shiver_x + self.wind_lean
         shake_y += self.shiver_y
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
         # When flipped (reverse-gravity buff), negate the tilt so a rising

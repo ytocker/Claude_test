@@ -55,8 +55,18 @@ def lightning_active(phase: float) -> bool:
 
 
 def wind_intensity(phase: float) -> float:
-    """Golden-hour wind (0.18) — drifting leaves."""
-    return _bump(phase, 0.18, 0.10) * 1.0
+    """Two bumps:
+      - Golden-hour calm breeze (phase 0.18, gentle leaf drift, no
+        gameplay effect)
+      - Predawn HEADWIND event (phase 0.85, peak storm wind that
+        pushes Pip leftward + slows the world scroll)
+    Returned value is clamped 0..1 and serves both as a particle
+    spawn multiplier (Weather.update reads it for leaves + wind
+    streaks) and as the gameplay-effect scalar (World reads it for
+    bird.wind_lean + scroll slowdown)."""
+    calm  = _bump(phase, 0.18, 0.10) * 0.35   # ambient golden-hour breeze
+    storm = _bump(phase, 0.85, 0.10) * 1.00   # predawn headwind event
+    return max(0.0, min(1.0, calm + storm))
 
 
 # ── particle: a single rain streak ──────────────────────────────────────────
@@ -117,12 +127,65 @@ class _Leaf:
                             (int(self.x) - rx, int(self.y) - r, rx * 2, r * 2))
 
 
+class _WindStreak:
+    """Fast horizontal-ish streak racing leftward, used as the
+    visual cue for the predawn headwind event. Length, speed and
+    spawn-rate all scale with wind intensity — at low wind the
+    streaks are few + short + slow; at peak they're dense + long
+    + fast. Cool slate-cyan colour blends with the predawn sky."""
+    __slots__ = ("x", "y", "vx", "vy", "len", "color", "alpha")
+
+    def __init__(self, x, y, vx, vy, length, color, alpha):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.len = length
+        self.color = color
+        self.alpha = alpha
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+
+    def off_screen(self):
+        return self.x < -30 or self.y > GROUND_Y or self.y < -20
+
+    def draw(self, surf):
+        # The streak is drawn AWAY FROM its current motion (so it
+        # trails behind itself, leftward). Two-stroke render: a
+        # thicker semi-transparent body + a brighter 1-px core.
+        dx = -self.vx * 0.012   # tail extends opposite the motion
+        dy = -self.vy * 0.012
+        body_col = (*self.color, self.alpha)
+        core_col = (255, 255, 255, min(255, self.alpha + 60))
+        # Use SRCALPHA scratch so alpha actually blends
+        x1 = int(self.x); y1 = int(self.y)
+        x2 = int(self.x - dx); y2 = int(self.y - dy)
+        # 2-px wide body
+        sub = pygame.Surface(
+            (abs(x2 - x1) + 4, abs(y2 - y1) + 4),
+            pygame.SRCALPHA,
+        )
+        ox = min(x1, x2) - 2
+        oy = min(y1, y2) - 2
+        pygame.draw.line(sub, body_col,
+                         (x1 - ox, y1 - oy), (x2 - ox, y2 - oy), 2)
+        pygame.draw.line(sub, core_col,
+                         (x1 - ox, y1 - oy), (x2 - ox, y2 - oy), 1)
+        surf.blit(sub, (ox, oy))
+
+
 # ── main Weather controller ────────────────────────────────────────────────
 
 class Weather:
     def __init__(self):
         self.streaks: list[_Streak] = []
         self.leaves: list[_Leaf] = []
+        # Wind streaks — only spawn at meaningful wind intensity
+        # (predawn HEADWIND event, phase ~0.85). At the small
+        # golden-hour breeze intensity these stay at 0.
+        self.wind_streaks: list[_WindStreak] = []
         self.phase: float = 0.0
 
         # Lightning state: countdown to next strike, and flash envelope 0..1.
@@ -161,6 +224,33 @@ class Weather:
         else:
             self.leaves = []
 
+        # Wind streaks — visible cue for the headwind event. Gate
+        # at wind > 0.15 so the small golden-hour calm breeze
+        # (peak ~0.35) shows leaves only, while the predawn storm
+        # bump (peak ~1.00) gets the dramatic horizontal streaks
+        # too. Streak count + speed both scale with wind so the
+        # buildup→peak→fade reads clearly.
+        if wind > 0.15:
+            # Map wind 0.15..1.00 → streak_t 0..1 so streaks ramp
+            # in from zero at the gate rather than appearing at
+            # full density immediately.
+            streak_t = (wind - 0.15) / 0.85
+            target = int(streak_t * 60)
+            while len(self.wind_streaks) < target:
+                self._spawn_wind_streak(streak_t, phase)
+            for ws in self.wind_streaks:
+                ws.update(dt)
+            self.wind_streaks = [ws for ws in self.wind_streaks
+                                 if not ws.off_screen()]
+        else:
+            # Quickly drain any lingering streaks when wind drops
+            # below the gate (cycle continues to scroll them off
+            # via their own velocity each frame).
+            for ws in self.wind_streaks:
+                ws.update(dt)
+            self.wind_streaks = [ws for ws in self.wind_streaks
+                                 if not ws.off_screen()]
+
         # Lightning (only in night window)
         if lightning_active(phase):
             self.next_strike -= dt
@@ -194,10 +284,44 @@ class Weather:
         ))
         self.leaves.append(_Leaf(x, y, vx, vy, hue))
 
+    def _spawn_wind_streak(self, streak_t, phase):
+        """One fast leftward streak. Origin: right edge (or above
+        the canvas, so streaks also enter from the top-right at an
+        angle). Velocity, length, alpha all scale with `streak_t`
+        (already pre-mapped 0..1 from the wind intensity gate so
+        the buildup reads smoothly)."""
+        # 60% spawn at right edge, 40% from above-right (so the
+        # storm looks like it's blowing in from upper-right)
+        if random.random() < 0.6:
+            x = W + random.uniform(0, 20)
+            y = random.uniform(20, GROUND_Y - 40)
+        else:
+            x = random.uniform(W * 0.4, W + 20)
+            y = random.uniform(-30, 0)
+        # Leftward + slight downward
+        vx = -(320 + streak_t * 220) - random.uniform(0, 80)
+        vy = 30 + random.uniform(-10, 40)
+        length = int(8 + streak_t * 14)
+        # Cool slate-cyan, slightly varied per streak
+        col = random.choice((
+            (190, 210, 235),
+            (170, 200, 230),
+            (210, 220, 240),
+            (200, 215, 245),
+        ))
+        alpha = int(120 + streak_t * 110)
+        self.wind_streaks.append(
+            _WindStreak(x, y, vx, vy, length, col, alpha))
+
     def draw(self, surf):
         # Rain
         for s in self.streaks:
             s.draw(surf)
+        # Wind streaks (drawn after rain so they layer on top of
+        # the drizzle when both happen to overlap, though normally
+        # they don't — different cycle phases)
+        for ws in self.wind_streaks:
+            ws.draw(surf)
         # Leaves
         for lf in self.leaves:
             lf.draw(surf)

@@ -35,6 +35,7 @@ from game.config import (
     FLAP_V,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
     WEATHER_PIP_SHIVER_AMP, WEATHER_FLAP_DAMPEN_MAX,
+    WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
     GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
 )
@@ -50,7 +51,11 @@ from game.draw import (
 )
 from game import biome
 from game import audio
-from game.weather import Weather, rain_intensity as _rain_intensity
+from game.weather import (
+    Weather,
+    rain_intensity as _rain_intensity,
+    wind_intensity as _wind_intensity,
+)
 from game.ambient import AmbientScenes
 
 
@@ -328,6 +333,15 @@ class World:
         # of snapping.
         if self.slide_boost > 0:
             base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
+        # Headwind weather event (predawn ~phase 0.85): slows the
+        # world scroll so pipes/coins approach more slowly and
+        # the player visibly makes less progress per second.
+        # Scales linearly with wind_intensity — at peak wind the
+        # scroll is (1 - WEATHER_WIND_SCROLL_FACTOR) × normal
+        # (default 0.80 × normal = 20 % slower).
+        wi = _wind_intensity(self.biome_phase)
+        if wi > 0.05:
+            base *= 1.0 - WEATHER_WIND_SCROLL_FACTOR * wi
         return base
 
     def _current_spacing(self):
@@ -1506,42 +1520,57 @@ class World:
         physics change — that's the felt "wind is pushing me down" cue."""
         ri = _rain_intensity(self.weather.phase)
         if ri <= 0:
-            # Clear any lingering offsets so a brief drizzle that drops back
-            # to 0 doesn't leave coins permanently nudged.
+            # Clear any lingering rain-side offsets so a brief drizzle
+            # that drops back to 0 doesn't leave coins permanently
+            # nudged. We DO NOT return here — the wind branch below
+            # still needs to run for the predawn headwind event,
+            # which fires while rain is 0.
             for c in self.coins:
                 c.weather_dx = 0.0
             self.bird.shiver_x = 0.0
             self.bird.shiver_y = 0.0
             self.bird.flap_dampen = 0.0
-            return
-        # Coin shake — pure horizontal left-right tremor. Amplitude
-        # scales LINEARLY with rain intensity so the wobble is
-        # barely perceptible at first drizzle (~0.4 px at ri=0.1)
-        # and grows smoothly to a visibly violent ±4 px at peak
-        # storm (ri=1.0). Oscillation frequency also speeds up
-        # mildly with intensity (4.5 → 9.0 rad/s) so heavy rain
-        # feels frantic, not just wider. No vertical wobble, no
-        # leftward slide, no real position drift — coins stay on
-        # their hover spot and just tremor with the weather.
-        amp_x = WEATHER_COIN_SHAKE_AMP * ri
-        freq = 4.5 * (1.0 + ri)
-        for c in self.coins:
-            c._weather_phase += dt * freq
-            c.weather_dx = math.sin(c._weather_phase) * amp_x
-        # Pip: shiver + flap dampen only above the heavy threshold so
-        # ordinary drizzle doesn't make controls feel broken.
-        heavy = ri > WEATHER_HEAVY_THRESHOLD
-        if heavy:
-            heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
-            # Extra jolt during a lightning flash so the strike reads.
-            flash_kick = 1.5 if self.weather.flash_remaining > 0 else 1.0
-            self.bird.shiver_x = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
-            self.bird.shiver_y = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
-            self.bird.flap_dampen = WEATHER_FLAP_DAMPEN_MAX * heavy_t
         else:
-            self.bird.shiver_x = 0.0
-            self.bird.shiver_y = 0.0
-            self.bird.flap_dampen = 0.0
+            # Coin shake — pure horizontal left-right tremor.
+            # Amplitude scales LINEARLY with rain intensity so the
+            # wobble is barely perceptible at first drizzle
+            # (~0.4 px at ri=0.1) and grows smoothly to a visibly
+            # violent ±4 px at peak storm (ri=1.0). Frequency also
+            # speeds up mildly with intensity (4.5 → 9.0 rad/s).
+            amp_x = WEATHER_COIN_SHAKE_AMP * ri
+            freq = 4.5 * (1.0 + ri)
+            for c in self.coins:
+                c._weather_phase += dt * freq
+                c.weather_dx = math.sin(c._weather_phase) * amp_x
+            # Pip: shiver + flap dampen only above the heavy
+            # threshold so ordinary drizzle doesn't make controls
+            # feel broken.
+            heavy = ri > WEATHER_HEAVY_THRESHOLD
+            if heavy:
+                heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
+                # Extra jolt during a lightning flash so the strike reads.
+                flash_kick = 1.5 if self.weather.flash_remaining > 0 else 1.0
+                self.bird.shiver_x = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.shiver_y = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.flap_dampen = WEATHER_FLAP_DAMPEN_MAX * heavy_t
+            else:
+                self.bird.shiver_x = 0.0
+                self.bird.shiver_y = 0.0
+                self.bird.flap_dampen = 0.0
+
+        # Headwind: a separate weather event peaking at phase 0.85
+        # (predawn). Visual lean on Pip scales linearly with
+        # wind_intensity. World-scroll slowdown is applied in
+        # _current_scroll() so the gameplay resistance kicks in
+        # at the same time. Gate at wi > 0.05 so the ambient
+        # golden-hour breeze doesn't nudge Pip at all (peak 0.35
+        # × 0.05 = imperceptible).
+        wi = _wind_intensity(self.weather.phase)
+        if wi > 0.05:
+            # Negative = leftward push (screen +x is right)
+            self.bird.wind_lean = -WEATHER_WIND_LEAN_AMP * wi
+        else:
+            self.bird.wind_lean = 0.0
 
         # Storm jolt: only at near-peak intensity, after the lockout, and
         # only if Pip actually has coins to lose. Random fire on a small
