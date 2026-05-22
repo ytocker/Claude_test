@@ -1761,19 +1761,17 @@ class World:
                 gravity=180,
             ))
 
-        # ── Text: cyan ZAP! + red -50! — placed in the upper-right
-        # corner ABOVE Pip's sprite top (Pip is 64×60 centred on
-        # bird.x/bird.y, so his top edge is at bird.y - 30 and his
-        # right edge is at bird.x + 32). Anchoring at +80 / -50
-        # puts the text well clear of his body in BOTH axes so the
-        # 1.2 s skeleton flicker stays completely unobstructed.
+        # ── Text: only the red -50! — placed directly ABOVE Pip,
+        # vertically clear of both his 64×60 sprite (top edge at
+        # bird.y - 30) and the silhouette-rim aura (~3 px outward).
+        # `bird.y - 58` puts the text centre 25 px above the aura
+        # top, with the ~15 px text half-height giving a final
+        # ~10 px gap on impact frame; the text drifts up further
+        # over its 1.6 s life. Horizontally centred on bird.x so
+        # the player's eye reads "score change above Pip", not
+        # off to one side. ZAP! removed per playtest feedback.
         self.float_texts.append(FloatText(
-            "ZAP!", self.bird.x + 80, self.bird.y - 50,
-            (180, 220, 255),
-            size=34, life=1.4, vy=-30, style="powerup",
-        ))
-        self.float_texts.append(FloatText(
-            f"-{lost}!", self.bird.x + 80, self.bird.y - 20, UI_RED,
+            f"-{lost}!", self.bird.x, self.bird.y - 58, UI_RED,
             size=30, life=1.6, vy=-26, style="powerup",
         ))
 
