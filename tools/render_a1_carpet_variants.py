@@ -268,100 +268,195 @@ def draw_carpet_persian(big, cx):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def draw_carpet_royal(big, cx):
-    """Royal purple velvet carpet with gold trim, embroidered stars
-    + crescent moons, big pom-pom tassels at the corners."""
+    """High-end royal velvet carpet — purple base with multiple layers
+    of gold trim, an ornate central medallion, scattered stars +
+    crescents arranged in a structured pattern, gem inlay corners,
+    and detailed pom-pom + thread tassels. NO ground shadow."""
     PURPLE    = ( 80,  35, 130)
     PURPLE_HI = (140,  85, 200)
+    PURPLE_MID= (110,  55, 165)
     PURPLE_LO = ( 45,  18,  85)
+    PURPLE_DK = ( 25,  10,  50)
     GOLD      = (245, 205, 105)
     GOLD_HI   = (255, 240, 175)
+    GOLD_MID  = (220, 175,  70)
     GOLD_LO   = (160, 115,  30)
+    GOLD_DK   = (110,  75,  15)
     WHITE     = (250, 245, 230)
     RUBY      = (220,  60,  80)
-
-    _shadow_oval(big, cx, s(338), s(220), s(24), alpha=130)
+    RUBY_HI   = (255, 175, 195)
+    EMERALD   = ( 65, 180,  95)
+    SAPPHIRE  = ( 70, 130, 220)
 
     cy_top = s(286)
     body = _carpet_perspective_quad(cx, cy_top,
                                     half_w_front=s(140),
                                     half_w_back=s(110),
                                     height=s(42))
-    pygame.draw.polygon(big, PURPLE_LO,
+    # ── Base velvet body (multi-tone for depth) ─────────────────
+    pygame.draw.polygon(big, PURPLE_DK,
                         [(x + s(2), y + s(2)) for x, y in body])
-    pygame.draw.polygon(big, PURPLE, body)
-    # Velvet sheen — alpha highlight along the top
-    sheen = pygame.Surface((body[1][0] - body[0][0], s(14)),
-                           pygame.SRCALPHA)
-    pygame.draw.ellipse(sheen, (*PURPLE_HI, 130),
-                        (0, 0, sheen.get_width(), s(14)))
-    big.blit(sheen, (body[0][0], body[0][1] + s(2)))
+    pygame.draw.polygon(big, PURPLE_LO, body)
+    # Mid-tone inset for the velvet's volume
+    inset_pad = s(2)
+    body_in = [
+        (body[0][0] + inset_pad, body[0][1] + inset_pad),
+        (body[1][0] - inset_pad, body[1][1] + inset_pad),
+        (body[2][0] - inset_pad, body[2][1] - inset_pad),
+        (body[3][0] + inset_pad, body[3][1] - inset_pad),
+    ]
+    pygame.draw.polygon(big, PURPLE, body_in)
+    # Velvet sheen — soft alpha highlight bands
+    for off_y, alpha_v in ((s(2), 140), (s(8), 90)):
+        sheen = pygame.Surface((body[1][0] - body[0][0], s(10)),
+                               pygame.SRCALPHA)
+        pygame.draw.ellipse(sheen, (*PURPLE_HI, alpha_v),
+                            (0, 0, sheen.get_width(), s(10)))
+        big.blit(sheen, (body[0][0], body[0][1] + off_y))
 
-    # Gold trim border (thick double-line)
+    # ── Multi-layer gold border (outer thick + inner thin) ──────
+    # Outer thick gold rim
     for a, b in ((body[0], body[1]),
                  (body[1], body[2]),
                  (body[2], body[3]),
                  (body[3], body[0])):
-        pygame.draw.line(big, GOLD_LO, a, b, max(3, s(1) + 1))
+        pygame.draw.line(big, GOLD_DK, a, b, max(5, s(1) + 3))
     for a, b in ((body[0], body[1]),
                  (body[1], body[2]),
                  (body[2], body[3]),
                  (body[3], body[0])):
-        pygame.draw.line(big, GOLD, a, b, max(2, s(1)))
-    # Inner trim line
-    inset = s(5)
-    inner = [
-        (body[0][0] + inset, body[0][1] + inset),
-        (body[1][0] - inset, body[1][1] + inset),
-        (body[2][0] - inset, body[2][1] - inset),
-        (body[3][0] + inset, body[3][1] - inset),
+        pygame.draw.line(big, GOLD, a, b, max(3, s(1) + 1))
+    for a, b in ((body[0], body[1]),
+                 (body[1], body[2]),
+                 (body[2], body[3]),
+                 (body[3], body[0])):
+        pygame.draw.line(big, GOLD_HI, a, b, max(1, s(1) // 2))
+    # Inner thin gold frame (1 unit inset)
+    inset1 = s(5)
+    inner1 = [
+        (body[0][0] + inset1, body[0][1] + inset1),
+        (body[1][0] - inset1, body[1][1] + inset1),
+        (body[2][0] - inset1 + s(1), body[2][1] - inset1),
+        (body[3][0] + inset1 - s(1), body[3][1] - inset1),
     ]
-    pygame.draw.lines(big, GOLD, True, inner, max(1, s(1)))
+    pygame.draw.lines(big, GOLD_MID, True, inner1, max(2, s(1)))
+    # Decorative dot row along the inner frame (small gold beads)
+    for j in range(20):
+        t = (j + 0.5) / 20
+        # Top edge
+        bx = int(inner1[0][0] + (inner1[1][0] - inner1[0][0]) * t)
+        by = int(inner1[0][1] + (inner1[1][1] - inner1[0][1]) * t)
+        aa_circle(big, GOLD_HI, bx, by, max(1, s(1) // 2))
+        # Bottom edge
+        bx = int(inner1[3][0] + (inner1[2][0] - inner1[3][0]) * t)
+        by = int(inner1[3][1] + (inner1[2][1] - inner1[3][1]) * t)
+        aa_circle(big, GOLD_HI, bx, by, max(1, s(1) // 2))
 
-    # Scattered embroidered stars + crescents
-    random.seed(11)
-    motifs = [
-        (cx - s(40), cy_top + s(12), "star"),
-        (cx - s(20), cy_top + s(28), "moon"),
-        (cx,         cy_top + s(18), "star_big"),
-        (cx + s(22), cy_top + s(28), "moon"),
-        (cx + s(40), cy_top + s(12), "star"),
-        (cx - s(58), cy_top + s(30), "star"),
-        (cx + s(58), cy_top + s(30), "star"),
-    ]
-    for mx, my, kind in motifs:
-        if kind == "star_big":
-            r = s(4)
-            # 4-point star
-            for dx, dy in ((r, 0), (-r, 0), (0, r), (0, -r)):
-                pygame.draw.polygon(big, GOLD,
-                                    [(mx, my),
-                                     (mx + dx, my + dy),
-                                     (mx + dy // 2, my + dx // 2)])
-            aa_circle(big, GOLD_HI, mx, my, max(2, s(1)))
-        elif kind == "star":
-            r = s(2)
-            pygame.draw.line(big, GOLD,
-                             (mx - r * 2, my), (mx + r * 2, my),
-                             max(1, s(1)))
-            pygame.draw.line(big, GOLD,
-                             (mx, my - r * 2), (mx, my + r * 2),
-                             max(1, s(1)))
-            aa_circle(big, WHITE, mx, my, max(1, s(1) // 2))
-        elif kind == "moon":
-            pygame.draw.circle(big, GOLD, (mx, my), s(3))
-            pygame.draw.circle(big, PURPLE, (mx + s(1), my), s(3))
+    # ── Central medallion (ornate) ──────────────────────────────
+    med_cy = cy_top + s(22)
+    # Outer ring + 8 petals
+    pygame.draw.circle(big, GOLD_DK, (cx, med_cy), s(11))
+    pygame.draw.circle(big, GOLD,    (cx, med_cy), s(10))
+    # Radiating petals (8)
+    for k in range(8):
+        ang = math.radians(k * 45 + 22.5)
+        tx = cx + math.cos(ang) * s(11)
+        ty = med_cy + math.sin(ang) * s(11)
+        pygame.draw.polygon(big, GOLD_HI,
+                            [(cx, med_cy),
+                             (cx + int(math.cos(ang - 0.2) * s(8)),
+                              med_cy + int(math.sin(ang - 0.2) * s(8))),
+                             (int(tx), int(ty)),
+                             (cx + int(math.cos(ang + 0.2) * s(8)),
+                              med_cy + int(math.sin(ang + 0.2) * s(8)))])
+    # Inner gem
+    pygame.draw.circle(big, GOLD_LO, (cx, med_cy), s(6))
+    pygame.draw.circle(big, GOLD_HI, (cx, med_cy), s(5))
+    gem_facet(big, cx, med_cy, s(4), RUBY, RUBY_HI, (110, 30, 40))
 
-    # 4 corner pom-pom tassels (bigger than design 1)
+    # ── Symmetric motif rows: stars + crescents in pattern ──────
+    # Top row of small stars
+    for fx in (-s(60), -s(36), s(36), s(60)):
+        sx_p = cx + fx
+        sy_p = cy_top + s(10)
+        r = s(2)
+        for dx_p, dy_p in ((r * 2, 0), (-r * 2, 0), (0, r * 2), (0, -r * 2)):
+            pygame.draw.line(big, GOLD,
+                             (sx_p, sy_p), (sx_p + dx_p, sy_p + dy_p),
+                             max(1, s(1)))
+        aa_circle(big, WHITE, sx_p, sy_p, max(1, s(1) // 2))
+    # Mid row of crescent moons flanking the medallion
+    for fx in (-s(38), s(38)):
+        mx_p = cx + fx
+        my_p = cy_top + s(22)
+        pygame.draw.circle(big, GOLD, (mx_p, my_p), s(4))
+        pygame.draw.circle(big, PURPLE, (mx_p + s(2), my_p), s(4))
+        # Star inside crescent's "open" side
+        pygame.draw.circle(big, GOLD_HI, (mx_p + s(5), my_p), max(1, s(1)))
+    # Bottom row of paired tiny stars
+    for fx in (-s(70), -s(46), -s(22), s(22), s(46), s(70)):
+        sx_p = cx + fx
+        sy_p = cy_top + s(34)
+        aa_circle(big, GOLD, sx_p, sy_p, max(1, s(1)))
+        aa_circle(big, WHITE, sx_p - s(1), sy_p - s(1),
+                  max(1, s(1) // 2))
+
+    # ── Decorative gold curlicue flourishes along the border ───
+    # Small swirls at the corners (between border and motifs)
+    for corner_index, corner in enumerate(body):
+        cx_f, cy_f = corner
+        # Pick swirl direction so curl points inward + downward
+        sign_x = -1 if corner[0] > cx else 1
+        sign_y = -1 if corner[1] > cy_top + s(20) else 1
+        # Drawing a small spiral-ish flourish with 2 arcs
+        pygame.draw.arc(big, GOLD,
+                        (cx_f + sign_x * s(5) - s(4),
+                         cy_f + sign_y * s(5) - s(4),
+                         s(8), s(8)),
+                        math.radians(0), math.radians(270),
+                        max(2, s(1)))
+        pygame.draw.arc(big, GOLD_HI,
+                        (cx_f + sign_x * s(7) - s(3),
+                         cy_f + sign_y * s(7) - s(3),
+                         s(6), s(6)),
+                        math.radians(0), math.radians(270),
+                        max(1, s(1) // 2))
+
+    # ── Corner gem inlays (small gold settings with tiny gems) ─
+    for corner, gem_col in zip(
+            [body[0], body[1], body[2], body[3]],
+            [SAPPHIRE, SAPPHIRE, EMERALD, EMERALD]):
+        # Move slightly inward from corner
+        gx_p = corner[0] + (s(8) if corner[0] < cx else -s(8))
+        gy_p = corner[1] + (s(8) if corner[1] < cy_top + s(20) else -s(8))
+        pygame.draw.circle(big, GOLD_DK, (gx_p + s(1), gy_p + s(1)), s(4))
+        pygame.draw.circle(big, GOLD, (gx_p, gy_p), s(3))
+        gem_facet(big, gx_p, gy_p, s(2), gem_col,
+                  RUBY_HI if gem_col == EMERALD else (170, 215, 255),
+                  (15, 60, 80))
+
+    # ── Detailed pom-pom + tassel at each corner ───────────────
     for corner in body:
-        aa_circle(big, GOLD_LO, corner[0] + s(1), corner[1] + s(2), s(5))
-        aa_circle(big, GOLD,    corner[0],         corner[1] + s(1), s(4))
-        aa_circle(big, GOLD_HI, corner[0] - s(1),  corner[1],        s(2))
-        # Dangling threads
-        for dx in (-s(3), -s(1), s(1), s(3)):
+        cxc, cyc = corner
+        # Multi-layer pom-pom
+        aa_circle(big, GOLD_DK, cxc + s(1), cyc + s(2), s(7))
+        aa_circle(big, GOLD_LO, cxc,         cyc + s(1), s(6))
+        aa_circle(big, GOLD,    cxc,         cyc,         s(5))
+        aa_circle(big, GOLD_HI, cxc - s(2),  cyc - s(2),  s(2))
+        # Ruby gem set in the pom-pom
+        pygame.draw.circle(big, RUBY, (cxc, cyc + s(1)), s(2))
+        pygame.draw.circle(big, RUBY_HI, (cxc - s(1), cyc), s(1))
+        # Dangling thread bundle below
+        for dx in (-s(4), -s(2), 0, s(2), s(4)):
             pygame.draw.line(big, RUBY,
-                             (corner[0] + dx, corner[1] + s(4)),
-                             (corner[0] + dx - s(1), corner[1] + s(14)),
+                             (cxc + dx, cyc + s(6)),
+                             (cxc + dx - s(1), cyc + s(18)),
                              max(2, s(1)))
+        # Gold thread tips at the bottom of each strand
+        for dx in (-s(4), -s(2), 0, s(2), s(4)):
+            aa_circle(big, GOLD,
+                      cxc + dx - s(1), cyc + s(18),
+                      max(1, s(1)))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
