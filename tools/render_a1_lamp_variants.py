@@ -1021,13 +1021,6 @@ def draw_lamp_3_apothecary(big, cx, cy):
 # ─────────────────────────────────────────────────────────────────────
 
 def draw_lamp_4_faceted(big, cx, cy):
-    pal = {
-        "dk":    ( 60, 130, 170),
-        "base":  (130, 195, 220),
-        "hi":    (220, 245, 255),
-        "sheen": (255, 255, 255),
-        "hole":  ( 55, 110, 145),
-    }
     GOLD     = (255, 220, 110)
     GOLD_HI  = (255, 245, 175)
     GOLD_DK  = (180, 130,  40)
@@ -1038,10 +1031,79 @@ def draw_lamp_4_faceted(big, cx, cy):
     SAPPHIRE = ( 70, 100, 220)
     SAPPHIRE_HI = (175, 200, 255)
     WHITE    = (250, 250, 250)
-    SMOKE    = [WHITE, (195, 235, 255), (130, 195, 235),
-                ( 75, 145, 200)]
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    ( 60, 130, 170),
+            "base":  (130, 195, 220),
+            "hi":    (220, 245, 255),
+            "sheen": (255, 255, 255),
+            "hole":  ( 55, 110, 145),
+        },
+        metal={"dk": GOLD_DK, "base": GOLD, "hi": GOLD_HI},
+        gems={
+            "handle_centre": ("round", SAPPHIRE, SAPPHIRE_HI, s(3)),
+            "foot_dot":     (EMERALD, EMERALD_HI),
+            "stopper_left": ("round", EMERALD, EMERALD_HI, s(2)),
+            "stopper_centre": ("diamond", RUBY, RUBY_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", SAPPHIRE, SAPPHIRE_HI, s(2)),
+        },
+        smoke=[WHITE, (195, 235, 255), (130, 195, 235),
+               ( 75, 145, 200)],
+    )
+
+
+def _render_faceted_lamp(big, cx, cy, body_pal, metal, gems, smoke):
+    """Shared render for the Faceted Crystal design. Each call uses
+    a different body palette + metal + gem set so the silhouette +
+    facet pattern + ornaments are identical; only the colour scheme
+    changes."""
+    # Convenience aliases so the body code reads naturally
+    M_DK    = metal["dk"]
+    M       = metal["base"]
+    M_HI    = metal["hi"]
+    pal     = body_pal
+    GOLD_DK = M_DK
+    GOLD    = M
+    GOLD_HI = M_HI
+    SMOKE   = smoke
+    WHITE   = (250, 250, 250)
+    # Unpack gem set
+    h_gem_type, h_gem_col, h_gem_hi, h_gem_r = gems["handle_centre"]
+    foot_dot_col, foot_dot_hi = gems["foot_dot"]
+    EMERALD, EMERALD_HI = foot_dot_col, foot_dot_hi
+    sl_type, sl_col, sl_hi, sl_r = gems["stopper_left"]
+    sc_type, sc_col, sc_hi, sc_r = gems["stopper_centre"]
+    sr_type, sr_col, sr_hi, sr_r = gems["stopper_right"]
 
     anc = lamp_silhouette(cx, cy)
+
+    # ─── Outline glow (subtle dark-navy halo) ────────────────────
+    # The crystal palette is close to the bright DAY-biome sky tones.
+    # A soft dark halo hugging the silhouette gives the lamp a
+    # consistent silhouette separation against ANY sky colour: it
+    # darkens the area behind bright skies (day) and disappears
+    # against dark skies (night) where it's not needed.
+    HALO_COLOR = (28, 40, 70)
+    halo_cx = anc["cx"]
+    halo_cy = anc["body_cy"]
+    sp_cx = anc["spa_x"] + s(8)
+    sp_cy = anc["spa_y"] - s(15)
+    for scale, alpha in ((1.20, 35), (1.12, 70), (1.05, 115)):
+        sub = pygame.Surface((PW, PH), pygame.SRCALPHA)
+        body_scaled = [(halo_cx + (x - halo_cx) * scale,
+                        halo_cy + (y - halo_cy) * scale)
+                       for x, y in anc["body_pts"]]
+        spout_scaled = [(sp_cx + (x - sp_cx) * scale,
+                         sp_cy + (y - sp_cy) * scale)
+                        for x, y in anc["spout_pts"]]
+        pygame.draw.polygon(sub, (*HALO_COLOR, alpha),
+                            [(int(x), int(y)) for x, y in body_scaled])
+        pygame.draw.polygon(sub, (*HALO_COLOR, alpha),
+                            [(int(x), int(y)) for x, y in spout_scaled])
+        big.blit(sub, (0, 0))
+
     paint_lamp_body(big, anc, pal)
 
     bw, bh = anc["bw"], anc["bh"]
@@ -1140,12 +1202,17 @@ def draw_lamp_4_faceted(big, cx, cy):
     pygame.draw.ellipse(big, GOLD,
                         (fx - s(5) + s(1) // 2, fy + s(1) + s(1) // 2,
                          s(10) - s(1), s(3) - s(1)))
-    # 3 gems clustered above
-    gem_round(big, fx - s(3), fy, s(2), EMERALD, EMERALD_HI)
-    gem_diamond(big, fx, fy - s(2), s(2) + s(1) // 2, RUBY, RUBY_HI)
-    gem_round(big, fx + s(3), fy, s(2), SAPPHIRE, SAPPHIRE_HI)
+    # 3 gems clustered above — types + colours per the gem set
+    def _stopper_gem(gtype, x, y, r, c, hi):
+        if gtype == "diamond":
+            gem_diamond(big, x, y, r, c, hi)
+        else:
+            gem_round(big, x, y, r, c, hi)
+    _stopper_gem(sl_type, fx - s(3), fy, sl_r, sl_col, sl_hi)
+    _stopper_gem(sc_type, fx, fy - s(2), sc_r, sc_col, sc_hi)
+    _stopper_gem(sr_type, fx + s(3), fy, sr_r, sr_col, sr_hi)
 
-    # Handle — gold torus with sapphire centre
+    # Handle — metal torus with the chosen handle-centre gem
     handle_pal = {
         "dk":    GOLD_DK,
         "base":  GOLD,
@@ -1153,18 +1220,18 @@ def draw_lamp_4_faceted(big, cx, cy):
         "hole":  ( 45,  65, 110),
     }
     paint_torus_handle(big, anc, handle_pal,
-                       inner_gem=("round", 0, 0,
-                                  s(3), SAPPHIRE, SAPPHIRE_HI))
+                       inner_gem=(h_gem_type, 0, 0,
+                                  h_gem_r, h_gem_col, h_gem_hi))
 
-    # Foot — gold ring with gem dots
+    # Foot — metal ring with gem dots (using foot_dot palette)
     def foot_gems(big, cx_in, by, bw_in, bh_in):
         for gem_off in (-bw_in // 3, 0, bw_in // 3):
             aa_circle(big, NEAR_BLK,
                       cx_in + gem_off + s(1) // 2,
                       by + s(2) + s(1) // 2, max(2, s(1)))
-            aa_circle(big, EMERALD, cx_in + gem_off, by + s(2),
+            aa_circle(big, foot_dot_col, cx_in + gem_off, by + s(2),
                       max(1, s(1) + 1))
-            aa_circle(big, EMERALD_HI,
+            aa_circle(big, foot_dot_hi,
                       cx_in + gem_off - s(1) // 2,
                       by + s(2) - s(1) // 2, max(1, s(1) // 2))
     paint_foot(big, anc, pal,
@@ -1394,12 +1461,155 @@ def draw_lamp_5_celestial(big, cx, cy):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Five colour variations of the Faceted Crystal design. Each shares
+# the same silhouette, facet pattern, gold accents, ornaments and
+# outline glow — only the body palette + gem set changes, so the
+# lamp pops against the bright DAY-biome cyan sky in different ways.
+# ─────────────────────────────────────────────────────────────────────
+
+# Shared metal accent palette (warm gold)
+_GOLD    = (255, 220, 110)
+_GOLD_HI = (255, 245, 175)
+_GOLD_DK = (180, 130,  40)
+# Shared metal accent palette (cool silver) — used by colder variants
+_SILVER    = (215, 220, 240)
+_SILVER_HI = (250, 250, 255)
+_SILVER_DK = (130, 145, 175)
+# Gem swatches
+_RUBY,    _RUBY_HI    = (220,  55,  75), (255, 175, 195)
+_EMERALD, _EMERALD_HI = ( 70, 175, 110), (180, 240, 200)
+_SAPPHIRE,_SAPPHIRE_HI= ( 70, 100, 220), (175, 200, 255)
+_AMETHYST,_AMETHYST_HI= (155,  85, 220), (220, 180, 245)
+_AMBER,   _AMBER_HI   = (240, 165,  50), (255, 220, 140)
+_ROSE,    _ROSE_HI    = (235, 110, 160), (255, 195, 220)
+
+
+def draw_color_1_teal(big, cx, cy):
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    ( 12,  72,  80),
+            "base":  ( 45, 150, 145),
+            "hi":    (140, 220, 215),
+            "sheen": (235, 250, 245),
+            "hole":  ( 25,  65,  70),
+        },
+        metal={"dk": _GOLD_DK, "base": _GOLD, "hi": _GOLD_HI},
+        gems={
+            "handle_centre": ("round", _RUBY, _RUBY_HI, s(3)),
+            "foot_dot":     (_AMBER, _AMBER_HI),
+            "stopper_left": ("round", _AMETHYST, _AMETHYST_HI, s(2)),
+            "stopper_centre": ("diamond", _RUBY, _RUBY_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", _AMBER, _AMBER_HI, s(2)),
+        },
+        smoke=[(250, 250, 250), (190, 235, 220), (110, 200, 175),
+               ( 50, 145, 130)],
+    )
+
+
+def draw_color_2_emerald(big, cx, cy):
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    ( 14,  75,  40),
+            "base":  ( 50, 160,  90),
+            "hi":    (150, 230, 170),
+            "sheen": (235, 255, 230),
+            "hole":  ( 25,  70,  35),
+        },
+        metal={"dk": _GOLD_DK, "base": _GOLD, "hi": _GOLD_HI},
+        gems={
+            "handle_centre": ("round", _RUBY, _RUBY_HI, s(3)),
+            "foot_dot":     (_SAPPHIRE, _SAPPHIRE_HI),
+            "stopper_left": ("round", _SAPPHIRE, _SAPPHIRE_HI, s(2)),
+            "stopper_centre": ("diamond", _RUBY, _RUBY_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", _AMBER, _AMBER_HI, s(2)),
+        },
+        smoke=[(255, 250, 245), (200, 235, 205), (115, 200, 145),
+               ( 55, 140,  85)],
+    )
+
+
+def draw_color_3_amber(big, cx, cy):
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    (115,  60,  10),
+            "base":  (225, 145,  45),
+            "hi":    (255, 215, 130),
+            "sheen": (255, 245, 195),
+            "hole":  ( 95,  50,  10),
+        },
+        metal={"dk": _GOLD_DK, "base": _GOLD, "hi": _GOLD_HI},
+        gems={
+            "handle_centre": ("round", _SAPPHIRE, _SAPPHIRE_HI, s(3)),
+            "foot_dot":     (_EMERALD, _EMERALD_HI),
+            "stopper_left": ("round", _EMERALD, _EMERALD_HI, s(2)),
+            "stopper_centre": ("diamond", _SAPPHIRE, _SAPPHIRE_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", _RUBY, _RUBY_HI, s(2)),
+        },
+        smoke=[(255, 250, 230), (250, 215, 165), (220, 145, 95),
+               (150,  75,  35)],
+    )
+
+
+def draw_color_4_rose(big, cx, cy):
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    (110,  40,  70),
+            "base":  (225, 115, 155),
+            "hi":    (250, 195, 220),
+            "sheen": (255, 235, 245),
+            "hole":  ( 90,  35,  60),
+        },
+        metal={"dk": _GOLD_DK, "base": _GOLD, "hi": _GOLD_HI},
+        gems={
+            "handle_centre": ("round", _EMERALD, _EMERALD_HI, s(3)),
+            "foot_dot":     (_AMETHYST, _AMETHYST_HI),
+            "stopper_left": ("round", _EMERALD, _EMERALD_HI, s(2)),
+            "stopper_centre": ("diamond", _AMETHYST, _AMETHYST_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", _AMBER, _AMBER_HI, s(2)),
+        },
+        smoke=[(255, 250, 250), (250, 215, 230), (230, 155, 195),
+               (160,  75, 120)],
+    )
+
+
+def draw_color_5_amethyst(big, cx, cy):
+    _render_faceted_lamp(
+        big, cx, cy,
+        body_pal={
+            "dk":    ( 55,  20, 105),
+            "base":  (135,  75, 210),
+            "hi":    (210, 170, 240),
+            "sheen": (240, 230, 250),
+            "hole":  ( 40,  18,  85),
+        },
+        metal={"dk": _GOLD_DK, "base": _GOLD, "hi": _GOLD_HI},
+        gems={
+            "handle_centre": ("round", _AMBER, _AMBER_HI, s(3)),
+            "foot_dot":     (_EMERALD, _EMERALD_HI),
+            "stopper_left": ("round", _EMERALD, _EMERALD_HI, s(2)),
+            "stopper_centre": ("diamond", _AMBER, _AMBER_HI,
+                                s(2) + s(1) // 2),
+            "stopper_right":("round", _ROSE, _ROSE_HI, s(2)),
+        },
+        smoke=[(255, 250, 255), (220, 195, 245), (160, 110, 215),
+               ( 90,  50, 170)],
+    )
+
+
 LAMPS = [
-    ("1: Royal Sapphire",       draw_lamp_1_royal_sapphire),
-    ("2: Arabesque Imperial",   draw_lamp_2_arabesque),
-    ("3: Apothecary Antique",   draw_lamp_3_apothecary),
-    ("4: Faceted Crystal",      draw_lamp_4_faceted),
-    ("5: Celestial Nebula",     draw_lamp_5_celestial),
+    ("1: Teal Crystal",     draw_color_1_teal),
+    ("2: Emerald Crystal",  draw_color_2_emerald),
+    ("3: Amber Crystal",    draw_color_3_amber),
+    ("4: Rose Crystal",     draw_color_4_rose),
+    ("5: Amethyst Crystal", draw_color_5_amethyst),
 ]
 
 
@@ -1459,9 +1669,9 @@ def main():
         sheet.blit(small_caption,
                    (x + DW - small_caption.get_width() - 8,
                     sb_y + SH - 2))
-        ind_path = os.path.join(OUT_DIR, f"alamp_{i + 1}_{tag}.png")
+        ind_path = os.path.join(OUT_DIR, f"colorlamp_{i + 1}_{tag}.png")
         pygame.image.save(portrait, ind_path)
-    out = os.path.join(OUT_DIR, f"alamp_sheet_{tag}.png")
+    out = os.path.join(OUT_DIR, f"colorlamp_sheet_{tag}.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
