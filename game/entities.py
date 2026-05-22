@@ -3668,38 +3668,40 @@ class GenieCharacter:
         for sxc in (-s(12), s(12)):
             pygame.draw.circle(big, HAIR,
                                (cx + sxc, head_cy + s(8)), s(2))
-        # Mouth — matches variant 2 v5 portrait (uses the v6 draw_face
-        # treatment): trapezoidal dark interior + white teeth
-        # trapezoid + 5 vertical bar separators between teeth. This
-        # is the locked design's mouth — the user accepted it as part
-        # of "keep the original A1 in high res".
-        mt_y = head_cy + s(11)
-        # Dark interior trapezoid (mouth opening)
+        # Mouth + goatee — EXACT literal copy of tools/render_a1_refined.py
+        # draw_face's mouth block (lines 650-679). Same s(N) values,
+        # same polygons, same number of bars. The reference variant 2
+        # v5 portrait uses this same code; reproducing the exact
+        # coordinates here ensures the in-game mouth matches that
+        # reference pixel-for-pixel relative to the head.
+        mt_y = head_cy + s(18)
+        # Mouth interior
         pygame.draw.polygon(big, HAIR,
-                            [(cx - s(8), mt_y),
-                             (cx + s(8), mt_y),
-                             (cx + s(6), mt_y + s(7)),
-                             (cx - s(6), mt_y + s(7))])
-        # White teeth — single trapezoid
+                            [(cx - s(13), mt_y),
+                             (cx + s(13), mt_y),
+                             (cx + s(10), mt_y + s(8)),
+                             (cx - s(10), mt_y + s(8))])
+        # Teeth
         pygame.draw.polygon(big, WHITE,
-                            [(cx - s(7), mt_y + s(1)),
-                             (cx + s(7), mt_y + s(1)),
-                             (cx + s(5), mt_y + s(5)),
-                             (cx - s(5), mt_y + s(5))])
-        # Vertical tooth separators (5 small lines — the iconic v6
-        # face detail). At in-game render scale these read as tooth
-        # gaps rather than the prison-bar effect they had in the v6
-        # high-res portrait.
-        for tx in (-s(4), -s(2), 0, s(2), s(4)):
+                            [(cx - s(11), mt_y + s(1)),
+                             (cx + s(11), mt_y + s(1)),
+                             (cx + s(8), mt_y + s(6)),
+                             (cx - s(8), mt_y + s(6))])
+        for tx in (-s(7), -s(3), s(0), s(3), s(7)):
             pygame.draw.line(big, HAIR,
                              (cx + tx, mt_y + s(1)),
-                             (cx + tx, mt_y + s(5)),
+                             (cx + tx, mt_y + s(6)),
                              max(1, s(1)))
         # Goatee
         pygame.draw.polygon(big, HAIR,
-                            [(cx - s(4), mt_y + s(8)),
-                             (cx + s(4), mt_y + s(8)),
-                             (cx, mt_y + s(15))])
+                            [(cx - s(8), mt_y + s(8)),
+                             (cx + s(8), mt_y + s(8)),
+                             (cx + s(4), mt_y + s(20)),
+                             (cx - s(4), mt_y + s(20))])
+        pygame.draw.line(big, HAIR_HI,
+                         (cx - s(2), mt_y + s(10)),
+                         (cx - s(1), mt_y + s(18)),
+                         max(1, s(1)))
 
         # ── 7. earrings (gold hoops + ruby drops) ─────────────────
         for sxe in (-head_r - s(1), head_r + s(1)):
