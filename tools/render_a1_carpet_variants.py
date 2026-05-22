@@ -352,28 +352,6 @@ def draw_carpet_royal(big, cx):
         by = int(inner1[3][1] + (inner1[2][1] - inner1[3][1]) * t)
         aa_circle(big, GOLD_HI, bx, by, max(1, s(1) // 2))
 
-    # ── Central medallion (ornate) ──────────────────────────────
-    med_cy = cy_top + s(22)
-    # Outer ring + 8 petals
-    pygame.draw.circle(big, GOLD_DK, (cx, med_cy), s(11))
-    pygame.draw.circle(big, GOLD,    (cx, med_cy), s(10))
-    # Radiating petals (8)
-    for k in range(8):
-        ang = math.radians(k * 45 + 22.5)
-        tx = cx + math.cos(ang) * s(11)
-        ty = med_cy + math.sin(ang) * s(11)
-        pygame.draw.polygon(big, GOLD_HI,
-                            [(cx, med_cy),
-                             (cx + int(math.cos(ang - 0.2) * s(8)),
-                              med_cy + int(math.sin(ang - 0.2) * s(8))),
-                             (int(tx), int(ty)),
-                             (cx + int(math.cos(ang + 0.2) * s(8)),
-                              med_cy + int(math.sin(ang + 0.2) * s(8)))])
-    # Inner gem
-    pygame.draw.circle(big, GOLD_LO, (cx, med_cy), s(6))
-    pygame.draw.circle(big, GOLD_HI, (cx, med_cy), s(5))
-    gem_facet(big, cx, med_cy, s(4), RUBY, RUBY_HI, (110, 30, 40))
-
     # ── Symmetric motif rows: stars + crescents in pattern ──────
     # Top row of small stars
     for fx in (-s(60), -s(36), s(36), s(60)):
