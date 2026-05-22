@@ -235,7 +235,7 @@ def draw_goatee(big, cx, mt_y, extra_offset=0):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Five mouth variants
+# Round-1 mouth variants (kept for reference)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def mouth_1_closed_smile(big, cx, head_cy):
@@ -370,6 +370,209 @@ def mouth_5_open_with_tongue(big, cx, head_cy):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Round-2 mouth variants — all "LARGE smile with teeth, NOT scary".
+# User wants the v6 toothy-grin energy back but warmer + softer so it
+# doesn't read as menacing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _smile_arc_band(big, cx, mt_y, half_w, height, tooth_color=None):
+    """Helper: stamp a tooth band that curves UPWARD at the corners
+    so it reads as a smile, not a flat row of bars."""
+    if tooth_color is None:
+        tooth_color = P["WHITE"]
+    # Build a curved polygon — top edge dips down in the middle,
+    # bottom edge rises at the corners (smile curve).
+    pts = [
+        (cx - half_w, mt_y),                     # top-left
+        (cx - half_w + sx(2), mt_y - sx(1)),
+        (cx, mt_y - sx(1)),
+        (cx + half_w - sx(2), mt_y - sx(1)),
+        (cx + half_w, mt_y),                     # top-right
+        (cx + half_w - sx(4), mt_y + height - sx(2)),  # bottom curves up
+        (cx, mt_y + height),
+        (cx - half_w + sx(4), mt_y + height - sx(2)),  # bottom curves up
+    ]
+    pygame.draw.polygon(big, tooth_color, pts)
+    # Soft shadow line just under the top
+    pygame.draw.line(big, (230, 230, 235),
+                     (cx - half_w + sx(3), mt_y + sx(3)),
+                     (cx + half_w - sx(3), mt_y + sx(3)),
+                     max(1, sx(1)))
+
+
+def mouth_6_big_curved_smile(big, cx, head_cy):
+    """LARGE smile, single curved white tooth band, soft pink interior,
+    NO separator lines between teeth. The most "friendly grin" form."""
+    mt_y = head_cy + sx(15)
+    # Outer dark-red lip ring (faint)
+    pygame.draw.ellipse(big, P["LIP_DK"],
+                        (cx - sx(20), mt_y - sx(3), sx(40), sx(22)))
+    # Warm pink interior
+    pygame.draw.ellipse(big, P["MOUTH_INT"],
+                        (cx - sx(18), mt_y - sx(1), sx(36), sx(19)))
+    # Big curved tooth band
+    _smile_arc_band(big, cx, mt_y + sx(2), half_w=sx(16), height=sx(11))
+    # Soft lower lip — large, slightly droopy
+    ell(big, P["LIP"], cx, mt_y + sx(20), sx(28), sx(7))
+    ell(big, P["LIP_HI"], cx, mt_y + sx(18), sx(20), sx(3))
+    draw_goatee(big, cx, mt_y + sx(15))
+
+
+def mouth_7_friendly_toothy_grin(big, cx, head_cy):
+    """LARGE open grin, 6 individual teeth but SOFT light-grey
+    separators (not black bars) and rounded tooth tops."""
+    mt_y = head_cy + sx(14)
+    # Outer mouth shape
+    pygame.draw.ellipse(big, P["LIP_DK"],
+                        (cx - sx(20), mt_y - sx(3), sx(40), sx(24)))
+    pygame.draw.ellipse(big, P["MOUTH_INT"],
+                        (cx - sx(18), mt_y - sx(1), sx(36), sx(21)))
+    # Tooth band base — one big rounded shape
+    tooth_top = mt_y + sx(2)
+    tooth_bot = mt_y + sx(15)
+    pygame.draw.polygon(big, P["WHITE"],
+                        [(cx - sx(17), tooth_top),
+                         (cx + sx(17), tooth_top),
+                         (cx + sx(14), tooth_bot),
+                         (cx - sx(14), tooth_bot)])
+    # Round the top corners
+    aa_circle(big, P["WHITE"], cx - sx(15), tooth_top + sx(2), sx(2))
+    aa_circle(big, P["WHITE"], cx + sx(15), tooth_top + sx(2), sx(2))
+    # Soft inner shadow line near the top
+    pygame.draw.line(big, (235, 235, 240),
+                     (cx - sx(16), tooth_top + sx(2)),
+                     (cx + sx(16), tooth_top + sx(2)),
+                     max(2, sx(1)))
+    # 5 LIGHT-GREY soft separator lines (not black bars)
+    for fx in (-sx(11), -sx(5), 0, sx(5), sx(11)):
+        pygame.draw.line(big, (215, 220, 225),
+                         (cx + fx, tooth_top + sx(3)),
+                         (cx + fx, tooth_bot - sx(1)),
+                         max(1, sx(1)))
+    # Lower lip
+    ell(big, P["LIP"], cx, mt_y + sx(20), sx(28), sx(6))
+    ell(big, P["LIP_HI"], cx, mt_y + sx(18), sx(20), sx(2))
+    draw_goatee(big, cx, mt_y + sx(14))
+
+
+def mouth_8_laughing_with_tongue(big, cx, head_cy):
+    """Wide open laughing grin — visible TOP + BOTTOM teeth, pink
+    tongue between. Big toothy + busy but the warm interior tones
+    down the scariness."""
+    mt_y = head_cy + sx(13)
+    # Outer + interior
+    pygame.draw.ellipse(big, P["LIP_DK"],
+                        (cx - sx(20), mt_y - sx(3), sx(40), sx(28)))
+    pygame.draw.ellipse(big, P["MOUTH_INT"],
+                        (cx - sx(18), mt_y - sx(1), sx(36), sx(25)))
+    # Top teeth band (rounded, curved)
+    _smile_arc_band(big, cx, mt_y + sx(1), half_w=sx(17), height=sx(9))
+    # Light separators on top teeth
+    for fx in (-sx(11), -sx(6), -sx(1), sx(4), sx(9)):
+        pygame.draw.line(big, (220, 225, 230),
+                         (cx + fx, mt_y + sx(2)),
+                         (cx + fx, mt_y + sx(8)),
+                         max(1, sx(1)))
+    # Tongue (big visible pink bulge)
+    ell(big, P["TONGUE"], cx, mt_y + sx(14), sx(24), sx(8))
+    ell(big, P["TONGUE_HI"], cx, mt_y + sx(12), sx(18), sx(3))
+    # Bottom teeth band (smaller, rounded)
+    pygame.draw.polygon(big, P["WHITE"],
+                        [(cx - sx(13), mt_y + sx(18)),
+                         (cx + sx(13), mt_y + sx(18)),
+                         (cx + sx(11), mt_y + sx(22)),
+                         (cx - sx(11), mt_y + sx(22))])
+    for fx in (-sx(8), -sx(3), sx(2), sx(7)):
+        pygame.draw.line(big, (220, 225, 230),
+                         (cx + fx, mt_y + sx(19)),
+                         (cx + fx, mt_y + sx(22)),
+                         max(1, sx(1)))
+    # Lower lip
+    ell(big, P["LIP"], cx, mt_y + sx(26), sx(28), sx(5))
+    draw_goatee(big, cx, mt_y + sx(20))
+
+
+def mouth_9_chiclet_smile(big, cx, head_cy):
+    """Cartoony big-tooth smile — 6 LARGE rounded square teeth like
+    Disney/cartoon characters. Each tooth is a separate rounded
+    rectangle with its own highlight, NO black-bar separators
+    between them — gaps are the pink mouth interior peeking through."""
+    mt_y = head_cy + sx(13)
+    # Outer mouth + warm interior
+    pygame.draw.ellipse(big, P["LIP_DK"],
+                        (cx - sx(22), mt_y - sx(3), sx(44), sx(24)))
+    pygame.draw.ellipse(big, P["MOUTH_INT"],
+                        (cx - sx(20), mt_y - sx(1), sx(40), sx(21)))
+    # Pink gum line under teeth (subtle, lighter pink)
+    pygame.draw.ellipse(big, (235, 165, 175),
+                        (cx - sx(18), mt_y + sx(1), sx(36), sx(5)))
+    # 6 chiclet teeth, each a rounded rectangle
+    tooth_w = sx(6)
+    tooth_h = sx(12)
+    tooth_y = mt_y + sx(4)
+    gap = sx(1)
+    start_x = cx - sx(20)
+    for i in range(6):
+        tx = start_x + i * (tooth_w + gap) + sx(1)
+        # Rounded tooth — base white rect + circles at top corners
+        pygame.draw.rect(big, P["WHITE"],
+                         (tx, tooth_y + sx(1), tooth_w, tooth_h))
+        aa_circle(big, P["WHITE"], tx, tooth_y + sx(2), tooth_w // 2)
+        aa_circle(big, P["WHITE"], tx + tooth_w, tooth_y + sx(2),
+                  tooth_w // 2)
+        # Subtle highlight on upper-left of each tooth
+        aa_circle(big, (255, 255, 255), tx + tooth_w // 3,
+                  tooth_y + sx(3), max(1, sx(1)))
+        # Soft shadow stripe at bottom
+        pygame.draw.line(big, (220, 225, 230),
+                         (tx, tooth_y + tooth_h - sx(1)),
+                         (tx + tooth_w, tooth_y + tooth_h - sx(1)),
+                         max(1, sx(1)))
+    # Lower lip
+    ell(big, P["LIP"], cx, mt_y + sx(20), sx(30), sx(6))
+    ell(big, P["LIP_HI"], cx, mt_y + sx(18), sx(22), sx(2))
+    draw_goatee(big, cx, mt_y + sx(15))
+
+
+def mouth_10_dazzling_smile(big, cx, head_cy):
+    """Bright big smile with SPARKLE highlights — large curved tooth
+    band plus 2 small star sparkles on the teeth (like the
+    cartoony 'ding!' shine). Friendly + magical."""
+    mt_y = head_cy + sx(14)
+    # Outer + interior
+    pygame.draw.ellipse(big, P["LIP_DK"],
+                        (cx - sx(21), mt_y - sx(3), sx(42), sx(23)))
+    pygame.draw.ellipse(big, P["MOUTH_INT"],
+                        (cx - sx(19), mt_y - sx(1), sx(38), sx(20)))
+    # Big curved tooth band
+    _smile_arc_band(big, cx, mt_y + sx(2), half_w=sx(17), height=sx(11))
+    # Highlight band along the top
+    pygame.draw.line(big, (255, 255, 255),
+                     (cx - sx(14), mt_y + sx(4)),
+                     (cx + sx(14), mt_y + sx(4)),
+                     max(2, sx(1)))
+    # Two sparkle stars on the teeth
+    for star_x in (cx - sx(8), cx + sx(7)):
+        star_y = mt_y + sx(6)
+        # Cross + dot
+        pygame.draw.line(big, (255, 255, 255),
+                         (star_x - sx(3), star_y),
+                         (star_x + sx(3), star_y), max(2, sx(1)))
+        pygame.draw.line(big, (255, 255, 255),
+                         (star_x, star_y - sx(3)),
+                         (star_x, star_y + sx(3)), max(2, sx(1)))
+        aa_circle(big, (255, 255, 200), star_x, star_y, max(1, sx(1)))
+    # 3 very subtle separator dots between groups (not lines)
+    for fx in (-sx(6), 0, sx(6)):
+        aa_circle(big, (230, 230, 235), cx + fx, mt_y + sx(10),
+                  max(1, sx(1)) - 1 if sx(1) > 1 else 1)
+    # Lower lip
+    ell(big, P["LIP"], cx, mt_y + sx(20), sx(28), sx(6))
+    ell(big, P["LIP_HI"], cx, mt_y + sx(18), sx(20), sx(2))
+    draw_goatee(big, cx, mt_y + sx(15))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Composer
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -395,12 +598,14 @@ def render_head_with_mouth(mouth_fn):
 
 def main():
     tag = sys.argv[1] if len(sys.argv) > 1 else "v1"
+    # Round 2 — all "big toothy smile, NOT scary". Round 1
+    # alternatives are still defined above for reference.
     MOUTHS = [
-        ("1 — Closed warm smile",   mouth_1_closed_smile),
-        ("2 — Soft open + 1 band",  mouth_2_soft_open),
-        ("3 — Hearty laugh + tongue", mouth_3_hearty_laugh),
-        ("4 — Cheshire smirk",      mouth_4_cheshire_smirk),
-        ("5 — Open grin + tongue",  mouth_5_open_with_tongue),
+        ("6 — Big curved smile",     mouth_6_big_curved_smile),
+        ("7 — Friendly toothy grin", mouth_7_friendly_toothy_grin),
+        ("8 — Laughing + tongue",    mouth_8_laughing_with_tongue),
+        ("9 — Chiclet smile",        mouth_9_chiclet_smile),
+        ("10 — Dazzling sparkle",    mouth_10_dazzling_smile),
     ]
     DW = W * DISPLAY_SCALE
     DH = H * DISPLAY_SCALE
