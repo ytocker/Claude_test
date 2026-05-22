@@ -2239,7 +2239,7 @@ class World:
         # of the genie's own position) so the user has the maximum
         # possible time to manoeuvre vertically to whichever offer
         # they want to intercept. See GenieCharacter._fire_all.
-        gx = self.bird.x + 30        # ~120 in world — slightly ahead of Pip
+        gx = self.bird.x + 80        # ~170 in world — slightly ahead of Pip
         gy = 80                       # floating high, above pillar tops
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(

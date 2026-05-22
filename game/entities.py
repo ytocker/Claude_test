@@ -3268,15 +3268,20 @@ class GenieCharacter:
         1.75 s of horizontal travel before each one reaches Pip."""
         if self._dead:
             return
-        from game.config import GENIE_OFFER_X_STEP
         import random as _r
         bird_x = self.world.bird.x
-        # All offers spawn at a fixed offset ahead of Pip rather than
-        # relative to the genie, so moving the genie doesn't change
-        # where the offers land.
-        offer_centre_x = bird_x + 220
+        # All 3 offers spawn at the SAME x — a clean vertical column
+        # at the right edge of the visible playfield (bird.x + 260 ≈
+        # world x 350, just inside the 360-wide screen). The Y slots
+        # are still spread across (220, 320, 420), so the user sees
+        # three powerups stacked top-to-bottom and picks which Y
+        # row they want to be on when the column scrolls into Pip.
+        # All three arrive at Pip simultaneously (~1.625 s after
+        # cast at 160 px/s scroll), which is plenty of time to
+        # manoeuvre vertically.
+        offer_x = bird_x + 260
         for i, (kind, slot_y) in enumerate(self.offers):
-            ox = offer_centre_x + (i - 1) * GENIE_OFFER_X_STEP
+            ox = offer_x
             oy = float(slot_y)
             offer = PowerUp(ox, oy, kind=kind)
             offer.is_genie_offer = True
