@@ -3269,16 +3269,17 @@ class GenieCharacter:
         if self._dead:
             return
         import random as _r
-        # All 3 offers spawn at the SAME x — a clean vertical column.
-        # The x is picked dynamically by _pick_offer_x() to be the
-        # FURTHEST viable distance ahead of Pip that doesn't put any
-        # of the three y-slot offers inside a pillar body. Falls back
-        # gracefully if no viable far position exists.
+        # Each offer gets its OWN (x, y) — no fixed column pattern.
+        # _pick_offer_positions ensures:
+        #   - all offers are far from the parrot (≥ 200 px)
+        #   - offers don't cluster (≥ 90 px from each other)
+        #   - none sits inside a pillar body
+        #   - x is varied (180-280 px ahead of Pip) and y jitters
+        #     ±30 px around the assigned slot so the layout reads
+        #     as "scattered choices" rather than "stiff column".
         slot_ys = [oy for _, oy in self.offers]
-        offer_x = self._pick_offer_x(slot_ys)
-        for i, (kind, slot_y) in enumerate(self.offers):
-            ox = offer_x
-            oy = float(slot_y)
+        positions = self._pick_offer_positions(slot_ys)
+        for (kind, _slot_y), (ox, oy) in zip(self.offers, positions):
             offer = PowerUp(ox, oy, kind=kind)
             offer.is_genie_offer = True
             self.world.powerups.append(offer)
@@ -3306,54 +3307,73 @@ class GenieCharacter:
                            (240, 200, 250), (255, 255, 245)]),
             ))
 
-    def _pick_offer_x(self, slot_ys):
-        """Pick the FURTHEST world x ahead of Pip where all three y
-        slot offers will be reachable (not blocked by a pillar body).
+    def _pick_offer_positions(self, slot_ys):
+        """Pick a unique (x, y) for each offer such that:
+           - the offer is FAR FROM THE PARROT (≥ MIN_PARROT_DIST px)
+           - offers don't cluster (≥ MIN_OFFER_DIST from each other)
+           - none lands inside a pillar body
+           - x is varied (no fixed column pattern) and y jitters
+             ±Y_JITTER around the assigned slot for a "scattered
+             choices" feel rather than a stiff line.
 
-        A position is "viable" for a given y if either:
-          (a) no pillar is within clearance distance of that x, OR
-          (b) a pillar IS there but its gap covers that y.
-
-        The search walks from far → close so the first viable
-        position is the one with the most reach time for the user.
-        Capped at bird.x + 270 (≈ right edge of the 360-wide screen)
-        so the offers are fully visible at the moment of cast — no
-        invisible-then-scrolls-in glitch.
-
-        Falls back to bird.x + 200 if nothing in the search range
-        is viable (pathological pillar layout)."""
+        Uses rejection sampling: try random candidates within the
+        valid zone for each slot, accept the first that satisfies
+        every constraint. Falls back to a deterministic safe spot
+        if 40 attempts can't satisfy the constraints (pathological
+        pillar / parrot layout)."""
         from game.config import PIPE_W
+        import random as _r
         bird_x = self.world.bird.x
+        bird_y = self.world.bird.y
         pipe_half = PIPE_W / 2
-        offer_half = 18                   # rough half-width of a powerup icon
-        clearance = pipe_half + offer_half + 6   # ~53 px buffer
-
-        # Search far → close, in 10-px steps for fine-grained max
-        # distance. Range top = +270 (visible right edge), bottom
-        # = +200 (clearly ahead of Pip even in tight pillar lanes).
-        for ahead in range(270, 190, -10):
-            candidate_x = bird_x + ahead
-            all_slots_clear = True
-            # Find any pillar at or near this x
-            blocking_pillars = [p for p in self.world.pipes
-                                if abs(p.x - candidate_x) < clearance]
-            if blocking_pillars:
-                # For each slot y, is it inside the gap of EVERY
-                # nearby pillar? If yes → reachable.
-                for y in slot_ys:
-                    for p in blocking_pillars:
+        offer_half = 18
+        clearance = pipe_half + offer_half + 6
+        # X range relative to bird: 180-280 px ahead (world x ≈ 270-370,
+        # i.e. the right third of the 360-wide screen).
+        X_MIN_AHEAD, X_MAX_AHEAD = 180, 280
+        Y_JITTER = 30
+        MIN_PARROT_DIST = 200
+        MIN_OFFER_DIST  = 90
+        positions = []
+        for slot_y in slot_ys:
+            picked = None
+            for _ in range(40):
+                x = bird_x + _r.randint(X_MIN_AHEAD, X_MAX_AHEAD)
+                y = slot_y + _r.randint(-Y_JITTER, Y_JITTER)
+                # Must be far from the parrot (euclidean)
+                dx, dy = x - bird_x, y - bird_y
+                if dx * dx + dy * dy < MIN_PARROT_DIST * MIN_PARROT_DIST:
+                    continue
+                # Must not cluster with other already-picked offers
+                too_close = False
+                for px, py in positions:
+                    if (x - px) * (x - px) + (y - py) * (y - py) < \
+                            MIN_OFFER_DIST * MIN_OFFER_DIST:
+                        too_close = True
+                        break
+                if too_close:
+                    continue
+                # Must clear pillars: a pillar at this x blocks unless
+                # its gap covers y
+                blocked = False
+                for p in self.world.pipes:
+                    if abs(p.x - x) < clearance:
                         gap_top = p.gap_y - p.gap_h / 2
                         gap_bot = p.gap_y + p.gap_h / 2
                         if not (gap_top <= y <= gap_bot):
-                            all_slots_clear = False
+                            blocked = True
                             break
-                    if not all_slots_clear:
-                        break
-            # else: no pillar at this x → all slots automatically OK
-            if all_slots_clear:
-                return candidate_x
-        # Fallback: spawn closer in even if blocked
-        return bird_x + 200
+                if blocked:
+                    continue
+                picked = (x, y)
+                break
+            if picked is None:
+                # Fallback — deterministic safe spot far ahead, no
+                # jitter, at the slot's exact y. Last-resort if the
+                # rejection loop failed.
+                picked = (bird_x + 230, slot_y)
+            positions.append(picked)
+        return positions
 
     def _spawn_tail_wisp(self):
         import random as _r
