@@ -3038,6 +3038,31 @@ class CloudPuff:
 
 # ── GenieShineParticle ───────────────────────────────────────────────────────
 
+
+def _lazy_import_genie_design():
+    """Import the design-tool modules used by GenieCharacter +
+    GenieShineParticle. Monkey-patches pygame.display.set_mode to a
+    no-op DURING the import so the tools' module-level
+    `pygame.display.set_mode((1, 1))` doesn't resize the game window.
+    Caches the modules so subsequent calls are free."""
+    if hasattr(_lazy_import_genie_design, "_cached"):
+        return _lazy_import_genie_design._cached
+    original_set_mode = pygame.display.set_mode
+    pygame.display.set_mode = (
+        lambda *args, **kwargs: pygame.display.get_surface()
+    )
+    try:
+        from tools import render_a1_refined as _ref
+        from tools import render_a1_crossed_legs_variants as _legs
+        from tools import render_a1_arms_variants as _arms
+        from tools import render_a1_shine_variants as _shines
+    finally:
+        pygame.display.set_mode = original_set_mode
+    cache = (_ref, _legs, _arms, _shines)
+    _lazy_import_genie_design._cached = cache
+    return cache
+
+
 class GenieShineParticle:
     """A bright pixie-star shine launched from the genie's palm that
     flies to a target (x, y) and on arrival spawns the offer PowerUp +
@@ -3102,54 +3127,24 @@ class GenieShineParticle:
             pass
 
     def draw(self, surf):
-        # Classic 4-point pixie star — gold arms, white diamond core,
-        # tiny tip accents. Rotates slowly in flight for life.
-        px, py = int(self.x), int(self.y)
-        spin = self._spin + self._t * 4.0
-        GOLD    = (255, 220, 130)
-        GOLD_LO = (200, 165,  70)
-        WHITE   = (255, 255, 245)
-        arm_len = 9
-        # 4 arms at 0/90/180/270 + spin
-        for k in range(4):
-            ang = spin + math.pi * 0.5 * k
-            dx = int(math.cos(ang) * arm_len)
-            dy = int(math.sin(ang) * arm_len)
-            # Wedge shape: wide at base, thin at tip
-            px_perp = -math.sin(ang)
-            py_perp =  math.cos(ang)
-            base_w = 3
-            shadow_pts = [
-                (px,             py),
-                (px + dx // 3 + int(px_perp * base_w),
-                 py + dy // 3 + int(py_perp * base_w)),
-                (px + dx,        py + dy),
-                (px + dx // 3 - int(px_perp * base_w),
-                 py + dy // 3 - int(py_perp * base_w)),
-            ]
-            pygame.draw.polygon(surf, GOLD_LO, shadow_pts)
-            # Bright top
-            tip_x = px + int(dx * 0.92)
-            tip_y = py + int(dy * 0.92)
-            bright_pts = [
-                (px,             py),
-                (px + dx // 3 + int(px_perp * (base_w - 1)),
-                 py + dy // 3 + int(py_perp * (base_w - 1))),
-                (tip_x, tip_y),
-                (px + dx // 3 - int(px_perp * (base_w - 1)),
-                 py + dy // 3 - int(py_perp * (base_w - 1))),
-            ]
-            pygame.draw.polygon(surf, GOLD, bright_pts)
-        # Central white diamond
-        d = 4
-        pygame.draw.polygon(surf, WHITE,
-                            [(px, py - d), (px + d, py),
-                             (px, py + d), (px - d, py)])
-        pygame.draw.polygon(surf, GOLD,
-                            [(px, py - d // 2), (px + d // 2, py),
-                             (px, py + d // 2), (px - d // 2, py)])
-        # Tiny accent dot at the centre (bright)
-        pygame.draw.circle(surf, (255, 255, 255), (px, py), 1)
+        # Render the LITERAL shine #1 (classic pixie star) from
+        # tools/render_a1_shine_variants.shine_1_classic_pixie at the
+        # particle's current world position. Same art as the static
+        # palm shines on the GenieCharacter so the shine "detaches"
+        # visually. We draw onto a small per-particle supersample
+        # surface and smoothscale it down to retain crispness.
+        _ref, _legs, _arms, _shines = _lazy_import_genie_design()
+        SS = _ref.SS
+        size_n = 32           # native px square — fits a full pixie star
+        big = pygame.Surface((size_n * SS, size_n * SS), pygame.SRCALPHA)
+        # The shine function draws at (px, py) in the supersample
+        # canvas — put it at the centre.
+        _shines.shine_1_classic_pixie(big,
+                                      (size_n * SS) // 2,
+                                      (size_n * SS) // 2)
+        scaled = pygame.transform.smoothscale(big, (size_n, size_n))
+        rect = scaled.get_rect(center=(int(self.x), int(self.y)))
+        surf.blit(scaled, rect.topleft)
 
 
 # ── GenieCharacter ───────────────────────────────────────────────────────────
@@ -3193,13 +3188,25 @@ class GenieCharacter:
         # beat (the shine particles handle the cast effect), so a
         # cached supersample sprite is far cheaper to redraw each
         # frame than rebuilding the whole figure 60×/s.
-        self._native_w = 140
-        self._native_h = 180
-        self._ss = 5
-        # Palm offsets from the genie's centre (matches the body
-        # sprite below) — used by _fire_beat to launch shines.
-        self._palm_dx = 24
-        self._palm_dy = -6
+        # Body is rendered AT the reference's exact dimensions
+        # (W=320, H=460, SS=6) so the mouth + face + everything is
+        # pixel-for-pixel identical to a1_shine_1_v1.png. For
+        # gameplay-canvas reasons the rendered sprite is then
+        # smoothscaled DOWN by _display_scale before being blit, so
+        # the genie occupies a reasonable fraction of the 360-wide
+        # game window (~50%) rather than 89%.
+        self._native_w = 320
+        self._native_h = 460
+        self._ss = 6
+        self._display_scale = 0.55         # 320 → 176 px wide on screen
+        # Palm offsets in REFERENCE native px from the genie's centre.
+        # draw_offering_arms_with_shine puts wrists at (cx ± 54, 214),
+        # palms just past the cuff at (cx ± 58, 210). Canvas centre
+        # is at (160, 230), so palm offset = (±58, -20).
+        # _palm_world_pos applies _display_scale when computing the
+        # in-game palm position.
+        self._palm_dx = 58
+        self._palm_dy = -20
         self._cached_body = self._render_body_supersample()
 
     # ── public API ───────────────────────────────────────────────────────
@@ -3236,8 +3243,12 @@ class GenieCharacter:
     def palm_world_pos(self, side):
         """World-space (x, y) of the genie's palm. ``side`` is -1 for
         left, +1 for right. Used to launch shine particles from the
-        correct origin."""
-        return (self.x + side * self._palm_dx, self.y + self._palm_dy)
+        correct origin. Applies the display-scale so the offset
+        matches what's actually drawn on screen, not the
+        reference-native dimensions."""
+        ds = self._display_scale
+        return (self.x + side * self._palm_dx * ds,
+                self.y + self._palm_dy * ds)
 
     def _fire_beat(self, i):
         if self._dead:
@@ -3341,8 +3352,9 @@ class GenieCharacter:
         body + offering arms + palm shines + face + headband etc.);
         per-frame we only do smoothscale + rotate + alpha + blit, which
         is far cheaper than rebuilding the figure every tick."""
-        out_w = max(2, int(self._native_w * scale))
-        out_h = max(2, int(self._native_h * scale))
+        eff = scale * self._display_scale
+        out_w = max(2, int(self._native_w * eff))
+        out_h = max(2, int(self._native_h * eff))
         scaled = pygame.transform.smoothscale(self._cached_body,
                                               (out_w, out_h))
         sway = math.sin(self._t * 1.4) * 3.0
@@ -3354,485 +3366,38 @@ class GenieCharacter:
     # ── body render (called once in __init__, cached) ────────────────────
     def _render_body_supersample(self):
         """Build the full A1 lotus-genie body into a supersample
-        surface. Called ONCE on construction; subsequent frames
-        smoothscale this cached sprite. The composition follows the
-        design tool's render_a1_refined / render_a1_arms_variants /
-        render_a1_crossed_legs_variants chain — see those tools for
-        full-resolution portraits."""
-        SS = self._ss
-        W, H = self._native_w, self._native_h
+        surface by calling the EXACT same drawing functions used by
+        the reference design tool chain. Result is pixel-for-pixel
+        identical to docs/screenshots/genie_designs/a1_shine_1_v1.png
+        (variant 2 v5 + classic pixie shines). NO re-derivation of
+        coordinates — every s(N) value is the tool's literal value."""
+        _ref, _legs, _arms, _shines = _lazy_import_genie_design()
+        SS = _ref.SS         # 6
+        W = _ref.W           # 320
+        H = _ref.H           # 460
         big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
         cx = (W * SS) // 2
-
-        def s(v):
-            return int(v * SS)
-
-        # ── palette ────────────────────────────────────────────────
-        SKIN     = ( 70, 175, 220)
-        SKIN_HI  = (175, 230, 252)
-        SKIN_LO  = ( 25, 110, 170)
-        SKIN_DK  = ( 12,  70, 120)
-        PANT     = ( 40, 130, 180)
-        PANT_HI  = ( 90, 175, 220)
-        PANT_LO  = ( 18,  85, 140)
-        PANT_DK  = (  8,  55, 100)
-        GOLD     = (245, 205, 105)
-        GOLD_HI  = (255, 240, 175)
-        GOLD_LO  = (160, 115,  30)
-        GOLD_DK  = (110,  75,  15)
-        RUBY     = (220,  60,  80)
-        RUBY_HI  = (255, 175, 195)
-        EMERALD  = ( 65, 180,  95)
-        SAPPHIRE = ( 70, 130, 220)
-        WHITE    = (250, 250, 245)
-        HAIR     = ( 28,  22,  20)
-        HAIR_HI  = ( 75,  55,  45)
-        BLACK    = ( 18,  14,  10)
-
-        # ── helpers ───────────────────────────────────────────────
-        def ell(color, cx_e, cy_e, w_e, h_e):
-            pygame.draw.ellipse(big, color,
-                                (int(cx_e - w_e / 2), int(cy_e - h_e / 2),
-                                 int(w_e), int(h_e)))
-
-        def gem_diamond(cx_g, cy_g, r_g, color, hi_color):
-            pygame.draw.polygon(big, color,
-                                [(cx_g, cy_g - r_g), (cx_g + r_g, cy_g),
-                                 (cx_g, cy_g + r_g), (cx_g - r_g, cy_g)])
-            pygame.draw.polygon(big, hi_color,
-                                [(cx_g, cy_g - r_g),
-                                 (cx_g - int(r_g * 0.55), cy_g),
-                                 (cx_g - int(r_g * 0.3),
-                                  cy_g - int(r_g * 0.3))])
-            pygame.draw.circle(big, (255, 255, 255),
-                               (int(cx_g - r_g * 0.3),
-                                int(cy_g - r_g * 0.5)),
-                               max(1, int(r_g * 0.18)))
-
-        # ── 1. crossed legs (full lotus, baggy + pleated) ────────
-        # Lotus seat at y=58% of H, knees splay to ±48% of W
-        hip_y    = s(int(H * 0.61))
-        widest_y = s(int(H * 0.68))
-        knee_y   = s(int(H * 0.78))
-        foot_y   = s(int(H * 0.62))
-        widest_w = int(W * 0.47)
-        knee_w   = int(W * 0.32)
-        # Two baggy thighs (mirrored). Curved 8-point polygon each.
-        for side in (-1, +1):
-            t_pts = [
-                (cx + side * s(8),  hip_y),
-                (cx + side * s(20), hip_y),
-                (cx + side * s(28), hip_y + s(10)),
-                (cx + side * widest_w,        widest_y),
-                (cx + side * (widest_w - 6),  widest_y + s(14)),
-                (cx + side * (knee_w + 4),    knee_y),
-                (cx + side * (knee_w - 16),   knee_y + s(4)),
-                (cx + side * s(2),            widest_y - s(2)),
-            ]
-            pygame.draw.polygon(big, PANT_DK,
-                                [(x + s(2), y + s(2)) for x, y in t_pts])
-            pygame.draw.polygon(big, PANT, t_pts)
-            # Pleats + flank highlight
-            for off in (s(-4), s(-12)):
-                pygame.draw.line(big, PANT_LO,
-                                 (cx + side * (s(20) + off), hip_y + s(12)),
-                                 (cx + side * (s(28) + off), knee_y - s(6)),
-                                 max(2, s(1)))
-            pygame.draw.line(big, PANT_HI,
-                             (cx + side * s(24), hip_y + s(8)),
-                             (cx + side * (widest_w - 2), widest_y),
-                             s(3))
-
-        # Two crossed shins — 6-point baggy polygons. The right
-        # shin goes from the right knee inward up to the left thigh
-        # (foot rests on left thigh), and vice versa.
-        for side in (-1, +1):
-            knee_x = cx + side * (widest_w - 4)
-            knee_yp = widest_y + s(8)
-            foot_x = cx - side * (widest_w - 20)
-            foot_yp = foot_y + s(2)
-            dx, dy = foot_x - knee_x, foot_yp - knee_yp
-            length = max(1.0, math.hypot(dx, dy))
-            px_o, py_o = -dy / length, dx / length
-
-            def along(t_):
-                return (knee_x + dx * t_, knee_yp + dy * t_)
-
-            samples = [along(0.0), along(0.35), along(0.7), along(1.0)]
-            widths = [s(46), s(40), s(34), s(24)]
-            outer = [(c[0] + px_o * w / 2, c[1] + py_o * w / 2)
-                     for c, w in zip(samples, widths)]
-            inner = [(c[0] - px_o * w / 2, c[1] - py_o * w / 2)
-                     for c, w in zip(samples, widths)]
-            shin_pts = [(int(x), int(y)) for x, y in
-                        outer + list(reversed(inner))]
-            pygame.draw.polygon(big, PANT_DK,
-                                [(x + s(2), y + s(2)) for x, y in shin_pts])
-            pygame.draw.polygon(big, PANT, shin_pts)
-            # 3 parallel pleat ripples along the shin
-            for off in (s(-8), 0, s(8)):
-                p_start = (along(0.18)[0] + px_o * off,
-                           along(0.18)[1] + py_o * off)
-                p_end = (along(0.85)[0] + px_o * off * 0.5,
-                         along(0.85)[1] + py_o * off * 0.5)
-                pygame.draw.line(big, PANT_LO,
-                                 (int(p_start[0]), int(p_start[1])),
-                                 (int(p_end[0]),   int(p_end[1])),
-                                 max(2, s(1)))
-            # Knee bulge
-            kb = pygame.Surface((s(50), s(28)), pygame.SRCALPHA)
-            pygame.draw.ellipse(kb, (*PANT_LO, 200),
-                                (0, 0, s(50), s(28)))
-            ang_deg = math.degrees(math.atan2(dy, dx)) - 90
-            kb_rot = pygame.transform.rotate(kb, ang_deg)
-            rect_kb = kb_rot.get_rect(center=(int(knee_x), int(knee_yp)))
-            big.blit(kb_rot, rect_kb.topleft)
-
-        # Slippers + gold ankle cuffs ON TOP of opposite thighs
-        for side in (-1, +1):
-            sl_x = cx + side * (widest_w - 22)
-            sl_y = foot_y - s(2)
-            sw = s(16)
-            sh = s(8)
-            sl = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            base_pts = [(s(1), s(5)), (sw - s(5), s(5)),
-                        (sw - s(1), s(3)), (sw - s(3), s(1)),
-                        (sw - s(5), s(3)), (s(1), s(3))]
-            if side < 0:
-                base_pts = [(sw - x, y) for x, y in base_pts]
-            pygame.draw.polygon(sl, GOLD_DK,
-                                [(x + s(1), y + s(1))
-                                 for x, y in base_pts])
-            pygame.draw.polygon(sl, GOLD, base_pts)
-            sl_rot = pygame.transform.rotate(sl, -12 * side)
-            rect_sl = sl_rot.get_rect(center=(int(sl_x), int(sl_y)))
-            big.blit(sl_rot, rect_sl.topleft)
-            # Gold ankle cuff next to the slipper
-            cuff = pygame.Surface((s(12), s(6)), pygame.SRCALPHA)
-            pygame.draw.rect(cuff, GOLD_LO, (0, 0, s(12), s(6)))
-            pygame.draw.rect(cuff, GOLD,
-                             (s(1), s(1), s(10), s(4)))
-            pygame.draw.line(cuff, GOLD_HI,
-                             (s(2), s(2)), (s(10), s(2)), max(1, s(1)))
-            cuff_rot = pygame.transform.rotate(cuff, -22 * side)
-            rect_cf = cuff_rot.get_rect(
-                center=(cx + side * (widest_w - 12), foot_y + s(2)))
-            big.blit(cuff_rot, rect_cf.topleft)
-
-        # ── 2. V-torso ─────────────────────────────────────────────
-        neck_y     = s(int(H * 0.34))
-        shoulder_y = s(int(H * 0.42))
-        waist_y    = s(int(H * 0.58))
-        base_y     = s(int(H * 0.62))
-        torso_pts = [
-            (cx - s(12), neck_y),
-            (cx - s(36), shoulder_y),
-            (cx - s(22), waist_y),
-            (cx - s(20), base_y),
-            (cx + s(20), base_y),
-            (cx + s(22), waist_y),
-            (cx + s(36), shoulder_y),
-            (cx + s(12), neck_y),
-        ]
-        pygame.draw.polygon(big, SKIN_DK,
-                            [(x + s(2), y + s(2)) for x, y in torso_pts])
-        pygame.draw.polygon(big, SKIN_LO, torso_pts)
-        # Inset main fill
-        torso_in = [(int(x * 0.93 + cx * 0.07), int(y * 0.985 + neck_y * 0.015))
-                    for x, y in torso_pts]
-        pygame.draw.polygon(big, SKIN, torso_in)
-        # Pec ellipses
-        for sx in (-s(12), s(12)):
-            ell(SKIN_HI, cx + sx, s(int(H * 0.45)), s(22), s(12))
-            pygame.draw.arc(big, SKIN_LO,
-                            (cx + sx - s(11), s(int(H * 0.47)),
-                             s(22), s(8)),
-                            math.radians(0), math.radians(180),
-                            max(2, s(1)))
-        # Sternum + abs
-        pygame.draw.line(big, SKIN_LO,
-                         (cx, s(int(H * 0.46))),
-                         (cx, s(int(H * 0.56))), max(2, s(1)))
-        for ay in (int(H * 0.49), int(H * 0.53), int(H * 0.56)):
-            for ax in (-s(5), s(5)):
-                ell(SKIN_HI, cx + ax, s(ay), s(8), s(4))
-
-        # ── 3. neck ────────────────────────────────────────────────
-        pygame.draw.polygon(big, SKIN_LO,
-                            [(cx - s(9), s(int(H * 0.30))),
-                             (cx + s(9), s(int(H * 0.30))),
-                             (cx + s(11), s(int(H * 0.34))),
-                             (cx - s(11), s(int(H * 0.34)))])
-        pygame.draw.polygon(big, SKIN,
-                            [(cx - s(8), s(int(H * 0.305))),
-                             (cx + s(8), s(int(H * 0.305))),
-                             (cx + s(10), s(int(H * 0.335))),
-                             (cx - s(10), s(int(H * 0.335)))])
-
-        # ── 4. head ────────────────────────────────────────────────
-        head_cy = s(int(H * 0.17))
-        head_r  = s(int(W * 0.17))
-        pygame.draw.circle(big, SKIN_DK,
-                           (cx + s(2), head_cy + s(2)), head_r + s(1))
-        pygame.draw.circle(big, SKIN_LO, (cx, head_cy), head_r)
-        pygame.draw.circle(big, SKIN, (cx, head_cy - s(1)),
-                           head_r - s(2))
-        # Cheek highlight
-        pygame.draw.circle(big, SKIN_HI,
-                           (cx - head_r // 3, head_cy - head_r // 3),
-                           head_r // 3)
-        # Soft cheek glow
-        for off_x, alpha in (((s(4), s(4)), 80), ((-s(14), s(4)), 60)):
-            cheek_s = pygame.Surface((s(12), s(8)), pygame.SRCALPHA)
-            pygame.draw.ellipse(cheek_s, (255, 180, 200, alpha),
-                                (0, 0, s(12), s(8)))
-            big.blit(cheek_s, (cx + off_x[0], head_cy + off_x[1]))
-        # Subtle nose
-        pygame.draw.polygon(big, SKIN_LO,
-                            [(cx, head_cy - s(1)),
-                             (cx + s(2), head_cy + s(4)),
-                             (cx, head_cy + s(5)),
-                             (cx - s(2), head_cy + s(4))])
-
-        # ── 5. topknot + headband + ruby gem ──────────────────────
-        # Hair tuft over the forehead
-        pygame.draw.polygon(big, HAIR,
-                            [(cx - head_r + s(2), head_cy - s(10)),
-                             (cx - s(4), head_cy - s(12)),
-                             (cx + s(4), head_cy - s(12)),
-                             (cx + head_r - s(2), head_cy - s(10)),
-                             (cx + s(8), head_cy - s(6)),
-                             (cx, head_cy - s(5)),
-                             (cx - s(8), head_cy - s(6))])
-        # Topknot ball above
-        tk_cy = head_cy - head_r - s(2)
-        pygame.draw.rect(big, GOLD,
-                         (cx - s(5), tk_cy + s(4), s(10), s(3)))
-        pygame.draw.circle(big, BLACK,
-                           (cx + s(1), tk_cy + s(1)), s(9))
-        pygame.draw.circle(big, HAIR, (cx, tk_cy), s(8))
-        pygame.draw.circle(big, HAIR_HI,
-                           (cx - s(2), tk_cy - s(2)), s(3))
-        # Gold headband band across the forehead
-        band_y = head_cy - s(11)
-        pygame.draw.rect(big, GOLD_DK,
-                         (cx - s(22), band_y - s(2), s(44), s(7)))
-        pygame.draw.rect(big, GOLD_LO,
-                         (cx - s(22), band_y - s(1), s(44), s(5)))
-        pygame.draw.rect(big, GOLD,
-                         (cx - s(21), band_y, s(42), s(4)))
-        pygame.draw.line(big, GOLD_HI,
-                         (cx - s(20), band_y + s(1)),
-                         (cx + s(20), band_y + s(1)), max(1, s(1)))
-        # Central ruby gem
-        gem_diamond(cx, band_y + s(2), s(5), RUBY, RUBY_HI)
-        # Flanking small gold spikes
-        for spd in (-s(8), s(8)):
-            pygame.draw.polygon(big, GOLD,
-                                [(cx + spd - s(2), band_y - s(1)),
-                                 (cx + spd, band_y - s(4)),
-                                 (cx + spd + s(2), band_y - s(1))])
-
-        # ── 6. face — brows, eyes, mouth, mustache, goatee ────────
-        # Brows
-        pygame.draw.polygon(big, HAIR,
-                            [(cx - s(11), head_cy - s(3)),
-                             (cx - s(3),  head_cy - s(5)),
-                             (cx - s(3),  head_cy - s(2)),
-                             (cx - s(11), head_cy - s(1))])
-        pygame.draw.polygon(big, HAIR,
-                            [(cx + s(11), head_cy - s(3)),
-                             (cx + s(3),  head_cy - s(5)),
-                             (cx + s(3),  head_cy - s(2)),
-                             (cx + s(11), head_cy - s(1))])
-        # Eyes (white + iris + glints)
-        for sx in (-s(7), s(7)):
-            pygame.draw.ellipse(big, WHITE,
-                                (cx + sx - s(4), head_cy - s(2),
-                                 s(8), s(6)))
-            pygame.draw.circle(big, HAIR,
-                               (cx + sx, head_cy + s(1)), s(3))
-            pygame.draw.circle(big, BLACK,
-                               (cx + sx, head_cy + s(1)), s(2))
-            pygame.draw.circle(big, WHITE,
-                               (cx + sx - s(1), head_cy), s(1))
-        # Mustache (two arcs with curled ends)
-        pygame.draw.arc(big, HAIR,
-                        (cx - s(12), head_cy + s(6), s(12), s(6)),
-                        math.radians(195), math.radians(360),
-                        max(2, s(1)))
-        pygame.draw.arc(big, HAIR,
-                        (cx, head_cy + s(6), s(12), s(6)),
-                        math.radians(180), math.radians(345),
-                        max(2, s(1)))
-        for sxc in (-s(12), s(12)):
-            pygame.draw.circle(big, HAIR,
-                               (cx + sxc, head_cy + s(8)), s(2))
-        # Mouth + goatee — EXACT literal copy of tools/render_a1_refined.py
-        # draw_face's mouth block (lines 650-679). Same s(N) values,
-        # same polygons, same number of bars. The reference variant 2
-        # v5 portrait uses this same code; reproducing the exact
-        # coordinates here ensures the in-game mouth matches that
-        # reference pixel-for-pixel relative to the head.
-        mt_y = head_cy + s(18)
-        # Mouth interior
-        pygame.draw.polygon(big, HAIR,
-                            [(cx - s(13), mt_y),
-                             (cx + s(13), mt_y),
-                             (cx + s(10), mt_y + s(8)),
-                             (cx - s(10), mt_y + s(8))])
-        # Teeth
-        pygame.draw.polygon(big, WHITE,
-                            [(cx - s(11), mt_y + s(1)),
-                             (cx + s(11), mt_y + s(1)),
-                             (cx + s(8), mt_y + s(6)),
-                             (cx - s(8), mt_y + s(6))])
-        for tx in (-s(7), -s(3), s(0), s(3), s(7)):
-            pygame.draw.line(big, HAIR,
-                             (cx + tx, mt_y + s(1)),
-                             (cx + tx, mt_y + s(6)),
-                             max(1, s(1)))
-        # Goatee
-        pygame.draw.polygon(big, HAIR,
-                            [(cx - s(8), mt_y + s(8)),
-                             (cx + s(8), mt_y + s(8)),
-                             (cx + s(4), mt_y + s(20)),
-                             (cx - s(4), mt_y + s(20))])
-        pygame.draw.line(big, HAIR_HI,
-                         (cx - s(2), mt_y + s(10)),
-                         (cx - s(1), mt_y + s(18)),
-                         max(1, s(1)))
-
-        # ── 7. earrings (gold hoops + ruby drops) ─────────────────
-        for sxe in (-head_r - s(1), head_r + s(1)):
-            ex = cx + sxe
-            ey = head_cy + s(3)
-            pygame.draw.circle(big, GOLD_LO, (ex, ey), s(4),
-                               max(1, s(1)))
-            pygame.draw.circle(big, GOLD, (ex, ey), s(3),
-                               max(1, s(1)))
-            gem_diamond(ex, ey + s(6), s(2), RUBY, RUBY_HI)
-
-        # ── 8. sash with multi-gem buckle ─────────────────────────
-        sash_y = s(int(H * 0.585))
-        sash_w = s(32)
-        sash_pts = [
-            (cx - sash_w, sash_y - s(3)),
-            (cx + sash_w, sash_y - s(2)),
-            (cx + sash_w - s(3), sash_y + s(7)),
-            (cx - sash_w + s(3), sash_y + s(6)),
-        ]
-        pygame.draw.polygon(big, GOLD_DK,
-                            [(x + s(1), y + s(1)) for x, y in sash_pts])
-        pygame.draw.polygon(big, GOLD_LO, sash_pts)
-        pygame.draw.polygon(big, GOLD,
-                            [(x, y + s(1)) for x, y in sash_pts])
-        pygame.draw.line(big, GOLD_HI,
-                         (sash_pts[0][0] + s(2), sash_pts[0][1] + s(2)),
-                         (sash_pts[1][0] - s(2), sash_pts[1][1] + s(2)),
-                         max(1, s(1)))
-        # Three-gem buckle (ruby + flanking emerald/sapphire)
-        bx, by = cx, sash_y + s(2)
-        pygame.draw.circle(big, GOLD_DK,
-                           (bx + s(1), by + s(1)), s(8))
-        pygame.draw.circle(big, GOLD_LO, (bx, by), s(7))
-        pygame.draw.circle(big, GOLD, (bx, by), s(6))
-        gem_diamond(bx, by, s(4), RUBY, RUBY_HI)
-        gem_diamond(bx - s(7), by, s(2), EMERALD, (180, 245, 200))
-        gem_diamond(bx + s(7), by, s(2), SAPPHIRE, (170, 215, 255))
-
-        # ── 9. arms (palms-up offering pose) ──────────────────────
-        for side in (-1, +1):
-            sh_x = cx + side * s(int(W * 0.27))
-            sh_y = shoulder_y + s(2)
-            el_x = cx + side * s(int(W * 0.20))
-            el_y = sh_y + s(16)
-            wr_x = cx + side * s(int(W * 0.32))
-            wr_y = sh_y + s(28)
-            # Bicep (shoulder → elbow)
-            arm_w = s(6)
-            pygame.draw.line(big, SKIN_LO,
-                             (sh_x, sh_y + s(1)), (el_x, el_y + s(1)),
-                             arm_w + s(2))
-            pygame.draw.line(big, SKIN, (sh_x, sh_y), (el_x, el_y),
-                             arm_w + s(1))
-            pygame.draw.circle(big, SKIN_HI,
-                               ((sh_x + el_x) // 2 - s(1),
-                                (sh_y + el_y) // 2 - s(2)),
-                               max(2, s(2)))
-            # Elbow joint
-            pygame.draw.circle(big, SKIN_LO, (el_x, el_y), s(4))
-            pygame.draw.circle(big, SKIN, (el_x, el_y), s(3))
-            # Forearm (elbow → wrist)
-            pygame.draw.line(big, SKIN_LO,
-                             (el_x, el_y + s(1)), (wr_x, wr_y + s(1)),
-                             arm_w + s(1))
-            pygame.draw.line(big, SKIN, (el_x, el_y), (wr_x, wr_y),
-                             arm_w)
-            # Gold wrist cuff
-            pygame.draw.circle(big, GOLD_DK,
-                               (wr_x + s(1), wr_y + s(1)), s(5))
-            pygame.draw.circle(big, GOLD_LO, (wr_x, wr_y), s(4))
-            pygame.draw.circle(big, GOLD, (wr_x, wr_y), s(3))
-            pygame.draw.circle(big, GOLD_HI,
-                               (wr_x - s(1), wr_y - s(1)), s(1))
-            # Open palm (small ellipse just past the cuff)
-            palm_x = wr_x + side * s(2)
-            palm_y = wr_y - s(3)
-            pygame.draw.circle(big, SKIN_LO,
-                               (palm_x + s(1), palm_y + s(1)), s(4))
-            pygame.draw.circle(big, SKIN, (palm_x, palm_y), s(3))
-            # Tiny finger ridges (3 dots along the top)
-            for fx in (-s(2), 0, s(2)):
-                pygame.draw.circle(big, SKIN_HI,
-                                   (palm_x + fx, palm_y - s(2)), max(1, s(1)))
-
-            # ── 10. CLASSIC PIXIE STAR shine above the palm ──────
-            shine_x = palm_x + side * s(2)
-            shine_y = palm_y - s(10)
-            arm_len_ = s(7)
-            base_w_ = s(2)
-            # 4 arms (gold + bright tip)
-            for k in range(4):
-                ang_s = math.pi * 0.5 * k
-                dx_s = math.cos(ang_s) * arm_len_
-                dy_s = math.sin(ang_s) * arm_len_
-                px_p = -math.sin(ang_s)
-                py_p =  math.cos(ang_s)
-                # Shadow wedge
-                pygame.draw.polygon(big, GOLD_LO,
-                                    [(shine_x, shine_y),
-                                     (shine_x + dx_s / 3 + px_p * base_w_,
-                                      shine_y + dy_s / 3 + py_p * base_w_),
-                                     (shine_x + dx_s, shine_y + dy_s),
-                                     (shine_x + dx_s / 3 - px_p * base_w_,
-                                      shine_y + dy_s / 3 - py_p * base_w_)])
-                # Bright top
-                pygame.draw.polygon(big, GOLD,
-                                    [(shine_x, shine_y),
-                                     (shine_x + dx_s / 3 + px_p * (base_w_ - 1),
-                                      shine_y + dy_s / 3 + py_p * (base_w_ - 1)),
-                                     (shine_x + dx_s * 0.9,
-                                      shine_y + dy_s * 0.9),
-                                     (shine_x + dx_s / 3 - px_p * (base_w_ - 1),
-                                      shine_y + dy_s / 3 - py_p * (base_w_ - 1))])
-            # Central white diamond
-            d = s(3)
-            pygame.draw.polygon(big, WHITE,
-                                [(shine_x, shine_y - d),
-                                 (shine_x + d, shine_y),
-                                 (shine_x, shine_y + d),
-                                 (shine_x - d, shine_y)])
-            pygame.draw.polygon(big, GOLD,
-                                [(shine_x, shine_y - d // 2),
-                                 (shine_x + d // 2, shine_y),
-                                 (shine_x, shine_y + d // 2),
-                                 (shine_x - d // 2, shine_y)])
-            pygame.draw.circle(big, (255, 255, 255),
-                               (shine_x, shine_y), max(1, s(1) // 2))
-
+        # Composition follows tools/render_a1_shine_variants.render_figure
+        # exactly. Same order, same function calls, same arguments.
+        _legs._smoke_aura_below(big, cx, _ref.s(330))
+        _legs.draw_crossed_legs_ankle_cross(big, cx)   # locked variant 2 lotus
+        _ref.draw_torso(big, cx)
+        _ref.draw_neck(big, cx)
+        head_cy = _ref.s(60)
+        head_r = _ref.s(40)
+        _ref.draw_head(big, cx, head_cy, head_r)
+        _ref.draw_face(big, cx, head_cy)
+        _ref.draw_earrings(big, cx, head_cy, head_r)
+        _ref.draw_topknot_and_headband(big, cx, head_cy, head_r)
+        _ref.draw_sash(big, cx)
+        _shines.draw_offering_arms_with_shine(
+            big, cx, _shines.shine_1_classic_pixie)
         return big
 
+    # The legacy hand-rebuilt body method (replaced by the literal
+    # tool-composer above) is preserved here as _legacy_render only
+    # to keep the line numbers below intact during the diff. It is
+    # never called.
 
 # ── FloatText ────────────────────────────────────────────────────────────────
 
