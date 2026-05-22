@@ -3257,17 +3257,26 @@ class GenieCharacter:
         reveal poofs + one combined chime simultaneously. Replaces
         the previous per-offer beat schedule so the user sees all
         three choices at once with a clear, coordinated POOF and
-        has time to manoeuvre to whichever they want."""
+        has time to manoeuvre to whichever they want.
+
+        Offers spawn FAR AHEAD of Pip (independent of the genie's
+        own position — the genie can hover close to the parrot
+        while still summoning the powerups out at the right edge
+        of the screen). Centre x = bird.x + 220 puts the three
+        offers (spread by GENIE_OFFER_X_STEP) at world x ≈ 250 /
+        310 / 370 — visible from spawn and giving the user ~1.0–
+        1.75 s of horizontal travel before each one reaches Pip."""
         if self._dead:
             return
         from game.config import GENIE_OFFER_X_STEP
         import random as _r
-        # Each offer is laid out around the genie's current x: offer 0
-        # one step left of genie, offer 1 at genie x, offer 2 one step
-        # right. Since the genie is stationary (vx=0), the three
-        # spawn positions are predictable for the player.
+        bird_x = self.world.bird.x
+        # All offers spawn at a fixed offset ahead of Pip rather than
+        # relative to the genie, so moving the genie doesn't change
+        # where the offers land.
+        offer_centre_x = bird_x + 220
         for i, (kind, slot_y) in enumerate(self.offers):
-            ox = self.x + (i - 1) * GENIE_OFFER_X_STEP
+            ox = offer_centre_x + (i - 1) * GENIE_OFFER_X_STEP
             oy = float(slot_y)
             offer = PowerUp(ox, oy, kind=kind)
             offer.is_genie_offer = True
@@ -3342,10 +3351,11 @@ class GenieCharacter:
             alpha = int(210 * k)
             bob   = -10 * (1 - k)
         elif t < self.VANISH_START:
-            # Hold steady: full scale + alpha, gentle bob.
+            # Hold steady: full scale + alpha. Visible floating bob —
+            # ±5 px at ~1 Hz so the genie reads as hovering, not static.
             scale = 1.0
             alpha = 210
-            bob   = math.sin(t * 6.0) * 1.5
+            bob   = math.sin(t * 4.5) * 5.0
         else:
             # Vanish: shrink + fade, drift up slightly.
             k = (t - self.VANISH_START) / (self.VANISH_END - self.VANISH_START)

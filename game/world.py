@@ -2232,17 +2232,15 @@ class World:
         # (see GenieCharacter in game/entities.py). The lamp's own
         # pickup-site burst / float text / audio still fire below.
         from game.entities import GenieCharacter
-        # Genie hovers STATIONARY (vx=0) at a fixed world-space
-        # position ahead of Pip — the world scrolls past it, the
-        # genie does not move with the scroll. This means:
-        #   - the genie stays clearly visible for the full cinematic
-        #   - the three offers (spawned at the single cast moment
-        #     at genie.x + (i-1)*X_STEP) appear at predictable
-        #     positions and scroll naturally toward Pip
-        #   - the user has time to manoeuvre vertically to whichever
-        #     slot they want
-        gx = self.bird.x + GENIE_OFFER_X_START   # ~290 (visible R side)
-        gy = 200
+        # Genie hovers STATIONARY (vx=0) close to the parrot, floating
+        # HIGH above the playfield so it doesn't compete with pillars
+        # for visual space. It's a "wish-giver hovering nearby" — not
+        # an obstacle. The OFFERS spawn FAR AHEAD of Pip (independent
+        # of the genie's own position) so the user has the maximum
+        # possible time to manoeuvre vertically to whichever offer
+        # they want to intercept. See GenieCharacter._fire_all.
+        gx = self.bird.x + 30        # ~120 in world — slightly ahead of Pip
+        gy = 80                       # floating high, above pillar tops
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0,
