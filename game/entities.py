@@ -3269,17 +3269,13 @@ class GenieCharacter:
         if self._dead:
             return
         import random as _r
-        bird_x = self.world.bird.x
-        # All 3 offers spawn at the SAME x — a clean vertical column
-        # at the right edge of the visible playfield (bird.x + 260 ≈
-        # world x 350, just inside the 360-wide screen). The Y slots
-        # are still spread across (220, 320, 420), so the user sees
-        # three powerups stacked top-to-bottom and picks which Y
-        # row they want to be on when the column scrolls into Pip.
-        # All three arrive at Pip simultaneously (~1.625 s after
-        # cast at 160 px/s scroll), which is plenty of time to
-        # manoeuvre vertically.
-        offer_x = bird_x + 260
+        # All 3 offers spawn at the SAME x — a clean vertical column.
+        # The x is picked dynamically by _pick_offer_x() to be the
+        # FURTHEST viable distance ahead of Pip that doesn't put any
+        # of the three y-slot offers inside a pillar body. Falls back
+        # gracefully if no viable far position exists.
+        slot_ys = [oy for _, oy in self.offers]
+        offer_x = self._pick_offer_x(slot_ys)
         for i, (kind, slot_y) in enumerate(self.offers):
             ox = offer_x
             oy = float(slot_y)
@@ -3309,6 +3305,55 @@ class GenieCharacter:
                 _r.choice([(255, 240, 175), (255, 220, 130),
                            (240, 200, 250), (255, 255, 245)]),
             ))
+
+    def _pick_offer_x(self, slot_ys):
+        """Pick the FURTHEST world x ahead of Pip where all three y
+        slot offers will be reachable (not blocked by a pillar body).
+
+        A position is "viable" for a given y if either:
+          (a) no pillar is within clearance distance of that x, OR
+          (b) a pillar IS there but its gap covers that y.
+
+        The search walks from far → close so the first viable
+        position is the one with the most reach time for the user.
+        Capped at bird.x + 270 (≈ right edge of the 360-wide screen)
+        so the offers are fully visible at the moment of cast — no
+        invisible-then-scrolls-in glitch.
+
+        Falls back to bird.x + 200 if nothing in the search range
+        is viable (pathological pillar layout)."""
+        from game.config import PIPE_W
+        bird_x = self.world.bird.x
+        pipe_half = PIPE_W / 2
+        offer_half = 18                   # rough half-width of a powerup icon
+        clearance = pipe_half + offer_half + 6   # ~53 px buffer
+
+        # Search far → close, in 10-px steps for fine-grained max
+        # distance. Range top = +270 (visible right edge), bottom
+        # = +200 (clearly ahead of Pip even in tight pillar lanes).
+        for ahead in range(270, 190, -10):
+            candidate_x = bird_x + ahead
+            all_slots_clear = True
+            # Find any pillar at or near this x
+            blocking_pillars = [p for p in self.world.pipes
+                                if abs(p.x - candidate_x) < clearance]
+            if blocking_pillars:
+                # For each slot y, is it inside the gap of EVERY
+                # nearby pillar? If yes → reachable.
+                for y in slot_ys:
+                    for p in blocking_pillars:
+                        gap_top = p.gap_y - p.gap_h / 2
+                        gap_bot = p.gap_y + p.gap_h / 2
+                        if not (gap_top <= y <= gap_bot):
+                            all_slots_clear = False
+                            break
+                    if not all_slots_clear:
+                        break
+            # else: no pillar at this x → all slots automatically OK
+            if all_slots_clear:
+                return candidate_x
+        # Fallback: spawn closer in even if blocked
+        return bird_x + 200
 
     def _spawn_tail_wisp(self):
         import random as _r

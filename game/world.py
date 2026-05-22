@@ -2239,8 +2239,13 @@ class World:
         # of the genie's own position) so the user has the maximum
         # possible time to manoeuvre vertically to whichever offer
         # they want to intercept. See GenieCharacter._fire_all.
+        # Genie hovers BELOW the score pill (which sits at y=64-120
+        # at the top centre of the screen) — gy=200 puts the sprite
+        # top at y≈127, clear of the score. Bottom of the sprite
+        # sits at y≈274, near the parrot's bobbing y but at a
+        # different x so they don't visually overlap.
         gx = self.bird.x + 80        # ~170 in world — slightly ahead of Pip
-        gy = 80                       # floating high, above pillar tops
+        gy = 200                      # below the score pill
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0,

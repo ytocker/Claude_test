@@ -199,7 +199,11 @@ LOTTERY_REVEAL_TIME   = 1.0
 # ~9.8% per spawn after the threshold.
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
-    ("heist",      0.125),
+    # TEST MODE on v5_powerups: Heist temporarily removed from the
+    # spawn pool while QA focuses on the other powerups. Code
+    # (activator, treasure-box art, audio, score-from-flap mechanic,
+    # plausibility ledger) is intact — re-add the line below to
+    # restore: ("heist", 0.125),
     ("lottery",    0.125),
     # TEST MODE on v5_powerups: Phoenix temporarily removed from the
     # spawn pool so it doesn't claim a secret-roll slot while QA
@@ -228,8 +232,8 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 # SECRET_POWERUP_WEIGHTS, equal weight per kind so the 15-pillar window
 # samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
-    "skateboard", "heist",
-    # "phoenix" temporarily out — see SECRET_POWERUP_WEIGHTS comment.
+    "skateboard",
+    # "heist" + "phoenix" temporarily out — see SECRET_POWERUP_WEIGHTS comment.
     "lottery", "genie",
 )
 
