@@ -220,13 +220,18 @@ class World:
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
-        # TEST MODE on v5_powerups: start at phase ~0.46 (heavy dusk
-        # storm — rain_intensity ≈ 0.66, well above the 0.20 coin-shake
-        # threshold so coins are visibly wobbling from frame 1, and
-        # ~5-7 s of biome progression takes the rain past the 0.85
-        # storm-jolt trigger so the lightning strike fires within the
-        # first ~20 s of play). Restore to 0.0 for a normal noon-start.
-        self.biome_time = biome.CYCLE_SECONDS * 0.46
+        # TEST MODE on v5_powerups: start at phase ~0.73 (predawn,
+        # late-night calm) — a few seconds before the HEADWIND
+        # event begins. Wind kicks in at phase 0.75 (~6 s of play
+        # at CYCLE_SECONDS=320) and peaks at 0.85 (~38 s of play),
+        # so the player gets a brief calm-dawn setup, watches the
+        # wind streaks ramp in, sees Pip lean into the gust, and
+        # the world scroll slow to ~0.80× at peak. Other recent
+        # presets:
+        #   0.27 = light rain (coins wobble below shake threshold)
+        #   0.46 = dusk storm (lightning event within ~20 s)
+        # Restore to 0.0 for a normal noon-start.
+        self.biome_time = biome.CYCLE_SECONDS * 0.73
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
