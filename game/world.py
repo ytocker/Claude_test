@@ -1710,17 +1710,20 @@ class World:
         self.shake_t = max(self.shake_t, 0.55)
         # Lockout — one strike per ~25s of peak storm.
         self._storm_jolt_lockout = 25.0
-        # Scorch sub-state — smoke wisps off Pip for the next 1.0 s
-        # (bumped from 0.7 s so the smoking aftermath persists for a
-        # beat after the skeleton flash ends).
-        self._lightning_scorch_t = 1.0
+        # Scorch sub-state — smoke wisps off Pip for the next 1.4 s
+        # (bumped to persist past the 1.2 s skeleton-flash window
+        # so the smoking aftermath continues for a beat after the
+        # flash ends).
+        self._lightning_scorch_t = 1.4
         self._scorch_smoke_accum = 0.0
         # X-Ray Sparks flash — Pip's body shows the dark-silhouette-
-        # plus-white-skeleton sprite for 0.8 s. Held SOLID for the
-        # first ~0.5 s so the X-ray is clearly readable, then
-        # strobes at ~6 Hz for the last ~0.3 s for the cartoon
-        # electrocution flicker. Strobe logic lives in Bird.draw.
-        self.bird.skeleton_flash_t = 0.80
+        # plus-white-skeleton sprite for 1.2 s. Held SOLID for the
+        # first 0.6 s so the X-ray is unmistakably readable, then
+        # alternates with the normal sprite at ~0.2 s per segment
+        # for the last 0.6 s (cartoon flicker with each frame held
+        # long enough to clearly register). Strobe lives in
+        # Bird.draw.
+        self.bird.skeleton_flash_t = 1.20
 
         # ── Coin blast: faster spread than the previous gust version
         # so the lightning impulse reads as the cause.
@@ -1756,19 +1759,20 @@ class World:
                 gravity=180,
             ))
 
-        # ── Text: cyan ZAP! + red -50! — placed well to the RIGHT
-        # of Pip (clear of his 64 px sprite width) so the X-Ray
-        # Sparks skeleton flicker stays unobstructed during the
-        # 0.8 s flash. Both drift up over their life so they end
-        # above-and-right of his head.
+        # ── Text: cyan ZAP! + red -50! — placed in the upper-right
+        # corner ABOVE Pip's sprite top (Pip is 64×60 centred on
+        # bird.x/bird.y, so his top edge is at bird.y - 30 and his
+        # right edge is at bird.x + 32). Anchoring at +80 / -50
+        # puts the text well clear of his body in BOTH axes so the
+        # 1.2 s skeleton flicker stays completely unobstructed.
         self.float_texts.append(FloatText(
-            "ZAP!", self.bird.x + 72, self.bird.y - 22,
+            "ZAP!", self.bird.x + 80, self.bird.y - 50,
             (180, 220, 255),
-            size=34, life=1.2, vy=-34, style="powerup",
+            size=34, life=1.4, vy=-30, style="powerup",
         ))
         self.float_texts.append(FloatText(
-            f"-{lost}!", self.bird.x + 72, self.bird.y + 14, UI_RED,
-            size=30, life=1.4, vy=-30, style="powerup",
+            f"-{lost}!", self.bird.x + 80, self.bird.y - 20, UI_RED,
+            size=30, life=1.6, vy=-26, style="powerup",
         ))
 
         # ── Audio: thunder + poof for the impact gust.

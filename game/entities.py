@@ -926,23 +926,24 @@ class Bird:
         # crispy-hat sprite instead of falling through to plain kfc.
         # X-RAY SPARKS wins over EVERYTHING (including phoenix) — the
         # storm-jolt strike is a special, momentary event and during
-        # the 0.8 s flash Pip's normal/powered-up identity is
+        # the 1.2 s flash Pip's normal/powered-up identity is
         # overridden by the classic Looney-Tunes electrocution
         # silhouette. Two-phase timing:
-        #   * First 0.5 s — SOLID skeleton hold (no strobe) so the
-        #     X-ray view is unambiguously readable.
-        #   * Last 0.3 s — strobe at ~6 Hz (≈ 2 alternations) so the
-        #     effect releases with a cartoon flicker into the normal
-        #     Pip sprite + scorch wisps.
+        #   * First 0.6 s — SOLID skeleton hold (no strobe) so the
+        #     X-ray view is unmistakably readable.
+        #   * Last 0.6 s — slow strobe with 0.20 s segments (so
+        #     each skeleton ↔ normal frame is held long enough to
+        #     register clearly): skel / norm / skel across the
+        #     final phase, releasing into scorch wisps.
         skeleton_visible = False
         if self.skeleton_flash_t > 0.0:
-            if self.skeleton_flash_t > 0.3:
-                # Solid hold phase — first 0.5 s of the 0.8 s window
+            if self.skeleton_flash_t > 0.6:
+                # Solid hold phase — first 0.6 s of the 1.2 s window
                 skeleton_visible = True
             else:
-                # Strobe phase — last 0.3 s, ~6 Hz alternation
-                elapsed_strobe = 0.3 - self.skeleton_flash_t
-                bucket = int(elapsed_strobe * 12.0)
+                # Strobe phase — last 0.6 s, segment = 0.20 s
+                elapsed_strobe = 0.6 - self.skeleton_flash_t
+                bucket = int(elapsed_strobe * 5.0)
                 skeleton_visible = (bucket % 2 == 0)
         if skeleton_visible:
             img = parrot.get_skeleton_parrot(frame_idx, tilt)
