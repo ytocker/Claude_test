@@ -59,13 +59,20 @@ def wind_intensity(phase: float) -> float:
       - Golden-hour calm breeze (phase 0.18, gentle leaf drift, no
         gameplay effect)
       - Predawn HEADWIND event (phase 0.85, peak storm wind that
-        pushes Pip leftward + slows the world scroll)
+        pushes Pip leftward + slows the world scroll). Includes a
+        ~8-second plateau at peak (phase 0.8375-0.8625) so the
+        climax feels sustained rather than instantaneous — the
+        smoothstep bump is scaled by 1.045 then clamped at 1.0,
+        which flattens the top while keeping the ramps smooth.
     Returned value is clamped 0..1 and serves both as a particle
     spawn multiplier (Weather.update reads it for leaves + wind
     streaks) and as the gameplay-effect scalar (World reads it for
     bird.wind_lean + scroll slowdown)."""
     calm  = _bump(phase, 0.18, 0.10) * 0.35   # ambient golden-hour breeze
-    storm = _bump(phase, 0.85, 0.10) * 1.00   # predawn headwind event
+    # Storm bump with peak plateau: 1.045× scaling makes the
+    # smoothstep saturate at the top across a phase-width 0.025
+    # window (= 8 s of cycle), giving the climax visible duration.
+    storm = min(1.0, _bump(phase, 0.85, 0.10) * 1.045)
     return max(0.0, min(1.0, calm + storm))
 
 
