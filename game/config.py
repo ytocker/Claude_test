@@ -268,13 +268,16 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 #   - WEATHER_WIND_LEAN_AMP: max leftward visual x-offset on the
 #     bird (in screen pixels) when wind = 1.0. Pure visual — does
 #     not affect collision (Bird.x stays at BIRD_X). Negative
-#     direction is leftward, applied via Bird.draw shake_x.
+#     direction is leftward, applied via Bird.draw shake_x. At
+#     8.0 px Pip's lean is ~12% of his 64-px sprite width, clearly
+#     visible as "fighting the wind".
 #   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
 #     is reduced at peak wind. At wind 1.0 the scroll runs at
 #     (1 - factor) × normal so pipes/coins approach more slowly
-#     and the player makes less progress per second.
-WEATHER_WIND_LEAN_AMP     = 4.0
-WEATHER_WIND_SCROLL_FACTOR = 0.20
+#     and the player makes less progress per second. 0.30 means
+#     30% less progress at peak — felt as real resistance.
+WEATHER_WIND_LEAN_AMP     = 8.0
+WEATHER_WIND_SCROLL_FACTOR = 0.30
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
