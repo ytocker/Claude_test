@@ -114,65 +114,39 @@ def main():
     panels.append(surf)
     labels.append("1: pre-strike (heavy rain)")
 
-    # 2-4) background bolts 1, 2, 3 — kick off the buildup, freeze on
-    #      each fresh bolt
+    # 2-6) the five background bolts. Buildup fires at
+    # 0.00 / 0.50 / 0.95 / 1.40 / 1.80 s. For each, capture the
+    # frame just after it fires with the bolt's life still ≈
+    # life_max so the zig-zag shape reads.
     w, by = setup_world()
     w._storm_jolt_lockout = 0
     w._start_storm_buildup()
-    # Frame just after bg #1 fires (life still ≈ life_max)
+    sides = ("left", "right", "left", "right", "left")
+    deltas = (0.00, 0.50, 0.95, 1.40, 1.80)
+    cur_t = 0.0
+    for i, (target_t, side_lab) in enumerate(zip(deltas, sides)):
+        advance(w, by, max(0.0, target_t - cur_t), hold_lightning=False)
+        advance(w, by, 0.04, hold_lightning=True)
+        cur_t = target_t + 0.04
+        surf = pygame.Surface((W, H))
+        render_world(w, surf)
+        panels.append(surf)
+        labels.append(f"{i + 2}: bg bolt {i + 1} ({side_lab})")
+
+    # 7) real strike — capture mid-flash with skeleton VISIBLE
+    advance(w, by, 2.30 - cur_t, hold_lightning=False)
     advance(w, by, 0.04, hold_lightning=True)
     surf = pygame.Surface((W, H))
     render_world(w, surf)
     panels.append(surf)
-    labels.append("2: bg bolt 1 (left)")
+    labels.append("7: STRIKE — skeleton X-ray")
 
-    # Advance to bg #2
-    advance(w, by, 0.60 - 0.04, hold_lightning=False)
-    advance(w, by, 0.04, hold_lightning=True)
+    # 8) scorch wisps aftermath
+    advance(w, by, 0.95, hold_lightning=False)
     surf = pygame.Surface((W, H))
     render_world(w, surf)
     panels.append(surf)
-    labels.append("3: bg bolt 2 (right)")
-
-    # Advance to bg #3
-    advance(w, by, 0.60 - 0.04, hold_lightning=False)
-    advance(w, by, 0.04, hold_lightning=True)
-    surf = pygame.Surface((W, H))
-    render_world(w, surf)
-    panels.append(surf)
-    labels.append("4: bg bolt 3 (left)")
-
-    # 5) real strike — capture mid-flash with skeleton VISIBLE
-    advance(w, by, 0.70 - 0.04, hold_lightning=False)
-    advance(w, by, 0.04, hold_lightning=True)
-    # At this point bird.skeleton_flash_t was just set to 0.50; the
-    # strobe modulo evaluates (elapsed=0.04 → bucket 0 → skeleton)
-    surf = pygame.Surface((W, H))
-    render_world(w, surf)
-    panels.append(surf)
-    labels.append("5: STRIKE — skeleton X-ray")
-
-    # 6) real strike — same strike, advance to a frame where the
-    #    strobe shows the NORMAL sprite (odd bucket)
-    advance(w, by, 0.12, hold_lightning=True)   # bucket 1
-    surf = pygame.Surface((W, H))
-    render_world(w, surf)
-    panels.append(surf)
-    labels.append("6: STRIKE — normal flicker")
-
-    # 7) post-strike — skeleton flash ended, scorch wisps active
-    advance(w, by, 0.45, hold_lightning=False)
-    surf = pygame.Surface((W, H))
-    render_world(w, surf)
-    panels.append(surf)
-    labels.append("7: scorch wisps")
-
-    # 8) settle
-    advance(w, by, 0.30, hold_lightning=False)
-    surf = pygame.Surface((W, H))
-    render_world(w, surf)
-    panels.append(surf)
-    labels.append("8: settle")
+    labels.append("8: scorch wisps")
 
     # ── Contact sheet ───────────────────────────────────────────
     cols, rows = 4, 2

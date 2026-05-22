@@ -1593,16 +1593,19 @@ class World:
 
     def _start_storm_buildup(self):
         """Telegraph the incoming strike with background lightning.
-        Queues 3 near-miss bolts on alternating sides (each a real
-        flash + bolt + light shake but NO coin loss) over ~1.4 s, then
-        the real `_fire_storm_jolt` lands at t=1.9 s. Lockout is set
+        Queues FIVE near-miss bolts on alternating sides (each a
+        real flash + bolt + light shake but NO coin loss), tempo
+        accelerating toward the strike for dramatic tension. The
+        real `_fire_storm_jolt` lands at t=2.30 s. Lockout is set
         immediately so the trigger can't re-fire mid-buildup; the
         25-second cooldown starts from the buildup, not the strike."""
         self._storm_buildup_seq = [
             (0.00, "bg_left"),
-            (0.60, "bg_right"),
-            (1.20, "bg_left"),
-            (1.90, "strike"),
+            (0.50, "bg_right"),
+            (0.95, "bg_left"),
+            (1.40, "bg_right"),
+            (1.80, "bg_left"),
+            (2.30, "strike"),
         ]
         self._storm_buildup_t = 0.0
         # Reserve the slot — prevents re-trigger during buildup.
@@ -1707,15 +1710,17 @@ class World:
         self.shake_t = max(self.shake_t, 0.55)
         # Lockout — one strike per ~25s of peak storm.
         self._storm_jolt_lockout = 25.0
-        # Scorch sub-state — smoke wisps off Pip for the next 0.7s.
-        self._lightning_scorch_t = 0.7
+        # Scorch sub-state — smoke wisps off Pip for the next 1.0 s
+        # (bumped from 0.7 s so the smoking aftermath persists for a
+        # beat after the skeleton flash ends).
+        self._lightning_scorch_t = 1.0
         self._scorch_smoke_accum = 0.0
-        # X-Ray Sparks flash — Pip's body flickers between his normal
-        # sprite and a dark-silhouette-plus-white-skeleton sprite at
-        # ~10Hz across 0.5s. Ends just before the scorch wisps finish
-        # so the visual reads as "electrocution moment → smoking
-        # aftermath".
-        self.bird.skeleton_flash_t = 0.50
+        # X-Ray Sparks flash — Pip's body shows the dark-silhouette-
+        # plus-white-skeleton sprite for 0.8 s. Held SOLID for the
+        # first ~0.5 s so the X-ray is clearly readable, then
+        # strobes at ~6 Hz for the last ~0.3 s for the cartoon
+        # electrocution flicker. Strobe logic lives in Bird.draw.
+        self.bird.skeleton_flash_t = 0.80
 
         # ── Coin blast: faster spread than the previous gust version
         # so the lightning impulse reads as the cause.
@@ -1751,13 +1756,18 @@ class World:
                 gravity=180,
             ))
 
-        # ── Text: cyan ZAP! above the red -50!
+        # ── Text: cyan ZAP! + red -50! — placed well to the RIGHT
+        # of Pip (clear of his 64 px sprite width) so the X-Ray
+        # Sparks skeleton flicker stays unobstructed during the
+        # 0.8 s flash. Both drift up over their life so they end
+        # above-and-right of his head.
         self.float_texts.append(FloatText(
-            "ZAP!", self.bird.x, self.bird.y - 48, (180, 220, 255),
+            "ZAP!", self.bird.x + 72, self.bird.y - 22,
+            (180, 220, 255),
             size=34, life=1.2, vy=-34, style="powerup",
         ))
         self.float_texts.append(FloatText(
-            f"-{lost}!", self.bird.x, self.bird.y - 26, UI_RED,
+            f"-{lost}!", self.bird.x + 72, self.bird.y + 14, UI_RED,
             size=30, life=1.4, vy=-30, style="powerup",
         ))
 
