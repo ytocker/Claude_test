@@ -201,21 +201,20 @@ def main():
     keyframes = []
     gif_buf = []
 
-    # Timings line up with the (slower) cinematic phases in
-    # GenieCharacter: rise 0.00-0.70, casts at 1.00 / 1.65 / 2.30,
-    # vanish 2.65-3.40. Shine flight is 0.55 s, so the offer + big
-    # poof land ~0.55 s after each cast beat fires.
+    # Timings line up with the (single-cast) cinematic phases in
+    # GenieCharacter: rise 0.00-0.85, single cast at 1.10 (ALL 3
+    # offers POOF simultaneously), hold until 2.60, vanish 2.60-3.30.
     schedule = [
-        (0.30, "01_rise_early.png",    "1: rise — fading in"),
-        (0.65, "02_rise_full.png",     "2: rise — fully formed"),
-        (1.05, "03_cast0_fire.png",    "3: cast 1 — shine launched"),
-        (1.60, "04_cast0_after.png",   "4: cast 1 — POOF! offer 1"),
-        (1.70, "05_cast1_fire.png",    "5: cast 2 — shine launched"),
-        (2.20, "06_cast1_after.png",   "6: cast 2 — POOF! offer 2"),
-        (2.35, "07_cast2_fire.png",    "7: cast 3 — shine launched"),
-        (2.85, "08_cast2_after.png",   "8: cast 3 — POOF! all three"),
-        (3.10, "09_vanish.png",        "9: vanish — smoke swirl"),
-        (3.40, "10_after.png",         "10: gone — offers float"),
+        (0.40, "01_rise_early.png",    "1: rise — fading in"),
+        (0.85, "02_rise_full.png",     "2: rise — fully formed"),
+        (1.12, "03_cast_fire.png",     "3: POOF! all 3 appear together"),
+        (1.30, "04_cast_after.png",    "4: poofs spread"),
+        (1.70, "05_hold_early.png",    "5: holding — user starts to choose"),
+        (2.10, "06_hold_mid.png",      "6: holding — offers scroll toward Pip"),
+        (2.55, "07_hold_late.png",     "7: holding — last beat before vanish"),
+        (2.80, "08_vanish_early.png",  "8: vanish — smoke swirl starts"),
+        (3.10, "09_vanish.png",        "9: vanish — fading out"),
+        (3.40, "10_after.png",         "10: gone — offers continue toward Pip"),
     ]
 
     for target_t, fname, label in schedule:

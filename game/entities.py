@@ -3152,21 +3152,27 @@ class GenieCharacter:
     icon) — translucent so it reads as summoned smoke given form.
 
     Five phases driven by ``_t / DURATION``:
-      RISE   (0.00-0.45) fade in + scale 0.3→1.0 + tail trails
-      CAST 0 (0.45-0.85) right arm sweeps to slot 0; offer @ 0.65 s
-      CAST 1 (0.85-1.25) right arm holds;          offer @ 1.05 s
-      CAST 2 (1.25-1.65) left arm sweeps to slot 2; offer @ 1.45 s
-      VANISH (1.65-2.05) collapse into smoke + fade out
+      RISE      (0.00–0.85) fade in + scale 0.3→1.0 + smoke trails
+      CAST      (0.85–1.10) arms raise; at 1.10 ALL 3 offers POOF
+                            into existence simultaneously
+      HOLD      (1.10–2.60) genie stays put; user has ~1.5 s to
+                            manoeuvre to whichever offer they want
+      VANISH    (2.60–3.30) collapse into smoke + fade out
+
+    The genie is STATIONARY (vx=0). It hovers at its spawn point
+    while the world scrolls past, so the offers (spawned at the
+    moment of cast at genie-relative world coords) scroll naturally
+    toward Pip.
 
     World owns ``self.genie_actors``; each tick calls ``update(dt)``
     and ``draw(surf)``. ``alive()`` returns False when the vanish
     phase completes so World sweeps it from the list."""
 
-    DURATION = 3.40
-    RISE_END   = 0.70
-    CAST_BEATS = (1.00, 1.65, 2.30)
-    CAST_ENDS  = (1.35, 2.00, 2.65)
-    VANISH_END = 3.40
+    DURATION       = 3.30
+    RISE_END       = 0.85
+    CAST_BEAT      = 1.10        # single moment — all 3 offers poof
+    VANISH_START   = 2.60        # ~1.5 s hold after cast for user
+    VANISH_END     = 3.30
 
     def __init__(self, x, y, vx, offers, world):
         # offers: list of (kind, target_y) triples, ordered by cast index.
@@ -3177,7 +3183,8 @@ class GenieCharacter:
         self.offers = list(offers)            # consumed front-to-back
         self.world = world
         self._t = 0.0
-        self._beats_fired = 0                 # 0..3
+        self._fired = False                   # single cast moment
+        self._vanished = False                # vanish-swirl spawned once
         self._tail_clock = 0.0                # spawn smoke trails on RISE
         self._dead = False                    # set early when picked
         # Pre-render the full body once — arms no longer animate per
@@ -3194,7 +3201,7 @@ class GenieCharacter:
         self._native_w = 320
         self._native_h = 460
         self._ss = 6
-        self._display_scale = 0.42         # 320 → 134 px wide on screen (~37%)
+        self._display_scale = 0.32         # 320 → 102 px wide on screen (~28%)
         # Palm offsets in REFERENCE native px from the genie's centre.
         # draw_offering_arms_with_shine puts wrists at (cx ± 54, 214),
         # palms just past the cuff at (cx ± 58, 210). Canvas centre
@@ -3209,23 +3216,22 @@ class GenieCharacter:
     def update(self, dt):
         self.x += self.vx * dt
         self._t += dt
-        # Fire each cast beat exactly once, in order, the first frame
-        # past the beat's t. Beats spawn the offer PowerUp + reveal
-        # poof at the genie's current world-x (preserves spatial
-        # alignment even though the world is scrolling underneath).
-        while (self._beats_fired < len(self.offers)
-               and self._t >= self.CAST_BEATS[self._beats_fired]):
-            self._fire_beat(self._beats_fired)
-            self._beats_fired += 1
+        # Single cast moment — all 3 offers materialise at once with
+        # big simultaneous poofs.
+        if (not self._fired) and self._t >= self.CAST_BEAT:
+            self._fire_all()
+            self._fired = True
         # Wispy smoke trails off the tail during RISE.
         if self._t < self.RISE_END:
             self._tail_clock += dt
             while self._tail_clock >= 0.08:
                 self._tail_clock -= 0.08
                 self._spawn_tail_wisp()
-        # Vanish — final swirl of cloud puffs once at the transition.
-        if (not self._dead) and self._t >= self.CAST_ENDS[2] and self._t - dt < self.CAST_ENDS[2]:
+        # Vanish — final swirl of cloud puffs at the transition.
+        if ((not self._vanished) and (not self._dead)
+                and self._t >= self.VANISH_START):
             self._spawn_vanish_swirl()
+            self._vanished = True
 
     def alive(self):
         return (not self._dead) and self._t < self.VANISH_END
@@ -3246,38 +3252,48 @@ class GenieCharacter:
         return (self.x + side * self._palm_dx * ds,
                 self.y + self._palm_dy * ds)
 
-    def _fire_beat(self, i):
+    def _fire_all(self):
+        """Single cast moment — spawn ALL 3 offer powerups + their
+        reveal poofs + one combined chime simultaneously. Replaces
+        the previous per-offer beat schedule so the user sees all
+        three choices at once with a clear, coordinated POOF and
+        has time to manoeuvre to whichever they want."""
         if self._dead:
             return
         from game.config import GENIE_OFFER_X_STEP
-        kind, slot_y = self.offers[i]
+        import random as _r
         # Each offer is laid out around the genie's current x: offer 0
         # one step left of genie, offer 1 at genie x, offer 2 one step
-        # right. Keeps the three-across funnel even after scrolling.
-        ox = self.x + (i - 1) * GENIE_OFFER_X_STEP
-        oy = float(slot_y)
-        # Launch a SHINE PARTICLE from the genie's palm toward the
-        # offer position. The shine handles the offer + poof + chime
-        # spawn itself on arrival (~0.30 s flight). The palm closest
-        # to the target on the x axis is used so the shine flies a
-        # natural path instead of crossing the body.
-        palm_x, palm_y = self.palm_world_pos(side=-1 if i <= 1 else +1)
-        self.world.particles.append(GenieShineParticle(
-            start_x=palm_x, start_y=palm_y,
-            target_x=ox, target_y=oy,
-            kind=kind, world=self.world,
-        ))
-        # A short "release" puff at the palm to sell the shine
-        # detaching from the genie.
-        import random as _r
-        for _ in range(5):
+        # right. Since the genie is stationary (vx=0), the three
+        # spawn positions are predictable for the player.
+        for i, (kind, slot_y) in enumerate(self.offers):
+            ox = self.x + (i - 1) * GENIE_OFFER_X_STEP
+            oy = float(slot_y)
+            offer = PowerUp(ox, oy, kind=kind)
+            offer.is_genie_offer = True
+            self.world.powerups.append(offer)
+            self.world._spawn_genie_reveal_poof(ox, oy)
+        # Single combined chime — louder than per-beat since this is
+        # the one big cast moment of the cinematic.
+        try:
+            from game import audio
+            audio._play("coin_triple", 0.95)
+        except Exception:
+            pass
+        # Bright flash burst at the genie's centre so the cast moment
+        # also reads on the GENIE, not just at the three offer sites.
+        gx_centre = int(self.x)
+        gy_centre = int(self.y)
+        for _ in range(14):
             ang = _r.uniform(0, math.pi * 2)
-            sp = _r.uniform(40, 90)
+            sp = _r.uniform(80, 180)
             self.world.particles.append(CloudPuff(
-                palm_x, palm_y,
-                math.cos(ang) * sp, math.sin(ang) * sp - 30,
-                _r.uniform(0.18, 0.30),
-                3, 9, (255, 235, 175),
+                gx_centre, gy_centre,
+                math.cos(ang) * sp, math.sin(ang) * sp - 40,
+                _r.uniform(0.30, 0.50),
+                6, 16,
+                _r.choice([(255, 240, 175), (255, 220, 130),
+                           (240, 200, 250), (255, 255, 245)]),
             ))
 
     def _spawn_tail_wisp(self):
@@ -3311,33 +3327,31 @@ class GenieCharacter:
 
     # ── render ───────────────────────────────────────────────────────────
     def draw(self, surf):
-        # Compute phase-driven values.
+        # Compute phase-driven values for the simplified
+        # rise / hold / vanish state machine.
         t = self._t
+        # cast_arm / cast_k are kept for API compatibility with the
+        # cached body sprite but no longer do anything — the body
+        # is pre-rendered statically in the offering pose.
+        cast_arm = -1
+        cast_k = 0.0
         if t < self.RISE_END:
             # Scale 0.3 → 1.0, alpha 0 → 210, bob upward 10 px.
             k = t / self.RISE_END
             scale = 0.3 + 0.7 * (1 - (1 - k) ** 2)        # ease-out
             alpha = int(210 * k)
             bob   = -10 * (1 - k)
-            cast_arm = -1
-            cast_k   = 0.0
-        elif t < self.CAST_ENDS[2]:
+        elif t < self.VANISH_START:
+            # Hold steady: full scale + alpha, gentle bob.
             scale = 1.0
             alpha = 210
             bob   = math.sin(t * 6.0) * 1.5
-            # Which cast are we in, and how far through it?
-            if   t < self.CAST_ENDS[0]: cast_arm, beat = 0, t - self.RISE_END
-            elif t < self.CAST_ENDS[1]: cast_arm, beat = 1, t - self.CAST_ENDS[0]
-            else:                       cast_arm, beat = 2, t - self.CAST_ENDS[1]
-            cast_k = max(0.0, min(1.0, beat / 0.40))
         else:
             # Vanish: shrink + fade, drift up slightly.
-            k = (t - self.CAST_ENDS[2]) / (self.VANISH_END - self.CAST_ENDS[2])
+            k = (t - self.VANISH_START) / (self.VANISH_END - self.VANISH_START)
             scale = 1.0 - 0.4 * k
             alpha = int(210 * (1 - k))
             bob   = -18 * k
-            cast_arm = -1
-            cast_k = 0.0
         if alpha <= 2:
             return
         self._blit_sprite(surf, alpha, scale, bob, cast_arm, cast_k)
