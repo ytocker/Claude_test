@@ -233,6 +233,12 @@ TEST_FORCED_KINDS = (
     "lottery", "genie",
 )
 
+# v5_powerups test-mode runs ship with a fake 250-score / 250-coin
+# bootstrap (see World.__init__) so any submitted score / play-log
+# from this branch would be junk in the real leaderboard + telemetry
+# tables. Gate both submit paths off here. Set to False to restore.
+TEST_MODE_NO_SUBMIT = True
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without

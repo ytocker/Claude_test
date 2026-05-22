@@ -59,6 +59,13 @@ def _build_payload(world) -> str:
 async def log_run(world) -> bool:
     """Fire-and-forget: hand the run summary to JS, wait for the POST to
     complete, return True on 2xx. Native = silent no-op."""
+    try:
+        from game.config import TEST_MODE_NO_SUBMIT
+    except ImportError:
+        TEST_MODE_NO_SUBMIT = False
+    if TEST_MODE_NO_SUBMIT:
+        # v5_powerups: fake-state runs would pollute the telemetry table.
+        return False
     if not _IS_BROWSER:
         return False
     _resolve()

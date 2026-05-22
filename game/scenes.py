@@ -736,7 +736,8 @@ class App:
     def _submit_name_native(self, name: str):
         """Finish native name-entry: save to local JSON, show leaderboard."""
         from game import leaderboard
-        if name:
+        from game.config import TEST_MODE_NO_SUBMIT
+        if name and not TEST_MODE_NO_SUBMIT:
             leaderboard._native_submit(name, self._final_score)
         scores = leaderboard._native_fetch()
         self._show_leaderboard_native(scores, submitted=bool(name))

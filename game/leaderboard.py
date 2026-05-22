@@ -204,6 +204,14 @@ async def submit(name: str, world) -> bool:
 
     Note: signature changed from ``submit(name, score)`` — the proof
     state lives on ``world``, so passing the int alone would lose it."""
+    try:
+        from game.config import TEST_MODE_NO_SUBMIT
+    except ImportError:
+        TEST_MODE_NO_SUBMIT = False
+    if TEST_MODE_NO_SUBMIT:
+        # v5_powerups: fake-state runs would pollute the real
+        # leaderboard. Pretend success so the UI flow is unchanged.
+        return True
     if _IS_BROWSER:
         _resolve()
         if not _dispatcherReady:
