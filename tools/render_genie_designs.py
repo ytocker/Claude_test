@@ -927,11 +927,411 @@ def draw_design_e(big, cx, t):
                     math.radians(180), math.radians(360), max(3, SS + 1))
 
 
+# ────────────────────────────────────────────────────────────────────────────
+# Design F — "Champion Genie" (v4 hybrid: Hero body + jovial grin +
+# cosmic nebula glow inside body + lightning ambience + visible arms).
+# Tries to be THE winning design by combining the strongest elements
+# from earlier candidates.
+def draw_design_f(big, cx, t):
+    SKIN      = ( 65, 175, 220)
+    SKIN_HI   = (170, 230, 255)
+    SKIN_LO   = ( 20, 110, 170)
+    NEB_PINK  = (255, 130, 200)
+    NEB_PURPLE= (160,  85, 220)
+    GOLD      = (245, 205, 105)
+    GOLD_HI   = (255, 240, 175)
+    GOLD_LO   = (160, 115,  30)
+    BLACK     = ( 18,  14,  10)
+    WHITE     = (250, 250, 245)
+    HAIR      = ( 28,  20,  18)
+    RUBY      = (215,  70,  85)
+    CYAN      = (160, 230, 255)
+
+    # Ambient sparkles around the figure
+    random.seed(5)
+    for _ in range(18):
+        sx = random.randint(int(8 * SS), int((W - 8) * SS))
+        sy = random.randint(int(8 * SS), int((H - 8) * SS))
+        sr = random.randint(int(1 * SS), int(3 * SS))
+        _star(big, sx, sy, sr, GOLD_HI)
+
+    # Smoke trail
+    _smoke_curl(big, cx - 12 * SS, int(212 * SS), length=58,
+                color_lo=SKIN_LO, color_mid=SKIN, color_hi=SKIN_HI,
+                t=t, side=-1)
+    _smoke_curl(big, cx + 12 * SS, int(212 * SS), length=58,
+                color_lo=SKIN_LO, color_mid=SKIN, color_hi=SKIN_HI,
+                t=t + 1.2, side=+1)
+
+    # V-torso
+    _v_torso(big, cx,
+             neck_y=int(108 * SS),
+             shoulder_y=int(126 * SS),
+             waist_y=int(182 * SS),
+             base_y=int(218 * SS),
+             neck_w=int(18 * SS),
+             shoulder_w=int(66 * SS),
+             waist_w=int(32 * SS),
+             base_w=int(18 * SS),
+             body=SKIN, body_lo=SKIN_LO, body_hi=SKIN_HI)
+    # Nebula glow INSIDE body (subtle)
+    for col, alpha in ((NEB_PINK, 60), (NEB_PURPLE, 70)):
+        s = pygame.Surface((int(80 * SS), int(80 * SS)), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*col, alpha),
+                           (int(40 * SS), int(40 * SS)), int(34 * SS))
+        big.blit(s, (cx - int(40 * SS), int(135 * SS)))
+    # Tiny stars on the body
+    random.seed(8)
+    for _ in range(10):
+        sx = cx + random.randint(-int(30 * SS), int(30 * SS))
+        sy = random.randint(int(140 * SS), int(195 * SS))
+        pygame.draw.circle(big, WHITE, (sx, sy), max(1, SS // 2))
+
+    # Pec definition
+    for sx in (-int(22 * SS), int(22 * SS)):
+        pygame.draw.ellipse(big, SKIN_HI,
+                            (cx + sx - int(22 * SS), int(128 * SS),
+                             int(38 * SS), int(22 * SS)))
+        pygame.draw.arc(big, SKIN_LO,
+                        (cx + sx - int(22 * SS), int(136 * SS),
+                         int(38 * SS), int(16 * SS)),
+                        math.radians(0), math.radians(180), max(3, SS))
+    # Abs centre line
+    pygame.draw.line(big, SKIN_LO,
+                     (cx, int(150 * SS)), (cx, int(180 * SS)),
+                     max(2, SS - 1))
+    # Belly highlight
+    pygame.draw.ellipse(big, SKIN_HI,
+                        (cx - int(14 * SS), int(155 * SS),
+                         int(28 * SS), int(22 * SS)))
+
+    # ── arms held wide outward (welcoming gesture) ─────────────────────
+    # Right arm: shoulder out and slightly up
+    _arm(big,
+         cx + int(56 * SS), int(132 * SS),
+         cx + int(84 * SS), int(118 * SS),
+         cx + int(86 * SS), int(82 * SS),
+         SKIN, SKIN_LO, SKIN_HI, GOLD, GOLD_HI, w=10)
+    # Left arm: shoulder out and slightly up
+    _arm(big,
+         cx - int(56 * SS), int(132 * SS),
+         cx - int(84 * SS), int(118 * SS),
+         cx - int(86 * SS), int(82 * SS),
+         SKIN, SKIN_LO, SKIN_HI, GOLD, GOLD_HI, w=10)
+    # Magical sparkle clouds at the palms
+    for side in (-1, 1):
+        px, py = cx + side * int(86 * SS), int(82 * SS) - int(12 * SS)
+        s = pygame.Surface((int(40 * SS), int(40 * SS)), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*CYAN, 120),
+                           (int(20 * SS), int(20 * SS)), int(18 * SS))
+        pygame.draw.circle(s, (*GOLD_HI, 200),
+                           (int(20 * SS), int(20 * SS)), int(11 * SS))
+        pygame.draw.circle(s, (255, 255, 255, 255),
+                           (int(20 * SS), int(20 * SS)), int(5 * SS))
+        big.blit(s, (px - int(20 * SS), py - int(20 * SS)))
+
+    # ── sash at waist (below arms now) ─────────────────────────────────
+    sash_y = int(182 * SS)
+    pygame.draw.polygon(big, GOLD_LO,
+                        [(cx - int(38 * SS), sash_y - 5 * SS),
+                         (cx + int(38 * SS), sash_y - 3 * SS),
+                         (cx + int(34 * SS), sash_y + 12 * SS),
+                         (cx - int(34 * SS), sash_y + 10 * SS)])
+    pygame.draw.polygon(big, GOLD,
+                        [(cx - int(36 * SS), sash_y - 2 * SS),
+                         (cx + int(36 * SS), sash_y),
+                         (cx + int(32 * SS), sash_y + 9 * SS),
+                         (cx - int(32 * SS), sash_y + 7 * SS)])
+    pygame.draw.line(big, GOLD_HI,
+                     (cx - int(34 * SS), sash_y - 1 * SS),
+                     (cx + int(34 * SS), sash_y + 1 * SS),
+                     max(2, SS))
+    # Buckle
+    pygame.draw.circle(big, GOLD_LO, (cx, sash_y + 3 * SS), int(11 * SS))
+    pygame.draw.circle(big, GOLD_HI, (cx, sash_y + 3 * SS), int(9 * SS))
+    pygame.draw.polygon(big, RUBY,
+                        [(cx, sash_y - 4 * SS),
+                         (cx + int(7 * SS), sash_y + 3 * SS),
+                         (cx, sash_y + 10 * SS),
+                         (cx - int(7 * SS), sash_y + 3 * SS)])
+    pygame.draw.polygon(big, (255, 220, 230),
+                        [(cx - 3 * SS, sash_y - 1 * SS),
+                         (cx, sash_y + 2 * SS),
+                         (cx - 4 * SS, sash_y + 4 * SS)])
+
+    # ── HEAD ───────────────────────────────────────────────────────────
+    head_cy = int(58 * SS)
+    head_r  = int(34 * SS)
+    _head(big, cx, head_cy, head_r, SKIN, SKIN_LO, SKIN_HI)
+
+    # ── ornate gold crown across forehead ──────────────────────────────
+    crown_y = head_cy - int(22 * SS)
+    # Crown base
+    pygame.draw.rect(big, GOLD_LO,
+                     (cx - int(40 * SS), crown_y,
+                      int(80 * SS), int(12 * SS)))
+    pygame.draw.rect(big, GOLD,
+                     (cx - int(38 * SS), crown_y + int(1 * SS),
+                      int(76 * SS), int(9 * SS)))
+    pygame.draw.line(big, GOLD_HI,
+                     (cx - int(36 * SS), crown_y + int(3 * SS)),
+                     (cx + int(36 * SS), crown_y + int(3 * SS)),
+                     max(2, SS))
+    # 3 spikes above crown
+    for spx in (-int(20 * SS), 0, int(20 * SS)):
+        pygame.draw.polygon(big, GOLD_LO,
+                            [(cx + spx - int(8 * SS), crown_y),
+                             (cx + spx, crown_y - int(20 * SS)),
+                             (cx + spx + int(8 * SS), crown_y)])
+        pygame.draw.polygon(big, GOLD,
+                            [(cx + spx - int(6 * SS), crown_y),
+                             (cx + spx, crown_y - int(18 * SS)),
+                             (cx + spx + int(6 * SS), crown_y)])
+    # Gem in centre spike
+    pygame.draw.polygon(big, RUBY,
+                        [(cx, crown_y - int(20 * SS)),
+                         (cx + int(5 * SS), crown_y - int(13 * SS)),
+                         (cx, crown_y - int(6 * SS)),
+                         (cx - int(5 * SS), crown_y - int(13 * SS))])
+    pygame.draw.polygon(big, (255, 200, 220),
+                        [(cx - 2 * SS, crown_y - int(16 * SS)),
+                         (cx - 1 * SS, crown_y - int(13 * SS)),
+                         (cx - 3 * SS, crown_y - int(14 * SS))])
+    # Side gems on outer spikes
+    pygame.draw.circle(big, CYAN, (cx - int(20 * SS), crown_y - int(13 * SS)),
+                       int(3 * SS))
+    pygame.draw.circle(big, CYAN, (cx + int(20 * SS), crown_y - int(13 * SS)),
+                       int(3 * SS))
+
+    # Brow
+    pygame.draw.polygon(big, HAIR,
+                        [(cx - int(18 * SS), head_cy - int(6 * SS)),
+                         (cx - int(4 * SS),  head_cy - int(8 * SS)),
+                         (cx - int(4 * SS),  head_cy - int(3 * SS)),
+                         (cx - int(18 * SS), head_cy - int(1 * SS))])
+    pygame.draw.polygon(big, HAIR,
+                        [(cx + int(18 * SS), head_cy - int(6 * SS)),
+                         (cx + int(4 * SS),  head_cy - int(8 * SS)),
+                         (cx + int(4 * SS),  head_cy - int(3 * SS)),
+                         (cx + int(18 * SS), head_cy - int(1 * SS))])
+    # Bigger sparkly eyes
+    _eye(big, cx - int(12 * SS), head_cy + int(3 * SS), int(6 * SS),
+         white=WHITE)
+    _eye(big, cx + int(12 * SS), head_cy + int(3 * SS), int(6 * SS),
+         white=WHITE)
+    # JOVIAL grin (open mouth)
+    mt = head_cy + int(17 * SS)
+    pygame.draw.polygon(big, HAIR,
+                        [(cx - int(14 * SS), mt),
+                         (cx + int(14 * SS), mt),
+                         (cx + int(10 * SS), mt + int(12 * SS)),
+                         (cx - int(10 * SS), mt + int(12 * SS))])
+    pygame.draw.polygon(big, WHITE,
+                        [(cx - int(12 * SS), mt + int(2 * SS)),
+                         (cx + int(12 * SS), mt + int(2 * SS)),
+                         (cx + int(8 * SS), mt + int(8 * SS)),
+                         (cx - int(8 * SS), mt + int(8 * SS))])
+    # Tongue hint
+    pygame.draw.circle(big, RUBY,
+                       (cx, mt + int(9 * SS)), int(3 * SS))
+    # Goatee
+    pygame.draw.polygon(big, HAIR,
+                        [(cx - int(7 * SS), mt + int(12 * SS)),
+                         (cx + int(7 * SS), mt + int(12 * SS)),
+                         (cx, mt + int(26 * SS))])
+    # Curled mustache
+    pygame.draw.arc(big, HAIR,
+                    (cx - int(20 * SS), head_cy + int(10 * SS),
+                     int(20 * SS), int(12 * SS)),
+                    math.radians(190), math.radians(360), max(4, SS + 1))
+    pygame.draw.arc(big, HAIR,
+                    (cx, head_cy + int(10 * SS),
+                     int(20 * SS), int(12 * SS)),
+                    math.radians(180), math.radians(350), max(4, SS + 1))
+    # Earrings — bigger hoops with ruby drops
+    for sx in (-int(32 * SS), int(32 * SS)):
+        pygame.draw.circle(big, GOLD_LO,
+                           (cx + sx, head_cy + int(10 * SS)),
+                           int(8 * SS), max(3, SS + 1))
+        pygame.draw.circle(big, GOLD,
+                           (cx + sx, head_cy + int(10 * SS)),
+                           int(6 * SS), max(2, SS))
+        pygame.draw.circle(big, RUBY,
+                           (cx + sx, head_cy + int(20 * SS)),
+                           int(3 * SS))
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Design G — "Brass Djinn" (NEW: steampunk clockwork genie)
+def draw_design_g(big, cx, t):
+    BRASS     = (210, 155,  75)
+    BRASS_HI  = (255, 220, 140)
+    BRASS_LO  = (135,  85,  20)
+    COPPER    = (200, 110,  60)
+    COPPER_HI = (240, 165, 110)
+    DARK      = ( 40,  25,  15)
+    BLACK     = ( 18,  14,  10)
+    WHITE     = (250, 245, 230)
+    GLOW      = (255, 200, 100)
+    LAVA      = (255, 130,  40)
+    LAVA_HI   = (255, 240, 180)
+
+    # Smoke + steam
+    _smoke_curl(big, cx - 4 * SS, int(216 * SS), length=58,
+                color_lo=BRASS_LO, color_mid=BRASS, color_hi=BRASS_HI,
+                t=t, side=-1)
+
+    # V-torso in brass
+    _v_torso(big, cx,
+             neck_y=int(110 * SS),
+             shoulder_y=int(128 * SS),
+             waist_y=int(182 * SS),
+             base_y=int(218 * SS),
+             neck_w=int(18 * SS),
+             shoulder_w=int(62 * SS),
+             waist_w=int(32 * SS),
+             base_w=int(18 * SS),
+             body=BRASS, body_lo=BRASS_LO, body_hi=BRASS_HI)
+    # Riveted seams (vertical line + rivets along edges)
+    for sx in (-int(50 * SS), int(50 * SS)):
+        pygame.draw.line(big, BRASS_LO,
+                         (cx + sx, int(132 * SS)),
+                         (cx + int(sx * 0.6), int(214 * SS)),
+                         max(2, SS - 1))
+        for y_step in range(140, 215, 14):
+            x = cx + int(sx * (1 - (y_step - 140) / 75 * 0.4))
+            pygame.draw.circle(big, BRASS_HI, (x, int(y_step * SS)),
+                               max(2, SS))
+    # Central glowing molten cracks (3 jagged lines)
+    crack1 = [(cx, int(132 * SS)),
+              (cx + int(4 * SS), int(150 * SS)),
+              (cx - int(2 * SS), int(170 * SS)),
+              (cx + int(4 * SS), int(192 * SS))]
+    pygame.draw.lines(big, LAVA, False, crack1, max(4, SS + 2))
+    pygame.draw.lines(big, LAVA_HI, False, crack1, max(2, SS))
+    # Side cracks
+    for side in (-1, 1):
+        c = [(cx + side * int(14 * SS), int(148 * SS)),
+             (cx + side * int(22 * SS), int(168 * SS)),
+             (cx + side * int(14 * SS), int(190 * SS))]
+        pygame.draw.lines(big, LAVA, False, c, max(3, SS + 1))
+        pygame.draw.lines(big, LAVA_HI, False, c, max(1, SS - 1))
+    # Central gear in chest
+    gear_cy = int(160 * SS)
+    pygame.draw.circle(big, BRASS_LO, (cx, gear_cy), int(20 * SS))
+    pygame.draw.circle(big, COPPER, (cx, gear_cy), int(17 * SS))
+    # Gear teeth (8 spokes)
+    for ang in range(0, 360, 45):
+        ax = math.cos(math.radians(ang))
+        ay = math.sin(math.radians(ang))
+        pygame.draw.rect(big, BRASS_LO,
+                         (cx + int(ax * 17 * SS) - int(3 * SS),
+                          gear_cy + int(ay * 17 * SS) - int(3 * SS),
+                          int(6 * SS), int(6 * SS)))
+    pygame.draw.circle(big, COPPER_HI, (cx, gear_cy), int(12 * SS))
+    pygame.draw.circle(big, GLOW, (cx, gear_cy), int(6 * SS))
+    pygame.draw.circle(big, WHITE, (cx - SS, gear_cy - SS), int(2 * SS))
+
+    # ── piston arms (segmented with rivets) ────────────────────────────
+    for side in (-1, 1):
+        sh_x, sh_y = cx + side * int(56 * SS), int(130 * SS)
+        el_x, el_y = sh_x + side * int(24 * SS), sh_y - int(10 * SS)
+        wr_x, wr_y = el_x - side * int(6 * SS), el_y - int(40 * SS)
+        # Upper piston (rectangle)
+        ang_u = math.atan2(el_y - sh_y, el_x - sh_x)
+        # Use line for simplicity but with thick brass
+        pygame.draw.line(big, BRASS_LO,
+                         (sh_x, sh_y + 2), (el_x, el_y + 2),
+                         max(12, int(2.6 * SS)))
+        pygame.draw.line(big, BRASS,
+                         (sh_x, sh_y), (el_x, el_y),
+                         max(10, int(2.2 * SS)))
+        pygame.draw.line(big, BRASS_HI,
+                         (sh_x, sh_y - 2), (el_x, el_y - 2),
+                         max(2, SS))
+        # Lower piston
+        pygame.draw.line(big, BRASS_LO,
+                         (el_x, el_y + 2), (wr_x, wr_y + 2),
+                         max(11, int(2.4 * SS)))
+        pygame.draw.line(big, BRASS,
+                         (el_x, el_y), (wr_x, wr_y),
+                         max(9, int(2.0 * SS)))
+        # Elbow joint (big rivet)
+        pygame.draw.circle(big, BRASS_LO, (el_x, el_y), int(10 * SS))
+        pygame.draw.circle(big, COPPER, (el_x, el_y), int(7 * SS))
+        pygame.draw.circle(big, COPPER_HI, (el_x - 2 * SS, el_y - 2 * SS),
+                           int(2 * SS))
+        # Fist with glowing core
+        pygame.draw.circle(big, BRASS_LO, (wr_x, wr_y), int(11 * SS))
+        pygame.draw.circle(big, BRASS, (wr_x, wr_y), int(9 * SS))
+        pygame.draw.circle(big, LAVA, (wr_x, wr_y), int(5 * SS))
+        pygame.draw.circle(big, LAVA_HI, (wr_x - SS, wr_y - SS), int(2 * SS))
+
+    # ── head — bronze, with crown of brass spikes ─────────────────────
+    head_cy = int(62 * SS)
+    head_r = int(30 * SS)
+    pygame.draw.circle(big, BRASS_LO, (cx + 3 * SS, head_cy + 3 * SS),
+                       head_r + 2)
+    pygame.draw.circle(big, BRASS, (cx, head_cy), head_r)
+    pygame.draw.circle(big, BRASS_HI,
+                       (cx - head_r // 3, head_cy - head_r // 3),
+                       head_r // 3)
+    # Forehead bolts (3 in a row)
+    for fx in (-int(14 * SS), 0, int(14 * SS)):
+        pygame.draw.circle(big, COPPER, (cx + fx, head_cy - int(18 * SS)),
+                           int(4 * SS))
+        pygame.draw.circle(big, COPPER_HI,
+                           (cx + fx - SS, head_cy - int(20 * SS)),
+                           int(2 * SS))
+    # Spiky brass crown (5 spikes radiating up)
+    for ang in (-60, -30, 0, 30, 60):
+        rad = math.radians(ang - 90)
+        x0 = cx + int(math.cos(rad) * head_r * 0.8)
+        y0 = head_cy + int(math.sin(rad) * head_r * 0.8)
+        x1 = cx + int(math.cos(rad) * (head_r + int(20 * SS)))
+        y1 = head_cy + int(math.sin(rad) * (head_r + int(20 * SS)))
+        pygame.draw.line(big, BRASS_LO, (x0, y0), (x1, y1), max(3, SS + 1))
+        pygame.draw.line(big, BRASS, (x0, y0), (x1, y1), max(2, SS))
+        pygame.draw.circle(big, COPPER, (x1, y1), int(3 * SS))
+
+    # Glowing slit eyes (no whites — mechanical)
+    eye_y = head_cy + int(2 * SS)
+    for sx in (-int(11 * SS), int(11 * SS)):
+        # Eye socket
+        pygame.draw.ellipse(big, DARK,
+                            (cx + sx - int(7 * SS), eye_y - int(4 * SS),
+                             int(14 * SS), int(8 * SS)))
+        # Glowing slit
+        s = pygame.Surface((int(16 * SS), int(8 * SS)), pygame.SRCALPHA)
+        pygame.draw.ellipse(s, (*LAVA_HI, 240),
+                            (0, 0, int(16 * SS), int(8 * SS)))
+        pygame.draw.ellipse(s, (255, 255, 255),
+                            (int(4 * SS), int(2 * SS),
+                             int(8 * SS), int(4 * SS)))
+        big.blit(s, (cx + sx - int(8 * SS), eye_y - int(4 * SS)))
+
+    # Mechanical mouth (grill of vertical bars)
+    mt_y = head_cy + int(14 * SS)
+    pygame.draw.rect(big, DARK,
+                     (cx - int(14 * SS), mt_y,
+                      int(28 * SS), int(8 * SS)))
+    for bx in range(-12, 13, 4):
+        pygame.draw.line(big, BRASS_LO,
+                         (cx + int(bx * SS), mt_y),
+                         (cx + int(bx * SS), mt_y + int(8 * SS)),
+                         max(1, SS // 2))
+    # Glow inside the grill
+    s = pygame.Surface((int(28 * SS), int(8 * SS)), pygame.SRCALPHA)
+    pygame.draw.rect(s, (*LAVA, 180),
+                     (0, 0, int(28 * SS), int(8 * SS)))
+    big.blit(s, (cx - int(14 * SS), mt_y))
+
+
 DESIGNS = [
-    ("A — Hero Genie",     draw_design_a),
+    ("F — Champion Genie", draw_design_f),
     ("B — Mystic Sage",    draw_design_b),
     ("C — Cosmic Genie",   draw_design_c),
-    ("D — Trickster Imp",  draw_design_d),
+    ("G — Brass Djinn",    draw_design_g),
     ("E — Storm Genie",    draw_design_e),
 ]
 
