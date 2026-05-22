@@ -223,6 +223,42 @@ def palette_for_time(elapsed_seconds: float) -> dict:
     return palette_for_phase(phase_for_time(elapsed_seconds))
 
 
+# ── scene ambient light level ───────────────────────────────────────────────
+# A 0..1 multiplier that follows the biome cycle: 1.0 in full daylight,
+# dips to ~0.25 at peak night, recovers through predawn → sunrise → day.
+# Used to darken Pip's parrot sprite (and anything else that should look
+# lit by the sun) so the whole picture matches the sky / pillar palette.
+# Keyframed at the SAME phases as the palette so the dial moves in
+# lockstep with the visible sky transitions; linearly interpolated
+# between keyframes.
+_LIGHT_KEYFRAMES = [
+    (0.00000, 1.00),   # DAY — full bright
+    (0.23125, 0.90),   # GOLDEN HOUR — warm but slightly dimmer
+    (0.36250, 0.65),   # SUNSET — colour shifts, lots of shadow
+    (0.51250, 0.42),   # DUSK — fading fast
+    (0.64375, 0.25),   # NIGHT — deepest dark
+    (0.79375, 0.40),   # PREDAWN — first hint of light returning
+    (0.90625, 0.78),   # SUNRISE — coming back fast
+    (1.00000, 1.00),   # wraps to DAY
+]
+
+
+def light_level_for_phase(phase: float) -> float:
+    """Ambient light multiplier (0..1) for the given biome phase.
+    Linearly interpolated between the keyframes above."""
+    p = phase % 1.0
+    for i in range(len(_LIGHT_KEYFRAMES) - 1):
+        p0, v0 = _LIGHT_KEYFRAMES[i]
+        p1, v1 = _LIGHT_KEYFRAMES[i + 1]
+        if p0 <= p <= p1:
+            span = max(1e-9, p1 - p0)
+            t = (p - p0) / span
+            return v0 + (v1 - v0) * t
+    return 1.0
+
+
+def light_level_for_time(elapsed_seconds: float) -> float:
+    return light_level_for_phase(phase_for_time(elapsed_seconds))
 
 
 # ── cached-palette bucket helpers ────────────────────────────────────────────

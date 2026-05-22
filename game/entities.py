@@ -725,6 +725,22 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
+def _apply_ambient_light(sprite: pygame.Surface, level: float) -> pygame.Surface:
+    """Return a darkened copy of `sprite` whose RGB channels are
+    multiplied by `level` (0..1). Alpha is preserved so the silhouette
+    keeps clean edges. Used by `Bird.draw` (and the parcel blit) so
+    Pip's sprite tracks the biome's ambient light — full bright at
+    noon, deeply shaded at midnight, restored through sunrise."""
+    lvl = max(0.0, min(1.0, level))
+    out = sprite.copy()
+    # BLEND_RGBA_MULT multiplies each channel by colour/255; a fill of
+    # (lvl*255, lvl*255, lvl*255, 255) scales RGB by `lvl` and leaves
+    # alpha untouched.
+    v = int(255 * lvl)
+    out.fill((v, v, v, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    return out
+
+
 class Bird:
     def __init__(self):
         self.x = BIRD_X
@@ -843,7 +859,8 @@ class Bird:
         elif self.grow_scale > target_g:
             self.grow_scale = max(target_g, self.grow_scale - step_g)
 
-    def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
+    def draw(self, surf, shake_x=0, shake_y=0, flipped=False,
+             light_level=1.0):
         from game.config import GROW_SCALE
         # Weather shiver: world-driven per-frame jitter under heavy rain /
         # lightning. Visual only — kept out of the physics shake_x/shake_y
@@ -939,6 +956,12 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
+        # Biome ambient-light darkening — RGB multiply by light_level so
+        # Pip's sprite tracks the sky's lighting (dim at night, full at
+        # day). Kept under 1.0 only — at noon (light=1.0) we skip the
+        # copy so the cached sprite goes straight to the screen.
+        if light_level < 0.999:
+            img = _apply_ambient_light(img, light_level)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
@@ -984,6 +1007,10 @@ class Bird:
         if self.ghost_active:
             parcel_rot = parcel_rot.copy()
             parcel_rot.set_alpha(int(90 + pulse * 80))
+        # Darken the parcel under the same ambient light as the bird so
+        # the pair reads as one silhouette under shared lighting.
+        if light_level < 0.999:
+            parcel_rot = _apply_ambient_light(parcel_rot, light_level)
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
