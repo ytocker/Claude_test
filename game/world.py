@@ -1710,20 +1710,22 @@ class World:
         self.shake_t = max(self.shake_t, 0.55)
         # Lockout — one strike per ~25s of peak storm.
         self._storm_jolt_lockout = 25.0
-        # Scorch sub-state — smoke wisps off Pip for the next 1.4 s
-        # (bumped to persist past the 1.2 s skeleton-flash window
-        # so the smoking aftermath continues for a beat after the
-        # flash ends).
-        self._lightning_scorch_t = 1.4
+        # Scorch sub-state — smoke wisps off Pip for the next 2.5 s
+        # (bumped to outlast the 2.3 s skeleton-flash window so the
+        # smoking aftermath continues for a beat after the flash
+        # ends).
+        self._lightning_scorch_t = 2.5
         self._scorch_smoke_accum = 0.0
         # X-Ray Sparks flash — Pip's body shows the dark-silhouette-
-        # plus-white-skeleton sprite for 1.2 s. Held SOLID for the
-        # first 0.6 s so the X-ray is unmistakably readable, then
-        # alternates with the normal sprite at ~0.2 s per segment
-        # for the last 0.6 s (cartoon flicker with each frame held
-        # long enough to clearly register). Strobe lives in
-        # Bird.draw.
-        self.bird.skeleton_flash_t = 1.20
+        # plus-white-skeleton sprite for 2.3 s. Held SOLID for the
+        # first 0.5 s so the X-ray is unmistakably readable, then
+        # alternates skel/norm/skel/norm/skel/norm at 0.30 s per
+        # segment (3.33 Hz toggle, 1.67 Hz full cycle) so the
+        # cartoon flicker stalls on each pose long enough to
+        # clearly register and you see Pip swap between his
+        # skeleton and his normal sprite several times. Strobe
+        # lives in Bird.draw.
+        self.bird.skeleton_flash_t = 2.30
 
         # ── Coin blast: faster spread than the previous gust version
         # so the lightning impulse reads as the cause.
