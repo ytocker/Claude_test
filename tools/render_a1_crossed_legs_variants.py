@@ -134,15 +134,11 @@ def _smoke_aura_below(big, cx, top_y):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# All five variants are PROPER seated cross-legged poses, modelled on
-# how a person actually sits on the ground:
-#   * hips at "seat" level (y ≈ 248)
-#   * thighs angle OUT AND DOWN from the hips to knees at the outer flanks
-#   * shins angle INWARD from the knees back across the body
-#   * feet/slippers sit either tucked under the opposite thigh, on top
-#     of it, or in front depending on the pose
-# Total leg-section height is intentionally compact (~70 px) — that's
-# the "save room in gameplay" win from cross-legged sitting.
+# v3 — all five variants are FULL LOTUS with progressively fuller /
+# bagger / more decorated pants. User feedback: the v2 legs were too
+# thin compared to the standing pose. v3 widens the polygons + adds
+# fabric drapery + pleats so the lotus reads as a real harem-pants
+# silhouette instead of skinny triangles.
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _draw_thigh(big, hip_in, hip_out, knee_inner, knee_outer):
@@ -167,223 +163,239 @@ def _cross_shadow(big, cx, y, w=80, h=20, alpha=130):
     big.blit(sh, (cx - s(w // 2), y - s(h // 2)))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Variant 1 — Classic sukhasana (easy pose)
-# Shins cross loosely in front of the body, feet tucked under the
-# opposite thigh, peeking out the sides.
-# ─────────────────────────────────────────────────────────────────────────────
-def draw_crossed_legs_full_lotus(big, cx):  # name kept for stable API
-    hip_y    = s(248)
-    knee_y   = s(282)
-    foot_y   = s(304)
-    # ── THIGHS (drawn first so shins overlap them) ──────────────────
-    _draw_thigh(big,
-                hip_in=(cx - s(12), hip_y),
-                hip_out=(cx - s(28), hip_y),
-                knee_inner=(cx - s(58), knee_y),
-                knee_outer=(cx - s(78), knee_y - s(2)))
-    _draw_thigh(big,
-                hip_in=(cx + s(12), hip_y),
-                hip_out=(cx + s(28), hip_y),
-                knee_inner=(cx + s(58), knee_y),
-                knee_outer=(cx + s(78), knee_y - s(2)))
-    # ── RIGHT shin (drawn first — goes UNDER the left shin) ────────
-    _draw_shin(big,
-               knee_top=(cx + s(70), knee_y - s(2)),
-               knee_bot=(cx + s(58), knee_y + s(8)),
-               foot_bot=(cx - s(8),  foot_y + s(2)),
-               foot_top=(cx - s(20), foot_y - s(8)))
-    # Right foot peeking out on the LEFT side
-    _slipper(big, cx - s(30), foot_y - s(2), angle_deg=10,
-             mirror=True, scale=0.85)
-    _gold_ankle_cuff(big, cx - s(18), foot_y - s(4),
-                     angle_deg=12, w_native=18)
-    # Cross shadow under where LEFT shin will lie
-    _cross_shadow(big, cx, knee_y + s(14), w=100, h=20, alpha=140)
-    # ── LEFT shin (drawn ON TOP — crosses over the right shin) ─────
-    _draw_shin(big,
-               knee_top=(cx - s(70), knee_y - s(2)),
-               knee_bot=(cx - s(58), knee_y + s(8)),
-               foot_bot=(cx + s(8),  foot_y + s(2)),
-               foot_top=(cx + s(20), foot_y - s(8)))
-    # Left foot peeking out on the RIGHT side
-    _slipper(big, cx + s(30), foot_y - s(2), angle_deg=-10,
-             scale=0.85)
-    _gold_ankle_cuff(big, cx + s(18), foot_y - s(4),
-                     angle_deg=-12, w_native=18)
+def _baggy_thigh(big, cx, side, hip_w=20, top_y=248,
+                 widest_y=280, widest_w=58,
+                 knee_y=300, knee_w=42):
+    """Curved/billowing thigh polygon: narrow at the hip, bulges out
+    near `widest_y`, then comes back in toward the knee. Multiple
+    polygon points make it look like fabric instead of a triangle."""
+    pts = [
+        (cx + side * s(8),               top_y),                 # inner hip
+        (cx + side * s(hip_w),           top_y),                 # outer hip
+        (cx + side * s(hip_w + 14),      top_y + s(14)),         # shoulder of bulge
+        (cx + side * s(widest_w),        widest_y),              # widest point (knee outer)
+        (cx + side * s(widest_w - 6),    widest_y + s(14)),
+        (cx + side * s(knee_w + 4),      knee_y),                # knee bottom outer
+        (cx + side * s(knee_w - 16),     knee_y + s(4)),         # knee inner
+        (cx + side * s(2),               widest_y - s(2)),       # back up inner
+    ]
+    _pant_polygon(big, pts)
+    # Pleat ripples down the thigh — soft inner shadow lines
+    for off_x, off_y_top, off_y_bot in (
+            (side * s(-4),  s(14), s(40)),
+            (side * s(-12), s(10), s(38)),
+            (side * s(-22), s(6),  s(34))):
+        pygame.draw.line(big, P["PANT_LO"],
+                         (cx + side * s(20) + off_x, top_y + off_y_top),
+                         (cx + side * s(34) + off_x, top_y + off_y_bot),
+                         max(2, s(1)))
+    # Outer-flank gloss highlight
+    pygame.draw.line(big, P["PANT_HI"],
+                     (cx + side * s(hip_w + 8), top_y + s(10)),
+                     (cx + side * s(widest_w - 2), widest_y),
+                     s(3))
+    pygame.draw.line(big, P["PANT_HI"],
+                     (cx + side * s(widest_w - 2), widest_y),
+                     (cx + side * s(knee_w), knee_y - s(2)),
+                     s(2))
+
+
+def _full_shin(big, cx, side, knee_x, knee_y, foot_x, foot_y,
+               width=20):
+    """Beefier shin polygon — wider and with a knee-meets-shin
+    bulge so it doesn't look like a stick."""
+    # knee end (wider)
+    knee_in = (knee_x - side * s(width // 2), knee_y - s(2))
+    knee_out = (knee_x + side * s(width // 2), knee_y + s(width // 2))
+    # foot end (narrower)
+    foot_in = (foot_x - side * s(width // 2 - 2), foot_y - s(width // 2))
+    foot_out = (foot_x + side * s(width // 2 - 2), foot_y + s(2))
+    pts = [knee_in, knee_out, foot_out, foot_in]
+    _pant_polygon(big, pts)
+    # Pleat down the shin
+    pygame.draw.line(big, P["PANT_LO"],
+                     ((knee_in[0] + knee_out[0]) // 2,
+                      (knee_in[1] + knee_out[1]) // 2),
+                     ((foot_in[0] + foot_out[0]) // 2,
+                      (foot_in[1] + foot_out[1]) // 2),
+                     max(2, s(1)))
+    # Outer flank highlight
+    pygame.draw.line(big, P["PANT_HI"],
+                     (knee_in[0], knee_in[1] + s(2)),
+                     (foot_in[0], foot_in[1] + s(2)),
+                     s(2))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Variant 2 — Full lotus (padmasana)
-# Both feet rest ON TOP of the opposite thigh — most ornate yogic
-# pose, both slippers prominently visible.
+# All 5 variants below are FULL LOTUS (padmasana) — both feet rest on
+# top of opposite thighs. They vary in how FULL / BAGGY / DECORATED the
+# pants are. Variant 1 is the most modest; variant 5 is maximum poof.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _full_lotus_pose(big, cx, hip_w=20, widest_w=60, knee_w=44,
+                     hip_y_n=248, widest_y_n=278, knee_y_n=302,
+                     foot_y_n=270, slipper_scale=1.0,
+                     extra_pleats=False, extra_drape=False,
+                     gold_trim=False, embroidery=False):
+    """Compose a full-lotus seat with configurable fullness.
+
+    `hip_w`, `widest_w`, `knee_w` are *half-widths* in native px:
+        - hip_w     = how wide the hip seat-edge is
+        - widest_w  = how far the thigh bulges out at its widest
+        - knee_w    = how wide the knee/ankle edge is
+    `extra_pleats`, `extra_drape`, `gold_trim`, `embroidery` flip
+    additional decorations on.
+    """
+    hip_y    = s(hip_y_n)
+    widest_y = s(widest_y_n)
+    knee_y   = s(knee_y_n)
+    foot_y   = s(foot_y_n)
+
+    # ── THIGHS (drawn first, very baggy) ────────────────────────────
+    for side in (-1, +1):
+        _baggy_thigh(big, cx, side,
+                     hip_w=hip_w, top_y=hip_y,
+                     widest_y=widest_y, widest_w=widest_w,
+                     knee_y=knee_y, knee_w=knee_w)
+
+    # ── Optional extra fabric drape: a hanging fold below each thigh
+    if extra_drape:
+        for side in (-1, +1):
+            drape = [
+                (cx + side * s(knee_w + 6),  knee_y + s(4)),
+                (cx + side * s(knee_w - 12), knee_y + s(20)),
+                (cx + side * s(knee_w - 32), knee_y + s(24)),
+                (cx + side * s(knee_w - 28), knee_y + s(8)),
+            ]
+            _pant_polygon(big, drape)
+            pygame.draw.line(big, P["PANT_LO"],
+                             ((drape[0][0] + drape[3][0]) // 2,
+                              (drape[0][1] + drape[3][1]) // 2),
+                             ((drape[1][0] + drape[2][0]) // 2,
+                              (drape[1][1] + drape[2][1]) // 2),
+                             max(2, s(1)))
+
+    # ── Optional extra pleats
+    if extra_pleats:
+        for side in (-1, +1):
+            for px_off, py_top, py_bot in (
+                    (s(-2), s(8), s(38)),
+                    (s(-10), s(6), s(36)),
+                    (s(-20), s(4), s(32)),
+                    (s(-28), s(2), s(28))):
+                pygame.draw.line(big, (35, 95, 145),
+                                 (cx + side * (s(widest_w - 8) + px_off),
+                                  hip_y + py_top),
+                                 (cx + side * (s(widest_w - 14) + px_off),
+                                  hip_y + py_bot),
+                                 max(1, s(1)))
+
+    # ── SHINS (lotus — feet curve UP on top of opposite thigh) ──────
+    # RIGHT shin runs from right knee up + inward, foot lands on top
+    # of LEFT thigh.
+    _full_shin(big, cx, side=+1,
+               knee_x=cx + s(widest_w - 4), knee_y=widest_y + s(2),
+               foot_x=cx - s(knee_w // 2 - 2), foot_y=foot_y + s(4),
+               width=22)
+    # LEFT shin mirrored — foot on right thigh
+    _full_shin(big, cx, side=-1,
+               knee_x=cx - s(widest_w - 4), knee_y=widest_y + s(2),
+               foot_x=cx + s(knee_w // 2 - 2), foot_y=foot_y + s(4),
+               width=22)
+
+    # ── Slippers ON TOP of opposite thighs ──────────────────────────
+    # Right foot on left thigh
+    _slipper(big, cx - s(knee_w // 2 + 8), foot_y - s(2),
+             angle_deg=12, mirror=True, scale=slipper_scale)
+    _gold_ankle_cuff(big, cx - s(knee_w // 2 - 2), foot_y,
+                     angle_deg=18, w_native=22)
+    # Left foot on right thigh
+    _slipper(big, cx + s(knee_w // 2 + 8), foot_y - s(2),
+             angle_deg=-12, scale=slipper_scale)
+    _gold_ankle_cuff(big, cx + s(knee_w // 2 - 2), foot_y,
+                     angle_deg=-18, w_native=22)
+
+    # ── Optional gold trim along the knee bulge ─────────────────────
+    if gold_trim:
+        for side in (-1, +1):
+            pygame.draw.arc(big, P["GOLD_LO"],
+                            (cx + side * s(widest_w - 16) - s(20),
+                             widest_y - s(10),
+                             s(40), s(28)),
+                            math.radians(20 if side > 0 else 110),
+                            math.radians(160 if side > 0 else 250),
+                            max(3, s(2)))
+            pygame.draw.arc(big, P["GOLD"],
+                            (cx + side * s(widest_w - 16) - s(20),
+                             widest_y - s(10),
+                             s(40), s(28)),
+                            math.radians(20 if side > 0 else 110),
+                            math.radians(160 if side > 0 else 250),
+                            max(2, s(1)))
+
+    # ── Optional embroidery: gem-dotted line along the lower edge
+    if embroidery:
+        for side in (-1, +1):
+            for fx in range(0, 35, 6):
+                ex = cx + side * s(widest_w - fx - 4)
+                ey = widest_y + s(20)
+                pygame.draw.circle(big, P["GOLD"],
+                                   (ex, ey), max(1, s(1)))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Variant 1 — Full lotus, fuller pants (baseline upgrade from v2)
+# ─────────────────────────────────────────────────────────────────────────────
+def draw_crossed_legs_full_lotus(big, cx):
+    _full_lotus_pose(big, cx,
+                     hip_w=22, widest_w=58, knee_w=42,
+                     extra_pleats=False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Variant 2 — Full lotus, baggy + pleated
 # ─────────────────────────────────────────────────────────────────────────────
 def draw_crossed_legs_ankle_cross(big, cx):
-    hip_y    = s(248)
-    knee_y   = s(284)
-    foot_y   = s(272)   # feet sit ABOVE the knees (on top of thighs)
-    # ── THIGHS (wide splay) ─────────────────────────────────────────
-    _draw_thigh(big,
-                hip_in=(cx - s(12), hip_y),
-                hip_out=(cx - s(28), hip_y),
-                knee_inner=(cx - s(62), knee_y),
-                knee_outer=(cx - s(82), knee_y - s(2)))
-    _draw_thigh(big,
-                hip_in=(cx + s(12), hip_y),
-                hip_out=(cx + s(28), hip_y),
-                knee_inner=(cx + s(62), knee_y),
-                knee_outer=(cx + s(82), knee_y - s(2)))
-    # ── RIGHT shin (loops up over LEFT thigh) ──────────────────────
-    _draw_shin(big,
-               knee_top=(cx + s(74), knee_y - s(2)),
-               knee_bot=(cx + s(62), knee_y + s(6)),
-               foot_bot=(cx - s(8),  foot_y + s(6)),
-               foot_top=(cx - s(22), foot_y - s(4)))
-    # RIGHT foot ON TOP of left thigh
-    _slipper(big, cx - s(28), foot_y, angle_deg=8,
-             mirror=True, scale=0.9)
-    _gold_ankle_cuff(big, cx - s(14), foot_y + s(2),
-                     angle_deg=12, w_native=20)
-    # ── LEFT shin (loops up over RIGHT thigh) ──────────────────────
-    _draw_shin(big,
-               knee_top=(cx - s(74), knee_y - s(2)),
-               knee_bot=(cx - s(62), knee_y + s(6)),
-               foot_bot=(cx + s(8),  foot_y + s(6)),
-               foot_top=(cx + s(22), foot_y - s(4)))
-    # LEFT foot ON TOP of right thigh
-    _slipper(big, cx + s(28), foot_y, angle_deg=-8, scale=0.9)
-    _gold_ankle_cuff(big, cx + s(14), foot_y + s(2),
-                     angle_deg=-12, w_native=20)
+    _full_lotus_pose(big, cx,
+                     hip_w=24, widest_w=66, knee_w=46,
+                     extra_pleats=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Variant 3 — Half lotus (ardha padmasana)
-# Right foot ON TOP of left thigh (visible). Left foot tucked under
-# right thigh (peeks out on the left). Asymmetric — the most
-# realistic relaxed sitting cross-legged pose.
+# Variant 3 — Full lotus, gold trim along knees
 # ─────────────────────────────────────────────────────────────────────────────
 def draw_crossed_legs_tight_tuck(big, cx):
-    hip_y    = s(248)
-    knee_y   = s(284)
-    # ── THIGHS ──────────────────────────────────────────────────────
-    _draw_thigh(big,
-                hip_in=(cx - s(12), hip_y),
-                hip_out=(cx - s(28), hip_y),
-                knee_inner=(cx - s(58), knee_y),
-                knee_outer=(cx - s(78), knee_y - s(2)))
-    _draw_thigh(big,
-                hip_in=(cx + s(12), hip_y),
-                hip_out=(cx + s(28), hip_y),
-                knee_inner=(cx + s(58), knee_y),
-                knee_outer=(cx + s(78), knee_y - s(2)))
-    # ── LEFT shin (under, tucked) ──────────────────────────────────
-    _draw_shin(big,
-               knee_top=(cx - s(70), knee_y - s(2)),
-               knee_bot=(cx - s(58), knee_y + s(8)),
-               foot_bot=(cx + s(6),  s(312)),
-               foot_top=(cx - s(10), s(302)))
-    # Left foot peeks under right thigh
-    _slipper(big, cx + s(20), s(310), angle_deg=-10, scale=0.75)
-    _gold_ankle_cuff(big, cx + s(8), s(306),
-                     angle_deg=-8, w_native=16)
-    # ── RIGHT shin (drawn last — ON TOP, foot UP on left thigh) ───
-    _draw_shin(big,
-               knee_top=(cx + s(74), knee_y - s(2)),
-               knee_bot=(cx + s(62), knee_y + s(6)),
-               foot_bot=(cx - s(10), s(282)),
-               foot_top=(cx - s(24), s(270)))
-    # Right foot prominently ON TOP of left thigh
-    _slipper(big, cx - s(34), s(276), angle_deg=14,
-             mirror=True, scale=0.95)
-    _gold_ankle_cuff(big, cx - s(18), s(278),
-                     angle_deg=16, w_native=22)
+    _full_lotus_pose(big, cx,
+                     hip_w=22, widest_w=64, knee_w=44,
+                     extra_pleats=True,
+                     gold_trim=True,
+                     embroidery=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Variant 4 — Burmese style (uncrossed sitting)
-# Both shins drop down nearly parallel — feet rest flat in front of
-# the body, side by side. Less crossed at the shins, more "polite
-# seated" pose. Familiar from kids sitting "criss-cross applesauce"
-# without actually crossing.
+# Variant 4 — Full lotus, EXTRA baggy with drape hanging below
 # ─────────────────────────────────────────────────────────────────────────────
 def draw_crossed_legs_half_lotus_smoke(big, cx):
-    hip_y    = s(248)
-    knee_y   = s(280)
-    foot_y   = s(316)
-    # ── THIGHS sweep out to knees ──────────────────────────────────
-    _draw_thigh(big,
-                hip_in=(cx - s(12), hip_y),
-                hip_out=(cx - s(28), hip_y),
-                knee_inner=(cx - s(48), knee_y),
-                knee_outer=(cx - s(70), knee_y - s(2)))
-    _draw_thigh(big,
-                hip_in=(cx + s(12), hip_y),
-                hip_out=(cx + s(28), hip_y),
-                knee_inner=(cx + s(48), knee_y),
-                knee_outer=(cx + s(70), knee_y - s(2)))
-    # ── SHINS drop nearly straight down from knees to feet ────────
-    _draw_shin(big,
-               knee_top=(cx - s(60), knee_y - s(2)),
-               knee_bot=(cx - s(46), knee_y + s(8)),
-               foot_bot=(cx - s(8),  foot_y + s(4)),
-               foot_top=(cx - s(22), foot_y - s(6)))
-    _draw_shin(big,
-               knee_top=(cx + s(60), knee_y - s(2)),
-               knee_bot=(cx + s(46), knee_y + s(8)),
-               foot_bot=(cx + s(8),  foot_y + s(4)),
-               foot_top=(cx + s(22), foot_y - s(6)))
-    # Feet flat in front, side by side (slightly toes out)
-    _slipper(big, cx - s(20), foot_y, angle_deg=15,
-             mirror=True, scale=0.95)
-    _slipper(big, cx + s(20), foot_y, angle_deg=-15, scale=0.95)
-    _gold_ankle_cuff(big, cx - s(15), foot_y - s(8),
-                     angle_deg=10, w_native=20)
-    _gold_ankle_cuff(big, cx + s(15), foot_y - s(8),
-                     angle_deg=-10, w_native=20)
+    _full_lotus_pose(big, cx,
+                     hip_w=26, widest_w=70, knee_w=50,
+                     extra_pleats=True,
+                     extra_drape=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Variant 5 — Aladdin-style floating cross-legged
-# Knees splayed even wider, ankles meet at the centre, curl-toe
-# slippers point UPWARD like the classic Disney genie. Most stylized.
+# Variant 5 — Full lotus, MAXIMUM poof MC-Hammer / Disney genie style
 # ─────────────────────────────────────────────────────────────────────────────
 def draw_crossed_legs_side_recline(big, cx):
-    hip_y    = s(248)
-    knee_y   = s(280)
-    cross_y  = s(312)
-    # ── THIGHS — very wide knee splay ──────────────────────────────
-    _draw_thigh(big,
-                hip_in=(cx - s(10), hip_y),
-                hip_out=(cx - s(28), hip_y),
-                knee_inner=(cx - s(66), knee_y),
-                knee_outer=(cx - s(90), knee_y - s(2)))
-    _draw_thigh(big,
-                hip_in=(cx + s(10), hip_y),
-                hip_out=(cx + s(28), hip_y),
-                knee_inner=(cx + s(66), knee_y),
-                knee_outer=(cx + s(90), knee_y - s(2)))
-    # ── RIGHT shin — long sweep inward, curls UP at the foot ──────
-    _draw_shin(big,
-               knee_top=(cx + s(82), knee_y - s(2)),
-               knee_bot=(cx + s(66), knee_y + s(8)),
-               foot_bot=(cx + s(4),  cross_y + s(4)),
-               foot_top=(cx - s(10), cross_y - s(6)))
-    # Right slipper curling UP at the centre
-    _slipper(big, cx - s(8), s(304), angle_deg=55,
-             mirror=True, scale=0.95)
-    _gold_ankle_cuff(big, cx + s(4), cross_y - s(2),
-                     angle_deg=30, w_native=20)
-    # Cross shadow at the ankle meet
-    _cross_shadow(big, cx, cross_y + s(2), w=60, h=18, alpha=160)
-    # ── LEFT shin — overlaps the right, foot curls UP too ─────────
-    _draw_shin(big,
-               knee_top=(cx - s(82), knee_y - s(2)),
-               knee_bot=(cx - s(66), knee_y + s(8)),
-               foot_bot=(cx - s(4),  cross_y + s(4)),
-               foot_top=(cx + s(10), cross_y - s(6)))
-    _slipper(big, cx + s(8), s(304), angle_deg=-55, scale=0.95)
-    _gold_ankle_cuff(big, cx - s(4), cross_y - s(2),
-                     angle_deg=-30, w_native=20)
+    _full_lotus_pose(big, cx,
+                     hip_w=28, widest_w=78, knee_w=54,
+                     hip_y_n=246, widest_y_n=280, knee_y_n=308,
+                     foot_y_n=270,
+                     extra_pleats=True,
+                     extra_drape=True,
+                     gold_trim=True,
+                     embroidery=True,
+                     slipper_scale=1.05)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -414,11 +426,11 @@ def render_figure(legs_fn):
 
 
 VARIANTS = [
-    ("1 — Sukhasana (easy)",       draw_crossed_legs_full_lotus),
-    ("2 — Full lotus",             draw_crossed_legs_ankle_cross),
-    ("3 — Half lotus",             draw_crossed_legs_tight_tuck),
-    ("4 — Burmese (uncrossed)",    draw_crossed_legs_half_lotus_smoke),
-    ("5 — Aladdin floating",       draw_crossed_legs_side_recline),
+    ("1 — Fuller lotus",            draw_crossed_legs_full_lotus),
+    ("2 — Baggy + pleated",         draw_crossed_legs_ankle_cross),
+    ("3 — Gold trim + embroidery",  draw_crossed_legs_tight_tuck),
+    ("4 — Extra baggy + drape",     draw_crossed_legs_half_lotus_smoke),
+    ("5 — Max poof Disney-genie",   draw_crossed_legs_side_recline),
 ]
 
 
