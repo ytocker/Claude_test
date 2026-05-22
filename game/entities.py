@@ -3668,9 +3668,11 @@ class GenieCharacter:
         for sxc in (-s(12), s(12)):
             pygame.draw.circle(big, HAIR,
                                (cx + sxc, head_cy + s(8)), s(2))
-        # Mouth — original A1 (v5) style: trapezoidal dark interior +
-        # large white teeth polygon (NO vertical bar separators — those
-        # were the v6 "creepy" bit) + tiny ruby tongue dot.
+        # Mouth — matches variant 2 v5 portrait (uses the v6 draw_face
+        # treatment): trapezoidal dark interior + white teeth
+        # trapezoid + 5 vertical bar separators between teeth. This
+        # is the locked design's mouth — the user accepted it as part
+        # of "keep the original A1 in high res".
         mt_y = head_cy + s(11)
         # Dark interior trapezoid (mouth opening)
         pygame.draw.polygon(big, HAIR,
@@ -3678,14 +3680,21 @@ class GenieCharacter:
                              (cx + s(8), mt_y),
                              (cx + s(6), mt_y + s(7)),
                              (cx - s(6), mt_y + s(7))])
-        # White teeth — single trapezoid, no separator bars
+        # White teeth — single trapezoid
         pygame.draw.polygon(big, WHITE,
                             [(cx - s(7), mt_y + s(1)),
                              (cx + s(7), mt_y + s(1)),
                              (cx + s(5), mt_y + s(5)),
                              (cx - s(5), mt_y + s(5))])
-        # Tongue dot at the bottom centre of the smile (ruby)
-        pygame.draw.circle(big, RUBY, (cx, mt_y + s(6)), max(1, s(1)))
+        # Vertical tooth separators (5 small lines — the iconic v6
+        # face detail). At in-game render scale these read as tooth
+        # gaps rather than the prison-bar effect they had in the v6
+        # high-res portrait.
+        for tx in (-s(4), -s(2), 0, s(2), s(4)):
+            pygame.draw.line(big, HAIR,
+                             (cx + tx, mt_y + s(1)),
+                             (cx + tx, mt_y + s(5)),
+                             max(1, s(1)))
         # Goatee
         pygame.draw.polygon(big, HAIR,
                             [(cx - s(4), mt_y + s(8)),
