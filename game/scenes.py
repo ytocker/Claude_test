@@ -117,9 +117,14 @@ def _draw_treasure_box_on_bird(surf, world):
 
 def _draw_lightning_bolt(surf, strike):
     """Paint the lightning bolt that strikes Pip during a storm jolt.
-    Three concentric layers — outer purple glow, cyan halo, white core
-    — drawn along the polyline in `strike["path"]`. Alpha scales with
-    remaining `life / life_max` so the bolt fades out cleanly."""
+    Four concentric layers — wide plasma bloom, outer purple glow,
+    cyan halo, white core — drawn along the polyline in
+    `strike["path"]`. Alpha holds at full intensity for the first
+    35% of life so the zig-zag shape reads cleanly, then decays
+    linearly to zero. Round circles painted at EVERY waypoint
+    (not just endpoints) so the polyline reads as one smooth
+    crackle. Intermediate glow layers fade with `t**0.7` so they
+    linger after the white core fades — gives an afterimage halo."""
     if strike is None or strike.get("life", 0) <= 0:
         return
     path = strike.get("path") or []
@@ -127,24 +132,38 @@ def _draw_lightning_bolt(surf, strike):
         return
     life = strike["life"]
     life_max = strike["life_max"]
-    t = max(0.0, min(1.0, life / life_max))   # 1 = fresh, 0 = gone
-    # Three layers, drawn back-to-front so the bright core sits on top.
+    raw_t = max(0.0, min(1.0, life / life_max))   # 1 = fresh, 0 = gone
+    # Hold-then-decay: full intensity for the first 35% of life, then
+    # linear decay over the remaining 65%. Lets the shape read.
+    HOLD = 0.35
+    if raw_t >= 1.0 - HOLD:
+        t = 1.0
+    else:
+        t = raw_t / (1.0 - HOLD)
+    # Slower-fading glow alpha for intermediate layers.
+    t_glow = t ** 0.7
     layers = (
-        ((180, 100, 255), int(140 * t), 8),  # outer purple glow
-        ((140, 220, 255), int(220 * t), 4),  # cyan halo
-        ((255, 255, 255), int(255 * t), 2),  # white core
+        # Wide plasma bloom — fattest, dimmest layer for ambient haze
+        ((130,  80, 220), int(70 * t_glow),  18),
+        # Outer purple glow
+        ((180, 100, 255), int(170 * t_glow), 12),
+        # Cyan halo
+        ((140, 220, 255), int(235 * t_glow),  7),
+        # Razor-bright white core
+        ((255, 255, 255), int(255 * t),       4),
     )
     sw, sh = surf.get_size()
+    pts = [(int(x), int(y)) for (x, y) in path]
     for col, alpha, width in layers:
         if alpha <= 0 or width <= 0:
             continue
         layer = pygame.Surface((sw, sh), pygame.SRCALPHA)
-        pts = [(int(x), int(y)) for (x, y) in path]
         pygame.draw.lines(layer, (*col, alpha), False, pts, width)
-        # Endcap circles smooth the sharp polyline corners.
+        # Round joints at EVERY waypoint so the polyline reads as
+        # one smooth crackle rather than a chain of stiff segments.
+        joint_r = max(1, width // 2)
         for px, py in pts:
-            pygame.draw.circle(layer, (*col, alpha), (px, py),
-                               max(1, width // 2))
+            pygame.draw.circle(layer, (*col, alpha), (px, py), joint_r)
         surf.blit(layer, (0, 0))
 
 

@@ -1624,18 +1624,22 @@ class World:
         impact_x = bx + side * random.uniform(80, 150)
         impact_y = random.uniform(by - 80, by + 80)
         path = [(origin_x, 0.0)]
-        segs = 12
+        # More segments + wider jitter at the cloud end → reads as a
+        # genuinely zig-zaggy lightning bolt rather than a near-straight
+        # streak. Tightens toward the impact so the convergence still
+        # reads cleanly.
+        segs = 18
         for i in range(1, segs):
             t = i / segs
-            jx = random.uniform(-32, 32) * (1.0 - t * 0.6)
+            jx = random.uniform(-42, 42) * (1.0 - t * 0.55)
             cx = origin_x * (1 - t) + impact_x * t + jx
             cy = impact_y * t
             path.append((cx, cy))
         path.append((impact_x, impact_y))
         self.lightning_strike = {
             "path": path,
-            "life": 0.16,
-            "life_max": 0.16,
+            "life": 0.32,
+            "life_max": 0.32,
         }
         # Smaller flash + shake than the real strike — telegraph,
         # not impact.
@@ -1675,14 +1679,16 @@ class World:
         target_y = by - 2
         # Bolt origin: somewhere along the cloud line, slightly off
         # to either side of Pip so the trace reads diagonal not vertical.
-        origin_x = bx + random.uniform(-50, 50)
+        origin_x = bx + random.uniform(-70, 70)
         path = [(origin_x, 0.0)]
-        segs = 12
+        # More segments + wider jitter than the background bolts so the
+        # final strike is visibly thicker / jaggier / longer-lived than
+        # the telegraph flashes. Jitter still tightens near impact so
+        # the bolt converges cleanly onto Pip's body.
+        segs = 22
         for i in range(1, segs):
             t = i / segs
-            # Lerp x toward Pip, plus jitter that tightens near the
-            # impact point so the bolt converges cleanly.
-            jx = random.uniform(-28, 28) * (1.0 - t * 0.7)
+            jx = random.uniform(-42, 42) * (1.0 - t * 0.7)
             cx = origin_x * (1 - t) + bx * t + jx
             cy = target_y * t
             path.append((cx, cy))
@@ -1690,8 +1696,8 @@ class World:
 
         self.lightning_strike = {
             "path": path,
-            "life": 0.18,
-            "life_max": 0.18,
+            "life": 0.50,
+            "life_max": 0.50,
         }
         # Force a bright full-screen white pulse so the strike reads.
         self.weather.flash_remaining = max(
@@ -1704,6 +1710,12 @@ class World:
         # Scorch sub-state — smoke wisps off Pip for the next 0.7s.
         self._lightning_scorch_t = 0.7
         self._scorch_smoke_accum = 0.0
+        # X-Ray Sparks flash — Pip's body flickers between his normal
+        # sprite and a dark-silhouette-plus-white-skeleton sprite at
+        # ~10Hz across 0.5s. Ends just before the scorch wisps finish
+        # so the visual reads as "electrocution moment → smoking
+        # aftermath".
+        self.bird.skeleton_flash_t = 0.50
 
         # ── Coin blast: faster spread than the previous gust version
         # so the lightning impulse reads as the cause.

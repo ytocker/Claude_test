@@ -826,6 +826,11 @@ class Bird:
         self.shiver_x = 0.0
         self.shiver_y = 0.0
         self.flap_dampen = 0.0
+        # X-Ray Sparks flash. Set to 0.5 s by World._fire_storm_jolt
+        # when the real strike lands on Pip; Bird.draw alternates Pip's
+        # sprite between the normal frame and a skeleton-overlay frame
+        # at ~10 Hz while this timer is > 0.
+        self.skeleton_flash_t = 0.0
 
     @property
     def tilt_deg(self):
@@ -882,6 +887,7 @@ class Bird:
         self.kickflip_t = max(0.0, self.kickflip_t - dt)
         self.heelflip_t = max(0.0, self.heelflip_t - dt)
         self.popshuvit_t = max(0.0, self.popshuvit_t - dt)
+        self.skeleton_flash_t = max(0.0, self.skeleton_flash_t - dt)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
 
@@ -918,9 +924,21 @@ class Bird:
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
         # crispy-hat sprite instead of falling through to plain kfc.
-        # PHOENIX wins over every other skin while active — the buff is
-        # rare enough that the player should see its identity clearly.
-        if self.phoenix_active:
+        # X-RAY SPARKS wins over EVERYTHING (including phoenix) — the
+        # storm-jolt strike is a special, momentary event and during the
+        # 0.5s flicker Pip's normal/powered-up identity is overridden by
+        # the classic Looney-Tunes electrocution silhouette. Strobe
+        # modulo at ~10 Hz alternates skeleton (even buckets) with the
+        # normal sprite (odd buckets) so the eye reads 3 distinct
+        # X-ray glimpses across the half-second.
+        skeleton_visible = False
+        if self.skeleton_flash_t > 0.0:
+            elapsed = 0.5 - self.skeleton_flash_t
+            bucket = int(elapsed * 10.0)
+            skeleton_visible = (bucket % 2 == 0)
+        if skeleton_visible:
+            img = parrot.get_skeleton_parrot(frame_idx, tilt)
+        elif self.phoenix_active:
             img = parrot.get_phoenix_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active and self.triple_active:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
@@ -952,9 +970,12 @@ class Bird:
             img = pygame.transform.smoothscale(img, (int(w * s), int(h * s)))
         if flipped:
             img = pygame.transform.flip(img, False, True)
-        if self.ghost_active:
+        if self.ghost_active and not skeleton_visible:
             # Faded breathing: alpha oscillates ~90..170 over a slow sine,
             # so the ghost reads as clearly translucent and ethereal.
+            # Suppressed during the X-Ray Sparks flash — the bright bone
+            # silhouette should read at full opacity even if Pip is
+            # currently in ghost mode.
             img = img.copy()
             pulse = 0.5 + 0.5 * math.sin(self.ghost_pulse)
             img.set_alpha(int(90 + pulse * 80))
@@ -964,7 +985,7 @@ class Bird:
         #            embers around Pip.
         #   mythic — bigger, more saturated fire halo with extra outer
         #            ring so the storybook phoenix reads as larger-than-life.
-        if self.phoenix_active:
+        if self.phoenix_active and self.skeleton_flash_t <= 0.0:
             from game.config import PHOENIX_VARIANT as _PV
             hx, hy = self.x + shake_x, self.y + shake_y
             if _PV == "solar":
@@ -1002,6 +1023,32 @@ class Bird:
             img = _apply_ambient_light(img, light_level, light_level)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
+        # X-Ray Sparks crackle — short cyan zig-zag sparks crackling at
+        # random angles around Pip while the flash timer is active. New
+        # angles each frame so the crackle reads as live electricity
+        # arcing around the body rather than a static halo. Drawn AFTER
+        # the bird sprite so the sparks pop on top of him.
+        if self.skeleton_flash_t > 0.0:
+            n_sparks = 5
+            spark_radius = 22
+            for k in range(n_sparks):
+                ang = random.uniform(0, math.tau)
+                r_out = random.uniform(spark_radius - 4, spark_radius + 6)
+                ox = cx_int + math.cos(ang) * r_out
+                oy = cy_int + math.sin(ang) * r_out
+                # Zig-zag tick — 3 points, 2 segments
+                ix = ox + math.cos(ang) * 3
+                iy = oy + math.sin(ang) * 3
+                mx = ox + math.cos(ang) * 1.5 + math.cos(ang + 1.5) * 2
+                my = oy + math.sin(ang) * 1.5 + math.sin(ang + 1.5) * 2
+                pygame.draw.line(surf, (175, 230, 255),
+                                 (int(ox), int(oy)),
+                                 (int(mx), int(my)), 2)
+                pygame.draw.line(surf, (255, 255, 255),
+                                 (int(mx), int(my)),
+                                 (int(ix), int(iy)), 1)
+                pygame.draw.circle(surf, (255, 255, 255),
+                                   (int(mx), int(my)), 1)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
         if self.skateboard_active:
             self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
