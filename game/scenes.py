@@ -972,6 +972,8 @@ class App:
 
         for p in self.world.particles:
             p.draw(self.screen)
+        for g in self.world.genie_actors:
+            g.draw(self.screen)
 
         # Slow-mo: subtle violet tint overlay so the player feels the effect
         # even without looking at the HUD.

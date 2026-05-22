@@ -78,6 +78,11 @@ class World:
         self.coins: list[Coin] = []
         self.powerups: list[PowerUp] = []
         self.particles: list[Particle] = []
+        # Genie cinematic actors — translucent characters that hover
+        # ahead of Pip and conjure the three offer powerups in sequence
+        # when the Genie lamp is collected. Ticked + drawn parallel to
+        # particles. See game/entities.py GenieCharacter.
+        self.genie_actors: list = []
         self.float_texts: list[FloatText] = []
         # SKATEBOARD trick bubbles — comic halftone bursts that
         # stack/overlay at a fixed anchor near the E3 score whenever
@@ -653,6 +658,9 @@ class World:
                 for p in self.particles:
                     p.update(dt)
                 self.particles = [p for p in self.particles if p.alive()]
+                for g in self.genie_actors:
+                    g.update(dt)
+                self.genie_actors = [g for g in self.genie_actors if g.alive()]
                 for t in self.float_texts:
                     t.update(dt)
                 self.float_texts = [t for t in self.float_texts if t.alive()]
@@ -693,6 +701,9 @@ class World:
             for p in self.particles:
                 p.update(dt)
             self.particles = [p for p in self.particles if p.alive()]
+            for g in self.genie_actors:
+                g.update(dt)
+            self.genie_actors = [g for g in self.genie_actors if g.alive()]
             for t in self.float_texts:
                 t.update(dt)
             self.float_texts = [t for t in self.float_texts if t.alive()]
@@ -885,6 +896,9 @@ class World:
         for p in self.particles:
             p.update(dt)
         self.particles = [p for p in self.particles if p.alive()]
+        for g in self.genie_actors:
+            g.update(dt)
+        self.genie_actors = [g for g in self.genie_actors if g.alive()]
         for t in self.float_texts:
             t.update(dt)
         self.float_texts = [t for t in self.float_texts if t.alive()]
@@ -922,6 +936,9 @@ class World:
         for p in self.particles:
             p.update(dt)
         self.particles = [p for p in self.particles if p.alive()]
+        for g in self.genie_actors:
+            g.update(dt)
+        self.genie_actors = [g for g in self.genie_actors if g.alive()]
 
     # ── collisions ───────────────────────────────────────────────────────────
 
@@ -2172,22 +2189,23 @@ class World:
             self._on_powerup(PowerUp(m.x, m.y, kind=kind))
             return
         chosen = random.sample(eligible, GENIE_OFFER_COUNT)
-        # Stagger offers ahead of Pip with one in each y slot — first
-        # offer in a random y, then the others fill remaining slots
-        # left-to-right by x so the layout reads as "three coming at
-        # you". Random y assignment keeps the player from memorising
-        # which slot is "best".
+        # Random y assignment per offer keeps the player from
+        # memorising which slot is "best".
         slots = list(GENIE_OFFER_Y_SLOTS[:GENIE_OFFER_COUNT])
         random.shuffle(slots)
-        for i, kind in enumerate(chosen):
-            ox = self.bird.x + GENIE_OFFER_X_START + i * GENIE_OFFER_X_STEP
-            oy = slots[i]
-            offer = PowerUp(ox, oy, kind=kind)
-            offer.is_genie_offer = True
-            self.powerups.append(offer)
-            # Reveal each offer with a small magical poof so it reads
-            # as conjured by the lamp, not pre-existing.
-            self._spawn_genie_reveal_poof(ox, oy)
+        # Summon a Genie character that floats above where the middle
+        # offer will be conjured. It scrolls left with the world and
+        # spawns the three offers + reveal poofs on its own cast beats
+        # (see GenieCharacter in game/entities.py). The lamp's own
+        # pickup-site burst / float text / audio still fire below.
+        from game.entities import GenieCharacter
+        gx = self.bird.x + GENIE_OFFER_X_START + GENIE_OFFER_X_STEP
+        gy = 130
+        offers = list(zip(chosen, slots))
+        self.genie_actors.append(GenieCharacter(
+            gx, gy, vx=-self._current_scroll(),
+            offers=offers, world=self,
+        ))
         # Smoke + brass burst at pickup site.
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t, 0.2)
@@ -2224,6 +2242,11 @@ class World:
                     life=0.5, r=3, color=(170, 130, 195),
                     gravity=200,
                 ))
+        # Kill any active GenieCharacter so its remaining cast beats
+        # don't spawn orphan offers after the player has locked in
+        # their pick.
+        for g in self.genie_actors:
+            g.kill()
 
     # ── utility ──────────────────────────────────────────────────────────────
 

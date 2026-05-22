@@ -3036,6 +3036,340 @@ class CloudPuff:
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
+# ── GenieCharacter ───────────────────────────────────────────────────────────
+
+class GenieCharacter:
+    """Conjured genie that hovers ahead of Pip and casts the three Genie
+    offer powerups one beat at a time. Procedural sprite drawn in the
+    same brass + mauve palette as the lamp (entities.py PowerUp lamp
+    icon) — translucent so it reads as summoned smoke given form.
+
+    Five phases driven by ``_t / DURATION``:
+      RISE   (0.00-0.45) fade in + scale 0.3→1.0 + tail trails
+      CAST 0 (0.45-0.85) right arm sweeps to slot 0; offer @ 0.65 s
+      CAST 1 (0.85-1.25) right arm holds;          offer @ 1.05 s
+      CAST 2 (1.25-1.65) left arm sweeps to slot 2; offer @ 1.45 s
+      VANISH (1.65-2.05) collapse into smoke + fade out
+
+    World owns ``self.genie_actors``; each tick calls ``update(dt)``
+    and ``draw(surf)``. ``alive()`` returns False when the vanish
+    phase completes so World sweeps it from the list."""
+
+    DURATION = 2.05
+    RISE_END   = 0.45
+    CAST_BEATS = (0.65, 1.05, 1.45)
+    CAST_ENDS  = (0.85, 1.25, 1.65)
+    VANISH_END = 2.05
+
+    def __init__(self, x, y, vx, offers, world):
+        # offers: list of (kind, target_y) triples, ordered by cast index.
+        # world: back-reference so each cast beat can call the world's
+        # poof helper and append the spawned PowerUp.
+        self.x, self.y = float(x), float(y)
+        self.vx = vx
+        self.offers = list(offers)            # consumed front-to-back
+        self.world = world
+        self._t = 0.0
+        self._beats_fired = 0                 # 0..3
+        self._tail_clock = 0.0                # spawn smoke trails on RISE
+        self._dead = False                    # set early when picked
+
+    # ── public API ───────────────────────────────────────────────────────
+    def update(self, dt):
+        self.x += self.vx * dt
+        self._t += dt
+        # Fire each cast beat exactly once, in order, the first frame
+        # past the beat's t. Beats spawn the offer PowerUp + reveal
+        # poof at the genie's current world-x (preserves spatial
+        # alignment even though the world is scrolling underneath).
+        while (self._beats_fired < len(self.offers)
+               and self._t >= self.CAST_BEATS[self._beats_fired]):
+            self._fire_beat(self._beats_fired)
+            self._beats_fired += 1
+        # Wispy smoke trails off the tail during RISE.
+        if self._t < self.RISE_END:
+            self._tail_clock += dt
+            while self._tail_clock >= 0.08:
+                self._tail_clock -= 0.08
+                self._spawn_tail_wisp()
+        # Vanish — final swirl of cloud puffs once at the transition.
+        if (not self._dead) and self._t >= self.CAST_ENDS[2] and self._t - dt < self.CAST_ENDS[2]:
+            self._spawn_vanish_swirl()
+
+    def alive(self):
+        return (not self._dead) and self._t < self.VANISH_END
+
+    def kill(self):
+        # Called when the player picks one of the offers before the
+        # genie finishes casting — stop spawning anything else.
+        self._dead = True
+
+    # ── internals ────────────────────────────────────────────────────────
+    def _fire_beat(self, i):
+        if self._dead:
+            return
+        from game.config import GENIE_OFFER_X_STEP
+        kind, slot_y = self.offers[i]
+        # Each offer is laid out around the genie's current x: offer 0
+        # one step left of genie, offer 1 at genie x, offer 2 one step
+        # right. Keeps the three-across funnel even after scrolling.
+        ox = self.x + (i - 1) * GENIE_OFFER_X_STEP
+        oy = float(slot_y)
+        offer = PowerUp(ox, oy, kind=kind)
+        offer.is_genie_offer = True
+        self.world.powerups.append(offer)
+        self.world._spawn_genie_reveal_poof(ox, oy)
+        # Sparkle chime on each cast — soft enough not to step on
+        # the play_genie() stitch that already fired at pickup.
+        try:
+            from game import audio
+            audio._play("coin_triple", 0.45)
+        except Exception:
+            pass
+
+    def _spawn_tail_wisp(self):
+        import random as _r
+        from game import entities as _e  # avoid name shadow
+        # Lavender wisps drifting down-left off the tail anchor.
+        cx = self.x - 14
+        cy = self.y + 38
+        for _ in range(2):
+            vx = -_r.uniform(20, 50) + self.vx * 0.3
+            vy = _r.uniform(10, 30)
+            life = _r.uniform(0.35, 0.55)
+            color = _r.choice([(230, 220, 250), (215, 200, 240),
+                               (200, 180, 230)])
+            self.world.particles.append(_e.CloudPuff(
+                cx, cy, vx, vy, life, 3, 11, color))
+
+    def _spawn_vanish_swirl(self):
+        import random as _r
+        from game import entities as _e
+        for _ in range(14):
+            ang = _r.uniform(0, math.pi * 2)
+            sp  = _r.uniform(40, 110)
+            vx  = math.cos(ang) * sp
+            vy  = math.sin(ang) * sp - _r.uniform(20, 60)
+            life = _r.uniform(0.30, 0.55)
+            color = _r.choice([(230, 220, 250), (215, 200, 240),
+                               (250, 235, 200)])
+            self.world.particles.append(_e.CloudPuff(
+                self.x, self.y, vx, vy, life, 5, 16, color))
+
+    # ── render ───────────────────────────────────────────────────────────
+    def draw(self, surf):
+        # Compute phase-driven values.
+        t = self._t
+        if t < self.RISE_END:
+            # Scale 0.3 → 1.0, alpha 0 → 210, bob upward 10 px.
+            k = t / self.RISE_END
+            scale = 0.3 + 0.7 * (1 - (1 - k) ** 2)        # ease-out
+            alpha = int(210 * k)
+            bob   = -10 * (1 - k)
+            cast_arm = -1
+            cast_k   = 0.0
+        elif t < self.CAST_ENDS[2]:
+            scale = 1.0
+            alpha = 210
+            bob   = math.sin(t * 6.0) * 1.5
+            # Which cast are we in, and how far through it?
+            if   t < self.CAST_ENDS[0]: cast_arm, beat = 0, t - self.RISE_END
+            elif t < self.CAST_ENDS[1]: cast_arm, beat = 1, t - self.CAST_ENDS[0]
+            else:                       cast_arm, beat = 2, t - self.CAST_ENDS[1]
+            cast_k = max(0.0, min(1.0, beat / 0.40))
+        else:
+            # Vanish: shrink + fade, drift up slightly.
+            k = (t - self.CAST_ENDS[2]) / (self.VANISH_END - self.CAST_ENDS[2])
+            scale = 1.0 - 0.4 * k
+            alpha = int(210 * (1 - k))
+            bob   = -18 * k
+            cast_arm = -1
+            cast_k = 0.0
+        if alpha <= 2:
+            return
+        self._blit_sprite(surf, alpha, scale, bob, cast_arm, cast_k)
+
+    def _blit_sprite(self, surf, alpha, scale, bob, cast_arm, cast_k):
+        # 5× supersample then smoothscale down, same idiom as the lamp.
+        # Native canvas: 88 px tall, 70 px wide.
+        SS = 5
+        W, H = 70, 88
+        big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+        cx_b = (W * SS) // 2
+        # Sway tilt matches the lamp's own animation.
+        sway = math.sin(self._t * 1.4) * 3.0
+
+        # Palette
+        BODY     = (170, 130, 195)
+        BODY_HI  = (220, 200, 240)
+        BODY_LO  = (130,  85, 160)
+        SASH     = (185, 130, 45)
+        SASH_HI  = (250, 215, 130)
+        TURBAN   = (185, 130,  45)
+        TURBAN_HI= (250, 215, 130)
+        SKIN     = (200, 165, 215)
+        SKIN_HI  = (235, 215, 245)
+        DARK     = ( 60,  35,  80)
+        BLACK    = ( 18,  14,  10)
+        BEARD    = ( 95,  60, 110)
+        GEM      = (180, 240, 255)
+
+        # ── smoke tail (3 lavender ellipses curling down-left) ─────────
+        tail_anchor = (cx_b - 8 * SS, int((H * 0.78) * SS))
+        sway_off = math.sin(self._t * 2.2) * 6 * SS
+        for i, (dy, dx, r) in enumerate([(8, -2, 14), (18, -8, 11), (28, -16, 8)]):
+            tx = tail_anchor[0] + dx * SS + sway_off * (i + 1) * 0.4
+            ty = tail_anchor[1] + dy * SS
+            col = (BODY_HI if i == 0 else (BODY if i == 1 else BODY_LO))
+            pygame.draw.ellipse(big, (*col, 220),
+                                (int(tx - r * SS), int(ty - r * SS * 0.6),
+                                 r * 2 * SS, int(r * 1.2 * SS)))
+
+        # ── torso (tapered body, widest at chest) ──────────────────────
+        torso_top   = int(H * 0.30 * SS)
+        torso_bot   = int(H * 0.78 * SS)
+        torso_w_top = int(W * 0.36 * SS)
+        torso_w_bot = int(W * 0.10 * SS)
+        torso_poly = [
+            (cx_b - torso_w_top, torso_top + int(H * 0.04 * SS)),
+            (cx_b - torso_w_top + int(W * 0.04 * SS), torso_top),
+            (cx_b + torso_w_top - int(W * 0.04 * SS), torso_top),
+            (cx_b + torso_w_top, torso_top + int(H * 0.04 * SS)),
+            (cx_b + torso_w_bot, torso_bot),
+            (cx_b - torso_w_bot, torso_bot),
+        ]
+        pygame.draw.polygon(big, (*BODY, 235), torso_poly)
+        # Highlight ridge on the left flank.
+        pygame.draw.line(big, (*BODY_HI, 200),
+                         (cx_b - torso_w_top + int(W * 0.05 * SS),
+                          torso_top + int(H * 0.02 * SS)),
+                         (cx_b - int(W * 0.05 * SS), torso_bot - int(H * 0.04 * SS)),
+                         max(2, SS))
+
+        # ── sash across the chest ──────────────────────────────────────
+        sash_y = int(H * 0.50 * SS)
+        sash_pts = [
+            (cx_b - torso_w_top + int(W * 0.02 * SS), sash_y - int(H * 0.03 * SS)),
+            (cx_b + torso_w_top - int(W * 0.02 * SS), sash_y - int(H * 0.01 * SS)),
+            (cx_b + torso_w_top - int(W * 0.02 * SS), sash_y + int(H * 0.05 * SS)),
+            (cx_b - torso_w_top + int(W * 0.02 * SS), sash_y + int(H * 0.03 * SS)),
+        ]
+        pygame.draw.polygon(big, (*SASH, 240), sash_pts)
+        pygame.draw.line(big, (*SASH_HI, 220),
+                         (sash_pts[0][0] + int(W * 0.02 * SS),
+                          sash_pts[0][1] + int(H * 0.01 * SS)),
+                         (sash_pts[1][0] - int(W * 0.02 * SS),
+                          sash_pts[1][1] + int(H * 0.01 * SS)),
+                         max(2, SS - 1))
+
+        # ── head ───────────────────────────────────────────────────────
+        head_cx = cx_b
+        head_cy = int(H * 0.22 * SS)
+        head_r  = int(W * 0.18 * SS)
+        pygame.draw.circle(big, (*DARK, 255), (head_cx + SS, head_cy + SS), head_r)
+        pygame.draw.circle(big, (*SKIN, 250), (head_cx, head_cy), head_r)
+        # Cheek highlight
+        pygame.draw.circle(big, (*SKIN_HI, 180),
+                           (head_cx - head_r // 3, head_cy - head_r // 4),
+                           head_r // 3)
+
+        # ── turban (top dome with sash band) ───────────────────────────
+        turb_cy = head_cy - head_r + int(W * 0.04 * SS)
+        turb_r  = int(W * 0.20 * SS)
+        pygame.draw.ellipse(big, (*TURBAN, 250),
+                            (head_cx - turb_r, turb_cy - int(turb_r * 0.85),
+                             turb_r * 2, int(turb_r * 1.4)))
+        # Turban highlight crescent
+        pygame.draw.arc(big, (*TURBAN_HI, 230),
+                        (head_cx - turb_r + int(W * 0.02 * SS),
+                         turb_cy - int(turb_r * 0.85) + int(H * 0.01 * SS),
+                         turb_r * 2 - int(W * 0.04 * SS),
+                         int(turb_r * 1.4) - int(H * 0.02 * SS)),
+                        math.radians(200), math.radians(330), max(2, SS - 1))
+        # Gem at the front of the turban + sparkle.
+        gem_cx = head_cx
+        gem_cy = turb_cy + int(turb_r * 0.05)
+        pygame.draw.circle(big, (*GEM, 255), (gem_cx, gem_cy), max(3, int(W * 0.025 * SS)))
+        pygame.draw.circle(big, (255, 255, 255, 255),
+                           (gem_cx - SS, gem_cy - SS),
+                           max(1, int(W * 0.008 * SS)))
+
+        # ── eyes ───────────────────────────────────────────────────────
+        eye_y = head_cy + int(H * 0.005 * SS)
+        eye_dx = int(W * 0.06 * SS)
+        for sx in (-eye_dx, eye_dx):
+            pygame.draw.circle(big, (*BLACK, 255),
+                               (head_cx + sx, eye_y),
+                               max(2, int(W * 0.022 * SS)))
+            pygame.draw.circle(big, (255, 255, 255, 255),
+                               (head_cx + sx - SS, eye_y - SS),
+                               max(1, int(W * 0.010 * SS)))
+
+        # ── beard curl ────────────────────────────────────────────────
+        beard_cy = head_cy + int(H * 0.08 * SS)
+        pygame.draw.ellipse(big, (*BEARD, 240),
+                            (head_cx - int(W * 0.05 * SS),
+                             beard_cy,
+                             int(W * 0.10 * SS),
+                             int(H * 0.06 * SS)))
+
+        # ── arms ───────────────────────────────────────────────────────
+        # Rest pose: both arms folded across the chest (two short
+        # ellipses meeting at the centre). When ``cast_arm`` is 0 or 2
+        # that arm unfolds outward toward the corresponding offer slot,
+        # eased by ``cast_k``. Arm 1 (middle) is a "both arms forward"
+        # gesture done by lengthening both arms slightly.
+        arm_y = sash_y + int(H * 0.02 * SS)
+        arm_w = max(3, int(W * 0.05 * SS))
+        # Default folded ellipses
+        def _arm(side, reach, droop):
+            # side: -1 left, +1 right. reach in big-canvas px (positive = outward).
+            x0 = cx_b
+            y0 = arm_y
+            x1 = cx_b + side * (int(W * 0.12 * SS) + reach)
+            y1 = arm_y + droop
+            pygame.draw.line(big, (*BODY, 240), (x0, y0), (x1, y1), arm_w * 2)
+            # Brass cuff at the wrist.
+            pygame.draw.circle(big, (*SASH, 250), (x1, y1), arm_w)
+            pygame.draw.circle(big, (*SASH_HI, 230), (x1 - SS, y1 - SS),
+                               max(1, arm_w // 2))
+
+        # Right arm: extends for cast 0, holds for cast 1, retracts for cast 2.
+        if cast_arm == 0:
+            r_reach = int(int(W * 0.18 * SS) * cast_k)
+            r_droop = int(int(H * 0.18 * SS) * cast_k)
+        elif cast_arm == 1:
+            r_reach = int(W * 0.14 * SS)
+            r_droop = int(H * 0.10 * SS)
+        elif cast_arm == 2:
+            r_reach = int(W * 0.10 * SS) - int(int(W * 0.06 * SS) * cast_k)
+            r_droop = int(H * 0.06 * SS)
+        else:
+            r_reach = 0
+            r_droop = 0
+        # Left arm: rests through casts 0/1, extends downward for cast 2.
+        if cast_arm == 2:
+            l_reach = int(int(W * 0.16 * SS) * cast_k)
+            l_droop = int(int(H * 0.22 * SS) * cast_k)
+        elif cast_arm == 1:
+            l_reach = int(W * 0.12 * SS)
+            l_droop = int(H * 0.08 * SS)
+        else:
+            l_reach = 0
+            l_droop = 0
+        _arm(-1, l_reach, l_droop)
+        _arm(+1, r_reach, r_droop)
+
+        # ── scale + tilt + alpha down to native size ───────────────────
+        out_w = max(2, int(W * scale))
+        out_h = max(2, int(H * scale))
+        scaled = pygame.transform.smoothscale(big, (out_w, out_h))
+        rotated = pygame.transform.rotate(scaled, sway)
+        rotated.set_alpha(alpha)
+        rect = rotated.get_rect(center=(int(self.x), int(self.y + bob)))
+        surf.blit(rotated, rect.topleft)
+
+
 # ── FloatText ────────────────────────────────────────────────────────────────
 
 _float_font_cache: dict = {}
