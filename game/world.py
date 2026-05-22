@@ -1577,8 +1577,9 @@ class World:
 
         # Advance the buildup if one is running. Events at the head of
         # the queue fire when the running clock reaches their scheduled
-        # time. The strike event is the final entry — once it fires we
-        # clear the queue.
+        # time. The strike is the climax (10th event in the default
+        # buildup) — fade-away bolts AFTER the strike stay queued and
+        # fire as the storm settles.
         if self._storm_buildup_seq:
             self._storm_buildup_t += dt
             while (self._storm_buildup_seq
@@ -1586,29 +1587,41 @@ class World:
                 _, kind = self._storm_buildup_seq.pop(0)
                 if kind == "strike":
                     self._fire_storm_jolt()
-                    self._storm_buildup_seq = []
                 else:
                     side = -1 if kind.endswith("left") else 1
                     self._fire_background_lightning(side=side)
 
     def _start_storm_buildup(self):
-        """Telegraph the incoming strike with background lightning.
-        Queues FIVE near-miss bolts on alternating sides (each a
-        real flash + bolt + light shake but NO coin loss), tempo
-        accelerating toward the strike for dramatic tension. The
-        real `_fire_storm_jolt` lands at t=2.30 s. Lockout is set
-        immediately so the trigger can't re-fire mid-buildup; the
-        25-second cooldown starts from the buildup, not the strike."""
+        """Telegraph the incoming strike with NINE background bolts
+        on alternating sides, gaps SHRINKING toward the climax so
+        the storm reads as steadily escalating: starts at ~0.8 s
+        gaps, ends at ~0.3 s gaps. The real `_fire_storm_jolt` lands
+        at t=4.40 s as the 10th lightning. Two FADE-AWAY background
+        bolts after the strike (1.0 s + 1.5 s post-strike) close the
+        sequence as the storm settles. 12 events total. Lockout is
+        set immediately so the trigger can't re-fire mid-buildup;
+        the 25-second cooldown starts from the buildup, not the
+        strike."""
         self._storm_buildup_seq = [
+            # ── 9 bg bolts — escalating tempo (gap shrinks 0.80→0.30) ──
             (0.00, "bg_left"),
-            (0.50, "bg_right"),
-            (0.95, "bg_left"),
-            (1.40, "bg_right"),
-            (1.80, "bg_left"),
-            (2.30, "strike"),
+            (0.80, "bg_right"),    # gap 0.80
+            (1.50, "bg_left"),     # gap 0.70
+            (2.10, "bg_right"),    # gap 0.60
+            (2.60, "bg_left"),     # gap 0.50
+            (3.05, "bg_right"),    # gap 0.45
+            (3.45, "bg_left"),     # gap 0.40
+            (3.80, "bg_right"),    # gap 0.35
+            (4.10, "bg_left"),     # gap 0.30
+            # ── climax — the 10th bolt hits Pip ──
+            (4.40, "strike"),      # gap 0.30
+            # ── 2 fade-away bolts as the storm settles ──
+            (5.40, "bg_right"),    # gap 1.00 (sudden slowdown)
+            (6.90, "bg_left"),     # gap 1.50 (last distant flash)
         ]
         self._storm_buildup_t = 0.0
-        # Reserve the slot — prevents re-trigger during buildup.
+        # Reserve the slot — prevents re-trigger during buildup +
+        # 25 s cooldown after.
         self._storm_jolt_lockout = 25.0
 
     def _fire_background_lightning(self, side: int = -1):
