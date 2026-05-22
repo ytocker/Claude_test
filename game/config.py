@@ -72,6 +72,10 @@ POWERUP_WEIGHTS    = (
     ("ghost",    1),
     ("grow",     1),
     ("surprise", 1),
+    # TEST MODE on v5_powerups: Genie is normally late-game
+    # (SECRET_POWERUP_WEIGHTS). Promoted to the early pool so testers
+    # see it from pillar #1. Remove to restore default behaviour.
+    ("genie",    1),
 )
 
 # ── SECRET LATE-GAME POWER-UPS ───────────────────────────────────────────────
@@ -197,7 +201,11 @@ SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
     ("heist",      0.125),
     ("lottery",    0.125),
-    ("phoenix",    0.125),
+    # TEST MODE on v5_powerups: Phoenix temporarily removed from the
+    # spawn pool so it doesn't claim a secret-roll slot while QA
+    # focuses on the other powerups. Code (activator, halo variants,
+    # audio, plausibility ledger) is intact — re-add the line below
+    # to restore: ("phoenix", 0.125),
     ("genie",      0.125),
 )
 
@@ -221,7 +229,8 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 # samples each at least once with reasonable probability.
 TEST_FORCED_KINDS = (
     "skateboard", "heist",
-    "lottery", "phoenix", "genie",
+    # "phoenix" temporarily out — see SECRET_POWERUP_WEIGHTS comment.
+    "lottery", "genie",
 )
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
@@ -246,15 +255,12 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 # / PIPE_SPACING). After RAMP_PIPES the ramp is complete and the game stays
 # at today's regular tuning forever — no late-game tightening to GAP_MIN /
 # SCROLL_MAX.
-RAMP_PIPES           = 25
-# Pillars at the very start of a run that hold the full newbie tuning
-# (gap / scroll / spacing / powerup chance) flat before the ease-out ramp
-# in World._ramp_t kicks in. Gives complete first-timers a short
-# predictable runway to internalize flap timing without anything
-# tightening underneath them. Five pillars is ~15 s at PIPE_SPACING_NEWBIE
-# / SCROLL_NEWBIE_BASE — short enough that experienced players don't
-# perceive a "tutorial mode."
-PLATEAU_PIPES        = 5
+# TEST MODE on v5_powerups: newbie ramp disabled — game starts at
+# regular speed/gap/spacing from pillar #1. _ramp_t() short-circuits
+# to 1.0 when RAMP_PIPES == 0. Restore defaults (RAMP_PIPES = 25,
+# PLATEAU_PIPES = 5) to re-enable the warmup curve.
+RAMP_PIPES           = 0
+PLATEAU_PIPES        = 0
 GAP_NEWBIE_START     = 225
 SCROLL_NEWBIE_BASE   = 125.0
 PIPE_SPACING_NEWBIE  = 370

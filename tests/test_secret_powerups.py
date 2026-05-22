@@ -30,7 +30,13 @@ from game.entities import PowerUp, Coin
 from game.world import World
 
 
-SECRET_KINDS = {k for k, _ in SECRET_POWERUP_WEIGHTS}
+from game.config import POWERUP_WEIGHTS
+# Kinds that ONLY live in the secret pool. On v5_powerups, genie is
+# in both the regular and secret pools (test mode), so it can leak
+# below the late-game threshold legitimately and is excluded from
+# the locked-pool assertion.
+_regular_kinds = {k for k, _ in POWERUP_WEIGHTS}
+SECRET_KINDS = {k for k, _ in SECRET_POWERUP_WEIGHTS} - _regular_kinds
 
 
 def _force_spawn_attempts(world, n, score):
@@ -245,6 +251,12 @@ def test_plausibility_chain_survives_treasure_box_and_lottery():
     random.seed(99)
     w = World()
     w.ready_t = 0
+    # v5_powerups test-mode bootstrap pre-fills score / coin_count / ledger
+    # with fake values so the storm jolt has coins to lose. Reset all three
+    # so this plausibility test runs from a true zero baseline.
+    w.score = 0
+    w.coin_count = 0
+    w._proof = type(w._proof)()
     # Pretend the player picked up a treasure box and flapped a couple
     # of times so the ledger records "treasure_box" event kinds.
     w._activate_heist(PowerUp(0, 0, kind="heist"))

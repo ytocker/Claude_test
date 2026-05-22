@@ -94,8 +94,11 @@ class World:
         self.scroll_speed = SCROLL_BASE
         self.bg_scroll = 0.0
 
-        self.score = 0
-        self.coin_count = 0
+        # TEST MODE on v5_powerups: fake starting score + coin count so
+        # the storm jolt has coins to lose and gated content unlocks
+        # closer to play. Restore both to 0 to ship realistically.
+        self.score = 250
+        self.coin_count = 250
 
         self.triple_timer = 0.0
         self.magnet_timer = 0.0
@@ -208,7 +211,13 @@ class World:
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
-        self.biome_time = 0.0
+        # TEST MODE on v5_powerups: start at phase ~0.27 (light visible
+        # drizzle, rain_intensity ≈ 0.14, below the 0.20 coin-shake
+        # threshold) so weather mechanics can be reproduced quickly.
+        # As the cycle ticks forward through play, rain builds and the
+        # storm-jolt window opens organically. Restore to 0.0 for a
+        # normal noon-start.
+        self.biome_time = biome.CYCLE_SECONDS * 0.27
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -220,6 +229,12 @@ class World:
         # ``self.score``, so a JS-side ``world.score = 99999`` does not
         # change what gets submitted.
         self._proof = ProofState()
+        # TEST MODE on v5_powerups: backfill the ledger with the 250
+        # fake coin events so plausibility (coin_count == # of coin
+        # events) stays valid for the storm-jolt's negative event.
+        # Remove when self.coin_count goes back to 0.
+        for _ in range(self.coin_count):
+            self._proof.record(0.0, 1, "coin")
 
         self.weather = Weather()
         # Storm jolt: at peak rain LIGHTNING STRIKES Pip — bolt cracks
@@ -268,6 +283,11 @@ class World:
         # is most fragile. Linear interpolation tested badly because its
         # biggest absolute deltas landed at the end of the ramp, exactly
         # the wrong place for newbies.
+        # RAMP_PIPES <= 0 disables the ramp entirely (test-mode bootstrap
+        # on v5_powerups) — every gameplay value collapses straight to
+        # the regular endpoint from pillar #1.
+        if RAMP_PIPES <= 0:
+            return 1.0
         pp = self.pillars_passed
         if pp < PLATEAU_PIPES:
             return 0.0
