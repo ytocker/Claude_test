@@ -2232,20 +2232,30 @@ class World:
         # (see GenieCharacter in game/entities.py). The lamp's own
         # pickup-site burst / float text / audio still fire below.
         from game.entities import GenieCharacter
-        # Genie hovers STATIONARY (vx=0) close to the parrot, floating
-        # HIGH above the playfield so it doesn't compete with pillars
-        # for visual space. It's a "wish-giver hovering nearby" — not
-        # an obstacle. The OFFERS spawn FAR AHEAD of Pip (independent
-        # of the genie's own position) so the user has the maximum
-        # possible time to manoeuvre vertically to whichever offer
-        # they want to intercept. See GenieCharacter._fire_all.
-        # Genie hovers BELOW the score pill (which sits at y=64-120
-        # at the top centre of the screen) — gy=200 puts the sprite
-        # top at y≈127, clear of the score. Bottom of the sprite
-        # sits at y≈274, near the parrot's bobbing y but at a
-        # different x so they don't visually overlap.
-        gx = self.bird.x + 80        # ~170 in world — slightly ahead of Pip
-        gy = 200                      # below the score pill
+        # Genie hovers STATIONARY (vx=0). Default spawn is at
+        # (gx=180, gy=215) — below the score pill (y=64..120), at
+        # screen centre, where the locked design renders cleanly at
+        # display_scale=0.34. If the parrot is currently flying near
+        # the default y (i.e., the player happens to be high in the
+        # frame), the genie spawns at a FALLBACK position lower down
+        # — gy=440, just above the mountain peaks — so it doesn't
+        # sit directly on top of the bird. Offers (in _fire_all)
+        # are placed independently of genie y, so the cinematic
+        # plays out the same either way.
+        DEFAULT_GY  = 215
+        FALLBACK_GY = 440           # just above the mountain peaks
+        TOO_CLOSE   = 100           # px window around a candidate y
+        if abs(self.bird.y - DEFAULT_GY) >= TOO_CLOSE:
+            gy = DEFAULT_GY
+        elif abs(self.bird.y - FALLBACK_GY) >= TOO_CLOSE:
+            gy = FALLBACK_GY
+        else:
+            # Parrot is awkwardly between both candidates — pick the
+            # one further from the parrot regardless.
+            gy = (DEFAULT_GY
+                  if abs(self.bird.y - DEFAULT_GY) > abs(self.bird.y - FALLBACK_GY)
+                  else FALLBACK_GY)
+        gx = 180                    # screen centre, clear of HUD chrome
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0,
