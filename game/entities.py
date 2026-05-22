@@ -1022,6 +1022,25 @@ class Bird:
                 _draw_phoenix_fire_halo(surf, hx, hy, self.frame_t)
         cx_int = int(self.x + shake_x)
         cy_int = int(self.y + shake_y)
+        # X-Ray Sparks AURA — drawn BEFORE the bird sprite so it
+        # haloes around Pip's silhouette. Four concentric circles
+        # in the same palette as the lightning bolt (purple plasma
+        # → cyan → white core glow), each pulsing at ~5 Hz so the
+        # aura breathes electrically. Lives only while the
+        # skeleton-flash timer is active.
+        if self.skeleton_flash_t > 0.0:
+            pulse = 0.5 + 0.5 * math.sin(self.frame_t * 30.0)
+            aura = pygame.Surface((100, 100), pygame.SRCALPHA)
+            for r_n, col, a_base in (
+                    (46, (130,  80, 220),  55),  # outer purple plasma
+                    (37, (180, 100, 255),  90),  # mid purple glow
+                    (29, (140, 220, 255), 130),  # cyan halo
+                    (22, (255, 255, 255),  75),  # white inner glow
+            ):
+                a_pulsed = int(a_base * (0.65 + 0.35 * pulse))
+                pygame.draw.circle(aura, (*col, a_pulsed),
+                                   (50, 50), r_n)
+            surf.blit(aura, (cx_int - 50, cy_int - 50))
         # Biome ambient-light: vertical-gradient multiply onto Pip's
         # sprite so the top edge catches more light and the underside
         # falls into shadow. Falls back to a uniform tint if only the
@@ -1034,32 +1053,46 @@ class Bird:
             img = _apply_ambient_light(img, light_level, light_level)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
-        # X-Ray Sparks crackle — short cyan zig-zag sparks crackling at
-        # random angles around Pip while the flash timer is active. New
-        # angles each frame so the crackle reads as live electricity
-        # arcing around the body rather than a static halo. Drawn AFTER
-        # the bird sprite so the sparks pop on top of him.
+        # X-Ray Sparks ARCS — longer jagged mini-bolts crackling
+        # OUTWARD from Pip's silhouette while the flash timer is
+        # active. Each arc starts on the silhouette perimeter and
+        # zig-zags ~10-14 px outward with random perpendicular
+        # jitter — reads as real electricity discharging from his
+        # body rather than static sparkles. Drawn AFTER the bird
+        # sprite so they pop on top of the silhouette + aura. New
+        # angles each frame so the discharge feels alive.
         if self.skeleton_flash_t > 0.0:
-            n_sparks = 5
-            spark_radius = 22
-            for k in range(n_sparks):
+            n_arcs = 5
+            inner_r = 20.0
+            for k in range(n_arcs):
                 ang = random.uniform(0, math.tau)
-                r_out = random.uniform(spark_radius - 4, spark_radius + 6)
-                ox = cx_int + math.cos(ang) * r_out
-                oy = cy_int + math.sin(ang) * r_out
-                # Zig-zag tick — 3 points, 2 segments
-                ix = ox + math.cos(ang) * 3
-                iy = oy + math.sin(ang) * 3
-                mx = ox + math.cos(ang) * 1.5 + math.cos(ang + 1.5) * 2
-                my = oy + math.sin(ang) * 1.5 + math.sin(ang + 1.5) * 2
-                pygame.draw.line(surf, (175, 230, 255),
-                                 (int(ox), int(oy)),
-                                 (int(mx), int(my)), 2)
-                pygame.draw.line(surf, (255, 255, 255),
-                                 (int(mx), int(my)),
-                                 (int(ix), int(iy)), 1)
+                # Start at silhouette perimeter
+                ox = cx_int + math.cos(ang) * inner_r
+                oy = cy_int + math.sin(ang) * inner_r
+                # End point outward: 10-14 px further
+                end_r = inner_r + random.uniform(10, 14)
+                ex = cx_int + math.cos(ang) * end_r
+                ey = cy_int + math.sin(ang) * end_r
+                # Midpoint with perpendicular jitter for zig-zag
+                mid_r = (inner_r + end_r) * 0.5
+                perp = ang + math.pi / 2
+                jitter = random.uniform(-3.5, 3.5)
+                mx = (cx_int + math.cos(ang) * mid_r
+                      + math.cos(perp) * jitter)
+                my = (cy_int + math.sin(ang) * mid_r
+                      + math.sin(perp) * jitter)
+                # 2-segment mini-bolt: cyan outer + white core
+                pts = ((int(ox), int(oy)), (int(mx), int(my)),
+                       (int(ex), int(ey)))
+                pygame.draw.lines(surf, (140, 220, 255), False,
+                                  pts, 3)
+                pygame.draw.lines(surf, (255, 255, 255), False,
+                                  pts, 1)
+                # Bright tip glint at the discharge end
                 pygame.draw.circle(surf, (255, 255, 255),
-                                   (int(mx), int(my)), 1)
+                                   (int(ex), int(ey)), 2)
+                pygame.draw.circle(surf, (140, 220, 255),
+                                   (int(ex), int(ey)), 3, 1)
         # SKATEBOARD helmet — a small dome on top of Pip's head with a chinstrap.
         if self.skateboard_active:
             self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
