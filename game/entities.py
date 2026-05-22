@@ -1852,15 +1852,12 @@ class Coin:
         self.float_t = random.uniform(0, math.tau)
         # Random sparkle phase per-coin so they don't all twinkle in sync.
         self._sparkle_phase = random.uniform(0, math.tau)
-        # Weather wobble (visual-only horizontal jitter under light/moderate
-        # rain). Heavy-rain slide is applied directly to self.x by World so
-        # collision follows the visual.
+        # Weather wobble (visual-only horizontal jitter). World writes
+        # this each frame based on rain_intensity — amplitude scales
+        # linearly with intensity so coins barely tremor at first
+        # drizzle and shake visibly at peak storm. Pure left-right;
+        # no vertical wobble, no real position drift.
         self.weather_dx = 0.0
-        # Vertical "drip" wobble (visual-only) — adds a hint of downward
-        # sag once rain is moderate so coins feel weighed-down, not just
-        # swaying side-to-side. Heavy-rain real downward drift is applied
-        # to self.y by World (parallel to the leftward slide).
-        self.weather_dy = 0.0
         # Random phase so coins don't sway in lockstep.
         self._weather_phase = random.uniform(0, math.tau)
 
@@ -1870,7 +1867,7 @@ class Coin:
 
     def draw(self, surf, kfc_active=False, triple_active=False):
         cx = int(self.x + self.weather_dx)
-        cy = int(self.y + self.weather_dy + math.sin(self.float_t * 2.2) * 2)
+        cy = int(self.y + math.sin(self.float_t * 2.2) * 2)
 
         # During KFC: coins look like a tilted french fry instead of a gold
         # disc. The fry uses the same footprint as the coin so collisions

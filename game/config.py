@@ -254,14 +254,12 @@ PIPE_HITBOX_SHRINK = 4
 # them and shivers Pip + dampens his flap. All values derived from
 # weather.rain_intensity(phase) which already exists.
 WEATHER_HEAVY_THRESHOLD  = 0.5
-WEATHER_COIN_SHAKE_AMP   = 2.5
-WEATHER_COIN_SLIDE_RATE  = 15.0
-# Vertical "drip" amplitude (visual-only sinusoidal sag) and the
-# downward drift rate that lets coins genuinely sink as the storm
-# intensifies, so the wobble reads as "rain is washing them off"
-# rather than a tidy left-right hover.
-WEATHER_COIN_DRIP_AMP    = 1.6
-WEATHER_COIN_DRIP_RATE   = 7.0
+# Peak left-right shake amplitude at rain_intensity = 1.0. Scales
+# linearly with rain intensity so the tremor grows smoothly from
+# barely-there at first drizzle (≈ 0.4 px at ri=0.1) to clearly
+# violent at peak storm (4.0 px). No vertical drift, no sliding —
+# the wobble is the ONLY weather effect on coins.
+WEATHER_COIN_SHAKE_AMP   = 4.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 

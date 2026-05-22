@@ -34,9 +34,7 @@ from game.config import (
     TEST_SECRETS_FIRST_N_PILLARS, TEST_FORCED_KINDS,
     FLAP_V,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
-    WEATHER_COIN_SLIDE_RATE, WEATHER_COIN_DRIP_AMP,
-    WEATHER_COIN_DRIP_RATE, WEATHER_PIP_SHIVER_AMP,
-    WEATHER_FLAP_DAMPEN_MAX,
+    WEATHER_PIP_SHIVER_AMP, WEATHER_FLAP_DAMPEN_MAX,
     GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
     GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
 )
@@ -1512,39 +1510,27 @@ class World:
             # to 0 doesn't leave coins permanently nudged.
             for c in self.coins:
                 c.weather_dx = 0.0
-                c.weather_dy = 0.0
             self.bird.shiver_x = 0.0
             self.bird.shiver_y = 0.0
             self.bird.flap_dampen = 0.0
             return
-        # Coin shake — sinusoidal sway, per-coin phase so they don't
-        # oscillate in lockstep. Horizontal amplitude scales with
-        # intensity up to the heavy threshold (then the real slide
-        # takes over).
-        amp_x = WEATHER_COIN_SHAKE_AMP * min(1.0, ri / WEATHER_HEAVY_THRESHOLD)
-        # Vertical drip amplitude — fades in starting at moderate rain
-        # (ri ≈ 0.3) and tops out at peak. Keeps coins purely
-        # left-right at the very lightest drizzle so the "drip" feel
-        # is reserved for genuine storm weather.
-        DRIP_FADE_IN = 0.3
-        drip_t = max(0.0, (ri - DRIP_FADE_IN) / max(1e-6, 1.0 - DRIP_FADE_IN))
-        amp_y = WEATHER_COIN_DRIP_AMP * drip_t
-        heavy = ri > WEATHER_HEAVY_THRESHOLD
-        heavy_t = ((ri - WEATHER_HEAVY_THRESHOLD)
-                   / max(1e-6, 1.0 - WEATHER_HEAVY_THRESHOLD)) if heavy else 0.0
+        # Coin shake — pure horizontal left-right tremor. Amplitude
+        # scales LINEARLY with rain intensity so the wobble is
+        # barely perceptible at first drizzle (~0.4 px at ri=0.1)
+        # and grows smoothly to a visibly violent ±4 px at peak
+        # storm (ri=1.0). Oscillation frequency also speeds up
+        # mildly with intensity (4.5 → 9.0 rad/s) so heavy rain
+        # feels frantic, not just wider. No vertical wobble, no
+        # leftward slide, no real position drift — coins stay on
+        # their hover spot and just tremor with the weather.
+        amp_x = WEATHER_COIN_SHAKE_AMP * ri
+        freq = 4.5 * (1.0 + ri)
         for c in self.coins:
-            c._weather_phase += dt * 4.5
+            c._weather_phase += dt * freq
             c.weather_dx = math.sin(c._weather_phase) * amp_x
-            # Offset the dy phase so the drip motion is out of sync
-            # with the wobble — produces a small figure-8 feel.
-            c.weather_dy = math.sin(c._weather_phase * 0.7 + 1.2) * amp_y
-            if heavy:
-                # Slide down-and-leftward — feels like rain pulling
-                # the coin off its perch.
-                c.x -= WEATHER_COIN_SLIDE_RATE * heavy_t * dt
-                c.y += WEATHER_COIN_DRIP_RATE * heavy_t * dt
         # Pip: shiver + flap dampen only above the heavy threshold so
         # ordinary drizzle doesn't make controls feel broken.
+        heavy = ri > WEATHER_HEAVY_THRESHOLD
         if heavy:
             heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
             # Extra jolt during a lightning flash so the strike reads.
