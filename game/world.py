@@ -1785,18 +1785,23 @@ class World:
             pass
 
     def _spawn_scorch_wisp(self):
-        """Larger dark smoke puff drifting up off Pip's silhouette.
-        Used by the scorched sub-state after a lightning strike;
-        fades out as `_lightning_scorch_t` decays. Sized + coloured
-        to read clearly against the storm sky."""
+        """Smoke puff trailing BEHIND Pip in his wake — spawned to his
+        left (he flies right, so left = behind) and drifting further
+        left + upward so the wisps stream away from him rather than
+        covering his body. Critical for the X-Ray Sparks skeleton
+        flicker — `scenes.py` draws particles AFTER the bird sprite,
+        so any wisp that originates on Pip's silhouette would layer
+        over the skeleton view and hide it."""
         bx, by = self.bird.x, self.bird.y
-        # Slight random offset so wisps come off Pip's body and tail,
-        # not just his centre.
-        ox = random.uniform(-12, 12)
-        oy = random.uniform(-8, 8)
-        # Bias upward — wisps rise. Speed is slow so the trail lingers.
-        vx = random.uniform(-18, 18)
-        vy = random.uniform(-70, -35)
+        # Behind-and-around Pip (to his LEFT, with a small vertical
+        # spread). Never spawn on his right-facing body where the
+        # skeleton view shows.
+        ox = random.uniform(-32, -14)
+        oy = random.uniform(-18, 12)
+        # Drift further LEFT (behind) and gently upward so the trail
+        # streams away from Pip rather than rising over him.
+        vx = random.uniform(-40, -10)
+        vy = random.uniform(-55, -25)
         # Light grey / cream wisps so they CONTRAST with the dark
         # storm sky. Real smoke off something scorched would be sooty
         # but visually the lighter palette reads as a smoke trail
