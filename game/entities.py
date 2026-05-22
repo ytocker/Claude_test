@@ -3056,9 +3056,10 @@ def _lazy_import_genie_design():
         from tools import render_a1_crossed_legs_variants as _legs
         from tools import render_a1_arms_variants as _arms
         from tools import render_a1_shine_variants as _shines
+        from tools import render_a1_carpet_variants as _carpets
     finally:
         pygame.display.set_mode = original_set_mode
-    cache = (_ref, _legs, _arms, _shines)
+    cache = (_ref, _legs, _arms, _shines, _carpets)
     _lazy_import_genie_design._cached = cache
     return cache
 
@@ -3133,7 +3134,7 @@ class GenieShineParticle:
         # palm shines on the GenieCharacter so the shine "detaches"
         # visually. We draw onto a small per-particle supersample
         # surface and smoothscale it down to retain crispness.
-        _ref, _legs, _arms, _shines = _lazy_import_genie_design()
+        _ref, _legs, _arms, _shines, _carpets = _lazy_import_genie_design()
         SS = _ref.SS
         size_n = 32           # native px square — fits a full pixie star
         big = pygame.Surface((size_n * SS, size_n * SS), pygame.SRCALPHA)
@@ -3371,15 +3372,18 @@ class GenieCharacter:
         identical to docs/screenshots/genie_designs/a1_shine_1_v1.png
         (variant 2 v5 + classic pixie shines). NO re-derivation of
         coordinates — every s(N) value is the tool's literal value."""
-        _ref, _legs, _arms, _shines = _lazy_import_genie_design()
+        _ref, _legs, _arms, _shines, _carpets = _lazy_import_genie_design()
         SS = _ref.SS         # 6
         W = _ref.W           # 320
         H = _ref.H           # 460
         big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
         cx = (W * SS) // 2
-        # Composition follows tools/render_a1_shine_variants.render_figure
-        # exactly. Same order, same function calls, same arguments.
-        _legs._smoke_aura_below(big, cx, _ref.s(330))
+        # Composition follows tools/render_a1_carpet_variants.render_figure
+        # for the locked Royal velvet carpet (no central medallion).
+        # The smoke aura is replaced by the carpet — the genie now
+        # sits on a high-end velvet rug instead of floating above
+        # an atmospheric pad.
+        _carpets.draw_carpet_royal(big, cx)
         _legs.draw_crossed_legs_ankle_cross(big, cx)   # locked variant 2 lotus
         _ref.draw_torso(big, cx)
         _ref.draw_neck(big, cx)
