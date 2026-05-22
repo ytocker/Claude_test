@@ -227,15 +227,47 @@ def draw_arms_2_offering(big, cx):
         _open_palm(big, (palm_x, palm_y),
                    L["SKIN"], L["SKIN_LO"], L["SKIN_HI"],
                    r_w=10, r_h=8, side=side)
-        # Sparkle above the palm to sell the "offering magic" read
-        sparkle_y = palm_y - s(18)
-        pygame.draw.line(big, P["GOLD_HI"],
-                         (palm_x - s(4), sparkle_y),
-                         (palm_x + s(4), sparkle_y), s(2))
-        pygame.draw.line(big, P["GOLD_HI"],
-                         (palm_x, sparkle_y - s(4)),
-                         (palm_x, sparkle_y + s(4)), s(2))
-        aa_circle(big, (255, 255, 230), palm_x, sparkle_y, s(2))
+        # Big magical shine above the palm — outer glow halo + cross
+        # rays + bright cyan-gold core. Sized to read as the "offering
+        # magic" being conjured (these are the shines that will fly
+        # forward as the cast in the in-game cinematic).
+        sparkle_y = palm_y - s(28)
+        # Soft outer glow halo (cyan + gold, layered low-alpha)
+        for r_n, alpha in ((24, 70), (18, 110), (12, 160)):
+            srf = pygame.Surface((s(r_n) * 2 + 4, s(r_n) * 2 + 4),
+                                 pygame.SRCALPHA)
+            pygame.draw.circle(srf, (160, 230, 255, alpha),
+                               (s(r_n) + 2, s(r_n) + 2), s(r_n))
+            big.blit(srf, (palm_x - s(r_n) - 2,
+                           sparkle_y - s(r_n) - 2))
+        # Gold inner halo
+        srf = pygame.Surface((s(16), s(16)), pygame.SRCALPHA)
+        pygame.draw.circle(srf, (255, 230, 140, 230),
+                           (s(8), s(8)), s(7))
+        big.blit(srf, (palm_x - s(8), sparkle_y - s(8)))
+        # 4-point star cross (thick gold)
+        for dx, dy in ((s(12), 0), (-s(12), 0), (0, s(12)), (0, -s(12))):
+            pygame.draw.line(big, P["GOLD_HI"],
+                             (palm_x, sparkle_y),
+                             (palm_x + dx, sparkle_y + dy), s(4))
+        # White star core
+        for dx, dy in ((s(8), 0), (-s(8), 0), (0, s(8)), (0, -s(8))):
+            pygame.draw.line(big, (255, 255, 255),
+                             (palm_x, sparkle_y),
+                             (palm_x + dx, sparkle_y + dy), s(2))
+        # Bright centre dot
+        aa_circle(big, (255, 255, 255), palm_x, sparkle_y, s(3))
+        # Two tiny satellite sparkles for extra magic
+        for sat_dx, sat_dy in ((s(14), -s(10)), (-s(12), s(8))):
+            sx_p = palm_x + sat_dx
+            sy_p = sparkle_y + sat_dy
+            pygame.draw.line(big, P["GOLD_HI"],
+                             (sx_p - s(3), sy_p), (sx_p + s(3), sy_p),
+                             max(1, s(1)))
+            pygame.draw.line(big, P["GOLD_HI"],
+                             (sx_p, sy_p - s(3)), (sx_p, sy_p + s(3)),
+                             max(1, s(1)))
+            aa_circle(big, (255, 255, 255), sx_p, sy_p, max(1, s(1)))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
