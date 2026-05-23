@@ -265,16 +265,20 @@ def _build_snow_contour():
 
 
 def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
-    """A SOLID accumulated snowdrift over Pip's whole windward rear
-    (tail, rump, back) during the squall — not scattered sparkles.
-    Built as one filled polygon: the bottom edge follows his rear
-    body surface, the top edge is that surface pushed up by the
-    snow depth (∝ `load`, deepest on the rump/back), gently lumpy.
-    A bright snow-line tops it and a cool contact shadow sits just
-    beneath, so it reads as real piled snow. `load` (0..1) scales
-    depth + opacity so it accumulates and melts cleanly. Rendered
-    on a 3× supersample → smoothscale for clean edges. +x forward,
-    centre (0,0)."""
+    """Snow over Pip's whole windward rear (tail, rump, back) during
+    the squall. Two phases that crossfade with `load` (0..1):
+
+      * Just settling (low load) → a FEW tiny snow specks dotted on
+        his rear. (Avoids a thin polygon reading as a drawn line.)
+      * Building up → a SOLID accumulated drift: one filled polygon
+        whose bottom follows his rear body surface and whose top is
+        that surface pushed up by the snow depth (∝ load, deepest
+        on the rump/back, gently lumpy), with a soft top highlight
+        + cool contact shadow so it reads as real piled snow.
+
+    Depth + opacity scale with load so it accumulates in and melts
+    off cleanly. Lumps/specks are deterministic (no per-frame
+    randomness → never shimmer). +x is forward, centre (0,0)."""
     global _SNOW_CONTOUR
     load = max(0.0, min(1.0, load))
     if load <= 0.02:
@@ -282,8 +286,6 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
     if _SNOW_CONTOUR is None:
         _SNOW_CONTOUR = _build_snow_contour()
     sc = scale
-    SS = 3
-    maxdepth = 17.0
     cos_t = math.cos(math.radians(tilt))
     sin_t = math.sin(math.radians(tilt))
 
@@ -292,44 +294,88 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
         ry = x * sin_t + y * cos_t
         return (cx + rx * sc, cy + ry * sc)
 
-    bottom, top = [], []
-    for i, (x, y, wt) in enumerate(_SNOW_CONTOUR):
-        bottom.append(tf(x, y))
-        # gentle deterministic lumps on the snow line (no per-frame
-        # randomness → never shimmers)
-        lump = 0.82 + 0.18 * math.cos(i * 0.9) * math.cos(i * 0.37)
-        d = load * maxdepth * wt * max(0.2, lump)
-        # snow grows up + a touch toward windward (-x)
-        top.append(tf(x - d * 0.22, y - d))
+    # Crossfade: specks dominate the early settle; the solid drift
+    # fades in as the snow builds (handoff complete by load≈0.40).
+    speck_w = max(0.0, min(1.0, (0.40 - load) / 0.30))
+    drift_w = max(0.0, min(1.0, (load - 0.20) / 0.20))
 
-    poly = bottom + top[::-1]
-    xs = [p[0] for p in poly]
-    ys = [p[1] for p in poly]
-    minx = min(xs) - 3
-    maxx = max(xs) + 3
-    miny = min(ys) - 3
-    maxy = max(ys) + 6                 # extra pad for the contact shadow
-    w = int(maxx - minx)
-    h = int(maxy - miny)
-    if w < 2 or h < 2:
-        return
-    scratch = pygame.Surface((w * SS, h * SS), pygame.SRCALPHA)
+    # ── Solid accumulated drift ──────────────────────────────────
+    if drift_w > 0.01:
+        SS = 3
+        maxdepth = 17.0
+        bottom, top = [], []
+        for i, (x, y, wt) in enumerate(_SNOW_CONTOUR):
+            bottom.append(tf(x, y))
+            lump = 0.82 + 0.18 * math.cos(i * 0.9) * math.cos(i * 0.37)
+            d = load * maxdepth * wt * max(0.2, lump)
+            top.append(tf(x - d * 0.22, y - d))
+        poly = bottom + top[::-1]
+        xs = [p[0] for p in poly]
+        ys = [p[1] for p in poly]
+        minx = min(xs) - 3
+        maxx = max(xs) + 3
+        miny = min(ys) - 3
+        maxy = max(ys) + 6             # pad for the contact shadow
+        w = int(maxx - minx)
+        h = int(maxy - miny)
+        if w >= 2 and h >= 2:
+            scratch = pygame.Surface((w * SS, h * SS), pygame.SRCALPHA)
 
-    def to_ss(pts, dy=0.0):
-        return [(int((px - minx) * SS), int((py - miny + dy) * SS))
-                for px, py in pts]
+            def to_ss(pts, dy=0.0):
+                return [(int((px - minx) * SS), int((py - miny + dy) * SS))
+                        for px, py in pts]
 
-    fill_a = int(min(248, 160 + load * 90))
-    # cool contact shadow just under the snow's body-side edge
-    pygame.draw.lines(scratch, (138, 160, 198, int(fill_a * 0.5)),
-                      False, to_ss(bottom, dy=1.8), max(2, 2 * SS))
-    # the solid snow body (slightly cool off-white)
-    pygame.draw.polygon(scratch, (234, 242, 252, fill_a), to_ss(poly))
-    # bright pure-white snow-line riding the top edge
-    pygame.draw.lines(scratch, (255, 255, 255, min(255, fill_a + 6)),
-                      False, to_ss(top), max(2, 2 * SS))
-    small = pygame.transform.smoothscale(scratch, (w, h))
-    surf.blit(small, (int(minx), int(miny)))
+            fill_a = int(min(248, 160 + load * 90) * drift_w)
+            if fill_a > 4:
+                pygame.draw.lines(scratch, (138, 160, 198, int(fill_a * 0.5)),
+                                  False, to_ss(bottom, dy=1.8), max(2, 2 * SS))
+                pygame.draw.polygon(scratch, (236, 243, 252, fill_a),
+                                    to_ss(poly))
+                # Soft top highlight — alpha scales with depth so it
+                # never reads as a hard drawn line when the drift is
+                # still shallow.
+                hi_a = int(min(255, fill_a + 6) * min(1.0, load * 1.3))
+                if hi_a > 6:
+                    pygame.draw.lines(scratch, (255, 255, 255, hi_a),
+                                      False, to_ss(top), max(2, 2 * SS))
+                small = pygame.transform.smoothscale(scratch, (w, h))
+                surf.blit(small, (int(minx), int(miny)))
+
+    # ── Early-settle specks ──────────────────────────────────────
+    if speck_w > 0.01:
+        n = int(2 + load * 14)
+        a = int(min(235, 150 + load * 85) * speck_w)
+        if a > 8 and n > 0:
+            pts = _SNOW_CONTOUR
+            specks = []
+            for i in range(n):
+                # deterministic spread, biased toward the rear (small t)
+                t = ((i * 0.61803398875) % 1.0) ** 1.3
+                fi = t * (len(pts) - 1)
+                i0 = int(fi)
+                f = fi - i0
+                x0, y0, _w0 = pts[i0]
+                x1, y1, _w1 = pts[min(i0 + 1, len(pts) - 1)]
+                bx = x0 + (x1 - x0) * f
+                by = y0 + (y1 - y0) * f
+                jx = math.cos(i * 2.39) * 2.4
+                jy = -1.4 - abs(math.sin(i * 1.71)) * (1.4 + load * 3.0)
+                px, py = tf(bx + jx, by + jy)
+                rr = max(1, int(round((1.0 + (1 if i % 3 == 0 else 0)) * sc)))
+                specks.append((px, py, rr))
+            sx = [s[0] for s in specks]
+            sy = [s[1] for s in specks]
+            rmax = max(s[2] for s in specks)
+            ox = int(min(sx) - rmax - 2)
+            oy = int(min(sy) - rmax - 2)
+            sw = int(max(sx) - min(sx) + 2 * rmax + 4)
+            sh = int(max(sy) - min(sy) + 2 * rmax + 4)
+            if sw >= 1 and sh >= 1:
+                dots = pygame.Surface((sw, sh), pygame.SRCALPHA)
+                for px, py, rr in specks:
+                    pygame.draw.circle(dots, (255, 255, 255, a),
+                                       (int(px - ox), int(py - oy)), rr)
+                surf.blit(dots, (ox, oy))
 
 
 def _draw_grow_halo(surf, cx, cy, pulse,
