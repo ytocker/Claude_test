@@ -349,7 +349,13 @@ def _build_snow_pool():
             continue
         pool.append((x, y, dy, w))
 
-    pool.sort(key=lambda p: p[3], reverse=True)
+    # Activation order for the buildup (the renderer lights the
+    # first-K as load grows). Sort PATCHY: primarily by distance
+    # from the perimeter (|dy|) so snow coats the top edge first,
+    # minus weight so windward high-spots seed early and merge —
+    # an organic perimeter-first build. (The full set, hence the
+    # peak frame, is unchanged — only the order differs.)
+    pool.sort(key=lambda p: abs(p[2]) * 1.3 - p[3] * 3.0)
     return pool
 
 
