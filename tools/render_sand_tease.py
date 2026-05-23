@@ -454,6 +454,62 @@ AIR_VARIANTS = [
 ]
 
 
+# ── intensity-driven sand field (chosen #2 ground-grit, ramped) ───────────────
+def storm_particles(surf, s, seed=7):
+    """The sandstorm body as PURE wind-driven sand — NOT snow. No tint,
+    no veil, no atmosphere change: just warm grains, more and more as
+    `s` grows, streaking rightward with the wind. Starts as a light
+    ground-grit layer (option #2) and fills upward + streaks longer as
+    it intensifies."""
+    rng = random.Random(seed)
+    n = int(35 + s * 560)
+    exp = lerp(2.6, 1.0, s)                   # ground-hugging → fills sky
+    span = lerp(150, GROUND_Y, s)             # how high the grains reach
+    streak = s * 15                           # wind-streak length grows
+    for _ in range(n):
+        x = rng.uniform(-10, W)
+        y = (GROUND_Y - 4) - (rng.random() ** exp) * span
+        a = int((70 + s * 120) * (0.5 + 0.5 * rng.random()))
+        col = rng.choice(AIR_COL)
+        ln = 2 + streak * (0.5 + 0.5 * rng.random())
+        dx, dy = ln, ln * 0.18                # shallow rightward drift
+        steps = max(1, int(ln / 2))
+        for k in range(steps):
+            f = k / steps
+            _grain(surf, x + dx * f, y + dy * f, 1, col, int(a * (1 - f * 0.8)))
+        _grain(surf, x + dx, y + dy, 1 if rng.random() < 0.6 else 2, col, a)
+
+
+def render_phases():
+    """Build-up phases: the storm intensifying as wind-driven sand, the
+    devil staying BEHIND the mountains (the in-front pass comes later).
+    No snow-style tint/veil anywhere."""
+    phases = [(0.05, "just starting — light"),
+              (0.22, "building"),
+              (0.45, "wind picks up"),
+              (0.70, "heavy"),
+              (0.92, "peak (still behind mtns)")]
+    panels = []
+    for s, lbl in phases:
+        surf, pal = base_sky(TEASE_PHASE)
+        # devil BEHIND the mountains; grows in from ~s 0.12
+        if s > 0.12:
+            ds = min(1.0, (s - 0.12) / 0.62)
+            _blit_devil(surf, devil_bloom(0.16 + 0.5 * ds),
+                        W * 0.70, GROUND_Y - 32,
+                        scale=0.82 + 0.26 * ds, alpha=int(110 + 145 * ds))
+        draw_mountains(surf, 0, GROUND_Y, W, pal["mtn_far"], pal["mtn_near"])
+        draw_ground(surf, GROUND_Y, W, H, 0,
+                    pal["ground_top"], pal["ground_mid"], (60, 40, 25))
+        b = Bird()
+        b.x, b.y, b.vy = BIRD_X, int(H * 0.42), 0
+        b.draw(surf)
+        storm_particles(surf, s)
+        panels.append((f"s={s:.2f} — {lbl}", surf))
+        pygame.image.save(surf, os.path.join(OUT_DIR, f"phase_{int(s * 100):02d}.png"))
+    _grid_sheet(panels, "phases_sheet.png")
+
+
 # ── scene composite ───────────────────────────────────────────────────────────
 def base_sky(phase):
     pal = _biome.palette_for_phase(phase)
@@ -576,6 +632,4 @@ def render_flow():
 
 
 if __name__ == "__main__":
-    render_air()
-    render_flow()
-    render_devils()
+    render_phases()
