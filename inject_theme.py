@@ -703,6 +703,10 @@ _TELEMETRY_JS = """
         var lo = ms >>> 0;
         dv.setUint32(0, hi, false);
         dv.setUint32(4, lo, false);
+        // dscore is a SIGNED 32-bit int on the Python side (struct ">qiB")
+        // — losing lottery tiers record a negative delta. `>>> 0` coerces
+        // to the same two's-complement bytes, so keep it; setInt32 would be
+        // equivalent. Dropping it would break the chain match for losses.
         dv.setUint32(8, (Number(ds) >>> 0), false);
         var k = String(kind);
         dv.setUint8(12, k.length & 0xff);

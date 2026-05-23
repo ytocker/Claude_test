@@ -124,6 +124,22 @@ class TestPlausibility(unittest.TestCase):
             )
         self.assertIn("dscore", str(ctx.exception).lower())
 
+    def test_negative_lottery_event_records_and_passes(self):
+        # A losing lottery tier (LOSS/BUST) records a NEGATIVE dscore.
+        # The proof chain must pack it without raising, and the run must
+        # still validate. Regression for the struct.error that crashed
+        # the game whenever a player hit a losing lottery tier.
+        proof, t_end, pillars, coins = _build_legit_run(10)
+        proof.record(t_end + 0.1, -8, "lottery")   # must not raise
+        check(
+            score=proof.score(),                    # 10 pipes + 10 coins - 8
+            pillars_passed=pillars,
+            coin_count=coins,
+            time_alive=t_end + 0.2,
+            events=proof.events_tuple(),
+            chain_hex=proof.chain_hex(),
+        )  # no exception
+
     def test_replay_with_consistent_ledger_passes(self):
         # A self-consistent forgery (events match score, hash matches,
         # plausibility holds) is *not* caught — that's a server-side

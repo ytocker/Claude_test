@@ -40,15 +40,18 @@ class ProofState:
     def record(self, t_alive: float, dscore: int, kind: str) -> None:
         """Append one scoring event and roll the chain hash forward.
 
-        ``kind`` is "pipe" for a pillar-pass or "coin" for a coin pickup.
-        ``dscore`` is +1 (pipe / regular coin) or +3 (coin during a triple
-        window). The plausibility check enforces those bounds."""
+        ``kind`` is "pipe" for a pillar-pass, "coin" for a coin pickup, or
+        "lottery" for a lottery payout. ``dscore`` is +1 (pipe / regular
+        coin), +3 (coin during a triple window), or a signed lottery delta
+        that may be negative on a losing tier. Packed as a signed 32-bit
+        int so those negatives round-trip; the plausibility check enforces
+        the pipe/coin bounds."""
         # Quantize t_alive to milliseconds before hashing so floating-
         # point jitter in the integration step doesn't break the chain.
         t_ms = int(round(float(t_alive) * 1000))
         kind_b = kind.encode("ascii")[:8]
         kind_b = kind_b + b"\x00" * (8 - len(kind_b))
-        packed = struct.pack(">qIB", t_ms, int(dscore), len(kind)) + kind_b
+        packed = struct.pack(">qiB", t_ms, int(dscore), len(kind)) + kind_b
         self._events.append((float(t_alive), int(dscore), str(kind)))
         self._chain = hashlib.sha256(self._chain + packed).digest()
 
