@@ -39,31 +39,14 @@ OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                        "docs", "screenshots", "wind_themes", "sandstorm")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-# ONE coherent ochre ramp — same hue, lightness steps from sunlit
-# crest to deep core — so the distant wall, foreground wall,
-# dust-devils, haze, motes and bird coat all read as the SAME sand.
-SAND_LIGHT = (226, 188, 130)        # sunlit crest
-SAND_MID   = (196, 152, 96)
-SAND_DARK  = (158, 116, 70)
-SAND_DEEP  = (120, 84, 50)          # deepest core
-RIM  = SAND_LIGHT
-HAZE = (200, 156, 98)               # cast / veil
-SAND = SAND_MID                     # motes + bird coat
+# EXACT original-haboob palette (theme_haboob) — one scheme for the
+# whole sandstorm, used identically by both walls.
+HI   = ((250, 210, 150), (255, 225, 170))          # sunlit rim
+BODY = ((150, 100, 58), (130, 86, 48), (168, 116, 70))
+DEEP = ((96, 62, 36), (80, 52, 30))
+HAZE = (198, 148, 82)                              # cast / veil
+SAND = (168, 116, 70)                              # motes + bird coat (a body tone)
 HORIZON = GROUND_Y - 70
-
-
-def sand_color(d, dark_bias=0.0):
-    """Depth 0 (sunlit top) -> 1 (deep base) on the shared ramp.
-    `dark_bias` shifts a closer/denser wall toward the dark end
-    while keeping the SAME hue family."""
-    d = min(1.0, max(0.0, d) + dark_bias)
-    if d < 0.25:
-        return SAND_LIGHT
-    if d < 0.55:
-        return SAND_MID
-    if d < 0.80:
-        return SAND_DARK
-    return SAND_DEEP
 
 
 def _smooth(t):
@@ -79,21 +62,6 @@ def sand_intensity(phase):
     if phase <= 0.20:
         return 1.0
     return _smooth(1.0 - (phase - 0.20) / (0.31 - 0.20))
-
-
-def horizon_glow(surf, s):
-    """Warm dusty air around the horizon — present even in the
-    tease so the distant wall doesn't sit starkly on the blue day
-    sky. Ties the whole storm into one warm atmosphere."""
-    if s <= 0.02:
-        return
-    glow = pygame.Surface((W, H), pygame.SRCALPHA)
-    for yy in range(0, GROUND_Y, 2):
-        d = abs(yy - HORIZON)
-        a = int((22 + s * 75) * max(0.0, 1.0 - d / 220.0))
-        if a > 0:
-            pygame.draw.rect(glow, (*HAZE, a), (0, yy, W, 2))
-    surf.blit(glow, (0, 0))
 
 
 # ── DISTANT wall (the long-tease hero, behind the mountains) ─────────────────
@@ -122,11 +90,12 @@ def distant_wall(surf, s, rng):
             yy = rng.uniform(top, base_y + 10 * SS)
             d = (yy - top) / max(1.0, base_y - top)      # 0 top -> 1 base
             r = int(rng.uniform(13, 24) * SS)
-            ss.blit(soft_disc(r, sand_color(d), rng.randint(80, 135)),
+            col = rng.choice(DEEP) if rng.random() < d * 0.85 else rng.choice(BODY)
+            ss.blit(soft_disc(r, col, rng.randint(85, 145)),
                     (gx - r + rng.uniform(-12, 12) * SS, yy - r))
         if rng.random() < 0.6:                 # bright sunlit rim on the crest
             rr = int(rng.uniform(8, 16) * SS)
-            ss.blit(soft_disc(rr, RIM, rng.randint(90, 150)),
+            ss.blit(soft_disc(rr, rng.choice(HI), rng.randint(90, 150)),
                     (gx - rr, top - rr * 0.4))
     blit_ss(surf, ss)
 
@@ -145,7 +114,7 @@ def dust_devils(surf, s, rng):
             wob = math.sin(t * 7.0 + k * 2.0) * 11 * SS * (1 - t)
             r = int((3 + (1 - t) * 9) * SS * (0.6 + s * 0.5))
             a = int((55 + s * 110) * (0.4 + 0.6 * (1 - t)))
-            col = RIM if t > 0.85 else sand_color(0.6)
+            col = rng.choice(HI) if t > 0.85 else rng.choice(BODY)
             ss.blit(soft_disc(r, col, a), (cx + wob - r, gy0 - t * h - r))
     blit_ss(surf, ss)
 
@@ -184,12 +153,12 @@ def foreground_wall(surf, s, rng):
             yy = rng.uniform(top - 8 * SS, gy0)
             d = (yy - top) / max(1.0, gy0 - top)
             r = int(rng.uniform(18, 34) * SS)
-            # same ramp as the distant wall, biased darker (close/dense)
-            ss.blit(soft_disc(r, sand_color(d, 0.18), rng.randint(95, 150)),
+            col = rng.choice(DEEP) if rng.random() < d * 0.85 else rng.choice(BODY)
+            ss.blit(soft_disc(r, col, rng.randint(95, 150)),
                     (gx - r + rng.uniform(-14, 14) * SS, yy - r))
         if rng.random() < 0.5:
             rr = int(rng.uniform(10, 20) * SS)
-            ss.blit(soft_disc(rr, RIM, rng.randint(60, 110)),
+            ss.blit(soft_disc(rr, rng.choice(HI), rng.randint(60, 110)),
                     (gx - rr, top - rr * 0.5))
     for _ in range(int(fs * 170)):
         xf = rng.random() ** 0.5
@@ -198,18 +167,20 @@ def foreground_wall(surf, s, rng):
         if gy < 0:
             continue
         r = rng.randint(3, 8) * SS
-        ss.blit(soft_disc(r, SAND_DARK, rng.randint(50, 110)), (gx - r, gy - r))
+        ss.blit(soft_disc(r, rng.choice(BODY), rng.randint(50, 110)), (gx - r, gy - r))
     blit_ss(surf, ss)
 
 
 def warm_haze(surf, s):
-    if s < 0.30:
+    """The haboob's warm cast, present from the start (faint in the
+    tease) so the dust never sits on stark blue sky; ramps into the
+    full visibility veil at the peak. Right edge (leading) heavier."""
+    if s <= 0.02:
         return
-    t = (s - 0.30) / 0.70
     haze = pygame.Surface((W, H), pygame.SRCALPHA)
     for xx in range(0, W, 2):
         fx = xx / W
-        a = int(t * (70 + fx * 80))
+        a = int(s * (70 + fx * 90))           # faint at tease -> ~160 at peak
         pygame.draw.rect(haze, (*HAZE, a), (xx, 0, 2, H))
     surf.blit(haze, (0, 0))
 
@@ -256,7 +227,6 @@ def scene(phase, rng):
     pal = _biome.palette_for_phase(phase)
     bucket = int((phase % 1.0) * _biome.PHASE_BUCKETS) % _biome.PHASE_BUCKETS
     surf.blit(get_sky_surface_biome(W, H, GROUND_Y, pal, bucket), (0, 0))
-    horizon_glow(surf, s)                     # warm dusty air ties it together
     # distant haboob + devils sit on the horizon, BEHIND the mountains
     distant_wall(surf, s, rng)
     dust_devils(surf, s, rng)
