@@ -338,6 +338,43 @@ def _build_snow_pool():
         if w <= 0.001:
             continue
         pool.append((x, y, dy, w))
+
+    # Head crown cap — a separate, lighter snow cap on TOP of Pip's
+    # head (it settles on the highest point too). Kept above the
+    # sunglasses and tapering off the front so it never covers his
+    # face. The nape dips between the back and the head, so this is
+    # its own region rather than an extension of the back line.
+    def crown_y(x):
+        return -22.5 + 0.07 * (x - 9.0) ** 2     # dome, top at x≈9
+    hx0, hx1 = 2.0, 17.0
+    hy0, hy1 = -26.0, -13.0
+    MH = 70
+    for i in range(MH):
+        u = (0.5 + A1 * (i + 1 + M)) % 1.0
+        v = (0.5 + A2 * (i + 1 + M)) % 1.0
+        x = hx0 + u * (hx1 - hx0)
+        y = hy0 + v * (hy1 - hy0)
+        dy = y - crown_y(x)
+        if dy < -3.0:
+            continue
+        if dy < 0.0:
+            wy = max(0.0, 1.0 + dy / 3.0)
+        elif dy <= 2.0:
+            wy = 1.0
+        else:
+            wy = max(0.0, 1.0 - (dy - 2.0) / 4.0)
+        hw = 1.0
+        if x > 13.0:                       # taper toward the face/front
+            hw *= max(0.18, 1.0 - (x - 13.0) / 5.0)
+        if x < 4.0:                        # taper at the nape edge
+            hw *= max(0.30, 1.0 - (4.0 - x) / 4.0)
+        wind = 1.0 + max(0.0, -(x - 9.0)) / 45.0
+        noise = 0.78 + 0.22 * ((math.sin((i + 999) * 12.9898) * 43758.5453) % 1.0)
+        w = hw * wy * wind * noise * 0.80  # lighter than the back drift
+        if w <= 0.001:
+            continue
+        pool.append((x, y, dy, w))
+
     pool.sort(key=lambda p: p[3], reverse=True)
     return pool
 
