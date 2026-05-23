@@ -54,26 +54,63 @@ def lightning_active(phase: float) -> bool:
     return 0.55 <= phase <= 0.72
 
 
+def calm_breeze(phase: float) -> float:
+    """Golden-hour calm breeze (phase 0.18) — drives the ambient
+    drifting autumn leaves only, no gameplay effect."""
+    return _bump(phase, 0.18, 0.10) * 0.35
+
+
+def storm_intensity(phase: float) -> float:
+    """The predawn SNOW SQUALL event (phase 0.85) — the single
+    bump that drives the snow visuals, the cold atmospheric wash,
+    AND the tailwind gameplay (Pip's forward push + scroll boost).
+    A ~8-second plateau at the peak (phase 0.8375-0.8625) keeps
+    the climax sustained: the smoothstep bump is scaled 1.045 then
+    clamped at 1.0, flattening the top while the ramps stay
+    smooth. 0 everywhere outside the predawn window, so the
+    golden-hour breeze (calm_breeze) never triggers snow."""
+    return min(1.0, _bump(phase, 0.85, 0.10) * 1.045)
+
+
 def wind_intensity(phase: float) -> float:
-    """Two bumps:
-      - Golden-hour calm breeze (phase 0.18, gentle leaf drift, no
-        gameplay effect)
-      - Predawn HEADWIND event (phase 0.85, peak storm wind that
-        pushes Pip leftward + slows the world scroll). Includes a
-        ~8-second plateau at peak (phase 0.8375-0.8625) so the
-        climax feels sustained rather than instantaneous — the
-        smoothstep bump is scaled by 1.045 then clamped at 1.0,
-        which flattens the top while keeping the ramps smooth.
-    Returned value is clamped 0..1 and serves both as a particle
-    spawn multiplier (Weather.update reads it for leaves + wind
-    streaks) and as the gameplay-effect scalar (World reads it for
-    bird.wind_lean + scroll slowdown)."""
-    calm  = _bump(phase, 0.18, 0.10) * 0.35   # ambient golden-hour breeze
-    # Storm bump with peak plateau: 1.045× scaling makes the
-    # smoothstep saturate at the top across a phase-width 0.025
-    # window (= 8 s of cycle), giving the climax visible duration.
-    storm = min(1.0, _bump(phase, 0.85, 0.10) * 1.045)
-    return max(0.0, min(1.0, calm + storm))
+    """Combined curve (calm breeze + storm) kept for any caller
+    that wants the union. Snow visuals + gameplay use
+    storm_intensity directly; leaves use calm_breeze."""
+    return max(0.0, min(1.0, calm_breeze(phase) + storm_intensity(phase)))
+
+
+# Cold wash colour for the snow squall — a deep blue-grey that
+# cools the whole scene so the bright white snow pops against it.
+SNOW_TINT = (74, 96, 130)
+SNOW_TINT_PEAK_A = 130
+_WHITE = (255, 255, 255)
+
+
+# Cached soft round snowflake sprites — pre-rendered once per
+# (radius, alpha-bucket) so each flake is a cheap blit of a smooth
+# anti-aliased disc (no per-frame surface building, no aliased
+# pixels). Mirrors the project's glow-cache convention.
+_FLAKE_CACHE: dict = {}
+
+
+def _snow_flake(radius: int, alpha: int):
+    radius = max(1, int(radius))
+    abucket = max(16, min(255, (int(alpha) // 16) * 16))
+    key = (radius, abucket)
+    cached = _FLAKE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    d = radius * 2 + 2
+    surf = pygame.Surface((d, d), pygame.SRCALPHA)
+    cx = cy = radius + 1
+    steps = max(3, radius)
+    for i in range(steps, 0, -1):
+        rr = max(1, int(radius * i / steps))
+        frac = i / steps                         # 1 rim → ~0 centre
+        a = int(abucket * (1.0 - frac) ** 1.4)   # 0 rim → alpha centre
+        pygame.draw.circle(surf, (255, 255, 255, a), (cx, cy), rr)
+    _FLAKE_CACHE[key] = surf
+    return surf
 
 
 # ── particle: a single rain streak ──────────────────────────────────────────
@@ -135,14 +172,11 @@ class _Leaf:
 
 
 class _WindStreak:
-    """Mid-ground fast streak racing leftward, used as the primary
-    visual cue for the predawn headwind event. Length, speed and
-    spawn-rate all scale with wind intensity. Drawn as a TAPERED
-    motion-blur trail: multiple short segments along the streak
-    length, alphas fading from 0 at the head/tail to peak in the
-    middle. The streak's flight path is a gentle sine wobble so
-    the trail curves rather than running dead straight — the eye
-    reads that as wind, not rain."""
+    """Driven-snow streak — the fast, near-horizontal lines of
+    snow blown hard by the tailwind (the storm's headline cue).
+    Drawn as a TAPERED white motion-blur trail (3 sub-segments,
+    faded → peak → faded) with a bright core; a gentle sine
+    wobble curves the path so it reads as wind-driven."""
     __slots__ = ("x", "y", "vx", "vy", "len", "color", "alpha",
                  "wobble_phase", "wobble_freq", "wobble_amp", "t")
 
@@ -221,11 +255,10 @@ class _WindStreak:
 
 
 class _WindDrift:
-    """Background slow drift — long soft semi-transparent streaks
-    scrolling at ~1/3 the speed of `_WindStreak` to give parallax
-    depth. No bright core, just a wide blurred body. Spawns at
-    the gentlest wind threshold so the sky-in-motion feeling
-    arrives BEFORE the strong fast streaks."""
+    """Big soft foreground snowflakes — the slow, near, slightly
+    blurred flakes that give the snow depth (parallax against the
+    smaller/faster `_WindDust` flakes). `len` is reused as the
+    flake radius. Rendered via the cached smooth-disc sprite."""
     __slots__ = ("x", "y", "vx", "vy", "len", "color", "alpha")
 
     def __init__(self, x, y, vx, vy, length, color, alpha):
@@ -242,27 +275,12 @@ class _WindDrift:
         self.y += self.vy * dt
 
     def off_screen(self):
-        return self.x > W + 60 or self.y > GROUND_Y or self.y < -40
+        return self.x > W + 30 or self.y > GROUND_Y or self.y < -30
 
     def draw(self, surf):
-        # Painted as a tapered horizontal blur: 3 stacked semi-
-        # transparent lines of different widths and offsets to
-        # approximate a wide soft brush stroke.
-        tail_x = self.x - self.len
-        tail_y = self.y
-        x1, y1 = int(self.x), int(self.y)
-        x2, y2 = int(tail_x), int(tail_y)
-        ox = min(x1, x2) - 4
-        oy = min(y1, y2) - 4
-        sw = abs(x2 - x1) + 8
-        sh = max(8, abs(y2 - y1) + 8)
-        sub = pygame.Surface((sw, sh), pygame.SRCALPHA)
-        # 3 stacked widths for a soft falloff
-        for w, a_mul in ((4, 0.35), (3, 0.65), (2, 1.00)):
-            a = int(self.alpha * a_mul)
-            pygame.draw.line(sub, (*self.color, a),
-                             (x1 - ox, y1 - oy), (x2 - ox, y2 - oy), w)
-        surf.blit(sub, (ox, oy))
+        spr = _snow_flake(self.len, self.alpha)
+        surf.blit(spr, (int(self.x) - spr.get_width() // 2,
+                        int(self.y) - spr.get_height() // 2))
 
 
 class _WindSwirl:
@@ -353,10 +371,10 @@ class _WindSwirl:
 
 
 class _WindDust:
-    """Tiny 1-2 px specks racing leftward fast. Provides the
-    'lots of small stuff in the air' textural density that turns
-    a few visible streaks into a sky full of wind. Fastest layer
-    of the four (parallax foreground)."""
+    """Snowflake — the bulk of the snow field. Small-to-medium
+    soft round white flakes drifting rightward + down with the
+    tailwind. `size` is the flake radius; rendered via the cached
+    smooth-disc sprite so edges stay soft, never pixelated."""
     __slots__ = ("x", "y", "vx", "vy", "size", "color", "alpha")
 
     def __init__(self, x, y, vx, vy, size, color, alpha):
@@ -373,22 +391,12 @@ class _WindDust:
         self.y += self.vy * dt
 
     def off_screen(self):
-        return self.x > W + 10 or self.y > GROUND_Y or self.y < -20
+        return self.x > W + 12 or self.y > GROUND_Y or self.y < -20
 
     def draw(self, surf):
-        # Tiny dot with a 2-px tail painted as a 1-px line for
-        # speed-feel — at 400-600 px/s the eye registers a streak,
-        # not a static dot.
-        tail = max(2, int(self.size * 1.5))
-        x1 = int(self.x);  y1 = int(self.y)
-        x2 = x1 - tail;    y2 = y1
-        sw = tail + 4
-        sh = max(4, self.size + 4)
-        sub = pygame.Surface((sw, sh), pygame.SRCALPHA)
-        pygame.draw.line(sub, (*self.color, self.alpha),
-                         (sw - 2, sh // 2),
-                         (sw - 2 - tail, sh // 2), self.size)
-        surf.blit(sub, (x1 - sw + 2, y1 - sh // 2))
+        spr = _snow_flake(self.size, self.alpha)
+        surf.blit(spr, (int(self.x) - spr.get_width() // 2,
+                        int(self.y) - spr.get_height() // 2))
 
 
 # ── main Weather controller ────────────────────────────────────────────────
@@ -435,31 +443,33 @@ class Weather:
             for s in self.streaks:
                 s.update(dt)
 
-        # Wind leaves
-        wind = wind_intensity(phase)
-        if wind > 0:
-            target = int(wind * 10)
+        # Golden-hour leaves — ambient autumn drift, driven only by
+        # the calm breeze bump (phase 0.18) so they never mix with
+        # the predawn snow squall.
+        breeze = calm_breeze(phase)
+        if breeze > 0:
+            target = int(breeze * 10)
             while len(self.leaves) < target:
-                self._spawn_leaf(wind)
+                self._spawn_leaf(breeze)
             for lf in self.leaves:
                 lf.update(dt)
             self.leaves = [lf for lf in self.leaves if not lf.off_screen()]
         else:
             self.leaves = []
 
-        # Wind event — four layered particle types for parallax
-        # depth and atmospheric richness. Each layer gates in at a
-        # different intensity threshold so the buildup reads as
-        # "more types of wind appearing" rather than just denser:
-        #   wind > 0.10  drift (slow background) + dust (specks)
-        #   wind > 0.15  streaks (mid-ground fast trails)
-        #   wind > 0.30  swirls (iconic cartoon-wind cue)
+        # SNOW SQUALL — four layered snow particle types driven by
+        # the storm bump (phase 0.85). Each layer gates in at a
+        # different threshold so the buildup reads as the snow
+        # thickening, not just appearing all at once:
+        #   storm > 0.10  big drift flakes + bulk flakes
+        #   storm > 0.15  driven-snow streaks
+        #   storm > 0.30  turbulence curls
+        storm = storm_intensity(phase)
 
-        # Layer A: background slow drift — appears earliest, sets
-        # the atmospheric mood before anything else gets dense.
-        if wind > 0.10:
-            drift_t = (wind - 0.10) / 0.90
-            target = int(drift_t * 25)
+        # Big soft foreground flakes (slow parallax depth).
+        if storm > 0.10:
+            drift_t = (storm - 0.10) / 0.90
+            target = int(drift_t * 30)
             while len(self.wind_drifts) < target:
                 self._spawn_wind_drift(drift_t, phase)
         for wd in self.wind_drifts:
@@ -467,12 +477,10 @@ class Weather:
         self.wind_drifts = [wd for wd in self.wind_drifts
                              if not wd.off_screen()]
 
-        # Layer D: dust specks — same threshold as drift, very
-        # high density at peak (120 specks), provides textural
-        # foreground depth.
-        if wind > 0.10:
-            dust_t = (wind - 0.10) / 0.90
-            target = int(dust_t * 120)
+        # Bulk snowflakes — dense at peak (the body of the squall).
+        if storm > 0.10:
+            dust_t = (storm - 0.10) / 0.90
+            target = int(dust_t * 200)
             while len(self.wind_dust) < target:
                 self._spawn_wind_dust(dust_t, phase)
         for du in self.wind_dust:
@@ -480,10 +488,10 @@ class Weather:
         self.wind_dust = [du for du in self.wind_dust
                           if not du.off_screen()]
 
-        # Layer B: mid-ground fast streaks (the visual headline).
-        if wind > 0.15:
-            streak_t = (wind - 0.15) / 0.85
-            target = int(streak_t * 60)
+        # Driven-snow streaks (the wind-blown headline).
+        if storm > 0.15:
+            streak_t = (storm - 0.15) / 0.85
+            target = int(streak_t * 70)
             while len(self.wind_streaks) < target:
                 self._spawn_wind_streak(streak_t, phase)
         for ws in self.wind_streaks:
@@ -491,12 +499,10 @@ class Weather:
         self.wind_streaks = [ws for ws in self.wind_streaks
                              if not ws.off_screen()]
 
-        # Layer C: swirls — the iconic cartoon-wind cue, only
-        # appears mid-build onward. Lower density (12 at peak) so
-        # each swirl reads as a deliberate shape, not visual mush.
-        if wind > 0.30:
-            swirl_t = (wind - 0.30) / 0.70
-            target = int(swirl_t * 12)
+        # Turbulence curls — small white eddies, peak only.
+        if storm > 0.30:
+            swirl_t = (storm - 0.30) / 0.70
+            target = int(swirl_t * 10)
             while len(self.wind_swirls) < target:
                 self._spawn_wind_swirl(swirl_t, phase)
         for sw_ in self.wind_swirls:
@@ -537,107 +543,93 @@ class Weather:
         ))
         self.leaves.append(_Leaf(x, y, vx, vy, hue))
 
-    def _wind_palette(self, phase):
-        """Tint that drifts from cool predawn (0.75) to warm
-        sunrise (0.95) across the wind event. Returns one of a
-        small palette per call so successive particles vary
-        slightly within the current biome moment."""
-        # Drift 0.75 → 0.95 mapped to 0..1
-        t = max(0.0, min(1.0, (phase - 0.75) / 0.20))
-        # Cool slate cyan → warm peach-cream
-        cool = (180, 200, 235)
-        warm = (220, 215, 200)
-        base_r = int(cool[0] + (warm[0] - cool[0]) * t)
-        base_g = int(cool[1] + (warm[1] - cool[1]) * t)
-        base_b = int(cool[2] + (warm[2] - cool[2]) * t)
-        # 4 small variations around the base — saturate/desat for
-        # natural per-particle variety
-        return random.choice((
-            (base_r,           base_g,           base_b),
-            (base_r - 10,      base_g - 5,       base_b - 5),
-            (min(255, base_r + 15), min(255, base_g + 10), min(255, base_b + 10)),
-            (base_r - 5,       base_g + 5,       base_b + 5),
-        ))
-
     def _spawn_wind_streak(self, streak_t, phase):
-        """Mid-ground fast streak — TAILWIND direction. Spawns at
-        the left edge (or above-left) and races RIGHTWARD across
-        the canvas, suggesting wind blowing in the direction of
-        Pip's travel. Length, speed, alpha scale with `streak_t`."""
-        # 60% spawn at left edge, 40% from above-left (storm
-        # blowing in diagonally from upper-left)
+        """Driven-snow streak — TAILWIND direction. Spawns at the
+        left edge (or above-left) and races RIGHTWARD + slightly
+        down across the canvas. Length, speed, alpha scale with
+        `streak_t`."""
         if random.random() < 0.6:
             x = -random.uniform(0, 20)
             y = random.uniform(20, GROUND_Y - 40)
         else:
             x = random.uniform(-20, W * 0.6)
             y = random.uniform(-30, 0)
-        vx = (540 + streak_t * 340) + random.uniform(0, 110)
-        vy = 30 + random.uniform(-10, 40)
+        vx = (360 + streak_t * 260) + random.uniform(0, 90)
+        vy = 50 + random.uniform(-10, 45)
         length = int(12 + streak_t * 18)
-        col = self._wind_palette(phase)
-        alpha = int(120 + streak_t * 110)
+        alpha = int(150 + streak_t * 70)
         wobble_amp = random.uniform(1.5, 3.5)
         wobble_freq = random.uniform(8.0, 13.0)
         self.wind_streaks.append(
-            _WindStreak(x, y, vx, vy, length, col, alpha,
+            _WindStreak(x, y, vx, vy, length, _WHITE, alpha,
                         wobble_amp=wobble_amp,
                         wobble_freq=wobble_freq))
 
     def _spawn_wind_drift(self, drift_t, phase):
-        """Background slow drift — long soft RIGHTWARD streaks."""
+        """Big soft foreground snowflake — slow, near, slightly
+        transparent (parallax depth against the smaller flakes)."""
         x = -random.uniform(0, 30)
-        y = random.uniform(10, GROUND_Y - 30)
-        vx = (195 + drift_t * 115) + random.uniform(0, 50)
-        vy = random.uniform(-5, 15)
-        length = int(30 + drift_t * 20)
-        col = self._wind_palette(phase)
-        alpha = int(50 + drift_t * 50)
+        y = random.uniform(-10, GROUND_Y - 20)
+        vx = (60 + drift_t * 70) + random.uniform(0, 30)
+        vy = 25 + random.uniform(0, 30)
+        radius = int(6 + drift_t * 5)        # 6..11 px
+        alpha = int(60 + drift_t * 50)       # 60..110
         self.wind_drifts.append(
-            _WindDrift(x, y, vx, vy, length, col, alpha))
+            _WindDrift(x, y, vx, vy, radius, _WHITE, alpha))
 
     def _spawn_wind_swirl(self, swirl_t, phase):
-        """Iconic cartoon-wind cue — drifts RIGHTWARD with the
-        tailwind. Sizes bimodal (small/medium/big feature)."""
+        """Turbulence curl — a small white snow eddy drifting
+        RIGHTWARD with the tailwind. Sizes bimodal."""
         x = -random.uniform(0, 20)
         y = random.uniform(40, GROUND_Y - 60)
-        vx = (170 + swirl_t * 130) + random.uniform(0, 50)
-        vy = random.uniform(-10, 10)
+        vx = (110 + swirl_t * 90) + random.uniform(0, 40)
+        vy = random.uniform(-10, 14)
         size_pick = random.random()
         if size_pick < 0.15:
-            size = random.randint(14, 18)
+            size = random.randint(12, 16)
         elif size_pick < 0.45:
             size = random.randint(5, 7)
         else:
-            size = random.randint(8, 12)
-        col = self._wind_palette(phase)
-        alpha = int(140 + swirl_t * 80)
+            size = random.randint(8, 11)
+        alpha = int(120 + swirl_t * 80)
         rot_rate = random.choice((-1.0, 1.0)) * random.uniform(0.8, 1.8)
         life = random.uniform(1.4, 2.2)
         self.wind_swirls.append(
-            _WindSwirl(x, y, vx, vy, size, col, alpha,
+            _WindSwirl(x, y, vx, vy, size, _WHITE, alpha,
                         rot_rate, life))
 
     def _spawn_wind_dust(self, dust_t, phase):
-        """Tiny specks racing RIGHTWARD fast — foreground texture."""
+        """Small-to-medium snowflake — the bulk of the snow field,
+        drifting RIGHTWARD + down with the tailwind."""
         x = -random.uniform(0, 15)
-        y = random.uniform(5, GROUND_Y - 10)
-        vx = (650 + dust_t * 340) + random.uniform(0, 60)
-        vy = random.uniform(-10, 25)
-        size = random.choice((1, 1, 2))
-        col = self._wind_palette(phase)
-        alpha = int(80 + dust_t * 80)
+        y = random.uniform(-10, GROUND_Y - 10)
+        vx = (140 + dust_t * 140) + random.uniform(0, 50)
+        vy = 35 + random.uniform(0, 45)
+        radius = random.randint(2, 6)
+        alpha = int(150 + dust_t * 90)
         self.wind_dust.append(
-            _WindDust(x, y, vx, vy, size, col, alpha))
+            _WindDust(x, y, vx, vy, radius, _WHITE, alpha))
 
     def draw(self, surf):
         # Rain
         for s in self.streaks:
             s.draw(surf)
-        # Wind layers — drawn back-to-front for parallax depth:
-        # background drift → dust specks → mid streaks → foreground
-        # swirls. Same painter's-order rule the rest of the scene
-        # already follows.
+        # Cold atmospheric wash for the snow squall — a full-screen
+        # blue-grey overlay whose alpha tracks the storm envelope,
+        # so the scene cools as the snow builds and warms back as it
+        # fades. Drawn here (after pillars, before the snow + before
+        # the bird/coins which render later in the scene) so the
+        # background chills while Pip + collectibles stay vivid.
+        storm = storm_intensity(self.phase)
+        if storm > 0.01:
+            a = int(SNOW_TINT_PEAK_A * storm)
+            if a > 0:
+                wash = pygame.Surface((W, H), pygame.SRCALPHA)
+                wash.fill((*SNOW_TINT, a))
+                surf.blit(wash, (0, 0))
+        # Snow layers — back-to-front for parallax depth:
+        # big drift flakes → bulk flakes → driven streaks →
+        # turbulence curls.
         for wd in self.wind_drifts:
             wd.draw(surf)
         for du in self.wind_dust:

@@ -54,7 +54,7 @@ from game import audio
 from game.weather import (
     Weather,
     rain_intensity as _rain_intensity,
-    wind_intensity as _wind_intensity,
+    storm_intensity as _storm_intensity,
 )
 from game.ambient import AmbientScenes
 
@@ -338,13 +338,12 @@ class World:
         # of snapping.
         if self.slide_boost > 0:
             base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
-        # Tailwind weather event (predawn ~phase 0.85): SPEEDS UP
-        # the world scroll so pipes/coins approach faster and Pip
-        # covers more distance per second. Scales linearly with
-        # wind_intensity — at peak wind the scroll is
-        # (1 + WEATHER_WIND_SCROLL_FACTOR) × normal
-        # (default 1.30 × normal = 30 % faster).
-        wi = _wind_intensity(self.biome_phase)
+        # Snow-squall tailwind (predawn ~phase 0.85): SPEEDS UP the
+        # world scroll so pipes/coins approach faster and Pip covers
+        # more distance per second. Scales linearly with the storm
+        # envelope — at peak the scroll is (1 +
+        # WEATHER_WIND_SCROLL_FACTOR) × normal (default 1.30 ×).
+        wi = _storm_intensity(self.biome_phase)
         if wi > 0.05:
             base *= 1.0 + WEATHER_WIND_SCROLL_FACTOR * wi
         return base
@@ -1563,14 +1562,12 @@ class World:
                 self.bird.shiver_y = 0.0
                 self.bird.flap_dampen = 0.0
 
-        # Tailwind: a separate weather event peaking at phase 0.85
-        # (predawn). Wind blows in the direction of Pip's travel,
-        # giving him a forward push and speeding up the world
-        # scroll. Visual lean is POSITIVE (rightward, ahead of
-        # his fixed x) and scroll is BOOSTED in _current_scroll().
-        # Gate at wi > 0.05 so the ambient golden-hour breeze
-        # doesn't nudge anything (peak 0.35 × 0.05 = imperceptible).
-        wi = _wind_intensity(self.weather.phase)
+        # Snow-squall tailwind (predawn ~phase 0.85): the wind blows
+        # in the direction of Pip's travel, giving him a forward
+        # push (positive = rightward, ahead of his fixed x) and
+        # speeding the scroll (in _current_scroll). Driven by the
+        # storm envelope, so the golden-hour breeze never nudges him.
+        wi = _storm_intensity(self.weather.phase)
         if wi > 0.05:
             # Positive = rightward push (screen +x is right)
             self.bird.wind_lean = +WEATHER_WIND_LEAN_AMP * wi
