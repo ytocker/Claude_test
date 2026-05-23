@@ -1,7 +1,7 @@
 """Top-left slot-machine renderer for the LOTTERY power-up reveal.
 
 The reveal animation runs in the corner of the HUD rather than over the
-bird so it never sits in the pillar-approach lane. Compact ~132x82 px
+bird so it never sits in the pillar-approach lane. Compact ~104x82 px
 cabinet; three reels lock in stagger (0.5 s, 0.7 s, 0.9 s into the
 animation) so by LOTTERY_REVEAL_TIME (1.0 s) all three symbols are
 visible and the result strip flips from "LOTTERY" to the tier label.
@@ -51,12 +51,14 @@ _CREAM        = (245, 230, 200)
 
 # Cabinet footprint in the top-left, anchored just BELOW the coins pill
 # (10..70, 14..44 in hud.draw_play) and sized to clear the buff timer
-# row that starts at y=128. The score number (centred at x=180) stays
-# clear of the cabinet's right edge. The HUD also draws after this
+# row that starts at y=128. The right edge (x=108, lever tucked inside)
+# stays left of the score plaque's widest left edge — the plaque is
+# centred at x=180 and its pill reaches ~x=112 at a 3-digit score, so
+# the two never touch in normal play. The HUD also draws after this
 # renderer, so any incidental overlap is the HUD on top of us — never
 # the reverse.
-CAB_X, CAB_Y = 6, 46
-CAB_W, CAB_H = 132, 82
+CAB_X, CAB_Y = 4, 46
+CAB_W, CAB_H = 104, 82
 
 
 # ── engraved text (cream face + tinted rim + dark shadow) ───────────────────
@@ -249,9 +251,9 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
 
     # Reels. Trimmed reel_h + smaller symbols so the full cabinet still
     # clears the buff-timer row that starts at y=122.
-    reel_w, reel_h = 25, 28
+    reel_w, reel_h = 22, 28
     reel_y = marquee.bottom + 4
-    reels_x0 = cabinet.x + 16
+    reels_x0 = cabinet.x + 12
     reel_gap = 7
 
     for i in range(3):
@@ -266,7 +268,7 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                              (reel.right - 1, reel.y + 1 + k))
 
         if reel_progress[i] >= 1.0 and locked_tier is not None:
-            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](16)
+            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](15)
             surf.blit(sym, sym.get_rect(center=reel.center))
         else:
             speed = 14 + i * 2
@@ -297,8 +299,8 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                      (reels_x0 + 3 * reel_w + 2 * reel_gap + 2, pl_y), 1)
 
     # Lever.
-    lev_top = (cabinet.right - 4, cabinet.y + 27)
-    lev_bot = (cabinet.right + 3, cabinet.y + 43)
+    lev_top = (cabinet.right - 9, cabinet.y + 27)
+    lev_bot = (cabinet.right - 3, cabinet.y + 43)
     pygame.draw.line(surf, _GOLD_DEEP, lev_top, lev_bot, 3)
     pygame.draw.circle(surf, _RED_OUTLINE, lev_top, 3)
     pygame.draw.circle(surf, _GOLD_BRIGHT, lev_top, 3, 1)
@@ -329,14 +331,14 @@ def _draw_result_strip(surf, tier, delta):
                      border_radius=strip.height // 2)
     pygame.draw.rect(surf, rim, strip, width=1,
                      border_radius=strip.height // 2)
-    tname_img = _engraved_text(tier, 11, rim=rim)
+    tname_img = _engraved_text(tier, 10, rim=rim)
     if delta > 0:
         v_str = f"+{delta}"
     elif delta < 0:
         v_str = str(delta)
     else:
         v_str = "0"
-    vstr_img = _engraved_text(v_str, 12, rim=rim)
+    vstr_img = _engraved_text(v_str, 11, rim=rim)
     gap = 4
     total_w = tname_img.get_width() + gap + vstr_img.get_width()
     start_x = strip.centerx - total_w // 2
