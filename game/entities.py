@@ -246,6 +246,9 @@ _SNOW_LINE_KEY = (
     (-5.0,  -8.5),   # back crest
     (2.0,   -8.0),   # back/shoulder
     (8.0,   -9.0),   # shoulder
+    (11.0, -15.0),   # nape (climbs)
+    (16.5, -19.5),   # crown approach
+    (19.0, -21.0),   # crown — head reaches right
 )
 
 _SNOW_DISC_CACHE: dict = {}
@@ -301,77 +304,47 @@ def _build_snow_pool():
     A1, A2 = 0.7548776662, 0.5698402910    # R2 low-discrepancy seq
     pool = []
 
-    # ── Back drift (tail → back → shoulder) ──────────────────────
-    # Heavy coverage; the right (head-ward) end is TRIMMED so the
-    # main mass doesn't run under the head (chosen "back-trim 5").
-    def back_along(x):
-        if x < -29.0:                      # ease off at the thin tail tip
-            return max(0.6, 1.0 - (-29.0 - x) / 4.0)
-        if x > 3.0:                        # trim the right end
-            return max(0.4, 1.0 - (x - 3.0) / 4.0)
-        return 1.0
+    # ── ONE continuous drift (tail → back → nape → crown) ────────
+    # A single band along the whole snow line, so the snow reads as
+    # one connected layer (not back/crown patches). Volume is shaped
+    # by region: a fuller bridge over the nape, the head reaching
+    # right onto the crown ("head-forward" pick). The face guard
+    # keeps the head snow off the sunglasses.
+    def prof(x):
+        if x < -20.0:                      # tail
+            return 0.85
+        if x <= 4.0:                       # body
+            return 1.0
+        if x <= 12.0:                      # bridge / nape — extra volume
+            return 1.25
+        return 1.2                         # head crown (prominent, righter)
 
-    bx0, bx1 = -29.5, 6.0
-    by0, by1 = -11.0, 11.0
-    M = 300
+    def along(x):
+        taper = max(0.5, 1.0 - (-29.0 - x) / 4.0) if x < -29.0 else 1.0
+        return taper * prof(x)
+
+    x_lo, x_hi = -29.5, 20.5
+    y_lo, y_hi = -24.0, 6.0
+    M = 1050
     for i in range(M):
         u = (0.5 + A1 * (i + 1)) % 1.0
         v = (0.5 + A2 * (i + 1)) % 1.0
-        x = bx0 + u * (bx1 - bx0)
-        y = by0 + v * (by1 - by0)
+        x = x_lo + u * (x_hi - x_lo)
+        y = y_lo + v * (y_hi - y_lo)
+        if x > 13.0 and y > -17.0:         # never spill onto the face/lenses
+            continue
         dy = y - line_y(x)                 # distance below the snow line
         if dy < -1.5:                      # barely any above the line (no float)
             continue
         if dy < 0.0:
             wy = max(0.0, 1.0 + dy / 1.5) * 0.6
-        elif dy <= 4.0:
+        elif dy <= 6.0:
             wy = 1.0
         else:
-            wy = max(0.0, 1.0 - (dy - 4.0) / 6.0)
+            wy = max(0.0, 1.0 - (dy - 6.0) / 6.0)
         wind = 1.0 + max(0.0, -x) / 55.0   # slight windward (rear) bias
         noise = 0.78 + 0.22 * ((math.sin(i * 12.9898) * 43758.5453) % 1.0)
-        w = back_along(x) * wy * wind * noise * 1.2
-        if w <= 0.001:
-            continue
-        pool.append((x, y, dy, w))
-
-    # ── Head crown cap ───────────────────────────────────────────
-    # Snow on TOP of his head, shifted RIGHT onto the crown (chosen
-    # "head+6") and kept clear of the sunglasses.
-    CX, X_LO, X_HI = 16.0, 10.0, 22.0
-    def crown_y(x):
-        return -25.0 + 0.09 * (x - CX) ** 2
-    def crown_along(x):
-        w = 1.0
-        if x > X_HI - 3.0:
-            w *= max(0.18, 1.0 - (x - (X_HI - 3.0)) / 3.0)
-        if x < X_LO + 2.0:
-            w *= max(0.30, 1.0 - ((X_LO + 2.0) - x) / 2.0)
-        return w
-
-    hy0, hy1 = -29.0, -17.0
-    MH = 110
-    SEED = 900
-    for i in range(MH):
-        u = (0.5 + A1 * (i + 1 + SEED)) % 1.0
-        v = (0.5 + A2 * (i + 1 + SEED)) % 1.0
-        x = X_LO + u * (X_HI - X_LO)
-        y = hy0 + v * (hy1 - hy0)
-        dy = y - crown_y(x)
-        if dy < -1.5:
-            continue
-        if x > 13.0 and y > -17.0:         # never spill onto the face/lenses
-            continue
-        if dy < 0.0:
-            wy = max(0.0, 1.0 + dy / 1.5) * 0.6
-        elif dy <= 2.5:
-            wy = 1.0
-        else:
-            wy = max(0.0, 1.0 - (dy - 2.5) / 3.5)
-        wind = 1.0 + max(0.0, -(x - CX)) / 45.0
-        noise = 0.78 + 0.22 * ((math.sin((i + SEED) * 12.9898)
-                                * 43758.5453) % 1.0)
-        w = crown_along(x) * wy * wind * noise
+        w = along(x) * wy * wind * noise * 1.4
         if w <= 0.001:
             continue
         pool.append((x, y, dy, w))
