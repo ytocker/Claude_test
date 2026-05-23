@@ -174,11 +174,13 @@ NAPE = [(6.0, -9.0), (9.0, -13.0), (12.0, -18.0), (15.0, -21.0)]
 
 
 def bridge_full(*, bw, bfull, bend, bM, bx_hi,
-                cw, cfull, cend, cM,
+                cw, cfull, cend, cM, ctop=-25.0,
                 rw, rfull, rend, rM):
     """The BRIDGE look (back drift + crown + a nape bridge joining
     them into one layer), parameterised so we can make it FULLER:
-    `b*` = back band, `c*` = crown cap, `r*` = nape bridge."""
+    `b*` = back band, `c*` = crown cap, `r*` = nape bridge. `ctop`
+    is the crown dome-top y (raise it toward 0 to lower the head
+    cap's HEIGHT)."""
     p = []
     t0 = bx_hi - 3.0
     band(p, TAIL_BACK, -29.5, bx_hi, -12.0, 12.0,
@@ -186,44 +188,56 @@ def bridge_full(*, bw, bfull, bend, bM, bx_hi,
              max(0.6, 1.0 - (-29.0 - x) / 4.0) if x < -29 else
              (max(0.45, 1.0 - (x - t0) / 4.0) if x > t0 else 1.0)),
          dy_cull=-1.5, dy_full=bfull, dy_end=bend, wmul=bw, M=bM)
-    crown(p, cx=16.0, x_lo=10.0, x_hi=22.0, wmul=cw, M=cM,
-          dy_cull=-1.5, dy_full=cfull, dy_end=cend)
+    crown(p, cx=16.0, x_lo=10.0, x_hi=22.0, top=ctop, y_lo=ctop - 4.0,
+          wmul=cw, M=cM, dy_cull=-1.5, dy_full=cfull, dy_end=cend)
     band(p, NAPE, 5.0, 15.0, -25.0, -6.0, along=lambda x: 1.0,
          dy_cull=-1.0, dy_full=rfull, dy_end=rend, wmul=rw, M=rM,
          seed=500, face_guard=True)
     return _sort(p)
 
 
-# Approved bridge baseline (panel 0) for comparison.
-def cv3_bridge():
-    return bridge_full(bw=1.2, bfull=4.0, bend=10.0, bM=300, bx_hi=6.0,
-                       cw=1.0, cfull=2.5, cend=6.0, cM=110,
-                       rw=1.0, rfull=3.0, rend=7.0, rM=90)
+# ── ONE CONTINUOUS LAYER ─────────────────────────────────────────────────────
+# A SINGLE band along one line tail tip → back → up the nape →
+# crown, at C's fullness — so the snow is one continuous drift, not
+# back/crown/bridge patches stacked on top of each other. The head
+# is trimmed by TAPERING the same band's weight toward the head end
+# (head_w), so the head flows out of the body instead of being a
+# separate tall pom.
+CONT = [
+    (-31.0, -2.0), (-25.0, -4.0), (-19.0, -6.0), (-12.0, -8.0),
+    (-5.0,  -8.5), (2.0,  -8.0),  (8.0,  -9.0),
+    (11.0, -14.0), (14.0, -19.0), (16.5, -21.0),   # nape → crown
+]
 
 
-# 5 FULLER bridge options (the user picked bridge, wants it fuller).
+def cont_layer(head_w, dy_full=5.5, dy_end=12.0, wmul=1.4, M=900):
+    """One continuous full drift. `head_w` (≤1) tapers the band
+    weight from the shoulder out to the crown so the head cap is
+    shorter/lighter than the body — lower head_w = more head trim.
+    Sampling rect hugs the line (y -24..6) so most samples land
+    in-band → a properly full, even single layer."""
+    def along(x):
+        if x < -29.0:
+            return max(0.55, 1.0 - (-29.0 - x) / 4.0)
+        if x > 6.0:
+            t = min(1.0, (x - 6.0) / 10.0)
+            return 1.0 + (head_w - 1.0) * t
+        return 1.0
+    p = []
+    band(p, CONT, -29.5, 18.0, -24.0, 6.0, along=along,
+         dy_cull=-1.5, dy_full=dy_full, dy_end=dy_end, wmul=wmul, M=M,
+         face_guard=True)
+    return _sort(p)
+
+
+# One continuous layer; head trimmed by varying amounts.
 VARIANTS = [
-    ("A  fuller (even)", lambda: bridge_full(
-        bw=1.3, bfull=5.0, bend=11.0, bM=320, bx_hi=7.0,
-        cw=1.15, cfull=3.0, cend=7.0, cM=120,
-        rw=1.25, rfull=4.0, rend=8.0, rM=115)),
-    ("B  fuller+", lambda: bridge_full(
-        bw=1.4, bfull=5.5, bend=12.0, bM=340, bx_hi=7.0,
-        cw=1.25, cfull=3.0, cend=7.5, cM=130,
-        rw=1.4, rfull=4.5, rend=9.0, rM=135)),
-    ("C  fullest (all)", lambda: bridge_full(
-        bw=1.55, bfull=6.5, bend=13.0, bM=380, bx_hi=8.0,
-        cw=1.4, cfull=3.5, cend=8.5, cM=150,
-        rw=1.55, rfull=5.5, rend=10.5, rM=165)),
-    ("D  full body, slim join", lambda: bridge_full(
-        bw=1.55, bfull=6.5, bend=13.0, bM=380, bx_hi=8.0,
-        cw=1.1, cfull=2.5, cend=6.5, cM=110,
-        rw=1.15, rfull=3.5, rend=7.5, rM=100)),
-    ("E  full join + head", lambda: bridge_full(
-        bw=1.3, bfull=5.0, bend=11.0, bM=320, bx_hi=7.0,
-        cw=1.45, cfull=4.0, cend=9.0, cM=160,
-        rw=1.6, rfull=6.0, rend=11.0, rM=180)),
-    ("0  BRIDGE base (today)", cv3_bridge),
+    ("1  head trim-slight", lambda: cont_layer(0.85)),
+    ("2  head trim",        lambda: cont_layer(0.72)),
+    ("3  head trim-med",    lambda: cont_layer(0.62)),
+    ("4  head trim-more",   lambda: cont_layer(0.52)),
+    ("5  head trim-most",   lambda: cont_layer(0.44)),
+    ("0  head full (no trim)", lambda: cont_layer(1.0)),
 ]
 
 
@@ -269,7 +283,7 @@ def main():
         sheet.blit(font.render(label, True, (240, 246, 255)),
                    (x + (pw - font.size(label)[0]) // 2, y + ph + 5))
 
-    out = os.path.join(OUT_DIR, "bridge_fuller_sheet.png")
+    out = os.path.join(OUT_DIR, "continuous_headtrim_sheet.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
