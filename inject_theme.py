@@ -668,6 +668,7 @@ _TELEMETRY_JS = """
     var rFetch  = null;
     var rLog    = null;
     var rFetchError = '';
+    var rSubmitError = '';
 
     /* One submit per run_id per page load. */
     var usedIds = (typeof Set === 'function')
@@ -743,20 +744,30 @@ _TELEMETRY_JS = """
 
     async function doSubmit(rawPayload) {
         rSubmit = null;
+        rSubmitError = '';
+        /* On any blocked submit, record WHY (polled by Python via
+           __sk('submit_error')) and warn to the console, so a dropped
+           leaderboard score is never silent again. */
+        function fail(reason) {
+            rSubmit = false;
+            rSubmitError = reason;
+            try { console.warn('[skybit/sk] submit blocked: ' + reason); } catch (_) {}
+        }
         try {
-            if (!a || !b) { rSubmit = false; return; }
+            if (!a || !b) { fail('config'); return; }
             var payload;
             try {
                 payload = (typeof rawPayload === 'string')
                     ? JSON.parse(rawPayload) : rawPayload;
-            } catch (e) { rSubmit = false; return; }
-            if (!payload || typeof payload !== 'object') { rSubmit = false; return; }
+            } catch (e) { fail('bad-payload'); return; }
+            if (!payload || typeof payload !== 'object') { fail('bad-payload'); return; }
             var rid = String(payload.run_id || '');
-            if (!rid || usedIds.has(rid)) { rSubmit = false; return; }
+            if (!rid) { fail('missing-run-id'); return; }
+            if (usedIds.has(rid)) { fail('replay'); return; }
             var events = payload.events;
-            if (!events || !events.length) { rSubmit = false; return; }
+            if (!events || !events.length) { fail('no-events'); return; }
             var localHex = await chainHex(events);
-            if (localHex !== String(payload.chain_hex || '')) { rSubmit = false; return; }
+            if (localHex !== String(payload.chain_hex || '')) { fail('chain-mismatch'); return; }
             usedIds.add(rid);
             /* 6 s deadline — without it, a hung TCP socket can keep the
                submit pending far longer than Python's poll timeout, and
@@ -781,7 +792,17 @@ _TELEMETRY_JS = """
                 });
             } finally { clearTimeout(tid); }
             rSubmit = r.ok;
-        } catch (e) { rSubmit = false; }
+            if (r.ok) {
+                try { console.log('[skybit/sk] submit ok'); } catch (_) {}
+            } else {
+                rSubmitError = 'http ' + r.status;
+                try { console.warn('[skybit/sk] submit blocked: http ' + r.status); } catch (_) {}
+            }
+        } catch (e) {
+            rSubmit = false;
+            rSubmitError = 'exception:' + (e && e.name ? e.name : 'Error');
+            try { console.warn('[skybit/sk] submit ' + rSubmitError); } catch (_) {}
+        }
     }
 
     async function doFetch() {
@@ -878,6 +899,7 @@ _TELEMETRY_JS = """
         switch (String(action || '')) {
             case 'submit':       doSubmit(payload); return null;
             case 'submit_done':  return rSubmit;
+            case 'submit_error': return rSubmitError;
             case 'fetch':        doFetch();         return null;
             case 'fetch_done':   return rFetch;
             case 'fetch_error':  return rFetchError;

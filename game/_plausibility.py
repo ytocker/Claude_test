@@ -17,19 +17,29 @@ import struct
 
 from game.config import (
     PIPE_SPACING, SCROLL_MAX, COIN_RUSH_INTERVAL, COIN_RUSH_COINS,
+    RAIL_SCROLL_MULT,
 )
 
 
-# Floor for the per-pipe travel time at top scroll speed. Used both as a
-# minimum gap between consecutive pipe-pass events and as a lower bound
-# on total run duration. The 0.05 s slack absorbs frame-time jitter.
-_MIN_PIPE_INTERVAL_S = (PIPE_SPACING / SCROLL_MAX) - 0.05
+# The fastest the world legitimately scrolls: SCROLL_MAX is the normal
+# ceiling, and the Rail power-up multiplies it by RAIL_SCROLL_MULT for
+# the length of a ride. Every throughput bound below derives from this,
+# so a Rail ride (pillars passing ~2.5x faster) doesn't read as cheating.
+_MAX_SCROLL = SCROLL_MAX * RAIL_SCROLL_MULT
 
-# Hard score ceiling used by the leaderboard read filter. A real run at
-# top scroll passes ~62 pipes/min and a coin rush adds ~14 coins every
-# 15 pipes, so an hour of perfect play tops out near 4500. 10_000 leaves
-# generous headroom while still rejecting a curl-injected 999_999.
-MAX_PLAUSIBLE_SCORE = 10_000
+# Floor for the per-pipe travel time at top scroll speed (incl. Rail).
+# Used both as a minimum gap between consecutive pipe-pass events and as
+# a lower bound on total run duration. The 0.05 s slack absorbs
+# frame-time jitter.
+_MIN_PIPE_INTERVAL_S = (PIPE_SPACING / _MAX_SCROLL) - 0.05
+
+# Hard score ceiling, shared by the submit check and the leaderboard read
+# filter. Each coin adds 1 — or 3 during a Triple — to the score on top
+# of +1 per pillar (~5-6 points/pillar), so a long run climbs far past
+# the old "~4500/hour" estimate that counted pillars alone. 100_000 is
+# out of reach for a single life yet still rejects a curl-injected
+# 999_999.
+MAX_PLAUSIBLE_SCORE = 100_000
 
 
 class PlausibilityError(ValueError):
@@ -114,7 +124,7 @@ def check(
             )
         last_pipe_t = float(t)
 
-    if float(time_alive) < pillars_passed * (PIPE_SPACING / SCROLL_MAX) - 0.5:
+    if float(time_alive) < pillars_passed * (PIPE_SPACING / _MAX_SCROLL) - 0.5:
         raise PlausibilityError(
             "timing: time_alive too short for the number of pillars passed"
         )
@@ -128,7 +138,7 @@ def check(
         )
 
     # ── pillars bound (max scroll speed) ────────────────────────────────
-    pillars_ceiling = int(time_alive * SCROLL_MAX / PIPE_SPACING) + 2
+    pillars_ceiling = int(time_alive * _MAX_SCROLL / PIPE_SPACING) + 2
     if pillars_passed > pillars_ceiling:
         raise PlausibilityError(
             f"pillars: passed {pillars_passed} in {time_alive:.2f}s but ceiling is {pillars_ceiling}"

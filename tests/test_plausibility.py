@@ -10,7 +10,7 @@ import unittest
 
 from game._proof import ProofState
 from game._plausibility import check, PlausibilityError, MAX_PLAUSIBLE_SCORE
-from game.config import PIPE_SPACING, SCROLL_MAX
+from game.config import PIPE_SPACING, SCROLL_MAX, SCROLL_BASE, RAIL_SCROLL_MULT
 
 
 def _build_legit_run(n_pipes: int, coins_per_pipe: int = 1, triple: bool = False):
@@ -90,24 +90,59 @@ class TestPlausibility(unittest.TestCase):
         self.assertIn("chain", str(ctx.exception).lower())
 
     def test_score_above_ceiling_rejected(self):
-        # Build a legitimately-paced ledger that just happens to exceed
-        # the ceiling — exercises the upper-bound short-circuit.
-        proof = ProofState()
-        pipe_dt = PIPE_SPACING / SCROLL_MAX
-        t = 0.0
-        for _ in range(MAX_PLAUSIBLE_SCORE + 5):
-            t += pipe_dt
-            proof.record(t, 1, "pipe")
+        # The score-ceiling check runs before the chain/ledger checks, so a
+        # score just over the ceiling is rejected regardless of the ledger
+        # — no need to build MAX+5 events.
         with self.assertRaises(PlausibilityError) as ctx:
             check(
-                score=proof.score(),
-                pillars_passed=MAX_PLAUSIBLE_SCORE + 5,
+                score=MAX_PLAUSIBLE_SCORE + 1,
+                pillars_passed=0,
                 coin_count=0,
-                time_alive=t + 0.1,
-                events=proof.events_tuple(),
-                chain_hex=proof.chain_hex(),
+                time_alive=1.0,
+                events=(),
+                chain_hex="",
             )
         self.assertIn("MAX_PLAUSIBLE_SCORE", str(ctx.exception))
+
+    def test_high_score_run_passes(self):
+        # Coins add ~5/pillar to the score, so a long legit run climbs well
+        # past the old 10_000 ceiling. Such a run must still submit.
+        proof, t_end, pillars, coins = _build_legit_run(1700, coins_per_pipe=5)
+        self.assertGreater(proof.score(), 10_000)
+        check(
+            score=proof.score(),
+            pillars_passed=pillars,
+            coin_count=coins,
+            time_alive=t_end + 0.1,
+            events=proof.events_tuple(),
+            chain_hex=proof.chain_hex(),
+        )  # no exception
+
+    def test_rail_paced_run_passes(self):
+        # The Rail power-up scrolls RAIL_SCROLL_MULT x, so its pillars pass
+        # ~0.70 s apart — closer than the normal top-speed interval. A run
+        # that used Rail must still pass the plausibility envelope.
+        rail_dt = PIPE_SPACING / (SCROLL_BASE * RAIL_SCROLL_MULT)  # ~0.70 s
+        pipe_dt = PIPE_SPACING / SCROLL_MAX
+        proof = ProofState()
+        t = 0.0
+        pillars = 0
+        for _ in range(40):            # normal stretch
+            t += pipe_dt
+            proof.record(t, 1, "pipe")
+            pillars += 1
+        for _ in range(5):             # a Rail ride: 5 fast pillars
+            t += rail_dt
+            proof.record(t, 1, "pipe")
+            pillars += 1
+        check(
+            score=proof.score(),
+            pillars_passed=pillars,
+            coin_count=0,
+            time_alive=t + 0.1,
+            events=proof.events_tuple(),
+            chain_hex=proof.chain_hex(),
+        )  # no exception
 
     def test_coin_dscore_must_be_1_or_3(self):
         proof = ProofState()

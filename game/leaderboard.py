@@ -186,7 +186,11 @@ def _build_submit_payload(name: str, world) -> "dict | None":
             events=events,
             chain_hex=proof.chain_hex(),
         )
-    except _plausibility.PlausibilityError:
+    except _plausibility.PlausibilityError as e:
+        _pylog("submit rejected by plausibility:", str(e),
+               "| score=", score,
+               "pillars=", getattr(world, "pillars_passed", "?"),
+               "coins=", getattr(world, "coin_count", "?"))
         return None
     return {
         "name": str(name)[:10],
@@ -218,9 +222,18 @@ async def submit(name: str, world) -> bool:
             while True:
                 v = _p.window.__sk("submit_done")
                 if v is not None:
-                    return bool(v)
+                    ok = bool(v)
+                    if not ok:
+                        try:
+                            err = _p.window.__sk("submit_error")
+                        except Exception:
+                            err = None
+                        _pylog("submit failed in JS bridge:",
+                               str(err) if err else "(no detail)")
+                    return ok
                 await asyncio.sleep(0.05)
-        except Exception:
+        except Exception as e:
+            _pylog("submit exception:", type(e).__name__, str(e)[:120])
             return False
     else:
         # Native: dev-only path, unsigned. The on-disk JSON is a debug
