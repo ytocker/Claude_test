@@ -768,36 +768,53 @@ _TELEMETRY_JS = """
             if (!events || !events.length) { fail('no-events'); return; }
             var localHex = await chainHex(events);
             if (localHex !== String(payload.chain_hex || '')) { fail('chain-mismatch'); return; }
-            usedIds.add(rid);
-            /* 6 s deadline — without it, a hung TCP socket can keep the
-               submit pending far longer than Python's poll timeout, and
-               the bridge state is then ambiguous on the next round. */
-            var ac = new AbortController();
-            var tid = setTimeout(function () { ac.abort(); }, 6000);
-            var r;
-            try {
-                r = await fetch(a + '/rest/v1/scores', {
-                    method: 'POST',
-                    headers: {
-                        'apikey': b,
-                        'Authorization': 'Bearer ' + b,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({
-                        name:  String(payload.name),
-                        score: Number(payload.score)
-                    }),
-                    signal: ac.signal
-                });
-            } finally { clearTimeout(tid); }
-            rSubmit = r.ok;
-            if (r.ok) {
-                try { console.log('[skybit/sk] submit ok'); } catch (_) {}
-            } else {
-                rSubmitError = 'http ' + r.status;
-                try { console.warn('[skybit/sk] submit blocked: http ' + r.status); } catch (_) {}
+            /* Retry transient failures (network / timeout / 5xx) up to 3x
+               with backoff so a blip never costs the player their score.
+               A 4xx is a deterministic rejection — stop and surface the
+               status rather than spamming the server. The run id is
+               consumed ONLY on a confirmed 2xx, so a failed attempt never
+               permanently blocks a resubmit (the old code marked it used
+               before the POST, turning any blip into a permanent loss). */
+            for (var attempt = 1; attempt <= 3; attempt++) {
+                var ac = new AbortController();
+                var tid = setTimeout(function () { ac.abort(); }, 6000);
+                var r = null, threw = '';
+                try {
+                    r = await fetch(a + '/rest/v1/scores', {
+                        method: 'POST',
+                        headers: {
+                            'apikey': b,
+                            'Authorization': 'Bearer ' + b,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({
+                            name:  String(payload.name),
+                            score: Number(payload.score)
+                        }),
+                        signal: ac.signal
+                    });
+                } catch (e) {
+                    threw = (e && e.name ? e.name : 'Error');
+                } finally { clearTimeout(tid); }
+                if (r && r.ok) {
+                    usedIds.add(rid);
+                    rSubmit = true;
+                    try { console.log('[skybit/sk] submit ok' +
+                        (attempt > 1 ? ' (attempt ' + attempt + ')' : '')); } catch (_) {}
+                    return;
+                }
+                if (r && r.status >= 400 && r.status < 500) {
+                    fail('http ' + r.status);   /* deterministic — do not retry */
+                    return;
+                }
+                rSubmitError = r ? ('http ' + r.status) : ('network:' + threw);
+                if (attempt < 3) {
+                    await new Promise(function (res) { setTimeout(res, 400 * attempt); });
+                }
             }
+            rSubmit = false;
+            try { console.warn('[skybit/sk] submit blocked after retries: ' + rSubmitError); } catch (_) {}
         } catch (e) {
             rSubmit = false;
             rSubmitError = 'exception:' + (e && e.name ? e.name : 'Error');
