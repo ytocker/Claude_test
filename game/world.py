@@ -1702,12 +1702,12 @@ class World:
     def _fire_storm_jolt(self):
         """LIGHTNING STRIKES PIP. A brilliant white-blue bolt cracks
         down from the cloud line to Pip's head; the screen flashes;
-        the world shakes hard; up to 50 coins are blasted off in a
+        the world shakes hard; up to 100 coins are blasted off in a
         360° spread; cyan electric sparks crackle around the impact;
         Pip enters a short 'scorched' sub-state where dark smoke
         wisps off his body. Plausibility ledger logs the loss as a
         negative weather_jolt event."""
-        lost = min(50, self.coin_count)
+        lost = min(100, self.coin_count)
         if lost <= 0:
             return
         self.score = max(0, self.score - lost)
@@ -1803,7 +1803,7 @@ class World:
                 gravity=180,
             ))
 
-        # ── Text: only the red -50! — placed directly ABOVE Pip,
+        # ── Text: only the red -100! — placed directly ABOVE Pip,
         # vertically clear of both his 64×60 sprite (top edge at
         # bird.y - 30) and the silhouette-rim aura (~3 px outward).
         # `bird.y - 58` puts the text centre 25 px above the aura
@@ -1812,6 +1812,8 @@ class World:
         # over its 1.6 s life. Horizontally centred on bird.x so
         # the player's eye reads "score change above Pip", not
         # off to one side. ZAP! removed per playtest feedback.
+        # `lost` is min(100, coins) so the text shows "-100!" (or
+        # fewer if Pip didn't have 100 to lose).
         self.float_texts.append(FloatText(
             f"-{lost}!", self.bird.x, self.bird.y - 58, UI_RED,
             size=30, life=1.6, vy=-26, style="powerup",
