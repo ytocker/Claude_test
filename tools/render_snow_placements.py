@@ -203,42 +203,68 @@ def bridge_full(*, bw, bfull, bend, bM, bx_hi,
 # is trimmed by TAPERING the same band's weight toward the head end
 # (head_w), so the head flows out of the body instead of being a
 # separate tall pom.
-CONT = [
-    (-31.0, -2.0), (-25.0, -4.0), (-19.0, -6.0), (-12.0, -8.0),
-    (-5.0,  -8.5), (2.0,  -8.0),  (8.0,  -9.0),
-    (11.0, -14.0), (14.0, -19.0), (16.5, -21.0),   # nape → crown
-]
+def _make_line(hx, hy):
+    """Continuous line tail tip → back → nape → crown, with the
+    crown reaching out to (hx, hy) — push hx right to send the head
+    snow further right along the top of his head."""
+    return [
+        (-31.0, -2.0), (-25.0, -4.0), (-19.0, -6.0), (-12.0, -8.0),
+        (-5.0,  -8.5), (2.0,  -8.0),  (8.0,  -9.0),
+        (11.0, hy + 6.0), (hx - 2.5, hy + 1.5), (hx, hy),
+    ]
 
 
-def cont_layer(head_w, dy_full=5.5, dy_end=12.0, wmul=1.4, M=950):
-    """One continuous full drift. The body AND the nape/bridge stay
-    at FULL weight; only the head CROWN (x>11) tapers toward
-    `head_w` — so the bridge keeps its snow and just the head cap
-    is trimmed a touch. Sampling rect hugs the line so the single
-    layer is properly full + even."""
+def regioned(tail, body, bridge, head):
+    """Volume profile by region along x (weight multiplier → flake
+    size + density): tail / body / BRIDGE / head."""
+    def f(x):
+        if x < -20.0:
+            return tail
+        if x <= 4.0:
+            return body
+        if x <= 12.0:
+            return bridge        # the nape/bridge — bump for volume
+        return head
+    return f
+
+
+def cont_v(hx, hy, prof, dy_full, dy_end, wmul, M):
+    """One continuous drift along `_make_line`, volume shaped by
+    `prof(x)`. Single band → genuinely one layer."""
+    line = _make_line(hx, hy)
+
     def along(x):
-        if x < -29.0:
-            return max(0.55, 1.0 - (-29.0 - x) / 4.0)
-        if x > 11.0:                       # only the head crown trims
-            t = min(1.0, (x - 11.0) / 6.0)
-            return 1.0 + (head_w - 1.0) * t
-        return 1.0                         # full through body + nape/bridge
+        taper = max(0.5, 1.0 - (-29.0 - x) / 4.0) if x < -29.0 else 1.0
+        return taper * prof(x)
+
     p = []
-    band(p, CONT, -29.5, 18.0, -24.0, 6.0, along=along,
+    band(p, line, -29.5, hx + 1.5, -24.0, 6.0, along=along,
          dy_cull=-1.5, dy_full=dy_full, dy_end=dy_end, wmul=wmul, M=M,
          face_guard=True)
     return _sort(p)
 
 
-# One continuous layer; FULL bridge, head crown trimmed only a
-# little (lighter than before).
+# 5 DISTINCTIVE continuous looks — all with the head reaching
+# further RIGHT (hx 18-19) and a fuller BRIDGE (bridge region ≥1.2).
 VARIANTS = [
-    ("1  head 0.92 (barely)", lambda: cont_layer(0.92)),
-    ("2  head 0.85",          lambda: cont_layer(0.85)),
-    ("3  head 0.78",          lambda: cont_layer(0.78)),
-    ("4  head 0.70",          lambda: cont_layer(0.70)),
-    ("5  head 0.62",          lambda: cont_layer(0.62)),
-    ("0  head full (no trim)", lambda: cont_layer(1.0)),
+    ("1  EVEN full ridge", lambda: cont_v(
+        18.0, -21.0, regioned(0.95, 1.0, 1.2, 1.0),
+        dy_full=6.0, dy_end=12.0, wmul=1.4, M=1000)),
+    ("2  BRIDGE bulge", lambda: cont_v(
+        18.0, -21.0, regioned(0.9, 1.0, 1.5, 0.9),
+        dy_full=6.0, dy_end=13.0, wmul=1.4, M=1050)),
+    ("3  HEAD-forward (righter)", lambda: cont_v(
+        19.0, -21.0, regioned(0.85, 1.0, 1.25, 1.2),
+        dy_full=6.0, dy_end=12.0, wmul=1.4, M=1050)),
+    ("4  BACK-heavy taper", lambda: cont_v(
+        18.0, -21.0, regioned(1.3, 1.1, 1.2, 0.8),
+        dy_full=6.5, dy_end=12.0, wmul=1.45, M=1050)),
+    ("5  CHUNKY max", lambda: cont_v(
+        18.0, -20.5, regioned(1.05, 1.2, 1.35, 1.0),
+        dy_full=7.0, dy_end=14.0, wmul=1.5, M=1180)),
+    ("0  prev (gap-free, thin head)", lambda: cont_v(
+        16.5, -21.0, regioned(1.0, 1.0, 1.0, 0.7),
+        dy_full=5.5, dy_end=12.0, wmul=1.4, M=900)),
 ]
 
 
@@ -284,7 +310,7 @@ def main():
         sheet.blit(font.render(label, True, (240, 246, 255)),
                    (x + (pw - font.size(label)[0]) // 2, y + ph + 5))
 
-    out = os.path.join(OUT_DIR, "continuous_v2_sheet.png")
+    out = os.path.join(OUT_DIR, "continuous_distinct_sheet.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
