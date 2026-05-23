@@ -231,122 +231,105 @@ def _get_grow_body_sprite() -> "tuple[pygame.Surface, int, int]":
     return sprite, dx, dy
 
 
-_SNOW_DISC_CACHE: dict = {}
-
-
-def _soft_white_disc(radius, alpha):
-    """Cached soft round white blob (opaque centre → transparent
-    rim) for building Pip's back-snow drift. Keyed by radius +
-    alpha bucket so repeated draws are cheap blits."""
-    radius = max(1, int(radius))
-    ab = max(16, min(255, (int(alpha) // 16) * 16))
-    key = (radius, ab)
-    cached = _SNOW_DISC_CACHE.get(key)
-    if cached is not None:
-        return cached
-    d = radius * 2 + 2
-    surf = pygame.Surface((d, d), pygame.SRCALPHA)
-    c = radius + 1
-    steps = max(3, radius)
-    for i in range(steps, 0, -1):
-        rr = max(1, int(radius * i / steps))
-        frac = i / steps
-        a = int(ab * (1.0 - frac) ** 1.3)
-        pygame.draw.circle(surf, (255, 255, 255, a), (c, c), rr)
-    _SNOW_DISC_CACHE[key] = surf
-    return surf
-
-
-def _soft_tint_disc(radius, color, alpha):
-    """Soft round blob in an arbitrary colour — used for the cool
-    under-shadow beneath Pip's back-snow. Cached like the white one."""
-    radius = max(1, int(radius))
-    ab = max(8, min(255, (int(alpha) // 12) * 12))
-    key = ("tint", radius, ab, color)
-    cached = _SNOW_DISC_CACHE.get(key)
-    if cached is not None:
-        return cached
-    d = radius * 2 + 2
-    surf = pygame.Surface((d, d), pygame.SRCALPHA)
-    c = radius + 1
-    steps = max(3, radius)
-    for i in range(steps, 0, -1):
-        rr = max(1, int(radius * i / steps))
-        frac = i / steps
-        a = int(ab * (1.0 - frac) ** 1.3)
-        pygame.draw.circle(surf, (*color, a), (c, c), rr)
-    _SNOW_DISC_CACHE[key] = surf
-    return surf
-
-
-# Snow-catch anchors over Pip's whole windward REAR. He faces +x
-# (right), so the tailwind drives snow onto everything facing -x:
-# the tail (far left), the rump + back hump, the wing, and a bit
-# down the windward side. Each is (sprite-rel x, y, weight) where
-# weight = how much snow settles there (heaviest on the broad
-# back/rump, lighter on the thin tail tip + the front edge).
-# Centre = (0,0); sprite is 68×64, body bbox x∈[-31,33] y∈[-26,22].
-_SNOW_ANCHORS = (
-    (-28.0,  4.0, 0.50),   # tail tip
-    (-24.0, -0.5, 0.78),   # tail upper edge
-    (-19.0,  4.5, 0.55),   # tail/rump windward, lower
-    (-18.0, -5.0, 1.00),   # rump / back start  (main mass)
-    (-12.0, -7.6, 1.00),   # back hump
-    (-13.0,  3.0, 0.62),   # windward flank
-    (-6.0,  -8.0, 0.96),   # back hump crest
-    (-8.0,   5.0, 0.45),   # wing top, windward
-    (0.0,   -7.2, 0.74),   # back toward neck
-    (5.0,   -6.0, 0.44),   # neck base (taper out front)
+# Key contour points (sprite-rel x, y, depth-weight) along Pip's
+# rear upper surface, tail tip → base of neck. He faces +x (right),
+# so the tailwind piles snow on everything facing -x. Weight =
+# how deep the snow gets there: heaviest on the broad rump/back,
+# tapering on the thin tail + the front. Centre = (0,0); sprite is
+# 68×64, body bbox x∈[-31,33] y∈[-26,22].
+_SNOW_CONTOUR_KEY = (
+    (-31.0,  7.0, 0.78),   # tail tip
+    (-26.0,  1.0, 0.95),   # tail upper edge
+    (-20.0, -3.0, 1.00),   # rump  (deepest)
+    (-13.0, -6.6, 1.00),   # back start
+    (-6.0,  -7.8, 0.92),   # back hump crest
+    (0.0,   -7.4, 0.72),   # back toward neck
+    (6.0,   -5.6, 0.40),   # neck base (taper out front)
 )
+_SNOW_CONTOUR = None       # densely-sampled, built lazily
+
+
+def _build_snow_contour():
+    pts = []
+    key = _SNOW_CONTOUR_KEY
+    sub = 4
+    for i in range(len(key) - 1):
+        x0, y0, w0 = key[i]
+        x1, y1, w1 = key[i + 1]
+        for s in range(sub):
+            t = s / sub
+            pts.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t,
+                        w0 + (w1 - w0) * t))
+    pts.append(key[-1])
+    return pts
 
 
 def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
-    """Snowdrift settled over Pip's whole windward rear during the
-    squall. The tailwind blows snow onto everything facing his
-    back (his left): the tail, rump, back hump, wing and the
-    windward flank. Built from overlapping soft white blobs at the
-    `_SNOW_ANCHORS`; `load` (0..1) scales thickness + opacity so it
-    fades in as snow settles and melts away cleanly. Two passes —
-    a cool under-shadow for volume, then the white drift with a
-    deterministic lumpy size (no per-frame randomness → no
-    flicker). +x is forward (right), centre at (0,0)."""
+    """A SOLID accumulated snowdrift over Pip's whole windward rear
+    (tail, rump, back) during the squall — not scattered sparkles.
+    Built as one filled polygon: the bottom edge follows his rear
+    body surface, the top edge is that surface pushed up by the
+    snow depth (∝ `load`, deepest on the rump/back), gently lumpy.
+    A bright snow-line tops it and a cool contact shadow sits just
+    beneath, so it reads as real piled snow. `load` (0..1) scales
+    depth + opacity so it accumulates and melts cleanly. Rendered
+    on a 3× supersample → smoothscale for clean edges. +x forward,
+    centre (0,0)."""
+    global _SNOW_CONTOUR
     load = max(0.0, min(1.0, load))
+    if load <= 0.02:
+        return
+    if _SNOW_CONTOUR is None:
+        _SNOW_CONTOUR = _build_snow_contour()
     sc = scale
-    base_a = int(min(240, 65 + load * 175))
+    SS = 3
+    maxdepth = 17.0
     cos_t = math.cos(math.radians(tilt))
     sin_t = math.sin(math.radians(tilt))
 
-    def place(xr, oy, rad, disc):
-        # Apply Pip's banking tilt around his centre, then blit.
-        rx = xr * cos_t - oy * sin_t
-        ry = xr * sin_t + oy * cos_t
-        surf.blit(disc, (int(cx + rx * sc - disc.get_width() / 2),
-                         int(cy + ry * sc - disc.get_height() / 2)))
+    def tf(x, y):
+        rx = x * cos_t - y * sin_t
+        ry = x * sin_t + y * cos_t
+        return (cx + rx * sc, cy + ry * sc)
 
-    # radius per anchor — bigger overall than the back-only version
-    # so the rear reads as a fuller, more massive drift (still
-    # tasteful: max ~11 px on the broad back at full load).
-    def radius(weight, lump=1.0):
-        return (3.0 + load * 8.5) * weight * lump * sc
+    bottom, top = [], []
+    for i, (x, y, wt) in enumerate(_SNOW_CONTOUR):
+        bottom.append(tf(x, y))
+        # gentle deterministic lumps on the snow line (no per-frame
+        # randomness → never shimmers)
+        lump = 0.82 + 0.18 * math.cos(i * 0.9) * math.cos(i * 0.37)
+        d = load * maxdepth * wt * max(0.2, lump)
+        # snow grows up + a touch toward windward (-x)
+        top.append(tf(x - d * 0.22, y - d))
 
-    # Pass 1 — cool blue-grey under-shadow just below each blob so
-    # the snow reads as raised volume, not a flat highlight.
-    for xr, yr, wt in _SNOW_ANCHORS:
-        rad = radius(wt)
-        if rad < 1.0:
-            continue
-        place(xr, yr + rad * 0.18, rad,
-              _soft_tint_disc(rad * 0.92, (150, 170, 205),
-                              int(base_a * 0.42)))
+    poly = bottom + top[::-1]
+    xs = [p[0] for p in poly]
+    ys = [p[1] for p in poly]
+    minx = min(xs) - 3
+    maxx = max(xs) + 3
+    miny = min(ys) - 3
+    maxy = max(ys) + 6                 # extra pad for the contact shadow
+    w = int(maxx - minx)
+    h = int(maxy - miny)
+    if w < 2 or h < 2:
+        return
+    scratch = pygame.Surface((w * SS, h * SS), pygame.SRCALPHA)
 
-    # Pass 2 — the white drift.
-    for idx, (xr, yr, wt) in enumerate(_SNOW_ANCHORS):
-        lump = 0.84 + 0.16 * math.cos(idx * 1.7)      # 0.68..1.0
-        rad = radius(wt, lump)
-        if rad < 0.8:
-            continue
-        oy = yr - rad * 0.34 - load * 1.0             # rests on top
-        place(xr, oy, rad, _soft_white_disc(rad, base_a))
+    def to_ss(pts, dy=0.0):
+        return [(int((px - minx) * SS), int((py - miny + dy) * SS))
+                for px, py in pts]
+
+    fill_a = int(min(248, 160 + load * 90))
+    # cool contact shadow just under the snow's body-side edge
+    pygame.draw.lines(scratch, (138, 160, 198, int(fill_a * 0.5)),
+                      False, to_ss(bottom, dy=1.8), max(2, 2 * SS))
+    # the solid snow body (slightly cool off-white)
+    pygame.draw.polygon(scratch, (234, 242, 252, fill_a), to_ss(poly))
+    # bright pure-white snow-line riding the top edge
+    pygame.draw.lines(scratch, (255, 255, 255, min(255, fill_a + 6)),
+                      False, to_ss(top), max(2, 2 * SS))
+    small = pygame.transform.smoothscale(scratch, (w, h))
+    surf.blit(small, (int(minx), int(miny)))
 
 
 def _draw_grow_halo(surf, cx, cy, pulse,
