@@ -350,7 +350,7 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
     # the R2 low-discrepancy sequence for even, organic-looking 2D
     # coverage; deterministic so they never shimmer.
     if speck_w > 0.01:
-        n = int(4 + load * 12)
+        n = int(10 + load * 18)
         a = int(min(240, 180 + load * 60) * speck_w)
         if a > 8 and n > 0:
             # Scatter flakes uniformly across an ELLIPSE over Pip's
