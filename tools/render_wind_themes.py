@@ -141,6 +141,10 @@ def vertical_gradient_band(width_px, col_top, col_bot, a_top, a_bot):
 
 
 # ── THEME 1: HABOOB — desert sandstorm ──────────────────────────────────────
+# RESERVED FOR A FUTURE WEATHER EVENT. The snow direction (theme 4)
+# was chosen for the current predawn wind event; this dark dust-wall
+# haboob is parked here intact for a separate desert/sandstorm event
+# to be designed later. Keep it + theme_1_haboob.png — do not delete.
 
 def theme_haboob(rng):
     surf, w, pal = base_scene()
