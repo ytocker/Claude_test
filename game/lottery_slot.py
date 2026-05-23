@@ -247,12 +247,14 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
     lbl = _engraved_text("LOTTERY", 11, rim=_RIM_GOLD)
     surf.blit(lbl, lbl.get_rect(center=marquee.center))
 
-    # Reels. Trimmed reel_h + smaller symbols so the full cabinet still
-    # clears the buff-timer row that starts at y=122.
-    reel_w, reel_h = 22, 24
-    reel_y = marquee.bottom + 4
-    reels_x0 = cabinet.x + 14
-    reel_gap = 6
+    # Reels. Three equal wheels centred in the cabinet: equal side
+    # margins and inter-reel gaps (10 px each -> 10+28+10+28+10+28+10 =
+    # 124 = cabinet width). reel_y + the matching gaps centre the band
+    # vertically between the marquee and the result strip.
+    reel_w, reel_h = 28, 32
+    reel_y = marquee.bottom + 6
+    reels_x0 = cabinet.x + 10
+    reel_gap = 10
 
     for i in range(3):
         rx = reels_x0 + i * (reel_w + reel_gap)
@@ -266,14 +268,14 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                              (reel.right - 1, reel.y + 1 + k))
 
         if reel_progress[i] >= 1.0 and locked_tier is not None:
-            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](14)
+            sym = _SYM_FN[_TIER_COMBOS[locked_tier][i]](18)
             surf.blit(sym, sym.get_rect(center=reel.center))
         else:
             speed = 14 + i * 2
             offset = (t * speed * (reel_h - 6)) % (reel_h - 6)
             for k in (-1, 0, 1, 2):
                 idx = (int(t * speed) + k + i) % len(_SPIN_CYCLE)
-                sym = _SYM_FN[_SPIN_CYCLE[idx]](12)
+                sym = _SYM_FN[_SPIN_CYCLE[idx]](15)
                 sy = reel.y + 6 + k * (reel_h - 6) - int(offset)
                 if -14 < sy - reel.y < reel.height:
                     sub_rect = sym.get_rect(center=(reel.centerx,
@@ -296,16 +298,9 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
                      (reels_x0 - 2, pl_y),
                      (reels_x0 + 3 * reel_w + 2 * reel_gap + 2, pl_y), 1)
 
-    # Lever.
-    lev_top = (cabinet.right - 4, cabinet.y + 24)
-    lev_bot = (cabinet.right + 3, cabinet.y + 38)
-    pygame.draw.line(surf, _GOLD_DEEP, lev_top, lev_bot, 3)
-    pygame.draw.circle(surf, _RED_OUTLINE, lev_top, 3)
-    pygame.draw.circle(surf, _GOLD_BRIGHT, lev_top, 3, 1)
-
     # Result strip — "LOTTERY" + three "?" hints during the spin,
     # tier name + value at reveal with sign-tinted rim.
-    strip = pygame.Rect(cabinet.x + 8, reel_y + reel_h + 4,
+    strip = pygame.Rect(cabinet.x + 8, reel_y + reel_h + 6,
                         cabinet.width - 16, 14)
     if locked_tier is None:
         pygame.draw.rect(surf, (8, 6, 22), strip, border_radius=3)
@@ -318,11 +313,11 @@ def _draw_cabinet(surf, t, *, locked_tier, reel_progress):
 def _draw_result_strip(surf, tier, delta):
     """Cream pill with tier name + value. Rim tinted by sign so the
     player's eye catches win-vs-loss before parsing the digits. Layout
-    math here mirrors _draw_cabinet (top_pad 5 + marquee 14 + gap 4 +
-    reel_h 24 + gap 4) — keep them in sync if either is retuned."""
+    math here mirrors _draw_cabinet (top_pad 5 + marquee 14 + gap 6 +
+    reel_h 32 + gap 6) — keep them in sync if either is retuned."""
     cabinet = pygame.Rect(CAB_X, CAB_Y, CAB_W, CAB_H)
-    reel_y = cabinet.y + 5 + 14 + 4
-    strip = pygame.Rect(cabinet.x + 8, reel_y + 24 + 4,
+    reel_y = cabinet.y + 5 + 14 + 6
+    strip = pygame.Rect(cabinet.x + 8, reel_y + 32 + 6,
                         cabinet.width - 16, 14)
     rim = _rim_for_delta(delta)
     pygame.draw.rect(surf, _CREAM_FACE, strip,
