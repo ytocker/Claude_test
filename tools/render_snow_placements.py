@@ -145,76 +145,33 @@ def _sort(pool):
     return pool
 
 
-# ── 5 variants ───────────────────────────────────────────────────────────────
+# ── V4 (HEAVY) with placement tweaks ─────────────────────────────────────────
+# Base = V4 (most snow). Each version shifts the HEAD cap a few px
+# RIGHT (head_dx) and TRIMS the back drift's right end a few px
+# (back_trim) so the lower mass doesn't run so far toward the head.
 
-def v1_continuous():
-    """One unbroken blanket: tail tip → back → up the nape → crown."""
+def v4_adjusted(head_dx, back_trim):
     p = []
-    band(p, TAIL_TO_CROWN, -29.5, 15.5, -26.0, 9.0,
-         along=lambda x: (max(0.45, 1.0 - (-27.0 - x) / 5.0) if x < -27 else
-                          (max(0.7, 1.0 - (x - 12.0) / 5.0) if x > 12 else 1.0)),
-         dy_cull=-1.0, dy_full=3.0, dy_end=7.5, wmul=0.95, M=240)
-    return _sort(p)
-
-
-def v2_three_caps():
-    """Distinct tail cap + back drift + crown cap, gaps between."""
-    p = []
-    # tail cap
-    band(p, TAIL_BACK, -29.5, -15.0, -8.0, 5.0,
-         along=lambda x: max(0.5, 1.0 - (-28.0 - x) / 5.0) if x < -28 else 1.0,
-         dy_cull=-1.0, dy_full=2.5, dy_end=6.0, wmul=0.9, M=90, seed=10)
-    # back drift
-    band(p, TAIL_BACK, -15.0, 9.0, -10.0, 5.0,
-         along=lambda x: max(0.4, 1.0 - (x - 6.0) / 5.0) if x > 6 else 1.0,
-         dy_cull=-1.0, dy_full=3.0, dy_end=7.0, wmul=0.95, M=130, seed=300)
-    # crown cap
-    crown(p, wmul=0.88, M=85)
-    return _sort(p)
-
-
-def v3_crownfix_taildroop():
-    """Today's back drift, but head moved onto the crown + the back
-    line drooped along the tail so the tail is covered."""
-    p = []
-    band(p, TAIL_BACK, -29.5, 13.0, -10.0, 9.0,
-         along=lambda x: (max(0.55, 1.0 - (-28.0 - x) / 4.0) if x < -28 else
-                          (max(0.35, 1.0 - (x - 9.0) / 6.0) if x > 9 else 1.0)),
-         dy_cull=-1.0, dy_full=3.0, dy_end=7.5, wmul=0.95, M=200)
-    crown(p, wmul=0.82, M=80)
-    return _sort(p)
-
-
-def v4_heavy():
-    """Fuller, rounder, more snow everywhere (still off the face)."""
-    p = []
-    band(p, TAIL_BACK, -29.5, 11.0, -11.0, 11.0,
-         along=lambda x: (max(0.6, 1.0 - (-29.0 - x) / 4.0) if x < -29 else
-                          (max(0.4, 1.0 - (x - 8.0) / 6.0) if x > 8 else 1.0)),
+    bx_hi = 11.0 - back_trim                 # trim the right (head-ward) end
+    t0 = bx_hi - 3.0                         # where the right taper begins
+    band(p, TAIL_BACK, -29.5, bx_hi, -11.0, 11.0,
+         along=lambda x, t0=t0: (
+             max(0.6, 1.0 - (-29.0 - x) / 4.0) if x < -29 else
+             (max(0.4, 1.0 - (x - t0) / 4.0) if x > t0 else 1.0)),
          dy_cull=-1.5, dy_full=4.0, dy_end=10.0, wmul=1.2, M=300)
-    crown(p, wmul=1.0, M=110, dy_cull=-1.5, dy_full=2.5, dy_end=6.0)
+    crown(p, cx=10.0 + head_dx, x_lo=4.0 + head_dx, x_hi=16.0 + head_dx,
+          wmul=1.0, M=110, dy_cull=-1.5, dy_full=2.5, dy_end=6.0)
     return _sort(p)
 
 
-def v5_dusting():
-    """Light, crisp — snow only on the topmost ridges (crown peak,
-    back ridge, tail-tip top)."""
-    p = []
-    band(p, TAIL_BACK, -29.5, 9.0, -9.0, 2.5,
-         along=lambda x: (max(0.5, 1.0 - (-28.0 - x) / 5.0) if x < -28 else
-                          (max(0.35, 1.0 - (x - 6.0) / 5.0) if x > 6 else 1.0)),
-         dy_cull=-0.5, dy_full=1.5, dy_end=3.5, wmul=0.68, M=150)
-    crown(p, wmul=0.6, M=70, dy_cull=-0.5, dy_full=1.2, dy_end=3.0)
-    return _sort(p)
-
-
+# (head_dx px right, back_trim px off the right end)
 VARIANTS = [
-    ("1  CONTINUOUS blanket", v1_continuous),
-    ("2  THREE caps",         v2_three_caps),
-    ("3  CROWN-fix + tail",   v3_crownfix_taildroop),
-    ("4  HEAVY rounded",      v4_heavy),
-    ("5  TOPMOST dusting",    v5_dusting),
-    ("0  CURRENT (today)",    None),
+    ("A  head+2  trim2", lambda: v4_adjusted(2, 2)),
+    ("B  head+3  trim4", lambda: v4_adjusted(3, 4)),
+    ("C  head+4  trim6", lambda: v4_adjusted(4, 6)),
+    ("D  head+5  trim5", lambda: v4_adjusted(5, 5)),
+    ("E  head+6  trim8", lambda: v4_adjusted(6, 8)),
+    ("0  V4 base (no adj)", lambda: v4_adjusted(0, 0)),
 ]
 
 
