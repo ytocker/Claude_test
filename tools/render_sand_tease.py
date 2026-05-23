@@ -151,50 +151,63 @@ def _base_pool(big, color, a, w=58, h=20, seed=0):
         soft_stamp(big, x, y, r, color, int(a * rng.uniform(0.4, 1.0)))
 
 
-# ── variant 1: volumetric bloom column (SPARSE + SWIRL) ───────────────────────
+# ── variant 1: volumetric bloom column (SOLID + SWIRL) ────────────────────────
 def devil_bloom(s, seed=11):
-    """Airy, broken-up grit column — reads like the frayed TOP of the
-    old bloom THROUGHOUT (see-through, gaps), with a clear helical
-    swirl (front lobes brighter than back) so rotation reads."""
+    """A SOLID, cohesive dust column — a smooth soft-edged core filled
+    with a dense FINE grain (small merging specks, not big discs) and a
+    helical brightness band so the rotation reads. Soft frayed edges +
+    top, base dust pool. No visible 'discs glued together'."""
     rng = random.Random(seed)
     big = _new_big()
     height = (DH - 30) * SS
     lean = 0.07
+    turns = 2.4
     body = (176, 128, 82)
-    shadow = (118, 84, 50)
-    hi = (240, 212, 156)
-    _base_pool(big, body, int(120 + s * 60), seed=seed)
-    # faint cohesive underlay so the sparse grit reads as ONE column
-    # (a ghost trunk), not a disconnected string of puffs
-    for i in range(120):
-        t = i / 120
-        ux, uy = _spine(t, lean, 12 * SS, 3.0, seed, height)
-        ur = _col_r(t, 26 * SS, 13 * SS, 9 * SS) * 0.85
-        ua = int((30 + s * 28) * (1.0 - smoothstep(0.45, 1.05, t)))
-        soft_stamp(big, ux, uy, ur, body, ua, falloff=1.6)
-    turns = 2.5
-    nlobes = int(170 + s * 150)
-    a0 = int(74 + s * 70)
-    for i in range(nlobes):
-        t = rng.random() ** 0.9                       # fairly even → airy
-        sx, sy = _spine(t, lean, 12 * SS, 3.0, seed, height)
-        colr = _col_r(t, 30 * SS, 16 * SS, 11 * SS)
-        ang = t * turns * 2 * math.pi + rng.uniform(-0.45, 0.45)
-        depth = (math.sin(ang) + 1) * 0.5             # 0 back → 1 front
-        rr = colr * (0.35 + 0.65 * rng.random())
-        x = sx + math.cos(ang) * rr
-        y = sy + rng.uniform(-1, 1) * 4 * SS
-        lobe = rng.uniform(5, 11) * SS * (1.0 - 0.28 * t)
-        a = int(a0 * (0.32 + 0.68 * depth) * (1.0 - smoothstep(0.6, 1.06, t)))
-        col = hi if depth > 0.8 else (body if depth > 0.42 else shadow)
-        soft_stamp(big, x, y, lobe, col, a, falloff=1.3)
-    # extra frayed grit torn off the top
-    for _ in range(int(30 * s) + 12):
-        t = rng.uniform(0.55, 1.12)
-        sx, sy = _spine(min(t, 1.0), lean, 12 * SS, 3.0, seed, height)
-        x = sx + rng.uniform(-1, 1) * 30 * SS
-        soft_stamp(big, x, sy - rng.uniform(0, 42) * SS,
-                   rng.uniform(2, 4) * SS, body, int(a0 * 0.55))
+    shadow = (120, 84, 50)
+    hi = (238, 212, 156)
+    _base_pool(big, body, int(150 + s * 70), seed=seed)
+
+    def col_r(t):
+        return _col_r(t, 30 * SS, 15 * SS, 9 * SS)
+
+    # 1) smooth solid CORE — many heavily-overlapping discs along a fine
+    # spine so they fuse into one continuous column (no gaps), edges
+    # softened by a radial alpha falloff baked into the stamp.
+    for i in range(260):
+        t = i / 260
+        cx, cy = _spine(t, lean, 12 * SS, 3.0, seed, height)
+        r = col_r(t)
+        a = int((80 + s * 70) * (1.0 - smoothstep(0.5, 1.06, t)))
+        soft_stamp(big, cx, cy, r, body, a, falloff=1.9)
+        soft_stamp(big, cx + r * 0.28, cy, r * 0.66, shadow,
+                   int(a * 0.55), falloff=1.9)
+
+    # 2) dense FINE grain inside the column (fuses into texture, not
+    # discs) + helical bands for the swirl.
+    nfill = int(2600 + s * 2200)
+    g0 = int(36 + s * 34)
+    for _ in range(nfill):
+        t = rng.random() ** 0.82
+        cx, cy = _spine(t, lean, 12 * SS, 3.0, seed, height)
+        r = col_r(t)
+        ang = rng.uniform(0, 2 * math.pi)
+        rfrac = rng.random() ** 0.5                  # bias inward
+        x = cx + math.cos(ang) * r * rfrac
+        y = cy + math.sin(ang) * r * rfrac * 0.42    # elliptical section
+        phase = ang - t * turns * 2 * math.pi        # spiralling bands
+        band = 0.5 + 0.5 * math.sin(phase)
+        edge = 1.0 - 0.5 * rfrac
+        a = int(g0 * (0.4 + 0.6 * band) * edge * (1.0 - smoothstep(0.55, 1.06, t)))
+        col = hi if band > 0.72 else (body if band > 0.34 else shadow)
+        soft_stamp(big, x, y, rng.uniform(2.0, 3.6) * SS, col, a, falloff=1.2)
+
+    # 3) frayed grit torn off the top
+    for _ in range(int(30 * s) + 14):
+        t = rng.uniform(0.6, 1.12)
+        cx, cy = _spine(min(t, 1.0), lean, 12 * SS, 3.0, seed, height)
+        x = cx + rng.uniform(-1, 1) * 28 * SS
+        soft_stamp(big, x, cy - rng.uniform(0, 40) * SS,
+                   rng.uniform(2, 4) * SS, body, int((36 + s * 34) * 0.7))
     return big
 
 
