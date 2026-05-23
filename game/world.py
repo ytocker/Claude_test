@@ -338,15 +338,15 @@ class World:
         # of snapping.
         if self.slide_boost > 0:
             base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
-        # Headwind weather event (predawn ~phase 0.85): slows the
-        # world scroll so pipes/coins approach more slowly and
-        # the player visibly makes less progress per second.
-        # Scales linearly with wind_intensity — at peak wind the
-        # scroll is (1 - WEATHER_WIND_SCROLL_FACTOR) × normal
-        # (default 0.80 × normal = 20 % slower).
+        # Tailwind weather event (predawn ~phase 0.85): SPEEDS UP
+        # the world scroll so pipes/coins approach faster and Pip
+        # covers more distance per second. Scales linearly with
+        # wind_intensity — at peak wind the scroll is
+        # (1 + WEATHER_WIND_SCROLL_FACTOR) × normal
+        # (default 1.30 × normal = 30 % faster).
         wi = _wind_intensity(self.biome_phase)
         if wi > 0.05:
-            base *= 1.0 - WEATHER_WIND_SCROLL_FACTOR * wi
+            base *= 1.0 + WEATHER_WIND_SCROLL_FACTOR * wi
         return base
 
     def _current_spacing(self):
@@ -1563,17 +1563,17 @@ class World:
                 self.bird.shiver_y = 0.0
                 self.bird.flap_dampen = 0.0
 
-        # Headwind: a separate weather event peaking at phase 0.85
-        # (predawn). Visual lean on Pip scales linearly with
-        # wind_intensity. World-scroll slowdown is applied in
-        # _current_scroll() so the gameplay resistance kicks in
-        # at the same time. Gate at wi > 0.05 so the ambient
-        # golden-hour breeze doesn't nudge Pip at all (peak 0.35
-        # × 0.05 = imperceptible).
+        # Tailwind: a separate weather event peaking at phase 0.85
+        # (predawn). Wind blows in the direction of Pip's travel,
+        # giving him a forward push and speeding up the world
+        # scroll. Visual lean is POSITIVE (rightward, ahead of
+        # his fixed x) and scroll is BOOSTED in _current_scroll().
+        # Gate at wi > 0.05 so the ambient golden-hour breeze
+        # doesn't nudge anything (peak 0.35 × 0.05 = imperceptible).
         wi = _wind_intensity(self.weather.phase)
         if wi > 0.05:
-            # Negative = leftward push (screen +x is right)
-            self.bird.wind_lean = -WEATHER_WIND_LEAN_AMP * wi
+            # Positive = rightward push (screen +x is right)
+            self.bird.wind_lean = +WEATHER_WIND_LEAN_AMP * wi
         else:
             self.bird.wind_lean = 0.0
 

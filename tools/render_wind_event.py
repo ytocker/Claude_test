@@ -69,7 +69,7 @@ def main():
         (0.72, "0.72  pre-event calm"),
         (0.78, "0.78  building (~22%)"),
         (0.83, "0.83  near peak (~85%)"),
-        (0.85, "0.85  PEAK STORM"),
+        (0.85, "0.85  PEAK TAILWIND"),
         (0.90, "0.90  fading (~50%)"),
         (0.95, "0.95  event ends"),
     )

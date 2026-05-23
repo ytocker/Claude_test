@@ -263,19 +263,19 @@ WEATHER_COIN_SHAKE_AMP   = 4.0
 WEATHER_PIP_SHIVER_AMP   = 1.5
 WEATHER_FLAP_DAMPEN_MAX  = 0.18
 
-# Headwind event (predawn, phase ~0.85). Two effects scaled by
+# Tailwind event (predawn, phase ~0.85). Two effects scaled by
 # weather.wind_intensity(phase):
-#   - WEATHER_WIND_LEAN_AMP: max leftward visual x-offset on the
-#     bird (in screen pixels) when wind = 1.0. Pure visual — does
-#     not affect collision (Bird.x stays at BIRD_X). Negative
-#     direction is leftward, applied via Bird.draw shake_x. At
-#     8.0 px Pip's lean is ~12% of his 64-px sprite width, clearly
-#     visible as "fighting the wind".
+#   - WEATHER_WIND_LEAN_AMP: max RIGHTWARD visual x-offset on
+#     the bird (in screen pixels) when wind = 1.0. Pure visual
+#     — does not affect collision (Bird.x stays at BIRD_X).
+#     Positive direction is rightward (ahead of normal), applied
+#     via Bird.draw shake_x. At 8.0 px Pip's push is ~12% of his
+#     64-px sprite width, clearly visible as "tailwind boost".
 #   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
-#     is reduced at peak wind. At wind 1.0 the scroll runs at
-#     (1 - factor) × normal so pipes/coins approach more slowly
-#     and the player makes less progress per second. 0.30 means
-#     30% less progress at peak — felt as real resistance.
+#     is INCREASED at peak wind. At wind 1.0 the scroll runs at
+#     (1 + factor) × normal so pipes/coins approach faster and
+#     the player covers more distance per second. 0.30 means
+#     30% more progress at peak — felt as a real boost.
 WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 

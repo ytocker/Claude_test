@@ -170,7 +170,7 @@ class _WindStreak:
         self.y += self.vy * dt + wobble_dy
 
     def off_screen(self):
-        return self.x < -40 or self.y > GROUND_Y or self.y < -30
+        return self.x > W + 40 or self.y > GROUND_Y or self.y < -30
 
     def draw(self, surf):
         # Tail extends opposite the motion. Length scales with the
@@ -242,7 +242,7 @@ class _WindDrift:
         self.y += self.vy * dt
 
     def off_screen(self):
-        return self.x < -60 or self.y > GROUND_Y or self.y < -40
+        return self.x > W + 60 or self.y > GROUND_Y or self.y < -40
 
     def draw(self, surf):
         # Painted as a tapered horizontal blur: 3 stacked semi-
@@ -296,7 +296,7 @@ class _WindSwirl:
         self.life -= dt
 
     def off_screen(self):
-        return self.x < -40 or self.life <= 0
+        return self.x > W + 40 or self.life <= 0
 
     def draw(self, surf):
         # Fade in at birth and fade out at death — life curve.
@@ -373,7 +373,7 @@ class _WindDust:
         self.y += self.vy * dt
 
     def off_screen(self):
-        return self.x < -10 or self.y > GROUND_Y or self.y < -20
+        return self.x > W + 10 or self.y > GROUND_Y or self.y < -20
 
     def draw(self, surf):
         # Tiny dot with a 2-px tail painted as a 1-px line for
@@ -560,21 +560,21 @@ class Weather:
         ))
 
     def _spawn_wind_streak(self, streak_t, phase):
-        """Mid-ground fast streak (the visual headline). Length,
-        speed, alpha all scale with `streak_t` so the buildup
-        reads. Path has a sine wobble (configured per-streak so
-        adjacent streaks waver differently)."""
-        # 60% spawn at right edge, 40% from above-right (storm
-        # blowing in diagonally)
+        """Mid-ground fast streak — TAILWIND direction. Spawns at
+        the left edge (or above-left) and races RIGHTWARD across
+        the canvas, suggesting wind blowing in the direction of
+        Pip's travel. Length, speed, alpha scale with `streak_t`."""
+        # 60% spawn at left edge, 40% from above-left (storm
+        # blowing in diagonally from upper-left)
         if random.random() < 0.6:
-            x = W + random.uniform(0, 20)
+            x = -random.uniform(0, 20)
             y = random.uniform(20, GROUND_Y - 40)
         else:
-            x = random.uniform(W * 0.4, W + 20)
+            x = random.uniform(-20, W * 0.6)
             y = random.uniform(-30, 0)
-        vx = -(320 + streak_t * 220) - random.uniform(0, 80)
+        vx = (320 + streak_t * 220) + random.uniform(0, 80)
         vy = 30 + random.uniform(-10, 40)
-        length = int(12 + streak_t * 18)   # 12..30 px (was 8..22)
+        length = int(12 + streak_t * 18)
         col = self._wind_palette(phase)
         alpha = int(120 + streak_t * 110)
         wobble_amp = random.uniform(1.5, 3.5)
@@ -585,41 +585,31 @@ class Weather:
                         wobble_freq=wobble_freq))
 
     def _spawn_wind_drift(self, drift_t, phase):
-        """Background slow drift — long soft streaks for parallax
-        depth. ~1/3 the speed of the foreground streaks. Wider
-        and slightly more opaque than r1 so the background layer
-        reads as a distinct atmospheric blur band rather than
-        blending into the streaks."""
-        x = W + random.uniform(0, 30)
+        """Background slow drift — long soft RIGHTWARD streaks."""
+        x = -random.uniform(0, 30)
         y = random.uniform(10, GROUND_Y - 30)
-        vx = -(110 + drift_t * 70) - random.uniform(0, 30)
+        vx = (110 + drift_t * 70) + random.uniform(0, 30)
         vy = random.uniform(-5, 15)
-        length = int(30 + drift_t * 20)    # 30..50 px (was 24..40)
+        length = int(30 + drift_t * 20)
         col = self._wind_palette(phase)
-        alpha = int(50 + drift_t * 50)     # 50..100 (was 35..75)
+        alpha = int(50 + drift_t * 50)
         self.wind_drifts.append(
             _WindDrift(x, y, vx, vy, length, col, alpha))
 
     def _spawn_wind_swirl(self, swirl_t, phase):
-        """Iconic cartoon-wind cue. Sizes vary widely (5-18 px) so
-        the visible field has a mix of big 'feature' swirls and
-        small detail ones. Rotation direction picked randomly per
-        swirl so the visual field doesn't read as a uniformly-
-        rotating pattern."""
-        x = W + random.uniform(0, 20)
+        """Iconic cartoon-wind cue — drifts RIGHTWARD with the
+        tailwind. Sizes bimodal (small/medium/big feature)."""
+        x = -random.uniform(0, 20)
         y = random.uniform(40, GROUND_Y - 60)
-        vx = -(100 + swirl_t * 80) - random.uniform(0, 30)
+        vx = (100 + swirl_t * 80) + random.uniform(0, 30)
         vy = random.uniform(-10, 10)
-        # Wider size range — most swirls medium (8-12 px), some
-        # big (14-18 px) for visual hierarchy, some small (5-7 px)
-        # for ambient detail.
         size_pick = random.random()
         if size_pick < 0.15:
-            size = random.randint(14, 18)     # big feature swirl
+            size = random.randint(14, 18)
         elif size_pick < 0.45:
-            size = random.randint(5, 7)       # small detail swirl
+            size = random.randint(5, 7)
         else:
-            size = random.randint(8, 12)      # medium swirl
+            size = random.randint(8, 12)
         col = self._wind_palette(phase)
         alpha = int(140 + swirl_t * 80)
         rot_rate = random.choice((-1.0, 1.0)) * random.uniform(0.8, 1.8)
@@ -629,13 +619,12 @@ class Weather:
                         rot_rate, life))
 
     def _spawn_wind_dust(self, dust_t, phase):
-        """Tiny 1-2 px specks racing leftward fast for textural
-        foreground density."""
-        x = W + random.uniform(0, 15)
+        """Tiny specks racing RIGHTWARD fast — foreground texture."""
+        x = -random.uniform(0, 15)
         y = random.uniform(5, GROUND_Y - 10)
-        vx = -(380 + dust_t * 220) - random.uniform(0, 40)
+        vx = (380 + dust_t * 220) + random.uniform(0, 40)
         vy = random.uniform(-10, 25)
-        size = random.choice((1, 1, 2))   # mostly 1 px, occasional 2 px
+        size = random.choice((1, 1, 2))
         col = self._wind_palette(phase)
         alpha = int(80 + dust_t * 80)
         self.wind_dust.append(
