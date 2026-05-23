@@ -572,7 +572,7 @@ class Weather:
         else:
             x = random.uniform(-20, W * 0.6)
             y = random.uniform(-30, 0)
-        vx = (320 + streak_t * 220) + random.uniform(0, 80)
+        vx = (420 + streak_t * 260) + random.uniform(0, 90)
         vy = 30 + random.uniform(-10, 40)
         length = int(12 + streak_t * 18)
         col = self._wind_palette(phase)
@@ -588,7 +588,7 @@ class Weather:
         """Background slow drift — long soft RIGHTWARD streaks."""
         x = -random.uniform(0, 30)
         y = random.uniform(10, GROUND_Y - 30)
-        vx = (110 + drift_t * 70) + random.uniform(0, 30)
+        vx = (150 + drift_t * 90) + random.uniform(0, 40)
         vy = random.uniform(-5, 15)
         length = int(30 + drift_t * 20)
         col = self._wind_palette(phase)
@@ -601,7 +601,7 @@ class Weather:
         tailwind. Sizes bimodal (small/medium/big feature)."""
         x = -random.uniform(0, 20)
         y = random.uniform(40, GROUND_Y - 60)
-        vx = (100 + swirl_t * 80) + random.uniform(0, 30)
+        vx = (130 + swirl_t * 100) + random.uniform(0, 40)
         vy = random.uniform(-10, 10)
         size_pick = random.random()
         if size_pick < 0.15:
@@ -622,7 +622,7 @@ class Weather:
         """Tiny specks racing RIGHTWARD fast — foreground texture."""
         x = -random.uniform(0, 15)
         y = random.uniform(5, GROUND_Y - 10)
-        vx = (380 + dust_t * 220) + random.uniform(0, 40)
+        vx = (500 + dust_t * 260) + random.uniform(0, 50)
         vy = random.uniform(-10, 25)
         size = random.choice((1, 1, 2))
         col = self._wind_palette(phase)
