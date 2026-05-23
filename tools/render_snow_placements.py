@@ -210,19 +210,19 @@ CONT = [
 ]
 
 
-def cont_layer(head_w, dy_full=5.5, dy_end=12.0, wmul=1.4, M=900):
-    """One continuous full drift. `head_w` (≤1) tapers the band
-    weight from the shoulder out to the crown so the head cap is
-    shorter/lighter than the body — lower head_w = more head trim.
-    Sampling rect hugs the line (y -24..6) so most samples land
-    in-band → a properly full, even single layer."""
+def cont_layer(head_w, dy_full=5.5, dy_end=12.0, wmul=1.4, M=950):
+    """One continuous full drift. The body AND the nape/bridge stay
+    at FULL weight; only the head CROWN (x>11) tapers toward
+    `head_w` — so the bridge keeps its snow and just the head cap
+    is trimmed a touch. Sampling rect hugs the line so the single
+    layer is properly full + even."""
     def along(x):
         if x < -29.0:
             return max(0.55, 1.0 - (-29.0 - x) / 4.0)
-        if x > 6.0:
-            t = min(1.0, (x - 6.0) / 10.0)
+        if x > 11.0:                       # only the head crown trims
+            t = min(1.0, (x - 11.0) / 6.0)
             return 1.0 + (head_w - 1.0) * t
-        return 1.0
+        return 1.0                         # full through body + nape/bridge
     p = []
     band(p, CONT, -29.5, 18.0, -24.0, 6.0, along=along,
          dy_cull=-1.5, dy_full=dy_full, dy_end=dy_end, wmul=wmul, M=M,
@@ -230,13 +230,14 @@ def cont_layer(head_w, dy_full=5.5, dy_end=12.0, wmul=1.4, M=900):
     return _sort(p)
 
 
-# One continuous layer; head trimmed by varying amounts.
+# One continuous layer; FULL bridge, head crown trimmed only a
+# little (lighter than before).
 VARIANTS = [
-    ("1  head trim-slight", lambda: cont_layer(0.85)),
-    ("2  head trim",        lambda: cont_layer(0.72)),
-    ("3  head trim-med",    lambda: cont_layer(0.62)),
-    ("4  head trim-more",   lambda: cont_layer(0.52)),
-    ("5  head trim-most",   lambda: cont_layer(0.44)),
+    ("1  head 0.92 (barely)", lambda: cont_layer(0.92)),
+    ("2  head 0.85",          lambda: cont_layer(0.85)),
+    ("3  head 0.78",          lambda: cont_layer(0.78)),
+    ("4  head 0.70",          lambda: cont_layer(0.70)),
+    ("5  head 0.62",          lambda: cont_layer(0.62)),
     ("0  head full (no trim)", lambda: cont_layer(1.0)),
 ]
 
@@ -283,7 +284,7 @@ def main():
         sheet.blit(font.render(label, True, (240, 246, 255)),
                    (x + (pw - font.size(label)[0]) // 2, y + ph + 5))
 
-    out = os.path.join(OUT_DIR, "continuous_headtrim_sheet.png")
+    out = os.path.join(OUT_DIR, "continuous_v2_sheet.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
