@@ -279,20 +279,40 @@ def _soft_tint_disc(radius, color, alpha):
     return surf
 
 
+# Snow-catch anchors over Pip's whole windward REAR. He faces +x
+# (right), so the tailwind drives snow onto everything facing -x:
+# the tail (far left), the rump + back hump, the wing, and a bit
+# down the windward side. Each is (sprite-rel x, y, weight) where
+# weight = how much snow settles there (heaviest on the broad
+# back/rump, lighter on the thin tail tip + the front edge).
+# Centre = (0,0); sprite is 68×64, body bbox x∈[-31,33] y∈[-26,22].
+_SNOW_ANCHORS = (
+    (-28.0,  4.0, 0.50),   # tail tip
+    (-24.0, -0.5, 0.78),   # tail upper edge
+    (-19.0,  4.5, 0.55),   # tail/rump windward, lower
+    (-18.0, -5.0, 1.00),   # rump / back start  (main mass)
+    (-12.0, -7.6, 1.00),   # back hump
+    (-13.0,  3.0, 0.62),   # windward flank
+    (-6.0,  -8.0, 0.96),   # back hump crest
+    (-8.0,   5.0, 0.45),   # wing top, windward
+    (0.0,   -7.2, 0.74),   # back toward neck
+    (5.0,   -6.0, 0.44),   # neck base (taper out front)
+)
+
+
 def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
-    """Snowdrift settled on Pip's back during the squall. The
-    tailwind blows snow onto him from behind (his left/rear), so
-    the drift hugs his dorsal hump — thicker toward the back
-    (rump) and tapering toward the neck. Built from overlapping
-    soft white blobs along the back's top contour; `load` (0..1)
-    scales both thickness and opacity so it fades in as snow
-    settles and melts away cleanly. Sprite-relative coords: +x is
-    forward (right, the way Pip faces), centre at (0,0)."""
+    """Snowdrift settled over Pip's whole windward rear during the
+    squall. The tailwind blows snow onto everything facing his
+    back (his left): the tail, rump, back hump, wing and the
+    windward flank. Built from overlapping soft white blobs at the
+    `_SNOW_ANCHORS`; `load` (0..1) scales thickness + opacity so it
+    fades in as snow settles and melts away cleanly. Two passes —
+    a cool under-shadow for volume, then the white drift with a
+    deterministic lumpy size (no per-frame randomness → no
+    flicker). +x is forward (right), centre at (0,0)."""
     load = max(0.0, min(1.0, load))
     sc = scale
-    x_back, x_front = -23.0, 4.0          # rump → base of neck
-    n = 11
-    base_a = int(min(235, 55 + load * 180))
+    base_a = int(min(240, 65 + load * 175))
     cos_t = math.cos(math.radians(tilt))
     sin_t = math.sin(math.radians(tilt))
 
@@ -303,35 +323,29 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
         surf.blit(disc, (int(cx + rx * sc - disc.get_width() / 2),
                          int(cy + ry * sc - disc.get_height() / 2)))
 
-    # Pass 1 — cool under-shadow: a faint blue-grey row just below
-    # the drift so the white snow reads as a raised volume sitting
-    # on the body rather than a flat highlight.
-    for i in range(n):
-        t = i / (n - 1)
-        xr = x_back + (x_front - x_back) * t
-        yr = -7.0 + 0.013 * (xr + 5.0) ** 2
-        backw = 1.0 - 0.5 * t
-        rad = (2.5 + load * 7.0) * backw * sc
+    # radius per anchor — bigger overall than the back-only version
+    # so the rear reads as a fuller, more massive drift (still
+    # tasteful: max ~11 px on the broad back at full load).
+    def radius(weight, lump=1.0):
+        return (3.0 + load * 8.5) * weight * lump * sc
+
+    # Pass 1 — cool blue-grey under-shadow just below each blob so
+    # the snow reads as raised volume, not a flat highlight.
+    for xr, yr, wt in _SNOW_ANCHORS:
+        rad = radius(wt)
         if rad < 1.0:
             continue
-        oy = yr + rad * 0.15      # shadow sits a touch lower
-        sh = _soft_tint_disc(rad * 0.9, (150, 170, 205),
-                             int(base_a * 0.45))
-        place(xr, oy, rad, sh)
+        place(xr, yr + rad * 0.18, rad,
+              _soft_tint_disc(rad * 0.92, (150, 170, 205),
+                              int(base_a * 0.42)))
 
-    # Pass 2 — the white drift. A small deterministic cosine
-    # undulates the top edge + blob size so it reads as lumpy snow
-    # (stable frame-to-frame: no per-frame randomness → no flicker).
-    for i in range(n):
-        t = i / (n - 1)
-        xr = x_back + (x_front - x_back) * t
-        yr = -7.0 + 0.013 * (xr + 5.0) ** 2
-        lump = 0.82 + 0.18 * math.cos(i * 1.9)        # 0.64..1.0
-        backw = 1.0 - 0.5 * t
-        rad = (2.5 + load * 7.0) * backw * lump * sc
+    # Pass 2 — the white drift.
+    for idx, (xr, yr, wt) in enumerate(_SNOW_ANCHORS):
+        lump = 0.84 + 0.16 * math.cos(idx * 1.7)      # 0.68..1.0
+        rad = radius(wt, lump)
         if rad < 0.8:
             continue
-        oy = yr - rad * 0.40 - load * 1.2             # rests on top
+        oy = yr - rad * 0.34 - load * 1.0             # rests on top
         place(xr, oy, rad, _soft_white_disc(rad, base_a))
 
 
