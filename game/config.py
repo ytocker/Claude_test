@@ -279,6 +279,20 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 
+# Snow accumulating on Pip's back during the snow squall. The
+# tailwind blows snow onto him from behind, so a drift builds up
+# on his dorsal/back surface. Modelled as an integrator on
+# bird.snow_load (0..1):
+#   load += (ACCUM * storm_intensity - MELT) * dt   (clamped 0..1)
+# ACCUM only beats MELT once storm > MELT/ACCUM (~0.37), so snow
+# starts settling partway into the build, KEEPS growing through
+# the peak and a little past it (while storm stays above that
+# threshold on the way down), then melts/blows off as the storm
+# passes. Tuned so the load peaks a few seconds AFTER the storm's
+# own peak and is fully gone by the time the event ends.
+WEATHER_SNOW_ACCUM_RATE = 0.10
+WEATHER_SNOW_MELT_RATE  = 0.037
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE

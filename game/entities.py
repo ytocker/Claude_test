@@ -231,6 +231,110 @@ def _get_grow_body_sprite() -> "tuple[pygame.Surface, int, int]":
     return sprite, dx, dy
 
 
+_SNOW_DISC_CACHE: dict = {}
+
+
+def _soft_white_disc(radius, alpha):
+    """Cached soft round white blob (opaque centre → transparent
+    rim) for building Pip's back-snow drift. Keyed by radius +
+    alpha bucket so repeated draws are cheap blits."""
+    radius = max(1, int(radius))
+    ab = max(16, min(255, (int(alpha) // 16) * 16))
+    key = (radius, ab)
+    cached = _SNOW_DISC_CACHE.get(key)
+    if cached is not None:
+        return cached
+    d = radius * 2 + 2
+    surf = pygame.Surface((d, d), pygame.SRCALPHA)
+    c = radius + 1
+    steps = max(3, radius)
+    for i in range(steps, 0, -1):
+        rr = max(1, int(radius * i / steps))
+        frac = i / steps
+        a = int(ab * (1.0 - frac) ** 1.3)
+        pygame.draw.circle(surf, (255, 255, 255, a), (c, c), rr)
+    _SNOW_DISC_CACHE[key] = surf
+    return surf
+
+
+def _soft_tint_disc(radius, color, alpha):
+    """Soft round blob in an arbitrary colour — used for the cool
+    under-shadow beneath Pip's back-snow. Cached like the white one."""
+    radius = max(1, int(radius))
+    ab = max(8, min(255, (int(alpha) // 12) * 12))
+    key = ("tint", radius, ab, color)
+    cached = _SNOW_DISC_CACHE.get(key)
+    if cached is not None:
+        return cached
+    d = radius * 2 + 2
+    surf = pygame.Surface((d, d), pygame.SRCALPHA)
+    c = radius + 1
+    steps = max(3, radius)
+    for i in range(steps, 0, -1):
+        rr = max(1, int(radius * i / steps))
+        frac = i / steps
+        a = int(ab * (1.0 - frac) ** 1.3)
+        pygame.draw.circle(surf, (*color, a), (c, c), rr)
+    _SNOW_DISC_CACHE[key] = surf
+    return surf
+
+
+def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
+    """Snowdrift settled on Pip's back during the squall. The
+    tailwind blows snow onto him from behind (his left/rear), so
+    the drift hugs his dorsal hump — thicker toward the back
+    (rump) and tapering toward the neck. Built from overlapping
+    soft white blobs along the back's top contour; `load` (0..1)
+    scales both thickness and opacity so it fades in as snow
+    settles and melts away cleanly. Sprite-relative coords: +x is
+    forward (right, the way Pip faces), centre at (0,0)."""
+    load = max(0.0, min(1.0, load))
+    sc = scale
+    x_back, x_front = -23.0, 4.0          # rump → base of neck
+    n = 11
+    base_a = int(min(235, 55 + load * 180))
+    cos_t = math.cos(math.radians(tilt))
+    sin_t = math.sin(math.radians(tilt))
+
+    def place(xr, oy, rad, disc):
+        # Apply Pip's banking tilt around his centre, then blit.
+        rx = xr * cos_t - oy * sin_t
+        ry = xr * sin_t + oy * cos_t
+        surf.blit(disc, (int(cx + rx * sc - disc.get_width() / 2),
+                         int(cy + ry * sc - disc.get_height() / 2)))
+
+    # Pass 1 — cool under-shadow: a faint blue-grey row just below
+    # the drift so the white snow reads as a raised volume sitting
+    # on the body rather than a flat highlight.
+    for i in range(n):
+        t = i / (n - 1)
+        xr = x_back + (x_front - x_back) * t
+        yr = -7.0 + 0.013 * (xr + 5.0) ** 2
+        backw = 1.0 - 0.5 * t
+        rad = (2.5 + load * 7.0) * backw * sc
+        if rad < 1.0:
+            continue
+        oy = yr + rad * 0.15      # shadow sits a touch lower
+        sh = _soft_tint_disc(rad * 0.9, (150, 170, 205),
+                             int(base_a * 0.45))
+        place(xr, oy, rad, sh)
+
+    # Pass 2 — the white drift. A small deterministic cosine
+    # undulates the top edge + blob size so it reads as lumpy snow
+    # (stable frame-to-frame: no per-frame randomness → no flicker).
+    for i in range(n):
+        t = i / (n - 1)
+        xr = x_back + (x_front - x_back) * t
+        yr = -7.0 + 0.013 * (xr + 5.0) ** 2
+        lump = 0.82 + 0.18 * math.cos(i * 1.9)        # 0.64..1.0
+        backw = 1.0 - 0.5 * t
+        rad = (2.5 + load * 7.0) * backw * lump * sc
+        if rad < 0.8:
+            continue
+        oy = yr - rad * 0.40 - load * 1.2             # rests on top
+        place(xr, oy, rad, _soft_white_disc(rad, base_a))
+
+
 def _draw_grow_halo(surf, cx, cy, pulse,
                     color_rgb=_GROW_HALO_RGB,
                     radius=_GROW_HALO_RADIUS,
@@ -831,6 +935,11 @@ class Bird:
         # while the predawn wind event is active. Visual-only;
         # collisions use Bird.x which stays at BIRD_X.
         self.wind_lean = 0.0
+        # Snow accumulation on Pip's back during the snow squall
+        # (0..1). Integrated by World from storm intensity — lags
+        # the storm so it keeps building a little past the peak,
+        # then melts off. Drives the snow-drift overlay in draw().
+        self.snow_load = 0.0
         # X-Ray Sparks flash. Set to 0.5 s by World._fire_storm_jolt
         # when the real strike lands on Pip; Bird.draw alternates Pip's
         # sprite between the normal frame and a skeleton-overlay frame
@@ -1080,6 +1189,13 @@ class Bird:
             img = _apply_ambient_light(img, light_level, light_level)
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
+        # Snow drift on Pip's back — the tailwind deposits snow on
+        # his dorsal surface during the squall. Drawn right on top
+        # of the body sprite (below helmet/parcel), scaled by the
+        # current grow_scale so it tracks his size.
+        if self.snow_load > 0.02 and not skeleton_visible:
+            _draw_snow_cap(surf, cx_int, cy_int, self.snow_load,
+                           self.grow_scale, tilt)
         # X-Ray Sparks ARCS — longer jagged mini-bolts crackling
         # OUTWARD from Pip's silhouette while the flash timer is
         # active. Each arc starts on the silhouette perimeter and
