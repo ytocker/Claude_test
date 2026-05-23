@@ -181,5 +181,8 @@ Practical rules:
   is the chat's label in the web UI.
 - Stripped-down branches like `claude/organize-project-structure-*`
   are not the project — always sanity-check against `v4_skybit`.
+- **Image deliverables go to git, never inline.** Don't attach or
+  embed screenshots/renders in chat. Commit them under `docs/` and
+  share the GitHub blob/raw link instead.
 - This file is the durable context. Add new hard rules here rather
   than re-explaining them in every chat.
