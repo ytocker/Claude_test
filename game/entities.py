@@ -310,7 +310,7 @@ def _build_snow_pool():
 
     M = 150
     bx0, bx1 = -31.0, 7.0
-    by0, by1 = -12.0, 9.0
+    by0, by1 = -15.0, 9.0                  # extend up for a fuller crest
     A1, A2 = 0.7548776662, 0.5698402910    # R2 low-discrepancy seq
     pool = []
     for i in range(M):
@@ -319,9 +319,11 @@ def _build_snow_pool():
         x = bx0 + u * (bx1 - bx0)
         y = by0 + v * (by1 - by0)
         dy = y - line_y(x)                 # distance below the snow line
-        if dy < -1.5:                      # above the back edge → off body
+        if dy < -4.0:                      # too high above the back → off body
             continue
-        if dy <= 3.0:
+        if dy < 0.0:                       # crest ABOVE the line: soft taper
+            wy = max(0.0, 1.0 + dy / 4.0)  # ~0 at the very top → 1 at the line
+        elif dy <= 3.0:
             wy = 1.0
         else:                              # taper deeper into the body
             wy = max(0.0, 1.0 - (dy - 3.0) / 9.0)
@@ -353,8 +355,15 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
         _SNOW_POOL = _build_snow_pool()
     pool = _SNOW_POOL
     sc = scale
-    cos_t = math.cos(math.radians(tilt))
-    sin_t = math.sin(math.radians(tilt))
+    # Rotate the flake field the SAME visual direction as the
+    # sprite. parrot.get_parrot uses pygame.transform.rotozoom,
+    # which rotates COUNTER-clockwise for +tilt; the standard
+    # matrix in screen space (y-down) goes clockwise, so we negate
+    # the angle to match — otherwise the drift counter-rotates and
+    # slides off Pip's back during flaps/dives.
+    ang = math.radians(-tilt)
+    cos_t = math.cos(ang)
+    sin_t = math.sin(ang)
 
     def tf(x, y):
         rx = x * cos_t - y * sin_t
