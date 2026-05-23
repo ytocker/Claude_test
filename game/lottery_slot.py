@@ -21,10 +21,10 @@ procedural-art rule. Symbol surfaces are built once on first use and
 re-blit each frame — keeps the per-frame cost flat across the ~2.2 s
 the animation is on screen.
 
-Reveal feedback is asymmetric: positive tiers get a gold halo +
-confetti pouring out the bottom of the cabinet, negative tiers get a
-soft red wash and no confetti, NOTHING is silent. Same pattern the
-in-game float-text already uses, so the two cues reinforce each other.
+Reveal feedback is asymmetric: positive tiers get confetti pouring out
+the bottom of the cabinet; negative tiers and NOTHING stay quiet. The
+result strip's sign-tinted rim already signals win-vs-loss, so the
+confetti reads as pure celebration on top.
 """
 from __future__ import annotations
 
@@ -199,18 +199,6 @@ def _rim_for_delta(d: int) -> tuple[int, int, int]:
     if d < 0:
         return _RIM_RED
     return _RIM_NEUTRAL
-
-
-def _outer_glow(surf, center, radius, color, alpha):
-    """Ring-shaped halo around the cabinet — never washes out the
-    middle, only highlights the perimeter."""
-    g = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
-    cx = cy = radius + 2
-    for k in range(5):
-        rr = radius + k * 3
-        a = max(0, int(alpha * (1 - k / 5) * 0.55))
-        pygame.draw.circle(g, (*color, a), (cx, cy), rr, 3)
-    surf.blit(g, (center[0] - cx, center[1] - cy))
 
 
 def _confetti_burst(surf, cx, cy, t, seed):
@@ -399,21 +387,13 @@ def draw_reveal(surf, anim):
     if locked_tier is not None:
         _draw_result_strip(surf, tier, delta)
 
-    # Reveal effects fire once all three reels are locked.
-    if t >= LOTTERY_REVEAL_TIME:
-        cabinet_center = (CAB_X + CAB_W // 2, CAB_Y + CAB_H // 2)
-        radius = max(CAB_W, CAB_H) // 2
-        if delta > 0:
-            color = _GOLD_PALE if delta >= 40 else (200, 220, 140)
-            _outer_glow(surf, cabinet_center, radius, color, alpha=180)
-            seed_for_tier = {"JACKPOT": 11, "BIG WIN": 12, "WIN": 13}.get(
-                tier, 11)
-            _confetti_burst(surf, cabinet_center[0],
-                            CAB_Y + CAB_H + 6,
-                            (t - LOTTERY_REVEAL_TIME) * 8,
-                            seed=seed_for_tier)
-        elif delta < 0:
-            # Soft red wash, no confetti — the sting is the absence of
-            # celebration as much as the value drop.
-            _outer_glow(surf, cabinet_center, radius,
-                        (210, 80, 60), alpha=140)
+    # Confetti pours from the bottom of the cabinet once all three reels
+    # lock on a positive tier. Negative tiers and NOTHING stay quiet —
+    # the result strip's red-tinted rim already carries the sting.
+    if t >= LOTTERY_REVEAL_TIME and delta > 0:
+        seed_for_tier = {"JACKPOT": 11, "BIG WIN": 12, "WIN": 13}.get(
+            tier, 11)
+        _confetti_burst(surf, CAB_X + CAB_W // 2,
+                        CAB_Y + CAB_H + 6,
+                        (t - LOTTERY_REVEAL_TIME) * 8,
+                        seed=seed_for_tier)
