@@ -122,12 +122,15 @@ def _col_r(t, base_r, col_w, top_w):
     return max(body, skirt) + fray
 
 
-def _blit_devil(surf, big, cx, base_y, scale=1.0):
+def _blit_devil(surf, big, cx, base_y, scale=1.0, alpha=255):
     """Smoothscale a SS devil surface down and blit so its base anchor
-    sits at (cx, base_y)."""
+    sits at (cx, base_y). `alpha` (<255) fades the whole column for the
+    'emerging' beat."""
     dw = int(DW * scale)
     dh = int(DH * scale)
     small = pygame.transform.smoothscale(big, (dw, dh))
+    if alpha < 255:
+        small.set_alpha(alpha)
     surf.blit(small, (int(cx - BASE_LX * scale), int(base_y - BASE_LY * scale)))
 
 
@@ -148,36 +151,50 @@ def _base_pool(big, color, a, w=58, h=20, seed=0):
         soft_stamp(big, x, y, r, color, int(a * rng.uniform(0.4, 1.0)))
 
 
-# ── variant 1: volumetric bloom column ───────────────────────────────────────
+# ── variant 1: volumetric bloom column (SPARSE + SWIRL) ───────────────────────
 def devil_bloom(s, seed=11):
+    """Airy, broken-up grit column — reads like the frayed TOP of the
+    old bloom THROUGHOUT (see-through, gaps), with a clear helical
+    swirl (front lobes brighter than back) so rotation reads."""
     rng = random.Random(seed)
     big = _new_big()
     height = (DH - 30) * SS
     lean = 0.07
-    body = (172, 124, 78)
-    shadow = (108, 74, 44)
-    hi = (240, 210, 152)
-    _base_pool(big, body, int(150 + s * 70), seed=seed)
-    N = 180
-    a0 = int(150 + s * 80)
-    for i in range(N + 1):
-        t = i / N
-        x, y = _spine(t, lean, 11 * SS, 3.2, seed, height)
-        r = _col_r(t, 42 * SS, 18 * SS, 12 * SS)
-        # mottled density along the column (alive, not airbrushed-smooth)
-        mott = 0.78 + 0.22 * math.sin(t * 22 + seed) * math.sin(t * 7 + 1.3)
-        a = int((a0 * (1.0 - smoothstep(0.0, 1.0, t) * 0.95) + a0 * 0.05) * mott)
-        soft_stamp(big, x, y, r, body, a)
-        soft_stamp(big, x + r * 0.3, y, r * 0.7, shadow, int(a * 0.5))
-        if i % 2 == 0:
-            soft_stamp(big, x - r * 0.5, y, r * 0.4, hi, int(a * 0.45))
-    # frayed grit torn off the top
-    for _ in range(int(34 * s) + 14):
-        t = rng.uniform(0.6, 1.12)
-        x, y = _spine(min(t, 1.0), lean, 11 * SS, 3.2, seed, height)
-        x += rng.uniform(-1, 1) * 30 * SS
-        soft_stamp(big, x, y - rng.uniform(0, 44) * SS,
-                   rng.uniform(2, 5) * SS, body, int(a0 * 0.4))
+    body = (176, 128, 82)
+    shadow = (118, 84, 50)
+    hi = (240, 212, 156)
+    _base_pool(big, body, int(120 + s * 60), seed=seed)
+    # faint cohesive underlay so the sparse grit reads as ONE column
+    # (a ghost trunk), not a disconnected string of puffs
+    for i in range(120):
+        t = i / 120
+        ux, uy = _spine(t, lean, 12 * SS, 3.0, seed, height)
+        ur = _col_r(t, 26 * SS, 13 * SS, 9 * SS) * 0.85
+        ua = int((30 + s * 28) * (1.0 - smoothstep(0.45, 1.05, t)))
+        soft_stamp(big, ux, uy, ur, body, ua, falloff=1.6)
+    turns = 2.5
+    nlobes = int(170 + s * 150)
+    a0 = int(74 + s * 70)
+    for i in range(nlobes):
+        t = rng.random() ** 0.9                       # fairly even → airy
+        sx, sy = _spine(t, lean, 12 * SS, 3.0, seed, height)
+        colr = _col_r(t, 30 * SS, 16 * SS, 11 * SS)
+        ang = t * turns * 2 * math.pi + rng.uniform(-0.45, 0.45)
+        depth = (math.sin(ang) + 1) * 0.5             # 0 back → 1 front
+        rr = colr * (0.35 + 0.65 * rng.random())
+        x = sx + math.cos(ang) * rr
+        y = sy + rng.uniform(-1, 1) * 4 * SS
+        lobe = rng.uniform(5, 11) * SS * (1.0 - 0.28 * t)
+        a = int(a0 * (0.32 + 0.68 * depth) * (1.0 - smoothstep(0.6, 1.06, t)))
+        col = hi if depth > 0.8 else (body if depth > 0.42 else shadow)
+        soft_stamp(big, x, y, lobe, col, a, falloff=1.3)
+    # extra frayed grit torn off the top
+    for _ in range(int(30 * s) + 12):
+        t = rng.uniform(0.55, 1.12)
+        sx, sy = _spine(min(t, 1.0), lean, 12 * SS, 3.0, seed, height)
+        x = sx + rng.uniform(-1, 1) * 30 * SS
+        soft_stamp(big, x, sy - rng.uniform(0, 42) * SS,
+                   rng.uniform(2, 4) * SS, body, int(a0 * 0.55))
     return big
 
 
@@ -339,6 +356,104 @@ VARIANTS = [
 ]
 
 
+# ── A: tiny airborne sand (the new opening beat, drawn over the scene) ────────
+AIR_COL = [(208, 178, 126), (184, 144, 98), (162, 122, 80), (222, 198, 152)]
+
+
+def _grain(surf, x, y, size, col, a):
+    """A crisp tiny sand speck (1–2 px) — sharper than a soft disc so it
+    reads as a hard little grain, not a fuzzy dot."""
+    a = int(max(0, min(255, a)))
+    if a <= 0:
+        return
+    g = pygame.Surface((size, size), pygame.SRCALPHA)
+    g.fill((*col, a))
+    surf.blit(g, (int(x), int(y)))
+
+
+def air_motes(surf, s, seed=1):
+    """1. Fine drifting motes — sparse specks across the whole sky,
+    parallax sizes (far = tiny sharp, near = a touch bigger/softer)."""
+    rng = random.Random(seed)
+    for _ in range(int(130 + s * 240)):
+        x, y = rng.uniform(0, W), rng.uniform(0, GROUND_Y - 24)
+        depth = rng.random()
+        a = int((80 + s * 120) * (0.45 + 0.55 * depth))
+        col = rng.choice(AIR_COL)
+        if depth < 0.62:
+            _grain(surf, x, y, 1, col, a)
+        else:
+            soft_stamp(surf, x, y, 2, col, int(a * 0.95))
+
+
+def air_ground(surf, s, seed=2):
+    """2. Low ground-grit — grains lifting off the floor first, dense low
+    and thinning upward."""
+    rng = random.Random(seed)
+    top = GROUND_Y - 230
+    for _ in range(int(190 + s * 320)):
+        u = rng.random() ** 2.0                       # biased toward ground
+        y = lerp(GROUND_Y - 4, top, u)
+        x = rng.uniform(0, W)
+        a = int((90 + s * 130) * (1.0 - u * 0.8))
+        col = rng.choice(AIR_COL)
+        _grain(surf, x, y, 1 if rng.random() < 0.65 else 2, col, a)
+
+
+def air_streaked(surf, s, seed=3):
+    """3. Wind-streaked grains — each grain trails a faint short tapered
+    motion-streak at a shallow angle (clearly carried by wind)."""
+    rng = random.Random(seed)
+    for _ in range(int(85 + s * 170)):
+        x, y = rng.uniform(0, W), rng.uniform(0, GROUND_Y - 24)
+        ln = rng.uniform(4, 10) * (0.6 + s)
+        dx, dy = ln, ln * 0.22                        # shallow rightward drift
+        a = int(70 + s * 110)
+        col = rng.choice(AIR_COL)
+        steps = max(2, int(ln))
+        for k in range(steps):
+            f = k / steps
+            _grain(surf, x + dx * f, y + dy * f, 1, col, int(a * (1 - f)))
+        _grain(surf, x + dx, y + dy, 2, col, a)        # bright grain head
+
+
+def air_haze(surf, s, seed=4):
+    """4. Suspended shimmer haze — lots of very-low-alpha sub-grains, a
+    faint grainy film across the air."""
+    rng = random.Random(seed)
+    for _ in range(int(620 + s * 950)):
+        x, y = rng.uniform(0, W), rng.uniform(0, GROUND_Y - 16)
+        a = int((24 + s * 48) * (0.4 + 0.6 * rng.random()))
+        _grain(surf, x, y, 1, rng.choice(AIR_COL), a)
+
+
+def air_clumps(surf, s, seed=5):
+    """5. Drifting wisp-clumps — grains gathered into a few loose puffs
+    catching the breeze (uneven, not uniform)."""
+    rng = random.Random(seed)
+    nclumps = 6
+    for c in range(nclumps):
+        cx = rng.uniform(W * 0.1, W * 0.9)
+        cy = rng.uniform(H * 0.22, GROUND_Y - 50)
+        spread = rng.uniform(28, 60)
+        for _ in range(int(55 + s * 90)):
+            # gaussian-ish scatter, drawn out horizontally (drifting)
+            x = cx + (rng.random() - rng.random()) * spread * 1.5
+            y = cy + (rng.random() - rng.random()) * spread * 0.7
+            a = int((64 + s * 110) * (0.5 + 0.5 * rng.random()))
+            _grain(surf, x, y, 1 if rng.random() < 0.7 else 2,
+                   rng.choice(AIR_COL), a)
+
+
+AIR_VARIANTS = [
+    ("1 motes",    "fine drifting motes",      air_motes),
+    ("2 ground",   "low ground-grit",          air_ground),
+    ("3 streaked", "wind-streaked grains",     air_streaked),
+    ("4 haze",     "suspended shimmer haze",   air_haze),
+    ("5 clumps",   "drifting wisp-clumps",     air_clumps),
+]
+
+
 # ── scene composite ───────────────────────────────────────────────────────────
 def base_sky(phase):
     pal = _biome.palette_for_phase(phase)
@@ -378,15 +493,26 @@ def zoom_panel(fn, s=0.30):
     return surf.subsurface(crop).copy()
 
 
-def render():
-    panels = []
-    for tag, desc, fn in VARIANTS:
-        frame = full_frame(fn)
-        panels.append((f"{tag} — {desc}", frame))
-        pygame.image.save(frame, os.path.join(OUT_DIR, f"tease_{tag.split()[0]}.png"))
-        z = zoom_panel(fn)
-        pygame.image.save(z, os.path.join(OUT_DIR, f"tease_{tag.split()[0]}_zoom.png"))
+def _scene_base():
+    """Sky + mountains + ground + Pip — the shared backdrop for the
+    air-sand panels (mountains untouched this session)."""
+    surf, pal = base_sky(TEASE_PHASE)
+    draw_mountains(surf, 0, GROUND_Y, W, pal["mtn_far"], pal["mtn_near"])
+    draw_ground(surf, GROUND_Y, W, H, 0,
+                pal["ground_top"], pal["ground_mid"], (60, 40, 25))
+    b = Bird()
+    b.x, b.y, b.vy = BIRD_X, int(H * 0.42), 0
+    b.draw(surf)
+    return surf, pal
 
+
+def air_frame(fn, s=0.6):
+    surf, _ = _scene_base()
+    fn(surf, s)                          # tiny sand drawn over the scene
+    return surf
+
+
+def _grid_sheet(panels, out_name):
     margin, label_h = 12, 26
     cols = len(panels)
     sheet = pygame.Surface((cols * (W + margin) + margin,
@@ -398,10 +524,58 @@ def render():
         pygame.draw.rect(sheet, (70, 64, 50), (x - 2, margin - 2, W + 4, H + 4), 2)
         sheet.blit(surf, (x, margin))
         sheet.blit(font.render(lbl, True, (235, 220, 190)), (x + 4, margin + H + 4))
-    out = os.path.join(OUT_DIR, "tease_sheet.png")
+    out = os.path.join(OUT_DIR, out_name)
     pygame.image.save(sheet, out)
     print(f"saved {out}  {sheet.get_size()}")
 
 
+def render_devils():
+    panels = []
+    for tag, desc, fn in VARIANTS:
+        frame = full_frame(fn)
+        panels.append((f"{tag} — {desc}", frame))
+        pygame.image.save(frame, os.path.join(OUT_DIR, f"tease_{tag.split()[0]}.png"))
+        pygame.image.save(zoom_panel(fn),
+                          os.path.join(OUT_DIR, f"tease_{tag.split()[0]}_zoom.png"))
+    _grid_sheet(panels, "tease_sheet.png")
+
+
+def render_air():
+    panels = []
+    for tag, desc, fn in AIR_VARIANTS:
+        frame = air_frame(fn)
+        panels.append((f"{tag} — {desc}", frame))
+        pygame.image.save(frame, os.path.join(OUT_DIR, f"air_{tag.split()[0]}.png"))
+    _grid_sheet(panels, "air_sheet.png")
+
+
+def render_flow():
+    """Deliverable B — the teasing sequence: tiny sand first, then the
+    revised sparse+swirl devil APPEARS after it. (motes used as the
+    placeholder air style until the user picks from air_sheet.)"""
+    devil_x, devil_base = W * 0.70, GROUND_Y - 32
+
+    # p1 — only sand in the air
+    p1, _ = _scene_base()
+    air_motes(p1, 0.55, seed=1)
+
+    # p2 — sand + the devil just emerging (faint, short, forming)
+    p2, _ = _scene_base()
+    air_motes(p2, 0.5, seed=1)
+    _blit_devil(p2, devil_bloom(0.16), devil_x, devil_base, scale=0.8, alpha=120)
+
+    # p3 — devil present (sand thinned as it concentrates into the column)
+    p3, _ = _scene_base()
+    air_motes(p3, 0.3, seed=1)
+    _blit_devil(p3, devil_bloom(0.42), devil_x, devil_base, scale=1.0)
+
+    panels = [("1 — sand in the air", p1),
+              ("2 — devil emerges after", p2),
+              ("3 — devil present (sparse + swirl)", p3)]
+    _grid_sheet(panels, "tease_flow.png")
+
+
 if __name__ == "__main__":
-    render()
+    render_air()
+    render_flow()
+    render_devils()
