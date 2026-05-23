@@ -54,18 +54,21 @@ def _line_fn(key):
 
 def band(pool, key, x_lo, x_hi, y_lo, y_hi, along, *,
          dy_cull=-1.0, dy_full=3.0, dy_end=8.0, wmul=1.0, M=160,
-         seed=0, wind_rear=True):
+         seed=0, wind_rear=True, face_guard=False):
     """Scatter flakes in a band that RESTS ON the line `key` (x in
     [x_lo,x_hi]). dy = y - line(x); flake centres sit just BELOW
     the top contour (dy>0) so the soft discs rest on the body and
     their tops form the snow height — almost none above the line,
-    so the snow doesn't float. Appends (x,y,dy,w) to `pool`."""
+    so the snow doesn't float. `face_guard` culls flakes over the
+    sunglasses. Appends (x,y,dy,w) to `pool`."""
     line = _line_fn(key)
     for i in range(M):
         u = (0.5 + A1 * (i + 1 + seed)) % 1.0
         v = (0.5 + A2 * (i + 1 + seed)) % 1.0
         x = x_lo + u * (x_hi - x_lo)
         y = y_lo + v * (y_hi - y_lo)
+        if face_guard and x > 13.0 and y > -17.0:
+            continue
         dy = y - line(x)
         if dy < dy_cull:
             continue
@@ -145,33 +148,109 @@ def _sort(pool):
     return pool
 
 
-# ── V4 (HEAVY) with placement tweaks ─────────────────────────────────────────
-# Base = V4 (most snow). Each version shifts the HEAD cap a few px
-# RIGHT (head_dx) and TRIMS the back drift's right end a few px
-# (back_trim) so the lower mass doesn't run so far toward the head.
+# ── Chosen (disconnected) baseline, for reference ────────────────────────────
 
-def v4_adjusted(head_dx, back_trim):
+def v4_chosen():
+    """The shipped placement: heavy back drift + a separate crown
+    cap, with a GAP at the nape between them."""
     p = []
-    bx_hi = 11.0 - back_trim                 # trim the right (head-ward) end
-    t0 = bx_hi - 3.0                         # where the right taper begins
-    band(p, TAIL_BACK, -29.5, bx_hi, -11.0, 11.0,
-         along=lambda x, t0=t0: (
-             max(0.6, 1.0 - (-29.0 - x) / 4.0) if x < -29 else
-             (max(0.4, 1.0 - (x - t0) / 4.0) if x > t0 else 1.0)),
+    band(p, TAIL_BACK, -29.5, 6.0, -11.0, 11.0,
+         along=lambda x: (max(0.6, 1.0 - (-29.0 - x) / 4.0) if x < -29 else
+                          (max(0.4, 1.0 - (x - 3.0) / 4.0) if x > 3.0 else 1.0)),
          dy_cull=-1.5, dy_full=4.0, dy_end=10.0, wmul=1.2, M=300)
-    crown(p, cx=10.0 + head_dx, x_lo=4.0 + head_dx, x_hi=16.0 + head_dx,
+    crown(p, cx=16.0, x_lo=10.0, x_hi=22.0,
           wmul=1.0, M=110, dy_cull=-1.5, dy_full=2.5, dy_end=6.0)
     return _sort(p)
 
 
-# (head_dx px right, back_trim px off the right end)
+# ── CONNECTED variants — back + head joined into ONE layer ───────────────────
+# A continuous line from the tail tip, over the back, UP the nape,
+# onto the crown. Snow accumulates along it so the two regions
+# merge into a single drift as the storm worsens. The 5 versions
+# vary the bridge over the nape (thin ridge → full merge → high
+# arc → low saddle) and the overall amount.
+
+CONT_LINE = [
+    (-31.0, -2.0), (-25.0, -4.0), (-19.0, -6.0), (-12.0, -8.0),
+    (-5.0,  -8.5), (2.0,  -8.0),  (8.0,  -9.0),
+    (11.0, -15.0), (14.0, -21.0), (17.0, -22.0),   # nape → crown
+]
+# A higher/lower nape routing for the arc / saddle variants.
+CONT_HIGH = CONT_LINE[:7] + [(10.0, -16.0), (12.0, -22.0), (15.0, -24.0),
+                             (18.0, -23.0)]
+CONT_SADDLE = CONT_LINE[:7] + [(11.0, -12.0), (13.0, -18.0), (16.0, -22.0),
+                               (19.0, -22.0)]
+
+
+def _cont_along(tail_tip=-29.0, head_end=15.0):
+    def along(x):
+        if x < tail_tip:
+            return max(0.55, 1.0 - (tail_tip - x) / 4.0)
+        if x > head_end:
+            return max(0.4, 1.0 - (x - head_end) / 4.0)
+        return 1.0
+    return along
+
+
+def cv1_smooth():
+    """One even continuous layer, tail → back → nape → crown."""
+    p = []
+    band(p, CONT_LINE, -29.5, 18.0, -29.0, 11.0, along=_cont_along(),
+         dy_cull=-1.5, dy_full=3.5, dy_end=9.0, wmul=1.05, M=340,
+         face_guard=True)
+    return _sort(p)
+
+
+def cv2_heavy():
+    """One thick continuous blanket — the deepest, fullest merge."""
+    p = []
+    band(p, CONT_LINE, -29.5, 18.0, -30.0, 12.0, along=_cont_along(),
+         dy_cull=-1.5, dy_full=5.0, dy_end=11.0, wmul=1.3, M=380,
+         face_guard=True)
+    return _sort(p)
+
+
+def cv3_bridge():
+    """Keep the chosen back + crown shapes, but add a NAPE BRIDGE so
+    they connect (subtle seam, mostly the shipped look)."""
+    p = v4_chosen()
+    # bridge band over the nape, joining shoulder→crown
+    band(p, [(6.0, -9.0), (9.0, -13.0), (12.0, -18.0), (15.0, -21.0)],
+         5.0, 15.0, -24.0, -7.0,
+         along=lambda x: 1.0, dy_cull=-1.0, dy_full=3.0, dy_end=7.0,
+         wmul=1.0, M=90, seed=500, face_guard=True)
+    return _sort(p)
+
+
+def cv4_high_arc():
+    """Continuous, with the connection arcing HIGH over the neck —
+    snow piled up bridging at the top."""
+    p = []
+    band(p, CONT_HIGH, -29.5, 19.0, -30.0, 11.0,
+         along=_cont_along(head_end=16.0),
+         dy_cull=-1.5, dy_full=4.0, dy_end=10.0, wmul=1.15, M=360,
+         face_guard=True)
+    return _sort(p)
+
+
+def cv5_low_saddle():
+    """Continuous, but the bridge follows the neck dip closely — a
+    low saddle of snow draped from back to head."""
+    p = []
+    band(p, CONT_SADDLE, -29.5, 19.0, -28.0, 11.0,
+         along=_cont_along(head_end=16.0),
+         dy_cull=-1.5, dy_full=3.0, dy_end=8.0, wmul=1.0, M=320,
+         face_guard=True)
+    return _sort(p)
+
+
 VARIANTS = [
-    ("A  head+2  trim2", lambda: v4_adjusted(2, 2)),
-    ("B  head+3  trim4", lambda: v4_adjusted(3, 4)),
-    ("C  head+4  trim6", lambda: v4_adjusted(4, 6)),
-    ("D  head+5  trim5", lambda: v4_adjusted(5, 5)),
-    ("E  head+6  trim8", lambda: v4_adjusted(6, 8)),
-    ("0  V4 base (no adj)", lambda: v4_adjusted(0, 0)),
+    ("1  CONTINUOUS smooth",  cv1_smooth),
+    ("2  CONTINUOUS heavy",   cv2_heavy),
+    ("3  BRIDGE (chosen+join)", cv3_bridge),
+    ("4  HIGH-ARC bridge",    cv4_high_arc),
+    ("5  LOW-SADDLE drape",   cv5_low_saddle),
+    ("0  CURRENT (gap)",      v4_chosen),
 ]
 
 
@@ -217,7 +296,7 @@ def main():
         sheet.blit(font.render(label, True, (240, 246, 255)),
                    (x + (pw - font.size(label)[0]) // 2, y + ph + 5))
 
-    out = os.path.join(OUT_DIR, "placements_sheet.png")
+    out = os.path.join(OUT_DIR, "connect_sheet.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
