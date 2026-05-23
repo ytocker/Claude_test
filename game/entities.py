@@ -239,13 +239,14 @@ def _get_grow_body_sprite() -> "tuple[pygame.Surface, int, int]":
 # settle — there is NO fixed silhouette; the drift shape emerges
 # from the accumulated flakes.
 _SNOW_LINE_KEY = (
-    (-31.0,  7.0),   # tail tip
-    (-26.0,  1.0),   # tail upper edge
-    (-20.0, -3.0),   # rump
-    (-13.0, -6.6),   # back start
-    (-6.0,  -7.8),   # back hump crest
-    (0.0,   -7.4),   # back toward neck
-    (6.0,   -5.6),   # neck base
+    (-30.0,  5.0),   # tail tip
+    (-25.0,  0.0),   # tail upper edge
+    (-19.0, -3.5),   # rump
+    (-12.0, -6.5),   # back start
+    (-5.0,  -8.0),   # back hump crest
+    (2.0,   -8.0),   # back toward shoulder
+    (8.0,   -8.5),   # shoulder
+    (13.0, -10.5),   # upper back, just behind the head
 )
 
 _SNOW_DISC_CACHE: dict = {}
@@ -299,18 +300,22 @@ def _build_snow_pool():
         return key[-1][1]
 
     def along_w(x):
-        if x < -32.0:
+        # Snow blankets the WHOLE upper surface fairly evenly — only
+        # the very tail tip and the approach to the head taper off,
+        # so the tail + upper back/shoulder both get covered (not a
+        # single mid-back blob).
+        if x < -31.0 or x > 14.0:
             return 0.0
         w = 1.0
-        if x > -2.0:                       # taper toward the front/neck
-            w *= max(0.12, 1.0 - (x + 2.0) / 12.0)
-        if x < -24.0:                      # taper at the thin tail tip
-            w *= max(0.22, 1.0 - (-24.0 - x) / 9.0)
+        if x > 9.0:                        # ease off as we near the head
+            w *= max(0.30, 1.0 - (x - 9.0) / 7.0)
+        if x < -27.0:                      # ease off at the thin tail tip
+            w *= max(0.40, 1.0 - (-27.0 - x) / 5.0)
         return w
 
-    M = 150
-    bx0, bx1 = -31.0, 7.0
-    by0, by1 = -15.0, 9.0                  # extend up for a fuller crest
+    M = 210
+    bx0, bx1 = -31.0, 15.0
+    by0, by1 = -15.0, 12.0
     A1, A2 = 0.7548776662, 0.5698402910    # R2 low-discrepancy seq
     pool = []
     for i in range(M):
@@ -319,14 +324,14 @@ def _build_snow_pool():
         x = bx0 + u * (bx1 - bx0)
         y = by0 + v * (by1 - by0)
         dy = y - line_y(x)                 # distance below the snow line
-        if dy < -4.0:                      # too high above the back → off body
+        if dy < -3.5:                      # too high above the back → off body
             continue
         if dy < 0.0:                       # crest ABOVE the line: soft taper
-            wy = max(0.0, 1.0 + dy / 4.0)  # ~0 at the very top → 1 at the line
-        elif dy <= 3.0:
+            wy = max(0.0, 1.0 + dy / 3.5)  # ~0 at the very top → 1 at the line
+        elif dy <= 2.5:
             wy = 1.0
-        else:                              # taper deeper into the body
-            wy = max(0.0, 1.0 - (dy - 3.0) / 9.0)
+        else:                              # shallow layer — snow hugs the TOP,
+            wy = max(0.0, 1.0 - (dy - 2.5) / 5.5)   # not bulging down the side
         wind = 1.0 + max(0.0, -x) / 55.0   # slight windward (rear) bias
         noise = 0.78 + 0.22 * ((math.sin(i * 12.9898) * 43758.5453) % 1.0)
         w = along_w(x) * wy * wind * noise

@@ -281,17 +281,20 @@ WEATHER_WIND_SCROLL_FACTOR = 0.30
 
 # Snow accumulating on Pip's back during the snow squall. The
 # tailwind blows snow onto him from behind, so a drift builds up
-# on his dorsal/back surface. Modelled as an integrator on
-# bird.snow_load (0..1):
-#   load += (ACCUM * storm_intensity - MELT) * dt   (clamped 0..1)
-# ACCUM only beats MELT once storm > MELT/ACCUM (~0.37), so snow
-# starts settling partway into the build, KEEPS growing through
-# the peak and a little past it (while storm stays above that
-# threshold on the way down), then melts/blows off as the storm
-# passes. Tuned so the load peaks a few seconds AFTER the storm's
-# own peak and is fully gone by the time the event ends.
-WEATHER_SNOW_ACCUM_RATE = 0.10
-WEATHER_SNOW_MELT_RATE  = 0.037
+# over his rear. Modelled as an integrator on bird.snow_load
+# (0..1):
+#   gain = ACCUM * storm_intensity
+#   melt = MELT_BASE + MELT_FADE * (1 - storm_intensity)
+#   load += (gain - melt) * dt          (clamped 0..1)
+# The melt ACCELERATES as the storm fades: barely any while it's
+# snowing hard (so snow piles up), ramping up sharply once the
+# storm passes — so the snow STARTS coming off sooner and clears
+# quickly instead of lingering. Tuned so load peaks just after the
+# storm's own peak, begins fading ~mid-decline, and is gone close
+# to when the storm ends.
+WEATHER_SNOW_ACCUM_RATE = 0.12
+WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
+WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and

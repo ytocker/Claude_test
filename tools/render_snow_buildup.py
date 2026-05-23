@@ -24,7 +24,8 @@ import pygame
 from game.config import (
     W, H, GROUND_Y, BIRD_X,
     WEATHER_SNOW_ACCUM_RATE as ACCUM,
-    WEATHER_SNOW_MELT_RATE as MELT,
+    WEATHER_SNOW_MELT_BASE as MELT_BASE,
+    WEATHER_SNOW_MELT_FADE as MELT_FADE,
 )
 from game.entities import Bird
 from game.weather import Weather, storm_intensity
@@ -45,12 +46,12 @@ BIRD_Y = H * 0.42
 
 # Play-times (s, from phase 0.73) telling the accumulation story.
 CAPTURES = [
-    (25, "t=25s  settling"),
-    (35, "t=35s  storm peak"),
-    (44, "t=44s  MAX (past peak)"),
-    (58, "t=58s  storm fading"),
-    (70, "t=70s  melting off"),
-    (82, "t=82s  almost gone"),
+    (28, "t=28s  settling"),
+    (37, "t=37s  storm peak"),
+    (44, "t=44s  MAX"),
+    (54, "t=54s  fading starts"),
+    (60, "t=60s  melting off"),
+    (66, "t=66s  nearly gone"),
 ]
 
 
@@ -85,7 +86,8 @@ def main():
         phase = ((START_PHASE * CY + t) / CY) % 1.0
         weather.update(DT, phase)
         st = storm_intensity(phase)
-        load = max(0.0, min(1.0, load + (ACCUM * st - MELT) * DT))
+        melt = MELT_BASE + MELT_FADE * (1.0 - st)
+        load = max(0.0, min(1.0, load + (ACCUM * st - melt) * DT))
         sec = round(t)
         if sec in want and sec not in shots:
             scene = render_scene(phase, load, weather)

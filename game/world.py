@@ -36,7 +36,7 @@ from game.config import (
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP,
     WEATHER_PIP_SHIVER_AMP, WEATHER_FLAP_DAMPEN_MAX,
     WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
     GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
     GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
 )
@@ -1575,14 +1575,15 @@ class World:
         else:
             self.bird.wind_lean = 0.0
 
-        # Snow accumulating on Pip's back — integrator that lags the
-        # storm: gain (∝ storm) only beats the constant melt once
-        # the squall is meaningfully strong, so the drift settles
-        # partway into the build, KEEPS growing through + a little
-        # past the peak, then melts off as the storm passes.
+        # Snow accumulating on Pip's back. Gain ∝ storm; melt
+        # ACCELERATES as the storm fades (barely any while snowing
+        # hard, ramping up once it passes) so the drift piles up
+        # through the peak then STARTS shedding sooner and clears
+        # quickly rather than lingering after the squall.
         gain = WEATHER_SNOW_ACCUM_RATE * wi
+        melt = WEATHER_SNOW_MELT_BASE + WEATHER_SNOW_MELT_FADE * (1.0 - wi)
         self.bird.snow_load = max(0.0, min(1.0,
-            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE) * dt))
+            self.bird.snow_load + (gain - melt) * dt))
 
         # Storm jolt: only at near-peak intensity, after the lockout, and
         # only if Pip actually has coins to lose. Random fire on a small
