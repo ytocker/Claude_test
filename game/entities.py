@@ -436,6 +436,42 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
     surf.blit(scratch, (ox, oy))
 
 
+_SAND_COAT_COL = ((182, 142, 92), (160, 120, 74), (200, 162, 110))
+
+
+def _draw_sand_coat(surf, cx, cy, load, scale=1.0, tilt=0.0):
+    """Ochre sand dusting SPREAD over Pip's whole body during the
+    sandstorm (vs snow's top-only drift). Deterministic R2 scatter
+    so it never shimmers; banks with the sprite tilt; scales with
+    grow. The eyes are kept lighter so the face stays readable."""
+    load = max(0.0, min(1.0, load))
+    if load <= 0.02:
+        return
+    sc = scale
+    ang = math.radians(-tilt)                  # match the sprite rotation
+    cos_t, sin_t = math.cos(ang), math.sin(ang)
+    n = int(12 + load * 80)
+    base_a = int(min(195, 60 + load * 155))
+    A1, A2 = 0.7548776662, 0.5698402910        # R2 low-discrepancy
+    bx0, bx1, by0, by1 = -22.0, 30.0, -20.0, 18.0
+    for i in range(n):
+        u = (0.5 + A1 * (i + 1)) % 1.0
+        v = (0.5 + A2 * (i + 1)) % 1.0
+        rx = bx0 + u * (bx1 - bx0)
+        ry = by0 + v * (by1 - by0)
+        a = base_a
+        if rx > 12.0 and -14.0 < ry < 1.0:     # over the eyes — keep light
+            a = int(base_a * 0.35)
+        if a < 8:
+            continue
+        r = max(1, int((1 + (1 if i % 3 == 0 else 0)) * sc))
+        tx = rx * cos_t - ry * sin_t
+        ty = rx * sin_t + ry * cos_t
+        disc = _snow_disc(r, _SAND_COAT_COL[i % 3], a)
+        surf.blit(disc, (int(cx + tx * sc - disc.get_width() / 2),
+                         int(cy + ty * sc - disc.get_height() / 2)))
+
+
 def _draw_grow_halo(surf, cx, cy, pulse,
                     color_rgb=_GROW_HALO_RGB,
                     radius=_GROW_HALO_RADIUS,
@@ -1041,6 +1077,10 @@ class Bird:
         # the storm so it keeps building a little past the peak,
         # then melts off. Drives the snow-drift overlay in draw().
         self.snow_load = 0.0
+        # Sand accumulation during the daytime sandstorm (0..1).
+        # Integrated by World from sand_intensity; drives the spread
+        # sand coat over Pip's whole body in draw().
+        self.sand_load = 0.0
         # X-Ray Sparks flash. Set to 0.5 s by World._fire_storm_jolt
         # when the real strike lands on Pip; Bird.draw alternates Pip's
         # sprite between the normal frame and a skeleton-overlay frame
@@ -1297,6 +1337,13 @@ class Bird:
         if self.snow_load > 0.02 and not skeleton_visible:
             _draw_snow_cap(surf, cx_int, cy_int, self.snow_load,
                            self.grow_scale, tilt)
+        # Sand coat — the daytime sandstorm dusts Pip's whole body
+        # (spread, not a top drift). Drawn over the sprite; the
+        # blowing storm sand itself still veils him via the scene's
+        # draw_front pass.
+        if self.sand_load > 0.02 and not skeleton_visible:
+            _draw_sand_coat(surf, cx_int, cy_int, self.sand_load,
+                            self.grow_scale, tilt)
         # X-Ray Sparks ARCS — longer jagged mini-bolts crackling
         # OUTWARD from Pip's silhouette while the flash timer is
         # active. Each arc starts on the silhouette perimeter and

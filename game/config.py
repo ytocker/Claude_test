@@ -296,6 +296,13 @@ WEATHER_SNOW_ACCUM_RATE = 0.12
 WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
 WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
 
+# Sand accumulating on Pip during the sandstorm — same integrator
+# shape as snow but driven by sand_intensity, and the coat is
+# SPREAD over the whole body (not a top drift). Visual-only.
+WEATHER_SAND_ACCUM_RATE = 0.13
+WEATHER_SAND_MELT_BASE  = 0.030
+WEATHER_SAND_MELT_FADE  = 0.17
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE

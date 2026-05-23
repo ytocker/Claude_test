@@ -846,6 +846,10 @@ class App:
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
                        sc, variant=variant)
+        # Sandstorm: distant haboob wall + dust-devils on the horizon,
+        # BEHIND the mountains (the long tease). Gameplay only.
+        if self.state == STATE_PLAY:
+            self.world.weather.draw_far(surf)
         if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
             # Pre-rendered fries pile per parallax layer - blit cheaply
             # at the offset since activation so the pile drifts at the
@@ -988,6 +992,12 @@ class App:
                                  flipped=self.world.reverse_timer > 0,
                                  light_gradient=_biome.light_gradient_for_phase(
                                      self.world.biome_phase))
+
+        # Sandstorm: the engulfing foreground sand (haze veil + wall +
+        # motes) draws IN FRONT of Pip so he's behind the sand and the
+        # course is veiled — but before transient FX + the HUD.
+        if self.state == STATE_PLAY:
+            self.world.weather.draw_front(self.screen)
 
         for p in self.world.particles:
             p.draw(self.screen)

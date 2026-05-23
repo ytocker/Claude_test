@@ -37,6 +37,7 @@ from game.config import (
     WEATHER_PIP_SHIVER_AMP, WEATHER_FLAP_DAMPEN_MAX,
     WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
+    WEATHER_SAND_ACCUM_RATE, WEATHER_SAND_MELT_BASE, WEATHER_SAND_MELT_FADE,
     GENIE_OFFER_COUNT, GENIE_OFFER_X_START,
     GENIE_OFFER_X_STEP, GENIE_OFFER_Y_SLOTS,
 )
@@ -56,6 +57,7 @@ from game.weather import (
     Weather,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
+    sand_intensity as _sand_intensity,
 )
 from game.ambient import AmbientScenes
 
@@ -221,18 +223,18 @@ class World:
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
-        # TEST MODE on v5_powerups: start at phase ~0.73 (predawn,
-        # late-night calm) — a few seconds before the HEADWIND
-        # event begins. Wind kicks in at phase 0.75 (~6 s of play
-        # at CYCLE_SECONDS=320) and peaks at 0.85 (~38 s of play),
-        # so the player gets a brief calm-dawn setup, watches the
-        # wind streaks ramp in, sees Pip lean into the gust, and
-        # the world scroll slow to ~0.80× at peak. Other recent
-        # presets:
-        #   0.27 = light rain (coins wobble below shake threshold)
+        # TEST MODE on v5_powerups: start at phase ~0.015 (bright
+        # day) — a few seconds BEFORE the SANDSTORM tease begins.
+        # Sand kicks in at phase 0.03 (~5 s of play at
+        # CYCLE_SECONDS=320), reaches the peak haboob at ~0.15-0.17
+        # (~48-54 s), and clears by 0.22 (~70 s), so the player gets
+        # a brief calm-day open, then watches the distant dust wall
+        # build on the horizon, roll in, engulf the scene, and pass.
+        # Other recent presets:
         #   0.46 = dusk storm (lightning event within ~20 s)
+        #   0.73 = predawn snow squall (headwind/snow)
         # Restore to 0.0 for a normal noon-start.
-        self.biome_time = biome.CYCLE_SECONDS * 0.73
+        self.biome_time = biome.CYCLE_SECONDS * 0.015
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -1584,6 +1586,16 @@ class World:
         melt = WEATHER_SNOW_MELT_BASE + WEATHER_SNOW_MELT_FADE * (1.0 - wi)
         self.bird.snow_load = max(0.0, min(1.0,
             self.bird.snow_load + (gain - melt) * dt))
+
+        # Sand accumulating on Pip during the daytime sandstorm —
+        # same integrator shape as snow, driven by sand_intensity.
+        # Visual-only (the sandstorm is visibility-only); the coat
+        # is drawn SPREAD over his whole body in entities.py.
+        si = _sand_intensity(self.biome_phase)
+        s_gain = WEATHER_SAND_ACCUM_RATE * si
+        s_melt = WEATHER_SAND_MELT_BASE + WEATHER_SAND_MELT_FADE * (1.0 - si)
+        self.bird.sand_load = max(0.0, min(1.0,
+            self.bird.sand_load + (s_gain - s_melt) * dt))
 
         # Storm jolt: only at near-peak intensity, after the lockout, and
         # only if Pip actually has coins to lose. Random fire on a small

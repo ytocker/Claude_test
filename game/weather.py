@@ -79,6 +79,36 @@ def wind_intensity(phase: float) -> float:
     return max(0.0, min(1.0, calm_breeze(phase) + storm_intensity(phase)))
 
 
+def sand_intensity(phase: float) -> float:
+    """The daytime SANDSTORM (haboob). Asymmetric: a long slow
+    rise (the tease), a short plateau (peak haboob), a quicker
+    fade — all inside the bright-day window and fully clear before
+    the sunset rain turns on (~0.23), so the two never overlap.
+      0 below 0.03 / above 0.22
+      rise   0.03 -> 0.15   (long tease + approach)
+      plateau 0.15 -> 0.17  (peak)
+      fade   0.17 -> 0.22
+    Read in bands by the renderer: <0.35 tease (distant wall +
+    devils only), 0.35-0.65 encroaching, >=0.65 peak."""
+    if phase < 0.03 or phase > 0.22:
+        return 0.0
+    if phase <= 0.15:
+        t = (phase - 0.03) / (0.15 - 0.03)
+        return t * t * (3 - 2 * t)
+    if phase <= 0.17:
+        return 1.0
+    t = 1.0 - (phase - 0.17) / (0.22 - 0.17)
+    return t * t * (3 - 2 * t)
+
+
+# Sandstorm (haboob) palette — the EXACT original-haboob tones.
+SAND_HI   = ((250, 210, 150), (255, 225, 170))      # sunlit rim
+SAND_BODY = ((150, 100, 58), (130, 86, 48), (168, 116, 70))
+SAND_DEEP = ((96, 62, 36), (80, 52, 30))
+SAND_HAZE = (198, 148, 82)                          # warm cast / veil
+SAND_HORIZON = GROUND_Y - 70
+
+
 # Cold wash colour for the snow squall — a deep blue-grey that
 # cools the whole scene so the bright white snow pops against it.
 SNOW_TINT = (74, 96, 130)
@@ -111,6 +141,148 @@ def _snow_flake(radius: int, alpha: int):
         pygame.draw.circle(surf, (255, 255, 255, a), (cx, cy), rr)
     _FLAKE_CACHE[key] = surf
     return surf
+
+
+# ── sandstorm helpers ────────────────────────────────────────────────────────
+
+_SAND_DISC_CACHE: dict = {}
+_SAND_SS = 2                                 # supersample for smooth walls
+SAND_MOTE_COL = (196, 156, 100)
+
+
+def _sand_disc(radius, color, alpha):
+    """Cached soft ochre puff (smooth radial falloff)."""
+    radius = max(1, int(radius))
+    ab = max(16, min(255, (int(alpha) // 16) * 16))
+    key = (radius, ab, color)
+    cached = _SAND_DISC_CACHE.get(key)
+    if cached is not None:
+        return cached
+    d = radius * 2 + 2
+    surf = pygame.Surface((d, d), pygame.SRCALPHA)
+    c = radius + 1
+    steps = max(3, radius)
+    for i in range(steps, 0, -1):
+        rr = max(1, int(radius * i / steps))
+        frac = i / steps
+        a = int(ab * (1.0 - frac) ** 1.3)
+        pygame.draw.circle(surf, (*color, a), (c, c), rr)
+    _SAND_DISC_CACHE[key] = surf
+    return surf
+
+
+class _SandMote:
+    """A drifting sand speck blowing rightward across the playfield."""
+    __slots__ = ("x", "y", "vx", "vy", "r", "alpha")
+
+    def __init__(self):
+        self.x = random.uniform(-10, W)
+        self.y = random.uniform(0, GROUND_Y)
+        self.vx = random.uniform(120, 270)
+        self.vy = random.uniform(-15, 28)
+        self.r = random.randint(2, 5)
+        self.alpha = random.randint(70, 150)
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+
+    def off_screen(self):
+        return self.x > W + 8 or self.y > GROUND_Y or self.y < -12
+
+    def draw(self, surf):
+        spr = _sand_disc(self.r, SAND_MOTE_COL, self.alpha)
+        surf.blit(spr, (int(self.x) - spr.get_width() // 2,
+                        int(self.y) - spr.get_height() // 2))
+
+
+def _render_sand_wall(s, kind, seed):
+    """Render a haboob dust wall to a smooth (supersampled) Surface,
+    cached by the caller per intensity bucket. `kind`:
+      'far'   — distant wall + dust-devils on the horizon (tease)
+      'front' — foreground engulfing wall rising from the ground.
+    Uses the exact original-haboob palette."""
+    SS = _SAND_SS
+    rng = random.Random(seed)
+    big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+    gy0 = GROUND_Y * SS
+
+    if kind == "far":
+        base_y = (SAND_HORIZON + 12) * SS
+        height = (0.20 + s * 0.28) * H * SS
+
+        def top_y(xf):
+            lump = (math.sin(xf * 7 + 0.5) * 0.11
+                    + math.sin(xf * 17 + 2.0) * 0.05) * height
+            return base_y - height + lump
+
+        cols = int(80 + s * 40)
+        for ci in range(cols):
+            xf = ci / (cols - 1)
+            gx = xf * W * SS
+            top = top_y(xf)
+            for _ in range(int(5 + s * 5)):
+                yy = rng.uniform(top, base_y + 10 * SS)
+                d = (yy - top) / max(1.0, base_y - top)
+                r = int(rng.uniform(13, 24) * SS)
+                col = (rng.choice(SAND_DEEP) if rng.random() < d * 0.85
+                       else rng.choice(SAND_BODY))
+                big.blit(_sand_disc(r, col, rng.randint(85, 145)),
+                         (gx - r + rng.uniform(-12, 12) * SS, yy - r))
+            if rng.random() < 0.6:
+                rr = int(rng.uniform(8, 16) * SS)
+                big.blit(_sand_disc(rr, rng.choice(SAND_HI), rng.randint(90, 150)),
+                         (gx - rr, top - rr * 0.4))
+        # dust-devils on the horizon
+        for k, dx in enumerate((0.30, 0.72)):
+            cx = W * SS * dx
+            h = (110 + s * 120) * SS
+            steps = int(h / (5 * SS))
+            for i in range(steps):
+                t = i / steps
+                wob = math.sin(t * 7.0 + k * 2.0) * 11 * SS * (1 - t)
+                r = int((3 + (1 - t) * 9) * SS * (0.6 + s * 0.5))
+                a = int((55 + s * 110) * (0.4 + 0.6 * (1 - t)))
+                col = rng.choice(SAND_HI) if t > 0.85 else rng.choice(SAND_BODY)
+                big.blit(_sand_disc(r, col, a),
+                         (cx + wob - r, (SAND_HORIZON + 4) * SS - t * h - r))
+    else:  # front
+        fs = max(0.0, (s - 0.40) / 0.60)
+        top_frac = 0.92 - 0.50 * fs
+
+        def wall_top(xf):
+            base = gy0 * (top_frac - xf * 0.10 * fs)
+            lump = (math.sin(xf * 9) * 0.045
+                    + math.sin(xf * 23 + 1.7) * 0.028) * gy0 * (0.4 + fs)
+            return base + lump
+
+        cols = int(55 + fs * 50)
+        for ci in range(cols):
+            xf = ci / (cols - 1)
+            gx = xf * W * SS
+            top = wall_top(xf)
+            for _ in range(int(5 + fs * 8)):
+                yy = rng.uniform(top - 8 * SS, gy0)
+                d = (yy - top) / max(1.0, gy0 - top)
+                r = int(rng.uniform(18, 34) * SS)
+                col = (rng.choice(SAND_DEEP) if rng.random() < d * 0.85
+                       else rng.choice(SAND_BODY))
+                big.blit(_sand_disc(r, col, rng.randint(95, 150)),
+                         (gx - r + rng.uniform(-14, 14) * SS, yy - r))
+            if rng.random() < 0.5:
+                rr = int(rng.uniform(10, 20) * SS)
+                big.blit(_sand_disc(rr, rng.choice(SAND_HI), rng.randint(60, 110)),
+                         (gx - rr, top - rr * 0.5))
+        for _ in range(int(fs * 170)):
+            xf = rng.random() ** 0.5
+            gx = xf * W * SS
+            gy = rng.uniform(wall_top(xf) - 130 * SS, wall_top(xf))
+            if gy < 0:
+                continue
+            r = rng.randint(3, 8) * SS
+            big.blit(_sand_disc(r, rng.choice(SAND_BODY), rng.randint(50, 110)),
+                     (gx - r, gy - r))
+    return pygame.transform.smoothscale(big, (W, H))
 
 
 # ── particle: a single rain streak ──────────────────────────────────────────
@@ -423,6 +595,14 @@ class Weather:
         self.flash_remaining: float = 0.0
         self.next_strike: float = random.uniform(4.0, 9.0)
 
+        # Sandstorm: live mote pool + cached wall surfaces (the
+        # walls are expensive supersampled puff masses, so we
+        # rebuild them only when the intensity BUCKET changes and
+        # blit the cache each frame — see _sand_wall).
+        self.sand_motes: list[_SandMote] = []
+        self._sand_far_cache = None       # (bucket, Surface) distant wall
+        self._sand_front_cache = None     # (bucket, Surface) foreground wall
+
     def update(self, dt, phase):
         self.phase = phase
 
@@ -521,6 +701,17 @@ class Weather:
             self.next_strike = max(self.next_strike, random.uniform(4.0, 9.0))
         if self.flash_remaining > 0:
             self.flash_remaining = max(0.0, self.flash_remaining - dt)
+
+        # Sandstorm motes — drifting sand specks blowing across the
+        # playfield once the storm starts encroaching (s>0.22).
+        sand = sand_intensity(phase)
+        if sand > 0.22:
+            target = int((sand - 0.22) / 0.78 * 120)
+            while len(self.sand_motes) < target:
+                self.sand_motes.append(_SandMote())
+        for m in self.sand_motes:
+            m.update(dt)
+        self.sand_motes = [m for m in self.sand_motes if not m.off_screen()]
 
     def _spawn_streak(self, intensity, color):
         x = random.uniform(-20, W + 20)
@@ -649,3 +840,56 @@ class Weather:
             flash = pygame.Surface((W, H), pygame.SRCALPHA)
             flash.fill((210, 220, 255, alpha))
             surf.blit(flash, (0, 0))
+
+    # ── sandstorm passes (called around the bird in scenes.py) ──────────
+    def draw_far(self, surf):
+        """Distant haboob wall + dust-devils on the horizon. Drawn
+        BEFORE the mountains so the storm sits behind the peaks
+        during the long tease. Wall is cached per intensity bucket."""
+        s = sand_intensity(self.phase)
+        if s <= 0.02:
+            self._sand_far_cache = None
+            return
+        bucket = round(s * 20) / 20.0
+        if self._sand_far_cache is None or self._sand_far_cache[0] != bucket:
+            self._sand_far_cache = (
+                bucket, _render_sand_wall(bucket, "far", hash(("far", bucket)) & 0xffff))
+        surf.blit(self._sand_far_cache[1], (0, 0))
+
+    def draw_front(self, surf):
+        """Foreground sandstorm: warm-haze visibility veil + mountain
+        bury + the engulfing wall + drifting motes. Drawn AFTER the
+        bird so the sand veils Pip + the course (Pip behind the
+        sand), but before the HUD."""
+        s = sand_intensity(self.phase)
+        if s <= 0.02:
+            self._sand_front_cache = None
+            return
+        # warm haze cast + visibility veil (faint in the tease,
+        # ramping to the peak; right/leading edge heavier).
+        haze = pygame.Surface((W, H), pygame.SRCALPHA)
+        for xx in range(0, W, 2):
+            fx = xx / W
+            a = int(s * (70 + fx * 90))
+            pygame.draw.rect(haze, (*SAND_HAZE, a), (xx, 0, 2, H))
+        surf.blit(haze, (0, 0))
+        # mountain bury wash over the lower scene
+        if s >= 0.30:
+            t = (s - 0.30) / 0.70
+            band = pygame.Surface((W, GROUND_Y - (SAND_HORIZON - 24)),
+                                  pygame.SRCALPHA)
+            band.fill((*SAND_HAZE, int(150 * t)))
+            surf.blit(band, (0, SAND_HORIZON - 24))
+        # foreground engulfing wall (cached; only meaningful s>0.4)
+        if s > 0.40:
+            bucket = round(s * 20) / 20.0
+            if self._sand_front_cache is None or self._sand_front_cache[0] != bucket:
+                self._sand_front_cache = (
+                    bucket, _render_sand_wall(bucket, "front",
+                                              hash(("front", bucket)) & 0xffff))
+            surf.blit(self._sand_front_cache[1], (0, 0))
+        else:
+            self._sand_front_cache = None
+        # drifting motes in front
+        for m in self.sand_motes:
+            m.draw(surf)
