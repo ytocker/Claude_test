@@ -294,10 +294,11 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
         ry = x * sin_t + y * cos_t
         return (cx + rx * sc, cy + ry * sc)
 
-    # Crossfade: specks dominate the early settle; the solid drift
-    # fades in as the snow builds (handoff complete by load≈0.40).
-    speck_w = max(0.0, min(1.0, (0.40 - load) / 0.30))
-    drift_w = max(0.0, min(1.0, (load - 0.20) / 0.20))
+    # Crossfade: scattered specks cover the whole thin range (early
+    # settle AND late melt-off); the solid drift only appears once
+    # there's enough depth to read as a mound, never as a thin line.
+    speck_w = max(0.0, min(1.0, (0.48 - load) / 0.36))
+    drift_w = max(0.0, min(1.0, (load - 0.28) / 0.20))
 
     # ── Solid accumulated drift ──────────────────────────────────
     if drift_w > 0.01:
@@ -341,27 +342,32 @@ def _draw_snow_cap(surf, cx, cy, load, scale=1.0, tilt=0.0):
                 small = pygame.transform.smoothscale(scratch, (w, h))
                 surf.blit(small, (int(minx), int(miny)))
 
-    # ── Early-settle specks ──────────────────────────────────────
+    # ── Scattered snow specks (early settle + late melt-off) ─────
+    # A FEW tiny flakes dotted RANDOMLY across his rear — spread in
+    # 2D (along the rear AND down into the body), deliberately NOT
+    # hugging the top contour, so it reads as snowflakes settled in
+    # different spots rather than a drawn curve/line. Positions use
+    # the R2 low-discrepancy sequence for even, organic-looking 2D
+    # coverage; deterministic so they never shimmer.
     if speck_w > 0.01:
-        n = int(2 + load * 14)
-        a = int(min(235, 150 + load * 85) * speck_w)
+        n = int(4 + load * 12)
+        a = int(min(240, 180 + load * 60) * speck_w)
         if a > 8 and n > 0:
-            pts = _SNOW_CONTOUR
+            # Scatter flakes uniformly across an ELLIPSE over Pip's
+            # upper-rear back (sprite-rel), so they dot the 2D
+            # surface in different spots and never trace the edge.
+            ecx, ecy, erx, ery = -9.0, -2.0, 12.0, 6.5
+            A1, A2 = 0.7548776662, 0.5698402910   # R2 sequence
             specks = []
             for i in range(n):
-                # deterministic spread, biased toward the rear (small t)
-                t = ((i * 0.61803398875) % 1.0) ** 1.3
-                fi = t * (len(pts) - 1)
-                i0 = int(fi)
-                f = fi - i0
-                x0, y0, _w0 = pts[i0]
-                x1, y1, _w1 = pts[min(i0 + 1, len(pts) - 1)]
-                bx = x0 + (x1 - x0) * f
-                by = y0 + (y1 - y0) * f
-                jx = math.cos(i * 2.39) * 2.4
-                jy = -1.4 - abs(math.sin(i * 1.71)) * (1.4 + load * 3.0)
-                px, py = tf(bx + jx, by + jy)
-                rr = max(1, int(round((1.0 + (1 if i % 3 == 0 else 0)) * sc)))
+                u = (0.5 + A1 * (i + 1)) % 1.0
+                v = (0.5 + A2 * (i + 1)) % 1.0
+                rad_n = math.sqrt(u)               # uniform-in-disc
+                th = math.tau * v
+                ex = ecx + rad_n * math.cos(th) * erx
+                ey = ecy + rad_n * math.sin(th) * ery
+                px, py = tf(ex, ey)
+                rr = max(1, int(round((1.0 + (1 if i % 4 == 0 else 0)) * sc)))
                 specks.append((px, py, rr))
             sx = [s[0] for s in specks]
             sy = [s[1] for s in specks]
