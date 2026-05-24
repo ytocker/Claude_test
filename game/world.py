@@ -26,19 +26,27 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
+    WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
+    WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
+    FlyingCoinParticle,
 )
 from game._proof import ProofState
 from game.draw import (
     COIN_GOLD, COIN_LIGHT,
     PARTICLE_GOLD, PARTICLE_ORNG, PARTICLE_WHT, PARTICLE_CRIM,
-    UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, BIRD_RED,
+    UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, BIRD_RED, UI_RED,
 )
 from game import biome
 from game import audio
-from game.weather import Weather
+from game.weather import (
+    Weather,
+    rain_intensity as _rain_intensity,
+    storm_intensity as _storm_intensity,
+)
 from game.ambient import AmbientScenes
 
 
@@ -135,6 +143,18 @@ class World:
         self.shake_mag = 0.0
         self.shake_t = 0.0
 
+        # ── Thunderstorm storm-jolt state ──────────────────────────────────
+        # lightning_strike: dict {path, life, life_max} for the bolt being
+        # drawn (None when idle). _storm_jolt_lockout: cooldown after a
+        # strike. _lightning_scorch_t: smoke-wisp aftermath timer.
+        # _storm_buildup_seq/_t: scheduled telegraph bolts → climax strike.
+        self.lightning_strike = None
+        self._storm_jolt_lockout = 0.0
+        self._lightning_scorch_t = 0.0
+        self._scorch_smoke_accum = 0.0
+        self._storm_buildup_seq = []
+        self._storm_buildup_t = 0.0
+
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
         # the player is still on the start-of-run prompt.
@@ -212,6 +232,11 @@ class World:
         # time deciding whether to land on the parked cart.
         if self.bird.cart_locked:
             base *= RAIL_SCROLL_MULT
+        # Snow-squall TAILWIND (predawn ~0.85): speeds the world up so
+        # pipes/coins approach faster — felt as a forward boost.
+        wi = _storm_intensity(self.biome_phase)
+        if wi > 0:
+            base *= 1.0 + WEATHER_WIND_SCROLL_FACTOR * wi
         return base
 
     def _current_spacing(self):
@@ -219,6 +244,213 @@ class World:
 
     def _current_powerup_chance(self):
         return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
+
+    # ── weather → gameplay (rain hooks + thunderstorm storm-jolt) ──────────────
+    def _apply_weather_effects(self, dt):
+        """Route current rain intensity to coins (shake) and Pip (shiver +
+        flap dampen), drive the snow-squall tailwind + back-snow, and
+        schedule the storm-jolt lightning strike at peak rain. Coin shake +
+        Pip shiver are visual-only; flap dampen is a real (small) lift cut."""
+        ri = _rain_intensity(self.weather.phase)
+        if ri <= 0:
+            for c in self.coins:
+                c.weather_dx = 0.0
+            self.bird.shiver_x = 0.0
+            self.bird.shiver_y = 0.0
+            self.bird.flap_dampen = 0.0
+        else:
+            amp_x = WEATHER_COIN_SHAKE_AMP * ri
+            freq = 4.5 * (1.0 + ri)
+            for c in self.coins:
+                c._weather_phase += dt * freq
+                c.weather_dx = math.sin(c._weather_phase) * amp_x
+            heavy = ri > WEATHER_HEAVY_THRESHOLD
+            if heavy:
+                heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
+                flash_kick = 1.5 if self.weather.flash_remaining > 0 else 1.0
+                self.bird.shiver_x = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.shiver_y = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.flap_dampen = WEATHER_FLAP_DAMPEN_MAX * heavy_t
+            else:
+                self.bird.shiver_x = 0.0
+                self.bird.shiver_y = 0.0
+                self.bird.flap_dampen = 0.0
+
+        # Snow-squall tailwind (predawn ~0.85): forward push (scroll boost
+        # lives in _current_scroll); driven by the storm envelope.
+        wi = _storm_intensity(self.weather.phase)
+        if wi > 0.05:
+            self.bird.wind_lean = +WEATHER_WIND_LEAN_AMP * wi
+        else:
+            self.bird.wind_lean = 0.0
+
+        # Snow on Pip's back — gain ∝ storm; melt accelerates as it fades
+        # so the drift piles through the peak then sheds and clears.
+        gain = WEATHER_SNOW_ACCUM_RATE * wi
+        melt = WEATHER_SNOW_MELT_BASE + WEATHER_SNOW_MELT_FADE * (1.0 - wi)
+        self.bird.snow_load = max(0.0, min(1.0,
+            self.bird.snow_load + (gain - melt) * dt))
+
+        # Storm jolt: near-peak rain, after lockout, only if Pip has coins.
+        # Kicks off a ~4.4 s buildup of telegraph bolts → the real strike.
+        if self._storm_jolt_lockout > 0:
+            self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
+        elif (ri > 0.85
+              and self.coin_count > 0
+              and not self.game_over
+              and self.ready_t <= 0
+              and not self._storm_buildup_seq
+              and random.random() < 0.06 * dt * 60):
+            self._start_storm_buildup()
+
+        if self._storm_buildup_seq:
+            self._storm_buildup_t += dt
+            while (self._storm_buildup_seq
+                   and self._storm_buildup_t >= self._storm_buildup_seq[0][0]):
+                _, kind = self._storm_buildup_seq.pop(0)
+                if kind == "strike":
+                    self._fire_storm_jolt()
+                else:
+                    side = -1 if kind.endswith("left") else 1
+                    self._fire_background_lightning(side=side)
+
+    def _start_storm_buildup(self):
+        """Telegraph the strike: 9 escalating-tempo background bolts, the
+        real strike at t=4.40 s, then 2 fade-away bolts as it settles."""
+        self._storm_buildup_seq = [
+            (0.00, "bg_left"),
+            (0.80, "bg_right"),
+            (1.50, "bg_left"),
+            (2.10, "bg_right"),
+            (2.60, "bg_left"),
+            (3.05, "bg_right"),
+            (3.45, "bg_left"),
+            (3.80, "bg_right"),
+            (4.10, "bg_left"),
+            (4.40, "strike"),
+            (5.40, "bg_right"),
+            (6.90, "bg_left"),
+        ]
+        self._storm_buildup_t = 0.0
+        self._storm_jolt_lockout = 25.0
+
+    def _fire_background_lightning(self, side: int = -1):
+        """Non-damaging telegraph bolt landing off to Pip's side, with
+        reduced flash/shake — "the storm is cracking around him"."""
+        bx, by = self.bird.x, self.bird.y
+        origin_x = bx + side * random.uniform(110, 170)
+        impact_x = bx + side * random.uniform(80, 150)
+        impact_y = random.uniform(by - 80, by + 80)
+        path = [(origin_x, 0.0)]
+        segs = 18
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-42, 42) * (1.0 - t * 0.55)
+            cx = origin_x * (1 - t) + impact_x * t + jx
+            cy = impact_y * t
+            path.append((cx, cy))
+        path.append((impact_x, impact_y))
+        self.lightning_strike = {"path": path, "life": 0.32, "life_max": 0.32}
+        self.weather.flash_remaining = max(self.weather.flash_remaining, 0.14)
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t = max(self.shake_t, 0.20)
+        try:
+            audio.play_thunder(volume=random.uniform(0.35, 0.55))
+        except Exception:
+            pass
+
+    def _fire_storm_jolt(self):
+        """LIGHTNING STRIKES PIP — bolt + flash + hard shake + up to 100
+        coins blasted off + cyan sparks + X-Ray Sparks skeleton flash +
+        scorch smoke. Loss logged as a negative weather_jolt ledger event."""
+        lost = min(100, self.coin_count)
+        if lost <= 0:
+            return
+        self.score = max(0, self.score - lost)
+        self.coin_count -= lost
+        self._proof.record(self.time_alive, -lost, "weather_jolt")
+
+        bx, by = self.bird.x, self.bird.y
+        target_y = by - 2
+        origin_x = bx + random.uniform(-70, 70)
+        path = [(origin_x, 0.0)]
+        segs = 22
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-42, 42) * (1.0 - t * 0.7)
+            cx = origin_x * (1 - t) + bx * t + jx
+            cy = target_y * t
+            path.append((cx, cy))
+        path.append((bx, target_y))
+        self.lightning_strike = {"path": path, "life": 0.50, "life_max": 0.50}
+        self.weather.flash_remaining = max(self.weather.flash_remaining, 0.22)
+        self.shake_mag = max(self.shake_mag, 9.0)
+        self.shake_t = max(self.shake_t, 0.55)
+        self._storm_jolt_lockout = 25.0
+        self._lightning_scorch_t = 3.7
+        self._scorch_smoke_accum = 0.0
+        self.bird.skeleton_flash_t = 3.50
+
+        scatter_bx, scatter_by = self.bird.x, self.bird.y + 4
+        n = min(lost, 20)
+        for i in range(n):
+            ang = (i / n) * math.tau + random.uniform(-0.15, 0.15)
+            speed = random.uniform(200.0, 320.0)
+            vx = math.cos(ang) * speed
+            vy = math.sin(ang) * speed - 80.0
+            self.particles.append(FlyingCoinParticle(
+                scatter_bx, scatter_by, vx, vy, life=0.95,
+            ))
+
+        for _ in range(40):
+            ang = random.uniform(0, math.tau)
+            sp = random.uniform(140, 280)
+            spark_col = random.choice((
+                (220, 240, 255), (180, 220, 255),
+                (255, 255, 255), (140, 200, 255),
+                (255, 240, 180),
+            ))
+            self.particles.append(Particle(
+                scatter_bx, scatter_by - 12,
+                math.cos(ang) * sp, math.sin(ang) * sp,
+                life=random.uniform(0.35, 0.60),
+                r=random.choice((3, 3, 4)),
+                color=spark_col,
+                gravity=180,
+            ))
+
+        self.float_texts.append(FloatText(
+            f"-{lost}!", self.bird.x, self.bird.y - 58, UI_RED,
+            size=30, life=1.6, vy=-26, style="powerup",
+        ))
+
+        try:
+            audio.play_thunder(volume=0.98)
+            audio.play_poof()
+            audio.play_magnet(volume=0.55)
+        except Exception:
+            pass
+
+    def _spawn_scorch_wisp(self):
+        """Light smoke puff trailing BEHIND Pip (to his left) so it streams
+        away rather than covering the skeleton view during the flash."""
+        bx, by = self.bird.x, self.bird.y
+        ox = random.uniform(-32, -14)
+        oy = random.uniform(-18, 12)
+        vx = random.uniform(-40, -10)
+        vy = random.uniform(-55, -25)
+        col = random.choice((
+            (170, 165, 175), (200, 195, 200),
+            (150, 145, 155), (220, 215, 220),
+            (185, 180, 190),
+        ))
+        self.particles.append(Particle(
+            bx + ox, by + oy, vx, vy,
+            life=random.uniform(0.70, 1.05),
+            r=random.randint(5, 8),
+            color=col,
+            gravity=-30,
+        ))
 
     # ── spawning ─────────────────────────────────────────────────────────────
 
@@ -459,6 +691,10 @@ class World:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.update(dt, gravity_sign=sign)  # bird physics at real time
 
+            # Weather → gameplay: rain coin-shake / Pip shiver / flap dampen,
+            # snow tailwind + back-snow, and the storm-jolt scheduling.
+            self._apply_weather_effects(sdt)
+
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
             for p in self.pipes:
@@ -606,6 +842,18 @@ class World:
                 self.powerup_cooldown -= dt
             if self.hit_flash > 0:
                 self.hit_flash = max(0.0, self.hit_flash - dt)
+            # Lightning bolt: decay its visual life; expire at 0.
+            if self.lightning_strike is not None:
+                self.lightning_strike["life"] -= dt
+                if self.lightning_strike["life"] <= 0:
+                    self.lightning_strike = None
+            # Scorch aftermath: emit ~40 smoke wisps/s off Pip while active.
+            if self._lightning_scorch_t > 0:
+                self._lightning_scorch_t = max(0.0, self._lightning_scorch_t - dt)
+                self._scorch_smoke_accum += dt
+                while self._scorch_smoke_accum >= 0.025:
+                    self._scorch_smoke_accum -= 0.025
+                    self._spawn_scorch_wisp()
         else:
             # freeze world but let particles + float texts drift
             pass

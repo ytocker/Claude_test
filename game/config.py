@@ -128,6 +128,53 @@ POWERUP_REPLACED_AT = {
 # letting the bird visibly clip through.
 PIPE_HITBOX_SHRINK = 4
 
+# ── Weather → gameplay ──────────────────────────────────────────────────────
+# Layer 1 of weather-as-input: light rain wobbles coins, heavy rain slides
+# them and shivers Pip + dampens his flap. All values derived from
+# weather.rain_intensity(phase) which already exists.
+WEATHER_HEAVY_THRESHOLD  = 0.5
+# Peak left-right shake amplitude at rain_intensity = 1.0. Scales
+# linearly with rain intensity so the tremor grows smoothly from
+# barely-there at first drizzle (≈ 0.4 px at ri=0.1) to clearly
+# violent at peak storm (4.0 px). No vertical drift, no sliding —
+# the wobble is the ONLY weather effect on coins.
+WEATHER_COIN_SHAKE_AMP   = 4.0
+WEATHER_PIP_SHIVER_AMP   = 1.5
+WEATHER_FLAP_DAMPEN_MAX  = 0.18
+
+# Tailwind event (predawn, phase ~0.85). Two effects scaled by
+# weather.wind_intensity(phase):
+#   - WEATHER_WIND_LEAN_AMP: max RIGHTWARD visual x-offset on
+#     the bird (in screen pixels) when wind = 1.0. Pure visual
+#     — does not affect collision (Bird.x stays at BIRD_X).
+#     Positive direction is rightward (ahead of normal), applied
+#     via Bird.draw shake_x. At 8.0 px Pip's push is ~12% of his
+#     64-px sprite width, clearly visible as "tailwind boost".
+#   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
+#     is INCREASED at peak wind. At wind 1.0 the scroll runs at
+#     (1 + factor) × normal so pipes/coins approach faster and
+#     the player covers more distance per second. 0.30 means
+#     30% more progress at peak — felt as a real boost.
+WEATHER_WIND_LEAN_AMP     = 8.0
+WEATHER_WIND_SCROLL_FACTOR = 0.30
+
+# Snow accumulating on Pip's back during the snow squall. The
+# tailwind blows snow onto him from behind, so a drift builds up
+# over his rear. Modelled as an integrator on bird.snow_load
+# (0..1):
+#   gain = ACCUM * storm_intensity
+#   melt = MELT_BASE + MELT_FADE * (1 - storm_intensity)
+#   load += (gain - melt) * dt          (clamped 0..1)
+# The melt ACCELERATES as the storm fades: barely any while it's
+# snowing hard (so snow piles up), ramping up sharply once the
+# storm passes — so the snow STARTS coming off sooner and clears
+# quickly instead of lingering. Tuned so load peaks just after the
+# storm's own peak, begins fading ~mid-decline, and is gone close
+# to when the storm ends.
+WEATHER_SNOW_ACCUM_RATE = 0.12
+WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
+WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE
