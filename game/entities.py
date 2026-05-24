@@ -3670,35 +3670,15 @@ class GenieCharacter:
                 cx, cy, vx, vy, life, 3, 11, color))
 
     def _spawn_appear_poof(self):
-        """Bright outward poof burst at the genie's spawn point — the
-        materialise flourish. Slightly larger + warmer than the vanish
-        swirl so the arrival reads as a genie 'popping' into being."""
-        import random as _r
-        from game import entities as _e
-        for _ in range(18):
-            ang = _r.uniform(0, math.pi * 2)
-            sp  = _r.uniform(50, 135)
-            vx  = math.cos(ang) * sp
-            vy  = math.sin(ang) * sp - _r.uniform(10, 45)
-            life = _r.uniform(0.32, 0.58)
-            color = _r.choice([(255, 245, 215), (250, 235, 200),
-                               (235, 220, 250), (215, 200, 240)])
-            self.world.particles.append(_e.CloudPuff(
-                self.x, self.y, vx, vy, life, 5, 18, color))
+        """Materialise flourish — reuses the KFC transformation cloud
+        (World._spawn_poof) so the genie pops in with the same mature
+        puff Pip uses when he reverts from KFC mode."""
+        self.world._spawn_poof(self.x, self.y)
 
     def _spawn_vanish_swirl(self):
-        import random as _r
-        from game import entities as _e
-        for _ in range(14):
-            ang = _r.uniform(0, math.pi * 2)
-            sp  = _r.uniform(40, 110)
-            vx  = math.cos(ang) * sp
-            vy  = math.sin(ang) * sp - _r.uniform(20, 60)
-            life = _r.uniform(0.30, 0.55)
-            color = _r.choice([(230, 220, 250), (215, 200, 240),
-                               (250, 235, 200)])
-            self.world.particles.append(_e.CloudPuff(
-                self.x, self.y, vx, vy, life, 5, 16, color))
+        """Disappear poof — the same KFC transformation cloud as the
+        appear, so the genie evaporates with a clean mature puff."""
+        self.world._spawn_poof(self.x, self.y)
 
     # ── render ───────────────────────────────────────────────────────────
     def draw(self, surf):

@@ -2470,10 +2470,10 @@ class World:
             if p is chosen or not getattr(p, "is_genie_offer", False):
                 continue
             p.collected = True
-            # The two unchosen wishes evaporate in the SAME magical poof
-            # they materialised with, so taking one offer reads as the
-            # others vanishing in a puff of genie smoke.
-            self._spawn_genie_reveal_poof(p.x, p.y)
+            # The two unchosen wishes evaporate with the SAME mature poof
+            # Pip uses when he reverts from KFC mode (World._spawn_poof),
+            # so taking one offer reads as the others puffing away.
+            self._spawn_poof(p.x, p.y)
         # Kill any active GenieCharacter so its remaining cast beats
         # don't spawn orphan offers after the player has locked in
         # their pick.
