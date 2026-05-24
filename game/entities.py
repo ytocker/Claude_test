@@ -3486,6 +3486,10 @@ class GenieCharacter:
         self._palm_dx = 58
         self._palm_dy = -20
         self._cached_body = self._render_body_supersample()
+        # POOF on appear — a bright outward burst of smoke puffs at the
+        # spawn point so the genie materialises with a flourish (the
+        # disappear is handled by _spawn_vanish_swirl at VANISH_START).
+        self._spawn_appear_poof()
 
     # ── public API ───────────────────────────────────────────────────────
     def update(self, dt):
@@ -3664,6 +3668,23 @@ class GenieCharacter:
                                (200, 180, 230)])
             self.world.particles.append(_e.CloudPuff(
                 cx, cy, vx, vy, life, 3, 11, color))
+
+    def _spawn_appear_poof(self):
+        """Bright outward poof burst at the genie's spawn point — the
+        materialise flourish. Slightly larger + warmer than the vanish
+        swirl so the arrival reads as a genie 'popping' into being."""
+        import random as _r
+        from game import entities as _e
+        for _ in range(18):
+            ang = _r.uniform(0, math.pi * 2)
+            sp  = _r.uniform(50, 135)
+            vx  = math.cos(ang) * sp
+            vy  = math.sin(ang) * sp - _r.uniform(10, 45)
+            life = _r.uniform(0.32, 0.58)
+            color = _r.choice([(255, 245, 215), (250, 235, 200),
+                               (235, 220, 250), (215, 200, 240)])
+            self.world.particles.append(_e.CloudPuff(
+                self.x, self.y, vx, vy, life, 5, 18, color))
 
     def _spawn_vanish_swirl(self):
         import random as _r
