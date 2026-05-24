@@ -46,24 +46,28 @@ def main():
     BIRD_Y = H * 0.42
     w = setup_world()
     w._activate_genie(PowerUp(w.bird.x, w.bird.y, kind="genie"))
-    # Tick past the cast beat (1.10 s) so all 3 offers are conjured.
-    for _ in range(int(60 * 1.35)):
+    # Tick past the cast beat (1.10 s) AND let the lavender "wish
+    # materialises" reveal cloud fully fade (~0.65 s life), so the
+    # frames below show the offers cleanly — exactly as in real play,
+    # where the player takes one a second or two after they appear.
+    for _ in range(int(60 * 1.95)):
         w.bird.y = BIRD_Y; w.bird.vy = 0
         w.update(1 / 60.0)
 
     left = _frame(w)
     _label(left, "Genie conjures 3 offers")
 
-    # Pip takes one → the other two vanish in a poof.
+    # Pip takes one → the other two vanish with the KFC transformation
+    # poof (clean white cloud, no leftover reveal haze).
     offers = [p for p in w.powerups
               if getattr(p, "is_genie_offer", False) and not p.collected]
     if len(offers) >= 1:
         w._cull_genie_offers_except(offers[0])
-    for _ in range(5):                     # let the poofs bloom
+    for _ in range(6):                     # let the poofs bloom
         w.bird.y = BIRD_Y; w.bird.vy = 0
         w.update(1 / 60.0)
     right = _frame(w)
-    _label(right, "Take 1 -> other 2 poof away")
+    _label(right, "Take 1 -> other 2 poof (KFC cloud)")
 
     margin = 12
     sheet = pygame.Surface((W * 2 + margin * 3, H + margin * 2))
