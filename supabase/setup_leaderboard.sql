@@ -59,29 +59,31 @@ create policy "anon insert plays"
 -- DevTools. Idempotent.
 alter table public.plays add column if not exists submit_error text;
 
--- 5. Drop any unique / primary-key constraint that drifted onto `scores`.
--- The leaderboard intentionally allows duplicate names AND duplicate
--- scores (ties are normal), so the canonical schema declares none. If one
--- exists, a colliding submit fails with HTTP 409 Conflict and a real
--- top-10 score is silently dropped. Idempotent: removes any PK/unique
--- constraint and any standalone unique index on the table.
+-- 5. Fix HTTP 409 Conflict on submit. The live `scores` table (created via
+-- the Supabase dashboard) has an identity `id` PRIMARY KEY. If rows were
+-- ever loaded with explicit ids (CSV import, restore, manual insert), the
+-- identity sequence lags behind max(id), so new auto-inserts collide on the
+-- PK (SQLSTATE 23505) -> HTTP 409, silently dropping a real top-10 score.
+-- Resync the sequence so the next id is past max(id). Idempotent. (Duplicate
+-- names and tied scores are intentionally allowed — do NOT add a UNIQUE
+-- there; the block below only removes one if it drifted in, never the PK.)
+do $$
+declare seq text := pg_get_serial_sequence('public.scores', 'id');
+begin
+  if seq is not null then
+    perform setval(seq,
+                   (select coalesce(max(id), 0) + 1 from public.scores),
+                   false);
+  end if;
+end $$;
+
 do $$
 declare c record;
 begin
   for c in select conname from pg_constraint
-           where conrelid = 'public.scores'::regclass and contype in ('p', 'u')
+           where conrelid = 'public.scores'::regclass and contype = 'u'
   loop
     execute format('alter table public.scores drop constraint %I', c.conname);
-  end loop;
-end $$;
-
-do $$
-declare i record;
-begin
-  for i in select indexrelid::regclass as idx from pg_index
-           where indrelid = 'public.scores'::regclass and indisunique
-  loop
-    execute format('drop index if exists %s', i.idx);
   end loop;
 end $$;
 
