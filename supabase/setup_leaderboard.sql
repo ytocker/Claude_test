@@ -59,7 +59,33 @@ create policy "anon insert plays"
 -- DevTools. Idempotent.
 alter table public.plays add column if not exists submit_error text;
 
--- 5. Sanity check. Should return one or more rows after running.
+-- 5. Drop any unique / primary-key constraint that drifted onto `scores`.
+-- The leaderboard intentionally allows duplicate names AND duplicate
+-- scores (ties are normal), so the canonical schema declares none. If one
+-- exists, a colliding submit fails with HTTP 409 Conflict and a real
+-- top-10 score is silently dropped. Idempotent: removes any PK/unique
+-- constraint and any standalone unique index on the table.
+do $$
+declare c record;
+begin
+  for c in select conname from pg_constraint
+           where conrelid = 'public.scores'::regclass and contype in ('p', 'u')
+  loop
+    execute format('alter table public.scores drop constraint %I', c.conname);
+  end loop;
+end $$;
+
+do $$
+declare i record;
+begin
+  for i in select indexrelid::regclass as idx from pg_index
+           where indrelid = 'public.scores'::regclass and indisunique
+  loop
+    execute format('drop index if exists %s', i.idx);
+  end loop;
+end $$;
+
+-- 6. Sanity check. Should return one or more rows after running.
 -- Comment-out before keeping this file in version control if you don't
 -- want the SELECT to run on every paste.
 -- select count(*) as score_rows from public.scores;
