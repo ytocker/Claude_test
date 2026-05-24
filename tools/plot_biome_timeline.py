@@ -35,6 +35,15 @@ def _hex(rgb):
     return "#%02x%02x%02x" % tuple(int(c) for c in rgb[:3])
 
 
+def _mist_intensity(phase: float) -> float:
+    """Dawn mist (peak phase 0.05 ≈ 16s) — a planned cosmetic haze the
+    morning thermals would disperse. Deliberately defined HERE in the
+    plotter and NOT in game/weather.py: the event is deferred, so it has
+    no game code yet — this lets the planned curve appear on the timeline
+    without shipping anything into the game."""
+    return weather._bump(phase, 0.05, 0.05)
+
+
 # Biome keyframe labels at their wall-clock timestamps (phase * cycle).
 PHASE_LABELS = [
     (0.00000, "DAY"),
@@ -48,7 +57,7 @@ PHASE_LABELS = [
 
 # (label, intensity-fn, line colour, peak-phase list)
 CURVES = [
-    ("Dawn mist (cosmetic, planned)", weather.mist_intensity, "#9aa7b3", [0.05]),
+    ("Dawn mist (cosmetic, planned)", _mist_intensity, "#9aa7b3", [0.05]),
     ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a", [0.10]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
     ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),

@@ -89,15 +89,6 @@ def thermal_intensity(phase: float) -> float:
     return _bump(phase, 0.10, 0.10)
 
 
-def mist_intensity(phase: float) -> float:
-    """Dawn mist (peak phase 0.05 ≈ 16s) — a low ground-hugging haze
-    that the rising morning thermals then disperse. Cosmetic-only and
-    not yet rendered in-game (deferred); defined here so the planned
-    event shows on the biome/weather timeline. Render opacity, when
-    wired, stays capped so it can never block the play area."""
-    return _bump(phase, 0.05, 0.05)
-
-
 # Cold wash colour for the snow squall — a deep blue-grey that
 # cools the whole scene so the bright white snow pops against it.
 SNOW_TINT = (74, 96, 130)
