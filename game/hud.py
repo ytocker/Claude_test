@@ -1637,7 +1637,7 @@ class HUD:
             cf = _font(18, True)
             cf.set_bold(True)
             cap = cf.render(
-                f"{total_pu}   P O W E R - U P S   U S E D",
+                f"{total_pu}  POWER-UPS USED",
                 True, _GOLD_MUTED)
             cf.set_bold(False)
             cap.set_alpha(230)
