@@ -175,6 +175,26 @@ WEATHER_SNOW_ACCUM_RATE = 0.12
 WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
 WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
 
+# ── Morning-thermal geysers ─────────────────────────────────────────────────
+# Ground geysers spawned during the thermal window (weather.thermal_intensity,
+# ~60-100s). Spawn density AND each geyser's active duty-cycle both scale with
+# the live intensity, so geysers start sparse + mostly dormant near 60s and
+# build to frequent + often-active by the ~80s peak. While a geyser is active
+# its column applies a continuous upward push capped well below |FLAP_V|; the
+# lift zone ends at the column top (mid-screen), so the updraft physically
+# cannot pin Pip to the ceiling.
+THERMAL_SPAWN_THRESHOLD  = 0.08   # min intensity before any geyser spawns
+THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar spawn chance at peak intensity
+GEYSER_W            = 46.0        # lift-column width (px)
+GEYSER_H            = 220.0       # column height above ground (px); zone top = anti-pin
+GEYSER_LIFT_ACCEL   = 2200.0      # continuous upward accel inside the column (px/s^2)
+GEYSER_LIFT_VY_CAP  = 380.0       # max upward speed the column imparts (< |FLAP_V|=520)
+GEYSER_ACTIVE_HOT   = 3.0         # active-window length at peak intensity (s)
+GEYSER_ACTIVE_COLD  = 1.0         # active-window length at the sparse edges (s)
+GEYSER_DORMANT_HOT  = 1.2         # dormant gap between actives at peak (s)
+GEYSER_DORMANT_COLD = 7.0         # dormant gap at the sparse edges (s)
+GEYSER_TELEGRAPH    = 0.5         # bubbling lead-in before the column rises (s)
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE

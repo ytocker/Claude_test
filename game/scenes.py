@@ -1015,6 +1015,12 @@ class App:
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
 
+        # Morning-thermal geysers: vents on the terrain + warm updraft columns.
+        # Drawn after pillars / before weather so the column reads as
+        # foreground atmosphere sitting behind the coins + bird.
+        for gy in self.world.geysers:
+            gy.draw(self.screen)
+
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)

@@ -13,6 +13,9 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
+    GEYSER_W, GEYSER_H, GEYSER_TELEGRAPH,
+    GEYSER_ACTIVE_HOT, GEYSER_ACTIVE_COLD,
+    GEYSER_DORMANT_HOT, GEYSER_DORMANT_COLD,
 )
 from game.draw import (
     blit_glow,
@@ -2388,6 +2391,160 @@ class CloudPuff:
         s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (*self.color, alpha), (r + 1, r + 1), r)
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
+
+
+# ── Geyser (morning-thermal updraft) ──────────────────────────────────────────
+
+_geyser_column_cache: "pygame.Surface | None" = None
+
+
+def _get_geyser_column() -> "pygame.Surface":
+    # Warm hot-air column: a vertical alpha gradient (brightest at the vent,
+    # fading to nothing at the top) tinted orange→pale-yellow with height.
+    # Rendered once; the live column blits its bottom slice so the gradient
+    # never has to be rebuilt per frame.
+    global _geyser_column_cache
+    if _geyser_column_cache is None:
+        w, h = int(GEYSER_W), int(GEYSER_H)
+        s = pygame.Surface((w, h), pygame.SRCALPHA)
+        cx = (w - 1) / 2.0
+        # The column is blitted additively, so visible brightness is the RGB
+        # value (source alpha is ignored by BLEND_ADD). Bake both falloffs
+        # into RGB: a vertical fade (hot at the vent → nothing at the top) and
+        # a cosine-bell horizontal fade (bright centre line → soft edges), so
+        # it reads as an airy plume rather than a solid bar. Built once.
+        for yy in range(h):
+            f = 1.0 - yy / max(1, h)          # 1 at the base → 0 at the top
+            vert = f * f                      # square → quicker top fade
+            g0 = 150 + 70 * (1.0 - f)
+            b0 = 45 + 95 * (1.0 - f)
+            row = h - 1 - yy
+            for xx in range(w):
+                d = min(1.0, abs(xx - cx) / cx)
+                m = vert * (0.5 + 0.5 * math.cos(math.pi * d))
+                if m <= 0.012:
+                    continue
+                s.set_at((xx, row),
+                         (int(255 * m), int(g0 * m), int(b0 * m), 255))
+        _geyser_column_cache = s
+    return _geyser_column_cache
+
+
+class Geyser:
+    """A ground vent that cycles dormant → telegraph → active → dormant.
+
+    While active its hot-air column lifts the bird (the lift force itself is
+    applied in World, which owns the bird). Active and dormant durations are
+    seeded from the thermal intensity at spawn time, so early-window geysers
+    sit mostly dormant and peak-window ones are active often — the
+    sparse→frequent build-up. The lift zone is a vertical band that stops at
+    the column top (mid-screen), so the updraft can never pin Pip to the
+    ceiling."""
+
+    __slots__ = ("x", "intensity", "active_len", "dormant_len", "phase",
+                 "t", "active", "active_strength", "_anim_t")
+
+    def __init__(self, x, intensity):
+        intensity = max(0.0, min(1.0, intensity))
+        self.x = float(x)
+        self.intensity = intensity
+        self.active_len = GEYSER_ACTIVE_COLD + (GEYSER_ACTIVE_HOT - GEYSER_ACTIVE_COLD) * intensity
+        self.dormant_len = GEYSER_DORMANT_COLD + (GEYSER_DORMANT_HOT - GEYSER_DORMANT_COLD) * intensity
+        # Start partway into a dormant stretch so neighbouring vents desync.
+        self.phase = "dormant"
+        self.t = random.uniform(0.0, self.dormant_len)
+        self.active = False
+        self.active_strength = 0.0
+        self._anim_t = random.uniform(0.0, 10.0)
+
+    def update(self, dt):
+        self._anim_t += dt
+        self.t += dt
+        if self.phase == "dormant":
+            self.active = False
+            self.active_strength = 0.0
+            if self.t >= self.dormant_len:
+                self.t = 0.0
+                self.phase = "telegraph"
+        elif self.phase == "telegraph":
+            self.active = False
+            self.active_strength = 0.0
+            if self.t >= GEYSER_TELEGRAPH:
+                self.t = 0.0
+                self.phase = "active"
+        else:  # active
+            self.active = True
+            ramp = 0.3
+            if self.t < ramp:
+                s = self.t / ramp
+            elif self.t > self.active_len - ramp:
+                s = (self.active_len - self.t) / ramp
+            else:
+                s = 1.0
+            self.active_strength = max(0.0, min(1.0, s))
+            if self.t >= self.active_len:
+                self.t = 0.0
+                self.phase = "dormant"
+                self.active = False
+                self.active_strength = 0.0
+
+    def contains(self, bx, by):
+        """True if (bx, by) is inside the active lift column. The zone ends at
+        the column top so lift can't carry the bird past mid-screen."""
+        if not self.active:
+            return False
+        return (abs(bx - self.x) <= GEYSER_W * 0.5
+                and (GROUND_Y - GEYSER_H) <= by <= GROUND_Y)
+
+    def off_screen(self):
+        return self.x + GEYSER_W < 0
+
+    def draw(self, surf):
+        cx = int(self.x)
+        base_y = GROUND_Y
+        vent_w = int(GEYSER_W * 0.7)
+
+        # Vent mound — always drawn so dormant vents read as "there".
+        vent = pygame.Surface((vent_w + 4, 12), pygame.SRCALPHA)
+        pygame.draw.ellipse(vent, (92, 72, 60, 200), (2, 3, vent_w, 8))
+        pygame.draw.ellipse(vent, (58, 44, 36, 230), (2, 5, vent_w, 5))
+        surf.blit(vent, (cx - vent_w // 2 - 2, base_y - 6))
+
+        if self.phase == "telegraph":
+            # Bubbling motes hop at the vent to telegraph the rise.
+            for i in range(3):
+                t = (self._anim_t * 2.2 + i / 3.0) % 1.0
+                mx = cx + math.sin((self._anim_t * 6.0 + i) * 1.3) * GEYSER_W * 0.2
+                my = base_y - 4 - t * 14
+                r = max(1, int(3 * (1.0 - t)))
+                a = int(180 * (1.0 - t))
+                s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+                pygame.draw.circle(s, (255, 210, 150, a), (r + 1, r + 1), r)
+                surf.blit(s, (int(mx - r - 1), int(my - r - 1)),
+                          special_flags=pygame.BLEND_ADD)
+            return
+
+        if not self.active or self.active_strength <= 0.0:
+            return
+
+        stg = self.active_strength
+        col_h = max(1, int(GEYSER_H * stg))
+        col = _get_geyser_column()
+        src = pygame.Rect(0, int(GEYSER_H) - col_h, int(GEYSER_W), col_h)
+        surf.blit(col, (cx - int(GEYSER_W) // 2, base_y - col_h), src,
+                  special_flags=pygame.BLEND_ADD)
+
+        # Rising warm motes for life inside the column.
+        for i in range(4):
+            t = (self._anim_t * 0.8 + i * 0.27) % 1.0
+            my = base_y - t * col_h
+            mx = cx + math.sin(self._anim_t * 3.0 + i * 2.0) * GEYSER_W * 0.28
+            r = max(1, int(4 * (1.0 - t) + 1))
+            a = int(180 * (1.0 - t) * stg)
+            s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(s, (255, 225, 170, a), (r + 1, r + 1), r)
+            surf.blit(s, (int(mx - r - 1), int(my - r - 1)),
+                      special_flags=pygame.BLEND_ADD)
 
 
 # ── FloatText ────────────────────────────────────────────────────────────────

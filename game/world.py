@@ -28,10 +28,12 @@ from game.config import (
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
+    THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
+    GEYSER_W, GEYSER_H, GEYSER_LIFT_ACCEL, GEYSER_LIFT_VY_CAP,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
-    FlyingCoinParticle,
+    FlyingCoinParticle, Geyser,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -45,6 +47,7 @@ from game.weather import (
     Weather,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
+    thermal_intensity as _thermal_intensity,
 )
 from game.ambient import AmbientScenes
 
@@ -71,6 +74,7 @@ class World:
         self.pipes: list[Pipe] = []
         self.coins: list[Coin] = []
         self.powerups: list[PowerUp] = []
+        self.geysers: list[Geyser] = []
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
 
@@ -300,6 +304,20 @@ class World:
                     side = -1 if kind.endswith("left") else 1
                     self._fire_background_lightning(side=side)
 
+    def _apply_thermal_lift(self, dt):
+        """Morning-thermal updraft. While Pip is inside an active geyser
+        column, add a continuous upward acceleration and cap the resulting
+        *upward* speed below |FLAP_V| so the rise stays controllable. The
+        cap only limits lift-driven motion — a stronger player flap is never
+        slowed. The column's lift zone ends at its top (mid-screen), so once
+        Pip rides above it the lift simply stops: the structural anti-pin."""
+        bx, by = self.bird.x, self.bird.y
+        for gy in self.geysers:
+            if gy.contains(bx, by) and self.bird.vy > -GEYSER_LIFT_VY_CAP:
+                self.bird.vy -= GEYSER_LIFT_ACCEL * gy.active_strength * dt
+                if self.bird.vy < -GEYSER_LIFT_VY_CAP:
+                    self.bird.vy = -GEYSER_LIFT_VY_CAP
+
     def _start_storm_buildup(self):
         """Telegraph the strike: 9 escalating-tempo background bolts, the
         real strike at t=4.40 s, then 2 fade-away bolts as it settles."""
@@ -489,6 +507,21 @@ class World:
         else:
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
+            self._maybe_spawn_geyser(p)
+
+    def _maybe_spawn_geyser(self, pipe: Pipe):
+        # Morning-thermal geysers: spawn density scales with the live thermal
+        # intensity, so they are rare near the 60s window edge and common at
+        # the ~80s peak. Placed at the open mid-gap after the pillar so the
+        # updraft rises through clear air, never routinely shoving Pip into a
+        # pillar. The geyser seeds its own active/dormant cadence from the
+        # same intensity (sparse→frequent).
+        intensity = _thermal_intensity(self.biome_phase)
+        if intensity < THERMAL_SPAWN_THRESHOLD:
+            return
+        if random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity:
+            gx = pipe.x + (PIPE_W + self._current_spacing()) * 0.5
+            self.geysers.append(Geyser(gx, intensity))
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
@@ -691,6 +724,12 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
+            for gy in self.geysers:
+                gy.x -= speed * sdt
+                gy.update(sdt)
+            # Morning-thermal updraft: continuous lift while Pip is inside an
+            # active geyser column (capped, zone ends mid-screen — see method).
+            self._apply_thermal_lift(dt)
 
             # Magnet pull — tug uncollected coins toward the bird.
             # Either timer triggers; the bigger radius wins if both
@@ -724,6 +763,7 @@ class World:
             ]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
+            self.geysers = [gy for gy in self.geysers if not gy.off_screen()]
 
             # spawn more pipes. Suppressed while the rail powerup is
             # active so no untagged pipe slips between the pre-spawned
@@ -879,6 +919,9 @@ class World:
         self.powerups = [m for m in self.powerups if m.x + 20 > 0]
         if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
             self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
+        # Geysers are a gameplay element only; the cosmetic menu background
+        # doesn't scroll/update them, so don't let _spawn_pipe accumulate any.
+        self.geysers.clear()
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0
