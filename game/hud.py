@@ -1629,8 +1629,10 @@ class HUD:
                 _powerup_icon as _ingame_powerup_icon,
             )
             cap_y = 414
-            cap = _font(13, True).render("P O W E R - U P S   U S E D",
-                                         True, _GOLD_MUTED)
+            total_pu = sum(c for _, c in pu)
+            cap = _font(13, True).render(
+                f"{total_pu}   P O W E R - U P S   U S E D",
+                True, _GOLD_MUTED)
             cap.set_alpha(230)
             surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
 
