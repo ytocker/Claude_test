@@ -58,7 +58,7 @@ PHASE_LABELS = [
 # (label, intensity-fn, line colour, peak-phase list)
 CURVES = [
     ("Dawn mist (cosmetic, planned)", _mist_intensity, "#9aa7b3", [0.05]),
-    ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a", [0.10]),
+    ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a", [0.25]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
     ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),
     ("Snow squall (tailwind)", weather.storm_intensity, "#8a6fc0", [0.85]),

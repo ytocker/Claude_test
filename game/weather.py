@@ -80,13 +80,14 @@ def wind_intensity(phase: float) -> float:
 
 
 def thermal_intensity(phase: float) -> float:
-    """Morning thermals (peak phase 0.10 ≈ 32s) — warm rising air that
-    spawns ground geysers giving Pip a springy updraft. Scoped to the
-    DAY window so it only ever eases the start of a run; 0 everywhere
-    else. The curve is a pure scheduling signal (peak 1.0) — geyser
-    spawn rate / pop strength scale off it, with the lift magnitude
-    tuned by the GEYSER_* constants in config."""
-    return _bump(phase, 0.10, 0.10)
+    """Morning thermals (active ~60-100s, peak ~80s) — warm rising air
+    that spawns ground geysers giving Pip a continuous updraft. Held off
+    the opening so the player feels the game first; 0 outside the window.
+    The curve is a pure scheduling signal (peak 1.0): geyser spawn density
+    and each geyser's active duty-cycle both scale off it, so geysers start
+    sparse/dormant at ~60s and build to frequent/active by ~80s. Lift
+    magnitude lives in the GEYSER_* constants in config."""
+    return _bump(phase, 0.25, 0.0625)
 
 
 # Cold wash colour for the snow squall — a deep blue-grey that
