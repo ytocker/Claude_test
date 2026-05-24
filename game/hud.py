@@ -1630,7 +1630,7 @@ class HUD:
             )
             cap_y = 414
             total_pu = sum(c for _, c in pu)
-            cap = _font(13, True).render(
+            cap = _font(16, True).render(
                 f"{total_pu}   P O W E R - U P S   U S E D",
                 True, _GOLD_MUTED)
             cap.set_alpha(230)
