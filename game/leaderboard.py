@@ -167,14 +167,16 @@ async def open_name_entry() -> "str | None":
         return None
 
 
-def _build_submit_payload(name: str, world) -> "dict | None":
+def _build_submit_payload(name: str, world) -> "tuple[dict | None, str]":
     """Assemble the submission bundle from the world's ProofState. Returns
-    ``None`` if the local plausibility check rejects the run — the bridge
-    is never called in that case, so the network sees no submission for
-    a tampered score."""
+    ``(payload, "")`` on success, or ``(None, reason)`` when the local
+    plausibility check rejects the run — the bridge is never called in that
+    case, so the network sees no submission for a tampered score. The reason
+    string is persisted to plays.submit_error so a legitimate run rejected by
+    an over-tight rule is visible in the DB instead of silently vanishing."""
     proof = getattr(world, "_proof", None)
     if proof is None:
-        return None
+        return None, "no-proof"
     score = proof.score()
     events = proof.events_tuple()
     try:
@@ -191,14 +193,26 @@ def _build_submit_payload(name: str, world) -> "dict | None":
                "| score=", score,
                "pillars=", getattr(world, "pillars_passed", "?"),
                "coins=", getattr(world, "coin_count", "?"))
-        return None
+        return None, "plausibility:" + str(e)[:160]
     return {
         "name": str(name)[:10],
         "score": int(score),
         "run_id": proof.run_id(),
         "chain_hex": proof.chain_hex(),
         "events": list(events),
-    }
+    }, ""
+
+
+async def _log_submit_failure(world, reason: str) -> None:
+    """Persist a dropped top-10 submit to public.plays (submit_error column)
+    so the failure is visible in the DB without the player's DevTools. Writes
+    a second telemetry row (the first fired at death, before the submit
+    outcome was known). Must never throw into the submit flow."""
+    try:
+        from game import play_log
+        await play_log.log_run(world, submit_error=str(reason)[:200])
+    except Exception:
+        pass
 
 
 async def submit(name: str, world) -> bool:
@@ -212,8 +226,9 @@ async def submit(name: str, world) -> bool:
         _resolve()
         if not _dispatcherReady:
             return False
-        payload = _build_submit_payload(name, world)
+        payload, reject_reason = _build_submit_payload(name, world)
         if payload is None:
+            await _log_submit_failure(world, reject_reason or "build-failed")
             return False
         try:
             import asyncio
@@ -230,10 +245,13 @@ async def submit(name: str, world) -> bool:
                             err = None
                         _pylog("submit failed in JS bridge:",
                                str(err) if err else "(no detail)")
+                        await _log_submit_failure(
+                            world, "js:" + (str(err) if err else "unknown"))
                     return ok
                 await asyncio.sleep(0.05)
         except Exception as e:
             _pylog("submit exception:", type(e).__name__, str(e)[:120])
+            await _log_submit_failure(world, "py-exception:" + type(e).__name__)
             return False
     else:
         # Native: dev-only path, unsigned. The on-disk JSON is a debug

@@ -50,7 +50,19 @@ create policy "anon insert plays"
     to anon, authenticated
     with check (true);
 
--- 4. Sanity check. Should return one or more rows after running.
+-- 4. Submit-failure diagnostic column. Nullable and optional, so the
+-- normal at-death telemetry row (which never sets it) is unaffected.
+-- leaderboard.submit re-fires the telemetry with this column set when a
+-- top-10 submit is dropped, recording the gate that rejected it
+-- (plausibility:*, js:chain-mismatch, js:http NNN, js:exception:*, …) so
+-- a silently-lost score can be traced from the DB without the player's
+-- DevTools. Idempotent.
+alter table public.plays add column if not exists submit_error text;
+
+-- 5. Sanity check. Should return one or more rows after running.
 -- Comment-out before keeping this file in version control if you don't
 -- want the SELECT to run on every paste.
 -- select count(*) as score_rows from public.scores;
+-- Recent dropped submits, most common first:
+-- select submit_error, count(*) from public.plays
+--   where submit_error is not null group by 1 order by 2 desc;

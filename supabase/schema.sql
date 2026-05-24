@@ -44,7 +44,11 @@ create table if not exists public.plays (
     coins       int           not null,
     pillars     int           not null,
     near_misses int           not null,
-    powerups    jsonb         not null
+    powerups    jsonb         not null,
+    -- Null on a normal row. Set by leaderboard.submit when a top-10 submit
+    -- is dropped, naming the gate that rejected it so the loss is traceable
+    -- from the DB. See setup_leaderboard.sql for the diagnostic query.
+    submit_error text
 );
 
 alter table public.plays enable row level security;

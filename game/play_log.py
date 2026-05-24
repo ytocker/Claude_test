@@ -41,24 +41,34 @@ def _resolve() -> None:
         pass
 
 
-def _build_payload(world) -> str:
+def _build_payload(world, submit_error=None) -> str:
     """Pack the run summary the JS side will POST as a JSON string. The
     dispatcher adds ``device_id`` itself so the value never round-trips
     through Python. JSON-string handoff (matching the legacy bridge)
-    avoids Pyodide-version-specific dict→JS object conversion quirks."""
-    return json.dumps({
+    avoids Pyodide-version-specific dict→JS object conversion quirks.
+
+    ``submit_error`` is set only when leaderboard.submit re-fires this to
+    record WHY a top-10 score was dropped; the column is nullable so the
+    normal at-death row omits it."""
+    body = {
         "score":       int(world.score),
         "duration_s":  int(world.time_alive),
         "coins":       int(world.coin_count),
         "pillars":     int(world.pillars_passed),
         "near_misses": int(world.near_misses),
         "powerups":    {k: int(v) for k, v in world.powerups_picked.items()},
-    }, separators=(",", ":"))
+    }
+    if submit_error:
+        body["submit_error"] = str(submit_error)[:200]
+    return json.dumps(body, separators=(",", ":"))
 
 
-async def log_run(world) -> bool:
+async def log_run(world, submit_error=None) -> bool:
     """Fire-and-forget: hand the run summary to JS, wait for the POST to
-    complete, return True on 2xx. Native = silent no-op."""
+    complete, return True on 2xx. Native = silent no-op.
+
+    With ``submit_error`` set, records a dropped-submit diagnostic row
+    instead of a plain at-death telemetry row."""
     if not _IS_BROWSER:
         return False
     _resolve()
@@ -67,7 +77,7 @@ async def log_run(world) -> bool:
     try:
         import asyncio
         import platform as _p  # type: ignore
-        _p.window.__sk("log", _build_payload(world))
+        _p.window.__sk("log", _build_payload(world, submit_error))
         while True:
             v = _p.window.__sk("log_done")
             if v is not None:
