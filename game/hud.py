@@ -1630,9 +1630,16 @@ class HUD:
             )
             cap_y = 414
             total_pu = sum(c for _, c in pu)
-            cap = _font(16, True).render(
+            # _font already returns the bold face, so toggling bold there
+            # is a no-op; set_bold adds synthetic weight on top so the
+            # caption reads clearly heavier. Unset right after to leave the
+            # cached font untouched for other callers.
+            cf = _font(18, True)
+            cf.set_bold(True)
+            cap = cf.render(
                 f"{total_pu}   P O W E R - U P S   U S E D",
                 True, _GOLD_MUTED)
+            cf.set_bold(False)
             cap.set_alpha(230)
             surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
 
