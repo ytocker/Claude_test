@@ -41,16 +41,18 @@ NATIVE_H = 460
 TOP_Y    = 128
 GX       = 180          # screen-centre x, clear of HUD chrome
 
-# 5 increasingly large options. Current live size is 0.34 (≈109 px wide);
-# all five here are bigger so the genie reads as a hero character.
-#   0.42 → 134×193   0.48 → 154×221   0.54 → 173×248
-#   0.60 → 192×276   0.66 → 211×304
+# The original (current live) size is 0.34. The five candidates are all
+# bigger so the genie reads as a hero character. All are aligned by their
+# top edge just below the score pill so the sheet compares SIZE only.
+#   0.34 → 109 px (current)   0.42 → 134   0.48 → 154
+#   0.54 → 173   0.60 → 192   0.66 → 211
 SIZE_OPTIONS = [
-    ("1  scale 0.42  (134 px wide)", 0.42),
-    ("2  scale 0.48  (154 px wide)", 0.48),
-    ("3  scale 0.54  (173 px wide)", 0.54),
-    ("4  scale 0.60  (192 px wide)", 0.60),
-    ("5  scale 0.66  (211 px wide)", 0.66),
+    ("original 0.34", 0.34),
+    ("v1  0.42", 0.42),
+    ("v2  0.48", 0.48),
+    ("v3  0.54", 0.54),
+    ("v4  0.60", 0.60),
+    ("v5  0.66", 0.66),
 ]
 
 
@@ -143,11 +145,8 @@ def render_size(label, scale):
 
 def main():
     frames = [render_size(lbl, sc) for lbl, sc in SIZE_OPTIONS]
-    for i, fr in enumerate(frames, 1):
-        pygame.image.save(fr, os.path.join(OUT_DIR, f"size_{i}.png"))
-
-    # Comparison sheet: 5 across in one row.
-    cols = 5
+    # Single comparison sheet — original + 5 candidates, all in one row.
+    cols = len(frames)
     margin = 10
     sw, sh = W // 2, H // 2
     sheet_w = sw * cols + margin * (cols + 1)
@@ -160,7 +159,6 @@ def main():
     out = os.path.join(OUT_DIR, "sizes_compare.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
-    print("saved size_1.png .. size_5.png in", OUT_DIR)
 
 
 if __name__ == "__main__":
