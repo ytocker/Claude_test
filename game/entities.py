@@ -3476,7 +3476,7 @@ class GenieCharacter:
         self._native_w = 320
         self._native_h = 460
         self._ss = 6
-        self._display_scale = 0.34         # 320 → 109 px wide on screen (~30%)
+        self._display_scale = 0.42         # 320 → 134 px wide on screen (~37%)
         # Palm offsets in REFERENCE native px from the genie's centre.
         # draw_offering_arms_with_shine puts wrists at (cx ± 54, 214),
         # palms just past the cuff at (cx ± 58, 210). Canvas centre

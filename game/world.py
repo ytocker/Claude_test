@@ -2429,30 +2429,16 @@ class World:
         # (see GenieCharacter in game/entities.py). The lamp's own
         # pickup-site burst / float text / audio still fire below.
         from game.entities import GenieCharacter
-        # Genie hovers STATIONARY (vx=0). Default spawn is at
-        # (gx=180, gy=215) — below the score pill (y=64..120), at
-        # screen centre, where the locked design renders cleanly at
-        # display_scale=0.34. If the parrot is currently flying near
-        # the default y (i.e., the player happens to be high in the
-        # frame), the genie spawns at a FALLBACK position lower down
-        # — gy=440, just above the mountain peaks — so it doesn't
-        # sit directly on top of the bird. Offers (in _fire_all)
-        # are placed independently of genie y, so the cinematic
-        # plays out the same either way.
-        DEFAULT_GY  = 215
-        FALLBACK_GY = 440           # just above the mountain peaks
-        TOO_CLOSE   = 100           # px window around a candidate y
-        if abs(self.bird.y - DEFAULT_GY) >= TOO_CLOSE:
-            gy = DEFAULT_GY
-        elif abs(self.bird.y - FALLBACK_GY) >= TOO_CLOSE:
-            gy = FALLBACK_GY
-        else:
-            # Parrot is awkwardly between both candidates — pick the
-            # one further from the parrot regardless.
-            gy = (DEFAULT_GY
-                  if abs(self.bird.y - DEFAULT_GY) > abs(self.bird.y - FALLBACK_GY)
-                  else FALLBACK_GY)
-        gx = 180                    # screen centre, clear of HUD chrome
+        # Genie hovers STATIONARY (vx=0) at screen-centre x, positioned
+        # BELOW the score backdrop (which spans y=64..120). At the live
+        # display_scale=0.42 the 460-px-tall sprite is ~193 px on screen,
+        # so a centre of gy=225 puts the genie's head ~8 px under the
+        # score pill. gx=180 (centre) keeps it clear of Pip's fixed x=90
+        # lane, so it never sits on top of the bird regardless of his
+        # height. Offers (in _fire_all) are placed independently of
+        # genie y, far ahead of Pip.
+        gy = 225
+        gx = 180
         offers = list(zip(chosen, slots))
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0,
@@ -2484,16 +2470,10 @@ class World:
             if p is chosen or not getattr(p, "is_genie_offer", False):
                 continue
             p.collected = True
-            # Tiny mauve puff to read "wish evaporates".
-            for _ in range(8):
-                ang = random.uniform(0, math.tau)
-                sp = random.uniform(40, 90)
-                self.particles.append(Particle(
-                    p.x, p.y,
-                    math.cos(ang) * sp, math.sin(ang) * sp - 30,
-                    life=0.5, r=3, color=(170, 130, 195),
-                    gravity=200,
-                ))
+            # The two unchosen wishes evaporate in the SAME magical poof
+            # they materialised with, so taking one offer reads as the
+            # others vanishing in a puff of genie smoke.
+            self._spawn_genie_reveal_poof(p.x, p.y)
         # Kill any active GenieCharacter so its remaining cast beats
         # don't spawn orphan offers after the player has locked in
         # their pick.
