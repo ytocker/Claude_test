@@ -79,6 +79,25 @@ def wind_intensity(phase: float) -> float:
     return max(0.0, min(1.0, calm_breeze(phase) + storm_intensity(phase)))
 
 
+def thermal_intensity(phase: float) -> float:
+    """Morning thermals (peak phase 0.10 ≈ 32s) — warm rising air that
+    spawns ground geysers giving Pip a springy updraft. Scoped to the
+    DAY window so it only ever eases the start of a run; 0 everywhere
+    else. The curve is a pure scheduling signal (peak 1.0) — geyser
+    spawn rate / pop strength scale off it, with the lift magnitude
+    tuned by the GEYSER_* constants in config."""
+    return _bump(phase, 0.10, 0.10)
+
+
+def mist_intensity(phase: float) -> float:
+    """Dawn mist (peak phase 0.05 ≈ 16s) — a low ground-hugging haze
+    that the rising morning thermals then disperse. Cosmetic-only and
+    not yet rendered in-game (deferred); defined here so the planned
+    event shows on the biome/weather timeline. Render opacity, when
+    wired, stays capped so it can never block the play area."""
+    return _bump(phase, 0.05, 0.05)
+
+
 # Cold wash colour for the snow squall — a deep blue-grey that
 # cools the whole scene so the bright white snow pops against it.
 SNOW_TINT = (74, 96, 130)

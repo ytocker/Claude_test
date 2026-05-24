@@ -48,6 +48,8 @@ PHASE_LABELS = [
 
 # (label, intensity-fn, line colour, peak-phase list)
 CURVES = [
+    ("Dawn mist (cosmetic, planned)", weather.mist_intensity, "#9aa7b3", [0.05]),
+    ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a", [0.10]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
     ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),
     ("Snow squall (tailwind)", weather.storm_intensity, "#8a6fc0", [0.85]),
@@ -105,11 +107,12 @@ def main() -> None:
                         xytext=(0, 9), ha="center", fontsize=8,
                         color=color, fontweight="bold")
 
-    # Game start marker.
+    # Game start marker — label rotated along the line so it clears the
+    # early-morning mist/thermal peak labels at the top-left.
     ax.axvline(0, color="#222", linewidth=2)
-    ax.annotate("RUN START", (0, 1.02), xytext=(4, 0),
-                textcoords="offset points", fontsize=9, fontweight="bold",
-                color="#222", va="bottom", ha="left")
+    ax.annotate("RUN START", (0, 0.5), xytext=(6, 0),
+                textcoords="offset points", rotation=90, fontsize=8.5,
+                fontweight="bold", color="#222", va="center", ha="left")
 
     # Biome keyframe gridlines carried down into the lower panel.
     for phase, _ in PHASE_LABELS:
@@ -123,14 +126,16 @@ def main() -> None:
     ax.grid(True, axis="y", alpha=0.25)
     ax.set_xticks(range(0, int(CYCLE) + 1, 20))
 
-    # Legend: curves + lightning patch.
+    # Legend below the plot (3 cols) so it never sits over the early-morning
+    # mist/thermal peaks at the top-left.
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels, loc="upper left",
-              bbox_to_anchor=(0.135, 0.99), framealpha=0.92, fontsize=9)
+    ax.legend(handles, labels, loc="upper center",
+              bbox_to_anchor=(0.5, -0.13), ncol=3, framealpha=0.92,
+              fontsize=9)
 
     fig.tight_layout()
     out_path = os.path.join(out_dir, "biome_event_timeline.png")
-    fig.savefig(out_path)
+    fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out_path}")
 
