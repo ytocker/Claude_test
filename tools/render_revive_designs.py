@@ -234,7 +234,7 @@ def build_knight(char, nom, fidx):
         pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
         pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
         pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
-    _blit_ss(char, *_P(nom, 0.34, 0.60), int(nom.w * 0.40), int(nom.h * 0.50), shield)
+    _blit_ss(char, *_P(nom, 0.20, 0.56), int(nom.w * 0.44), int(nom.h * 0.54), shield)
 
     char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
 
@@ -246,36 +246,74 @@ def build_knight(char, nom, fidx):
         pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
     _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), breast)
 
+    # detailed spaulder on the near (right) wing: shoulder cop + layered lames
     def pauldron(big, s):
         w, h = big.get_size()
-        plate(big, s, int(2 * s), int(2 * s), int(w - 4 * s), int(h * 0.86))
-    _blit_ss(char, *_P(nom, 0.42, 0.45), int(nom.w * 0.32), int(nom.h * 0.22), pauldron)
+        def lame(yy, hh):
+            rx, ry, rw, rh = int(3 * s), int(h * yy), int(w - 6 * s), int(h * hh)
+            pygame.draw.ellipse(big, OL, (rx, ry, rw, rh))
+            pygame.draw.ellipse(big, D, (rx + int(1.5 * s), ry + int(1.5 * s), rw - int(3 * s), rh - int(2.5 * s)))
+            pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(2.5 * s), rw - int(6 * s), rh - int(4.5 * s)))
+            pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(1.5 * s), rw - int(6 * s), rh), math.radians(196), math.radians(344), max(1, int(1.3 * s)))
+            pygame.draw.circle(big, BRASS, (rx + int(5 * s), int(ry + rh * 0.42)), max(1, int(1.2 * s)))
+            pygame.draw.circle(big, BRASS, (rx + rw - int(5 * s), int(ry + rh * 0.42)), max(1, int(1.2 * s)))
+        lame(0.54, 0.42)
+        lame(0.34, 0.42)
+        # shoulder cop (top dome) with ridge + finial
+        pygame.draw.ellipse(big, OL, (int(5 * s), int(2 * s), int(w - 10 * s), int(h * 0.52)))
+        pygame.draw.ellipse(big, D, (int(7 * s), int(3.5 * s), int(w - 14 * s), int(h * 0.46)))
+        pygame.draw.ellipse(big, MID, (int(9 * s), int(5 * s), int(w - 18 * s), int(h * 0.40)))
+        pygame.draw.ellipse(big, HI, (int(11 * s), int(5 * s), int(w * 0.36), int(h * 0.17)))
+        pygame.draw.line(big, (58, 64, 80), (int(w * 0.5), int(4 * s)), (int(w * 0.5), int(h * 0.4)), max(1, int(1.2 * s)))
+        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.14)), max(1, int(1.7 * s)))
+        pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.14) - int(s)), max(1, int(0.8 * s)))
+    _blit_ss(char, *_P(nom, 0.45, 0.46), int(nom.w * 0.42), int(nom.h * 0.34), pauldron, scale=6)
 
+    # slick, detailed armet helm
     def helm(big, s):
         w, h = big.get_size(); cxg = w // 2
-        pygame.draw.ellipse(big, OL, (int(3 * s), int(3 * s), int(w - 6 * s), int(h * 0.74)))
-        pygame.draw.ellipse(big, MID, (int(5 * s), int(5 * s), int(w - 10 * s), int(h * 0.70)))
-        pygame.draw.arc(big, D, (int(6 * s), int(7 * s), int(w - 12 * s), int(h * 0.64)), math.radians(16), math.radians(164), max(2, int(2 * s)))
-        pygame.draw.ellipse(big, HI, (int(9 * s), int(7 * s), int(w * 0.34), int(h * 0.26)))
-        pygame.draw.line(big, BRASS, (cxg, int(4 * s)), (cxg, int(h * 0.36)), max(2, int(2 * s)))
-        pygame.draw.line(big, BRASS_HI, (cxg - int(s), int(5 * s)), (cxg - int(s), int(h * 0.34)), max(1, int(s)))
-        vy = int(h * 0.42)
-        pygame.draw.rect(big, OL, (int(7 * s), vy, int(w - 14 * s), int(h * 0.26)), border_radius=int(3 * s))
-        pygame.draw.rect(big, D, (int(8 * s), vy + int(s), int(w - 16 * s), int(h * 0.24)), border_radius=int(3 * s))
-        pygame.draw.rect(big, MID, (int(8 * s), vy + int(s), int(w - 16 * s), int(h * 0.07)))
-        pygame.draw.rect(big, (8, 9, 13), (int(11 * s), int(vy + h * 0.10), int(w - 22 * s), int(h * 0.055)))
-        pygame.draw.line(big, HI, (int(8 * s), vy + int(s)), (int(w - 8 * s), vy + int(s)), max(1, int(s)))
-        for bx in range(4):
-            x = int(cxg + (bx - 1.5) * int(3.2 * s))
-            pygame.draw.circle(big, (8, 9, 13), (x, int(vy + h * 0.2)), max(1, int(0.9 * s)))
-        pygame.draw.line(big, BRASS, (int(8 * s), vy), (int(w - 8 * s), vy), max(2, int(2 * s)))
+        # gorget / neck guard
+        pygame.draw.ellipse(big, D, (int(w * 0.16), int(h * 0.66), int(w * 0.68), int(h * 0.32)))
+        pygame.draw.ellipse(big, MID, (int(w * 0.19), int(h * 0.67), int(w * 0.62), int(h * 0.22)))
+        pygame.draw.arc(big, HI, (int(w * 0.2), int(h * 0.66), int(w * 0.6), int(h * 0.2)), math.radians(196), math.radians(344), max(1, int(1.2 * s)))
+        # skull dome — smooth multi-step gradient
+        for i, col in enumerate([OL, (52, 58, 74), (94, 102, 122), MID, (190, 200, 218)]):
+            ins = int(i * 1.7 * s)
+            pygame.draw.ellipse(big, col, (int(4 * s) + ins, int(4 * s) + ins, int(w - 8 * s) - 2 * ins, int(h * 0.7) - 2 * ins))
+        pygame.draw.ellipse(big, HI, (int(10 * s), int(7 * s), int(w * 0.3), int(h * 0.22)))           # specular
+        pygame.draw.arc(big, (38, 44, 58), (int(5 * s), int(7 * s), int(w - 10 * s), int(h * 0.64)), math.radians(14), math.radians(166), max(2, int(2 * s)))
+        # raised crown comb + brass keel
+        pygame.draw.polygon(big, (58, 64, 80), [(cxg - int(2.5 * s), int(5 * s)), (cxg + int(2.5 * s), int(5 * s)), (cxg + int(1.2 * s), int(h * 0.4)), (cxg - int(1.2 * s), int(h * 0.4))])
+        pygame.draw.line(big, BRASS, (cxg, int(5 * s)), (cxg, int(h * 0.4)), max(1, int(1.6 * s)))
+        pygame.draw.line(big, BRASS_HI, (cxg - int(0.9 * s), int(6 * s)), (cxg - int(0.9 * s), int(h * 0.38)), max(1, int(0.9 * s)))
+        # brass brow band
+        vy = int(h * 0.4)
+        pygame.draw.line(big, BRASS, (int(7 * s), vy), (int(w - 7 * s), vy), max(2, int(2.2 * s)))
+        pygame.draw.line(big, BRASS_HI, (int(7 * s), vy - int(0.9 * s)), (int(w - 7 * s), vy - int(0.9 * s)), max(1, int(0.9 * s)))
+        # beveled face plate
+        pygame.draw.polygon(big, OL, [(int(7 * s), vy), (int(w - 7 * s), vy), (int(w - 10 * s), int(h * 0.72)), (cxg, int(h * 0.8)), (int(10 * s), int(h * 0.72))])
+        pygame.draw.polygon(big, (64, 72, 90), [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 12 * s), int(h * 0.7)), (cxg, int(h * 0.77)), (int(12 * s), int(h * 0.7))])
+        pygame.draw.polygon(big, MID, [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 11 * s), int(h * 0.52)), (int(11 * s), int(h * 0.52))])
+        # T eye-slit + breaths
+        pygame.draw.rect(big, (6, 7, 11), (int(12 * s), int(vy + h * 0.11), int(w - 24 * s), int(h * 0.05)))
+        pygame.draw.rect(big, (6, 7, 11), (int(cxg - 1.3 * s), int(vy + h * 0.11), int(2.6 * s), int(h * 0.22)))
+        for bx in range(5):
+            if abs(bx - 2) >= 1:
+                pygame.draw.circle(big, (6, 7, 11), (int(cxg + (bx - 2) * int(3.0 * s)), int(vy + h * 0.30)), max(1, int(0.85 * s)))
+        for rx in (0.2, 0.8):
+            pygame.draw.circle(big, BRASS, (int(w * rx), int(h * 0.55)), max(1, int(1.3 * s)))         # cheek rivets
+        # plume holder + flowing layered crest
         sock = (cxg - int(2 * s), int(4 * s))
-        pygame.draw.circle(big, BRASS, sock, int(2.2 * s))
-        for col, off in (((112, 28, 40), 0), (CRIM, int(2 * s)), ((230, 110, 102), int(4 * s))):
-            top = _qbez(sock, (sock[0] - int(12 * s), sock[1] - int(20 * s)), (sock[0] - int(32 * s), sock[1] - int(2 * s)), 18)
-            bot = _qbez(sock, (sock[0] - int(7 * s), sock[1] - int(9 * s)), (sock[0] - int(26 * s), sock[1] + int(12 * s)), 18)
+        pygame.draw.circle(big, BRASS, sock, int(2.4 * s))
+        pygame.draw.circle(big, BRASS_HI, (sock[0] - int(0.8 * s), sock[1] - int(0.8 * s)), max(1, int(1.0 * s)))
+        for col, off in (((108, 26, 38), 0), (CRIM, int(2 * s)), ((232, 112, 104), int(4 * s))):
+            top = _qbez(sock, (sock[0] - int(13 * s), sock[1] - int(22 * s)), (sock[0] - int(34 * s), sock[1] - int(2 * s)), 20)
+            bot = _qbez(sock, (sock[0] - int(7 * s), sock[1] - int(9 * s)), (sock[0] - int(28 * s), sock[1] + int(13 * s)), 20)
             pygame.draw.polygon(big, col, [(x + off, y) for (x, y) in top] + [(x + off, y) for (x, y) in reversed(bot)])
-    _blit_ss(char, *_P(nom, 0.73, 0.18), int(nom.w * 0.46), int(nom.h * 0.5), helm)
+        for k in range(3):
+            strand = _qbez(sock, (sock[0] - int(12 * s), sock[1] - int(16 * s) + k * int(4 * s)), (sock[0] - int(30 * s), sock[1] + int(2 * s) + k * int(5 * s)), 16)
+            pygame.draw.lines(big, (246, 150, 140), False, strand, max(1, int(0.8 * s)))
+    _blit_ss(char, *_P(nom, 0.73, 0.17), int(nom.w * 0.5), int(nom.h * 0.54), helm, scale=6)
 
     # SWORD in the main (right/front) hand — hilt at the talon, blade up
     def sword(big, s):
