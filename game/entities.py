@@ -2416,49 +2416,26 @@ class Geyser:
         intensity = max(0.0, min(1.0, intensity))
         self.x = float(x)
         self.intensity = intensity
-        self.active_len = GEYSER_ACTIVE_COLD + (GEYSER_ACTIVE_HOT - GEYSER_ACTIVE_COLD) * intensity
-        self.dormant_len = GEYSER_DORMANT_COLD + (GEYSER_DORMANT_HOT - GEYSER_DORMANT_COLD) * intensity
-        # Start partway into a dormant stretch so neighbouring vents desync.
-        self.phase = "dormant"
-        self.t = random.uniform(0.0, self.dormant_len)
-        self.active = False
-        self.active_strength = 0.0
+        # Unused now (kept for slot compatibility) — geysers are always-on.
+        self.active_len = 0.0
+        self.dormant_len = 0.0
+        # ALWAYS erupting: no dormant/telegraph cycle. The hot air is on the
+        # whole time the geyser is on screen — a continuous full-height
+        # column + continuous updraft.
+        self.phase = "active"
+        self.t = 0.0
+        self.active = True
+        self.active_strength = 1.0
         self._anim_t = random.uniform(0.0, 10.0)
 
     def update(self, dt):
+        # Always active — only the steam animation clock advances.
         self._anim_t += dt
-        self.t += dt
-        if self.phase == "dormant":
-            self.active = False
-            self.active_strength = 0.0
-            if self.t >= self.dormant_len:
-                self.t = 0.0
-                self.phase = "telegraph"
-        elif self.phase == "telegraph":
-            self.active = False
-            self.active_strength = 0.0
-            if self.t >= GEYSER_TELEGRAPH:
-                self.t = 0.0
-                self.phase = "active"
-        else:  # active
-            self.active = True
-            ramp = 0.3
-            if self.t < ramp:
-                s = self.t / ramp
-            elif self.t > self.active_len - ramp:
-                s = (self.active_len - self.t) / ramp
-            else:
-                s = 1.0
-            self.active_strength = max(0.0, min(1.0, s))
-            if self.t >= self.active_len:
-                self.t = 0.0
-                self.phase = "dormant"
-                self.active = False
-                self.active_strength = 0.0
 
     def contains(self, bx, by):
-        """True if (bx, by) is inside the active lift column. The zone ends at
-        the column top so lift can't carry the bird past mid-screen."""
+        """True if (bx, by) is inside the lift column. The column spans the
+        full screen height, so the air pushes Pip up anywhere within its
+        width, all the way to the top."""
         if not self.active:
             return False
         return (abs(bx - self.x) <= GEYSER_W * 0.5
@@ -2471,38 +2448,15 @@ class Geyser:
         cx = int(self.x)
         base_y = GROUND_Y
 
-        # Sinter-cone vent — always drawn so dormant vents read as "there".
+        # Sinter-cone vent at the base.
         surf.blit(geyser_fx.get_vent_cone(),
                   (cx - geyser_fx.CONE_W // 2, base_y - geyser_fx.CONE_BASE_ROW))
 
-        if self.phase == "telegraph":
-            # Bubbling motes hop at the vent to telegraph the rise.
-            for i in range(3):
-                t = (self._anim_t * 2.2 + i / 3.0) % 1.0
-                mx = cx + math.sin((self._anim_t * 6.0 + i) * 1.3) * GEYSER_W * 0.2
-                my = base_y - 4 - t * 14
-                r = max(1, int(3 * (1.0 - t)))
-                a = int(180 * (1.0 - t))
-                s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-                pygame.draw.circle(s, (255, 210, 150, a), (r + 1, r + 1), r)
-                surf.blit(s, (int(mx - r - 1), int(my - r - 1)),
-                          special_flags=pygame.BLEND_ADD)
-            return
-
-        if not self.active or self.active_strength <= 0.0:
-            return
-
-        stg = self.active_strength
-        mouth_y = base_y - geyser_fx.MOUTH_DY
-
-        # Flowing steam column — pre-baked looping frames; the per-geyser
-        # _anim_t offset desyncs neighbouring columns. Fade with active_strength.
+        # Always-on flowing steam column, full screen height — pre-baked
+        # looping frames; the per-geyser _anim_t offset desyncs neighbours.
         frame = geyser_fx.get_steam_frames()[
             int(self._anim_t * geyser_fx.STEAM_FPS) % geyser_fx.STEAM_N]
-        if stg < 1.0:
-            frame = frame.copy()
-            frame.fill((255, 255, 255, int(255 * stg)),
-                       special_flags=pygame.BLEND_RGBA_MULT)
+        mouth_y = base_y - geyser_fx.MOUTH_DY
         surf.blit(frame, (cx - geyser_fx.STEAM_W // 2, mouth_y - geyser_fx.STEAM_H))
 
 

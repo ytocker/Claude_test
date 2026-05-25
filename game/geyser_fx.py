@@ -125,7 +125,7 @@ def get_vent_cone() -> "pygame.Surface":
 # ── steam column (baked once into a looping frame set) ───────────────────────
 
 STEAM_W, STEAM_H = 128, int(GEYSER_H)
-STEAM_FPS = 24
+STEAM_FPS = 20                    # frames are full screen-height now → fewer, lighter
 STEAM_N = int(PERIOD * STEAM_FPS)
 _STEAM_BASE_ALPHA = 21.0          # the faint baseline (the locked 1.4x level)
 _STEAM_BOOST = 2.4               # base-region opacity multiplier
