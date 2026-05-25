@@ -18,9 +18,20 @@ import math
 import pygame
 
 from game.config import GEYSER_W, GEYSER_H
+from game import biome
 
 PERIOD = 1.6                      # steam loop length (s) — matches the sketch
 WINDW = (255, 252, 244)          # near-white vapour
+
+# The vent cone + scattered rocks are sandstone like the pillars, so they take
+# their colours from the biome STONE palette — the same keys the pillars use —
+# to read as one theme. Geysers only appear in the golden-hour→sunset band, so
+# baking at a representative phase in that band matches the pillars on screen.
+_TINT_PHASE = 0.25
+
+
+def _stone():
+    return biome.palette_for_phase(_TINT_PHASE)
 
 # ── tiny local draw helpers (used only during the one-time bake) ─────────────
 
@@ -92,19 +103,20 @@ def get_vent_cone() -> "pygame.Surface":
     if _vent_cone_cache is None:
         s = pygame.Surface((CONE_W, CONE_H), pygame.SRCALPHA)
         x, base_y = CONE_W // 2, CONE_BASE_ROW
-        lo, hi = (168, 156, 136), (236, 230, 214)
+        pal = _stone()
+        hi, lo, dk = pal["stone_light"], pal["stone_mid"], pal["stone_dark"]
         cone_h = 15
         for k in range(cone_h + 1):
             u = k / cone_h
             _ell(s, x, base_y - k, 40 - 9 * u, 12 - 4 * u, _lerp_c(lo, hi, u * 0.8))
         top = base_y - cone_h
         _ell(s, x, top, 31, 8, hi)
-        _ell(s, x, top + 1, 25, 6, (60, 50, 44))           # wet throat
-        _ell(s, x, top + 1, 19, 4, (34, 27, 23))
+        _ell(s, x, top + 1, 25, 6, _sc(dk, 0.8))           # wet throat
+        _ell(s, x, top + 1, 19, 4, _sc(dk, 0.45))
         _stamp(s, x - 15, top + 3, 16, (255, 250, 240), 70)    # warm-lit left
-        _stamp(s, x + 17, base_y - 3, 15, (54, 38, 30), 60)    # shadow right
+        _stamp(s, x + 17, base_y - 3, 15, _sc(lo, 0.4), 60)    # shadow right
         for dxs in (-16, -6, 6, 16):                       # drip cracks
-            pygame.draw.line(s, (126, 114, 96), (int(x + dxs), top + 6),
+            pygame.draw.line(s, _sc(lo, 0.7), (int(x + dxs), top + 6),
                              (int(x + dxs * 1.08), base_y - 3), 1)
         _vent_cone_cache = s
     return _vent_cone_cache
@@ -228,10 +240,7 @@ def get_steam_frames() -> "list[pygame.Surface]":
 
 # ── V1 sinter rocks (baked once into a handful of size variants) ─────────────
 
-_ROCK_BODY = (150, 140, 122)
-_ROCK_FACET = (214, 206, 188)
-_ROCK_SPECK = (92, 82, 68)
-_ROCK_SHADOW = (34, 48, 22)
+_ROCK_SHADOW = (34, 48, 22)       # soft green contact shadow on the grass
 _ROCK_SIZES = (3.5, 4.5, 5.5, 6.5, 7.5, 8.5)
 ROCK_N = len(_ROCK_SIZES)
 ROCK_MAX_W = int(_ROCK_SIZES[-1] * 1.05 * 2) + 6
@@ -244,6 +253,8 @@ def get_rock_variants() -> "list[tuple]":
     the rock's centre at (rock.x, rock.y)."""
     global _rock_variants
     if _rock_variants is None:
+        pal = _stone()
+        body, facet, speck = pal["stone_mid"], pal["stone_light"], pal["stone_accent"]
         out = []
         for rw in _ROCK_SIZES:
             rh = rw * 0.8
@@ -253,9 +264,9 @@ def get_rock_variants() -> "list[tuple]":
             s = pygame.Surface((cw, ch), pygame.SRCALPHA)
             _ell(s, ox + 1, oy + rh * 0.7, rw * 1.05, max(2, rh * 0.5),
                  _ROCK_SHADOW, alpha=85)
-            _ell(s, ox, oy, rw, rh, _ROCK_BODY)
-            _ell(s, ox - rw * 0.18, oy - rh * 0.22, rw * 0.6, rh * 0.6, _ROCK_FACET)
-            _stamp(s, ox - 1, oy - rh * 0.3, 2, _ROCK_SPECK, 120)
+            _ell(s, ox, oy, rw, rh, body)
+            _ell(s, ox - rw * 0.18, oy - rh * 0.22, rw * 0.6, rh * 0.6, facet)
+            _stamp(s, ox - 1, oy - rh * 0.3, 2, speck, 120)
             out.append((s, ox, oy))
         _rock_variants = out
     return _rock_variants

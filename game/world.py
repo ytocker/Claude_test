@@ -165,9 +165,10 @@ class World:
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # This branch is a showcase build for the morning-thermal event, so the
-        # run starts a few seconds BEFORE the window (rocks ~50s): the player
-        # gets a brief clean intro, then the event ramps in almost immediately.
-        self.biome_time = 45.0
+        # run starts mid-window (~74s) where geysers are ALREADY erupting
+        # (intensity ~0.5, threshold 0.35) — the player drops straight into the
+        # event with rocks scattered and columns going, building to the peak.
+        self.biome_time = 74.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while

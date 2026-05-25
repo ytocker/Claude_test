@@ -180,9 +180,10 @@ WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
 # ~60-100s). Spawn density AND each geyser's active duty-cycle both scale with
 # the live intensity, so geysers start sparse + mostly dormant near 60s and
 # build to frequent + often-active by the ~80s peak. While a geyser is active
-# its column applies a continuous upward push capped well below |FLAP_V|; the
-# lift zone ends at the column top (mid-screen), so the updraft physically
-# cannot pin Pip to the ceiling.
+# its column applies a STRONG continuous upward push — a clearly-felt boost
+# that launches Pip upward faster than his own flap. The lift zone ends at the
+# column top (well above mid-screen but below the ceiling), so however strong
+# the push, the updraft physically cannot pin Pip to the ceiling.
 THERMAL_SPAWN_THRESHOLD  = 0.08   # legacy floor (kept; geyser gate uses the threshold below)
 THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar geyser spawn chance at peak intensity
 GEYSER_SPAWN_THRESHOLD   = 0.35   # intensity above which GEYSERS (not just rocks) spawn
@@ -190,9 +191,9 @@ GEYSER_MAX_CONCURRENT    = 3      # cap on simultaneous geysers (allowed scales 
 ROCK_SPAWN_THRESHOLD     = 0.02   # intensity above which scattered sinter rocks appear
 ROCK_SLOTS_PER_PILLAR    = 5      # candidate rock slots rolled per pillar; each fills with prob = intensity
 GEYSER_W            = 46.0        # lift-column width (px)
-GEYSER_H            = 220.0       # column height above ground (px); zone top = anti-pin
-GEYSER_LIFT_ACCEL   = 2200.0      # continuous upward accel inside the column (px/s^2)
-GEYSER_LIFT_VY_CAP  = 380.0       # max upward speed the column imparts (< |FLAP_V|=520)
+GEYSER_H            = 300.0       # column height above ground (px); taller zone carries Pip higher (anti-pin = zone top)
+GEYSER_LIFT_ACCEL   = 3400.0      # strong continuous upward accel inside the column (px/s^2)
+GEYSER_LIFT_VY_CAP  = 600.0       # max upward speed the column imparts (> |FLAP_V|=520 → a real launch)
 GEYSER_ACTIVE_HOT   = 3.0         # active-window length at peak intensity (s)
 GEYSER_ACTIVE_COLD  = 1.0         # active-window length at the sparse edges (s)
 GEYSER_DORMANT_HOT  = 1.2         # dormant gap between actives at peak (s)
