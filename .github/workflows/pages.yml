@@ -5,10 +5,10 @@ name: Deploy main (/) + v4 (/v4/) + v4_powerups (/v4_powerups/) + v5_powerups (/
 # v4_skybit_powerups (/v4_powerups/), v5_powerups (/v5_powerups/) and
 # v5_skybit_weather_events (/v5_skybit_weather_events/) all reachable,
 # every triggered run rebuilds ALL FIVE branches and ships them as one
-# combined artifact. NOTE: this v5_skybit_weather_events branch carries
-# the 5-branch version; the other deploy branches still carry the
-# 4-branch version, so a deploy triggered from one of them would drop
-# this branch's subpath until their workflows are synced to match.
+# combined artifact. This file is intentionally identical on all five
+# deploy branches (main, v4_skybit, v4_skybit_powerups, v5_powerups,
+# v5_skybit_weather_events) so a push to any branch produces the same
+# deploy — any edit must be synced across all five.
 #
 # Pygbag 0.9.2 has no built-in include / exclude flag — it bundles
 # every file in the directory it runs in. Without staging the
