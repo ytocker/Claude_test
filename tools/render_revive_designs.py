@@ -273,7 +273,7 @@ def build_knight(char, nom, fidx):
         pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
         pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
         pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
-    _blit_ss(char, *_P(nom, 0.26, 0.64), int(nom.w * 0.34), int(nom.h * 0.42), shield)
+    _blit_ss(char, *_P(nom, 0.33, 0.57), int(nom.w * 0.34), int(nom.h * 0.42), shield)
 
     # SWORD in the main (right/front) hand — hilt at the talon, blade up
     def sword(big, s):
