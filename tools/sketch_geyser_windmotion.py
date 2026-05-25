@@ -93,14 +93,14 @@ def render_debris(scene, streams, t):
 # ── M2: fast flow-streaks (anime speed-lines zipping up) ─────────────────────
 def render_streaks(scene, streams, t):
     ph = 2 * math.pi * t / PERIOD
-    n = 11
+    n = 20
     for (x, by, h, inten) in streams:
         rise = by - 28                               # travel vent → near top
         for i in range(n):
             p = ((t / PERIOD) * 1.2 + i / n) % 1.0
             yh = by - (0.03 + 0.96 * p) * rise        # head zips full height
-            length = 40 + 30 * math.sin(math.pi * p)  # stretch mid-flight
-            x0 = x + (i % 3 - 1) * 13
+            length = 36 + 26 * math.sin(math.pi * p)  # stretch mid-flight
+            x0 = x + (i % 5 - 2) * 9
             segs = 12
             pts, ws = [], []
             for k in range(segs + 1):
@@ -110,8 +110,8 @@ def render_streaks(scene, streams, t):
                 lead = (10 + 28 * p)                 # coherent lean
                 pts.append((x0 + lead + curl, yy))
                 ws.append(math.sin(math.pi * u) ** 0.7)
-            _swoosh(scene, pts, ws, 2.7, WINDW if i % 2 else WIND,
-                    155 * _life(p) * inten, blur=2)
+            _swoosh(scene, pts, ws, 2.3, WINDW if i % 2 else WIND,
+                    78 * _life(p) * inten, blur=2)
 
 
 # ── M3: bend the world (windswept foliage + carried leaves) ──────────────────
@@ -178,15 +178,18 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
 def render_steam(scene, streams, t):
     for (x, by, h, inten) in streams:
         rise = by - 28                         # span vent → near the top
-        for i in range(2):                     # faint wide body
-            _flow_ribbon(scene, x, by, rise, t, phase=i * 0.5 + 0.2, amp=14,
-                         length_f=0.95, maxw=18, alpha=42 * inten,
-                         fan=(i - 0.5) * 20, blur=4, spd=0.85)
-        n = 5                                  # brighter flowing filaments
+        for i in range(3):                     # faint wide body
+            _flow_ribbon(scene, x, by, rise, t, phase=i / 3.0 + 0.15, amp=15,
+                         length_f=0.96, maxw=17, alpha=22 * inten,
+                         fan=(i - 1) * 18, blur=4, spd=0.85)
+        n = 10                                 # many faint flowing filaments
         for i in range(n):
-            _flow_ribbon(scene, x, by, rise, t, phase=i / n, amp=9 + (i % 2) * 5,
-                         length_f=0.9, maxw=7.0, alpha=92 * inten,
-                         fan=(i - (n - 1) / 2) * 8, blur=3, spd=0.95)
+            _flow_ribbon(scene, x, by, rise, t,
+                         phase=i / n + 0.05 * (i % 2),
+                         amp=7 + (i % 3) * 5, length_f=0.88 + 0.06 * (i % 2),
+                         maxw=4.5 + 1.5 * (i % 2), alpha=40 * inten,
+                         fan=(i - (n - 1) / 2) * 5, blur=3,
+                         spd=0.92 + 0.06 * (i % 2))
 
 
 VARIANTS = [
