@@ -31,7 +31,7 @@ from game.config import (
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_SPAWN_THRESHOLD, GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_SLOTS_PER_PILLAR,
-    GEYSER_W, GEYSER_H, GEYSER_LIFT_ACCEL, GEYSER_LIFT_VY_CAP,
+    GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -312,20 +312,17 @@ class World:
                     self._fire_background_lightning(side=side)
 
     def _apply_thermal_lift(self, dt):
-        """Morning-thermal updraft. While Pip is inside a geyser column, add a
-        constant upward acceleration, capping the resulting upward speed at
-        GEYSER_LIFT_VY_CAP (below |FLAP_V| so flaps still override and the rise
-        stays rideable). Exactly ONE column's worth of lift is applied per
-        frame (break after the first match), so the force is identical for
-        every geyser — overlapping columns don't stack into a stronger grab."""
+        """Morning-thermal updraft — a CONSTANT rise. While Pip is inside any
+        geyser column his upward speed is set to exactly GEYSER_LIFT_VY_CAP:
+        one constant for every geyser, no stacking, and independent of how
+        deep or how long he's been inside. A flap (faster than the cap) still
+        overrides it, and being in two overlapping columns changes nothing."""
         if self.bird.vy <= -GEYSER_LIFT_VY_CAP:
             return
         bx, by = self.bird.x, self.bird.y
         for gy in self.geysers:
             if gy.contains(bx, by):
-                self.bird.vy -= GEYSER_LIFT_ACCEL * dt
-                if self.bird.vy < -GEYSER_LIFT_VY_CAP:
-                    self.bird.vy = -GEYSER_LIFT_VY_CAP
+                self.bird.vy = -GEYSER_LIFT_VY_CAP
                 break
 
     def _start_storm_buildup(self):
