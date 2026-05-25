@@ -9,11 +9,19 @@ from __future__ import annotations
 
 import math
 import random
+import sys
 
 import pygame
 
 from game.config import W, H, GROUND_Y
+from game.draw import get_tint
 from game import audio
+
+# The WASM/pygbag build is far more sensitive to per-frame draw count than
+# native, and heavy rain is the worst case. Thin the streak pool there only —
+# native desktop keeps the full density.
+_IS_BROWSER = sys.platform == "emscripten"
+_RAIN_SCALE = 60 if _IS_BROWSER else 90
 
 
 # ── phase → intensity curves ────────────────────────────────────────────────
@@ -136,7 +144,7 @@ class Weather:
         intensity = rain_intensity(phase)
         if intensity > 0:
             color = rain_color(phase)
-            target = int(50 + intensity * 90)
+            target = int(50 + intensity * _RAIN_SCALE)
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
@@ -204,7 +212,6 @@ class Weather:
         # Lightning flash — additive white-blue pulse
         if self.flash_remaining > 0:
             t = self.flash_remaining / 0.18
-            alpha = int(180 * t)
-            flash = pygame.Surface((W, H), pygame.SRCALPHA)
-            flash.fill((210, 220, 255, alpha))
+            flash = get_tint(W, H, (210, 220, 255))
+            flash.set_alpha(int(180 * t))
             surf.blit(flash, (0, 0))

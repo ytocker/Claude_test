@@ -15,7 +15,7 @@ from game.config import (
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
 )
 from game.draw import (
-    blit_glow,
+    blit_glow, get_circle,
     rounded_rect, lerp_color,
     COIN_GOLD, COIN_DARK,
     MUSH_CAP, MUSH_CAP2, MUSH_SPOT, MUSH_STEM,
@@ -956,6 +956,12 @@ def _get_coin_face_triple() -> pygame.Surface:
     return _TRIPLE_COIN_FACE_CACHE
 
 
+# The spin squeeze only ever produces ~28 distinct on-screen widths, so cache
+# the smoothscaled face per (variant, width) instead of smoothscaling every
+# coin every frame (a heavy per-frame cost during a coin rush).
+_coin_squeeze_cache: dict = {}
+
+
 class Coin:
     """Spinning gold parrot medallion. Built once at 4x super-sample with a
     bold dark outline + vertical gold gradient + embossed parrot + soft
@@ -1000,11 +1006,15 @@ class Coin:
         cos_s = math.cos(self.spin)
         r = COIN_R
         squeeze = max(0.10, abs(cos_s))
-        face = _get_coin_face_triple() if triple_active else _get_coin_face()
         # Source is 4x display; downsample target is on-screen size, not face size.
         display_h = COIN_R * 2 + 4
         display_w = max(2, int(display_h * squeeze))
-        squeezed = pygame.transform.smoothscale(face, (display_w, display_h))
+        key = (triple_active, display_w)
+        squeezed = _coin_squeeze_cache.get(key)
+        if squeezed is None:
+            face = _get_coin_face_triple() if triple_active else _get_coin_face()
+            squeezed = pygame.transform.smoothscale(face, (display_w, display_h))
+            _coin_squeeze_cache[key] = squeezed
         rect = squeezed.get_rect(center=(cx, cy))
         surf.blit(squeezed, rect.topleft)
 
@@ -2057,10 +2067,9 @@ class Particle:
 
     def draw(self, surf):
         t = max(0.0, self.life / self.life_max)
-        a = int(255 * t)
+        a = int(255 * t) & ~7   # quantise alpha so the sprite cache stays small
         rr = max(1, int(self.r * (0.4 + 0.6 * t)))
-        s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*self.color, a), (rr + 1, rr + 1), rr)
+        s = get_circle(rr, self.color, a)
         surf.blit(s, (int(self.x - rr - 1), int(self.y - rr - 1)), special_flags=pygame.BLEND_ADD)
 
 
@@ -2088,10 +2097,9 @@ class CloudPuff:
 
     def draw(self, surf):
         t = max(0.0, self.life / self.life_max)          # 1→0 as puff dies
-        alpha = int(200 * t)
+        alpha = int(200 * t) & ~7
         r = max(1, int(self.r_start + (self.r_end - self.r_start) * (1.0 - t)))
-        s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*self.color, alpha), (r + 1, r + 1), r)
+        s = get_circle(r, self.color, alpha)
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 

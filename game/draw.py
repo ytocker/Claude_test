@@ -235,6 +235,45 @@ def blit_glow(surf, cx, cy, radius, color, alpha=160):
               special_flags=pygame.BLEND_ADD)
 
 
+# ── full-screen tint + circle-sprite caches ──────────────────────────────────
+# Overlays (power-up tints, hit-flash, lightning) and particles used to
+# allocate a fresh SRCALPHA surface EVERY frame — the dominant per-frame cost
+# on the WASM build, and it piles up when several are active at once (KFC tint
+# + storm flash + bursts). Cache a flat colour surface (blit with set_alpha)
+# and the circle sprite instead.
+
+_tint_cache: dict = {}
+
+
+def get_tint(w, h, rgb):
+    """Cached opaque colour surface for a flat full-screen overlay. Caller sets
+    surface-level alpha (cheap, no per-pixel alpha) and blits. Pixel-identical
+    to filling an SRCALPHA surface with (*rgb, alpha) and blitting it."""
+    key = (w, h, rgb)
+    s = _tint_cache.get(key)
+    if s is None:
+        s = pygame.Surface((w, h))
+        s.fill(rgb)
+        _tint_cache[key] = s
+    return s
+
+
+_circle_cache: dict = {}
+
+
+def get_circle(radius, color, alpha):
+    """Cached SRCALPHA circle sprite (filled, radius px). Reused by particles /
+    cloud-puffs instead of allocating + drawing one per particle per frame.
+    Callers quantise `alpha` so the cache stays small."""
+    key = (radius, color, alpha)
+    s = _circle_cache.get(key)
+    if s is None:
+        s = pygame.Surface((radius * 2 + 2, radius * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(s, (*color, alpha), (radius + 1, radius + 1), radius)
+        _circle_cache[key] = s
+    return s
+
+
 # ── mountain drawing ─────────────────────────────────────────────────────────
 
 def draw_mountains(surf, scroll, ground_y, w, far_color=None, near_color=None):
