@@ -205,12 +205,140 @@ def draw_round_buckler(big, s):
     pygame.draw.circle(big, STH, (int(cx - 1.6 * s), int(cy - 1.6 * s)), int(R * 0.08))
 
 
+# ── 5 MORE from other sources (ancient / cultural / fantasy) ─────────────────
+BRZ = (196, 150, 70); BRZ_HI = (246, 212, 132); BRZ_D = (120, 86, 34)
+SIL = (224, 230, 244); SIL_D = (168, 178, 200)
+
+
+def draw_greek_hoplon(big, s):
+    w, h = big.get_size(); cx, cy = w / 2, h / 2; R = min(w, h) / 2 - 2 * s
+    pygame.draw.circle(big, OL, (int(cx), int(cy)), int(R + 1.7 * s))
+    pygame.draw.circle(big, BRZ_D, (int(cx), int(cy)), int(R))
+    pygame.draw.circle(big, BRZ, (int(cx), int(cy)), int(R * 0.9))
+    pygame.draw.circle(big, BRZ_D, (int(cx), int(cy)), int(R), max(2, int(2.6 * s)))
+    pygame.draw.circle(big, BRZ_HI, (int(cx), int(cy)), int(R * 0.9), max(1, int(1.2 * s)))
+    pygame.draw.circle(big, BRZ_D, (int(cx), int(cy)), int(R * 0.72), max(1, int(1.4 * s)))
+    apex = (cx, cy - R * 0.52)                              # Spartan lambda Λ
+    pygame.draw.line(big, OL, apex, (cx - R * 0.44, cy + R * 0.5), max(3, int(5.5 * s)))
+    pygame.draw.line(big, OL, apex, (cx + R * 0.44, cy + R * 0.5), max(3, int(5.5 * s)))
+    pygame.draw.circle(big, BRZ_HI, (int(cx - R * 0.34), int(cy - R * 0.34)), int(R * 0.12))
+
+
+def draw_roman_scutum(big, s):
+    w, h = big.get_size(); cx = w / 2; pad = 3 * s
+    GLD = (226, 182, 72); GLD_HI = (255, 224, 150)
+    bw = w * 0.6; x0 = cx - bw / 2
+    rect = pygame.Rect(int(x0), int(pad), int(bw), int(h - 2 * pad))
+    pygame.draw.rect(big, OL, rect, border_radius=int(11 * s))
+    inner = rect.inflate(int(-3 * s), int(-3 * s))
+    pygame.draw.rect(big, GULES, inner, border_radius=int(10 * s))
+    pygame.draw.rect(big, GULES_HI, (int(cx - bw * 0.13), inner.top, int(bw * 0.26), inner.height))  # barrel sheen
+    for sx in (inner.left, inner.right - int(bw * 0.13)):
+        pygame.draw.rect(big, (128, 32, 36), (sx, inner.top, int(bw * 0.13), inner.height))
+    wy = h * 0.42                                          # gold eagle wings
+    for sgn in (-1, 1):
+        pygame.draw.polygon(big, GLD, [(cx, wy - 4 * s), (cx + sgn * bw * 0.42, wy - 11 * s),
+                                       (cx + sgn * bw * 0.48, wy), (cx + sgn * bw * 0.42, wy + 11 * s), (cx, wy + 4 * s)])
+        for k in range(3):
+            fx = cx + sgn * bw * (0.16 + k * 0.11)
+            pygame.draw.line(big, (160, 120, 40), (fx, wy - 7 * s), (fx, wy + 7 * s), max(1, int(s)))
+    pygame.draw.polygon(big, GLD_HI, [(cx - 3 * s, h * 0.18), (cx + 4 * s, h * 0.3), (cx - 1 * s, h * 0.3),  # thunderbolt
+                                      (cx + 3 * s, h * 0.5), (cx - 4 * s, h * 0.34), (cx + 1 * s, h * 0.34)])
+    pygame.draw.circle(big, (94, 100, 118), (int(cx), int(h * 0.62)), int(6 * s))                  # umbo boss
+    pygame.draw.circle(big, STH, (int(cx - 1.6 * s), int(h * 0.62 - 1.6 * s)), int(2.4 * s))
+    for ry in (0.1, 0.9):
+        for fx in (0.32, 0.68):
+            _rivet(big, inner.left + bw * fx, h * ry, s * 0.8)
+
+
+def draw_viking_round(big, s):
+    w, h = big.get_size(); cx, cy = w / 2, h / 2; R = min(w, h) / 2 - 2 * s
+    pygame.draw.circle(big, OL, (int(cx), int(cy)), int(R + 1.7 * s))
+    tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+    cols = [(158, 42, 46), (232, 226, 210)]
+    seg = 8
+    for i in range(seg):
+        a0, a1 = i * 360 / seg, (i + 1) * 360 / seg
+        pts = [(cx, cy)] + [(cx + math.cos(math.radians(a)) * R, cy + math.sin(math.radians(a)) * R) for a in range(int(a0), int(a1) + 1, 4)]
+        pygame.draw.polygon(tmp, cols[i % 2], pts)
+    tmp.blit(_clip_circle(big, cx, cy, R), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(tmp, (0, 0))
+    pygame.draw.circle(big, STM, (int(cx), int(cy)), int(R), max(2, int(2.6 * s)))
+    for ang in range(0, 360, 30):
+        pygame.draw.circle(big, STD, (int(cx + math.cos(math.radians(ang)) * R * 0.9), int(cy + math.sin(math.radians(ang)) * R * 0.9)), max(1, int(1.5 * s)))
+    pygame.draw.circle(big, STD, (int(cx), int(cy)), int(R * 0.22))
+    pygame.draw.circle(big, STM, (int(cx), int(cy)), int(R * 0.15))
+    pygame.draw.circle(big, STH, (int(cx - 1.5 * s), int(cy - 1.5 * s)), int(R * 0.06))
+
+
+def draw_heraldic_lion(big, s):
+    w, h = big.get_size(); cx = w / 2; pad = 3 * s
+    outer = ([(pad, pad), (w - pad, pad), (w - pad, h * 0.45)]
+             + _qbez((w - pad, h * 0.45), (w - pad, h - pad), (cx, h - pad), 12)[1:]
+             + _qbez((cx, h - pad), (pad, h - pad), (pad, h * 0.45), 12)[1:])
+    pygame.draw.polygon(big, OL, outer)
+    pygame.draw.polygon(big, STM, _inset(outer, 1.7 * s))
+    field = _inset(outer, 4.6 * s)
+    pygame.draw.polygon(big, GULES, field)
+    pygame.draw.polygon(big, GULES_HI, [field[0], field[1], (cx, h * 0.5)])
+    lx, ly, lr = cx, h * 0.46, w * 0.15                    # gold lion mask (sun-lion)
+    for k in range(12):
+        a = math.radians(k * 30)
+        p = (lx + math.cos(a) * lr * 1.7, ly + math.sin(a) * lr * 1.7)
+        b1 = (lx + math.cos(a - 0.22) * lr, ly + math.sin(a - 0.22) * lr)
+        b2 = (lx + math.cos(a + 0.22) * lr, ly + math.sin(a + 0.22) * lr)
+        pygame.draw.polygon(big, OR_HI if k % 2 else OR, [b1, p, b2])
+    pygame.draw.circle(big, OR, (int(lx), int(ly)), int(lr))
+    pygame.draw.circle(big, OR_HI, (int(lx - lr * 0.3), int(ly - lr * 0.3)), int(lr * 0.4))
+    pygame.draw.circle(big, OL, (int(lx - lr * 0.38), int(ly - lr * 0.08)), max(1, int(1.8 * s)))
+    pygame.draw.circle(big, OL, (int(lx + lr * 0.38), int(ly - lr * 0.08)), max(1, int(1.8 * s)))
+    pygame.draw.polygon(big, OL, [(lx - lr * 0.2, ly + lr * 0.2), (lx + lr * 0.2, ly + lr * 0.2), (lx, ly + lr * 0.5)])
+    for rx, ry in ((0.2, 0.14), (0.8, 0.14)):
+        _rivet(big, w * rx, h * ry, s)
+
+
+def draw_winged_crest(big, s):
+    w, h = big.get_size(); cx = w / 2
+
+    def wing(sgn):
+        rootx, rooty = cx + sgn * w * 0.13, h * 0.46
+        for k in range(4):
+            t = k / 3
+            ang = math.radians(196 - t * 62) if sgn < 0 else math.radians(-16 + t * 62)
+            L = (34 - k * 5) * s
+            tx, ty = rootx + math.cos(ang) * L, rooty + math.sin(ang) * L
+            perp = ang + math.pi / 2; wd = 6.5 * s
+            pygame.draw.polygon(big, SIL_D, [(rootx + math.cos(perp) * wd, rooty + math.sin(perp) * wd), (tx, ty), (rootx - math.cos(perp) * wd, rooty - math.sin(perp) * wd)])
+            pygame.draw.circle(big, SIL, (int(tx), int(ty)), int(wd * 0.7))
+    wing(-1); wing(1)
+    pad = w * 0.28                                         # central azure heater
+    outer = [(pad, h * 0.3), (w - pad, h * 0.3), (w - pad, h * 0.6), (cx, h * 0.86), (pad, h * 0.6)]
+    pygame.draw.polygon(big, OL, outer)
+    pygame.draw.polygon(big, STM, _inset(outer, 1.6 * s))
+    pygame.draw.polygon(big, AZURE, _inset(outer, 4 * s))
+    _mullet(big, cx, h * 0.52, 6 * s, OR, s, edge=(160, 120, 40))
+    cw, cyc = w * 0.24, h * 0.24                           # crown on top
+    pygame.draw.rect(big, OR, (int(cx - cw / 2), int(cyc), int(cw), int(h * 0.055)))
+    for k in range(3):
+        x = cx + (k - 1) * cw * 0.42
+        pygame.draw.polygon(big, OR, [(x - 3 * s, cyc), (x + 3 * s, cyc), (x, cyc - h * 0.07)])
+        pygame.draw.circle(big, GULES, (int(x), int(cyc - h * 0.055)), max(1, int(1.4 * s)))
+
+
 VARIANTS = [
     ("V1_crusader_heater", draw_crusader_heater, "V1  Heater", "gules · argent cross"),
     ("V2_norman_kite", draw_norman_kite, "V2  Norman kite", "azure · gold bend + mullets"),
     ("V3_round_targe", draw_round_targe, "V3  Round targe", "wood · boss · saltire"),
     ("V4_pavise", draw_pavise, "V4  Pavise", "sable · gold pale + fleur"),
     ("V5_round_buckler", draw_round_buckler, "V5  Buckler", "quartered · spiked boss"),
+]
+
+VARIANTS_NEW = [
+    ("V6_greek_hoplon", draw_greek_hoplon, "V6  Greek hoplon", "bronze · Spartan lambda"),
+    ("V7_roman_scutum", draw_roman_scutum, "V7  Roman scutum", "gules · eagle wings + bolt"),
+    ("V8_viking_round", draw_viking_round, "V8  Viking round", "segmented · iron boss"),
+    ("V9_heraldic_lion", draw_heraldic_lion, "V9  Heraldic lion", "gules · gold lion mask"),
+    ("V10_winged_crest", draw_winged_crest, "V10  Winged crest", "azure · wings + crown"),
 ]
 
 
@@ -236,24 +364,36 @@ def _tile(fn, label, caption):
 
 
 def main():
-    tiles = [_tile(fn, lab, cap) for _, fn, lab, cap in VARIANTS]
-    # per-variant PNGs (showcase + inset tile)
-    for (key, fn, lab, cap), tile in zip(VARIANTS, tiles):
+    allv = VARIANTS + VARIANTS_NEW
+    tiles = {key: _tile(fn, lab, cap) for key, fn, lab, cap in allv}
+    for key, tile in tiles.items():
         pygame.image.save(tile, os.path.join(OUT_DIR, f"{key}.png"))
-    # comparison sheet: 5 tiles in a row + title
-    gap = 12
-    tw, th = tiles[0].get_size()
-    title_h = 40
-    sheet = pygame.Surface((tw * len(tiles) + gap * (len(tiles) + 1), th + title_h + gap), pygame.SRCALPHA)
-    sheet.fill((14, 15, 22))
+    gap, title_h = 12, 44
+    tw, th = next(iter(tiles.values())).get_size()
     tf = pygame.font.SysFont("Arial", 22, bold=True)
-    sheet.blit(tf.render("Knight powerup — shield pickup-icon options (inset = true size)", True, (255, 232, 168)), (gap + 2, 8))
-    for i, tile in enumerate(tiles):
-        sheet.blit(tile, (gap + i * (tw + gap), title_h))
-    out = os.path.join(OUT_DIR, "shield_icons.png")
+
+    # original-5 sheet
+    sheet5 = pygame.Surface((tw * 5 + gap * 6, th + title_h + gap))
+    sheet5.fill((14, 15, 22))
+    sheet5.blit(tf.render("Knight powerup — shield icons (inset = true size)", True, (255, 232, 168)), (gap + 2, 10))
+    for i, (key, *_ ) in enumerate(VARIANTS):
+        sheet5.blit(tiles[key], (gap + i * (tw + gap), title_h))
+    pygame.image.save(sheet5, os.path.join(OUT_DIR, "shield_icons.png"))
+
+    # combined 10 sheet — row 1 = original 5, row 2 = new 5
+    rows = [VARIANTS, VARIANTS_NEW]
+    sheetw = tw * 5 + gap * 6
+    sheeth = title_h + 2 * th + 3 * gap
+    sheet = pygame.Surface((sheetw, sheeth))
+    sheet.fill((14, 15, 22))
+    sheet.blit(tf.render("Knight shield icons — all 10 (row 1: medieval set · row 2: other sources)", True, (255, 232, 168)), (gap + 2, 10))
+    for r, row in enumerate(rows):
+        for i, (key, *_ ) in enumerate(row):
+            sheet.blit(tiles[key], (gap + i * (tw + gap), title_h + r * (th + gap)))
+    out = os.path.join(OUT_DIR, "shield_icons_all10.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet.get_width()}x{sheet.get_height()})")
-    print("per-variant PNGs in", OUT_DIR)
+    print("per-variant PNGs (V1..V10) in", OUT_DIR)
 
 
 if __name__ == "__main__":
