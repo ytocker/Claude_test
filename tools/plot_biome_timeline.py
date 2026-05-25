@@ -44,6 +44,27 @@ def _mist_intensity(phase: float) -> float:
     return weather._bump(phase, 0.05, 0.05)
 
 
+# ── PROPOSED morning-thermal shape (asymmetric: long buildup, short fade) ────
+# Defined HERE in the plotter only — game/weather.py is NOT touched until the
+# timing is approved. Long rising edge (rocks appear sparse → dense, then the
+# first geyser; more geysers as it climbs) and a much shorter falling edge.
+THERMAL_START_S = 50.0    # event on — first stray rocks
+THERMAL_PEAK_S = 96.0     # peak — max concurrent geysers
+THERMAL_END_S = 112.0     # event off — last rocks gone
+GEYSER_THRESH = 0.35      # intensity above which geysers (not just rocks) spawn
+
+
+def _proposed_thermal(phase: float) -> float:
+    t = phase * CYCLE
+    if t <= THERMAL_START_S or t >= THERMAL_END_S:
+        return 0.0
+    if t <= THERMAL_PEAK_S:                       # long smooth rise 0→1
+        u = (t - THERMAL_START_S) / (THERMAL_PEAK_S - THERMAL_START_S)
+    else:                                         # short smooth fall 1→0
+        u = (THERMAL_END_S - t) / (THERMAL_END_S - THERMAL_PEAK_S)
+    return u * u * (3 - 2 * u)
+
+
 # Biome keyframe labels at their wall-clock timestamps (phase * cycle).
 PHASE_LABELS = [
     (0.00000, "DAY"),
@@ -58,7 +79,8 @@ PHASE_LABELS = [
 # (label, intensity-fn, line colour, peak-phase list)
 CURVES = [
     ("Dawn mist (cosmetic, planned)", _mist_intensity, "#9aa7b3", [0.05]),
-    ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a", [0.25]),
+    ("Morning thermal (geysers) — PROPOSED", _proposed_thermal, "#e0663a",
+     [THERMAL_PEAK_S / CYCLE]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
     ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),
     ("Snow squall (tailwind)", weather.storm_intensity, "#8a6fc0", [0.85]),
@@ -115,6 +137,36 @@ def main() -> None:
             ax.annotate(f"{x:.0f}s", (x, y), textcoords="offset points",
                         xytext=(0, 9), ha="center", fontsize=8,
                         color=color, fontweight="bold")
+
+    # ── Morning-thermal sub-phase annotations (the design under review) ──
+    th_vals = [_proposed_thermal(p) for p in phases]
+    g_on = next((ts[i] for i, v in enumerate(th_vals) if v >= GEYSER_THRESH),
+                THERMAL_PEAK_S)
+    g_off = next((ts[i] for i in range(len(th_vals) - 1, -1, -1)
+                  if th_vals[i] >= GEYSER_THRESH), THERMAL_PEAK_S)
+    ax.axvspan(THERMAL_START_S, THERMAL_PEAK_S, color="#e0663a", alpha=0.06,
+               linewidth=0)                                   # long buildup
+    ax.axvspan(THERMAL_PEAK_S, THERMAL_END_S, color="#c0392b", alpha=0.12,
+               linewidth=0)                                   # short fade
+    ax.hlines(GEYSER_THRESH, THERMAL_START_S, THERMAL_END_S, color="#e0663a",
+              linestyle=":", linewidth=1.1)
+    for xs, lab in ((g_on, "geysers\nbegin"), (g_off, "geysers\nend")):
+        ax.axvline(xs, color="#e0663a", linestyle="--", linewidth=1.2,
+                   ymax=0.95)
+        ax.annotate(f"{lab}\n~{xs:.0f}s", (xs, 0.62),
+                    textcoords="offset points", xytext=(0, 0), ha="center",
+                    fontsize=7.5, color="#b3431f", fontweight="bold")
+    ax.annotate("rocks\nbuild up\n(sparse→dense)",
+                ((THERMAL_START_S + g_on) / 2, 0.17), ha="center",
+                fontsize=7.5, color="#b3431f")
+    ax.annotate("geyser threshold", (THERMAL_END_S + 2, GEYSER_THRESH),
+                fontsize=7, color="#b3431f", va="center")
+    ax.annotate(f"start ~{THERMAL_START_S:.0f}s",
+                (THERMAL_START_S, 0.02), rotation=90, fontsize=7.5,
+                color="#b3431f", va="bottom", ha="right", fontweight="bold")
+    ax.annotate(f"end ~{THERMAL_END_S:.0f}s", (THERMAL_END_S, 0.02),
+                rotation=90, fontsize=7.5, color="#b3431f", va="bottom",
+                ha="left", fontweight="bold")
 
     # Game start marker — label rotated along the line so it clears the
     # early-morning mist/thermal peak labels at the top-left.
