@@ -30,7 +30,7 @@ from game.config import (
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_SPAWN_THRESHOLD, GEYSER_MAX_CONCURRENT,
-    ROCK_SPAWN_THRESHOLD, ROCK_SLOTS_PER_PILLAR,
+    ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
     GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
 )
 from game.entities import (
@@ -164,11 +164,12 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This branch is a showcase build for the morning-thermal event, so the
-        # run starts mid-window (~74s) where geysers are ALREADY erupting
-        # (intensity ~0.5, threshold 0.35) — the player drops straight into the
-        # event with rocks scattered and columns going, building to the peak.
-        self.biome_time = 74.0
+        # This branch is a showcase build for the morning-thermal event. The
+        # run starts at ~51s: a few clear seconds, then the rock field builds
+        # up gradually (~54→68s) so by the time the first geysers erupt (~68s)
+        # the ground is already well-populated; density then holds through the
+        # peak.
+        self.biome_time = 51.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -533,24 +534,51 @@ class World:
         if random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity:
             gx = pipe.x + (PIPE_W + self._current_spacing()) * 0.5
             self.geysers.append(Geyser(gx, intensity))
+            # Frame the base with a little ring of rocks on both flanks so the
+            # geyser reads as "surrounded", not perched on bare ground.
+            for _ in range(ROCK_RING_COUNT):
+                side = -1 if random.random() < 0.5 else 1
+                rx = gx + side * random.uniform(24.0, 52.0)
+                ry = GROUND_Y + random.uniform(0.0, 6.0)
+                big = random.random() < 0.4
+                v = (random.randint(3, geyser_fx.ROCK_N - 1) if big
+                     else random.randint(0, 2))
+                self.rocks.append(Rock(rx, ry, v))
+
+    def _scatter_rocks(self, x_lo, x_hi, count):
+        """Lay `count` rocks across [x_lo, x_hi] as natural little clusters —
+        a larger anchor rock with 1-3 smaller companions huddled around it —
+        rather than an even sprinkle, so the field reads as real scree."""
+        placed = 0
+        while placed < count:
+            cx = random.uniform(x_lo, x_hi)
+            for _ in range(random.randint(1, 3)):       # smaller companions (behind)
+                if placed >= count:
+                    break
+                self.rocks.append(Rock(cx + random.uniform(-15.0, 15.0),
+                                       GROUND_Y + random.uniform(0.0, 6.0),
+                                       random.randint(0, 3)))
+                placed += 1
+            if placed >= count:
+                break
+            self.rocks.append(Rock(cx, GROUND_Y + random.uniform(1.0, 5.0),
+                                   random.randint(3, geyser_fx.ROCK_N - 1)))
+            placed += 1                                  # larger anchor (in front)
 
     def _maybe_spawn_rocks(self, pipe: Pipe):
-        # Scattered sinter rocks are the event's slow buildup (and its fade
-        # tail): they appear just above 0 intensity and thicken toward the
-        # peak. Roll ROCK_SLOTS_PER_PILLAR candidate slots, each filling with
-        # probability = intensity, so they're 1-2 at the edges and dense near
-        # the peak. Scatter across the gap after the pillar, sitting on the
-        # grass; the world scrolls/culls them like other props.
+        # Scattered sinter rocks are the event's slow buildup (and fade tail).
+        # Density ramps with intensity but reaches FULL by the geyser
+        # threshold, so the field thickens gradually through the rocks-only
+        # window and the ground is already well-populated once geysers appear.
         intensity = _thermal_intensity(self.biome_phase)
         if intensity < ROCK_SPAWN_THRESHOLD:
             return
-        spacing = self._current_spacing()
-        for _ in range(ROCK_SLOTS_PER_PILLAR):
-            if random.random() >= intensity:
-                continue
-            rx = pipe.x + PIPE_W + random.uniform(0.0, spacing)
-            ry = GROUND_Y + random.uniform(1.0, 6.0)
-            self.rocks.append(Rock(rx, ry, random.randrange(geyser_fx.ROCK_N)))
+        density = min(1.0, intensity / GEYSER_SPAWN_THRESHOLD)
+        count = int(round(ROCK_PER_PILLAR_MAX * density))
+        if count <= 0:
+            return
+        x0 = pipe.x + PIPE_W
+        self._scatter_rocks(x0, x0 + self._current_spacing(), count)
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)

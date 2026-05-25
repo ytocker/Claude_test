@@ -189,7 +189,8 @@ THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar geyser spawn chance at peak inten
 GEYSER_SPAWN_THRESHOLD   = 0.35   # intensity above which GEYSERS (not just rocks) spawn
 GEYSER_MAX_CONCURRENT    = 3      # cap on simultaneous geysers (allowed scales 1→3 with intensity)
 ROCK_SPAWN_THRESHOLD     = 0.02   # intensity above which scattered sinter rocks appear
-ROCK_SLOTS_PER_PILLAR    = 5      # candidate rock slots rolled per pillar; each fills with prob = intensity
+ROCK_PER_PILLAR_MAX      = 16     # rocks scattered per pillar at full density; count scales up over the slow buildup so the field is well-populated by the time geysers arrive
+ROCK_RING_COUNT          = 6      # extra rocks framing each geyser's base so the ground reads as "surrounded", not bare
 GEYSER_W            = 84.0        # column / lift width (px) — matches the visible air footprint
 GEYSER_H            = float(GROUND_Y)  # column reaches the top of the screen; lift acts the full height
 GEYSER_LIFT_VY_CAP  = 280.0       # CONSTANT rise speed: inside ANY column Pip rises at exactly this — one constant for every geyser, no stacking, independent of how deep/long he's inside. Below |FLAP_V|=520 so a flap still overrides it.
