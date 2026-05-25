@@ -34,8 +34,8 @@ OUT = os.path.join(ROOT, "docs", "screenshots", "geyser_windmotion",
                    "faintness_compare.png")
 
 ROWS = [
-    ("M2 streaks", render_streaks, (1.0, 1.7, 2.6, 3.8, 5.2)),
-    ("M4 steam", render_steam, (1.0, 2.2, 4.0, 6.5, 10.0)),
+    ("M2 streaks", render_streaks, (1.0, 1.175, 1.35, 1.525, 1.7)),
+    ("M4 steam", render_steam, (1.0, 1.3, 1.6, 1.9, 2.2)),
 ]
 
 
@@ -63,7 +63,7 @@ def main():
                       (18, 18, 24))
     for r, (name, fn, scales) in enumerate(ROWS):
         for c, scale in enumerate(scales):
-            label = "%s  %.1fx" % (name, scale)
+            label = "%s  %.3gx" % (name, scale)
             panel = _panel(base, font, fn, scale, label)
             sheet.paste(panel, (c * (W + gap), r * (H + gap)))
             print("rendered", label)
