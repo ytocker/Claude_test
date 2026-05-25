@@ -186,7 +186,7 @@ def render_steam(scene, streams, t, scale=1.0):
                              phase=(idx * 0.6180339) % 1.0,
                              amp=6 + (idx % 3) * 5,
                              length_f=0.9 + 0.06 * (idx % 2),
-                             maxw=3.4 + 1.2 * (idx % 2), alpha=15 * inten * scale,
+                             maxw=3.4 + 1.2 * (idx % 2), alpha=22.5 * inten * scale,
                              fan=(i - 1) * 4, blur=3,
                              spd=0.9 + 0.05 * (idx % 3))
 
