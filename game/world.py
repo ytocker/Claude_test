@@ -2194,22 +2194,23 @@ class World:
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
-    def _spawn_grainy_poof(self, x, y, palette=None, n=56):
-        """Granular poof — a dense burst of small square GRAINS
-        (PoofGrain) instead of a few smooth cloud circles, so it reads
-        as fine smoke/dust. White smoke by default (genie appear /
-        vanish + unchosen offers); pass `palette` for the lavender
-        genie-reveal variant."""
+    def _spawn_grainy_poof(self, x, y, palette=None, n=180):
+        """Magic-dust poof — a DENSE cloud of many tiny (1-2 px)
+        twinkling motes (PoofGrain) rather than a few big smoke
+        circles. White dust by default (genie appear / vanish +
+        unchosen offers); pass `palette` for the lavender reveal."""
         if palette is None:
             palette = [(255, 255, 255), (240, 240, 242),
                        (224, 226, 230), (208, 212, 218)]
         for _ in range(n):
             ang = random.uniform(0, math.tau)
-            sp  = random.uniform(25, 170)
+            # Spread the dust over a disc (sqrt for even area fill) so
+            # the cloud is dense in the middle and thins at the edges.
+            sp  = random.uniform(10, 200) * math.sqrt(random.random())
             vx  = math.cos(ang) * sp
-            vy  = math.sin(ang) * sp - random.uniform(8, 48)
-            life = random.uniform(0.35, 0.72)
-            size = random.randint(2, 5)
+            vy  = math.sin(ang) * sp - random.uniform(6, 40)
+            life = random.uniform(0.40, 0.85)
+            size = random.choice((1, 1, 1, 2, 2))     # mostly single-pixel motes
             self.particles.append(
                 PoofGrain(x, y, vx, vy, life, size, random.choice(palette)))
 

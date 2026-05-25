@@ -3312,11 +3312,12 @@ class CloudPuff:
 
 
 class PoofGrain:
-    """A single grain of a GRANULAR poof — a small soft SQUARE (not a
-    circle) that drifts outward, slows like settling dust, and fades.
-    Many grains per burst give the poof a fine, granular texture
-    instead of a few smooth cloud circles."""
-    __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "size", "color")
+    """A single mote of MAGIC DUST — a tiny 1-2 px speck that drifts
+    outward, slows like settling dust, twinkles, and fades. Spawned in
+    large numbers so the burst reads as a dense cloud of fine glittery
+    dust rather than a few big smoke circles."""
+    __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "size",
+                 "color", "_ph")
 
     def __init__(self, x, y, vx, vy, life, size, color):
         self.x, self.y   = float(x), float(y)
@@ -3324,15 +3325,15 @@ class PoofGrain:
         self.life = self.life_max = life
         self.size = size
         self.color = color
+        self._ph = random.uniform(0, math.tau)   # per-mote twinkle phase
 
     def update(self, dt):
         self.x += self.vx * dt
         self.y += self.vy * dt
-        # Ease the grains to a near-stop so the burst hangs like a
-        # cloud of fine dust rather than flying apart.
-        self.vx *= 0.88
-        self.vy *= 0.88
-        self.vy += 26 * dt           # gentle settle
+        # Ease to a near-stop so the dust hangs and settles.
+        self.vx *= 0.90
+        self.vy *= 0.90
+        self.vy += 18 * dt
         self.life -= dt
 
     def alive(self):
@@ -3340,11 +3341,13 @@ class PoofGrain:
 
     def draw(self, surf):
         t = max(0.0, self.life / self.life_max)      # 1→0 as it dies
-        alpha = int(225 * t)
+        # Twinkle: shimmer the alpha so the dust glitters like magic.
+        age = self.life_max - self.life
+        tw = 0.55 + 0.45 * math.sin(self._ph + age * 26.0)
+        alpha = int(235 * t * tw)
         if alpha <= 0:
             return
-        # Grains grow a touch as the puff blooms, then fade in place.
-        sz = max(1, int(self.size * (1.4 - 0.4 * t)))
+        sz = max(1, self.size)
         s = pygame.Surface((sz, sz), pygame.SRCALPHA)
         s.fill((*self.color, alpha))
         surf.blit(s, (int(self.x - sz / 2), int(self.y - sz / 2)))
