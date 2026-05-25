@@ -2195,44 +2195,38 @@ class World:
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
     def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34):
-        """Magic-dust poof (design #5 'genie gold+violet'). Bursts dust
-        OUT of the source with an irregular, lobed, swirling outline —
-        denser near the body, trailing into wisps and tendrils — so it
-        reads as a natural, magical puff coming OUT of the genie rather
-        than a smooth round blob. (rx, ry) set the reach, so the same
-        organic shape scales: a big burst around the genie, a small one
-        on each offer powerup."""
+        """Magic-dust poof (design #5 'genie gold+violet'). A plain,
+        puffy CLOUD that simply COVERS the source — built from a few
+        overlapping soft lobes (cumulus-like) densely packed with motes,
+        so it's cohesive and lumpy-natural rather than a clean circle or
+        a shape tracing the genie's silhouette. (rx, ry) just set how big
+        an area the cloud covers, so the same cloud scales down for the
+        offer powerups. Motes drift gently (a settling cloud)."""
         if palette is None:
             palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
                        (210, 185, 255), (175, 150, 255)]
         if n is None:
             n = max(140, int(rx * ry * 0.28))
-        # Per-burst lobe phases so every poof has its own ragged outline.
-        p1 = random.uniform(0, math.tau)
-        p2 = random.uniform(0, math.tau)
+        # A solid central body + a handful of offset lobes whose union is
+        # a lumpy cloud covering the (rx, ry) area.
+        base = min(rx, ry)
+        lobes = [(0.0, 0.0, 0.90 * base)]
+        for _ in range(random.randint(5, 7)):
+            la = random.uniform(0, math.tau)
+            lr = random.uniform(0.0, 0.60)
+            lobes.append((math.cos(la) * rx * lr,
+                          math.sin(la) * ry * lr,
+                          random.uniform(0.50, 0.80) * base))
         for _ in range(n):
-            a = random.uniform(0, math.tau)
-            # Ragged per-angle reach (a few lobes + ripple + jitter) so the
-            # cloud edge is organic, never a clean circle.
-            reach = (0.85
-                     + 0.42 * math.sin(3 * a + p1)
-                     + 0.20 * math.sin(7 * a + p2)
-                     + random.uniform(-0.12, 0.12))
-            reach = max(0.18, reach)
-            # Concentrate motes near the body; the tail of the
-            # distribution streams out as wisps.
-            rr = random.random() ** 0.62
-            dist = rr * reach
-            px = x + math.cos(a) * rx * dist
-            py = y + math.sin(a) * ry * dist
-            # Emanate outward from the source (faster the further out, so
-            # it keeps blooming OUT of the genie) + a magical swirl + rise.
-            out = random.uniform(16, 70) * (0.35 + dist)
-            swirl = random.uniform(-44, 44)
-            vx = math.cos(a) * out - math.sin(a) * swirl
-            vy = math.sin(a) * out + math.cos(a) * swirl - random.uniform(8, 26)
-            life = random.uniform(0.45, 1.0)
-            size = random.choice((2, 3, 3, 4))
+            lox, loy, lrad = random.choice(lobes)
+            a  = random.uniform(0, math.tau)
+            rr = math.sqrt(random.random())          # fill the lobe disc
+            px = x + lox + math.cos(a) * lrad * rr
+            py = y + loy + math.sin(a) * lrad * rr
+            vx = random.uniform(-14, 14)             # gentle settle / drift
+            vy = random.uniform(-20, 6)
+            life = random.uniform(0.50, 1.00)
+            size = random.choice((3, 3, 4, 4))
             self.particles.append(
                 PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
 

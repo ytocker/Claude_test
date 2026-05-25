@@ -53,25 +53,24 @@ def _patch_palette(w, palette, _n):
     size (rx/ry are passed by the genie / offer callers)."""
     def _poof(self, x, y, palette_arg=None, n=None, rx=34, ry=34):
         cnt = n if n is not None else max(140, int(rx * ry * 0.28))
-        p1 = random.uniform(0, math.tau)
-        p2 = random.uniform(0, math.tau)
+        base = min(rx, ry)
+        lobes = [(0.0, 0.0, 0.90 * base)]
+        for _ in range(random.randint(5, 7)):
+            la = random.uniform(0, math.tau)
+            lr = random.uniform(0.0, 0.60)
+            lobes.append((math.cos(la) * rx * lr,
+                          math.sin(la) * ry * lr,
+                          random.uniform(0.50, 0.80) * base))
         for _ in range(cnt):
-            a = random.uniform(0, math.tau)
-            reach = (0.85
-                     + 0.42 * math.sin(3 * a + p1)
-                     + 0.20 * math.sin(7 * a + p2)
-                     + random.uniform(-0.12, 0.12))
-            reach = max(0.18, reach)
-            rr = random.random() ** 0.62
-            dist = rr * reach
-            px = x + math.cos(a) * rx * dist
-            py = y + math.sin(a) * ry * dist
-            out = random.uniform(16, 70) * (0.35 + dist)
-            swirl = random.uniform(-44, 44)
-            vx = math.cos(a) * out - math.sin(a) * swirl
-            vy = math.sin(a) * out + math.cos(a) * swirl - random.uniform(8, 26)
-            life = random.uniform(0.45, 1.0)
-            size = random.choice((2, 3, 3, 4))
+            lox, loy, lrad = random.choice(lobes)
+            a  = random.uniform(0, math.tau)
+            rr = math.sqrt(random.random())
+            px = x + lox + math.cos(a) * lrad * rr
+            py = y + loy + math.sin(a) * lrad * rr
+            vx = random.uniform(-14, 14)
+            vy = random.uniform(-20, 6)
+            life = random.uniform(0.50, 1.00)
+            size = random.choice((3, 3, 4, 4))
             self.particles.append(
                 PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
     w._spawn_grainy_poof = types.MethodType(_poof, w)
