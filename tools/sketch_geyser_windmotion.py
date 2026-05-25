@@ -175,7 +175,7 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
     _swoosh(scene, pts, ws, maxw, WINDW, alpha * _life(p), blur=blur)
 
 
-def render_steam(scene, streams, t, scale=1.0, ncols=6):
+def render_steam(scene, streams, t, scale=1.0, ncols=9):
     span = 28.0                                # column spread half-width
     if ncols <= 1:
         offs = [0.0]
