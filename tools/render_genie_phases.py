@@ -53,18 +53,25 @@ def _patch_palette(w, palette, _n):
     size (rx/ry are passed by the genie / offer callers)."""
     def _poof(self, x, y, palette_arg=None, n=None, rx=34, ry=34):
         cnt = n if n is not None else max(140, int(rx * ry * 0.28))
+        p1 = random.uniform(0, math.tau)
+        p2 = random.uniform(0, math.tau)
         for _ in range(cnt):
-            a  = random.uniform(0, math.tau)
-            rr = math.sqrt(random.random())
-            px = x + math.cos(a) * rx * rr
-            py = y + math.sin(a) * ry * rr
-            dx, dy = px - x, py - y
-            d = math.hypot(dx, dy) or 1.0
-            spd = random.uniform(5, 32)
-            vx = dx / d * spd
-            vy = dy / d * spd - random.uniform(5, 22)
-            life = random.uniform(0.45, 0.95)
-            size = random.choice((3, 3, 4, 4))
+            a = random.uniform(0, math.tau)
+            reach = (0.85
+                     + 0.42 * math.sin(3 * a + p1)
+                     + 0.20 * math.sin(7 * a + p2)
+                     + random.uniform(-0.12, 0.12))
+            reach = max(0.18, reach)
+            rr = random.random() ** 0.62
+            dist = rr * reach
+            px = x + math.cos(a) * rx * dist
+            py = y + math.sin(a) * ry * dist
+            out = random.uniform(16, 70) * (0.35 + dist)
+            swirl = random.uniform(-44, 44)
+            vx = math.cos(a) * out - math.sin(a) * swirl
+            vy = math.sin(a) * out + math.cos(a) * swirl - random.uniform(8, 26)
+            life = random.uniform(0.45, 1.0)
+            size = random.choice((2, 3, 3, 4))
             self.particles.append(
                 PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
     w._spawn_grainy_poof = types.MethodType(_poof, w)
