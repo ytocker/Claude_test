@@ -153,25 +153,38 @@ def render_bend(scene, streams, t):
                    70 * _life(p) * inten)
 
 
-# ── M4: steam column (billowing rising vapor) ────────────────────────────────
-def _puff(scene, cx, cy, r, color, a):
-    for o in range(4):
-        ang = o * 1.9 + cx * 0.07
-        _stamp(scene, cx + math.cos(ang) * r * 0.45,
-               cy + math.sin(ang) * r * 0.32, r * 0.58, color, a * 0.65)
-    _stamp(scene, cx, cy, r * 0.8, color, a)
+# ── M4: steam column (rising flowing vapor, not glued discs) ─────────────────
+def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
+                 fan, blur, spd):
+    """One soft translucent filament of vapour: rises, wavers turbulently,
+    widens and spreads as it climbs. Many overlapping → flowing column."""
+    p = ((t / PERIOD) * spd + phase) % 1.0
+    y_bot = by - (0.02 + 0.5 * p) * h          # whole ribbon drifts upward
+    length = h * length_f
+    ph = 2 * math.pi * t / PERIOD
+    segs = 22
+    pts, ws = [], []
+    for k in range(segs + 1):
+        u = k / segs                           # 0 bottom → 1 top
+        yy = y_bot - u * length
+        wav = math.sin(u * 3.4 - ph * 1.5 + phase * 6.0) * amp * (0.25 + u)
+        taper = 1.0 - max(0.0, (u - 0.85) / 0.15) ** 2   # soften the crest
+        pts.append((x + wav + fan * u, yy))
+        ws.append((0.3 + 0.85 * u) * taper)    # narrow at vent → broad aloft
+    _swoosh(scene, pts, ws, maxw, WINDW, alpha * _life(p), blur=blur)
 
 
 def render_steam(scene, streams, t):
-    n = 15
     for (x, by, h, inten) in streams:
+        for i in range(2):                     # faint wide body
+            _flow_ribbon(scene, x, by, h, t, phase=i * 0.5 + 0.2, amp=10,
+                         length_f=0.88, maxw=16, alpha=44 * inten,
+                         fan=(i - 0.5) * 16, blur=4, spd=0.85)
+        n = 5                                  # brighter flowing filaments
         for i in range(n):
-            p = ((t / PERIOD) * 0.9 + i / n) % 1.0
-            y = by - (0.02 + 0.92 * p) * h
-            r = 5 + 30 * p                            # widen as it rises
-            drift = math.sin(p * 3.2 + i * 1.3) * (5 + 16 * p) + (i - n / 2) * 0.8
-            _puff(scene, x + drift, y, r, WINDW,
-                  150 * _life(p) * inten * (1 - 0.25 * p))
+            _flow_ribbon(scene, x, by, h, t, phase=i / n, amp=7 + (i % 2) * 4,
+                         length_f=0.72, maxw=6.5, alpha=95 * inten,
+                         fan=(i - (n - 1) / 2) * 6, blur=3, spd=0.95)
 
 
 VARIANTS = [
