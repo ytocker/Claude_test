@@ -2195,16 +2195,19 @@ class World:
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
     def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34):
-        """Magic-dust poof (design #5 'genie gold+violet'). A plain,
-        puffy CLOUD that simply COVERS the source — built from a few
-        overlapping soft lobes (cumulus-like) densely packed with motes,
-        so it's cohesive and lumpy-natural rather than a clean circle or
-        a shape tracing the genie's silhouette. (rx, ry) just set how big
-        an area the cloud covers, so the same cloud scales down for the
-        offer powerups. Motes drift gently (a settling cloud)."""
+        """Magic-dust poof (design #4 'rainbow'). A plain, puffy CLOUD
+        that simply COVERS the source — built from a few overlapping
+        soft lobes (cumulus-like) densely packed with motes, so it's
+        cohesive and lumpy-natural rather than a clean circle or a shape
+        tracing the genie's silhouette. (rx, ry) just set how big an area
+        the cloud covers, so the same cloud scales down for the offer
+        powerups. Used for EVERY genie beat: the genie appearing /
+        vanishing and the offers appearing / vanishing (incl. the two
+        unchosen offers when the player takes one)."""
         if palette is None:
-            palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
-                       (210, 185, 255), (175, 150, 255)]
+            palette = [(255, 180, 190), (255, 225, 170), (255, 250, 180),
+                       (190, 240, 200), (180, 225, 255), (215, 190, 255),
+                       (255, 255, 255)]
         if n is None:
             n = max(140, int(rx * ry * 0.28))
         # A solid central body + a handful of offset lobes whose union is
