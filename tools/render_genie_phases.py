@@ -47,18 +47,26 @@ PHASES = ["1 genie appears", "2 powerups appear",
           "3 powerups vanish", "4 genie vanishes"]
 
 
-def _patch_palette(w, palette, n):
-    """Force every genie poof on this world to use `palette`/`n`."""
-    def _poof(self, x, y, palette_arg=None, n_arg=None):
-        for _ in range(n):
-            ang = random.uniform(0, math.tau)
-            sp  = random.uniform(10, 205) * math.sqrt(random.random())
-            vx  = math.cos(ang) * sp
-            vy  = math.sin(ang) * sp - random.uniform(6, 40)
-            life = random.uniform(0.40, 0.90)
+def _patch_palette(w, palette, _n):
+    """Force every genie poof on this world to use `palette`, keeping
+    the live ellipse-fill behaviour so the genie cloud matches his
+    size (rx/ry are passed by the genie / offer callers)."""
+    def _poof(self, x, y, palette_arg=None, n=None, rx=34, ry=34):
+        cnt = n if n is not None else max(90, int(rx * ry * 0.075))
+        for _ in range(cnt):
+            a  = random.uniform(0, math.tau)
+            rr = math.sqrt(random.random())
+            px = x + math.cos(a) * rx * rr
+            py = y + math.sin(a) * ry * rr
+            dx, dy = px - x, py - y
+            d = math.hypot(dx, dy) or 1.0
+            spd = random.uniform(6, 42)
+            vx = dx / d * spd
+            vy = dy / d * spd - random.uniform(6, 28)
+            life = random.uniform(0.45, 0.95)
             size = random.choice((1, 1, 1, 2))
             self.particles.append(
-                PoofGrain(x, y, vx, vy, life, size, random.choice(palette)))
+                PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
     w._spawn_grainy_poof = types.MethodType(_poof, w)
 
 

@@ -3712,14 +3712,21 @@ class GenieCharacter:
                 cx, cy, vx, vy, life, 3, 11, color))
 
     def _spawn_appear_poof(self):
-        """Materialise flourish — a granular white poof (fine smoke
-        grains, not soft circles) at the spawn point."""
-        self.world._spawn_grainy_poof(self.x, self.y)
+        """Materialise flourish — a magic-dust CLOUD sized to envelop
+        the whole genie (ellipse from his on-screen sprite extents),
+        not a point burst."""
+        ow = self._native_w * self._display_scale
+        oh = self._native_h * self._display_scale
+        self.world._spawn_grainy_poof(self.x, self.y,
+                                      rx=ow * 0.50, ry=oh * 0.48)
 
     def _spawn_vanish_swirl(self):
-        """Disappear poof — the same granular white poof as the appear,
-        so the genie evaporates into fine smoke grains."""
-        self.world._spawn_grainy_poof(self.x, self.y)
+        """Disappear poof — the same genie-sized magic-dust cloud as
+        the appear, so he dissolves into dust that covers his body."""
+        ow = self._native_w * self._display_scale
+        oh = self._native_h * self._display_scale
+        self.world._spawn_grainy_poof(self.x, self.y,
+                                      rx=ow * 0.50, ry=oh * 0.48)
 
     # ── render ───────────────────────────────────────────────────────────
     def draw(self, surf):

@@ -2194,25 +2194,33 @@ class World:
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
-    def _spawn_grainy_poof(self, x, y, palette=None, n=470):
-        """Magic-dust poof (design #5 'genie gold+violet') — a DENSE
-        cloud of many tiny twinkling motes in white + gold + violet.
-        Used for EVERY genie beat: the genie appearing / vanishing and
-        the offers appearing / vanishing."""
+    def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34):
+        """Magic-dust poof (design #5 'genie gold+violet'). Fills an
+        ELLIPSE of half-extents (rx, ry) around (x, y) with fine
+        twinkling motes, so the cloud's AREA matches whatever is
+        poofing — a tight puff for a small offer powerup, a big cloud
+        enveloping the whole genie. Motes start spread across the
+        ellipse and drift gently outward; count auto-scales with area
+        to hold density."""
         if palette is None:
             palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
                        (210, 185, 255), (175, 150, 255)]
+        if n is None:
+            n = max(90, int(rx * ry * 0.075))
         for _ in range(n):
-            ang = random.uniform(0, math.tau)
-            # Even disc fill (sqrt) so the cloud is dense in the middle
-            # and thins toward the edges.
-            sp  = random.uniform(10, 205) * math.sqrt(random.random())
-            vx  = math.cos(ang) * sp
-            vy  = math.sin(ang) * sp - random.uniform(6, 40)
-            life = random.uniform(0.40, 0.90)
+            a  = random.uniform(0, math.tau)
+            rr = math.sqrt(random.random())          # even area fill
+            px = x + math.cos(a) * rx * rr
+            py = y + math.sin(a) * ry * rr
+            dx, dy = px - x, py - y
+            d = math.hypot(dx, dy) or 1.0
+            spd = random.uniform(6, 42)
+            vx = dx / d * spd                         # gentle outward drift
+            vy = dy / d * spd - random.uniform(6, 28)
+            life = random.uniform(0.45, 0.95)
             size = random.choice((1, 1, 1, 2))
             self.particles.append(
-                PoofGrain(x, y, vx, vy, life, size, random.choice(palette)))
+                PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
 
     def _spawn_genie_reveal_poof(self, x, y):
         """Poof when a Genie offer materialises — the SAME design #5
