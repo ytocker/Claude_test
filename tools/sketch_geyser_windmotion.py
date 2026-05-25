@@ -95,9 +95,10 @@ def render_streaks(scene, streams, t):
     ph = 2 * math.pi * t / PERIOD
     n = 11
     for (x, by, h, inten) in streams:
+        rise = by - 28                               # travel vent → near top
         for i in range(n):
             p = ((t / PERIOD) * 1.2 + i / n) % 1.0
-            yh = by - (0.03 + 0.94 * p) * h          # head zips upward
+            yh = by - (0.03 + 0.96 * p) * rise        # head zips full height
             length = 40 + 30 * math.sin(math.pi * p)  # stretch mid-flight
             x0 = x + (i % 3 - 1) * 13
             segs = 12
@@ -159,7 +160,7 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
     """One soft translucent filament of vapour: rises, wavers turbulently,
     widens and spreads as it climbs. Many overlapping → flowing column."""
     p = ((t / PERIOD) * spd + phase) % 1.0
-    y_bot = by - (0.02 + 0.5 * p) * h          # whole ribbon drifts upward
+    y_bot = by - (0.02 + 0.22 * p) * h         # base stays near the vent
     length = h * length_f
     ph = 2 * math.pi * t / PERIOD
     segs = 22
@@ -176,15 +177,16 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
 
 def render_steam(scene, streams, t):
     for (x, by, h, inten) in streams:
+        rise = by - 28                         # span vent → near the top
         for i in range(2):                     # faint wide body
-            _flow_ribbon(scene, x, by, h, t, phase=i * 0.5 + 0.2, amp=10,
-                         length_f=0.88, maxw=16, alpha=44 * inten,
-                         fan=(i - 0.5) * 16, blur=4, spd=0.85)
+            _flow_ribbon(scene, x, by, rise, t, phase=i * 0.5 + 0.2, amp=14,
+                         length_f=0.95, maxw=18, alpha=42 * inten,
+                         fan=(i - 0.5) * 20, blur=4, spd=0.85)
         n = 5                                  # brighter flowing filaments
         for i in range(n):
-            _flow_ribbon(scene, x, by, h, t, phase=i / n, amp=7 + (i % 2) * 4,
-                         length_f=0.72, maxw=6.5, alpha=95 * inten,
-                         fan=(i - (n - 1) / 2) * 6, blur=3, spd=0.95)
+            _flow_ribbon(scene, x, by, rise, t, phase=i / n, amp=9 + (i % 2) * 5,
+                         length_f=0.9, maxw=7.0, alpha=92 * inten,
+                         fan=(i - (n - 1) / 2) * 8, blur=3, spd=0.95)
 
 
 VARIANTS = [
