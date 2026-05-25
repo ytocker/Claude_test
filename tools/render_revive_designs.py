@@ -221,9 +221,8 @@ def build_knight(char, nom, fidx):
         pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(3 * s), rw - int(6 * s), rh - int(6 * s)))
         pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)), math.radians(202), math.radians(338), max(1, int(1.6 * s)))
 
-    # SHIELD on the FAR (left) arm. In the 2D side view Pip's far hand is
-    # mostly hidden behind his body, so the shield is drawn BEHIND the body
-    # (it peeks out from behind/below) — the near hand holds the sword.
+    # SHIELD strapped to the FRONT of the chest (drawn IN FRONT after the
+    # body + breastplate, on the front-right chest pixels) so it reads clearly.
     def shield(big, s):
         w, h = big.get_size(); cxg = w // 2
         pygame.draw.polygon(big, OL, [(int(3 * s), int(3 * s)), (int(w - 3 * s), int(3 * s)), (int(w - 3 * s), int(h * 0.46)), (cxg, int(h - 3 * s)), (int(3 * s), int(h * 0.46))])
@@ -234,7 +233,6 @@ def build_knight(char, nom, fidx):
         pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
         pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
         pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
-    _blit_ss(char, *_P(nom, 0.20, 0.56), int(nom.w * 0.44), int(nom.h * 0.54), shield)
 
     char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
 
@@ -245,28 +243,39 @@ def build_knight(char, nom, fidx):
         pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.58)), int(2.6 * s))
         pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
     _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), breast)
+    # shield on the FRONT of the chest (front-right chest pixels), in front
+    _blit_ss(char, *_P(nom, 0.56, 0.63), int(nom.w * 0.34), int(nom.h * 0.42), shield)
 
-    # detailed spaulder on the near (right) wing: shoulder cop + layered lames
+    # SCALED (lamellar) armour over the near (right) wing/shoulder — rows of
+    # overlapping metal scales inside a brass-trimmed rounded pauldron.
     def pauldron(big, s):
         w, h = big.get_size()
-        def lame(yy, hh):
-            rx, ry, rw, rh = int(3 * s), int(h * yy), int(w - 6 * s), int(h * hh)
-            pygame.draw.ellipse(big, OL, (rx, ry, rw, rh))
-            pygame.draw.ellipse(big, D, (rx + int(1.5 * s), ry + int(1.5 * s), rw - int(3 * s), rh - int(2.5 * s)))
-            pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(2.5 * s), rw - int(6 * s), rh - int(4.5 * s)))
-            pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(1.5 * s), rw - int(6 * s), rh), math.radians(196), math.radians(344), max(1, int(1.3 * s)))
-            pygame.draw.circle(big, BRASS, (rx + int(5 * s), int(ry + rh * 0.42)), max(1, int(1.2 * s)))
-            pygame.draw.circle(big, BRASS, (rx + rw - int(5 * s), int(ry + rh * 0.42)), max(1, int(1.2 * s)))
-        lame(0.54, 0.42)
-        lame(0.34, 0.42)
-        # shoulder cop (top dome) with ridge + finial
-        pygame.draw.ellipse(big, OL, (int(5 * s), int(2 * s), int(w - 10 * s), int(h * 0.52)))
-        pygame.draw.ellipse(big, D, (int(7 * s), int(3.5 * s), int(w - 14 * s), int(h * 0.46)))
-        pygame.draw.ellipse(big, MID, (int(9 * s), int(5 * s), int(w - 18 * s), int(h * 0.40)))
-        pygame.draw.ellipse(big, HI, (int(11 * s), int(5 * s), int(w * 0.36), int(h * 0.17)))
-        pygame.draw.line(big, (58, 64, 80), (int(w * 0.5), int(4 * s)), (int(w * 0.5), int(h * 0.4)), max(1, int(1.2 * s)))
-        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.14)), max(1, int(1.7 * s)))
-        pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.14) - int(s)), max(1, int(0.8 * s)))
+        SCALE = (152, 162, 184); SC_HI = (226, 234, 248); SC_D = (78, 86, 104); EDGE = (32, 36, 48)
+        scs = 4.4 * s
+        tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+        rows = int(h / (scs * 1.1)) + 2
+        for row in range(rows):
+            y = int(scs + row * scs * 1.1)
+            off = int(scs) if row % 2 else 0
+            x = int(scs) + off
+            while x < w + scs:
+                pygame.draw.circle(tmp, EDGE, (x, y), int(scs + 0.6 * s))
+                pygame.draw.circle(tmp, SC_D, (x, y), int(scs))
+                pygame.draw.circle(tmp, SCALE, (x, int(y - 0.7 * s)), int(scs * 0.82))
+                pygame.draw.circle(tmp, SC_HI, (int(x - 1.1 * s), int(y - 1.7 * s)), max(1, int(scs * 0.34)))
+                x += int(scs * 2)
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(mask, (255, 255, 255, 255), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)))
+        tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(tmp, (0, 0))
+        # brass rim + rivets + a top sheen arc
+        pygame.draw.ellipse(big, BRASS, (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)), max(2, int(2 * s)))
+        pygame.draw.arc(big, BRASS_HI, (int(3 * s), int(2 * s), int(w - 6 * s), int(h - 4 * s)), math.radians(200), math.radians(340), max(1, int(s)))
+        cxg, cyg = w / 2, h / 2
+        for ang in range(0, 360, 60):
+            rx = int(cxg + (cxg - int(3 * s)) * math.cos(math.radians(ang)))
+            ry = int(cyg + (cyg - int(3 * s)) * math.sin(math.radians(ang)))
+            pygame.draw.circle(big, BRASS, (rx, ry), max(1, int(1.2 * s)))
     _blit_ss(char, *_P(nom, 0.45, 0.46), int(nom.w * 0.42), int(nom.h * 0.34), pauldron, scale=6)
 
     # slick, detailed armet helm
