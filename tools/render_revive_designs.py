@@ -1,16 +1,14 @@
-"""Visual design-exploration round for the "survive one hit / second life"
-powerup (replacing the fire Phoenix look). EXPLORATION ONLY — never
-touches game/config.py, world.py, or the powerup effect.
+"""Visual design-exploration round for the "survive one hit" powerup
+(replacing the fire Phoenix). EXPLORATION ONLY — never touches
+game/config.py, world.py, or the powerup effect.
 
-Each candidate is a FULL re-skin of Pip: his body is recoloured to match
-the theme (luminance-preserving tint via pygame.transform.grayscale +
-tint) and then layered with detailed procedural costume (full plate
-armour, big feathered wings, ornate energy shields, etc.). Rendered on a
-clean gameplay backdrop, character enlarged so the detail reads, laid out
-side by side for picking.
+Each candidate is a full themed re-skin of Pip: body recoloured
+(luminance-preserving grayscale+tint) + a soft sheen pass for a slicker
+metallic/pearl finish, then layered procedural costume. The ANGEL wing is
+Pip's OWN wing restyled (rooted at the shoulder, swept back like a flying
+bird) — not decoration around him.
 
-Run from repo root:
-    SDL_VIDEODRIVER=dummy python -m tools.render_revive_designs
+Run:  SDL_VIDEODRIVER=dummy python -m tools.render_revive_designs
 """
 import os
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -26,21 +24,17 @@ from game.config import W, H, GROUND_Y
 from game import biome as _biome
 from game.draw import get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground
 from game import parrot
-from game.hud import HUD
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                        "docs", "screenshots", "revive_designs")
 os.makedirs(OUT_DIR, exist_ok=True)
 
-PS = 2.15                      # Pip showcase scale (so costume detail reads)
-CX, CY = 155, 300              # character centre on the frame
-_HUD = HUD()
+PS = 2.15
+CX, CY = 155, 300
 
 
-# ── backdrop (scenery + HUD, NO bird/parcel so we fully control the look) ────
+# ── backdrop ─────────────────────────────────────────────────────────────────
 def backdrop(surf):
-    class _W:  # minimal stand-in for HUD.draw_play
-        pass
     pal = _biome.palette_for_phase(0.10)
     surf.blit(get_sky_surface_biome(W, H, GROUND_Y, pal, 1), (0, 0))
     for bx, by, sc, v in ((20, 90, 0.9, 0), (220, 130, 1.0, 2), (90, 200, 0.8, 3)):
@@ -49,7 +43,7 @@ def backdrop(surf):
     draw_ground(surf, GROUND_Y, W, H, 0, pal["ground_top"], pal["ground_mid"], (60, 40, 25))
 
 
-# ── shared helpers ───────────────────────────────────────────────────────────
+# ── helpers ──────────────────────────────────────────────────────────────────
 def _ss(w, h, fn, scale=4):
     big = pygame.Surface((int(w * scale), int(h * scale)), pygame.SRCALPHA)
     fn(big, scale)
@@ -57,13 +51,10 @@ def _ss(w, h, fn, scale=4):
 
 
 def _blit_ss(surf, cx, cy, w, h, fn, scale=4):
-    img = _ss(w, h, fn, scale)
-    surf.blit(img, (int(cx - w / 2), int(cy - h / 2)))
+    surf.blit(_ss(w, h, fn, scale), (int(cx - w / 2), int(cy - h / 2)))
 
 
 def _recolor(src, mult, add=(0, 0, 0)):
-    """Luminance-preserving recolour: grayscale → multiply by `mult` →
-    optional additive lift. Keeps shading + dark sunglasses readable."""
     g = pygame.transform.grayscale(src)
     g.fill((*mult, 255), special_flags=pygame.BLEND_RGBA_MULT)
     if add != (0, 0, 0):
@@ -71,35 +62,56 @@ def _recolor(src, mult, add=(0, 0, 0)):
     return g
 
 
-def _glow(surf, cx, cy, r, color, peak_a=80, layers=6):
+def _sheen(sprite, top_col, bot_col, top_a=120, bot_a=95):
+    """Soft top highlight + bottom shadow, clipped to the sprite silhouette,
+    for a slicker rounded-metal / pearl finish."""
+    w, h = sprite.get_size()
+    amask = pygame.mask.from_surface(sprite, 40).to_surface(
+        setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.ellipse(ov, (*top_col, top_a), (int(w * 0.16), int(-h * 0.12), int(w * 0.66), int(h * 0.66)))
+    pygame.draw.ellipse(ov, (*bot_col, bot_a), (int(w * 0.10), int(h * 0.52), int(w * 0.82), int(h * 0.6)))
+    ov.blit(amask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    sprite.blit(ov, (0, 0))
+    return sprite
+
+
+def _glow(surf, cx, cy, r, color, peak_a=78, layers=7):
     g = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
     c = r + 2
     for i in range(layers, 0, -1):
         rr = int(r * i / layers)
-        a = int(peak_a * (1 - (i - 1) / layers))
+        a = int(peak_a * (1 - (i - 1) / layers) ** 1.3)
         pygame.draw.circle(g, (*color, a), (c, c), rr)
     surf.blit(g, (int(cx - c), int(cy - c)))
 
 
-def _rays(surf, cx, cy, r, color, n=12, a=70, rot=0.0):
+def _rays(surf, cx, cy, r, color, n=10, a=46, width=2):
     ray = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
     c = r + 2
     for k in range(n):
-        ang = rot + k * (math.tau / n)
-        x2 = c + math.cos(ang) * r
-        y2 = c + math.sin(ang) * r
-        pygame.draw.line(ray, (*color, a), (c, c), (int(x2), int(y2)), 3)
+        ang = k * (math.tau / n)
+        pygame.draw.line(ray, (*color, a), (c, c), (int(c + math.cos(ang) * r), int(c + math.sin(ang) * r)), width)
     surf.blit(ray, (int(cx - c), int(cy - c)))
 
 
-def _star(surf, x, y, rad, color=(255, 255, 255), a=240):
-    s = pygame.Surface((rad * 2 + 4, rad * 2 + 4), pygame.SRCALPHA)
-    c = rad + 2
-    lo, sh = rad, max(1, rad // 3)
-    pygame.draw.polygon(s, (*color, a), [(c, c - lo), (c + sh, c), (c, c + lo), (c - sh, c)])
-    pygame.draw.polygon(s, (*color, a), [(c - lo, c), (c, c - sh), (c + lo, c), (c, c + sh)])
+def _star(surf, x, y, rad, color=(255, 255, 255), a=235):
+    s = pygame.Surface((rad * 4 + 4, rad * 4 + 4), pygame.SRCALPHA)
+    c = rad * 2 + 2
+    lo, sh = rad, max(1, rad // 4)
+    pygame.draw.polygon(s, (*color, a), [(c, c - lo * 2), (c + sh, c), (c, c + lo * 2), (c - sh, c)])
+    pygame.draw.polygon(s, (*color, a), [(c - lo * 2, c), (c, c - sh), (c + lo * 2, c), (c, c + sh)])
     pygame.draw.circle(s, (255, 255, 255, a), (c, c), max(1, sh))
     surf.blit(s, (int(x - c), int(y - c)))
+
+
+def _qbez(p0, p1, p2, n=26):
+    pts = []
+    for i in range(n + 1):
+        t = i / n; u = 1 - t
+        pts.append((u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
+                    u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]))
+    return pts
 
 
 def _base_pip():
@@ -119,265 +131,249 @@ def _P(rect, fx, fy):
     return (rect.x + fx * rect.w, rect.y + fy * rect.h)
 
 
-# ── detailed feathered angel wing ────────────────────────────────────────────
-def _angel_wing(box_w, box_h, mirror):
-    """A layered feathered wing (canonical = left wing: root bottom-right,
-    feathers fanning UP-and-LEFT). Three rows — secondaries behind,
-    primaries (gold-tipped) on top, small coverts at the root — each
-    feather a rounded blade so it reads as plumage, not spikes."""
+# ── slick angel wing (canonical = swept up-and-BACK / to the left) ───────────
+def _angel_wing(box_w, box_h, mirror, bright=1.0):
     def fn(big, s):
         w, h = big.get_size()
-        rx, ry = 0.86 * w, 0.90 * h
-        WHITE = (252, 252, 255); FILL = (236, 240, 251); SH = (196, 205, 228); GOLD = (255, 224, 130)
-
-        def feather(ang_deg, L, wd, fill, edge, tip=None):
-            a = math.radians(ang_deg)
-            tx, ty = rx + math.cos(a) * L, ry + math.sin(a) * L
-            perp = a + math.pi / 2
-            ox, oy = math.cos(perp) * wd, math.sin(perp) * wd
-            b1 = (rx + ox * 0.5, ry + oy * 0.5); b2 = (rx - ox * 0.5, ry - oy * 0.5)
-            mx, my = rx + math.cos(a) * L * 0.58, ry + math.sin(a) * L * 0.58
-            m1 = (mx + ox * 0.5, my + oy * 0.5); m2 = (mx - ox * 0.5, my - oy * 0.5)
-            pygame.draw.polygon(big, edge, [b1, m1, (tx, ty), m2, b2])
-            pygame.draw.circle(big, edge, (int(tx), int(ty)), max(1, int(wd * 0.55)))
-            pygame.draw.polygon(big, fill, [b1, m1, (tx, ty), m2, b2])
-            pygame.draw.circle(big, fill, (int(tx), int(ty)), max(1, int(wd * 0.42)))
-            if tip:
-                pygame.draw.circle(big, tip, (int(tx), int(ty)), max(1, int(wd * 0.24)))
-
-        # Feathers arc around "straight out to the side" (≈180°), from
-        # up-and-out down to down-and-out, so it reads as one side wing.
-        n = 7                                   # secondaries (behind)
-        for i in range(n):
-            t = i / (n - 1)
-            feather(150 + t * 70, h * 0.58 * (0.7 + 0.3 * math.sin(math.pi * t)), h * 0.115, FILL, SH)
-        n = 8                                   # primaries (front, longest, gold tips)
-        for i in range(n):
-            t = i / (n - 1)
-            feather(142 + t * 82, h * 0.84 * (0.6 + 0.4 * math.sin(math.pi * t)), h * 0.125, WHITE, SH, GOLD)
-        n = 5                                   # coverts (small, near the root)
-        for i in range(n):
-            t = i / (n - 1)
-            feather(162 + t * 54, h * 0.32, h * 0.10, WHITE, SH)
-    img = _ss(box_w, box_h, fn, 4)
+        def C(c):
+            return tuple(min(255, int(v * (0.7 + 0.3 * bright))) for v in c)
+        PEARL = C((251, 252, 255)); BODY = C((233, 238, 250)); SH = C((196, 207, 232))
+        DEEP = C((168, 180, 212)); GOLD = C((240, 210, 140))
+        root = (0.90 * w, 0.92 * h); ctrlL = (0.30 * w, 0.12 * h); tip = (0.07 * w, 0.10 * h); ctrlT = (0.66 * w, 1.00 * h)
+        lead = _qbez(root, ctrlL, tip, 30); trail = _qbez(tip, ctrlT, root, 30)
+        shape = lead + trail
+        pygame.draw.polygon(big, DEEP, shape)                                   # underside
+        pygame.draw.polygon(big, BODY, [(x * 0.95 + 0.03 * w, y * 0.95 + 0.015 * h) for (x, y) in shape])
+        # primary feathers along the trailing/outer edge (clean rounded blades)
+        for k in range(6):
+            f = k / 5
+            bx = lead[int(8 + f * 16)][0]; by = lead[int(8 + f * 16)][1]      # base walks down the leading edge
+            a = math.radians(150 - f * 18)                                     # fan toward trailing
+            L = h * (0.62 - 0.30 * f)
+            tx, ty = bx + math.cos(a) * L, by + math.sin(a) * L
+            perp = a + math.pi / 2; wd = h * (0.085 - 0.02 * f)
+            pts = [(bx + math.cos(perp) * wd, by + math.sin(perp) * wd), (tx, ty),
+                   (bx - math.cos(perp) * wd, by - math.sin(perp) * wd)]
+            pygame.draw.polygon(big, SH, pts)
+            pygame.draw.polygon(big, PEARL, [(bx + math.cos(perp) * wd * 0.7, by + math.sin(perp) * wd * 0.7),
+                                             (tx, ty), (bx, by)])
+            pygame.draw.circle(big, PEARL, (int(tx), int(ty)), max(1, int(wd * 0.7)))
+            if k < 3:
+                pygame.draw.line(big, GOLD, (int((bx + tx) / 2), int((by + ty) / 2)), (int(tx), int(ty)), max(1, int(1.1 * s)))
+        # crisp leading-edge highlight + thin gold trim
+        pygame.draw.lines(big, PEARL, False, lead, max(2, int(2.6 * s)))
+        pygame.draw.lines(big, GOLD, False, lead[:18], max(1, int(1.3 * s)))
+    img = _ss(box_w, box_h, fn, 5)
     if mirror:
         img = pygame.transform.flip(img, True, False)
     return img
 
 
-# ── candidate builders: each draws onto `surf`, returns nothing ──────────────
+# ── candidate: GUARDIAN ANGEL ────────────────────────────────────────────────
 def build_angel(surf):
-    rect = _rect_for(_scaled(_base_pip()))
-    # heavenly backlight
-    _glow(surf, CX, CY - 6, 96, (255, 250, 220), peak_a=70, layers=7)
-    _rays(surf, CX, CY - 6, 86, (255, 245, 200), n=16, a=42)
-    # big feathered wings behind body, rooted at the shoulders. Canonical
-    # wing sweeps up-LEFT (= left wing); mirror it for the right wing.
-    ww, wh = int(rect.w * 0.95), int(rect.h * 1.05)
-    lw = _angel_wing(ww, wh, mirror=False)              # Pip's left  (screen left)
-    rw = _angel_wing(ww, wh, mirror=True)               # Pip's right (screen right)
-    la = _P(rect, 0.42, 0.56)
-    surf.blit(lw, (int(la[0] - 0.86 * ww), int(la[1] - 0.90 * wh)))
-    ra = _P(rect, 0.58, 0.56)
-    surf.blit(rw, (int(ra[0] - 0.14 * ww), int(ra[1] - 0.90 * wh)))
-    # ivory + soft-gold recolour of Pip
-    pip = _recolor(_scaled(_base_pip()), (255, 248, 236), add=(70, 64, 58))
+    base = _scaled(_base_pip())
+    rect = _rect_for(base)
+    _glow(surf, CX, CY - 4, 92, (255, 250, 224), peak_a=66, layers=8)
+    _rays(surf, CX, CY - 4, 84, (255, 246, 206), n=14, a=30, width=2)
+    # FAR wing — only its tip shows above/behind the back (depth)
+    fw, fh = int(rect.w * 0.82), int(rect.h * 0.92)
+    far = _angel_wing(fw, fh, mirror=False, bright=0.72)
+    fa = _P(rect, 0.60, 0.42)
+    surf.blit(far, (int(fa[0] - 0.86 * fw), int(fa[1] - 0.88 * fh)))
+    # pearl body + sheen
+    pip = _recolor(base, (255, 250, 246), add=(60, 58, 62))
+    _sheen(pip, (255, 255, 255), (196, 206, 230), top_a=130, bot_a=90)
     surf.blit(pip, rect.topleft)
-    # golden sash across the chest
-    def sash(big, s):
-        w, h = big.get_size()
-        pygame.draw.polygon(big, (235, 195, 90),
-                            [(0, int(h * 0.2)), (w, int(h * 0.55)), (w, int(h * 0.78)), (0, int(h * 0.43))])
-        pygame.draw.line(big, (255, 235, 160), (0, int(h * 0.32)), (w, int(h * 0.66)), int(2 * s))
-    _blit_ss(surf, *_P(rect, 0.5, 0.62), int(rect.w * 0.62), int(rect.h * 0.34), sash)
-    # halo ring above head
+    # NEAR wing — Pip's OWN wing, rooted at the shoulder, swept up-and-back
+    nw, nh = int(rect.w * 1.02), int(rect.h * 1.12)
+    near = _angel_wing(nw, nh, mirror=False, bright=1.0)
+    na = _P(rect, 0.50, 0.50)
+    surf.blit(near, (int(na[0] - 0.86 * nw), int(na[1] - 0.88 * nh)))
+    # slim elegant halo
     def halo(big, s):
         w, h = big.get_size()
-        pygame.draw.ellipse(big, (255, 240, 160, 80), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)))
-        pygame.draw.ellipse(big, (255, 210, 80), (int(3 * s), int(3 * s), int(w - 6 * s), int(h - 6 * s)), int(3 * s))
-        pygame.draw.ellipse(big, (255, 252, 220), (int(5 * s), int(4 * s), int(w - 10 * s), int(h - 8 * s)), max(1, int(s)))
-    hx, hy = _P(rect, 0.72, 0.06)
-    _glow(surf, hx, hy, 26, (255, 235, 150), peak_a=70, layers=4)
-    _blit_ss(surf, hx, hy, int(rect.w * 0.5), int(rect.h * 0.2), halo)
-    for (fx, fy, r) in ((0.2, 0.2, 5), (0.9, 0.5, 4), (0.15, 0.7, 4), (0.85, 0.85, 5), (0.5, 0.05, 4)):
-        _star(surf, *_P(rect, fx, fy), r, (255, 248, 210))
+        pygame.draw.ellipse(big, (255, 238, 158, 70), (int(1 * s), int(1 * s), int(w - 2 * s), int(h - 2 * s)))
+        pygame.draw.ellipse(big, (255, 214, 96), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)), max(2, int(2.4 * s)))
+        pygame.draw.ellipse(big, (255, 252, 224), (int(4 * s), int(3 * s), int(w - 8 * s), int(h - 6 * s)), max(1, int(s)))
+    hx, hy = _P(rect, 0.74, 0.05)
+    _glow(surf, hx, hy, 22, (255, 232, 150), peak_a=64, layers=4)
+    _blit_ss(surf, hx, hy, int(rect.w * 0.46), int(rect.h * 0.17), halo)
+    for (fx, fy, r) in ((0.92, 0.42, 3), (0.16, 0.7, 3), (0.55, 0.04, 2)):
+        _star(surf, *_P(rect, fx, fy), r, (255, 248, 214))
 
 
+# ── candidate: KNIGHT (slick gunmetal plate) ─────────────────────────────────
 def build_knight(surf):
     base = _scaled(_base_pip())
     rect = _rect_for(base)
-    STEEL_OL = (40, 44, 56); STEEL_D = (96, 104, 122); STEEL = (158, 166, 184)
-    STEEL_HI = (224, 230, 244); BRASS = (210, 170, 80); HERALD = (176, 52, 50)
+    OL = (26, 30, 40); D = (72, 80, 98); MID = (140, 150, 172); HI = (236, 242, 254)
+    BRASS = (206, 172, 96); CRIM = (150, 42, 46); CREAM = (236, 230, 214)
 
-    # 1) kite shield BEHIND Pip, peeking out on the tail (left) side
+    def plate(big, s, rx, ry, rw, rh, edge_hi=True):
+        pygame.draw.ellipse(big, OL, (rx, ry, rw, rh))
+        pygame.draw.ellipse(big, D, (rx + int(1.5 * s), ry + int(1.5 * s), rw - int(3 * s), rh - int(3 * s)))
+        pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(3 * s), rw - int(6 * s), rh - int(6 * s)))
+        if edge_hi:
+            pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)),
+                            math.radians(202), math.radians(338), max(1, int(1.6 * s)))
+
+    # shield BEHIND (beveled rim, clean heraldry)
     def shield(big, s):
         w, h = big.get_size(); cxg = w // 2
         out = [(cxg, int(2 * s)), (int(w - 3 * s), int(h * 0.30)), (cxg, int(h - 2 * s)), (int(3 * s), int(h * 0.30))]
-        pygame.draw.polygon(big, STEEL_OL, out)
-        pygame.draw.polygon(big, STEEL, [(cxg, int(5 * s)), (int(w - 6 * s), int(h * 0.31)), (cxg, int(h - 5 * s)), (int(6 * s), int(h * 0.31))])
-        pygame.draw.polygon(big, HERALD, [(cxg, int(9 * s)), (int(w - 9 * s), int(h * 0.33)), (cxg, int(h - 9 * s)), (int(9 * s), int(h * 0.33))])
-        pygame.draw.line(big, (235, 228, 210), (cxg, int(11 * s)), (cxg, int(h - 11 * s)), int(3 * s))
-        pygame.draw.line(big, (235, 228, 210), (int(11 * s), int(h * 0.40)), (int(w - 11 * s), int(h * 0.40)), int(3 * s))
-        pygame.draw.circle(big, STEEL_HI, (cxg, int(h * 0.46)), int(5 * s))
-        pygame.draw.circle(big, BRASS, (cxg, int(h * 0.46)), int(3 * s))
-        for (rx, ry) in ((0.5, 0.16), (0.2, 0.34), (0.8, 0.34), (0.5, 0.84)):
-            pygame.draw.circle(big, BRASS, (int(w * rx), int(h * ry)), int(1.5 * s))
-    sw_, sh_ = int(rect.w * 0.60), int(rect.h * 0.88)
-    surf.blit(_ss(sw_, sh_, shield), (int(_P(rect, 0.14, 0.54)[0] - sw_ * 0.5), int(_P(rect, 0.14, 0.54)[1] - sh_ * 0.5)))
+        pygame.draw.polygon(big, OL, out)
+        pygame.draw.polygon(big, MID, [(cxg, int(5 * s)), (int(w - 6 * s), int(h * 0.31)), (cxg, int(h - 5 * s)), (int(6 * s), int(h * 0.31))])
+        pygame.draw.polygon(big, HI, [(cxg, int(5 * s)), (int(w - 6 * s), int(h * 0.31)), (cxg, int(h * 0.5)), (int(6 * s), int(h * 0.31))])  # top bevel sheen
+        pygame.draw.polygon(big, CRIM, [(cxg, int(9 * s)), (int(w - 9 * s), int(h * 0.33)), (cxg, int(h - 9 * s)), (int(9 * s), int(h * 0.33))])
+        pygame.draw.line(big, CREAM, (cxg, int(11 * s)), (cxg, int(h - 11 * s)), max(2, int(2.4 * s)))
+        pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.40)), (int(w - 11 * s), int(h * 0.40)), max(2, int(2.4 * s)))
+        pygame.draw.circle(big, HI, (cxg, int(h * 0.46)), int(4.5 * s))
+        pygame.draw.circle(big, BRASS, (cxg, int(h * 0.46)), int(2.6 * s))
+    sw_, sh_ = int(rect.w * 0.58), int(rect.h * 0.86)
+    surf.blit(_ss(sw_, sh_, shield), (int(_P(rect, 0.15, 0.55)[0] - sw_ * 0.5), int(_P(rect, 0.15, 0.55)[1] - sh_ * 0.5)))
 
-    # 2) steel-recoloured Pip body (the "armoured" base; stays visible)
-    surf.blit(_recolor(base, (150, 160, 182), add=(8, 10, 16)), rect.topleft)
+    # slick gunmetal body
+    body = _recolor(base, (140, 150, 174), add=(6, 9, 16))
+    _sheen(body, (236, 242, 254), (40, 46, 62), top_a=120, bot_a=110)
+    surf.blit(body, rect.topleft)
 
-    # 3) curved breastplate fitted to the chest (flatter, not a stack)
+    # breastplate (smooth gradient, central ridge, brass boss)
     def breast(big, s):
         w, h = big.get_size()
-        pygame.draw.ellipse(big, STEEL_OL, (int(1 * s), int(2 * s), int(w - 2 * s), int(h - 3 * s)))
-        pygame.draw.ellipse(big, STEEL, (int(3 * s), int(3 * s), int(w - 6 * s), int(h - 6 * s)))
-        pygame.draw.ellipse(big, STEEL_HI, (int(6 * s), int(4 * s), int(w * 0.36), int(h * 0.34)))   # shine
-        pygame.draw.line(big, STEEL_D, (int(w * 0.5), int(4 * s)), (int(w * 0.5), int(h - 5 * s)), max(1, int(1.5 * s)))  # ridge
-        for rx in (0.26, 0.74):
-            pygame.draw.circle(big, STEEL_D, (int(w * rx), int(h * 0.3)), int(1.6 * s))
-        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.58)), int(3 * s))                     # emblem boss
-    _blit_ss(surf, *_P(rect, 0.45, 0.62), int(rect.w * 0.52), int(rect.h * 0.30), breast)
+        plate(big, s, int(1 * s), int(2 * s), int(w - 2 * s), int(h - 3 * s))
+        pygame.draw.line(big, HI, (int(w * 0.5), int(5 * s)), (int(w * 0.5), int(h - 6 * s)), max(1, int(1.3 * s)))
+        pygame.draw.line(big, D, (int(w * 0.5) + int(1.3 * s), int(5 * s)), (int(w * 0.5) + int(1.3 * s), int(h - 6 * s)), max(1, int(s)))
+        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.58)), int(2.6 * s))
+        pygame.draw.circle(big, (255, 235, 170), (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
+    _blit_ss(surf, *_P(rect, 0.45, 0.62), int(rect.w * 0.5), int(rect.h * 0.30), breast)
 
-    # 4) pauldron on the shoulder (layered lames)
+    # pauldron
     def pauldron(big, s):
         w, h = big.get_size()
-        for i, col in enumerate((STEEL_OL, STEEL_D, STEEL)):
-            o = i * 2 * s
-            pygame.draw.ellipse(big, col, (int(2 * s + o), int(2 * s + o), int(w - 4 * s - 2 * o), int(h * 0.8 - 2 * o)))
-        pygame.draw.arc(big, STEEL_HI, (int(4 * s), int(3 * s), int(w - 8 * s), int(h * 0.7)), math.radians(200), math.radians(340), int(2 * s))
-    _blit_ss(surf, *_P(rect, 0.42, 0.45), int(rect.w * 0.34), int(rect.h * 0.24), pauldron)
+        plate(big, s, int(2 * s), int(2 * s), int(w - 4 * s), int(h * 0.86))
+    _blit_ss(surf, *_P(rect, 0.42, 0.45), int(rect.w * 0.32), int(rect.h * 0.22), pauldron)
 
-    # 5) great helm fitted over the head (head ≈ (0.74,0.22))
+    # sleek knight helm: light steel dome, clear visor slit, red plume
     def helm(big, s):
         w, h = big.get_size(); cxg = w // 2
-        pygame.draw.ellipse(big, STEEL_OL, (int(2 * s), int(3 * s), int(w - 4 * s), int(h * 0.86)))
-        pygame.draw.ellipse(big, STEEL, (int(4 * s), int(5 * s), int(w - 8 * s), int(h * 0.82 - 2 * s)))
-        pygame.draw.ellipse(big, STEEL_HI, (int(7 * s), int(7 * s), int(w * 0.40), int(h * 0.30)))
-        vy = int(h * 0.50)
-        pygame.draw.rect(big, STEEL_D, (int(5 * s), vy, int(w - 10 * s), int(h * 0.26)))
-        pygame.draw.rect(big, (10, 10, 14), (int(7 * s), vy + int(3 * s), int(w - 14 * s), int(4 * s)))
-        for bx in range(4):
-            x = int(11 * s + bx * (w - 22 * s) / 3)
-            pygame.draw.line(big, STEEL_HI, (x, vy), (x, vy + int(h * 0.26)), max(1, int(s)))
-        pygame.draw.rect(big, BRASS, (int(cxg - 2 * s), int(0), int(4 * s), int(5 * s)))               # crest base
-        for k, col in enumerate(((130, 30, 38), HERALD, (224, 96, 86))):
-            sp = (k - 1) * 2 * s
-            pygame.draw.polygon(big, col, [(cxg - int(5 * s) + sp, int(2 * s)), (cxg + int(5 * s) + sp, int(2 * s)), (cxg + sp, int(-12 * s))])
-    _blit_ss(surf, *_P(rect, 0.74, 0.20), int(rect.w * 0.48), int(rect.h * 0.50), helm)
+        pygame.draw.ellipse(big, OL, (int(2 * s), int(2 * s), int(w - 4 * s), int(h * 0.9)))             # thin outline
+        pygame.draw.ellipse(big, MID, (int(4 * s), int(4 * s), int(w - 8 * s), int(h * 0.86 - 2 * s)))   # steel dome (dominant)
+        pygame.draw.arc(big, D, (int(5 * s), int(7 * s), int(w - 10 * s), int(h * 0.78)), math.radians(18), math.radians(162), max(2, int(2.2 * s)))  # lower shade
+        pygame.draw.ellipse(big, HI, (int(7 * s), int(6 * s), int(w * 0.40), int(h * 0.32)))             # specular
+        vy = int(h * 0.49)
+        pygame.draw.rect(big, OL, (int(6 * s), vy, int(w - 12 * s), int(h * 0.17)), border_radius=int(2 * s))
+        pygame.draw.rect(big, (8, 9, 13), (int(8 * s), vy + int(2.5 * s), int(w - 16 * s), int(h * 0.08)))
+        for bx in range(3):
+            x = int(13 * s + bx * (w - 26 * s) / 2)
+            pygame.draw.line(big, MID, (x, vy + int(2 * s)), (x, vy + int(h * 0.15)), max(1, int(1.2 * s)))
+        pygame.draw.line(big, HI, (int(7 * s), vy - int(1.5 * s)), (int(w - 7 * s), vy - int(1.5 * s)), max(1, int(s)))  # brow ridge
+        # crest base + layered red plume
+        pygame.draw.rect(big, BRASS, (int(cxg - 2 * s), int(-1 * s), int(4 * s), int(7 * s)))
+        for k, col in enumerate(((120, 30, 40), CRIM, (222, 98, 90))):
+            sp = (k - 1) * int(2 * s)
+            pygame.draw.polygon(big, col, [(cxg - int(5 * s) + sp, int(3 * s)), (cxg + int(5 * s) + sp, int(3 * s)), (cxg + sp, int(-15 * s))])
+    _blit_ss(surf, *_P(rect, 0.74, 0.17), int(rect.w * 0.46), int(rect.h * 0.54), helm)
 
-    # 6) longsword held to the right, angled
+    # slim elegant longsword
     def sword(big, s):
         w, h = big.get_size()
-        pygame.draw.line(big, STEEL_HI, (int(w * 0.3), int(h * 0.95)), (int(w * 0.82), int(h * 0.08)), int(3 * s))
-        pygame.draw.line(big, STEEL, (int(w * 0.3), int(h * 0.95)), (int(w * 0.82), int(h * 0.08)), int(1.4 * s))
-        pygame.draw.line(big, BRASS, (int(w * 0.16), int(h * 0.84)), (int(w * 0.44), int(h * 1.0)), int(3 * s))   # crossguard
-        pygame.draw.circle(big, BRASS, (int(w * 0.24), int(h * 0.94)), int(2.4 * s))                              # pommel
-    _blit_ss(surf, *_P(rect, 1.02, 0.5), int(rect.w * 0.46), int(rect.h * 0.85), sword)
+        pygame.draw.line(big, OL, (int(w * 0.3), int(h * 0.95)), (int(w * 0.84), int(h * 0.06)), max(2, int(3 * s)))
+        pygame.draw.line(big, MID, (int(w * 0.3), int(h * 0.95)), (int(w * 0.84), int(h * 0.06)), max(1, int(1.8 * s)))
+        pygame.draw.line(big, HI, (int(w * 0.31), int(h * 0.93)), (int(w * 0.84), int(h * 0.07)), max(1, int(s)))  # edge glint
+        pygame.draw.line(big, BRASS, (int(w * 0.16), int(h * 0.84)), (int(w * 0.46), int(h * 1.0)), max(2, int(3 * s)))
+        pygame.draw.circle(big, BRASS, (int(w * 0.23), int(h * 0.94)), int(2.2 * s))
+    _blit_ss(surf, *_P(rect, 1.02, 0.5), int(rect.w * 0.46), int(rect.h * 0.86), sword)
 
 
+# ── candidate: FORCE-FIELD BUBBLE (unchanged — already reads well) ───────────
 def build_bubble(surf):
     base = _scaled(_base_pip())
     rect = _rect_for(base)
     R = int(rect.w * 0.78)
-    # back fill + back rim BEHIND Pip
     back = pygame.Surface((R * 2 + 8, R * 2 + 8), pygame.SRCALPHA); c = R + 4
     pygame.draw.circle(back, (110, 195, 255, 50), (c, c), R)
     pygame.draw.circle(back, (150, 220, 255, 80), (c, c), R, 3)
     surf.blit(back, (CX - c, CY - c))
-    # faint cool tint on Pip
-    surf.blit(_recolor(base, (210, 228, 248), add=(24, 24, 30)).convert_alpha() if False else base, rect.topleft)
-    # front shell: layered rims + specular + iridescence + honeycomb energy
+    surf.blit(base, rect.topleft)
     front = pygame.Surface((R * 2 + 8, R * 2 + 8), pygame.SRCALPHA)
     pygame.draw.circle(front, (200, 240, 255, 160), (c, c), R, 3)
     pygame.draw.circle(front, (255, 255, 255, 90), (c, c), R - 4, 1)
     rr = pygame.Rect(c - R, c - R, R * 2, R * 2)
-    pygame.draw.arc(front, (255, 255, 255, 210), rr, math.radians(60), math.radians(150), 5)   # top specular
+    pygame.draw.arc(front, (255, 255, 255, 210), rr, math.radians(60), math.radians(150), 5)
     pygame.draw.arc(front, (255, 255, 255, 110), rr.inflate(-10, -10), math.radians(55), math.radians(120), 3)
     pygame.draw.arc(front, (255, 180, 255, 90), rr.inflate(-6, -6), math.radians(10), math.radians(80), 3)
     pygame.draw.arc(front, (160, 255, 220, 90), rr.inflate(-8, -8), math.radians(200), math.radians(280), 3)
-    pygame.draw.arc(front, (255, 245, 160, 80), rr, math.radians(250), math.radians(310), 4)    # bottom caustic
-    # faint hex energy cells
-    for k in range(8):
-        ang = k * math.tau / 8
-        hx = c + math.cos(ang) * R * 0.62; hy = c + math.sin(ang) * R * 0.62
-        pts = [(hx + math.cos(ang2) * 6, hy + math.sin(ang2) * 6) for ang2 in [math.radians(60 * j - 30) for j in range(6)]]
-        pygame.draw.polygon(front, (180, 230, 255, 40), pts, 1)
+    pygame.draw.arc(front, (255, 245, 160, 80), rr, math.radians(250), math.radians(310), 4)
     surf.blit(front, (CX - c, CY - c))
     for ang in (50, 130, 215, 300, 350):
-        _star(surf, CX + math.cos(math.radians(ang)) * R, CY + math.sin(math.radians(ang)) * R, 5, (235, 248, 255))
+        _star(surf, CX + math.cos(math.radians(ang)) * R, CY + math.sin(math.radians(ang)) * R, 4, (235, 248, 255))
 
 
+# ── candidate: GOLDEN GUARDIAN (slick polished gold) ─────────────────────────
 def build_gold(surf):
     base = _scaled(_base_pip())
     rect = _rect_for(base)
-    _glow(surf, CX, CY, 88, (255, 220, 110), peak_a=80, layers=7)
-    _rays(surf, CX, CY, 92, (255, 235, 150), n=14, a=46)
-    gold = _recolor(base, (240, 188, 70), add=(34, 22, 0))
-    # engraved highlight/shadow
-    sh = pygame.Surface(gold.get_size(), pygame.SRCALPHA)
+    _glow(surf, CX, CY, 86, (255, 222, 120), peak_a=72, layers=8)
+    _rays(surf, CX, CY, 96, (255, 236, 158), n=12, a=34, width=2)
+    gold = _recolor(base, (236, 186, 74), add=(30, 18, 0))
+    _sheen(gold, (255, 246, 196), (150, 104, 26), top_a=140, bot_a=120)
+    # fine filigree on the chest
     iw, ih = gold.get_size()
-    pygame.draw.ellipse(sh, (255, 245, 180, 130), (int(iw * 0.5), int(ih * 0.16), int(iw * 0.22), int(ih * 0.15)))
-    pygame.draw.ellipse(sh, (255, 240, 160, 90), (int(iw * 0.32), int(ih * 0.46), int(iw * 0.26), int(ih * 0.16)))
-    pygame.draw.ellipse(sh, (150, 105, 25, 90), (int(iw * 0.30), int(ih * 0.66), int(iw * 0.40), int(ih * 0.18)))
-    gold.blit(sh, (0, 0))
+    pygame.draw.arc(gold, (255, 240, 180), (int(iw * 0.3), int(ih * 0.5), int(iw * 0.3), int(ih * 0.22)), math.radians(200), math.radians(340), 1)
     surf.blit(gold, rect.topleft)
-    # chest gem + filigree
+    # faceted emerald chest gem
     def gem(big, s):
         w, h = big.get_size(); cxg, cyg = w // 2, h // 2
-        pygame.draw.polygon(big, (40, 120, 90), [(cxg, int(2 * s)), (int(w - 2 * s), cyg), (cxg, int(h - 2 * s)), (int(2 * s), cyg)])
-        pygame.draw.polygon(big, (90, 220, 170), [(cxg, int(5 * s)), (int(w - 5 * s), cyg), (cxg, int(h - 5 * s)), (int(5 * s), cyg)])
-        pygame.draw.circle(big, (235, 255, 245), (cxg - s, cyg - s), int(1.6 * s))
+        pygame.draw.polygon(big, (20, 90, 70), [(cxg, int(1 * s)), (int(w - 1 * s), cyg), (cxg, int(h - 1 * s)), (int(1 * s), cyg)])
+        pygame.draw.polygon(big, (70, 200, 150), [(cxg, int(4 * s)), (int(w - 4 * s), cyg), (cxg, int(h - 4 * s)), (int(4 * s), cyg)])
+        pygame.draw.polygon(big, (170, 245, 215), [(cxg, int(4 * s)), (int(w - 4 * s), cyg), (cxg, cyg)])    # facet
+        pygame.draw.circle(big, (240, 255, 248), (int(cxg - 1.5 * s), int(cyg - 1.5 * s)), max(1, int(1.4 * s)))
     _blit_ss(surf, *_P(rect, 0.46, 0.6), int(rect.w * 0.2), int(rect.h * 0.2), gem)
-    for (fx, fy, r) in ((0.2, 0.15, 6), (0.85, 0.3, 5), (0.1, 0.55, 4), (0.9, 0.7, 6), (0.5, 0.0, 5), (0.7, 0.92, 4)):
-        _star(surf, *_P(rect, fx, fy), r, (255, 250, 210))
+    # a few elegant, varied sparkles (not clutter)
+    for (fx, fy, r) in ((0.18, 0.16, 5), (0.9, 0.34, 4), (0.62, 0.04, 3), (0.86, 0.76, 5)):
+        _star(surf, *_P(rect, fx, fy), r, (255, 250, 214))
 
 
+# ── candidate: AEGIS RUNE SHIELD (unchanged) ─────────────────────────────────
 def build_aegis(surf):
     base = _scaled(_base_pip())
     rect = _rect_for(base)
     _glow(surf, CX, CY, 84, (80, 175, 255), peak_a=80, layers=6)
     surf.blit(_recolor(base, (200, 224, 248), add=(18, 22, 34)), rect.topleft)
-    # large layered hex shield in front
     hx, hy = _P(rect, 0.58, 0.52); R = int(rect.w * 0.62)
 
     def hexa(big, s):
         w, h = big.get_size(); cc = (w // 2, h // 2)
-        def hexpts(rad):
+        def hp(rad):
             return [(cc[0] + rad * s * math.cos(math.radians(60 * k - 30)),
                      cc[1] + rad * s * math.sin(math.radians(60 * k - 30))) for k in range(6)]
         fill = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.polygon(fill, (70, 165, 255, 70), hexpts(R - 1)); big.blit(fill, (0, 0))
-        pygame.draw.polygon(big, (150, 220, 255, 235), hexpts(R - 1), int(2.5 * s))
-        pygame.draw.polygon(big, (200, 240, 255, 170), hexpts(R - 6), max(1, int(s)))
-        pygame.draw.polygon(big, (120, 200, 255, 120), hexpts(R - 12), max(1, int(s)))
-        # honeycomb cells
+        pygame.draw.polygon(fill, (70, 165, 255, 70), hp(R - 1)); big.blit(fill, (0, 0))
+        pygame.draw.polygon(big, (150, 220, 255, 235), hp(R - 1), int(2.5 * s))
+        pygame.draw.polygon(big, (200, 240, 255, 170), hp(R - 6), max(1, int(s)))
+        pygame.draw.polygon(big, (120, 200, 255, 120), hp(R - 12), max(1, int(s)))
         for ring in (R * 0.34, R * 0.62):
             for k in range(6):
                 ang = math.radians(60 * k)
                 ccx = cc[0] + math.cos(ang) * ring * s; ccy = cc[1] + math.sin(ang) * ring * s
-                cell = [(ccx + 4 * s * math.cos(math.radians(60 * j - 30)),
-                         ccy + 4 * s * math.sin(math.radians(60 * j - 30))) for j in range(6)]
+                cell = [(ccx + 4 * s * math.cos(math.radians(60 * j - 30)), ccy + 4 * s * math.sin(math.radians(60 * j - 30))) for j in range(6)]
                 pygame.draw.polygon(big, (170, 225, 255, 70), cell, 1)
-        # runes around centre
         rc = (225, 248, 255)
         pygame.draw.lines(big, rc, False, [(cc[0] - int(7 * s), cc[1] - int(5 * s)), (cc[0], cc[1] - int(11 * s)), (cc[0] + int(7 * s), cc[1] - int(5 * s))], max(1, int(s)))
         pygame.draw.circle(big, rc, cc, int(4 * s), max(1, int(s)))
         pygame.draw.line(big, rc, (cc[0], cc[1] + int(4 * s)), (cc[0], cc[1] + int(10 * s)), max(1, int(s)))
         pygame.draw.arc(big, rc, (cc[0] - int(9 * s), cc[1] - int(9 * s), int(18 * s), int(18 * s)), math.radians(20), math.radians(160), max(1, int(s)))
     _blit_ss(surf, hx, hy, R * 2 + 8, R * 2 + 8, hexa)
-    # corner emitter sparks
     for k in range(6):
         ang = math.radians(60 * k - 30)
         _star(surf, hx + math.cos(ang) * R, hy + math.sin(ang) * R, 4, (210, 245, 255))
 
 
 CANDIDATES = [
-    ("knight", "1  KNIGHT (full plate + shield + sword)", build_knight),
-    ("angel",  "2  GUARDIAN ANGEL (ivory + wings + halo)", build_angel),
+    ("knight", "1  KNIGHT (slick plate + shield + sword)", build_knight),
+    ("angel",  "2  GUARDIAN ANGEL (his wings = angel wings)", build_angel),
     ("bubble", "3  FORCE-FIELD BUBBLE", build_bubble),
-    ("gold",   "4  GOLDEN GUARDIAN", build_gold),
+    ("gold",   "4  GOLDEN GUARDIAN (polished)", build_gold),
     ("aegis",  "5  AEGIS RUNE SHIELD", build_aegis),
 ]
 
