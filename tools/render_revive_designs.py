@@ -147,30 +147,6 @@ def _base_body(fidx):
     return _scaled(parrot.get_parrot(fidx, 0.0))
 
 
-def _scale_mail(body, y_start=0.40):
-    """Overlay of overlapping metal SCALES covering the whole torso (below
-    `y_start`), clipped to the body silhouette — a scale-mail hauberk."""
-    bw, bh = body.get_size(); SS = 4
-    SCALE = (150, 160, 182); SC_HI = (228, 236, 250); SC_D = (74, 82, 100); EDGE = (32, 36, 48)
-    big = pygame.Surface((bw * SS, bh * SS), pygame.SRCALPHA)
-    scs = 4.6 * SS
-    y0 = int(bh * y_start * SS)
-    rows = int((bh * SS - y0) / (scs * 1.05)) + 2
-    for r in range(rows):
-        y = int(y0 + scs + r * scs * 1.05)
-        off = int(scs) if r % 2 else 0
-        x = int(scs) + off
-        while x < bw * SS + scs:
-            pygame.draw.circle(big, EDGE, (x, y), int(scs + 0.8 * SS))
-            pygame.draw.circle(big, SC_D, (x, y), int(scs))
-            pygame.draw.circle(big, SCALE, (x, int(y - 0.9 * SS)), int(scs * 0.82))
-            pygame.draw.circle(big, SC_HI, (int(x - 1.4 * SS), int(y - 2.1 * SS)), max(1, int(scs * 0.32)))
-            x += int(scs * 2)
-    sc = pygame.transform.smoothscale(big, (bw, bh))
-    sc.blit(_amask(body), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    return sc
-
-
 # ── slick angel wing ─────────────────────────────────────────────────────────
 def _angel_wing(box_w, box_h, mirror, bright=1.0):
     def fn(big, s):
@@ -258,19 +234,49 @@ def build_knight(char, nom, fidx):
         pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
         pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
 
-    # steel body + ALL-OVER scale-mail (clipped to the torso) + brass belt
-    body = _body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100)
-    body.blit(_scale_mail(body), (0, 0))
-    bw, bh = body.get_size()
-    belt = pygame.Surface((bw, bh), pygame.SRCALPHA)
-    pygame.draw.rect(belt, BRASS, (0, int(bh * 0.72), bw, int(bh * 0.075)))
-    pygame.draw.rect(belt, BRASS_HI, (0, int(bh * 0.72), bw, int(bh * 0.028)))
-    belt.blit(_amask(body), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    body.blit(belt, (0, 0))
-    char.blit(body, brect.topleft)
+    char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
 
-    # SHIELD clearly on the FRONT-RIGHT of the chest, beside the sword
-    _blit_ss(char, *_P(nom, 0.66, 0.57), int(nom.w * 0.36), int(nom.h * 0.46), shield)
+    def breast(big, s):
+        w, h = big.get_size()
+        plate(big, s, int(1 * s), int(2 * s), int(w - 2 * s), int(h - 3 * s))
+        pygame.draw.line(big, HI, (int(w * 0.5), int(5 * s)), (int(w * 0.5), int(h - 6 * s)), max(1, int(1.3 * s)))
+        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.58)), int(2.6 * s))
+        pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
+    _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), breast)
+    # shield on the FRONT of the chest (front-right chest pixels), in front
+    _blit_ss(char, *_P(nom, 0.56, 0.63), int(nom.w * 0.34), int(nom.h * 0.42), shield)
+
+    # SCALED (lamellar) armour over the near (right) wing/shoulder — rows of
+    # overlapping metal scales inside a brass-trimmed rounded pauldron.
+    def pauldron(big, s):
+        w, h = big.get_size()
+        SCALE = (152, 162, 184); SC_HI = (226, 234, 248); SC_D = (78, 86, 104); EDGE = (32, 36, 48)
+        scs = 4.4 * s
+        tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+        rows = int(h / (scs * 1.1)) + 2
+        for row in range(rows):
+            y = int(scs + row * scs * 1.1)
+            off = int(scs) if row % 2 else 0
+            x = int(scs) + off
+            while x < w + scs:
+                pygame.draw.circle(tmp, EDGE, (x, y), int(scs + 0.6 * s))
+                pygame.draw.circle(tmp, SC_D, (x, y), int(scs))
+                pygame.draw.circle(tmp, SCALE, (x, int(y - 0.7 * s)), int(scs * 0.82))
+                pygame.draw.circle(tmp, SC_HI, (int(x - 1.1 * s), int(y - 1.7 * s)), max(1, int(scs * 0.34)))
+                x += int(scs * 2)
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(mask, (255, 255, 255, 255), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)))
+        tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(tmp, (0, 0))
+        # brass rim + rivets + a top sheen arc
+        pygame.draw.ellipse(big, BRASS, (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)), max(2, int(2 * s)))
+        pygame.draw.arc(big, BRASS_HI, (int(3 * s), int(2 * s), int(w - 6 * s), int(h - 4 * s)), math.radians(200), math.radians(340), max(1, int(s)))
+        cxg, cyg = w / 2, h / 2
+        for ang in range(0, 360, 60):
+            rx = int(cxg + (cxg - int(3 * s)) * math.cos(math.radians(ang)))
+            ry = int(cyg + (cyg - int(3 * s)) * math.sin(math.radians(ang)))
+            pygame.draw.circle(big, BRASS, (rx, ry), max(1, int(1.2 * s)))
+    _blit_ss(char, *_P(nom, 0.45, 0.46), int(nom.w * 0.42), int(nom.h * 0.34), pauldron, scale=6)
 
     # slick, detailed armet helm
     def helm(big, s):
