@@ -91,7 +91,7 @@ def render_debris(scene, streams, t):
 
 
 # ── M2: fast flow-streaks (anime speed-lines zipping up) ─────────────────────
-def render_streaks(scene, streams, t):
+def render_streaks(scene, streams, t, scale=1.0):
     ph = 2 * math.pi * t / PERIOD
     n = 44
     for (x, by, h, inten) in streams:
@@ -111,7 +111,7 @@ def render_streaks(scene, streams, t):
                 pts.append((x0 + lead + curl, yy))
                 ws.append(math.sin(math.pi * u) ** 0.7)
             _swoosh(scene, pts, ws, 2.0, WINDW if i % 2 else WIND,
-                    38 * _life(p) * inten, blur=2)
+                    38 * _life(p) * inten * scale, blur=2)
 
 
 # ── M3: bend the world (windswept foliage + carried leaves) ──────────────────
@@ -175,7 +175,7 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
     _swoosh(scene, pts, ws, maxw, WINDW, alpha * _life(p), blur=blur)
 
 
-def render_steam(scene, streams, t):
+def render_steam(scene, streams, t, scale=1.0):
     cols = (-26, -15, -5, 5, 15, 26)           # many faint sub-columns
     for (x, by, h, inten) in streams:
         rise = by - 28                         # span vent → near the top
@@ -186,7 +186,7 @@ def render_steam(scene, streams, t):
                              phase=(idx * 0.6180339) % 1.0,
                              amp=6 + (idx % 3) * 5,
                              length_f=0.9 + 0.06 * (idx % 2),
-                             maxw=3.4 + 1.2 * (idx % 2), alpha=15 * inten,
+                             maxw=3.4 + 1.2 * (idx % 2), alpha=15 * inten * scale,
                              fan=(i - 1) * 4, blur=3,
                              spd=0.9 + 0.05 * (idx % 3))
 
