@@ -164,10 +164,10 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # Starts at 0 so the opening is clean: the morning-thermal window
-        # (rocks ~50s, geysers ~68s, peak ~96s, gone ~112s) only arrives
-        # after the player has felt the base game.
-        self.biome_time = 0.0
+        # This branch is a showcase build for the morning-thermal event, so the
+        # run starts a few seconds BEFORE the window (rocks ~50s): the player
+        # gets a brief clean intro, then the event ramps in almost immediately.
+        self.biome_time = 45.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
