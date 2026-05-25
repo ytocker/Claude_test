@@ -7,7 +7,7 @@ import pygame
 from game.config import W, H, FPS, TITLE, GROUND_Y
 from game.draw import (
     get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground,
-    get_tint,
+    get_scratch_surface,
     UI_RED,
 )
 from game import biome as _biome
@@ -1013,22 +1013,22 @@ class App:
         # Slow-mo: subtle violet tint overlay so the player feels the effect
         # even without looking at the HUD.
         if self.world.slowmo_timer > 0:
-            tint = get_tint(W, H, (140, 70, 210))
-            tint.set_alpha(28)
+            tint = get_scratch_surface(W, H)
+            tint.fill((140, 70, 210, 28))
             self.screen.blit(tint, (0, 0))
 
         # KFC mode: warm amber tint
         if self.world.kfc_timer > 0:
-            tint = get_tint(W, H, (210, 120, 10))
-            tint.set_alpha(20)
+            tint = get_scratch_surface(W, H)
+            tint.fill((210, 120, 10, 20))
             self.screen.blit(tint, (0, 0))
 
         # Ghost mode: cool blue-white screen tint. The ring around the bird
         # was removed — the SPECTRAL parrot palette + breathing-fade alpha
         # already carry the ghost read.
         if self.world.ghost_timer > 0:
-            tint = get_tint(W, H, (140, 180, 255))
-            tint.set_alpha(18)
+            tint = get_scratch_surface(W, H)
+            tint.fill((140, 180, 255, 18))
             self.screen.blit(tint, (0, 0))
 
         # LOTTERY reveal: top-left slot-machine cabinet shows the
@@ -1117,8 +1117,8 @@ class App:
 
         if self.world.hit_flash > 0:
             t = self.world.hit_flash / 0.35
-            overlay = get_tint(W, H, UI_RED)
-            overlay.set_alpha(int(120 * t))
+            overlay = get_scratch_surface(W, H)
+            overlay.fill((*UI_RED, int(120 * t)))
             self.screen.blit(overlay, (0, 0))
 
         if self.state == STATE_MENU:
