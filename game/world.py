@@ -312,18 +312,21 @@ class World:
                     self._fire_background_lightning(side=side)
 
     def _apply_thermal_lift(self, dt):
-        """Morning-thermal updraft. While Pip is inside an active geyser
-        column, add a continuous upward acceleration and cap the resulting
-        *upward* speed below |FLAP_V| so the rise stays controllable. The
-        cap only limits lift-driven motion — a stronger player flap is never
-        slowed. The column's lift zone ends at its top (mid-screen), so once
-        Pip rides above it the lift simply stops: the structural anti-pin."""
+        """Morning-thermal updraft. While Pip is inside a geyser column, add a
+        constant upward acceleration, capping the resulting upward speed at
+        GEYSER_LIFT_VY_CAP (below |FLAP_V| so flaps still override and the rise
+        stays rideable). Exactly ONE column's worth of lift is applied per
+        frame (break after the first match), so the force is identical for
+        every geyser — overlapping columns don't stack into a stronger grab."""
+        if self.bird.vy <= -GEYSER_LIFT_VY_CAP:
+            return
         bx, by = self.bird.x, self.bird.y
         for gy in self.geysers:
-            if gy.contains(bx, by) and self.bird.vy > -GEYSER_LIFT_VY_CAP:
-                self.bird.vy -= GEYSER_LIFT_ACCEL * gy.active_strength * dt
+            if gy.contains(bx, by):
+                self.bird.vy -= GEYSER_LIFT_ACCEL * dt
                 if self.bird.vy < -GEYSER_LIFT_VY_CAP:
                     self.bird.vy = -GEYSER_LIFT_VY_CAP
+                break
 
     def _start_storm_buildup(self):
         """Telegraph the strike: 9 escalating-tempo background bolts, the
