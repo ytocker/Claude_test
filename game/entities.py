@@ -3311,6 +3311,45 @@ class CloudPuff:
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
+class PoofGrain:
+    """A single grain of a GRANULAR poof — a small soft SQUARE (not a
+    circle) that drifts outward, slows like settling dust, and fades.
+    Many grains per burst give the poof a fine, granular texture
+    instead of a few smooth cloud circles."""
+    __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "size", "color")
+
+    def __init__(self, x, y, vx, vy, life, size, color):
+        self.x, self.y   = float(x), float(y)
+        self.vx, self.vy = vx, vy
+        self.life = self.life_max = life
+        self.size = size
+        self.color = color
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        # Ease the grains to a near-stop so the burst hangs like a
+        # cloud of fine dust rather than flying apart.
+        self.vx *= 0.88
+        self.vy *= 0.88
+        self.vy += 26 * dt           # gentle settle
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        t = max(0.0, self.life / self.life_max)      # 1→0 as it dies
+        alpha = int(225 * t)
+        if alpha <= 0:
+            return
+        # Grains grow a touch as the puff blooms, then fade in place.
+        sz = max(1, int(self.size * (1.4 - 0.4 * t)))
+        s = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        s.fill((*self.color, alpha))
+        surf.blit(s, (int(self.x - sz / 2), int(self.y - sz / 2)))
+
+
 # ── GenieShineParticle ───────────────────────────────────────────────────────
 
 
@@ -3670,15 +3709,14 @@ class GenieCharacter:
                 cx, cy, vx, vy, life, 3, 11, color))
 
     def _spawn_appear_poof(self):
-        """Materialise flourish — reuses the KFC transformation cloud
-        (World._spawn_poof) so the genie pops in with the same mature
-        puff Pip uses when he reverts from KFC mode."""
-        self.world._spawn_poof(self.x, self.y)
+        """Materialise flourish — a granular white poof (fine smoke
+        grains, not soft circles) at the spawn point."""
+        self.world._spawn_grainy_poof(self.x, self.y)
 
     def _spawn_vanish_swirl(self):
-        """Disappear poof — the same KFC transformation cloud as the
-        appear, so the genie evaporates with a clean mature puff."""
-        self.world._spawn_poof(self.x, self.y)
+        """Disappear poof — the same granular white poof as the appear,
+        so the genie evaporates into fine smoke grains."""
+        self.world._spawn_grainy_poof(self.x, self.y)
 
     # ── render ───────────────────────────────────────────────────────────
     def draw(self, surf):

@@ -60,11 +60,11 @@ def _poof_frame(spawn_fn, line1, line2):
 def main():
     left = _poof_frame(
         lambda w, x, y: w._spawn_genie_reveal_poof(x, y),
-        "Lavender reveal cloud",
+        "Lavender granular reveal",
         "shown when the 3 offers APPEAR")
     right = _poof_frame(
-        lambda w, x, y: w._spawn_poof(x, y),
-        "White KFC poof",
+        lambda w, x, y: w._spawn_grainy_poof(x, y),
+        "White granular poof",
         "genie appear/vanish + offers vanish")
 
     margin = 12

@@ -67,7 +67,7 @@ def main():
         w.bird.y = BIRD_Y; w.bird.vy = 0
         w.update(1 / 60.0)
     right = _frame(w)
-    _label(right, "Take 1 -> other 2 poof (KFC cloud)")
+    _label(right, "Take 1 -> other 2 poof (granular)")
 
     margin = 12
     sheet = pygame.Surface((W * 2 + margin * 3, H + margin * 2))

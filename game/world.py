@@ -44,6 +44,7 @@ from game.config import (
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
     TreasureCoinParticle, FlyingCoinParticle, Ramp, TrickBubble,
+    PoofGrain,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -2193,42 +2194,36 @@ class World:
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
+    def _spawn_grainy_poof(self, x, y, palette=None, n=56):
+        """Granular poof — a dense burst of small square GRAINS
+        (PoofGrain) instead of a few smooth cloud circles, so it reads
+        as fine smoke/dust. White smoke by default (genie appear /
+        vanish + unchosen offers); pass `palette` for the lavender
+        genie-reveal variant."""
+        if palette is None:
+            palette = [(255, 255, 255), (240, 240, 242),
+                       (224, 226, 230), (208, 212, 218)]
+        for _ in range(n):
+            ang = random.uniform(0, math.tau)
+            sp  = random.uniform(25, 170)
+            vx  = math.cos(ang) * sp
+            vy  = math.sin(ang) * sp - random.uniform(8, 48)
+            life = random.uniform(0.35, 0.72)
+            size = random.randint(2, 5)
+            self.particles.append(
+                PoofGrain(x, y, vx, vy, life, size, random.choice(palette)))
+
     def _spawn_genie_reveal_poof(self, x, y):
-        """Big dramatic poof when a Genie offer materialises — modelled
-        on _spawn_poof (the KFC transformation cloud) so the powerup
-        appears in a CLEAR puff of magical cloud, not a wisp.
-        Lavender + cream + gold palette so it reads as genie magic
-        rather than the KFC transformation."""
-        puff_colors = [
-            (250, 240, 255), (235, 220, 255),
-            (220, 200, 250), (255, 240, 200),
-            (255, 220, 140), (200, 180, 240),
-        ]
-        # Big cloud burst (18 puffs, larger radii + life than the
-        # original tiny wisp).
-        for _ in range(18):
-            angle = random.uniform(0, math.pi * 2)
-            speed = random.uniform(60, 150)
-            vx    = math.cos(angle) * speed
-            vy    = math.sin(angle) * speed - random.uniform(12, 40)
-            life  = random.uniform(0.40, 0.65)
-            r0    = random.randint(5, 11)
-            r1    = random.randint(16, 28)
-            color = random.choice(puff_colors)
-            self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
-        # A bright central flash burst — a few high-alpha puffs that
-        # POP at the centre to sell the "magical appearance" beat.
-        for _ in range(4):
-            angle = random.uniform(0, math.pi * 2)
-            speed = random.uniform(20, 50)
-            vx    = math.cos(angle) * speed
-            vy    = math.sin(angle) * speed - random.uniform(8, 20)
-            self.particles.append(CloudPuff(
-                x, y, vx, vy,
-                random.uniform(0.18, 0.28),
-                10, 22, (255, 250, 235)))
-        # Gold sparkle accents (use the existing Particle class so
-        # they twinkle as small gravity-affected dots).
+        """Granular lavender poof when a Genie offer materialises — the
+        same grainy style as the white transformation poof, but in the
+        magical lavender/cream/gold palette so the 'wish appears' beat
+        still reads distinct from the white vanish poof. A few gold
+        sparkle dots twinkle on top for the magic accent."""
+        self._spawn_grainy_poof(x, y, palette=[
+            (250, 240, 255), (235, 220, 255), (220, 200, 250),
+            (255, 240, 200), (255, 220, 140), (200, 180, 240),
+        ], n=66)
+        # Gold sparkle accents (small gravity-affected twinkle dots).
         for _ in range(10):
             angle = random.uniform(0, math.pi * 2)
             speed = random.uniform(80, 160)
@@ -2470,10 +2465,9 @@ class World:
             if p is chosen or not getattr(p, "is_genie_offer", False):
                 continue
             p.collected = True
-            # The two unchosen wishes evaporate with the SAME mature poof
-            # Pip uses when he reverts from KFC mode (World._spawn_poof),
-            # so taking one offer reads as the others puffing away.
-            self._spawn_poof(p.x, p.y)
+            # The two unchosen wishes evaporate in a granular white poof
+            # (fine smoke grains, not soft circles).
+            self._spawn_grainy_poof(p.x, p.y)
         # Kill any active GenieCharacter so its remaining cast beats
         # don't spawn orphan offers after the player has locked in
         # their pick.
