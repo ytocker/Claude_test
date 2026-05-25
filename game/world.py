@@ -2206,7 +2206,9 @@ class World:
             palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
                        (210, 185, 255), (175, 150, 255)]
         if n is None:
-            n = max(90, int(rx * ry * 0.16))
+            # Dense enough that the soft motes overlap into a continuous
+            # cloud rather than reading as scattered confetti.
+            n = max(140, int(rx * ry * 0.28))
         for _ in range(n):
             a  = random.uniform(0, math.tau)
             rr = math.sqrt(random.random())          # even area fill
@@ -2214,11 +2216,11 @@ class World:
             py = y + math.sin(a) * ry * rr
             dx, dy = px - x, py - y
             d = math.hypot(dx, dy) or 1.0
-            spd = random.uniform(6, 42)
+            spd = random.uniform(5, 32)
             vx = dx / d * spd                         # gentle outward drift
-            vy = dy / d * spd - random.uniform(6, 28)
+            vy = dy / d * spd - random.uniform(5, 22)
             life = random.uniform(0.45, 0.95)
-            size = random.choice((1, 1, 1, 2))
+            size = random.choice((3, 3, 4, 4))        # soft motes that overlap
             self.particles.append(
                 PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
 

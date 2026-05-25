@@ -52,7 +52,7 @@ def _patch_palette(w, palette, _n):
     the live ellipse-fill behaviour so the genie cloud matches his
     size (rx/ry are passed by the genie / offer callers)."""
     def _poof(self, x, y, palette_arg=None, n=None, rx=34, ry=34):
-        cnt = n if n is not None else max(90, int(rx * ry * 0.16))
+        cnt = n if n is not None else max(140, int(rx * ry * 0.28))
         for _ in range(cnt):
             a  = random.uniform(0, math.tau)
             rr = math.sqrt(random.random())
@@ -60,11 +60,11 @@ def _patch_palette(w, palette, _n):
             py = y + math.sin(a) * ry * rr
             dx, dy = px - x, py - y
             d = math.hypot(dx, dy) or 1.0
-            spd = random.uniform(6, 42)
+            spd = random.uniform(5, 32)
             vx = dx / d * spd
-            vy = dy / d * spd - random.uniform(6, 28)
+            vy = dy / d * spd - random.uniform(5, 22)
             life = random.uniform(0.45, 0.95)
-            size = random.choice((1, 1, 1, 2))
+            size = random.choice((3, 3, 4, 4))
             self.particles.append(
                 PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
     w._spawn_grainy_poof = types.MethodType(_poof, w)

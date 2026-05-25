@@ -3311,11 +3311,37 @@ class CloudPuff:
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
+_MOTE_CACHE: dict = {}
+
+
+def _mote_sprite(size, alpha, color):
+    """Cached soft mote: a small disc with a gentle alpha falloff so
+    that many overlapping motes blend into a continuous CLOUD rather
+    than reading as separate hard specks. Cached by (size, alpha
+    bucket, colour) so a dense burst costs blits, not allocations."""
+    size = max(2, int(size))
+    ab = max(16, min(255, (int(alpha) // 16) * 16))
+    key = (size, ab, color)
+    spr = _MOTE_CACHE.get(key)
+    if spr is None:
+        d = size * 2
+        spr = pygame.Surface((d, d), pygame.SRCALPHA)
+        c = size
+        steps = max(2, size)
+        for i in range(steps, 0, -1):
+            rr = max(1, int(size * i / steps))
+            frac = i / steps                       # 1 rim → ~0 centre
+            a = int(ab * (1.0 - 0.85 * frac))      # soft edge, solid core
+            pygame.draw.circle(spr, (*color, a), (c, c), rr)
+        _MOTE_CACHE[key] = spr
+    return spr
+
+
 class PoofGrain:
-    """A single mote of MAGIC DUST — a tiny 1-2 px speck that drifts
-    outward, slows like settling dust, twinkles, and fades. Spawned in
-    large numbers so the burst reads as a dense cloud of fine glittery
-    dust rather than a few big smoke circles."""
+    """A single mote of MAGIC DUST — a small soft speck that drifts
+    outward, slows like settling dust, twinkles faintly, and fades.
+    Spawned in LARGE, DENSE numbers (and slightly overlapping) so the
+    burst reads as a continuous cloud, not scattered confetti."""
     __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "size",
                  "color", "_ph")
 
@@ -3341,16 +3367,14 @@ class PoofGrain:
 
     def draw(self, surf):
         t = max(0.0, self.life / self.life_max)      # 1→0 as it dies
-        # Twinkle: shimmer the alpha so the dust glitters like magic.
+        # Faint twinkle (kept mild so the mass reads as cloud, not glitter).
         age = self.life_max - self.life
-        tw = 0.55 + 0.45 * math.sin(self._ph + age * 26.0)
-        alpha = int(235 * t * tw)
+        tw = 0.80 + 0.20 * math.sin(self._ph + age * 20.0)
+        alpha = int(200 * t * tw)
         if alpha <= 0:
             return
-        sz = max(1, self.size)
-        s = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        s.fill((*self.color, alpha))
-        surf.blit(s, (int(self.x - sz / 2), int(self.y - sz / 2)))
+        spr = _mote_sprite(self.size, alpha, self.color)
+        surf.blit(spr, (int(self.x - self.size), int(self.y - self.size)))
 
 
 # ── GenieShineParticle ───────────────────────────────────────────────────────
