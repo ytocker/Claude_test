@@ -52,7 +52,7 @@ def _patch_palette(w, palette, _n):
     the live ellipse-fill behaviour so the genie cloud matches his
     size (rx/ry are passed by the genie / offer callers)."""
     def _poof(self, x, y, palette_arg=None, n=None, rx=34, ry=34):
-        cnt = n if n is not None else max(90, int(rx * ry * 0.075))
+        cnt = n if n is not None else max(90, int(rx * ry * 0.16))
         for _ in range(cnt):
             a  = random.uniform(0, math.tau)
             rr = math.sqrt(random.random())

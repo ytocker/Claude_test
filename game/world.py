@@ -2206,7 +2206,7 @@ class World:
             palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
                        (210, 185, 255), (175, 150, 255)]
         if n is None:
-            n = max(90, int(rx * ry * 0.075))
+            n = max(90, int(rx * ry * 0.16))
         for _ in range(n):
             a  = random.uniform(0, math.tau)
             rr = math.sqrt(random.random())          # even area fill
