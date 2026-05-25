@@ -192,8 +192,8 @@ ROCK_SPAWN_THRESHOLD     = 0.02   # intensity above which scattered sinter rocks
 ROCK_SLOTS_PER_PILLAR    = 5      # candidate rock slots rolled per pillar; each fills with prob = intensity
 GEYSER_W            = 84.0        # column / lift width (px) — matches the visible air footprint
 GEYSER_H            = float(GROUND_Y)  # column reaches the top of the screen; lift acts the full height
-GEYSER_LIFT_ACCEL   = 3400.0      # strong continuous upward accel inside the column (px/s^2)
-GEYSER_LIFT_VY_CAP  = 600.0       # max upward speed the column imparts (> |FLAP_V|=520 → a real launch)
+GEYSER_LIFT_ACCEL   = 2100.0      # upward accel in the column (just above GRAVITY=1600 → a gentle, smooth grab, not a yank)
+GEYSER_LIFT_VY_CAP  = 300.0       # max upward speed from the column — well below |FLAP_V|=520 so it's a rideable updraft, never a slam-to-ceiling
 GEYSER_ACTIVE_HOT   = 3.0         # active-window length at peak intensity (s)
 GEYSER_ACTIVE_COLD  = 1.0         # active-window length at the sparse edges (s)
 GEYSER_DORMANT_HOT  = 1.2         # dormant gap between actives at peak (s)
