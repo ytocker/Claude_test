@@ -29,11 +29,13 @@ from game.config import (
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
+    GEYSER_SPAWN_THRESHOLD, GEYSER_MAX_CONCURRENT,
+    ROCK_SPAWN_THRESHOLD, ROCK_SLOTS_PER_PILLAR,
     GEYSER_W, GEYSER_H, GEYSER_LIFT_ACCEL, GEYSER_LIFT_VY_CAP,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
-    FlyingCoinParticle, Geyser,
+    FlyingCoinParticle, Geyser, Rock,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -43,6 +45,7 @@ from game.draw import (
 )
 from game import biome
 from game import audio
+from game import geyser_fx
 from game.weather import (
     Weather,
     rain_intensity as _rain_intensity,
@@ -75,6 +78,8 @@ class World:
         self.coins: list[Coin] = []
         self.powerups: list[PowerUp] = []
         self.geysers: list[Geyser] = []
+        self.rocks: list[Rock] = []
+        geyser_fx.prewarm()   # bake cone/steam/rock caches → no first-eruption hitch
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
 
@@ -159,9 +164,10 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # Started a few seconds ahead of the morning-thermal window (~60s)
-        # so this build reaches the geyser event almost immediately.
-        self.biome_time = 55.0
+        # Starts at 0 so the opening is clean: the morning-thermal window
+        # (rocks ~50s, geysers ~68s, peak ~96s, gone ~112s) only arrives
+        # after the player has felt the base game.
+        self.biome_time = 0.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -507,21 +513,43 @@ class World:
         else:
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
+            self._maybe_spawn_rocks(p)
             self._maybe_spawn_geyser(p)
 
     def _maybe_spawn_geyser(self, pipe: Pipe):
-        # Morning-thermal geysers: spawn density scales with the live thermal
-        # intensity, so they are rare near the 60s window edge and common at
-        # the ~80s peak. Placed at the open mid-gap after the pillar so the
-        # updraft rises through clear air, never routinely shoving Pip into a
-        # pillar. The geyser seeds its own active/dormant cadence from the
-        # same intensity (sparse→frequent).
+        # Morning-thermal geysers appear only once the event is well underway
+        # (intensity past GEYSER_SPAWN_THRESHOLD) — before that the window is
+        # rocks only. Count scales with intensity (allowed 1→GEYSER_MAX_CONCURRENT)
+        # and spawn density scales too, so geysers come in sparse near the
+        # threshold and build to a small field at the ~96s peak. Placed at the
+        # open mid-gap after the pillar so the updraft rises through clear air.
         intensity = _thermal_intensity(self.biome_phase)
-        if intensity < THERMAL_SPAWN_THRESHOLD:
+        if intensity < GEYSER_SPAWN_THRESHOLD:
+            return
+        allowed = max(1, round(intensity * GEYSER_MAX_CONCURRENT))
+        if len(self.geysers) >= allowed:
             return
         if random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity:
             gx = pipe.x + (PIPE_W + self._current_spacing()) * 0.5
             self.geysers.append(Geyser(gx, intensity))
+
+    def _maybe_spawn_rocks(self, pipe: Pipe):
+        # Scattered sinter rocks are the event's slow buildup (and its fade
+        # tail): they appear just above 0 intensity and thicken toward the
+        # peak. Roll ROCK_SLOTS_PER_PILLAR candidate slots, each filling with
+        # probability = intensity, so they're 1-2 at the edges and dense near
+        # the peak. Scatter across the gap after the pillar, sitting on the
+        # grass; the world scrolls/culls them like other props.
+        intensity = _thermal_intensity(self.biome_phase)
+        if intensity < ROCK_SPAWN_THRESHOLD:
+            return
+        spacing = self._current_spacing()
+        for _ in range(ROCK_SLOTS_PER_PILLAR):
+            if random.random() >= intensity:
+                continue
+            rx = pipe.x + PIPE_W + random.uniform(0.0, spacing)
+            ry = GROUND_Y + random.uniform(1.0, 6.0)
+            self.rocks.append(Rock(rx, ry, random.randrange(geyser_fx.ROCK_N)))
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
@@ -727,6 +755,8 @@ class World:
             for gy in self.geysers:
                 gy.x -= speed * sdt
                 gy.update(sdt)
+            for r in self.rocks:
+                r.x -= speed * sdt
             # Morning-thermal updraft: continuous lift while Pip is inside an
             # active geyser column (capped, zone ends mid-screen — see method).
             self._apply_thermal_lift(dt)
@@ -764,6 +794,7 @@ class World:
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
             self.geysers = [gy for gy in self.geysers if not gy.off_screen()]
+            self.rocks = [r for r in self.rocks if not r.off_screen()]
 
             # spawn more pipes. Suppressed while the rail powerup is
             # active so no untagged pipe slips between the pre-spawned
@@ -919,9 +950,11 @@ class World:
         self.powerups = [m for m in self.powerups if m.x + 20 > 0]
         if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
             self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
-        # Geysers are a gameplay element only; the cosmetic menu background
-        # doesn't scroll/update them, so don't let _spawn_pipe accumulate any.
+        # Geysers + rocks are gameplay-window elements only; the cosmetic menu
+        # background doesn't scroll/cull them, so don't let _spawn_pipe
+        # accumulate any.
         self.geysers.clear()
+        self.rocks.clear()
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0

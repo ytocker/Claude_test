@@ -25,7 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-from game import biome, weather
+from game import biome, weather, config
 
 CYCLE = biome.CYCLE_SECONDS
 N = 1600  # sample resolution across the cycle
@@ -44,25 +44,13 @@ def _mist_intensity(phase: float) -> float:
     return weather._bump(phase, 0.05, 0.05)
 
 
-# ── PROPOSED morning-thermal shape (asymmetric: long buildup, short fade) ────
-# Defined HERE in the plotter only — game/weather.py is NOT touched until the
-# timing is approved. Long rising edge (rocks appear sparse → dense, then the
-# first geyser; more geysers as it climbs) and a much shorter falling edge.
+# Sub-phase markers for the (shipped) asymmetric thermal curve in
+# weather.thermal_intensity — long buildup, short fade. Kept in sync with that
+# function and the config geyser threshold.
 THERMAL_START_S = 50.0    # event on — first stray rocks
 THERMAL_PEAK_S = 96.0     # peak — max concurrent geysers
 THERMAL_END_S = 112.0     # event off — last rocks gone
-GEYSER_THRESH = 0.35      # intensity above which geysers (not just rocks) spawn
-
-
-def _proposed_thermal(phase: float) -> float:
-    t = phase * CYCLE
-    if t <= THERMAL_START_S or t >= THERMAL_END_S:
-        return 0.0
-    if t <= THERMAL_PEAK_S:                       # long smooth rise 0→1
-        u = (t - THERMAL_START_S) / (THERMAL_PEAK_S - THERMAL_START_S)
-    else:                                         # short smooth fall 1→0
-        u = (THERMAL_END_S - t) / (THERMAL_END_S - THERMAL_PEAK_S)
-    return u * u * (3 - 2 * u)
+GEYSER_THRESH = config.GEYSER_SPAWN_THRESHOLD   # rocks-only below this, geysers above
 
 
 # Biome keyframe labels at their wall-clock timestamps (phase * cycle).
@@ -79,7 +67,7 @@ PHASE_LABELS = [
 # (label, intensity-fn, line colour, peak-phase list)
 CURVES = [
     ("Dawn mist (cosmetic, planned)", _mist_intensity, "#9aa7b3", [0.05]),
-    ("Morning thermal (geysers) — PROPOSED", _proposed_thermal, "#e0663a",
+    ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a",
      [THERMAL_PEAK_S / CYCLE]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
     ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),
@@ -139,7 +127,7 @@ def main() -> None:
                         color=color, fontweight="bold")
 
     # ── Morning-thermal sub-phase annotations (the design under review) ──
-    th_vals = [_proposed_thermal(p) for p in phases]
+    th_vals = [weather.thermal_intensity(p) for p in phases]
     g_on = next((ts[i] for i, v in enumerate(th_vals) if v >= GEYSER_THRESH),
                 THERMAL_PEAK_S)
     g_off = next((ts[i] for i in range(len(th_vals) - 1, -1, -1)

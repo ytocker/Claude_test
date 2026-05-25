@@ -1015,7 +1015,13 @@ class App:
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
 
-        # Morning-thermal geysers: vents on the terrain + warm updraft columns.
+        # Morning-thermal ground rocks sit on the terrain behind the vents —
+        # the event's slow buildup/fade scatter. Drawn before geysers so a
+        # vent cone overlaps any rock right at its base.
+        for r in self.world.rocks:
+            r.draw(self.screen)
+
+        # Morning-thermal geysers: sinter-cone vents + flowing steam columns.
         # Drawn after pillars / before weather so the column reads as
         # foreground atmosphere sitting behind the coins + bird.
         for gy in self.world.geysers:

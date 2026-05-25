@@ -2395,39 +2395,7 @@ class CloudPuff:
 
 # ── Geyser (morning-thermal updraft) ──────────────────────────────────────────
 
-_geyser_column_cache: "pygame.Surface | None" = None
-
-
-def _get_geyser_column() -> "pygame.Surface":
-    # Warm hot-air column: a vertical alpha gradient (brightest at the vent,
-    # fading to nothing at the top) tinted orange→pale-yellow with height.
-    # Rendered once; the live column blits its bottom slice so the gradient
-    # never has to be rebuilt per frame.
-    global _geyser_column_cache
-    if _geyser_column_cache is None:
-        w, h = int(GEYSER_W), int(GEYSER_H)
-        s = pygame.Surface((w, h), pygame.SRCALPHA)
-        cx = (w - 1) / 2.0
-        # The column is blitted additively, so visible brightness is the RGB
-        # value (source alpha is ignored by BLEND_ADD). Bake both falloffs
-        # into RGB: a vertical fade (hot at the vent → nothing at the top) and
-        # a cosine-bell horizontal fade (bright centre line → soft edges), so
-        # it reads as an airy plume rather than a solid bar. Built once.
-        for yy in range(h):
-            f = 1.0 - yy / max(1, h)          # 1 at the base → 0 at the top
-            vert = f * f                      # square → quicker top fade
-            g0 = 150 + 70 * (1.0 - f)
-            b0 = 45 + 95 * (1.0 - f)
-            row = h - 1 - yy
-            for xx in range(w):
-                d = min(1.0, abs(xx - cx) / cx)
-                m = vert * (0.5 + 0.5 * math.cos(math.pi * d))
-                if m <= 0.012:
-                    continue
-                s.set_at((xx, row),
-                         (int(255 * m), int(g0 * m), int(b0 * m), 255))
-        _geyser_column_cache = s
-    return _geyser_column_cache
+from game import geyser_fx
 
 
 class Geyser:
@@ -2502,13 +2470,10 @@ class Geyser:
     def draw(self, surf):
         cx = int(self.x)
         base_y = GROUND_Y
-        vent_w = int(GEYSER_W * 0.7)
 
-        # Vent mound — always drawn so dormant vents read as "there".
-        vent = pygame.Surface((vent_w + 4, 12), pygame.SRCALPHA)
-        pygame.draw.ellipse(vent, (92, 72, 60, 200), (2, 3, vent_w, 8))
-        pygame.draw.ellipse(vent, (58, 44, 36, 230), (2, 5, vent_w, 5))
-        surf.blit(vent, (cx - vent_w // 2 - 2, base_y - 6))
+        # Sinter-cone vent — always drawn so dormant vents read as "there".
+        surf.blit(geyser_fx.get_vent_cone(),
+                  (cx - geyser_fx.CONE_W // 2, base_y - geyser_fx.CONE_BASE_ROW))
 
         if self.phase == "telegraph":
             # Bubbling motes hop at the vent to telegraph the rise.
@@ -2528,23 +2493,41 @@ class Geyser:
             return
 
         stg = self.active_strength
-        col_h = max(1, int(GEYSER_H * stg))
-        col = _get_geyser_column()
-        src = pygame.Rect(0, int(GEYSER_H) - col_h, int(GEYSER_W), col_h)
-        surf.blit(col, (cx - int(GEYSER_W) // 2, base_y - col_h), src,
-                  special_flags=pygame.BLEND_ADD)
+        mouth_y = base_y - geyser_fx.MOUTH_DY
 
-        # Rising warm motes for life inside the column.
-        for i in range(4):
-            t = (self._anim_t * 0.8 + i * 0.27) % 1.0
-            my = base_y - t * col_h
-            mx = cx + math.sin(self._anim_t * 3.0 + i * 2.0) * GEYSER_W * 0.28
-            r = max(1, int(4 * (1.0 - t) + 1))
-            a = int(180 * (1.0 - t) * stg)
-            s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-            pygame.draw.circle(s, (255, 225, 170, a), (r + 1, r + 1), r)
-            surf.blit(s, (int(mx - r - 1), int(my - r - 1)),
-                      special_flags=pygame.BLEND_ADD)
+        # Flowing steam column — pre-baked looping frames; the per-geyser
+        # _anim_t offset desyncs neighbouring columns. Fade with active_strength.
+        frame = geyser_fx.get_steam_frames()[
+            int(self._anim_t * geyser_fx.STEAM_FPS) % geyser_fx.STEAM_N]
+        if stg < 1.0:
+            frame = frame.copy()
+            frame.fill((255, 255, 255, int(255 * stg)),
+                       special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(frame, (cx - geyser_fx.STEAM_W // 2, mouth_y - geyser_fx.STEAM_H))
+
+
+# ── Rock (morning-thermal ground decoration) ─────────────────────────────────
+
+
+class Rock:
+    """A scattered sinter rock that drifts past with the ground during the
+    morning-thermal window. Spawn density scales with the thermal intensity
+    (sparse buildup → dense → fade). Pure decoration: the world scrolls its x;
+    the sprite itself is pre-baked in geyser_fx."""
+
+    __slots__ = ("x", "y", "variant")
+
+    def __init__(self, x, y, variant):
+        self.x = float(x)
+        self.y = float(y)
+        self.variant = variant
+
+    def off_screen(self):
+        return self.x + geyser_fx.ROCK_MAX_W < 0
+
+    def draw(self, surf):
+        s, ox, oy = geyser_fx.get_rock_variants()[self.variant]
+        surf.blit(s, (int(self.x - ox), int(self.y - oy)))
 
 
 # ── FloatText ────────────────────────────────────────────────────────────────

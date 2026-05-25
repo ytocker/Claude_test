@@ -27,6 +27,19 @@ def _bump(phase: float, center: float, width: float) -> float:
     return t * t * (3 - 2 * t)  # smoothstep
 
 
+def _skew_bump(phase: float, start: float, peak: float, end: float) -> float:
+    """Asymmetric bump: 0 outside [start, end], a smoothstep RISE from start→peak
+    and a smoothstep FALL from peak→end. A long rise + short fall gives a long
+    buildup and a short fade. Returns 0..1."""
+    if phase <= start or phase >= end:
+        return 0.0
+    if phase <= peak:
+        u = (phase - start) / (peak - start)
+    else:
+        u = (end - phase) / (end - peak)
+    return u * u * (3 - 2 * u)
+
+
 def rain_intensity(phase: float) -> float:
     """Rain: amber-warm at sunset (0.32), cool-blue at dusk (0.48),
     sparse at night (0.62)."""
@@ -80,14 +93,17 @@ def wind_intensity(phase: float) -> float:
 
 
 def thermal_intensity(phase: float) -> float:
-    """Morning thermals (active ~60-100s, peak ~80s) — warm rising air
-    that spawns ground geysers giving Pip a continuous updraft. Held off
-    the opening so the player feels the game first; 0 outside the window.
-    The curve is a pure scheduling signal (peak 1.0): geyser spawn density
-    and each geyser's active duty-cycle both scale off it, so geysers start
-    sparse/dormant at ~60s and build to frequent/active by ~80s. Lift
-    magnitude lives in the GEYSER_* constants in config."""
-    return _bump(phase, 0.25, 0.0625)
+    """Morning thermals — warm rising air that scatters sinter rocks and
+    spawns ground geysers giving Pip a continuous updraft. Asymmetric on
+    purpose: a LONG buildup (~50→96s) and a SHORT fade (~96→112s). The curve
+    is a pure scheduling signal (peak 1.0) read against two thresholds:
+    rocks appear just above 0 (so they lead the event in sparse and thicken),
+    while geysers only spawn above GEYSER_SPAWN_THRESHOLD — so the rocks-only
+    opening and rocks-only fade tail both fall out of this one signal. Geyser
+    count and each geyser's duty-cycle also scale off it. Held off the opening
+    (0 before ~50s) so the player feels the base game first; 0 outside the
+    window. Cycle = 320s, so 50/96/112s → phases 0.15625/0.30/0.35."""
+    return _skew_bump(phase, 50.0 / 320.0, 96.0 / 320.0, 112.0 / 320.0)
 
 
 # Cold wash colour for the snow squall — a deep blue-grey that

@@ -183,8 +183,12 @@ WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
 # its column applies a continuous upward push capped well below |FLAP_V|; the
 # lift zone ends at the column top (mid-screen), so the updraft physically
 # cannot pin Pip to the ceiling.
-THERMAL_SPAWN_THRESHOLD  = 0.08   # min intensity before any geyser spawns
-THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar spawn chance at peak intensity
+THERMAL_SPAWN_THRESHOLD  = 0.08   # legacy floor (kept; geyser gate uses the threshold below)
+THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar geyser spawn chance at peak intensity
+GEYSER_SPAWN_THRESHOLD   = 0.35   # intensity above which GEYSERS (not just rocks) spawn
+GEYSER_MAX_CONCURRENT    = 3      # cap on simultaneous geysers (allowed scales 1→3 with intensity)
+ROCK_SPAWN_THRESHOLD     = 0.02   # intensity above which scattered sinter rocks appear
+ROCK_SLOTS_PER_PILLAR    = 5      # candidate rock slots rolled per pillar; each fills with prob = intensity
 GEYSER_W            = 46.0        # lift-column width (px)
 GEYSER_H            = 220.0       # column height above ground (px); zone top = anti-pin
 GEYSER_LIFT_ACCEL   = 2200.0      # continuous upward accel inside the column (px/s^2)
