@@ -221,6 +221,21 @@ def build_knight(char, nom, fidx):
         pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(3 * s), rw - int(6 * s), rh - int(6 * s)))
         pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)), math.radians(202), math.radians(338), max(1, int(1.6 * s)))
 
+    # SHIELD on the FAR (left) arm. In the 2D side view Pip's far hand is
+    # mostly hidden behind his body, so the shield is drawn BEHIND the body
+    # (it peeks out from behind/below) — the near hand holds the sword.
+    def shield(big, s):
+        w, h = big.get_size(); cxg = w // 2
+        pygame.draw.polygon(big, OL, [(int(3 * s), int(3 * s)), (int(w - 3 * s), int(3 * s)), (int(w - 3 * s), int(h * 0.46)), (cxg, int(h - 3 * s)), (int(3 * s), int(h * 0.46))])
+        pygame.draw.polygon(big, MID, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (int(w - 6 * s), int(h * 0.45)), (cxg, int(h - 7 * s)), (int(6 * s), int(h * 0.45))])
+        pygame.draw.polygon(big, HI, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (cxg, int(h * 0.5))])
+        pygame.draw.polygon(big, CRIM, [(int(9 * s), int(9 * s)), (int(w - 9 * s), int(9 * s)), (int(w - 9 * s), int(h * 0.44)), (cxg, int(h - 10 * s)), (int(9 * s), int(h * 0.44))])
+        pygame.draw.line(big, CREAM, (cxg, int(11 * s)), (cxg, int(h - 13 * s)), max(2, int(2.2 * s)))
+        pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
+        pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
+        pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
+    _blit_ss(char, *_P(nom, 0.34, 0.60), int(nom.w * 0.40), int(nom.h * 0.50), shield)
+
     char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
 
     def breast(big, s):
@@ -261,19 +276,6 @@ def build_knight(char, nom, fidx):
             bot = _qbez(sock, (sock[0] - int(7 * s), sock[1] - int(9 * s)), (sock[0] - int(26 * s), sock[1] + int(12 * s)), 18)
             pygame.draw.polygon(big, col, [(x + off, y) for (x, y) in top] + [(x + off, y) for (x, y) in reversed(bot)])
     _blit_ss(char, *_P(nom, 0.73, 0.18), int(nom.w * 0.46), int(nom.h * 0.5), helm)
-
-    # SHIELD in the off (left) hand
-    def shield(big, s):
-        w, h = big.get_size(); cxg = w // 2
-        pygame.draw.polygon(big, OL, [(int(3 * s), int(3 * s)), (int(w - 3 * s), int(3 * s)), (int(w - 3 * s), int(h * 0.46)), (cxg, int(h - 3 * s)), (int(3 * s), int(h * 0.46))])
-        pygame.draw.polygon(big, MID, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (int(w - 6 * s), int(h * 0.45)), (cxg, int(h - 7 * s)), (int(6 * s), int(h * 0.45))])
-        pygame.draw.polygon(big, HI, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (cxg, int(h * 0.5))])
-        pygame.draw.polygon(big, CRIM, [(int(9 * s), int(9 * s)), (int(w - 9 * s), int(9 * s)), (int(w - 9 * s), int(h * 0.44)), (cxg, int(h - 10 * s)), (int(9 * s), int(h * 0.44))])
-        pygame.draw.line(big, CREAM, (cxg, int(11 * s)), (cxg, int(h - 13 * s)), max(2, int(2.2 * s)))
-        pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
-        pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
-        pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
-    _blit_ss(char, *_P(nom, 0.33, 0.57), int(nom.w * 0.34), int(nom.h * 0.42), shield)
 
     # SWORD in the main (right/front) hand — hilt at the talon, blade up
     def sword(big, s):
