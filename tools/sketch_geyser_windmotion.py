@@ -175,24 +175,45 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
     _swoosh(scene, pts, ws, maxw, WINDW, alpha * _life(p), blur=blur)
 
 
+STEAM_LOW_BOOST = 2.4          # alpha multiplier at ground level
+STEAM_NORM_FRAC = 0.30         # height (frac of rise) where it eases to normal
+
+
+def _boost_low(layer, ground_y, norm_y, boost):
+    """Scale alpha up near the ground, ramping back to 1.0 by norm_y so the
+    column reads solid through the mountains and stays faint higher up."""
+    a = pygame.surfarray.pixels_alpha(layer)
+    ys = np.arange(layer.get_height(), dtype=float)
+    f = np.ones_like(ys)
+    reg = ys >= norm_y
+    f[reg] = 1.0 + (boost - 1.0) * np.clip(
+        (ys[reg] - norm_y) / (ground_y - norm_y), 0.0, 1.0)
+    a[:, :] = np.clip(a.astype(float) * f[None, :], 0, 255).astype(np.uint8)
+    del a
+
+
 def render_steam(scene, streams, t, scale=1.0, ncols=9):
     span = 28.0                                # column spread half-width
     if ncols <= 1:
         offs = [0.0]
     else:
         offs = [-span + 2 * span * j / (ncols - 1) for j in range(ncols)]
+    layer = pygame.Surface(scene.get_size(), pygame.SRCALPHA)
     for (x, by, h, inten) in streams:
         rise = by - 28                         # span vent → near the top
         for c, dx in enumerate(offs):
             for i in range(3):                 # a few filaments per column
                 idx = c * 3 + i
-                _flow_ribbon(scene, x + dx, by, rise, t,
+                _flow_ribbon(layer, x + dx, by, rise, t,
                              phase=(idx * 0.6180339) % 1.0,
                              amp=6 + (idx % 3) * 5,
                              length_f=0.9 + 0.06 * (idx % 2),
                              maxw=3.4 + 1.2 * (idx % 2), alpha=21 * inten * scale,
                              fan=(i - 1) * 4, blur=3,
                              spd=0.9 + 0.05 * (idx % 3))
+    gy = max(by for _, by, _, _ in streams)
+    _boost_low(layer, gy, gy - STEAM_NORM_FRAC * (gy - 28), STEAM_LOW_BOOST)
+    scene.blit(layer, (0, 0))
 
 
 VARIANTS = [
