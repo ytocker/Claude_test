@@ -175,18 +175,22 @@ def _flow_ribbon(scene, x, by, h, t, phase, *, amp, length_f, maxw, alpha,
     _swoosh(scene, pts, ws, maxw, WINDW, alpha * _life(p), blur=blur)
 
 
-def render_steam(scene, streams, t, scale=1.0):
-    cols = (-26, -15, -5, 5, 15, 26)           # many faint sub-columns
+def render_steam(scene, streams, t, scale=1.0, ncols=6):
+    span = 28.0                                # column spread half-width
+    if ncols <= 1:
+        offs = [0.0]
+    else:
+        offs = [-span + 2 * span * j / (ncols - 1) for j in range(ncols)]
     for (x, by, h, inten) in streams:
         rise = by - 28                         # span vent → near the top
-        for c, dx in enumerate(cols):
+        for c, dx in enumerate(offs):
             for i in range(3):                 # a few filaments per column
                 idx = c * 3 + i
                 _flow_ribbon(scene, x + dx, by, rise, t,
                              phase=(idx * 0.6180339) % 1.0,
                              amp=6 + (idx % 3) * 5,
                              length_f=0.9 + 0.06 * (idx % 2),
-                             maxw=3.4 + 1.2 * (idx % 2), alpha=22.5 * inten * scale,
+                             maxw=3.4 + 1.2 * (idx % 2), alpha=21 * inten * scale,
                              fan=(i - 1) * 4, blur=3,
                              spd=0.9 + 0.05 * (idx % 3))
 
