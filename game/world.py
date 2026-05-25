@@ -2194,52 +2194,31 @@ class World:
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
 
-    def _spawn_grainy_poof(self, x, y, palette=None, n=180):
-        """Magic-dust poof — a DENSE cloud of many tiny (1-2 px)
-        twinkling motes (PoofGrain) rather than a few big smoke
-        circles. White dust by default (genie appear / vanish +
-        unchosen offers); pass `palette` for the lavender reveal."""
+    def _spawn_grainy_poof(self, x, y, palette=None, n=470):
+        """Magic-dust poof (design #5 'genie gold+violet') — a DENSE
+        cloud of many tiny twinkling motes in white + gold + violet.
+        Used for EVERY genie beat: the genie appearing / vanishing and
+        the offers appearing / vanishing."""
         if palette is None:
-            palette = [(255, 255, 255), (240, 240, 242),
-                       (224, 226, 230), (208, 212, 218)]
+            palette = [(255, 255, 255), (255, 235, 180), (255, 215, 120),
+                       (210, 185, 255), (175, 150, 255)]
         for _ in range(n):
             ang = random.uniform(0, math.tau)
-            # Spread the dust over a disc (sqrt for even area fill) so
-            # the cloud is dense in the middle and thins at the edges.
-            sp  = random.uniform(10, 200) * math.sqrt(random.random())
+            # Even disc fill (sqrt) so the cloud is dense in the middle
+            # and thins toward the edges.
+            sp  = random.uniform(10, 205) * math.sqrt(random.random())
             vx  = math.cos(ang) * sp
             vy  = math.sin(ang) * sp - random.uniform(6, 40)
-            life = random.uniform(0.40, 0.85)
-            size = random.choice((1, 1, 1, 2, 2))     # mostly single-pixel motes
+            life = random.uniform(0.40, 0.90)
+            size = random.choice((1, 1, 1, 2))
             self.particles.append(
                 PoofGrain(x, y, vx, vy, life, size, random.choice(palette)))
 
     def _spawn_genie_reveal_poof(self, x, y):
-        """Granular lavender poof when a Genie offer materialises — the
-        same grainy style as the white transformation poof, but in the
-        magical lavender/cream/gold palette so the 'wish appears' beat
-        still reads distinct from the white vanish poof. A few gold
-        sparkle dots twinkle on top for the magic accent."""
-        self._spawn_grainy_poof(x, y, palette=[
-            (250, 240, 255), (235, 220, 255), (220, 200, 250),
-            (255, 240, 200), (255, 220, 140), (200, 180, 240),
-        ], n=66)
-        # Gold sparkle accents (small gravity-affected twinkle dots).
-        for _ in range(10):
-            angle = random.uniform(0, math.pi * 2)
-            speed = random.uniform(80, 160)
-            vx    = math.cos(angle) * speed
-            vy    = math.sin(angle) * speed - random.uniform(20, 50)
-            self.particles.append(Particle(
-                x, y, vx, vy,
-                life=random.uniform(0.45, 0.75),
-                r=random.randint(2, 3),
-                color=random.choice([
-                    (255, 230, 140), (255, 250, 215),
-                    (255, 200, 220),
-                ]),
-                gravity=120,
-            ))
+        """Poof when a Genie offer materialises — the SAME design #5
+        magic dust used for every other genie beat, so appear and
+        vanish read as one consistent effect."""
+        self._spawn_grainy_poof(x, y)
 
     def _activate_reverse(self, m):
         self.reverse_timer = REVERSE_DURATION
