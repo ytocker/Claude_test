@@ -12,17 +12,16 @@ game. Python 3.11+ / Pygame 2.x. Ships two build targets from the same
 source: native desktop and pygbag/WASM in a browser. ~13k LOC Python.
 
 ## Active development branch
+'main' is the deployed version. currently is based on 'v4_skybit'.
+R&D activity is done on 'v5_skybit', and it will be te next deployed version.
+from v_5 skyit there are many forked varions, each handling a different aspect of the game that will
+be upgraded in formal version, such as - powerups, weather events, general graphics etc.
+`main` and `gh-pages` are deployment artifacts.
 
-`v4_skybit` is the canonical line. Topic branches off it:
-`v4_skybit_game_design`, `v4_skybit_game_graphics`,
-`v4_skybit_menu_redesign`, `v4_skybit_summary`. Earlier `v3_skybit_*`
-branches are historical. `main` and `gh-pages` are deployment artifacts.
-
-When starting work, check out (or branch off) `v4_skybit` unless the
+When starting work, check out (or branch off) `main` unless the
 user specifies otherwise. The current working tree on
 `claude/organize-project-structure-wivHq` is intentionally stripped
-down — it is NOT representative of the project. Read the real layout
-from `v4_skybit`.
+down — it is NOT representative of the project.
 
 ## Run
 
@@ -83,53 +82,24 @@ These are project identity. Don't violate without explicit user OK.
 - **Fixed-timestep 60 FPS physics.** `GRAVITY = 1600`, `FLAP_V = -520`,
   `MAX_FALL = 700` (in `game/config.py`). Tap feel is identical across
   targets because of this. Don't switch to variable-step.
-- **Reverse power-up stays disabled.** Implementation is intact but
-  excluded from `POWERUP_WEIGHTS` and the Surprise Box pick. Don't
-  re-enable.
-- **Anti-cheat caveat stays honest.** The README's "soft leaderboard"
-  paragraph must match reality. If validation isn't actually
-  server-side, don't delete the caveat.
 - **Comments are WHY-only.** Match the existing rationale style.
   Never line-by-line WHAT comments. Never reference the current task,
   PR, or caller in a comment.
-- **No grind-gated difficulty.** Meta-progression (if added) unlocks
-  cosmetics only. Never hide harder gaps behind playtime.
 
-## Out of scope (don't burn tokens on these)
 
-- Controller/gamepad support
-- Story/cutscene/narrative layer
-- Multiplayer/co-op
-- Engine port off Pygame
-- Re-enabling Reverse
-
-## Power-ups (6 active + Surprise)
+## Power-ups (6 active + Surprisebox + late game undeclared ones)
 
 Triple (3× coins), Magnet, Slow-Mo, KFC (fry-skin), Ghost (phase
-through pillars), Grow (1.4× scale), Surprise Box (re-rolls to one of
+through pillars), Shrink (0.6× scale), Surprise Box (re-rolls to one of
 the six at pickup). Each lasts 8 s. 14% spawn chance per non-rush
 pillar, 5.5 s cooldown. Float-text labels share a unified
 gradient-fill + outline + 8-sparkle style.
 
+More powerups are added during new versions, deliberately ones that are not declared beforehand, 
+in order to surprise the user and make him feel the game has much more depth than he might expect.
+
 Every 15th pillar is a **Coin Rush**: gap widened 30%, ~14 coins in a
 sine/S/chevron/oval/double-arc formation. No power-ups on rush pillars.
-
-## Anti-cheat (client-side hardening)
-
-- One closure-private dispatcher: `window.__sk(action, payload)`
-  (`inject_theme.py`). No `window.lbSubmitStart` etc. globals.
-- Per-run UUID + append-only event ledger + rolling SHA-256 chain
-  (`game/_proof.py`). JS recomputes and refuses on mismatch.
-- Submitted score = ledger sum, not `world.score`. Poking
-  `world.score = 99999` doesn't move the wire value.
-- Plausibility ceiling (`game/_plausibility.py`) runs on submit AND
-  on read — implausible rows hide from the displayed top-10.
-- Dispatcher tracks consumed run UUIDs; replays rejected.
-
-Known gap: Supabase anon key + permissive RLS still ship in the
-bundle. A motivated attacker can `curl` the table directly. Moving
-`_plausibility.check` into a Supabase Edge Function with tight RLS is
-the priority anti-cheat upgrade — see `UPGRADE_BRIEF.md`.
 
 ## Deploy hygiene (CI-side)
 
@@ -166,23 +136,15 @@ Practical rules:
   the sequential checkout pattern in the session history if doing
   this by hand.
 
-## Where to find more
 
-- **`REVIEW.md`** (on `v4_skybit`) — full 12-category review with
-  justifications, scores, references.
-- **`UPGRADE_BRIEF.md`** (on `v4_skybit`) — prioritized upgrade
-  actions with target files + constants.
-- **`README.md`** (on `v4_skybit`) — player-facing docs and
-  procedural-art notes.
-
-## Session hygiene
-
-- One feature branch per topic, named for the work. The branch name
-  is the chat's label in the web UI.
-- Stripped-down branches like `claude/organize-project-structure-*`
-  are not the project — always sanity-check against `v4_skybit`.
-- **Image deliverables go to git, never inline.** Don't attach or
-  embed screenshots/renders in chat. Commit them under `docs/` and
-  share the GitHub blob/raw link instead.
-- This file is the durable context. Add new hard rules here rather
-  than re-explaining them in every chat.
+## Graphic Design Tasks ##
+- For any task you are given that includes to design so graphics - for instance - powerup effect/logo,
+parrot looks, pillar, sky, mountains appearance, etc. You must follow these rules ALWAYS:
+1. Always research online in order to understand better what you are asked for. this includes ideas, theme, casual gaming references, and more.
+2. Create 5 distinctive and unique versions, that you believe align with the task. the versoins should be created
+before adding in code to the actual game, for review purposes.
+3. the 5 versions should be added as 1 image to git, including the original design (if such exists), so the uploaded image contains all versions for further review to the developer.
+4. You are your own critique for th work you did - if the designs do not meet high standards of exceptional work and design,
+then fix and change the designs accordign to your review. iterate until perfection.
+5. only when done, add the final image to git for the user to review
+6. you never add images to the chat inline. always add a link to it on git
