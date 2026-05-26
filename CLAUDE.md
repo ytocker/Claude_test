@@ -1,10 +1,3 @@
-# CLAUDE.md — Skybit project memory
-
-This file is loaded by Claude Code at the start of every session in this
-repo. Keep it tight: project shape, hard rules, and pointers to deeper
-docs. Long-form rationale lives in `REVIEW.md` and `UPGRADE_BRIEF.md`
-on `v4_skybit`.
-
 ## What this is
 
 **Skybit — Pocket Sky Flyer.** A one-button Flappy-style casual arcade
@@ -18,17 +11,11 @@ from v_5 skyit there are many forked varions, each handling a different aspect o
 be upgraded in formal version, such as - powerups, weather events, general graphics etc.
 `main` and `gh-pages` are deployment artifacts.
 
-When starting work, check out (or branch off) `main` unless the
+When starting work, check out (or branch off) latest dev version, currently 'v5_Skybit' unless the
 user specifies otherwise. The current working tree on
 `claude/organize-project-structure-wivHq` is intentionally stripped
 down — it is NOT representative of the project.
 
-## Run
-
-```bash
-pip install pygame
-python main.py
-```
 
 Web build is driven by pygbag; entry point branches on
 `sys.platform == "emscripten"`.
