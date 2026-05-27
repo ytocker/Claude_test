@@ -163,9 +163,14 @@ class _Streak:
     def draw(self, surf):
         dx = self.vx / max(1.0, abs(self.vy)) * self.len
         dy = self.len
-        pygame.draw.line(surf, self.color,
-                         (int(self.x), int(self.y)),
-                         (int(self.x - dx), int(self.y - dy)), 1)
+        hx, hy = int(self.x), int(self.y)
+        # Fuller drop: a 2px streak with a brighter teardrop head at the
+        # leading (lower) end — reads as a real raindrop, not a thin line.
+        pygame.draw.line(surf, self.color, (hx, hy),
+                         (int(self.x - dx), int(self.y - dy)), 2)
+        head = (min(255, self.color[0] + 42), min(255, self.color[1] + 36),
+                min(255, self.color[2] + 26))
+        pygame.draw.circle(surf, head, (hx, hy), 2)
 
 
 class _Leaf:
@@ -457,7 +462,7 @@ class Weather:
         intensity = rain_intensity(phase)
         if intensity > 0:
             color = rain_color(phase)
-            target = int(50 + intensity * 90)
+            target = int(80 + intensity * 170)   # heavier downpour for the storm climax
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
@@ -537,15 +542,19 @@ class Weather:
         self.wind_swirls = [sw_ for sw_ in self.wind_swirls
                              if not sw_.off_screen()]
 
-        # Lightning (only in night window)
-        if lightning_active(phase):
+        # Full-screen lightning flash — fires a few times spread across the
+        # dusk THUNDERSTORM (gated to its window so the earlier sunset drizzle
+        # stays flash-free). The long interval lands ~3 flashes over the storm;
+        # the storm-jolt strike on Pip adds its own flash near the peak.
+        storming = 0.45 <= phase <= 0.72
+        if storming:
             self.next_strike -= dt
             if self.next_strike <= 0 and self.flash_remaining <= 0:
                 self.flash_remaining = 0.18
-                self.next_strike = random.uniform(6.0, 12.0)
+                self.next_strike = random.uniform(22.0, 34.0)
                 audio.play_thunder()
         else:
-            self.next_strike = max(self.next_strike, random.uniform(4.0, 9.0))
+            self.next_strike = max(self.next_strike, random.uniform(8.0, 16.0))
         if self.flash_remaining > 0:
             self.flash_remaining = max(0.0, self.flash_remaining - dt)
 
@@ -554,7 +563,7 @@ class Weather:
         y = random.uniform(-80, -4)
         vx = -60 - intensity * 60
         vy = 420 + intensity * 220
-        length = 10 + int(intensity * 14)
+        length = 12 + int(intensity * 18)
         self.streaks.append(_Streak(x, y, vx, vy, length, color))
 
     def _spawn_leaf(self, wind):
