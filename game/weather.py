@@ -462,7 +462,9 @@ class Weather:
         intensity = rain_intensity(phase)
         if intensity > 0:
             color = rain_color(phase)
-            target = int(120 + intensity * 230)  # V2 torrential downpour at the climax
+            # Gradual: light rain at low intensity → torrential at the peak.
+            # Power curve (no big base) so a light shower reads light.
+            target = int(intensity ** 1.5 * 360)
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
@@ -546,7 +548,7 @@ class Weather:
         # dusk THUNDERSTORM (gated to its window so the earlier sunset drizzle
         # stays flash-free). The long interval lands ~3 flashes over the storm;
         # the storm-jolt strike on Pip adds its own flash near the peak.
-        storming = 0.45 <= phase <= 0.72
+        storming = 0.49 <= phase <= 0.72   # lightning only once the rain is heavy (≈peak on)
         if storming:
             self.next_strike -= dt
             if self.next_strike <= 0 and self.flash_remaining <= 0:
@@ -559,8 +561,12 @@ class Weather:
             self.flash_remaining = max(0.0, self.flash_remaining - dt)
 
     def _spawn_streak(self, intensity, color):
+        # Spawn across the WHOLE field (not just the top): the steep leftward
+        # slant drifts drops off the lower-left, so seeding only at the top
+        # leaves the lower-right empty. A full-field respawn keeps the screen
+        # evenly covered.
         x = random.uniform(-20, W + 20)
-        y = random.uniform(-80, -4)
+        y = random.uniform(-30, GROUND_Y)
         vx = -90 - intensity * 300            # steep wind-driven slant (V2)
         vy = 420 + intensity * 220
         length = 14 + int(intensity * 20)

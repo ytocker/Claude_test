@@ -171,11 +171,11 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This showcase build starts at the BEGINNING of the dusk THUNDERSTORM:
-        # the heavy rain ramps up from ~140s to its peak (~160s, where the
-        # storm-jolt lightning strikes), then the lightning/thunder window runs
-        # ~176-230s.
-        self.biome_time = 140.0
+        # Opens with LIGHT rain (~128s, the lull after the sunset drizzle) so
+        # the storm builds gradually: light rain → heavy downpour at the peak
+        # (~160s) → lightning only then (flashes from ~157s, the strike near
+        # the peak), through the thunder window to ~230s.
+        self.biome_time = 128.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
