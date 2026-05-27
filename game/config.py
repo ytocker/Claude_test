@@ -159,12 +159,13 @@ WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 
 # Windblown snow accumulating on Pip during the snow squall (visual only).
-# bird.snow_load (0..1) integrates: gain = ACCUM * storm_intensity, melt =
-# MELT_BASE + MELT_FADE * (1 - storm_intensity). Melt accelerates as the storm
-# fades, so snow piles through the peak then sheds and clears near the end.
-WEATHER_SNOW_ACCUM_RATE = 0.12
-WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
-WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
+# bird.snow_load (0..1): gain = ACCUM * storm_intensity (gradual build through
+# the storm); melt stays ~0 while the storm is active and only ramps in once it
+# has nearly passed (storm intensity below MELT_KNEE), at the slow MELT_RATE —
+# so snow builds gradually, holds at max as the squall wanes, then clears slowly.
+WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
+WEATHER_SNOW_MELT_RATE  = 0.035   # slow melt once the storm has nearly passed
+WEATHER_SNOW_MELT_KNEE  = 0.12    # melt held ~0 while storm intensity > this
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many

@@ -654,7 +654,10 @@ class Bird:
             if ov is not None:
                 from game.config import GROW_SCALE as _GS
                 bsc = (_GS if self.grow_active else 1.0) * self.shrink_scale
-                ov = pygame.transform.rotozoom(ov, tilt, bsc)
+                # Rotate by the SAME 3°-quantised tilt get_parrot uses, so the
+                # snow stays glued to the sprite (raw tilt jittered the head).
+                q = int(round(tilt / 3.0)) * 3
+                ov = pygame.transform.rotozoom(ov, q, bsc)
                 if flipped:
                     ov = pygame.transform.flip(ov, False, True)
                 rs = ov.get_rect(center=(cx_int, cy_int))

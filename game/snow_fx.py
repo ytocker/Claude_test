@@ -21,7 +21,7 @@ import pygame
 from game import parrot
 
 # Snow depth + palette (sprite px; W2 tuning from the sketch).
-MAXD = 15.0
+MAXD = 21.0
 CORNICE = 1.6
 WHITE = (255, 255, 255)
 OFF = (236, 244, 252)
