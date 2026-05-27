@@ -380,15 +380,25 @@ class World:
         except Exception:
             pass
 
-    def _bolt_path(self, ox, ix, iy, segs=20, jit=40):
-        """Jagged top→impact lightning polyline (origin at y=0 → (ix, iy))."""
-        path = [(ox, 0.0)]
+    def _bolt_path(self, ox, oy, ix, iy, segs=20, jit=40):
+        """Jagged lightning polyline from origin (ox, oy) → impact (ix, iy)."""
+        path = [(ox, oy)]
         for i in range(1, segs):
             t = i / segs
             jx = random.uniform(-jit, jit) * (1.0 - t * 0.7)
-            path.append((ox * (1 - t) + ix * t + jx, iy * t))
+            path.append((ox * (1 - t) + ix * t + jx, oy + (iy - oy) * t))
         path.append((ix, iy))
         return path
+
+    def _side_bolt(self, base_x):
+        """A flanking bolt — same layered look as the main strike, but a
+        randomised length + jaggedness so it's never the same shape."""
+        oy = random.uniform(0.0, GROUND_Y * 0.22)            # some start lower → shorter
+        iy = random.uniform(GROUND_Y * 0.45, GROUND_Y - 18)  # end mid-air or near ground
+        return self._bolt_path(base_x + random.uniform(-40, 40), oy,
+                               base_x + random.uniform(-30, 30), iy,
+                               segs=random.randint(13, 21),
+                               jit=random.uniform(26.0, 44.0))
 
     def _fire_storm_jolt(self):
         """LIGHTNING STRIKES PIP — bolt + flash + hard shake + 100 points
@@ -404,16 +414,12 @@ class World:
         bx, by = self.bird.x, self.bird.y
         # THREE simultaneous bolts: the main strike on Pip plus two flanking
         # bolts to the ground left/right — a dramatic forked sky at the climax.
-        main = self._bolt_path(bx + random.uniform(-70, 70), bx, by - 2,
+        main = self._bolt_path(bx + random.uniform(-70, 70), 0.0, bx, by - 2,
                                segs=22, jit=42)
-        lx = bx + random.uniform(-150, -90)
-        rx = bx + random.uniform(90, 150)
-        side_l = self._bolt_path(lx + random.uniform(-40, 40), lx,
-                                 random.uniform(by - 20, GROUND_Y - 18),
-                                 segs=18, jit=36)
-        side_r = self._bolt_path(rx + random.uniform(-40, 40), rx,
-                                 random.uniform(by - 20, GROUND_Y - 18),
-                                 segs=18, jit=36)
+        # Two flanking bolts at absolute screen positions (Pip flies on the
+        # left), so all three read on-screen, spread across the sky.
+        side_l = self._side_bolt(random.uniform(18.0, 70.0))
+        side_r = self._side_bolt(random.uniform(W * 0.62, W - 24.0))
         self.lightning_strike = {"paths": [main, side_l, side_r], "path": main,
                                  "life": 0.50, "life_max": 0.50}
         self.weather.flash_remaining = max(self.weather.flash_remaining, 0.22)
