@@ -165,8 +165,8 @@ WEATHER_WIND_SCROLL_FACTOR = 0.30
 # ramps in over MELT_RAMP just after the peak, so snow starts coming off soon
 # after the peak and clears gradually.
 WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
-WEATHER_SNOW_MELT_RATE  = 0.085   # strong melt once past the peak → snow sheds soon after
-WEATHER_SNOW_MELT_RAMP  = 0.018   # narrow phase span past the 0.85 peak: removal starts ~5s after peak (snow tops ~90%, gone before the storm ends)
+WEATHER_SNOW_MELT_RATE  = 0.060   # gradual removal pace once past the peak
+WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow ramp past the 0.85 peak → removal STARTS sooner (~7s after peak) while the melt PACE stays the gradual rate above
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
