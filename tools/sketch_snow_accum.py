@@ -35,7 +35,7 @@ from game.draw import make_gradient_surface
 
 OUT = os.path.join(ROOT, "docs", "screenshots", "snow_accum")
 SCALE = 6
-MAXD = 17.0                       # max snow depth in sprite px (rear, full load)
+MAXD = 15.0                       # max snow depth in sprite px (rear, full load)
 PHASES = [("original", 0.0), ("light", 0.30), ("mid", 0.60), ("near-full", 0.92)]
 
 WHITE = (255, 255, 255)
@@ -106,7 +106,7 @@ def _columns(big, load, cornice=0.0, lump=0.0):
             continue
         rear = 1.0 - xf
         bulge = math.exp(-((xf - 0.40) / 0.26) ** 2)        # inward hump over the back
-        d = MAXD * SCALE * cov * (0.50 + 0.45 * rear + 0.75 * bulge)
+        d = MAXD * SCALE * cov * (0.50 + 0.45 * rear + 0.45 * bulge)
         if xf > 0.60:                                       # crown: thin cap so
             d = min(d, 7.0 * SCALE)                         # eyes/glasses stay clear
         te = _smooth((x - x_min) / taper_w)                 # rear-end slope 0→1
