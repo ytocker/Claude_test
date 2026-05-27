@@ -35,7 +35,7 @@ You do NOT critique your own work, and you do NOT decide when a design is "done.
 
 ## How to render exploration sheets
 
-Use a headless Pygame script (`SDL_VIDEODRIVER=dummy`) that draws each variant onto a labeled tile in a grid surface, then `pygame.image.save()` to a PNG under `docs/` (the existing exploration-gallery convention) — NOT under `game/assets/`. Keep these review PNGs out of the shipped bundle (the CI size guard fails the build past 5 MB). Reuse the project's palette and draw helpers so explorations look like the real game.
+Use a headless Pygame script (`SDL_VIDEODRIVER=dummy`) that draws each variant onto a labeled tile in a grid surface, then `pygame.image.save()` to the round's combined sheet at `docs/<feature>/round_N.png` (the exploration-gallery convention) — NOT under `game/assets/`. Keep these review PNGs out of the shipped bundle (the CI size guard fails the build past 5 MB). Reuse the project's palette and draw helpers so explorations look like the real game.
 
 ## Where the visuals live
 

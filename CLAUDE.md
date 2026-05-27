@@ -170,7 +170,8 @@ it is NOT something `graphics-designer` does alone. For any task that designs
 or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
 
 1. Delegate the brief to `graphics-designer` → it returns ONE combined review
-   image (5 versions, committed under `docs/`). It does NOT self-critique.
+   image (5 versions, committed under `docs/<feature>/round_N.png`). It does
+   NOT self-critique.
 2. Hand that image to `art-director` → it returns a critique whose first line
    is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
 3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
