@@ -171,10 +171,11 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This showcase build starts at the BEGINNING of the snow squall
-        # (window opens ~240s): the run opens as the storm begins, snow builds
-        # gradually toward the ~272s peak, then sheds shortly after.
-        self.biome_time = 240.0
+        # This showcase build starts at the BEGINNING of the dusk THUNDERSTORM:
+        # the heavy rain ramps up from ~140s to its peak (~160s, where the
+        # storm-jolt lightning strikes), then the lightning/thunder window runs
+        # ~176-230s.
+        self.biome_time = 140.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
