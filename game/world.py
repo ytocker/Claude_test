@@ -298,12 +298,12 @@ class World:
         self.bird.snow_load = max(0.0, min(1.0,
             self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
 
-        # Storm jolt: near-peak rain, after lockout, only if Pip has coins.
-        # Kicks off a ~4.4 s buildup of telegraph bolts → the real strike.
+        # Storm jolt: near-peak rain, after lockout, only if Pip has score
+        # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
         if self._storm_jolt_lockout > 0:
             self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
         elif (ri > 0.85
-              and self.coin_count > 0
+              and self.score > 0
               and not self.game_over
               and self.ready_t <= 0
               and not self._storm_buildup_seq
@@ -381,14 +381,14 @@ class World:
             pass
 
     def _fire_storm_jolt(self):
-        """LIGHTNING STRIKES PIP — bolt + flash + hard shake + up to 100
-        coins blasted off + cyan sparks + X-Ray Sparks skeleton flash +
-        scorch smoke. Loss logged as a negative weather_jolt ledger event."""
-        lost = min(100, self.coin_count)
+        """LIGHTNING STRIKES PIP — bolt + flash + hard shake + 100 points
+        knocked off the SCORE (all of it if under 100) + cyan sparks + X-Ray
+        Sparks skeleton flash + scorch smoke. Loss logged as a negative
+        weather_jolt ledger event."""
+        lost = min(100, self.score)
         if lost <= 0:
             return
         self.score = max(0, self.score - lost)
-        self.coin_count -= lost
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
         bx, by = self.bird.x, self.bird.y
