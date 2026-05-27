@@ -11,7 +11,8 @@ import pygame
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
+    PLATEAU_PIPES,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
@@ -171,12 +172,9 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This showcase build opens right as the rain STARTS (phase ~0.23):
-        # the first drops appear, build through the sunset drizzle, then
-        # thicken to the heavy dusk-storm peak (~160s, where the storm-jolt
-        # lightning strikes), with the lightning/flash gate opening only once
-        # it's heavy (phase >= 0.49, ~157s).
-        self.biome_time = 74.0
+        # Held at 0 while ready_t > 0 so the sky doesn't tick over while
+        # the player is still on the start-of-run prompt.
+        self.biome_time = 0.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -213,9 +211,18 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Newbie slow-start removed for this build: full difficulty
-        # (GAP_START / SCROLL_BASE / PIPE_SPACING) applies from pillar one.
-        return 1.0
+        # Plateau-then-ease-out onboarding curve. The first PLATEAU_PIPES
+        # pillars hold the full newbie tuning so a brand-new player has a
+        # short runway to internalize flap timing without anything
+        # tightening underneath them. From there the ramp eases out
+        # (1-(1-x)^2) so the bulk of the tightening lands in the middle
+        # pillars and the last few settle gently into GAP_START / SCROLL_BASE.
+        pp = self.pillars_passed
+        if pp < PLATEAU_PIPES:
+            return 0.0
+        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
+        x = min(1.0, x)
+        return 1.0 - (1.0 - x) ** 2
 
     # ── biome ────────────────────────────────────────────────────────────────
 
