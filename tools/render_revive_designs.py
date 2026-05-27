@@ -221,18 +221,26 @@ def build_knight(char, nom, fidx):
         pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(3 * s), rw - int(6 * s), rh - int(6 * s)))
         pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)), math.radians(202), math.radians(338), max(1, int(1.6 * s)))
 
-    # SHIELD strapped to the FRONT of the chest (drawn IN FRONT after the
-    # body + breastplate, on the front-right chest pixels) so it reads clearly.
+    # SHIELD on the front of the chest = the chosen K7 heater: quarterly
+    # gules/or (matches the powerup pickup icon).
     def shield(big, s):
         w, h = big.get_size(); cxg = w // 2
-        pygame.draw.polygon(big, OL, [(int(3 * s), int(3 * s)), (int(w - 3 * s), int(3 * s)), (int(w - 3 * s), int(h * 0.46)), (cxg, int(h - 3 * s)), (int(3 * s), int(h * 0.46))])
-        pygame.draw.polygon(big, MID, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (int(w - 6 * s), int(h * 0.45)), (cxg, int(h - 7 * s)), (int(6 * s), int(h * 0.45))])
-        pygame.draw.polygon(big, HI, [(int(6 * s), int(6 * s)), (int(w - 6 * s), int(6 * s)), (cxg, int(h * 0.5))])
-        pygame.draw.polygon(big, CRIM, [(int(9 * s), int(9 * s)), (int(w - 9 * s), int(9 * s)), (int(w - 9 * s), int(h * 0.44)), (cxg, int(h - 10 * s)), (int(9 * s), int(h * 0.44))])
-        pygame.draw.line(big, CREAM, (cxg, int(11 * s)), (cxg, int(h - 13 * s)), max(2, int(2.2 * s)))
-        pygame.draw.line(big, CREAM, (int(11 * s), int(h * 0.30)), (int(w - 11 * s), int(h * 0.30)), max(2, int(2.2 * s)))
-        pygame.draw.circle(big, HI, (cxg, int(h * 0.33)), int(3.2 * s))
-        pygame.draw.circle(big, BRASS, (cxg, int(h * 0.33)), int(1.8 * s))
+        GUL = (170, 46, 50); GOLD = (226, 182, 72)
+        outer = [(3 * s, 3 * s), (w - 3 * s, 3 * s), (w - 3 * s, h * 0.46), (cxg, h - 3 * s), (3 * s, h * 0.46)]
+        field = [(8 * s, 8 * s), (w - 8 * s, 8 * s), (w - 8 * s, h * 0.44), (cxg, h - 9 * s), (8 * s, h * 0.44)]
+        pygame.draw.polygon(big, OL, outer)
+        pygame.draw.polygon(big, MID, [(6 * s, 6 * s), (w - 6 * s, 6 * s), (w - 6 * s, h * 0.45), (cxg, h - 7 * s), (6 * s, h * 0.45)])
+        qy = h * 0.4
+        tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(tmp, GUL, (0, 0, int(cxg), int(qy)))                 # TL gules
+        pygame.draw.rect(tmp, GOLD, (int(cxg), 0, int(w - cxg), int(qy)))     # TR or
+        pygame.draw.rect(tmp, GOLD, (0, int(qy), int(cxg), int(h - qy)))      # BL or
+        pygame.draw.rect(tmp, GUL, (int(cxg), int(qy), int(w - cxg), int(h - qy)))  # BR gules
+        mask = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255), field)
+        tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(tmp, (0, 0))
+        pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))  # rim sheen
 
     char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
 
