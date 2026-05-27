@@ -307,21 +307,22 @@ def build_knight(char, nom, fidx):
         pygame.draw.polygon(big, (58, 64, 80), [(cxg - int(2.5 * s), int(5 * s)), (cxg + int(2.5 * s), int(5 * s)), (cxg + int(1.2 * s), int(h * 0.4)), (cxg - int(1.2 * s), int(h * 0.4))])
         pygame.draw.line(big, BRASS, (cxg, int(5 * s)), (cxg, int(h * 0.4)), max(1, int(1.6 * s)))
         pygame.draw.line(big, BRASS_HI, (cxg - int(0.9 * s), int(6 * s)), (cxg - int(0.9 * s), int(h * 0.38)), max(1, int(0.9 * s)))
-        # brass brow band
+        # brass brow band — tilted down toward the right (face turns right)
         vy = int(h * 0.4)
-        pygame.draw.line(big, BRASS, (int(7 * s), vy), (int(w - 7 * s), vy), max(2, int(2.2 * s)))
-        pygame.draw.line(big, BRASS_HI, (int(7 * s), vy - int(0.9 * s)), (int(w - 7 * s), vy - int(0.9 * s)), max(1, int(0.9 * s)))
-        # beveled face plate
-        pygame.draw.polygon(big, OL, [(int(7 * s), vy), (int(w - 7 * s), vy), (int(w - 10 * s), int(h * 0.72)), (cxg, int(h * 0.8)), (int(10 * s), int(h * 0.72))])
-        pygame.draw.polygon(big, (64, 72, 90), [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 12 * s), int(h * 0.7)), (cxg, int(h * 0.77)), (int(12 * s), int(h * 0.7))])
-        pygame.draw.polygon(big, MID, [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 11 * s), int(h * 0.52)), (int(11 * s), int(h * 0.52))])
-        # T eye-slit + breaths
-        pygame.draw.rect(big, (6, 7, 11), (int(12 * s), int(vy + h * 0.11), int(w - 24 * s), int(h * 0.05)))
-        pygame.draw.rect(big, (6, 7, 11), (int(cxg - 1.3 * s), int(vy + h * 0.11), int(2.6 * s), int(h * 0.22)))
+        cf = int(w * 0.60)                                                                       # face centre, swung right
+        pygame.draw.line(big, BRASS, (int(0.22 * w), vy - int(1.5 * s)), (int(w - 5 * s), vy + int(2.5 * s)), max(2, int(2.2 * s)))
+        pygame.draw.line(big, BRASS_HI, (int(0.22 * w), vy - int(2.4 * s)), (int(w - 5 * s), vy + int(1.6 * s)), max(1, int(0.9 * s)))
+        # beveled face plate swung right; the rounded back-of-skull shows at the left
+        pygame.draw.polygon(big, OL, [(int(0.22 * w), vy), (int(w - 4 * s), vy + int(3 * s)), (int(w - 8 * s), int(h * 0.7)), (cf, int(h * 0.8)), (int(0.30 * w), int(h * 0.7))])
+        pygame.draw.polygon(big, (64, 72, 90), [(int(0.25 * w), vy + int(2.5 * s)), (int(w - 7 * s), vy + int(4.5 * s)), (int(w - 10 * s), int(h * 0.68)), (cf, int(h * 0.77)), (int(0.33 * w), int(h * 0.68))])
+        pygame.draw.polygon(big, MID, [(int(0.25 * w), vy + int(2.5 * s)), (int(w - 7 * s), vy + int(4.5 * s)), (int(w - 9 * s), int(h * 0.54)), (int(0.30 * w), int(h * 0.52))])
+        # T eye-slit + breaths, centred on the turned face
+        pygame.draw.rect(big, (6, 7, 11), (int(cf - w * 0.30), int(vy + h * 0.11), int(w * 0.60), int(h * 0.05)))
+        pygame.draw.rect(big, (6, 7, 11), (int(cf - 1.3 * s), int(vy + h * 0.11), int(2.6 * s), int(h * 0.22)))
         for bx in range(5):
             if abs(bx - 2) >= 1:
-                pygame.draw.circle(big, (6, 7, 11), (int(cxg + (bx - 2) * int(3.0 * s)), int(vy + h * 0.30)), max(1, int(0.85 * s)))
-        for rx in (0.2, 0.8):
+                pygame.draw.circle(big, (6, 7, 11), (int(cf + (bx - 2) * int(3.0 * s)), int(vy + h * 0.30)), max(1, int(0.85 * s)))
+        for rx in (0.34, 0.86):
             pygame.draw.circle(big, BRASS, (int(w * rx), int(h * 0.55)), max(1, int(1.3 * s)))         # cheek rivets
         # plume holder + flowing layered crest
         sock = (cxg - int(2 * s), int(4 * s))
