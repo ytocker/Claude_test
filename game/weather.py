@@ -50,9 +50,11 @@ def rain_intensity(phase: float) -> float:
 
 
 def rain_color(phase: float):
-    """Blend between warm amber (sunset) and cool slate (dusk/night)."""
-    warm = (255, 200, 140)
-    cool = (140, 170, 220)
+    """Always blue/grey-dominant raindrops, shifting only slightly with the
+    sky — a faintly warm-lit blue at the sunset drizzle, a deeper slate-blue
+    at the dusk-storm peak."""
+    warm = (180, 192, 220)   # sunset-lit, still clearly blue-dominant
+    cool = (135, 162, 212)   # cool slate-blue at the storm peak
     # Closer to 0.35 → warmer; closer to 0.50+ → cooler
     t_cool = min(1.0, max(0.0, (phase - 0.35) / 0.2))
     return (

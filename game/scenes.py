@@ -23,6 +23,10 @@ from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 # overlay shuts itself off.
 _OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
 
+# Reused scratch surface for the lightning bolt so the strike doesn't allocate
+# (and full-screen-blit) one surface per glow-layer per bolt every frame.
+_bolt_scratch_cache: dict = {}
+
 
 def _draw_lightning_bolt(surf, strike):
     """Paint the storm-jolt lightning — the main bolt that strikes Pip plus
@@ -48,6 +52,14 @@ def _draw_lightning_bolt(surf, strike):
         t = raw_t / (1.0 - HOLD)
     t_glow = t ** 0.7
     sw, sh = surf.get_size()
+    # All layers/bolts paint onto one reused scratch surface (cleared per
+    # frame) so the strike does a single blit instead of one full-screen
+    # allocation + blit per layer per bolt.
+    scratch = _bolt_scratch_cache.get((sw, sh))
+    if scratch is None:
+        scratch = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        _bolt_scratch_cache[(sw, sh)] = scratch
+    scratch.fill((0, 0, 0, 0))
     for bi, path in enumerate(paths):
         ws = 1.0 if bi == 0 else 0.65            # flanking bolts thinner
         layers = (
@@ -57,15 +69,16 @@ def _draw_lightning_bolt(surf, strike):
             ((255, 255, 255), int(255 * t),      max(1, int(4 * ws))),
         )
         pts = [(int(x), int(y)) for (x, y) in path]
+        # Widest/dimmest first so the bright core overwrites the centre and
+        # the wide glow stays at the edges.
         for col, alpha, width in layers:
             if alpha <= 0 or width <= 0:
                 continue
-            layer = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            pygame.draw.lines(layer, (*col, alpha), False, pts, width)
+            pygame.draw.lines(scratch, (*col, alpha), False, pts, width)
             joint_r = max(1, width // 2)
             for px, py in pts:
-                pygame.draw.circle(layer, (*col, alpha), (px, py), joint_r)
-            surf.blit(layer, (0, 0))
+                pygame.draw.circle(scratch, (*col, alpha), (px, py), joint_r)
+    surf.blit(scratch, (0, 0))
 
 
 def _draw_opener(surf: pygame.Surface, world) -> None:
