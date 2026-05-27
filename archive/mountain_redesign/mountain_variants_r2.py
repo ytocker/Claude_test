@@ -130,6 +130,137 @@ def _gradient_fill(surf, heights, ground_y, top_col, bot_col, ease=1.0):
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# V1 — Danxia Rainbow Strata (REFINED, round-1 returning favourite)
+# Diagonal mineral strata — hematite red → iron orange → goethite ochre →
+# cream marl → magnetite violet — sheared across each ridge face. Round 1 drew
+# flat per-column line stacks; this rebuild samples a sheared band coordinate
+# per pixel through a smooth multi-stop mineral ramp, so every band carries its
+# own crest→base gradient, boundaries are AA-feathered rather than hard-stepped,
+# and a horizon-keyed sunlit rim catches the upper edge. Mineral hues are pulled
+# toward the biome near/horizon tones and darkened by ``star_alpha`` so the
+# rainbow stays vivid by day and reads as moonlit strata at night.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _danxia_ramp(near, horizon, night):
+    """Smooth mineral ramp as ordered (stop, colour). ``stop`` is the fraction
+    along the sheared band axis where each mineral peaks; interpolating between
+    them gives soft band-to-band transitions instead of flat slabs. Every hue is
+    pulled toward the biome ``near`` tone, lifted slightly toward ``horizon`` on
+    the warm minerals, and darkened by ``night`` (0..1) so the set desaturates
+    and dims into dusk rather than sitting as a daytime rainbow on a dark sky."""
+    raw = [
+        (0.00, (188, 64, 58)),    # hematite red — top crest band
+        (0.20, (214, 116, 62)),   # iron orange
+        (0.40, (232, 178, 104)),  # goethite ochre
+        (0.58, (240, 224, 192)),  # cream marl — the bright relief band
+        (0.76, (176, 120, 150)),  # magnetite violet
+        (1.00, (120, 84, 116)),   # shadowed basal band
+    ]
+    pull = 0.22 + night * 0.42
+    out = []
+    for k, (stop, c) in enumerate(raw):
+        col = _mix(c, near, pull)
+        if stop < 0.55:  # warm minerals catch a little horizon glow
+            col = _mix(col, horizon, 0.12 * (1.0 - night * 0.5))
+        col = _shade(col, int(-46 * night))
+        out.append((stop, col))
+    return out
+
+
+def _ramp_at(ramp, t):
+    """Sample the ordered mineral ramp at axis position ``t`` (0..1)."""
+    t = max(0.0, min(1.0, t))
+    for i in range(1, len(ramp)):
+        s0, c0 = ramp[i - 1]
+        s1, c1 = ramp[i]
+        if t <= s1:
+            f = (t - s0) / max(1e-5, s1 - s0)
+            return _mix(c0, c1, f)
+    return ramp[-1][1]
+
+
+def _danxia_layer(surf, heights, ground_y, ramp, slant, band_scale, seed,
+                  rim_col):
+    """Fill under a ridge with sheared mineral strata. For each pixel the band
+    axis is ``(y - x*slant)`` so equal-value contours run as parallel diagonals
+    — the wind-folded Danxia signature. The axis is wrapped through the ramp,
+    and a thin darkened seam at each band boundary plus an AA crest sell crisp,
+    high-relief stratification rather than a smooth wash."""
+    w = surf.get_width()
+    top = min(y for _, y in heights)
+    depth = ground_y - top
+    if depth <= 0:
+        return
+    xy = {x: y for x, y in heights}
+    body = pygame.Surface((w, depth), pygame.SRCALPHA)
+    period = band_scale  # px between repeats of the full mineral sequence
+    wobble = band_scale * 0.16
+    for x in range(w):
+        ry = xy.get(x)
+        if ry is None:  # step>1 ridges: nearest sampled column
+            ry = xy.get(min(xy, key=lambda k: abs(k - x)))
+        # Per-column phase wobble bends the strata so seams aren't ruler-straight.
+        ph = math.sin(x * 0.02 + seed) * wobble
+        for y in range(ry, ground_y):
+            axis = ((y - x * slant + ph) % period) / period
+            col = _ramp_at(ramp, axis)
+            # Thin dark seam at the wrap boundary reads as a bedding plane.
+            edge = min(axis, 1.0 - axis)
+            if edge < 0.04:
+                col = _shade(col, -22)
+            # Gentle vertical relief: lift the band a touch near the crest so the
+            # face catches light, deepen toward the base.
+            vt = (y - top) / depth
+            col = _shade(col, int(10 - 26 * vt))
+            body.set_at((x, y - top), col)
+    poly = [(0, depth)] + [(x, y - top) for x, y in heights] + [(w, depth)]
+    mask = pygame.Surface((w, depth), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), poly)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(body, (0, top))
+    # Sunlit ridge rim — horizon-keyed, AA'd, sits exactly on the silhouette.
+    _aa_crest(surf, heights, rim_col)
+
+
+def draw_mountains_v1(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    back = _back_color(far)
+    haze = _haze(far, near)
+
+    # BACK — distant, hazier strata; tighter bands so it reads as the same
+    # geology receding, and a softer rim so it doesn't compete with the front.
+    pts, hb = _ridge(w, ground_y, scroll, 0.06, 100,
+                     [(0.010, 24, 0.8), (0.026, 11, 2.1)])
+    ramp_b = _danxia_ramp(_mix(near, back, 0.55), horizon, min(1.0, night + 0.1))
+    rim_b = _mix(far, horizon, 0.5)
+    _danxia_layer(surf, hb, ground_y, ramp_b, slant=0.22, band_scale=46,
+                  seed=11, rim_col=rim_b)
+    _haze_band(surf, hb, ground_y, _mix(haze, horizon, 0.2), 150, 26)
+
+    # FAR — full rainbow, mid band scale.
+    pts, hf = _ridge(w, ground_y, scroll, 0.15, 76,
+                     [(0.013, 30, 1.4), (0.033, 14, 0.3)])
+    ramp_f = _danxia_ramp(_mix(near, far, 0.4), horizon, night)
+    rim_f = _mix(near, horizon, 0.55)
+    _danxia_layer(surf, hf, ground_y, ramp_f, slant=0.30, band_scale=56,
+                  seed=29, rim_col=rim_f)
+    _haze_band(surf, hf, ground_y, _mix(haze, horizon, 0.12), 90, 18)
+
+    # NEAR — strongest saturation + brightest sunlit rim; widest bands so the
+    # closest strata read large and bold.
+    pts, hn = _ridge(w, ground_y, scroll, 0.28, 52,
+                     [(0.018, 22, 0.5), (0.045, 10, 1.9)])
+    ramp_n = _danxia_ramp(_sat(near, 1.05), horizon, night)
+    rim_n = _mix(_mix(near, horizon, 0.6), (255, 245, 220), 0.4 * (1.0 - night))
+    _danxia_layer(surf, hn, ground_y, ramp_n, slant=0.38, band_scale=66,
+                  seed=53, rim_col=rim_n)
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # V2 — Wind-Sculpted Dunes (REFINED)
 # Richer multi-tone sand: each dune face runs a crest→trough gradient through
 # rose / gold / amber / mauve stops keyed off the biome tone, with a smooth
@@ -713,6 +844,7 @@ def set_phase(p: float) -> None:
 # ── dispatcher ───────────────────────────────────────────────────────────────
 
 VARIANTS = {
+    1: draw_mountains_v1,
     2: draw_mountains_v2,
     4: draw_mountains_v4,
     6: draw_mountains_islands,
@@ -723,6 +855,7 @@ VARIANTS = {
 }
 
 VARIANT_NAMES = {
+    1: "Danxia Rainbow Strata (refined)",
     2: "Wind-Sculpted Dunes (refined)",
     4: "Shan-Shui Ink Ridges (refined)",
     6: "Floating Sky Islands",
@@ -732,4 +865,5 @@ VARIANT_NAMES = {
     10: "Distant Fantasy Skyline",
 }
 
-ROW_ORDER = [2, 4, 6, 7, 8, 9, 10]
+# V1 leads as the returning round-1 favourite, brought up to round-2 fidelity.
+ROW_ORDER = [1, 2, 4, 6, 7, 8, 9, 10]
