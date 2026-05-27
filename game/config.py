@@ -164,8 +164,8 @@ WEATHER_WIND_SCROLL_FACTOR = 0.30
 # has nearly passed (storm intensity below MELT_KNEE), at the slow MELT_RATE —
 # so snow builds gradually, holds at max as the squall wanes, then clears slowly.
 WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
-WEATHER_SNOW_MELT_RATE  = 0.060   # melt once the storm has nearly passed (brisk but gradual)
-WEATHER_SNOW_MELT_KNEE  = 0.12    # melt held ~0 while storm intensity > this
+WEATHER_SNOW_MELT_RATE  = 0.075   # melt once the storm wanes (brisk-ish but gradual)
+WEATHER_SNOW_MELT_KNEE  = 0.22    # melt begins while storm intensity is still ~0.22 → removal starts sooner
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
