@@ -164,7 +164,7 @@ WEATHER_WIND_SCROLL_FACTOR = 0.30
 # has nearly passed (storm intensity below MELT_KNEE), at the slow MELT_RATE —
 # so snow builds gradually, holds at max as the squall wanes, then clears slowly.
 WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
-WEATHER_SNOW_MELT_RATE  = 0.035   # slow melt once the storm has nearly passed
+WEATHER_SNOW_MELT_RATE  = 0.060   # melt once the storm has nearly passed (brisk but gradual)
 WEATHER_SNOW_MELT_KNEE  = 0.12    # melt held ~0 while storm intensity > this
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────

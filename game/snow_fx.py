@@ -28,6 +28,10 @@ OFF = (236, 244, 252)
 BLUE = (188, 206, 230)           # cool shadowed underside
 SHADOW = (150, 168, 198)
 _BUCKET = 0.06                    # load quantisation for the cache
+_REF_FRAME = 2                    # level-wing frame: a stable resting silhouette
+                                  # used for ALL frames so a wing flap can't pop
+                                  # the head snow (the wing-up frame raises the
+                                  # head topline ~6px → per-frame jitter otherwise)
 
 _topline_cache: dict = {}
 _overlay_cache: dict = {}
@@ -67,19 +71,19 @@ def _topline(frame_idx):
     return _topline_cache[frame_idx]
 
 
-def get_snow_overlay(frame_idx, load):
-    """Cached W2 snow overlay (same size as the native frame) for this frame +
-    load. Returns None when there's no meaningful snow yet."""
-    frame_idx %= len(parrot._get_frames())
+def get_snow_overlay(load):
+    """Cached W2 snow overlay (native frame size) for this load. Baked from a
+    single resting frame (frame-independent) so a wing flap never moves the
+    snow on the head."""
     if load <= 0.04:
         return None
     b = round(load / _BUCKET) * _BUCKET
-    key = (frame_idx, b)
+    key = b
     cached = _overlay_cache.get(key)
     if cached is not None:
         return cached
 
-    top, x_min, w, h = _topline(frame_idx)
+    top, x_min, w, h = _topline(_REF_FRAME)
     if x_min < 0:
         _overlay_cache[key] = None
         return None
