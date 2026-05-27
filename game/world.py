@@ -29,8 +29,9 @@ from game.config import (
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
-    GEYSER_SPAWN_THRESHOLD, GEYSER_MAX_CONCURRENT,
+    GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
+    GEYSER_RAMP_PILLARS,
     GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
 )
 from game.entities import (
@@ -128,6 +129,12 @@ class World:
 
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
+
+        # Consecutive non-rush pillars while the morning-thermal event is
+        # active. Drives the rock-density ramp and gates the first geyser so
+        # the rocks build up over GEYSER_RAMP_PILLARS pillars as a telegraph.
+        # Resets to 0 whenever the event is off.
+        self._thermal_pillars = 0
 
         # Per-run stats surfaced on the post-game summary.
         self.pillars_passed = 0
@@ -513,25 +520,33 @@ class World:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
         else:
+            # Advance (or reset) the thermal-event pillar counter — the
+            # telegraph clock the rock ramp + geyser gate read.
+            if _thermal_intensity(self.biome_phase) > ROCK_SPAWN_THRESHOLD:
+                self._thermal_pillars += 1
+            else:
+                self._thermal_pillars = 0
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
             self._maybe_spawn_rocks(p)
             self._maybe_spawn_geyser(p)
 
     def _maybe_spawn_geyser(self, pipe: Pipe):
-        # Morning-thermal geysers appear only once the event is well underway
-        # (intensity past GEYSER_SPAWN_THRESHOLD) — before that the window is
-        # rocks only. Count scales with intensity (allowed 1→GEYSER_MAX_CONCURRENT)
-        # and spawn density scales too, so geysers come in sparse near the
-        # threshold and build to a small field at the ~96s peak. Placed at the
-        # open mid-gap after the pillar so the updraft rises through clear air.
+        # Geysers are held back until the rock field has ramped across
+        # GEYSER_RAMP_PILLARS pillars — so a player always gets the ~8-pillar
+        # rocks-only telegraph first. The first geyser is FORCED exactly when
+        # the ramp completes (the payoff of the clue); after that they spawn
+        # probabilistically, with concurrency scaling 0→GEYSER_MAX_CONCURRENT by
+        # intensity so they fade out naturally on the event's falling edge.
+        if self._thermal_pillars < GEYSER_RAMP_PILLARS:
+            return
         intensity = _thermal_intensity(self.biome_phase)
-        if intensity < GEYSER_SPAWN_THRESHOLD:
+        allowed = round(intensity * GEYSER_MAX_CONCURRENT)
+        if len(self.geysers) >= max(1, allowed):
             return
-        allowed = max(1, round(intensity * GEYSER_MAX_CONCURRENT))
-        if len(self.geysers) >= allowed:
-            return
-        if random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity:
+        first = self._thermal_pillars == GEYSER_RAMP_PILLARS and not self.geysers
+        if first or (allowed >= 1
+                     and random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity):
             gx = pipe.x + (PIPE_W + self._current_spacing()) * 0.5
             self.geysers.append(Geyser(gx, intensity))
             # Frame the base with a little ring of rocks on both flanks so the
@@ -566,17 +581,16 @@ class World:
             placed += 1                                  # larger anchor (in front)
 
     def _maybe_spawn_rocks(self, pipe: Pipe):
-        # Scattered sinter rocks are the event's slow buildup (and fade tail).
-        # Density ramps with intensity but reaches FULL by the geyser
-        # threshold, so the field thickens gradually through the rocks-only
-        # window and the ground is already well-populated once geysers appear.
-        intensity = _thermal_intensity(self.biome_phase)
-        if intensity < ROCK_SPAWN_THRESHOLD:
+        # The rock field is the event's telegraph: density ramps by PILLAR
+        # COUNT (not the smooth time curve) so it's countable and readable —
+        # ~1-2 rocks on the first pillar, growing larger each pillar, hitting
+        # the maximum right as the first geyser erupts (pillar GEYSER_RAMP_
+        # PILLARS), then holding at max while the event stays active.
+        if self._thermal_pillars <= 0:
             return
-        density = min(1.0, intensity / GEYSER_SPAWN_THRESHOLD)
-        count = int(round(ROCK_PER_PILLAR_MAX * density))
-        if count <= 0:
-            return
+        frac = min(1.0, self._thermal_pillars / GEYSER_RAMP_PILLARS)
+        density = frac * frac                       # quadratic ease-in: slow start, grows faster
+        count = max(1, round(ROCK_PER_PILLAR_MAX * density))
         x0 = pipe.x + PIPE_W
         self._scatter_rocks(x0, x0 + self._current_spacing(), count)
 
@@ -981,9 +995,10 @@ class World:
             self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
         # Geysers + rocks are gameplay-window elements only; the cosmetic menu
         # background doesn't scroll/cull them, so don't let _spawn_pipe
-        # accumulate any.
+        # accumulate any (and keep the telegraph counter from pre-advancing).
         self.geysers.clear()
         self.rocks.clear()
+        self._thermal_pillars = 0
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0
