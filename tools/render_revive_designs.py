@@ -38,6 +38,15 @@ CX = 165
 # Overridable by tools/render_knight_shield_pos.py to compare placements.
 _SHIELD_POS = (0.56, 0.63, 0.34, 0.42)
 
+# Knight ARMOUR style (cohesive). Overridable by tools/render_knight_armor.py.
+ARMOR = {
+    "ol": (24, 28, 38), "d": (70, 78, 96), "mid": (146, 156, 178), "hi": (238, 244, 255),
+    "brass": (208, 174, 98), "brass_hi": (255, 232, 168),
+    "body_mult": (140, 150, 174), "body_add": (6, 9, 16),
+    "sheen_top": (236, 242, 254), "sheen_bot": (44, 50, 66),
+    "texture": None, "filigree": False,
+}
+
 
 def backdrop(surf):
     pal = _biome.palette_for_phase(0.10)
@@ -212,17 +221,84 @@ def build_angel(char, nom, fidx):
         _star(char, *_P(nom, fx, fy), r, (255, 248, 214))
 
 
+def _torso_clip(body, ov, y_start):
+    """Keep ov only inside the body silhouette AND below y_start (head clear)."""
+    w, h = body.get_size()
+    cut = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(cut, (255, 255, 255, 255), (0, int(h * y_start), w, h))
+    ov.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    ov.blit(_amask(body), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    body.blit(ov, (0, 0))
+
+
+def _scale_overlay(body, mid, d, hi, y_start=0.40):
+    w, h = body.get_size()
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    edge = tuple(max(0, c - 36) for c in d)
+    scs = max(4, int(w * 0.056))
+    y0 = int(h * y_start)
+    rows = int((h - y0) / (scs * 0.82)) + 2
+    for row in range(rows):
+        y = y0 + int(row * scs * 0.82)
+        off = int(scs * 0.5) if row % 2 else 0
+        x = -off
+        while x < w + scs:
+            pygame.draw.circle(ov, edge, (x, y), int(scs * 0.60))
+            pygame.draw.circle(ov, d, (x, y), int(scs * 0.52))
+            pygame.draw.circle(ov, mid, (x, int(y - scs * 0.16)), int(scs * 0.42))
+            pygame.draw.circle(ov, hi, (int(x - scs * 0.20), int(y - scs * 0.28)), max(1, int(scs * 0.18)))
+            x += scs
+    _torso_clip(body, ov, y_start)
+
+
+def _chain_overlay(body, mid, d, hi, y_start=0.38):
+    w, h = body.get_size()
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    r = max(3, int(w * 0.034))
+    step = int(r * 1.8)
+    y0 = int(h * y_start)
+    row, y = 0, y0
+    while y < h:
+        off = step // 2 if row % 2 else 0
+        x = -off
+        while x < w + step:
+            pygame.draw.circle(ov, d, (x, y), r, max(1, int(r * 0.5)))
+            pygame.draw.circle(ov, mid, (x, y), int(r * 0.8), max(1, int(r * 0.34)))
+            pygame.draw.arc(ov, (*hi, 255), (x - r, y - r, 2 * r, 2 * r), math.radians(196), math.radians(316), max(1, int(r * 0.26)))
+            x += step
+        y += int(step * 0.78); row += 1
+    _torso_clip(body, ov, y_start)
+
+
+def _fluted_overlay(body, mid, d, hi, y_start=0.42):
+    """Vertical fluting ridges — the Maximilian / Gothic plate look."""
+    w, h = body.get_size()
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    y0, y1 = int(h * y_start), int(h * 0.96)
+    step = max(5, int(w * 0.085))
+    x = step
+    while x < w:
+        pygame.draw.line(ov, d, (x, y0), (x, y1), max(2, int(step * 0.22)))
+        pygame.draw.line(ov, hi, (int(x + step * 0.32), y0), (int(x + step * 0.32), y1), max(1, int(step * 0.12)))
+        x += step
+    _torso_clip(body, ov, y_start)
+
+
+def _filigree_overlay(body, gold, gold_hi, y_start=0.40):
+    w, h = body.get_size()
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    for fy in (0.46, 0.60, 0.74):
+        pygame.draw.arc(ov, (*gold, 210), (int(w * 0.18), int(h * fy), int(w * 0.52), int(h * 0.16)), math.radians(200), math.radians(340), 2)
+        pygame.draw.arc(ov, (*gold_hi, 190), (int(w * 0.30), int(h * fy), int(w * 0.40), int(h * 0.12)), math.radians(20), math.radians(160), 2)
+    pygame.draw.line(ov, (*gold, 220), (int(w * 0.5), int(h * 0.42)), (int(w * 0.5), int(h * 0.84)), 2)
+    _torso_clip(body, ov, y_start)
+
+
 def build_knight(char, nom, fidx):
     base = _base_body(fidx)
     brect = base.get_rect(center=nom.center)
-    OL = (24, 28, 38); D = (70, 78, 96); MID = (146, 156, 178); HI = (238, 244, 255)
-    BRASS = (208, 174, 98); BRASS_HI = (255, 232, 168); CRIM = (160, 44, 48); CREAM = (236, 230, 214)
-
-    def plate(big, s, rx, ry, rw, rh):
-        pygame.draw.ellipse(big, OL, (rx, ry, rw, rh))
-        pygame.draw.ellipse(big, D, (rx + int(1.5 * s), ry + int(1.5 * s), rw - int(3 * s), rh - int(3 * s)))
-        pygame.draw.ellipse(big, MID, (rx + int(3 * s), ry + int(3 * s), rw - int(6 * s), rh - int(6 * s)))
-        pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)), math.radians(202), math.radians(338), max(1, int(1.6 * s)))
+    OL = ARMOR["ol"]; D = ARMOR["d"]; MID = ARMOR["mid"]; HI = ARMOR["hi"]
+    BRASS = ARMOR["brass"]; BRASS_HI = ARMOR["brass_hi"]; CRIM = (160, 44, 48); CREAM = (236, 230, 214)
 
     # SHIELD on the front of the chest = the chosen K7 heater: quarterly
     # gules/or (matches the powerup pickup icon).
@@ -245,50 +321,25 @@ def build_knight(char, nom, fidx):
         big.blit(tmp, (0, 0))
         pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))  # rim sheen
 
-    char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
+    # ONE cohesive suit of armour over the whole body: recolour + sheen, then a
+    # single texture pass (scale / chain / fluted plate) clipped to the body
+    # silhouette so the knight reads as one homogeneous metal surface — no
+    # patchwork discs. Optional gold filigree for the royal variant.
+    body = _body(base, ARMOR["body_mult"], ARMOR["body_add"], ARMOR["sheen_top"], ARMOR["sheen_bot"], 118, 100)
+    tex = ARMOR["texture"]
+    if tex == "scale":
+        _scale_overlay(body, MID, D, HI)
+    elif tex == "chain":
+        _chain_overlay(body, MID, D, HI)
+    elif tex == "fluted":
+        _fluted_overlay(body, MID, D, HI)
+    if ARMOR["filigree"]:
+        _filigree_overlay(body, BRASS, BRASS_HI)
+    char.blit(body, brect.topleft)
 
-    def breast(big, s):
-        w, h = big.get_size()
-        plate(big, s, int(1 * s), int(2 * s), int(w - 2 * s), int(h - 3 * s))
-        pygame.draw.line(big, HI, (int(w * 0.5), int(5 * s)), (int(w * 0.5), int(h - 6 * s)), max(1, int(1.3 * s)))
-        pygame.draw.circle(big, BRASS, (int(w * 0.5), int(h * 0.58)), int(2.6 * s))
-        pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
-    _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), breast)
-    # shield on the FRONT of the chest (front-right chest pixels), in front
+    # the K7 shield on the most-visible right of the chest, partially on body.
     sfx, sfy, swf, shf = _SHIELD_POS
     _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), shield)
-
-    # SCALED (lamellar) armour over the near (right) wing/shoulder — rows of
-    # overlapping metal scales inside a brass-trimmed rounded pauldron.
-    def pauldron(big, s):
-        w, h = big.get_size()
-        SCALE = (152, 162, 184); SC_HI = (226, 234, 248); SC_D = (78, 86, 104); EDGE = (32, 36, 48)
-        scs = 4.4 * s
-        tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-        rows = int(h / (scs * 1.1)) + 2
-        for row in range(rows):
-            y = int(scs + row * scs * 1.1)
-            off = int(scs) if row % 2 else 0
-            x = int(scs) + off
-            while x < w + scs:
-                pygame.draw.circle(tmp, EDGE, (x, y), int(scs + 0.6 * s))
-                pygame.draw.circle(tmp, SC_D, (x, y), int(scs))
-                pygame.draw.circle(tmp, SCALE, (x, int(y - 0.7 * s)), int(scs * 0.82))
-                pygame.draw.circle(tmp, SC_HI, (int(x - 1.1 * s), int(y - 1.7 * s)), max(1, int(scs * 0.34)))
-                x += int(scs * 2)
-        mask = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.ellipse(mask, (255, 255, 255, 255), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)))
-        tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        big.blit(tmp, (0, 0))
-        # brass rim + rivets + a top sheen arc
-        pygame.draw.ellipse(big, BRASS, (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)), max(2, int(2 * s)))
-        pygame.draw.arc(big, BRASS_HI, (int(3 * s), int(2 * s), int(w - 6 * s), int(h - 4 * s)), math.radians(200), math.radians(340), max(1, int(s)))
-        cxg, cyg = w / 2, h / 2
-        for ang in range(0, 360, 60):
-            rx = int(cxg + (cxg - int(3 * s)) * math.cos(math.radians(ang)))
-            ry = int(cyg + (cyg - int(3 * s)) * math.sin(math.radians(ang)))
-            pygame.draw.circle(big, BRASS, (rx, ry), max(1, int(1.2 * s)))
-    _blit_ss(char, *_P(nom, 0.45, 0.46), int(nom.w * 0.42), int(nom.h * 0.34), pauldron, scale=6)
 
     # slick, detailed armet helm
     def helm(big, s):
