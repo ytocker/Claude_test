@@ -18,6 +18,8 @@ from game import parrot
 # Steel + heraldry palette (shared across helm / breastplate / shield).
 OL = (24, 28, 38); D = (70, 78, 96); MID = (146, 156, 178); HI = (238, 244, 255)
 BRASS = (208, 174, 98); BRASS_HI = (255, 232, 168); CRIM = (160, 44, 48)
+# Canonical K7 heraldry (matches tools/render_shield_icon_variants draw_kn_quarterly).
+STM = (150, 160, 182); GULES = (170, 46, 50); ORC = (226, 182, 72)
 
 # Shield on the front of the chest (fx, fy, w-frac, h-frac of the body rect).
 _SHIELD_POS = (0.92, 0.58, 0.36, 0.46)
@@ -87,25 +89,37 @@ def _plate(big, s, rx, ry, rw, rh):
     pygame.draw.arc(big, HI, (rx + int(3 * s), ry + int(2 * s), rw - int(6 * s), rh - int(4 * s)), math.radians(202), math.radians(338), max(1, int(1.6 * s)))
 
 
+def _heater_pts(w, h, pad):
+    return [(pad, pad), (w - pad, pad), (w - pad, h * 0.46), (w / 2, h - pad), (pad, h * 0.46)]
+
+
+def _inset(points, k):
+    cx = sum(p[0] for p in points) / len(points)
+    cy = sum(p[1] for p in points) / len(points)
+    out = []
+    for x, y in points:
+        dx, dy = cx - x, cy - y
+        d = math.hypot(dx, dy) or 1.0
+        out.append((x + dx / d * k, y + dy / d * k))
+    return out
+
+
 def _shield(big, s):
-    """K7 heater: quarterly gules/or with a steel rim + sheen."""
-    w, h = big.get_size(); cxg = w // 2
-    GUL = (170, 46, 50); GOLD = (226, 182, 72)
-    outer = [(3 * s, 3 * s), (w - 3 * s, 3 * s), (w - 3 * s, h * 0.46), (cxg, h - 3 * s), (3 * s, h * 0.46)]
-    field = [(8 * s, 8 * s), (w - 8 * s, 8 * s), (w - 8 * s, h * 0.44), (cxg, h - 9 * s), (8 * s, h * 0.44)]
-    pygame.draw.polygon(big, OL, outer)
-    pygame.draw.polygon(big, MID, [(6 * s, 6 * s), (w - 6 * s, 6 * s), (w - 6 * s, h * 0.45), (cxg, h - 7 * s), (6 * s, h * 0.45)])
-    qy = h * 0.4
+    """K7 heater: quarterly gules/or, thin steel rim (canonical design)."""
+    w, h = big.get_size(); cx, cy = w / 2, h * 0.45
+    pts = _heater_pts(w, h, 3 * s)
+    pygame.draw.polygon(big, OL, pts)
+    pygame.draw.polygon(big, STM, _inset(pts, 1.7 * s))
+    fpts = _inset(pts, 4.6 * s)
     tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.rect(tmp, GUL, (0, 0, int(cxg), int(qy)))
-    pygame.draw.rect(tmp, GOLD, (int(cxg), 0, int(w - cxg), int(qy)))
-    pygame.draw.rect(tmp, GOLD, (0, int(qy), int(cxg), int(h - qy)))
-    pygame.draw.rect(tmp, GUL, (int(cxg), int(qy), int(w - cxg), int(h - qy)))
+    pygame.draw.rect(tmp, GULES, (0, 0, int(cx), int(cy)))
+    pygame.draw.rect(tmp, ORC, (int(cx), 0, int(w - cx), int(cy)))
+    pygame.draw.rect(tmp, ORC, (0, int(cy), int(cx), int(h - cy)))
+    pygame.draw.rect(tmp, GULES, (int(cx), int(cy), int(w - cx), int(h - cy)))
     mask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255), field)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), fpts)
     tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(tmp, (0, 0))
-    pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))
 
 
 def _breast(big, s):
@@ -233,27 +247,6 @@ def draw_shield_icon(surf, cx, cy, size=30):
     _blit_ss(surf, cx, cy, int(size * 0.82), size, _shield, scale=5)
 
 
-def _shield_glyph(big, s):
-    """Bold heater for tiny HUD sizes — thin rim, big quarters."""
-    w, h = big.get_size(); cxg = w // 2
-    GUL = (170, 46, 50); GOLD = (226, 182, 72)
-    outer = [(1 * s, 1 * s), (w - 1 * s, 1 * s), (w - 1 * s, h * 0.46), (cxg, h - 1 * s), (1 * s, h * 0.46)]
-    field = [(2.5 * s, 2.5 * s), (w - 2.5 * s, 2.5 * s), (w - 2.5 * s, h * 0.45), (cxg, h - 2.5 * s), (2.5 * s, h * 0.45)]
-    pygame.draw.polygon(big, OL, outer)
-    qy = h * 0.42
-    tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.rect(tmp, GUL, (0, 0, int(cxg), int(qy)))
-    pygame.draw.rect(tmp, GOLD, (int(cxg), 0, int(w - cxg), int(qy)))
-    pygame.draw.rect(tmp, GOLD, (0, int(qy), int(cxg), int(h - qy)))
-    pygame.draw.rect(tmp, GUL, (int(cxg), int(qy), int(w - cxg), int(h - qy)))
-    mask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255), field)
-    tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    big.blit(tmp, (0, 0))
-    pygame.draw.lines(big, MID, True, outer, max(1, int(1.4 * s)))
-    pygame.draw.line(big, HI, (int(2.5 * s), int(2.5 * s)), (int(w - 2.5 * s), int(2.5 * s)), max(1, int(1.2 * s)))
-
-
 def draw_shield_glyph(surf, cx, cy, size=22):
-    """Compact HUD timer glyph — same heraldry, readable small."""
-    _blit_ss(surf, cx, cy, int(size * 0.86), size, _shield_glyph, scale=6)
+    """Compact HUD timer glyph — the same canonical heater shield."""
+    _blit_ss(surf, cx, cy, int(size * 0.82), size, _shield, scale=6)
