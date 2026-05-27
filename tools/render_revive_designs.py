@@ -34,6 +34,9 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 PS = 2.15
 CX = 165
+# Knight chest-shield placement (fx, fy, w-frac, h-frac of the nominal rect).
+# Overridable by tools/render_knight_shield_pos.py to compare placements.
+_SHIELD_POS = (0.56, 0.63, 0.34, 0.42)
 
 
 def backdrop(surf):
@@ -252,7 +255,8 @@ def build_knight(char, nom, fidx):
         pygame.draw.circle(big, BRASS_HI, (int(w * 0.5) - int(s), int(h * 0.58) - int(s)), max(1, int(s)))
     _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), breast)
     # shield on the FRONT of the chest (front-right chest pixels), in front
-    _blit_ss(char, *_P(nom, 0.56, 0.63), int(nom.w * 0.34), int(nom.h * 0.42), shield)
+    sfx, sfy, swf, shf = _SHIELD_POS
+    _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), shield)
 
     # SCALED (lamellar) armour over the near (right) wing/shoulder — rows of
     # overlapping metal scales inside a brass-trimmed rounded pauldron.
