@@ -27,7 +27,7 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_KNEE,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -287,14 +287,15 @@ class World:
         else:
             self.bird.wind_lean = 0.0
 
-        # Windblown snow on Pip — gradual build ∝ storm; melt held ~0 while the
-        # squall is active and only ramps in (slowly) once it has nearly passed,
-        # so the snow piles up, holds at max as the storm wanes, then clears slow.
+        # Windblown snow on Pip — gradual build ∝ storm on the rise; melt is
+        # keyed to the squall being PAST ITS PEAK (phase 0.85), ramping in over
+        # MELT_RAMP, so the build stays clean and the snow starts shedding soon
+        # after the peak, clearing gradually. (0.85 = storm_intensity peak.)
+        fade = max(0.0, min(1.0, (self.weather.phase - 0.85) / WEATHER_SNOW_MELT_RAMP))
+        fade = fade * fade * (3.0 - 2.0 * fade)
         gain = WEATHER_SNOW_ACCUM_RATE * wi
-        melt = WEATHER_SNOW_MELT_RATE * max(0.0, min(1.0,
-            (WEATHER_SNOW_MELT_KNEE - wi) / WEATHER_SNOW_MELT_KNEE))
         self.bird.snow_load = max(0.0, min(1.0,
-            self.bird.snow_load + (gain - melt) * dt))
+            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
 
         # Storm jolt: near-peak rain, after lockout, only if Pip has coins.
         # Kicks off a ~4.4 s buildup of telegraph bolts → the real strike.
