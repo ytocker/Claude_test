@@ -97,8 +97,13 @@ def get_snow_overlay(frame_idx, load):
         rear = 1.0 - xf
         bulge = math.exp(-((xf - 0.40) / 0.26) ** 2)        # inward hump
         d = MAXD * cov * (0.50 + 0.45 * rear + 0.45 * bulge)
-        if xf > 0.60:                                       # thin crown cap (face clear)
-            d = min(d, 7.0)
+        if xf > 0.60:
+            # Head: a thin crown cap at low load, but as the storm peaks
+            # (load 0.68->1.0) snow creeps onto the face — more on the LEFT
+            # (back) of the head, tapering so the front/beak stays readable.
+            hi = max(0.0, (b - 0.68) / 0.32)
+            headfrac = (xf - 0.60) / 0.40                   # 0 back-of-head .. 1 beak
+            d = min(d, 7.0 + hi * 11.0 * (1.0 - headfrac))
         d *= _smooth((x - x_min) / taper_w)                 # rear-end slope
         if d < 0.6:
             continue
