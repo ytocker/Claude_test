@@ -18,8 +18,9 @@ from game import parrot
 # Steel + heraldry palette (shared across helm / breastplate / shield).
 OL = (24, 28, 38); D = (70, 78, 96); MID = (146, 156, 178); HI = (238, 244, 255)
 BRASS = (208, 174, 98); BRASS_HI = (255, 232, 168); CRIM = (160, 44, 48)
-# Canonical K7 heraldry (matches tools/render_shield_icon_variants draw_kn_quarterly).
-GULES = (170, 46, 50); ORC = (226, 182, 72)
+# Canonical K7 heraldry. STM is the gray steel rim — kept NEUTRAL (no blue
+# bias) so neither it nor its anti-aliased edges read as blue pixels.
+STM = (162, 163, 164); GULES = (170, 46, 50); ORC = (226, 182, 72)
 
 # Shield on the front of the chest (fx, fy, w-frac, h-frac of the body rect).
 _SHIELD_POS = (0.92, 0.58, 0.36, 0.46)
@@ -93,17 +94,31 @@ def _heater_pts(w, h, pad):
     return [(pad, pad), (w - pad, pad), (w - pad, h * 0.46), (w / 2, h - pad), (pad, h * 0.46)]
 
 
+def _inset(points, k):
+    cx = sum(p[0] for p in points) / len(points)
+    cy = sum(p[1] for p in points) / len(points)
+    out = []
+    for x, y in points:
+        dx, dy = cx - x, cy - y
+        d = math.hypot(dx, dy) or 1.0
+        out.append((x + dx / d * k, y + dy / d * k))
+    return out
+
+
 def _shield(big, s):
-    """K7 heater: quarterly gules/or. Flat heraldry — no steel rim/outline."""
+    """K7 heater: quarterly gules/or inside a gray steel rim (matches the
+    design). No dark-navy outline — the rim is the perimeter."""
     w, h = big.get_size(); cx, cy = w / 2, h * 0.45
     pts = _heater_pts(w, h, 2 * s)
+    pygame.draw.polygon(big, STM, pts)
+    fpts = _inset(pts, 4.5 * s)
     tmp = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.rect(tmp, GULES, (0, 0, int(cx), int(cy)))
     pygame.draw.rect(tmp, ORC, (int(cx), 0, int(w - cx), int(cy)))
     pygame.draw.rect(tmp, ORC, (0, int(cy), int(cx), int(h - cy)))
     pygame.draw.rect(tmp, GULES, (int(cx), int(cy), int(w - cx), int(h - cy)))
     mask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255), pts)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), fpts)
     tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     big.blit(tmp, (0, 0))
 
