@@ -325,6 +325,198 @@ def draw_winged_crest(big, s):
         pygame.draw.circle(big, GULES, (int(x), int(cyc - h * 0.055)), max(1, int(1.4 * s)))
 
 
+# ── round 3: 10 AUTHENTIC-KNIGHT shields (heater / kite / bouché + heraldry) ──
+def _clip_poly(big, points):
+    w, h = big.get_size()
+    mask = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), points)
+    return mask
+
+
+def _heater_pts(w, h, pad):
+    return [(pad, pad), (w - pad, pad), (w - pad, h * 0.46), (w / 2, h - pad), (pad, h * 0.46)]
+
+
+def _kite_pts(w, h, pad):
+    top = _qbez((pad, h * 0.18), (w / 2, -h * 0.02), (w - pad, h * 0.18), 16)
+    return top + [(w * 0.86, h * 0.55), (w / 2, h - pad), (w * 0.14, h * 0.55)]
+
+
+def _bouche_pts(w, h, pad):
+    # heater with a stepped notch at the top-right = the lance rest (bouché)
+    return [(pad, pad), (w * 0.58, pad), (w * 0.58, h * 0.15), (w - pad, h * 0.15),
+            (w - pad, h * 0.5), (w / 2, h - pad), (pad, h * 0.5)]
+
+
+def _base(big, s, pts, field, field_hi=None):
+    """Outline → steel rim → field; returns the field polygon (for clipping)."""
+    pygame.draw.polygon(big, OL, pts)
+    pygame.draw.polygon(big, STM, _inset(pts, 1.7 * s))
+    fpts = _inset(pts, 4.6 * s)
+    pygame.draw.polygon(big, field, fpts)
+    if field_hi:
+        pygame.draw.polygon(big, field_hi, [fpts[0], fpts[1], (big.get_width() / 2, big.get_height() * 0.5)])
+    return fpts
+
+
+def _ordinary(big, fpts, draw_fn):
+    """Draw an ordinary/division via draw_fn onto a temp, clipped to the field."""
+    w, h = big.get_size()
+    tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+    draw_fn(tmp)
+    tmp.blit(_clip_poly(big, fpts), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(tmp, (0, 0))
+
+
+def _cross_pattee(big, cx, cy, R, col, s):
+    for ang in (0, 90, 180, 270):
+        a = math.radians(ang); perp = a + math.pi / 2
+        tip = (cx + math.cos(a) * R, cy + math.sin(a) * R)
+        nar, wide = R * 0.16, R * 0.5
+        pygame.draw.polygon(big, col, [
+            (cx + math.cos(perp) * nar, cy + math.sin(perp) * nar),
+            (tip[0] + math.cos(perp) * wide, tip[1] + math.sin(perp) * wide),
+            (tip[0] - math.cos(perp) * wide, tip[1] - math.sin(perp) * wide),
+            (cx - math.cos(perp) * nar, cy - math.sin(perp) * nar)])
+
+
+def _lion_rampant(big, cx, cy, w, h, col, s):
+    # stylized rearing lion facing dexter (left)
+    pygame.draw.ellipse(big, col, (int(cx + w * 0.0), int(cy + h * 0.04), int(w * 0.26), int(h * 0.34)))   # haunch
+    pygame.draw.line(big, col, (cx + w * 0.14, cy + h * 0.3), (cx + w * 0.14, cy + h * 0.46), max(4, int(5 * s)))  # hind leg
+    pygame.draw.circle(big, col, (int(cx + w * 0.14), int(cy + h * 0.47)), max(2, int(3 * s)))             # paw
+    pygame.draw.polygon(big, col, [(cx + w * 0.12, cy + h * 0.16), (cx + w * 0.02, cy - h * 0.16),         # body rising
+                                   (cx - w * 0.1, cy - h * 0.3), (cx - w * 0.04, cy - h * 0.02), (cx, cy + h * 0.18)])
+    pygame.draw.line(big, col, (cx - w * 0.05, cy - h * 0.1), (cx - w * 0.27, cy - h * 0.16), max(3, int(4 * s)))   # upper foreleg
+    pygame.draw.line(big, col, (cx - w * 0.03, cy - h * 0.02), (cx - w * 0.24, cy + h * 0.06), max(3, int(4 * s)))  # lower foreleg
+    hx, hy, hr = cx - w * 0.14, cy - h * 0.34, h * 0.1                                                     # head facing left
+    for adeg in (250, 292, 334, 16, 58):                                                                  # partial mane (top/back)
+        a = math.radians(adeg)
+        pygame.draw.polygon(big, col, [(hx + math.cos(a - 0.26) * hr, hy + math.sin(a - 0.26) * hr),
+                                       (hx + math.cos(a) * hr * 1.8, hy + math.sin(a) * hr * 1.8),
+                                       (hx + math.cos(a + 0.26) * hr, hy + math.sin(a + 0.26) * hr)])
+    pygame.draw.circle(big, col, (int(hx), int(hy)), int(hr))
+    pygame.draw.polygon(big, col, [(hx - hr * 1.4, hy - hr * 0.1), (hx - hr * 0.2, hy - hr * 0.3), (hx - hr * 0.2, hy + hr * 0.5)])  # snout
+    pygame.draw.circle(big, OL, (int(hx - hr * 0.35), int(hy - hr * 0.05)), max(1, int(1.5 * s)))         # eye
+    tail = _qbez((cx + w * 0.2, cy + h * 0.0), (cx + w * 0.5, cy - h * 0.24), (cx + w * 0.3, cy - h * 0.48), 12)
+    pygame.draw.lines(big, col, False, tail, max(2, int(3.4 * s)))
+    pygame.draw.circle(big, col, (int(tail[-1][0]), int(tail[-1][1])), max(2, int(3.2 * s)))              # tail tuft
+
+
+def _eagle_displayed(big, cx, cy, w, h, col, s):
+    pygame.draw.ellipse(big, col, (cx - w * 0.09, cy - h * 0.3, w * 0.18, h * 0.55))            # body
+    pygame.draw.circle(big, col, (int(cx), int(cy - h * 0.34)), int(h * 0.08))                  # head
+    pygame.draw.polygon(big, col, [(cx + h * 0.06, cy - h * 0.37), (cx + h * 0.17, cy - h * 0.34), (cx + h * 0.06, cy - h * 0.3)])  # beak
+    for sgn in (-1, 1):
+        pygame.draw.polygon(big, col, [(cx, cy - h * 0.22), (cx + sgn * w * 0.5, cy - h * 0.3),
+                                       (cx + sgn * w * 0.46, cy - h * 0.12), (cx + sgn * w * 0.52, cy - h * 0.04),
+                                       (cx + sgn * w * 0.4, cy + h * 0.05), (cx + sgn * w * 0.46, cy + h * 0.12),
+                                       (cx + sgn * w * 0.28, cy + h * 0.1), (cx, cy - h * 0.02)])
+        pygame.draw.line(big, col, (cx + sgn * w * 0.05, cy + h * 0.16), (cx + sgn * w * 0.1, cy + h * 0.3), max(2, int(2.6 * s)))
+    pygame.draw.polygon(big, col, [(cx - w * 0.1, cy + h * 0.16), (cx + w * 0.1, cy + h * 0.16),
+                                   (cx + w * 0.06, cy + h * 0.44), (cx - w * 0.06, cy + h * 0.44)])  # tail fan
+
+
+def draw_kn_cross(big, s):
+    w, h = big.get_size(); cx = w / 2
+    _base(big, s, _heater_pts(w, h, 3 * s), GULES, GULES_HI)
+    vb = 7 * s
+    pygame.draw.rect(big, ARG, (int(cx - vb / 2), int(h * 0.15), int(vb), int(h * 0.58)))
+    pygame.draw.rect(big, ARG, (int(w * 0.16), int(h * 0.33), int(w * 0.68), int(vb)))
+    for rx, ry in ((0.2, 0.15), (0.8, 0.15)):
+        _rivet(big, w * rx, h * ry, s)
+
+
+def draw_kn_france(big, s):
+    w, h = big.get_size()
+    _base(big, s, _heater_pts(w, h, 3 * s), AZURE, AZURE_HI)
+    fw, fh = w * 0.2, h * 0.24
+    _fleur(big, w * 0.35, h * 0.3, fw, fh, OR, s)
+    _fleur(big, w * 0.65, h * 0.3, fw, fh, OR, s)
+    _fleur(big, w * 0.5, h * 0.6, fw, fh, OR, s)
+
+
+def draw_kn_chevron(big, s):
+    w, h = big.get_size(); cx = w / 2
+    f = _base(big, s, _heater_pts(w, h, 3 * s), SABLE)
+    _ordinary(big, f, lambda t: (pygame.draw.line(t, OR, (w * 0.16, h * 0.64), (cx, h * 0.34), max(3, int(8 * s))),
+                                 pygame.draw.line(t, OR, (cx, h * 0.34), (w * 0.84, h * 0.64), max(3, int(8 * s)))))
+    _mullet(big, w * 0.3, h * 0.22, 4.5 * s, OR, s)
+    _mullet(big, w * 0.7, h * 0.22, 4.5 * s, OR, s)
+    _mullet(big, w * 0.5, h * 0.64, 4.5 * s, OR, s)
+
+
+def draw_kn_pattee(big, s):
+    w, h = big.get_size()
+    _base(big, s, _heater_pts(w, h, 3 * s), ARG)
+    _cross_pattee(big, w / 2, h * 0.42, w * 0.3, GULES, s)
+
+
+def draw_kn_bend(big, s):
+    w, h = big.get_size()
+    f = _base(big, s, _kite_pts(w, h, 3 * s), AZURE, AZURE_HI)
+    p1, p2 = (w * 0.18, h * 0.1), (w * 0.82, h * 0.78)
+    dx, dy = p2[0] - p1[0], p2[1] - p1[1]; dl = math.hypot(dx, dy); ux, uy = dx / dl, dy / dl; px, py = -uy, ux
+    bw = 7 * s
+
+    def band(t):
+        pygame.draw.polygon(t, OR, [(p1[0] + px * bw, p1[1] + py * bw), (p2[0] + px * bw, p2[1] + py * bw),
+                                    (p2[0] - px * bw, p2[1] - py * bw), (p1[0] - px * bw, p1[1] - py * bw)])
+        for off in (bw + 2.6 * s, -(bw + 2.6 * s)):
+            pygame.draw.line(t, ARG, (p1[0] + px * off, p1[1] + py * off), (p2[0] + px * off, p2[1] + py * off), max(1, int(1.7 * s)))
+    _ordinary(big, f, band)
+
+
+def draw_kn_lion(big, s):
+    w, h = big.get_size()
+    _base(big, s, _heater_pts(w, h, 3 * s), GULES, GULES_HI)
+    _lion_rampant(big, w / 2, h * 0.46, w * 0.42, h * 0.5, OR, s)
+
+
+def draw_kn_quarterly(big, s):
+    w, h = big.get_size(); cx, cy = w / 2, h * 0.45
+    pts = _heater_pts(w, h, 3 * s)
+    pygame.draw.polygon(big, OL, pts)
+    pygame.draw.polygon(big, STM, _inset(pts, 1.7 * s))
+    f = _inset(pts, 4.6 * s)
+
+    def quarters(t):
+        pygame.draw.rect(t, GULES, (0, 0, int(cx), int(cy)))
+        pygame.draw.rect(t, OR, (int(cx), 0, int(w - cx), int(cy)))
+        pygame.draw.rect(t, OR, (0, int(cy), int(cx), int(h - cy)))
+        pygame.draw.rect(t, GULES, (int(cx), int(cy), int(w - cx), int(h - cy)))
+    _ordinary(big, f, quarters)
+
+
+def draw_kn_eagle(big, s):
+    w, h = big.get_size()
+    _base(big, s, _bouche_pts(w, h, 3 * s), OR)
+    _eagle_displayed(big, w / 2, h * 0.45, w * 0.6, h * 0.52, SABLE, s)
+
+
+def draw_kn_saltire(big, s):
+    w, h = big.get_size(); cx, cy = w / 2, h * 0.42; off = w * 0.32
+    f = _base(big, s, _kite_pts(w, h, 3 * s), VERT)
+    _ordinary(big, f, lambda t: (pygame.draw.line(t, ARG, (cx - off, cy - off), (cx + off, cy + off), max(3, int(7 * s))),
+                                 pygame.draw.line(t, ARG, (cx - off, cy + off), (cx + off, cy - off), max(3, int(7 * s)))))
+
+
+def draw_kn_bendy(big, s):
+    w, h = big.get_size()
+    pts = _heater_pts(w, h, 3 * s)
+    pygame.draw.polygon(big, OL, pts)
+    pygame.draw.polygon(big, STM, _inset(pts, 1.7 * s))
+    f = _inset(pts, 4.6 * s)
+
+    def stripes(t):
+        pygame.draw.rect(t, OR, (0, 0, w, h))
+        bw = w / 3.4; o = -h
+        while o < w:
+            pygame.draw.polygon(t, AZURE, [(o, 0), (o + bw, 0), (o + bw + h, h), (o + h, h)])
+            o += bw * 2
+    _ordinary(big, f, stripes)
+
+
 VARIANTS = [
     ("V1_crusader_heater", draw_crusader_heater, "V1  Heater", "gules · argent cross"),
     ("V2_norman_kite", draw_norman_kite, "V2  Norman kite", "azure · gold bend + mullets"),
@@ -339,6 +531,20 @@ VARIANTS_NEW = [
     ("V8_viking_round", draw_viking_round, "V8  Viking round", "segmented · iron boss"),
     ("V9_heraldic_lion", draw_heraldic_lion, "V9  Heraldic lion", "gules · gold lion mask"),
     ("V10_winged_crest", draw_winged_crest, "V10  Winged crest", "azure · wings + crown"),
+]
+
+# Round 3 — 10 shields a REAL medieval knight would carry (heater/kite/bouché).
+VARIANTS_KNIGHT = [
+    ("K1_cross", draw_kn_cross, "K1  Heater", "gules · cross argent"),
+    ("K2_france", draw_kn_france, "K2  Heater", "azure · 3 fleurs-de-lis or"),
+    ("K3_chevron", draw_kn_chevron, "K3  Heater", "sable · chevron + 3 mullets or"),
+    ("K4_pattee", draw_kn_pattee, "K4  Heater", "argent · cross pattée gules"),
+    ("K5_bend", draw_kn_bend, "K5  Kite", "azure · bend or cotised"),
+    ("K6_lion", draw_kn_lion, "K6  Heater", "gules · lion rampant or"),
+    ("K7_quarterly", draw_kn_quarterly, "K7  Heater", "quarterly gules & or"),
+    ("K8_eagle", draw_kn_eagle, "K8  Bouché", "or · eagle displayed sable"),
+    ("K9_saltire", draw_kn_saltire, "K9  Kite", "vert · saltire argent"),
+    ("K10_bendy", draw_kn_bendy, "K10  Heater", "bendy or & azure"),
 ]
 
 
@@ -364,7 +570,7 @@ def _tile(fn, label, caption):
 
 
 def main():
-    allv = VARIANTS + VARIANTS_NEW
+    allv = VARIANTS + VARIANTS_NEW + VARIANTS_KNIGHT
     tiles = {key: _tile(fn, lab, cap) for key, fn, lab, cap in allv}
     for key, tile in tiles.items():
         pygame.image.save(tile, os.path.join(OUT_DIR, f"{key}.png"))
@@ -393,7 +599,18 @@ def main():
     out = os.path.join(OUT_DIR, "shield_icons_all10.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet.get_width()}x{sheet.get_height()})")
-    print("per-variant PNGs (V1..V10) in", OUT_DIR)
+
+    # round-3 deliverable: 10 AUTHENTIC-KNIGHT shields (2 rows × 5)
+    kn = pygame.Surface((tw * 5 + gap * 6, title_h + 2 * th + 3 * gap))
+    kn.fill((14, 15, 22))
+    kn.blit(tf.render("Knight shields — 10 a real medieval knight would carry (inset = true size)", True, (255, 232, 168)), (gap + 2, 10))
+    for r in range(2):
+        for i, (key, *_ ) in enumerate(VARIANTS_KNIGHT[r * 5:r * 5 + 5]):
+            kn.blit(tiles[key], (gap + i * (tw + gap), title_h + r * (th + gap)))
+    knout = os.path.join(OUT_DIR, "shield_icons_knight10.png")
+    pygame.image.save(kn, knout)
+    print(f"saved {knout}  ({kn.get_width()}x{kn.get_height()})")
+    print("per-variant PNGs (V1..V10, K1..K10) in", OUT_DIR)
 
 
 if __name__ == "__main__":
