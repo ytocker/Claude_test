@@ -462,7 +462,7 @@ class Weather:
         intensity = rain_intensity(phase)
         if intensity > 0:
             color = rain_color(phase)
-            target = int(80 + intensity * 170)   # heavier downpour for the storm climax
+            target = int(120 + intensity * 230)  # V2 torrential downpour at the climax
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
@@ -561,9 +561,9 @@ class Weather:
     def _spawn_streak(self, intensity, color):
         x = random.uniform(-20, W + 20)
         y = random.uniform(-80, -4)
-        vx = -60 - intensity * 60
+        vx = -90 - intensity * 300            # steep wind-driven slant (V2)
         vy = 420 + intensity * 220
-        length = 12 + int(intensity * 18)
+        length = 14 + int(intensity * 20)
         self.streaks.append(_Streak(x, y, vx, vy, length, color))
 
     def _spawn_leaf(self, wind):

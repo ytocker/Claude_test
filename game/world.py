@@ -380,6 +380,16 @@ class World:
         except Exception:
             pass
 
+    def _bolt_path(self, ox, ix, iy, segs=20, jit=40):
+        """Jagged top→impact lightning polyline (origin at y=0 → (ix, iy))."""
+        path = [(ox, 0.0)]
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-jit, jit) * (1.0 - t * 0.7)
+            path.append((ox * (1 - t) + ix * t + jx, iy * t))
+        path.append((ix, iy))
+        return path
+
     def _fire_storm_jolt(self):
         """LIGHTNING STRIKES PIP — bolt + flash + hard shake + 100 points
         knocked off the SCORE (all of it if under 100) + cyan sparks + X-Ray
@@ -392,18 +402,20 @@ class World:
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
         bx, by = self.bird.x, self.bird.y
-        target_y = by - 2
-        origin_x = bx + random.uniform(-70, 70)
-        path = [(origin_x, 0.0)]
-        segs = 22
-        for i in range(1, segs):
-            t = i / segs
-            jx = random.uniform(-42, 42) * (1.0 - t * 0.7)
-            cx = origin_x * (1 - t) + bx * t + jx
-            cy = target_y * t
-            path.append((cx, cy))
-        path.append((bx, target_y))
-        self.lightning_strike = {"path": path, "life": 0.50, "life_max": 0.50}
+        # THREE simultaneous bolts: the main strike on Pip plus two flanking
+        # bolts to the ground left/right — a dramatic forked sky at the climax.
+        main = self._bolt_path(bx + random.uniform(-70, 70), bx, by - 2,
+                               segs=22, jit=42)
+        lx = bx + random.uniform(-150, -90)
+        rx = bx + random.uniform(90, 150)
+        side_l = self._bolt_path(lx + random.uniform(-40, 40), lx,
+                                 random.uniform(by - 20, GROUND_Y - 18),
+                                 segs=18, jit=36)
+        side_r = self._bolt_path(rx + random.uniform(-40, 40), rx,
+                                 random.uniform(by - 20, GROUND_Y - 18),
+                                 segs=18, jit=36)
+        self.lightning_strike = {"paths": [main, side_l, side_r], "path": main,
+                                 "life": 0.50, "life_max": 0.50}
         self.weather.flash_remaining = max(self.weather.flash_remaining, 0.22)
         self.shake_mag = max(self.shake_mag, 9.0)
         self.shake_t = max(self.shake_t, 0.55)

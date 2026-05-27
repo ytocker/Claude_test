@@ -25,42 +25,42 @@ _OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
 
 
 def _draw_lightning_bolt(surf, strike):
-    """Paint the storm-jolt lightning bolt that strikes Pip. Four
-    concentric layers — wide plasma bloom, outer purple glow, cyan halo,
-    white core — along the polyline in `strike["path"]`. Alpha holds full
-    for the first 35% of life so the zig-zag reads, then decays. Round
-    circles at every waypoint so the polyline reads as one crackle."""
+    """Paint the storm-jolt lightning — the main bolt that strikes Pip plus
+    (when present) two flanking bolts in `strike["paths"]`, so the sky forks
+    with three simultaneous strikes at the climax. Four concentric layers
+    (plasma bloom, purple glow, cyan halo, white core); alpha holds full for
+    the first 35% of life, then decays; flanking bolts a touch thinner."""
     if strike is None or strike.get("life", 0) <= 0:
         return
-    path = strike.get("path") or []
-    if len(path) < 2:
+    paths = strike.get("paths") or ([strike["path"]] if strike.get("path") else [])
+    paths = [p for p in paths if len(p) >= 2]
+    if not paths:
         return
     life = strike["life"]
     life_max = strike["life_max"]
     raw_t = max(0.0, min(1.0, life / life_max))
     HOLD = 0.35
-    if raw_t >= 1.0 - HOLD:
-        t = 1.0
-    else:
-        t = raw_t / (1.0 - HOLD)
+    t = 1.0 if raw_t >= 1.0 - HOLD else raw_t / (1.0 - HOLD)
     t_glow = t ** 0.7
-    layers = (
-        ((130,  80, 220), int(70 * t_glow),  18),
-        ((180, 100, 255), int(170 * t_glow), 12),
-        ((140, 220, 255), int(235 * t_glow),  7),
-        ((255, 255, 255), int(255 * t),       4),
-    )
     sw, sh = surf.get_size()
-    pts = [(int(x), int(y)) for (x, y) in path]
-    for col, alpha, width in layers:
-        if alpha <= 0 or width <= 0:
-            continue
-        layer = pygame.Surface((sw, sh), pygame.SRCALPHA)
-        pygame.draw.lines(layer, (*col, alpha), False, pts, width)
-        joint_r = max(1, width // 2)
-        for px, py in pts:
-            pygame.draw.circle(layer, (*col, alpha), (px, py), joint_r)
-        surf.blit(layer, (0, 0))
+    for bi, path in enumerate(paths):
+        ws = 1.0 if bi == 0 else 0.65            # flanking bolts thinner
+        layers = (
+            ((130,  80, 220), int(70 * t_glow),  max(1, int(18 * ws))),
+            ((180, 100, 255), int(170 * t_glow), max(1, int(12 * ws))),
+            ((140, 220, 255), int(235 * t_glow), max(1, int(7 * ws))),
+            ((255, 255, 255), int(255 * t),      max(1, int(4 * ws))),
+        )
+        pts = [(int(x), int(y)) for (x, y) in path]
+        for col, alpha, width in layers:
+            if alpha <= 0 or width <= 0:
+                continue
+            layer = pygame.Surface((sw, sh), pygame.SRCALPHA)
+            pygame.draw.lines(layer, (*col, alpha), False, pts, width)
+            joint_r = max(1, width // 2)
+            for px, py in pts:
+                pygame.draw.circle(layer, (*col, alpha), (px, py), joint_r)
+            surf.blit(layer, (0, 0))
 
 
 def _draw_opener(surf: pygame.Surface, world) -> None:
