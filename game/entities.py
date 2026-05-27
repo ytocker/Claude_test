@@ -13,6 +13,7 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
+    BACKFLIP_DURATION,
 )
 from game.draw import (
     blit_glow,
@@ -477,13 +478,29 @@ class Bird:
         # rotation in scenes._draw_cart_on_bird so the wagon tilts
         # with the polyline curvature.
         self.cart_tilt_deg = 0.0
+        # Secret late-game powerup flags (timer state lives on World).
+        self.skateboard_active = False
+        self.phoenix_active = False
+        # Backflip trick: ticks down while a full-body 360° spin plays
+        # (triggered by flapping while skateboard_active).
+        self.backflip_t = 0.0
+        self.backflip_dur = BACKFLIP_DURATION
 
     @property
     def tilt_deg(self):
         # Clamp the downward dive so a fast-falling bird doesn't read as
         # already crashing (REVIEW.md feedback).
         t = max(-0.5, min(0.75, self.vy / 500.0))
-        return -t * 55.0
+        base = -t * 55.0
+        # During a backflip, ride a full 360° rotation on top of the base
+        # tilt. Smootherstep easing (6t⁵−15t⁴+10t³) eases in and out and
+        # closes the loop to ~0° at the last frame; the velocity-banked
+        # term blends out so Pip lands flat rather than nose-down.
+        if self.backflip_t > 0 and self.backflip_dur > 0:
+            p = 1.0 - self.backflip_t / self.backflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            return base * (1.0 - eased) + eased * 360.0
+        return base
 
     def flap(self, gravity_sign=1):
         if self.alive:
@@ -505,6 +522,7 @@ class Bird:
             base_hz = max(3.0, base_hz - 4.0)
         self.frame_t = (self.frame_t + dt * base_hz)
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
+        self.backflip_t = max(0.0, self.backflip_t - dt)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
         # Ease shrink_scale toward its target (SHRINK_SCALE while active,
@@ -543,6 +561,10 @@ class Bird:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
         elif self.triple_active:
             img = parrot.get_hat_parrot(frame_idx, tilt)
+        elif self.phoenix_active:
+            # KNIGHT skin — survive-one-hit buff. Identity is carried
+            # in-sprite (armour + shield); no halo.
+            img = parrot.get_phoenix_parrot(frame_idx, tilt)
         elif self.grow_active:
             # Hi-res grow-mode bird: pre-built at full grow display size by
             # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
@@ -583,6 +605,14 @@ class Bird:
         r = img.get_rect(center=(self.x + shake_x, self.y + shake_y))
         surf.blit(img, r.topleft)
 
+        # SKATEBOARD — Pip wears a helmet and the parcel becomes the board
+        # under his feet. Drawn instead of the normal parcel.
+        if self.skateboard_active:
+            self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
+            self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y,
+                                  flipped)
+            return
+
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
         # the active palette; alpha-breathes in ghost mode; grow-scaled.
@@ -620,6 +650,189 @@ class Bird:
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
+
+    def _draw_helmet(self, surf, cx, cy, flipped):
+        """Side-view punk-mohawk skater helmet — half-dome with a flat
+        horizontal rim, a single bone fin along the top, chrome rim band,
+        side skull decal, and a front-temple chinstrap to a buckle under
+        the chin. Kit-matched to `_draw_skateboard`. 4× supersampled so the
+        dome curve, fin polygon, skull ellipse and chinstrap stay smooth at
+        the native 24×15 helm size."""
+        s = 1.0
+        SS = 4  # supersample factor
+        hw_n = int(24 * s)
+        hh_n = int(15 * s)
+        pad_n = 4
+        drop_n = int(28 * s)
+        hw = hw_n * SS
+        hh = hh_n * SS
+        pad = pad_n * SS
+        drop = drop_n * SS
+        helm = pygame.Surface(
+            (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
+
+        full = pygame.Surface((hw, hh * 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(full, (10, 10, 18),
+                            pygame.Rect(0, 0, hw, hh * 2))
+        helm.blit(full, (pad, pad), area=pygame.Rect(0, 0, hw, hh))
+        # Forward-upper-quadrant highlight only — Pip faces right.
+        if hw > 9 * SS and hh > 5 * SS:
+            hl_w = hw - 8 * SS
+            hl_h = hh - 4 * SS
+            hl = pygame.Surface((hl_w, hl_h), pygame.SRCALPHA)
+            pygame.draw.ellipse(hl, (50, 50, 60),
+                                pygame.Rect(0, 0, hl_w, hl_h))
+            helm.blit(hl, (pad + 4 * SS, pad + 1 * SS),
+                      area=pygame.Rect(hl_w // 2, 0,
+                                       hl_w // 2, hl_h // 2 + 1))
+
+        # Bone mohawk fin — single side-profile sail along the dome top.
+        fin = [
+            (pad + 3 * SS,             pad + 1 * SS),
+            (pad + hw // 2 - 2 * SS,   pad - 3 * SS),
+            (pad + hw // 2 + 3 * SS,   pad - 2 * SS),
+            (pad + hw - 4 * SS,        pad + 2 * SS),
+        ]
+        pygame.draw.polygon(helm, (240, 240, 230), fin)
+        pygame.draw.polygon(helm, (10, 10, 18), fin, SS)
+        for sx in (pad + hw // 2 - 3 * SS, pad + hw // 2 + 2 * SS):
+            spike = [(sx, pad - 2 * SS),
+                     (sx + 1 * SS, pad - 5 * SS),
+                     (sx + 2 * SS, pad - 2 * SS)]
+            pygame.draw.polygon(helm, (240, 240, 230), spike)
+            pygame.draw.polygon(helm, (10, 10, 18), spike, SS)
+
+        pygame.draw.line(helm, (10, 10, 18),
+                         (pad + hw // 2 - 2 * SS, pad + hh - 3 * SS),
+                         (pad + hw // 2 + 2 * SS, pad + hh - 3 * SS), SS)
+        pygame.draw.rect(helm, (200, 200, 210),
+                         pygame.Rect(pad - 1 * SS, pad + hh - 1 * SS,
+                                     hw + 2 * SS, 2 * SS))
+        sk_w = max(3 * SS, int(5 * s * SS))
+        sk_h = max(2 * SS, int(4 * s * SS))
+        sk = pygame.Rect(0, 0, sk_w, sk_h)
+        sk.center = (pad + hw // 2 - 5 * SS, pad + hh - 4 * SS)
+        pygame.draw.ellipse(helm, (240, 240, 230), sk)
+        pygame.draw.ellipse(helm, (10, 10, 18), sk, SS)
+
+        # Chinstrap.
+        OUT     = (15, 15, 22)
+        CHROME  = (200, 200, 210)
+        BUCKLE  = (200, 50, 50)
+        STRAP   = OUT
+        rim_y = pad + hh + 1 * SS
+        front_anchor = (8 * SS, rim_y)
+        rear_anchor  = (4 * SS, rim_y)
+        junction     = (6 * SS, 30 * SS)
+        clip_centre  = (14 * SS, 37 * SS)
+        pygame.draw.line(helm, STRAP, front_anchor, junction, 2 * SS)
+        pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2 * SS)
+        pygame.draw.line(helm, STRAP, junction, clip_centre, 2 * SS)
+        adj = pygame.Rect(junction[0] - 1 * SS, junction[1] - 1 * SS,
+                          3 * SS, 2 * SS)
+        pygame.draw.rect(helm, (30, 30, 40), adj)
+        pygame.draw.rect(helm, CHROME, adj, SS)
+        clip = pygame.Rect(clip_centre[0] - 2 * SS,
+                           clip_centre[1] - 2 * SS, 5 * SS, 4 * SS)
+        pygame.draw.rect(helm, BUCKLE, clip)
+        pygame.draw.rect(helm, OUT, clip, SS)
+        pygame.draw.line(helm, OUT,
+                         (clip.x + 2 * SS, clip.y),
+                         (clip.x + 2 * SS, clip.bottom - 1 * SS), SS)
+        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, 35 * SS),
+                         2 * SS)
+
+        native_size = (hw_n + pad_n * 2,
+                       hh_n + pad_n * 2 + drop_n)
+        helm = pygame.transform.smoothscale(helm, native_size)
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        y_off = 10 * s if flipped else -10 * s
+        offset = pygame.math.Vector2(18 * s, y_off)
+        offset = offset.rotate(-tilt)
+        rotated = pygame.transform.rotate(helm, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(cx + offset.x),
+                                     int(cy + offset.y)))
+        surf.blit(rotated, r.topleft)
+
+    def _draw_skateboard(self, surf, cx, cy, flipped):
+        """Skull skateboard under Pip's feet — black deck with a chrome
+        outline, white skull + crossbones, cream wheels with a red bullseye.
+        The board rides Pip's tilt, which during a backflip carries the full
+        360° spin so the deck flips with him. 4× supersampled like the
+        helmet for smooth curves."""
+        from game.config import PARCEL_Y_OFFSET
+        s = 1.0
+        SS = 4
+        board_w_n = int(48 * s)
+        deck_h_n  = max(4, int(7 * s))
+        pad_n     = 10
+        native_w  = board_w_n + pad_n * 2
+        native_h  = deck_h_n * 5 + pad_n * 2
+        board_w = board_w_n * SS
+        deck_h  = deck_h_n * SS
+        pad     = pad_n * SS
+
+        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
+        offset = pygame.math.Vector2(0, y_off + 4 * s)
+        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
+        bx = cx + offset.x
+        by = cy + offset.y
+        board_surf = pygame.Surface(
+            (board_w + pad * 2, deck_h * 5 + pad * 2), pygame.SRCALPHA)
+        bsx = board_surf.get_width() // 2
+        bsy = board_surf.get_height() // 2 - 2 * SS
+        deck = pygame.Rect(0, 0, board_w, deck_h)
+        deck.center = (bsx, bsy)
+        pygame.draw.rect(board_surf, (200, 200, 210), deck,
+                         border_radius=3 * SS)
+        pygame.draw.rect(board_surf, (10, 10, 18),
+                         deck.inflate(-2 * SS, -2 * SS),
+                         border_radius=2 * SS)
+        pygame.draw.line(board_surf, (235, 235, 225),
+                         (deck.left + 4 * SS, deck.top + 1 * SS),
+                         (deck.right - 4 * SS, deck.bottom - 1 * SS), SS)
+        pygame.draw.line(board_surf, (235, 235, 225),
+                         (deck.left + 4 * SS, deck.bottom - 1 * SS),
+                         (deck.right - 4 * SS, deck.top + 1 * SS), SS)
+        sk_w = max(5 * SS, int(7 * s * SS))
+        sk_h = max(3 * SS, int(5 * s * SS))
+        sk_rect = pygame.Rect(0, 0, sk_w, sk_h)
+        sk_rect.center = (bsx, deck.centery - 1 * SS)
+        pygame.draw.ellipse(board_surf, (240, 240, 230), sk_rect)
+        pygame.draw.ellipse(board_surf, (10, 10, 18), sk_rect, SS)
+        eye_y = sk_rect.centery - 1 * SS
+        pygame.draw.circle(board_surf, (10, 10, 18),
+                           (sk_rect.centerx - 1 * SS, eye_y), 1 * SS)
+        pygame.draw.circle(board_surf, (10, 10, 18),
+                           (sk_rect.centerx + 1 * SS, eye_y), 1 * SS)
+        truck_h = max(1 * SS, int(2 * s * SS))
+        wheel_r = max(2 * SS, int(3 * s * SS))
+        spin = self.frame_t * 4.0
+        for sign in (-1, 1):
+            tx = bsx + sign * int(board_w * 0.32) - 3 * SS
+            pygame.draw.rect(board_surf, (60, 60, 70),
+                             (tx, deck.bottom, 6 * SS, truck_h))
+            wx = bsx + sign * int(board_w * 0.32)
+            wy = deck.bottom + truck_h + wheel_r
+            pygame.draw.circle(board_surf, (50, 50, 60), (wx, wy),
+                               wheel_r + 1 * SS)
+            pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy),
+                               wheel_r)
+            pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1 * SS)
+            sx_p = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
+            sy_p = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
+            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy),
+                             (sx_p, sy_p), SS)
+        board_surf = pygame.transform.smoothscale(board_surf,
+                                                  (native_w, native_h))
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        rotated = pygame.transform.rotate(board_surf, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(bx), int(by)))
+        surf.blit(rotated, r.topleft)
 
 
 # ── Pipe (nature pillar) ─────────────────────────────────────────────────────
@@ -1237,6 +1450,10 @@ class PowerUp:
         self.kind = kind
         self.collected = False
         self.pulse = 0.0
+        # GENIE LAMP — when a genie is picked up, World spawns several
+        # alternate powerup pickups with this flag set. Picking up any
+        # one cancels the others (see World._cull_genie_offers_except).
+        self.is_genie_offer = False
 
     def update(self, dt):
         self.pulse += dt * 3.5
@@ -1266,6 +1483,12 @@ class PowerUp:
             self._draw_rail_icon(surf)
         elif self.kind == "lottery":
             self._draw_lottery_icon(surf)
+        elif self.kind == "skateboard":
+            self._draw_skateboard_icon(surf)
+        elif self.kind == "phoenix":
+            self._draw_phoenix_icon(surf)
+        elif self.kind == "genie":
+            self._draw_genie_icon(surf)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):
@@ -1938,6 +2161,97 @@ class PowerUp:
         final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
+    def _draw_skateboard_icon(self, surf):
+        """SKATEBOARD pickup token (Jolly Roger): bone skull centred over
+        two crossed skateboard decks in an X, in the kit palette (black +
+        chrome + bone + red). Painted at 6× supersample then smoothscale'd
+        down to a 96×96 native footprint."""
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+
+        DOME   = (10, 10, 18)
+        CHROME = (200, 200, 210)
+        BONE   = (240, 240, 230)
+        CREAM  = (245, 240, 230)
+        RED    = (200, 50, 50)
+
+        SS = 6
+        NATIVE_W = NATIVE_H = 96
+        big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
+                             pygame.SRCALPHA)
+        bx = big.get_width() // 2
+        by = big.get_height() // 2
+
+        for angle in (35, -35):
+            sub_w = 46 * SS
+            sub_h = 9 * SS
+            sub = pygame.Surface(
+                (sub_w + 4 * SS, sub_h + 4 * SS), pygame.SRCALPHA)
+            d = pygame.Rect(0, 0, sub_w, sub_h)
+            d.center = (sub.get_width() // 2, sub.get_height() // 2)
+            pygame.draw.rect(sub, CHROME, d, border_radius=2 * SS)
+            pygame.draw.rect(sub, DOME,
+                             d.inflate(-2 * SS, -2 * SS),
+                             border_radius=SS)
+            for sign in (-1, 1):
+                wx = d.centerx + sign * (sub_w // 2 - 3 * SS)
+                pygame.draw.circle(sub, CREAM, (wx, d.centery),
+                                   int(3 * SS))
+                pygame.draw.circle(sub, RED, (wx, d.centery),
+                                   int(1.4 * SS))
+            rotated = pygame.transform.rotate(sub, angle)
+            big.blit(rotated, rotated.get_rect(center=(bx, by)))
+
+        SK_W = 27
+        SK_H = 22
+        sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
+        sk.center = (bx, by - SS)
+        pygame.draw.ellipse(big, BONE, sk)
+        pygame.draw.ellipse(big, DOME, sk, int(1.2 * SS))
+        eye_r = int(SK_W * SS * 0.108)
+        eye_x_off = int(SK_W * SS * 0.20)
+        eye_y = sk.top + int(SK_H * SS * 0.36)
+        for ex in (sk.centerx - eye_x_off,
+                   sk.centerx + eye_x_off):
+            pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
+        nose_top_y = sk.top + int(SK_H * SS * 0.55)
+        nose_bot_y = nose_top_y + int(2.5 * SS)
+        pygame.draw.polygon(big, DOME, [
+            (sk.centerx - SS, nose_top_y),
+            (sk.centerx + SS, nose_top_y),
+            (sk.centerx,      nose_bot_y),
+        ])
+        jaw_y = sk.top + int(SK_H * SS * 0.78)
+        span = 12 * SS
+        pygame.draw.line(big, DOME,
+                         (sk.centerx - span // 2, jaw_y),
+                         (sk.centerx + span // 2, jaw_y),
+                         max(1, int(1.4 * SS)))
+
+        icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
+        surf.blit(icon, icon.get_rect(center=(cx, cy)))
+
+    def _draw_phoenix_icon(self, surf):
+        """In-world KNIGHT pickup — the K7 heater shield (the only phoenix
+        variant that ships)."""
+        from game import knight_skin
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        knight_skin.draw_shield_icon(surf, cx, cy, size=30)
+
+    def _draw_genie_icon(self, surf):
+        """In-world genie lamp pickup — Amber Crystal cut-glass lamp,
+        rendered once at SS=8 and cached in game._lamp_assets; per frame we
+        just tilt + bob + blit the cached sprite."""
+        from game._lamp_assets import get_lamp_sprite
+
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        sprite = get_lamp_sprite(target_height=52)
+        tilt = math.sin(self.pulse * 0.8) * 3
+        rotated = pygame.transform.rotate(sprite, tilt)
+        surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
+
 
 # ── Shrink mushroom sprite (sibling to GROW's body sprite) ───────────────────
 # Same red velvet palette + cream-butter spots + magenta halo as GROW so
@@ -2093,6 +2407,321 @@ class CloudPuff:
         s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (*self.color, alpha), (r + 1, r + 1), r)
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
+
+
+# ── Magic-dust mote + PoofGrain (genie poofs) ─────────────────────────────────
+
+_MOTE_CACHE: dict = {}
+
+
+def _mote_sprite(size, alpha, color):
+    """Cached soft mote: a small disc with a gentle alpha falloff so that
+    many overlapping motes blend into a continuous CLOUD rather than reading
+    as separate hard specks. Cached by (size, alpha bucket, colour)."""
+    size = max(2, int(size))
+    ab = max(16, min(255, (int(alpha) // 16) * 16))
+    key = (size, ab, color)
+    spr = _MOTE_CACHE.get(key)
+    if spr is None:
+        d = size * 2
+        spr = pygame.Surface((d, d), pygame.SRCALPHA)
+        c = size
+        steps = max(2, size)
+        for i in range(steps, 0, -1):
+            rr = max(1, int(size * i / steps))
+            frac = i / steps                       # 1 rim → ~0 centre
+            a = int(ab * (1.0 - 0.85 * frac))      # soft edge, solid core
+            pygame.draw.circle(spr, (*color, a), (c, c), rr)
+        _MOTE_CACHE[key] = spr
+    return spr
+
+
+class PoofGrain:
+    """A single mote of MAGIC DUST — a small soft speck that drifts outward,
+    slows like settling dust, twinkles faintly, and fades. Spawned in LARGE,
+    DENSE numbers so the burst reads as a continuous cloud, not confetti."""
+    __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "size",
+                 "color", "_ph")
+
+    def __init__(self, x, y, vx, vy, life, size, color):
+        self.x, self.y   = float(x), float(y)
+        self.vx, self.vy = vx, vy
+        self.life = self.life_max = life
+        self.size = size
+        self.color = color
+        self._ph = random.uniform(0, math.tau)   # per-mote twinkle phase
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        # Ease to a near-stop so the dust hangs and settles.
+        self.vx *= 0.90
+        self.vy *= 0.90
+        self.vy += 18 * dt
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        t = max(0.0, self.life / self.life_max)      # 1→0 as it dies
+        age = self.life_max - self.life
+        tw = 0.80 + 0.20 * math.sin(self._ph + age * 20.0)
+        alpha = int(200 * t * tw)
+        if alpha <= 0:
+            return
+        spr = _mote_sprite(self.size, alpha, self.color)
+        surf.blit(spr, (int(self.x - self.size), int(self.y - self.size)))
+
+
+# ── GenieCharacter (companion actor summoned by the Genie lamp) ───────────────
+
+def _lazy_import_genie_design():
+    """Import the consolidated genie-design module (palette, helpers, body-part
+    drawing functions) from game/_genie_assets.py. The 5-tuple shape is kept so
+    callers `_ref, _legs, _arms, _shines, _carpets = _lazy_import_genie_design()`
+    keep working — all five re-bind the same consolidated module."""
+    if hasattr(_lazy_import_genie_design, "_cached"):
+        return _lazy_import_genie_design._cached
+    from game import _genie_assets as _ga
+    cache = (_ga, _ga, _ga, _ga, _ga)
+    _lazy_import_genie_design._cached = cache
+    return cache
+
+
+class GenieCharacter:
+    """Conjured genie that hovers ahead of Pip and casts three Genie offer
+    powerups. Procedural sprite drawn from game/_genie_assets.py, translucent
+    so it reads as summoned smoke given form.
+
+    Phases driven by ``_t / DURATION``:
+      RISE   (0.00–0.85) fade in + scale 0.3→1.0 + smoke trails
+      CAST   (at 1.10)   ALL 3 offers POOF into existence simultaneously
+      HOLD   (1.10–2.60) genie stays put; ~1.5 s to manoeuvre to an offer
+      VANISH (2.60–3.30) collapse into smoke + fade out
+
+    The genie is STATIONARY (vx=0). World owns ``self.genie_actors``; each tick
+    calls ``update(dt)`` and ``draw(surf)``; ``alive()`` returns False when the
+    vanish phase completes so World sweeps it from the list."""
+
+    DURATION       = 3.30
+    RISE_END       = 0.85
+    CAST_BEAT      = 1.10        # single moment — all 3 offers poof
+    VANISH_START   = 2.60        # ~1.5 s hold after cast for user
+    VANISH_END     = 3.30
+
+    def __init__(self, x, y, vx, offers, world):
+        # offers: list of (kind, target_y) pairs.
+        self.x, self.y = float(x), float(y)
+        self.vx = vx
+        self.offers = list(offers)
+        self.world = world
+        self._t = 0.0
+        self._fired = False
+        self._vanished = False
+        self._tail_clock = 0.0
+        self._dead = False
+        self._native_w = 320
+        self._native_h = 460
+        self._ss = 6
+        self._display_scale = 0.42
+        self._palm_dx = 58
+        self._palm_dy = -20
+        self._cached_body = self._render_body_supersample()
+        self._spawn_appear_poof()
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self._t += dt
+        if (not self._fired) and self._t >= self.CAST_BEAT:
+            self._fire_all()
+            self._fired = True
+        if self._t < self.RISE_END:
+            self._tail_clock += dt
+            while self._tail_clock >= 0.08:
+                self._tail_clock -= 0.08
+                self._spawn_tail_wisp()
+        if ((not self._vanished) and (not self._dead)
+                and self._t >= self.VANISH_START):
+            self._spawn_vanish_swirl()
+            self._vanished = True
+
+    def alive(self):
+        return (not self._dead) and self._t < self.VANISH_END
+
+    def kill(self):
+        # Called when the player picks one of the offers before the genie
+        # finishes casting — stop spawning anything else.
+        self._dead = True
+
+    def palm_world_pos(self, side):
+        ds = self._display_scale
+        return (self.x + side * self._palm_dx * ds,
+                self.y + self._palm_dy * ds)
+
+    def _fire_all(self):
+        """Single cast moment — spawn all offer powerups + their reveal poofs
+        + one combined chime simultaneously, far ahead of Pip so the player
+        has time to manoeuvre to whichever they want."""
+        if self._dead:
+            return
+        import random as _r
+        slot_ys = [oy for _, oy in self.offers]
+        positions = self._pick_offer_positions(slot_ys)
+        for (kind, _slot_y), (ox, oy) in zip(self.offers, positions):
+            offer = PowerUp(ox, oy, kind=kind)
+            offer.is_genie_offer = True
+            self.world.powerups.append(offer)
+            self.world._spawn_genie_reveal_poof(ox, oy)
+        try:
+            from game import audio
+            audio._play("coin_triple", 0.95)
+        except Exception:
+            pass
+        gx_centre = int(self.x)
+        gy_centre = int(self.y)
+        for _ in range(14):
+            ang = _r.uniform(0, math.pi * 2)
+            sp = _r.uniform(80, 180)
+            self.world.particles.append(CloudPuff(
+                gx_centre, gy_centre,
+                math.cos(ang) * sp, math.sin(ang) * sp - 40,
+                _r.uniform(0.30, 0.50),
+                6, 16,
+                _r.choice([(255, 240, 175), (255, 220, 130),
+                           (240, 200, 250), (255, 255, 245)]),
+            ))
+
+    def _pick_offer_positions(self, slot_ys):
+        """Pick a unique (x, y) per offer: far from Pip (≥ MIN_PARROT_DIST),
+        not clustered (≥ MIN_OFFER_DIST apart), not inside a pillar body, with
+        varied x and jittered y. Rejection sampling with a deterministic
+        fallback after 40 attempts."""
+        from game.config import PIPE_W
+        import random as _r
+        bird_x = self.world.bird.x
+        bird_y = self.world.bird.y
+        pipe_half = PIPE_W / 2
+        offer_half = 18
+        clearance = pipe_half + offer_half + 6
+        X_MIN_AHEAD, X_MAX_AHEAD = 180, 280
+        Y_JITTER = 30
+        MIN_PARROT_DIST = 200
+        MIN_OFFER_DIST  = 90
+        positions = []
+        for slot_y in slot_ys:
+            picked = None
+            for _ in range(40):
+                x = bird_x + _r.randint(X_MIN_AHEAD, X_MAX_AHEAD)
+                y = slot_y + _r.randint(-Y_JITTER, Y_JITTER)
+                dx, dy = x - bird_x, y - bird_y
+                if dx * dx + dy * dy < MIN_PARROT_DIST * MIN_PARROT_DIST:
+                    continue
+                too_close = False
+                for px, py in positions:
+                    if (x - px) * (x - px) + (y - py) * (y - py) < \
+                            MIN_OFFER_DIST * MIN_OFFER_DIST:
+                        too_close = True
+                        break
+                if too_close:
+                    continue
+                blocked = False
+                for p in self.world.pipes:
+                    if abs(p.x - x) < clearance:
+                        gap_top = p.gap_y - p.gap_h / 2
+                        gap_bot = p.gap_y + p.gap_h / 2
+                        if not (gap_top <= y <= gap_bot):
+                            blocked = True
+                            break
+                if blocked:
+                    continue
+                picked = (x, y)
+                break
+            if picked is None:
+                picked = (bird_x + 230, slot_y)
+            positions.append(picked)
+        return positions
+
+    def _spawn_tail_wisp(self):
+        import random as _r
+        cx = self.x - 14
+        cy = self.y + 38
+        for _ in range(2):
+            vx = -_r.uniform(20, 50) + self.vx * 0.3
+            vy = _r.uniform(10, 30)
+            life = _r.uniform(0.35, 0.55)
+            color = _r.choice([(230, 220, 250), (215, 200, 240),
+                               (200, 180, 230)])
+            self.world.particles.append(CloudPuff(
+                cx, cy, vx, vy, life, 3, 11, color))
+
+    def _spawn_appear_poof(self):
+        ow = self._native_w * self._display_scale
+        oh = self._native_h * self._display_scale
+        self.world._spawn_grainy_poof(self.x, self.y,
+                                      rx=ow * 0.50, ry=oh * 0.48)
+
+    def _spawn_vanish_swirl(self):
+        ow = self._native_w * self._display_scale
+        oh = self._native_h * self._display_scale
+        self.world._spawn_grainy_poof(self.x, self.y,
+                                      rx=ow * 0.50, ry=oh * 0.48)
+
+    def draw(self, surf):
+        t = self._t
+        if t < self.RISE_END:
+            k = t / self.RISE_END
+            scale = 0.3 + 0.7 * (1 - (1 - k) ** 2)        # ease-out
+            alpha = int(210 * k)
+            bob   = -10 * (1 - k)
+        elif t < self.VANISH_START:
+            scale = 1.0
+            alpha = 210
+            bob   = math.sin(t * 4.5) * 5.0
+        else:
+            k = (t - self.VANISH_START) / (self.VANISH_END - self.VANISH_START)
+            scale = 1.0 - 0.4 * k
+            alpha = int(210 * (1 - k))
+            bob   = -18 * k
+        if alpha <= 2:
+            return
+        self._blit_sprite(surf, alpha, scale, bob)
+
+    def _blit_sprite(self, surf, alpha, scale, bob):
+        eff = scale * self._display_scale
+        out_w = max(2, int(self._native_w * eff))
+        out_h = max(2, int(self._native_h * eff))
+        scaled = pygame.transform.smoothscale(self._cached_body,
+                                              (out_w, out_h))
+        sway = math.sin(self._t * 1.4) * 3.0
+        rotated = pygame.transform.rotate(scaled, sway)
+        rotated.set_alpha(alpha)
+        rect = rotated.get_rect(center=(int(self.x), int(self.y + bob)))
+        surf.blit(rotated, rect.topleft)
+
+    def _render_body_supersample(self):
+        """Build the full lotus-genie body into a supersample surface by
+        calling the consolidated _genie_assets drawing functions."""
+        _ref, _legs, _arms, _shines, _carpets = _lazy_import_genie_design()
+        SS = _ref.SS         # 6
+        W = _ref.W           # 320
+        H = _ref.H           # 460
+        big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
+        cx = (W * SS) // 2
+        _carpets.draw_carpet_royal(big, cx)
+        _legs.draw_crossed_legs_ankle_cross(big, cx)
+        _ref.draw_torso(big, cx)
+        _ref.draw_neck(big, cx)
+        head_cy = _ref.s(60)
+        head_r = _ref.s(40)
+        _ref.draw_head(big, cx, head_cy, head_r)
+        _ref.draw_face(big, cx, head_cy)
+        _ref.draw_earrings(big, cx, head_cy, head_r)
+        _ref.draw_topknot_and_headband(big, cx, head_cy, head_r)
+        _ref.draw_sash(big, cx)
+        _shines.draw_offering_arms_with_shine(
+            big, cx, _shines.shine_1_classic_pixie)
+        return big
 
 
 # ── FloatText ────────────────────────────────────────────────────────────────

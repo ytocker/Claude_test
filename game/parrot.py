@@ -869,3 +869,40 @@ def get_kfc_ghost_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _kfc_ghost_hat_cache[key] = s
     return s
+
+
+# ── Phoenix / Knight skin (survive-one-hit buff) ──────────────────────────────
+#
+# Only the "knight" variant ships. Frames are built in game/knight_skin.py
+# (imported lazily to avoid a circular import at module load) so the armoured
+# costume flaps with Pip's own wing per frame.
+_PHOENIX_FRAMES_BY_VARIANT: "dict[str, list[pygame.Surface]]" = {}
+_phoenix_rot_cache_by_variant: "dict[str, dict]" = {}
+
+
+def _get_phoenix_frames(variant: str) -> "list[pygame.Surface]":
+    frames = _PHOENIX_FRAMES_BY_VARIANT.get(variant)
+    if frames is None:
+        from game import knight_skin
+        frames = knight_skin.build_knight_frames()
+        _PHOENIX_FRAMES_BY_VARIANT[variant] = frames
+        _phoenix_rot_cache_by_variant[variant] = {}
+    return frames
+
+
+def get_phoenix_parrot(frame_idx: int, tilt_deg: float,
+                       variant: "str | None" = None) -> pygame.Surface:
+    """Return rotated phoenix-mode parrot, cached by (frame, rounded-angle).
+    Reads PHOENIX_VARIANT from config when `variant` is None."""
+    if variant is None:
+        from game.config import PHOENIX_VARIANT
+        variant = PHOENIX_VARIANT
+    frames = _get_phoenix_frames(variant)
+    cache = _phoenix_rot_cache_by_variant[variant]
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    s = cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        cache[key] = s
+    return s

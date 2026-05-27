@@ -129,6 +129,11 @@ _ICON_BOB_AT_PULSE = {
     "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
     "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
     "shrink":   math.sin(_PULSE_FOR_ICON * 1.1) * 2,
+    # Secret kinds are not documented on the help screen, but keep their bob
+    # offsets here so any icon render (e.g. debug) stays visually centered.
+    "genie":    math.sin(_PULSE_FOR_ICON * 0.9) * 2,
+    "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
+    "phoenix":  math.sin(_PULSE_FOR_ICON * 0.9) * 2,
 }
 
 

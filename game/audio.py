@@ -203,3 +203,15 @@ def play_rail() -> None:         _play("grow", 0.70)
 def play_lottery_roll() -> None: _play("magnet", 0.45)
 def play_lottery_win() -> None:  _play("triple_coin", 0.95)
 def play_lottery_bust() -> None: _play("death", 0.55)
+
+# Secret late-game power-ups. All composed from existing OGGs (no new assets).
+def play_genie() -> None:
+    # Ethereal ghost-whoosh base + sparkly coin chime as the "wish reveal" +
+    # a soft poof bookend for the lamp pop.
+    _play("ghost", 0.70)
+    _play("coin_triple", 0.85)
+    _play("poof", 0.40)
+
+def play_skateboard() -> None:   _play("grow", 0.70); _play("poof", 0.55)
+def play_phoenix() -> None:      _play("grow", 0.75); _play("thunder", 0.45)
+def play_backflip() -> None:     _play("poof", 0.50)

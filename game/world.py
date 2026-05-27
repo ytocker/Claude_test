@@ -26,9 +26,15 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
+    SECRET_POWERUP_WEIGHTS, LATE_GAME_SCORE,
+    GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
+    SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
+    SKATE_SLIDE_RELEASE, BACKFLIP_DURATION,
+    PHOENIX_DURATION, PHOENIX_INVULN,
 )
 from game.entities import (
-    Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
+    Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
+    GenieCharacter,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -110,6 +116,32 @@ class World:
         self.lottery_anim: "dict | None" = None
         self.powerup_cooldown = 0.0
 
+        # ── Secret late-game power-ups ──────────────────────────────────────
+        # GENIE: companion conjurer actors. Each is ticked + culled in update.
+        self.genie_actors: list = []
+        # SKATEBOARD: timed grind buff. slide_boost is an attack/release
+        # envelope (0..1) that ramps up while Pip grinds a surface and decays
+        # otherwise; _current_scroll reads it to speed the world up.
+        self.skateboard_timer = 0.0
+        self.slide_boost = 0.0
+        self._sliding_this_frame = False
+        self._sliding_prev_frame = False
+        # Activation overlays (drawn in scenes): caption banner + starburst.
+        self.skateboard_caption_t = 0.0
+        self.skateboard_caption_dur = 0.0
+        self.skateboard_caption_overlay = None
+        self.skateboard_burst_t = 0.0
+        self.skateboard_burst_dur = 0.0
+        self.skateboard_burst_surface = None
+        self.skateboard_burst_cx = 0
+        self.skateboard_burst_cy = 0
+        self._skateboard_lift_y = 26
+        # KNIGHT (internally "phoenix"): survive-one-hit. While phoenix_timer
+        # > 0 the next lethal hit is consumed in _die() and Pip revives with
+        # phoenix_invuln seconds of collision grace.
+        self.phoenix_timer = 0.0
+        self.phoenix_invuln = 0.0
+
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
 
@@ -127,6 +159,7 @@ class World:
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
             "shrink": 0, "rail": 0, "lottery": 0,
+            "skateboard": 0, "phoenix": 0, "genie": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -212,6 +245,11 @@ class World:
         # time deciding whether to land on the parked cart.
         if self.bird.cart_locked:
             base *= RAIL_SCROLL_MULT
+        # SKATEBOARD grind: lerp from 1.0 to SKATE_SLIDE_MULT on the
+        # slide-boost envelope so the speed-up eases in/out instead of
+        # snapping when Pip lands on / lifts off a surface.
+        if self.slide_boost > 0:
+            base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
         return base
 
     def _current_spacing(self):
@@ -393,6 +431,13 @@ class World:
                 continue
             kinds.append(k)
             weights.append(w)
+        # Secret late-game tier: only enters the roll once the run crosses
+        # LATE_GAME_SCORE. Kept out of POWERUP_WEIGHTS (and the Surprise
+        # re-roll) so the gate can't be bypassed.
+        if self.score >= LATE_GAME_SCORE:
+            for k, w in SECRET_POWERUP_WEIGHTS:
+                kinds.append(k)
+                weights.append(w)
         if not kinds:
             return
         kind = random.choices(kinds, weights=weights, k=1)[0]
@@ -413,6 +458,11 @@ class World:
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
             audio.play_flap()
+            # SKATEBOARD: flapping mid-skate spins a backflip trick.
+            if self.bird.skateboard_active and self.bird.backflip_t <= 0:
+                self.bird.backflip_t = BACKFLIP_DURATION
+                self.bird.backflip_dur = BACKFLIP_DURATION
+                audio.play_backflip()
 
     # ── update ──────────────────────────────────────────────────────────────
 
@@ -590,6 +640,37 @@ class World:
             if self.shrink_timer > 0:
                 self.shrink_timer = max(0.0, self.shrink_timer - dt)
             self.bird.shrink_active = self.shrink_timer > 0
+            # SKATEBOARD: timer + slide-boost envelope (attack while grinding,
+            # release otherwise) + activation overlay timers.
+            if self.skateboard_timer > 0:
+                self.skateboard_timer = max(0.0, self.skateboard_timer - dt)
+            self.bird.skateboard_active = self.skateboard_timer > 0
+            if self.bird.skateboard_active and self._sliding_this_frame:
+                self.slide_boost = min(
+                    1.0, self.slide_boost + dt / SKATE_SLIDE_ATTACK)
+            else:
+                self.slide_boost = max(
+                    0.0, self.slide_boost - dt / SKATE_SLIDE_RELEASE)
+            if self.skateboard_caption_t > 0:
+                self.skateboard_caption_t = max(
+                    0.0, self.skateboard_caption_t - dt)
+                if self.skateboard_caption_t <= 0:
+                    self.skateboard_caption_overlay = None
+            if self.skateboard_burst_t > 0:
+                self.skateboard_burst_t = max(
+                    0.0, self.skateboard_burst_t - dt)
+                if self.skateboard_burst_t <= 0:
+                    self.skateboard_burst_surface = None
+            # KNIGHT (phoenix): buff timer + post-revive collision grace.
+            if self.phoenix_timer > 0:
+                self.phoenix_timer = max(0.0, self.phoenix_timer - dt)
+            self.bird.phoenix_active = self.phoenix_timer > 0
+            if self.phoenix_invuln > 0:
+                self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
+            # GENIE: tick + cull companion conjurer actors.
+            for g in self.genie_actors:
+                g.update(dt)
+            self.genie_actors = [g for g in self.genie_actors if g.alive()]
             # Lottery reveal ticks every frame regardless of any other
             # timer. _apply_lottery_result fires once at the reveal
             # mark; the dict lingers a moment after so the confetti /
@@ -667,6 +748,12 @@ class World:
     def _check_collisions(self):
         bx, by = self.bird.x, self.bird.y
         br = self.bird_radius()
+        # SKATEBOARD: while skating Pip grinds surfaces instead of dying on
+        # them. `_sliding_this_frame` is reset each frame and flipped True by
+        # the ground / pillar-top snaps below so update() can ramp the
+        # slide-boost up while he's actually grinding and fade it otherwise.
+        skating = self.skateboard_timer > 0
+        self._sliding_this_frame = False
         # Ceiling: clamp Pip and zero upward velocity instead of killing.
         # Bonking the top edge feels accidental and was a recurring "unfair
         # death" complaint; the ground still kills.
@@ -675,9 +762,20 @@ class World:
             if self.bird.vy < 0:
                 self.bird.vy = 0.0
             by = self.bird.y
-        if by + br > GROUND_Y:
-            self._die()
+        # KNIGHT grace: brief window after a revive where Pip is immune to
+        # ground + pipe collisions so he can clear the obstacle that hit him.
+        if self.phoenix_invuln > 0:
             return
+        if by + br > GROUND_Y:
+            if skating:
+                # Slide along the ground instead of dying.
+                self.bird.y = GROUND_Y - br
+                self.bird.vy = 0.0
+                by = self.bird.y
+                self._sliding_this_frame = True
+            else:
+                self._die()
+                return
         if self.ghost_timer > 0:
             return  # phase through pipes while ghost is active
         if self.bird.cart_locked:
@@ -687,6 +785,24 @@ class World:
             # tagged pillars; the rail bridges them.
             self._snap_cart_to_rail(self.bird.x)
             return
+        # SKATEBOARD: proactive pillar-top snap. Snapping Pip's full-radius
+        # bottom to the lower-pillar top (instead of waiting for the shrunken
+        # pipe hitbox below) keeps the grind smooth, and the PIPE_HITBOX_SHRINK
+        # deadband then clears the lethal check while he rides the top.
+        if skating:
+            for p in self.pipes:
+                in_column = (p.x - br < bx < p.x + PIPE_W + br)
+                if not in_column:
+                    continue
+                gap_bot = p.gap_y + p.gap_h / 2
+                if ((by + br) >= gap_bot - 1
+                        and self.bird.vy >= -50
+                        and by < gap_bot):
+                    self.bird.y = gap_bot - br
+                    self.bird.vy = 0.0
+                    by = self.bird.y
+                    self._sliding_this_frame = True
+                    break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
@@ -701,6 +817,10 @@ class World:
         px = bx + parcel_offset.x
         py = by + parcel_offset.y
         pr = PARCEL_R * scale
+        # While skating the parcel IS the board under Pip's feet, so its
+        # collision footprint is gone — only Pip's body hitbox applies.
+        if skating:
+            pr = 0
         # RAIL: parked-cart hitbox. Only touching the cart itself (a
         # small rect sitting in the gap of rail_cart_pipe) locks Pip
         # onto the rail. Hitting the pillar BODY of that same pipe —
@@ -720,12 +840,19 @@ class World:
             if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
                 self._die()
                 return
-            if p.collides_circle(px, py, pr - 1):
+            if pr > 0 and p.collides_circle(px, py, pr - 1):
                 self._die()
                 return
 
     def _die(self):
         if self.game_over:
+            return
+        # KNIGHT revive: if the survive-one-hit buff is active, consume it
+        # instead of dying and revive Pip with a grace window.
+        if self.bird.phoenix_active:
+            self.phoenix_timer = 0.0
+            self.bird.phoenix_active = False
+            self._revive_knight()
             return
         self.game_over = True
         self.bird.alive = False
@@ -827,6 +954,11 @@ class World:
             audio.play_coin()
 
     def _on_powerup(self, m: PowerUp):
+        # Genie offer: collecting any one of the spawned offers cancels the
+        # others (with a poof). Done before activation so the chosen kind's
+        # activator still runs normally below.
+        if getattr(m, "is_genie_offer", False):
+            self._cull_genie_offers_except(m)
         # Surprise box: roll a random "real" kind at pickup time, then route
         # through that kind's activator. The resolved activator plays the
         # matching sound — there's no dedicated surprise SFX.
@@ -871,6 +1003,12 @@ class World:
             self._activate_rail(m)
         elif kind == "lottery":
             self._activate_lottery(m)
+        elif kind == "skateboard":
+            self._activate_skateboard(m)
+        elif kind == "phoenix":
+            self._activate_phoenix(m)
+        elif kind == "genie":
+            self._activate_genie(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -1056,6 +1194,169 @@ class World:
             r1    = random.randint(13, 22)
             color = random.choice(puff_colors)
             self.particles.append(CloudPuff(x, y, vx, vy, life, r0, r1, color))
+
+    # ── Secret late-game power-ups ───────────────────────────────────────────
+
+    def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34):
+        """Magic-dust poof — a puffy CLOUD that covers its source, built from
+        a few overlapping soft lobes densely packed with motes so it reads as
+        a cohesive, lumpy cloud. (rx, ry) set the area covered. Used for every
+        genie beat: the genie / offers appearing and vanishing."""
+        if palette is None:
+            palette = [(255, 180, 190), (255, 225, 170), (255, 250, 180),
+                       (190, 240, 200), (180, 225, 255), (215, 190, 255),
+                       (255, 255, 255)]
+        if n is None:
+            n = max(140, int(rx * ry * 0.28))
+        base = min(rx, ry)
+        lobes = [(0.0, 0.0, 0.90 * base)]
+        for _ in range(random.randint(5, 7)):
+            la = random.uniform(0, math.tau)
+            lr = random.uniform(0.0, 0.60)
+            lobes.append((math.cos(la) * rx * lr,
+                          math.sin(la) * ry * lr,
+                          random.uniform(0.50, 0.80) * base))
+        for _ in range(n):
+            lox, loy, lrad = random.choice(lobes)
+            a  = random.uniform(0, math.tau)
+            rr = math.sqrt(random.random())          # fill the lobe disc
+            px = x + lox + math.cos(a) * lrad * rr
+            py = y + loy + math.sin(a) * lrad * rr
+            vx = random.uniform(-14, 14)
+            vy = random.uniform(-20, 6)
+            life = random.uniform(0.50, 1.00)
+            size = random.choice((3, 3, 4, 4))
+            self.particles.append(
+                PoofGrain(px, py, vx, vy, life, size, random.choice(palette)))
+
+    def _spawn_genie_reveal_poof(self, x, y):
+        """Poof when a Genie offer materialises — the same magic dust as
+        every other genie beat so appear and vanish read as one effect."""
+        self._spawn_grainy_poof(x, y)
+
+    def _activate_skateboard(self, m):
+        from game.skateboard_fx import (
+            render_caption_overlay, render_starburst_surface,
+        )
+        self.skateboard_timer = SKATEBOARD_DURATION
+        self.bird.skateboard_active = True
+        self.shake_mag = max(self.shake_mag, 4.0)
+        self.shake_t = max(self.shake_t, 0.3)
+        audio.play_skateboard()
+        self._spawn_poof(self.bird.x, self.bird.y)
+        self._pickup_burst(
+            m, ((60, 60, 70), (180, 180, 190), UI_ORANGE, UI_GOLD), n=28)
+        seed = int(self._idle_t * 1000) & 0xFFFF
+        self.skateboard_caption_dur = SKATEBOARD_DURATION
+        self.skateboard_caption_t = self.skateboard_caption_dur
+        self.skateboard_caption_overlay = render_caption_overlay(
+            int(self.bird.x), int(self.bird.y), rng_seed=seed,
+        )
+        self.skateboard_burst_dur = 2.3
+        self.skateboard_burst_t = self.skateboard_burst_dur
+        self.skateboard_burst_surface = render_starburst_surface(
+            rng_seed=seed,
+        )
+        self.skateboard_burst_cx = int(self.bird.x)
+        self.skateboard_burst_cy = int(self.bird.y)
+
+    def _activate_phoenix(self, m):
+        KNIGHT_STEEL = (190, 200, 220)
+        KNIGHT_GOLD  = (226, 182,  72)
+        self.phoenix_timer = PHOENIX_DURATION
+        self.bird.phoenix_active = True
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t   = max(self.shake_t,   0.3)
+        audio.play_phoenix()
+        self._spawn_poof(self.bird.x, self.bird.y)
+        self._pickup_burst(m, (KNIGHT_STEEL, KNIGHT_GOLD, WHITE, UI_CREAM),
+                           n=32, speed_hi=320)
+        self.float_texts.append(FloatText(
+            "KNIGHT!", m.x, m.y - 26, KNIGHT_GOLD,
+            size=30, life=1.4, vy=-32, style="powerup",
+        ))
+
+    def _revive_knight(self):
+        """Survive-one-hit revive: re-flap up, grant a grace window, and fire
+        a steel-and-brass spark burst + GUARD! text."""
+        self.phoenix_invuln = PHOENIX_INVULN
+        self.bird.vy = FLAP_V * 0.9
+        self.shake_mag = max(self.shake_mag, 6.0)
+        self.shake_t   = max(self.shake_t,   0.3)
+        audio.play_ghost()
+        audio.play_thunder()
+        for _ in range(36):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(160, 420)
+            col = random.choice((
+                (210, 218, 236), (146, 156, 178),
+                (226, 182,  72), WHITE,
+            ))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.5, 1.2),
+                random.randint(3, 6),
+                col, gravity=180,
+            ))
+        self.float_texts.append(FloatText(
+            "GUARD!", self.bird.x, self.bird.y - 32, (226, 182, 72),
+            size=30, life=1.4, vy=-36, style="powerup",
+        ))
+
+    def _activate_genie(self, m):
+        """Genie Lamp — instead of a direct buff, summon a conjurer who lays
+        out GENIE_OFFER_COUNT alternate powerup offers ahead of Pip. The
+        player flies into the one they want; the others are culled the moment
+        any is picked up (see the is_genie_offer branch in _on_powerup)."""
+        eligible = [k for (k, _w) in POWERUP_WEIGHTS
+                    if k not in ("surprise", "genie")]
+        if self.score >= LATE_GAME_SCORE:
+            for (k, _w) in SECRET_POWERUP_WEIGHTS:
+                if k not in ("genie",) and k not in eligible:
+                    eligible.append(k)
+        if len(eligible) < GENIE_OFFER_COUNT:
+            # Degenerate fallback — pool too small, treat as a surprise.
+            kind = random.choice(eligible) if eligible else "triple"
+            self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
+            self._on_powerup(PowerUp(m.x, m.y, kind=kind))
+            return
+        chosen = random.sample(eligible, GENIE_OFFER_COUNT)
+        slots = list(GENIE_OFFER_Y_SLOTS[:GENIE_OFFER_COUNT])
+        random.shuffle(slots)
+        gy = 225
+        gx = 180
+        offers = list(zip(chosen, slots))
+        self.genie_actors.append(GenieCharacter(
+            gx, gy, vx=0.0, offers=offers, world=self,
+        ))
+        self.shake_mag = max(self.shake_mag, 2.0)
+        self.shake_t   = max(self.shake_t, 0.2)
+        try:
+            audio.play_genie()
+        except Exception:
+            pass
+        self._pickup_burst(
+            m, ((185, 130, 45), (250, 215, 130),
+                (170, 130, 195), (220, 200, 240)),
+            n=24, speed_hi=260,
+        )
+        self.float_texts.append(FloatText(
+            "GENIE!", m.x, m.y - 26, (250, 215, 130),
+            size=28, life=1.3, vy=-28, style="powerup",
+        ))
+
+    def _cull_genie_offers_except(self, chosen: "PowerUp"):
+        """Mark every other genie offer collected (so the normal sweep removes
+        it next frame) and poof a cloud where each unchosen wish stood, then
+        kill any active GenieCharacter so it stops casting."""
+        for p in self.powerups:
+            if p is chosen or not getattr(p, "is_genie_offer", False):
+                continue
+            p.collected = True
+            self._spawn_grainy_poof(p.x, p.y)
+        for g in self.genie_actors:
+            g.kill()
 
     def _activate_reverse(self, m):
         self.reverse_timer = REVERSE_DURATION

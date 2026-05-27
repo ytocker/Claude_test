@@ -122,6 +122,43 @@ POWERUP_REPLACED_AT = {
     "magnet": 250,   # at 250+, megamagnet (radius 2x) takes over
 }
 
+# ── Secret late-game power-ups ───────────────────────────────────────────────
+# A separate, undeclared tier that only enters the spawn roll once the run
+# crosses LATE_GAME_SCORE. Kept out of POWERUP_WEIGHTS (and the Surprise
+# re-roll) so the gate can't be bypassed, and out of the help screen so the
+# roster stays a surprise. Weights are normalized at pick time alongside the
+# normal pool.
+LATE_GAME_SCORE        = 500
+SECRET_POWERUP_WEIGHTS = (
+    ("skateboard", 0.125),
+    ("phoenix",    0.125),   # survive-one-hit buff, reskinned as the Knight
+    ("genie",      0.125),
+)
+
+# GENIE — picking up the lamp summons a conjurer who lays out GENIE_OFFER_COUNT
+# alternate power-ups ahead of Pip; flying into one claims it and poofs the rest.
+GENIE_OFFER_COUNT   = 3
+GENIE_OFFER_X_START = 200
+GENIE_OFFER_X_STEP  = 60
+GENIE_OFFER_Y_SLOTS = (220, 320, 420)
+
+# SKATEBOARD — timed grind/slide buff. The world scrolls faster while Pip is
+# actually grinding a surface; the boost eases in over SKATE_SLIDE_ATTACK and
+# fades over SKATE_SLIDE_RELEASE so it reads as "skate rush, gentle coast".
+# Flapping while skating spins a backflip trick.
+SKATEBOARD_DURATION = 8.0
+SKATE_SLIDE_MULT    = 1.5
+SKATE_SLIDE_ATTACK  = 0.18
+SKATE_SLIDE_RELEASE = 0.55
+BACKFLIP_DURATION   = 0.85
+
+# KNIGHT — survive-one-hit buff (internally the "phoenix" kind, locked to the
+# knight variant). While active the next lethal hit is consumed and Pip is
+# revived with PHOENIX_INVULN seconds of collision grace.
+PHOENIX_DURATION    = 30.0
+PHOENIX_INVULN      = 1.5
+PHOENIX_VARIANT     = "knight"
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without
