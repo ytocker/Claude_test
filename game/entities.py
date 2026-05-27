@@ -721,6 +721,21 @@ class Bird:
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
+        # Snow settles on the parcel too (objects get capped, not the underside)
+        # — fades in only at high load, matched to the parcel's transform chain.
+        if self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
+            pov = snow_fx.get_parcel_snow(mode, self.snow_load)
+            if pov is not None:
+                if scale != 1.0:
+                    pw, ph = pov.get_size()
+                    pov = pygame.transform.smoothscale(
+                        pov, (int(pw * scale), int(ph * scale)))
+                if flipped:
+                    pov = pygame.transform.flip(pov, False, True)
+                pov = pygame.transform.rotate(pov, parcel_tilt)
+                ps = pov.get_rect(center=(self.x + shake_x + offset.x,
+                                          self.y + shake_y + offset.y))
+                surf.blit(pov, ps.topleft)
 
 
 # ── Pipe (nature pillar) ─────────────────────────────────────────────────────

@@ -116,3 +116,72 @@ def get_snow_overlay(frame_idx, load):
         return None
     _overlay_cache[key] = ov
     return ov
+
+
+# ── snow on the parcel (snow settles on objects too, only at high load) ──────
+PARCEL_MAXD = 7.0
+PARCEL_ONSET = 0.68               # parcel only gets capped once Pip is well-covered
+
+_parcel_top_cache: dict = {}
+_parcel_ov_cache: dict = {}
+
+
+def _parcel_topline(mode):
+    cached = _parcel_top_cache.get(mode)
+    if cached is not None:
+        return cached
+    p = parrot.get_parcel(mode)
+    w, h = p.get_size()
+    mask = pygame.mask.from_surface(p, 50)
+    top = [-1] * w
+    x_min = -1
+    for x in range(w):
+        for y in range(h):
+            if mask.get_at((x, y)):
+                top[x] = y
+                if x_min < 0:
+                    x_min = x
+                break
+    _parcel_top_cache[mode] = (top, x_min, w, h)
+    return _parcel_top_cache[mode]
+
+
+def get_parcel_snow(mode, load):
+    """Small W2 snow cap on the parcel's top, fading in over PARCEL_ONSET→1.0
+    (snow lands on objects, not under them). Cached per (mode, ramp-bucket)."""
+    if load < PARCEL_ONSET:
+        return None
+    ll = min(1.0, (load - PARCEL_ONSET) / (1.0 - PARCEL_ONSET))
+    b = round(ll / 0.1) * 0.1
+    key = (mode, b)
+    cached = _parcel_ov_cache.get(key)
+    if cached is not None:
+        return cached
+    top, x_min, w, h = _parcel_topline(mode)
+    if x_min < 0:
+        _parcel_ov_cache[key] = None
+        return None
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    taper_w = 4.0
+    drew = False
+    for x in range(w):
+        yt = top[x]
+        if yt < 0:
+            continue
+        rear = 1.0 - x / w
+        te = _smooth((x - x_min) / taper_w)
+        d = PARCEL_MAXD * ll * (0.65 + 0.5 * rear) * te
+        if d < 0.6:
+            continue
+        nb = math.sin(x * 1.7) * 0.25 + 0.5
+        y0 = yt - 0.6 * te
+        y1 = yt + d + (nb - 0.5) * 1.4
+        pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.22)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.3)), (x, int(y1)), 1)
+        drew = True
+    if not drew:
+        _parcel_ov_cache[key] = None
+        return None
+    _parcel_ov_cache[key] = ov
+    return ov
