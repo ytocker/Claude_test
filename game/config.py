@@ -158,23 +158,6 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 
-# Snow accumulating on Pip's back during the snow squall. The
-# tailwind blows snow onto him from behind, so a drift builds up
-# over his rear. Modelled as an integrator on bird.snow_load
-# (0..1):
-#   gain = ACCUM * storm_intensity
-#   melt = MELT_BASE + MELT_FADE * (1 - storm_intensity)
-#   load += (gain - melt) * dt          (clamped 0..1)
-# The melt ACCELERATES as the storm fades: barely any while it's
-# snowing hard (so snow piles up), ramping up sharply once the
-# storm passes — so the snow STARTS coming off sooner and clears
-# quickly instead of lingering. Tuned so load peaks just after the
-# storm's own peak, begins fading ~mid-decline, and is gone close
-# to when the storm ends.
-WEATHER_SNOW_ACCUM_RATE = 0.12
-WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
-WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
-
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
 # appear at once (1→GEYSER_MAX_CONCURRENT) scale with the live intensity, so
