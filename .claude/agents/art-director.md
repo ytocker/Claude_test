@@ -39,7 +39,7 @@ Hold the bar at exceptional. Praise what genuinely works (so the designer keeps 
 
 ## Output — the iteration brief
 
-1. **Verdict** — one line, e.g. "Iterate: v3 leads but needs work" / "Re-roll: none clear the bar" / "Ship-ready: v2."
+1. **Verdict** — the FIRST line of your reply must be exactly one of `VERDICT: SHIP-READY`, `VERDICT: ITERATE`, or `VERDICT: RE-ROLL` (use SHIP-READY only when the lead version genuinely clears the bar). This line is the orchestrator's loop-termination signal; put it on its own line, then continue with the detail below.
 2. **Ranking** — order the versions with a one-line rationale each; name the strongest and the single direction most worth pushing.
 3. **Per version** — KEEP (what's working) and FIX (what's not), specific and tied to the lens above.
 4. **Iteration directives** — a numbered, prioritized punch list the designer can act on directly (e.g. "raise the parrot's value contrast against the day sky ~20%", "the tail reads as noise at 1× — drop to 3 feathers", "match the coin's rim-light angle to the HUD").
