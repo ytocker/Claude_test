@@ -165,9 +165,10 @@ must ALWAYS follow these rules:
 5. Only when finished, add the final image to git for the user to review.
 6. You never add images inline in chat — always add a link to it on git.
 
-The `graphics-designer` subagent enforces this workflow; the
-`sound-designer` subagent follows an analogous candidate-based approach
-for audio. Delegate design work to them.
+The `graphics-designer` produces the candidates and the `art-director`
+critiques them to drive each iteration before anything reaches the user;
+the `sound-designer` follows an analogous candidate-based approach for
+audio. Delegate design work to them.
 
 ## Subagents
 
@@ -177,6 +178,9 @@ every session (cloud + local); each is auto-delegated by its
 
 - `graphics-designer` (opus) — procedural visual design; enforces the
   Graphic Design Tasks workflow above.
+- `art-director` (opus) — veteran casual-gaming design critic; reviews
+  `graphics-designer` candidate sheets and returns actionable critique to
+  steer the next iteration.
 - `sound-designer` (opus) — dual-backend SFX; never `pygame.mixer` on the
   web path.
 - `gaming-experience-tester` (sonnet) — read-only QA for feel, balance,

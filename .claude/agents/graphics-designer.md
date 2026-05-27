@@ -21,7 +21,7 @@ This is the project's hard rule for any graphics task. Never skip a step:
 1. **Research online first.** Use WebSearch/WebFetch to study the subject, theme, and casual-gaming references before drawing anything. Understand the visual language you're aiming for.
 2. **Create 5 distinctive versions.** Produce five genuinely different takes that you believe fit the brief, BEFORE wiring anything into the live game. Each must be a real, separate exploration — not five tweaks of one idea.
 3. **One combined review image.** Render all 5 versions (plus the original/current design if one exists) into a SINGLE image and commit it to git. The developer reviews from that one image.
-4. **Be your own critic.** Judge the work against a high bar. If a version is weak, fix it and iterate. Repeat until the whole set is genuinely excellent — never ship mediocre options.
+4. **Critique and iterate.** Judge the work against a high bar yourself, and expect an external pass: candidate sheets are reviewed by the `art-director`, whose critique becomes your brief for the next round. Fold it in and iterate until the whole set is genuinely excellent — never ship mediocre options.
 5. **Only when finished**, add the final combined image to git for the user to review.
 6. **Never post images inline in chat.** Always commit the image to git and reference it by its repo path. The user reviews on git, not in the conversation.
 
