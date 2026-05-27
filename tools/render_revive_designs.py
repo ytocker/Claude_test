@@ -36,7 +36,7 @@ PS = 2.15
 CX = 165
 # Knight chest-shield placement (fx, fy, w-frac, h-frac of the nominal rect).
 # Overridable by tools/render_knight_shield_pos.py to compare placements.
-_SHIELD_POS = (0.56, 0.63, 0.34, 0.42)
+_SHIELD_POS = (0.92, 0.58, 0.36, 0.46)
 
 
 def backdrop(surf):
