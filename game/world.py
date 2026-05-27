@@ -171,12 +171,10 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This branch is a showcase build for the morning-thermal event. The
-        # run starts at ~51s: a few clear seconds, then the rock field builds
-        # up gradually (~54→68s) so by the time the first geysers erupt (~68s)
-        # the ground is already well-populated; density then holds through the
-        # peak.
-        self.biome_time = 51.0
+        # This showcase build now starts a few seconds before the predawn SNOW
+        # SQUALL / windstorm opens (~240s): the run begins ~236s (night sky),
+        # gets a brief clear lead, then the tailwind ramps in and peaks ~272s.
+        self.biome_time = 236.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
