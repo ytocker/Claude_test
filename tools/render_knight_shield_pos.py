@@ -17,14 +17,16 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                    "docs", "screenshots", "revive_designs")
 os.makedirs(OUT, exist_ok=True)
 
-# (label, fx, fy, w-frac, h-frac) — all on the right/front of the parrot
+# Round 2 of placement: variant B pushed FAR right, partially on the body.
+# (label, fx, fy, w-frac, h-frac)
 OPTIONS = [
-    ("A  right chest", 0.62, 0.60, 0.34, 0.42),
-    ("B  far front-right", 0.74, 0.58, 0.32, 0.40),
-    ("C  right, lower", 0.66, 0.72, 0.34, 0.42),
-    ("D  right shoulder (high)", 0.66, 0.46, 0.32, 0.40),
-    ("E  right, large", 0.66, 0.60, 0.42, 0.52),
+    ("B1  far right", 0.82, 0.60, 0.38, 0.48),
+    ("B2  further right", 0.88, 0.60, 0.38, 0.48),
+    ("B3  body edge", 0.92, 0.58, 0.36, 0.46),
+    ("B4  far right, low + large", 0.85, 0.66, 0.44, 0.54),
+    ("B5  far right, large", 0.90, 0.62, 0.44, 0.54),
 ]
+OUT_NAME = "knight_shield_far_right.png"
 
 
 def main():
@@ -36,7 +38,7 @@ def main():
     lf = pygame.font.SysFont("Arial", 14, bold=True)
     sheet = pygame.Surface((pw * 5 + gap * 6, ph + title_h + gap * 2 + 24))
     sheet.fill((16, 18, 26))
-    sheet.blit(f.render("Knight K7 shield — 5 placements on the visible right side", True, (255, 232, 168)), (gap + 2, 9))
+    sheet.blit(f.render("Knight K7 shield — far right, partially on the body (5 versions)", True, (255, 232, 168)), (gap + 2, 9))
     for i, (label, fx, fy, wf, hf) in enumerate(OPTIONS):
         R._SHIELD_POS = (fx, fy, wf, hf)
         frame = R.render_one("", R.build_knight, pose)
@@ -48,7 +50,7 @@ def main():
         bg.fill((0, 0, 0, 180))
         sheet.blit(bg, (x + 4, title_h + ph + 4))
         sheet.blit(chip, (x + 9, title_h + ph + 7))
-    out = os.path.join(OUT, "knight_shield_positions.png")
+    out = os.path.join(OUT, OUT_NAME)
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
