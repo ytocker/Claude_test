@@ -1008,6 +1008,10 @@ def _draw_buff_icon(surf, rect, kind):
         # Mini phoenix glyph. Dispatches on PHOENIX_VARIANT so the HUD
         # row matches Pip's current look.
         from game.config import PHOENIX_VARIANT as _PV
+        if _PV == "knight":
+            from game import knight_skin
+            knight_skin.draw_shield_glyph(surf, cx, cy, size=min(rect.width, rect.height) - 2)
+            return
         # Grandiose variants: just render the actual sprite scaled to
         # fit inside the HUD slot. Keeps the HUD glyph identical to
         # what Pip looks like in-flight.

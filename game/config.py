@@ -159,7 +159,7 @@ PHOENIX_INVULN        = 1.5
 #   "eternal_dawn"   — daybreak palette, shorter tail
 #   "eternal_friend" — friendlier face (bigger eye, soft beak)
 #   "eternal_lite"   — all-in: warm + rounded + short + friendly
-PHOENIX_VARIANT       = "eternal_warm"
+PHOENIX_VARIANT       = "knight"
 # SKATEBOARD slide boost — world scrolls faster while Pip is
 # actually grinding a surface (ground, pillar top, or ramp).
 # Ramps up over SKATE_SLIDE_ATTACK and decays over
@@ -205,11 +205,8 @@ SECRET_POWERUP_WEIGHTS = (
     # plausibility ledger) is intact — re-add the line below to
     # restore: ("heist", 0.125),
     ("lottery",    0.125),
-    # TEST MODE on v5_powerups: Phoenix temporarily removed from the
-    # spawn pool so it doesn't claim a secret-roll slot while QA
-    # focuses on the other powerups. Code (activator, halo variants,
-    # audio, plausibility ledger) is intact — re-add the line below
-    # to restore: ("phoenix", 0.125),
+    # Survive-one-hit buff, reskinned as the Knight (PHOENIX_VARIANT).
+    ("phoenix",    0.125),
     ("genie",      0.125),
 )
 

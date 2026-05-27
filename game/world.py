@@ -1239,6 +1239,8 @@ class World:
                 self._revive_ember()
             elif PHOENIX_VARIANT == "mythic":
                 self._revive_mythic()
+            elif PHOENIX_VARIANT == "knight":
+                self._revive_knight()
             else:
                 self._revive_classic()
             return
@@ -1284,6 +1286,34 @@ class World:
             ))
         self.float_texts.append(FloatText(
             "REBORN!", self.bird.x, self.bird.y - 32, (255, 140, 40),
+            size=30, life=1.4, vy=-36, style="powerup",
+        ))
+
+    def _revive_knight(self):
+        """Knight revive: same survive-one-hit mechanic as classic, but a
+        steel-and-brass spark burst + GUARD! text instead of fire."""
+        self.phoenix_invuln = PHOENIX_INVULN
+        self.bird.vy = FLAP_V * 0.9
+        self.shake_mag = max(self.shake_mag, 6.0)
+        self.shake_t   = max(self.shake_t,   0.3)
+        audio.play_ghost()
+        audio.play_thunder()
+        for _ in range(36):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(160, 420)
+            col = random.choice((
+                (210, 218, 236), (146, 156, 178),
+                (226, 182,  72), WHITE,
+            ))
+            self.particles.append(Particle(
+                self.bird.x, self.bird.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.5, 1.2),
+                random.randint(3, 6),
+                col, gravity=180,
+            ))
+        self.float_texts.append(FloatText(
+            "GUARD!", self.bird.x, self.bird.y - 32, (226, 182, 72),
             size=30, life=1.4, vy=-36, style="powerup",
         ))
 
@@ -2376,18 +2406,18 @@ class World:
         ))
 
     def _activate_phoenix(self, m):
-        PHOENIX_RED  = (240,  50,  30)
-        PHOENIX_GOLD = (255, 190,  60)
+        KNIGHT_STEEL = (190, 200, 220)
+        KNIGHT_GOLD  = (226, 182,  72)
         self.phoenix_timer = PHOENIX_DURATION
         self.bird.phoenix_active = True
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t   = max(self.shake_t,   0.3)
         audio.play_phoenix()
         self._spawn_poof(self.bird.x, self.bird.y)
-        self._pickup_burst(m, (PHOENIX_RED, PHOENIX_GOLD, WHITE, UI_CREAM),
+        self._pickup_burst(m, (KNIGHT_STEEL, KNIGHT_GOLD, WHITE, UI_CREAM),
                            n=32, speed_hi=320)
         self.float_texts.append(FloatText(
-            "PHOENIX!", m.x, m.y - 26, PHOENIX_GOLD,
+            "KNIGHT!", m.x, m.y - 26, KNIGHT_GOLD,
             size=30, life=1.4, vy=-32, style="powerup",
         ))
 

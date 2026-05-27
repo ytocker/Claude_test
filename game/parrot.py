@@ -2834,9 +2834,14 @@ _GRANDIOSE_BUILDERS = {
 def _get_phoenix_frames(variant: str) -> "list[pygame.Surface]":
     frames = _PHOENIX_FRAMES_BY_VARIANT.get(variant)
     if frames is None:
+        # "knight" reskins the survive-one-hit buff as an armoured Pip;
+        # built in its own module to avoid a circular import at load.
+        if variant == "knight":
+            from game import knight_skin
+            frames = knight_skin.build_knight_frames()
         # Grandiose variants build on a bigger canvas via their own
         # dispatchers; the legacy variants share `_build_phoenix_frame`.
-        if variant in _GRANDIOSE_BUILDERS:
+        elif variant in _GRANDIOSE_BUILDERS:
             builder = _GRANDIOSE_BUILDERS[variant]
             frames = [_add_outline(builder(a)) for a in _WING_ANGLES]
         else:

@@ -1254,7 +1254,11 @@ class Bird:
         if self.phoenix_active and self.skeleton_flash_t <= 0.0:
             from game.config import PHOENIX_VARIANT as _PV
             hx, hy = self.x + shake_x, self.y + shake_y
-            if _PV == "solar":
+            if _PV == "knight":
+                # The Knight carries its identity in-sprite (armour +
+                # shield); no fiery halo.
+                pass
+            elif _PV == "solar":
                 _draw_phoenix_solar_halo(surf, hx, hy, self.frame_t)
             elif _PV in ("mythic", "imperial", "blaze", "sunburst",
                          "twin", "swift", "grand",
@@ -3015,6 +3019,10 @@ class PowerUp:
         from game.config import PHOENIX_VARIANT as _PV
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        if _PV == "knight":
+            from game import knight_skin
+            knight_skin.draw_shield_icon(surf, cx, cy, size=30)
+            return
         grandiose = {"imperial", "fenghuang", "dragon", "comet", "royal",
                      "blaze", "sunburst", "twin", "swift", "grand",
                      "soar", "rise", "stoop", "dive", "eternal",
