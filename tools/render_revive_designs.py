@@ -38,13 +38,14 @@ CX = 165
 # Overridable by tools/render_knight_shield_pos.py to compare placements.
 _SHIELD_POS = (0.56, 0.63, 0.34, 0.42)
 
-# Knight ARMOUR style (cohesive). Overridable by tools/render_knight_armor.py.
+# Knight armour FINISH — drives the custom-drawn cuirass/helm/wing/sword.
+# Overridable by tools/render_knight_custom.py.  ol=outline/deep shadow,
+# lo=shaded sides, mid=base metal, hi=specular.  surcoat=(left,right) tinctures
+# for a cloth tabard, or None.
 ARMOR = {
-    "ol": (24, 28, 38), "d": (70, 78, 96), "mid": (146, 156, 178), "hi": (238, 244, 255),
-    "brass": (208, 174, 98), "brass_hi": (255, 232, 168),
-    "body_mult": (140, 150, 174), "body_add": (6, 9, 16),
-    "sheen_top": (236, 242, 254), "sheen_bot": (44, 50, 66),
-    "texture": None, "filigree": False,
+    "ol": (20, 24, 34), "lo": (74, 84, 106), "mid": (150, 162, 186), "hi": (236, 244, 255),
+    "brass": (212, 178, 102), "brass_hi": (255, 234, 172),
+    "fluted": False, "surcoat": None, "filigree": False,
 }
 
 
@@ -221,87 +222,143 @@ def build_angel(char, nom, fidx):
         _star(char, *_P(nom, fx, fy), r, (255, 248, 214))
 
 
-def _torso_clip(body, ov, y_start):
-    """Keep ov only inside the body silhouette AND below y_start (head clear)."""
-    w, h = body.get_size()
-    cut = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.rect(cut, (255, 255, 255, 255), (0, int(h * y_start), w, h))
-    ov.blit(cut, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    ov.blit(_amask(body), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    body.blit(ov, (0, 0))
+def _vgrad(w, h, top, bot):
+    """A vertical gradient surface (top colour → bottom colour)."""
+    g = pygame.Surface((w, h), pygame.SRCALPHA)
+    for i in range(0, h, 2):
+        t = i / max(1, h - 1)
+        col = tuple(int(top[k] + (bot[k] - top[k]) * t) for k in range(3))
+        pygame.draw.rect(g, col, (0, i, w, 2))
+    return g
 
 
-def _scale_overlay(body, mid, d, hi, y_start=0.40):
-    w, h = body.get_size()
-    ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    edge = tuple(max(0, c - 36) for c in d)
-    scs = max(4, int(w * 0.056))
-    y0 = int(h * y_start)
-    rows = int((h - y0) / (scs * 0.82)) + 2
-    for row in range(rows):
-        y = y0 + int(row * scs * 0.82)
-        off = int(scs * 0.5) if row % 2 else 0
-        x = -off
-        while x < w + scs:
-            pygame.draw.circle(ov, edge, (x, y), int(scs * 0.60))
-            pygame.draw.circle(ov, d, (x, y), int(scs * 0.52))
-            pygame.draw.circle(ov, mid, (x, int(y - scs * 0.16)), int(scs * 0.42))
-            pygame.draw.circle(ov, hi, (int(x - scs * 0.20), int(y - scs * 0.28)), max(1, int(scs * 0.18)))
-            x += scs
-    _torso_clip(body, ov, y_start)
+def _poly_grad(big, pts, top, bot):
+    """Fill a polygon with a vertical gradient (clipped to the polygon)."""
+    w, h = big.get_size()
+    g = _vgrad(w, h, top, bot)
+    m = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.polygon(m, (255, 255, 255, 255), pts)
+    g.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(g, (0, 0))
 
 
-def _chain_overlay(body, mid, d, hi, y_start=0.38):
-    w, h = body.get_size()
-    ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    r = max(3, int(w * 0.034))
-    step = int(r * 1.8)
-    y0 = int(h * y_start)
-    row, y = 0, y0
-    while y < h:
-        off = step // 2 if row % 2 else 0
-        x = -off
-        while x < w + step:
-            pygame.draw.circle(ov, d, (x, y), r, max(1, int(r * 0.5)))
-            pygame.draw.circle(ov, mid, (x, y), int(r * 0.8), max(1, int(r * 0.34)))
-            pygame.draw.arc(ov, (*hi, 255), (x - r, y - r, 2 * r, 2 * r), math.radians(196), math.radians(316), max(1, int(r * 0.26)))
-            x += step
-        y += int(step * 0.78); row += 1
-    _torso_clip(body, ov, y_start)
-
-
-def _fluted_overlay(body, mid, d, hi, y_start=0.42):
-    """Vertical fluting ridges — the Maximilian / Gothic plate look."""
-    w, h = body.get_size()
-    ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    y0, y1 = int(h * y_start), int(h * 0.96)
-    step = max(5, int(w * 0.085))
-    x = step
-    while x < w:
-        pygame.draw.line(ov, d, (x, y0), (x, y1), max(2, int(step * 0.22)))
-        pygame.draw.line(ov, hi, (int(x + step * 0.32), y0), (int(x + step * 0.32), y1), max(1, int(step * 0.12)))
-        x += step
-    _torso_clip(body, ov, y_start)
-
-
-def _filigree_overlay(body, gold, gold_hi, y_start=0.40):
-    w, h = body.get_size()
-    ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    for fy in (0.46, 0.60, 0.74):
-        pygame.draw.arc(ov, (*gold, 210), (int(w * 0.18), int(h * fy), int(w * 0.52), int(h * 0.16)), math.radians(200), math.radians(340), 2)
-        pygame.draw.arc(ov, (*gold_hi, 190), (int(w * 0.30), int(h * fy), int(w * 0.40), int(h * 0.12)), math.radians(20), math.radians(160), 2)
-    pygame.draw.line(ov, (*gold, 220), (int(w * 0.5), int(h * 0.42)), (int(w * 0.5), int(h * 0.84)), 2)
-    _torso_clip(body, ov, y_start)
+def _pip_keep(base):
+    """Keep only Pip's identity bits — head+beak+aviators, tail, talons — so the
+    custom armour can replace the body without a recoloured parrot blob showing."""
+    w, h = base.get_size()
+    keep = base.copy()
+    m = pygame.Surface((w, h), pygame.SRCALPHA)
+    WH = (255, 255, 255, 255)
+    pygame.draw.ellipse(m, WH, (int(w * -0.03), int(h * 0.26), int(w * 0.37), int(h * 0.46)))  # tail
+    pygame.draw.ellipse(m, WH, (int(w * 0.34), int(h * 0.66), int(w * 0.26), int(h * 0.26)))  # talons
+    keep.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    return keep
 
 
 def build_knight(char, nom, fidx):
+    """Pip as a knight — drawn as a custom armoured figure (sculpted cuirass +
+    armoured flapping wing + open sallet + K7 shield + sword), keeping Pip's
+    head/beak/tail/talons so it still reads as Pip."""
     base = _base_body(fidx)
     brect = base.get_rect(center=nom.center)
-    OL = ARMOR["ol"]; D = ARMOR["d"]; MID = ARMOR["mid"]; HI = ARMOR["hi"]
-    BRASS = ARMOR["brass"]; BRASS_HI = ARMOR["brass_hi"]; CRIM = (160, 44, 48); CREAM = (236, 230, 214)
+    OL = ARMOR["ol"]; LO = ARMOR["lo"]; MID = ARMOR["mid"]; HI = ARMOR["hi"]
+    BRASS = ARMOR["brass"]; BRASS_HI = ARMOR["brass_hi"]; CRIM = (160, 44, 48)
+    SURCOAT = ARMOR.get("surcoat"); FLUTED = ARMOR.get("fluted"); FILI = ARMOR.get("filigree")
 
-    # SHIELD on the front of the chest = the chosen K7 heater: quarterly
-    # gules/or (matches the powerup pickup icon).
+    # ── Pip's identity bits behind the armour ──────────────────────────────────
+    char.blit(_pip_keep(base), brect.topleft)
+
+    # ── sculpted CUIRASS = the main armoured torso (custom, not a recolour) ─────
+    def cuirass(big, s):
+        w, h = big.get_size()
+        # breastplate silhouette — wide chest tapering to the waist
+        body_pts = [(0.22 * w, 0.18 * h), (0.78 * w, 0.18 * h), (0.92 * w, 0.42 * h),
+                    (0.74 * w, 0.74 * h), (0.50 * w, 0.84 * h), (0.26 * w, 0.74 * h), (0.08 * w, 0.42 * h)]
+        pygame.draw.polygon(big, OL, body_pts)                       # outline
+        inner = [(x + (0.5 * w - x) * 0.10, y + (0.5 * h - y) * 0.10) for (x, y) in body_pts]
+        _poly_grad(big, inner, HI, LO)                               # lit-from-top gradient
+        # side shading for cylindrical volume
+        pygame.draw.polygon(big, LO, [(0.08 * w, 0.42 * h), (0.20 * w, 0.30 * h), (0.20 * w, 0.66 * h), (0.16 * w, 0.62 * h)])
+        pygame.draw.polygon(big, LO, [(0.92 * w, 0.42 * h), (0.80 * w, 0.30 * h), (0.80 * w, 0.66 * h), (0.84 * w, 0.62 * h)])
+        # central keel ridge
+        pygame.draw.line(big, HI, (0.5 * w, 0.22 * h), (0.5 * w, 0.78 * h), max(1, int(1.6 * s)))
+        pygame.draw.line(big, LO, (0.5 * w + int(1.4 * s), 0.26 * h), (0.5 * w + int(1.4 * s), 0.74 * h), max(1, int(s)))
+        if FLUTED:
+            for fx in (0.30, 0.40, 0.60, 0.70):
+                pygame.draw.line(big, LO, (fx * w, 0.26 * h), (fx * w, 0.74 * h), max(1, int(1.2 * s)))
+                pygame.draw.line(big, HI, (fx * w + int(1.1 * s), 0.27 * h), (fx * w + int(1.1 * s), 0.72 * h), max(1, int(0.7 * s)))
+        # specular bloom, top-left
+        sp = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.ellipse(sp, (*HI, 120), (int(0.22 * w), int(0.18 * h), int(0.34 * w), int(0.30 * h)))
+        big.blit(sp, (0, 0))
+        # gorget collar
+        pygame.draw.ellipse(big, OL, (int(0.24 * w), int(0.04 * h), int(0.52 * w), int(0.26 * h)))
+        pygame.draw.ellipse(big, MID, (int(0.27 * w), int(0.06 * h), int(0.46 * w), int(0.18 * h)))
+        pygame.draw.arc(big, HI, (int(0.27 * w), int(0.05 * h), int(0.46 * w), int(0.2 * h)), math.radians(196), math.radians(344), max(1, int(1.2 * s)))
+        # fauld lames at the waist (each a sculpted band w/ a top highlight)
+        for i in range(3):
+            ly = (0.70 + i * 0.075) * h
+            band = [(0.22 * w, ly), (0.78 * w, ly), (0.70 * w, ly + 0.075 * h), (0.30 * w, ly + 0.075 * h)]
+            pygame.draw.polygon(big, LO, band)
+            pygame.draw.line(big, OL, (0.22 * w, ly), (0.78 * w, ly), max(1, int(0.9 * s)))
+            pygame.draw.line(big, HI, (0.28 * w, ly + int(1.2 * s)), (0.72 * w, ly + int(1.2 * s)), max(1, int(0.8 * s)))
+        # surcoat / tabard (cloth over the plate, per-pale in the K7 tinctures)
+        if SURCOAT:
+            cl, cr = SURCOAT
+            tab = [(0.34 * w, 0.22 * h), (0.66 * w, 0.22 * h), (0.62 * w, 0.86 * h), (0.50 * w, 0.92 * h), (0.38 * w, 0.86 * h)]
+            tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.polygon(tmp, cl, [(0.34 * w, 0.22 * h), (0.5 * w, 0.22 * h), (0.5 * w, 0.92 * h), (0.38 * w, 0.86 * h)])
+            pygame.draw.polygon(tmp, cr, [(0.5 * w, 0.22 * h), (0.66 * w, 0.22 * h), (0.62 * w, 0.86 * h), (0.5 * w, 0.92 * h)])
+            mm = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.polygon(mm, (255, 255, 255, 255), tab)
+            tmp.blit(mm, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            big.blit(tmp, (0, 0))
+            for fx in (0.42, 0.5, 0.58):                              # cloth folds
+                pygame.draw.line(big, (0, 0, 0, 60), (fx * w, 0.26 * h), (fx * w, 0.84 * h), max(1, int(0.8 * s)))
+            pygame.draw.line(big, BRASS, (0.34 * w, 0.22 * h), (0.66 * w, 0.22 * h), max(1, int(1.4 * s)))
+        # gilt filigree + brass studs
+        if FILI:
+            for fy in (0.40, 0.56):
+                pygame.draw.arc(big, BRASS, (int(0.24 * w), int(fy * h), int(0.52 * w), int(0.16 * h)), math.radians(200), math.radians(340), max(1, int(1.3 * s)))
+            pygame.draw.line(big, BRASS, (0.5 * w, 0.24 * h), (0.5 * w, 0.7 * h), max(1, int(1.3 * s)))
+        for (rx, ry) in ((0.24, 0.24), (0.76, 0.24)):                 # shoulder studs
+            pygame.draw.circle(big, BRASS, (int(rx * w), int(ry * h)), max(1, int(1.5 * s)))
+            pygame.draw.circle(big, BRASS_HI, (int(rx * w) - int(s), int(ry * h) - int(s)), max(1, int(0.8 * s)))
+    _blit_ss(char, *_P(nom, 0.48, 0.58), int(nom.w * 0.70), int(nom.h * 0.66), cuirass, scale=6)
+
+    # ── armoured WING (replaces Pip's wing) — flaps with the frame ─────────────
+    def armwing(big, s):
+        w, h = big.get_size()
+        root = (0.86 * w, 0.88 * h)
+        tips = [(0.10, 0.18), (0.07, 0.36), (0.12, 0.54), (0.22, 0.68), (0.36, 0.80)]
+        for i, (tfx, tfy) in enumerate(tips):
+            tip = (tfx * w, tfy * h)
+            dx, dy = tip[0] - root[0], tip[1] - root[1]
+            ln = math.hypot(dx, dy) or 1; ux, uy = dx / ln, dy / ln; px, py = -uy, ux
+            bw = (0.085 - 0.010 * i) * w
+            plate = [(root[0] + px * bw, root[1] + py * bw), (root[0] - px * bw, root[1] - py * bw),
+                     (tip[0] - px * 0.03 * w, tip[1] - py * 0.03 * w), (tip[0] + px * 0.03 * w, tip[1] + py * 0.03 * w)]
+            pygame.draw.polygon(big, OL, plate)
+            plate2 = [(root[0] + px * (bw - 1.4 * s), root[1] + py * (bw - 1.4 * s)), (root[0] - px * (bw - 1.4 * s), root[1] - py * (bw - 1.4 * s)),
+                      (tip[0] - px * 0.02 * w, tip[1] - py * 0.02 * w), (tip[0] + px * 0.02 * w, tip[1] + py * 0.02 * w)]
+            pygame.draw.polygon(big, MID if i % 2 == 0 else LO, plate2)
+            pygame.draw.line(big, HI, (root[0] - px * (bw - 2 * s), root[1] - py * (bw - 2 * s)), tip, max(1, int(0.9 * s)))
+        # spaulder cap over the root — layered curved lames (not a plain ball)
+        rx0, ry0 = int(root[0]), int(root[1])
+        for j, (rw, rh, col) in enumerate(((0.24, 0.20, OL), (0.225, 0.185, LO), (0.20, 0.165, MID))):
+            yo = int(j * 1.4 * s)
+            pygame.draw.ellipse(big, col, (int(rx0 - rw * w), int(ry0 - rh * w - yo), int(2 * rw * w), int(2 * rh * w)))
+        for j in range(3):                                                       # lame seams + highlights
+            ay = int(ry0 - 0.10 * w + j * 0.08 * w)
+            pygame.draw.arc(big, OL, (int(rx0 - 0.21 * w), int(ay - 0.10 * w), int(0.42 * w), int(0.2 * w)), math.radians(200), math.radians(340), max(1, int(0.9 * s)))
+            pygame.draw.arc(big, HI, (int(rx0 - 0.21 * w), int(ay - 0.10 * w) - int(s), int(0.42 * w), int(0.2 * w)), math.radians(210), math.radians(330), max(1, int(0.7 * s)))
+        pygame.draw.circle(big, BRASS, (rx0, int(ry0 - 0.12 * w)), max(1, int(1.6 * s)))
+    nw2, nh2 = int(nom.w * 0.66), int(nom.h * 0.70)
+    awing = _ss(nw2, nh2, armwing, 5)
+    rot, tl = _rotate_about(awing, (0.86, 0.88), _P(nom, 0.52, 0.50), _FLAP_DEG[fidx])
+    char.blit(rot, tl)
+
+    # ── K7 shield (quarterly gules/or heater) held at the front-right, B3 ──────
     def shield(big, s):
         w, h = big.get_size(); cxg = w // 2
         GUL = (170, 46, 50); GOLD = (226, 182, 72)
@@ -311,93 +368,83 @@ def build_knight(char, nom, fidx):
         pygame.draw.polygon(big, MID, [(6 * s, 6 * s), (w - 6 * s, 6 * s), (w - 6 * s, h * 0.45), (cxg, h - 7 * s), (6 * s, h * 0.45)])
         qy = h * 0.4
         tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.rect(tmp, GUL, (0, 0, int(cxg), int(qy)))                 # TL gules
-        pygame.draw.rect(tmp, GOLD, (int(cxg), 0, int(w - cxg), int(qy)))     # TR or
-        pygame.draw.rect(tmp, GOLD, (0, int(qy), int(cxg), int(h - qy)))      # BL or
-        pygame.draw.rect(tmp, GUL, (int(cxg), int(qy), int(w - cxg), int(h - qy)))  # BR gules
+        pygame.draw.rect(tmp, GUL, (0, 0, int(cxg), int(qy)))
+        pygame.draw.rect(tmp, GOLD, (int(cxg), 0, int(w - cxg), int(qy)))
+        pygame.draw.rect(tmp, GOLD, (0, int(qy), int(cxg), int(h - qy)))
+        pygame.draw.rect(tmp, GUL, (int(cxg), int(qy), int(w - cxg), int(h - qy)))
         mask = pygame.Surface((w, h), pygame.SRCALPHA)
         pygame.draw.polygon(mask, (255, 255, 255, 255), field)
         tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
         big.blit(tmp, (0, 0))
-        pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))  # rim sheen
-
-    # ONE cohesive suit of armour over the whole body: recolour + sheen, then a
-    # single texture pass (scale / chain / fluted plate) clipped to the body
-    # silhouette so the knight reads as one homogeneous metal surface — no
-    # patchwork discs. Optional gold filigree for the royal variant.
-    body = _body(base, ARMOR["body_mult"], ARMOR["body_add"], ARMOR["sheen_top"], ARMOR["sheen_bot"], 118, 100)
-    tex = ARMOR["texture"]
-    if tex == "scale":
-        _scale_overlay(body, MID, D, HI)
-    elif tex == "chain":
-        _chain_overlay(body, MID, D, HI)
-    elif tex == "fluted":
-        _fluted_overlay(body, MID, D, HI)
-    if ARMOR["filigree"]:
-        _filigree_overlay(body, BRASS, BRASS_HI)
-    char.blit(body, brect.topleft)
-
-    # the K7 shield on the most-visible right of the chest, partially on body.
+        pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))
     sfx, sfy, swf, shf = _SHIELD_POS
     _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), shield)
 
-    # slick, detailed armet helm
+    # ── open sallet HELM facing right — beak/eyes show, plume trails back-left ──
     def helm(big, s):
-        w, h = big.get_size(); cxg = w // 2
-        # gorget / neck guard
-        pygame.draw.ellipse(big, D, (int(w * 0.16), int(h * 0.66), int(w * 0.68), int(h * 0.32)))
-        pygame.draw.ellipse(big, MID, (int(w * 0.19), int(h * 0.67), int(w * 0.62), int(h * 0.22)))
-        pygame.draw.arc(big, HI, (int(w * 0.2), int(h * 0.66), int(w * 0.6), int(h * 0.2)), math.radians(196), math.radians(344), max(1, int(1.2 * s)))
-        # skull dome — smooth multi-step gradient
-        for i, col in enumerate([OL, (52, 58, 74), (94, 102, 122), MID, (190, 200, 218)]):
-            ins = int(i * 1.7 * s)
-            pygame.draw.ellipse(big, col, (int(4 * s) + ins, int(4 * s) + ins, int(w - 8 * s) - 2 * ins, int(h * 0.7) - 2 * ins))
-        pygame.draw.ellipse(big, HI, (int(10 * s), int(7 * s), int(w * 0.3), int(h * 0.22)))           # specular
-        pygame.draw.arc(big, (38, 44, 58), (int(5 * s), int(7 * s), int(w - 10 * s), int(h * 0.64)), math.radians(14), math.radians(166), max(2, int(2 * s)))
-        # raised crown comb + brass keel
-        pygame.draw.polygon(big, (58, 64, 80), [(cxg - int(2.5 * s), int(5 * s)), (cxg + int(2.5 * s), int(5 * s)), (cxg + int(1.2 * s), int(h * 0.4)), (cxg - int(1.2 * s), int(h * 0.4))])
-        pygame.draw.line(big, BRASS, (cxg, int(5 * s)), (cxg, int(h * 0.4)), max(1, int(1.6 * s)))
-        pygame.draw.line(big, BRASS_HI, (cxg - int(0.9 * s), int(6 * s)), (cxg - int(0.9 * s), int(h * 0.38)), max(1, int(0.9 * s)))
-        # brass brow band
-        vy = int(h * 0.4)
-        pygame.draw.line(big, BRASS, (int(7 * s), vy), (int(w - 7 * s), vy), max(2, int(2.2 * s)))
-        pygame.draw.line(big, BRASS_HI, (int(7 * s), vy - int(0.9 * s)), (int(w - 7 * s), vy - int(0.9 * s)), max(1, int(0.9 * s)))
-        # beveled face plate
-        pygame.draw.polygon(big, OL, [(int(7 * s), vy), (int(w - 7 * s), vy), (int(w - 10 * s), int(h * 0.72)), (cxg, int(h * 0.8)), (int(10 * s), int(h * 0.72))])
-        pygame.draw.polygon(big, (64, 72, 90), [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 12 * s), int(h * 0.7)), (cxg, int(h * 0.77)), (int(12 * s), int(h * 0.7))])
-        pygame.draw.polygon(big, MID, [(int(9 * s), vy + int(1.5 * s)), (int(w - 9 * s), vy + int(1.5 * s)), (int(w - 11 * s), int(h * 0.52)), (int(11 * s), int(h * 0.52))])
-        # T eye-slit + breaths
-        pygame.draw.rect(big, (6, 7, 11), (int(12 * s), int(vy + h * 0.11), int(w - 24 * s), int(h * 0.05)))
-        pygame.draw.rect(big, (6, 7, 11), (int(cxg - 1.3 * s), int(vy + h * 0.11), int(2.6 * s), int(h * 0.22)))
-        for bx in range(5):
-            if abs(bx - 2) >= 1:
-                pygame.draw.circle(big, (6, 7, 11), (int(cxg + (bx - 2) * int(3.0 * s)), int(vy + h * 0.30)), max(1, int(0.85 * s)))
-        for rx in (0.2, 0.8):
-            pygame.draw.circle(big, BRASS, (int(w * rx), int(h * 0.55)), max(1, int(1.3 * s)))         # cheek rivets
-        # plume holder + flowing layered crest
-        sock = (cxg - int(2 * s), int(4 * s))
+        w, h = big.get_size()
+        def P(fx, fy):
+            return (int(w * fx), int(h * fy))
+        lw = lambda k: max(1, int(k * s))
+        LIT = (int((MID[0] + HI[0]) / 2), int((MID[1] + HI[1]) / 2), int((MID[2] + HI[2]) / 2))
+        midmix = (int((LO[0] + MID[0]) / 2), int((LO[1] + MID[1]) / 2), int((LO[2] + MID[2]) / 2))
+        DARK = (6, 7, 11)
+        # GREAT HELM in 3/4 view facing right — the iconic crusader bucket: a
+        # curved side panel (left/back) + a flat front face (right) carrying the
+        # reinforcing cross, eye-slit and breath holes.  Reads instantly as a
+        # knight; pairs with the K7 crusader shield.
+        # left/back side panel (curved, darker)
+        side = [P(0.22, 0.26), P(0.54, 0.22), P(0.54, 0.80), P(0.24, 0.74), P(0.20, 0.40)]
+        pygame.draw.polygon(big, OL, side)
+        pygame.draw.polygon(big, LO, [P(0.25, 0.29), P(0.52, 0.255), P(0.52, 0.76), P(0.27, 0.71), P(0.24, 0.41)])
+        # domed top
+        pygame.draw.ellipse(big, OL, (int(0.20 * w), int(0.12 * h), int(0.64 * w), int(0.24 * h)))
+        pygame.draw.ellipse(big, midmix, (int(0.23 * w), int(0.135 * h), int(0.58 * w), int(0.19 * h)))
+        pygame.draw.ellipse(big, LIT, (int(0.28 * w), int(0.15 * h), int(0.26 * w), int(0.10 * h)))     # top sheen
+        # front face (right) — gradient-lit flat plate
+        face = [P(0.54, 0.22), P(0.86, 0.28), P(0.86, 0.74), P(0.54, 0.80)]
+        pygame.draw.polygon(big, OL, face)
+        _poly_grad(big, [P(0.555, 0.245), P(0.845, 0.30), P(0.845, 0.72), P(0.555, 0.775)], LIT, midmix)
+        pygame.draw.line(big, HI, P(0.57, 0.25), P(0.57, 0.78), lw(1.0))                                # front-edge sheen
+        # eye-slit (occularium) across the upper face, broken by the cross bar
+        pygame.draw.rect(big, DARK, (int(0.56 * w), int(0.40 * h), int(0.29 * w), int(0.045 * h)))
+        # breath holes, lower face
+        for r in range(2):
+            for c in range(4):
+                pygame.draw.circle(big, DARK, P(0.60 + c * 0.06, 0.58 + r * 0.07), lw(0.8))
+        # reinforcing CROSS (brass) on the front face
+        pygame.draw.line(big, BRASS, P(0.70, 0.24), P(0.70, 0.78), lw(2.4))
+        pygame.draw.line(big, BRASS, P(0.55, 0.50), P(0.86, 0.50), lw(2.4))
+        pygame.draw.line(big, BRASS_HI, P(0.69, 0.26), P(0.69, 0.76), lw(0.9))
+        pygame.draw.line(big, BRASS_HI, P(0.56, 0.49), P(0.85, 0.49), lw(0.9))
+        for (rx, ry) in ((0.70, 0.30), (0.70, 0.70), (0.60, 0.50), (0.82, 0.50)):                       # cross studs
+            pygame.draw.circle(big, BRASS_HI, P(rx, ry), lw(1.0))
+        # bottom rim
+        pygame.draw.line(big, OL, P(0.24, 0.74), P(0.86, 0.74), lw(1.4))
+        # plume — socket on the top, flowing LEFT and down
+        sock = P(0.34, 0.12)
         pygame.draw.circle(big, BRASS, sock, int(2.4 * s))
-        pygame.draw.circle(big, BRASS_HI, (sock[0] - int(0.8 * s), sock[1] - int(0.8 * s)), max(1, int(1.0 * s)))
+        pygame.draw.circle(big, BRASS_HI, (sock[0] - int(0.8 * s), sock[1] - int(0.8 * s)), lw(1.0))
         for col, off in (((108, 26, 38), 0), (CRIM, int(2 * s)), ((232, 112, 104), int(4 * s))):
-            top = _qbez(sock, (sock[0] - int(13 * s), sock[1] - int(22 * s)), (sock[0] - int(34 * s), sock[1] - int(2 * s)), 20)
-            bot = _qbez(sock, (sock[0] - int(7 * s), sock[1] - int(9 * s)), (sock[0] - int(28 * s), sock[1] + int(13 * s)), 20)
-            pygame.draw.polygon(big, col, [(x + off, y) for (x, y) in top] + [(x + off, y) for (x, y) in reversed(bot)])
+            top = _qbez(sock, (sock[0] - int(12 * s), sock[1] - int(22 * s)), (sock[0] - int(34 * s), sock[1] - int(2 * s)), 20)
+            bot = _qbez(sock, (sock[0] - int(7 * s), sock[1] - int(9 * s)), (sock[0] - int(28 * s), sock[1] + int(14 * s)), 20)
+            pygame.draw.polygon(big, col, [(x - off, y) for (x, y) in top] + [(x - off, y) for (x, y) in reversed(bot)])
         for k in range(3):
-            strand = _qbez(sock, (sock[0] - int(12 * s), sock[1] - int(16 * s) + k * int(4 * s)), (sock[0] - int(30 * s), sock[1] + int(2 * s) + k * int(5 * s)), 16)
-            pygame.draw.lines(big, (246, 150, 140), False, strand, max(1, int(0.8 * s)))
-    _blit_ss(char, *_P(nom, 0.73, 0.17), int(nom.w * 0.5), int(nom.h * 0.54), helm, scale=6)
+            strand = _qbez(sock, (sock[0] - int(11 * s), sock[1] - int(16 * s) + k * int(4 * s)), (sock[0] - int(30 * s), sock[1] + int(2 * s) + k * int(5 * s)), 16)
+            pygame.draw.lines(big, (246, 150, 140), False, strand, lw(0.8))
+    _blit_ss(char, *_P(nom, 0.72, 0.30), int(nom.w * 0.56), int(nom.h * 0.56), helm, scale=6)
 
-    # SWORD in the main (right/front) hand — hilt at the talon, blade up
+    # ── SWORD held upright in front of the chest (clear of helm + shield) ──────
     def sword(big, s):
         w, h = big.get_size()
-        gx, gy = int(w * 0.42), int(h * 0.80)
-        tx, ty = int(w * 0.74), int(h * 0.06)
+        gx, gy = int(w * 0.50), int(h * 0.84)
+        tx, ty = int(w * 0.46), int(h * 0.08)
         ux, uy = (tx - gx), (ty - gy); ln = math.hypot(ux, uy); ux, uy = ux / ln, uy / ln
         px, py = -uy, ux; bw = 3.8 * s
         pygame.draw.polygon(big, OL, [(gx + px * bw, gy + py * bw), (gx - px * bw, gy - py * bw), (tx - px * 0.5 * s, ty - py * 0.5 * s), (tx + px * 0.5 * s, ty + py * 0.5 * s)])
         pygame.draw.polygon(big, MID, [(gx + px * (bw - 1.3 * s), gy + py * (bw - 1.3 * s)), (gx - px * (bw - 1.3 * s), gy - py * (bw - 1.3 * s)), (tx, ty)])
         pygame.draw.line(big, HI, (gx - px * (bw - s), gy - py * (bw - s)), (tx, ty), max(1, int(1.1 * s)))
-        pygame.draw.line(big, D, (gx + ux * 5 * s, gy + uy * 5 * s), (tx - ux * 9 * s, ty - uy * 9 * s), max(1, int(0.9 * s)))
+        pygame.draw.line(big, LO, (gx + ux * 5 * s, gy + uy * 5 * s), (tx - ux * 9 * s, ty - uy * 9 * s), max(1, int(0.9 * s)))
         cg = 9 * s
         pygame.draw.line(big, BRASS, (gx + px * cg, gy + py * cg), (gx - px * cg, gy - py * cg), max(2, int(3 * s)))
         pygame.draw.circle(big, BRASS_HI, (int(gx + px * cg), int(gy + py * cg)), max(1, int(1.6 * s)))
@@ -409,7 +456,7 @@ def build_knight(char, nom, fidx):
             pygame.draw.line(big, (124, 94, 62), (wx + px * 2.2 * s, wy + py * 2.2 * s), (wx - px * 2.2 * s, wy - py * 2.2 * s), max(1, int(1.1 * s)))
         pygame.draw.circle(big, BRASS, (int(ge[0]), int(ge[1])), int(2.6 * s))
         pygame.draw.circle(big, (210, 70, 90), (int(ge[0]), int(ge[1])), max(1, int(1.2 * s)))
-    _blit_ss(char, *_P(nom, 0.74, 0.5), int(nom.w * 0.5), int(nom.h * 0.95), sword)
+    _blit_ss(char, *_P(nom, 0.52, 0.54), int(nom.w * 0.42), int(nom.h * 0.95), sword)
 
 
 def build_gold(char, nom, fidx):
