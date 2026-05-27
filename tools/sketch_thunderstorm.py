@@ -244,5 +244,78 @@ def main():
     print("wrote", path, sheet.get_size())
 
 
+# ── 5 dramatic variants ──────────────────────────────────────────────────────
+def rain_v(surf, n, slant, seed):
+    rng = random.Random(seed)
+    col = (150, 178, 224)
+    for _ in range(n):
+        x = rng.uniform(-10, W + 10); y = rng.uniform(-10, H)
+        ln = rng.uniform(13, 24)
+        pygame.draw.line(surf, col, (int(x), int(y)),
+                         (int(x - ln * slant), int(y - ln)), 2)
+        pygame.draw.circle(surf, (200, 218, 250), (int(x), int(y)), 2)
+
+
+# name, rain_n, slant, foreground, splash, tint, vignette, flash, bolt
+VARIANTS5 = [
+    ("V1 In-game now",        180, 0.42, False, False,  0, False, 150, "base"),
+    ("V2 Torrential slant",   330, 0.62, False, False,  0, False, 150, "base"),
+    ("V3 Flash-forward",      180, 0.42, False, False,  0, False, 205, "forked"),
+    ("V4 Sheet + splashes",   230, 0.46, True,  True,   0, False, 150, "base"),
+    ("V5 Moody grade",        180, 0.42, False, False, 56, True,  170, "bold"),
+]
+VMOMENTS = [(False, "t~20s  heavy rain"), (True, "t~20s  strike + flash")]
+
+
+def compose_variant(vi, strike):
+    name, n, slant, fg, spl, tint, vig, fstr, bolt = VARIANTS5[vi]
+    w = build_world(160.0, strike=strike)
+    w.weather.streaks = []            # suppress base rain — variant controls it
+    w.weather.flash_remaining = 0.0
+    surf = pygame.Surface((W, H))
+    render_base(w, surf)              # bg + entities + base bolt (if strike)
+    seed = vi * 50 + (1 if strike else 0)
+    if tint:
+        storm_tint(surf, tint)
+        if vig:
+            vignette(surf, 112)
+    rain_v(surf, n, slant, seed)
+    if fg:
+        foreground_rain(surf, 1.0, seed)
+    if spl:
+        splashes(surf, seed)
+    if strike:
+        flash(surf, fstr)
+        if bolt == "forked":
+            bolder_bolt(surf, forked=True)
+        elif bolt == "bold":
+            bolder_bolt(surf, forked=False)
+    return surf
+
+
+def main_variants():
+    cw, ch = int(W * 0.62), int(H * 0.62)
+    gap, lblw, hdr = 6, 150, 26
+    cols, rows = len(VMOMENTS), len(VARIANTS5)
+    sheet = pygame.Surface((lblw + cols * cw + gap * (cols + 1),
+                            hdr + rows * ch + gap * (rows + 1)))
+    sheet.fill((16, 18, 26))
+    fhdr = pygame.font.SysFont("Arial", 14, bold=True)
+    flbl = pygame.font.SysFont("Arial", 13, bold=True)
+    for ci, (_, label) in enumerate(VMOMENTS):
+        sheet.blit(fhdr.render(label, True, (235, 238, 248)),
+                   (lblw + gap + ci * (cw + gap), 6))
+    for vi in range(rows):
+        ry = hdr + gap + vi * (ch + gap)
+        sheet.blit(flbl.render(VARIANTS5[vi][0], True, (235, 238, 248)),
+                   (6, ry + ch // 2 - 8))
+        for ci, (strike, _) in enumerate(VMOMENTS):
+            cell = pygame.transform.smoothscale(compose_variant(vi, strike), (cw, ch))
+            sheet.blit(cell, (lblw + gap + ci * (cw + gap), ry))
+    path = os.path.join(OUT, "variants.png")
+    pygame.image.save(sheet, path)
+    print("wrote", path, sheet.get_size())
+
+
 if __name__ == "__main__":
-    main()
+    main_variants()
