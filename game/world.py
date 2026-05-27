@@ -171,10 +171,11 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # Opens with LIGHT rain (~128s, the lull after the sunset drizzle) so
-        # the storm builds gradually: light rain → heavy downpour at the peak
-        # (~160s) → lightning only then (flashes from ~157s, the strike near
-        # the peak), through the thunder window to ~230s.
+        # This showcase build opens in the LIGHT sunset drizzle that precedes
+        # the dusk THUNDERSTORM (phase ~0.40): the rain then thickens
+        # gradually to its heavy peak (~160s, where the storm-jolt lightning
+        # strikes), with the lightning/flash gate opening only once it's heavy
+        # (phase >= 0.49, ~157s).
         self.biome_time = 128.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
@@ -412,12 +413,11 @@ class World:
         self._proof.record(self.time_alive, -lost, "weather_jolt")
 
         bx, by = self.bird.x, self.bird.y
-        # THREE simultaneous bolts: the main strike on Pip plus two flanking
-        # bolts to the ground left/right — a dramatic forked sky at the climax.
+        # THREE simultaneous bolts at the climax: the main strike on Pip plus
+        # two flanking bolts at absolute screen positions (Pip flies on the
+        # left), each a different length + jaggedness so the sky forks.
         main = self._bolt_path(bx + random.uniform(-70, 70), 0.0, bx, by - 2,
                                segs=22, jit=42)
-        # Two flanking bolts at absolute screen positions (Pip flies on the
-        # left), so all three read on-screen, spread across the sky.
         side_l = self._side_bolt(random.uniform(18.0, 70.0))
         side_r = self._side_bolt(random.uniform(W * 0.62, W - 24.0))
         self.lightning_strike = {"paths": [main, side_l, side_r], "path": main,

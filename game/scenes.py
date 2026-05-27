@@ -27,9 +27,11 @@ _OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
 def _draw_lightning_bolt(surf, strike):
     """Paint the storm-jolt lightning — the main bolt that strikes Pip plus
     (when present) two flanking bolts in `strike["paths"]`, so the sky forks
-    with three simultaneous strikes at the climax. Four concentric layers
-    (plasma bloom, purple glow, cyan halo, white core); alpha holds full for
-    the first 35% of life, then decays; flanking bolts a touch thinner."""
+    with three simultaneous strikes at the climax. Four concentric layers per
+    bolt — wide plasma bloom, outer purple glow, cyan halo, white core. Alpha
+    holds full for the first 35% of life so the zig-zags read, then decays;
+    flanking bolts a touch thinner. Round circles at every waypoint so each
+    polyline reads as one crackle."""
     if strike is None or strike.get("life", 0) <= 0:
         return
     paths = strike.get("paths") or ([strike["path"]] if strike.get("path") else [])
@@ -40,7 +42,10 @@ def _draw_lightning_bolt(surf, strike):
     life_max = strike["life_max"]
     raw_t = max(0.0, min(1.0, life / life_max))
     HOLD = 0.35
-    t = 1.0 if raw_t >= 1.0 - HOLD else raw_t / (1.0 - HOLD)
+    if raw_t >= 1.0 - HOLD:
+        t = 1.0
+    else:
+        t = raw_t / (1.0 - HOLD)
     t_glow = t ** 0.7
     sw, sh = surf.get_size()
     for bi, path in enumerate(paths):

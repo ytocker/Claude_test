@@ -165,11 +165,11 @@ class _Streak:
         dy = self.len
         hx, hy = int(self.x), int(self.y)
         # Fuller drop: a 2px streak with a brighter teardrop head at the
-        # leading (lower) end — reads as a real raindrop, not a thin line.
+        # leading (lower) end so it reads as a raindrop, not a thin line.
         pygame.draw.line(surf, self.color, (hx, hy),
                          (int(self.x - dx), int(self.y - dy)), 2)
-        head = (min(255, self.color[0] + 42), min(255, self.color[1] + 36),
-                min(255, self.color[2] + 26))
+        c = self.color
+        head = (min(255, c[0] + 42), min(255, c[1] + 36), min(255, c[2] + 26))
         pygame.draw.circle(surf, head, (hx, hy), 2)
 
 
@@ -462,9 +462,7 @@ class Weather:
         intensity = rain_intensity(phase)
         if intensity > 0:
             color = rain_color(phase)
-            # Gradual: light rain at low intensity → torrential at the peak.
-            # Power curve (no big base) so a light shower reads light.
-            target = int(intensity ** 1.5 * 360)
+            target = int(80 + intensity * 170)   # heavier downpour for the storm climax
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
@@ -545,10 +543,11 @@ class Weather:
                              if not sw_.off_screen()]
 
         # Full-screen lightning flash — fires a few times spread across the
-        # dusk THUNDERSTORM (gated to its window so the earlier sunset drizzle
-        # stays flash-free). The long interval lands ~3 flashes over the storm;
-        # the storm-jolt strike on Pip adds its own flash near the peak.
-        storming = 0.49 <= phase <= 0.72   # lightning only once the rain is heavy (≈peak on)
+        # dusk THUNDERSTORM, gated to open only once the rain is heavy (near
+        # the peak) so the earlier light drizzle stays flash-free. The long
+        # interval lands ~3 flashes over the storm; the storm-jolt strike on
+        # Pip adds its own flash near the peak.
+        storming = 0.49 <= phase <= 0.72
         if storming:
             self.next_strike -= dt
             if self.next_strike <= 0 and self.flash_remaining <= 0:
@@ -561,15 +560,14 @@ class Weather:
             self.flash_remaining = max(0.0, self.flash_remaining - dt)
 
     def _spawn_streak(self, intensity, color):
-        # Spawn across the WHOLE field (not just the top): the steep leftward
-        # slant drifts drops off the lower-left, so seeding only at the top
-        # leaves the lower-right empty. A full-field respawn keeps the screen
-        # evenly covered.
+        # Spawn across the WHOLE field (not just above the top edge): a
+        # top-only seed leaves the lower screen bare on the first frames and
+        # under the gentle slant, so a full-field respawn keeps coverage even.
         x = random.uniform(-20, W + 20)
         y = random.uniform(-30, GROUND_Y)
-        vx = -90 - intensity * 300            # steep wind-driven slant (V2)
+        vx = -60 - intensity * 60            # GENTLE slant (not the steep V2 wind)
         vy = 420 + intensity * 220
-        length = 14 + int(intensity * 20)
+        length = 12 + int(intensity * 18)
         self.streaks.append(_Streak(x, y, vx, vy, length, color))
 
     def _spawn_leaf(self, wind):
