@@ -176,9 +176,13 @@ or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
    is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
 3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
    next-round brief → new combined image → back to step 2.
-4. Stop when the verdict is SHIP-READY or after 3 critique rounds, whichever
-   comes first (always run at least 1 critique round).
-5. Surface only the final image (git path) + a short evolution summary to the
-   user; integrate the winning version into the game once chosen.
+4. Stop when a critique returns SHIP-READY, or once **each agent has taken 3
+   turns** — the `graphics-designer` produces/revises up to 3 times and the
+   `art-director` critiques up to 3 times, alternating (so at most 3 + 3 turns)
+   — whichever comes first. Always run at least 1 critique.
+5. Surface only the final image (git path) + a short evolution summary, then
+   integrate the winning version once chosen. If the turn budget is spent
+   without SHIP-READY, surface the art-director's top-ranked version and flag
+   that it didn't clear the bar — let the user decide.
 
 Trivial recolors may skip the loop at the user's discretion.
