@@ -38,9 +38,9 @@ CX = 165
 # Overridable by tools/render_knight_shield_pos.py to compare placements.
 _SHIELD_POS = (0.92, 0.58, 0.36, 0.46)
 
-# Knight wing/shoulder armour style: "lames" (articulated overlapping plates) or
-# "dome" (single smooth plate).  Overridable by tools/render_wing_styles.py.
-_WING_STYLE = "lames"
+# Knight wing-armour placement: pauldron | vambrace | plated | lames | half.
+# Overridable by tools/render_wing_styles.py to compare placements.
+_WING_STYLE = "plated"
 
 
 def backdrop(surf):
@@ -186,6 +186,114 @@ def _angel_wing(box_w, box_h, mirror, bright=1.0):
     return img
 
 
+# ── sculpted ARMOURED wing (steel), rooted at the shoulder, fans shoulder→tip ──
+# style: pauldron | vambrace | plated | lames | half.  Returns an unrotated image
+# (build_knight roots it at (0.86,0.88) and rotates by _FLAP_DEG, like the angel).
+def _knight_wing(box_w, box_h, style):
+    OL = (20, 24, 34); D = (64, 72, 90); MID = (150, 160, 182); LIT = (198, 208, 228)
+    HI = (240, 246, 255); BR = (208, 174, 98); BRH = (255, 232, 168)
+
+    def fn(big, s):
+        w, h = big.get_size()
+        root = (0.88 * w, 0.90 * h); ctrlL = (0.30 * w, 0.08 * h); tip = (0.05 * w, 0.13 * h); ctrlT = (0.62 * w, 1.02 * h)
+        lead = _qbez(root, ctrlL, tip, 30); trail = _qbez(tip, ctrlT, root, 30)
+        shape = lead + trail
+
+        def membrane():
+            pygame.draw.polygon(big, OL, shape)
+            pygame.draw.polygon(big, D, [(x * 0.965 + 0.02 * w, y * 0.965 + 0.012 * h) for x, y in shape])
+
+        def feather(bx, by, ang, L, wd, hard):
+            a = math.radians(ang); tx, ty = bx + math.cos(a) * L, by + math.sin(a) * L
+            perp = a + math.pi / 2
+            cpx, cpy = math.cos(perp), math.sin(perp)
+            pygame.draw.polygon(big, OL, [(bx + cpx * wd, by + cpy * wd), (tx, ty), (bx - cpx * wd, by - cpy * wd)])
+            pygame.draw.polygon(big, MID, [(bx + cpx * (wd - 1.4 * s), by + cpy * (wd - 1.4 * s)), (tx, ty), (bx - cpx * (wd - 1.4 * s), by - cpy * (wd - 1.4 * s))])
+            pygame.draw.polygon(big, LIT, [(bx + cpx * (wd - 1.4 * s), by + cpy * (wd - 1.4 * s)), (tx, ty), (bx, by)])
+            pygame.draw.line(big, HI, (bx + cpx * (wd - 1.8 * s), by + cpy * (wd - 1.8 * s)), (tx, ty), max(1, int(1.1 * s)))
+            if hard:
+                pygame.draw.circle(big, BR, (int(tx), int(ty)), max(1, int(1.7 * s)))
+                pygame.draw.circle(big, BRH, (int(tx - 0.7 * s), int(ty - 0.7 * s)), max(1, int(0.8 * s)))
+
+        def feather_fan(hard, lo=0, hi=6):
+            for k in range(lo, hi):
+                f = k / 5
+                bx, by = lead[int(7 + f * 18)]
+                feather(bx, by, 150 - f * 20, h * (0.60 - 0.27 * f), h * (0.090 - 0.020 * f), hard)
+
+        def pauldron_cap(big_cap=False):
+            cx, cy = lead[4]                                                       # sits on the shoulder (base of the fan), not the chest
+            rw, rh = (0.42 * w, 0.36 * h) if big_cap else (0.32 * w, 0.28 * h)
+            steps = [OL, D, (102, 112, 134), MID, LIT, HI]                         # domed boss, top-lit
+            for i, col in enumerate(steps):
+                fw, fh = rw * (1 - i * 0.15), rh * (1 - i * 0.15)
+                oy = i * rh * 0.06
+                pygame.draw.ellipse(big, col, (int(cx - fw / 2), int(cy - fh / 2 - oy), int(fw), int(fh)))
+            pygame.draw.ellipse(big, BR, (int(cx - rw / 2), int(cy - rh / 2), int(rw), int(rh)), max(2, int(2.2 * s)))    # brass rim
+            pygame.draw.arc(big, BRH, (int(cx - rw / 2 + s), int(cy - rh / 2), int(rw - 2 * s), int(rh)), math.radians(202), math.radians(338), max(1, int(1.1 * s)))
+            for ang in range(30, 360, 90):
+                pygame.draw.circle(big, BR, (int(cx + rw * 0.40 * math.cos(math.radians(ang))), int(cy + rh * 0.40 * math.sin(math.radians(ang)))), max(1, int(1.2 * s)))
+
+        def vambrace():                                                            # banded plate down the leading edge
+            seg = lead[2:20]
+            nrm = []
+            for i, (x, y) in enumerate(seg):
+                j = min(i + 1, len(seg) - 1); dx, dy = seg[j][0] - x, seg[j][1] - y
+                ln = math.hypot(dx, dy) or 1; nrm.append((dy / ln, -dx / ln))
+            wd = 0.11 * w
+            band = [(x, y) for (x, y) in seg] + [(x - nx * wd, y - ny * wd) for (x, y), (nx, ny) in zip(reversed(seg), reversed(nrm))]
+            pygame.draw.polygon(big, OL, band)
+            inner = [(x - nx * 1.4 * s, y - ny * 1.4 * s) for (x, y), (nx, ny) in zip(seg, nrm)] + \
+                    [(x - nx * (wd - 1.4 * s), y - ny * (wd - 1.4 * s)) for (x, y), (nx, ny) in zip(reversed(seg), reversed(nrm))]
+            pygame.draw.polygon(big, MID, inner)
+            pygame.draw.lines(big, HI, False, [(x - nx * 2 * s, y - ny * 2 * s) for (x, y), (nx, ny) in zip(seg, nrm)], max(1, int(1.2 * s)))
+            for i in range(2, len(seg) - 2, 4):                                    # cross seams
+                x, y = seg[i]; nx, ny = nrm[i]
+                pygame.draw.line(big, OL, (x, y), (x - nx * wd, y - ny * wd), max(1, int(1.0 * s)))
+
+        def lames():                                                              # folding fan of broad overlapping curved plates
+            cx, cy = root
+            tmp = pygame.Surface((w, h), pygame.SRCALPHA)
+            for rr, col in [(1.16, OL), (1.08, D), (0.88, MID), (0.70, LIT), (0.52, MID), (0.36, LIT)]:
+                pygame.draw.ellipse(tmp, col, (int(cx - rr * w), int(cy - rr * h), int(2 * rr * w), int(2 * rr * h)))
+                pygame.draw.arc(tmp, OL, (int(cx - rr * w), int(cy - rr * h), int(2 * rr * w), int(2 * rr * h)),
+                                math.radians(150), math.radians(252), max(2, int(1.8 * s)))                  # rib seam
+            for rr in (1.0, 0.79, 0.61):                                                                     # sheen on each plate's leading curve
+                pygame.draw.arc(tmp, HI, (int(cx - rr * w), int(cy - rr * h - s), int(2 * rr * w), int(2 * rr * h)),
+                                math.radians(156), math.radians(210), max(1, int(1.1 * s)))
+            m = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.polygon(m, (255, 255, 255, 255), shape)
+            tmp.blit(m, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            big.blit(tmp, (0, 0))
+            pygame.draw.lines(big, BR, False, lead[:24], max(1, int(1.6 * s)))                               # brass leading edge
+            pygame.draw.lines(big, BRH, False, [(x, y - s) for x, y in lead[:20]], max(1, int(0.8 * s)))
+
+        def half_plate():                                                         # solid plate over leading half + brass edge
+            split = _qbez(root, (0.46 * w, 0.42 * h), (0.26 * w, 0.40 * h), 30)
+            poly = lead + list(reversed(split))
+            pygame.draw.polygon(big, OL, poly)
+            pygame.draw.polygon(big, MID, [(x * 0.98 + 0.012 * w, y) for x, y in poly])
+            pygame.draw.polygon(big, LIT, lead[:20] + list(reversed([(0.5 * (lx) + 0.5 * sx, 0.5 * (ly) + 0.5 * sy) for (lx, ly), (sx, sy) in zip(lead[:20], split[:20])])))
+            pygame.draw.lines(big, HI, False, lead[:24], max(1, int(1.3 * s)))
+            pygame.draw.lines(big, BR, False, split, max(1, int(1.6 * s)))
+            for i in range(4, 22, 5):
+                pygame.draw.line(big, OL, lead[i], split[i], max(1, int(0.9 * s)))  # rib seams
+
+        membrane()
+        if style == "plated":
+            feather_fan(True); pauldron_cap()
+        elif style == "lames":
+            lames(); pauldron_cap()
+        elif style == "half":
+            feather_fan(False, lo=3, hi=6); half_plate(); pauldron_cap()
+        elif style == "vambrace":
+            feather_fan(False); vambrace(); pauldron_cap()
+        else:                                                                      # "pauldron" — minimal: a few feathers, dominant cap
+            feather_fan(False, lo=0, hi=3); pauldron_cap(big_cap=True)
+
+    return _ss(box_w, box_h, fn, 5)
+
+
 # ── builders draw the WHOLE character onto `char` (nom = body rect) ──────────
 def build_angel(char, nom, fidx):
     flap = _FLAP_DEG[fidx]
@@ -249,7 +357,17 @@ def build_knight(char, nom, fidx):
         big.blit(tmp, (0, 0))
         pygame.draw.line(big, HI, (int(8 * s), int(8 * s)), (int(w - 8 * s), int(8 * s)), max(1, int(1.4 * s)))  # rim sheen
 
-    char.blit(_body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), brect.topleft)
+    pip = _body(base, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100)
+    char.blit(pip, brect.topleft)
+    # overpaint Pip's own cartoon wing with torso-coloured metal (clipped to the
+    # body) so the sculpted armoured wing below is the only wing — no double wing.
+    patch = pygame.Surface(pip.get_size(), pygame.SRCALPHA)
+    pw, ph = pip.get_size()
+    for i, col in enumerate([(150, 160, 182), (176, 186, 206)]):
+        pygame.draw.ellipse(patch, col, (int(pw * (0.26 + 0.03 * i)), int(ph * (0.26 + 0.03 * i)),
+                                         int(pw * (0.54 - 0.06 * i)), int(ph * (0.48 - 0.06 * i))))
+    patch.blit(_amask(pip), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    char.blit(patch, brect.topleft)
 
     def breast(big, s):
         w, h = big.get_size()
@@ -262,42 +380,13 @@ def build_knight(char, nom, fidx):
     sfx, sfy, swf, shf = _SHIELD_POS
     _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), shield)
 
-    # Smooth STEEL-PLATE armour over the near (right) wing/shoulder — matches the
-    # breastplate/helm finish (OL->D->MID gradient + HI sheen), brass rim + rivets.
-    # _WING_STYLE: "lames" = articulated overlapping plates; "dome" = single plate.
-    def pauldron(big, s):
-        w, h = big.get_size()
-        rim = (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s))
-        tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-        if _WING_STYLE == "dome":
-            plate(tmp, s, *rim)
-            pygame.draw.line(tmp, HI, (int(w * 0.5), int(h * 0.22)), (int(w * 0.5), int(h * 0.8)), max(1, int(1.3 * s)))  # keel
-        else:
-            pygame.draw.ellipse(tmp, OL, rim)                                                            # plate body / edge
-            nl = 4
-            for i in range(nl):
-                y0 = h * (0.10 + i * 0.215)                                                              # each lame curves downward
-                band = [(int(w * 0.06), int(y0)), (int(w * 0.94), int(y0)),
-                        (int(w * 0.86), int(y0 + h * 0.30)), (int(w * 0.14), int(y0 + h * 0.30))]
-                pygame.draw.polygon(tmp, D, band)
-                pygame.draw.polygon(tmp, MID, [(int(w * 0.10), int(y0 + h * 0.03)), (int(w * 0.90), int(y0 + h * 0.03)),
-                                               (int(w * 0.83), int(y0 + h * 0.20)), (int(w * 0.17), int(y0 + h * 0.20))])
-                pygame.draw.arc(tmp, HI, (int(w * 0.12), int(y0 - h * 0.02), int(w * 0.76), int(h * 0.22)),
-                                math.radians(200), math.radians(340), max(1, int(1.4 * s)))              # upper-edge sheen
-                pygame.draw.line(tmp, OL, (int(w * 0.08), int(y0)), (int(w * 0.92), int(y0)), max(1, int(1.1 * s)))  # seam
-        mask = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.ellipse(mask, (255, 255, 255, 255), rim)
-        tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        big.blit(tmp, (0, 0))
-        # brass rim + rivets + a top sheen arc (shared with the rest of the armour)
-        pygame.draw.ellipse(big, BRASS, rim, max(2, int(2 * s)))
-        pygame.draw.arc(big, BRASS_HI, (int(3 * s), int(2 * s), int(w - 6 * s), int(h - 4 * s)), math.radians(200), math.radians(340), max(1, int(s)))
-        cxg, cyg = w / 2, h / 2
-        for ang in range(0, 360, 60):
-            rx = int(cxg + (cxg - int(3 * s)) * math.cos(math.radians(ang)))
-            ry = int(cyg + (cyg - int(3 * s)) * math.sin(math.radians(ang)))
-            pygame.draw.circle(big, BRASS, (rx, ry), max(1, int(1.2 * s)))
-    _blit_ss(char, *_P(nom, 0.45, 0.46), int(nom.w * 0.42), int(nom.h * 0.34), pauldron, scale=6)
+    # SCULPTED ARMOURED WING — rooted at the shoulder, fanning shoulder→tip, and
+    # rotated per-frame by _FLAP_DEG so it flaps (like build_angel's wing).
+    # _WING_STYLE: pauldron | vambrace | plated | lames | half.
+    nw, nh = int(nom.w * 0.70), int(nom.h * 0.74)
+    awing = _knight_wing(nw, nh, _WING_STYLE)
+    rot, tl = _rotate_about(awing, (0.86, 0.88), _P(nom, 0.46, 0.45), _FLAP_DEG[fidx])
+    char.blit(rot, tl)
 
     # slick, detailed armet helm
     def helm(big, s):
