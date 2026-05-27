@@ -158,6 +158,14 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 
+# Windblown snow accumulating on Pip during the snow squall (visual only).
+# bird.snow_load (0..1) integrates: gain = ACCUM * storm_intensity, melt =
+# MELT_BASE + MELT_FADE * (1 - storm_intensity). Melt accelerates as the storm
+# fades, so snow piles through the peak then sheds and clears near the end.
+WEATHER_SNOW_ACCUM_RATE = 0.12
+WEATHER_SNOW_MELT_BASE  = 0.025   # melt while snowing hard
+WEATHER_SNOW_MELT_FADE  = 0.16    # extra melt as the storm fades out
+
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
 # appear at once (1→GEYSER_MAX_CONCURRENT) scale with the live intensity, so

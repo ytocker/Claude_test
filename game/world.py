@@ -27,6 +27,7 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_BASE, WEATHER_SNOW_MELT_FADE,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -285,6 +286,13 @@ class World:
             self.bird.wind_lean = +WEATHER_WIND_LEAN_AMP * wi
         else:
             self.bird.wind_lean = 0.0
+
+        # Windblown snow on Pip — gain ∝ storm; melt accelerates as it fades so
+        # the snow piles through the peak then sheds and clears near the end.
+        gain = WEATHER_SNOW_ACCUM_RATE * wi
+        melt = WEATHER_SNOW_MELT_BASE + WEATHER_SNOW_MELT_FADE * (1.0 - wi)
+        self.bird.snow_load = max(0.0, min(1.0,
+            self.bird.snow_load + (gain - melt) * dt))
 
         # Storm jolt: near-peak rain, after lockout, only if Pip has coins.
         # Kicks off a ~4.4 s buildup of telegraph bolts → the real strike.

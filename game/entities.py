@@ -26,6 +26,7 @@ from game.draw import (
     NEAR_BLACK, WHITE,
 )
 from game import parrot
+from game import snow_fx
 from game.pillar_variants import draw_pillar_pair
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
@@ -484,8 +485,10 @@ class Bird:
 
         # Weather event state (visual-only):
         #   wind_lean       — rightward x-offset under the predawn tailwind
+        #   snow_load       — 0..1 windblown snow accumulated on Pip (squall)
         #   skeleton_flash_t — X-Ray Sparks timer set when lightning strikes
         self.wind_lean = 0.0
+        self.snow_load = 0.0
         self.skeleton_flash_t = 0.0
         # Rain shiver (visual-only) + flap dampen (real, the "wind pushes
         # me down" cue) under heavy rain. Written by World._apply_weather_effects.
@@ -644,6 +647,18 @@ class Bird:
                 pass
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
+        # Windblown snow on Pip during the squall — baked W2 overlay matched to
+        # the sprite's rotozoom(tilt) + body scale, so it stays glued on.
+        if self.snow_load > 0.04 and not skeleton_visible:
+            ov = snow_fx.get_snow_overlay(frame_idx, self.snow_load)
+            if ov is not None:
+                from game.config import GROW_SCALE as _GS
+                bsc = (_GS if self.grow_active else 1.0) * self.shrink_scale
+                ov = pygame.transform.rotozoom(ov, tilt, bsc)
+                if flipped:
+                    ov = pygame.transform.flip(ov, False, True)
+                rs = ov.get_rect(center=(cx_int, cy_int))
+                surf.blit(ov, rs.topleft)
         # X-Ray Sparks arcs — jagged cyan/white mini-bolts discharging
         # outward from Pip's silhouette while the flash is active.
         if self.skeleton_flash_t > 0.0:
