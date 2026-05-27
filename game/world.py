@@ -171,10 +171,10 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # This showcase build now starts a few seconds before the predawn SNOW
-        # SQUALL / windstorm opens (~240s): the run begins ~236s (night sky),
-        # gets a brief clear lead, then the tailwind ramps in and peaks ~272s.
-        self.biome_time = 236.0
+        # This showcase build starts 2s before the snow-squall PEAK (peak at
+        # ~272s) so the run opens right as the storm climaxes — snow already
+        # near full, then the windblown accumulation sheds soon after.
+        self.biome_time = 270.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
