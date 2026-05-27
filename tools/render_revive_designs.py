@@ -38,6 +38,10 @@ CX = 165
 # Overridable by tools/render_knight_shield_pos.py to compare placements.
 _SHIELD_POS = (0.92, 0.58, 0.36, 0.46)
 
+# Knight wing/shoulder armour style: "lames" (articulated overlapping plates) or
+# "dome" (single smooth plate).  Overridable by tools/render_wing_styles.py.
+_WING_STYLE = "lames"
+
 
 def backdrop(surf):
     pal = _biome.palette_for_phase(0.10)
@@ -258,30 +262,35 @@ def build_knight(char, nom, fidx):
     sfx, sfy, swf, shf = _SHIELD_POS
     _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), shield)
 
-    # SCALED (lamellar) armour over the near (right) wing/shoulder — rows of
-    # overlapping metal scales inside a brass-trimmed rounded pauldron.
+    # Smooth STEEL-PLATE armour over the near (right) wing/shoulder — matches the
+    # breastplate/helm finish (OL->D->MID gradient + HI sheen), brass rim + rivets.
+    # _WING_STYLE: "lames" = articulated overlapping plates; "dome" = single plate.
     def pauldron(big, s):
         w, h = big.get_size()
-        SCALE = (152, 162, 184); SC_HI = (226, 234, 248); SC_D = (78, 86, 104); EDGE = (32, 36, 48)
-        scs = 4.4 * s
+        rim = (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s))
         tmp = pygame.Surface((w, h), pygame.SRCALPHA)
-        rows = int(h / (scs * 1.1)) + 2
-        for row in range(rows):
-            y = int(scs + row * scs * 1.1)
-            off = int(scs) if row % 2 else 0
-            x = int(scs) + off
-            while x < w + scs:
-                pygame.draw.circle(tmp, EDGE, (x, y), int(scs + 0.6 * s))
-                pygame.draw.circle(tmp, SC_D, (x, y), int(scs))
-                pygame.draw.circle(tmp, SCALE, (x, int(y - 0.7 * s)), int(scs * 0.82))
-                pygame.draw.circle(tmp, SC_HI, (int(x - 1.1 * s), int(y - 1.7 * s)), max(1, int(scs * 0.34)))
-                x += int(scs * 2)
+        if _WING_STYLE == "dome":
+            plate(tmp, s, *rim)
+            pygame.draw.line(tmp, HI, (int(w * 0.5), int(h * 0.22)), (int(w * 0.5), int(h * 0.8)), max(1, int(1.3 * s)))  # keel
+        else:
+            pygame.draw.ellipse(tmp, OL, rim)                                                            # plate body / edge
+            nl = 4
+            for i in range(nl):
+                y0 = h * (0.10 + i * 0.215)                                                              # each lame curves downward
+                band = [(int(w * 0.06), int(y0)), (int(w * 0.94), int(y0)),
+                        (int(w * 0.86), int(y0 + h * 0.30)), (int(w * 0.14), int(y0 + h * 0.30))]
+                pygame.draw.polygon(tmp, D, band)
+                pygame.draw.polygon(tmp, MID, [(int(w * 0.10), int(y0 + h * 0.03)), (int(w * 0.90), int(y0 + h * 0.03)),
+                                               (int(w * 0.83), int(y0 + h * 0.20)), (int(w * 0.17), int(y0 + h * 0.20))])
+                pygame.draw.arc(tmp, HI, (int(w * 0.12), int(y0 - h * 0.02), int(w * 0.76), int(h * 0.22)),
+                                math.radians(200), math.radians(340), max(1, int(1.4 * s)))              # upper-edge sheen
+                pygame.draw.line(tmp, OL, (int(w * 0.08), int(y0)), (int(w * 0.92), int(y0)), max(1, int(1.1 * s)))  # seam
         mask = pygame.Surface((w, h), pygame.SRCALPHA)
-        pygame.draw.ellipse(mask, (255, 255, 255, 255), (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)))
+        pygame.draw.ellipse(mask, (255, 255, 255, 255), rim)
         tmp.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
         big.blit(tmp, (0, 0))
-        # brass rim + rivets + a top sheen arc
-        pygame.draw.ellipse(big, BRASS, (int(2 * s), int(2 * s), int(w - 4 * s), int(h - 4 * s)), max(2, int(2 * s)))
+        # brass rim + rivets + a top sheen arc (shared with the rest of the armour)
+        pygame.draw.ellipse(big, BRASS, rim, max(2, int(2 * s)))
         pygame.draw.arc(big, BRASS_HI, (int(3 * s), int(2 * s), int(w - 6 * s), int(h - 4 * s)), math.radians(200), math.radians(340), max(1, int(s)))
         cxg, cyg = w / 2, h / 2
         for ang in range(0, 360, 60):
