@@ -719,6 +719,45 @@ def get_ghost_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── Dead-Pip cross-fade variant ──────────────────────────────────────────────
+# Drawn on top of the alive sprite at alpha = fade_t during the 0.4 s
+# death cross-fade. E's aura scales with fade_t so early frames don't
+# read "haunted while still alive" — buckets at 10% so frame counts
+# stay bounded across the fade.
+_dead_frames_by_key: dict = {}
+_dead_rotation_cache: dict = {}
+
+
+def _dead_aura_bucket(scale: float) -> int:
+    s = max(0.0, min(1.0, scale))
+    return int(round(s * 10)) * 10
+
+
+def _ensure_dead_frames(palette_key: str, aura_bucket: int):
+    key = (palette_key, aura_bucket)
+    frames = _dead_frames_by_key.get(key)
+    if frames is None:
+        from game.dollar_parrot_dead import build_dead_variant_frames
+        frames = build_dead_variant_frames(palette_key, aura_scale=aura_bucket / 100.0)
+        _dead_frames_by_key[key] = frames
+    return frames
+
+
+def get_dead_parrot(frame_idx: int, tilt_deg: float,
+                    palette_key: str = "E", aura_scale: float = 1.0):
+    """Rotated dead-Pip sprite, cached by (palette, aura, frame, rounded-angle)."""
+    bucket = _dead_aura_bucket(aura_scale)
+    frames = _ensure_dead_frames(palette_key, bucket)
+    frame_idx = frame_idx % len(frames)
+    angle = int(round(tilt_deg / 3.0)) * 3
+    rot_key = (palette_key, bucket, frame_idx, angle)
+    s = _dead_rotation_cache.get(rot_key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], angle, 1.0)
+        _dead_rotation_cache[rot_key] = s
+    return s
+
+
 # ── Triple-buff hat variant ───────────────────────────────────────────────────
 # Lazily built on first use to avoid a circular import (dollar_parrot_hat
 # imports from parrot for the body sprite).

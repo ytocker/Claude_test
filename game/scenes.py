@@ -277,6 +277,9 @@ class App:
         self.hud = HUD()
         self.session_best = 0
         self._new_best = False
+        # Dev-only toast for F8 dead-Pip palette cycling.
+        self._dead_palette_toast_text = ""
+        self._dead_palette_toast_t = 0.0
         # Which action the player picked on the run-summary screen.
         # Persists across STATE_NAMEENTRY / STATE_LEADERBOARD so that
         # after a top-10 player dismisses the leaderboard they land
@@ -600,6 +603,14 @@ class App:
                 return  # this MOUSEBUTTONDOWN is a touch echo — ignore
         import sys as _sys
         if e.type == pygame.KEYDOWN:
+            if e.key == pygame.K_F8:
+                # Dev cycle for the dead-Pip palette so the user can A/B/C
+                # the three candidates in actual gameplay; in-memory only.
+                from game.entities import cycle_dead_palette
+                key, label = cycle_dead_palette()
+                self._dead_palette_toast_text = f"Dead Pip: {key} — {label} (F8)"
+                self._dead_palette_toast_t = 2.0
+                return
             if e.key == pygame.K_p:
                 self._toggle_pause()
                 return
@@ -706,6 +717,10 @@ class App:
         elif self.state == STATE_GAMEOVER:
             self.world.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
+        # Dev toast for F8 dead-Pip palette cycling — independent of state
+        # so it remains visible across menu/play/gameover transitions.
+        if self._dead_palette_toast_t > 0:
+            self._dead_palette_toast_t = max(0.0, self._dead_palette_toast_t - dt)
 
     def _on_death(self):
         score = self.world.score
@@ -1180,3 +1195,30 @@ class App:
             self.hud.draw_gameover(
                 self.screen, 1 / 60, self.world.score, self._new_best,
             )
+
+        self._draw_dead_palette_toast()
+
+    def _draw_dead_palette_toast(self):
+        if self._dead_palette_toast_t <= 0:
+            return
+        from game.hud import _font as _hud_font
+        alpha = min(1.0, self._dead_palette_toast_t / 0.3) * 255
+        font = _hud_font(20)
+        msg = self._dead_palette_toast_text
+        text = font.render(msg, True, (245, 230, 130))
+        shadow = font.render(msg, True, (0, 0, 0))
+        pad_x, pad_y = 14, 8
+        bx = W // 2 - text.get_width() // 2
+        by = 24
+        bg = pygame.Surface(
+            (text.get_width() + pad_x * 2, text.get_height() + pad_y * 2),
+            pygame.SRCALPHA,
+        )
+        bg.fill((18, 22, 36, int(alpha * 0.75)))
+        pygame.draw.rect(bg, (90, 70, 25, int(alpha)), bg.get_rect(),
+                         width=1, border_radius=6)
+        self.screen.blit(bg, (bx - pad_x, by - pad_y))
+        text.set_alpha(int(alpha))
+        shadow.set_alpha(int(alpha))
+        self.screen.blit(shadow, (bx + 1, by + 1))
+        self.screen.blit(text, (bx, by))

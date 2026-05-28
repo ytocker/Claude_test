@@ -31,6 +31,7 @@ from game.config import (
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
     SKATE_SLIDE_RELEASE, BACKFLIP_DURATION,
     KNIGHT_DURATION, KNIGHT_INVULN,
+    DEATH_FADE_DURATION,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
@@ -468,6 +469,12 @@ class World:
 
     def update(self, dt):
         self._idle_t += dt
+        # Dead-Pip cross-fade ticks every frame regardless of game state —
+        # bird physics is frozen after death so this is the only thing
+        # advancing the alpha blend in Bird.draw.
+        if 0 < self.bird.death_fade_t < DEATH_FADE_DURATION:
+            self.bird.death_fade_t = min(
+                DEATH_FADE_DURATION, self.bird.death_fade_t + dt)
         # The biome cycle only advances once the run has actually started.
         # While ready_t > 0 the sky stays frozen at the dawn palette — the
         # day/night arc was rolling forward earlier even when Pip was
@@ -856,6 +863,9 @@ class World:
             return
         self.game_over = True
         self.bird.alive = False
+        # Start the dead-Pip cross-fade. Tiny non-zero value gates the
+        # overlay in Bird.draw; world.update advances it each frame.
+        self.bird.death_fade_t = 1e-6
         self.hit_flash = 0.35
         self.shake_mag = 8
         self.shake_t = 0.45

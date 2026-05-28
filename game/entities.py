@@ -13,7 +13,7 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
-    BACKFLIP_DURATION,
+    BACKFLIP_DURATION, DEATH_FADE_DURATION,
 )
 from game.draw import (
     blit_glow,
@@ -449,6 +449,24 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
+# Dev-cycle: which dead-Pip palette the cross-fade uses. Live-swapped via
+# F8 in scenes._handle_event; persists in-memory only.
+_dead_palette_key = "E"
+
+
+def get_dead_palette() -> str:
+    return _dead_palette_key
+
+
+def cycle_dead_palette() -> tuple[str, str]:
+    """Advance E → B → C → E. Return (new_key, human_label) for the toast."""
+    from game.dollar_parrot_dead import PALETTE_KEYS, PALETTE_LABELS
+    global _dead_palette_key
+    i = PALETTE_KEYS.index(_dead_palette_key)
+    _dead_palette_key = PALETTE_KEYS[(i + 1) % len(PALETTE_KEYS)]
+    return _dead_palette_key, PALETTE_LABELS[_dead_palette_key]
+
+
 class Bird:
     def __init__(self):
         self.x = BIRD_X
@@ -485,6 +503,10 @@ class Bird:
         # (triggered by flapping while skateboard_active).
         self.backflip_t = 0.0
         self.backflip_dur = BACKFLIP_DURATION
+        # Death cross-fade: counts up from 0 to DEATH_FADE_DURATION at
+        # the collision moment; Bird.draw alpha-blends the dead palette
+        # on top of the alive sprite while this is in flight.
+        self.death_fade_t = 0.0
 
     @property
     def tilt_deg(self):
@@ -604,6 +626,25 @@ class Bird:
             img.set_alpha(int(90 + pulse * 80))
         r = img.get_rect(center=(self.x + shake_x, self.y + shake_y))
         surf.blit(img, r.topleft)
+
+        # Dead-Pip cross-fade overlay: blit the dead palette on top of the
+        # alive sprite at alpha = t so the silhouette stays single and the
+        # palette swap reads as the same bird turning, not two layers.
+        # Resized to match the current alive img so grow/shrink alignment
+        # is preserved without re-running the size cascade.
+        if self.death_fade_t > 0:
+            t = min(1.0, self.death_fade_t / DEATH_FADE_DURATION)
+            dead_raw = parrot.get_dead_parrot(
+                frame_idx, tilt,
+                palette_key=_dead_palette_key, aura_scale=t,
+            )
+            if dead_raw.get_size() != img.get_size():
+                dead_raw = pygame.transform.smoothscale(dead_raw, img.get_size())
+            if flipped:
+                dead_raw = pygame.transform.flip(dead_raw, False, True)
+            dead_overlay = dead_raw.copy()
+            dead_overlay.set_alpha(int(255 * t))
+            surf.blit(dead_overlay, r.topleft)
 
         # SKATEBOARD — Pip wears a helmet and the parcel becomes the board
         # under his feet. Drawn instead of the normal parcel.

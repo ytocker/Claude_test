@@ -39,6 +39,9 @@ POWERUP_CHANCE_NEWBIE = 0.10  # warmup starting chance; ramps to POWERUP_CHANCE
                               # on the same _ramp_t() curve as gap/scroll/spacing
                               # so the opening doesn't feel like a powerup parade
 POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
+# Dead-Pip cross-fade: alpha-blend from alive sprite to dead palette
+# over this many seconds starting at the collision moment.
+DEATH_FADE_DURATION = 0.4
 TRIPLE_DURATION    = 8.0
 MAGNET_DURATION    = 8.0
 MAGNET_RADIUS      = 82.0
