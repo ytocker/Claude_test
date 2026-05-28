@@ -70,9 +70,33 @@ CURVES = [
     ("Morning thermal (geysers)", weather.thermal_intensity, "#e0663a",
      [THERMAL_PEAK_S / CYCLE]),
     ("Calm breeze (leaves)", weather.calm_breeze, "#d68a2e", [0.18]),
-    ("Rain", weather.rain_intensity, "#2f6fb0", [0.35, 0.50, 0.62]),
+    ("Rain", weather.rain_intensity, "#2f6fb0", [0.42, 0.50]),
     ("Snow squall (tailwind)", weather.storm_intensity, "#8a6fc0", [0.85]),
 ]
+
+
+def _newbie_ramp_seconds():
+    """Translate the pillar-based onboarding ramp into wall-clock seconds.
+    Each pillar's dwell time is spacing / scroll, and both interpolate on
+    the same _ramp_t() curve as in World — so walking pillars 0..RAMP_PIPES
+    and summing per-pillar dwells gives a faithful (plateau_end, ramp_end)."""
+    total = 0.0
+    plateau_end = 0.0
+    for pp in range(config.RAMP_PIPES + 1):
+        if pp < config.PLATEAU_PIPES:
+            t = 0.0
+        else:
+            denom = max(1, config.RAMP_PIPES - config.PLATEAU_PIPES)
+            x = min(1.0, (pp - config.PLATEAU_PIPES) / denom)
+            t = 1.0 - (1.0 - x) ** 2
+        spacing = (config.PIPE_SPACING_NEWBIE
+                   + (config.PIPE_SPACING - config.PIPE_SPACING_NEWBIE) * t)
+        scroll = (config.SCROLL_NEWBIE_BASE
+                  + (config.SCROLL_BASE - config.SCROLL_NEWBIE_BASE) * t)
+        if pp == config.PLATEAU_PIPES:
+            plateau_end = total
+        total += spacing / scroll
+    return plateau_end, total
 
 
 def main() -> None:
@@ -125,6 +149,30 @@ def main() -> None:
             ax.annotate(f"{x:.0f}s", (x, y), textcoords="offset points",
                         xytext=(0, 9), ha="center", fontsize=8,
                         color=color, fontweight="bold")
+
+    # ── Rain sub-peak labels — the curve has two bumps (drizzle + storm). ─
+    ax.annotate("drizzle", (0.42 * CYCLE, weather.rain_intensity(0.42)),
+                textcoords="offset points", xytext=(0, 24),
+                ha="center", fontsize=7.5, color="#2f6fb0")
+    ax.annotate("storm peak",
+                (0.50 * CYCLE, weather.rain_intensity(0.50)),
+                textcoords="offset points", xytext=(0, 24),
+                ha="center", fontsize=7.5, color="#2f6fb0", fontweight="bold")
+
+    # ── Newbie onboarding band — pillar-based ramp translated to seconds. ─
+    nb_plateau, nb_ramp = _newbie_ramp_seconds()
+    ax.axvspan(0, nb_plateau, color="#3ca34d", alpha=0.20, linewidth=0,
+               label="Newbie plateau / ramp", zorder=0)
+    ax.axvspan(nb_plateau, nb_ramp, color="#3ca34d", alpha=0.10,
+               linewidth=0, zorder=0)
+    ax.annotate(f"plateau\n~{nb_plateau:.0f}s", (nb_plateau, 0.93),
+                textcoords="offset points", xytext=(-3, 0),
+                ha="right", va="top", fontsize=7.5, color="#1f6e2b",
+                fontweight="bold")
+    ax.annotate(f"ramp settles\n~{nb_ramp:.0f}s", (nb_ramp, 0.93),
+                textcoords="offset points", xytext=(3, 0),
+                ha="left", va="top", fontsize=7.5, color="#1f6e2b",
+                fontweight="bold")
 
     # ── Morning-thermal sub-phase annotations (the design under review) ──
     th_vals = [weather.thermal_intensity(p) for p in phases]
