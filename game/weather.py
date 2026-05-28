@@ -41,11 +41,13 @@ def _skew_bump(phase: float, start: float, peak: float, end: float) -> float:
 
 
 def rain_intensity(phase: float) -> float:
-    """Rain runs only after the morning geyser event clears (phase >= ~0.36):
-    a light drizzle leads in, then the dusk thunderstorm peaks, then it's
-    done. No night residual — the whole rain period is ~70s, not ~150s."""
-    a = _bump(phase, 0.42, 0.06) * 0.35   # light drizzle (after geyser fade)
-    b = _bump(phase, 0.50, 0.08) * 1.00   # dusk thunderstorm peak
+    """Light drizzle begins late in the morning-thermal fade and builds
+    gradually to its peak (~134 s), then the dusk thunderstorm climbs on
+    top of it (peak ~160 s). The drizzle's leading ~8 s overlap with the
+    last fading geysers — a deliberate weather crossfade rather than a
+    hard onset. Total rain window ~85 s."""
+    a = _skew_bump(phase, 0.32, 0.42, 0.50) * 0.35  # gradual drizzle
+    b = _bump(phase, 0.50, 0.08) * 1.00              # dusk thunderstorm peak
     return max(0.0, min(1.0, a + b))
 
 
