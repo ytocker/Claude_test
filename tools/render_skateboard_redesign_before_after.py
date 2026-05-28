@@ -52,25 +52,18 @@ SS = r3.SS
 
 def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
                         sk_bottom=None):
-    """Original S4 Jolly Roger mouth — horizontal jaw bar + 3 vertical
-    tooth dividers above it. Metrics scale proportional to SK_W so the
-    mouth occupies the same fractional skull width as the original
-    (SK_W=23, span=12 SS, dividers at -4 / 0 / +4 SS, height 4 SS).
-
-    sk_bottom required so we anchor at sk.bottom - 2*SS like the
-    original; for D's deck-local face we pass face_blob.bottom."""
+    """Original S4 Jolly Roger mouth, simplified per user feedback —
+    3 vertical tooth dividers only, no horizontal jaw bar at the bottom,
+    shifted up the face from the original anchor. Metrics scale
+    proportional to SK_W so the mouth occupies the same fractional skull
+    width as the original (SK_W=23, dividers at -4 / 0 / +4 SS,
+    height 4 SS)."""
     if sk_bottom is None:
         sk_bottom = sk_top + SK_H * SS
     scale = SK_W / 23.0
-    span = int(12 * SS * scale)
     stroke = max(1, int(1.2 * SS * scale))
-    jaw_y = sk_bottom - int(2 * SS * scale)
-    teeth_top = sk_bottom - int(5 * SS * scale)
-    teeth_bot = sk_bottom - int(1 * SS * scale)
-    pygame.draw.line(big, color,
-                     (cx - span // 2, jaw_y),
-                     (cx + span // 2, jaw_y),
-                     stroke)
+    teeth_top = sk_bottom - int(8 * SS * scale)
+    teeth_bot = sk_bottom - int(4 * SS * scale)
     divider_offsets = (-int(4 * SS * scale), 0, int(4 * SS * scale))
     for dx in divider_offsets:
         pygame.draw.line(big, color,
@@ -507,10 +500,13 @@ def render_concept_d_after():
 
     pygame.draw.circle(sub, RED, (fx, fy + int(3 * SS)), int(2.0 * SS))
 
-    # Treat the face_blob ellipse as the "skull" for the L2 mouth.
-    # SK_H = face height in units, sk_top = face_blob.top.
+    # Treat the face_blob ellipse as the "skull" for the original
+    # Jolly Roger mouth. face_w_units is 46 but the L2 base was 23 —
+    # using the full face width 2x'd the mouth size; clamp to ~30 so
+    # the dividers stay icon-sized rather than swallowing the deck.
     _draw_jolly_roger_mouth(
-        sub, fx, face_blob.top, face_h_units, face_w_units, color=BONE)
+        sub, fx, face_blob.top, face_h_units, 30, color=BONE,
+        sk_bottom=face_blob.bottom)
 
     rotated = pygame.transform.rotate(sub, -28)
     big.blit(rotated, rotated.get_rect(center=(bx, by)))
@@ -601,9 +597,9 @@ def main():
 
     title_text = ("SKATEBOARD redesign  —  original Jolly Roger mouth "
                   "before/after")
-    sub_text = ("BEFORE = round-3 buck teeth (LEFT). AFTER = original S4 "
-                "Jolly Roger mouth (RIGHT) — jaw bar + 3 vertical tooth "
-                "dividers, the pickup's very first mouth.")
+    sub_text = ("BEFORE = round-3 buck teeth (LEFT). AFTER = 3 vertical "
+                "tooth dividers from the original S4 Jolly Roger (RIGHT), "
+                "shifted up and stripped of the bottom bar.")
     target_title_w = sheet_w - PAD * 4
     title_pt = 26
     title_font = _font(title_pt, bold=True)
