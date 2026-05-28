@@ -1,14 +1,14 @@
-"""Knight costume for the "survive one hit" power-up (the skin formerly
-known as Phoenix). Pip is re-cast in sculpted steel armour — armet helm
-with a crimson plume, breastplate, brass-rimmed pauldron over the near
-wing, a quarterly gules/or heater shield on the chest, and a longsword.
+"""Knight costume for the "survive one hit" power-up. Pip is re-cast in
+sculpted steel armour — armet helm with a crimson plume, breastplate, brass-
+rimmed pauldron over the near wing, a quarterly gules/or heater shield on the
+chest, and a longsword.
 
 Procedural-art only: every piece is drawn from code on top of the base
 parrot frames, so the costume flaps with Pip's own wing per frame. The
 shield art is shared by the in-world pickup and the HUD timer glyph so
 the three reads stay identical.
 
-Built lazily and cached by `parrot._get_phoenix_frames("knight")`.
+Built lazily and cached by `parrot._get_knight_frames()`.
 """
 import math
 import pygame

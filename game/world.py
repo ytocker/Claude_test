@@ -30,7 +30,7 @@ from game.config import (
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
     SKATE_SLIDE_RELEASE, BACKFLIP_DURATION,
-    PHOENIX_DURATION, PHOENIX_INVULN,
+    KNIGHT_DURATION, KNIGHT_INVULN,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
@@ -136,11 +136,11 @@ class World:
         self.skateboard_burst_cx = 0
         self.skateboard_burst_cy = 0
         self._skateboard_lift_y = 26
-        # KNIGHT (internally "phoenix"): survive-one-hit. While phoenix_timer
-        # > 0 the next lethal hit is consumed in _die() and Pip revives with
-        # phoenix_invuln seconds of collision grace.
-        self.phoenix_timer = 0.0
-        self.phoenix_invuln = 0.0
+        # KNIGHT: survive-one-hit. While knight_timer > 0 the next lethal hit
+        # is consumed in _die() and Pip revives with knight_invuln seconds of
+        # collision grace.
+        self.knight_timer = 0.0
+        self.knight_invuln = 0.0
 
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
@@ -159,7 +159,7 @@ class World:
             "triple": 0, "magnet": 0, "megamagnet": 0, "slowmo": 0, "kfc": 0,
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
             "shrink": 0, "rail": 0, "lottery": 0,
-            "skateboard": 0, "phoenix": 0, "genie": 0,
+            "skateboard": 0, "knight": 0, "genie": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -661,12 +661,12 @@ class World:
                     0.0, self.skateboard_burst_t - dt)
                 if self.skateboard_burst_t <= 0:
                     self.skateboard_burst_surface = None
-            # KNIGHT (phoenix): buff timer + post-revive collision grace.
-            if self.phoenix_timer > 0:
-                self.phoenix_timer = max(0.0, self.phoenix_timer - dt)
-            self.bird.phoenix_active = self.phoenix_timer > 0
-            if self.phoenix_invuln > 0:
-                self.phoenix_invuln = max(0.0, self.phoenix_invuln - dt)
+            # KNIGHT: buff timer + post-revive collision grace.
+            if self.knight_timer > 0:
+                self.knight_timer = max(0.0, self.knight_timer - dt)
+            self.bird.knight_active = self.knight_timer > 0
+            if self.knight_invuln > 0:
+                self.knight_invuln = max(0.0, self.knight_invuln - dt)
             # GENIE: tick + cull companion conjurer actors.
             for g in self.genie_actors:
                 g.update(dt)
@@ -764,7 +764,7 @@ class World:
             by = self.bird.y
         # KNIGHT grace: brief window after a revive where Pip is immune to
         # ground + pipe collisions so he can clear the obstacle that hit him.
-        if self.phoenix_invuln > 0:
+        if self.knight_invuln > 0:
             return
         if by + br > GROUND_Y:
             if skating:
@@ -849,9 +849,9 @@ class World:
             return
         # KNIGHT revive: if the survive-one-hit buff is active, consume it
         # instead of dying and revive Pip with a grace window.
-        if self.bird.phoenix_active:
-            self.phoenix_timer = 0.0
-            self.bird.phoenix_active = False
+        if self.bird.knight_active:
+            self.knight_timer = 0.0
+            self.bird.knight_active = False
             self._revive_knight()
             return
         self.game_over = True
@@ -1005,8 +1005,8 @@ class World:
             self._activate_lottery(m)
         elif kind == "skateboard":
             self._activate_skateboard(m)
-        elif kind == "phoenix":
-            self._activate_phoenix(m)
+        elif kind == "knight":
+            self._activate_knight(m)
         elif kind == "genie":
             self._activate_genie(m)
 
@@ -1260,14 +1260,14 @@ class World:
         self.skateboard_burst_cx = int(self.bird.x)
         self.skateboard_burst_cy = int(self.bird.y)
 
-    def _activate_phoenix(self, m):
+    def _activate_knight(self, m):
         KNIGHT_STEEL = (190, 200, 220)
         KNIGHT_GOLD  = (226, 182,  72)
-        self.phoenix_timer = PHOENIX_DURATION
-        self.bird.phoenix_active = True
+        self.knight_timer = KNIGHT_DURATION
+        self.bird.knight_active = True
         self.shake_mag = max(self.shake_mag, 3.5)
         self.shake_t   = max(self.shake_t,   0.3)
-        audio.play_phoenix()
+        audio.play_knight()
         self._spawn_poof(self.bird.x, self.bird.y)
         self._pickup_burst(m, (KNIGHT_STEEL, KNIGHT_GOLD, WHITE, UI_CREAM),
                            n=32, speed_hi=320)
@@ -1279,7 +1279,7 @@ class World:
     def _revive_knight(self):
         """Survive-one-hit revive: re-flap up, grant a grace window, and fire
         a steel-and-brass spark burst + GUARD! text."""
-        self.phoenix_invuln = PHOENIX_INVULN
+        self.knight_invuln = KNIGHT_INVULN
         self.bird.vy = FLAP_V * 0.9
         self.shake_mag = max(self.shake_mag, 6.0)
         self.shake_t   = max(self.shake_t,   0.3)

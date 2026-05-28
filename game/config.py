@@ -131,7 +131,7 @@ POWERUP_REPLACED_AT = {
 LATE_GAME_SCORE        = 500
 SECRET_POWERUP_WEIGHTS = (
     ("skateboard", 0.125),
-    ("phoenix",    0.125),   # survive-one-hit buff, reskinned as the Knight
+    ("knight",     0.125),   # survive-one-hit buff
     ("genie",      0.125),
 )
 
@@ -152,12 +152,10 @@ SKATE_SLIDE_ATTACK  = 0.18
 SKATE_SLIDE_RELEASE = 0.55
 BACKFLIP_DURATION   = 0.85
 
-# KNIGHT — survive-one-hit buff (internally the "phoenix" kind, locked to the
-# knight variant). While active the next lethal hit is consumed and Pip is
-# revived with PHOENIX_INVULN seconds of collision grace.
-PHOENIX_DURATION    = 30.0
-PHOENIX_INVULN      = 1.5
-PHOENIX_VARIANT     = "knight"
+# KNIGHT — survive-one-hit buff. While active, the next lethal hit is consumed
+# and Pip is revived with KNIGHT_INVULN seconds of collision grace.
+KNIGHT_DURATION     = 30.0
+KNIGHT_INVULN       = 1.5
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.

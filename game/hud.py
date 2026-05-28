@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, PHOENIX_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -970,8 +970,8 @@ def _draw_buff_icon(surf, rect, kind):
                          pygame.Rect(cx - 8, cy + 4, 16, 3), border_radius=1)
         pygame.draw.circle(surf, (40, 40, 45), (cx - 5, cy + 8), 2)
         pygame.draw.circle(surf, (40, 40, 45), (cx + 5, cy + 8), 2)
-    elif kind == "phoenix":
-        # KNIGHT — the K7 heater shield glyph.
+    elif kind == "knight":
+        # K7 heater shield glyph.
         from game import knight_skin
         knight_skin.draw_shield_glyph(surf, cx, cy,
                                       size=min(rect.width, rect.height) - 2)
@@ -1518,8 +1518,8 @@ class HUD:
             active.append(("shrink", world.shrink_timer, SHRINK_DURATION))
         if getattr(world, "skateboard_timer", 0) > 0:
             active.append(("skateboard", world.skateboard_timer, SKATEBOARD_DURATION))
-        if getattr(world, "phoenix_timer", 0) > 0:
-            active.append(("phoenix", world.phoenix_timer, PHOENIX_DURATION))
+        if getattr(world, "knight_timer", 0) > 0:
+            active.append(("knight", world.knight_timer, KNIGHT_DURATION))
         # Genie has no timer bar — it's an instantaneous meta-powerup.
         # Rail intentionally has NO HUD timer bar: it's pillar-budgeted
         # rather than seconds-budgeted, and the on-world track + cart

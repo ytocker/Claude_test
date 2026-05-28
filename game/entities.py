@@ -480,7 +480,7 @@ class Bird:
         self.cart_tilt_deg = 0.0
         # Secret late-game powerup flags (timer state lives on World).
         self.skateboard_active = False
-        self.phoenix_active = False
+        self.knight_active = False
         # Backflip trick: ticks down while a full-body 360° spin plays
         # (triggered by flapping while skateboard_active).
         self.backflip_t = 0.0
@@ -561,10 +561,10 @@ class Bird:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
         elif self.triple_active:
             img = parrot.get_hat_parrot(frame_idx, tilt)
-        elif self.phoenix_active:
+        elif self.knight_active:
             # KNIGHT skin — survive-one-hit buff. Identity is carried
             # in-sprite (armour + shield); no halo.
-            img = parrot.get_phoenix_parrot(frame_idx, tilt)
+            img = parrot.get_knight_parrot(frame_idx, tilt)
         elif self.grow_active:
             # Hi-res grow-mode bird: pre-built at full grow display size by
             # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
@@ -1485,8 +1485,8 @@ class PowerUp:
             self._draw_lottery_icon(surf)
         elif self.kind == "skateboard":
             self._draw_skateboard_icon(surf)
-        elif self.kind == "phoenix":
-            self._draw_phoenix_icon(surf)
+        elif self.kind == "knight":
+            self._draw_knight_icon(surf)
         elif self.kind == "genie":
             self._draw_genie_icon(surf)
 
@@ -2231,9 +2231,8 @@ class PowerUp:
         icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
         surf.blit(icon, icon.get_rect(center=(cx, cy)))
 
-    def _draw_phoenix_icon(self, surf):
-        """In-world KNIGHT pickup — the K7 heater shield (the only phoenix
-        variant that ships)."""
+    def _draw_knight_icon(self, surf):
+        """In-world KNIGHT pickup — the K7 heater shield."""
         from game import knight_skin
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)

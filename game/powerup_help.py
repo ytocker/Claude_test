@@ -133,7 +133,7 @@ _ICON_BOB_AT_PULSE = {
     # offsets here so any icon render (e.g. debug) stays visually centered.
     "genie":    math.sin(_PULSE_FOR_ICON * 0.9) * 2,
     "skateboard": math.sin(_PULSE_FOR_ICON * 1.0) * 2,
-    "phoenix":  math.sin(_PULSE_FOR_ICON * 0.9) * 2,
+    "knight":   math.sin(_PULSE_FOR_ICON * 0.9) * 2,
 }
 
 
