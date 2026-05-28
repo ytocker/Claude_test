@@ -52,12 +52,12 @@ SS = r3.SS
 
 def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
                         sk_bottom=None):
-    """Original S4 Jolly Roger mouth, simplified per user feedback —
-    3 vertical tooth dividers only, no horizontal jaw bar at the bottom,
-    shifted up the face from the original anchor. Metrics scale
-    proportional to SK_W so the mouth occupies the same fractional skull
-    width as the original (SK_W=23, dividers at -4 / 0 / +4 SS,
-    height 4 SS)."""
+    """Original S4 Jolly Roger mouth with the user's curly bottom:
+    3 vertical tooth dividers, no straight jaw bar, plus a wavy curl
+    line connecting the bottoms of adjacent teeth (each pair joined by
+    a downward sine-arc dip). Metrics scale proportional to SK_W so the
+    mouth occupies the same fractional skull width as the original
+    (SK_W=23, dividers at -4 / 0 / +4 SS, height 4 SS)."""
     if sk_bottom is None:
         sk_bottom = sk_top + SK_H * SS
     scale = SK_W / 23.0
@@ -65,11 +65,24 @@ def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
     teeth_top = sk_bottom - int(8 * SS * scale)
     teeth_bot = sk_bottom - int(4 * SS * scale)
     divider_offsets = (-int(4 * SS * scale), 0, int(4 * SS * scale))
+    tooth_bottoms = []
     for dx in divider_offsets:
         pygame.draw.line(big, color,
                          (cx + dx, teeth_top),
                          (cx + dx, teeth_bot),
                          stroke)
+        tooth_bottoms.append((cx + dx, teeth_bot))
+    dip = max(2, int(1.6 * SS * scale))
+    segs_per_gap = 14
+    for (x0, y0), (x1, y1) in zip(tooth_bottoms, tooth_bottoms[1:]):
+        pts = []
+        for i in range(segs_per_gap + 1):
+            t = i / segs_per_gap
+            x = x0 + (x1 - x0) * t
+            y_base = y0 + (y1 - y0) * t
+            y = y_base + dip * math.sin(math.pi * t)
+            pts.append((x, y))
+        pygame.draw.lines(big, color, False, pts, stroke)
 
 
 # ---------------------------------------------------------------------------
