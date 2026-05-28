@@ -472,8 +472,11 @@ class World:
                 gravity=180,
             ))
 
+        # Damage label sits to the right of Pip (sprite is 64 px wide) so the
+        # "-100!" glyph and its sparkle ring don't cover him while the X-Ray
+        # skeleton flash is the visual hook of the strike.
         self.float_texts.append(FloatText(
-            f"-{lost}!", self.bird.x, self.bird.y - 58, UI_RED,
+            f"-{lost}!", self.bird.x + 80, self.bird.y - 14, UI_RED,
             size=30, life=1.6, vy=-26, style="powerup",
         ))
 
