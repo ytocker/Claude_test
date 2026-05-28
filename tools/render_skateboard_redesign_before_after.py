@@ -62,10 +62,10 @@ def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
         sk_bottom = sk_top + SK_H * SS
     scale = SK_W / 23.0
     stroke = max(1, int(1.2 * SS * scale))
-    teeth_top = sk_bottom - int(8 * SS * scale)
+    teeth_top = sk_bottom - int(7 * SS * scale)
     teeth_bot = sk_bottom - int(4 * SS * scale)
     divider_offsets = (-int(4 * SS * scale), 0, int(4 * SS * scale))
-    outer_shorten = max(1, int(1.6 * SS * scale))
+    outer_shorten = max(1, int(1.0 * SS * scale))
     tooth_bottoms = []
     for idx, dx in enumerate(divider_offsets):
         top_y = teeth_top + (outer_shorten if idx != 1 else 0)
