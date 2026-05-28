@@ -41,12 +41,12 @@ def _skew_bump(phase: float, start: float, peak: float, end: float) -> float:
 
 
 def rain_intensity(phase: float) -> float:
-    """Rain: amber-warm at sunset (0.32), cool-blue at dusk (0.48),
-    sparse at night (0.62)."""
-    a = _bump(phase, 0.35, 0.12) * 0.55   # sunset drizzle
-    b = _bump(phase, 0.50, 0.10) * 1.00   # dusk storm
-    c = _bump(phase, 0.62, 0.10) * 0.45   # night residual
-    return max(0.0, min(1.0, a + b + c))
+    """Rain runs only after the morning geyser event clears (phase >= ~0.36):
+    a light drizzle leads in, then the dusk thunderstorm peaks, then it's
+    done. No night residual — the whole rain period is ~70s, not ~150s."""
+    a = _bump(phase, 0.42, 0.06) * 0.35   # light drizzle (after geyser fade)
+    b = _bump(phase, 0.50, 0.08) * 1.00   # dusk thunderstorm peak
+    return max(0.0, min(1.0, a + b))
 
 
 def rain_color(phase: float):
@@ -145,15 +145,16 @@ def _snow_flake(radius: int, alpha: int):
 # ── particle: a single rain streak ──────────────────────────────────────────
 
 class _Streak:
-    __slots__ = ("x", "y", "vx", "vy", "len", "color")
+    __slots__ = ("x", "y", "vx", "vy", "len", "color", "intensity")
 
-    def __init__(self, x, y, vx, vy, length, color):
+    def __init__(self, x, y, vx, vy, length, color, intensity):
         self.x = x
         self.y = y
         self.vx = vx
         self.vy = vy
         self.len = length
         self.color = color
+        self.intensity = intensity
 
     def update(self, dt):
         self.x += self.vx * dt
@@ -166,13 +167,16 @@ class _Streak:
         dx = self.vx / max(1.0, abs(self.vy)) * self.len
         dy = self.len
         hx, hy = int(self.x), int(self.y)
-        # Fuller drop: a 2px streak with a brighter teardrop head at the
-        # leading (lower) end so it reads as a raindrop, not a thin line.
+        # Light drizzle reads as a clean thin streak; the dramatic 2px-line +
+        # bright teardrop head only kicks in at the heavy thunderstorm peak.
+        width = 2 if self.intensity >= 0.5 else 1
         pygame.draw.line(surf, self.color, (hx, hy),
-                         (int(self.x - dx), int(self.y - dy)), 2)
-        c = self.color
-        head = (min(255, c[0] + 42), min(255, c[1] + 36), min(255, c[2] + 26))
-        pygame.draw.circle(surf, head, (hx, hy), 2)
+                         (int(self.x - dx), int(self.y - dy)), width)
+        if self.intensity >= 0.7:
+            c = self.color
+            head = (min(255, c[0] + 42), min(255, c[1] + 36),
+                    min(255, c[2] + 26))
+            pygame.draw.circle(surf, head, (hx, hy), 2)
 
 
 class _Leaf:
@@ -549,7 +553,7 @@ class Weather:
         # the peak) so the earlier light drizzle stays flash-free. The long
         # interval lands ~3 flashes over the storm; the storm-jolt strike on
         # Pip adds its own flash near the peak.
-        storming = 0.49 <= phase <= 0.72
+        storming = 0.49 <= phase <= 0.58
         if storming:
             self.next_strike -= dt
             if self.next_strike <= 0 and self.flash_remaining <= 0:
@@ -570,7 +574,7 @@ class Weather:
         vx = -60 - intensity * 60            # GENTLE slant (not the steep V2 wind)
         vy = 420 + intensity * 220
         length = 12 + int(intensity * 18)
-        self.streaks.append(_Streak(x, y, vx, vy, length, color))
+        self.streaks.append(_Streak(x, y, vx, vy, length, color, intensity))
 
     def _spawn_leaf(self, wind):
         x = -10
