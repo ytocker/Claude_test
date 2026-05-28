@@ -34,7 +34,7 @@ from game.config import (
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
     GEYSER_RAMP_PILLARS,
     GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
-    GEYSER_GY_DELTA_MAX, GEYSER_GX_SHIFT_MAX,
+    GEYSER_GY_DELTA_MAX, GEYSER_GX_SHIFT_MAX, GEYSER_DUD_CHANCE,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -615,7 +615,13 @@ class World:
                              (next_gy - pipe.gap_y) / GEYSER_GY_DELTA_MAX))
             gx = (pipe.x + (PIPE_W + spacing) * 0.5
                   + shift_frac * GEYSER_GX_SHIFT_MAX)
-            self.geysers.append(Geyser(gx, intensity))
+            g = Geyser(gx, intensity)
+            # ~1 in 4 vents is a dud: ground formation visible (cone + ring
+            # spawned below), but no eruption + no lift. contains() already
+            # gates on .active, so the lift path goes quiet for free.
+            if random.random() < GEYSER_DUD_CHANCE:
+                g.active = False
+            self.geysers.append(g)
             # Frame the base with a little ring of rocks on both flanks so the
             # geyser reads as "surrounded", not perched on bare ground.
             for _ in range(ROCK_RING_COUNT):

@@ -206,6 +206,11 @@ GEYSER_GY_DELTA_MAX = 140
 # at center, becomes 110/30 at max shift) — leaves the bird real recovery
 # room after the forced in-column rise.
 GEYSER_GX_SHIFT_MAX = 40
+# Probability a planted geyser is a "dud" — the sinter cone + rock ring still
+# appear on the ground, but no hot-air column erupts and no updraft is applied
+# (Geyser.active flag stays False). Adds visual variety + asks the player to
+# read the field rather than assume every vent will lift them.
+GEYSER_DUD_CHANCE = 0.25
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and

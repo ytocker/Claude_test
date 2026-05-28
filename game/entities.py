@@ -2273,12 +2273,14 @@ class Geyser:
         surf.blit(geyser_fx.get_vent_cone(),
                   (cx - geyser_fx.CONE_W // 2, base_y - geyser_fx.CONE_BASE_ROW))
 
-        # Always-on flowing steam column, full screen height — pre-baked
-        # looping frames; the per-geyser _anim_t offset desyncs neighbours.
-        frame = geyser_fx.get_steam_frames()[
-            int(self._anim_t * geyser_fx.STEAM_FPS) % geyser_fx.STEAM_N]
-        mouth_y = base_y - geyser_fx.MOUTH_DY
-        surf.blit(frame, (cx - geyser_fx.STEAM_W // 2, mouth_y - geyser_fx.STEAM_H))
+        # Erupting steam column — only on active geysers. Duds (active=False)
+        # show the cone + base ring on the ground but no rising hot air.
+        # Pre-baked looping frames; per-geyser _anim_t offset desyncs neighbours.
+        if self.active:
+            frame = geyser_fx.get_steam_frames()[
+                int(self._anim_t * geyser_fx.STEAM_FPS) % geyser_fx.STEAM_N]
+            mouth_y = base_y - geyser_fx.MOUTH_DY
+            surf.blit(frame, (cx - geyser_fx.STEAM_W // 2, mouth_y - geyser_fx.STEAM_H))
 
 
 # ── Rock (morning-thermal ground decoration) ─────────────────────────────────
