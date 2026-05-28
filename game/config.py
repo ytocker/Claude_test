@@ -187,12 +187,18 @@ ROCK_RING_COUNT          = 6      # extra rocks framing each geyser's base so th
 GEYSER_RAMP_PILLARS      = 8      # rocks-only pillars the field ramps across (1-2 → max) before the FIRST geyser — a readable "something's coming" telegraph
 GEYSER_W            = 84.0        # column / lift width (px) — matches the visible air footprint
 GEYSER_H            = float(GROUND_Y)  # column reaches the top of the screen; lift acts the full height
-GEYSER_LIFT_VY_CAP  = 180.0       # CONSTANT rise speed inside any column — gentle/casual so the event helps rather than challenges; one constant for every geyser, no stacking, flaps (|FLAP_V|=520) still override.
+GEYSER_LIFT_VY_CAP  = 130.0       # CONSTANT rise speed inside any column — gentle/casual so the event helps rather than challenges; one constant for every geyser, no stacking, flaps (|FLAP_V|=520) still override. Lower than terminal so post-column bleed-off time shrinks and the next pillar stays reachable.
 GEYSER_ACTIVE_HOT   = 3.0         # active-window length at peak intensity (s)
 GEYSER_ACTIVE_COLD  = 1.0         # active-window length at the sparse edges (s)
 GEYSER_DORMANT_HOT  = 1.2         # dormant gap between actives at peak (s)
 GEYSER_DORMANT_COLD = 7.0         # dormant gap at the sparse edges (s)
 GEYSER_TELEGRAPH    = 0.5         # bubbling lead-in before the column rises (s)
+# Max gap-y delta allowed between two pillars with a geyser column planted
+# between them. Without this clamp the column pins the bird near the top
+# while pillar B's gap can be arbitrarily low, leaving a ~98 px drop window
+# (spacing/2 - GEYSER_W/2) that gravity cannot cover for large Δgy. 140 px
+# leaves headroom even under newbie scroll + Grow.
+GEYSER_GY_DELTA_MAX = 140
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
