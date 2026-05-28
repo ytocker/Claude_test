@@ -186,48 +186,8 @@ def render_concept_a_after():
         (sk.centerx,                 nose_bot_y),
     ])
 
-    # L2 Misfits mouth in place of round-3's high jaw line + buck teeth.
+    # Jolly Roger mouth on the skull.
     _draw_jolly_roger_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
-
-    # Spiked CHROME collar — round-3 element, preserved.
-    collar_y = sk.bottom + int(5 * SS)
-    band_w = int(28 * SS)
-    band_t = int(2.6 * SS)
-    band = pygame.Rect(0, 0, band_w, band_t)
-    band.center = (sk.centerx, collar_y)
-    band_shadow = band.copy()
-    band_shadow.move_ip(0, int(1 * SS))
-    pygame.draw.rect(big, DOME, band_shadow, border_radius=int(1.0 * SS))
-    pygame.draw.rect(big, CHROME, band, border_radius=int(1.0 * SS))
-    pygame.draw.rect(big, DOME, band, max(1, int(0.5 * SS)),
-                     border_radius=int(1.0 * SS))
-    spike_h = int(6 * SS)
-    spike_half_w = int(1.8 * SS)
-    spike_defs = [
-        (-int(11 * SS), -22),
-        (-int(4 * SS),    0),
-        ( int(4 * SS),    0),
-        ( int(11 * SS),  22),
-    ]
-    for x_off, ang in spike_defs:
-        ax = sk.centerx + x_off
-        ay = band.bottom
-        local_pts = [
-            (-spike_half_w, 0),
-            ( spike_half_w, 0),
-            ( 0, spike_h),
-        ]
-        rad = math.radians(ang)
-        cos_a, sin_a = math.cos(rad), math.sin(rad)
-        rot_pts = []
-        for lx, ly in local_pts:
-            rx = lx * cos_a - ly * sin_a
-            ry = lx * sin_a + ly * cos_a
-            rot_pts.append((ax + rx, ay + ry))
-        shadow_pts = [(px, py + int(1 * SS)) for px, py in rot_pts]
-        pygame.draw.polygon(big, DOME, shadow_pts)
-        pygame.draw.polygon(big, CHROME, rot_pts)
-        pygame.draw.polygon(big, DOME, rot_pts, max(1, SS // 3))
 
     knot_cx, knot_cy = ear_centers[-1]
     knot_cy = knot_cy + int(11 * SS)
@@ -271,7 +231,7 @@ def render_concept_b_after():
 
     for sign in (-1, 1):
         er = pygame.Rect(0, 0, int(6 * SS), int(26 * SS))
-        er.center = (bx + sign * int(11 * SS), by - int(20 * SS))
+        er.center = (bx + sign * int(11 * SS), by - int(10 * SS))
         ang = -10 * sign
         ear_sub = pygame.Surface(
             (er.width + 4 * SS, er.height + 4 * SS), pygame.SRCALPHA)
@@ -287,7 +247,7 @@ def render_concept_b_after():
     SK_W = 36
     SK_H = 32
     sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
-    sk.center = (bx, by - int(2 * SS))
+    sk.center = (bx, by + int(8 * SS))
     pygame.draw.ellipse(big, BONE, sk)
     pygame.draw.ellipse(big, DOME, sk, int(1.4 * SS))
 
