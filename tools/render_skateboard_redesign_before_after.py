@@ -1,17 +1,26 @@
-"""Skateboard pickup redesign — original-mouth BEFORE/AFTER sheet.
+"""Skateboard pickup redesign — original-mouth BEFORE/AFTER sheet (v2).
 
-Each of the round-3 candidates wears oversized BONE buck teeth, a
-stylistic break from the shipped Jolly Roger sticker, which uses a
-single horizontal DOME jaw line (closed mouth, no teeth). This sheet
-shows every candidate side-by-side with its teeth dropped and only the
-canonical jaw line remaining, so the user can pick the mouth idiom that
-ships.
+This v2 uses the L2 "Misfits Crimson Ghost" mouth (upper jaw bar + 7
+small downward fang triangles) as the AFTER variant — the FIRST mouth
+the skateboard icon ever shipped with, before being simplified to the
+plain horizontal bar that's live today. Commit c07aec3 wired L2 in
+("SKATEBOARD ICON: wire L2 (Misfits v1 with mouth at jaw_y=0.78)");
+commit deae2cb later replaced it with the plain B2 bar.
 
-Implementation: reuse the round-3 candidate renderers verbatim. For the
-AFTER column we monkey-patch the module-level _draw_buck_teeth to a
-no-op so the buck-teeth call inside each render_concept_* function
-becomes inert; the jaw line is drawn by a separate pygame.draw.line
-call that's untouched.
+L2 recipe (literal, from c07aec3, scaled proportional to skull width
+since each candidate's skull is bigger than the shipped 27 SS):
+
+    jaw_y   = sk.top + int(SK_H * SS * 0.78)
+    upper_y = jaw_y  - int(SS * 0.8)
+    span    = 12 * SS                 # scaled by SK_W / 27
+    stroke  = 1.2 * SS                # scaled
+    7 fang triangles, tooth_h=2.4*SS, half_w=0.55*SS, all DOME (BONE on
+    inverted-contrast C / D).
+
+BEFORE column = round-3 buck teeth (bit-identical to round_3.png).
+AFTER  column = same candidate with the buck-teeth + per-candidate jaw
+line replaced by the L2 Misfits mouth, at the same 0.78 fractional y
+the L2 design used.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \\
@@ -37,30 +46,481 @@ LABEL = r3.LABEL
 SUBLABEL = r3.SUBLABEL
 NATIVE = r3.NATIVE
 ZOOM = r3.ZOOM
+SS = r3.SS
+
+
+def _draw_misfits_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME):
+    """L2 Misfits Crimson Ghost mouth — upper jaw bar + 7 fang
+    triangles hanging from it. Metrics scale proportional to SK_W
+    so the mouth occupies the same fractional skull width as the
+    original L2 (27 SS-wide skull, 12 SS span)."""
+    scale = SK_W / 27.0
+    jaw_y = sk_top + int(SK_H * SS * 0.78)
+    upper_y = jaw_y - int(SS * 0.8)
+    span = int(12 * SS * scale)
+    stroke = max(1, int(1.2 * SS * scale))
+    pygame.draw.line(big, color,
+                     (cx - span // 2, upper_y),
+                     (cx + span // 2, upper_y),
+                     stroke)
+    n_fangs = 7
+    tooth_h = max(2, int(2.4 * SS * scale))
+    half_w = max(1, int(SS * 0.55 * scale))
+    for i in range(n_fangs):
+        t = i / (n_fangs - 1)
+        tx = cx - span // 2 + int(t * span)
+        pygame.draw.polygon(big, color, [
+            (tx - half_w, upper_y),
+            (tx + half_w, upper_y),
+            (tx,          upper_y + tooth_h),
+        ])
+
+
+# ---------------------------------------------------------------------------
+# AFTER renderers — copy each round-3 candidate verbatim, drop the
+# per-candidate jaw line + buck teeth, and draw the L2 Misfits mouth at
+# the L2 fractional position. Everything else (ears, mohawk, spiked
+# collar, RED bandage, patch, deck, pins) is identical.
+# ---------------------------------------------------------------------------
+
+def render_shipped_after():
+    """Shipped baseline with the L2 Misfits mouth restored."""
+    big = r3._supersurf()
+    bx = big.get_width() // 2
+    by = big.get_height() // 2
+    for angle in (35, -35):
+        deck = r3._draw_deck(None, 46, 9, angle)
+        big.blit(deck, deck.get_rect(center=(bx, by)))
+
+    SK_W = 27
+    SK_H = 22
+    sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
+    sk.center = (bx, by - SS)
+    pygame.draw.ellipse(big, BONE, sk)
+    pygame.draw.ellipse(big, DOME, sk, int(1.2 * SS))
+    eye_r = int(SK_W * SS * 0.108)
+    eye_x_off = int(SK_W * SS * 0.20)
+    eye_y = sk.top + int(SK_H * SS * 0.36)
+    for ex in (sk.centerx - eye_x_off, sk.centerx + eye_x_off):
+        pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
+    nose_top_y = sk.top + int(SK_H * SS * 0.55)
+    nose_bot_y = nose_top_y + int(2.5 * SS)
+    pygame.draw.polygon(big, DOME, [
+        (sk.centerx - SS, nose_top_y),
+        (sk.centerx + SS, nose_top_y),
+        (sk.centerx,      nose_bot_y),
+    ])
+    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+    return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
+
+
+def render_concept_a_after():
+    """A with L2 Misfits mouth (no buck teeth, no plain-bar jaw line)."""
+    big = r3._supersurf()
+    bx = big.get_width() // 2
+    by = big.get_height() // 2
+
+    ear_centers = {}
+    for sign in (-1, 1):
+        er = pygame.Rect(0, 0, int(7 * SS), int(28 * SS))
+        er.center = (bx + sign * int(9 * SS), by - int(22 * SS))
+        ang = -12 * sign
+        ear_sub = pygame.Surface(
+            (er.width + 4 * SS, er.height + 4 * SS), pygame.SRCALPHA)
+        local = pygame.Rect(0, 0, er.width, er.height)
+        local.center = (ear_sub.get_width() // 2, ear_sub.get_height() // 2)
+        pygame.draw.ellipse(ear_sub, BONE, local)
+        pygame.draw.ellipse(ear_sub, DOME, local, max(1, int(1.2 * SS)))
+        inner = local.inflate(-int(2.5 * SS), -int(8 * SS))
+        pygame.draw.ellipse(ear_sub, RED, inner)
+        rot = pygame.transform.rotate(ear_sub, ang)
+        rect = rot.get_rect(center=er.center)
+        big.blit(rot, rect)
+        ear_centers[sign] = er.center
+
+    SK_W = 44
+    SK_H = 38
+    sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
+    sk.center = (bx, by + 2 * SS)
+    pygame.draw.ellipse(big, BONE, sk)
+    pygame.draw.ellipse(big, DOME, sk, int(1.4 * SS))
+
+    eye_r = int(SK_W * SS * 0.13)
+    eye_x_off = int(SK_W * SS * 0.20)
+    eye_y = sk.top + int(SK_H * SS * 0.38)
+    for sign in (-1, 1):
+        ex = sk.centerx + sign * eye_x_off
+        pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
+
+    cross_cx = sk.centerx - eye_x_off
+    cross_cy = eye_y
+    bar_l = int(7 * SS)
+    bar_t = int(2.2 * SS)
+    horiz = pygame.Rect(0, 0, bar_l, bar_t)
+    horiz.center = (cross_cx, cross_cy)
+    vert = pygame.Rect(0, 0, bar_t, bar_l)
+    vert.center = (cross_cx, cross_cy)
+    pygame.draw.rect(big, RED, horiz, border_radius=int(0.5 * SS))
+    pygame.draw.rect(big, RED, vert, border_radius=int(0.5 * SS))
+    pygame.draw.rect(big, DOME, horiz, max(1, SS // 3),
+                     border_radius=int(0.5 * SS))
+    pygame.draw.rect(big, DOME, vert, max(1, SS // 3),
+                     border_radius=int(0.5 * SS))
+
+    nose_top_y = sk.top + int(SK_H * SS * 0.55)
+    nose_bot_y = nose_top_y + int(3 * SS)
+    pygame.draw.polygon(big, DOME, [
+        (sk.centerx - int(1.4 * SS), nose_top_y),
+        (sk.centerx + int(1.4 * SS), nose_top_y),
+        (sk.centerx,                 nose_bot_y),
+    ])
+
+    # L2 Misfits mouth in place of round-3's high jaw line + buck teeth.
+    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+
+    # Spiked CHROME collar — round-3 element, preserved.
+    collar_y = sk.bottom + int(5 * SS)
+    band_w = int(28 * SS)
+    band_t = int(2.6 * SS)
+    band = pygame.Rect(0, 0, band_w, band_t)
+    band.center = (sk.centerx, collar_y)
+    band_shadow = band.copy()
+    band_shadow.move_ip(0, int(1 * SS))
+    pygame.draw.rect(big, DOME, band_shadow, border_radius=int(1.0 * SS))
+    pygame.draw.rect(big, CHROME, band, border_radius=int(1.0 * SS))
+    pygame.draw.rect(big, DOME, band, max(1, int(0.5 * SS)),
+                     border_radius=int(1.0 * SS))
+    spike_h = int(6 * SS)
+    spike_half_w = int(1.8 * SS)
+    spike_defs = [
+        (-int(11 * SS), -22),
+        (-int(4 * SS),    0),
+        ( int(4 * SS),    0),
+        ( int(11 * SS),  22),
+    ]
+    for x_off, ang in spike_defs:
+        ax = sk.centerx + x_off
+        ay = band.bottom
+        local_pts = [
+            (-spike_half_w, 0),
+            ( spike_half_w, 0),
+            ( 0, spike_h),
+        ]
+        rad = math.radians(ang)
+        cos_a, sin_a = math.cos(rad), math.sin(rad)
+        rot_pts = []
+        for lx, ly in local_pts:
+            rx = lx * cos_a - ly * sin_a
+            ry = lx * sin_a + ly * cos_a
+            rot_pts.append((ax + rx, ay + ry))
+        shadow_pts = [(px, py + int(1 * SS)) for px, py in rot_pts]
+        pygame.draw.polygon(big, DOME, shadow_pts)
+        pygame.draw.polygon(big, CHROME, rot_pts)
+        pygame.draw.polygon(big, DOME, rot_pts, max(1, SS // 3))
+
+    knot_cx, knot_cy = ear_centers[-1]
+    knot_cy = knot_cy + int(11 * SS)
+    knot_cx = knot_cx + int(3 * SS)
+    bow_w = int(5 * SS)
+    bow_h = int(3 * SS)
+    pygame.draw.polygon(big, RED, [
+        (knot_cx - bow_w, knot_cy - bow_h),
+        (knot_cx - int(0.5 * SS), knot_cy),
+        (knot_cx - bow_w, knot_cy + bow_h),
+    ])
+    pygame.draw.polygon(big, RED, [
+        (knot_cx + bow_w, knot_cy - bow_h),
+        (knot_cx + int(0.5 * SS), knot_cy),
+        (knot_cx + bow_w, knot_cy + bow_h),
+    ])
+    pygame.draw.circle(big, RED, (knot_cx, knot_cy), int(1.5 * SS))
+    pygame.draw.polygon(big, DOME, [
+        (knot_cx - bow_w, knot_cy - bow_h),
+        (knot_cx - int(0.5 * SS), knot_cy),
+        (knot_cx - bow_w, knot_cy + bow_h),
+    ], max(1, SS // 3))
+    pygame.draw.polygon(big, DOME, [
+        (knot_cx + bow_w, knot_cy - bow_h),
+        (knot_cx + int(0.5 * SS), knot_cy),
+        (knot_cx + bow_w, knot_cy + bow_h),
+    ], max(1, SS // 3))
+
+    return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
+
+
+def render_concept_b_after():
+    """B with L2 Misfits mouth (no buck teeth, no plain-bar jaw line)."""
+    big = r3._supersurf()
+    bx = big.get_width() // 2
+    by = big.get_height() // 2
+
+    for angle in (35, -35):
+        deck = r3._draw_deck(None, 52, 10, angle)
+        big.blit(deck, deck.get_rect(center=(bx, by + 8 * SS)))
+
+    for sign in (-1, 1):
+        er = pygame.Rect(0, 0, int(6 * SS), int(26 * SS))
+        er.center = (bx + sign * int(11 * SS), by - int(20 * SS))
+        ang = -10 * sign
+        ear_sub = pygame.Surface(
+            (er.width + 4 * SS, er.height + 4 * SS), pygame.SRCALPHA)
+        local = pygame.Rect(0, 0, er.width, er.height)
+        local.center = (ear_sub.get_width() // 2, ear_sub.get_height() // 2)
+        pygame.draw.ellipse(ear_sub, BONE, local)
+        pygame.draw.ellipse(ear_sub, DOME, local, max(1, int(1.2 * SS)))
+        inner = local.inflate(-int(2 * SS), -int(8 * SS))
+        pygame.draw.ellipse(ear_sub, RED, inner)
+        rot = pygame.transform.rotate(ear_sub, ang)
+        big.blit(rot, rot.get_rect(center=er.center))
+
+    SK_W = 36
+    SK_H = 32
+    sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
+    sk.center = (bx, by - int(2 * SS))
+    pygame.draw.ellipse(big, BONE, sk)
+    pygame.draw.ellipse(big, DOME, sk, int(1.4 * SS))
+
+    base_y = sk.top + int(SK_H * SS * 0.16)
+    fin_count = 5
+    fin_step = int(SK_W * SS * 0.30) / (fin_count - 1)
+    fin_h_peak = int(SK_H * SS * 0.95)
+    fin_geom = []
+    for i in range(fin_count):
+        cxf = int(sk.centerx - SK_W * SS * 0.15 + i * fin_step)
+        bell = 1.0 - abs((i - (fin_count - 1) / 2) / ((fin_count - 1) / 2))
+        height = int(fin_h_peak * (0.45 + 0.55 * bell))
+        half = int(2.4 * SS)
+        tip = (cxf, base_y - height)
+        pygame.draw.polygon(big, DOME, [
+            (cxf - half, base_y),
+            (cxf + half, base_y),
+            tip,
+        ])
+        fin_geom.append((cxf, base_y, tip))
+    stripe_w = max(1, int(1 * SS))
+    for cxf, base, tip in fin_geom:
+        pygame.draw.line(big, BONE,
+                         (cxf, base - max(1, int(2 * SS))), tip,
+                         stripe_w)
+
+    eye_r = int(SK_W * SS * 0.13) + int(1 * SS)
+    eye_x_off = int(SK_W * SS * 0.22) + int(1 * SS)
+    eye_y = sk.top + int(SK_H * SS * 0.45)
+    for sign in (-1, 1):
+        ex = sk.centerx + sign * eye_x_off
+        pygame.draw.circle(big, DOME, (ex, eye_y), eye_r)
+
+    nose_top_y = sk.top + int(SK_H * SS * 0.61)
+    nose_bot_y = nose_top_y + int(2.6 * SS)
+    pygame.draw.polygon(big, DOME, [
+        (sk.centerx - int(1.2 * SS), nose_top_y),
+        (sk.centerx + int(1.2 * SS), nose_top_y),
+        (sk.centerx,                 nose_bot_y),
+    ])
+
+    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+
+    return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
+
+
+def render_concept_c_after():
+    """C with L2 Misfits mouth (inverted contrast → BONE colour)."""
+    big = r3._supersurf()
+    bx = big.get_width() // 2
+    by = big.get_height() // 2
+
+    patch_pts = [
+        (bx - int(36 * SS), by - int(30 * SS)),
+        (bx - int(28 * SS), by - int(34 * SS)),
+        (bx - int(14 * SS), by - int(33 * SS)),
+        (bx,                by - int(36 * SS)),
+        (bx + int(16 * SS), by - int(32 * SS)),
+        (bx + int(30 * SS), by - int(33 * SS)),
+        (bx + int(36 * SS), by - int(26 * SS)),
+        (bx + int(34 * SS), by - int(10 * SS)),
+        (bx + int(37 * SS), by + int(6 * SS)),
+        (bx + int(30 * SS), by + int(16 * SS)),
+        (bx + int(14 * SS), by + int(18 * SS)),
+        (bx,                by + int(20 * SS)),
+        (bx - int(16 * SS), by + int(17 * SS)),
+        (bx - int(32 * SS), by + int(14 * SS)),
+        (bx - int(36 * SS), by + int(2 * SS)),
+        (bx - int(34 * SS), by - int(14 * SS)),
+    ]
+    shadow_pts = [(px + int(1.2 * SS), py + int(1.2 * SS))
+                  for px, py in patch_pts]
+    pygame.draw.polygon(big, DOME, shadow_pts)
+    pygame.draw.polygon(big, BONE, patch_pts)
+    pygame.draw.polygon(big, DOME, patch_pts, max(1, int(1.4 * SS)))
+
+    cx, cy = bx, by - int(6 * SS)
+    inset = int(3 * SS)
+
+    def _inset_point(px, py):
+        dx = cx - px
+        dy = cy - py
+        d = math.hypot(dx, dy) or 1
+        return (px + int(dx / d * inset), py + int(dy / d * inset))
+
+    inset_pts = [_inset_point(px, py) for px, py in patch_pts]
+    pygame.draw.polygon(big, RED, inset_pts, max(1, int(1.4 * SS)))
+
+    head_cx = bx
+    head_cy = by - int(8 * SS)
+
+    for sign in (-1, 1):
+        er = pygame.Rect(0, 0, int(5 * SS), int(20 * SS))
+        er.center = (head_cx + sign * int(7 * SS),
+                     head_cy - int(18 * SS))
+        ang = -10 * sign
+        ear_sub = pygame.Surface(
+            (er.width + 4 * SS, er.height + 4 * SS), pygame.SRCALPHA)
+        local = pygame.Rect(0, 0, er.width, er.height)
+        local.center = (ear_sub.get_width() // 2, ear_sub.get_height() // 2)
+        pygame.draw.ellipse(ear_sub, BONE, local)
+        pygame.draw.ellipse(ear_sub, DOME, local, max(1, int(1.2 * SS)))
+        inner = local.inflate(-int(1.8 * SS), -int(6 * SS))
+        pygame.draw.ellipse(ear_sub, RED, inner)
+        rot = pygame.transform.rotate(ear_sub, ang)
+        big.blit(rot, rot.get_rect(center=er.center))
+
+    SK_W = 32
+    SK_H = 28
+    sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
+    sk.center = (head_cx, head_cy)
+    pygame.draw.ellipse(big, DOME, sk)
+
+    eye_r = int(SK_W * SS * 0.13)
+    eye_x_off = int(SK_W * SS * 0.22)
+    eye_y = sk.top + int(SK_H * SS * 0.40)
+    for sign in (-1, 1):
+        ex = sk.centerx + sign * eye_x_off
+        pygame.draw.circle(big, BONE, (ex, eye_y), eye_r)
+        pygame.draw.circle(big, DOME, (ex, eye_y), max(1, int(1.0 * SS)))
+
+    nose_top_y = sk.top + int(SK_H * SS * 0.58)
+    nose_bot_y = nose_top_y + int(2.6 * SS)
+    pygame.draw.polygon(big, RED, [
+        (sk.centerx - int(1.4 * SS), nose_top_y),
+        (sk.centerx + int(1.4 * SS), nose_top_y),
+        (sk.centerx,                 nose_bot_y),
+    ])
+
+    # Inverted contrast — BONE mouth on DOME head silhouette.
+    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=BONE)
+
+    pin_cx = bx
+    pin_cy = by + int(28 * SS)
+    for ang in (28, -28):
+        pin = pygame.Surface((40 * SS, 14 * SS), pygame.SRCALPHA)
+        pcx = pin.get_width() // 2
+        pcy = pin.get_height() // 2
+        pygame.draw.line(pin, CHROME,
+                         (pcx - int(15 * SS), pcy),
+                         (pcx + int(15 * SS), pcy),
+                         max(1, int(1.8 * SS)))
+        pygame.draw.line(pin, DOME,
+                         (pcx - int(15 * SS), pcy),
+                         (pcx + int(15 * SS), pcy),
+                         max(1, int(0.5 * SS)))
+        pygame.draw.circle(pin, CHROME,
+                           (pcx - int(15 * SS), pcy), int(3.5 * SS),
+                           max(1, int(1.4 * SS)))
+        pygame.draw.polygon(pin, CHROME, [
+            (pcx + int(15 * SS), pcy - int(1.5 * SS)),
+            (pcx + int(18 * SS), pcy),
+            (pcx + int(15 * SS), pcy + int(1.5 * SS)),
+        ])
+        pygame.draw.polygon(pin, DOME, [
+            (pcx + int(15 * SS), pcy - int(1.5 * SS)),
+            (pcx + int(18 * SS), pcy),
+            (pcx + int(15 * SS), pcy + int(1.5 * SS)),
+        ], max(1, SS // 3))
+        rot = pygame.transform.rotate(pin, ang)
+        big.blit(rot, rot.get_rect(center=(pin_cx, pin_cy)))
+
+    return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
+
+
+def render_concept_d_after():
+    """D with L2 Misfits mouth — face_blob acts as the skull for
+    mouth-position computation; inverted contrast → BONE colour."""
+    big = r3._supersurf()
+    bx = big.get_width() // 2
+    by = big.get_height() // 2
+
+    deck_w = 78 * SS
+    deck_h = 30 * SS
+    sub_w = deck_w + 28 * SS
+    sub_h = deck_h + 28 * SS
+    sub = pygame.Surface((sub_w, sub_h), pygame.SRCALPHA)
+
+    rim = pygame.Rect(0, 0, deck_w, deck_h)
+    rim.center = (sub_w // 2, sub_h // 2)
+
+    for sign in (-1, 1):
+        tx = rim.centerx + sign * int(deck_w * 0.34)
+        pad_w = int(6 * SS)
+        pad_rect = pygame.Rect(0, 0, pad_w, int(rim.height + 4 * SS))
+        pad_rect.center = (tx, rim.centery)
+        pygame.draw.rect(sub, BONE, pad_rect, border_radius=int(1.8 * SS))
+        tr = pygame.Rect(0, 0, int(4 * SS), int(rim.height + 4 * SS))
+        tr.center = (tx, rim.centery)
+        pygame.draw.rect(sub, CHROME, tr, border_radius=int(1.5 * SS))
+        for side in (-1, 1):
+            wy = rim.centery + side * int(rim.height * 0.55)
+            pygame.draw.circle(sub, CREAM, (tx, wy), int(3.8 * SS))
+            pygame.draw.circle(sub, DOME, (tx, wy), int(3.8 * SS),
+                               max(1, int(0.6 * SS)))
+            pygame.draw.circle(sub, RED, (tx, wy), int(1.8 * SS))
+
+    pygame.draw.rect(sub, CHROME, rim, border_radius=int(6 * SS))
+    top = rim.inflate(-int(3 * SS), -int(3 * SS))
+    pygame.draw.rect(sub, BONE, top, border_radius=int(5 * SS))
+
+    fx = top.centerx
+    fy = top.centery
+
+    for sign in (-1, 1):
+        er = pygame.Rect(0, 0, int(7 * SS), int(22 * SS))
+        er.center = (fx + sign * int(7 * SS), fy - int(18 * SS))
+        pygame.draw.ellipse(sub, DOME, er)
+        inner = er.inflate(-int(2.5 * SS), -int(7 * SS))
+        pygame.draw.ellipse(sub, RED, inner)
+
+    face_w_units = 46
+    face_h_units = 22
+    face_blob = pygame.Rect(0, 0, face_w_units * SS, face_h_units * SS)
+    face_blob.center = (fx, fy + int(1 * SS))
+    pygame.draw.ellipse(sub, DOME, face_blob)
+
+    for sign in (-1, 1):
+        sx_ = fx + sign * int(9 * SS)
+        sy_ = fy - int(3 * SS)
+        pygame.draw.line(sub, BONE,
+                         (sx_ - sign * int(3.5 * SS), sy_ - int(1.2 * SS)),
+                         (sx_ + sign * int(3.5 * SS), sy_ + int(1.2 * SS)),
+                         max(1, int(2.0 * SS)))
+
+    pygame.draw.circle(sub, RED, (fx, fy + int(3 * SS)), int(2.0 * SS))
+
+    # Treat the face_blob ellipse as the "skull" for the L2 mouth.
+    # SK_H = face height in units, sk_top = face_blob.top.
+    _draw_misfits_mouth(
+        sub, fx, face_blob.top, face_h_units, face_w_units, color=BONE)
+
+    rotated = pygame.transform.rotate(sub, -28)
+    big.blit(rotated, rotated.get_rect(center=(bx, by)))
+
+    return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
 
 
 CONCEPTS = [
-    ("A", "PUNK STUDDED SKULL-BUNNY"),
-    ("B", "SKULL-BUNNY HYBRID + MOHAWK"),
-    ("C", "PUNK PATCH BUNNY"),
-    ("D", "SHRED-DECK GRAFFITI BUNNY"),
+    ("A", "PUNK STUDDED SKULL-BUNNY",       r3.render_concept_a, render_concept_a_after),
+    ("B", "SKULL-BUNNY HYBRID + MOHAWK",    r3.render_concept_b, render_concept_b_after),
+    ("C", "PUNK PATCH BUNNY",               r3.render_concept_c, render_concept_c_after),
+    ("D", "SHRED-DECK GRAFFITI BUNNY",      r3.render_concept_d, render_concept_d_after),
 ]
-
-
-def render_with_mouth(letter, apply_original_mouth):
-    real_buck = r3._draw_buck_teeth
-    if apply_original_mouth:
-        r3._draw_buck_teeth = lambda *a, **k: None
-    try:
-        renderer = {
-            "A": r3.render_concept_a,
-            "B": r3.render_concept_b,
-            "C": r3.render_concept_c,
-            "D": r3.render_concept_d,
-        }[letter]
-        return renderer()
-    finally:
-        r3._draw_buck_teeth = real_buck
 
 
 def _font(size, bold=False):
@@ -71,7 +531,6 @@ def _font(size, bold=False):
 
 
 def _draw_cell(sheet, x, y, label_text, sub_tag, icon_96, panel_w, panel_h):
-    """One cell: charcoal card, 2-line label header, 96 px native + 4x zoom."""
     PAD = 16
     NATIVE_W = NATIVE
     ZOOM_W = NATIVE * ZOOM
@@ -110,25 +569,15 @@ def _draw_cell(sheet, x, y, label_text, sub_tag, icon_96, panel_w, panel_h):
     return card
 
 
-def _nearest_palette(rgb):
-    best = None
-    best_d = 1e9
-    for name, ref in PAL.items():
-        d = sum((a - b) ** 2 for a, b in zip(rgb, ref))
-        if d < best_d:
-            best_d = d
-            best = (name, ref)
-    return best, math.sqrt(best_d)
-
-
 def main():
     os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
     os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
     pygame.init()
 
-    shipped = r3.render_shipped()
-    before_icons = {l: render_with_mouth(l, False) for l, _n in CONCEPTS}
-    after_icons = {l: render_with_mouth(l, True) for l, _n in CONCEPTS}
+    shipped_before = r3.render_shipped()
+    shipped_after = render_shipped_after()
+    before_icons = {l: bfn() for l, _n, bfn, _afn in CONCEPTS}
+    after_icons = {l: afn() for l, _n, _bfn, afn in CONCEPTS}
 
     PAD = 16
     TITLE_H = 96
@@ -147,12 +596,13 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill(SHEET_BG)
 
-    title_text = "SKATEBOARD redesign  —  original-mouth before/after"
-    sub_text = ("Buck teeth (round 3, LEFT) vs. original Jolly Roger jaw "
-                "line (RIGHT). Mouth swap only; every other element is "
-                "identical.")
+    title_text = ("SKATEBOARD redesign  —  original-mouth before/after "
+                  "(L2 Misfits)")
+    sub_text = ("BEFORE = round-3 buck teeth (LEFT). AFTER = L2 Misfits "
+                "\"Crimson Ghost\" mouth (RIGHT) — the FIRST mouth the "
+                "icon shipped with, before the plain bar.")
     target_title_w = sheet_w - PAD * 4
-    title_pt = 28
+    title_pt = 26
     title_font = _font(title_pt, bold=True)
     title = title_font.render(title_text, True, LABEL)
     if title.get_width() > target_title_w:
@@ -161,7 +611,7 @@ def main():
         title = title_font.render(title_text, True, LABEL)
         print(f"title fallback: dropped to {title_pt} pt "
               f"(width now {title.get_width()})")
-    sub_font = _font(15)
+    sub_font = _font(14)
     sub = sub_font.render(sub_text, True, SUBLABEL)
     sheet.blit(title, (PAD * 2, PAD + 4))
     sheet.blit(sub, (PAD * 2, PAD + 4 + title.get_height() + 4))
@@ -172,22 +622,22 @@ def main():
 
     _draw_cell(sheet, x_left, y,
                "SHIPPED (S4 Jolly Roger)",
-               "SHIPPED (canonical) — left",
-               shipped, PANEL_W, PANEL_H)
+               "BEFORE — current plain-bar mouth",
+               shipped_before, PANEL_W, PANEL_H)
     _draw_cell(sheet, x_right, y,
                "SHIPPED (S4 Jolly Roger)",
-               "SHIPPED (canonical) — right",
-               shipped, PANEL_W, PANEL_H)
+               "AFTER — L2 Misfits mouth (the first)",
+               shipped_after, PANEL_W, PANEL_H)
     y += PANEL_H + PAD
 
-    for letter, name in CONCEPTS:
+    for letter, name, _bfn, _afn in CONCEPTS:
         _draw_cell(sheet, x_left, y,
                    f"{letter}.  {name}",
                    "BEFORE — buck teeth (round 3)",
                    before_icons[letter], PANEL_W, PANEL_H)
         _draw_cell(sheet, x_right, y,
                    f"{letter}.  {name}",
-                   "AFTER — original Jolly Roger mouth",
+                   "AFTER — L2 Misfits mouth (the first)",
                    after_icons[letter], PANEL_W, PANEL_H)
         y += PANEL_H + PAD
 
@@ -198,59 +648,7 @@ def main():
     pygame.image.save(sheet, out_path)
     print(f"wrote {out_path} ({sheet.get_width()}x{sheet.get_height()})")
 
-    teeth_probes = {
-        "A": [(44, 68), (52, 68), (44, 74), (52, 74)],
-        "B": [(44, 64), (52, 64), (44, 70), (52, 70)],
-        "C": [(44, 56), (52, 56), (44, 62), (52, 62)],
-        "D": [(40, 56), (48, 60), (56, 64), (44, 70)],
-    }
-    print("\n--- BEFORE column tooth probes (BONE/CREAM expected) ---")
-    for letter, probes in teeth_probes.items():
-        icon = before_icons[letter]
-        hits = 0
-        for px, py in probes:
-            rgba = icon.get_at((px, py))
-            rgb = (rgba.r, rgba.g, rgba.b)
-            (pname, _ref), dist = _nearest_palette(rgb)
-            is_tooth = pname in ("BONE", "CREAM") and dist <= 30 \
-                and rgba.a > 0
-            if is_tooth:
-                hits += 1
-        print(f"  BEFORE {letter}: {hits}/{len(probes)} tooth hits")
-
-    print("\n--- AFTER column tooth probes (lower is better — buck "
-          "teeth absent, only jaw line remains) ---")
-    for letter, probes in teeth_probes.items():
-        icon = after_icons[letter]
-        hits = 0
-        for px, py in probes:
-            rgba = icon.get_at((px, py))
-            rgb = (rgba.r, rgba.g, rgba.b)
-            (pname, _ref), dist = _nearest_palette(rgb)
-            is_tooth = pname in ("BONE", "CREAM") and dist <= 30 \
-                and rgba.a > 0
-            if is_tooth:
-                hits += 1
-        print(f"  AFTER  {letter}: {hits}/{len(probes)} tooth hits")
-
-    # Sanity: did the patch take? Sample a row just below each jaw line
-    # in both columns and count non-transparent pixels. AFTER should
-    # show fewer opaque pixels there because the teeth aren't drawn.
-    print("\n--- Below-jaw opacity diff (BEFORE - AFTER, higher = more "
-          "tooth pixels removed) ---")
-    below_jaw_y = {"A": 80, "B": 76, "C": 70, "D": 76}
-    for letter, name in CONCEPTS:
-        b = before_icons[letter]
-        a = after_icons[letter]
-        py = below_jaw_y[letter]
-        b_opaque = sum(1 for px in range(NATIVE)
-                       if b.get_at((px, py)).a > 16)
-        a_opaque = sum(1 for px in range(NATIVE)
-                       if a.get_at((px, py)).a > 16)
-        print(f"  {letter} at y={py}: before={b_opaque} opaque, "
-              f"after={a_opaque} opaque, diff={b_opaque - a_opaque}")
-
-    print("\nDONE — before/after sheet saved.")
+    print("\nDONE — before/after sheet saved with L2 Misfits AFTER mouth.")
 
 
 if __name__ == "__main__":
