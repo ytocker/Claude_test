@@ -937,3 +937,35 @@ def get_knight_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _knight_rot_cache[key] = s
     return s
+
+
+# ── Poisoned (dead-Pip B) accessor ──────────────────────────────────────────
+#
+# Used by Bird.draw while poison_active to cross-fade between the healthy
+# sprite and the fully-poisoned t = 1.0 endpoint. Same frame the existing
+# death-fade overlay paints with, so the visual lands continuous when the
+# terminal poison kill kicks off the standard death pipeline.
+_poisoned_frames: "list[pygame.Surface] | None" = None
+_poisoned_rot_cache: dict = {}
+
+
+def _get_poisoned_frames() -> "list[pygame.Surface]":
+    global _poisoned_frames
+    if _poisoned_frames is None:
+        from game import dollar_parrot_dead
+        _poisoned_frames = [
+            _add_outline(dollar_parrot_dead.build_chartreuse_dead(a))
+            for a in _WING_ANGLES
+        ]
+    return _poisoned_frames
+
+
+def get_poisoned_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    frames = _get_poisoned_frames()
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    s = _poisoned_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        _poisoned_rot_cache[key] = s
+    return s

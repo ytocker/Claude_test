@@ -132,11 +132,17 @@ POWERUP_REPLACED_AT = {
 # roster stays a surprise. Weights are normalized at pick time alongside the
 # normal pool.
 LATE_GAME_SCORE        = 500
+# Only the genie spawns directly from the secret tier. Knight, skateboard,
+# and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
+# are not in any weight table and cannot be Surprise-re-rolled.
 SECRET_POWERUP_WEIGHTS = (
-    ("skateboard", 0.125),
-    ("knight",     0.125),   # survive-one-hit buff
-    ("genie",      0.125),
+    ("genie", 0.125),
 )
+
+# POISON — the genie's trap pick. Picking it sets Bird.poison_active and
+# ramps Bird.poison_t over POISON_DURATION seconds; at t = 1.0 World._die
+# fires. No recovery (knight save still applies — it's the only escape).
+POISON_DURATION = 8.0
 
 # GENIE — picking up the lamp summons a conjurer who lays out GENIE_OFFER_COUNT
 # alternate power-ups ahead of Pip; flying into one claims it and poofs the rest.

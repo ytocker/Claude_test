@@ -499,6 +499,12 @@ class Bird:
         # Secret late-game powerup flags (timer state lives on World).
         self.skateboard_active = False
         self.knight_active = False
+        # Poison trap (genie-only). poison_t ramps 0 -> 1 over
+        # POISON_DURATION seconds while poison_active; World watches for
+        # the terminal 1.0 and fires _die(). Bird.draw cross-fades from
+        # the healthy sprite to the dead-Pip-B sprite at alpha = poison_t.
+        self.poison_active = False
+        self.poison_t = 0.0
         # Backflip trick: ticks down while a full-body 360° spin plays
         # (triggered by flapping while skateboard_active).
         self.backflip_t = 0.0
@@ -545,6 +551,9 @@ class Bird:
         self.frame_t = (self.frame_t + dt * base_hz)
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         self.backflip_t = max(0.0, self.backflip_t - dt)
+        if self.poison_active:
+            from game.config import POISON_DURATION
+            self.poison_t = min(1.0, self.poison_t + dt / POISON_DURATION)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
         # Ease shrink_scale toward its target (SHRINK_SCALE while active,
@@ -565,11 +574,27 @@ class Bird:
         # bird's head still leads in the direction of motion after the
         # vertical mirror is applied below.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # Poison short-circuits the entire variant cascade — the bird is
+        # doomed; combos no longer matter. Cross-fades from the healthy
+        # frame to the dead-Pip B sprite at alpha = poison_t. Both frames
+        # share Pip's outline so the silhouette stays single.
+        if self.poison_active:
+            healthy = parrot.get_parrot(frame_idx, tilt)
+            poisoned = parrot.get_poisoned_parrot(frame_idx, tilt)
+            if self.poison_t <= 0.0:
+                img = healthy
+            elif self.poison_t >= 1.0:
+                img = poisoned
+            else:
+                img = healthy.copy()
+                layer = poisoned.copy()
+                layer.set_alpha(int(255 * self.poison_t))
+                img.blit(layer, (0, 0))
         # Combo-aware sprite cascade. The four reachable stacks each have
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
         # crispy-hat sprite instead of falling through to plain kfc.
-        if self.kfc_active and self.ghost_active and self.triple_active:
+        elif self.kfc_active and self.ghost_active and self.triple_active:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active:
             img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
@@ -1530,6 +1555,8 @@ class PowerUp:
             self._draw_knight_icon(surf)
         elif self.kind == "genie":
             self._draw_genie_icon(surf)
+        elif self.kind == "poison":
+            self._draw_poison_vial(surf)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):
@@ -2291,6 +2318,16 @@ class PowerUp:
         tilt = math.sin(self.pulse * 0.8) * 3
         rotated = pygame.transform.rotate(sprite, tilt)
         surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
+
+    def _draw_poison_vial(self, surf):
+        """Poison vial trap — only reachable via the genie offer. Sprite
+        machinery lives in game.poison_vial (cached static flask + label;
+        breathing yellow-green halo drawn live)."""
+        from game import poison_vial
+
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
+        poison_vial.draw(surf, cx, cy, self.pulse)
 
 
 # ── Shrink mushroom sprite (sibling to GROW's body sprite) ───────────────────

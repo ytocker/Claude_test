@@ -161,6 +161,7 @@ class World:
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
             "shrink": 0, "rail": 0, "lottery": 0,
             "skateboard": 0, "knight": 0, "genie": 0,
+            "poison": 0,
         }
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
@@ -515,6 +516,11 @@ class World:
         if not self.game_over:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.update(dt, gravity_sign=sign)  # bird physics at real time
+            # Terminal poison: Bird.update ramps poison_t toward 1.0; when
+            # it caps, the death pipeline takes over. Knight intercept in
+            # _die handles the only escape path.
+            if self.bird.poison_active and self.bird.poison_t >= 1.0:
+                self._die()
 
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
@@ -855,10 +861,13 @@ class World:
         if self.game_over:
             return
         # KNIGHT revive: if the survive-one-hit buff is active, consume it
-        # instead of dying and revive Pip with a grace window.
+        # instead of dying and revive Pip with a grace window. Knight is
+        # the only escape from poison — clear that state too.
         if self.bird.knight_active:
             self.knight_timer = 0.0
             self.bird.knight_active = False
+            self.bird.poison_active = False
+            self.bird.poison_t = 0.0
             self._revive_knight()
             return
         self.game_over = True
@@ -1019,6 +1028,8 @@ class World:
             self._activate_knight(m)
         elif kind == "genie":
             self._activate_genie(m)
+        elif kind == "poison":
+            self._activate_poison(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -1316,22 +1327,11 @@ class World:
 
     def _activate_genie(self, m):
         """Genie Lamp — instead of a direct buff, summon a conjurer who lays
-        out GENIE_OFFER_COUNT alternate powerup offers ahead of Pip. The
-        player flies into the one they want; the others are culled the moment
-        any is picked up (see the is_genie_offer branch in _on_powerup)."""
-        eligible = [k for (k, _w) in POWERUP_WEIGHTS
-                    if k not in ("surprise", "genie")]
-        if self.score >= LATE_GAME_SCORE:
-            for (k, _w) in SECRET_POWERUP_WEIGHTS:
-                if k not in ("genie",) and k not in eligible:
-                    eligible.append(k)
-        if len(eligible) < GENIE_OFFER_COUNT:
-            # Degenerate fallback — pool too small, treat as a surprise.
-            kind = random.choice(eligible) if eligible else "triple"
-            self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
-            self._on_powerup(PowerUp(m.x, m.y, kind=kind))
-            return
-        chosen = random.sample(eligible, GENIE_OFFER_COUNT)
+        out a fixed offer: knight (survive one hit), poison (trap, kills at
+        t = 1.0), skateboard (rail buff). Genie is the ONLY path to these
+        three kinds; the slot order shuffles so the trap can't be memorised
+        by position."""
+        chosen = ["knight", "poison", "skateboard"]
         slots = list(GENIE_OFFER_Y_SLOTS[:GENIE_OFFER_COUNT])
         random.shuffle(slots)
         gy = 225
@@ -1354,6 +1354,28 @@ class World:
         self.float_texts.append(FloatText(
             "GENIE!", m.x, m.y - 26, (250, 215, 130),
             size=28, life=1.3, vy=-28, style="powerup",
+        ))
+
+    def _activate_poison(self, m):
+        """Poison trap (genie-only). Starts Bird.poison_t at 0; Bird.update
+        ramps it toward 1.0 over POISON_DURATION seconds; World.update
+        watches for the terminal 1.0 and fires _die(). Knight saves the
+        bird AND clears the poison state — only escape path."""
+        self.bird.poison_active = True
+        self.bird.poison_t = 0.0
+        self.shake_mag = max(self.shake_mag, 2.5)
+        self.shake_t   = max(self.shake_t, 0.25)
+        try:
+            audio.play_death()
+        except Exception:
+            pass
+        self._pickup_burst(
+            m, ((120, 200, 90), (200, 224, 96), (60, 100, 50), WHITE),
+            n=20, speed_hi=240,
+        )
+        self.float_texts.append(FloatText(
+            "POISONED!", m.x, m.y - 26, (200, 224, 96),
+            size=28, life=1.4, vy=-30, style="powerup",
         ))
 
     def _cull_genie_offers_except(self, chosen: "PowerUp"):
