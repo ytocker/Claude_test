@@ -199,6 +199,13 @@ GEYSER_TELEGRAPH    = 0.5         # bubbling lead-in before the column rises (s)
 # (spacing/2 - GEYSER_W/2) that gravity cannot cover for large Δgy. 140 px
 # leaves headroom even under newbie scroll + Grow.
 GEYSER_GY_DELTA_MAX = 140
+# Max right-shift of the column from the inter-pillar gap midpoint when the
+# next pillar's gap is lower than the current one's. Linear in Δgy: 0 at
+# Δgy ≤ 0, GEYSER_GX_SHIFT_MAX at Δgy ≥ GEYSER_GY_DELTA_MAX. Bounded so
+# post-column gap stays ≥ ~30 px at standard spacing (pre/post = 70 px each
+# at center, becomes 110/30 at max shift) — leaves the bird real recovery
+# room after the forced in-column rise.
+GEYSER_GX_SHIFT_MAX = 40
 
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and

@@ -34,7 +34,7 @@ from game.config import (
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
     GEYSER_RAMP_PILLARS,
     GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
-    GEYSER_GY_DELTA_MAX,
+    GEYSER_GY_DELTA_MAX, GEYSER_GX_SHIFT_MAX,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, FloatText,
@@ -138,11 +138,11 @@ class World:
         # Resets to 0 whenever the event is off.
         self._thermal_pillars = 0
 
-        # When the most recently spawned pillar planted a geyser to its right,
-        # this stores that pillar's gap_y. The very next pillar's gap_y is
-        # clamped to within GEYSER_GY_DELTA_MAX of it so the column-pinned
-        # bird can always make the next gap. Cleared after consumption.
-        self._geyser_constrains_next = None
+        # When the previous pillar planted a geyser, the next pillar's gap_y
+        # is pre-rolled at plant time (so the geyser's horizontal position
+        # can be biased toward the side that needs more pre-descent space).
+        # _spawn_pipe consumes this instead of rolling its own gy.
+        self._pending_gap_y = None
 
         # Per-run stats surfaced on the post-game summary.
         self.pillars_passed = 0
@@ -535,22 +535,15 @@ class World:
         margin = 70
         lo = margin + gap_h // 2
         hi = GROUND_Y - margin - gap_h // 2
-        # If a geyser was planted between the previous pillar and this one,
-        # the column pins the bird near the top. Clamp this gap's Y so the
-        # post-column drop is physically reachable. Intersecting with the
-        # base window means oversized Δmax is a no-op.
-        if self._geyser_constrains_next is not None:
-            prev_gy = self._geyser_constrains_next
-            lo = max(lo, prev_gy - GEYSER_GY_DELTA_MAX)
-            hi = min(hi, prev_gy + GEYSER_GY_DELTA_MAX)
-            # Grow active → bird is GROW_SCALE× larger and the achievable
-            # drop shrinks a touch. Pull the window in proportionally.
-            if self.grow_timer > 0:
-                shrink = int((GROW_SCALE - 1.0) * 30)
-                lo = min(lo + shrink, hi)
-                hi = max(hi - shrink, lo)
-            self._geyser_constrains_next = None
-        gy = random.randint(lo, hi)
+        # A geyser planted by the previous pillar pre-rolled this pillar's
+        # gy (already inside GEYSER_GY_DELTA_MAX of the previous gap). Just
+        # re-clamp to this pillar's actual gap_h margins — rush/KFC widen
+        # gap_h vs. what was assumed at pre-roll time.
+        if self._pending_gap_y is not None:
+            gy = max(lo, min(hi, self._pending_gap_y))
+            self._pending_gap_y = None
+        else:
+            gy = random.randint(lo, hi)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
         # is_kfc is sticky for the pipe's lifetime - it gates the gap
@@ -598,9 +591,31 @@ class World:
         first = self._thermal_pillars == GEYSER_RAMP_PILLARS and not self.geysers
         if first or (allowed >= 1
                      and random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity):
-            gx = pipe.x + (PIPE_W + self._current_spacing()) * 0.5
+            spacing = self._current_spacing()
+            # Pre-roll the NEXT pillar's gap_y now — clamped within
+            # GEYSER_GY_DELTA_MAX of this pillar's gap so the column-pinned
+            # bird can always make the next gap. Knowing the next gy here
+            # lets us bias the column's x: when the next gap is lower the
+            # column shifts right, giving the player more pre-column space
+            # to dive freely (the in-column lift then drops them onto the
+            # lower target with minimal post-column recovery).
+            gap_h_next = self._current_gap()
+            margin = 70
+            lo_n = max(margin + gap_h_next // 2,
+                       pipe.gap_y - GEYSER_GY_DELTA_MAX)
+            hi_n = min(GROUND_Y - margin - gap_h_next // 2,
+                       pipe.gap_y + GEYSER_GY_DELTA_MAX)
+            if self.grow_timer > 0:
+                shrink = int((GROW_SCALE - 1.0) * 30)
+                lo_n = min(lo_n + shrink, hi_n)
+                hi_n = max(hi_n - shrink, lo_n)
+            next_gy = random.randint(lo_n, hi_n)
+            self._pending_gap_y = next_gy
+            shift_frac = max(0.0, min(1.0,
+                             (next_gy - pipe.gap_y) / GEYSER_GY_DELTA_MAX))
+            gx = (pipe.x + (PIPE_W + spacing) * 0.5
+                  + shift_frac * GEYSER_GX_SHIFT_MAX)
             self.geysers.append(Geyser(gx, intensity))
-            self._geyser_constrains_next = pipe.gap_y
             # Frame the base with a little ring of rocks on both flanks so the
             # geyser reads as "surrounded", not perched on bare ground.
             for _ in range(ROCK_RING_COUNT):
@@ -1051,7 +1066,7 @@ class World:
         self.geysers.clear()
         self.rocks.clear()
         self._thermal_pillars = 0
-        self._geyser_constrains_next = None
+        self._pending_gap_y = None
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0
