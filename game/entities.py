@@ -451,7 +451,7 @@ _DEFAULT_PILLAR = {
 
 # Dev-cycle: which dead-Pip palette the cross-fade uses. Live-swapped via
 # F8 in scenes._handle_event; persists in-memory only.
-_dead_palette_key = "E"
+_dead_palette_key = "B"
 
 
 def get_dead_palette() -> str:
