@@ -65,10 +65,12 @@ def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
     teeth_top = sk_bottom - int(8 * SS * scale)
     teeth_bot = sk_bottom - int(4 * SS * scale)
     divider_offsets = (-int(4 * SS * scale), 0, int(4 * SS * scale))
+    outer_shorten = max(1, int(1.6 * SS * scale))
     tooth_bottoms = []
-    for dx in divider_offsets:
+    for idx, dx in enumerate(divider_offsets):
+        top_y = teeth_top + (outer_shorten if idx != 1 else 0)
         pygame.draw.line(big, color,
-                         (cx + dx, teeth_top),
+                         (cx + dx, top_y),
                          (cx + dx, teeth_bot),
                          stroke)
         tooth_bottoms.append((cx + dx, teeth_bot))
