@@ -90,7 +90,7 @@ def _draw_lenses(surf, cx, cy, P):
                      (R[0] + r - 1, R[1] - r + 2), 1)
 
 
-def _build_parrot_with_palette(angle_deg, P):
+def _build_parrot_with_palette(angle_deg, P, *, draw_lenses=True):
     """Draw the full parrot at native resolution using the given palette.
     Returns a 64×60 SRCALPHA surface. Same draw order as _build_frame
     in parrot.py so all the proportions match exactly."""
@@ -125,7 +125,8 @@ def _build_parrot_with_palette(angle_deg, P):
     _aaellipse(surf, P['head_crown'],  (46, 16),  7,  3)
 
     # Lenses
-    _draw_lenses(surf, 50, 20, P)
+    if draw_lenses:
+        _draw_lenses(surf, 50, 20, P)
 
     # Beak
     beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
