@@ -1,26 +1,27 @@
-"""Skateboard pickup redesign — original-mouth BEFORE/AFTER sheet (v2).
+"""Skateboard pickup redesign — original-mouth BEFORE/AFTER sheet (v3).
 
-This v2 uses the L2 "Misfits Crimson Ghost" mouth (upper jaw bar + 7
-small downward fang triangles) as the AFTER variant — the FIRST mouth
-the skateboard icon ever shipped with, before being simplified to the
-plain horizontal bar that's live today. Commit c07aec3 wired L2 in
-("SKATEBOARD ICON: wire L2 (Misfits v1 with mouth at jaw_y=0.78)");
-commit deae2cb later replaced it with the plain B2 bar.
+This v3 uses the ORIGINAL Jolly Roger mouth from the S4 "kit-matched"
+icon (commit 1ed65ce, the pickup's very first design before any mouth
+iteration): horizontal jaw bar at sk.bottom - 2*SS with 3 vertical
+tooth-dividers at offsets -4*SS, 0, +4*SS spanning sk.bottom-5*SS to
+sk.bottom-SS. That recipe was sized for the original SK_W=23 skull, so
+we scale every metric proportional to each candidate's skull width.
 
-L2 recipe (literal, from c07aec3, scaled proportional to skull width
-since each candidate's skull is bigger than the shipped 27 SS):
+Recipe (literal from entities.py at 1ed65ce):
 
-    jaw_y   = sk.top + int(SK_H * SS * 0.78)
-    upper_y = jaw_y  - int(SS * 0.8)
-    span    = 12 * SS                 # scaled by SK_W / 27
-    stroke  = 1.2 * SS                # scaled
-    7 fang triangles, tooth_h=2.4*SS, half_w=0.55*SS, all DOME (BONE on
-    inverted-contrast C / D).
+    span_units = 12        # full mouth width
+    tooth_h_units = 4      # vertical-divider height
+    stroke = 1.2 * SS
+    jaw_y = sk.bottom - 2 * SS
+    teeth_top = sk.bottom - 5 * SS
+    teeth_bot = sk.bottom - SS
+    Mouth horizontal bar + 3 vertical dividers (-4*SS, 0, +4*SS), all
+    DOME (BONE on inverted-contrast C / D).
 
 BEFORE column = round-3 buck teeth (bit-identical to round_3.png).
 AFTER  column = same candidate with the buck-teeth + per-candidate jaw
-line replaced by the L2 Misfits mouth, at the same 0.78 fractional y
-the L2 design used.
+line replaced by the original Jolly Roger mouth, scaled to fit each
+candidate's skull.
 
 Run headless:
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \\
@@ -49,31 +50,33 @@ ZOOM = r3.ZOOM
 SS = r3.SS
 
 
-def _draw_misfits_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME):
-    """L2 Misfits Crimson Ghost mouth — upper jaw bar + 7 fang
-    triangles hanging from it. Metrics scale proportional to SK_W
-    so the mouth occupies the same fractional skull width as the
-    original L2 (27 SS-wide skull, 12 SS span)."""
-    scale = SK_W / 27.0
-    jaw_y = sk_top + int(SK_H * SS * 0.78)
-    upper_y = jaw_y - int(SS * 0.8)
+def _draw_jolly_roger_mouth(big, cx, sk_top, SK_H, SK_W, color=DOME,
+                        sk_bottom=None):
+    """Original S4 Jolly Roger mouth — horizontal jaw bar + 3 vertical
+    tooth dividers above it. Metrics scale proportional to SK_W so the
+    mouth occupies the same fractional skull width as the original
+    (SK_W=23, span=12 SS, dividers at -4 / 0 / +4 SS, height 4 SS).
+
+    sk_bottom required so we anchor at sk.bottom - 2*SS like the
+    original; for D's deck-local face we pass face_blob.bottom."""
+    if sk_bottom is None:
+        sk_bottom = sk_top + SK_H * SS
+    scale = SK_W / 23.0
     span = int(12 * SS * scale)
     stroke = max(1, int(1.2 * SS * scale))
+    jaw_y = sk_bottom - int(2 * SS * scale)
+    teeth_top = sk_bottom - int(5 * SS * scale)
+    teeth_bot = sk_bottom - int(1 * SS * scale)
     pygame.draw.line(big, color,
-                     (cx - span // 2, upper_y),
-                     (cx + span // 2, upper_y),
+                     (cx - span // 2, jaw_y),
+                     (cx + span // 2, jaw_y),
                      stroke)
-    n_fangs = 7
-    tooth_h = max(2, int(2.4 * SS * scale))
-    half_w = max(1, int(SS * 0.55 * scale))
-    for i in range(n_fangs):
-        t = i / (n_fangs - 1)
-        tx = cx - span // 2 + int(t * span)
-        pygame.draw.polygon(big, color, [
-            (tx - half_w, upper_y),
-            (tx + half_w, upper_y),
-            (tx,          upper_y + tooth_h),
-        ])
+    divider_offsets = (-int(4 * SS * scale), 0, int(4 * SS * scale))
+    for dx in divider_offsets:
+        pygame.draw.line(big, color,
+                         (cx + dx, teeth_top),
+                         (cx + dx, teeth_bot),
+                         stroke)
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +113,7 @@ def render_shipped_after():
         (sk.centerx + SS, nose_top_y),
         (sk.centerx,      nose_bot_y),
     ])
-    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+    _draw_jolly_roger_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
     return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
 
 
@@ -176,7 +179,7 @@ def render_concept_a_after():
     ])
 
     # L2 Misfits mouth in place of round-3's high jaw line + buck teeth.
-    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+    _draw_jolly_roger_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
 
     # Spiked CHROME collar — round-3 element, preserved.
     collar_y = sk.bottom + int(5 * SS)
@@ -318,7 +321,7 @@ def render_concept_b_after():
         (sk.centerx,                 nose_bot_y),
     ])
 
-    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
+    _draw_jolly_roger_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=DOME)
 
     return pygame.transform.smoothscale(big, (NATIVE, NATIVE))
 
@@ -407,7 +410,7 @@ def render_concept_c_after():
     ])
 
     # Inverted contrast — BONE mouth on DOME head silhouette.
-    _draw_misfits_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=BONE)
+    _draw_jolly_roger_mouth(big, sk.centerx, sk.top, SK_H, SK_W, color=BONE)
 
     pin_cx = bx
     pin_cy = by + int(28 * SS)
@@ -506,7 +509,7 @@ def render_concept_d_after():
 
     # Treat the face_blob ellipse as the "skull" for the L2 mouth.
     # SK_H = face height in units, sk_top = face_blob.top.
-    _draw_misfits_mouth(
+    _draw_jolly_roger_mouth(
         sub, fx, face_blob.top, face_h_units, face_w_units, color=BONE)
 
     rotated = pygame.transform.rotate(sub, -28)
@@ -596,11 +599,11 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill(SHEET_BG)
 
-    title_text = ("SKATEBOARD redesign  —  original-mouth before/after "
-                  "(L2 Misfits)")
-    sub_text = ("BEFORE = round-3 buck teeth (LEFT). AFTER = L2 Misfits "
-                "\"Crimson Ghost\" mouth (RIGHT) — the FIRST mouth the "
-                "icon shipped with, before the plain bar.")
+    title_text = ("SKATEBOARD redesign  —  original Jolly Roger mouth "
+                  "before/after")
+    sub_text = ("BEFORE = round-3 buck teeth (LEFT). AFTER = original S4 "
+                "Jolly Roger mouth (RIGHT) — jaw bar + 3 vertical tooth "
+                "dividers, the pickup's very first mouth.")
     target_title_w = sheet_w - PAD * 4
     title_pt = 26
     title_font = _font(title_pt, bold=True)
@@ -626,7 +629,7 @@ def main():
                shipped_before, PANEL_W, PANEL_H)
     _draw_cell(sheet, x_right, y,
                "SHIPPED (S4 Jolly Roger)",
-               "AFTER — L2 Misfits mouth (the first)",
+               "AFTER — original Jolly Roger mouth",
                shipped_after, PANEL_W, PANEL_H)
     y += PANEL_H + PAD
 
@@ -637,7 +640,7 @@ def main():
                    before_icons[letter], PANEL_W, PANEL_H)
         _draw_cell(sheet, x_right, y,
                    f"{letter}.  {name}",
-                   "AFTER — L2 Misfits mouth (the first)",
+                   "AFTER — original Jolly Roger mouth",
                    after_icons[letter], PANEL_W, PANEL_H)
         y += PANEL_H + PAD
 
