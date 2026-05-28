@@ -1030,6 +1030,12 @@ def draw_lamp_4_faceted(big, cx, cy):
     EMERALD_HI = (180, 240, 200)
     SAPPHIRE = ( 70, 100, 220)
     SAPPHIRE_HI = (175, 200, 255)
+    # Cyan-family handle gem so the centre disc + gem read as one
+    # monochrome element of the lamp body. Core sits darker than
+    # body_pal["base"] so the gem still reads as a gem; highlight is
+    # brighter than body_pal["hi"] so it pops at small footprint.
+    CYAN_GEM    = ( 40, 100, 160)
+    CYAN_GEM_HI = (170, 220, 245)
     WHITE    = (250, 250, 250)
     _render_faceted_lamp(
         big, cx, cy,
@@ -1042,7 +1048,7 @@ def draw_lamp_4_faceted(big, cx, cy):
         },
         metal={"dk": GOLD_DK, "base": GOLD, "hi": GOLD_HI},
         gems={
-            "handle_centre": ("round", SAPPHIRE, SAPPHIRE_HI, s(3)),
+            "handle_centre": ("round", CYAN_GEM, CYAN_GEM_HI, s(3)),
             "foot_dot":     (EMERALD, EMERALD_HI),
             "stopper_left": ("round", EMERALD, EMERALD_HI, s(2)),
             "stopper_centre": ("diamond", RUBY, RUBY_HI,
