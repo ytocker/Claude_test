@@ -215,3 +215,4 @@ def play_genie() -> None:
 def play_skateboard() -> None:   _play("grow", 0.70); _play("poof", 0.55)
 def play_knight() -> None:       _play("grow", 0.75); _play("thunder", 0.45)
 def play_backflip() -> None:     _play("poof", 0.50)
+def play_helmet_bonk() -> None:  _play("thunder", 0.50)

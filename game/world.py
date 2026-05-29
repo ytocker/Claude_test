@@ -921,6 +921,8 @@ class World:
                 self.bird.vy = 0.0
                 by = self.bird.y
                 self._sliding_this_frame = True
+                self._maybe_skateboard_dust(self.bird.x, GROUND_Y)
+                self._maybe_grind_sparks(GROUND_Y)
             else:
                 self._die()
                 return
@@ -933,23 +935,15 @@ class World:
             # tagged pillars; the rail bridges them.
             self._snap_cart_to_rail(self.bird.x)
             return
-        # SKATEBOARD: proactive pillar-top snap. Snapping Pip's full-radius
-        # bottom to the lower-pillar top (instead of waiting for the shrunken
-        # pipe hitbox below) keeps the grind smooth, and the PIPE_HITBOX_SHRINK
-        # deadband then clears the lethal check while he rides the top.
+        # SKATEBOARD: full pipe-collision intercept. Bottom-pillar top
+        # hits become rolls, upper-pillar underside hits become helmet
+        # "CLONK!" deflects (the cyan-lamp / skull-bunny helmet design's
+        # whole point — the punk helmet ABSORBS the bonk so Pip doesn't
+        # die). Side hits are still lethal.
         if skating:
             for p in self.pipes:
-                in_column = (p.x - br < bx < p.x + PIPE_W + br)
-                if not in_column:
-                    continue
-                gap_bot = p.gap_y + p.gap_h / 2
-                if ((by + br) >= gap_bot - 1
-                        and self.bird.vy >= -50
-                        and by < gap_bot):
-                    self.bird.y = gap_bot - br
-                    self.bird.vy = 0.0
+                if self._skateboard_handle_pipe(p, bx, by, br):
                     by = self.bird.y
-                    self._sliding_this_frame = True
                     break
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
@@ -991,6 +985,96 @@ class World:
             if pr > 0 and p.collides_circle(px, py, pr - 1):
                 self._die()
                 return
+
+    def _skateboard_handle_pipe(self, p, bx, by, br) -> bool:
+        """When SKATEBOARD is active, intercept lethal pipe collisions.
+
+        Returns True if the collision was absorbed (no death):
+          - Bottom-pillar TOP hit: land and roll along the rim.
+          - Upper-pillar UNDERSIDE hit: helmet CLONK! deflect with
+            stars + audio + shake. The cyan-lamp / skull-bunny helmet
+            absorbs the bonk so Pip bounces gently instead of dying.
+        Returns False for side hits, which are still lethal.
+        """
+        gap_top = p.gap_y - p.gap_h / 2
+        gap_bot = p.gap_y + p.gap_h / 2
+        in_column = (p.x - br < bx < p.x + PIPE_W + br)
+        if (in_column and by < gap_bot and self.bird.vy >= -50
+                and (by + br) >= gap_bot):
+            self.bird.y = gap_bot - br
+            self.bird.vy = 0.0
+            self._maybe_skateboard_dust(bx, gap_bot)
+            self._maybe_grind_sparks(gap_bot)
+            self._sliding_this_frame = True
+            return True
+        if (in_column and by > gap_top and self.bird.vy <= 50
+                and (by - br) <= gap_top):
+            self.bird.y = gap_top + br
+            self.bird.vy = max(self.bird.vy, 0.0) + 60
+            self.shake_mag = max(self.shake_mag, 5.0)
+            self.shake_t = max(self.shake_t, 0.18)
+            audio.play_helmet_bonk()
+            for _ in range(10):
+                ang = random.uniform(-math.pi, 0)
+                spd = random.uniform(120, 220)
+                self.particles.append(Particle(
+                    bx, gap_top,
+                    math.cos(ang) * spd, math.sin(ang) * spd,
+                    random.uniform(0.3, 0.6),
+                    random.randint(2, 4),
+                    random.choice((UI_GOLD, UI_CREAM, WHITE)),
+                    gravity=400,
+                ))
+            return True
+        return False
+
+    def _maybe_skateboard_dust(self, x, y_ground):
+        """Occasional dust puff while sliding — throttled, not every frame."""
+        if random.random() < 0.35:
+            for _ in range(2):
+                ang = random.uniform(math.pi * 0.9, math.pi * 1.1)
+                spd = random.uniform(40, 110)
+                self.particles.append(Particle(
+                    x - random.uniform(0, 10),
+                    y_ground - 2,
+                    math.cos(ang) * spd,
+                    -abs(math.sin(ang) * spd * 0.4),
+                    random.uniform(0.25, 0.45),
+                    random.randint(2, 3),
+                    random.choice(((220, 215, 200), (200, 195, 180), WHITE)),
+                    gravity=200,
+                ))
+
+    def _maybe_grind_sparks(self, y_ground):
+        """Bright spark spray at the grinding wheel — front wheel for
+        a nose grind, back wheel for a tail grind. Sprays backward
+        with an upward kick, fast settle. Brighter + denser than the
+        slide-dust so grinds read as metal-on-concrete."""
+        if self.bird.grind_type is None:
+            return
+        if self.bird.grind_type == "nose":
+            wheel_dx = +14
+        else:
+            wheel_dx = -14
+        wx = self.bird.x + wheel_dx
+        if random.random() < 0.85:
+            for _ in range(random.randint(3, 5)):
+                ang = random.uniform(math.pi * 0.7, math.pi * 1.3)
+                spd = random.uniform(100, 230)
+                colour = random.choice((PARTICLE_ORNG,
+                                        PARTICLE_GOLD,
+                                        PARTICLE_WHT,
+                                        (255, 220, 130)))
+                self.particles.append(Particle(
+                    wx + random.uniform(-2, 2),
+                    y_ground - 2,
+                    math.cos(ang) * spd,
+                    math.sin(ang) * spd - random.uniform(20, 60),
+                    random.uniform(0.18, 0.38),
+                    random.randint(1, 3),
+                    colour,
+                    gravity=500,
+                ))
 
     def _die(self):
         if self.game_over:
