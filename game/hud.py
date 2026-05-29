@@ -1418,7 +1418,12 @@ class HUD:
         # the backdrop (y=64..120) doesn't touch the coins pill above
         # (which ends at y=44). Suppressed when paused — the pause
         # overlay shows the same number on its hero medallion.
-        if not paused:
+        # SKATEBOARD swap: while the buff is active the score gets
+        # re-rendered as a pop-art halftone-burst plaque (matches the
+        # trick-bubble visual vocabulary). The pop-art plaque fades
+        # with the SKATEBOARD! caption's life so it exits gracefully.
+        skateboard_active = getattr(world.bird, "skateboard_active", False)
+        if not paused and not skateboard_active:
             score_txt = str(world.score)
             cf = _font(48, True)
             img = cf.render(score_txt, True, (252, 244, 220))
@@ -1445,6 +1450,22 @@ class HUD:
             sh.set_alpha(180)
             surf.blit(sh, (r.x + 2, r.y + 4))
             surf.blit(img, r.topleft)
+        elif not paused and skateboard_active:
+            from game.skateboard_fx import render_skateboard_score_e3
+            cap_t = getattr(world, "skateboard_caption_t", 0.0)
+            FADE = 0.8
+            if cap_t > FADE:
+                score_alpha = 255
+            elif cap_t > 0:
+                x = 1.0 - cap_t / FADE
+                score_alpha = int(255 * (1.0 - x) ** 2)
+            else:
+                score_alpha = 0
+            if score_alpha > 0:
+                score_surf = render_skateboard_score_e3(world.score)
+                score_surf.set_alpha(score_alpha)
+                lift_y = getattr(world, "_skateboard_lift_y", 0)
+                surf.blit(score_surf, (0, -lift_y))
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
@@ -1535,7 +1556,14 @@ class HUD:
             row_pitch = max(icon_size, bar_h) + row_gap
             row_w     = icon_size + 6 + bar_w
             base_x    = (W - row_w) // 2
-            top_y     = 128
+            # SKATEBOARD swap: while the pop-art halftone score-burst
+            # is on screen (centred at y=150, ro≈58 so bottom ≈ 208),
+            # shift the buff-icon row down below it and re-lift by the
+            # world's optional _skateboard_lift_y offset.
+            if getattr(world.bird, "skateboard_active", False):
+                top_y = 220 - getattr(world, "_skateboard_lift_y", 0)
+            else:
+                top_y = 128
 
             for i, (kind, remain, total) in enumerate(active):
                 y = top_y + i * row_pitch
