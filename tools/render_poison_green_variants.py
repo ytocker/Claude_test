@@ -1,10 +1,9 @@
-"""Poison vial — full green-palette brightness comparison.
+"""Poison vial — brighter green variants (W1..W5).
 
-Five lighter variants of the vial that shift BOTH the empty-glass
-body (GREEN_GLASS) AND the liquid (GREEN_LO) up the brightness ramp
-together. The meniscus colour (GREEN_TOX) is also lifted on the
-brightest variants so the toxic surface line stays readable above
-the liquid.
+Builds on the user's V4/V5 picks from the prior round but goes lighter
+across the WHOLE bottle — glass body, liquid, meniscus AND the
+silhouette outline (BLACK_DOME) so the vial doesn't carry a heavy
+near-black border that pulls the whole pickup back to "dark green".
 
 Output: docs/screenshots/icon_sizes/poison_green_variants.png
 """
@@ -27,22 +26,30 @@ pygame.display.set_mode((1, 1))
 from game import poison_vial, parrot
 
 
-# Each entry: (label, GREEN_GLASS, GREEN_LO, GREEN_TOX).
-# CURRENT keeps GREEN_TOX as-is; later variants step it up too so the
-# meniscus stays the brightest layer.
+# Each entry: label, GREEN_GLASS (above-liquid body), GREEN_LO (the
+# liquid itself — what shows behind/below the skull), GREEN_TOX
+# (meniscus line), DARK (bottle silhouette outline, currently
+# BLACK_DOME = (10,10,18)).  W1 ≈ prior V4/V5 brightness + lighter
+# outline; W5 is the brightest pass — closer to lime than to forest.
 VARIANTS = (
     ("CURRENT",
-        ( 35,  90,  50), ( 40, 100,  50), (120, 200,  90)),
-    ("V1",
-        ( 60, 125,  75), ( 80, 150,  85), (130, 205,  95)),
-    ("V2",
-        ( 85, 155,  90), (105, 180, 100), (145, 215, 105)),
-    ("V3",
-        (110, 180, 105), (135, 205, 115), (165, 225, 120)),
-    ("V4",
-        (140, 205, 120), (165, 225, 130), (190, 235, 140)),
-    ("V5",
-        (170, 225, 140), (195, 240, 150), (215, 245, 165)),
+        ( 35,  90,  50), ( 40, 100,  50), (120, 200,  90),
+        ( 10,  10,  18)),
+    ("W1",
+        (145, 210, 125), (175, 230, 140), (200, 240, 155),
+        ( 32,  48,  34)),
+    ("W2",
+        (160, 220, 135), (190, 235, 150), (215, 245, 170),
+        ( 42,  62,  44)),
+    ("W3",
+        (175, 230, 145), (205, 240, 160), (225, 250, 180),
+        ( 55,  80,  56)),
+    ("W4",
+        (195, 240, 160), (220, 245, 175), (235, 252, 195),
+        ( 70, 100,  72)),
+    ("W5",
+        (215, 250, 180), (235, 252, 195), (245, 255, 210),
+        ( 90, 125,  92)),
 )
 
 
@@ -60,31 +67,34 @@ def _font(size, bold=False):
     return pygame.font.SysFont("Arial", size, bold=bold)
 
 
-def _draw_vial(surf, cx, cy, glass_rgb, liquid_rgb, tox_rgb):
-    """Render the vial with the three greens swapped for this render
-    only. Restores the originals + cache after."""
-    prev_glass = poison_vial.GREEN_GLASS
-    prev_lo    = poison_vial.GREEN_LO
-    prev_tox   = poison_vial.GREEN_TOX
+def _draw_vial(surf, cx, cy, glass_rgb, liquid_rgb, tox_rgb, dark_rgb):
+    """Render the vial with FOUR palette slots swapped for this
+    render only. Restores the originals + cache after."""
+    prev = {
+        "GREEN_GLASS": poison_vial.GREEN_GLASS,
+        "GREEN_LO":    poison_vial.GREEN_LO,
+        "GREEN_TOX":   poison_vial.GREEN_TOX,
+        "BLACK_DOME":  poison_vial.BLACK_DOME,
+    }
     prev_cache = getattr(poison_vial, "_VIAL_CACHE", None)
     poison_vial.GREEN_GLASS = glass_rgb
     poison_vial.GREEN_LO    = liquid_rgb
     poison_vial.GREEN_TOX   = tox_rgb
+    poison_vial.BLACK_DOME  = dark_rgb
     poison_vial._VIAL_CACHE = None
     poison_vial.draw(surf, int(cx), int(cy), 0.0)
-    poison_vial.GREEN_GLASS = prev_glass
-    poison_vial.GREEN_LO    = prev_lo
-    poison_vial.GREEN_TOX   = prev_tox
+    for k, v in prev.items():
+        setattr(poison_vial, k, v)
     poison_vial._VIAL_CACHE = prev_cache
 
 
-def _build_cell(glass_rgb, liquid_rgb, tox_rgb):
+def _build_cell(glass_rgb, liquid_rgb, tox_rgb, dark_rgb):
     cell = pygame.Surface((CELL_W, CELL_H))
     cell.fill((32, 34, 42))
     pip = parrot.get_parrot(0, 0.0)
     cell.blit(pip, pip.get_rect(center=(46, CELL_H // 2)))
     _draw_vial(cell, CELL_W - 50, CELL_H // 2,
-               glass_rgb, liquid_rgb, tox_rgb)
+               glass_rgb, liquid_rgb, tox_rgb, dark_rgb)
     pygame.draw.rect(cell, (45, 50, 62), cell.get_rect(), 1)
     return cell
 
@@ -101,33 +111,36 @@ def main():
 
     n = len(VARIANTS)
     sheet_w = PAD * 2 + n * (CELL_W + PAD) - PAD
-    sheet_h = HEADER_H + CELL_H + 90
+    sheet_h = HEADER_H + CELL_H + 108
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill(CARD_BG)
 
     title = _font(20, bold=True).render(
-        "POISON vial — lighter green variants (glass + liquid both shift)",
+        "POISON vial — brighter palette (W1..W5)",
         True, LABEL)
     sheet.blit(title, (PAD, 14))
     sub = _font(13).render(
-        "Left = current; V1..V5 step both the empty-glass body AND the "
-        "liquid up the brightness ramp together.",
+        "Left = current; W1..W5 lift glass + liquid + meniscus AND "
+        "lighten the dark silhouette outline so the whole bottle reads "
+        "brighter.",
         True, SUB)
     sheet.blit(sub, (PAD, 38))
 
-    for i, (code, glass, lo, tox) in enumerate(VARIANTS):
+    for i, (code, glass, lo, tox, dark) in enumerate(VARIANTS):
         x = PAD + i * (CELL_W + PAD)
         y = HEADER_H
-        sheet.blit(_build_cell(glass, lo, tox), (x, y))
+        sheet.blit(_build_cell(glass, lo, tox, dark), (x, y))
         cap_font = _font(13, bold=True)
         sub_font = _font(11)
         cap = cap_font.render(code, True, LABEL)
         sheet.blit(cap, (x + (CELL_W - cap.get_width()) // 2,
                          y + CELL_H + 6))
-        # Three-line legend so the user can match colour-to-cell
-        for ln, (legend_lbl, val) in enumerate((
-                ("glass", glass), ("liquid", lo), ("tox", tox))):
-            text = f"{legend_lbl}  {_fmt(val)}"
+        for ln, (lbl, val) in enumerate((
+                ("glass",   glass),
+                ("liquid",  lo),
+                ("tox",     tox),
+                ("outline", dark))):
+            text = f"{lbl}  {_fmt(val)}"
             s = sub_font.render(text, True, SUB)
             sheet.blit(s, (x + (CELL_W - s.get_width()) // 2,
                            y + CELL_H + 24 + ln * 14))
