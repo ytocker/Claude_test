@@ -17,6 +17,10 @@ import pygame
 
 
 NATIVE_PX = 48
+# In-world pickup display size after the final smoothscale — picked
+# to match the SKATEBOARD / KNIGHT / GENIE icons so all four pickups
+# read at the same visual weight.
+DISPLAY_PX = 72
 SS        = 5
 
 # Kit-matched palette (from round 5/7 design)
@@ -272,7 +276,7 @@ def _build_vial_sprite() -> pygame.Surface:
     cx = NATIVE_PX * SS // 2
     cy = NATIVE_PX * SS // 2 + 4 * SS
     _draw_flask_body(big, cx, cy, pulse=0.0)
-    return _resolve(big, NATIVE_PX, NATIVE_PX)
+    return _resolve(big, DISPLAY_PX, DISPLAY_PX)
 
 
 def get_vial_sprite() -> pygame.Surface:

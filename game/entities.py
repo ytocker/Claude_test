@@ -2587,7 +2587,7 @@ class PowerUp:
         from game import knight_skin
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        knight_skin.draw_shield_icon(surf, cx, cy, size=30)
+        knight_skin.draw_shield_icon(surf, cx, cy, size=72)
 
     def _draw_genie_icon(self, surf):
         """In-world genie lamp pickup — Amber Crystal cut-glass lamp,
@@ -2597,7 +2597,7 @@ class PowerUp:
 
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        sprite = get_lamp_sprite(target_height=52)
+        sprite = get_lamp_sprite(target_height=72)
         tilt = math.sin(self.pulse * 0.8) * 3
         rotated = pygame.transform.rotate(sprite, tilt)
         surf.blit(rotated, rotated.get_rect(center=(cx, cy)))
