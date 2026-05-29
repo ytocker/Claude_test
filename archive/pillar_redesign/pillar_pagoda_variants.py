@@ -56,6 +56,8 @@ import pygame
 
 from game.draw import (
     draw_moss_strand,
+    draw_side_shrub,
+    draw_wuling_pine,
 )
 from game.pillar_variants import (
     draw_grass_bed,
@@ -280,6 +282,15 @@ def _is_dark_sky(palette):
     return (top[0] + top[1] + top[2]) / 3.0 < 110
 
 
+def _is_warming_sky(palette):
+    """Sunset band — sky between dusk-dark and noon-bright. The window glow
+    starts WARMING here so the niches don't pop on a single frame from dead
+    to glowing once the sun fully sets."""
+    top = palette['sky_top']
+    avg = (top[0] + top[1] + top[2]) / 3.0
+    return 60 <= avg < 110
+
+
 # ── Generic ornament primitives ─────────────────────────────────────────────
 
 def _aa_polyline(surf, color, points, closed=False):
@@ -295,13 +306,47 @@ def _lit_niche(surf, cx, cy, w, h, palette):
     """A small dark window/doorway niche with a thin lit rim. The rim brightens
     against dark sky palettes so the niche reads as warm interior light at
     night and as a quiet shadow at noon — sampling sky_top brightness keeps
-    the cue calibrated to the biome."""
+    the cue calibrated to the biome.
+
+    Three-stop glow ramp so the lanterns don't pop on a single frame:
+      * DAY/SUNRISE — quiet shadow with a 90-alpha rim, no halo.
+      * SUNSET     — 4-px additive amber halo, rim alpha 170 (windows
+                     start warming BEFORE night fully lands).
+      * DUSK/NIGHT — 14-px additive amber halo, rim alpha 255 (the
+                     column becomes a lantern-strung landmark).
+    """
     if w < 3 or h < 4:
         return
+    dark_sky = _is_dark_sky(palette)
+    warming = _is_warming_sky(palette)
     frame = _shade(palette['stone_dark'], -25)
     inside = _shade(palette['stone_dark'], -50)
-    rim_alpha = 220 if _is_dark_sky(palette) else 90
+    if dark_sky and not warming:
+        rim_alpha = 255
+    elif warming:
+        rim_alpha = 170
+    else:
+        rim_alpha = 90
     rim = _mix(palette['stone_accent'], (255, 215, 120), 0.78)
+    # Lay an additive amber halo BEHIND the frame so warm glow seeps around
+    # the niche rim before the dark inside is painted on top. Radius 14 px
+    # at night (the niche becomes a clear point-source), 4 px at sunset
+    # (windows pre-warm), nothing during the day.
+    if dark_sky or warming:
+        r_outer = 14 if (dark_sky and not warming) else 4
+        sz = r_outer * 2 + 2
+        glow = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        cgx = sz // 2
+        cgy = sz // 2
+        if dark_sky and not warming:
+            pygame.draw.circle(glow, (*rim, 60), (cgx, cgy), r_outer)
+            pygame.draw.circle(glow, (*rim, 100), (cgx, cgy), r_outer - 4)
+            pygame.draw.circle(glow, (*rim, 160), (cgx, cgy), r_outer - 8)
+        else:
+            pygame.draw.circle(glow, (*rim, 70), (cgx, cgy), r_outer)
+            pygame.draw.circle(glow, (*rim, 110), (cgx, cgy), max(1, r_outer - 2))
+        surf.blit(glow, (cx - cgx, cy + h // 2 - cgy),
+                  special_flags=pygame.BLEND_RGBA_ADD)
     pygame.draw.rect(surf, frame, (cx - w // 2, cy, w, h))
     pygame.draw.rect(surf, inside, (cx - w // 2 + 1, cy + 1, w - 2, h - 2))
     rim_layer = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -309,28 +354,259 @@ def _lit_niche(surf, cx, cy, w, h, palette):
     surf.blit(rim_layer, (cx - w // 2, cy))
 
 
-def _tile_hatch(surf, x1, y1, x2, y2, color, step=3):
+def _tile_hatch(surf, x1, y1, x2, y2, color, step=3, *, alternating=False):
     """Short perpendicular hatch marks along an eave line — reads as the row
-    of tile-ends on a tiled roof. Spans the eave from x1,y1 to x2,y2."""
+    of tile-ends on a tiled roof. Spans the eave from x1,y1 to x2,y2.
+
+    `alternating=True` doubles density to step/2 but emits a 1-px hatch then
+    a 0-px gap then a 1-px hatch — so individual ridge-tiles read on
+    Hōryū-ji's flat eaves at PIPE_W = 58 instead of dissolving into a uniform
+    row of marks."""
     dx, dy = x2 - x1, y2 - y1
     length = max(1, int(math.hypot(dx, dy)))
     ux, uy = dx / length, dy / length
     nx, ny = -uy, ux
-    for s in range(0, length, step):
-        sx = x1 + ux * s
-        sy = y1 + uy * s
-        pygame.draw.line(surf, color,
-                         (int(sx), int(sy)),
-                         (int(sx + nx * 1.5), int(sy + ny * 1.5)), 1)
+    if alternating:
+        # Tighter cadence with skipped rungs so the eye reads paired tile-ends
+        # rather than a uniform comb.
+        idx = 0
+        for s in range(0, length, max(1, step // 2)):
+            if idx % 2 == 1:
+                idx += 1
+                continue
+            idx += 1
+            sx = x1 + ux * s
+            sy = y1 + uy * s
+            pygame.draw.line(surf, color,
+                             (int(sx), int(sy)),
+                             (int(sx + nx * 1.5), int(sy + ny * 1.5)), 1)
+    else:
+        for s in range(0, length, step):
+            sx = x1 + ux * s
+            sy = y1 + uy * s
+            pygame.draw.line(surf, color,
+                             (int(sx), int(sy)),
+                             (int(sx + nx * 1.5), int(sy + ny * 1.5)), 1)
+
+
+# ── Atmospheric + ornament primitives (round 7 epic-adventure pass) ────────
+
+def _draw_plinth_mist(surf, cx, base_y, halo_w, palette):
+    """Additive cool-white wedge behind the plinth — lifts the pagoda
+    silhouette off the shan-shui mountain band. Drawn BEFORE the pagoda
+    body in ADDITIVE so only the soft outer falloff peeks out at the
+    silhouette edge once the plinth + foliage land on top. The colour
+    biases toward a 90/10 horizon/cool-white mix so dusk and night get a
+    legible cyan-white haze instead of disappearing into the warm
+    horizon stripe."""
+    if halo_w < 24:
+        return
+    # Cool cyan-white mix so the wedge reads as atmospheric backlight
+    # across all biome phases — pure-horizon mist vanished into warm
+    # sunsets and dark night skies. Higher cool-white share + alphas
+    # so the halo actually registers at PIPE_W=58 instead of getting
+    # eaten by the additive blend against bright skies.
+    base = _mix(palette['horizon'], (235, 240, 255), 0.55)
+    halo_h = 40
+    g = pygame.Surface((halo_w, halo_h), pygame.SRCALPHA)
+    for ring, alpha in ((1.00, 55), (0.78, 95), (0.55, 140), (0.32, 180)):
+        rw = max(2, int(halo_w * 0.5 * ring))
+        rh = max(2, int(halo_h * 0.55 * ring))
+        pygame.draw.ellipse(g, (*base, alpha),
+                            (halo_w // 2 - rw, halo_h - rh - 2,
+                             rw * 2, rh * 2))
+    surf.blit(g, (cx - halo_w // 2, base_y - halo_h + 4),
+              special_flags=pygame.BLEND_RGBA_ADD)
+
+
+def _draw_entry_door(surf, cx, base_y, palette, *, w=2, h=4, open_glow=False):
+    """Recessed entry door at the lowest visible storey — a 2 px × 4 px
+    dark inset rect with a 1-px brass sill highlight across the top so
+    the door registers as a clean lintel-and-recess against the wood-grain
+    body. Sized intentionally tiny so it reads as a single small opening
+    at PIPE_W=58 instead of a panel-sized hole.
+
+    When `open_glow` is True a single additive amber pixel sits inside
+    the recess, driving the seed-strip open/closed variation."""
+    if w < 2 or h < 3:
+        return
+    inside = _shade(palette['stone_dark'], -55)
+    brass = _bronze(palette)
+    dx0 = cx - w // 2
+    dy0 = base_y - h
+    pygame.draw.rect(surf, inside, (dx0, dy0, w, h))
+    if open_glow:
+        # Single amber pixel additive through the open door — keeps the
+        # seed variation legible without bleeding warm light over the
+        # entire panel face.
+        warm_col = _mix(brass, (255, 220, 130), 0.85)
+        warm = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(warm, (*warm_col, 220), (0, h - 2, w, 1))
+        warm.set_at((max(0, w // 2 - 1), max(0, h // 2)), (*warm_col, 255))
+        surf.blit(warm, (dx0, dy0), special_flags=pygame.BLEND_RGBA_ADD)
+    # 1-px brass sill highlight ACROSS the top of the doorway — the
+    # canonical lintel cue that makes the recess register as a door
+    # against a wood-grain wall, not as a stray shadow.
+    pygame.draw.line(surf, _shade(brass, 25),
+                     (dx0, dy0), (dx0 + w - 1, dy0), 1)
+
+
+def _draw_shibi_finial(surf, cx, eave_tip_y, palette, *, side=-1):
+    """Hōryū-ji topmost-eave fish-tail ornament — a 5x6 bronze polygon that
+    curls UP-and-IN from the eave tip with an asymmetric hook flick so the
+    silhouette disagrees with the Fogong chiwen at game scale. `side=-1`
+    for the left tip (curls rightward), `side=+1` for the right tip. Drawn
+    ONLY on the top tier so the eave row doesn't go noisy."""
+    bronze = _bronze(palette)
+    dark = _shade(bronze, -55)
+    bright = _shade(bronze, 45)
+    # Tall fish-tail with a sharp UP flick at the inboard corner — the
+    # extra 2 px of vertical reach is what makes shibi vs chiwen read
+    # different in the seed strips.
+    pts = [
+        (cx, eave_tip_y),
+        (cx + side * 1, eave_tip_y - 6),
+        (cx + side * 2, eave_tip_y - 7),
+        (cx + side * 4, eave_tip_y - 5),
+        (cx + side * 4, eave_tip_y - 2),
+        (cx + side * 3, eave_tip_y),
+    ]
+    pygame.draw.polygon(surf, dark, pts)
+    inner = [(cx + side * 1, eave_tip_y - 1),
+             (cx + side * 1, eave_tip_y - 5),
+             (cx + side * 3, eave_tip_y - 4),
+             (cx + side * 3, eave_tip_y - 1)]
+    pygame.draw.polygon(surf, bronze, inner)
+    # Glint on the tip + along the upper flick edge.
+    pygame.draw.line(surf, bright,
+                     (cx + side * 2, eave_tip_y - 6),
+                     (cx + side * 3, eave_tip_y - 5), 1)
+    pygame.draw.line(surf, bright,
+                     (cx + side * 3, eave_tip_y - 3),
+                     (cx + side * 3, eave_tip_y - 2), 1)
+
+
+def _draw_chiwen_finial(surf, cx, eave_tip_y, palette, *, side=-1):
+    """Fogong topmost-eave dragon-head ornament — a 5x5 dark silhouette
+    that arches FORWARD (down-and-out) from the eave tip with a stubby
+    snout + brass eye. The forward-arching profile reads visibly
+    different from the shibi's UP-flick at PIPE_W=58."""
+    grey_tile = _mix(palette['stone_mid'], (118, 110, 100), 0.62)
+    body = _shade(grey_tile, -40)
+    brass = _bronze(palette)
+    # 5 px wide × 5 px tall silhouette — taller hump curving DOWN to a
+    # forward-pointed jaw, asymmetric vs the shibi's vertical flick.
+    pts = [
+        (cx, eave_tip_y),
+        (cx, eave_tip_y - 4),
+        (cx + side * 1, eave_tip_y - 5),
+        (cx + side * 3, eave_tip_y - 4),
+        (cx + side * 4, eave_tip_y - 2),
+        (cx + side * 5, eave_tip_y),
+        (cx + side * 3, eave_tip_y + 1),
+        (cx + side * 1, eave_tip_y + 1),
+    ]
+    pygame.draw.polygon(surf, body, pts)
+    # 1-px brass eye dot on the head + a brass tooth on the jaw.
+    pygame.draw.line(surf, brass,
+                     (cx + side * 2, eave_tip_y - 3),
+                     (cx + side * 2, eave_tip_y - 3), 1)
+    pygame.draw.line(surf, brass,
+                     (cx + side * 4, eave_tip_y),
+                     (cx + side * 4, eave_tip_y), 1)
+
+
+def _draw_vine_chunks(surf, x, y_top, y_bot, palette, *, seed=0):
+    """3 chunky leaf-dot clusters along the corner column — the round-7
+    1-px wobble line was a smear at PIPE_W=58, so we replace it with three
+    small filled circles in the live foliage palette at jittered y. Each
+    cluster is a darker base disk + a lighter top disk so it reads as a
+    leaf, not a paint blot."""
+    if y_bot - y_top < 16:
+        return
+    dark = palette['foliage_dark']
+    mid = palette['foliage_mid']
+    top = palette['foliage_top']
+    rng = random.Random(seed)
+    span = y_bot - y_top
+    # Three clusters at jittered fractions so each seed sets a unique
+    # vertical rhythm — the AD's seed-strip variation handle.
+    fracs = [0.20 + rng.random() * 0.10,
+             0.50 + rng.random() * 0.10,
+             0.78 + rng.random() * 0.10]
+    side_seq = rng.choice(((-1, 1, -1), (1, -1, 1), (-1, -1, 1), (1, 1, -1)))
+    for frac, side in zip(fracs, side_seq):
+        py = y_top + int(frac * span)
+        px = x + side * 2
+        pygame.draw.circle(surf, dark, (px, py), 3)
+        pygame.draw.circle(surf, mid, (px - side, py - 1), 2)
+        pygame.draw.circle(surf, top, (px - side, py - 2), 1)
+
+
+def _draw_mini_lantern(surf, cx, eave_y, palette):
+    """Tight 3-px red lantern dangling from a 1-px strand — the shared
+    `draw_paper_lantern` produced a lantern much larger than PIPE_W=58
+    could fairly host, so two compact dots + an additive red glow carry
+    the lantern cue cleanly under Fogong's lowest hanger eave."""
+    strand = 5
+    pygame.draw.line(surf, _shade(palette['stone_dark'], -20),
+                     (cx, eave_y), (cx, eave_y + strand), 1)
+    lantern_cy = eave_y + strand + 2
+    # 3-px diameter red body + 1-px brass cap, sized so it reads as a
+    # clear dot rather than a fuzzy smear.
+    red_dark = _mix(palette['stone_dark'], (138, 32, 28), 0.78)
+    red_lit = _mix(palette['stone_accent'], (228, 102, 80), 0.78)
+    pygame.draw.circle(surf, red_dark, (cx, lantern_cy), 2)
+    pygame.draw.circle(surf, red_lit, (cx, lantern_cy - 1), 1)
+    # Brass cap pixel on top.
+    pygame.draw.line(surf, _bronze(palette),
+                     (cx, lantern_cy - 2), (cx, lantern_cy - 2), 1)
+    # Additive red glow halo so the lanterns glow against any sky.
+    sz = 12
+    g = pygame.Surface((sz, sz), pygame.SRCALPHA)
+    pygame.draw.circle(g, (*red_lit, 60), (sz // 2, sz // 2), 5)
+    pygame.draw.circle(g, (*red_lit, 110), (sz // 2, sz // 2), 3)
+    pygame.draw.circle(g, (255, 200, 150, 180), (sz // 2, sz // 2), 1)
+    surf.blit(g, (cx - sz // 2, lantern_cy - sz // 2),
+              special_flags=pygame.BLEND_RGBA_ADD)
+
+
+def _draw_sorin_flame_halo(surf, cx, tip_y, palette):
+    """1-px additive halo around the sōrin flame jewel — gated on dark
+    skies so the spire becomes the night-time focal point like real
+    shrine photography. Drawn separately so the flame itself stays the
+    bright centre and the halo just feathers around it."""
+    if not _is_dark_sky(palette):
+        return
+    bronze = _bronze(palette)
+    bright = _shade(bronze, 60)
+    g = pygame.Surface((22, 22), pygame.SRCALPHA)
+    pygame.draw.circle(g, (*bright, 70), (11, 11), 9)
+    pygame.draw.circle(g, (*bright, 110), (11, 11), 6)
+    surf.blit(g, (cx - 11, tip_y - 11),
+              special_flags=pygame.BLEND_RGBA_ADD)
 
 
 # ── Cached eave primitives (Japanese / Chinese flat shingled eave) ──────────
 
 def _eave_tang_curl(surf, cx, y_base, half_w_body, overhang, depth,
-                    roof_col, accent_col, tile_col, curl=0.7):
+                    roof_col, accent_col, tile_col, curl=0.7, *,
+                    alternating_hatch=False, fringe=False,
+                    drop_shadow=False, fringe_col=None,
+                    skip_corner_hook=False):
     """Up-curled tiled eave — anchor points on a quadratic, then tile-hatch
     along the upper edge for shingle-row detail. Corner-hook polygons sit on
-    each tip so a Chinese/Japanese roof reads even at small scale."""
+    each tip so a Chinese/Japanese roof reads even at small scale.
+
+    Round-7 hooks for Hōryū-ji + Fogong polish:
+      * `alternating_hatch=True` — denser hatch w/ skipped rungs so the
+        individual ridge-tiles read on Hōryū-ji's flat eaves.
+      * `drop_shadow=True` — a 1-px shadow line UNDER the keyline so each
+        eave visibly lifts off the wall band below it.
+      * `fringe=True` (+ `fringe_col`) — 2-px hanging tile-end strip below
+        the keyline, the canonical Chinese pendant-tile cue on Fogong.
+      * `skip_corner_hook=True` — leave the corner tip clean so the
+        topmost eave can take a shibi/chiwen finial instead."""
     overhang = max(overhang, 7)
     tip_rise = max(2, int(depth * (0.5 + curl)))
     centre_sag = max(1, depth // 3)
@@ -354,24 +630,47 @@ def _eave_tang_curl(surf, cx, y_base, half_w_body, overhang, depth,
     pygame.draw.line(surf, keyline,
                      (cx - half_outer + 1, y_base + depth - 1),
                      (cx + half_outer - 1, y_base + depth - 1), 1)
+    # Drop-shadow under the keyline so each eave reads as floating ABOVE
+    # the wall band — without this the eave fuses into the wood storey
+    # below at dusk/night palettes.
+    if drop_shadow:
+        pygame.draw.line(surf, _shade(roof_col, -85),
+                         (cx - half_outer + 2, y_base + depth),
+                         (cx + half_outer - 2, y_base + depth), 1)
+    # Hanging tile-end fringe — 2-px strip directly under the keyline so
+    # the eave reads as Chinese pendant-tile (not Japanese flat shingle).
+    if fringe:
+        fcol = fringe_col if fringe_col else _shade(roof_col, -15)
+        pygame.draw.rect(surf, fcol,
+                         (cx - half_outer + 3, y_base + depth - 2,
+                          (half_outer - 3) * 2, 2))
+        # Tiny per-tile breaks so the fringe reads as separate pendant
+        # tiles instead of a single ribbon.
+        for sx in range(cx - half_outer + 4,
+                        cx + half_outer - 3, 3):
+            pygame.draw.line(surf, _shade(fcol, -45),
+                             (sx, y_base + depth - 2),
+                             (sx, y_base + depth - 1), 1)
     # Tile hatching along the upper curve so the roof reads as a tile-row.
     _tile_hatch(surf, cx - half_outer + 4, y_base - tip_rise + 2,
                 cx + half_outer - 4, y_base - tip_rise + 2,
-                tile_col, step=3)
+                tile_col, step=2 if alternating_hatch else 3,
+                alternating=alternating_hatch)
     # Accent stripe just under the ridge.
     pygame.draw.line(surf, accent_col,
                      (cx - half_w_body + 1, y_base - 1),
                      (cx + half_w_body - 1, y_base - 1), 1)
     # Corner-hook upturn polygons sharpen the tip silhouette.
-    hook = _shade(roof_col, 30)
-    pygame.draw.polygon(surf, hook,
-                        [(cx - half_outer, y_base - tip_rise),
-                         (cx - half_outer + 4, y_base - tip_rise - 2),
-                         (cx - half_outer + 4, y_base - tip_rise + 1)])
-    pygame.draw.polygon(surf, hook,
-                        [(cx + half_outer, y_base - tip_rise),
-                         (cx + half_outer - 4, y_base - tip_rise - 2),
-                         (cx + half_outer - 4, y_base - tip_rise + 1)])
+    if not skip_corner_hook:
+        hook = _shade(roof_col, 30)
+        pygame.draw.polygon(surf, hook,
+                            [(cx - half_outer, y_base - tip_rise),
+                             (cx - half_outer + 4, y_base - tip_rise - 2),
+                             (cx - half_outer + 4, y_base - tip_rise + 1)])
+        pygame.draw.polygon(surf, hook,
+                            [(cx + half_outer, y_base - tip_rise),
+                             (cx + half_outer - 4, y_base - tip_rise - 2),
+                             (cx + half_outer - 4, y_base - tip_rise + 1)])
     # AA the upper edge so the curve stays smooth at small scale.
     _aa_polyline(surf, keyline, pts[1:-1])
 
@@ -463,17 +762,28 @@ def _cached_draw(candidate_name, draw_fn, surf, top_rect, bot_rect,
 # Reference: https://en.wikipedia.org/wiki/H%C5%8Dry%C5%AB-ji
 
 def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
-                    tier_count=5, finial_h=34, sorin_up=True):
+                    tier_count=5, finial_h=34, sorin_up=True,
+                    entry_door_open=False, draw_entry_door=True):
     """Stack of `tier_count` cedar-and-plaster storeys with wide flat eaves.
 
     `top_y`/`bot_y` define the tier-stack envelope (excluding the finial).
     When `sorin_up` is True the sōrin sits ABOVE top_y (Japanese tō);
-    when False, the finial points DOWN past bot_y (mirrored hanging tō)."""
+    when False, the finial points DOWN past bot_y (mirrored hanging tō).
+
+    Round-7 polish per the AD punchlist:
+      * niche centred on EACH plaster panel of every visible storey
+      * topmost eave gets a bronze shibi fish-tail finial (not on every tier)
+      * wood grain stippled across each plaster panel
+      * nageshi rails: double horizontal shadows at 1/3 and 2/3 down per panel
+      * sashi: a 1-px vertical centre-line shadow on each panel
+      * recessed entry door at the lowest visible storey
+      * additive halo around the sōrin flame jewel (dark sky only)"""
     cedar = _cedar(palette)
     plaster = _plaster(palette)
     roof = _shade(cedar, -10)
     accent = _bronze(palette)
     tile_col = _shade(palette['stone_dark'], -15)
+    plaster_shadow = _shade(plaster, -25)
 
     total_h = bot_y - top_y
     if total_h < 10:
@@ -511,7 +821,8 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         pygame.draw.rect(surf, cedar, (x_l + bw - 2, wall_top, 2, th))
         # Optional mid post only on the widest base tiers so upper tiers
         # stay readable as single panels instead of a forest of posts.
-        if bw > 26:
+        has_mid_post = bw > 26
+        if has_mid_post:
             mid_x = cx - 1
             pygame.draw.rect(surf, cedar, (mid_x, wall_top, 2, th))
         # Horizontal cedar beam mid-tier — adds the Hōryū-ji wood-grid cue.
@@ -519,17 +830,67 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
             beam_y = wall_top + th // 2
             pygame.draw.line(surf, cedar,
                              (x_l + 1, beam_y), (x_l + bw - 2, beam_y), 1)
-        # Lit-rim niche painted on each storey.
+        # Nageshi rails — twin horizontal shadow lines at 1/3 and 2/3 of
+        # each panel height so the cedar wood-grid reads richer than a
+        # single mid-beam. Real Hōryū-ji panels have nageshi + sill rails.
+        if th > 12:
+            for frac in (1 / 3, 2 / 3):
+                rail_y = wall_top + int(th * frac)
+                pygame.draw.line(surf, plaster_shadow,
+                                 (x_l + 2, rail_y),
+                                 (x_l + bw - 3, rail_y), 1)
+        # Sashi: 1-px vertical centre-line shadow per panel — the canonical
+        # sashi-stud cue. Two panels if there's a mid-post, one otherwise.
+        if th > 8:
+            if has_mid_post:
+                left_panel_cx = (x_l + 2 + cx) // 2
+                right_panel_cx = (cx + 1 + x_l + bw - 2) // 2
+                for sx in (left_panel_cx, right_panel_cx):
+                    pygame.draw.line(surf, plaster_shadow,
+                                     (sx, wall_top + 2),
+                                     (sx, wall_top + th - 2), 1)
+            else:
+                pygame.draw.line(surf, plaster_shadow,
+                                 (cx, wall_top + 2),
+                                 (cx, wall_top + th - 2), 1)
+        # Wood-grain stipple removed — at PIPE_W=58 the 1-px dashes had
+        # zero read and were eating budget. Plaster panels stay clean.
+# ONE lit-rim niche per storey, centred — collapsing the prior
+        # per-panel pair to a single window so the 14-px additive halo at
+        # night reads as a clear point-source instead of two competing
+        # dots that fuse to noise at PIPE_W=58.
         if th > 9 and bw > 12:
-            nw = min(8, bw - 8)
-            nh = min(8, th - 5)
+            nh = min(7, th - 5)
+            nw = min(7, bw - 8)
             _lit_niche(surf, cx, wall_top + 2, nw, nh, palette)
+        # Recessed entry door at the LOWEST visible storey only — a tight
+        # 2x4 dark recess + 1-px brass sill lintel reads as a clean door
+        # cue at PIPE_W=58 where a panel-sized hole dissolved into the
+        # plaster body. Open variant shows a warm amber pixel inside.
+        if i == 0 and draw_entry_door and bw >= 12 and th >= 12:
+            door_base_y = wall_top + th - 1
+            _draw_entry_door(surf, cx, door_base_y, palette,
+                             w=2, h=4, open_glow=entry_door_open)
         # Wide flat eave with corner up-curl. Eave overhang is what tells the
         # player "tō" — wider than the wall and only gently curled.
         overhang = max(10, 13 - i)
         depth = 5
+        is_top_tier = (i == tier_count - 1)
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
-                        roof, accent, tile_col, curl=0.40)
+                        roof, accent, tile_col, curl=0.40,
+                        alternating_hatch=True,
+                        drop_shadow=True,
+                        skip_corner_hook=is_top_tier)
+        # Topmost tier ONLY gets bronze shibi fish-tail finials. Drawn after
+        # the eave so the polygon sits over the curl tip cleanly. We skip
+        # the corner-hook on the top tier so the shibi takes its place.
+        if is_top_tier:
+            half_outer = bw // 2 + overhang
+            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.40)))
+            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
+                               palette, side=+1)
+            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
+                               palette, side=-1)
         y_cursor = wall_top - depth + 1
 
     if not tier_tops:
@@ -563,8 +924,10 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
-    # Flame jewel orb + tongue.
+    # Flame jewel orb + tongue. Halo painted BEFORE the orb so the orb
+    # remains the bright centre of the bloom on night palettes.
     tip_y = base_y + dir_sign * finial_h
+    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
     pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
     pygame.draw.circle(surf, accent, (cx, tip_y), 2)
     flame = [(cx, tip_y + dir_sign * 5),
@@ -578,34 +941,95 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
     tier_count = rng.choice([4, 5, 5])
+    # Seed-driven variation — drives the per-seed strip the AD asked for.
+    vine_side = rng.choice(('left', 'right'))
+    entry_open = rng.choice((True, False))
+    has_pine_sprig = rng.random() < 0.7
+    shrub_jitter = rng.randint(-2, 2)
 
     # Ground tō.
     if bot_rect.height > 50:
-        plinth_h = 8
-        plinth_w = int(bot_rect.width * 1.16)
+        # Atmospheric mist halo BEFORE pillar paint — pushes the silhouette
+        # off the shan-shui mountain band at DUSK/NIGHT.
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.4), palette)
+
+        # Stepped plinth — bottom row dark stone overhang, top row inset
+        # column-grey 4 px narrower, with a stair notch dead-centre.
+        plinth_h_total = 10
+        bot_row_h = 4
+        top_row_h = plinth_h_total - bot_row_h
+        plinth_w_bot = int(bot_rect.width * 1.22)
+        plinth_w_top = plinth_w_bot - 8
+        # Bottom row — overhanging dark stone.
         pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
-                          plinth_w, plinth_h))
+                         (bcx - plinth_w_bot // 2,
+                          bot_rect.bottom - bot_row_h,
+                          plinth_w_bot, bot_row_h))
+        # Top row — narrower column-grey body.
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (bcx - plinth_w_top // 2,
+                          bot_rect.bottom - plinth_h_total,
+                          plinth_w_top, top_row_h))
         pygame.draw.rect(surf, palette['stone_light'],
-                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
-                          plinth_w, 2))
+                         (bcx - plinth_w_top // 2,
+                          bot_rect.bottom - plinth_h_total,
+                          plinth_w_top, 1))
+        # Stair notch — 6 px wide × 3 px tall centred at the bottom of the
+        # top row, with a brass rim line. Reads as a worship-step.
+        notch_w, notch_h = 6, 3
+        notch_x = bcx - notch_w // 2
+        notch_y = bot_rect.bottom - bot_row_h
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -25),
+                         (notch_x, notch_y, notch_w, notch_h))
+        pygame.draw.line(surf, _bronze(palette),
+                         (notch_x, notch_y),
+                         (notch_x + notch_w - 1, notch_y), 1)
+
         finial_h = 36
         envelope_top = bot_rect.y
-        envelope_bot = bot_rect.bottom - plinth_h
+        envelope_bot = bot_rect.bottom - plinth_h_total
         # Body widens (0.84 → 0.94 of pipe width) so the white plaster panels
         # have real weight against the dark cedar columns at PIPE_W = 58.
         _draw_horyuji_to(surf, bcx,
                          envelope_top + finial_h, envelope_bot,
                          int(bot_rect.width * 0.94), palette,
                          tier_count=tier_count, finial_h=finial_h,
-                         sorin_up=True)
+                         sorin_up=True,
+                         entry_door_open=entry_open)
+
+        # Vegetation pass — chunky leaf-dot cluster on one corner column
+        # (side seed-driven), flanking shrubs, dense grass bed + flowers,
+        # optional foreground pine sprig. The chunk-dot version replaces
+        # the round-7 thin wobble line which smeared at PIPE_W=58.
+        body_half = int(bot_rect.width * 0.94) // 2
+        vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
+        vine_top = max(envelope_top + finial_h + 20, envelope_bot - 70)
+        _draw_vine_chunks(surf, vine_x, vine_top, envelope_bot - 4,
+                          palette, seed=seed)
+        # Side shrubs flanking the plinth.
+        draw_side_shrub(surf, bcx - plinth_w_bot // 2 - 2 + shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        draw_side_shrub(surf, bcx + plinth_w_bot // 2 + 2 - shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        # Dense grass bed — density 16 (was 14).
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
-                       bot_rect.width + 6, 14, palette, seed=seed)
+                       bot_rect.width + 10, 16, palette, seed=seed)
         draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
                         bot_rect.width - 4, 7, seed=seed)
+        # Foreground pine sprig — seed-driven, off to one side.
+        if has_pine_sprig:
+            pine_side = -1 if vine_side == 'right' else 1
+            pine_x = bcx + pine_side * (plinth_w_bot // 2 + 8)
+            draw_wuling_pine(surf, pine_x, bot_rect.bottom,
+                             22, palette, lean=pine_side * 3, layers=4)
 
     # Ceiling-mounted tō (mirrored, sōrin pointing down into the gap).
     if top_rect.height > 50:
+        # Atmospheric mist halo behind the ceiling plinth too.
+        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
+                          int(top_rect.width * 2.0), palette)
+
         plinth_h = 6
         plinth_w = int(top_rect.width * 1.14)
         pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
@@ -619,19 +1043,20 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 28
         envelope_top = top_rect.y + plinth_h
         envelope_bot = top_rect.bottom - finial_h
-        # Build the tō with smaller tier count for the hanging half so the
-        # silhouette doesn't visually outweigh the ground tō.
-        # Hanging tō matches the widened ground body so the silhouette pair
-        # frames the gap with consistent wall-mass.
+        # Hanger uses `tier_count - 2` so the silhouette differs from the
+        # ground tō at a glance, per AD note 9. Also `finial_h` 4 px
+        # shorter so the spire doesn't outweigh the ground spire.
+        hanger_tiers = max(3, tier_count - 2)
         _draw_horyuji_to(surf, tcx,
                          envelope_top, envelope_bot,
                          int(top_rect.width * 0.94), palette,
-                         tier_count=max(3, tier_count - 1),
-                         finial_h=finial_h, sorin_up=False)
-        # Hanging moss off the lowest eave-tip area for warmth.
-        for off in (-14, -4, 4, 14):
+                         tier_count=hanger_tiers,
+                         finial_h=finial_h - 4, sorin_up=False,
+                         draw_entry_door=False)
+        # Hanging moss — TRIMMED from 4 to 2 strands per AD note 8.
+        for off in (-8, 8):
             draw_moss_strand(surf, tcx + off, envelope_bot,
-                             6 + abs(off) % 4, palette,
+                             7 + abs(off) % 3, palette,
                              jitter_seed=seed + off)
 
 
@@ -1670,32 +2095,49 @@ def _gradient_rect(surf, rect, lit, mid, shadow, *, vertical=False):
                              (rect.x + i, rect.bottom - 1), 1)
 
 
-def _dougong_cluster(surf, cx, y_top, palette, *, w=6, depth=3):
+def _dougong_cluster(surf, cx, y_top, palette, *, w=8, depth=4):
     """A stepped corbel bracket — 3 stacked polygons, each step a touch
     NARROWER than the one above. Sits along the top edge of a wall, JUST
     UNDER the eave. `y_top` is the top edge of the topmost (widest) tier
     — they stack DOWN from there into the wall body. Read as the canonical
-    dougong staccato rhythm at Fogong scale where each cluster is ~6 px
+    dougong staccato rhythm at Fogong scale where each cluster is ~8 px
     wide. Drawn AFTER the wall body so the bracket pattern overlays the
-    wall and BEFORE the eave so the eave can crown them."""
+    wall and BEFORE the eave so the eave can crown them.
+
+    Depth=4 px guarantees each corbel step shows a visible lit top-edge
+    line so the bracket array reads as relief, not stripes, at PIPE_W=58.
+    Shadow tone pushed to -75 (was -55) so the silhouette punches through
+    the wood-tone wall at every biome phase — without this Fogong's
+    identity is broken at game scale."""
     if w < 3 or depth < 2:
         return
-    dark = _shade(_ochre_wood(palette), -55)
+    dark = _shade(_ochre_wood(palette), -75)
     mid = _ochre_wood(palette)
     lit = _ochre_wood_lit(palette)
     # 3 corbel steps stacked vertically going DOWN (into the wall) —
     # narrowest step at the top (closest to eave), widest at the bottom.
+    # Each step is `depth` px tall (was depth-1) so the lit edge gets its
+    # own row of pixels separate from the body fill below it.
     for k in range(3):
         step_w = max(2, w - (2 - k) * 2)
         step_y = y_top + k * (depth - 1)
+        # Deep shadow polygon — extends 1 px past each side so each step
+        # casts a visible drop-shadow under the step above.
         pygame.draw.rect(surf, dark,
                          (cx - step_w // 2 - 1, step_y,
                           step_w + 2, depth))
+        # Mid-tone fill, slightly inset.
         pygame.draw.rect(surf, mid,
                          (cx - step_w // 2, step_y, step_w, depth - 1))
+        # Lit top-edge highlight on every step — readable at game scale.
         pygame.draw.line(surf, lit,
                          (cx - step_w // 2, step_y),
                          (cx + step_w // 2 - 1, step_y), 1)
+        # Tiny lit pixel at the right-side outer edge so the depth reads
+        # 3-D rather than flat banding.
+        pygame.draw.line(surf, lit,
+                         (cx + step_w // 2 - 1, step_y),
+                         (cx + step_w // 2 - 1, step_y + 1), 1)
 
 
 def _glazed_tile_checker(surf, x, y, w, h, palette, *, tile=4):
@@ -1838,10 +2280,22 @@ def _hex_lattice(surf, cx, cy, rx, ry, palette, *, holes=7):
 #
 # Reference: https://en.wikipedia.org/wiki/Pagoda_of_Fogong_Temple
 
-def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *, top_tier=False):
+def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *,
+                        top_tier=False, tier_index=0):
     """A single Fogong octagonal storey: ochre wood frame, lit/mid/shadow
     body gradient, alternating plaster-vs-wood panels separated by visible
-    posts, and a dougong bracket array along the top edge."""
+    posts, and a dougong bracket array along the top edge.
+
+    Round-7 polish per AD punchlist:
+      * 3 dougong clusters per tier @ 8-px each, depth 4 — bracket array
+        reads as relief, not stripes.
+      * ONE centred niche per storey — three small dots collapsed to noise
+        at PIPE_W=58 so the lit halo carries the lantern read cleanly.
+      * Per-tier mid-tone lifted by 5% × tier_index toward the lit ochre,
+        so higher storeys read atmospheric-recession lighter (not stacked
+        identical boxes).
+      * Wood-grain stipple removed — sub-pixel at PIPE_W=58 with no read.
+    """
     if bw < 12 or th < 7:
         return
     wood = _ochre_wood(palette)
@@ -1849,6 +2303,12 @@ def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *, top_tier=False):
     wood_dark = _ochre_wood_shadow(palette)
     plaster = _white_plaster_warm(palette)
     plaster_shadow = _shade(plaster, -22)
+    # Per-tier atmospheric recession — higher tiers shift toward the lit
+    # ochre by 5%/tier so the stack reads as receding planes, not a stack
+    # of identical boxes.
+    if tier_index > 0:
+        lift = min(0.35, tier_index * 0.05)
+        wood = _mix(wood, wood_lit, lift)
     x_l = cx - bw // 2
     body_rect = pygame.Rect(x_l, wall_top, bw, th)
 
@@ -1874,10 +2334,6 @@ def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *, top_tier=False):
             beam_y = wall_top + th // 2
             pygame.draw.line(surf, wood_dark,
                              (px0, beam_y), (px0 + panel_w - 1, beam_y), 1)
-            # Lit-rim niche centred on the middle panel of base storey.
-            if i == 1 and th > 12 and panel_w >= 6:
-                _lit_niche(surf, px0 + panel_w // 2, wall_top + 3,
-                           min(panel_w - 2, 5), min(th - 7, 6), palette)
 
     # Wood posts — left, right, and one or two interior so plaster panels
     # read separated. Each post is 2 px wide with a 1-px lit edge.
@@ -1896,32 +2352,51 @@ def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *, top_tier=False):
     pygame.draw.line(surf, wood_lit,
                      (x_l, wall_top + 1), (x_l + bw - 1, wall_top + 1), 1)
 
-    # Dougong bracket array along the top edge — Fogong's identity. We
-    # space 5 clusters across the width (one per outer/inner column). The
-    # brackets sit JUST BELOW wall_top (above the architrave, under the
-    # eave that will be drawn afterwards), so the wall body shows brackets
-    # not an empty band.
-    if not top_tier and bw >= 16:
-        n_clusters = 5 if bw >= 26 else 3
-        cluster_w = max(4, (bw - 4) // n_clusters)
+    # ONE centred lit-rim niche per storey — three small dots collapse
+    # to noise at PIPE_W=58, so a single point-source carries the lit
+    # lantern signal cleanly under the 14-px additive halo at night.
+    if th > 11 and bw > 12:
+        nw = max(3, min(bw - 8, 6))
+        nh = max(4, min(th - 7, 6))
+        _lit_niche(surf, cx, wall_top + 3, nw, nh, palette)
+
+    # Dougong bracket array along the top edge — Fogong's identity. AD
+    # note 1: drop to 3 clusters per tier at 8 px each, depth 4 px. The
+    # bracket field reads as carved relief at PIPE_W=58 rather than the
+    # stripe-blur it dissolved into before.
+    if not top_tier and bw >= 14:
+        n_clusters = 3
         for i in range(n_clusters):
             t = (i + 0.5) / n_clusters
             bx = x_l + int(t * bw)
             _dougong_cluster(surf, bx, wall_top + 2, palette,
-                             w=cluster_w - 1, depth=3)
+                             w=8, depth=4)
 
 
 def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
-                    tier_count=5, finial_h=30, sorin_up=True):
+                    tier_count=5, finial_h=30, sorin_up=True,
+                    draw_entry_door=True, entry_door_open=False):
     """Stacked Fogong storeys ending in a small bronze sōrin (down-pointing
     in the mirrored hanging variant). Each storey gets gentle Chinese-tile
     eave curls — between Hōryū-ji-flat and Khmer-corner-sweep so the
-    silhouette doesn't blur with the Japanese tō."""
+    silhouette doesn't blur with the Japanese tō.
+
+    Round-7 polish per AD punchlist:
+      * tier_index passed through so the storey gets the +5%/tier
+        atmospheric-recession value lift.
+      * eave curl ramps to 0.75 on bottom 3 storeys, 0.6 on upper 2 —
+        Chinese eaves curl harder at the base.
+      * 2-px hanging tile-end fringe under each eave keyline (pendant-tile
+        cue, distinct from Hōryū-ji's flat shingles).
+      * topmost eave gets paired chiwen dragon-head finials.
+      * recessed entry door at the lowest visible storey.
+      * additive halo around the sōrin finial jewel under dark skies."""
     wood = _ochre_wood(palette)
     wood_lit = _ochre_wood_lit(palette)
     accent = _bronze(palette)
     tile_col = _shade(palette['stone_dark'], -10)
     grey_tile = _mix(palette['stone_mid'], (118, 110, 100), 0.62)
+    fringe_col = _shade(grey_tile, -15)
 
     total_h = bot_y - top_y
     if total_h < 12:
@@ -1940,17 +2415,37 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
         wall_top = y_cursor - th
         if wall_top < top_y - 1:
             break
+        is_top_tier = (i == tier_count - 1)
         tier_tops.append((wall_top, bw, th))
         _draw_fogong_storey(surf, cx, wall_top, bw, th, palette,
-                            top_tier=(i == tier_count - 1))
-        # Chinese-style gently-curled grey-tile eave — a touch more curl
-        # than Hōryū-ji's. Tile colour cool-grey, not cedar-warm, to
-        # match real Fogong photos.
+                            top_tier=is_top_tier, tier_index=i)
+        # Recessed entry door on the LOWEST visible storey only — 2x4
+        # spec-sized so the dark recess + brass sill registers as a clean
+        # opening at PIPE_W=58 instead of a panel-sized blob.
+        if i == 0 and draw_entry_door and bw >= 12 and th >= 12:
+            _draw_entry_door(surf, cx, wall_top + th - 1, palette,
+                             w=2, h=4, open_glow=entry_door_open)
+        # Chinese-style grey-tile eave — Chinese eaves curl HARDER at the
+        # base than at the top, so the lower three storeys take 0.75 and
+        # the upper two take 0.6. AD note 12.
         overhang = max(11, 14 - i)
         depth = 6
+        eave_curl = 0.75 if i < 3 else 0.60
         _eave_tang_curl(surf, cx, wall_top - 1, bw // 2,
                         overhang, depth, grey_tile, accent, tile_col,
-                        curl=0.55)
+                        curl=eave_curl, fringe=True, fringe_col=fringe_col,
+                        drop_shadow=True,
+                        skip_corner_hook=is_top_tier)
+        # Topmost eave ONLY: paired chiwen dragon-heads at each upper tip,
+        # the canonical Fogong roof crest. Drawn after the eave so the
+        # silhouette sits cleanly over the curl.
+        if is_top_tier:
+            half_outer = bw // 2 + overhang
+            tip_y_top = wall_top - 1 - max(2, int(depth * (0.5 + eave_curl)))
+            _draw_chiwen_finial(surf, cx - half_outer + 1, tip_y_top + 1,
+                                palette, side=+1)
+            _draw_chiwen_finial(surf, cx + half_outer - 1, tip_y_top + 1,
+                                palette, side=-1)
         y_cursor = wall_top - depth + 1
 
     if not tier_tops:
@@ -1982,6 +2477,9 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
     tip_y = base_y + dir_sign * finial_h
+    # Sōrin flame halo painted before the orb so the orb remains the
+    # bright centre under dark skies.
+    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
     pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
     pygame.draw.circle(surf, bright, (cx, tip_y), 2)
 
@@ -1990,8 +2488,20 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
+    # Seed-driven variation per the AD seed-strip spec.
+    vine_side = rng.choice(('left', 'right'))
+    lantern_side = rng.choice(('left', 'right'))
+    entry_open = rng.choice((True, False))
+    has_pine_sprig = rng.random() < 0.7
+    shrub_jitter = rng.randint(-2, 2)
+    ground_tier_count = rng.choice([5, 5, 6])
 
     if bot_rect.height > 50:
+        # Atmospheric mist halo behind the plinth — lifts the column off
+        # the shan-shui mountain band at DUSK/NIGHT. AD note 10.
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.5), palette)
+
         plinth_h = 9
         plinth_w = int(bot_rect.width * 1.22)
         # Cool stone plinth — _column_grey so it reads as a marble base
@@ -2006,21 +2516,64 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, palette['stone_light'],
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 2))
+        # Sumeru-pedestal lotus-petal nicks under the plinth top edge —
+        # 7 inverted V-cuts evenly spaced. AD note 5. The dark cuts read
+        # as carved lotus petals at PIPE_W=58.
+        n_nicks = 7
+        nick_zone_w = plinth_w - 6
+        nick_dark = _shade(palette['stone_dark'], -25)
+        nick_lit = _bronze(palette)
+        for k in range(n_nicks):
+            t = (k + 0.5) / n_nicks
+            nx = bcx - nick_zone_w // 2 + int(t * nick_zone_w)
+            ny = bot_rect.bottom - plinth_h + 2
+            # Inverted V — 3 px wide × 2 px deep.
+            pygame.draw.polygon(surf, nick_dark,
+                                [(nx - 1, ny),
+                                 (nx, ny + 2),
+                                 (nx + 1, ny)])
+            pygame.draw.line(surf, nick_lit, (nx, ny), (nx, ny), 1)
+
         finial_h = 32
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
-        tier_count = rng.choice([5, 5, 6])
         _draw_fogong_to(surf, bcx,
                         envelope_top + finial_h, envelope_bot,
                         int(bot_rect.width * 0.94), palette,
-                        tier_count=tier_count, finial_h=finial_h,
-                        sorin_up=True)
+                        tier_count=ground_tier_count, finial_h=finial_h,
+                        sorin_up=True,
+                        entry_door_open=entry_open)
+
+        # Vegetation pass — chunky leaf-dot cluster on one corner column
+        # (side seed-driven), flanking shrubs, dense grass bed, foreground
+        # pine sprig. The chunk-dot replacement reads at PIPE_W=58 where
+        # the round-7 thin vine line smeared into background noise.
+        body_half = int(bot_rect.width * 0.94) // 2
+        vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
+        vine_top = max(envelope_top + finial_h + 20, envelope_bot - 70)
+        _draw_vine_chunks(surf, vine_x, vine_top, envelope_bot - 4,
+                          palette, seed=seed)
+        draw_side_shrub(surf, bcx - plinth_w // 2 - 2 + shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        draw_side_shrub(surf, bcx + plinth_w // 2 + 2 - shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        # Dense grass bed — density 16 (was 14).
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
-                       bot_rect.width + 6, 14, palette, seed=seed)
+                       bot_rect.width + 10, 16, palette, seed=seed)
         draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
                         bot_rect.width - 4, 6, seed=seed)
+        # Foreground pine sprig — seed-driven side. AD note 6.
+        if has_pine_sprig:
+            pine_side = -1 if vine_side == 'right' else 1
+            pine_x = bcx + pine_side * (plinth_w // 2 + 8)
+            draw_wuling_pine(surf, pine_x, bot_rect.bottom,
+                             22, palette, lean=pine_side * 3, layers=4)
 
     if top_rect.height > 50:
+        # Atmospheric mist halo behind the ceiling plinth too.
+        _draw_plinth_mist(surf, tcx, top_rect.y + 12,
+                          int(top_rect.width * 2.1), palette)
+
         plinth_h = 7
         plinth_w = int(top_rect.width * 1.18)
         pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
@@ -2034,15 +2587,30 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
         finial_h = 26
         envelope_top = top_rect.y + plinth_h
         envelope_bot = top_rect.bottom - finial_h
-        # Upper tiers mirrored from the ceiling — only 3 tiers + the
-        # down-pointing sōrin pokes into the gap.
+        # Hanger gets `tier_count - 2` storeys and a 4-px-shorter sōrin per
+        # AD note 9, so the silhouette differs from the ground tō.
+        hanger_tiers = max(3, ground_tier_count - 2)
         _draw_fogong_to(surf, tcx,
                         envelope_top, envelope_bot,
                         int(top_rect.width * 0.94), palette,
-                        tier_count=3, finial_h=finial_h, sorin_up=False)
-        for off in (-12, -3, 3, 12):
+                        tier_count=hanger_tiers, finial_h=finial_h - 4,
+                        sorin_up=False, draw_entry_door=False)
+        # 2 small red lanterns under the lowest hanger eave — dropped
+        # from 3 to 2 + bumped to the chunky inline `_draw_mini_lantern`
+        # so the lit dots register at PIPE_W=58 where the shared lantern
+        # sprite was invisible at SUNSET/DUSK. Side bias is seed-driven
+        # so the cluster shifts left/right between sibling seeds.
+        if top_rect.height >= 90:
+            lantern_side_sign = -1 if lantern_side == 'left' else 1
+            for off in (-6, 6):
+                lx = tcx + off + lantern_side_sign * 2
+                ly = envelope_bot - 1
+                _draw_mini_lantern(surf, lx, ly, palette)
+        # Hanging moss — kept at 2 strands so the hanger isn't noisy now
+        # the lanterns add visual mass.
+        for off in (-9, 9):
             draw_moss_strand(surf, tcx + off, envelope_bot,
-                             6 + abs(off) % 4, palette,
+                             6 + abs(off) % 3, palette,
                              jitter_seed=seed + off)
 
 

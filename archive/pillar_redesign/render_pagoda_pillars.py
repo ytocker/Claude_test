@@ -1,23 +1,33 @@
-"""Render the round-6 day/night comparison sheet for pagoda pillars.
+"""Render the round-7 day/night comparison sheet for pagoda pillars.
 
-Round 5 keepers were `horyuji` and `songyue`; round 6 drops the other
-three and adds 5 brand-new iconic-pagoda candidates pushed higher on
-the detail bar (gradient bodies, dougong brackets, glazed-tile gloss,
-lotus petals, hex lattice perforations, lacquer trim). The keepers
-bookend the new five so the comparison row stays honest.
+Round 6 surfaced `horyuji` + `fogong` as the polished leads; the AD
+verdict in round 6 was ITERATE on both, so this round renders ONLY those
+two at full detail (rest stays in the source file for git history but is
+NOT drawn this round, per the AD's instruction to keep the sheet tight
+on the two polished candidates).
 
-Output:
+Outputs:
 
-  _comparison_dayNight_v3.png   7 candidates × 5 phases at one shared
-                                seed per row — verifies every candidate
-                                retints through DAY → SUNRISE → SUNSET
-                                → DUSK → NIGHT while keeping each
-                                pagoda's identity (cedar/larch+brackets/
-                                iron-tile/lotus-pond/basalt-mandala/Lao-
-                                gold/terracotta-brick) read instantly.
+  _comparison_dayNight_v4.png   2 candidates × 5 phases at one shared
+                                seed per row — verifies the round-7
+                                polish (dougong punch, night-niches,
+                                shibi/chiwen finials, entry doors,
+                                stepped plinth + lotus nicks, mist halo,
+                                tiered atmospheric value-lift, eave
+                                fringe + curl ramp, wood grain) reads
+                                across the biome day→night sweep.
 
-The previous `_v2` sheet is preserved in git history; this round writes
-a `_v3` file so the round-5 sheet is still side-by-side diffable.
+  _horyuji_seeds.png            5-cell SUNSET strip (seeds 7/13/19/24/31)
+                                for the Hōryū-ji candidate showing the
+                                seed-driven jitter pass (vine side,
+                                door open/closed, pine sprig, shrub).
+
+  _fogong_seeds.png             5-cell SUNSET strip (seeds 7/13/19/24/31)
+                                for the Fogong candidate showing the
+                                seed-driven lantern-cluster side, vine
+                                side, door state, pine sprig.
+
+The previous `_v3` sheet is preserved in git history.
 
 Each tile is a full 360x640 game-style scene: biome sky + drifting
 clouds, the locked-keeper V4 shan-shui mountains, ground texture, and
@@ -72,6 +82,15 @@ KEEPER_V4 = 4
 # variation (tier count, mosaic distribution, hti ring count, etc.) fires at
 # a representative density.
 CANONICAL_SEED = 13
+
+# Round 7 — render only the 2 polished leads. The rest stay defined in
+# `pillar_pagoda_variants.py` for git history; this sheet zooms in on the
+# pair the AD asked us to push.
+ROUND7_KEYS = ("horyuji", "fogong")
+# Per-candidate seed-strip seeds (AD spec). These exercise the seed-driven
+# branches (vine side, door open/closed, lantern side, pine sprig).
+SEED_STRIP_SEEDS = (7, 13, 19, 24, 31)
+SEED_STRIP_PHASE = 0.363  # sunset
 
 OUT = _REPO / "docs" / "pillar_redesign"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -129,9 +148,11 @@ def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
 
 
 def make_day_night_sheet() -> pygame.Surface:
-    """Rows = 7 candidates (2 keepers bookending 5 new), Cols = 5 phases.
-    Same seed per row to isolate the palette change."""
-    rows = list(pgv.CANDIDATES.keys())
+    """Rows = 2 polished candidates (horyuji, fogong), Cols = 5 phases.
+    Same seed per row to isolate the palette change. The other 5 source
+    candidates stay parked in the module for git history; round 7 zooms
+    in on the AD's iterate-targets."""
+    rows = [k for k in pgv.CANDIDATES.keys() if k in ROUND7_KEYS]
     cols = PHASES
     tw, th = W, H
     label_h = 30
@@ -146,7 +167,8 @@ def make_day_night_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "Round 6 pagodas — day → sunrise → sunset → dusk → night",
+        "Round 7 pagodas — Hōryū-ji + Fogong polish · day → sunrise → "
+        "sunset → dusk → night",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -190,12 +212,79 @@ def make_day_night_sheet() -> pygame.Surface:
     return sheet
 
 
+def make_seed_strip(candidate_key: str) -> pygame.Surface:
+    """Render a single-candidate 5-cell SUNSET strip across the AD's
+    canonical seed set so we can verify the seed-driven jitter (vine
+    side, door open/closed, lantern side, pine sprig) actually changes
+    the silhouette at a glance."""
+    tw, th = W, H
+    label_h = 30
+    row_label_w = 200
+    pad = 10
+    cols = SEED_STRIP_SEEDS
+    sheet_w = row_label_w + pad + len(cols) * (tw + pad)
+    sheet_h = label_h + pad + th + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((20, 20, 24))
+
+    font_small = pygame.font.SysFont(None, 22)
+    font_head = pygame.font.SysFont(None, 28)
+
+    blurb = pgv.CANDIDATE_BLURBS[candidate_key]
+    title = font_head.render(
+        f"Round 7 seeds — {candidate_key} @ SUNSET ({blurb})",
+        True, (240, 240, 240))
+    sheet.blit(title, (row_label_w + pad, 6))
+
+    y = label_h + pad
+    name_lbl = font_head.render(candidate_key.upper(), True, (255, 220, 130))
+    sheet.blit(name_lbl, (8, y + 6))
+    note_lbl = font_small.render(
+        "seeds drive vine side, door state,",
+        True, (215, 215, 215))
+    sheet.blit(note_lbl, (8, y + 36))
+    note2 = font_small.render(
+        "lantern side, pine sprig presence,",
+        True, (215, 215, 215))
+    sheet.blit(note2, (8, y + 56))
+    note3 = font_small.render(
+        "side-shrub jitter.",
+        True, (215, 215, 215))
+    sheet.blit(note3, (8, y + 76))
+
+    for c, seed in enumerate(cols):
+        random.seed(seed * 100 + int(SEED_STRIP_PHASE * 1000))
+        tile = render_tile(candidate_key, SEED_STRIP_PHASE, seed)
+        x = row_label_w + pad + c * (tw + pad)
+        sheet.blit(tile, (x, y))
+        tag = font_small.render(f"seed {seed}", True, (250, 250, 250))
+        bg = pygame.Surface((tag.get_width() + 8, tag.get_height() + 4),
+                            pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 120))
+        sheet.blit(bg, (x + 4, y + 4))
+        sheet.blit(tag, (x + 8, y + 6))
+
+    return sheet
+
+
 def main() -> None:
     dn_sheet = make_day_night_sheet()
-    dn_path = OUT / "_comparison_dayNight_v3.png"
+    dn_path = OUT / "_comparison_dayNight_v4.png"
     pygame.image.save(dn_sheet, dn_path)
     print(f"wrote {dn_path}  "
           f"({dn_sheet.get_width()}x{dn_sheet.get_height()})")
+
+    # Per-candidate seed strips at SUNSET — verifies the seed-driven
+    # branches differ visibly between 5 sibling seeds.
+    for key in ROUND7_KEYS:
+        # Clear pillar cache so different seeds actually re-render rather
+        # than reusing the shared canonical bitmap.
+        pgv._PILLAR_CACHE.clear()
+        strip = make_seed_strip(key)
+        strip_path = OUT / f"_{key}_seeds.png"
+        pygame.image.save(strip, strip_path)
+        print(f"wrote {strip_path}  "
+              f"({strip.get_width()}x{strip.get_height()})")
 
 
 if __name__ == "__main__":
