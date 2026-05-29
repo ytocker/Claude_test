@@ -812,7 +812,7 @@ class World:
                     and not self._sliding_prev_frame
                     and self.skateboard_timer > 0
                     and self.bird.grind_type is None):
-                if random.random() < 0.75:
+                if random.random() < 0.40:
                     gtype = random.choice(("nose", "tail"))
                     self.bird.grind_type = gtype
                     self._spawn_trick_bubble(f"{gtype.upper()} GRIND!")
