@@ -20,7 +20,7 @@ NATIVE_PX = 48
 # In-world pickup display size after the final smoothscale — picked
 # to match the SKATEBOARD / KNIGHT / GENIE icons so all four pickups
 # read at the same visual weight.
-DISPLAY_PX = 72
+DISPLAY_PX = 56
 SS        = 5
 
 # Kit-matched palette (from round 5/7 design)

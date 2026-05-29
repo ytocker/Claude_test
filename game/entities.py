@@ -2542,7 +2542,7 @@ class PowerUp:
         RED    = (200, 50, 50)
 
         SS = 6
-        NATIVE_W = NATIVE_H = 72
+        NATIVE_W = NATIVE_H = 56
         big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2
@@ -2683,7 +2683,7 @@ class PowerUp:
         from game import knight_skin
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.9) * 2)
-        knight_skin.draw_shield_icon(surf, cx, cy, size=72)
+        knight_skin.draw_shield_icon(surf, cx, cy, size=48)
 
     def _draw_genie_icon(self, surf):
         """In-world genie lamp pickup — Amber Crystal cut-glass lamp,
