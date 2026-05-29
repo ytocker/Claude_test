@@ -147,37 +147,38 @@ Practical rules:
   the sequential checkout pattern in the session history if doing
   this by hand.
 
-## Graphic Design Tasks
-
-For any task that involves designing graphics — e.g. a power-up
-effect/logo, parrot looks, pillar, sky, or mountains appearance — you
-must ALWAYS follow these rules:
-
-1. Always research online first to understand what's being asked — ideas,
-   theme, casual-gaming references, and more.
-2. Create 5 distinctive, unique versions that you believe align with the
-   task. Build them for review BEFORE adding anything to the actual game.
-3. Commit the 5 versions as ONE image to git (including the original
-   design, if one exists), so the uploaded image holds every version for
-   the developer to review.
-4. Be your own critic: if the designs don't meet a high bar for
-   exceptional work and design, fix them and iterate until they do.
-5. Only when finished, add the final image to git for the user to review.
-6. You never add images inline in chat — always add a link to it on git.
-
-The `graphics-designer` subagent enforces this workflow; the
-`sound-designer` subagent follows an analogous candidate-based approach
-for audio. Delegate design work to them.
-
 ## Subagents
 
 Project subagents ship in `.claude/agents/` and load automatically in
 every session (cloud + local); each is auto-delegated by its
 `description`:
 
-- `graphics-designer` (opus) — procedural visual design; enforces the
-  Graphic Design Tasks workflow above.
+- `graphics-designer` (opus) — procedural visual design; produces and
+  revises candidate sheets on art-director notes (no self-critique).
+- `art-director` (opus) — veteran casual-gaming design critic; reviews
+  `graphics-designer` candidate sheets and returns actionable critique to
+  steer the next iteration.
 - `sound-designer` (opus) — dual-backend SFX; never `pygame.mixer` on the
   web path.
 - `gaming-experience-tester` (sonnet) — read-only QA for feel, balance,
   power-ups, scene flow, and both build targets.
+
+## Design loop (orchestrator-run)
+
+Subagents can't call each other, so the main session runs the design loop —
+it is NOT something `graphics-designer` does alone. For any task that designs
+or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
+
+1. Delegate the brief to `graphics-designer` → it returns ONE combined review
+   image (5 versions, committed under `docs/<feature>/round_N.png`). It does
+   NOT self-critique.
+2. Hand that image to `art-director` → it returns a critique whose first line
+   is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
+3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
+   next-round brief → new combined image → back to step 2.
+4. Stop when the verdict is SHIP-READY or after 3 critique rounds, whichever
+   comes first (always run at least 1 critique round).
+5. Surface only the final image (git path) + a short evolution summary to the
+   user; integrate the winning version into the game once chosen.
+
+Trivial recolors may skip the loop at the user's discretion.

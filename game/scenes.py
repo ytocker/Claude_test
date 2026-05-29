@@ -23,6 +23,63 @@ from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 # overlay shuts itself off.
 _OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
 
+# Reused scratch surface for the lightning bolt so the strike doesn't allocate
+# (and full-screen-blit) one surface per glow-layer per bolt every frame.
+_bolt_scratch_cache: dict = {}
+
+
+def _draw_lightning_bolt(surf, strike):
+    """Paint the storm-jolt lightning — the main bolt that strikes Pip plus
+    (when present) two flanking bolts in `strike["paths"]`, so the sky forks
+    with three simultaneous strikes at the climax. Four concentric layers per
+    bolt — wide plasma bloom, outer purple glow, cyan halo, white core. Alpha
+    holds full for the first 35% of life so the zig-zags read, then decays;
+    flanking bolts a touch thinner. Round circles at every waypoint so each
+    polyline reads as one crackle."""
+    if strike is None or strike.get("life", 0) <= 0:
+        return
+    paths = strike.get("paths") or ([strike["path"]] if strike.get("path") else [])
+    paths = [p for p in paths if len(p) >= 2]
+    if not paths:
+        return
+    life = strike["life"]
+    life_max = strike["life_max"]
+    raw_t = max(0.0, min(1.0, life / life_max))
+    HOLD = 0.35
+    if raw_t >= 1.0 - HOLD:
+        t = 1.0
+    else:
+        t = raw_t / (1.0 - HOLD)
+    t_glow = t ** 0.7
+    sw, sh = surf.get_size()
+    # All layers/bolts paint onto one reused scratch surface (cleared per
+    # frame) so the strike does a single blit instead of one full-screen
+    # allocation + blit per layer per bolt.
+    scratch = _bolt_scratch_cache.get((sw, sh))
+    if scratch is None:
+        scratch = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        _bolt_scratch_cache[(sw, sh)] = scratch
+    scratch.fill((0, 0, 0, 0))
+    for bi, path in enumerate(paths):
+        ws = 1.0 if bi == 0 else 0.65            # flanking bolts thinner
+        layers = (
+            ((130,  80, 220), int(70 * t_glow),  max(1, int(18 * ws))),
+            ((180, 100, 255), int(170 * t_glow), max(1, int(12 * ws))),
+            ((140, 220, 255), int(235 * t_glow), max(1, int(7 * ws))),
+            ((255, 255, 255), int(255 * t),      max(1, int(4 * ws))),
+        )
+        pts = [(int(x), int(y)) for (x, y) in path]
+        # Widest/dimmest first so the bright core overwrites the centre and
+        # the wide glow stays at the edges.
+        for col, alpha, width in layers:
+            if alpha <= 0 or width <= 0:
+                continue
+            pygame.draw.lines(scratch, (*col, alpha), False, pts, width)
+            joint_r = max(1, width // 2)
+            for px, py in pts:
+                pygame.draw.circle(scratch, (*col, alpha), (px, py), joint_r)
+    surf.blit(scratch, (0, 0))
+
 
 def _draw_opener(surf: pygame.Surface, world) -> None:
     """Gameplay opener — cottage drifting off-screen-left + parcel tucked
@@ -976,9 +1033,26 @@ class App:
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
 
+        # Morning-thermal ground rocks sit on the terrain behind the vents —
+        # the event's slow buildup/fade scatter. Drawn before geysers so a
+        # vent cone overlaps any rock right at its base.
+        for r in self.world.rocks:
+            r.draw(self.screen)
+
+        # Morning-thermal geysers: sinter-cone vents + flowing steam columns.
+        # Drawn after pillars / before weather so the column reads as
+        # foreground atmosphere sitting behind the coins + bird.
+        for gy in self.world.geysers:
+            gy.draw(self.screen)
+
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)
+
+        # Lightning bolt — ABOVE weather (on top of rain streaks) but BELOW
+        # coins/bird so Pip stays on top of the impact. Decays via
+        # lightning_strike["life"] in World.update.
+        _draw_lightning_bolt(self.screen, self.world.lightning_strike)
 
         triple_active = self.world.triple_timer > 0
         for c in self.world.coins:

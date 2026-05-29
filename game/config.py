@@ -128,6 +128,90 @@ POWERUP_REPLACED_AT = {
 # letting the bird visibly clip through.
 PIPE_HITBOX_SHRINK = 4
 
+# ── Weather → gameplay ──────────────────────────────────────────────────────
+# Layer 1 of weather-as-input: light rain wobbles coins, heavy rain slides
+# them and shivers Pip + dampens his flap. All values derived from
+# weather.rain_intensity(phase) which already exists.
+WEATHER_HEAVY_THRESHOLD  = 0.5
+# Peak left-right shake amplitude at rain_intensity = 1.0. Scales
+# linearly with rain intensity so the tremor grows smoothly from
+# barely-there at first drizzle (≈ 0.4 px at ri=0.1) to clearly
+# violent at peak storm (4.0 px). No vertical drift, no sliding —
+# the wobble is the ONLY weather effect on coins.
+WEATHER_COIN_SHAKE_AMP   = 4.0
+WEATHER_PIP_SHIVER_AMP   = 1.5
+WEATHER_FLAP_DAMPEN_MAX  = 0.18
+
+# Tailwind event (predawn, phase ~0.85). Two effects scaled by
+# weather.wind_intensity(phase):
+#   - WEATHER_WIND_LEAN_AMP: max RIGHTWARD visual x-offset on
+#     the bird (in screen pixels) when wind = 1.0. Pure visual
+#     — does not affect collision (Bird.x stays at BIRD_X).
+#     Positive direction is rightward (ahead of normal), applied
+#     via Bird.draw shake_x. At 8.0 px Pip's push is ~12% of his
+#     64-px sprite width, clearly visible as "tailwind boost".
+#   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
+#     is INCREASED at peak wind. At wind 1.0 the scroll runs at
+#     (1 + factor) × normal so pipes/coins approach faster and
+#     the player covers more distance per second. 0.30 means
+#     30% more progress at peak — felt as a real boost.
+WEATHER_WIND_LEAN_AMP     = 8.0
+WEATHER_WIND_SCROLL_FACTOR = 0.30
+
+# Windblown snow accumulating on Pip during the snow squall (visual only).
+# bird.snow_load (0..1): gain = ACCUM * storm_intensity (gradual build through
+# the storm's rise). Melt is keyed to the storm being PAST ITS PEAK (phase
+# 0.85) rather than to intensity level — it's 0 on the rise (clean build) and
+# ramps in over MELT_RAMP just after the peak, so snow starts coming off soon
+# after the peak and clears gradually.
+WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
+WEATHER_SNOW_MELT_RATE  = 0.060   # gradual removal pace once past the peak
+WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow ramp past the 0.85 peak → removal STARTS sooner (~7s after peak) while the melt PACE stays the gradual rate above
+
+# ── Morning-thermal geysers ─────────────────────────────────────────────────
+# Ground geysers spawned during the thermal window. Spawn density + how many
+# appear at once (1→GEYSER_MAX_CONCURRENT) scale with the live intensity, so
+# they build sparse→busy toward the ~96s peak. Each geyser, once spawned, is
+# ALWAYS erupting: a continuous wind column that reaches the top of the screen
+# and a STRONG continuous updraft. Anywhere inside the column's width — at any
+# height, all the way up — the air pushes Pip upward (he rides it to the top;
+# the ceiling clamps him, it never kills). The push is capped only in SPEED so
+# the ride stays readable, not in reach.
+THERMAL_SPAWN_THRESHOLD  = 0.08   # legacy floor (kept; geyser gate uses the threshold below)
+THERMAL_SPAWN_CHANCE_MAX = 0.85   # per-pillar geyser spawn chance at peak intensity
+GEYSER_SPAWN_THRESHOLD   = 0.35   # intensity above which GEYSERS (not just rocks) spawn
+GEYSER_MAX_CONCURRENT    = 3      # cap on simultaneous geysers (allowed scales 1→3 with intensity)
+ROCK_SPAWN_THRESHOLD     = 0.02   # intensity above which scattered sinter rocks appear
+ROCK_PER_PILLAR_MAX      = 32     # rocks scattered per pillar at full density (the maximum, reached right at the first geyser)
+ROCK_RING_COUNT          = 6      # extra rocks framing each geyser's base so the ground reads as "surrounded", not bare
+GEYSER_RAMP_PILLARS      = 8      # rocks-only pillars the field ramps across (1-2 → max) before the FIRST geyser — a readable "something's coming" telegraph
+GEYSER_W            = 84.0        # column / lift width (px) — matches the visible air footprint
+GEYSER_H            = float(GROUND_Y)  # column reaches the top of the screen; lift acts the full height
+GEYSER_LIFT_VY_CAP  = 110.0       # CONSTANT rise speed inside any column — gentle/casual so the event helps rather than challenges; one constant for every geyser, no stacking, flaps (|FLAP_V|=520) still override. Lower than terminal so post-column bleed-off time shrinks and the next pillar stays reachable.
+GEYSER_ACTIVE_HOT   = 3.0         # active-window length at peak intensity (s)
+GEYSER_ACTIVE_COLD  = 1.0         # active-window length at the sparse edges (s)
+GEYSER_DORMANT_HOT  = 1.2         # dormant gap between actives at peak (s)
+GEYSER_DORMANT_COLD = 7.0         # dormant gap at the sparse edges (s)
+GEYSER_TELEGRAPH    = 0.5         # bubbling lead-in before the column rises (s)
+# Max gap-y delta allowed between two pillars with a geyser column planted
+# between them. Without this clamp the column pins the bird near the top
+# while pillar B's gap can be arbitrarily low, leaving a ~98 px drop window
+# (spacing/2 - GEYSER_W/2) that gravity cannot cover for large Δgy. 140 px
+# leaves headroom even under newbie scroll + Grow.
+GEYSER_GY_DELTA_MAX = 140
+# Max right-shift of the column from the inter-pillar gap midpoint when the
+# next pillar's gap is lower than the current one's. Linear in Δgy: 0 at
+# Δgy ≤ 0, GEYSER_GX_SHIFT_MAX at Δgy ≥ GEYSER_GY_DELTA_MAX. Bounded so
+# post-column gap stays ≥ ~30 px at standard spacing (pre/post = 70 px each
+# at center, becomes 110/30 at max shift) — leaves the bird real recovery
+# room after the forced in-column rise.
+GEYSER_GX_SHIFT_MAX = 40
+# Probability a planted geyser is a "dud" — the sinter cone + rock ring still
+# appear on the ground, but no hot-air column erupts and no updraft is applied
+# (Geyser.active flag stays False). Adds visual variety + asks the player to
+# read the field rather than assume every vent will lift them.
+GEYSER_DUD_CHANCE = 0.25
+
 # ── Onboarding warmup ramp ──────────────────────────────────────────────────
 # Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
 # spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE
