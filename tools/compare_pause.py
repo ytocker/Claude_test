@@ -58,8 +58,8 @@ def compose(before_p, after_p, out):
     canvas.blit(after, (rx, HEADER))
     pygame.draw.rect(canvas, (90, 80, 110), (lx, HEADER, W, H), 1)
     pygame.draw.rect(canvas, (90, 80, 110), (rx, HEADER, W, H), 1)
-    header("BEFORE", "original pause screen", lx + W // 2)
-    header("AFTER", "score plaque, static title, menu button", rx + W // 2)
+    header("BEFORE", "dedicated pause score panel", lx + W // 2)
+    header("AFTER", "in-game score kept in background (dimmed)", rx + W // 2)
     pygame.image.save(canvas, out)
     print("composed", out)
 

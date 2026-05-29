@@ -1385,57 +1385,6 @@ def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
     surf.blit(cf, cf.get_rect(center=(rect.centerx, rect.bottom - 20)))
 
 
-def _score_plaque_compact(surf, rect, score, label="S C O R E"):
-    """Intermediate engraved gold-frame score plaque — the run-summary
-    plaque's look (gold frame, inner bevel, engraved navy face, gold-on-red
-    numeral) scaled down for the pause overlay, with a SCORE caption and no
-    BEST/delta line."""
-    pygame.draw.rect(surf, _GOLD_BRIGHT, rect, border_radius=16)
-    inner = rect.inflate(-6, -6)
-    pygame.draw.rect(surf, _GOLD_DEEP, inner, border_radius=12)
-    face = inner.inflate(-5, -5)
-    grad = pygame.Surface(face.size, pygame.SRCALPHA)
-    for yy in range(face.h):
-        c = lerp_color(_PANEL_LIGHTER, _NIGHT_DEEP, yy / max(1, face.h - 1))
-        pygame.draw.line(grad, (*c, 255), (0, yy), (face.w, yy))
-    mask = pygame.Surface(face.size, pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255),
-                     (0, 0, face.w, face.h), border_radius=9)
-    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(grad, face.topleft)
-    # Radial light hint upper-left of face.
-    glow = pygame.Surface(face.size, pygame.SRCALPHA)
-    for rr in range(int(face.w * 0.6), 0, -2):
-        a = int(18 * (1 - rr / (face.w * 0.6)))
-        pygame.draw.circle(glow, (255, 220, 140, a),
-                           (int(face.w * 0.35), int(face.h * 0.25)), rr)
-    glow.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    surf.blit(glow, face.topleft)
-    # SCORE caption.
-    sc = _font(13, True).render(label, True, _GOLD_MUTED)
-    sc.set_alpha(230)
-    surf.blit(sc, sc.get_rect(center=(rect.centerx, rect.y + 22)))
-    # Engraved gold-on-red numeral — same treatment as the run-summary
-    # plaque, scaled to the compact size.
-    big_num = str(score)
-    num_size = max(28, int(rect.h * 0.48))
-    nf = _font(num_size, True).render(big_num, True, _GOLD_BRIGHT)
-    no = _font(num_size, True).render(big_num, True, _RED_OUTLINE)
-    nsh = _font(num_size, True).render(big_num, True, NEAR_BLACK)
-    deep_inner = _font(num_size, True).render(big_num, True, _GOLD_DEEP)
-    nr = nf.get_rect(center=(rect.centerx, rect.y + int(rect.h * 0.60)))
-    px = 3
-    for ox in (-px, 0, px):
-        for oy in (-px, 0, px):
-            if ox or oy:
-                surf.blit(no, (nr.x + ox, nr.y + oy))
-    nsh.set_alpha(180)
-    surf.blit(nsh, (nr.x + 3, nr.y + 4))
-    deep_inner.set_alpha(180)
-    surf.blit(deep_inner, (nr.x - 1, nr.y - 1))
-    surf.blit(nf, nr)
-
-
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
@@ -1471,17 +1420,12 @@ class HUD:
         self.menu_top10_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf, score: int = 0):
-        # Deep blue-purple dim
+        # Deep blue-purple dim. The current score and coins pills from
+        # draw_play sit underneath and read through the dim — no dedicated
+        # pause score panel.
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((6, 2, 28, 165))
         surf.blit(dim, (0, 0))
-
-        # Compact engraved score plaque (run-summary plaque style) so the
-        # player keeps a clear read on the current run while paused.
-        if score > 0:
-            pw, ph = 200, 104
-            plaque = pygame.Rect(W // 2 - pw // 2, 150 - ph // 2, pw, ph)
-            _score_plaque_compact(surf, plaque, score)
 
         # Title in the canonical gold-on-red run-summary treatment; only the
         # original size-pulse animation is dropped so it sits calm.
@@ -1595,35 +1539,34 @@ class HUD:
         # ── Score: Glass treatment. Cream face + 2 px deep-gold rim on a
         # translucent dark pill with a subtle top sheen. Sits at y=92 so
         # the backdrop (y=64..120) doesn't touch the coins pill above
-        # (which ends at y=44). Suppressed when paused — the pause
-        # overlay shows the same number on its hero medallion.
-        if not paused:
-            score_txt = str(world.score)
-            cf = _font(48, True)
-            img = cf.render(score_txt, True, (252, 244, 220))
-            rim = cf.render(score_txt, True, _GOLD_DEEP)
-            sh  = cf.render(score_txt, True, NEAR_BLACK)
-            r = img.get_rect(center=(W // 2, 92))
-            back_w = max(r.width + 56, 96)
-            back_h = 56
-            back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-            pygame.draw.rect(back, (*_PANEL_DARK, 120), (0, 0, back_w, back_h),
-                             border_radius=back_h // 2)
-            pygame.draw.rect(back, (*_GOLD_BRIGHT, 160), (0, 0, back_w, back_h),
-                             border_radius=back_h // 2, width=1)
-            sheen = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-            for yy in range(back_h // 2):
-                a = int(20 * (1 - yy / (back_h / 2)))
-                pygame.draw.line(sheen, (255, 245, 220, a),
-                                 (8, yy + 2), (back_w - 8, yy + 2))
-            back.blit(sheen, (0, 0))
-            surf.blit(back, (W // 2 - back_w // 2, 92 - back_h // 2))
-            for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
-                           (-2, -2), (2, -2), (-2, 2), (2, 2)):
-                surf.blit(rim, (r.x + ox, r.y + oy))
-            sh.set_alpha(180)
-            surf.blit(sh, (r.x + 2, r.y + 4))
-            surf.blit(img, r.topleft)
+        # (which ends at y=44). Kept drawn while paused so the pause overlay
+        # simply dims it in the background, like the coins pill.
+        score_txt = str(world.score)
+        cf = _font(48, True)
+        img = cf.render(score_txt, True, (252, 244, 220))
+        rim = cf.render(score_txt, True, _GOLD_DEEP)
+        sh  = cf.render(score_txt, True, NEAR_BLACK)
+        r = img.get_rect(center=(W // 2, 92))
+        back_w = max(r.width + 56, 96)
+        back_h = 56
+        back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
+        pygame.draw.rect(back, (*_PANEL_DARK, 120), (0, 0, back_w, back_h),
+                         border_radius=back_h // 2)
+        pygame.draw.rect(back, (*_GOLD_BRIGHT, 160), (0, 0, back_w, back_h),
+                         border_radius=back_h // 2, width=1)
+        sheen = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
+        for yy in range(back_h // 2):
+            a = int(20 * (1 - yy / (back_h / 2)))
+            pygame.draw.line(sheen, (255, 245, 220, a),
+                             (8, yy + 2), (back_w - 8, yy + 2))
+        back.blit(sheen, (0, 0))
+        surf.blit(back, (W // 2 - back_w // 2, 92 - back_h // 2))
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            surf.blit(rim, (r.x + ox, r.y + oy))
+        sh.set_alpha(180)
+        surf.blit(sh, (r.x + 2, r.y + 4))
+        surf.blit(img, r.topleft)
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
