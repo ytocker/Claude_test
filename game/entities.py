@@ -1439,97 +1439,6 @@ class Ramp:
                          (x1 - 1, y0 - 1), 1)
 
 
-# ── Falling sunglasses (poison expiry) ──────────────────────────────────────
-# Module-level cache so the sprite + its rotated variants only build once.
-_GLASSES_SPRITE: pygame.Surface | None = None
-_GLASSES_ROT_CACHE: dict = {}
-_GLASSES_W = 26
-_GLASSES_H = 14
-
-
-def _build_glasses_sprite() -> pygame.Surface:
-    """Detached aviator sunglasses — same recipe as parrot._draw_sunglasses
-    but centred on its own transparent canvas so it can rotate cleanly."""
-    global _GLASSES_SPRITE
-    if _GLASSES_SPRITE is not None:
-        return _GLASSES_SPRITE
-    from game.parrot import (
-        SHADE_FRAME, SHADE_BLACK, SHADE_TINT, SHADE_GLINT,
-    )
-    s = pygame.Surface((_GLASSES_W, _GLASSES_H), pygame.SRCALPHA)
-    cx = _GLASSES_W // 2
-    cy = _GLASSES_H // 2
-    r = 6
-    left = (cx - 5, cy)
-    right = (cx + 5, cy)
-    pygame.draw.circle(s, SHADE_FRAME, left, r + 1)
-    pygame.draw.circle(s, SHADE_FRAME, right, r + 1)
-    pygame.draw.circle(s, SHADE_BLACK, left, r)
-    pygame.draw.circle(s, SHADE_BLACK, right, r)
-    tint = pygame.Surface((r * 2, r), pygame.SRCALPHA)
-    pygame.draw.ellipse(tint, (*SHADE_TINT, 130), tint.get_rect())
-    s.blit(tint, (left[0] - r, left[1] - r + 1))
-    s.blit(tint, (right[0] - r, right[1] - r + 1))
-    pygame.draw.circle(s, SHADE_GLINT, (left[0] - 2, left[1] - 2), 2)
-    pygame.draw.circle(s, SHADE_GLINT, (right[0] - 2, right[1] - 2), 2)
-    pygame.draw.line(s, SHADE_FRAME,
-                     (left[0] + r, left[1]), (right[0] - r, right[1]), 2)
-    _GLASSES_SPRITE = s
-    return s
-
-
-class FallingGlasses:
-    """Pip's aviator shades after the poison dive begins — pops up briefly,
-    tumbles under gravity, lands on the ground, then scrolls left with the
-    rest of the world until off-screen. Pure visual; never collides."""
-
-    __slots__ = ("x", "y", "vx", "vy", "angle", "omega", "landed")
-
-    GRAVITY = 1500.0
-
-    def __init__(self, x: float, y: float, vx: float = 0.0,
-                 vy: float = -120.0):
-        self.x = x
-        self.y = y
-        self.vx = vx
-        self.vy = vy
-        self.angle = 0.0
-        self.omega = random.uniform(-540.0, -240.0)  # spinning back-left
-        self.landed = False
-
-    def update(self, dt: float):
-        if self.landed:
-            return
-        self.vy += self.GRAVITY * dt
-        self.y += self.vy * dt
-        self.x += self.vx * dt
-        self.angle = (self.angle + self.omega * dt) % 360.0
-        ground = GROUND_Y - _GLASSES_H // 2
-        if self.y >= ground:
-            self.y = ground
-            self.vy = 0.0
-            self.vx = 0.0
-            self.omega = 0.0
-            # Snap rotation to nearest 30° so the landed pair reads as
-            # set-down rather than mid-spin.
-            self.angle = round(self.angle / 30.0) * 30.0
-            self.landed = True
-
-    def off_screen(self) -> bool:
-        return self.x + _GLASSES_W < 0
-
-    def draw(self, surf):
-        sprite = _build_glasses_sprite()
-        ang = int(self.angle) % 360
-        key = ang // 5 * 5
-        rot = _GLASSES_ROT_CACHE.get(key)
-        if rot is None:
-            rot = pygame.transform.rotate(sprite, -key)
-            _GLASSES_ROT_CACHE[key] = rot
-        r = rot.get_rect(center=(int(self.x), int(self.y)))
-        surf.blit(rot, r.topleft)
-
-
 class Coin:
     """Spinning gold parrot medallion. Built once at 4x super-sample with a
     bold dark outline + vertical gold gradient + embossed parrot + soft
@@ -2542,7 +2451,7 @@ class PowerUp:
         RED    = (200, 50, 50)
 
         SS = 6
-        NATIVE_W = NATIVE_H = 56
+        NATIVE_W = NATIVE_H = 48
         big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2

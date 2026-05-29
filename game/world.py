@@ -38,7 +38,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
-    GenieCharacter, TrickBubble, Ramp, FallingGlasses,
+    GenieCharacter, TrickBubble, Ramp,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -78,10 +78,6 @@ class World:
         # _maybe_spawn_ramp during the buff. Scrolls + culls with the
         # pipes; world collision checks them when bird.skateboard_active.
         self.ramps: list[Ramp] = []
-        # POISON dive: when poison_t first hits 1.0, Pip's aviator shades
-        # tumble off and fall to the ground. Pure visual; never collides.
-        self.fallen_glasses: list[FallingGlasses] = []
-        self._glasses_dropped = False
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
 
@@ -614,15 +610,6 @@ class World:
         if 0 < self.bird.death_fade_t < DEATH_FADE_DURATION:
             self.bird.death_fade_t = min(
                 DEATH_FADE_DURATION, self.bird.death_fade_t + dt)
-        # POISON: fallen glasses tumble + scroll regardless of game_over so
-        # the tumble animation finishes even after Pip crashes from the
-        # dive. Uses the scroll snapshot from before the game_over check.
-        glasses_scroll = self._current_scroll() if not self.game_over else 0
-        for fg in self.fallen_glasses:
-            if fg.landed:
-                fg.x -= glasses_scroll * dt
-            fg.update(dt)
-
         # The biome cycle only advances once the run has actually started.
         # While ready_t > 0 the sky stays frozen at the dawn palette — the
         # day/night arc was rolling forward earlier even when Pip was
@@ -670,16 +657,7 @@ class World:
             # poison bar reads the same ramp and disappears at t=1.0. From
             # that point Bird.flap is guarded — Pip can no longer rise, so
             # gravity carries him into a pillar / the ground and the normal
-            # collision pipeline triggers _die. On the exact transition Pip's
-            # aviator shades pop off and tumble to the ground (visual cue).
-            if (self.bird.poison_active
-                    and self.bird.poison_t >= 1.0
-                    and not self._glasses_dropped):
-                self.fallen_glasses.append(FallingGlasses(
-                    self.bird.x + 18, self.bird.y - 10,
-                    vx=-40.0, vy=-150.0,
-                ))
-                self._glasses_dropped = True
+            # collision pipeline triggers _die.
 
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
@@ -918,8 +896,6 @@ class World:
             m.update(dt)
         self.pipes = [p for p in self.pipes if not p.off_screen()]
         self.ramps = [r for r in self.ramps if not r.off_screen()]
-        self.fallen_glasses = [fg for fg in self.fallen_glasses
-                               if not fg.off_screen()]
         self.coins = [c for c in self.coins if c.x + 20 > 0]
         self.powerups = [m for m in self.powerups if m.x + 20 > 0]
         if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
