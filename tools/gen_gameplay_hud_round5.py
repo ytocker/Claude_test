@@ -343,9 +343,9 @@ def cand_plaques(surf, wood, alpha, sheen=False):
 
 # ── variant definitions (the only thing that differs between the screens) ────
 VARIANTS = [
-    ("V1  wood (96,62,34) a165", (96, 62, 34), 165, False),
-    ("V2  wood (108,72,40) a150", (108, 72, 40), 150, False),
-    ("V3  wood (102,68,38) a170 + sheen", (102, 68, 38), 170, True),
+    ("V1  wood (102,68,38) a205", (102, 68, 38), 205, False),
+    ("V2  wood (102,68,38) a230 + sheen", (102, 68, 38), 230, True),
+    ("V3  wood (112,76,44) a248 + sheen", (112, 76, 44), 248, True),
 ]
 
 
