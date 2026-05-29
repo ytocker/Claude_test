@@ -1181,14 +1181,6 @@ class App:
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)
-
-        # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
-        # the caption banner / pop-art score / trick bubbles can never
-        # cover him. Only fires while the buff is active.
-        if (self.state in (STATE_PLAY, STATE_PAUSE)
-                and self.world.bird.skateboard_active):
-            self.world.bird.draw(self.screen, sx, sy,
-                                 flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_STATS:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
                                 best=self.best, new_best=self._new_best,
@@ -1208,6 +1200,15 @@ class App:
             self.hud.draw_gameover(
                 self.screen, 1 / 60, self.world.score, self._new_best,
             )
+
+        # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
+        # the caption banner / pop-art score / trick bubbles can never
+        # cover him. Only fires while the buff is active during play /
+        # pause; other states (menu, stats, gameover, leaderboard) skip.
+        if (self.state in (STATE_PLAY, STATE_PAUSE)
+                and self.world.bird.skateboard_active):
+            self.world.bird.draw(self.screen, sx, sy,
+                                 flipped=self.world.reverse_timer > 0)
 
         self._draw_dead_palette_toast()
 
