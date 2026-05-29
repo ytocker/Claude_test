@@ -1,16 +1,21 @@
-"""Render the round-9 day/night comparison sheet for pagoda pillars.
+"""Render the round-10 day/night comparison sheet for pagoda pillars.
 
-Round 7 polished Hōryū-ji + Fogong as the two leads. Round 8 added 10 NEW
-East-Asian-iconic pagodas inspired by them. Round 9 widens the brief to
-non-pagoda landmarks: Taipei 101 (curtain-wall skyscraper) + 3 anime tales
-(Spirited Away's Aburaya bathhouse, Naruto's Hokage Tower, Howl's Moving
-Castle). The 4 new rows slot in AFTER round-8 and BEFORE the Fogong
-baseline bookend.
+Round 7 polished Hōryū-ji + Fogong as the two leads. Round 8 added 10
+NEW East-Asian-iconic pagodas inspired by them. Round 9 widened the
+brief to non-pagoda landmarks: Taipei 101 (curtain-wall skyscraper) + 3
+anime tales (Spirited Away's Aburaya bathhouse, Naruto's Hokage Tower,
+Howl's Moving Castle). Round 10 returns to the wooden-pagoda lineage
+with 5 candidates inspired by the user's favoured baselines (Hōryū-ji
++ Fogong): Itsukushima, Murō-ji, Huqiu, Tianning, Palsangjeon. The
+round-10 sheet renders a FOCUSED 7-row subset (Hōryū-ji → 5 new →
+Fogong) via `ACTIVE_KEYS` so the user can read the new candidates
+against both baselines without scrolling the full 21-row registry.
 
 Outputs:
 
   _comparison_dayNight_v5.png   12 candidates × 5 phases (round 8 — kept).
-  _comparison_dayNight_v6.png   16 candidates × 5 phases (round 9).
+  _comparison_dayNight_v6.png   16 candidates × 5 phases (round 9 — kept).
+  _comparison_dayNight_v7.png   7 candidates × 5 phases (round 10 focus).
 
 Each tile is a full 360x640 game-style scene: biome sky + drifting clouds,
 the locked-keeper V4 shan-shui mountains, ground texture, and the pillar
@@ -66,6 +71,14 @@ ROW_GROUND_ACCENT = {
     "aburaya":      (118, 122, 118),  # wet stone path — warmer than Tahōtō's.
     "hokage_tower": (132, 108, 64),   # leaf-litter forest floor (warm umber/green-brown).
     "howl_castle":  (78, 70, 64),     # sooty cobblestone (warm dark grey).
+    # Round-10 ground accents — each ties the new wooden-pagoda candidate
+    # to its real-world site context (floating shrine, forest temple,
+    # Suzhou paving, Tang court tile, Joseon courtyard).
+    "itsukushima":  (152, 60, 48),    # warm cinnabar reflection wash — floating-shrine context.
+    "muroji":       (52, 78, 50),     # deep forest moss — cypress-bark mountain temple.
+    "huqiu":        (148, 152, 158),  # cool Suzhou paving stone with a faint warm hint.
+    "tianning":     (188, 152, 64),   # golden Tang court tile (warm yellow-orange).
+    "palsangjeon":  (118, 130, 138),  # cool blue-grey Joseon courtyard, desaturated.
 }
 
 
@@ -87,6 +100,37 @@ def _apply_ground_accent(surf, row_key, palette):
                max(0, accent[2] - 30))
         surf.set_at((x + r, GROUND_Y + 2), col)
         surf.set_at((x + r + 4, GROUND_Y + 5), col)
+    # Round-10 v2 — Itsukushima reflection wash was reading as a flat
+    # monochrome cinnabar ribbon. AD asked for one tonal break (no
+    # literal water). A 1-px lighter horizontal waterline at the top of
+    # the band gives the wash a single tonal beat without going down
+    # the rabbit hole.
+    if row_key == "itsukushima":
+        waterline = (min(255, accent[0] + 40),
+                     min(255, accent[1] + 28),
+                     min(255, accent[2] + 22))
+        pygame.draw.line(surf, waterline,
+                         (0, GROUND_Y + 1), (W - 1, GROUND_Y + 1), 1)
+    # Round-10 v2 — Tianning golden Tang ground tile was reading as a
+    # second horizon at sunrise/dusk; pull the band ~10% toward
+    # stone-gold so it stops competing with the sky-gold. A single
+    # cooler beat across the band is enough at PIPE_W=58.
+    if row_key == "tianning":
+        stone_gold = (min(255, accent[0] - 22),
+                      min(255, accent[1] - 8),
+                      min(255, accent[2] + 24))
+        pygame.draw.line(surf, stone_gold,
+                         (0, GROUND_Y + 3), (W - 1, GROUND_Y + 3), 1)
+    # Round-10 v2 — Palsangjeon courtyard at day reads too sky-blue;
+    # AD asked for a touch of stone-gray so it reads as courtyard, not
+    # water. A 1-px desaturated beat through the band breaks the
+    # uniform blue read.
+    if row_key == "palsangjeon":
+        stone_gray = ((accent[0] + accent[1] + accent[2]) // 3,
+                      (accent[0] + accent[1] + accent[2]) // 3,
+                      (accent[0] + accent[1] + accent[2]) // 3)
+        pygame.draw.line(surf, stone_gray,
+                         (0, GROUND_Y + 2), (W - 1, GROUND_Y + 2), 1)
 
 
 PHASES = [
@@ -96,6 +140,19 @@ PHASES = [
     ("dusk",    0.513),
     ("night",   0.644),
 ]
+# Round-10 focus subset — the 5 NEW wooden-pagoda candidates flanked by
+# both keepers so the user reads each new row directly against the
+# Hōryū-ji and Fogong baselines they came from. Setting this to None
+# falls back to the full registry (round-9's 16-row sheet).
+ACTIVE_KEYS = (
+    "horyuji",
+    "itsukushima",
+    "muroji",
+    "huqiu",
+    "tianning",
+    "palsangjeon",
+    "fogong",
+)
 KEEPER_V4 = 4
 # Canonical seed for the day/night row — chosen so each candidate's per-seed
 # variation fires at a representative density.
@@ -159,9 +216,13 @@ def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
 
 
 def make_day_night_sheet() -> pygame.Surface:
-    """Rows = 16 candidates (baselines bookend round-8 10 + round-9 4),
-    Cols = 5 biome phases."""
-    rows = list(pgv.CANDIDATES.keys())
+    """Rows = the active subset (round-10: 7 wooden-pagoda candidates =
+    Hōryū-ji baseline → 5 new → Fogong baseline), cols = 5 biome phases."""
+    if ACTIVE_KEYS is None:
+        rows = list(pgv.CANDIDATES.keys())
+    else:
+        # Preserve declared order so the baselines bookend the new rows.
+        rows = [k for k in ACTIVE_KEYS if k in pgv.CANDIDATES]
     cols = PHASES
     tw, th = W, H
     label_h = 30
@@ -176,8 +237,9 @@ def make_day_night_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "Round 9 — Hōryū-ji + Fogong baselines + 10 East-Asian pagodas + "
-        "Taipei 101 + 3 anime towers · day → sunrise → sunset → dusk → night",
+        "Round 10 — Hōryū-ji + Fogong baselines bookending 5 new wooden "
+        "pagodas (Itsukushima · Murō-ji · Huqiu · Tianning · Palsangjeon) "
+        "· day → sunrise → sunset → dusk → night",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -226,11 +288,11 @@ def make_day_night_sheet() -> pygame.Surface:
 
 
 def main() -> None:
-    # Round 9 — write the v6 sheet (v5 is preserved on disk as the
-    # round-8 reference so the AD critique can re-check anchor rows
-    # without re-rendering).
+    # Round 10 — write the v7 sheet (v5 + v6 preserved on disk as the
+    # round-8 + round-9 references so AD critique can re-check anchor
+    # rows without re-rendering).
     dn_sheet = make_day_night_sheet()
-    dn_path = OUT / "_comparison_dayNight_v6.png"
+    dn_path = OUT / "_comparison_dayNight_v7.png"
     pygame.image.save(dn_sheet, dn_path)
     print(f"wrote {dn_path}  "
           f"({dn_sheet.get_width()}x{dn_sheet.get_height()})")
