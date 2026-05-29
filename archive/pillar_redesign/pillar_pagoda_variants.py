@@ -144,42 +144,68 @@ def _eave(surf, cx, y_base, half_w_body, overhang, depth, roof_col,
     that is `half_w_body * 2` wide. The eave sticks OUT past the wall by
     `overhang` px on each side — that overhang is what makes the player read
     pagoda."""
+    # Wider overhang so the silhouette cue survives the 58 px PIPE_W.
+    overhang = max(overhang, 7)
     pts = _eave_curve(cx, y_base, half_w_body, overhang, depth, curl)
-    # Dark backing so the curl reads against pale skies.
-    pygame.draw.polygon(surf, _shade(roof_col, -45), pts)
+    # Dark backing — full silhouette in shadow tone.
+    pygame.draw.polygon(surf, _shade(roof_col, -55), pts)
     # Main roof body inset by one px on the bottom for a subtle eave shadow.
     body_pts = [(p[0], p[1] - 1) if p[1] >= y_base else p for p in pts]
     pygame.draw.polygon(surf, roof_col, body_pts)
+    # Hard keyline under the eave so tier separation reads against any sky —
+    # this is the cue that survives bright sunset gradients where the roof
+    # colour itself would otherwise blend with the warm background.
+    keyline = _shade(roof_col, -75)
+    half_outer = half_w_body + overhang
+    pygame.draw.line(surf, keyline,
+                     (cx - half_outer + 1, y_base + depth - 1),
+                     (cx + half_outer - 1, y_base + depth - 1), 1)
     # Gold accent strip just under the ridge.
     pygame.draw.line(surf, accent_col,
                      (cx - half_w_body + 1, y_base - 1),
                      (cx + half_w_body - 1, y_base - 1), 1)
-    # A single AA outline along the leading curl edges so the silhouette
-    # softens against the sky.
-    try:
-        pygame.draw.aalines(surf, _shade(roof_col, -60), False,
-                            pts[:5], 1)
-        pygame.draw.aalines(surf, _shade(roof_col, -60), False,
-                            pts[4:], 1)
-    except (TypeError, pygame.error):
-        # Some pygbag builds reject aalines on locked surfaces — silhouette
-        # still reads from the polygon underneath.
-        pass
+    # Two-pixel highlight at the eave tips so the up-curl pops in silhouette
+    # even when aalines would alias at this scale.
+    tip_rise = max(2, int(depth * (0.5 + curl)))
+    highlight = _shade(roof_col, 25)
+    pygame.draw.line(surf, highlight,
+                     (cx - half_outer, y_base - tip_rise),
+                     (cx - half_outer + 2, y_base - tip_rise + 1), 1)
+    pygame.draw.line(surf, highlight,
+                     (cx + half_outer, y_base - tip_rise),
+                     (cx + half_outer - 2, y_base - tip_rise + 1), 1)
 
 
 def _eave_inverted(surf, cx, y_base, half_w_body, overhang, depth, roof_col,
                    accent_col, curl=0.7):
     """An eave whose tips curl DOWN — used as the underside seen on a hanging
     awning/shrine. Same silhouette logic as `_eave`, mirrored vertically."""
+    overhang = max(overhang, 7)
     # Mirror the curve points around y_base.
     pts = _eave_curve(cx, y_base, half_w_body, overhang, depth, curl)
     mirrored = [(p[0], 2 * y_base - p[1]) for p in pts]
-    pygame.draw.polygon(surf, _shade(roof_col, -45), mirrored)
+    pygame.draw.polygon(surf, _shade(roof_col, -55), mirrored)
     body = [(p[0], p[1] + 1) for p in mirrored]
     pygame.draw.polygon(surf, roof_col, body)
+    # Hard keyline along the UPPER edge so the awning underside reads cleanly
+    # against the gap sky behind it.
+    keyline = _shade(roof_col, -75)
+    half_outer = half_w_body + overhang
+    pygame.draw.line(surf, keyline,
+                     (cx - half_outer + 1, y_base - depth + 1),
+                     (cx + half_outer - 1, y_base - depth + 1), 1)
     pygame.draw.line(surf, accent_col,
                      (cx - half_w_body + 1, y_base + 1),
                      (cx + half_w_body - 1, y_base + 1), 1)
+    # Tip highlights for the downward curl.
+    tip_drop = max(2, int(depth * (0.5 + curl)))
+    highlight = _shade(roof_col, 25)
+    pygame.draw.line(surf, highlight,
+                     (cx - half_outer, y_base + tip_drop),
+                     (cx - half_outer + 2, y_base + tip_drop - 1), 1)
+    pygame.draw.line(surf, highlight,
+                     (cx + half_outer, y_base + tip_drop),
+                     (cx + half_outer - 2, y_base + tip_drop - 1), 1)
 
 
 # ── Wall + window primitives ────────────────────────────────────────────────
@@ -196,13 +222,21 @@ def _wall_strip(surf, x, y, w, h, palette):
 
 
 def _timber_wall(surf, x, y, w, h, palette):
-    """Wooden tō tier wall — vertical timber posts over the plaster."""
+    """Wooden tō tier wall — only the two corner posts so the silhouette stays
+    legible at the 58 px PIPE_W. A 4 px-spaced timber grid aliased into pixel
+    noise at this scale; corner posts alone read as a wooden bay."""
     if h <= 0 or w <= 0:
         return
     _wall_strip(surf, x, y, w, h, palette)
     timber = _shade(palette['stone_dark'], -10)
-    for sx in range(x + 3, x + w - 2, 4):
-        pygame.draw.line(surf, timber, (sx, y + 1), (sx, y + h - 2), 1)
+    pygame.draw.line(surf, timber, (x + 2, y + 1), (x + 2, y + h - 2), 1)
+    pygame.draw.line(surf, timber,
+                     (x + w - 3, y + 1), (x + w - 3, y + h - 2), 1)
+    # A single light beam mid-height adds horizontal rhythm without aliasing.
+    if h > 12:
+        beam_y = y + h // 2
+        pygame.draw.line(surf, timber,
+                         (x + 2, beam_y), (x + w - 3, beam_y), 1)
 
 
 def _window_lattice(surf, cx, y, w, h, palette):
@@ -476,44 +510,84 @@ def candidate_tang_gateway(surf, top_rect, bot_rect, palette, seed):
 
     # ── Top awning + banner web ─────────────────────────────────────────
     if top_rect.height > 22:
-        # Two stacked inverted eaves — the underside of the gateway awning
-        # the player flies UNDER. Tips curl DOWN from the ceiling.
-        awning_budget = min(top_rect.height - 4, 64)
+        # Visible corner pillars FROM the screen ceiling down to the awning —
+        # the awning now reads as a roof supported by columns, not a floating
+        # box. Pillars also brace the prayer-flag banner web.
+        col_h = min(top_rect.height - 6, 56)
+        col_w = 6
+        col_top_y = top_rect.y
+        col_bot_y = col_top_y + col_h
+        col_xs = (top_rect.x + 3, top_rect.x + top_rect.width - 3 - col_w)
+        for cx_l in col_xs:
+            # Column shadow.
+            pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                             (cx_l, col_top_y, col_w, col_h))
+            # Column light face.
+            pygame.draw.rect(surf, palette['stone_light'],
+                             (cx_l + 1, col_top_y, col_w - 2, col_h - 1))
+            # Cinnabar capital + base bands so the columns feel architectural.
+            pygame.draw.rect(surf, _shade(roof, -25),
+                             (cx_l - 1, col_top_y, col_w + 2, 3))
+            pygame.draw.rect(surf, roof,
+                             (cx_l - 1, col_bot_y - 4, col_w + 2, 3))
+
+        # Awning eave underside curls DOWN from the ceiling between the
+        # columns, sized to the full top_rect.width so it looks like a roof
+        # spanning the gateway rather than a small floating panel.
         eave_y0 = top_rect.bottom - 3
-        # Bottom-most awning eave (closest to gap).
         _eave_inverted(surf, tcx, eave_y0,
-                       top_rect.width // 2 + 4, 10, 6, roof, accent, curl=1.0)
-        # Second eave higher up.
-        if awning_budget > 22:
-            _eave_inverted(surf, tcx, eave_y0 - 16,
-                           top_rect.width // 2 + 1, 7, 5, roof, accent,
-                           curl=0.85)
-        # Wall block bridging the awning up to the ceiling.
-        wall_top = max(top_rect.y, top_rect.bottom - awning_budget)
-        wall_h = max(0, eave_y0 - 22 - wall_top)
+                       top_rect.width // 2 + 6, 12, 7, roof, accent, curl=1.0)
+        # Second eave higher up — also spanning the full width.
+        awning_budget = min(top_rect.height - 4, 64)
+        if awning_budget > 26:
+            _eave_inverted(surf, tcx, eave_y0 - 18,
+                           top_rect.width // 2 + 3, 9, 6, roof, accent,
+                           curl=0.90)
+        # Wall block bridging the awning up to the column capitals — sits
+        # behind the columns so the columns still read as structural fronts.
+        wall_top = max(col_top_y + 4, top_rect.bottom - awning_budget)
+        wall_h = max(0, eave_y0 - 24 - wall_top)
         if wall_h > 6:
-            _wall_strip(surf, tcx - top_rect.width // 2 + 4, wall_top,
-                        top_rect.width - 8, wall_h, palette)
+            _wall_strip(surf, tcx - top_rect.width // 2 + 10, wall_top,
+                        top_rect.width - 20, wall_h, palette)
             if wall_h > 14:
                 _window_lattice(surf, tcx, wall_top + 4,
-                                min(14, top_rect.width - 14),
+                                min(14, top_rect.width - 22),
                                 min(10, wall_h - 6), palette)
 
-        # Banner web — strings of prayer flags fanning down from the awning
-        # corners onto the top tier of the lower pagoda.
-        if bot_rect.height > 50:
-            for sx, ex in ((tcx - 26, bcx - 18), (tcx + 26, bcx + 18)):
-                draw_prayer_flags(surf, sx, top_rect.bottom - 2,
-                                  ex, bot_rect.y - 4, n=6)
-        # Moss tipping the awning corners.
+        # Banner web — prayer flags hanging from the awning corners DOWN to
+        # the column bases, fully INSIDE the top rect (was crossing the gap
+        # corridor and muddying the playable edge).
+        for sx, ex in ((tcx - top_rect.width // 2 + 8, col_xs[0] + col_w // 2),
+                       (tcx + top_rect.width // 2 - 8,
+                        col_xs[1] + col_w // 2)):
+            draw_prayer_flags(surf, sx, top_rect.bottom - 4,
+                              ex, col_bot_y - 6, n=5)
+        # Moss tipping the awning corners — pulled INSIDE top_rect.
         for off in (-22, -10, 10, 22):
-            draw_moss_strand(surf, tcx + off, top_rect.bottom - 2,
-                             8 + abs(off) % 6, palette,
+            draw_moss_strand(surf, tcx + off, top_rect.bottom - 3,
+                             6 + abs(off) % 5, palette,
                              jitter_seed=seed + off)
-        # Per-seed ornament high overhead.
+        # Per-seed ornament — flavor decides what hangs from the awning.
         if flavor == 'lantern':
             draw_paper_lantern(surf, tcx, top_rect.bottom - 4,
-                               strand=14, scale=0.7, color='gold')
+                               strand=14, scale=0.75, color='gold')
+        elif flavor == 'banner':
+            # Central vertical hanging banner from the awning underside.
+            pygame.draw.rect(surf, _shade(roof, -30),
+                             (tcx - 3, top_rect.bottom - 2, 6, 16))
+            pygame.draw.rect(surf, accent,
+                             (tcx - 3, top_rect.bottom - 2, 6, 3))
+            pygame.draw.rect(surf, _gilt(palette),
+                             (tcx - 1, top_rect.bottom + 5, 2, 2))
+        elif flavor == 'pine':
+            # Small pine clinging to a column base.
+            draw_wuling_pine(surf, col_xs[0] - 4, col_bot_y - 2, 10,
+                             palette, lean=-3, layers=2)
+        elif flavor == 'cairn':
+            # Small cairn on top of the column capital area.
+            draw_cairn(surf, col_xs[1] + col_w + 3, col_bot_y - 2,
+                       n=2, pennant=False)
         if top_rect.height > 60:
             draw_bird_sil(surf, tcx - 28,
                           max(20, top_rect.y + 28), size=4)
@@ -576,11 +650,13 @@ def candidate_mirrored_split(surf, top_rect, bot_rect, palette, seed):
                   roof, accent, curl=0.95)
             y_cursor = wall_top - depth + 1
 
-        # Cap a short "ridge" at the cut so the silhouette reads architectural.
-        cap_y = max(bot_rect.y, y_cursor - 2)
-        pygame.draw.rect(surf, _shade(roof, -30),
-                         (bcx - 14, cap_y, 28, 3))
-        pygame.draw.rect(surf, roof, (bcx - 13, cap_y + 1, 26, 2))
+        # Cap a short "ridge" at the cut so the silhouette reads architectural —
+        # thicker than before so the gap-facing edge stays crisp against sky.
+        cap_y = max(bot_rect.y, y_cursor - 4)
+        pygame.draw.rect(surf, _shade(roof, -55),
+                         (bcx - 16, cap_y, 32, 5))
+        pygame.draw.rect(surf, roof, (bcx - 15, cap_y + 1, 30, 3))
+        pygame.draw.rect(surf, accent, (bcx - 12, cap_y + 1, 24, 1))
 
         # Vegetation + per-seed flavour at base.
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
@@ -635,20 +711,37 @@ def candidate_mirrored_split(surf, top_rect, bot_rect, palette, seed):
                   roof, accent, curl=1.0)
             y_cursor = wall_top - depth + 1
 
-        # Downward finial — a small inverted sōrin pointing into the gap.
-        # Spike + jewel anchored to the BOTTOM of the lowest top-rect tier.
+        # Downward finial — a hefty inverted sōrin pointing into the gap. Real
+        # disks (not 1 px lines) plus a downward flame jewel so the player
+        # actually reads it as the "ceiling temple's spire" at game scale.
+        gold = _gilt(palette)
+        dark_pal = palette['stone_dark']
+        bright = _shade(gold, 40)
         spike_top_y = top_rect.bottom - finial_h
         spike_bot_y = min(top_rect.bottom + 4,
-                          top_rect.bottom + finial_h - 4)
-        pygame.draw.line(surf, palette['stone_dark'],
-                         (tcx, spike_top_y), (tcx, spike_bot_y), 2)
-        for k, dy in enumerate((2, 6, 10)):
-            ry = spike_top_y + dy
-            rw = max(1, 4 - k)
-            pygame.draw.line(surf, _gilt(palette),
-                             (tcx - rw, ry), (tcx + rw, ry), 1)
-        pygame.draw.circle(surf, _gilt(palette),
-                           (tcx, spike_bot_y - 1), 2)
+                          top_rect.bottom + finial_h - 2)
+        # Inverted lotus pad at the spire's base (= just under the lowest tier).
+        pygame.draw.ellipse(surf, dark_pal, (tcx - 6, spike_top_y - 1, 12, 6))
+        pygame.draw.ellipse(surf, gold, (tcx - 5, spike_top_y, 10, 4))
+        # Central spire pole.
+        pygame.draw.line(surf, dark_pal,
+                         (tcx, spike_top_y + 3), (tcx, spike_bot_y - 4), 2)
+        # 4 disks tapering DOWN the spire — widest at top, narrowest at the tip.
+        disks = 4
+        for k in range(disks):
+            ry = spike_top_y + 6 + int(k * (finial_h - 12) / max(1, disks - 1))
+            rw = max(2, 5 - k)
+            pygame.draw.ellipse(surf, dark_pal,
+                                (tcx - rw - 1, ry - 1, rw * 2 + 2, 3))
+            pygame.draw.ellipse(surf, gold,
+                                (tcx - rw, ry, rw * 2, 2))
+        # Downward flame jewel at the tip, pointing into the gap.
+        tip_y = spike_bot_y
+        pygame.draw.circle(surf, dark_pal, (tcx, tip_y - 4), 3)
+        pygame.draw.circle(surf, gold, (tcx, tip_y - 4), 2)
+        pygame.draw.polygon(surf, bright,
+                            [(tcx, tip_y + 2), (tcx - 2, tip_y - 3),
+                             (tcx + 2, tip_y - 3)])
 
         # Hanging moss + per-seed flavour.
         for off in (-12, -4, 4, 12):
@@ -794,21 +887,36 @@ def candidate_facing_pair(surf, top_rect, bot_rect, palette, seed):
                   roof, accent, curl=0.55)
             y_cursor = wall_bot + depth - 1
 
-        # Downward sōrin from the bottom of the lowest tier.
+        # Downward sōrin from the bottom of the lowest tier — same beefy-disk
+        # treatment as the mirrored candidate so the player sees a clear
+        # spire pointing into the gap, not a wisp of pixels.
+        gold = _gilt(palette)
+        dark_pal = palette['stone_dark']
+        bright = _shade(gold, 40)
         spike_top_y = y_cursor
         spike_bot_y = min(top_rect.bottom + 4, spike_top_y + finial_h)
-        pygame.draw.line(surf, palette['stone_dark'],
-                         (tcx, spike_top_y), (tcx, spike_bot_y), 2)
-        disks = 5
+        # Inverted lotus pad anchoring the spire to the lowest tier underside.
+        pygame.draw.ellipse(surf, dark_pal, (tcx - 6, spike_top_y - 1, 12, 6))
+        pygame.draw.ellipse(surf, gold, (tcx - 5, spike_top_y, 10, 4))
+        # Spire pole.
+        pygame.draw.line(surf, dark_pal,
+                         (tcx, spike_top_y + 3), (tcx, spike_bot_y - 4), 2)
+        # 4 tapering disks.
+        disks = 4
         for k in range(disks):
-            ry = spike_top_y + 2 + int(k * (finial_h - 6) / max(1, disks - 1))
-            if ry >= spike_bot_y:
-                break
-            rw = max(1, 4 - k)
-            pygame.draw.line(surf, _gilt(palette),
-                             (tcx - rw, ry), (tcx + rw, ry), 1)
-        pygame.draw.circle(surf, _gilt(palette),
-                           (tcx, min(spike_bot_y, top_rect.bottom - 1)), 2)
+            ry = spike_top_y + 6 + int(k * (finial_h - 12) / max(1, disks - 1))
+            rw = max(2, 5 - k)
+            pygame.draw.ellipse(surf, dark_pal,
+                                (tcx - rw - 1, ry - 1, rw * 2 + 2, 3))
+            pygame.draw.ellipse(surf, gold,
+                                (tcx - rw, ry, rw * 2, 2))
+        # Flame jewel tip.
+        tip_y = spike_bot_y
+        pygame.draw.circle(surf, dark_pal, (tcx, tip_y - 4), 3)
+        pygame.draw.circle(surf, gold, (tcx, tip_y - 4), 2)
+        pygame.draw.polygon(surf, bright,
+                            [(tcx, tip_y + 2), (tcx - 2, tip_y - 3),
+                             (tcx + 2, tip_y - 3)])
 
         # Hanging moss off the lowest eave's tips.
         for off in (-14, -4, 4, 14):
@@ -968,34 +1076,69 @@ def candidate_japanese_pavilion(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, _shade(roof, -20),
                          (body_x + 2, shrine_bot_y - 2, body_w - 4, 2))
 
-        # Cloud puff beneath the shrine — gives the floating impression.
-        cloud_top = shrine_bot_y - 1
-        cloud_col = _mix(palette['stone_light'], (250, 250, 250), 0.55)
-        cloud_shade = _shade(cloud_col, -25)
-        for cx_off, sz in ((-18, 5), (-9, 7), (0, 8), (9, 7), (18, 5),
-                           (-12, 4), (12, 4)):
+        # Cloud puff beneath the shrine — pillowy, two-tone, larger than
+        # before so the eye reads "shrine resting on a cloud" rather than
+        # "shrine sitting on a wall lip". Soft underside shadow + brighter
+        # top crest with extra puff lobes for silhouette weight.
+        cloud_top = shrine_bot_y - 2
+        cloud_col = _mix(palette['stone_light'], (252, 252, 252), 0.65)
+        cloud_shade = _shade(cloud_col, -32)
+        cloud_lobes = (
+            (-24, 5), (-16, 8), (-8, 10), (0, 11), (8, 10), (16, 8), (24, 5),
+            (-20, 4), (-4, 6), (4, 6), (20, 4),
+        )
+        # Underside shadow pass — slightly offset down.
+        for cx_off, sz in cloud_lobes:
             pygame.draw.circle(surf, cloud_shade,
-                               (tcx + cx_off, cloud_top + 2), sz + 1)
-        for cx_off, sz in ((-18, 5), (-9, 7), (0, 8), (9, 7), (18, 5),
-                           (-12, 4), (12, 4)):
+                               (tcx + cx_off, cloud_top + 3), sz + 2)
+        # Cloud body pass.
+        for cx_off, sz in cloud_lobes:
             pygame.draw.circle(surf, cloud_col,
                                (tcx + cx_off, cloud_top + 1), sz)
+        # Bright crest highlight along the top — gives a wisp of volume.
+        bright_cloud = _mix(cloud_col, (255, 255, 255), 0.5)
+        for cx_off, sz in cloud_lobes:
+            if abs(cx_off) <= 16:
+                pygame.draw.circle(surf, bright_cloud,
+                                   (tcx + cx_off, cloud_top - 1),
+                                   max(1, sz - 3))
 
-        # Per-seed flavour for the shrine.
+        # Per-seed flavour for the shrine — sized up so the silhouette
+        # actually changes across the row of five spawns. Each flavor
+        # commits to one bold visible detail instead of a tiny inset one.
         if flavor == 'lantern':
-            # Lantern dangling from the eave corner.
-            draw_paper_lantern(surf, tcx + body_w // 2 + 2,
-                               shrine_top_y + 4, strand=10, scale=0.7,
-                               color='gold')
+            # TWO lanterns dangling from BOTH eave corners — symmetrical
+            # silhouette tells you instantly which spawn this is.
+            draw_paper_lantern(surf, tcx - body_w // 2 - 3,
+                               shrine_top_y + 4, strand=12, scale=0.8,
+                               color='red')
+            draw_paper_lantern(surf, tcx + body_w // 2 + 3,
+                               shrine_top_y + 4, strand=12, scale=0.8,
+                               color='red')
         elif flavor == 'banner':
-            bx = tcx - 2
-            pygame.draw.rect(surf, _shade(roof, -10),
-                             (bx, shrine_top_y + 6, 4, 10))
-            pygame.draw.rect(surf, accent, (bx, shrine_top_y + 6, 4, 2))
+            # Long pennant banner dropping from the eave centre down past
+            # the cloud — the dominant flag-spawn cue.
+            bx = tcx - 3
+            pygame.draw.rect(surf, _shade(roof, -30),
+                             (bx, shrine_top_y + 6, 6, 22))
+            pygame.draw.rect(surf, accent,
+                             (bx, shrine_top_y + 6, 6, 3))
+            pygame.draw.rect(surf, _gilt(palette),
+                             (bx + 1, shrine_top_y + 14, 4, 2))
+            # Tassel V at the bottom.
+            pygame.draw.polygon(surf, _shade(roof, -30),
+                                [(bx, shrine_top_y + 28),
+                                 (bx + 3, shrine_top_y + 32),
+                                 (bx + 6, shrine_top_y + 28)])
         elif flavor == 'pine':
-            # Tiny pine clinging to the cloud.
-            draw_wuling_pine(surf, tcx + 16, cloud_top + 4, 10,
+            # Two pines clinging to the cloud sides.
+            draw_wuling_pine(surf, tcx - 20, cloud_top + 4, 12,
+                             palette, lean=-4, layers=2)
+            draw_wuling_pine(surf, tcx + 20, cloud_top + 4, 12,
                              palette, lean=4, layers=2)
+        elif flavor == 'cairn':
+            # Tiny floating cairn riding the cloud.
+            draw_cairn(surf, tcx + 18, cloud_top + 3, n=3, pennant=False)
 
         # Bird drifting near the shrine.
         if top_rect.height > 60:
