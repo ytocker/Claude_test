@@ -1,16 +1,27 @@
-"""Render comparison sheets for the pagoda-pillar candidates.
+"""Render the round-5 day/night comparison sheet for pagoda pillars.
 
-Two contact sheets land under docs/pillar_redesign/:
+User feedback after round 4 was that the five candidates blurred into
+near-identical Chinese towers. Round 5 rebuilds them from real iconic
+pagodas; only the day → night palette sweep is requested this round.
 
-  _comparison.png            5 candidates × 5 seeds at SUNSET
-                             — for picking the architectural family.
-  _comparison_dayNight.png   5 candidates × 5 phases at one shared seed
-                             — for verifying every candidate retints
-                             through DAY → SUNRISE → SUNSET → DUSK → NIGHT.
+Output:
 
-Each tile is a full 360x640 game-style scene: biome sky + drifting clouds,
-the locked-keeper V4 shan-shui mountains, ground texture, and the pillar
-pair at the standard PIPE_W=58, gap_y≈285, gap_h≈170 spawn position.
+  _comparison_dayNight_v2.png   5 candidates × 5 phases at one shared
+                                seed per row — verifies every candidate
+                                retints through DAY → SUNRISE → SUNSET
+                                → DUSK → NIGHT while keeping each
+                                pagoda's identity (cedar/gold/white-eye/
+                                pastel-porcelain/terracotta-brick) read
+                                instantly.
+
+The old `_comparison_dayNight.png` is preserved in git history; this
+round writes a `_v2` file so the round-4 sheet is still side-by-side
+diffable.
+
+Each tile is a full 360x640 game-style scene: biome sky + drifting
+clouds, the locked-keeper V4 shan-shui mountains, ground texture, and
+the pillar pair at the standard PIPE_W=58, gap_y≈285, gap_h≈170 spawn
+position.
 
 Run from anywhere:
     python archive/pillar_redesign/render_pagoda_pillars.py
@@ -55,18 +66,14 @@ PHASES = [
     ("dusk",    0.513),
     ("night",   0.644),
 ]
-SUNSET_PHASE = 0.363
 KEEPER_V4 = 4
+# Canonical seed for the day/night row — chosen so each candidate's per-seed
+# variation (tier count, mosaic distribution, hti ring count, etc.) fires at
+# a representative density.
+CANONICAL_SEED = 13
 
 OUT = _REPO / "docs" / "pillar_redesign"
 OUT.mkdir(parents=True, exist_ok=True)
-
-# 5 seeds chosen so each candidate's per-seed variation knobs (tier count,
-# whether a lantern shows up, etc.) actually fire across the row. Seeds also
-# cover all 5 spawn flavors — seed % 5 maps to {plain, lantern, banner, pine,
-# cairn} so a row of 5 reads as 5 architecturally distinct temples instead of
-# accidental flavor duplicates.
-SEED_SET = [10, 41, 7, 13, 24]
 
 
 def _scene_backdrop(phase: float) -> pygame.Surface:
@@ -120,80 +127,14 @@ def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
     return surf
 
 
-def make_seed_sheet() -> pygame.Surface:
-    """Rows = 5 candidates, Cols = 5 seeds. All at SUNSET."""
-    rows = list(pgv.CANDIDATES.keys())
-    cols = SEED_SET
-    tw, th = W, H
-    label_h = 30
-    row_label_w = 196
-    pad = 10
-    sheet_w = row_label_w + pad + len(cols) * (tw + pad)
-    sheet_h = label_h + pad + len(rows) * (th + pad)
-    sheet = pygame.Surface((sheet_w, sheet_h))
-    sheet.fill((20, 20, 24))
-
-    font_small = pygame.font.SysFont(None, 22)
-    font_head = pygame.font.SysFont(None, 28)
-
-    title = font_head.render(
-        "Pillar redesign — pagodas — 5 candidates × 5 seeds @ SUNSET",
-        True, (240, 240, 240))
-    sheet.blit(title, (row_label_w + pad, 6))
-
-    for c, seed in enumerate(cols):
-        x = row_label_w + pad + c * (tw + pad)
-        lbl = font_head.render(f"seed {seed}", True, (255, 220, 130))
-        sheet.blit(lbl, (x + tw // 2 - lbl.get_width() // 2, label_h - 22))
-
-    for r, key in enumerate(rows):
-        y = label_h + pad + r * (th + pad)
-        name_lbl = font_head.render(f"#{r + 1}", True, (255, 220, 130))
-        sheet.blit(name_lbl, (8, y + 6))
-        blurb = pgv.CANDIDATE_BLURBS[key]
-        # Wrap the blurb in the narrow row-label column.
-        words = (key + " — " + blurb).split()
-        line, ly = "", y + 36
-        for word in words:
-            test = (line + " " + word).strip()
-            if font_small.size(test)[0] > row_label_w - 12 and line:
-                sheet.blit(font_small.render(line, True, (215, 215, 215)),
-                           (8, ly))
-                ly += 20
-                line = word
-            else:
-                line = test
-        if line:
-            sheet.blit(font_small.render(line, True, (215, 215, 215)),
-                       (8, ly))
-
-        for c, seed in enumerate(cols):
-            random.seed(seed * 100 + r)
-            tile = render_tile(key, SUNSET_PHASE, seed)
-            x = row_label_w + pad + c * (tw + pad)
-            sheet.blit(tile, (x, y))
-            tag = font_small.render(f"{key} · seed {seed}", True,
-                                    (250, 250, 250))
-            bg = pygame.Surface((tag.get_width() + 8, tag.get_height() + 4),
-                                pygame.SRCALPHA)
-            bg.fill((0, 0, 0, 120))
-            sheet.blit(bg, (x + 4, y + 4))
-            sheet.blit(tag, (x + 8, y + 6))
-
-    return sheet
-
-
 def make_day_night_sheet() -> pygame.Surface:
     """Rows = 5 candidates, Cols = 5 phases. Same seed per row to isolate
     the palette change."""
     rows = list(pgv.CANDIDATES.keys())
     cols = PHASES
-    # One stable seed per candidate so the row reads as the same pagoda
-    # retinted, not different spawns.
-    row_seed = {key: 7 + i * 11 for i, key in enumerate(rows)}
     tw, th = W, H
     label_h = 30
-    row_label_w = 196
+    row_label_w = 220
     pad = 10
     sheet_w = row_label_w + pad + len(cols) * (tw + pad)
     sheet_h = label_h + pad + len(rows) * (th + pad)
@@ -204,7 +145,7 @@ def make_day_night_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "Pagoda candidates — day → sunrise → sunset → dusk → night",
+        "Round 5 pagodas — day → sunrise → sunset → dusk → night",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -234,8 +175,8 @@ def make_day_night_sheet() -> pygame.Surface:
                        (8, ly))
 
         for c, (pname, pval) in enumerate(cols):
-            random.seed(row_seed[key] * 100 + int(pval * 1000))
-            tile = render_tile(key, pval, row_seed[key])
+            random.seed(CANONICAL_SEED * 100 + int(pval * 1000))
+            tile = render_tile(key, pval, CANONICAL_SEED)
             x = row_label_w + pad + c * (tw + pad)
             sheet.blit(tile, (x, y))
             tag = font_small.render(f"{key} · {pname}", True, (250, 250, 250))
@@ -249,14 +190,8 @@ def make_day_night_sheet() -> pygame.Surface:
 
 
 def main() -> None:
-    seed_sheet = make_seed_sheet()
-    seed_path = OUT / "_comparison.png"
-    pygame.image.save(seed_sheet, seed_path)
-    print(f"wrote {seed_path}  "
-          f"({seed_sheet.get_width()}x{seed_sheet.get_height()})")
-
     dn_sheet = make_day_night_sheet()
-    dn_path = OUT / "_comparison_dayNight.png"
+    dn_path = OUT / "_comparison_dayNight_v2.png"
     pygame.image.save(dn_sheet, dn_path)
     print(f"wrote {dn_path}  "
           f"({dn_sheet.get_width()}x{dn_sheet.get_height()})")
