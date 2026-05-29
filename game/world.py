@@ -653,11 +653,11 @@ class World:
         if not self.game_over:
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.update(dt, gravity_sign=sign)  # bird physics at real time
-            # Terminal poison: Bird.update ramps poison_t toward 1.0; when
-            # it caps, the death pipeline takes over. Knight intercept in
-            # _die handles the only escape path.
-            if self.bird.poison_active and self.bird.poison_t >= 1.0:
-                self._die()
+            # Terminal poison: Bird.update ramps poison_t toward 1.0; the HUD
+            # poison bar reads the same ramp and disappears at t=1.0. From
+            # that point Bird.flap is guarded — Pip can no longer rise, so
+            # gravity carries him into a pillar / the ground and the normal
+            # collision pipeline triggers _die.
 
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
@@ -1554,7 +1554,7 @@ class World:
         self._pickup_burst(m, (KNIGHT_STEEL, KNIGHT_GOLD, WHITE, UI_CREAM),
                            n=32, speed_hi=320)
         self.float_texts.append(FloatText(
-            "KNIGHT!", m.x, m.y - 26, KNIGHT_GOLD,
+            "+1 LIFE", m.x, m.y - 26, KNIGHT_GOLD,
             size=30, life=1.4, vy=-32, style="powerup",
         ))
 

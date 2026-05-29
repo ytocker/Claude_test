@@ -545,6 +545,11 @@ class Bird:
         return base
 
     def flap(self, gravity_sign=1):
+        # Poison expiry: once the timer is up Pip loses flap control and
+        # dives under gravity until he collides with something (ground or
+        # pillar) and the normal death pipeline takes over.
+        if self.poison_active and self.poison_t >= 1.0:
+            return
         if self.alive:
             self.vy = FLAP_V * gravity_sign
             self.flap_boost = 0.45

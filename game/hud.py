@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -975,6 +975,47 @@ def _draw_buff_icon(surf, rect, kind):
         from game import knight_skin
         knight_skin.draw_shield_glyph(surf, cx, cy,
                                       size=min(rect.width, rect.height) - 2)
+    elif kind == "poison":
+        # Tiny green flask with a dark skull-dot — matches the in-world
+        # poison vial's BLACK_DOME / GREEN_GLASS palette at HUD scale.
+        OUTLINE = (20, 25, 15)
+        BODY    = (110, 170, 70)
+        LIQUID  = (170, 215, 90)
+        # Flask silhouette: narrow neck on top, wide body on bottom.
+        body_pts = [
+            (cx - 2, cy - 7),
+            (cx + 2, cy - 7),
+            (cx + 2, cy - 3),
+            (cx + 6, cy + 3),
+            (cx + 6, cy + 6),
+            (cx - 6, cy + 6),
+            (cx - 6, cy + 3),
+            (cx - 2, cy - 3),
+        ]
+        pygame.draw.polygon(surf, OUTLINE, body_pts)
+        inner_pts = [
+            (cx - 1, cy - 6),
+            (cx + 1, cy - 6),
+            (cx + 1, cy - 3),
+            (cx + 5, cy + 3),
+            (cx + 5, cy + 5),
+            (cx - 5, cy + 5),
+            (cx - 5, cy + 3),
+            (cx - 1, cy - 3),
+        ]
+        pygame.draw.polygon(surf, BODY, inner_pts)
+        # Toxic-yellow liquid filling the bottom ~70% of the body.
+        liquid_pts = [
+            (cx - 4, cy + 1),
+            (cx + 4, cy + 1),
+            (cx + 5, cy + 5),
+            (cx - 5, cy + 5),
+        ]
+        pygame.draw.polygon(surf, LIQUID, liquid_pts)
+        # Skull dot — dark circle + two cream eye-holes.
+        pygame.draw.circle(surf, OUTLINE, (cx, cy + 3), 2)
+        pygame.draw.circle(surf, BODY,    (cx - 1, cy + 2), 1)
+        pygame.draw.circle(surf, BODY,    (cx + 1, cy + 2), 1)
 
 
 class PauseButton:
@@ -1541,6 +1582,12 @@ class HUD:
             active.append(("skateboard", world.skateboard_timer, SKATEBOARD_DURATION))
         if getattr(world, "knight_timer", 0) > 0:
             active.append(("knight", world.knight_timer, KNIGHT_DURATION))
+        # Poison: ticks down for POISON_DURATION; at t=1.0 the bar drops
+        # off and the flap guard kicks in (Pip dives until collision).
+        if (getattr(world.bird, "poison_active", False)
+                and world.bird.poison_t < 1.0):
+            poison_remain = POISON_DURATION * (1.0 - world.bird.poison_t)
+            active.append(("poison", poison_remain, POISON_DURATION))
         # Genie has no timer bar — it's an instantaneous meta-powerup.
         # Rail intentionally has NO HUD timer bar: it's pillar-budgeted
         # rather than seconds-budgeted, and the on-world track + cart
