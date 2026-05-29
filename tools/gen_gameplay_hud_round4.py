@@ -189,10 +189,12 @@ def cand_plaques(surf):
                 a = rng.randint(14, 34)
                 col = (30, 18, 8) if not parchment else (150, 120, 70)
                 pygame.draw.line(ss, (*col, a), (orad, yy), (ow - orad, yy))
-        # carved inner groove
-        pygame.draw.rect(ss, (0, 0, 0, 120),
-                         (3 * SS, 3 * SS, ow - 6 * SS, oh - 6 * SS),
-                         width=2 * SS, border_radius=max(1, orad - 3 * SS))
+        # carved inner groove — only on the textured (non-solid) plaques; on a
+        # solid fill it reads as an unwanted dark line inside the rim.
+        if not solid:
+            pygame.draw.rect(ss, (0, 0, 0, 120),
+                             (3 * SS, 3 * SS, ow - 6 * SS, oh - 6 * SS),
+                             width=2 * SS, border_radius=max(1, orad - 3 * SS))
         # gold rope-style outer band
         pygame.draw.rect(ss, _GOLD_DEEP, (0, 0, ow, oh), width=2 * SS,
                          border_radius=orad)
@@ -240,9 +242,6 @@ def cand_plaques(surf):
     ss = _ss_surf(pw, ph)
     ow, oh, orad = pw * SS, ph * SS, rad * SS
     pygame.draw.rect(ss, (*_WOOD_MD, 255), (0, 0, ow, oh), border_radius=orad)
-    pygame.draw.rect(ss, (0, 0, 0, 120),
-                     (3 * SS, 3 * SS, ow - 6 * SS, oh - 6 * SS),
-                     width=2 * SS, border_radius=max(1, orad - 3 * SS))
     pygame.draw.rect(ss, _GOLD_DEEP, (0, 0, ow, oh), width=2 * SS,
                      border_radius=orad)
     pygame.draw.rect(ss, (*_GOLD_BRIGHT, 230), (0, 0, ow, oh), width=SS,
