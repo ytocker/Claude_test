@@ -131,7 +131,7 @@ POWERUP_REPLACED_AT = {
 # re-roll) so the gate can't be bypassed, and out of the help screen so the
 # roster stays a surprise. Weights are normalized at pick time alongside the
 # normal pool.
-LATE_GAME_SCORE        = 500
+LATE_GAME_SCORE        = 450
 # Only the genie spawns directly from the secret tier. Knight, skateboard,
 # and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
 # are not in any weight table and cannot be Surprise-re-rolled.
