@@ -2459,8 +2459,16 @@ class PowerUp:
         RED    = (200, 50, 50)
 
         SS = 6
-        NATIVE_W = NATIVE_H = 40
-        big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
+        # AUTHORED_N is the footprint the icon recipe was DESIGNED at —
+        # every shape inside this function is sized in absolute SS units
+        # (e.g. ear = 7*SS), so shrinking the canvas without preserving
+        # the authored scale clips the X boards and inflates the face.
+        # DISPLAY_N is the size production actually shows on the playfield.
+        # We render at AUTHORED_N to keep the original proportions, then
+        # smoothscale once to DISPLAY_N at the end.
+        AUTHORED_N = 96
+        DISPLAY_N  = 40
+        big = pygame.Surface((AUTHORED_N * SS, AUTHORED_N * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2
         by = big.get_height() // 2
@@ -2592,7 +2600,7 @@ class PowerUp:
         pygame.draw.polygon(big, DOME, bow_left, max(1, SS // 3))
         pygame.draw.polygon(big, DOME, bow_right, max(1, SS // 3))
 
-        icon = pygame.transform.smoothscale(big, (NATIVE_W, NATIVE_H))
+        icon = pygame.transform.smoothscale(big, (DISPLAY_N, DISPLAY_N))
         surf.blit(icon, icon.get_rect(center=(cx, cy)))
 
     def _draw_knight_icon(self, surf):
