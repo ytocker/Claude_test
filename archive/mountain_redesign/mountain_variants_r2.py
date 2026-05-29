@@ -827,6 +827,720 @@ def draw_mountains_skyline(surf, scroll, ground_y, w, far_color=None, near_color
                  window_glow=window_glow, rim=rim)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# ROUND-3 SHAN-SHUI EXPANSIONS — five derivatives of V4 pushed for PRESENCE
+# Brief: V4 was the user's pick from round 2 but read soft and recessive.
+# Round-3 set keeps the ink-wash DNA (layered tinted washes, atmospheric
+# perspective, calligraphic crest strokes, fog veils between bands) but
+# pushes for visible weight: larger silhouettes, stronger per-layer colour
+# saturation, dynamic brushwork, and iconic East-Asian punctuation
+# (karst spires, cloud sea, twisted pines, pagodas, glowing neon ink).
+# Each variant must read as clearly distinct from V4 AND from the others.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _ink_wash_strong(surf, heights, ground_y, ink_top, ink_bot, alpha_top,
+                     fade=1.4, rim_col=None, rim_w=1):
+    """Bolder cousin of ``_ink_wash``: opaque-feeling base alpha plus a
+    distinct rim colour argument so the silhouette reads with weight while
+    crest brushwork stays calligraphic. Used by every R3 shan-shui variant."""
+    w = surf.get_width()
+    top = min(y for _, y in heights)
+    depth = ground_y - top
+    if depth <= 0:
+        return
+    wash = pygame.Surface((w, depth), pygame.SRCALPHA)
+    for i in range(depth):
+        t = i / max(1, depth)
+        a = int(alpha_top * (1.0 - t) ** fade)
+        if a <= 0:
+            continue
+        col = _mix(ink_top, ink_bot, t)
+        pygame.draw.line(wash, (col[0], col[1], col[2], a), (0, i), (w, i))
+    poly = [(0, depth)] + [(x, y - top) for x, y in heights] + [(w, depth)]
+    mask = pygame.Surface((w, depth), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), poly)
+    wash.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(wash, (0, top))
+    if rim_col is not None:
+        _aa_crest(surf, heights, rim_col, width=rim_w)
+
+
+def _dry_brush_crest(surf, heights, color, density=0.55, max_drip=4, seed=0):
+    """Sumi-e "flying-white" feel: scatter short vertical drip-strokes off
+    the crest so the edge reads as a loaded brush instead of a smooth line.
+    Cheap — only paints a few px per sampled column, both targets OK."""
+    rng = random.Random(seed ^ (len(heights) * 91))
+    for x, y in heights:
+        if rng.random() > density:
+            continue
+        h = rng.randint(1, max_drip)
+        for dy in range(h):
+            a = max(0, 255 - int(64 * dy))
+            surf.set_at((x, y + dy), (color[0], color[1], color[2]))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# V11 — Karst Pinnacles (Guilin / Halong)
+# Vertical limestone spires emerging from a low mist band. Tall thin
+# silhouettes (h ≫ w), three parallax depths. Near band hits ~55% of the
+# screen height so the front reads as monumental; sumi-e calligraphic
+# crest line with dry-brush flying-white at the tips, soft mist veils
+# pooling between every band to sell ocean-of-mist atmosphere.
+# Presence vs V4: replaces rolling washes with hard vertical spires that
+# pierce upward, so the background reads with strong silhouette weight.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _karst_silhouette(w, ground_y, scroll, speed, base_y, spacing, h_min, h_max,
+                      width_min, width_max, seed):
+    """Vertical-spire silhouette: build a saw-tooth-ish ridge where each
+    "tooth" is a karst pinnacle with a slim convex top. ``heights`` returned
+    has one entry per pixel column so the existing wash / crest helpers
+    work without modification — every pinnacle becomes a continuous polygon
+    with mist-line gaps between them."""
+    phase = scroll * speed
+    heights = []
+    k0 = int(phase // spacing) - 2
+    # Pre-compute the spire layout so each column samples it deterministically.
+    spires = []
+    for k in range(k0, k0 + int(w / spacing) + 4):
+        rng = random.Random((k * 1664525 ^ seed) & 0xFFFFFFFF)
+        cx = int(k * spacing - phase) + rng.randint(-spacing // 4, spacing // 4)
+        sh = rng.randint(h_min, h_max)
+        sw = rng.randint(width_min, width_max)
+        # Pinnacles bow inward — wider at base, narrowing to a rounded crown.
+        # Curve exponent biases the bulge: >1 sharper crown, <1 wider mid.
+        bulge = rng.uniform(1.35, 2.1)
+        tip_off = rng.randint(-2, 2)  # small crown wobble for organic feel
+        spires.append((cx, sh, sw, bulge, tip_off))
+    for x in range(w + 1):
+        # The pinnacle this column belongs to is the nearest centre within
+        # half-width; otherwise this column is mist (ground_y).
+        best_y = base_y
+        for cx, sh, sw, bulge, tip_off in spires:
+            half = sw // 2
+            if cx - half - 1 <= x <= cx + half + 1:
+                # Normalised distance from centre, 0=middle, 1=edge.
+                d = abs(x - cx) / max(1, half)
+                if d > 1.0:
+                    continue
+                # Crown profile: 1 - d^bulge gives a sharp narrow crest.
+                col_h = sh * (1.0 - d ** bulge)
+                yy = base_y - int(col_h) + tip_off
+                if yy < best_y:
+                    best_y = yy
+        heights.append((x, best_y))
+    return heights
+
+
+def draw_mountains_karst(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    haze = _mix(_haze(far, near), horizon, 0.30)
+
+    # BACK band — small distant spires near the horizon, very hazy.
+    far_tint = _mix(far, horizon, 0.40)
+    base_b = ground_y - 12
+    hb = _karst_silhouette(w, ground_y, scroll, 0.07, base_b,
+                           spacing=46, h_min=70, h_max=120,
+                           width_min=18, width_max=30, seed=11)
+    _ink_wash_strong(surf, hb, ground_y, _mix(far_tint, (240, 244, 252), 0.18),
+                     _mix(far_tint, haze, 0.5), alpha_top=170, fade=1.5,
+                     rim_col=_mix(far, horizon, 0.45))
+    # Horizontal mist veil — heavy at the base so the spires look like they
+    # rise from a sea of cloud, classic shan-shui yúnhǎi look.
+    _haze_band(surf, hb, ground_y,
+               _mix(haze, (255, 255, 255), 0.25 * (1.0 - night)), 130, 28)
+
+    # MID band — taller, denser, mid contrast.
+    mid_tint = _mix(near, far, 0.4)
+    base_m = ground_y + 8
+    hm = _karst_silhouette(w, ground_y, scroll, 0.15, base_m,
+                           spacing=58, h_min=150, h_max=240,
+                           width_min=24, width_max=44, seed=29)
+    _ink_wash_strong(surf, hm, ground_y,
+                     _sat(_mix(mid_tint, far, 0.3), 1.1),
+                     _mix(mid_tint, haze, 0.35), alpha_top=210, fade=1.6,
+                     rim_col=_shade(_sat(mid_tint, 1.25), -20), rim_w=1)
+    _dry_brush_crest(surf, hm,
+                     _shade(_sat(mid_tint, 1.3), -36), density=0.32,
+                     max_drip=3, seed=29)
+    _haze_band(surf, hm, ground_y,
+               _mix(haze, (255, 255, 255), 0.18 * (1.0 - night)), 105, 22)
+
+    # NEAR band — monumental front-spires, near-opaque, brightest crest rim.
+    near_ink = _sat(near, 1.20)
+    base_n = ground_y + 16
+    hn = _karst_silhouette(w, ground_y, scroll, 0.28, base_n,
+                           spacing=72, h_min=240, h_max=330,
+                           width_min=30, width_max=58, seed=53)
+    _ink_wash_strong(surf, hn, ground_y, near_ink,
+                     _mix(near_ink, far, 0.4), alpha_top=242, fade=1.5,
+                     rim_col=_shade(_sat(near_ink, 1.3), -32), rim_w=1)
+    _dry_brush_crest(surf, hn, _shade(_sat(near_ink, 1.35), -48),
+                     density=0.40, max_drip=5, seed=53)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# V12 — Cloud Sea / Yúnhǎi Peaks
+# Peak islands poking through a rolling cloud sea. Classic Huangshan motif:
+# triangular mountain crowns float above thick horizontal cloud rolls so the
+# bottom of each peak dissolves into bright mist. Multiple cloud bands stack
+# with the peaks, and lit cloud edges catch the horizon glow.
+# Presence vs V4: replaces uniform layered wash with a strong figure-ground
+# contrast — bright cloud sea against dark peak crowns reads loud and far.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _peak_silhouette(w, ground_y, scroll, speed, peak_y, peak_spacing,
+                     peak_h_min, peak_h_max, base_anchor, jag, seed):
+    """Mountain crown silhouette: triangular peaks with slightly jagged sides,
+    each pulled up from ``base_anchor`` so the band reads as a chain of free-
+    standing crowns rather than a single rolling ridge."""
+    phase = scroll * speed
+    heights = []
+    k0 = int(phase // peak_spacing) - 2
+    peaks = []
+    for k in range(k0, k0 + int(w / peak_spacing) + 4):
+        rng = random.Random((k * 2654435761 ^ seed) & 0xFFFFFFFF)
+        cx = int(k * peak_spacing - phase) + rng.randint(-12, 12)
+        ph = rng.randint(peak_h_min, peak_h_max)
+        half = int(peak_spacing * rng.uniform(0.55, 0.78))
+        # Slight asymmetry — Chinese ink peaks rarely sit symmetric.
+        skew = rng.uniform(-0.18, 0.18)
+        peaks.append((cx, ph, half, skew, rng))
+    for x in range(w + 1):
+        # Highest contributor wins (largest closest peak draws the column).
+        best_y = base_anchor
+        for cx, ph, half, skew, rng in peaks:
+            if cx - half <= x <= cx + half:
+                d = (x - cx) / max(1, half)  # -1..+1
+                # Triangle profile with skew (one side steeper, like sumi-e).
+                if d < 0:
+                    f = 1.0 - abs(d) ** (1.1 + skew)
+                else:
+                    f = 1.0 - abs(d) ** (1.1 - skew)
+                # Jagged jitter on the slope sells brushy ink edges.
+                f += math.sin(x * 0.45 + cx) * jag / max(1, ph)
+                yy = peak_y - int(ph * max(0.0, f))
+                if yy < best_y:
+                    best_y = yy
+        heights.append((x, best_y))
+    return heights
+
+
+def _cloud_sea_band(surf, w, top_y, depth, base_col, hi_col, density, seed):
+    """Horizontal rolling cloud sea: stacked horizontal bands of varying
+    alpha and lit edges so it reads as billowing rolls, not a flat fill.
+    The brightest highlight sits at the wave crest of each roll — that's
+    where the sun catches the cloud sea in real Huangshan photos. Thickness
+    and density both run high so the cloud sea reads bright and present
+    rather than as a thin smear (previous tuning was too subtle)."""
+    band = pygame.Surface((w, depth), pygame.SRCALPHA)
+    rng = random.Random(seed)
+    # Sit a solid bright wash across the band first — the cloud-sea body has
+    # to feel like a thick floor of cloud, not a sparse veil. Subsequent
+    # rolling waves layer on top to give it form.
+    floor = pygame.Surface((w, depth), pygame.SRCALPHA)
+    for i in range(depth):
+        # Cloud body brighter at the upper rim (lit by sky) and fading down.
+        t = i / max(1, depth)
+        a = int(density * 0.75 * (1.0 - t * 0.35))
+        col = _mix(hi_col, base_col, t * 0.7)
+        pygame.draw.line(floor, (col[0], col[1], col[2], a),
+                         (0, i), (w, i))
+    band.blit(floor, (0, 0))
+    # 5-7 rolling cloud "waves" stacked vertically with bright lit upper rims.
+    n_rolls = rng.randint(5, 7)
+    for r in range(n_rolls):
+        roll_y = int((r + 0.5) / n_rolls * depth) + rng.randint(-3, 3)
+        amp = rng.uniform(3.0, 6.0)
+        freq = rng.uniform(0.015, 0.030)
+        phase = rng.uniform(0, math.tau)
+        thickness = rng.randint(8, 14)
+        for x in range(w):
+            cy = roll_y + math.sin(x * freq + phase) * amp
+            for dy in range(-thickness, thickness + 1):
+                yy = int(cy + dy)
+                if 0 <= yy < depth:
+                    a = int(density * math.exp(-(dy * dy) / (thickness * 0.55)))
+                    if a <= 1:
+                        continue
+                    if dy < -thickness * 0.4:
+                        col = hi_col
+                    else:
+                        col = base_col
+                    prev = band.get_at((x, yy))
+                    na = min(245, prev[3] + a)
+                    band.set_at((x, yy), (col[0], col[1], col[2], na))
+    surf.blit(band, (0, top_y))
+
+
+def draw_mountains_cloudsea(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    haze = _mix(_haze(far, near), horizon, 0.35)
+    # Cloud sea colour: bright on the lit edge keyed by horizon glow,
+    # base tone slightly cooler so the rim "pops". At night the sea reads
+    # as cold moonlit fog.
+    cloud_hi = _mix((255, 250, 235), horizon, 0.45)
+    cloud_hi = _shade(cloud_hi, int(-60 * night))
+    cloud_base = _mix((220, 224, 235), haze, 0.55)
+    cloud_base = _shade(cloud_base, int(-65 * night))
+
+    # BACK peaks — small distant island crowns peeking just above the highest
+    # cloud band so the eye reads "endless layers".
+    far_tint = _mix(far, horizon, 0.40)
+    base_b = ground_y - 80
+    peak_y_b = ground_y - 90
+    hb = _peak_silhouette(w, ground_y, scroll, 0.07,
+                          peak_y=peak_y_b, peak_spacing=86,
+                          peak_h_min=44, peak_h_max=86,
+                          base_anchor=base_b, jag=1.5, seed=11)
+    _ink_wash_strong(surf, hb, base_b,
+                     _sat(far_tint, 1.0),
+                     _mix(far_tint, haze, 0.6),
+                     alpha_top=190, fade=1.4,
+                     rim_col=_mix(far_tint, horizon, 0.55))
+    _cloud_sea_band(surf, w, ground_y - 132, 56, cloud_base, cloud_hi,
+                    density=170, seed=17)
+
+    # MID peaks — main island chain, the focal hero band. Sharper, taller
+    # crowns + tighter spacing so the silhouette holds presence.
+    mid_tint = _mix(near, far, 0.35)
+    base_m = ground_y - 30
+    peak_y_m = ground_y - 40
+    hm = _peak_silhouette(w, ground_y, scroll, 0.16,
+                          peak_y=peak_y_m, peak_spacing=108,
+                          peak_h_min=150, peak_h_max=220,
+                          base_anchor=base_m, jag=3.2, seed=29)
+    _ink_wash_strong(surf, hm, base_m,
+                     _sat(mid_tint, 1.20),
+                     _mix(mid_tint, haze, 0.30),
+                     alpha_top=234, fade=1.55,
+                     rim_col=_shade(_sat(mid_tint, 1.35), -32))
+    _dry_brush_crest(surf, hm, _shade(_sat(mid_tint, 1.4), -48),
+                     density=0.36, max_drip=4, seed=29)
+    _cloud_sea_band(surf, w, ground_y - 76, 50, cloud_base, cloud_hi,
+                    density=210, seed=41)
+
+    # NEAR peaks — biggest crowns, rising tall through the lowest cloud roll
+    # so they read up close, with the front cloud sea covering their feet.
+    near_ink = _sat(near, 1.25)
+    base_n = ground_y + 6
+    peak_y_n = ground_y
+    hn = _peak_silhouette(w, ground_y, scroll, 0.30,
+                          peak_y=peak_y_n, peak_spacing=148,
+                          peak_h_min=240, peak_h_max=320,
+                          base_anchor=base_n, jag=3.8, seed=53)
+    _ink_wash_strong(surf, hn, base_n,
+                     near_ink,
+                     _mix(near_ink, far, 0.40),
+                     alpha_top=252, fade=1.55,
+                     rim_col=_shade(_sat(near_ink, 1.35), -40))
+    _dry_brush_crest(surf, hn, _shade(_sat(near_ink, 1.4), -56),
+                     density=0.48, max_drip=6, seed=53)
+    # Front cloud sea sits on the ground line, swallowing the spire feet.
+    # Extra thickness here so the cloud rolls clearly cap the near peaks.
+    _cloud_sea_band(surf, w, ground_y - 34, 36, cloud_base, cloud_hi,
+                    density=220, seed=73)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# V13 — Sumi-e Bold Crags + Lone Pines
+# Heavy near-black Huangshan-style jagged ridges with twisted lone pines
+# clinging to crests. The whole set leans dark: high contrast against sky,
+# rough sawtooth silhouettes, dry-brush "flying-white" edges, and one or
+# two iconic gnarled pines per band as cultural punctuation.
+# Presence vs V4: nearly opaque black ink instead of soft tinted wash;
+# silhouettes are angular and aggressive instead of soft rollers.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _crag_ridge(w, ground_y, scroll, speed, base_h, jag_amp, jag_freq, seed):
+    """Sawtooth-flavoured ridge with sharp upward stabs at irregular spacing.
+    Built on top of a low rolling base so the line still reads as a mountain
+    range, just with hard angular sumi-e crags poking up."""
+    rng = random.Random(seed)
+    # Pre-roll the spike positions: a sparse list of "stab" centres with
+    # random heights, summed onto the smooth base in pixel pass below.
+    spikes = []
+    for k in range(int(w / 30) + 6):
+        spikes.append((rng.uniform(-1, w + 1) + (k - 2) * 30,
+                       rng.uniform(jag_amp * 0.4, jag_amp * 1.6),
+                       rng.uniform(8, 18)))  # spike half-width
+    heights = []
+    phase = scroll * speed
+    for x in range(w + 1):
+        sx = x + phase
+        h = base_h + math.sin(sx * 0.012 + 0.3) * 18 + math.sin(sx * 0.027 + 1.4) * 9
+        # Triangular stabs from the spike list.
+        for cx, amp, half in spikes:
+            sxs = (x + phase * 0.15) - cx
+            if abs(sxs) < half:
+                h += amp * (1.0 - abs(sxs) / half) ** 1.2
+        # High-frequency tiny jag on top of everything for brushy roughness.
+        h += math.sin(sx * jag_freq) * 2.0
+        heights.append((x, ground_y - int(h)))
+    return heights
+
+
+def _lone_pine(surf, x, y_base, h, ink, accent, rng):
+    """Twisted Huangshan-style pine in silhouette: short bent trunk with two
+    flat horizontal canopy puffs, sumi-e simplification (no detail needles).
+    Reads as iconic East-Asian punctuation at this scale."""
+    if y_base <= h + 4:
+        return
+    # Bent trunk: 3 segments, each leaning slightly opposite for character.
+    lean = rng.choice((-1, 1))
+    seg = h // 3
+    p0 = (x, y_base)
+    p1 = (x + lean * 2, y_base - seg)
+    p2 = (x + lean * 4, y_base - seg * 2)
+    p3 = (x + lean * 2, y_base - h)
+    pygame.draw.lines(surf, ink, False, [p0, p1, p2, p3], 2)
+    # Two horizontal canopy puffs, the upper smaller. Flat ellipses for the
+    # sumi-e "umbrella pine" silhouette.
+    cw1 = int(h * 0.7)
+    ch1 = max(3, h // 6)
+    cw2 = int(h * 0.45)
+    ch2 = max(2, h // 8)
+    pygame.draw.ellipse(surf, ink,
+                        pygame.Rect(p3[0] - cw1 // 2, p3[1] - ch1 - 1, cw1, ch1 * 2))
+    pygame.draw.ellipse(surf, ink,
+                        pygame.Rect(p3[0] - cw2 // 2, p3[1] - ch2 - h // 4, cw2, ch2 * 2))
+    # Tiny accent dot at the highest point — the brush "tap" finishing stroke.
+    surf.set_at((p3[0], p3[1] - ch1 - 2), accent)
+
+
+def _crag_pines(surf, heights, ground_y, count, ink, accent, h_min, h_max, seed):
+    """Pick the locally-tallest crest points and plant pines on them so the
+    iconic punctuation lands on visible summits, not random columns."""
+    rng = random.Random(seed)
+    # Sample local maxima.
+    candidates = []
+    look = 14
+    for i in range(look, len(heights) - look):
+        x, y = heights[i]
+        if all(y <= heights[i + d][1] for d in range(-look, look + 1)):
+            candidates.append(i)
+    if not candidates:
+        return
+    rng.shuffle(candidates)
+    for i in candidates[:count]:
+        x, y = heights[i]
+        ph = rng.randint(h_min, h_max)
+        _lone_pine(surf, x, y, ph, ink, accent, rng)
+
+
+def draw_mountains_sumie_crags(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    haze = _mix(_haze(far, near), horizon, 0.30)
+    # Dark ink tones: pulled toward near-black, but always tinted by the
+    # biome near tone so each phase still tints the ink (warm sunset ink,
+    # cool dusk ink, etc.). Daylight ink reads as deep slate, dusk goes
+    # near-black.
+    ink_far = _shade(_mix(far, (25, 28, 42), 0.55), -10)
+    ink_mid = _shade(_mix(near, (18, 20, 30), 0.55), -10)
+    ink_near = _shade(_mix(near, (10, 12, 22), 0.65), -10)
+    # Accent for the brush tap on pines — leans warm so it's always visible.
+    pine_accent = _mix(horizon, (255, 230, 200), 0.6)
+
+    # BACK — gentle ink wash for a hint of distant range.
+    hb = _crag_ridge(w, ground_y, scroll, 0.07, 90, jag_amp=6, jag_freq=0.5, seed=11)
+    _ink_wash_strong(surf, hb, ground_y, ink_far,
+                     _mix(ink_far, haze, 0.4),
+                     alpha_top=200, fade=1.3,
+                     rim_col=_mix(ink_far, horizon, 0.55))
+    _haze_band(surf, hb, ground_y,
+               _mix(haze, (255, 255, 255), 0.20 * (1.0 - night)), 110, 24)
+
+    # MID — angular crags, the hero ink band.
+    hm = _crag_ridge(w, ground_y, scroll, 0.16, 130, jag_amp=22, jag_freq=0.7, seed=29)
+    _ink_wash_strong(surf, hm, ground_y, ink_mid,
+                     _mix(ink_mid, far, 0.25),
+                     alpha_top=232, fade=1.4,
+                     rim_col=_shade(ink_mid, -22))
+    _dry_brush_crest(surf, hm, _shade(ink_mid, -28),
+                     density=0.45, max_drip=4, seed=29)
+    _haze_band(surf, hm, ground_y,
+               _mix(haze, (255, 255, 255), 0.14 * (1.0 - night)), 70, 18)
+    # Mid pines on the high points.
+    _crag_pines(surf, hm, ground_y, count=2,
+                ink=_shade(ink_mid, -20), accent=pine_accent,
+                h_min=18, h_max=28, seed=29)
+
+    # NEAR — heaviest black silhouette with the most aggressive sawtooth.
+    hn = _crag_ridge(w, ground_y, scroll, 0.30, 180, jag_amp=34, jag_freq=0.9, seed=53)
+    _ink_wash_strong(surf, hn, ground_y, ink_near,
+                     _mix(ink_near, far, 0.25),
+                     alpha_top=250, fade=1.5,
+                     rim_col=_shade(ink_near, -22))
+    _dry_brush_crest(surf, hn, _shade(ink_near, -32),
+                     density=0.55, max_drip=6, seed=53)
+    # Front pines — bigger, more visible.
+    _crag_pines(surf, hn, ground_y, count=3,
+                ink=_shade(ink_near, -10), accent=pine_accent,
+                h_min=26, h_max=42, seed=53)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# V14 — Pagoda-Crowned Ridges
+# Layered shan-shui washes (true to V4 DNA) crowned with silhouetted
+# multi-tiered pagodas planted on the highest summits of the front bands.
+# Pagodas are tiny but instantly readable: storybook Chinese scroll feel.
+# Presence vs V4: the iconic architectural punctuation gives the eye a
+# clear focal anchor on every band; pagoda silhouettes read with weight
+# even from the back row, plus all ridge bands run +20% taller / more
+# saturated for a bolder overall read.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _pagoda(surf, x, base_y, tiers, base_w, color, accent, scale=1.0):
+    """A multi-tier pagoda silhouette. Each tier is a rectangular body with
+    upturned eave overhangs, narrowing slightly toward the top, capped by a
+    spire finial. Scaled up vs first pass so pagodas read as architectural
+    weight, not specks; the rim accent runs along the eaves of every tier
+    so the iconic upturned silhouette catches the eye at any phase."""
+    tier_h = max(5, int(7 * scale))
+    eave_lip = max(1, int(3 * scale))
+    bw = base_w
+    cy = base_y
+    # Stone platform under the bottom tier.
+    plat = pygame.Rect(x - bw // 2 - 2, cy - 3, bw + 4, 3)
+    pygame.draw.rect(surf, color, plat)
+    for t in range(tiers):
+        tw = max(6, bw - t * 2)
+        body = pygame.Rect(x - tw // 2, cy - tier_h, tw, tier_h)
+        pygame.draw.rect(surf, color, body)
+        # Eave roof: a flatter wedge wider than the body with upturned corners.
+        eave_w = tw + max(7, int(9 * scale))
+        roof_top = cy - tier_h - max(2, int(3 * scale))
+        roof_pts = [
+            (x - eave_w // 2, cy - tier_h),
+            (x - eave_w // 2 + 3, roof_top),
+            (x + eave_w // 2 - 3, roof_top),
+            (x + eave_w // 2, cy - tier_h),
+        ]
+        pygame.draw.polygon(surf, color, roof_pts)
+        # Upturned eave corners — the single most recognisable cue. Drawn as
+        # short hooks above the eave line so they read against any sky.
+        pygame.draw.line(surf, color,
+                         (x - eave_w // 2 - 1, cy - tier_h - 1),
+                         (x - eave_w // 2 + 1, cy - tier_h - max(3, int(4 * scale))), 1)
+        pygame.draw.line(surf, color,
+                         (x + eave_w // 2, cy - tier_h - 1),
+                         (x + eave_w // 2 - 2, cy - tier_h - max(3, int(4 * scale))), 1)
+        # Accent rim along the eave so the architectural silhouette holds
+        # against the wash even in distant rows.
+        pygame.draw.aaline(surf, accent,
+                           (x - eave_w // 2 + 1, roof_top + 1),
+                           (x + eave_w // 2 - 1, roof_top + 1))
+        cy -= tier_h + eave_lip
+    # Tapered finial spire on top, taller than before.
+    spire_h = max(5, int(7 * scale))
+    pygame.draw.polygon(surf, color, [
+        (x - 1, cy), (x + 1, cy), (x, cy - spire_h)])
+    # A small accent dot at the spire tip — the calligrapher's punctuation.
+    surf.set_at((x, cy - spire_h - 1), accent)
+
+
+def _summit_pagodas(surf, heights, count, tiers_choices, base_w_choices,
+                    color, accent, seed, scale=1.0):
+    """Plant pagodas on the locally-tallest crest points."""
+    rng = random.Random(seed)
+    look = 18
+    candidates = []
+    for i in range(look, len(heights) - look):
+        x, y = heights[i]
+        if all(y <= heights[i + d][1] for d in range(-look, look + 1)):
+            candidates.append(i)
+    if not candidates:
+        return
+    rng.shuffle(candidates)
+    for i in candidates[:count]:
+        x, y = heights[i]
+        tiers = rng.choice(tiers_choices)
+        bw = rng.choice(base_w_choices)
+        _pagoda(surf, x, y - 1, tiers, bw, color, accent, scale=scale)
+
+
+def draw_mountains_pagoda(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    haze = _mix(_haze(far, near), horizon, 0.32)
+
+    # V4 lineage: 5-layer wash, but every base_h is taller and every alpha
+    # bumped so the ridges hold more visual weight in the frame.
+    far_tint = _mix(far, horizon, 0.42)
+    specs = [
+        (0.05, 124, 140, _mix(far_tint, (235, 238, 248), 0.28), far_tint),
+        (0.08, 108, 165, _mix(far_tint, far, 0.62), _mix(far_tint, haze, 0.5)),
+        (0.13, 96, 190, _sat(far, 1.20), _mix(far, haze, 0.4)),
+        (0.20, 80, 218, _sat(_mix(near, far, 0.4), 1.25), _mix(near, far, 0.5)),
+        (0.28, 64, 244, _sat(near, 1.30), _mix(near, far, 0.28)),
+    ]
+    crest_heights = []
+    for k, (speed, base_h, atop, itop, ibot) in enumerate(specs):
+        pts, h = _ridge(w, ground_y, scroll, speed, base_h,
+                        [(0.011 + k * 0.002, 24 - k * 2, 0.6 + k),
+                         (0.030 + k * 0.004, 12, 1.5 - k * 0.3)])
+        _ink_wash_strong(surf, h, ground_y, itop, ibot, atop, fade=1.6,
+                         rim_col=_shade(_sat(itop, 1.2), -28))
+        if k < len(specs) - 1:
+            veil = _mix(haze, horizon, 0.40)
+            _haze_band(surf, h, ground_y, veil, 95, 22)
+        crest_heights.append(h)
+
+    # Pagodas on the three FRONT bands so they read clearly. Distant pagodas
+    # are small silhouettes; near ones are big multi-tier with a rim-light
+    # accent so they punch hard off the front wash. Pagoda colour leans
+    # near-black so it always reads as architectural shape regardless of
+    # the wash tone behind it.
+    pag_far = _shade(_sat(_mix(far, near, 0.7), 1.15), -42)
+    pag_mid = _shade(_sat(near, 1.20), -46)
+    pag_near = _shade(_sat(near, 1.30), -58)
+    accent = _mix(horizon, (255, 230, 180), 0.55)
+    _summit_pagodas(surf, crest_heights[2], count=2,
+                    tiers_choices=(2, 3), base_w_choices=(9, 10, 11),
+                    color=pag_far, accent=accent, seed=29, scale=0.85)
+    _summit_pagodas(surf, crest_heights[3], count=2,
+                    tiers_choices=(3, 4), base_w_choices=(12, 13, 14),
+                    color=pag_mid, accent=accent, seed=53, scale=1.05)
+    _summit_pagodas(surf, crest_heights[4], count=2,
+                    tiers_choices=(4, 5), base_w_choices=(14, 15, 17),
+                    color=pag_near, accent=accent, seed=83, scale=1.35)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# V15 — Neon-Ink Shan-Shui
+# Modern reinterpretation: dark ink ridges with electric glow piped along
+# every crest. Additive bloom on the ridge edge, hot accent-coloured mist
+# veils between bands. By day the glow pulls toward the warm horizon hue
+# so it reads as sun-struck rim light; at night it pops as neon cyberpunk
+# shan-shui. Direct response to "more presence" — silhouettes go heavy
+# and dark, edges go luminous.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _neon_crest(surf, heights, ground_y, glow, core, halo_h=10, intensity=1.0):
+    """Bloomed neon edge: a soft additive halo above the crest, a hot core
+    line right on it. Halo width tapers with distance from the line. Both
+    additive so the colour stacks over whatever sky sits behind. ``intensity``
+    scales the halo alpha — front bands push past 1 to overdrive the glow so
+    the eye reads them as "closest light"."""
+    if not heights:
+        return
+    w = surf.get_width()
+    top = min(y for _, y in heights)
+    band_top = max(0, top - halo_h)
+    band_h = ground_y - band_top
+    if band_h <= 0:
+        return
+    band = pygame.Surface((w, band_h), pygame.SRCALPHA)
+    xy = {x: y for x, y in heights}
+    peak_alpha = int(220 * intensity)
+    for x in range(w):
+        ry = xy.get(x)
+        if ry is None:
+            continue
+        local_y = ry - band_top
+        for dy in range(-halo_h, 1):
+            yy = local_y + dy
+            if 0 <= yy < band_h:
+                d = abs(dy) / halo_h
+                a = int(peak_alpha * (1.0 - d) ** 1.5)
+                if a <= 1:
+                    continue
+                prev = band.get_at((x, yy))
+                na = min(240, prev[3] + a)
+                band.set_at((x, yy), (glow[0], glow[1], glow[2], na))
+    surf.blit(band, (0, band_top), special_flags=pygame.BLEND_RGBA_ADD)
+    # Hot core line — exact ridge silhouette in a brighter tone, drawn twice
+    # for visible weight on the WASM target (where AA can be subtle).
+    pygame.draw.aalines(surf, core, False, heights)
+    pygame.draw.lines(surf, core, False, heights, 1)
+
+
+def _neon_mist(surf, heights, ground_y, color, top_alpha, depth):
+    """Coloured fog veil keyed to the neon accent — sits in the gap above
+    each ridge so the spaces between bands also carry the accent hue."""
+    if not heights:
+        return
+    top = min(y for _, y in heights)
+    band = pygame.Surface((surf.get_width(), depth), pygame.SRCALPHA)
+    for i in range(depth):
+        a = int(top_alpha * (1.0 - i / depth) ** 1.3)
+        if a <= 0:
+            continue
+        pygame.draw.line(band, (color[0], color[1], color[2], a),
+                         (0, i), (surf.get_width(), i))
+    surf.blit(band, (0, max(0, top - depth // 2)),
+              special_flags=pygame.BLEND_RGBA_ADD)
+
+
+def draw_mountains_neonink(surf, scroll, ground_y, w, far_color=None, near_color=None):
+    pal = _biome.palette_for_phase(_PHASE)
+    far = far_color or pal['mtn_far']
+    near = near_color or pal['mtn_near']
+    horizon = pal['horizon']
+    accent = pal['stone_accent']
+    foliage_accent = pal['foliage_accent']
+    night = min(1.0, pal['star_alpha'] / 235.0)
+    # Dark ink body — push hard toward near-black with only a sliver of the
+    # biome tone left in, so silhouettes read with weight at every phase
+    # (previous tuning let day silhouettes wash into the haze).
+    ink_far = _shade(_mix(far, (12, 14, 28), 0.75), -16)
+    ink_mid = _shade(_mix(near, (6, 8, 18), 0.78), -18)
+    ink_near = _shade(_mix(near, (2, 3, 12), 0.85), -22)
+    # Neon glow hues: electric magenta + cyan. Day tint pulls just enough
+    # toward horizon warm to read as sun-struck rim; night pushes hard into
+    # neon. Saturation cranked so the edge always pops against a dark wash.
+    magenta = (255, 90, 200)
+    cyan = (80, 230, 255)
+    neon = _sat(_mix(_mix(accent, horizon, 0.4), magenta, 0.45 + 0.45 * night), 1.7)
+    neon_alt = _sat(_mix(foliage_accent, cyan, 0.45 + 0.45 * night), 1.7)
+    core = _mix(neon, (255, 255, 255), 0.6)
+
+    # BACK — distant neon mist plus a soft ridge silhouette. Heavier wash
+    # so the band reads as solid dark, not a low-contrast tint.
+    hb = _ridge(w, ground_y, scroll, 0.07, 106,
+                [(0.011, 24, 0.5), (0.028, 11, 1.8)])[1]
+    _ink_wash_strong(surf, hb, ground_y, ink_far,
+                     _mix(ink_far, ink_mid, 0.4), alpha_top=232, fade=1.4)
+    _neon_crest(surf, hb, ground_y, neon, core, halo_h=10, intensity=0.7)
+    _neon_mist(surf, hb, ground_y, neon, 60, 28)
+
+    # MID — heavier ridge, brighter glow with the secondary neon hue.
+    hm = _ridge(w, ground_y, scroll, 0.16, 90,
+                [(0.014, 30, 1.3), (0.032, 14, 0.4)])[1]
+    _ink_wash_strong(surf, hm, ground_y, ink_mid,
+                     _mix(ink_mid, ink_near, 0.4), alpha_top=246, fade=1.5)
+    _neon_crest(surf, hm, ground_y, neon_alt,
+                _mix(neon_alt, (255, 255, 255), 0.55),
+                halo_h=14, intensity=0.95)
+    _neon_mist(surf, hm, ground_y, neon_alt, 70, 24)
+
+    # NEAR — heaviest dark silhouette, hottest neon edge — the band that
+    # truly sells the "modern shan-shui" pitch. Overdrive intensity past 1
+    # so the front edge reads as the brightest light source in the frame.
+    hn = _ridge(w, ground_y, scroll, 0.30, 70,
+                [(0.019, 26, 0.4), (0.045, 12, 1.9)])[1]
+    _ink_wash_strong(surf, hn, ground_y, ink_near,
+                     _shade(ink_near, -10), alpha_top=255, fade=1.6)
+    _neon_crest(surf, hn, ground_y, neon,
+                _mix(neon, (255, 255, 255), 0.65),
+                halo_h=18, intensity=1.25)
+
+
 # ── phase plumbing ────────────────────────────────────────────────────────
 # Several concepts need palette keys beyond mtn_far/mtn_near (foliage, horizon,
 # accents). The drop-in signature can't carry the phase, so the harness sets
@@ -852,18 +1566,31 @@ VARIANTS = {
     8: draw_mountains_biolum,
     9: draw_mountains_aurora,
     10: draw_mountains_skyline,
+    11: draw_mountains_karst,
+    12: draw_mountains_cloudsea,
+    13: draw_mountains_sumie_crags,
+    14: draw_mountains_pagoda,
+    15: draw_mountains_neonink,
 }
 
 VARIANT_NAMES = {
     1: "Danxia Rainbow Strata (refined)",
     2: "Wind-Sculpted Dunes (refined)",
-    4: "Shan-Shui Ink Ridges (refined)",
+    4: "Shan-Shui Ink Ridges (refined) — R2 favourite",
     6: "Floating Sky Islands",
     7: "Crystal Geode Spires",
     8: "Bioluminescent Canyon",
     9: "Aurora Ridgelines",
     10: "Distant Fantasy Skyline",
+    11: "Karst Pinnacles (Guilin)",
+    12: "Cloud Sea Peaks (Yúnhǎi)",
+    13: "Sumi-e Bold Crags + Lone Pines",
+    14: "Pagoda-Crowned Ridges",
+    15: "Neon-Ink Shan-Shui",
 }
 
 # V1 leads as the returning round-1 favourite, brought up to round-2 fidelity.
 ROW_ORDER = [1, 2, 4, 6, 7, 8, 9, 10]
+
+# Round-3 sheet — V4 reference on top + 5 new shan-shui derivatives.
+ROW_ORDER_SHANSHUI = [4, 11, 12, 13, 14, 15]
