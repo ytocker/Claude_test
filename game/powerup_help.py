@@ -24,7 +24,8 @@ from game.draw import (
 )
 from game.hud import (
     _font, _draw_overlay_stars,
-    _GOLD_BRIGHT, _ORANGE_BORDER, _RED_OUTLINE, _PANEL_DARK,
+    _GOLD_BRIGHT, _GOLD_PALE, _GOLD_DEEP, _ORANGE_BORDER, _RED_OUTLINE,
+    _PANEL_DARK, _PANEL_LIGHTER,
 )
 from game.entities import PowerUp
 
@@ -83,23 +84,79 @@ def _outlined_title(surf, txt, center, size, px, shadow_offset):
 _PANEL_OS = 4  # supersample factor for the card frame
 
 
+def _panel_body_gradient(pnl, ow, oh, orad, alpha):
+    """Faint vertical lift on the card body — top a touch brighter than the
+    floor — so the tile reads as gently lit. The swing is held to ~11% of
+    the _PANEL_DARK→_PANEL_LIGHTER span and anchored on _PANEL_DARK so the
+    interior never drops below the flat panel tone under the blurb
+    (legibility) and never bands at downscale."""
+    top = lerp_color(_PANEL_DARK, _PANEL_LIGHTER, 0.11)
+    grad = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    for y in range(oh):
+        c = lerp_color(top, _PANEL_DARK, y / max(1, oh - 1))
+        pygame.draw.line(grad, (*c, alpha), (0, y), (ow - 1, y))
+    mask = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, ow, oh),
+                     border_radius=orad)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    pnl.blit(grad, (0, 0))
+
+
+def _panel_two_tone_rim(pnl, ow, oh, orad, os_):
+    """Metallic 2px rim: a _GOLD_DEEP under-ply (the milled shadow side) with
+    a _GOLD_BRIGHT top ply pulled in 1px so a sliver of the deep edge shows.
+    Held to a 2px weight at sub-opaque alpha so a grid of six cards doesn't
+    read as a wall of gold."""
+    pygame.draw.rect(pnl, (*_GOLD_DEEP, 200), (0, 0, ow, oh),
+                     width=2 * os_, border_radius=orad)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 175),
+                     (os_, os_, ow - 2 * os_, oh - 2 * os_),
+                     width=os_, border_radius=max(1, orad - os_))
+
+
+def _panel_inner_bevel(pnl, ow, oh, orad, os_):
+    """The detail that sells the raise: a pale highlight wrapping the
+    top-left inner edge and a pure-black accent wrapping the bottom-right,
+    one px inboard of the rim, as if lit from top-left. Pure black (not the
+    near-black panel ink, which is a hair lighter than the floor and would
+    vanish) is the only value that actually recedes below the interior. A
+    full rounded stroke split by a diagonal mask keeps the bevel following
+    the corner radius cleanly."""
+    inset = 3 * os_
+    bw = 3  # pre-scale stroke; resolves to a clean ~1px line after downscale
+    band = (inset, inset, ow - 2 * inset, oh - 2 * inset)
+    brad = max(1, orad - inset)
+
+    def _half(color, alpha, top_left):
+        layer = pygame.Surface((ow, oh), pygame.SRCALPHA)
+        pygame.draw.rect(layer, (*color, alpha), band, width=bw,
+                         border_radius=brad)
+        mask = pygame.Surface((ow, oh), pygame.SRCALPHA)
+        tri = ([(0, 0), (ow, 0), (0, oh)] if top_left
+               else [(ow, 0), (ow, oh), (0, oh)])
+        pygame.draw.polygon(mask, (255, 255, 255, 255), tri)
+        layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        pnl.blit(layer, (0, 0))
+
+    _half(_GOLD_PALE, 115, top_left=True)
+    _half((0, 0, 0), 85, top_left=False)
+
+
 def _dark_panel(surf, rect, radius, alpha):
     """Gold-trimmed Pip Scarlet card — the frame around each power-up tile.
-    Body and gold rim are composited at ``_PANEL_OS``× and smoothscaled
-    down so the rounded corners and the rim read crisp instead of
-    pixel-stepped at the native 360 px canvas. Kept local to avoid a
-    circular import with hud (derives from
-    tools/gen_scarlet_set.py::card)."""
+    A "raised metal" treatment: a faint lit body gradient, a two-tone
+    metallic rim, and an inner light/dark bevel so the tile sits up off the
+    night-sky field. Composited at ``_PANEL_OS``× then smoothscaled so every
+    edge reads crisp at the native 360 px canvas. Kept local to avoid a
+    circular import with hud (derives from tools/gen_scarlet_set.py::card)."""
     os_ = _PANEL_OS
     ow, oh = rect.width * os_, rect.height * os_
     orad = radius * os_
     pnl = pygame.Surface((ow, oh), pygame.SRCALPHA)
-    pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
-                     (0, 0, ow, oh), border_radius=orad)
-    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
-                     (0, 0, ow, oh), width=2 * os_, border_radius=orad)
-    body = pygame.transform.smoothscale(pnl, rect.size)
-    surf.blit(body, rect.topleft)
+    _panel_body_gradient(pnl, ow, oh, orad, alpha)
+    _panel_two_tone_rim(pnl, ow, oh, orad, os_)
+    _panel_inner_bevel(pnl, ow, oh, orad, os_)
+    surf.blit(pygame.transform.smoothscale(pnl, rect.size), rect.topleft)
 
 
 _PULSE_FOR_ICON = 1.6
