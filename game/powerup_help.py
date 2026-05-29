@@ -80,35 +80,39 @@ def _outlined_title(surf, txt, center, size, px, shadow_offset):
     surf.blit(img, r.topleft)
 
 
+_PANEL_OS = 4  # supersample factor for the card frame
+
+
 def _dark_panel(surf, rect, radius, alpha):
-    """Mirror of hud._dark_panel — gold-trimmed Pip Scarlet card. Kept
-    as a local copy here only to avoid a circular import; the visual
-    output (and tools/gen_scarlet_set.py::card it derives from) is
-    identical to the menu / leaderboard / stats panels."""
+    """Gold-trimmed Pip Scarlet card — the frame around each power-up tile.
+    Body, gold rim and accent rail are composited at ``_PANEL_OS``× and
+    smoothscaled down so the rounded corners and the thin rim read crisp
+    instead of pixel-stepped at the native 360 px canvas. Kept local to
+    avoid a circular import with hud (derives from
+    tools/gen_scarlet_set.py::card)."""
     sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
     pygame.draw.rect(sh, (0, 0, 0, 90),
                      (0, 0, rect.width + 4, rect.height + 4),
                      border_radius=radius)
     surf.blit(sh, (rect.x - 2, rect.y + 4))
 
-    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    os_ = _PANEL_OS
+    ow, oh = rect.width * os_, rect.height * os_
+    orad = radius * os_
+    pnl = pygame.Surface((ow, oh), pygame.SRCALPHA)
     pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
-                     (0, 0, rect.width, rect.height),
-                     border_radius=radius)
+                     (0, 0, ow, oh), border_radius=orad)
     pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
-                     (0, 0, rect.width, rect.height),
-                     width=1, border_radius=radius)
+                     (0, 0, ow, oh), width=os_, border_radius=orad)
 
-    inset = max(radius - 2, 6)
-    rail_w = max(rect.width - inset * 2, 0)
-    if rail_w > 0:
-        accent = pygame.Surface((rail_w, 2), pygame.SRCALPHA)
-        accent.fill((*_GOLD_BRIGHT, 110))
-        pnl.blit(accent, (inset, 4))
+    inset = max(radius - 2, 6) * os_
+    if ow - inset * 2 > 0:
+        pygame.draw.line(pnl, (*_GOLD_BRIGHT, 110),
+                         (inset, 4 * os_), (ow - inset, 4 * os_), os_)
         pygame.draw.line(pnl, (255, 220, 140, 90),
-                         (inset, 2),
-                         (rect.width - inset, 2), 1)
-    surf.blit(pnl, rect.topleft)
+                         (inset, 2 * os_), (ow - inset, 2 * os_), max(1, os_ // 2))
+    body = pygame.transform.smoothscale(pnl, rect.size)
+    surf.blit(body, rect.topleft)
 
 
 _PULSE_FOR_ICON = 1.6
