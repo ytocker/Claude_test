@@ -24,11 +24,11 @@ DISPLAY_PX = 56
 SS        = 5
 
 # Kit-matched palette (from round 5/7 design)
-BLACK_DOME   = (10, 10, 18)
-GREEN_TOX    = (120, 200,  90)
-GREEN_LO     = (40,  100,  50)
-GREEN_GLASS  = (35,  90,   50)
-VAPOR_HI     = (200, 224,  96)
+BLACK_DOME   = (28, 42, 30)
+GREEN_TOX    = (185, 225, 140)
+GREEN_LO     = (160, 215, 125)
+GREEN_GLASS  = (130, 195, 110)
+VAPOR_HI     = (210, 240, 155)
 WOOD_DARK    = (60,  38,   22)
 # Aged off-white bone — deliberately darker / warmer than SKATEBOARD's
 # helmet cream so the two pickups don't twin in palette.
@@ -59,8 +59,8 @@ def _radial_glow(radius: int, color, max_alpha: int = 160) -> pygame.Surface:
 
 def _warning_glow_blit(surf, cx, cy, pulse_phase,
                        color=VAPOR_HI,
-                       core_alpha=190, core_r=14, halo_r=19,
-                       outer_alpha=95):
+                       core_alpha=230, core_r=19, halo_r=27,
+                       outer_alpha=140):
     breath = 0.7 + 0.3 * (0.5 + 0.5 * math.sin(pulse_phase))
     outer = _radial_glow(halo_r, color, max_alpha=int(outer_alpha * breath))
     surf.blit(outer, (cx - outer.get_width() // 2,
