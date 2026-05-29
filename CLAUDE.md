@@ -112,30 +112,6 @@ power-ups gated and unannounced.
 Every 15th pillar is a **Coin Rush**: gap widened 30%, ~14 coins in a
 sine/S/chevron/oval/double-arc formation. No power-ups on rush pillars.
 
-## HUD UI palette (the shipped element shades)
-
-The in-game HUD (`HUD.draw_play` + `PauseButton` in `game/hud.py`) is one
-cut-corner "slate plate" kit. **Reuse these exact shades for any new HUD/UI
-element** so the family stays consistent — don't re-derive them:
-
-- **Plate body — the opaque value floor:** `_NA_SLATE (40,38,36)` →
-  `_NA_SLATE_D (22,18,16)` vertical gradient. Opaque on purpose so the readout
-  holds over a bright-sky brown pillar AND at night. The score plate adds a
-  faint sandstone wash `_NA_WARM (96,64,36)` low in the body.
-- **Accent — rim + soft glow + pause glyph:** `_NA_ACCENT = _GOLD_BRIGHT
-  (240,192,64)`, the SAME yellow as the SKYBIT title, so HUD and title read as
-  one family. (Chosen over the design-loop's teal at the user's call.)
-- **Power-up timer = energy bar, never coin gold:** fill drains
-  `_ENERGY_FULL` (= the yellow) → `_ENERGY_LOW (255,168,70)` amber in a dark
-  cool recessed track `(20,30,38)→(8,14,20)`. Keep it a horizontal meter so it
-  can't be misread as the round gold coin.
-- **Text:** numerals `UI_CREAM` + `NEAR_BLACK` outline/shadow; coin count
-  `UI_GOLD`.
-
-Plates are supersampled once and cached (`_na_plate`, keyed by size/style;
-score/coin plates keyed by digit count). The design-loop history that led here
-lives in `docs/gameplay_hud/` (rounds 1–8 + the E1/E2 comparison).
-
 ## Deploy hygiene (CI-side)
 
 Pygbag 0.9.2 bundles every file in the directory it runs in — there
