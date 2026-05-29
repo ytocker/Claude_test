@@ -251,51 +251,202 @@ def _volume_panel(surf, rect, radius=14, alpha=235):
     surf.blit(pnl, rect.topleft)
 
 
+# ── Hero score medallion ("Enamel Badge") ───────────────────────────────────
+# Composited at _EMBLEM_SS× then smoothscaled (the card-frame trick) so the
+# directional bevel + enamel band stay clean at the small pause size. The
+# heavy per-spoke shading is cached per (r, label, value): the score is static
+# while the pause / game-over screens are shown, so re-rendering every frame
+# would be far too costly — especially on the WASM target.
+_EMBLEM_SS = 4
+_GOLD_DARK = (120, 82, 14)      # deepest shadow of a gold relief
+_GOLD_SHADOW = (84, 56, 10)     # rim cavity / under-bevel seam
+_ENAMEL_HI = (255, 248, 230)    # gloss highlight on the enamel band
+_FIELD_HI = (40, 28, 86)        # lit centre of the navy dome
+_FIELD_LO = (8, 5, 30)          # deep edge of the navy dome
+_EMBLEM_CACHE: dict = {}
+
+
+def _emblem_canvas(r):
+    """Oversize SRCALPHA canvas to draw a medallion of target radius r at
+    _EMBLEM_SS×, with padding for anything that rides the outer edge."""
+    R = r * _EMBLEM_SS
+    pad = int(R * 0.10)
+    size = R * 2 + pad * 2
+    return pygame.Surface((size, size), pygame.SRCALPHA), R, size // 2, size // 2
+
+
+def _em_beveled_ring(surf, center, r_out, r_in):
+    """Raised gold ring with a directional convex bevel — bright on the
+    top-left arc, dark on the bottom-right, rolling dark→bright→dark across
+    the band so it reads as a rounded roll of metal, not a flat stripe. No
+    reeded edge (it frays at small size); AA comes from the downscale."""
+    cx, cy = center
+    band = max(1, r_out - r_in)
+    light_dir = math.atan2(-0.8, -1.0)
+    for i in range(r_out, r_in - 1, -1):
+        crest = 1.0 - abs((i - r_in) / band - 0.5) * 2.0
+        col = lerp_color(_GOLD_DARK, _GOLD_BRIGHT, 0.30 + 0.70 * crest)
+        pygame.draw.circle(surf, col, (cx, cy), i, 2)
+    spokes = max(360, int(r_out * 8))
+    for k in range(spokes):
+        a = k / spokes * math.tau
+        ca, sa = math.cos(a), math.sin(a)
+        lit = 0.5 + 0.5 * math.cos(a - light_dir)
+        for frac, crest in ((0.06, 0.25), (0.5, 1.0), (0.94, 0.45)):
+            i = r_in + band * frac
+            base = lerp_color(_GOLD_DARK, _GOLD_BRIGHT, 0.30 + 0.70 * crest)
+            col = lerp_color(base, _GOLD_PALE,
+                             (0.20 + 0.80 * lit ** 1.4) * crest)
+            seg = max(1, int(band * 0.22))
+            pygame.draw.line(surf, col,
+                             (cx + ca * (i - seg), cy + sa * (i - seg)),
+                             (cx + ca * (i + seg), cy + sa * (i + seg)), 2)
+    pygame.draw.circle(surf, _GOLD_SHADOW, (cx, cy), r_out, max(1, _EMBLEM_SS // 2))
+    pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), r_in, max(1, _EMBLEM_SS // 2))
+
+
+def _em_enamel_band(surf, center, R, band_out, band_in):
+    """Glossy deep-scarlet enamel band between the gold ring and the navy
+    field: the game's scarlet, lighter toward the top, with one soft gloss
+    arc on the upper-left matching the ring's key light."""
+    cx, cy = center
+    band = max(1, band_out - band_in)
+    pygame.draw.circle(surf, _SCARLET_BOT, (cx, cy), band_out)
+    spokes = max(360, int(band_out * 8))
+    for k in range(spokes):
+        a = k / spokes * math.tau
+        t = 0.5 - 0.5 * math.sin(a)
+        col = lerp_color(_SCARLET_BOT, _SCARLET_TOP, 0.25 + 0.75 * t)
+        ca, sa = math.cos(a), math.sin(a)
+        pygame.draw.line(surf, col,
+                         (cx + ca * band_in, cy + sa * band_in),
+                         (cx + ca * band_out, cy + sa * band_out), 2)
+    gloss = pygame.Surface((R * 2, R * 2), pygame.SRCALPHA)
+    mid = (band_out + band_in) // 2
+    thick = max(2, band // 2 - _EMBLEM_SS)
+    for k in range(360):
+        a = k / 360 * math.tau
+        s = max(0.0, math.cos(a + math.pi * 0.72))
+        if s > 0:
+            pygame.draw.circle(gloss, (*_ENAMEL_HI, int(110 * s ** 2.2)),
+                               (int(R + math.cos(a) * mid),
+                                int(R + math.sin(a) * mid)), thick)
+    surf.blit(gloss, (cx - R, cy - R))
+    pygame.draw.circle(surf, _GOLD_DEEP, (cx, cy), band_in, max(1, _EMBLEM_SS))
+
+
+def _em_navy_field(surf, center, R, field_r):
+    """Slightly domed dark-navy interior so the gold value sits on a lit
+    surface (key light up-left, agreeing with the ring) rather than a flat
+    hole."""
+    cx, cy = center
+    for i in range(field_r, 0, -1):
+        col = lerp_color(_FIELD_HI, _FIELD_LO, 1.0 - i / field_r)
+        pygame.draw.circle(surf, col, (cx, cy), i)
+    sheen = pygame.Surface((R * 2, R * 2), pygame.SRCALPHA)
+    lx, ly = R - int(R * 0.18), R - int(R * 0.22)
+    blob_r = int(field_r * 0.72)
+    for i in range(blob_r, 0, -1):
+        pygame.draw.circle(sheen, (110, 92, 180, int(26 * (1 - i / blob_r))),
+                           (lx, ly), i)
+    surf.blit(sheen, (cx - R, cy - R))
+    pygame.draw.circle(surf, _GOLD_PALE, (cx, cy), field_r, max(1, _EMBLEM_SS // 2))
+
+
+def _em_arc_label(surf, center, text, radius, size):
+    """Curved gold caps along the top of the navy field, each with a navy
+    halo so the label holds against the field. Gold-on-navy only."""
+    cx, cy = center
+    f = _font(size, True)
+    glyphs = [f.render(ch, True, _GOLD_PALE) for ch in text]
+    halos = [f.render(ch, True, _PANEL_DARK) for ch in text]
+    widths = [g.get_width() for g in glyphs]
+    span = sum(widths) / radius
+    start = -math.pi / 2 - span / 2
+    acc = 0.0
+    halo_off = max(1, _EMBLEM_SS)
+    for g, hl, w in zip(glyphs, halos, widths):
+        a = start + (acc + w / 2) / radius
+        gx, gy = cx + math.cos(a) * radius, cy + math.sin(a) * radius
+        rot = math.degrees(-(a + math.pi / 2))
+        rg = pygame.transform.rotate(g, rot)
+        rh = pygame.transform.rotate(hl, rot)
+        rect = rg.get_rect(center=(gx, gy))
+        for ox, oy in ((-halo_off, 0), (halo_off, 0), (0, -halo_off), (0, halo_off)):
+            surf.blit(rh, (rect.x + ox, rect.y + oy))
+        surf.blit(rg, rect.topleft)
+        acc += w
+
+
+def _em_value(surf, center, value, size):
+    """Bright gold numeral — the brightest, raised element on the field
+    (top-left pale facet + bottom-right navy shadow). 3-digit values tighten
+    inter-digit tracking instead of shrinking so they keep stroke clearance
+    from the inner ring."""
+    cx, cy = center
+    s_val = str(value)
+    f = _font(size, True)
+    off = max(1, size // 20)
+    if len(s_val) >= 3:
+        glyphs = [(f.render(ch, True, _GOLD_BRIGHT),
+                   f.render(ch, True, _PANEL_DARK),
+                   f.render(ch, True, _GOLD_PALE)) for ch in s_val]
+        track = -int(size * 0.10)
+        total = sum(g[0].get_width() for g in glyphs) + track * (len(glyphs) - 1)
+        x = cx - total // 2
+        for base, dk, hi in glyphs:
+            rct = base.get_rect()
+            rct.x, rct.centery = x, cy
+            surf.blit(dk, (rct.x + off, rct.y + off))
+            surf.blit(hi, (rct.x - off, rct.y - off))
+            surf.blit(base, rct.topleft)
+            x += base.get_width() + track
+    else:
+        base = f.render(s_val, True, _GOLD_BRIGHT)
+        dk = f.render(s_val, True, _PANEL_DARK)
+        hi = f.render(s_val, True, _GOLD_PALE)
+        rect = base.get_rect(center=center)
+        surf.blit(dk, (rect.x + off, rect.y + off))
+        surf.blit(hi, (rect.x - off, rect.y - off))
+        surf.blit(base, rect.topleft)
+
+
+def _em_render(r, label, value):
+    """Compose the medallion supersampled, smoothscale to native, then add the
+    crisp native-resolution label + value. Proportions are the design-loop
+    winner: ring 0.11·r, scarlet band 0.12·r, label +0.08·r into the field."""
+    surf, R, cx, cy = _emblem_canvas(r)
+    r_out = R
+    band_out = int(R * (1.0 - 0.11))
+    band_in = int(band_out - R * 0.12)
+    field_r = band_in
+    _em_enamel_band(surf, (cx, cy), R, band_out, band_in)
+    _em_navy_field(surf, (cx, cy), R, field_r)
+    _em_beveled_ring(surf, (cx, cy), r_out, band_out)
+
+    out = pygame.transform.smoothscale(surf, (surf.get_width() // _EMBLEM_SS,
+                                              surf.get_height() // _EMBLEM_SS))
+    c = out.get_width() // 2
+    fr = field_r // _EMBLEM_SS
+    cap = max(8, int(r * 0.16))
+    _em_arc_label(out, (c, c), label, fr - int(r * 0.08) - cap // 2, cap)
+    _em_value(out, (c, c + int(r * 0.05)), value, max(15, int(r * 0.56)))
+    return out
+
+
 def _score_emblem(surf, cx, cy, r, label, value):
-    """Hero score medallion — circular gold ring with a scarlet accent
-    band, dark navy interior, radial laurel ticks, label at top, big
-    gold value centred. Ported from tools/gen_scarlet_set.py::
-    score_emblem so the pause / stats / game-over screens get the
-    same hero treatment as the menu mockup."""
-    # Dark navy interior
-    pygame.draw.circle(surf, _PANEL_DARK, (cx, cy), r)
-
-    # Warm inner radial glow so the medallion feels lit from inside.
-    inner_max = max(r - 6, 1)
-    glow = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
-    for rr in range(inner_max, 0, -1):
-        a = int(14 * (1 - rr / inner_max))
-        pygame.draw.circle(glow, (255, 220, 140, a),
-                           (r, r - r // 4), rr)
-    surf.blit(glow, (cx - r, cy - r))
-
-    # Thick outer gold ring + slim scarlet accent inside + thin inner gold.
-    pygame.draw.circle(surf, _GOLD_BRIGHT, (cx, cy), r, 3)
-    pygame.draw.circle(surf, _SCARLET_TOP, (cx, cy), max(r - 4, 1), 2)
-    pygame.draw.circle(surf, _GOLD_DEEP,   (cx, cy), max(r - 9, 1), 1)
-
-    # Radial laurel ticks around the outer ring.
-    for ang_deg in range(0, 360, 12):
-        a = math.radians(ang_deg - 90)
-        x1 = cx + math.cos(a) * (r - 1)
-        y1 = cy + math.sin(a) * (r - 1)
-        x2 = cx + math.cos(a) * (r + 2)
-        y2 = cy + math.sin(a) * (r + 2)
-        pygame.draw.line(surf, _GOLD_DEEP, (x1, y1), (x2, y2), 1)
-
-    # Label at top, value centred.
-    lbl_y = cy - int(r * 0.42)
-    lf = _font(13, True).render(label, True, _GOLD_MUTED)
-    lf.set_alpha(230)
-    surf.blit(lf, lf.get_rect(center=(cx, lbl_y)))
-
-    val_size = max(16, int(r * 0.55))
-    vf = _font(val_size, True).render(str(value), True, _GOLD_BRIGHT)
-    vs = _font(val_size, True).render(str(value), True, NEAR_BLACK)
-    vs.set_alpha(180)
-    vr = vf.get_rect(center=(cx, cy + int(r * 0.15)))
-    surf.blit(vs, (vr.x + 2, vr.y + 3))
-    surf.blit(vf, vr)
+    """Hero score medallion — the Enamel Badge: a directional convex gold ring
+    around a scarlet enamel band and a lit navy field carrying the curved label
+    and the big gold value. Cached per (r, label, value) since the score is
+    static while the pause / game-over screens are shown."""
+    key = (r, label, str(value))
+    med = _EMBLEM_CACHE.get(key)
+    if med is None:
+        if len(_EMBLEM_CACHE) > 32:
+            _EMBLEM_CACHE.clear()
+        med = _em_render(r, label, value)
+        _EMBLEM_CACHE[key] = med
+    surf.blit(med, med.get_rect(center=(cx, cy)))
 
 
 def _draw_overlay_stars(surf, stars, t):
