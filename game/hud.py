@@ -664,7 +664,7 @@ def _coin_icon(surf, cx, cy, r=10):
 # kept a horizontal meter in a dark cool track on purpose so it can never be
 # misread as the round gold coin.
 _SS = 4  # supersample factor — composite big, smoothscale down for crisp edges
-_NA_PAD = 11  # padding baked around each cached plate for its glow + cast shadow
+_NA_PAD = 11  # padding baked around each cached plate so its soft glow can bleed
 
 _NA_SLATE    = ( 40,  38,  36)   # warm slate plate body (opaque value floor)
 _NA_SLATE_D  = ( 22,  18,  16)
@@ -722,9 +722,6 @@ def _na_plate_build(w, h, cut, round_r, accent, top, bot, inner_warm, glow):
         for i in range(5, 0, -1):
             a = int(34 * i / 5 / 5)
             pygame.draw.polygon(out, (*accent, a), gpts, width=i)
-    sh = pygame.Surface((w + 6, h + 8), pygame.SRCALPHA)
-    pygame.draw.polygon(sh, (0, 0, 0, 95), _cut_pts(0, 4, w, h, cut))
-    out.blit(sh, (pad - 2, pad))
     ow, oh = w * _SS, h * _SS
     sspts = [(round(px * _SS), round(py * _SS))
              for px, py in _cut_pts(0, 0, w, h, cut)]
@@ -755,7 +752,7 @@ def _na_plate_build(w, h, cut, round_r, accent, top, bot, inner_warm, glow):
 def _na_plate(surf, rect, cut, round_r, accent=_NA_ACCENT,
               top=_NA_SLATE, bot=_NA_SLATE_D, inner_warm=None, glow=True):
     """Blit a (cached) cut-corner slate plate so its body fills `rect`; the
-    baked glow + cast shadow bleed into the `_NA_PAD` margin around it."""
+    baked soft glow bleeds into the `_NA_PAD` margin around it."""
     key = (rect.width, rect.height, cut, round_r, accent, top, bot,
            inner_warm, glow)
     out = _na_plate_cache.get(key)
