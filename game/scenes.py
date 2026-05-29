@@ -990,6 +990,11 @@ class App:
         kfc_active = self.world.bird.kfc_active
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
+        # SKATEBOARD ramps: wooden wedges perched on lower-pillar
+        # crowns. Drawn AFTER pipes so the wedge overpaints the crown
+        # vegetation; below the bird so Pip rides on top.
+        for r in self.world.ramps:
+            r.draw(self.screen)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
@@ -1176,6 +1181,14 @@ class App:
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)
+
+        # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
+        # the caption banner / pop-art score / trick bubbles can never
+        # cover him. Only fires while the buff is active.
+        if (self.state in (STATE_PLAY, STATE_PAUSE)
+                and self.world.bird.skateboard_active):
+            self.world.bird.draw(self.screen, sx, sy,
+                                 flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_STATS:
             self.hud.draw_stats(self.screen, self.world, 1 / 60, self._stats_t,
                                 best=self.best, new_best=self._new_best,

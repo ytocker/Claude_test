@@ -155,7 +155,7 @@ GENIE_OFFER_Y_SLOTS = (220, 320, 420)
 # actually grinding a surface; the boost eases in over SKATE_SLIDE_ATTACK and
 # fades over SKATE_SLIDE_RELEASE so it reads as "skate rush, gentle coast".
 # Flapping while skating spins a backflip trick.
-SKATEBOARD_DURATION = 8.0
+SKATEBOARD_DURATION = 20.0
 SKATE_SLIDE_MULT    = 1.5
 SKATE_SLIDE_ATTACK  = 0.18
 SKATE_SLIDE_RELEASE = 0.55

@@ -1066,6 +1066,11 @@ class Pipe:
         # stone at timer=0 alongside the fries mountain + fried Pip; only
         # the wider gap outlives the timer.
         self.is_kfc = False
+        # SKATEBOARD: True when World._maybe_spawn_ramp drops a wooden
+        # wedge on top of this pipe's lower-pillar crown. Used by the
+        # ramp draw + collision logic in World; the Pipe itself stays
+        # unchanged in its own draw (the wedge overpaints the crown).
+        self.has_ramp = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
         # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
@@ -1376,6 +1381,57 @@ def _get_coin_face_triple() -> pygame.Surface:
 
     _TRIPLE_COIN_FACE_CACHE = face
     return _TRIPLE_COIN_FACE_CACHE
+
+
+class Ramp:
+    """SKATEBOARD ramp — a wooden wedge perched on a lower pillar's
+    crown that Pip can skate up while the buff is active. Shape
+    ``/|`` : slope rises LEFT→RIGHT and the vertical kicker face is
+    on the RIGHT. ``base_y`` is the bottom edge of the wedge — defaults
+    to GROUND_Y for legacy floor placement, otherwise set to the host
+    pipe's ``gap_y + gap_h / 2``."""
+
+    def __init__(self, x: float, w: float, h: float,
+                 base_y: float | None = None):
+        from game.config import GROUND_Y as _GY
+        self.x = x      # left edge of the wedge (ground side)
+        self.w = w      # horizontal extent
+        self.h = h      # peak height (top-right corner above base_y)
+        self.base_y = _GY if base_y is None else base_y
+
+    def off_screen(self) -> bool:
+        return self.x + self.w + 8 < 0
+
+    def surface_y_at(self, px: float) -> float:
+        """Top surface y at world x. Outside the wedge footprint
+        returns ``base_y``. At ramp.x (left/foot) returns the base;
+        at ramp.x + ramp.w (right/kicker) returns the peak."""
+        if px < self.x or px > self.x + self.w:
+            return self.base_y
+        t = (px - self.x) / self.w
+        return self.base_y - self.h * t
+
+    def draw(self, surf, palette=None):
+        WOOD     = (140, 100, 65)
+        WOOD_DK  = (95,  70,  45)
+        WOOD_HI  = (200, 165, 105)
+        EDGE     = (40,  25,  18)
+        x0 = int(self.x)
+        x1 = int(self.x + self.w)
+        y0 = int(self.base_y)
+        y_top = y0 - int(self.h)
+        pts = [(x0, y0), (x1, y0), (x1, y_top)]
+        pygame.draw.polygon(surf, WOOD, pts)
+        pygame.draw.line(surf, WOOD_HI, (x0 + 1, y0 - 1),
+                         (x1 - 1, y_top + 1), 2)
+        pygame.draw.line(surf, WOOD_DK, (x0, y0), (x1, y0), 2)
+        for frac in (0.33, 0.66):
+            xp = int(self.x + self.w * frac)
+            yp = int(self.base_y - self.h * frac)
+            pygame.draw.line(surf, WOOD_DK, (xp, yp + 1), (xp, y0 - 1), 1)
+        pygame.draw.polygon(surf, EDGE, pts, 1)
+        pygame.draw.line(surf, WOOD_HI, (x1 - 1, y_top + 2),
+                         (x1 - 1, y0 - 1), 1)
 
 
 class Coin:
@@ -2390,7 +2446,7 @@ class PowerUp:
         RED    = (200, 50, 50)
 
         SS = 6
-        NATIVE_W = NATIVE_H = 96
+        NATIVE_W = NATIVE_H = 72
         big = pygame.Surface((NATIVE_W * SS, NATIVE_H * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2

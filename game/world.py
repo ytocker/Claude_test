@@ -38,7 +38,7 @@ from game.config import (
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
-    GenieCharacter, TrickBubble,
+    GenieCharacter, TrickBubble, Ramp,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -74,6 +74,10 @@ class World:
         self.pipes: list[Pipe] = []
         self.coins: list[Coin] = []
         self.powerups: list[PowerUp] = []
+        # SKATEBOARD ramps perched on lower-pillar crowns; spawned by
+        # _maybe_spawn_ramp during the buff. Scrolls + culls with the
+        # pipes; world collision checks them when bird.skateboard_active.
+        self.ramps: list[Ramp] = []
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
 
@@ -333,6 +337,25 @@ class World:
         else:
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
+            self._maybe_spawn_ramp(p)
+
+    def _maybe_spawn_ramp(self, pipe: Pipe):
+        """During the SKATEBOARD window, sometimes drop a wooden wedge
+        on top of this pipe's LOWER pillar. 38x22 gentle incline with
+        a small +/-2 px jitter so wedges look hand-placed. Right-
+        aligned on the pillar so the kicker sits flush with the
+        pillar's right edge."""
+        if self.skateboard_timer <= 0:
+            return
+        if random.random() >= 0.55:
+            return
+        ramp_w = 38 + random.randint(-2, 2)
+        ramp_h = 22 + random.randint(-2, 2)
+        ramp_w = min(ramp_w, PIPE_W - 2)
+        base_y = pipe.gap_y + pipe.gap_h / 2
+        rx = pipe.x + PIPE_W - ramp_w
+        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
+        pipe.has_ramp = True
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
@@ -640,6 +663,8 @@ class World:
             self.bg_scroll += speed * sdt
             for p in self.pipes:
                 p.x -= speed * sdt
+            for r in self.ramps:
+                r.x -= speed * sdt
             for c in self.coins:
                 c.x -= speed * sdt
                 c.update(sdt)
@@ -870,6 +895,7 @@ class World:
             m.x -= SCROLL_BASE * 0.25 * dt
             m.update(dt)
         self.pipes = [p for p in self.pipes if not p.off_screen()]
+        self.ramps = [r for r in self.ramps if not r.off_screen()]
         self.coins = [c for c in self.coins if c.x + 20 > 0]
         self.powerups = [m for m in self.powerups if m.x + 20 > 0]
         if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
@@ -914,6 +940,19 @@ class World:
         # ground + pipe collisions so he can clear the obstacle that hit him.
         if self.knight_invuln > 0:
             return
+        # SKATEBOARD ramp surface: while skating, snap Pip to any wedge
+        # he's currently over so he rolls UP the slope, before the
+        # generic ground / pillar checks run.
+        if skating and self.ramps:
+            for r in self.ramps:
+                if r.x <= bx <= r.x + r.w:
+                    surf_y = r.surface_y_at(bx)
+                    if by + br > surf_y - 1 and self.bird.vy >= -50:
+                        self.bird.y = surf_y - br
+                        self.bird.vy = 0.0
+                        by = self.bird.y
+                        self._sliding_this_frame = True
+                    break
         if by + br > GROUND_Y:
             if skating:
                 # Slide along the ground instead of dying.
@@ -1010,7 +1049,7 @@ class World:
         if (in_column and by > gap_top and self.bird.vy <= 50
                 and (by - br) <= gap_top):
             self.bird.y = gap_top + br
-            self.bird.vy = max(self.bird.vy, 0.0) + 60
+            self.bird.vy = max(self.bird.vy, 0.0) + 25
             self.shake_mag = max(self.shake_mag, 5.0)
             self.shake_t = max(self.shake_t, 0.18)
             audio.play_helmet_bonk()
@@ -1492,13 +1531,16 @@ class World:
         self.skateboard_caption_overlay = render_caption_overlay(
             int(self.bird.x), int(self.bird.y), rng_seed=seed,
         )
-        self.skateboard_burst_dur = 2.3
-        self.skateboard_burst_t = self.skateboard_burst_dur
-        self.skateboard_burst_surface = render_starburst_surface(
-            rng_seed=seed,
-        )
-        self.skateboard_burst_cx = int(self.bird.x)
-        self.skateboard_burst_cy = int(self.bird.y)
+        # Activation starburst (the big pop-art star around Pip) was
+        # removed by user request — only the caption banner + score
+        # halftone swap remain as activation FX. Leave the burst state
+        # fields in place but null the surface so the scenes.py guard
+        # short-circuits.
+        self.skateboard_burst_dur = 0.0
+        self.skateboard_burst_t = 0.0
+        self.skateboard_burst_surface = None
+        self.skateboard_burst_cx = 0
+        self.skateboard_burst_cy = 0
 
     def _activate_knight(self, m):
         KNIGHT_STEEL = (190, 200, 220)
