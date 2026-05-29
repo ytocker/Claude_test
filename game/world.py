@@ -5,6 +5,7 @@ full-screen flash (that was the 'glitch' the user saw) — only localized
 sparkle particles around the coin.
 """
 import math
+import os
 import random
 import pygame
 
@@ -195,6 +196,20 @@ class World:
         self.ready_t = 1.0
 
         self.game_over = False
+
+        # SKYBIT_PLAYTEST_GENIE=1 jumps a fresh run past newbie mode, sets
+        # the score to LATE_GAME_SCORE (so the genie gate is open), aligns
+        # the biome to where it would be at that score, and force-spawns
+        # the genie every 5 power-up-eligible pillars up to 5 times. Used
+        # for playtesting late-game spawns without grinding to score 450.
+        self._playtest_genie_remaining = 0
+        self._playtest_genie_pipes_until_next = 0
+        if os.environ.get("SKYBIT_PLAYTEST_GENIE") == "1":
+            self.pillars_passed = RAMP_PIPES
+            self.score = 450
+            self.biome_time = 450 * PIPE_SPACING / SCROLL_BASE
+            self._playtest_genie_remaining = 5
+            self._playtest_genie_pipes_until_next = 1
 
         self._seed_first_pipes()
 
@@ -414,6 +429,19 @@ class World:
             ))
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
+        # Playtest force-spawn: every 5 power-up-eligible (non-rush) pipes
+        # plant a genie regardless of cooldown / chance / weights, up to 5
+        # times. Driven by SKYBIT_PLAYTEST_GENIE — no-op in normal runs.
+        if self._playtest_genie_remaining > 0:
+            self._playtest_genie_pipes_until_next -= 1
+            if self._playtest_genie_pipes_until_next <= 0:
+                x = pipe.x + PIPE_W + self._current_spacing() * 0.5
+                y = pipe.gap_y
+                self.powerups.append(PowerUp(x, y, kind="genie"))
+                self.powerup_cooldown = POWERUP_COOLDOWN
+                self._playtest_genie_remaining -= 1
+                self._playtest_genie_pipes_until_next = 5
+                return
         if self.powerup_cooldown > 0:
             return
         if random.random() >= self._current_powerup_chance():
