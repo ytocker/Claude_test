@@ -1,22 +1,23 @@
-"""Render the round-5 day/night comparison sheet for pagoda pillars.
+"""Render the round-6 day/night comparison sheet for pagoda pillars.
 
-User feedback after round 4 was that the five candidates blurred into
-near-identical Chinese towers. Round 5 rebuilds them from real iconic
-pagodas; only the day → night palette sweep is requested this round.
+Round 5 keepers were `horyuji` and `songyue`; round 6 drops the other
+three and adds 5 brand-new iconic-pagoda candidates pushed higher on
+the detail bar (gradient bodies, dougong brackets, glazed-tile gloss,
+lotus petals, hex lattice perforations, lacquer trim). The keepers
+bookend the new five so the comparison row stays honest.
 
 Output:
 
-  _comparison_dayNight_v2.png   5 candidates × 5 phases at one shared
+  _comparison_dayNight_v3.png   7 candidates × 5 phases at one shared
                                 seed per row — verifies every candidate
                                 retints through DAY → SUNRISE → SUNSET
                                 → DUSK → NIGHT while keeping each
-                                pagoda's identity (cedar/gold/white-eye/
-                                pastel-porcelain/terracotta-brick) read
-                                instantly.
+                                pagoda's identity (cedar/larch+brackets/
+                                iron-tile/lotus-pond/basalt-mandala/Lao-
+                                gold/terracotta-brick) read instantly.
 
-The old `_comparison_dayNight.png` is preserved in git history; this
-round writes a `_v2` file so the round-4 sheet is still side-by-side
-diffable.
+The previous `_v2` sheet is preserved in git history; this round writes
+a `_v3` file so the round-5 sheet is still side-by-side diffable.
 
 Each tile is a full 360x640 game-style scene: biome sky + drifting
 clouds, the locked-keeper V4 shan-shui mountains, ground texture, and
@@ -128,8 +129,8 @@ def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
 
 
 def make_day_night_sheet() -> pygame.Surface:
-    """Rows = 5 candidates, Cols = 5 phases. Same seed per row to isolate
-    the palette change."""
+    """Rows = 7 candidates (2 keepers bookending 5 new), Cols = 5 phases.
+    Same seed per row to isolate the palette change."""
     rows = list(pgv.CANDIDATES.keys())
     cols = PHASES
     tw, th = W, H
@@ -145,7 +146,7 @@ def make_day_night_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "Round 5 pagodas — day → sunrise → sunset → dusk → night",
+        "Round 6 pagodas — day → sunrise → sunset → dusk → night",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -191,7 +192,7 @@ def make_day_night_sheet() -> pygame.Surface:
 
 def main() -> None:
     dn_sheet = make_day_night_sheet()
-    dn_path = OUT / "_comparison_dayNight_v2.png"
+    dn_path = OUT / "_comparison_dayNight_v3.png"
     pygame.image.save(dn_sheet, dn_path)
     print(f"wrote {dn_path}  "
           f"({dn_sheet.get_width()}x{dn_sheet.get_height()})")

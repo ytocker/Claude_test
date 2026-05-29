@@ -146,6 +146,134 @@ def _brick_mortar(palette):
     return _mix(palette['stone_mid'], (130, 80, 56), 0.50)
 
 
+# Round 6 — palette anchors for the 5 new candidates. Each derives from
+# stone_* so the day → night biome retint sweeps through; raw RGB targets
+# are biased archetypes only.
+
+def _ochre_wood(palette):
+    # Fogong larch — warm ochre-brown body of the wooden pagoda, sitting
+    # between cedar (Hōryū-ji dark) and terracotta. Brighter than _cedar so
+    # the dougong bracket array reads as relief, not silhouette.
+    return _mix(palette['stone_dark'], (172, 124, 70), 0.70)
+
+
+def _ochre_wood_lit(palette):
+    # Sun-side highlight on Fogong's larch face — needed for the lit/shadow
+    # gradient so a column reads as a 3-D cylinder, not a flat panel.
+    return _mix(palette['stone_light'], (218, 168, 102), 0.62)
+
+
+def _ochre_wood_shadow(palette):
+    return _mix(palette['stone_dark'], (98, 62, 32), 0.78)
+
+
+def _white_plaster_warm(palette):
+    # Warm white-clay plaster panels between Fogong's dougong rows — sits
+    # one beat warmer than Hōryū-ji's plaster so the two ochre/wood pagodas
+    # read distinct side by side.
+    return _mix(palette['stone_light'], (244, 232, 206), 0.62)
+
+
+def _iron_brown(palette):
+    # Kaifeng's glazed brown iron tile — derived from stone_dark with the
+    # canonical iron-brown bias. Dark enough to read against any sky.
+    return _mix(palette['stone_dark'], (118, 68, 44), 0.80)
+
+
+def _iron_brown_lit(palette):
+    return _mix(palette['stone_mid'], (172, 110, 70), 0.70)
+
+
+def _iron_brown_shadow(palette):
+    return _mix(palette['stone_dark'], (62, 32, 18), 0.86)
+
+
+def _tile_gloss(palette):
+    # Per-tile gloss highlight on the iron pagoda's glazed ceramic. A warm
+    # cream so each tile catches a 1-px specular even at night.
+    return _mix(palette['stone_light'], (236, 198, 130), 0.55)
+
+
+def _vn_tile_red(palette):
+    # Vietnamese curved roof-tile orange-red on the One Pillar pagoda's
+    # pavilion. Warm enough to pop against the lotus-pond aqua.
+    return _mix(palette['stone_dark'], (188, 96, 58), 0.72)
+
+
+def _vn_tile_red_lit(palette):
+    return _mix(palette['stone_accent'], (228, 140, 84), 0.70)
+
+
+def _lotus_pink(palette):
+    # Pink lotus-petal column-base for One Pillar — anchored in stone_light
+    # with a touch of horizon so dusk/sunset retints carry through warmly.
+    return _mix(palette['stone_light'],
+                _mix(palette['horizon'], (244, 188, 196), 0.62), 0.65)
+
+
+def _lotus_pink_deep(palette):
+    return _mix(palette['stone_mid'],
+                _mix(palette['horizon'], (200, 120, 138), 0.70), 0.60)
+
+
+def _column_grey(palette):
+    # Stone column under the One Pillar pavilion — a cool slate derived
+    # from stone_mid so it reads as bare granite, not the warm wood body.
+    return _mix(palette['stone_mid'], (148, 142, 130), 0.55)
+
+
+def _pond_aqua(palette):
+    # Lotus-pond water at the base of Chùa Một Cột — derived from horizon
+    # so dawn/dusk paint it pink, day paints it teal, night paints it ink.
+    return _mix(palette['horizon'], (118, 168, 162), 0.55)
+
+
+def _basalt(palette):
+    # Borobudur volcanic andesite — cool desaturated grey anchored to
+    # stone_mid so the temple reads as bare stone, not gold or wood.
+    return _mix(palette['stone_mid'], (118, 116, 110), 0.66)
+
+
+def _basalt_lit(palette):
+    return _mix(palette['stone_light'], (170, 166, 158), 0.55)
+
+
+def _basalt_shadow(palette):
+    return _mix(palette['stone_dark'], (72, 70, 66), 0.78)
+
+
+def _basalt_accent(palette):
+    # Inset relief shadow on Borobudur's terrace panels — a half-stop darker
+    # than _basalt for the sculpted-panel cue.
+    return _mix(palette['stone_dark'], (60, 58, 54), 0.78)
+
+
+def _gold_laos(palette):
+    # Pha That Luang gold — slightly warmer + more orange than Shwedagon's
+    # gilt so the two gold stupas read distinct at a glance.
+    return _mix(palette['stone_accent'], (244, 188, 60), 0.78)
+
+
+def _gold_laos_deep(palette):
+    return _mix(palette['stone_accent'], (180, 128, 28), 0.80)
+
+
+def _gold_laos_bright(palette):
+    return _mix(palette['stone_accent'], (255, 230, 130), 0.82)
+
+
+def _lacquer_red(palette):
+    # Lao lacquer-red trim band on Pha That Luang's tiers — derived from
+    # stone_dark with a saturated cinnabar bias.
+    return _mix(palette['stone_dark'], (172, 50, 42), 0.78)
+
+
+def _cream_base(palette):
+    # Cream-white base of the Pha That Luang stupa — warmer than the
+    # Boudhanath stupa_white so the two cream surfaces don't blur.
+    return _mix(palette['stone_light'], (240, 224, 196), 0.62)
+
+
 def _is_dark_sky(palette):
     """Drives lit-rim alpha — night/dusk skies get a brighter window glow."""
     top = palette['sky_top']
@@ -1497,20 +1625,1336 @@ def candidate_songyue(surf, top_rect, bot_rect, palette, seed):
                  palette, seed)
 
 
+# ── Round 6 shared primitives ──────────────────────────────────────────────
+#
+# The 5 new candidates all push detail past round 5 with at least three of:
+#   - vertical body gradient (lit edge → mid → shadow edge),
+#   - dougong / bracket / corner-cluster polygons,
+#   - glazed-tile checker with per-tile gloss highlights,
+#   - lotus petal radial fans,
+#   - hexagonal-lattice perforations on perforated bell stupas,
+#   - lacquer-red trim band + corner spire chapels,
+#   - AA polylines on every curved silhouette via _aa_polyline.
+# The helpers below are reused across more than one candidate to keep the
+# new code compact.
+
+
+def _gradient_rect(surf, rect, lit, mid, shadow, *, vertical=False):
+    """Per-column or per-row 3-stop body gradient so a flat rectangle reads
+    as a 3-D volume at PIPE_W = 58. Without this the new candidates would
+    look like the old silhouettes painted with one extra colour. Cheap
+    enough to call inside the once-per-(seed, palette) cache."""
+    if rect.width < 2 or rect.height < 2:
+        return
+    if vertical:
+        n = rect.height
+        for i in range(n):
+            t = i / max(1, n - 1)
+            if t < 0.5:
+                col = _mix(lit, mid, t * 2)
+            else:
+                col = _mix(mid, shadow, (t - 0.5) * 2)
+            pygame.draw.line(surf, col,
+                             (rect.x, rect.y + i),
+                             (rect.right - 1, rect.y + i), 1)
+    else:
+        n = rect.width
+        for i in range(n):
+            t = i / max(1, n - 1)
+            if t < 0.5:
+                col = _mix(lit, mid, t * 2)
+            else:
+                col = _mix(mid, shadow, (t - 0.5) * 2)
+            pygame.draw.line(surf, col,
+                             (rect.x + i, rect.y),
+                             (rect.x + i, rect.bottom - 1), 1)
+
+
+def _dougong_cluster(surf, cx, y_top, palette, *, w=6, depth=3):
+    """A stepped corbel bracket — 3 stacked polygons, each step a touch
+    NARROWER than the one above. Sits along the top edge of a wall, JUST
+    UNDER the eave. `y_top` is the top edge of the topmost (widest) tier
+    — they stack DOWN from there into the wall body. Read as the canonical
+    dougong staccato rhythm at Fogong scale where each cluster is ~6 px
+    wide. Drawn AFTER the wall body so the bracket pattern overlays the
+    wall and BEFORE the eave so the eave can crown them."""
+    if w < 3 or depth < 2:
+        return
+    dark = _shade(_ochre_wood(palette), -55)
+    mid = _ochre_wood(palette)
+    lit = _ochre_wood_lit(palette)
+    # 3 corbel steps stacked vertically going DOWN (into the wall) —
+    # narrowest step at the top (closest to eave), widest at the bottom.
+    for k in range(3):
+        step_w = max(2, w - (2 - k) * 2)
+        step_y = y_top + k * (depth - 1)
+        pygame.draw.rect(surf, dark,
+                         (cx - step_w // 2 - 1, step_y,
+                          step_w + 2, depth))
+        pygame.draw.rect(surf, mid,
+                         (cx - step_w // 2, step_y, step_w, depth - 1))
+        pygame.draw.line(surf, lit,
+                         (cx - step_w // 2, step_y),
+                         (cx + step_w // 2 - 1, step_y), 1)
+
+
+def _glazed_tile_checker(surf, x, y, w, h, palette, *, tile=4):
+    """Glazed iron-brown tile field on Kaifeng's body — a regular grid of
+    iron-brown squares with a 1-px cream gloss in each top-left and a 1-px
+    mortar shadow underneath. The gloss makes the body read as ceramic
+    rather than a flat brown rectangle."""
+    if w < tile * 2 or h < tile * 2:
+        return
+    base = _iron_brown(palette)
+    base_lit = _iron_brown_lit(palette)
+    base_dark = _iron_brown_shadow(palette)
+    gloss = _tile_gloss(palette)
+    pygame.draw.rect(surf, base, (x, y, w, h))
+    cols = w // tile
+    rows = h // tile
+    for r in range(rows):
+        for c in range(cols):
+            tx = x + c * tile
+            ty = y + r * tile
+            # Brick-stagger every other row so the tile field doesn't look
+            # like a printed grid — like a real glazed-brick wall.
+            if r % 2 == 1:
+                tx_off = tile // 2
+            else:
+                tx_off = 0
+            tx2 = tx + tx_off
+            if tx2 + tile > x + w:
+                continue
+            # Alternate the per-tile fill so we get a checker rhythm across
+            # the field — half tiles lit, half shadow.
+            if (r + c) % 2 == 0:
+                pygame.draw.rect(surf, base_lit,
+                                 (tx2, ty, tile - 1, tile - 1))
+            else:
+                pygame.draw.rect(surf, base_dark,
+                                 (tx2, ty, tile - 1, tile - 1))
+            # Top-left gloss specular — 1 px is all that fits at this scale
+            # but the dotted grid reads as glaze sheen across the field.
+            pygame.draw.line(surf, gloss,
+                             (tx2, ty), (tx2 + 1, ty), 1)
+            # Underline shadow — the tile sits in front of mortar.
+            pygame.draw.line(surf, _shade(base_dark, -20),
+                             (tx2, ty + tile - 1),
+                             (tx2 + tile - 2, ty + tile - 1), 1)
+
+
+def _lotus_petal_fan(surf, cx, cy, radius, palette, *, n_petals=11,
+                    arc=math.pi):
+    """Radial fan of pink lotus petals spreading from (cx, cy). The default
+    `arc=pi` draws a half-fan opening upward — used as the column-base
+    cushion on One Pillar Pagoda. Each petal is a teardrop polygon with
+    a darker outline and a 1-px lit specular tip."""
+    if radius < 4:
+        return
+    pink = _lotus_pink(palette)
+    deep = _lotus_pink_deep(palette)
+    edge = _shade(deep, -30)
+    bright = _shade(pink, 45)
+    # Petals span `arc` centred on the +y axis (sweeping up).
+    start = math.pi + (math.pi - arc) / 2
+    for i in range(n_petals):
+        t = i / max(1, n_petals - 1)
+        ang = start + t * arc
+        tip_x = cx + math.cos(ang) * radius
+        tip_y = cy + math.sin(ang) * radius
+        # Petal body — tear-drop with two side-anchors near the base.
+        side_l_ang = ang - 0.18
+        side_r_ang = ang + 0.18
+        sl_x = cx + math.cos(side_l_ang) * radius * 0.45
+        sl_y = cy + math.sin(side_l_ang) * radius * 0.45
+        sr_x = cx + math.cos(side_r_ang) * radius * 0.45
+        sr_y = cy + math.sin(side_r_ang) * radius * 0.45
+        petal = [(int(cx), int(cy)),
+                 (int(sl_x), int(sl_y)),
+                 (int(tip_x), int(tip_y)),
+                 (int(sr_x), int(sr_y))]
+        pygame.draw.polygon(surf, edge, petal)
+        inner = [(int(cx), int(cy)),
+                 (int(sl_x + (tip_x - sl_x) * 0.18),
+                  int(sl_y + (tip_y - sl_y) * 0.18)),
+                 (int(tip_x), int(tip_y)),
+                 (int(sr_x + (tip_x - sr_x) * 0.18),
+                  int(sr_y + (tip_y - sr_y) * 0.18))]
+        pygame.draw.polygon(surf, pink, inner)
+        # Lit specular near the tip.
+        pygame.draw.line(surf, bright,
+                         (int(tip_x), int(tip_y)),
+                         (int(tip_x - math.cos(ang) * 2),
+                          int(tip_y - math.sin(ang) * 2)), 1)
+        # AA the outer edge.
+        _aa_polyline(surf, edge, petal, closed=True)
+
+
+def _hex_lattice(surf, cx, cy, rx, ry, palette, *, holes=7):
+    """Scatter of small dark hex-shaped perforations across an elliptical
+    bell stupa — the Borobudur signature. Holes arranged on a vertical
+    grid clipped to the ellipse so they read as openwork tile rather than
+    random spots. `rx`/`ry` are the parent ellipse half-axes."""
+    if rx < 5 or ry < 5:
+        return
+    dark = _basalt_shadow(palette)
+    deeper = _shade(dark, -40)
+    step_x = max(4, int(rx * 0.7))
+    step_y = max(4, int(ry * 0.55))
+    rows = max(2, holes // 3)
+    cols = max(2, holes // rows)
+    for r in range(rows):
+        for c in range(cols):
+            offx = (c - (cols - 1) / 2) * step_x
+            offy = (r - (rows - 1) / 2) * step_y
+            # Clip to the bell ellipse.
+            if (offx / max(1, rx)) ** 2 + (offy / max(1, ry)) ** 2 > 0.7:
+                continue
+            hx = int(cx + offx)
+            hy = int(cy + offy)
+            # Hex polygon — 6-vertex with the two flat sides top/bottom.
+            hex_pts = [
+                (hx - 1, hy - 1),
+                (hx + 1, hy - 1),
+                (hx + 2, hy),
+                (hx + 1, hy + 1),
+                (hx - 1, hy + 1),
+                (hx - 2, hy),
+            ]
+            pygame.draw.polygon(surf, deeper, hex_pts)
+            # Centre-pixel "inside" sample — even darker so the perforation
+            # reads as a real opening, not a painted dot.
+            pygame.draw.line(surf, _shade(deeper, -25),
+                             (hx, hy), (hx, hy), 1)
+
+
+# ── 6. Fogong (Yingxian) Wooden Pagoda ─────────────────────────────────────
+#
+# Octagonal 5-storey larch tower (Liao, 1056). What separates it from a
+# Japanese tō at game scale: VISIBLE DOUGONG BRACKET ARRAYS under each
+# eave, ochre wood walls with bright white-plastered panels between them,
+# and gentle gray-tile Chinese eave curls (slightly more curl than
+# Hōryū-ji's flat shingled eaves but flatter than a Khmer prang).
+#
+# Reference: https://en.wikipedia.org/wiki/Pagoda_of_Fogong_Temple
+
+def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *, top_tier=False):
+    """A single Fogong octagonal storey: ochre wood frame, lit/mid/shadow
+    body gradient, alternating plaster-vs-wood panels separated by visible
+    posts, and a dougong bracket array along the top edge."""
+    if bw < 12 or th < 7:
+        return
+    wood = _ochre_wood(palette)
+    wood_lit = _ochre_wood_lit(palette)
+    wood_dark = _ochre_wood_shadow(palette)
+    plaster = _white_plaster_warm(palette)
+    plaster_shadow = _shade(plaster, -22)
+    x_l = cx - bw // 2
+    body_rect = pygame.Rect(x_l, wall_top, bw, th)
+
+    # 3-stop horizontal gradient so the wall reads as a curved octagonal
+    # cylinder, not a flat board. Left edge lit, right edge in shadow.
+    _gradient_rect(surf, body_rect, wood_lit, wood, wood_dark)
+
+    # Plaster panels — 3 across, sitting BETWEEN cedar-thick wood posts.
+    # The plaster has its own light/shadow gradient so it reads as a
+    # recessed plane behind the wood frame.
+    if bw >= 22 and th >= 9:
+        panels = 3
+        panel_gap = 2
+        panel_zone_w = bw - 6
+        panel_w = max(3, (panel_zone_w - (panels - 1) * panel_gap) // panels)
+        for i in range(panels):
+            px0 = x_l + 3 + i * (panel_w + panel_gap)
+            panel_rect = pygame.Rect(px0, wall_top + 2,
+                                     panel_w, th - 4)
+            _gradient_rect(surf, panel_rect,
+                           _shade(plaster, 18), plaster, plaster_shadow)
+            # Cross-beam at half-height — adds the Liao wood-frame cue.
+            beam_y = wall_top + th // 2
+            pygame.draw.line(surf, wood_dark,
+                             (px0, beam_y), (px0 + panel_w - 1, beam_y), 1)
+            # Lit-rim niche centred on the middle panel of base storey.
+            if i == 1 and th > 12 and panel_w >= 6:
+                _lit_niche(surf, px0 + panel_w // 2, wall_top + 3,
+                           min(panel_w - 2, 5), min(th - 7, 6), palette)
+
+    # Wood posts — left, right, and one or two interior so plaster panels
+    # read separated. Each post is 2 px wide with a 1-px lit edge.
+    posts = [x_l, x_l + bw - 2]
+    if bw >= 22:
+        # 2 interior posts.
+        third = bw // 3
+        posts += [x_l + third - 1, x_l + 2 * third - 1]
+    for px in posts:
+        pygame.draw.rect(surf, wood_dark, (px, wall_top, 2, th))
+        pygame.draw.line(surf, wood_lit,
+                         (px, wall_top), (px, wall_top + th - 1), 1)
+
+    # Top horizontal beam — the architrave the dougong sits on.
+    pygame.draw.rect(surf, wood_dark, (x_l, wall_top, bw, 2))
+    pygame.draw.line(surf, wood_lit,
+                     (x_l, wall_top + 1), (x_l + bw - 1, wall_top + 1), 1)
+
+    # Dougong bracket array along the top edge — Fogong's identity. We
+    # space 5 clusters across the width (one per outer/inner column). The
+    # brackets sit JUST BELOW wall_top (above the architrave, under the
+    # eave that will be drawn afterwards), so the wall body shows brackets
+    # not an empty band.
+    if not top_tier and bw >= 16:
+        n_clusters = 5 if bw >= 26 else 3
+        cluster_w = max(4, (bw - 4) // n_clusters)
+        for i in range(n_clusters):
+            t = (i + 0.5) / n_clusters
+            bx = x_l + int(t * bw)
+            _dougong_cluster(surf, bx, wall_top + 2, palette,
+                             w=cluster_w - 1, depth=3)
+
+
+def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
+                    tier_count=5, finial_h=30, sorin_up=True):
+    """Stacked Fogong storeys ending in a small bronze sōrin (down-pointing
+    in the mirrored hanging variant). Each storey gets gentle Chinese-tile
+    eave curls — between Hōryū-ji-flat and Khmer-corner-sweep so the
+    silhouette doesn't blur with the Japanese tō."""
+    wood = _ochre_wood(palette)
+    wood_lit = _ochre_wood_lit(palette)
+    accent = _bronze(palette)
+    tile_col = _shade(palette['stone_dark'], -10)
+    grey_tile = _mix(palette['stone_mid'], (118, 110, 100), 0.62)
+
+    total_h = bot_y - top_y
+    if total_h < 12:
+        return
+    weights = [1.0 - 0.06 * i for i in range(tier_count)]
+    wsum = sum(weights)
+    tier_heights = [max(9, int(total_h * w / wsum)) for w in weights]
+    body_widths = [max(12, int(base_w * (0.93 ** i)))
+                   for i in range(tier_count)]
+
+    y_cursor = bot_y
+    tier_tops = []
+    for i in range(tier_count):
+        th = tier_heights[i]
+        bw = body_widths[i]
+        wall_top = y_cursor - th
+        if wall_top < top_y - 1:
+            break
+        tier_tops.append((wall_top, bw, th))
+        _draw_fogong_storey(surf, cx, wall_top, bw, th, palette,
+                            top_tier=(i == tier_count - 1))
+        # Chinese-style gently-curled grey-tile eave — a touch more curl
+        # than Hōryū-ji's. Tile colour cool-grey, not cedar-warm, to
+        # match real Fogong photos.
+        overhang = max(11, 14 - i)
+        depth = 6
+        _eave_tang_curl(surf, cx, wall_top - 1, bw // 2,
+                        overhang, depth, grey_tile, accent, tile_col,
+                        curl=0.55)
+        y_cursor = wall_top - depth + 1
+
+    if not tier_tops:
+        return
+
+    # Bronze sōrin — shorter than Hōryū-ji's, with only 5 disks because
+    # Fogong's finial is more compact relative to the body.
+    top_wall_y = tier_tops[-1][0]
+    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
+    dir_sign = -1 if sorin_up else 1
+    dark_pal = palette['stone_dark']
+    bright = _shade(accent, 45)
+    pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
+    pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
+    needle_tip = base_y + dir_sign * (finial_h - 4)
+    pygame.draw.line(surf, dark_pal,
+                     (cx - 1, base_y + dir_sign * 4),
+                     (cx - 1, needle_tip), 2)
+    pygame.draw.line(surf, accent,
+                     (cx, base_y + dir_sign * 4),
+                     (cx, needle_tip), 1)
+    disks = 5
+    for k in range(disks):
+        t = k / max(1, disks - 1)
+        ry = base_y + dir_sign * (5 + int(t * (finial_h - 11)))
+        rw = max(2, 6 - k // 2)
+        pygame.draw.ellipse(surf, dark_pal,
+                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
+        pygame.draw.ellipse(surf, accent,
+                            (cx - rw, ry, rw * 2, 2))
+    tip_y = base_y + dir_sign * finial_h
+    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
+    pygame.draw.circle(surf, bright, (cx, tip_y), 2)
+
+
+def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+
+    if bot_rect.height > 50:
+        plinth_h = 9
+        plinth_w = int(bot_rect.width * 1.22)
+        # Cool stone plinth — _column_grey so it reads as a marble base
+        # under the warm-wood pagoda, not part of the body.
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
+                          plinth_w, plinth_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(surf, palette['stone_light'],
+                         (bcx - plinth_w // 2,
+                          bot_rect.bottom - plinth_h, plinth_w, 2))
+        finial_h = 32
+        envelope_top = bot_rect.y
+        envelope_bot = bot_rect.bottom - plinth_h
+        tier_count = rng.choice([5, 5, 6])
+        _draw_fogong_to(surf, bcx,
+                        envelope_top + finial_h, envelope_bot,
+                        int(bot_rect.width * 0.94), palette,
+                        tier_count=tier_count, finial_h=finial_h,
+                        sorin_up=True)
+        draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
+                       bot_rect.width + 6, 14, palette, seed=seed)
+        draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
+                        bot_rect.width - 4, 6, seed=seed)
+
+    if top_rect.height > 50:
+        plinth_h = 7
+        plinth_w = int(top_rect.width * 1.18)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(surf, palette['stone_light'],
+                         (tcx - plinth_w // 2,
+                          top_rect.y + plinth_h - 1, plinth_w, 1))
+        finial_h = 26
+        envelope_top = top_rect.y + plinth_h
+        envelope_bot = top_rect.bottom - finial_h
+        # Upper tiers mirrored from the ceiling — only 3 tiers + the
+        # down-pointing sōrin pokes into the gap.
+        _draw_fogong_to(surf, tcx,
+                        envelope_top, envelope_bot,
+                        int(top_rect.width * 0.94), palette,
+                        tier_count=3, finial_h=finial_h, sorin_up=False)
+        for off in (-12, -3, 3, 12):
+            draw_moss_strand(surf, tcx + off, envelope_bot,
+                             6 + abs(off) % 4, palette,
+                             jitter_seed=seed + off)
+
+
+def candidate_fogong(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('fogong', _draw_fogong, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── 7. Iron Pagoda of Kaifeng ──────────────────────────────────────────────
+#
+# Tall slim octagonal 13-storey glazed-brick tower (Northern Song, 1049).
+# Sits as a totally different mass from Fogong's wide-and-stocky larch
+# tower — narrow body, dense per-storey bracket band, and a continuous
+# iron-brown glazed-tile checker that catches per-tile gloss. Crowned
+# with a small bronze finial.
+#
+# Reference: https://en.wikipedia.org/wiki/Iron_Pagoda
+
+def _draw_iron_kaifeng_storey(surf, cx, wall_top, bw, th, palette):
+    """One narrow Kaifeng storey: glazed-tile body, narrow shallow eave."""
+    if bw < 8 or th < 5:
+        return
+    body_rect = pygame.Rect(cx - bw // 2, wall_top, bw, th)
+    _glazed_tile_checker(surf, body_rect.x, body_rect.y,
+                         body_rect.w, body_rect.h, palette, tile=4)
+    # Narrow lit-rim window centred on each storey — small inset opening.
+    if th >= 8 and bw >= 10:
+        _lit_niche(surf, cx, wall_top + 2,
+                   min(4, bw // 3), min(5, th - 3), palette)
+    # Architrave band on the bottom edge — slightly darker brown line
+    # so the storey-edge reads as a structural break.
+    pygame.draw.rect(surf, _iron_brown_shadow(palette),
+                     (cx - bw // 2, wall_top + th - 2, bw, 2))
+
+
+def _draw_iron_kaifeng_eave(surf, cx, y_base, half_w, palette, *, depth=3):
+    """Shallow gray-tile eave — Kaifeng's eaves are slimmer than Fogong's
+    larch eaves, more like dark capping bands. Each eave has a 1-px lit
+    rim and a single hooked tile-end at both corners."""
+    iron_lit = _iron_brown_lit(palette)
+    iron_dark = _iron_brown_shadow(palette)
+    overhang = 3
+    half_outer = half_w + overhang
+    pygame.draw.rect(surf, iron_dark,
+                     (cx - half_outer, y_base, half_outer * 2, depth))
+    pygame.draw.line(surf, iron_lit,
+                     (cx - half_outer + 1, y_base),
+                     (cx + half_outer - 1, y_base), 1)
+    # Slight up-tick at each corner so it reads as a Chinese eave.
+    pygame.draw.line(surf, iron_lit,
+                     (cx - half_outer, y_base),
+                     (cx - half_outer - 1, y_base - 1), 1)
+    pygame.draw.line(surf, iron_lit,
+                     (cx + half_outer, y_base),
+                     (cx + half_outer + 1, y_base - 1), 1)
+
+
+def _draw_iron_kaifeng(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+
+    def stack(cx, y_top, y_bot, base_w, *, n_storeys, finial_up):
+        total_h = y_bot - y_top
+        if total_h < 30:
+            return
+        # Plinth at the base (if upright) or ceiling cap (if mirrored).
+        if finial_up:
+            plinth_h = 8
+            plinth_w = int(base_w * 1.18)
+            pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                             (cx - plinth_w // 2, y_bot - plinth_h,
+                              plinth_w, plinth_h))
+            pygame.draw.rect(surf, _column_grey(palette),
+                             (cx - plinth_w // 2 + 1,
+                              y_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(surf, palette['stone_light'],
+                             (cx - plinth_w // 2,
+                              y_bot - plinth_h, plinth_w, 2))
+            y_bot -= plinth_h
+        else:
+            # Ceiling cap — anchor block the mirrored pagoda hangs from.
+            cap_h = 7
+            cap_w = int(base_w * 1.22)
+            pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                             (cx - cap_w // 2, y_top, cap_w, cap_h))
+            pygame.draw.rect(surf, _column_grey(palette),
+                             (cx - cap_w // 2 + 1, y_top + 1,
+                              cap_w - 2, cap_h - 2))
+            pygame.draw.rect(surf, palette['stone_light'],
+                             (cx - cap_w // 2,
+                              y_top + cap_h - 1, cap_w, 1))
+            y_top += cap_h
+        # Finial budget at the tip.
+        finial_h = 18
+        body_h = (y_bot - y_top) - finial_h
+        if body_h < 30:
+            return
+        storey_h = body_h // n_storeys
+        if storey_h < 4:
+            n_storeys = max(4, body_h // 5)
+            storey_h = body_h // n_storeys
+        # The Iron Pagoda tapers gently — top 88% of base width.
+        widths = [max(10, int(base_w * (1 - 0.12 * (k / max(1, n_storeys - 1)))))
+                  for k in range(n_storeys)]
+        if finial_up:
+            # Upright stack — widest at y_bot, narrowing upward.
+            y_cursor = y_bot
+            for k in range(n_storeys):
+                bw = widths[k]
+                wall_top = y_cursor - storey_h + 1
+                _draw_iron_kaifeng_storey(surf, cx, wall_top, bw,
+                                          storey_h - 2, palette)
+                _draw_iron_kaifeng_eave(surf, cx, wall_top - 1, bw // 2,
+                                        palette, depth=2)
+                y_cursor = wall_top - 2
+            top_w = widths[-1]
+            cap_y = y_cursor - 3
+        else:
+            # Mirrored — widest storey AT the ceiling (y_top), tapering DOWN
+            # into the gap. The narrowest storey ends near y_bot with the
+            # finial dropping past y_bot.
+            y_cursor = y_top
+            for k in range(n_storeys):
+                bw = widths[k]
+                wall_top = y_cursor + 1
+                _draw_iron_kaifeng_storey(surf, cx, wall_top, bw,
+                                          storey_h - 2, palette)
+                # Eave sits BELOW the storey on the mirrored copy.
+                _draw_iron_kaifeng_eave(surf, cx, wall_top + storey_h - 2,
+                                        bw // 2, palette, depth=2)
+                y_cursor = wall_top + storey_h
+            top_w = widths[-1]
+            cap_y = y_cursor + 3
+        # Curved cap dome.
+        cap_rect = pygame.Rect(cx - top_w // 3, cap_y - 5,
+                               (top_w // 3) * 2, 9)
+        pygame.draw.ellipse(surf, _iron_brown_shadow(palette), cap_rect)
+        pygame.draw.ellipse(surf, _iron_brown_lit(palette),
+                            cap_rect.inflate(-2, -2))
+        bronze = _bronze(palette)
+        bright = _shade(bronze, 45)
+        dark = palette['stone_dark']
+        base_y = cap_y - 4 if finial_up else cap_y + 4
+        dir_sign = -1 if finial_up else 1
+        needle_tip = base_y + dir_sign * finial_h
+        pygame.draw.line(surf, dark,
+                         (cx - 1, base_y),
+                         (cx - 1, needle_tip), 2)
+        pygame.draw.line(surf, bronze,
+                         (cx, base_y), (cx, needle_tip), 1)
+        for k in range(2):
+            ry = base_y + dir_sign * (4 + k * 6)
+            rw = max(2, 5 - k * 2)
+            pygame.draw.ellipse(surf, dark, (cx - rw - 1, ry - 1,
+                                            rw * 2 + 2, 3))
+            pygame.draw.ellipse(surf, bronze, (cx - rw, ry, rw * 2, 2))
+        pygame.draw.circle(surf, dark, (cx, needle_tip), 3)
+        pygame.draw.circle(surf, bright, (cx, needle_tip), 2)
+
+    if bot_rect.height > 80:
+        stack(bcx, bot_rect.y, bot_rect.bottom,
+              int(bot_rect.width * 0.88),
+              n_storeys=rng.choice([12, 13]),
+              finial_up=True)
+        draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
+                       bot_rect.width + 6, 14, palette, seed=seed)
+        draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
+                        bot_rect.width - 4, 6, seed=seed)
+
+    if top_rect.height > 60:
+        # Top 5 storeys mirrored from the ceiling. We draw a fresh stack
+        # of 5 storeys with the bottom of the stack against `top_rect.y`
+        # and the finial pointing down past `top_rect.bottom`.
+        stack(tcx, top_rect.y, top_rect.bottom,
+              int(top_rect.width * 0.86),
+              n_storeys=5,
+              finial_up=False)
+        # Hanging moss off the ceiling root.
+        for off in (-10, -2, 6, 14):
+            draw_moss_strand(surf, tcx + off, top_rect.y + 4,
+                             5 + abs(off) % 3, palette,
+                             jitter_seed=seed + off)
+
+
+def candidate_iron_kaifeng(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('iron_kaifeng', _draw_iron_kaifeng, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── 8. Chùa Một Cột — One Pillar Pagoda ────────────────────────────────────
+#
+# A small Vietnamese wooden pavilion (Liên Hoa Đài) perched on a single
+# tall stone column rising from a square lotus pond. The pavilion is
+# tiny relative to the column — that proportional inversion is the
+# whole point. Lotus petals fan out from the column root above the pond.
+# Top = a smaller upside-down lotus pavilion hangs from the ceiling on
+# a thinner column.
+#
+# Reference: https://en.wikipedia.org/wiki/One_Pillar_Pagoda
+
+def _draw_vn_pavilion(surf, cx, base_y, palette, *, body_w=30, body_h=22,
+                     roof_up=True):
+    """The Liên Hoa Đài — a square wooden pavilion with a curved
+    Vietnamese ceramic-tile roof. Two dragon-finials curl off the corners
+    where the roof peaks."""
+    wood = _ochre_wood(palette)
+    wood_lit = _ochre_wood_lit(palette)
+    wood_dark = _ochre_wood_shadow(palette)
+    tile = _vn_tile_red(palette)
+    tile_lit = _vn_tile_red_lit(palette)
+    tile_dark = _shade(tile, -45)
+    accent = _bronze(palette)
+    plaster = _white_plaster_warm(palette)
+
+    if body_w < 10 or body_h < 6:
+        return
+    # Wooden body box.
+    wall_rect = pygame.Rect(cx - body_w // 2, base_y - body_h,
+                            body_w, body_h)
+    _gradient_rect(surf, wall_rect, wood_lit, wood, wood_dark)
+    # Plaster panel centred — a small altar opening.
+    if body_w >= 14 and body_h >= 10:
+        pp = pygame.Rect(cx - body_w // 2 + 3, base_y - body_h + 3,
+                         body_w - 6, body_h - 5)
+        _gradient_rect(surf, pp, _shade(plaster, 20), plaster,
+                       _shade(plaster, -25))
+        # Lit-rim door arch — Vietnamese style with a pointed top.
+        door_w = min(pp.w - 4, 7)
+        door_h = min(pp.h - 2, 10)
+        dx0 = cx - door_w // 2
+        dy0 = base_y - door_h - 1
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -40),
+                         (dx0, dy0, door_w, door_h))
+        rim_alpha = 220 if _is_dark_sky(palette) else 110
+        rim = _mix(palette['stone_accent'], (255, 215, 120), 0.78)
+        rim_layer = pygame.Surface((door_w + 2, door_h + 2), pygame.SRCALPHA)
+        pygame.draw.rect(rim_layer, (*rim, rim_alpha),
+                         (1, 1, door_w, door_h), 1)
+        surf.blit(rim_layer, (dx0 - 1, dy0 - 1))
+    # Wood corner posts + lit edges.
+    for px in (cx - body_w // 2, cx + body_w // 2 - 2):
+        pygame.draw.rect(surf, wood_dark, (px, base_y - body_h, 2, body_h))
+        pygame.draw.line(surf, wood_lit,
+                         (px, base_y - body_h),
+                         (px, base_y - 1), 1)
+    # Architrave beam on top.
+    pygame.draw.rect(surf, wood_dark,
+                     (cx - body_w // 2, base_y - body_h, body_w, 2))
+
+    # Curved Vietnamese tile roof — the signature dragon-eave that flips
+    # up on all 4 corners. We draw a wide trapezoidal mass with sharply
+    # upturned tips.
+    roof_h = max(8, body_h // 2 + 4)
+    roof_overhang = max(8, body_w // 3)
+    if roof_up:
+        ridge_y = base_y - body_h - roof_h
+        eave_y = base_y - body_h - 1
+        tip_y = ridge_y + 1
+    else:
+        # Upside-down roof — the curved tips drop into the gap below.
+        ridge_y = base_y - body_h + roof_h
+        eave_y = base_y - body_h + 1
+        tip_y = ridge_y - 1
+    half_outer = body_w // 2 + roof_overhang
+    # Roof shadow polygon (slightly larger).
+    roof_pts = [
+        (cx - half_outer, eave_y),
+        (cx - half_outer + 2, tip_y),
+        (cx - body_w // 2 - 2,
+         eave_y + (-2 if roof_up else 2)),
+        (cx, ridge_y),
+        (cx + body_w // 2 + 2,
+         eave_y + (-2 if roof_up else 2)),
+        (cx + half_outer - 2, tip_y),
+        (cx + half_outer, eave_y),
+    ]
+    pygame.draw.polygon(surf, tile_dark, roof_pts)
+    inner_pts = [
+        (cx - half_outer + 1, eave_y + (1 if roof_up else -1)),
+        (cx, ridge_y + (1 if roof_up else -1)),
+        (cx + half_outer - 1, eave_y + (1 if roof_up else -1)),
+    ]
+    pygame.draw.polygon(surf, tile, [(cx - half_outer + 1, eave_y),
+                                     *inner_pts, (cx + half_outer - 1, eave_y)])
+    # Per-row tile hatching down both slopes.
+    _tile_hatch(surf, cx - half_outer + 3, eave_y - (3 if roof_up else -3),
+                cx - 2, ridge_y + (3 if roof_up else -3),
+                _shade(tile, -30), step=3)
+    _tile_hatch(surf, cx + 2, ridge_y + (3 if roof_up else -3),
+                cx + half_outer - 3, eave_y - (3 if roof_up else -3),
+                _shade(tile, -30), step=3)
+    # Ridge highlight.
+    pygame.draw.line(surf, tile_lit,
+                     (cx - body_w // 4, ridge_y + (1 if roof_up else -1)),
+                     (cx + body_w // 4, ridge_y + (1 if roof_up else -1)), 1)
+    # AA the silhouette.
+    _aa_polyline(surf, tile_dark, roof_pts, closed=True)
+    # Dragon-finials curling up off each corner tip.
+    curl_dir = -1 if roof_up else 1
+    for tx in (cx - half_outer, cx + half_outer):
+        pygame.draw.polygon(surf, accent,
+                            [(tx, tip_y),
+                             (tx + (-2 if tx < cx else 2),
+                              tip_y + curl_dir * 4),
+                             (tx + (-3 if tx < cx else 3),
+                              tip_y + curl_dir * 2)])
+        pygame.draw.circle(surf, _shade(accent, 40),
+                           (tx + (-3 if tx < cx else 3),
+                            tip_y + curl_dir * 2), 1)
+    # Central ridge ornament — small bronze flame jewel.
+    pygame.draw.circle(surf, accent,
+                       (cx, ridge_y + (-3 if roof_up else 3)), 2)
+    pygame.draw.line(surf, _shade(accent, 40),
+                     (cx, ridge_y + (-7 if roof_up else 7)),
+                     (cx, ridge_y + (-4 if roof_up else 4)), 1)
+
+
+def _draw_one_pillar(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+
+    pond_aqua = _pond_aqua(palette)
+    pond_deep = _shade(pond_aqua, -30)
+    pond_lit = _shade(pond_aqua, 25)
+    grey = _column_grey(palette)
+    grey_dark = _shade(grey, -35)
+    grey_lit = _shade(grey, 25)
+
+    if bot_rect.height > 80:
+        # Square lotus pond at the base — a flat rectangle stretching the
+        # full width of bot_rect with a 3-step gradient so it reads as
+        # water. Inset a darker ring so the pond has visible edges.
+        pond_h = 22
+        pond_top = bot_rect.bottom - pond_h
+        pond_w = int(bot_rect.width * 1.40)
+        pond_rect = pygame.Rect(bcx - pond_w // 2, pond_top, pond_w, pond_h)
+        # Stone rim.
+        pygame.draw.rect(surf, grey_dark,
+                         (pond_rect.x - 2, pond_rect.y - 2,
+                          pond_rect.w + 4, pond_rect.h + 4))
+        pygame.draw.rect(surf, grey,
+                         (pond_rect.x - 1, pond_rect.y - 1,
+                          pond_rect.w + 2, pond_rect.h + 2))
+        # Water gradient — lit near the top.
+        _gradient_rect(surf, pond_rect, pond_lit, pond_aqua, pond_deep,
+                       vertical=True)
+        # Water ripples — 3 short horizontal accents.
+        for k, off_y in enumerate((-7, -2, 4)):
+            ry = pond_top + pond_h // 2 + off_y
+            rx0 = bcx - pond_w // 2 + 8 + (k * 7) % 14
+            pygame.draw.line(surf, pond_lit,
+                             (rx0, ry), (rx0 + 14, ry), 1)
+        # Tall slim stone column rising out of the pond — the whole
+        # silhouette's identity.
+        col_h = bot_rect.height - pond_h - 36
+        if col_h > 30:
+            col_w = 14
+            col_top = pond_top - col_h
+            col_rect = pygame.Rect(bcx - col_w // 2, col_top, col_w, col_h)
+            # 3-stop column gradient — lit left, shadow right.
+            _gradient_rect(surf, col_rect, grey_lit, grey, grey_dark)
+            # Vertical grooves — Vietnamese stone columns are fluted.
+            for gx in (bcx - col_w // 2 + 3, bcx, bcx + col_w // 2 - 3):
+                pygame.draw.line(surf, grey_dark,
+                                 (gx, col_top + 2),
+                                 (gx, pond_top - 2), 1)
+            # Lotus petals fan UP at the column root — the iconic Liên
+            # Hoa Đài cushion.
+            _lotus_petal_fan(surf, bcx, col_top + 2,
+                             radius=20, palette=palette,
+                             n_petals=11, arc=math.pi)
+            # Tiny outer fan — a second smaller petal ring underneath
+            # for added depth.
+            _lotus_petal_fan(surf, bcx, col_top + 4,
+                             radius=12, palette=palette,
+                             n_petals=7, arc=math.pi * 0.85)
+            # Pavilion sits on the column top.
+            pav_w = max(28, int(bot_rect.width * 0.86))
+            pav_h = 24
+            _draw_vn_pavilion(surf, bcx, col_top - 2, palette,
+                              body_w=pav_w, body_h=pav_h, roof_up=True)
+        draw_grass_bed(surf, bcx, pond_rect.y - 1,
+                       bot_rect.width + 4, 8, palette, seed=seed)
+
+    if top_rect.height > 50:
+        # Hanging upside-down pavilion: thinner column drops from the
+        # ceiling, dragon-eave pavilion hangs at its tip with a small
+        # downward lotus.
+        anchor_w = int(top_rect.width * 0.7)
+        anchor_h = 6
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (tcx - anchor_w // 2, top_rect.y,
+                          anchor_w, anchor_h))
+        pygame.draw.rect(surf, grey,
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                          anchor_w - 2, anchor_h - 2))
+        col_w = 10
+        col_h = min(top_rect.height - 36, 36)
+        col_top = top_rect.y + anchor_h
+        col_bot = col_top + col_h
+        col_rect = pygame.Rect(tcx - col_w // 2, col_top, col_w, col_h)
+        _gradient_rect(surf, col_rect, grey_lit, grey, grey_dark)
+        for gx in (tcx - col_w // 2 + 2, tcx + col_w // 2 - 3):
+            pygame.draw.line(surf, grey_dark,
+                             (gx, col_top + 1),
+                             (gx, col_bot - 1), 1)
+        # Upside-down lotus petals fan DOWN from the column tip.
+        _lotus_petal_fan(surf, tcx, col_bot,
+                         radius=14, palette=palette,
+                         n_petals=9, arc=math.pi)
+        # Pavilion roof points DOWN — `roof_up=False` flips the dragon
+        # eaves so they curl into the gap.
+        pav_w = max(22, int(top_rect.width * 0.74))
+        pav_h = 18
+        _draw_vn_pavilion(surf, tcx, col_bot + pav_h + 1, palette,
+                          body_w=pav_w, body_h=pav_h, roof_up=False)
+
+
+def candidate_one_pillar(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('one_pillar', _draw_one_pillar, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── 9. Borobudur — Stepped Mandala Pyramid ─────────────────────────────────
+#
+# Five square stepped terraces topped by three concentric circular
+# terraces of perforated bell-shaped stupas, crowned by a single
+# chattra-topped stupa. Volcanic-basalt grey throughout. Triangular
+# silhouette mass; reads as the heaviest, most monumental candidate.
+# Top = a single bell-stupa with chattra hanging from ceiling chains.
+#
+# Reference: https://en.wikipedia.org/wiki/Borobudur
+
+def _draw_borobudur_bell_stupa(surf, cx, cy, palette, *, rx=8, ry=10,
+                               with_chattra=True):
+    """A single perforated bell stupa — vertical egg-shape with a hex
+    lattice perforation pattern and an optional 3-tier chattra spire."""
+    base = _basalt(palette)
+    lit = _basalt_lit(palette)
+    shadow = _basalt_shadow(palette)
+    dark = palette['stone_dark']
+    # Bell silhouette — slightly wider at base, narrow at top.
+    bell_rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, shadow, bell_rect)
+    pygame.draw.ellipse(surf, base, bell_rect.inflate(-2, -2))
+    # Lit sliver on the upper-left.
+    pygame.draw.arc(surf, lit, bell_rect.inflate(-1, -1),
+                    math.pi * 0.65, math.pi * 1.10, 1)
+    # Hex perforations.
+    _hex_lattice(surf, cx, cy, rx, ry, palette, holes=7)
+    # AA silhouette.
+    arc_pts = []
+    for k in range(13):
+        t = k / 12
+        ang = math.pi + t * math.pi
+        px = cx + math.cos(ang) * rx
+        py = cy - math.sin(ang) * ry
+        arc_pts.append((int(px), int(py)))
+    _aa_polyline(surf, dark, arc_pts)
+    if with_chattra:
+        # 3-tier chattra umbrella on top.
+        tip_y = cy - ry - 6
+        pygame.draw.line(surf, dark, (cx - 1, cy - ry),
+                         (cx - 1, tip_y), 2)
+        pygame.draw.line(surf, lit, (cx, cy - ry),
+                         (cx, tip_y), 1)
+        for k, ry_off in enumerate((-1, -3, -5)):
+            rwc = max(2, 5 - k)
+            ry2 = cy - ry + ry_off
+            pygame.draw.line(surf, dark, (cx - rwc, ry2 + 1),
+                             (cx + rwc, ry2 + 1), 1)
+            pygame.draw.line(surf, lit, (cx - rwc, ry2),
+                             (cx + rwc, ry2), 1)
+        pygame.draw.circle(surf, dark, (cx, tip_y - 1), 2)
+        pygame.draw.circle(surf, lit, (cx, tip_y - 1), 1)
+
+
+def _draw_borobudur(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+
+    base = _basalt(palette)
+    lit = _basalt_lit(palette)
+    shadow = _basalt_shadow(palette)
+    accent = _basalt_accent(palette)
+    dark = palette['stone_dark']
+
+    if bot_rect.height > 80:
+        # 5 square stepped terraces stacked widest-to-narrowest, then
+        # 3 circular terraces of perforated bell stupas, then a crowning
+        # central bell-stupa with chattra.
+        total_h = min(bot_rect.height, 250)
+        sq_h = int(total_h * 0.48)
+        circ_h = int(total_h * 0.34)
+        crown_h = total_h - sq_h - circ_h
+        base_y = bot_rect.bottom
+
+        # Square stepped terraces — 5 tiers.
+        widest = int(bot_rect.width * 1.55)
+        narrowest = int(bot_rect.width * 0.78)
+        n_sq = 5
+        step_h = sq_h // n_sq
+        for i in range(n_sq):
+            t = i / max(1, n_sq - 1)
+            sw = int(widest + (narrowest - widest) * t)
+            sy = base_y - sq_h + i * step_h
+            # Step body with horizontal gradient (lit left → shadow right).
+            srect = pygame.Rect(bcx - sw // 2, sy, sw, step_h)
+            _gradient_rect(surf, srect, lit, base, shadow)
+            # Top dark cap-line so each terrace reads as a horizontal slab.
+            pygame.draw.rect(surf, dark, (srect.x, srect.y, srect.w, 1))
+            pygame.draw.rect(surf, _shade(base, -20),
+                             (srect.x, srect.bottom - 2, srect.w, 2))
+            # Recessed relief-panel band along the front face — sculpted
+            # Mahayana panels at Borobudur's bas-relief band. We draw a
+            # row of small dark rectangles separated by thin pilasters.
+            if sw >= 30 and step_h >= 8:
+                panel_zone = sw - 12
+                n_panels = max(3, panel_zone // 14)
+                pw = panel_zone // n_panels
+                for pi in range(n_panels):
+                    px0 = srect.x + 6 + pi * pw
+                    panel = pygame.Rect(px0, sy + 2,
+                                        max(4, pw - 2), step_h - 5)
+                    pygame.draw.rect(surf, accent, panel)
+                    pygame.draw.rect(surf, _shade(accent, -25),
+                                     (panel.x, panel.y, panel.w, 1))
+                    pygame.draw.rect(surf, _shade(base, 25),
+                                     (panel.x, panel.y, 1, panel.h))
+                    # Tiny seated-buddha silhouette polygon in the panel
+                    # centre — a 4-px rounded blob with a halo dot.
+                    if pw >= 8 and step_h >= 12:
+                        bx = panel.x + panel.w // 2
+                        by = panel.y + panel.h // 2 + 1
+                        pygame.draw.circle(surf, _shade(base, 35),
+                                           (bx, by - 3), 2)
+                        pygame.draw.polygon(surf, _shade(base, 35),
+                                            [(bx - 2, by + 2),
+                                             (bx + 2, by + 2),
+                                             (bx + 1, by - 1),
+                                             (bx - 1, by - 1)])
+            # Lit-rim niche in the central staircase position on bottom 2.
+            if i < 2 and sw >= 30:
+                _lit_niche(surf, bcx, sy + 2,
+                           min(8, sw - 12), min(6, step_h - 4), palette)
+
+        # 3 circular terraces of perforated bell stupas. Each terrace =
+        # a horizontal row of bells with depth-shifted shading. Stupas
+        # get smaller and fewer toward the crown.
+        circ_top = base_y - sq_h - circ_h
+        for ci, n_stupas in enumerate((5, 4, 3)):
+            tier_y = base_y - sq_h - int(circ_h * (ci + 0.5) / 3)
+            tier_w = int(narrowest + (narrowest * 0.18) * (2 - ci))
+            spacing = tier_w // max(1, n_stupas)
+            rx = max(4, min(7, spacing // 2 - 1))
+            ry = max(5, min(8, int(rx * 1.3)))
+            for s in range(n_stupas):
+                t = (s + 0.5) / n_stupas
+                sx = bcx - tier_w // 2 + int(t * tier_w)
+                _draw_borobudur_bell_stupa(surf, sx, tier_y, palette,
+                                           rx=rx, ry=ry,
+                                           with_chattra=False)
+            # Floor of the circular terrace — short dark band the bells
+            # sit on, so the terrace reads as a deck not a void.
+            deck_y = tier_y + ry + 1
+            pygame.draw.rect(surf, base,
+                             (bcx - tier_w // 2 - 4, deck_y,
+                              tier_w + 8, 3))
+            pygame.draw.line(surf, dark,
+                             (bcx - tier_w // 2 - 4, deck_y),
+                             (bcx + tier_w // 2 + 4, deck_y), 1)
+
+        # Crowning central stupa with chattra.
+        crown_cx = bcx
+        crown_cy = circ_top + crown_h // 2 - 2
+        _draw_borobudur_bell_stupa(surf, crown_cx, crown_cy, palette,
+                                   rx=8, ry=11, with_chattra=True)
+
+        draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
+                       bot_rect.width + 12, 10, palette, seed=seed)
+
+    if top_rect.height > 50:
+        # Single hanging bell stupa with chattra dropping into the gap on
+        # a pair of dark chains from a basalt anchor block.
+        anchor_w = int(top_rect.width * 0.9)
+        anchor_h = 8
+        anchor_rect = pygame.Rect(tcx - anchor_w // 2, top_rect.y,
+                                  anchor_w, anchor_h)
+        pygame.draw.rect(surf, dark, anchor_rect)
+        _gradient_rect(surf, anchor_rect.inflate(-2, -2),
+                       lit, base, shadow)
+        pygame.draw.rect(surf, _basalt_lit(palette),
+                         (anchor_rect.x + 2, anchor_rect.y + 1,
+                          anchor_rect.w - 4, 1))
+        # Two chains.
+        chain_top = top_rect.y + anchor_h
+        chain_bot = min(top_rect.bottom - 24,
+                        top_rect.y + anchor_h + 26)
+        for cx_off in (-6, 6):
+            cx_chain = tcx + cx_off
+            pygame.draw.line(surf, dark,
+                             (cx_chain, chain_top),
+                             (cx_chain, chain_bot), 2)
+            for cy in range(chain_top + 2, chain_bot, 4):
+                pygame.draw.ellipse(surf, dark,
+                                    (cx_chain - 2, cy - 1, 5, 4))
+                pygame.draw.ellipse(surf, base,
+                                    (cx_chain - 1, cy, 3, 2))
+        # Bell stupa with chattra at the tip — drawn upside-up so the
+        # chattra reads even when hanging.
+        bell_cy = chain_bot + 11
+        _draw_borobudur_bell_stupa(surf, tcx, bell_cy, palette,
+                                   rx=10, ry=12, with_chattra=False)
+        # Decorative downward chattra cone hanging UNDER the bell — three
+        # tiered umbrella rings tapering down into the gap.
+        for k in range(3):
+            ry_off = bell_cy + 12 + k * 4
+            rwc = max(2, 6 - k * 2)
+            pygame.draw.line(surf, dark, (tcx - rwc, ry_off + 1),
+                             (tcx + rwc, ry_off + 1), 1)
+            pygame.draw.line(surf, lit, (tcx - rwc, ry_off),
+                             (tcx + rwc, ry_off), 1)
+        # Final ball drop.
+        pygame.draw.circle(surf, dark, (tcx, bell_cy + 26), 2)
+        pygame.draw.circle(surf, lit, (tcx, bell_cy + 26), 1)
+
+
+def candidate_borobudur(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('borobudur', _draw_borobudur, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── 10. Pha That Luang — Lao Golden Stupa ──────────────────────────────────
+#
+# Stepped pyramidal base + square second tier with corner spire chapels +
+# bulbous lotus-bud crowning spire. Gold throughout with a cream-white
+# base and lacquer-red trim bands. Reads gold like Shwedagon but the
+# silhouette is the Laotian lotus-bud cone vs the Burmese rounded bell.
+# Top = a hanging gold spire chapel pendant from a gold chain.
+#
+# Reference: https://en.wikipedia.org/wiki/Pha_That_Luang
+
+def _draw_lotus_bud_spire(surf, cx, base_y, tip_y, palette, *, w=10):
+    """The signature Lao lotus-bud stupa spire — a tall pointed bud with
+    a bulbous base, ridged vertical seams, and a tiny finial flower."""
+    gold = _gold_laos(palette)
+    gold_d = _gold_laos_deep(palette)
+    bright = _gold_laos_bright(palette)
+    dark = palette['stone_dark']
+    h = base_y - tip_y
+    if h < 12:
+        return
+    # 3-section silhouette: bulbous belly (60% h), tapered neck (30%),
+    # tiny finial (10%).
+    belly_h = int(h * 0.60)
+    neck_h = int(h * 0.30)
+    finial_h = h - belly_h - neck_h
+
+    # Belly — elongated teardrop.
+    belly_pts = []
+    for k in range(13):
+        t = k / 12
+        ang = math.pi * t
+        bx = cx + math.cos(ang + math.pi) * (w / 2 + 1)
+        by = base_y - int(math.sin(ang) * belly_h)
+        belly_pts.append((int(bx), by))
+    # Mirror down to base.
+    belly_full = belly_pts + [(cx + w // 2, base_y), (cx - w // 2, base_y)]
+    pygame.draw.polygon(surf, dark, belly_full)
+    inner_belly = []
+    for k in range(13):
+        t = k / 12
+        ang = math.pi * t
+        bx = cx + math.cos(ang + math.pi) * (w / 2 - 0.5)
+        by = base_y - int(math.sin(ang) * (belly_h - 2))
+        inner_belly.append((int(bx), by))
+    inner_full = inner_belly + [(cx + w // 2 - 1, base_y),
+                                (cx - w // 2 + 1, base_y)]
+    pygame.draw.polygon(surf, gold_d, inner_full)
+    # Lit gradient stripe down the left side of belly.
+    for k in range(7):
+        t = k / 6
+        ang = math.pi * (0.55 + t * 0.20)
+        bx = cx + math.cos(ang + math.pi) * (w / 2 - 1)
+        by = base_y - int(math.sin(ang) * (belly_h - 2))
+        pygame.draw.line(surf, gold,
+                         (int(bx), by), (int(bx), by), 1)
+        pygame.draw.line(surf, bright,
+                         (int(bx) - 1, by), (int(bx), by), 1)
+    # AA the belly silhouette.
+    _aa_polyline(surf, dark, belly_pts)
+
+    # Neck — narrowing column.
+    neck_top_y = base_y - belly_h - neck_h
+    nw = max(3, w - 4)
+    for k in range(neck_h):
+        t = k / max(1, neck_h - 1)
+        lw = int(nw - t * 2)
+        ny = base_y - belly_h - k
+        col = gold if k % 2 == 0 else gold_d
+        pygame.draw.line(surf, col,
+                         (cx - lw // 2, ny), (cx + lw // 2, ny), 1)
+    # Neck rim rings — 3 horizontal gold disks for ornament.
+    for k in range(3):
+        ry = base_y - belly_h - int(neck_h * (k + 1) / 4)
+        rw = max(2, nw - 1)
+        pygame.draw.line(surf, dark, (cx - rw, ry + 1),
+                         (cx + rw, ry + 1), 1)
+        pygame.draw.line(surf, bright, (cx - rw, ry),
+                         (cx + rw, ry), 1)
+
+    # Finial — pointed tip flower.
+    pygame.draw.polygon(surf, dark,
+                        [(cx - 2, neck_top_y),
+                         (cx + 2, neck_top_y),
+                         (cx, tip_y)])
+    pygame.draw.polygon(surf, bright,
+                        [(cx - 1, neck_top_y),
+                         (cx + 1, neck_top_y),
+                         (cx, tip_y + 1)])
+    # Tiny petal sun-rays around the finial base.
+    for ang in (0, math.pi):
+        gx = cx + int(math.cos(ang) * 3)
+        gy = neck_top_y + 2
+        pygame.draw.line(surf, bright, (cx, neck_top_y + 1),
+                         (gx, gy), 1)
+
+
+def _draw_pha_that_luang(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+
+    gold = _gold_laos(palette)
+    gold_d = _gold_laos_deep(palette)
+    bright = _gold_laos_bright(palette)
+    cream = _cream_base(palette)
+    cream_lit = _shade(cream, 25)
+    cream_dark = _shade(cream, -28)
+    red = _lacquer_red(palette)
+    dark = palette['stone_dark']
+
+    if bot_rect.height > 80:
+        total_h = min(bot_rect.height, 250)
+        # Budget: 26% cream pyramidal base, 30% square second tier with
+        # corner chapels, 44% main lotus-bud spire.
+        base_h = int(total_h * 0.26)
+        sq_h = int(total_h * 0.30)
+        spire_h = total_h - base_h - sq_h
+
+        base_y_bot = bot_rect.bottom
+        # ── Cream stepped pyramidal base ──────────────────────────────
+        n_base = 3
+        step_h = base_h // n_base
+        widest = int(bot_rect.width * 1.35)
+        narrowest = int(bot_rect.width * 1.00)
+        for i in range(n_base):
+            t = i / max(1, n_base - 1)
+            sw = int(widest + (narrowest - widest) * t)
+            sy = base_y_bot - base_h + i * step_h
+            srect = pygame.Rect(bcx - sw // 2, sy, sw, step_h)
+            _gradient_rect(surf, srect, cream_lit, cream, cream_dark)
+            # Lacquer-red trim band along the top of every base step —
+            # the canonical Lao band cue.
+            pygame.draw.rect(surf, red,
+                             (srect.x + 2, srect.y + 1, srect.w - 4, 2))
+            pygame.draw.rect(surf, _shade(red, 25),
+                             (srect.x + 2, srect.y + 1, srect.w - 4, 1))
+            # Gold lotus-petal frieze — small repeating triangles along
+            # the top edge of the second step (Pha That Luang's central
+            # frieze is 30 lotus petals).
+            if i == 1 and sw >= 28:
+                n_petals = max(7, sw // 6)
+                pw = sw // n_petals
+                for pi in range(n_petals):
+                    px0 = srect.x + 2 + pi * pw
+                    pygame.draw.polygon(surf, gold_d,
+                                        [(px0, srect.y + 4),
+                                         (px0 + pw // 2, srect.y + 1),
+                                         (px0 + pw, srect.y + 4)])
+                    pygame.draw.polygon(surf, gold,
+                                        [(px0 + 1, srect.y + 4),
+                                         (px0 + pw // 2, srect.y + 2),
+                                         (px0 + pw - 1, srect.y + 4)])
+            # Lit-rim niche on the widest step's centre.
+            if i == 0 and sw >= 30 and step_h >= 7:
+                _lit_niche(surf, bcx, sy + 2,
+                           min(8, sw - 12), min(5, step_h - 4), palette)
+            # AA the keyline.
+            pygame.draw.line(surf, _shade(cream_dark, -20),
+                             (srect.x, srect.bottom - 1),
+                             (srect.right - 1, srect.bottom - 1), 1)
+
+        # ── Square second tier with corner spire chapels ─────────────
+        sq_top = base_y_bot - base_h - sq_h
+        sq_w = int(bot_rect.width * 0.92)
+        sq_rect = pygame.Rect(bcx - sq_w // 2, sq_top, sq_w, sq_h)
+        # Gold square body with a vertical gradient (lit at the top).
+        _gradient_rect(surf, sq_rect, bright, gold, gold_d, vertical=True)
+        # Lacquer-red border frame.
+        pygame.draw.rect(surf, red, sq_rect, 2)
+        # Inner gold tile rows — 3 horizontal stripes for ornament.
+        for k in range(3):
+            ry = sq_top + 4 + k * max(3, (sq_h - 8) // 3)
+            pygame.draw.line(surf, gold_d,
+                             (sq_rect.x + 4, ry),
+                             (sq_rect.right - 5, ry), 1)
+            pygame.draw.line(surf, bright,
+                             (sq_rect.x + 4, ry - 1),
+                             (sq_rect.right - 5, ry - 1), 1)
+        # Central niche.
+        if sq_w >= 20 and sq_h >= 12:
+            _lit_niche(surf, bcx, sq_top + 3,
+                       min(8, sq_w - 14), min(sq_h - 6, 9), palette)
+
+        # 4 visible corner spire chapels (small lotus-bud stupas at each
+        # corner of the second tier — Pha That Luang has 30 smaller
+        # stupas around the central spire; we condense to a visible pair
+        # at PIPE_W = 58).
+        chapel_offsets = (-sq_w // 2 + 4, sq_w // 2 - 4)
+        for off in chapel_offsets:
+            chx = bcx + off
+            chapel_top = sq_top - 18
+            # Mini lotus-bud spire.
+            _draw_lotus_bud_spire(surf, chx, sq_top - 1, chapel_top,
+                                  palette, w=6)
+
+        # ── Main lotus-bud spire ─────────────────────────────────────
+        spire_base_y = sq_top - 1
+        spire_tip_y = spire_base_y - spire_h
+        # Octagonal lantern pedestal under the spire — a short ring of
+        # gold blocks the spire rises out of.
+        lantern_h = 6
+        lantern_w = int(sq_w * 0.42)
+        lr = pygame.Rect(bcx - lantern_w // 2, spire_base_y - lantern_h + 1,
+                         lantern_w, lantern_h)
+        _gradient_rect(surf, lr, bright, gold, gold_d, vertical=True)
+        pygame.draw.rect(surf, red,
+                         (lr.x + 2, lr.bottom - 2, lr.w - 4, 1))
+        pygame.draw.rect(surf, dark, lr, 1)
+        _draw_lotus_bud_spire(surf, bcx, spire_base_y - lantern_h + 1,
+                              spire_tip_y, palette, w=14)
+
+        draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
+                       bot_rect.width + 10, 12, palette, seed=seed)
+
+    if top_rect.height > 50:
+        # Hanging gold spire pendant — a smaller upside-down lotus-bud
+        # spire chapel suspended from a gold chain.
+        anchor_w = int(top_rect.width * 0.9)
+        anchor_h = 8
+        anchor_rect = pygame.Rect(tcx - anchor_w // 2, top_rect.y,
+                                  anchor_w, anchor_h)
+        pygame.draw.rect(surf, dark, anchor_rect)
+        _gradient_rect(surf, anchor_rect.inflate(-2, -2),
+                       bright, gold, gold_d, vertical=True)
+        pygame.draw.rect(surf, red,
+                         (anchor_rect.x + 2, anchor_rect.bottom - 2,
+                          anchor_rect.w - 4, 1))
+        # Chain.
+        chain_top = top_rect.y + anchor_h
+        chain_bot = min(top_rect.bottom - 32,
+                        top_rect.y + anchor_h + 22)
+        pygame.draw.line(surf, dark, (tcx, chain_top), (tcx, chain_bot), 3)
+        pygame.draw.line(surf, gold, (tcx, chain_top), (tcx, chain_bot), 1)
+        for cy in range(chain_top + 2, chain_bot, 4):
+            pygame.draw.ellipse(surf, dark, (tcx - 3, cy - 1, 7, 4))
+            pygame.draw.ellipse(surf, gold, (tcx - 2, cy, 5, 2))
+        # Upside-down spire — draw INTO a temp surface, flip vertically.
+        spire_h = min(top_rect.bottom - chain_bot - 4, 50)
+        if spire_h >= 16:
+            tmp = pygame.Surface((28, spire_h + 6), pygame.SRCALPHA)
+            _draw_lotus_bud_spire(tmp, tmp.get_width() // 2,
+                                  spire_h + 2, 2,
+                                  palette, w=10)
+            flipped = pygame.transform.flip(tmp, False, True)
+            surf.blit(flipped, (tcx - flipped.get_width() // 2,
+                                chain_bot))
+
+
+def candidate_pha_that_luang(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('pha_that_luang', _draw_pha_that_luang, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
+#
+# Round 6 — user kept `horyuji` + `songyue` from round 5 (they were the
+# strongest at game scale) and asked for 5 brand-new candidates pushed
+# higher in detail. The keepers bookend the new set so the side-by-side
+# comparison stays honest.
 
 CANDIDATES = {
-    "horyuji":      candidate_horyuji,
-    "shwedagon":    candidate_shwedagon,
-    "boudhanath":   candidate_boudhanath,
-    "wat_arun":     candidate_wat_arun,
-    "songyue":      candidate_songyue,
+    "horyuji":         candidate_horyuji,
+    "fogong":          candidate_fogong,
+    "iron_kaifeng":    candidate_iron_kaifeng,
+    "one_pillar":      candidate_one_pillar,
+    "borobudur":       candidate_borobudur,
+    "pha_that_luang":  candidate_pha_that_luang,
+    "songyue":         candidate_songyue,
 }
 
 CANDIDATE_BLURBS = {
-    "horyuji":    "Hōryū-ji Tō — cedar columns + plaster panels, bronze sōrin",
-    "shwedagon":  "Shwedagon — gold bell on octagonal terraces + hti rings",
-    "boudhanath": "Boudhanath Eye Stupa — Buddha eyes + 13-step gold spire",
-    "wat_arun":   "Wat Arun — pastel porcelain corncob prang + kala brackets",
-    "songyue":    "Songyue — 12-sided terracotta brick + 15 dwarf-eaves",
+    "horyuji":        "Hōryū-ji Tō — cedar columns + plaster panels, bronze sōrin (KEEPER)",
+    "fogong":         "Fogong — octagonal larch + dougong brackets + grey-tile curls",
+    "iron_kaifeng":   "Iron Kaifeng — slim 13-storey glazed iron-brown tile checker",
+    "one_pillar":     "One Pillar — wooden pavilion on slim stone column + lotus pond",
+    "borobudur":      "Borobudur — basalt mandala pyramid + perforated bell stupas",
+    "pha_that_luang": "Pha That Luang — Lao gold pyramid + lotus-bud spire + lacquer trim",
+    "songyue":        "Songyue — 12-sided terracotta brick + 15 dwarf-eaves (KEEPER)",
 }
