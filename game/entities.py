@@ -718,79 +718,152 @@ class Bird:
         surf.blit(parcel_rot, pr.topleft)
 
     def _draw_helmet(self, surf, cx, cy, flipped):
-        """Side-view punk-mohawk skater helmet — half-dome with a flat
-        horizontal rim, a single bone fin along the top, chrome rim band,
-        side skull decal, and a front-temple chinstrap to a buckle under
-        the chin. Kit-matched to `_draw_skateboard`. 4× supersampled so the
-        dome curve, fin polygon, skull ellipse and chinstrap stay smooth at
-        the native 24×15 helm size."""
+        """Side-view punk-mohawk skater helmet — half-dome with the icon's
+        SKULL-BUNNY FACE on the dome (BONE skull + DOME sockets/nose/teeth +
+        RED bandage cross) and chunky red-tipped bunny ears poking up. 8×
+        supersampled so the ear's RED inner ellipse survives smoothscale
+        to the native 24×15 helm size. Anchor compensation shifts the blit
+        centre up by ear_top/2 so the dome stays seated on Pip's head
+        crown despite the taller subsurface needed for the ears."""
+        import math
         s = 1.0
-        SS = 4  # supersample factor
+        SS = 8
         hw_n = int(24 * s)
         hh_n = int(15 * s)
         pad_n = 4
         drop_n = int(28 * s)
+        ear_top_n = 18
         hw = hw_n * SS
         hh = hh_n * SS
         pad = pad_n * SS
         drop = drop_n * SS
+        ear_top = ear_top_n * SS
         helm = pygame.Surface(
-            (hw + pad * 2, hh + pad * 2 + drop), pygame.SRCALPHA)
+            (hw + pad * 2, hh + pad * 2 + drop + ear_top), pygame.SRCALPHA)
+
+        BONE   = (240, 240, 230)
+        DOME   = (10, 10, 18)
+        CHROME = (200, 200, 210)
+        RED    = (200, 50, 50)
+        OUT    = (15, 15, 22)
+
+        def Y(y):
+            return y + ear_top
 
         full = pygame.Surface((hw, hh * 2), pygame.SRCALPHA)
-        pygame.draw.ellipse(full, (10, 10, 18),
-                            pygame.Rect(0, 0, hw, hh * 2))
-        helm.blit(full, (pad, pad), area=pygame.Rect(0, 0, hw, hh))
-        # Forward-upper-quadrant highlight only — Pip faces right.
+        pygame.draw.ellipse(full, DOME, pygame.Rect(0, 0, hw, hh * 2))
+        helm.blit(full, (pad, Y(pad)), area=pygame.Rect(0, 0, hw, hh))
         if hw > 9 * SS and hh > 5 * SS:
             hl_w = hw - 8 * SS
             hl_h = hh - 4 * SS
             hl = pygame.Surface((hl_w, hl_h), pygame.SRCALPHA)
             pygame.draw.ellipse(hl, (50, 50, 60),
                                 pygame.Rect(0, 0, hl_w, hl_h))
-            helm.blit(hl, (pad + 4 * SS, pad + 1 * SS),
+            helm.blit(hl, (pad + 4 * SS, Y(pad + 1 * SS)),
                       area=pygame.Rect(hl_w // 2, 0,
                                        hl_w // 2, hl_h // 2 + 1))
 
-        # Bone mohawk fin — single side-profile sail along the dome top.
         fin = [
-            (pad + 3 * SS,             pad + 1 * SS),
-            (pad + hw // 2 - 2 * SS,   pad - 3 * SS),
-            (pad + hw // 2 + 3 * SS,   pad - 2 * SS),
-            (pad + hw - 4 * SS,        pad + 2 * SS),
+            (pad + 3 * SS,             Y(pad + 1 * SS)),
+            (pad + hw // 2 - 2 * SS,   Y(pad - 3 * SS)),
+            (pad + hw // 2 + 3 * SS,   Y(pad - 2 * SS)),
+            (pad + hw - 4 * SS,        Y(pad + 2 * SS)),
         ]
-        pygame.draw.polygon(helm, (240, 240, 230), fin)
-        pygame.draw.polygon(helm, (10, 10, 18), fin, SS)
+        pygame.draw.polygon(helm, BONE, fin)
+        pygame.draw.polygon(helm, DOME, fin, SS)
         for sx in (pad + hw // 2 - 3 * SS, pad + hw // 2 + 2 * SS):
-            spike = [(sx, pad - 2 * SS),
-                     (sx + 1 * SS, pad - 5 * SS),
-                     (sx + 2 * SS, pad - 2 * SS)]
-            pygame.draw.polygon(helm, (240, 240, 230), spike)
-            pygame.draw.polygon(helm, (10, 10, 18), spike, SS)
+            spike = [(sx, Y(pad - 2 * SS)),
+                     (sx + 1 * SS, Y(pad - 5 * SS)),
+                     (sx + 2 * SS, Y(pad - 2 * SS))]
+            pygame.draw.polygon(helm, BONE, spike)
+            pygame.draw.polygon(helm, DOME, spike, SS)
 
-        pygame.draw.line(helm, (10, 10, 18),
-                         (pad + hw // 2 - 2 * SS, pad + hh - 3 * SS),
-                         (pad + hw // 2 + 2 * SS, pad + hh - 3 * SS), SS)
-        pygame.draw.rect(helm, (200, 200, 210),
-                         pygame.Rect(pad - 1 * SS, pad + hh - 1 * SS,
+        pygame.draw.line(helm, DOME,
+                         (pad + hw // 2 - 2 * SS, Y(pad + hh - 3 * SS)),
+                         (pad + hw // 2 + 2 * SS, Y(pad + hh - 3 * SS)), SS)
+        pygame.draw.rect(helm, CHROME,
+                         pygame.Rect(pad - 1 * SS, Y(pad + hh - 1 * SS),
                                      hw + 2 * SS, 2 * SS))
-        sk_w = max(3 * SS, int(5 * s * SS))
-        sk_h = max(2 * SS, int(4 * s * SS))
-        sk = pygame.Rect(0, 0, sk_w, sk_h)
-        sk.center = (pad + hw // 2 - 5 * SS, pad + hh - 4 * SS)
-        pygame.draw.ellipse(helm, (240, 240, 230), sk)
-        pygame.draw.ellipse(helm, (10, 10, 18), sk, SS)
 
-        # Chinstrap.
-        OUT     = (15, 15, 22)
-        CHROME  = (200, 200, 210)
-        BUCKLE  = (200, 50, 50)
+        # H5 punk skull-bunny face — BONE skull stretched to 22×13 native,
+        # DOME eye sockets + nose + Jolly Roger mouth, RED bandage cross
+        # over the left eye. Sits between the rim line and the chinstrap.
+        sk_w_native = 22
+        sk_h_native = 13
+        sk_w_ss = sk_w_native * SS
+        sk_h_ss = sk_h_native * SS
+        sk = pygame.Rect(0, 0, sk_w_ss, sk_h_ss)
+        sk.center = (pad + hw // 2, Y(pad + int(hh * 0.5)))
+        pygame.draw.ellipse(helm, BONE, sk)
+        pygame.draw.ellipse(helm, DOME, sk, max(1, int(1.0 * SS)))
+
+        eye_r = max(1, int(sk_w_ss * 0.13))
+        eye_x_off = int(sk_w_ss * 0.20)
+        eye_y = sk.top + int(sk_h_ss * 0.38)
+        for sign in (-1, 1):
+            ex = sk.centerx + sign * eye_x_off
+            pygame.draw.circle(helm, DOME, (ex, eye_y), eye_r)
+
+        nose_top_y = sk.top + int(sk_h_ss * 0.55)
+        nose_bot_y = nose_top_y + int(0.55 * SS)
+        wing = max(1, int(sk_w_ss * 0.07))
+        pygame.draw.polygon(helm, DOME, [
+            (sk.centerx - wing, nose_top_y),
+            (sk.centerx + wing, nose_top_y),
+            (sk.centerx,        nose_bot_y),
+        ])
+
+        mouth_scale = sk_w_native / 23.0
+        mouth_stroke = max(1, int(1.0 * SS * mouth_scale))
+        teeth_top = sk.bottom - int(5 * SS * mouth_scale)
+        teeth_bot = sk.bottom - int(2.5 * SS * mouth_scale)
+        if teeth_bot <= teeth_top:
+            teeth_bot = teeth_top + max(2, SS // 2)
+        divider_dx = max(2, int(2.5 * SS * mouth_scale))
+        divider_offsets = (-divider_dx, 0, divider_dx)
+        outer_shorten = max(1, int(0.6 * SS * mouth_scale))
+        tooth_bottoms = []
+        for idx, dx in enumerate(divider_offsets):
+            top_y = teeth_top + (outer_shorten if idx != 1 else 0)
+            pygame.draw.line(helm, DOME,
+                             (sk.centerx + dx, top_y),
+                             (sk.centerx + dx, teeth_bot),
+                             mouth_stroke)
+            tooth_bottoms.append((sk.centerx + dx, teeth_bot))
+        dip = max(2, int(1.0 * SS * mouth_scale))
+        for (x0p, y0p), (x1p, y1p) in zip(tooth_bottoms, tooth_bottoms[1:]):
+            pts = []
+            for i in range(7):
+                t = i / 6.0
+                xp = x0p + (x1p - x0p) * t
+                y_base = y0p + (y1p - y0p) * t
+                yp = y_base + dip * math.sin(math.pi * t)
+                pts.append((xp, yp))
+            pygame.draw.lines(helm, DOME, False, pts, mouth_stroke)
+
+        cross_cx = sk.centerx - eye_x_off
+        cross_cy = eye_y
+        bar_l = max(3, int(5.0 * SS * (sk_w_native / 23.0)))
+        bar_t = max(1, int(1.6 * SS * (sk_w_native / 23.0)))
+        horiz = pygame.Rect(0, 0, bar_l, bar_t)
+        horiz.center = (cross_cx, cross_cy)
+        vert = pygame.Rect(0, 0, bar_t, bar_l)
+        vert.center = (cross_cx, cross_cy)
+        pygame.draw.rect(helm, RED, horiz, border_radius=max(1, SS // 3))
+        pygame.draw.rect(helm, RED, vert, border_radius=max(1, SS // 3))
+        pygame.draw.rect(helm, DOME, horiz, max(1, SS // 4),
+                         border_radius=max(1, SS // 3))
+        pygame.draw.rect(helm, DOME, vert, max(1, SS // 4),
+                         border_radius=max(1, SS // 3))
+
+        # Chinstrap drawn on top of the face so it reads as the outer layer.
         STRAP   = OUT
-        rim_y = pad + hh + 1 * SS
+        BUCKLE  = RED
+        rim_y = Y(pad + hh + 1 * SS)
         front_anchor = (8 * SS, rim_y)
         rear_anchor  = (4 * SS, rim_y)
-        junction     = (6 * SS, 30 * SS)
-        clip_centre  = (14 * SS, 37 * SS)
+        junction     = (6 * SS, Y(30 * SS))
+        clip_centre  = (14 * SS, Y(37 * SS))
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2 * SS)
         pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2 * SS)
         pygame.draw.line(helm, STRAP, junction, clip_centre, 2 * SS)
@@ -805,14 +878,42 @@ class Bird:
         pygame.draw.line(helm, OUT,
                          (clip.x + 2 * SS, clip.y),
                          (clip.x + 2 * SS, clip.bottom - 1 * SS), SS)
-        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, 35 * SS),
+        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, Y(35 * SS)),
                          2 * SS)
 
+        # G1 ears — icon-style chunky red-tipped bunny ears, 6×18 native,
+        # ±12° outward tilt. BONE outer + DOME outline + RED inner.
+        ear_w = 6 * SS
+        ear_h = 18 * SS
+        dome_top_cx = pad + hw // 2
+        dome_top_y  = Y(pad)
+        for sign in (-1, 1):
+            ear_cx = dome_top_cx + sign * 5 * SS
+            ear_cy = dome_top_y - 3 * SS
+            ear_sub = pygame.Surface(
+                (ear_w + 4 * SS, ear_h + 4 * SS), pygame.SRCALPHA)
+            local = pygame.Rect(0, 0, ear_w, ear_h)
+            local.center = (ear_sub.get_width() // 2,
+                            ear_sub.get_height() // 2)
+            pygame.draw.ellipse(ear_sub, BONE, local)
+            pygame.draw.ellipse(ear_sub, DOME, local, max(1, int(1.2 * SS)))
+            inner = local.inflate(-int(2.5 * SS), -int(8 * SS))
+            pygame.draw.ellipse(ear_sub, RED, inner)
+            ear_ang = -12 * sign
+            ear_rot = pygame.transform.rotate(ear_sub, ear_ang)
+            ear_rect = ear_rot.get_rect(center=(ear_cx, ear_cy))
+            helm.blit(ear_rot, ear_rect.topleft)
+
         native_size = (hw_n + pad_n * 2,
-                       hh_n + pad_n * 2 + drop_n)
+                       hh_n + pad_n * 2 + drop_n + ear_top_n)
         helm = pygame.transform.smoothscale(helm, native_size)
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        y_off = 10 * s if flipped else -10 * s
+        # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
+        # dome's offset from the subsurface centre shifted by ear_top_n/2.
+        # Pulling the blit centre away from the helmet's original-top side
+        # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
+        ear_compensation = (ear_top_n / 2.0) * (1 if flipped else -1)
+        y_off = (10 * s if flipped else -10 * s) + ear_compensation
         offset = pygame.math.Vector2(18 * s, y_off)
         offset = offset.rotate(-tilt)
         rotated = pygame.transform.rotate(helm, tilt)
