@@ -62,8 +62,11 @@ OUT = _REPO / "docs" / "pillar_redesign"
 OUT.mkdir(parents=True, exist_ok=True)
 
 # 5 seeds chosen so each candidate's per-seed variation knobs (tier count,
-# whether a lantern shows up, etc.) actually fire across the row.
-SEED_SET = [7, 13, 22, 41, 88]
+# whether a lantern shows up, etc.) actually fire across the row. Seeds also
+# cover all 5 spawn flavors — seed % 5 maps to {plain, lantern, banner, pine,
+# cairn} so a row of 5 reads as 5 architecturally distinct temples instead of
+# accidental flavor duplicates.
+SEED_SET = [10, 41, 7, 13, 24]
 
 
 def _scene_backdrop(phase: float) -> pygame.Surface:
