@@ -995,6 +995,11 @@ class App:
         # vegetation; below the bird so Pip rides on top.
         for r in self.world.ramps:
             r.draw(self.screen)
+        # POISON dive: Pip's aviator shades tumble off and lie on the
+        # ground until they scroll off-screen. Drawn here so the
+        # falling glasses pass behind pillars but in front of weather.
+        for fg in self.world.fallen_glasses:
+            fg.draw(self.screen)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
