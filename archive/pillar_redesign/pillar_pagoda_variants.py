@@ -4859,8 +4859,30 @@ def _draw_sensoji(surf, top_rect, bot_rect, palette, seed):
                          (ar.x + 2, ar.y + 2, ar.w - 4, 2))
         pygame.draw.rect(surf, _gold_bright(palette),
                          (ar.x + 2, ar.bottom - 4, ar.w - 4, 2))
-        # GIANT lantern — the identity beat.
-        _draw_giant_lantern(surf, tcx, top_rect.y + anchor_h, palette)
+        # Dark cap-band immediately under the lintel — the "beam" the lantern
+        # visibly hangs from, so the chuchin reads as suspended architecture
+        # instead of a floating pickup token.
+        cap_band_h = 3
+        cap_band_w = int(top_rect.width * 1.55)
+        cap_band_y = ar.bottom
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -55),
+                         (tcx - cap_band_w // 2, cap_band_y,
+                          cap_band_w, cap_band_h))
+        # GIANT lantern — the identity beat. Anchored under the cap-band.
+        lantern_top = cap_band_y + cap_band_h
+        _draw_giant_lantern(surf, tcx, lantern_top, palette)
+        # Narrower matching band BELOW the lantern — visually closes the
+        # chuchin as a hung lantern element rather than a hovering token.
+        # Sized off the lantern dims used in _draw_giant_lantern's defaults.
+        close_band_h = 2
+        close_band_w = int(top_rect.width * 1.25)
+        # The lantern hangs through suspension strand (3 px) + body (lh) +
+        # tassel (~6 px). Use the default lh=92 with a small safety margin.
+        close_band_y = min(top_rect.bottom - close_band_h,
+                           lantern_top + 3 + 92 + 8)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -55),
+                         (tcx - close_band_w // 2, close_band_y,
+                          close_band_w, close_band_h))
 
 
 def candidate_sensoji(surf, top_rect, bot_rect, palette, seed):
@@ -5777,6 +5799,18 @@ def _draw_dabotap(surf, top_rect, bot_rect, palette, seed):
         cap_band_y = drum_top + 2
         pygame.draw.rect(surf, granite_shadow,
                          (bcx - drum_w // 2 - 2, cap_band_y, drum_w + 4, 2))
+        # Warm-cream lotus-capital band at the BASE/DRUM join — picks up
+        # the petal cream so the row clears its detail budget without
+        # disturbing the 3-section silhouette.
+        cream_capital = _mix(palette['stone_light'], (248, 232, 198), 0.78)
+        pygame.draw.rect(surf, cream_capital,
+                         (bcx - base_w // 2 + 2, base_top - 1,
+                          base_w - 4, 2))
+        # Warm-cream lotus-capital band at the DRUM/LOTUS join — mirrors
+        # the lower band so the section-stack reads as a tied silhouette.
+        pygame.draw.rect(surf, cream_capital,
+                         (bcx - drum_w // 2 - 2, drum_top - 1,
+                          drum_w + 4, 2))
 
         # 3) LOTUS capital + spire — warm-cream-on-stone petals (NOT
         # magenta), 8 short rounded triangles. Then a slim bronze finial.
@@ -5829,28 +5863,28 @@ def _draw_dabotap(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, granite,
                          (tcx - anchor_w // 2 + 1, top_rect.y + 1,
                           anchor_w - 2, anchor_h - 2))
-        # Inverted lotus crown — warm cream petals pointing DOWN.
+        # Inverted lotus crown — de-chevroned into 3 distinct petal LOBES
+        # (centre lobe + two flanking) so the silhouette reads as a
+        # botanical bell, not a downward arrow / next-level UI marker.
         lotus_cy = top_rect.y + anchor_h + 4
         cream = _mix(palette['stone_light'], (248, 232, 198), 0.78)
         cream_lit = _mix(palette['stone_light'], (252, 244, 220), 0.82)
         cream_shadow = _mix(palette['stone_mid'], (188, 168, 130), 0.66)
-        for k in range(7):
-            t = (k + 0.5) / 7
-            ang = math.pi * (0.15 + 0.7 * t)
-            r = 3
-            ox = int(math.cos(ang) * 10)
-            oy = int(math.sin(ang) * 7)
-            tip = (tcx + ox, lotus_cy + oy)
-            tl = (tcx + ox - r, lotus_cy + oy - r // 2)
-            tr = (tcx + ox + r, lotus_cy + oy - r // 2)
-            pygame.draw.polygon(surf, cream_shadow, [tip, tl, tr])
-            pygame.draw.polygon(surf, cream,
-                                [(tip[0], tip[1] - 1),
-                                 (tl[0] + 1, tl[1]),
-                                 (tr[0] - 1, tr[1])])
-            pygame.draw.line(surf, cream_lit,
-                             (tl[0] + 1, tl[1] - 1),
-                             (tr[0] - 1, tr[1] - 1), 1)
+        # Each lobe is a downward-pointing rounded ellipse; the centre is
+        # taller and lower so the trio reads as overlapping petals.
+        lobes = (
+            (tcx - 9, lotus_cy - 1, 5, 7),
+            (tcx,     lotus_cy + 2, 6, 9),
+            (tcx + 9, lotus_cy - 1, 5, 7),
+        )
+        for (lx, ly, lw_, lh_) in lobes:
+            base_rect = pygame.Rect(lx - lw_, ly - lh_ // 2, lw_ * 2, lh_)
+            pygame.draw.ellipse(surf, cream_shadow, base_rect)
+            inner = base_rect.inflate(-2, -2)
+            pygame.draw.ellipse(surf, cream, inner)
+            # 1-px cream highlight on the upper-left of each lobe.
+            pygame.draw.arc(surf, cream_lit, inner,
+                            math.pi * 0.55, math.pi * 1.05, 1)
         # Then the drum below the inverted lotus.
         drum_top = lotus_cy + 10
         drum_w = int(top_rect.width * 0.42)
