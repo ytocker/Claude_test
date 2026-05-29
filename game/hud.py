@@ -1206,7 +1206,7 @@ class HUD:
         _outlined_text(surf, "PAUSED", (W // 2, cy), size=52, px=3)
 
         # Same flat dim-scarlet pill as the main-menu CTAs.
-        _pill_btn(surf, (W // 2, cy + 72), "TAP · P · ESC",
+        _pill_btn(surf, (W // 2, cy + 72), "TAP TO GAME",
                   size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
     def draw_menu(self, surf, dt, best: int):
