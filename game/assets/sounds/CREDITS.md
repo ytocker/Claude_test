@@ -24,7 +24,6 @@ License: <https://creativecommons.org/publicdomain/zero/1.0/>
 | magnet      | Kenney Sci-fi Sounds       | `laser_retro_001.ogg` + reverb tail                                    |
 | death      | Kenney Music Jingles 8-Bit | `jingles_nes_15.ogg`                                                   |
 | thunder     | _(procedural)_             | Stdlib chiptune render — see `tools/synth_sounds.py`. Pending replacement in a follow-up audition. |
-| gameover    | _(unused)_                 | File present but not played — `audio.play_gameover()` was removed from `scenes._on_death`; `death.ogg` carries the moment alone. |
 
 ## Pack URLs
 

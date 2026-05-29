@@ -20,7 +20,7 @@ pygame.init()
 from game.config import W, H
 from game.scenes import (
     App, STATE_MENU, STATE_PAUSE, STATE_STATS, STATE_NAMEENTRY,
-    STATE_LEADERBOARD, STATE_GAMEOVER, STATE_INTRO, STATE_POWERUPS,
+    STATE_LEADERBOARD, STATE_INTRO, STATE_POWERUPS,
 )
 from game.world import World
 from game.powerup_help import PowerUpHelpScene
@@ -144,14 +144,6 @@ app.hud.title_t = 1.4
 app.state = STATE_LEADERBOARD
 app._render()
 save(app, "07_leaderboard")
-
-# ── 8. Game over (legacy/unused state — death routes to STATE_STATS) ─────────
-app.world.score = 47
-app._new_best = True
-app.hud.title_t = 1.2
-app.state = STATE_GAMEOVER
-app._render()
-save(app, "08_gameover_legacy")
 
 pygame.quit()
 print("Done —", OUT_DIR)

@@ -34,7 +34,7 @@ _SOUND_DIR = os.path.join(os.path.dirname(__file__), "assets", "sounds")
 
 _SOUND_FILES = (
     "flap", "coin", "coin_triple", "triple_coin",
-    "magnet", "slowmo", "thunder", "death", "gameover",
+    "magnet", "slowmo", "thunder", "death",
     "poof", "ghost", "grow",
 )
 
@@ -195,7 +195,6 @@ def play_slowmo() -> None:      _play("slowmo", 0.75)
 # strike loud), so play_thunder takes an optional volume.
 def play_thunder(volume: float = 0.85) -> None: _play("thunder", volume)
 def play_death() -> None:       _play("death", 0.75)
-def play_gameover() -> None:    _play("gameover", 0.70)
 def play_poof() -> None:        _play("poof", 0.88)
 def play_ghost() -> None:       _play("ghost", 0.70)
 def play_grow() -> None:        _play("grow", 0.80)

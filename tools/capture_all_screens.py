@@ -6,8 +6,7 @@ review. Drives the real App._render per scene state. Two modes:
 
 RNG is reseeded per screen so the gameplay frame behind pause/stats is
 identical across two runs of different code — before/after then differs only
-by the UI code. The game-over screen is captured only if STATE_GAMEOVER still
-exists (it was removed), so the same script runs on old and new trees.
+by the UI code.
 """
 import os
 os.environ["SDL_AUDIODRIVER"] = "dummy"
@@ -40,7 +39,6 @@ def _sim_play(seconds=2.6, dt=1 / 60):
 def capture(outdir):
     os.makedirs(outdir, exist_ok=True)
     from game.config import W, H
-    import game.scenes as scenes
     from game.scenes import (App, STATE_MENU, STATE_PAUSE, STATE_STATS,
                              STATE_NAMEENTRY, STATE_LEADERBOARD, STATE_POWERUPS)
     from game.world import World
@@ -126,15 +124,6 @@ def capture(outdir):
     app._render()
     save(app, "leaderboard")
 
-    # Game over — only if the legacy state still exists.
-    if hasattr(scenes, "STATE_GAMEOVER"):
-        app.world.score = 47
-        app._new_best = True
-        app.hud.title_t = 1.2
-        app.state = scenes.STATE_GAMEOVER
-        app._render()
-        save(app, "gameover")
-
 
 SCREENS = [
     ("menu", "MAIN MENU"),
@@ -143,7 +132,6 @@ SCREENS = [
     ("stats", "RUN SUMMARY"),
     ("name_entry", "NAME ENTRY"),
     ("leaderboard", "LEADERBOARD"),
-    ("gameover", "GAME OVER"),
 ]
 
 
