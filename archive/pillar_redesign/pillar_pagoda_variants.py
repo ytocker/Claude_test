@@ -291,6 +291,17 @@ def _is_warming_sky(palette):
     return 60 <= avg < 110
 
 
+def _cap_lit_for_dark_sky(color, palette, cap=220):
+    """Pull lit-face value down to <= cap at DUSK/NIGHT only so window glows
+    and lantern halos can carry the night silhouette instead of being
+    drowned out by a wall that value-spikes to ~245. Day/sunrise/sunset
+    palettes pass through unchanged."""
+    if _is_dark_sky(palette):
+        r, g, b = color[0], color[1], color[2]
+        return (min(cap, r), min(cap, g), min(cap, b))
+    return color
+
+
 # ── Generic ornament primitives ─────────────────────────────────────────────
 
 def _aa_polyline(surf, color, points, closed=False):
@@ -6188,38 +6199,1922 @@ def candidate_kumbum(surf, top_rect, bot_rect, palette, seed):
                  palette, seed)
 
 
+# ── Round 9 palette anchors — 4 non-pagoda landmark archetypes ─────────────
+#
+# The round-9 brief leaves the strict East-Asian-pagoda tradition to add
+# Taipei 101 (curtain-wall skyscraper) + 3 anime structures. New palette
+# helpers stay biome-derived so day → night still sweeps cleanly, even
+# though the source archetypes are not classical pagoda materials.
+
+def _aqua_glass(palette):
+    # Taipei 101 aqua-teal curtain wall — the building's signature cool
+    # glass. Mixing stone_mid against foliage_mid gives a desaturated
+    # blue-green that stays biome-coupled (it cools at night, warms at
+    # dawn) without sliding into pure sky-cyan.
+    return _mix(_mix(palette['stone_mid'], palette['foliage_mid'], 0.5),
+                (110, 158, 168), 0.55)
+
+
+def _aqua_glass_lit(palette):
+    return _mix(_aqua_glass(palette), (200, 232, 232), 0.50)
+
+
+def _aqua_glass_shadow(palette):
+    return _mix(_aqua_glass(palette), (28, 56, 66), 0.65)
+
+
+def _maroon_clay(palette):
+    # Aburaya bathhouse clay-tile maroon — one beat DEEPER and darker
+    # than Daigo-ji's vermilion, anchored in stone_dark so the eave row
+    # reads as fired-clay tile under any biome phase.
+    return _mix(palette['stone_dark'], (118, 38, 36), 0.78)
+
+
+def _maroon_clay_lit(palette):
+    return _mix(_maroon_clay(palette), (190, 90, 78), 0.55)
+
+
+def _maroon_clay_shadow(palette):
+    return _mix(_maroon_clay(palette), (58, 18, 18), 0.75)
+
+
+def _cream_plaster(palette):
+    # Aburaya cream plaster wall — pushed deliberately warmer (toward
+    # stone_accent) so it disambiguates from the round-9 white-family
+    # neighbours (Hokage's cream, Horyu-ji, Sensoji, Bao'en) on the
+    # cross-row sheet. The bathhouse is supposed to read warm/ochre.
+    base = _mix(palette['stone_light'], (244, 228, 198), 0.68)
+    return _mix(base, palette['stone_accent'], 0.30)
+
+
+def _lacquer_wood(palette):
+    # Dark wood lacquer columns for Aburaya frames — bias toward stone_dark
+    # so the wood reads almost-black against the cream plaster.
+    return _mix(palette['stone_dark'], (52, 30, 22), 0.85)
+
+
+def _konoha_red(palette):
+    # Hokage Tower's red brim cones + dome — distinct from Daigo-ji's
+    # bright vermilion, sitting closer to a "warning red" tile (a bit
+    # cooler + deeper).
+    return _mix(palette['stone_dark'], (172, 48, 40), 0.80)
+
+
+def _konoha_red_lit(palette):
+    return _mix(_konoha_red(palette), (228, 110, 90), 0.55)
+
+
+def _konoha_red_shadow(palette):
+    return _mix(_konoha_red(palette), (78, 24, 18), 0.75)
+
+
+def _konoha_cream(palette):
+    # Konoha rendered-wall cream — pushed cool (toward sky_top) so it
+    # disambiguates clearly from Aburaya's warm-shifted cream on the
+    # day/night sheet. The Hokage residence is a daylit administrative
+    # building — cool/silvery rendered wall reads correctly.
+    base = _mix(palette['stone_light'], (240, 220, 184), 0.72)
+    return _mix(base, palette['sky_top'], 0.15)
+
+
+def _howl_wood(palette):
+    # Howl's weathered timber — grey-brown driftwood, sun-bleached.
+    return _mix(palette['stone_dark'], (112, 88, 68), 0.78)
+
+
+def _howl_wood_lit(palette):
+    return _mix(_howl_wood(palette), (180, 152, 118), 0.55)
+
+
+def _howl_wood_shadow(palette):
+    return _mix(_howl_wood(palette), (62, 46, 36), 0.78)
+
+
+def _iron_grey(palette):
+    # Howl's dark iron plating + smokestack — biased VERY dark so the
+    # mechanical frame reads as forged metal against the wood cabins.
+    return _shade(palette['stone_dark'], -50)
+
+
+def _brass_warm(palette):
+    # Howl's brass pipes and rivets — same brass family as _bronze but
+    # one beat warmer + brighter so the pipework reads as polished brass
+    # rather than dull patina. Reused from _bronze with a warm bias.
+    return _mix(_bronze(palette), (232, 178, 88), 0.50)
+
+
+def _smoke_grey(palette):
+    # Smokestack puff — biome horizon-ish so the smoke reads atmospheric
+    # rather than as a hard grey shape against the sky.
+    return _mix(palette['horizon'], (200, 200, 198), 0.55)
+
+
+# ── Round 9 ornament primitives ────────────────────────────────────────────
+
+def _draw_ruyi_section(surf, cx, base_y, top_y, base_half_w, top_half_w,
+                       palette, *, exaggerate_flare=True):
+    """A single Taipei 101 "ruyi-cup" tier — an inverted trapezoid that's
+    NARROWER at the base and WIDER at the top, flaring outward. The
+    section is drawn as a single gradient-filled polygon (aqua curtain
+    wall) with a dark gap-rim and a gold seam ring at the upper join.
+
+    `exaggerate_flare=True` (the default) pushes the top corner OUTWARD
+    by an extra 3 px on each side, painting a sharp ruyi-bracket flick
+    above the trapezoid edge. This is required at PIPE_W=58 — without
+    exaggeration the 1-2 px ruyi flare collapses into invisible jaggy
+    pixels and the building reads as a plain glass cylinder.
+
+    Returns the y of the top edge so the next section can stack onto it."""
+    aqua = _aqua_glass(palette)
+    aqua_lit = _aqua_glass_lit(palette)
+    # Lit highlights warmed ~10% toward stone_accent so the aqua doesn't
+    # sit dead against warm sunrise/sunset biomes.
+    aqua_lit = _mix(aqua_lit, palette['stone_accent'], 0.10)
+    aqua_shadow = _aqua_glass_shadow(palette)
+    gold = _gold_bright(palette)
+    dark = _shade(aqua, -65)
+    # Trapezoid points — narrow at base, flaring to top.
+    pts = [
+        (cx - base_half_w, base_y),
+        (cx + base_half_w, base_y),
+        (cx + top_half_w, top_y),
+        (cx - top_half_w, top_y),
+    ]
+    pygame.draw.polygon(surf, dark, pts)
+    # Per-column 3-stop gradient across the body — gives the glass face
+    # its volumetric read at PIPE_W=58.
+    width = top_half_w * 2 + 2
+    for i in range(width):
+        t = i / max(1, width - 1)
+        if t < 0.5:
+            col = _mix(aqua_lit, aqua, t * 2)
+        else:
+            col = _mix(aqua, aqua_shadow, (t - 0.5) * 2)
+        # Compute the horizontal slice's vertical range at this column.
+        x = cx - top_half_w + i
+        # Walk every row in [top_y, base_y] and only fill rows where
+        # this column is INSIDE the trapezoid edges.
+        for y in range(top_y, base_y):
+            frac = (y - top_y) / max(1, base_y - top_y)
+            row_half = top_half_w + (base_half_w - top_half_w) * frac
+            if abs(x - cx) <= row_half - 1:
+                surf.set_at((x, y), col)
+    # Vertical mullion stripes — Taipei 101's curtain-wall has a strong
+    # vertical grid of structural mullions. Three across so each section
+    # reads as glass + frame, not a single painted panel.
+    for mfrac in (0.30, 0.70):
+        mx = cx + int((mfrac - 0.5) * top_half_w * 2)
+        pygame.draw.line(surf, _shade(aqua_shadow, -20),
+                         (mx, top_y + 1), (mx, base_y - 1), 1)
+    # AA the slanted edges so the trapezoid silhouette stays clean.
+    _aa_polyline(surf, dark, [pts[1], pts[2]])
+    _aa_polyline(surf, dark, [pts[0], pts[3]])
+    # 1-px gold seam ring along the TOP edge — the lit ruyi bracket lip
+    # that joins this section to the one above. Drawn last so it overpaints
+    # the body fill.
+    pygame.draw.line(surf, gold,
+                     (cx - top_half_w + 1, top_y),
+                     (cx + top_half_w - 1, top_y), 1)
+    # Exaggerated ruyi flare — a 3-4 px outward kick at each top corner
+    # painted as a small triangle ABOVE the trapezoid edge. At PIPE_W=58
+    # this is the silhouette beat that sells "Taipei 101"; subtle 1-2 px
+    # notches collapsed into invisibility on the round-8 sheet.
+    if exaggerate_flare:
+        flare = 4 if top_half_w > 16 else 3
+        flare_col = _shade(gold, -10)
+        flare_lit = _shade(gold, 40)
+        # LEFT flick — a triangle hanging off the top-left corner.
+        pygame.draw.polygon(surf, flare_col, [
+            (cx - top_half_w, top_y),
+            (cx - top_half_w - flare, top_y - flare + 1),
+            (cx - top_half_w + 1, top_y - 1),
+        ])
+        pygame.draw.line(surf, flare_lit,
+                         (cx - top_half_w, top_y - 1),
+                         (cx - top_half_w - flare + 1, top_y - flare + 2), 1)
+        # RIGHT flick — mirror.
+        pygame.draw.polygon(surf, flare_col, [
+            (cx + top_half_w, top_y),
+            (cx + top_half_w + flare, top_y - flare + 1),
+            (cx + top_half_w - 1, top_y - 1),
+        ])
+        pygame.draw.line(surf, flare_lit,
+                         (cx + top_half_w, top_y - 1),
+                         (cx + top_half_w + flare - 1, top_y - flare + 2), 1)
+    else:
+        # Quiet 1-px gold notch — only used on the topmost crown join
+        # where the gold pyramid takes over the silhouette role.
+        pygame.draw.line(surf, _shade(gold, 25),
+                         (cx - top_half_w, top_y),
+                         (cx - top_half_w - 1, top_y - 1), 1)
+        pygame.draw.line(surf, _shade(gold, 25),
+                         (cx + top_half_w, top_y),
+                         (cx + top_half_w + 1, top_y - 1), 1)
+
+
+def _draw_taipei_seamlight(surf, cx, y, half_w, palette, *, strength=1.0):
+    """A horizontal lit seam-strip glow at a ruyi-section join. REPLACES
+    the standard `_lit_niche` per-storey window pattern because Taipei
+    101's identity beat at night is the architectural floor-line lighting,
+    not punched windows.
+
+    `strength` modulates the alpha + halo radius so successive seams can
+    alternate strong/weak (or zero) — this prevents 8 identical glowing
+    ribbons stacking into "ladder noise" the AD flagged on round-8. A
+    `strength=1.6` boost on a single mid-tower seam reads as the
+    observation-deck band, which survives at game scale where individual
+    seams disappear."""
+    if strength <= 0.0:
+        return
+    dark_sky = _is_dark_sky(palette)
+    warming = _is_warming_sky(palette)
+    gold = _gold_bright(palette)
+    # Halo behind the strip — gated to dusk/sunset/night.
+    if dark_sky or warming:
+        halo_h = max(4, int(8 * strength))
+        halo_w = (half_w * 2 + 4)
+        g = pygame.Surface((halo_w, halo_h), pygame.SRCALPHA)
+        warm = _mix(gold, (255, 220, 150), 0.65)
+        a_outer = int(60 * strength)
+        a_inner = int(110 * strength)
+        if dark_sky and not warming:
+            pygame.draw.ellipse(g, (*warm, min(255, a_outer)),
+                                (0, 0, halo_w, halo_h))
+            pygame.draw.ellipse(g, (*warm, min(255, a_inner)),
+                                (4, halo_h // 4, halo_w - 8, halo_h // 2))
+        else:
+            pygame.draw.ellipse(g, (*warm, min(255, int(80 * strength))),
+                                (4, halo_h // 4, halo_w - 8, halo_h // 2))
+        surf.blit(g, (cx - halo_w // 2, y - halo_h // 2),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+    # The seam strip itself — 1-px warm gold ribbon with crisp endpoints.
+    base_alpha = 230 if (dark_sky and not warming) else (170 if warming else 110)
+    alpha = min(255, int(base_alpha * strength))
+    strip = pygame.Surface((half_w * 2 + 1, 1), pygame.SRCALPHA)
+    strip.fill((*_mix(gold, (255, 230, 170), 0.65), alpha))
+    surf.blit(strip, (cx - half_w, y))
+
+
+def _draw_glass_revolving_door(surf, cx, base_y, palette):
+    """Taipei 101 lobby door — a 4-px wide gold-rim glass slot replacing
+    the standard recessed_entry_door so the lowest tier reads as a glass
+    revolving door instead of a wood-and-stone recess.
+
+    Round-9 polish: door bumped to 4×5 (from 4×4), with a warm amber dot
+    inside so the lobby light registers at PIPE_W=58 — the prior tiny
+    spindle pixel was invisible against the dark recess. A subtle warm
+    halo behind the dot lifts the lobby read at dusk/night."""
+    gold = _gold_bright(palette)
+    dark = _shade(_aqua_glass(palette), -85)
+    warm = _mix(palette['stone_accent'], (255, 220, 150), 0.65)
+    dark_sky = _is_dark_sky(palette)
+    warming = _is_warming_sky(palette)
+    # Door slot — 5 px tall × 4 px wide dark recess + a gold trim frame.
+    dw, dh = 4, 5
+    dx0 = cx - dw // 2
+    dy0 = base_y - dh
+    # Halo behind the dark slot at dusk/night so the lobby reads as lit.
+    if dark_sky or warming:
+        sz = 10
+        g = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        a = 130 if (dark_sky and not warming) else 70
+        pygame.draw.circle(g, (*warm, a), (sz // 2, sz // 2), 4)
+        pygame.draw.circle(g, (*warm, min(255, a + 50)), (sz // 2, sz // 2), 2)
+        surf.blit(g, (cx - sz // 2, dy0 + dh // 2 - sz // 2),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+    pygame.draw.rect(surf, dark, (dx0, dy0, dw, dh))
+    # Gold trim around the slot.
+    pygame.draw.line(surf, gold, (dx0, dy0), (dx0 + dw - 1, dy0), 1)
+    pygame.draw.line(surf, gold,
+                     (dx0, dy0), (dx0, dy0 + dh - 1), 1)
+    pygame.draw.line(surf, gold,
+                     (dx0 + dw - 1, dy0), (dx0 + dw - 1, dy0 + dh - 1), 1)
+    # Warm amber dot inside — the lit lobby. Visible at PIPE_W=58.
+    pygame.draw.rect(surf, warm, (cx - 1, dy0 + 2, 2, 2))
+    # Central spindle of the revolving door — narrow 1-px gold separator.
+    pygame.draw.line(surf, _shade(gold, 30),
+                     (cx, dy0 + 1), (cx, dy0 + dh - 1), 1)
+
+
+def _draw_pebble_curb(surf, cx, base_y, width, palette):
+    """Round-9 ground accent for Taipei 101 / desaturated stone-pebble
+    curb that replaces the chunky vine/shrub at the base. A short band
+    of small grey pebbles + a 1-px granite lip so the urban plaza floor
+    reads. Scoped so it stays under the plinth shadow."""
+    stone = _mix(palette['stone_mid'], (148, 148, 152), 0.62)
+    stone_d = _shade(stone, -40)
+    stone_l = _shade(stone, 25)
+    # 1-px granite lip across the front of the plinth.
+    pygame.draw.line(surf, stone_d,
+                     (cx - width // 2, base_y),
+                     (cx + width // 2, base_y), 1)
+    # Pebbles — scattered short rect dots so the curb reads as paved.
+    rng = random.Random(cx * 7 + base_y)
+    for _ in range(width // 3):
+        px = cx - width // 2 + rng.randint(2, max(3, width - 3))
+        py = base_y + rng.randint(1, 3)
+        pygame.draw.rect(surf, stone_d, (px, py, 2, 1))
+        pygame.draw.line(surf, stone_l, (px, py), (px, py), 1)
+
+
+def _draw_large_chochin(surf, cx, top_y, palette, *, size=7):
+    """A SINGLE LARGE Aburaya chōchin — palette-derived red body with
+    visible vertical bamboo ribs + a brass cap and brass base ring. Drawn
+    big enough (≈6-8 px tall) to read as a lantern in DAY/SUNRISE
+    palettes, not just collapse into stippling. At dusk/night an additive
+    warm halo (12-px radius) is layered behind so the row of lanterns
+    becomes the night focal point.
+
+    `top_y` is the strand attachment row; the lantern body hangs below.
+    `size` is the body diameter; clamps the ellipse to a tight 7×8
+    silhouette at game scale."""
+    red_dark = _mix(palette['stone_dark'], (138, 32, 28), 0.82)
+    red_body = _mix(palette['stone_accent'], (188, 56, 48), 0.72)
+    red_lit = _mix(palette['stone_accent'], (228, 110, 88), 0.78)
+    brass = _bronze(palette)
+    brass_l = _shade(brass, 35)
+    strand_col = _shade(palette['stone_dark'], -25)
+    dark_sky = _is_dark_sky(palette)
+    warming = _is_warming_sky(palette)
+    # Strand from the eave attachment down to the brass cap.
+    strand_h = 2
+    pygame.draw.line(surf, strand_col,
+                     (cx, top_y), (cx, top_y + strand_h), 1)
+    # Halo BEHIND the body — drawn first so the lantern overpaints centre.
+    # Warm additive radius 12 at night, 6 at sunset, none in day.
+    cap_y = top_y + strand_h
+    body_top = cap_y + 2
+    body_h = size + 1
+    body_w = size
+    body_cy = body_top + body_h // 2
+    if dark_sky or warming:
+        r = 12 if (dark_sky and not warming) else 6
+        sz = r * 2 + 2
+        g = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        warm = _mix(red_lit, (255, 200, 140), 0.55)
+        if dark_sky and not warming:
+            pygame.draw.circle(g, (*warm, 70), (sz // 2, sz // 2), r)
+            pygame.draw.circle(g, (*warm, 130), (sz // 2, sz // 2), r - 4)
+            pygame.draw.circle(g, (*warm, 200), (sz // 2, sz // 2), max(2, r - 8))
+        else:
+            pygame.draw.circle(g, (*warm, 110), (sz // 2, sz // 2), r)
+            pygame.draw.circle(g, (*warm, 170), (sz // 2, sz // 2), max(1, r - 2))
+        surf.blit(g, (cx - sz // 2, body_cy - sz // 2),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+    # Brass cap on top of the body — small flat plate.
+    pygame.draw.rect(surf, brass, (cx - 2, cap_y, 5, 2))
+    pygame.draw.line(surf, brass_l, (cx - 2, cap_y), (cx + 1, cap_y), 1)
+    # Lantern body — palette-red ellipse with a darker rim and a brighter
+    # central highlight band. Always rendered in red so the lantern reads
+    # in DAY/SUNRISE without relying on a halo.
+    body_rect = pygame.Rect(cx - body_w // 2, body_top, body_w, body_h)
+    pygame.draw.ellipse(surf, red_dark, body_rect)
+    pygame.draw.ellipse(surf, red_body, body_rect.inflate(-2, -2))
+    # Central vertical highlight stripe — sells the spherical volume.
+    pygame.draw.line(surf, red_lit,
+                     (cx, body_top + 1), (cx, body_top + body_h - 2), 1)
+    # Bamboo rib bands — 3 horizontal dark hoops across the lantern body
+    # so it reads as a chōchin (paper folded between bamboo ribs), not a
+    # plain red ball.
+    rib = _shade(red_dark, -25)
+    for frac in (0.30, 0.55, 0.78):
+        ry = body_top + int(frac * body_h)
+        # Rib spans the interior width at this row — narrows toward the
+        # ellipse edges for a believable spherical-rib read.
+        edge_inset = 1 if (frac > 0.20 and frac < 0.85) else 2
+        pygame.draw.line(surf, rib,
+                         (cx - body_w // 2 + edge_inset, ry),
+                         (cx + body_w // 2 - edge_inset, ry), 1)
+    # Brass base ring + a single dark hanging tassel pixel.
+    base_y = body_top + body_h
+    pygame.draw.rect(surf, brass, (cx - 2, base_y, 5, 1))
+    pygame.draw.line(surf, strand_col, (cx, base_y + 1), (cx, base_y + 2), 1)
+
+
+def _draw_chochin_cluster(surf, cx, eave_y, palette, *, count=3, span=14):
+    """Backwards-compatible wrapper that now lays down a SMALL count of
+    LARGE chōchin (typically 2 per eave: porch-eave near the base, top
+    eave near the crown) instead of the previous 10-micro-dot stippling.
+
+    `count` and `span` retained so the storey-level call site keeps its
+    existing positional layout; positions space the requested number of
+    full-size lanterns across the span."""
+    if span < 6 or count <= 0:
+        return
+    # Cap to at most 2 lanterns per eave — more than that pushes back into
+    # the stippling problem the helper was rebuilt to solve.
+    n = min(count, 2)
+    if n == 1:
+        positions = [cx]
+    else:
+        # Two lanterns hung at ⅓ and ⅔ of the span so they straddle the
+        # storey's centred window rather than overlapping it.
+        positions = [cx - span // 3, cx + span // 3]
+    for px in positions:
+        _draw_large_chochin(surf, px, eave_y, palette, size=7)
+
+
+def _draw_fire_kanji(surf, cx, cy, palette, *, scale=1.0, lit=False):
+    """The 火 ("fire") kanji glyph as bold brush strokes — drawn at
+    calligraphy weights so the glyph reads as a glyph in DAY/SUNRISE
+    instead of dissolving into an asterisk. The 4-arm radial shape with
+    a thick central vertical spine is instantly recognisable as a kanji.
+
+    Shape:    ╲   ╱
+                │
+              ╱   ╲
+
+    Stroke weights (calibrated for PIPE_W=58):
+      * Central vertical spine = 3 px (the load-bearing brush stroke)
+      * Diagonal flicks = 2 px (the secondary brush flicks)
+
+    `scale=1.0` produces an ~8×9 px glyph; `scale=1.5` pushes it to
+    ~12 px tall for the hanger dive-up read. A faint always-on warm aura
+    sits behind the strokes (palette stone_accent at 30% alpha) so the
+    glyph reads in DAY too; `lit=True` strengthens that aura at dusk/night
+    so the kanji becomes the night focal point."""
+    red = _konoha_red(palette)
+    red_d = _konoha_red_shadow(palette)
+    w = max(7, int(8 * scale))
+    h = max(8, int(9 * scale))
+    dark_sky = _is_dark_sky(palette)
+    warming = _is_warming_sky(palette)
+    # Always-on faint warm aura — palette stone_accent warm-shifted at low
+    # alpha so the kanji reads as a glyph (not a hard pixel cluster)
+    # against the cream wall during full daylight too.
+    aura_warm = _mix(palette['stone_accent'], (255, 200, 140), 0.55)
+    sz_base = w + 6
+    g_base = pygame.Surface((sz_base, sz_base), pygame.SRCALPHA)
+    pygame.draw.circle(g_base, (*aura_warm, 80),
+                       (sz_base // 2, sz_base // 2), sz_base // 2 - 1)
+    pygame.draw.circle(g_base, (*aura_warm, 110),
+                       (sz_base // 2, sz_base // 2), sz_base // 3)
+    surf.blit(g_base, (cx - sz_base // 2, cy - sz_base // 2),
+              special_flags=pygame.BLEND_RGBA_ADD)
+    # Stronger lit halo at dusk/night — kanji becomes the night focal point.
+    if lit and (dark_sky or warming):
+        sz = w + 10
+        g = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        warm = _mix(red, (255, 180, 120), 0.60)
+        if dark_sky and not warming:
+            pygame.draw.circle(g, (*warm, 90), (sz // 2, sz // 2), sz // 2 - 1)
+            pygame.draw.circle(g, (*warm, 150), (sz // 2, sz // 2), sz // 3)
+        else:
+            pygame.draw.circle(g, (*warm, 110), (sz // 2, sz // 2), sz // 3)
+        surf.blit(g, (cx - sz // 2, cy - sz // 2),
+                  special_flags=pygame.BLEND_RGBA_ADD)
+    # Central vertical stroke — 3-px spine. Drawn as a filled rect so the
+    # weight is unambiguous at all scales (pygame line-width 3 sometimes
+    # AA-thins on diagonals; spine is straight so rect is safe).
+    spine_top = cy - h // 2
+    spine_bot = cy + h // 2
+    pygame.draw.rect(surf, red_d,
+                     (cx - 1, spine_top, 3, spine_bot - spine_top + 1))
+    # Lit centre highlight down the spine — sells the brush volume.
+    pygame.draw.line(surf, _shade(red, 35),
+                     (cx, spine_top + 1), (cx, spine_bot - 1), 1)
+    # Two upper diagonal flares — 2-px brush flicks slanting INWARD-DOWN
+    # to the top of the spine. The "flame tips".
+    pygame.draw.line(surf, red_d,
+                     (cx - w // 2, cy - h // 4),
+                     (cx - 2, spine_top + 1), 2)
+    pygame.draw.line(surf, red_d,
+                     (cx + w // 2, cy - h // 4),
+                     (cx + 2, spine_top + 1), 2)
+    # Two lower diagonal legs — 2-px flicks splaying OUTWARD-DOWN from
+    # the spine waist so the glyph reads as 4-arm radial.
+    pygame.draw.line(surf, red,
+                     (cx - 1, cy + 1),
+                     (cx - w // 2, cy + h // 2), 2)
+    pygame.draw.line(surf, red,
+                     (cx + 1, cy + 1),
+                     (cx + w // 2, cy + h // 2), 2)
+    # Brush start-dot at the top of the spine — the calligraphy entry tick.
+    pygame.draw.rect(surf, _shade(red, 50), (cx - 1, spine_top, 3, 2))
+
+
+def _draw_smokestack_puff(surf, cx, base_y, palette, *,
+                          stack_h=10, lean=2, puff_dir=1):
+    """A black iron smokestack leaning `lean` px off vertical, capped
+    with a small grey smoke cloud that drifts in `puff_dir` direction
+    (+1 = right, -1 = left, 0 = straight up). Used as the Howl's
+    Moving Castle identity beat. `puff_dir=-1` with `lean=-2` mirrors
+    cleanly for the hanger gravity-inversion read."""
+    iron = _iron_grey(palette)
+    iron_lit = _shade(iron, 25)
+    brass = _brass_warm(palette)
+    smoke = _smoke_grey(palette)
+    # Stack body — a slanted tall rect drawn as a polygon so the lean reads.
+    sx_top = cx + lean
+    pygame.draw.polygon(surf, iron, [
+        (cx - 1, base_y),
+        (cx + 2, base_y),
+        (sx_top + 1, base_y - stack_h),
+        (sx_top - 1, base_y - stack_h),
+    ])
+    # Lit edge along the back of the stack.
+    pygame.draw.line(surf, iron_lit,
+                     (cx - 1, base_y - 1),
+                     (sx_top - 1, base_y - stack_h), 1)
+    # Brass collar at the stack top — the canonical mouth-flange.
+    pygame.draw.rect(surf, brass,
+                     (sx_top - 2, base_y - stack_h - 1, 5, 1))
+    # Smoke puff — 3 overlapping circles drifting in `puff_dir`. Each
+    # puff has a darker grey core (1-px) inside the smoke ring so the
+    # cloud survives a bright DAY palette where the soft grey alone
+    # would dissolve against the warm sky.
+    sy = base_y - stack_h - 3
+    smoke_core = _shade(smoke, -40)
+    for k in range(3):
+        dx = puff_dir * (k + 1)
+        dy = -k - 1
+        r = 3 - (k // 2)
+        pygame.draw.circle(surf, _shade(smoke, -25),
+                           (sx_top + dx, sy + dy), r)
+        pygame.draw.circle(surf, smoke,
+                           (sx_top + dx, sy + dy - 1), max(1, r - 1))
+        # Dark grey core pixel — the visible "centre of mass" that makes
+        # the smoke shape register against bright skies.
+        pygame.draw.line(surf, smoke_core,
+                         (sx_top + dx, sy + dy - 1),
+                         (sx_top + dx, sy + dy - 1), 1)
+
+
+def _draw_brass_pipework(surf, x, y_top, y_bot, palette, *, side=1):
+    """A short brass pipe + 3 rivets running vertically along a panel
+    side, with a 90° elbow halfway up so the pipework reads as
+    industrial plumbing rather than a stripe. `side=+1` = right side,
+    `side=-1` = left side; the elbow turns INWARD toward the body."""
+    if y_bot - y_top < 12:
+        return
+    brass = _brass_warm(palette)
+    brass_d = _shade(brass, -45)
+    brass_l = _shade(brass, 30)
+    # Upper vertical run.
+    pygame.draw.line(surf, brass_d, (x, y_top), (x, y_top + 6), 2)
+    pygame.draw.line(surf, brass, (x, y_top + 1), (x, y_top + 5), 1)
+    # Elbow joint — a 2×2 square highlight at the turn.
+    pygame.draw.rect(surf, brass_d, (x - 1, y_top + 6, 3, 2))
+    pygame.draw.line(surf, brass_l, (x - 1, y_top + 6), (x + 1, y_top + 6), 1)
+    # Horizontal jog inward.
+    pygame.draw.line(surf, brass_d, (x, y_top + 7),
+                     (x - side * 3, y_top + 7), 2)
+    pygame.draw.line(surf, brass, (x, y_top + 8),
+                     (x - side * 3, y_top + 8), 1)
+    # Lower vertical run continuing down the panel — back at original x.
+    if y_bot - y_top > 16:
+        pygame.draw.line(surf, brass_d,
+                         (x, y_top + 9), (x, y_bot - 1), 2)
+        pygame.draw.line(surf, brass,
+                         (x, y_top + 10), (x, y_bot - 2), 1)
+    # 3 brass rivets spaced down the lower run.
+    for frac in (0.30, 0.60, 0.85):
+        ry = y_top + int((y_bot - y_top) * frac)
+        pygame.draw.rect(surf, brass_d, (x - 1, ry, 3, 2))
+        pygame.draw.rect(surf, brass_l, (x, ry, 1, 1))
+
+
+def _draw_cogwheel(surf, cx, cy, palette, *, r=4):
+    """A small wooden cog wheel — a circle with 6 short tooth-stubs
+    around the rim + a brass hub pin. Used as Howl's mechanical motif
+    on the tilted cone roof side."""
+    wood = _howl_wood(palette)
+    wood_d = _howl_wood_shadow(palette)
+    brass = _brass_warm(palette)
+    # 6 tooth-stubs around the rim — drawn first so the disk overpaints
+    # their inner ends and only the protruding tips remain.
+    for k in range(6):
+        ang = k * math.pi / 3
+        tx = cx + int(math.cos(ang) * (r + 1))
+        ty = cy + int(math.sin(ang) * (r + 1))
+        pygame.draw.rect(surf, wood_d, (tx - 1, ty - 1, 2, 2))
+    pygame.draw.circle(surf, wood_d, (cx, cy), r)
+    pygame.draw.circle(surf, wood, (cx, cy), r - 1)
+    # Brass hub pin.
+    pygame.draw.circle(surf, brass, (cx, cy), 1)
+
+
+def _draw_cobble_curb(surf, cx, base_y, width, palette):
+    """Sooty cobblestone curb at the Howl plinth — warm dark grey stones
+    in a 2-px row + a 1-px shadow line. Replaces the standard vine/shrub
+    at the base for the steampunk read."""
+    cobble = _mix(palette['stone_dark'], (88, 72, 64), 0.72)
+    cobble_d = _shade(cobble, -35)
+    cobble_l = _shade(cobble, 25)
+    soot = _shade(cobble, -55)
+    # Shadow line at the back of the curb.
+    pygame.draw.line(surf, soot,
+                     (cx - width // 2, base_y),
+                     (cx + width // 2, base_y), 1)
+    # Cobble stones — 3-px wide humps spaced across the curb.
+    for x in range(cx - width // 2, cx + width // 2, 4):
+        pygame.draw.rect(surf, cobble_d, (x, base_y + 1, 3, 2))
+        pygame.draw.line(surf, cobble, (x, base_y + 1), (x + 2, base_y + 1), 1)
+        pygame.draw.line(surf, cobble_l, (x + 1, base_y + 1),
+                         (x + 1, base_y + 1), 1)
+
+
+def _draw_karahafu_eave_tips(surf, cx, y_base, half_w_body, overhang,
+                             roof_col):
+    """Aburaya's signature Edo karahafu eave-tip curl — 2-3 px upward kicks
+    painted ON TOP of the regular tang-curl eave so the corner tips read
+    as the bathhouse's exaggerated upturned silhouette. The base eave
+    polygon stays the same; this just paints the extra kick on each tip.
+
+    Drawn as a small upward-tilted triangle at each outer corner — the
+    karahafu flick is the visual beat that separates a bathhouse from a
+    temple pagoda."""
+    overhang = max(overhang, 7)
+    half_outer = half_w_body + overhang
+    accent = _shade(roof_col, 35)
+    rim = _shade(roof_col, -75)
+    # Left tip — a 3-px upward triangle painted at the outer corner.
+    pygame.draw.polygon(surf, roof_col, [
+        (cx - half_outer, y_base),
+        (cx - half_outer + 4, y_base - 2),
+        (cx - half_outer + 2, y_base + 1),
+    ])
+    pygame.draw.line(surf, rim,
+                     (cx - half_outer, y_base),
+                     (cx - half_outer + 4, y_base - 2), 1)
+    pygame.draw.line(surf, accent,
+                     (cx - half_outer + 1, y_base - 1),
+                     (cx - half_outer + 3, y_base - 1), 1)
+    # Right tip — mirror.
+    pygame.draw.polygon(surf, roof_col, [
+        (cx + half_outer, y_base),
+        (cx + half_outer - 4, y_base - 2),
+        (cx + half_outer - 2, y_base + 1),
+    ])
+    pygame.draw.line(surf, rim,
+                     (cx + half_outer, y_base),
+                     (cx + half_outer - 4, y_base - 2), 1)
+    pygame.draw.line(surf, accent,
+                     (cx + half_outer - 1, y_base - 1),
+                     (cx + half_outer - 3, y_base - 1), 1)
+
+
+def _draw_engawa_with_stone_lantern(surf, cx, base_y, width, palette):
+    """Aburaya's 2-step engawa porch + a small stone tōrō lantern at one
+    side of the plinth — the bathhouse's ground accent that replaces the
+    standard vine/flower row. Wide enough to read at PIPE_W=58 without
+    crowding the entry door."""
+    wood_d = _mix(palette['stone_dark'], (52, 30, 22), 0.85)
+    wood = _mix(wood_d, palette['stone_accent'], 0.35)
+    wood_l = _shade(wood, 25)
+    stone = _mix(palette['stone_mid'], (148, 138, 128), 0.55)
+    stone_d = _shade(stone, -35)
+    # 2-step engawa — two stacked thin wood plank rectangles centred
+    # under the entry, each narrower than the one below.
+    step_w = max(18, width - 8)
+    step_h = 2
+    # Lower wider step.
+    pygame.draw.rect(surf, wood_d, (cx - step_w // 2, base_y - 1, step_w, step_h))
+    pygame.draw.line(surf, wood_l,
+                     (cx - step_w // 2 + 1, base_y - 1),
+                     (cx + step_w // 2 - 2, base_y - 1), 1)
+    # Upper narrower step.
+    step2_w = step_w - 6
+    pygame.draw.rect(surf, wood,
+                     (cx - step2_w // 2, base_y - 3, step2_w, step_h))
+    pygame.draw.line(surf, wood_l,
+                     (cx - step2_w // 2 + 1, base_y - 3),
+                     (cx + step2_w // 2 - 2, base_y - 3), 1)
+    # Stone tōrō lantern at the LEFT side of the porch — short dark
+    # column + flat capstone + tiny finial bud.
+    lx = cx - step_w // 2 - 3
+    if lx > cx - width:
+        col_h = 4
+        pygame.draw.rect(surf, stone_d, (lx - 1, base_y - col_h, 3, col_h))
+        pygame.draw.rect(surf, stone, (lx - 1, base_y - col_h + 1, 3, col_h - 2))
+        # Flat capstone.
+        pygame.draw.rect(surf, stone_d, (lx - 2, base_y - col_h - 1, 5, 1))
+        pygame.draw.line(surf, stone, (lx - 2, base_y - col_h - 1),
+                         (lx + 2, base_y - col_h - 1), 1)
+        # Tiny finial bud on top.
+        pygame.draw.line(surf, stone_d, (lx, base_y - col_h - 2),
+                         (lx, base_y - col_h - 2), 1)
+
+
+# ── Round 9 #1. Taipei 101 — Taiwan 2004 ───────────────────────────────────
+#
+# Eight stacked ruyi-cup tiers (inverted truncated trapezoids, narrow at
+# base, flaring at top), aqua-teal glass curtain wall, gold seam rings
+# at each section join, gold truncated-pyramid crown + antenna spire.
+# Night identity beat: horizontal lit-seam-strip glow at each join
+# REPLACES the per-storey window pattern — the architecturally honest
+# move for a curtain-wall skyscraper.
+# Reference: https://en.wikipedia.org/wiki/Taipei_101
+
+def _draw_taipei101(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    # Taipei 101 has no foliage/vine at base — the urban plaza accent
+    # replaces them. Door always closed for an office tower.
+    door_lit = rng.choice((True, False))
+
+    aqua = _aqua_glass(palette)
+    gold = _gold_bright(palette)
+    gold_d = _gold_deep(palette)
+
+    if bot_rect.height > 80:
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.4), palette)
+        # Granite plinth — broader + slightly darker than the pagoda plinths
+        # so the skyscraper reads as rooted on a city podium, not a temple
+        # stone-platform.
+        plinth_h = 8
+        plinth_w = int(bot_rect.width * 1.30)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -25),
+                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
+                          plinth_w, plinth_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(surf, palette['stone_light'],
+                         (bcx - plinth_w // 2,
+                          bot_rect.bottom - plinth_h, plinth_w, 1))
+
+        envelope_bot = bot_rect.bottom - plinth_h
+        # Budget: 25-storey truncated-pyramid base (15 px tall), 8 ruyi
+        # sections (rest of body), 22 px gold pyramid + antenna crown.
+        crown_h = 24
+        base_pyramid_h = 18
+        sections_h = bot_rect.height - plinth_h - crown_h - base_pyramid_h
+        # 25-storey base pyramid — a slightly-tapered trapezoid sitting on
+        # the plinth. Wider at the base than the lowest ruyi section above.
+        base_top = envelope_bot - base_pyramid_h
+        base_half_low = int(bot_rect.width * 0.62)
+        base_half_top = int(bot_rect.width * 0.45)
+        pyr_pts = [
+            (bcx - base_half_low, envelope_bot),
+            (bcx + base_half_low, envelope_bot),
+            (bcx + base_half_top, base_top),
+            (bcx - base_half_top, base_top),
+        ]
+        pygame.draw.polygon(surf, _aqua_glass_shadow(palette), pyr_pts)
+        # Interior gradient.
+        for y in range(base_top, envelope_bot):
+            t = (y - base_top) / max(1, base_pyramid_h - 1)
+            row_half = base_half_top + (base_half_low - base_half_top) * t
+            col = _mix(_aqua_glass_lit(palette), aqua, t)
+            pygame.draw.line(surf, col,
+                             (int(bcx - row_half + 1), y),
+                             (int(bcx + row_half - 1), y), 1)
+        # Mullions across the base pyramid — 5 verticals for the broader face.
+        for k in range(5):
+            t = (k + 1) / 6
+            mx = bcx - base_half_top + int(t * base_half_top * 2)
+            pygame.draw.line(surf, _shade(_aqua_glass_shadow(palette), -15),
+                             (mx, base_top + 2),
+                             (mx + 1, envelope_bot - 2), 1)
+        # Glass revolving door at the centre of the lowest storey.
+        _draw_glass_revolving_door(surf, bcx, envelope_bot, palette)
+        # Gold sill across the top of the base pyramid — the first ruyi
+        # join sits here.
+        pygame.draw.line(surf, gold,
+                         (bcx - base_half_top, base_top),
+                         (bcx + base_half_top, base_top), 1)
+
+        # 8 ruyi sections stacked from base_top upward. Each section is
+        # ~12 px tall, NARROWER at the bottom and FLARING WIDER at the top.
+        section_count = 8
+        sec_h = max(8, sections_h // section_count)
+        # Section widths: each section is centred around the cx, and each
+        # successive section is slightly narrower than the one below at
+        # its widest point (gives the overall building its tapered-bamboo
+        # silhouette). At the join, the bottom of section N+1 == top of N.
+        # Body half-widths at the BOTTOM of each section, decreasing.
+        bot_widths = [int(bot_rect.width * (0.40 - i * 0.018))
+                      for i in range(section_count)]
+        top_widths = [int(bot_rect.width * (0.46 - i * 0.022))
+                      for i in range(section_count)]
+        y_cursor = base_top
+        section_tops = []
+        # Alternating strong/weak seam pattern so 8 identical glowing
+        # ribbons don't stack into the ladder noise the AD flagged. The
+        # mid-tower seam (~⅔ up the body) is boosted as the "observation
+        # deck band" — the single architectural cue that survives at
+        # game scale where individual seams would otherwise dissolve.
+        # Pattern (bottom→top): 1.0, 0.0, 1.0, 0.0, 1.6 (deck), 0.0, 1.0, 0.0
+        seam_strengths = [1.0, 0.0, 1.0, 0.0, 1.6, 0.0, 1.0, 0.0]
+        # Topmost ruyi-section uses a quieter gold-notch only (the crown
+        # pyramid takes over its silhouette duty).
+        for i in range(section_count):
+            sec_base_y = y_cursor
+            sec_top_y = y_cursor - sec_h
+            if sec_top_y < bot_rect.y + crown_h:
+                break
+            exaggerate = (i < section_count - 1)
+            _draw_ruyi_section(surf, bcx, sec_base_y, sec_top_y,
+                               bot_widths[i], top_widths[i], palette,
+                               exaggerate_flare=exaggerate)
+            # Lit seam-strip at the join — REPLACES per-storey windows.
+            s = seam_strengths[i] if i < len(seam_strengths) else 1.0
+            _draw_taipei_seamlight(surf, bcx, sec_top_y,
+                                   top_widths[i], palette, strength=s)
+            section_tops.append((sec_top_y, top_widths[i]))
+            y_cursor = sec_top_y
+
+        # Gold truncated-pyramid crown + antenna spire.
+        if section_tops:
+            top_y, top_half = section_tops[-1]
+            crown_top_y = top_y - 8
+            # Pyramid — narrow trapezoid sitting on the topmost section.
+            crown_pts = [
+                (bcx - top_half + 2, top_y),
+                (bcx + top_half - 2, top_y),
+                (bcx + max(3, top_half // 3), crown_top_y),
+                (bcx - max(3, top_half // 3), crown_top_y),
+            ]
+            pygame.draw.polygon(surf, gold_d, crown_pts)
+            inner_crown = [
+                (bcx - top_half + 3, top_y - 1),
+                (bcx + top_half - 3, top_y - 1),
+                (bcx + max(2, top_half // 3 - 1), crown_top_y + 1),
+                (bcx - max(2, top_half // 3 - 1), crown_top_y + 1),
+            ]
+            pygame.draw.polygon(surf, gold, inner_crown)
+            # Gold rim ring at the base of the crown.
+            pygame.draw.line(surf, _shade(gold, 35),
+                             (bcx - top_half + 2, top_y),
+                             (bcx + top_half - 2, top_y), 1)
+            # Slim antenna spire — 18 px tall (round-8 finial rule).
+            ant_h = crown_h - 8
+            ant_tip = crown_top_y - ant_h
+            pygame.draw.line(surf, _shade(palette['stone_dark'], -25),
+                             (bcx, crown_top_y), (bcx, ant_tip), 2)
+            pygame.draw.line(surf, _shade(gold, 45),
+                             (bcx + 1, crown_top_y), (bcx + 1, ant_tip), 1)
+            # 3 brass collar rings down the antenna.
+            for frac in (0.25, 0.55, 0.85):
+                cy = ant_tip + int(frac * ant_h)
+                pygame.draw.rect(surf, gold_d, (bcx - 2, cy, 5, 1))
+                pygame.draw.rect(surf, gold, (bcx - 1, cy, 3, 1))
+            # Aviation warning beacon — single warm-red pixel at the tip,
+            # additive halo at night so the spire becomes the night focal
+            # point.
+            beacon_col = _mix(palette['stone_accent'], (228, 80, 60), 0.78)
+            pygame.draw.circle(surf, beacon_col, (bcx, ant_tip), 2)
+            if _is_dark_sky(palette) or _is_warming_sky(palette):
+                sz = 16
+                g = pygame.Surface((sz, sz), pygame.SRCALPHA)
+                pygame.draw.circle(g, (*beacon_col, 80),
+                                   (sz // 2, sz // 2), 6)
+                pygame.draw.circle(g, (*beacon_col, 160),
+                                   (sz // 2, sz // 2), 3)
+                pygame.draw.circle(g, (255, 220, 180, 220),
+                                   (sz // 2, sz // 2), 1)
+                surf.blit(g, (bcx - sz // 2, ant_tip - sz // 2),
+                          special_flags=pygame.BLEND_RGBA_ADD)
+
+        # Single warm office-window pixel inside the glass door (the
+        # door_lit seed roll) so the lobby glows at night without breaking
+        # the seam-light identity.
+        if door_lit and (_is_dark_sky(palette) or _is_warming_sky(palette)):
+            warm = _mix(gold, (255, 230, 180), 0.65)
+            warm_layer = pygame.Surface((2, 2), pygame.SRCALPHA)
+            warm_layer.fill((*warm, 220))
+            surf.blit(warm_layer, (bcx - 1, envelope_bot - 3),
+                      special_flags=pygame.BLEND_RGBA_ADD)
+
+        # Pebble curb — replaces vine/shrub for the urban-plaza read.
+        _draw_pebble_curb(surf, bcx, bot_rect.bottom - plinth_h - 1,
+                          plinth_w - 4, palette)
+
+    if top_rect.height > 50:
+        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
+                          int(top_rect.width * 2.0), palette)
+        # Hanger = mirrored top: antenna pointing DOWN into the gap +
+        # crown pyramid + top 3 ruyi sections inverted.
+        anchor_h = 6
+        anchor_w = int(top_rect.width * 1.20)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -20),
+                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                          anchor_w - 2, anchor_h - 2))
+
+        # 3 inverted ruyi sections immediately below the anchor — each
+        # FLARES from a narrow top join to a wider bottom join (the
+        # natural mirror of the upright body).
+        env_top = top_rect.y + anchor_h
+        env_bot = top_rect.bottom - 30  # reserve for crown + antenna
+        sec_count = 3
+        sec_h = max(8, (env_bot - env_top) // sec_count)
+        bot_widths = [int(top_rect.width * (0.36 + i * 0.02))
+                      for i in range(sec_count)]
+        top_widths = [int(top_rect.width * (0.32 + i * 0.020))
+                      for i in range(sec_count)]
+        y_cursor = env_top
+        last_bot = env_top
+        last_bot_half = top_widths[0]
+        # Hanger seams use the same alternating pattern: bottom-most is
+        # the "observation deck" since it's the most visible row in the
+        # dive-up read.
+        hang_strengths = [1.6, 0.0, 1.0]
+        for i in range(sec_count):
+            sec_top_y = y_cursor
+            sec_bot_y = y_cursor + sec_h
+            # When mirrored, base_y > top_y and the section flares
+            # downward as wider-base ruyi flipped.
+            _draw_ruyi_section(surf, tcx, sec_bot_y, sec_top_y,
+                               bot_widths[i], top_widths[i], palette,
+                               exaggerate_flare=True)
+            s = hang_strengths[i] if i < len(hang_strengths) else 1.0
+            _draw_taipei_seamlight(surf, tcx, sec_bot_y,
+                                   bot_widths[i], palette, strength=s)
+            last_bot = sec_bot_y
+            last_bot_half = bot_widths[i]
+            y_cursor = sec_bot_y
+
+        # Inverted crown pyramid + antenna pointing DOWN from the lowest
+        # mirrored section.
+        crown_bot_y = last_bot + 8
+        crown_pts = [
+            (tcx - last_bot_half + 2, last_bot),
+            (tcx + last_bot_half - 2, last_bot),
+            (tcx + max(3, last_bot_half // 3), crown_bot_y),
+            (tcx - max(3, last_bot_half // 3), crown_bot_y),
+        ]
+        pygame.draw.polygon(surf, gold_d, crown_pts)
+        # Antenna pointing down — 18 px.
+        ant_tip = crown_bot_y + 18
+        pygame.draw.line(surf, _shade(palette['stone_dark'], -25),
+                         (tcx, crown_bot_y), (tcx, ant_tip), 2)
+        pygame.draw.line(surf, _shade(gold, 45),
+                         (tcx + 1, crown_bot_y), (tcx + 1, ant_tip), 1)
+        for frac in (0.25, 0.55, 0.85):
+            cy = crown_bot_y + int(frac * 18)
+            pygame.draw.rect(surf, gold_d, (tcx - 2, cy, 5, 1))
+            pygame.draw.rect(surf, gold, (tcx - 1, cy, 3, 1))
+        # Beacon pixel at the dive-up tip.
+        beacon_col = _mix(palette['stone_accent'], (228, 80, 60), 0.78)
+        pygame.draw.circle(surf, beacon_col, (tcx, ant_tip), 2)
+
+
+def candidate_taipei101(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('taipei101', _draw_taipei101, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── Round 9 #2. Aburaya / Yubaba's Bathhouse — Spirited Away (2001) ────────
+#
+# 4-5 storey wooden bathhouse pagoda — heavier, broader proportions than
+# Hōryū-ji. Maroon clay-tile eaves, cream plaster walls with dark wood
+# frame columns, dark wood lacquer accent posts. Identity beat: dense
+# hanging chōchin paper-lantern strings under each eave + a golden
+# chimney puff at the top.
+# References:
+#   https://en.wikipedia.org/wiki/Spirited_Away
+#   https://ghibli.fandom.com/wiki/Bathhouse
+
+def _draw_aburaya(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    entry_open = rng.choice((True, False))
+
+    cream = _cream_plaster(palette)
+    cream_lit = _shade(cream, 22)
+    cream_shadow = _shade(cream, -28)
+    # Dusk/night value cap — keep the cream plaster wall from spiking to
+    # ~245 and drowning the chōchin halo + window niches. The night
+    # silhouette has to be carried by the lanterns and glows, not the wall.
+    cream_lit = _cap_lit_for_dark_sky(cream_lit, palette, cap=220)
+    cream = _cap_lit_for_dark_sky(cream, palette, cap=220)
+    wood = _lacquer_wood(palette)
+    wood_lit = _shade(wood, 30)
+    maroon = _maroon_clay(palette)
+    maroon_accent = _maroon_clay_lit(palette)
+    tile_col = _maroon_clay_shadow(palette)
+
+    if bot_rect.height > 80:
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.5), palette)
+        plinth_h = 12
+        plinth_w = int(bot_rect.width * 1.28)
+        # Bathhouse stone podium — slightly taller than the standard pagoda
+        # plinth so the heavy bathhouse mass reads grounded.
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -15),
+                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
+                          plinth_w, plinth_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(surf, palette['stone_light'],
+                         (bcx - plinth_w // 2,
+                          bot_rect.bottom - plinth_h, plinth_w, 1))
+        # Dark wood lacquer base trim — Aburaya's distinctive horizontal
+        # dark band where the building meets the stone podium.
+        pygame.draw.rect(surf, wood,
+                         (bcx - plinth_w // 2 + 2,
+                          bot_rect.bottom - plinth_h - 2,
+                          plinth_w - 4, 2))
+
+        envelope_bot = bot_rect.bottom - plinth_h - 2
+        # Aburaya: 4 broad storeys. Heavier than Hōryū-ji's 5 — each storey
+        # is taller and wider at the base than the storey above.
+        tier_count = 4
+        chimney_h = 18
+        total_h = min(bot_rect.height - plinth_h - chimney_h - 4, 240)
+        # Weights — bottom storey biggest (ground-floor kitchens),
+        # progressively shorter going up.
+        weights = [1.4, 1.15, 0.95, 0.78]
+        wsum = sum(weights)
+        tier_heights = [max(14, int(total_h * w / wsum)) for w in weights]
+        body_widths = [int(bot_rect.width * (1.06 - i * 0.06))
+                       for i in range(tier_count)]
+
+        y_cursor = envelope_bot
+        tier_tops = []
+        for i in range(tier_count):
+            th = tier_heights[i]
+            bw = body_widths[i]
+            wall_top = y_cursor - th
+            if wall_top < bot_rect.y + chimney_h:
+                break
+            x_l = bcx - bw // 2
+            body_rect = pygame.Rect(x_l, wall_top, bw, th)
+            # Cream plaster wall with gradient.
+            _gradient_rect(surf, body_rect, cream_lit, cream, cream_shadow)
+            # Dark wood frame columns on outer edges — Aburaya's "post and
+            # lintel" silhouette read.
+            pygame.draw.rect(surf, wood, (x_l, wall_top, 2, th))
+            pygame.draw.rect(surf, wood, (x_l + bw - 2, wall_top, 2, th))
+            pygame.draw.line(surf, wood_lit, (x_l, wall_top),
+                             (x_l, wall_top + th - 1), 1)
+            pygame.draw.line(surf, wood_lit, (x_l + bw - 2, wall_top),
+                             (x_l + bw - 2, wall_top + th - 1), 1)
+            # Mid-height lintel rail (the dark wood band each storey has).
+            if th > 14:
+                lintel_y = wall_top + th // 2
+                pygame.draw.rect(surf, wood,
+                                 (x_l + 2, lintel_y, bw - 4, 2))
+                pygame.draw.line(surf, wood_lit,
+                                 (x_l + 2, lintel_y),
+                                 (x_l + bw - 3, lintel_y), 1)
+            # ONE centred bright window per storey (round-9 cross-row rule).
+            # 3-px slot — narrow vertical so it doesn't crowd the large
+            # chōchin hanging next to it. Applied to every storey including
+            # the topmost (round-8 discipline rule was broken on the prior
+            # round-9 build for the small upper storeys).
+            if th > 8 and bw > 12:
+                nw = 3
+                nh = min(th - 6, 5)
+                _lit_niche(surf, bcx, wall_top + 4, nw, nh, palette)
+            # Recessed entry door at the lowest storey.
+            if i == 0:
+                _draw_entry_door(surf, bcx, wall_top + th - 1, palette,
+                                 w=2, h=5, open_glow=entry_open)
+            tier_tops.append((wall_top, bw, th))
+            # Maroon clay-tile eave — Aburaya's heavy red roof, deeper
+            # than Daigo-ji's vermilion. Steep curl for the bathhouse.
+            overhang = max(8, 10 - i)
+            depth = 4 if i < 2 else 3
+            is_top_tier = (i == tier_count - 1)
+            _eave_tang_curl(surf, bcx, wall_top, bw // 2,
+                            overhang, depth, maroon,
+                            maroon_accent, tile_col, curl=0.65,
+                            alternating_hatch=True, drop_shadow=True,
+                            fringe=True,
+                            fringe_col=_shade(maroon, -10),
+                            skip_corner_hook=is_top_tier)
+            # Karahafu eave-tip curl — Aburaya's signature Edo silhouette
+            # beat. Paints an extra 2-3 px upward kick at each outer
+            # corner of the eave so the bathhouse reads as bathhouse, not
+            # generic temple pagoda. Skip on the topmost tier where the
+            # crown takes over silhouette duty.
+            if not is_top_tier:
+                _draw_karahafu_eave_tips(surf, bcx, wall_top, bw // 2,
+                                         overhang, maroon)
+            y_cursor = wall_top - depth + 1
+
+        # Chōchin LANTERNS — ONLY at two anchor positions per pillar
+        # (the AD rebuild rule): porch eave near the base + top eave near
+        # the crown. 7×8 px each, fully visible in DAY, halo-lifted at
+        # night. Replaces the prior 10-micro-chōchin stippling that
+        # collapsed in DAY/SUNRISE.
+        if len(tier_tops) >= 1:
+            # Top-eave anchor — near the topmost surviving tier. Strand
+            # row sits ON wall_top (not 1 px above) so the lantern hangs
+            # BELOW the eave line via the helper's own strand + body
+            # offsets (AD optional minor: prior anchor floated above
+            # the eave).
+            top_wall_y, top_bw, _ = tier_tops[-1]
+            top_anchor_y = top_wall_y
+            # Two large lanterns straddling the centre window.
+            _draw_large_chochin(surf, bcx - top_bw // 4, top_anchor_y,
+                                palette, size=6)
+            _draw_large_chochin(surf, bcx + top_bw // 4, top_anchor_y,
+                                palette, size=6)
+        if len(tier_tops) >= 1:
+            # Porch-eave anchor — near the base storey, hanging from the
+            # second-storey eave (immediately above the ground floor).
+            if len(tier_tops) >= 2:
+                porch_wall_y, porch_bw, _ = tier_tops[1]
+            else:
+                porch_wall_y, porch_bw, _ = tier_tops[0]
+            porch_anchor_y = porch_wall_y - 1
+            _draw_large_chochin(surf, bcx - porch_bw // 4 - 2,
+                                porch_anchor_y, palette, size=7)
+            _draw_large_chochin(surf, bcx + porch_bw // 4 + 2,
+                                porch_anchor_y, palette, size=7)
+
+        # Golden chimney stack + a properly visible puff at the top.
+        if tier_tops:
+            top_wall_y = tier_tops[-1][0]
+            chimney_top_y = top_wall_y - chimney_h
+            # Brass chimney stack — 4-px wide, gold rim.
+            pygame.draw.rect(surf, _gold_deep(palette),
+                             (bcx - 2, chimney_top_y + 6, 4, chimney_h - 6))
+            pygame.draw.line(surf, _gold_bright(palette),
+                             (bcx - 1, chimney_top_y + 6),
+                             (bcx - 1, top_wall_y - 1), 1)
+            # Gold cap rim across the chimney mouth.
+            pygame.draw.rect(surf, _gold_bright(palette),
+                             (bcx - 3, chimney_top_y + 4, 6, 2))
+            # Puff bumped to ~4×5 px so the smoke cloud actually registers
+            # against the sky — prior dust-mote sized circles disappeared.
+            smoke = _smoke_grey(palette)
+            smoke_d = _shade(smoke, -25)
+            smoke_core = _shade(smoke, -50)
+            # Three overlapping puffs drifting up + right; bigger radii
+            # and a dark core pixel so each puff has visible shape in DAY.
+            puff_specs = [
+                (bcx + 2, chimney_top_y + 1, 4),
+                (bcx + 5, chimney_top_y - 2, 3),
+                (bcx + 7, chimney_top_y - 4, 2),
+            ]
+            for (sx, sy, r) in puff_specs:
+                pygame.draw.circle(surf, smoke_d, (sx, sy), r)
+                pygame.draw.circle(surf, smoke, (sx, sy - 1), max(1, r - 1))
+                # Dark grey core pixel — survives bright DAY palettes.
+                pygame.draw.line(surf, smoke_core,
+                                 (sx, sy - 1), (sx, sy - 1), 1)
+
+        # Engawa porch + stone tōrō lantern at the plinth — Aburaya's
+        # ground accent that replaces the standard vine/flower/shrub row.
+        # The bathhouse silhouette is bathhouse + tiered porch, not
+        # temple-courtyard greenery.
+        _draw_engawa_with_stone_lantern(surf, bcx,
+                                        bot_rect.bottom - plinth_h,
+                                        plinth_w, palette)
+
+    if top_rect.height > 50:
+        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
+                          int(top_rect.width * 2.0), palette)
+        # Hanger anchor — wide cream lintel beam with dark wood band.
+        anchor_h = 8
+        anchor_w = int(top_rect.width * 1.30)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
+        pygame.draw.rect(surf, wood,
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                          anchor_w - 2, anchor_h - 2))
+        pygame.draw.line(surf, wood_lit,
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1),
+                         (tcx + anchor_w // 2 - 2, top_rect.y + 1), 1)
+        # Top tier inverted under the lintel — a single hanging cream
+        # storey with a maroon eave and a cluster of 3 chōchin hanging
+        # off the lower lintel.
+        hang_top = top_rect.y + anchor_h
+        hang_h = min(28, top_rect.height - anchor_h - 12)
+        hang_w = int(top_rect.width * 0.85)
+        body_rect = pygame.Rect(tcx - hang_w // 2, hang_top, hang_w, hang_h)
+        _gradient_rect(surf, body_rect, cream_lit, cream, cream_shadow)
+        # Wood frames + a lintel mid-band on the hanger tier.
+        pygame.draw.rect(surf, wood, (tcx - hang_w // 2, hang_top, 2, hang_h))
+        pygame.draw.rect(surf, wood, (tcx + hang_w // 2 - 2, hang_top, 2, hang_h))
+        mid_y = hang_top + hang_h // 2
+        pygame.draw.rect(surf, wood,
+                         (tcx - hang_w // 2 + 2, mid_y, hang_w - 4, 2))
+        # ONE centred bright window on the hanger tier.
+        _lit_niche(surf, tcx, hang_top + 3, 5, 5, palette)
+        # Inverted maroon eave at the bottom of the hanger tier.
+        eave_y = hang_top + hang_h
+        _eave_tang_inverted(surf, tcx, eave_y, hang_w // 2,
+                            max(8, hang_w // 4), 4,
+                            maroon, maroon_accent, tile_col, curl=0.65)
+        # Two LARGE hanging chōchin from a lintel beam immediately under
+        # the hanger tier — the dive-up identity beat. Same rebuild rule
+        # as the base: 2 big lanterns visible in DAY, not stippling.
+        lintel_y = eave_y + 5
+        lintel_w = int(top_rect.width * 0.95)
+        pygame.draw.rect(surf, wood,
+                         (tcx - lintel_w // 2, lintel_y, lintel_w, 2))
+        pygame.draw.line(surf, wood_lit,
+                         (tcx - lintel_w // 2, lintel_y),
+                         (tcx + lintel_w // 2 - 1, lintel_y), 1)
+        _draw_large_chochin(surf, tcx - lintel_w // 3, lintel_y + 1,
+                            palette, size=7)
+        _draw_large_chochin(surf, tcx + lintel_w // 3, lintel_y + 1,
+                            palette, size=7)
+        # Tiny brass chimney mirrored above the anchor — the dive-up read
+        # picks up the chimney silhouette to identify the hanger as
+        # Aburaya's roofline, not just "another cream-and-red tier."
+        ch_x = tcx
+        ch_y = top_rect.y + anchor_h + 2
+        pygame.draw.rect(surf, _gold_deep(palette),
+                         (ch_x - 2, ch_y, 4, 3))
+        pygame.draw.rect(surf, _gold_bright(palette),
+                         (ch_x - 3, ch_y + 3, 6, 1))
+
+
+def candidate_aburaya(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('aburaya', _draw_aburaya, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── Round 9 #3. Hokage Tower / Konoha Five-Kage Building (Naruto) ──────────
+#
+# A CYLINDRICAL 4-section tower with horizontal concentric red brim cones
+# alternating with cream wall bands, capped by a red top dome with the
+# bold red 火 ("fire") kanji glyph painted on the top section. Lean into
+# the round-body contrast with Tahōtō — this is the ONLY other cylindrical
+# silhouette in the set. Hidden-Leaf-Village forest-floor ground accent.
+# References:
+#   https://en.wikipedia.org/wiki/Naruto
+#   https://naruto.fandom.com/wiki/Hokage_Residence
+
+def _draw_hokage_dome(surf, cx, base_y, dome_h, body_w, palette):
+    """Top red dome — a hemisphere drawn as the upper half of an ellipse,
+    palette-derived red with a lit rim. Returns the topmost y so the
+    spire can stack onto it."""
+    red = _konoha_red(palette)
+    red_lit = _konoha_red_lit(palette)
+    red_shadow = _konoha_red_shadow(palette)
+    # Outer dark rim of the dome.
+    rect = pygame.Rect(cx - body_w // 2, base_y - dome_h * 2,
+                       body_w, dome_h * 2)
+    pygame.draw.ellipse(surf, red_shadow, rect)
+    pygame.draw.ellipse(surf, red, rect.inflate(-2, -2))
+    pygame.draw.ellipse(surf, red_lit,
+                        (rect.x + 3, rect.y + 2,
+                         rect.w - 6, max(3, dome_h - 2)))
+    # Punch the lower half away so only the top hemisphere remains —
+    # carved by an alpha sub-rect; the body below sits on top.
+    return base_y - dome_h
+
+
+def _draw_hokage(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    vine_side = rng.choice(('left', 'right'))
+    entry_open = rng.choice((True, False))
+    has_pine_sprig = rng.random() < 0.7
+    shrub_jitter = rng.randint(-2, 2)
+
+    cream = _konoha_cream(palette)
+    cream_lit = _shade(cream, 22)
+    cream_shadow = _shade(cream, -28)
+    red = _konoha_red(palette)
+    red_lit = _konoha_red_lit(palette)
+    red_shadow = _konoha_red_shadow(palette)
+    brass = _bronze(palette)
+
+    if bot_rect.height > 80:
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.4), palette)
+        plinth_h = 9
+        plinth_w = int(bot_rect.width * 1.20)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
+                          plinth_w, plinth_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(surf, palette['stone_light'],
+                         (bcx - plinth_w // 2,
+                          bot_rect.bottom - plinth_h, plinth_w, 1))
+
+        envelope_bot = bot_rect.bottom - plinth_h
+        dome_h = 14
+        spire_h = 8
+        total_h = min(bot_rect.height - plinth_h - dome_h * 2 - spire_h, 230)
+        # 4 cylindrical sections, each broader at the bottom — same body
+        # width per section (the tower is straight-walled, not tapered).
+        section_count = 4
+        sec_h = total_h // section_count
+        # Body widths — slight taper for visual interest (round-9: this
+        # is the cylindrical lean-in).
+        body_widths = [int(bot_rect.width * (1.00 - i * 0.03))
+                       for i in range(section_count)]
+
+        y_cursor = envelope_bot
+        section_tops = []
+        # Three-beat red crown rhythm (AD round-9 final): dome (handled
+        # below) + IMMEDIATE cap-brim flush under it (top of section -1)
+        # + ONE SEPARATED mid-body brim cone lower on the body. Together
+        # the three red beats stack vertically as the canonical Hokage
+        # crown silhouette. Earlier section joins are LEFT BARE — the
+        # prior 1-px grey dividers read as construction seams and
+        # confused the silhouette, so they're removed (AD note).
+        cap_brim_at_top_section = section_count - 1
+        mid_brim_at_top_section = 1
+        for i in range(section_count):
+            sh = sec_h
+            bw = body_widths[i]
+            wall_top = y_cursor - sh
+            if wall_top < bot_rect.y + dome_h * 2 + spire_h:
+                break
+            x_l = bcx - bw // 2
+            body_rect = pygame.Rect(x_l, wall_top, bw, sh)
+            # Cream cylindrical wall.
+            _gradient_rect(surf, body_rect, cream_lit, cream, cream_shadow)
+            # Red brim cone at the cap (under the dome) and the chosen
+            # mid-body band — two of the three red beats. The third beat
+            # is the dome painted after the section loop.
+            paint_brim = (i == cap_brim_at_top_section
+                          or i == mid_brim_at_top_section)
+            if paint_brim:
+                brim_h = 3
+                brim_w = bw + 4
+                brim_rect = pygame.Rect(bcx - brim_w // 2, wall_top,
+                                        brim_w, brim_h)
+                pygame.draw.rect(surf, red_shadow, brim_rect)
+                pygame.draw.rect(surf, red,
+                                 (brim_rect.x + 1, brim_rect.y, brim_w - 2, 2))
+                pygame.draw.line(surf, red_lit,
+                                 (brim_rect.x + 1, brim_rect.y),
+                                 (brim_rect.x + brim_w - 2, brim_rect.y), 1)
+                brim_inset = brim_h
+            else:
+                # No section-divider line — the bare cylindrical wall is
+                # the silhouette. Construction seams here would compete
+                # with the three red beats for the eye.
+                brim_inset = 0
+            # Cylindrical shading — darken the right edge ~15% deeper than
+            # the prior pass so the 3D-cylinder read survives DUSK/NIGHT
+            # palettes (AD note: prior shadow was too soft to register).
+            edge_shadow = _shade(cream_shadow, -25)
+            edge_shadow_deep = _shade(cream_shadow, -45)
+            pygame.draw.line(surf, edge_shadow,
+                             (x_l + bw - 1, wall_top + brim_inset),
+                             (x_l + bw - 1, wall_top + sh - 1), 1)
+            pygame.draw.line(surf, edge_shadow_deep,
+                             (x_l + bw - 2, wall_top + brim_inset + 1),
+                             (x_l + bw - 2, wall_top + sh - 2), 1)
+            # Lit highlight on the left edge.
+            pygame.draw.line(surf, cream_lit,
+                             (x_l + 1, wall_top + brim_inset + 1),
+                             (x_l + 1, wall_top + sh - 2), 1)
+            # ONE centred bright window per section (round-9 rule) —
+            # MINIMAL for the lower sections so the kanji on top reads
+            # as the dominant identity beat.
+            if sh > 12 and bw > 14 and i < section_count - 1:
+                nw = min(bw - 10, 4)
+                nh = min(sh - 8, 5)
+                _lit_niche(surf, bcx, wall_top + brim_inset + 3,
+                           nw, nh, palette)
+            # Recessed entry door at the lowest section.
+            if i == 0:
+                _draw_entry_door(surf, bcx, wall_top + sh - 1, palette,
+                                 w=2, h=4, open_glow=entry_open)
+            section_tops.append((wall_top, bw, sh))
+            y_cursor = wall_top + brim_inset
+
+        # Top red dome on the topmost section + the 火 kanji centred on it.
+        if section_tops:
+            top_wall_y = section_tops[-1][0]
+            top_bw = section_tops[-1][1]
+            dome_top = _draw_hokage_dome(surf, bcx, top_wall_y,
+                                         dome_h, top_bw + 4, palette)
+            # Kanji 火 on the dome — the identity beat. Bumped to scale=1.3
+            # so the bold-brush strokes register at PIPE_W=58 even on
+            # daylight palettes where prior scale=1.1 dissolved into an
+            # asterisk. Lit at night for the night focal point.
+            kanji_cy = top_wall_y - dome_h // 2 - 1
+            _draw_fire_kanji(surf, bcx, kanji_cy, palette,
+                             scale=1.3, lit=True)
+            # Slim brass cap-spire on the dome — 8 px finial.
+            spire_tip = dome_top - spire_h
+            pygame.draw.line(surf, _shade(palette['stone_dark'], -20),
+                             (bcx, dome_top), (bcx, spire_tip), 2)
+            pygame.draw.line(surf, _shade(brass, 40),
+                             (bcx + 1, dome_top), (bcx + 1, spire_tip), 1)
+            # Tiny pearl bud at tip.
+            pygame.draw.circle(surf, palette['stone_dark'],
+                               (bcx, spire_tip), 2)
+            pygame.draw.circle(surf, _shade(brass, 60),
+                               (bcx, spire_tip), 1)
+
+        # Foliage at base — standard set.
+        body_half = body_widths[0] // 2
+        vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
+        _draw_vine_chunks(surf, vine_x, envelope_bot - 70,
+                          envelope_bot - 4, palette, seed=seed)
+        draw_side_shrub(surf, bcx - plinth_w // 2 - 2 + shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        draw_side_shrub(surf, bcx + plinth_w // 2 + 2 - shrub_jitter,
+                        bot_rect.bottom - 2, palette, scale=0.9)
+        draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
+                       bot_rect.width + 10, 16, palette, seed=seed)
+        draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
+                        bot_rect.width - 4, 7, seed=seed)
+        if has_pine_sprig:
+            pine_side = -1 if vine_side == 'right' else 1
+            pine_x = bcx + pine_side * (plinth_w // 2 + 8)
+            draw_wuling_pine(surf, pine_x, bot_rect.bottom,
+                             22, palette, lean=pine_side * 3, layers=4)
+
+    if top_rect.height > 50:
+        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
+                          int(top_rect.width * 2.0), palette)
+        # Hanger anchor — narrow brass beam.
+        anchor_h = 5
+        anchor_w = int(top_rect.width * 1.15)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
+                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
+        pygame.draw.rect(surf, _column_grey(palette),
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                          anchor_w - 2, anchor_h - 2))
+
+        # Inverted brass cap-spire from the anchor.
+        spire_top = top_rect.y + anchor_h
+        spire_bot = spire_top + 8
+        pygame.draw.line(surf, _shade(palette['stone_dark'], -20),
+                         (tcx, spire_top), (tcx, spire_bot), 2)
+        pygame.draw.line(surf, _shade(brass, 40),
+                         (tcx + 1, spire_top), (tcx + 1, spire_bot), 1)
+
+        # Inverted red dome — drawn as the lower half of an ellipse, sliced
+        # with an alpha rect for a clean down-opening silhouette.
+        dome_w = int(top_rect.width * 1.05)
+        dome_h_hang = 14
+        dome_top_y = spire_bot
+        tmp = pygame.Surface((dome_w + 4, dome_h_hang * 2 + 2), pygame.SRCALPHA)
+        full = pygame.Rect(2, 1, dome_w, dome_h_hang * 2)
+        pygame.draw.ellipse(tmp, red_shadow, full)
+        pygame.draw.ellipse(tmp, red, full.inflate(-2, -2))
+        pygame.draw.ellipse(tmp, red_lit,
+                            (4, full.y + 2, dome_w - 4, dome_h_hang - 2))
+        # Erase the top half so the dome opens DOWN.
+        tmp.fill((0, 0, 0, 0),
+                 rect=pygame.Rect(0, 0, dome_w + 4, dome_h_hang),
+                 special_flags=pygame.BLEND_RGBA_SUB)
+        surf.blit(tmp, (tcx - (dome_w + 4) // 2, dome_top_y - 1))
+
+        # 火 kanji painted on the LOWER visible half of the hanger — pushed
+        # to ~12 px tall (scale=1.5) so the dive-up read is DOMINATED by
+        # the glyph (round-9 AD note: prior scale=1.2 ~10 px was too small
+        # to register as the identity beat).
+        kanji_cy = dome_top_y + dome_h_hang - 2
+        _draw_fire_kanji(surf, tcx, kanji_cy, palette,
+                         scale=1.5, lit=True)
+
+        # Add a single cream cylindrical section under the dome so the
+        # hanger has body volume + a window for the cross-row rule.
+        body_top = dome_top_y + dome_h_hang + 2
+        body_h = max(8, top_rect.bottom - body_top - 4)
+        body_w = int(top_rect.width * 0.94)
+        body_rect = pygame.Rect(tcx - body_w // 2, body_top, body_w, body_h)
+        _gradient_rect(surf, body_rect, cream_lit, cream, cream_shadow)
+        pygame.draw.line(surf, cream_shadow,
+                         (tcx + body_w // 2 - 1, body_top),
+                         (tcx + body_w // 2 - 1, body_top + body_h - 1), 1)
+        # Single window for the cross-row rule.
+        if body_h > 6:
+            _lit_niche(surf, tcx, body_top + 1, 4, min(4, body_h - 3), palette)
+
+
+def candidate_hokage_tower(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('hokage_tower', _draw_hokage, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
+# ── Round 9 #4. Howl's Wizard Tower / Howl's Moving Castle (2004) ──────────
+#
+# ASYMMETRIC mechanical wood-and-iron tower — stacked mismatched cabin
+# sections at slight angles (not aligned to a single vertical axis),
+# steampunk lurching feel. Weathered wood + dark iron + brass accents.
+# Identity beat: black iron smokestack puffing grey smoke OFF AT AN
+# ANGLE + brass pipework + brass rivets + a tilted cone roof with a
+# wooden cog-wheel motif. Sooty cobblestone curb at base.
+# References:
+#   https://en.wikipedia.org/wiki/Howl%27s_Moving_Castle_(film)
+#   https://steampunk.fandom.com/wiki/Howl's_Moving_Castle
+
+def _draw_howl_cabin(surf, cx, top_y, bot_y, half_w, palette, *,
+                     tilt=0, has_rivets=True, has_pipe=False, pipe_side=1):
+    """A single mismatched wood cabin section — a slightly-tilted rect
+    with wood-grain dashes + iron strap bands + optional brass rivets +
+    optional brass pipework along one side. `tilt` = px the top edge is
+    shifted relative to the bottom edge (positive = right-leaning)."""
+    wood = _howl_wood(palette)
+    wood_lit = _howl_wood_lit(palette)
+    wood_shadow = _howl_wood_shadow(palette)
+    # Dusk/night value cap inside the cabin helper too — otherwise the
+    # per-cabin redeclaration bypasses the parent cap and the wall
+    # value-spikes drown the puff + window glows again.
+    wood_lit = _cap_lit_for_dark_sky(wood_lit, palette, cap=220)
+    wood = _cap_lit_for_dark_sky(wood, palette, cap=220)
+    iron = _iron_grey(palette)
+    iron_lit = _shade(iron, 30)
+    brass = _brass_warm(palette)
+    # Cabin polygon — base is straight, top is shifted by `tilt`.
+    pts = [
+        (cx - half_w, bot_y),
+        (cx + half_w, bot_y),
+        (cx + half_w + tilt, top_y),
+        (cx - half_w + tilt, top_y),
+    ]
+    pygame.draw.polygon(surf, wood_shadow, pts)
+    inner = [
+        (cx - half_w + 1, bot_y - 1),
+        (cx + half_w - 1, bot_y - 1),
+        (cx + half_w - 1 + tilt, top_y + 1),
+        (cx - half_w + 1 + tilt, top_y + 1),
+    ]
+    pygame.draw.polygon(surf, wood, inner)
+    # Lit edge along the left side.
+    _aa_polyline(surf, wood_lit,
+                 [(cx - half_w + tilt, top_y),
+                  (cx - half_w, bot_y)])
+    # Horizontal wood-plank grain — 3 thin dashes spanning the cabin.
+    plank_count = max(2, (bot_y - top_y) // 5)
+    for k in range(1, plank_count):
+        t = k / plank_count
+        py = int(top_y + t * (bot_y - top_y))
+        # Compute the slanted x extents at this row.
+        slant_x = cx - half_w + int(tilt * (1.0 - t))
+        right_x = cx + half_w + int(tilt * (1.0 - t))
+        pygame.draw.line(surf, wood_shadow,
+                         (slant_x + 2, py), (right_x - 2, py), 1)
+    # Iron strap bands across the cabin — 2 horizontal iron bars riveted
+    # to the wood face. The canonical Howl visual.
+    for frac in (0.20, 0.78):
+        py = int(top_y + frac * (bot_y - top_y))
+        slant_x = cx - half_w + int(tilt * (1.0 - frac))
+        right_x = cx + half_w + int(tilt * (1.0 - frac))
+        pygame.draw.rect(surf, iron,
+                         (slant_x + 2, py, right_x - slant_x - 4, 2))
+        pygame.draw.line(surf, iron_lit,
+                         (slant_x + 2, py),
+                         (right_x - 3, py), 1)
+        # Rivets at each end of the strap.
+        if has_rivets:
+            pygame.draw.rect(surf, brass, (slant_x + 3, py, 1, 1))
+            pygame.draw.rect(surf, brass, (right_x - 4, py, 1, 1))
+    # Optional brass pipework along one side.
+    if has_pipe and bot_y - top_y > 14:
+        px = cx + pipe_side * (half_w - 3)
+        _draw_brass_pipework(surf, px, top_y + 3, bot_y - 3, palette,
+                             side=pipe_side)
+
+
+def _draw_howl(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    # The asymmetric lean direction is seed-driven so the row has variation.
+    lean_dir = rng.choice((-1, 1))
+    door_open = rng.choice((True, False))
+    cog_side = rng.choice((-1, 1))
+
+    wood = _howl_wood(palette)
+    wood_lit = _howl_wood_lit(palette)
+    wood_shadow = _howl_wood_shadow(palette)
+    # Dusk/night value cap — keep the weathered timber from value-spiking
+    # past the smokestack puff + window niches. The night silhouette
+    # depends on the puff + glow reading against the wall, not vice versa.
+    wood_lit = _cap_lit_for_dark_sky(wood_lit, palette, cap=220)
+    wood = _cap_lit_for_dark_sky(wood, palette, cap=220)
+    iron = _iron_grey(palette)
+    iron_lit = _shade(iron, 30)
+    brass = _brass_warm(palette)
+
+    if bot_rect.height > 80:
+        _draw_plinth_mist(surf, bcx, bot_rect.bottom,
+                          int(bot_rect.width * 2.4), palette)
+        # Iron-plated dark plinth — Howl's castle base is forged iron.
+        plinth_h = 10
+        plinth_w = int(bot_rect.width * 1.32)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -35),
+                         (bcx - plinth_w // 2, bot_rect.bottom - plinth_h,
+                          plinth_w, plinth_h))
+        pygame.draw.rect(surf, iron,
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.line(surf, iron_lit,
+                         (bcx - plinth_w // 2 + 1,
+                          bot_rect.bottom - plinth_h + 1),
+                         (bcx + plinth_w // 2 - 2,
+                          bot_rect.bottom - plinth_h + 1), 1)
+        # Brass rivets along the plinth top edge — 4 rivets spaced across.
+        for k in range(4):
+            t = (k + 0.5) / 4
+            rx = bcx - plinth_w // 2 + int(t * plinth_w)
+            pygame.draw.rect(surf, brass,
+                             (rx, bot_rect.bottom - plinth_h + 2, 1, 1))
+
+        envelope_bot = bot_rect.bottom - plinth_h
+        roof_h = 18
+        smoke_h = 14
+        # 4 mismatched cabin sections — directional lean (all offsets
+        # biased the SAME direction, AD note) + varied widths so the
+        # silhouette reads as "asymmetric Howl lurch" instead of "render
+        # bug random offset." Width pattern: wide → narrow → wide → narrow
+        # so the stack reads as bolted-on lopsided cabins.
+        cabin_count = 4
+        total_h = bot_rect.height - plinth_h - roof_h - smoke_h - 4
+        sec_h = total_h // cabin_count
+        # Width pattern — wide → narrow → wide → narrow. This is the
+        # AD-mandated variance that distinguishes "asymmetric silhouette"
+        # from "broken stack with offsets."
+        widths = [
+            int(bot_rect.width * 1.06),
+            int(bot_rect.width * 0.74),
+            int(bot_rect.width * 0.96),
+            int(bot_rect.width * 0.66),
+        ]
+        # Tilts per section — same direction as `lean_dir`, growing toward
+        # the top so the tower visibly leans. The TOP cabin gets a subtle
+        # COUNTER-tilt (the canonical Howl "wobble" — the head turns away
+        # from the body lurch).
+        tilts = [lean_dir * 1, lean_dir * 2, lean_dir * 3, -lean_dir * 2]
+        # Horizontal x_offsets — ALL biased in `lean_dir` direction (AD
+        # note: prior alternating ±3-6 px offsets read as render bugs).
+        # The stack visibly leans one way.
+        x_offsets = [0,
+                     lean_dir * 2,
+                     lean_dir * 4,
+                     lean_dir * 5]
+
+        y_cursor = envelope_bot
+        section_tops = []
+        # Pipework runs along ONE side only — `pipe_master_side` picks
+        # the side opposite the lean so the plumbing reads as the
+        # structural counterweight (not random per-cabin).
+        pipe_master_side = -lean_dir
+        for i in range(cabin_count):
+            sh = sec_h
+            bw = widths[i]
+            cx_sec = bcx + x_offsets[i]
+            wall_top = y_cursor - sh
+            if wall_top < bot_rect.y + roof_h + smoke_h:
+                break
+            _draw_howl_cabin(surf, cx_sec, wall_top, y_cursor,
+                             bw // 2, palette,
+                             tilt=tilts[i],
+                             has_rivets=True,
+                             has_pipe=False,  # pipework drawn once below
+                             pipe_side=pipe_master_side)
+            # ONE centred bright window per cabin section (round-9 rule).
+            if sh > 10 and bw > 14:
+                nw = min(bw - 10, 4)
+                nh = min(sh - 8, 4)
+                # The window inherits the cabin's tilt so it doesn't slide
+                # off the wall.
+                w_cx = cx_sec + tilts[i] // 2
+                _lit_niche(surf, w_cx, wall_top + 3, nw, nh, palette)
+            # Recessed entry door at the lowest cabin.
+            if i == 0:
+                _draw_entry_door(surf, cx_sec + tilts[i] // 2,
+                                 y_cursor - 1, palette,
+                                 w=2, h=4, open_glow=door_open)
+            section_tops.append((cx_sec, wall_top, bw, tilts[i]))
+            y_cursor = wall_top - 1
+
+        # Brass pipework — ONE continuous run along the chosen side with
+        # ONE visible elbow at the MIDDLE of the stack (AD round-9 final:
+        # elbow at the second-from-bottom cabin junction reads as
+        # chest-height industrial plumbing; an elbow at the top reads as
+        # a chimney joint). Pipe spans from near the topmost cabin down
+        # to the plinth, with the elbow landing on join 1/2.
+        if len(section_tops) >= 2:
+            top_cx_run, top_wall_run, top_bw_run, _ = section_tops[-1]
+            base_cx_run, base_top_run, base_bw_run, _ = section_tops[0]
+            # Mid-stack target Y for the elbow — the top of the
+            # second-from-bottom cabin (i.e. join 1/2). Fall back to the
+            # bottom-cabin top if the section truncated short.
+            mid_join_idx = min(1, len(section_tops) - 1)
+            mid_elbow_y = section_tops[mid_join_idx][1]
+            # Pipe x-coord — hugs the master side, centred between the
+            # narrowest cabin widths so it stays on the silhouette.
+            min_half = min(widths[i] // 2 for i in range(len(section_tops)))
+            pipe_x = bcx + pipe_master_side * (min_half - 3)
+            brass_pipe = _brass_warm(palette)
+            brass_pipe_d = _shade(brass_pipe, -45)
+            brass_pipe_l = _shade(brass_pipe, 30)
+            # Long upper run from the top cabin chest-height down to just
+            # above the mid-stack elbow. Drawn directly here so the
+            # elbow-helper (which only paints a 6-px upper stub) doesn't
+            # leave a gap between the top cabin and the elbow.
+            upper_top = top_wall_run + 6
+            upper_bot = mid_elbow_y - 1
+            if upper_bot > upper_top:
+                pygame.draw.line(surf, brass_pipe_d,
+                                 (pipe_x, upper_top),
+                                 (pipe_x, upper_bot), 2)
+                pygame.draw.line(surf, brass_pipe,
+                                 (pipe_x, upper_top + 1),
+                                 (pipe_x, upper_bot), 1)
+            # Elbow + lower run via the helper — the helper draws a
+            # 6-px upper stub, the elbow jog, then the lower vertical
+            # run all the way down to `run_bot`.
+            run_bot = envelope_bot - 2
+            _draw_brass_pipework(surf, pipe_x, mid_elbow_y - 6, run_bot,
+                                 palette, side=pipe_master_side)
+
+        # Tilted cone roof on the topmost cabin — angled cap with a cog
+        # wheel motif at the side. The roof base is shifted by the top
+        # cabin's tilt so it sits flush on the cabin's actual top edge
+        # (without this offset the counter-tilt exposes a 1-px sky gap
+        # along one side, making the roof read as a floating object —
+        # AD round-9 final note).
+        if section_tops:
+            top_cx, top_wall_y, top_bw, top_tilt = section_tops[-1]
+            roof_tip_x = top_cx + lean_dir * (top_bw // 4) + top_tilt
+            roof_tip_y = top_wall_y - roof_h
+            roof_pts = [
+                (top_cx - top_bw // 2 - 2 + top_tilt, top_wall_y),
+                (top_cx + top_bw // 2 + 2 + top_tilt, top_wall_y),
+                (roof_tip_x, roof_tip_y),
+            ]
+            pygame.draw.polygon(surf, _shade(iron, -20), roof_pts)
+            inner_roof = [
+                (top_cx - top_bw // 2 + top_tilt, top_wall_y - 1),
+                (top_cx + top_bw // 2 + top_tilt, top_wall_y - 1),
+                (roof_tip_x, roof_tip_y + 2),
+            ]
+            pygame.draw.polygon(surf, iron, inner_roof)
+            # Wood-shingle hatching across the cone — shifted by the
+            # top cabin's tilt so the shingles sit on the actual cone
+            # face, not where the un-tilted base would have been.
+            for k in range(2, top_bw // 2 - 1, 3):
+                pygame.draw.line(surf, iron_lit,
+                                 (top_cx - top_bw // 2 + k + top_tilt,
+                                  top_wall_y - 1),
+                                 (top_cx - top_bw // 2 + k + 1 + top_tilt,
+                                  top_wall_y - 2), 1)
+            # Brass weather-vane finial at the cone tip — small + tilted.
+            pygame.draw.line(surf, brass,
+                             (roof_tip_x, roof_tip_y),
+                             (roof_tip_x + lean_dir, roof_tip_y - 3), 2)
+            pygame.draw.circle(surf, brass,
+                               (roof_tip_x + lean_dir, roof_tip_y - 3), 1)
+            # Cog-wheel motif on the cone side — also tilt-shifted so it
+            # stays on the cone, not floating off the side.
+            cog_x = top_cx + cog_side * (top_bw // 2 - 2) + top_tilt
+            cog_y = top_wall_y - roof_h // 2
+            _draw_cogwheel(surf, cog_x, cog_y, palette, r=3)
+            # Iron smokestack puffing diagonally OFF the topmost cabin
+            # — anchor x follows the tilt so the stack sits on the
+            # cabin's actual top edge.
+            stack_x = top_cx + (-lean_dir) * (top_bw // 3) + top_tilt
+            _draw_smokestack_puff(surf, stack_x, top_wall_y, palette,
+                                  stack_h=12, lean=-lean_dir * 2,
+                                  puff_dir=-lean_dir)
+
+        # Sooty cobblestone curb at base — no foliage for the steampunk read.
+        _draw_cobble_curb(surf, bcx, bot_rect.bottom - plinth_h - 1,
+                          plinth_w - 4, palette)
+        # 2 side shrubs replaced with iron strut-feet — a pair of short
+        # 3-px iron triangles flanking the plinth so the silhouette
+        # reads as mechanical, not natural.
+        for sx in (-1, 1):
+            fx = bcx + sx * (plinth_w // 2 + 2)
+            pygame.draw.polygon(surf, _shade(iron, -25), [
+                (fx - 2, bot_rect.bottom - 1),
+                (fx + 2, bot_rect.bottom - 1),
+                (fx, bot_rect.bottom - 4),
+            ])
+            pygame.draw.rect(surf, brass, (fx, bot_rect.bottom - 3, 1, 1))
+
+    if top_rect.height > 50:
+        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
+                          int(top_rect.width * 2.0), palette)
+        # Hanger anchor — wide iron beam with brass rivets.
+        anchor_h = 7
+        anchor_w = int(top_rect.width * 1.35)
+        pygame.draw.rect(surf, _shade(palette['stone_dark'], -35),
+                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
+        pygame.draw.rect(surf, iron,
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                          anchor_w - 2, anchor_h - 2))
+        pygame.draw.line(surf, iron_lit,
+                         (tcx - anchor_w // 2 + 1, top_rect.y + 1),
+                         (tcx + anchor_w // 2 - 2, top_rect.y + 1), 1)
+        for k in range(4):
+            t = (k + 0.5) / 4
+            rx = tcx - anchor_w // 2 + int(t * anchor_w)
+            pygame.draw.rect(surf, brass, (rx, top_rect.y + 3, 1, 1))
+
+        # Small inverted cabin section hanging from the anchor — tilted
+        # in the opposite direction from the base lean so the hanger
+        # disagrees with the base silhouette (Howl's lopsided look).
+        cab_top = top_rect.y + anchor_h
+        cab_h = min(28, top_rect.height - anchor_h - 14)
+        cab_bw = int(top_rect.width * 0.85)
+        hang_tilt = -lean_dir * 2
+        _draw_howl_cabin(surf, tcx, cab_top, cab_top + cab_h,
+                         cab_bw // 2, palette,
+                         tilt=hang_tilt, has_rivets=True,
+                         has_pipe=True, pipe_side=lean_dir)
+        # ONE centred bright window on the hanger cabin.
+        _lit_niche(surf, tcx + hang_tilt // 2, cab_top + 3, 4, 4, palette)
+
+        # Smokestack on the hanger cabin, puffing UPWARD into the gap —
+        # AD note: the gravity-inversion-via-smoke joke fails to read
+        # because the roof-cone-pointing-down already does the inversion
+        # job. Smoke goes UP, the canonical Howl beat. Stack sits on top
+        # of the hanger cabin (which from the dive-up reads "underneath"
+        # the dome-pointing-down silhouette).
+        stack_anchor_y = cab_top + cab_h - 2
+        sx_stub_top = tcx + lean_dir
+        # Draw the iron stub stack — sits on the cabin BODY top, pointing
+        # away from the player into the gap. Lean follows lean_dir.
+        pygame.draw.polygon(surf, iron, [
+            (tcx - 1, stack_anchor_y),
+            (tcx + 2, stack_anchor_y),
+            (sx_stub_top + 1, stack_anchor_y - 8),
+            (sx_stub_top - 1, stack_anchor_y - 8),
+        ])
+        pygame.draw.line(surf, iron_lit,
+                         (tcx - 1, stack_anchor_y),
+                         (sx_stub_top - 1, stack_anchor_y - 8), 1)
+        # Brass collar at the mouth (faces UP into the gap).
+        pygame.draw.rect(surf, brass,
+                         (sx_stub_top - 2, stack_anchor_y - 9, 5, 1))
+        # Smoke puff drifting UP and sideways — proper canonical Howl
+        # smokestack read with a dark grey core pixel so the cloud
+        # survives DAY palettes.
+        smoke = _smoke_grey(palette)
+        smoke_core = _shade(smoke, -50)
+        for k in range(3):
+            dx = lean_dir * (k + 1)
+            dy = -k - 1
+            r = 3 - (k // 2)
+            sy_p = stack_anchor_y - 11 + dy
+            pygame.draw.circle(surf, _shade(smoke, -25),
+                               (sx_stub_top + dx, sy_p), r)
+            pygame.draw.circle(surf, smoke,
+                               (sx_stub_top + dx, sy_p - 1), max(1, r - 1))
+            pygame.draw.line(surf, smoke_core,
+                             (sx_stub_top + dx, sy_p - 1),
+                             (sx_stub_top + dx, sy_p - 1), 1)
+        # Extra brass pipework along the hanger cabin side — sells the
+        # mechanical density.
+        ext_x = tcx + lean_dir * (cab_bw // 2 - 2)
+        if cab_top + cab_h - 4 > cab_top + 4:
+            _draw_brass_pipework(surf, ext_x, cab_top + 4,
+                                 cab_top + cab_h - 4, palette,
+                                 side=-lean_dir)
+
+
+def candidate_howl_castle(surf, top_rect, bot_rect, palette, seed):
+    _cached_draw('howl_castle', _draw_howl, surf, top_rect, bot_rect,
+                 palette, seed)
+
+
 # ── Registry ────────────────────────────────────────────────────────────────
 #
-# Round 8 — user pointed at Hōryū-ji + Fogong as the round-7 leads and asked
-# for 10 NEW East-Asian-iconic candidates inspired by them. Baselines bookend
-# the new set so the side-by-side comparison stays honest.
+# Round 9 — user added Taipei 101 (Taiwan curtain-wall skyscraper) +
+# 3 anime-tale structures (Spirited Away's Aburaya, Naruto's Hokage
+# Tower, Howl's Moving Castle). The 4 new candidates slot in AFTER the
+# round-8 set and BEFORE the Fogong baseline bookend.
 
 CANDIDATES = {
-    "horyuji":   candidate_horyuji,
-    "toji":      candidate_toji,
-    "daigoji":   candidate_daigoji,
-    "yakushiji": candidate_yakushiji,
-    "sensoji":   candidate_sensoji,
-    "tahoto":    candidate_tahoto,
-    "liuhe":     candidate_liuhe,
-    "baoen":     candidate_baoen,
-    "liaodi":    candidate_liaodi,
-    "dabotap":   candidate_dabotap,
-    "kumbum":    candidate_kumbum,
-    "fogong":    candidate_fogong,
+    "horyuji":      candidate_horyuji,
+    "toji":         candidate_toji,
+    "daigoji":      candidate_daigoji,
+    "yakushiji":    candidate_yakushiji,
+    "sensoji":      candidate_sensoji,
+    "tahoto":       candidate_tahoto,
+    "liuhe":        candidate_liuhe,
+    "baoen":        candidate_baoen,
+    "liaodi":       candidate_liaodi,
+    "dabotap":      candidate_dabotap,
+    "kumbum":       candidate_kumbum,
+    "taipei101":    candidate_taipei101,
+    "aburaya":      candidate_aburaya,
+    "hokage_tower": candidate_hokage_tower,
+    "howl_castle":  candidate_howl_castle,
+    "fogong":       candidate_fogong,
 }
 
 CANDIDATE_BLURBS = {
-    "horyuji":   "Hōryū-ji Tō — cedar columns + plaster panels, bronze sōrin (KEEPER)",
-    "toji":      "Tō-ji — monumental dark cypress + thick deep eaves (Kyoto 1644)",
-    "daigoji":   "Daigo-ji — vermilion lacquer + plaster + 1/3-tower gold sōrin (951)",
-    "yakushiji": "Yakushi-ji — 3-storey + mokoshi skirt roofs → 6-roof silhouette (730)",
-    "sensoji":   "Sensō-ji — vermilion 5-storey + giant red Kaminarimon lantern (Tokyo)",
-    "tahoto":    "Tahōtō — round white-plaster kamebara body, square base + cap (1194)",
-    "liuhe":     "Liuhe — 13-storey brick + dense wooden eaves + iron bells (Hangzhou 1165)",
-    "baoen":     "Bao'en — 9-storey porcelain tower + painted floral panels (Nanjing Ming)",
-    "liaodi":    "Liaodi — slim 11-storey whitewashed brick, severe minimalism (Dingzhou 1055)",
-    "dabotap":   "Dabotap — Silla granite many-treasures pagoda + lotus capitals (Bulguksa 751)",
-    "kumbum":    "Kumbum — Tibetan stupa-mandala + Buddha eyes + 13-ring gold spire (Gyantse 1427)",
-    "fogong":    "Fogong — octagonal larch + dougong brackets + grey-tile curls (KEEPER)",
+    "horyuji":      "Hōryū-ji Tō — cedar columns + plaster panels, bronze sōrin (KEEPER)",
+    "toji":         "Tō-ji — monumental dark cypress + thick deep eaves (Kyoto 1644)",
+    "daigoji":      "Daigo-ji — vermilion lacquer + plaster + 1/3-tower gold sōrin (951)",
+    "yakushiji":    "Yakushi-ji — 3-storey + mokoshi skirt roofs → 6-roof silhouette (730)",
+    "sensoji":      "Sensō-ji — vermilion 5-storey + giant red Kaminarimon lantern (Tokyo)",
+    "tahoto":       "Tahōtō — round white-plaster kamebara body, square base + cap (1194)",
+    "liuhe":        "Liuhe — 13-storey brick + dense wooden eaves + iron bells (Hangzhou 1165)",
+    "baoen":        "Bao'en — 9-storey porcelain tower + painted floral panels (Nanjing Ming)",
+    "liaodi":       "Liaodi — slim 11-storey whitewashed brick, severe minimalism (Dingzhou 1055)",
+    "dabotap":      "Dabotap — Silla granite many-treasures pagoda + lotus capitals (Bulguksa 751)",
+    "kumbum":       "Kumbum — Tibetan stupa-mandala + Buddha eyes + 13-ring gold spire (Gyantse 1427)",
+    "taipei101":    "Taipei 101 — 8 ruyi-cup aqua-glass tiers + gold seams + antenna (Taiwan 2004)",
+    "aburaya":      "Aburaya — maroon clay eaves + cream plaster + chōchin strings (Spirited Away)",
+    "hokage_tower": "Hokage Tower — cylindrical red-brim sections + 火 kanji + red dome (Naruto)",
+    "howl_castle":  "Howl's Castle — asymmetric wood-and-iron cabins + smokestack puff (Howl 2004)",
+    "fogong":       "Fogong — octagonal larch + dougong brackets + grey-tile curls (KEEPER)",
 }

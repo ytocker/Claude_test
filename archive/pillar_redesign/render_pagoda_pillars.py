@@ -1,15 +1,16 @@
-"""Render the round-8 day/night comparison sheet for pagoda pillars.
+"""Render the round-9 day/night comparison sheet for pagoda pillars.
 
-Round 7 polished Hōryū-ji + Fogong as the two leads. Round 8 keeps both as
-baselines and explores 10 NEW East-Asian iconic pagodas inspired by them
-(Tō-ji, Daigo-ji, Yakushi-ji, Sensō-ji vermilion, Tahōtō, Liuhe, Bao'en
-porcelain, Liaodi, Bulguksa Dabotap, Kumbum). Sheet ordering puts the
-baselines as bookends so the side-by-side comparison is honest.
+Round 7 polished Hōryū-ji + Fogong as the two leads. Round 8 added 10 NEW
+East-Asian-iconic pagodas inspired by them. Round 9 widens the brief to
+non-pagoda landmarks: Taipei 101 (curtain-wall skyscraper) + 3 anime tales
+(Spirited Away's Aburaya bathhouse, Naruto's Hokage Tower, Howl's Moving
+Castle). The 4 new rows slot in AFTER round-8 and BEFORE the Fogong
+baseline bookend.
 
 Outputs:
 
-  _comparison_dayNight_v5.png   12 candidates × 5 phases at one shared seed
-                                per row — the formal review sheet.
+  _comparison_dayNight_v5.png   12 candidates × 5 phases (round 8 — kept).
+  _comparison_dayNight_v6.png   16 candidates × 5 phases (round 9).
 
 Each tile is a full 360x640 game-style scene: biome sky + drifting clouds,
 the locked-keeper V4 shan-shui mountains, ground texture, and the pillar
@@ -56,10 +57,15 @@ import pillar_pagoda_variants as pgv
 # so the row-specific hue overlays the standard apron without breaking the
 # day/night biome retint.
 ROW_GROUND_ACCENT = {
-    "daigoji": (148, 80, 50),    # red-clay foreground.
-    "kumbum":  (210, 178, 122),  # warm sand.
-    "liaodi":  (170, 170, 174),  # stone-pebble apron.
-    "tahoto":  (108, 118, 118),  # wet stone (cool desaturated).
+    "daigoji":      (148, 80, 50),    # red-clay foreground.
+    "kumbum":       (210, 178, 122),  # warm sand.
+    "liaodi":       (170, 170, 174),  # stone-pebble apron.
+    "tahoto":       (108, 118, 118),  # wet stone (cool desaturated).
+    # Round-9 ground accents — each anchors its row's archetype.
+    "taipei101":    (160, 162, 168),  # cool urban concrete (desaturated mid-grey).
+    "aburaya":      (118, 122, 118),  # wet stone path — warmer than Tahōtō's.
+    "hokage_tower": (132, 108, 64),   # leaf-litter forest floor (warm umber/green-brown).
+    "howl_castle":  (78, 70, 64),     # sooty cobblestone (warm dark grey).
 }
 
 
@@ -153,7 +159,8 @@ def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
 
 
 def make_day_night_sheet() -> pygame.Surface:
-    """Rows = 12 candidates (baselines bookend new 10), Cols = 5 phases."""
+    """Rows = 16 candidates (baselines bookend round-8 10 + round-9 4),
+    Cols = 5 biome phases."""
     rows = list(pgv.CANDIDATES.keys())
     cols = PHASES
     tw, th = W, H
@@ -169,8 +176,8 @@ def make_day_night_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "Round 8 pagodas — Hōryū-ji + Fogong baselines + 10 East-Asian "
-        "iconic candidates · day → sunrise → sunset → dusk → night",
+        "Round 9 — Hōryū-ji + Fogong baselines + 10 East-Asian pagodas + "
+        "Taipei 101 + 3 anime towers · day → sunrise → sunset → dusk → night",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -219,8 +226,11 @@ def make_day_night_sheet() -> pygame.Surface:
 
 
 def main() -> None:
+    # Round 9 — write the v6 sheet (v5 is preserved on disk as the
+    # round-8 reference so the AD critique can re-check anchor rows
+    # without re-rendering).
     dn_sheet = make_day_night_sheet()
-    dn_path = OUT / "_comparison_dayNight_v5.png"
+    dn_path = OUT / "_comparison_dayNight_v6.png"
     pygame.image.save(dn_sheet, dn_path)
     print(f"wrote {dn_path}  "
           f"({dn_sheet.get_width()}x{dn_sheet.get_height()})")
