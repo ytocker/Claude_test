@@ -3538,21 +3538,21 @@ def _vermilion_shadow(palette):
 
 
 def _bluetile(palette):
-    # Yakushi-ji blue-grey ceramic roof tile — Nara-period blue glaze, a
-    # cool slate biased toward stone_mid so the roof row reads as ceramic
-    # rather than wood.
-    return _mix(palette['stone_mid'], (98, 118, 138), 0.66)
+    # Yakushi-ji bronze-tile glaze — warm dark slate with copper-bronze
+    # bias so the famous bronze-and-cypress mass reads warm at night rather
+    # than cool cement. Anchored in stone_dark, biased to oxidised bronze.
+    return _mix(palette['stone_dark'], (108, 78, 56), 0.74)
 
 
 def _bluetile_lit(palette):
-    return _mix(palette['stone_light'], (158, 178, 198), 0.55)
+    return _mix(palette['stone_mid'], (178, 138, 96), 0.62)
 
 
 def _porcelain_white(palette):
-    # Bao'en porcelain-glaze white — colder + brighter than Hōryū-ji's
-    # plaster so the porcelain tower reads as glassy ceramic. Anchored in
-    # stone_light with a near-white bias.
-    return _mix(palette['stone_light'], (250, 248, 244), 0.78)
+    # Bao'en porcelain-glaze white — colder than Hōryū-ji's plaster, with
+    # a faint cool blue cast so the porcelain tower separates from
+    # Liaodi's bone-white and Kumbum's warm-sand under all phases.
+    return _mix(palette['stone_light'], (232, 240, 248), 0.78)
 
 
 def _porcelain_panel_pink(palette):
@@ -3572,14 +3572,15 @@ def _porcelain_panel_cream(palette):
 
 
 def _whitebrick(palette):
-    # Liaodi whitewashed brick — pale grey-white biased to stone_light so
-    # the slim octagonal tower reads as bleached stone, not glazed
-    # porcelain. A half-stop greyer than _porcelain_white.
-    return _mix(palette['stone_light'], (228, 222, 210), 0.66)
+    # Liaodi whitewashed brick — COOL bone-white biased to stone_light
+    # with a subtle blue-grey cast so the severe minimalism doesn't read
+    # as butter-yellow cardboard. Greyer + cooler than porcelain_white,
+    # warmer than column_grey.
+    return _mix(palette['stone_light'], (220, 224, 226), 0.74)
 
 
 def _whitebrick_shadow(palette):
-    return _mix(palette['stone_mid'], (172, 168, 158), 0.62)
+    return _mix(palette['stone_mid'], (158, 162, 168), 0.66)
 
 
 def _liuhe_ochre(palette):
@@ -3613,9 +3614,10 @@ def _korean_granite_shadow(palette):
 
 
 def _tibet_white(palette):
-    # Kumbum/Tibetan whitewashed lime — warmer than Boudhanath stupa_white
-    # with a faint cream tint so the painted ranges read against it.
-    return _mix(palette['stone_light'], (246, 240, 222), 0.66)
+    # Kumbum/Tibetan whitewashed lime — WARM SAND undertone so Kumbum
+    # separates from Liaodi's cool bone-white under all phases. Cooler
+    # than the round-8 over-saturated beige, warmer than porcelain.
+    return _mix(palette['stone_light'], (240, 222, 192), 0.74)
 
 
 def _tibet_red(palette):
@@ -3701,6 +3703,36 @@ def _draw_painted_panel(surf, x, y, w, h, palette, *, motif='floral'):
         pygame.draw.line(surf, gold, (cxp, y + 1), (cxp, y + h - 2), 1)
 
 
+def _draw_baoen_scroll(surf, cx, y, w, h, palette):
+    """One tall vertical aqua-on-white painted scroll per storey body —
+    replaces the round-8 3-pill frieze that failed (read as UI pills).
+    A single narrow porcelain panel with a faint aqua sumi-e brushstroke
+    motif so the storey body has a centred painted accent without the
+    pill-row dazzle."""
+    if w < 3 or h < 5:
+        return
+    aqua = _porcelain_panel_teal(palette)
+    cream = _porcelain_panel_cream(palette)
+    dark = _shade(palette['stone_dark'], -20)
+    x = cx - w // 2
+    # White panel + dark hairline frame.
+    pygame.draw.rect(surf, cream, (x, y, w, h))
+    pygame.draw.rect(surf, dark, (x, y, w, h), 1)
+    # Centred vertical aqua brushstroke — taper at the ends.
+    mid = x + w // 2
+    pygame.draw.line(surf, aqua, (mid, y + 1), (mid, y + h - 2), 1)
+    if h >= 8:
+        pygame.draw.line(surf, aqua,
+                         (mid - 1, y + h // 3),
+                         (mid + 1, y + h // 3), 1)
+        pygame.draw.line(surf, aqua,
+                         (mid - 1, y + h - h // 3),
+                         (mid + 1, y + h - h // 3), 1)
+    # Tiny gold seal dot at the bottom — the painted-scroll cue.
+    gold = _porcelain_panel_gold(palette)
+    surf.set_at((mid, y + h - 2), gold)
+
+
 def _draw_korean_balustrade(surf, x_l, x_r, y, palette):
     """Dabotap stone balustrade — short row of granite mini-columns capped
     by a flat top rail. Lotus-bud column-caps at the end posts. Reads as
@@ -3725,15 +3757,23 @@ def _draw_korean_balustrade(surf, x_l, x_r, y, palette):
 
 
 def _draw_tibetan_eyes(surf, cx, cy, palette, *, scale=1.0):
-    """Kumbum harmika painted Buddha eyes — same glyph as Boudhanath but
-    sat on a square white stupa cube rather than a hemispherical anda.
-    Same primitive as `_buddha_eye` paired."""
-    _buddha_eye(surf, cx - int(4 * scale), cy, palette, scale=scale)
-    _buddha_eye(surf, cx + int(4 * scale), cy, palette, scale=scale)
-    # Tibetan nose-glyph between eyes (omitted ūrṇā dot — the Tibetan
-    # variant is simpler than the Nepali Boudhanath glyph).
+    """Kumbum harmika painted Buddha eyes — SIMPLE 2-dot read at the
+    PIPE_W=58 scale. The round-8 _buddha_eye almond shape collapsed to a
+    horizontal hatched smudge bar; this draws two clean black dots ~2 px
+    apart with a tiny urna between them so the eyes are immediately
+    legible. White is sourced from palette stone_light."""
     dark = palette['stone_dark']
-    pygame.draw.line(surf, dark, (cx, cy + 1), (cx, cy + int(3 * scale)), 1)
+    white = _shade(palette['stone_light'], 12)
+    sep = max(3, int(4 * scale))
+    dot_r = max(1, int(1.6 * scale))
+    # Faint white eye-pad behind each dot so the iris reads on the harmika.
+    pygame.draw.circle(surf, white, (cx - sep, cy), dot_r + 1)
+    pygame.draw.circle(surf, white, (cx + sep, cy), dot_r + 1)
+    # Two black iris dots — the unambiguous "Buddha eyes" glyph.
+    pygame.draw.circle(surf, dark, (cx - sep, cy), dot_r)
+    pygame.draw.circle(surf, dark, (cx + sep, cy), dot_r)
+    # Tiny urna dot between/above eyes.
+    pygame.draw.circle(surf, dark, (cx, cy - max(1, int(2 * scale))), 1)
 
 
 def _draw_korean_stair(surf, cx, base_y, palette, *, w=10, h=6):
@@ -3758,10 +3798,21 @@ def _draw_tahoto_dome(surf, cx, base_y, dome_h, body_w, palette):
     """Tahōtō kamebara — hemispherical white-plaster cylinder body. Drawn
     as a stacked: 1) lower square base 2) round dome (cylinder) 3) upper
     square section. Returns the y-coordinate of the dome top so the
-    caller can place the upper square + sōrin above it."""
+    caller can place the upper square + sōrin above it. Adds a dark eave
+    horizontal at the dome shoulder + a vertical seam down the centre
+    so the round body isn't a perfectly elliptical marshmallow."""
     plaster = _white_plaster_warm(palette)
     plaster_lit = _shade(plaster, 22)
     plaster_shadow = _shade(plaster, -28)
+    # Dark eave horizontal AT the dome shoulder — sits at the base seam
+    # between square base + round body. Reads as the wood frieze that
+    # actually wraps the kamebara on real Tahōtō.
+    eave = _shade(palette['stone_dark'], -10)
+    pygame.draw.rect(surf, eave,
+                     (cx - body_w // 2 - 2, base_y - 2, body_w + 4, 3))
+    pygame.draw.line(surf, _shade(eave, -25),
+                     (cx - body_w // 2 - 2, base_y + 1),
+                     (cx + body_w // 2 + 1, base_y + 1), 1)
     # Hemispherical dome.
     dome_rect = pygame.Rect(cx - body_w // 2, base_y - dome_h,
                             body_w, dome_h * 2)
@@ -3774,6 +3825,15 @@ def _draw_tahoto_dome(surf, cx, base_y, dome_h, body_w, palette):
     # Flatten bottom.
     pygame.draw.rect(surf, plaster,
                      (cx - body_w // 2, base_y - 1, body_w, 2))
+    # Vertical seam down the centre + faint door slit — breaks the dome
+    # from a featureless egg and reads as the kamebara's lapped boarding.
+    pygame.draw.line(surf, plaster_shadow,
+                     (cx, base_y - dome_h + 2),
+                     (cx, base_y - 2), 1)
+    # Door slit at the lower-centre.
+    slit_h = max(4, dome_h // 3)
+    pygame.draw.rect(surf, _shade(palette['stone_dark'], -25),
+                     (cx - 1, base_y - slit_h - 1, 2, slit_h))
     # AA outer arc.
     arc_pts = []
     for k in range(13):
@@ -3802,6 +3862,10 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     cypress_shadow = _toji_cypress_shadow(palette)
     plaster = _plaster(palette)
     plaster_shadow = _shade(plaster, -25)
+    # Paper-white shoji aperture — much brighter than _plaster so the window
+    # stays visible on Tō-ji's dark cypress at day. Warming sky pre-lights
+    # the panel from sunset onward so the window doesn't pop on a frame.
+    shoji = _mix(palette['stone_light'], (250, 248, 236), 0.86)
     accent = _bronze(palette)
     tile_col = _shade(palette['stone_dark'], -25)
 
@@ -3852,11 +3916,31 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
             pygame.draw.line(surf, cypress_lit,
                              (x_l + 3, wall_top + th // 2),
                              (x_l + bw - 4, wall_top + th // 2), 1)
-        # ONE centred niche per storey.
+        # ONE centred paper-shoji panel per storey — Tō-ji's dark cypress
+        # face is too brown-on-brown without the white aperture. Day reads
+        # as a bright paper rectangle; sunset onward swaps to the warm lit
+        # niche so it becomes a window-glow lantern.
         if th > 9 and bw > 14:
             nh = min(7, th - 5)
             nw = min(6, bw - 10)
-            _lit_niche(surf, cx, wall_top + 2, nw, nh, palette)
+            if _is_dark_sky(palette) or _is_warming_sky(palette):
+                _lit_niche(surf, cx, wall_top + 2, nw, nh, palette)
+            else:
+                # Paper shoji on day — 1-px shadow frame + bright fill so
+                # the window aperture stays legible against cypress brown.
+                pygame.draw.rect(surf, cypress_shadow,
+                                 (cx - nw // 2 - 1, wall_top + 1,
+                                  nw + 2, nh + 2))
+                pygame.draw.rect(surf, shoji,
+                                 (cx - nw // 2, wall_top + 2, nw, nh))
+                # Faint cross-mullion so it reads as a paper screen, not a
+                # flat sticker.
+                pygame.draw.line(surf, _shade(shoji, -45),
+                                 (cx - nw // 2, wall_top + 2 + nh // 2),
+                                 (cx + nw // 2 - 1, wall_top + 2 + nh // 2), 1)
+                pygame.draw.line(surf, _shade(shoji, -45),
+                                 (cx, wall_top + 2),
+                                 (cx, wall_top + 2 + nh - 1), 1)
         # Recessed entry door at the lowest storey.
         if i == 0 and draw_entry_door and bw >= 14 and th >= 12:
             _draw_entry_door(surf, cx, wall_top + th - 1, palette,
@@ -4073,17 +4157,39 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
             pygame.draw.rect(surf, vermilion, (cx - 1, wall_top, 2, th))
             pygame.draw.line(surf, vermilion_lit,
                              (cx, wall_top), (cx, wall_top + th - 1), 1)
-        # Nageshi rails — twin horizontal plaster shadow lines.
-        if th > 12:
-            for frac in (1 / 3, 2 / 3):
-                rail_y = wall_top + int(th * frac)
-                pygame.draw.line(surf, plaster_shadow,
-                                 (x_l + 3, rail_y),
-                                 (x_l + bw - 4, rail_y), 1)
-        # Niche.
+        # Vermilion lintel band — horizontal painted beam under the eave
+        # so the plaster panel isn't an empty rectangle. Twin plaster rails
+        # below provide the nageshi cue.
+        if th > 8:
+            lintel_y = wall_top + max(2, th // 4)
+            pygame.draw.rect(surf, vermilion_shadow,
+                             (x_l + 3, lintel_y, bw - 6, 2))
+            pygame.draw.line(surf, vermilion_lit,
+                             (x_l + 3, lintel_y), (x_l + bw - 4, lintel_y), 1)
+        if th > 14:
+            rail_y = wall_top + int(th * 2 / 3)
+            pygame.draw.line(surf, plaster_shadow,
+                             (x_l + 3, rail_y),
+                             (x_l + bw - 4, rail_y), 1)
+        # ONE centred lit window per storey (cross-row unification rule) —
+        # bright at night/dusk, dark door slit at day so the plaster panel
+        # isn't pure white at night.
         if th > 9 and bw > 12:
-            _lit_niche(surf, cx, wall_top + 3,
-                       min(6, bw - 10), min(6, th - 6), palette)
+            nw = min(6, bw - 10)
+            nh = min(6, th - 6)
+            if _is_dark_sky(palette) or _is_warming_sky(palette):
+                _lit_niche(surf, cx, wall_top + 3, nw, nh, palette)
+            else:
+                # Dark vermilion door slit at day — narrow vertical band so
+                # the centre panel isn't featureless white.
+                slit_w = max(2, nw // 2)
+                slit_h = nh
+                pygame.draw.rect(surf, vermilion_shadow,
+                                 (cx - slit_w // 2, wall_top + 3,
+                                  slit_w, slit_h))
+                pygame.draw.line(surf, _shade(plaster, -55),
+                                 (cx - slit_w // 2, wall_top + 3),
+                                 (cx + slit_w // 2 - 1, wall_top + 3), 1)
         if i == 0 and draw_entry_door and bw >= 12 and th >= 12:
             _draw_entry_door(surf, cx, wall_top + th - 1, palette,
                              w=2, h=4, open_glow=entry_door_open)
@@ -4235,7 +4341,7 @@ def candidate_daigoji(surf, top_rect, bot_rect, palette, seed):
 # Reference: https://en.wikipedia.org/wiki/Yakushi-ji
 
 def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
-                       tier_count=3, finial_h=40, sorin_up=True,
+                       tier_count=4, finial_h=40, sorin_up=True,
                        entry_door_open=False, draw_entry_door=True):
     cedar = _cedar(palette)
     plaster = _plaster(palette)
@@ -4248,15 +4354,15 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     total_h = bot_y - top_y
     if total_h < 12:
         return
-    # 3 tall storeys — each storey owns ~28% of height; mokoshi pents eat
-    # the remainder. Bottom storey widest.
-    weights = [1.0, 0.85, 0.72]
+    # 4 strong shelf-and-body alternations — the round-8 mokoshi conceit
+    # collapsed to 6 grey shelves at PIPE_W=58. Dropping mokoshi and
+    # committing to 4 alternations gives a legible bronze-eave cadence.
+    weights = [1.0, 0.88, 0.78, 0.68]
     wsum = sum(weights)
-    tier_heights = [max(10, int(total_h * 0.78 * w / wsum)) for w in weights]
+    tier_heights = [max(10, int(total_h * w / wsum)) for w in weights]
     body_widths = [max(14, int(base_w * (0.93 ** i)))
                    for i in range(tier_count)]
-    # Mokoshi heights — short pents between full storeys.
-    mokoshi_h = max(4, int(total_h * 0.22 / max(1, tier_count - 1)))
+    mokoshi_h = 0  # Mokoshi disabled — keeps the 4 shelves crisp at scale.
 
     y_cursor = bot_y
     tier_tops = []
@@ -4286,12 +4392,11 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                 pygame.draw.line(surf, plaster_shadow,
                                  (x_l + 2, rail_y),
                                  (x_l + bw - 3, rail_y), 1)
-        # 2 niches per tall Yakushi-ji storey — two tall windows per face.
+        # ONE centred lit window per storey (cross-row unification rule).
         if th > 13 and bw > 18:
-            nw = min(4, bw // 6)
+            nw = min(5, bw // 5)
             nh = min(7, th - 7)
-            _lit_niche(surf, cx - bw // 4, wall_top + 3, nw, nh, palette)
-            _lit_niche(surf, cx + bw // 4, wall_top + 3, nw, nh, palette)
+            _lit_niche(surf, cx, wall_top + 3, nw, nh, palette)
         if i == 0 and draw_entry_door and bw >= 14 and th >= 12:
             _draw_entry_door(surf, cx, wall_top + th - 1, palette,
                              w=2, h=4, open_glow=entry_door_open)
@@ -4311,14 +4416,6 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
             _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                palette, side=-1)
         y_cursor = wall_top - depth + 1
-
-        # Mokoshi pent roof BELOW the main eave on every storey EXCEPT the
-        # top — this gives Yakushi-ji its signature alternating tall/short
-        # silhouette where each "storey" reads as 2 roofs from below.
-        if not is_top_tier:
-            mokoshi_y = wall_top + th - mokoshi_h - 1
-            _draw_mokoshi_pent(surf, cx, mokoshi_y, bw // 2 - 2, palette,
-                               depth=mokoshi_h)
 
     if not tier_tops:
         return
@@ -4392,7 +4489,7 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
         _draw_yakushiji_to(surf, bcx,
                            envelope_top + finial_h, envelope_bot,
                            int(bot_rect.width * 0.94), palette,
-                           tier_count=3, finial_h=finial_h,
+                           tier_count=4, finial_h=finial_h,
                            sorin_up=True, entry_door_open=entry_open)
 
         body_half = int(bot_rect.width * 0.94) // 2
@@ -4424,20 +4521,44 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, _column_grey(palette),
                          (tcx - plinth_w // 2 + 1, top_rect.y + 1,
                           plinth_w - 2, plinth_h - 2))
-        # Single hanging mokoshi pent roof — Yakushi-ji's mokoshi DNA
-        # carried as a hanging ornament beneath the ceiling anchor.
-        moko_y = top_rect.y + plinth_h + 6
-        _draw_mokoshi_pent(surf, tcx, moko_y, int(top_rect.width * 0.4),
-                           palette, depth=4)
-        # Mini-spire hanging from under the mokoshi pent.
-        finial_h = 24
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        _draw_yakushiji_to(surf, tcx,
-                           envelope_top + 14, envelope_bot,
-                           int(top_rect.width * 0.84), palette,
-                           tier_count=2, finial_h=finial_h - 4,
-                           sorin_up=False, draw_entry_door=False)
+        # Reserve the upper ~30 px for Yakushi-ji's signature suien (water-
+        # vase) crown so the player diving up reads "Yakushi-ji" not "grey
+        # box". The crown hangs immediately under the ceiling anchor.
+        accent = _bronze(palette)
+        dark_pal = palette['stone_dark']
+        bright = _shade(accent, 45)
+        crown_top = top_rect.y + plinth_h + 2
+        crown_tip = crown_top + 20  # Suien hangs DOWN from anchor.
+        # Bronze needle + flame disks pointing down.
+        pygame.draw.line(surf, dark_pal,
+                         (tcx, crown_top + 2), (tcx, crown_tip - 6), 2)
+        pygame.draw.line(surf, accent,
+                         (tcx + 1, crown_top + 2), (tcx + 1, crown_tip - 6), 1)
+        for k in range(5):
+            t = k / 4
+            ry = crown_top + 4 + int(t * 12)
+            rw = max(2, 5 - k)
+            pygame.draw.ellipse(surf, dark_pal,
+                                (tcx - rw - 1, ry - 1, rw * 2 + 2, 3))
+            pygame.draw.ellipse(surf, accent,
+                                (tcx - rw, ry, rw * 2, 2))
+        # Inverted suien (water-flame) — the canonical Yakushi-ji silhouette.
+        suien = [(tcx, crown_tip),
+                 (tcx - 4, crown_tip - 4),
+                 (tcx - 2, crown_tip - 7),
+                 (tcx + 2, crown_tip - 7),
+                 (tcx + 4, crown_tip - 4)]
+        pygame.draw.polygon(surf, bright, suien)
+        pygame.draw.lines(surf, accent, True, suien, 1)
+        # Then the short hanging body BELOW the crown.
+        envelope_top = crown_tip + 4
+        envelope_bot = top_rect.bottom - 4
+        if envelope_bot - envelope_top > 30:
+            _draw_yakushiji_to(surf, tcx,
+                               envelope_top, envelope_bot,
+                               int(top_rect.width * 0.84), palette,
+                               tier_count=2, finial_h=10,
+                               sorin_up=False, draw_entry_door=False)
         for off in (-8, 8):
             draw_moss_strand(surf, tcx + off, envelope_bot,
                              6 + abs(off) % 3, palette,
@@ -4457,13 +4578,11 @@ def candidate_yakushiji(surf, top_rect, bot_rect, palette, seed):
 # Reference: https://en.wikipedia.org/wiki/Sens%C5%8D-ji
 
 def _draw_sensoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
-                    tier_count=5, finial_h=34, sorin_up=True,
+                    tier_count=4, finial_h=34, sorin_up=True,
                     entry_door_open=False, draw_entry_door=True):
     vermilion = _vermilion(palette)
     vermilion_lit = _vermilion_lit(palette)
     vermilion_shadow = _vermilion_shadow(palette)
-    plaster = _plaster(palette)
-    plaster_shadow = _shade(plaster, -25)
     gold = _gold_bright(palette)
     accent = _bronze(palette)
     tile_col = _shade(palette['stone_dark'], -15)
@@ -4471,6 +4590,9 @@ def _draw_sensoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     total_h = bot_y - top_y
     if total_h < 10:
         return
+    # Plain vermilion 4-storey body — no white plaster panel, no white-
+    # ellipse niches. The lantern is the identity beat; the body is the
+    # backdrop. Eaves still flag silhouette.
     weights = [1.0 - 0.06 * i for i in range(tier_count)]
     wsum = sum(weights)
     tier_heights = [max(8, int(total_h * w / wsum)) for w in weights]
@@ -4487,31 +4609,26 @@ def _draw_sensoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
             break
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
-        # Vermilion-dominant wall (Sensō-ji has more red than Daigo-ji's
-        # plaster-dominant face).
+        # Plain vermilion wall — gradient body so the lacquer reads as 3-D
+        # not a flat red sticker.
         body_rect = pygame.Rect(x_l, wall_top, bw, th)
         _gradient_rect(surf, body_rect, vermilion_lit, vermilion,
                        vermilion_shadow)
-        # White plaster panel between thick vermilion posts — narrow.
-        if bw > 14 and th > 4:
-            pp_w = max(4, bw - 12)
-            pp_rect = pygame.Rect(cx - pp_w // 2, wall_top + 2, pp_w, th - 4)
-            _gradient_rect(surf, pp_rect,
-                           _shade(plaster, 18), plaster, plaster_shadow)
-        # Heavy vermilion posts.
+        # Heavy vermilion side posts — 4 px (heavier than Daigo-ji's 3).
         for px in (x_l, x_l + bw - 4):
             pygame.draw.rect(surf, vermilion_shadow, (px, wall_top, 4, th))
             pygame.draw.line(surf, vermilion_lit,
                              (px, wall_top), (px, wall_top + th - 1), 1)
-        # Gold horizontal trim — bright gold mid-beam (Sensō-ji has visible
-        # gilded brackets).
+        # Gold horizontal trim — visible gilded mid-beam.
         if th > 9:
             beam_y = wall_top + th // 2
             pygame.draw.line(surf, gold,
                              (x_l + 4, beam_y), (x_l + bw - 5, beam_y), 1)
-        if th > 9 and bw > 12:
-            _lit_niche(surf, cx, wall_top + 3,
-                       min(5, bw - 14), min(5, th - 5), palette)
+        # Faint dark vertical centre seam — splits the face into two panels
+        # so the vermilion body has scaffolding without an ellipse.
+        if bw > 18 and th > 7:
+            pygame.draw.line(surf, vermilion_shadow,
+                             (cx, wall_top + 1), (cx, wall_top + th - 2), 1)
         if i == 0 and draw_entry_door and bw >= 12 and th >= 12:
             _draw_entry_door(surf, cx, wall_top + th - 1, palette,
                              w=2, h=4, open_glow=entry_door_open)
@@ -4566,22 +4683,23 @@ def _draw_sensoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     pygame.draw.circle(surf, bright, (cx, tip_y), 2)
 
 
-def _draw_giant_lantern(surf, cx, top_y, palette):
-    """Big Kaminarimon-style red paper lantern with a gold calligraphy
-    band — sized so it reads as the identity beat at PIPE_W=58. Body
-    ~18 px wide × 26 px tall. Drawn with a 3-stop gradient + gold rim
-    bands + an additive amber halo at night."""
+def _draw_giant_lantern(surf, cx, top_y, palette, *,
+                        lw=36, lh=92):
+    """GIANT Kaminarimon chuchin red cylinder + black kanji tablet —
+    sized so the lantern IS the silhouette at PIPE_W=58 (32-40 px wide
+    × 80-100 px tall by default). Horizontal bamboo ribs across the
+    cylinder, gold top + bottom rims, additive amber halo at night.
+    `top_y` is the suspension anchor; the body hangs immediately under."""
     red_d = _vermilion_shadow(palette)
     red = _vermilion(palette)
     red_lit = _vermilion_lit(palette)
     gold = _gold_bright(palette)
     dark = palette['stone_dark']
-    # 1-px suspension strand.
-    pygame.draw.line(surf, dark, (cx, top_y), (cx, top_y + 4), 1)
-    # Lantern body — barrel ellipse.
-    lw, lh = 20, 28
-    cy = top_y + 4 + lh // 2
-    body = pygame.Rect(cx - lw // 2, top_y + 4, lw, lh)
+    # 1-px suspension strand from the anchor down to the lantern crown.
+    pygame.draw.line(surf, dark, (cx, top_y), (cx, top_y + 3), 1)
+    # Lantern body — barrel ellipse anchored under the strand.
+    cy = top_y + 3 + lh // 2
+    body = pygame.Rect(cx - lw // 2, top_y + 3, lw, lh)
     pygame.draw.ellipse(surf, dark, body)
     pygame.draw.ellipse(surf, red_d, body.inflate(-2, -2))
     # Vertical lit gradient — left side lit, right side darker.
@@ -4597,43 +4715,78 @@ def _draw_giant_lantern(surf, cx, top_y, palette):
             txc = (col_x - cx) / (lw / 2)
             if txc * txc + tt * tt < 0.95:
                 surf.set_at((col_x, row_y), col)
-    # Gold top + bottom rim bands.
-    pygame.draw.rect(surf, gold, (cx - lw // 2 + 1, top_y + 4, lw - 2, 3))
-    pygame.draw.rect(surf, gold, (cx - lw // 2 + 1, top_y + 4 + lh - 4, lw - 2, 3))
-    # Calligraphy panel — black band across the middle with a gold rim.
-    band_y = cy - 4
-    pygame.draw.rect(surf, dark, (cx - lw // 2 + 3, band_y, lw - 6, 9))
-    pygame.draw.rect(surf, gold, (cx - lw // 2 + 3, band_y, lw - 6, 9), 1)
-    # Stylised gold kanji glyph in the band — 3 horizontal strokes.
-    for k, ky in enumerate((band_y + 2, band_y + 4, band_y + 7)):
-        pygame.draw.line(surf, gold,
-                         (cx - 4, ky), (cx + 4, ky), 1)
-    pygame.draw.line(surf, gold, (cx, band_y + 1), (cx, band_y + 7), 1)
-    # Additive halo around the lantern on dark skies.
+    # Black bamboo rib hoops — horizontal pinstripes spanning the cylinder.
+    # Spaced so the chuchin reads as ribbed paper, not a smooth bulb.
+    rib_step = max(3, lh // 12)
+    for ry in range(body.y + 5, body.bottom - 4, rib_step):
+        # Clip ribs to the elliptical envelope.
+        tt = (ry - cy) / (lh / 2)
+        half = (lw / 2) * math.sqrt(max(0.0, 1.0 - tt * tt))
+        if half < 2:
+            continue
+        pygame.draw.line(surf, dark,
+                         (int(cx - half + 1), ry),
+                         (int(cx + half - 1), ry), 1)
+    # Gold top + bottom rim bands — the chuchin's brass collars.
+    rim_top_h = max(3, lh // 16)
+    rim_bot_h = max(4, lh // 12)
+    pygame.draw.rect(surf, gold,
+                     (cx - lw // 2 + 2, body.y, lw - 4, rim_top_h))
+    pygame.draw.line(surf, dark,
+                     (cx - lw // 2 + 2, body.y + rim_top_h),
+                     (cx + lw // 2 - 3, body.y + rim_top_h), 1)
+    pygame.draw.rect(surf, gold,
+                     (cx - lw // 2 + 2, body.bottom - rim_bot_h,
+                      lw - 4, rim_bot_h))
+    pygame.draw.line(surf, dark,
+                     (cx - lw // 2 + 2, body.bottom - rim_bot_h - 1),
+                     (cx + lw // 2 - 3, body.bottom - rim_bot_h - 1), 1)
+    # KANJI tablet — black-painted name-plate centred across the cylinder
+    # waist. Bigger than before so the calligraphy is legible.
+    band_w = max(14, lw - 10)
+    band_h = max(18, lh // 4)
+    band_x = cx - band_w // 2
+    band_y = cy - band_h // 2
+    pygame.draw.rect(surf, dark, (band_x, band_y, band_w, band_h))
+    pygame.draw.rect(surf, gold, (band_x, band_y, band_w, band_h), 1)
+    # Stylised gold kanji — 3 horizontal strokes + a vertical descender so
+    # the tablet reads as a name plate even at scale.
+    inner_x = band_x + 2
+    inner_r = band_x + band_w - 3
+    s1 = band_y + max(2, band_h // 5)
+    s2 = band_y + band_h // 2
+    s3 = band_y + band_h - max(3, band_h // 4)
+    for sy in (s1, s2, s3):
+        pygame.draw.line(surf, gold, (inner_x, sy), (inner_r, sy), 1)
+    pygame.draw.line(surf, gold, (cx, s1), (cx, s3), 1)
+    pygame.draw.line(surf, gold,
+                     (inner_x + 2, s2 + (s3 - s2) // 2),
+                     (inner_r - 2, s2 + (s3 - s2) // 2), 1)
+    # Additive halo around the lantern on dark skies — sized to the body.
     if _is_dark_sky(palette) or _is_warming_sky(palette):
-        sz = 36
+        sz = lw + 20
         g = pygame.Surface((sz, sz), pygame.SRCALPHA)
         warm = (255, 180, 100)
         if _is_dark_sky(palette):
-            pygame.draw.circle(g, (*warm, 50), (sz // 2, sz // 2), 16)
-            pygame.draw.circle(g, (*warm, 100), (sz // 2, sz // 2), 10)
-            pygame.draw.circle(g, (*warm, 160), (sz // 2, sz // 2), 5)
+            pygame.draw.circle(g, (*warm, 50), (sz // 2, sz // 2), sz // 2 - 1)
+            pygame.draw.circle(g, (*warm, 100), (sz // 2, sz // 2), sz // 3)
+            pygame.draw.circle(g, (*warm, 160), (sz // 2, sz // 2), sz // 5)
         else:
-            pygame.draw.circle(g, (*warm, 70), (sz // 2, sz // 2), 10)
-            pygame.draw.circle(g, (*warm, 120), (sz // 2, sz // 2), 5)
+            pygame.draw.circle(g, (*warm, 70), (sz // 2, sz // 2), sz // 3)
+            pygame.draw.circle(g, (*warm, 120), (sz // 2, sz // 2), sz // 6)
         surf.blit(g, (cx - sz // 2, cy - sz // 2),
                   special_flags=pygame.BLEND_RGBA_ADD)
-    # Tassel.
+    # Tassel + brass cap dangling under the lantern.
     pygame.draw.line(surf, gold, (cx, body.bottom - 1),
-                     (cx, body.bottom + 4), 2)
-    pygame.draw.circle(surf, gold, (cx, body.bottom + 5), 2)
+                     (cx, body.bottom + 5), 2)
+    pygame.draw.circle(surf, gold, (cx, body.bottom + 6), 2)
 
 
 def _draw_sensoji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = rng.choice([5, 5])
+    tier_count = rng.choice([4, 4])
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
@@ -4655,14 +4808,22 @@ def _draw_sensoji(surf, top_rect, bot_rect, palette, seed):
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
-        finial_h = 36
+        finial_h = 24
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        # Body sits BEHIND the lantern; the lantern fills the front half of
+        # the visible body and is the identity beat.
         _draw_sensoji_to(surf, bcx,
                          envelope_top + finial_h, envelope_bot,
                          int(bot_rect.width * 0.94), palette,
                          tier_count=tier_count, finial_h=finial_h,
                          sorin_up=True, entry_door_open=entry_open)
+        # GIANT Kaminarimon lantern hanging in front of the body — sized
+        # ~36 px wide × ~92 px tall so it dominates the silhouette.
+        lantern_anchor_y = envelope_top + finial_h + 4
+        lantern_h = max(60, min(100, envelope_bot - lantern_anchor_y - 24))
+        _draw_giant_lantern(surf, bcx, lantern_anchor_y, palette,
+                            lw=36, lh=lantern_h)
 
         body_half = int(bot_rect.width * 0.94) // 2
         vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
@@ -4995,10 +5156,18 @@ def _draw_liuhe(surf, top_rect, bot_rect, palette, seed):
                     pygame.draw.line(surf, ochre_shadow,
                                      (x_l + 1, wall_top + k * 2),
                                      (x_l + bw - 2, wall_top + k * 2), 1)
-            # Niche only on every other storey since 13 niches would be noise.
-            if i % 2 == 0 and th > 5 and bw > 14:
-                _lit_niche(surf, bcx, wall_top + 1,
-                           min(4, bw // 6), min(3, th - 2), palette)
+            # ONE centred lit window per storey — bright at night/dusk,
+            # dark door slit at day. Niches replace the dot-row that
+            # collapsed at PIPE_W=58.
+            if th > 4 and bw > 14:
+                nw = min(3, bw // 8)
+                nh = max(2, min(3, th - 2))
+                if _is_dark_sky(palette) or _is_warming_sky(palette):
+                    _lit_niche(surf, bcx, wall_top + 1, nw, nh, palette)
+                else:
+                    pygame.draw.rect(surf, ochre_shadow,
+                                     (bcx - nw // 2, wall_top + 1,
+                                      nw, nh))
             if i == 0 and bw >= 14 and th >= 8:
                 _draw_entry_door(surf, bcx, wall_top + th - 1, palette,
                                  w=2, h=4, open_glow=entry_open)
@@ -5011,16 +5180,21 @@ def _draw_liuhe(surf, top_rect, bot_rect, palette, seed):
                             fringe=True, fringe_col=fringe_col,
                             drop_shadow=True,
                             skip_corner_hook=is_top_tier)
-            # Tiny iron-bell hanging from each eave tip — Liuhe has 104.
-            # Render only on every 2nd storey so the silhouette isn't busy.
+            # Tiny iron-bell hanging from eave tips — Liuhe has 104. Bells
+            # ALTERNATE left/right per storey, with the starting side
+            # toggled by seed parity so adjacent Liuhe pillars aren't
+            # pixel-identical bunting. Drawn 2 px taller for legibility.
             if i % 2 == 0:
                 half_outer = bw // 2 + overhang
-                bell_y = wall_top + 2
-                for sign in (-1, 1):
-                    bx = bcx + sign * (half_outer - 2)
-                    pygame.draw.line(surf, _shade(accent, -25),
-                                     (bx, bell_y), (bx, bell_y + 2), 1)
-                    pygame.draw.circle(surf, accent, (bx, bell_y + 3), 1)
+                bell_y = wall_top + 1
+                start_side = -1 if (seed % 2 == 0) else 1
+                bell_sign = start_side if (i // 2) % 2 == 0 else -start_side
+                bx = bcx + bell_sign * (half_outer - 2)
+                pygame.draw.line(surf, _shade(accent, -25),
+                                 (bx, bell_y), (bx, bell_y + 3), 1)
+                pygame.draw.circle(surf, accent, (bx, bell_y + 4), 2)
+                pygame.draw.circle(surf, _shade(accent, 35),
+                                   (bx - 1, bell_y + 3), 1)
             y_cursor = wall_top - depth + 1
 
         # Bronze finial — short.
@@ -5146,9 +5320,6 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
         body_widths = [max(12, int(bot_rect.width * (0.94 ** i)))
                        for i in range(tier_count)]
 
-        # Choose the panel motif row palette — alternating per storey.
-        motifs = ['floral', 'lattice', 'bodhi']
-
         y_cursor = envelope_bot
         tier_tops = []
         for i in range(tier_count):
@@ -5164,23 +5335,28 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
             # slightly cooler) so the glaze reads as glossy ceramic.
             _gradient_rect(surf, body_rect, white_lit, white, white_shadow,
                            vertical=True)
-            # Painted-panel frieze across the centre of each storey — the
-            # IDENTITY beat. 3 small porcelain panels with floral/lattice/
-            # bodhi motifs.
-            if bw >= 24 and th >= 9:
-                panel_h = min(6, th - 3)
-                panel_w = max(4, (bw - 8) // 3 - 1)
-                panel_y = wall_top + (th - panel_h) // 2
-                motif = motifs[i % len(motifs)]
-                for k in range(3):
-                    panel_x = x_l + 4 + k * (panel_w + 1)
-                    _draw_painted_panel(surf, panel_x, panel_y,
-                                        panel_w, panel_h, palette,
-                                        motif=motif)
-            # Tiny niche under the panel row.
-            if th > 11 and bw > 14:
-                _lit_niche(surf, bcx, wall_top + th - 4,
-                           min(4, bw // 6), 3, palette)
+            # ONE tall vertical aqua-on-white scroll per storey body — the
+            # round-8 3-pill panel row read as UI pills. A single narrow
+            # painted scroll keeps the porcelain identity without dazzle.
+            if bw >= 18 and th >= 8:
+                scroll_w = max(4, bw // 5)
+                scroll_h = min(th - 2, max(6, th - 3))
+                scroll_y = wall_top + (th - scroll_h) // 2
+                _draw_baoen_scroll(surf, bcx, scroll_y,
+                                   scroll_w, scroll_h, palette)
+            # ONE centred lit window per storey (cross-row unification) —
+            # bright at night, dark slit at day. Sits beside the scroll.
+            if th > 8 and bw > 18:
+                nw = max(2, bw // 8)
+                nh = min(4, th - 4)
+                # Window offset to the right of the scroll so they coexist.
+                win_x = bcx + bw // 4
+                if _is_dark_sky(palette) or _is_warming_sky(palette):
+                    _lit_niche(surf, win_x, wall_top + 2, nw, nh, palette)
+                else:
+                    pygame.draw.rect(surf, _shade(white, -45),
+                                     (win_x - nw // 2, wall_top + 2,
+                                      nw, nh))
             if i == 0 and bw >= 14 and th >= 10:
                 _draw_entry_door(surf, bcx, wall_top + th - 1, palette,
                                  w=2, h=4, open_glow=entry_open)
@@ -5273,13 +5449,13 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
             body_rect = pygame.Rect(x_l, wall_top, bw, th_each - 4)
             _gradient_rect(surf, body_rect, white_lit, white, white_shadow,
                            vertical=True)
-            # Smaller floral panel.
-            if bw >= 18:
-                pw = (bw - 6) // 3
-                py = wall_top + (th_each - 4) // 2 - 2
-                for m, motif in enumerate(('floral', 'lattice', 'bodhi')):
-                    _draw_painted_panel(surf, x_l + 3 + m * (pw + 1),
-                                        py, pw, 5, palette, motif=motif)
+            # Single mini scroll on each hanger storey body so the
+            # hanger reads as Bao'en, not as a generic porcelain block.
+            if bw >= 14:
+                sc_w = max(3, bw // 5)
+                sc_h = min(th_each - 6, max(5, th_each // 2))
+                sc_y = wall_top + (th_each - 4 - sc_h) // 2
+                _draw_baoen_scroll(surf, tcx, sc_y, sc_w, sc_h, palette)
             _eave_tang_inverted(surf, tcx, wall_top + th_each - 4,
                                 bw // 2, max(8, 12 - k), 3,
                                 gold_d, gold, tile_col, curl=0.55)
@@ -5357,6 +5533,15 @@ def _draw_liaodi(surf, top_rect, bot_rect, palette, seed):
                     break
                 pygame.draw.line(surf, white_shadow,
                                  (x_l + 1, cy), (x_l + bw - 2, cy), 1)
+            # Rim shading along the gap-facing edge — keeps the slim
+            # tower from flattening against a bright day sky. The left
+            # edge gets a 1-px cool shadow.
+            pygame.draw.line(surf, white_shadow,
+                             (x_l, wall_top + 1),
+                             (x_l, wall_top + th - 2), 1)
+            pygame.draw.line(surf, _shade(white_shadow, -10),
+                             (x_l - 1, wall_top + 1),
+                             (x_l - 1, wall_top + th - 2), 1)
             # ONE narrow tall niche per storey (true to the real Liaodi).
             if th > 6 and bw > 12:
                 nh = min(th - 3, 5)
@@ -5418,17 +5603,40 @@ def _draw_liaodi(surf, top_rect, bot_rect, palette, seed):
     if top_rect.height > 50:
         _draw_plinth_mist(surf, tcx, top_rect.y + 10,
                           int(top_rect.width * 2.0), palette)
-        # Hanging slim 5-storey Liaodi pendant.
-        anchor_h = 6
+        # Reserve the upper ~24 px for an INVERTED slender bronze finial —
+        # the down-pillar's hat. Without it the hanger reads as a flat
+        # plate; this gives Liaodi a recognisable crown when diving up.
+        dark_pal = palette['stone_dark']
+        crown_top = top_rect.y + 2
+        crown_tip = crown_top + 16
+        pygame.draw.line(surf, dark_pal, (tcx, crown_top + 2),
+                         (tcx, crown_tip), 2)
+        pygame.draw.line(surf, accent, (tcx + 1, crown_top + 2),
+                         (tcx + 1, crown_tip), 1)
+        for k in range(4):
+            t = k / 3
+            ry = crown_top + 3 + int(t * 11)
+            rw = max(1, 3 - k // 2)
+            pygame.draw.ellipse(surf, dark_pal,
+                                (tcx - rw - 1, ry - 1, rw * 2 + 2, 3))
+            pygame.draw.ellipse(surf, accent,
+                                (tcx - rw, ry, rw * 2, 2))
+        # Tiny pearl bud at the tip — the inverted Liaodi crown.
+        pygame.draw.circle(surf, dark_pal, (tcx, crown_tip + 2), 2)
+        pygame.draw.circle(surf, _shade(accent, 45),
+                           (tcx, crown_tip + 2), 1)
+        # Then the slim hanging body below the crown.
+        anchor_h = 4
+        anchor_y = crown_tip + 4
         anchor_w = int(top_rect.width * 1.12)
         pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
+                         (tcx - anchor_w // 2, anchor_y, anchor_w, anchor_h))
         pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
+                         (tcx - anchor_w // 2 + 1, anchor_y + 1,
                           anchor_w - 2, anchor_h - 2))
-        envelope_top = top_rect.y + anchor_h
+        envelope_top = anchor_y + anchor_h
         envelope_bot = top_rect.bottom - 4
-        hanger_tiers = 5
+        hanger_tiers = 4
         total_hang = envelope_bot - envelope_top
         th_each = max(7, total_hang // hanger_tiers)
         for k in range(hanger_tiers):
@@ -5454,6 +5662,41 @@ def candidate_liaodi(surf, top_rect, bot_rect, palette, seed):
 # Heavy stone ornament identity.
 # Reference: https://en.wikipedia.org/wiki/Dabotap
 
+def _draw_warm_cream_lotus(surf, cx, cy, w, h, palette):
+    """8 short rounded triangular petals in warm-cream-on-stone around the
+    spire base. Replaces the magenta lotus-pink palm-frond read the AD
+    flagged. Drawn as a row of 8 small rounded triangles fanning ±π/2,
+    flanking a central spire, sized to (w, h) but kept squat (h ≈ w/2)
+    so the petals don't read as palm fronds."""
+    cream = _mix(palette['stone_light'], (248, 232, 198), 0.78)
+    cream_lit = _mix(palette['stone_light'], (252, 244, 220), 0.82)
+    cream_shadow = _mix(palette['stone_mid'], (188, 168, 130), 0.66)
+    n = 8
+    r = max(2, min(w // 6, h - 1))
+    for k in range(n):
+        # Spread petals across the front half ±80° from straight up.
+        t = (k + 0.5) / n
+        ang = math.pi * (0.1 + 0.8 * t)
+        ox = int(math.cos(ang) * (w // 2 - r))
+        oy = -int(math.sin(ang) * (h // 2))
+        px = cx + ox
+        py = cy + oy
+        # Petal tip slightly above the base point so the silhouette is
+        # rounded-triangular, not circular.
+        tip = (px, py - r)
+        bl = (px - r, py + r // 2)
+        br = (px + r, py + r // 2)
+        pygame.draw.polygon(surf, cream_shadow, [tip, bl, br])
+        pygame.draw.polygon(surf, cream,
+                            [(tip[0], tip[1] + 1),
+                             (bl[0] + 1, bl[1]),
+                             (br[0] - 1, br[1])])
+        # 1-px cream highlight on the lit side.
+        pygame.draw.line(surf, cream_lit,
+                         (tip[0] - 1, tip[1] + 1),
+                         (bl[0] + 1, bl[1] - 1), 1)
+
+
 def _draw_dabotap(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
@@ -5473,139 +5716,86 @@ def _draw_dabotap(surf, top_rect, bot_rect, palette, seed):
                           int(bot_rect.width * 2.4), palette)
 
         total_h = min(bot_rect.height, 230)
-        # Budget: 18% wide square base + corner stairs, 18% lower square
-        # body, 12% lower roof slab, 18% middle railing + lotus capitals,
-        # 12% octagonal column section, 12% top lotus stone, 10% finial.
-        base_h = int(total_h * 0.18)
-        body_h = int(total_h * 0.18)
-        roof1_h = int(total_h * 0.12)
-        rail_h = int(total_h * 0.18)
-        col_h = int(total_h * 0.12)
-        top_h = int(total_h * 0.12)
-        finial_h = total_h - base_h - body_h - roof1_h - rail_h - col_h - top_h
+        # AD stripped to 3 sections — the round-8 7-section stack was too
+        # busy for PIPE_W=58 and read as one-eyed-pyramid at night. Now:
+        # 1) wide square BASE 2) octagonal DRUM 3) lotus capital + spire.
+        # No cornice ledges, no corner stairs, no balustrades — they were
+        # invisible at scale and added noise.
+        base_h = int(total_h * 0.34)
+        drum_h = int(total_h * 0.34)
+        cap_h = int(total_h * 0.18)
+        finial_h = total_h - base_h - drum_h - cap_h
 
         envelope_bot = bot_rect.bottom
 
-        # Wide square base with 4 corner stair stones.
-        base_w = int(bot_rect.width * 1.32)
+        # 1) Wide square BASE — granite block with a small entry door at
+        # the SIDE (not centred) so it doesn't read as eyes on the dive-
+        # down pillar. Single niche placed off-axis low.
+        base_w = int(bot_rect.width * 1.20)
         base_top = envelope_bot - base_h
         base_rect = pygame.Rect(bcx - base_w // 2, base_top, base_w, base_h)
         _gradient_rect(surf, base_rect, granite_lit, granite, granite_shadow)
         pygame.draw.rect(surf, granite_shadow, base_rect, 1)
-        # Stair stones on each corner — receding granite.
-        for sign in (-1, 1):
-            sx = bcx + sign * (base_w // 2 - 4)
-            _draw_korean_stair(surf, sx, envelope_bot, palette, w=10, h=6)
-        # Central altar niche on the base.
-        _lit_niche(surf, bcx, base_top + 2,
-                   min(8, base_w - 16), min(7, base_h - 4), palette)
-        # Entry door slot.
+        # Heavy seam at the base top — reads as the cap stone.
+        pygame.draw.rect(surf, granite_shadow,
+                         (base_rect.x, base_top, base_w, 2))
+        pygame.draw.line(surf, granite_lit,
+                         (base_rect.x + 1, base_top + 2),
+                         (base_rect.right - 2, base_top + 2), 1)
+        # Off-axis door slit — placed left-of-centre so the dive-down
+        # pillar can't read as a single eye. Window glow handles night.
+        door_off = -base_w // 5
+        if _is_dark_sky(palette) or _is_warming_sky(palette):
+            _lit_niche(surf, bcx + door_off, base_top + base_h // 3,
+                       min(4, base_w // 8), min(6, base_h - 8), palette)
+        else:
+            pygame.draw.rect(surf, granite_shadow,
+                             (bcx + door_off - 2, base_top + base_h // 3,
+                              4, min(6, base_h - 8)))
         _draw_entry_door(surf, bcx, envelope_bot - 1, palette,
                          w=2, h=5, open_glow=entry_open)
 
-        # Lower square body — narrower than the base, 4 stone pillars
-        # visible.
-        body_top = base_top - body_h
-        body_w = int(base_w * 0.62)
-        body_rect = pygame.Rect(bcx - body_w // 2, body_top, body_w, body_h)
-        _gradient_rect(surf, body_rect, granite_lit, granite, granite_shadow)
-        # 4 vertical pillars across the face.
-        for k in range(4):
-            t = (k + 0.5) / 4
-            px = bcx - body_w // 2 + int(t * body_w)
-            pygame.draw.line(surf, granite_shadow,
-                             (px, body_top), (px, body_top + body_h - 1), 1)
-            pygame.draw.line(surf, granite_lit,
-                             (px - 1, body_top), (px - 1, body_top + body_h - 1), 1)
-
-        # Lower flat slab roof — wider than body, with carved-rosette ends.
-        roof1_top = body_top - roof1_h
-        roof1_w = int(body_w * 1.35)
-        roof1_rect = pygame.Rect(bcx - roof1_w // 2, roof1_top,
-                                 roof1_w, roof1_h)
-        _gradient_rect(surf, roof1_rect, granite_lit, granite,
-                       granite_shadow, vertical=True)
-        pygame.draw.rect(surf, granite_shadow, roof1_rect, 1)
-        # Carved rosette ends — small flower glyphs at each corner.
+        # 2) Octagonal DRUM — the middle section. Tall slim granite drum
+        # with vertical octagonal seam lines so it reads as a faceted
+        # stone, not a single column.
+        drum_top = base_top - drum_h
+        drum_w = int(base_w * 0.58)
+        drum_rect = pygame.Rect(bcx - drum_w // 2, drum_top, drum_w, drum_h)
+        _gradient_rect(surf, drum_rect, granite_lit, granite, granite_shadow)
+        # Octagonal seams — 3 vertical lines per face split.
         for sign in (-1, 1):
-            rx = bcx + sign * (roof1_w // 2 - 3)
-            ry = roof1_top + roof1_h // 2
-            pygame.draw.circle(surf, granite_shadow, (rx, ry), 2)
-            pygame.draw.circle(surf, granite_lit, (rx, ry), 1)
-            # 4-point petal flicks.
-            for ang in (0, math.pi / 2, math.pi, math.pi * 1.5):
-                fx = rx + int(math.cos(ang) * 2)
-                fy = ry + int(math.sin(ang) * 2)
-                pygame.draw.line(surf, granite_shadow, (rx, ry), (fx, fy), 1)
+            for frac in (0.18, 0.42):
+                px = bcx + sign * int(drum_w * frac)
+                pygame.draw.line(surf, granite_shadow,
+                                 (px, drum_top + 1),
+                                 (px, drum_top + drum_h - 2), 1)
+        pygame.draw.line(surf, granite_lit,
+                         (bcx - drum_w // 2 + 1, drum_top),
+                         (bcx + drum_w // 2 - 1, drum_top), 1)
+        # Cap-stone band at the top of the drum so the lotus has somewhere
+        # to sit visually.
+        cap_band_y = drum_top + 2
+        pygame.draw.rect(surf, granite_shadow,
+                         (bcx - drum_w // 2 - 2, cap_band_y, drum_w + 4, 2))
 
-        # Railing + lotus capital section — stone balustrade row on top of
-        # the lower slab.
-        rail_top = roof1_top - rail_h
-        rail_w = int(roof1_w * 0.85)
-        rail_rect = pygame.Rect(bcx - rail_w // 2, rail_top, rail_w, rail_h)
-        _gradient_rect(surf, rail_rect, granite_lit, granite, granite_shadow)
-        # Balustrade rail across the top — Dabotap's distinctive horizontal
-        # rail with the lotus-bud caps.
-        _draw_korean_balustrade(surf, bcx - rail_w // 2 + 3,
-                                bcx + rail_w // 2 - 3,
-                                rail_top + 2, palette)
-        # 4 lotus-petal capitals at the column tops — drawn at the four
-        # corners of the rail box.
-        for k, sign in enumerate((-1, 1)):
-            cx_cap = bcx + sign * (rail_w // 2 - 4)
-            cy_cap = rail_top + rail_h - 4
-            # Mini lotus petal cluster — 5 petals.
-            _lotus_petal_fan(surf, cx_cap, cy_cap, 4, palette,
-                             n_petals=5, arc=math.pi)
-
-        # Octagonal column section (narrow stone drum).
-        col_top = rail_top - col_h
-        col_w = int(rail_w * 0.48)
-        col_rect = pygame.Rect(bcx - col_w // 2, col_top, col_w, col_h)
-        _gradient_rect(surf, col_rect, granite_lit, granite, granite_shadow)
-        # Vertical seam lines for the octagonal drum.
-        for sign in (-1, 1):
-            px = bcx + sign * (col_w // 4)
-            pygame.draw.line(surf, granite_shadow,
-                             (px, col_top + 1), (px, col_top + col_h - 2), 1)
-        # Niche on the column.
-        _lit_niche(surf, bcx, col_top + 1,
-                   min(4, col_w - 6), min(5, col_h - 2), palette)
-
-        # Top lotus stone — the canonical octagonal lotus capital.
-        top_y = col_top - top_h
-        # Underside trapezoid.
-        top_w = int(col_w * 1.6)
-        pygame.draw.polygon(surf, granite_shadow,
-                            [(bcx - col_w // 2, col_top),
-                             (bcx + col_w // 2, col_top),
-                             (bcx + top_w // 2, col_top - 2),
-                             (bcx - top_w // 2, col_top - 2)])
-        pygame.draw.polygon(surf, granite,
-                            [(bcx - col_w // 2 + 1, col_top - 1),
-                             (bcx + col_w // 2 - 1, col_top - 1),
-                             (bcx + top_w // 2 - 1, col_top - 3),
-                             (bcx - top_w // 2 + 1, col_top - 3)])
-        # 16-petal lotus fan crowning the column (full half-fan).
-        _lotus_petal_fan(surf, bcx, col_top - 3, max(6, top_h - 2),
-                         palette, n_petals=11, arc=math.pi)
-        # AA the top edge.
-        _aa_polyline(surf, granite_shadow,
-                     [(bcx - top_w // 2, col_top - 2),
-                      (bcx + top_w // 2, col_top - 2)])
-
-        # Granite finial — a small drum + ball.
-        f_top = top_y
-        f_bot = top_y + finial_h
+        # 3) LOTUS capital + spire — warm-cream-on-stone petals (NOT
+        # magenta), 8 short rounded triangles. Then a slim bronze finial.
+        cap_y = drum_top - cap_h
+        _draw_warm_cream_lotus(surf, bcx, drum_top + 1, drum_w + 8,
+                               cap_h * 2, palette)
+        # Slim granite finial pole with bronze cap.
+        f_top = cap_y + 1
+        f_bot = f_top + finial_h - 2
         if finial_h > 4:
             pygame.draw.rect(surf, granite_shadow,
                              (bcx - 2, f_top, 4, finial_h - 2))
             pygame.draw.line(surf, granite_lit,
-                             (bcx - 1, f_top), (bcx - 1, f_bot - 2), 1)
-            pygame.draw.circle(surf, granite_shadow, (bcx, f_top), 3)
-            pygame.draw.circle(surf, granite_lit, (bcx, f_top), 2)
-            pygame.draw.circle(surf, _shade(granite_lit, 30),
+                             (bcx - 1, f_top), (bcx - 1, f_bot - 1), 1)
+            pygame.draw.circle(surf, palette['stone_dark'], (bcx, f_top), 3)
+            pygame.draw.circle(surf, accent, (bcx, f_top), 2)
+            pygame.draw.circle(surf, _shade(accent, 45),
                                (bcx - 1, f_top - 1), 1)
+            _draw_sorin_flame_halo(surf, bcx, f_top, palette)
 
         body_half = base_w // 2
         vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
@@ -5628,42 +5818,54 @@ def _draw_dabotap(surf, top_rect, bot_rect, palette, seed):
     if top_rect.height > 50:
         _draw_plinth_mist(surf, tcx, top_rect.y + 10,
                           int(top_rect.width * 2.0), palette)
-        # Hanging Dabotap pendant — mini lotus capital and column ONLY,
-        # since the full geometry doesn't suspend cleanly. Suspended by
-        # a granite anchor.
-        anchor_h = 6
-        anchor_w = int(top_rect.width * 1.18)
+        # Reserve the upper ~28 px for the SIGNATURE silhouette — an
+        # inverted lotus capital + slim drum so the dive-up read says
+        # Dabotap (Korean stone, lotus crown), not "grey block + door".
+        # The lotus + drum hang DIRECTLY below the ceiling anchor.
+        anchor_h = 4
+        anchor_w = int(top_rect.width * 1.10)
         pygame.draw.rect(surf, granite_shadow,
                          (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
         pygame.draw.rect(surf, granite,
                          (tcx - anchor_w // 2 + 1, top_rect.y + 1,
                           anchor_w - 2, anchor_h - 2))
-        # Stem hangs down.
-        stem_top = top_rect.y + anchor_h
-        stem_bot = min(top_rect.bottom - 22, top_rect.y + anchor_h + 12)
-        pygame.draw.line(surf, granite_shadow, (tcx, stem_top),
-                         (tcx, stem_bot), 3)
-        pygame.draw.line(surf, granite_lit, (tcx + 1, stem_top),
-                         (tcx + 1, stem_bot), 1)
-        # Hanging inverted lotus capital.
-        _lotus_petal_fan(surf, tcx, stem_bot + 2, 6, palette,
-                         n_petals=9, arc=math.pi)
-        # Mini column drum + finial dangling further.
-        drum_top = stem_bot + 8
-        drum_w = int(top_rect.width * 0.36)
-        drum_h = min(top_rect.bottom - drum_top - 10, 16)
-        if drum_h > 4:
+        # Inverted lotus crown — warm cream petals pointing DOWN.
+        lotus_cy = top_rect.y + anchor_h + 4
+        cream = _mix(palette['stone_light'], (248, 232, 198), 0.78)
+        cream_lit = _mix(palette['stone_light'], (252, 244, 220), 0.82)
+        cream_shadow = _mix(palette['stone_mid'], (188, 168, 130), 0.66)
+        for k in range(7):
+            t = (k + 0.5) / 7
+            ang = math.pi * (0.15 + 0.7 * t)
+            r = 3
+            ox = int(math.cos(ang) * 10)
+            oy = int(math.sin(ang) * 7)
+            tip = (tcx + ox, lotus_cy + oy)
+            tl = (tcx + ox - r, lotus_cy + oy - r // 2)
+            tr = (tcx + ox + r, lotus_cy + oy - r // 2)
+            pygame.draw.polygon(surf, cream_shadow, [tip, tl, tr])
+            pygame.draw.polygon(surf, cream,
+                                [(tip[0], tip[1] - 1),
+                                 (tl[0] + 1, tl[1]),
+                                 (tr[0] - 1, tr[1])])
+            pygame.draw.line(surf, cream_lit,
+                             (tl[0] + 1, tl[1] - 1),
+                             (tr[0] - 1, tr[1] - 1), 1)
+        # Then the drum below the inverted lotus.
+        drum_top = lotus_cy + 10
+        drum_w = int(top_rect.width * 0.42)
+        drum_h = min(top_rect.bottom - drum_top - 4, 26)
+        if drum_h > 8:
             drum_rect = pygame.Rect(tcx - drum_w // 2, drum_top,
                                     drum_w, drum_h)
             _gradient_rect(surf, drum_rect, granite_lit, granite,
                            granite_shadow)
-            _lit_niche(surf, tcx, drum_top + 1,
-                       min(4, drum_w - 6), min(4, drum_h - 2), palette)
-            # Bottom finial bud.
-            pygame.draw.circle(surf, granite_shadow,
-                               (tcx, drum_top + drum_h + 3), 3)
-            pygame.draw.circle(surf, granite_lit,
-                               (tcx - 1, drum_top + drum_h + 2), 2)
+            # Octagonal seams on the hanging drum.
+            for sign in (-1, 1):
+                px = tcx + sign * int(drum_w * 0.3)
+                pygame.draw.line(surf, granite_shadow,
+                                 (px, drum_top + 1),
+                                 (px, drum_top + drum_h - 2), 1)
 
 
 def candidate_dabotap(surf, top_rect, bot_rect, palette, seed):
@@ -5884,11 +6086,31 @@ def _draw_kumbum(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, _column_grey(palette),
                          (tcx - anchor_w // 2 + 1, top_rect.y + 1,
                           anchor_w - 2, anchor_h - 2))
-        # Prayer flags strung between two anchor blocks.
-        draw_prayer_flags(surf,
-                          tcx - anchor_w // 2 + 4, top_rect.y + anchor_h,
-                          tcx + anchor_w // 2 - 4, top_rect.y + anchor_h,
-                          n=7)
+        # Prayer flags strung between two anchor blocks. We render them
+        # manually so the flag-colour rotation can offset by seed —
+        # without this, adjacent Kumbums show pixel-identical bunting.
+        flag_colors = [(60, 70, 200), (240, 240, 240), (220, 40, 35),
+                       (60, 160, 80), (240, 200, 70)]
+        col_off = seed % 5
+        x_l = tcx - anchor_w // 2 + 4
+        x_r = tcx + anchor_w // 2 - 4
+        y_anchor = top_rect.y + anchor_h
+        mx, my = (x_l + x_r) // 2, y_anchor + 14
+        n_flags = 7
+        steps = 30
+        pts = []
+        for i in range(steps + 1):
+            t = i / steps
+            bx = (1 - t) ** 2 * x_l + 2 * (1 - t) * t * mx + t * t * x_r
+            by = (1 - t) ** 2 * y_anchor + 2 * (1 - t) * t * my + t * t * y_anchor
+            pts.append((int(bx), int(by)))
+        for i in range(len(pts) - 1):
+            pygame.draw.line(surf, _shade(dark, 25), pts[i], pts[i + 1], 1)
+        for i in range(n_flags):
+            px, py = pts[int((i + 0.5) / n_flags * steps)]
+            col = flag_colors[(i + col_off) % 5]
+            pygame.draw.rect(surf, col, (px - 3, py, 6, 8))
+            pygame.draw.rect(surf, _shade(dark, -10), (px - 3, py, 6, 8), 1)
         # Hanging mini-Kumbum spire below the flags — small white drum +
         # red painted band + small harmika eyes.
         drum_top = top_rect.y + anchor_h + 24
@@ -5908,18 +6130,23 @@ def _draw_kumbum(surf, top_rect, bot_rect, palette, seed):
             # Tiny harmika eyes if wide enough.
             if drum_w >= 22:
                 _draw_tibetan_eyes(surf, tcx, drum_top + 4, palette, scale=0.7)
-            # Tiny gold spire dangles below.
+            # 13-ring gold spire dangles below — extended 6 px taller so
+            # the hanger crown reads as Kumbum, not stub. 7 rings spread
+            # the full extra length without collapsing into a clump.
             sp_top = drum_top + drum_h
-            sp_bot = min(top_rect.bottom - 2, sp_top + 12)
+            sp_bot = min(top_rect.bottom - 2, sp_top + 18)
             pygame.draw.line(surf, dark, (tcx, sp_top), (tcx, sp_bot), 2)
             pygame.draw.line(surf, gold, (tcx + 1, sp_top),
                              (tcx + 1, sp_bot), 1)
-            for k in range(5):
-                t = k / 4
+            for k in range(7):
+                t = k / 6
                 ry = sp_top + int(t * (sp_bot - sp_top - 2))
-                rw = max(1, 3 - k // 2)
+                rw = max(1, 4 - k // 2)
                 pygame.draw.line(surf, gold,
                                  (tcx - rw, ry), (tcx + rw, ry), 1)
+            # Tiny finial bud at the tip.
+            pygame.draw.circle(surf, dark, (tcx, sp_bot + 1), 2)
+            pygame.draw.circle(surf, _shade(gold, 45), (tcx, sp_bot + 1), 1)
 
 
 def candidate_kumbum(surf, top_rect, bot_rect, palette, seed):

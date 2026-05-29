@@ -51,6 +51,38 @@ import mountain_variants_r2 as mv
 import pillar_pagoda_variants as pgv
 
 
+# Per-row ground accent — subtle tint band along the ground apron so the
+# 12 rows don't all read with identical green grass. Drawn AFTER draw_ground
+# so the row-specific hue overlays the standard apron without breaking the
+# day/night biome retint.
+ROW_GROUND_ACCENT = {
+    "daigoji": (148, 80, 50),    # red-clay foreground.
+    "kumbum":  (210, 178, 122),  # warm sand.
+    "liaodi":  (170, 170, 174),  # stone-pebble apron.
+    "tahoto":  (108, 118, 118),  # wet stone (cool desaturated).
+}
+
+
+def _apply_ground_accent(surf, row_key, palette):
+    accent = ROW_GROUND_ACCENT.get(row_key)
+    if accent is None:
+        return
+    # 6-px overlay band immediately at the ground line so the grass crown
+    # carries the row-specific hue. Alpha blended so the biome retint of
+    # the underlying ground_top still pulls through.
+    overlay = pygame.Surface((W, 7), pygame.SRCALPHA)
+    overlay.fill((*accent, 110))
+    surf.blit(overlay, (0, GROUND_Y))
+    # Pebble/clay flecks scattered along the band so it doesn't read as
+    # a flat ribbon.
+    for x in range(0, W, 9):
+        r = (x * 7 + row_key.__hash__() & 0xFF) % 5
+        col = (max(0, accent[0] - 30), max(0, accent[1] - 30),
+               max(0, accent[2] - 30))
+        surf.set_at((x + r, GROUND_Y + 2), col)
+        surf.set_at((x + r + 4, GROUND_Y + 5), col)
+
+
 PHASES = [
     ("day",     0.020),
     ("sunrise", 0.906),
@@ -96,6 +128,10 @@ def _scene_backdrop(phase: float) -> pygame.Surface:
 def render_tile(candidate_key: str, phase: float, seed: int) -> pygame.Surface:
     surf = _scene_backdrop(phase)
     palette = _biome.palette_for_phase(phase)
+
+    # Row-specific ground accent applied BEFORE pillars so foliage and
+    # plinth cover the overlay edge.
+    _apply_ground_accent(surf, candidate_key, palette)
 
     # Standard spawn geometry — matches what the live game spawns at.
     gap_y = 280
