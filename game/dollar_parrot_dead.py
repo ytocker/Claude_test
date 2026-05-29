@@ -151,15 +151,16 @@ def _draw_b_fallen_aviators(out, center=(54, 53)):
 
 def build_chartreuse_dead(angle_deg, aura_scale=1.0):
     """B · CHARTREUSE KO — comic-KO read with shades knocked off. No
-    aura. Bold X-eyes on bare chartreuse head, slack tongue, fallen
-    aviators tumbling at lower-right. `aura_scale` accepted for signature
-    parity with the other dead-Pip builders; ignored here."""
+    aura. Bold X-eyes on bare chartreuse head, slack tongue. The
+    tumbling-aviators detail was removed at user request — the
+    gradual cross-fade carries the read by itself. `aura_scale`
+    accepted for signature parity with the other dead-Pip builders;
+    ignored here."""
     out = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
     body = _build_parrot_with_palette(angle_deg, P_CHARTREUSE, draw_lenses=False)
     _draw_b_x_eyes(body)
     _draw_b_tongue(body)
     out.blit(body, (0, 0))
-    _draw_b_fallen_aviators(out)
     return out
 
 

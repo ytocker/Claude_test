@@ -142,7 +142,7 @@ SECRET_POWERUP_WEIGHTS = (
 # POISON — the genie's trap pick. Picking it sets Bird.poison_active and
 # ramps Bird.poison_t over POISON_DURATION seconds; at t = 1.0 World._die
 # fires. No recovery (knight save still applies — it's the only escape).
-POISON_DURATION = 4.0
+POISON_DURATION = 6.0
 
 # GENIE — picking up the lamp summons a conjurer who lays out GENIE_OFFER_COUNT
 # alternate power-ups ahead of Pip; flying into one claims it and poofs the rest.
