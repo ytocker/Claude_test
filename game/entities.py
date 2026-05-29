@@ -1012,7 +1012,32 @@ class Bird:
         board_surf = pygame.transform.smoothscale(board_surf,
                                                   (native_w, native_h))
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # KICKFLIP — 360° board-only spin layered on top of Pip's
+        # velocity-banked tilt. Pip's posture is unchanged; only the
+        # board flips under his feet (smootherstep eases in + out).
+        if self.kickflip_t > 0 and self.kickflip_dur > 0:
+            p = 1.0 - self.kickflip_t / self.kickflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            tilt += eased * 360.0
+        # HEELFLIP — mirror of kickflip, board spins −360°.
+        if self.heelflip_t > 0 and self.heelflip_dur > 0:
+            p = 1.0 - self.heelflip_t / self.heelflip_dur
+            eased = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+            tilt -= eased * 360.0
         rotated = pygame.transform.rotate(board_surf, tilt)
+        # POP SHUVIT — horizontal scale-X = cos(p·π) on top of the
+        # rotation: board flattens edge-on at p=0.5 then flips and
+        # returns to its starting facing. Done AFTER rotation so the
+        # squash tracks the (rotated) board's bounding box.
+        if self.popshuvit_t > 0 and self.popshuvit_dur > 0:
+            p_ps = 1.0 - self.popshuvit_t / self.popshuvit_dur
+            scale_x = math.cos(p_ps * math.pi)
+            abs_scale = max(abs(scale_x), 0.02)
+            rw, rh = rotated.get_size()
+            rotated = pygame.transform.scale(
+                rotated, (max(1, int(rw * abs_scale)), rh))
+            if scale_x < 0:
+                rotated = pygame.transform.flip(rotated, True, False)
         if flipped:
             rotated = pygame.transform.flip(rotated, False, True)
         r = rotated.get_rect(center=(int(bx), int(by)))
