@@ -164,25 +164,31 @@ def _rivets(ss, ow, oh, m):
 
 
 def cand_plaques(surf):
-    def wood_plaque(rect, radius, parchment=False):
+    def wood_plaque(rect, radius, parchment=False, solid=False):
         # C's plaque, with the cast-shadow blit removed (edit 1). The beveled
         # carved relief is preserved — it lives in the gradient, the inner
         # groove and the gold rope-band rim, none of which are cast shadows.
+        # ``solid=True`` fills a single opaque brown instead of the gradient +
+        # wood-grain lines, for a clean solid background.
         ss = _ss_surf(rect.width, rect.height)
         ow, oh, orad = rect.width * SS, rect.height * SS, radius * SS
-        if parchment:
-            top, bot = _PARCH_LT, _PARCH_DK
+        if solid:
+            pygame.draw.rect(ss, (*_WOOD_MD, 255), (0, 0, ow, oh),
+                             border_radius=orad)
         else:
-            top, bot = _WOOD_LT, _WOOD_DK
-        _vgrad_rounded(ss, pygame.Rect(0, 0, rect.width, rect.height), top, bot,
-                       radius, alpha=248)
-        # wood grain / parchment mottling
-        rng = random.Random(rect.x * 13 + rect.y)
-        for _ in range(int(rect.width * 0.5)):
-            yy = rng.randint(2 * SS, oh - 2 * SS)
-            a = rng.randint(14, 34)
-            col = (30, 18, 8) if not parchment else (150, 120, 70)
-            pygame.draw.line(ss, (*col, a), (orad, yy), (ow - orad, yy))
+            if parchment:
+                top, bot = _PARCH_LT, _PARCH_DK
+            else:
+                top, bot = _WOOD_LT, _WOOD_DK
+            _vgrad_rounded(ss, pygame.Rect(0, 0, rect.width, rect.height), top,
+                           bot, radius, alpha=248)
+            # wood grain / parchment mottling
+            rng = random.Random(rect.x * 13 + rect.y)
+            for _ in range(int(rect.width * 0.5)):
+                yy = rng.randint(2 * SS, oh - 2 * SS)
+                a = rng.randint(14, 34)
+                col = (30, 18, 8) if not parchment else (150, 120, 70)
+                pygame.draw.line(ss, (*col, a), (orad, yy), (ow - orad, yy))
         # carved inner groove
         pygame.draw.rect(ss, (0, 0, 0, 120),
                          (3 * SS, 3 * SS, ow - 6 * SS, oh - 6 * SS),
@@ -207,7 +213,7 @@ def cand_plaques(surf):
         pygame.draw.line(surf, _WOOD_DK, (hx, rail_y), (hx, sp.y + 4), 4)
         pygame.draw.line(surf, _GOLD_DEEP, (hx, rail_y), (hx, sp.y + 4), 2)
         pygame.draw.circle(surf, _GOLD_BRIGHT, (hx, rail_y), 3)
-    wood_plaque(sp, 12)
+    wood_plaque(sp, 12, solid=True)
     _outlined(surf, SCORE, sp.center, 38, _GOLD_PALE, _WOOD_DK, 2)
 
     # ── COINS — re-themed carved parchment plaque w/ gold rope-band edge
@@ -233,13 +239,7 @@ def cand_plaques(surf):
     rad = ph // 2
     ss = _ss_surf(pw, ph)
     ow, oh, orad = pw * SS, ph * SS, rad * SS
-    _vgrad_rounded(ss, pygame.Rect(0, 0, pw, ph), _WOOD_LT, _WOOD_DK, rad,
-                   alpha=248)
-    rng = random.Random(px * 13 + py)
-    for _ in range(int(pw * 0.5)):
-        yy = rng.randint(2 * SS, oh - 2 * SS)
-        a = rng.randint(14, 34)
-        pygame.draw.line(ss, (30, 18, 8, a), (orad, yy), (ow - orad, yy))
+    pygame.draw.rect(ss, (*_WOOD_MD, 255), (0, 0, ow, oh), border_radius=orad)
     pygame.draw.rect(ss, (0, 0, 0, 120),
                      (3 * SS, 3 * SS, ow - 6 * SS, oh - 6 * SS),
                      width=2 * SS, border_radius=max(1, orad - 3 * SS))
