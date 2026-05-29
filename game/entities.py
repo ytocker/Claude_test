@@ -505,10 +505,20 @@ class Bird:
         # the healthy sprite to the dead-Pip-B sprite at alpha = poison_t.
         self.poison_active = False
         self.poison_t = 0.0
-        # Backflip trick: ticks down while a full-body 360° spin plays
-        # (triggered by flapping while skateboard_active).
+        # SKATEBOARD tricks: each is a timed state ticked down in
+        # `tick`. The trick palette is resolved by tap-pattern in
+        # World._track_skateboard_tricks. The bird-side visual for
+        # kickflip / heelflip / pop-shuvit currently piggybacks on the
+        # backflip 360° spin; the TrickBubble pop-art badge is what
+        # signals which trick landed.
         self.backflip_t = 0.0
         self.backflip_dur = BACKFLIP_DURATION
+        self.kickflip_t = 0.0
+        self.kickflip_dur = 0.0
+        self.heelflip_t = 0.0
+        self.heelflip_dur = 0.0
+        self.popshuvit_t = 0.0
+        self.popshuvit_dur = 0.0
         # Death cross-fade: counts up from 0 to DEATH_FADE_DURATION at
         # the collision moment; Bird.draw alpha-blends the dead palette
         # on top of the alive sprite while this is in flight.
@@ -551,6 +561,9 @@ class Bird:
         self.frame_t = (self.frame_t + dt * base_hz)
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         self.backflip_t = max(0.0, self.backflip_t - dt)
+        self.kickflip_t = max(0.0, self.kickflip_t - dt)
+        self.heelflip_t = max(0.0, self.heelflip_t - dt)
+        self.popshuvit_t = max(0.0, self.popshuvit_t - dt)
         if self.poison_active:
             from game.config import POISON_DURATION
             self.poison_t = min(1.0, self.poison_t + dt / POISON_DURATION)
@@ -3006,6 +3019,81 @@ def _get_float_font(size, bold=True):
         f = pygame.font.Font(_FLOAT_BOLD, size)
         _float_font_cache[key] = f
     return f
+
+
+# Per-trick fill + halftone-dot colours for the SKATEBOARD comic
+# bubble that replaces the old gradient float-text. Base hues are
+# pulled from the existing float-text colours so each trick keeps
+# its identity colour; dot colours are a darker variant for
+# Lichtenstein contrast inside the burst.
+TRICK_BUBBLE_PALETTE = {
+    "BACKFLIP!":   ((110, 230, 110), ( 30,  90,  40)),
+    "KICKFLIP!":   ((120, 200, 235), ( 30,  70, 130)),
+    "HEELFLIP!":   ((170, 140, 230), ( 70,  40, 130)),
+    "POP SHUVIT!": ((230, 130, 180), (120,  30,  90)),
+    "NOSE GRIND!": ((255, 215, 110), (180, 120,  30)),
+    "TAIL GRIND!": ((255, 215, 110), (180, 120,  30)),
+}
+
+
+class TrickBubble:
+    """SKATEBOARD trick name rendered as a tilted comic halftone-burst
+    bubble. The bubble surface is pre-rendered once on construction
+    (label and tilt are immutable) and cached as `_surf`; `draw` just
+    blits it with a per-frame alpha derived from the bubble's
+    remaining life.
+
+    Lifetime ~1.4 s: snappy POP-IN at full alpha (no fade-in delay)
+    + 0.4 s linear fade-out so stacking bubbles appear immediately
+    and exit gracefully when their life runs out."""
+
+    __slots__ = ("x", "y", "life", "life_max", "_surf")
+
+    def __init__(self, label, x, y, tilt_deg=0.0, life=1.4):
+        from game.skateboard_fx import (
+            _halftone_filled_burst, _gradient_text, INK,
+        )
+        self.x = x
+        self.y = y
+        self.life = life
+        self.life_max = life
+        base, dot = TRICK_BUBBLE_PALETTE.get(
+            label, ((255, 220, 30), (230, 60, 50)))
+        font_size = 16
+        font = _get_float_font(font_size)
+        tw, _th = font.size(label)
+        ro = max(50, tw // 2 + 16)
+        ri = max(28, ro - 24)
+        sw = sh = ro * 2 + 24
+        bsurf = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        bcx, bcy = sw // 2, sh // 2
+        _halftone_filled_burst(bsurf, bcx, bcy, ro, ri, spikes=10,
+                               dot_col=dot, base_col=base)
+        txt = _gradient_text(label, font_size,
+                             top_col=(255, 250, 240),
+                             bot_col=base,
+                             outline=INK, outline_w=3)
+        bsurf.blit(txt, txt.get_rect(center=(bcx, bcy)))
+        if abs(tilt_deg) > 0.5:
+            bsurf = pygame.transform.rotate(bsurf, tilt_deg)
+        self._surf = bsurf
+
+    def update(self, dt):
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        if self.life > 0.4:
+            alpha = 255
+        elif self.life > 0:
+            alpha = int(255 * (self.life / 0.4))
+        else:
+            alpha = 0
+        self._surf.set_alpha(alpha)
+        surf.blit(self._surf, self._surf.get_rect(
+            center=(int(self.x), int(self.y))))
 
 
 class FloatText:

@@ -159,7 +159,21 @@ SKATEBOARD_DURATION = 8.0
 SKATE_SLIDE_MULT    = 1.5
 SKATE_SLIDE_ATTACK  = 0.18
 SKATE_SLIDE_RELEASE = 0.55
-BACKFLIP_DURATION   = 0.85
+# Trick tap-detection windows. A flap while SKATEBOARD is active is
+# routed through World._track_skateboard_tricks which inspects the
+# gap to the previous tap and decides which trick to fire. Windows
+# are disjoint so a single tap advances at most one pattern.
+BACKFLIP_TAP_WINDOW   = 0.45    # 3 FAST taps within this gap → backflip
+BACKFLIP_DURATION     = 0.85
+KICKFLIP_TAP_GAP_MIN  = 0.55    # 2 SLOW taps in this gap → kickflip
+KICKFLIP_TAP_GAP_MAX  = 0.75
+KICKFLIP_DURATION     = 0.55
+POPSHUVIT_TAP_GAP_MIN = 0.46    # 2 MEDIUM taps in this gap → pop shuvit
+POPSHUVIT_TAP_GAP_MAX = 0.54
+POPSHUVIT_DURATION    = 0.45
+HEELFLIP_TAP_GAP_MIN  = 0.85    # 2 VERY-SLOW taps in this gap → heelflip
+HEELFLIP_TAP_GAP_MAX  = 1.05
+HEELFLIP_DURATION     = 0.55
 
 # KNIGHT — survive-one-hit buff. While active, the next lethal hit is consumed
 # and Pip is revived with KNIGHT_INVULN seconds of collision grace.

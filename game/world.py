@@ -29,13 +29,16 @@ from game.config import (
     SECRET_POWERUP_WEIGHTS, LATE_GAME_SCORE,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
-    SKATE_SLIDE_RELEASE, BACKFLIP_DURATION,
+    SKATE_SLIDE_RELEASE, BACKFLIP_DURATION, BACKFLIP_TAP_WINDOW,
+    KICKFLIP_DURATION, KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX,
+    HEELFLIP_DURATION, HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX,
+    POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
     DEATH_FADE_DURATION,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
-    GenieCharacter,
+    GenieCharacter, TrickBubble,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -127,6 +130,13 @@ class World:
         self.slide_boost = 0.0
         self._sliding_this_frame = False
         self._sliding_prev_frame = False
+        # SKATEBOARD comic trick bubbles + tap-streak state. Each flap
+        # during the skateboard buff feeds _track_skateboard_tricks
+        # which resolves the trick palette and pops a coloured bubble
+        # near the score HUD.
+        self.trick_bubbles: list = []
+        self._last_tap_t = -999.0
+        self._tap_streak = 0
         # Activation overlays (drawn in scenes): caption banner + starburst.
         self.skateboard_caption_t = 0.0
         self.skateboard_caption_dur = 0.0
@@ -486,11 +496,86 @@ class World:
             self.bird.flap(gravity_sign=sign)
             self.flap_count += 1
             audio.play_flap()
-            # SKATEBOARD: flapping mid-skate spins a backflip trick.
-            if self.bird.skateboard_active and self.bird.backflip_t <= 0:
-                self.bird.backflip_t = BACKFLIP_DURATION
-                self.bird.backflip_dur = BACKFLIP_DURATION
-                audio.play_backflip()
+            # SKATEBOARD tricks. The detector handles 4 tap patterns:
+            #   1) 3 FAST taps   (gap ≤ BACKFLIP_TAP_WINDOW)   → backflip
+            #   2) 2 MEDIUM taps (POPSHUVIT_TAP_GAP_MIN-MAX)  → pop shuvit
+            #   3) 2 SLOW taps   (KICKFLIP_TAP_GAP_MIN-MAX)   → kickflip
+            #   4) 2 VERY-SLOW   (HEELFLIP_TAP_GAP_MIN-MAX)   → heelflip
+            # Only tracked while the buff is active and no flip is
+            # already in progress.
+            if (self.skateboard_timer > 0
+                    and self.bird.backflip_t <= 0
+                    and self.bird.kickflip_t <= 0
+                    and self.bird.heelflip_t <= 0
+                    and self.bird.popshuvit_t <= 0):
+                self._track_skateboard_tricks()
+
+    def _track_skateboard_tricks(self):
+        now = self._idle_t
+        gap = now - self._last_tap_t
+        if gap <= BACKFLIP_TAP_WINDOW:
+            self._tap_streak += 1
+        else:
+            self._tap_streak = 1
+        self._last_tap_t = now
+        if self._tap_streak >= 3:
+            self._trigger_backflip()
+            self._tap_streak = 0
+            return
+        if POPSHUVIT_TAP_GAP_MIN <= gap <= POPSHUVIT_TAP_GAP_MAX:
+            self._trigger_popshuvit()
+            return
+        if KICKFLIP_TAP_GAP_MIN <= gap <= KICKFLIP_TAP_GAP_MAX:
+            self._trigger_kickflip()
+            return
+        if HEELFLIP_TAP_GAP_MIN <= gap <= HEELFLIP_TAP_GAP_MAX:
+            self._trigger_heelflip()
+
+    def _trigger_backflip(self):
+        self.bird.backflip_t = BACKFLIP_DURATION
+        self.bird.backflip_dur = BACKFLIP_DURATION
+        audio.play_backflip()
+        self._spawn_trick_bubble("BACKFLIP!")
+
+    def _trigger_kickflip(self):
+        self.bird.kickflip_t = KICKFLIP_DURATION
+        self.bird.kickflip_dur = KICKFLIP_DURATION
+        audio.play_backflip()
+        self._spawn_trick_bubble("KICKFLIP!")
+
+    def _trigger_heelflip(self):
+        self.bird.heelflip_t = HEELFLIP_DURATION
+        self.bird.heelflip_dur = HEELFLIP_DURATION
+        audio.play_backflip()
+        self._spawn_trick_bubble("HEELFLIP!")
+
+    def _trigger_popshuvit(self):
+        self.bird.popshuvit_t = POPSHUVIT_DURATION
+        self.bird.popshuvit_dur = POPSHUVIT_DURATION
+        audio.play_backflip()
+        self._spawn_trick_bubble("POP SHUVIT!")
+
+    # Trick bubble anchor zones — RIGHT of the score (original POW!
+    # badge home) or a mirror LEFT anchor below the coins pill. Each
+    # bubble picks a side so multi-trick stacks spread across both
+    # corners instead of piling onto one.
+    _TRICK_ANCHOR_X_RIGHT = W - 70
+    _TRICK_ANCHOR_X_LEFT = 70
+    _TRICK_ANCHOR_Y = 165
+
+    def _spawn_trick_bubble(self, label: str):
+        anchor_x = (self._TRICK_ANCHOR_X_LEFT
+                    if random.random() < 0.5
+                    else self._TRICK_ANCHOR_X_RIGHT)
+        ox = random.randint(-10, 10)
+        oy = random.randint(-10, 10)
+        tilt = random.uniform(-18, 18)
+        self.trick_bubbles.append(TrickBubble(
+            label,
+            anchor_x + ox,
+            self._TRICK_ANCHOR_Y - self._skateboard_lift_y + oy,
+            tilt_deg=tilt,
+        ))
 
     # ── update ──────────────────────────────────────────────────────────────
 
@@ -537,6 +622,9 @@ class World:
             for t in self.float_texts:
                 t.update(dt)
             self.float_texts = [t for t in self.float_texts if t.alive()]
+            for b in self.trick_bubbles:
+                b.update(dt)
+            self.trick_bubbles = [b for b in self.trick_bubbles if b.alive()]
             return
 
         if not self.game_over:
@@ -743,6 +831,9 @@ class World:
         for t in self.float_texts:
             t.update(dt)
         self.float_texts = [t for t in self.float_texts if t.alive()]
+        for b in self.trick_bubbles:
+            b.update(dt)
+        self.trick_bubbles = [b for b in self.trick_bubbles if b.alive()]
 
     def world_idle_tick(self, dt):
         """Run the background without handling bird death/pipe spawning

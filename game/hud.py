@@ -1581,6 +1581,12 @@ class HUD:
         for ft in world.float_texts:
             ft.draw(surf)
 
+        # SKATEBOARD trick bubbles — comic halftone bursts stacked
+        # near the score so the pop-art badge reads as part of the
+        # score visual when a trick lands.
+        for tb in getattr(world, "trick_bubbles", ()):
+            tb.draw(surf)
+
     def draw_stats(self, surf, world, dt, elapsed,
                    best: int = 0, new_best: bool = False,
                    show_prompt: bool = True):

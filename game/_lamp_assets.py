@@ -1,13 +1,17 @@
-"""Procedural Amber-Crystal lamp asset for the Genie powerup pickup
-icon. Consolidates the relevant drawing helpers from
-`tools/render_a1_lamp_variants.py` so the runtime never imports
-from `tools/` (which is stripped from the pygbag deploy bundle and
-also runs `pygame.display.set_mode` at import time).
+"""Procedural Faceted-Crystal lamp asset for the Genie powerup pickup
+icon. Cyan body + cyan handle gem variant — the design picked from
+the multi-colour exploration sheet in
+`docs/screenshots/genie_designs/`.
+
+Consolidates the relevant drawing helpers from
+`tools/render_a1_lamp_variants.py:draw_lamp_4_faceted` so the runtime
+never imports from `tools/` (which is stripped from the pygbag deploy
+bundle and also runs `pygame.display.set_mode` at import time).
 
 Public API:
     get_lamp_sprite(target_height: int = 52) -> pygame.Surface
-        Returns a cached, smoothscaled Amber Crystal lamp sprite
-        ready to blit. The sprite aspect ratio is preserved
+        Returns a cached, smoothscaled cyan Faceted-Crystal lamp
+        sprite ready to blit. The sprite aspect ratio is preserved
         (target_w ≈ target_height * W / H ≈ 56 for the default).
 """
 from __future__ import annotations
@@ -312,14 +316,19 @@ def _clip_to_body(surf, body_pts):
     surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
 
 
-# ── Amber Crystal palette + render ──────────────────────────────────
+# ── Cyan Faceted-Crystal palette + render ──────────────────────────
+# Picked design from docs/screenshots/genie_designs/. Pale-cyan crystal
+# body + cyan-family handle gem + inner-disc so the handle reads as one
+# monochrome cyan element rather than swapping to a sapphire contrast
+# spot. Stopper finial keeps EMERALD + RUBY-diamond + SAPPHIRE so the
+# jewel trio still pops against the cool body.
 
-_AMBER_PAL = {
-    "dk":    (115,  60,  10),
-    "base":  (225, 145,  45),
-    "hi":    (255, 215, 130),
-    "sheen": (255, 245, 195),
-    "hole":  ( 95,  50,  10),
+_CYAN_PAL = {
+    "dk":    ( 60, 130, 170),
+    "base":  (130, 195, 220),
+    "hi":    (220, 245, 255),
+    "sheen": (255, 255, 255),
+    "hole":  ( 55, 110, 145),
 }
 _GOLD    = (255, 220, 110)
 _GOLD_HI = (255, 245, 175)
@@ -327,12 +336,12 @@ _GOLD_DK = (180, 130,  40)
 _RUBY,    _RUBY_HI    = (220,  55,  75), (255, 175, 195)
 _EMERALD, _EMERALD_HI = ( 70, 175, 110), (180, 240, 200)
 _SAPPHIRE,_SAPPHIRE_HI= ( 70, 100, 220), (175, 200, 255)
-_AMBER,   _AMBER_HI   = (240, 165,  50), (255, 220, 140)
-_SMOKE   = [(255, 250, 230), (250, 215, 165), (220, 145,  95),
-            (150,  75,  35)]
+_CYAN_GEM, _CYAN_GEM_HI = ( 40, 100, 160), (170, 220, 245)
+_SMOKE   = [(250, 250, 250), (195, 235, 255), (130, 195, 235),
+            ( 75, 145, 200)]
 
 
-def _render_amber_crystal(big, cx, cy):
+def _render_faceted_cyan(big, cx, cy):
     anc = _lamp_silhouette(cx, cy)
 
     # Outline glow — subtle dark-navy halo for sky-colour separation
@@ -355,7 +364,7 @@ def _render_amber_crystal(big, cx, cy):
                             [(int(x), int(y)) for x, y in spout_scaled])
         big.blit(sub, (0, 0))
 
-    _paint_lamp_body(big, anc, _AMBER_PAL)
+    _paint_lamp_body(big, anc, _CYAN_PAL)
 
     bw, bh = anc["bw"], anc["bh"]
     body_cy = anc["body_cy"]
@@ -373,11 +382,11 @@ def _render_amber_crystal(big, cx, cy):
                (fcx, fcy + fh // 2),
                (fcx - fw // 2, fcy)]
         shadow_tri = [pts[0], pts[1], pts[2]]
-        pygame.draw.polygon(facet_clip, (*_AMBER_PAL["dk"], 110),
+        pygame.draw.polygon(facet_clip, (*_CYAN_PAL["dk"], 110),
                             shadow_tri)
-        pygame.draw.polygon(facet_clip, (*_AMBER_PAL["sheen"], 250),
+        pygame.draw.polygon(facet_clip, (*_CYAN_PAL["sheen"], 250),
                             pts, max(3, s(1) + 1))
-        pygame.draw.line(facet_clip, (*_AMBER_PAL["sheen"], 255),
+        pygame.draw.line(facet_clip, (*_CYAN_PAL["sheen"], 255),
                          pts[3], pts[0], max(2, s(1)))
         pygame.draw.circle(facet_clip, (255, 255, 255, 255),
                            (int(fcx - fw // 5),
@@ -410,7 +419,7 @@ def _render_amber_crystal(big, cx, cy):
                (fcx + s(2), fcy),
                (fcx, fcy + s(2)),
                (fcx - s(2), fcy)]
-        pygame.draw.polygon(big, _AMBER_PAL["sheen"], pts, max(2, s(1)))
+        pygame.draw.polygon(big, _CYAN_PAL["sheen"], pts, max(2, s(1)))
         _aa_circle(big, (255, 255, 255),
                    fcx - s(1) // 2, fcy - s(1) // 2,
                    max(1, s(1) // 2 + 1))
@@ -439,25 +448,27 @@ def _render_amber_crystal(big, cx, cy):
     pygame.draw.ellipse(big, _GOLD,
                         (fx - s(5) + s(1) // 2, fy + s(1) + s(1) // 2,
                          s(10) - s(1), s(3) - s(1)))
-    # Stopper gem cluster — emerald + sapphire + ruby (mixed jewels
-    # against the warm amber body)
+    # Stopper gem cluster — emerald + ruby-diamond + sapphire. Cyan
+    # variant centres the RUBY diamond instead of the amber's sapphire
+    # so the trio pops against the cool body.
     _gem_round(big, fx - s(3), fy, s(2), _EMERALD, _EMERALD_HI)
     _gem_diamond(big, fx, fy - s(2), s(2) + s(1) // 2,
-                 _SAPPHIRE, _SAPPHIRE_HI)
-    _gem_round(big, fx + s(3), fy, s(2), _RUBY, _RUBY_HI)
+                 _RUBY, _RUBY_HI)
+    _gem_round(big, fx + s(3), fy, s(2), _SAPPHIRE, _SAPPHIRE_HI)
 
-    # Handle — gold torus with an AMBER inner gem (matches the body
-    # palette so the handle reads as one warm jewel rather than a
-    # blue contrast spot)
+    # Handle — gold torus with a CYAN inner gem (matches the cyan body
+    # palette so the handle reads as one cool jewel rather than a
+    # warm contrast spot). Hole tone colour-matches the body base so
+    # the ring reads as "lamp body showing through the handle".
     handle_pal = {
         "dk":    _GOLD_DK,
         "base":  _GOLD,
         "hi":    _GOLD_HI,
-        "hole":  ( 80,  45,  10),
+        "hole":  _CYAN_PAL["base"],
     }
     _paint_torus_handle(big, anc, handle_pal,
                         inner_gem=("round", 0, 0, s(3),
-                                   _AMBER, _AMBER_HI))
+                                   _CYAN_GEM, _CYAN_GEM_HI))
 
     # Foot — gold ring with emerald gem dots
     def foot_gems(big, cx_in, by, bw_in, bh_in):
@@ -470,7 +481,7 @@ def _render_amber_crystal(big, cx, cy):
             _aa_circle(big, _EMERALD_HI,
                        cx_in + gem_off - s(1) // 2,
                        by + s(2) - s(1) // 2, max(1, s(1) // 2))
-    _paint_foot(big, anc, _AMBER_PAL,
+    _paint_foot(big, anc, _CYAN_PAL,
                 band_colors=[(NEAR_BLK, 0.0),
                              (_GOLD_DK,  0.20),
                              (_GOLD,     0.55),
@@ -494,14 +505,14 @@ _cached_target_h: int | None = None
 
 
 def get_lamp_sprite(target_height: int = 52) -> pygame.Surface:
-    """Return a smoothscaled Amber Crystal lamp sprite. First call
-    pays the render cost; subsequent calls return the cached
+    """Return a smoothscaled cyan Faceted-Crystal lamp sprite. First
+    call pays the render cost; subsequent calls return the cached
     surface."""
     global _cached_sprite, _cached_target_h
     if _cached_sprite is not None and _cached_target_h == target_height:
         return _cached_sprite
     big = pygame.Surface((PW, PH), pygame.SRCALPHA)
-    _render_amber_crystal(big, PW // 2, PH // 2)
+    _render_faceted_cyan(big, PW // 2, PH // 2)
     target_w = int(target_height * (W / H))
     sprite = pygame.transform.smoothscale(big, (target_w, target_height))
     _cached_sprite = sprite
