@@ -654,6 +654,149 @@ def _coin_icon(surf, cx, cy, r=10):
     surf.blit(target, rect.topleft)
 
 
+# ── Neon-Arcade HUD kit (E2 layout, menu-yellow accent) ──────────────────────
+# Shipped from the gameplay-HUD design loop. The score/coins/pause sit on opaque
+# softened cut-corner slate plates: an OPAQUE body is the hard value floor that
+# keeps the readout legible over a bright-sky brown pillar AND at night — the
+# legibility the old translucent pills never had. The accent is the menu's
+# SKYBIT yellow (`_GOLD_BRIGHT`) so the HUD reads as one family with the title.
+# The power-up timer is a recessed-track energy bar that drains yellow→amber;
+# kept a horizontal meter in a dark cool track on purpose so it can never be
+# misread as the round gold coin.
+_SS = 4  # supersample factor — composite big, smoothscale down for crisp edges
+_NA_PAD = 11  # padding baked around each cached plate for its glow + cast shadow
+
+_NA_SLATE    = ( 40,  38,  36)   # warm slate plate body (opaque value floor)
+_NA_SLATE_D  = ( 22,  18,  16)
+_NA_ACCENT   = _GOLD_BRIGHT       # menu-text yellow: rim + glow + glyphs
+_NA_WARM     = ( 96,  64,  36)   # faint sandstone wash low in the score plate
+_ENERGY_FULL   = _GOLD_BRIGHT     # timer fill at full charge (yellow)
+_ENERGY_FULL_D = (170, 120,  28)
+_ENERGY_LOW    = (255, 168,  70)  # draining toward amber
+_ENERGY_LOW_D  = (196,  96,  28)
+
+_na_plate_cache: dict = {}
+_na_track_cache: dict = {}
+
+
+def _ss_surf(w, h):
+    return pygame.Surface((w * _SS, h * _SS), pygame.SRCALPHA)
+
+
+def _blit_ss(dst, ss, x, y, w, h):
+    dst.blit(pygame.transform.smoothscale(ss, (w, h)), (x, y))
+
+
+def _vgrad_rounded_ss(surf, w, h, top, bot, radius, alpha=255):
+    """Vertical gradient clipped to a rounded rect, drawn onto a SUPERSAMPLED
+    `surf` whose pixel size is `_SS` × the given native `w`/`h`."""
+    ow, oh, orad = w * _SS, h * _SS, radius * _SS
+    body = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    for yy in range(oh):
+        t = yy / max(1, oh - 1)
+        c = lerp_color(top, bot, t)
+        pygame.draw.line(body, (*c, alpha), (0, yy), (ow - 1, yy))
+    mask = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, ow, oh),
+                     border_radius=orad)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(body, (0, 0))
+
+
+def _cut_pts(x, y, w, h, cut):
+    """Cut-corner (octagon) outline. The corner faces are softened into a
+    chamfer-with-fillet by intersecting with a rounded-rect mask in the plate
+    builder, so the silhouette reads friendly-arcade rather than hard bezel."""
+    return [
+        (x + cut, y), (x + w - cut, y), (x + w, y + cut),
+        (x + w, y + h - cut), (x + w - cut, y + h), (x + cut, y + h),
+        (x, y + h - cut), (x, y + cut),
+    ]
+
+
+def _na_plate_build(w, h, cut, round_r, accent, top, bot, inner_warm, glow):
+    pad = _NA_PAD
+    out = pygame.Surface((w + pad * 2, h + pad * 2), pygame.SRCALPHA)
+    if glow:
+        gpts = _cut_pts(pad, pad, w, h, cut)
+        for i in range(5, 0, -1):
+            a = int(34 * i / 5 / 5)
+            pygame.draw.polygon(out, (*accent, a), gpts, width=i)
+    sh = pygame.Surface((w + 6, h + 8), pygame.SRCALPHA)
+    pygame.draw.polygon(sh, (0, 0, 0, 95), _cut_pts(0, 4, w, h, cut))
+    out.blit(sh, (pad - 2, pad))
+    ow, oh = w * _SS, h * _SS
+    sspts = [(round(px * _SS), round(py * _SS))
+             for px, py in _cut_pts(0, 0, w, h, cut)]
+    body = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    for yy in range(oh):
+        t = yy / max(1, oh - 1)
+        c = lerp_color(top, bot, t)
+        if inner_warm is not None and t > 0.55:
+            c = lerp_color(c, inner_warm, (t - 0.55) / 0.45 * 0.5)
+        pygame.draw.line(body, (*c, 255), (0, yy), (ow, yy))
+    mask = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), sspts)
+    if round_r > 0:
+        rr = pygame.Surface((ow, oh), pygame.SRCALPHA)
+        pygame.draw.rect(rr, (255, 255, 255, 255), (0, 0, ow, oh),
+                         border_radius=round_r * _SS)
+        mask.blit(rr, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    ss = pygame.Surface((ow, oh), pygame.SRCALPHA)
+    ss.blit(body, (0, 0))
+    pygame.draw.polygon(ss, (*accent, 255), sspts, width=2 * _SS)
+    hi = lerp_color(accent, UI_CREAM, 0.4)
+    pygame.draw.line(ss, (*hi, 110), sspts[0], sspts[1], _SS)
+    out.blit(pygame.transform.smoothscale(ss, (w, h)), (pad, pad))
+    return out
+
+
+def _na_plate(surf, rect, cut, round_r, accent=_NA_ACCENT,
+              top=_NA_SLATE, bot=_NA_SLATE_D, inner_warm=None, glow=True):
+    """Blit a (cached) cut-corner slate plate so its body fills `rect`; the
+    baked glow + cast shadow bleed into the `_NA_PAD` margin around it."""
+    key = (rect.width, rect.height, cut, round_r, accent, top, bot,
+           inner_warm, glow)
+    out = _na_plate_cache.get(key)
+    if out is None:
+        out = _na_plate_build(rect.width, rect.height, cut, round_r, accent,
+                              top, bot, inner_warm, glow)
+        _na_plate_cache[key] = out
+    surf.blit(out, (rect.x - _NA_PAD, rect.y - _NA_PAD))
+
+
+def _na_track_bg(w, h, radius):
+    key = (w, h, radius)
+    out = _na_track_cache.get(key)
+    if out is None:
+        ss = _ss_surf(w, h)
+        _vgrad_rounded_ss(ss, w, h, (20, 30, 38), (8, 14, 20), radius, alpha=245)
+        pygame.draw.rect(ss, (*_NA_ACCENT, 150), (0, 0, w * _SS, h * _SS),
+                         width=_SS, border_radius=radius * _SS)
+        out = pygame.transform.smoothscale(ss, (w, h))
+        _na_track_cache[key] = out
+    return out
+
+
+def _na_energy_bar(surf, rect, frac):
+    """Recessed-track energy bar; fill drains yellow→amber. A horizontal meter
+    in a dark cool track on purpose, so it never reads as a gold coin."""
+    radius = rect.height // 2
+    surf.blit(_na_track_bg(rect.width, rect.height, radius), (rect.x, rect.y))
+    core = lerp_color(_ENERGY_LOW, _ENERGY_FULL, frac)
+    edge = lerp_color(_ENERGY_LOW_D, _ENERGY_FULL_D, frac)
+    inset = 4
+    fillw = int((rect.width - inset * 2) * frac)
+    fh = rect.height - inset * 2
+    if fillw > 4:
+        fill = _ss_surf(fillw, fh)
+        _vgrad_rounded_ss(fill, fillw, fh, core, edge, max(1, fh // 2))
+        pygame.draw.line(fill, (255, 255, 255, 170), (2 * _SS, 3 * _SS),
+                         (fillw * _SS - 2 * _SS, 3 * _SS), _SS)
+        _blit_ss(surf, fill, rect.x + inset, rect.y + inset, fillw, fh)
+
+
 def _draw_buff_icon(surf, rect, kind):
     """Tiny 20x20-ish icon for an active buff. Matches in-world sprites."""
     cx, cy = rect.center
@@ -887,36 +1030,36 @@ def _draw_buff_icon(surf, rect, kind):
 
 
 class PauseButton:
+    # 54 px cut-corner power tile, top-right — same plate + yellow accent weight
+    # as the score so it never reads as the quietest element.
+    TILE = pygame.Rect(W - 54 - 10, 12, 54, 54)
+
     def __init__(self):
-        # 38 px circular tap target sitting in the top-right corner.
-        # Keep the rect for hit-testing — the visible disc is inscribed.
-        self.rect = pygame.Rect(W - 50, 14, 38, 38)
+        # Hit-test area is the tile generously inflated (≥44 px target, survives
+        # rounded/notched web-portrait corners); the visible tile is smaller.
+        self.rect = PauseButton.TILE.inflate(12, 12)
         self.hover = False
 
     def contains(self, pos):
         return self.rect.collidepoint(pos)
 
     def draw(self, surf, paused=False):
-        # Gentle glass disc — same alpha + hairline as the coins pill,
-        # circular, with muted gold bars / play triangle. Reads as a
-        # quiet affordance rather than a feature button.
-        cx, cy = self.rect.center
-        size = self.rect.width
-        disc = pygame.Surface((size, size), pygame.SRCALPHA)
-        pygame.draw.circle(disc, (*_PANEL_DARK, 100),
-                           (size // 2, size // 2), size // 2)
-        pygame.draw.circle(disc, (*_GOLD_BRIGHT, 80),
-                           (size // 2, size // 2), size // 2, 1)
-        surf.blit(disc, self.rect.topleft)
+        tile = PauseButton.TILE
+        _na_plate(surf, tile, cut=9, round_r=9, glow=True)
+        cx, cy = tile.center
         if paused:
-            pygame.draw.polygon(surf, _GOLD_MUTED, [
-                (cx - 6, cy - 8),
-                (cx - 6, cy + 8),
-                (cx + 7, cy),
+            pygame.draw.polygon(surf, _NA_ACCENT, [
+                (cx - 7, cy - 10),
+                (cx - 7, cy + 10),
+                (cx + 9, cy),
             ])
         else:
-            pygame.draw.rect(surf, _GOLD_MUTED, (cx - 5, cy - 7, 3, 14), border_radius=2)
-            pygame.draw.rect(surf, _GOLD_MUTED, (cx + 2, cy - 7, 3, 14), border_radius=2)
+            bw, bh, gap = 7, 24, 6
+            for dx in (-gap - bw, gap):
+                pygame.draw.rect(surf, _NA_ACCENT,
+                                 (cx + dx, cy - bh // 2, bw, bh), border_radius=3)
+                pygame.draw.rect(surf, lerp_color(_NA_ACCENT, UI_CREAM, 0.5),
+                                 (cx + dx + 1, cy - bh // 2 + 1, max(1, bw - 3), 5))
 
 
 class HelpButton:
@@ -1309,37 +1452,21 @@ class HUD:
         # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
-        # ── Score: Glass treatment. Cream face + 2 px deep-gold rim on a
-        # translucent dark pill with a subtle top sheen. Sits at y=92 so
-        # the backdrop (y=64..120) doesn't touch the coins pill above
-        # (which ends at y=44). Kept drawn while paused so the pause overlay
-        # simply dims it in the background, like the coins pill.
+        # ── Score: opaque cut-corner slate plate (the value floor) with a
+        # menu-yellow accent edge + soft glow and a faint sandstone wash low
+        # in the body. Cream numerals with a dark outline + shadow hold over a
+        # bright-sky brown pillar AND at night. Sits up in the top band so the
+        # central play corridor stays clear. Kept drawn while paused so the
+        # pause overlay simply dims it in the background.
         score_txt = str(world.score)
-        cf = _font(48, True)
-        img = cf.render(score_txt, True, (252, 244, 220))
-        rim = cf.render(score_txt, True, _GOLD_DEEP)
-        sh  = cf.render(score_txt, True, NEAR_BLACK)
-        r = img.get_rect(center=(W // 2, 92))
-        back_w = max(r.width + 56, 96)
-        back_h = 56
-        back = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-        pygame.draw.rect(back, (*_PANEL_DARK, 120), (0, 0, back_w, back_h),
-                         border_radius=back_h // 2)
-        pygame.draw.rect(back, (*_GOLD_BRIGHT, 160), (0, 0, back_w, back_h),
-                         border_radius=back_h // 2, width=1)
-        sheen = pygame.Surface((back_w, back_h), pygame.SRCALPHA)
-        for yy in range(back_h // 2):
-            a = int(20 * (1 - yy / (back_h / 2)))
-            pygame.draw.line(sheen, (255, 245, 220, a),
-                             (8, yy + 2), (back_w - 8, yy + 2))
-        back.blit(sheen, (0, 0))
-        surf.blit(back, (W // 2 - back_w // 2, 92 - back_h // 2))
-        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
-                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
-            surf.blit(rim, (r.x + ox, r.y + oy))
-        sh.set_alpha(180)
-        surf.blit(sh, (r.x + 2, r.y + 4))
-        surf.blit(img, r.topleft)
+        sf = _font(46, True)
+        # Key the (cached) plate by digit COUNT — a tabular sample width — so
+        # the plate is rebuilt at most once per digit count, not per score.
+        sw = max(sf.size("8" * len(score_txt))[0] + 54, 102)
+        sp = pygame.Rect((W - sw) // 2, 68, sw, 56)
+        _na_plate(surf, sp, cut=9, round_r=9, inner_warm=_NA_WARM, glow=True)
+        _outlined_text(surf, score_txt, sp.center, 46, fill=UI_CREAM,
+                       outline=NEAR_BLACK, px=2, shadow_offset=(2, 3))
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
@@ -1350,23 +1477,24 @@ class HUD:
         else:
             ui_alpha = int(40 + 215 * (bird_y - 20) / 60)
 
-        # ── Coins pill: glass slab at top-left, auto-grows with count so
-        # triple-digit / quadruple-digit values don't clip the right edge.
+        # ── Coins plate: same slate cut-corner kit at top-left, auto-grows with
+        # count so triple-/quadruple-digit values don't clip. The plate + coin
+        # icon + gold count are composited on one surface so the whole element
+        # fades together as the bird nears the top edge.
         coin_text = f"x{world.coin_count}"
-        text_w = _font(16, True).size(coin_text)[0]
-        ICON_AREA = 26   # icon centre col (13) + radius + gap to text
-        RIGHT_PAD = 10
-        pill_w = max(60, ICON_AREA + text_w + RIGHT_PAD)
-        cc_pill = pygame.Surface((pill_w, 30), pygame.SRCALPHA)
-        pygame.draw.rect(cc_pill, (*_PANEL_DARK, 140), (0, 0, pill_w, 30),
-                        border_radius=8)
-        pygame.draw.rect(cc_pill, (*_GOLD_BRIGHT, 110), (0, 0, pill_w, 30),
-                         border_radius=8, width=1)
-        _coin_icon(cc_pill, 13, 15, 8)
-        _text(cc_pill, coin_text, (ICON_AREA + text_w // 2, 15),
-              size=16, color=_GOLD_BRIGHT, shadow=False)
-        cc_pill.set_alpha(ui_alpha)
-        surf.blit(cc_pill, (10, 14))
+        cf2 = _font(20, True)
+        cw = cf2.size("8" * len(coin_text))[0] + 46
+        cp = pygame.Rect(12, 14, cw, 38)
+        pad = _NA_PAD
+        coin_surf = pygame.Surface((cw + pad * 2, 38 + pad * 2), pygame.SRCALPHA)
+        _na_plate(coin_surf, pygame.Rect(pad, pad, cw, 38), cut=7, round_r=8,
+                  glow=False)
+        _coin_icon(coin_surf, pad + 19, pad + 19, 12)
+        tw = cf2.size(coin_text)[0]
+        _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19), 20,
+                       fill=UI_GOLD, outline=NEAR_BLACK, px=2, shadow_offset=None)
+        coin_surf.set_alpha(ui_alpha)
+        surf.blit(coin_surf, (cp.x - pad, cp.y - pad))
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)
@@ -1418,53 +1546,39 @@ class HUD:
         # the result feedback; no HUD bar needed.
 
         if active:
-            icon_size = 24
+            icon_size = 32
             bar_w     = 132
-            bar_h     = 12
-            row_gap   = 6
-            row_pitch = max(icon_size, bar_h) + row_gap
-            row_w     = icon_size + 6 + bar_w
+            bar_h     = 18
+            row_gap   = 8
+            row_pitch = icon_size + row_gap
+            row_w     = icon_size + 8 + bar_w
             base_x    = (W - row_w) // 2
-            top_y     = 128
+            top_y     = 132
 
             for i, (kind, remain, total) in enumerate(active):
                 y = top_y + i * row_pitch
-                # Icon plate on the left
-                icon_rect = pygame.Rect(base_x, y - (icon_size - bar_h) // 2,
-                                        icon_size, icon_size)
-                rounded_rect(surf, icon_rect, 6, (15, 25, 60), 200)
-                _draw_buff_icon(surf, icon_rect.inflate(-4, -4), kind)
+                # Icon plate on the left — the slate kit plate with the WARM
+                # energy accent so it reads as part of the timer, not the score.
+                icon_rect = pygame.Rect(base_x, y, icon_size, icon_size)
+                _na_plate(surf, icon_rect, cut=7, round_r=7,
+                          accent=_ENERGY_FULL, glow=False)
+                _draw_buff_icon(surf, icon_rect.inflate(-8, -8), kind)
 
-                # Bar to the right of the icon
-                bx = icon_rect.right + 6
-                by = y
+                # Energy bar to the right (drains yellow→amber, recessed track).
+                bx = icon_rect.right + 8
+                by = y + (icon_size - bar_h) // 2
                 frac = max(0.0, min(1.0, remain / total))
-                track = pygame.Rect(bx - 2, by, bar_w + 4, bar_h)
-                rounded_rect(surf, track, 6, (20, 25, 50), 200)
-                # Gold → orange → red as remaining time decreases
-                if frac > 0.5:
-                    fill_lo, fill_hi = UI_ORANGE, UI_GOLD
-                elif frac > 0.25:
-                    t = (frac - 0.25) / 0.25
-                    fill_lo = lerp_color(UI_RED, UI_ORANGE, t)
-                    fill_hi = lerp_color(UI_ORANGE, UI_GOLD, t)
-                else:
-                    fill_lo = (180, 20, 20)
-                    fill_hi = UI_RED
-                fill = pygame.Rect(bx, by + 2, int(bar_w * frac), bar_h - 4)
-                if fill.width > 0:
-                    rounded_rect_grad(surf, fill, 4, fill_hi, fill_lo)
-                # Time-remaining text inside the bar
-                _text(surf, f"{remain:.1f}s",
-                      (bx + bar_w // 2, by + bar_h // 2),
+                bar = pygame.Rect(bx, by, bar_w, bar_h)
+                _na_energy_bar(surf, bar, frac)
+                _text(surf, f"{remain:.1f}s", (bar.centerx, bar.centery),
                       size=11, color=UI_CREAM, shadow=True)
-                # Low-time pulse ring around the row when critical
+                # Low-time pulse ring around the bar when critical.
                 if frac < 0.25:
                     pulse = 0.5 + 0.5 * math.sin(self.title_t * 14)
                     ring_a = int(140 * pulse)
                     ring = pygame.Surface((bar_w + 10, bar_h + 6), pygame.SRCALPHA)
                     pygame.draw.rect(ring, (*UI_RED, ring_a), ring.get_rect(),
-                                     border_radius=8, width=2)
+                                     border_radius=(bar_h + 6) // 2, width=2)
                     surf.blit(ring, (bx - 5, by - 3))
 
         # Float texts
