@@ -374,14 +374,16 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         # Outer cedar shadow.
         pygame.draw.rect(surf, _shade(cedar, -25),
                          (x_l, wall_top, bw, th))
-        # Plaster infill leaves the leftmost + rightmost 3 px as cedar columns.
-        if bw > 8 and th > 4:
+        # Plaster infill — slimmer 2 px corner columns (was 3) so the white
+        # panel reads as the dominant wall mass at game scale.
+        if bw > 6 and th > 4:
             pygame.draw.rect(surf, plaster,
-                             (x_l + 3, wall_top + 1, bw - 6, th - 1))
-        # Vertical cedar columns at corners (already covered) + one mid post.
-        pygame.draw.rect(surf, cedar, (x_l, wall_top, 3, th))
-        pygame.draw.rect(surf, cedar, (x_l + bw - 3, wall_top, 3, th))
-        if bw > 18:
+                             (x_l + 2, wall_top + 1, bw - 4, th - 1))
+        pygame.draw.rect(surf, cedar, (x_l, wall_top, 2, th))
+        pygame.draw.rect(surf, cedar, (x_l + bw - 2, wall_top, 2, th))
+        # Optional mid post only on the widest base tiers so upper tiers
+        # stay readable as single panels instead of a forest of posts.
+        if bw > 26:
             mid_x = cx - 1
             pygame.draw.rect(surf, cedar, (mid_x, wall_top, 2, th))
         # Horizontal cedar beam mid-tier — adds the Hōryū-ji wood-grid cue.
@@ -462,9 +464,11 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 36
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        # Body widens (0.84 → 0.94 of pipe width) so the white plaster panels
+        # have real weight against the dark cedar columns at PIPE_W = 58.
         _draw_horyuji_to(surf, bcx,
                          envelope_top + finial_h, envelope_bot,
-                         int(bot_rect.width * 0.84), palette,
+                         int(bot_rect.width * 0.94), palette,
                          tier_count=tier_count, finial_h=finial_h,
                          sorin_up=True)
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
@@ -489,9 +493,11 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         envelope_bot = top_rect.bottom - finial_h
         # Build the tō with smaller tier count for the hanging half so the
         # silhouette doesn't visually outweigh the ground tō.
+        # Hanging tō matches the widened ground body so the silhouette pair
+        # frames the gap with consistent wall-mass.
         _draw_horyuji_to(surf, tcx,
                          envelope_top, envelope_bot,
-                         int(top_rect.width * 0.84), palette,
+                         int(top_rect.width * 0.94), palette,
                          tier_count=max(3, tier_count - 1),
                          finial_h=finial_h, sorin_up=False)
         # Hanging moss off the lowest eave-tip area for warmth.
@@ -671,45 +677,54 @@ def _draw_shwedagon(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(surf, gold,
                          (tcx - anchor_w // 2 + 2, top_rect.y + 1,
                           anchor_w - 4, 1))
-        # Suspension chain — thicker rope + larger interlocking gold links so
-        # the pendant reads as hanging, not floating-bell-with-stick. Chain
-        # links alternate vertical/horizontal so the eye reads a real chain.
+        # Suspension chain — longer + thicker so the pendant clearly hangs
+        # off the ceiling anchor instead of floating beside it. Each link is
+        # a stretched gold oval with a dark outline, chained continuously
+        # down the rope so the eye traces the suspension at game scale.
         chain_top = top_rect.y + anchor_h
-        chain_bot = min(top_rect.bottom - 36, top_rect.y + anchor_h + 22)
-        pygame.draw.line(surf, dark, (tcx, chain_top), (tcx, chain_bot), 3)
-        pygame.draw.line(surf, _shade(gold, -25), (tcx - 1, chain_top),
-                         (tcx - 1, chain_bot), 1)
-        for i, cy in enumerate(range(chain_top + 2, chain_bot, 5)):
+        # Anchor a generous portion of the ceiling rect to the chain so the
+        # hti + bell don't collide with the gap — clamp to leave ~52 px
+        # below for the chandelier + bell + diamond bud.
+        chain_bot = max(chain_top + 14,
+                        min(top_rect.bottom - 52,
+                            top_rect.y + anchor_h + 38))
+        # Twin rope strands — a dark backbone with a gold inner highlight.
+        pygame.draw.line(surf, dark, (tcx, chain_top), (tcx, chain_bot), 4)
+        pygame.draw.line(surf, _shade(gold, -10),
+                         (tcx, chain_top), (tcx, chain_bot), 2)
+        # Larger, denser links so the chain reads at every biome phase.
+        for i, cy in enumerate(range(chain_top + 1, chain_bot, 4)):
+            pygame.draw.ellipse(surf, dark, (tcx - 4, cy - 1, 8, 5))
+            pygame.draw.ellipse(surf, gold, (tcx - 3, cy, 6, 3))
+            # Bright gloss pixel on every other link.
             if i % 2 == 0:
-                pygame.draw.ellipse(surf, dark, (tcx - 3, cy - 1, 6, 4))
-                pygame.draw.ellipse(surf, gold, (tcx - 2, cy, 4, 2))
-            else:
-                pygame.draw.ellipse(surf, dark, (tcx - 2, cy - 2, 4, 5))
-                pygame.draw.ellipse(surf, gold, (tcx - 1, cy - 1, 2, 3))
-        # Inverted hti rings — fan WIDER and ADD MORE rings so the chandelier
-        # reads as the umbrella-stack ornament instead of a single bar. Step
-        # widens faster than round 1 (rw = 4 + k * 2 vs 3 + k).
+                pygame.draw.line(surf, _shade(gold, 60),
+                                 (tcx - 1, cy + 1), (tcx + 1, cy + 1), 1)
+        # Inverted hti chandelier — fan wider and pack MORE rings so the
+        # umbrella-stack reads even when sky brightness varies. Each ring
+        # gets a tipped bead at both ends (the canonical hti-finial cue).
         ring_top_y = chain_bot + 2
-        rings = rng.choice([6, 7, 8])
+        rings = rng.choice([7, 8, 9])
         for k in range(rings):
             t = k / max(1, rings - 1)
-            ry = ring_top_y + int(t * 20)
-            rw = 4 + k * 2
-            # Dark shadow rim then gold lip — every other ring gets a small
-            # bead at each tip for the umbrella-spoke cue.
+            ry = ring_top_y + int(t * 22)
+            rw = 5 + k * 2
+            # 2-px gold lip with a dark shadow underneath — heavier than
+            # round 1 so the chandelier reads at small scale.
             pygame.draw.line(surf, dark,
                              (tcx - rw, ry + 1), (tcx + rw, ry + 1), 1)
             pygame.draw.line(surf, gold,
-                             (tcx - rw, ry), (tcx + rw, ry), 1)
-            if k % 2 == 1 and rw > 5:
-                pygame.draw.circle(surf, _shade(gold, 50), (tcx - rw, ry), 1)
-                pygame.draw.circle(surf, _shade(gold, 50), (tcx + rw, ry), 1)
+                             (tcx - rw, ry), (tcx + rw, ry), 2)
+            # Tipped bead at both ends of every ring — the hti spoke cue.
+            pygame.draw.circle(surf, dark, (tcx - rw - 1, ry), 2)
+            pygame.draw.circle(surf, gold, (tcx - rw - 1, ry), 1)
+            pygame.draw.circle(surf, dark, (tcx + rw + 1, ry), 2)
+            pygame.draw.circle(surf, gold, (tcx + rw + 1, ry), 1)
         # Inverted bell pendant — only the LOWER half of an ellipse is drawn
-        # so the bell reads as a hanging dome opening downward. Built as a
-        # closed fan polygon (arc + flat mouth) because pygame can't natively
-        # clip an ellipse mid-shape, and a full-ellipse + rect-mask approach
-        # would paint a flat band over the sky gradient behind the cache.
-        bell_top = ring_top_y + 16
+        # so the bell reads as a hanging dome opening downward. Anchor under
+        # the bottom of the chandelier (vs ring_top_y) so widening the chain
+        # doesn't push the bell off the pendant axis.
+        bell_top = ring_top_y + int(22) + 4
         bell_w = int(top_rect.width * 0.78)
         bell_h = 22
         steps = 17
@@ -992,29 +1007,41 @@ def candidate_boudhanath(surf, top_rect, bot_rect, palette, seed):
 # Reference: https://en.wikipedia.org/wiki/Wat_Arun
 
 def _mosaic_lozenges(surf, x, y, w, h, palette, *, rng):
-    """Scattered lozenge tiles in pastel-pink, aqua, cream — the porcelain
-    mosaic skin of Wat Arun's prang. Lozenges sit on a 4-px row grid so the
-    pattern reads as a hand-set mosaic at game scale, not coloured noise."""
+    """Pastel porcelain mosaic skin of Wat Arun's prang — high-contrast
+    diamond tiles on a 5-px lattice with dark mortar in between. The lattice
+    is hand-set so the pattern reads as porcelain inlay at PIPE_W = 58, not
+    as soft noise. Each diamond gets a brighter inner highlight + a dark
+    keyline so the mosaic survives day-bright and night-dark palettes."""
     if w < 6 or h < 6:
         return
-    cols = (_porcelain_pink(palette),
-            _porcelain_aqua(palette),
-            _porcelain_cream(palette))
-    rows = max(1, h // 4)
-    cells = max(1, w // 4)
+    pink = _porcelain_pink(palette)
+    aqua = _porcelain_aqua(palette)
+    cream = _porcelain_cream(palette)
+    dark = _shade(palette['stone_dark'], -10)
+    cols = (pink, aqua, cream)
+    step = 5
+    rows = max(1, h // step)
+    cells = max(1, w // step)
     for r in range(rows):
         for c in range(cells):
-            tx = x + c * 4
-            ty = y + r * 4
-            ci = rng.randrange(3)
+            tx = x + c * step
+            ty = y + r * step
+            # Stagger every other row by half a cell so the diamonds
+            # interlock the way a real porcelain mosaic on a prang does.
+            if r % 2 == 1:
+                tx += step // 2
+            ci = (r + c + rng.randrange(2)) % 3
             col = cols[ci]
-            # Lozenge: small diamond every other cell so the row stays open.
-            if (r + c) % 2 == 0:
-                pygame.draw.polygon(surf, col,
-                                    [(tx + 2, ty), (tx + 3, ty + 2),
-                                     (tx + 2, ty + 3), (tx + 1, ty + 2)])
-            else:
-                pygame.draw.rect(surf, col, (tx + 1, ty + 1, 2, 2))
+            # Dark mortar keyline around the diamond.
+            diamond = [(tx + 2, ty), (tx + 4, ty + 2),
+                       (tx + 2, ty + 4), (tx, ty + 2)]
+            pygame.draw.polygon(surf, dark, diamond)
+            inner = [(tx + 2, ty + 1), (tx + 3, ty + 2),
+                     (tx + 2, ty + 3), (tx + 1, ty + 2)]
+            pygame.draw.polygon(surf, col, inner)
+            # Centre highlight pixel — porcelain catches a tiny gloss spot.
+            pygame.draw.line(surf, _shade(col, 35),
+                             (tx + 2, ty + 2), (tx + 2, ty + 2), 1)
 
 
 def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
@@ -1050,21 +1077,33 @@ def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
     # Dark edge silhouette.
     _aa_polyline(surf, _shade(dark, 10), body, closed=True)
 
-    # Horizontal mosaic stripe rings — alternating pink/aqua.
+    # Porcelain mosaic skin across the spire: thicker stripe rings + a row
+    # of small staggered lozenge dots per band so the body matches the
+    # mosaic-clad reference, not a plain striped cone.
     for k in range(rings):
         t = k / rings
         local_w = int(w * (1 - t * t) * 0.5 + 2)
         ry = base_y - int(spire_h * t)
         stripe_col = pink if k % 2 == 0 else aqua
+        # 2-px stripe with a darker mortar line above so the band reads
+        # as a porcelain inlay row.
+        pygame.draw.line(surf, _shade(dark, 25),
+                         (cx - local_w + 1, ry - 1),
+                         (cx + local_w - 1, ry - 1), 1)
         pygame.draw.line(surf, stripe_col,
                          (cx - local_w + 1, ry),
                          (cx + local_w - 1, ry), 1)
-        # Tiny lozenge dot in cream at the centre of every 4th ring for tile
-        # detail.
-        if k % 4 == 1:
-            pygame.draw.polygon(surf, cream,
-                                [(cx, ry - 1), (cx + 1, ry),
-                                 (cx, ry + 1), (cx - 1, ry)])
+        # Staggered lozenge dots — pink/aqua/cream rotating so the column
+        # reads tiled rather than striped.
+        dot_col = cream if k % 3 == 0 else (aqua if k % 3 == 1 else pink)
+        for off in (-local_w + 3, 0, local_w - 3):
+            if off == 0 and local_w < 4:
+                continue
+            pygame.draw.polygon(surf, dot_col,
+                                [(cx + off, ry - 1),
+                                 (cx + off + 1, ry),
+                                 (cx + off, ry + 1),
+                                 (cx + off - 1, ry)])
 
     # Lobed paired bumps — small pink/aqua bulges on alternate sides every
     # 3 rings.
@@ -1197,12 +1236,13 @@ def candidate_wat_arun(surf, top_rect, bot_rect, palette, seed):
 # Reference: https://en.wikipedia.org/wiki/Songyue_Pagoda
 
 def _songyue_brick_band(surf, cx, y, w, h, palette):
-    """Brick-row striations on the body — horizontal hatch every 4 px in
-    alternating mortar/brick tones. What makes Songyue read as brick."""
+    """Brick-row striations on the body — tighter 3-px mortar rows with a
+    lighter, brighter mortar tone so the brick pattern reads at game
+    scale instead of dissolving into a flat terracotta column."""
     if w < 4 or h < 4:
         return
     brick = _terracotta(palette)
-    mortar = _brick_mortar(palette)
+    mortar = _shade(_brick_mortar(palette), 18)
     pygame.draw.rect(surf, brick, (cx - w // 2, y, w, h))
     # Right-edge cool shadow gives the cylinder its volume.
     pygame.draw.rect(surf, _shade(brick, -30),
@@ -1210,10 +1250,21 @@ def _songyue_brick_band(surf, cx, y, w, h, palette):
     # Left-edge highlight.
     pygame.draw.rect(surf, _shade(brick, 18),
                      (cx - w // 2, y, 2, h))
-    # Horizontal mortar rows every 4 px — the brick-row cue.
-    for k in range(y + 2, y + h, 4):
-        pygame.draw.line(surf, mortar,
-                         (cx - w // 2 + 2, k), (cx + w // 2 - 2, k), 1)
+    # Horizontal mortar rows every 3 px — the brick-row cue. Each row gets
+    # a half-cell offset on alternate lines so the eye reads brick-bond
+    # masonry, not just stripes.
+    for idx, k in enumerate(range(y + 2, y + h, 3)):
+        if idx % 2 == 0:
+            pygame.draw.line(surf, mortar,
+                             (cx - w // 2 + 2, k),
+                             (cx + w // 2 - 2, k), 1)
+        else:
+            # Broken row — leaves a brick-end gap mid-line.
+            mid = cx
+            pygame.draw.line(surf, mortar,
+                             (cx - w // 2 + 2, k), (mid - 1, k), 1)
+            pygame.draw.line(surf, mortar,
+                             (mid + 1, k), (cx + w // 2 - 2, k), 1)
 
 
 def _songyue_dwarf_eave(surf, cx, y, half_w, palette, depth=2):
