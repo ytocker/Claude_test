@@ -862,8 +862,8 @@ class Bird:
         rim_y = Y(pad + hh + 1 * SS)
         front_anchor = (8 * SS, rim_y)
         rear_anchor  = (4 * SS, rim_y)
-        junction     = (6 * SS, Y(30 * SS))
-        clip_centre  = (14 * SS, Y(37 * SS))
+        junction     = (6 * SS, Y(33 * SS))
+        clip_centre  = (14 * SS, Y(40 * SS))
         pygame.draw.line(helm, STRAP, front_anchor, junction, 2 * SS)
         pygame.draw.line(helm, STRAP, rear_anchor,  junction, 2 * SS)
         pygame.draw.line(helm, STRAP, junction, clip_centre, 2 * SS)
@@ -878,7 +878,7 @@ class Bird:
         pygame.draw.line(helm, OUT,
                          (clip.x + 2 * SS, clip.y),
                          (clip.x + 2 * SS, clip.bottom - 1 * SS), SS)
-        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, Y(35 * SS)),
+        pygame.draw.line(helm, STRAP, clip_centre, (22 * SS, Y(38 * SS)),
                          2 * SS)
 
         # G1 ears — icon-style chunky red-tipped bunny ears, 6×18 native,
