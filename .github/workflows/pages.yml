@@ -1,15 +1,12 @@
-name: Deploy main (/) + v4 (/v4/) + v4_powerups (/v4_powerups/) + v5_powerups (/v5_powerups/) + v5_skybit (/v5_skybit/) + v5_skybit_weather_events (/v5_skybit_weather_events/) to GitHub Pages
+name: Deploy main (/) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/) to GitHub Pages
 
 # One Pages site per repo means a single artifact replaces the whole
-# deploy each time. To keep main (root URL), v4 (/v4/),
-# v4_skybit_powerups (/v4_powerups/), v5_powerups (/v5_powerups/),
-# v5_skybit (/v5_skybit/) and v5_skybit_weather_events
-# (/v5_skybit_weather_events/) all reachable, every triggered run
-# rebuilds ALL SIX branches and ships them as one combined artifact.
-# This file is intentionally identical on all six deploy branches
-# (main, v4_skybit, v4_skybit_powerups, v5_powerups, v5_skybit,
-# v5_skybit_weather_events) so a push to any branch produces the same
-# deploy — any edit must be synced across all six.
+# deploy each time. To keep main (root URL), v5_skybit (/v5/), and
+# v5_skybit_powerups_final (/v5_powerups/) all reachable, every
+# triggered run rebuilds ALL THREE branches and ships them as one
+# combined artifact. This file is intentionally identical on main,
+# v5_skybit, and v5_skybit_powerups_final so a push to any branch
+# produces the same deploy.
 #
 # Pygbag 0.9.2 has no built-in include / exclude flag — it bundles
 # every file in the directory it runs in. Without staging the
@@ -25,7 +22,7 @@ name: Deploy main (/) + v4 (/v4/) + v4_powerups (/v4_powerups/) + v5_powerups (/
 
 on:
   push:
-    branches: [main, v4_skybit, v4_skybit_powerups, v5_powerups, v5_skybit, v5_skybit_weather_events]
+    branches: [main, v5_skybit, v5_skybit_powerups_final]
   workflow_dispatch:
 
 permissions:
@@ -47,35 +44,17 @@ jobs:
           ref: main
           path: main_src
 
-      - name: Checkout v4_skybit
-        uses: actions/checkout@v4
-        with:
-          ref: v4_skybit
-          path: v4_src
-
-      - name: Checkout v4_skybit_powerups
-        uses: actions/checkout@v4
-        with:
-          ref: v4_skybit_powerups
-          path: pup_src
-
-      - name: Checkout v5_powerups
-        uses: actions/checkout@v4
-        with:
-          ref: v5_powerups
-          path: v5p_src
-
       - name: Checkout v5_skybit
         uses: actions/checkout@v4
         with:
           ref: v5_skybit
-          path: v5s_src
+          path: v5_src
 
-      - name: Checkout v5_skybit_weather_events
+      - name: Checkout v5_skybit_powerups_final
         uses: actions/checkout@v4
         with:
-          ref: v5_skybit_weather_events
-          path: wev_src
+          ref: v5_skybit_powerups_final
+          path: v5f_src
 
       - uses: actions/setup-python@v5
         with:
@@ -88,9 +67,9 @@ jobs:
         # Tests live in each branch's full checkout (not in the
         # staged minimal tree). If any branch's pytest suite fails,
         # the deploy is halted — better to leave the previous
-        # deploy live than ship a regression to all four URLs.
+        # deploy live than ship a regression to all three URLs.
         run: |
-          for src in main_src v4_src pup_src v5p_src v5s_src wev_src; do
+          for src in main_src v5_src v5f_src; do
             if [ -d "$src/tests" ]; then
               echo "=== $src/tests ==="
               ( cd "$src" && python -m pytest tests/ -q ) || exit 1
@@ -108,7 +87,7 @@ jobs:
           # allowlist to maintain. Adding a new powerup or any new
           # file inside game/ is automatically picked up by the next
           # build with no workflow change.
-          for src in main_src v4_src pup_src v5p_src v5s_src wev_src; do
+          for src in main_src v5_src v5f_src; do
             stage="${src%_src}_stage"
             mkdir -p "$stage"
             cp "$src/main.py"          "$stage/main.py"
@@ -129,75 +108,36 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Build v4_skybit WASM bundle
-        working-directory: v4_stage
-        run: python -m pygbag --build main.py
-
-      - name: Inject theme + Supabase into v4_skybit
-        working-directory: v4_stage
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: python inject_theme.py
-
-      - name: Build v4_skybit_powerups WASM bundle
-        working-directory: pup_stage
-        run: python -m pygbag --build main.py
-
-      - name: Inject theme + Supabase into v4_skybit_powerups
-        working-directory: pup_stage
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: python inject_theme.py
-
-      - name: Build v5_powerups WASM bundle
-        working-directory: v5p_stage
-        run: python -m pygbag --build main.py
-
-      - name: Inject theme + Supabase into v5_powerups
-        working-directory: v5p_stage
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: python inject_theme.py
-
       - name: Build v5_skybit WASM bundle
-        working-directory: v5s_stage
+        working-directory: v5_stage
         run: python -m pygbag --build main.py
 
       - name: Inject theme + Supabase into v5_skybit
-        working-directory: v5s_stage
+        working-directory: v5_stage
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Build v5_skybit_weather_events WASM bundle
-        working-directory: wev_stage
+      - name: Build v5_skybit_powerups_final WASM bundle
+        working-directory: v5f_stage
         run: python -m pygbag --build main.py
 
-      - name: Inject theme + Supabase into v5_skybit_weather_events
-        working-directory: wev_stage
+      - name: Inject theme + Supabase into v5_skybit_powerups_final
+        working-directory: v5f_stage
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python inject_theme.py
 
-      - name: Combine main (root) + v4 (/v4/) + v4_skybit_powerups (/v4_powerups/) + v5_powerups (/v5_powerups/) + v5_skybit (/v5_skybit/) + v5_skybit_weather_events (/v5_skybit_weather_events/)
+      - name: Combine main (root) + v5_skybit (/v5/) + v5_skybit_powerups_final (/v5_powerups/)
         run: |
           mkdir -p combined
           cp -r main_stage/build/web/. combined/
-          mkdir -p combined/v4
-          cp -r v4_stage/build/web/. combined/v4/
-          mkdir -p combined/v4_powerups
-          cp -r pup_stage/build/web/. combined/v4_powerups/
+          mkdir -p combined/v5
+          cp -r v5_stage/build/web/. combined/v5/
           mkdir -p combined/v5_powerups
-          cp -r v5p_stage/build/web/. combined/v5_powerups/
-          mkdir -p combined/v5_skybit
-          cp -r v5s_stage/build/web/. combined/v5_skybit/
-          mkdir -p combined/v5_skybit_weather_events
-          cp -r wev_stage/build/web/. combined/v5_skybit_weather_events/
+          cp -r v5f_stage/build/web/. combined/v5_powerups/
           # GitHub Pages routes through Jekyll by default, which skips
           # paths beginning with `_`. Pygbag emits `_pythons.js`,
           # `_packages/`, etc. — the marker disables Jekyll for the
@@ -215,7 +155,7 @@ jobs:
           MAX_BYTES=$((5 * 1024 * 1024))
           fail=0
           echo "=== built bundle sizes ==="
-          for stage in main_stage v4_stage pup_stage v5p_stage v5s_stage wev_stage; do
+          for stage in main_stage v5_stage v5f_stage; do
             apk=$(ls "$stage"/build/web/*.apk 2>/dev/null | head -1)
             if [ -f "$apk" ]; then
               bytes=$(stat -c%s "$apk")
