@@ -1128,11 +1128,6 @@ def _stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
     """Single stat tile — beveled navy card with gradient body, gold
     rim, icon at top, large value, optional subline ("61%"), bottom
     label. Auto-shrinks the label one step if it would crowd."""
-    # Drop shadow
-    sh = pygame.Surface((rect.w + 4, rect.h + 4), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 120),
-                     (0, 0, rect.w + 4, rect.h + 4), border_radius=10)
-    surf.blit(sh, (rect.x - 2, rect.y + 4))
     # Body — vertical gradient
     body = pygame.Surface(rect.size, pygame.SRCALPHA)
     for yy in range(rect.h):
@@ -1183,11 +1178,6 @@ def _stat_tile_chunky(surf, rect, icon_kind, value, label, subline=None):
 def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
     """Engraved gold-frame plaque with FINAL SCORE caption, massive
     inset score numeral, and a BEST/delta line at the bottom."""
-    # Outer shadow
-    sh = pygame.Surface((rect.w + 8, rect.h + 10), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 130),
-                     (0, 0, rect.w + 8, rect.h + 10), border_radius=20)
-    surf.blit(sh, (rect.x - 4, rect.y + 6))
     # Outer gold frame
     pygame.draw.rect(surf, _GOLD_BRIGHT, rect, border_radius=20)
     # Inner darker bevel
@@ -1715,7 +1705,8 @@ class HUD:
         if elapsed >= 0.6:
             self.stats_play_again_rect = _pill_btn(
                 surf, (W // 2, 568), "PLAY  AGAIN",
-                size=22, alpha=255, min_width=240, primary=True, dim=True)
+                size=22, alpha=255, min_width=240, primary=True, dim=True,
+                shadow=False)
             self.stats_main_menu_rect = _outline_pill_btn(
                 surf, (W // 2, 618), "MAIN MENU",
                 size=14, min_width=130)
