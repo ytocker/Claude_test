@@ -63,18 +63,20 @@ _fonts: dict = {}
 
 def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
                    outline=_RED_OUTLINE, px=3, shadow_offset=(3, 5)):
-    """Gold text with red pixel outline — matches the welcome screen title."""
+    """Gold text with red pixel outline — matches the welcome screen title.
+    ``shadow_offset=None`` skips the drop shadow for a flat title."""
     f = _font(size, True)
     img = f.render(txt, True, fill)
     out = f.render(txt, True, outline)
-    sh  = f.render(txt, True, NEAR_BLACK)
     r = img.get_rect(center=center)
     offsets = [(-px, 0), (px, 0), (0, -px), (0, px),
                (-px, -px), (px, -px), (-px, px), (px, px)]
     for ox, oy in offsets:
         surf.blit(out, (r.x + ox, r.y + oy))
-    sh.set_alpha(170)
-    surf.blit(sh, (r.x + shadow_offset[0], r.y + shadow_offset[1]))
+    if shadow_offset is not None:
+        sh = f.render(txt, True, NEAR_BLACK)
+        sh.set_alpha(170)
+        surf.blit(sh, (r.x + shadow_offset[0], r.y + shadow_offset[1]))
     surf.blit(img, r.topleft)
     return r
 
@@ -255,11 +257,6 @@ def _score_emblem(surf, cx, cy, r, label, value):
     gold value centred. Ported from tools/gen_scarlet_set.py::
     score_emblem so the pause / stats / game-over screens get the
     same hero treatment as the menu mockup."""
-    # Soft drop shadow
-    sh = pygame.Surface((r * 2 + 16, r * 2 + 16), pygame.SRCALPHA)
-    pygame.draw.circle(sh, (0, 0, 0, 95), (r + 8, r + 8), r + 2)
-    surf.blit(sh, (cx - r - 8, cy - r + 4))
-
     # Dark navy interior
     pygame.draw.circle(surf, _PANEL_DARK, (cx, cy), r)
 
@@ -1272,7 +1269,6 @@ class HUD:
         self.menu_top10_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf, score: int = 0):
-        self.title_t += 1 / 60
         # Deep blue-purple dim
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((6, 2, 28, 165))
@@ -1284,13 +1280,15 @@ class HUD:
             _score_emblem(surf, W // 2, 150, 56,
                           "S C O R E", str(score))
 
+        # Static, flat title — no pulse or drop shadow so the paused screen
+        # sits calm rather than throbbing.
         cy = H // 2 + 30
-        pulse = 1.0 + math.sin(self.title_t * 2.6) * 0.04
         _outlined_text(surf, "PAUSED", (W // 2, cy),
-                        size=int(52 * pulse), px=3)
+                        size=52, px=3, shadow_offset=None)
 
-        alpha = int(150 + math.sin(self.title_t * 3.6) * 90)
-        _pill_btn(surf, (W // 2, cy + 72), "TAP · P · ESC", size=16, alpha=alpha)
+        # Same flat dim-scarlet pill as the main-menu CTAs.
+        _pill_btn(surf, (W // 2, cy + 72), "TAP · P · ESC",
+                  size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
     def draw_menu(self, surf, dt, best: int):
         self.title_t += dt
