@@ -534,6 +534,14 @@ class Bird:
         # already crashing (REVIEW.md feedback).
         t = max(-0.5, min(0.75, self.vy / 500.0))
         base = -t * 55.0
+        # GRIND lean: while Pip is locked into a nose / tail grind, pitch
+        # the whole body so it matches the board's wheel that's on the
+        # rail. Nose grind = front wheel down, body pitches forward.
+        # Tail grind = back wheel down, body pitches back.
+        if self.grind_type == "nose":
+            base += -18.0
+        elif self.grind_type == "tail":
+            base += 18.0
         # During a backflip, ride a full 360° rotation on top of the base
         # tilt. Smootherstep easing (6t⁵−15t⁴+10t³) eases in and out and
         # closes the loop to ~0° at the last frame; the velocity-banked
