@@ -161,23 +161,34 @@ def _outlined(surf, txt, center, size, fill, outline, px):
 
 
 def _rope_band(ss, ow, oh, orad, width_n):
-    """Twisted gold rope rim: an outer deep-gold band, a bright inner thread,
-    and short diagonal nicks that read as the rope's lay. Drawn on the
-    supersampled surface so it stays crisp once scaled down."""
+    """Twisted gold rope rim: an outer deep-gold band carrying a chain of
+    bright diagonal twist-strands that read as braided rope even after the
+    surface is scaled back to native (the round-1 band read as a plain double
+    rim — bumping the strand contrast + pitch is what makes the braid legible).
+    A thin pale inner thread closes the bevel. Drawn on the supersampled surf."""
     pygame.draw.rect(ss, _GOLD_DEEP, (0, 0, ow, oh), width=width_n,
                      border_radius=orad)
-    pygame.draw.rect(ss, (*_GOLD_BRIGHT, 235),
-                     (width_n // 3, width_n // 3,
-                      ow - 2 * (width_n // 3), oh - 2 * (width_n // 3)),
-                     width=max(SS, width_n // 3), border_radius=max(1, orad - width_n // 3))
-    # diagonal twist nicks along the top + bottom runs
-    step = 5 * SS
-    for x in range(orad, ow - orad, step):
-        pygame.draw.line(ss, (*_GOLD_PALE, 150),
-                         (x, width_n // 4), (x + 2 * SS, width_n - width_n // 4), SS)
-        pygame.draw.line(ss, (*_GOLD_PALE, 150),
-                         (x, oh - width_n + width_n // 4),
-                         (x + 2 * SS, oh - width_n // 4), SS)
+    # Braided twist-strands: bright diagonal ticks marching along each run,
+    # pitched at ~45deg, spaced so a couple of strands survive per native pixel.
+    strand_w = max(SS, width_n // 3)
+    pitch = max(4 * SS, width_n)
+    inset = width_n // 2
+    for x in range(orad, ow - orad, pitch):
+        pygame.draw.line(ss, (*_GOLD_PALE, 230),
+                         (x, inset), (x + width_n, width_n - inset // 2), strand_w)
+        pygame.draw.line(ss, (*_GOLD_PALE, 230),
+                         (x, oh - inset), (x + width_n, oh - width_n + inset // 2),
+                         strand_w)
+    for y in range(orad, oh - orad, pitch):
+        pygame.draw.line(ss, (*_GOLD_PALE, 230),
+                         (inset, y), (width_n - inset // 2, y + width_n), strand_w)
+        pygame.draw.line(ss, (*_GOLD_PALE, 230),
+                         (ow - inset, y), (ow - width_n + inset // 2, y + width_n),
+                         strand_w)
+    # thin bright inner thread closes off the bevel
+    pygame.draw.rect(ss, (*_GOLD_BRIGHT, 220),
+                     (width_n, width_n, ow - 2 * width_n, oh - 2 * width_n),
+                     width=SS, border_radius=max(1, orad - width_n))
 
 
 def _rivets(ss, ow, oh, m):
@@ -305,13 +316,15 @@ def _timer_row(surf, top_y, bar_w=126, bar_h=16, icon=28):
 
 # ── the three top-anchored proportion variants ──────────────────────────────
 def _coins_plaque(surf, top_y=10, h=34, font_px=19):
+    # Extra left padding clears the coin face off the rope rim; the count sits
+    # in deep wood-brown so it reads as carved into the parchment.
     ct = f"x{COINS}"
-    cw = _font(font_px, True).size(ct)[0] + 42
+    cw = _font(font_px, True).size(ct)[0] + 48
     cp = pygame.Rect(10, top_y, cw, h)
     _wood_plaque(surf, cp, 9, parchment=True, band=3, rivets=False)
-    _coin_icon(surf, cp.x + 18, cp.centery, 10)
+    _coin_icon(surf, cp.x + 20, cp.centery, 10)
     ci = _font(font_px, True).render(ct, True, _WOOD_DK)
-    surf.blit(ci, ci.get_rect(midleft=(cp.x + 31, cp.centery)))
+    surf.blit(ci, ci.get_rect(midleft=(cp.x + 34, cp.centery)))
 
 
 def variant_v1(surf):
