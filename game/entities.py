@@ -519,6 +519,10 @@ class Bird:
         self.heelflip_dur = 0.0
         self.popshuvit_t = 0.0
         self.popshuvit_dur = 0.0
+        # Set on landing a grind (nose / tail / None). World latches
+        # this on slide-start and clears on slide-end so the trick
+        # bubble only fires once per grind, not every frame.
+        self.grind_type: str | None = None
         # Death cross-fade: counts up from 0 to DEATH_FADE_DURATION at
         # the collision moment; Bird.draw alpha-blends the dead palette
         # on top of the alive sprite while this is in flight.

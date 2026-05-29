@@ -778,6 +778,24 @@ class World:
             else:
                 self.slide_boost = max(
                     0.0, self.slide_boost - dt / SKATE_SLIDE_RELEASE)
+            # Grind landings — first frame Pip starts sliding while the
+            # skateboard buff is active. Roll once on landing for a
+            # NOSE / TAIL grind callout; both share the gold palette in
+            # TRICK_BUBBLE_PALETTE. grind_type latches so the bubble
+            # only fires once per slide; cleared on slide-end below.
+            if (self._sliding_this_frame
+                    and not self._sliding_prev_frame
+                    and self.skateboard_timer > 0
+                    and self.bird.grind_type is None):
+                if random.random() < 0.25:
+                    gtype = random.choice(("nose", "tail"))
+                    self.bird.grind_type = gtype
+                    self._spawn_trick_bubble(f"{gtype.upper()} GRIND!")
+            if (not self._sliding_this_frame
+                    and self._sliding_prev_frame
+                    and self.bird.grind_type is not None):
+                self.bird.grind_type = None
+            self._sliding_prev_frame = self._sliding_this_frame
             if self.skateboard_caption_t > 0:
                 self.skateboard_caption_t = max(
                     0.0, self.skateboard_caption_t - dt)
