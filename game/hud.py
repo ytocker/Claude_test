@@ -1158,44 +1158,6 @@ def _score_plaque(surf, rect, score: int, best: int, new_best: bool):
     surf.blit(cf, cf.get_rect(center=(rect.centerx, rect.bottom - 20)))
 
 
-# ── Name-entry on-screen keyboard (mirrors the web overlay) ──────────────────
-_KEY_BORDER = (78, 42, 106)       # #4e2a6a — letter-key rim
-_KEY_FACE_TOP = (29, 18, 64)      # #1d1240 — letter-key gradient top
-_KEY_FACE_BOT = (15, 8, 40)       # #0f0828 — letter-key gradient bottom
-
-
-def _kbd_key(surf, rect, label, font, special=False, active=False):
-    """One virtual-keyboard key. Letter keys are navy with gold glyphs;
-    action keys (shift/back/space/submit/skip) are scarlet; an active SHIFT
-    glows gold — matching the web name-entry overlay."""
-    if active:
-        top, bot, border, txt = _GOLD_BRIGHT, (184, 138, 46), (255, 248, 200), (42, 24, 88)
-    elif special:
-        top, bot, border, txt = _SCARLET_TOP, _SCARLET_BOT, _ORANGE_BORDER, WHITE
-    else:
-        top, bot, border, txt = _KEY_FACE_TOP, _KEY_FACE_BOT, _KEY_BORDER, _GOLD_BRIGHT
-    body = pygame.Surface(rect.size, pygame.SRCALPHA)
-    for yy in range(rect.height):
-        pygame.draw.line(body, lerp_color(top, bot, yy / max(1, rect.height - 1)),
-                         (0, yy), (rect.width, yy))
-    mask = pygame.Surface(rect.size, pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255),
-                     (0, 0, rect.width, rect.height), border_radius=8)
-    body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    pygame.draw.rect(body, border, (0, 0, rect.width, rect.height),
-                     width=2, border_radius=8)
-    surf.blit(body, rect.topleft)
-    if label:
-        img = font.render(label, True, txt)
-        surf.blit(img, img.get_rect(center=rect.center))
-
-
-def _draw_up_arrow(surf, cx, cy, s, color):
-    """Procedural SHIFT glyph (the font lacks ⇧) — triangle head + stem."""
-    pygame.draw.polygon(surf, color, [(cx, cy - s), (cx - s, cy), (cx + s, cy)])
-    pygame.draw.rect(surf, color, (cx - s // 2, cy, s, s - 1))
-
-
 class HUD:
     def __init__(self):
         self.pause_btn = PauseButton()
@@ -1205,10 +1167,9 @@ class HUD:
         # scores / rank / error / pending / target size change.
         self._lb_cache: "pygame.Surface | None" = None
         self._lb_cache_key: tuple = ()
-        # Name-entry key rects — list of (kind, rect) populated each frame by
-        # draw_name_entry, read by scenes.py click-handling. kind is a letter
-        # ('A'..'Z') or an action ('shift'/'back'/'space'/'enter'/'skip').
-        self.name_keys: list = []
+        # Name-entry button rects — populated each frame by draw_name_entry,
+        # read by scenes.py click-handling. Pre-init to empty rects so the
+        # first click before any draw is harmless.
         self.name_submit_rect = pygame.Rect(0, 0, 0, 0)
         self.name_skip_rect   = pygame.Rect(0, 0, 0, 0)
         # Run-summary button rects — populated by draw_stats each frame
@@ -1669,104 +1630,80 @@ class HUD:
             self.stats_play_again_rect = pygame.Rect(0, 0, 0, 0)
             self.stats_main_menu_rect = pygame.Rect(0, 0, 0, 0)
 
-    def draw_name_entry(self, surf, dt, buf: str, caps: bool = True):
-        """On-screen QWERTY name-entry — the same keyboard the web overlay
-        shows, ported to pygame so the native build uses the identical screen.
-        Populates ``self.name_keys`` (list of (kind, rect)) for scenes.py to
-        hit-test. ``caps`` drives the SHIFT glow + letter case."""
+    def draw_name_entry(self, surf, dt, buf: str):
         self.title_t += dt
         dim = pygame.Surface((W, H), pygame.SRCALPHA)
         dim.fill((8, 3, 26, 240))
         surf.blit(dim, (0, 0))
+
         _draw_overlay_stars(surf, self._stars, self.title_t)
-        _draw_mountain_silhouette(surf, alpha=140)
 
-        MAXLEN = 10
-        keys = []
+        # Trophy above the title — same emblem as the TOP 10 screen.
+        _draw_trophy(surf, W // 2, H // 2 - 180, 22)
 
-        # Trophy + title.
-        _draw_trophy(surf, W // 2, 52, 20)
-        _outlined_text(surf, "NEW  HIGH  SCORE!", (W // 2, 98),
-                       size=22, px=2, shadow_offset=(2, 3))
+        # Title — gold + red outline to match the mockup
+        _outlined_text(surf, "NEW  HIGH  SCORE!",
+                       (W // 2, H // 2 - 130),
+                       size=24, px=2, shadow_offset=(2, 3))
 
-        # Buffer slab: '>' prompt + ten slots that fill in + a N/10 counter.
-        br = pygame.Rect(W // 2 - 160, 122, 320, 38)
-        slab = pygame.Surface(br.size, pygame.SRCALPHA)
-        pygame.draw.rect(slab, (0, 0, 0, 120), slab.get_rect(), border_radius=10)
-        pygame.draw.rect(slab, (*_ORANGE_BORDER, 150), slab.get_rect(),
-                         width=1, border_radius=10)
-        surf.blit(slab, br.topleft)
-        pr = _font(16, True).render(">", True, _GOLD_MUTED)
-        pr.set_alpha(160)
-        surf.blit(pr, pr.get_rect(midleft=(br.x + 12, br.centery)))
-        slots = " ".join((buf[i] if i < len(buf) else "_") for i in range(MAXLEN))
-        bimg = _font(16, True).render(slots, True, _GOLD_BRIGHT)
-        surf.blit(bimg, bimg.get_rect(midleft=(br.x + 30, br.centery)))
-        ci = _font(10, True).render(f"{len(buf)} / {MAXLEN}", True, _GOLD_MUTED)
-        ci.set_alpha(150)
-        surf.blit(ci, ci.get_rect(midright=(br.right - 8, br.centery)))
+        # Divider line under the title (mockup convention).
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 130),
+                         (W // 2 - 50, H // 2 - 108),
+                         (W // 2 + 50, H // 2 - 108), 1)
 
-        # Keyboard.
-        GAP, KH, ROWG, KW, SW = 4, 38, 7, 30, 46
-        lf = _font(18, True)   # letter glyphs
-        af = _font(13, True)   # action words
+        # Engraved nameplate (gold rim + corner rivets + dark navy face)
+        # in place of the plain orange-bordered input field.
+        fw, fh = 284, 54
+        fx, fy = W // 2 - fw // 2, H // 2 - 70
+        plate_rect = pygame.Rect(fx, fy, fw, fh)
+        pygame.draw.rect(surf, _GOLD_BRIGHT, plate_rect, border_radius=8)
+        inner = plate_rect.inflate(-6, -6)
+        pygame.draw.rect(surf, _PANEL_DARK, inner, border_radius=6)
+        pygame.draw.rect(surf, _GOLD_DEEP, plate_rect,
+                         width=2, border_radius=8)
+        # Subtle cream highlight just inside the top edge.
+        pygame.draw.line(surf, (255, 240, 180),
+                         (plate_rect.x + 10, plate_rect.y + 3),
+                         (plate_rect.right - 10, plate_rect.y + 3), 1)
+        # Four corner rivets.
+        for rx, ry in (
+            (plate_rect.x + 8, plate_rect.y + 8),
+            (plate_rect.right - 8, plate_rect.y + 8),
+            (plate_rect.x + 8, plate_rect.bottom - 8),
+            (plate_rect.right - 8, plate_rect.bottom - 8),
+        ):
+            pygame.draw.circle(surf, _GOLD_DEEP, (rx, ry), 3)
+            pygame.draw.circle(surf, _GOLD_BRIGHT, (rx, ry), 3, 1)
+            pygame.draw.circle(surf, (255, 240, 180), (rx - 1, ry - 1), 1)
 
-        def _row_x0(total_w):
-            return (W - total_w) // 2
+        # Typed text — gold with a soft black drop shadow, no cursor.
+        tf = _font(26, True)
+        if buf:
+            sh = tf.render(buf, True, NEAR_BLACK)
+            sh.set_alpha(180)
+            txt = tf.render(buf, True, _GOLD_BRIGHT)
+            tr = txt.get_rect(center=(W // 2, fy + fh // 2))
+            surf.blit(sh, (tr.x + 1, tr.y + 2))
+            surf.blit(txt, tr)
+        else:
+            placeholder = _font(18, False).render("TYPE YOUR NAME…",
+                                                  True, _GOLD_MUTED)
+            placeholder.set_alpha(100)
+            surf.blit(placeholder,
+                      placeholder.get_rect(center=(W // 2, fy + fh // 2)))
 
-        def _letters(text, y):
-            x = _row_x0(len(text) * KW + (len(text) - 1) * GAP)
-            for ch in text:
-                rect = pygame.Rect(x, y, KW, KH)
-                _kbd_key(surf, rect, ch if caps else ch.lower(), lf)
-                keys.append((ch, rect))
-                x += KW + GAP
+        # Mountain silhouette belongs to the backdrop — drawn before the
+        # buttons so SUBMIT / SKIP sit on top of any scenery, never behind it.
+        _draw_mountain_silhouette(surf, alpha=160)
 
-        y = 195
-        _letters("QWERTYUIOP", y)
-        y += KH + ROWG
-        _letters("ASDFGHJKL", y)
-
-        # Row 3: SHIFT + ZXCVBNM + DEL.
-        y += KH + ROWG
-        mid = "ZXCVBNM"
-        x = _row_x0(SW * 2 + len(mid) * KW + (len(mid) + 1) * GAP)
-        shift_rect = pygame.Rect(x, y, SW, KH)
-        _kbd_key(surf, shift_rect, "", af, special=not caps, active=caps)
-        _draw_up_arrow(surf, shift_rect.centerx, shift_rect.centery - 1, 7,
-                       (42, 24, 88) if caps else WHITE)
-        keys.append(("shift", shift_rect))
-        x += SW + GAP
-        for ch in mid:
-            rect = pygame.Rect(x, y, KW, KH)
-            _kbd_key(surf, rect, ch if caps else ch.lower(), lf)
-            keys.append((ch, rect))
-            x += KW + GAP
-        back_rect = pygame.Rect(x, y, SW, KH)
-        _kbd_key(surf, back_rect, "DEL", af, special=True)
-        keys.append(("back", back_rect))
-
-        # Row 4: SPACE, Row 5: SUBMIT — both full keyboard width.
-        full_w = 10 * KW + 9 * GAP
-        fx = _row_x0(full_w)
-        y += KH + ROWG
-        space_rect = pygame.Rect(fx, y, full_w, KH)
-        _kbd_key(surf, space_rect, "SPACE", af, special=True)
-        keys.append(("space", space_rect))
-        y += KH + ROWG + 4
-        submit_rect = pygame.Rect(fx, y, full_w, KH)
-        _kbd_key(surf, submit_rect, "SUBMIT", _font(15, True), special=True)
-        keys.append(("enter", submit_rect))
-
-        # SKIP — narrower, separated below SUBMIT (a different-class action).
-        y += KH + 12
-        skip_rect = pygame.Rect(W // 2 - 75, y, 150, 34)
-        _kbd_key(surf, skip_rect, "SKIP", af, special=True)
-        keys.append(("skip", skip_rect))
-
-        self.name_keys = keys
-        self.name_submit_rect = submit_rect
-        self.name_skip_rect = skip_rect
+        # Paired action buttons — SUBMIT promoted to the primary pill
+        # so it carries the gold halo in the mockup.
+        self.name_submit_rect = _pill_btn(
+            surf, (W // 2, H // 2 + 34), "SUBMIT",
+            size=18, alpha=255, min_width=200, primary=True)
+        self.name_skip_rect = _pill_btn(
+            surf, (W // 2, H // 2 + 92), "SKIP",
+            size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
                          cooldown: float, fetch_error: str = ""):

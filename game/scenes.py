@@ -387,7 +387,6 @@ class App:
         self._play_log_task = None  # strong ref for the per-run telemetry POST
         self._lb_task = None  # strong ref for the menu-trophy leaderboard fetch
         self._name_input_buf = ""  # native name-entry text buffer
-        self._name_caps = True     # on-screen keyboard shift (auto-on per name)
 
         # ── Deferred pre-warm queue ─────────────────────────────────────────
         # Two power-ups had per-pickup build cost (GROW: ~50 ms first
@@ -671,7 +670,7 @@ class App:
                     self._submit_name_native(self._name_input_buf.strip())
                 elif e.key == pygame.K_BACKSPACE:
                     self._name_input_buf = self._name_input_buf[:-1]
-                elif e.unicode and e.unicode.isprintable() and len(self._name_input_buf) < 10:
+                elif e.unicode and e.unicode.isprintable() and len(self._name_input_buf) < 16:
                     self._name_input_buf += e.unicode
                 return
             if e.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
@@ -687,31 +686,18 @@ class App:
             self._flap_input(pos)
 
     def _handle_name_entry_click(self, pos) -> bool:
-        """Route a tap on the native on-screen keyboard. Returns True if a key
-        was hit (so normal flap routing is skipped), False otherwise."""
+        """If we're on the native name-entry screen and the click hit the
+        SUBMIT or SKIP button, dispatch and return True. Returns False
+        otherwise so normal flap routing can proceed."""
         import sys as _sys
         if self.state != STATE_NAMEENTRY or _sys.platform == "emscripten":
             return False
-        for kind, rect in getattr(self.hud, "name_keys", []):
-            if not rect.collidepoint(pos):
-                continue
-            if kind == "shift":
-                self._name_caps = not self._name_caps
-            elif kind == "back":
-                self._name_input_buf = self._name_input_buf[:-1]
-            elif kind == "space":
-                if 0 < len(self._name_input_buf) < 10 \
-                        and not self._name_input_buf.endswith(" "):
-                    self._name_input_buf += " "
-            elif kind == "enter":
-                if self._name_input_buf.strip():
-                    self._submit_name_native(self._name_input_buf.strip())
-            elif kind == "skip":
-                self._submit_name_native("")
-            elif len(kind) == 1 and kind.isalpha():
-                if len(self._name_input_buf) < 10:
-                    self._name_input_buf += kind if self._name_caps else kind.lower()
-                    self._name_caps = False   # auto-shift off after a letter
+        if self.hud.name_submit_rect.collidepoint(pos):
+            if self._name_input_buf.strip():
+                self._submit_name_native(self._name_input_buf.strip())
+            return True
+        if self.hud.name_skip_rect.collidepoint(pos):
+            self._submit_name_native("")
             return True
         return False
 
@@ -803,7 +789,6 @@ class App:
         import sys
         self._final_score = self.world.score
         self._name_input_buf = ""
-        self._name_caps = True
         if sys.platform == "emscripten":
             # Browser: kick off async fetch; _on_name_submitted decides
             # qualifies → NAMEENTRY → LEADERBOARD vs back to MENU.
@@ -1216,8 +1201,7 @@ class App:
         elif self.state == STATE_NAMEENTRY:
             import sys as _sys
             if _sys.platform != "emscripten":
-                self.hud.draw_name_entry(self.screen, 1 / 60,
-                                         self._name_input_buf, caps=self._name_caps)
+                self.hud.draw_name_entry(self.screen, 1 / 60, self._name_input_buf)
         elif self.state == STATE_LEADERBOARD:
             self.hud.draw_leaderboard(
                 self.screen, 1 / 60,
