@@ -46,7 +46,7 @@ from game.hud import (
 from game.draw import lerp_color, UI_GOLD, UI_ORANGE, UI_RED
 from game.powerup_help import _powerup_icon
 
-OUT = os.path.join(_ROOT, "docs", "gameplay_hud", "round_5.png")
+OUT = os.path.join(_ROOT, "docs", "gameplay_hud", "round_6_transparency.png")
 
 # Representative live values the brief asked for.
 SCORE = "12"
@@ -343,9 +343,11 @@ def cand_plaques(surf, wood, alpha, sheen=False):
 
 # ── variant definitions (the only thing that differs between the screens) ────
 VARIANTS = [
-    ("V1  wood (102,68,38) a205", (102, 68, 38), 205, False),
-    ("V2  wood (102,68,38) a230 + sheen", (102, 68, 38), 230, True),
-    ("V3  wood (112,76,44) a248 + sheen", (112, 76, 44), 248, True),
+    ("40% opacity  (a102)", (102, 68, 38), 102, False),
+    ("55% opacity  (a140)", (102, 68, 38), 140, False),
+    ("70% opacity  (a178)", (102, 68, 38), 178, False),
+    ("85% opacity  (a217)", (102, 68, 38), 217, False),
+    ("100% solid   (a255)", (102, 68, 38), 255, False),
 ]
 
 
