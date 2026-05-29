@@ -1,7 +1,6 @@
-"""Size-variant sheet for the secret-tier pickup icons (poison, knight,
-skateboard). Each cell shows a gameplay-scale strip with Pip on the left
-and the candidate pickup on the right, so the user can see how the size
-actually reads in-flight.
+"""Size-variant sheet for the secret-tier pickup icons (knight, poison,
+skateboard). Each cell is an actual rendered gameplay frame with the
+candidate pickup floating next to Pip.
 
 Output: docs/screenshots/icon_sizes/round_1.png
 """
@@ -21,71 +20,56 @@ sys.path.insert(0, os.path.dirname(THIS_DIR))
 pygame.init()
 pygame.display.set_mode((1, 1))
 
+from game.config import W, H, GROUND_Y
+from game.scenes import App, STATE_PLAY
 from game.entities import PowerUp
-from game import knight_skin, poison_vial, parrot, biome
+from game import poison_vial, knight_skin
 
 
 SIZES = (32, 40, 48, 56, 72)
-LABELS = ("KNIGHT (shield)", "POISON (vial)", "SKATEBOARD (skull-bunny)")
+LABELS = ("KNIGHT", "POISON", "SKATEBOARD")
+KINDS  = ("knight", "poison", "skateboard")
 
 CARD_BG = (24, 26, 34)
 LABEL   = (235, 235, 240)
 SUB     = (160, 168, 180)
 
-PAD       = 14
-STRIP_W   = 130            # gameplay-mock strip width
-STRIP_H   = 110            # gameplay-mock strip height
-ROW_GAP   = 14
-HEADER_H  = 80
-LABEL_COL = 132            # left column for the row label
+
+# ── per-kind size-overrideable icon draw ────────────────────────────────────
+
+def _draw_skateboard_at(surf, cx, cy, native, pulse):
+    """Render the 72-px skateboard icon then smoothscale to `native`."""
+    import math
+    p = PowerUp(36, 36, kind="skateboard")
+    p.pulse = pulse
+    full = pygame.Surface((96, 96), pygame.SRCALPHA)
+    p._draw_skateboard_icon(full)
+    # The icon recipe in _draw_skateboard_icon currently bakes a 72×72
+    # surface at the icon's own (self.x, self.y) — we made our own 96×96
+    # so the natural bob/halo fits without clipping. Smoothscale the
+    # used 72×72 sub-region down to the candidate native footprint.
+    sub = pygame.Surface((72, 72), pygame.SRCALPHA)
+    sub.blit(full, (-12, -12))
+    scaled = pygame.transform.smoothscale(sub, (native, native))
+    surf.blit(scaled, scaled.get_rect(center=(int(cx), int(cy + math.sin(pulse * 1.0) * 2))).topleft)
 
 
-def _font(size, bold=False):
-    return pygame.font.SysFont("Arial", size, bold=bold)
+def _draw_knight_at(surf, cx, cy, native, pulse):
+    import math
+    knight_skin.draw_shield_icon(
+        surf, int(cx), int(cy + math.sin(pulse * 0.9) * 2), size=native,
+    )
 
 
-def _sky_strip(w, h):
-    """Approximate the score-450 biome (~phase 0.46 — golden-hour to dusk
-    transition) so the icons sit on a representative gameplay background."""
-    pal = biome.palette_for_phase(0.46)
-    top = pal.get("sky_top", (110, 165, 220))
-    bot = pal.get("sky_bot", (220, 200, 200))
-    surf = pygame.Surface((w, h))
-    for y in range(h):
-        t = y / max(1, h - 1)
-        c = (int(top[0] + (bot[0] - top[0]) * t),
-             int(top[1] + (bot[1] - top[1]) * t),
-             int(top[2] + (bot[2] - top[2]) * t))
-        pygame.draw.line(surf, c, (0, y), (w - 1, y))
-    return surf
-
-
-def _draw_pip(surf, cx, cy):
-    pip = parrot.get_parrot(0, 0.0)
-    surf.blit(pip, pip.get_rect(center=(cx, cy)))
-
-
-def _draw_knight_at(surf, cx, cy, native):
-    knight_skin.draw_shield_icon(surf, cx, cy, size=native)
-
-
-def _draw_poison_at(surf, cx, cy, native):
+def _draw_poison_at(surf, cx, cy, native, pulse):
+    import math
     prev_display = poison_vial.DISPLAY_PX
     prev_cache = getattr(poison_vial, "_VIAL_CACHE", None)
     poison_vial.DISPLAY_PX = native
     poison_vial._VIAL_CACHE = None
-    poison_vial.draw(surf, cx, cy, 0.0)
+    poison_vial.draw(surf, int(cx), int(cy + math.sin(pulse * 0.9) * 2), pulse)
     poison_vial.DISPLAY_PX = prev_display
     poison_vial._VIAL_CACHE = prev_cache
-
-
-def _draw_skateboard_at(surf, cx, cy, native):
-    p = PowerUp(36, 36, kind="skateboard")
-    p.pulse = 0.0
-    full72 = pygame.Surface((72, 72), pygame.SRCALPHA)
-    p._draw_skateboard_icon(full72)
-    scaled = pygame.transform.smoothscale(full72, (native, native))
-    surf.blit(scaled, scaled.get_rect(center=(cx, cy)).topleft)
 
 
 DRAWERS = {
@@ -95,14 +79,62 @@ DRAWERS = {
 }
 
 
-def _build_cell(kind, native):
-    """Pip on the left, pickup on the right, on a biome-coloured strip."""
-    cell = _sky_strip(STRIP_W, STRIP_H)
-    _draw_pip(cell, 32, STRIP_H // 2)
-    DRAWERS[kind](cell, STRIP_W - 36, STRIP_H // 2, native)
-    # Thin border so cards separate visually.
-    pygame.draw.rect(cell, (40, 44, 56), cell.get_rect(), 1)
-    return cell
+# ── single-frame gameplay capture ───────────────────────────────────────────
+
+def _grab_frame(kind: str, native: int) -> pygame.Surface:
+    """Spin a fresh App, set state to PLAY, place a custom-sized pickup
+    next to Pip, render one frame, return the screen surface."""
+    # Re-create display each call so the App's pygame.display.set_mode call
+    # below picks up the size cleanly (SDL_VIDEODRIVER=dummy makes this
+    # cheap, no real window).
+    app = App()
+    app.state = STATE_PLAY
+    app.world.ready_t = 0
+    # Park Pip in a stable mid-screen pose so size variants are comparable.
+    app.world.bird.x = 90
+    app.world.bird.y = 320
+    app.world.bird.vy = 0
+    # Wipe seed pipes + any auto-spawned pickups so we control the frame.
+    app.world.pipes.clear()
+    app.world.coins.clear()
+    app.world.powerups.clear()
+    # Float-text from the playtest-genie force-spawn is fine to leave.
+    pickup = PowerUp(220, 320, kind=kind)
+    pickup.pulse = 0.0
+
+    # Monkey-patch this pickup's draw to use the target native size.
+    drawer = DRAWERS[kind]
+
+    def _draw(self, surf):
+        drawer(surf, self.x, self.y, native, self.pulse)
+
+    pickup.draw = _draw.__get__(pickup, PowerUp)
+    app.world.powerups.append(pickup)
+
+    # One full render pass.
+    app._render()
+    # Copy the surface — subsequent App() calls will steal the display.
+    snap = app.screen.copy()
+    return snap
+
+
+# ── sheet composition ───────────────────────────────────────────────────────
+
+CROP_X = 0
+CROP_Y = 230
+CROP_W = W
+CROP_H = 180
+
+CELL_W = 230
+CELL_H = int(CELL_W * CROP_H / CROP_W)
+PAD       = 14
+LABEL_COL = 110
+ROW_GAP   = 14
+HEADER_H  = 78
+
+
+def _font(size, bold=False):
+    return pygame.font.SysFont("Arial", size, bold=bold)
 
 
 def main():
@@ -111,38 +143,45 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "round_1.png")
 
-    sheet_w = PAD * 2 + LABEL_COL + len(SIZES) * (STRIP_W + ROW_GAP) - ROW_GAP
-    sheet_h = HEADER_H + 3 * (STRIP_H + ROW_GAP) - ROW_GAP + PAD * 2
+    sheet_w = (PAD * 2 + LABEL_COL
+               + len(SIZES) * (CELL_W + ROW_GAP) - ROW_GAP)
+    sheet_h = (HEADER_H
+               + len(LABELS) * (CELL_H + ROW_GAP) - ROW_GAP
+               + PAD * 2)
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill(CARD_BG)
 
     title = _font(22, bold=True).render(
-        "Secret-tier pickup icons — size variants (gameplay scale)",
+        "Secret-tier pickup icons — gameplay screenshots",
         True, LABEL)
     sheet.blit(title, (PAD, PAD))
     sub = _font(13).render(
-        "Pip + the pickup on a score-450 biome strip. Sizes 32 / 40 / 48 "
-        "/ 56 / 72 native px. Pick one — applies to all three.",
+        "Real PlayScene frames. Pip on left, pickup at the candidate size "
+        "to the right. Pick a size — applies to all three.",
         True, SUB)
     sheet.blit(sub, (PAD, PAD + 28))
 
     # Column headers
     for col, sz in enumerate(SIZES):
-        x = PAD + LABEL_COL + col * (STRIP_W + ROW_GAP) + STRIP_W // 2
-        h = _font(14, bold=True).render(f"{sz} px", True, LABEL)
-        sheet.blit(h, (x - h.get_width() // 2, HEADER_H - 22))
+        x = PAD + LABEL_COL + col * (CELL_W + ROW_GAP) + CELL_W // 2
+        h_txt = _font(14, bold=True).render(f"{sz} px", True, LABEL)
+        sheet.blit(h_txt, (x - h_txt.get_width() // 2, HEADER_H - 22))
 
-    rows = (("knight", LABELS[0]),
-            ("poison", LABELS[1]),
-            ("skateboard", LABELS[2]))
-    for i, (kind, label) in enumerate(rows):
-        y = HEADER_H + i * (STRIP_H + ROW_GAP)
+    for ri, (kind, label) in enumerate(zip(KINDS, LABELS)):
+        y = HEADER_H + ri * (CELL_H + ROW_GAP)
         lbl = _font(14, bold=True).render(label, True, LABEL)
-        sheet.blit(lbl, (PAD, y + (STRIP_H - lbl.get_height()) // 2))
-        for col, sz in enumerate(SIZES):
-            x = PAD + LABEL_COL + col * (STRIP_W + ROW_GAP)
-            cell = _build_cell(kind, sz)
-            sheet.blit(cell, (x, y))
+        sheet.blit(lbl, (PAD, y + (CELL_H - lbl.get_height()) // 2))
+        for ci, sz in enumerate(SIZES):
+            x = PAD + LABEL_COL + ci * (CELL_W + ROW_GAP)
+            print(f"  rendering {kind} @ {sz} px ...")
+            frame = _grab_frame(kind, sz)
+            crop = frame.subsurface(
+                pygame.Rect(CROP_X, CROP_Y, CROP_W, CROP_H)).copy()
+            frame_sm = pygame.transform.smoothscale(
+                crop, (CELL_W, CELL_H))
+            sheet.blit(frame_sm, (x, y))
+            pygame.draw.rect(sheet, (44, 50, 60),
+                             (x, y, CELL_W, CELL_H), 1)
 
     pygame.image.save(sheet, out_path)
     print(f"saved {out_path}  ({sheet_w}x{sheet_h})")
