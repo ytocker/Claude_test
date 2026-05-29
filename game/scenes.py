@@ -1,5 +1,5 @@
 """
-Scene state machine (Menu / Play / GameOver) plus the top-level App class.
+Scene state machine (Menu / Play / Run-summary / …) plus the top-level App class.
 """
 import math
 import pygame
@@ -315,7 +315,6 @@ def _magnet_hex_grid(radius: int) -> pygame.Surface:
 STATE_MENU = 0
 STATE_PLAY = 1
 STATE_NAMEENTRY = 2
-STATE_GAMEOVER = 3
 STATE_PAUSE = 4
 STATE_STATS = 5
 STATE_LEADERBOARD = 6
@@ -518,9 +517,6 @@ class App:
                 # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
                 # echoes, or a fast double-click) skip straight into play.
                 self._cooldown_t = 0.4
-        elif self.state == STATE_GAMEOVER:
-            if self._cooldown_t <= 0:
-                self._restart()
 
     def _toggle_pause(self):
         if self.state == STATE_PLAY:
@@ -759,9 +755,6 @@ class App:
         elif self.state == STATE_NAMEENTRY:
             self.world.update(dt)  # keep world alive behind JS overlay
         elif self.state == STATE_LEADERBOARD:
-            self._cooldown_t = max(0.0, self._cooldown_t - dt)
-        elif self.state == STATE_GAMEOVER:
-            self.world.update(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
 
     def _on_death(self):
@@ -1215,8 +1208,4 @@ class App:
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
-            )
-        else:  # GAMEOVER
-            self.hud.draw_gameover(
-                self.screen, 1 / 60, self.world.score, self._new_best,
             )
