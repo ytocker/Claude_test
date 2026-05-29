@@ -80,7 +80,7 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
 
 
 def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
-              min_width=None, primary=False, dim=False):
+              min_width=None, primary=False, dim=False, shadow=True):
     """Scarlet body + gold border + cream text, with drop shadow, top-half
     frosting, gold accent line and (optionally) a gold glow when
     ``primary=True`` — the canonical Pip Scarlet pill from the menu
@@ -89,7 +89,9 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
     (SUBMIT + SKIP) share one width regardless of label length.
     ``dim=True`` swaps the bright scarlet gradient for the dimmer
     bordeaux pair so the menu trio sits more quietly in the night-sky
-    palette."""
+    palette. ``shadow=False`` drops the cast shadow — stacked tightly on
+    the menu the offset shade read as a detached smudge under each pill,
+    so the trio sits flat on the night sky instead."""
     f = _font(size, True)
     img = f.render(text, True, WHITE)
     pad_x = 64 if wide else 44
@@ -114,11 +116,12 @@ def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
         surf.blit(glow, (x - 12, y - 12))
 
     # Drop shadow.
-    sh = pygame.Surface((pw + 4, ph + 4), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 90),
-                     (0, 0, pw + 4, ph + 4),
-                     border_radius=(ph + 4) // 2)
-    surf.blit(sh, (x - 2, y + 6))
+    if shadow:
+        sh = pygame.Surface((pw + 4, ph + 4), pygame.SRCALPHA)
+        pygame.draw.rect(sh, (0, 0, 0, 90),
+                         (0, 0, pw + 4, ph + 4),
+                         border_radius=(ph + 4) // 2)
+        surf.blit(sh, (x - 2, y + 6))
 
     # Body: scarlet vertical gradient.
     pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
@@ -1351,13 +1354,14 @@ class HUD:
         # the menu pills sit more quietly in the dark night-sky palette.
         self.menu_start_rect = _pill_btn(
             surf, (W // 2, y_start), "START",
-            size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True)
+            size=22, alpha=btn_alpha, min_width=220, primary=True, dim=True,
+            shadow=False)
         self.menu_howto_rect = _pill_btn(
             surf, (W // 2, y_howto), "HOW TO PLAY",
-            size=18, alpha=230, min_width=220, dim=True)
+            size=18, alpha=230, min_width=220, dim=True, shadow=False)
         self.menu_powerups_rect = _pill_btn(
             surf, (W // 2, y_power), "POWER-UPS",
-            size=18, alpha=230, min_width=220, dim=True)
+            size=18, alpha=230, min_width=220, dim=True, shadow=False)
 
         # Twin panels at the bottom: BEST score (left) + TOP 10 trophy
         # (right). Same pill dimensions side-by-side so they read as a
