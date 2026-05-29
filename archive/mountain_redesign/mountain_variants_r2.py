@@ -403,11 +403,10 @@ def draw_mountains_v4(surf, scroll, ground_y, w, far_color=None, near_color=None
         pts, h = _ridge(w, ground_y, scroll, speed, base_h,
                         [(0.011 + k * 0.002, 22 - k * 2, 0.6 + k),
                          (0.030 + k * 0.004, 10, 1.5 - k * 0.3)])
+        # Fog veils between bands removed — they read as coloured horizontal
+        # stripes across the frame. Each wash layer's own ramped alpha already
+        # carries the soft atmospheric transition.
         _ink_wash(surf, h, ground_y, itop, ibot, atop, fade=1.6)
-        if k < len(specs) - 1:
-            # Brighter, crisper fog veil keyed off the horizon glow.
-            veil = _mix(haze, horizon, 0.4)
-            _haze_band(surf, h, ground_y, veil, 95, 24)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1039,18 +1038,11 @@ def _cloud_sea_band(surf, w, top_y, depth, base_col, hi_col, density, seed):
     rather than as a thin smear (previous tuning was too subtle)."""
     band = pygame.Surface((w, depth), pygame.SRCALPHA)
     rng = random.Random(seed)
-    # Sit a solid bright wash across the band first — the cloud-sea body has
-    # to feel like a thick floor of cloud, not a sparse veil. Subsequent
-    # rolling waves layer on top to give it form.
-    floor = pygame.Surface((w, depth), pygame.SRCALPHA)
-    for i in range(depth):
-        # Cloud body brighter at the upper rim (lit by sky) and fading down.
-        t = i / max(1, depth)
-        a = int(density * 0.75 * (1.0 - t * 0.35))
-        col = _mix(hi_col, base_col, t * 0.7)
-        pygame.draw.line(floor, (col[0], col[1], col[2], a),
-                         (0, i), (w, i))
-    band.blit(floor, (0, 0))
+    # Solid bright "floor" wash removed — its full-width horizontal lines read
+    # as coloured stripes across the screen. The rolling cloud waves below
+    # carry the cloud-sea body on their own; their per-wave gaussian falloff
+    # plus the 5-7 stacked rolls fill the band volumetrically without forming
+    # a continuous horizontal seam.
     # 5-7 rolling cloud "waves" stacked vertically with bright lit upper rims.
     n_rolls = rng.randint(5, 7)
     for r in range(n_rolls):
@@ -1253,14 +1245,14 @@ def draw_mountains_sumie_crags(surf, scroll, ground_y, w, far_color=None, near_c
     # Accent for the brush tap on pines — leans warm so it's always visible.
     pine_accent = _mix(horizon, (255, 230, 200), 0.6)
 
-    # BACK — gentle ink wash for a hint of distant range.
+    # BACK — gentle ink wash for a hint of distant range. Horizontal haze
+    # veils removed: they showed up as coloured bright stripes behind the
+    # crag silhouettes. The wash's own alpha ramp keeps the soft fade.
     hb = _crag_ridge(w, ground_y, scroll, 0.07, 90, jag_amp=6, jag_freq=0.5, seed=11)
     _ink_wash_strong(surf, hb, ground_y, ink_far,
                      _mix(ink_far, haze, 0.4),
                      alpha_top=200, fade=1.3,
                      rim_col=_mix(ink_far, horizon, 0.55))
-    _haze_band(surf, hb, ground_y,
-               _mix(haze, (255, 255, 255), 0.20 * (1.0 - night)), 110, 24)
 
     # MID — angular crags, the hero ink band.
     hm = _crag_ridge(w, ground_y, scroll, 0.16, 130, jag_amp=22, jag_freq=0.7, seed=29)
@@ -1270,8 +1262,6 @@ def draw_mountains_sumie_crags(surf, scroll, ground_y, w, far_color=None, near_c
                      rim_col=_shade(ink_mid, -22))
     _dry_brush_crest(surf, hm, _shade(ink_mid, -28),
                      density=0.45, max_drip=4, seed=29)
-    _haze_band(surf, hm, ground_y,
-               _mix(haze, (255, 255, 255), 0.14 * (1.0 - night)), 70, 18)
     # Mid pines on the high points.
     _crag_pines(surf, hm, ground_y, count=2,
                 ink=_shade(ink_mid, -20), accent=pine_accent,
@@ -1312,9 +1302,9 @@ def _pagoda(surf, x, base_y, tiers, base_w, color, accent, scale=1.0):
     eave_lip = max(1, int(3 * scale))
     bw = base_w
     cy = base_y
-    # Stone platform under the bottom tier.
-    plat = pygame.Rect(x - bw // 2 - 2, cy - 3, bw + 4, 3)
-    pygame.draw.rect(surf, color, plat)
+    # Stone platform removed — a hard horizontal rectangle under each pagoda
+    # read as a tiny coloured stripe planted on the ridge. The bottom tier
+    # already sits flush on the crest, so the silhouette stays grounded.
     for t in range(tiers):
         tw = max(6, bw - t * 2)
         body = pygame.Rect(x - tw // 2, cy - tier_h, tw, tier_h)
@@ -1396,9 +1386,9 @@ def draw_mountains_pagoda(surf, scroll, ground_y, w, far_color=None, near_color=
                          (0.030 + k * 0.004, 12, 1.5 - k * 0.3)])
         _ink_wash_strong(surf, h, ground_y, itop, ibot, atop, fade=1.6,
                          rim_col=_shade(_sat(itop, 1.2), -28))
-        if k < len(specs) - 1:
-            veil = _mix(haze, horizon, 0.40)
-            _haze_band(surf, h, ground_y, veil, 95, 22)
+        # Inter-band fog veils removed — they read as coloured horizontal
+        # stripes between layers. Each wash's alpha falloff carries the
+        # atmospheric depth on its own.
         crest_heights.append(h)
 
     # Pagodas on the three FRONT bands so they read clearly. Distant pagodas
