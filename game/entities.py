@@ -2467,7 +2467,7 @@ class PowerUp:
         # We render at AUTHORED_N to keep the original proportions, then
         # smoothscale once to DISPLAY_N at the end.
         AUTHORED_N = 96
-        DISPLAY_N  = 40
+        DISPLAY_N  = 68
         # FACE_SCALE shrinks the skull-bunny face block (ears + skull +
         # eyes + nose + mouth + bandage + bow) while leaving the X-board
         # backdrop at original size. User picked 0.88 from the F1..F5
