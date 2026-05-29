@@ -2468,6 +2468,11 @@ class PowerUp:
         # smoothscale once to DISPLAY_N at the end.
         AUTHORED_N = 96
         DISPLAY_N  = 40
+        # FACE_SCALE shrinks the skull-bunny face block (ears + skull +
+        # eyes + nose + mouth + bandage + bow) while leaving the X-board
+        # backdrop at original size. User picked 0.88 from the F1..F5
+        # face-scale variant sheet.
+        FACE_SCALE = 0.88
         big = pygame.Surface((AUTHORED_N * SS, AUTHORED_N * SS),
                              pygame.SRCALPHA)
         bx = big.get_width() // 2
@@ -2493,10 +2498,12 @@ class PowerUp:
             rotated = pygame.transform.rotate(sub, angle)
             big.blit(rotated, rotated.get_rect(center=(bx, by)))
 
+        FS = FACE_SCALE
         ear_centers = {}
         for sign in (-1, 1):
-            er = pygame.Rect(0, 0, int(7 * SS), int(28 * SS))
-            er.center = (bx + sign * int(9 * SS), by - int(22 * SS))
+            er = pygame.Rect(0, 0, int(7 * SS * FS), int(28 * SS * FS))
+            er.center = (bx + sign * int(9 * SS * FS),
+                         by - int(22 * SS * FS))
             ang = -12 * sign
             ear_sub = pygame.Surface(
                 (er.width + 4 * SS, er.height + 4 * SS),
@@ -2506,21 +2513,21 @@ class PowerUp:
                             ear_sub.get_height() // 2)
             pygame.draw.ellipse(ear_sub, BONE, local)
             pygame.draw.ellipse(ear_sub, DOME, local,
-                                max(1, int(1.2 * SS)))
-            inner = local.inflate(-int(2.5 * SS), -int(8 * SS))
+                                max(1, int(1.2 * SS * FS)))
+            inner = local.inflate(-int(2.5 * SS * FS), -int(8 * SS * FS))
             pygame.draw.ellipse(ear_sub, RED, inner)
             rot = pygame.transform.rotate(ear_sub, ang)
             big.blit(rot, rot.get_rect(center=er.center))
             ear_centers[sign] = er.center
 
-        SK_W = 44
-        SK_H = 38
+        SK_W = max(2, int(44 * FS))
+        SK_H = max(2, int(38 * FS))
         sk = pygame.Rect(0, 0, SK_W * SS, SK_H * SS)
-        sk.center = (bx, by + 2 * SS)
+        sk.center = (bx, by + int(2 * SS * FS))
         pygame.draw.ellipse(big, BONE, sk)
-        pygame.draw.ellipse(big, DOME, sk, int(1.4 * SS))
+        pygame.draw.ellipse(big, DOME, sk, max(1, int(1.4 * SS * FS)))
 
-        eye_r = int(SK_W * SS * 0.13)
+        eye_r = max(1, int(SK_W * SS * 0.13))
         eye_x_off = int(SK_W * SS * 0.20)
         eye_y = sk.top + int(SK_H * SS * 0.38)
         for sign in (-1, 1):
@@ -2529,25 +2536,27 @@ class PowerUp:
 
         cross_cx = sk.centerx - eye_x_off
         cross_cy = eye_y
-        bar_l = int(7 * SS)
-        bar_t = int(2.2 * SS)
+        bar_l = max(2, int(7 * SS * FS))
+        bar_t = max(1, int(2.2 * SS * FS))
         horiz = pygame.Rect(0, 0, bar_l, bar_t)
         horiz.center = (cross_cx, cross_cy)
         vert = pygame.Rect(0, 0, bar_t, bar_l)
         vert.center = (cross_cx, cross_cy)
-        pygame.draw.rect(big, RED, horiz, border_radius=int(0.5 * SS))
-        pygame.draw.rect(big, RED, vert, border_radius=int(0.5 * SS))
+        rad = max(1, int(0.5 * SS * FS))
+        pygame.draw.rect(big, RED, horiz, border_radius=rad)
+        pygame.draw.rect(big, RED, vert, border_radius=rad)
         pygame.draw.rect(big, DOME, horiz, max(1, SS // 3),
-                         border_radius=int(0.5 * SS))
+                         border_radius=rad)
         pygame.draw.rect(big, DOME, vert, max(1, SS // 3),
-                         border_radius=int(0.5 * SS))
+                         border_radius=rad)
 
         nose_top_y = sk.top + int(SK_H * SS * 0.55)
-        nose_bot_y = nose_top_y + int(3 * SS)
+        nose_bot_y = nose_top_y + max(1, int(3 * SS * FS))
+        nose_w = max(1, int(1.4 * SS * FS))
         pygame.draw.polygon(big, DOME, [
-            (sk.centerx - int(1.4 * SS), nose_top_y),
-            (sk.centerx + int(1.4 * SS), nose_top_y),
-            (sk.centerx,                 nose_bot_y),
+            (sk.centerx - nose_w, nose_top_y),
+            (sk.centerx + nose_w, nose_top_y),
+            (sk.centerx,          nose_bot_y),
         ])
 
         # Curly Jolly Roger mouth: 3 vertical teeth (outer two shorter)
@@ -2580,23 +2589,24 @@ class PowerUp:
             pygame.draw.lines(big, DOME, False, pts, mouth_stroke)
 
         knot_cx, knot_cy = ear_centers[-1]
-        knot_cy = knot_cy + int(11 * SS)
-        knot_cx = knot_cx + int(3 * SS)
-        bow_w = int(5 * SS)
-        bow_h = int(3 * SS)
+        knot_cy = knot_cy + int(11 * SS * FS)
+        knot_cx = knot_cx + int(3 * SS * FS)
+        bow_w = max(1, int(5 * SS * FS))
+        bow_h = max(1, int(3 * SS * FS))
         bow_left = [
-            (knot_cx - bow_w, knot_cy - bow_h),
-            (knot_cx - int(0.5 * SS), knot_cy),
-            (knot_cx - bow_w, knot_cy + bow_h),
+            (knot_cx - bow_w,                knot_cy - bow_h),
+            (knot_cx - int(0.5 * SS * FS),   knot_cy),
+            (knot_cx - bow_w,                knot_cy + bow_h),
         ]
         bow_right = [
-            (knot_cx + bow_w, knot_cy - bow_h),
-            (knot_cx + int(0.5 * SS), knot_cy),
-            (knot_cx + bow_w, knot_cy + bow_h),
+            (knot_cx + bow_w,                knot_cy - bow_h),
+            (knot_cx + int(0.5 * SS * FS),   knot_cy),
+            (knot_cx + bow_w,                knot_cy + bow_h),
         ]
         pygame.draw.polygon(big, RED, bow_left)
         pygame.draw.polygon(big, RED, bow_right)
-        pygame.draw.circle(big, RED, (knot_cx, knot_cy), int(1.5 * SS))
+        pygame.draw.circle(big, RED, (knot_cx, knot_cy),
+                           max(1, int(1.5 * SS * FS)))
         pygame.draw.polygon(big, DOME, bow_left, max(1, SS // 3))
         pygame.draw.polygon(big, DOME, bow_right, max(1, SS // 3))
 
