@@ -28,7 +28,10 @@ BLACK_DOME   = (28, 42, 30)
 GREEN_TOX    = (185, 225, 140)
 GREEN_LO     = (160, 215, 125)
 GREEN_GLASS  = (130, 195, 110)
-VAPOR_HI     = (210, 240, 155)
+# Vapor + warning aura share the liquid colour so the bubbles above
+# the cork and the breathing halo behind the bottle both read as the
+# same neon green the player sees inside the glass.
+VAPOR_HI     = (160, 215, 125)
 WOOD_DARK    = (60,  38,   22)
 # Aged off-white bone — deliberately darker / warmer than SKATEBOARD's
 # helmet cream so the two pickups don't twin in palette.
@@ -259,7 +262,7 @@ def _draw_flask_body(big, cx, cy, pulse):
         pygame.draw.circle(pw, (*VAPOR_HI, a),
                            (r * SS + 1, r * SS + 1), r * SS)
         if i < 2:
-            pygame.draw.circle(pw, (230, 240, 150,
+            pygame.draw.circle(pw, (200, 240, 170,
                                     min(255, a + 50)),
                                (r * SS + 1 - SS, r * SS + 1 - SS),
                                max(1, r * SS - 2 * SS))
