@@ -86,16 +86,10 @@ _PANEL_OS = 4  # supersample factor for the card frame
 def _dark_panel(surf, rect, radius, alpha):
     """Gold-trimmed Pip Scarlet card — the frame around each power-up tile.
     Body, gold rim and accent rail are composited at ``_PANEL_OS``× and
-    smoothscaled down so the rounded corners and the thin rim read crisp
+    smoothscaled down so the rounded corners and the rim read crisp
     instead of pixel-stepped at the native 360 px canvas. Kept local to
     avoid a circular import with hud (derives from
     tools/gen_scarlet_set.py::card)."""
-    sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 90),
-                     (0, 0, rect.width + 4, rect.height + 4),
-                     border_radius=radius)
-    surf.blit(sh, (rect.x - 2, rect.y + 4))
-
     os_ = _PANEL_OS
     ow, oh = rect.width * os_, rect.height * os_
     orad = radius * os_
@@ -103,7 +97,7 @@ def _dark_panel(surf, rect, radius, alpha):
     pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
                      (0, 0, ow, oh), border_radius=orad)
     pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
-                     (0, 0, ow, oh), width=os_, border_radius=orad)
+                     (0, 0, ow, oh), width=2 * os_, border_radius=orad)
 
     inset = max(radius - 2, 6) * os_
     if ow - inset * 2 > 0:
