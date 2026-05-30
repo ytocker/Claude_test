@@ -70,7 +70,7 @@ from typing import Callable
 import pygame
 
 from game import biome as _biome
-from game.config import PIPE_W
+from game.config import PIPE_W, GROUND_Y
 from game.pillar_variants import (
     draw_climbing_vine, draw_prayer_flags, draw_cairn, draw_darchog_pole,
     draw_incense_smoke, draw_bird_sil, draw_raven, draw_paper_lantern,
@@ -164,44 +164,28 @@ ZONE_ROOF = "roof"
 # ── Direct-draw ornaments (use pillar rects) ────────────────────────────────
 
 def _draw_prayer_flags(surf, top_rect, bot_rect, palette, seed, **flags):
-    # Headline ornament — Tibetan-style prayer-flag canopy strung between
-    # the two pillar tips with a sagging rope, matching the lungta/monastery
-    # variants in the live game. Anchor points are the gap's two opposite
-    # corners: top-pillar's bottom-left and bottom-pillar's top-right (and
-    # alternated by seed so the rope direction varies across pillars).
-    bcx = bot_rect.x + bot_rect.width // 2
-    tcx = top_rect.x + top_rect.width // 2
-    # Diagonal endpoints across the gap so the rope clearly spans tip-to-tip.
-    if seed % 2 == 0:
-        x1 = tcx - PIPE_W // 2 + 2
-        x2 = bcx + PIPE_W // 2 - 2
-    else:
-        x1 = tcx + PIPE_W // 2 - 2
-        x2 = bcx - PIPE_W // 2 + 2
-    y1 = top_rect.bottom - 1
-    y2 = bot_rect.y + 1
-    draw_prayer_flags(surf, x1, y1, x2, y2, n=7)
+    # Headline ornament — Tibetan-style prayer-flag canopy strung tip-to-tip
+    # between the two pagodas' finial spires (sōrin / bot pillar, inverted
+    # finial / top pillar). The catenary that `draw_prayer_flags` sags
+    # naturally reads as a real monastery rope hung between two stupa peaks.
+    bcx = bot_rect.centerx
+    tcx = top_rect.centerx
+    draw_prayer_flags(surf, tcx, top_rect.bottom, bcx, bot_rect.top, n=7)
 
 
 def _draw_paper_lantern_string(surf, top_rect, bot_rect, palette, seed, **flags):
-    # Sag-arc of 3 small paper lanterns along a catenary between the
-    # top-pillar's bottom and the bottom-pillar's top — gap-spanning so
-    # the strand reads as suspended decoration, not a coin column.
-    bcx = bot_rect.x + bot_rect.width // 2
-    tcx = top_rect.x + top_rect.width // 2
-    # Diagonal corners of the gap so the catenary sags naturally.
-    x1 = tcx - PIPE_W // 2 + 3
-    y1 = top_rect.bottom - 1
-    x2 = bcx + PIPE_W // 2 - 3
-    y2 = bot_rect.y + 1
+    # Sag-arc of 3 paper lanterns hung along a catenary stretched between
+    # the two pagodas' finial-tip centerlines — the same anchor points the
+    # prayer-flag rope uses, so the chain reads as a real suspended strand
+    # between two spires, not a coin column floating in the gap.
+    x1, y1 = top_rect.centerx, top_rect.bottom
+    x2, y2 = bot_rect.centerx, bot_rect.top
     sag = 10
-    for i, t in enumerate((0.20, 0.50, 0.80)):
-        # Quadratic Bézier through a sag midpoint between the two anchors.
-        mx, my = (x1 + x2) // 2, max(y1, y2) + sag
+    mx, my = (x1 + x2) // 2, max(y1, y2) + sag
+    for t in (0.25, 0.50, 0.75):
+        # Quadratic Bézier through a sag midpoint between the two finial tips.
         bx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * mx + t * t * x2
         by = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * my + t * t * y2
-        # `draw_paper_lantern` draws its own cord downward from (x,y); pass
-        # a short strand so the lantern hangs just below the catenary line.
         draw_paper_lantern(surf, int(bx), int(by), strand=4, scale=0.55,
                            color='red')
 
@@ -312,20 +296,22 @@ def _draw_koshi_streamers_on_suien(surf, anchor, palette, seed, **flags):
     draw_ribbons_tied(surf, cx, cy, n=2, width=10, seed=seed)
 
 
-def _draw_triangle_bunting(surf, anchor, palette, seed, **flags):
-    # 2-color alternation (AD-mandated). Span across the gap. Round-16:
-    # bumped each flag to 5×5 px minimum so they read at game scale.
-    cx, cy = anchor
-    x1 = cx - 22
-    x2 = cx + 22
-    sag = 6
+def _draw_triangle_bunting(surf, top_rect, bot_rect, palette, seed, **flags):
+    # Direct-draw gap-spanner: bunting cord anchored at the two finial-tip
+    # centerlines (top pillar's inverted finial down, bottom pillar's sōrin
+    # up) with a Bézier sag, then 2-color triangle flags step along the
+    # catenary so the strand reads as a real festival rope, not a sticker.
+    x1, y1 = top_rect.centerx, top_rect.bottom
+    x2, y2 = bot_rect.centerx, bot_rect.top
+    sag = 8
+    mx, my = (x1 + x2) // 2, max(y1, y2) + sag
     rope = _mix(palette['stone_dark'], (60, 45, 30), 0.7)
     pts = []
     steps = 14
     for i in range(steps + 1):
         t = i / steps
-        bx = x1 + (x2 - x1) * t
-        by = cy + math.sin(t * math.pi) * sag
+        bx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * mx + t * t * x2
+        by = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * my + t * t * y2
         pts.append((int(bx), int(by)))
     for i in range(len(pts) - 1):
         pygame.draw.line(surf, rope, pts[i], pts[i + 1], 1)
@@ -502,24 +488,30 @@ def _draw_mani_stone_cairn(surf, anchor, palette, seed, **flags):
     draw_cairn(surf, cx, cy + 8, n=4, pennant=False)
 
 
-def _draw_suspended_bell_chain(surf, anchor, palette, seed, **flags):
-    # AD: single central bell only (was a chain of 3). Round-16: bell body
-    # enlarged to ~6×7 px so the silhouette reads at game scale.
-    cx, cy = anchor
+def _draw_suspended_bell_chain(surf, top_rect, bot_rect, palette, seed, **flags):
+    # Direct-draw gap-spanner: a single bronze bell hangs at the catenary
+    # midpoint between the two finial-tip centerlines, chained up to the
+    # top pagoda's inverted spire so the bell reads as suspended FROM the
+    # roof, not floating in the middle of the gap.
+    tx, ty = top_rect.centerx, top_rect.bottom
+    bx_anchor, by_anchor = bot_rect.centerx, bot_rect.top
+    cx = (tx + bx_anchor) // 2
+    cy = (ty + by_anchor) // 2
     chain = _mix(palette['stone_dark'], (60, 50, 40), 0.7)
     bronze = _mix(palette['stone_accent'], (170, 130, 70), 0.70)
     bronze_d = _shade(bronze, -30)
-    pygame.draw.line(surf, chain, (cx, cy), (cx, cy + 4), 1)
+    # Chain trails up from the bell to the top pillar's inverted finial tip.
+    pygame.draw.line(surf, chain, (cx, cy), (tx, ty), 1)
     # Outer (shaded) silhouette ~7 px wide × 7 px tall.
     pygame.draw.polygon(surf, bronze_d,
-                        [(cx - 5, cy + 4), (cx + 5, cy + 4),
-                         (cx + 4, cy + 11), (cx - 4, cy + 11)])
+                        [(cx - 5, cy), (cx + 5, cy),
+                         (cx + 4, cy + 7), (cx - 4, cy + 7)])
     # Inner highlight ~5 px wide × 6 px tall.
     pygame.draw.polygon(surf, bronze,
-                        [(cx - 4, cy + 5), (cx + 4, cy + 5),
-                         (cx + 3, cy + 10), (cx - 3, cy + 10)])
+                        [(cx - 4, cy + 1), (cx + 4, cy + 1),
+                         (cx + 3, cy + 6), (cx - 3, cy + 6)])
     # Clapper.
-    pygame.draw.line(surf, bronze_d, (cx, cy + 10), (cx, cy + 13), 1)
+    pygame.draw.line(surf, bronze_d, (cx, cy + 6), (cx, cy + 9), 1)
 
 
 def _draw_roof_smoke_wisp(surf, anchor, palette, seed, **flags):
@@ -542,25 +534,27 @@ def _draw_sleeping_dog(surf, anchor, palette, seed, **flags):
     pygame.draw.circle(surf, nose, (cx + 5, cy - 1), 1)
 
 
-def _draw_fairy_light_string(surf, anchor, palette, seed, **flags):
-    # NIGHT_ONLY. Warm-amber dots only, spacing >=5 px. Luminance clamped
-    # to <=60% of coin. Round-16: bumped to radius-2 so the dots actually
-    # read at game scale (was sub-pixel).
-    cx, cy = anchor
+def _draw_fairy_light_string(surf, top_rect, bot_rect, palette, seed, **flags):
+    # NIGHT_ONLY direct-draw gap-spanner. Warm-amber dots clamped to <=60%
+    # of coin luma so the string reads as ambient lights, not a coin column.
+    # Cord catenaries between the two finial-tip centerlines, matching the
+    # prayer-flag rope so multiple gap ornaments share one visual grammar.
+    x1, y1 = top_rect.centerx, top_rect.bottom
+    x2, y2 = bot_rect.centerx, bot_rect.top
+    sag = 6
+    mx, my = (x1 + x2) // 2, max(y1, y2) + sag
     amber = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.78), int(NIGHT_LUMA_CAP * 0.22))
     cord = _mix(palette['stone_dark'], (40, 30, 25), 0.8)
-    x1, x2 = cx - 26, cx + 26
-    sag = 4
     pts = []
     steps = 12
     for i in range(steps + 1):
         t = i / steps
-        bx = x1 + (x2 - x1) * t
-        by = cy + math.sin(t * math.pi) * sag
+        bx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * mx + t * t * x2
+        by = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * my + t * t * y2
         pts.append((int(bx), int(by)))
     for i in range(len(pts) - 1):
         pygame.draw.line(surf, cord, pts[i], pts[i + 1], 1)
-    # 9 dots along ~52 px → ~6 px spacing (>=5 px AD requirement).
+    # 9 dots along the catenary → ~5-6 px spacing (>=5 px AD requirement).
     n = 9
     for i in range(n):
         px, py = pts[int((i + 0.5) / n * steps)]
@@ -651,10 +645,16 @@ assert len(_REGISTRY) == 27, f"ornament count drift: {len(_REGISTRY)}"
 # Ornaments whose geometry needs the actual pillar rects (gap span, full
 # body length) — these bypass the cell cache and draw straight onto the
 # live surface. Everything else uses the 64×64 cell cache for cheap
-# palette-bucketed reuse across pillars.
+# palette-bucketed reuse across pillars. Every gap-spanning rope ornament
+# lives here so the catenary anchors at the two finial-tip centerlines
+# (bot_rect.top and top_rect.bottom centered on cx), not at a 64-px cell
+# centered on a single picked anchor.
 _DIRECT_DRAW: set[str] = {
     "prayer_flags",
     "paper_lantern_string",
+    "triangle_bunting",
+    "suspended_bell_chain",
+    "fairy_light_string",
     "climbing_vine",
 }
 
@@ -932,6 +932,16 @@ FLAG_OVERRIDES: dict[str, dict[str, dict]] = {
 # bottom pillar is the dominant ornament surface because it's the one the
 # bird flies past at body height.
 
+# Storey-row geometry used by the eave anchor resolver. The pagoda envelopes
+# in `pillar_pagoda_variants*.py` use finial_h ≈ 36 and tier rows roughly
+# 18 px apart; resolving to the actual storey grid would require importing
+# the envelope solver here. The approximation is accurate enough for hanging
+# ornaments to read as "off the eave corner" rather than "off the rect edge".
+_FINIAL_H_APPROX = 36
+_STOREY_H_APPROX = 18
+_EAVE_OVERHANG = 4  # px the eave-corner sticks out past the rect width
+
+
 def _anchor_for_zone(zone: str, top_rect: pygame.Rect,
                      bot_rect: pygame.Rect, rng: random.Random,
                      forbid_bottom_eave: bool = False) -> tuple[int, int]:
@@ -946,33 +956,48 @@ def _anchor_for_zone(zone: str, top_rect: pygame.Rect,
         # Just below the gap roof, on the bottom pillar's upper shaft.
         return (bcx + rng.randint(-4, 4), bot_rect.y + 14 + rng.randint(0, 8))
     if zone == ZONE_GAP:
+        # Cell-based GAP ornaments are ambient (petal drift, fireflies) — a
+        # rough gap-midpoint anchor is correct. Gap-spanning rope ornaments
+        # live in _DIRECT_DRAW and use top_rect/bot_rect finial tips
+        # explicitly, so they never hit this branch.
         return (bcx + rng.randint(-3, 3), gap_mid_y + rng.randint(-4, 4))
     if zone == ZONE_PLINTH:
-        # Forbid the bottom-most plinth lip when the ornament could be
-        # confused with a coin dangling at the gap edge (AD round 15).
-        # Lift the anchor onto an upper-storey side eave of the BOTTOM
-        # pillar so the silhouette never overlaps the flight corridor.
-        if forbid_bottom_eave:
-            side = -1 if rng.random() < 0.5 else 1
-            return (bcx + side * (bot_rect.width // 2 - 3),
-                    bot_rect.y + bot_rect.height // 3)
-        return (bcx + rng.randint(-6, 6), bot_rect.bottom - 6)
+        # Plinth ornaments REST on the actual ground line, not float a few
+        # px above the bottom-pillar rect. Seed-driven side choice puts the
+        # item at the left edge, right edge, or centered on the plinth.
+        plinth_inset = 8
+        roll = rng.random()
+        if roll < 0.34:
+            return (bot_rect.x + plinth_inset, GROUND_Y)
+        if roll < 0.67:
+            return (bot_rect.right - plinth_inset, GROUND_Y)
+        return (bcx, GROUND_Y)
     if zone == ZONE_FINIAL:
-        return (bcx, bot_rect.y + 2)
+        # FINIAL zone = bottom pagoda's sōrin tip. Push 2 px INTO the spire
+        # so a pole flag / streamers emerge from the top jewel rather than
+        # floating above it.
+        return (bcx, bot_rect.top - 2)
     if zone == ZONE_EAVE:
-        # Forbidding the bottom eave pushes the anchor up to a SIDE eave
-        # (left or right corner of an upper storey) on the TOP pillar so
-        # the ornament hangs against the body silhouette, not into the gap.
-        if forbid_bottom_eave:
-            side = -1 if rng.random() < 0.5 else 1
-            # Top half of the visible storeys → roughly upper third of
-            # top_rect; clear of the eave row that overhangs the gap.
-            upper_y = top_rect.y + max(6, top_rect.height // 3)
-            return (tcx + side * (top_rect.width // 2 - 3), upper_y)
-        return (tcx + rng.randint(-3, 3), top_rect.bottom - 2)
+        # The TOP pillar is the inverted-hanging pagoda; its eaves point
+        # down into the gap and curl UP at the corners. Anchor at one of
+        # those eave-corner tips (left or right, seed-picked) on a row
+        # measured from the inverted-finial end. Row 0 = the row CLOSEST
+        # to the gap; rows 1-2 = progressively further from the gap (up
+        # toward the inverted plinth at top_rect.top). FORBID_BOTTOM_EAVE
+        # forces row=2 so coin-confound items hang well above the flight
+        # corridor against the inverted upper-body silhouette.
+        side = -1 if rng.random() < 0.5 else 1
+        eave_row = 2 if forbid_bottom_eave else rng.randint(0, 2)
+        y_eave = top_rect.bottom - _FINIAL_H_APPROX - eave_row * _STOREY_H_APPROX
+        if side < 0:
+            return (top_rect.x - _EAVE_OVERHANG, y_eave)
+        return (top_rect.right + _EAVE_OVERHANG, y_eave)
     if zone == ZONE_ROOF:
-        return (bcx + rng.randint(-4, 4), bot_rect.y - 4)
-    return (bcx, bot_rect.bottom - 4)
+        # Pigeon / cat / smoke wisp sit on the topmost eave centerline,
+        # 2 px INTO the spire so the silhouette overlaps the roofline
+        # rather than floating above it.
+        return (bcx, bot_rect.top + 2)
+    return (bcx, GROUND_Y)
 
 
 # ── Picker ─────────────────────────────────────────────────────────────────
