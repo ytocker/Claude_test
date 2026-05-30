@@ -150,6 +150,11 @@ GENIE_OFFER_COUNT   = 3
 GENIE_OFFER_X_START = 200
 GENIE_OFFER_X_STEP  = 60
 GENIE_OFFER_Y_SLOTS = (220, 320, 420)
+# GENIE CHAMBER — the next pillar after a genie cast becomes a 2.0x-wider
+# gap with the 3 offers stacked vertically inside it (random order), so
+# Pip must fly through the gap and pick one wish by altitude.
+GENIE_CHAMBER_GAP_BOOST = 2.0
+GENIE_CHAMBER_SPACING   = 105
 
 # SKATEBOARD — timed grind/slide buff. The world scrolls faster while Pip is
 # actually grinding a surface; the boost eases in over SKATE_SLIDE_ATTACK and

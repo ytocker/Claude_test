@@ -28,6 +28,7 @@ from game.config import (
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
     SECRET_POWERUP_WEIGHTS, LATE_GAME_SCORE,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
+    GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
     SKATE_SLIDE_RELEASE, BACKFLIP_DURATION, BACKFLIP_TAP_WINDOW,
     KICKFLIP_DURATION, KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX,
@@ -127,6 +128,11 @@ class World:
         # ── Secret late-game power-ups ──────────────────────────────────────
         # GENIE: companion conjurer actors. Each is ticked + culled in update.
         self.genie_actors: list = []
+        # GENIE CHAMBER: True between _activate_genie and the next pipe
+        # spawn; the spawning pillar consumes the flag, applies the
+        # chamber gap boost, and nests the 3 wish offers vertically
+        # inside its (now over-wide) gap.
+        self.genie_chamber_pending = False
         # SKATEBOARD: timed grind buff. slide_boost is an attack/release
         # envelope (0..1) that ramps up while Pip grinds a surface and decays
         # otherwise; _current_scroll reads it to speed the world up.
@@ -305,7 +311,14 @@ class World:
         # power-up. The visual announcement fires below.
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
-        if is_rush:
+        # GENIE CHAMBER takes priority over coin-rush: if a chamber is
+        # pending and we'd have rolled a rush, the chamber wins and the
+        # rush is skipped (no double-boost; the rush counter still ticks).
+        is_chamber = self.genie_chamber_pending
+        if is_chamber:
+            is_rush = False
+            gap_h = int(gap_h * GENIE_CHAMBER_GAP_BOOST)
+        elif is_rush:
             gap_h = int(gap_h * COIN_RUSH_GAP_BOOST)
         # Pipes spawned during KFC mode get a wider collision gap so the
         # powerup is an actual gameplay reward, not just visual flair.
@@ -317,6 +330,7 @@ class World:
         gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
+        p.is_genie_chamber = is_chamber
         # is_kfc is sticky for the pipe's lifetime - it gates the gap
         # widening (see _activate_kfc) so the wider gap outlives the
         # powerup timer. The visual reverts at timer=0 via the
@@ -327,17 +341,35 @@ class World:
         # rush pillar.
         p.rail_active = False
         self.pipes.append(p)
-        if getattr(self, "rail_pending", 0) > 0 and not is_rush:
+        if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
             p.rail_active = True
             self.rail_pipes.append(p)
             self.rail_pending -= 1
-        if is_rush:
+        if is_chamber:
+            self._spawn_genie_chamber_offers(p)
+            self.genie_chamber_pending = False
+        elif is_rush:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
         else:
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
             self._maybe_spawn_ramp(p)
+
+    def _spawn_genie_chamber_offers(self, pipe: Pipe):
+        """Place KNIGHT / POISON / SKATEBOARD wishes vertically inside
+        the chamber pillar's gap, in random order, centred on gap_y
+        with +/-GENIE_CHAMBER_SPACING separation."""
+        kinds = ["knight", "poison", "skateboard"]
+        random.shuffle(kinds)
+        slot_dy = (-GENIE_CHAMBER_SPACING, 0, GENIE_CHAMBER_SPACING)
+        ox = pipe.x + PIPE_W // 2
+        for kind, dy in zip(kinds, slot_dy):
+            oy = pipe.gap_y + dy
+            offer = PowerUp(ox, oy, kind=kind)
+            offer.is_genie_offer = True
+            self.powerups.append(offer)
+            self._spawn_genie_reveal_poof(ox, oy)
 
     def _maybe_spawn_ramp(self, pipe: Pipe):
         """During the SKATEBOARD window, sometimes drop a wooden wedge
@@ -1587,20 +1619,24 @@ class World:
         ))
 
     def _activate_genie(self, m):
-        """Genie Lamp — instead of a direct buff, summon a conjurer who lays
-        out a fixed offer: knight (survive one hit), poison (trap, kills at
-        t = 1.0), skateboard (rail buff). Genie is the ONLY path to these
-        three kinds; the slot order shuffles so the trap can't be memorised
-        by position."""
-        chosen = ["knight", "poison", "skateboard"]
-        slots = list(GENIE_OFFER_Y_SLOTS[:GENIE_OFFER_COUNT])
-        random.shuffle(slots)
+        """Genie Lamp — summons the conjurer for the wish-cast ceremony
+        and marks the NEXT pillar as a GENIE CHAMBER: a 2.0x-wider gap
+        with KNIGHT / POISON / SKATEBOARD stacked vertically inside it
+        in random order. Pip flies through the gap and grabs one wish
+        by altitude; the order shuffles each cast so the trap can't be
+        memorised by position. Genie is the ONLY path to these three
+        kinds — the chamber framing means no other pillar can block
+        the wishes."""
         gy = 225
         gx = 180
-        offers = list(zip(chosen, slots))
+        # No floating offers — the GenieCharacter still spawns for the
+        # visual cast beat but with an empty `offers` list, so
+        # _fire_all becomes a poof + chime only. The actual offer
+        # placement happens when the next pipe spawns as a chamber.
         self.genie_actors.append(GenieCharacter(
-            gx, gy, vx=0.0, offers=offers, world=self,
+            gx, gy, vx=0.0, offers=[], world=self,
         ))
+        self.genie_chamber_pending = True
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t, 0.2)
         try:
