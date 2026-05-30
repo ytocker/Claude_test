@@ -1103,15 +1103,20 @@ def _draw_buff_icon(surf, rect, kind):
 
 
 class PauseButton:
-    # 54 px cut-corner power tile, top-right — same plate + yellow accent weight
-    # as the score so it never reads as the quietest element. Inset 18 px from
-    # the right edge for safe-area margin against notched / rounded web corners.
-    TILE = pygame.Rect(W - 54 - 18, 12, 54, 54)
+    # Cut-corner power tile, top-right — sized and cornered to match the coins
+    # plate's INITIAL footprint at the opposite corner (68x38: its 1-digit
+    # baseline; same corner kit), vertically aligned, so the two top chips read
+    # as a matched pair. Fixed footprint on purpose: the coins plate auto-grows
+    # with its digit count, but the pause tile never does. Inset 18 px from the
+    # right edge for safe-area margin against notched / rounded web corners; the
+    # yellow accent + glow keep it from reading as the quietest tile.
+    TILE = pygame.Rect(W - 68 - 18, 14, 68, 38)
 
     def __init__(self):
-        # Hit-test area is the tile generously inflated (≥44 px target, survives
-        # rounded/notched web-portrait corners); the visible tile is smaller.
-        self.rect = PauseButton.TILE.inflate(12, 12)
+        # Hit-test area is the tile generously inflated (~54 px target, well over
+        # the 44 px minimum, and survives rounded/notched web-portrait corners);
+        # the visible tile is smaller.
+        self.rect = PauseButton.TILE.inflate(16, 16)
         self.hover = False
 
     def contains(self, pos):
@@ -1119,21 +1124,21 @@ class PauseButton:
 
     def draw(self, surf, paused=False):
         tile = PauseButton.TILE
-        _na_plate(surf, tile, cut=9, round_r=9, glow=True)
+        _na_plate(surf, tile, cut=7, round_r=8, glow=True)
         cx, cy = tile.center
         if paused:
             pygame.draw.polygon(surf, _NA_ACCENT, [
-                (cx - 7, cy - 10),
-                (cx - 7, cy + 10),
-                (cx + 9, cy),
+                (cx - 5, cy - 7),
+                (cx - 5, cy + 7),
+                (cx + 6, cy),
             ])
         else:
-            bw, bh, gap = 7, 24, 6
+            bw, bh, gap = 5, 17, 4
             for dx in (-gap - bw, gap):
                 pygame.draw.rect(surf, _NA_ACCENT,
-                                 (cx + dx, cy - bh // 2, bw, bh), border_radius=3)
+                                 (cx + dx, cy - bh // 2, bw, bh), border_radius=2)
                 pygame.draw.rect(surf, lerp_color(_NA_ACCENT, UI_CREAM, 0.5),
-                                 (cx + dx + 1, cy - bh // 2 + 1, max(1, bw - 3), 5))
+                                 (cx + dx + 1, cy - bh // 2 + 1, max(1, bw - 3), 4))
 
 
 class HelpButton:
