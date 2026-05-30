@@ -370,6 +370,11 @@ class App:
         # desktop this never fires (no FINGERDOWN ever arrives).
         self._last_finger_t = -1e9
         self._finger_dedup_window = 0.5
+        # Brief grace window after un-pausing during which an in-play tap
+        # is ignored — keeps the resume tap (and its echo) from doubling as
+        # a flap. Scoped to its own timer so the pause fix can't entangle
+        # with the shared _cooldown_t used by menus/leaderboard.
+        self._resume_grace_t = 0.0
         # Leaderboard state
         self._lb_scores: list = []
         self._lb_player_rank = -1
@@ -485,9 +490,15 @@ class App:
             if pos and self.hud.pause_btn.contains(pos):
                 self.state = STATE_PAUSE
                 return
+            # Swallow the resume tap (and its echo) for a beat after leaving
+            # PAUSE so the click that un-pauses can't double as a flap — the
+            # player wants the game to continue exactly as it was frozen.
+            if self._resume_grace_t > 0:
+                return
             self.world.flap()
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
+            self._resume_grace_t = 0.25
         elif self.state == STATE_STATS:
             if self._stats_t < 0.6 or self._fetch_pending:
                 return
@@ -594,6 +605,7 @@ class App:
         import asyncio
         import sys as _sys
         self._cooldown_t = 0.0
+        self._resume_grace_t = 0.0
         self._start_name_entry = False
         first_frame_done = False
         while self._running:
@@ -741,6 +753,7 @@ class App:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
         elif self.state == STATE_PLAY:
+            self._resume_grace_t = max(0.0, self._resume_grace_t - dt)
             self.world.update(dt)
             if self.world.game_over:
                 self._on_death()
