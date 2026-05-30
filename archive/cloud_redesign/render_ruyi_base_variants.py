@@ -1,4 +1,4 @@
-"""Render docs/cloud_redesign/ruyi_base_faithful_round_1.png.
+"""Render docs/cloud_redesign/ruyi_base_faithful_round_N.png.
 
 6 rows × 5 phases. Row 0 = byte-identical round-23 baseline
 (`cloud_variants.draw_cloud_ruyi`); rows 1–5 = the 5 new base-
@@ -72,7 +72,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "RUYI BASE-FAITHFUL — ROUND 1 · 5 surgical variations + baseline",
+        "RUYI BASE-FAITHFUL — ROUND 2 · 5 surgical variations + baseline",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -141,7 +141,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "ruyi_base_faithful_round_1.png"
+    out = OUT / "ruyi_base_faithful_round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
