@@ -62,6 +62,8 @@ SHRINK_DURATION    = 8.0
 SHRINK_SCALE       = 0.6
 SHRINK_TRANSITION  = 0.45
 RAIL_PILLAR_COUNT  = 5       # cart rides over exactly N pillars then releases
+RAIL_LEAD_PILLARS  = 1       # pillars to skip before the cart so players have
+                            # time to reach it (cart parks on the 2nd ahead)
 RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
 # Lottery tiers: (label, weight, coin_delta). Weights need not sum to anything
 # — normalized at pick time. Loss tiers clamp at score 0 (see

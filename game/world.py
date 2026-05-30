@@ -22,7 +22,7 @@ from game.config import (
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
     POWERUP_WEIGHTS, POWERUP_SCORE_GATES, POWERUP_REPLACED_AT,
     SHRINK_DURATION, SHRINK_SCALE,
-    RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
+    RAIL_PILLAR_COUNT, RAIL_LEAD_PILLARS, RAIL_SCROLL_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
@@ -1519,14 +1519,16 @@ class World:
         ))
 
     def _activate_rail(self, m):
-        """RAIL TRACK — pillar-limited buff. Tags the next 5 pillars
-        ahead with rail track and parks a stationary cart on the FIRST
-        of them. Pip is NOT auto-locked: he keeps flying with normal
-        flap. If he touches the cart pillar the cart locks him in and
-        rides through the remaining tagged pillars. Pillars 2-5 still
-        have track but no cart — touching them kills Pip like any
-        obstacle. If picked up WHILE Pip is already locked on the rail
-        (he can't dodge), extend the current ride by 5 more pillars."""
+        """RAIL TRACK — pillar-limited buff. Skips the next pillar (a
+        RAIL_LEAD_PILLARS lead-in so players aren't ambushed and have
+        time to glide over) then tags the following 5 pillars with rail
+        track, parking a stationary cart on the FIRST tagged one. Pip is
+        NOT auto-locked: he keeps flying with normal flap. If he touches
+        the cart pillar the cart locks him in and rides through the
+        remaining tagged pillars. The other tagged pillars still have
+        track but no cart — touching them kills Pip like any obstacle.
+        If picked up WHILE Pip is already locked on the rail (he can't
+        dodge), extend the current ride by 5 more pillars."""
         if self.bird.cart_locked:
             self._extend_rail_ride(m)
             return
@@ -1539,7 +1541,7 @@ class World:
         ahead = sorted(
             (p for p in self.pipes
              if p.x > self.bird.x and not getattr(p, "is_rush", False)),
-            key=lambda p: p.x)
+            key=lambda p: p.x)[RAIL_LEAD_PILLARS:]
         for p in ahead[:RAIL_PILLAR_COUNT]:
             p.rail_active = True
         tagged_ahead = min(len(ahead), RAIL_PILLAR_COUNT)
