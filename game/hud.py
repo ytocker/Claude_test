@@ -1028,8 +1028,9 @@ def _draw_buff_icon(surf, rect, kind):
 
 class PauseButton:
     # 54 px cut-corner power tile, top-right — same plate + yellow accent weight
-    # as the score so it never reads as the quietest element.
-    TILE = pygame.Rect(W - 54 - 10, 12, 54, 54)
+    # as the score so it never reads as the quietest element. Inset 18 px from
+    # the right edge for safe-area margin against notched / rounded web corners.
+    TILE = pygame.Rect(W - 54 - 18, 12, 54, 54)
 
     def __init__(self):
         # Hit-test area is the tile generously inflated (≥44 px target, survives
