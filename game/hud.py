@@ -81,44 +81,40 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
     return r
 
 
-# ── Score numerals: a solid menu-yellow token wrapped in a fixed-width dark
-# keyline (the figure-ground hero), with a 1px ivory top-left highlight and a
-# 1px amber bottom-right shade. The whole glyph IS the brand yellow, so the
-# score reads as one solid gold mass — found instantly over a bright-sky pillar
-# and at night, where a cream numeral blurs into its own outline. Composited on
-# a 4x supersample for crisp, fixed-width edges (so "12" and "1287" share one
-# contour + bevel weight), smooth-scaled to native, and cached per score string
-# — the perimeter stamp is far too costly to run every frame.
-_SCORE_HI    = (255, 244, 196)   # warm-ivory top/upper-left highlight cap
-_SCORE_SHADE = (150, 104,  28)   # amber bottom-right shade — lower-edge separation
-_SCORE_KEY   = ( 12,   9,   7)   # near-black keyline (the plate is fixed slate day
-                                 # + night, so one dark key holds in every biome)
+# ── Score numerals: a single bright gold-gradient digit face — a foil sheen at
+# the crown easing to deep amber at the foot — over a crisp near-black keyline
+# and a soft drop. One bright shape, no cream, so the whole glyph is brand gold
+# and the score reads instantly over a bright-sky pillar AND at night. The face
+# is built by masking a vertical gradient band to the glyph's own alpha so every
+# stroke shares one light direction. Composited on a 4x supersample for crisp
+# fixed-width edges (so "12" and "1287" share one keyline weight), smooth-scaled
+# to native, and cached per score string — far too costly to rebuild per frame.
+_SCORE_GOLD_HI = (255, 234, 158)   # bright sheen near the crown of a digit
+_SCORE_GOLD_LO = (190, 132,  34)   # deep amber at the foot of a digit
+_SCORE_KEY     = ( 14,  11,   9)   # near-black keyline (the figure-ground hero)
 _score_token_cache: dict = {}
 
 
 def _score_token(txt):
-    """Return a cached, transparent, native-size gold score token to blit centred
-    on the plate. Layer order back-to-front: slate drop, dark keyline contour,
-    amber BR shade, ivory TL highlight, flat gold face."""
+    """Return a cached, transparent, native-size gold-gradient score token to
+    blit centred on the plate. Layer order back-to-front: near-black drop, dark
+    keyline contour, then a vertical gold-gradient face (sheen crown → amber
+    foot) masked to the glyph alpha."""
     cached = _score_token_cache.get(txt)
     if cached is not None:
         return cached
-    ss = 4                       # supersample so the keyline + bevel stay crisp
+    ss = 4                       # supersample so the keyline + gradient stay crisp
     f = _font(46 * ss, True)
-    face = f.render(txt, True, _GOLD_BRIGHT)
-    gw, gh = face.get_size()
-    bevel = 1 * ss               # 1px native highlight/shade/drop offset
+    mask = f.render(txt, True, (255, 255, 255))   # white glyph = the gradient mask
+    gw, gh = mask.get_size()
     key_r = 2 * ss               # ~2px native keyline contour radius
-    pad = key_r + bevel + 2 * ss
+    pad = key_r + 3 * ss         # room for the keyline + the (+2,+3) drop
     big = pygame.Surface((gw + pad * 2, gh + pad * 2), pygame.SRCALPHA)
     cx, cy = big.get_width() // 2, big.get_height() // 2
 
-    def _stamp(glyph, ox, oy):
-        big.blit(glyph, glyph.get_rect(center=(cx + ox, cy + oy)))
-
-    drop = f.render(txt, True, _NA_SLATE_D)
+    drop = f.render(txt, True, _SCORE_KEY)
     drop.set_alpha(150)
-    _stamp(drop, bevel, bevel * 2)
+    big.blit(drop, drop.get_rect(center=(cx + 2 * ss, cy + 3 * ss)))
     # Uniform disc of integer offsets => a contour of constant width regardless
     # of digit count (a fixed pixel radius, not derived from the glyph).
     key = f.render(txt, True, _SCORE_KEY)
@@ -127,9 +123,13 @@ def _score_token(txt):
         for dy in range(-key_r, key_r + 1):
             if (dx or dy) and dx * dx + dy * dy <= rr:
                 big.blit(key, key.get_rect(center=(cx + dx, cy + dy)))
-    _stamp(f.render(txt, True, _SCORE_SHADE), bevel, bevel)
-    _stamp(f.render(txt, True, _SCORE_HI), -bevel, -bevel)
-    _stamp(face, 0, 0)
+    grad = pygame.Surface((gw, gh), pygame.SRCALPHA)
+    for yy in range(gh):
+        t = yy / max(1, gh - 1)
+        pygame.draw.line(grad, lerp_color(_SCORE_GOLD_HI, _SCORE_GOLD_LO, t),
+                         (0, yy), (gw, yy))
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    big.blit(grad, grad.get_rect(center=(cx, cy)))
 
     native = pygame.transform.smoothscale(
         big, (big.get_width() // ss, big.get_height() // ss))
@@ -1510,8 +1510,8 @@ class HUD:
     def draw_play(self, surf, world, best: int, paused: bool = False):
         # ── Score: opaque cut-corner slate plate (the value floor) with a
         # menu-yellow accent edge + soft glow and a faint sandstone wash low
-        # in the body. The numerals are a solid menu-yellow token wrapped in a
-        # dark keyline (see _score_token) so the score reads as one gold mass
+        # in the body. The numerals are a gold-gradient token over a dark
+        # keyline (see _score_token) so the score reads as one bright gold shape
         # over a bright-sky brown pillar AND at night. Lifted to y=42 to reclaim
         # central-corridor space while staying clear of the bird's ceiling
         # band. Kept drawn while paused so the pause overlay simply dims it.
