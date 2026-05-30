@@ -398,6 +398,149 @@ def get_grow_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# ── X-Ray Sparks (cartoon electrocution flash) ───────────────────────────────
+# Classic Looney-Tunes / Tom-and-Jerry visual idiom: when Pip is struck by
+# the storm-jolt lightning the body silhouette goes solid dark and the
+# skeleton bones glow white inside, with crackling cyan sparks around the
+# silhouette edge. Bird.draw alternates between this sprite and the normal
+# parrot at ~10 Hz across 0.5s while `skeleton_flash_t > 0`. Body-part
+# anchors mirror `_build_frame` so the silhouette matches Pip's normal pose
+# exactly — only the palette + the bones-overlay change.
+
+SKEL_DARK  = ( 26,  22,  36)     # silhouette / "flesh" colour
+SKEL_BONE  = (255, 255, 255)     # bone highlights
+SKEL_SOCK  = ( 14,  10,  18)     # eye sockets (slightly darker than dark)
+SKEL_SPARK = (175, 230, 255)     # cyan crackle ticks
+
+
+def _build_skeleton_wing(angle_deg):
+    """Solid-dark wing polygon (matches `_build_wing`'s silhouette
+    exactly, just one flat colour + a white bone tracing inside)."""
+    w = pygame.Surface((50, 50), pygame.SRCALPHA)
+    # Filled silhouette in dark
+    silhouette_pts = [
+        (24, 26), (46, 14), (50, 30), (34, 44), (18, 40),
+    ]
+    pygame.draw.polygon(w, SKEL_DARK, silhouette_pts)
+    pygame.draw.polygon(w, SKEL_BONE, silhouette_pts, 1)
+    # Bone tracing inside the wing — humerus (shoulder→elbow),
+    # radius/ulna (elbow→wrist), and 3 finger phalanges (wrist→tips)
+    pygame.draw.line(w, SKEL_BONE, (24, 26), (38, 22), 1)   # humerus
+    pygame.draw.line(w, SKEL_BONE, (38, 22), (46, 30), 1)   # radius/ulna
+    pygame.draw.line(w, SKEL_BONE, (46, 30), (50, 30), 1)   # phalanx 1
+    pygame.draw.line(w, SKEL_BONE, (46, 30), (42, 40), 1)   # phalanx 2
+    pygame.draw.line(w, SKEL_BONE, (46, 30), (34, 42), 1)   # phalanx 3
+    # Joint dots so the bones read as articulated rather than scribbled
+    pygame.draw.circle(w, SKEL_BONE, (24, 26), 1)
+    pygame.draw.circle(w, SKEL_BONE, (38, 22), 1)
+    pygame.draw.circle(w, SKEL_BONE, (46, 30), 1)
+    rotated = pygame.transform.rotate(w, angle_deg)
+    return rotated
+
+
+def _build_skeleton_frame(wing_angle_deg):
+    """One X-Ray Sparks frame at base 64×60. Solid dark silhouette of
+    the parrot + white skeleton bones (skull, beak outline, spine,
+    ribcage, wing bones, leg bones) + a handful of cyan crackle ticks
+    baked around the silhouette edge."""
+    surf = pygame.Surface((SPRITE_W, SPRITE_H), pygame.SRCALPHA)
+
+    # ── Silhouette (matches _build_frame's body-part geometry) ──
+    # Tail (one solid fan instead of the layered red→yellow gradient)
+    tail_silhouette_pts = [
+        (2, 26), (17, 24), (23, 36), (12, 42),
+    ]
+    pygame.draw.polygon(surf, SKEL_DARK, tail_silhouette_pts)
+    # Body silhouette (single ellipse — no shadow / chest texture)
+    _aaellipse(surf, SKEL_DARK, (32, 32), 19, 14)
+    # Wing (dark + bone tracing). Drawn behind head, after body.
+    wing = _build_skeleton_wing(wing_angle_deg)
+    wr = wing.get_rect(center=(34, 28))
+    surf.blit(wing, wr.topleft)
+    # Head silhouette
+    _aaellipse(surf, SKEL_DARK, (47, 21), 12, 11)
+    # Beak silhouette (still hooked, just dark)
+    beak_pts = [(55, 21), (61, 24), (58, 28), (52, 26)]
+    pygame.draw.polygon(surf, SKEL_DARK, beak_pts)
+
+    # ── Skeleton overlay (white-on-dark) ──
+    # Skull: bright oval inside the head, with two dark eye sockets.
+    # Slightly smaller than the head silhouette so the dark "flesh"
+    # halo reads around the bone.
+    _aaellipse(surf, SKEL_BONE, (47, 21), 9, 8)
+    # Eye sockets — dark dots inside the white skull
+    pygame.draw.circle(surf, SKEL_SOCK, (50, 19), 2)
+    pygame.draw.circle(surf, SKEL_SOCK, (44, 20), 2)
+    # Tiny bright glints to keep the sockets feeling like sockets,
+    # not just dark holes (matches the eye position of the sunglasses
+    # in the canonical frame)
+    pygame.draw.circle(surf, SKEL_BONE, (51, 18), 1)
+    # Beak outline in white over the dark beak silhouette
+    pygame.draw.polygon(surf, SKEL_BONE, beak_pts, 1)
+    # Lower-beak split line
+    pygame.draw.line(surf, SKEL_BONE, (52, 25), (58, 25), 1)
+    # Spine — vertical 2-px line from base of skull down to tail
+    pygame.draw.line(surf, SKEL_BONE, (38, 26), (22, 36), 2)
+    # Ribcage — 4 curved arc lines across the body silhouette
+    for off_x in (-6, -2, 2, 6):
+        pygame.draw.arc(surf, SKEL_BONE,
+                        (24 + off_x, 24, 14, 16),
+                        math.radians(200), math.radians(340), 1)
+    # Tail bones — radiating fan lines mirroring the silhouette
+    pygame.draw.line(surf, SKEL_BONE, (22, 36), (4, 28), 1)
+    pygame.draw.line(surf, SKEL_BONE, (22, 36), (6, 34), 1)
+    pygame.draw.line(surf, SKEL_BONE, (22, 36), (8, 40), 1)
+    # Leg bones — 2 thin lines on each tucked leg (femur + tibia)
+    pygame.draw.line(surf, SKEL_BONE, (28, 45), (27, 49), 1)
+    pygame.draw.line(surf, SKEL_BONE, (34, 45), (35, 49), 1)
+    # Tiny "foot bones" at the tip of each leg
+    pygame.draw.circle(surf, SKEL_BONE, (27, 49), 1)
+    pygame.draw.circle(surf, SKEL_BONE, (35, 49), 1)
+
+    # ── Crackle ticks baked around the silhouette edge ──
+    # Short 2-3 px cyan jagged sparks so the sprite reads as "being
+    # shocked" even before the per-frame ephemeral sparks layered on
+    # in Bird.draw. Positions are deterministic per-frame so each of
+    # the 4 wing-flap frames looks slightly different.
+    crackle_seeds = (
+        (8, 22), (54, 14), (62, 30), (12, 44), (50, 46), (24, 18),
+    )
+    for cx, cy in crackle_seeds:
+        # Small zig-zag: 3 points, 2 segments
+        pygame.draw.line(surf, SKEL_SPARK, (cx, cy), (cx + 2, cy - 2), 1)
+        pygame.draw.line(surf, SKEL_SPARK, (cx + 2, cy - 2),
+                          (cx + 1, cy - 4), 1)
+        # Brighter centre dot
+        pygame.draw.circle(surf, SKEL_BONE, (cx + 1, cy - 2), 1)
+
+    return surf
+
+
+_SKELETON_FRAMES: "list[pygame.Surface] | None" = None
+_skeleton_rot_cache: dict = {}
+
+
+def _get_skeleton_frames() -> "list[pygame.Surface]":
+    global _SKELETON_FRAMES
+    if _SKELETON_FRAMES is None:
+        _SKELETON_FRAMES = [_build_skeleton_frame(a) for a in _WING_ANGLES]
+    return _SKELETON_FRAMES
+
+
+def get_skeleton_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """X-Ray Sparks parrot — dark silhouette with white skeleton bones
+    + baked cyan crackle ticks. Used by Bird.draw as a strobe overlay
+    during the storm-jolt impact. Caches like get_parrot."""
+    frames = _get_skeleton_frames()
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    cached = _skeleton_rot_cache.get(key)
+    if cached is None:
+        cached = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        _skeleton_rot_cache[key] = cached
+    return cached
+
+
 # ── parcel sprite (Pip's permanent companion in gameplay) ────────────────────
 # Pip carries the parcel through every run. Each visual mode (KFC, ghost,
 # triple-buff hat, normal) uses a hand-tuned palette so the parcel reads as

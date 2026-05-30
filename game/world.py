@@ -22,7 +22,7 @@ from game.config import (
     GROW_DURATION, GROW_SCALE, REVERSE_DURATION,
     POWERUP_WEIGHTS, POWERUP_SCORE_GATES, POWERUP_REPLACED_AT,
     SHRINK_DURATION, SHRINK_SCALE,
-    RAIL_PILLAR_COUNT, RAIL_SCROLL_MULT,
+    RAIL_PILLAR_COUNT, RAIL_LEAD_PILLARS, RAIL_SCROLL_MULT,
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
@@ -37,20 +37,36 @@ from game.config import (
     POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
     DEATH_FADE_DURATION,
+    WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
+    WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
+    THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
+    GEYSER_MAX_CONCURRENT,
+    ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
+    GEYSER_RAMP_PILLARS,
+    GEYSER_W, GEYSER_H, GEYSER_LIFT_VY_CAP,
+    GEYSER_GY_DELTA_MAX, GEYSER_GX_SHIFT_MAX, GEYSER_DUD_CHANCE,
 )
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
     GenieCharacter, TrickBubble, Ramp,
+    FlyingCoinParticle, Geyser, Rock,
 )
 from game._proof import ProofState
 from game.draw import (
     COIN_GOLD, COIN_LIGHT,
     PARTICLE_GOLD, PARTICLE_ORNG, PARTICLE_WHT, PARTICLE_CRIM,
-    UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, BIRD_RED,
+    UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, BIRD_RED, UI_RED,
 )
 from game import biome
 from game import audio
-from game.weather import Weather
+from game import geyser_fx
+from game.weather import (
+    Weather,
+    rain_intensity as _rain_intensity,
+    storm_intensity as _storm_intensity,
+    thermal_intensity as _thermal_intensity,
+)
 from game.ambient import AmbientScenes
 
 
@@ -80,6 +96,9 @@ class World:
         # _maybe_spawn_ramp during the buff. Scrolls + culls with the
         # pipes; world collision checks them when bird.skateboard_active.
         self.ramps: list[Ramp] = []
+        self.geysers: list[Geyser] = []
+        self.rocks: list[Rock] = []
+        geyser_fx.prewarm()   # bake cone/steam/rock caches → no first-eruption hitch
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
 
@@ -167,6 +186,18 @@ class World:
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
 
+        # Consecutive non-rush pillars while the morning-thermal event is
+        # active. Drives the rock-density ramp and gates the first geyser so
+        # the rocks build up over GEYSER_RAMP_PILLARS pillars as a telegraph.
+        # Resets to 0 whenever the event is off.
+        self._thermal_pillars = 0
+
+        # When the previous pillar planted a geyser, the next pillar's gap_y
+        # is pre-rolled at plant time (so the geyser's horizontal position
+        # can be biased toward the side that needs more pre-descent space).
+        # _spawn_pipe consumes this instead of rolling its own gy.
+        self._pending_gap_y = None
+
         # Per-run stats surfaced on the post-game summary.
         self.pillars_passed = 0
         self.time_alive = 0.0
@@ -190,6 +221,18 @@ class World:
         self.hit_flash = 0.0    # death-only red tint, NOT coin
         self.shake_mag = 0.0
         self.shake_t = 0.0
+
+        # ── Thunderstorm storm-jolt state ──────────────────────────────────
+        # lightning_strike: dict {path, life, life_max} for the bolt being
+        # drawn (None when idle). _storm_jolt_lockout: cooldown after a
+        # strike. _lightning_scorch_t: smoke-wisp aftermath timer.
+        # _storm_buildup_seq/_t: scheduled telegraph bolts → climax strike.
+        self.lightning_strike = None
+        self._storm_jolt_lockout = 0.0
+        self._lightning_scorch_t = 0.0
+        self._scorch_smoke_accum = 0.0
+        self._storm_buildup_seq = []
+        self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at 0 while ready_t > 0 so the sky doesn't tick over while
@@ -249,11 +292,7 @@ class World:
         # short runway to internalize flap timing without anything
         # tightening underneath them. From there the ramp eases out
         # (1-(1-x)^2) so the bulk of the tightening lands in the middle
-        # pillars and the last few settle gently into GAP_START /
-        # SCROLL_BASE — no last-mile cliff right where a struggling player
-        # is most fragile. Linear interpolation tested badly because its
-        # biggest absolute deltas landed at the end of the ramp, exactly
-        # the wrong place for newbies.
+        # pillars and the last few settle gently into GAP_START / SCROLL_BASE.
         pp = self.pillars_passed
         if pp < PLATEAU_PIPES:
             return 0.0
@@ -286,6 +325,12 @@ class World:
         # snapping when Pip lands on / lifts off a surface.
         if self.slide_boost > 0:
             base *= 1.0 + self.slide_boost * (SKATE_SLIDE_MULT - 1.0)
+        # Snow-squall TAILWIND (predawn ~0.85): speeds the world up so
+        # pipes/coins approach faster — composed multiplicatively with
+        # the skateboard slide boost so both layer cleanly.
+        wi = _storm_intensity(self.biome_phase)
+        if wi > 0:
+            base *= 1.0 + WEATHER_WIND_SCROLL_FACTOR * wi
         return base
 
     def _current_spacing(self):
@@ -293,6 +338,250 @@ class World:
 
     def _current_powerup_chance(self):
         return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
+
+    # ── weather → gameplay (rain hooks + thunderstorm storm-jolt) ──────────────
+    def _apply_weather_effects(self, dt):
+        """Route current rain intensity to coins (shake) and Pip (shiver +
+        flap dampen), drive the snow-squall tailwind + back-snow, and
+        schedule the storm-jolt lightning strike at peak rain. Coin shake +
+        Pip shiver are visual-only; flap dampen is a real (small) lift cut."""
+        ri = _rain_intensity(self.weather.phase)
+        if ri <= 0:
+            for c in self.coins:
+                c.weather_dx = 0.0
+            self.bird.shiver_x = 0.0
+            self.bird.shiver_y = 0.0
+            self.bird.flap_dampen = 0.0
+        else:
+            amp_x = WEATHER_COIN_SHAKE_AMP * ri
+            freq = 4.5 * (1.0 + ri)
+            for c in self.coins:
+                c._weather_phase += dt * freq
+                c.weather_dx = math.sin(c._weather_phase) * amp_x
+            heavy = ri > WEATHER_HEAVY_THRESHOLD
+            if heavy:
+                heavy_t = (ri - WEATHER_HEAVY_THRESHOLD) / (1.0 - WEATHER_HEAVY_THRESHOLD)
+                flash_kick = 1.5 if self.weather.flash_remaining > 0 else 1.0
+                self.bird.shiver_x = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.shiver_y = random.uniform(-1, 1) * WEATHER_PIP_SHIVER_AMP * heavy_t * flash_kick
+                self.bird.flap_dampen = WEATHER_FLAP_DAMPEN_MAX * heavy_t
+            else:
+                self.bird.shiver_x = 0.0
+                self.bird.shiver_y = 0.0
+                self.bird.flap_dampen = 0.0
+
+        # Snow-squall tailwind (predawn ~0.85): forward push (scroll boost
+        # lives in _current_scroll); driven by the storm envelope.
+        wi = _storm_intensity(self.weather.phase)
+        if wi > 0.05:
+            self.bird.wind_lean = +WEATHER_WIND_LEAN_AMP * wi
+        else:
+            self.bird.wind_lean = 0.0
+
+        # Windblown snow on Pip — gradual build ∝ storm on the rise; melt is
+        # keyed to the squall being PAST ITS PEAK (phase 0.85), ramping in over
+        # MELT_RAMP, so the build stays clean and the snow starts shedding soon
+        # after the peak, clearing gradually. (0.85 = storm_intensity peak.)
+        fade = max(0.0, min(1.0, (self.weather.phase - 0.85) / WEATHER_SNOW_MELT_RAMP))
+        fade = fade * fade * (3.0 - 2.0 * fade)
+        gain = WEATHER_SNOW_ACCUM_RATE * wi
+        self.bird.snow_load = max(0.0, min(1.0,
+            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
+
+        # Storm jolt: near-peak rain, after lockout, only if Pip has score
+        # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
+        if self._storm_jolt_lockout > 0:
+            self._storm_jolt_lockout = max(0.0, self._storm_jolt_lockout - dt)
+        elif (ri > 0.85
+              and self.score > 0
+              and not self.game_over
+              and self.ready_t <= 0
+              and not self._storm_buildup_seq
+              and random.random() < 0.06 * dt * 60):
+            self._start_storm_buildup()
+
+        if self._storm_buildup_seq:
+            self._storm_buildup_t += dt
+            while (self._storm_buildup_seq
+                   and self._storm_buildup_t >= self._storm_buildup_seq[0][0]):
+                _, kind = self._storm_buildup_seq.pop(0)
+                if kind == "strike":
+                    self._fire_storm_jolt()
+                else:
+                    side = -1 if kind.endswith("left") else 1
+                    self._fire_background_lightning(side=side)
+
+    def _apply_thermal_lift(self, dt):
+        """Morning-thermal updraft — a CONSTANT rise. While Pip is inside any
+        geyser column his upward speed is set to exactly GEYSER_LIFT_VY_CAP:
+        one constant for every geyser, no stacking, and independent of how
+        deep or how long he's been inside. A flap (faster than the cap) still
+        overrides it, and being in two overlapping columns changes nothing."""
+        if self.bird.vy <= -GEYSER_LIFT_VY_CAP:
+            return
+        bx, by = self.bird.x, self.bird.y
+        for gy in self.geysers:
+            if gy.contains(bx, by):
+                self.bird.vy = -GEYSER_LIFT_VY_CAP
+                break
+
+    def _start_storm_buildup(self):
+        """Telegraph the strike: 9 escalating-tempo background bolts, the
+        real strike at t=4.40 s, then 2 fade-away bolts as it settles."""
+        self._storm_buildup_seq = [
+            (0.00, "bg_left"),
+            (0.80, "bg_right"),
+            (1.50, "bg_left"),
+            (2.10, "bg_right"),
+            (2.60, "bg_left"),
+            (3.05, "bg_right"),
+            (3.45, "bg_left"),
+            (3.80, "bg_right"),
+            (4.10, "bg_left"),
+            (4.40, "strike"),
+            (5.40, "bg_right"),
+            (6.90, "bg_left"),
+        ]
+        self._storm_buildup_t = 0.0
+        self._storm_jolt_lockout = 25.0
+
+    def _fire_background_lightning(self, side: int = -1):
+        """Non-damaging telegraph bolt landing off to Pip's side, with
+        reduced flash/shake — "the storm is cracking around him"."""
+        bx, by = self.bird.x, self.bird.y
+        origin_x = bx + side * random.uniform(110, 170)
+        impact_x = bx + side * random.uniform(80, 150)
+        impact_y = random.uniform(by - 80, by + 80)
+        path = [(origin_x, 0.0)]
+        segs = 18
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-42, 42) * (1.0 - t * 0.55)
+            cx = origin_x * (1 - t) + impact_x * t + jx
+            cy = impact_y * t
+            path.append((cx, cy))
+        path.append((impact_x, impact_y))
+        self.lightning_strike = {"path": path, "life": 0.32, "life_max": 0.32}
+        self.weather.flash_remaining = max(self.weather.flash_remaining, 0.14)
+        self.shake_mag = max(self.shake_mag, 3.5)
+        self.shake_t = max(self.shake_t, 0.20)
+        try:
+            audio.play_thunder(volume=random.uniform(0.35, 0.55))
+        except Exception:
+            pass
+
+    def _bolt_path(self, ox, oy, ix, iy, segs=20, jit=40):
+        """Jagged lightning polyline from origin (ox, oy) → impact (ix, iy)."""
+        path = [(ox, oy)]
+        for i in range(1, segs):
+            t = i / segs
+            jx = random.uniform(-jit, jit) * (1.0 - t * 0.7)
+            path.append((ox * (1 - t) + ix * t + jx, oy + (iy - oy) * t))
+        path.append((ix, iy))
+        return path
+
+    def _side_bolt(self, base_x):
+        """A flanking bolt — same layered look as the main strike, but a
+        randomised length + jaggedness so it's never the same shape."""
+        oy = random.uniform(0.0, GROUND_Y * 0.22)            # some start lower → shorter
+        iy = random.uniform(GROUND_Y * 0.45, GROUND_Y - 18)  # end mid-air or near ground
+        return self._bolt_path(base_x + random.uniform(-40, 40), oy,
+                               base_x + random.uniform(-30, 30), iy,
+                               segs=random.randint(13, 21),
+                               jit=random.uniform(26.0, 44.0))
+
+    def _fire_storm_jolt(self):
+        """LIGHTNING STRIKES PIP — bolt + flash + hard shake + 100 points
+        knocked off the SCORE (all of it if under 100) + cyan sparks + X-Ray
+        Sparks skeleton flash + scorch smoke. Loss logged as a negative
+        weather_jolt ledger event."""
+        lost = min(100, self.score)
+        if lost <= 0:
+            return
+        self.score = max(0, self.score - lost)
+        self._proof.record(self.time_alive, -lost, "weather_jolt")
+
+        bx, by = self.bird.x, self.bird.y
+        # THREE simultaneous bolts at the climax: the main strike on Pip plus
+        # two flanking bolts at absolute screen positions (Pip flies on the
+        # left), each a different length + jaggedness so the sky forks.
+        main = self._bolt_path(bx + random.uniform(-70, 70), 0.0, bx, by - 2,
+                               segs=22, jit=42)
+        side_l = self._side_bolt(random.uniform(18.0, 70.0))
+        side_r = self._side_bolt(random.uniform(W * 0.62, W - 24.0))
+        self.lightning_strike = {"paths": [main, side_l, side_r], "path": main,
+                                 "life": 0.50, "life_max": 0.50}
+        self.weather.flash_remaining = max(self.weather.flash_remaining, 0.22)
+        self.shake_mag = max(self.shake_mag, 9.0)
+        self.shake_t = max(self.shake_t, 0.55)
+        self._storm_jolt_lockout = 25.0
+        self._lightning_scorch_t = 3.7
+        self._scorch_smoke_accum = 0.0
+        self.bird.skeleton_flash_t = 3.50
+
+        scatter_bx, scatter_by = self.bird.x, self.bird.y + 4
+        n = min(lost, 20)
+        for i in range(n):
+            ang = (i / n) * math.tau + random.uniform(-0.15, 0.15)
+            speed = random.uniform(200.0, 320.0)
+            vx = math.cos(ang) * speed
+            vy = math.sin(ang) * speed - 80.0
+            self.particles.append(FlyingCoinParticle(
+                scatter_bx, scatter_by, vx, vy, life=0.95,
+            ))
+
+        for _ in range(40):
+            ang = random.uniform(0, math.tau)
+            sp = random.uniform(140, 280)
+            spark_col = random.choice((
+                (220, 240, 255), (180, 220, 255),
+                (255, 255, 255), (140, 200, 255),
+                (255, 240, 180),
+            ))
+            self.particles.append(Particle(
+                scatter_bx, scatter_by - 12,
+                math.cos(ang) * sp, math.sin(ang) * sp,
+                life=random.uniform(0.35, 0.60),
+                r=random.choice((3, 3, 4)),
+                color=spark_col,
+                gravity=180,
+            ))
+
+        # Damage label sits to the right of Pip (sprite is 64 px wide) so the
+        # "-100!" glyph and its sparkle ring don't cover him while the X-Ray
+        # skeleton flash is the visual hook of the strike.
+        self.float_texts.append(FloatText(
+            f"-{lost}!", self.bird.x + 80, self.bird.y - 14, UI_RED,
+            size=30, life=1.6, vy=-26, style="powerup",
+        ))
+
+        try:
+            audio.play_thunder(volume=0.98)
+            audio.play_poof()
+            audio.play_magnet(volume=0.55)
+        except Exception:
+            pass
+
+    def _spawn_scorch_wisp(self):
+        """Light smoke puff trailing BEHIND Pip (to his left) so it streams
+        away rather than covering the skeleton view during the flash."""
+        bx, by = self.bird.x, self.bird.y
+        ox = random.uniform(-32, -14)
+        oy = random.uniform(-18, 12)
+        vx = random.uniform(-40, -10)
+        vy = random.uniform(-55, -25)
+        col = random.choice((
+            (170, 165, 175), (200, 195, 200),
+            (150, 145, 155), (220, 215, 220),
+            (185, 180, 190),
+        ))
+        self.particles.append(Particle(
+            bx + ox, by + oy, vx, vy,
+            life=random.uniform(0.70, 1.05),
+            r=random.randint(5, 8),
+            color=col,
+            gravity=-30,
+        ))
 
     # ── spawning ─────────────────────────────────────────────────────────────
 
@@ -329,7 +618,17 @@ class World:
         if kfc_spawn:
             gap_h = int(gap_h * KFC_GAP_BOOST)
         margin = 70
-        gy = random.randint(margin + gap_h // 2, GROUND_Y - margin - gap_h // 2)
+        lo = margin + gap_h // 2
+        hi = GROUND_Y - margin - gap_h // 2
+        # A geyser planted by the previous pillar pre-rolled this pillar's
+        # gy (already inside GEYSER_GY_DELTA_MAX of the previous gap). Just
+        # re-clamp to this pillar's actual gap_h margins — rush/KFC widen
+        # gap_h vs. what was assumed at pre-roll time.
+        if self._pending_gap_y is not None:
+            gy = max(lo, min(hi, self._pending_gap_y))
+            self._pending_gap_y = None
+        else:
+            gy = random.randint(lo, hi)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
         p.is_genie_chamber = is_chamber
@@ -358,9 +657,17 @@ class World:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
         else:
+            # Advance (or reset) the thermal-event pillar counter — the
+            # telegraph clock the rock ramp + geyser gate read.
+            if _thermal_intensity(self.biome_phase) > ROCK_SPAWN_THRESHOLD:
+                self._thermal_pillars += 1
+            else:
+                self._thermal_pillars = 0
             self._spawn_coins_in_gap(p)
             self._maybe_spawn_powerup(p)
             self._maybe_spawn_ramp(p)
+            self._maybe_spawn_rocks(p)
+            self._maybe_spawn_geyser(p)
 
     def _spawn_genie_chamber_offers(self, pipe: Pipe):
         """Place KNIGHT / POISON / SKATEBOARD wishes vertically inside
@@ -417,6 +724,98 @@ class World:
         rx = pipe.x + PIPE_W - ramp_w
         self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
         pipe.has_ramp = True
+
+    def _maybe_spawn_geyser(self, pipe: Pipe):
+        # Geysers are held back until the rock field has ramped across
+        # GEYSER_RAMP_PILLARS pillars — so a player always gets the ~8-pillar
+        # rocks-only telegraph first. The first geyser is FORCED exactly when
+        # the ramp completes (the payoff of the clue); after that they spawn
+        # probabilistically, with concurrency scaling 0→GEYSER_MAX_CONCURRENT by
+        # intensity so they fade out naturally on the event's falling edge.
+        if self._thermal_pillars < GEYSER_RAMP_PILLARS:
+            return
+        intensity = _thermal_intensity(self.biome_phase)
+        allowed = round(intensity * GEYSER_MAX_CONCURRENT)
+        if len(self.geysers) >= max(1, allowed):
+            return
+        first = self._thermal_pillars == GEYSER_RAMP_PILLARS and not self.geysers
+        if first or (allowed >= 1
+                     and random.random() < THERMAL_SPAWN_CHANCE_MAX * intensity):
+            spacing = self._current_spacing()
+            # Pre-roll the NEXT pillar's gap_y now — clamped within
+            # GEYSER_GY_DELTA_MAX of this pillar's gap so the column-pinned
+            # bird can always make the next gap. Knowing the next gy here
+            # lets us bias the column's x: when the next gap is lower the
+            # column shifts right, giving the player more pre-column space
+            # to dive freely (the in-column lift then drops them onto the
+            # lower target with minimal post-column recovery).
+            gap_h_next = self._current_gap()
+            margin = 70
+            lo_n = max(margin + gap_h_next // 2,
+                       pipe.gap_y - GEYSER_GY_DELTA_MAX)
+            hi_n = min(GROUND_Y - margin - gap_h_next // 2,
+                       pipe.gap_y + GEYSER_GY_DELTA_MAX)
+            if self.grow_timer > 0:
+                shrink = int((GROW_SCALE - 1.0) * 30)
+                lo_n = min(lo_n + shrink, hi_n)
+                hi_n = max(hi_n - shrink, lo_n)
+            next_gy = random.randint(lo_n, hi_n)
+            self._pending_gap_y = next_gy
+            shift_frac = max(0.0, min(1.0,
+                             (next_gy - pipe.gap_y) / GEYSER_GY_DELTA_MAX))
+            gx = (pipe.x + (PIPE_W + spacing) * 0.5
+                  + shift_frac * GEYSER_GX_SHIFT_MAX)
+            g = Geyser(gx, intensity)
+            # ~1 in 4 vents is a dud: ground formation visible (cone + ring
+            # spawned below), but no eruption + no lift. contains() already
+            # gates on .active, so the lift path goes quiet for free.
+            if random.random() < GEYSER_DUD_CHANCE:
+                g.active = False
+            self.geysers.append(g)
+            # Frame the base with a little ring of rocks on both flanks so the
+            # geyser reads as "surrounded", not perched on bare ground.
+            for _ in range(ROCK_RING_COUNT):
+                side = -1 if random.random() < 0.5 else 1
+                rx = gx + side * random.uniform(24.0, 52.0)
+                ry = GROUND_Y + random.uniform(0.0, 6.0)
+                big = random.random() < 0.4
+                v = (random.randint(3, geyser_fx.ROCK_N - 1) if big
+                     else random.randint(0, 2))
+                self.rocks.append(Rock(rx, ry, v))
+
+    def _scatter_rocks(self, x_lo, x_hi, count):
+        """Lay `count` rocks across [x_lo, x_hi] as natural little clusters —
+        a larger anchor rock with 1-3 smaller companions huddled around it —
+        rather than an even sprinkle, so the field reads as real scree."""
+        placed = 0
+        while placed < count:
+            cx = random.uniform(x_lo, x_hi)
+            for _ in range(random.randint(1, 3)):       # smaller companions (behind)
+                if placed >= count:
+                    break
+                self.rocks.append(Rock(cx + random.uniform(-15.0, 15.0),
+                                       GROUND_Y + random.uniform(0.0, 6.0),
+                                       random.randint(0, 3)))
+                placed += 1
+            if placed >= count:
+                break
+            self.rocks.append(Rock(cx, GROUND_Y + random.uniform(1.0, 5.0),
+                                   random.randint(3, geyser_fx.ROCK_N - 1)))
+            placed += 1                                  # larger anchor (in front)
+
+    def _maybe_spawn_rocks(self, pipe: Pipe):
+        # The rock field is the event's telegraph: density ramps by PILLAR
+        # COUNT (not the smooth time curve) so it's countable and readable —
+        # ~1-2 rocks on the first pillar, growing larger each pillar, hitting
+        # the maximum right as the first geyser erupts (pillar GEYSER_RAMP_
+        # PILLARS), then holding at max while the event stays active.
+        if self._thermal_pillars <= 0:
+            return
+        frac = min(1.0, self._thermal_pillars / GEYSER_RAMP_PILLARS)
+        density = frac * frac                       # quadratic ease-in: slow start, grows faster
+        count = max(1, round(ROCK_PER_PILLAR_MAX * density))
+        x0 = pipe.x + PIPE_W
+        self._scatter_rocks(x0, x0 + self._current_spacing(), count)
 
     def _spawn_coins_in_gap(self, pipe: Pipe):
         prev_count = len(self.coins)
@@ -743,6 +1142,10 @@ class World:
             # gravity carries him into a pillar / the ground and the normal
             # collision pipeline triggers _die.
 
+            # Weather → gameplay: rain coin-shake / Pip shiver / flap dampen,
+            # snow tailwind + back-snow, and the storm-jolt scheduling.
+            self._apply_weather_effects(sdt)
+
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
             for p in self.pipes:
@@ -759,6 +1162,14 @@ class World:
             # the player sees them materialise instead of finding them
             # pre-placed in the gap.
             self._tick_genie_chambers()
+            for gy in self.geysers:
+                gy.x -= speed * sdt
+                gy.update(sdt)
+            for r in self.rocks:
+                r.x -= speed * sdt
+            # Morning-thermal updraft: continuous lift while Pip is inside an
+            # active geyser column (capped, zone ends mid-screen — see method).
+            self._apply_thermal_lift(dt)
 
             # Magnet pull — tug uncollected coins toward the bird.
             # Either timer triggers; the bigger radius wins if both
@@ -792,6 +1203,8 @@ class World:
             ]
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
+            self.geysers = [gy for gy in self.geysers if not gy.off_screen()]
+            self.rocks = [r for r in self.rocks if not r.off_screen()]
 
             # spawn more pipes. Suppressed while the rail powerup is
             # active so no untagged pipe slips between the pre-spawned
@@ -946,6 +1359,18 @@ class World:
                 self.powerup_cooldown -= dt
             if self.hit_flash > 0:
                 self.hit_flash = max(0.0, self.hit_flash - dt)
+            # Lightning bolt: decay its visual life; expire at 0.
+            if self.lightning_strike is not None:
+                self.lightning_strike["life"] -= dt
+                if self.lightning_strike["life"] <= 0:
+                    self.lightning_strike = None
+            # Scorch aftermath: emit ~40 smoke wisps/s off Pip while active.
+            if self._lightning_scorch_t > 0:
+                self._lightning_scorch_t = max(0.0, self._lightning_scorch_t - dt)
+                self._scorch_smoke_accum += dt
+                while self._scorch_smoke_accum >= 0.025:
+                    self._scorch_smoke_accum -= 0.025
+                    self._spawn_scorch_wisp()
         else:
             # freeze world but let particles + float texts drift
             pass
@@ -989,6 +1414,13 @@ class World:
         self.powerups = [m for m in self.powerups if m.x + 20 > 0]
         if self.pipes and self.pipes[-1].x < W - PIPE_SPACING:
             self._spawn_pipe(self.pipes[-1].x + PIPE_SPACING)
+        # Geysers + rocks are gameplay-window elements only; the cosmetic menu
+        # background doesn't scroll/cull them, so don't let _spawn_pipe
+        # accumulate any (and keep the telegraph counter from pre-advancing).
+        self.geysers.clear()
+        self.rocks.clear()
+        self._thermal_pillars = 0
+        self._pending_gap_y = None
 
         # animate bird gently (bobbing)
         self.bird.frame_t += dt * 8.0
@@ -1842,14 +2274,18 @@ class World:
         ))
 
     def _activate_rail(self, m):
-        """RAIL TRACK — pillar-limited buff. Tags the next 5 pillars
-        ahead with rail track and parks a stationary cart on the FIRST
-        of them. Pip is NOT auto-locked: he keeps flying with normal
-        flap. If he touches the cart pillar the cart locks him in and
-        rides through the remaining tagged pillars. Pillars 2-5 still
-        have track but no cart — touching them kills Pip like any
-        obstacle. If picked up WHILE Pip is already locked on the rail
-        (he can't dodge), extend the current ride by 5 more pillars."""
+        """RAIL TRACK — pillar-limited buff. Skips the next pillar (a
+        RAIL_LEAD_PILLARS lead-in so players aren't ambushed and have
+        time to glide over) then tags the following RAIL_PILLAR_COUNT
+        pillars with rail track, parking a stationary cart on the FIRST
+        tagged one. Pip is
+        NOT auto-locked: he keeps flying with normal flap. If he touches
+        the cart pillar the cart locks him in and rides through the
+        remaining tagged pillars. The other tagged pillars still have
+        track but no cart — touching them kills Pip like any obstacle.
+        If picked up WHILE Pip is already locked on the rail (he can't
+        dodge), extend the current ride by RAIL_PILLAR_COUNT more
+        pillars."""
         if self.bird.cart_locked:
             self._extend_rail_ride(m)
             return
@@ -1862,7 +2298,7 @@ class World:
         ahead = sorted(
             (p for p in self.pipes
              if p.x > self.bird.x and not getattr(p, "is_rush", False)),
-            key=lambda p: p.x)
+            key=lambda p: p.x)[RAIL_LEAD_PILLARS:]
         for p in ahead[:RAIL_PILLAR_COUNT]:
             p.rail_active = True
         tagged_ahead = min(len(ahead), RAIL_PILLAR_COUNT)
@@ -1926,13 +2362,14 @@ class World:
         ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so
-    # the wagon body sits with its wheels exactly on the rail line.
+    # the cart body sits with its wheels exactly on the rail line.
     _CART_LOCKED_OFFSET = 32
 
     # Parked-cart hitbox — bounds match the visual painted by
     # scenes._draw_parked_cart so what the player sees as "the cart"
-    # is exactly what triggers the lock.
-    _CART_HALF_W = 22
+    # is exactly what triggers the lock. Half-width tracks the mine
+    # cart's 72-px top (36 each side).
+    _CART_HALF_W = 36
     _CART_TOP_OFF = 28
     _CART_BOT_OFF = 5
 

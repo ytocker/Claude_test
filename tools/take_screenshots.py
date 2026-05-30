@@ -73,14 +73,6 @@ w4.powerups_picked={"triple":2,"magnet":1}
 draw_bg(screen); w4.bird.draw(screen,0,0)
 hud4.draw_stats(screen, w4, 0, 1.8);  save("04_stats.png")
 
-hud5 = HUD(); hud5.title_t = 1.2
-draw_bg(screen); w4.bird.draw(screen,0,0)
-hud5.draw_gameover(screen, 0, 23, new_best=True); save("05_gameover_best.png")
-
-hud6 = HUD(); hud6.title_t = 0.7
-draw_bg(screen); w4.bird.draw(screen,0,0)
-hud6.draw_gameover(screen, 0, 0, new_best=False); save("06_gameover_tryagain.png")
-
 hud7 = HUD(); hud7.title_t = 1.4
 draw_bg(screen)
 scores = [

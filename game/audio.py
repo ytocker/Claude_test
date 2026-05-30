@@ -34,7 +34,7 @@ _SOUND_DIR = os.path.join(os.path.dirname(__file__), "assets", "sounds")
 
 _SOUND_FILES = (
     "flap", "coin", "coin_triple", "triple_coin",
-    "magnet", "slowmo", "thunder", "death", "gameover",
+    "magnet", "slowmo", "thunder", "death",
     "poof", "ghost", "grow",
 )
 
@@ -98,6 +98,9 @@ else:
         "flap":        2,
         "coin":        2,
         "coin_triple": 2,
+        # Storm-jolt buildup fires 9 bg bolts in ~4 s — cap thunder so
+        # the claps don't stack into noise; oldest is freed for newest.
+        "thunder":     2,
     }
 
     # ── init / load ────────────────────────────────────────────────────────
@@ -183,14 +186,15 @@ def play_coin_triple() -> None:
     _play("coin_triple", 0.85)
 
 def play_triple_coin() -> None: _play("triple_coin", 0.85)
-def play_magnet() -> None:      _play("magnet", 0.75)
+def play_magnet(volume: float = 0.75) -> None: _play("magnet", volume)
 # Reuses the magnet sample at a louder mix so the upgrade reads as
 # beefier without shipping a bespoke OGG.
 def play_megamagnet() -> None:  _play("magnet", 0.95)
 def play_slowmo() -> None:      _play("slowmo", 0.75)
-def play_thunder() -> None:     _play("thunder", 0.85)
+# Storm-jolt passes per-bolt volumes (distant bg claps quiet, the real
+# strike loud), so play_thunder takes an optional volume.
+def play_thunder(volume: float = 0.85) -> None: _play("thunder", volume)
 def play_death() -> None:       _play("death", 0.75)
-def play_gameover() -> None:    _play("gameover", 0.70)
 def play_poof() -> None:        _play("poof", 0.88)
 def play_ghost() -> None:       _play("ghost", 0.70)
 def play_grow() -> None:        _play("grow", 0.80)

@@ -1,5 +1,5 @@
 """
-Scene state machine (Menu / Play / GameOver) plus the top-level App class.
+Scene state machine (Menu / Play / Run-summary / …) plus the top-level App class.
 """
 import math
 import pygame
@@ -22,6 +22,63 @@ from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 # the post-ready grace window, the cottage is fully off-screen-left and the
 # overlay shuts itself off.
 _OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
+
+# Reused scratch surface for the lightning bolt so the strike doesn't allocate
+# (and full-screen-blit) one surface per glow-layer per bolt every frame.
+_bolt_scratch_cache: dict = {}
+
+
+def _draw_lightning_bolt(surf, strike):
+    """Paint the storm-jolt lightning — the main bolt that strikes Pip plus
+    (when present) two flanking bolts in `strike["paths"]`, so the sky forks
+    with three simultaneous strikes at the climax. Four concentric layers per
+    bolt — wide plasma bloom, outer purple glow, cyan halo, white core. Alpha
+    holds full for the first 35% of life so the zig-zags read, then decays;
+    flanking bolts a touch thinner. Round circles at every waypoint so each
+    polyline reads as one crackle."""
+    if strike is None or strike.get("life", 0) <= 0:
+        return
+    paths = strike.get("paths") or ([strike["path"]] if strike.get("path") else [])
+    paths = [p for p in paths if len(p) >= 2]
+    if not paths:
+        return
+    life = strike["life"]
+    life_max = strike["life_max"]
+    raw_t = max(0.0, min(1.0, life / life_max))
+    HOLD = 0.35
+    if raw_t >= 1.0 - HOLD:
+        t = 1.0
+    else:
+        t = raw_t / (1.0 - HOLD)
+    t_glow = t ** 0.7
+    sw, sh = surf.get_size()
+    # All layers/bolts paint onto one reused scratch surface (cleared per
+    # frame) so the strike does a single blit instead of one full-screen
+    # allocation + blit per layer per bolt.
+    scratch = _bolt_scratch_cache.get((sw, sh))
+    if scratch is None:
+        scratch = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        _bolt_scratch_cache[(sw, sh)] = scratch
+    scratch.fill((0, 0, 0, 0))
+    for bi, path in enumerate(paths):
+        ws = 1.0 if bi == 0 else 0.65            # flanking bolts thinner
+        layers = (
+            ((130,  80, 220), int(70 * t_glow),  max(1, int(18 * ws))),
+            ((180, 100, 255), int(170 * t_glow), max(1, int(12 * ws))),
+            ((140, 220, 255), int(235 * t_glow), max(1, int(7 * ws))),
+            ((255, 255, 255), int(255 * t),      max(1, int(4 * ws))),
+        )
+        pts = [(int(x), int(y)) for (x, y) in path]
+        # Widest/dimmest first so the bright core overwrites the centre and
+        # the wide glow stays at the edges.
+        for col, alpha, width in layers:
+            if alpha <= 0 or width <= 0:
+                continue
+            pygame.draw.lines(scratch, (*col, alpha), False, pts, width)
+            joint_r = max(1, width // 2)
+            for px, py in pts:
+                pygame.draw.circle(scratch, (*col, alpha), (px, py), joint_r)
+    surf.blit(scratch, (0, 0))
 
 
 def _draw_opener(surf: pygame.Surface, world) -> None:
@@ -61,66 +118,112 @@ _IRON_DK = ( 50,  45,  45)
 _IRON    = (110, 100,  95)
 _IRON_HI = (190, 180, 175)
 
+# Mine-cart palette (railway-design `paint_mine_cart`).
+_MINE_DK   = ( 40,  30,  28)
+_MINE      = ( 95,  75,  65)
+_MINE_HI   = (175, 155, 140)
+_MINE_RIV  = (210, 190, 170)
+_MINE_RUST = (140,  60,  20)
 
-def _draw_parked_cart_at(surf, cx, cy, tilt_deg=0.0):
-    """Stationary pine-plank wagon at the given screen position. Used
-    both for the pre-lock parked cart on rail_cart_pipe and for the
-    locked-ride cart drawn on top of Pip. Tilt rotates the whole
-    wagon to follow the rail slope."""
-    # Paint to a scratch surface so we can rotate as one piece.
-    SW, SH = 60, 38
-    scratch = pygame.Surface((SW, SH), pygame.SRCALPHA)
-    scx = SW // 2
-    scy = SH // 2 - 2
+# The cart layers are laid out so the rail-contact line (wheel bottoms)
+# sits this many px BELOW the sprite centre. Callers anchor the sprite
+# centre at rail_y - _CART_RAIL_DY, which lands the wheels on the rail.
+_CART_RAIL_DY = 16
+_CART_WHEELS = None  # cached wheels-only layer, built once
+_CART_BODY   = None  # cached bucket-only layer, built once
 
-    # Wheels (pine-spoke wheel + iron tire)
-    WHEEL_R = 5
-    DX = 15
-    wheel_y = scy + 22
-    for dx in (-DX, DX):
-        wx = scx + dx
-        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), WHEEL_R)
-        pygame.draw.circle(scratch, _IRON,    (wx, wheel_y), WHEEL_R - 1)
-        pygame.draw.circle(scratch, _PINE_DK, (wx, wheel_y), WHEEL_R - 2)
-        for i in range(6):
-            ang = (i / 6) * math.tau
-            ex = wx + int(math.cos(ang) * (WHEEL_R - 2))
-            ey = wheel_y + int(math.sin(ang) * (WHEEL_R - 2))
-            pygame.draw.line(scratch, _PINE_DK, (wx, wheel_y), (ex, ey), 1)
-        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), 1)
 
-    # Body (pine planks + iron hoop bands)
-    BW = 42
-    BH = 18
-    body_top = scy + 4
-    body_bot = scy + 4 + BH
-    pygame.draw.rect(scratch, _PINE_DK,
-                     pygame.Rect(scx - BW // 2 - 1, body_top - 1,
-                                 BW + 2, BH + 2))
-    pygame.draw.rect(scratch, _PINE,
-                     pygame.Rect(scx - BW // 2, body_top, BW, BH))
-    for i in range(1, BW // 6):
-        px = scx - BW // 2 + i * 6
-        pygame.draw.line(scratch, _PINE_DK,
-                         (px, body_top + 1), (px, body_bot - 1), 1)
-        pygame.draw.line(scratch, _PINE_HI,
-                         (px + 1, body_top + 1),
-                         (px + 1, body_bot - 1), 1)
-    for band_y in (body_top + 2, body_bot - 5):
-        pygame.draw.rect(scratch, _IRON_DK,
-                         pygame.Rect(scx - BW // 2 - 1, band_y,
-                                     BW + 2, 3))
-        pygame.draw.rect(scratch, _IRON,
-                         pygame.Rect(scx - BW // 2 - 1, band_y + 1,
-                                     BW + 2, 1))
-        pygame.draw.line(scratch, _IRON_HI,
-                         (scx - BW // 2 - 1, band_y),
-                         (scx + BW // 2 + 1, band_y), 1)
+def _draw_spoked_wheel(surf, cx, cy, r):
+    """Iron tire ring + hub disc + 8 radiating spokes + centre cap
+    (railway-design `draw_spoked_wheel`, mine-cart palette)."""
+    rim = max(2, r // 4)
+    pygame.draw.circle(surf, _MINE_DK, (cx, cy), r)
+    pygame.draw.circle(surf, _MINE,    (cx, cy), r - rim)
+    for i in range(8):
+        ang = (i / 8) * math.tau
+        ex = cx + int(math.cos(ang) * (r - rim // 2))
+        ey = cy + int(math.sin(ang) * (r - rim // 2))
+        pygame.draw.line(surf, _MINE_HI, (cx, cy), (ex, ey), max(2, r // 6))
+    pygame.draw.circle(surf, _MINE_HI, (cx, cy), max(2, r // 4))
 
-    if abs(tilt_deg) > 0.5:
-        scratch = pygame.transform.rotate(scratch, tilt_deg)
-    rect = scratch.get_rect(center=(int(cx), int(cy)))
-    surf.blit(scratch, rect.topleft)
+
+def _build_cart_layers():
+    """Build the two cached Mine-Cart layers — wheels and bucket — once,
+    at 4x then smooth-scaled down so the spokes and rivets stay crisp.
+    Geometry is the railway-design mine cart
+    (`render_cart_designs.py:paint_mine_cart`), widened to a 72-px top.
+    Both layers share one canvas + anchor so they register exactly: the
+    rail-contact line (wheel bottoms) sits _CART_RAIL_DY px below the
+    sprite centre. The caller draws Pip BETWEEN the two layers, so the
+    bucket front overlaps his lower half and he reads as sitting inside."""
+    SS = 4  # supersample factor (matches the design render's SCALE)
+    SW, SH = 80, 60
+    cx = (SW // 2) * SS
+    rail_y = (SH // 2 + _CART_RAIL_DY) * SS
+
+    WHEEL_R  = 5 * SS
+    CART_W   = 72 * SS
+    CART_H   = 18 * SS
+    bot_w    = int(CART_W * 0.78)
+    WHEEL_DX = bot_w // 2 - SS  # wheels tucked just inside the bottom corners
+
+    # ── Wheels layer ──
+    wheels = pygame.Surface((SW * SS, SH * SS), pygame.SRCALPHA)
+    for dx in (-WHEEL_DX, WHEEL_DX):
+        _draw_spoked_wheel(wheels, cx + dx, rail_y - WHEEL_R, WHEEL_R)
+
+    # ── Bucket layer — trapezoid (wider at top) + rivets + rust line ──
+    body = pygame.Surface((SW * SS, SH * SS), pygame.SRCALPHA)
+    top_w = CART_W
+    body_top = rail_y - 2 * WHEEL_R - CART_H
+    body_bot = rail_y - 2 * WHEEL_R
+    pts_outer = [(cx - top_w // 2, body_top), (cx + top_w // 2, body_top),
+                 (cx + bot_w // 2, body_bot), (cx - bot_w // 2, body_bot)]
+    pygame.draw.polygon(body, _MINE_DK, pts_outer)
+    inset = 3 * SS
+    pts_inner = [(cx - top_w // 2 + inset, body_top + inset),
+                 (cx + top_w // 2 - inset, body_top + inset),
+                 (cx + bot_w // 2 - inset, body_bot - inset),
+                 (cx - bot_w // 2 + inset, body_bot - inset)]
+    pygame.draw.polygon(body, _MINE, pts_inner)
+    pygame.draw.rect(body, _MINE_HI,
+                     pygame.Rect(cx - top_w // 2, body_top, top_w, 2 * SS))
+    pygame.draw.rect(body, _MINE_DK,
+                     pygame.Rect(cx - top_w // 2, body_top - SS, top_w, SS))
+    rsize = 2 * SS
+    for rx, ry in ((cx - top_w // 2 + 4 * SS, body_top + 4 * SS),
+                   (cx + top_w // 2 - 4 * SS - rsize, body_top + 4 * SS),
+                   (cx - top_w // 2 + 4 * SS, body_bot - 4 * SS - rsize),
+                   (cx + top_w // 2 - 4 * SS - rsize, body_bot - 4 * SS - rsize)):
+        pygame.draw.rect(body, _MINE_RIV, pygame.Rect(rx, ry, rsize, rsize))
+    pygame.draw.line(body, _MINE_RUST,
+                     (cx - bot_w // 2 + 6 * SS, body_bot - 2),
+                     (cx + bot_w // 2 - 6 * SS, body_bot - 2), max(1, SS // 2))
+
+    return (pygame.transform.smoothscale(wheels, (SW, SH)),
+            pygame.transform.smoothscale(body, (SW, SH)))
+
+
+def _draw_parked_cart_at(surf, cx, cy, tilt_deg=0.0, layer="all"):
+    """Blit the Mine Cart centred at the given screen position. `layer`
+    picks which part to draw: "wheels" and "body" are the two halves that
+    sandwich Pip on the locked ride; "all" draws both (parked cart, no
+    Pip). Tilt rotates each layer about the same centre. Layers are built
+    once and cached; only the per-frame rotation is paid here."""
+    global _CART_WHEELS, _CART_BODY
+    if _CART_WHEELS is None:
+        _CART_WHEELS, _CART_BODY = _build_cart_layers()
+    if layer == "wheels":
+        parts = (_CART_WHEELS,)
+    elif layer == "body":
+        parts = (_CART_BODY,)
+    else:
+        parts = (_CART_WHEELS, _CART_BODY)
+    for sprite in parts:
+        if abs(tilt_deg) > 0.5:
+            sprite = pygame.transform.rotate(sprite, tilt_deg)
+        rect = sprite.get_rect(center=(int(cx), int(cy)))
+        surf.blit(sprite, rect.topleft)
 
 
 def _draw_parked_cart(surf, pipe):
@@ -134,14 +237,16 @@ def _draw_parked_cart(surf, pipe):
     _draw_parked_cart_at(surf, cx, rail_y - 16)
 
 
-def _draw_cart_on_bird(surf, world, sx, sy):
+def _draw_cart_on_bird(surf, world, sx, sy, layer="all"):
     """Locked-ride cart drawn at Pip's screen position with the local
-    rail slope rotation. Pip himself still renders separately on top."""
+    rail slope rotation. Drawn in two passes around Pip ("wheels" under,
+    "body" over) so he sits inside the bucket."""
     bx = world.bird.x + sx
     by = world.bird.y + sy
     # Bird sits 32 px above the rail line; the cart wheels need to be
     # on the rail, so anchor the cart slightly below the bird centre.
-    _draw_parked_cart_at(surf, bx, by + 16, tilt_deg=world.bird.cart_tilt_deg)
+    _draw_parked_cart_at(surf, bx, by + 16, tilt_deg=world.bird.cart_tilt_deg,
+                         layer=layer)
 
 
 def _draw_rails(surf, rail_pipes):
@@ -258,7 +363,6 @@ def _magnet_hex_grid(radius: int) -> pygame.Surface:
 STATE_MENU = 0
 STATE_PLAY = 1
 STATE_NAMEENTRY = 2
-STATE_GAMEOVER = 3
 STATE_PAUSE = 4
 STATE_STATS = 5
 STATE_LEADERBOARD = 6
@@ -277,9 +381,6 @@ class App:
         self.hud = HUD()
         self.session_best = 0
         self._new_best = False
-        # Dev-only toast for F8 dead-Pip palette cycling.
-        self._dead_palette_toast_text = ""
-        self._dead_palette_toast_t = 0.0
         # Which action the player picked on the run-summary screen.
         # Persists across STATE_NAMEENTRY / STATE_LEADERBOARD so that
         # after a top-10 player dismisses the leaderboard they land
@@ -317,6 +418,11 @@ class App:
         # desktop this never fires (no FINGERDOWN ever arrives).
         self._last_finger_t = -1e9
         self._finger_dedup_window = 0.5
+        # Brief grace window after un-pausing during which an in-play tap
+        # is ignored — keeps the resume tap (and its echo) from doubling as
+        # a flap. Scoped to its own timer so the pause fix can't entangle
+        # with the shared _cooldown_t used by menus/leaderboard.
+        self._resume_grace_t = 0.0
         # Leaderboard state
         self._lb_scores: list = []
         self._lb_player_rank = -1
@@ -432,9 +538,15 @@ class App:
             if pos and self.hud.pause_btn.contains(pos):
                 self.state = STATE_PAUSE
                 return
+            # Swallow the resume tap (and its echo) for a beat after leaving
+            # PAUSE so the click that un-pauses can't double as a flap — the
+            # player wants the game to continue exactly as it was frozen.
+            if self._resume_grace_t > 0:
+                return
             self.world.flap()
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
+            self._resume_grace_t = 0.25
         elif self.state == STATE_STATS:
             if self._stats_t < 0.6 or self._fetch_pending:
                 return
@@ -464,9 +576,6 @@ class App:
                 # next event in the same tap (FINGERDOWN / MOUSEBUTTONDOWN
                 # echoes, or a fast double-click) skip straight into play.
                 self._cooldown_t = 0.4
-        elif self.state == STATE_GAMEOVER:
-            if self._cooldown_t <= 0:
-                self._restart()
 
     def _toggle_pause(self):
         if self.state == STATE_PLAY:
@@ -544,6 +653,7 @@ class App:
         import asyncio
         import sys as _sys
         self._cooldown_t = 0.0
+        self._resume_grace_t = 0.0
         self._start_name_entry = False
         first_frame_done = False
         while self._running:
@@ -603,14 +713,6 @@ class App:
                 return  # this MOUSEBUTTONDOWN is a touch echo — ignore
         import sys as _sys
         if e.type == pygame.KEYDOWN:
-            if e.key == pygame.K_F8:
-                # Dev cycle for the dead-Pip palette so the user can A/B/C
-                # the three candidates in actual gameplay; in-memory only.
-                from game.entities import cycle_dead_palette
-                key, label = cycle_dead_palette()
-                self._dead_palette_toast_text = f"Dead Pip: {key} — {label} (F8)"
-                self._dead_palette_toast_t = 2.0
-                return
             if e.key == pygame.K_p:
                 self._toggle_pause()
                 return
@@ -699,6 +801,7 @@ class App:
             self.world.world_idle_tick(dt)
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
         elif self.state == STATE_PLAY:
+            self._resume_grace_t = max(0.0, self._resume_grace_t - dt)
             self.world.update(dt)
             if self.world.game_over:
                 self._on_death()
@@ -714,13 +817,6 @@ class App:
             self.world.update(dt)  # keep world alive behind JS overlay
         elif self.state == STATE_LEADERBOARD:
             self._cooldown_t = max(0.0, self._cooldown_t - dt)
-        elif self.state == STATE_GAMEOVER:
-            self.world.update(dt)
-            self._cooldown_t = max(0.0, self._cooldown_t - dt)
-        # Dev toast for F8 dead-Pip palette cycling — independent of state
-        # so it remains visible across menu/play/gameover transitions.
-        if self._dead_palette_toast_t > 0:
-            self._dead_palette_toast_t = max(0.0, self._dead_palette_toast_t - dt)
 
     def _on_death(self):
         score = self.world.score
@@ -996,9 +1092,26 @@ class App:
         for r in self.world.ramps:
             r.draw(self.screen)
 
+        # Morning-thermal ground rocks sit on the terrain behind the vents —
+        # the event's slow buildup/fade scatter. Drawn before geysers so a
+        # vent cone overlaps any rock right at its base.
+        for r in self.world.rocks:
+            r.draw(self.screen)
+
+        # Morning-thermal geysers: sinter-cone vents + flowing steam columns.
+        # Drawn after pillars / before weather so the column reads as
+        # foreground atmosphere sitting behind the coins + bird.
+        for gy in self.world.geysers:
+            gy.draw(self.screen)
+
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.
         self.world.weather.draw(self.screen)
+
+        # Lightning bolt — ABOVE weather (on top of rain streaks) but BELOW
+        # coins/bird so Pip stays on top of the impact. Decays via
+        # lightning_strike["life"] in World.update.
+        _draw_lightning_bolt(self.screen, self.world.lightning_strike)
 
         triple_active = self.world.triple_timer > 0
         for c in self.world.coins:
@@ -1013,18 +1126,23 @@ class App:
         if self.state == STATE_PLAY:
             _draw_opener(self.screen, self.world)
 
-        # RAIL: track polyline + parked / locked cart go UNDER the bird
-        # so Pip always reads on top.
+        # RAIL: track polyline + cart. The parked cart (no Pip) draws whole
+        # under the bird. On the locked ride the cart is split around Pip —
+        # wheels under him, bucket body over him — so he sits INSIDE it.
         if getattr(self.world, "rail_pipes", None):
             _draw_rails(self.screen, self.world.rail_pipes)
         cart_pipe = getattr(self.world, "rail_cart_pipe", None)
-        if cart_pipe is not None and not self.world.bird.cart_locked:
+        locked = self.world.bird.cart_locked
+        if cart_pipe is not None and not locked:
             _draw_parked_cart(self.screen, cart_pipe)
-        if self.world.bird.cart_locked:
-            _draw_cart_on_bird(self.screen, self.world, sx, sy)
+        if locked:
+            _draw_cart_on_bird(self.screen, self.world, sx, sy, layer="wheels")
 
         self.world.bird.draw(self.screen, sx, sy,
                              flipped=self.world.reverse_timer > 0)
+
+        if locked:
+            _draw_cart_on_bird(self.screen, self.world, sx, sy, layer="body")
 
         for p in self.world.particles:
             p.draw(self.screen)
@@ -1196,43 +1314,12 @@ class App:
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
             )
-        else:  # GAMEOVER
-            self.hud.draw_gameover(
-                self.screen, 1 / 60, self.world.score, self._new_best,
-            )
 
         # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
         # the caption banner / pop-art score / trick bubbles can never
         # cover him. Only fires while the buff is active during play /
-        # pause; other states (menu, stats, gameover, leaderboard) skip.
+        # pause; other states skip.
         if (self.state in (STATE_PLAY, STATE_PAUSE)
                 and self.world.bird.skateboard_active):
             self.world.bird.draw(self.screen, sx, sy,
                                  flipped=self.world.reverse_timer > 0)
-
-        self._draw_dead_palette_toast()
-
-    def _draw_dead_palette_toast(self):
-        if self._dead_palette_toast_t <= 0:
-            return
-        from game.hud import _font as _hud_font
-        alpha = min(1.0, self._dead_palette_toast_t / 0.3) * 255
-        font = _hud_font(20)
-        msg = self._dead_palette_toast_text
-        text = font.render(msg, True, (245, 230, 130))
-        shadow = font.render(msg, True, (0, 0, 0))
-        pad_x, pad_y = 14, 8
-        bx = W // 2 - text.get_width() // 2
-        by = 24
-        bg = pygame.Surface(
-            (text.get_width() + pad_x * 2, text.get_height() + pad_y * 2),
-            pygame.SRCALPHA,
-        )
-        bg.fill((18, 22, 36, int(alpha * 0.75)))
-        pygame.draw.rect(bg, (90, 70, 25, int(alpha)), bg.get_rect(),
-                         width=1, border_radius=6)
-        self.screen.blit(bg, (bx - pad_x, by - pad_y))
-        text.set_alpha(int(alpha))
-        shadow.set_alpha(int(alpha))
-        self.screen.blit(shadow, (bx + 1, by + 1))
-        self.screen.blit(text, (bx, by))
