@@ -1282,51 +1282,96 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
                             (bot_rect.x + 4, bot_rect.y + 2,
                              bot_rect.width - 8, max(1, bot_rect.height - 4)))
 
-    # ── Anchor stones + flag canopy on the ceiling ─────────────────────
-    if top_rect.height > 14:
-        # Two carved anchor blocks at the upper corners — short stone posts
-        # the prayer-flag lines hang from.
-        for ax in (top_rect.x + 6, top_rect.x + top_rect.width - 6):
-            stone_h = min(top_rect.height, 18)
-            stone_top = top_rect.bottom - stone_h
-            pygame.draw.rect(surf, edge,
-                             (ax - 7, stone_top, 14, stone_h))
-            pygame.draw.rect(surf, white,
-                             (ax - 6, stone_top + 1, 12, stone_h - 2))
-            # Right edge shadow.
-            pygame.draw.rect(surf, shadow,
-                             (ax + 5, stone_top + 1, 2, stone_h - 2))
-            # Gold cap.
-            pygame.draw.rect(surf, gold,
-                             (ax - 5, top_rect.bottom - 5, 10, 2))
-        # Multiple prayer flag strings sagging across the gap.
-        for k in range(n_flag_strings):
-            jitter = k * 5 - 3
-            draw_prayer_flags(surf,
-                              top_rect.x + 6 + jitter,
-                              top_rect.bottom - 3,
-                              top_rect.x + top_rect.width - 6 - jitter,
-                              top_rect.bottom - 3,
-                              n=7 + k)
-        # Moss tipping the anchor stones.
-        for off in (-2, 2):
-            for ax in (top_rect.x + 6, top_rect.x + top_rect.width - 6):
-                draw_moss_strand(surf, ax + off, top_rect.bottom - 2,
-                                 10, palette, jitter_seed=seed + ax + off)
-
-        # Per-seed top-half flavour.
-        if flavor == 'lantern':
-            draw_paper_lantern(surf, tcx, top_rect.bottom - 6,
-                               strand=14, scale=0.7, color='gold')
-        elif flavor == 'banner':
-            # Centered vertical banner hanging from middle of the canopy.
-            pygame.draw.rect(surf, _shade(gold, -30),
-                             (tcx - 2, top_rect.bottom + 4, 4, 12))
-            pygame.draw.rect(surf, gold,
-                             (tcx - 2, top_rect.bottom + 4, 4, 2))
-
-        if top_rect.height > 50:
-            draw_bird_sil(surf, tcx, max(20, top_rect.y + 30), size=5)
+    # ── Ceiling-mounted chorten — STRUCTURAL MIRROR ────────────────────
+    # Round-11 user direction overrides the prior prayer-flag canopy:
+    # the top must be a true 180° structural mirror of the bottom
+    # chorten (stepped square base at the ceiling, bell dome + harmika
+    # below, 13-step spire + sun-moon-flame jewel pointing DOWN into
+    # the gap). We render the chorten anatomy into a temp surface in
+    # standing orientation, then `pygame.transform.flip` so the base
+    # anchors at the ceiling and the flame tip pokes into the gap.
+    # Prayer flags + anchor stones dropped — they were ornaments, not
+    # structure; the user explicitly defers ornaments to a later pass.
+    if top_rect.height > 60:
+        # `_finial_chorten` extends ~14 px above the harmika cube — keep
+        # the reserved spire extent close to that so the chorten fills
+        # the full top_rect envelope instead of leaving dead space at
+        # the gap edge. The 16-px reserve gives the flame jewel a tiny
+        # padding past the gap so it pokes INTO the gap per user spec.
+        spire_extent = 16
+        harmika_h = 10
+        dome_h = 24
+        steps_avail = top_rect.height - spire_extent - harmika_h - dome_h - 4
+        steps_avail = max(20, steps_avail)
+        step_h = max(6, steps_avail // step_count)
+        widest = int(top_rect.width * 1.10)
+        narrowest = int(top_rect.width * 0.72)
+        # Tight temp sizing — flipping places the sun-moon-flame jewel
+        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the flame just inside top_rect.bottom (the gap edge).
+        tmp_h = top_rect.height + 4
+        tmp_w = max(widest + 16, top_rect.width * 4)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        # Stepped square base — same widths as the bottom chorten so
+        # the silhouettes overlay clean as one mirrored pair.
+        for i in range(step_count):
+            t = i / max(1, step_count - 1)
+            sw = int(widest + (narrowest - widest) * (1 - t))
+            sy = tmp_bot - step_h * (step_count - i)
+            if sy < 0:
+                break
+            pygame.draw.rect(tmp, edge, (tmp_cx - sw // 2, sy, sw, step_h))
+            pygame.draw.rect(tmp, white,
+                             (tmp_cx - sw // 2 + 1, sy + 1, sw - 2, step_h - 2))
+            pygame.draw.rect(tmp, shadow,
+                             (tmp_cx + sw // 2 - 2, sy + 1, 2, step_h - 2))
+            if i == step_count - 1:
+                pygame.draw.rect(tmp, gold,
+                                 (tmp_cx - sw // 2 + 3, sy, sw - 6, 1))
+        # Bell dome anchored on the top of the topmost step.
+        top_step_y = tmp_bot - step_h * step_count
+        dome_w = int(top_rect.width * 0.80)
+        dome_y = top_step_y - dome_h + 6
+        dome_rect = pygame.Rect(tmp_cx - dome_w // 2, dome_y, dome_w, dome_h)
+        dome_inner = dome_rect.inflate(-2, -2)
+        pygame.draw.ellipse(tmp, edge, dome_rect)
+        pygame.draw.ellipse(tmp, white, dome_inner)
+        for _ in range(3):
+            pygame.draw.arc(tmp, shadow, dome_inner,
+                            math.pi * 1.55, math.pi * 1.95, 1)
+        pygame.draw.rect(tmp, edge,
+                         (tmp_cx - dome_w // 2, top_step_y - 1, dome_w, 2))
+        belt_y = dome_y + dome_h - 9
+        pygame.draw.rect(tmp, gold,
+                         (tmp_cx - dome_w // 2 + 4, belt_y, dome_w - 8, 2))
+        pygame.draw.rect(tmp, _shade(gold, -30),
+                         (tmp_cx - dome_w // 2 + 4, belt_y + 2, dome_w - 8, 1))
+        # Harmika cube on the dome.
+        harmika_w = int(top_rect.width * 0.46)
+        harmika_y = dome_y - harmika_h + 2
+        pygame.draw.rect(tmp, edge,
+                         (tmp_cx - harmika_w // 2, harmika_y,
+                          harmika_w, harmika_h))
+        pygame.draw.rect(tmp, white,
+                         (tmp_cx - harmika_w // 2 + 1, harmika_y + 1,
+                          harmika_w - 2, harmika_h - 2))
+        pygame.draw.rect(tmp, shadow,
+                         (tmp_cx + harmika_w // 2 - 2, harmika_y + 1,
+                          2, harmika_h - 2))
+        # Buddha eyes + tilaka — same proportions as the bottom so the
+        # flipped face reads as a true mirror.
+        eye_y = harmika_y + harmika_h // 2 - 1
+        pygame.draw.line(tmp, dark, (tmp_cx - 6, eye_y),
+                         (tmp_cx - 3, eye_y), 1)
+        pygame.draw.line(tmp, dark, (tmp_cx + 3, eye_y),
+                         (tmp_cx + 6, eye_y), 1)
+        pygame.draw.circle(tmp, gold, (tmp_cx, eye_y - 3), 1)
+        # 13-step spire + sun-moon-flame jewel.
+        _finial_chorten(tmp, tmp_cx, harmika_y, palette)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 # ── Registry ────────────────────────────────────────────────────────────────

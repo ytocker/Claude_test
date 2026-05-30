@@ -1086,40 +1086,63 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted tō (mirrored, sōrin pointing down into the gap).
+    # Ceiling-mounted tō — STRUCTURAL MIRROR. We render the same anatomy
+    # as the bottom (full tier count, full finial height) into a temp
+    # surface in STANDING orientation, then flip vertically so the plinth
+    # lands at the ceiling and the sōrin tip points DOWN into the gap.
+    # This guarantees the hanger reads as a true 180° mirror — eaves
+    # curl DOWN, walls + roofs alternate downward, finial at gap edge.
+    # Ornaments (mist, moss, lanterns) deferred to a later round per
+    # user direction; we keep ONLY plinth + tier stack + sōrin here.
     if top_rect.height > 50:
-        # Atmospheric mist halo behind the ceiling plinth too.
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-
-        plinth_h = 6
-        plinth_w = int(top_rect.width * 1.14)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, palette['stone_light'],
-                         (tcx - plinth_w // 2, top_rect.y + plinth_h - 1,
-                          plinth_w, 1))
-        # Hanging tō envelope spans from just below the plinth down to
-        # `bot_y` (inside top_rect); finial then drops PAST bot_y into the
-        # gap so the spire pokes out toward the player.
-        finial_h = 28
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        # Hanger uses `tier_count - 2` so the silhouette differs from the
-        # ground tō at a glance, per AD note 9. Also `finial_h` 4 px
-        # shorter so the spire doesn't outweigh the ground spire.
-        hanger_tiers = max(3, tier_count - 2)
-        _draw_horyuji_to(surf, tcx,
-                         envelope_top, envelope_bot,
+        finial_h = 36
+        # Match the bottom's plinth + envelope geometry so the flipped
+        # silhouette overlays in the same proportions as the ground tō.
+        plinth_h_total = 10
+        bot_row_h = 4
+        top_row_h = plinth_h_total - bot_row_h
+        plinth_w_bot = int(top_rect.width * 1.22)
+        plinth_w_top = plinth_w_bot - 8
+        # Size the temp so the finial tip lands at top_rect.bottom + 2
+        # (1-2 px into the gap, as the user spec asks for finial pointing
+        # INTO the gap). The pagoda's standing-orientation tip sits ~3 px
+        # below the top of the temp; flipping puts it ~3 px above bottom.
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        # Replicate the bottom plinth — overhanging dark stone + inset
+        # column-grey top row + brass-rim stair notch.
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w_bot // 2,
+                          tmp_bot - bot_row_h,
+                          plinth_w_bot, bot_row_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w_top // 2,
+                          tmp_bot - plinth_h_total,
+                          plinth_w_top, top_row_h))
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w_top // 2,
+                          tmp_bot - plinth_h_total,
+                          plinth_w_top, 1))
+        notch_w, notch_h = 6, 3
+        notch_x = tmp_cx - notch_w // 2
+        notch_y = tmp_bot - bot_row_h
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
+                         (notch_x, notch_y, notch_w, notch_h))
+        pygame.draw.line(tmp, _bronze(palette),
+                         (notch_x, notch_y),
+                         (notch_x + notch_w - 1, notch_y), 1)
+        envelope_bot = tmp_bot - plinth_h_total
+        _draw_horyuji_to(tmp, tmp_cx,
+                         finial_h + 4, envelope_bot,
                          int(top_rect.width * 0.94), palette,
-                         tier_count=hanger_tiers,
-                         finial_h=finial_h - 4, sorin_up=False,
+                         tier_count=tier_count, finial_h=finial_h,
+                         sorin_up=True,
                          draw_entry_door=False)
-        # Hanging moss — TRIMMED from 4 to 2 strands per AD note 8.
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             7 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_horyuji(surf, top_rect, bot_rect, palette, seed):
@@ -1819,12 +1842,15 @@ def _draw_wat_arun(surf, top_rect, bot_rect, palette, seed):
                        bot_rect.width + 6, 14, palette, seed=seed)
 
     if top_rect.height > 60:
-        # Hanging mirrored prang from the ceiling — same palette so the pair
-        # reads as one continuous spire bracketing the gap.
-        body_w = int(top_rect.width * 0.96)
-        total_h = min(top_rect.height - 4, 160)
-        # Build the same prang upside-down: pass an upside-down y math by
-        # drawing into a temporary surface, then flipping.
+        # STRUCTURAL MIRROR — same prang anatomy (full 3 base tiers +
+        # full corncob spire + porcelain-mosaic skin) at parity with
+        # the ground silhouette, then flipped so the stepped base
+        # anchors at the ceiling and the corncob tip points DOWN into
+        # the gap. Bumped body_w + total_h to match the bottom per the
+        # user's mirror brief — prior 0.96× / 160 px shorthand made the
+        # hanger read as a downsized prang, not a mirror of the ground.
+        body_w = int(top_rect.width * 1.05)
+        total_h = min(top_rect.height, 250)
         tmp = pygame.Surface((body_w * 2 + 12, total_h + 12), pygame.SRCALPHA)
         _draw_wat_arun_prang(tmp, tmp.get_width() // 2,
                              total_h + 4, palette,
@@ -2031,17 +2057,18 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
                         bot_rect.width - 4, 6, seed=seed)
 
     if top_rect.height > 60:
-        # Twin Songyue from the ceiling — narrower silhouette so it reads as
-        # a child of the main one, not a duplicate. Drawn upside down by
-        # composing into a temp surface, then flipping vertically. The twin
-        # uses 11 dwarf-eaves vs the main's 15 so the polygonal dense-eave
-        # cue still reads while keeping the ceiling silhouette lighter.
+        # STRUCTURAL MIRROR — full 15-dwarf-eave Songyue (matching the
+        # ground silhouette tier-for-tier) into a temp surface, then
+        # flip vertically so the plinth lands at the ceiling and the
+        # lotus-bud finial points DOWN into the gap. Bumped from the
+        # prior 11-eave shorthand to 15 so the dense-eave count is at
+        # parity with the bottom — the user's mirror brief.
         small_body_w = int(top_rect.width * 0.88)
         small_h = min(top_rect.height - 2, 150)
         tmp = pygame.Surface((small_body_w * 2 + 14, small_h + 8),
                              pygame.SRCALPHA)
         _draw_mini_songyue(tmp, tmp.get_width() // 2, small_h + 2, 2,
-                           small_body_w, palette, dwarf_eaves=11)
+                           small_body_w, palette, dwarf_eaves=15)
         flipped = pygame.transform.flip(tmp, False, True)
         surf.blit(flipped, (tcx - flipped.get_width() // 2, top_rect.y))
 
@@ -2631,49 +2658,59 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Fogong — STRUCTURAL MIRROR. Render the bottom
+    # anatomy (full tier count + full sōrin) into a temp surface and
+    # flip vertically so the plinth anchors at the ceiling and the
+    # finial points DOWN into the gap. Ornaments (mist, moss, lanterns)
+    # deferred per user scope — structural shape only this pass.
     if top_rect.height > 50:
-        # Atmospheric mist halo behind the ceiling plinth too.
-        _draw_plinth_mist(surf, tcx, top_rect.y + 12,
-                          int(top_rect.width * 2.1), palette)
-
-        plinth_h = 7
-        plinth_w = int(top_rect.width * 1.18)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+        finial_h = 32
+        plinth_h = 9
+        plinth_w = int(top_rect.width * 1.22)
+        # Tight temp sizing — the standing-orientation pagoda's tip sits
+        # ~3 px from the top of the temp; flipping puts the tip ~3 px
+        # above the bottom, so blitting at top_rect.y lands the tip just
+        # inside top_rect.bottom (the gap edge) per the user mirror spec.
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        # Plinth — dark stone overhang + column-grey body + lit cap.
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
                           plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(surf, palette['stone_light'],
-                         (tcx - plinth_w // 2,
-                          top_rect.y + plinth_h - 1, plinth_w, 1))
-        finial_h = 26
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        # Hanger gets `tier_count - 2` storeys and a 4-px-shorter sōrin per
-        # AD note 9, so the silhouette differs from the ground tō.
-        hanger_tiers = max(3, ground_tier_count - 2)
-        _draw_fogong_to(surf, tcx,
-                        envelope_top, envelope_bot,
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 2))
+        # Sumeru-pedestal lotus-petal nicks — match the bottom's 7
+        # inverted V-cuts so the flipped silhouette keeps the carved
+        # base detail at the ceiling.
+        n_nicks = 7
+        nick_zone_w = plinth_w - 6
+        nick_dark = _shade(palette['stone_dark'], -25)
+        nick_lit = _bronze(palette)
+        for k in range(n_nicks):
+            t = (k + 0.5) / n_nicks
+            nx = tmp_cx - nick_zone_w // 2 + int(t * nick_zone_w)
+            ny = tmp_bot - plinth_h + 2
+            pygame.draw.polygon(tmp, nick_dark,
+                                [(nx - 1, ny),
+                                 (nx, ny + 2),
+                                 (nx + 1, ny)])
+            pygame.draw.line(tmp, nick_lit, (nx, ny), (nx, ny), 1)
+        envelope_bot = tmp_bot - plinth_h
+        _draw_fogong_to(tmp, tmp_cx,
+                        finial_h + 4, envelope_bot,
                         int(top_rect.width * 0.94), palette,
-                        tier_count=hanger_tiers, finial_h=finial_h - 4,
-                        sorin_up=False, draw_entry_door=False)
-        # 2 small red lanterns under the lowest hanger eave — dropped
-        # from 3 to 2 + bumped to the chunky inline `_draw_mini_lantern`
-        # so the lit dots register at PIPE_W=58 where the shared lantern
-        # sprite was invisible at SUNSET/DUSK. Side bias is seed-driven
-        # so the cluster shifts left/right between sibling seeds.
-        if top_rect.height >= 90:
-            lantern_side_sign = -1 if lantern_side == 'left' else 1
-            for off in (-6, 6):
-                lx = tcx + off + lantern_side_sign * 2
-                ly = envelope_bot - 1
-                _draw_mini_lantern(surf, lx, ly, palette)
-        # Hanging moss — kept at 2 strands so the hanger isn't noisy now
-        # the lanterns add visual mass.
-        for off in (-9, 9):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             6 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+                        tier_count=ground_tier_count, finial_h=finial_h,
+                        sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_fogong(surf, top_rect, bot_rect, palette, seed):
@@ -4125,32 +4162,49 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Tō-ji — STRUCTURAL MIRROR. Same anatomy as the
+    # ground tō (full tier count, full finial) rendered into a temp
+    # surface and flipped so the plinth anchors at the ceiling and the
+    # bronze sōrin points DOWN into the gap. Ornaments deferred.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-        plinth_h = 7
-        plinth_w = int(top_rect.width * 1.18)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+        finial_h = 38
+        plinth_h = 11
+        plinth_w = int(top_rect.width * 1.28)
+        # Tight temp sizing — flipping places the sōrin tip ~3 px above
+        # the temp's bottom, so blitting at top_rect.y lands the tip
+        # just inside top_rect.bottom (the gap edge).
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
                           plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(surf, palette['stone_light'],
-                         (tcx - plinth_w // 2,
-                          top_rect.y + plinth_h - 1, plinth_w, 1))
-        finial_h = 28
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        hanger_tiers = max(3, tier_count - 2)
-        _draw_toji_to(surf, tcx,
-                      envelope_top, envelope_bot,
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        # Match the bottom's stair-notch so the flipped silhouette
+        # keeps the brass-rim worship-step centred at the ceiling edge.
+        notch_w, notch_h = 8, 4
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
+                         (tmp_cx - notch_w // 2, tmp_bot - notch_h,
+                          notch_w, notch_h))
+        pygame.draw.line(tmp, _bronze(palette),
+                         (tmp_cx - notch_w // 2, tmp_bot - notch_h),
+                         (tmp_cx + notch_w // 2 - 1, tmp_bot - notch_h), 1)
+        envelope_bot = tmp_bot - plinth_h
+        _draw_toji_to(tmp, tmp_cx,
+                      finial_h + 4, envelope_bot,
                       int(top_rect.width * 0.96), palette,
-                      tier_count=hanger_tiers, finial_h=finial_h - 4,
-                      sorin_up=False, draw_entry_door=False)
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             7 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+                      tier_count=tier_count, finial_h=finial_h,
+                      sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_toji(surf, top_rect, bot_rect, palette, seed):
@@ -4367,29 +4421,41 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Daigo-ji — STRUCTURAL MIRROR. Render bottom
+    # anatomy (full vermilion-and-plaster tiers + full ⅓-height gold
+    # sōrin) into a temp surface and flip so the plinth anchors at the
+    # ceiling and the long sōrin points DOWN into the gap. Ornaments
+    # deferred per user scope.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-        plinth_h = 7
-        plinth_w = int(top_rect.width * 1.18)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+        finial_h = 44
+        plinth_h = 10
+        plinth_w = int(top_rect.width * 1.22)
+        # Tight temp sizing — flipping places the long gold sōrin tip
+        # ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the tip just inside top_rect.bottom (the gap edge).
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
                           plinth_w - 2, plinth_h - 2))
-        finial_h = 32
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        hanger_tiers = max(3, tier_count - 2)
-        _draw_daigoji_to(surf, tcx,
-                         envelope_top, envelope_bot,
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        envelope_bot = tmp_bot - plinth_h
+        _draw_daigoji_to(tmp, tmp_cx,
+                         finial_h + 4, envelope_bot,
                          int(top_rect.width * 0.94), palette,
-                         tier_count=hanger_tiers, finial_h=finial_h - 4,
-                         sorin_up=False, draw_entry_door=False)
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             7 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+                         tier_count=tier_count, finial_h=finial_h,
+                         sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_daigoji(surf, top_rect, bot_rect, palette, seed):
@@ -4573,58 +4639,42 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Yakushi-ji — STRUCTURAL MIRROR. Render bottom
+    # anatomy (full 4 strong tier alternations + full bronze-suien
+    # finial) into a temp surface and flip so the plinth anchors at
+    # the ceiling and the iconic openwork suien water-flame points
+    # DOWN into the gap. Mokoshi pent-roofs naturally invert with the
+    # flip. Ornaments deferred per user scope.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-        plinth_h = 7
-        plinth_w = int(top_rect.width * 1.18)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+        finial_h = 42
+        plinth_h = 10
+        plinth_w = int(top_rect.width * 1.25)
+        # Tight temp sizing — flipping places the bronze sōrin + suien
+        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the openwork suien water-flame just inside the gap edge.
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
                           plinth_w - 2, plinth_h - 2))
-        # Reserve the upper ~30 px for Yakushi-ji's signature suien (water-
-        # vase) crown so the player diving up reads "Yakushi-ji" not "grey
-        # box". The crown hangs immediately under the ceiling anchor.
-        accent = _bronze(palette)
-        dark_pal = palette['stone_dark']
-        bright = _shade(accent, 45)
-        crown_top = top_rect.y + plinth_h + 2
-        crown_tip = crown_top + 20  # Suien hangs DOWN from anchor.
-        # Bronze needle + flame disks pointing down.
-        pygame.draw.line(surf, dark_pal,
-                         (tcx, crown_top + 2), (tcx, crown_tip - 6), 2)
-        pygame.draw.line(surf, accent,
-                         (tcx + 1, crown_top + 2), (tcx + 1, crown_tip - 6), 1)
-        for k in range(5):
-            t = k / 4
-            ry = crown_top + 4 + int(t * 12)
-            rw = max(2, 5 - k)
-            pygame.draw.ellipse(surf, dark_pal,
-                                (tcx - rw - 1, ry - 1, rw * 2 + 2, 3))
-            pygame.draw.ellipse(surf, accent,
-                                (tcx - rw, ry, rw * 2, 2))
-        # Inverted suien (water-flame) — the canonical Yakushi-ji silhouette.
-        suien = [(tcx, crown_tip),
-                 (tcx - 4, crown_tip - 4),
-                 (tcx - 2, crown_tip - 7),
-                 (tcx + 2, crown_tip - 7),
-                 (tcx + 4, crown_tip - 4)]
-        pygame.draw.polygon(surf, bright, suien)
-        pygame.draw.lines(surf, accent, True, suien, 1)
-        # Then the short hanging body BELOW the crown.
-        envelope_top = crown_tip + 4
-        envelope_bot = top_rect.bottom - 4
-        if envelope_bot - envelope_top > 30:
-            _draw_yakushiji_to(surf, tcx,
-                               envelope_top, envelope_bot,
-                               int(top_rect.width * 0.84), palette,
-                               tier_count=2, finial_h=10,
-                               sorin_up=False, draw_entry_door=False)
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             6 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        envelope_bot = tmp_bot - plinth_h
+        _draw_yakushiji_to(tmp, tmp_cx,
+                           finial_h + 4, envelope_bot,
+                           int(top_rect.width * 0.94), palette,
+                           tier_count=4, finial_h=finial_h,
+                           sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_yakushiji(surf, top_rect, bot_rect, palette, seed):
@@ -5509,40 +5559,120 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Bao'en — STRUCTURAL MIRROR. Bottom rebuilt as a
+    # full 9-storey porcelain stack with full pearl-and-flame finial in
+    # a temp surface, then vertically flipped so the plinth anchors at
+    # the ceiling and the tall gilt finial points DOWN into the gap.
+    # Replaces the prior 3-tier hanger pendant (which read as a stub).
+    # Ornaments (mist, vines, lanterns) deferred per user scope.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-        # Hanging porcelain pendant — short 3-storey mini Bao'en with
-        # painted panels mirrored.
-        anchor_h = 8
-        anchor_w = int(top_rect.width * 1.18)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - anchor_w // 2, top_rect.y, anchor_w, anchor_h))
-        pygame.draw.rect(surf, _column_grey(palette),
-                         (tcx - anchor_w // 2 + 1, top_rect.y + 1,
-                          anchor_w - 2, anchor_h - 2))
-        envelope_top = top_rect.y + anchor_h
-        envelope_bot = top_rect.bottom - 6
-        hanger_tiers = 3
-        total_hang = envelope_bot - envelope_top
-        th_each = max(10, total_hang // hanger_tiers)
-        for k in range(hanger_tiers):
-            wall_top = envelope_top + k * th_each
-            bw = max(12, int(top_rect.width * (0.94 ** k)))
-            x_l = tcx - bw // 2
-            body_rect = pygame.Rect(x_l, wall_top, bw, th_each - 4)
-            _gradient_rect(surf, body_rect, white_lit, white, white_shadow,
+        finial_h = 30
+        plinth_h = 10
+        plinth_w = int(top_rect.width * 1.25)
+        # Tight temp sizing — flipping places the gilt pearl-and-flame
+        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the finial just inside top_rect.bottom (the gap edge).
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        # Plinth — stone overhang + column-grey body + lit cap, same as
+        # the ground tō so the silhouette reads paired across the gap.
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        # Replicate the bottom's 9-tier porcelain stack with gilt eaves
+        # + pearl-and-flame finial directly into the temp; keeping the
+        # paint code here (rather than a shared helper) preserves the
+        # bottom-pillar code byte-for-byte unchanged.
+        envelope_bot = tmp_bot - plinth_h
+        # Mirror the bottom's `min(..., 230)` cap so the porcelain
+        # stack scales the same way as the ground tō at the same
+        # top_rect.height — and so the full 9 tiers fit cleanly within
+        # the temp envelope.
+        tier_count = 9
+        total_h = min(tmp_h - plinth_h - finial_h - 4, 230)
+        weights = [1.0 - 0.06 * i for i in range(tier_count)]
+        wsum = sum(weights)
+        tier_heights = [max(7, int(total_h * w / wsum)) for w in weights]
+        body_widths = [max(12, int(top_rect.width * (0.94 ** i)))
+                       for i in range(tier_count)]
+        y_cursor = envelope_bot
+        tier_tops = []
+        for i in range(tier_count):
+            th = tier_heights[i]
+            bw = body_widths[i]
+            wall_top = y_cursor - th
+            if wall_top < finial_h + 4:
+                break
+            tier_tops.append((wall_top, bw, th))
+            x_l = tmp_cx - bw // 2
+            body_rect = pygame.Rect(x_l, wall_top, bw, th)
+            _gradient_rect(tmp, body_rect, white_lit, white, white_shadow,
                            vertical=True)
-            # Single mini scroll on each hanger storey body so the
-            # hanger reads as Bao'en, not as a generic porcelain block.
-            if bw >= 14:
-                sc_w = max(3, bw // 5)
-                sc_h = min(th_each - 6, max(5, th_each // 2))
-                sc_y = wall_top + (th_each - 4 - sc_h) // 2
-                _draw_baoen_scroll(surf, tcx, sc_y, sc_w, sc_h, palette)
-            _eave_tang_inverted(surf, tcx, wall_top + th_each - 4,
-                                bw // 2, max(8, 12 - k), 3,
-                                gold_d, gold, tile_col, curl=0.55)
+            if bw >= 18 and th >= 8:
+                scroll_w = max(4, bw // 5)
+                scroll_h = min(th - 2, max(6, th - 3))
+                scroll_y = wall_top + (th - scroll_h) // 2
+                _draw_baoen_scroll(tmp, tmp_cx, scroll_y,
+                                   scroll_w, scroll_h, palette)
+            if th > 8 and bw > 18:
+                nw = max(2, bw // 8)
+                nh = min(4, th - 4)
+                win_x = tmp_cx + bw // 4
+                if _is_dark_sky(palette) or _is_warming_sky(palette):
+                    _lit_niche(tmp, win_x, wall_top + 2, nw, nh, palette)
+                else:
+                    pygame.draw.rect(tmp, _shade(white, -45),
+                                     (win_x - nw // 2, wall_top + 2,
+                                      nw, nh))
+            overhang = max(10, 13 - i)
+            depth = 4
+            is_top_tier = (i == tier_count - 1)
+            _eave_tang_curl(tmp, tmp_cx, wall_top, bw // 2, overhang, depth,
+                            gold_d, gold, tile_col, curl=0.55,
+                            alternating_hatch=True, drop_shadow=True,
+                            skip_corner_hook=is_top_tier)
+            if is_top_tier:
+                half_outer = bw // 2 + overhang
+                tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.55)))
+                _draw_chiwen_finial(tmp, tmp_cx - half_outer + 1,
+                                    tip_y_top + 1, palette, side=+1)
+                _draw_chiwen_finial(tmp, tmp_cx + half_outer - 1,
+                                    tip_y_top + 1, palette, side=-1)
+            y_cursor = wall_top - depth + 1
+        # Tall gilt-bronze pearl-and-flame finial.
+        if tier_tops:
+            top_wall_y = tier_tops[-1][0]
+            dark_pal = palette['stone_dark']
+            bright = _shade(gold, 60)
+            tip_y = top_wall_y - finial_h
+            pygame.draw.line(tmp, dark_pal, (tmp_cx, top_wall_y - 2),
+                             (tmp_cx, tip_y), 2)
+            pygame.draw.line(tmp, gold, (tmp_cx + 1, top_wall_y - 2),
+                             (tmp_cx + 1, tip_y), 1)
+            for k in range(7):
+                t = k / 6
+                ry = top_wall_y - 2 - int(t * (finial_h - 6))
+                rw = max(2, 6 - k // 2)
+                pygame.draw.ellipse(tmp, dark_pal,
+                                    (tmp_cx - rw - 1, ry - 1, rw * 2 + 2, 3))
+                pygame.draw.ellipse(tmp, gold,
+                                    (tmp_cx - rw, ry, rw * 2, 2))
+            _draw_sorin_flame_halo(tmp, tmp_cx, tip_y, palette)
+            pygame.draw.circle(tmp, dark_pal, (tmp_cx, tip_y), 4)
+            pygame.draw.circle(tmp, gold, (tmp_cx, tip_y), 3)
+            pygame.draw.circle(tmp, bright, (tmp_cx - 1, tip_y - 1), 1)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_baoen(surf, top_rect, bot_rect, palette, seed):
@@ -8892,31 +9022,42 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              24, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Murō-ji — STRUCTURAL MIRROR. Bottom anatomy
+    # (full 5-storey cedar + thatched cypress-bark eaves + bronze
+    # sōrin) rendered into a temp surface and flipped so the rough
+    # stone plinth anchors at the ceiling and the sōrin points DOWN
+    # into the gap. Thatched bark curls naturally invert with the
+    # flip. Ornaments deferred per user scope.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 1.9), palette)
-        plinth_h = 6
-        plinth_w = int(top_rect.width * 1.10)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, palette['stone_light'],
-                         (tcx - plinth_w // 2, top_rect.y + plinth_h - 1,
-                          plinth_w, 1))
-        finial_h = 26
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        # Hanger = smaller mirrored top + 2-storey hanger per brief.
-        hanger_tiers = 2
-        _draw_muroji_to(surf, tcx,
-                        envelope_top, envelope_bot,
+        finial_h = 30
+        plinth_h = 7
+        plinth_w = int(top_rect.width * 1.16)
+        # Tight temp sizing — flipping places the small sōrin tip
+        # ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the tip just inside top_rect.bottom (the gap edge).
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, _column_grey(palette),
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
+                          plinth_w - 2, plinth_h - 2))
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        envelope_bot = tmp_bot - plinth_h
+        _draw_muroji_to(tmp, tmp_cx,
+                        finial_h + 4, envelope_bot,
                         int(top_rect.width * 0.88), palette,
-                        tier_count=hanger_tiers,
-                        finial_h=finial_h - 4, sorin_up=False,
-                        draw_entry_door=False)
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             7 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+                        tier_count=tier_count, finial_h=finial_h,
+                        sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_muroji(surf, top_rect, bot_rect, palette, seed):
@@ -9633,36 +9774,46 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
+    # Ceiling-mounted Palsangjeon — STRUCTURAL MIRROR. Bottom anatomy
+    # (full 5-storey cypress + Korean flat-eave with sharp ridge-end
+    # upturns + brass sangnyun) rendered into a temp surface and
+    # flipped so the broad Joseon-blue plinth anchors at the ceiling
+    # and the sangnyun points DOWN into the gap. The Korean ridge-end
+    # upturns naturally invert to downturns via the flip — keeping the
+    # tile-dark polygon + brass-tinted edge identity intact. Ornaments
+    # deferred per user scope.
     if top_rect.height > 50:
-        _draw_plinth_mist(surf, tcx, top_rect.y + 10,
-                          int(top_rect.width * 2.0), palette)
-        plinth_h = 6
-        plinth_w = int(top_rect.width * 1.18)
+        finial_h = 32
+        plinth_h = 10
+        plinth_w = int(top_rect.width * 1.30)
         joseon_blue = _mix(_column_grey(palette),
                            palette['sky_mid'], 0.30)
-        pygame.draw.rect(surf, _shade(palette['stone_dark'], -10),
-                         (tcx - plinth_w // 2, top_rect.y, plinth_w, plinth_h))
-        pygame.draw.rect(surf, joseon_blue,
-                         (tcx - plinth_w // 2 + 1, top_rect.y + 1,
+        # Tight temp sizing — flipping places the brass sangnyun tip
+        # ~3 px above the temp's bottom, so blitting at top_rect.y
+        # lands the sharp final bud just inside the gap edge.
+        tmp_h = top_rect.height + 4
+        tmp_w = max(top_rect.width * 4, 120)
+        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+        tmp_cx = tmp_w // 2
+        tmp_bot = tmp_h - 1
+        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, plinth_h))
+        pygame.draw.rect(tmp, joseon_blue,
+                         (tmp_cx - plinth_w // 2 + 1,
+                          tmp_bot - plinth_h + 1,
                           plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(surf, palette['stone_light'],
-                         (tcx - plinth_w // 2,
-                          top_rect.y + plinth_h - 1, plinth_w, 1))
-        finial_h = 28
-        envelope_top = top_rect.y + plinth_h
-        envelope_bot = top_rect.bottom - finial_h
-        # Hanger = top 2 tiers + sangnyun mirrored per brief.
-        hanger_tiers = 2
-        _draw_palsangjeon_to(surf, tcx,
-                             envelope_top, envelope_bot,
+        pygame.draw.rect(tmp, palette['stone_light'],
+                         (tmp_cx - plinth_w // 2,
+                          tmp_bot - plinth_h, plinth_w, 1))
+        envelope_bot = tmp_bot - plinth_h
+        _draw_palsangjeon_to(tmp, tmp_cx,
+                             finial_h + 4, envelope_bot,
                              int(top_rect.width * 0.96), palette,
-                             tier_count=hanger_tiers,
-                             finial_h=finial_h - 4, sorin_up=False,
-                             draw_entry_door=False)
-        for off in (-8, 8):
-            draw_moss_strand(surf, tcx + off, envelope_bot,
-                             7 + abs(off) % 3, palette,
-                             jitter_seed=seed + off)
+                             tier_count=tier_count, finial_h=finial_h,
+                             sorin_up=True, draw_entry_door=False)
+        flipped = pygame.transform.flip(tmp, False, True)
+        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
 def candidate_palsangjeon(surf, top_rect, bot_rect, palette, seed):
