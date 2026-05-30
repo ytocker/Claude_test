@@ -222,6 +222,13 @@ class World:
         # gets a guaranteed introduction to the secret tier. Consumed
         # by _maybe_spawn_powerup.
         self._force_next_genie = False
+        # Tracks whether the genie-milestone has already fired this run.
+        # `==` against LATE_GAME_SCORE is unreliable because coins (esp.
+        # triple x3) and surprise score deltas can skip over the exact
+        # threshold; we use a one-shot flag + `>=` check polled from
+        # update() each frame so any path that bumps the score triggers
+        # the milestone exactly once.
+        self._genie_milestone_fired = False
 
         self._seed_first_pipes()
 
@@ -512,6 +519,34 @@ class World:
                 col, gravity=120,
             ))
 
+    def _check_genie_milestone(self):
+        """Fires once per run when score first crosses LATE_GAME_SCORE.
+        Called wherever score changes (pipe pass, coin collect, surprise
+        deltas, lottery) so a triple-coin jump 399→402 still triggers.
+
+        Wipes any uncollected powerups ahead of Pip (pipes spawned just
+        before the milestone already had non-genie kinds attached at
+        spawn time) and drops a genie at the nearest upcoming non-rush,
+        non-chamber pipe so the next thing Pip collides with is the lamp."""
+        if self._genie_milestone_fired or self.score < LATE_GAME_SCORE:
+            return
+        self._genie_milestone_fired = True
+        bx_now = self.bird.x
+        self.powerups = [pu for pu in self.powerups if pu.x <= bx_now]
+        target_pipe = None
+        for nxt in self.pipes:
+            if (nxt.x > bx_now
+                    and not getattr(nxt, "is_genie_chamber", False)
+                    and not getattr(nxt, "is_rush", False)):
+                target_pipe = nxt
+                break
+        if target_pipe is not None:
+            gx = target_pipe.x + PIPE_W + self._current_spacing() * 0.5
+            gy = target_pipe.gap_y
+            self.powerups.append(PowerUp(gx, gy, kind="genie"))
+            self.powerup_cooldown = POWERUP_COOLDOWN
+        self._force_next_genie = False
+
     def _maybe_spawn_powerup(self, pipe: Pipe):
         # LATE_GAME_SCORE milestone: first power-up roll after crossing
         # 400 is forced to genie. Bypasses cooldown + chance + weights.
@@ -778,31 +813,7 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
-                    # One-shot genie milestone: the moment score crosses
-                    # LATE_GAME_SCORE, force a genie as the next power-up
-                    # the player encounters. Pipes ahead of Pip have
-                    # already been pre-spawned with non-genie power-ups;
-                    # wipe those uncollected ahead-of-Pip floats and drop
-                    # a genie at the nearest upcoming pipe directly so
-                    # Pip can't grab a pre-attached non-genie first.
-                    if self.score == LATE_GAME_SCORE:
-                        self._force_next_genie = True
-                        bx_now = self.bird.x
-                        self.powerups = [pu for pu in self.powerups
-                                          if pu.x <= bx_now]
-                        target_pipe = None
-                        for nxt in self.pipes:
-                            if (nxt.x > bx_now
-                                    and not getattr(nxt, "is_genie_chamber", False)
-                                    and not getattr(nxt, "rush", False)):
-                                target_pipe = nxt
-                                break
-                        if target_pipe is not None:
-                            gx = target_pipe.x + PIPE_W + self._current_spacing() * 0.5
-                            gy = target_pipe.gap_y
-                            self.powerups.append(PowerUp(gx, gy, kind="genie"))
-                            self.powerup_cooldown = POWERUP_COOLDOWN
-                            self._force_next_genie = False
+                    self._check_genie_milestone()
                     self._proof.record(self.time_alive, 1, "pipe")
                     # RAIL: count down the per-ride pillar budget. Fires
                     # whether or not Pip locked — if all 5 tagged pipes
@@ -1271,6 +1282,7 @@ class World:
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")
+        self._check_genie_milestone()
 
         # *** GLITCH FIX ***
         # NO screen-wide flash. Only localized sparkle particles.
@@ -2028,6 +2040,7 @@ class World:
             self._proof.record(self.time_alive, delta, "lottery")
             color = UI_GOLD if delta >= 40 else UI_ORANGE
             audio.play_lottery_win()
+            self._check_genie_milestone()
         elif delta < 0:
             actual = -min(self.score, -delta)
             self.score += actual
