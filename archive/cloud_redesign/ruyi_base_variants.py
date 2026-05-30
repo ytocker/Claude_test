@@ -179,7 +179,7 @@ def draw_ruyi_double_arc(surf, x, y, palette, scale=1.0):
     centers, (body, edge, lit, night) = _baseline_skeleton(
         surf, x, y, palette, scale)
     mlcx, mlcy, mr = centers[1]
-    inset = max(2, int(round(3 * scale)))
+    inset = max(2, int(round(4 * scale)))
     inner_r = max(3, mr - inset)
     contour = _lerp_color(lit, body, 0.3)
     rect = pygame.Rect(mlcx - inner_r, mlcy - inner_r,
@@ -187,7 +187,7 @@ def draw_ruyi_double_arc(surf, x, y, palette, scale=1.0):
     # Mirror the baseline's (200°, 340°) lower-left calligraphic keyline
     # so the doubled arc reads as a deliberate echo of the primary one,
     # not a foreign curve.
-    pygame.draw.arc(surf, (*contour, 160), rect,
+    pygame.draw.arc(surf, (*contour, 210), rect,
                     math.radians(200), math.radians(340), 2)
 
 
