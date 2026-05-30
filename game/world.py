@@ -1652,23 +1652,71 @@ class World:
 
     def _activate_genie(self, m):
         """Genie Lamp — summons the conjurer for the wish-cast ceremony
-        and marks the NEXT pillar as a GENIE CHAMBER: a 2.0x-wider gap
-        with KNIGHT / POISON / SKATEBOARD stacked vertically inside it
-        in random order. Pip flies through the gap and grabs one wish
-        by altitude; the order shuffles each cast so the trap can't be
-        memorised by position. Genie is the ONLY path to these three
-        kinds — the chamber framing means no other pillar can block
-        the wishes."""
+        and arranges a GENIE CHAMBER pillar: a 2.0x-wider gap with
+        KNIGHT / POISON / SKATEBOARD stacked vertically inside it in
+        random order. To make the wishes arrive faster, we first try
+        to convert the CURRENT rightmost pipe into the chamber (one
+        pillar earlier than waiting for the next spawn). If no suitable
+        existing pipe is far enough ahead of Pip, we fall back to
+        flagging the next-spawned pipe."""
         gy = 225
         gx = 180
         # No floating offers — the GenieCharacter still spawns for the
         # visual cast beat but with an empty `offers` list, so
         # _fire_all becomes a poof + chime only. The actual offer
-        # placement happens when the next pipe spawns as a chamber.
+        # placement happens when the chamber pillar's reveal triggers.
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0, offers=[], world=self,
         ))
-        self.genie_chamber_pending = True
+        # Pick the chamber pillar — prefer "one pillar before" (the
+        # current rightmost pipe), fall back to next-spawn.
+        if not self._convert_rightmost_pipe_to_chamber():
+            self.genie_chamber_pending = True
+
+    def _convert_rightmost_pipe_to_chamber(self) -> bool:
+        """Retroactively turn the most recently spawned pipe into a
+        genie chamber: widen gap to 2.0x, recentre to keep margins,
+        clear in-gap content, mark for wish reveal on approach.
+
+        Returns False if no eligible pipe exists (too close to Pip, or
+        already tagged for a competing role) — caller falls back to
+        the pending-next-spawn path."""
+        if not self.pipes:
+            return False
+        target = self.pipes[-1]
+        # Need enough lead distance so the player can read the chamber
+        # and adjust altitude — must be at least one pipe-spacing ahead
+        # of the pipe Pip is currently passing.
+        if (target.x - self.bird.x) < 350:
+            return False
+        # Don't steal pipes already committed to another role.
+        if (getattr(target, "is_rush", False)
+                or getattr(target, "is_kfc", False)
+                or getattr(target, "rail_active", False)
+                or getattr(target, "is_genie_chamber", False)):
+            return False
+        margin = 70
+        new_gap_h = int(GAP_START * GENIE_CHAMBER_GAP_BOOST)
+        # Clamp the existing gap centre so the over-wide gap stays
+        # inside the playfield (margin top + GROUND_Y - margin bottom).
+        min_y = margin + new_gap_h // 2
+        max_y = GROUND_Y - margin - new_gap_h // 2
+        target.gap_y = max(min_y, min(max_y, target.gap_y))
+        target.gap_h = new_gap_h
+        target.is_genie_chamber = True
+        target.wishes_spawned = False
+        # Clear in-gap clutter so the chamber reads as a wish moment,
+        # not a regular pillar with extra coins.
+        band_xmin = target.x - 40
+        band_xmax = target.x + PIPE_W + 40
+        self.coins = [c for c in self.coins
+                      if not (band_xmin <= c.x <= band_xmax)]
+        self.powerups = [
+            p for p in self.powerups
+            if not (band_xmin <= p.x <= band_xmax)
+            or getattr(p, "is_genie_offer", False)
+        ]
+        return True
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t, 0.2)
         try:
