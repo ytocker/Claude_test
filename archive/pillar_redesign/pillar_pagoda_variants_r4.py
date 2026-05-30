@@ -1293,33 +1293,55 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
     # Prayer flags + anchor stones dropped — they were ornaments, not
     # structure; the user explicitly defers ornaments to a later pass.
     if top_rect.height > 60:
-        # `_finial_chorten` extends ~14 px above the harmika cube — keep
-        # the reserved spire extent close to that so the chorten fills
-        # the full top_rect envelope instead of leaving dead space at
-        # the gap edge. The 16-px reserve gives the flame jewel a tiny
-        # padding past the gap so it pokes INTO the gap per user spec.
-        spire_extent = 16
+        # KFC bucket pattern (game/pillar_kfc.py::_stack_buckets):
+        # stupa anatomy is not tiered, but the stepped base IS — and
+        # round 11 was squeezing step_h because the top envelope is
+        # smaller than the bottom's. Fix per-step height at the
+        # bottom's natural value (using the SAME budget formula the
+        # bottom uses with spire_extent=30) and let the spire extent
+        # stay short on top so the flame still pokes into the gap.
+        # The bell dome + harmika keep their absolute heights.
         harmika_h = 10
         dome_h = 24
-        steps_avail = top_rect.height - spire_extent - harmika_h - dome_h - 4
-        steps_avail = max(20, steps_avail)
-        step_h = max(6, steps_avail // step_count)
+        # Bottom's natural step_h — derived from the bottom's own
+        # budget formula so the silhouettes match step-for-step.
+        bot_spire_extent = 30
+        bot_steps_avail = max(20, bot_rect.height - bot_spire_extent
+                              - harmika_h - dome_h - 4)
+        step_h = max(6, bot_steps_avail // step_count)
+        # On the top, the spire-extent reserve only needs to clear
+        # the harmika + jewel; we keep 16 so the flame still kisses
+        # the gap edge when there's slack.
+        spire_extent = 16
+        # How many natural-size steps fit ABOVE the dome + harmika
+        # on the hanger? Drop step_count to that count — chorten
+        # stays a chorten, just a SHORTER stack of base steps.
+        top_steps_avail = (top_rect.height - spire_extent
+                           - harmika_h - dome_h - 4)
+        top_step_count = max(1, top_steps_avail // step_h)
+        top_step_count = min(step_count, top_step_count)
         widest = int(top_rect.width * 1.10)
         narrowest = int(top_rect.width * 0.72)
-        # Tight temp sizing — flipping places the sun-moon-flame jewel
-        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the flame just inside top_rect.bottom (the gap edge).
-        tmp_h = top_rect.height + 4
+        # Temp height sized to exactly the natural-step stack + dome
+        # + harmika + spire reserve so no auto-fit squeeze can sneak
+        # in. If the hanger ends up shorter than top_rect.height the
+        # flame floats above the gap (intentional — top stupa is a
+        # smaller hanging chorten, not a forced full mirror).
+        tmp_h = (step_h * top_step_count + dome_h + harmika_h
+                 + spire_extent + 4)
         tmp_w = max(widest + 16, top_rect.width * 4)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
         tmp_bot = tmp_h - 1
-        # Stepped square base — same widths as the bottom chorten so
-        # the silhouettes overlay clean as one mirrored pair.
-        for i in range(step_count):
-            t = i / max(1, step_count - 1)
+        # Stepped square base — `top_step_count` natural-size steps
+        # (KFC bucket pattern). Widths sweep the same widest →
+        # narrowest range as the bottom but interpolated across the
+        # shorter top stack, so the receding silhouette still reads
+        # as a stepped chorten base.
+        for i in range(top_step_count):
+            t = i / max(1, top_step_count - 1)
             sw = int(widest + (narrowest - widest) * (1 - t))
-            sy = tmp_bot - step_h * (step_count - i)
+            sy = tmp_bot - step_h * (top_step_count - i)
             if sy < 0:
                 break
             pygame.draw.rect(tmp, edge, (tmp_cx - sw // 2, sy, sw, step_h))
@@ -1327,11 +1349,11 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
                              (tmp_cx - sw // 2 + 1, sy + 1, sw - 2, step_h - 2))
             pygame.draw.rect(tmp, shadow,
                              (tmp_cx + sw // 2 - 2, sy + 1, 2, step_h - 2))
-            if i == step_count - 1:
+            if i == top_step_count - 1:
                 pygame.draw.rect(tmp, gold,
                                  (tmp_cx - sw // 2 + 3, sy, sw - 6, 1))
         # Bell dome anchored on the top of the topmost step.
-        top_step_y = tmp_bot - step_h * step_count
+        top_step_y = tmp_bot - step_h * top_step_count
         dome_w = int(top_rect.width * 0.80)
         dome_y = top_step_y - dome_h + 6
         dome_rect = pygame.Rect(tmp_cx - dome_w // 2, dome_y, dome_w, dome_h)

@@ -1086,28 +1086,37 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted tō — STRUCTURAL MIRROR. We render the same anatomy
-    # as the bottom (full tier count, full finial height) into a temp
-    # surface in STANDING orientation, then flip vertically so the plinth
-    # lands at the ceiling and the sōrin tip points DOWN into the gap.
-    # This guarantees the hanger reads as a true 180° mirror — eaves
-    # curl DOWN, walls + roofs alternate downward, finial at gap edge.
-    # Ornaments (mist, moss, lanterns) deferred to a later round per
-    # user direction; we keep ONLY plinth + tier stack + sōrin here.
+    # Ceiling-mounted tō — STRUCTURAL MIRROR with the KFC bucket pattern
+    # (game/pillar_kfc.py::_stack_buckets). Round 11 used the temp's full
+    # height which forced _draw_horyuji_to to squeeze `tier_count` tiers
+    # into less vertical space than the bottom got — top tiers ended up
+    # shorter. The KFC fix: derive a natural per-tier height H_tier from
+    # the BOTTOM, then count how many of those tiers actually fit in the
+    # top_rect, and size the temp so the auto-fit math produces exactly
+    # that natural height. Top pagoda is now genuinely shorter (fewer
+    # tiers, identical tier size) rather than a squeezed full mirror.
+    # Ornaments (mist, moss, lanterns) deferred per user scope.
     if top_rect.height > 50:
         finial_h = 36
-        # Match the bottom's plinth + envelope geometry so the flipped
-        # silhouette overlays in the same proportions as the ground tō.
         plinth_h_total = 10
         bot_row_h = 4
         top_row_h = plinth_h_total - bot_row_h
         plinth_w_bot = int(top_rect.width * 1.22)
         plinth_w_top = plinth_w_bot - 8
-        # Size the temp so the finial tip lands at top_rect.bottom + 2
-        # (1-2 px into the gap, as the user spec asks for finial pointing
-        # INTO the gap). The pagoda's standing-orientation tip sits ~3 px
-        # below the top of the temp; flipping puts it ~3 px above bottom.
-        tmp_h = top_rect.height + 4
+        # H_tier = average tier height the BOTTOM uses (no squeeze!). The
+        # bottom envelope is bot_rect.height - plinth_h_total - finial_h
+        # divided across `tier_count`. The weighted distribution makes
+        # individual tiers vary slightly around H_tier, which is fine —
+        # what matters is per-tier height parity at game scale.
+        H_tier = max(8, (bot_rect.height - plinth_h_total - finial_h)
+                     // tier_count)
+        # How many of those natural-size tiers fit the top envelope?
+        top_avail = top_rect.height - plinth_h_total - finial_h
+        top_n = max(1, top_avail // H_tier)
+        # Temp height sized EXACTLY so the auto-fit math inside
+        # _draw_horyuji_to (which divides bot_y - top_y across top_n
+        # tiers) reproduces H_tier per tier.
+        tmp_h = plinth_h_total + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -1138,10 +1147,14 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         _draw_horyuji_to(tmp, tmp_cx,
                          finial_h + 4, envelope_bot,
                          int(top_rect.width * 0.94), palette,
-                         tier_count=tier_count, finial_h=finial_h,
+                         tier_count=top_n, finial_h=finial_h,
                          sorin_up=True,
                          draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Anchor the plinth at the ceiling; the flipped finial floats at
+        # top_rect.y + tmp_h, which can be ABOVE top_rect.bottom (sky
+        # visible between finial and gap). That's the correct read — top
+        # pagoda is a smaller hanging temple, not a forced full mirror.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -1767,8 +1780,16 @@ def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
 
 
 def _draw_wat_arun_prang(surf, cx, base_y, palette, *,
-                        body_w=52, total_h=200, rng):
-    """Multi-tier square base + corncob spire + porcelain mosaic skin."""
+                        body_w=52, total_h=200, rng, n_tiers=3,
+                        tier_h_override=None):
+    """Multi-tier square base + corncob spire + porcelain mosaic skin.
+
+    `n_tiers` + `tier_h_override` are opt-in for the ceiling-mounted
+    mirror so the hanger can render FEWER receding base tiers at the
+    BOTTOM's natural tier_h (KFC bucket pattern, game/pillar_kfc.py:427)
+    rather than squeezing 3 tiers into the smaller top envelope. The
+    bottom call omits both kwargs, so its silhouette is byte-for-byte
+    unchanged."""
     pink = _porcelain_pink(palette)
     aqua = _porcelain_aqua(palette)
     cream = _porcelain_cream(palette)
@@ -1778,9 +1799,16 @@ def _draw_wat_arun_prang(surf, cx, base_y, palette, *,
     base_h = max(28, int(total_h * 0.40))
     spire_h = total_h - base_h
 
-    # Stepped square base — 3 receding tiers.
-    n_tiers = 3
-    tier_h = base_h // n_tiers
+    # Stepped square base — receding tiers. The opt-in override path
+    # fixes per-tier height at the bottom's natural value (KFC bucket
+    # pattern); the default path keeps the original base_h // 3 split
+    # so the bottom call is byte-for-byte unchanged.
+    if tier_h_override is not None:
+        tier_h = tier_h_override
+        base_h = tier_h * n_tiers
+        spire_h = total_h - base_h
+    else:
+        tier_h = base_h // n_tiers
     widest = int(body_w * 1.20)
     narrowest = int(body_w * 0.86)
     for i in range(n_tiers):
@@ -1842,22 +1870,35 @@ def _draw_wat_arun(surf, top_rect, bot_rect, palette, seed):
                        bot_rect.width + 6, 14, palette, seed=seed)
 
     if top_rect.height > 60:
-        # STRUCTURAL MIRROR — same prang anatomy (full 3 base tiers +
-        # full corncob spire + porcelain-mosaic skin) at parity with
-        # the ground silhouette, then flipped so the stepped base
-        # anchors at the ceiling and the corncob tip points DOWN into
-        # the gap. Bumped body_w + total_h to match the bottom per the
-        # user's mirror brief — prior 0.96× / 160 px shorthand made the
-        # hanger read as a downsized prang, not a mirror of the ground.
+        # STRUCTURAL MIRROR via the KFC bucket pattern
+        # (game/pillar_kfc.py::_stack_buckets). The bottom prang's
+        # natural per-base-tier height is `(0.4 * min(bot_h, 250)) // 3`.
+        # We fix that as `tier_h_override` and let the corncob spire
+        # keep its natural size; the only thing that shrinks on the
+        # hanger is the number of stepped base tiers if the top
+        # envelope can't fit all three.
         body_w = int(top_rect.width * 1.05)
-        total_h = min(top_rect.height, 250)
+        bot_total_h_for_h = min(bot_rect.height, 250)
+        H_tier = max(6, int(bot_total_h_for_h * 0.40) // 3)
+        # Natural corncob spire — 60% of the bottom's total_h.
+        spire_h_natural = bot_total_h_for_h - int(bot_total_h_for_h * 0.40)
+        top_avail = min(top_rect.height, 250)
+        # Fit as many natural base tiers as room allows above the spire.
+        top_n_tiers = max(1, (top_avail - spire_h_natural) // H_tier)
+        top_n_tiers = min(3, top_n_tiers)
+        total_h = H_tier * top_n_tiers + spire_h_natural
         tmp = pygame.Surface((body_w * 2 + 12, total_h + 12), pygame.SRCALPHA)
         _draw_wat_arun_prang(tmp, tmp.get_width() // 2,
                              total_h + 4, palette,
                              body_w=body_w,
                              total_h=total_h,
-                             rng=random.Random(seed + 17))
+                             rng=random.Random(seed + 17),
+                             n_tiers=top_n_tiers,
+                             tier_h_override=H_tier)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Anchor at top_rect.y; if total_h < top_rect.height the
+        # corncob tip floats above the gap edge (empty sky between
+        # the spire tip and the gap is intended).
         surf.blit(flipped, (tcx - flipped.get_width() // 2,
                             top_rect.y))
 
@@ -2057,18 +2098,34 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
                         bot_rect.width - 4, 6, seed=seed)
 
     if top_rect.height > 60:
-        # STRUCTURAL MIRROR — full 15-dwarf-eave Songyue (matching the
-        # ground silhouette tier-for-tier) into a temp surface, then
-        # flip vertically so the plinth lands at the ceiling and the
-        # lotus-bud finial points DOWN into the gap. Bumped from the
-        # prior 11-eave shorthand to 15 so the dense-eave count is at
-        # parity with the bottom — the user's mirror brief.
+        # STRUCTURAL MIRROR via the KFC bucket pattern
+        # (game/pillar_kfc.py::_stack_buckets). Bottom densely stacks
+        # 15 dwarf eaves over `eave_h = 0.50 * bot_envelope`, so each
+        # eave occupies `H_eave = eave_h // 15` px. Round 11 forced
+        # 15 eaves into a top temp whose envelope shrank to 150 px,
+        # which squeezed the step. Now: fix H_eave to the bottom's
+        # natural value, count how many eaves fit in the top envelope,
+        # and back-solve `small_h` so `_draw_mini_songyue`'s 55% eave
+        # budget reproduces the same H_eave exactly.
         small_body_w = int(top_rect.width * 0.88)
-        small_h = min(top_rect.height - 2, 150)
+        bot_envelope = max(1, bot_rect.height - 6)
+        bot_eave_h = int(bot_envelope * 0.50)
+        H_eave = max(2, bot_eave_h // 15)
+        top_avail = top_rect.height - 2
+        # Mini's eave column is 55% of small_h. Count eaves at natural
+        # H_eave that fit within (0.55 × top_avail), bounded by 15
+        # (the bottom's eave count — we never ADD eaves on the top).
+        top_n_eaves = max(1, min(15, int((top_avail * 0.55) // H_eave)))
+        # Back-solve small_h so 0.55 × small_h ≥ top_n × H_eave (and
+        # the integer-division `step = eave_h // top_n` lands on
+        # H_eave). Using ceil((top_n × H_eave) / 0.55).
+        target_eave_h = top_n_eaves * H_eave
+        small_h = min(top_avail,
+                      max(40, (target_eave_h * 100 + 54) // 55))
         tmp = pygame.Surface((small_body_w * 2 + 14, small_h + 8),
                              pygame.SRCALPHA)
         _draw_mini_songyue(tmp, tmp.get_width() // 2, small_h + 2, 2,
-                           small_body_w, palette, dwarf_eaves=15)
+                           small_body_w, palette, dwarf_eaves=top_n_eaves)
         flipped = pygame.transform.flip(tmp, False, True)
         surf.blit(flipped, (tcx - flipped.get_width() // 2, top_rect.y))
 
@@ -2658,20 +2715,26 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Fogong — STRUCTURAL MIRROR. Render the bottom
-    # anatomy (full tier count + full sōrin) into a temp surface and
-    # flip vertically so the plinth anchors at the ceiling and the
-    # finial points DOWN into the gap. Ornaments (mist, moss, lanterns)
-    # deferred per user scope — structural shape only this pass.
+    # Ceiling-mounted Fogong — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Fix per-tier height
+    # to the bottom's natural value, then count how many tiers actually
+    # fit in the top envelope. Top tower is genuinely shorter (fewer
+    # tiers, identical tier size) instead of a squeezed full-length
+    # mirror. Ornaments (mist, moss, lanterns) deferred per user scope.
     if top_rect.height > 50:
         finial_h = 32
         plinth_h = 9
         plinth_w = int(top_rect.width * 1.22)
-        # Tight temp sizing — the standing-orientation pagoda's tip sits
-        # ~3 px from the top of the temp; flipping puts the tip ~3 px
-        # above the bottom, so blitting at top_rect.y lands the tip just
-        # inside top_rect.bottom (the gap edge) per the user mirror spec.
-        tmp_h = top_rect.height + 4
+        # Bottom's natural per-tier height — drives both the temp size
+        # and the top tier count below.
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
+                     // ground_tier_count)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        # Temp height sized so the auto-fit inside _draw_fogong_to
+        # (which divides bot_y - top_y across top_n tiers) reproduces
+        # H_tier per tier instead of squeezing.
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -2707,9 +2770,12 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
         _draw_fogong_to(tmp, tmp_cx,
                         finial_h + 4, envelope_bot,
                         int(top_rect.width * 0.94), palette,
-                        tier_count=ground_tier_count, finial_h=finial_h,
+                        tier_count=top_n, finial_h=finial_h,
                         sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth anchors at top_rect.y; finial floats above the gap edge
+        # if top_n < ground_tier_count — empty sky between the finial
+        # and the gap is the intended read.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4162,18 +4228,21 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Tō-ji — STRUCTURAL MIRROR. Same anatomy as the
-    # ground tō (full tier count, full finial) rendered into a temp
-    # surface and flipped so the plinth anchors at the ceiling and the
-    # bronze sōrin points DOWN into the gap. Ornaments deferred.
+    # Ceiling-mounted Tō-ji — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height is
+    # fixed to the bottom's natural value; tier count drops to whatever
+    # actually fits the top envelope. The hanger reads as a smaller
+    # tō-ji of identical tier proportions, not a squeezed full one.
+    # Ornaments (mist, moss, lanterns) deferred per user scope.
     if top_rect.height > 50:
         finial_h = 38
         plinth_h = 11
         plinth_w = int(top_rect.width * 1.28)
-        # Tight temp sizing — flipping places the sōrin tip ~3 px above
-        # the temp's bottom, so blitting at top_rect.y lands the tip
-        # just inside top_rect.bottom (the gap edge).
-        tmp_h = top_rect.height + 4
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
+                     // tier_count)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -4201,9 +4270,12 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
         _draw_toji_to(tmp, tmp_cx,
                       finial_h + 4, envelope_bot,
                       int(top_rect.width * 0.96), palette,
-                      tier_count=tier_count, finial_h=finial_h,
+                      tier_count=top_n, finial_h=finial_h,
                       sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth flush with ceiling; finial floats above the gap edge
+        # whenever top_n < tier_count — sky between finial and gap is
+        # the intended look.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4421,19 +4493,20 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Daigo-ji — STRUCTURAL MIRROR. Render bottom
-    # anatomy (full vermilion-and-plaster tiers + full ⅓-height gold
-    # sōrin) into a temp surface and flip so the plinth anchors at the
-    # ceiling and the long sōrin points DOWN into the gap. Ornaments
-    # deferred per user scope.
+    # Ceiling-mounted Daigo-ji — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height is
+    # fixed at the bottom's natural value; tier count drops to whatever
+    # fits the top envelope. The long ⅓-tower gold sōrin stays the
+    # same absolute height — what shortens is the tier stack.
     if top_rect.height > 50:
         finial_h = 44
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.22)
-        # Tight temp sizing — flipping places the long gold sōrin tip
-        # ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the tip just inside top_rect.bottom (the gap edge).
-        tmp_h = top_rect.height + 4
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
+                     // tier_count)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -4452,9 +4525,12 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
         _draw_daigoji_to(tmp, tmp_cx,
                          finial_h + 4, envelope_bot,
                          int(top_rect.width * 0.94), palette,
-                         tier_count=tier_count, finial_h=finial_h,
+                         tier_count=top_n, finial_h=finial_h,
                          sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth anchored at top_rect.y; the long gold sōrin floats
+        # above the gap edge when top_n < tier_count — empty sky
+        # between the finial and the gap is intentional.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4639,20 +4715,20 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Yakushi-ji — STRUCTURAL MIRROR. Render bottom
-    # anatomy (full 4 strong tier alternations + full bronze-suien
-    # finial) into a temp surface and flip so the plinth anchors at
-    # the ceiling and the iconic openwork suien water-flame points
-    # DOWN into the gap. Mokoshi pent-roofs naturally invert with the
-    # flip. Ornaments deferred per user scope.
+    # Ceiling-mounted Yakushi-ji — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height
+    # fixed at the bottom's natural value (4 strong tier alternations
+    # over the bottom envelope); tier count drops to whatever fits.
+    # Mokoshi pent-roofs scale with the tiers automatically. Ornaments
+    # deferred per user scope.
     if top_rect.height > 50:
         finial_h = 42
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
-        # Tight temp sizing — flipping places the bronze sōrin + suien
-        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the openwork suien water-flame just inside the gap edge.
-        tmp_h = top_rect.height + 4
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h) // 4)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -4671,9 +4747,12 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
         _draw_yakushiji_to(tmp, tmp_cx,
                            finial_h + 4, envelope_bot,
                            int(top_rect.width * 0.94), palette,
-                           tier_count=4, finial_h=finial_h,
+                           tier_count=top_n, finial_h=finial_h,
                            sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth anchored at ceiling; bronze suien water-flame floats
+        # above the gap when top_n < 4 — empty sky between finial and
+        # gap is intentional.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -5559,20 +5638,28 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Bao'en — STRUCTURAL MIRROR. Bottom rebuilt as a
-    # full 9-storey porcelain stack with full pearl-and-flame finial in
-    # a temp surface, then vertically flipped so the plinth anchors at
-    # the ceiling and the tall gilt finial points DOWN into the gap.
-    # Replaces the prior 3-tier hanger pendant (which read as a stub).
-    # Ornaments (mist, vines, lanterns) deferred per user scope.
+    # Ceiling-mounted Bao'en — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Bottom has a fixed
+    # 9-storey porcelain stack; the top stack length is whatever number
+    # of those natural-sized storeys actually fits the top envelope.
+    # Per-storey height stays identical to the bottom. The tall gilt
+    # pearl-and-flame finial keeps its full absolute height. Ornaments
+    # (mist, vines, lanterns) deferred per user scope.
     if top_rect.height > 50:
         finial_h = 30
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
-        # Tight temp sizing — flipping places the gilt pearl-and-flame
-        # tip ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the finial just inside top_rect.bottom (the gap edge).
-        tmp_h = top_rect.height + 4
+        # Average storey height the BOTTOM uses (mirrors the bottom's
+        # `min(..., 230) / 9` divide). The weighted distribution makes
+        # individual storeys vary slightly around this — what matters
+        # is that the TOP gets storeys of the same size, not a squeeze.
+        bot_total_h = min(bot_rect.height - plinth_h - finial_h, 230)
+        H_storey = max(7, bot_total_h // 9)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_storey)
+        # Temp height sized so the per-storey weighted distribution
+        # below produces storeys of ~H_storey — no auto-fit squeeze.
+        tmp_h = plinth_h + top_n * H_storey + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -5589,17 +5676,14 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.rect(tmp, palette['stone_light'],
                          (tmp_cx - plinth_w // 2,
                           tmp_bot - plinth_h, plinth_w, 1))
-        # Replicate the bottom's 9-tier porcelain stack with gilt eaves
-        # + pearl-and-flame finial directly into the temp; keeping the
-        # paint code here (rather than a shared helper) preserves the
-        # bottom-pillar code byte-for-byte unchanged.
+        # Replicate the bottom's porcelain stack with gilt eaves +
+        # pearl-and-flame finial directly into the temp, but for
+        # `top_n` storeys instead of 9 — KFC bucket pattern. Keeping
+        # the paint code inline (rather than a shared helper)
+        # preserves the bottom-pillar code byte-for-byte unchanged.
         envelope_bot = tmp_bot - plinth_h
-        # Mirror the bottom's `min(..., 230)` cap so the porcelain
-        # stack scales the same way as the ground tō at the same
-        # top_rect.height — and so the full 9 tiers fit cleanly within
-        # the temp envelope.
-        tier_count = 9
-        total_h = min(tmp_h - plinth_h - finial_h - 4, 230)
+        tier_count = top_n
+        total_h = top_n * H_storey
         weights = [1.0 - 0.06 * i for i in range(tier_count)]
         wsum = sum(weights)
         tier_heights = [max(7, int(total_h * w / wsum)) for w in weights]
@@ -9022,20 +9106,21 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              24, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Murō-ji — STRUCTURAL MIRROR. Bottom anatomy
-    # (full 5-storey cedar + thatched cypress-bark eaves + bronze
-    # sōrin) rendered into a temp surface and flipped so the rough
-    # stone plinth anchors at the ceiling and the sōrin points DOWN
-    # into the gap. Thatched bark curls naturally invert with the
-    # flip. Ornaments deferred per user scope.
+    # Ceiling-mounted Murō-ji — STRUCTURAL MIRROR via the KFC bucket
+    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height
+    # fixed at the bottom's natural value (5-storey cedar over the
+    # bottom envelope); tier count drops to whatever fits the top.
+    # Thatched bark curls invert with the flip naturally. Ornaments
+    # deferred per user scope.
     if top_rect.height > 50:
         finial_h = 30
         plinth_h = 7
         plinth_w = int(top_rect.width * 1.16)
-        # Tight temp sizing — flipping places the small sōrin tip
-        # ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the tip just inside top_rect.bottom (the gap edge).
-        tmp_h = top_rect.height + 4
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
+                     // tier_count)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -9054,9 +9139,12 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
         _draw_muroji_to(tmp, tmp_cx,
                         finial_h + 4, envelope_bot,
                         int(top_rect.width * 0.88), palette,
-                        tier_count=tier_count, finial_h=finial_h,
+                        tier_count=top_n, finial_h=finial_h,
                         sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth at ceiling; small sōrin floats above the gap whenever
+        # top_n < bottom's tier_count — empty sky between finial and
+        # gap is the intended read.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -9774,24 +9862,24 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Palsangjeon — STRUCTURAL MIRROR. Bottom anatomy
-    # (full 5-storey cypress + Korean flat-eave with sharp ridge-end
-    # upturns + brass sangnyun) rendered into a temp surface and
-    # flipped so the broad Joseon-blue plinth anchors at the ceiling
-    # and the sangnyun points DOWN into the gap. The Korean ridge-end
-    # upturns naturally invert to downturns via the flip — keeping the
-    # tile-dark polygon + brass-tinted edge identity intact. Ornaments
-    # deferred per user scope.
+    # Ceiling-mounted Palsangjeon — STRUCTURAL MIRROR via the KFC
+    # bucket pattern (game/pillar_kfc.py::_stack_buckets). Per-tier
+    # height fixed at the bottom's natural value; tier count drops to
+    # whatever fits the top envelope. Korean ridge-end upturns invert
+    # to downturns via the flip, keeping the tile-dark polygon +
+    # brass-tinted edge identity intact. Ornaments deferred per user
+    # scope.
     if top_rect.height > 50:
         finial_h = 32
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.30)
         joseon_blue = _mix(_column_grey(palette),
                            palette['sky_mid'], 0.30)
-        # Tight temp sizing — flipping places the brass sangnyun tip
-        # ~3 px above the temp's bottom, so blitting at top_rect.y
-        # lands the sharp final bud just inside the gap edge.
-        tmp_h = top_rect.height + 4
+        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
+                     // tier_count)
+        top_avail = top_rect.height - plinth_h - finial_h
+        top_n = max(1, top_avail // H_tier)
+        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
@@ -9810,9 +9898,12 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
         _draw_palsangjeon_to(tmp, tmp_cx,
                              finial_h + 4, envelope_bot,
                              int(top_rect.width * 0.96), palette,
-                             tier_count=tier_count, finial_h=finial_h,
+                             tier_count=top_n, finial_h=finial_h,
                              sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth at ceiling; sangnyun floats above the gap whenever
+        # top_n < bottom's tier_count — sky between the bud and the
+        # gap is intentional.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
