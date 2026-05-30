@@ -14,6 +14,15 @@ ornaments in a separate pass lets us iterate on village character without
 touching the load-bearing pillar code, and lets us share one ornament
 across many pagodas (the universal-pool concept).
 
+# Why reuse the live-game pillar helpers
+The live-game pillar system (`game/pillar_variants.py` + `game/draw.py`)
+already ships 25 battle-tested ornament helpers that read at PIPE_W=58
+in production today: prayer flags, paper lanterns, cairns, incense,
+bird silhouettes, ribbons, vines, wuling pines, etc. Round-15 reinvented
+every ornament at sub-pixel sizes and the user reported "I barely see
+anything"; round-16 swaps in the proven helpers so the language matches
+the rest of the game and the ornaments READ at game scale.
+
 # Picker rules (AD-set)
 Every pagoda has its own allow-list with per-ornament weights. The
 picker draws 0/1/2/3 ornaments per pillar (existing 25/50/20/5 weights),
@@ -38,10 +47,19 @@ can sanity-check during dev; the per-ornament draw functions also obey
 this directly.
 
 # Cache strategy
-Each ornament pre-renders to a tiny SRCALPHA cell per (name, phase_bucket)
-the first time it is requested so palette interpolation for the small
-glyphs is amortized across all pillars in a session. The cache key uses
-`game.biome.PHASE_BUCKETS` (32 buckets) for symmetry with the sky cache.
+Cell-local ornaments pre-render to a tiny SRCALPHA cell per
+(name, phase_bucket) the first time they are requested so palette
+interpolation for the small glyphs is amortized across all pillars in a
+session. The cache key uses `game.biome.PHASE_BUCKETS` (32 buckets) for
+symmetry with the sky cache.
+
+# Direct-draw ornaments
+A small set of ornaments need the actual `top_rect` / `bot_rect` of the
+pillar pair because their geometry spans the gap or the full body
+(prayer-flag canopy strung between pillar tips, lantern catenary across
+the gap, body-length climbing vine). These bypass the cell cache and
+draw on the live `surf` directly; the cache cost is negligible because
+they are at most one per pillar.
 """
 from __future__ import annotations
 
@@ -52,6 +70,12 @@ from typing import Callable
 import pygame
 
 from game import biome as _biome
+from game.config import PIPE_W
+from game.pillar_variants import (
+    draw_climbing_vine, draw_prayer_flags, draw_cairn, draw_darchog_pole,
+    draw_incense_smoke, draw_bird_sil, draw_raven, draw_paper_lantern,
+    draw_cascading_vine, draw_ribbons_tied,
+)
 
 
 # ── Luminance contract ──────────────────────────────────────────────────────
@@ -122,31 +146,80 @@ ZONE_ROOF = "roof"
 
 # ── Ornament draw functions ─────────────────────────────────────────────────
 #
-# Signature: _draw_<name>(surf, anchor_xy, palette, seed, **flags)
-# All flag-takers consume kwargs they recognise and ignore the rest, so
-# the picker can pass a uniform flag dict.
+# Two flavours of signature exist in this module:
+#
+#   Cell-local:  _draw_<name>(surf, anchor_xy, palette, seed, **flags)
+#                anchor is (_CELL_CX, _CELL_CY) — the centre of a 64×64
+#                SRCALPHA cell that is later blitted onto the live surface
+#                centred on the anchor zone.
+#
+#   Direct:      _draw_<name>(surf, top_rect, bot_rect, palette, seed, **flags)
+#                writes straight onto the live surface. Used for ornaments
+#                whose geometry depends on the actual pillar rects — a
+#                catenary across the gap, a body-length climbing vine —
+#                where capping geometry to a 64×64 cell would clip the
+#                ornament. Listed in `_DIRECT_DRAW` below.
 
 
-def _draw_climbing_vine(surf, anchor, palette, seed, **flags):
-    # Universal pool. Reuses the in-game vine algorithm so it matches the
-    # rest of the foliage language across pagodas.
-    cx, cy = anchor
-    # Vine runs upward along the bottom pillar's lower shaft.
-    height = 36
-    dark = palette['foliage_dark']
-    mid = palette['foliage_mid']
-    top = palette['foliage_top']
-    for i in range(height):
-        wob = int(math.sin((i + seed) * 0.16) * 2)
-        px = cx + wob
-        py = cy - i
-        pygame.draw.line(surf, dark, (px, py), (px + 1, py), 2)
-        if i % 6 == 0:
-            side = 1 if (i // 6) % 2 == 0 else -1
-            leaf_x = px + side * 3
-            pygame.draw.ellipse(surf, dark, (leaf_x - 2, py - 1, 4, 3))
-            pygame.draw.ellipse(surf, mid, (leaf_x - 1, py, 2, 2))
-    pygame.draw.circle(surf, top, (cx, cy - height + 1), 1)
+# ── Direct-draw ornaments (use pillar rects) ────────────────────────────────
+
+def _draw_prayer_flags(surf, top_rect, bot_rect, palette, seed, **flags):
+    # Headline ornament — Tibetan-style prayer-flag canopy strung between
+    # the two pillar tips with a sagging rope, matching the lungta/monastery
+    # variants in the live game. Anchor points are the gap's two opposite
+    # corners: top-pillar's bottom-left and bottom-pillar's top-right (and
+    # alternated by seed so the rope direction varies across pillars).
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    # Diagonal endpoints across the gap so the rope clearly spans tip-to-tip.
+    if seed % 2 == 0:
+        x1 = tcx - PIPE_W // 2 + 2
+        x2 = bcx + PIPE_W // 2 - 2
+    else:
+        x1 = tcx + PIPE_W // 2 - 2
+        x2 = bcx - PIPE_W // 2 + 2
+    y1 = top_rect.bottom - 1
+    y2 = bot_rect.y + 1
+    draw_prayer_flags(surf, x1, y1, x2, y2, n=7)
+
+
+def _draw_paper_lantern_string(surf, top_rect, bot_rect, palette, seed, **flags):
+    # Sag-arc of 3 small paper lanterns along a catenary between the
+    # top-pillar's bottom and the bottom-pillar's top — gap-spanning so
+    # the strand reads as suspended decoration, not a coin column.
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    # Diagonal corners of the gap so the catenary sags naturally.
+    x1 = tcx - PIPE_W // 2 + 3
+    y1 = top_rect.bottom - 1
+    x2 = bcx + PIPE_W // 2 - 3
+    y2 = bot_rect.y + 1
+    sag = 10
+    for i, t in enumerate((0.20, 0.50, 0.80)):
+        # Quadratic Bézier through a sag midpoint between the two anchors.
+        mx, my = (x1 + x2) // 2, max(y1, y2) + sag
+        bx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * mx + t * t * x2
+        by = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * my + t * t * y2
+        # `draw_paper_lantern` draws its own cord downward from (x,y); pass
+        # a short strand so the lantern hangs just below the catenary line.
+        draw_paper_lantern(surf, int(bx), int(by), strand=4, scale=0.55,
+                           color='red')
+
+
+def _draw_climbing_vine(surf, top_rect, bot_rect, palette, seed, **flags):
+    # Universal-pool body vine — runs the full bottom-pillar shaft from the
+    # plinth up to within reach of the gap. Reusing the live-game helper
+    # keeps the foliage language identical to the rest of the world.
+    rng = random.Random(seed * 1009 + 31)
+    side = -1 if rng.random() < 0.5 else 1
+    x = (bot_rect.x + bot_rect.width // 2
+         + side * (bot_rect.width // 2 - 4))
+    y_top = bot_rect.y + 12
+    y_bot = bot_rect.bottom - 4
+    draw_climbing_vine(surf, x, y_top, y_bot, palette, seed=seed)
+
+
+# ── Cell-local ornaments ────────────────────────────────────────────────────
 
 
 def _draw_cat_companion(surf, anchor, palette, seed, position="PLINTH", **flags):
@@ -169,63 +242,42 @@ def _draw_cat_companion(surf, anchor, palette, seed, position="PLINTH", **flags)
 
 
 def _draw_petal_drift(surf, anchor, palette, seed, **flags):
-    # Universal pool. 6-10 tiny petals drifting near the gap roof —
-    # palette-derived pink/cream so it reads as the season, not a sticker.
+    # 4-6 tiny petals drifting near the gap roof — palette-derived pink/cream
+    # so it reads as the season, not a sticker. Round-16: bumped to radius-2
+    # so the petals actually READ at game scale.
     cx, cy = anchor
     rng = random.Random(seed * 23 + 7)
     petal = _mix(palette['stone_light'], (250, 200, 210), 0.65)
     petal_d = _mix(palette['stone_mid'], (210, 150, 170), 0.60)
-    n = rng.randint(6, 10)
+    n = rng.randint(4, 6)
     for _ in range(n):
-        dx = rng.randint(-22, 22)
-        dy = rng.randint(-14, 14)
+        dx = rng.randint(-18, 18)
+        dy = rng.randint(-12, 12)
         col = petal if rng.random() < 0.6 else petal_d
-        # Tiny tilted-oval petal: 2x2 with one offset pixel for the curl.
-        pygame.draw.rect(surf, col, (cx + dx, cy + dy, 2, 2))
-        pygame.draw.rect(surf, col, (cx + dx + 1, cy + dy - 1, 1, 1))
+        # 2-px round dot + a 1-px curl pixel — reads as a tilted petal.
+        pygame.draw.circle(surf, col, (cx + dx, cy + dy), 2)
+        pygame.draw.rect(surf, _shade(col, -20),
+                         (cx + dx + 1, cy + dy - 1, 1, 1))
 
 
 def _draw_eave_bird(surf, anchor, palette, seed, count=2, **flags):
-    # Merged pigeon_pair + crow_on_finial. count=2 → pigeons on eave,
-    # count=1 → crow on finial. Birds are 5 px wide; under all caps.
+    # Merged pigeon_pair + crow_on_finial. count=2 → small bird silhouettes
+    # on the eave (reuses live-game draw_bird_sil), count=1 → a raven on
+    # the finial (reuses draw_raven). Both helpers are battle-tested.
     cx, cy = anchor
     if count >= 2:
-        # Pigeons — palette-mid grey body, ducking heads, ≤5 px wide.
-        body = _mix(palette['stone_mid'], (130, 125, 120), 0.55)
-        for dx in (-5, 5):
-            pygame.draw.ellipse(surf, body, (cx + dx - 2, cy - 1, 5, 3))
-            pygame.draw.circle(surf, body, (cx + dx + 2, cy - 2), 1)
+        draw_bird_sil(surf, cx - 6, cy, size=5)
+        draw_bird_sil(surf, cx + 6, cy, size=5)
     else:
-        # Crow — darker, single, perched. ≤6 px wide.
-        col = _mix(palette['stone_dark'], (25, 25, 35), 0.85)
-        pygame.draw.ellipse(surf, col, (cx - 3, cy - 2, 7, 4))
-        pygame.draw.circle(surf, col, (cx + 3, cy - 3), 2)
-        pygame.draw.polygon(surf, _mix(col, (60, 40, 25), 0.5),
-                            [(cx + 5, cy - 3), (cx + 7, cy - 2), (cx + 5, cy - 1)])
-
-
-def _draw_paper_lantern_string(surf, anchor, palette, seed, **flags):
-    # Strand of 3 small red paper lanterns along the eave underside.
-    cx, cy = anchor
-    rng = random.Random(seed * 11 + 1)
-    dark = _mix(palette['stone_dark'], (170, 30, 35), 0.78)
-    light = _mix(palette['stone_accent'], (230, 80, 65), 0.72)
-    cord = _mix(palette['stone_dark'], (40, 30, 25), 0.55)
-    spacing = 12
-    for i, ox in enumerate((-spacing, 0, spacing)):
-        x = cx + ox
-        strand = 6 + rng.randint(0, 2)
-        pygame.draw.line(surf, cord, (x, cy), (x, cy + strand), 1)
-        ly = cy + strand
-        pygame.draw.rect(surf, dark, (x - 3, ly, 7, 7))
-        pygame.draw.rect(surf, light, (x - 2, ly + 1, 5, 5))
+        draw_raven(surf, cx, cy)
 
 
 def _draw_furin_wind_chime(surf, anchor, palette, seed, **flags):
-    # Single fūrin — tiny crimson-lacquer bell with a paper streamer. ≤6 px
-    # tall. Bell body is deep crimson (NOT warm gold) so it can never read
-    # as a coin pickup in the flight gap; a 1-px gold rim keeps the chime
-    # identity without occupying coin-luma territory.
+    # Single fūrin — crimson-lacquer bell with a paper streamer. Body
+    # enlarged to 5×6 (round-16) so it reads at game scale. Bell is deep
+    # crimson (NOT warm gold) so it can never read as a coin pickup in the
+    # flight gap; a 1-px gold rim keeps the chime identity without
+    # occupying coin-luma territory.
     cx, cy = anchor
     cord = _mix(palette['stone_dark'], (40, 30, 25), 0.6)
     crimson = _mix(palette['stone_dark'], (170, 35, 35), 0.78)
@@ -233,83 +285,36 @@ def _draw_furin_wind_chime(surf, anchor, palette, seed, **flags):
     gold_rim = _mix(palette['stone_accent'], (230, 180, 90), 0.70)
     streamer = _mix(palette['stone_accent'], (220, 140, 80), 0.65)
     pygame.draw.line(surf, cord, (cx, cy), (cx, cy + 3), 1)
-    # Crimson lacquer dome with darker shadow band.
-    pygame.draw.ellipse(surf, crimson_d, (cx - 3, cy + 3, 6, 5))
-    pygame.draw.ellipse(surf, crimson, (cx - 3, cy + 4, 6, 4))
+    # 5×6 crimson lacquer dome with darker shadow band.
+    pygame.draw.ellipse(surf, crimson_d, (cx - 3, cy + 3, 6, 7))
+    pygame.draw.ellipse(surf, crimson, (cx - 2, cy + 4, 5, 6))
     # 1-px gold rim accent — the chime identity cue, not a luminous orb.
-    pygame.draw.line(surf, gold_rim, (cx - 3, cy + 7), (cx + 2, cy + 7), 1)
-    pygame.draw.rect(surf, crimson_d, (cx - 1, cy + 7, 2, 1))
+    pygame.draw.line(surf, gold_rim, (cx - 3, cy + 9), (cx + 2, cy + 9), 1)
+    pygame.draw.rect(surf, crimson_d, (cx - 1, cy + 9, 2, 1))
     # Paper streamer.
-    pygame.draw.line(surf, streamer, (cx, cy + 8), (cx, cy + 13), 1)
+    pygame.draw.line(surf, streamer, (cx, cy + 10), (cx, cy + 15), 1)
 
 
 def _draw_chochin(surf, anchor, palette, seed, **flags):
-    # Large temple-festival chōchin (paper lantern with red rim). 9 px tall.
+    # Two paper lanterns flanking the eave corner (Hōryū-ji festival pair).
+    # Reuses the live-game `draw_paper_lantern` so the lantern silhouette,
+    # cap bands and glow halo match the rest of the world.
     cx, cy = anchor
-    dark = _mix(palette['stone_dark'], (160, 40, 35), 0.80)
-    light = _mix(palette['stone_accent'], (240, 180, 100), 0.70)
-    cord = _mix(palette['stone_dark'], (40, 30, 20), 0.6)
-    pygame.draw.line(surf, cord, (cx, cy), (cx, cy + 3), 1)
-    body = pygame.Rect(cx - 4, cy + 3, 9, 8)
-    pygame.draw.ellipse(surf, dark, body)
-    pygame.draw.ellipse(surf, light, body.inflate(-2, -3))
-    # Red top + bottom rim bands.
-    pygame.draw.rect(surf, dark, (cx - 4, cy + 3, 9, 1))
-    pygame.draw.rect(surf, dark, (cx - 4, cy + 10, 9, 1))
+    draw_paper_lantern(surf, cx - 8, cy, strand=4, scale=0.85, color='red')
+    draw_paper_lantern(surf, cx + 8, cy, strand=4, scale=0.85, color='red')
 
 
 def _draw_koshi_streamers_on_suien(surf, anchor, palette, seed, **flags):
-    # 2 thin streamers hanging from a finial (suien). AD: cap at 2.
+    # 2 thin streamers hanging from a finial (suien). Reuses the live-game
+    # `draw_ribbons_tied` helper so the streamer language matches the rest
+    # of the world's cloth-on-pole motifs.
     cx, cy = anchor
-    rng = random.Random(seed * 5 + 11)
-    colors = [
-        _mix(palette['stone_accent'], (220, 80, 80), 0.65),
-        _mix(palette['stone_accent'], (240, 200, 100), 0.65),
-    ]
-    for i, col in enumerate(colors):
-        ox = (-3, 3)[i]
-        length = 10 + rng.randint(0, 4)
-        for j in range(length):
-            wob = int(math.sin((j + seed + i) * 0.4) * 1)
-            pygame.draw.line(surf, col,
-                             (cx + ox + wob, cy + j),
-                             (cx + ox + wob + 1, cy + j), 1)
-
-
-def _draw_prayer_flags(surf, anchor, palette, seed, **flags):
-    # Tibetan prayer-flag span across the gap. Uses the in-game palette
-    # for the flag colors but rotates against stone_accent so it stays
-    # readable at night.
-    cx, cy = anchor
-    x1 = cx - 26
-    x2 = cx + 26
-    # Sag the rope through a mid-point a bit below the anchor line.
-    mx, my = cx, cy + 10
-    pts = []
-    steps = 18
-    for i in range(steps + 1):
-        t = i / steps
-        bx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * mx + t * t * x2
-        by = (1 - t) ** 2 * cy + 2 * (1 - t) * t * my + t * t * cy
-        pts.append((int(bx), int(by)))
-    rope = _mix(palette['stone_dark'], (60, 45, 30), 0.7)
-    for i in range(len(pts) - 1):
-        pygame.draw.line(surf, rope, pts[i], pts[i + 1], 1)
-    cols = [
-        _mix(palette['stone_accent'], (70, 140, 230), 0.65),
-        _mix(palette['stone_light'],  (240, 240, 240), 0.60),
-        _mix(palette['stone_accent'], (230, 70, 70),   0.65),
-        _mix(palette['stone_accent'], (80, 180, 90),   0.65),
-        _mix(palette['stone_accent'], (245, 210, 70),  0.70),
-    ]
-    n = 5
-    for i in range(n):
-        px, py = pts[int((i + 0.5) / n * steps)]
-        pygame.draw.rect(surf, cols[i % 5], (px - 2, py, 4, 5))
+    draw_ribbons_tied(surf, cx, cy, n=2, width=10, seed=seed)
 
 
 def _draw_triangle_bunting(surf, anchor, palette, seed, **flags):
-    # 2-color alternation (AD-mandated). Span across the gap.
+    # 2-color alternation (AD-mandated). Span across the gap. Round-16:
+    # bumped each flag to 5×5 px minimum so they read at game scale.
     cx, cy = anchor
     x1 = cx - 22
     x2 = cx + 22
@@ -326,62 +331,46 @@ def _draw_triangle_bunting(surf, anchor, palette, seed, **flags):
         pygame.draw.line(surf, rope, pts[i], pts[i + 1], 1)
     c1 = _mix(palette['stone_accent'], (235, 110, 90), 0.65)
     c2 = _mix(palette['stone_light'], (245, 240, 220), 0.62)
-    for i in range(steps):
+    # Step over every-other anchor so the flags don't overlap each other.
+    for i in range(0, steps, 2):
         x, y = pts[i]
-        col = c1 if i % 2 == 0 else c2
-        pygame.draw.polygon(surf, col, [(x, y), (x + 3, y), (x + 1, y + 4)])
+        col = c1 if (i // 2) % 2 == 0 else c2
+        pygame.draw.polygon(surf, col, [(x, y), (x + 5, y), (x + 2, y + 5)])
 
 
 def _draw_calligraphy_banner(surf, anchor, palette, seed, **flags):
-    # Vertical banner with a stroke-rhythm pattern; NO actual glyphs.
+    # Tall vertical banner — reuses live-game `draw_darchog_pole` so the
+    # banner cloth, gold finial, and trapezoid drape match the lungta-pole
+    # ornament that appears on Tibetan pillars in the live game.
     cx, cy = anchor
-    rng = random.Random(seed * 31 + 5)
-    cloth = _mix(palette['stone_light'], (240, 232, 210), 0.62)
-    edge = _mix(palette['stone_dark'], (110, 50, 40), 0.65)
-    ink = _mix(palette['stone_dark'], (40, 30, 25), 0.85)
-    w, h = 6, 32
-    pygame.draw.rect(surf, cloth, (cx - w // 2, cy, w, h))
-    pygame.draw.rect(surf, edge, (cx - w // 2, cy, w, h), 1)
-    # Stroke rhythm: 4 short horizontal ticks evoking brush characters.
-    for i in range(4):
-        ty = cy + 4 + i * 7 + rng.randint(-1, 1)
-        sw = rng.choice((2, 3))
-        pygame.draw.rect(surf, ink, (cx - sw // 2, ty, sw, 2))
-    # Tassel at bottom.
-    pygame.draw.line(surf, edge, (cx, cy + h), (cx, cy + h + 3), 1)
+    accent = palette.get('stone_accent', palette['stone_mid'])
+    draw_darchog_pole(surf, cx, cy + 12, height=24, banner_color=accent)
 
 
 def _draw_wisteria_drape(surf, anchor, palette, seed, **flags):
-    # ONE colour only (AD): a cool foliage-mid + sky-mid mix.
+    # Eave-hanging cascade — reuses the live-game `draw_cascading_vine`
+    # helper so the wisteria racemes match the rest of the foliage. The
+    # helper uses palette['foliage_*'] for its own colors, which will
+    # already read as cool-purple in the rainforest-leaning phases.
     cx, cy = anchor
-    rng = random.Random(seed * 13 + 9)
-    cluster = _mix(palette['foliage_mid'], palette['sky_mid'], 0.55)
-    cluster_d = _shade(cluster, -25)
-    # 3 hanging racemes.
-    for ox in (-6, 0, 6):
-        length = 12 + rng.randint(0, 4)
-        for i in range(length):
-            r = 2 if i < 3 else 1
-            wob = int(math.sin(i * 0.5 + seed + ox) * 1)
-            pygame.draw.circle(surf, cluster_d, (cx + ox + wob, cy + i), r)
-            pygame.draw.circle(surf, cluster, (cx + ox + wob, cy + i), max(1, r - 1))
+    draw_cascading_vine(surf, cx, cy, length=20, palette=palette)
 
 
 def _draw_cherry_blossom_cluster(surf, anchor, palette, seed, **flags):
     # Tight cluster of pink/cream blossoms. Identity hit for Daigo-ji.
+    # Round-16: enlarged to ~10 px diameter so it reads as a cluster, not
+    # a single sticker.
     cx, cy = anchor
     rng = random.Random(seed * 19 + 13)
     petal_a = _mix(palette['stone_light'], (252, 198, 210), 0.72)
     petal_b = _mix(palette['stone_light'], (248, 232, 225), 0.65)
     branch = _mix(palette['stone_dark'], (90, 60, 45), 0.78)
-    # Branch.
-    pygame.draw.line(surf, branch, (cx - 8, cy + 4), (cx + 8, cy - 2), 1)
-    # Cluster of blossoms.
-    for _ in range(rng.randint(7, 10)):
+    pygame.draw.line(surf, branch, (cx - 9, cy + 4), (cx + 9, cy - 2), 1)
+    for _ in range(rng.randint(8, 11)):
         bx = cx + rng.randint(-9, 9)
         by = cy + rng.randint(-5, 5)
         col = petal_a if rng.random() < 0.6 else petal_b
-        # 4-petal flower: 3x3 with a center dot.
+        # 4-petal flower: cross of pixels with a centre dot, ≈3 px across.
         pygame.draw.rect(surf, col, (bx - 1, by, 3, 1))
         pygame.draw.rect(surf, col, (bx, by - 1, 1, 3))
         pygame.draw.circle(surf, _mix(col, (220, 140, 100), 0.6), (bx, by), 1)
@@ -389,63 +378,67 @@ def _draw_cherry_blossom_cluster(surf, anchor, palette, seed, **flags):
 
 def _draw_yukimi_stone_lantern(surf, anchor, palette, seed, **flags):
     # SNOW_ONLY. 9 px max (statue). Squat stone lantern with snow cap.
+    # Round-16: enlarged to ~9 px so the silhouette reads at game scale.
     cx, cy = anchor
     stone = _mix(palette['stone_mid'], (150, 145, 135), 0.55)
     stone_d = _shade(stone, -25)
     snow = _mix(palette['stone_light'], (248, 248, 252), 0.80)
     # Plinth.
-    pygame.draw.rect(surf, stone_d, (cx - 4, cy - 2, 9, 2))
+    pygame.draw.rect(surf, stone_d, (cx - 5, cy - 2, 11, 3))
     # Body.
-    pygame.draw.rect(surf, stone, (cx - 3, cy - 5, 7, 3))
+    pygame.draw.rect(surf, stone, (cx - 4, cy - 6, 9, 4))
     # Roof.
     pygame.draw.polygon(surf, stone_d,
-                        [(cx - 5, cy - 5), (cx + 5, cy - 5),
-                         (cx + 3, cy - 8), (cx - 3, cy - 8)])
+                        [(cx - 6, cy - 6), (cx + 6, cy - 6),
+                         (cx + 4, cy - 9), (cx - 4, cy - 9)])
     # Snow cap.
     pygame.draw.polygon(surf, snow,
-                        [(cx - 5, cy - 7), (cx + 5, cy - 7),
-                         (cx + 3, cy - 9), (cx - 3, cy - 9)])
+                        [(cx - 6, cy - 8), (cx + 6, cy - 8),
+                         (cx + 4, cy - 11), (cx - 4, cy - 11)])
 
 
 def _draw_twin_lion_stone_lantern(surf, anchor, palette, seed, **flags):
     # 9 px statue cap. MIRRORED poses (AD-mandated, not duplicated).
+    # Round-16: enlarged silhouette so the pair reads at game scale.
     cx, cy = anchor
     stone = _mix(palette['stone_mid'], (170, 160, 150), 0.55)
     stone_d = _shade(stone, -30)
-    for i, sx in enumerate((-7, 7)):
+    for i, sx in enumerate((-8, 8)):
         # Lion body (sitting): chest forward, tail behind.
         if i == 0:
-            pygame.draw.ellipse(surf, stone, (cx + sx - 3, cy - 4, 6, 5))
-            pygame.draw.circle(surf, stone, (cx + sx + 2, cy - 5), 2)  # head right
+            pygame.draw.ellipse(surf, stone, (cx + sx - 4, cy - 5, 8, 6))
+            pygame.draw.circle(surf, stone, (cx + sx + 3, cy - 6), 3)  # head right
             pygame.draw.polygon(surf, stone_d,
-                                [(cx + sx - 3, cy - 1), (cx + sx - 5, cy - 3),
-                                 (cx + sx - 4, cy + 1)])  # tail left
+                                [(cx + sx - 4, cy - 1), (cx + sx - 6, cy - 4),
+                                 (cx + sx - 5, cy + 2)])  # tail left
         else:
-            pygame.draw.ellipse(surf, stone, (cx + sx - 3, cy - 4, 6, 5))
-            pygame.draw.circle(surf, stone, (cx + sx - 2, cy - 5), 2)  # head left
+            pygame.draw.ellipse(surf, stone, (cx + sx - 4, cy - 5, 8, 6))
+            pygame.draw.circle(surf, stone, (cx + sx - 3, cy - 6), 3)  # head left
             pygame.draw.polygon(surf, stone_d,
-                                [(cx + sx + 3, cy - 1), (cx + sx + 5, cy - 3),
-                                 (cx + sx + 4, cy + 1)])  # tail right
+                                [(cx + sx + 4, cy - 1), (cx + sx + 6, cy - 4),
+                                 (cx + sx + 5, cy + 2)])  # tail right
 
 
 def _draw_kasuga_stone_lantern(surf, anchor, palette, seed, **flags):
-    # 9 px statue cap. Tall vertical lantern. Bowl/firebox painted crimson
+    # 12 px tall. Tall vertical lantern. Bowl/firebox painted crimson
     # lacquer (NOT warm gold) so it can never be confused with a coin when
     # it sits adjacent to the gap; 1-px gold rim retains lantern identity.
+    # Round-16: enlarged from ~9 px to ~12 px so the lantern silhouette
+    # actually reads at game scale.
     cx, cy = anchor
     stone = _mix(palette['stone_mid'], (165, 155, 140), 0.55)
     stone_d = _shade(stone, -30)
     crimson = _mix(palette['stone_dark'], (165, 35, 35), 0.78)
     gold_rim = _mix(palette['stone_accent'], (230, 180, 90), 0.70)
-    # Base + shaft + cap.
-    pygame.draw.rect(surf, stone_d, (cx - 3, cy - 2, 7, 2))
-    pygame.draw.rect(surf, stone, (cx - 1, cy - 6, 3, 4))
+    # Base + shaft + cap (tall).
+    pygame.draw.rect(surf, stone_d, (cx - 4, cy, 9, 2))
+    pygame.draw.rect(surf, stone, (cx - 1, cy - 6, 3, 6))
     # Firebox bowl re-hued to crimson lacquer with a 1-px gold rim accent.
-    pygame.draw.rect(surf, crimson, (cx - 3, cy - 9, 7, 3))
-    pygame.draw.line(surf, gold_rim, (cx - 3, cy - 9), (cx + 3, cy - 9), 1)
+    pygame.draw.rect(surf, crimson, (cx - 4, cy - 10, 9, 4))
+    pygame.draw.line(surf, gold_rim, (cx - 4, cy - 10), (cx + 4, cy - 10), 1)
     pygame.draw.polygon(surf, stone_d,
-                        [(cx - 4, cy - 9), (cx + 4, cy - 9),
-                         (cx + 2, cy - 11), (cx - 2, cy - 11)])
+                        [(cx - 5, cy - 10), (cx + 5, cy - 10),
+                         (cx + 3, cy - 12), (cx - 3, cy - 12)])
 
 
 def _draw_standing_pilgrim(surf, anchor, palette, seed, **flags):
@@ -457,8 +450,11 @@ def _draw_standing_pilgrim(surf, anchor, palette, seed, **flags):
     # Robe.
     pygame.draw.rect(surf, robe, (cx - 2, cy - 4, 4, 5))
     pygame.draw.line(surf, robe_d, (cx, cy - 4), (cx, cy + 1), 1)
-    # Head.
+    # Head — hard cap at 7 px (head sits at cy-5, top at cy-6, hat at cy-7).
     pygame.draw.circle(surf, skin, (cx, cy - 5), 1)
+    # Conical pilgrim hat (cy-7 = exactly 7 px above the feet).
+    pygame.draw.polygon(surf, robe_d,
+                        [(cx - 2, cy - 6), (cx + 2, cy - 6), (cx, cy - 7)])
     # Staff.
     pygame.draw.line(surf, robe_d, (cx + 3, cy - 6), (cx + 3, cy + 1), 1)
 
@@ -469,7 +465,7 @@ def _draw_offering_bowls_trio(surf, anchor, palette, seed, **flags):
     bronze = _mix(palette['stone_accent'], (180, 140, 70), 0.70)
     bronze_d = _shade(bronze, -30)
     for ox in (-4, 4):
-        pygame.draw.ellipse(surf, bronze_d, (cx + ox - 3, cy - 2, 6, 3))
+        pygame.draw.ellipse(surf, bronze_d, (cx + ox - 2, cy - 2, 5, 3))
         pygame.draw.ellipse(surf, bronze, (cx + ox - 2, cy - 2, 4, 2))
 
 
@@ -498,73 +494,62 @@ def _draw_prayer_wheel_row(surf, anchor, palette, seed, phase=0.0, **flags):
 
 
 def _draw_mani_stone_cairn(surf, anchor, palette, seed, **flags):
-    # Small stack of inscribed stones — palette-derived greys.
+    # Small stack of inscribed stones — reuses live-game `draw_cairn` so
+    # the cairn silhouette matches the lungta/cairn pillars in the live
+    # game. The cairn grows UPWARD from its base, so anchor the base at
+    # the lower part of the cell.
     cx, cy = anchor
-    cols = [
-        _shade(palette['stone_dark'], 0),
-        _shade(palette['stone_mid'], 0),
-        _shade(palette['stone_light'], -10),
-    ]
-    sizes = [(11, 4), (8, 3), (6, 3)]
-    y = cy
-    for (w, h), col in zip(sizes, cols):
-        pygame.draw.ellipse(surf, _shade(col, -30), (cx - w // 2, y - h, w, h))
-        pygame.draw.ellipse(surf, col, (cx - w // 2 + 1, y - h + 1, w - 2, h - 2))
-        y -= h - 1
+    draw_cairn(surf, cx, cy + 8, n=4, pennant=False)
 
 
 def _draw_suspended_bell_chain(surf, anchor, palette, seed, **flags):
-    # AD: single central bell only (was a chain of 3).
+    # AD: single central bell only (was a chain of 3). Round-16: bell body
+    # enlarged to ~6×7 px so the silhouette reads at game scale.
     cx, cy = anchor
     chain = _mix(palette['stone_dark'], (60, 50, 40), 0.7)
     bronze = _mix(palette['stone_accent'], (170, 130, 70), 0.70)
     bronze_d = _shade(bronze, -30)
     pygame.draw.line(surf, chain, (cx, cy), (cx, cy + 4), 1)
+    # Outer (shaded) silhouette ~7 px wide × 7 px tall.
     pygame.draw.polygon(surf, bronze_d,
-                        [(cx - 4, cy + 4), (cx + 4, cy + 4),
-                         (cx + 3, cy + 9), (cx - 3, cy + 9)])
+                        [(cx - 5, cy + 4), (cx + 5, cy + 4),
+                         (cx + 4, cy + 11), (cx - 4, cy + 11)])
+    # Inner highlight ~5 px wide × 6 px tall.
     pygame.draw.polygon(surf, bronze,
-                        [(cx - 3, cy + 5), (cx + 3, cy + 5),
-                         (cx + 2, cy + 8), (cx - 2, cy + 8)])
+                        [(cx - 4, cy + 5), (cx + 4, cy + 5),
+                         (cx + 3, cy + 10), (cx - 3, cy + 10)])
     # Clapper.
-    pygame.draw.line(surf, bronze_d, (cx, cy + 8), (cx, cy + 10), 1)
+    pygame.draw.line(surf, bronze_d, (cx, cy + 10), (cx, cy + 13), 1)
 
 
 def _draw_roof_smoke_wisp(surf, anchor, palette, seed, **flags):
-    # Small incense / kitchen smoke wisp behind the eaves.
+    # Small incense / kitchen smoke wisp behind the eaves — reuses the
+    # live-game `draw_incense_smoke` helper so the smoke trail matches
+    # the rest of the world's wisp language. The helper draws UPWARD
+    # from (x, y), so anchor at the lower part of the cell.
     cx, cy = anchor
-    rng = random.Random(seed * 7 + 19)
-    base = _mix(palette['stone_light'], (220, 220, 220), 0.65)
-    length = 14
-    for i in range(length):
-        t = i / length
-        off = int(math.sin(t * 5 + rng.random()) * 2)
-        a = int(120 * (1 - t))
-        s = pygame.Surface((4, 2), pygame.SRCALPHA)
-        s.fill((*base, a))
-        surf.blit(s, (cx + off - 2, cy - i))
+    draw_incense_smoke(surf, cx, cy + 12, length=24)
 
 
 def _draw_sleeping_dog(surf, anchor, palette, seed, **flags):
-    # Quiet first-pillar friendly. 5 px tall. Curled silhouette.
+    # Quiet first-pillar friendly. ~6 px wide curled silhouette.
     cx, cy = anchor
     body = _mix(palette['stone_dark'], (130, 95, 65), 0.60)
     nose = _shade(body, -25)
-    # Curled body — flat oval.
+    # Curled body — flat comma oval ≈11 px wide × 4 px tall.
     pygame.draw.ellipse(surf, body, (cx - 5, cy - 3, 11, 4))
     pygame.draw.circle(surf, body, (cx + 4, cy - 2), 2)
     pygame.draw.circle(surf, nose, (cx + 5, cy - 1), 1)
 
 
 def _draw_fairy_light_string(surf, anchor, palette, seed, **flags):
-    # NIGHT_ONLY. Warm-amber dots only, spacing >=5 px, NO glow halo.
-    # Luminance clamped to <=60% of coin.
+    # NIGHT_ONLY. Warm-amber dots only, spacing >=5 px. Luminance clamped
+    # to <=60% of coin. Round-16: bumped to radius-2 so the dots actually
+    # read at game scale (was sub-pixel).
     cx, cy = anchor
-    rng = random.Random(seed * 29 + 31)
-    # Amber clamped to night cap.
     amber = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.78), int(NIGHT_LUMA_CAP * 0.22))
     cord = _mix(palette['stone_dark'], (40, 30, 25), 0.8)
-    x1, x2 = cx - 28, cx + 28
+    x1, x2 = cx - 26, cx + 26
     sag = 4
     pts = []
     steps = 12
@@ -575,45 +560,55 @@ def _draw_fairy_light_string(surf, anchor, palette, seed, **flags):
         pts.append((int(bx), int(by)))
     for i in range(len(pts) - 1):
         pygame.draw.line(surf, cord, pts[i], pts[i + 1], 1)
-    # Dots with >=5 px spacing.
-    n = 7  # 7 dots along ~56 px = 8 px spacing
+    # 9 dots along ~52 px → ~6 px spacing (>=5 px AD requirement).
+    n = 9
     for i in range(n):
         px, py = pts[int((i + 0.5) / n * steps)]
-        pygame.draw.rect(surf, amber, (px, py + 1, 1, 1))
+        pygame.draw.circle(surf, amber, (px, py + 1), 2)
 
 
 def _draw_lit_window_niche(surf, anchor, palette, seed, **flags):
-    # NIGHT_ONLY. A tiny warm window glow on the bottom pillar body.
-    # Clamped to the night luma cap.
+    # NIGHT_ONLY. A small warm window glow on the bottom pillar body.
+    # Clamped to the night luma cap. Width ≥3 px and height ≥6 px so the
+    # niche reads as a window, not a single bright pixel.
     cx, cy = anchor
-    rng = random.Random(seed * 37 + 41)
     warm = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.78), int(NIGHT_LUMA_CAP * 0.40))
     frame = _mix(palette['stone_dark'], (40, 30, 20), 0.85)
-    pygame.draw.rect(surf, frame, (cx - 2, cy - 3, 4, 5))
-    pygame.draw.rect(surf, warm, (cx - 1, cy - 2, 2, 3))
+    pygame.draw.rect(surf, frame, (cx - 2, cy - 4, 5, 8))
+    pygame.draw.rect(surf, warm, (cx - 1, cy - 3, 3, 6))
+    # Cross mullion so the niche reads as a temple window.
+    pygame.draw.line(surf, frame, (cx, cy - 3), (cx, cy + 2), 1)
 
 
 def _draw_candle_offering_row(surf, anchor, palette, seed, **flags):
-    # NIGHT_ONLY. 3 candles fixed-spaced (AD: not randomized).
+    # NIGHT_ONLY. 3 candles fixed-spaced (AD: not randomized). Round-16:
+    # bumped flame to a 4-px halo so the candle reads as a flame, not a
+    # stray pixel.
     cx, cy = anchor
-    flame = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.62), int(NIGHT_LUMA_CAP * 0.15))
+    flame_core = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.62), int(NIGHT_LUMA_CAP * 0.15))
+    flame_halo = (NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.50), int(NIGHT_LUMA_CAP * 0.10), 100)
     wax = _mix(palette['stone_light'], (210, 200, 180), 0.60)
     for ox in (-6, 0, 6):
         pygame.draw.rect(surf, wax, (cx + ox - 1, cy - 3, 2, 3))
-        pygame.draw.rect(surf, flame, (cx + ox, cy - 4, 1, 1))
+        # Soft amber halo (≈4 px) around each flame.
+        g = pygame.Surface((8, 8), pygame.SRCALPHA)
+        pygame.draw.circle(g, flame_halo, (4, 4), 4)
+        surf.blit(g, (cx + ox - 4, cy - 8))
+        # Hot core pixel — the actual flame tip.
+        pygame.draw.rect(surf, flame_core, (cx + ox, cy - 4, 1, 2))
 
 
 def _draw_firefly_motes(surf, anchor, palette, seed, **flags):
     # NIGHT_ONLY. Hard cap 4 motes, slow drift, <=60% coin luminance.
+    # Round-16: bumped to 2-px dots so the motes actually read at game
+    # scale (was single-pixel set_at).
     cx, cy = anchor
     rng = random.Random(seed * 43 + 17)
     glow = (NIGHT_LUMA_CAP, NIGHT_LUMA_CAP, int(NIGHT_LUMA_CAP * 0.55))
     for _ in range(4):
         dx = rng.randint(-18, 18)
         dy = rng.randint(-14, 14)
-        # Single pixel mote — slow drift implied by per-frame seed jitter
-        # in the picker, but the still ornament reads as a held-breath.
-        surf.set_at((cx + dx, cy + dy), glow)
+        pygame.draw.circle(surf, glow, (cx + dx, cy + dy), 2)
 
 
 # ── Ornament registry ──────────────────────────────────────────────────────
@@ -651,6 +646,17 @@ _REGISTRY: dict[str, tuple[str, Callable, dict]] = {
 
 # Final pool count target: ~27 ornaments. Confirm:
 assert len(_REGISTRY) == 27, f"ornament count drift: {len(_REGISTRY)}"
+
+
+# Ornaments whose geometry needs the actual pillar rects (gap span, full
+# body length) — these bypass the cell cache and draw straight onto the
+# live surface. Everything else uses the 64×64 cell cache for cheap
+# palette-bucketed reuse across pillars.
+_DIRECT_DRAW: set[str] = {
+    "prayer_flags",
+    "paper_lantern_string",
+    "climbing_vine",
+}
 
 
 # ── Classification sets ─────────────────────────────────────────────────────
@@ -1088,11 +1094,13 @@ def pick_ornaments(rng: random.Random,
 
 # ── Cached ornament cells (tiny, palette-bucketed) ─────────────────────────
 #
-# Each ornament is drawn into a SRCALPHA cell at most 32x32 keyed by
-# (name, phase_bucket, flag_signature). At apply time we blit the cell
+# Each cell-local ornament is drawn into a SRCALPHA cell at most 64×64 keyed
+# by (name, phase_bucket, flag_signature). At apply time we blit the cell
 # onto the live surface at the resolved anchor — this amortizes the
 # palette interpolation maths across all pillars in the session and
 # matches the cache pattern used by the sky/glow caches in `game/draw.py`.
+# Direct-draw ornaments (gap-spanning, body-length) bypass this cache
+# because their geometry depends on per-pillar rects.
 
 _CELL_W = 64
 _CELL_H = 64
@@ -1143,12 +1151,18 @@ def apply_ornaments(surf: pygame.Surface,
         return ()
     applied: list[str] = []
     for name, flags in picks:
-        zone, _, _ = _REGISTRY[name]
-        anchor = _anchor_for_zone(
-            zone, top_rect, bot_rect, rng,
-            forbid_bottom_eave=(name in FORBID_BOTTOM_EAVE),
-        )
-        cell = _get_cell(name, palette, phase, seed, flags)
-        surf.blit(cell, (anchor[0] - _CELL_CX, anchor[1] - _CELL_CY))
+        zone, draw_fn, _ = _REGISTRY[name]
+        if name in _DIRECT_DRAW:
+            # Direct-draw ornaments need the pillar rects to compute their
+            # geometry (gap-spanning catenary, body-length vine, etc.) —
+            # bypass the cell cache and paint straight onto the surface.
+            draw_fn(surf, top_rect, bot_rect, palette, seed, **flags)
+        else:
+            anchor = _anchor_for_zone(
+                zone, top_rect, bot_rect, rng,
+                forbid_bottom_eave=(name in FORBID_BOTTOM_EAVE),
+            )
+            cell = _get_cell(name, palette, phase, seed, flags)
+            surf.blit(cell, (anchor[0] - _CELL_CX, anchor[1] - _CELL_CY))
         applied.append(name)
     return tuple(applied)
