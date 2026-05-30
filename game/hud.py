@@ -822,9 +822,11 @@ def _na_energy_bar(surf, rect, frac):
 # a cohesive family: each emblem is supersampled then smoothscaled (crisp arcs
 # + real gradient shading at the 32px HUD footprint), lit from one top-left key
 # light, carries a uniform dark outline weight, and sits on one soft contact
-# shadow. One hue per function — tiers within a family (magnet→mega, shrink→
-# grow) are value/saturation steps of the same hue so no two unrelated buffs
-# share a color. Each emblem mirrors the in-world pickup the buff grants.
+# shadow. To stay faithful to what the player actually grabs, most kinds blit
+# the REAL in-world pickup sprite (via powerup_help._powerup_icon, the same
+# renderer the run-summary chips use). The two pickups that turn to mush at HUD
+# size — the photographic KFC logo and the text-captioned rail ticket — get a
+# purpose-built simplified emblem here, drawn in their in-world palette.
 
 _EMB_OUTLINE = (28, 24, 38)
 _EMB_OW = max(2, 3 * _SS // 2)  # ~1.5px at the 32px footprint
@@ -912,204 +914,18 @@ def _emb_finish(size, ss):
     return out
 
 
-def _emb_star(ss, cx, cy, r, color):
-    pts = []
-    for i in range(10):
-        ang = -math.pi / 2 + i * math.pi / 5
-        rr = r if i % 2 == 0 else r * 0.45
-        pts.append((cx + math.cos(ang) * rr, cy + math.sin(ang) * rr))
-    pygame.draw.polygon(ss, color, pts)
-    pygame.draw.polygon(ss, _EMB_OUTLINE, pts, max(2, _EMB_OW - 1))
-
-
-def _emb_arrow(ss, x1, y1, x2, y2, col, thick=None, head=None):
-    # Bold diagonal arrow with a filled head + a dark backing so the size-pair
-    # arrows read against a bright day sky, not only against the plate.
-    w = thick if thick is not None else max(3, _EMB_OW + 1)
-    ang = math.atan2(y2 - y1, x2 - x1)
-    h = head if head is not None else max(6, int(_EMB_OW * 3.0))
-    spread = math.radians(34)
-    p1 = (x2 + math.cos(ang + math.pi - spread) * h,
-          y2 + math.sin(ang + math.pi - spread) * h)
-    p2 = (x2 + math.cos(ang + math.pi + spread) * h,
-          y2 + math.sin(ang + math.pi + spread) * h)
-    # Dark backing first (wider shaft + filled head) for contrast on any sky.
-    pygame.draw.line(ss, _EMB_OUTLINE, (x1, y1), (x2, y2), w + max(2, _SS))
-    pygame.draw.polygon(ss, _EMB_OUTLINE, [(x2, y2), p1, p2])
-    # Colored arrow on top.
-    pygame.draw.line(ss, col, (x1, y1), (x2, y2), w)
-    pygame.draw.circle(ss, col, (int(x1), int(y1)), max(1, w // 2))  # rounded tail
-    pygame.draw.polygon(ss, col, [(x2, y2), p1, p2])
-    pygame.draw.polygon(ss, _EMB_OUTLINE, [(x2, y2), p1, p2], max(2, _EMB_OW - 1))
-
-
-# Function-family palette. ONE hue per function; tiers within a family are
-# value/saturation steps of the SAME hue (magnet→mega, shrink→grow).
+# Palette for the two purpose-built stand-in emblems (kfc + rail). The other
+# eight kinds blit the real in-world sprite, so they need no palette here.
 _EMB_PAL = {
-    "magnet_body": (216, 56, 50), "magnet_dark": (140, 28, 30),
-    "magnet_tip": (236, 236, 240),
-    "mega_body": (242, 170, 42), "mega_dark": (178, 106, 18),
-    "mega_aura": (176, 104, 248), "mega_aura_in": (212, 168, 255),
-    "mega_pip": (255, 244, 196), "mega_tip": (255, 248, 224),
-    "time_face": (236, 244, 255), "time_rim": (72, 122, 212),
-    "time_rim_d": (40, 78, 158), "time_hand": (28, 44, 92),
-    "rev_body": (40, 202, 168), "rev_dark": (16, 130, 112),
-    "rev_lite": (176, 250, 232),
-    "coin_face": (255, 214, 84), "coin_dark": (196, 142, 22),
-    "coin_lite": (255, 244, 176), "coin_rim": (255, 250, 214),
-    "coin_pip": (96, 60, 4),
     "kfc_red": (210, 38, 40), "kfc_red_d": (150, 22, 26),
     "kfc_white": (248, 244, 238), "drum_brown": (190, 122, 60),
     "drum_brown_d": (138, 80, 36), "bone": (245, 238, 224),
-    "ghost_body": (224, 232, 244), "ghost_body_d": (170, 188, 214),
-    "ghost_edge": (150, 232, 248), "ghost_eye": (60, 78, 120),
-    "size_hue_l": (198, 178, 252), "size_fig": (120, 86, 214),
-    "size_fig_d": (78, 52, 150),
-    "rail_body": (98, 140, 198), "rail_body_d": (54, 88, 142),
-    "rail_amber": (255, 198, 72), "rail_amber_l": (255, 222, 130),
-    "rail_amber_d": (200, 140, 32),
+    # rail ticket palette, lifted from the in-world rail pickup (entities.py
+    # _draw_rail_icon) so the emblem reads as the same sepia locomotive card.
+    "rail_sepia": (228, 210, 170), "rail_sepia_d": (196, 176, 134),
+    "rail_ink": (30, 25, 20), "rail_cream": (238, 225, 195),
+    "rail_frame": (18, 14, 10),
 }
-
-
-def _emb_horseshoe(ss, S, body, dark, tipcol, scale=1.0):
-    # Shared magnet silhouette: a top-lit ring with the inner hole + downward
-    # leg gap carved out so it reads as a U opening downward.
-    cx = S // 2
-    cy = int(S * 0.50)
-    outer = int(S * 0.34 * scale)
-    inner = int(S * 0.17 * scale)
-    ring = pygame.Surface((S, S), pygame.SRCALPHA)
-    _emb_vgrad_circle(ring, cx, cy, outer, _emb_shade(body, 1.28), dark)
-    pygame.draw.circle(ring, (0, 0, 0, 0), (cx, cy), inner)
-    gap_w = int(inner * 2.0)
-    pygame.draw.rect(ring, (0, 0, 0, 0), (cx - gap_w // 2, cy, gap_w, S - cy))
-    ss.blit(ring, (0, 0))
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), outer, _EMB_OW)
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), inner, max(2, _EMB_OW - 1))
-    leg_w = outer - inner
-    tip_h = int(S * 0.11 * scale)
-    leg_y = cy + int(S * 0.20 * scale)
-    for sgn in (-1, 1):
-        lx = cx + sgn * (inner + leg_w // 2)
-        rect = (lx - leg_w // 2, leg_y, leg_w, tip_h)
-        pygame.draw.rect(ss, tipcol, rect, border_radius=max(1, _SS))
-        pygame.draw.rect(ss, _EMB_OUTLINE, rect, max(2, _EMB_OW - 1),
-                         border_radius=max(1, _SS))
-    _emb_key_light(ss, cx, cy, outer, 58)
-
-
-def _emb_build_magnet(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    _emb_horseshoe(ss, S, _EMB_PAL["magnet_body"], _EMB_PAL["magnet_dark"],
-                   _EMB_PAL["magnet_tip"])
-    return _emb_finish(size, ss)
-
-
-def _emb_build_megamagnet(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx, cy = S // 2, int(S * 0.50)
-    # Violet energy aura behind a larger GOLD horseshoe => instant tier-up read,
-    # no "++" glyph (illegible small). Aura tuned to keep a value gap on a dark
-    # night biome.
-    aura = pygame.Surface((S, S), pygame.SRCALPHA)
-    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura"], 46), (cx, cy), int(S * 0.45))
-    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura"], 150), (cx, cy),
-                       int(S * 0.44), max(2, _EMB_OW))
-    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura_in"], 200), (cx, cy),
-                       int(S * 0.40), max(2, _EMB_OW))
-    aura = pygame.transform.smoothscale(aura, (S, S))
-    ss.blit(aura, (0, 0))
-    _emb_horseshoe(ss, S, _EMB_PAL["mega_body"], _EMB_PAL["mega_dark"],
-                   _EMB_PAL["mega_tip"], scale=1.10)
-    _emb_star(ss, cx, int(S * 0.21), int(S * 0.10), _EMB_PAL["mega_pip"])
-    return _emb_finish(size, ss)
-
-
-def _emb_build_slowmo(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx, cy = S // 2, S // 2
-    r = int(S * 0.34)
-    _emb_vgrad_circle(ss, cx, cy, r, _emb_shade(_EMB_PAL["time_rim"], 1.3),
-                      _EMB_PAL["time_rim_d"])
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), r, _EMB_OW)
-    rf = int(r * 0.74)
-    _emb_vgrad_circle(ss, cx, cy, rf, _EMB_PAL["time_face"],
-                      _emb_mix(_EMB_PAL["time_face"], _EMB_PAL["time_rim"], 0.25))
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), rf, max(2, _EMB_OW - 1))
-    pygame.draw.line(ss, _EMB_PAL["time_hand"], (cx, cy),
-                     (cx, cy - int(rf * 0.62)), _EMB_OW)
-    pygame.draw.line(ss, _EMB_PAL["time_hand"], (cx, cy),
-                     (cx + int(rf * 0.5), cy + int(rf * 0.15)), _EMB_OW)
-    pygame.draw.circle(ss, _EMB_PAL["time_hand"], (cx, cy), max(2, _EMB_OW), 0)
-    for ang in (0, 90, 180, 270):
-        a = math.radians(ang)
-        pygame.draw.line(ss, _EMB_PAL["time_rim_d"],
-                         (cx + math.cos(a) * rf * 0.86, cy + math.sin(a) * rf * 0.86),
-                         (cx + math.cos(a) * rf * 0.98, cy + math.sin(a) * rf * 0.98),
-                         max(2, _EMB_OW - 1))
-    _emb_key_light(ss, cx, cy, r, 64)
-    return _emb_finish(size, ss)
-
-
-def _emb_build_reverse(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx, cy = S // 2, int(S * 0.50)
-    r = int(S * 0.30)
-    thick = int(S * 0.13)
-    # Two C-arcs chasing each other, vertically offset so the silhouette is a
-    # wide oval (NOT a disc) — the key separation from slowmo's round clock.
-    specs = [(+1, -int(S * 0.06), math.radians(15), math.radians(195)),
-             (-1, int(S * 0.06), math.radians(195), math.radians(375))]
-    for sgn, oy, start, end in specs:
-        col = _EMB_PAL["rev_body"] if sgn > 0 else _emb_shade(_EMB_PAL["rev_body"], 0.82)
-        pygame.draw.arc(ss, col, (cx - r, cy - r + oy, r * 2, r * 2), start, end, thick)
-    head = int(S * 0.145)
-    lx, ly = cx - r + int(S * 0.02), cy - int(S * 0.06)
-    pygame.draw.polygon(ss, _EMB_PAL["rev_body"],
-                        [(lx - head, ly), (lx + head, ly - head), (lx + head, ly + head)])
-    rx, ry = cx + r - int(S * 0.02), cy + int(S * 0.06)
-    pygame.draw.polygon(ss, _emb_shade(_EMB_PAL["rev_body"], 0.82),
-                        [(rx + head, ry), (rx - head, ry - head), (rx - head, ry + head)])
-    for sgn, oy, start, end in specs:
-        pygame.draw.arc(ss, _EMB_OUTLINE, (cx - r, cy - r + oy, r * 2, r * 2),
-                        start, end, max(2, _EMB_OW - 1))
-    pygame.draw.circle(ss, _EMB_PAL["rev_lite"],
-                       (cx - int(r * 0.3), cy - int(r * 0.5)), max(2, _EMB_OW))
-    return _emb_finish(size, ss)
-
-
-def _emb_build_triple(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx = S // 2
-    r = int(S * 0.27)
-    # Three fanned coins (each rim separated) => the STACK reads "multiple".
-    offs = [(-int(S * 0.13), int(S * 0.15)),
-            (int(S * 0.13), int(S * 0.10)),
-            (0, -int(S * 0.07))]
-    for i, (dx, dy) in enumerate(offs):
-        ccx, ccy = cx + dx, S // 2 + dy
-        _emb_vgrad_circle(ss, ccx, ccy, r, _EMB_PAL["coin_lite"], _EMB_PAL["coin_dark"])
-        pygame.draw.circle(ss, _EMB_PAL["coin_rim"], (ccx, ccy), int(r * 0.82),
-                           max(2, _EMB_OW - 1))
-        pygame.draw.circle(ss, _EMB_OUTLINE, (ccx, ccy), r, _EMB_OW)
-        if i == len(offs) - 1:
-            _emb_key_light(ss, ccx, ccy, r, 70)
-    # Three pips on the front coin (dots survive downsampling where a numeral
-    # dies). Off-axis cluster so the coin doesn't read as a face.
-    fcx, fcy = cx + offs[-1][0], S // 2 + offs[-1][1]
-    pip_r = max(2, int(r * 0.17))
-    pip_d = int(r * 0.42)
-    pips = [(fcx - pip_d, fcy - int(pip_d * 0.35)),
-            (fcx + int(pip_d * 0.15), fcy - int(pip_d * 0.05)),
-            (fcx + pip_d, fcy + int(pip_d * 0.5))]
-    for px, py in pips:
-        pygame.draw.circle(ss, _EMB_PAL["coin_pip"], (int(px), int(py)), pip_r)
-    return _emb_finish(size, ss)
 
 
 def _emb_build_kfc(size):
@@ -1151,170 +967,113 @@ def _emb_build_kfc(size):
     return _emb_finish(size, ss)
 
 
-def _emb_build_ghost(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx = S // 2
-    r = int(S * 0.27)
-    top_y = int(S * 0.36)
-    hem_y = int(S * 0.72)
-    halo = pygame.Surface((S, S), pygame.SRCALPHA)
-    pygame.draw.circle(halo, (*_EMB_PAL["ghost_edge"], 80),
-                       (cx, (top_y + hem_y) // 2), int(r * 1.2))
-    halo = pygame.transform.smoothscale(halo, (S, S))
-    ss.blit(halo, (0, 0))
-    body = _emb_shade(_EMB_PAL["ghost_body"], 0.85)   # dimmed ~15% vs round 1
-    body_d = _emb_shade(_EMB_PAL["ghost_body_d"], 0.85)
-    _emb_vgrad_circle(ss, cx, top_y, r, body, body_d)
-    trunk = pygame.Surface((S, S), pygame.SRCALPHA)
-    for y in range(top_y, hem_y):
-        t = (y - top_y) / max(1, (hem_y - top_y))
-        pygame.draw.line(trunk, _emb_mix(body, body_d, t), (cx - r, y), (cx + r, y))
-    ss.blit(trunk, (0, 0))
-    lobes = 3
-    for i in range(lobes):
-        bx = _emb_lerp(cx - r, cx + r, i / lobes)
-        bx2 = _emb_lerp(cx - r, cx + r, (i + 1) / lobes)
-        col = body if i % 2 == 0 else body_d
-        pygame.draw.ellipse(ss, col, (bx, hem_y - int(S * 0.05), bx2 - bx, int(S * 0.11)))
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, top_y), r, _EMB_OW)
-    pygame.draw.line(ss, _EMB_OUTLINE, (cx - r, top_y), (cx - r, hem_y), _EMB_OW)
-    pygame.draw.line(ss, _EMB_OUTLINE, (cx + r, top_y), (cx + r, hem_y), _EMB_OW)
-    for i in range(lobes):
-        bx = _emb_lerp(cx - r, cx + r, i / lobes)
-        bx2 = _emb_lerp(cx - r, cx + r, (i + 1) / lobes)
-        pygame.draw.arc(ss, _EMB_OUTLINE, (bx, hem_y - int(S * 0.05), bx2 - bx, int(S * 0.12)),
-                        math.radians(180), math.radians(360), _EMB_OW)
-    for sgn in (-1, 1):
-        ex = cx + sgn * int(r * 0.4)
-        pygame.draw.ellipse(ss, _EMB_PAL["ghost_eye"],
-                            (ex - int(S * 0.04), top_y - int(S * 0.02),
-                             int(S * 0.08), int(S * 0.11)))
-    _emb_key_light(ss, cx, top_y, r, 40)
-    return _emb_finish(size, ss)
-
-
-def _emb_figure(ss, cx, cy, r, col, dark):
-    # Shared size-family glyph: a rounded blob with eye dots so it never reads
-    # as a coin. shrink/grow differ only in figure size + arrow direction.
-    _emb_vgrad_circle(ss, cx, cy, r, _emb_shade(col, 1.25), dark)
-    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), r, _EMB_OW)
-    for sgn in (-1, 1):
-        pygame.draw.circle(ss, _EMB_OUTLINE,
-                           (cx + sgn * int(r * 0.35), cy - int(r * 0.1)),
-                           max(2, int(r * 0.16)))
-
-
-def _emb_build_grow(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx, cy = S // 2, S // 2
-    r = int(S * 0.255)   # LARGE solid disc — the dominant anchor of the pair
-    _emb_figure(ss, cx, cy, r, _EMB_PAL["size_fig"], _EMB_PAL["size_fig_d"])
-    thick = max(3, _EMB_OW + 1)
-    head = int(S * 0.115)
-    for ang in (225, 45):  # TWO outward arrows, TL / BR diagonal
-        a = math.radians(ang)
-        x1 = cx + math.cos(a) * (r + int(S * 0.02))
-        y1 = cy + math.sin(a) * (r + int(S * 0.02))
-        x2 = cx + math.cos(a) * (r + int(S * 0.20))
-        y2 = cy + math.sin(a) * (r + int(S * 0.20))
-        _emb_arrow(ss, x1, y1, x2, y2, _EMB_PAL["size_hue_l"], thick=thick, head=head)
-    return _emb_finish(size, ss)
-
-
-def _emb_build_shrink(size):
-    ss = _emb_raw(size)
-    S = size * _SS
-    cx, cy = S // 2, S // 2
-    r = int(S * 0.205)   # SOLID disc, marginally smaller than grow => squeeze reads
-    _emb_figure(ss, cx, cy, r, _EMB_PAL["size_fig_d"],
-                _emb_shade(_EMB_PAL["size_fig_d"], 0.72))
-    thick = max(3, _EMB_OW + 1)
-    head = int(S * 0.115)
-    for ang in (225, 45):  # TWO inward arrows, SAME diagonal as grow => mirror
-        a = math.radians(ang)
-        x1 = cx + math.cos(a) * (r + int(S * 0.22))   # tail far out
-        y1 = cy + math.sin(a) * (r + int(S * 0.22))
-        x2 = cx + math.cos(a) * (r + int(S * 0.045))  # head just off the disc
-        y2 = cy + math.sin(a) * (r + int(S * 0.045))
-        _emb_arrow(ss, x1, y1, x2, y2, _EMB_PAL["size_hue_l"], thick=thick, head=head)
-    return _emb_finish(size, ss)
-
-
 def _emb_build_rail(size):
+    # Simplified sepia locomotive ticket — evokes the in-world rail pickup
+    # (entities.py _draw_rail_icon: a sepia card stamped with a side-view steam
+    # engine) without its "TRAIN" caption, which is illegible at HUD size.
     ss = _emb_raw(size)
     S = size * _SS
-    cx = S // 2
-    body_top = int(S * 0.38)
-    body_bot = int(S * 0.66)
-    half_t = int(S * 0.30)
-    half_b = int(S * 0.22)
-    cart = [(cx - half_t, body_top), (cx + half_t, body_top),
-            (cx + half_b, body_bot), (cx - half_b, body_bot)]
-    _emb_vgrad_mask(ss, cart, body_top, body_bot,
-                    _emb_shade(_EMB_PAL["rail_body"], 1.22), _EMB_PAL["rail_body_d"])
-    pygame.draw.polygon(ss, _EMB_OUTLINE, cart, _EMB_OW)
-    # SINGLE bold forward chevron (speed) over a dark backing so it clears the
-    # steel cart even on a bright day sky.
-    ox = cx + int(S * 0.02)
-    chev = [(ox - int(S * 0.07), body_top + int(S * 0.05)),
-            (ox + int(S * 0.05), body_top + int(S * 0.155)),
-            (ox - int(S * 0.07), body_top + int(S * 0.26))]
-    pygame.draw.lines(ss, _EMB_OUTLINE, False, chev, max(3, _EMB_OW + 2))
-    pygame.draw.lines(ss, _EMB_PAL["rail_amber_l"], False, chev, max(3, _EMB_OW + 1))
-    wy = body_bot + int(S * 0.05)
-    wr = int(S * 0.07)
-    for sgn in (-1, 1):
-        wx = cx + sgn * int(S * 0.14)
-        pygame.draw.circle(ss, _EMB_PAL["rail_body_d"], (wx, wy), wr)
-        pygame.draw.circle(ss, _EMB_OUTLINE, (wx, wy), wr, max(2, _EMB_OW - 1))
-        pygame.draw.circle(ss, _emb_shade(_EMB_PAL["rail_body"], 1.3), (wx, wy),
-                           max(2, wr // 3))
-    ry = wy + int(S * 0.11)
-    pygame.draw.line(ss, _EMB_PAL["rail_amber"], (int(S * 0.10), ry),
-                     (int(S * 0.90), ry), int(S * 0.055))
-    pygame.draw.line(ss, _EMB_PAL["rail_amber_d"], (int(S * 0.10), ry + int(S * 0.045)),
-                     (int(S * 0.90), ry + int(S * 0.045)), max(2, _EMB_OW - 1))
-    _emb_key_light(ss, cx, (body_top + body_bot) // 2, half_t, 50)
+    # Sepia ticket card with a dark frame + engraved inner border.
+    card = pygame.Rect(int(S * 0.10), int(S * 0.20), int(S * 0.80), int(S * 0.60))
+    pygame.draw.rect(ss, _EMB_PAL["rail_frame"], card, border_radius=int(S * 0.06))
+    inner = card.inflate(-int(S * 0.06), -int(S * 0.06))
+    _emb_vgrad_mask(
+        ss,
+        [inner.topleft, inner.topright, inner.bottomright, inner.bottomleft],
+        inner.top, inner.bottom,
+        _emb_shade(_EMB_PAL["rail_sepia"], 1.05), _EMB_PAL["rail_sepia_d"])
+    pygame.draw.rect(ss, _EMB_PAL["rail_cream"], inner.inflate(-int(S * 0.04),
+                     -int(S * 0.04)), max(2, _EMB_OW - 1), border_radius=int(S * 0.04))
+    # Side-view steam locomotive, ink-dark on the card.
+    ink = _EMB_PAL["rail_ink"]
+    base_y = int(S * 0.62)
+    boiler = pygame.Rect(int(S * 0.26), int(S * 0.40), int(S * 0.42), int(S * 0.18))
+    pygame.draw.rect(ss, ink, boiler, border_radius=int(S * 0.04))
+    cab = pygame.Rect(int(S * 0.55), int(S * 0.32), int(S * 0.16), int(S * 0.20))
+    pygame.draw.rect(ss, ink, cab, border_radius=int(S * 0.02))
+    # Smokestack ahead of the boiler.
+    pygame.draw.rect(ss, ink, (int(S * 0.30), int(S * 0.30),
+                               int(S * 0.07), int(S * 0.12)))
+    pygame.draw.rect(ss, ink, (int(S * 0.28), int(S * 0.28),
+                               int(S * 0.11), int(S * 0.04)))
+    # Cow-catcher wedge at the front.
+    pygame.draw.polygon(ss, ink, [(int(S * 0.26), int(S * 0.50)),
+                                  (int(S * 0.26), int(S * 0.58)),
+                                  (int(S * 0.18), int(S * 0.58))])
+    # Two spoked wheels on a connecting rod.
+    wy = base_y
+    for wx in (int(S * 0.34), int(S * 0.56)):
+        pygame.draw.circle(ss, ink, (wx, wy), int(S * 0.09))
+        pygame.draw.circle(ss, _EMB_PAL["rail_cream"], (wx, wy), int(S * 0.09),
+                           max(2, _EMB_OW - 1))
+        for ang in range(0, 360, 60):
+            a = math.radians(ang)
+            pygame.draw.line(ss, _EMB_PAL["rail_cream"], (wx, wy),
+                             (wx + math.cos(a) * int(S * 0.07),
+                              wy + math.sin(a) * int(S * 0.07)), max(1, _EMB_OW - 2))
+        pygame.draw.circle(ss, ink, (wx, wy), max(2, int(S * 0.025)))
+    pygame.draw.line(ss, ink, (int(S * 0.34), wy), (int(S * 0.56), wy),
+                     max(2, _EMB_OW - 1))
     return _emb_finish(size, ss)
 
 
+# kfc + rail get the purpose-built simplified emblems above; every other kind
+# is rendered from its REAL in-world pickup sprite (see _get_buff_emblem).
 _EMB_BUILDERS = {
-    "magnet": _emb_build_magnet,
-    "megamagnet": _emb_build_megamagnet,
-    "slowmo": _emb_build_slowmo,
-    "reverse": _emb_build_reverse,
-    "triple": _emb_build_triple,
     "kfc": _emb_build_kfc,
-    "ghost": _emb_build_ghost,
-    "shrink": _emb_build_shrink,
-    "grow": _emb_build_grow,
     "rail": _emb_build_rail,
 }
 
+# Kinds whose in-world pickup downscales cleanly are blitted verbatim from the
+# real sprite so the HUD emblem always matches what the player grabbed.
+_EMB_FROM_PICKUP = frozenset({
+    "triple", "magnet", "megamagnet", "slowmo", "reverse", "ghost",
+    "grow", "shrink",
+})
+
 # Emblems are static, so render each (kind, size) once and reuse the surface;
-# the supersampled gradient passes are far too heavy to run per frame.
+# both the supersampled custom draws and the PowerUp.draw() pickup render are
+# far too heavy to run per frame.
 _buff_emblem_cache: dict = {}
+# Lazily bound to powerup_help._powerup_icon — that module imports from hud, so
+# we defer the import to first use to dodge the import cycle (same pattern as
+# draw_stats' run-summary chips).
+_emb_powerup_icon = None
+
+
+def _emb_from_pickup(kind, size):
+    """Render the real in-world pickup sprite, scaled to fill the HUD plate."""
+    global _emb_powerup_icon
+    if _emb_powerup_icon is None:
+        from game.powerup_help import _powerup_icon
+        _emb_powerup_icon = _powerup_icon
+    emb = pygame.Surface((size, size), pygame.SRCALPHA)
+    # The pickups carry their own padding, so draw a touch larger than the plate
+    # to match the visual weight of the run-summary chips (icon_size * 1.5).
+    _emb_powerup_icon(emb, kind, size // 2, size // 2, int(size * 1.4))
+    return emb
 
 
 def _get_buff_emblem(kind, size):
     key = (kind, size)
     emb = _buff_emblem_cache.get(key)
     if emb is None:
-        builder = _EMB_BUILDERS.get(kind)
-        if builder is None:
-            return None
-        emb = builder(size)
+        if kind in _EMB_FROM_PICKUP:
+            emb = _emb_from_pickup(kind, size)
+        else:
+            builder = _EMB_BUILDERS.get(kind)
+            if builder is None:
+                return None
+            emb = builder(size)
         _buff_emblem_cache[key] = emb
     return emb
 
 
 def _draw_buff_icon(surf, rect, kind):
-    """High-res procedural emblem for an active buff, centered in ``rect``.
-    Supersampled + cached per (kind, size); the family shares one key light,
-    outline weight, and contact shadow so the active-buff stack reads as a
-    cohesive set, and each emblem mirrors the in-world pickup it grants."""
+    """Emblem for an active buff, centered in ``rect`` and cached per
+    (kind, size). Most kinds blit the real in-world pickup sprite so the HUD
+    matches what the player grabbed; kfc + rail use a legible stand-in drawn
+    in their in-world palette (see the module comment above)."""
     size = min(rect.width, rect.height)
     if size <= 0:
         return
