@@ -41,7 +41,7 @@ from game.draw import (
     draw_cloud,
     draw_ground,
 )
-import mountain_variants_r2 as mv
+import mountain_variants_alive as mv
 import pillar_pagoda_variants as pgv
 import pillar_pagoda_variants_r4 as pgv_r4
 import pagoda_ornaments as orn
@@ -99,7 +99,7 @@ ROW_GROUND_ACCENT = {
     "stupa_canopy": (172, 152, 124),
 }
 
-KEEPER_V4 = 4
+KEEPER_V14 = 14
 
 OUT = _REPO / "docs" / "pillar_redesign"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -134,8 +134,8 @@ def _scene_backdrop(phase: float) -> pygame.Surface:
         ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
         draw_cloud(surf, ox, by + math.sin(0.45 + i) * 3, _sc, variant=variant)
     mv.set_phase(phase)
-    mv.VARIANTS[KEEPER_V4](surf, scroll, GROUND_Y, W,
-                           palette['mtn_far'], palette['mtn_near'])
+    mv.VARIANTS[KEEPER_V14](surf, scroll, GROUND_Y, W,
+                            palette['mtn_far'], palette['mtn_near'])
     draw_ground(surf, GROUND_Y, W, H, scroll,
                 palette['ground_top'], palette['ground_mid'], (60, 40, 25))
     return surf
