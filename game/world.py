@@ -1703,7 +1703,7 @@ class World:
             n=20, speed_hi=240,
         )
         self.float_texts.append(FloatText(
-            "POISON", m.x, m.y - 26, (200, 224, 96),
+            "POISON!", m.x, m.y - 26, (200, 224, 96),
             size=28, life=1.4, vy=-30, style="powerup",
         ))
 
