@@ -88,6 +88,94 @@ def _ruyi_lobe(s: pygame.Surface, cx: int, cy: int, r: int,
             math.radians(110), math.radians(220), 2)
 
 
+def _ruyi_heart(s: pygame.Surface, cx: int, cy: int, r: int,
+                body, edge, lit,
+                body_a: int = 245, key_a: int = 170,
+                lit_arc: bool = False) -> None:
+    # Two mirrored half-lobes joined at the base — this is the silhouette
+    # signature that says "Ruyi" rather than "circle". Cluster of: left
+    # lobe + right lobe centred horizontally on cx, vertically tucked so
+    # their bottoms meet just under cy, with a downward V-notch between
+    # them. The notch is what reads as a heart, not a peanut, at thumb-
+    # nail. Used wherever the AD called for "double-lobed heart DNA".
+    off = max(2, int(r * 0.55))
+    lr = max(3, int(r * 0.78))
+    lcx_l = cx - off
+    lcx_r = cx + off
+    lcy = cy - max(1, int(r * 0.10))
+    # Drop-shadow first (under both halves) so it doesn't double-bake
+    # in the join seam.
+    pygame.draw.circle(s, (*edge, 30), (cx + 1, cy + 3), r)
+    # Twin half-lobes — drawn as full discs then welded by a small
+    # bridging ellipse at the base so the silhouette reads as one
+    # continuous heart rather than two stamped balls.
+    pygame.draw.circle(s, (*body, body_a), (lcx_l, lcy), lr)
+    pygame.draw.circle(s, (*body, body_a), (lcx_r, lcy), lr)
+    bridge_w = off * 2 + 2
+    bridge_h = max(3, int(r * 0.55))
+    pygame.draw.ellipse(
+        s, (*body, body_a),
+        pygame.Rect(cx - bridge_w // 2, lcy, bridge_w, bridge_h))
+    # V-notch on top centre — small triangle in transparent so the heart
+    # cleavage is visible. Achieved by repainting the body's interior
+    # gap with the surface's clear-pixel through BLEND_RGBA_MULT mask
+    # would be heavier; here a single 1-px tip indent is enough at the
+    # scales we render.
+    notch_top = (cx, lcy - lr + 2)
+    notch_l = (cx - max(1, lr // 4), lcy - lr // 2)
+    notch_r = (cx + max(1, lr // 4), lcy - lr // 2)
+    pygame.draw.polygon(s, (0, 0, 0, 0), [notch_top, notch_l, notch_r])
+    # Calligraphic keyline arcs hugging each half-lobe's outer flank —
+    # mirrored so the heart has two flanking curls, the classic Ruyi
+    # double-spiral signature.
+    pygame.draw.arc(
+        s, (*edge, key_a),
+        pygame.Rect(lcx_l - lr, lcy - lr, lr * 2, lr * 2),
+        math.radians(200), math.radians(350), 2)
+    pygame.draw.arc(
+        s, (*edge, key_a),
+        pygame.Rect(lcx_r - lr, lcy - lr, lr * 2, lr * 2),
+        math.radians(190), math.radians(340), 2)
+    inner = max(2, lr - 4)
+    pygame.draw.arc(
+        s, (*edge, min(255, key_a + 20)),
+        pygame.Rect(lcx_l - inner, lcy - inner, inner * 2, inner * 2),
+        math.radians(40), math.radians(200), 2)
+    pygame.draw.arc(
+        s, (*edge, min(255, key_a + 20)),
+        pygame.Rect(lcx_r - inner, lcy - inner, inner * 2, inner * 2),
+        math.radians(340), math.radians(140), 2)
+    if lit_arc and lr >= 5:
+        pygame.draw.arc(
+            s, (*lit, 200),
+            pygame.Rect(lcx_l - lr + 2, lcy - lr + 2,
+                        max(2, lr * 2 - 4), max(2, lr * 2 - 4)),
+            math.radians(120), math.radians(220), 2)
+        pygame.draw.arc(
+            s, (*lit, 200),
+            pygame.Rect(lcx_r - lr + 2, lcy - lr + 2,
+                        max(2, lr * 2 - 4), max(2, lr * 2 - 4)),
+            math.radians(110), math.radians(210), 2)
+
+
+def _wisp_dab(s: pygame.Surface, cx: int, cy: int, r: int,
+              body, edge, seed: int, n: int = 3) -> None:
+    # Ink-wash dry-brush dab — 3-4 small alpha-faded blobs in a short
+    # diagonal stagger. Used to replace solid mini-lobes with flying-
+    # white wisps so a constellation reads as "1 Ruyi + 2 wisps" rather
+    # than "3 same-size circles". Borrowed from the Sumi-e variant's
+    # kasure technique so the visual vocabulary stays in-key.
+    for k in range(n):
+        ox = ((seed >> (k * 3)) & 0x7) - 3
+        oy = ((seed >> (k * 3 + 1)) & 0x3) - 1
+        rr = max(1, int(r * (1.0 - k * 0.25)))
+        a = max(60, 200 - k * 50)
+        pygame.draw.circle(s, (*body, a), (cx + ox + k * 2, cy + oy), rr)
+        if k == 0:
+            pygame.draw.circle(s, (*edge, 110),
+                               (cx + ox + k * 2, cy + oy), rr, 1)
+
+
 def _ribbon_polygon(cx: int, cy: int, w: int, h: int) -> list[tuple[int, int]]:
     # Symmetric S-tapered ribbon outline — used as a trailing streamer
     # behind a head lobe. Cubic-ish poly approximated via 9 control
@@ -120,36 +208,43 @@ def _ribbon_polygon(cx: int, cy: int, w: int, h: int) -> list[tuple[int, int]]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def draw_ruyi_streamer(surf, x, y, palette, scale=1.0):
-    """Head lobe + 60–110 px trailing silk ribbon — Olympics 2008 motif."""
+    """Heart-headed Ruyi pulling a silk ribbon trail — Olympics 2008 motif."""
     body = _cloud_body_color(palette)
     edge = _ink_shadow_color(palette)
     lit = _lit_edge_color(palette)
 
-    # Total length 92 px so head sits on the leading edge and ribbon
-    # trails left like silk caught in headwind. Head radius is the
-    # round-23 dominant-lobe radius (~16 px) so the head reads as a
-    # full ruyi lobe at thumbnail scale, not a punctuation mark.
+    # Total length 92 px. AD round 2: anchor head at LEADING edge and
+    # flip the ribbon to trail RIGHT so the silhouette reads as motion-
+    # into-frame (head punches, ribbon drags). Head radius is the
+    # round-23 dominant-lobe radius (~16 px) so the heart reads as a
+    # full Ruyi at thumbnail scale, not a punctuation mark.
     length = int(92 * scale)
     head_r = int(15 * scale)
     pad = head_r + 6
     s = _alpha_surf(length + pad * 2, head_r * 3 + 10)
-    cx = pad + length - head_r
+    cx = pad + head_r + 4
     cy = s.get_height() // 2
 
-    # Ribbon trail — taper from full head-height down to zero on the
-    # left. Drawn as a series of progressively thinner horizontal
-    # ellipses with a gentle vertical sine, so the ribbon arcs subtly
-    # instead of flat-strip slicing the sky.
+    # Ribbon trail — taper from full head-height at the join down to
+    # zero on the right tip. Drawn as a series of progressively thinner
+    # horizontal ellipses with a gentle vertical sine so the ribbon
+    # arcs subtly instead of flat-strip slicing the sky.
     n_ribbon = 12
+    ribbon_start = cx + head_r
+    ribbon_end = pad + length
     for i in range(n_ribbon):
-        t = i / (n_ribbon - 1)
-        rx = pad + int(t * (length - head_r * 2))
+        # t goes 1→0 from head to tail so thickness fades AWAY from the
+        # head (head-side has mass, tail-tip wisps off).
+        t = 1.0 - (i / (n_ribbon - 1))
+        rx = ribbon_start + int((1 - t) * (ribbon_end - ribbon_start))
         # Sine swoop matches the Olympics torch's flowing band.
-        ry = cy + int(math.sin(t * math.pi * 0.8 + 0.4) * 4 * scale)
-        # Thickness ramps from 1 px at the wisp tip up to full head_r
-        # at the join — the ribbon's mass is on the head side.
-        thick = max(1, int(head_r * 0.85 * t))
-        a = int(_lerp(70, 215, t))
+        ry = cy + int(math.sin((1 - t) * math.pi * 0.8 + 0.4) * 4 * scale)
+        # Thickness ramped 0.85 → 1.05 per AD round-2: ribbon was too
+        # thin to read against sky_top.
+        thick = max(1, int(head_r * 1.05 * t))
+        # Alpha bumped 70→110 min, 215→245 max — invisible past head at
+        # SUNSET/DUSK in round 1.
+        a = int(_lerp(110, 245, t))
         pygame.draw.ellipse(
             s, (*body, a),
             pygame.Rect(rx - thick, ry - thick // 2,
@@ -157,15 +252,21 @@ def draw_ruyi_streamer(surf, x, y, palette, scale=1.0):
 
     # Ink-shadow underline beneath the ribbon — single long thin
     # ellipse, no full-circumference keyline, so the trail reads as
-    # silk in motion rather than a solid heraldic band.
-    pygame.draw.ellipse(
-        s, (*edge, 55),
-        pygame.Rect(pad, cy + head_r // 3,
-                    length - head_r, max(2, int(head_r * 0.5))))
+    # silk in motion rather than a solid heraldic band. Gated off at
+    # night per AD cross-cutting A (drop-shadow smudge halo on deep
+    # blue): streamer's underline carries the silk read at day/golden
+    # so we keep it on those phases.
+    if not _is_night(palette):
+        pygame.draw.ellipse(
+            s, (*edge, 55),
+            pygame.Rect(ribbon_start, cy + head_r // 3,
+                        ribbon_end - ribbon_start, max(2, int(head_r * 0.5))))
 
-    # Single head lobe with the canonical ruyi keylines + sun-kiss arc.
-    _ruyi_lobe(s, cx, cy, head_r, body, edge, lit,
-               body_a=245, key_a=170, lit_arc=True)
+    # Heart-shape head — two mirrored half-lobes joined at base. This
+    # is what the AD round-1 critique demanded: replaces the single
+    # `_ruyi_lobe` head that read as a comet.
+    _ruyi_heart(s, cx, cy, head_r, body, edge, lit,
+                body_a=245, key_a=180, lit_arc=True)
 
     surf.blit(s, (int(x - cx), int(y - cy)))
 

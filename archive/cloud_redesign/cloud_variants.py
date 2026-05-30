@@ -49,7 +49,17 @@ def _cloud_body_color(palette: dict) -> tuple[int, int, int]:
         r = int(horizon[0] * 0.70 + sky_bot[0] * 0.30)
         g = int(horizon[1] * 0.70 + sky_bot[1] * 0.30)
         b = int(horizon[2] * 0.70 + sky_bot[2] * 0.30)
-    return (min(255, r + 25), min(255, g + 25), min(255, b + 25))
+    r, g, b = min(255, r + 25), min(255, g + 25), min(255, b + 25)
+    # Bright-blue DAY (sky_top luminance 150–200) still washes the body
+    # out against the cyan dome — Ruyi-round-2 AD measured ~25% value
+    # contrast and called it. Pull the mixed body 30% toward warm paper-
+    # white only on that luminance band so night-cool (lum < 90) and
+    # sunset-warm (lum 90–150) branches are preserved verbatim.
+    if 150 < top_lum < 200:
+        r = int(r * 0.70 + 252 * 0.30)
+        g = int(g * 0.70 + 252 * 0.30)
+        b = int(b * 0.70 + 245 * 0.30)
+    return (r, g, b)
 
 
 def _ink_shadow_color(palette: dict) -> tuple[int, int, int]:
