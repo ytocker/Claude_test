@@ -13,6 +13,9 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
+    GEYSER_W, GEYSER_H, GEYSER_TELEGRAPH,
+    GEYSER_ACTIVE_HOT, GEYSER_ACTIVE_COLD,
+    GEYSER_DORMANT_HOT, GEYSER_DORMANT_COLD,
 )
 from game.draw import (
     blit_glow,
@@ -23,6 +26,7 @@ from game.draw import (
     NEAR_BLACK, WHITE,
 )
 from game import parrot
+from game import snow_fx
 from game.pillar_variants import draw_pillar_pair
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
@@ -448,6 +452,7 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
+
 class Bird:
     def __init__(self):
         self.x = BIRD_X
@@ -478,6 +483,19 @@ class Bird:
         # with the polyline curvature.
         self.cart_tilt_deg = 0.0
 
+        # Weather event state (visual-only):
+        #   wind_lean       — rightward x-offset under the predawn tailwind
+        #   snow_load       — 0..1 windblown snow accumulated on Pip (squall)
+        #   skeleton_flash_t — X-Ray Sparks timer set when lightning strikes
+        self.wind_lean = 0.0
+        self.snow_load = 0.0
+        self.skeleton_flash_t = 0.0
+        # Rain shiver (visual-only) + flap dampen (real, the "wind pushes
+        # me down" cue) under heavy rain. Written by World._apply_weather_effects.
+        self.shiver_x = 0.0
+        self.shiver_y = 0.0
+        self.flap_dampen = 0.0
+
     @property
     def tilt_deg(self):
         # Clamp the downward dive so a fast-falling bird doesn't read as
@@ -487,7 +505,9 @@ class Bird:
 
     def flap(self, gravity_sign=1):
         if self.alive:
-            self.vy = FLAP_V * gravity_sign
+            # Heavy rain dampens lift slightly — the "wind pushing me
+            # down" cue (flap_dampen is 0 outside heavy weather).
+            self.vy = FLAP_V * gravity_sign * (1.0 - self.flap_dampen)
             self.flap_boost = 0.45
 
     def update(self, dt, gravity_sign=1):
@@ -507,6 +527,9 @@ class Bird:
         self.flap_boost = max(0.0, self.flap_boost - dt * 1.8)
         if self.ghost_active:
             self.ghost_pulse += dt * 2.4
+        # X-Ray Sparks flash decays over its 3.5 s window (set by the
+        # storm-jolt lightning strike).
+        self.skeleton_flash_t = max(0.0, self.skeleton_flash_t - dt)
         # Ease shrink_scale toward its target (SHRINK_SCALE while active,
         # 1.0 otherwise) over SHRINK_TRANSITION seconds. Collisions snap on
         # frame 1 via World.bird_radius — only the visible sprite eases.
@@ -520,16 +543,33 @@ class Bird:
                 self.shrink_scale = min(target, self.shrink_scale + step)
 
     def draw(self, surf, shake_x=0, shake_y=0, flipped=False):
+        # Weather visual offsets (collision unaffected): tailwind pushes
+        # Pip rightward; heavy-rain shiver jitters him.
+        shake_x += self.wind_lean + self.shiver_x
+        shake_y += self.shiver_y
         frame_idx = int(self.frame_t) % len(parrot.FRAMES)
         # When flipped (reverse-gravity buff), negate the tilt so a rising
         # bird's head still leads in the direction of motion after the
         # vertical mirror is applied below.
         tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # X-Ray Sparks (storm-jolt strike): a 3.5 s flash where Pip strobes
+        # between his skeleton and his normal sprite — first 0.5 s a solid
+        # skeleton hold, then 3.0 s of strobe at 0.30 s per segment.
+        skeleton_visible = False
+        if self.skeleton_flash_t > 0.0:
+            if self.skeleton_flash_t > 3.0:
+                skeleton_visible = True
+            else:
+                bucket = int((3.0 - self.skeleton_flash_t) / 0.30)
+                skeleton_visible = (bucket % 2 == 0)
         # Combo-aware sprite cascade. The four reachable stacks each have
         # a dedicated themed sprite so no powerup is silently lost; check
         # combos before single-mode flags so e.g. kfc+triple picks the
         # crispy-hat sprite instead of falling through to plain kfc.
-        if self.kfc_active and self.ghost_active and self.triple_active:
+        # X-Ray Sparks overrides every sprite during the flash.
+        if skeleton_visible:
+            img = parrot.get_skeleton_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.ghost_active and self.triple_active:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active:
             img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
@@ -574,14 +614,75 @@ class Bird:
             )
         if flipped:
             img = pygame.transform.flip(img, False, True)
-        if self.ghost_active:
+        if self.ghost_active and not skeleton_visible:
             # Faded breathing: alpha oscillates ~90..170 over a slow sine,
             # so the ghost reads as clearly translucent and ethereal.
+            # Suppressed during the X-Ray flash so the bones read solid.
             img = img.copy()
             pulse = 0.5 + 0.5 * math.sin(self.ghost_pulse)
             img.set_alpha(int(90 + pulse * 80))
-        r = img.get_rect(center=(self.x + shake_x, self.y + shake_y))
+        cx_int = int(self.x + shake_x)
+        cy_int = int(self.y + shake_y)
+        # X-Ray Sparks rim glow — a tight silhouette-edge trim
+        # (outer purple → cyan → white core) traced from the sprite's
+        # mask outline and drawn BEFORE the sprite so only the outer
+        # half shows; pulse-modulated at ~5 Hz.
+        if self.skeleton_flash_t > 0.0:
+            rim_pulse = 0.5 + 0.5 * math.sin(self.frame_t * 30.0)
+            try:
+                sil_mask = pygame.mask.from_surface(img, threshold=20)
+                outline_pts = sil_mask.outline(every=1)
+                if len(outline_pts) >= 2:
+                    rect_pre = img.get_rect(center=(cx_int, cy_int))
+                    glow = pygame.Surface(img.get_size(), pygame.SRCALPHA)
+                    for width, col in (
+                        (5, (180, 100, 255)),
+                        (3, (140, 220, 255)),
+                        (1, (255, 255, 255)),
+                    ):
+                        pygame.draw.lines(glow, col, True, outline_pts, width)
+                    glow.set_alpha(max(0, min(255, int(220 * (0.6 + 0.4 * rim_pulse)))))
+                    surf.blit(glow, rect_pre.topleft)
+            except (pygame.error, AttributeError):
+                pass
+        r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
+        # Windblown snow on Pip during the squall — baked W2 overlay matched to
+        # the sprite's rotozoom(tilt) + body scale, so it stays glued on.
+        if self.snow_load > 0.04 and not skeleton_visible:
+            ov = snow_fx.get_snow_overlay(self.snow_load)
+            if ov is not None:
+                from game.config import GROW_SCALE as _GS
+                bsc = (_GS if self.grow_active else 1.0) * self.shrink_scale
+                # Rotate by the SAME 3°-quantised tilt get_parrot uses, so the
+                # snow stays glued to the sprite (raw tilt jittered the head).
+                q = int(round(tilt / 3.0)) * 3
+                ov = pygame.transform.rotozoom(ov, q, bsc)
+                if flipped:
+                    ov = pygame.transform.flip(ov, False, True)
+                rs = ov.get_rect(center=(cx_int, cy_int))
+                surf.blit(ov, rs.topleft)
+        # X-Ray Sparks arcs — jagged cyan/white mini-bolts discharging
+        # outward from Pip's silhouette while the flash is active.
+        if self.skeleton_flash_t > 0.0:
+            inner_r = 20.0
+            for _k in range(5):
+                ang = random.uniform(0, math.tau)
+                ox = cx_int + math.cos(ang) * inner_r
+                oy = cy_int + math.sin(ang) * inner_r
+                end_r = inner_r + random.uniform(10, 14)
+                ex = cx_int + math.cos(ang) * end_r
+                ey = cy_int + math.sin(ang) * end_r
+                mid_r = (inner_r + end_r) * 0.5
+                perp = ang + math.pi / 2
+                jitter = random.uniform(-3.5, 3.5)
+                mx = cx_int + math.cos(ang) * mid_r + math.cos(perp) * jitter
+                my = cy_int + math.sin(ang) * mid_r + math.sin(perp) * jitter
+                pts = ((int(ox), int(oy)), (int(mx), int(my)), (int(ex), int(ey)))
+                pygame.draw.lines(surf, (140, 220, 255), False, pts, 3)
+                pygame.draw.lines(surf, (255, 255, 255), False, pts, 1)
+                pygame.draw.circle(surf, (255, 255, 255), (int(ex), int(ey)), 2)
+                pygame.draw.circle(surf, (140, 220, 255), (int(ex), int(ey)), 3, 1)
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
         # a tilt-aware offset so it banks with him; mode-coloured to match
@@ -614,12 +715,27 @@ class Bird:
         # Rotate the parcel sprite to match tilt so the gift bow keeps
         # pointing "up" relative to Pip's local frame.
         parcel_rot = pygame.transform.rotate(parcel, parcel_tilt)
-        if self.ghost_active:
+        if self.ghost_active and not skeleton_visible:
             parcel_rot = parcel_rot.copy()
             parcel_rot.set_alpha(int(90 + pulse * 80))
         pr = parcel_rot.get_rect(center=(self.x + shake_x + offset.x,
                                          self.y + shake_y + offset.y))
         surf.blit(parcel_rot, pr.topleft)
+        # Snow settles on the parcel too (objects get capped, not the underside)
+        # — fades in only at high load, matched to the parcel's transform chain.
+        if self.snow_load > snow_fx.PARCEL_ONSET and not skeleton_visible:
+            pov = snow_fx.get_parcel_snow(mode, self.snow_load)
+            if pov is not None:
+                if scale != 1.0:
+                    pw, ph = pov.get_size()
+                    pov = pygame.transform.smoothscale(
+                        pov, (int(pw * scale), int(ph * scale)))
+                if flipped:
+                    pov = pygame.transform.flip(pov, False, True)
+                pov = pygame.transform.rotate(pov, parcel_tilt)
+                ps = pov.get_rect(center=(self.x + shake_x + offset.x,
+                                          self.y + shake_y + offset.y))
+                surf.blit(pov, ps.topleft)
 
 
 # ── Pipe (nature pillar) ─────────────────────────────────────────────────────
@@ -973,13 +1089,16 @@ class Coin:
         self.float_t = random.uniform(0, math.tau)
         # Random sparkle phase per-coin so they don't all twinkle in sync.
         self._sparkle_phase = random.uniform(0, math.tau)
+        # Weather: rain shakes coins left-right (visual-only x offset).
+        self.weather_dx = 0.0
+        self._weather_phase = random.uniform(0, math.tau)
 
     def update(self, dt):
         self.spin = (self.spin + dt * self.SPIN_RATE) % math.tau
         self.float_t += dt
 
     def draw(self, surf, kfc_active=False, triple_active=False):
-        cx = int(self.x)
+        cx = int(self.x + self.weather_dx)
         cy = int(self.y + math.sin(self.float_t * 2.2) * 2)
 
         # During KFC: coins look like a tilted french fry instead of a gold
@@ -2095,6 +2214,99 @@ class CloudPuff:
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
+# ── Geyser (morning-thermal updraft) ──────────────────────────────────────────
+
+from game import geyser_fx
+
+
+class Geyser:
+    """A ground vent that cycles dormant → telegraph → active → dormant.
+
+    While active its hot-air column lifts the bird (the lift force itself is
+    applied in World, which owns the bird). Active and dormant durations are
+    seeded from the thermal intensity at spawn time, so early-window geysers
+    sit mostly dormant and peak-window ones are active often — the
+    sparse→frequent build-up. The lift zone is a vertical band that stops at
+    the column top (mid-screen), so the updraft can never pin Pip to the
+    ceiling."""
+
+    __slots__ = ("x", "intensity", "active_len", "dormant_len", "phase",
+                 "t", "active", "active_strength", "_anim_t")
+
+    def __init__(self, x, intensity):
+        intensity = max(0.0, min(1.0, intensity))
+        self.x = float(x)
+        self.intensity = intensity
+        # Unused now (kept for slot compatibility) — geysers are always-on.
+        self.active_len = 0.0
+        self.dormant_len = 0.0
+        # ALWAYS erupting: no dormant/telegraph cycle. The hot air is on the
+        # whole time the geyser is on screen — a continuous full-height
+        # column + continuous updraft.
+        self.phase = "active"
+        self.t = 0.0
+        self.active = True
+        self.active_strength = 1.0
+        self._anim_t = random.uniform(0.0, 10.0)
+
+    def update(self, dt):
+        # Always active — only the steam animation clock advances.
+        self._anim_t += dt
+
+    def contains(self, bx, by):
+        """True if (bx, by) is inside the lift column. The column spans the
+        full screen height, so the air pushes Pip up anywhere within its
+        width, all the way to the top."""
+        if not self.active:
+            return False
+        return (abs(bx - self.x) <= GEYSER_W * 0.5
+                and (GROUND_Y - GEYSER_H) <= by <= GROUND_Y)
+
+    def off_screen(self):
+        return self.x + GEYSER_W < 0
+
+    def draw(self, surf):
+        cx = int(self.x)
+        base_y = GROUND_Y
+
+        # Sinter-cone vent at the base.
+        surf.blit(geyser_fx.get_vent_cone(),
+                  (cx - geyser_fx.CONE_W // 2, base_y - geyser_fx.CONE_BASE_ROW))
+
+        # Erupting steam column — only on active geysers. Duds (active=False)
+        # show the cone + base ring on the ground but no rising hot air.
+        # Pre-baked looping frames; per-geyser _anim_t offset desyncs neighbours.
+        if self.active:
+            frame = geyser_fx.get_steam_frames()[
+                int(self._anim_t * geyser_fx.STEAM_FPS) % geyser_fx.STEAM_N]
+            mouth_y = base_y - geyser_fx.MOUTH_DY
+            surf.blit(frame, (cx - geyser_fx.STEAM_W // 2, mouth_y - geyser_fx.STEAM_H))
+
+
+# ── Rock (morning-thermal ground decoration) ─────────────────────────────────
+
+
+class Rock:
+    """A scattered sinter rock that drifts past with the ground during the
+    morning-thermal window. Spawn density scales with the thermal intensity
+    (sparse buildup → dense → fade). Pure decoration: the world scrolls its x;
+    the sprite itself is pre-baked in geyser_fx."""
+
+    __slots__ = ("x", "y", "variant")
+
+    def __init__(self, x, y, variant):
+        self.x = float(x)
+        self.y = float(y)
+        self.variant = variant
+
+    def off_screen(self):
+        return self.x + geyser_fx.ROCK_MAX_W < 0
+
+    def draw(self, surf):
+        s, ox, oy = geyser_fx.get_rock_variants()[self.variant]
+        surf.blit(s, (int(self.x - ox), int(self.y - oy)))
+
+
 # ── FloatText ────────────────────────────────────────────────────────────────
 
 _float_font_cache: dict = {}
@@ -2225,3 +2437,55 @@ class FloatText:
         comp.set_alpha(alpha)
         rect = comp.get_rect(center=(int(self.x), int(self.y)))
         surf.blit(comp, rect.topleft)
+
+
+class FlyingCoinParticle:
+    """Full-detail Coin medallion with particle physics. Used by the
+    storm jolt so the coins flying off Pip read as the SAME currency
+    he just lost — not the smaller doubloons the treasure box uses.
+    Wraps an internal Coin so all the gradient / outline / parrot /
+    sparkle work is unchanged; this class only adds motion, gravity,
+    life, and alpha fade-out."""
+
+    def __init__(self, x, y, vx, vy, *, life=0.95):
+        self._coin = Coin(x, y)
+        self._coin.spin = random.uniform(0, math.tau)
+        self.vx = vx
+        self.vy = vy
+        self.life = life
+        self.life_max = life
+
+    def update(self, dt):
+        # Slightly heavier than TreasureCoinParticle so the arc reads
+        # like real coins, not a champagne pop.
+        self.vy += 800.0 * dt
+        self._coin.x += self.vx * dt
+        self._coin.y += self.vy * dt
+        # Spin faster than a stationary Coin (flung outward = tumbling).
+        self._coin.spin = (self._coin.spin + dt * 9.0) % math.tau
+        self._coin.float_t += dt
+        self.life -= dt
+
+    def alive(self):
+        return self.life > 0
+
+    def draw(self, surf):
+        t = max(0.0, self.life / self.life_max)
+        if t >= 0.5:
+            # Full opacity during the bright half — draw straight to surf.
+            self._coin.draw(surf)
+            return
+        # Fade phase: render to a transparent buffer, then alpha-blit.
+        # Buffer is sized generously so the squeeze + sparkles fit.
+        BUF = 48
+        scratch = pygame.Surface((BUF, BUF), pygame.SRCALPHA)
+        # Trick: temporarily override the coin's x/y to the buffer centre
+        # so its own draw places it cleanly inside the scratch surface,
+        # then restore.
+        saved_x, saved_y = self._coin.x, self._coin.y
+        self._coin.x, self._coin.y = BUF // 2, BUF // 2
+        self._coin.draw(scratch)
+        self._coin.x, self._coin.y = saved_x, saved_y
+        scratch.set_alpha(int(255 * (t * 2)))
+        surf.blit(scratch, (int(saved_x) - BUF // 2,
+                            int(saved_y) - BUF // 2))
