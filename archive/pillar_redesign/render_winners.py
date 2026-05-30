@@ -78,8 +78,8 @@ WINNERS = [
      pgv_r4, "candidate_stupa_canopy", "R4"),
     ("Round 5 v4 — Wat Arun (Thai Khmer prang)",
      pgv,    "candidate_wat_arun",     "R5"),
-    ("Round 5 v5 — Songyue (12-sided Northern Wei brick)",
-     pgv,    "candidate_songyue",      "R5"),
+    ("Round 5 v5 — Songyue Sandstone (12-sided Wei brick, warm tan)",
+     pgv,    "candidate_songyue_sandstone", "R5+R14"),
     ("Round 7 d1 — Hōryū-ji (Japanese 5-storey tō, baseline)",
      pgv,    "candidate_horyuji",      "R7"),
     ("Round 7 d2 — Fogong / Yingxian (Liao wooden, baseline)",
@@ -104,7 +104,8 @@ WINNERS = [
 ROW_GROUND_ACCENT = {
     "daigoji":      (148, 80, 50),    # red-clay foreground.
     "wat_arun":     (180, 120, 140),  # Thai temple-grounds rose-clay.
-    "songyue":      (162, 96, 72),    # Henan terracotta dust.
+    "songyue_sandstone": (192, 148, 110),  # warm sandy Wei dust to pair with the lighter brick.
+    "songyue":      (162, 96, 72),    # Henan terracotta dust (original baseline, kept for reference).
     "toji":         (96, 76, 60),     # Heian cedar-litter forest.
     "yakushiji":    (140, 116, 78),   # Nara warm bronze-stone court.
     "baoen":        (208, 196, 178),  # Nanjing cool porcelain-white path.
