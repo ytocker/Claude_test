@@ -1,4 +1,4 @@
-"""Render `docs/cloud_redesign/round_2.png`.
+"""Render `docs/cloud_redesign/round_3.png`.
 
 Composes one full game scene per cell (sky + V14 backdrop + ground)
 and scatters 6 instances of the row's cloud variant across it so each
@@ -64,7 +64,7 @@ PHASES = [
 # resampled per instance with `random` (round-2 fix B) so the layout
 # isn't a uniform-scale grid; the seed is `(row, col, idx)` so the
 # pattern is deterministic and reproducible.
-RIDGE_SLOT = (140, 380)  # x fixed, y jittered around the ridgeline
+RIDGE_SLOT = (140, 340)  # x fixed, y jittered around the ridgeline
 CLOUD_SLOTS_XY = (
     # First slot is the ridge anchor — y is replaced at runtime.
     RIDGE_SLOT,
@@ -112,16 +112,20 @@ def render_cell(variant_id: int, phase: float, col_idx: int) -> pygame.Surface:
         # Subtle bob keeps the demo from looking flat-tiled.
         bob = math.sin(i * 0.9) * 2
         # Slot 0 is force-anchored to the V14 ridgeline (round-2 fix C).
+        # Round-3: bump 380 → 340 so wisps clear the pagoda spire on the
+        # mid-band ridge silhouette instead of slicing through it.
         if i == 0:
-            cy_eff = 380 + rng.randint(-20, 40)
+            cy_eff = 340 + rng.randint(-20, 40)
         else:
             cy_eff = cy + bob
         # Variant 4 (Trailing Mist Veil) is contract-bound to the lower
-        # sky band only — clamp its y so it can't drift up into the
-        # high-altitude band where it would just read as a misplaced
-        # streak.
-        if variant_id == 4 and cy_eff < int(H * 0.55):
-            cy_eff = int(H * 0.55) + rng.randint(0, 40)
+        # sky band only. Round-3: pull the anchor lower (0.70-0.78 × H)
+        # so the veil actually overlaps the V14 ridge silhouette — the
+        # entire premise of the variant is "fog clinging to a ridge",
+        # which the old 0.55*H clamp defeated by floating the veil
+        # above the ridges.
+        if variant_id == 4:
+            cy_eff = int(H * 0.70) + rng.randint(0, int(H * 0.08))
         draw_fn(surf, cx, cy_eff, palette, scale=sc)
     return surf
 
@@ -141,7 +145,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "CLOUD REDESIGN — ROUND 2 · 5 variants × 5 phases",
+        "CLOUD REDESIGN — ROUND 3 · 5 variants × 5 phases",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -213,7 +217,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "round_2.png"
+    out = OUT / "round_3.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 

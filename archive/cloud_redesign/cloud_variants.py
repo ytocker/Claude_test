@@ -110,8 +110,10 @@ def draw_cloud_sumie(surf, x, y, palette, scale=1.0):
     edge = _ink_shadow_color(palette)
     lit = _lit_edge_color(palette)
 
-    # Stroke length and head radius scale together.
-    length = int(80 * scale)
+    # Stroke length and head radius scale together. Length pulled in
+    # from 80 → 60 so the wisp reads as one confident calligraphic
+    # stroke instead of a comet trail across the sky.
+    length = int(60 * scale)
     head_r = int(14 * scale)
     pad = head_r + 6
     surf_w = length + pad * 2
@@ -141,7 +143,10 @@ def draw_cloud_sumie(surf, x, y, palette, scale=1.0):
     for i in range(n_body):
         t = i / (n_body - 1)
         bx = pad + head_r + int(t * (length - head_r))
-        by = cy + int(math.sin(t * math.pi * 0.6 - 0.1) * 4 * scale)
+        # Swoop amplitude halved (4 → 2) so the spine reads as a single
+        # confident stroke rather than a comet arc; the head-vs-tail
+        # height delta still breaks the flat horizontal silhouette.
+        by = cy + int(math.sin(t * math.pi * 0.6 - 0.1) * 2 * scale)
         rad = max(2, int((head_r - 3) * (1 - t * 0.85)))
         a = int(_lerp(210, 120, t))
         pygame.draw.ellipse(
@@ -159,7 +164,9 @@ def draw_cloud_sumie(surf, x, y, palette, scale=1.0):
             break
         tx = pad + head_r + int(t * (length - head_r))
         jitter = ((rng_seed >> (k % 16)) & 0x7) - 3
-        ty = cy + int(math.sin(t * math.pi * 0.7 - 0.1) * 4 * scale) + jitter
+        # Tail amplitude matches the body's tamed swoop (4 → 2) so the
+        # specks track the spine instead of drifting above/below it.
+        ty = cy + int(math.sin(t * math.pi * 0.7 - 0.1) * 2 * scale) + jitter
         rad = max(1, int(3.5 * scale * (1 - t * 0.6)))
         a = int(_lerp(190, 30, t))
         if a <= 0:
@@ -169,10 +176,13 @@ def draw_cloud_sumie(surf, x, y, palette, scale=1.0):
     # Ink-shadow underline. Pulled from `mtn_far` direct (not pre-mixed
     # toward sky_top) so warm-on-warm sunset / golden still shows the
     # pooled edge; the mixed colour collapsed into the horizon band.
+    # Width pulled in (head_r*3 → head_r*2) and alpha softened
+    # (110 → 70) so the underline supports the head rather than
+    # outlining it like a label.
     pygame.draw.ellipse(
-        s, (*palette['mtn_far'], 110),
+        s, (*palette['mtn_far'], 70),
         pygame.Rect(pad - 2, cy + head_r // 2 - 1,
-                    head_r * 3, max(3, int(head_r * 0.6))))
+                    head_r * 2, max(3, int(head_r * 0.6))))
 
     # Sunlit highlight kiss on the top-left of the head.
     pygame.draw.ellipse(
@@ -234,10 +244,12 @@ def draw_cloud_ruyi(surf, x, y, palette, scale=1.0):
         for i, (lx, ly, lr) in enumerate(base_lobes)
     )
 
-    # 1. Soft ink-shadow halo offset down-right.
+    # 1. Soft ink-shadow halo offset down-right. Alpha pulled 70 → 45
+    # and offset +2,+3 → +1,+2 so the halo reads as drop-shadow whisper
+    # instead of bordering the lobes like a stencil.
     for (lx, ly, lr) in lobes:
         pygame.draw.circle(
-            s, (*edge, 70), (lx + pad + 2, ly + 3), lr + 1)
+            s, (*edge, 45), (lx + pad + 1, ly + 2), lr + 1)
     # Base ribbon — halved vertical extent (was h*0.28, now ~h*0.18) so
     # the ribbon supports the lobes rather than overwhelming them.
     base_pts = [
@@ -279,13 +291,15 @@ def draw_cloud_ruyi(surf, x, y, palette, scale=1.0):
     pygame.draw.lines(s, (*edge, 170), False, base_pts[:5], 2)
     pygame.draw.lines(s, (*edge, 130), False, base_pts[4:], 1)
 
-    # 5. Sunlit crescents on top-left of each lobe.
-    for (lx, ly, lr) in lobes:
-        cx_l = lx + pad
-        pygame.draw.arc(s, (*lit, 200),
-                        pygame.Rect(cx_l - lr + 2, ly - lr + 2,
-                                    lr * 2 - 4, lr * 2 - 4),
-                        math.radians(110), math.radians(220), 2)
+    # 5. Sunlit crescent — restricted to the dominant (middle) lobe only.
+    # Three crescents lit the silhouette like a vector decal; one
+    # crescent on the apex lobe reads as a single directional sun-kiss.
+    lx, ly, lr = lobes[1]
+    cx_l = lx + pad
+    pygame.draw.arc(s, (*lit, 200),
+                    pygame.Rect(cx_l - lr + 2, ly - lr + 2,
+                                lr * 2 - 4, lr * 2 - 4),
+                    math.radians(110), math.radians(220), 2)
 
     surf.blit(s, (int(x - cx), int(y - cy)))
 
@@ -318,12 +332,27 @@ def draw_cloud_yunhai(surf, x, y, palette, scale=1.0):
     # offset per band — purely vertical alignment read as flat-stencil.
     # Top tilts right, bottom tilts left so the bank reads as parallax-
     # offset strata at different "distances".
-    strata = (
-        # (centre_y_frac, half_w_frac, half_h, alpha, x_offset_frac)
-        (0.22, 0.78, 5, 210, +0.05),
-        (0.50, 1.00, 7, 235,  0.00),
-        (0.78, 0.88, 6, 175, -0.05),
-    )
+    # At NIGHT the bank covered the star field too aggressively; soften
+    # the alphas (210/235/175 → 180/210/150) so stars peek through the
+    # bank just like in Yoshida's "Unkai" nightside woodblock.
+    sky_top_strata = palette['sky_top']
+    top_lum_strata = (
+        sky_top_strata[0] * 299
+        + sky_top_strata[1] * 587
+        + sky_top_strata[2] * 114
+    ) / 1000
+    if top_lum_strata < 90:
+        strata = (
+            (0.22, 0.78, 5, 180, +0.05),
+            (0.50, 1.00, 7, 210,  0.00),
+            (0.78, 0.88, 6, 150, -0.05),
+        )
+    else:
+        strata = (
+            (0.22, 0.78, 5, 210, +0.05),
+            (0.50, 1.00, 7, 235,  0.00),
+            (0.78, 0.88, 6, 175, -0.05),
+        )
 
     cy = pad + h // 2
     cx = pad + w // 2
@@ -420,50 +449,54 @@ def draw_cloud_mistveil(surf, x, y, palette, scale=1.0):
     else:
         rim = palette['horizon']
 
-    # Build the veil as a stack of 3 horizontal slices, each painted as
-    # a row of short segments with alpha peaking at centre and tapering
-    # to 0 at the ends. Top slice gets a brighter `body+lit` mix, bottom
-    # slice picks up the rim tint so the fog has a 2-stop vertical
-    # gradient (lighter top, slightly cooler bottom) without per-pixel
-    # surfarray ops.
-    slices = (
-        # (y_offset, height_frac, color, peak_alpha)
-        (-thickness // 2,     0.45, _lerp_color(body, lit, 0.25), 220),
-        (0,                   0.55, body,                          200),
-        ( thickness // 2,     0.45, _lerp_color(body, rim, 0.45),  170),
+    # Round-3 re-roll: the previous 28-stripe slice stack produced
+    # visible vertical scanline bars — read like a corrupt JPEG, not
+    # Huangshan fog. Replace with a small set of overlapping long thin
+    # ellipses, alpha-stacked, so the silhouette has soft elliptical
+    # falloff at both ends and zero per-column banding.
+    #
+    # Each tier is one continuous ellipse painted onto its own
+    # SRCALPHA scratch and blitted with reduced alpha — the natural
+    # horizontal alpha bell comes from drawing 3 progressively shorter
+    # overlapping ellipses, which gives a wide soft centre and tapered
+    # edges without any per-pixel mask work.
+    tiers = (
+        # (color, length_frac, height_frac, alpha)
+        (_lerp_color(body, lit, 0.25), 0.62, 0.45, 230),  # bright top tier
+        (body,                          0.92, 0.95, 215),  # main body
+        (_lerp_color(body, rim, 0.45), 0.78, 0.55, 170),  # cool bottom tier
+    )
+    tier_y_off = (
+        -max(1, thickness // 3),
+         0,
+         max(1, thickness // 3),
     )
 
-    n = 28
-    for (yo, hfrac, col, peak_a) in slices:
-        slice_h = max(2, int(thickness * hfrac))
-        for i in range(n):
-            t = i / (n - 1)
-            # Smooth bell: peaks at t=0.5, 0 at the ends. Use sin^2 so
-            # the centre plateau is wide and the ends fall off softly.
-            bell = math.sin(t * math.pi) ** 1.2
-            a = int(peak_a * bell)
-            if a <= 0:
-                continue
-            seg_x = pad + int(t * length)
-            seg_w = max(2, int(length / n) + 1)
-            rect = pygame.Rect(seg_x - seg_w // 2,
-                               cy + yo - slice_h // 2,
-                               seg_w, slice_h)
-            slice_surf = pygame.Surface(rect.size, pygame.SRCALPHA)
-            slice_surf.fill((*col, a))
-            s.blit(slice_surf, rect.topleft)
+    for (col, lfrac, hfrac, alpha), yo in zip(tiers, tier_y_off):
+        ell_w = max(8, int(length * lfrac))
+        ell_h = max(2, int(thickness * 2.2 * hfrac))
+        rect = pygame.Rect(
+            pad + (length - ell_w) // 2,
+            cy + yo - ell_h // 2,
+            ell_w, ell_h,
+        )
+        # Drawing the ellipse with the alpha embedded keeps it a single
+        # continuous shape — no segmented surface fills, so there are
+        # no column-aligned seams that could read as scanlines.
+        pygame.draw.ellipse(s, (*col, alpha), rect)
 
-    # A single thin lit highlight along the top edge sells the fog as
-    # catching sky light from above — strongest at the centre.
-    for i in range(n):
-        t = i / (n - 1)
-        bell = math.sin(t * math.pi) ** 1.4
-        a = int(140 * bell)
-        if a < 30:
-            continue
-        px = pad + int(t * length)
-        pygame.draw.circle(s, (*lit, a),
-                           (px, cy - thickness // 2 - 1), 1)
+    # One continuous thin lit line along the top arc — replaces the
+    # previous row of 1-px specks (AD: read as a pixel row of specks).
+    # Drawn as a flat ellipse a hair above the main body, with a
+    # shallow height so it presents as a curved highlight line.
+    top_line_w = max(8, int(length * 0.55))
+    top_line_h = max(2, thickness // 2)
+    top_rect = pygame.Rect(
+        pad + (length - top_line_w) // 2,
+        cy - thickness - top_line_h // 2,
+        top_line_w, top_line_h,
+    )
+    pygame.draw.ellipse(s, (*lit, 110), top_rect)
 
     surf.blit(s, (int(x - pad - length // 2), int(y - cy)))
 
@@ -543,9 +576,20 @@ def draw_cloud_minhwa(surf, x, y, palette, scale=1.0):
 
     # Bold outline (2 px) — traced as a polyline of the silhouette top
     # (3 arcs), then sides + bottom. Use arcs for the scallop outline.
+    # Day-phase outline alpha is pulled 220 → 180 so the scallop edges
+    # stop reading as "comic-book inked" against bright DAY sky; the
+    # bolder 220 is retained for low-luminance phases where the outline
+    # is what keeps the silhouette legible.
+    sky_top_minhwa = palette['sky_top']
+    minhwa_top_lum = (
+        sky_top_minhwa[0] * 299
+        + sky_top_minhwa[1] * 587
+        + sky_top_minhwa[2] * 114
+    ) / 1000
+    outline_top_a = 180 if minhwa_top_lum > 150 else 220
     for (scx, scy, scr) in scallop_centres:
         pygame.draw.arc(
-            s, (*outline, 220),
+            s, (*outline, outline_top_a),
             pygame.Rect(scx - scr, scy - scr, scr * 2, scr * 2),
             math.radians(20), math.radians(160), 2)
     # Sides + bottom outline as a single rounded-rect stroke beneath
