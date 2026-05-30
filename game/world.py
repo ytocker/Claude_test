@@ -229,6 +229,14 @@ class World:
         self._playtest_genie_remaining = 5
         self._playtest_genie_pipes_until_next = 1
 
+        # One-shot: when the run's score first crosses LATE_GAME_SCORE,
+        # the next power-up roll is forced to be a genie so the player
+        # gets a guaranteed introduction to the secret tier. Consumed
+        # by _maybe_spawn_powerup. Stays False in playtest mode (score
+        # starts already past the gate and the playtest schedule
+        # handles its own forced spawns).
+        self._force_next_genie = False
+
         self._seed_first_pipes()
 
     # Back-compat: older snapshot/playtest scripts poke `world.mushrooms`.
@@ -533,6 +541,15 @@ class World:
                 self._playtest_genie_remaining -= 1
                 self._playtest_genie_pipes_until_next = 5
                 return
+        # LATE_GAME_SCORE milestone: first power-up roll after crossing
+        # 400 is forced to genie. Bypasses cooldown + chance + weights.
+        if self._force_next_genie:
+            x = pipe.x + PIPE_W + self._current_spacing() * 0.5
+            y = pipe.gap_y
+            self.powerups.append(PowerUp(x, y, kind="genie"))
+            self.powerup_cooldown = POWERUP_COOLDOWN
+            self._force_next_genie = False
+            return
         if self.powerup_cooldown > 0:
             return
         if random.random() >= self._current_powerup_chance():
@@ -789,6 +806,11 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
+                    # One-shot genie milestone: the moment score crosses
+                    # LATE_GAME_SCORE, queue a forced genie for the next
+                    # power-up roll so the player meets the secret tier.
+                    if self.score == LATE_GAME_SCORE:
+                        self._force_next_genie = True
                     self._proof.record(self.time_alive, 1, "pipe")
                     # RAIL: count down the per-ride pillar budget. Fires
                     # whether or not Pip locked — if all 5 tagged pipes
@@ -1319,7 +1341,14 @@ class World:
             magnet_kind = ("megamagnet"
                            if self.score >= POWERUP_REPLACED_AT.get("magnet", 1 << 30)
                            else "magnet")
-            kind = random.choice(("triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"))
+            choices = ["triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"]
+            # Past LATE_GAME_SCORE, the Surprise Box also rolls the
+            # genie — the trap-bearing tier no longer needs its own
+            # standalone pickup to surface. (Knight / poison /
+            # skateboard stay genie-only.)
+            if self.score >= LATE_GAME_SCORE:
+                choices.append("genie")
+            kind = random.choice(choices)
             self._spawn_surprise_reveal(m)
         self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":
