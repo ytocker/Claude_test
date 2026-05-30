@@ -883,7 +883,7 @@ def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=Non
         if layer_idx == 2:
             n_sections = 1
         else:
-            n_sections = rng.randint(1, 2)
+            n_sections = 2
         cuts = sorted(rng.sample(range(40, w - 40), n_sections - 1))
         bounds = [0] + cuts + [w]
         peaks = _local_peaks(heights, look=18)
@@ -955,7 +955,7 @@ def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=Non
                 _pavilion(surf, cx, cy - 1, base_color, accent, scale=pscale)
                 _stone_lantern(surf, cx + rng.choice((-12, 12)), cy - 1,
                                base_color, accent)
-                if rng.random() < 0.30:
+                if rng.random() < 0.50:
                     tx = cx + rng.randint(-26, 26)
                     if lo <= tx <= hi:
                         ty = heights[min(tx, len(heights) - 1)][1]
@@ -972,7 +972,7 @@ def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=Non
                     sc = rng.uniform(lo_s, hi_s) * elem_region['pag_scale_mul']
                     _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
                             base_color, accent, scale=sc)
-                if rng.random() < 0.30 and hi - lo >= 20:
+                if rng.random() < 0.50 and hi - lo >= 20:
                     tx = rng.randint(lo + 6, hi - 6)
                     ty = heights[min(tx, len(heights) - 1)][1]
                     elem_region = _v14_region(scroll + tx)
