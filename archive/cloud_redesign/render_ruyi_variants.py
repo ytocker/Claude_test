@@ -1,4 +1,4 @@
-"""Render `docs/cloud_redesign/ruyi_variations_round_2.png`.
+"""Render `docs/cloud_redesign/ruyi_variations_round_3.png`.
 
 Row 1 is the round-23 baseline (`cloud_variants.draw_cloud_ruyi`) so the
 critique can compare every new candidate against the byte-identical
@@ -132,7 +132,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "RUYI VARIATIONS — ROUND 2 · AD critique applied per-row",
+        "RUYI VARIATIONS — ROUND 3 · final surgical fixes (Sovereign + Dragon)",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -208,7 +208,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "ruyi_variations_round_2.png"
+    out = OUT / "ruyi_variations_round_3.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 

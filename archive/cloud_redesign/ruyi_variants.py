@@ -292,8 +292,11 @@ def draw_ruyi_sovereign(surf, x, y, palette, scale=1.0):
     night = _is_night(palette)
 
     r = int(18 * scale)
-    # Sibling micro-lobe (40% radius) — needs pad to fit at 4-o'clock.
-    sib_r = max(3, int(r * 0.40))
+    # Sibling micro-lobe (45% radius) — bumped from 40% per AD round-2:
+    # 40% was borderline on DUSK and didn't survive at 1× scale; 45%
+    # clinches the Ruyi double-lobe read across all phases. Needs pad
+    # to fit at 4-o'clock.
+    sib_r = max(3, int(r * 0.45))
     pad = r + 10 + sib_r
     s = _alpha_surf(r * 2 + pad * 2, r * 2 + pad * 2)
     cx = pad + r
@@ -325,9 +328,11 @@ def draw_ruyi_sovereign(surf, x, y, palette, scale=1.0):
 
     # Canonical lobe with stronger keyline alpha — the sovereign read
     # wants a confident inked silhouette. body_a dropped 248→252 per AD
-    # round-2 day-contrast note.
+    # round-2 day-contrast note; NIGHT phase drops to 235 per AD round-3
+    # because 252 looked chalky against the deep navy night column.
+    sovereign_body_a = 235 if night else 252
     _ruyi_lobe(s, cx, cy, r, body, edge_lobe, lit,
-               body_a=252, key_a=190, lit_arc=True)
+               body_a=sovereign_body_a, key_a=190, lit_arc=True)
 
     # Sibling micro-lobe at the 4-o'clock position — clinches the Ruyi
     # double-lobed silhouette so the icon reads AS a Ruyi rather than a
@@ -655,7 +660,12 @@ def draw_ruyi_dragon(surf, x, y, palette, scale=1.0):
     lit = _lit_edge_color(palette)
     night = _is_night(palette)
 
-    length = int(120 * scale)
+    # Body length trimmed 120 → 102 (-15%) per AD round-3: at 1× the
+    # 120 px form ate more sky than the spacing budget allows for a
+    # 3-cloud parallax band. Head 0.95×h and tail 0.35×h ratios held
+    # constant, sine period stays at π * 1.4 — only the horizontal
+    # footprint shrinks.
+    length = int(102 * scale)
     h = int(20 * scale)
     pad = 8
     s = _alpha_surf(length + pad * 2, h * 3 + pad * 2)
