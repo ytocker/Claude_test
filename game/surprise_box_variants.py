@@ -143,7 +143,6 @@ def _ribbon_v(surf, rect, w=8):
 
 def draw_cross(surf, cx, cy, t=0.0):
     rect = _box_rect(cx, cy)
-    _drop_shadow(surf, cx, rect.bottom - 4, BOX_W + 4)
     _draw_box_body(surf, rect, RED_BASE, RED_SHADE, RED_HI)
     _ribbon_v(surf, rect, w=6)
     _ribbon_h(surf, rect, w=6)
