@@ -1603,13 +1603,14 @@ class World:
         ))
 
     # Pip's centre-y when the cart is locked on the rail — chosen so
-    # the wagon body sits with its wheels exactly on the rail line.
+    # the cart body sits with its wheels exactly on the rail line.
     _CART_LOCKED_OFFSET = 32
 
     # Parked-cart hitbox — bounds match the visual painted by
     # scenes._draw_parked_cart so what the player sees as "the cart"
-    # is exactly what triggers the lock.
-    _CART_HALF_W = 22
+    # is exactly what triggers the lock. Half-width tracks the mine
+    # cart's 72-px top (36 each side).
+    _CART_HALF_W = 36
     _CART_TOP_OFF = 28
     _CART_BOT_OFF = 5
 
