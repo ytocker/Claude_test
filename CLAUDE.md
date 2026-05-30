@@ -69,8 +69,9 @@ game/
   surprise_box_variants.py    Procedural gift-box sprites
   assets/                     ONLY vendored fonts + KFC logo + sound OGGs
 supabase/schema.sql           public.scores table + RLS policies
-tests/test_plausibility.py    Only test file — 7 unit tests
+tests/test_plausibility.py    Score-ceiling unit tests (7)
 docs/                         Screenshots + asset exploration galleries
+analytics/                    Streamlit + Supabase telemetry dashboard
 ```
 
 ## Hard rules
@@ -162,6 +163,11 @@ every session (cloud + local); each is auto-delegated by its
   web path.
 - `gaming-experience-tester` (sonnet) — read-only QA for feel, balance,
   power-ups, scene flow, and both build targets.
+- `data-analyst` (opus) — Streamlit + Supabase analytics dashboard; produces
+  and revises analysis on analytics-director notes (no self-critique).
+- `analytics-director` (opus) — veteran analytics critic; reviews
+  data-analyst round notes and returns actionable critique to steer the next
+  iteration.
 
 ## Design loop (orchestrator-run)
 
@@ -176,9 +182,40 @@ or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
    is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
 3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
    next-round brief → new combined image → back to step 2.
-4. Stop when the verdict is SHIP-READY or after 3 critique rounds, whichever
-   comes first (always run at least 1 critique round).
-5. Surface only the final image (git path) + a short evolution summary to the
-   user; integrate the winning version into the game once chosen.
+4. Stop when a critique returns SHIP-READY, or once the turn budget is spent —
+   the `art-director` critiques up to 3 times and the `graphics-designer` gets
+   up to 4 turns, so it always gets a final pass to implement the 3rd critique
+   (sequence: designer → critic → … → critic → **designer**, at most 4 designer
+   + 3 critic turns, ending on a designer revision) — whichever comes first.
+   Always run at least 1 critique.
+5. Surface only the final image (git path) + a short evolution summary, then
+   integrate the winning version once chosen. If the budget is spent without an
+   earlier SHIP-READY, the final designer sheet already folds in the last
+   critique — surface it, flag that it didn't get a ship-ready sign-off, and let
+   the user decide.
 
 Trivial recolors may skip the loop at the user's discretion.
+
+## Data analysis loop (orchestrator-run)
+
+Same shape as the Design loop above, but for the Streamlit analytics product
+under `analytics/`. For any task that analyses gameplay data, adds or refines
+a KPI or chart, or extends the dashboard:
+
+1. Delegate the brief to `data-analyst` → it returns ONE round notes file at
+   `analytics/reviews/<feature>/round_N.md` (goal, files changed, fixture
+   numbers, embedded chart PNGs, `pytest` output). It does NOT self-critique.
+2. Hand that round to `analytics-director` → it returns a critique whose first
+   line is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
+3. On ITERATE / RE-ROLL, feed the critique back to `data-analyst` as the
+   next-round brief → new round notes → back to step 2.
+4. Same cap as the Design loop: `analytics-director` critiques up to 3 times
+   and `data-analyst` gets up to 4 turns (ending on an analyst revision).
+   Always run at least 1 critique. Early-exit on `VERDICT: SHIP-READY`.
+5. Surface only the final round notes (git path) + a short evolution summary,
+   then wire the change to the live dashboard once chosen. If the budget is
+   spent without SHIP-READY, the final analyst notes already fold in the last
+   critique — surface them, flag that they didn't get a ship-ready sign-off,
+   and let the user decide.
+
+Trivial fixes (typos, colour tweaks) may skip the loop at the user's discretion.
