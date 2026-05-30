@@ -86,7 +86,7 @@ class World:
         self.scroll_speed = SCROLL_BASE
         self.bg_scroll = 0.0
 
-        self.score = 0
+        self.score = 395  # PLAYTEST: start near LATE_GAME_SCORE to verify genie milestone
         self.coin_count = 0
 
         self.triple_timer = 0.0
