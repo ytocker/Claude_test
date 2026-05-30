@@ -779,10 +779,30 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     # One-shot genie milestone: the moment score crosses
-                    # LATE_GAME_SCORE, queue a forced genie for the next
-                    # power-up roll so the player meets the secret tier.
+                    # LATE_GAME_SCORE, force a genie as the next power-up
+                    # the player encounters. Pipes ahead of Pip have
+                    # already been pre-spawned with non-genie power-ups;
+                    # wipe those uncollected ahead-of-Pip floats and drop
+                    # a genie at the nearest upcoming pipe directly so
+                    # Pip can't grab a pre-attached non-genie first.
                     if self.score == LATE_GAME_SCORE:
                         self._force_next_genie = True
+                        bx_now = self.bird.x
+                        self.powerups = [pu for pu in self.powerups
+                                          if pu.x <= bx_now]
+                        target_pipe = None
+                        for nxt in self.pipes:
+                            if (nxt.x > bx_now
+                                    and not getattr(nxt, "is_genie_chamber", False)
+                                    and not getattr(nxt, "rush", False)):
+                                target_pipe = nxt
+                                break
+                        if target_pipe is not None:
+                            gx = target_pipe.x + PIPE_W + self._current_spacing() * 0.5
+                            gy = target_pipe.gap_y
+                            self.powerups.append(PowerUp(gx, gy, kind="genie"))
+                            self.powerup_cooldown = POWERUP_COOLDOWN
+                            self._force_next_genie = False
                     self._proof.record(self.time_alive, 1, "pipe")
                     # RAIL: count down the per-ride pillar budget. Fires
                     # whether or not Pip locked — if all 5 tagged pipes
