@@ -86,38 +86,38 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
 # and a soft drop. One bright shape, no cream, so the whole glyph is brand gold
 # and the score reads instantly over a bright-sky pillar AND at night. The face
 # is built by masking a vertical gradient band to the glyph's own alpha so every
-# stroke shares one light direction. Composited on a 4x supersample for crisp
-# fixed-width edges (so "12" and "1287" share one keyline weight), smooth-scaled
-# to native, and cached per score string — far too costly to rebuild per frame.
+# stroke shares one light direction, composited on a 4x supersample for crisp
+# fixed-width edges, then smooth-scaled to native.
 _SCORE_GOLD_HI = (255, 234, 158)   # bright sheen near the crown of a digit
 _SCORE_GOLD_LO = (190, 132,  34)   # deep amber at the foot of a digit
 _SCORE_KEY     = ( 14,  11,   9)   # near-black keyline (the figure-ground hero)
-_score_token_cache: dict = {}
+_score_glyph_cache: dict = {}
 
 
-def _score_token(txt):
-    """Return a cached, transparent, native-size gold-gradient score token to
-    blit centred on the plate. Layer order back-to-front: near-black drop, dark
-    keyline contour, then a vertical gold-gradient face (sheen crown → amber
-    foot) masked to the glyph alpha."""
-    cached = _score_token_cache.get(txt)
+def _score_glyph(ch):
+    """Build (once) and cache the native gold-gradient token for a SINGLE
+    character. The 4x-supersample build is expensive, but digits are tabular so
+    the per-glyph token is pixel-identical to that glyph inside a whole-string
+    render — which lets the score be composed from cached glyphs instead of
+    rebuilt every time the score changes."""
+    cached = _score_glyph_cache.get(ch)
     if cached is not None:
         return cached
     ss = 4                       # supersample so the keyline + gradient stay crisp
     f = _font(46 * ss, True)
-    mask = f.render(txt, True, (255, 255, 255))   # white glyph = the gradient mask
+    mask = f.render(ch, True, (255, 255, 255))   # white glyph = the gradient mask
     gw, gh = mask.get_size()
     key_r = 2 * ss               # ~2px native keyline contour radius
     pad = key_r + 3 * ss         # room for the keyline + the (+2,+3) drop
     big = pygame.Surface((gw + pad * 2, gh + pad * 2), pygame.SRCALPHA)
     cx, cy = big.get_width() // 2, big.get_height() // 2
 
-    drop = f.render(txt, True, _SCORE_KEY)
+    drop = f.render(ch, True, _SCORE_KEY)
     drop.set_alpha(150)
     big.blit(drop, drop.get_rect(center=(cx + 2 * ss, cy + 3 * ss)))
     # Uniform disc of integer offsets => a contour of constant width regardless
     # of digit count (a fixed pixel radius, not derived from the glyph).
-    key = f.render(txt, True, _SCORE_KEY)
+    key = f.render(ch, True, _SCORE_KEY)
     rr = key_r * key_r
     for dx in range(-key_r, key_r + 1):
         for dy in range(-key_r, key_r + 1):
@@ -133,10 +133,28 @@ def _score_token(txt):
 
     native = pygame.transform.smoothscale(
         big, (big.get_width() // ss, big.get_height() // ss))
-    if len(_score_token_cache) > 64:   # bound the cache over a long run
-        _score_token_cache.clear()
-    _score_token_cache[txt] = native
+    _score_glyph_cache[ch] = native
     return native
+
+
+def _score_token(txt):
+    """Compose the score readout from cached per-digit tokens, laid out by the
+    native font's (tabular) advance widths. Cheap on every score change — only
+    the ten digit glyphs are ever built — so collecting coins (which bumps the
+    score) never triggers an expensive rebuild. Returns a transparent native
+    surface to blit centred on the plate."""
+    fn = _font(46, True)
+    advances = [fn.size(ch)[0] for ch in txt]
+    glyphs = [_score_glyph(ch) for ch in txt]
+    total = sum(advances)
+    h = max((g.get_height() for g in glyphs), default=fn.get_height())
+    margin = 8                   # clear of the outermost keyline/drop overhang
+    out = pygame.Surface((total + margin * 2, h), pygame.SRCALPHA)
+    x, cy = margin, h // 2
+    for g, cw in zip(glyphs, advances):
+        out.blit(g, g.get_rect(center=(x + cw // 2, cy)))
+        x += cw
+    return out
 
 
 def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
