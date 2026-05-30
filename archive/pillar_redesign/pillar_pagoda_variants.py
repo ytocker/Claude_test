@@ -10057,6 +10057,221 @@ CANDIDATES = {
     "fogong":       candidate_fogong,
 }
 
+# ── Round 14 — lighter-color variants of Songyue and Tō-ji ────────────────
+#
+# User feedback after round 13: the Songyue brick body and the Tō-ji
+# cypress body sit far darker than the rest of the winners set, breaking
+# the harmony. Round 14 derives 4 lighter palette variants per pagoda
+# WITHOUT touching silhouette / structure / ornaments / tier count /
+# finial / mirror-hanger logic. Each variant is a thin wrapper that
+# rebinds the module-level palette helpers (_terracotta / _brick_mortar
+# for Songyue; _toji_cypress / _toji_cypress_lit / _toji_cypress_shadow
+# for Tō-ji) for the duration of the draw, then restores the originals.
+#
+# Why monkey-patch instead of just overriding palette['stone_dark']:
+# the helpers compose stone_dark with a fixed dark anchor at t=0.72/0.86,
+# so the result leans 70-86% toward the dark anchor regardless of what
+# stone_dark holds. Replacing the helpers themselves with palette-derived
+# lighter formulae is the only clean way to actually shift the body tone
+# while keeping day → night biome retinting through stone_*.
+
+import contextlib as _contextlib
+
+
+@_contextlib.contextmanager
+def _swap_globals(**overrides):
+    """Temporarily rebind module-level names for the duration of a draw.
+    Used by the round-14 lighter-color variants to swap the body/brick/wood
+    palette helpers without rewriting the existing draw functions."""
+    g = globals()
+    saved = {k: g[k] for k in overrides}
+    try:
+        g.update(overrides)
+        yield
+    finally:
+        g.update(saved)
+
+
+# ── Songyue lighter variants ──────────────────────────────────────────────
+# Songyue's body palette flows entirely through _terracotta() (brick face
+# + dome cap) and _brick_mortar() (horizontal mortar rows). Override both
+# so the body lightens AND the mortar harmonises with the new brick tone.
+
+def _terracotta_cream(palette):
+    # Sun-bleached Northern-Wei cream brick: warm-cream anchor mixed off
+    # stone_light so day reads bright bone-cream and night still warms
+    # through the biome's stone_dark via the secondary mix.
+    light = _mix(palette['stone_light'], (244, 226, 192), 0.66)
+    return _mix(palette['stone_dark'], light, 0.62)
+
+
+def _brick_mortar_cream(palette):
+    return _mix(palette['stone_mid'],
+                _mix(palette['stone_light'], (210, 188, 152), 0.55), 0.55)
+
+
+def candidate_songyue_cream(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_terracotta=_terracotta_cream,
+                       _brick_mortar=_brick_mortar_cream):
+        _cached_draw('songyue_cream', _draw_songyue, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _terracotta_sandstone(palette):
+    # Yungang-grotto sandstone face — warm tan with a faint pink hint.
+    # Anchor sits between cream and the original terracotta so the row
+    # reads as honest sandstone, not bleached brick.
+    return _mix(palette['stone_dark'], (208, 158, 116), 0.66)
+
+
+def _brick_mortar_sandstone(palette):
+    return _mix(palette['stone_mid'], (172, 128, 96), 0.55)
+
+
+def candidate_songyue_sandstone(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_terracotta=_terracotta_sandstone,
+                       _brick_mortar=_brick_mortar_sandstone):
+        _cached_draw('songyue_sandstone', _draw_songyue, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _terracotta_blush(palette):
+    # Washed-out terracotta — same hue family as the original (162, 84, 52)
+    # lifted ~30% toward white and desaturated. Anchor still leans warm
+    # so the row reads "old faded brick" rather than pink stucco.
+    return _mix(palette['stone_dark'], (210, 152, 124), 0.64)
+
+
+def _brick_mortar_blush(palette):
+    return _mix(palette['stone_mid'], (188, 138, 116), 0.55)
+
+
+def candidate_songyue_blush(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_terracotta=_terracotta_blush,
+                       _brick_mortar=_brick_mortar_blush):
+        _cached_draw('songyue_blush', _draw_songyue, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _terracotta_rose(palette):
+    # Light rose-brick: shifted pink, anchored slightly cool so the
+    # cool-grey mortar reads as a deliberate contrast not a mismatch.
+    return _mix(palette['stone_dark'], (224, 174, 168), 0.62)
+
+
+def _brick_mortar_rose(palette):
+    # Cool grey mortar that lets the pink brick face read as delicate.
+    return _mix(palette['stone_mid'],
+                _mix(palette['stone_light'], (188, 180, 184), 0.66), 0.55)
+
+
+def candidate_songyue_rose(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_terracotta=_terracotta_rose,
+                       _brick_mortar=_brick_mortar_rose):
+        _cached_draw('songyue_rose', _draw_songyue, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+# ── Tō-ji lighter wood variants ────────────────────────────────────────────
+# Tō-ji's body palette flows through three helpers — _toji_cypress() for
+# the body fill, _toji_cypress_lit() for the lit-edge gradient stop, and
+# _toji_cypress_shadow() for the shadow-edge + heavy posts. Override the
+# triplet so the gradient still reads as one wood family at the new tone.
+# tile_col on the eaves comes from `_shade(palette['stone_dark'], -25)`
+# so it auto-tracks the biome; the bronze sōrin and plaster panels stay
+# unchanged on purpose so the famous identifying cues survive.
+
+def _toji_cypress_cedar_gold(palette):
+    # Warm honey cedar — medium-light wood with a strong gold-amber bias.
+    return _mix(palette['stone_dark'], (198, 146, 82), 0.74)
+
+
+def _toji_cypress_lit_cedar_gold(palette):
+    return _mix(palette['stone_mid'], (234, 188, 122), 0.66)
+
+
+def _toji_cypress_shadow_cedar_gold(palette):
+    return _mix(palette['stone_dark'], (132, 88, 44), 0.80)
+
+
+def candidate_toji_cedar_gold(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_toji_cypress=_toji_cypress_cedar_gold,
+                       _toji_cypress_lit=_toji_cypress_lit_cedar_gold,
+                       _toji_cypress_shadow=_toji_cypress_shadow_cedar_gold):
+        _cached_draw('toji_cedar_gold', _draw_toji, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _toji_cypress_light_pine(palette):
+    # Pale neutral blond pine — desaturated, sits one beat warmer than
+    # neutral-grey so dusk and night don't read cement-cool.
+    return _mix(palette['stone_dark'], (216, 188, 148), 0.70)
+
+
+def _toji_cypress_lit_light_pine(palette):
+    return _mix(palette['stone_mid'], (240, 220, 184), 0.62)
+
+
+def _toji_cypress_shadow_light_pine(palette):
+    return _mix(palette['stone_dark'], (148, 122, 86), 0.78)
+
+
+def candidate_toji_light_pine(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_toji_cypress=_toji_cypress_light_pine,
+                       _toji_cypress_lit=_toji_cypress_lit_light_pine,
+                       _toji_cypress_shadow=_toji_cypress_shadow_light_pine):
+        _cached_draw('toji_light_pine', _draw_toji, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _toji_cypress_weathered_white(palette):
+    # Whitewashed old-wood — coolest of the four with a faint grey-blue
+    # cast, but anchored off stone_light so it still reads wood, not
+    # porcelain. Sits in the neighborhood of Bao'en without copying it.
+    return _mix(palette['stone_dark'],
+                _mix(palette['stone_light'], (222, 214, 200), 0.72), 0.74)
+
+
+def _toji_cypress_lit_weathered_white(palette):
+    return _mix(palette['stone_mid'],
+                _mix(palette['stone_light'], (244, 238, 226), 0.66), 0.62)
+
+
+def _toji_cypress_shadow_weathered_white(palette):
+    return _mix(palette['stone_dark'], (148, 142, 132), 0.78)
+
+
+def candidate_toji_weathered_white(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_toji_cypress=_toji_cypress_weathered_white,
+                       _toji_cypress_lit=_toji_cypress_lit_weathered_white,
+                       _toji_cypress_shadow=_toji_cypress_shadow_weathered_white):
+        _cached_draw('toji_weathered_white', _draw_toji, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
+def _toji_cypress_teak(palette):
+    # Medium warm teak / oak — slightly redder than cedar_gold, sits as
+    # the warmest mid-tone of the four so it bridges baseline and the
+    # cedar_gold extreme without going dark again.
+    return _mix(palette['stone_dark'], (172, 118, 70), 0.78)
+
+
+def _toji_cypress_lit_teak(palette):
+    return _mix(palette['stone_mid'], (214, 162, 108), 0.66)
+
+
+def _toji_cypress_shadow_teak(palette):
+    return _mix(palette['stone_dark'], (106, 66, 36), 0.84)
+
+
+def candidate_toji_teak(surf, top_rect, bot_rect, palette, seed):
+    with _swap_globals(_toji_cypress=_toji_cypress_teak,
+                       _toji_cypress_lit=_toji_cypress_lit_teak,
+                       _toji_cypress_shadow=_toji_cypress_shadow_teak):
+        _cached_draw('toji_teak', _draw_toji, surf,
+                     top_rect, bot_rect, palette, seed)
+
+
 CANDIDATE_BLURBS = {
     "horyuji":      "Hōryū-ji Tō — cedar columns + plaster panels, bronze sōrin (KEEPER)",
     "toji":         "Tō-ji — monumental dark cypress + thick deep eaves (Kyoto 1644)",
@@ -10079,4 +10294,25 @@ CANDIDATE_BLURBS = {
     "tianning":     "Tianning — 13-storey Tang cinnabar wood + gold trim + tile (Changzhou)",
     "palsangjeon":  "Palsangjeon — flat Korean eaves + ridge-end upturns + brass sangnyun (Beopjusa 1605)",
     "fogong":       "Fogong — octagonal larch + dougong brackets + grey-tile curls (KEEPER)",
+    "songyue_cream":         "Songyue cream — sun-bleached Northern-Wei bone-cream brick",
+    "songyue_sandstone":     "Songyue sandstone — Yungang warm tan with faint pink hint",
+    "songyue_blush":         "Songyue blush — washed-out terracotta, ~30% lighter",
+    "songyue_rose":          "Songyue rose — light pink brick + cool grey mortar",
+    "toji_cedar_gold":       "Tō-ji cedar gold — warm honey cedar body",
+    "toji_light_pine":       "Tō-ji light pine — pale neutral blond pine",
+    "toji_weathered_white":  "Tō-ji weathered white — cool whitewashed old wood",
+    "toji_teak":             "Tō-ji teak — medium warm teak / oak",
 }
+
+
+# Round 14: register the lighter-color variants after the wrappers are
+# defined so getattr() on them works at registration time. The original
+# CANDIDATES dict above keeps its slot for the round-4..13 winners.
+CANDIDATES["songyue_cream"]         = candidate_songyue_cream
+CANDIDATES["songyue_sandstone"]     = candidate_songyue_sandstone
+CANDIDATES["songyue_blush"]         = candidate_songyue_blush
+CANDIDATES["songyue_rose"]          = candidate_songyue_rose
+CANDIDATES["toji_cedar_gold"]       = candidate_toji_cedar_gold
+CANDIDATES["toji_light_pine"]       = candidate_toji_light_pine
+CANDIDATES["toji_weathered_white"]  = candidate_toji_weathered_white
+CANDIDATES["toji_teak"]             = candidate_toji_teak
