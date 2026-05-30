@@ -984,36 +984,39 @@ def _emb_build_rail(size):
         _emb_shade(_EMB_PAL["rail_sepia"], 1.05), _EMB_PAL["rail_sepia_d"])
     pygame.draw.rect(ss, _EMB_PAL["rail_cream"], inner.inflate(-int(S * 0.04),
                      -int(S * 0.04)), max(2, _EMB_OW - 1), border_radius=int(S * 0.04))
-    # Side-view steam locomotive, ink-dark on the card.
+    # Side-view steam locomotive, ink-dark on the card. Drawn facing LEFT on its
+    # own layer, then mirrored so it faces RIGHT before stamping on the card.
+    loco = pygame.Surface((S, S), pygame.SRCALPHA)
     ink = _EMB_PAL["rail_ink"]
     base_y = int(S * 0.62)
     boiler = pygame.Rect(int(S * 0.26), int(S * 0.40), int(S * 0.42), int(S * 0.18))
-    pygame.draw.rect(ss, ink, boiler, border_radius=int(S * 0.04))
+    pygame.draw.rect(loco, ink, boiler, border_radius=int(S * 0.04))
     cab = pygame.Rect(int(S * 0.55), int(S * 0.32), int(S * 0.16), int(S * 0.20))
-    pygame.draw.rect(ss, ink, cab, border_radius=int(S * 0.02))
+    pygame.draw.rect(loco, ink, cab, border_radius=int(S * 0.02))
     # Smokestack ahead of the boiler.
-    pygame.draw.rect(ss, ink, (int(S * 0.30), int(S * 0.30),
-                               int(S * 0.07), int(S * 0.12)))
-    pygame.draw.rect(ss, ink, (int(S * 0.28), int(S * 0.28),
-                               int(S * 0.11), int(S * 0.04)))
+    pygame.draw.rect(loco, ink, (int(S * 0.30), int(S * 0.30),
+                                 int(S * 0.07), int(S * 0.12)))
+    pygame.draw.rect(loco, ink, (int(S * 0.28), int(S * 0.28),
+                                 int(S * 0.11), int(S * 0.04)))
     # Cow-catcher wedge at the front.
-    pygame.draw.polygon(ss, ink, [(int(S * 0.26), int(S * 0.50)),
-                                  (int(S * 0.26), int(S * 0.58)),
-                                  (int(S * 0.18), int(S * 0.58))])
+    pygame.draw.polygon(loco, ink, [(int(S * 0.26), int(S * 0.50)),
+                                    (int(S * 0.26), int(S * 0.58)),
+                                    (int(S * 0.18), int(S * 0.58))])
     # Two spoked wheels on a connecting rod.
     wy = base_y
     for wx in (int(S * 0.34), int(S * 0.56)):
-        pygame.draw.circle(ss, ink, (wx, wy), int(S * 0.09))
-        pygame.draw.circle(ss, _EMB_PAL["rail_cream"], (wx, wy), int(S * 0.09),
+        pygame.draw.circle(loco, ink, (wx, wy), int(S * 0.09))
+        pygame.draw.circle(loco, _EMB_PAL["rail_cream"], (wx, wy), int(S * 0.09),
                            max(2, _EMB_OW - 1))
         for ang in range(0, 360, 60):
             a = math.radians(ang)
-            pygame.draw.line(ss, _EMB_PAL["rail_cream"], (wx, wy),
+            pygame.draw.line(loco, _EMB_PAL["rail_cream"], (wx, wy),
                              (wx + math.cos(a) * int(S * 0.07),
                               wy + math.sin(a) * int(S * 0.07)), max(1, _EMB_OW - 2))
-        pygame.draw.circle(ss, ink, (wx, wy), max(2, int(S * 0.025)))
-    pygame.draw.line(ss, ink, (int(S * 0.34), wy), (int(S * 0.56), wy),
+        pygame.draw.circle(loco, ink, (wx, wy), max(2, int(S * 0.025)))
+    pygame.draw.line(loco, ink, (int(S * 0.34), wy), (int(S * 0.56), wy),
                      max(2, _EMB_OW - 1))
+    ss.blit(pygame.transform.flip(loco, True, False), (0, 0))
     return _emb_finish(size, ss)
 
 
