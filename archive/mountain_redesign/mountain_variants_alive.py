@@ -785,6 +785,63 @@ def draw_mountains_v13(surf, scroll, ground_y, w, far_color=None, near_color=Non
 # pagodas, occasional smaller pavilions, and hanging banners between trees.
 # ══════════════════════════════════════════════════════════════════════════
 
+# Region-style table keeps every spawn within the shan-shui family while
+# letting the look drift as the player scrolls right. Bucket is keyed off
+# the element's WORLD-X (not the camera scroll) so an element retains its
+# style for as long as it lives in the viewport; only new spawns picked up
+# further along the world pick from later regions.
+_V14_REGION_WIDTH = 600
+
+_V14_REGION_STYLES = (
+    # 0: slim Tang-tower silhouettes + bamboo + willow groves.
+    dict(tier_choices=(5, 7, 7), pag_scale_mul=1.00,
+         tree_weights=(('bamboo', 0.45), ('willow', 0.35),
+                       ('pine_bent', 0.10), ('pine_fan', 0.10)),
+         flavour_weights=(('pagoda', 0.40), ('grove', 0.30),
+                          ('shrine', 0.15), ('mixed', 0.15))),
+    # 1: squat 3-tier hilltop + fan-pine grove.
+    dict(tier_choices=(3, 3, 5), pag_scale_mul=0.88,
+         tree_weights=(('pine_fan', 0.55), ('pine_bent', 0.30),
+                       ('bamboo', 0.10), ('willow', 0.05)),
+         flavour_weights=(('pagoda', 0.30), ('grove', 0.40),
+                          ('shrine', 0.15), ('mixed', 0.15))),
+    # 2: mid-tier pair + weeping-willow river bank.
+    dict(tier_choices=(5, 7), pag_scale_mul=1.05,
+         tree_weights=(('willow', 0.55), ('bamboo', 0.20),
+                       ('pine_bent', 0.15), ('pine_fan', 0.10)),
+         flavour_weights=(('pagoda', 0.45), ('grove', 0.30),
+                          ('shrine', 0.10), ('mixed', 0.15))),
+    # 3: shrine-heavy + stone lantern paths + bent pine.
+    dict(tier_choices=(3, 5), pag_scale_mul=0.92,
+         tree_weights=(('pine_bent', 0.50), ('pine_fan', 0.25),
+                       ('bamboo', 0.15), ('willow', 0.10)),
+         flavour_weights=(('pagoda', 0.20), ('grove', 0.15),
+                          ('shrine', 0.50), ('mixed', 0.15))),
+    # 4: tallest 7-tier marker + dense bamboo summit.
+    dict(tier_choices=(5, 7, 7), pag_scale_mul=1.18,
+         tree_weights=(('bamboo', 0.55), ('pine_fan', 0.20),
+                       ('willow', 0.15), ('pine_bent', 0.10)),
+         flavour_weights=(('pagoda', 0.45), ('grove', 0.35),
+                          ('shrine', 0.10), ('mixed', 0.10))),
+)
+
+
+def _v14_region(world_x):
+    bucket = int(max(0, world_x) // _V14_REGION_WIDTH)
+    return _V14_REGION_STYLES[bucket % len(_V14_REGION_STYLES)]
+
+
+def _v14_weighted(rng, weights):
+    total = sum(w for _, w in weights)
+    r = rng.random() * total
+    acc = 0.0
+    for k, w in weights:
+        acc += w
+        if r <= acc:
+            return k
+    return weights[-1][0]
+
+
 def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=None):
     pal = _biome.palette_for_phase(_keepers._PHASE)
     far = far_color or pal['mtn_far']
@@ -822,64 +879,70 @@ def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=Non
                        pag_scale_range, tier_choices, tree_scale=1.0,
                        allow_banner=True):
         rng = random.Random(_seed_for(scroll, layer_seed))
-        n_sections = rng.randint(3, 5)
+        # Far band runs sparser than mid/near so the horizon stays calm.
+        if layer_idx == 2:
+            n_sections = rng.randint(1, 2)
+        else:
+            n_sections = rng.randint(2, 3)
         cuts = sorted(rng.sample(range(40, w - 40), n_sections - 1))
         bounds = [0] + cuts + [w]
         peaks = _local_peaks(heights, look=18)
         peaks_by_x = sorted([(heights[i][0], i) for i in peaks])
+
+        def _draw_tree(kind, tx, ty):
+            # Region-style picks the kind; this routes to the right helper
+            # at a kind-appropriate height (scaled by depth band).
+            if kind == 'pine_bent':
+                _bent_pine(surf, tx, ty - 1,
+                           int(rng.randint(14, 26) * tree_scale),
+                           base_color, accent, lean=rng.choice((-1, 1)))
+            elif kind == 'pine_fan':
+                _fan_pine(surf, tx, ty - 1,
+                          int(rng.randint(20, 32) * tree_scale),
+                          base_color, accent)
+            elif kind == 'bamboo':
+                _bamboo(surf, tx, ty - 1,
+                        int(rng.randint(10, 18) * tree_scale),
+                        base_color, accent)
+            else:
+                _willow(surf, tx, ty,
+                        int(rng.randint(9, 14) * tree_scale), base_color)
+
         for s in range(n_sections):
             lo, hi = bounds[s], bounds[s + 1]
             section_peaks = [i for x, i in peaks_by_x if lo <= x <= hi]
-            # Decide section "flavour" so clusters group like a real village —
-            # all-pagoda summit, tree grove, lantern shrine, or mixed.
-            flavour = rng.choice(('pagoda', 'pagoda', 'grove', 'shrine', 'mixed'))
-            # Element count per flavour: pagoda summits stay sparse so the
-            # silhouettes stand out; groves crowd small trees together.
+            # Section flavour follows the REGION at the section's world-x —
+            # so consecutive regions feel like different villages on the
+            # same shan-shui ridgeline.
+            sec_wx = scroll + (lo + hi) * 0.5
+            sec_region = _v14_region(sec_wx)
+            flavour = _v14_weighted(rng, sec_region['flavour_weights'])
+
             if flavour == 'pagoda' and section_peaks:
-                # 1-2 pagodas at varied tiers/scales.
-                for idx in rng.sample(section_peaks,
-                                      min(len(section_peaks), rng.randint(1, 2))):
-                    cx, cy = heights[idx]
-                    tiers = rng.choice(tier_choices)
-                    bw = rng.randint(10, 16)
-                    sc = rng.uniform(*pag_scale_range)
-                    _pagoda(surf, cx, cy - 1, tiers, bw, base_color, accent, sc)
-                    # 30% chance of two flanking lanterns at the base.
-                    if rng.random() < 0.45:
-                        _stone_lantern(surf, cx - 10, cy - 1, base_color, accent)
-                        _stone_lantern(surf, cx + 10, cy - 1, base_color, accent)
+                idx = rng.choice(section_peaks)
+                cx, cy = heights[idx]
+                elem_region = _v14_region(scroll + cx)
+                tiers = rng.choice(elem_region['tier_choices'])
+                bw = rng.randint(10, 16)
+                lo_s, hi_s = pag_scale_range
+                sc = rng.uniform(lo_s, hi_s) * elem_region['pag_scale_mul']
+                _pagoda(surf, cx, cy - 1, tiers, bw, base_color, accent, sc)
+                if rng.random() < 0.40:
+                    _stone_lantern(surf, cx - 10, cy - 1, base_color, accent)
+                    _stone_lantern(surf, cx + 10, cy - 1, base_color, accent)
             elif flavour == 'grove' and section_peaks:
                 idx = rng.choice(section_peaks)
                 cx, cy = heights[idx]
-                # Cluster of 3-5 trees of varied types.
-                count = rng.randint(3, 5)
-                for j in range(count):
+                count = rng.randint(2, 3)
+                for _ in range(count):
                     tx = cx + rng.randint(-22, 22)
                     if not (lo <= tx <= hi):
                         continue
-                    # Sample the ridge at that x for the actual base y.
                     ty = heights[min(tx, len(heights) - 1)][1]
-                    kind = rng.choice(('pine_bent', 'bamboo', 'willow',
-                                       'pine_fan'))
-                    if kind == 'pine_bent':
-                        _bent_pine(surf, tx, ty - 1,
-                                   int(rng.randint(14, 26) * tree_scale),
-                                   base_color, accent,
-                                   lean=rng.choice((-1, 1)))
-                    elif kind == 'pine_fan':
-                        _fan_pine(surf, tx, ty - 1,
-                                  int(rng.randint(20, 32) * tree_scale),
-                                  base_color, accent)
-                    elif kind == 'bamboo':
-                        _bamboo(surf, tx, ty - 1,
-                                int(rng.randint(10, 18) * tree_scale),
-                                base_color, accent)
-                    else:
-                        _willow(surf, tx, ty,
-                                int(rng.randint(9, 14) * tree_scale),
-                                base_color)
-                # Banner hung from a pole nearby.
-                if allow_banner and rng.random() < 0.55:
+                    elem_region = _v14_region(scroll + tx)
+                    kind = _v14_weighted(rng, elem_region['tree_weights'])
+                    _draw_tree(kind, tx, ty)
+                if allow_banner and rng.random() < 0.45:
                     bx = cx + rng.randint(-18, 18)
                     by = heights[min(bx, len(heights) - 1)][1]
                     _hanging_banner(surf, bx, by - 18,
@@ -887,47 +950,34 @@ def draw_mountains_v14(surf, scroll, ground_y, w, far_color=None, near_color=Non
             elif flavour == 'shrine' and section_peaks:
                 idx = rng.choice(section_peaks)
                 cx, cy = heights[idx]
-                # Single small pavilion + flanking lanterns + one or two trees.
-                _pavilion(surf, cx, cy - 1, base_color, accent,
-                          scale=rng.uniform(0.85, 1.15))
-                _stone_lantern(surf, cx - 12, cy - 1, base_color, accent)
-                _stone_lantern(surf, cx + 12, cy - 1, base_color, accent)
-                for _ in range(rng.randint(1, 2)):
+                elem_region = _v14_region(scroll + cx)
+                pscale = rng.uniform(0.85, 1.15) * elem_region['pag_scale_mul']
+                _pavilion(surf, cx, cy - 1, base_color, accent, scale=pscale)
+                _stone_lantern(surf, cx + rng.choice((-12, 12)), cy - 1,
+                               base_color, accent)
+                if rng.random() < 0.55:
                     tx = cx + rng.randint(-26, 26)
-                    if not (lo <= tx <= hi):
-                        continue
-                    ty = heights[min(tx, len(heights) - 1)][1]
-                    _bent_pine(surf, tx, ty - 1,
-                               int(rng.randint(12, 22) * tree_scale),
-                               base_color, accent,
-                               lean=rng.choice((-1, 1)))
-            else:  # 'mixed' — one pagoda + a few trees scattered
+                    if lo <= tx <= hi:
+                        ty = heights[min(tx, len(heights) - 1)][1]
+                        kind = _v14_weighted(rng,
+                                             elem_region['tree_weights'])
+                        _draw_tree(kind, tx, ty)
+            else:  # 'mixed' — one pagoda + at most one accent tree
                 if section_peaks:
                     idx = rng.choice(section_peaks)
                     cx, cy = heights[idx]
-                    _pagoda(surf, cx, cy - 1,
-                            rng.choice(tier_choices), rng.randint(9, 13),
-                            base_color, accent,
-                            scale=rng.uniform(*pag_scale_range))
-                for _ in range(rng.randint(1, 3)):
-                    if hi - lo < 20:
-                        continue
+                    elem_region = _v14_region(scroll + cx)
+                    tiers = rng.choice(elem_region['tier_choices'])
+                    lo_s, hi_s = pag_scale_range
+                    sc = rng.uniform(lo_s, hi_s) * elem_region['pag_scale_mul']
+                    _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
+                            base_color, accent, scale=sc)
+                if rng.random() < 0.55 and hi - lo >= 20:
                     tx = rng.randint(lo + 6, hi - 6)
                     ty = heights[min(tx, len(heights) - 1)][1]
-                    kind = rng.choice(('pine_bent', 'pine_fan', 'bamboo'))
-                    if kind == 'pine_bent':
-                        _bent_pine(surf, tx, ty - 1,
-                                   int(rng.randint(12, 22) * tree_scale),
-                                   base_color, accent,
-                                   lean=rng.choice((-1, 1)))
-                    elif kind == 'pine_fan':
-                        _fan_pine(surf, tx, ty - 1,
-                                  int(rng.randint(18, 28) * tree_scale),
-                                  base_color, accent)
-                    else:
-                        _bamboo(surf, tx, ty - 1,
-                                int(rng.randint(8, 14) * tree_scale),
-                                base_color, accent)
+                    elem_region = _v14_region(scroll + tx)
+                    kind = _v14_weighted(rng, elem_region['tree_weights'])
+                    _draw_tree(kind, tx, ty)
 
     # Far band — small pagodas, no trees.
     scatter_pagoda(crest_heights[2], layer_idx=2,

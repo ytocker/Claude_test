@@ -54,12 +54,17 @@ PHASE = 0.363
 # 5 different seeds per pagoda so each row shows ornament variation, not
 # the same draw 5 times. Pillar indices stride through 0/1/2/3 so the
 # first-pillar suppression rule is exercised in at least one cell per row.
+# Per-column scroll lands each cell in a distinct V14 region bucket
+# (REGION_WIDTH = 600 in mountain_variants_alive) so the backdrop visibly
+# EVOLVES left-to-right — early-game silhouettes on the left, mid-game in
+# the middle, late-game on the right — while each cell still demos its
+# own ornament roll.
 SEEDS = [
-    ("s1", 13,  0),
-    ("s2", 47,  1),
-    ("s3", 92,  2),
-    ("s4", 131, 3),
-    ("s5", 199, 4),
+    ("s1 · early",  13,  0,  200.0),
+    ("s2 · early-mid", 47,  1,  900.0),
+    ("s3 · mid",    92,  2, 1500.0),
+    ("s4 · mid-late", 131, 3, 2100.0),
+    ("s5 · late",  199, 4, 2700.0),
 ]
 
 WINNERS = [
@@ -120,14 +125,13 @@ def _apply_ground_accent(surf, row_key):
         surf.set_at((x + r + 4, GROUND_Y + 5), col)
 
 
-def _scene_backdrop(phase: float) -> pygame.Surface:
+def _scene_backdrop(phase: float, scroll: float) -> pygame.Surface:
     palette = _biome.palette_for_phase(phase)
     surf = pygame.Surface((W, H))
     bucket = _biome.phase_bucket(phase)
     sky = get_sky_surface_biome(W, H, GROUND_Y, palette, bucket)
     sky.set_alpha(None)
     surf.blit(sky, (0, 0))
-    scroll = 120.0
     for i, (bx, by, _sc, variant) in enumerate((
             (40, 95, 0.9, 0), (200, 150, 1.0, 2),
             (90, 230, 0.8, 3), (270, 70, 0.7, 1))):
@@ -142,8 +146,9 @@ def _scene_backdrop(phase: float) -> pygame.Surface:
 
 
 def render_tile(source_module, candidate_name: str, candidate_key: str,
-                seed: int, pillar_index: int) -> tuple[pygame.Surface, tuple[str, ...]]:
-    surf = _scene_backdrop(PHASE)
+                seed: int, pillar_index: int,
+                scroll: float) -> tuple[pygame.Surface, tuple[str, ...]]:
+    surf = _scene_backdrop(PHASE, scroll)
     palette = _biome.palette_for_phase(PHASE)
 
     _apply_ground_accent(surf, candidate_key)
@@ -186,10 +191,11 @@ def make_sheet() -> pygame.Surface:
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
-    for c, (slabel, seed, pi) in enumerate(SEEDS):
+    for c, (slabel, seed, pi, scroll) in enumerate(SEEDS):
         x = row_label_w + pad + c * (tw + pad)
-        lbl = font_head.render(f"{slabel} · seed {seed} · pi={pi}",
-                               True, (240, 240, 240))
+        lbl = font_head.render(
+            f"{slabel} · seed {seed} · pi={pi} · scroll={int(scroll)}",
+            True, (240, 240, 240))
         sheet.blit(lbl, (x + 6, label_h - 22))
 
     for r, (label, module, fn_name, key) in enumerate(WINNERS):
@@ -214,7 +220,7 @@ def make_sheet() -> pygame.Surface:
         sheet.blit(font_small.render(f"key: {key}", True, (170, 180, 200)),
                    (8, ly + 22))
 
-        for c, (slabel, seed, pi) in enumerate(SEEDS):
+        for c, (slabel, seed, pi, scroll) in enumerate(SEEDS):
             # Clear pillar cache so each seed actually re-draws the
             # structural pair (the cache key is per-seed already, but
             # the keeper modules share the dict).
@@ -222,7 +228,8 @@ def make_sheet() -> pygame.Surface:
                 pgv._PILLAR_CACHE.clear()
             if hasattr(pgv_r4, "_PILLAR_CACHE"):
                 pgv_r4._PILLAR_CACHE.clear()
-            tile, applied = render_tile(module, fn_name, key, seed, pi)
+            tile, applied = render_tile(module, fn_name, key, seed, pi,
+                                        scroll)
             x = row_label_w + pad + c * (tw + pad)
             sheet.blit(tile, (x, y))
             # Active-ornament label per cell.
