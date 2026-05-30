@@ -1322,6 +1322,17 @@ class World:
         # activator still runs normally below.
         if getattr(m, "is_genie_offer", False):
             self._cull_genie_offers_except(m)
+        # POISON HEAL: grabbing ANY power-up other than another poison
+        # cures Pip mid-dive. Clear the poison state before the kind's
+        # activator runs so a knight pickup doesn't trigger its
+        # poison-revive path (no revive needed — Pip's already healed).
+        if self.bird.poison_active and m.kind != "poison":
+            self.bird.poison_active = False
+            self.bird.poison_t = 0.0
+            self.float_texts.append(FloatText(
+                "CURED!", m.x, m.y - 26, (160, 230, 200),
+                size=24, life=1.1, vy=-30, style="powerup",
+            ))
         # Surprise box: roll a random "real" kind at pickup time, then route
         # through that kind's activator. The resolved activator plays the
         # matching sound — there's no dedicated surprise SFX.
