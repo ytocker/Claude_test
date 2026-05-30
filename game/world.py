@@ -217,24 +217,10 @@ class World:
 
         self.game_over = False
 
-        # Genie playtest: every fresh run jumps past newbie mode, opens
-        # at score 450 (so the genie's late-game gate is met from frame 1),
-        # aligns the biome to where it would be at that score, and force-
-        # spawns the genie every 5 power-up-eligible pillars up to 5
-        # times. v5_skybit_powerups_final ships this unconditionally so
-        # the browser deploy starts straight into the playtest scenario.
-        self.pillars_passed = RAMP_PIPES
-        self.score = 450
-        self.biome_time = 450 * PIPE_SPACING / SCROLL_BASE
-        self._playtest_genie_remaining = 5
-        self._playtest_genie_pipes_until_next = 1
-
         # One-shot: when the run's score first crosses LATE_GAME_SCORE,
         # the next power-up roll is forced to be a genie so the player
         # gets a guaranteed introduction to the secret tier. Consumed
-        # by _maybe_spawn_powerup. Stays False in playtest mode (score
-        # starts already past the gate and the playtest schedule
-        # handles its own forced spawns).
+        # by _maybe_spawn_powerup.
         self._force_next_genie = False
 
         self._seed_first_pipes()
@@ -527,20 +513,6 @@ class World:
             ))
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
-        # Playtest force-spawn: every 5 power-up-eligible (non-rush) pipes
-        # plant a genie regardless of cooldown / chance / weights, up to 5
-        # times. Hardcoded ON on this branch so the browser deploy starts
-        # straight into the playtest scenario.
-        if self._playtest_genie_remaining > 0:
-            self._playtest_genie_pipes_until_next -= 1
-            if self._playtest_genie_pipes_until_next <= 0:
-                x = pipe.x + PIPE_W + self._current_spacing() * 0.5
-                y = pipe.gap_y
-                self.powerups.append(PowerUp(x, y, kind="genie"))
-                self.powerup_cooldown = POWERUP_COOLDOWN
-                self._playtest_genie_remaining -= 1
-                self._playtest_genie_pipes_until_next = 5
-                return
         # LATE_GAME_SCORE milestone: first power-up roll after crossing
         # 400 is forced to genie. Bypasses cooldown + chance + weights.
         if self._force_next_genie:
