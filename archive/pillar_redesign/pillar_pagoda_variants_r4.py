@@ -1293,40 +1293,49 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
     # Prayer flags + anchor stones dropped — they were ornaments, not
     # structure; the user explicitly defers ornaments to a later pass.
     if top_rect.height > 60:
-        # KFC bucket pattern (game/pillar_kfc.py::_stack_buckets):
-        # stupa anatomy is not tiered, but the stepped base IS — and
-        # round 11 was squeezing step_h because the top envelope is
-        # smaller than the bottom's. Fix per-step height at the
-        # bottom's natural value (using the SAME budget formula the
-        # bottom uses with spire_extent=30) and let the spire extent
-        # stay short on top so the flame still pokes into the gap.
-        # The bell dome + harmika keep their absolute heights.
+        # Round 13: stupa anatomy is not tiered, but the stepped base
+        # IS, and the bell dome + jewel-spire eat the rest of the
+        # envelope. Round() the step count and proportionally stretch
+        # the dome + spire-extent (the squashable non-tier pieces) so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # natural — out of bounds, fall back to natural sizes and
+        # accept a small sky band. Harmika cube stays at its natural
+        # 10 px (it's a face plate, can't sensibly stretch).
         harmika_h = 10
-        dome_h = 24
+        dome_h_natural = 24
+        spire_extent_natural = 16
         # Bottom's natural step_h — derived from the bottom's own
         # budget formula so the silhouettes match step-for-step.
         bot_spire_extent = 30
         bot_steps_avail = max(20, bot_rect.height - bot_spire_extent
-                              - harmika_h - dome_h - 4)
-        step_h = max(6, bot_steps_avail // step_count)
-        # On the top, the spire-extent reserve only needs to clear
-        # the harmika + jewel; we keep 16 so the flame still kisses
-        # the gap edge when there's slack.
-        spire_extent = 16
-        # How many natural-size steps fit ABOVE the dome + harmika
-        # on the hanger? Drop step_count to that count — chorten
-        # stays a chorten, just a SHORTER stack of base steps.
-        top_steps_avail = (top_rect.height - spire_extent
-                           - harmika_h - dome_h - 4)
-        top_step_count = max(1, top_steps_avail // step_h)
+                              - harmika_h - dome_h_natural - 4)
+        step_h_natural = max(6, bot_steps_avail // step_count)
+        # Round-to-nearest top step count above the natural dome +
+        # harmika + spire reserve.
+        steps_room = (top_rect.height - spire_extent_natural
+                      - harmika_h - dome_h_natural - 4)
+        top_step_count = max(1, round(steps_room / step_h_natural))
         top_step_count = min(step_count, top_step_count)
+        # Per-step height matches the bottom for read parity — the
+        # stretch is absorbed by the dome + spire instead.
+        step_h = step_h_natural
+        # Stretch the dome + spire extent to swallow leftover room.
+        non_step_natural = dome_h_natural + spire_extent_natural
+        non_step_avail = (top_rect.height - 4
+                          - harmika_h
+                          - step_h * top_step_count)
+        ratio = non_step_avail / max(1, non_step_natural)
+        if 0.7 <= ratio <= 1.3:
+            dome_h = max(12, int(dome_h_natural * ratio))
+            spire_extent = non_step_avail - dome_h
+        else:
+            dome_h = dome_h_natural
+            spire_extent = spire_extent_natural
         widest = int(top_rect.width * 1.10)
         narrowest = int(top_rect.width * 0.72)
-        # Temp height sized to exactly the natural-step stack + dome
-        # + harmika + spire reserve so no auto-fit squeeze can sneak
-        # in. If the hanger ends up shorter than top_rect.height the
-        # flame floats above the gap (intentional — top stupa is a
-        # smaller hanging chorten, not a forced full mirror).
+        # Temp height sized to the stretched anatomy so the silhouette
+        # fills top_rect.height exactly (in-bounds ratio) or sits flush
+        # with the ceiling and leaves a small sky band (fallback).
         tmp_h = (step_h * top_step_count + dome_h + harmika_h
                  + spire_extent + 4)
         tmp_w = max(widest + 16, top_rect.width * 4)

@@ -1103,19 +1103,30 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         top_row_h = plinth_h_total - bot_row_h
         plinth_w_bot = int(top_rect.width * 1.22)
         plinth_w_top = plinth_w_bot - 8
-        # H_tier = average tier height the BOTTOM uses (no squeeze!). The
-        # bottom envelope is bot_rect.height - plinth_h_total - finial_h
-        # divided across `tier_count`. The weighted distribution makes
-        # individual tiers vary slightly around H_tier, which is fine —
-        # what matters is per-tier height parity at game scale.
-        H_tier = max(8, (bot_rect.height - plinth_h_total - finial_h)
-                     // tier_count)
-        # How many of those natural-size tiers fit the top envelope?
+        # Bottom's natural per-tier height — drives both the round-to-
+        # nearest tier count below and the proportional stretch.
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h_total - finial_h)
+                             // tier_count)
+        # User observation (round 13): the visible gap between top and
+        # bottom pagodas is roughly fixed, so the top tower should
+        # reliably reach NEAR the gap edge. Round 12's floor-division
+        # left empty sky between the finial and the gap when `top_avail`
+        # wasn't an exact multiple of H_tier. Round 13: round() the
+        # count and stretch H_tier proportionally so the tower fills
+        # `top_rect.height` exactly — bounded to ±30% of natural so a
+        # severe ratio falls back to the natural value (better a small
+        # sky band than a distorted pagoda).
         top_avail = top_rect.height - plinth_h_total - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         # Temp height sized EXACTLY so the auto-fit math inside
         # _draw_horyuji_to (which divides bot_y - top_y across top_n
-        # tiers) reproduces H_tier per tier.
+        # tiers) reproduces the stretched H_tier per tier.
         tmp_h = plinth_h_total + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -1151,10 +1162,10 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
                          sorin_up=True,
                          draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Anchor the plinth at the ceiling; the flipped finial floats at
-        # top_rect.y + tmp_h, which can be ABOVE top_rect.bottom (sky
-        # visible between finial and gap). That's the correct read — top
-        # pagoda is a smaller hanging temple, not a forced full mirror.
+        # Plinth at the ceiling. With the round-13 stretch the finial
+        # lands at/near the gap edge in the common case; an out-of-
+        # bounds ratio falls back to natural H_tier and leaves a small
+        # sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -1873,20 +1884,28 @@ def _draw_wat_arun(surf, top_rect, bot_rect, palette, seed):
         # STRUCTURAL MIRROR via the KFC bucket pattern
         # (game/pillar_kfc.py::_stack_buckets). The bottom prang's
         # natural per-base-tier height is `(0.4 * min(bot_h, 250)) // 3`.
-        # We fix that as `tier_h_override` and let the corncob spire
-        # keep its natural size; the only thing that shrinks on the
-        # hanger is the number of stepped base tiers if the top
-        # envelope can't fit all three.
+        # Round 13: round() the tier count and let the corncob spire
+        # stretch up to 1.3× natural so the tower fills top_rect.height
+        # exactly. Bounded — a severe ratio falls back to the natural
+        # spire and accepts a small sky band.
         body_w = int(top_rect.width * 1.05)
         bot_total_h_for_h = min(bot_rect.height, 250)
-        H_tier = max(6, int(bot_total_h_for_h * 0.40) // 3)
-        # Natural corncob spire — 60% of the bottom's total_h.
+        H_tier_natural = max(6, int(bot_total_h_for_h * 0.40) // 3)
         spire_h_natural = bot_total_h_for_h - int(bot_total_h_for_h * 0.40)
         top_avail = min(top_rect.height, 250)
-        # Fit as many natural base tiers as room allows above the spire.
-        top_n_tiers = max(1, (top_avail - spire_h_natural) // H_tier)
+        # Round-to-nearest tier count above the natural spire — capped
+        # at the bottom's 3 because Wat Arun reads as a 3-tier prang.
+        room_for_tiers = max(0, top_avail - spire_h_natural)
+        top_n_tiers = max(1, round(room_for_tiers / H_tier_natural))
         top_n_tiers = min(3, top_n_tiers)
-        total_h = H_tier * top_n_tiers + spire_h_natural
+        # Stretch the spire to swallow the leftover so the tip lands at
+        # the gap edge. Bounded to ±30% of natural — out of bounds, fall
+        # back to natural spire and accept the small sky band.
+        spire_h = top_avail - top_n_tiers * H_tier_natural
+        ratio = spire_h / max(1, spire_h_natural)
+        if ratio < 0.7 or ratio > 1.3:
+            spire_h = spire_h_natural
+        total_h = H_tier_natural * top_n_tiers + spire_h
         tmp = pygame.Surface((body_w * 2 + 12, total_h + 12), pygame.SRCALPHA)
         _draw_wat_arun_prang(tmp, tmp.get_width() // 2,
                              total_h + 4, palette,
@@ -1894,11 +1913,12 @@ def _draw_wat_arun(surf, top_rect, bot_rect, palette, seed):
                              total_h=total_h,
                              rng=random.Random(seed + 17),
                              n_tiers=top_n_tiers,
-                             tier_h_override=H_tier)
+                             tier_h_override=H_tier_natural)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Anchor at top_rect.y; if total_h < top_rect.height the
-        # corncob tip floats above the gap edge (empty sky between
-        # the spire tip and the gap is intended).
+        # Plinth at the ceiling. With the round-13 stretch the corncob
+        # tip lands at/near the gap edge in the common case; an
+        # out-of-bounds spire ratio falls back to natural and leaves
+        # a small sky band rather than distort the silhouette.
         surf.blit(flipped, (tcx - flipped.get_width() // 2,
                             top_rect.y))
 
@@ -2101,25 +2121,32 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         # STRUCTURAL MIRROR via the KFC bucket pattern
         # (game/pillar_kfc.py::_stack_buckets). Bottom densely stacks
         # 15 dwarf eaves over `eave_h = 0.50 * bot_envelope`, so each
-        # eave occupies `H_eave = eave_h // 15` px. Round 11 forced
-        # 15 eaves into a top temp whose envelope shrank to 150 px,
-        # which squeezed the step. Now: fix H_eave to the bottom's
-        # natural value, count how many eaves fit in the top envelope,
-        # and back-solve `small_h` so `_draw_mini_songyue`'s 55% eave
-        # budget reproduces the same H_eave exactly.
+        # eave occupies `H_eave = eave_h // 15` px.
+        # Round 13 stretch: round() instead of floor + scale H_eave so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the dwarf-eave
+        # rhythm.
         small_body_w = int(top_rect.width * 0.88)
         bot_envelope = max(1, bot_rect.height - 6)
         bot_eave_h = int(bot_envelope * 0.50)
-        H_eave = max(2, bot_eave_h // 15)
+        H_eave_natural = max(2, bot_eave_h // 15)
         top_avail = top_rect.height - 2
-        # Mini's eave column is 55% of small_h. Count eaves at natural
-        # H_eave that fit within (0.55 × top_avail), bounded by 15
-        # (the bottom's eave count — we never ADD eaves on the top).
-        top_n_eaves = max(1, min(15, int((top_avail * 0.55) // H_eave)))
-        # Back-solve small_h so 0.55 × small_h ≥ top_n × H_eave (and
-        # the integer-division `step = eave_h // top_n` lands on
-        # H_eave). Using ceil((top_n × H_eave) / 0.55).
+        # Mini's eave column is 55% of small_h. Round-to-nearest
+        # eave count for the eave-column budget, bounded by 15.
+        eave_budget = top_avail * 0.55
+        top_n_eaves = max(1, min(15, round(eave_budget / H_eave_natural)))
+        # Stretch H_eave so the eave column fills `eave_budget` exactly,
+        # bounded to ±30% of natural.
+        H_eave = int(eave_budget) // top_n_eaves
+        ratio = H_eave / max(1, H_eave_natural)
+        if ratio < 0.7 or ratio > 1.3:
+            H_eave = H_eave_natural
+            top_n_eaves = max(1, min(15, int(eave_budget) // H_eave_natural))
         target_eave_h = top_n_eaves * H_eave
+        # Back-solve small_h so 0.55 × small_h reproduces target_eave_h.
+        # Cap at top_avail in the natural-fallback case; the round-13
+        # stretch case already lands inside top_avail.
         small_h = min(top_avail,
                       max(40, (target_eave_h * 100 + 54) // 55))
         tmp = pygame.Surface((small_body_w * 2 + 14, small_h + 8),
@@ -2127,6 +2154,10 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         _draw_mini_songyue(tmp, tmp.get_width() // 2, small_h + 2, 2,
                            small_body_w, palette, dwarf_eaves=top_n_eaves)
         flipped = pygame.transform.flip(tmp, False, True)
+        # Plinth at the ceiling. With the round-13 stretch the lotus
+        # bud lands at/near the gap edge in the common case; an
+        # out-of-bounds eave ratio falls back to natural H_eave and
+        # leaves a small sky band rather than distort the rhythm.
         surf.blit(flipped, (tcx - flipped.get_width() // 2, top_rect.y))
 
 
@@ -2725,15 +2756,25 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
         finial_h = 32
         plinth_h = 9
         plinth_w = int(top_rect.width * 1.22)
-        # Bottom's natural per-tier height — drives both the temp size
-        # and the top tier count below.
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
-                     // ground_tier_count)
+        # Bottom's natural per-tier height — drives both the round-to-
+        # nearest tier count below and the proportional stretch.
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h)
+                             // ground_tier_count)
+        # Round 13 stretch: round() instead of floor + scale H_tier so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the tier.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         # Temp height sized so the auto-fit inside _draw_fogong_to
         # (which divides bot_y - top_y across top_n tiers) reproduces
-        # H_tier per tier instead of squeezing.
+        # the stretched H_tier per tier.
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -2773,9 +2814,10 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
                         tier_count=top_n, finial_h=finial_h,
                         sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth anchors at top_rect.y; finial floats above the gap edge
-        # if top_n < ground_tier_count — empty sky between the finial
-        # and the gap is the intended read.
+        # Plinth at the ceiling. With the round-13 stretch the finial
+        # lands at/near the gap edge in the common case; an out-of-
+        # bounds ratio falls back to natural H_tier and leaves a small
+        # sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4238,10 +4280,19 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 38
         plinth_h = 11
         plinth_w = int(top_rect.width * 1.28)
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
-                     // tier_count)
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h)
+                             // tier_count)
+        # Round 13 stretch: round() + scale H_tier within ±30% so the
+        # tower fills top_rect.height exactly; fall back to the natural
+        # value if the math demands an extreme stretch.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -4273,9 +4324,10 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
                       tier_count=top_n, finial_h=finial_h,
                       sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth flush with ceiling; finial floats above the gap edge
-        # whenever top_n < tier_count — sky between finial and gap is
-        # the intended look.
+        # Plinth at the ceiling. With the round-13 stretch the finial
+        # lands at/near the gap edge in the common case; an out-of-
+        # bounds ratio falls back to natural H_tier and leaves a small
+        # sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4502,10 +4554,20 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 44
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.22)
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
-                     // tier_count)
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h)
+                             // tier_count)
+        # Round 13 stretch: round() instead of floor + scale H_tier so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the tier.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -4528,9 +4590,10 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
                          tier_count=top_n, finial_h=finial_h,
                          sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth anchored at top_rect.y; the long gold sōrin floats
-        # above the gap edge when top_n < tier_count — empty sky
-        # between the finial and the gap is intentional.
+        # Plinth at the ceiling. With the round-13 stretch the long
+        # gold sōrin lands at/near the gap edge in the common case;
+        # an out-of-bounds ratio falls back to natural H_tier and
+        # leaves a small sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -4725,9 +4788,19 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 42
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h) // 4)
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h) // 4)
+        # Round 13 stretch: round() instead of floor + scale H_tier so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the tier.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -4750,9 +4823,10 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
                            tier_count=top_n, finial_h=finial_h,
                            sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth anchored at ceiling; bronze suien water-flame floats
-        # above the gap when top_n < 4 — empty sky between finial and
-        # gap is intentional.
+        # Plinth at the ceiling. With the round-13 stretch the bronze
+        # suien water-flame lands at/near the gap edge in the common
+        # case; an out-of-bounds ratio falls back to natural H_tier
+        # and leaves a small sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -5654,9 +5728,19 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
         # individual storeys vary slightly around this — what matters
         # is that the TOP gets storeys of the same size, not a squeeze.
         bot_total_h = min(bot_rect.height - plinth_h - finial_h, 230)
-        H_storey = max(7, bot_total_h // 9)
+        H_storey_natural = max(7, bot_total_h // 9)
+        # Round 13 stretch: round() instead of floor + scale H_storey
+        # so the tower fills top_rect.height exactly. Bounded to ±30%
+        # of the natural value — out-of-bounds ratios fall back to
+        # natural and accept a small sky band rather than distort the
+        # storey.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_storey)
+        top_n = max(1, round(top_avail / H_storey_natural))
+        H_storey = top_avail // top_n
+        ratio = H_storey / H_storey_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_storey = H_storey_natural
+            top_n = max(1, top_avail // H_storey_natural)
         # Temp height sized so the per-storey weighted distribution
         # below produces storeys of ~H_storey — no auto-fit squeeze.
         tmp_h = plinth_h + top_n * H_storey + finial_h + 4
@@ -9116,10 +9200,20 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 30
         plinth_h = 7
         plinth_w = int(top_rect.width * 1.16)
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
-                     // tier_count)
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h)
+                             // tier_count)
+        # Round 13 stretch: round() instead of floor + scale H_tier so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the tier.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -9142,9 +9236,10 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
                         tier_count=top_n, finial_h=finial_h,
                         sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at ceiling; small sōrin floats above the gap whenever
-        # top_n < bottom's tier_count — empty sky between finial and
-        # gap is the intended read.
+        # Plinth at the ceiling. With the round-13 stretch the small
+        # sōrin lands at/near the gap edge in the common case; an
+        # out-of-bounds ratio falls back to natural H_tier and leaves
+        # a small sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
@@ -9875,10 +9970,20 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
         plinth_w = int(top_rect.width * 1.30)
         joseon_blue = _mix(_column_grey(palette),
                            palette['sky_mid'], 0.30)
-        H_tier = max(8, (bot_rect.height - plinth_h - finial_h)
-                     // tier_count)
+        H_tier_natural = max(8,
+                             (bot_rect.height - plinth_h - finial_h)
+                             // tier_count)
+        # Round 13 stretch: round() instead of floor + scale H_tier so
+        # the tower fills top_rect.height exactly. Bounded to ±30% of
+        # the natural value — out-of-bounds ratios fall back to natural
+        # and accept a small sky band rather than distort the tier.
         top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, top_avail // H_tier)
+        top_n = max(1, round(top_avail / H_tier_natural))
+        H_tier = top_avail // top_n
+        ratio = H_tier / H_tier_natural
+        if ratio < 0.7 or ratio > 1.3:
+            H_tier = H_tier_natural
+            top_n = max(1, top_avail // H_tier_natural)
         tmp_h = plinth_h + top_n * H_tier + finial_h + 4
         tmp_w = max(top_rect.width * 4, 120)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
@@ -9901,9 +10006,10 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
                              tier_count=top_n, finial_h=finial_h,
                              sorin_up=True, draw_entry_door=False)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at ceiling; sangnyun floats above the gap whenever
-        # top_n < bottom's tier_count — sky between the bud and the
-        # gap is intentional.
+        # Plinth at the ceiling. With the round-13 stretch the
+        # sangnyun lands at/near the gap edge in the common case; an
+        # out-of-bounds ratio falls back to natural H_tier and leaves
+        # a small sky band rather than distort the tower.
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
 
