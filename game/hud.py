@@ -682,6 +682,12 @@ _ENERGY_FULL   = _GOLD_BRIGHT     # timer fill at full charge (yellow)
 _ENERGY_FULL_D = (170, 120,  28)
 _ENERGY_LOW    = (255, 168,  70)  # draining toward amber
 _ENERGY_LOW_D  = (196,  96,  28)
+# Timer-bar fill stops — the meter reads its remaining time by colour:
+# green when full, yellow at the midpoint, red when nearly out. Each stop is
+# a bright core + darker edge for the recessed-track vertical gradient.
+_BAR_GREEN   = ( 70, 205,  95);  _BAR_GREEN_D  = ( 38, 140,  60)
+_BAR_YELLOW  = (240, 205,  60);  _BAR_YELLOW_D = (180, 145,  30)
+_BAR_RED     = (230,  60,  55);  _BAR_RED_D    = (165,  32,  32)
 
 _na_plate_cache: dict = {}
 _na_track_cache: dict = {}
@@ -785,12 +791,21 @@ def _na_track_bg(w, h, radius):
 
 
 def _na_energy_bar(surf, rect, frac):
-    """Recessed-track energy bar; fill drains yellow→amber. A horizontal meter
-    in a dark cool track on purpose, so it never reads as a gold coin."""
+    """Recessed-track energy bar; fill drains green→yellow→red as time runs
+    out. A horizontal meter in a dark cool track on purpose, so it never reads
+    as a gold coin."""
     radius = rect.height // 2
     surf.blit(_na_track_bg(rect.width, rect.height, radius), (rect.x, rect.y))
-    core = lerp_color(_ENERGY_LOW, _ENERGY_FULL, frac)
-    edge = lerp_color(_ENERGY_LOW_D, _ENERGY_FULL_D, frac)
+    # Two-segment traffic-light map: green at full, through yellow at the
+    # midpoint, to red as the meter empties.
+    if frac >= 0.5:
+        t = (frac - 0.5) / 0.5
+        core = lerp_color(_BAR_YELLOW, _BAR_GREEN, t)
+        edge = lerp_color(_BAR_YELLOW_D, _BAR_GREEN_D, t)
+    else:
+        t = frac / 0.5
+        core = lerp_color(_BAR_RED, _BAR_YELLOW, t)
+        edge = lerp_color(_BAR_RED_D, _BAR_YELLOW_D, t)
     inset = 4
     fillw = int((rect.width - inset * 2) * frac)
     fh = rect.height - inset * 2
@@ -1540,9 +1555,9 @@ class HUD:
 
         # Active-buff timer bars — every active power-up gets its own
         # progress bar at the top of the screen with the buff's logo on the
-        # left. Stacks vertically when multiple are active. Each bar uses
-        # the same gold → orange → red gradient as time depletes, and the
-        # whole row pulses with a red ring in the final 25 % of duration.
+        # left. Stacks vertically when multiple are active. Each bar's fill
+        # shifts green → yellow → red as its time depletes, so remaining
+        # duration reads at a glance from colour alone.
         active = []
         if world.triple_timer > 0:
             active.append(("triple", world.triple_timer, TRIPLE_DURATION))
@@ -1595,14 +1610,6 @@ class HUD:
                 _na_energy_bar(surf, bar, frac)
                 _text(surf, f"{remain:.1f}s", (bar.centerx, bar.centery),
                       size=11, color=UI_CREAM, shadow=True)
-                # Low-time pulse ring around the bar when critical.
-                if frac < 0.25:
-                    pulse = 0.5 + 0.5 * math.sin(self.title_t * 14)
-                    ring_a = int(140 * pulse)
-                    ring = pygame.Surface((bar_w + 10, bar_h + 6), pygame.SRCALPHA)
-                    pygame.draw.rect(ring, (*UI_RED, ring_a), ring.get_rect(),
-                                     border_radius=(bar_h + 6) // 2, width=2)
-                    surf.blit(ring, (bx - 5, by - 3))
 
         # Float texts
         for ft in world.float_texts:
