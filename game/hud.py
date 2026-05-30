@@ -81,80 +81,12 @@ def _outlined_text(surf, txt, center, size, fill=_GOLD_BRIGHT,
     return r
 
 
-# ── Score numerals: a single bright gold-gradient digit face — a foil sheen at
-# the crown easing to deep amber at the foot — over a crisp near-black keyline
-# and a soft drop. One bright shape, no cream, so the whole glyph is brand gold
-# and the score reads instantly over a bright-sky pillar AND at night. The face
-# is built by masking a vertical gradient band to the glyph's own alpha so every
-# stroke shares one light direction, composited on a 4x supersample for crisp
-# fixed-width edges, then smooth-scaled to native.
-_SCORE_GOLD_HI = (255, 234, 158)   # bright sheen near the crown of a digit
-_SCORE_GOLD_LO = (190, 132,  34)   # deep amber at the foot of a digit
-_SCORE_KEY     = ( 14,  11,   9)   # near-black keyline (the figure-ground hero)
-_score_glyph_cache: dict = {}
-
-
-def _score_glyph(ch):
-    """Build (once) and cache the native gold-gradient token for a SINGLE
-    character. The 4x-supersample build is expensive, but digits are tabular so
-    the per-glyph token is pixel-identical to that glyph inside a whole-string
-    render — which lets the score be composed from cached glyphs instead of
-    rebuilt every time the score changes."""
-    cached = _score_glyph_cache.get(ch)
-    if cached is not None:
-        return cached
-    ss = 4                       # supersample so the keyline + gradient stay crisp
-    f = _font(46 * ss, True)
-    mask = f.render(ch, True, (255, 255, 255))   # white glyph = the gradient mask
-    gw, gh = mask.get_size()
-    key_r = 2 * ss               # ~2px native keyline contour radius
-    pad = key_r + 3 * ss         # room for the keyline + the (+2,+3) drop
-    big = pygame.Surface((gw + pad * 2, gh + pad * 2), pygame.SRCALPHA)
-    cx, cy = big.get_width() // 2, big.get_height() // 2
-
-    drop = f.render(ch, True, _SCORE_KEY)
-    drop.set_alpha(150)
-    big.blit(drop, drop.get_rect(center=(cx + 2 * ss, cy + 3 * ss)))
-    # Uniform disc of integer offsets => a contour of constant width regardless
-    # of digit count (a fixed pixel radius, not derived from the glyph).
-    key = f.render(ch, True, _SCORE_KEY)
-    rr = key_r * key_r
-    for dx in range(-key_r, key_r + 1):
-        for dy in range(-key_r, key_r + 1):
-            if (dx or dy) and dx * dx + dy * dy <= rr:
-                big.blit(key, key.get_rect(center=(cx + dx, cy + dy)))
-    grad = pygame.Surface((gw, gh), pygame.SRCALPHA)
-    for yy in range(gh):
-        t = yy / max(1, gh - 1)
-        pygame.draw.line(grad, lerp_color(_SCORE_GOLD_HI, _SCORE_GOLD_LO, t),
-                         (0, yy), (gw, yy))
-    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    big.blit(grad, grad.get_rect(center=(cx, cy)))
-
-    native = pygame.transform.smoothscale(
-        big, (big.get_width() // ss, big.get_height() // ss))
-    _score_glyph_cache[ch] = native
-    return native
-
-
-def _score_token(txt):
-    """Compose the score readout from cached per-digit tokens, laid out by the
-    native font's (tabular) advance widths. Cheap on every score change — only
-    the ten digit glyphs are ever built — so collecting coins (which bumps the
-    score) never triggers an expensive rebuild. Returns a transparent native
-    surface to blit centred on the plate."""
-    fn = _font(46, True)
-    advances = [fn.size(ch)[0] for ch in txt]
-    glyphs = [_score_glyph(ch) for ch in txt]
-    total = sum(advances)
-    h = max((g.get_height() for g in glyphs), default=fn.get_height())
-    margin = 8                   # clear of the outermost keyline/drop overhang
-    out = pygame.Surface((total + margin * 2, h), pygame.SRCALPHA)
-    x, cy = margin, h // 2
-    for g, cw in zip(glyphs, advances):
-        out.blit(g, g.get_rect(center=(x + cw // 2, cy)))
-        x += cw
-    return out
+# ── Score numerals match the `main` deployment: a cream face over a 2px
+# deep-gold rim (a uniform 8-offset stamp) and a soft near-black drop — one
+# clear bright shape that reads over a bright-sky pillar and at night. No
+# per-frame supersample (just three small text renders per draw), so it is cheap
+# enough to run uncached. Drawn inline in draw_play.
+_SCORE_FACE = (252, 244, 220)      # warm-cream digit face (the `main` value)
 
 
 def _pill_btn(surf, center, text, size=20, alpha=255, wide=False,
@@ -1532,12 +1464,13 @@ class HUD:
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
         # ── Score: opaque cut-corner slate plate (the value floor) with a
-        # menu-yellow accent edge + soft glow and a faint sandstone wash low
-        # in the body. The numerals are a gold-gradient token over a dark
-        # keyline (see _score_token) so the score reads as one bright gold shape
-        # over a bright-sky brown pillar AND at night. Lifted to y=42 to reclaim
-        # central-corridor space while staying clear of the bird's ceiling
-        # band. Kept drawn while paused so the pause overlay simply dims it.
+        # menu-yellow accent edge + soft glow and a faint sandstone wash low in
+        # the body. The numerals use the `main` deployment's treatment — a cream
+        # face over a 2px deep-gold rim and a soft drop (see _SCORE_FACE) — so
+        # the score reads over a bright-sky brown pillar AND at night. Lifted to
+        # y=42 to reclaim central-corridor space while staying clear of the
+        # bird's ceiling band. Kept drawn while paused so the pause overlay
+        # simply dims it.
         score_txt = str(world.score)
         sf = _font(46, True)
         # Key the (cached) plate by digit COUNT — a tabular sample width — so
@@ -1545,8 +1478,18 @@ class HUD:
         sw = max(sf.size("8" * len(score_txt))[0] + 54, 102)
         sp = pygame.Rect((W - sw) // 2, 42, sw, 56)
         _na_plate(surf, sp, cut=9, round_r=9, inner_warm=_NA_WARM, glow=True)
-        token = _score_token(score_txt)
-        surf.blit(token, token.get_rect(center=sp.center))
+        cf = _font(48, True)
+        face = cf.render(score_txt, True, _SCORE_FACE)
+        rim  = cf.render(score_txt, True, _GOLD_DEEP)
+        sh   = cf.render(score_txt, True, NEAR_BLACK)
+        r = face.get_rect(center=sp.center)
+        # Uniform 8-offset rim = a constant 2px gold contour around the cream.
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            surf.blit(rim, (r.x + ox, r.y + oy))
+        sh.set_alpha(180)
+        surf.blit(sh, (r.x + 2, r.y + 4))
+        surf.blit(face, r.topleft)
 
         # ── Pill alpha fades when bird is near top
         bird_y = world.bird.y
