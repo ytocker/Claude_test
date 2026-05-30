@@ -12,7 +12,6 @@ from game.draw import (
     WHITE, NEAR_BLACK,
 )
 from game import parrot
-from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin_hud
 # Run-summary stat-tile icons reuse the actual in-game art so the
 # COINS tile shows the spinning coin face the player saw mid-flight.
 # (game.powerup_help imports from game.hud — its `_powerup_icon` is
@@ -817,236 +816,511 @@ def _na_energy_bar(surf, rect, frac):
         _blit_ss(surf, fill, rect.x + inset, rect.y + inset, fillw, fh)
 
 
+# ── Active-buff emblem family ────────────────────────────────────────────────
+# Every active power-up shows a small emblem on the slate plate left of its
+# timer bar. The whole set shares one visual language so the buff stack reads as
+# a cohesive family: each emblem is supersampled then smoothscaled (crisp arcs
+# + real gradient shading at the 32px HUD footprint), lit from one top-left key
+# light, carries a uniform dark outline weight, and sits on one soft contact
+# shadow. One hue per function — tiers within a family (magnet→mega, shrink→
+# grow) are value/saturation steps of the same hue so no two unrelated buffs
+# share a color. Each emblem mirrors the in-world pickup the buff grants.
+
+_EMB_OUTLINE = (28, 24, 38)
+_EMB_OW = max(2, 3 * _SS // 2)  # ~1.5px at the 32px footprint
+
+
+def _emb_lerp(a, b, t):
+    return a + (b - a) * t
+
+
+def _emb_mix(c1, c2, t):
+    return (int(_emb_lerp(c1[0], c2[0], t)),
+            int(_emb_lerp(c1[1], c2[1], t)),
+            int(_emb_lerp(c1[2], c2[2], t)))
+
+
+def _emb_shade(c, f):
+    # f<1 darkens, f>1 lightens; clamps to byte range.
+    return (max(0, min(255, int(c[0] * f))),
+            max(0, min(255, int(c[1] * f))),
+            max(0, min(255, int(c[2] * f))))
+
+
+def _emb_raw(size):
+    return pygame.Surface((size * _SS, size * _SS), pygame.SRCALPHA)
+
+
+def _emb_vgrad_circle(surf, cx, cy, r, top, bottom):
+    # Vertical gradient clipped to a circle — a top-lit sphere/disc at SS scale.
+    if r <= 0:
+        return
+    grad = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    for y in range(r * 2):
+        t = y / max(1, (r * 2 - 1))
+        pygame.draw.line(grad, _emb_mix(top, bottom, t), (0, y), (r * 2, y))
+    mask = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    pygame.draw.circle(mask, (255, 255, 255, 255), (r, r), r)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(grad, (cx - r, cy - r))
+
+
+def _emb_vgrad_mask(surf, mask_pts, y0, y1, top, bottom):
+    """Vertical gradient clipped to an arbitrary polygon mask."""
+    W_, H_ = surf.get_size()
+    band = pygame.Surface((W_, H_), pygame.SRCALPHA)
+    for y in range(max(0, y0), min(H_, y1)):
+        t = (y - y0) / max(1, (y1 - y0))
+        pygame.draw.line(band, _emb_mix(top, bottom, t), (0, y), (W_, y))
+    mask = pygame.Surface((W_, H_), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), mask_pts)
+    band.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(band, (0, 0))
+
+
+def _emb_key_light(surf, cx, cy, r, strength=64):
+    # One shared top-left specular bloom => one light direction across the set.
+    if r <= 0:
+        return
+    hl = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    pygame.draw.circle(hl, (255, 255, 255, strength),
+                       (int(r * 0.7), int(r * 0.62)), int(r * 0.55))
+    hl = pygame.transform.smoothscale(hl, (r * 2, r * 2))
+    mask = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
+    pygame.draw.circle(mask, (255, 255, 255, 255), (r, r), r)
+    hl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(hl, (cx - r, cy - r))
+
+
+def _emb_contact_shadow(out, size):
+    # Soft ellipse under the emblem grounds it on the plate — same for all ten.
+    sh = pygame.Surface((size, size), pygame.SRCALPHA)
+    w = int(size * 0.60)
+    h = max(2, int(size * 0.15))
+    cx = size // 2
+    cy = int(size * 0.87)
+    pygame.draw.ellipse(sh, (0, 0, 0, 55), (cx - w // 2, cy - h // 2, w, h))
+    out.blit(sh, (0, 0))
+
+
+def _emb_finish(size, ss):
+    """Downsample the SS emblem onto a size×size surface over one contact
+    shadow (drawn first so the emblem sits on top)."""
+    out = pygame.Surface((size, size), pygame.SRCALPHA)
+    _emb_contact_shadow(out, size)
+    out.blit(pygame.transform.smoothscale(ss, (size, size)), (0, 0))
+    return out
+
+
+def _emb_star(ss, cx, cy, r, color):
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        rr = r if i % 2 == 0 else r * 0.45
+        pts.append((cx + math.cos(ang) * rr, cy + math.sin(ang) * rr))
+    pygame.draw.polygon(ss, color, pts)
+    pygame.draw.polygon(ss, _EMB_OUTLINE, pts, max(2, _EMB_OW - 1))
+
+
+def _emb_arrow(ss, x1, y1, x2, y2, col, thick=None, head=None):
+    # Bold diagonal arrow with a filled head + a dark backing so the size-pair
+    # arrows read against a bright day sky, not only against the plate.
+    w = thick if thick is not None else max(3, _EMB_OW + 1)
+    ang = math.atan2(y2 - y1, x2 - x1)
+    h = head if head is not None else max(6, int(_EMB_OW * 3.0))
+    spread = math.radians(34)
+    p1 = (x2 + math.cos(ang + math.pi - spread) * h,
+          y2 + math.sin(ang + math.pi - spread) * h)
+    p2 = (x2 + math.cos(ang + math.pi + spread) * h,
+          y2 + math.sin(ang + math.pi + spread) * h)
+    # Dark backing first (wider shaft + filled head) for contrast on any sky.
+    pygame.draw.line(ss, _EMB_OUTLINE, (x1, y1), (x2, y2), w + max(2, _SS))
+    pygame.draw.polygon(ss, _EMB_OUTLINE, [(x2, y2), p1, p2])
+    # Colored arrow on top.
+    pygame.draw.line(ss, col, (x1, y1), (x2, y2), w)
+    pygame.draw.circle(ss, col, (int(x1), int(y1)), max(1, w // 2))  # rounded tail
+    pygame.draw.polygon(ss, col, [(x2, y2), p1, p2])
+    pygame.draw.polygon(ss, _EMB_OUTLINE, [(x2, y2), p1, p2], max(2, _EMB_OW - 1))
+
+
+# Function-family palette. ONE hue per function; tiers within a family are
+# value/saturation steps of the SAME hue (magnet→mega, shrink→grow).
+_EMB_PAL = {
+    "magnet_body": (216, 56, 50), "magnet_dark": (140, 28, 30),
+    "magnet_tip": (236, 236, 240),
+    "mega_body": (242, 170, 42), "mega_dark": (178, 106, 18),
+    "mega_aura": (176, 104, 248), "mega_aura_in": (212, 168, 255),
+    "mega_pip": (255, 244, 196), "mega_tip": (255, 248, 224),
+    "time_face": (236, 244, 255), "time_rim": (72, 122, 212),
+    "time_rim_d": (40, 78, 158), "time_hand": (28, 44, 92),
+    "rev_body": (40, 202, 168), "rev_dark": (16, 130, 112),
+    "rev_lite": (176, 250, 232),
+    "coin_face": (255, 214, 84), "coin_dark": (196, 142, 22),
+    "coin_lite": (255, 244, 176), "coin_rim": (255, 250, 214),
+    "coin_pip": (96, 60, 4),
+    "kfc_red": (210, 38, 40), "kfc_red_d": (150, 22, 26),
+    "kfc_white": (248, 244, 238), "drum_brown": (190, 122, 60),
+    "drum_brown_d": (138, 80, 36), "bone": (245, 238, 224),
+    "ghost_body": (224, 232, 244), "ghost_body_d": (170, 188, 214),
+    "ghost_edge": (150, 232, 248), "ghost_eye": (60, 78, 120),
+    "size_hue_l": (198, 178, 252), "size_fig": (120, 86, 214),
+    "size_fig_d": (78, 52, 150),
+    "rail_body": (98, 140, 198), "rail_body_d": (54, 88, 142),
+    "rail_amber": (255, 198, 72), "rail_amber_l": (255, 222, 130),
+    "rail_amber_d": (200, 140, 32),
+}
+
+
+def _emb_horseshoe(ss, S, body, dark, tipcol, scale=1.0):
+    # Shared magnet silhouette: a top-lit ring with the inner hole + downward
+    # leg gap carved out so it reads as a U opening downward.
+    cx = S // 2
+    cy = int(S * 0.50)
+    outer = int(S * 0.34 * scale)
+    inner = int(S * 0.17 * scale)
+    ring = pygame.Surface((S, S), pygame.SRCALPHA)
+    _emb_vgrad_circle(ring, cx, cy, outer, _emb_shade(body, 1.28), dark)
+    pygame.draw.circle(ring, (0, 0, 0, 0), (cx, cy), inner)
+    gap_w = int(inner * 2.0)
+    pygame.draw.rect(ring, (0, 0, 0, 0), (cx - gap_w // 2, cy, gap_w, S - cy))
+    ss.blit(ring, (0, 0))
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), outer, _EMB_OW)
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), inner, max(2, _EMB_OW - 1))
+    leg_w = outer - inner
+    tip_h = int(S * 0.11 * scale)
+    leg_y = cy + int(S * 0.20 * scale)
+    for sgn in (-1, 1):
+        lx = cx + sgn * (inner + leg_w // 2)
+        rect = (lx - leg_w // 2, leg_y, leg_w, tip_h)
+        pygame.draw.rect(ss, tipcol, rect, border_radius=max(1, _SS))
+        pygame.draw.rect(ss, _EMB_OUTLINE, rect, max(2, _EMB_OW - 1),
+                         border_radius=max(1, _SS))
+    _emb_key_light(ss, cx, cy, outer, 58)
+
+
+def _emb_build_magnet(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    _emb_horseshoe(ss, S, _EMB_PAL["magnet_body"], _EMB_PAL["magnet_dark"],
+                   _EMB_PAL["magnet_tip"])
+    return _emb_finish(size, ss)
+
+
+def _emb_build_megamagnet(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx, cy = S // 2, int(S * 0.50)
+    # Violet energy aura behind a larger GOLD horseshoe => instant tier-up read,
+    # no "++" glyph (illegible small). Aura tuned to keep a value gap on a dark
+    # night biome.
+    aura = pygame.Surface((S, S), pygame.SRCALPHA)
+    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura"], 46), (cx, cy), int(S * 0.45))
+    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura"], 150), (cx, cy),
+                       int(S * 0.44), max(2, _EMB_OW))
+    pygame.draw.circle(aura, (*_EMB_PAL["mega_aura_in"], 200), (cx, cy),
+                       int(S * 0.40), max(2, _EMB_OW))
+    aura = pygame.transform.smoothscale(aura, (S, S))
+    ss.blit(aura, (0, 0))
+    _emb_horseshoe(ss, S, _EMB_PAL["mega_body"], _EMB_PAL["mega_dark"],
+                   _EMB_PAL["mega_tip"], scale=1.10)
+    _emb_star(ss, cx, int(S * 0.21), int(S * 0.10), _EMB_PAL["mega_pip"])
+    return _emb_finish(size, ss)
+
+
+def _emb_build_slowmo(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx, cy = S // 2, S // 2
+    r = int(S * 0.34)
+    _emb_vgrad_circle(ss, cx, cy, r, _emb_shade(_EMB_PAL["time_rim"], 1.3),
+                      _EMB_PAL["time_rim_d"])
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), r, _EMB_OW)
+    rf = int(r * 0.74)
+    _emb_vgrad_circle(ss, cx, cy, rf, _EMB_PAL["time_face"],
+                      _emb_mix(_EMB_PAL["time_face"], _EMB_PAL["time_rim"], 0.25))
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), rf, max(2, _EMB_OW - 1))
+    pygame.draw.line(ss, _EMB_PAL["time_hand"], (cx, cy),
+                     (cx, cy - int(rf * 0.62)), _EMB_OW)
+    pygame.draw.line(ss, _EMB_PAL["time_hand"], (cx, cy),
+                     (cx + int(rf * 0.5), cy + int(rf * 0.15)), _EMB_OW)
+    pygame.draw.circle(ss, _EMB_PAL["time_hand"], (cx, cy), max(2, _EMB_OW), 0)
+    for ang in (0, 90, 180, 270):
+        a = math.radians(ang)
+        pygame.draw.line(ss, _EMB_PAL["time_rim_d"],
+                         (cx + math.cos(a) * rf * 0.86, cy + math.sin(a) * rf * 0.86),
+                         (cx + math.cos(a) * rf * 0.98, cy + math.sin(a) * rf * 0.98),
+                         max(2, _EMB_OW - 1))
+    _emb_key_light(ss, cx, cy, r, 64)
+    return _emb_finish(size, ss)
+
+
+def _emb_build_reverse(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx, cy = S // 2, int(S * 0.50)
+    r = int(S * 0.30)
+    thick = int(S * 0.13)
+    # Two C-arcs chasing each other, vertically offset so the silhouette is a
+    # wide oval (NOT a disc) — the key separation from slowmo's round clock.
+    specs = [(+1, -int(S * 0.06), math.radians(15), math.radians(195)),
+             (-1, int(S * 0.06), math.radians(195), math.radians(375))]
+    for sgn, oy, start, end in specs:
+        col = _EMB_PAL["rev_body"] if sgn > 0 else _emb_shade(_EMB_PAL["rev_body"], 0.82)
+        pygame.draw.arc(ss, col, (cx - r, cy - r + oy, r * 2, r * 2), start, end, thick)
+    head = int(S * 0.145)
+    lx, ly = cx - r + int(S * 0.02), cy - int(S * 0.06)
+    pygame.draw.polygon(ss, _EMB_PAL["rev_body"],
+                        [(lx - head, ly), (lx + head, ly - head), (lx + head, ly + head)])
+    rx, ry = cx + r - int(S * 0.02), cy + int(S * 0.06)
+    pygame.draw.polygon(ss, _emb_shade(_EMB_PAL["rev_body"], 0.82),
+                        [(rx + head, ry), (rx - head, ry - head), (rx - head, ry + head)])
+    for sgn, oy, start, end in specs:
+        pygame.draw.arc(ss, _EMB_OUTLINE, (cx - r, cy - r + oy, r * 2, r * 2),
+                        start, end, max(2, _EMB_OW - 1))
+    pygame.draw.circle(ss, _EMB_PAL["rev_lite"],
+                       (cx - int(r * 0.3), cy - int(r * 0.5)), max(2, _EMB_OW))
+    return _emb_finish(size, ss)
+
+
+def _emb_build_triple(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx = S // 2
+    r = int(S * 0.27)
+    # Three fanned coins (each rim separated) => the STACK reads "multiple".
+    offs = [(-int(S * 0.13), int(S * 0.15)),
+            (int(S * 0.13), int(S * 0.10)),
+            (0, -int(S * 0.07))]
+    for i, (dx, dy) in enumerate(offs):
+        ccx, ccy = cx + dx, S // 2 + dy
+        _emb_vgrad_circle(ss, ccx, ccy, r, _EMB_PAL["coin_lite"], _EMB_PAL["coin_dark"])
+        pygame.draw.circle(ss, _EMB_PAL["coin_rim"], (ccx, ccy), int(r * 0.82),
+                           max(2, _EMB_OW - 1))
+        pygame.draw.circle(ss, _EMB_OUTLINE, (ccx, ccy), r, _EMB_OW)
+        if i == len(offs) - 1:
+            _emb_key_light(ss, ccx, ccy, r, 70)
+    # Three pips on the front coin (dots survive downsampling where a numeral
+    # dies). Off-axis cluster so the coin doesn't read as a face.
+    fcx, fcy = cx + offs[-1][0], S // 2 + offs[-1][1]
+    pip_r = max(2, int(r * 0.17))
+    pip_d = int(r * 0.42)
+    pips = [(fcx - pip_d, fcy - int(pip_d * 0.35)),
+            (fcx + int(pip_d * 0.15), fcy - int(pip_d * 0.05)),
+            (fcx + pip_d, fcy + int(pip_d * 0.5))]
+    for px, py in pips:
+        pygame.draw.circle(ss, _EMB_PAL["coin_pip"], (int(px), int(py)), pip_r)
+    return _emb_finish(size, ss)
+
+
+def _emb_build_kfc(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx = S // 2
+    top_y = int(S * 0.42)
+    bot_y = int(S * 0.82)
+    half_top = int(S * 0.31)   # FLARED wide at the top (chicken bucket, not box)
+    half_bot = int(S * 0.19)
+    body = [(cx - half_top, top_y), (cx + half_top, top_y),
+            (cx + half_bot, bot_y), (cx - half_bot, bot_y)]
+    pygame.draw.polygon(ss, _EMB_PAL["kfc_white"], body)
+    for i in range(3):
+        t = (i + 0.5) / 3
+        xt = _emb_lerp(cx - half_top, cx + half_top, t)
+        xb = _emb_lerp(cx - half_bot, cx + half_bot, t)
+        pygame.draw.line(ss, _EMB_PAL["kfc_red"], (xt, top_y), (xb, bot_y), int(S * 0.055))
+    pygame.draw.polygon(ss, _EMB_OUTLINE, body, _EMB_OW)
+    rim_top = top_y - int(S * 0.06)
+    rrect = (cx - half_top, rim_top, half_top * 2, int(S * 0.12))
+    pygame.draw.ellipse(ss, _EMB_PAL["kfc_red"], rrect)
+    pygame.draw.ellipse(ss, _EMB_OUTLINE, rrect, _EMB_OW)
+    # ONE drumstick OVERLAPPING the rim => "chicken IN bucket", not a stray dot.
+    dx = cx + int(S * 0.05)
+    lobe_r = int(S * 0.13)
+    dy = rim_top - lobe_r + int(S * 0.05)
+    _emb_vgrad_circle(ss, dx, dy, lobe_r, _emb_shade(_EMB_PAL["drum_brown"], 1.25),
+                      _EMB_PAL["drum_brown_d"])
+    pygame.draw.circle(ss, _EMB_OUTLINE, (dx, dy), lobe_r, _EMB_OW)
+    pygame.draw.ellipse(ss, _EMB_OUTLINE, rrect, _EMB_OW)  # rim crosses behind lobe
+    bx, by = dx + int(S * 0.05), dy - int(S * 0.11)
+    pygame.draw.line(ss, _EMB_PAL["bone"], (dx, dy - int(lobe_r * 0.4)), (bx, by),
+                     int(S * 0.05))
+    pygame.draw.circle(ss, _EMB_PAL["bone"], (bx, by), max(2, int(S * 0.04)))
+    pygame.draw.circle(ss, _EMB_OUTLINE, (bx, by), max(2, int(S * 0.04)),
+                       max(2, _EMB_OW - 2))
+    _emb_key_light(ss, dx, dy, lobe_r, 55)
+    return _emb_finish(size, ss)
+
+
+def _emb_build_ghost(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx = S // 2
+    r = int(S * 0.27)
+    top_y = int(S * 0.36)
+    hem_y = int(S * 0.72)
+    halo = pygame.Surface((S, S), pygame.SRCALPHA)
+    pygame.draw.circle(halo, (*_EMB_PAL["ghost_edge"], 80),
+                       (cx, (top_y + hem_y) // 2), int(r * 1.2))
+    halo = pygame.transform.smoothscale(halo, (S, S))
+    ss.blit(halo, (0, 0))
+    body = _emb_shade(_EMB_PAL["ghost_body"], 0.85)   # dimmed ~15% vs round 1
+    body_d = _emb_shade(_EMB_PAL["ghost_body_d"], 0.85)
+    _emb_vgrad_circle(ss, cx, top_y, r, body, body_d)
+    trunk = pygame.Surface((S, S), pygame.SRCALPHA)
+    for y in range(top_y, hem_y):
+        t = (y - top_y) / max(1, (hem_y - top_y))
+        pygame.draw.line(trunk, _emb_mix(body, body_d, t), (cx - r, y), (cx + r, y))
+    ss.blit(trunk, (0, 0))
+    lobes = 3
+    for i in range(lobes):
+        bx = _emb_lerp(cx - r, cx + r, i / lobes)
+        bx2 = _emb_lerp(cx - r, cx + r, (i + 1) / lobes)
+        col = body if i % 2 == 0 else body_d
+        pygame.draw.ellipse(ss, col, (bx, hem_y - int(S * 0.05), bx2 - bx, int(S * 0.11)))
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, top_y), r, _EMB_OW)
+    pygame.draw.line(ss, _EMB_OUTLINE, (cx - r, top_y), (cx - r, hem_y), _EMB_OW)
+    pygame.draw.line(ss, _EMB_OUTLINE, (cx + r, top_y), (cx + r, hem_y), _EMB_OW)
+    for i in range(lobes):
+        bx = _emb_lerp(cx - r, cx + r, i / lobes)
+        bx2 = _emb_lerp(cx - r, cx + r, (i + 1) / lobes)
+        pygame.draw.arc(ss, _EMB_OUTLINE, (bx, hem_y - int(S * 0.05), bx2 - bx, int(S * 0.12)),
+                        math.radians(180), math.radians(360), _EMB_OW)
+    for sgn in (-1, 1):
+        ex = cx + sgn * int(r * 0.4)
+        pygame.draw.ellipse(ss, _EMB_PAL["ghost_eye"],
+                            (ex - int(S * 0.04), top_y - int(S * 0.02),
+                             int(S * 0.08), int(S * 0.11)))
+    _emb_key_light(ss, cx, top_y, r, 40)
+    return _emb_finish(size, ss)
+
+
+def _emb_figure(ss, cx, cy, r, col, dark):
+    # Shared size-family glyph: a rounded blob with eye dots so it never reads
+    # as a coin. shrink/grow differ only in figure size + arrow direction.
+    _emb_vgrad_circle(ss, cx, cy, r, _emb_shade(col, 1.25), dark)
+    pygame.draw.circle(ss, _EMB_OUTLINE, (cx, cy), r, _EMB_OW)
+    for sgn in (-1, 1):
+        pygame.draw.circle(ss, _EMB_OUTLINE,
+                           (cx + sgn * int(r * 0.35), cy - int(r * 0.1)),
+                           max(2, int(r * 0.16)))
+
+
+def _emb_build_grow(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx, cy = S // 2, S // 2
+    r = int(S * 0.255)   # LARGE solid disc — the dominant anchor of the pair
+    _emb_figure(ss, cx, cy, r, _EMB_PAL["size_fig"], _EMB_PAL["size_fig_d"])
+    thick = max(3, _EMB_OW + 1)
+    head = int(S * 0.115)
+    for ang in (225, 45):  # TWO outward arrows, TL / BR diagonal
+        a = math.radians(ang)
+        x1 = cx + math.cos(a) * (r + int(S * 0.02))
+        y1 = cy + math.sin(a) * (r + int(S * 0.02))
+        x2 = cx + math.cos(a) * (r + int(S * 0.20))
+        y2 = cy + math.sin(a) * (r + int(S * 0.20))
+        _emb_arrow(ss, x1, y1, x2, y2, _EMB_PAL["size_hue_l"], thick=thick, head=head)
+    return _emb_finish(size, ss)
+
+
+def _emb_build_shrink(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx, cy = S // 2, S // 2
+    r = int(S * 0.205)   # SOLID disc, marginally smaller than grow => squeeze reads
+    _emb_figure(ss, cx, cy, r, _EMB_PAL["size_fig_d"],
+                _emb_shade(_EMB_PAL["size_fig_d"], 0.72))
+    thick = max(3, _EMB_OW + 1)
+    head = int(S * 0.115)
+    for ang in (225, 45):  # TWO inward arrows, SAME diagonal as grow => mirror
+        a = math.radians(ang)
+        x1 = cx + math.cos(a) * (r + int(S * 0.22))   # tail far out
+        y1 = cy + math.sin(a) * (r + int(S * 0.22))
+        x2 = cx + math.cos(a) * (r + int(S * 0.045))  # head just off the disc
+        y2 = cy + math.sin(a) * (r + int(S * 0.045))
+        _emb_arrow(ss, x1, y1, x2, y2, _EMB_PAL["size_hue_l"], thick=thick, head=head)
+    return _emb_finish(size, ss)
+
+
+def _emb_build_rail(size):
+    ss = _emb_raw(size)
+    S = size * _SS
+    cx = S // 2
+    body_top = int(S * 0.38)
+    body_bot = int(S * 0.66)
+    half_t = int(S * 0.30)
+    half_b = int(S * 0.22)
+    cart = [(cx - half_t, body_top), (cx + half_t, body_top),
+            (cx + half_b, body_bot), (cx - half_b, body_bot)]
+    _emb_vgrad_mask(ss, cart, body_top, body_bot,
+                    _emb_shade(_EMB_PAL["rail_body"], 1.22), _EMB_PAL["rail_body_d"])
+    pygame.draw.polygon(ss, _EMB_OUTLINE, cart, _EMB_OW)
+    # SINGLE bold forward chevron (speed) over a dark backing so it clears the
+    # steel cart even on a bright day sky.
+    ox = cx + int(S * 0.02)
+    chev = [(ox - int(S * 0.07), body_top + int(S * 0.05)),
+            (ox + int(S * 0.05), body_top + int(S * 0.155)),
+            (ox - int(S * 0.07), body_top + int(S * 0.26))]
+    pygame.draw.lines(ss, _EMB_OUTLINE, False, chev, max(3, _EMB_OW + 2))
+    pygame.draw.lines(ss, _EMB_PAL["rail_amber_l"], False, chev, max(3, _EMB_OW + 1))
+    wy = body_bot + int(S * 0.05)
+    wr = int(S * 0.07)
+    for sgn in (-1, 1):
+        wx = cx + sgn * int(S * 0.14)
+        pygame.draw.circle(ss, _EMB_PAL["rail_body_d"], (wx, wy), wr)
+        pygame.draw.circle(ss, _EMB_OUTLINE, (wx, wy), wr, max(2, _EMB_OW - 1))
+        pygame.draw.circle(ss, _emb_shade(_EMB_PAL["rail_body"], 1.3), (wx, wy),
+                           max(2, wr // 3))
+    ry = wy + int(S * 0.11)
+    pygame.draw.line(ss, _EMB_PAL["rail_amber"], (int(S * 0.10), ry),
+                     (int(S * 0.90), ry), int(S * 0.055))
+    pygame.draw.line(ss, _EMB_PAL["rail_amber_d"], (int(S * 0.10), ry + int(S * 0.045)),
+                     (int(S * 0.90), ry + int(S * 0.045)), max(2, _EMB_OW - 1))
+    _emb_key_light(ss, cx, (body_top + body_bot) // 2, half_t, 50)
+    return _emb_finish(size, ss)
+
+
+_EMB_BUILDERS = {
+    "magnet": _emb_build_magnet,
+    "megamagnet": _emb_build_megamagnet,
+    "slowmo": _emb_build_slowmo,
+    "reverse": _emb_build_reverse,
+    "triple": _emb_build_triple,
+    "kfc": _emb_build_kfc,
+    "ghost": _emb_build_ghost,
+    "shrink": _emb_build_shrink,
+    "grow": _emb_build_grow,
+    "rail": _emb_build_rail,
+}
+
+# Emblems are static, so render each (kind, size) once and reuse the surface;
+# the supersampled gradient passes are far too heavy to run per frame.
+_buff_emblem_cache: dict = {}
+
+
+def _get_buff_emblem(kind, size):
+    key = (kind, size)
+    emb = _buff_emblem_cache.get(key)
+    if emb is None:
+        builder = _EMB_BUILDERS.get(kind)
+        if builder is None:
+            return None
+        emb = builder(size)
+        _buff_emblem_cache[key] = emb
+    return emb
+
+
 def _draw_buff_icon(surf, rect, kind):
-    """Tiny 20x20-ish icon for an active buff. Matches in-world sprites."""
-    cx, cy = rect.center
-    if kind == "grow":
-        # Mini velvet witch-hat: tall conical wine cone + slim ivory stem +
-        # cream-butter spots. Mirrors the in-world powerup at HUD scale.
-        # Cone outline (dark wine) + body
-        cone_outline = [
-            (cx,     cy - 8),   # peak
-            (cx + 6, cy + 2),
-            (cx + 7, cy + 4),
-            (cx - 7, cy + 4),
-            (cx - 6, cy + 2),
-        ]
-        cone_body = [
-            (cx,     cy - 7),
-            (cx + 5, cy + 2),
-            (cx + 6, cy + 4),
-            (cx - 6, cy + 4),
-            (cx - 5, cy + 2),
-        ]
-        pygame.draw.polygon(surf, ( 60, 15, 25), cone_outline)
-        pygame.draw.polygon(surf, (125, 30, 45), cone_body)
-        # Pink highlight stripe down the left side of the cone
-        pygame.draw.polygon(surf, (180, 60, 75), [
-            (cx,     cy - 6),
-            (cx - 2, cy - 1),
-            (cx - 3, cy + 3),
-            (cx - 1, cy + 3),
-            (cx,     cy - 1),
-        ])
-        # Cream spots scattered down the cone
-        pygame.draw.circle(surf, (255, 235, 175), (cx,     cy - 4), 1)
-        pygame.draw.circle(surf, (255, 235, 175), (cx + 2, cy + 0), 1)
-        pygame.draw.circle(surf, (255, 235, 175), (cx - 1, cy + 3), 1)
-        # Slim ivory stem with a tiny bulb at the bottom
-        pygame.draw.polygon(surf, (245, 230, 200), [
-            (cx - 2, cy + 4),
-            (cx + 2, cy + 4),
-            (cx + 3, cy + 8),
-            (cx + 1, cy + 9),
-            (cx - 1, cy + 9),
-            (cx - 2, cy + 8),
-        ])
-        pygame.draw.line(surf, (255, 250, 230),
-                         (cx - 1, cy + 5), (cx - 1, cy + 8), 1)
-    elif kind == "magnet":
-        # Polished horseshoe magnet — rendered at 2× on a scratch surface
-        # so the arc smooths under `smoothscale`. Has a dark silhouette
-        # outline, a vertical red gradient flesh, and steel-tipped poles
-        # at the bottom with tiny field-line sparks above the prongs.
-        OUTLINE = ( 38,   8,  16)
-        RED_TOP = (245,  78,  64)   # sunlit upper arc
-        RED_MID = (215,  38,  46)
-        RED_BOT = (150,  16,  26)   # deep base of the legs
-        STEEL_LT = (220, 226, 240)
-        STEEL_DK = (108, 116, 138)
-        FIELD    = (255, 230, 130)  # warm spark colour for the field hint
-
-        SX = SY = 40                # 2× scratch
-        m = pygame.Surface((SX, SY), pygame.SRCALPHA)
-
-        # Outer silhouette in OUTLINE: top arc (filled circle) + leg slab.
-        pygame.draw.circle(m, OUTLINE, (20, 18), 14)
-        pygame.draw.rect(m, OUTLINE, (6, 18, 28, 18))
-
-        # Red flesh — vertical gradient column-by-column under a circle mask.
-        red_layer = pygame.Surface((SX, SY), pygame.SRCALPHA)
-        for y in range(40):
-            if y <= 18:
-                col = lerp_color(RED_TOP, RED_MID, max(0.0, y / 18.0))
-            else:
-                col = lerp_color(RED_MID, RED_BOT, (y - 18) / 18.0)
-            pygame.draw.line(red_layer, col, (0, y), (SX - 1, y))
-        # Mask the gradient to the inset silhouette.
-        mask = pygame.Surface((SX, SY), pygame.SRCALPHA)
-        pygame.draw.circle(mask, (255, 255, 255, 255), (20, 18), 12)
-        pygame.draw.rect(mask, (255, 255, 255, 255), (8, 18, 24, 16))
-        red_layer.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        m.blit(red_layer, (0, 0))
-
-        # Carve the U cavity through OUTLINE + RED in one pass (alpha=0
-        # writes "fully transparent" on SRCALPHA surfaces).
-        pygame.draw.circle(m, (0, 0, 0, 0), (20, 18), 8)
-        pygame.draw.rect(m, (0, 0, 0, 0), (12, 18, 16, 18))
-
-        # Steel pole tips at the bottom of each leg.
-        for lx in (6, 22):
-            pygame.draw.rect(m, OUTLINE,  (lx, 30, 12, 6))
-            pygame.draw.rect(m, STEEL_DK, (lx + 1, 31, 10, 4))
-            pygame.draw.rect(m, STEEL_LT, (lx + 1, 31, 10, 1))
-
-        # Sun glint along the upper-outer arc and a tiny highlight on the
-        # left pole face — sells the metallic feel after smoothscale.
-        pygame.draw.line(m, RED_TOP, (10, 12), (15,  6), 2)
-        pygame.draw.line(m, STEEL_LT, (8, 32), (8, 35), 1)
-
-        # Two faint magnetic-pull sparks above the poles.
-        pygame.draw.line(m, FIELD, ( 8, 36), ( 6, 38), 1)
-        pygame.draw.line(m, FIELD, (32, 36), (34, 38), 1)
-
-        icon = pygame.transform.smoothscale(m, (rect.w, rect.h))
-        surf.blit(icon, rect.topleft)
-    elif kind == "megamagnet":
-        # Renders the magnet icon then overlays a small gold "++" so
-        # the upgrade reads at chip size without redrawing the whole
-        # sprite. Delegates back to the magnet branch via recursion.
-        _draw_buff_icon(surf, rect, "magnet")
-        badge_font = _font(max(10, rect.h // 3), bold=True)
-        plus = badge_font.render("++", True, (255, 215, 70))
-        shadow = badge_font.render("++", True, (60, 30, 8))
-        bx = rect.x + rect.w // 2 - plus.get_width() // 2
-        by = rect.y + rect.h // 2 - plus.get_height() // 2 - 2
-        surf.blit(shadow, (bx + 1, by + 1))
-        surf.blit(plus, (bx, by))
-    elif kind == "slowmo":
-        # Tiny clock face on SRCALPHA scratch
-        r = 7
-        D = r * 2 + 2
-        mc = pygame.Surface((D, D), pygame.SRCALPHA)
-        cc = (D // 2, D // 2)
-        pygame.draw.circle(mc, (130, 65, 190, 255), cc, r)       # bezel
-        pygame.draw.circle(mc, (42, 10, 70, 255), cc, r - 1)     # face
-        # 4 major ticks
-        for i in range(4):
-            ang = math.pi / 2 * i - math.pi / 2
-            x1 = cc[0] + math.cos(ang) * (r - 1)
-            y1 = cc[1] + math.sin(ang) * (r - 1)
-            x2 = cc[0] + math.cos(ang) * (r - 3)
-            y2 = cc[1] + math.sin(ang) * (r - 3)
-            pygame.draw.line(mc, (220, 190, 255, 230), (int(x1), int(y1)), (int(x2), int(y2)), 1)
-        # Hour hand ~10 o'clock
-        ha = math.pi * 2 * 10 / 12 - math.pi / 2
-        pygame.draw.line(mc, (250, 225, 255, 255), cc,
-                         (int(cc[0] + math.cos(ha) * 3), int(cc[1] + math.sin(ha) * 3)), 2)
-        # Minute hand ~12 o'clock
-        ma = -math.pi / 2
-        pygame.draw.line(mc, (200, 155, 255, 255), cc,
-                         (int(cc[0] + math.cos(ma) * 5), int(cc[1] + math.sin(ma) * 5)), 1)
-        # Center dot
-        pygame.draw.circle(mc, (255, 240, 255, 255), cc, 1)
-        surf.blit(mc, (cx - D // 2, cy - D // 2))
-    elif kind == "kfc":
-        # Tiny red KFC bucket
-        bw = 6
-        bh = 7
-        pts = [(cx - bw, cy - bh), (cx + bw, cy - bh),
-               (cx + bw - 2, cy + bh), (cx - bw + 2, cy + bh)]
-        pygame.draw.polygon(surf, (200, 18, 18), pts)
-        pygame.draw.line(surf, WHITE,
-                         (cx - bw + 1, cy), (cx + bw - 1, cy), 1)
-        pygame.draw.rect(surf, (220, 35, 22),
-                         (cx - bw - 1, cy - bh - 2, (bw + 1) * 2, 3),
-                         border_radius=1)
-    elif kind == "ghost":
-        # Mini classic ghost: rounded head + straight sides + 3-bump skirt
-        GW, GH = 20, 24
-        gcx, gcy, hr = 10, 8, 8
-        body_y2 = 16
-        DARK_G = (32,  52, 120, 255)
-        BODY_G = (205, 228, 255, 235)
-        skirt   = [(1, body_y2), (4, GH-2), (8, body_y2+3),
-                   (gcx, GH-2), (12, body_y2+3), (16, GH-2), (GW-1, body_y2)]
-        skirt_o = [(0, body_y2), (4, GH-1), (7, body_y2+3),
-                   (gcx, GH-1), (13, body_y2+3), (16, GH-1), (GW, body_y2)]
-        mg = pygame.Surface((GW, GH), pygame.SRCALPHA)
-        pygame.draw.circle(mg, DARK_G, (gcx, gcy), hr + 1)
-        pygame.draw.rect(mg, DARK_G, (0, gcy, GW, body_y2 - gcy + 1))
-        pygame.draw.polygon(mg, DARK_G, skirt_o)
-        pygame.draw.circle(mg, BODY_G, (gcx, gcy), hr)
-        pygame.draw.rect(mg, BODY_G, (1, gcy, GW - 2, body_y2 - gcy))
-        pygame.draw.polygon(mg, BODY_G, skirt)
-        for ex in (gcx - 3, gcx + 3):
-            pygame.draw.circle(mg, (252, 254, 255, 255), (ex, gcy - 1), 3)
-            pygame.draw.circle(mg, (50, 110, 220, 255),  (ex + 1, gcy), 2)
-        surf.blit(mg, (cx - gcx, cy - gcy - 2))
-    elif kind == "triple":
-        # Gold coin with $ glyph — matches the in-world triple power-up icon.
-        from game.config import POWERUP_R
-        native = POWERUP_R * 2
-        icon = pygame.Surface((native, native), pygame.SRCALPHA)
-        _draw_dollar_coin_hud(icon, native // 2, native // 2, pulse=0.0)
-        scaled = pygame.transform.smoothscale(icon, (20, 20))
-        surf.blit(scaled, (cx - 10, cy - 10))
-    elif kind == "reverse":
-        # Reuse the cached high-resolution disc + arrows from the world
-        # pickup, scaled to fit the badge slot.
-        from game.entities import _get_reverse_icon
-        diameter = min(rect.width, rect.height) - 2
-        icon = _get_reverse_icon(diameter)
-        surf.blit(icon, (cx - icon.get_width() // 2,
-                         cy - icon.get_height() // 2))
-    elif kind == "shrink":
-        # Tiny squat blue mushroom — mirrors GROW's icon style at HUD scale
-        # but with a flat parasol disc and a different palette so the two
-        # are distinguishable at a glance.
-        pygame.draw.ellipse(surf, (15, 35, 70),
-                            pygame.Rect(cx - 7, cy - 5, 14, 8))
-        pygame.draw.ellipse(surf, (40, 120, 200),
-                            pygame.Rect(cx - 6, cy - 4, 12, 6))
-        pygame.draw.ellipse(surf, (110, 200, 240),
-                            pygame.Rect(cx - 4, cy - 4, 4, 2))
-        for sx, sy in ((cx, cy - 3), (cx - 3, cy - 1), (cx + 3, cy - 1)):
-            pygame.draw.circle(surf, (255, 250, 220), (sx, sy), 1)
-        pygame.draw.ellipse(surf, (245, 240, 220),
-                            pygame.Rect(cx - 3, cy + 2, 6, 7))
-        pygame.draw.ellipse(surf, (140, 130, 110),
-                            pygame.Rect(cx - 3, cy + 2, 6, 7), 1)
-    elif kind == "rail":
-        # Tiny minecart: dark wagon body with two wheel dots and a
-        # short horizontal rail line under it. Reads as "cart on a
-        # track" at 20×20 px.
-        # Rail line
-        pygame.draw.line(surf, (120, 110, 100),
-                         (cx - 9, cy + 7), (cx + 9, cy + 7), 1)
-        # Body
-        pygame.draw.rect(surf, (60, 40, 25),
-                         pygame.Rect(cx - 7, cy - 2, 14, 7),
-                         border_radius=1)
-        pygame.draw.rect(surf, (135, 90, 50),
-                         pygame.Rect(cx - 6, cy - 1, 12, 5),
-                         border_radius=1)
-        # Iron bands
-        pygame.draw.line(surf, (40, 35, 30),
-                         (cx - 7, cy + 1), (cx + 7, cy + 1), 1)
-        # Wheels
-        pygame.draw.circle(surf, (40, 40, 45), (cx - 4, cy + 6), 2)
-        pygame.draw.circle(surf, (40, 40, 45), (cx + 4, cy + 6), 2)
-        pygame.draw.circle(surf, (160, 150, 140), (cx - 4, cy + 6), 1)
-        pygame.draw.circle(surf, (160, 150, 140), (cx + 4, cy + 6), 1)
+    """High-res procedural emblem for an active buff, centered in ``rect``.
+    Supersampled + cached per (kind, size); the family shares one key light,
+    outline weight, and contact shadow so the active-buff stack reads as a
+    cohesive set, and each emblem mirrors the in-world pickup it grants."""
+    size = min(rect.width, rect.height)
+    if size <= 0:
+        return
+    emb = _get_buff_emblem(kind, size)
+    if emb is not None:
+        surf.blit(emb, emb.get_rect(center=rect.center))
 
 
 class PauseButton:
@@ -1600,7 +1874,9 @@ class HUD:
                 icon_rect = pygame.Rect(base_x, y, icon_size, icon_size)
                 _na_plate(surf, icon_rect, cut=7, round_r=7,
                           accent=_ENERGY_FULL, glow=False)
-                _draw_buff_icon(surf, icon_rect.inflate(-8, -8), kind)
+                # Emblem fills the plate; its own padding + contact shadow give
+                # the inset, so no inflate here (the silhouette sits ~24px).
+                _draw_buff_icon(surf, icon_rect, kind)
 
                 # Energy bar to the right (drains yellow→amber, recessed track).
                 bx = icon_rect.right + 8
