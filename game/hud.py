@@ -1453,15 +1453,15 @@ class HUD:
         # ── Score: opaque cut-corner slate plate (the value floor) with a
         # menu-yellow accent edge + soft glow and a faint sandstone wash low
         # in the body. Cream numerals with a dark outline + shadow hold over a
-        # bright-sky brown pillar AND at night. Sits up in the top band so the
-        # central play corridor stays clear. Kept drawn while paused so the
-        # pause overlay simply dims it in the background.
+        # bright-sky brown pillar AND at night. Lifted to y=42 to reclaim
+        # central-corridor space while staying clear of the bird's ceiling
+        # band. Kept drawn while paused so the pause overlay simply dims it.
         score_txt = str(world.score)
         sf = _font(46, True)
         # Key the (cached) plate by digit COUNT — a tabular sample width — so
         # the plate is rebuilt at most once per digit count, not per score.
         sw = max(sf.size("8" * len(score_txt))[0] + 54, 102)
-        sp = pygame.Rect((W - sw) // 2, 68, sw, 56)
+        sp = pygame.Rect((W - sw) // 2, 42, sw, 56)
         _na_plate(surf, sp, cut=9, round_r=9, inner_warm=_NA_WARM, glow=True)
         _outlined_text(surf, score_txt, sp.center, 46, fill=UI_CREAM,
                        outline=NEAR_BLACK, px=2, shadow_offset=(2, 3))
@@ -1551,7 +1551,7 @@ class HUD:
             row_pitch = icon_size + row_gap
             row_w     = icon_size + 8 + bar_w
             base_x    = (W - row_w) // 2
-            top_y     = 132
+            top_y     = 110
 
             for i, (kind, remain, total) in enumerate(active):
                 y = top_y + i * row_pitch
