@@ -118,66 +118,90 @@ _IRON_DK = ( 50,  45,  45)
 _IRON    = (110, 100,  95)
 _IRON_HI = (190, 180, 175)
 
+# The wagon sprite is laid out so the rail-contact line (wheel bottoms)
+# sits this many px BELOW the sprite centre. Callers anchor the sprite
+# centre at rail_y - _CART_RAIL_DY, which lands the wheels on the rail.
+_CART_RAIL_DY = 16
+_CART_SPRITE = None  # cached untilted wagon, built once on first draw
 
-def _draw_parked_cart_at(surf, cx, cy, tilt_deg=0.0):
-    """Stationary pine-plank wagon at the given screen position. Used
-    both for the pre-lock parked cart on rail_cart_pipe and for the
-    locked-ride cart drawn on top of Pip. Tilt rotates the whole
-    wagon to follow the rail slope."""
-    # Paint to a scratch surface so we can rotate as one piece.
-    SW, SH = 60, 38
-    scratch = pygame.Surface((SW, SH), pygame.SRCALPHA)
-    scx = SW // 2
-    scy = SH // 2 - 2
 
-    # Wheels (pine-spoke wheel + iron tire)
-    WHEEL_R = 5
-    DX = 15
-    wheel_y = scy + 22
-    for dx in (-DX, DX):
-        wx = scx + dx
-        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), WHEEL_R)
-        pygame.draw.circle(scratch, _IRON,    (wx, wheel_y), WHEEL_R - 1)
-        pygame.draw.circle(scratch, _PINE_DK, (wx, wheel_y), WHEEL_R - 2)
+def _build_cart_sprite():
+    """Pine-plank wagon with two 6-spoke wheels, painted once at 4x and
+    smooth-scaled down so the spokes and iron hoops stay crisp at game
+    size. Geometry is the railway-design wagon (`render_cart_designs.py`
+    :paint_wagon): wheels sit fully below the body with their bottoms on
+    the rail line."""
+    SS = 4  # supersample factor (matches the design render's SCALE)
+    SW, SH = 60, 48
+    surf = pygame.Surface((SW * SS, SH * SS), pygame.SRCALPHA)
+    cx = (SW // 2) * SS
+    rail_y = (SH // 2 + _CART_RAIL_DY) * SS
+
+    WHEEL_R  = 5 * SS
+    WHEEL_DX = 15 * SS
+    CART_W   = 42 * SS
+    CART_H   = 18 * SS
+
+    # Wheels first — the body overlaps their tops.
+    for dx in (-WHEEL_DX, WHEEL_DX):
+        wx = cx + dx
+        cy = rail_y - WHEEL_R
+        pygame.draw.circle(surf, _IRON_DK, (wx, cy), WHEEL_R)
+        pygame.draw.circle(surf, _IRON,    (wx, cy), WHEEL_R - SS)
+        pygame.draw.circle(surf, _PINE_DK, (wx, cy), WHEEL_R - 2 * SS)
+        pygame.draw.circle(surf, _PINE,    (wx, cy), WHEEL_R - 2 * SS - SS // 2)
         for i in range(6):
             ang = (i / 6) * math.tau
-            ex = wx + int(math.cos(ang) * (WHEEL_R - 2))
-            ey = wheel_y + int(math.sin(ang) * (WHEEL_R - 2))
-            pygame.draw.line(scratch, _PINE_DK, (wx, wheel_y), (ex, ey), 1)
-        pygame.draw.circle(scratch, _IRON_DK, (wx, wheel_y), 1)
+            ex = wx + int(math.cos(ang) * (WHEEL_R - 2 * SS))
+            ey = cy + int(math.sin(ang) * (WHEEL_R - 2 * SS))
+            pygame.draw.line(surf, _PINE_DK, (wx, cy), (ex, ey), max(2, SS - 1))
+        pygame.draw.circle(surf, _IRON_DK, (wx, cy), SS)
 
-    # Body (pine planks + iron hoop bands)
-    BW = 42
-    BH = 18
-    body_top = scy + 4
-    body_bot = scy + 4 + BH
-    pygame.draw.rect(scratch, _PINE_DK,
-                     pygame.Rect(scx - BW // 2 - 1, body_top - 1,
-                                 BW + 2, BH + 2))
-    pygame.draw.rect(scratch, _PINE,
-                     pygame.Rect(scx - BW // 2, body_top, BW, BH))
-    for i in range(1, BW // 6):
-        px = scx - BW // 2 + i * 6
-        pygame.draw.line(scratch, _PINE_DK,
-                         (px, body_top + 1), (px, body_bot - 1), 1)
-        pygame.draw.line(scratch, _PINE_HI,
-                         (px + 1, body_top + 1),
-                         (px + 1, body_bot - 1), 1)
-    for band_y in (body_top + 2, body_bot - 5):
-        pygame.draw.rect(scratch, _IRON_DK,
-                         pygame.Rect(scx - BW // 2 - 1, band_y,
-                                     BW + 2, 3))
-        pygame.draw.rect(scratch, _IRON,
-                         pygame.Rect(scx - BW // 2 - 1, band_y + 1,
-                                     BW + 2, 1))
-        pygame.draw.line(scratch, _IRON_HI,
-                         (scx - BW // 2 - 1, band_y),
-                         (scx + BW // 2 + 1, band_y), 1)
+    # Body — vertical pine planks + two iron hoop bands.
+    body_top = rail_y - 2 * WHEEL_R - CART_H
+    body_bot = rail_y - 2 * WHEEL_R
+    pygame.draw.rect(surf, _PINE_DK,
+                     pygame.Rect(cx - CART_W // 2 - SS, body_top - SS,
+                                 CART_W + 2 * SS, CART_H + 2 * SS))
+    pygame.draw.rect(surf, _PINE,
+                     pygame.Rect(cx - CART_W // 2, body_top, CART_W, CART_H))
+    plank_w = 6 * SS
+    for i in range(1, CART_W // plank_w):
+        px = cx - CART_W // 2 + i * plank_w
+        pygame.draw.line(surf, _PINE_DK, (px, body_top + SS),
+                         (px, body_bot - SS), max(1, SS // 2))
+        pygame.draw.line(surf, _PINE_HI,
+                         (px + max(1, SS // 2), body_top + SS),
+                         (px + max(1, SS // 2), body_bot - SS), 1)
+    hoop_h = 3 * SS
+    for band_y in (body_top + 2 * SS, body_bot - 2 * SS - hoop_h):
+        pygame.draw.rect(surf, _IRON_DK,
+                         pygame.Rect(cx - CART_W // 2 - SS, band_y,
+                                     CART_W + 2 * SS, hoop_h))
+        pygame.draw.rect(surf, _IRON,
+                         pygame.Rect(cx - CART_W // 2 - SS, band_y + SS,
+                                     CART_W + 2 * SS, hoop_h - 2 * SS))
+        pygame.draw.line(surf, _IRON_HI,
+                         (cx - CART_W // 2 - SS, band_y + SS),
+                         (cx + CART_W // 2 + SS, band_y + SS), max(1, SS // 2))
 
+    return pygame.transform.smoothscale(surf, (SW, SH))
+
+
+def _draw_parked_cart_at(surf, cx, cy, tilt_deg=0.0):
+    """Blit the pine-plank wagon centred at the given screen position.
+    Used both for the pre-lock parked cart on rail_cart_pipe and for the
+    locked-ride cart drawn on top of Pip. Tilt rotates the whole wagon to
+    follow the rail slope. The base sprite is built once and cached; only
+    the per-frame rotation is paid here."""
+    global _CART_SPRITE
+    if _CART_SPRITE is None:
+        _CART_SPRITE = _build_cart_sprite()
+    sprite = _CART_SPRITE
     if abs(tilt_deg) > 0.5:
-        scratch = pygame.transform.rotate(scratch, tilt_deg)
-    rect = scratch.get_rect(center=(int(cx), int(cy)))
-    surf.blit(scratch, rect.topleft)
+        sprite = pygame.transform.rotate(sprite, tilt_deg)
+    rect = sprite.get_rect(center=(int(cx), int(cy)))
+    surf.blit(sprite, rect.topleft)
 
 
 def _draw_parked_cart(surf, pipe):
