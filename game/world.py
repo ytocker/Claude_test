@@ -1521,14 +1521,16 @@ class World:
     def _activate_rail(self, m):
         """RAIL TRACK — pillar-limited buff. Skips the next pillar (a
         RAIL_LEAD_PILLARS lead-in so players aren't ambushed and have
-        time to glide over) then tags the following 5 pillars with rail
-        track, parking a stationary cart on the FIRST tagged one. Pip is
+        time to glide over) then tags the following RAIL_PILLAR_COUNT
+        pillars with rail track, parking a stationary cart on the FIRST
+        tagged one. Pip is
         NOT auto-locked: he keeps flying with normal flap. If he touches
         the cart pillar the cart locks him in and rides through the
         remaining tagged pillars. The other tagged pillars still have
         track but no cart — touching them kills Pip like any obstacle.
         If picked up WHILE Pip is already locked on the rail (he can't
-        dodge), extend the current ride by 5 more pillars."""
+        dodge), extend the current ride by RAIL_PILLAR_COUNT more
+        pillars."""
         if self.bird.cart_locked:
             self._extend_rail_ride(m)
             return

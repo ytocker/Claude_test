@@ -61,7 +61,7 @@ REVERSE_DURATION   = 8.0
 SHRINK_DURATION    = 8.0
 SHRINK_SCALE       = 0.6
 SHRINK_TRANSITION  = 0.45
-RAIL_PILLAR_COUNT  = 5       # cart rides over exactly N pillars then releases
+RAIL_PILLAR_COUNT  = 7       # cart rides over exactly N pillars then releases
 RAIL_LEAD_PILLARS  = 1       # pillars to skip before the cart so players have
                             # time to reach it (cart parks on the 2nd ahead)
 RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
