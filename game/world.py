@@ -29,6 +29,7 @@ from game.config import (
     SECRET_POWERUP_WEIGHTS, LATE_GAME_SCORE,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
+    GENIE_CHAMBER_REVEAL_DIST,
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
     SKATE_SLIDE_RELEASE, BACKFLIP_DURATION, BACKFLIP_TAP_WINDOW,
     KICKFLIP_DURATION, KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX,
@@ -346,7 +347,11 @@ class World:
             self.rail_pipes.append(p)
             self.rail_pending -= 1
         if is_chamber:
-            self._spawn_genie_chamber_offers(p)
+            # Wishes don't materialise yet — only the wide-gap pillar
+            # spawns. The wishes pop in with a poof when Pip approaches
+            # so the player sees them appear instead of finding them
+            # already floating in mid-air. See _tick_genie_chambers.
+            p.wishes_spawned = False
             self.genie_chamber_pending = False
         elif is_rush:
             self._spawn_rush_coins(p)
@@ -359,7 +364,10 @@ class World:
     def _spawn_genie_chamber_offers(self, pipe: Pipe):
         """Place KNIGHT / POISON / SKATEBOARD wishes vertically inside
         the chamber pillar's gap, in random order, centred on gap_y
-        with +/-GENIE_CHAMBER_SPACING separation."""
+        with +/-GENIE_CHAMBER_SPACING separation. Called by
+        _tick_genie_chambers once Pip is within GENIE_CHAMBER_REVEAL_DIST
+        of the chamber pillar so the player sees the wishes poof into
+        existence rather than scroll in pre-placed."""
         kinds = ["knight", "poison", "skateboard"]
         random.shuffle(kinds)
         slot_dy = (-GENIE_CHAMBER_SPACING, 0, GENIE_CHAMBER_SPACING)
@@ -370,6 +378,26 @@ class World:
             offer.is_genie_offer = True
             self.powerups.append(offer)
             self._spawn_genie_reveal_poof(ox, oy)
+        try:
+            audio._play("coin_triple", 0.95)
+        except Exception:
+            pass
+        pipe.wishes_spawned = True
+
+    def _tick_genie_chambers(self):
+        """Materialise the 3 wishes inside any chamber pillar Pip is
+        approaching. Trigger fires once per chamber, when the pillar's
+        x is within GENIE_CHAMBER_REVEAL_DIST of Pip — gives the
+        player ~1.5 s at SCROLL_BASE to read the wishes before they
+        arrive."""
+        bx = self.bird.x
+        for p in self.pipes:
+            if not getattr(p, "is_genie_chamber", False):
+                continue
+            if getattr(p, "wishes_spawned", False):
+                continue
+            if (p.x - bx) <= GENIE_CHAMBER_REVEAL_DIST:
+                self._spawn_genie_chamber_offers(p)
 
     def _maybe_spawn_ramp(self, pipe: Pipe):
         """During the SKATEBOARD window, sometimes drop a wooden wedge
@@ -703,6 +731,10 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
+            # Genie chamber wishes pop in when Pip gets close enough so
+            # the player sees them materialise instead of finding them
+            # pre-placed in the gap.
+            self._tick_genie_chambers()
 
             # Magnet pull — tug uncollected coins toward the bird.
             # Either timer triggers; the bigger radius wins if both

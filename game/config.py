@@ -155,6 +155,9 @@ GENIE_OFFER_Y_SLOTS = (220, 320, 420)
 # Pip must fly through the gap and pick one wish by altitude.
 GENIE_CHAMBER_GAP_BOOST = 2.0
 GENIE_CHAMBER_SPACING   = 105
+# Wishes pop in with a reveal poof once the chamber pillar is within
+# this many px of Pip — gives ~1.5 s of read time at SCROLL_BASE.
+GENIE_CHAMBER_REVEAL_DIST = 250
 
 # SKATEBOARD — timed grind/slide buff. The world scrolls faster while Pip is
 # actually grinding a surface; the boost eases in over SKATE_SLIDE_ATTACK and
