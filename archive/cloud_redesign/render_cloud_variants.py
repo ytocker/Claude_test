@@ -1,8 +1,12 @@
-"""Render `docs/cloud_redesign/round_1.png`.
+"""Render `docs/cloud_redesign/round_2.png`.
 
 Composes one full game scene per cell (sky + V14 backdrop + ground)
-and scatters 5–6 instances of the row's cloud variant across it so each
-variant is judged in situ, never as a bare swatch.
+and scatters 6 instances of the row's cloud variant across it so each
+variant is judged in situ, never as a bare swatch. Round-2 changes vs
+round-1: per-instance scale variance (deterministic via seeded RNG so
+the layout is reproducible), and one cloud per cell is anchored near
+the V14 mid-band ridgeline so the AD can judge cloud/ridge interaction
+directly.
 
 Grid: 5 rows (one variant each) × 5 columns (DAY / GOLDEN / SUNSET /
 DUSK / NIGHT). Each tile is 360×640 — the live game canvas.
@@ -15,6 +19,7 @@ from __future__ import annotations
 import math
 import os
 import pathlib
+import random
 import sys
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -53,16 +58,21 @@ PHASES = [
 ]
 
 # Cloud placement scattered across the canvas so each cell reads as a
-# real sky, not a single demo blob. Different x/y/scale per slot lets
-# the AD see the variant working at a range of sizes.
-CLOUD_SLOTS = (
-    # (x, y, scale)
-    (60,  90, 0.90),
-    (220, 130, 1.05),
-    (140, 200, 0.80),
-    (290, 250, 0.70),
-    (40,  290, 0.85),
-    (200, 340, 0.95),
+# real sky, not a single demo blob. The y values for slots 1-5 are
+# fixed; slot 0 (RIDGE_SLOT) is force-anchored near the V14 mid-band
+# ridgeline so the AD can judge cloud/ridge interaction. Scale is
+# resampled per instance with `random` (round-2 fix B) so the layout
+# isn't a uniform-scale grid; the seed is `(row, col, idx)` so the
+# pattern is deterministic and reproducible.
+RIDGE_SLOT = (140, 380)  # x fixed, y jittered around the ridgeline
+CLOUD_SLOTS_XY = (
+    # First slot is the ridge anchor — y is replaced at runtime.
+    RIDGE_SLOT,
+    (60,  90),
+    (220, 130),
+    (290, 250),
+    (40,  290),
+    (200, 340),
 )
 
 # Per-row scroll for the V14 backdrop — late-game bucket so the ridge
@@ -89,14 +99,30 @@ def _scene_backdrop(phase: float, scroll: float) -> pygame.Surface:
     return surf
 
 
-def render_cell(variant_id: int, phase: float) -> pygame.Surface:
+def render_cell(variant_id: int, phase: float, col_idx: int) -> pygame.Surface:
     surf = _scene_backdrop(phase, ROW_SCROLL)
     palette = _biome.palette_for_phase(phase)
     draw_fn = cv.VARIANTS[variant_id]
-    for i, (cx, cy, sc) in enumerate(CLOUD_SLOTS):
-        # Subtle vertical bob keeps the demo from looking flat-tiled.
+    for i, (cx, cy) in enumerate(CLOUD_SLOTS_XY):
+        # Per-instance seed: (row, col, idx) — keeps the AD's layout
+        # reproducible across reruns but distinct per cell.
+        rng = random.Random(variant_id * 10007 + col_idx * 131 + i)
+        # Per-instance scale variance: 0.7-1.3× per slot (round-2 fix B).
+        sc = 0.7 + rng.random() * 0.6
+        # Subtle bob keeps the demo from looking flat-tiled.
         bob = math.sin(i * 0.9) * 2
-        draw_fn(surf, cx, cy + bob, palette, scale=sc)
+        # Slot 0 is force-anchored to the V14 ridgeline (round-2 fix C).
+        if i == 0:
+            cy_eff = 380 + rng.randint(-20, 40)
+        else:
+            cy_eff = cy + bob
+        # Variant 4 (Trailing Mist Veil) is contract-bound to the lower
+        # sky band only — clamp its y so it can't drift up into the
+        # high-altitude band where it would just read as a misplaced
+        # streak.
+        if variant_id == 4 and cy_eff < int(H * 0.55):
+            cy_eff = int(H * 0.55) + rng.randint(0, 40)
+        draw_fn(surf, cx, cy_eff, palette, scale=sc)
     return surf
 
 
@@ -115,7 +141,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "CLOUD REDESIGN — ROUND 1 · 5 variants × 5 phases",
+        "CLOUD REDESIGN — ROUND 2 · 5 variants × 5 phases",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -170,7 +196,7 @@ def make_sheet() -> pygame.Surface:
 
         for c, (plabel, phase) in enumerate(PHASES):
             x = row_label_w + pad + c * (tw + pad)
-            tile = render_cell(vid, phase)
+            tile = render_cell(vid, phase, c)
             sheet.blit(tile, (x, y))
 
             tagtxt = font_small.render(
@@ -187,7 +213,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "round_1.png"
+    out = OUT / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
