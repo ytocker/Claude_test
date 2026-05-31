@@ -773,7 +773,7 @@ class Bird:
             t = min(1.0, self.death_fade_t / DEATH_FADE_DURATION)
             dead_raw = parrot.get_dead_parrot(
                 frame_idx, tilt,
-                palette_key=_dead_palette_key, aura_scale=t,
+                palette_key="B", aura_scale=t,
             )
             if dead_raw.get_size() != img.get_size():
                 dead_raw = pygame.transform.smoothscale(dead_raw, img.get_size())
