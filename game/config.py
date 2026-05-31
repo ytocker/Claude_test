@@ -141,6 +141,11 @@ POWERUP_REPLACED_AT = {
 # right after scoring pillar 65). From that moment, the genie is also added
 # to the regular spawn pool and the Surprise Box re-roll pool.
 LATE_GAME_PILLAR       = 65
+# DEBUG: extra genie spawn early in the run so the pickup + chamber + wishes
+# can be exercised without playing through 65 pillars. Same one-shot rules
+# as the production milestone (also flips on the genie pool + surprise-box
+# choices). Set to None to disable.
+DEBUG_GENIE_PILLAR     = 5
 # Only the genie spawns directly from the secret tier. Knight, skateboard,
 # and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
 # are not in any weight table and cannot be Surprise-re-rolled.

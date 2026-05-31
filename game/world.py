@@ -26,7 +26,7 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
-    SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR,
+    SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR, DEBUG_GENIE_PILLAR,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -265,6 +265,10 @@ class World:
         # and from that point on the genie joins the regular spawn pool
         # and the Surprise Box re-roll pool.
         self._genie_milestone_fired = False
+        # DEBUG aid: separate one-shot trigger at DEBUG_GENIE_PILLAR so the
+        # pickup + chamber + wishes can be tested early without grinding
+        # to pillar 65. Also enables the late-game pool/surprise rules.
+        self._debug_genie_milestone_fired = False
 
         self._seed_first_pipes()
 
@@ -912,26 +916,38 @@ class World:
             ))
 
     def _check_genie_milestone(self, last_scored_pipe):
-        """Fires once per run when pillars_passed crosses LATE_GAME_PILLAR.
-        Called from the pipe-pass loop with the pipe just scored, so the
-        genie lamp lands in the spacing immediately after it — the player
-        encounters the lamp while flying from pillar 65 toward pillar 66.
+        """Fires once per run when pillars_passed crosses LATE_GAME_PILLAR
+        (and a separate debug one-shot at DEBUG_GENIE_PILLAR). Called from
+        the pipe-pass loop with the pipe just scored, so the genie lamp
+        lands in the spacing immediately after it — the player encounters
+        the lamp while flying from that pillar toward the next.
 
         Pillar-based (not score-based) so coin pickups, lottery wins, and
         storm-jolt deductions can't shift the moment. Doesn't override
         any pre-existing powerup; the lamp just appears at the normal
         in-gap placement."""
+        if (DEBUG_GENIE_PILLAR is not None
+                and not self._debug_genie_milestone_fired
+                and self.pillars_passed >= DEBUG_GENIE_PILLAR):
+            self._debug_genie_milestone_fired = True
+            self._spawn_milestone_genie(last_scored_pipe)
+            return
         if self._genie_milestone_fired:
             return
         if self.pillars_passed < LATE_GAME_PILLAR:
             return
         self._genie_milestone_fired = True
+        self._spawn_milestone_genie(last_scored_pipe)
+
+    def _spawn_milestone_genie(self, last_scored_pipe):
+        """Drop a genie lamp in the spacing after `last_scored_pipe` and
+        set the standard cooldown so the next regular spawn doesn't stack
+        immediately. Used by both the production milestone (pillar 65) and
+        the debug one-shot (pillar 5)."""
         gx = (last_scored_pipe.x + PIPE_W
               + self._current_spacing() * 0.5)
         gy = last_scored_pipe.gap_y
         self.powerups.append(PowerUp(gx, gy, kind="genie"))
-        # Set the standard cooldown so the next regular spawn doesn't
-        # immediately stack a second powerup right behind the lamp.
         self.powerup_cooldown = POWERUP_COOLDOWN
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
@@ -954,10 +970,11 @@ class World:
                 continue
             kinds.append(k)
             weights.append(w)
-        # Secret late-game tier: only enters the roll once the genie
-        # milestone has fired (at pillar LATE_GAME_PILLAR). Kept out of
+        # Secret late-game tier: only enters the roll once a genie
+        # milestone has fired (production at pillar LATE_GAME_PILLAR or
+        # the debug one-shot at DEBUG_GENIE_PILLAR). Kept out of
         # POWERUP_WEIGHTS so the gate can't be bypassed.
-        if self._genie_milestone_fired:
+        if self._genie_milestone_fired or self._debug_genie_milestone_fired:
             for k, w in SECRET_POWERUP_WEIGHTS:
                 kinds.append(k)
                 weights.append(w)
@@ -1767,11 +1784,11 @@ class World:
                            if self.score >= POWERUP_REPLACED_AT.get("magnet", 1 << 30)
                            else "magnet")
             choices = ["triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"]
-            # Once the genie milestone has fired (pillar LATE_GAME_PILLAR
-            # passed), the Surprise Box also rolls the genie — the trap-
-            # bearing tier no longer needs its own standalone pickup to
-            # surface. (Knight / poison / skateboard stay genie-only.)
-            if self._genie_milestone_fired:
+            # Once a genie milestone has fired (production or debug), the
+            # Surprise Box also rolls the genie — the trap-bearing tier no
+            # longer needs its own standalone pickup to surface. (Knight /
+            # poison / skateboard stay genie-only.)
+            if self._genie_milestone_fired or self._debug_genie_milestone_fired:
                 choices.append("genie")
             kind = random.choice(choices)
             self._spawn_surprise_reveal(m)
