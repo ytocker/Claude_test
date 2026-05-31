@@ -41,7 +41,9 @@ _DESERT_KF = [
     (0.18, dict(  # midday
         sky_top=(60, 120, 210), sky_mid=(132, 182, 226), sky_bot=(202, 226, 240),
         horizon=(246, 236, 206),
-        mtn_far=(190, 172, 160), mtn_mid=(176, 148, 124), mtn_near=(154, 120, 94),
+        # Far dune dropped a touch so it separates from the bright bot-sky instead
+        # of reading as a faint band.
+        mtn_far=(178, 158, 144), mtn_mid=(176, 148, 124), mtn_near=(154, 120, 94),
         struct_light=(232, 202, 154), struct_mid=(196, 156, 110),
         struct_dark=(124, 90, 60), struct_accent=(168, 124, 84),
         ground_top=(216, 186, 126), ground_mid=(178, 144, 94), ground_bot=(122, 92, 58),
@@ -100,7 +102,9 @@ DESERT_MESA = BiomeSpec(
     name="Desert Mesa",
     note="Flat-topped sandstone buttes + eroded arch over rolling dunes; bone-dry warm palette.",
     keyframes=_DESERT_KF,
-    sky=SkyParams(positions=(0.0, 0.28, 0.58, 0.84, 1.0), dither_amp=2.2, zenith_dark=0.05),
+    # zenith_dark nudged up so the apricot golden/sunset zenith gives the white
+    # HUD a darker anchor at the very top of canvas where the score sits.
+    sky=SkyParams(positions=(0.0, 0.28, 0.58, 0.84, 1.0), dither_amp=2.2, zenith_dark=0.11),
     ridges=[
         RidgeParams(base_h=0.16, octaves=((0.008, 18), (0.020, 10)), parallax=0.06,
                     color_key='mtn_far', seed=1),
@@ -180,7 +184,7 @@ _ALPINE_KF = [
         foliage_top=(34, 50, 56), foliage_mid=(22, 34, 42), foliage_dark=(14, 22, 30),
         foliage_accent=(54, 72, 74),
         ground_top=(96, 112, 146), ground_mid=(62, 76, 110), ground_bot=(36, 46, 74),
-        snow_tint=(176, 192, 226), glow_color=(200, 220, 255), star_alpha=215)),
+        snow_tint=(214, 226, 250), glow_color=(200, 220, 255), star_alpha=215)),
     (0.80, dict(  # predawn — cold violet, faint star wash
         sky_top=(26, 32, 78), sky_mid=(54, 60, 116), sky_bot=(112, 110, 154),
         horizon=(184, 162, 176),
@@ -207,17 +211,20 @@ ALPINE_SNOWPEAK = BiomeSpec(
     name="Alpine Snowpeak",
     note="Tall jagged snow-capped granite over a dark conifer treeline; cold blue-white, crisp high-altitude air.",
     keyframes=_ALPINE_KF,
-    sky=SkyParams(positions=(0.0, 0.34, 0.66, 0.88, 1.0), dither_amp=1.6, zenith_dark=0.10),
+    # zenith_dark raised: pale-blue alpine morning/midday let the white HUD wash
+    # out, so deepen the very top a touch for a darker score anchor.
+    sky=SkyParams(positions=(0.0, 0.34, 0.66, 0.88, 1.0), dither_amp=1.6, zenith_dark=0.16),
     ridges=[
         # Far snowfield wall: broad, low jag, snow-capped high.
         RidgeParams(base_h=0.26, octaves=((0.007, 26), (0.018, 14)), parallax=0.06,
-                    color_key='mtn_far', jag=0.30, snow_line=0.58, seed=2),
-        # Mid peaks: taller, sharper teeth.
+                    color_key='mtn_far', jag=0.34, snow_line=0.58, seed=2),
+        # Mid peaks: taller, sharper teeth — jag pushed up so the caps read as
+        # granite fangs rather than rounded scallops.
         RidgeParams(base_h=0.34, octaves=((0.010, 30), (0.026, 18)), parallax=0.14,
-                    color_key='mtn_mid', jag=0.42, snow_line=0.50, seed=4),
-        # Near summits: tallest + most jagged, caps reach lower.
+                    color_key='mtn_mid', jag=0.62, snow_line=0.50, seed=4),
+        # Near summits: tallest + most jagged, caps reach lower — the hero teeth.
         RidgeParams(base_h=0.40, octaves=((0.013, 34), (0.030, 20)), parallax=0.26,
-                    color_key='mtn_near', jag=0.48, snow_line=0.46, seed=6),
+                    color_key='mtn_near', jag=0.74, snow_line=0.46, seed=6),
     ],
     signature=bm.draw_summit_shrine,
     foliage=bm.draw_alpine_conifers,
@@ -229,18 +236,18 @@ ALPINE_SNOWPEAK = BiomeSpec(
 # Caldera-rim ridges with a central crater notch; ash/charcoal terrain, smoky
 # ember sky that stays moody even at "day". Lava glow is the night hero.
 _VOLCANO_KF = [
-    (0.06, dict(  # morning — hazy brown daylight, never clean blue
-        sky_top=(120, 96, 96), sky_mid=(168, 130, 110), sky_bot=(196, 156, 128),
+    (0.06, dict(  # morning — hazy daylight, cooler smoke up top (less flat mauve)
+        sky_top=(104, 96, 108), sky_mid=(168, 130, 110), sky_bot=(196, 156, 128),
         horizon=(210, 158, 118),
-        mtn_far=(96, 84, 84), mtn_mid=(74, 64, 64), mtn_near=(52, 46, 48),
+        mtn_far=(88, 76, 76), mtn_mid=(66, 56, 56), mtn_near=(52, 46, 48),
         struct_light=(150, 120, 110), struct_mid=(96, 84, 82),
         struct_dark=(52, 46, 48), struct_accent=(170, 96, 64),
         ground_top=(86, 76, 76), ground_mid=(60, 54, 54), ground_bot=(38, 34, 36),
         glow_color=(255, 120, 44), star_alpha=0)),
-    (0.18, dict(  # midday — ash haze thins a little, still smoky
-        sky_top=(132, 110, 108), sky_mid=(180, 144, 122), sky_bot=(206, 166, 136),
+    (0.18, dict(  # midday — ash haze thins a little, cooler smoke aloft
+        sky_top=(114, 108, 124), sky_mid=(180, 144, 122), sky_bot=(206, 166, 136),
         horizon=(216, 162, 120),
-        mtn_far=(100, 88, 88), mtn_mid=(78, 68, 68), mtn_near=(54, 48, 50),
+        mtn_far=(92, 80, 80), mtn_mid=(70, 60, 60), mtn_near=(54, 48, 50),
         struct_light=(156, 126, 114), struct_mid=(100, 88, 86),
         struct_dark=(54, 48, 50), struct_accent=(178, 100, 66),
         ground_top=(90, 80, 80), ground_mid=(62, 56, 56), ground_bot=(40, 36, 38),
@@ -299,7 +306,9 @@ VOLCANIC_CALDERA = BiomeSpec(
     name="Volcanic Caldera",
     note="Caldera-rim ridges around a crater notch; ash-charcoal terrain, smoky ember sky, lava glow at night.",
     keyframes=_VOLCANO_KF,
-    sky=SkyParams(positions=(0.0, 0.30, 0.60, 0.82, 1.0), dither_amp=2.6, zenith_dark=0.08),
+    # zenith_dark up a hair so the smoky-mauve day sky gives the white HUD a
+    # darker top anchor without recoloring the moody palette.
+    sky=SkyParams(positions=(0.0, 0.30, 0.60, 0.82, 1.0), dither_amp=2.6, zenith_dark=0.12),
     ridges=[
         # Far rim wall with a broad central crater dip.
         RidgeParams(base_h=0.24, octaves=((0.006, 22), (0.016, 10)), parallax=0.06,

@@ -160,11 +160,12 @@ def karst_mist(ctx):
     from scene_engine import mist_bands
     night = _nightf(ctx)
     mtint = ctx.pal.get('mist_tint', (210, 222, 220))
-    # Few thin low bands by day, more + higher only at night. y0_frac stays in the
-    # lower third so the readable sky lives above the haze.
-    n = 2 + int(round(night * 2))
-    alpha = int(30 + 15 * night)
-    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.72, n=n, alpha=alpha)
+    # ONE thin low band by day, a couple more (and higher) only as the day cools.
+    # y0_frac anchored in the lower third so the upper half of canvas keeps a
+    # readable jade gradient — heavy banks belong to predawn/dusk, not midday.
+    n = 1 + int(round(night * 2))
+    alpha = int(26 + 16 * night)
+    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.76, n=n, alpha=alpha)
 
 
 def draw_summit_shrine(ctx):
@@ -174,19 +175,22 @@ def draw_summit_shrine(ctx):
     from game.pillar_variants import draw_prayer_flags
     surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
     light, mid, dark, accent = _struct(ctx)
-    x = int(w * 0.52)
-    y = gy - int(gy * 0.30)
+    # Sat against the near ridge (the tallest jagged hero teeth) and scaled ~50%
+    # so the human mark is legible from the play area; the prayer flags carry the
+    # only saturated color in an otherwise cold scene, so they pop hardest.
+    x = int(w * 0.50)
+    y = gy - int(gy * 0.34)
     # Stone base + whitewashed body so it reads as a chorten against dark rock.
-    pygame.draw.rect(surf, dark, (x - 9, y + 12, 18, 8))
-    pygame.draw.rect(surf, mid, (x - 8, y, 16, 14))
-    pygame.draw.line(surf, light, (x - 8, y), (x + 8, y), 2)
+    pygame.draw.rect(surf, dark, (x - 13, y + 18, 27, 11))
+    pygame.draw.rect(surf, mid, (x - 12, y, 24, 21))
+    pygame.draw.line(surf, light, (x - 12, y - 1), (x + 12, y - 1), 3)
     # Tiered roof.
-    pygame.draw.polygon(surf, dark, [(x - 11, y), (x + 11, y), (x, y - 11)])
-    pygame.draw.line(surf, light, (x - 11, y), (x, y - 11), 2)
+    pygame.draw.polygon(surf, dark, [(x - 16, y), (x + 16, y), (x, y - 16)])
+    pygame.draw.line(surf, light, (x - 16, y), (x, y - 16), 3)
     # Finial.
-    pygame.draw.line(surf, accent, (x, y - 11), (x, y - 16), 2)
-    # Prayer-flag line strung down-slope from the finial.
-    draw_prayer_flags(surf, x + 3, y - 14, x + 46, y + 6, n=7)
+    pygame.draw.line(surf, accent, (x, y - 16), (x, y - 24), 3)
+    # Prayer-flag line strung down-slope from the finial — saturated flag blocks.
+    draw_prayer_flags(surf, x + 5, y - 21, x + 64, y + 8, n=7)
 
 
 def draw_basalt_columns(ctx):
@@ -199,6 +203,13 @@ def draw_basalt_columns(ctx):
     light, mid, dark, accent = _struct(ctx)
     glow = ctx.pal.get('glow_color', (255, 110, 40))
     night = _nightf(ctx)
+
+    # Push the column faces ~1 value step lighter than the stage struct tones so
+    # the palisade silhouette stays crisp against the (now darker) caldera hills
+    # behind it even at small size.
+    def _lift(c, d=14):
+        return (min(255, c[0] + d), min(255, c[1] + d), min(255, c[2] + d))
+    mid, dark = _lift(mid), _lift(dark)
 
     base = int(w * 0.46)
     n = 9
@@ -267,34 +278,36 @@ def draw_stilt_houses(ctx):
         pygame.draw.line(wb, (*c, 200), (0, yy), (w, yy))
     surf.blit(wb, (0, gy - 2))
 
-    # Warm window value floored well above struct_accent so the lit panes carry
-    # the village by dusk even when the stage accent is a muted day tone — the
-    # hero must stay legible, the lights are its whole charm.
-    win = (max(accent[0], 235), max(accent[1], 170), max(accent[2], 90))
+    # Warm window value floored even higher than struct_accent so the lit panes
+    # carry the village by dusk even when the stage accent is a muted day tone —
+    # the hero must stay legible, the lights are its whole charm. Floor lifted so
+    # dusk windows glow rather than sitting at a dim daytime accent.
+    win = (max(accent[0], 245), max(accent[1], 188), max(accent[2], 110))
 
     cx = int(w * 0.54)
     houses = []
-    # ~35% larger cluster (wider spacing, taller bodies + roofs) so the hero
-    # holds the eye against the towers instead of reading as bric-a-brac.
-    for i, dx in enumerate((-56, 0, 54)):
+    # Cluster scaled up ~35% over the bric-a-brac version (wider spacing, taller
+    # bodies + roofs + thicker stilts) so the hero holds the eye against the
+    # towers instead of reading as a row of tiny boxes.
+    for i, dx in enumerate((-74, 0, 72)):
         x = cx + dx
-        hw = 32 - (i % 2) * 6
-        hh = 24
-        roof_y = gy - 40 - (i % 2) * 8
+        hw = 42 - (i % 2) * 8
+        hh = 32
+        roof_y = gy - 52 - (i % 2) * 10
         houses.append((x, hw, hh, roof_y))
         # Stilts down into the water.
-        for sxp in (x - hw // 2 + 4, x + hw // 2 - 4):
-            pygame.draw.line(surf, dark, (sxp, gy + 2), (sxp, roof_y + hh), 2)
+        for sxp in (x - hw // 2 + 5, x + hw // 2 - 5):
+            pygame.draw.line(surf, dark, (sxp, gy + 2), (sxp, roof_y + hh), 3)
         # Body.
         pygame.draw.rect(surf, mid, (x - hw // 2, roof_y, hw, hh))
         # Warm-lit window so the village reads at dusk/night.
-        pygame.draw.rect(surf, win, (x - 3, roof_y + 7, 6, 7))
+        pygame.draw.rect(surf, win, (x - 4, roof_y + 9, 8, 9))
         # Roof.
-        pygame.draw.polygon(surf, dark, [(x - hw // 2 - 4, roof_y),
-                                         (x + hw // 2 + 4, roof_y),
-                                         (x, roof_y - 15)])
-        pygame.draw.line(surf, light, (x - hw // 2 - 4, roof_y),
-                         (x, roof_y - 15), 1)
+        pygame.draw.polygon(surf, dark, [(x - hw // 2 - 5, roof_y),
+                                         (x + hw // 2 + 5, roof_y),
+                                         (x, roof_y - 20)])
+        pygame.draw.line(surf, light, (x - hw // 2 - 5, roof_y),
+                         (x, roof_y - 20), 2)
 
     # Mirrored reflections: dim, vertically squashed, tinted to the water. Kept
     # faint (subtractive, low alpha) so the bright waterline glint above it still
@@ -368,30 +381,33 @@ def draw_autumn_canopy(ctx):
     # blown-out hotspots against the dark mass.
     top = (int(top[0] * 0.80), int(top[1] * 0.80), int(top[2] * 0.80))
 
-    # 1. Continuous dark canopy band — a lumpy upper edge (summed sines) over a
-    # solid fill to the ground, so the whole foreground is one woodland silhouette.
-    base = gy - int(gy * 0.10)
-    crest = []
-    for x in range(0, w + 1, 6):
-        lump = (math.sin(x * 0.045) * 10 + math.sin(x * 0.11 + 1.3) * 6
-                + math.sin(x * 0.23 + 0.6) * 3)
-        crest.append((x, int(base - 14 - lump)))
-    poly = [(0, gy)] + crest + [(w, gy)]
-    pygame.draw.polygon(surf, dark, poly)
-    # A mid-tone scumble just under the crest for a little internal depth.
-    for (x, y) in crest[::3]:
-        pygame.draw.circle(surf, mid, (x, y + 5), 5)
+    # 1. Continuous dark canopy band as the dominant mass — a lumpy upper edge
+    # (summed sines, irregular periods so no two crowns repeat) over a tall solid
+    # fill to the ground, so the whole foreground reads as one woodland silhouette
+    # first and the brights only sit ON it. A second mid-tone crest just below the
+    # rim gives the mass internal depth without breaking it into beads.
+    base = gy - int(gy * 0.06)
+
+    def _crest_y(x):
+        return int(base - 18
+                   - (math.sin(x * 0.037) * 13 + math.sin(x * 0.083 + 1.3) * 8
+                      + math.sin(x * 0.19 + 0.6) * 4 + math.sin(x * 0.31 + 2.1) * 2))
+
+    crest = [(x, _crest_y(x)) for x in range(0, w + 1, 5)]
+    pygame.draw.polygon(surf, dark, [(0, gy)] + crest + [(w, gy)])
+    # Mid-tone scumble band hugging the crest — a continuous lumpy line of small
+    # discs, not isolated dots, so the rim still reads as one rolling canopy.
+    for (x, y) in crest[::2]:
+        pygame.draw.circle(surf, mid, (x, y + 6), 4)
 
     # 2. Sparse sunlit clumps: irregular x-spacing + varied size/value break the
-    # repeat period. Only a handful — most of the canopy stays dark.
-    clumps = [(0.10, 7, top), (0.21, 5, accent), (0.37, 8, top),
-              (0.50, 5, top), (0.63, 9, accent), (0.79, 6, top),
-              (0.91, 7, accent)]
+    # repeat period. Only a handful — most of the canopy stays dark — and each
+    # clump rides the actual crest height so it nestles into the mass.
+    clumps = [(0.08, 8, top), (0.19, 5, accent), (0.34, 9, top),
+              (0.55, 6, accent), (0.72, 8, top), (0.88, 5, accent)]
     for fx, r, col in clumps:
         x = int(w * fx)
-        lump = (math.sin(x * 0.045) * 10 + math.sin(x * 0.11 + 1.3) * 6
-                + math.sin(x * 0.23 + 0.6) * 3)
-        cy = int(base - 14 - lump) - 2
+        cy = _crest_y(x) - 1
         pygame.draw.circle(surf, mid, (x, cy + 3), r + 1)
         pygame.draw.circle(surf, col, (x, cy), r)
         pygame.draw.circle(surf, col, (x - r + 2, cy + 2), max(2, r - 3))
@@ -405,14 +421,17 @@ def draw_terrace_cairn(ctx):
     surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
     light, mid, dark, accent = _struct(ctx)
     cx = int(w * 0.50)
-    wall_y = gy - int(gy * 0.16)
-    # Retinted terrace: draw_terrace_wall hardcodes earth tones, so lay a
-    # struct-tinted bench beneath it to anchor it in the stage palette.
+    # Lifted clear of the now-taller dark canopy mass so the human mark sits in a
+    # cut pocket ABOVE the woodland rim instead of being swallowed by it.
+    wall_y = gy - int(gy * 0.30)
     bw = int(w * 0.30)
+    # A struct-dark notch dropped behind the wall gives the terrace a darker
+    # pocket to read against, then a bright struct_light coping line crowns it so
+    # the masonry rim is the lightest mark on the hillside.
     pygame.draw.rect(surf, dark, (cx - bw // 2, wall_y, bw, gy - wall_y))
-    pygame.draw.rect(surf, mid, (cx - bw // 2, wall_y, bw, 4))
-    pygame.draw.line(surf, light, (cx - bw // 2, wall_y),
-                     (cx + bw // 2, wall_y), 2)
+    pygame.draw.rect(surf, mid, (cx - bw // 2, wall_y, bw, 5))
+    pygame.draw.line(surf, light, (cx - bw // 2, wall_y - 1),
+                     (cx + bw // 2, wall_y - 1), 3)
     draw_terrace_wall(surf, cx, wall_y, width=min(bw, 58))
     # Way-marker cairn on the terrace lip.
     draw_cairn(surf, cx - bw // 4, wall_y, n=4, pennant=True)
