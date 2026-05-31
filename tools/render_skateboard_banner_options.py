@@ -46,8 +46,16 @@ OUT_PATH_R4 = os.path.join(OUT_DIR, "round_4.png")
 OUT_PATH_R5 = os.path.join(OUT_DIR, "round_5.png")
 
 
-def _build_gameplay_frame(seed=11, seconds=5.0):
-    """Drive a short autopilot sim, activate skateboard, render frame."""
+def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True):
+    """Drive a short autopilot sim, activate skateboard, render frame.
+
+    bake_hud_score=False suppresses the HUD's halftone score paint so
+    R5 cells can stamp their own preview score without doubling up
+    on the default-position live badge from the base frame. The
+    simulation still runs with skateboard_active=True so the world
+    state (pipes survived, bird in flight) matches the R1-R4 base —
+    we only flip the flag for the single final render pass.
+    """
     random.seed(seed)
     app = App()
     if hasattr(app, "_splash_covering"):
@@ -78,13 +86,33 @@ def _build_gameplay_frame(seed=11, seconds=5.0):
     # Same for the burst (otherwise we'd see the pickup starburst behind).
     w.skateboard_burst_t = 0.0
     w.skateboard_burst_surface = None
+    # Stash the flag the caller asked for — _render_base reads it to know
+    # whether to flip skateboard_active off for the single render pass.
+    app._r5_bake_hud_score = bake_hud_score
     return app
 
 
 def _render_base(app):
-    """Render a full gameplay frame and return a copy of the screen."""
+    """Render a full gameplay frame and return a copy of the screen.
+
+    When the caller set bake_hud_score=False on _build_gameplay_frame,
+    we drop skateboard_caption_t to 0 for the render pass — the HUD
+    still reads skateboard_active=True (so the bird stays on the deck
+    and the parrot sprite + HUD chrome match R1-R4) but the score's
+    alpha fades to 0, suppressing the halftone blit at its default
+    position. The caption_t is restored immediately afterwards so
+    subsequent simulation steps stay consistent.
+    """
+    suppress = not getattr(app, "_r5_bake_hud_score", True)
+    saved_cap_t = None
+    if suppress:
+        saved_cap_t = app.world.skateboard_caption_t
+        app.world.skateboard_caption_t = 0.0
     app._render()
-    return app.screen.copy()
+    snapshot = app.screen.copy()
+    if suppress:
+        app.world.skateboard_caption_t = saved_cap_t
+    return snapshot
 
 
 def _plate_banner(text, font_size, rot_deg, pad_x=16, pad_y=8,
@@ -1266,6 +1294,46 @@ def _split_wordmarks(left_text, right_text, font_size=28, outline_w=4):
     return left, right
 
 
+def _blit_split_wordmarks_aligned(deck, deck_w, deck_h, gap_px,
+                                   font_size=28, outline_w=3,
+                                   axis_y=None):
+    """Stamp SKATE and BOARD onto the deck with a SHARED baseline along
+    the deck's long axis. Both glyph strips are rendered identically
+    (same font, size, outline) so their baselines are guaranteed to
+    coincide; we then place both surfaces' midright/midleft against the
+    same y so even render-time descender rounding can't drift them.
+
+    Auto-shrinks the point size if BOARD's outer edge would overrun the
+    deck width — keeps both glyphs at the SAME size so the baseline
+    lock survives. axis_y defaults to the deck's geometric centreline.
+
+    Returns the (skate_rect, board_rect) screen-relative on the deck."""
+    if axis_y is None:
+        axis_y = deck_h // 2
+    size = font_size
+    while size >= 22:
+        skate = _yellow_text("SKATE", size, outline_w=outline_w)
+        board = _yellow_text("BOARD", size, outline_w=outline_w)
+        right_edge = (deck_w // 2 + gap_px) + board.get_width()
+        left_edge = (deck_w // 2 - gap_px) - skate.get_width()
+        if right_edge <= deck_w - 4 and left_edge >= 4:
+            break
+        size -= 2
+    skate_rect = skate.get_rect(
+        midright=(deck_w // 2 - gap_px, axis_y))
+    board_rect = board.get_rect(
+        midleft=(deck_w // 2 + gap_px, axis_y))
+    deck.blit(skate, skate_rect)
+    deck.blit(board, board_rect)
+    return skate_rect, board_rect
+
+
+# R5 standardised composite shadow — 2 px offset, 35% alpha black, applied
+# uniformly across every cell so the deck reads with one consistent depth.
+R5_SHADOW_OFFSET = (2, 2)
+R5_SHADOW_ALPHA = 89  # ≈35% of 255
+
+
 def _stamp_live_score_preview(surf, deck_screen_center, score=888):
     """Place the LIVE-score preview tile horizontally over the rotated
     deck. The tile is centred on the deck's on-screen centre so the
@@ -1275,6 +1343,22 @@ def _stamp_live_score_preview(surf, deck_screen_center, score=888):
     surf.blit(tile, tile.get_rect(center=deck_screen_center))
 
 
+def _draw_r5_d1_bolts(surf, deck_w, deck_h, inset=30, edge_inset=18):
+    """D1's four corner truck-mount bolts with a 1-px inner highlight
+    so the dots read as polished metal hardware rather than flat
+    stickers. AD critique called this out specifically — the inner
+    pixel at (200,200,200) @ ~70% alpha catches just enough light."""
+    for bolt_x in (inset, deck_w - inset):
+        for bolt_y in (edge_inset, deck_h - edge_inset):
+            pygame.draw.circle(surf, INK, (bolt_x, bolt_y), 5)
+            pygame.draw.circle(surf, (60, 60, 60), (bolt_x, bolt_y), 3)
+            # 1 px inner highlight — pure metal cue, slightly offset
+            # so the bolt picks up a believable specular tip.
+            hl = pygame.Surface((2, 2), pygame.SRCALPHA)
+            hl.fill((200, 200, 200, 180))
+            surf.blit(hl, (bolt_x - 1, bolt_y - 1))
+
+
 def variant_r5_d1_larger_slab(base, score):
     """R5-D1 — Larger straight slab at R4-D2 tilt. Plain rounded-rect
     320 x 92 (~25% bigger than R4's 280 x 72), tilt -12° (the R4-D2
@@ -1282,7 +1366,12 @@ def variant_r5_d1_larger_slab(base, score):
     at all four corners so the bigger silhouette still reads as a
     deck rather than an oversized lozenge. SKATE/BOARD wordmarks at
     28 pt frame the empty centre; the LIVE halftone score preview is
-    blit horizontally on top of the rotated deck after the fact."""
+    blit horizontally on top of the rotated deck after the fact.
+
+    R5-final polish: outline_w dropped 4→3 so the gold rim stops
+    competing with the score burst's yellow; bolts gain a metallic
+    inner highlight; SKATE/BOARD share one baseline through the deck's
+    long axis (midright/midleft alignment, identical y axis)."""
     s = base.copy()
     deck_w, deck_h = 320, 92
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
@@ -1303,22 +1392,20 @@ def variant_r5_d1_larger_slab(base, score):
                      border_radius=44)
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
-    _draw_truck_bolts(deck, deck_w, deck_h, inset=30, edge_inset=18)
-    # Split wordmarks — SKATE on the LEFT third, BOARD on the RIGHT
-    # third; the middle third stays empty for the LIVE score badge.
-    # 28 pt cap matches the user-locked size; both centres pulled in
-    # so the live-score footprint (108 px square) clears them with
-    # comfortable gaps.
-    skate, board = _split_wordmarks("SKATE", "BOARD", font_size=28)
-    deck.blit(skate, skate.get_rect(
-        center=(deck_w // 2 - 100, deck_h // 2)))
-    deck.blit(board, board.get_rect(
-        center=(deck_w // 2 + 100, deck_h // 2)))
+    _draw_r5_d1_bolts(deck, deck_w, deck_h, inset=30, edge_inset=18)
+    # Baseline-locked split wordmarks — SKATE and BOARD share one y
+    # axis BEFORE the rotation, so they stay co-baselined after the
+    # composite rotates as a unit.
+    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                   gap_px=64, font_size=28,
+                                   outline_w=3)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
     rotated = pygame.transform.rotate(deck, -12)
     deck_center = (W // 2, 140)
     rect = rotated.get_rect(center=deck_center)
-    _composite_shadow(s, rotated, rect.topleft)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
     # LIVE score preview blit AFTER the deck rotate so the badge sits
     # dead-horizontal, matching the production HUD overlay.
@@ -1355,20 +1442,22 @@ def variant_r5_d2_steeper_pop(base, score):
     deck.blit(stripes, (0, 0))
     # Bolts ONLY on the uphill (lower-left) end — after -16° rotation
     # the deck's left end sits lower on the canvas, which optically
-    # reads as the "kicked-up tail" of the slant.
+    # reads as the "kicked-up tail" of the slant. Identity-preserving
+    # asymmetry per the AD critique: D2 keeps its steeper pop +
+    # one-end-only bolts.
     for bolt_y in (18, deck_h - 18):
         pygame.draw.circle(deck, INK, (30, bolt_y), 5)
         pygame.draw.circle(deck, (60, 60, 60), (30, bolt_y), 2)
-    skate, board = _split_wordmarks("SKATE", "BOARD", font_size=28)
-    deck.blit(skate, skate.get_rect(
-        center=(deck_w // 2 - 100, deck_h // 2)))
-    deck.blit(board, board.get_rect(
-        center=(deck_w // 2 + 100, deck_h // 2)))
+    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                   gap_px=64, font_size=28,
+                                   outline_w=3)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
     rotated = pygame.transform.rotate(deck, -16)
     deck_center = (W // 2, 145)
     rect = rotated.get_rect(center=deck_center)
-    _composite_shadow(s, rotated, rect.topleft)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
     _stamp_live_score_preview(s, deck_center, score=888)
     return s
@@ -1384,7 +1473,12 @@ def variant_r5_d3_popsicle_waist(base, score):
     energy that the heavy tilt brought to D1/D2), deck-centre y=132."""
     s = base.copy()
     deck_w, deck_h = 320, 100   # the full envelope; waist pinches in
-    waist_h = 78
+    # AD critique: previous 78 px waist made the deck read as two
+    # stitched halves around the 888 burst. Pushed straight to 96 px
+    # so the score sits inside a single unbroken plate instead of a
+    # pinched neck. The popsicle silhouette still survives because
+    # the truck-end fat sections are at the full 100 px envelope.
+    waist_h = 96
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     # Concave-waist polygon — cosine pinch deepest at t=0.5.
     samples = 32
@@ -1419,19 +1513,19 @@ def variant_r5_d3_popsicle_waist(base, score):
             pygame.draw.circle(deck, INK, (bolt_x, bolt_y), 4)
             pygame.draw.circle(deck, (60, 60, 60), (bolt_x, bolt_y), 2)
     # Split wordmarks — SKATE on the wider TAIL (left), BOARD on the
-    # wider NOSE (right). Centres pulled further out so they sit
-    # squarely on the bulged sections, leaving the waist clean for
-    # the live score badge.
-    skate, board = _split_wordmarks("SKATE", "BOARD", font_size=28)
-    deck.blit(skate, skate.get_rect(
-        center=(deck_w // 2 - 102, deck_h // 2)))
-    deck.blit(board, board.get_rect(
-        center=(deck_w // 2 + 102, deck_h // 2)))
+    # wider NOSE (right), both pinned to the deck's single long-axis
+    # baseline so they read as one continuous word the live score
+    # punctuates in the middle.
+    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                   gap_px=66, font_size=28,
+                                   outline_w=3)
     pygame.draw.polygon(deck, INK, poly, 4)
     rotated = pygame.transform.rotate(deck, -8)
     deck_center = (W // 2, 132)
     rect = rotated.get_rect(center=deck_center)
-    _composite_shadow(s, rotated, rect.topleft)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
     _stamp_live_score_preview(s, deck_center, score=888)
     return s
@@ -1460,12 +1554,23 @@ def variant_r5_d4_trucks_wheels(base, score):
         pygame.draw.rect(deck, (40, 38, 44), truck_rect,
                          border_radius=3)
         pygame.draw.rect(deck, INK, truck_rect, 2, border_radius=3)
-        # Two wheels per truck — muted ochre so they don't compete
-        # with the yellow SKATE/BOARD wordmarks above.
+        # Two wheels per truck — wheels per AD critique: desaturated
+        # ~12% and value −10% from the earlier punchy ochre so they
+        # stop pulling focus from the score. Pre-shift was
+        # (215,195,160); the (185,172,150) shift below applies both
+        # the saturation pull and the value drop in one step.
         for wheel_dx in (-truck_w // 2 + 3, truck_w // 2 - 3):
             wheel_cx = truck_cx_local + wheel_dx
             wheel_cy = deck_h + 16
-            pygame.draw.circle(deck, (215, 195, 160),
+            # 1 px dark contact shadow under each wheel — anchors them
+            # to the truck stem so they read as rolling on the ground
+            # plane rather than floating ornamental dots.
+            shadow = pygame.Surface((16, 4), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow, (0, 0, 0, 110),
+                                shadow.get_rect())
+            deck.blit(shadow, shadow.get_rect(
+                center=(wheel_cx, wheel_cy + 7)))
+            pygame.draw.circle(deck, (185, 172, 150),
                                (wheel_cx, wheel_cy), 7)
             pygame.draw.circle(deck, INK,
                                (wheel_cx, wheel_cy), 7, 2)
@@ -1485,17 +1590,26 @@ def variant_r5_d4_trucks_wheels(base, score):
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
     # Split wordmarks framing the empty centre — no bolt dots, the
-    # trucks below carry the deck-anchor reading on their own.
-    skate, board = _split_wordmarks("SKATE", "BOARD", font_size=28)
-    deck.blit(skate, skate.get_rect(
-        center=(deck_rect.centerx - 100, deck_rect.centery)))
-    deck.blit(board, board.get_rect(
-        center=(deck_rect.centerx + 100, deck_rect.centery)))
+    # trucks below carry the deck-anchor reading on their own. Both
+    # words anchor to the deck's long-axis centreline so they stay
+    # co-baselined after the -10° rotation. The helper auto-shrinks
+    # in lockstep if BOARD would overrun the deck right edge so the
+    # baseline lock survives a size change.
+    #
+    # D4's deck is sub-blitted from the composite at deck_rect.left
+    # onward, so we slice into a temp view of the deck region and
+    # blit there in deck-local coords.
+    deck_view = deck.subsurface(deck_rect)
+    _blit_split_wordmarks_aligned(deck_view, deck_w, deck_h,
+                                   gap_px=64, font_size=28,
+                                   outline_w=3)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=42)
     rotated = pygame.transform.rotate(deck, -10)
     deck_center = (W // 2, 125)
     rect = rotated.get_rect(center=deck_center)
-    _composite_shadow(s, rotated, rect.topleft)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
     _stamp_live_score_preview(s, deck_center, score=888)
     return s
@@ -1516,12 +1630,16 @@ def variant_r5_d5_longboard(base, score):
     deck_rect = deck.get_rect()
     # Smaller corner radius — longboards read squarer than popsicles.
     pygame.draw.rect(deck, PLATE_RED, deck_rect, border_radius=24)
-    # Wood-grain stripes — kept ≤12% alpha (30/255 ≈ 12%) so the
-    # texture is felt but doesn't muddy the wordmark or score.
+    # Wood-grain stripes — committed per AD critique: 3 stripes at
+    # ~20% alpha so the wood read survives at thumbnail size instead
+    # of being invisible. Drawn at fixed thirds across the deck so
+    # the count never creeps back up.
     grain = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
-    for y in range(5, deck_h, 8):
-        pygame.draw.line(grain, (140, 25, 18, 30),
-                         (6, y), (deck_w - 6, y), 1)
+    grain_alpha = 50  # ~20% — past the visibility floor AD called out
+    for frac in (0.28, 0.50, 0.72):
+        gy = int(deck_h * frac)
+        pygame.draw.line(grain, (140, 25, 18, grain_alpha),
+                         (10, gy), (deck_w - 10, gy), 1)
     mask = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), deck_rect,
                      border_radius=24)
@@ -1530,19 +1648,20 @@ def variant_r5_d5_longboard(base, score):
     # Truck bolts pushed further out — longer deck means wider truck
     # wheelbase, and the bolts sell that proportionally.
     _draw_truck_bolts(deck, deck_w, deck_h, inset=34, edge_inset=14)
-    # Split wordmarks — pushed further apart on the wider deck so the
-    # 108 px live-score badge sits in comfortable negative space
-    # between them.
-    skate, board = _split_wordmarks("SKATE", "BOARD", font_size=28)
-    deck.blit(skate, skate.get_rect(
-        center=(deck_w // 2 - 108, deck_h // 2)))
-    deck.blit(board, board.get_rect(
-        center=(deck_w // 2 + 108, deck_h // 2)))
+    # Split wordmarks — baseline-locked to the deck centreline so the
+    # tilt rotates SKATE and BOARD around a single axis.
+    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                   gap_px=70, font_size=28,
+                                   outline_w=3)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=24)
-    rotated = pygame.transform.rotate(deck, -6)
+    # Tilt committed to -10° per the AD critique — the previous -6°
+    # was reading as a flat rectangle rather than a thrown longboard.
+    rotated = pygame.transform.rotate(deck, -10)
     deck_center = (W // 2, 148)
     rect = rotated.get_rect(center=deck_center)
-    _composite_shadow(s, rotated, rect.topleft)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
     _stamp_live_score_preview(s, deck_center, score=888)
     return s
@@ -1649,9 +1768,17 @@ def main():
     # NO baked decorative score (the LIVE halftone score preview is
     # stamped on top of each rotated deck so the cell mirrors the
     # runtime composite).
+    #
+    # Build a SEPARATE base frame for R5 with the live HUD halftone
+    # score suppressed — every R5 cell composites its own 888 burst on
+    # the deck centre, so leaving the default-position HUD badge baked
+    # in produces a second burst in every cell. R1-R4 still use the
+    # original `base` (skateboard_active=True) and are unaffected.
+    app_r5 = _build_gameplay_frame(bake_hud_score=False)
+    base_r5 = _render_base(app_r5)
     cells_r5 = []
     for label, renderer in VARIANTS_R5:
-        cells_r5.append((label, renderer(base, score_for_overlay)))
+        cells_r5.append((label, renderer(base_r5, score_for_overlay)))
         print(f"  rendered {label}")
     sheet_r5 = _compose_sheet(cells_r5,
         "Skybit — SKATEBOARD R5 deck composites (LARGER deck, SPLIT "
