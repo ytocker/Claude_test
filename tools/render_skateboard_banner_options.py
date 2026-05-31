@@ -47,6 +47,7 @@ OUT_PATH_R5 = os.path.join(OUT_DIR, "round_5.png")
 OUT_PATH_R6 = os.path.join(OUT_DIR, "round_6.png")
 OUT_PATH_R7 = os.path.join(OUT_DIR, "round_7.png")
 OUT_PATH_R8 = os.path.join(OUT_DIR, "round_8.png")
+OUT_PATH_R9 = os.path.join(OUT_DIR, "round_9.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True,
@@ -2657,6 +2658,113 @@ def _build_r8_base():
     return base
 
 
+# ── Round 9: corrective pass on R8-B1 — RESTORE the slate cut-corner ──
+#           plate frames on the coin counter + pause button at user-       ──
+#           tunable transparency. The R6-V1 cutout shadow pockets stay     ──
+#           gone (R8 already dropped them); only the chrome frames come    ──
+#           back, exactly as R7 shipped them — same `_restamp_chrome_      ──
+#           translucent` path. Three cells sweep the chrome alpha so the   ──
+#           user can pin down which transparency they prefer.              ──
+#
+# User correction to R8: the slate plates around the coin counter and the
+# pause button were the part they liked at "fifty percent"; what they
+# wanted gone was the R6-V1 cutout shadow-pockets drawn UNDER the chrome
+# on the deck face. R8 stripped the WRONG thing (the plates) and inherited
+# the R8 frameless-chrome base. R9 reverts to the R7 base (chrome plates
+# present in the source frame so the translucent re-stamp has a snapshot
+# to pull) and reuses the R8-B1 deck-geometry (deck_w=340, "BOARD!",
+# corner-bolt insets 34/20, -7° tilt, 28 pt wordmark, 74 px reserve).
+# Cutout pockets are never invoked — the R6-V1 helper is local to its own
+# variant function and R9 calls neither that variant nor any pocket helper.
+
+def _variant_r9_core(base_with_chrome, chrome_alpha, label=""):
+    """R9 renderer — R8-B1 deck geometry (340 x 92, "BOARD!" at 28 pt,
+    74 px reserve, -7° tilt, 4 corner bolts at 34/20 insets) composited on
+    the R7 base (slate chrome plates present in the source frame), then
+    the coin counter + pause button RE-STAMPED translucent on top via the
+    R7 `_restamp_chrome_translucent` helper. The set_alpha multiplier
+    covers the slate plate, glyph, count text, and the plate's baked
+    drop shadow in a single pass.
+
+    NO cutout shadow pockets are drawn under the chrome — the R6-V1
+    pocket helper is fenced inside its own variant function and R9 does
+    not call it. The deck face stays clean PLATE_RED wherever the
+    translucent chrome sits.
+
+    rescue_top_bolts=True is held from R7 because the translucent chrome
+    still overlays the two top corner bolts; without the rescue the
+    bolts' value drops under the alpha-multiply.
+
+    chrome_alpha sweeps 128 / 150 / 170 across the 3 R9 cells so the
+    user can pin down the "fifty percent" target. 170 matches the R7
+    shipped value (it shipped at 170, not 128, after the R7 design loop
+    bumped it up from a literal 50% read as "half-rendered HUD")."""
+    s = base_with_chrome.copy()
+    deck_w, deck_h = 340, 92
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=44,
+        bolt_inset_x=34, bolt_inset_y=20,
+        rescue_top_bolts=True)
+    # Reuse the R8 wordmark helper — it carries the "BOARD!" glyph (with
+    # the exclamation) at the R7 5%-darkened lower gradient stop, which
+    # the R7 `_blit_split_wordmarks_fixed` helper does NOT (it only
+    # emits "BOARD" without the bang).
+    skate_w, board_w = _r8_blit_wordmarks(
+        deck, deck_w, deck_h, gap_px=74 // 2,
+        font_size=28, outline_w=3)
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
+    # Fit report for symmetry with the R8 logging path.
+    avail = (deck_w - 74) // 2
+    fit = "FITS" if board_w <= avail else "CLIPS"
+    print(f"    {label}: deck={deck_w}  BOARD! width={board_w}px  "
+          f"available half={avail}px  margin={avail - board_w}px  [{fit}]")
+    rotated = pygame.transform.rotate(deck, -7)
+    deck_center = (W // 2, 70)
+    rect = rotated.get_rect(center=deck_center)
+    # Unified R5 drop shadow under the deck composite.
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    # Translucent SLATE chrome — the R7-shipped path. Coin counter (left)
+    # and pause tile (right) snapshotted from the base, alpha-multiplied
+    # by chrome_alpha, then blit on top so the deck red + SKATE/"BOARD!"
+    # glyphs bleed through the slate plates at the chosen transparency.
+    _restamp_chrome_translucent(s, base_with_chrome,
+                                 chrome_alpha=chrome_alpha)
+    # Live halftone score burst LAST — single badge at the deck centre.
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
+    return s
+
+
+def variant_r9_c1_alpha128(base, score):
+    """R9-C1 — Chrome alpha 128 (50%). The user's stated "fifty percent"
+    target; the slate plates are most translucent here so the deck red +
+    SKATE/"BOARD!" glyphs bleed through hardest."""
+    return _variant_r9_core(base, chrome_alpha=128, label="R9-C1")
+
+
+def variant_r9_c2_alpha150(base, score):
+    """R9-C2 — Chrome alpha 150 (≈59%). Mid-point between the literal
+    50% (C1) and the R7-shipped 66% (C3)."""
+    return _variant_r9_core(base, chrome_alpha=150, label="R9-C2")
+
+
+def variant_r9_c3_alpha170(base, score):
+    """R9-C3 — Chrome alpha 170 (≈66%). The value R7 actually shipped —
+    bumped up from a literal 50% after the R7 design loop flagged 128 as
+    "reads like half-rendered HUD". Most legible of the three cells."""
+    return _variant_r9_core(base, chrome_alpha=170, label="R9-C3")
+
+
+VARIANTS_R9 = [
+    ("R9-C1 — Chrome α=128 (50%)",      variant_r9_c1_alpha128),
+    ("R9-C2 — Chrome α=150 (59%)",      variant_r9_c2_alpha150),
+    ("R9-C3 — Chrome α=170 (66%, R7)",  variant_r9_c3_alpha170),
+]
+
+
 def _compose_sheet(cells, title_text, cols=3, rows=2):
     """Grid sheet (default 2x3 — 5 cells + 1 spare). Each cell shows
     the rendered frame with a label strip below. Cell =
@@ -2824,6 +2932,26 @@ def main():
         cols=2, rows=2)
     pygame.image.save(sheet_r8, OUT_PATH_R8)
     print(f"wrote {OUT_PATH_R8}  ({os.path.getsize(OUT_PATH_R8)} bytes)")
+
+    # Round 9 — corrective pass on R8-B1. RESTORE the slate cut-corner plate
+    # frames on the coin counter + pause button at user-tunable transparency
+    # (R7's shipped re-stamp path). R6-V1 cutout shadow-pockets stay gone —
+    # the deck face is clean PLATE_RED under the chrome. Three cells sweep
+    # chrome alpha 128 / 150 / 170 so the user can pin down their preferred
+    # "fifty percent" target. Reuses the R7 base (`base_r5`) where the
+    # chrome plates are present in the source frame — R8's
+    # `_build_r8_base` deliberately suppressed them and would leave the
+    # translucent re-stamp with nothing to snapshot.
+    cells_r9 = []
+    for label, renderer in VARIANTS_R9:
+        cells_r9.append((label, renderer(base_r5, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r9 = _compose_sheet(cells_r9,
+        "Skybit — SKATEBOARD R9 (R8-B1 deck + translucent slate chrome "
+        "restored; alpha sweep 128/150/170; no cutout pockets)",
+        cols=3, rows=1)
+    pygame.image.save(sheet_r9, OUT_PATH_R9)
+    print(f"wrote {OUT_PATH_R9}  ({os.path.getsize(OUT_PATH_R9)} bytes)")
 
 
 def _verify_d4_3digit(base):
