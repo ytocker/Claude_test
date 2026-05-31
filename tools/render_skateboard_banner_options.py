@@ -1389,7 +1389,8 @@ R6_SPARKLE_TRIM = 0.10
 
 
 def _draw_r5_d1_bolts(surf, deck_w, deck_h, inset=30, edge_inset=18,
-                       rescue_lower_right=False):
+                       rescue_lower_right=False,
+                       rescue_top_bolts=False):
     """D1's four corner truck-mount bolts with a 1-px inner highlight
     so the dots read as polished metal hardware rather than flat
     stickers. AD critique called this out specifically — the inner
@@ -1398,19 +1399,42 @@ def _draw_r5_d1_bolts(surf, deck_w, deck_h, inset=30, edge_inset=18,
     rescue_lower_right=True lightens ONLY the lower-right bolt's ink
     rim from (15,15,15) to (60,60,60) so the bolt survives against
     the deck's lower-edge shadow on V3's deeper -18° tilt where the
-    standard ink rim was vanishing into the cast-shadow band."""
+    standard ink rim was vanishing into the cast-shadow band.
+
+    rescue_top_bolts=True rescues the TOP-LEFT and TOP-RIGHT bolts
+    which sit under R7's translucent coin-counter / pause-tile chrome
+    and were getting swallowed at chrome_alpha=170. The rescue raises
+    the rim ~25% (INK → (60,60,60)), adds a crisp 1-px INK outer
+    outline so the bolt edge survives the muddied chrome background,
+    and bumps the specular highlight one step brighter so the bolt
+    head still catches light through the translucent tile."""
     for bolt_x in (inset, deck_w - inset):
         for bolt_y in (edge_inset, deck_h - edge_inset):
             is_lower_right = (rescue_lower_right
                               and bolt_x == deck_w - inset
                               and bolt_y == deck_h - edge_inset)
-            rim_ink = (60, 60, 60) if is_lower_right else INK
+            is_top_under_chrome = (rescue_top_bolts
+                                   and bolt_y == edge_inset)
+            if is_top_under_chrome:
+                # Crisp INK outline pass so the bolt silhouette stays
+                # readable against the translucent chrome muddying.
+                pygame.draw.circle(surf, INK, (bolt_x, bolt_y), 6)
+                rim_ink = (60, 60, 60)
+            elif is_lower_right:
+                rim_ink = (60, 60, 60)
+            else:
+                rim_ink = INK
             pygame.draw.circle(surf, rim_ink, (bolt_x, bolt_y), 5)
             pygame.draw.circle(surf, (60, 60, 60), (bolt_x, bolt_y), 3)
-            # 1 px inner highlight — pure metal cue, slightly offset
-            # so the bolt picks up a believable specular tip.
-            hl = pygame.Surface((2, 2), pygame.SRCALPHA)
-            hl.fill((200, 200, 200, 180))
+            # Specular dot — one step brighter on the under-chrome top
+            # bolts so they still pick up "polished metal" reading
+            # through the 170-alpha chrome tint.
+            if is_top_under_chrome:
+                hl = pygame.Surface((2, 2), pygame.SRCALPHA)
+                hl.fill((225, 225, 225, 200))
+            else:
+                hl = pygame.Surface((2, 2), pygame.SRCALPHA)
+                hl.fill((200, 200, 200, 180))
             surf.blit(hl, (bolt_x - 1, bolt_y - 1))
 
 
@@ -1752,7 +1776,8 @@ _HUD_PAUSE_BOX = pygame.Rect(264, 6, 90, 56)
 def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
                           stripe_step=24, stripe_alpha=38,
                           bolt_inset_x=30, bolt_inset_y=18,
-                          rescue_lower_right_bolt=False):
+                          rescue_lower_right_bolt=False,
+                          rescue_top_bolts=False):
     """Build the shared R6 plain rounded-rect deck surface — R5-D1's
     silhouette factored out so V1-V5 only have to vary the size, tilt,
     and centre. Same wash stripes + 4 corner bolts + ink rim as R5-D1
@@ -1760,7 +1785,11 @@ def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
 
     rescue_lower_right_bolt=True forwards the bolt-rim lightening to
     the bolt helper — used by V3 only, where the deeper -18° tilt
-    drops the bolt into the deck's lower-edge shadow band."""
+    drops the bolt into the deck's lower-edge shadow band.
+
+    rescue_top_bolts=True rescues the two top corner bolts (which
+    sit under R7's translucent coin-counter and pause-tile chrome)
+    so they survive the chrome alpha-multiply."""
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     deck_rect = deck.get_rect()
     pygame.draw.rect(deck, PLATE_RED, deck_rect, border_radius=border_radius)
@@ -1779,7 +1808,8 @@ def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
     deck.blit(stripes, (0, 0))
     _draw_r5_d1_bolts(deck, deck_w, deck_h,
                        inset=bolt_inset_x, edge_inset=bolt_inset_y,
-                       rescue_lower_right=rescue_lower_right_bolt)
+                       rescue_lower_right=rescue_lower_right_bolt,
+                       rescue_top_bolts=rescue_top_bolts)
     return deck, deck_rect
 
 
@@ -2104,27 +2134,66 @@ VARIANTS_R6 = [
 
 
 def _blit_split_wordmarks_fixed(deck, deck_w, deck_h, gap_px,
-                                  font_size, outline_w=3, axis_y=None):
+                                  font_size, outline_w=3, axis_y=None,
+                                  bot_col=(255, 180, 10),
+                                  edge_inset=0):
     """Stamp SKATE and BOARD onto the deck at a FIXED font_size (no
     auto-shrink). Brief #2 demands the R7 wordmark sits at 26-30 pt,
     explicitly above the shared helper's 22-pt floor — the auto-shrink
     path would silently drop us back to that floor on edge-overflow,
     so this helper just blits at the requested size and lets the
-    geometry sanity check guarantee fit before render."""
+    geometry sanity check guarantee fit before render.
+
+    bot_col overrides the gradient's lower stop — R7-A3 uses the
+    5%-darkened (242,171,10) so glyphs that fall under the
+    translucent chrome still punch.
+
+    edge_inset>0 nudges SKATE rightward and BOARD leftward by that
+    many pixels — R7-A3 uses +2 to give the glyphs ≥2 px clearance
+    from the deck's INK rim where the AD critique flagged them as
+    kissing the rim."""
     if axis_y is None:
         axis_y = deck_h // 2
-    skate = _yellow_text("SKATE", font_size, outline_w=outline_w)
-    board = _yellow_text("BOARD", font_size, outline_w=outline_w)
+    skate = _gradient_text("SKATE", font_size,
+                            top_col=(255, 255, 110),
+                            bot_col=bot_col,
+                            outline=INK, outline_w=outline_w)
+    board = _gradient_text("BOARD", font_size,
+                            top_col=(255, 255, 110),
+                            bot_col=bot_col,
+                            outline=INK, outline_w=outline_w)
     skate_rect = skate.get_rect(midright=(deck_w // 2 - gap_px, axis_y))
     board_rect = board.get_rect(midleft=(deck_w // 2 + gap_px, axis_y))
+    if edge_inset > 0:
+        # +edge_inset px inward push on both glyphs — SKATE right,
+        # BOARD left — to put air between the wordmark and the deck's
+        # ink rim.
+        skate_rect = skate_rect.move(edge_inset, 0)
+        board_rect = board_rect.move(-edge_inset, 0)
     deck.blit(skate, skate_rect)
     deck.blit(board, board_rect)
     return skate_rect, board_rect
 
 
-# Chrome re-stamp alpha for R7 — 128/255 ≈ 50% so the deck red and the
-# SKATE/BOARD wordmark glyphs underneath bleed through both tiles.
-R7_CHROME_ALPHA = 128
+# Chrome re-stamp alpha for R7 — 170/255 ≈ 66%. The original 128/255
+# (50%) was reading as half-rendered HUD; 170 keeps the chrome tiles
+# unmistakably chrome while still letting the deck red and the
+# SKATE/BOARD glyphs bleed through. The drop shadow baked into the
+# coin-counter and pause-tile sub-surface is alpha-multiplied along
+# with the rest of the snapshot — set_alpha covers the shadow strip
+# too, so we don't need a separate shadow blit at 168 alpha.
+R7_CHROME_ALPHA = 170
+
+# Under-chrome wordmark contrast compensation. The yellow gradient's
+# lower stop is darkened 5% from the standard (255,180,10) so the
+# SKATE/BOARD glyphs that fall under the translucent coin-counter
+# and pause-tile chrome still punch when the chrome tint multiplies
+# their value. AD's "global darken" path — shipping over a clipped
+# two-pass blit because the wordmark is baked into the rotated deck
+# surface, so a screen-space clip rect against the chrome boxes
+# would need an inverse-rotation transform we can't justify on a
+# final-turn polish pass.
+R7_WORDMARK_BOT_COL = (242, 171, 10)
 
 
 def _restamp_chrome_translucent(s, base, chrome_alpha=R7_CHROME_ALPHA):
@@ -2147,28 +2216,46 @@ def _restamp_chrome_translucent(s, base, chrome_alpha=R7_CHROME_ALPHA):
 
 
 def _variant_r7_a_core(base, tilt_deg, word_size, score_reserve,
-                        chrome_alpha=R7_CHROME_ALPHA):
+                        chrome_alpha=R7_CHROME_ALPHA,
+                        wordmark_edge_inset=0):
     """Shared R7-A renderer. Builds the 320 x 92 deck silhouette with
     SKATE / BOARD wordmarks at a FIXED point size, rotates at the
     given tilt, composites with the unified R5 shadow, re-stamps the
-    coin counter + pause tile on top at chrome_alpha (50% by default),
-    then drops the LIVE halftone score badge on the deck centre.
+    coin counter + pause tile on top at chrome_alpha (~66% by default
+    post-polish), then drops the LIVE halftone score badge on the
+    deck centre.
 
     score_reserve sets the central horizontal gap (in deck-local
     pixels) between SKATE's trailing edge and BOARD's leading edge —
     where the live score burst will land. Smaller reserve = wordmarks
-    sit tighter against the burst, satisfying brief #3."""
+    sit tighter against the burst, satisfying brief #3.
+
+    wordmark_edge_inset>0 pushes SKATE/BOARD inward from the deck
+    edge by that many pixels — the lead cell uses +2 to lift the
+    glyphs off the deck's INK rim where the AD critique flagged them
+    kissing the rim.
+
+    rescue_top_bolts=True is forced on for the whole R7 set so the
+    two corner bolts under the translucent coin-counter and pause-
+    tile chrome survive the alpha-multiply. Bottom-left + bottom-
+    right bolts stay at standard ink — they sit clear of the chrome
+    zone after the rotation."""
     s = base.copy()
     deck_w, deck_h = 320, 92
     deck, deck_rect = _r6_build_plain_deck(
         deck_w, deck_h, border_radius=44,
-        bolt_inset_x=30, bolt_inset_y=18)
+        bolt_inset_x=30, bolt_inset_y=18,
+        rescue_top_bolts=True)
     # gap_px is HALF the score reserve so SKATE/BOARD sit symmetrically
     # either side of the deck centre line, hugging the burst at the
-    # tightened reserve the brief specifies.
+    # tightened reserve the brief specifies. bot_col is the 5%-
+    # darkened lower gradient stop so glyphs under the translucent
+    # chrome still punch.
     _blit_split_wordmarks_fixed(deck, deck_w, deck_h,
                                   gap_px=score_reserve // 2,
-                                  font_size=word_size, outline_w=3)
+                                  font_size=word_size, outline_w=3,
+                                  bot_col=R7_WORDMARK_BOT_COL,
+                                  edge_inset=wordmark_edge_inset)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
     rotated = pygame.transform.rotate(deck, tilt_deg)
     deck_center = (W // 2, 70)
@@ -2177,8 +2264,11 @@ def _variant_r7_a_core(base, tilt_deg, word_size, score_reserve,
                        offset=R5_SHADOW_OFFSET,
                        alpha=R5_SHADOW_ALPHA)
     s.blit(rotated, rect)
-    # Translucent chrome — coin counter + pause tile at 50% alpha so the
-    # deck red + SKATE/BOARD glyphs bleed through wherever they collide.
+    # Translucent chrome — coin counter + pause tile at ~66% alpha so
+    # the deck red + SKATE/BOARD glyphs bleed through wherever they
+    # collide, but the chrome still reads as chrome (not half-rendered
+    # HUD). The drop shadow baked into each tile's snapshot rides the
+    # same set_alpha multiplier — no separate shadow pass needed.
     _restamp_chrome_translucent(s, base, chrome_alpha=chrome_alpha)
     # Live halftone score burst LAST so it always sits on top of both
     # the deck and the translucent chrome.
@@ -2187,40 +2277,50 @@ def _variant_r7_a_core(base, tilt_deg, word_size, score_reserve,
     return s
 
 
-def variant_r7_a1_flat(base, score):
-    """R7-A1 — Flat (-4°), 28 pt wordmark, 76 px central reserve.
-    Nearly-flat tilt = maximum chrome clearance from the deck rim."""
-    return _variant_r7_a_core(base, tilt_deg=-4, word_size=28,
-                              score_reserve=76)
+def variant_r7_a1_sweet_spot(base, score):
+    """R7-A1 — Sweet spot (-7°), 28 pt wordmark, 74 px central
+    reserve. Replaces the prior flat -4° A1, which read as a banner
+    rather than a tilted deck. -7° lands midway between A3 (-8°,
+    flagged lead) and a flatter sibling, 28 pt matches the A3/A4
+    weight class, and the 74 px reserve sits between A2's tight 70
+    and A3's looser 76 — designed as the "if you don't pick A3, you
+    pick this" cell."""
+    return _variant_r7_a_core(base, tilt_deg=-7, word_size=28,
+                              score_reserve=74)
 
 
 def variant_r7_a2_mild_big(base, score):
-    """R7-A2 — Mild (-6°), 30 pt wordmark (largest), 70 px reserve
-    (tightest). Wordmark sits closest to the score burst across the
-    set; mild tilt keeps deck edges off the chrome corners."""
+    """R7-A2 — Mild (-6°), 30 pt wordmark (largest), 74 px reserve.
+    Reserve loosened from 70 → 74 per AD critique: the burst was
+    getting clamped between SKATE and BOARD at 70 px; 74 unclamps
+    it without dropping the 30 pt wordmark size."""
     return _variant_r7_a_core(base, tilt_deg=-6, word_size=30,
-                              score_reserve=70)
+                              score_reserve=74)
 
 
 def variant_r7_a3_mid(base, score):
-    """R7-A3 — Mid (-8°), 28 pt wordmark, 76 px reserve. Balanced
-    sizing between A1's flat read and A4's closer-to-R6 tilt."""
+    """R7-A3 — Mid (-8°), 28 pt wordmark, 76 px reserve. AD lead.
+    +2 px inward inset on SKATE/BOARD glyphs so they sit cleanly
+    inside the deck's INK rim instead of kissing it."""
     return _variant_r7_a_core(base, tilt_deg=-8, word_size=28,
-                              score_reserve=76)
+                              score_reserve=76,
+                              wordmark_edge_inset=2)
 
 
 def variant_r7_a4_near_r6(base, score):
-    """R7-A4 — Near R6-V1 (-10°), 26 pt wordmark, 80 px reserve.
-    Closest to R6-V1's silhouette while still less-tilted than -12°."""
-    return _variant_r7_a_core(base, tilt_deg=-10, word_size=26,
+    """R7-A4 — Near R6-V1 (-10°), 28 pt wordmark, 80 px reserve.
+    Wordmark bumped 26 → 28 pt to match A2/A3 weight class — at the
+    80 px reserve, 28 pt SKATE/BOARD (~103 px wide each) clears the
+    side rims with 7 px to spare."""
+    return _variant_r7_a_core(base, tilt_deg=-10, word_size=28,
                               score_reserve=80)
 
 
 VARIANTS_R7 = [
-    ("R7-A1 — Flat (-4 deg), 28 pt",     variant_r7_a1_flat),
-    ("R7-A2 — Mild (-6 deg), 30 pt big", variant_r7_a2_mild_big),
-    ("R7-A3 — Mid (-8 deg), 28 pt",      variant_r7_a3_mid),
-    ("R7-A4 — Near R6-V1 (-10 deg), 26 pt", variant_r7_a4_near_r6),
+    ("R7-A1 — Sweet spot (-7 deg), 28 pt",   variant_r7_a1_sweet_spot),
+    ("R7-A2 — Mild (-6 deg), 30 pt big",     variant_r7_a2_mild_big),
+    ("R7-A3 — Mid (-8 deg), 28 pt (lead)",   variant_r7_a3_mid),
+    ("R7-A4 — Near R6-V1 (-10 deg), 28 pt",  variant_r7_a4_near_r6),
 ]
 
 
