@@ -45,9 +45,11 @@ OUT_PATH_R3 = os.path.join(OUT_DIR, "round_3.png")
 OUT_PATH_R4 = os.path.join(OUT_DIR, "round_4.png")
 OUT_PATH_R5 = os.path.join(OUT_DIR, "round_5.png")
 OUT_PATH_R6 = os.path.join(OUT_DIR, "round_6.png")
+OUT_PATH_R7 = os.path.join(OUT_DIR, "round_7.png")
 
 
-def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True):
+def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True,
+                            chrome_alpha=255):
     """Drive a short autopilot sim, activate skateboard, render frame.
 
     bake_hud_score=False suppresses the HUD's halftone score paint so
@@ -56,6 +58,13 @@ def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True):
     simulation still runs with skateboard_active=True so the world
     state (pipes survived, bird in flight) matches the R1-R4 base —
     we only flip the flag for the single final render pass.
+
+    chrome_alpha (default 255 — full opacity, preserves R1-R6
+    behaviour) is stashed on the app so R7 variants can read it when
+    re-stamping the coin counter + pause tile on top of their deck
+    composite. R7's re-stamp helper applies the per-surface alpha
+    immediately before each blit so the deck red and the SKATE/BOARD
+    wordmark glyphs underneath the chrome tiles bleed through.
     """
     random.seed(seed)
     app = App()
@@ -90,6 +99,10 @@ def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True):
     # Stash the flag the caller asked for — _render_base reads it to know
     # whether to flip skateboard_active off for the single render pass.
     app._r5_bake_hud_score = bake_hud_score
+    # Stash chrome_alpha so R7 callers can opt to read the same parameter
+    # straight off the app rather than threading it through every variant
+    # signature. Default 255 keeps R1-R6 behaviour unchanged.
+    app._r7_chrome_alpha = chrome_alpha
     return app
 
 
@@ -2081,16 +2094,148 @@ VARIANTS_R6 = [
 ]
 
 
-def _compose_sheet(cells, title_text):
-    """2x3 grid (5 cells + 1 spare). Each cell shows the rendered frame
-    with a label strip below. Cell = W × (H + 36); margins = 16 px."""
+# ── Round 7 — R6-V1 direction reworked. Same 320 x 92 slab, same deck
+# centre (180, 70), but the SKATE/BOARD wordmark is FIXED LARGER (26-30 pt
+# range, no auto-shrink), the central score-reserve is tightened so the
+# wordmarks hug the burst, the tilt is reduced from R6-V1's -12°, and the
+# coin counter + pause tile are re-stamped at 50% alpha so the deck red and
+# the SKATE/BOARD glyphs bleed through them. R6-V1's cutout pockets are
+# dropped — the translucent chrome supersedes the pocket trick.
+
+
+def _blit_split_wordmarks_fixed(deck, deck_w, deck_h, gap_px,
+                                  font_size, outline_w=3, axis_y=None):
+    """Stamp SKATE and BOARD onto the deck at a FIXED font_size (no
+    auto-shrink). Brief #2 demands the R7 wordmark sits at 26-30 pt,
+    explicitly above the shared helper's 22-pt floor — the auto-shrink
+    path would silently drop us back to that floor on edge-overflow,
+    so this helper just blits at the requested size and lets the
+    geometry sanity check guarantee fit before render."""
+    if axis_y is None:
+        axis_y = deck_h // 2
+    skate = _yellow_text("SKATE", font_size, outline_w=outline_w)
+    board = _yellow_text("BOARD", font_size, outline_w=outline_w)
+    skate_rect = skate.get_rect(midright=(deck_w // 2 - gap_px, axis_y))
+    board_rect = board.get_rect(midleft=(deck_w // 2 + gap_px, axis_y))
+    deck.blit(skate, skate_rect)
+    deck.blit(board, board_rect)
+    return skate_rect, board_rect
+
+
+# Chrome re-stamp alpha for R7 — 128/255 ≈ 50% so the deck red and the
+# SKATE/BOARD wordmark glyphs underneath bleed through both tiles.
+R7_CHROME_ALPHA = 128
+
+
+def _restamp_chrome_translucent(s, base, chrome_alpha=R7_CHROME_ALPHA):
+    """Snapshot the coin counter (top-left) and pause tile (top-right)
+    from the base gameplay frame, set their per-surface alpha to
+    chrome_alpha, then blit them on top of the canvas at their HUD
+    positions. The translucent blit lets the deck red and any SKATE /
+    BOARD glyph that falls under each tile bleed through, satisfying
+    R7's "half transparent chrome" directive — supersedes R6-V1's
+    cutout shadow-pocket approach.
+
+    Implementation hint from the brief: apply `.set_alpha(chrome_alpha)`
+    on the snapshot surfaces immediately before blitting."""
+    coin_snap = base.subsurface(_HUD_COIN_BOX).copy()
+    pause_snap = base.subsurface(_HUD_PAUSE_BOX).copy()
+    coin_snap.set_alpha(chrome_alpha)
+    pause_snap.set_alpha(chrome_alpha)
+    s.blit(coin_snap, _HUD_COIN_BOX.topleft)
+    s.blit(pause_snap, _HUD_PAUSE_BOX.topleft)
+
+
+def _variant_r7_a_core(base, tilt_deg, word_size, score_reserve,
+                        chrome_alpha=R7_CHROME_ALPHA):
+    """Shared R7-A renderer. Builds the 320 x 92 deck silhouette with
+    SKATE / BOARD wordmarks at a FIXED point size, rotates at the
+    given tilt, composites with the unified R5 shadow, re-stamps the
+    coin counter + pause tile on top at chrome_alpha (50% by default),
+    then drops the LIVE halftone score badge on the deck centre.
+
+    score_reserve sets the central horizontal gap (in deck-local
+    pixels) between SKATE's trailing edge and BOARD's leading edge —
+    where the live score burst will land. Smaller reserve = wordmarks
+    sit tighter against the burst, satisfying brief #3."""
+    s = base.copy()
+    deck_w, deck_h = 320, 92
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=44,
+        bolt_inset_x=30, bolt_inset_y=18)
+    # gap_px is HALF the score reserve so SKATE/BOARD sit symmetrically
+    # either side of the deck centre line, hugging the burst at the
+    # tightened reserve the brief specifies.
+    _blit_split_wordmarks_fixed(deck, deck_w, deck_h,
+                                  gap_px=score_reserve // 2,
+                                  font_size=word_size, outline_w=3)
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
+    rotated = pygame.transform.rotate(deck, tilt_deg)
+    deck_center = (W // 2, 70)
+    rect = rotated.get_rect(center=deck_center)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    # Translucent chrome — coin counter + pause tile at 50% alpha so the
+    # deck red + SKATE/BOARD glyphs bleed through wherever they collide.
+    _restamp_chrome_translucent(s, base, chrome_alpha=chrome_alpha)
+    # Live halftone score burst LAST so it always sits on top of both
+    # the deck and the translucent chrome.
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
+    return s
+
+
+def variant_r7_a1_flat(base, score):
+    """R7-A1 — Flat (-4°), 28 pt wordmark, 76 px central reserve.
+    Nearly-flat tilt = maximum chrome clearance from the deck rim."""
+    return _variant_r7_a_core(base, tilt_deg=-4, word_size=28,
+                              score_reserve=76)
+
+
+def variant_r7_a2_mild_big(base, score):
+    """R7-A2 — Mild (-6°), 30 pt wordmark (largest), 70 px reserve
+    (tightest). Wordmark sits closest to the score burst across the
+    set; mild tilt keeps deck edges off the chrome corners."""
+    return _variant_r7_a_core(base, tilt_deg=-6, word_size=30,
+                              score_reserve=70)
+
+
+def variant_r7_a3_mid(base, score):
+    """R7-A3 — Mid (-8°), 28 pt wordmark, 76 px reserve. Balanced
+    sizing between A1's flat read and A4's closer-to-R6 tilt."""
+    return _variant_r7_a_core(base, tilt_deg=-8, word_size=28,
+                              score_reserve=76)
+
+
+def variant_r7_a4_near_r6(base, score):
+    """R7-A4 — Near R6-V1 (-10°), 26 pt wordmark, 80 px reserve.
+    Closest to R6-V1's silhouette while still less-tilted than -12°."""
+    return _variant_r7_a_core(base, tilt_deg=-10, word_size=26,
+                              score_reserve=80)
+
+
+VARIANTS_R7 = [
+    ("R7-A1 — Flat (-4 deg), 28 pt",     variant_r7_a1_flat),
+    ("R7-A2 — Mild (-6 deg), 30 pt big", variant_r7_a2_mild_big),
+    ("R7-A3 — Mid (-8 deg), 28 pt",      variant_r7_a3_mid),
+    ("R7-A4 — Near R6-V1 (-10 deg), 26 pt", variant_r7_a4_near_r6),
+]
+
+
+def _compose_sheet(cells, title_text, cols=3, rows=2):
+    """Grid sheet (default 2x3 — 5 cells + 1 spare). Each cell shows
+    the rendered frame with a label strip below. Cell =
+    W × (H + 36); margins = 16 px. R7 passes cols=2, rows=2 so the
+    4-cell set lays out as a 2x2 grid instead of leaving 2 blanks
+    on a 2x3."""
     pygame.font.init()
     font = pygame.font.SysFont(None, 22)
     margin = 16
     label_h = 36
     cell_w = W + margin
     cell_h = H + label_h + margin
-    cols, rows = 3, 2
     sheet_w = margin + cell_w * cols
     sheet_h = margin + cell_h * rows + 50  # +50 for title
     sheet = pygame.Surface((sheet_w, sheet_h), pygame.SRCALPHA)
@@ -2208,6 +2353,25 @@ def main():
         "y=70; varied chrome-collision strategies)")
     pygame.image.save(sheet_r6, OUT_PATH_R6)
     print(f"wrote {OUT_PATH_R6}  ({os.path.getsize(OUT_PATH_R6)} bytes)")
+
+    # Round 7 — R6-V1 direction reworked per user note. Same 320 x 92 slab
+    # at deck-centre (180, 70), but the SKATE/BOARD wordmark is rendered
+    # LARGER (26-30 pt FIXED, no auto-shrink), sits CLOSER to the score
+    # burst (central reserve 70-80 px vs R6-V1's ~108 px), the tilt is
+    # SHALLOWER (-4° to -10° vs R6-V1's -12°), and the coin counter +
+    # pause tile are blit on top at 50% alpha so the deck red and
+    # SKATE/BOARD glyphs bleed through both chrome tiles. Reuses the same
+    # bake_hud_score=False base R6 uses.
+    cells_r7 = []
+    for label, renderer in VARIANTS_R7:
+        cells_r7.append((label, renderer(base_r5, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r7 = _compose_sheet(cells_r7,
+        "Skybit — SKATEBOARD R7 (R6-V1 reworked: SKATE/BOARD bigger + "
+        "closer, less tilt, chrome at 50% alpha)",
+        cols=2, rows=2)
+    pygame.image.save(sheet_r7, OUT_PATH_R7)
+    print(f"wrote {OUT_PATH_R7}  ({os.path.getsize(OUT_PATH_R7)} bytes)")
 
 
 def _verify_d4_3digit(base):
