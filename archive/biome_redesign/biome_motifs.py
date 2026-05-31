@@ -436,3 +436,204 @@ def draw_terrace_cairn(ctx):
     # Way-marker cairn on the terrace lip.
     draw_cairn(surf, cx - bw // 4, wall_y, n=4, pennant=True)
     draw_cairn(surf, cx + bw // 3, wall_y + 2, n=3, pennant=False)
+
+
+# ── Group B (ink / shan-shui) signatures + atmospheres ────────────────────────
+
+def gorge_mist(ctx):
+    """Vertical ink-wash haze for the misty gorge: many overlapping low-alpha
+    bands stacked from the tower feet UP through the ranks, so each karst finger
+    dissolves into negative-space void between ranks — the hero of this look. The
+    veil thickens toward predawn/dusk but stays present all day (a gorge is humid
+    in any light), and is anchored low enough that the upper sky stays a readable
+    celadon for the HUD."""
+    from scene_engine import mist_bands
+    night = _nightf(ctx)
+    mtint = ctx.pal.get('mist_tint', (210, 224, 224))
+    # A tall stack of soft bands so towers fade rank-by-rank into the wash; the
+    # count + alpha both rise as the day cools so the void deepens at dusk.
+    n = 4 + int(round(night * 2))
+    alpha = int(40 + 26 * night)
+    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.50, n=n, alpha=alpha)
+    # One extra high, very faint sheet that catches the tower shoulders so even
+    # the tallest fingers read as half-dissolved rather than hard silhouettes.
+    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.34, n=2,
+               alpha=int(20 + 14 * night))
+
+
+def draw_gorge_pine(ctx):
+    """The misty-gorge hero: a lone wuling pine clinging to the nearest karst
+    tower, with a tiny stupa perched on a mid tower behind it. Sparse on purpose
+    — the negative-space mist is the subject, the pine is just the scale mark."""
+    from game.draw import draw_wuling_pine
+    from game.pillar_variants import draw_stupa
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    # Stupa on a mid-tower shoulder (drawn first so the near pine overlaps it).
+    draw_stupa(surf, int(w * 0.62), gy - int(gy * 0.30))
+    # Lone pine on the near tower — the horizontal peacock-tail reads instantly
+    # as shan-shui; ctx.dpal carries foliage_* so it retints across stages.
+    draw_wuling_pine(surf, int(w * 0.30), gy - int(gy * 0.26), 54, ctx.dpal,
+                     lean=12, direction='up', layers=6)
+    draw_wuling_pine(surf, int(w * 0.22), gy - int(gy * 0.10), 30, ctx.dpal,
+                     lean=-6, direction='up', layers=4)
+
+
+def draw_snow_temple_sig(ctx):
+    """Winter-ink hero: a whitewashed stupa beside a terrace wall, with the one
+    warm note in the whole austere scene — a single hung paper lantern. The cold
+    monochrome ridges carry the mood; this is the human warmth against them."""
+    from game.pillar_variants import (draw_stupa, draw_terrace_wall,
+                                       draw_paper_lantern)
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    light, mid, dark, accent = _struct(ctx)
+    cx = int(w * 0.52)
+    wall_y = gy - int(gy * 0.20)
+    # Dark pocket + bright coping so the terrace masonry reads against the snow.
+    bw = int(w * 0.26)
+    pygame.draw.rect(surf, dark, (cx - bw // 2, wall_y, bw, gy - wall_y))
+    pygame.draw.line(surf, light, (cx - bw // 2, wall_y - 1),
+                     (cx + bw // 2, wall_y - 1), 3)
+    draw_terrace_wall(surf, cx, wall_y, width=min(bw, 54))
+    # Whitewashed stupa on the terrace lip — reads as the temple's reliquary.
+    draw_stupa(surf, cx - bw // 4, wall_y)
+    draw_stupa(surf, cx + bw // 3, wall_y + 2)
+    # The single warm lantern hung from a post — the lone warm accent.
+    px = cx + bw // 2 + 6
+    pygame.draw.line(surf, mid, (px, wall_y + 6), (px, wall_y - 22), 2)
+    draw_paper_lantern(surf, px, wall_y - 22, strand=4, scale=1.0, color='gold')
+
+
+def draw_maple_monastery_sig(ctx):
+    """Autumn-ink hero: a hillside monastery — terrace wall + whitewashed stupa +
+    a warm red lantern — set apart from Group A's naturalistic autumn by being
+    architectural and ink-framed. The maple warmth lives in the foliage callback;
+    here the masonry is the human mark on the slope."""
+    from game.pillar_variants import (draw_terrace_wall, draw_stupa,
+                                       draw_paper_lantern, draw_prayer_flags)
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    light, mid, dark, accent = _struct(ctx)
+    cx = int(w * 0.50)
+    wall_y = gy - int(gy * 0.27)
+    bw = int(w * 0.30)
+    pygame.draw.rect(surf, dark, (cx - bw // 2, wall_y, bw, gy - wall_y))
+    pygame.draw.rect(surf, mid, (cx - bw // 2, wall_y, bw, 5))
+    pygame.draw.line(surf, light, (cx - bw // 2, wall_y - 1),
+                     (cx + bw // 2, wall_y - 1), 3)
+    draw_terrace_wall(surf, cx, wall_y, width=min(bw, 58))
+    # Stupa cluster on the terrace — the monastery reliquaries.
+    draw_stupa(surf, cx - bw // 4, wall_y)
+    draw_stupa(surf, cx + bw // 4, wall_y + 1)
+    # Warm red lantern hung off the near corner + a flag line for festivity.
+    px = cx - bw // 2 - 4
+    pygame.draw.line(surf, mid, (px, wall_y), (px, wall_y - 18), 2)
+    draw_paper_lantern(surf, px, wall_y - 18, strand=4, scale=1.1, color='red')
+    draw_prayer_flags(surf, cx - bw // 4, wall_y - 6, cx + bw // 2, wall_y + 4, n=6)
+
+
+def draw_maple_canopy(ctx):
+    """Maple-tinted wuling pines + a pine trio at the frame edges — the warm
+    autumn foliage that surrounds the ink monastery. foliage_* are pushed to
+    red/orange in the keyframes so the production pine retints to fiery maple."""
+    from game.draw import draw_wuling_pine
+    from game.pillar_variants import draw_pine_trio
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    draw_pine_trio(surf, int(w * 0.14), gy - 4, ctx.dpal, seed=3)
+    draw_wuling_pine(surf, int(w * 0.84), gy - int(gy * 0.06), 50, ctx.dpal,
+                     lean=-10, direction='up', layers=6)
+    draw_wuling_pine(surf, int(w * 0.92), gy - 2, 32, ctx.dpal,
+                     lean=8, direction='up', layers=4)
+
+
+def cloud_sea(ctx):
+    """The sea-of-clouds identity for cloud_sea_peaks: a dense, continuous
+    white-grey band massed across the LOWER third of the scene that the karst
+    peaks poke up through — horizontal, billowing, unmistakably different from
+    misty_gorge's vertical veil. Drawn over the sky (peaks/ground paint after, so
+    near towers still rise in front of the cloud feet for depth). Built from many
+    overlapping production clouds tinted by the stage so dawn flushes it warm and
+    night sinks it to a cold moonlit grey."""
+    from game.draw import draw_cloud
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    night = _nightf(ctx)
+    # Cloud tint tracks the stage horizon so the sea catches the same light as the
+    # sky meeting it — warm at dawn, cool blue-grey at night.
+    base = ctx.pal.get('cloud_tint', ctx.pal.get('horizon', (236, 238, 244)))
+    top = int(gy * 0.60)            # the cloud-sea surface line
+    # 1. A solid base sheet so the sea reads as opaque mass, not a few puffs.
+    sheet = pygame.Surface((w, gy - top), pygame.SRCALPHA)
+    for yy in range(gy - top):
+        t = yy / max(1, gy - top)
+        # Slightly darker toward the trough so the sea has body.
+        c = (int(base[0] * (1 - 0.18 * t)),
+             int(base[1] * (1 - 0.18 * t)),
+             int(base[2] * (1 - 0.18 * t)))
+        a = int(150 + 95 * t)
+        pygame.draw.line(sheet, (*c, a), (0, yy), (w, yy))
+    surf.blit(sheet, (0, top))
+    # 2. Billowing crest of overlapping production clouds along the surface line
+    # so the top edge rolls instead of cutting flat. Deterministic layout keyed
+    # to width so adjacent stage columns share the same sea.
+    import random as _r
+    rng = _r.Random(w * 104729)
+    n = 9
+    for i in range(n):
+        cx = int(w * (i + 0.5) / n) + rng.randint(-12, 12)
+        cy = top + rng.randint(-6, 10)
+        sc = 0.9 + rng.random() * 0.7
+        draw_cloud(surf, cx, cy, scale=sc, variant=i % 5)
+    # 3. A low second swell of clouds deeper in the sea for layered depth.
+    for i in range(n - 2):
+        cx = int(w * (i + 1.0) / n) + rng.randint(-10, 10)
+        cy = top + int(gy * 0.14) + rng.randint(-4, 8)
+        draw_cloud(surf, cx, cy, scale=0.7 + rng.random() * 0.5, variant=(i + 2) % 5)
+
+
+def draw_cloud_sea_pine(ctx):
+    """A lone wuling pine on the nearest peak emerging from the cloud sea — the
+    only structure, so the cloud-sea stays the subject."""
+    from game.draw import draw_wuling_pine
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    draw_wuling_pine(surf, int(w * 0.30), gy - int(gy * 0.40), 46, ctx.dpal,
+                     lean=10, direction='up', layers=5)
+    draw_wuling_pine(surf, int(w * 0.24), gy - int(gy * 0.30), 26, ctx.dpal,
+                     lean=-5, direction='up', layers=4)
+
+
+def moon_over(ctx):
+    """The moonlit-pine-cliff hero light: a large soft moon disc placed over the
+    sky (before the ridges, so the dark cliff silhouette eclipses its lower
+    edge). Sits high-left of the play band so it never crowds the HUD/score, and
+    rides a faint additive wash so the whole indigo sky reads moonlit. Present
+    even at 'day' for this perpetually-nocturnal biome, brightest at true night."""
+    from scene_engine import soft_disc
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    night = _nightf(ctx)
+    glow = ctx.pal.get('glow_color', (224, 232, 255))
+    moon = ctx.pal.get('moon_tint', (236, 240, 250))
+    mx, my = int(w * 0.26), int(gy * 0.26)
+    r = int(gy * 0.085)
+    # A broad low-alpha moon-wash across the upper sky so the indigo feels lit.
+    wash = pygame.Surface((w, gy), pygame.SRCALPHA)
+    pygame.draw.ellipse(wash, (*glow, int(20 + 30 * night)),
+                        pygame.Rect(int(mx - w * 0.5), int(my - gy * 0.4),
+                                    w, int(gy * 0.8)))
+    surf.blit(wash, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    # The disc itself with its soft halo — the hero light.
+    soft_disc(surf, mx, my, r, moon, glow_alpha=int(120 + 80 * night))
+
+
+def draw_moonlit_pine_cliff_sig(ctx):
+    """Night-ink hero: a wuling pine gripping the cliff edge with a raven or two
+    riding the dark air beside it. The cliff silhouette + moon carry the drama;
+    this is the lonely living mark on the rock."""
+    from game.draw import draw_wuling_pine
+    from game.pillar_variants import draw_raven
+    surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
+    # Pine on the near cliff lip — leaning out over the void, classic ink framing.
+    draw_wuling_pine(surf, int(w * 0.58), gy - int(gy * 0.42), 52, ctx.dpal,
+                     lean=16, direction='up', layers=6)
+    draw_wuling_pine(surf, int(w * 0.50), gy - int(gy * 0.30), 30, ctx.dpal,
+                     lean=-8, direction='up', layers=4)
+    # Ravens crossing the moonlit sky beside the pine.
+    draw_raven(surf, int(w * 0.40), int(gy * 0.34))
+    draw_raven(surf, int(w * 0.34), int(gy * 0.42))
