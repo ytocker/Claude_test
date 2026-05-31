@@ -46,10 +46,18 @@ HEAD = 30          # top strip for stage column labels
 SECTION_H = 30     # full-width group-header band
 
 
+# Set by main(): when True, tiles show ONLY the biome's sky/background color
+# field (no ridges/structures/ground/foliage/atmosphere/stars).
+SKY_ONLY = False
+
+
 def render_cell(biome_id: str, phase: float) -> pygame.Surface:
     surf = pygame.Surface((W, H))
     spec = bv.BIOMES[biome_id]
-    se.paint_scene(surf, spec, W, H, GROUND_Y, phase)
+    if SKY_ONLY:
+        se.paint_sky(surf, spec, W, H, phase)
+    else:
+        se.paint_scene(surf, spec, W, H, GROUND_Y, phase)
     return pygame.transform.smoothscale(surf, (TW, TH))
 
 
@@ -128,8 +136,11 @@ def make_sheet(rows, title):
 
 
 def main():
+    global SKY_ONLY
     tag = sys.argv[1] if len(sys.argv) > 1 else "round_0"
     which = sys.argv[2] if len(sys.argv) > 2 else "all"
+    # Sky-only mode: triggered by a "sky" token in the round tag or a 3rd arg.
+    SKY_ONLY = "sky" in tag.lower() or (len(sys.argv) > 3 and sys.argv[3] == "sky")
     if which == "A":
         rows = bv.GROUP_A
     elif which == "B":

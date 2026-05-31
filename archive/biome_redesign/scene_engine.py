@@ -212,21 +212,36 @@ class SceneCtx:
 DEFAULT_SCROLL = 760.0
 
 
-def paint_scene(surf, spec: BiomeSpec, w, h, ground_y, phase, scroll=DEFAULT_SCROLL):
-    pal = spec.palette_for_phase(phase)
-    dpal = to_draw_palette(pal)
-    ctx = SceneCtx(surf, w, h, ground_y, phase, scroll, pal, dpal)
-
-    # 1. sky — baked OKLab + dithered gradient from the 4 stage stops
+def _sky_stops(spec, pal):
+    """The 5 positional OKLab stops for a biome's sky at one stage — a deepened
+    zenith over the palette's sky_top/mid/bot/horizon."""
     sky_top = pal.get('sky_top', (40, 110, 200))
-    stops_cols = [
+    cols = [
         sf.with_value(sky_top, -spec.sky.zenith_dark),
         pal.get('sky_top', sky_top),
         pal.get('sky_mid', (120, 170, 220)),
         pal.get('sky_bot', (200, 220, 240)),
         pal.get('horizon', (245, 235, 215)),
     ]
-    stops = list(zip(spec.sky.positions, stops_cols))
+    return list(zip(spec.sky.positions, cols))
+
+
+def paint_sky(surf, spec, w, h, phase):
+    """Bake ONLY the biome's sky color field, filling the full tile — no ridges,
+    structures, ground, foliage, atmosphere or stars. Used for the
+    backgrounds-only exploration sheet."""
+    pal = spec.palette_for_phase(phase)
+    stops = _sky_stops(spec, pal)
+    surf.blit(sf.make_sky_field(w, h, stops, dither_amp=spec.sky.dither_amp), (0, 0))
+
+
+def paint_scene(surf, spec: BiomeSpec, w, h, ground_y, phase, scroll=DEFAULT_SCROLL):
+    pal = spec.palette_for_phase(phase)
+    dpal = to_draw_palette(pal)
+    ctx = SceneCtx(surf, w, h, ground_y, phase, scroll, pal, dpal)
+
+    # 1. sky — baked OKLab + dithered gradient from the 4 stage stops
+    stops = _sky_stops(spec, pal)
     sky = sf.make_sky_field(w, ground_y, stops, dither_amp=spec.sky.dither_amp)
     surf.blit(sky, (0, 0))
 
