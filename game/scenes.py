@@ -1149,22 +1149,11 @@ class App:
         for g in self.world.genie_actors:
             g.draw(self.screen)
 
-        # SKATEBOARD activation overlays: a caption banner (held, then a
-        # quadratic ease-out fade) and a starburst anchored at the pickup
-        # screen position so it stays put while Pip rolls away.
-        if getattr(self.world, "skateboard_caption_t", 0) > 0 and \
-                self.world.skateboard_caption_overlay is not None:
-            t = self.world.skateboard_caption_t
-            FADE = 0.8
-            if t > FADE:
-                alpha = 255
-            else:
-                x = 1.0 - t / FADE
-                alpha = int(255 * (1.0 - x) ** 2)
-            self.world.skateboard_caption_overlay.set_alpha(alpha)
-            lift_y = getattr(self.world, "_skateboard_lift_y", 0)
-            self.screen.blit(self.world.skateboard_caption_overlay,
-                             (0, -lift_y))
+        # SKATEBOARD activation overlays: the deck-banner caption is
+        # composited inside `hud.draw_play` (on top of coin/pause chrome,
+        # under the live halftone score), so only the activation starburst
+        # is handled here. The burst surface is currently set to None on
+        # activation — the guard below short-circuits.
         if getattr(self.world, "skateboard_burst_t", 0) > 0 and \
                 self.world.skateboard_burst_surface is not None:
             t = self.world.skateboard_burst_t

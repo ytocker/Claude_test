@@ -60,52 +60,94 @@ def _gradient_text(text, size, top_col, bot_col, outline, outline_w=3):
     return surf
 
 
+_R11_DECK_W = 340
+_R11_DECK_H = 92
+_R11_DECK_BORDER_R = 44
+_R11_TILT_DEG = -7
+_R11_BOLT_INSET_X = 34
+_R11_BOLT_INSET_Y = 20
+_R11_GAP_PX = 74 // 2
+_R11_FONT_SIZE = 28
+_R11_OUTLINE_W = 3
+_R11_WORDMARK_BOT = (242, 171, 10)
+_R11_SHADOW_OFFSET = (2, 2)
+_R11_SHADOW_ALPHA = 89
+
+
+def _r11_draw_truck_bolts(surf, deck_w, deck_h, inset, edge_inset):
+    for bolt_x in (inset, deck_w - inset):
+        for bolt_y in (edge_inset, deck_h - edge_inset):
+            pygame.draw.circle(surf, INK, (bolt_x, bolt_y), 5)
+            pygame.draw.circle(surf, (60, 60, 60), (bolt_x, bolt_y), 3)
+            hl = pygame.Surface((2, 2), pygame.SRCALPHA)
+            hl.fill((200, 200, 200, 180))
+            surf.blit(hl, (bolt_x - 1, bolt_y - 1))
+
+
+def _r11_build_deck():
+    deck_w, deck_h = _R11_DECK_W, _R11_DECK_H
+    deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    deck_rect = deck.get_rect()
+    pygame.draw.rect(deck, PLATE_RED, deck_rect,
+                     border_radius=_R11_DECK_BORDER_R)
+    stripe_step, stripe_alpha = 24, 38
+    stripes = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    for i in range(-deck_h, deck_w + deck_h, stripe_step):
+        if (i // stripe_step) % 2 == 0:
+            pts = [(i, 0), (i + stripe_step // 2, 0),
+                   (i + stripe_step // 2 + deck_h, deck_h),
+                   (i + deck_h, deck_h)]
+            pygame.draw.polygon(stripes,
+                                (255, 235, 130, stripe_alpha), pts)
+    mask = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), deck_rect,
+                     border_radius=_R11_DECK_BORDER_R)
+    stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    deck.blit(stripes, (0, 0))
+    _r11_draw_truck_bolts(deck, deck_w, deck_h,
+                          _R11_BOLT_INSET_X, _R11_BOLT_INSET_Y)
+    axis_y = deck_h // 2
+    skate = _gradient_text("SKATE", _R11_FONT_SIZE,
+                           top_col=(255, 255, 110),
+                           bot_col=_R11_WORDMARK_BOT,
+                           outline=INK, outline_w=_R11_OUTLINE_W)
+    deck.blit(skate, skate.get_rect(
+        midright=(deck_w // 2 - _R11_GAP_PX, axis_y)))
+    board = _gradient_text("BOARD!", _R11_FONT_SIZE,
+                           top_col=(255, 255, 110),
+                           bot_col=_R11_WORDMARK_BOT,
+                           outline=INK, outline_w=_R11_OUTLINE_W)
+    deck.blit(board, board.get_rect(
+        midleft=(deck_w // 2 + _R11_GAP_PX, axis_y)))
+    pygame.draw.rect(deck, INK, deck_rect, 4,
+                     border_radius=_R11_DECK_BORDER_R)
+    return deck
+
+
 def render_caption_overlay(cx: int, cy: int,
                            rng_seed: int = 22) -> pygame.Surface:
-    """Top-of-screen caption + POW! badge + 4 ink slashes pointing at
-    the original pickup position. Returns a (W × H) surface; caller
-    blits at (0, 0) with a decreasing alpha to fade out."""
+    """SKATEBOARD deck banner that wraps the live halftone score in its
+    centre. 340×92 PLATE_RED slab tilted −7° with SKATE | (score slot) |
+    BOARD! and four truck-bolts. Returns a (W × H) surface; caller blits
+    at (0, −lift_y) so the deck centre lands on screen-y 70 (same y as
+    the regular HUD score plate), then renders the live halftone score
+    on top so it reads centred inside the deck.
+
+    cx/cy/rng_seed are kept for activation-callsite API compatibility
+    and ignored — the deck is screen-space anchored, not pickup-anchored,
+    so it lives in a fixed location regardless of where Pip caught the
+    power-up."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
-
-    # 2-corner ink speed-slashes pointing at the original pickup spot
-    # — only the TOP corners. The bottom corner slashes were stripped
-    # because they read as gameplay obstacles rather than caption FX
-    # over the lower half of the playfield.
-    for x0, y0 in ((20, 20), (W - 20, 20)):
-        for off in range(3):
-            dx = (cx - x0) * 0.18
-            dy = (cy - y0) * 0.18
-            ox = (-1 if x0 < cx else 1) * (off * 8)
-            oy = off * 4
-            pygame.draw.line(surf, INK,
-                             (x0 + ox, y0 + oy),
-                             (x0 + ox + dx, y0 + oy + dy), 4)
-
-    # SKATEBOARD! caption on a red plate, tilted +5°.
-    txt = _gradient_text("SKATEBOARD!", 42,
-                         top_col=(255, 255, 110),
-                         bot_col=(255, 180, 10),
-                         outline=INK, outline_w=5)
-    bw, bh = txt.get_width() + 30, txt.get_height() + 18
-    composite = pygame.Surface((bw + 12, bh + 12), pygame.SRCALPHA)
-    ccx = composite.get_width() // 2
-    ccy = composite.get_height() // 2
-    plate_rect = pygame.Rect(0, 0, bw, bh)
-    plate_rect.center = (ccx + 4, ccy + 4)
-    pygame.draw.rect(composite, PLATE_RED, plate_rect, border_radius=10)
-    pygame.draw.rect(composite, INK, plate_rect, 4, border_radius=10)
-    composite.blit(txt, txt.get_rect(center=(ccx, ccy)).topleft)
-    rotated = pygame.transform.rotate(composite, 5)
-    surf.blit(rotated, rotated.get_rect(center=(W // 2, 75)))
-
-    # POW! badge upper-right, tilted +15°.
-    pow_txt = _gradient_text("POW!", 32,
-                             top_col=(255, 90, 90),
-                             bot_col=(220, 30, 30),
-                             outline=INK, outline_w=4)
-    pow_rot = pygame.transform.rotate(pow_txt, 15)
-    surf.blit(pow_rot, pow_rot.get_rect(center=(W - 60, 130)))
-
+    deck = _r11_build_deck()
+    rotated = pygame.transform.rotate(deck, _R11_TILT_DEG)
+    deck_center = (W // 2, 96)
+    rect = rotated.get_rect(center=deck_center)
+    sh = rotated.copy()
+    sh.fill((0, 0, 0, _R11_SHADOW_ALPHA),
+            special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(sh, (rect.x + _R11_SHADOW_OFFSET[0],
+                   rect.y + _R11_SHADOW_OFFSET[1]))
+    surf.blit(rotated, rect)
     return surf
 
 

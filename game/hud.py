@@ -1517,11 +1517,13 @@ class HUD:
         # if ever needed.
 
     def draw_play(self, surf, world, best: int, paused: bool = False):
-        # ── Score plate. v5_skybit's NA cut-corner slate plate is the base;
-        # while SKATEBOARD is active the pop-art halftone burst from
-        # skateboard_fx.render_skateboard_score_e3 takes over (matches the
-        # trick-bubble visual vocabulary, fades with the caption banner).
+        # ── Score plate. SKATEBOARD wraps the score inside the deck banner
+        # (`render_caption_overlay`) — coin + pause render first, then the
+        # deck composites on top of them, then the live halftone burst from
+        # `render_skateboard_score_e3` lands at the deck centre. Outside
+        # skateboard mode the slate NA plate is the standard score plate.
         skateboard_active = getattr(world.bird, "skateboard_active", False)
+        skateboard_score_paint = None
         if skateboard_active and not paused:
             from game.skateboard_fx import render_skateboard_score_e3
             cap_t = getattr(world, "skateboard_caption_t", 0.0)
@@ -1534,10 +1536,19 @@ class HUD:
             else:
                 score_alpha = 0
             if score_alpha > 0:
-                score_surf = render_skateboard_score_e3(world.score)
-                score_surf.set_alpha(score_alpha)
                 lift_y = getattr(world, "_skateboard_lift_y", 0)
-                surf.blit(score_surf, (0, -lift_y))
+                deck_overlay = getattr(
+                    world, "skateboard_caption_overlay", None)
+
+                def paint():
+                    if deck_overlay is not None:
+                        deck_overlay.set_alpha(score_alpha)
+                        surf.blit(deck_overlay, (0, -lift_y))
+                    score_surf = render_skateboard_score_e3(world.score)
+                    score_surf.set_alpha(score_alpha)
+                    surf.blit(score_surf, (0, -lift_y))
+
+                skateboard_score_paint = paint
         else:
             score_txt = str(world.score)
             sf = _font(46, True)
@@ -1586,6 +1597,12 @@ class HUD:
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)
+
+        # SKATEBOARD deck banner sits ON TOP of coin + pause so the deck
+        # silhouette covers the chrome where they overlap; the live
+        # halftone score then lands at the deck centre.
+        if skateboard_score_paint is not None:
+            skateboard_score_paint()
 
         # "Get ready" prompt while the pre-start freeze is active.
         if world.ready_t > 0:
