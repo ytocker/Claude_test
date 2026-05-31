@@ -2352,27 +2352,58 @@ VARIANTS_R7 = [
 # Reproduced here MINUS the _na_plate call so the coin glyph + count and the
 # pause bars sit directly on the sky, gaining a soft drop shadow for the
 # legibility the slate plate used to provide.
-_R8_COIN_GLYPH_CENTER = (31, 33)        # (12-pad+pad+19, 14-pad+pad+19)
-_R8_COIN_TEXT_LEFT = 48                  # 12-pad+pad+36 — text midleft x
+# Two coin/pause placements. The "normal" pair reproduces the live HUD's
+# coin block + pause tile geometry (coin glyph centre at surf-local
+# (_NA_PAD+19, _NA_PAD+19) ≈ (31,33); pause tile at (W-68-18,14,68,38)) so
+# the deck half-covers them — used by the no-nudge A/B cell. The "corner"
+# pair shoves the coin hard into the top-left (glyph centre raised to the
+# extreme corner) and the pause hard into the top-right (right edge at
+# x≈354) so a 340-wide tilted deck clears them with as little slice-through
+# as the deck's own corner geometry allows.
+_R8_COIN_GLYPH_CENTER = (31, 33)        # normal: (12-pad+pad+19, 14-pad+pad+19)
+_R8_COIN_TEXT_LEFT = 48                  # normal: text midleft x
 _R8_COIN_TEXT_CY = 33
-_R8_PAUSE_TILE = pygame.Rect(W - 68 - 18, 14, 68, 38)
-# Frameless drop shadow: offset +1,+2, near-black ~alpha 120 — replaces the
-# slate plate's legibility floor against a bright-sky pillar / night biome.
-_R8_SHADOW_OFFSET = (1, 2)
-_R8_SHADOW_ALPHA = 120
+_R8_PAUSE_TILE = pygame.Rect(W - 68 - 18, 14, 68, 38)  # normal pause tile
+
+# Corner-nudge positions (item 2). Coin glyph centre anchored ≈(6,6)+radius
+# into the top-left corner; pause bars anchored so their RIGHT edge sits at
+# x≈354 near the top-right corner. Both clear of the 340 deck's reach.
+_R8_COIN_GLYPH_CENTER_CORNER = (20, 21)  # glyph radius ~13 → top-left ≈(7,8)
+_R8_COIN_TEXT_LEFT_CORNER = 36           # text midleft just right of glyph
+_R8_COIN_TEXT_CY_CORNER = 21
+_R8_PAUSE_CORNER_RIGHT = 356             # right edge of the right-most bar
+_R8_PAUSE_CORNER_CY = 14                  # bars hard to the top, above the deck
+
+# Frameless drop shadow: STRENGTHENED to +3,+3 / alpha ~140 (item 3) so the
+# coin counter + pause read against BOTH day and night sky without a plate.
+_R8_SHADOW_OFFSET = (3, 3)
+_R8_SHADOW_ALPHA = 140
+# Pause bars get a 1-px dark ink edge (item 4) — two bare bars need the edge
+# definition the coin glyph already gets from its own circular silhouette.
+_R8_PAUSE_OUTLINE = INK
 
 
-def _r8_render_frameless_coin(surf, coin_count):
+def _r8_render_frameless_coin(surf, coin_count, corner=True):
     """Frameless coin counter — coin glyph + "x N" count, NO slate plate,
     with a soft near-black drop shadow under both so they survive the sky
     without the plate the live HUD draws behind them. Matches the live
     HUD content (same _coin_icon face, same _font(20) gold count) minus
-    the _na_plate call."""
+    the _na_plate call.
+
+    corner=True shoves the whole block hard into the top-left corner so a
+    340-wide tilted deck clears it; corner=False keeps the live-HUD
+    position so the no-nudge A/B cell shows the deck half-covering it."""
     from game.hud import _coin_icon, _font, UI_GOLD, NEAR_BLACK
+    if corner:
+        glyph_cx, glyph_cy = _R8_COIN_GLYPH_CENTER_CORNER
+        text_left, text_cy = _R8_COIN_TEXT_LEFT_CORNER, _R8_COIN_TEXT_CY_CORNER
+    else:
+        glyph_cx, glyph_cy = _R8_COIN_GLYPH_CENTER
+        text_left, text_cy = _R8_COIN_TEXT_LEFT, _R8_COIN_TEXT_CY
     coin_text = f"x{coin_count}"
     cf = _font(20, True)
     tw = cf.size(coin_text)[0]
-    text_center = (_R8_COIN_TEXT_LEFT + tw // 2, _R8_COIN_TEXT_CY)
+    text_center = (text_left + tw // 2, text_cy)
     # Drop shadow first — the count text + a filled disc standing in for
     # the coin glyph's footprint, both offset and near-black at ~alpha 120.
     sh_txt = cf.render(coin_text, True, NEAR_BLACK)
@@ -2383,21 +2414,34 @@ def _r8_render_frameless_coin(surf, coin_count):
     coin_sh = pygame.Surface((28, 28), pygame.SRCALPHA)
     pygame.draw.circle(coin_sh, (*NEAR_BLACK, _R8_SHADOW_ALPHA), (14, 14), 13)
     surf.blit(coin_sh, coin_sh.get_rect(center=(
-        _R8_COIN_GLYPH_CENTER[0] + _R8_SHADOW_OFFSET[0],
-        _R8_COIN_GLYPH_CENTER[1] + _R8_SHADOW_OFFSET[1])))
+        glyph_cx + _R8_SHADOW_OFFSET[0],
+        glyph_cy + _R8_SHADOW_OFFSET[1])))
     # Foreground glyph + gold count.
-    _coin_icon(surf, _R8_COIN_GLYPH_CENTER[0], _R8_COIN_GLYPH_CENTER[1], 12)
+    _coin_icon(surf, glyph_cx, glyph_cy, 12)
     txt = cf.render(coin_text, True, UI_GOLD)
     surf.blit(txt, txt.get_rect(center=text_center).topleft)
 
 
-def _r8_render_frameless_pause(surf):
+def _r8_render_frameless_pause(surf, corner=True):
     """Frameless pause button — the two _NA_ACCENT pause bars, NO slate
-    tile, with a soft drop shadow under the bars. Bar geometry matches
-    PauseButton.draw (bw=5, bh=17, gap=4 at the tile centre)."""
+    tile, with a soft drop shadow under the bars AND a 1-px dark ink edge
+    around each bar (the two bare bars need the edge definition the coin
+    glyph gets for free from its circular silhouette). Bar geometry
+    matches PauseButton.draw (bw=5, bh=17, gap=4 at the tile centre).
+
+    corner=True anchors the bars hard into the top-right corner (right
+    edge at x≈354) so a 340-wide tilted deck clears them; corner=False
+    keeps the live-HUD tile centre for the no-nudge A/B cell."""
     from game.hud import _NA_ACCENT, UI_CREAM, NEAR_BLACK, lerp_color
-    cx, cy = _R8_PAUSE_TILE.center
     bw, bh, gap = 5, 17, 4
+    if corner:
+        # Anchor the RIGHT bar's right edge at x≈354, bars hard to the top.
+        right_edge = _R8_PAUSE_CORNER_RIGHT
+        cy = _R8_PAUSE_CORNER_CY + bh // 2
+        # cx is the gap centre: right bar spans [cx+gap, cx+gap+bw].
+        cx = right_edge - gap - bw
+    else:
+        cx, cy = _R8_PAUSE_TILE.center
     ox, oy = _R8_SHADOW_OFFSET
     # Shadow bars under each pause bar so they read against the sky.
     sh = pygame.Surface((bw, bh), pygame.SRCALPHA)
@@ -2405,6 +2449,12 @@ def _r8_render_frameless_pause(surf):
     for dx in (-gap - bw, gap):
         surf.blit(sh, (cx + dx + ox, cy - bh // 2 + oy))
     for dx in (-gap - bw, gap):
+        # 1-px ink outline first (drawn 1 px out on each side) so the bar
+        # face sits inside a crisp dark edge — the definition two bare
+        # bars need that the coin glyph already carries.
+        pygame.draw.rect(surf, _R8_PAUSE_OUTLINE,
+                         (cx + dx - 1, cy - bh // 2 - 1, bw + 2, bh + 2),
+                         border_radius=2)
         pygame.draw.rect(surf, _NA_ACCENT,
                          (cx + dx, cy - bh // 2, bw, bh), border_radius=2)
         pygame.draw.rect(surf, lerp_color(_NA_ACCENT, UI_CREAM, 0.5),
@@ -2412,12 +2462,14 @@ def _r8_render_frameless_pause(surf):
 
 
 def _r8_blit_wordmarks(deck, deck_w, deck_h, gap_px, font_size,
-                        outline_w=3, axis_y=None, bang_size=None):
+                        outline_w=3, axis_y=None, bang_size=None,
+                        bang_margin=1):
     """Stamp SKATE (left) and BOARD! (right) onto the deck's long axis at
     a FIXED size, sharing one baseline. The right word carries the new
     exclamation mark; bang_size>0 renders the "!" as a SEPARATE, larger
     accent glyph appended after "BOARD" (R8-B4's flourish) instead of an
-    inline same-size character. Uses the R7 darkened lower gradient stop.
+    inline same-size character, with bang_margin px of air between
+    "BOARD" and the "!". Uses the R7 darkened lower gradient stop.
     Returns (skate_w, board_full_w) so the caller can report the fit."""
     if axis_y is None:
         axis_y = deck_h // 2
@@ -2441,10 +2493,11 @@ def _r8_blit_wordmarks(deck, deck_w, deck_h, gap_px, font_size,
         board_rect = board.get_rect(midleft=(deck_w // 2 + gap_px, axis_y))
         deck.blit(board, board_rect)
         bang_rect = bang.get_rect()
-        bang_rect.left = board_rect.right + 1
+        bang_rect.left = board_rect.right + bang_margin
         bang_rect.bottom = board_rect.bottom
         deck.blit(bang, bang_rect)
-        return skate.get_width(), (board_rect.width + 1 + bang_rect.width)
+        return skate.get_width(), (board_rect.width + bang_margin
+                                   + bang_rect.width)
     board = _gradient_text("BOARD!", font_size,
                            top_col=(255, 255, 110), bot_col=bot,
                            outline=INK, outline_w=outline_w)
@@ -2454,7 +2507,8 @@ def _r8_blit_wordmarks(deck, deck_w, deck_h, gap_px, font_size,
 
 
 def _variant_r8_core(base, deck_w, word_size, score_reserve,
-                      bang_size=None, tilt_deg=-7, label=""):
+                      bang_size=None, bang_margin=1, tilt_deg=-7,
+                      corner_nudge=True, label=""):
     """Shared R8 renderer. Frameless coin counter + pause button are
     painted onto the frame FIRST (the base already has the plated chrome
     suppressed), then the OPAQUE extended-length deck (SKATE / BOARD! +
@@ -2462,24 +2516,36 @@ def _variant_r8_core(base, deck_w, word_size, score_reserve,
     chrome falls under its tilted silhouette so only the extreme-corner
     bits peek out. The live halftone burst lands last at the deck centre.
 
+    corner_nudge=True shoves the frameless coin into the extreme top-left
+    corner and the pause into the extreme top-right (item 2) so the
+    340-wide deck clears them; corner_nudge=False keeps the live-HUD
+    positions so the no-nudge A/B cell shows the deck half-covering them.
+
+    bang_margin sets the clearance (px) the larger "!" accent keeps from
+    the deck's inner edge when bang_size>0 (item 5).
+
     Prints the per-cell BOARD! fit (glyph width vs the available half-deck
     width after the central reserve) so the geometry can be verified."""
     s = base.copy()
     deck_h = 92
     # Frameless chrome UNDER the deck — coin top-left, pause top-right.
-    _r8_render_frameless_coin(s, 8)
-    _r8_render_frameless_pause(s)
+    _r8_render_frameless_coin(s, 8, corner=corner_nudge)
+    _r8_render_frameless_pause(s, corner=corner_nudge)
     # Build the extended-length deck. Reuse the R6 plain-deck silhouette
     # (wash stripes + 4 corner bolts + ink rim); bolts at the standard
     # treatment since the deck now sits ON TOP (the under-chrome bolt
     # rescue is moot). Bolt insets scale with the wider deck so the four
-    # bolts stay near the corners rather than drifting inward.
+    # bolts stay near the corners rather than drifting inward. With the
+    # corner-nudged chrome (item 2) the coin/pause sit in the extreme
+    # corners; the 4 truck-bolts are inset a touch (item 8) so a bolt
+    # never lands on the coin glyph / pause bars peeking past the rim.
     deck, deck_rect = _r6_build_plain_deck(
         deck_w, deck_h, border_radius=44,
-        bolt_inset_x=30, bolt_inset_y=18)
+        bolt_inset_x=34, bolt_inset_y=20)
     skate_w, board_w = _r8_blit_wordmarks(
         deck, deck_w, deck_h, gap_px=score_reserve // 2,
-        font_size=word_size, outline_w=3, bang_size=bang_size)
+        font_size=word_size, outline_w=3, bang_size=bang_size,
+        bang_margin=bang_margin)
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
     # Fit report — available half-deck width after the central reserve.
     avail = (deck_w - score_reserve) // 2
@@ -2501,48 +2567,65 @@ def _variant_r8_core(base, deck_w, word_size, score_reserve,
 
 
 def variant_r8_b1_deck340(base, score):
-    """R8-B1 — Deck 340 wide. Minimal extension (320 → 340) to fit
-    "BOARD!" at 28 pt. Deck-centre (180,70), tilt -7°. Frameless coin
-    (top-left) + pause (top-right) peek out at the corners above the
-    deck's tilted edges. The 74 px reserve is held from R7-A1."""
+    """R8-B1 (LEAD) — Deck 340 wide, "BOARD!" at 28 pt. Deck-centre
+    (180,70), tilt -7°. Frameless coin shoved into the EXTREME top-left
+    corner + pause into the EXTREME top-right (item 2 corner-nudge) so
+    both clear the 340 deck instead of being sliced by its tilted edge.
+    Strengthened +3,+3 / alpha-140 frameless shadow (item 3) + a 1-px
+    ink edge on the pause bars (item 4). The 74 px reserve is held from
+    R7-A1; +12 px margin target per item 1."""
     return _variant_r8_core(base, deck_w=340, word_size=28,
-                            score_reserve=74, label="R8-B1")
+                            score_reserve=74, corner_nudge=True,
+                            label="R8-B1")
 
 
-def variant_r8_b2_deck352(base, score):
-    """R8-B2 — Deck 352 wide. Longer deck — tests whether "BOARD!" wants
-    more room and whether the longer deck swallows too much corner
-    chrome. Same 28 pt word, 74 px reserve as B1."""
-    return _variant_r8_core(base, deck_w=352, word_size=28,
-                            score_reserve=74, label="R8-B2")
+def variant_r8_b2_nonudge(base, score):
+    """R8-B2 (A/B) — IDENTICAL to B1 (deck 340, 28 pt, "BOARD!") EXCEPT
+    the frameless coin + pause stay at their NORMAL live-HUD positions
+    (no corner-nudge), so the deck half-covers them. Lets the user A/B
+    the corner-nudge (B1) directly against the no-nudge version in the
+    same sheet (item 6)."""
+    return _variant_r8_core(base, deck_w=340, word_size=28,
+                            score_reserve=74, corner_nudge=False,
+                            label="R8-B2(no-nudge)")
 
 
-def variant_r8_b3_deck330_26pt(base, score):
-    """R8-B3 — Deck 330, BOARD! at 26 pt. Minimal extension: keep the
-    deck close to the original by sizing the word slightly smaller.
-    SKATE matches at 26 pt. Compares "extend the deck a lot" vs "size
-    the word"."""
-    return _variant_r8_core(base, deck_w=330, word_size=26,
-                            score_reserve=74, label="R8-B3")
+def variant_r8_b3_deck330_28pt(base, score):
+    """R8-B3 — Shorter 330-wide deck, lettering RAISED 26 → 28 pt
+    (item 7) to match the others' punch. Keeps the symmetric dual-corner
+    chrome-peek logic; with the corner-nudge applied the coin/pause now
+    sit in the extreme corners. If "BOARD!" at 28 pt clips the 330 deck
+    the width is bumped to 336 (the smallest that clears it)."""
+    deck_w = 330
+    # Verify "BOARD!" at 28 pt fits the 330 deck; bump to 336 if it clips.
+    probe = _gradient_text("BOARD!", 28, top_col=(255, 255, 110),
+                           bot_col=R7_WORDMARK_BOT_COL, outline=INK,
+                           outline_w=3)
+    if probe.get_width() > (deck_w - 74) // 2:
+        deck_w = 336
+    return _variant_r8_core(base, deck_w=deck_w, word_size=28,
+                            score_reserve=74, corner_nudge=True,
+                            label="R8-B3")
 
 
-def variant_r8_b4_deck344_bigbang(base, score):
-    """R8-B4 — Deck 344, exclamation as a separate accent. "BOARD" at
-    28 pt + the "!" as a larger (34 pt) bolder accent glyph so the
-    exclamation pops as a design flourish rather than a same-size
-    character. The brief's 344 width clipped the larger bang by 1 px, so
-    the deck is nudged to 348 — the smallest width that clears "BOARD" +
-    the 34 pt "!" with margin (the brief explicitly allows widening a
-    touch for the cell that clips)."""
-    return _variant_r8_core(base, deck_w=348, word_size=28,
-                            score_reserve=74, bang_size=34, label="R8-B4")
+def variant_r8_b4_deck352_bigbang(base, score):
+    """R8-B4 (energetic alternate) — "BOARD" at 28 pt + the "!" as a
+    larger 31 pt accent glyph (item 5: down from 34 pt) with a +6 px
+    margin between "BOARD" and the "!". SKATE + "BOARD" body stay 28 pt;
+    only the "!" is the enlarged accent. Deck extended to 356 — 352 left
+    the BOARD + 6 px gap + 31 pt "!" 1 px shy of the inner edge, so the
+    smallest clearing width is taken (item 5 allows the widen).
+    Corner-nudged chrome (item 2)."""
+    return _variant_r8_core(base, deck_w=356, word_size=28,
+                            score_reserve=74, bang_size=31, bang_margin=6,
+                            corner_nudge=True, label="R8-B4")
 
 
 VARIANTS_R8 = [
-    ("R8-B1 — Deck 340, BOARD!",      variant_r8_b1_deck340),
-    ("R8-B2 — Deck 352 (longer)",     variant_r8_b2_deck352),
-    ("R8-B3 — Deck 330, 26 pt",       variant_r8_b3_deck330_26pt),
-    ("R8-B4 — Deck 348, big '!'",     variant_r8_b4_deck344_bigbang),
+    ("R8-B1 — Deck 340, BOARD! (LEAD, nudged)", variant_r8_b1_deck340),
+    ("R8-B2 — No corner-nudge (A/B vs B1)",     variant_r8_b2_nonudge),
+    ("R8-B3 — Deck 330, 28 pt (nudged)",        variant_r8_b3_deck330_28pt),
+    ("R8-B4 — 31 pt '!' accent (nudged)",       variant_r8_b4_deck352_bigbang),
 ]
 
 
@@ -2735,8 +2818,9 @@ def main():
         cells_r8.append((label, renderer(base_r8, score_for_overlay)))
         print(f"  rendered {label}")
     sheet_r8 = _compose_sheet(cells_r8,
-        "Skybit — SKATEBOARD R8 (R7-A1 reworked: BOARD!, deck extended, "
-        "OPAQUE deck on top of FRAMELESS coin + pause)",
+        "Skybit — SKATEBOARD R8 final (B1 lead: corner-nudged frameless "
+        "chrome, BOARD! 28pt; B2 = no-nudge A/B; pause bars inked + strong "
+        "shadow)",
         cols=2, rows=2)
     pygame.image.save(sheet_r8, OUT_PATH_R8)
     print(f"wrote {OUT_PATH_R8}  ({os.path.getsize(OUT_PATH_R8)} bytes)")
