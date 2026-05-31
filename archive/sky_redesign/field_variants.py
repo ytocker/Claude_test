@@ -1,10 +1,13 @@
 """
-Sky COLOR-FIELD exploration — 8 high-end treatments of the pure atmosphere.
+Sky COLOR-FIELD exploration — 5 high-end treatments of the pure atmosphere.
 
 Scope: the sky's own color field only — the blue that grades to night and back.
-NO objects (no clouds / sun / moon / stars / god-rays); those are composited by
-the rest of the game. Each treatment is judged purely on how gorgeous the
-gradient itself reads across the full day cycle.
+NO objects (no clouds / sun / moon / stars / god-rays) and NO additive radial
+glow — an additive blob over the sky clips to white and reads as a sun disc or
+searchlight, which is forbidden. Any horizon warmth is BAKED INTO THE STOP RAMP
+as a low wedge whose lightness never exceeds ~0.92 OKLab L, so it lifts the
+horizon without ever blowing to white. Each treatment is judged purely on how
+gorgeous the gradient itself reads across the full day cycle.
 
 Every treatment is built on `game.sky_field` (OKLab perceptual interpolation +
 non-uniform eased stops + Bayer dither) so they share the "stop looking like a
@@ -22,9 +25,14 @@ Contract (consumed by render_field_variants.py and the design loop):
 import pygame
 
 from game.sky_field import (
-    make_sky_field, oklab_ramp, oklab_lerp, srgb_to_oklab,
-    with_value, shift_temperature, radial_glow,
+    make_sky_field, oklab_lerp, srgb_to_oklab, oklab_to_srgb,
+    with_value, shift_temperature,
 )
+
+# Hard ceiling on any baked horizon-warmth wedge. Above this the low band starts
+# to blow toward paper-white and a red parrot silhouette stops reading against
+# it; capping in OKLab L keeps warmth as glow-in-the-ramp, never a hot spot.
+_WARM_L_CAP = 0.92
 
 
 def _luma(rgb):
@@ -39,231 +47,209 @@ def _nightf(palette):
     return max(0.0, min(1.0, (95.0 - lum) / 75.0))
 
 
-def _pastelize(rgb, amt):
-    """Lift toward a soft tint: raise OKLab lightness, ease saturation down."""
+def _twilightf(nf):
+    """Peaks (≈1) at the dawn/dusk crossover, ≈0 at full day and deep night —
+    the window where ember/belt warmth should be strongest."""
+    return 1.0 - abs(nf - 0.5) * 2.0
+
+
+def _cap_L(rgb, cap=_WARM_L_CAP):
+    """Clamp a color's OKLab lightness so a warm wedge can never blow to white."""
     L, a, b = srgb_to_oklab(rgb)
-    from game.sky_field import oklab_to_srgb
-    return oklab_to_srgb((min(1.0, L + 0.10 * amt), a * (1 - 0.35 * amt),
-                          b * (1 - 0.35 * amt)))
+    if L > cap:
+        return oklab_to_srgb((cap, a, b))
+    return rgb
 
 
-def _grain(w, h, amp):
-    """A reusable high-frequency dither/grain pair for the riso & watercolor
-    looks — same Bayer machinery, cranked, applied add+sub."""
-    from game.sky_field import _dither_overlays
-    return _dither_overlays(w, h, amp)
+def _desat(rgb, amt):
+    """Pull chroma toward neutral by `amt` (0..1) in OKLab — used to bleed the
+    magenta/red out of sunset mids so Skybit's RED hero parrot stays legible."""
+    L, a, b = srgb_to_oklab(rgb)
+    return oklab_to_srgb((L, a * (1.0 - amt), b * (1.0 - amt)))
 
 
-# ── 1. Atmospheric True — physical Rayleigh/Mie realism ──────────────────────
-def draw_atmospheric_true(w, h, palette):
+def _pastelize(rgb, amt):
+    """Lift toward a soft tint: raise OKLab lightness, ease chroma down."""
+    L, a, b = srgb_to_oklab(rgb)
+    return oklab_to_srgb((min(1.0, L + 0.10 * amt),
+                          a * (1 - 0.35 * amt), b * (1 - 0.35 * amt)))
+
+
+# ── 1. Deep-Space Night-led — jaw-dropping night, calm by day ────────────────
+def draw_deep_space(w, h, palette):
     top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
                           palette['sky_bot'], palette['horizon'])
     nf = _nightf(palette)
-    # Deepest, most-saturated value sits at the zenith; the change compresses
-    # toward the horizon where you look through the most air. A pale Mie haze
-    # band sits just above the warm horizon.
-    haze = oklab_lerp(bot, (255, 255, 255), 0.22 * (1 - nf))
+    tw = _twilightf(nf)
+    # Authored around night: a graded navy depth with a faint milky temperature
+    # band drifting LOW through the sky (a subtle hue shift, NOT stars). The
+    # night zenith is lifted and pushed cooler-blue so the very top of frame
+    # always reads as *sky*, never void — the gameplay layer below is already
+    # dark, so a near-black top would read as dead.
+    navy = shift_temperature(with_value(top, 0.07 * nf), -0.5 * nf)
+    # Milky band: weaker (−20%) and slid lower so it stops reading as a mid-frame
+    # seam — it should whisper a temperature drift, not draw a line.
+    milky = shift_temperature(oklab_lerp(mid, (190, 200, 225), 0.20 * nf),
+                              0.15 * nf)
+    # Twilight plum→peach lives only in the low wedge, capped so it never blooms.
+    plum = shift_temperature(oklab_lerp(bot, (150, 105, 140), 0.22 * tw), 0.10)
+    peach = _cap_L(shift_temperature(oklab_lerp(hor, (250, 200, 175),
+                                                0.30 * tw), 0.30))
+    # Keep the lowest band a half-step deeper than the horizon anchor by day so
+    # the white HUD score + pillar tops in the bottom ~15% hold contrast.
+    low = with_value(peach, -0.03 * (1 - nf))
     stops = [
-        (0.00, with_value(top, -0.05)),
-        (0.26, top),
-        (0.52, mid),
-        (0.74, oklab_lerp(mid, bot, 0.55)),
-        (0.88, haze),
-        (1.00, hor),
+        (0.00, navy),
+        (0.32, oklab_lerp(navy, mid, 0.6)),
+        (0.62, milky),
+        (0.80, oklab_lerp(milky, plum, 0.6)),
+        (0.92, plum),
+        (1.00, low),
     ]
-    surf = make_sky_field(w, h, stops)
-    # Soft Mie forward-glow blooming up from the horizon — a broad, low wash
-    # (center pushed well below frame so only the faint tail enters) so it lifts
-    # the horizon warmth without ever reading as a sun disc. Warmer & stronger
-    # at low sun, gone at night.
-    g = (1 - nf)
-    glow = radial_glow(w, h, w * 0.5, h * 1.22, int(h * 0.7),
-                       shift_temperature(hor, 0.6), int(34 * g))
-    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    return surf
+    return make_sky_field(w, h, stops, dither_amp=2.4)
 
 
 # ── 2. Hiroshige Bokashi — ukiyo-e graded Prussian-blue band ─────────────────
 def draw_hiroshige_bokashi(w, h, palette):
     top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
                           palette['sky_bot'], palette['horizon'])
+    nf = _nightf(palette)
     # Prussian-blue lineage: cool the zenith, fade to a pale band low, hold the
     # warm horizon as the futa-iro second ink. Most of the grade lives in the
     # bottom third like a hand-pulled ichimonji bokashi.
-    deep = shift_temperature(with_value(top, -0.03), -0.5)
+    # At night, deepen the zenith and keep it cool so the indigo stays Prussian
+    # ink rather than slumping to a flat washed grey-navy.
+    deep = shift_temperature(with_value(top, -0.03 - 0.05 * nf), -0.5 - 0.2 * nf)
+    deep = with_value(deep, 0.06 * nf)  # but never pure void at the very top
+    # Pale low band: warmed slightly at night so the futa-iro ink survives
+    # instead of going dead grey.
     pale = oklab_lerp(bot, (245, 245, 235), 0.30)
+    pale = shift_temperature(pale, 0.12 * nf)
+    # Pull ~10% chroma out of the mid so a sunset/dusk sky never goes hot-magenta
+    # and swallow the red parrot silhouette.
+    mid_q = _desat(mid, 0.10)
+    horizon = _cap_L(hor)
     stops = [
         (0.00, deep),
-        (0.42, oklab_lerp(deep, mid, 0.7)),
-        (0.66, mid),
-        (0.82, oklab_lerp(mid, pale, 0.6)),
-        (0.93, pale),
-        (1.00, hor),
+        (0.42, oklab_lerp(deep, mid_q, 0.7)),
+        (0.66, mid_q),
+        (0.82, oklab_lerp(mid_q, pale, 0.6)),
+        (0.93, with_value(pale, -0.02)),
+        (1.00, horizon),
     ]
     # Slightly stronger dither for the printed-ink tooth.
     return make_sky_field(w, h, stops, dither_amp=2.6)
 
 
-# ── 3. Alto Plum — stylized non-literal pastel ───────────────────────────────
-def draw_alto_plum(w, h, palette):
-    top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
-                          palette['sky_bot'], palette['horizon'])
-    nf = _nightf(palette)
-    # Push the whole field toward a plum/rose register and pastel it — premium,
-    # non-literal "Alto's Odyssey" mood that leans on palette curation, not
-    # gradient complexity.
-    plum = shift_temperature(oklab_lerp(top, (120, 70, 130), 0.30 * (1 - nf)),
-                             0.15)
-    stops = [
-        (0.00, _pastelize(plum, 0.25 * (1 - nf))),
-        (0.40, _pastelize(mid, 0.45 * (1 - nf))),
-        (0.68, _pastelize(oklab_lerp(mid, bot, 0.5), 0.5 * (1 - nf))),
-        (0.86, _pastelize(bot, 0.55 * (1 - nf))),
-        (1.00, _pastelize(hor, 0.35 * (1 - nf))),
-    ]
-    return make_sky_field(w, h, stops)
-
-
-# ── 4. Gris Watercolor — soft painterly wash, broken color ───────────────────
-def draw_gris_watercolor(w, h, palette):
-    top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
-                          palette['sky_bot'], palette['horizon'])
-    # Lower the contrast and desaturate slightly (a wash, not a poster), then
-    # inject micro temperature counter-change between bands for "broken color".
-    def wash(c):
-        L, a, b = srgb_to_oklab(c)
-        from game.sky_field import oklab_to_srgb
-        return oklab_to_srgb((0.20 + L * 0.72, a * 0.8, b * 0.8))
-    stops = [
-        (0.00, shift_temperature(wash(top), -0.25)),
-        (0.30, shift_temperature(wash(oklab_lerp(top, mid, 0.6)), 0.15)),
-        (0.55, wash(mid)),
-        (0.78, shift_temperature(wash(oklab_lerp(mid, bot, 0.6)), 0.20)),
-        (0.92, wash(bot)),
-        (1.00, shift_temperature(wash(hor), 0.10)),
-    ]
-    surf = make_sky_field(w, h, stops)
-    # Faint paper grain so the flat washes read hand-laid rather than digital.
-    pos, neg = _grain(w, h, 1.4)
-    surf.blit(pos, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    surf.blit(neg, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
-    return surf
-
-
-# ── 5. Mesh Glow — multi-point field, light not ramp ─────────────────────────
-def draw_mesh_glow(w, h, palette):
-    top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
-                          palette['sky_bot'], palette['horizon'])
-    nf = _nightf(palette)
-    # A cool, simple base vertical field, then one large soft warm glow pool low
-    # and off-center so the sky reads as lit rather than a literal top-to-bottom
-    # ramp.
-    stops = [
-        (0.00, with_value(top, -0.02)),
-        (0.45, mid),
-        (0.80, oklab_lerp(mid, bot, 0.7)),
-        (1.00, oklab_lerp(bot, hor, 0.5)),
-    ]
-    surf = make_sky_field(w, h, stops)
-    # One broad, soft warm light pool with its center pushed off the lower-left
-    # corner so only the falloff tail washes diagonally across the frame — the
-    # sky reads as lit from a direction, never as a disc or a hard arc. Low
-    # alpha keeps it from clipping to white over the already-bright horizon.
-    g = 0.35 + 0.65 * (1 - nf)
-    pool = radial_glow(w, h, w * 0.12, h * 1.08, int(h * 1.05),
-                       shift_temperature(hor, 0.4), int(44 * g))
-    surf.blit(pool, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    return surf
-
-
-# ── 6. Riso Posterized — tasteful hard bands + print grain ───────────────────
-def draw_riso_posterized(w, h, palette):
-    top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
-                          palette['sky_bot'], palette['horizon'])
-    nf = _nightf(palette)
-    levels = 5 if nf < 0.6 else 4
-    stops = [
-        (0.00, with_value(top, -0.03)),
-        (0.45, mid),
-        (0.78, oklab_lerp(mid, bot, 0.6)),
-        (0.92, bot),
-        (1.00, hor),
-    ]
-    cols = oklab_ramp(stops, levels, ease=False)
-    surf = pygame.Surface((w, h))
-    for i, c in enumerate(cols):
-        y0 = int(i * h / levels)
-        y1 = int((i + 1) * h / levels)
-        pygame.draw.rect(surf, c, (0, y0, w, y1 - y0))
-    # 1–2-ink riso grain over the flat bands.
-    pos, neg = _grain(w, h, 3.2)
-    surf.blit(pos, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    surf.blit(neg, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
-    return surf
-
-
-# ── 7. Belt-of-Venus Twilight — counter-change + horizon ember ───────────────
+# ── 3. Belt-of-Venus Twilight — counter-change + horizon ember ───────────────
 def draw_belt_of_venus(w, h, palette):
     top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
                           palette['sky_bot'], palette['horizon'])
     nf = _nightf(palette)
-    # Maximize the warm/cool vertical axis: cool the upper sky, then a luminous
-    # pink/peach ember band sits ABOVE a slightly darker horizon (the real
-    # belt-of-Venus), strongest at dusk/dawn.
-    bv = 0.5 + 0.5 * (1 - abs(nf - 0.5) * 2)  # peaks at twilight
-    ember = shift_temperature(oklab_lerp(hor, (255, 190, 200), 0.45 * bv), 0.3)
+    bv = 0.5 + 0.5 * _twilightf(nf)  # ember intensity peaks at twilight
+    # The signature is a real horizontal VALUE EVENT: a luminous ember band with
+    # a measurably DARKER strip just below it, so counter-change reads as a true
+    # belt rather than a soft fade. The ember sits higher than before (≈0.72) so
+    # it floats clear of the horizon instead of merging into it.
+    ember = _cap_L(shift_temperature(oklab_lerp(hor, (255, 190, 200),
+                                                0.45 * bv), 0.3))
+    # Faint COOL ember survives at night so the belt never vanishes entirely.
+    if nf > 0.5:
+        ember = _cap_L(shift_temperature(oklab_lerp(hor, (150, 160, 200),
+                                                    0.30), -0.15))
+    # Darker counter-change strip immediately below the ember (−7% L).
+    shelf = with_value(ember, -0.07)
+    # Day gets a faint warm horizon wedge so the row never reads as plain blue.
+    day_warm = _cap_L(shift_temperature(oklab_lerp(hor, (250, 215, 185),
+                                                   0.18 * (1 - nf)), 0.18))
+    horizon = _cap_L(oklab_lerp(hor, day_warm, 1 - nf))
+    # Desaturate the mid ~10% (red-parrot legibility).
+    mid_q = _desat(shift_temperature(mid, -0.15), 0.10)
     stops = [
-        (0.00, shift_temperature(with_value(top, -0.03), -0.4)),
-        (0.40, shift_temperature(mid, -0.15)),
-        (0.66, oklab_lerp(mid, bot, 0.5)),
-        (0.82, ember),
-        (0.92, with_value(ember, -0.04)),
-        (1.00, with_value(hor, -0.05)),
+        (0.00, shift_temperature(with_value(top, -0.03 + 0.06 * nf), -0.4)),
+        (0.40, mid_q),
+        (0.62, oklab_lerp(mid_q, bot, 0.5)),
+        (0.72, ember),
+        (0.80, shelf),
+        (1.00, horizon),
     ]
     return make_sky_field(w, h, stops)
 
 
-# ── 8. Deep-Space Night-led — jaw-dropping night, calm by day ────────────────
-def draw_deep_space(w, h, palette):
+# ── 4. Alto Plum — bright, dreamy pastel daydream ────────────────────────────
+def draw_alto_plum(w, h, palette):
     top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
                           palette['sky_bot'], palette['horizon'])
     nf = _nightf(palette)
-    # Authored around night: a graded navy depth with a faint milky temperature
-    # band drifting through the mid sky (a hue shift, NOT stars). By day the
-    # same structure collapses to a calm, rich high-altitude blue.
-    navy = shift_temperature(with_value(top, -0.06 * nf), -0.3 * nf)
-    milky = shift_temperature(oklab_lerp(mid, (190, 200, 225), 0.25 * nf),
-                              0.15 * nf)
+    # Deliberately the BRIGHT, airy, low-saturation counterpart to deep_space:
+    # pushed further to rose/lilac, the whole value range LIFTED, chroma pulled
+    # down so every phase reads unmistakably lighter and more pastel. This is the
+    # daydream sky; deep_space is the rich deep one.
+    # Heavier pastelization + an explicit lightness lift at each stop.
+    def air(c, amt, lift):
+        return with_value(_pastelize(c, amt), lift)
+    rose = shift_temperature(oklab_lerp(top, (175, 130, 175), 0.40 * (1 - nf)),
+                             0.12)
+    lilac = oklab_lerp(mid, (185, 165, 200), 0.30 * (1 - nf))
+    # Keep night lifted and cool-blue so the top never voids out.
+    night_lift = 0.07 * nf
     stops = [
-        (0.00, navy),
-        (0.30, oklab_lerp(navy, mid, 0.6)),
-        (0.50, milky),
-        (0.74, oklab_lerp(milky, bot, 0.7)),
-        (0.90, bot),
-        (1.00, hor),
+        (0.00, air(rose, 0.45 * (1 - nf) + 0.25, 0.05 + night_lift)),
+        (0.38, air(lilac, 0.55 * (1 - nf) + 0.20, 0.06)),
+        (0.66, air(oklab_lerp(lilac, bot, 0.45), 0.55 * (1 - nf) + 0.20, 0.05)),
+        (0.86, air(_desat(bot, 0.15), 0.55 * (1 - nf) + 0.15, 0.04)),
+        # Low wedge stays pastel-warm but capped and a half-step deeper by day so
+        # white HUD text holds in the bottom ~15%.
+        (1.00, with_value(_cap_L(air(hor, 0.40 * (1 - nf) + 0.15, 0.05)),
+                          -0.03 * (1 - nf))),
     ]
-    surf = make_sky_field(w, h, stops, dither_amp=2.4)
-    return surf
+    return make_sky_field(w, h, stops)
+
+
+# ── 5. Atmospheric True — physical Rayleigh/Mie realism (no glow) ─────────────
+def draw_atmospheric_true(w, h, palette):
+    top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
+                          palette['sky_bot'], palette['horizon'])
+    nf = _nightf(palette)
+    # Physical structure: deepest, most-saturated value at the zenith; the change
+    # compresses toward the horizon where you look through the most air. The Mie
+    # forward-scatter warmth is baked as a SOFT PALE WEDGE low in the ramp —
+    # capped at ≤0.92 L so it never blows to white — distinct from belt_of_venus's
+    # stylized saturated ember.
+    zenith = with_value(top, -0.05 + 0.07 * nf)  # deep, but lifted at night
+    if nf > 0.0:
+        zenith = shift_temperature(zenith, -0.2 * nf)
+    # Pale Mie haze just above the horizon: a desaturated warm-white wedge, not a
+    # bright bloom. Fades out at night.
+    g = 1 - nf
+    haze = _cap_L(_desat(oklab_lerp(bot, (235, 228, 215), 0.30 * g), 0.10))
+    # Warm horizon wedge — soft and pale, chroma kept low and L capped.
+    warm = _cap_L(_desat(shift_temperature(hor, 0.30 * g), 0.12))
+    # Keep the very bottom a half-step deeper by day for HUD contrast.
+    low = with_value(warm, -0.03 * g)
+    stops = [
+        (0.00, zenith),
+        (0.28, top),
+        (0.54, _desat(mid, 0.06)),
+        (0.76, oklab_lerp(mid, bot, 0.55)),
+        (0.90, haze),
+        (1.00, low),
+    ]
+    return make_sky_field(w, h, stops)
 
 
 VARIANTS = {
-    "atmospheric_true":  draw_atmospheric_true,
-    "hiroshige_bokashi": draw_hiroshige_bokashi,
-    "alto_plum":         draw_alto_plum,
-    "gris_watercolor":   draw_gris_watercolor,
-    "mesh_glow":         draw_mesh_glow,
-    "riso_posterized":   draw_riso_posterized,
-    "belt_of_venus":     draw_belt_of_venus,
     "deep_space":        draw_deep_space,
+    "hiroshige_bokashi": draw_hiroshige_bokashi,
+    "belt_of_venus":     draw_belt_of_venus,
+    "alto_plum":         draw_alto_plum,
+    "atmospheric_true":  draw_atmospheric_true,
 }
 VARIANT_NAMES = list(VARIANTS.keys())
 VARIANT_NOTES = {
-    "atmospheric_true":  "Rayleigh/Mie realism: deep zenith, pale Mie haze, warm horizon bloom",
-    "hiroshige_bokashi": "Ukiyo-e graded Prussian-blue ichimonji bokashi + futa-iro warm ink",
-    "alto_plum":         "Stylized non-literal pastel plum/rose — palette curation over math",
-    "gris_watercolor":   "Soft low-contrast wash, broken-color counter-change, paper grain",
-    "mesh_glow":         "Off-vertical light pools — reads as lit, not a literal ramp",
-    "riso_posterized":   "Tasteful 4–5 flat bands + 1–2-ink riso grain",
-    "belt_of_venus":     "Counter-change axis + luminous pink ember above a darker horizon",
-    "deep_space":        "Night-led graded navy + milky hue band; calm rich blue by day",
+    "deep_space":        "Night-led graded navy, lifted cool zenith + low milky drift; twilight plum→peach baked low",
+    "hiroshige_bokashi": "Ukiyo-e Prussian-blue ichimonji bokashi, deepened night ink, desaturated mid",
+    "belt_of_venus":     "Counter-change: luminous ember high (≈0.72) over a darker shelf; cool ember survives night",
+    "alto_plum":         "Bright dreamy pastel rose/lilac — lifted value, low chroma at every phase",
+    "atmospheric_true":  "Rayleigh/Mie realism: deep zenith, pale Mie haze + soft capped warm horizon wedge",
 }
