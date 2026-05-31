@@ -684,9 +684,9 @@ _ENERGY_LOW_D  = (196,  96,  28)
 # Timer-bar fill stops — the meter reads its remaining time by colour:
 # green when full, yellow at the midpoint, red when nearly out. Each stop is
 # a bright core + darker edge for the recessed-track vertical gradient.
-_BAR_GREEN   = ( 70, 205,  95);  _BAR_GREEN_D  = ( 38, 140,  60)
-_BAR_YELLOW  = (240, 205,  60);  _BAR_YELLOW_D = (180, 145,  30)
-_BAR_RED     = (230,  60,  55);  _BAR_RED_D    = (165,  32,  32)
+_BAR_GREEN   = (  0, 235,  60);  _BAR_GREEN_D  = (  0, 150,  30)
+_BAR_YELLOW  = (255, 220,   0);  _BAR_YELLOW_D = (220, 160,   0)
+_BAR_RED     = (255,  30,  30);  _BAR_RED_D    = (180,  10,  10)
 
 _na_plate_cache: dict = {}
 _na_track_cache: dict = {}
