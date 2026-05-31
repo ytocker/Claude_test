@@ -123,7 +123,7 @@ def _r11_build_deck():
     _R11_BORDER_PAD = 4
     _R11_TEXT_PAD = _R11_OUTLINE_W + 2
     _R11_SKATE_SHIFT = 9
-    _R11_BOARD_SHIFT = 5
+    _R11_BOARD_SHIFT = -6
     skate = _gradient_text("SKATE", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
