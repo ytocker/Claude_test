@@ -921,45 +921,18 @@ class World:
     def _check_genie_milestone(self):
         """Fires once per run when score first crosses LATE_GAME_SCORE.
         Called wherever score changes (pipe pass, coin collect, surprise
-        deltas, lottery) so a triple-coin jump 399→402 still triggers.
+        deltas, lottery) so a triple-coin jump 419→422 still triggers.
 
-        Wipes any uncollected powerups ahead of Pip (pipes spawned just
-        before the milestone already had non-genie kinds attached at
-        spawn time) and drops a genie at the nearest upcoming non-rush,
-        non-chamber pipe so the next thing Pip collides with is the lamp."""
+        Sets _force_next_genie so the next regular power-up spawn — at the
+        normal cooldown + chance roll on a non-rush, non-chamber pipe — is
+        forced to be a genie lamp. Doesn't touch any pre-existing powerups
+        and doesn't bypass the regular spawn pipeline."""
         if self._genie_milestone_fired or self.score < LATE_GAME_SCORE:
             return
         self._genie_milestone_fired = True
-        bx_now = self.bird.x
-        self.powerups = [pu for pu in self.powerups if pu.x <= bx_now]
-        target_pipe = None
-        for nxt in self.pipes:
-            if (nxt.x > bx_now
-                    and not getattr(nxt, "is_genie_chamber", False)
-                    and not getattr(nxt, "is_rush", False)):
-                target_pipe = nxt
-                break
-        if target_pipe is not None:
-            gx = target_pipe.x + PIPE_W + self._current_spacing() * 0.5
-            gy = target_pipe.gap_y
-            genie = PowerUp(gx, gy, kind="genie")
-            # Home in on Pip's y as it scrolls so a navigation y-mismatch
-            # at intercept can't make him miss the milestone genie.
-            genie.milestone_homing = True
-            self.powerups.append(genie)
-            self.powerup_cooldown = POWERUP_COOLDOWN
-        self._force_next_genie = False
+        self._force_next_genie = True
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
-        # LATE_GAME_SCORE milestone: first power-up roll after crossing
-        # 400 is forced to genie. Bypasses cooldown + chance + weights.
-        if self._force_next_genie:
-            x = pipe.x + PIPE_W + self._current_spacing() * 0.5
-            y = pipe.gap_y
-            self.powerups.append(PowerUp(x, y, kind="genie"))
-            self.powerup_cooldown = POWERUP_COOLDOWN
-            self._force_next_genie = False
-            return
         if self.powerup_cooldown > 0:
             return
         if random.random() >= self._current_powerup_chance():
@@ -989,6 +962,12 @@ class World:
         if not kinds:
             return
         kind = random.choices(kinds, weights=weights, k=1)[0]
+        # LATE_GAME_SCORE milestone: the FIRST regular spawn after score
+        # crosses 420 is overridden to genie. Cooldown + chance still
+        # gate this normally (regular rate).
+        if self._force_next_genie:
+            kind = "genie"
+            self._force_next_genie = False
         x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
         y = pipe.gap_y + random.uniform(-10, 10)
         self.powerups.append(PowerUp(x, y, kind=kind))
@@ -1162,11 +1141,6 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
-                # Milestone genie visually drifts toward Pip's altitude as
-                # it approaches (purely cosmetic — pickup is x-only in
-                # _check_pickups, so y never blocks the encounter).
-                if getattr(m, "milestone_homing", False):
-                    m.y += (self.bird.y - m.y) * min(1.0, 4.0 * sdt)
             # Genie chamber wishes pop in when Pip gets close enough so
             # the player sees them materialise instead of finding them
             # pre-placed in the gap.
@@ -1693,15 +1667,6 @@ class World:
             if m.collected:
                 continue
             dx = m.x - bx
-            # Milestone genie: score-driven guarantee. Pickup ignores y so the
-            # lamp's altitude (Pip can be anywhere) never blocks the once-per-
-            # run encounter. Just checks the x-band — when the lamp scrolls
-            # past Pip's column, it's picked up.
-            if getattr(m, "milestone_homing", False):
-                if abs(dx) < (br + POWERUP_R):
-                    m.collected = True
-                    self._on_powerup(m)
-                continue
             dy = m.y - by
             if dx * dx + dy * dy < (br + POWERUP_R) ** 2:
                 m.collected = True
