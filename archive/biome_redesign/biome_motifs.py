@@ -530,6 +530,20 @@ def draw_maple_monastery_sig(ctx):
     draw_prayer_flags(surf, cx - bw // 4, wall_y - 6, cx + bw // 2, wall_y + 4, n=6)
 
 
+def maple_mist(ctx):
+    """A thin warm ink-wash mist threading the maple monastery's mid-slopes — the
+    architectural-ink read that sets this autumn apart from Group A's naturalistic
+    forest. Anchored mid-low so a soft veil sits between the canopy and the rolling
+    ridges (the classic silk-painting layered-distance haze) while the upper sky
+    stays readable for the HUD. Thickens toward dusk as the air cools."""
+    from scene_engine import mist_bands
+    night = _nightf(ctx)
+    mtint = ctx.pal.get('mist_tint', (224, 214, 198))
+    n = 2 + int(round(night * 2))
+    alpha = int(28 + 20 * night)
+    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.60, n=n, alpha=alpha)
+
+
 def draw_maple_canopy(ctx):
     """Maple-tinted wuling pines + a pine trio at the frame edges — the warm
     autumn foliage that surrounds the ink monastery. foliage_* are pushed to
@@ -610,16 +624,20 @@ def moon_over(ctx):
     night = _nightf(ctx)
     glow = ctx.pal.get('glow_color', (224, 232, 255))
     moon = ctx.pal.get('moon_tint', (236, 240, 250))
-    mx, my = int(w * 0.26), int(gy * 0.26)
-    r = int(gy * 0.085)
-    # A broad low-alpha moon-wash across the upper sky so the indigo feels lit.
-    wash = pygame.Surface((w, gy), pygame.SRCALPHA)
-    pygame.draw.ellipse(wash, (*glow, int(20 + 30 * night)),
-                        pygame.Rect(int(mx - w * 0.5), int(my - gy * 0.4),
-                                    w, int(gy * 0.8)))
+    mx, my = int(w * 0.26), int(gy * 0.22)
+    r = int(gy * 0.05)
+    # A broad moon-wash so the indigo sky feels lit. PREMULTIPLIED for additive
+    # blit: BLEND_RGB_ADD ignores surface alpha, so the contribution must be
+    # baked into the RGB (else the ellipse dumps full near-white as a dome).
+    wa = (12 + 18 * night) / 255.0
+    wc = (int(glow[0] * wa), int(glow[1] * wa), int(glow[2] * wa))
+    wash = pygame.Surface((w, gy))
+    pygame.draw.ellipse(wash, wc,
+                        pygame.Rect(int(mx - w * 0.42), int(my - gy * 0.3),
+                                    int(w * 0.84), int(gy * 0.6)))
     surf.blit(wash, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    # The disc itself with its soft halo — the hero light.
-    soft_disc(surf, mx, my, r, moon, glow_alpha=int(120 + 80 * night))
+    # The disc itself with its tight soft halo — the hero light.
+    soft_disc(surf, mx, my, r, moon, glow_alpha=int(70 + 50 * night))
 
 
 def draw_moonlit_pine_cliff_sig(ctx):

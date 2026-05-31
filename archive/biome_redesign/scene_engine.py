@@ -151,11 +151,14 @@ def _ridge_height(x, gp: RidgeParams, ground_y, w):
         # rocky teeth: rectified high-freq adds sharp upward spikes
         h += abs(math.sin(x * 0.09 + gp.seed)) * (gp.jag * ground_y * 0.18)
     if gp.spike:
-        # karst towers: a few narrow, very tall fingers gated by a slow sine
-        gate = math.sin(x * 0.010 + gp.seed * 1.7)
-        if gate > 0.55:
-            tower = (gate - 0.55) / 0.45
-            h += (tower ** 0.6) * gp.spike * ground_y * 0.55
+        # Slender karst spires (Guilin towers): a higher-frequency rectified
+        # sine raised to a high power gives narrow, well-separated vertical
+        # fingers rather than one broad dome. A second offset sine varies their
+        # height so they don't read as a regular comb.
+        s = math.sin(x * 0.045 + gp.seed * 1.7)
+        if s > 0:
+            vary = 0.7 + 0.3 * math.sin(x * 0.013 + gp.seed)
+            h += (s ** 6) * gp.spike * ground_y * 0.42 * vary
     if gp.notch:
         # caldera rim: subtract a broad gaussian dip near the horizontal centre
         d = (x - w * 0.5) / (w * 0.5)
@@ -278,22 +281,30 @@ def _scatter_stars(surf, w, ground_y, sa):
 # ── shared atmosphere / glow helpers (lifted for reuse by biome atmospheres) ──
 
 def soft_disc(surf, cx, cy, r, color, glow_alpha=120):
-    """A sun/moon disc with a soft additive halo. Used by night/golden biomes."""
-    halo = make_glow_surface(int(r * 2.6), color, alpha_center=glow_alpha, falloff=2.2)
-    surf.blit(halo, (int(cx - halo.get_width() / 2), int(cy - halo.get_height() / 2)),
-              special_flags=pygame.BLEND_RGB_ADD)
+    """A sun/moon disc with a soft halo. Used by night/golden biomes. Halo kept
+    tight (≈1.8x) and blitted with NORMAL alpha — BLEND_RGB_ADD ignores the
+    per-pixel alpha of a glow surface and would dump the full color as a solid
+    bright blob, so the halo must alpha-composite instead."""
+    halo = make_glow_surface(int(r * 1.8), color, alpha_center=glow_alpha, falloff=2.8)
+    surf.blit(halo, (int(cx - halo.get_width() / 2), int(cy - halo.get_height() / 2)))
     disc = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
     pygame.draw.circle(disc, color, (r + 1, r + 1), r)
     surf.blit(disc, (int(cx - r), int(cy - r)))
 
 
 def mist_bands(surf, w, ground_y, color, y0_frac, n=4, alpha=70):
-    """Soft horizontal haze ellipses near the horizon — the shan-shui mist read."""
+    """Flat, full-width horizontal haze strips with a soft vertical falloff — the
+    shan-shui mist read. Strips rather than wide ellipses so the haze stays a
+    level band and never curves into a visible dome at the frame edges."""
     layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
     for k in range(n):
-        y = int(ground_y * (y0_frac + 0.045 * k))
-        hh = int(ground_y * (0.03 + 0.02 * (n - k)))
-        a = int(alpha * (1 - k / (n + 1)))
-        pygame.draw.ellipse(layer, (*color, a),
-                            pygame.Rect(-w // 4, y - hh // 2, int(w * 1.5), hh))
+        cy = int(ground_y * (y0_frac + 0.05 * k))
+        half = max(2, int(ground_y * (0.045 + 0.012 * (n - k))))
+        a0 = alpha * (1 - k / (n + 1))
+        for dy in range(-half, half + 1):
+            yy = cy + dy
+            if 0 <= yy < ground_y:
+                a = int(a0 * (1 - abs(dy) / half))
+                if a > 0:
+                    pygame.draw.line(layer, (*color, a), (0, yy), (w, yy))
     surf.blit(layer, (0, 0))

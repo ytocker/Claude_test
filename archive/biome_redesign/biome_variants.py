@@ -545,6 +545,572 @@ AUTUMN_HIGHLANDS = BiomeSpec(
 )
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# GROUP B — East-Asian INK / shan-shui lineage. Five DISTINCT regions, each
+# forced apart by (a) palette mood, (b) ridge family, (c) signature kit pieces:
+#   misty_gorge        — vertical karst mist, celadon monochrome (spike + mist)
+#   snow_temple        — white winter ink, austere (jag + snow_line)
+#   maple_monastery    — warm autumn architecture (rolling + warm foliage)
+#   cloud_sea_peaks    — horizontal cloud-sea above spikes (spike + cloud band)
+#   moonlit_pine_cliff — dark moonlit night cliff (flat_top + moon)
+# Negative-space `mist_bands` is core to all but the cliff; the kit (wuling pine,
+# stupa, terrace, lantern, raven) supplies the human marks.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Biome 6 — Misty Gorge ─────────────────────────────────────────────────────
+# Classic Guilin shan-shui: tall narrow karst towers receding into deep ink-wash
+# mist. Soft blue-grey/celadon, monochrome-leaning. The void between ranks is the
+# hero — heavy vertical mist stacks dissolve each tower from the feet up.
+_GORGE_KF = [
+    (0.06, dict(  # morning — pale celadon wash, clearest air
+        sky_top=(150, 184, 188), sky_mid=(196, 216, 214), sky_bot=(222, 232, 226),
+        horizon=(228, 234, 226),
+        mtn_far=(168, 188, 188), mtn_mid=(118, 148, 148), mtn_near=(82, 116, 116),
+        struct_light=(206, 216, 212), struct_mid=(146, 162, 158),
+        struct_dark=(90, 108, 106), struct_accent=(168, 152, 128),
+        foliage_top=(96, 150, 116), foliage_mid=(58, 110, 84), foliage_dark=(34, 72, 58),
+        foliage_accent=(146, 188, 140),
+        ground_top=(160, 180, 172), ground_mid=(120, 144, 138), ground_bot=(84, 108, 104),
+        mist_tint=(214, 228, 224), star_alpha=0)),
+    (0.18, dict(  # midday — soft teal-grey, towers crispest
+        sky_top=(132, 178, 190), sky_mid=(188, 212, 214), sky_bot=(218, 230, 226),
+        horizon=(224, 232, 224),
+        mtn_far=(164, 186, 186), mtn_mid=(112, 144, 144), mtn_near=(76, 112, 112),
+        struct_light=(208, 218, 214), struct_mid=(146, 162, 158),
+        struct_dark=(88, 106, 104), struct_accent=(170, 154, 130),
+        foliage_top=(100, 154, 118), foliage_mid=(60, 114, 86), foliage_dark=(34, 74, 58),
+        foliage_accent=(150, 192, 142),
+        ground_top=(160, 182, 174), ground_mid=(120, 146, 140), ground_bot=(84, 110, 106),
+        mist_tint=(210, 226, 222), star_alpha=0)),
+    (0.40, dict(  # golden — warm gold sifting through the gorge mist
+        sky_top=(166, 184, 178), sky_mid=(234, 210, 168), sky_bot=(250, 224, 182),
+        horizon=(250, 226, 184),
+        mtn_far=(180, 184, 168), mtn_mid=(134, 140, 122), mtn_near=(98, 108, 96),
+        struct_light=(222, 216, 196), struct_mid=(160, 158, 142),
+        struct_dark=(98, 100, 92), struct_accent=(200, 168, 122),
+        foliage_top=(118, 162, 102), foliage_mid=(74, 122, 76), foliage_dark=(44, 82, 54),
+        foliage_accent=(172, 196, 130),
+        ground_top=(170, 178, 156), ground_mid=(128, 138, 120), ground_bot=(90, 104, 94),
+        mist_tint=(228, 222, 196), star_alpha=0)),
+    (0.50, dict(  # sunset — rose-grey ink, towers warming
+        sky_top=(138, 128, 150), sky_mid=(224, 158, 148), sky_bot=(246, 188, 156),
+        horizon=(248, 196, 160),
+        mtn_far=(160, 146, 156), mtn_mid=(128, 112, 122), mtn_near=(96, 82, 94),
+        struct_light=(208, 192, 192), struct_mid=(152, 138, 142),
+        struct_dark=(94, 84, 92), struct_accent=(198, 150, 128),
+        foliage_top=(98, 138, 96), foliage_mid=(60, 100, 68), foliage_dark=(36, 68, 50),
+        foliage_accent=(148, 174, 120),
+        ground_top=(158, 146, 146), ground_mid=(120, 110, 114), ground_bot=(86, 80, 90),
+        mist_tint=(220, 198, 194), star_alpha=20)),
+    (0.62, dict(  # dusk — blue ink-wash, mist deepening into void
+        sky_top=(56, 66, 100), sky_mid=(106, 116, 142), sky_bot=(164, 158, 166),
+        horizon=(204, 184, 178),
+        mtn_far=(92, 104, 124), mtn_mid=(72, 84, 104), mtn_near=(52, 64, 84),
+        struct_light=(170, 182, 192), struct_mid=(114, 126, 140),
+        struct_dark=(70, 80, 96), struct_accent=(150, 138, 134),
+        foliage_top=(58, 92, 78), foliage_mid=(38, 64, 56), foliage_dark=(22, 42, 40),
+        foliage_accent=(94, 128, 100),
+        ground_top=(100, 110, 122), ground_mid=(76, 86, 100), ground_bot=(54, 64, 82),
+        mist_tint=(172, 186, 194), star_alpha=70)),
+    (0.70, dict(  # night — deep ink, moonlit mist holds the towers as ghosts
+        sky_top=(12, 18, 42), sky_mid=(26, 38, 68), sky_bot=(50, 64, 92),
+        horizon=(116, 126, 140),
+        mtn_far=(40, 52, 78), mtn_mid=(30, 42, 64), mtn_near=(22, 32, 50),
+        struct_light=(132, 148, 166), struct_mid=(76, 90, 110),
+        struct_dark=(42, 52, 70), struct_accent=(120, 130, 144),
+        foliage_top=(40, 64, 58), foliage_mid=(26, 44, 42), foliage_dark=(16, 28, 28),
+        foliage_accent=(60, 88, 74),
+        ground_top=(50, 62, 82), ground_mid=(36, 48, 66), ground_bot=(24, 34, 50),
+        mist_tint=(118, 134, 150), glow_color=(200, 220, 255), star_alpha=205)),
+    (0.80, dict(  # predawn — grey-violet, mist heaviest before light
+        sky_top=(30, 38, 70), sky_mid=(60, 70, 104), sky_bot=(118, 120, 144),
+        horizon=(188, 172, 174),
+        mtn_far=(70, 82, 104), mtn_mid=(54, 66, 88), mtn_near=(40, 50, 70),
+        struct_light=(158, 168, 180), struct_mid=(108, 120, 134),
+        struct_dark=(66, 76, 92), struct_accent=(150, 138, 132),
+        foliage_top=(50, 80, 70), foliage_mid=(32, 56, 50), foliage_dark=(20, 36, 36),
+        foliage_accent=(82, 114, 90),
+        ground_top=(92, 102, 116), ground_mid=(70, 80, 98), ground_bot=(50, 60, 80),
+        mist_tint=(176, 184, 192), glow_color=(210, 222, 255), star_alpha=110)),
+    (0.94, dict(  # sunrise — apricot light flooding the gorge
+        sky_top=(140, 172, 184), sky_mid=(248, 198, 168), sky_bot=(252, 222, 184),
+        horizon=(252, 224, 186),
+        mtn_far=(178, 184, 174), mtn_mid=(140, 142, 132), mtn_near=(104, 110, 102),
+        struct_light=(220, 214, 200), struct_mid=(158, 152, 142),
+        struct_dark=(96, 96, 90), struct_accent=(208, 166, 122),
+        foliage_top=(112, 160, 104), foliage_mid=(68, 120, 78), foliage_dark=(40, 80, 56),
+        foliage_accent=(164, 194, 132),
+        ground_top=(166, 176, 158), ground_mid=(124, 138, 122), ground_bot=(88, 104, 96),
+        mist_tint=(230, 220, 198), star_alpha=0)),
+]
+
+MISTY_GORGE = BiomeSpec(
+    name="Misty Gorge",
+    note="Tall narrow Guilin karst towers receding into deep ink-wash mist; celadon/blue-grey monochrome, serene.",
+    keyframes=_GORGE_KF,
+    sky=SkyParams(positions=(0.0, 0.32, 0.62, 0.84, 1.0), dither_amp=1.6, zenith_dark=0.08),
+    ridges=[
+        # Three ranks of narrow towers at rising spike so each rank reads as a
+        # thinner finger than the last; heavy mist (gorge_mist) swallows the far
+        # ranks into the void, leaving only the near towers solid.
+        RidgeParams(base_h=0.14, octaves=((0.013, 9),), parallax=0.07,
+                    color_key='mtn_far', spike=0.78, seed=3),
+        RidgeParams(base_h=0.16, octaves=((0.012, 10),), parallax=0.15,
+                    color_key='mtn_mid', spike=0.86, seed=6),
+        RidgeParams(base_h=0.13, octaves=((0.015, 9),), parallax=0.27,
+                    color_key='mtn_near', spike=0.72, seed=9),
+    ],
+    signature=bm.draw_gorge_pine,
+    foliage=None,
+    atmosphere=bm.gorge_mist,
+    ground=GroundParams(),
+)
+
+
+# ── Biome 7 — Snow Temple ─────────────────────────────────────────────────────
+# Winter ink: snow-capped peaks, near-monochrome ink-grey + white, a single warm
+# accent (the lantern). Cold, austere, elegant — distinct from Group A alpine by
+# being ink-flat + temple architecture rather than naturalistic granite.
+_SNOW_KF = [
+    (0.06, dict(  # morning — pale ink-grey sky over white peaks
+        sky_top=(150, 168, 188), sky_mid=(196, 208, 220), sky_bot=(220, 228, 234),
+        horizon=(226, 230, 232),
+        mtn_far=(150, 160, 176), mtn_mid=(116, 128, 148), mtn_near=(84, 98, 120),
+        struct_light=(234, 238, 244), struct_mid=(150, 160, 176),
+        struct_dark=(86, 98, 118), struct_accent=(236, 168, 96),
+        foliage_top=(72, 104, 96), foliage_mid=(46, 76, 70), foliage_dark=(28, 50, 48),
+        foliage_accent=(108, 142, 124),
+        ground_top=(202, 210, 218), ground_mid=(156, 168, 182), ground_bot=(104, 120, 140),
+        snow_tint=(244, 248, 252), star_alpha=0)),
+    (0.18, dict(  # midday — cool flat light, deepest zenith for the HUD
+        sky_top=(134, 162, 188), sky_mid=(188, 204, 218), sky_bot=(214, 224, 232),
+        horizon=(222, 228, 230),
+        mtn_far=(148, 158, 176), mtn_mid=(114, 126, 146), mtn_near=(82, 96, 118),
+        struct_light=(238, 242, 248), struct_mid=(150, 160, 176),
+        struct_dark=(86, 98, 118), struct_accent=(240, 172, 100),
+        foliage_top=(74, 106, 98), foliage_mid=(46, 78, 72), foliage_dark=(28, 50, 48),
+        foliage_accent=(110, 144, 126),
+        ground_top=(206, 214, 222), ground_mid=(158, 170, 184), ground_bot=(104, 120, 142),
+        snow_tint=(248, 250, 254), star_alpha=0)),
+    (0.40, dict(  # golden — pale gold grazing the snow caps
+        sky_top=(160, 168, 186), sky_mid=(232, 212, 184), sky_bot=(250, 228, 198),
+        horizon=(250, 228, 196),
+        mtn_far=(174, 172, 180), mtn_mid=(140, 134, 148), mtn_near=(104, 100, 120),
+        struct_light=(250, 240, 228), struct_mid=(172, 168, 178),
+        struct_dark=(100, 100, 116), struct_accent=(246, 174, 96),
+        foliage_top=(78, 102, 90), foliage_mid=(48, 72, 66), foliage_dark=(28, 48, 46),
+        foliage_accent=(116, 140, 118),
+        ground_top=(220, 218, 216), ground_mid=(170, 170, 180), ground_bot=(112, 116, 136),
+        snow_tint=(252, 240, 224), star_alpha=0)),
+    (0.50, dict(  # sunset — cold rose on the white peaks
+        sky_top=(126, 118, 150), sky_mid=(220, 156, 152), sky_bot=(244, 188, 166),
+        horizon=(246, 196, 170),
+        mtn_far=(158, 144, 162), mtn_mid=(128, 110, 132), mtn_near=(96, 80, 104),
+        struct_light=(244, 220, 220), struct_mid=(170, 152, 168),
+        struct_dark=(96, 84, 106), struct_accent=(244, 158, 92),
+        foliage_top=(66, 90, 80), foliage_mid=(42, 64, 58), foliage_dark=(26, 44, 44),
+        foliage_accent=(100, 124, 108),
+        ground_top=(204, 188, 196), ground_mid=(154, 140, 160), ground_bot=(100, 96, 124),
+        snow_tint=(250, 222, 218), star_alpha=20)),
+    (0.62, dict(  # dusk — blue hour, snow holds the last light
+        sky_top=(46, 54, 96), sky_mid=(92, 96, 138), sky_bot=(152, 144, 162),
+        horizon=(200, 178, 176),
+        mtn_far=(88, 98, 132), mtn_mid=(68, 78, 110), mtn_near=(50, 58, 88),
+        struct_light=(200, 208, 226), struct_mid=(120, 132, 162),
+        struct_dark=(66, 74, 102), struct_accent=(232, 150, 88),
+        foliage_top=(46, 64, 62), foliage_mid=(30, 46, 48), foliage_dark=(18, 30, 34),
+        foliage_accent=(72, 92, 84),
+        ground_top=(140, 150, 174), ground_mid=(98, 110, 142), ground_bot=(60, 70, 104),
+        snow_tint=(208, 216, 236), star_alpha=70)),
+    (0.70, dict(  # night — moonlit snow is the hero, warm lantern the lone note
+        sky_top=(10, 16, 42), sky_mid=(22, 32, 66), sky_bot=(44, 58, 92),
+        horizon=(108, 122, 152),
+        mtn_far=(40, 52, 84), mtn_mid=(32, 42, 70), mtn_near=(24, 32, 54),
+        struct_light=(176, 192, 224), struct_mid=(90, 104, 142),
+        struct_dark=(44, 54, 86), struct_accent=(255, 176, 96),
+        foliage_top=(36, 52, 56), foliage_mid=(24, 36, 42), foliage_dark=(14, 24, 30),
+        foliage_accent=(56, 74, 74),
+        ground_top=(96, 112, 148), ground_mid=(62, 76, 112), ground_bot=(36, 46, 76),
+        snow_tint=(216, 228, 250), glow_color=(255, 196, 120), star_alpha=210)),
+    (0.80, dict(  # predawn — cold violet, snow faintly luminous
+        sky_top=(28, 34, 76), sky_mid=(56, 62, 114), sky_bot=(114, 114, 152),
+        horizon=(184, 166, 174),
+        mtn_far=(66, 76, 114), mtn_mid=(52, 60, 96), mtn_near=(38, 46, 74),
+        struct_light=(196, 204, 226), struct_mid=(118, 130, 162),
+        struct_dark=(60, 70, 102), struct_accent=(250, 166, 96),
+        foliage_top=(42, 58, 60), foliage_mid=(28, 42, 46), foliage_dark=(16, 26, 32),
+        foliage_accent=(66, 84, 80),
+        ground_top=(132, 140, 168), ground_mid=(90, 100, 136), ground_bot=(54, 64, 100),
+        snow_tint=(206, 212, 234), glow_color=(255, 190, 120), star_alpha=110)),
+    (0.94, dict(  # sunrise — first cold gold on the temple snow
+        sky_top=(150, 172, 192), sky_mid=(246, 204, 188), sky_bot=(250, 224, 200),
+        horizon=(250, 226, 202),
+        mtn_far=(170, 172, 184), mtn_mid=(138, 134, 152), mtn_near=(104, 102, 124),
+        struct_light=(250, 238, 228), struct_mid=(174, 174, 186),
+        struct_dark=(100, 102, 122), struct_accent=(248, 170, 96),
+        foliage_top=(76, 104, 92), foliage_mid=(48, 76, 68), foliage_dark=(28, 50, 46),
+        foliage_accent=(114, 142, 122),
+        ground_top=(216, 218, 222), ground_mid=(166, 170, 184), ground_bot=(110, 118, 142),
+        snow_tint=(252, 240, 226), star_alpha=0)),
+]
+
+SNOW_TEMPLE = BiomeSpec(
+    name="Snow Temple",
+    note="Snow-capped ink peaks over an austere whitewashed temple; near-monochrome grey + white, one warm lantern.",
+    keyframes=_SNOW_KF,
+    # zenith_dark raised: the pale ink-white winter sky lets the white HUD wash
+    # out, so deepen the very top for a darker score anchor.
+    sky=SkyParams(positions=(0.0, 0.34, 0.66, 0.88, 1.0), dither_amp=1.4, zenith_dark=0.15),
+    ridges=[
+        # Snow-capped jagged peaks — broad far wall, sharper near teeth. Lower
+        # jag than Group A alpine + flatter ink fill so the read is austere
+        # silk-painting peaks, not naturalistic granite fangs.
+        RidgeParams(base_h=0.24, octaves=((0.007, 24), (0.017, 12)), parallax=0.06,
+                    color_key='mtn_far', jag=0.30, snow_line=0.56, seed=2),
+        RidgeParams(base_h=0.30, octaves=((0.010, 26), (0.024, 14)), parallax=0.14,
+                    color_key='mtn_mid', jag=0.44, snow_line=0.50, seed=5),
+        RidgeParams(base_h=0.34, octaves=((0.012, 28), (0.028, 16)), parallax=0.26,
+                    color_key='mtn_near', jag=0.52, snow_line=0.48, seed=7),
+    ],
+    signature=bm.draw_snow_temple_sig,
+    foliage=bm.draw_alpine_conifers,
+    ground=GroundParams(),
+)
+
+
+# ── Biome 8 — Maple Monastery ─────────────────────────────────────────────────
+# Autumn ink: rolling/mild ridges, warm maple-red + ink palette, a hillside
+# monastery (terrace + stupa + red lantern). Differs from Group A autumn by being
+# architectural + ink-framed rather than naturalistic forest.
+_MAPLE_KF = [
+    (0.06, dict(  # morning — soft ink-grey sky, warm maple slopes
+        sky_top=(132, 162, 188), sky_mid=(196, 206, 206), sky_bot=(228, 222, 204),
+        horizon=(238, 222, 196),
+        mtn_far=(168, 152, 150), mtn_mid=(146, 116, 110), mtn_near=(116, 84, 80),
+        struct_light=(224, 212, 196), struct_mid=(160, 138, 120),
+        struct_dark=(96, 76, 64), struct_accent=(196, 110, 70),
+        foliage_top=(224, 120, 64), foliage_mid=(180, 78, 50), foliage_dark=(118, 48, 42),
+        foliage_accent=(244, 168, 84),
+        ground_top=(172, 124, 92), ground_mid=(132, 92, 70), ground_bot=(90, 64, 54),
+        mist_tint=(224, 214, 200), star_alpha=0)),
+    (0.18, dict(  # midday — clear cool sky over the warm canopy
+        sky_top=(114, 156, 192), sky_mid=(186, 202, 206), sky_bot=(222, 220, 204),
+        horizon=(234, 220, 196),
+        mtn_far=(170, 154, 152), mtn_mid=(148, 118, 112), mtn_near=(118, 86, 82),
+        struct_light=(228, 214, 198), struct_mid=(162, 140, 122),
+        struct_dark=(98, 78, 66), struct_accent=(200, 114, 72),
+        foliage_top=(228, 124, 66), foliage_mid=(184, 82, 52), foliage_dark=(120, 50, 42),
+        foliage_accent=(248, 172, 88),
+        ground_top=(174, 126, 94), ground_mid=(134, 94, 72), ground_bot=(92, 66, 56),
+        mist_tint=(220, 212, 198), star_alpha=0)),
+    (0.40, dict(  # golden — peak fire, warm gold sky
+        sky_top=(146, 152, 184), sky_mid=(240, 196, 144), sky_bot=(252, 214, 162),
+        horizon=(252, 214, 156),
+        mtn_far=(186, 156, 148), mtn_mid=(170, 118, 100), mtn_near=(140, 88, 70),
+        struct_light=(232, 200, 168), struct_mid=(180, 134, 100),
+        struct_dark=(110, 76, 56), struct_accent=(216, 116, 64),
+        foliage_top=(238, 122, 56), foliage_mid=(198, 82, 46), foliage_dark=(132, 52, 40),
+        foliage_accent=(250, 176, 84),
+        ground_top=(188, 128, 86), ground_mid=(146, 96, 68), ground_bot=(98, 66, 52),
+        mist_tint=(234, 214, 184), star_alpha=0)),
+    (0.50, dict(  # sunset — crimson sky, embered maples
+        sky_top=(116, 88, 128), sky_mid=(230, 122, 88), sky_bot=(250, 156, 96),
+        horizon=(252, 176, 108),
+        mtn_far=(160, 116, 122), mtn_mid=(150, 90, 84), mtn_near=(122, 70, 60),
+        struct_light=(212, 158, 124), struct_mid=(170, 112, 80),
+        struct_dark=(104, 64, 48), struct_accent=(212, 100, 56),
+        foliage_top=(220, 100, 52), foliage_mid=(178, 70, 44), foliage_dark=(118, 46, 38),
+        foliage_accent=(236, 142, 66),
+        ground_top=(170, 110, 76), ground_mid=(132, 84, 60), ground_bot=(90, 60, 48),
+        mist_tint=(224, 188, 178), star_alpha=20)),
+    (0.62, dict(  # dusk — purple ink, lit lantern emerging
+        sky_top=(48, 42, 88), sky_mid=(106, 66, 118), sky_bot=(190, 116, 110),
+        horizon=(236, 152, 116),
+        mtn_far=(106, 90, 116), mtn_mid=(94, 70, 86), mtn_near=(72, 52, 62),
+        struct_light=(160, 124, 116), struct_mid=(122, 88, 80),
+        struct_dark=(74, 52, 48), struct_accent=(208, 96, 56),
+        foliage_top=(168, 84, 54), foliage_mid=(128, 58, 46), foliage_dark=(82, 40, 38),
+        foliage_accent=(196, 116, 58),
+        ground_top=(116, 80, 64), ground_mid=(90, 62, 52), ground_bot=(62, 46, 42),
+        mist_tint=(178, 158, 168), star_alpha=70)),
+    (0.70, dict(  # night — deep ink-blue, canopy a dark warm mass, lantern glows
+        sky_top=(12, 16, 44), sky_mid=(26, 30, 66), sky_bot=(50, 48, 84),
+        horizon=(122, 96, 108),
+        mtn_far=(46, 44, 70), mtn_mid=(38, 34, 56), mtn_near=(28, 24, 42),
+        struct_light=(120, 100, 100), struct_mid=(80, 62, 60),
+        struct_dark=(46, 36, 40), struct_accent=(244, 110, 60),
+        foliage_top=(110, 60, 44), foliage_mid=(74, 42, 38), foliage_dark=(44, 28, 30),
+        foliage_accent=(140, 78, 46),
+        ground_top=(64, 50, 48), ground_mid=(48, 38, 40), ground_bot=(32, 26, 30),
+        mist_tint=(96, 92, 110), glow_color=(255, 150, 90), star_alpha=205)),
+    (0.80, dict(  # predawn — cool ink-grey, warmth still smouldering
+        sky_top=(30, 34, 76), sky_mid=(60, 56, 106), sky_bot=(122, 96, 120),
+        horizon=(202, 148, 134),
+        mtn_far=(78, 72, 100), mtn_mid=(64, 54, 80), mtn_near=(48, 40, 60),
+        struct_light=(150, 118, 110), struct_mid=(110, 82, 74),
+        struct_dark=(66, 48, 44), struct_accent=(224, 100, 56),
+        foliage_top=(150, 84, 54), foliage_mid=(110, 58, 44), foliage_dark=(68, 38, 36),
+        foliage_accent=(180, 110, 56),
+        ground_top=(108, 80, 66), ground_mid=(82, 60, 54), ground_bot=(56, 44, 42),
+        mist_tint=(168, 150, 158), glow_color=(255, 150, 96), star_alpha=110)),
+    (0.94, dict(  # sunrise — peach ink light setting the maples alight
+        sky_top=(126, 156, 188), sky_mid=(250, 196, 154), sky_bot=(252, 216, 174),
+        horizon=(252, 220, 176),
+        mtn_far=(186, 156, 146), mtn_mid=(170, 120, 96), mtn_near=(142, 90, 68),
+        struct_light=(228, 200, 170), struct_mid=(180, 134, 96),
+        struct_dark=(112, 76, 54), struct_accent=(212, 114, 64),
+        foliage_top=(236, 120, 56), foliage_mid=(196, 80, 46), foliage_dark=(130, 50, 38),
+        foliage_accent=(248, 172, 86),
+        ground_top=(184, 130, 90), ground_mid=(144, 96, 68), ground_bot=(98, 66, 52),
+        mist_tint=(232, 214, 188), star_alpha=0)),
+]
+
+MAPLE_MONASTERY = BiomeSpec(
+    name="Maple Monastery",
+    note="Hillside monastery (terrace + stupa + red lantern) under fiery maple ink; warm autumn architecture in mist.",
+    keyframes=_MAPLE_KF,
+    sky=SkyParams(positions=(0.0, 0.30, 0.60, 0.84, 1.0), dither_amp=1.8, zenith_dark=0.07),
+    ridges=[
+        # Mild rolling ridges — smooth low-freq swells, no spike/jag, so the
+        # architecture + warm canopy carry the scene rather than dramatic peaks.
+        RidgeParams(base_h=0.18, octaves=((0.006, 20), (0.013, 11)), parallax=0.06,
+                    color_key='mtn_far', seed=2),
+        RidgeParams(base_h=0.22, octaves=((0.008, 24), (0.016, 12)), parallax=0.14,
+                    color_key='mtn_mid', seed=4),
+        RidgeParams(base_h=0.16, octaves=((0.011, 18),), parallax=0.26,
+                    color_key='mtn_near', jag=0.14, seed=6),
+    ],
+    signature=bm.draw_maple_monastery_sig,
+    foliage=bm.draw_maple_canopy,
+    atmosphere=bm.maple_mist,
+    ground=GroundParams(),
+)
+
+
+# ── Biome 9 — Cloud Sea Peaks ─────────────────────────────────────────────────
+# Sea-of-clouds above karst spike peaks: the lower third is a dense horizontal
+# cloud band the peaks poke through. Cool dawn palette. The cloud-sea is the
+# identity — unmistakably horizontal, opposite of misty_gorge's vertical veil.
+_CLOUDSEA_KF = [
+    (0.06, dict(  # morning — cool blue dawn, cloud sea bright white
+        sky_top=(96, 150, 206), sky_mid=(168, 200, 228), sky_bot=(212, 228, 238),
+        horizon=(228, 234, 240),
+        mtn_far=(132, 150, 184), mtn_mid=(96, 116, 156), mtn_near=(70, 90, 130),
+        struct_light=(200, 210, 224), struct_mid=(140, 154, 178),
+        struct_dark=(84, 98, 126), struct_accent=(150, 164, 188),
+        foliage_top=(88, 142, 110), foliage_mid=(54, 104, 80), foliage_dark=(32, 70, 56),
+        foliage_accent=(140, 184, 134),
+        ground_top=(150, 168, 184), ground_mid=(112, 132, 156), ground_bot=(78, 98, 128),
+        cloud_tint=(236, 240, 246), star_alpha=0)),
+    (0.18, dict(  # midday — clearest cool blue, sea blinding white
+        sky_top=(74, 142, 212), sky_mid=(154, 196, 230), sky_bot=(206, 226, 240),
+        horizon=(224, 232, 240),
+        mtn_far=(130, 148, 184), mtn_mid=(94, 114, 156), mtn_near=(68, 88, 130),
+        struct_light=(204, 214, 226), struct_mid=(142, 156, 180),
+        struct_dark=(84, 98, 126), struct_accent=(152, 166, 190),
+        foliage_top=(92, 146, 112), foliage_mid=(56, 108, 82), foliage_dark=(32, 72, 56),
+        foliage_accent=(144, 188, 136),
+        ground_top=(150, 170, 186), ground_mid=(112, 134, 158), ground_bot=(78, 100, 130),
+        cloud_tint=(240, 244, 248), star_alpha=0)),
+    (0.40, dict(  # golden — warm gold flooding the cloud sea
+        sky_top=(120, 152, 200), sky_mid=(240, 200, 156), sky_bot=(252, 220, 178),
+        horizon=(252, 222, 176),
+        mtn_far=(166, 156, 168), mtn_mid=(134, 116, 134), mtn_near=(102, 86, 110),
+        struct_light=(218, 206, 198), struct_mid=(160, 146, 152),
+        struct_dark=(98, 88, 104), struct_accent=(196, 158, 132),
+        foliage_top=(110, 150, 100), foliage_mid=(70, 112, 74), foliage_dark=(42, 78, 54),
+        foliage_accent=(166, 192, 128),
+        ground_top=(178, 168, 162), ground_mid=(138, 128, 138), ground_bot=(96, 90, 112),
+        cloud_tint=(250, 226, 192), star_alpha=0)),
+    (0.50, dict(  # sunset — rose-gold sea, peaks silhouetting
+        sky_top=(106, 92, 144), sky_mid=(226, 142, 116), sky_bot=(248, 178, 134),
+        horizon=(250, 190, 144),
+        mtn_far=(148, 124, 148), mtn_mid=(120, 96, 124), mtn_near=(92, 72, 100),
+        struct_light=(208, 184, 192), struct_mid=(154, 132, 152),
+        struct_dark=(92, 78, 102), struct_accent=(196, 138, 124),
+        foliage_top=(96, 130, 92), foliage_mid=(60, 96, 68), foliage_dark=(38, 66, 50),
+        foliage_accent=(146, 170, 116),
+        ground_top=(164, 144, 156), ground_mid=(124, 110, 134), ground_bot=(86, 78, 110),
+        cloud_tint=(248, 200, 178), star_alpha=20)),
+    (0.62, dict(  # dusk — blue hour, cloud sea cooling to slate
+        sky_top=(48, 56, 102), sky_mid=(96, 104, 144), sky_bot=(160, 156, 172),
+        horizon=(202, 182, 178),
+        mtn_far=(86, 98, 132), mtn_mid=(66, 78, 110), mtn_near=(48, 58, 88),
+        struct_light=(166, 176, 196), struct_mid=(110, 124, 150),
+        struct_dark=(66, 78, 104), struct_accent=(140, 142, 164),
+        foliage_top=(56, 90, 78), foliage_mid=(36, 62, 56), foliage_dark=(22, 42, 40),
+        foliage_accent=(92, 126, 100),
+        ground_top=(104, 114, 138), ground_mid=(78, 90, 118), ground_bot=(54, 64, 94),
+        cloud_tint=(190, 196, 210), star_alpha=70)),
+    (0.70, dict(  # night — moonlit cloud sea glows over dark peaks
+        sky_top=(10, 16, 44), sky_mid=(22, 34, 70), sky_bot=(46, 60, 96),
+        horizon=(112, 126, 150),
+        mtn_far=(38, 50, 80), mtn_mid=(30, 40, 66), mtn_near=(22, 30, 52),
+        struct_light=(140, 154, 180), struct_mid=(82, 96, 126),
+        struct_dark=(44, 54, 80), struct_accent=(116, 130, 158),
+        foliage_top=(38, 60, 56), foliage_mid=(26, 42, 42), foliage_dark=(16, 28, 28),
+        foliage_accent=(58, 84, 74),
+        ground_top=(54, 66, 92), ground_mid=(38, 50, 74), ground_bot=(26, 36, 58),
+        cloud_tint=(150, 164, 188), glow_color=(200, 220, 255), star_alpha=210)),
+    (0.80, dict(  # predawn — violet sky, cloud sea a pale ghost
+        sky_top=(28, 36, 78), sky_mid=(56, 66, 114), sky_bot=(116, 120, 152),
+        horizon=(186, 172, 178),
+        mtn_far=(66, 78, 110), mtn_mid=(52, 62, 92), mtn_near=(38, 48, 74),
+        struct_light=(160, 168, 192), struct_mid=(108, 120, 148),
+        struct_dark=(64, 74, 102), struct_accent=(138, 142, 166),
+        foliage_top=(48, 76, 70), foliage_mid=(32, 54, 52), foliage_dark=(20, 36, 38),
+        foliage_accent=(80, 112, 92),
+        ground_top=(96, 108, 138), ground_mid=(72, 84, 116), ground_bot=(50, 62, 94),
+        cloud_tint=(196, 200, 216), glow_color=(210, 222, 255), star_alpha=110)),
+    (0.94, dict(  # sunrise — apricot light pouring across the sea
+        sky_top=(110, 156, 204), sky_mid=(250, 200, 168), sky_bot=(252, 222, 186),
+        horizon=(252, 224, 188),
+        mtn_far=(168, 160, 168), mtn_mid=(138, 122, 136), mtn_near=(106, 90, 112),
+        struct_light=(214, 204, 200), struct_mid=(156, 144, 152),
+        struct_dark=(96, 88, 102), struct_accent=(196, 160, 136),
+        foliage_top=(106, 148, 100), foliage_mid=(66, 110, 76), foliage_dark=(40, 76, 54),
+        foliage_accent=(160, 190, 128),
+        ground_top=(172, 168, 166), ground_mid=(132, 128, 140), ground_bot=(92, 92, 116),
+        cloud_tint=(252, 224, 192), star_alpha=0)),
+]
+
+CLOUD_SEA_PEAKS = BiomeSpec(
+    name="Cloud Sea Peaks",
+    note="Karst spike peaks poking through a dense horizontal sea of clouds; cool dawn palette, the cloud-sea is the hero.",
+    keyframes=_CLOUDSEA_KF,
+    # zenith_dark raised: the cool dawn-blue zenith can go pale at sunrise; keep a
+    # darker top anchor for the white HUD.
+    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.80, 1.0), dither_amp=1.8, zenith_dark=0.12),
+    ridges=[
+        # Tall karst spikes — the cloud_sea atmosphere paints the lower band so
+        # only the peaks' upper reaches show. Far rank tallest so distant summits
+        # rise highest above the sea; near rank lower (its feet are in the sea).
+        RidgeParams(base_h=0.30, octaves=((0.011, 12),), parallax=0.07,
+                    color_key='mtn_far', spike=0.90, seed=3),
+        RidgeParams(base_h=0.24, octaves=((0.012, 11),), parallax=0.15,
+                    color_key='mtn_mid', spike=0.82, seed=6),
+        RidgeParams(base_h=0.16, octaves=((0.014, 10),), parallax=0.27,
+                    color_key='mtn_near', spike=0.70, seed=9),
+    ],
+    signature=bm.draw_cloud_sea_pine,
+    foliage=None,
+    atmosphere=bm.cloud_sea,
+    ground=GroundParams(),
+)
+
+
+# ── Biome 10 — Moonlit Pine Cliff ─────────────────────────────────────────────
+# Night-leaning ink cliff: a dramatic dark steep silhouette, deep indigo/ink
+# palette that stays moody even at "day", a big moon disc as the hero light,
+# wuling pine on the cliff edge + ravens. The most nocturnal of the five.
+_MOONCLIFF_KF = [
+    (0.06, dict(  # morning — even "day" stays a moody dim indigo-teal
+        sky_top=(58, 80, 120), sky_mid=(96, 124, 158), sky_bot=(146, 168, 188),
+        horizon=(176, 188, 196),
+        mtn_far=(58, 74, 104), mtn_mid=(42, 56, 84), mtn_near=(28, 38, 60),
+        struct_light=(122, 140, 172), struct_mid=(72, 88, 120),
+        struct_dark=(40, 52, 78), struct_accent=(150, 162, 190),
+        foliage_top=(64, 104, 96), foliage_mid=(40, 74, 70), foliage_dark=(24, 48, 48),
+        foliage_accent=(96, 138, 118),
+        ground_top=(54, 70, 94), ground_mid=(40, 54, 76), ground_bot=(28, 40, 60),
+        moon_tint=(228, 236, 250), glow_color=(206, 222, 255), star_alpha=40)),
+    (0.18, dict(  # midday — the brightest this biome ever gets, still dim
+        sky_top=(64, 88, 132), sky_mid=(106, 134, 168), sky_bot=(156, 178, 196),
+        horizon=(184, 196, 202),
+        mtn_far=(60, 78, 110), mtn_mid=(44, 58, 88), mtn_near=(28, 40, 62),
+        struct_light=(128, 146, 178), struct_mid=(76, 92, 124),
+        struct_dark=(42, 54, 82), struct_accent=(156, 168, 196),
+        foliage_top=(66, 108, 98), foliage_mid=(42, 76, 72), foliage_dark=(24, 50, 50),
+        foliage_accent=(100, 142, 120),
+        ground_top=(56, 74, 98), ground_mid=(42, 56, 80), ground_bot=(28, 42, 62),
+        moon_tint=(230, 238, 252), glow_color=(206, 222, 255), star_alpha=30)),
+    (0.40, dict(  # golden — a thin cold gold rim on the cliff, sky still deep
+        sky_top=(66, 78, 122), sky_mid=(150, 138, 150), sky_bot=(200, 184, 174),
+        horizon=(214, 196, 178),
+        mtn_far=(74, 80, 108), mtn_mid=(54, 56, 84), mtn_near=(36, 38, 60),
+        struct_light=(150, 150, 168), struct_mid=(92, 92, 116),
+        struct_dark=(50, 52, 76), struct_accent=(196, 168, 156),
+        foliage_top=(74, 102, 90), foliage_mid=(46, 72, 66), foliage_dark=(28, 48, 46),
+        foliage_accent=(112, 140, 112),
+        ground_top=(66, 72, 92), ground_mid=(48, 54, 76), ground_bot=(32, 40, 60),
+        moon_tint=(238, 232, 230), glow_color=(232, 220, 220), star_alpha=20)),
+    (0.50, dict(  # sunset — bruised violet-rose, cliff blackening
+        sky_top=(58, 52, 102), sky_mid=(150, 100, 124), sky_bot=(208, 148, 134),
+        horizon=(222, 162, 138),
+        mtn_far=(70, 64, 100), mtn_mid=(52, 46, 78), mtn_near=(34, 30, 54),
+        struct_light=(146, 130, 152), struct_mid=(92, 80, 108),
+        struct_dark=(50, 44, 72), struct_accent=(190, 142, 138),
+        foliage_top=(64, 92, 78), foliage_mid=(40, 64, 56), foliage_dark=(24, 44, 42),
+        foliage_accent=(98, 128, 102),
+        ground_top=(64, 60, 88), ground_mid=(48, 46, 72), ground_bot=(32, 34, 56),
+        moon_tint=(238, 226, 234), glow_color=(228, 200, 214), star_alpha=60)),
+    (0.62, dict(  # dusk — deep indigo, moon strengthening
+        sky_top=(28, 32, 78), sky_mid=(56, 60, 108), sky_bot=(104, 104, 142),
+        horizon=(168, 156, 168),
+        mtn_far=(48, 54, 88), mtn_mid=(36, 40, 68), mtn_near=(24, 28, 48),
+        struct_light=(134, 144, 176), struct_mid=(80, 90, 124),
+        struct_dark=(44, 52, 82), struct_accent=(150, 156, 184),
+        foliage_top=(48, 76, 68), foliage_mid=(32, 54, 50), foliage_dark=(20, 36, 36),
+        foliage_accent=(80, 112, 92),
+        ground_top=(54, 60, 90), ground_mid=(40, 46, 72), ground_bot=(28, 34, 56),
+        moon_tint=(234, 240, 252), glow_color=(210, 224, 255), star_alpha=130)),
+    (0.70, dict(  # night — true night, the moon is the hero light
+        sky_top=(8, 12, 38), sky_mid=(18, 26, 60), sky_bot=(38, 50, 84),
+        horizon=(96, 110, 138),
+        mtn_far=(30, 40, 68), mtn_mid=(22, 30, 54), mtn_near=(14, 20, 38),
+        struct_light=(150, 164, 196), struct_mid=(84, 100, 138),
+        struct_dark=(40, 50, 80), struct_accent=(160, 172, 202),
+        foliage_top=(34, 56, 52), foliage_mid=(22, 40, 40), foliage_dark=(12, 24, 28),
+        foliage_accent=(54, 82, 72),
+        ground_top=(40, 52, 80), ground_mid=(28, 38, 62), ground_bot=(18, 26, 46),
+        moon_tint=(240, 244, 255), glow_color=(206, 222, 255), star_alpha=220)),
+    (0.80, dict(  # predawn — coldest deep blue, moon sinking
+        sky_top=(20, 26, 64), sky_mid=(42, 50, 96), sky_bot=(92, 100, 138),
+        horizon=(160, 156, 172),
+        mtn_far=(44, 52, 86), mtn_mid=(32, 40, 66), mtn_near=(20, 28, 48),
+        struct_light=(142, 156, 190), struct_mid=(82, 96, 132),
+        struct_dark=(42, 52, 82), struct_accent=(154, 164, 194),
+        foliage_top=(40, 64, 60), foliage_mid=(26, 46, 46), foliage_dark=(14, 28, 32),
+        foliage_accent=(64, 94, 82),
+        ground_top=(46, 56, 86), ground_mid=(32, 42, 68), ground_bot=(20, 30, 52),
+        moon_tint=(236, 240, 254), glow_color=(206, 222, 255), star_alpha=150)),
+    (0.94, dict(  # sunrise — a cold thin daybreak, cliff still dark
+        sky_top=(60, 92, 138), sky_mid=(170, 160, 168), sky_bot=(216, 198, 184),
+        horizon=(224, 204, 186),
+        mtn_far=(70, 84, 116), mtn_mid=(52, 62, 92), mtn_near=(34, 42, 66),
+        struct_light=(150, 156, 178), struct_mid=(92, 100, 130),
+        struct_dark=(50, 56, 84), struct_accent=(196, 178, 174),
+        foliage_top=(70, 104, 92), foliage_mid=(44, 74, 68), foliage_dark=(26, 48, 46),
+        foliage_accent=(106, 142, 116),
+        ground_top=(62, 74, 98), ground_mid=(46, 56, 80), ground_bot=(30, 40, 62),
+        moon_tint=(238, 234, 236), glow_color=(222, 214, 220), star_alpha=30)),
+]
+
+MOONLIT_PINE_CLIFF = BiomeSpec(
+    name="Moonlit Pine Cliff",
+    note="Dramatic dark cliff silhouette under a big moon; deep indigo ink that stays nocturnal all cycle, pine + ravens.",
+    keyframes=_MOONCLIFF_KF,
+    # zenith_dark high: the indigo top is already dark, but lock it so the moon
+    # wash never lifts the zenith enough to wash the HUD.
+    sky=SkyParams(positions=(0.0, 0.30, 0.60, 0.82, 1.0), dither_amp=1.6, zenith_dark=0.16),
+    ridges=[
+        # Steep flat-topped cliff terraces — high mesa quantization gives sheer
+        # vertical faces + flat ledges (the dramatic ink cliff), tallest in front.
+        RidgeParams(base_h=0.22, octaves=((0.008, 22), (0.018, 12)), parallax=0.06,
+                    color_key='mtn_far', jag=0.30, seed=2),
+        RidgeParams(base_h=0.34, octaves=((0.010, 30),), parallax=0.14,
+                    color_key='mtn_mid', flat_top=18, jag=0.20, seed=4),
+        RidgeParams(base_h=0.44, octaves=((0.013, 36),), parallax=0.26,
+                    color_key='mtn_near', flat_top=24, jag=0.16, seed=6),
+    ],
+    signature=bm.draw_moonlit_pine_cliff_sig,
+    foliage=None,
+    atmosphere=bm.moon_over,
+    ground=GroundParams(),
+)
+
+
 # ── registry ──────────────────────────────────────────────────────────────────
 BIOMES = {
     "desert_mesa": DESERT_MESA,
@@ -552,9 +1118,15 @@ BIOMES = {
     "volcanic_caldera": VOLCANIC_CALDERA,
     "karst_watertown": KARST_WATERTOWN,
     "autumn_highlands": AUTUMN_HIGHLANDS,
+    "misty_gorge": MISTY_GORGE,
+    "snow_temple": SNOW_TEMPLE,
+    "maple_monastery": MAPLE_MONASTERY,
+    "cloud_sea_peaks": CLOUD_SEA_PEAKS,
+    "moonlit_pine_cliff": MOONLIT_PINE_CLIFF,
 }
 GROUP_A = ["desert_mesa", "alpine_snowpeak", "volcanic_caldera",
            "karst_watertown", "autumn_highlands"]
-GROUP_B = []
+GROUP_B = ["misty_gorge", "snow_temple", "maple_monastery",
+           "cloud_sea_peaks", "moonlit_pine_cliff"]
 BIOME_NAMES = {k: v.name for k, v in BIOMES.items()}
 BIOME_NOTES = {k: v.note for k, v in BIOMES.items()}
