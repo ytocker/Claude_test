@@ -1265,7 +1265,7 @@ VARIANTS_R4 = [
 # stamping it horizontally over each tilted deck's centre.
 
 
-def _live_score_preview(score_str="888", size=108):
+def _live_score_preview(score_str="888", size=108, sparkle_trim=0.0):
     """Crop the live `render_skateboard_score_e3` halftone badge onto a
     small SRCALPHA tile so each R5 cell can preview where the LIVE score
     will land at runtime. The production overlay paints the badge at
@@ -1275,6 +1275,12 @@ def _live_score_preview(score_str="888", size=108):
     The preview is intentionally horizontal — the live HUD never rotates
     the score badge, so the deck tilt is purely cosmetic and the score
     digit always reads dead-level on top of it.
+
+    sparkle_trim trims the burst's outer spike radius by a fraction
+    (e.g. 0.10) by scaling the cropped tile down — applied ONLY to the
+    preview blit, never to the production HUD overlay, so the R6 review
+    sheet's tilted-deck cells don't show the burst spikes clipping the
+    deck's inner top edge at y=70.
     """
     overlay = _score_overlay_fn(int(score_str))
     tile = pygame.Surface((size, size), pygame.SRCALPHA)
@@ -1282,6 +1288,17 @@ def _live_score_preview(score_str="888", size=108):
     src_rect = pygame.Rect(0, 0, size, size)
     src_rect.center = (src_cx, src_cy)
     tile.blit(overlay, (0, 0), src_rect)
+    if sparkle_trim > 0:
+        # Scale the tile down by (1 - trim) so the burst silhouette
+        # uniformly shrinks. The tile stays the same surface size — we
+        # blit a smaller version centred on the same midpoint so the
+        # caller's centre-stamp blit still lands correctly.
+        scaled_size = max(1, int(round(size * (1 - sparkle_trim))))
+        scaled = pygame.transform.smoothscale(tile, (scaled_size,
+                                                       scaled_size))
+        out = pygame.Surface((size, size), pygame.SRCALPHA)
+        out.blit(scaled, scaled.get_rect(center=(size // 2, size // 2)))
+        tile = out
     return tile
 
 
@@ -1335,23 +1352,47 @@ R5_SHADOW_OFFSET = (2, 2)
 R5_SHADOW_ALPHA = 89  # ≈35% of 255
 
 
-def _stamp_live_score_preview(surf, deck_screen_center, score=888):
+def _stamp_live_score_preview(surf, deck_screen_center, score=888,
+                                size=108, sparkle_trim=0.0):
     """Place the LIVE-score preview tile horizontally over the rotated
     deck. The tile is centred on the deck's on-screen centre so the
     preview reads "deck tilted, score level over it" — same composite
-    relationship the runtime HUD will produce."""
-    tile = _live_score_preview(str(score), size=108)
+    relationship the runtime HUD will produce.
+
+    sparkle_trim>0 shrinks the burst silhouette by that fraction in the
+    PREVIEW only — used by the R6 sheet to keep the burst's outer spikes
+    clear of the deck's inner top edge at y=70, without touching the
+    production HUD overlay geometry."""
+    tile = _live_score_preview(str(score), size=size,
+                                 sparkle_trim=sparkle_trim)
     surf.blit(tile, tile.get_rect(center=deck_screen_center))
 
 
-def _draw_r5_d1_bolts(surf, deck_w, deck_h, inset=30, edge_inset=18):
+# R6 sparkle-clip trim — applied globally to every R6 preview blit so
+# the burst's outer spikes shrink ~10% relative to the live HUD radius,
+# pulling them inside the deck's inner top edge at y=70 even on V3's
+# deeper -18° tilt where the spike rim would otherwise punch the rim.
+R6_SPARKLE_TRIM = 0.10
+
+
+def _draw_r5_d1_bolts(surf, deck_w, deck_h, inset=30, edge_inset=18,
+                       rescue_lower_right=False):
     """D1's four corner truck-mount bolts with a 1-px inner highlight
     so the dots read as polished metal hardware rather than flat
     stickers. AD critique called this out specifically — the inner
-    pixel at (200,200,200) @ ~70% alpha catches just enough light."""
+    pixel at (200,200,200) @ ~70% alpha catches just enough light.
+
+    rescue_lower_right=True lightens ONLY the lower-right bolt's ink
+    rim from (15,15,15) to (60,60,60) so the bolt survives against
+    the deck's lower-edge shadow on V3's deeper -18° tilt where the
+    standard ink rim was vanishing into the cast-shadow band."""
     for bolt_x in (inset, deck_w - inset):
         for bolt_y in (edge_inset, deck_h - edge_inset):
-            pygame.draw.circle(surf, INK, (bolt_x, bolt_y), 5)
+            is_lower_right = (rescue_lower_right
+                              and bolt_x == deck_w - inset
+                              and bolt_y == deck_h - edge_inset)
+            rim_ink = (60, 60, 60) if is_lower_right else INK
+            pygame.draw.circle(surf, rim_ink, (bolt_x, bolt_y), 5)
             pygame.draw.circle(surf, (60, 60, 60), (bolt_x, bolt_y), 3)
             # 1 px inner highlight — pure metal cue, slightly offset
             # so the bolt picks up a believable specular tip.
@@ -1697,11 +1738,16 @@ _HUD_PAUSE_BOX = pygame.Rect(264, 6, 90, 56)
 
 def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
                           stripe_step=24, stripe_alpha=38,
-                          bolt_inset_x=30, bolt_inset_y=18):
+                          bolt_inset_x=30, bolt_inset_y=18,
+                          rescue_lower_right_bolt=False):
     """Build the shared R6 plain rounded-rect deck surface — R5-D1's
     silhouette factored out so V1-V5 only have to vary the size, tilt,
     and centre. Same wash stripes + 4 corner bolts + ink rim as R5-D1
-    so the silhouette identity stays locked across the round."""
+    so the silhouette identity stays locked across the round.
+
+    rescue_lower_right_bolt=True forwards the bolt-rim lightening to
+    the bolt helper — used by V3 only, where the deeper -18° tilt
+    drops the bolt into the deck's lower-edge shadow band."""
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     deck_rect = deck.get_rect()
     pygame.draw.rect(deck, PLATE_RED, deck_rect, border_radius=border_radius)
@@ -1719,29 +1765,62 @@ def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
     _draw_r5_d1_bolts(deck, deck_w, deck_h,
-                       inset=bolt_inset_x, edge_inset=bolt_inset_y)
+                       inset=bolt_inset_x, edge_inset=bolt_inset_y,
+                       rescue_lower_right=rescue_lower_right_bolt)
     return deck, deck_rect
 
 
 def _r6_paint_deck(s, deck_w, deck_h, *, tilt_deg, deck_center,
                     border_radius=44, gap_px=64, font_size=28,
                     stripe_step=24, stripe_alpha=38,
-                    bolt_inset_x=30, bolt_inset_y=18, outline_w=4):
+                    bolt_inset_x=30, bolt_inset_y=18, outline_w=4,
+                    rescue_lower_right_bolt=False,
+                    skip_wordmarks=False,
+                    right_edge_falloff_px=0):
     """Build the R6 plain deck, lay split SKATE | BOARD wordmarks on
     its long axis, ink-rim it, rotate, and composite onto `s` with the
     shared R5 shadow. Returns the deck_center as passed (so the caller
-    can hand it straight to the live-score preview stamp)."""
+    can hand it straight to the live-score preview stamp).
+
+    skip_wordmarks lets a caller (V2's narrow concept variant) draw
+    its own wordmark treatment after the deck base is built. The
+    helper still ink-rims the deck for that path so the caller can
+    blit text on top of a fully-rimmed silhouette.
+
+    right_edge_falloff_px>0 fades the rotated deck's rightmost N
+    px from full alpha to ~40% — V5 uses this so the deck tucks
+    UNDER the pause tile with a soft gradient instead of either a
+    hard chrome edge or chrome floating above a full-alpha deck."""
     deck, deck_rect = _r6_build_plain_deck(
         deck_w, deck_h, border_radius=border_radius,
         stripe_step=stripe_step, stripe_alpha=stripe_alpha,
-        bolt_inset_x=bolt_inset_x, bolt_inset_y=bolt_inset_y)
-    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
-                                   gap_px=gap_px, font_size=font_size,
-                                   outline_w=3)
+        bolt_inset_x=bolt_inset_x, bolt_inset_y=bolt_inset_y,
+        rescue_lower_right_bolt=rescue_lower_right_bolt)
+    if not skip_wordmarks:
+        _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                       gap_px=gap_px, font_size=font_size,
+                                       outline_w=3)
     pygame.draw.rect(deck, INK, deck_rect, outline_w,
                      border_radius=border_radius)
     rotated = pygame.transform.rotate(deck, tilt_deg)
     rect = rotated.get_rect(center=deck_center)
+    if right_edge_falloff_px > 0:
+        # Multiply the rotated surface's right strip by a per-column
+        # alpha ramp so the rightmost falloff_px taper from 100% to
+        # ~40%. The deck still ink-rims at full strength before this
+        # pass — we only mute the assembled composite at the tuck zone.
+        rw, rh = rotated.get_size()
+        falloff = pygame.Surface((rw, rh), pygame.SRCALPHA)
+        falloff.fill((255, 255, 255, 255))
+        for col in range(rw - right_edge_falloff_px, rw):
+            t = (col - (rw - right_edge_falloff_px)) / max(
+                1, right_edge_falloff_px - 1)
+            alpha = int(round(255 - t * (255 - 102)))
+            col_strip = pygame.Surface((1, rh), pygame.SRCALPHA)
+            col_strip.fill((255, 255, 255, alpha))
+            falloff.blit(col_strip, (col, 0))
+        rotated.blit(falloff, (0, 0),
+                     special_flags=pygame.BLEND_RGBA_MULT)
     _composite_shadow(s, rotated, rect.topleft,
                        offset=R5_SHADOW_OFFSET,
                        alpha=R5_SHADOW_ALPHA)
@@ -1755,7 +1834,12 @@ def variant_r6_v1_full_slab_ui_on_top(base, score):
     pause tile (top-right) are snapshotted from `base` BEFORE the deck
     is laid down, then re-stamped on top so they read as stickers on
     the deck. Most committed to "score stays where it always sits";
-    accepts the chrome-on-deck collision rather than dodging it."""
+    accepts the chrome-on-deck collision rather than dodging it.
+
+    Cutout pockets: under each chrome tile a soft-edged dark blob is
+    blitted onto the deck so the chrome reads as PUNCHING THROUGH the
+    deck rather than floating above it — sells the layering as an
+    intentional cutout instead of a z-order accident."""
     s = base.copy()
     # Snapshot the live HUD chrome BEFORE the deck paint so the chrome
     # can re-land on top of the deck composite afterwards. Tight boxes
@@ -1765,6 +1849,25 @@ def variant_r6_v1_full_slab_ui_on_top(base, score):
     deck_center = _r6_paint_deck(s, 320, 92,
                                   tilt_deg=-12,
                                   deck_center=(W // 2, 70))
+    # Cutout shadow-pockets — drawn AFTER the deck blit but BEFORE the
+    # chrome re-stamp + live-score burst. Each pocket is a soft
+    # near-black rounded-rect at ~35% alpha inset 6 px around the
+    # chrome tile, with a gaussian-ish falloff (two concentric layers
+    # of progressively weaker alpha) so the edge feathers instead of
+    # cutting a hard rectangle of dark out of the deck.
+    for chrome_box in (_HUD_COIN_BOX, _HUD_PAUSE_BOX):
+        inset = 6
+        pocket_rect = chrome_box.inflate(inset * 2, inset * 2)
+        falloff = pygame.Surface(pocket_rect.size, pygame.SRCALPHA)
+        # Two-stop falloff — inner core at 35%, outer halo at ~15%, both
+        # near-black, both rounded so the chrome edge softens rather
+        # than ending on a hard line.
+        pygame.draw.rect(falloff, (0, 0, 0, 38),
+                         falloff.get_rect(), border_radius=14)
+        inner = falloff.get_rect().inflate(-8, -8)
+        pygame.draw.rect(falloff, (0, 0, 0, 90),
+                         inner, border_radius=10)
+        s.blit(falloff, pocket_rect.topleft)
     # Re-stamp the chrome ON TOP of the deck — coin counter on the
     # left, pause tile on the right, both at their original positions
     # so the rest of the UI lines up untouched.
@@ -1773,91 +1876,205 @@ def variant_r6_v1_full_slab_ui_on_top(base, score):
     # Score badge LAST so it always sits on top of everything — even
     # if the coin or pause re-stamp clipped a corner of the central
     # burst region, the badge wins on the final composite.
-    _stamp_live_score_preview(s, deck_center, score=888)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
     return s
 
 
 def variant_r6_v2_narrow_between_buttons(base, score):
-    """R6-V2 — Narrower 220 x 88 deck, deck-centre (180, 70). At 220
-    wide the deck's flat ends sit ~70 px from each frame edge: with the
-    coin plate ending at x≈90 and the pause tile starting at x≈274,
-    the deck clears each by ~14 px on its untilted axis, so even after
-    the -12° tilt the corners stay out of the chrome boxes. SKATE | live
-    score | BOARD still fits — gap_px and font_size shrink in lockstep
-    via the shared baseline-locked helper."""
+    """R6-V2 — Narrow with reserved score (replacement concept).
+    Previous narrow-tucked-slab kept clipping the wordmark; this
+    version commits to a 240 x 88 slab at -12° that reserves an
+    88-px central gap for the live halftone score badge so the
+    wordmarks sit cleanly in the deck halves either side. SKATE and
+    BOARD rotate WITH the deck so the slant carries through the
+    full composite, and the baseline-locked helper auto-shrinks the
+    size in lockstep if BOARD's outer edge would overrun the deck
+    width — guarantees no clipped glyph at the deck-edge.
+
+    If the auto-shrink would push the wordmark below 22 pt
+    (legibility floor at thumbnail scale on the review sheet) the
+    cell falls back to floating SKATE and BOARD chips OUTSIDE the
+    deck — small yellow-gradient text on dark chips that anchor the
+    deck visually without competing with the score badge.
+
+    Pick whichever path keeps the wordmark readable; the caption
+    on the review sheet reflects the choice."""
     s = base.copy()
-    deck_center = _r6_paint_deck(s, 220, 88,
-                                  tilt_deg=-12,
-                                  deck_center=(W // 2, 70),
-                                  gap_px=58, font_size=26,
-                                  border_radius=40,
-                                  bolt_inset_x=24, bolt_inset_y=16)
-    _stamp_live_score_preview(s, deck_center, score=888)
+    deck_w, deck_h = 240, 88
+    deck_center = (W // 2, 70)
+    # Pre-flight: can SKATE/BOARD fit cleanly at >=22 pt with an
+    # 88-px central reserve? gap_px=44 (half the reserve).
+    reserve_gap_px = 44
+    test_size = 22
+    skate_test = _yellow_text("SKATE", test_size, outline_w=3)
+    available_half = deck_w // 2 - reserve_gap_px - 4
+    inline_fits = skate_test.get_width() <= available_half
+    if inline_fits:
+        # Inline path — wordmarks INSIDE the deck halves, rotating
+        # with the deck. Larger reserve forces tighter wordmark
+        # placement so the wordmark cap sits in the deck's broad
+        # central band rather than crowding the rim.
+        _r6_paint_deck(s, deck_w, deck_h,
+                        tilt_deg=-12,
+                        deck_center=deck_center,
+                        gap_px=reserve_gap_px, font_size=test_size,
+                        border_radius=40,
+                        bolt_inset_x=24, bolt_inset_y=16)
+        _stamp_live_score_preview(s, deck_center, score=888,
+                                    sparkle_trim=R6_SPARKLE_TRIM)
+        return s
+    # Floating-chips fallback — deck stays bare of text, SKATE +
+    # BOARD chips float OUTSIDE the deck silhouette as small
+    # yellow-gradient labels on dark chips. SKATE sits above the
+    # deck's left tail (the rotation drops it visually so a label
+    # above the left side reads as the tail accent), BOARD sits
+    # below the deck's right nose.
+    _r6_paint_deck(s, deck_w, deck_h,
+                    tilt_deg=-12,
+                    deck_center=deck_center,
+                    border_radius=40,
+                    bolt_inset_x=24, bolt_inset_y=16,
+                    skip_wordmarks=True)
+    chip_size = 20
+    for chip_text, chip_pos in (
+        ("SKATE", (deck_center[0] - 92, deck_center[1] - 40)),
+        ("BOARD", (deck_center[0] + 92, deck_center[1] + 40)),
+    ):
+        glyphs = _yellow_text(chip_text, chip_size, outline_w=3)
+        pad_x, pad_y = 8, 4
+        chip_w = glyphs.get_width() + pad_x * 2
+        chip_h = glyphs.get_height() + pad_y * 2
+        chip = pygame.Surface((chip_w, chip_h), pygame.SRCALPHA)
+        chip_rect = chip.get_rect()
+        pygame.draw.rect(chip, (30, 30, 36), chip_rect, border_radius=6)
+        pygame.draw.rect(chip, INK, chip_rect, 2, border_radius=6)
+        chip.blit(glyphs, glyphs.get_rect(center=chip_rect.center))
+        # Match the deck slant so the chips feel attached to the same
+        # tilted prop, not stickers on a level UI.
+        chip = pygame.transform.rotate(chip, -12)
+        s.blit(chip, chip.get_rect(center=chip_pos))
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
     return s
 
 
 def variant_r6_v3_deep_pop(base, score):
     """R6-V3 — Wide 320 x 80 slab at a deeper -18° tilt, deck-centre
-    pulled DOWN to (180, 78) so the steeper rotation arcs the deck's
-    upper corners below the y=52 line where the coin and pause tiles
-    end. The deck still wraps the score badge (centred at y=78 on the
-    deck centre); the badge sits ~8 px below the regular-score y=70 so
-    the visual emphasis swings to the deck silhouette. The most "trick
-    pop" energy of the five — steepest pitch + lowest deck centre."""
+    pulled UP to (180, 74) — was 78; the lift restores ~3 px clearance
+    between the left deck-edge dip and the coin counter that the
+    -18° tilt was eating into. The deck still wraps the score badge
+    centred on the deck centre; with deck centre at y=74 the badge
+    sits 4 px above the regular y=70 row but the live HUD recentres
+    each frame so this offset is preview-only.
+
+    Lower-right bolt is rescued: with the deeper -18° tilt the
+    standard ink rim was vanishing into the cast-shadow band along
+    the deck's lower edge. rescue_lower_right_bolt=True lightens
+    JUST that bolt's rim to (60,60,60) so it survives at 1x scale."""
     s = base.copy()
     # Slightly shorter deck (80 vs 92) so the steeper tilt doesn't
     # carry the lower-right corner over the buff-icon row at y≈194.
     deck_center = _r6_paint_deck(s, 320, 80,
                                   tilt_deg=-18,
-                                  deck_center=(W // 2, 78),
+                                  deck_center=(W // 2, 74),
                                   gap_px=62, font_size=26,
                                   border_radius=40,
-                                  bolt_inset_y=16)
-    _stamp_live_score_preview(s, deck_center, score=888)
+                                  bolt_inset_y=16,
+                                  rescue_lower_right_bolt=True)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
     return s
 
 
 def variant_r6_v4_mid_compromise(base, score):
-    """R6-V4 — Mid 280 x 86 slab at -14°, deck-centre (180, 70). Sits
+    """R6-V4 — Mid 288 x 86 slab at -14°, deck-centre (180, 70). Sits
     between V1 (full-width, chrome on top) and V2 (narrow, clears
-    chrome): the 280 wide deck almost touches the coin plate and pause
-    tile boundaries, and the -14° tilt swings the corners down just
-    enough that they pass UNDER the chrome instead of overlapping it.
-    The safe middle choice — deck stays substantial without forcing
-    chrome on-top-of-deck composition."""
+    chrome): the 288 wide deck almost touches the coin plate and pause
+    tile boundaries (was 280; +8 px buys back the symmetry the BOARD
+    shift below introduces), and the -14° tilt swings the corners
+    down just enough that they pass UNDER the chrome instead of
+    overlapping it. The safe middle choice — deck stays substantial
+    without forcing chrome on-top-of-deck composition.
+
+    V4 breaks the SKATE/BOARD lockstep that the shared helper enforces:
+    BOARD's baseline is shifted 6 px LEFT (in deck-local coords, before
+    rotation) and its size drops to size-1 (28 → 27 pt) so the
+    trailing "D" sits ~4 px clear of the deck's inner right edge. SKATE
+    keeps the original 28 pt so the left half of the deck doesn't go
+    light on weight. The asymmetric sizing is V4-only — the other R6
+    cells stay in shared-baseline mode."""
     s = base.copy()
-    deck_center = _r6_paint_deck(s, 280, 86,
-                                  tilt_deg=-14,
-                                  deck_center=(W // 2, 70),
-                                  gap_px=62, font_size=28,
-                                  border_radius=42,
-                                  bolt_inset_x=28, bolt_inset_y=17)
-    _stamp_live_score_preview(s, deck_center, score=888)
+    deck_w, deck_h = 288, 86
+    border_radius = 42
+    deck_center = (W // 2, 70)
+    # Build the bare deck + bolts (no wordmarks; we lay them ourselves
+    # so the V4-only asymmetric sizing slips past the shared helper).
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=border_radius,
+        bolt_inset_x=28, bolt_inset_y=17)
+    # SKATE at the helper's effective auto-shrink floor (22 pt — the
+    # old V4 shared-helper rendered there because the deck couldn't
+    # hold 28 pt without overflow even on its previous 280 px width),
+    # BOARD at size-1 (21 pt). Asymmetric sizing is V4-only — the
+    # other R6 cells stay in shared-baseline mode.
+    skate_size = 22
+    board_size = 21   # size-1 per brief #3
+    skate = _yellow_text("SKATE", skate_size, outline_w=3)
+    board = _yellow_text("BOARD", board_size, outline_w=3)
+    axis_y = deck_h // 2
+    # gap_px tuned so SKATE has 4 px left clearance from the deck
+    # inner edge at 22 pt and BOARD's shifted right edge has ~8 px
+    # clearance from the deck inner right edge at 21 pt.
+    gap_px = 56
+    skate_rect = skate.get_rect(
+        midright=(deck_w // 2 - gap_px, axis_y))
+    # BOARD baseline shifted 6 px LEFT in deck-local coords so the
+    # trailing "D" sits well clear of the deck right inner edge.
+    board_rect = board.get_rect(
+        midleft=(deck_w // 2 + gap_px - 6, axis_y))
+    deck.blit(skate, skate_rect)
+    deck.blit(board, board_rect)
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=border_radius)
+    rotated = pygame.transform.rotate(deck, -14)
+    rect = rotated.get_rect(center=deck_center)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
     return s
 
 
 def variant_r6_v5_offset_right(base, score):
-    """R6-V5 — Asymmetric 300 x 90 slab at -12°, deck-CENTRE shifted
-    to (190, 70) — 10 px right of the frame centre. The shift opens
-    breathing room on the LEFT (past the coin counter) and trades a
-    little overlap with the pause tile on the right, but the tilt's
-    visual swing makes the asymmetry read as deliberate rather than
-    mis-centred. Score badge sits at the deck centre (also at x=190)
-    so it tracks the deck's optical balance, not the frame centre."""
+    """R6-V5 — Asymmetric 300 x 90 slab at -12°, deck-CENTRE COMMITTED
+    to (198, 70) — 18 px right of the frame centre (was 10; the
+    previous offset read as a centring bug). The shift opens breathing
+    room on the LEFT past the coin counter and deliberately TUCKS the
+    deck UNDER the pause tile by ~4 px on the right. An 8-px alpha
+    falloff (100% → 40%) on the deck's rightmost band feathers the
+    tuck so the chrome reads as overlapping the deck on purpose, not
+    as a sloppy z-order accident.
+
+    Score badge sits at the deck centre (also at x=198) so it tracks
+    the deck's optical balance, not the frame centre."""
     s = base.copy()
     deck_center = _r6_paint_deck(s, 300, 90,
                                   tilt_deg=-12,
-                                  deck_center=(W // 2 + 10, 70),
+                                  deck_center=(W // 2 + 18, 70),
                                   gap_px=62, font_size=28,
                                   border_radius=42,
-                                  bolt_inset_x=28, bolt_inset_y=17)
-    _stamp_live_score_preview(s, deck_center, score=888)
+                                  bolt_inset_x=28, bolt_inset_y=17,
+                                  right_edge_falloff_px=8)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
     return s
 
 
 VARIANTS_R6 = [
     ("R6-V1 — Full slab (UI on top)",     variant_r6_v1_full_slab_ui_on_top),
-    ("R6-V2 — Narrow (tucked between UI)", variant_r6_v2_narrow_between_buttons),
+    ("R6-V2 — Floating wordmark chips",   variant_r6_v2_narrow_between_buttons),
     ("R6-V3 — Deep pop (-18 deg)",        variant_r6_v3_deep_pop),
     ("R6-V4 — Mid (-14 deg)",             variant_r6_v4_mid_compromise),
     ("R6-V5 — Offset right",              variant_r6_v5_offset_right),
