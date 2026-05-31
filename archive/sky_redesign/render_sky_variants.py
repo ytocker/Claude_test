@@ -1,6 +1,6 @@
-"""Render docs/sky_redesign/round_N.png — 10 candidate skies × 5 phases.
+"""Render docs/sky_redesign/round_N.png — ranked sky finalists × 5 phases.
 
-Layout: 10 rows (the sky variants) × 5 phase columns (day / sunrise /
+Layout: one row per ranked sky variant × 5 phase columns (day / sunrise /
 sunset / dusk / night — the project's canonical review phases). Each cell
 builds a full 360×640 tile = candidate sky painted onto the band, THEN the
 existing world (clouds + mountains + ground) composited on top, so each sky
@@ -81,7 +81,7 @@ def render_cell(variant_id: int, phase: float) -> pygame.Surface:
 
 
 def make_sheet() -> pygame.Surface:
-    rows = sv.ROUND2_ORDER  # 6 leads + hybrids, ranked order
+    rows = sv.ROUND3_ORDER  # 2 finalists, ranked: winner #1 then fallback #4
     n_rows = len(rows)
     tw, th = W, H
     label_h = 34
@@ -97,7 +97,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "SKY REDESIGN — ROUND 2 · 6 refined leads + hybrids × 5 phases",
+        "SKY REDESIGN — ROUND 3 — FINAL · winner #1 + fallback #4 × 5 phases",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 7))
 
@@ -160,7 +160,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "round_2.png"
+    out = OUT / "round_3.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 

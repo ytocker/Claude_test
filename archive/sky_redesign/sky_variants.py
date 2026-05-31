@@ -43,17 +43,62 @@ from game.draw import (
 
 # ── shared helpers ───────────────────────────────────────────────────────────
 
+def _sky_top_lum(palette) -> float:
+    t = palette['sky_top']
+    return (t[0] * 299 + t[1] * 587 + t[2] * 114) / 1000
+
+
 def _is_night(palette) -> bool:
     """Luminance gate on sky_top — the deep-blue night/dusk keyframes sit
     well under this threshold, so one test routes both the disc choice and
     the warm-vs-cool accent for every variant."""
-    t = palette['sky_top']
-    lum = (t[0] * 299 + t[1] * 587 + t[2] * 114) / 1000
-    return lum < 60
+    return _sky_top_lum(palette) < 60
+
+
+def _night_amount(palette) -> float:
+    """Smooth 0..1 night-ness from sky_top luminance — a continuous ramp
+    instead of the hard `_is_night` boolean. Because the biome palette is
+    already interpolated between keyframes, deriving accents from THIS keeps
+    a baked phase-bucket cache continuous: no value step at the luminance
+    threshold means no visible pop when adjacent buckets cross-fade."""
+    lum = _sky_top_lum(palette)
+    # Cool side fully resolved by ~40 (deep night), warm side by ~95 (day).
+    return max(0.0, min(1.0, (95.0 - lum) / 55.0))
 
 
 def _star_alpha(palette) -> int:
     return int(palette.get('star_alpha', 0))
+
+
+def lerp_scalar(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def _lum(color) -> float:
+    return (color[0] * 299 + color[1] * 587 + color[2] * 114) / 1000
+
+
+def _inkwash_night_stars(surf, w, ground_y, palette, nightf) -> None:
+    """A small extra star sprinkle for inkwash's dark phases. Separate seed
+    from the shared scatter so these don't overlap it, faint and few, and
+    scaled by `nightf` so they fade in continuously toward night rather than
+    popping at a luminance threshold."""
+    if nightf <= 0.02:
+        return
+    import random as _r
+    rng = _r.Random(w * 6271 + 13)
+    base = _star_alpha(palette)
+    # Lean on the biome star layer for the bulk; this just adds 1-2 faint
+    # accents up high where the ink void is emptiest.
+    n = 1 + int(round(nightf))
+    band = int(ground_y * 0.55)
+    for _ in range(n):
+        sx = rng.randint(int(w * 0.1), int(w * 0.9))
+        sy = rng.randint(int(ground_y * 0.08), band)
+        a = int(max(40, base * 0.55) * nightf)
+        if a <= 0:
+            continue
+        pygame.draw.circle(surf, (235, 240, 255, a), (sx, sy), 1)
 
 
 def _base_gradient(surf, w, ground_y, palette, top_bias=0.0):
@@ -126,6 +171,29 @@ def _radial_glow(surf, cx, cy, radius, color, alpha_center=150, falloff=1.9):
     surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_ADD)
 
 
+def _soft_disc(surf, cx, cy, radius, color, core_alpha=235):
+    """A small soft-edged luminary: a radial alpha falloff from a bright core
+    to ~0 at the rim, NOT a hard filled circle. A hard circle leaves a crisp
+    edge that ghosts/smears when two adjacent baked phase-buckets cross-fade;
+    a feathered disc cross-dissolves cleanly. Drawn into a scratch surface and
+    blitted normally so the soft rim composites over the sky underneath."""
+    size = radius * 2 + 2
+    d = pygame.Surface((size, size), pygame.SRCALPHA)
+    c = radius + 1
+    for r in range(radius, 0, -1):
+        t = r / radius
+        # Bright, near-solid core for the inner third; smooth feather outside.
+        if t < 0.34:
+            a = core_alpha
+        else:
+            f = (t - 0.34) / 0.66
+            a = int(core_alpha * (1 - f) ** 2)
+        if a <= 0:
+            continue
+        pygame.draw.circle(d, (*color, a), (c, c), r)
+    surf.blit(d, (cx - radius - 1, cy - radius - 1))
+
+
 def _scatter_stars(surf, w, ground_y, palette):
     """Re-create the shipped star sprinkle so night variants keep parity
     with the live sky. Seeded by w only, like the original, so star layout
@@ -158,18 +226,33 @@ def _scatter_stars(surf, w, ground_y, palette):
 
 def draw_sky_inkwash(surf, w, h, ground_y, palette, phase):
     _base_gradient(surf, w, ground_y, palette, top_bias=0.08)
-    night = _is_night(palette)
+
+    # Continuous night-ness drives every accent so the baked phase-bucket
+    # cache cross-fades without a value step. NO branch on `phase` here — all
+    # hue/value choices are smooth functions of the already-interpolated
+    # `palette`, which is what keeps adjacent buckets from popping at a seam.
+    nightf = _night_amount(palette)
 
     # Raised band contrast: darker ink low, paler wash high. Wider spread
     # between the two poles than round 1 so the strata read as deliberate
-    # ink layering rather than a soft graded haze.
+    # ink layering rather than a soft graded haze. The pale-wash lift ramps
+    # smoothly down into night instead of snapping at a luminance gate.
     deep = lerp_color(palette['sky_top'], (0, 0, 0), 0.28)
-    pale = lerp_color(palette['sky_mid'], (255, 255, 255), 0.42 if not night else 0.16)
+    pale = lerp_color(palette['sky_mid'], (255, 255, 255),
+                      lerp_scalar(0.42, 0.16, nightf))
 
     # A warm horizon wash keyed to the day cycle so sunrise/sunset columns
     # stop reading identical to flat day — the horizon hue (amber/rose at
     # golden hour, cool blue at night) bleeds up into the lowest bands.
     warm = palette['horizon']
+
+    # The mist gap value, computed FIRST so the warm bleed can be capped to
+    # stay strictly below it. The carved bright band must remain the single
+    # highest value in the frame at every phase (day → night); if the warm
+    # sunset bleed climbed past it the frame would flatten.
+    mist = lerp_color(palette['horizon'], (255, 255, 255),
+                      lerp_scalar(0.5, 0.28, nightf))
+    mist_lum = _lum(mist)
 
     # Five diffusion bands, densest low thinning up. Overlapping low-alpha
     # ellipse smears give the pomo "broken ink" read.
@@ -181,6 +264,14 @@ def draw_sky_inkwash(surf, w, h, ground_y, palette, phase):
         col = lerp_color(pale, deep, t)
         # Low bands pick up the horizon warmth so the cycle reads in colour.
         col = lerp_color(col, warm, 0.30 * t)
+        # Cap the warm bleed: hold every band's luminance under the mist gap
+        # so the carved band stays the brightest value. At sunset the orange
+        # horizon would otherwise lift the low bands above the mist and flatten
+        # the frame; darkening toward `deep` only when a band exceeds the cap
+        # is a smooth correction (zero when already below it).
+        over = _lum(col) - (mist_lum - 12)
+        if over > 0:
+            col = lerp_color(col, deep, min(0.85, over / 90.0))
         bh = int(ground_y * (0.11 + 0.06 * (1 - t)))
         a = int(95 * (0.35 + 0.65 * t))
         rect = pygame.Rect(-w // 4, by - bh // 2, int(w * 1.5), bh)
@@ -190,8 +281,8 @@ def draw_sky_inkwash(surf, w, h, ground_y, palette, phase):
     # ONE clear light/mist band for the mountains to sit against — a single
     # bright void carved just above the horizon, brighter and tighter than
     # round 1's diffuse smear so the ridges read crisply against it. Warmed
-    # at sunrise/sunset, cooled at night.
-    mist = lerp_color(palette['horizon'], (255, 255, 255), 0.5 if not night else 0.28)
+    # at sunrise/sunset, cooled at night. Painted AFTER the bands so it is
+    # never dimmed by them — guaranteeing it holds the highest value.
     mist_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
     my = int(ground_y * 0.80)
     for k in range(4):
@@ -202,6 +293,10 @@ def draw_sky_inkwash(surf, w, h, ground_y, palette, phase):
     surf.blit(mist_layer, (0, 0))
 
     _scatter_stars(surf, w, ground_y, palette)
+    # A few extra faint stars on the dark phases so the void doesn't read as
+    # empty at night. Count and alpha both ride `nightf`, so the sprinkle
+    # fades in smoothly rather than switching on at a threshold.
+    _inkwash_night_stars(surf, w, ground_y, palette, nightf)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -334,13 +429,16 @@ def draw_sky_sunburst(surf, w, h, ground_y, palette, phase):
     reach = ground_y * 1.4
     if night:
         # Night = soft moon-glow with only 2-3 faint shafts, not a burst.
+        # Root alpha dropped ~15% so the shaft bases read as light, not
+        # opaque spokes anchored on the disc.
         offsets = (0.55, 1.15, 1.7)
-        ray_alphas = (9, 7, 6)
+        ray_alphas = (8, 6, 5)
     else:
         # Day/golden/dusk = an asymmetric fan: a few shafts skewed to one
-        # side so the light feels directional, like sun through a gap.
+        # side so the light feels directional, like sun through a gap. Root
+        # alpha dropped ~15% vs round 2 (16/11/14/8/7) for the same reason.
         offsets = (0.35, 0.7, 1.05, 1.55, 2.1)
-        ray_alphas = (16, 11, 14, 8, 7)
+        ray_alphas = (14, 9, 12, 7, 6)
     side = 1 if (dx < w * 0.5) else -1  # fan AWAY from the nearer edge
     for off, a in zip(offsets, ray_alphas):
         ang = (math.pi * 0.5) + side * off  # base straight down, skewed
@@ -353,15 +451,18 @@ def draw_sky_sunburst(surf, w, h, ground_y, palette, phase):
         pygame.draw.polygon(rays, (*ray_col, a), [p0, p1, p2])
     surf.blit(rays, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # Disc + bloom. Capped so the additive core never blooms over the HUD
-    # zone (upper third). Night reads as a softer, smaller moon glow.
+    # Disc + bloom. The disc is SMALL and SOFT-EDGED (radial alpha falloff to
+    # ~0 at the rim) so it cross-dissolves cleanly between baked phase-buckets
+    # instead of ghosting a hard circle. `_disc_xy` is a continuous cosine
+    # function of `phase`, so the disc centre never step-jumps across buckets.
+    # Bloom is capped so the additive core never reaches the upper-third HUD.
     disc = _moon_color(palette) if night else _sun_color(palette)
     if night:
         _radial_glow(surf, dx, dy, 46, _glow_color(palette), 72, 2.2)
-        pygame.draw.circle(surf, disc, (dx, dy), 14)
+        _soft_disc(surf, dx, dy, 13, disc, core_alpha=225)
     else:
         _radial_glow(surf, dx, dy, 54, _glow_color(palette), 95, 2.1)
-        pygame.draw.circle(surf, disc, (dx, dy), 17)
+        _soft_disc(surf, dx, dy, 16, disc, core_alpha=235)
 
     _scatter_stars(surf, w, ground_y, palette)
 
@@ -898,3 +999,7 @@ VARIANT_NOTES = {
 
 # Round-2 sheet renders ONLY these 6, in the art-director's ranked order.
 ROUND2_ORDER = [4, 9, 6, 1, 11, 12]
+
+# Round-3 (final) sheet renders ONLY the 2 finalists, ranked: the winning
+# Shan-shui Ink Wash (#1, integration target) first, God-rays (#4) fallback.
+ROUND3_ORDER = [1, 4]
