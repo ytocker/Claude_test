@@ -942,7 +942,11 @@ class World:
         if target_pipe is not None:
             gx = target_pipe.x + PIPE_W + self._current_spacing() * 0.5
             gy = target_pipe.gap_y
-            self.powerups.append(PowerUp(gx, gy, kind="genie"))
+            genie = PowerUp(gx, gy, kind="genie")
+            # Home in on Pip's y as it scrolls so a navigation y-mismatch
+            # at intercept can't make him miss the milestone genie.
+            genie.milestone_homing = True
+            self.powerups.append(genie)
             self.powerup_cooldown = POWERUP_COOLDOWN
         self._force_next_genie = False
 
@@ -1158,6 +1162,13 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
+                # Milestone genie homes in on Pip's y so the once-per-run
+                # encounter can't be missed by a y-mismatch when it
+                # scrolls in (its placed y was the upcoming pipe's gap_y,
+                # but by the time it reaches bird.x, Pip is navigating
+                # through later pipes at different gap_y values).
+                if getattr(m, "milestone_homing", False):
+                    m.y += (self.bird.y - m.y) * min(1.0, 4.0 * sdt)
             # Genie chamber wishes pop in when Pip gets close enough so
             # the player sees them materialise instead of finding them
             # pre-placed in the gap.
