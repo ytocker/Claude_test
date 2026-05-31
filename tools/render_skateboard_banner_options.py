@@ -49,6 +49,7 @@ OUT_PATH_R7 = os.path.join(OUT_DIR, "round_7.png")
 OUT_PATH_R8 = os.path.join(OUT_DIR, "round_8.png")
 OUT_PATH_R9 = os.path.join(OUT_DIR, "round_9.png")
 OUT_PATH_R10 = os.path.join(OUT_DIR, "round_10.png")
+OUT_PATH_R11 = os.path.join(OUT_DIR, "round_11.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True,
@@ -2866,6 +2867,93 @@ VARIANTS_R10 = [
 ]
 
 
+# ── Round 11: corrective ship — restore the STANDARD PRODUCTION coin       ──
+#           counter + pause button (default `_na_plate` slate cut-corner    ──
+#           plates at FULL opacity, normal HUD positions) UNDER the R10     ──
+#           opaque deck. Same R10 deck geometry on top.                     ──
+#
+# R7 made the chrome translucent. R8 stripped the plates and went frameless.
+# R9 brought translucent plates back. R10 removed the slate plates entirely.
+# Each round over-treated the chrome; the user repeatedly asked for the
+# coin counter + pause button to be left ALONE — as they appear in any
+# non-skateboard production screenshot — with the deck simply sitting on
+# top of them. R6-V2 happened to render the chrome that way (its narrow
+# deck didn't overlap the chrome so the production look came through
+# untouched). R11 reproduces that production chrome look exactly:
+#
+#   - Base built via the SAME path R5/R6/R7 used (`bake_hud_score=False`)
+#     which suppresses only the regular non-skateboard SCORE plate
+#     at top-center via `skateboard_caption_t = 0`. The coin counter
+#     and pause button are NOT touched by that path — their default
+#     `_na_plate` slate plates render at full alpha=255 along with the
+#     glyph/text/bars, identical to live production.
+#   - NO `_na_plate` monkey-patch (R10's base-building trick is bypassed).
+#   - NO chrome re-stamp (R7/R9 path is bypassed).
+#   - NO cutout pockets, no frameless treatment, no plate-suppression.
+#   - The R10 deck (340 x 92, -7° tilt, "SKATE" | live halftone | "BOARD!"
+#     at 28 pt, 74 px reserve, 4 corner truck-bolts, PLATE_RED, INK rim,
+#     unified 2 px / 35% alpha drop shadow) composites OPAQUE on top.
+#     Where the deck silhouette covers the chrome, deck wins; where it
+#     doesn't, the standard production chrome shows through unchanged.
+
+
+def variant_r11_a1_default_chrome(base, score):
+    """R11-A1 — Default production chrome (slate plates full opacity) under
+    the R10 deck. The base frame here is the R5/R6/R7 base — coin counter
+    + pause button render in their STANDARD production form (default
+    `_na_plate` slate cut-corner plates at full alpha=255, normal HUD
+    positions, no transparency, no plate removal, no shadow strengthening,
+    no outline additions). The deck simply composites opaque on top:
+    where the deck silhouette covers a chrome tile the deck hides it;
+    where it doesn't, the chrome appears identical to live production.
+
+    Deck geometry held from R10: 340 wide x 92 tall, deck-centre (180,70),
+    PLATE_RED fill, INK rim, 4 corner truck-bolts (insets 34/20), SKATE +
+    BOARD! wordmark at 28 pt with 74 px central reserve, R7 darkened lower
+    gradient stop, outline_w=3, unified 2 px / 35% alpha drop shadow via
+    `_composite_shadow`. Live halftone burst stamped LAST at the deck
+    centre."""
+    s = base.copy()
+    deck_w, deck_h = 340, 92
+    # Same R10 deck-building chain: R6 plain-deck silhouette (PLATE_RED
+    # fill, wash stripes, 4 corner bolts at insets 34/20 via
+    # `_draw_r5_d1_bolts`), R8 wordmark helper (SKATE | BOARD! at 28 pt
+    # with R7's darkened bot_col baked into `_r8_blit_wordmarks`), INK
+    # rim, -7° rotation, unified shadow.
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=44,
+        bolt_inset_x=34, bolt_inset_y=20)
+    skate_w, board_w = _r8_blit_wordmarks(
+        deck, deck_w, deck_h, gap_px=74 // 2,
+        font_size=28, outline_w=3)
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
+    avail = (deck_w - 74) // 2
+    fit = "FITS" if board_w <= avail else "CLIPS"
+    print(f"    R11-A1: deck={deck_w}  BOARD! width={board_w}px  "
+          f"available half={avail}px  margin={avail - board_w}px  [{fit}]")
+    rotated = pygame.transform.rotate(deck, -7)
+    deck_center = (W // 2, 70)
+    rect = rotated.get_rect(center=deck_center)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
+    return s
+
+
+# Two identical cells so `_compose_sheet` has the >=2 it needs to lay out
+# a proper grid; both confirm the same shipped frame (single corrective
+# ship, no exploration).
+VARIANTS_R11 = [
+    ("R11-A1 — Default production chrome (slate plates full opacity)",
+     variant_r11_a1_default_chrome),
+    ("R11-A1 — Default production chrome (slate plates full opacity)",
+     variant_r11_a1_default_chrome),
+]
+
+
 def _compose_sheet(cells, title_text, cols=3, rows=2):
     """Grid sheet (default 2x3 — 5 cells + 1 spare). Each cell shows
     the rendered frame with a label strip below. Cell =
@@ -3072,6 +3160,28 @@ def main():
         cols=2, rows=1)
     pygame.image.save(sheet_r10, OUT_PATH_R10)
     print(f"wrote {OUT_PATH_R10}  ({os.path.getsize(OUT_PATH_R10)} bytes)")
+
+    # Round 11 — corrective ship. Restore the STANDARD PRODUCTION coin
+    # counter + pause button (default `_na_plate` slate cut-corner plates
+    # at full opacity, normal HUD positions, NO transparency, NO plate
+    # removal, NO frameless treatment) UNDER the R10 deck. Reuses the
+    # R5/R6/R7 base (`base_r5`) — that base was built with
+    # `bake_hud_score=False`, which only suppresses the regular
+    # non-skateboard SCORE plate at top-center. The coin counter + pause
+    # button are NOT touched by that path, so they render at full alpha
+    # with their default slate plates — identical to a live production
+    # screenshot. R10's `_na_plate` monkey-patch is NOT applied here.
+    cells_r11 = []
+    for label, renderer in VARIANTS_R11:
+        cells_r11.append((label, renderer(base_r5, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r11 = _compose_sheet(cells_r11,
+        "Skybit — SKATEBOARD R11 (default production chrome restored: "
+        "coin counter + pause button slate plates at full opacity, "
+        "untouched, deck composites opaque on top)",
+        cols=2, rows=1)
+    pygame.image.save(sheet_r11, OUT_PATH_R11)
+    print(f"wrote {OUT_PATH_R11}  ({os.path.getsize(OUT_PATH_R11)} bytes)")
 
 
 def _verify_d4_3digit(base):
