@@ -1,11 +1,14 @@
-"""Comparison sheet of 5 SKATEBOARD! banner placements, each rendered on
+"""Comparison sheet of SKATEBOARD! banner placements, each rendered on
 the same live gameplay frame with the new (y=70) halftone score already
-in place. Output:
-    docs/skateboard_banner_options/round_1.png
+in place. Outputs three round sheets:
+    docs/skateboard_banner_options/round_1.png   banner DODGES the score
+    docs/skateboard_banner_options/round_2.png   banner ON TOP, score OVERLAID
+    docs/skateboard_banner_options/round_3.png   banner+score UNIFIED hero
 
 Run from the repo root:
     python tools/render_skateboard_banner_options.py
 """
+import math
 import os
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -22,12 +25,19 @@ pygame.display.set_mode((360, 640))
 from game.config import W, H, SKATEBOARD_DURATION
 from game.scenes import App, STATE_PLAY
 from game.world import World
-from game.skateboard_fx import _gradient_text, INK, PLATE_RED
+from game.skateboard_fx import (
+    _gradient_text,
+    _halftone_filled_burst,
+    _halftone_score_badge,
+    INK,
+    PLATE_RED,
+)
 
 
 OUT_DIR = os.path.join(_ROOT, "docs", "skateboard_banner_options")
 OUT_PATH = os.path.join(OUT_DIR, "round_1.png")
 OUT_PATH_R2 = os.path.join(OUT_DIR, "round_2.png")
+OUT_PATH_R3 = os.path.join(OUT_DIR, "round_3.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0):
