@@ -28,10 +28,12 @@ import matplotlib.pyplot as plt
 from game import biome, weather, config
 
 CYCLE = biome.CYCLE_SECONDS
-MAX_PILLARS = 600          # cover the genie milestone (420) + headroom
-N = 1800                   # sample resolution across the run
+# Show exactly ONE biome cycle. The pillar count for one cycle is computed
+# dynamically in main() once the time→pillar table is built (it depends on
+# the onboarding ramp eating into the first cycle's first ~25 pillars).
+N = 1800                   # sample resolution across the cycle
 
-GENIE_PILLAR = config.LATE_GAME_SCORE   # 420 today
+GENIE_PILLAR = config.LATE_GAME_SCORE   # 420 today; in cycle 3 in reality
 
 
 def _hex(rgb):
@@ -95,8 +97,10 @@ def main() -> None:
     out_dir = os.path.join(ROOT, "docs", "screenshots")
     os.makedirs(out_dir, exist_ok=True)
 
-    time_for_pillar = build_time_for_pillar(MAX_PILLARS + 10)
-    t_max = time_for_pillar[MAX_PILLARS]
+    # Build with comfortable headroom — only one cycle is plotted but we
+    # still need enough table entries to compute the genie's in-cycle
+    # equivalent (the milestone at pillar 420 sits in cycle 3).
+    time_for_pillar = build_time_for_pillar(800)
 
     # Inverse: time → pillar (linear interp between consecutive entries).
     def pillar_for_time(t: float) -> float:
@@ -110,7 +114,21 @@ def main() -> None:
             return float(i - 1)
         return (i - 1) + (t - t0) / (t1 - t0)
 
-    # Sample timeline.
+    # One biome cycle's worth of pillars. The first cycle is shorter than
+    # subsequent ones because the onboarding ramp eats time without scoring
+    # at full pace — that's by design and we show it as-is.
+    max_pillars = int(round(pillar_for_time(CYCLE))) + 1
+    t_max = CYCLE
+
+    # Genie's in-cycle equivalent — pillar 420 lives in cycle 3, but its
+    # weather phase is `t_at_420 mod CYCLE`, which lands at a specific
+    # pillar inside cycle 1.
+    t_at_genie = time_for_pillar[GENIE_PILLAR]
+    genie_phase_t = t_at_genie % CYCLE
+    genie_equiv_pillar = pillar_for_time(genie_phase_t)
+    genie_cycle = int(t_at_genie // CYCLE) + 1
+
+    # Sample timeline (one cycle only).
     ts = [i * t_max / (N - 1) for i in range(N)]
     pillars = [pillar_for_time(t) for t in ts]
     phases = [biome.phase_for_time(t) for t in ts]
@@ -128,25 +146,20 @@ def main() -> None:
     ax_sky.set_yticks([])
     ax_sky.set_ylabel("sky", rotation=0, ha="right", va="center", fontsize=9)
 
-    # Biome keyframe labels, drawn once per cycle present in the range.
-    n_cycles = int(t_max / CYCLE) + 1
-    for c in range(n_cycles):
-        cycle_start_t = c * CYCLE
-        if cycle_start_t > t_max:
-            break
-        for phase, label in PHASE_LABELS:
-            t = cycle_start_t + phase * CYCLE
-            if t > t_max:
-                continue
-            p = pillar_for_time(t)
-            ax_sky.axvline(p, color="white", alpha=0.45, linewidth=0.9)
-            ax_sky.text(p + 1.5, 0.5, label, color="white", fontsize=7,
-                        va="center", ha="left", fontweight="bold")
+    # Biome keyframe labels (one cycle only).
+    for phase, label in PHASE_LABELS:
+        t = phase * CYCLE
+        if t > t_max:
+            continue
+        p = pillar_for_time(t)
+        ax_sky.axvline(p, color="white", alpha=0.55, linewidth=1.0)
+        ax_sky.text(p + 1.5, 0.5, label, color="white", fontsize=7.5,
+                    va="center", ha="left", fontweight="bold")
 
     ax_sky.set_title(
         f"Skybit — biome + weather events vs pillars passed  "
         f"(1 biome cycle = {CYCLE:.0f} s ≈ "
-        f"{pillar_for_time(CYCLE):.0f} pillars after the newbie ramp)",
+        f"{max_pillars} pillars including the newbie ramp)",
         fontsize=12, pad=8)
 
     # ── lower panel: weather intensity curves vs pillars ─────────────────
@@ -178,13 +191,17 @@ def main() -> None:
         ax.plot(pillars, ys, color=color, linewidth=2.0, label=label)
         ax.fill_between(pillars, ys, color=color, alpha=0.10)
 
-    # ── Genie milestone marker (the headline annotation) ─────────────────
-    ax.axvline(GENIE_PILLAR, color="#d12f2f", linewidth=2.3, alpha=0.85,
+    # ── Genie milestone marker (in-cycle equivalent) ─────────────────────
+    # Pillar 420 sits in cycle 3, but its weather phase repeats every cycle
+    # — show it on cycle 1's pillar axis so its weather context is visible.
+    ax.axvline(genie_equiv_pillar, color="#d12f2f", linewidth=2.3, alpha=0.85,
                linestyle="-", zorder=4)
-    ax.annotate(f"GENIE @ {GENIE_PILLAR}",
-                (GENIE_PILLAR, 1.02), textcoords="offset points",
-                xytext=(0, 2), ha="center", fontsize=10,
-                fontweight="bold", color="#d12f2f")
+    ax.annotate(
+        f"GENIE @ p{GENIE_PILLAR} (cycle {genie_cycle})\n"
+        f"phase ≡ p{int(round(genie_equiv_pillar))} in cycle 1",
+        (genie_equiv_pillar, 1.02), textcoords="offset points",
+        xytext=(0, 2), ha="center", fontsize=9.5,
+        fontweight="bold", color="#d12f2f")
 
     # ── Newbie ramp band ─────────────────────────────────────────────────
     ax.axvspan(0, config.PLATEAU_PIPES, color="#3ca34d", alpha=0.22,
@@ -197,43 +214,26 @@ def main() -> None:
                 ha="left", va="top", fontsize=7.5, color="#1f6e2b",
                 fontweight="bold")
 
-    # ── Biome cycle boundaries (one cycle of weather = one cycle of biome) ─
-    for c in range(1, n_cycles):
-        t_boundary = c * CYCLE
-        if t_boundary > t_max:
-            break
-        x_boundary = pillar_for_time(t_boundary)
-        ax.axvline(x_boundary, color="#999", linestyle=":", linewidth=1,
-                   zorder=0)
-        ax.annotate(f"cycle {c + 1}\n@ p{int(x_boundary)}",
-                    (x_boundary, 0.05),
-                    textcoords="offset points", xytext=(3, 0),
-                    ha="left", fontsize=7, color="#666")
+    # ── Storm peak marker (single cycle, phase 0.50) ─────────────────────
+    p_storm = pillar_for_time(0.50 * CYCLE)
+    y_storm = weather.rain_intensity(0.50)
+    ax.plot([p_storm], [y_storm], marker="v", color="#2f6fb0", markersize=9,
+            markeredgecolor="white", markeredgewidth=0.8, zorder=5)
+    ax.annotate(f"storm peak\n@ p{int(p_storm)}", (p_storm, y_storm),
+                textcoords="offset points", xytext=(0, 9),
+                ha="center", fontsize=7.5, color="#2f6fb0",
+                fontweight="bold")
 
-    # ── Per-cycle annotation: where does each event peak in pillars? ─────
-    # For each cycle, mark the storm peak (phase 0.50) — that's the event
-    # that overlaps the genie milestone today.
-    for c in range(n_cycles):
-        t_storm_peak = c * CYCLE + 0.50 * CYCLE
-        if t_storm_peak > t_max:
-            continue
-        p_storm = pillar_for_time(t_storm_peak)
-        y = weather.rain_intensity(0.50)
-        ax.plot([p_storm], [y], marker="v", color="#2f6fb0", markersize=8,
-                markeredgecolor="white", markeredgewidth=0.8, zorder=5)
-        ax.annotate(f"storm peak\n@ p{int(p_storm)}", (p_storm, y),
-                    textcoords="offset points", xytext=(0, 9),
-                    ha="center", fontsize=7.5, color="#2f6fb0",
-                    fontweight="bold")
-
-    ax.set_xlim(0, MAX_PILLARS)
+    ax.set_xlim(0, max_pillars)
     ax.set_ylim(0, 1.08)
-    ax.set_xlabel("pillars passed (= player's score)")
+    ax.set_xlabel("pillars passed within one biome cycle "
+                  "(= player's in-cycle score)")
     ax.set_ylabel("event intensity (0–1)")
     ax.grid(True, axis="y", alpha=0.25)
-    xticks = list(range(0, MAX_PILLARS + 1, 50))
-    if GENIE_PILLAR not in xticks:
-        xticks.append(GENIE_PILLAR)
+    xticks = list(range(0, max_pillars + 1, 20))
+    eq = int(round(genie_equiv_pillar))
+    if eq not in xticks:
+        xticks.append(eq)
         xticks.sort()
     ax.set_xticks(xticks)
 
@@ -252,10 +252,9 @@ def main() -> None:
     t_at_25 = time_for_pillar[25]
     p_25 = pillar_for_time(t_at_25)
     print(f"sanity: pillar_for_time(t at 25) = {p_25:.3f} (expected ≈ 25)")
-    print(f"pillars per cycle (post-ramp): "
-          f"{pillar_for_time(CYCLE) - pillar_for_time(0):.1f}")
-    print(f"Total time for {MAX_PILLARS} pillars: {t_max:.1f} s "
-          f"({t_max / CYCLE:.2f} biome cycles)")
+    print(f"1 biome cycle = {max_pillars} pillars (incl. newbie ramp)")
+    print(f"genie @ p{GENIE_PILLAR} is in cycle {genie_cycle}, "
+          f"phase equiv. to pillar {int(round(genie_equiv_pillar))} in cycle 1")
 
 
 if __name__ == "__main__":
