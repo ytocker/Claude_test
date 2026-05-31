@@ -940,14 +940,24 @@ class World:
         self._spawn_milestone_genie(last_scored_pipe)
 
     def _spawn_milestone_genie(self, last_scored_pipe):
-        """Drop a genie lamp in the spacing after `last_scored_pipe` and
-        set the standard cooldown so the next regular spawn doesn't stack
-        immediately. Used by both the production milestone (pillar 65) and
-        the debug one-shot (pillar 5)."""
-        gx = (last_scored_pipe.x + PIPE_W
-              + self._current_spacing() * 0.5)
-        gy = last_scored_pipe.gap_y
+        """Drop a genie lamp at an offscreen-right position so it scrolls
+        into view like a normally-spawned powerup — no mid-screen pop-in.
+
+        Anchors to the rightmost pipe (the same anchor a freshly-spawned
+        pipe's powerup would use), but clamps to at least `W + spacing/2`
+        so even when the pipe list is sparse (degenerate state) the lamp
+        still starts off-screen.
+
+        Used by both the production milestone (pillar 65) and the debug
+        one-shot (pillar 5)."""
+        spacing = self._current_spacing()
+        anchor_pipe = self.pipes[-1] if self.pipes else last_scored_pipe
+        gx = max(anchor_pipe.x + PIPE_W + spacing * 0.5,
+                 W + spacing * 0.5)
+        gy = anchor_pipe.gap_y
         self.powerups.append(PowerUp(gx, gy, kind="genie"))
+        # Set the standard cooldown so the next regular spawn doesn't
+        # immediately stack a second powerup right behind the lamp.
         self.powerup_cooldown = POWERUP_COOLDOWN
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
