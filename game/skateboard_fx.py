@@ -113,28 +113,32 @@ def _r11_build_deck():
     pygame.draw.rect(deck, INK, deck_rect, 4,
                      border_radius=_R11_DECK_BORDER_R)
     axis_y = deck_h // 2
-    # Push SKATE / BOARD! to within _R11_BORDER_PAD pixels of the deck
-    # silhouette edge so the bigger pop-art burst at the deck centre
-    # crowds them as little as possible. _gradient_text pads its surface
-    # by _R11_OUTLINE_W + 2 pixels on each side; we offset the midleft /
-    # midright anchors by that pad so the visible GLYPH (not the
-    # surface) lands at the desired edge distance.
+    # Push SKATE / BOARD to within _R11_BORDER_PAD pixels of the deck
+    # silhouette edge, then nudge each rightward by its own SHIFT so
+    # SKATE comes in toward the burst (matches the user-picked V3) and
+    # BOARD sits a touch left of the deck right edge. _gradient_text
+    # pads its surface by _R11_OUTLINE_W + 2 pixels on each side; we
+    # offset the midleft / midright anchors by that pad so the visible
+    # GLYPH (not the surface) lands at the desired edge distance.
     _R11_BORDER_PAD = 4
     _R11_TEXT_PAD = _R11_OUTLINE_W + 2
+    _R11_SKATE_SHIFT = 9
+    _R11_BOARD_SHIFT = 5
     skate = _gradient_text("SKATE", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
     skate_rect = skate.get_rect()
-    skate_rect.midleft = (_R11_BORDER_PAD - _R11_TEXT_PAD, axis_y)
+    skate_rect.midleft = (_R11_BORDER_PAD - _R11_TEXT_PAD
+                          + _R11_SKATE_SHIFT, axis_y)
     deck.blit(skate, skate_rect)
-    board = _gradient_text("BOARD!", _R11_FONT_SIZE,
+    board = _gradient_text("BOARD", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
     board_rect = board.get_rect()
-    board_rect.midright = (deck_w - _R11_BORDER_PAD + _R11_TEXT_PAD,
-                           axis_y)
+    board_rect.midright = (deck_w - _R11_BORDER_PAD + _R11_TEXT_PAD
+                           + _R11_BOARD_SHIFT, axis_y)
     deck.blit(board, board_rect)
     return deck
 
@@ -143,7 +147,7 @@ def render_caption_overlay(cx: int, cy: int,
                            rng_seed: int = 22) -> pygame.Surface:
     """SKATEBOARD deck banner that wraps the live halftone score in its
     centre. 340×92 PLATE_RED slab tilted −7° with SKATE | (score slot) |
-    BOARD! and four truck-bolts. Returns a (W × H) surface; caller blits
+    BOARD and four truck-bolts. Returns a (W × H) surface; caller blits
     at (0, −lift_y) so the deck centre lands on screen-y 70 (same y as
     the regular HUD score plate), then renders the live halftone score
     on top so it reads centred inside the deck.
