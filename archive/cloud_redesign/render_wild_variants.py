@@ -101,7 +101,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "WILD CLOUDS — ROUND 1 · 8 divergent variants × 5 phases",
+        "WILD CLOUDS — ROUND 3 · 8 divergent variants × 5 phases",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 6))
 
@@ -166,7 +166,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "wild_round_1.png"
+    out = OUT / "wild_round_3.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
