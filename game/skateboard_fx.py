@@ -690,11 +690,12 @@ def render_skateboard_score_e3(score: int) -> pygame.Surface:
     the regular NA score plate (y=70). The HUD blits this overlay with
     `(0, -_skateboard_lift_y)` shift (lift_y=26), so the badge is drawn
     at y=96 inside the (W×H) overlay → lands on screen at y=70, exactly
-    matching the regular plate. Burst sized to roughly match the NA
-    plate's ~102×56 silhouette so the swap doesn't grow vertically."""
+    matching the regular plate. Digit font matches the regular HUD
+    score's _font(48, True); ro/ri grow proportionally so the burst
+    silhouette holds the bigger glyph cleanly."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
     _halftone_score_badge(surf, W // 2, 96, str(score),
-                           ro=44, ri=28, font_size=34)
+                           ro=62, ri=40, font_size=48)
     return surf
 
 
