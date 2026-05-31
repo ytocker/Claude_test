@@ -644,12 +644,15 @@ def render_skateboard_score_e2(score: int) -> pygame.Surface:
 
 
 def render_skateboard_score_e3(score: int) -> pygame.Surface:
-    """E3 — Medium halftone burst centred BELOW the SKATEBOARD!
-    caption strip (~y=150), so the caption stays at the very top and
-    the score sits cleanly underneath."""
+    """E3 — Halftone burst centered at the same on-screen position as
+    the regular NA score plate (y=70). The HUD blits this overlay with
+    `(0, -_skateboard_lift_y)` shift (lift_y=26), so the badge is drawn
+    at y=96 inside the (W×H) overlay → lands on screen at y=70, exactly
+    matching the regular plate. Burst sized to roughly match the NA
+    plate's ~102×56 silhouette so the swap doesn't grow vertically."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
-    _halftone_score_badge(surf, W // 2, 150, str(score),
-                           ro=58, ri=34, font_size=38)
+    _halftone_score_badge(surf, W // 2, 96, str(score),
+                           ro=44, ri=28, font_size=34)
     return surf
 
 
