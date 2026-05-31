@@ -330,43 +330,50 @@ def _drop_shadow_rect(surf, rect, radius, offset=(3, 4),
 
 def variant_r3_c1_banner_frame(base, score):
     """R3-C1 — Banner-as-frame. ONE red rounded plate contains BOTH
-    the SKATEBOARD! wordmark (along the top edge) AND the halftone
-    score burst (interior centre). Single outline, single shadow.
-    The frame IS the unifier; the score lives inside it, not on top."""
+    the SKATEBOARD! wordmark (kissing the top rule) AND a dominant
+    halftone score burst that pierces the bottom edge of the plate so
+    the rectangle breaks instead of reading flat. Single outline,
+    single shadow — score now reads 1.6× cap height of the wordmark."""
     s = base.copy()
-    # Outer plate sized so the wordmark crowns the top and the score
-    # burst (ro≈40) fits comfortably in the interior bowl.
-    plate = pygame.Rect(0, 0, W - 36, 96)
-    plate.center = (W // 2, 58)
+    # Plate narrowed ~20 px on each side relative to round 1 so the
+    # interior isn't a sea of empty red around the burst. Crown the
+    # wordmark right at the top rule; let the burst overhang below.
+    plate = pygame.Rect(0, 0, W - 76, 86)
+    plate.center = (W // 2, 56)
     _drop_shadow_rect(s, plate, radius=14, offset=(3, 5))
     pygame.draw.rect(s, PLATE_RED, plate, border_radius=14)
     pygame.draw.rect(s, INK, plate, 4, border_radius=14)
-    # Wordmark along the top crown.
-    txt = _yellow_text("SKATEBOARD!", 22, outline_w=3)
-    s.blit(txt, txt.get_rect(center=(W // 2, plate.top + 16)))
-    # Hairline interior divider (thin ink line under the wordmark) —
-    # frames the score chamber so it reads as ONE box with a heading,
-    # not as a banner with a foreign sticker on top.
+    # Wordmark crown — dropped ~15% in size (22→19) and pushed UP so
+    # its baseline kisses the plate's top rule (cap height ≈ 14 px).
+    wm = _yellow_text("SKATEBOARD!", 19, outline_w=3)
+    s.blit(wm, wm.get_rect(center=(W // 2, plate.top + 14)))
+    # Hairline interior divider just below the wordmark — keeps the
+    # plate reading as ONE box with a heading, not a foreign sticker.
     pygame.draw.line(s, INK,
-                     (plate.left + 18, plate.top + 30),
-                     (plate.right - 18, plate.top + 30), 2)
-    # Halftone score burst inside the lower chamber. The burst still
-    # carries the score-vocabulary palette but it sits WITHIN the
-    # frame — the frame is the parent.
-    _hb(s, W // 2, plate.top + 64, str(score),
-        ro=34, ri=22, font_size=30)
+                     (plate.left + 16, plate.top + 26),
+                     (plate.right - 16, plate.top + 26), 2)
+    # Dominant score burst — digit cap height now ~22 px (vs 14 px
+    # wordmark) so the 1.4×+ dominance directive lands. Burst sits
+    # such that its bottom spikes overlap the plate's bottom edge by
+    # ~6 px, breaking the rectangle silhouette intentionally.
+    burst_cy = plate.bottom - 28
+    _hb(s, W // 2, burst_cy, str(score),
+        ro=40, ri=26, font_size=44)
     return s
 
 
 def variant_r3_c2_tape_ribbon(base, score):
-    """R3-C2 — Tape-ribbon scroll + score stamp. A diagonal red tape
-    runs across the top with SKATEBOARD! lettering; the halftone
-    score is the wax-seal stamp pressed onto its centre. They share
-    one ink halo — the stamp BREAKS the ribbon's outline so it reads
-    as physically attached to it."""
+    """R3-C2 — Tape-ribbon scroll + score stamp. Word is shifted LEFT
+    on the ribbon so the stamp can sit over the trailing "!" instead
+    of obscuring mid-word letters; reader now scans full SKATEBOARD!
+    cleanly with the stamp acting as the punctuation accent. Tilt
+    softened from -6° to -3° so the right tip no longer clips into
+    the buff-icon row + pause button at the corners. Halftone dot
+    density inside the burst is reduced ~40%, and a 1 px ink ring
+    rings the score digit so it punches against the yellow."""
     s = base.copy()
     # Build the ribbon on a sub-surface so we can rotate cleanly.
-    ribbon_w, ribbon_h = W + 80, 52
+    ribbon_w, ribbon_h = W + 60, 52
     rib = pygame.Surface((ribbon_w, ribbon_h), pygame.SRCALPHA)
     # Rough deckled top + bottom edges — small notches so it reads
     # as torn tape, not a sterile rectangle.
@@ -380,11 +387,12 @@ def variant_r3_c2_tape_ribbon(base, score):
                (tip_x + dir_ * 18, body.bottom)]
         pygame.draw.polygon(rib, PLATE_RED, tri)
         pygame.draw.polygon(rib, INK, tri, 3)
-    # Wordmark stamped along the ribbon.
-    rib_txt = _yellow_text("SKATEBOARD!", 30, outline_w=3)
+    # Wordmark biased LEFT on the ribbon so the stamp lands over the
+    # trailing "!" instead of the middle of the word.
+    rib_txt = _yellow_text("SKATEBOARD!", 28, outline_w=3)
     rib.blit(rib_txt, rib_txt.get_rect(
-        center=(ribbon_w // 2, ribbon_h // 2)))
-    rotated = pygame.transform.rotate(rib, -6)
+        center=(ribbon_w // 2 - 42, ribbon_h // 2)))
+    rotated = pygame.transform.rotate(rib, -3)
     rect = rotated.get_rect(center=(W // 2, 58))
     # Cast a unified shadow under the ribbon AND the score by blitting
     # the alpha-only ribbon shadow first.
@@ -392,92 +400,155 @@ def variant_r3_c2_tape_ribbon(base, score):
     shadow.fill((0, 0, 0, 130), special_flags=pygame.BLEND_RGBA_MULT)
     s.blit(shadow, (rect.left + 3, rect.top + 5))
     s.blit(rotated, rect)
-    # Wax-seal score stamp — circular burst pressed onto the ribbon
-    # centre. Slight upward shift so the stamp clearly OVERLAPS the
-    # ribbon outline (the bond between the two).
-    _hb(s, W // 2, 70, str(score),
-        ro=40, ri=26, font_size=34)
+    # Stamp position — pushed ~18 px right of centre so it sits over
+    # the "!" rather than swallowing SKATEBOARD's middle letters.
+    stamp_cx, stamp_cy = W // 2 + 56, 70
+    # Halftone burst with thinner dot density (8→14 step) so the
+    # yellow base doesn't read as a competing dot-field at gameplay
+    # scale. Drawn inline so we can keep all other tuning constant
+    # while just thinning the field.
+    rng = random.Random(stamp_cx * 31 + stamp_cy * 17 + 10)
+    spikes = 10
+    ro, ri = 44, 28
+    pts = []
+    for i in range(spikes * 2):
+        ang = i * math.pi / spikes - math.pi / 2
+        r = ro if i % 2 == 0 else ri
+        r += rng.randint(-4, 4)
+        pts.append((stamp_cx + math.cos(ang) * r,
+                    stamp_cy + math.sin(ang) * r))
+    pygame.draw.polygon(s, (255, 220, 30), pts)
+    bbox_l = int(min(p[0] for p in pts)) - 2
+    bbox_t = int(min(p[1] for p in pts)) - 2
+    bbox_r = int(max(p[0] for p in pts)) + 2
+    bbox_b = int(max(p[1] for p in pts)) + 2
+    dots = pygame.Surface((W, H), pygame.SRCALPHA)
+    step = 14  # ~40% fewer dots vs step=8 in the default helper
+    for gy in range(bbox_t, bbox_b, step):
+        offset = (step // 2) if ((gy // step) % 2 == 1) else 0
+        for gx in range(bbox_l + offset, bbox_r, step):
+            pygame.draw.circle(dots, (230, 60, 50), (gx, gy), 2)
+    mask = pygame.Surface((W, H), pygame.SRCALPHA)
+    pygame.draw.polygon(mask, (255, 255, 255, 255), pts)
+    dots.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    s.blit(dots, (0, 0))
+    pygame.draw.polygon(s, INK, pts, 4)
+    # Score digit with an extra 1 px ink ring around it (drawn as a
+    # widened outline pass) so it punches against the halftone yellow.
+    num = _gradient_text(str(score), 38,
+                         top_col=(255, 250, 240),
+                         bot_col=(230, 60, 50),
+                         outline=INK, outline_w=4)
+    s.blit(num, num.get_rect(center=(stamp_cx, stamp_cy)))
     return s
 
 
 def variant_r3_c3_skate_deck(base, score):
-    """R3-C3 — Skate-deck silhouette. A board-shaped plate (long
-    rounded ends) striped in red+yellow racing pattern holds the
-    SKATEBOARD! lettering along its top edge and the halftone score
-    in its centre — looks like a sticker on the underside of a deck."""
+    """R3-C3 — Skate-deck silhouette. Deck width trimmed to ~260 px
+    so it doesn't crowd the pause button at the 360-px edge. The
+    racing stripes are calmed to a soft 15%-opacity wash inside the
+    deck (the silhouette + truck-bolt dots carry the deck-read; the
+    stripes can't compete with the score). Burst extends below the
+    deck's bottom edge — score becomes the focal punch, not a
+    passenger riding the board."""
     s = base.copy()
-    deck_w, deck_h = W - 32, 100
+    deck_w, deck_h = 260, 88
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     # Deck silhouette — extra-rounded long ends to evoke a board.
     deck_rect = deck.get_rect()
     pygame.draw.rect(deck, PLATE_RED, deck_rect, border_radius=42)
-    # Diagonal racing stripes — masked to the deck silhouette via a
-    # second pass that punches stripes through the fill.
+    # Diagonal racing stripes — masked to the deck silhouette and
+    # painted at 15% opacity so they read as a wash, not competition.
     stripes = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
-    stripe_step = 18
+    stripe_step = 20
     for i in range(-deck_h, deck_w + deck_h, stripe_step):
         if (i // stripe_step) % 2 == 0:
             pts = [(i, 0), (i + stripe_step // 2, 0),
                    (i + stripe_step // 2 + deck_h, deck_h),
                    (i + deck_h, deck_h)]
-            pygame.draw.polygon(stripes, (255, 200, 30, 230), pts)
+            pygame.draw.polygon(stripes, (255, 220, 80, 38), pts)
     # Mask stripes to the deck rounded silhouette.
     mask = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
     pygame.draw.rect(mask, (255, 255, 255, 255), deck_rect,
                      border_radius=42)
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
-    # Outline (drawn LAST so it sits on top of stripes).
+    # Truck-bolt dots — 4 ink discs at the corners sell the "deck"
+    # read without needing loud stripes to do it.
+    for bolt_x in (24, deck_w - 24):
+        for bolt_y in (18, deck_h - 18):
+            pygame.draw.circle(deck, INK, (bolt_x, bolt_y), 4)
+            pygame.draw.circle(deck, (60, 60, 60), (bolt_x, bolt_y), 2)
+    # Outline (drawn LAST so it sits on top of stripes + bolts).
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=42)
     # Composite onto the main surface with a shadow.
-    deck_rect_on = deck.get_rect(center=(W // 2, 58))
+    deck_rect_on = deck.get_rect(center=(W // 2, 48))
     sh = deck.copy()
     sh.fill((0, 0, 0, 120), special_flags=pygame.BLEND_RGBA_MULT)
     s.blit(sh, (deck_rect_on.left + 3, deck_rect_on.top + 5))
     s.blit(deck, deck_rect_on)
-    # Wordmark crown.
-    txt = _yellow_text("SKATEBOARD!", 22, outline_w=3)
-    s.blit(txt, txt.get_rect(center=(W // 2, deck_rect_on.top + 16)))
-    # Score burst in the centre of the deck.
-    _hb(s, W // 2, deck_rect_on.top + 62, str(score),
-        ro=36, ri=22, font_size=32)
+    # Wordmark crown — kept small (cap height ~14 px) so the score
+    # can dominate by 1.4× cap height as directed.
+    wm = _yellow_text("SKATEBOARD!", 19, outline_w=3)
+    s.blit(wm, wm.get_rect(center=(W // 2, deck_rect_on.top + 14)))
+    # Score burst — bottom of burst hangs below the deck's lower
+    # edge so the score becomes the focal punch.
+    burst_cy = deck_rect_on.bottom - 4
+    _hb(s, W // 2, burst_cy, str(score),
+        ro=38, ri=24, font_size=44)
     return s
 
 
 def variant_r3_c4_sign_post(base, score):
-    """R3-C4 — Stacked sign-post. Two tiers inside ONE continuous
-    outlined silhouette: top tier is a small SKATEBOARD! marquee,
-    bottom tier is the halftone score in its bowl. The two tiers
-    share an outer outline and a connecting waist — reads as a
-    classic scoreboard with a header + a value."""
+    """R3-C4 — Stacked sign-post UNIFIED via a pierce-rivet. The waist
+    bar is gone; instead the halftone burst sits half inside the
+    SKATEBOARD! marquee and half inside the score bowl, physically
+    rivetting the two panels into ONE shape. Reader sees a single
+    composite — the burst is the joint, not a sticker pasted on top."""
     s = base.copy()
-    # Outer silhouette — narrow header on top, wider score chamber
-    # below, joined by a short waist. We approximate with two stacked
-    # rounded rects whose outlines we draw together so the bond looks
-    # intentional.
-    header = pygame.Rect(0, 0, 220, 32)
-    body = pygame.Rect(0, 0, 180, 60)
-    header.center = (W // 2, 26)
-    body.center = (W // 2, header.bottom + 4 + body.height // 2)
-    # Unified shadow first.
-    _drop_shadow_rect(s, header, radius=8, offset=(3, 4))
+    # Header (marquee) + body (score bowl) sit stacked with NO gap
+    # between them. The burst's vertical centre lands exactly on the
+    # boundary so its top half lives in the marquee, bottom half in
+    # the bowl — the rivet effect.
+    header = pygame.Rect(0, 0, 220, 36)
+    body = pygame.Rect(0, 0, 220, 56)
+    header.center = (W // 2, 30)
+    body.midtop = (W // 2, header.bottom)
+    # Unified shadow under both panels.
+    _drop_shadow_rect(s, header, radius=10, offset=(3, 4))
     _drop_shadow_rect(s, body, radius=14, offset=(3, 4))
-    # Header marquee — red plate with the wordmark.
-    pygame.draw.rect(s, PLATE_RED, header, border_radius=8)
-    pygame.draw.rect(s, INK, header, 3, border_radius=8)
-    txt = _yellow_text("SKATEBOARD!", 20, outline_w=3)
-    s.blit(txt, txt.get_rect(center=header.center))
-    # Connecting waist — short vertical bar bonds header to body.
-    waist = pygame.Rect(0, 0, 60, 8)
-    waist.midtop = (W // 2, header.bottom - 1)
-    pygame.draw.rect(s, PLATE_RED, waist)
-    pygame.draw.rect(s, INK, waist, 3)
-    # Score body — red plate (matches the marquee) holding the
-    # halftone score burst as the value readout.
+    # Header marquee — red plate with the SKATEBOARD! wordmark; word
+    # nudged UP within the plate so the burst's top half doesn't
+    # collide with the lettering once it pierces in.
+    pygame.draw.rect(s, PLATE_RED, header, border_radius=10)
+    pygame.draw.rect(s, INK, header, 3, border_radius=10)
+    wm = _yellow_text("SKATEBOARD!", 20, outline_w=3)
+    s.blit(wm, wm.get_rect(center=(header.centerx, header.top + 14)))
+    # Score bowl — same red, same outline so the two panels feel cut
+    # from one piece of sheet metal.
     pygame.draw.rect(s, PLATE_RED, body, border_radius=14)
     pygame.draw.rect(s, INK, body, 3, border_radius=14)
-    _hb(s, body.centerx, body.centery, str(score),
-        ro=24, ri=16, font_size=30)
+    # Re-stroke the shared horizontal seam so it reads as a single
+    # outlined silhouette instead of two abutted rectangles. We do
+    # this by painting a short red strip across the seam (kills the
+    # two adjacent ink lines), then re-drawing just the seam outline
+    # at the very ends so the silhouette is closed.
+    seam_y = header.bottom
+    seam_strip = pygame.Rect(header.left + 6, seam_y - 3,
+                             header.width - 12, 6)
+    pygame.draw.rect(s, PLATE_RED, seam_strip)
+    # Re-draw the side outlines locally to keep the silhouette crisp.
+    pygame.draw.line(s, INK,
+                     (header.left, seam_y - 3),
+                     (header.left, seam_y + 3), 3)
+    pygame.draw.line(s, INK,
+                     (header.right - 1, seam_y - 3),
+                     (header.right - 1, seam_y + 3), 3)
+    # The pierce-rivet — burst centred ON the seam so its top half
+    # eats into the marquee and its bottom half sits in the bowl.
+    burst_cx, burst_cy = W // 2, seam_y
+    _hb(s, burst_cx, burst_cy, str(score),
+        ro=36, ri=22, font_size=38)
     return s
 
 
