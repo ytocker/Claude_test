@@ -1162,11 +1162,9 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
-                # Milestone genie homes in on Pip's y so the once-per-run
-                # encounter can't be missed by a y-mismatch when it
-                # scrolls in (its placed y was the upcoming pipe's gap_y,
-                # but by the time it reaches bird.x, Pip is navigating
-                # through later pipes at different gap_y values).
+                # Milestone genie visually drifts toward Pip's altitude as
+                # it approaches (purely cosmetic — pickup is x-only in
+                # _check_pickups, so y never blocks the encounter).
                 if getattr(m, "milestone_homing", False):
                     m.y += (self.bird.y - m.y) * min(1.0, 4.0 * sdt)
             # Genie chamber wishes pop in when Pip gets close enough so
@@ -1695,6 +1693,15 @@ class World:
             if m.collected:
                 continue
             dx = m.x - bx
+            # Milestone genie: score-driven guarantee. Pickup ignores y so the
+            # lamp's altitude (Pip can be anywhere) never blocks the once-per-
+            # run encounter. Just checks the x-band — when the lamp scrolls
+            # past Pip's column, it's picked up.
+            if getattr(m, "milestone_homing", False):
+                if abs(dx) < (br + POWERUP_R):
+                    m.collected = True
+                    self._on_powerup(m)
+                continue
             dy = m.y - by
             if dx * dx + dy * dy < (br + POWERUP_R) ** 2:
                 m.collected = True
