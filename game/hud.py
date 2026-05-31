@@ -1669,13 +1669,12 @@ class HUD:
             row_pitch = icon_size + row_gap
             row_w     = icon_size + 8 + bar_w
             base_x    = (W - row_w) // 2
-            # SKATEBOARD swap: while the pop-art halftone score-burst
-            # is on screen, shift the buff-icon row down below it and
-            # re-lift by the world's optional _skateboard_lift_y offset.
-            if getattr(world.bird, "skateboard_active", False):
-                top_y = 220 - getattr(world, "_skateboard_lift_y", 0)
-            else:
-                top_y = 110
+            # Buff stack always anchors at the normal y; the SKATEBOARD
+            # deck banner above can graze the top edge of the first bar
+            # — bars paint after the deck so they sit on top of that
+            # overlap zone cleanly. Keeping one fixed y means the row
+            # never JUMPS when skateboard activates/expires.
+            top_y = 110
 
             for i, (kind, remain, total) in enumerate(active):
                 y = top_y + i * row_pitch
