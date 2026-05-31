@@ -325,7 +325,7 @@ _KARST_KF = [
     (0.06, dict(  # morning — pearly jade haze
         sky_top=(150, 186, 196), sky_mid=(196, 216, 218), sky_bot=(224, 234, 230),
         horizon=(232, 238, 230),
-        mtn_far=(150, 174, 174), mtn_mid=(120, 150, 150), mtn_near=(92, 124, 124),
+        mtn_far=(150, 174, 174), mtn_mid=(104, 138, 138), mtn_near=(76, 110, 110),
         struct_light=(210, 218, 214), struct_mid=(150, 162, 158),
         struct_dark=(92, 108, 106), struct_accent=(176, 156, 130),
         foliage_top=(96, 158, 110), foliage_mid=(58, 118, 82), foliage_dark=(34, 78, 58),
@@ -335,7 +335,7 @@ _KARST_KF = [
     (0.18, dict(  # midday — clearest, soft teal sky
         sky_top=(128, 178, 196), sky_mid=(184, 212, 218), sky_bot=(218, 232, 230),
         horizon=(228, 236, 228),
-        mtn_far=(146, 172, 172), mtn_mid=(116, 148, 148), mtn_near=(88, 122, 122),
+        mtn_far=(146, 172, 172), mtn_mid=(100, 134, 134), mtn_near=(72, 108, 108),
         struct_light=(214, 222, 218), struct_mid=(152, 164, 160),
         struct_dark=(92, 108, 106), struct_accent=(180, 158, 132),
         foliage_top=(100, 162, 112), foliage_mid=(60, 122, 84), foliage_dark=(34, 80, 58),
@@ -345,7 +345,7 @@ _KARST_KF = [
     (0.40, dict(  # golden — warm gold sifting through the mist
         sky_top=(168, 184, 178), sky_mid=(236, 210, 168), sky_bot=(252, 226, 184),
         horizon=(252, 228, 184),
-        mtn_far=(168, 174, 162), mtn_mid=(142, 144, 130), mtn_near=(112, 116, 104),
+        mtn_far=(168, 174, 162), mtn_mid=(126, 130, 114), mtn_near=(96, 102, 90),
         struct_light=(228, 218, 198), struct_mid=(166, 158, 142),
         struct_dark=(102, 102, 94), struct_accent=(206, 168, 122),
         foliage_top=(120, 168, 104), foliage_mid=(76, 126, 76), foliage_dark=(44, 84, 54),
@@ -409,13 +409,14 @@ KARST_WATERTOWN = BiomeSpec(
     name="Karst Watertown",
     note="Misty vertical karst towers over a still-water inlet of stilt houses; soft jade/grey, humid and serene.",
     keyframes=_KARST_KF,
-    sky=SkyParams(positions=(0.0, 0.32, 0.62, 0.84, 1.0), dither_amp=1.8, zenith_dark=0.04),
+    sky=SkyParams(positions=(0.0, 0.32, 0.62, 0.84, 1.0), dither_amp=1.8, zenith_dark=0.07),
     ridges=[
-        # Far towers: tall, narrow spikes, low-contrast (lost in mist).
-        RidgeParams(base_h=0.20, octaves=((0.009, 14),), parallax=0.06,
-                    color_key='mtn_far', spike=0.78, seed=2),
-        # Mid towers: the iconic Guilin fingers.
-        RidgeParams(base_h=0.18, octaves=((0.011, 12),), parallax=0.14,
+        # No far rank: a pale far tower nearly matching the misted sky baked as a
+        # hard polygon seam across the upper sky. Letting the mid fingers be the
+        # farthest rank keeps every tower a soft solid shape that the mist can
+        # swallow from the feet up instead of a near-white arc with a cut edge.
+        # Mid towers: the iconic Guilin fingers, now the back rank.
+        RidgeParams(base_h=0.18, octaves=((0.011, 12),), parallax=0.10,
                     color_key='mtn_mid', spike=0.86, seed=5),
         # Near towers: a couple of bold close fingers framing the inlet.
         RidgeParams(base_h=0.14, octaves=((0.014, 10),), parallax=0.26,

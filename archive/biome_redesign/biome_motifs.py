@@ -151,15 +151,20 @@ def ember_haze(ctx):
 
 def karst_mist(ctx):
     """Layered shan-shui haze for the karst water-town, drawn over the sky so the
-    towers fade into it. Banks rise (more, higher) as the day cools so dawn/dusk
-    feel especially humid and serene."""
+    towers fade into it FROM THE FEET UP. Anchored low (tower bases + waterline)
+    so the upper half of the canvas keeps a readable jade gradient — a mist that
+    sat high washed the whole sky near-white and was washiest exactly at midday,
+    backwards from how the air actually clears in strong light. Banks only rise
+    and thicken as the day cools, so predawn/dusk read as the humid, serene
+    stages while day stays clear."""
     from scene_engine import mist_bands
     night = _nightf(ctx)
     mtint = ctx.pal.get('mist_tint', (210, 222, 220))
-    # More bands + higher alpha when cool; midday is clearer.
-    n = 4 + int(round(night * 2))
-    alpha = int(60 + 35 * night)
-    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.52, n=n, alpha=alpha)
+    # Few thin low bands by day, more + higher only at night. y0_frac stays in the
+    # lower third so the readable sky lives above the haze.
+    n = 2 + int(round(night * 2))
+    alpha = int(30 + 15 * night)
+    mist_bands(ctx.surf, ctx.w, ctx.ground_y, mtint, y0_frac=0.72, n=n, alpha=alpha)
 
 
 def draw_summit_shrine(ctx):
@@ -262,42 +267,51 @@ def draw_stilt_houses(ctx):
         pygame.draw.line(wb, (*c, 200), (0, yy), (w, yy))
     surf.blit(wb, (0, gy - 2))
 
+    # Warm window value floored well above struct_accent so the lit panes carry
+    # the village by dusk even when the stage accent is a muted day tone — the
+    # hero must stay legible, the lights are its whole charm.
+    win = (max(accent[0], 235), max(accent[1], 170), max(accent[2], 90))
+
     cx = int(w * 0.54)
     houses = []
-    for i, dx in enumerate((-42, 0, 40)):
+    # ~35% larger cluster (wider spacing, taller bodies + roofs) so the hero
+    # holds the eye against the towers instead of reading as bric-a-brac.
+    for i, dx in enumerate((-56, 0, 54)):
         x = cx + dx
-        hw = 24 - (i % 2) * 5
-        hh = 18
-        roof_y = gy - 30 - (i % 2) * 6
+        hw = 32 - (i % 2) * 6
+        hh = 24
+        roof_y = gy - 40 - (i % 2) * 8
         houses.append((x, hw, hh, roof_y))
         # Stilts down into the water.
-        for sxp in (x - hw // 2 + 3, x + hw // 2 - 3):
+        for sxp in (x - hw // 2 + 4, x + hw // 2 - 4):
             pygame.draw.line(surf, dark, (sxp, gy + 2), (sxp, roof_y + hh), 2)
         # Body.
         pygame.draw.rect(surf, mid, (x - hw // 2, roof_y, hw, hh))
         # Warm-lit window so the village reads at dusk/night.
-        pygame.draw.rect(surf, accent, (x - 2, roof_y + 5, 4, 5))
+        pygame.draw.rect(surf, win, (x - 3, roof_y + 7, 6, 7))
         # Roof.
-        pygame.draw.polygon(surf, dark, [(x - hw // 2 - 3, roof_y),
-                                         (x + hw // 2 + 3, roof_y),
-                                         (x, roof_y - 11)])
-        pygame.draw.line(surf, light, (x - hw // 2 - 3, roof_y),
-                         (x, roof_y - 11), 1)
+        pygame.draw.polygon(surf, dark, [(x - hw // 2 - 4, roof_y),
+                                         (x + hw // 2 + 4, roof_y),
+                                         (x, roof_y - 15)])
+        pygame.draw.line(surf, light, (x - hw // 2 - 4, roof_y),
+                         (x, roof_y - 15), 1)
 
-    # Mirrored reflections: dim, vertically squashed, tinted to the water.
+    # Mirrored reflections: dim, vertically squashed, tinted to the water. Kept
+    # faint (subtractive, low alpha) so the bright waterline glint above it still
+    # separates land from water rather than the reflection swallowing the edge.
     refl = pygame.Surface((w, water_h + 4), pygame.SRCALPHA)
     for (x, hw, hh, roof_y) in houses:
         rh = max(3, water_h - 2)
-        pygame.draw.rect(refl, (*mid, 90), (x - hw // 2, 0, hw, rh))
-        pygame.draw.polygon(refl, (*dark, 90),
-                            [(x - hw // 2 - 3, 0), (x + hw // 2 + 3, 0),
+        pygame.draw.rect(refl, (*mid, 70), (x - hw // 2, 0, hw, rh))
+        pygame.draw.polygon(refl, (*dark, 70),
+                            [(x - hw // 2 - 4, 0), (x + hw // 2 + 4, 0),
                              (x, rh - 1)])
     surf.blit(refl, (0, gy), special_flags=pygame.BLEND_RGBA_SUB)
     # Two bright horizontal glints on the water surface.
     gl = pygame.Surface((w, water_h), pygame.SRCALPHA)
-    pygame.draw.line(gl, (*light, 90), (cx - 50, 3), (cx + 50, 3), 1)
-    pygame.draw.line(gl, (*light, 60), (cx - 30, water_h // 2),
-                     (cx + 36, water_h // 2), 1)
+    pygame.draw.line(gl, (*light, 90), (cx - 64, 3), (cx + 64, 3), 1)
+    pygame.draw.line(gl, (*light, 60), (cx - 38, water_h // 2),
+                     (cx + 44, water_h // 2), 1)
     surf.blit(gl, (0, gy), special_flags=pygame.BLEND_RGB_ADD)
 
 
@@ -339,21 +353,48 @@ def draw_bamboo_fringe(ctx):
 
 
 def draw_autumn_canopy(ctx):
-    """A dense band of warm-tinted canopy across the foreground hill — the fiery
-    maple read. Pine_trio + wuling_pine are retinted through ctx.dpal's
-    foliage_* (set warm in the keyframes) so the whole stand glows."""
-    from game.pillar_variants import draw_pine_trio
-    from game.draw import draw_wuling_pine
+    """A FOREST read, not a bead-string of equal trees: first a single continuous
+    dark canopy band (foliage_dark) rolls across the foreground as one mass, then
+    a few brighter clumps (foliage_top/accent) sit on top ONLY as sparse sunlit
+    highlights. Strung individual bright trees made every trunk an equal hotspot;
+    a dark mass with scattered glints reads as deep fiery woodland instead."""
     surf, w, gy = ctx.surf, ctx.w, ctx.ground_y
     dp = ctx.dpal
-    # A back rank of softer canopy, then a denser front rank, so the foliage
-    # reads as a deep forest rather than a row of trees.
-    for x, hgt, lean in ((int(w * 0.06), 40, 6), (int(w * 0.24), 52, -8),
-                         (int(w * 0.40), 34, 4), (int(w * 0.72), 46, -6),
-                         (int(w * 0.92), 38, 8)):
-        draw_wuling_pine(surf, x, gy - 2, hgt, dp, lean=lean, layers=5)
-    draw_pine_trio(surf, int(w * 0.16), gy + 4, dp, seed=3)
-    draw_pine_trio(surf, int(w * 0.84), gy + 2, dp, seed=9)
+    dark = dp.get('foliage_dark', (60, 40, 40))
+    mid = dp.get('foliage_mid', (130, 70, 45))
+    top = dp.get('foliage_top', (236, 162, 66))
+    accent = dp.get('foliage_accent', (252, 200, 100))
+    # Knock the bright top ~20% so the highlight clumps stop reading as equal
+    # blown-out hotspots against the dark mass.
+    top = (int(top[0] * 0.80), int(top[1] * 0.80), int(top[2] * 0.80))
+
+    # 1. Continuous dark canopy band — a lumpy upper edge (summed sines) over a
+    # solid fill to the ground, so the whole foreground is one woodland silhouette.
+    base = gy - int(gy * 0.10)
+    crest = []
+    for x in range(0, w + 1, 6):
+        lump = (math.sin(x * 0.045) * 10 + math.sin(x * 0.11 + 1.3) * 6
+                + math.sin(x * 0.23 + 0.6) * 3)
+        crest.append((x, int(base - 14 - lump)))
+    poly = [(0, gy)] + crest + [(w, gy)]
+    pygame.draw.polygon(surf, dark, poly)
+    # A mid-tone scumble just under the crest for a little internal depth.
+    for (x, y) in crest[::3]:
+        pygame.draw.circle(surf, mid, (x, y + 5), 5)
+
+    # 2. Sparse sunlit clumps: irregular x-spacing + varied size/value break the
+    # repeat period. Only a handful — most of the canopy stays dark.
+    clumps = [(0.10, 7, top), (0.21, 5, accent), (0.37, 8, top),
+              (0.50, 5, top), (0.63, 9, accent), (0.79, 6, top),
+              (0.91, 7, accent)]
+    for fx, r, col in clumps:
+        x = int(w * fx)
+        lump = (math.sin(x * 0.045) * 10 + math.sin(x * 0.11 + 1.3) * 6
+                + math.sin(x * 0.23 + 0.6) * 3)
+        cy = int(base - 14 - lump) - 2
+        pygame.draw.circle(surf, mid, (x, cy + 3), r + 1)
+        pygame.draw.circle(surf, col, (x, cy), r)
+        pygame.draw.circle(surf, col, (x - r + 2, cy + 2), max(2, r - 3))
 
 
 def draw_terrace_cairn(ctx):
