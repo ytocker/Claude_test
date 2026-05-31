@@ -26,7 +26,7 @@ from game.config import (
     LOTTERY_TIERS, LOTTERY_REVEAL_TIME,
     FLAP_V,
     COIN_RUSH_INTERVAL, COIN_RUSH_GAP_BOOST, COIN_RUSH_COINS,
-    SECRET_POWERUP_WEIGHTS, LATE_GAME_SCORE,
+    SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
     GENIE_CHAMBER_REVEAL_DIST,
@@ -260,17 +260,10 @@ class World:
 
         self.game_over = False
 
-        # One-shot: when the run's score first crosses LATE_GAME_SCORE,
-        # the next power-up roll is forced to be a genie so the player
-        # gets a guaranteed introduction to the secret tier. Consumed
-        # by _maybe_spawn_powerup.
-        self._force_next_genie = False
-        # Tracks whether the genie-milestone has already fired this run.
-        # `==` against LATE_GAME_SCORE is unreliable because coins (esp.
-        # triple x3) and surprise score deltas can skip over the exact
-        # threshold; we use a one-shot flag + `>=` check polled from
-        # update() each frame so any path that bumps the score triggers
-        # the milestone exactly once.
+        # One-shot: when pillars_passed crosses LATE_GAME_PILLAR, a genie
+        # lamp is placed in the gap between that pillar and the next one,
+        # and from that point on the genie joins the regular spawn pool
+        # and the Surprise Box re-roll pool.
         self._genie_milestone_fired = False
 
         self._seed_first_pipes()
@@ -918,19 +911,28 @@ class World:
                 col, gravity=120,
             ))
 
-    def _check_genie_milestone(self):
-        """Fires once per run when score first crosses LATE_GAME_SCORE.
-        Called wherever score changes (pipe pass, coin collect, surprise
-        deltas, lottery) so a triple-coin jump 419→422 still triggers.
+    def _check_genie_milestone(self, last_scored_pipe):
+        """Fires once per run when pillars_passed crosses LATE_GAME_PILLAR.
+        Called from the pipe-pass loop with the pipe just scored, so the
+        genie lamp lands in the spacing immediately after it — the player
+        encounters the lamp while flying from pillar 65 toward pillar 66.
 
-        Sets _force_next_genie so the next regular power-up spawn — at the
-        normal cooldown + chance roll on a non-rush, non-chamber pipe — is
-        forced to be a genie lamp. Doesn't touch any pre-existing powerups
-        and doesn't bypass the regular spawn pipeline."""
-        if self._genie_milestone_fired or self.score < LATE_GAME_SCORE:
+        Pillar-based (not score-based) so coin pickups, lottery wins, and
+        storm-jolt deductions can't shift the moment. Doesn't override
+        any pre-existing powerup; the lamp just appears at the normal
+        in-gap placement."""
+        if self._genie_milestone_fired:
+            return
+        if self.pillars_passed < LATE_GAME_PILLAR:
             return
         self._genie_milestone_fired = True
-        self._force_next_genie = True
+        gx = (last_scored_pipe.x + PIPE_W
+              + self._current_spacing() * 0.5)
+        gy = last_scored_pipe.gap_y
+        self.powerups.append(PowerUp(gx, gy, kind="genie"))
+        # Set the standard cooldown so the next regular spawn doesn't
+        # immediately stack a second powerup right behind the lamp.
+        self.powerup_cooldown = POWERUP_COOLDOWN
 
     def _maybe_spawn_powerup(self, pipe: Pipe):
         if self.powerup_cooldown > 0:
@@ -952,22 +954,16 @@ class World:
                 continue
             kinds.append(k)
             weights.append(w)
-        # Secret late-game tier: only enters the roll once the run crosses
-        # LATE_GAME_SCORE. Kept out of POWERUP_WEIGHTS (and the Surprise
-        # re-roll) so the gate can't be bypassed.
-        if self.score >= LATE_GAME_SCORE:
+        # Secret late-game tier: only enters the roll once the genie
+        # milestone has fired (at pillar LATE_GAME_PILLAR). Kept out of
+        # POWERUP_WEIGHTS so the gate can't be bypassed.
+        if self._genie_milestone_fired:
             for k, w in SECRET_POWERUP_WEIGHTS:
                 kinds.append(k)
                 weights.append(w)
         if not kinds:
             return
         kind = random.choices(kinds, weights=weights, k=1)[0]
-        # LATE_GAME_SCORE milestone: the FIRST regular spawn after score
-        # crosses 420 is overridden to genie. Cooldown + chance still
-        # gate this normally (regular rate).
-        if self._force_next_genie:
-            kind = "genie"
-            self._force_next_genie = False
         x = pipe.x + PIPE_W + self._current_spacing() * 0.5 + random.uniform(-20, 20)
         y = pipe.gap_y + random.uniform(-10, 10)
         self.powerups.append(PowerUp(x, y, kind=kind))
@@ -1209,7 +1205,7 @@ class World:
                     p.scored = True
                     self.score += 1
                     self.pillars_passed += 1
-                    self._check_genie_milestone()
+                    self._check_genie_milestone(p)
                     self._proof.record(self.time_alive, 1, "pipe")
                     # RAIL: count down the per-ride pillar budget. Fires
                     # whether or not Pip locked — if all 5 tagged pipes
@@ -1697,7 +1693,6 @@ class World:
         self.score += value
         self.coin_count += 1
         self._proof.record(self.time_alive, value, "coin")
-        self._check_genie_milestone()
 
         # *** GLITCH FIX ***
         # NO screen-wide flash. Only localized sparkle particles.
@@ -1772,11 +1767,11 @@ class World:
                            if self.score >= POWERUP_REPLACED_AT.get("magnet", 1 << 30)
                            else "magnet")
             choices = ["triple", magnet_kind, "slowmo", "kfc", "ghost", "shrink"]
-            # Past LATE_GAME_SCORE, the Surprise Box also rolls the
-            # genie — the trap-bearing tier no longer needs its own
-            # standalone pickup to surface. (Knight / poison /
-            # skateboard stay genie-only.)
-            if self.score >= LATE_GAME_SCORE:
+            # Once the genie milestone has fired (pillar LATE_GAME_PILLAR
+            # passed), the Surprise Box also rolls the genie — the trap-
+            # bearing tier no longer needs its own standalone pickup to
+            # surface. (Knight / poison / skateboard stay genie-only.)
+            if self._genie_milestone_fired:
                 choices.append("genie")
             kind = random.choice(choices)
             self._spawn_surprise_reveal(m)
@@ -2460,7 +2455,6 @@ class World:
             self._proof.record(self.time_alive, delta, "lottery")
             color = UI_GOLD if delta >= 40 else UI_ORANGE
             audio.play_lottery_win()
-            self._check_genie_milestone()
         elif delta < 0:
             actual = -min(self.score, -delta)
             self.score += actual

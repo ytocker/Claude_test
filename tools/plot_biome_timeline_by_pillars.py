@@ -8,7 +8,7 @@ Sister tool to ``tools/plot_biome_timeline.py`` — same curves and same
 biome strip, but the x-axis is pillars (Pip's score) instead of
 gameplay seconds. Pillars are strictly monotonic in time so each
 weather event lands at a precise pillar count, which makes it obvious
-where the genie milestone (LATE_GAME_SCORE = 420) sits relative to the
+where the genie milestone (LATE_GAME_PILLAR = 65) sits relative to the
 dusk thunderstorm, the morning thermal, the snow squall, etc.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ CYCLE = biome.CYCLE_SECONDS
 # the onboarding ramp eating into the first cycle's first ~25 pillars).
 N = 1800                   # sample resolution across the cycle
 
-GENIE_PILLAR = config.LATE_GAME_SCORE   # 420 today; in cycle 3 in reality
+GENIE_PILLAR = config.LATE_GAME_PILLAR   # 65 today; lands inside cycle 1
 
 
 def _hex(rgb):
@@ -191,17 +191,22 @@ def main() -> None:
         ax.plot(pillars, ys, color=color, linewidth=2.0, label=label)
         ax.fill_between(pillars, ys, color=color, alpha=0.10)
 
-    # ── Genie milestone marker (in-cycle equivalent) ─────────────────────
-    # Pillar 420 sits in cycle 3, but its weather phase repeats every cycle
-    # — show it on cycle 1's pillar axis so its weather context is visible.
+    # ── Genie milestone marker ──────────────────────────────────────────
+    # If the milestone lands inside cycle 1 (the typical case for a small
+    # pillar threshold), draw it directly. If it sits in a later cycle,
+    # show its weather-phase equivalent on cycle 1's pillar axis and label
+    # both numbers.
     ax.axvline(genie_equiv_pillar, color="#d12f2f", linewidth=2.3, alpha=0.85,
                linestyle="-", zorder=4)
-    ax.annotate(
-        f"GENIE @ p{GENIE_PILLAR} (cycle {genie_cycle})\n"
-        f"phase ≡ p{int(round(genie_equiv_pillar))} in cycle 1",
-        (genie_equiv_pillar, 1.02), textcoords="offset points",
-        xytext=(0, 2), ha="center", fontsize=9.5,
-        fontweight="bold", color="#d12f2f")
+    if genie_cycle == 1:
+        label = f"GENIE @ p{GENIE_PILLAR}"
+    else:
+        label = (f"GENIE @ p{GENIE_PILLAR} (cycle {genie_cycle})\n"
+                 f"phase ≡ p{int(round(genie_equiv_pillar))} in cycle 1")
+    ax.annotate(label, (genie_equiv_pillar, 1.02),
+                textcoords="offset points", xytext=(0, 2),
+                ha="center", fontsize=9.5,
+                fontweight="bold", color="#d12f2f")
 
     # ── Newbie ramp band ─────────────────────────────────────────────────
     ax.axvspan(0, config.PLATEAU_PIPES, color="#3ca34d", alpha=0.22,

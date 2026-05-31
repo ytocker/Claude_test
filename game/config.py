@@ -129,11 +129,18 @@ POWERUP_REPLACED_AT = {
 
 # ── Secret late-game power-ups ───────────────────────────────────────────────
 # A separate, undeclared tier that only enters the spawn roll once the run
-# crosses LATE_GAME_SCORE. Kept out of POWERUP_WEIGHTS (and the Surprise
-# re-roll) so the gate can't be bypassed, and out of the help screen so the
-# roster stays a surprise. Weights are normalized at pick time alongside the
-# normal pool.
-LATE_GAME_SCORE        = 420
+# crosses LATE_GAME_PILLAR pillars. Kept out of POWERUP_WEIGHTS (and the
+# Surprise re-roll) so the gate can't be bypassed, and out of the help screen
+# so the roster stays a surprise. Weights are normalized at pick time alongside
+# the normal pool.
+#
+# The milestone is keyed to PILLARS PASSED (not score) so it lands at the
+# same gameplay moment every run regardless of coin pickups, lottery wins,
+# or storm-jolt deductions. A genie lamp is placed in the spacing between
+# pillar LATE_GAME_PILLAR and the next pillar (so the player encounters it
+# right after scoring pillar 65). From that moment, the genie is also added
+# to the regular spawn pool and the Surprise Box re-roll pool.
+LATE_GAME_PILLAR       = 65
 # Only the genie spawns directly from the secret tier. Knight, skateboard,
 # and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
 # are not in any weight table and cannot be Surprise-re-rolled.
