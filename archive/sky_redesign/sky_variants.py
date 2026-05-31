@@ -157,40 +157,46 @@ def _scatter_stars(surf, w, ground_y, palette):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def draw_sky_inkwash(surf, w, h, ground_y, palette, phase):
-    _base_gradient(surf, w, ground_y, palette, top_bias=0.06)
+    _base_gradient(surf, w, ground_y, palette, top_bias=0.08)
     night = _is_night(palette)
 
-    # Ink tone: at day the wash leans the sky toward a paler graded haze;
-    # at night toward a denser indigo so the bands still read as ink.
-    deep = lerp_color(palette['sky_top'], (0, 0, 0), 0.18)
-    pale = lerp_color(palette['sky_mid'], (255, 255, 255), 0.30 if not night else 0.10)
+    # Raised band contrast: darker ink low, paler wash high. Wider spread
+    # between the two poles than round 1 so the strata read as deliberate
+    # ink layering rather than a soft graded haze.
+    deep = lerp_color(palette['sky_top'], (0, 0, 0), 0.28)
+    pale = lerp_color(palette['sky_mid'], (255, 255, 255), 0.42 if not night else 0.16)
 
-    # Six diffusion bands, densest low (foreground ridge haze) thinning up.
-    # Each band is a soft horizontal ellipse smear — the pomo "broken ink"
-    # read comes from overlapping low-alpha sweeps rather than hard stops.
-    n_bands = 6
+    # A warm horizon wash keyed to the day cycle so sunrise/sunset columns
+    # stop reading identical to flat day — the horizon hue (amber/rose at
+    # golden hour, cool blue at night) bleeds up into the lowest bands.
+    warm = palette['horizon']
+
+    # Five diffusion bands, densest low thinning up. Overlapping low-alpha
+    # ellipse smears give the pomo "broken ink" read.
+    n_bands = 5
     band_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
     for i in range(n_bands):
         t = i / (n_bands - 1)
-        by = int(ground_y * (0.30 + 0.62 * t))
+        by = int(ground_y * (0.28 + 0.58 * t))
         col = lerp_color(pale, deep, t)
-        # Lower bands are wider + darker; alpha decays upward so the zenith
-        # keeps the negative-space openness shan-shui prizes.
-        bh = int(ground_y * (0.10 + 0.05 * (1 - t)))
-        a = int(70 * (0.4 + 0.6 * t))
+        # Low bands pick up the horizon warmth so the cycle reads in colour.
+        col = lerp_color(col, warm, 0.30 * t)
+        bh = int(ground_y * (0.11 + 0.06 * (1 - t)))
+        a = int(95 * (0.35 + 0.65 * t))
         rect = pygame.Rect(-w // 4, by - bh // 2, int(w * 1.5), bh)
         pygame.draw.ellipse(band_layer, (*col, a), rect)
     surf.blit(band_layer, (0, 0))
 
-    # Negative-space mist gap — a bright horizontal void band just above the
-    # horizon where the ridges will sit, the signature "scenery dissolving
-    # into mist" move. Tinted by horizon so it carries the time-of-day glow.
-    mist = lerp_color(palette['horizon'], (255, 255, 255), 0.35)
+    # ONE clear light/mist band for the mountains to sit against — a single
+    # bright void carved just above the horizon, brighter and tighter than
+    # round 1's diffuse smear so the ridges read crisply against it. Warmed
+    # at sunrise/sunset, cooled at night.
+    mist = lerp_color(palette['horizon'], (255, 255, 255), 0.5 if not night else 0.28)
     mist_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
-    my = int(ground_y * 0.78)
-    for k in range(5):
-        a = int(60 * (1 - k / 5))
-        hh = int(ground_y * (0.04 + 0.02 * k))
+    my = int(ground_y * 0.80)
+    for k in range(4):
+        a = int(95 * (1 - k / 4))
+        hh = int(ground_y * (0.03 + 0.022 * k))
         pygame.draw.ellipse(mist_layer, (*mist, a),
                             pygame.Rect(-w // 4, my - hh // 2, int(w * 1.5), hh))
     surf.blit(mist_layer, (0, 0))
@@ -320,16 +326,25 @@ def draw_sky_sunburst(surf, w, h, ground_y, palette, phase):
     dx, dy = _disc_xy(w, ground_y, phase)
     ray_col = _glow_color(palette) if not night else _moon_color(palette)
 
-    # Radial shafts — long thin additive triangles fanning from the disc.
-    # Alternating alpha gives the banded crepuscular-ray rhythm; the fan is
-    # biased downward (sky source above haze) like real god-rays.
+    # Crepuscular shafts must read as ATMOSPHERE behind the pillar plane,
+    # never as graphic spokes. So: fewer rays, asymmetric (clustered to one
+    # side of the disc, not a symmetric starburst), much lower alpha, and
+    # only the lower hemisphere so they fall away below the HUD zone.
     rays = pygame.Surface((w, ground_y), pygame.SRCALPHA)
-    n_rays = 14
-    reach = ground_y * 1.3
-    for i in range(n_rays):
-        ang = -0.35 + (i / (n_rays - 1)) * (math.pi + 0.7)
-        spread = 0.045
-        a = 26 if i % 2 == 0 else 14
+    reach = ground_y * 1.4
+    if night:
+        # Night = soft moon-glow with only 2-3 faint shafts, not a burst.
+        offsets = (0.55, 1.15, 1.7)
+        ray_alphas = (9, 7, 6)
+    else:
+        # Day/golden/dusk = an asymmetric fan: a few shafts skewed to one
+        # side so the light feels directional, like sun through a gap.
+        offsets = (0.35, 0.7, 1.05, 1.55, 2.1)
+        ray_alphas = (16, 11, 14, 8, 7)
+    side = 1 if (dx < w * 0.5) else -1  # fan AWAY from the nearer edge
+    for off, a in zip(offsets, ray_alphas):
+        ang = (math.pi * 0.5) + side * off  # base straight down, skewed
+        spread = 0.05 + 0.015 * off
         p0 = (dx, dy)
         p1 = (dx + math.cos(ang - spread) * reach,
               dy + math.sin(ang - spread) * reach)
@@ -338,10 +353,15 @@ def draw_sky_sunburst(surf, w, h, ground_y, palette, phase):
         pygame.draw.polygon(rays, (*ray_col, a), [p0, p1, p2])
     surf.blit(rays, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # Bloomed disc core.
+    # Disc + bloom. Capped so the additive core never blooms over the HUD
+    # zone (upper third). Night reads as a softer, smaller moon glow.
     disc = _moon_color(palette) if night else _sun_color(palette)
-    _radial_glow(surf, dx, dy, 60, _glow_color(palette), 120, 2.0)
-    pygame.draw.circle(surf, disc, (dx, dy), 18)
+    if night:
+        _radial_glow(surf, dx, dy, 46, _glow_color(palette), 72, 2.2)
+        pygame.draw.circle(surf, disc, (dx, dy), 14)
+    else:
+        _radial_glow(surf, dx, dy, 54, _glow_color(palette), 95, 2.1)
+        pygame.draw.circle(surf, disc, (dx, dy), 17)
 
     _scatter_stars(surf, w, ground_y, palette)
 
@@ -424,15 +444,33 @@ def draw_sky_mesh_dawn(surf, w, h, ground_y, palette, phase):
         pygame.draw.rect(mesh, (*col, a), pygame.Rect(x, 0, strip, ground_y))
     surf.blit(mesh, (0, 0))
 
-    # Soft horizon bloom — a wide low ellipse of warm light, the painterly
-    # "sun behind the haze" glow that anchors the composition.
+    # ONE soft asymmetric warm pool — an off-centre painterly light mass set
+    # OPPOSITE the disc, mid-height, so the composition reads as authored
+    # (two competing light sources) rather than a default symmetric gradient.
+    # Kept low-alpha and away from the upper third so the HUD zone stays calm.
+    pool = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    pcol = lerp_color(warm, (255, 245, 220), 0.25 if not night else 0.0)
+    px = int(w * (0.78 if dx < w * 0.5 else 0.22))
+    py = int(ground_y * 0.50)
+    for k in range(6):
+        a = int((30 if night else 42) * (1 - k / 6))
+        pw = int(w * (0.30 + 0.10 * k))
+        ph = int(ground_y * (0.18 + 0.07 * k))
+        pygame.draw.ellipse(pool, (*pcol, a),
+                            pygame.Rect(px - pw // 2, py - ph // 2, pw, ph))
+    surf.blit(pool, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # Horizon bloom — pushed harder than round 1 (brighter peak, tighter
+    # falloff) so it clearly beats the flat gradient it replaces. The
+    # painterly "sun behind the haze" glow anchoring the composition.
     bloom = pygame.Surface((w, ground_y), pygame.SRCALPHA)
     bcol = _glow_color(palette)
     by = int(ground_y * 0.86)
-    for k in range(6):
-        a = int(46 * (1 - k / 6))
-        bw = int(w * (0.5 + 0.12 * k))
-        bh = int(ground_y * (0.10 + 0.05 * k))
+    peak = 60 if not night else 40
+    for k in range(7):
+        a = int(peak * (1 - k / 7))
+        bw = int(w * (0.45 + 0.13 * k))
+        bh = int(ground_y * (0.08 + 0.05 * k))
         pygame.draw.ellipse(bloom, (*bcol, a),
                             pygame.Rect(dx - bw // 2, by - bh // 2, bw, bh))
     surf.blit(bloom, (0, 0), special_flags=pygame.BLEND_ADD)
@@ -563,38 +601,51 @@ def draw_sky_vapor_haze(surf, w, h, ground_y, palette, phase):
     night = _is_night(palette)
     # Two decks: cool upper (sky_top→sky_mid) and warm lower (sky_bot→
     # horizon), each a smooth sub-gradient, meeting at a luminous seam.
+    # Day keeps the upper deck open (warm bias on the lower deck); night
+    # cools the lower bias so the warm vapour read doesn't survive into the
+    # deep-blue keyframes where it would look wrong.
     seam = int(ground_y * 0.62)
     upper = make_gradient_surface(
         w, seam,
         [(0.0, lerp_color(palette['sky_top'], (0, 0, 0), 0.05)),
          (1.0, palette['sky_mid'])])
+    low_warm = 0.04 if night else 0.15
     lower = make_gradient_surface(
         w, ground_y - seam,
-        [(0.0, lerp_color(palette['sky_bot'], (255, 235, 215), 0.15)),
+        [(0.0, lerp_color(palette['sky_bot'], (255, 235, 215), low_warm)),
          (1.0, palette['horizon'])])
     surf.blit(upper, (0, 0))
     surf.blit(lower, (0, seam))
 
-    # Glowing seam line — the bright vapour band where the two decks meet.
-    seam_col = _glow_color(palette)
+    # Luminous horizon seam where the decks meet. The seam holds across all
+    # 7 times of day: warm + bright by day, COOLER + DIMMER at night so it
+    # reads as a faint moonlit haze line rather than a dusk-only glow.
+    if night:
+        seam_col = lerp_color(palette['horizon'], (180, 200, 240), 0.4)
+        seam_peak, seam_layers = 38, 6
+    else:
+        seam_col = _glow_color(palette)
+        seam_peak, seam_layers = 70, 7
     glow = pygame.Surface((w, ground_y), pygame.SRCALPHA)
-    for k in range(7):
-        a = int(70 * (1 - k / 7))
+    for k in range(seam_layers):
+        a = int(seam_peak * (1 - k / seam_layers))
         hh = 3 + k * 4
         pygame.draw.rect(glow, (*seam_col, a),
                          pygame.Rect(0, seam - hh, w, hh * 2))
     surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
 
-    # Horizon glow disc sitting on the seam — a half-sunk vapour sun.
+    # Clean soft disc sitting on the seam — a half-sunk vapour sun/moon.
+    # Round 1's scan-lines (CRT/UI artifact) are gone; the disc is now a
+    # smooth core wrapped in a soft bloom so it stays painterly.
     dx, dy = _disc_xy(w, ground_y, phase)
     dy = max(dy, seam - 6)
     disc = _moon_color(palette) if night else _sun_color(palette)
-    _radial_glow(surf, dx, dy, 54, seam_col, 110, 2.0)
-    pygame.draw.circle(surf, disc, (dx, dy), 24)
-    # Horizontal "scan" cut lines across the disc — the dusk-vapour signature.
-    for cy in range(dy - 18, dy + 26, 7):
-        pygame.draw.line(surf, lerp_color(palette['sky_bot'], (0, 0, 0), 0.2),
-                         (dx - 26, cy), (dx + 26, cy), 2)
+    _radial_glow(surf, dx, dy, 54 if not night else 46, seam_col,
+                 100 if not night else 70, 2.0)
+    pygame.draw.circle(surf, disc, (dx, dy), 24 if not night else 20)
+    # A faint inner-light core lifts the disc centre without hard lines.
+    pygame.draw.circle(surf, lerp_color(disc, (255, 255, 255), 0.35),
+                       (dx, dy), 12 if not night else 10)
 
     _scatter_stars(surf, w, ground_y, palette)
 
@@ -656,6 +707,148 @@ def draw_sky_cumulus_horizon(surf, w, h, ground_y, palette, phase):
     _scatter_stars(surf, w, ground_y, palette)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Hybrid A — God-rays × Vapor
+# The strongest two leads fused: Vapor's luminous horizon seam + clean
+# half-sunk disc, with God-rays' asymmetric atmospheric shafts rising from
+# that disc. The seam grounds the composition; the (few, low-alpha, one-
+# sided) shafts add depth without reading as graphic spokes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def draw_sky_godrays_vapor(surf, w, h, ground_y, palette, phase):
+    night = _is_night(palette)
+
+    # --- Vapor base: dual decks + luminous seam (carried from #9) ---
+    seam = int(ground_y * 0.62)
+    upper = make_gradient_surface(
+        w, seam,
+        [(0.0, lerp_color(palette['sky_top'], (0, 0, 0), 0.05)),
+         (1.0, palette['sky_mid'])])
+    low_warm = 0.04 if night else 0.15
+    lower = make_gradient_surface(
+        w, ground_y - seam,
+        [(0.0, lerp_color(palette['sky_bot'], (255, 235, 215), low_warm)),
+         (1.0, palette['horizon'])])
+    surf.blit(upper, (0, 0))
+    surf.blit(lower, (0, seam))
+
+    if night:
+        seam_col = lerp_color(palette['horizon'], (180, 200, 240), 0.4)
+        seam_peak, seam_layers = 36, 6
+    else:
+        seam_col = _glow_color(palette)
+        seam_peak, seam_layers = 64, 7
+    glow = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    for k in range(seam_layers):
+        a = int(seam_peak * (1 - k / seam_layers))
+        hh = 3 + k * 4
+        pygame.draw.rect(glow, (*seam_col, a),
+                         pygame.Rect(0, seam - hh, w, hh * 2))
+    surf.blit(glow, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    dx, dy = _disc_xy(w, ground_y, phase)
+    dy = max(dy, seam - 6)
+
+    # --- God-rays: asymmetric shafts RISING from the seated disc, fanning
+    # upward into the cool deck. Few, low-alpha, skewed one side so they
+    # read as bloomed atmosphere off the disc, not a starburst. ---
+    ray_col = seam_col if night else _glow_color(palette)
+    rays = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    reach = ground_y * 1.1
+    side = 1 if (dx < w * 0.5) else -1
+    if night:
+        offsets, ray_alphas = (0.5, 1.1, 1.7), (8, 6, 5)
+    else:
+        offsets = (0.3, 0.65, 1.0, 1.5)
+        ray_alphas = (15, 10, 12, 7)
+    for off, a in zip(offsets, ray_alphas):
+        ang = -(math.pi * 0.5) + side * off  # base straight UP, skewed
+        spread = 0.05 + 0.015 * off
+        p0 = (dx, dy)
+        p1 = (dx + math.cos(ang - spread) * reach,
+              dy + math.sin(ang - spread) * reach)
+        p2 = (dx + math.cos(ang + spread) * reach,
+              dy + math.sin(ang + spread) * reach)
+        pygame.draw.polygon(rays, (*ray_col, a), [p0, p1, p2])
+    surf.blit(rays, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # Clean bloomed disc — no scan-lines (the #9 fix carried through).
+    disc = _moon_color(palette) if night else _sun_color(palette)
+    _radial_glow(surf, dx, dy, 54 if not night else 46, seam_col,
+                 100 if not night else 70, 2.0)
+    pygame.draw.circle(surf, disc, (dx, dy), 24 if not night else 20)
+    pygame.draw.circle(surf, lerp_color(disc, (255, 255, 255), 0.35),
+                       (dx, dy), 12 if not night else 10)
+
+    _scatter_stars(surf, w, ground_y, palette)
+
+
+def _aurora_gate(phase) -> float:
+    """Aurora ribbon strength as a function of phase, gated so ribbons are
+    fully absent by day and only resolve deep dusk→night.
+
+    The dusk keyframe sits at ~0.513 and night at ~0.644. Gating on
+    phase>0.6 with a ramp keeps the ribbons OFF through bright sunset/dusk
+    (round 1's leak) and fades them up cleanly into night. Phase wraps, so
+    predawn (~0.75→0.9) also carries a tail before fading out by sunrise."""
+    p = phase % 1.0
+    # Ramp 0 at 0.58 → 1 at 0.66, hold through deep night, ramp back down
+    # 1 at 0.82 → 0 at 0.90 (predawn fade). Daytime (<0.58, >0.90) = 0.
+    if 0.58 <= p <= 0.82:
+        return min(1.0, max(0.0, (p - 0.58) / 0.08))
+    if 0.82 < p <= 0.90:
+        return max(0.0, 1.0 - (p - 0.82) / 0.08)
+    return 0.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hybrid B — Gradient-mesh base + night-only aurora accent
+# The painterly mesh dawn (lead #6) as the all-day base, with an aurora
+# curtain that is GATED to deep dusk→night via _aurora_gate(). By day the
+# ribbon alpha is exactly 0 (clean mesh); only past phase~0.6 do the
+# ribbons resolve, proving the aurora is done correctly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def draw_sky_mesh_aurora(surf, w, h, ground_y, palette, phase):
+    # Reuse the refined mesh dawn as the base for all phases.
+    draw_sky_mesh_dawn(surf, w, h, ground_y, palette, phase)
+
+    strength = _aurora_gate(phase)
+    if strength <= 0.01:
+        return  # daytime: clean mesh, no ribbons (the round-1 fix)
+
+    # Aurora hue: cool teal-green from the night foliage accent + a magenta
+    # lower fringe from the horizon for the classic two-tone curtain. Kept in
+    # the lower-middle band so it never blooms into the upper-third HUD zone.
+    green = palette.get('aurora_color',
+                        lerp_color(palette['foliage_accent'], (120, 255, 180), 0.4))
+    magenta = lerp_color(palette['horizon'], (210, 120, 220), 0.5)
+
+    veil = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    y0, y1 = int(ground_y * 0.20), int(ground_y * 0.62)
+    n_rib = 4
+    for r in range(n_rib):
+        base_x = int(w * (0.16 + 0.22 * r))
+        sway = phase * 60 + r * 30
+        for yy in range(y0, y1, 3):
+            t = (yy - y0) / (y1 - y0)
+            wob = math.sin(yy * 0.035 + sway * 0.05 + r) * 22
+            x = int(base_x + wob)
+            col = green if t < 0.6 else lerp_color(green, magenta, (t - 0.6) / 0.4)
+            # Alpha is gated by strength AND tapers top+bottom so the curtain
+            # hangs softly rather than as a hard column.
+            edge = math.sin(math.pi * t)  # 0 at both ends, 1 mid
+            a = int(strength * 75 * edge * (0.6 + 0.4 * math.sin(yy * 0.12 + r)))
+            if a <= 0:
+                continue
+            ribbon_w = 9 + int(5 * math.sin(yy * 0.02 + r))
+            pygame.draw.line(veil, (*col, a),
+                             (x, yy), (x, yy + 4), max(2, ribbon_w))
+    surf.blit(veil, (0, 0), special_flags=pygame.BLEND_ADD)
+
+    _scatter_stars(surf, w, ground_y, palette)
+
+
 # ── registries ───────────────────────────────────────────────────────────────
 
 VARIANTS = {
@@ -669,6 +862,8 @@ VARIANTS = {
     8: draw_sky_starlit_deep,
     9: draw_sky_vapor_haze,
     10: draw_sky_cumulus_horizon,
+    11: draw_sky_godrays_vapor,
+    12: draw_sky_mesh_aurora,
 }
 
 VARIANT_NAMES = {
@@ -682,17 +877,24 @@ VARIANT_NAMES = {
     8: "Starlit Deep Sky",
     9: "Vapor / Dusk Haze",
     10: "Painterly Cumulus Horizon",
+    11: "Hybrid A — God-rays x Vapor",
+    12: "Hybrid B — Mesh + Night Aurora",
 }
 
 VARIANT_NOTES = {
     1: "Layered ink-diffusion bands + negative-space mist gap; pomo broken-ink depth.",
     2: "Lingzhi/ruyi scalloped cloud belts at 3 depths, rim-lit crests (yunjian).",
     3: "Flat byobu colour registers + drifting gold-leaf flecks + low calm disc.",
-    4: "Additive crepuscular shafts fanning from a bloomed sun/moon through haze.",
+    4: "Asymmetric few low-alpha shafts behind the pillar plane; soft moon-glow at night.",
     5: "Night/predawn aurora curtain ribbons; resolves to clean sky by day.",
-    6: "Two-axis warm/cool mesh counter-change + soft directional horizon bloom.",
+    6: "Two-axis mesh + asymmetric warm pool + pushed horizon bloom; authored not flat.",
     7: "3-depth cloud banks backlit by the disc; rim-lit gaps carry the value read.",
     8: "Graded star density + milky band + crisp haloed moon; collapses to calm blue.",
-    9: "Dual-tone vapour decks with a luminous seam + half-sunk scan-lined disc.",
+    9: "Dual-tone vapour decks + clean disc; luminous seam holds warm day / cool night.",
     10: "Low fair-weather cumulus line, lit caps + shadowed bases; big calm sky above.",
+    11: "Vapor seam + clean disc fused with asymmetric god-ray shafts rising off the disc.",
+    12: "Refined mesh base; aurora gated phase>0.6 — zero by day, resolves dusk->night.",
 }
+
+# Round-2 sheet renders ONLY these 6, in the art-director's ranked order.
+ROUND2_ORDER = [4, 9, 6, 1, 11, 12]

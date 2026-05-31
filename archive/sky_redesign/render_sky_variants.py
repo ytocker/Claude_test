@@ -81,7 +81,8 @@ def render_cell(variant_id: int, phase: float) -> pygame.Surface:
 
 
 def make_sheet() -> pygame.Surface:
-    n_rows = len(sv.VARIANTS)
+    rows = sv.ROUND2_ORDER  # 6 leads + hybrids, ranked order
+    n_rows = len(rows)
     tw, th = W, H
     label_h = 34
     row_label_w = 250
@@ -96,7 +97,7 @@ def make_sheet() -> pygame.Surface:
     font_head = pygame.font.SysFont(None, 28)
 
     title = font_head.render(
-        "SKY REDESIGN — ROUND 1 · 10 candidate skies × 5 phases",
+        "SKY REDESIGN — ROUND 2 · 6 refined leads + hybrids × 5 phases",
         True, (240, 240, 240))
     sheet.blit(title, (row_label_w + pad, 7))
 
@@ -105,7 +106,7 @@ def make_sheet() -> pygame.Surface:
         lbl = font_mid.render(plabel, True, (250, 230, 180))
         sheet.blit(lbl, (x + 8, label_h - 22))
 
-    for r, vid in enumerate(sorted(sv.VARIANTS.keys())):
+    for r, vid in enumerate(rows):
         y = label_h + pad + r * (th + pad)
         name = sv.VARIANT_NAMES[vid]
         note = sv.VARIANT_NOTES[vid]
@@ -159,7 +160,7 @@ def make_sheet() -> pygame.Surface:
 
 def main() -> None:
     sheet = make_sheet()
-    out = OUT / "round_1.png"
+    out = OUT / "round_2.png"
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")
 
