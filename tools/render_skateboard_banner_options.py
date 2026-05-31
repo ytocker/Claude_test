@@ -43,6 +43,7 @@ OUT_PATH = os.path.join(OUT_DIR, "round_1.png")
 OUT_PATH_R2 = os.path.join(OUT_DIR, "round_2.png")
 OUT_PATH_R3 = os.path.join(OUT_DIR, "round_3.png")
 OUT_PATH_R4 = os.path.join(OUT_DIR, "round_4.png")
+OUT_PATH_R5 = os.path.join(OUT_DIR, "round_5.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0):
