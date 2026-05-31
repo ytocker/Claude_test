@@ -48,6 +48,7 @@ OUT_PATH_R6 = os.path.join(OUT_DIR, "round_6.png")
 OUT_PATH_R7 = os.path.join(OUT_DIR, "round_7.png")
 OUT_PATH_R8 = os.path.join(OUT_DIR, "round_8.png")
 OUT_PATH_R9 = os.path.join(OUT_DIR, "round_9.png")
+OUT_PATH_R10 = os.path.join(OUT_DIR, "round_10.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True,
@@ -2765,6 +2766,106 @@ VARIANTS_R9 = [
 ]
 
 
+# ── Round 10: corrective ship — drop the slate `_na_plate` background      ──
+#           ENTIRELY from BOTH the coin counter and the pause button. No     ──
+#           replacement rectangle, no faint outline, no plate drop shadow.   ──
+#           Just the bare coin glyph + "x N" count text at the HUD's normal  ──
+#           top-left position, and the bare pause bars at the HUD's normal   ──
+#           top-right position, drawn straight onto the sky. R8-B1 deck      ──
+#           geometry on top (340 x 92, -7°, "BOARD!" 28 pt, 74 px reserve,   ──
+#           4 corner bolts). The deck covers the inside-half of each icon —  ──
+#           that's expected (R8 z-order: deck OPAQUE on top of chrome).      ──
+#
+# User correction to R9: the translucent slate plates around the coin counter
+# and pause button ARE the "blue half-transparent rectangle" they want gone.
+# Both prior interpretations (R8 stripped icons+plate; R9 brought plates back)
+# missed the target. R10 keeps the icons (coin glyph + count + pause bars) at
+# their normal HUD positions and drops ONLY the slate plate beneath each.
+
+def _build_r10_base():
+    """R10 base frame — same gameplay sim as the R5-R9 bake_hud_score=False
+    base, but with the slate `_na_plate` background suppressed ONLY (the
+    coin glyph + "x N" count text and the pause bars still render at their
+    normal live-HUD positions, just without the slate plate underneath).
+
+    Implementation: monkey-patch `hud._na_plate` to a no-op for the single
+    base render pass — the coin block calls `_na_plate` then `_coin_icon` +
+    `_outlined_text` (count), and PauseButton.draw calls `_na_plate` then
+    the bar polygons. With _na_plate neutered, both the glyph/text and the
+    pause bars survive at their production positions, drawn straight onto
+    the sky.
+
+    NO replacement rectangle, NO icon drop shadow, NO ink edge around the
+    pause bars — the user's directive is "icons as they natively render in
+    the production HUD, minus the slate plate".
+    """
+    import game.hud as hud
+    app = _build_gameplay_frame(bake_hud_score=False)
+    saved_na_plate = hud._na_plate
+    hud._na_plate = lambda *a, **k: None
+    try:
+        base = _render_base(app)
+    finally:
+        hud._na_plate = saved_na_plate
+    return base
+
+
+def variant_r10_a1_plates_removed(base, score):
+    """R10-A1 — Plates removed (chrome plateless on R9 deck). Reuses the
+    R8-B1 / R9 deck geometry: 340 wide x 92 tall, deck-centre (180, 70),
+    -7° tilt, PLATE_RED fill, INK rim, 4 corner bolts (insets 34/20),
+    "SKATE" + "BOARD!" wordmark at 28 pt with the 74 px central reserve,
+    yellow gradient with the R7 darkened lower stop, outline_w=3. Live
+    halftone burst stamped LAST at the deck centre.
+
+    Z-order: the bare coin glyph + count (top-left) and the bare pause
+    bars (top-right) are already painted in the base at their normal HUD
+    positions. The deck composites OPAQUE on top — the inside-half of
+    each icon disappears under the tilted silhouette, leaving only the
+    outside-corner remainder visible. That's the R8 z-order the user
+    explicitly endorsed; the corrective only kills the slate plate.
+
+    Unified 2 px / 35% alpha drop shadow under the deck composite via
+    `_composite_shadow` (deck shadow only; no shadow under the icons).
+    """
+    s = base.copy()
+    deck_w, deck_h = 340, 92
+    # R6 plain-deck silhouette + 4 corner bolts. No rescue_top_bolts —
+    # the deck sits OPAQUE on top, the under-chrome bolt rescue is moot.
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=44,
+        bolt_inset_x=34, bolt_inset_y=20)
+    skate_w, board_w = _r8_blit_wordmarks(
+        deck, deck_w, deck_h, gap_px=74 // 2,
+        font_size=28, outline_w=3)
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=44)
+    avail = (deck_w - 74) // 2
+    fit = "FITS" if board_w <= avail else "CLIPS"
+    print(f"    R10-A1: deck={deck_w}  BOARD! width={board_w}px  "
+          f"available half={avail}px  margin={avail - board_w}px  [{fit}]")
+    rotated = pygame.transform.rotate(deck, -7)
+    deck_center = (W // 2, 70)
+    rect = rotated.get_rect(center=deck_center)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    _stamp_live_score_preview(s, deck_center, score=888,
+                                sparkle_trim=R6_SPARKLE_TRIM)
+    return s
+
+
+# Two identical cells so _compose_sheet has the >=2 it needs to lay out a
+# proper grid; both confirm the same shipped frame (single corrective ship,
+# no exploration). Caption text is identical per the brief.
+VARIANTS_R10 = [
+    ("R10-A1 — Plates removed (chrome plateless on R9 deck)",
+     variant_r10_a1_plates_removed),
+    ("R10-A1 — Plates removed (chrome plateless on R9 deck)",
+     variant_r10_a1_plates_removed),
+]
+
+
 def _compose_sheet(cells, title_text, cols=3, rows=2):
     """Grid sheet (default 2x3 — 5 cells + 1 spare). Each cell shows
     the rendered frame with a label strip below. Cell =
@@ -2952,6 +3053,25 @@ def main():
         cols=3, rows=1)
     pygame.image.save(sheet_r9, OUT_PATH_R9)
     print(f"wrote {OUT_PATH_R9}  ({os.path.getsize(OUT_PATH_R9)} bytes)")
+
+    # Round 10 — corrective ship. Drop the slate `_na_plate` background
+    # ENTIRELY from BOTH the coin counter and the pause button (the
+    # "blue half-transparent rectangle" the user wanted gone). The coin
+    # glyph + count and the pause bars remain at their normal HUD
+    # positions, drawn straight onto the sky. R8-B1 deck on top. The
+    # base is rebuilt with `_na_plate` monkey-patched to a no-op so the
+    # plate snapshot disappears from both icons.
+    base_r10 = _build_r10_base()
+    cells_r10 = []
+    for label, renderer in VARIANTS_R10:
+        cells_r10.append((label, renderer(base_r10, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r10 = _compose_sheet(cells_r10,
+        "Skybit — SKATEBOARD R10 (slate plates removed from coin "
+        "counter + pause button entirely; no rectangle behind either)",
+        cols=2, rows=1)
+    pygame.image.save(sheet_r10, OUT_PATH_R10)
+    print(f"wrote {OUT_PATH_R10}  ({os.path.getsize(OUT_PATH_R10)} bytes)")
 
 
 def _verify_d4_3digit(base):
