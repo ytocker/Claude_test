@@ -106,28 +106,36 @@ def _r11_build_deck():
     deck.blit(stripes, (0, 0))
     _r11_draw_truck_bolts(deck, deck_w, deck_h,
                           _R11_BOLT_INSET_X, _R11_BOLT_INSET_Y)
+    # Ink rim painted BEFORE the wordmarks so SKATE / BOARD! can extend
+    # right up to the deck's silhouette edge without the rim clipping
+    # their outermost glyph columns. The rim still reads as the deck's
+    # silhouette — text just lands on top of it at the very edges.
+    pygame.draw.rect(deck, INK, deck_rect, 4,
+                     border_radius=_R11_DECK_BORDER_R)
     axis_y = deck_h // 2
-    # Shift SKATE / BOARD! out toward the deck borders so the bigger
-    # punk-pop-art burst at the deck centre stops crowding them. SKATE
-    # anchors midleft just inside the left bolt; BOARD! anchors midright
-    # just inside the right bolt — both clear the bolt rim by the same
-    # `_R11_BORDER_PAD` so the row stays symmetric around the axis.
-    _R11_BORDER_PAD = 8
-    edge_x = _R11_BOLT_INSET_X + _R11_BORDER_PAD
+    # Push SKATE / BOARD! to within _R11_BORDER_PAD pixels of the deck
+    # silhouette edge so the bigger pop-art burst at the deck centre
+    # crowds them as little as possible. _gradient_text pads its surface
+    # by _R11_OUTLINE_W + 2 pixels on each side; we offset the midleft /
+    # midright anchors by that pad so the visible GLYPH (not the
+    # surface) lands at the desired edge distance.
+    _R11_BORDER_PAD = 4
+    _R11_TEXT_PAD = _R11_OUTLINE_W + 2
     skate = _gradient_text("SKATE", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
-    deck.blit(skate, skate.get_rect(
-        midleft=(edge_x, axis_y)))
+    skate_rect = skate.get_rect()
+    skate_rect.midleft = (_R11_BORDER_PAD - _R11_TEXT_PAD, axis_y)
+    deck.blit(skate, skate_rect)
     board = _gradient_text("BOARD!", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
-    deck.blit(board, board.get_rect(
-        midright=(deck_w - edge_x, axis_y)))
-    pygame.draw.rect(deck, INK, deck_rect, 4,
-                     border_radius=_R11_DECK_BORDER_R)
+    board_rect = board.get_rect()
+    board_rect.midright = (deck_w - _R11_BORDER_PAD + _R11_TEXT_PAD,
+                           axis_y)
+    deck.blit(board, board_rect)
     return deck
 
 
