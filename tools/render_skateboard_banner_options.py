@@ -818,12 +818,14 @@ def _digit_font_size(score_str, base=28, big=22):
 
 
 def variant_r4_d1_flat_slab(base, score):
-    """R4-D1 — Lower flat slab, gentle tilt.
+    """R4-D1 — Lower flat slab, gentle tilt (R4-final polish).
     Plain rounded-rect deck, ~280x72. Tilt -3°. Deck-center y=130.
     SKATEBOARD wordmark sits across the top of the deck face, halftone
-    score burst centred in the lower half of the deck. Calm 12%-alpha
-    wash stripes signal "deck graphic" without competing with the
-    score readout."""
+    score burst centred in the lower half of the deck. AD critique
+    flagged the slab as reading "generic pill"; the polish pass adds
+    four explicit ink bolt-dots at the corner truck mounts plus a
+    1-px ink waist pinstripe through the centre so the silhouette
+    reads as a deck rather than a featureless lozenge."""
     s = base.copy()
     deck_w, deck_h = 280, 72
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
@@ -845,7 +847,24 @@ def variant_r4_d1_flat_slab(base, score):
                      border_radius=36)
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
-    _draw_truck_bolts(deck, deck_w, deck_h, inset=26, edge_inset=14)
+    # Four explicit bolt-DOTS at the truck-mount corners — a thicker,
+    # higher-contrast pass than the default truck-bolts helper (the
+    # AD critique said the slab was reading as "generic pill" without
+    # explicit corner bolts). Pure INK fill with a tiny grey highlight
+    # so they punch at gameplay scale.
+    for bolt_x in (28, deck_w - 28):
+        for bolt_y in (16, deck_h - 16):
+            pygame.draw.circle(deck, INK, (bolt_x, bolt_y), 5)
+            pygame.draw.circle(deck, (180, 160, 140), (bolt_x, bolt_y), 2)
+    # Waist pinstripe — single 1-px ink line bisecting the slab
+    # horizontally so the silhouette reads as a deck centreline,
+    # not a featureless lozenge. Alpha bumped to 160 so the line
+    # survives the warm red plate at gameplay scale (the previous
+    # 120 alpha disappeared on close inspection).
+    pinstripe = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    pygame.draw.line(pinstripe, (15, 15, 15, 160),
+                     (18, deck_h // 2), (deck_w - 18, deck_h // 2), 1)
+    deck.blit(pinstripe, (0, 0))
     # Burst baked first so the wordmark can sit ABOVE it on the deck
     # face, but the burst lives in the LOWER half of the deck where
     # there's room for a 60 px diameter halftone disc inside the
@@ -881,13 +900,17 @@ def variant_r4_d1_flat_slab(base, score):
 
 
 def variant_r4_d2_strong_tilt(base, score):
-    """R4-D2 — Strong tilt, energetic pop.
-    Same deck silhouette as D1 but tilted aggressively to -12°. Deck
-    center pushed slightly lower (y=135) so the rotated corners
-    still clear the buff-icon row. Wordmark + burst inherit the
-    rotation by virtue of being baked onto the deck surface BEFORE
-    the rotate call, so all three pieces share the slant rather than
-    fighting it."""
+    """R4-D2 — Strong tilt, energetic pop (R4-final polish).
+    Same deck silhouette as D1 but tilted aggressively to -12°. The AD
+    critique flagged the badge as reading "slightly tilted but not
+    committed" — the polish pass picks the COUNTER-ROTATE strategy:
+    deck + wordmark + bolts all tilt -12° (committed slant), but the
+    halftone score BADGE is composed AFTER the rotate, perfectly
+    horizontal (0°), so the contrast deck/badge reads as deliberate
+    "skewed plate, level score". Score readability is the priority on
+    the live HUD, and a level digit nails that. Deck-center pulled
+    DOWN to y=143 so the rotated upper-left deck corner clears the
+    coin counter HUD strip (x≈10..60, y≈18..40)."""
     s = base.copy()
     deck_w, deck_h = 280, 72
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
@@ -909,46 +932,53 @@ def variant_r4_d2_strong_tilt(base, score):
     stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     deck.blit(stripes, (0, 0))
     _draw_truck_bolts(deck, deck_w, deck_h, inset=26, edge_inset=14)
+    # Wordmark — baked BEFORE the deck rotate so the lettering shares
+    # the committed -12° slant.
+    wm = _yellow_text("SKATEBOARD", 32, outline_w=4)
+    if wm.get_width() > deck_w - 16:
+        wm = _yellow_text("SKATEBOARD", 28, outline_w=4)
+    deck.blit(wm, wm.get_rect(center=(deck_w // 2, deck_h // 2)))
+    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=36)
+    # Deck rotated FIRST — wordmark + bolts inherit -12° slant.
+    rotated = pygame.transform.rotate(deck, -12)
+    # Pulled DOWN to y=143 (was 135 → 139 → 143) so the rotated
+    # upper-left deck corner clears the coin counter HUD strip at
+    # y≈18..40 (the corner was previously clipping at y≈22).
+    rect = rotated.get_rect(center=(W // 2, 143))
+    _composite_shadow(s, rotated, rect.topleft)
+    s.blit(rotated, rect)
+    # Score badge composed AFTER the rotate — fully HORIZONTAL (0°)
+    # so the score digit reads dead-level against the tilted deck.
+    # This is the "counter-rotate" half of the AD critique's binary
+    # choice: deck slanted, badge level, contrast deliberate.
     burst_ro, burst_ri = 26, 21
     score_str = str(score)
     num_size = _digit_font_size(score_str)
     burst = _baked_burst(0, 0, burst_ro, burst_ri,
                           score_str, num_size,
                           surface_size=burst_ro * 2 + 18)
-    deck.blit(burst, burst.get_rect(
-        center=(deck_w // 2, deck_h - 22)))
-    wm = _yellow_text("SKATEBOARD", 32, outline_w=4)
-    if wm.get_width() > deck_w - 16:
-        wm = _yellow_text("SKATEBOARD", 28, outline_w=4)
-    deck.blit(wm, wm.get_rect(center=(deck_w // 2, 18)))
-    pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=36)
-    # Big tilt — wordmark + burst go with it so the composite reads
-    # like a deck dropping into a trick rather than three independent
-    # elements skewed by accident.
-    rotated = pygame.transform.rotate(deck, -12)
-    rect = rotated.get_rect(center=(W // 2, 135))
-    _composite_shadow(s, rotated, rect.topleft)
-    s.blit(rotated, rect)
+    # Place burst at the visual centre of the rotated deck — same
+    # screen coords as the deck's centre.
+    s.blit(burst, burst.get_rect(center=(W // 2, 143)))
     return s
 
 
 def variant_r4_d3_concave_waist(base, score):
-    """R4-D3 — Concave-waist deck, real skateboard shape.
-    Deck silhouette narrows in the middle (waist) and bulges at the
-    truck ends — the actual silhouette of a popsicle-shape modern
-    deck viewed top-down. Wordmark runs along the wider TAIL section
-    where the deck is thickest; the halftone score burst sits inside
-    the WAIST where the eye is naturally pulled by the curve. -5°
-    tilt, deck-center y=128."""
+    """R4-D3 — Concave-waist deck, real skateboard shape (R4-final polish).
+    AD critique: the wordmark MUST sit centred over the WAIST (so the
+    SKATEBOARD lettering reads as carved into the pinched section,
+    using the waist curve as its visual baseline), and the score
+    BURST goes on the WIDER TAIL end of the deck. The waist pinch
+    is lifted further (waist_h ratio 0.86 → 0.90) so the central
+    interior holds a clean ≥22 px height for the wordmark cap.
+    -5° tilt, deck-center y=128."""
     s = base.copy()
     deck_w, deck_h = 280, 74
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
-    # Build a concave-waist polygon via a horizontal "lemon" shape:
-    # endpoints (truck pads) at the full deck height, waist pinched
-    # to ~80% of deck_h. Sampled along the deck length with a cosine
-    # so the curve reads as one continuous concave line rather than
-    # a stepped polygon.
-    waist_h = int(deck_h * 0.78)
+    # Concave-waist polygon — waist pinched to ~90% of deck_h (was 86%)
+    # so the central readout retains ≥22 px of clean interior height
+    # for the SKATEBOARD wordmark cap.
+    waist_h = int(deck_h * 0.90)
     samples = 24
     top_pts = []
     bot_pts = []
@@ -980,22 +1010,33 @@ def variant_r4_d3_concave_waist(base, score):
         for bolt_y in (16, deck_h - 16):
             pygame.draw.circle(deck, INK, (bolt_x, bolt_y), 4)
             pygame.draw.circle(deck, (60, 60, 60), (bolt_x, bolt_y), 2)
-    # Burst in the WAIST — narrower vertical room means a slightly
-    # smaller burst (ro=24) so the spikes don't punch through the
-    # waist's concave outline.
+    # Burst on the fat TAIL end of the deck (right side here) — the
+    # wide bulged section provides natural vertical room for the
+    # halftone disc, and the visual hierarchy reads "deck name on
+    # the waist, score stamp on the tail".
     burst_ro, burst_ri = 24, 21
     score_str = str(score)
     num_size = _digit_font_size(score_str)
     burst = _baked_burst(0, 0, burst_ro, burst_ri,
                           score_str, num_size,
                           surface_size=burst_ro * 2 + 18)
+    tail_cx = deck_w - 40
     deck.blit(burst, burst.get_rect(
-        center=(deck_w // 2, deck_h // 2)))
-    # Wordmark along the upper edge — large cap so it satisfies the
-    # ≥22 px requirement. Sits ABOVE the burst, kissing the deck's
-    # top concave curve.
+        center=(tail_cx, deck_h // 2)))
+    # Wordmark centred OVER THE WAIST — horizontal centre is the
+    # geometric centre of the deck (waist pinch point), and the cap
+    # height +2 boost (26→28) keeps the SKATEBOARD letterforms
+    # ≥22 px after the polygon rotation shave.
     wm = _yellow_text("SKATEBOARD", 28, outline_w=4)
-    deck.blit(wm, wm.get_rect(center=(deck_w // 2, 14)))
+    # Shift left so the wordmark CENTRE aligns with the waist (deck
+    # centre) and the right edge of the lettering doesn't run into
+    # the tail burst.
+    wm_centre_x = deck_w // 2 - 36
+    if wm.get_rect(center=(wm_centre_x, deck_h // 2)).right > tail_cx - burst_ro - 4:
+        # Auto-shrink if the wordmark would crowd the tail burst.
+        wm = _yellow_text("SKATEBOARD", 24, outline_w=4)
+        wm_centre_x = deck_w // 2 - 30
+    deck.blit(wm, wm.get_rect(center=(wm_centre_x, deck_h // 2)))
     # Outline pass — polygon outline rather than rounded-rect so the
     # waist curve is preserved.
     pygame.draw.polygon(deck, INK, poly, 4)
@@ -1007,16 +1048,24 @@ def variant_r4_d3_concave_waist(base, score):
 
 
 def variant_r4_d4_trucks_wheels(base, score):
-    """R4-D4 — Deck with visible trucks + wheels.
+    """R4-D4 — Deck with visible trucks + wheels (R4-final polish).
     The full gameplay-style skateboard silhouette: deck on top, two
     small dark truck rectangles bolted to the underside, four wheels
-    poking below. Adds the most "this IS a skateboard" detail of the
-    set. Deck-center y=120 so the wheels (deck bottom + ~16 px) stay
-    above the buff-icon row at y=194 even after the -4° tilt swing.
+    poking below. AD critique polish:
+    - Wheels desaturated ~25% from the punchy halftone yellow to a
+      muted off-white/ochre so they no longer compete with the
+      SKATEBOARD wordmark's yellow gradient (the bright wheels were
+      pulling the eye DOWN; muting them keeps focus on the wordmark
+      + score burst).
+    - Truck stems thinned by 1 px (28x8 → 28x7) so they read as a
+      lighter visual base under the deck, less weight under the score.
+    - Deck-center lifted to y=118 so the wheel bottoms land at y≤183
+      (deck top at y≈86, deck_h=64 → deck bottom y=150, +7 truck +
+      6 wheel radius = wheel bottom y≈173 < 183 floor).
     Wordmark on the top deck face, score burst centered in the deck."""
     s = base.copy()
     deck_w, deck_h = 270, 64
-    # Composite surface needs vertical room for trucks (8 px) + wheels
+    # Composite surface needs vertical room for trucks (7 px) + wheels
     # (12 px diameter) below the deck.
     pad = 22
     comp_h = deck_h + pad
@@ -1025,19 +1074,21 @@ def variant_r4_d4_trucks_wheels(base, score):
     deck_rect = pygame.Rect((comp_w - deck_w) // 2, 0, deck_w, deck_h)
     # Trucks (small dark rectangles under the deck) — drawn FIRST so
     # the deck's rounded-rect overlays them visually correctly.
-    truck_w, truck_h = 28, 8
+    # Stem height dropped 8→7 to thin the visual weight under the deck.
+    truck_w, truck_h = 28, 7
     for truck_cx_local in (deck_rect.left + 36, deck_rect.right - 36):
         truck_rect = pygame.Rect(0, 0, truck_w, truck_h)
         truck_rect.center = (truck_cx_local, deck_h + 4)
         pygame.draw.rect(deck, (40, 38, 44), truck_rect,
                          border_radius=3)
         pygame.draw.rect(deck, INK, truck_rect, 2, border_radius=3)
-        # Wheels — two per truck, yellow with ink ring (matches the
-        # SKATEBOARD palette better than pure black).
+        # Wheels — desaturated muted ochre (was punchy yellow 255,220,30).
+        # The ochre keeps the wheels reading as a warm skate-palette
+        # element without competing with the SKATEBOARD wordmark above.
         for wheel_dx in (-truck_w // 2 + 2, truck_w // 2 - 2):
             wheel_cx = truck_cx_local + wheel_dx
             wheel_cy = deck_h + 14
-            pygame.draw.circle(deck, (255, 220, 30),
+            pygame.draw.circle(deck, (215, 195, 160),
                                (wheel_cx, wheel_cy), 6)
             pygame.draw.circle(deck, INK,
                                (wheel_cx, wheel_cy), 6, 2)
@@ -1077,20 +1128,28 @@ def variant_r4_d4_trucks_wheels(base, score):
                                        deck_rect.top + 12)))
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=30)
     rotated = pygame.transform.rotate(deck, -4)
-    rect = rotated.get_rect(center=(W // 2, 120))
+    # Lifted from y=120 → y=118 so the wheel bottoms (deck bottom +7 truck
+    # +6 wheel radius) land at y≤183 — clear of the buff-row floor at
+    # y=185 even after the -4° rotation swing.
+    rect = rotated.get_rect(center=(W // 2, 118))
     _composite_shadow(s, rotated, rect.topleft)
     s.blit(rotated, rect)
     return s
 
 
 def variant_r4_d5_longboard(base, score):
-    """R4-D5 — Wider longboard with stamped graphic.
+    """R4-D5 — Wider longboard with stamped graphic (R4-final polish).
     Rectangular old-school longboard silhouette (290x64), almost flat
-    (-2° tilt), deck-center y=140. SKATEBOARD reads as a "stamped
-    graphic" — fatter outline, slight scuff texture — running along
-    the deck's length. Score burst is the central decal stamped on
-    the board mid-length, framed inside a thin ink ring so it reads
-    as a separate decal layer applied to the board."""
+    (-2° tilt), deck-center y=140. AD critique polish:
+    - The split "SKATE … BOARD" wordmark is COLLAPSED into ONE
+      centered SKATEBOARD wordmark sitting above the central decal
+      (the split read as two cohesion-breaking labels). The wordmark
+      keeps the stamp-scuff offset trick so the deck-graphic vibe
+      survives.
+    - The thin ink ring around the central decal is REMOVED so the
+      burst's own ink outline carries the silhouette; the previous
+      ring was doubling-up against the score halo's halftone fill
+      and creating a competing concentric reading."""
     s = base.copy()
     deck_w, deck_h = 290, 64
     deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
@@ -1111,45 +1170,40 @@ def variant_r4_d5_longboard(base, score):
     deck.blit(grain, (0, 0))
     # Truck bolts wider apart since the deck is longer.
     _draw_truck_bolts(deck, deck_w, deck_h, inset=28, edge_inset=14)
-    # Central decal — burst sits in the middle, inside a thin ink
-    # ring so it reads as a sticker applied on top of the board.
-    burst_ro, burst_ri = 24, 21
+    # Central decal — burst sits BELOW the wordmark, no ink ring
+    # (the AD critique flagged the ring as doubling with the burst's
+    # halftone fill). The burst's own polygon ink outline carries
+    # the decal-on-board reading.
+    burst_ro, burst_ri = 22, 19
     score_str = str(score)
-    num_size = _digit_font_size(score_str)
+    num_size = _digit_font_size(score_str, base=24, big=20)
     burst = _baked_burst(0, 0, burst_ro, burst_ri,
                           score_str, num_size,
                           surface_size=burst_ro * 2 + 18)
-    burst_pos = (deck_w // 2, deck_h // 2 + 2)
-    # Thin ink ring just outside the burst's spike envelope.
-    pygame.draw.circle(deck, INK, burst_pos, burst_ro + 4, 2)
+    # Burst sits in the lower band of the deck so the centred
+    # wordmark above has clean vertical room.
+    burst_pos = (deck_w // 2, deck_h - 18)
     deck.blit(burst, burst.get_rect(center=burst_pos))
-    # SKATEBOARD as stamped graphic — drawn TWICE, once as a slightly
-    # offset darker "stamp scuff" and once as the gradient wordmark
-    # on top. Wordmark stretched horizontally so it reads as PRINTED
-    # along the board's length, in two bands flanking the central
-    # decal.
-    wm_left = _yellow_text("SKATE", 26, outline_w=4)
-    wm_right = _yellow_text("BOARD", 26, outline_w=4)
-    # Stamp-scuff: drop a 1-px-offset darker copy underneath the
-    # gradient so the print reads as slightly "rough".
-    scuff_l = _gradient_text("SKATE", 26,
-                             top_col=(120, 25, 18),
-                             bot_col=(120, 25, 18),
-                             outline=(120, 25, 18), outline_w=4)
-    scuff_l.set_alpha(120)
-    scuff_r = _gradient_text("BOARD", 26,
-                             top_col=(120, 25, 18),
-                             bot_col=(120, 25, 18),
-                             outline=(120, 25, 18), outline_w=4)
-    scuff_r.set_alpha(120)
-    left_pos = (54, deck_h // 2)
-    right_pos = (deck_w - 54, deck_h // 2)
-    deck.blit(scuff_l, scuff_l.get_rect(
-        center=(left_pos[0] + 1, left_pos[1] + 1)))
-    deck.blit(wm_left, wm_left.get_rect(center=left_pos))
-    deck.blit(scuff_r, scuff_r.get_rect(
-        center=(right_pos[0] + 1, right_pos[1] + 1)))
-    deck.blit(wm_right, wm_right.get_rect(center=right_pos))
+    # SINGLE centered SKATEBOARD wordmark — the AD critique killed
+    # the split label. Stamp-scuff trick retained: a 1 px offset
+    # darker copy underneath so the print reads as slightly rough
+    # ink rather than a clean digital outline.
+    wm = _yellow_text("SKATEBOARD", 28, outline_w=4)
+    if wm.get_width() > deck_w - 16:
+        wm = _yellow_text("SKATEBOARD", 26, outline_w=4)
+    scuff = _gradient_text("SKATEBOARD", wm.get_height() - 4 if False else 28,
+                           top_col=(120, 25, 18),
+                           bot_col=(120, 25, 18),
+                           outline=(120, 25, 18), outline_w=4)
+    if scuff.get_width() > deck_w - 16:
+        scuff = _gradient_text("SKATEBOARD", 26,
+                               top_col=(120, 25, 18),
+                               bot_col=(120, 25, 18),
+                               outline=(120, 25, 18), outline_w=4)
+    scuff.set_alpha(120)
+    wm_pos = (deck_w // 2, 16)
+    deck.blit(scuff, scuff.get_rect(center=(wm_pos[0] + 1, wm_pos[1] + 1)))
+    deck.blit(wm, wm.get_rect(center=wm_pos))
     pygame.draw.rect(deck, INK, deck_rect, 4, border_radius=20)
     rotated = pygame.transform.rotate(deck, -2)
     rect = rotated.get_rect(center=(W // 2, 140))
@@ -1255,13 +1309,14 @@ def main():
     print(f"wrote {OUT_PATH_R4}  ({os.path.getsize(OUT_PATH_R4)} bytes)")
 
 
-def _verify_d1_3digit(base):
-    """3-digit "888" sanity render for the R4-D1 flat slab — confirms
-    the deck composite still holds a triple-digit score without the
-    digit silhouette punching through the spike rim. Writes a scratch
-    cell to docs/skateboard_banner_options/round_4_d1_888.png."""
-    frame = variant_r4_d1_flat_slab(base, 888)
-    out = os.path.join(OUT_DIR, "round_4_d1_888.png")
+def _verify_d4_3digit(base):
+    """3-digit "888" sanity render for the R4-D4 trucks+wheels lead —
+    confirms the deck composite still holds a triple-digit score
+    without the digit silhouette punching through the spike rim, and
+    that the wheels stay above y=183 with the wider digit cap. Writes
+    a scratch cell to docs/skateboard_banner_options/round_4_d4_888.png."""
+    frame = variant_r4_d4_trucks_wheels(base, 888)
+    out = os.path.join(OUT_DIR, "round_4_d4_888.png")
     pygame.image.save(frame, out)
     print(f"  wrote {out}")
 
@@ -1303,5 +1358,5 @@ if __name__ == "__main__":
     app = _build_gameplay_frame()
     base = _render_base(app)
     _verify_c5_3digit(base)
-    print("3-digit '888' verification on R4-D1...")
-    _verify_d1_3digit(base)
+    print("3-digit '888' verification on R4-D4 (lead)...")
+    _verify_d4_3digit(base)
