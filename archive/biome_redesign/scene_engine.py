@@ -226,13 +226,19 @@ def _sky_stops(spec, pal):
     return list(zip(spec.sky.positions, cols))
 
 
-def paint_sky(surf, spec, w, h, phase):
+def paint_sky(surf, spec, w, h, phase, stars=False, ground_y=None):
     """Bake ONLY the biome's sky color field, filling the full tile — no ridges,
-    structures, ground, foliage, atmosphere or stars. Used for the
-    backgrounds-only exploration sheet."""
+    structures, ground, foliage or atmosphere. With `stars=True`, restores the
+    night sprinkle in the SAME band/positions as the full-scene sheets (pass
+    `ground_y` so the upper-band layout matches), gated on the stage's
+    `star_alpha`."""
     pal = spec.palette_for_phase(phase)
     stops = _sky_stops(spec, pal)
     surf.blit(sf.make_sky_field(w, h, stops, dither_amp=spec.sky.dither_amp), (0, 0))
+    if stars:
+        sa = int(pal.get('star_alpha', 0))
+        if sa > 0:
+            _scatter_stars(surf, w, ground_y or h, sa)
 
 
 def paint_scene(surf, spec: BiomeSpec, w, h, ground_y, phase, scroll=DEFAULT_SCROLL):

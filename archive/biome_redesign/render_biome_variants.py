@@ -49,13 +49,15 @@ SECTION_H = 30     # full-width group-header band
 # Set by main(): when True, tiles show ONLY the biome's sky/background color
 # field (no ridges/structures/ground/foliage/atmosphere/stars).
 SKY_ONLY = False
+SKY_STARS = False
+SHOW_SECTIONS = True   # group-header bands; suppressed for custom subsets
 
 
 def render_cell(biome_id: str, phase: float) -> pygame.Surface:
     surf = pygame.Surface((W, H))
     spec = bv.BIOMES[biome_id]
     if SKY_ONLY:
-        se.paint_sky(surf, spec, W, H, phase)
+        se.paint_sky(surf, spec, W, H, phase, stars=SKY_STARS, ground_y=GROUND_Y)
     else:
         se.paint_scene(surf, spec, W, H, GROUND_Y, phase)
     return pygame.transform.smoothscale(surf, (TW, TH))
@@ -78,8 +80,10 @@ def _wrap(font, text, maxw):
 def make_sheet(rows, title):
     n = len(rows)
     cols = len(bv.STAGES)
-    # group section header appears if both groups present
-    has_sections = any(r in bv.GROUP_A for r in rows) and any(r in bv.GROUP_B for r in rows)
+    # group section header appears only for the full set with both groups present
+    has_sections = (SHOW_SECTIONS
+                    and any(r in bv.GROUP_A for r in rows)
+                    and any(r in bv.GROUP_B for r in rows))
     n_sections = 2 if has_sections else (1 if rows else 0)
 
     sheet_w = GUT + PAD + cols * (TW + PAD)
@@ -136,17 +140,23 @@ def make_sheet(rows, title):
 
 
 def main():
-    global SKY_ONLY
+    global SKY_ONLY, SKY_STARS, SHOW_SECTIONS
     tag = sys.argv[1] if len(sys.argv) > 1 else "round_0"
     which = sys.argv[2] if len(sys.argv) > 2 else "all"
-    # Sky-only mode: triggered by a "sky" token in the round tag or a 3rd arg.
+    # Sky-only / stars modes triggered by tokens in the round tag.
     SKY_ONLY = "sky" in tag.lower() or (len(sys.argv) > 3 and sys.argv[3] == "sky")
+    SKY_STARS = "star" in tag.lower()
     if which == "A":
         rows = bv.GROUP_A
     elif which == "B":
         rows = bv.GROUP_B
-    else:
+    elif which == "all":
         rows = bv.GROUP_A + bv.GROUP_B
+    else:
+        # Custom subset: comma-separated biome ids, rendered in the given order;
+        # no group-header bands for an ad-hoc comparison set.
+        rows = [b.strip() for b in which.split(",") if b.strip() in bv.BIOMES]
+        SHOW_SECTIONS = False
     title = f"BIOME REDESIGN — {tag} — {len(rows)} designs x {len(bv.STAGES)} stages"
     sheet = make_sheet(rows, title)
     out = OUT / f"{tag}.png"
