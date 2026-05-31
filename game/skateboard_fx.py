@@ -107,18 +107,25 @@ def _r11_build_deck():
     _r11_draw_truck_bolts(deck, deck_w, deck_h,
                           _R11_BOLT_INSET_X, _R11_BOLT_INSET_Y)
     axis_y = deck_h // 2
+    # Shift SKATE / BOARD! out toward the deck borders so the bigger
+    # punk-pop-art burst at the deck centre stops crowding them. SKATE
+    # anchors midleft just inside the left bolt; BOARD! anchors midright
+    # just inside the right bolt — both clear the bolt rim by the same
+    # `_R11_BORDER_PAD` so the row stays symmetric around the axis.
+    _R11_BORDER_PAD = 8
+    edge_x = _R11_BOLT_INSET_X + _R11_BORDER_PAD
     skate = _gradient_text("SKATE", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
     deck.blit(skate, skate.get_rect(
-        midright=(deck_w // 2 - _R11_GAP_PX, axis_y)))
+        midleft=(edge_x, axis_y)))
     board = _gradient_text("BOARD!", _R11_FONT_SIZE,
                            top_col=(255, 255, 110),
                            bot_col=_R11_WORDMARK_BOT,
                            outline=INK, outline_w=_R11_OUTLINE_W)
     deck.blit(board, board.get_rect(
-        midleft=(deck_w // 2 + _R11_GAP_PX, axis_y)))
+        midright=(deck_w - edge_x, axis_y)))
     pygame.draw.rect(deck, INK, deck_rect, 4,
                      border_radius=_R11_DECK_BORDER_R)
     return deck
@@ -561,16 +568,27 @@ def render_kapow_sticker_overlay(cx: int, cy: int,
 
 
 def _halftone_filled_burst(surf, cx, cy, ro, ri, spikes,
-                            dot_col, base_col, outline_w=4, jitter=4):
+                            dot_col, base_col, outline_w=4, jitter=4,
+                            chaos=False):
     """Burst polygon filled with Lichtenstein halftone dots instead
     of solid color. Renders the dots onto a sub-surface, then masks
-    them with the burst polygon shape so they only show inside."""
+    them with the burst polygon shape so they only show inside.
+
+    chaos=True picks each outer spike's radius from a punk-style
+    multiplier pool (some spikes go FAR, others stay SHORT) instead
+    of the gently-jittered symmetric star. Inner valleys keep the
+    usual jitter so the burst still reads as a star and not a blob."""
     rng = random.Random(int(cx) * 31 + int(cy) * 17 + spikes)
+    if chaos:
+        spike_scales = [0.62, 0.80, 1.00, 1.00, 1.22, 1.45, 1.55]
     pts = []
     for i in range(spikes * 2):
         ang = i * math.pi / spikes - math.pi / 2
-        r = ro if i % 2 == 0 else ri
-        if jitter:
+        if i % 2 == 0:
+            r = ro * rng.choice(spike_scales) if chaos else ro
+        else:
+            r = ri
+        if jitter and not (chaos and i % 2 == 0):
             r += rng.randint(-jitter, jitter)
         pts.append((cx + math.cos(ang) * r, cy + math.sin(ang) * r))
     pygame.draw.polygon(surf, base_col, pts)
@@ -691,11 +709,21 @@ def render_skateboard_score_e3(score: int) -> pygame.Surface:
     `(0, -_skateboard_lift_y)` shift (lift_y=26), so the badge is drawn
     at y=96 inside the (W×H) overlay → lands on screen at y=70, exactly
     matching the regular plate. Digit font matches the regular HUD
-    score's _font(48, True); ro/ri grow proportionally so the burst
-    silhouette holds the bigger glyph cleanly."""
+    score's _font(48, True); ro/ri size the burst around the bigger
+    glyph; chaos=True throws each outer spike onto a punk-style
+    long/short multiplier so the star reads as a deliberate uneven
+    pop-art shout instead of a symmetric snowflake."""
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
-    _halftone_score_badge(surf, W // 2, 96, str(score),
-                           ro=62, ri=40, font_size=48)
+    cx, cy = W // 2, 96
+    _halftone_filled_burst(surf, cx, cy, ro=62, ri=40, spikes=10,
+                            dot_col=(230, 60, 50),
+                            base_col=(255, 220, 30),
+                            chaos=True)
+    num = _gradient_text(str(score), 48,
+                          top_col=(255, 250, 240),
+                          bot_col=(230, 60, 50),
+                          outline=INK, outline_w=3)
+    surf.blit(num, num.get_rect(center=(cx, cy)))
     return surf
 
 
