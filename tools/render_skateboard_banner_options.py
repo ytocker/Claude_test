@@ -44,6 +44,7 @@ OUT_PATH_R2 = os.path.join(OUT_DIR, "round_2.png")
 OUT_PATH_R3 = os.path.join(OUT_DIR, "round_3.png")
 OUT_PATH_R4 = os.path.join(OUT_DIR, "round_4.png")
 OUT_PATH_R5 = os.path.join(OUT_DIR, "round_5.png")
+OUT_PATH_R6 = os.path.join(OUT_DIR, "round_6.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0, bake_hud_score=True):
@@ -1676,6 +1677,193 @@ VARIANTS_R5 = [
 ]
 
 
+# ── Round 6 — R5-D1 silhouette relocated UP so the deck wraps the regular
+# score position (y=70 — the NA-plate centre). Each cell explores ONE
+# strategy for resolving the coin-counter (top-left) / pause-tile
+# (top-right) collision the upward move creates. Deck silhouette is
+# R5-D1's plain rounded slab; only the size, tilt, position, and chrome
+# handling vary per cell.
+
+
+# Snapshot boxes for the live HUD chrome — sized just bigger than the
+# coin plate (x=12..~90, y=14..52) and pause tile (x=274..342, y=14..52)
+# so V1 can capture the chrome from the base frame, paint the deck UNDER
+# it, then re-stamp the chrome on top. Tight bounds keep the sky margin
+# around the chrome minimal so re-stamping doesn't punch a large rectangle
+# of sky through the deck silhouette where the deck overlaps each corner.
+_HUD_COIN_BOX = pygame.Rect(0, 6, 100, 56)
+_HUD_PAUSE_BOX = pygame.Rect(264, 6, 90, 56)
+
+
+def _r6_build_plain_deck(deck_w, deck_h, *, border_radius,
+                          stripe_step=24, stripe_alpha=38,
+                          bolt_inset_x=30, bolt_inset_y=18):
+    """Build the shared R6 plain rounded-rect deck surface — R5-D1's
+    silhouette factored out so V1-V5 only have to vary the size, tilt,
+    and centre. Same wash stripes + 4 corner bolts + ink rim as R5-D1
+    so the silhouette identity stays locked across the round."""
+    deck = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    deck_rect = deck.get_rect()
+    pygame.draw.rect(deck, PLATE_RED, deck_rect, border_radius=border_radius)
+    stripes = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    for i in range(-deck_h, deck_w + deck_h, stripe_step):
+        if (i // stripe_step) % 2 == 0:
+            pts = [(i, 0), (i + stripe_step // 2, 0),
+                   (i + stripe_step // 2 + deck_h, deck_h),
+                   (i + deck_h, deck_h)]
+            pygame.draw.polygon(stripes,
+                                (255, 235, 130, stripe_alpha), pts)
+    mask = pygame.Surface((deck_w, deck_h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), deck_rect,
+                     border_radius=border_radius)
+    stripes.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    deck.blit(stripes, (0, 0))
+    _draw_r5_d1_bolts(deck, deck_w, deck_h,
+                       inset=bolt_inset_x, edge_inset=bolt_inset_y)
+    return deck, deck_rect
+
+
+def _r6_paint_deck(s, deck_w, deck_h, *, tilt_deg, deck_center,
+                    border_radius=44, gap_px=64, font_size=28,
+                    stripe_step=24, stripe_alpha=38,
+                    bolt_inset_x=30, bolt_inset_y=18, outline_w=4):
+    """Build the R6 plain deck, lay split SKATE | BOARD wordmarks on
+    its long axis, ink-rim it, rotate, and composite onto `s` with the
+    shared R5 shadow. Returns the deck_center as passed (so the caller
+    can hand it straight to the live-score preview stamp)."""
+    deck, deck_rect = _r6_build_plain_deck(
+        deck_w, deck_h, border_radius=border_radius,
+        stripe_step=stripe_step, stripe_alpha=stripe_alpha,
+        bolt_inset_x=bolt_inset_x, bolt_inset_y=bolt_inset_y)
+    _blit_split_wordmarks_aligned(deck, deck_w, deck_h,
+                                   gap_px=gap_px, font_size=font_size,
+                                   outline_w=3)
+    pygame.draw.rect(deck, INK, deck_rect, outline_w,
+                     border_radius=border_radius)
+    rotated = pygame.transform.rotate(deck, tilt_deg)
+    rect = rotated.get_rect(center=deck_center)
+    _composite_shadow(s, rotated, rect.topleft,
+                       offset=R5_SHADOW_OFFSET,
+                       alpha=R5_SHADOW_ALPHA)
+    s.blit(rotated, rect)
+    return deck_center
+
+
+def variant_r6_v1_full_slab_ui_on_top(base, score):
+    """R6-V1 — Full 320 x 92 slab, deck-centre (180, 70). The deck is
+    painted UNDER the live HUD chrome: the coin plate (top-left) and
+    pause tile (top-right) are snapshotted from `base` BEFORE the deck
+    is laid down, then re-stamped on top so they read as stickers on
+    the deck. Most committed to "score stays where it always sits";
+    accepts the chrome-on-deck collision rather than dodging it."""
+    s = base.copy()
+    # Snapshot the live HUD chrome BEFORE the deck paint so the chrome
+    # can re-land on top of the deck composite afterwards. Tight boxes
+    # so the re-stamp's sky margin barely punches the deck silhouette.
+    coin_snap = base.subsurface(_HUD_COIN_BOX).copy()
+    pause_snap = base.subsurface(_HUD_PAUSE_BOX).copy()
+    deck_center = _r6_paint_deck(s, 320, 92,
+                                  tilt_deg=-12,
+                                  deck_center=(W // 2, 70))
+    # Re-stamp the chrome ON TOP of the deck — coin counter on the
+    # left, pause tile on the right, both at their original positions
+    # so the rest of the UI lines up untouched.
+    s.blit(coin_snap, _HUD_COIN_BOX.topleft)
+    s.blit(pause_snap, _HUD_PAUSE_BOX.topleft)
+    # Score badge LAST so it always sits on top of everything — even
+    # if the coin or pause re-stamp clipped a corner of the central
+    # burst region, the badge wins on the final composite.
+    _stamp_live_score_preview(s, deck_center, score=888)
+    return s
+
+
+def variant_r6_v2_narrow_between_buttons(base, score):
+    """R6-V2 — Narrower 220 x 88 deck, deck-centre (180, 70). At 220
+    wide the deck's flat ends sit ~70 px from each frame edge: with the
+    coin plate ending at x≈90 and the pause tile starting at x≈274,
+    the deck clears each by ~14 px on its untilted axis, so even after
+    the -12° tilt the corners stay out of the chrome boxes. SKATE | live
+    score | BOARD still fits — gap_px and font_size shrink in lockstep
+    via the shared baseline-locked helper."""
+    s = base.copy()
+    deck_center = _r6_paint_deck(s, 220, 88,
+                                  tilt_deg=-12,
+                                  deck_center=(W // 2, 70),
+                                  gap_px=58, font_size=26,
+                                  border_radius=40,
+                                  bolt_inset_x=24, bolt_inset_y=16)
+    _stamp_live_score_preview(s, deck_center, score=888)
+    return s
+
+
+def variant_r6_v3_deep_pop(base, score):
+    """R6-V3 — Wide 320 x 80 slab at a deeper -18° tilt, deck-centre
+    pulled DOWN to (180, 78) so the steeper rotation arcs the deck's
+    upper corners below the y=52 line where the coin and pause tiles
+    end. The deck still wraps the score badge (centred at y=78 on the
+    deck centre); the badge sits ~8 px below the regular-score y=70 so
+    the visual emphasis swings to the deck silhouette. The most "trick
+    pop" energy of the five — steepest pitch + lowest deck centre."""
+    s = base.copy()
+    # Slightly shorter deck (80 vs 92) so the steeper tilt doesn't
+    # carry the lower-right corner over the buff-icon row at y≈194.
+    deck_center = _r6_paint_deck(s, 320, 80,
+                                  tilt_deg=-18,
+                                  deck_center=(W // 2, 78),
+                                  gap_px=62, font_size=26,
+                                  border_radius=40,
+                                  bolt_inset_y=16)
+    _stamp_live_score_preview(s, deck_center, score=888)
+    return s
+
+
+def variant_r6_v4_mid_compromise(base, score):
+    """R6-V4 — Mid 280 x 86 slab at -14°, deck-centre (180, 70). Sits
+    between V1 (full-width, chrome on top) and V2 (narrow, clears
+    chrome): the 280 wide deck almost touches the coin plate and pause
+    tile boundaries, and the -14° tilt swings the corners down just
+    enough that they pass UNDER the chrome instead of overlapping it.
+    The safe middle choice — deck stays substantial without forcing
+    chrome on-top-of-deck composition."""
+    s = base.copy()
+    deck_center = _r6_paint_deck(s, 280, 86,
+                                  tilt_deg=-14,
+                                  deck_center=(W // 2, 70),
+                                  gap_px=62, font_size=28,
+                                  border_radius=42,
+                                  bolt_inset_x=28, bolt_inset_y=17)
+    _stamp_live_score_preview(s, deck_center, score=888)
+    return s
+
+
+def variant_r6_v5_offset_right(base, score):
+    """R6-V5 — Asymmetric 300 x 90 slab at -12°, deck-CENTRE shifted
+    to (190, 70) — 10 px right of the frame centre. The shift opens
+    breathing room on the LEFT (past the coin counter) and trades a
+    little overlap with the pause tile on the right, but the tilt's
+    visual swing makes the asymmetry read as deliberate rather than
+    mis-centred. Score badge sits at the deck centre (also at x=190)
+    so it tracks the deck's optical balance, not the frame centre."""
+    s = base.copy()
+    deck_center = _r6_paint_deck(s, 300, 90,
+                                  tilt_deg=-12,
+                                  deck_center=(W // 2 + 10, 70),
+                                  gap_px=62, font_size=28,
+                                  border_radius=42,
+                                  bolt_inset_x=28, bolt_inset_y=17)
+    _stamp_live_score_preview(s, deck_center, score=888)
+    return s
+
+
+VARIANTS_R6 = [
+    ("R6-V1 — Full slab (UI on top)",     variant_r6_v1_full_slab_ui_on_top),
+    ("R6-V2 — Narrow (tucked between UI)", variant_r6_v2_narrow_between_buttons),
+    ("R6-V3 — Deep pop (-18 deg)",        variant_r6_v3_deep_pop),
+    ("R6-V4 — Mid (-14 deg)",             variant_r6_v4_mid_compromise),
+    ("R6-V5 — Offset right",              variant_r6_v5_offset_right),
+]
+
+
 def _compose_sheet(cells, title_text):
     """2x3 grid (5 cells + 1 spare). Each cell shows the rendered frame
     with a label strip below. Cell = W × (H + 36); margins = 16 px."""
@@ -1785,6 +1973,24 @@ def main():
         "SKATE | live-score | BOARD; deck stays whole, no baked score)")
     pygame.image.save(sheet_r5, OUT_PATH_R5)
     print(f"wrote {OUT_PATH_R5}  ({os.path.getsize(OUT_PATH_R5)} bytes)")
+
+    # Round 6 — R5-D1 silhouette relocated UP so the deck wraps the
+    # regular-score position (y=70). Each cell solves the coin/pause
+    # chrome collision differently — full-slab-under-chrome,
+    # tucked-between, steeper tilt that arcs corners below the chrome
+    # line, mid-width, and asymmetric offset. Shares R5's
+    # bake_hud_score=False base so neither the halftone burst nor the
+    # NA plate paint at default position; the only score badge in each
+    # cell is the live preview stamped on the deck centre.
+    cells_r6 = []
+    for label, renderer in VARIANTS_R6:
+        cells_r6.append((label, renderer(base_r5, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r6 = _compose_sheet(cells_r6,
+        "Skybit — SKATEBOARD R6 deck composites (R5-D1 moved UP to "
+        "y=70; varied chrome-collision strategies)")
+    pygame.image.save(sheet_r6, OUT_PATH_R6)
+    print(f"wrote {OUT_PATH_R6}  ({os.path.getsize(OUT_PATH_R6)} bytes)")
 
 
 def _verify_d4_3digit(base):
