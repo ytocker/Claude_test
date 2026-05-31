@@ -9,6 +9,8 @@ before Groups A/B are authored.
 import scene_engine as se
 from scene_engine import BiomeSpec, SkyParams, RidgeParams, GroundParams
 import biome_motifs as bm
+from game.pillar_variants import draw_pine_trio, draw_cairn
+from game.draw import draw_wuling_pine, draw_side_shrub
 
 
 # ── The 10 day-stage columns (predawn → night arc), tunable in one place ──────
