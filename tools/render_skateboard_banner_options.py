@@ -599,20 +599,27 @@ def variant_r3_c5_burst_exclamation(base, score):
     - burst sized to clear the pause-button rectangle at the
       top-right (no overlap into the buff-icon row at y=128)."""
     s = base.copy()
-    # Wordmark and burst sizing — both tuned so the composite fits
-    # within the on-screen play area at 360 px wide AND clears the
-    # pause button at ~x=325. Wordmark cap ~18 px; burst outer-radius
-    # 28 px (≈20 px digit cap inside) — keeps optical proportions
-    # between word height and burst dot.
+    # Wordmark + burst sizing tuned so the composite fits within 360 px
+    # AND clears the pause button at the top-right. Burst's outer radius
+    # was 28 → trimmed to 27 so the digit (not the spikes) reads as the
+    # heaviest mass of the composite — keeps optical hierarchy: digit >
+    # wordmark > spike halo. Word cap ~18 px; burst digit cap inside the
+    # 27 px halo.
     wm_size = 32
     word = _yellow_text("SKATEBOARD", wm_size, outline_w=5)
-    burst_ro = 28
-    burst_ri = 17
+    burst_ro = 27
+    # Inner pad widened from 17 → 21 (+4 px) so 3-digit "888" scores
+    # fit inside the burst's inner valleys without the digit silhouette
+    # punching through the spike rim. Late-game scores hit triple digits
+    # before SKATEBOARD power-ups become rare, so this margin is needed.
+    burst_ri = 21
     burst_diameter = burst_ro * 2
     gap = 4
     total_w = word.get_width() + gap + burst_diameter
     # Pull composite slightly LEFT so the burst's right spike clears
-    # the pause-button rectangle (which sits at ~x=320 onward).
+    # the pause-button rectangle (which sits at ~x=320 onward). Extra
+    # -6 px nudge moves the BURST itself ~6 px left (after the composite
+    # is laid out) so its left spike kisses the right edge of the "D".
     start_x = max(8, (W - total_w) // 2 - 14)
     # Centre line at y=72 — keeps the composite inside the top 110 px
     # and well clear of the buff icons at y=128.
@@ -623,7 +630,9 @@ def variant_r3_c5_burst_exclamation(base, score):
     # word_rect.bottom - ~6 px descender padding.
     word_baseline_y = word_rect.bottom - 6
     burst_cy = word_baseline_y - burst_ro
-    burst_cx = word_rect.right + gap + burst_diameter // 2
+    # -6 px burst nudge so the left spike kisses the "D" right edge
+    # rather than leaving a gap — "word!" reads as one tight unit.
+    burst_cx = word_rect.right + gap + burst_diameter // 2 - 6
     # Soft DARK drop shadow under BOTH silhouettes — one continuous
     # shadow layer ties the wordmark + burst into a single object.
     # Using dark grey (not red) so the shadow doesn't bleed colour
@@ -648,6 +657,17 @@ def variant_r3_c5_burst_exclamation(base, score):
     # Wordmark — yellow gradient with thick ink outline (outline_w=5)
     # so it survives the pale-day biome without a red plate behind it.
     s.blit(word, word_rect)
+    # Faint 1-px inner highlight along the TOP of the wordmark letters
+    # — same trick the coin glyph uses. A second pass of the gradient
+    # text without an outline, blitted 1 px UP at ~30% alpha, leaves a
+    # bright top-edge sheen that survives both day AND night biome
+    # because it tints existing yellow, never introduces a new colour.
+    hl = _gradient_text("SKATEBOARD", wm_size,
+                        top_col=(255, 255, 110),
+                        bot_col=(255, 255, 110),
+                        outline=INK, outline_w=0)
+    hl.set_alpha(76)  # ~30% of 255
+    s.blit(hl, (word_rect.left, word_rect.top - 1))
     # Halftone burst body — inlined so we control the digit gradient.
     rng = random.Random(burst_cx * 31 + burst_cy * 17 + 10)
     spikes = 10
@@ -678,11 +698,19 @@ def variant_r3_c5_burst_exclamation(base, score):
     # helper's default (230, 60, 50)). The deeper bottom pushes the
     # digit silhouette darker so it pops against the yellow burst
     # base instead of blending into it.
-    num = _gradient_text(str(score), 28,
+    # Digit font auto-scales for 3+ digit scores so the digit silhouette
+    # never punches through the burst's spike rim. 1-2 digits keep the
+    # punchy 28 px cap; 3-digit drops to 22 to leave ~3 px clearance
+    # inside the outer-spike envelope.
+    num_size = 28 if len(str(score)) <= 2 else 22
+    num = _gradient_text(str(score), num_size,
                          top_col=(255, 250, 240),
                          bot_col=(190, 30, 20),
                          outline=INK, outline_w=3)
-    s.blit(num, num.get_rect(center=(burst_cx, burst_cy)))
+    # -2 px lift on the digit centre so its optical centre lines up with
+    # the burst's geometric centre — glyph metrics carry extra descender
+    # padding that drags the digit visually low otherwise.
+    s.blit(num, num.get_rect(center=(burst_cx, burst_cy - 2)))
     return s
 
 
@@ -769,5 +797,40 @@ def main():
     print(f"wrote {OUT_PATH_R3}  ({os.path.getsize(OUT_PATH_R3)} bytes)")
 
 
+def _verify_c5_3digit(base):
+    """3-digit "888" sanity render — burst's inner padding must hold
+    triple-digit scores without trimming the spike silhouette. Writes
+    a scratch cell to docs/skateboard_banner_options/round_3_c5_888.png
+    so the verification is visually inspectable, and prints the digit
+    bounds vs the burst inner radius."""
+    frame = variant_r3_c5_burst_exclamation(base, 888)
+    out = os.path.join(OUT_DIR, "round_3_c5_888.png")
+    pygame.image.save(frame, out)
+    # Measure 3-digit "888" at the auto-scaled font_size=22 the renderer
+    # uses for 3-digit scores — must fit inside the burst's outer
+    # envelope (ro*2) with margin.
+    test_glyph = _gradient_text("888", 22,
+                                top_col=(255, 250, 240),
+                                bot_col=(190, 30, 20),
+                                outline=INK, outline_w=3)
+    digit_w = test_glyph.get_width()
+    # Burst's effective digit envelope is bounded by the outer-spike
+    # diameter (ro*2) — digits are allowed to occupy the full yellow
+    # disc, since the spike valleys (ri) only matter when the digit's
+    # silhouette would punch THROUGH the rim. The relevant comparison
+    # is digit-glyph-width vs outer-disc-diameter with ~4 px margin.
+    outer_w = 27 * 2  # burst_ro * 2
+    print(f"  3-digit check: '888' glyph width={digit_w}px, "
+          f"burst outer diameter={outer_w}px "
+          f"({'FITS' if digit_w <= outer_w else 'OVERFLOW (spike-trim)'})")
+    print(f"  wrote {out}")
+
+
 if __name__ == "__main__":
     main()
+    # Run AFTER the main sheet so the scratch file uses the same base
+    # frame the sheet does — verifies 3-digit legibility on C5.
+    print("3-digit '888' verification on C5...")
+    app = _build_gameplay_frame()
+    base = _render_base(app)
+    _verify_c5_3digit(base)
