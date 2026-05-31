@@ -87,10 +87,14 @@ def draw_deep_space(w, h, palette):
     # always reads as *sky*, never void — the gameplay layer below is already
     # dark, so a near-black top would read as dead.
     navy = shift_temperature(with_value(top, 0.07 * nf), -0.5 * nf)
-    # Milky band: weaker (−20%) and slid lower so it stops reading as a mid-frame
-    # seam — it should whisper a temperature drift, not draw a line.
-    milky = shift_temperature(oklab_lerp(mid, (190, 200, 225), 0.20 * nf),
+    # Milky band: a whisper, not a line. The visible hard upper edge is killed by
+    # (a) a weaker lerp toward the pale target (0.13 vs 0.20), (b) darkening the
+    # milky peak ~15% L so it no longer pops, and (c) — in the stops below —
+    # sliding it lower and widening the gap above it so the top fades in over a
+    # long span instead of stepping in at a seam.
+    milky = shift_temperature(oklab_lerp(mid, (190, 200, 225), 0.13 * nf),
                               0.15 * nf)
+    milky = with_value(milky, -0.15 * nf)
     # Twilight plum→peach lives only in the low wedge, capped so it never blooms.
     plum = shift_temperature(oklab_lerp(bot, (150, 105, 140), 0.22 * tw), 0.10)
     peach = _cap_L(shift_temperature(oklab_lerp(hor, (250, 200, 175),
@@ -98,12 +102,15 @@ def draw_deep_space(w, h, palette):
     # Keep the lowest band a half-step deeper than the horizon anchor by day so
     # the white HUD score + pillar tops in the bottom ~15% hold contrast.
     low = with_value(peach, -0.03 * (1 - nf))
+    # Lift the upper blend stop higher (0.28) and slide the milky peak lower
+    # (0.70) to widen the inter-stop span to ~0.42 of frame — the milky drift
+    # now eases in over a long gradient instead of arriving at a defined edge.
     stops = [
         (0.00, navy),
-        (0.32, oklab_lerp(navy, mid, 0.6)),
-        (0.62, milky),
-        (0.80, oklab_lerp(milky, plum, 0.6)),
-        (0.92, plum),
+        (0.28, oklab_lerp(navy, mid, 0.55)),
+        (0.70, milky),
+        (0.84, oklab_lerp(milky, plum, 0.6)),
+        (0.93, plum),
         (1.00, low),
     ]
     return make_sky_field(w, h, stops, dither_amp=2.4)
@@ -129,12 +136,19 @@ def draw_hiroshige_bokashi(w, h, palette):
     # and swallow the red parrot silhouette.
     mid_q = _desat(mid, 0.10)
     horizon = _cap_L(hor)
+    # At golden/sunset the cool ink was bleeding too high and the upper-mid went
+    # neutral-grey before the warm second ink arrived. Raise the warm-ink onset
+    # ~8% higher into frame (day-weighted, so night — already perfect — is left
+    # untouched): the warm/pale transition stops move up and the cool mid_q stop
+    # comes with them, keeping the mid juicy instead of grey.
+    g = 1 - nf
+    warm_lift = 0.08 * g
     stops = [
         (0.00, deep),
         (0.42, oklab_lerp(deep, mid_q, 0.7)),
-        (0.66, mid_q),
-        (0.82, oklab_lerp(mid_q, pale, 0.6)),
-        (0.93, with_value(pale, -0.02)),
+        (0.66 - warm_lift, mid_q),
+        (0.82 - warm_lift, oklab_lerp(mid_q, pale, 0.6)),
+        (0.93 - warm_lift * 0.5, with_value(pale, -0.02)),
         (1.00, horizon),
     ]
     # Slightly stronger dither for the printed-ink tooth.
@@ -153,24 +167,36 @@ def draw_belt_of_venus(w, h, palette):
     # it floats clear of the horizon instead of merging into it.
     ember = _cap_L(shift_temperature(oklab_lerp(hor, (255, 190, 200),
                                                 0.45 * bv), 0.3))
-    # Faint COOL ember survives at night so the belt never vanishes entirely.
-    if nf > 0.5:
-        ember = _cap_L(shift_temperature(oklab_lerp(hor, (150, 160, 200),
-                                                    0.30), -0.15))
-    # Darker counter-change strip immediately below the ember (−7% L).
-    shelf = with_value(ember, -0.07)
+    # Faint COOL ember survives at night, but as a barely-there LIFT, not a
+    # glowing stripe behind the lower pillar: pull the target toward a duller
+    # blue, halve the mix, then darken (~19% L) + desaturate (~25%) so it can't
+    # read as a bright horizontal seam.
+    night = nf > 0.5
+    if night:
+        ember = _cap_L(shift_temperature(oklab_lerp(hor, (110, 120, 160),
+                                                    0.20), -0.15))
+        ember = _desat(with_value(ember, -0.19), 0.25)
+    # Darker counter-change strip immediately below the ember (−7% L). At night
+    # the counter-change is unwanted (it re-creates the stripe), so flatten it
+    # to a near-flush shelf.
+    shelf = with_value(ember, -0.02 if night else -0.07)
     # Day gets a faint warm horizon wedge so the row never reads as plain blue.
     day_warm = _cap_L(shift_temperature(oklab_lerp(hor, (250, 215, 185),
                                                    0.18 * (1 - nf)), 0.18))
     horizon = _cap_L(oklab_lerp(hor, day_warm, 1 - nf))
     # Desaturate the mid ~10% (red-parrot legibility).
     mid_q = _desat(shift_temperature(mid, -0.15), 0.10)
+    # Keep the day/twilight ember high (≈0.72) where it floats as the hero belt.
+    # At night ONLY, slide ember+shelf lower (0.74 / 0.86) and widen the gap so
+    # the transition is feathered, leaving no hard edge behind the lower pillar.
+    ember_pos = 0.74 if night else 0.72
+    shelf_pos = 0.86 if night else 0.80
     stops = [
         (0.00, shift_temperature(with_value(top, -0.03 + 0.06 * nf), -0.4)),
         (0.40, mid_q),
         (0.62, oklab_lerp(mid_q, bot, 0.5)),
-        (0.72, ember),
-        (0.80, shelf),
+        (ember_pos, ember),
+        (shelf_pos, shelf),
         (1.00, horizon),
     ]
     return make_sky_field(w, h, stops)
@@ -193,10 +219,16 @@ def draw_alto_plum(w, h, palette):
     lilac = oklab_lerp(mid, (185, 165, 200), 0.30 * (1 - nf))
     # Keep night lifted and cool-blue so the top never voids out.
     night_lift = 0.07 * nf
+    # Widen the day/sunset value spread: deepen the two MID stops ~9% L (only at
+    # day, faded out by night where the row is already lifted) so the red parrot
+    # + green pillars get a value gap to read against. Pure value — no chroma.
+    mid_dip = -0.09 * (1 - nf)
     stops = [
         (0.00, air(rose, 0.45 * (1 - nf) + 0.25, 0.05 + night_lift)),
-        (0.38, air(lilac, 0.55 * (1 - nf) + 0.20, 0.06)),
-        (0.66, air(oklab_lerp(lilac, bot, 0.45), 0.55 * (1 - nf) + 0.20, 0.05)),
+        (0.38, with_value(air(lilac, 0.55 * (1 - nf) + 0.20, 0.06), mid_dip)),
+        (0.66, with_value(
+            air(oklab_lerp(lilac, bot, 0.45), 0.55 * (1 - nf) + 0.20, 0.05),
+            mid_dip)),
         (0.86, air(_desat(bot, 0.15), 0.55 * (1 - nf) + 0.15, 0.04)),
         # Low wedge stays pastel-warm but capped and a half-step deeper by day so
         # white HUD text holds in the bottom ~15%.
@@ -211,6 +243,7 @@ def draw_atmospheric_true(w, h, palette):
     top, mid, bot, hor = (palette['sky_top'], palette['sky_mid'],
                           palette['sky_bot'], palette['horizon'])
     nf = _nightf(palette)
+    tw = _twilightf(nf)
     # Physical structure: deepest, most-saturated value at the zenith; the change
     # compresses toward the horizon where you look through the most air. The Mie
     # forward-scatter warmth is baked as a SOFT PALE WEDGE low in the ramp —
@@ -230,7 +263,9 @@ def draw_atmospheric_true(w, h, palette):
     stops = [
         (0.00, zenith),
         (0.28, top),
-        (0.54, _desat(mid, 0.06)),
+        # Extra ~5% chroma off the mid at SUNSET only (twilight-weighted, day/
+        # golden/night left as-is) for even cleaner red-hero separation.
+        (0.54, _desat(mid, 0.06 + 0.05 * tw)),
         (0.76, oklab_lerp(mid, bot, 0.55)),
         (0.90, haze),
         (1.00, low),
@@ -249,7 +284,7 @@ VARIANT_NAMES = list(VARIANTS.keys())
 VARIANT_NOTES = {
     "deep_space":        "Night-led graded navy, lifted cool zenith + low milky drift; twilight plum→peach baked low",
     "hiroshige_bokashi": "Ukiyo-e Prussian-blue ichimonji bokashi, deepened night ink, desaturated mid",
-    "belt_of_venus":     "Counter-change: luminous ember high (≈0.72) over a darker shelf; cool ember survives night",
+    "belt_of_venus":     "Counter-change: luminous ember high (≈0.72) over a darker shelf; night ember is a faint cool lift, not a stripe",
     "alto_plum":         "Bright dreamy pastel rose/lilac — lifted value, low chroma at every phase",
     "atmospheric_true":  "Rayleigh/Mie realism: deep zenith, pale Mie haze + soft capped warm horizon wedge",
 }
