@@ -27,6 +27,7 @@ from game.skateboard_fx import _gradient_text, INK, PLATE_RED
 
 OUT_DIR = os.path.join(_ROOT, "docs", "skateboard_banner_options")
 OUT_PATH = os.path.join(OUT_DIR, "round_1.png")
+OUT_PATH_R2 = os.path.join(OUT_DIR, "round_2.png")
 
 
 def _build_gameplay_frame(seed=11, seconds=5.0):
@@ -165,7 +166,125 @@ VARIANTS = [
 ]
 
 
-def _compose_sheet(cells):
+# ── Round 2: banner stays at TOP, score overlays it ────────────────────────
+#
+# Score is fixed at on-screen y=70 (the new NA-plate position). Each variant
+# draws a banner shape that remains legible even when the halftone score is
+# stamped on top of its centre. The score is re-blit AFTER the banner so it
+# always sits on top.
+
+# Reuse the same halftone-score overlay the live HUD uses — pulled via
+# render_skateboard_score_e3 in skateboard_fx. The HUD blits it at
+# (0, -_skateboard_lift_y=-26), so we replicate that here.
+from game.skateboard_fx import render_skateboard_score_e3 as _score_overlay_fn
+from game.world import World as _W
+
+
+_SCORE_LIFT_Y = 26   # matches World._skateboard_lift_y default
+
+
+def _stamp_score(surf, score):
+    """Stamp the halftone score on top of `surf`, identical to the live
+    HUD blit (skateboard_fx.render_skateboard_score_e3 + (0,-lift_y))."""
+    score_overlay = _score_overlay_fn(score)
+    surf.blit(score_overlay, (0, -_SCORE_LIFT_Y))
+
+
+def variant_r2_b1_wide_stretched(base, score):
+    """R2-B1 — Wide stretched banner. SKATEBOARD! with extra letter
+    spacing on a wide red plate spanning W-40 across the top — the
+    leftmost/rightmost letters stay visible outside the score's column."""
+    s = base.copy()
+    # Wide plate y=38→y=94, behind the score band
+    plate = pygame.Rect(20, 38, W - 40, 56)
+    pygame.draw.rect(s, PLATE_RED, plate, border_radius=10)
+    pygame.draw.rect(s, INK, plate, 3, border_radius=10)
+    # Stretched text — wide letter spacing so SK… and …RD! sit on the flanks
+    txt = _gradient_text("S K A T E B O A R D !", 26,
+                         top_col=(255, 255, 110),
+                         bot_col=(255, 180, 10),
+                         outline=INK, outline_w=3)
+    s.blit(txt, txt.get_rect(center=(W // 2, 66)))
+    _stamp_score(s, score)
+    return s
+
+
+def variant_r2_b2_tall_doubledeck(base, score):
+    """R2-B2 — Tall plate y=8→y=116, with SKATEBOARD! at the TOP edge
+    of the plate and the score sitting in the lower 2/3. The two
+    occupy different vertical bands of the same plate, so neither is
+    obscured."""
+    s = base.copy()
+    plate = pygame.Rect(28, 8, W - 56, 108)
+    pygame.draw.rect(s, PLATE_RED, plate, border_radius=12)
+    pygame.draw.rect(s, INK, plate, 3, border_radius=12)
+    # Text high up on the plate
+    txt = _gradient_text("SKATEBOARD!", 22,
+                         top_col=(255, 255, 110),
+                         bot_col=(255, 180, 10),
+                         outline=INK, outline_w=3)
+    s.blit(txt, txt.get_rect(center=(W // 2, 26)))
+    _stamp_score(s, score)
+    return s
+
+
+def variant_r2_b3_split_around(base, score):
+    """R2-B3 — Two banner halves: SKATE on the left, BOARD! on the
+    right, both at y=70. Score sits in the gap between them."""
+    s = base.copy()
+    skate = _plate_banner("SKATE", font_size=26, rot_deg=5,
+                          pad_x=10, pad_y=4, outline_w=3)
+    board = _plate_banner("BOARD!", font_size=26, rot_deg=-5,
+                          pad_x=10, pad_y=4, outline_w=3)
+    s.blit(skate, skate.get_rect(center=(54, 64)))
+    s.blit(board, board.get_rect(center=(W - 54, 64)))
+    _stamp_score(s, score)
+    return s
+
+
+def variant_r2_b4_diagonal_big(base, score):
+    """R2-B4 — Large SKATEBOARD! rotated -15° centred behind the
+    score band. The diagonal means most letters live above or below
+    the score's horizontal strip; only 2-3 mid letters get clipped."""
+    s = base.copy()
+    banner = _plate_banner("SKATEBOARD!", font_size=44, rot_deg=-15,
+                           pad_x=20, pad_y=10, outline_w=5)
+    s.blit(banner, banner.get_rect(center=(W // 2, 70)))
+    _stamp_score(s, score)
+    return s
+
+
+def variant_r2_b5_full_top_strip(base, score):
+    """R2-B5 — A full-width, translucent red strip across y=0→y=110
+    with SKATEBOARD! text spanning it. The score punches a clean
+    halftone burst over the middle — the strip is the BACKDROP, not
+    a foreground element competing for attention."""
+    s = base.copy()
+    # Translucent backdrop strip
+    strip = pygame.Surface((W, 110), pygame.SRCALPHA)
+    strip.fill((220, 50, 40, 200))   # PLATE_RED at alpha 200
+    pygame.draw.line(strip, INK, (0, 109), (W, 109), 2)
+    s.blit(strip, (0, 0))
+    # SKATEBOARD! text along the very top, leaving the score's row clear
+    txt = _gradient_text("SKATEBOARD!", 28,
+                         top_col=(255, 255, 110),
+                         bot_col=(255, 180, 10),
+                         outline=INK, outline_w=4)
+    s.blit(txt, txt.get_rect(center=(W // 2, 22)))
+    _stamp_score(s, score)
+    return s
+
+
+VARIANTS_R2 = [
+    ("R2-B1 — Wide stretched",     variant_r2_b1_wide_stretched),
+    ("R2-B2 — Tall double-deck",   variant_r2_b2_tall_doubledeck),
+    ("R2-B3 — Split SKATE/BOARD!", variant_r2_b3_split_around),
+    ("R2-B4 — Diagonal big",       variant_r2_b4_diagonal_big),
+    ("R2-B5 — Full top strip",     variant_r2_b5_full_top_strip),
+]
+
+
+def _compose_sheet(cells, title_text):
     """2x3 grid (5 cells + 1 spare). Each cell shows the rendered frame
     with a label strip below. Cell = W × (H + 36); margins = 16 px."""
     pygame.font.init()
@@ -182,9 +301,7 @@ def _compose_sheet(cells):
 
     # Title
     title = pygame.font.SysFont(None, 30).render(
-        "Skybit — SKATEBOARD! banner placement options "
-        "(score now at y=70 to match the regular NA plate)",
-        True, (245, 240, 220))
+        title_text, True, (245, 240, 220))
     sheet.blit(title, (margin, 14))
 
     for idx, (label, frame) in enumerate(cells):
@@ -205,15 +322,29 @@ def main():
     print("building gameplay base frame...")
     app = _build_gameplay_frame()
     base = _render_base(app)
+    score_for_overlay = app.world.score
 
+    # Round 1 — banner placements that AVOID overlapping the score.
     cells = []
     for label, renderer in VARIANTS:
         cells.append((label, renderer(base)))
         print(f"  rendered {label}")
-
-    sheet = _compose_sheet(cells)
+    sheet = _compose_sheet(cells,
+        "Skybit — SKATEBOARD! banner placement options "
+        "(score now at y=70 to match the regular NA plate)")
     pygame.image.save(sheet, OUT_PATH)
     print(f"wrote {OUT_PATH}  ({os.path.getsize(OUT_PATH)} bytes)")
+
+    # Round 2 — banner stays at the TOP with the score overlaid on it.
+    cells_r2 = []
+    for label, renderer in VARIANTS_R2:
+        cells_r2.append((label, renderer(base, score_for_overlay)))
+        print(f"  rendered {label}")
+    sheet_r2 = _compose_sheet(cells_r2,
+        "Skybit — SKATEBOARD! banner at TOP with score overlaid "
+        "(banner must remain readable through the overlap)")
+    pygame.image.save(sheet_r2, OUT_PATH_R2)
+    print(f"wrote {OUT_PATH_R2}  ({os.path.getsize(OUT_PATH_R2)} bytes)")
 
 
 if __name__ == "__main__":
