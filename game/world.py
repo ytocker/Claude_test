@@ -2157,12 +2157,16 @@ class World:
         pillar earlier than waiting for the next spawn). If no suitable
         existing pipe is far enough ahead of Pip, we fall back to
         flagging the next-spawned pipe."""
-        gy = 225
+        gy = 175
         gx = 180
         # No floating offers — the GenieCharacter still spawns for the
         # visual cast beat but with an empty `offers` list, so
         # _fire_all becomes a poof + chime only. The actual offer
         # placement happens when the chamber pillar's reveal triggers.
+        # gy lifted from 225 to 175 (50 px up) so the conjurer rises
+        # into the cleared upper band — the SKATEBOARD deck banner
+        # ends at y≈116 and the genie's head (gy - 96) lands at y≈79,
+        # so it sits just below the HUD chrome instead of mid-screen.
         self.genie_actors.append(GenieCharacter(
             gx, gy, vx=0.0, offers=[], world=self,
         ))
