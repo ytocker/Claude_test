@@ -954,13 +954,7 @@ class World:
         anchor_pipe = self.pipes[-1] if self.pipes else last_scored_pipe
         gx = max(anchor_pipe.x + PIPE_W + spacing * 0.5,
                  W + spacing * 0.5)
-        # Float the lamp in the cleared top band — the SKATEBOARD deck
-        # banner sits at y≈24..116 during skateboard mode and the regular
-        # score plate at y=42..98 otherwise, so y=145 lands just below
-        # either while staying well above typical pipe-gap altitudes.
-        # Detached from the pipe's gap_y so the once-per-run lamp doesn't
-        # vary with whatever happens to be the next gap height.
-        gy = 145
+        gy = anchor_pipe.gap_y
         self.powerups.append(PowerUp(gx, gy, kind="genie"))
         # Set the standard cooldown so the next regular spawn doesn't
         # immediately stack a second powerup right behind the lamp.
