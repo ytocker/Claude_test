@@ -172,6 +172,10 @@ GENIE_CHAMBER_SPACING   = 105
 # Wishes pop in with a reveal poof once the chamber pillar is within
 # this many px of Pip — gives ~1.5 s of read time at SCROLL_BASE.
 GENIE_CHAMBER_REVEAL_DIST = 250
+# Delay between the reveal POOF and the wish PowerUp materialising in
+# the chamber. The poof plays first; the pickup pops into existence
+# after the delay so the poof reads as the act of creation.
+GENIE_CHAMBER_SPAWN_DELAY = 0.45
 
 # SKATEBOARD — timed grind/slide buff. The world scrolls faster while Pip is
 # actually grinding a surface; the boost eases in over SKATE_SLIDE_ATTACK and
