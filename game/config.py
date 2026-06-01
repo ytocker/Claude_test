@@ -145,7 +145,7 @@ LATE_GAME_PILLAR       = 65
 # can be exercised without playing through 65 pillars. Same one-shot rules
 # as the production milestone (also flips on the genie pool + surprise-box
 # choices). Set to None to disable.
-DEBUG_GENIE_PILLAR     = 5
+DEBUG_GENIE_PILLAR     = None
 # Only the genie spawns directly from the secret tier. Knight, skateboard,
 # and poison are reachable EXCLUSIVELY via the genie's fixed offer — they
 # are not in any weight table and cannot be Surprise-re-rolled.
