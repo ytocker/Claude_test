@@ -72,6 +72,10 @@ POWERUP_WEIGHTS    = (
     ("ghost",    1),
     ("grow",     1),
     ("surprise", 1),
+    # TEST MODE on v5_powerups: Genie is normally late-game
+    # (SECRET_POWERUP_WEIGHTS). Promoted to the early pool so testers
+    # see it from pillar #1. Remove to restore default behaviour.
+    ("genie",    1),
 )
 
 # ── SECRET LATE-GAME POWER-UPS ───────────────────────────────────────────────
@@ -227,7 +231,7 @@ TEST_SECRETS_FIRST_N_PILLARS = 15   # first N pillars guarantee a secret pickup
 TEST_FORCED_KINDS = (
     "skateboard",
     # "heist" + "phoenix" temporarily out — see SECRET_POWERUP_WEIGHTS comment.
-    "lottery",
+    "lottery", "genie",
 )
 
 # v5_powerups test-mode runs ship with a fake 250-score / 250-coin
