@@ -29,7 +29,7 @@ from game.config import (
     SECRET_POWERUP_WEIGHTS, LATE_GAME_PILLAR, DEBUG_GENIE_PILLAR,
     GENIE_OFFER_COUNT, GENIE_OFFER_Y_SLOTS,
     GENIE_CHAMBER_GAP_BOOST, GENIE_CHAMBER_SPACING,
-    GENIE_CHAMBER_REVEAL_DIST, GENIE_CHAMBER_SPAWN_DELAY,
+    GENIE_CHAMBER_REVEAL_DIST,
     SKATEBOARD_DURATION, SKATE_SLIDE_MULT, SKATE_SLIDE_ATTACK,
     SKATE_SLIDE_RELEASE, BACKFLIP_DURATION, BACKFLIP_TAP_WINDOW,
     KICKFLIP_DURATION, KICKFLIP_TAP_GAP_MIN, KICKFLIP_TAP_GAP_MAX,
@@ -148,12 +148,6 @@ class World:
         # ── Secret late-game power-ups ──────────────────────────────────────
         # GENIE: companion conjurer actors. Each is ticked + culled in update.
         self.genie_actors: list = []
-        # Pending wish materialisations queued by _spawn_genie_chamber_offers.
-        # Each entry is (t_remaining, kind, pipe, dy); the pipe ref lets us
-        # re-derive the spawn x/y at materialise time so the wish lands at
-        # the chamber's current scrolled position rather than the pre-scroll
-        # snapshot taken when the poof played.
-        self._pending_genie_spawns: list = []
         # GENIE CHAMBER: True between _activate_genie and the next pipe
         # spawn; the spawning pillar consumes the flag, applies the
         # chamber gap boost, and nests the 3 wish offers vertically
@@ -685,38 +679,15 @@ class World:
         ox = pipe.x + PIPE_W // 2
         for kind, dy in zip(kinds, slot_dy):
             oy = pipe.gap_y + dy
-            # Play the reveal poof now; queue the wish to materialise after
-            # GENIE_CHAMBER_SPAWN_DELAY so the player reads the poof as the
-            # creation act rather than seeing the wish appear simultaneously.
+            offer = PowerUp(ox, oy, kind=kind)
+            offer.is_genie_offer = True
+            self.powerups.append(offer)
             self._spawn_genie_reveal_poof(ox, oy)
-            self._pending_genie_spawns.append(
-                [GENIE_CHAMBER_SPAWN_DELAY, kind, pipe, dy])
         try:
             audio._play("coin_triple", 0.95)
         except Exception:
             pass
         pipe.wishes_spawned = True
-
-    def _tick_pending_genie_spawns(self, dt):
-        """Materialise any pending genie wishes whose post-poof delay has
-        elapsed. Re-derives the spawn position from the chamber pillar's
-        current x so the wish lands centred on the pillar even though the
-        pipe scrolled while the poof played out."""
-        if not self._pending_genie_spawns:
-            return
-        still = []
-        for entry in self._pending_genie_spawns:
-            entry[0] -= dt
-            if entry[0] <= 0:
-                _, kind, pipe, dy = entry
-                ox = pipe.x + PIPE_W // 2
-                oy = pipe.gap_y + dy
-                offer = PowerUp(ox, oy, kind=kind)
-                offer.is_genie_offer = True
-                self.powerups.append(offer)
-            else:
-                still.append(entry)
-        self._pending_genie_spawns = still
 
     def _tick_genie_chambers(self):
         """Materialise the 3 wishes inside any chamber pillar Pip is
@@ -1197,7 +1168,6 @@ class World:
             # the player sees them materialise instead of finding them
             # pre-placed in the gap.
             self._tick_genie_chambers()
-            self._tick_pending_genie_spawns(sdt)
             for gy in self.geysers:
                 gy.x -= speed * sdt
                 gy.update(sdt)
