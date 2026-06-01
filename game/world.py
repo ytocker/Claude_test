@@ -2051,11 +2051,17 @@ class World:
 
     # ── Secret late-game power-ups ───────────────────────────────────────────
 
-    def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34):
+    def _spawn_grainy_poof(self, x, y, palette=None, n=None, rx=34, ry=34,
+                           scroll_vx=0.0):
         """Magic-dust poof — a puffy CLOUD that covers its source, built from
         a few overlapping soft lobes densely packed with motes so it reads as
         a cohesive, lumpy cloud. (rx, ry) set the area covered. Used for every
-        genie beat: the genie / offers appearing and vanishing."""
+        genie beat: the genie / offers appearing and vanishing.
+
+        scroll_vx is added to every grain's vx so the cloud drifts along with
+        the world. Callers anchored to a scrolling pipe (the chamber reveal)
+        pass -current_scroll so the poof stays attached to the pillar; the
+        default 0 keeps bird-anchored poofs in screen space as before."""
         if palette is None:
             palette = [(255, 180, 190), (255, 225, 170), (255, 250, 180),
                        (190, 240, 200), (180, 225, 255), (215, 190, 255),
@@ -2076,7 +2082,7 @@ class World:
             rr = math.sqrt(random.random())          # fill the lobe disc
             px = x + lox + math.cos(a) * lrad * rr
             py = y + loy + math.sin(a) * lrad * rr
-            vx = random.uniform(-14, 14)
+            vx = random.uniform(-14, 14) + scroll_vx
             vy = random.uniform(-20, 6)
             life = random.uniform(0.50, 1.00)
             size = random.choice((3, 3, 4, 4))
@@ -2085,8 +2091,13 @@ class World:
 
     def _spawn_genie_reveal_poof(self, x, y):
         """Poof when a Genie offer materialises — the same magic dust as
-        every other genie beat so appear and vanish read as one effect."""
-        self._spawn_grainy_poof(x, y)
+        every other genie beat so appear and vanish read as one effect.
+        The chamber pillar is scrolling leftward while the post-poof spawn
+        delay plays out, so we ride the world scroll on the poof's grains
+        — keeps the cloud parked on the pillar all the way to where the
+        wish actually materialises (no spatial gap between poof and
+        pickup)."""
+        self._spawn_grainy_poof(x, y, scroll_vx=-self._current_scroll())
 
     def _activate_skateboard(self, m):
         from game.skateboard_fx import (
