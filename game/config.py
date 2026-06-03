@@ -218,6 +218,12 @@ RAIN_START_PILLAR   = 70
 # scale 1.045) stay unchanged, so only the start anchor moves.
 SNOW_START_PILLAR   = 139
 
+# Seconds of scroll buffer added to the first seeded pipe's spawn x so
+# the cottage opener has clean air to scroll behind Pip before pillars
+# take over. Single source of truth so the chart's `_phase_for_pillar`
+# and the World's `_seed_first_pipes` agree on the first-pillar offset.
+SPAWN_GRACE         = 1.5
+
 # UMBRELLA — independent power-up that cancels the rain flap-dampen during
 # thunderstorms. Spawns once per storm window (NOT in POWERUP_WEIGHTS or the
 # surprise re-roll) when rain intensity first crosses UMBRELLA_SPAWN_RAIN, so

@@ -12,7 +12,7 @@ from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
     GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
-    PLATEAU_PIPES,
+    PLATEAU_PIPES, SPAWN_GRACE,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
@@ -80,8 +80,10 @@ class World:
     # Seconds AFTER the ready_t (1.0 s) freeze before the first pipe should
     # enter the visible frame. The intro hands gameplay the cottage + parcel
     # composition; this grace period gives the opener overlay time to scroll
-    # the cottage off-screen before pillars take over.
-    SPAWN_GRACE = 1.5
+    # the cottage off-screen before pillars take over. Lives in `game.config`
+    # as `SPAWN_GRACE` (single source of truth so the progression chart's
+    # `_phase_for_pillar` and `_seed_first_pipes` agree on the first-pillar
+    # offset).
 
     def __init__(self):
         # Reshuffle the meadow at the start of every new World — picks a
@@ -616,7 +618,7 @@ class World:
         # Push the seed pipes further off-screen by SPAWN_GRACE seconds of
         # scroll so the gameplay opener (cottage + parcel) has clean air
         # behind Pip before the first pillar arrives.
-        offset = int(self.SPAWN_GRACE * SCROLL_BASE)
+        offset = int(SPAWN_GRACE * SCROLL_BASE)
         x = W + 60 + offset
         spacing = self._current_spacing()
         for _ in range(3):
@@ -1129,17 +1131,22 @@ class World:
         if 0 < self.bird.death_fade_t < DEATH_FADE_DURATION:
             self.bird.death_fade_t = min(
                 DEATH_FADE_DURATION, self.bird.death_fade_t + dt)
+        # Slowmo scales the *world* (scroll, entity velocity, entity spin,
+        # pickup physics, AND the biome day/night cycle) — not the bird's
+        # input physics. Lets players still flap responsively while
+        # everything else crawls.
+        world_scale = SLOWMO_SCALE if self.slowmo_timer > 0 else 1.0
+        sdt = dt * world_scale
         # The biome cycle only advances once the run has actually started.
         # While ready_t > 0 the sky stays frozen at the dawn palette — the
         # day/night arc was rolling forward earlier even when Pip was
-        # still on the post-house porch waiting for input.
+        # still on the post-house porch waiting for input. Advanced by sdt
+        # (not raw dt) so the day cycle slows alongside everything else
+        # the slowmo buff scales — otherwise rain / lightning / snow land
+        # at earlier pillars during slowmo than the progression chart
+        # predicts.
         if self.ready_t <= 0:
-            self.biome_time += dt
-        # Slowmo scales the *world* (scroll, entity velocity, entity spin,
-        # pickup physics) — not the bird's input physics. Lets players
-        # still flap responsively while everything else crawls.
-        world_scale = SLOWMO_SCALE if self.slowmo_timer > 0 else 1.0
-        sdt = dt * world_scale
+            self.biome_time += sdt
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
         # Ambient scenes (V-flocks, fireworks, balloon, parrots, blossoms,

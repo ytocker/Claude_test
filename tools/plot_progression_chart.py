@@ -81,16 +81,22 @@ CURVES = [
 
 
 def build_time_for_pillar(max_pillars: int) -> list:
-    """Cumulative wall-clock seconds to reach each pillar, walking the
-    same onboarding-ramp dwell math World uses."""
-    T = [0.0]
-    for pp in range(1, max_pillars + 1):
-        pp_in = pp - 1
-        if pp_in < config.PLATEAU_PIPES:
+    """Cumulative wall-clock seconds to reach each pillar, mirroring what
+    the live game does. Pillar 1 is special: it's seeded at
+    `W + 60 + SPAWN_GRACE * SCROLL_BASE` and has to scroll all the way
+    to `BIRD_X − PIPE_W` before scoring fires (~1.14 s longer than a
+    normal inter-pillar dwell). Pillars 2..N use the inter-pillar dwell
+    `spacing / scroll` with `_ramp_t()` evaluated at the score just
+    after the previous pillar — same indexing the World uses."""
+    seeded_x = config.W + 60 + int(config.SPAWN_GRACE * config.SCROLL_BASE)
+    travel = seeded_x - config.BIRD_X - config.PIPE_W
+    T = [0.0, travel / config.SCROLL_NEWBIE_BASE]
+    for pp in range(1, max_pillars):
+        if pp < config.PLATEAU_PIPES:
             t = 0.0
         else:
             denom = max(1, config.RAMP_PIPES - config.PLATEAU_PIPES)
-            x = min(1.0, (pp_in - config.PLATEAU_PIPES) / denom)
+            x = min(1.0, (pp - config.PLATEAU_PIPES) / denom)
             t = 1.0 - (1.0 - x) ** 2
         spacing = (config.PIPE_SPACING_NEWBIE
                    + (config.PIPE_SPACING - config.PIPE_SPACING_NEWBIE) * t)
@@ -288,6 +294,19 @@ def main() -> None:
     ax.legend(handles, labels, loc="upper center",
               bbox_to_anchor=(0.5, -0.18), ncol=3, framealpha=0.92,
               fontsize=9)
+    # Honest footer about residual pillar-vs-phase variance: the chart's
+    # math now matches the live game in normal play (and under slowmo, since
+    # biome_time scales with the world). The only remaining variance comes
+    # from boosts that scale scroll without scaling sdt (rail / skateboard
+    # slide / snow tailwind) — they pass pillars faster than biome ticks, so
+    # weather events land at LATER pillars during sustained boosts.
+    fig.text(0.5, -0.035,
+             "Pillar↔phase is exact for normal play and slowmo. "
+             "Rail / skateboard / snow tailwind boost scroll without "
+             "scaling the biome clock, so weather may land 1–3 pillars "
+             "LATER than shown while those buffs are sustained.",
+             ha="center", va="top", fontsize=8.5, color="#666",
+             style="italic")
 
     fig.tight_layout()
     out_path = os.path.join(out_dir, "run_progression.png")

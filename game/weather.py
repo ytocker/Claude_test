@@ -25,21 +25,37 @@ from game import audio
 # original anchors.
 
 def _phase_for_pillar(pillar: int) -> float:
-    """Cumulative biome phase elapsed to reach `pillar`, walking the
-    same dwell formula `tools/plot_biome_timeline_by_pillars.py`
-    documents (and that World.update implicitly enacts via spacing +
-    scroll lerps on the newbie ramp). Phase is unwrapped — values
-    above 1.0 are possible if the chosen pillar is past one biome
-    cycle. Imports live here so a stale weather import never touches
-    `game.config`'s heavier module at top-level."""
+    """Cumulative biome phase elapsed to reach `pillar`, mirroring what
+    the game ACTUALLY does (not the simpler inter-pillar dwell math the
+    older plotter used).
+
+    Pillar 1 is special: it's seeded at `W + 60 + SPAWN_GRACE * SCROLL_BASE`
+    by `_seed_first_pipes`, then has to scroll all the way to `BIRD_X − PIPE_W`
+    before scoring fires. That seeded travel is ~1.14 s longer than a normal
+    inter-pillar dwell, and the previous formula didn't account for it —
+    so phase-for-pillar was ~0.6 pillars off the real gameplay axis.
+
+    Pillars 2..N then use the inter-pillar dwell `_current_spacing() /
+    _current_scroll()`, with `_ramp_t()` computed at `pillars_passed =
+    pp_after_previous_score` (which matches the live game). Phase is
+    unwrapped — values above 1.0 are possible if `pillar` exceeds one
+    biome cycle. Imports live here so a stale weather import never
+    touches `game.config`'s heavier module at top-level."""
     from game.config import (
         PLATEAU_PIPES, RAMP_PIPES,
         PIPE_SPACING, PIPE_SPACING_NEWBIE,
         SCROLL_BASE, SCROLL_NEWBIE_BASE,
+        SPAWN_GRACE, BIRD_X, PIPE_W, W,
     )
     from game.biome import CYCLE_SECONDS
-    t = 0.0
-    for pp in range(int(pillar)):
+    if pillar <= 0:
+        return 0.0
+    # First-pillar seeded travel (plateau scroll).
+    seeded_x = W + 60 + int(SPAWN_GRACE * SCROLL_BASE)
+    travel = seeded_x - BIRD_X - PIPE_W
+    t = travel / SCROLL_NEWBIE_BASE
+    # Inter-pillar dwells for pillars 2..pillar.
+    for pp in range(1, int(pillar)):
         if pp < PLATEAU_PIPES:
             ramp_t = 0.0
         else:
