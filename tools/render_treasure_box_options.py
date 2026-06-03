@@ -1,4 +1,4 @@
-"""Treasure Box — once-per-cycle finale pickup, icon exploration round 1.
+"""Treasure Box — once-per-cycle finale pickup, icon exploration round 2.
 
 The Treasure Box triggers once per biome day/night cycle (~175 pillars),
 opens a 5-pillar gap filled by a long coin rush, sits in the middle of
@@ -16,14 +16,18 @@ the chest at TRUE pickup size on the left half (with the canonical bob)
 and a 3x zoom on the right half, on a dawn/sunrise sky swatch with a
 faint sparkle / coin-shimmer ambience (the cycle ends near SUNRISE).
 
-Five distinct directions — varied silhouette, ornament, palette:
-  B1  Classic wooden chest        — curved-lid, iron bands, big gold lock.
-  B2  Overflowing gold chest      — half-open, coin-spill hero out front.
-  B3  Magical jewelled chest      — purple/blue body, big gem, halo aura.
-  B4  Pop-art halftone chest      — teal/cream halftone-dot lid panels.
-  B5  Royal jewelled chest        — rim of jewels, gold filigree, crown.
+Round 2 converged on the royal-crown lead (B5). The pop-art halftone
+collided with the umbrella's teal/cream and lost "treasure" semantics,
+so it was dropped for a "Glowing rune" chest that adds an ancient-magic
+flavour distinct from B3's jewelled fantasy direction.
 
-Output: docs/treasure_box/round_1.png   (doc-only; not shipped)
+  B1  Classic wooden + lid jewel  — silhouette pick, lifted past starter.
+  B2  Overflowing gold            — darker body so the gold pile pops.
+  B3  Magical jewelled            — large faceted ruby breaks lid top.
+  B4  Glowing rune                — dark wood + amber sigil + seam glow.
+  B5  Royal crown (lead)          — crown spike + 2 gold studs + sparkles.
+
+Output: docs/treasure_box/round_2.png   (doc-only; not shipped)
 """
 from __future__ import annotations
 
@@ -62,11 +66,18 @@ INK        = (22, 18, 34)
 INK_SOFT   = (46, 40, 64)
 CREAM      = (250, 244, 222)
 
-# Wood (B1, B2 base).
+# Wood (B1 base). B2's wood is darkened (~15%) below so the gold pile pops
+# off the body instead of collapsing into one amber mass at 1x.
 WOOD_HI    = (174, 116,  62)
 WOOD_MID   = (138,  82,  40)
 WOOD_LO    = ( 96,  54,  24)
 WOOD_GRAIN = ( 72,  40,  18)
+
+# B2 darker wood — WOOD_MID and WOOD_LO reduced ~15% per channel so the
+# spilling gold reads as a distinct silhouette over the chest body.
+WOOD_HI_B2 = (148,  99,  53)
+WOOD_MID_B2 = (117,  70,  34)
+WOOD_LO_B2 = ( 82,  46,  20)
 IRON_HI    = (118, 124, 138)
 IRON_MID   = ( 82,  86,  98)
 IRON_LO    = ( 54,  56,  68)
@@ -86,13 +97,16 @@ GEM_RED_HI = (255, 130, 142)
 GEM_RED    = (220,  56,  74)
 GEM_RED_LO = (152,  28,  46)
 
-# B4 pop-art halftone palette — teal/cream lid panels with red dot fill,
-# kept off the skateboard deck's red so the chest reads as its own thing.
-HT_TEAL_HI = (122, 214, 222)
-HT_TEAL    = ( 60, 176, 188)
-HT_TEAL_LO = ( 36, 128, 142)
-HT_DOT     = (224,  68,  74)              # halftone-dot accent on cream panel
-HT_CREAM   = (250, 244, 222)
+# B4 glowing-rune palette — deeper wood than B1 so the amber sigil + seam
+# under-glow read as "ancient magical artefact" rather than starter chest.
+RUNE_WOOD_HI = (110,  68,  40)
+RUNE_WOOD_MID = ( 76,  44,  26)
+RUNE_WOOD_LO = ( 46,  26,  16)
+RUNE_GRAIN   = ( 28,  16,  10)
+RUNE_GLOW_HI = (255, 214, 132)            # bright sigil core
+RUNE_GLOW_MID = (242, 158,  62)
+RUNE_GLOW_LO = (188,  96,  28)
+RUNE_HALO    = (255, 184,  96)            # seam under-glow + halo wash
 
 # B5 royal — deeper kingly red velvet body with heavy gold edging + jewels.
 ROYAL_HI   = (200,  64,  72)
@@ -334,9 +348,10 @@ def _common_layout():
 
 
 def icon_b1():
-    """B1 — Classic wooden chest. Curved iron-banded lid, two horizontal
-    iron bands across the body, a big gold lock plate on the seam, faint
-    wood grain. The 'unmistakable chest at silhouette' pick."""
+    """B1 — Classic wooden chest with a single amber lid-jewel above the
+    keyhole. Curved iron-banded lid, two horizontal iron bands across the
+    body, gold lock plate on the seam, faint wood grain. The lid-jewel
+    lifts B1 out of "starter chest" territory without breaking silhouette."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
@@ -383,20 +398,41 @@ def icon_b1():
     pygame.draw.rect(big, GOLD_INK, clasp, max(1, ink // 2),
                      border_radius=max(2, clasp.width // 6))
 
+    # Lid jewel — a small amber square gem sitting on the lid centre,
+    # just above the lock clasp. Sized ~4x4 px at pickup scale, so at SS=7
+    # the supersampled gem is roughly 28x28 px. Lifts B1 past "starter
+    # chest" without touching the silhouette.
+    jw = int(SS * 4)
+    jh = int(SS * 4)
+    jcx = lid.centerx
+    jcy = lid.top + int(lid.height * 0.45)
+    jrect = pygame.Rect(0, 0, jw, jh)
+    jrect.center = (jcx, jcy)
+    _vgrad_rect(big, jrect, GOLD_HI, GOLD_LO,
+                radius=max(2, jw // 4))
+    pygame.draw.rect(big, GOLD_INK, jrect, max(1, ink // 2),
+                     border_radius=max(2, jw // 4))
+    # 1-px near-white glint at the gem's top-left so it reads as faceted.
+    pygame.draw.line(big, (255, 250, 220),
+                     (jrect.left + jw // 6, jrect.top + jh // 5),
+                     (jrect.left + jw // 2, jrect.top + jh // 5),
+                     max(1, ink // 2))
+
     return _finish(big)
 
 
 def icon_b2():
-    """B2 — Overflowing gold chest. Same wooden base as B1 but the LID is
-    HALF-OPEN, with a generous pile of gold coins spilling forward over
-    the front edge and 1-2 coins floating above the open lid. The treasure
-    is right there — the coin spill is the hero."""
+    """B2 — Overflowing gold chest. Half-open lid, generous pile of gold
+    coins spilling forward over the front edge, plus ONE larger floating
+    coin above the open lid. The wooden body is intentionally ~15% darker
+    than B1 so the gold pile reads as a distinct shape at 1x instead of
+    collapsing into a single amber blob with the lid + body."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
 
-    # Body.
-    _chest_body(big, body, ink, WOOD_HI, WOOD_MID, WOOD_LO)
+    # Body — darker wood so the gold pile silhouette pops cleanly.
+    _chest_body(big, body, ink, WOOD_HI_B2, WOOD_MID_B2, WOOD_LO_B2)
     _wood_grain(big, body, ink)
     # Inside-of-box dark backdrop so spilled coins read against a void.
     inner = pygame.Rect(body.left + int(body.width * 0.10),
@@ -415,7 +451,7 @@ def icon_b2():
     lid_h = int(lid.height * 1.6)
     lid_surf = pygame.Surface((lid_w + 8, lid_h + 8), pygame.SRCALPHA)
     local_lid = pygame.Rect(4, lid_h - lid.height, lid_w, lid.height)
-    _curved_lid(lid_surf, local_lid, ink, WOOD_HI, WOOD_MID, WOOD_LO)
+    _curved_lid(lid_surf, local_lid, ink, WOOD_HI_B2, WOOD_MID_B2, WOOD_LO_B2)
     rot = pygame.transform.rotate(lid_surf, 28)
     # Place hinge near the back-top corner of the body.
     hinge = (body.left + int(lid.width * 0.18),
@@ -446,14 +482,14 @@ def icon_b2():
                    pile_cy + int(body.height * oy),
                    max(3, int(coin_r0 * rs)),
                    ink)
-    # 2 coins floating up above the open lid — captures the "leaping out".
-    for (px_off, py_off, rs) in ((-0.05, -0.95, 0.85),
-                                 ( 0.30, -0.78, 0.75)):
-        _gold_coin(big,
-                   body.centerx + int(body.width * px_off),
-                   pile_cy + int(body.height * py_off),
-                   max(3, int(coin_r0 * rs)),
-                   ink)
+    # ONE larger coin floating up above the open lid — captures the
+    # "leaping out" beat. Single big coin reads cleanly at 1x where two
+    # small coins were collapsing into dirt-speck noise.
+    _gold_coin(big,
+               body.centerx + int(body.width * 0.12),
+               pile_cy + int(body.height * -0.92),
+               max(4, int(coin_r0 * 1.10)),
+               ink)
 
     return _finish(big)
 
@@ -506,14 +542,27 @@ def icon_b3():
     _curved_lid(big, lid, ink, MAGIC_HI, MAGIC_MID, MAGIC_LO,
                 grain=False, sheen=True)
 
-    # Single LARGE cut ruby inset in the lid centre.
-    gem_w = int(lid.width * 0.30)
-    gem_h = int(lid.height * 0.85)
+    # Single faceted ruby crowning the lid — sized ~6x4 px at the final
+    # pickup so the gem is unambiguously visible at 1x (the round-1 gem
+    # disappeared into a flat blob). The gem extends 1 px above the lid's
+    # top silhouette so it breaks the chest outline and signals "crowned".
+    gem_w = SS * 6
+    gem_h = SS * 4
+    # Find the lid arc's apex (top_y) so we can sit the gem on it.
+    arc_h = int(lid.height * 0.65)
+    apex_y = lid.top - arc_h
+    gem_cy = apex_y + gem_h // 2 - SS         # the -SS lifts the gem 1 px
     _gem(big,
          lid.centerx,
-         lid.top + int(lid.height * 0.18),
+         gem_cy,
          gem_w, gem_h,
          GEM_RED_HI, GEM_RED, GEM_RED_LO, ink)
+    # 1-px near-white pin-highlight on the top facet so the gem reads as
+    # a polished cut at 1x — distinguishes "ruby" from "red dot".
+    pygame.draw.line(big, (255, 250, 230),
+                     (lid.centerx - gem_w // 6, gem_cy - gem_h // 3),
+                     (lid.centerx + gem_w // 6, gem_cy - gem_h // 3),
+                     max(1, SS // 2))
 
     # Tiny gold clasp on the seam, framing the gem-line from below.
     clasp_w = int(body.width * 0.18)
@@ -542,99 +591,125 @@ def icon_b3():
 
 
 def icon_b4():
-    """B4 — Pop-art halftone chest. Same chest silhouette but rendered in
-    the project's halftone vocabulary — thick ink outline + halftone-dot
-    teal/cream lid panels (the SKATEBOARD deck's grammar), gold ferrule-
-    style studs at the corners. Visually cohesive with the pop-art
-    ornaments family."""
+    """B4 — Glowing rune chest. Replaces the halftone direction that
+    collided with the umbrella's teal/cream and lost "treasure" semantics.
+    Dark wood body (deeper than B1), a glowing amber sigil on the lid
+    front (circled spiral — reads as an ancient magical mark), and a
+    soft amber under-glow leaking from the lid/body seam. Distinct from
+    B3 (jewelled fantasy) — this one feels "ancient magic artefact"."""
     big = _new_big()
-    ink = max(4, int(SS * 1.3))            # thicker ink for pop-art read
+    ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
 
-    # Body — flat teal panel (no gradient) so the halftone dots carry the
-    # texture, not a smooth grad. Then a cream upper band like a deck.
-    pygame.draw.rect(big, HT_TEAL, body, border_radius=max(2, int(body.width * 0.06)))
-    upper_band = pygame.Rect(body.left, body.top, body.width,
-                              int(body.height * 0.36))
-    pygame.draw.rect(big, HT_CREAM, upper_band,
-                     border_radius=max(2, int(body.width * 0.06)))
-    # Halftone dots over the lower teal area — sparse grid, masked to body.
-    dot_surf = pygame.Surface(body.size, pygame.SRCALPHA)
-    step = max(6, int(SS * 1.8))
-    for gy in range(0, body.height, step):
-        offset = (step // 2) if ((gy // step) % 2 == 1) else 0
-        for gx in range(offset, body.width, step):
-            if gy >= upper_band.height:
-                pygame.draw.circle(dot_surf, HT_DOT, (gx, gy),
-                                   max(1, int(SS * 0.55)))
-            else:
-                # Cream-band dots in teal, smaller.
-                pygame.draw.circle(dot_surf, HT_TEAL_LO, (gx, gy),
-                                   max(1, int(SS * 0.45)))
-    # Mask dots to the body rounded rect.
-    mask = pygame.Surface(body.size, pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
-                     border_radius=max(2, int(body.width * 0.06)))
-    dot_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    big.blit(dot_surf, body.topleft)
-    pygame.draw.rect(big, INK, body, ink,
-                     border_radius=max(2, int(body.width * 0.06)))
-    # Seam line where lid meets body.
-    pygame.draw.line(big, INK,
-                     (body.left, body.top + upper_band.height),
-                     (body.right, body.top + upper_band.height),
-                     max(2, ink - 1))
+    # Body — deeper wood than B1 so the amber sigil + seam glow carry the
+    # mystical read instead of fighting a bright body.
+    _chest_body(big, body, ink, RUNE_WOOD_HI, RUNE_WOOD_MID, RUNE_WOOD_LO)
 
-    # Curved lid drawn flat-cream, then halftone-dotted in teal so the lid
-    # reads as the inverse pattern of the body.
+    # Faint dark wood grain on the body (using the rune-specific darker
+    # grain colour so it doesn't muddy the under-glow band).
+    n_grain = 3
+    for i in range(1, n_grain + 1):
+        gy = body.top + int(body.height * (i / (n_grain + 1)))
+        x0 = body.left + int(body.width * 0.10)
+        x1 = body.right - int(body.width * 0.10)
+        pygame.draw.line(big, RUNE_GRAIN, (x0, gy), (x1, gy),
+                         max(1, ink // 2))
+
+    # Curved lid in the same dark wood, no sheen — the lid is meant to
+    # feel matte so the rune itself is the only light source on the icon.
     pts, lid_top_y = _curved_lid(big, lid, ink,
-                                  HT_CREAM, HT_CREAM, HT_CREAM,
-                                  grain=False, sheen=False)
-    # Build a lid-shape mask and dot over it.
-    lid_local_l = min(p[0] for p in pts)
-    lid_local_t = min(p[1] for p in pts)
-    lid_local_w = int(max(p[0] for p in pts) - lid_local_l) + 1
-    lid_local_h = int(max(p[1] for p in pts) - lid_local_t) + 1
-    lid_dots = pygame.Surface((lid_local_w, lid_local_h), pygame.SRCALPHA)
-    for gy in range(0, lid_local_h, step):
-        offset = (step // 2) if ((gy // step) % 2 == 1) else 0
-        for gx in range(offset, lid_local_w, step):
-            pygame.draw.circle(lid_dots, HT_TEAL,
-                               (gx, gy), max(1, int(SS * 0.55)))
-    lid_mask = pygame.Surface((lid_local_w, lid_local_h), pygame.SRCALPHA)
-    local_pts = [(p[0] - lid_local_l, p[1] - lid_local_t) for p in pts]
-    pygame.draw.polygon(lid_mask, (255, 255, 255, 255), local_pts)
-    lid_dots.blit(lid_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    big.blit(lid_dots, (lid_local_l, lid_local_t))
-    pygame.draw.polygon(big, INK, pts, ink)
+                                  RUNE_WOOD_HI, RUNE_WOOD_MID, RUNE_WOOD_LO,
+                                  grain=True, sheen=False)
 
-    # Gold ferrule-style studs at the four corners + lock centre.
-    stud_r = max(2, int(SS * 1.1))
-    for (sx, sy) in (
-        (body.left + stud_r * 2,  body.top + stud_r * 2),
-        (body.right - stud_r * 2, body.top + stud_r * 2),
-        (body.left + stud_r * 2,  body.bottom - stud_r * 2),
-        (body.right - stud_r * 2, body.bottom - stud_r * 2),
-    ):
-        pygame.draw.circle(big, GOLD_HI, (sx, sy), stud_r)
-        pygame.draw.circle(big, GOLD_INK, (sx, sy), stud_r, max(1, ink // 2))
+    # Seam under-glow band — a horizontal soft amber wash leaking from the
+    # lid/body seam. Drawn as a tall vertical alpha gradient centred on
+    # the seam so the brightest pixels sit on the joint and fall off
+    # above and below. Sells "something glowing inside is escaping".
+    seam_y = body.top
+    glow_h = int(body.height * 0.42)
+    glow_w = body.width + ink * 2
+    glow_surf = pygame.Surface((glow_w, glow_h * 2), pygame.SRCALPHA)
+    for k in range(glow_h * 2):
+        t = (k - glow_h) / glow_h
+        a = int(150 * max(0.0, 1.0 - abs(t)))
+        if a > 0:
+            pygame.draw.line(glow_surf, (*RUNE_HALO, a),
+                             (0, k), (glow_w, k))
+    # Slight horizontal taper at the band edges so the glow doesn't bleed
+    # past the chest silhouette — multiply a soft mask over the glow.
+    edge_mask = pygame.Surface((glow_w, glow_h * 2), pygame.SRCALPHA)
+    edge_mask.fill((255, 255, 255, 255))
+    for ex in range(int(glow_w * 0.18)):
+        a = int(255 * (ex / max(1, int(glow_w * 0.18))))
+        pygame.draw.line(edge_mask, (255, 255, 255, a),
+                         (ex, 0), (ex, glow_h * 2), 1)
+        pygame.draw.line(edge_mask, (255, 255, 255, a),
+                         (glow_w - 1 - ex, 0),
+                         (glow_w - 1 - ex, glow_h * 2), 1)
+    glow_surf.blit(edge_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    big.blit(glow_surf, (body.left - ink, seam_y - glow_h),
+             special_flags=pygame.BLEND_PREMULTIPLIED)
 
-    # Central gold lock plate (smaller than B1) so the silhouette still
-    # reads as a chest even with the pop-art vocabulary.
-    lock_w = int(body.width * 0.22)
-    lock_h = int(body.height * 0.40)
-    _gold_lock(big, body.centerx,
-               body.top + int(body.height * 0.20),
-               lock_w, lock_h, ink, keyhole=True)
+    # Bright 1-px seam line right on the joint so the eye locks onto where
+    # the glow comes from. Pure bright core over the wood.
+    pygame.draw.line(big, RUNE_GLOW_HI,
+                     (body.left + ink, seam_y),
+                     (body.right - ink, seam_y),
+                     max(2, ink // 2))
+
+    # Glowing rune sigil on the lid front — a circled spiral (the classic
+    # "ancient magical mark" reading). Drawn as a soft outer halo behind
+    # a crisp amber stroke so the rune itself reads as self-luminous.
+    rune_cx = lid.centerx
+    rune_cy = lid.top + int(lid.height * 0.40)
+    rune_r  = int(lid.height * 0.55)
+
+    # Outer halo behind the rune — a few stacked translucent discs.
+    halo = pygame.Surface((rune_r * 6, rune_r * 6), pygame.SRCALPHA)
+    hcx = halo.get_width() // 2
+    hcy = halo.get_height() // 2
+    for k in range(5):
+        rr = int(rune_r * (1.7 - k * 0.18))
+        a = 26 + k * 18
+        pygame.draw.circle(halo, (*RUNE_HALO, a), (hcx, hcy), rr)
+    big.blit(halo, halo.get_rect(center=(rune_cx, rune_cy)),
+             special_flags=pygame.BLEND_PREMULTIPLIED)
+
+    # Outer circle of the rune — bright amber ring.
+    pygame.draw.circle(big, RUNE_GLOW_LO, (rune_cx, rune_cy),
+                       rune_r, max(2, ink))
+    pygame.draw.circle(big, RUNE_GLOW_MID, (rune_cx, rune_cy),
+                       rune_r, max(1, ink - 1))
+
+    # Inner spiral — a short Archimedean spiral built as a polyline. Two
+    # turns is enough to read as "magical mark" at 1x without looking busy.
+    spiral_pts = []
+    turns = 1.75
+    steps = 48
+    for i in range(steps + 1):
+        t = i / steps
+        ang = turns * 2 * math.pi * t
+        rr = rune_r * 0.72 * (1.0 - t)
+        spiral_pts.append((rune_cx + math.cos(ang) * rr,
+                           rune_cy + math.sin(ang) * rr))
+    if len(spiral_pts) >= 2:
+        pygame.draw.lines(big, RUNE_GLOW_HI, False, spiral_pts,
+                          max(2, ink))
+    # Bright pin-glint at the spiral's centre — sells "active glow".
+    pygame.draw.circle(big, (255, 248, 220),
+                       (rune_cx, rune_cy), max(2, int(SS * 0.9)))
 
     return _finish(big)
 
 
 def icon_b5():
-    """B5 — Royal jewelled chest. Deep velvet-red body with heavy gold
-    edging, a rim of four coloured jewels (red/blue/green/purple) along
-    the lid, gold filigree corner brackets, and a tiny crown emblem
-    floating above the lock. The 'crown jewels' read — rarest find."""
+    """B5 — Royal crown chest (lead). Deep velvet-red body with heavy gold
+    edging, a crown emblem whose centre spike breaks the top of the lid
+    silhouette (the round-1 standout legibility win), TWO gold studs
+    flanking the crown (the rainbow 4-jewel rim was rejected as noise at
+    1x), a widened + extra-bright gold lock plate as the focal anchor,
+    and a handful of static gold sparkle pixels orbiting the crown spike
+    to signal "rarest pickup"."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
@@ -657,22 +732,9 @@ def icon_b5():
                      border_radius=max(1, bot_trim.height // 2))
 
     # Curved lid in the same red velvet.
-    pts, _ = _curved_lid(big, lid, ink, ROYAL_HI, ROYAL_MID, ROYAL_LO,
-                          grain=False, sheen=True)
-
-    # Rim of jewels along the lid front edge — alternating colours.
-    jewels = ((JEWEL_RED, GEM_RED_HI, GEM_RED_LO),
-              (JEWEL_BLU, (180, 210, 255), ( 40,  80, 160)),
-              (JEWEL_GRN, (180, 240, 200), ( 30, 120,  80)),
-              (JEWEL_PUR, (220, 200, 255), ( 90,  50, 160)))
-    jw = int(lid.width * 0.13)
-    jh = int(lid.height * 0.42)
-    n = len(jewels)
-    for i, (mid, hi, lo) in enumerate(jewels):
-        t = (i + 0.5) / n
-        jx = lid.left + int(lid.width * t)
-        jy = lid.top + int(lid.height * 0.36)
-        _gem(big, jx, jy, jw, jh, hi, mid, lo, max(1, ink - 1))
+    pts, lid_apex_y = _curved_lid(big, lid, ink,
+                                   ROYAL_HI, ROYAL_MID, ROYAL_LO,
+                                   grain=False, sheen=True)
 
     # Gold filigree corner brackets — short curved arms at lid corners.
     for (cx, cy, sx) in ((lid.left,  lid.top + int(lid.height * 0.10), +1),
@@ -685,55 +747,100 @@ def icon_b5():
                         math.radians(0), math.radians(110),
                         max(2, ink - 1))
 
-    # Gold lock plate with a small CROWN emblem sitting just above it.
-    lock_w = int(body.width * 0.26)
+    # Gold lock plate — widened ~2 px and one value-step brighter than B1's
+    # to anchor the eye at 1x. The lock is THE focal hierarchy peak; the
+    # crown above it signals rarity, the lock seals "this is treasure".
+    lock_w = int(body.width * 0.26) + SS * 2     # ~+2 px at pickup scale
     lock_h = int(body.height * 0.48)
     lock_cx = body.centerx
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.04)
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=True)
-    # Crown emblem above the lock (sitting on the seam).
-    crown_w = int(lock_w * 1.1)
-    crown_h = int(lock_h * 0.55)
+    # Bright near-white 1-px highlight on the lock plate's top edge — a
+    # one-step-brighter sheen so the plate visibly catches dawn light.
+    pygame.draw.line(big, (255, 250, 230),
+                     (lock_cx - lock_w // 2 + ink,
+                      lock_cy - lock_h // 2 + max(1, ink // 2)),
+                     (lock_cx + lock_w // 2 - ink,
+                      lock_cy - lock_h // 2 + max(1, ink // 2)),
+                     max(2, ink // 2))
+
+    # Crown emblem with its centre spike breaking the lid silhouette.
+    # Built so the central peak rises ABOVE the lid's arc apex — this is
+    # the round-1 standout legibility win and the whole reason B5 leads.
+    crown_w = int(lock_w * 1.15)
+    crown_h = int(lock_h * 0.62)
     crown_cx = lock_cx
-    crown_cy = lock_cy - lock_h // 2 - crown_h // 2 - int(body.height * 0.02)
-    # Crown body — three-point silhouette.
+    # Sit the crown base just above the seam; the central spike will
+    # extend above the lid arc apex by ~SS pixels (= ~1 px at pickup).
+    crown_base_y = body.top - int(body.height * 0.06)
+    spike_tip_y  = lid_apex_y - SS                 # 1 px above lid silhouette
+    crown_cy = (crown_base_y + spike_tip_y) // 2
+    # Three-peak silhouette; the middle peak is the tallest so it pierces
+    # the lid top. Asymmetric heights would muddy the read — keep symmetric.
     cpts = [
-        (crown_cx - crown_w // 2,        crown_cy + crown_h // 2),
-        (crown_cx - crown_w // 2,        crown_cy - crown_h // 6),
-        (crown_cx - crown_w // 3,        crown_cy + crown_h // 8),
-        (crown_cx - crown_w // 5,        crown_cy - crown_h // 2),
-        (crown_cx,                       crown_cy + crown_h // 8),
-        (crown_cx + crown_w // 5,        crown_cy - crown_h // 2),
-        (crown_cx + crown_w // 3,        crown_cy + crown_h // 8),
-        (crown_cx + crown_w // 2,        crown_cy - crown_h // 6),
-        (crown_cx + crown_w // 2,        crown_cy + crown_h // 2),
+        (crown_cx - crown_w // 2,    crown_base_y),
+        (crown_cx - crown_w // 2,    crown_cy - crown_h // 6),
+        (crown_cx - crown_w // 3,    crown_base_y - crown_h // 5),
+        (crown_cx - crown_w // 5,    crown_cy - crown_h // 3),
+        (crown_cx,                   spike_tip_y),
+        (crown_cx + crown_w // 5,    crown_cy - crown_h // 3),
+        (crown_cx + crown_w // 3,    crown_base_y - crown_h // 5),
+        (crown_cx + crown_w // 2,    crown_cy - crown_h // 6),
+        (crown_cx + crown_w // 2,    crown_base_y),
     ]
     pygame.draw.polygon(big, GOLD_HI, cpts)
-    # Bottom shadow strip.
+    # Shadow band at the crown's base for solidity.
     pygame.draw.polygon(big, GOLD_LO,
-                        [(crown_cx - crown_w // 2, crown_cy + crown_h // 4),
-                         (crown_cx + crown_w // 2, crown_cy + crown_h // 4),
-                         (crown_cx + crown_w // 2, crown_cy + crown_h // 2),
-                         (crown_cx - crown_w // 2, crown_cy + crown_h // 2)])
+                        [(crown_cx - crown_w // 2, crown_base_y - crown_h // 6),
+                         (crown_cx + crown_w // 2, crown_base_y - crown_h // 6),
+                         (crown_cx + crown_w // 2, crown_base_y),
+                         (crown_cx - crown_w // 2, crown_base_y)])
     pygame.draw.polygon(big, GOLD_INK, cpts, max(1, ink - 1))
-    # Tiny jewels at the three points.
-    for jx in (crown_cx - crown_w // 5,
-               crown_cx,
-               crown_cx + crown_w // 5):
-        pygame.draw.circle(big, JEWEL_RED, (jx, crown_cy - crown_h // 2 + 2),
-                           max(2, int(SS * 0.7)))
-        pygame.draw.circle(big, INK, (jx, crown_cy - crown_h // 2 + 2),
-                           max(2, int(SS * 0.7)), max(1, ink // 2))
+
+    # TWO gold studs flanking the crown — replaces the rejected 4-colour
+    # rainbow rim. Two studs read as symmetric jewellery anchors at 1x
+    # without becoming noise. Sit them just inside the crown's outer peaks.
+    stud_r = max(2, int(SS * 0.9))
+    for sx in (crown_cx - int(crown_w * 0.42),
+               crown_cx + int(crown_w * 0.42)):
+        sy = crown_base_y - crown_h // 6
+        pygame.draw.circle(big, GOLD_HI, (sx, sy), stud_r + 1)
+        pygame.draw.circle(big, GOLD_MID, (sx, sy), stud_r)
+        pygame.draw.circle(big, GOLD_INK, (sx, sy), stud_r,
+                           max(1, ink // 2))
+
+    # Sparkle pixels orbiting the crown spike — static (not animated), four
+    # tiny gold "+" twinkles at varied radii. Signals "rarest pickup" the
+    # moment the icon appears, without inflating the silhouette.
+    sparkle_specs = (
+        (-0.55, -0.85, 1.0),
+        ( 0.62, -0.78, 0.85),
+        (-0.18, -1.15, 0.75),
+        ( 0.30, -1.05, 0.65),
+    )
+    sparkle_cx = crown_cx
+    sparkle_cy = spike_tip_y
+    for (ox, oy, sc) in sparkle_specs:
+        sx = sparkle_cx + int(crown_w * ox)
+        sy = sparkle_cy + int(crown_h * oy)
+        L = max(1, int(SS * 0.9 * sc))
+        # Bright gold core dot.
+        pygame.draw.circle(big, GOLD_HI, (sx, sy), max(1, int(L * 0.7)))
+        # 4-arm "+" twinkle.
+        pygame.draw.line(big, GOLD_HI, (sx - L, sy), (sx + L, sy),
+                         max(1, ink // 3))
+        pygame.draw.line(big, GOLD_HI, (sx, sy - L), (sx, sy + L),
+                         max(1, ink // 3))
 
     return _finish(big)
 
 
 CANDIDATES = [
-    ("B1", "Classic wooden",   icon_b1),
-    ("B2", "Overflowing gold", icon_b2),
-    ("B3", "Magical jewelled", icon_b3),
-    ("B4", "Pop-art halftone", icon_b4),
-    ("B5", "Royal crown",      icon_b5),
+    ("B1", "Classic wooden + lid jewel", icon_b1),
+    ("B2", "Overflowing gold",           icon_b2),
+    ("B3", "Magical jewelled",           icon_b3),
+    ("B4", "Glowing rune",               icon_b4),
+    ("B5", "Royal crown  (lead)",        icon_b5),
 ]
 
 
@@ -800,7 +907,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "treasure_box")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
 
     # Bake float-bob: shift each finished icon a couple px on its swatch.
     bob = int(round(math.sin(BOB_PULSE * 0.8) * 2))
@@ -821,17 +928,18 @@ def main():
 
     title = font(26, bold=True).render(
         "TREASURE BOX — once-per-cycle finale pickup; +100 coins; "
-        "coin explosion on pickup  (round 1)", True,
+        "coin explosion on pickup  (round 2)", True,
         (240, 240, 246))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "Each cell: dawn/sunrise sky + sparkle backdrop.  "
-        "Left = real pickup size (~56x46 px, float-bobbed);  right = 3x zoom.",
+        "round 2 — converged on royal-crown lead; halftone replaced with "
+        "glowing rune.  Dawn/sunrise sky + sparkle backdrop per cell.",
         True, (170, 178, 192))
     sheet.blit(sub, (pad, pad + 32))
     sub2 = font(13).render(
-        "5 distinct directions: wooden / overflowing / magical / "
-        "pop-art halftone / royal crown.",
+        "Left = real pickup size (~56x46 px, float-bobbed);  "
+        "right = 3x zoom.  5 directions: wooden / overflowing / "
+        "jewelled / rune / royal-crown.",
         True, (200, 180, 150))
     sheet.blit(sub2, (pad, pad + 54))
 
