@@ -1,4 +1,4 @@
-"""Umbrella power-up — in-gameplay overlay exploration (round 1).
+"""Umbrella power-up — in-gameplay overlay exploration (round 2).
 
 The umbrella cancels the thunderstorm flap-dampening; while it is active a
 small umbrella floats above Pip's head. The chosen pickup ICON is C4 (cream
@@ -24,7 +24,14 @@ Each of the 5 variants is shown across 3 representative Pip poses
 (+25deg rising, 0deg level, -25deg diving) so the reviewer can see the
 umbrella holding its angle while Pip rotates underneath it.
 
-Output: docs/umbrella_powerup/ingame_round_1.png   (doc-only; not shipped)
+Round 2 (art-director: V5 lead, V1 fallback): canopy teal lightened ~12%
+off the navy sky, ink outline thickened + right rim explicitly closed,
+ferrule on V5/V1, fewer/bolder scallops, V2 upright (no lean), V3 droplets
+cut + shrunk to V1 size, V4 canopy +20% lifted, V5 J-hook offset outboard
+so it clears the wing. The umbrella angle is fixed per-variant and NEVER
+follows Pip's tilt.
+
+Output: docs/umbrella_powerup/ingame_round_2.png   (doc-only; not shipped)
 """
 from __future__ import annotations
 
@@ -48,10 +55,21 @@ from game import parrot
 # in-gameplay umbrella matches pickup C4 pixel-for-pixel.
 from tools.render_umbrella_icon_options import (
     _canopy, _j_handle,
-    CANOPY_TEAL, CANOPY_TEAL_HI, CANOPY_CREAM,
+    CANOPY_TEAL as _ICON_TEAL, CANOPY_TEAL_HI as _ICON_TEAL_HI, CANOPY_CREAM,
     INK, FERRULE, DROP_BLUE, DROP_BLUE_HI,
     _lerp,
 )
+
+# Against the deep night-storm indigo (top ~ (26,28,50)) the icon's dusk-tuned
+# teal drifts navy and the canopy fuses with the sky. Lift the SAME hue ~12%
+# in value/chroma so the dome separates at gameplay scale; the icon stays the
+# source of truth for the shape, this is a night-legibility nudge only.
+def _brighten(c, f):
+    return tuple(min(255, int(round(v + (255 - v) * f))) for v in c)
+
+
+CANOPY_TEAL = _brighten(_ICON_TEAL, 0.12)        # ~ (84,185,196)
+CANOPY_TEAL_HI = _brighten(_ICON_TEAL_HI, 0.12)  # ~ (136,219,226)
 
 # Supersample the umbrella overlay then smoothscale down so the ink outline
 # and scallops stay crisp at the small on-head footprint (same idiom the icon
@@ -65,8 +83,8 @@ SS = 6
 HEAD_CROWN_DY = -25                     # px above the parrot centre
 
 
-def _make_umbrella(head_span, *, rise_scale=0.62, panels=6,
-                   handle_len=0.0, lean_deg=0.0, ferrule=True,
+def _make_umbrella(head_span, *, rise_scale=0.62, panels=5,
+                   handle_len=0.0, handle_dx=0.0, lean_deg=0.0, ferrule=True,
                    deflect_drops=False):
     """Build one upright (or fixed-lean) umbrella overlay surface sized to
     `head_span` px of half-width, reusing the icon's canopy/handle so it
@@ -75,12 +93,17 @@ def _make_umbrella(head_span, *, rise_scale=0.62, panels=6,
     seat the hem precisely on Pip's crown regardless of handle length.
 
     `handle_len` is the J-hook shaft length as a fraction of span (0 = none).
-    `lean_deg` is a FIXED tilt applied to the whole umbrella — it never tracks
-    Pip's pose. `deflect_drops` adds a couple of raindrops splitting off the
-    rim (the rain-protection tell)."""
+    `handle_dx` shifts the handle OUTBOARD (fraction of span) from the canopy
+    apex so the J-hook clears Pip's wing — the canopy stays centred on the
+    crown. `lean_deg` is a FIXED tilt applied to the whole umbrella — it never
+    tracks Pip's pose. `deflect_drops` adds a couple of raindrops splitting off
+    the rim (the rain-protection tell). Default `panels=5`: fewer, bolder
+    scallops read better than 6 at the on-head footprint."""
     span = int(head_span * SS)
     rise = int(span * rise_scale)
-    ink = max(3, int(SS * 1.05))
+    # Thicker outline than round 1 (was ~1.05*SS) so the ink survives the
+    # downscale and the rim stays continuous at gameplay scale.
+    ink = max(3, int(SS * 1.5))
 
     # Generous canvas: room above for the ferrule, below for any handle, and
     # margin on the sides for the lean rotation + deflection drops.
@@ -96,10 +119,32 @@ def _make_umbrella(head_span, *, rise_scale=0.62, panels=6,
     hem_y = margin + rise + int(span * 0.30)
 
     if handle_len > 0:
-        _j_handle(big, cx, hem_y, handle_px, span, ink)
+        # The shaft anchors at the apex but is shifted OUTBOARD by handle_dx so
+        # the J-hook hangs beside Pip's body, never crossing the wing. It is
+        # drawn straight down (tilt=0): the handle is vertical and does NOT
+        # rotate with any per-variant lean below.
+        _j_handle(big, cx + int(span * handle_dx), hem_y, handle_px, span, ink)
     _canopy(big, cx, hem_y, span, rise, panels,
             (CANOPY_TEAL, CANOPY_CREAM), ink,
             ferrule=ferrule, hi_col=CANOPY_TEAL_HI)
+
+    # Re-ink the dome arc + hem on top of the panels so the outline reads as
+    # one continuous bold rim — at gameplay scale the per-panel ink was
+    # breaking up, especially on the RIGHT rim. Trace the same circular arc the
+    # canopy uses (cos falloff across the span) and close both end ribs.
+    rim_pts = []
+    steps = 48
+    for k in range(steps + 1):
+        t = (k / steps) * 2 - 1                       # -1..1 across the dome
+        ax = cx - span + (2 * span) * (k / steps)
+        ay = hem_y - rise * max(0.0, math.cos(t * math.pi / 2))
+        rim_pts.append((ax, ay))
+    pygame.draw.lines(big, INK, False, rim_pts, ink)
+    pygame.draw.line(big, INK, (cx - span, hem_y), (cx + span, hem_y), ink)
+    pygame.draw.line(big, INK, (cx - span, hem_y),
+                     (cx - span, hem_y - rise * 0.04), ink)
+    pygame.draw.line(big, INK, (cx + span, hem_y),
+                     (cx + span, hem_y - rise * 0.04), ink)
 
     if deflect_drops:
         # A few drops peeling off both hem corners + sliding down the dome,
@@ -147,48 +192,56 @@ def _make_umbrella(head_span, *, rise_scale=0.62, panels=6,
 # vertical gap (in px) to float the hem above Pip's head crown.
 # ---------------------------------------------------------------------------
 def v1_canopy_straight(head_span):
-    """V1 — Canopy only, straight: clean teal canopy ~1.0x head-span, no
-    handle, 0deg, floating a touch above the crown."""
-    surf, hem = _make_umbrella(head_span, handle_len=0.0, lean_deg=0.0)
-    return surf, hem, 4
-
-
-def v2_canopy_jaunty(head_span):
-    """V2 — Canopy + short J-hook tucked behind the head, at a FIXED 10deg
-    lean (does not track Pip's pose)."""
-    surf, hem = _make_umbrella(head_span, handle_len=0.30, lean_deg=10.0)
-    return surf, hem, 3
-
-
-def v3_big_shelter(head_span):
-    """V3 — Big shelter + deflection: larger canopy that visibly covers Pip,
-    floating a touch higher, with raindrops splitting off the rim."""
-    surf, hem = _make_umbrella(int(head_span * 1.28), rise_scale=0.58,
-                               handle_len=0.0, deflect_drops=True)
+    """V1 — Canopy only, upright (legible fallback): clean teal canopy ~1.0x
+    head-span, no handle, 0deg, ferrule on, bolder 5-scallop hem, floating a
+    touch above the crown."""
+    surf, hem = _make_umbrella(head_span, panels=5, handle_len=0.0,
+                               lean_deg=0.0, ferrule=True)
     return surf, hem, 6
 
 
-def v4_compact_hug(head_span):
-    """V4 — Compact hug: smaller canopy sitting close to the crown, no handle,
-    minimal and unobtrusive."""
-    surf, hem = _make_umbrella(int(head_span * 0.82), rise_scale=0.66,
-                               panels=5, handle_len=0.0)
-    return surf, hem, 1
+def v2_short_handle(head_span):
+    """V2 — Short-handle upright: V5's shape with a stub J-hook. Upright (the
+    old 10deg lean is gone — upright is a hard requirement). Handle offset
+    outboard so it clears the wing."""
+    surf, hem = _make_umbrella(head_span, panels=5, handle_len=0.30,
+                               handle_dx=0.32, lean_deg=0.0, ferrule=True)
+    return surf, hem, 6
+
+
+def v3_canopy_clean(head_span):
+    """V3 — V1-sized canopy, no droplets (deflection drops cut per AD). Reads
+    as a clean shelter sitting clear above the crown."""
+    surf, hem = _make_umbrella(head_span, panels=5, handle_len=0.0,
+                               lean_deg=0.0, ferrule=True, deflect_drops=False)
+    return surf, hem, 7
+
+
+def v4_lifted_canopy(head_span):
+    """V4 — Canopy +20% lifted: a larger dome floated ~7px above the crown so
+    it reads as a shelter, not a cap. No handle."""
+    surf, hem = _make_umbrella(int(head_span * 1.20), rise_scale=0.62,
+                               panels=5, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 7
 
 
 def v5_full_handle(head_span):
-    """V5 — Full handle (literal icon match): canopy + full visible J-hook
-    running down beside the body, upright."""
-    surf, hem = _make_umbrella(head_span, handle_len=0.62, lean_deg=0.0)
-    return surf, hem, 3
+    """V5 — Full handle (lead, literal icon match): canopy + full visible
+    J-hook running down beside the body, upright, ferrule on. The handle is
+    offset outboard so it never overlaps the wing at any tilt, and stays
+    vertical (it does not rotate)."""
+    surf, hem = _make_umbrella(head_span, panels=5, handle_len=0.62,
+                               handle_dx=0.40, lean_deg=0.0, ferrule=True)
+    return surf, hem, 6
 
 
 VARIANTS = [
-    ("V1", "Canopy only, straight", v1_canopy_straight),
-    ("V2", "Canopy + short handle, jaunty", v2_canopy_jaunty),
-    ("V3", "Big shelter + deflection", v3_big_shelter),
-    ("V4", "Compact hug", v4_compact_hug),
-    ("V5", "Full handle (icon match)", v5_full_handle),
+    ("V1", "Canopy only, upright (fallback)", v1_canopy_straight),
+    ("V2", "Short handle, upright", v2_short_handle),
+    ("V3", "V1-size canopy, no drops", v3_canopy_clean),
+    ("V4", "Canopy +20%, lifted", v4_lifted_canopy),
+    ("V5", "Full handle, upright (lead)", v5_full_handle),
 ]
 
 POSES = [(+25.0, "rising"), (0.0, "level"), (-25.0, "diving")]
@@ -267,7 +320,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "umbrella_powerup")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "ingame_round_1.png")
+    out_path = os.path.join(out_dir, "ingame_round_2.png")
 
     def font(sz, bold=False):
         return pygame.font.SysFont("Arial", sz, bold=bold)
@@ -290,16 +343,16 @@ def main():
     sheet.fill((18, 18, 28))
 
     title = font(24, bold=True).render(
-        "UMBRELLA in-gameplay — round 1", True, (240, 240, 248))
+        "UMBRELLA in-gameplay — round 2", True, (240, 240, 248))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "Teal canopy matches chosen icon C4; floats on Pip's head and stays "
-        "upright as Pip tilts. Night thunderstorm sky + rain streaks.",
+        "Teal canopy matches chosen icon C4 (lightened ~12% off night sky); "
+        "floats above Pip's head and stays UPRIGHT as Pip tilts.",
         True, (172, 182, 200))
     sheet.blit(sub, (pad, pad + 30))
     sub2 = font(13).render(
-        "Rows = 5 variants; columns = pose (rising +25deg / level 0deg / "
-        "diving -25deg). No cream ring on the parrot (pickup framing only).",
+        "V5 lead (full handle, offset outboard) / V1 fallback (canopy only). "
+        "Cols = pose (rising +25 / level 0 / diving -25). Bolder ink + scallops.",
         True, (150, 175, 205))
     sheet.blit(sub2, (pad, pad + 50))
 
