@@ -192,16 +192,14 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R7]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R8]
 
 ROW_NOTES = {
-    "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below matches this height.",
-    "Polished Temple Pavement": "STONE LEAD - top@595, 45px. Beveled crisp joints (dark riser + lit lip), per-slab specular glints, inlay panels.",
-    "Inlaid Geometric Mosaic": "top@595, 45px. Fret border + diamond inlay tessellation, each tile crisp-beveled. Designed/expensive.",
-    "Glazed River-Cobble": "top@595, 45px. Domed cobbles in crisp grout, lit dome arc + ADD specular crown glint = wet-glazed rock.",
-    "Golden Desert Dune": "SAND LEAD - top@595, 45px. Crisp ripple relief (lit crest over shadow trough), satin sheen, fine tooth.",
-    "Satin Rippled Sand": "top@595, 45px. Dense low-amp silk ripples + broad soft sheen sweep. Polished silk-dune material.",
-    "Riverbank Sandbar": "top@595, 45px. Crisp lit river stones + ADD specular, 2-3 bold silhouetted dry-grass tufts.",
+    "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below nets to this exact top edge.",
+    "Inlaid Geometric Mosaic": "STONE LEAD - top@595, 45px. Fret border + diamond inlay tessellation, warm-lit lip (no dark seam), mid-band two-tone contrast quieted behind the bird lane.",
+    "Polished Temple Pavement": "stone fallback - top@595, 45px. Beveled crisp joints (dark riser + lit lip), per-slab glints, inlay panels, warm-lit top lip.",
+    "Riverbank Sandbar": "SAND LEAD - top@595, 45px. Warm TONAL lower-band lift (capped <230 luma, no white pool), tonal ripples, half-sunk lit stones + dry-grass tufts. Retints BELOW the night sky.",
+    "Golden Desert Dune": "secondary sand - top@595, 45px. Warm golden sand, gentle TONAL wind-relief (light-tan crest / mid-tan trough), capped lower-band lift, no glow at night.",
 }
 
 
@@ -221,7 +219,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 7 - PREMIUM 45px HERO STRIP (top@595, flush w/ mountain bases): Original ref + 3 slick stone + 3 slick sand - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 8 - NET top@595 + RESCUED SAND (warm-lit lip, capped tonal sand, night-retint below sky): Original ref + Mosaic/Pavement stone + Riverbank/Dune sand - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -274,9 +272,10 @@ def make_sheet(images):
     return sheet
 
 
-# One stone + one sand lead get the bird + scrolling coin dropped into their
-# DAY and NIGHT cells so the surface can be checked behind the player lane.
-LEAD_ROWS = {"Polished Temple Pavement", "Golden Desert Dune"}
+# The two LEADS (stone Mosaic + sand Riverbank) get the bird + scrolling coin
+# dropped into their DAY and NIGHT cells so the surface can be checked behind
+# the player lane.
+LEAD_ROWS = {"Inlaid Geometric Mosaic", "Riverbank Sandbar"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -293,7 +292,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_7.png"
+    path = out / "round_8.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 

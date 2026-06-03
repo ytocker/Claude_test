@@ -1790,3 +1790,447 @@ CONCEPTS_R7 = [
     ("Satin Rippled Sand", fg_satin_sand),
     ("Riverbank Sandbar", fg_premium_riverbank),
 ]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Round 8 — net every floor top to EXACTLY y=595 + RESCUE THE SAND.
+#
+# Round 7 was right on HEIGHT and the stone family read premium, but it carried
+# three disqualifying faults the round-8 base + sand model fix:
+#
+#   1. The opaque top row at y=595 was a near-BLACK contact line (the BLEND_SUB
+#      lip in _premium_base sampled ~20 luma) — a hard dark seam against the
+#      sky, worst at night. _premium_base_v8 replaces it with a soft WARM-LIT
+#      1px lip so the topmost opaque row reads as a lit bevel meeting the
+#      mountains, never a dark seam — and the lit surface starts AT 595 with no
+#      sky sliver above it.
+#   2. The sand's additive-to-white sheen + white ripple dashes pooled the
+#      lower band to ~253 luma (pure white). The v8 SAND model never touches
+#      255: the lower-band lift is a WARM TONAL value raise within the sand hue
+#      (capped well under 230 luma), and ripples are two warm tones a few
+#      values apart (light-tan crest / mid-tan trough) — no BLEND_ADD, no white.
+#   3. Because that sheen was additive, the sand GLOWED at night instead of
+#      retinting. The v8 sand has NO additive light, so it drops in value with
+#      the biome and sits BELOW the night-sky luma — darker than the sky, never
+#      glowing. That night retint is the gate the whole round is built around.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _premium_base_v8(surf, w, gy, h, pal, front, back, *, ease=1.0,
+                     lip_warm=(255, 244, 222), lip_a=70):
+    """The round-8 grounded plane on the 45px hero strip. Identical opaque
+    value-fall slab from the FLAT top edge at GROUND_Y (y=595) down to h as
+    round 7 — but the back-edge treatment is inverted: instead of a BLEND_SUB
+    near-black contact line that read as a dark seam against the sky, the top
+    row gets a soft WARM-LIT 1px lip (a low-alpha warm tone, value-only) so the
+    floor's topmost opaque pixels read as a lit bevel meeting the mountains.
+    A single faint shadow hairline sits one row BELOW the lit lip to still set
+    the plane apart as its own object, but it never touches the y=595 edge.
+    No additive sheen here — concepts add their own controlled, capped light so
+    nothing can pool toward white. Returns (top_y, region_h, night)."""
+    night = _nightf(pal)
+    top_y = gy                       # FLUSH with the mountain bases at y=595.
+    region_h = h - top_y             # exactly 45px on the live canvas.
+    _flat_slab(surf, w, h, top_y, back, front, ease=ease)
+
+    # Soft warm-lit top lip RIGHT AT y=595: the opaque top row reads lit, not as
+    # a dark seam. Warmth fades toward night so the lip cools with the stage but
+    # never goes dark (the seam read). Value-only alpha blend, never additive.
+    lip = pygame.Surface((w, 1), pygame.SRCALPHA)
+    lit = _mix(front, lip_warm, 0.45)
+    # The lip cools AND DARKENS toward night so the topmost opaque row sits
+    # below the night-sky luma instead of floating bright (a lit lip that stayed
+    # warm at night would glow at the seam). At full night it sits at the night
+    # surface value, not above it.
+    lit = _mix(lit, _shade(front, -10), night)
+    lip.fill((*lit, int(lip_a * (1.0 - 0.55 * night)) + int(18 * (1.0 - night))))
+    surf.blit(lip, (0, top_y))
+    # A faint object-defining shadow hairline ONE row below the lit lip — keeps
+    # the floor reading as its own plane sitting in front of the mountains,
+    # without ever darkening the y=595 edge itself.
+    sh = pygame.Surface((w, 1), pygame.SRCALPHA)
+    sh.fill((*_shade(_sat(back, 0.92), -16 - int(6 * night)), 90))
+    surf.blit(sh, (0, top_y + 1))
+    return top_y, region_h, night
+
+
+def _sand_v8(pal):
+    """Warm sand for the round-8 leads — the round-7 _sand hue, but the tone is
+    chosen so the OPAQUE slab itself carries the material (no additive sheen is
+    layered on top), and the value-fall is built to stay tan, never near-white,
+    in the lower band."""
+    base = _mix(_sandstone(pal), pal.get('ground_mid', (176, 142, 92)), 0.35)
+    return _mix(_sat(base, 0.94), (216, 188, 140), 0.55)
+
+
+def _sand_tones_v8(pal, base, *, night):
+    """Build the capped warm tonal palette every round-8 sand concept shares:
+    a front (near lip) value-LIFTED within the warm hue but held under ~225
+    luma, a cooler set-back, and a gentle lower-band lift tone — all retinted
+    toward the night sky so the surface drops below the night-sky luma. Returns
+    (front, back, lift) where `lift` is a warm tone a few values above `front`
+    for the lower-band tonal raise (NEVER white, NEVER additive)."""
+    # Front lip: warm + lifted, but capped so it can never approach white.
+    front = _shade(_sat(base, 1.04), 6)
+    if _luma(front) * 255.0 > 224:
+        front = _mix(front, (224, 196, 150), 0.6)
+    back = _shade(_sat(base, 0.9), -18)
+    # Night retint: pull HARD toward a dark cool night ground so the whole plane
+    # sits clearly BELOW the ~89-luma night sky and reads as ground, never glow
+    # (the round's pass/fail gate). The night target is deliberately darker than
+    # the night sky tone; the mix is near-total at full night so even the lit
+    # front lip lands under the sky.
+    night_dk = (30, 38, 60)
+    front = _mix(front, night_dk, 0.74 * night)
+    back = _mix(back, _shade(night_dk, -8), 0.80 * night)
+    # Lower-band lift: a warm tan a touch above the front in DAY, capped under
+    # ~225 luma — the tonal replacement for the blown additive sheen. It is
+    # pulled to the SAME dark night ground at night so it can never lift the
+    # near band above the night sky.
+    lift = _mix(front, (228, 200, 156), 0.5)
+    if _luma(lift) * 255.0 > 224:
+        lift = _mix(lift, (220, 192, 148), 0.7)
+    lift = _mix(lift, night_dk, 0.80 * night)
+    return front, back, lift
+
+
+def _sand_lowband_lift(surf, w, top_y, region_h, h, lift, *, night):
+    """Raise the value of the near (lower) ~40% of a sand strip toward `lift`
+    with a vertical falloff — a WARM TONAL lift, blended value-only (never
+    additive), so the front sand catches the light without pooling toward
+    white. Held below night so the night plane stays a dark ground."""
+    band_top = top_y + int(region_h * 0.58)
+    span = max(1, h - 1 - band_top)
+    peak = 0.50 * (1.0 - 0.85 * night)       # max blend strength, day vs night
+    for y in range(band_top, h):
+        t = (y - band_top) / span
+        a = int(255 * peak * (t ** 1.3))
+        if a <= 0:
+            continue
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*lift, a))
+        surf.blit(ln, (0, y))
+
+
+# ── Sand LEAD — Riverbank Sandbar v8 (45px, top@595) ─────────────────────────
+# The riverbank's charming identity kept intact — half-sunk lit river stones +
+# bold dry-grass tufts — but every highlight is now a capped WARM TONE, the
+# ripples/grain are tonal, the top edge is a warm-lit lip (no dark seam), and
+# the whole plane retints below the night sky instead of glowing.
+
+def fg_riverbank_v8(surf, w, gy, h, scroll, pal):
+    base = _mix(_sand_v8(pal), (206, 184, 142), 0.30)
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 240, 214), lip_a=64)
+
+    # Warm tonal lower-band lift — the front sand catches the light as a capped
+    # tan raise, not an additive white pool.
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Tonal ripple relief: each ripple is a mid-tan TROUGH with a light-tan
+    # CREST one row above it — two warm tones a few values apart, blended
+    # value-only. No white, no additive, no continuous bright stripe (each
+    # ripple is broken into short segments with a tiny deterministic wobble).
+    rip_trough = _mix(_shade(_sat(base, 0.9), -16), back, 0.25)
+    rip_trough = _mix(rip_trough, (40, 50, 78), 0.44 * night)
+    rip_crest = _mix(_shade(base, 12), lift, 0.5)
+    rip_crest = _mix(rip_crest, (52, 62, 90), 0.42 * night)
+    n_rip = 7
+    for ri in range(n_rip):
+        f = (ri + 0.5) / n_rip
+        y = _perspective_y(top_y, h, 1.0 - f)
+        depth_t = f
+        ph = int(scroll * (0.16 + 0.08 * depth_t))
+        seg = 11 + int(depth_t * 8)
+        a_t = int(56 + 46 * depth_t)
+        a_c = int(46 + 50 * depth_t)
+        x = -(ph % (seg * 2))
+        while x < w:
+            jit = ((x // seg) % 3) - 1
+            yy = y + jit
+            tr = pygame.Surface((seg - 2, 1), pygame.SRCALPHA)
+            tr.fill((*rip_trough, a_t))
+            surf.blit(tr, (x, yy))
+            cr = pygame.Surface((seg - 2, 1), pygame.SRCALPHA)
+            cr.fill((*rip_crest, a_c))
+            surf.blit(cr, (x, yy - 1))
+            x += seg
+
+    # Coarse warm tooth — sparse tonal specks (lit + shadow), value-only. The
+    # speck tone is the NIGHT-retinted front, not the raw day base, so the
+    # tooth drops below the night sky with the rest of the plane (a raw-base
+    # speck would stay day-bright and spike above the night sky).
+    speck = _mix(base, (30, 38, 60), 0.74 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.26, 6, 0x2F9):
+        py = top_y + int(srng.uniform(0.2, 1.0) * region_h)
+        if srng.random() < 0.5:
+            continue
+        d = srng.randint(-18, 18)
+        surf.set_at((sx, py), _shade(speck, d))
+
+    # Half-sunk flat river stones: dark contact ellipse + lit cap. The cap
+    # highlight is the stone's OWN warm tone lightened (capped), NOT a white
+    # specular dab — so the stones never glint white and they retint at night.
+    for sx, k, srng in _scatter(scroll, w, 0.22, 26, 0x4C7):
+        py = top_y + int(srng.uniform(0.42, 0.96) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.4 + 0.4 * depth_t:
+            continue
+        pw = 2 + int(depth_t * 4)
+        ph = max(1, pw // 2)
+        pc = _mix(base, (158, 148, 130), 0.5)
+        pc = _mix(pc, _shade(pal.get('stone_dark', (95, 80, 70)), 20),
+                  srng.uniform(0.0, 0.35))
+        # Retint the stones to the same dark night ground as the slab so their
+        # lit caps can never spike above the night sky (the gate). Near-total
+        # at full night, matching _sand_tones_v8's night pull.
+        pc = _mix(pc, (26, 32, 52), 0.80 * night)
+        pygame.draw.ellipse(surf, _shade(pc, -22),
+                            (sx - pw, py - ph + 1, pw * 2, ph + 1))
+        pygame.draw.ellipse(surf, pc, (sx - pw, py - ph, pw * 2, ph + 1))
+        # Lit top edge: a capped warm lighten of the stone tone (value-only),
+        # the warm boost AND the value lift faded toward night so the cap stays
+        # below the night sky.
+        cap_lit = _mix(_shade(pc, int(22 * (1.0 - 0.6 * night))),
+                       (236, 214, 176), 0.35 * (1.0 - night))
+        pygame.draw.line(surf, cap_lit, (sx - pw + 1, py - ph),
+                         (sx + pw - 2, py - ph), 1)
+
+    # 2-3 bold silhouetted dry-grass tufts at the BACK — the charming silhouette
+    # echo of the original, kept warm/tonal. Retinted to the dark night ground
+    # so the straw reads as a dark silhouette against the night sky (a warm
+    # straw would glow above the ~90-luma night sky at the back lip).
+    straw = _mix((196, 182, 130), base, 0.32)
+    straw = _mix(straw, (34, 42, 64), 0.70 * night)
+    straw_dk = _shade(straw, -32)
+    for sx, k, srng in _scatter(scroll, w, 0.2, 120, 0x8E2):
+        if srng.random() < 0.5:
+            continue
+        ty = top_y + int(srng.uniform(0.14, 0.32) * region_h)
+        th_ = srng.randint(10, 15)
+        spread = srng.randint(5, 8)
+        lean = srng.randint(-3, 3)
+        apex = (sx + lean, ty - th_)
+        pygame.draw.polygon(surf, straw_dk, [
+            (sx - spread, ty), (sx + spread, ty),
+            (apex[0] + 2, apex[1] + 2), (apex[0] - 2, apex[1] + 2)])
+        for bo in (-spread, -spread // 2, spread // 2, spread):
+            bx = sx + bo
+            bh = th_ - abs(bo)
+            pygame.draw.line(surf, straw, (bx, ty),
+                             (bx + lean // 2, ty - max(4, bh)), 1)
+
+    # Fine scroll-locked tooth, low amp so it stays a refined warm grain.
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# ── Sand secondary — Golden Desert Dune v8 (45px, top@595) ───────────────────
+# Warm golden sand with gentle TONAL wind-relief: paired light-tan / mid-tan
+# ripple tones, a capped warm lower-band lift, fine tooth. No additive sheen,
+# no white pool, no golden crest — it retints below the night sky.
+
+def fg_golden_dune_v8(surf, w, gy, h, scroll, pal):
+    base = _sand_v8(pal)
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 242, 210), lip_a=66)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Tonal wind ripples: light-tan crest over mid-tan trough, two warm tones a
+    # few values apart, value-only blend. Packed tighter toward the back.
+    rip_trough = _mix(_shade(_sat(base, 0.88), -18), back, 0.2)
+    rip_trough = _mix(rip_trough, (40, 50, 78), 0.46 * night)
+    rip_crest = _mix(_shade(base, 14), lift, 0.45)
+    rip_crest = _mix(rip_crest, (52, 62, 90), 0.42 * night)
+    n_rip = 9
+    for ri in range(n_rip):
+        f = (ri + 0.5) / n_rip
+        y = _perspective_y(top_y, h, 1.0 - f)
+        depth_t = f
+        ph = int(scroll * (0.16 + 0.08 * depth_t))
+        seg = 12 + int(depth_t * 8)
+        a_t = int(50 + 44 * depth_t)
+        a_c = int(42 + 48 * depth_t)
+        x = -(ph % (seg * 2))
+        while x < w:
+            jit = ((x // seg) % 3) - 1
+            yy = y + jit
+            tr = pygame.Surface((seg - 2, 1), pygame.SRCALPHA)
+            tr.fill((*rip_trough, a_t))
+            surf.blit(tr, (x, yy))
+            cr = pygame.Surface((seg - 2, 1), pygame.SRCALPHA)
+            cr.fill((*rip_crest, a_c))
+            surf.blit(cr, (x, yy - 1))
+            x += seg
+
+    # A few tiny pebbles with a capped warm-lit top (no white set_at).
+    for sx, k, srng in _scatter(scroll, w, 0.22, 44, 0x5B2):
+        py = top_y + int(srng.uniform(0.5, 0.96) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.3 + 0.35 * depth_t:
+            continue
+        pr = 1 + int(depth_t * 1.6)
+        pc = _mix(base, (176, 156, 126), 0.5)
+        pc = _mix(pc, (30, 38, 60), 0.74 * night)
+        pygame.draw.ellipse(surf, _shade(pc, -22),
+                            (sx - pr, py - pr // 2, pr * 2, pr + 1))
+        surf.set_at((sx, py - pr // 2),
+                    _mix(_shade(pc, 18), (230, 208, 168), 0.3 * (1.0 - night)))
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# ── Stone LEAD — Inlaid Geometric Mosaic v8 (45px, top@595) ──────────────────
+# The round-7 mosaic kept (ship-quality crisp fret border + beveled diamond
+# tessellation) with two light touches: the warm-lit top lip (no dark seam at
+# y=595) and the two-tone diamond contrast nudged DOWN ~10% in the bird-lane
+# mid-band so the tessellation stays quiet behind gameplay.
+
+def fg_inlaid_mosaic_v8(surf, w, gy, h, scroll, pal):
+    stone = _sandstone(pal)
+    light = _shade(_sat(stone, 1.05), 12)
+    dark = _shade(_sat(_mix(stone, (120, 92, 70), 0.5), 0.95), -10)
+    night = _nightf(pal)
+    front = _mix(light, (66, 78, 112), 0.26 * night)
+    back = _mix(_shade(light, -22), (54, 66, 100), 0.32 * night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 246, 224), lip_a=66)
+
+    d_light = _mix(light, (66, 78, 112), 0.26 * night)
+    d_dark = _mix(dark, (50, 62, 96), 0.30 * night)
+    grout = _shade(_mix(stone, (54, 40, 30), 0.5), -16 - int(8 * night))
+    edge_lt = _mix(d_light, (255, 250, 232), 0.35)
+    # The two mosaic tones pulled ~10% toward each other (their mean) ONLY in
+    # the mid band, so the tessellation reads quieter behind the bird lane while
+    # the front/back keep the crisp two-tone inlay contrast.
+    mid_mean = _mix(d_light, d_dark, 0.5)
+    q_light = _mix(d_light, mid_mean, 0.10)
+    q_dark = _mix(d_dark, mid_mean, 0.10)
+
+    # Fine inlaid FRET border just below the lit lip — the temple-inlay hero.
+    fret_y = top_y + 6
+    for sx, k, srng in _scatter(scroll, w, 0.16, 14, 0x1F4):
+        pygame.draw.line(surf, grout, (sx, fret_y), (sx, fret_y + 4), 1)
+        pygame.draw.line(surf, grout, (sx, fret_y), (sx + 5, fret_y), 1)
+        pygame.draw.line(surf, edge_lt, (sx + 1, fret_y + 1),
+                         (sx + 1, fret_y + 4), 1)
+
+    # Diamond/lozenge tessellation. The mid band (bird lane) uses the quieted
+    # tones; the front/back keep the full two-tone contrast.
+    band_top = top_y + 13
+    cell = 16
+    row = 0
+    y = band_top
+    mid_lo = top_y + region_h * 0.34
+    mid_hi = top_y + region_h * 0.74
+    while y < h:
+        ch = min(cell, h - y)
+        speed = 0.18 + 0.06 * ((y - top_y) / max(1, region_h))
+        in_mid = mid_lo <= (y + ch // 2) <= mid_hi
+        tl = q_light if in_mid else d_light
+        td = q_dark if in_mid else d_dark
+        for sx, k, srng in _scatter(scroll, w, speed, cell, 0x2A8 + row):
+            cx = sx + (cell // 2 if row % 2 else 0)
+            cy = y + ch // 2
+            r = cell // 2 - 1
+            tile = tl if (k + row) % 2 == 0 else td
+            pts = [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)]
+            pygame.draw.polygon(surf, tile, pts)
+            pygame.draw.line(surf, edge_lt, (cx - r, cy), (cx, cy - r), 1)
+            pygame.draw.line(surf, edge_lt, (cx, cy - r), (cx + r, cy), 1)
+            pygame.draw.line(surf, grout, (cx + r, cy), (cx, cy + r), 1)
+            pygame.draw.line(surf, grout, (cx, cy + r), (cx - r, cy), 1)
+            # Capped warm glint on the lit shoulder of the FRONT-most light
+            # tiles only (kept out of the mid band so the lane stays quiet, and
+            # faded out at night so it never glows after dark).
+            if tile is d_light and cy > top_y + region_h * 0.78 and night < 0.5:
+                _spec_dab(surf, cx - 2, cy - r + 1, 3, 3, (248, 238, 218),
+                          int(15 * (1.0 - 2.0 * night)))
+        y += ch
+        row += 1
+
+    _apply_grain(surf, 0, top_y, w, region_h, 3)
+
+
+# ── Stone fallback — Polished Temple Pavement v8 (45px, top@595) ─────────────
+# Round-7 polished pavement, ship-clean, with only the netting fix: the
+# warm-lit top lip at y=595 in place of the dark contact seam. Everything else
+# (beveled joints, per-slab glints, inlay panels) is kept verbatim.
+
+def fg_polished_pavement_v8(surf, w, gy, h, scroll, pal):
+    stone = _sandstone(pal)
+    front = _shade(_sat(stone, 1.08), 6)
+    back = _shade(_sat(stone, 0.92), -20)
+    night = _nightf(pal)
+    front = _mix(front, (66, 78, 112), 0.28 * night)
+    back = _mix(back, (54, 66, 100), 0.32 * night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 248, 228), lip_a=104)
+
+    joint_dk = _shade(_mix(stone, (54, 40, 30), 0.55), -16 - int(8 * night))
+    # Lit lip tone for joints — warm and crisp, but pulled back from pure white
+    # so a front-course inlay-panel outline reads as a bright bevel edge, not a
+    # blown-out continuous white bar at the front lip.
+    joint_lt = _mix(front, (244, 230, 206), 0.26)
+
+    n_course = 3
+    for c in range(n_course):
+        f0 = c / n_course
+        f1 = (c + 1) / n_course
+        y_back = _perspective_y(top_y, h, 1.0 - f0)
+        y_front = _perspective_y(top_y, h, 1.0 - f1)
+        if y_front <= y_back:
+            continue
+        depth_t = f0
+        step = int(54 + 46 * depth_t)
+        bond = (c % 2) * (step // 2)
+        pygame.draw.line(surf, joint_dk, (0, y_back), (w, y_back), 1)
+        if y_back + 1 < y_front:
+            pygame.draw.line(surf, joint_lt, (0, y_back + 1), (w, y_back + 1), 1)
+        speed = 0.18 + 0.10 * depth_t
+        for sx, k, srng in _scatter(scroll, w, speed, step, 0xE71 + c):
+            jx = sx + bond
+            pygame.draw.line(surf, joint_dk, (jx, y_back), (jx, y_front), 1)
+            pygame.draw.line(surf, joint_lt, (jx + 1, y_back + 1),
+                             (jx + 1, y_front), 1)
+            # Per-slab polished glint — a soft warm additive dab, faded HARD
+            # toward night and made smaller/dimmer overall so a near slab never
+            # holds a blown-white pooled patch (a daytime polish read, not a
+            # night glow, and never a clipped white block even in DAY).
+            if depth_t > 0.32 and srng.random() < 0.45 and night < 0.5:
+                gw = max(4, step - 16)
+                gh = max(2, (y_front - y_back) // 3)
+                _spec_dab(surf, jx + 6, y_back + 3, gw, gh,
+                          (250, 238, 214),
+                          int((12 + 9 * depth_t) * (1.0 - 2.0 * night)))
+            if depth_t > 0.4 and srng.random() < 0.26:
+                iw = max(4, step - 16)
+                ih = max(2, (y_front - y_back) - 6)
+                inlay = pygame.Surface((iw, ih), pygame.SRCALPHA)
+                inlay.fill((10, 8, 6, 30))
+                surf.blit(inlay, (jx + 6, y_back + 3),
+                          special_flags=pygame.BLEND_RGB_SUB)
+                pygame.draw.rect(surf, joint_lt, (jx + 6, y_back + 3, iw, ih), 1)
+
+    _apply_grain(surf, 0, top_y, w, region_h, 3)
+
+
+# Round-8 sheet: lean, focused on the two LEADS (Mosaic + Riverbank) with their
+# fallback/secondary, all netted to y=595 with the warm-lit lip + rescued sand.
+# Satin Sand is dropped; Glazed Cobble is dropped (its glaze never read clearly
+# premium against the mountains — not carried into round 8).
+CONCEPTS_R8 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Inlaid Geometric Mosaic", fg_inlaid_mosaic_v8),
+    ("Polished Temple Pavement", fg_polished_pavement_v8),
+    ("Riverbank Sandbar", fg_riverbank_v8),
+    ("Golden Desert Dune", fg_golden_dune_v8),
+]
