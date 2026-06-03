@@ -2520,6 +2520,160 @@ def fg_beach_playful(surf, w, gy, h, scroll, pal):
     _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Round 10 — TUNE the chosen Shell-Dotted lead (no redesign, no palette change).
+#
+# The Shell-Dotted Playful Beach (fg_beach_playful) is the sand winner: warm
+# gold + a multi-hue shell/starfish scatter that instantly reads "fun sunny
+# beach". This round only refines it:
+#   1. trim the accent count ~20-25% and bias it to the LOWER 40% of the band so
+#      the strip just under the floor-top (the bird lane) stays pristine,
+#   2. cap accents per SCREEN-WIDTH (not per tile) so a scroll never doubles
+#      density at a tile seam,
+#   3. (Version A only) borrow ~15% of the Wet-Shore value step into the BASE so
+#      the very bottom edge goes a faint hint cooler/damper — grounding the
+#      shells without the full cool tide band that dampened Wet-Shore's cheer,
+#   4. keep the night accent floor: muted DARK dots, no rim glow (already clean),
+#   5. keep the base gold EXACTLY as round-9 (the same _beach_base call).
+# Reuses the v8 scaffolding verbatim so every tech gate holds.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _beach_accents_tuned(surf, w, top_y, region_h, h, scroll, base, *, night,
+                         density, palette, seed, drawn, cap):
+    """The round-9 _beach_accents with the round-10 tuning: ~20-25% fewer marks,
+    biased to the LOWER 40% of the band (so the bird lane just under the floor-
+    top stays clear), and a SCREEN-WIDTH count cap shared across passes via the
+    mutable `drawn` list so a tile seam can never momentarily double density.
+    `drawn[0]` is the running count; the function stops once it hits `cap`.
+    Tone discipline (own-tone shells, no additive white, v8 dark-night retint)
+    is unchanged from round 9. Returns nothing; mutates `drawn[0]`."""
+    # A slightly wider world step thins the scatter ~22% vs round 9, and the
+    # firing gate is dropped a notch so fewer cells fire — the count trim.
+    step = max(16, int(56 / max(0.1, density)))
+    for sx, k, srng in _scatter(scroll, w, 0.24, step, seed):
+        if drawn[0] >= cap:
+            break
+        # Bias to the LOWER 40% of the strip: depth 0.60..0.96 (was 0.52..0.95),
+        # so nothing lands in the upper bird-lane band under the floor-top.
+        py = top_y + int(srng.uniform(0.60, 0.96) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        # Lower firing probability (was 0.32 + 0.5*depth) trims the count further
+        # while still favouring the very front of the band.
+        if srng.random() > 0.22 + 0.46 * depth_t:
+            continue
+        col = _mix(srng.choice(palette), base, 0.32)
+        kind = srng.random()
+        r = 2 + int(depth_t * 2)
+        # Small soft contact shadow under the treasure so it sits IN the sand.
+        sh = pygame.Surface((r * 2 + 2, 2), pygame.SRCALPHA)
+        sh.fill((0, 0, 0, 40))
+        surf.blit(sh, (sx - r - 1, py + r - 1), special_flags=pygame.BLEND_RGB_SUB)
+        if kind < 0.16 and r >= 2:
+            _beach_starfish(surf, sx, py, r + 1, col, night=night)
+        else:
+            _beach_shell(surf, sx, py, r, col, night=night,
+                         ridged=srng.random() < 0.5)
+        drawn[0] += 1
+
+
+def _damp_bottom_hint(surf, w, top_y, region_h, h, base, *, night):
+    """Borrow ~15% of the Wet-Shore damp value step into the BASE bottom edge: a
+    FAINT cooler/damper hint at the very screen floor (y near 640) that grounds
+    the shells and adds beach credibility — WITHOUT the full cool tide band that
+    dampened Wet-Shore's cheer. The hint is a soft low-contrast value step, not a
+    bright (or dark) drawn seam: it darkens only ~15% of Wet-Shore's -20 step,
+    mixes a whisper of sky reflection, blends value-only with a steep falloff so
+    it touches only the bottom ~12% of the band, and fades hard toward night so
+    it never competes with the v8 night ground."""
+    # 15% of Wet-Shore's step: ~-3 value, plus a faint sky reflection (also ~15%
+    # of Wet-Shore's 0.16 mix). Pulled to the v8 night ground like the wet take.
+    damp = _shade(_sat(base, 0.985), -3)
+    sky_ref = (150, 178, 198)
+    damp = _mix(damp, sky_ref, 0.024)
+    damp = _mix(damp, (30, 38, 60), 0.80 * night)
+    band_top = top_y + int(region_h * 0.88)   # bottom ~12% of the strip only
+    span = max(1, h - 1 - band_top)
+    # Peak alpha is low so the step stays soft; ^2.4 falloff keeps the top of the
+    # hint imperceptible (no edge) and only the floor row carries the full hint.
+    peak = 64 * (1.0 - 0.7 * night)
+    for y in range(band_top, h):
+        t = (y - band_top) / span
+        a = int(peak * (t ** 2.4))
+        if a <= 0:
+            continue
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*damp, a))
+        surf.blit(ln, (0, y))
+
+
+def _beach_playful_tuned(surf, w, gy, h, scroll, pal, *, damp_bottom):
+    """The round-9 Shell-Dotted lead with the round-10 tuning applied. Base gold
+    is the EXACT round-9 _beach_base call (unchanged); the accent scatter is the
+    trimmed, lower-biased, width-capped version; `damp_bottom` toggles the faint
+    damp-bottom hint (Version A on, Version B off)."""
+    base = _beach_base(pal, warmth=1.16, light=16)   # round-9 gold, UNCHANGED
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 240, 210), lip_a=66)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Version A only: the faint damp-bottom hint, laid UNDER the accents so the
+    # shells/starfish sit on top of the damp floor (grounded, not floating).
+    if damp_bottom:
+        _damp_bottom_hint(surf, w, top_y, region_h, h, base, night=night)
+
+    # Light tonal twinkle so the sand isn't flat under the accents (unchanged).
+    spark = _mix(lift, (234, 210, 166), 0.5)
+    spark = _mix(spark, (34, 42, 64), 0.80 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.27, 9, 0x7C5):
+        py = top_y + int(srng.uniform(0.55, 0.98) * region_h)
+        if srng.random() < 0.66:
+            continue
+        surf.set_at((sx, py), spark)
+
+    # The playful punctuation: two passes (warm + pastel) for hue variety, now
+    # trimmed + lower-biased + SHARING a single screen-width count cap so the
+    # second pass can't push past the ceiling at a seam. ~9 across the width
+    # holds the density a clear notch under round 9's per-tile count.
+    drawn = [0]
+    cap = 9
+    _beach_accents_tuned(surf, w, top_y, region_h, h, scroll, base, night=night,
+                         density=1.0, palette=_SHELL_WARM, seed=0x311,
+                         drawn=drawn, cap=cap)
+    _beach_accents_tuned(surf, w, top_y, region_h, h, scroll, base, night=night,
+                         density=0.8, palette=_SHELL_PASTEL, seed=0x9F4,
+                         drawn=drawn, cap=cap)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+def fg_beach_playful_dampbottom(surf, w, gy, h, scroll, pal):
+    """Version A — tuned Shell-Dotted on a base WITH the faint damp-bottom hint."""
+    _beach_playful_tuned(surf, w, gy, h, scroll, pal, damp_bottom=True)
+
+
+def fg_beach_playful_tuned(surf, w, gy, h, scroll, pal):
+    """Version B — tuned Shell-Dotted on the plain warm-gold base (no hint)."""
+    _beach_playful_tuned(surf, w, gy, h, scroll, pal, damp_bottom=False)
+
+
+# Round-10 sheet: SAND-ONLY, final tuning of the chosen Shell-Dotted lead. A
+# tight A/B (the art-director says this single A/B is the whole round):
+#   Row 0 original ref, Row 1 the UNTUNED round-9 Shell-Dotted (before/contrast),
+#   Row 2 Version A (tuned scatter + damp-bottom hint), Row 3 Version B (tuned
+#   scatter on the plain gold base).
+CONCEPTS_R10 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Shell-Dotted r9 (untuned)", fg_beach_playful),
+    ("A: tuned + damp-bottom", fg_beach_playful_dampbottom),
+    ("B: tuned (plain gold)", fg_beach_playful_tuned),
+]
+
+
 # Round-9 sheet: SAND-ONLY cheerful-beach spread. The stone leads are untouched.
 # Row 0 original ref + Row 1 the round-8 Riverbank (the BEFORE/contrast) + the
 # four cheerful beach takes (golden / coral-pastel / wet-shore / shell-dotted).

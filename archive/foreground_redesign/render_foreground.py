@@ -192,15 +192,13 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R9]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R10]
 
 ROW_NOTES = {
     "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below nets to this exact top edge.",
-    "Riverbank Sandbar v8": "BEFORE / CONTRAST - top@595, 45px. The round-8 sand lead: clean but MUTED/serious (riverbank-desert mood). Round 9 keeps its v8 tech wins and makes the sand CHEERFUL.",
-    "Sunny Golden Beach": "beach - top@595, 45px. Bright cheerful golden sand, soft CAPPED tonal sun-sparkle (value-only, never white), a few scattered shells. Classic happy beach, minimal.",
-    "Tropical Coral Beach": "beach - top@595, 45px. Lighter cream + pink-coral PASTEL sand, candy mottle, playful colourful shells + a starfish. The most pastel-cheerful take.",
-    "Wet-Shore Beach": "beach - top@595, 45px. Golden sand meeting a soft BROKEN low-contrast damp scallop (NOT a bright seam) + faint sky-blue damp reflection + washed-up shells.",
-    "Shell-Dotted Playful Beach": "beach - top@595, 45px. Cheerful golden sand with the most playful colourful shells + starfish (the FUN extreme); accent density held at the readability ceiling.",
+    "Shell-Dotted r9 (untuned)": "BEFORE / CONTRAST - top@595, 45px. The round-9 Shell-Dotted lead AS-IS: full accent count, accents up into the bird lane, plain gold base. Rows 2-3 tune this.",
+    "A: tuned + damp-bottom": "VERSION A - top@595, 45px. Tuned scatter (~22% fewer, biased to LOWER 40%, width-capped) + a FAINT damp-bottom hint (15% of Wet-Shore's step) at y~640 to ground the shells. Same round-9 gold.",
+    "B: tuned (plain gold)": "VERSION B - top@595, 45px. Same tuned scatter (~22% fewer, lower-biased, width-capped) on the PLAIN round-9 warm-gold base - no damp-bottom hint.",
 }
 
 
@@ -220,7 +218,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 9 - SAND ONLY, made CHEERFUL (a real happy BEACH): Original ref + round-8 Riverbank (before) + Golden/Coral/Wet-Shore/Shell-Dotted beach - same v8 tech (warm-lit lip, capped tonal sand, night-retint below sky) - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 10 - SAND ONLY, FINAL TUNING of the chosen Shell-Dotted beach lead: Original ref + r9 untuned (before) + A (tuned scatter + damp-bottom hint) / B (tuned scatter, plain gold) - same v8 tech, gold UNCHANGED - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -273,9 +271,9 @@ def make_sheet(images):
     return sheet
 
 
-# ONE beach lead gets the bird + scrolling coin dropped into its DAY and NIGHT
-# cells so the surface can be checked behind the player lane.
-LEAD_ROWS = {"Sunny Golden Beach"}
+# BOTH tuned version rows get the bird + scrolling coin dropped into their DAY
+# and NIGHT cells so bird-lane quietness is judged on the tuned A/B directly.
+LEAD_ROWS = {"A: tuned + damp-bottom", "B: tuned (plain gold)"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -292,7 +290,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_9.png"
+    path = out / "round_10.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
