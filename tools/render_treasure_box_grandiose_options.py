@@ -541,8 +541,10 @@ def icon_g3():
     def _rosegold_boss(b, jx, jy):
         # A small round rose-gold boss (no jewel) — the amethyst sliver it
         # replaced read as a colour speck that competed with the rim light.
-        # SS=7, so a ~4 source-px disc lands at r = 2*SS = 14 big-space.
-        r = max(3, SS * 2)
+        # SS=7 supersample, so a ~4 source-px disc maps to roughly 2.4*SS
+        # in big-space; round 3 nudges the radius a hair so the boss is
+        # clearly readable as a centred ornament at pickup scale.
+        r = max(4, int(SS * 2.4))
         pygame.draw.circle(b, ROSEGOLD_LO, (jx, jy + max(1, r // 4)), r)
         pygame.draw.circle(b, ROSEGOLD_MID, (jx, jy), r)
         pygame.draw.circle(b, ROSEGOLD_HI,
@@ -909,47 +911,81 @@ def icon_w3():
 
 
 def icon_w4():
-    """W4 — Polished walnut + brass + ornate brass lock w/ embossed crest
-    shield (no keyhole)."""
+    """W4 — Polished walnut + brass + ornate brass lock carrying a 5-pointed
+    brass star (no keyhole). Round 3 swaps the shield-crest (which vanished
+    at 1x) for a star ornament that survives the supersample down to pickup
+    scale and clearly separates W4 from W2's plain plate."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
 
-    def _crest(b, cx, cy, w, h, ink_w):
-        # Small embossed shield silhouette centred on the lock.
-        _crest_shield(b, cx, cy + h // 12,
-                      max(3, int(w * 0.42)),
-                      max(4, int(h * 0.58)),
-                      ink_w,
-                      BRASS_HI, BRASS_LO, BRASS_INK)
+    def _brass_star(b, cx, cy, w, h, ink_w):
+        # 5-pointed star centred on the lock plate. Outer radius targets a
+        # ~4 source-px star (~2*SS in big-space) so the silhouette reads at
+        # 1x; stroke uses the warm brass HI so it pops against the plate's
+        # mid-tone fill.
+        r_out = max(4, int(SS * 2.6))
+        r_in  = max(2, int(r_out * 0.42))
+        pts = []
+        for k in range(10):
+            ang = -math.pi / 2 + k * (math.pi / 5)
+            rr = r_out if k % 2 == 0 else r_in
+            pts.append((cx + math.cos(ang) * rr,
+                        cy + math.sin(ang) * rr))
+        pygame.draw.polygon(b, BRASS_HI, pts)
+        pygame.draw.polygon(b, BRASS_INK, pts, max(1, ink_w // 2))
 
     _wooden_chest(big, ink,
                   WALNUT_HI, WALNUT_MID, WALNUT_LO, WALNUT_GRAIN,
                   BRASS_HI, BRASS_MID, BRASS_LO, BRASS_INK,
                   BRASS_HI, BRASS_MID, BRASS_LO, BRASS_INK,
-                  lock_decoration=_crest)
+                  lock_decoration=_brass_star)
     return _finish(big)
 
 
 def icon_w5():
-    """W5 — Honey oak + iron + copper lock w/ a slightly larger keyhole."""
+    """W5 — Honey oak + iron + copper lock with a normal-sized keyhole and a
+    horizontal brass nameplate across the lower body. Round 3 shrinks the
+    oversized round-2 keyhole back to W1's size (the chunky version made W5
+    feel cartoonish) and bolts a captain's nameplate above the bottom iron
+    band so the silhouette carries a clear detail W1 doesn't."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
 
-    def _big_keyhole(b, cx, cy, w, h, ink_w):
-        # ~1.4x the default keyhole radius — the friendliest reading.
-        khr = max(2, int(h * 0.26))
+    def _nameplate(b, body, lid, ink_w):
+        # Brass strip ~10 source-px wide, ~2 source-px tall, centred on the
+        # body, sitting just above the lower band. Two-tone fill + INK
+        # outline keeps it readable against honey oak at thumbnail scale.
+        plate_w = int(body.width * 0.42)
+        plate_h = max(3, int(SS * 1.6))
+        plate = pygame.Rect(0, 0, plate_w, plate_h)
+        plate.center = (body.centerx,
+                        body.bottom - int(body.height * 0.18))
+        _vgrad_rect(b, plate, BRASS_HI, BRASS_LO,
+                    radius=max(1, plate_h // 3))
+        pygame.draw.rect(b, BRASS_INK, plate, max(1, ink_w // 2),
+                         border_radius=max(1, plate_h // 3))
+        # Tiny engraved-line tick for the "captain's-name" affordance.
+        pygame.draw.line(b, BRASS_INK,
+                         (plate.left + plate_w // 6, plate.centery),
+                         (plate.right - plate_w // 6, plate.centery),
+                         max(1, ink_w // 3))
+
+    def _std_keyhole(b, cx, cy, w, h, ink_w):
+        # Matches W1's keyhole footprint exactly (h * 0.18 radius + tail).
+        khr = max(2, int(h * 0.18))
         pygame.draw.circle(b, INK, (cx, cy - h // 8), khr)
         pygame.draw.polygon(b, INK,
                             [(cx - khr // 2, cy - h // 8),
                              (cx + khr // 2, cy - h // 8),
-                             (cx + khr // 3, cy + h // 3),
-                             (cx - khr // 3, cy + h // 3)])
+                             (cx + khr // 3, cy + h // 4),
+                             (cx - khr // 3, cy + h // 4)])
 
     _wooden_chest(big, ink,
                   OAK_HI, OAK_MID, OAK_LO, OAK_GRAIN,
                   DARK_IRON_HI, DARK_IRON_MID, DARK_IRON_LO, INK,
                   COPPER_HI, COPPER_MID, COPPER_LO, COPPER_INK,
-                  lock_decoration=_big_keyhole)
+                  lock_decoration=_std_keyhole,
+                  body_decoration=_nameplate)
     return _finish(big)
 
 
@@ -958,18 +994,18 @@ def icon_w5():
 # ---------------------------------------------------------------------------
 GRANDIOSE = [
     ("G1", "Sapphire & gold (lead)",   icon_g1),
-    ("G2", "Emerald + sapphire",       icon_g2),
+    ("G2", "Emerald & sapphire",       icon_g2),
     ("G3", "Obsidian & rose-gold",     icon_g3),
-    ("G4", "White marble & gold",      icon_g4),
+    ("G4", "Marble & gold + topaz",    icon_g4),
     ("G5", "Midnight starfield",       icon_g5),
 ]
 
 WOODEN = [
-    ("W1", "Mahogany + iron nails",    icon_w1),
-    ("W2", "Ebony + gold bands",       icon_w2),
+    ("W1", "Mahogany + iron nails",      icon_w1),
+    ("W2", "Ebony + polished gold",      icon_w2),
     ("W3", "Driftwood + brass + copper", icon_w3),
-    ("W4", "Walnut + brass star",      icon_w4),
-    ("W5", "Honey oak + nameplate",    icon_w5),
+    ("W4", "Walnut + brass star",        icon_w4),
+    ("W5", "Honey oak + nameplate",      icon_w5),
 ]
 
 
@@ -1002,7 +1038,7 @@ def main():
         True, (240, 240, 246))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "round 2 - per-cell visibility + distinctness polish",
+        "round 2 — per-cell visibility + distinctness polish",
         True, (170, 178, 192))
     sheet.blit(sub, (pad, pad + 32))
     sub2 = font(13).render(
