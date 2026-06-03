@@ -1,0 +1,242 @@
+"""
+Power-ups explainer screen — shown once at the end of the intro cinematic.
+
+Layout matches the chosen candidate (candidate_2_grid): gold-on-red
+"POWER-UPS" title, 2x3 card grid for the six real kinds, a wide footer
+card for the surprise gift box, and an "EFFECTS LAST 8 SECONDS" footer.
+
+Lifecycle:
+  * Built when the intro auto-completes (not when the user skips it).
+  * Renders deterministically — the only animated element is the
+    twinkling star field, driven by an internal time counter.
+  * Any tap during this state advances to STATE_MENU.
+"""
+from __future__ import annotations
+
+import math
+import random
+import pygame
+
+from game.config import W, H
+from game.draw import (
+    rounded_rect, lerp_color,
+    UI_CREAM, NEAR_BLACK, WHITE,
+)
+from game.hud import (
+    _font, _draw_overlay_stars,
+    _GOLD_BRIGHT, _ORANGE_BORDER, _RED_OUTLINE, _PANEL_DARK,
+)
+from game.entities import PowerUp
+
+
+# Duration is reported once in the footer, never per-row.
+POWERUPS = (
+    ("triple",   "TRIPLE",   "Coins are worth 3x"),
+    ("magnet",   "MAGNET",   "Pulls nearby coins"),
+    ("slowmo",   "SLOW-MO",  "Slows the world, jumps are the same"),
+    ("kfc",      "KFC",      "Fried chicken theme"),
+    ("ghost",    "GHOST",    "Go through pillars safely"),
+    ("shrink",   "SHRINK",   "0.6x smaller"),
+    ("surprise", "SURPRISE", "Picks random from above"),
+)
+
+
+# ── one-time star field ─────────────────────────────────────────────────────
+def _seeded_stars():
+    rng = random.Random(22)
+    return [
+        (rng.randint(8, W - 8), rng.randint(8, H - 30),
+         rng.choice((1, 1, 1, 2)), rng.uniform(0, 6.28))
+        for _ in range(60)
+    ]
+
+
+# ── helpers ─────────────────────────────────────────────────────────────────
+def _gradient_bg(surf):
+    TOP = (8, 4, 32)
+    MID = (16, 8, 50)
+    BOT = (24, 14, 70)
+    h = surf.get_height()
+    for y in range(h):
+        t = y / max(1, h - 1)
+        if t < 0.5:
+            c = lerp_color(TOP, MID, t * 2)
+        else:
+            c = lerp_color(MID, BOT, (t - 0.5) * 2)
+        pygame.draw.line(surf, c, (0, y), (surf.get_width() - 1, y))
+
+
+def _outlined_title(surf, txt, center, size, px, shadow_offset):
+    f = _font(size, True)
+    img = f.render(txt, True, _GOLD_BRIGHT)
+    out = f.render(txt, True, _RED_OUTLINE)
+    sh = f.render(txt, True, NEAR_BLACK)
+    r = img.get_rect(center=center)
+    for ox, oy in ((-px, 0), (px, 0), (0, -px), (0, px),
+                   (-px, -px), (px, -px), (-px, px), (px, px)):
+        surf.blit(out, (r.x + ox, r.y + oy))
+    sh.set_alpha(170)
+    surf.blit(sh, (r.x + shadow_offset[0], r.y + shadow_offset[1]))
+    surf.blit(img, r.topleft)
+
+
+def _dark_panel(surf, rect, radius, alpha):
+    """Mirror of hud._dark_panel — gold-trimmed Pip Scarlet card. Kept
+    as a local copy here only to avoid a circular import; the visual
+    output (and tools/gen_scarlet_set.py::card it derives from) is
+    identical to the menu / leaderboard / stats panels."""
+    sh = pygame.Surface((rect.width + 4, rect.height + 4), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 90),
+                     (0, 0, rect.width + 4, rect.height + 4),
+                     border_radius=radius)
+    surf.blit(sh, (rect.x - 2, rect.y + 4))
+
+    pnl = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.rect(pnl, (*_PANEL_DARK, alpha),
+                     (0, 0, rect.width, rect.height),
+                     border_radius=radius)
+    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 130),
+                     (0, 0, rect.width, rect.height),
+                     width=1, border_radius=radius)
+
+    inset = max(radius - 2, 6)
+    rail_w = max(rect.width - inset * 2, 0)
+    if rail_w > 0:
+        accent = pygame.Surface((rail_w, 2), pygame.SRCALPHA)
+        accent.fill((*_GOLD_BRIGHT, 110))
+        pnl.blit(accent, (inset, 4))
+        pygame.draw.line(pnl, (255, 220, 140, 90),
+                         (inset, 2),
+                         (rect.width - inset, 2), 1)
+    surf.blit(pnl, rect.topleft)
+
+
+_PULSE_FOR_ICON = 1.6
+# Each in-world PowerUp.draw applies a per-kind vertical bob driven by
+# `self.pulse` so the floating sprite waftily rises and falls during
+# play. In static icon contexts (help cards, run-summary chips) the
+# bob makes the icon sit visibly low on its anchor point — most
+# noticeably the ghost, whose bob sums two sin terms (~+4 px at the
+# canonical pulse of 1.6). We compute the bob analytically per kind
+# and subtract it from the blit center so the rendered icon visually
+# centers on (cx, cy) regardless of where in its idle-cycle it sits.
+_ICON_BOB_AT_PULSE = {
+    "ghost":    math.sin(_PULSE_FOR_ICON * 0.9) * 4
+              + math.sin(_PULSE_FOR_ICON * 1.8) * 1.5,
+    "magnet":   math.sin(_PULSE_FOR_ICON * 1.1) * 3,
+    "megamagnet": math.sin(_PULSE_FOR_ICON * 1.1) * 3,
+    "slowmo":   math.sin(_PULSE_FOR_ICON * 0.7) * 3,
+    "kfc":      math.sin(_PULSE_FOR_ICON * 0.9) * 2.5,
+    "surprise": math.sin(_PULSE_FOR_ICON * 0.7) * 2,
+    "shrink":   math.sin(_PULSE_FOR_ICON * 1.1) * 2,
+}
+
+
+def _powerup_icon(surf, kind, cx, cy, size_px):
+    """Render the in-world PowerUp sprite at native ~28px footprint, then
+    smoothscale to size_px. Keeps the procedural detail pixel-true.
+    Compensates for the kind's bob so the icon visually centers on
+    (cx, cy) — see ``_ICON_BOB_AT_PULSE``."""
+    small = pygame.Surface((64, 64), pygame.SRCALPHA)
+    p = PowerUp(32, 32, kind)
+    p.pulse = _PULSE_FOR_ICON
+    p.draw(small)
+    big = pygame.transform.smoothscale(small, (size_px, size_px))
+    bob = _ICON_BOB_AT_PULSE.get(kind, 0.0)
+    y_adj = -int(round(bob * size_px / 64))
+    surf.blit(big, big.get_rect(center=(cx, cy + y_adj)))
+
+
+def _wrap(font_obj, blurb, max_w):
+    words = blurb.split()
+    cur = ""
+    lines = []
+    for w in words:
+        test = (cur + " " + w).strip()
+        if font_obj.size(test)[0] <= max_w:
+            cur = test
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+# ── scene class ─────────────────────────────────────────────────────────────
+class PowerUpHelpScene:
+    """Owns the entire frame for STATE_POWERUPS. The App's `_render` hands
+    the screen surface to `render`. Any tap routes to STATE_MENU via the
+    App's `_flap_input`, not this class."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+        self._stars = _seeded_stars()
+
+    def update(self, dt: float) -> None:
+        self.t += dt
+
+    def render(self, surf: pygame.Surface) -> None:
+        _gradient_bg(surf)
+        _draw_overlay_stars(surf, self._stars, self.t + 1.4)
+
+        _outlined_title(surf, "POWER-UPS", (W // 2, 36),
+                        size=32, px=2, shadow_offset=(2, 3))
+        _outlined_title(surf, "COLLECT  TO  BOOST", (W // 2, 70),
+                        size=14, px=1, shadow_offset=(1, 2))
+        # Divider under the subtitle to mirror the menu/run-summary lockup.
+        pygame.draw.line(surf, (*_GOLD_BRIGHT, 130),
+                         (W // 2 - 60, 90),
+                         (W // 2 + 60, 90), 1)
+
+        # 2x3 grid for the six real kinds.
+        grid_top = 110
+        card_w = 162
+        card_h = 124
+        gap = 8
+        base_x = (W - (card_w * 2 + gap)) // 2
+
+        for idx, (kind, name, blurb) in enumerate(POWERUPS[:6]):
+            col = idx % 2
+            row = idx // 2
+            x = base_x + col * (card_w + gap)
+            y = grid_top + row * (card_h + gap)
+            card = pygame.Rect(x, y, card_w, card_h)
+            _dark_panel(surf, card, radius=14, alpha=215)
+
+            _powerup_icon(surf, kind, card.centerx, card.y + 32, 48)
+            nimg = _font(14, True).render(name, True, _GOLD_BRIGHT)
+            surf.blit(nimg, nimg.get_rect(center=(card.centerx, card.y + 66)))
+
+            f = _font(12, True)
+            for li, line in enumerate(_wrap(f, blurb, card_w - 16)[:3]):
+                img = f.render(line, True, UI_CREAM)
+                surf.blit(img,
+                          img.get_rect(center=(card.centerx,
+                                               card.y + 84 + li * 14)))
+
+        # Wide surprise card sitting below the grid.
+        sy = grid_top + 3 * (card_h + gap) + 4
+        surprise_card = pygame.Rect(base_x, sy, card_w * 2 + gap, 64)
+        _dark_panel(surf, surprise_card, radius=14, alpha=220)
+        _powerup_icon(surf, "surprise",
+                      surprise_card.x + 40, surprise_card.centery, 50)
+        nimg = _font(15, True).render("SURPRISE", True, _GOLD_BRIGHT)
+        surf.blit(nimg, (surprise_card.x + 80, surprise_card.y + 10))
+
+        f = _font(12, True)
+        blurb = POWERUPS[-1][2]
+        text_left = surprise_card.x + 80
+        text_right = surprise_card.right - 12
+        for li, line in enumerate(_wrap(f, blurb, text_right - text_left)[:2]):
+            img = f.render(line, True, UI_CREAM)
+            surf.blit(img, (text_left, surprise_card.y + 32 + li * 14))
+
+        # Footer: duration applies to every effect.
+        pygame.draw.line(surf, (*_ORANGE_BORDER, 110),
+                         (W // 2 - 80, H - 36), (W // 2 + 80, H - 36), 1)
+        foot = _font(12, True).render("EFFECTS LAST 8 SECONDS",
+                                      True, _GOLD_BRIGHT)
+        foot.set_alpha(230)
+        surf.blit(foot, foot.get_rect(center=(W // 2, H - 22)))

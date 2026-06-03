@@ -27,10 +27,10 @@ COIN_GOLD     = (255, 210,  20)
 COIN_LIGHT    = (255, 245, 120)
 COIN_DARK     = (200, 140,   0)
 
-MUSH_CAP      = (220,  30,  30)
-MUSH_CAP2     = (255,  70,  50)
-MUSH_SPOT     = (255, 255, 255)
-MUSH_STEM     = (245, 225, 195)
+MUSH_CAP      = (125,  30,  45)   # velvet wine cone body
+MUSH_CAP2     = (180,  60,  75)   # velvet highlight stripe
+MUSH_SPOT     = (255, 235, 175)   # cream-butter ornament
+MUSH_STEM     = (245, 230, 200)   # ivory stem
 
 BIRD_RED      = (240,  55,  55)
 BIRD_RED_D    = (170,  25,  25)
@@ -64,6 +64,14 @@ def lerp_color(a, b, t):
     return (int(a[0] + (b[0]-a[0])*t),
             int(a[1] + (b[1]-a[1])*t),
             int(a[2] + (b[2]-a[2])*t))
+
+
+def lerp_scalar(a, b, t):
+    return a + (b - a) * t
+
+
+def _luma(color):
+    return (color[0] * 299 + color[1] * 587 + color[2] * 114) / 1000
 
 
 def lerp_color_multi(stops, t):
@@ -149,41 +157,113 @@ def get_sky_surface(w, h, ground_y):
     return _bg_cache[key]
 
 
+def _scatter_stars_biome(surf, w, ground_y, sa):
+    """Shipped star sprinkle. Seeded by `w` only (not the phase bucket) so all
+    buckets share one star layout — the scene can then fade between adjacent
+    buckets without stars visibly jumping."""
+    if sa <= 0:
+        return
+    import random as _r
+    rng = _r.Random(w * 7919)
+    star_band = int(ground_y * 0.72)
+    n = 60 if sa > 180 else 30
+    for _ in range(n):
+        sx = rng.randint(0, w - 1)
+        sy = rng.randint(0, star_band)
+        sz = rng.choice((1, 1, 1, 2))
+        pygame.draw.circle(surf, (255, 255, 255, sa), (sx, sy), sz)
+    # A handful of warm-tinted brighter stars.
+    for _ in range(6):
+        sx = rng.randint(0, w - 1)
+        sy = rng.randint(0, star_band)
+        pygame.draw.circle(surf, (255, 240, 200, min(255, sa + 20)), (sx, sy), 2)
+
+
 def get_sky_surface_biome(w, h, ground_y, palette, phase_bucket):
-    """Biome-aware sky: cached by quantized phase bucket."""
+    """Biome-aware sky: cached by quantized phase bucket.
+
+    Shan-shui ink-wash treatment — stacked soft ink-diffusion bands of
+    decreasing density toward the zenith, over a single carved "mist gap" of
+    the highest value just above the horizon for the ridgeline to read
+    against. Every accent is a smooth function of the already-interpolated
+    `palette` (no hard phase threshold) so adjacent baked buckets cross-fade
+    without a value pop; there is no sun/moon disc, which keeps the cross-fade
+    free of any double-disc ghosting."""
     key = ('sky_b', w, h, phase_bucket)
     cached = _bg_cache.get(key)
     if cached is not None:
         return cached
+
     stops = [
-        (0.0,  palette['sky_top']),
+        (0.0,  lerp_color(palette['sky_top'], (0, 0, 0), 0.08)),
         (0.45, palette['sky_mid']),
         (0.85, palette['sky_bot']),
         (1.0,  palette['horizon']),
     ]
     surf = make_gradient_surface(w, ground_y, stops)
 
-    # Sprinkle stars on dark skies. Positions are seeded by `w` only (not
-    # `phase_bucket`) so all buckets share the same star layout — that lets
-    # the scene fade between adjacent buckets without stars visibly jumping.
+    # Continuous night-ness from sky_top luminance — fully cool by ~40 (deep
+    # night), fully warm by ~95 (day). Deriving accents from this rather than a
+    # boolean gate keeps the bucket cache continuous across the cross-fade.
+    lum = _luma(palette['sky_top'])
+    nightf = max(0.0, min(1.0, (95.0 - lum) / 55.0))
+
+    deep = lerp_color(palette['sky_top'], (0, 0, 0), 0.28)
+    pale = lerp_color(palette['sky_mid'], (255, 255, 255),
+                      lerp_scalar(0.42, 0.16, nightf))
+    warm = palette['horizon']
+
+    # Mist-gap value computed first so the warm horizon bleed can be capped to
+    # stay strictly below it — the carved band must hold the single highest sky
+    # value at every phase or the frame flattens at sunset.
+    mist = lerp_color(palette['horizon'], (255, 255, 255),
+                      lerp_scalar(0.5, 0.28, nightf))
+    mist_lum = _luma(mist)
+
+    # Five diffusion bands, densest low and thinning toward the zenith;
+    # overlapping low-alpha ellipse smears give the pomo "broken ink" read.
+    n_bands = 5
+    band_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    for i in range(n_bands):
+        t = i / (n_bands - 1)
+        by = int(ground_y * (0.28 + 0.58 * t))
+        col = lerp_color(pale, deep, t)
+        col = lerp_color(col, warm, 0.30 * t)
+        over = _luma(col) - (mist_lum - 12)
+        if over > 0:
+            col = lerp_color(col, deep, min(0.85, over / 90.0))
+        bh = int(ground_y * (0.11 + 0.06 * (1 - t)))
+        a = int(95 * (0.35 + 0.65 * t))
+        rect = pygame.Rect(-w // 4, by - bh // 2, int(w * 1.5), bh)
+        pygame.draw.ellipse(band_layer, (*col, a), rect)
+    surf.blit(band_layer, (0, 0))
+
+    # One bright carved mist band just above the horizon for the ridges to sit
+    # against. Painted AFTER the bands so it is never dimmed by them, which
+    # guarantees it holds the highest value.
+    mist_layer = pygame.Surface((w, ground_y), pygame.SRCALPHA)
+    my = int(ground_y * 0.80)
+    for k in range(4):
+        a = int(95 * (1 - k / 4))
+        hh = int(ground_y * (0.03 + 0.022 * k))
+        pygame.draw.ellipse(mist_layer, (*mist, a),
+                            pygame.Rect(-w // 4, my - hh // 2, int(w * 1.5), hh))
+    surf.blit(mist_layer, (0, 0))
+
     sa = int(palette.get('star_alpha', 0))
-    if sa > 0:
+    _scatter_stars_biome(surf, w, ground_y, sa)
+    # 1-2 faint accent stars high in the ink void on dark phases; count and
+    # alpha both ride `nightf` so the sprinkle fades in continuously.
+    if nightf > 0.02:
         import random as _r
-        rng = _r.Random(w * 7919)
-        star_band = int(ground_y * 0.72)
-        n = 60 if sa > 180 else 30
-        for _ in range(n):
-            sx = rng.randint(0, w - 1)
-            sy = rng.randint(0, star_band)
-            sz = rng.choice((1, 1, 1, 2))
-            col = (255, 255, 255, sa)
-            pygame.draw.circle(surf, col, (sx, sy), sz)
-        # Add a handful of warm-tinted brighter stars
-        for _ in range(6):
-            sx = rng.randint(0, w - 1)
-            sy = rng.randint(0, star_band)
-            col = (255, 240, 200, min(255, sa + 20))
-            pygame.draw.circle(surf, col, (sx, sy), 2)
+        rng = _r.Random(w * 6271 + 13)
+        band = int(ground_y * 0.55)
+        for _ in range(1 + int(round(nightf))):
+            sx = rng.randint(int(w * 0.1), int(w * 0.9))
+            sy = rng.randint(int(ground_y * 0.08), band)
+            a = int(max(40, sa * 0.55) * nightf)
+            if a > 0:
+                pygame.draw.circle(surf, (235, 240, 255, a), (sx, sy), 1)
 
     _bg_cache[key] = surf
     return surf
@@ -292,58 +372,31 @@ _CLOUD_VARIANTS: list[list[tuple[float, float, float, int]]] = [
 
 def draw_cloud(surf, x, y, scale=1.0, variant: int = 0):
     """Draw a stylised cloud. `variant` picks one of the hand-tuned shapes
-    so scenes don't paint the same 5-circle blob repeatedly."""
+    so scenes don't paint the same 5-circle blob repeatedly. Each puff is
+    composited with its OWN alpha (from the variant tuple), giving the
+    cloud soft edges where small puffs overlap larger ones."""
     puffs = _CLOUD_VARIANTS[variant % len(_CLOUD_VARIANTS)]
-    max_ox = max(p[0] for p in puffs)
     for ox, oy, r, a in puffs:
         rr = max(2, int(r * scale))
         s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (255, 255, 255, a), (rr + 1, rr + 1), rr)
         surf.blit(s, (int(x + ox * scale) - rr - 1,
                       int(y + oy * scale) - rr - 1))
-    # Soft shadow underside stretched to the variant's footprint
-    sh_w = max(40, int((max_ox + 24) * scale))
-    shadow = pygame.Surface((sh_w, int(14 * scale)), pygame.SRCALPHA)
-    shadow.fill((130, 170, 220, 55))
-    surf.blit(shadow, (int(x - 4 * scale), int(y + 14 * scale)))
+    # No underside shadow band — that solid-fill rectangle read as a hard
+    # blue bar pinned to the cloud's bottom rather than as soft shading.
 
 
 # ── ground drawing ───────────────────────────────────────────────────────────
 
 def draw_ground(surf, ground_y, w, h, scroll, top_color=None, mid_color=None, bot_color=None):
-    top_color = top_color or GROUND_TOP
-    mid_color = mid_color or GROUND_MID
-    bot_color = bot_color or GROUND_BOT
-
-    # Grass strip
-    grass_h = 22
-    for i in range(grass_h):
-        t = i / (grass_h - 1)
-        c = lerp_color(top_color, mid_color, t)
-        pygame.draw.line(surf, c, (0, ground_y + i), (w - 1, ground_y + i))
-
-    # Dirt below
-    for i in range(h - ground_y - grass_h):
-        t = i / max(1, h - ground_y - grass_h - 1)
-        c = lerp_color(mid_color, bot_color, t)
-        pygame.draw.line(surf, c, (0, ground_y + grass_h + i), (w - 1, ground_y + grass_h + i))
-
-    # Grass blade highlights (brighter tint of top color)
-    blade_col = (
-        min(255, top_color[0] + 40),
-        min(255, top_color[1] + 40),
-        min(255, top_color[2] + 40),
-    )
-    edge_col = (
-        min(255, top_color[0] + 60),
-        min(255, top_color[1] + 60),
-        min(255, top_color[2] + 60),
-    )
-    off = int(scroll * 0.7) % 30
-    for gx in range(-off, w, 30):
-        pygame.draw.line(surf, blade_col, (gx, ground_y), (gx - 4, ground_y - 8), 2)
-        pygame.draw.line(surf, blade_col, (gx + 12, ground_y), (gx + 8, ground_y - 6), 2)
-    pygame.draw.line(surf, edge_col, (0, ground_y), (w - 1, ground_y), 2)
+    # Dispatch to the run's chosen meadow variant. ``RUN_VARIANT_ID`` is
+    # picked once per play in ``World.__init__`` via
+    # ``ground_variants.set_run_seed(None)``.
+    from game.ground_variants import draw_run_ground
+    draw_run_ground(surf, ground_y, w, h, scroll,
+                    top_color or GROUND_TOP,
+                    mid_color or GROUND_MID,
+                    bot_color or GROUND_BOT)
 
 
 # ── Stone pillar drawing ────────────────────────────────────────────────────

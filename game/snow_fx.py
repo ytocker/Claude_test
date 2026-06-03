@@ -1,0 +1,196 @@
+"""Windblown snow that accumulates on Pip during the predawn snow squall.
+
+Chosen design: **W2 "sculpted blanket"** from the tools/sketch_snow_accum.py
+exploration. The squall is a tailwind (blows left->right), so snow builds on
+Pip's rear/left-facing surfaces first and spreads forward + inward as the storm
+grows, keeping his face readable. Real-snow cues: rear end tapers to a point
+(no hard wall), a gentle inward pile (not just an outline rim), a bright crest
+highlight, and a cool-blue shadowed underside.
+
+Overlays are baked per (frame, load-bucket) onto the native parrot frame using
+its own alpha silhouette, then cached — so per-frame cost in Bird.draw is just
+a rotozoom + blit (pure pygame, no numpy; WASM-safe). Bird.draw applies the
+SAME rotozoom(tilt) the sprite gets, so the snow stays glued to Pip.
+"""
+from __future__ import annotations
+
+import math
+
+import pygame
+
+from game import parrot
+
+# Snow depth + palette (sprite px; W2 tuning from the sketch).
+MAXD = 21.0
+CORNICE = 1.6
+WHITE = (255, 255, 255)
+OFF = (236, 244, 252)
+BLUE = (188, 206, 230)           # cool shadowed underside
+SHADOW = (150, 168, 198)
+_BUCKET = 0.06                    # load quantisation for the cache
+_REF_FRAME = 2                    # level-wing frame: a stable resting silhouette
+                                  # used for ALL frames so a wing flap can't pop
+                                  # the head snow (the wing-up frame raises the
+                                  # head topline ~6px → per-frame jitter otherwise)
+
+_topline_cache: dict = {}
+_overlay_cache: dict = {}
+
+
+def _smooth(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def _cov(xf, load):
+    """Rear-first coverage: rear (left) columns snow at low load, the front
+    only as the storm builds."""
+    thr = 0.55 * xf
+    return 0.0 if load <= thr else min(1.0, (load - thr) / (1.0 - thr))
+
+
+def _topline(frame_idx):
+    """First opaque row per column of the native frame (the top silhouette),
+    plus the leftmost occupied column. Cached per frame; no numpy."""
+    cached = _topline_cache.get(frame_idx)
+    if cached is not None:
+        return cached
+    frame = parrot._get_frames()[frame_idx]
+    w, h = frame.get_size()
+    mask = pygame.mask.from_surface(frame, 50)
+    top = [-1] * w
+    x_min = -1
+    for x in range(w):
+        for y in range(h):
+            if mask.get_at((x, y)):
+                top[x] = y
+                if x_min < 0:
+                    x_min = x
+                break
+    _topline_cache[frame_idx] = (top, x_min, w, h)
+    return _topline_cache[frame_idx]
+
+
+def get_snow_overlay(load):
+    """Cached W2 snow overlay (native frame size) for this load. Baked from a
+    single resting frame (frame-independent) so a wing flap never moves the
+    snow on the head."""
+    if load <= 0.04:
+        return None
+    b = round(load / _BUCKET) * _BUCKET
+    key = b
+    cached = _overlay_cache.get(key)
+    if cached is not None:
+        return cached
+
+    top, x_min, w, h = _topline(_REF_FRAME)
+    if x_min < 0:
+        _overlay_cache[key] = None
+        return None
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    taper_w = 13.0
+    drew = False
+    for x in range(w):
+        yt = top[x]
+        if yt < 0:
+            continue
+        xf = x / w
+        cov = _cov(xf, b)
+        if cov <= 0.0:
+            continue
+        rear = 1.0 - xf
+        bulge = math.exp(-((xf - 0.40) / 0.26) ** 2)        # inward hump
+        d = MAXD * cov * (0.50 + 0.45 * rear + 0.45 * bulge)
+        if xf > 0.60:
+            # Head: a thin crown cap at low load, but as the storm peaks
+            # (load 0.68->1.0) snow creeps onto the face — more on the LEFT
+            # (back) of the head, tapering so the front/beak stays readable.
+            hi = max(0.0, (b - 0.68) / 0.32)
+            headfrac = (xf - 0.60) / 0.40                   # 0 back-of-head .. 1 beak
+            d = min(d, 7.0 + hi * 11.0 * (1.0 - headfrac))
+        d *= _smooth((x - x_min) / taper_w)                 # rear-end slope
+        if d < 0.6:
+            continue
+        over = CORNICE * rear * _smooth((x - x_min) / taper_w)
+        nb = (math.sin(x * 1.26) + math.sin(x * 0.34)) * 0.25 + 0.5
+        y0 = yt - over
+        y1 = yt + d + (nb - 0.5) * 2.4
+        # W2 sculpted blanket: clean fill + bright crest + cool under-edge.
+        pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
+        drew = True
+    if not drew:
+        _overlay_cache[key] = None
+        return None
+    _overlay_cache[key] = ov
+    return ov
+
+
+# ── snow on the parcel (snow settles on objects too, only at high load) ──────
+PARCEL_MAXD = 7.0
+PARCEL_ONSET = 0.68               # parcel only gets capped once Pip is well-covered
+
+_parcel_top_cache: dict = {}
+_parcel_ov_cache: dict = {}
+
+
+def _parcel_topline(mode):
+    cached = _parcel_top_cache.get(mode)
+    if cached is not None:
+        return cached
+    p = parrot.get_parcel(mode)
+    w, h = p.get_size()
+    mask = pygame.mask.from_surface(p, 50)
+    top = [-1] * w
+    x_min = -1
+    for x in range(w):
+        for y in range(h):
+            if mask.get_at((x, y)):
+                top[x] = y
+                if x_min < 0:
+                    x_min = x
+                break
+    _parcel_top_cache[mode] = (top, x_min, w, h)
+    return _parcel_top_cache[mode]
+
+
+def get_parcel_snow(mode, load):
+    """Small W2 snow cap on the parcel's top, fading in over PARCEL_ONSET→1.0
+    (snow lands on objects, not under them). Cached per (mode, ramp-bucket)."""
+    if load < PARCEL_ONSET:
+        return None
+    ll = min(1.0, (load - PARCEL_ONSET) / (1.0 - PARCEL_ONSET))
+    b = round(ll / 0.1) * 0.1
+    key = (mode, b)
+    cached = _parcel_ov_cache.get(key)
+    if cached is not None:
+        return cached
+    top, x_min, w, h = _parcel_topline(mode)
+    if x_min < 0:
+        _parcel_ov_cache[key] = None
+        return None
+    ov = pygame.Surface((w, h), pygame.SRCALPHA)
+    taper_w = 4.0
+    drew = False
+    for x in range(w):
+        yt = top[x]
+        if yt < 0:
+            continue
+        rear = 1.0 - x / w
+        te = _smooth((x - x_min) / taper_w)
+        d = PARCEL_MAXD * ll * (0.65 + 0.5 * rear) * te
+        if d < 0.6:
+            continue
+        nb = math.sin(x * 1.7) * 0.25 + 0.5
+        y0 = yt - 0.6 * te
+        y1 = yt + d + (nb - 0.5) * 1.4
+        pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.22)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.3)), (x, int(y1)), 1)
+        drew = True
+    if not drew:
+        _parcel_ov_cache[key] = None
+        return None
+    _parcel_ov_cache[key] = ov
+    return ov
