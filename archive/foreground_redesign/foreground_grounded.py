@@ -2754,8 +2754,11 @@ def _brick_tones(pal, body, *, night, cool=False):
     # in a running-bond course share a top-edge y, the aligned lit lips never
     # sum into a bright continuous horizontal seam across the screen. Per-brick
     # face value variation, not the bevel, carries the primary relief read.
+    # The lit lip blend is nudged DOWN ~14% from the round-11 0.16 so the bevel
+    # peaks sit closer to the brick body value — kills any residual bright-line
+    # read where a course of left-edge lips would otherwise sum under scroll.
     bevel_lt = _mix(front, (255, 246, 224) if not cool else (236, 240, 248),
-                    0.16 * (1.0 - 0.5 * night))
+                    0.138 * (1.0 - 0.5 * night))
     # Shadow bevel kept moderate (not deep) so an aligned course of brick
     # bottoms reads as a soft recessed joint, never a hard dark seam line.
     bevel_dk = _shade(_sat(body, 0.85), -20 - int(8 * night))
@@ -2763,17 +2766,24 @@ def _brick_tones(pal, body, *, night, cool=False):
     return front, back, mortar, bevel_lt, bevel_dk
 
 
-def _brick_face(pal, base, srng, *, night, cool=False):
+def _brick_face(pal, base, srng, *, night, cool=False, spread=12):
     """Per-brick worn value variation around `base`: a small deterministic value
     drift so no two bricks read identical (the worn-clay charm), kept tonal so
-    the field never sparkles. Capped under the day white-pool ceiling."""
-    d = srng.randint(-12, 12)
+    the field never sparkles. Capped under the day white-pool ceiling. `spread`
+    widens the worn light/dark band (a few more notably lighter/darker bricks)
+    without moving the mean — the field never looks like a flat repeat under
+    fast scroll."""
+    d = srng.randint(-spread, spread)
     c = _shade(base, d)
     # An occasional cooler/warmer clay so a course carries a few stand-out
-    # bricks, like a real reclaimed-brick walkway.
+    # bricks, like a real reclaimed-brick walkway. A second rarer roll pushes a
+    # handful of bricks notably further off the mean (both ways) so the worn
+    # spread reads wider without lifting the average.
     if srng.random() < 0.22:
         tgt = (150, 70, 50) if not cool else (120, 126, 138)
         c = _mix(c, _mix(tgt, (40, 48, 66), 0.7 * night), 0.28)
+    if srng.random() < 0.14:
+        c = _shade(c, srng.choice((-1, 1)) * srng.randint(spread, spread + 7))
     if _luma(c) * 255.0 > 222:
         c = _mix(c, _shade(base, -10), 0.5)
     return c
@@ -2893,15 +2903,22 @@ def fg_brick_herringbone(surf, w, gy, h, scroll, pal):
 # top lip + shadow bottom on each brick. Courses foreshorten gently toward the
 # back. World-anchored on one phase so the bond wraps seamlessly.
 
-def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
+def fg_brick_running_bond_r11(surf, w, gy, h, scroll, pal):
+    """Frozen round-11 running-bond — the UNTUNED before-state, kept verbatim so
+    the round-12 sheet can show the tuning contrast (course start, mortar/bevel,
+    worn spread, brick ratio) side by side. Not a lead; reference only."""
     body = _clay(pal)
     night = _nightf(pal)
-    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(pal, body, night=night)
-    top_y, region_h, night = _premium_base_v8(
-        surf, w, gy, h, pal, front, back, ease=0.95,
-        lip_warm=(255, 238, 212), lip_a=66)
+    # Reproduce the round-11 bevel/spread (pre-tuning) locally so this row is a
+    # true before even though the shared helpers have since been nudged.
+    front, back, mortar, _bl, _bd = _brick_tones(pal, body, night=night)
+    bevel_lt = _mix(front, (255, 246, 224), 0.16 * (1.0 - 0.5 * night))
+    bevel_dk = _bd
+    top_y = gy
+    region_h = h - top_y
+    _premium_base_v8(surf, w, gy, h, pal, front, back, ease=0.95,
+                     lip_warm=(255, 238, 212), lip_a=66)
 
-    # Bedding mortar behind the bricks so every gap reads as a recessed joint.
     bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
     bed.fill((*mortar, 130))
     surf.blit(bed, (0, top_y))
@@ -2918,6 +2935,81 @@ def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
             continue
         depth_t = f0
         brick_w = int(30 + 22 * depth_t)
+        bond = (c % 2) * (brick_w // 2)
+        speed = 0.18 + 0.08 * depth_t
+        in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
+        bh = y_front - y_back
+        for sx, k, srng in _scatter(scroll, w, speed, brick_w, 0xB21 + c):
+            bx = sx + bond
+            base = _mix(back, front, depth_t)
+            fr = _brick_face(pal, base, srng, night=night, spread=12)
+            if in_mid:
+                fr = _mix(fr, base, 0.16)
+            rect = (bx + 1, y_back + 1, brick_w - 2, bh - 2)
+            if rect[2] <= 0 or rect[3] <= 0:
+                continue
+            pygame.draw.rect(surf, fr, rect)
+            pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                             (rect[0], rect[1] + rect[3] - 1), 1)
+            pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                             (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+def _running_bond_courses(surf, w, gy, h, scroll, pal, *, body, cool,
+                          lip_warm, lip_a, stray_tgt):
+    """Shared tuned running-bond painter for both the warm clay lead and its cool
+    paver counterpoint. The two differ ONLY by palette (`body`/`cool`/`lip_*`),
+    so the geometry — flush first course at the v8 lip, longer paver-ratio
+    bricks, recessed-dark mortar with a held-down bevel, wide per-brick worn
+    spread — tunes once and stays identical between the warm/cool pair.
+
+    The first course is anchored FLUSH at the warm-lit lip (y=595): the painter
+    walks courses DOWN from top_y by an explicit course pitch rather than the
+    foreshortened _perspective_y back-edge (which packed the first course into an
+    ~11px sliver that read as starting low). Each course foreshortens only mildly
+    so the brick FIELD itself begins at the lip, not a few px below it."""
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(
+        pal, body, night=_nightf(pal), cool=cool)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=lip_warm, lip_a=lip_a)
+
+    # Bedding mortar behind the bricks so every gap reads as a recessed joint —
+    # kept a hair DARKER than the brick body (a set-in mortar course, never a
+    # raised bright line) at a slightly higher alpha than round 11 so the joint
+    # never lifts toward the brick value under scroll.
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 150))
+    surf.blit(bed, (0, top_y))
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    # Explicit course pitch anchored at the lip: courses step DOWN from top_y so
+    # the first brick row's top edge lands ON y=595, foreshortening only gently
+    # toward the back (the near courses sit a touch taller). 5 courses over 45px
+    # gives a true sidewalk-paver row height, not the chunky round-11 6-course
+    # stack.
+    n_course = 5
+    edges = [top_y]
+    acc = 0.0
+    # Course heights grow toward the front (near) for a mild perspective; summed
+    # to exactly region_h so the last course foot lands on h.
+    weights = [0.78 + 0.16 * (c / max(1, n_course - 1)) for c in range(n_course)]
+    wsum = sum(weights)
+    for c in range(n_course):
+        acc += weights[c] / wsum * region_h
+        edges.append(top_y + int(round(acc)))
+    for c in range(n_course):
+        y_back = edges[c]
+        y_front = edges[c + 1]
+        if y_front <= y_back + 1:
+            continue
+        depth_t = (c + 0.5) / n_course
+        # Paver-ratio bricks: ~10% LONGER than the round-11 30..52px so the tile
+        # reads as a real sidewalk paver, not a chunky stock brick.
+        brick_w = int(34 + 24 * depth_t)
         # Running bond: alternate courses shift a half-brick. The shift is part
         # of the world lattice (added to the world index) so it wraps with scroll.
         bond = (c % 2) * (brick_w // 2)
@@ -2926,10 +3018,25 @@ def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
         bh = y_front - y_back
         # Mortar gap is the 1px between the bedding band and each brick face;
         # inset the brick by 1px on all sides so the dark bedding shows as joints.
+        # Continuous near->far value ramp keyed off the course's actual screen-y
+        # (not the discrete course index): consecutive courses no longer plate to
+        # one flat value with a value STEP at each boundary — the only row-to-row
+        # drop left at a course line is the intended recessed-dark mortar joint,
+        # never a bright step UP into a brighter plate. Kills the round-12 seam
+        # the discrete per-course base produced.
+        cy_t = ((y_back + y_front) * 0.5 - top_y) / max(1, region_h)
+        # Compress the front->back ramp toward the mid value so the per-course
+        # value STEP at a course boundary stays small (a gentle depth fall, not a
+        # plate jump): the only strong row-to-row drop left is the recessed-dark
+        # mortar joint, not a bright step onto a brighter course.
+        cy_t = 0.5 + (cy_t - 0.5) * 0.55
         for sx, k, srng in _scatter(scroll, w, speed, brick_w, 0xB21 + c):
             bx = sx + bond
-            base = _mix(back, front, depth_t)
-            fr = _brick_face(pal, base, srng, night=night)
+            base = _mix(back, front, cy_t)
+            # Wider worn value spread (~10% past round 11) so a few more bricks
+            # read notably lighter/darker and the field never looks like a flat
+            # repeat under fast scroll — value-only, mean held.
+            fr = _brick_face(pal, base, srng, night=night, cool=cool, spread=14)
             if in_mid:
                 fr = _mix(fr, base, 0.16)
             rect = (bx + 1, y_back + 1, brick_w - 2, bh - 2)
@@ -2946,12 +3053,43 @@ def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
                              (rect[0], rect[1] + rect[3] - 1), 1)
             pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
                              (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
-            # No additive glint on this palette: the warm clay front already
-            # sits bright, and an ADD dab there risks a single clipped-white
-            # pixel where it stacks with the grain. The crisp vertical bevel +
-            # the recessed bedding joint carry the premium read.
+            # No additive glint on either palette: the front already sits bright,
+            # and an ADD dab there risks a single clipped-white pixel where it
+            # stacks with the grain. The crisp vertical bevel + the recessed
+            # bedding joint carry the premium read.
 
     _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
+    _running_bond_courses(
+        surf, w, gy, h, scroll, pal,
+        body=_clay(pal), cool=False,
+        lip_warm=(255, 238, 212), lip_a=66, stray_tgt=(150, 70, 50))
+
+
+# ── Brick 2b — Running-Bond Cool Pavers (45px, top@595) ──────────────────────
+# The warm/cool counterpoint: the SAME tuned running-bond geometry rendered in
+# the Refined Pavers' cool grey-taupe palette (best night coherence of round
+# 11). The day value is dropped ~9% below the round-11 pavers so the cool walk
+# never competes with the bird lane. Day biome reads cool stone; night retints
+# the same dark cool ground as the warm clay, with dark mortar and no glow.
+
+def _paver_cool_body(pal):
+    """Cool grey-taupe paver body — the round-11 fg_paver_stone tone, dropped
+    ~9% in value so the day plane sits a notch below the bird lane and the warm
+    clay lead. Value-only; the grey-taupe cast is kept."""
+    body = _mix(pal.get('stone_mid', (150, 132, 110)),
+                pal.get('stone_light', (188, 170, 146)), 0.45)
+    body = _sat(body, 0.78)
+    return _shade(body, -16)
+
+
+def fg_brick_running_bond_cool(surf, w, gy, h, scroll, pal):
+    _running_bond_courses(
+        surf, w, gy, h, scroll, pal,
+        body=_paver_cool_body(pal), cool=True,
+        lip_warm=(244, 246, 250), lip_a=56, stray_tgt=(120, 126, 138))
 
 
 # ── Brick 3 — Basketweave Brick (45px, top@595) ──────────────────────────────
@@ -3102,4 +3240,17 @@ CONCEPTS_R11 = [
     ("Running-Bond Clay Sidewalk", fg_brick_running_bond),
     ("Basketweave Brick", fg_brick_basketweave),
     ("Refined Stone Pavers", fg_paver_stone),
+]
+
+
+# Round-12 sheet: the chosen Running-Bond walkway lead, TUNED, plus its cool
+# counterpoint. Row 0 the original height ref, Row 1 the round-11 untuned bond
+# (the before), Row 2 the tuned warm clay (A), Row 3 the cool pavers (B). Both
+# version rows carry bird + coin in DAY/NIGHT so bird-lane quietness is judged
+# on each palette.
+CONCEPTS_R12 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Running-Bond UNTUNED (r11)", fg_brick_running_bond_r11),
+    ("Tuned Running-Bond Clay (warm)", fg_brick_running_bond),
+    ("Running-Bond Cool Pavers", fg_brick_running_bond_cool),
 ]

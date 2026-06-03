@@ -192,15 +192,13 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R11]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R12]
 
 ROW_NOTES = {
     "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below nets to this exact top edge.",
-    "Inlaid Geometric Mosaic": "QUALITY / CONTRAST ANCHOR - top@595, 45px. The round-8 stone lead. Judge the new brick takes against its crispness + night retint.",
-    "Herringbone Clay Brick": "LEAD - top@595, 45px. Classic 45deg herringbone, warm terracotta, per-brick bevel (lit UL / shadow LR) + restrained spec dab. NET-NEW angled geometry. Bird + coin in DAY/NIGHT.",
-    "Running-Bond Clay Sidewalk": "top@595, 45px. Horizontal courses in running bond (half-brick offset, joints never stack), fine low-contrast mortar, worn per-brick value.",
-    "Basketweave Brick": "top@595, 45px. Alternating horizontal/vertical brick PAIRS - decorative promenade. NET-NEW pair geometry, world-anchored weave.",
-    "Refined Stone Pavers": "PALETTE COUNTERPOINT - top@595, 45px. Cool grey-taupe square pavers, crisp joints + soft bevel. The modern-premium answer to the warm clay.",
+    "Running-Bond UNTUNED (r11)": "BEFORE - the round-11 lead as-is. Brick field starts ~6px LOW, mortar/bevel + worn spread + brick ratio all pre-tuning. The contrast row.",
+    "Tuned Running-Bond Clay (warm)": "VERSION A LEAD - top@595 FLUSH, 45px. Warm clay running bond, recessed-dark mortar (no bright seam), held-down bevel, wider worn spread, longer paver-ratio bricks. Bird + coin in DAY/NIGHT.",
+    "Running-Bond Cool Pavers": "VERSION B - top@595, 45px. SAME tuned geometry in the cool grey-taupe paver palette (best night coherence), day value dropped ~9%. The day/night-biome counterpoint. Bird + coin in DAY/NIGHT.",
 }
 
 
@@ -220,7 +218,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 11 - COMPLETE NEW FLOOR: a premium PAVED BRICK / PAVER walkway. Original ref + r8 Mosaic anchor + Herringbone / Running-Bond / Basketweave clay + Refined Stone pavers (cool counterpoint) - all top@595, v8 lip, world-anchored seamless scroll - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 12 - TUNE the chosen Running-Bond clay walkway + add its COOL counterpoint. Original ref + r11 UNTUNED before + Version A (tuned warm clay) + Version B (cool pavers) - flush@595, v8 lip, recessed-dark mortar, world-anchored seamless scroll - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -273,9 +271,9 @@ def make_sheet(images):
     return sheet
 
 
-# The Herringbone LEAD gets the bird + scrolling coin in its DAY and NIGHT
-# cells so bird-lane quietness is judged on the hero brick directly.
-LEAD_ROWS = {"Herringbone Clay Brick"}
+# Both version rows (warm A + cool B) get the bird + scrolling coin in their
+# DAY and NIGHT cells so bird-lane quietness is judged on each palette.
+LEAD_ROWS = {"Tuned Running-Bond Clay (warm)", "Running-Bond Cool Pavers"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -292,7 +290,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_11.png"
+    path = out / "round_12.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
