@@ -1228,7 +1228,13 @@ class World:
                 if not self.pipes:
                     self._spawn_pipe(W + 60)
                 elif self.pipes[-1].x < W - spacing:
-                    self._spawn_pipe(self.pipes[-1].x + spacing)
+                    # Spawn off-screen on the right: after a rail ride the
+                    # last tagged pipe sits near Pip (x≈80) so the natural
+                    # `prev.x + spacing` lands inside the screen, popping the
+                    # next pillar in mid-air. Clamp to at least W+60 so the
+                    # new pillar always enters the playfield by scrolling.
+                    next_x = max(self.pipes[-1].x + spacing, W + 60)
+                    self._spawn_pipe(next_x)
 
             # scoring: pass a pipe
             bx = self.bird.x
