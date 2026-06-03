@@ -1,4 +1,4 @@
-"""Umbrella power-up — icon exploration round 1 (5 concepts).
+"""Umbrella power-up — icon exploration round 2 (converged on bold canopy).
 
 The Umbrella cancels the thunderstorm flap-dampening, so the icon must
 read "umbrella / rain protection / keeps me dry" the instant the pickup
@@ -7,18 +7,26 @@ supersampled at SS then smoothscaled down, matching the lottery/knight
 icon family in game/entities.py (3-5 colour palette, thick ink outline,
 gentle float-bob baked in).
 
-Five distinct directions:
-  U1  Canopy in a rain-bubble  — hero "umbrella in a soap bubble".
-  U2  Bold pop canopy          — no bubble, jaunty tilt, two-tone panels.
-  U3  Umbrella + deflected rain — drops splitting off the canopy edges.
-  U4  Domed bubble-shield      — canopy over a Pip silhouette under a dome.
-  U5  Handle-forward charm     — badge ring, barber-pole grip, compact top.
+Round 1's art-director read: the only axis that matters is the LEFT ~48px
+real pickup; the enclosing bubble shrinks the umbrella too much at that
+size. Round 2 converges every cell onto ONE strong icon — a bold scalloped
+TEAL/WHITE open canopy with a J-hook handle, gentle ~15deg tilt, and
+rain-deflection droplets peeling off the canopy tips — and demotes the
+bubble to a faint accent behind the canopy rather than an enclosing sphere.
+Teal (not red) keeps the canopy off the skateboard deck's red.
+
+Five converged cells:
+  C1  Teal lead              — THE icon: bold canopy, 15deg, deflect droplets.
+  C2  Teal + accent bubble   — faint highlight-arc + thin rim behind canopy.
+  C3  Deflected rain (U3)    — teal canopy, droplets pulled tight to the rim.
+  C4  Cream badge ring (U5)  — enlarged canopy so it reads as an umbrella.
+  C5  Teal colorway alt      — deeper teal + thin gold panel rim.
 
 Each cell shows the icon at the true pickup footprint (POWERUP_R = 14 ->
-~48 px) AND a 2x zoom for detail, on a dusk thunderstorm-sky swatch with
+~48 px) AND a 3x zoom for detail, on a dusk thunderstorm-sky swatch with
 faint rain streaks so legibility is judged in context.
 
-Output: docs/umbrella_powerup/round_1.png   (doc-only; not shipped)
+Output: docs/umbrella_powerup/round_2.png   (doc-only; not shipped)
 """
 from __future__ import annotations
 
@@ -58,6 +66,11 @@ CANOPY_CREAM = (250, 244, 222)
 CANOPY_TEAL = ( 60, 176, 188)
 CANOPY_TEAL_HI = (120, 214, 222)
 CANOPY_TEAL_LO = ( 36, 128, 142)
+# Deeper teal colorway for the C5 alt; darkest panel sits well below the
+# dusk-sky value (top swatch ~ (52,50,78)) so the silhouette holds at night.
+CANOPY_TEAL2 = ( 40, 148, 162)
+CANOPY_TEAL2_HI = ( 96, 198, 208)
+GOLD_RIM   = (240, 206, 110)
 HANDLE     = (118,  80,  46)
 HANDLE_HI  = (164, 122,  78)
 FERRULE    = (246, 222, 120)
@@ -189,6 +202,46 @@ def _bubble(big, cx, cy, r, ink_w, drops=True):
             pygame.draw.circle(big, INK, (dx, dy + ddr), ddr, ink_w)
 
 
+def _accent_bubble(big, cx, cy, r, ink_w):
+    """A FAINT bubble *accent* drawn BEHIND the canopy — a thin rim + a
+    single specular highlight-arc, no enclosing sphere. Reads as a nod to
+    the rain-shield idea without shrinking the umbrella at pickup size."""
+    s = pygame.Surface((r * 2 + 4, r * 2 + 4), pygame.SRCALPHA)
+    sc = r + 2
+    # Thin translucent rim only (no solid fill that would dim the canopy).
+    pygame.draw.circle(s, (*BUBBLE_RIM, 90), (sc, sc), r, max(ink_w, int(r * 0.04)))
+    # Single upper-left highlight-arc — the bubble's tell at a glance.
+    hr = int(r * 0.80)
+    hrect = pygame.Rect(0, 0, hr * 2, hr * 2)
+    hrect.center = (sc, sc)
+    pygame.draw.arc(s, (255, 255, 255, 120), hrect,
+                    math.radians(112), math.radians(166),
+                    max(ink_w, int(r * 0.05)))
+    big.blit(s, (cx - sc, cy - sc))
+
+
+def _tip_droplets(big, cx, cy, span, rise, ink_w, scale):
+    """Two short droplet streaks peeling off the LEFT and RIGHT canopy tips,
+    anchored TOUCHING the hem corners (not floating away) so the icon reads
+    'rain protection', not just 'umbrella'. `scale` = px (SS-space size)."""
+    for dirx in (-1, 1):
+        hx = cx + dirx * span
+        hy = cy
+        # Short streak hugging the tip, angled outward + down.
+        x0, y0 = hx + dirx * span * 0.04, hy - rise * 0.02
+        x1, y1 = hx + dirx * span * 0.34, hy + scale * 0.13
+        pygame.draw.line(big, DROP_BLUE_HI, (x0, y0), (x1, y1),
+                         max(2, int(SS * 0.6)))
+        pygame.draw.line(big, INK, (x0, y0), (x1, y1), ink_w)
+        # Bead at the streak's end so it terminates as a drop, not a dash.
+        dr = int(scale * 0.05)
+        pygame.draw.circle(big, DROP_BLUE, (int(x1), int(y1 + dr)), dr)
+        pygame.draw.circle(big, DROP_BLUE_HI,
+                           (int(x1 - dr // 3), int(y1 + dr - dr // 3)),
+                           max(1, dr // 3))
+        pygame.draw.circle(big, INK, (int(x1), int(y1 + dr)), dr, ink_w)
+
+
 def _raindrop(big, x, y, r, ink_w, col=DROP_BLUE):
     pygame.draw.circle(big, col, (int(x), int(y + r)), int(r))
     pygame.draw.polygon(big, col,
@@ -209,52 +262,63 @@ def _finish(big):
     return pygame.transform.smoothscale(big, (w, w))
 
 
-def icon_u1():
-    """U1 — Classic canopy inside a rain-bubble (hero read)."""
-    px = PICKUP_PX * SS
-    big = pygame.Surface((px, px), pygame.SRCALPHA)
-    c = px // 2
-    ink = max(2, int(SS * 0.8))
-    r = int(px * 0.43)
-    _bubble(big, c, c, r, ink, drops=True)
-    # Umbrella sits inside, slightly high so the handle has room.
-    span = int(px * 0.27)
-    rise = int(px * 0.22)
-    uy = c - int(px * 0.02)
-    _j_handle(big, c, uy, int(px * 0.30), span, ink)
-    _canopy(big, c, uy, span, rise, 6,
-            (CANOPY_RED, CANOPY_CREAM), ink,
-            hi_col=CANOPY_RED_HI)
-    return _finish(big)
+def _bold_canopy_icon(teal, teal_hi, panel_rim=None, accent_bubble=False):
+    """Shared body for the converged lead — a bold scalloped open canopy
+    (~70% icon width) in teal/white with a J-hook handle, deflection
+    droplets peeling off both tips, and a gentle ~15deg tilt. Handle +
+    canopy + droplets are composed together then rotated as one so the
+    J-hook stays inside the 48px bounds.
 
-
-def icon_u2():
-    """U2 — Bold pop canopy, no bubble, jaunty tilt, two-tone panels."""
+    `panel_rim` optionally inks each panel edge in a thin gold rim (C5).
+    `accent_bubble` draws a faint highlight-arc + thin rim BEHIND the
+    canopy (C2) — never an enclosing sphere."""
     px = PICKUP_PX * SS
     big = pygame.Surface((px, px), pygame.SRCALPHA)
     c = px // 2
     ink = max(3, int(SS * 1.05))
-    span = int(px * 0.40)
-    rise = int(px * 0.34)
-    uy = c - int(px * 0.04)
-    # Dry-spot shadow beneath.
-    sh = pygame.Surface((px, px), pygame.SRCALPHA)
-    pygame.draw.ellipse(sh, (*DRY_SHADOW, 110),
-                        (c - span * 0.7, c + int(px * 0.30),
-                         span * 1.4, int(px * 0.10)))
-    big.blit(sh, (0, 0))
+    # ~70% icon width => half-width span ~0.35; tame rise keeps the dome bold
+    # without crowding the tips after a 15deg tilt.
+    span = int(px * 0.35)
+    rise = int(px * 0.30)
+    uy = c + int(px * 0.06)               # hem a touch low so handle has room
+
     big2 = pygame.Surface((px, px), pygame.SRCALPHA)
     cc = c
-    _j_handle(big2, cc, uy, int(px * 0.40), span, ink)
+    if accent_bubble:
+        # Behind everything, centred near the dome so the arc reads up-left.
+        _accent_bubble(big2, cc, uy - int(rise * 0.45),
+                       int(px * 0.40), max(2, int(SS * 0.6)))
+    _j_handle(big2, cc, uy, int(px * 0.34), span, ink)
     _canopy(big2, cc, uy, span, rise, 6,
-            (CANOPY_RED, CANOPY_CREAM), ink, hi_col=CANOPY_RED_HI)
-    rot = pygame.transform.rotate(big2, 12)
+            (teal, CANOPY_CREAM), ink, hi_col=teal_hi)
+    if panel_rim is not None:
+        # Thin gold rim tracing the dome arc, panel by panel.
+        n = 6
+        for i in range(n + 1):
+            t = (i / n) * 2 - 1
+            ax = cc - span + (2 * span) * (i / n)
+            ay = uy - rise * max(0.0, math.cos(t * math.pi / 2))
+            pygame.draw.circle(big2, panel_rim, (int(ax), int(ay)),
+                               max(1, int(SS * 0.5)))
+    _tip_droplets(big2, cc, uy, span, rise, max(2, int(SS * 0.8)), px)
+
+    rot = pygame.transform.rotate(big2, 15)
     big.blit(rot, rot.get_rect(center=(c, c)))
     return _finish(big)
 
 
-def icon_u3():
-    """U3 — Umbrella + rain visibly deflecting off the canopy edges."""
+def icon_c1():
+    """C1 — Teal lead: bold canopy, 15deg tilt, deflection droplets. THE icon."""
+    return _bold_canopy_icon(CANOPY_TEAL, CANOPY_TEAL_HI)
+
+
+def icon_c2():
+    """C2 — Teal lead + faint accent bubble behind the canopy (not enclosing)."""
+    return _bold_canopy_icon(CANOPY_TEAL, CANOPY_TEAL_HI, accent_bubble=True)
+
+
+def icon_c3():
+    """C3 — Umbrella + deflected rain, droplets pulled tight to the rim."""
     px = PICKUP_PX * SS
     big = pygame.Surface((px, px), pygame.SRCALPHA)
     c = px // 2
@@ -271,112 +335,63 @@ def icon_u3():
     _j_handle(big, c, uy, int(px * 0.30), span, ink)
     _canopy(big, c, uy, span, rise, 5,
             (CANOPY_TEAL, CANOPY_CREAM), ink, hi_col=CANOPY_TEAL_HI)
-    # Drops splitting + bouncing off the two hem corners with motion ticks.
+    # Two drops peeling off each hem corner, kept WITHIN ~3px of the rim
+    # (~0.06*px at SS) so at 1x they read as deflection, not detached dots.
+    near = px * 0.04
     for (hx, hy, dirx) in ((c - span, uy, -1), (c + span, uy, 1)):
-        _raindrop(big, hx + dirx * px * 0.10, hy + px * 0.02,
-                  int(px * 0.055), ink)
-        _raindrop(big, hx + dirx * px * 0.20, hy + px * 0.16,
-                  int(px * 0.045), ink)
-        # motion ticks
+        _raindrop(big, hx + dirx * near, hy + px * 0.02,
+                  int(px * 0.05), ink)
+        _raindrop(big, hx + dirx * (near + px * 0.05), hy + px * 0.07,
+                  int(px * 0.04), ink)
+        # motion tick hugging the tip
         pygame.draw.line(big, DROP_BLUE_HI,
-                         (hx + dirx * px * 0.05, hy - px * 0.02),
-                         (hx + dirx * px * 0.13, hy + px * 0.04),
+                         (hx + dirx * px * 0.02, hy - px * 0.02),
+                         (hx + dirx * px * 0.06, hy + px * 0.03),
                          max(1, int(SS * 0.35)))
     return _finish(big)
 
 
-def icon_u4():
-    """U4 — Domed bubble-shield: canopy over a Pip silhouette under a dome."""
+def icon_c4():
+    """C4 — Cream badge ring (from U5) but with the umbrella ENLARGED so it
+    reads as an umbrella, not 'a thing in a ring'. The teal canopy now fills
+    most of the ring; the J-hook handle drops just inside the rim."""
     px = PICKUP_PX * SS
     big = pygame.Surface((px, px), pygame.SRCALPHA)
     c = px // 2
-    ink = max(2, int(SS * 0.8))
-    # Faint hemispherical shield arc sheltering the lower half.
-    shield_r = int(px * 0.42)
-    srect = pygame.Rect(0, 0, shield_r * 2, shield_r * 2)
-    srect.center = (c, c + int(px * 0.10))
-    sh = pygame.Surface((px, px), pygame.SRCALPHA)
-    pygame.draw.circle(sh, (*SHIELD_AQUA, 70),
-                       (c, c + int(px * 0.10)), shield_r)
-    big.blit(sh, (0, 0))
-    pygame.draw.arc(big, SHIELD_AQUA, srect,
-                    math.radians(8), math.radians(172),
-                    max(2, int(SS * 0.55)))
-    # Pip silhouette (tiny) sheltering underneath.
-    py = c + int(px * 0.18)
-    pygame.draw.circle(big, PIP_TEAL, (c, py), int(px * 0.12))
-    pygame.draw.circle(big, PIP_BELLY, (c, py + int(px * 0.03)),
-                       int(px * 0.07))
-    pygame.draw.polygon(big, PIP_BEAK,
-                        [(c + int(px * 0.10), py),
-                         (c + int(px * 0.18), py + int(px * 0.02)),
-                         (c + int(px * 0.10), py + int(px * 0.05))])
-    pygame.draw.circle(big, INK, (c + int(px * 0.04), py - int(px * 0.02)),
-                       max(1, int(SS * 0.4)))
-    pygame.draw.circle(big, PIP_TEAL, (c, py), int(px * 0.12), ink)
-    # Canopy up top, smaller, acting as the dome's crown.
-    span = int(px * 0.30)
-    rise = int(px * 0.20)
-    uy = c - int(px * 0.18)
-    _canopy(big, c, uy, span, rise, 6,
-            (CANOPY_RED, CANOPY_CREAM), ink, hi_col=CANOPY_RED_HI,
-            ferrule=True)
-    return _finish(big)
-
-
-def icon_u5():
-    """U5 — Handle-forward charm: ringed badge, barber-pole grip, compact top."""
-    px = PICKUP_PX * SS
-    big = pygame.Surface((px, px), pygame.SRCALPHA)
-    c = px // 2
-    ink = max(2, int(SS * 0.85))
-    # Badge ring.
-    ring_r = int(px * 0.44)
+    ink = max(2, int(SS * 0.9))
+    # Cream badge ring with a gold edge — a framed-charm read.
+    ring_r = int(px * 0.46)
     pygame.draw.circle(big, (250, 238, 206), (c, c), ring_r)
     pygame.draw.circle(big, FERRULE, (c, c), ring_r, max(2, int(SS * 0.7)))
     pygame.draw.circle(big, INK, (c, c), ring_r, ink)
-    pygame.draw.circle(big, INK, (c, c), int(ring_r * 0.82), max(1, int(SS * 0.4)))
-    # Compact canopy in the upper third.
-    span = int(px * 0.24)
-    rise = int(px * 0.15)
-    uy = c - int(px * 0.10)
-    _canopy(big, c, uy, span, rise, 5,
+    pygame.draw.circle(big, INK, (c, c), int(ring_r * 0.86),
+                       max(1, int(SS * 0.4)))
+    # Enlarged canopy filling the upper ring — near the bold-lead proportions
+    # so the umbrella is the subject, the ring just a frame.
+    span = int(px * 0.34)
+    rise = int(px * 0.26)
+    uy = c - int(px * 0.02)
+    # Handle first so the canopy ink overlaps its top cleanly.
+    _j_handle(big, c, uy, int(px * 0.30), span, ink)
+    _canopy(big, c, uy, span, rise, 6,
             (CANOPY_TEAL, CANOPY_CREAM), ink, hi_col=CANOPY_TEAL_HI,
             ferrule=True)
-    # Prominent barber-pole curved handle below, dominating the read.
-    sx, top_y = c, uy + int(px * 0.02)
-    length = int(px * 0.34)
-    shaft_w = max(ink, int(px * 0.10))
-    bx, by = c - int(px * 0.02), top_y + length
-    pygame.draw.line(big, HANDLE_HI, (sx, top_y), (bx, by), shaft_w + ink)
-    pygame.draw.line(big, CANOPY_CREAM, (sx, top_y), (bx, by), shaft_w)
-    # Barber-pole stripes along the shaft.
-    steps = 5
-    for k in range(steps):
-        t0 = k / steps
-        t1 = (k + 0.5) / steps
-        ax, ay = sx + (bx - sx) * t0, top_y + (by - top_y) * t0
-        bx2, by2 = sx + (bx - sx) * t1, top_y + (by - top_y) * t1
-        pygame.draw.line(big, CANOPY_RED, (ax, ay), (bx2, by2),
-                         shaft_w - ink)
-    # J-hook crook.
-    hook_r = int(px * 0.13)
-    hrect = pygame.Rect(0, 0, hook_r * 2, hook_r * 2)
-    hrect.center = (int(bx - hook_r), int(by))
-    pygame.draw.arc(big, CANOPY_CREAM, hrect,
-                    math.radians(-95), math.radians(180), shaft_w - ink)
-    pygame.draw.arc(big, INK, hrect,
-                    math.radians(-95), math.radians(180), ink)
-    pygame.draw.line(big, INK, (sx, top_y), (bx, by), ink)
     return _finish(big)
 
 
+def icon_c5():
+    """C5 — Teal colorway / contrast alt: the bold lead silhouette in a
+    deeper teal with a thin gold rim tracing the panel edges, for users who
+    want a touch more pop against bright daytime sky."""
+    return _bold_canopy_icon(CANOPY_TEAL2, CANOPY_TEAL2_HI, panel_rim=GOLD_RIM)
+
+
 CANDIDATES = [
-    ("U1", "Canopy in rain-bubble", icon_u1),
-    ("U2", "Bold pop canopy", icon_u2),
-    ("U3", "Deflected rain", icon_u3),
-    ("U4", "Domed bubble-shield", icon_u4),
-    ("U5", "Handle charm", icon_u5),
+    ("C1", "Teal lead", icon_c1),
+    ("C2", "Teal + accent bubble", icon_c2),
+    ("C3", "Deflected rain", icon_c3),
+    ("C4", "Cream badge ring", icon_c4),
+    ("C5", "Deeper teal + gold rim", icon_c5),
 ]
 
 
@@ -411,7 +426,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "umbrella_powerup")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
 
     # Bake float-bob: shift each finished icon a couple px on its swatch.
     bob = int(round(math.sin(BOB_PULSE * 0.8) * 2))
@@ -431,17 +446,18 @@ def main():
         return pygame.font.SysFont("Arial", sz, bold=bold)
 
     title = font(26, bold=True).render(
-        "UMBRELLA power-up — icon exploration  (round 1)", True,
+        "UMBRELLA power-up — icon exploration  (round 2)", True,
         (240, 240, 246))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
         "Cancels thunderstorm flap-dampening. Each cell: dusk storm sky + "
         "rain streaks. Left = true pickup size (~48 px, POWERUP_R 14, "
-        "float-bobbed); right = 2x zoom.",
+        "float-bobbed); right = 3x zoom.",
         True, (170, 178, 192))
     sheet.blit(sub, (pad, pad + 32))
     sub2 = font(13).render(
-        "U1 & U4 carry the umbrella-in-a-bubble idea.", True, (150, 175, 205))
+        "Round 2 — converged on the bold canopy; bubble demoted to accent.",
+        True, (150, 175, 205))
     sheet.blit(sub2, (pad, pad + 52))
 
     for col, (tag, name, fn) in enumerate(CANDIDATES):
@@ -465,7 +481,7 @@ def main():
         lbl = font(12).render("real pickup ~48px", True, (210, 220, 235))
         sheet.blit(lbl, (x + 10, y + cell_h - 24))
 
-        # 2x zoom lower-right for detail.
+        # 3x zoom lower-right for detail.
         zoom = pygame.transform.smoothscale(icon, (PICKUP_PX * 3,
                                                     PICKUP_PX * 3))
         zx = x + cell_w - PICKUP_PX * 3 - 14
