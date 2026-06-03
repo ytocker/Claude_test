@@ -37,7 +37,8 @@ from game import biome, weather, config
 CYCLE = biome.CYCLE_SECONDS
 N = 1800                                         # sample resolution
 GENIE_PILLAR = config.LATE_GAME_PILLAR
-UMBRELLA_RAIN_TH = config.UMBRELLA_SPAWN_RAIN
+# UMBRELLA spawn pillars (the umbrella fires at exactly these scored
+# pillars; see config.UMBRELLA_SPAWN_PILLARS).
 
 # Match the canopy palette of the in-game umbrella so the spawn band is
 # obviously the umbrella's window (and not just "another weather thing").
@@ -192,31 +193,18 @@ def main() -> None:
                           if not legend_lightning else None))
 
     # UMBRELLA spawn band — every pillar range where rain ≥ threshold is
-    # a window in which the umbrella can spawn (one-shot per storm). The
-    # band sits BEHIND the curves but on TOP of the lightning shading so
-    # the umbrella read pops.
-    in_umbrella = False
-    umb_start = None
-    legend_umb = False
-    for i, p in enumerate(phases):
-        active = weather.rain_intensity(p) >= UMBRELLA_RAIN_TH
-        if active and not in_umbrella:
-            umb_start = pillars[i]
-            in_umbrella = True
-        elif not active and in_umbrella:
-            ax.axvspan(umb_start, pillars[i], color=UMBRELLA_BAND,
-                       alpha=0.22, linewidth=0, zorder=1,
-                       label=(f"UMBRELLA — spawnable while rain ≥ "
-                              f"{UMBRELLA_RAIN_TH:.2f} (1× per storm)"
-                              if not legend_umb else None))
-            legend_umb = True
-            in_umbrella = False
-    if in_umbrella:
-        ax.axvspan(umb_start, pillars[-1], color=UMBRELLA_BAND,
-                   alpha=0.22, linewidth=0, zorder=1,
-                   label=(f"UMBRELLA — spawnable while rain ≥ "
-                          f"{UMBRELLA_RAIN_TH:.2f} (1× per storm)"
-                          if not legend_umb else None))
+    # spawned at the exact pillars in config.UMBRELLA_SPAWN_PILLARS,
+    # which the game fires from the scoring path. Both pillars sit
+    # inside the dusk rain block by design.
+    for idx, up in enumerate(config.UMBRELLA_SPAWN_PILLARS):
+        ax.axvline(up, color=UMBRELLA_BAND, linewidth=2.0,
+                   alpha=0.85, linestyle="--", zorder=4,
+                   label=("UMBRELLA spawn (fixed pillars)"
+                          if idx == 0 else None))
+        ax.annotate(f"UMB\np{up}", (up, 0.86),
+                    textcoords="offset points", xytext=(0, 2),
+                    ha="center", fontsize=8, fontweight="bold",
+                    color="#1a8f9a")
 
     for label, fn, color in CURVES:
         ys = [fn(p) for p in phases]
@@ -317,7 +305,7 @@ def main() -> None:
     print(f"genie @ p{GENIE_PILLAR} -> cycle {genie_cycle}, "
           f"phase equiv. to pillar {int(round(genie_equiv_pillar))} "
           f"in cycle 1")
-    print(f"umbrella spawn threshold rain ≥ {UMBRELLA_RAIN_TH:.2f}")
+    print(f"umbrella spawn pillars = {tuple(config.UMBRELLA_SPAWN_PILLARS)}")
 
 
 if __name__ == "__main__":

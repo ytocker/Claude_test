@@ -225,12 +225,13 @@ SNOW_START_PILLAR   = 139
 SPAWN_GRACE         = 1.5
 
 # UMBRELLA — independent power-up that cancels the rain flap-dampen during
-# thunderstorms. Spawns once per storm window (NOT in POWERUP_WEIGHTS or the
-# surprise re-roll) when rain intensity first crosses UMBRELLA_SPAWN_RAIN, so
-# the player has time to navigate to it before heavy rain dampens jumps. The
-# spawned-this-storm flag clears once rain drops to 0.
+# thunderstorms. Spawns exactly at the pillar numbers in
+# UMBRELLA_SPAWN_PILLARS (NOT in POWERUP_WEIGHTS or the surprise re-roll),
+# both of which fall inside the dusk rain block, so the pickup naturally
+# only appears while it's raining (a cull step also drops any uncollected
+# umbrella once rain returns to 0).
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_RAIN     = 0.25
+UMBRELLA_SPAWN_PILLARS  = (85, 97)
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.

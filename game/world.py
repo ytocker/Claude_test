@@ -36,7 +36,7 @@ from game.config import (
     HEELFLIP_DURATION, HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX,
     POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
-    UMBRELLA_DURATION, UMBRELLA_SPAWN_RAIN,
+    UMBRELLA_DURATION, UMBRELLA_SPAWN_PILLARS,
     DEATH_FADE_DURATION,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
@@ -190,7 +190,6 @@ class World:
         # Spawned once per storm during the rain window; never in the regular
         # weighted pool or the surprise re-roll.
         self.umbrella_timer = 0.0
-        self._umbrella_spawned_this_storm = False
 
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
@@ -358,12 +357,9 @@ class World:
             self.bird.shiver_x = 0.0
             self.bird.shiver_y = 0.0
             self.bird.flap_dampen = 0.0
-            # Storm has ended (or hasn't started this cycle). Re-arm the
-            # umbrella spawn one-shot so the NEXT storm gets its own
-            # umbrella offer, and cull any uncollected umbrella still
-            # floating on-world — the pickup can ONLY exist while it's
-            # raining.
-            self._umbrella_spawned_this_storm = False
+            # Storm has ended (or hasn't started this cycle). Cull any
+            # uncollected umbrella still floating on-world — the pickup
+            # can ONLY exist while it's raining.
             self.powerups = [m for m in self.powerups
                              if m.kind != "umbrella"]
         else:
@@ -387,14 +383,6 @@ class World:
             # normal while it's active. Shiver stays (purely visual flavour).
             if self.umbrella_timer > 0:
                 self.bird.flap_dampen = 0.0
-            # Independent storm-driven spawn: once per storm, when rain first
-            # crosses UMBRELLA_SPAWN_RAIN (early drizzle), drop an umbrella
-            # offscreen-right so the player has time to navigate to it
-            # before heavy rain dampens jumps.
-            if (not self._umbrella_spawned_this_storm
-                    and ri >= UMBRELLA_SPAWN_RAIN):
-                self._spawn_storm_umbrella()
-                self._umbrella_spawned_this_storm = True
 
         # Snow-squall tailwind (predawn ~0.85): forward push (scroll boost
         # lives in _current_scroll); driven by the storm envelope.
@@ -1282,6 +1270,12 @@ class World:
                     self.score += 1
                     self.pillars_passed += 1
                     self._check_genie_milestone(p)
+                    # UMBRELLA: fixed-pillar spawn (both pillars inside the
+                    # rain block, so the "only while raining" rule is
+                    # honoured by construction). Membership-test fires
+                    # exactly once per listed pillar.
+                    if self.pillars_passed in UMBRELLA_SPAWN_PILLARS:
+                        self._spawn_storm_umbrella()
                     self._proof.record(self.time_alive, 1, "pipe")
                     # RAIL: count down the per-ride pillar budget. Fires
                     # whether or not Pip locked — if all 5 tagged pipes
@@ -2283,12 +2277,14 @@ class World:
 
     def _spawn_storm_umbrella(self):
         """Drop an umbrella offscreen-right at a comfortable mid-screen y
-        so the player can navigate to it. Anchored to the rightmost
-        existing pipe like the milestone genie, but never closer than
-        W+spacing/2 from the right edge so it always arrives by scrolling
-        in (never pops in mid-screen). Independent of the regular
-        powerup roll — does NOT consume POWERUP_COOLDOWN or get filtered
-        by the weighted pool."""
+        so the player can navigate to it. Fired from the scoring path
+        when `pillars_passed` enters UMBRELLA_SPAWN_PILLARS (currently
+        p85 + p97 — both inside the dusk rain block). Anchored to the
+        rightmost existing pipe like the milestone genie, but never
+        closer than W+spacing/2 from the right edge so it always
+        arrives by scrolling in. Independent of the regular powerup
+        roll — does NOT consume POWERUP_COOLDOWN or get filtered by
+        the weighted pool."""
         if not self.pipes:
             return
         spacing = self._current_spacing()
