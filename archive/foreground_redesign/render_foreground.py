@@ -192,15 +192,16 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [("Original meadow", None)] + [(name, fn) for name, fn in fg.CONCEPTS]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R5]
 
 ROW_NOTES = {
-    "Original meadow": "today's kelly-green ground (clashes)",
-    "Flagstone Courtyard": "LEAD B ~50px - broken running-bond, worn slabs, feathered top edge",
-    "Sun-Cracked Packed Earth": "~50px - SHORT branching crack stubs (de-waved), warmer clay",
-    "Raked Zen-Gravel Garden": "~52px - DEAD-STRAIGHT furrows, tiny notch only at stones",
-    "Ink-Wash Meadow": "LEAD A ~48px - foreshortened value-fall, clumped reeds, desat green",
-    "Wood-Plank Boardwalk": "~58px - soft desat nosing (de-golded), near-flat deck",
+    "Flagstone Courtyard (BASELINE ~50px)": "HEIGHT BASELINE - the round-4 lead, ~50px (top_y=gy-50). Shorter rows below.",
+    "Cut-Stone Temple Flags": "~40px - FEWER, LARGER dressed slabs, clean tight joints, rare mossy flag",
+    "Crazy-Paving Fieldstone": "~40px - irregular polygonal stones, mossy joints, rustic (NOT a grid)",
+    "Cobblestone Setts": "~40px - small rounded setts in offset courses, paved-path read",
+    "Desert Dune Sand": "~38px - pale gold, fine wind-grain, DEAD-STRAIGHT ripple dashes, few pebbles",
+    "Wet-Shore Sand": "~38px - packed tan, darker DAMP tide band near front, shells + low sheen",
+    "Riverbank Sandbar": "~38px - coarse grain, flat river stones, sparse DRY grass tufts at back",
 }
 
 
@@ -220,7 +221,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 4 - GROUNDED planes - A/B leads + bird/coin - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 5 - SHORTER flagstone (3) + SAND (3) vs ~50px baseline - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -273,9 +274,9 @@ def make_sheet(images):
     return sheet
 
 
-# The two art-director LEADS get the bird + scrolling coin dropped into their
+# One stone + one sand lead get the bird + scrolling coin dropped into their
 # DAY and NIGHT cells so the surface can be checked behind the player lane.
-LEAD_ROWS = {"Ink-Wash Meadow", "Flagstone Courtyard"}
+LEAD_ROWS = {"Cut-Stone Temple Flags", "Desert Dune Sand"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -292,7 +293,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_4.png"
+    path = out / "round_5.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
