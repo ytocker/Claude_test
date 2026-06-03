@@ -4,7 +4,7 @@ import os
 import random
 import pygame
 
-from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION
+from game.config import W, H, TRIPLE_DURATION, MAGNET_DURATION, MEGAMAGNET_DURATION, SLOWMO_DURATION, KFC_DURATION, GHOST_DURATION, GROW_DURATION, REVERSE_DURATION, SHRINK_DURATION, SKATEBOARD_DURATION, KNIGHT_DURATION, POISON_DURATION, UMBRELLA_DURATION
 from game.draw import (
     rounded_rect, rounded_rect_grad, lerp_color,
     UI_SCORE, UI_GOLD, UI_ORANGE, UI_SHADOW, UI_CREAM, UI_RED,
@@ -1034,7 +1034,7 @@ _EMB_FROM_PICKUP = frozenset({
     "grow", "shrink",
     # Secret late-game kinds — rendered from their in-world PowerUp sprites
     # so the HUD emblem matches the pickup the player grabbed.
-    "skateboard", "knight", "poison", "genie",
+    "skateboard", "knight", "poison", "genie", "umbrella",
 })
 
 # Emblems are static, so render each (kind, size) once and reuse the surface;
@@ -1654,6 +1654,8 @@ class HUD:
                 and world.bird.poison_t < 1.0):
             poison_remain = POISON_DURATION * (1.0 - world.bird.poison_t)
             active.append(("poison", poison_remain, POISON_DURATION))
+        if getattr(world, "umbrella_timer", 0) > 0:
+            active.append(("umbrella", world.umbrella_timer, UMBRELLA_DURATION))
         # Genie has no timer bar — it's an instantaneous meta-powerup.
         # Rail intentionally has NO HUD timer bar: it's pillar-budgeted
         # rather than seconds-budgeted, and the on-world track + cart

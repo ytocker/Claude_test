@@ -492,6 +492,7 @@ class Bird:
         # the healthy sprite to the dead-Pip-B sprite at alpha = poison_t.
         self.poison_active = False
         self.poison_t = 0.0
+        self.umbrella_active = False
         # SKATEBOARD tricks: each is a timed state ticked down in
         # `tick`. The trick palette is resolved by tap-pattern in
         # World._track_skateboard_tricks. The bird-side visual for
@@ -727,6 +728,15 @@ class Bird:
                 pass
         r = img.get_rect(center=(cx_int, cy_int))
         surf.blit(img, r.topleft)
+        # UMBRELLA: blitted UPRIGHT (never inherits Pip's tilt) but its
+        # position tracks his actual head crown — the head sprite sits offset
+        # from the body centre, so a fixed screen-space anchor would drift
+        # off the head whenever Pip dives/rises. Purely visual: it is NOT
+        # part of the bird's collision hitbox (pillars must hit Pip's circle
+        # at (self.x, self.y) with bird_radius() to count as a death).
+        if self.umbrella_active:
+            from game.umbrella import draw_overlay
+            draw_overlay(surf, cx_int, cy_int, tilt)
         # Windblown snow on Pip during the squall — baked W2 overlay matched to
         # the sprite's rotozoom(tilt) + body scale, so it stays glued on.
         if self.snow_load > 0.04 and not skeleton_visible:
@@ -1869,6 +1879,9 @@ class PowerUp:
             self._draw_genie_icon(surf)
         elif self.kind == "poison":
             self._draw_poison_vial(surf)
+        elif self.kind == "umbrella":
+            from game.umbrella import draw_pickup_icon
+            draw_pickup_icon(surf, int(self.x), int(self.y), self.pulse)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):

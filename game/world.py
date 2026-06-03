@@ -36,6 +36,7 @@ from game.config import (
     HEELFLIP_DURATION, HEELFLIP_TAP_GAP_MIN, HEELFLIP_TAP_GAP_MAX,
     POPSHUVIT_DURATION, POPSHUVIT_TAP_GAP_MIN, POPSHUVIT_TAP_GAP_MAX,
     KNIGHT_DURATION, KNIGHT_INVULN,
+    UMBRELLA_DURATION, UMBRELLA_SPAWN_RAIN,
     DEATH_FADE_DURATION,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
@@ -182,6 +183,11 @@ class World:
         # collision grace.
         self.knight_timer = 0.0
         self.knight_invuln = 0.0
+        # UMBRELLA: independent power-up that cancels rain flap-dampening.
+        # Spawned once per storm during the rain window; never in the regular
+        # weighted pool or the surprise re-roll.
+        self.umbrella_timer = 0.0
+        self._umbrella_spawned_this_storm = False
 
         # Coin-rush counter: increments each spawn; every Nth pipe is a rush.
         self.pipes_spawned = 0
@@ -349,6 +355,10 @@ class World:
             self.bird.shiver_x = 0.0
             self.bird.shiver_y = 0.0
             self.bird.flap_dampen = 0.0
+            # Storm has ended (or hasn't started this cycle). Re-arm the
+            # umbrella spawn one-shot so the NEXT storm gets its own
+            # umbrella offer.
+            self._umbrella_spawned_this_storm = False
         else:
             amp_x = WEATHER_COIN_SHAKE_AMP * ri
             freq = 4.5 * (1.0 + ri)
@@ -366,6 +376,18 @@ class World:
                 self.bird.shiver_x = 0.0
                 self.bird.shiver_y = 0.0
                 self.bird.flap_dampen = 0.0
+            # Umbrella overrides the rain flap-dampen — jumps return to
+            # normal while it's active. Shiver stays (purely visual flavour).
+            if self.umbrella_timer > 0:
+                self.bird.flap_dampen = 0.0
+            # Independent storm-driven spawn: once per storm, when rain first
+            # crosses UMBRELLA_SPAWN_RAIN (early drizzle), drop an umbrella
+            # offscreen-right so the player has time to navigate to it
+            # before heavy rain dampens jumps.
+            if (not self._umbrella_spawned_this_storm
+                    and ri >= UMBRELLA_SPAWN_RAIN):
+                self._spawn_storm_umbrella()
+                self._umbrella_spawned_this_storm = True
 
         # Snow-squall tailwind (predawn ~0.85): forward push (scroll boost
         # lives in _current_scroll); driven by the storm envelope.
@@ -1355,6 +1377,9 @@ class World:
             self.bird.knight_active = self.knight_timer > 0
             if self.knight_invuln > 0:
                 self.knight_invuln = max(0.0, self.knight_invuln - dt)
+            if self.umbrella_timer > 0:
+                self.umbrella_timer = max(0.0, self.umbrella_timer - dt)
+            self.bird.umbrella_active = self.umbrella_timer > 0
             # GENIE: tick + cull companion conjurer actors.
             for g in self.genie_actors:
                 g.update(dt)
@@ -1843,6 +1868,8 @@ class World:
             self._activate_genie(m)
         elif kind == "poison":
             self._activate_poison(m)
+        elif kind == "umbrella":
+            self._activate_umbrella(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -2237,6 +2264,42 @@ class World:
         self.float_texts.append(FloatText(
             "GENIE!", m.x, m.y - 26, (250, 215, 130),
             size=28, life=1.3, vy=-28, style="powerup",
+        ))
+
+    def _spawn_storm_umbrella(self):
+        """Drop an umbrella offscreen-right at a comfortable mid-screen y
+        so the player can navigate to it. Anchored to the rightmost
+        existing pipe like the milestone genie, but never closer than
+        W+spacing/2 from the right edge so it always arrives by scrolling
+        in (never pops in mid-screen). Independent of the regular
+        powerup roll — does NOT consume POWERUP_COOLDOWN or get filtered
+        by the weighted pool."""
+        if not self.pipes:
+            return
+        spacing = self._current_spacing()
+        anchor = self.pipes[-1]
+        gx = max(anchor.x + PIPE_W + spacing * 0.5, W + spacing * 0.5)
+        gy = max(140, min(H - 200, anchor.gap_y))
+        self.powerups.append(PowerUp(gx, gy, kind="umbrella"))
+
+    def _activate_umbrella(self, m):
+        """Umbrella pickup. Cancels rain flap-dampening for the next
+        UMBRELLA_DURATION seconds (see _apply_weather_effects) and lights
+        Bird.umbrella_active so entities.py paints the upright canopy over
+        the head. Spawn flow is independent of the regular pool — see
+        _maybe_spawn_storm_umbrella below."""
+        from game.config import UMBRELLA_DURATION
+        self.umbrella_timer = UMBRELLA_DURATION
+        self.bird.umbrella_active = True
+        try:
+            audio.play_slowmo()  # gentle pickup blip; shares the cool palette
+        except Exception:
+            pass
+        self._pickup_burst(m, ((84, 185, 196), (136, 219, 226),
+                               (250, 244, 222), WHITE))
+        self.float_texts.append(FloatText(
+            "UMBRELLA!", m.x, m.y - 26, (84, 185, 196),
+            size=28, life=1.3, vy=-30, style="powerup",
         ))
 
     def _activate_poison(self, m):

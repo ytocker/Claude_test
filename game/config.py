@@ -202,6 +202,14 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
+# UMBRELLA — independent power-up that cancels the rain flap-dampen during
+# thunderstorms. Spawns once per storm window (NOT in POWERUP_WEIGHTS or the
+# surprise re-roll) when rain intensity first crosses UMBRELLA_SPAWN_RAIN, so
+# the player has time to navigate to it before heavy rain dampens jumps. The
+# spawned-this-storm flag clears once rain drops to 0.
+UMBRELLA_DURATION       = 8.0
+UMBRELLA_SPAWN_RAIN     = 0.25
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without
