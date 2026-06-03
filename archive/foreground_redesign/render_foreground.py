@@ -59,7 +59,7 @@ import foreground_grounded as fg
 import game.ground_variants as gv
 import game.parrot as parrot
 from game.config import BIRD_X, BIRD_R, COIN_R
-from game.draw import COIN_GOLD, COIN_LIGHT, COIN_DARK
+from game.draw import COIN_GOLD, COIN_LIGHT, COIN_DARK, draw_cloud
 
 
 # ── biome held constant: misty_gorge, one of the locked sky winners ───────────
@@ -115,6 +115,25 @@ def _paint_context(phase):
     ctx = se.SceneCtx(surf, W, H, GROUND_Y, phase, SCROLL, SPEC._pal(phase), pal)
     import biome_motifs as bm
     bm.gorge_mist(ctx)
+
+    # 2b. Drifting clouds — the same hand-tuned `draw_cloud` puff shapes and
+    # parallax layout the pagoda-pillar exploration screenshots used, layered
+    # over the haze and behind the ridges so they read as sky depth. Painted to
+    # their own layer so the puffs are dimmed + cooled toward night: the bright
+    # white reads as moonlit cloud at dusk/night instead of glowing.
+    cloud_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+    for i, (bx, by, sc, variant) in enumerate((
+            (40, 95, 0.9, 0), (200, 150, 1.0, 2),
+            (90, 230, 0.8, 3), (270, 70, 0.7, 1))):
+        ox = ((bx - SCROLL * (0.04 + 0.02 * i)) % (W + 160)) - 80
+        draw_cloud(cloud_layer, ox, by + math.sin(0.45 + i) * 3, sc, variant=variant)
+    night = fg._nightf(pal)
+    cloud_layer.fill((int(255 * (1 - 0.55 * night)),
+                      int(255 * (1 - 0.55 * night)),
+                      int(255 * (1 - 0.46 * night)),
+                      int(255 * (1 - 0.30 * night))),
+                     special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(cloud_layer, (0, 0))
 
     # 3. V14 "Pagoda-Crowned Ridges" — shim the mountain module's biome so it
     # reads the held misty_gorge palette, then restore.
