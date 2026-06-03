@@ -1,19 +1,27 @@
-"""Render the round-1 foreground/ground comparison sheet.
+"""Render the round-3 GROUNDED foreground/ground comparison sheet.
 
-6 rows (Original meadow + the 5 shan-shui foreground concepts) × 4 columns
+Rounds 1-2 leaned on summed-sine bank crests that read as ocean waves and as a
+near echo of the ink-wash mountain ridges (see foreground_variants.py + the
+round_1/round_2 sheets). Round 3 is a fresh direction: five STABLE, FLAT land
+planes (foreground_grounded.py) whose identity is their SURFACE TEXTURE —
+paving joints, clay cracks, rake furrows, grass blades, plank grain — opaque to
+the bottom edge, distinct from the mountains and sky while still belonging to
+the misty-gorge world.
+
+6 rows (Original meadow + the 5 grounded concepts) × 4 columns
 (day / sunset / dusk / night). Every cell is a FULL in-context 360x640 scene
 with the biome held constant at misty_gorge so the foreground is the only
-variable: misty_gorge sky + the V14 "Pagoda-Crowned Ridges" mountains + a
-Songyue-sandstone pillar pair (one obstacle showing the gap) + the candidate
-foreground.
+variable: misty_gorge sky + gorge mist + the V14 "Pagoda-Crowned Ridges"
+mountains + a Songyue-sandstone pillar pair (one obstacle showing the gap) +
+the candidate foreground. The backdrop is context only — each foreground must
+read as its OWN thing against it, not a continuation of the ridges.
 
-The misty_gorge palette (from the biome-redesign winners) drives the sky, and
-is shimmed into the mountain module's `game.biome` reference so V14 retints to
-the same stage, and handed straight to the Songyue pillar. The Original row
-replicates game.draw.draw_ground's meadow look via game.ground_variants
-(imported read-only) so today's ground reads honestly against the candidates.
+The misty_gorge palette drives the sky, is shimmed into the mountain module's
+`game.biome` reference so V14 retints to the same stage, and is handed straight
+to the Songyue pillar. The Original row replicates game.draw.draw_ground's
+meadow look via game.ground_variants (read-only) for honest contrast.
 
-Output: docs/foreground_redesign/round_1.png
+Output: docs/foreground_redesign/round_3.png
 
 Run from anywhere:
     SDL_VIDEODRIVER=dummy python archive/foreground_redesign/render_foreground.py
@@ -46,7 +54,7 @@ import scene_engine as se
 import biome_variants as bv
 import pillar_pagoda_variants as pgv
 import mountain_variants_r2 as mv
-import foreground_variants as fg
+import foreground_grounded as fg
 import game.ground_variants as gv
 
 
@@ -152,11 +160,11 @@ ROWS = [("Original meadow", None)] + [(name, fn) for name, fn in fg.CONCEPTS]
 
 ROW_NOTES = {
     "Original meadow": "today's kelly-green ground (clashes)",
-    "Near-Ridge Ink Bank": "~50px · darkest near ridge, solid foot, gold rim",
-    "Still-Water Inlet": "dark bank + THIN water sliver + night lanterns",
-    "Terraced Paddy Steps": "LEAD ~74px · front darkest/crispest, gold lips",
-    "Pine & Bamboo Fringe Bluff": "ink-teal fringe on left, clean pillar zone",
-    "Mist-Veiled Stone Shore": "ALT · dark boulders, gold crowns, void mist",
+    "Flagstone Courtyard": "~56px - paved temple stone, receding courses + joints",
+    "Sun-Cracked Packed Earth": "~50px - dry clay, polygon crack net + pebbles",
+    "Raked Zen-Gravel Garden": "~52px - pale gravel, raked furrows round set stones",
+    "Ink-Wash Meadow": "~48px - muted grass blades + reeds, NO flowers/bugs",
+    "Wood-Plank Boardwalk": "~58px - larch deck, grain + shadow gaps, recedes in",
 }
 
 
@@ -176,7 +184,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN — round 2 — biome held @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 3 - GROUNDED planes - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -219,7 +227,7 @@ def make_sheet(images):
             full = images[(rname, pname)]
             x = row_label_w + pad + c * (tw + pad)
             sheet.blit(full, (x, y))
-            cap = cap_f.render(f"{rname[:18]} - {pname}", True, (250, 250, 250))
+            cap = cap_f.render(f"{rname[:20]} - {pname}", True, (250, 250, 250))
             bg = pygame.Surface((cap.get_width() + 8, cap.get_height() + 4),
                                 pygame.SRCALPHA)
             bg.fill((0, 0, 0, 120))
@@ -241,7 +249,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_2.png"
+    path = out / "round_3.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
