@@ -80,7 +80,12 @@ SS = 6
 # the sprite — the head ellipse is centred ~21px from the sprite top, i.e.
 # ~9px above the sprite centre; its top edge is ~25px above centre. The
 # umbrella hem is anchored just above that crown.
-HEAD_CROWN_DY = -25                     # px above the parrot centre
+HEAD_CROWN_DX = 15                      # px right of parrot centre (head is
+                                        # offset toward Pip's face — sprite
+                                        # head ellipse centred at (47, 21),
+                                        # sprite centre (32, 30) → +15, −9 →
+                                        # crown ~−18 above centre)
+HEAD_CROWN_DY = -18                     # px above parrot centre
 
 
 def _make_umbrella(head_span, *, rise_scale=0.62, panels=5,
@@ -191,6 +196,50 @@ def _make_umbrella(head_span, *, rise_scale=0.62, panels=5,
 # Five variants. Each is a builder returning (surface, hem_anchor) plus the
 # vertical gap (in px) to float the hem above Pip's head crown.
 # ---------------------------------------------------------------------------
+def w1_v4_baseline(head_span):
+    """W1 — V4 baseline (+20% width): reference for the wider set so the
+    chosen direction is visible alongside the new widenings."""
+    surf, hem = _make_umbrella(int(head_span * 1.20), rise_scale=0.62,
+                               panels=5, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 7
+
+
+def w2_wider(head_span):
+    """W2 — +40% width. Mild widening over V4; reads as a roomier hat."""
+    surf, hem = _make_umbrella(int(head_span * 1.40), rise_scale=0.62,
+                               panels=5, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 7
+
+
+def w3_shelter(head_span):
+    """W3 — +60% width. Starts to read as a clear shelter covering Pip's
+    head & shoulders, but still leaves silhouette legible."""
+    surf, hem = _make_umbrella(int(head_span * 1.60), rise_scale=0.62,
+                               panels=5, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 8
+
+
+def w4_wide_shelter(head_span):
+    """W4 — +80% width. Strong shelter read; canopy now visibly extends
+    past Pip's wings on either side."""
+    surf, hem = _make_umbrella(int(head_span * 1.80), rise_scale=0.62,
+                               panels=6, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 8
+
+
+def w5_max_wide(head_span):
+    """W5 — +100% width (double V4 baseline width-factor). Maximum
+    shelter read — beyond this it crowds the playfield."""
+    surf, hem = _make_umbrella(int(head_span * 2.00), rise_scale=0.60,
+                               panels=6, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 9
+
+
 def v1_canopy_straight(head_span):
     """V1 — Canopy only, upright (legible fallback): clean teal canopy ~1.0x
     head-span, no handle, 0deg, ferrule on, bolder 5-scallop hem, floating a
@@ -237,11 +286,11 @@ def v5_full_handle(head_span):
 
 
 VARIANTS = [
-    ("V1", "Canopy only, upright (fallback)", v1_canopy_straight),
-    ("V2", "Short handle, upright", v2_short_handle),
-    ("V3", "V1-size canopy, no drops", v3_canopy_clean),
-    ("V4", "Canopy +20%, lifted", v4_lifted_canopy),
-    ("V5", "Full handle, upright (lead)", v5_full_handle),
+    ("W1", "V4 baseline (+20%)", w1_v4_baseline),
+    ("W2", "Wider (+40%)", w2_wider),
+    ("W3", "Shelter (+60%)", w3_shelter),
+    ("W4", "Wide shelter (+80%)", w4_wide_shelter),
+    ("W5", "Max wide (+100%)", w5_max_wide),
 ]
 
 POSES = [(+25.0, "rising"), (0.0, "level"), (-25.0, "diving")]
@@ -295,13 +344,18 @@ def _draw_cell(sheet, x, y, cw, ch, build_fn, tilt_deg, seed):
     pr = pip.get_rect(center=(cx, cy))
     sheet.blit(pip, pr.topleft)
 
-    # The head crown rides with Pip's rotation: rotate the crown offset vector
-    # by the same tilt so the umbrella seats over the actual head, not a fixed
-    # screen point. pygame rotates surfaces CCW for +deg, so the world-space
-    # crown rotates by the same sign about Pip's centre.
+    # The head crown rides with Pip's rotation. The head sprite sits OFFSET
+    # from the body centre (Pip's face is to the right at +15 px, crown at
+    # −18 px), so the crown's world position must rotate that full 2D offset
+    # by the tilt — not just (0, dy). Without the x term the umbrella drifts
+    # off Pip's head whenever he tilts (he dives forward, his head moves
+    # right and down, but the umbrella stayed at the body's centre+dy).
+    # pygame rotozoom rotates CCW for +deg; screen y-down convention.
     a = math.radians(tilt_deg)
-    crown_dx = -HEAD_CROWN_DY * math.sin(a)        # (0, HEAD_CROWN_DY) rotated
-    crown_dy = HEAD_CROWN_DY * math.cos(a)
+    cosA, sinA = math.cos(a), math.sin(a)
+    hx, hy = HEAD_CROWN_DX, HEAD_CROWN_DY
+    crown_dx = hx * cosA + hy * sinA
+    crown_dy = -hx * sinA + hy * cosA
     crown_x = cx + crown_dx
     crown_y = cy + crown_dy
 
@@ -320,7 +374,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "umbrella_powerup")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "ingame_round_2.png")
+    out_path = os.path.join(out_dir, "ingame_round_3.png")
 
     def font(sz, bold=False):
         return pygame.font.SysFont("Arial", sz, bold=bold)
@@ -343,16 +397,17 @@ def main():
     sheet.fill((18, 18, 28))
 
     title = font(24, bold=True).render(
-        "UMBRELLA in-gameplay — round 2", True, (240, 240, 248))
+        "UMBRELLA in-gameplay — round 3 (wider V4-based options)", True,
+        (240, 240, 248))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "Teal canopy matches chosen icon C4 (lightened ~12% off night sky); "
-        "floats above Pip's head and stays UPRIGHT as Pip tilts.",
+        "User picked V4 direction; 5 wider canopy widths over V4 baseline. "
+        "Umbrella TRACKS Pip's head crown — stays above the head as he tilts.",
         True, (172, 182, 200))
     sheet.blit(sub, (pad, pad + 30))
     sub2 = font(13).render(
-        "V5 lead (full handle, offset outboard) / V1 fallback (canopy only). "
-        "Cols = pose (rising +25 / level 0 / diving -25). Bolder ink + scallops.",
+        "All upright, no handle (V4 style). Cols = pose "
+        "(rising +25 / level 0 / diving -25).",
         True, (150, 175, 205))
     sheet.blit(sub2, (pad, pad + 50))
 
