@@ -10,13 +10,31 @@ Five distinct festive directions, each keeping the B5 chest silhouette
 (curved lid, body, gold lock) but swapping the crown + ornaments + body
 palette for a different party-flavoured language:
 
-  F1  Gift ribbon + bow      — puffy gold bow on top; cross-wrap on body.
-  F2  Confetti chest         — multi-colour confetti raining around it.
-  F3  Party hat + streamers  — striped cone hat + curly streamers.
-  F4  Rainbow jewels         — 6-jewel rainbow rim on the lid + sparkles.
-  F5  Carnival pop-art       — striped body, pastel bow, dots, smiley lock.
+  F1  Gift ribbon + bow      — LEAD: crisp twin-loop bow + cross-wrap.
+  F2  Confetti chest         — 16-piece top-arc confetti + crown stub.
+  F3  Party hat + tinsel     — body-tall striped hat + straight tinsel.
+  F4  Rainbow jewels         — coral body + 6-gem rim + big star lock.
+  F5  Carnival pop-art       — lower-60% stripes + pink lid + gold star.
 
-Output: docs/treasure_box/festive_round_1.png  (doc-only; not shipped)
+Round 2 applies art-director notes: F1 promoted to lead with a rebuilt
+two-loop bow + dark-red shadow; F2 confetti capped at 16 pieces and
+pushed outside the chest silhouette with a small B5-style crown stub
+restored; F3 hat enlarged to body height with thick diagonal red bands,
+a 3 px cream pom and two straight tinsel strands (curly streamers
+dropped); F4 body pivoted toward coral with a +20% star lock plate;
+F5 reworked to a gold-star lock, lower-60% stripes, darker lid rim
+(smiley dropped). A 1 px warm-gold lid-top rim light + a 4-sparkle
+ring at the chest bbox corners now unify the whole family.
+
+Output: docs/treasure_box/festive_round_2.png  (doc-only; not shipped)
+
+Round 2 ranks F1 as the lead and re-targets the other four around it:
+F2's confetti is tamed (cap 16, top-arc only, 6 gold-yellow); F3 is
+rebuilt with a body-tall striped hat + straight tinsel; F4 pivots to a
+coral body so it stops reading as just a B5 upgrade; F5 drops the smiley
+in favour of an F4-style gold-star lock with stripes confined to the
+lower 60%. A 1 px warm-gold lid-top rim light + a fixed 4-corner cream
+sparkle ring unify all 5 cells into one "finale loot" family.
 """
 from __future__ import annotations
 
@@ -59,6 +77,20 @@ from render_treasure_box_options import (
 PARTY_RED_HI  = (236,  88,  96)
 PARTY_RED_MID = (196,  44,  58)
 PARTY_RED_LO  = (130,  24,  40)
+
+# Dark-red shadow used under F1's bow on the lid — about one value step
+# below PARTY_RED_LO so the bow sits ON the lid instead of floating.
+PARTY_RED_SHADOW = ( 78,  14,  24)
+
+# F4 coral / warm party-red — PARTY_RED_* shifted +10 deg toward orange
+# and +5% value. Reads "celebration / streamers" rather than "valentine".
+CORAL_HI  = (244, 124,  92)
+CORAL_MID = (212,  76,  60)
+CORAL_LO  = (146,  38,  34)
+
+# Warm-gold rim light placed 1 px under the apex of every lid. Unifies
+# the family at 1x by catching the dawn-sky highlight on every chest.
+LID_RIM_GOLD = (255, 236, 168)
 
 # Confetti colours — borrow from a kid's birthday-party palette.
 CONFETTI = (
@@ -177,6 +209,53 @@ def _draw_sparkle(big, x, y, L, col=SPARKLE, ink_w=2):
     pygame.draw.line(big, col, (x, y - L), (x, y + L), max(1, ink_w))
 
 
+def _lid_rim_light(big, lid_rect, lid_apex_y, ink_w):
+    """A 1 px warm-gold sliver hugging the very top of the lid arc. Sits
+    just under the apex so it never breaks the silhouette but consistently
+    catches the dawn-sky highlight across every variant in the family."""
+    arc_h = int(lid_rect.height * 0.65)
+    cx = lid_rect.centerx
+    half_w = lid_rect.width // 2
+    # Sample a short symmetric chord around the apex — the brightest sliver
+    # is concentrated on the top 18% of the dome so it reads as a rim, not
+    # a stripe. ink_w drives the stroke so the rim scales with SS.
+    pts = []
+    n = 12
+    for i in range(n + 1):
+        # Walk a narrow theta window centred on pi/2 (the apex).
+        t = i / n
+        ang = math.pi * (0.42 + 0.16 * t)
+        ax = cx + math.cos(ang) * half_w
+        ay = lid_rect.top - math.sin(ang) * arc_h + max(1, ink_w // 2)
+        pts.append((ax, ay))
+    if len(pts) >= 2:
+        pygame.draw.lines(big, LID_RIM_GOLD, False, pts,
+                          max(1, ink_w // 2))
+
+
+def _unified_sparkle_ring(big, body_rect, lid_rect, ink_w):
+    """Exactly four 2 px cream "+" sparkles pinned to the chest bbox
+    corners — top-left, top-right, bottom-left, bottom-right — outside
+    the silhouette. The same four anchors on every variant become the
+    "finale loot" family marker."""
+    x0 = min(body_rect.left, lid_rect.left)
+    x1 = max(body_rect.right, lid_rect.right)
+    y0 = lid_rect.top - int(lid_rect.height * 0.55)
+    y1 = body_rect.bottom
+    margin = max(SS * 2, ink_w * 2)
+    L = max(2, int(SS * 0.9))
+    for (sx, sy) in ((x0 - margin, y0 - margin),
+                     (x1 + margin, y0 - margin),
+                     (x0 - margin, y1 + margin),
+                     (x1 + margin, y1 + margin)):
+        # Centre dot + 1-px arms — the smallest readable cream "+" at 1x.
+        pygame.draw.circle(big, CREAM, (sx, sy), max(1, L // 2))
+        pygame.draw.line(big, CREAM, (sx - L, sy), (sx + L, sy),
+                         max(1, ink_w // 2))
+        pygame.draw.line(big, CREAM, (sx, sy - L), (sx, sy + L),
+                         max(1, ink_w // 2))
+
+
 def _draw_jewel_dot(big, cx, cy, r, col, ink_w):
     """A small round jewel — used for the rainbow rim. Bright top-left
     glint sells the cabochon read at 1x."""
@@ -245,22 +324,59 @@ def icon_f1():
     lock_cy = body.top + int(body.height * 0.30)
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=True)
 
-    # Big puffy gold bow crowning the lid — breaks the silhouette ABOVE
-    # the lid apex by ~loop_height/2.
-    bow_w = int(lid.width * 0.72)
-    bow_h = int(lid.height * 0.95)
+    # Rebuilt twin-loop bow — two crisp triangular loops (4x5 px each at
+    # pickup scale, scaled by SS for the supersample) + a 2x2 px gold knot.
+    # The previous puffy-oval bow read as a yellow blob at 1x.
     bow_cx = lid.centerx
-    bow_cy = lid_apex_y + int(bow_h * 0.05)
-    _draw_bow(big, bow_cx, bow_cy, bow_w, bow_h, ink,
-              GOLD_HI, GOLD_MID, GOLD_LO, with_tails=False)
+    bow_cy = lid_apex_y + int(lid.height * 0.18)
+    loop_w_px = 4                                  # final-scale pixels
+    loop_h_px = 5
+    knot_px = 2
+    loop_w = loop_w_px * SS
+    loop_h = loop_h_px * SS
+    knot_s = knot_px * SS
 
-    # Two small cream sparkles flanking the bow — gentle festive glint.
-    _draw_sparkle(big, bow_cx - int(bow_w * 0.55),
-                  bow_cy - int(bow_h * 0.35),
-                  max(2, int(SS * 1.0)), SPARKLE, max(1, ink // 2))
-    _draw_sparkle(big, bow_cx + int(bow_w * 0.55),
-                  bow_cy - int(bow_h * 0.20),
-                  max(2, int(SS * 0.9)), SPARKLE, max(1, ink // 2))
+    # Dark-red shadow under the bow on the lid — 1 px (= SS) drop, only on
+    # the lid (not behind the gold so the gold reads warm). Drawn first.
+    shadow_w = loop_w * 2 + knot_s
+    shadow_h = loop_h
+    shadow = pygame.Rect(0, 0, shadow_w, shadow_h)
+    shadow.center = (bow_cx, bow_cy + SS)
+    _vgrad_rect(big, shadow, PARTY_RED_SHADOW, PARTY_RED_SHADOW,
+                radius=max(2, shadow_h // 3))
+
+    # Right-hand loop nudged DOWN ~1 px so the bow isn't perfectly
+    # symmetric — gives the gift a hand-tied feel at 1x.
+    for sgn in (-1, +1):
+        loop_pts = [
+            (bow_cx + sgn * (knot_s // 2),                bow_cy),
+            (bow_cx + sgn * (knot_s // 2 + loop_w),       bow_cy - loop_h // 2),
+            (bow_cx + sgn * (knot_s // 2 + loop_w),       bow_cy + loop_h // 2),
+        ]
+        if sgn > 0:
+            loop_pts = [(px, py + SS) for (px, py) in loop_pts]
+        pygame.draw.polygon(big, GOLD_HI, loop_pts)
+        # Inner darker wedge so the loop has interior depth.
+        inner_pts = [
+            loop_pts[0],
+            ((loop_pts[0][0] + loop_pts[1][0]) // 2,
+             (loop_pts[0][1] + loop_pts[1][1]) // 2),
+            ((loop_pts[0][0] + loop_pts[2][0]) // 2,
+             (loop_pts[0][1] + loop_pts[2][1]) // 2),
+        ]
+        pygame.draw.polygon(big, GOLD_LO, inner_pts)
+        pygame.draw.polygon(big, INK, loop_pts, max(2, ink - 1))
+
+    # Centre gold knot — 2x2 px square in pickup space.
+    knot = pygame.Rect(0, 0, knot_s, knot_s)
+    knot.center = (bow_cx, bow_cy)
+    _vgrad_rect(big, knot, GOLD_HI, GOLD_LO, radius=max(1, knot_s // 4))
+    pygame.draw.rect(big, GOLD_INK, knot, max(1, ink // 2),
+                     border_radius=max(1, knot_s // 4))
+
+    # Family unifiers — lid rim light + 4-corner sparkle ring.
+    _lid_rim_light(big, lid, lid_apex_y, ink)
+    _unified_sparkle_ring(big, body, lid, ink)
 
     return _finish(big)
 
@@ -297,55 +413,88 @@ def icon_f2():
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.02)
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=True)
 
-    # Smaller crown — half the B5 footprint, just barely peeking above the
-    # lid silhouette. Keeps the "treasure" semantics so confetti reads as
-    # a CELEBRATION rather than random debris.
-    crown_w = int(lock_w * 0.85)
-    crown_h = int(lock_h * 0.45)
+    # Small B5-style crown stub (~3 px tall at final scale, scaled by SS
+    # internally) sitting on the lid centre. Keeps F2 inside the B5
+    # lineage so the confetti reads as a CELEBRATION around treasure
+    # rather than as a random burst of paper.
+    crown_h = SS * 3                               # final-scale 3 px tall
+    crown_w = SS * 7
     crown_cx = lock_cx
-    crown_base_y = body.top - int(body.height * 0.02)
-    spike_tip_y = lid_apex_y - max(2, int(SS * 0.6))
+    crown_base_y = lid_apex_y + max(1, SS // 2)
+    spike_tip_y = crown_base_y - crown_h
     cpts = [
         (crown_cx - crown_w // 2, crown_base_y),
-        (crown_cx - crown_w // 3, crown_base_y - crown_h // 3),
-        (crown_cx - crown_w // 5, crown_base_y - crown_h // 8),
+        (crown_cx - crown_w // 3, crown_base_y - crown_h * 2 // 3),
+        (crown_cx - crown_w // 5, crown_base_y - crown_h // 4),
         (crown_cx,                spike_tip_y),
-        (crown_cx + crown_w // 5, crown_base_y - crown_h // 8),
-        (crown_cx + crown_w // 3, crown_base_y - crown_h // 3),
+        (crown_cx + crown_w // 5, crown_base_y - crown_h // 4),
+        (crown_cx + crown_w // 3, crown_base_y - crown_h * 2 // 3),
         (crown_cx + crown_w // 2, crown_base_y),
     ]
     pygame.draw.polygon(big, GOLD_HI, cpts)
     pygame.draw.polygon(big, GOLD_INK, cpts, max(1, ink - 1))
 
-    # Confetti shower. Use a stable seeded sequence so the icon is
-    # deterministic across renders. Mix of small triangles, round dots,
-    # and short ribbon snippets — some overlapping the chest border to
-    # break the silhouette and read as motion.
+    # Confetti — capped at 16 pieces in a half-arc across the TOP 180 deg
+    # + sides only (clear the bottom third entirely). All 16 sit OUTSIDE
+    # the chest silhouette. 6 of the 16 are gold-yellow to echo the coming
+    # coin payoff. Positions are computed deterministically from a fixed
+    # angle ladder so the round looks the same every render.
+    px_w = PICKUP_W * SS
+    px_h = PICKUP_H * SS
+
+    # Chest exclusion rect (bounding box of body + lid arc) — confetti
+    # placement is rejected if its centre falls inside this rect.
+    chest_bbox = body.union(lid).inflate(SS * 2, SS * 2)
+    chest_bbox.top = lid.top - int(lid.height * 0.65)
+
     rng = 0xC0FFEE
     def rnd():
         nonlocal rng
         rng = (1103515245 * rng + 12345) & 0x7FFFFFFF
         return rng / 0x7FFFFFFF
 
-    px_w = PICKUP_W * SS
-    px_h = PICKUP_H * SS
-    n_pieces = 28
+    # Build a 16-slot angle ladder across the top half (180 deg arc) plus
+    # a small left/right side bias — but never touching the bottom band.
+    n_pieces = 16
+    gold_slots = {1, 3, 6, 9, 12, 14}              # 6 of 16 are gold-yellow
+    cx0 = (chest_bbox.left + chest_bbox.right) // 2
+    cy0 = chest_bbox.centery
+    # Orbit radius that comfortably clears the chest's silhouette.
+    base_r = int(max(chest_bbox.width, chest_bbox.height) * 0.62)
+
     placed = 0
-    while placed < n_pieces:
-        x = int(rnd() * px_w)
-        y = int(rnd() * px_h * 0.95)
-        col = CONFETTI[int(rnd() * len(CONFETTI)) % len(CONFETTI)]
-        kind = rnd()
-        # Bias confetti AWAY from the central chest centre so it forms a
-        # cloud around the box, but still allow a few overlap snippets.
-        dx = (x - px_w // 2) / (px_w // 2)
-        dy = (y - px_h // 2) / (px_h // 2)
-        dist = math.hypot(dx, dy)
-        if dist < 0.45 and rnd() > 0.30:
+    slot = 0
+    while placed < n_pieces and slot < n_pieces * 4:
+        # Sweep theta across the top half — 180 deg to 360 deg in screen
+        # coords means pi -> 2*pi (so y stays at or above the centre).
+        t = (slot % n_pieces) / n_pieces
+        theta = math.pi + t * math.pi               # pi .. 2pi (top arc)
+        # Small per-slot radial jitter for organic spacing.
+        r = base_r + int((rnd() - 0.5) * SS * 4)
+        x = int(cx0 + math.cos(theta) * r * 1.05)
+        y = int(cy0 + math.sin(theta) * r * 0.85)
+        # Hard-clear the bottom third of the icon.
+        if y > int(px_h * 0.62):
+            slot += 1
             continue
-        size = max(SS, int(SS * (1.0 + rnd() * 0.6)))
+        # Reject any candidate that overlaps the chest silhouette bbox.
+        if chest_bbox.collidepoint(x, y):
+            slot += 1
+            continue
+        if not (0 <= x < px_w and 0 <= y < px_h):
+            slot += 1
+            continue
+
+        if placed in gold_slots:
+            col = (252, 220,  88)                  # gold-yellow coin echo
+        else:
+            # Pick from the non-yellow confetti hues so gold count stays 6.
+            non_yellow = tuple(c for c in CONFETTI if c != (255, 214, 92))
+            col = non_yellow[int(rnd() * len(non_yellow)) % len(non_yellow)]
+
+        size = max(SS, int(SS * (1.0 + rnd() * 0.5)))
+        kind = rnd()
         if kind < 0.34:
-            # Tiny triangle.
             ang = rnd() * 2 * math.pi
             tri = [
                 (x + math.cos(ang) * size,
@@ -358,12 +507,10 @@ def icon_f2():
             pygame.draw.polygon(big, col, tri)
             pygame.draw.polygon(big, INK, tri, max(1, ink // 2))
         elif kind < 0.66:
-            # Round dot.
             pygame.draw.circle(big, col, (x, y), max(2, size // 2))
             pygame.draw.circle(big, INK, (x, y), max(2, size // 2),
                                max(1, ink // 2))
         else:
-            # Short ribbon snippet — small rotated pill.
             rib_w = size * 2
             rib_h = max(2, int(size * 0.6))
             rib_surf = pygame.Surface((rib_w + ink * 2, rib_h + ink * 2),
@@ -377,6 +524,12 @@ def icon_f2():
                                           (rnd() - 0.5) * 90)
             big.blit(rot, rot.get_rect(center=(x, y)))
         placed += 1
+        slot += 1
+
+    # Family unifiers — lid rim light + corner sparkle ring (the four
+    # sparkles add to F2's confetti rather than replacing it).
+    _lid_rim_light(big, lid, lid_apex_y, ink)
+    _unified_sparkle_ring(big, body, lid, ink)
 
     return _finish(big)
 
@@ -385,10 +538,11 @@ def icon_f2():
 # F3 — Party-hat + streamers.
 # ---------------------------------------------------------------------------
 def icon_f3():
-    """Replace the crown with a tall STRIPED PARTY HAT (cone shape with
-    diagonal red/yellow stripes, tiny pom-pom on top). Two curly
-    STREAMERS spiral outward from the lid corners. Warmer party-red
-    body, gold trim + lock anchor."""
+    """Replace the crown with a BODY-TALL STRIPED PARTY HAT (cone with
+    thick diagonal red/yellow bands + a clearly readable cream pom on
+    top). Two straight 1-px gold tinsel strands hang from the lid
+    corners down ~half body height — round-1's curly streamers
+    vanished at 1x. Warmer party-red body, gold trim + lock anchor."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
@@ -518,8 +672,9 @@ def icon_f4():
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
 
-    # Brighter red body — cheerier than ROYAL.
-    _chest_body(big, body, ink, PARTY_RED_HI, PARTY_RED_MID, PARTY_RED_LO)
+    # Coral / warm party-red body — PARTY_RED shifted +10 deg toward
+    # orange so F4 no longer reads as just a B5 colour upgrade.
+    _chest_body(big, body, ink, CORAL_HI, CORAL_MID, CORAL_LO)
     # Gold seam trim (thicker, since it carries the jewel rim).
     seam = pygame.Rect(body.left, body.top - max(1, ink // 2),
                        body.width, max(3, int(body.height * 0.14)))
@@ -533,9 +688,9 @@ def icon_f4():
     pygame.draw.rect(big, GOLD_INK, bot_trim, max(1, ink // 2),
                      border_radius=max(1, bot_trim.height // 2))
 
-    # Curved lid in matching red.
+    # Curved lid in matching coral.
     pts, lid_apex_y = _curved_lid(big, lid, ink,
-                                   PARTY_RED_HI, PARTY_RED_MID, PARTY_RED_LO,
+                                   CORAL_HI, CORAL_MID, CORAL_LO,
                                    grain=False, sheen=True)
 
     # Six rainbow jewels evenly across the gold seam band.
@@ -552,16 +707,17 @@ def icon_f4():
         gy = seam.centery
         _draw_jewel_dot(big, gx, gy, gem_r, RAINBOW_GEMS[i], ink)
 
-    # Smaller gold lock plate sitting BELOW the jewel rim so the rainbow
-    # carries the focal weight. No keyhole — replaced by a tiny gold star
-    # to keep the festive read.
-    lock_w = int(body.width * 0.24)
-    lock_h = int(body.height * 0.42)
+    # Gold lock plate sitting BELOW the jewel rim. Enlarged by ~20% on
+    # both axes so the star plate beats the crown for focal attention —
+    # the star is the festive answer to B5's keyhole.
+    lock_w = int(body.width * 0.29)
+    lock_h = int(body.height * 0.50)
     lock_cx = body.centerx
     lock_cy = body.top + int(body.height * 0.22) + lock_h // 2
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=False)
-    # Tiny 5-point star on the lock plate face (using a polygon).
-    star_r = max(3, int(lock_h * 0.30))
+    # 5-point star on the lock plate face (using a polygon) — scaled up to
+    # match the larger plate so it reads as the focal point at 1x.
+    star_r = max(3, int(lock_h * 0.36))
     star_pts = []
     for k in range(10):
         ang = -math.pi / 2 + k * math.pi / 5
@@ -615,6 +771,10 @@ def icon_f4():
         sy = cy0 + int(px_h * 0.5 * oy)
         L = max(2, int(SS * 1.1 * sc))
         _draw_sparkle(big, sx, sy, L, SPARKLE, max(1, ink // 2))
+
+    # Family unifiers — lid rim light + 4-corner sparkle ring.
+    _lid_rim_light(big, lid, lid_apex_y, ink)
+    _unified_sparkle_ring(big, body, lid, ink)
 
     return _finish(big)
 
@@ -739,7 +899,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "treasure_box")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "festive_round_1.png")
+    out_path = os.path.join(out_dir, "festive_round_2.png")
 
     bob = int(round(math.sin(BOB_PULSE * 0.8) * 2))
 
