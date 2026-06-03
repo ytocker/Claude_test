@@ -162,7 +162,7 @@ def _build_cart_layers():
     rail_y = (SH // 2 + _CART_RAIL_DY) * SS
 
     WHEEL_R  = 5 * SS
-    CART_W   = 72 * SS
+    CART_W   = 58 * SS
     CART_H   = 18 * SS
     bot_w    = int(CART_W * 0.78)
     WHEEL_DX = bot_w // 2 - SS  # wheels tucked just inside the bottom corners
