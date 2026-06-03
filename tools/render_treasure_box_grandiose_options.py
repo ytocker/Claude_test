@@ -803,30 +803,79 @@ def _wooden_chest(big, ink,
     pygame.draw.rect(big, lock_ink, clasp, max(1, ink // 2),
                      border_radius=max(2, clasp.width // 6))
 
+    # Per-cell distinctness hook — drawn AFTER hardware so nails / nameplates
+    # sit on top of bands, BEFORE the unifier rim so they don't overdraw it.
+    if body_decoration is not None:
+        body_decoration(big, body, lid, ink)
+
     _apply_unifiers(big, body, lid)
 
 
 def icon_w1():
     """W1 — Classic mahogany. Warm mahogany body, dark iron bands,
-    traditional gold lock + standard keyhole. B1 baseline + unifiers."""
+    traditional gold lock + standard keyhole. Round 3 adds four dark-iron
+    nail heads at the body corners — historical hardware that gives W1 its
+    own silhouette texture so it no longer pairs with W5 at thumbnail."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
+
+    def _corner_nails(b, body, lid, ink_w):
+        # Four small dark-iron nails — ~2 source-px discs (SS supersample),
+        # inset from each body corner so they read as hammered hardware.
+        nail_r = max(2, int(SS * 0.9))
+        inset_x = int(body.width * 0.04)
+        inset_y = int(body.height * 0.06)
+        for (nx, ny) in (
+            (body.left  + inset_x, body.top    + inset_y),
+            (body.right - inset_x, body.top    + inset_y),
+            (body.left  + inset_x, body.bottom - inset_y),
+            (body.right - inset_x, body.bottom - inset_y),
+        ):
+            pygame.draw.circle(b, DARK_IRON_LO,
+                               (nx, ny + max(1, nail_r // 3)), nail_r)
+            pygame.draw.circle(b, DARK_IRON_MID, (nx, ny), nail_r)
+            pygame.draw.circle(b, DARK_IRON_HI,
+                               (nx - nail_r // 3, ny - nail_r // 3),
+                               max(1, nail_r // 2))
+            pygame.draw.circle(b, INK, (nx, ny), nail_r,
+                               max(1, ink_w // 2))
+
     _wooden_chest(big, ink,
                   MAHOG_HI, MAHOG_MID, MAHOG_LO, MAHOG_GRAIN,
                   DARK_IRON_HI, DARK_IRON_MID, DARK_IRON_LO, INK,
-                  GOLD_HI, GOLD_MID, GOLD_LO, GOLD_INK)
+                  GOLD_HI, GOLD_MID, GOLD_LO, GOLD_INK,
+                  body_decoration=_corner_nails)
     return _finish(big)
 
 
 def icon_w2():
     """W2 — Ebony with gold bands. Very dark wood + polished-gold bands
-    (matches the lock); grain reads as near-black ticks."""
+    (matches the lock); grain reads as near-black ticks. Round 3 adds a
+    1-px cream glint on the gold lock plate's top-left corner, mirroring
+    G1's diamond glint discipline so W2 stops feeling like an unornamented
+    sister of W4."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
+
+    def _gold_glint(b, body, lid, ink_w):
+        # Recompute the lock rect to land the glint exactly on its top-left.
+        lock_w = int(body.width * 0.30)
+        lock_h = int(body.height * 0.55)
+        lock_cx = body.centerx
+        lock_cy = body.top + lock_h // 2 - int(body.height * 0.08)
+        gx = lock_cx - lock_w // 2 + max(2, ink_w)
+        gy = lock_cy - lock_h // 2 + max(2, ink_w)
+        L = max(1, int(SS * 0.7))
+        pygame.draw.line(b, CREAM, (gx, gy), (gx + L, gy + L),
+                         max(1, ink_w // 2))
+        pygame.draw.circle(b, (255, 255, 255), (gx, gy),
+                           max(1, ink_w // 3))
+
     _wooden_chest(big, ink,
                   EBONY_HI, EBONY_MID, EBONY_LO, EBONY_GRAIN,
                   GOLD_HI, GOLD_MID, GOLD_LO, GOLD_INK,
-                  GOLD_HI, GOLD_MID, GOLD_LO, GOLD_INK)
+                  GOLD_HI, GOLD_MID, GOLD_LO, GOLD_INK,
+                  body_decoration=_gold_glint)
     return _finish(big)
 
 
