@@ -575,38 +575,34 @@ def icon_f3():
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.04)
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=True)
 
-    # Curly streamers spiralling outward from the lid's left + right
-    # corners. Drawn as parametric loops with decreasing radius. Done
-    # BEFORE the hat so the hat draws over any streamer overlap near the
-    # apex.
-    for sgn, col in ((-1, CARNIVAL_T), (+1, PASTEL_PINK_MID)):
-        anchor_x = lid.centerx + sgn * int(lid.width * 0.36)
-        anchor_y = lid.top + int(lid.height * 0.15)
-        pts2 = []
-        n = 40
-        # A loose spiral arc, lifted outward + upward.
-        for i in range(n + 1):
-            t = i / n
-            # Phase increases as we walk outward; radius shrinks slightly
-            # to give that ribbony curl.
-            ang = sgn * t * math.pi * 2.6 + math.pi * 0.5
-            rr = lid.width * (0.10 + 0.18 * t)
-            ox = sgn * t * lid.width * 0.32
-            oy = -t * lid.height * 1.0
-            x = anchor_x + ox + math.cos(ang) * rr * 0.30
-            y = anchor_y + oy + math.sin(ang) * rr * 0.30
-            pts2.append((x, y))
-        # Draw a slightly fatter ink underline first for the outline.
-        pygame.draw.lines(big, INK, False, pts2, max(4, ink + 1))
-        pygame.draw.lines(big, col, False, pts2, max(2, ink - 1))
+    # Two straight gold tinsel strands hang from the lid corners down
+    # ~half the body height. 1 px wide at pickup scale (= SS in the
+    # supersampled space) so they survive the downscale. The previous
+    # curly streamers vanished completely at 1x.
+    tinsel_top_y = lid.top + int(lid.height * 0.55)
+    tinsel_bot_y = body.top + body.height // 2
+    tinsel_w = max(1, SS)
+    for sgn in (-1, +1):
+        tx = lid.centerx + sgn * int(lid.width * 0.42)
+        # Faint ink underline first so the strand has an edge at 1x.
+        pygame.draw.line(big, INK, (tx, tinsel_top_y),
+                         (tx, tinsel_bot_y), max(1, tinsel_w + SS // 2))
+        pygame.draw.line(big, GOLD_HI, (tx, tinsel_top_y),
+                         (tx, tinsel_bot_y), tinsel_w)
+        # Tiny gold bead at the tip so the strand reads as tinsel, not
+        # a stray pixel line.
+        pygame.draw.circle(big, GOLD_HI, (tx, tinsel_bot_y),
+                           max(1, SS))
+        pygame.draw.circle(big, GOLD_INK, (tx, tinsel_bot_y),
+                           max(1, SS), max(1, SS // 2))
 
-    # Tall striped party hat — cone with red/yellow diagonal stripes.
-    # The hat's tip sits above the lid apex by ~3 px so it dominates the
-    # silhouette like the B5 crown spike.
-    hat_base_w = int(lid.width * 0.46)
-    hat_h = int(lid.height * 1.55)
+    # Body-tall striped party hat — the hat's height matches the body
+    # height at the final scale so it dominates the silhouette like B5's
+    # crown spike. Drawn AFTER the tinsel so the hat masks any overlap.
+    hat_base_w = int(lid.width * 0.50)
+    hat_h = body.height                              # body-tall at final scale
     hat_base_cy = lid_apex_y + int(lid.height * 0.10)
-    hat_tip_y = lid_apex_y - hat_h + int(lid.height * 0.05)
+    hat_tip_y = hat_base_cy - hat_h
     hat_cx = lid.centerx
     hat_tri = [
         (hat_cx - hat_base_w // 2, hat_base_cy),
@@ -625,9 +621,11 @@ def icon_f3():
     mtri = [(p[0] - (hat_cx - mask_w // 2),
              p[1] - (hat_tip_y - ink * 2)) for p in hat_tri]
     pygame.draw.polygon(mask_surf, (255, 255, 255, 255), mtri)
-    # Stripes — diagonal red bands across the mask.
+    # Stripes — 2 px (at pickup scale, = SS*2 in supersample) diagonal
+    # red bands across the mask. Wider than round 1 so the bands read at
+    # 1x instead of looking like faint cross-hatching.
     stripe_surf = pygame.Surface((mask_w, mask_h), pygame.SRCALPHA)
-    band_w = max(SS * 2, int(mask_h * 0.18))
+    band_w = SS * 2                                  # 2 px at final scale
     spacing = band_w * 2
     for off in range(-mask_h, mask_w + mask_h, spacing):
         pts3 = [
@@ -643,10 +641,11 @@ def icon_f3():
     # Hat outline.
     pygame.draw.polygon(big, INK, hat_tri, max(2, ink))
 
-    # Tiny cream pom-pom on the tip — small bobble above the apex.
-    pom_r = max(3, int(SS * 1.3))
-    pygame.draw.circle(big, CREAM, (hat_cx, hat_tip_y - pom_r // 2), pom_r)
-    pygame.draw.circle(big, INK, (hat_cx, hat_tip_y - pom_r // 2),
+    # 3 px cream pom-pom on the tip at final scale — clearly readable at
+    # 1x, where the previous ~1.3 px pom collapsed into the outline.
+    pom_r = SS * 3 // 2                              # 3 px diameter at final
+    pygame.draw.circle(big, CREAM, (hat_cx, hat_tip_y - pom_r), pom_r)
+    pygame.draw.circle(big, INK, (hat_cx, hat_tip_y - pom_r),
                        pom_r, max(1, ink // 2))
 
     # A couple of cream sparkles flanking the hat.
@@ -656,6 +655,10 @@ def icon_f3():
     _draw_sparkle(big, hat_cx + int(hat_base_w * 0.95),
                   hat_tip_y + int(hat_h * 0.35),
                   max(2, int(SS * 0.8)), SPARKLE, max(1, ink // 2))
+
+    # Family unifiers — lid rim light + 4-corner sparkle ring.
+    _lid_rim_light(big, lid, lid_apex_y, ink)
+    _unified_sparkle_ring(big, body, lid, ink)
 
     return _finish(big)
 
@@ -783,40 +786,51 @@ def icon_f4():
 # F5 — Carnival pop-art.
 # ---------------------------------------------------------------------------
 def icon_f5():
-    """Multi-colour body — solid red replaced with bright vertical stripes
-    alternating red / yellow / teal (3-colour circus-tent vibe). A smaller
-    pastel-pink + gold bow tops the lid (no royal crown). Cream polka
-    dots scattered on the lid. The lock plate gets a smiley/star emblem
-    on its face instead of a keyhole. Most stylised + cheerful."""
+    """Reworked carnival cell — the round-1 smiley face read as a UI
+    sticker, not a chest. Now: top 40% of the body stays SOLID PARTY-RED
+    so the lid + lock sit on a clean canvas; the lower 60% gets the
+    bright red/yellow/teal vertical stripes for the circus-tent vibe.
+    The lid is pastel pink (with a 1-step DARKER rim so it separates
+    against the pink fill in silhouette). The lock plate carries an
+    F4-style gold 5-point STAR (the smiley + the eyes are gone). A
+    smaller pastel-pink + gold bow still crowns the lid."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
 
-    # Body — vertical stripes inside a rounded mask. We draw a base solid
-    # red-low colour, then stripe-fill via clipped vertical bands, then
-    # outline the body rect for crisp edges.
+    # Body — solid party-red top, striped lower 60%. We paint the whole
+    # rounded rect first with the gradient PARTY_RED, then stripe over
+    # only the lower 60% inside the same rounded mask.
     radius = max(2, int(body.width * 0.08))
-    base_surf = pygame.Surface(body.size, pygame.SRCALPHA)
-    # Build the striped fill in body-local space.
-    stripe_cols = (CARNIVAL_R, CARNIVAL_Y, CARNIVAL_T)
-    n_stripes = 6
-    sw = body.width // n_stripes
-    for i in range(n_stripes):
-        col = stripe_cols[i % 3]
-        sx = i * sw
-        # Add a slight darker bottom shade per stripe so the body still has
-        # the depth of the gradient body the other variants use.
-        for y in range(body.height):
-            t = y / max(1, body.height - 1)
-            shade = _lerp(col, _lerp(col, INK, 0.45), t)
-            pygame.draw.line(base_surf, shade,
-                             (sx, y), (sx + sw, y))
-    # Round corners.
-    mask = pygame.Surface(body.size, pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
-                     border_radius=radius)
-    base_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    big.blit(base_surf, body.topleft)
+    _chest_body(big, body, ink, PARTY_RED_HI, PARTY_RED_MID, PARTY_RED_LO)
+
+    # Build the striped lower band in a body-local surface, then mask to
+    # the rounded body shape so the stripes hug the body silhouette.
+    stripe_top_frac = 0.40                           # solid red in top 40%
+    stripe_band_h = int(body.height * (1.0 - stripe_top_frac))
+    if stripe_band_h > 0:
+        base_surf = pygame.Surface(body.size, pygame.SRCALPHA)
+        stripe_cols = (CARNIVAL_R, CARNIVAL_Y, CARNIVAL_T)
+        n_stripes = 6
+        sw = body.width // n_stripes
+        stripe_top_y = int(body.height * stripe_top_frac)
+        for i in range(n_stripes):
+            col = stripe_cols[i % 3]
+            sx = i * sw
+            for y in range(stripe_top_y, body.height):
+                # Per-stripe shade toward INK so stripes match the
+                # gradient depth of the other variants' bodies.
+                t = (y - stripe_top_y) / max(1, body.height - stripe_top_y - 1)
+                shade = _lerp(col, _lerp(col, INK, 0.45), t)
+                pygame.draw.line(base_surf, shade,
+                                 (sx, y), (sx + sw, y))
+        mask = pygame.Surface(body.size, pygame.SRCALPHA)
+        pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
+                         border_radius=radius)
+        base_surf.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(base_surf, body.topleft)
+    # Re-stroke the body outline so the rounded edge stays crisp on top
+    # of the stripe overlay.
     pygame.draw.rect(big, INK, body, ink, border_radius=radius)
 
     # Curved lid — pastel-pink top so it pops over the bright stripes.
@@ -824,6 +838,13 @@ def icon_f5():
                                    PASTEL_PINK_HI, PASTEL_PINK_MID,
                                    PASTEL_PINK_LO,
                                    grain=False, sheen=True)
+
+    # Darker lid rim — 1 value step down from PASTEL_PINK_LO so the rim
+    # separates from the pink lid fill in silhouette. We re-stroke the
+    # lid polygon outline in this darker tone.
+    lid_rim_dark = _lerp(PASTEL_PINK_LO, INK, 0.35)
+    if pts and len(pts) >= 3:
+        pygame.draw.polygon(big, lid_rim_dark, pts, max(2, ink))
 
     # Cream polka dots scattered on the lid.
     dot_specs = (
@@ -841,25 +862,22 @@ def icon_f5():
         pygame.draw.circle(big, CREAM_DOT, (dx, dy), dr)
         pygame.draw.circle(big, INK, (dx, dy), dr, max(1, ink // 2))
 
-    # Gold lock plate with a smiley emblem instead of a keyhole.
+    # Gold lock plate with an F4-style gold 5-point star on its face.
+    # Smiley dropped — at 1x it read as a UI sticker rather than a chest.
     lock_w = int(body.width * 0.28)
     lock_h = int(body.height * 0.50)
     lock_cx = body.centerx
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.04)
     _gold_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink, keyhole=False)
-    # Two eye dots + a curved smile.
-    eye_r = max(2, int(lock_h * 0.10))
-    ey = lock_cy - lock_h // 8
-    pygame.draw.circle(big, INK,
-                       (lock_cx - lock_w // 5, ey), eye_r)
-    pygame.draw.circle(big, INK,
-                       (lock_cx + lock_w // 5, ey), eye_r)
-    # Smile — short arc with a slightly thicker stroke.
-    smile_rect = pygame.Rect(0, 0, int(lock_w * 0.55), int(lock_h * 0.45))
-    smile_rect.center = (lock_cx, lock_cy + int(lock_h * 0.10))
-    pygame.draw.arc(big, INK, smile_rect,
-                    math.radians(200), math.radians(340),
-                    max(2, ink))
+    # 5-point star on the lock plate face (matches F4's star).
+    star_r = max(3, int(lock_h * 0.32))
+    star_pts = []
+    for k in range(10):
+        ang = -math.pi / 2 + k * math.pi / 5
+        rr = star_r if k % 2 == 0 else star_r // 2
+        star_pts.append((lock_cx + math.cos(ang) * rr,
+                         lock_cy + math.sin(ang) * rr))
+    pygame.draw.polygon(big, GOLD_INK, star_pts)
 
     # Smaller pastel-pink + gold bow crowning the lid (no royal crown).
     bow_w = int(lid.width * 0.62)
@@ -883,15 +901,19 @@ def icon_f5():
                   bow_cy + int(bow_h * 0.05),
                   max(2, int(SS * 0.8)), SPARKLE, max(1, ink // 2))
 
+    # Family unifiers — lid rim light + 4-corner sparkle ring.
+    _lid_rim_light(big, lid, lid_apex_y, ink)
+    _unified_sparkle_ring(big, body, lid, ink)
+
     return _finish(big)
 
 
 CANDIDATES = [
-    ("F1", "Gift ribbon + bow",      icon_f1),
-    ("F2", "Confetti chest",         icon_f2),
-    ("F3", "Party hat + streamers",  icon_f3),
-    ("F4", "Rainbow jewels",         icon_f4),
-    ("F5", "Carnival pop-art",       icon_f5),
+    ("F1", "Gift ribbon + bow (lead)", icon_f1),
+    ("F2", "Confetti — tamed",         icon_f2),
+    ("F3", "Party hat + tinsel",       icon_f3),
+    ("F4", "Rainbow jewels — coral",   icon_f4),
+    ("F5", "Carnival — reworked",      icon_f5),
 ]
 
 
@@ -918,19 +940,18 @@ def main():
         return pygame.font.SysFont("Arial", sz, bold=bold)
 
     title = font(26, bold=True).render(
-        "TREASURE BOX festive variants — round 1 "
+        "TREASURE BOX festive variants — round 2 "
         "(B5 lead made more cheerful)", True,
         (240, 240, 246))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "Each cell: dawn/sunrise sky + sparkle backdrop. "
-        "Left = real pickup (~56x46 px); right = 3x zoom.",
+        "round 2 — lead F1; F2 confetti tamed; F5 reworked",
         True, (170, 178, 192))
     sheet.blit(sub, (pad, pad + 32))
     sub2 = font(13).render(
-        "5 festive directions evolving from B5: "
-        "gift bow / confetti / party hat / rainbow jewels / "
-        "carnival pop-art.",
+        "Each cell: dawn sky + sparkle backdrop. "
+        "Left = real pickup (~56x46 px); right = 3x zoom. "
+        "All 5 share lid-rim gold + 4-corner cream sparkles.",
         True, (200, 180, 150))
     sheet.blit(sub2, (pad, pad + 54))
 
