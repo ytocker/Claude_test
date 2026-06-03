@@ -1,4 +1,4 @@
-"""Treasure Box — grandiose + wooden, round 3.
+"""Treasure Box — grandiose + wooden, round 3 (per-cell distinctness polish).
 
 Round 2's "festive" sheet (gift bow / confetti / party hat / rainbow /
 carnival) read as party rather than treasure — the user asked for
@@ -20,11 +20,16 @@ Each cell keeps the round-1/-2 idioms: real pickup ~56x46 px on the LEFT,
 baked idle bob, the unified 1-px warm-gold lid-rim light + 4 cream corner
 sparkles (round-2 unifiers).
 
+Round-3 polish keeps the 5+5 user-requested split intact; each cell now
+carries a small per-cell visibility tweak (lid shadow, jewel swap, nail
+heads, star crest, nameplate, etc.) so the 10 thumbnails no longer pair
+up at pickup scale.
+
 Chest geometry + palette neutrals + the dawn swatch all import from the
 sibling round-2 tool so this sheet looks like it belongs to the same
 exploration family.
 
-Output: docs/treasure_box/grandiose_round_1.png   (doc-only; not shipped)
+Output: docs/treasure_box/grandiose_round_2.png   (doc-only; not shipped)
 """
 from __future__ import annotations
 
@@ -69,9 +74,17 @@ from render_treasure_box_options import (         # type: ignore
 SAPPHIRE_HI  = ( 42,  82, 168)
 SAPPHIRE_MID = ( 28,  58, 130)
 SAPPHIRE_LO  = ( 14,  31,  74)
+# 1-step-darker band tucked under G1's gold lid-rim light so the lid pops
+# as a separate volume from the body at thumbnail scale.
+SAPPHIRE_SHADOW = ( 18,  44, 100)
 DIAMOND_HI   = (250, 252, 255)
 DIAMOND_MID  = (210, 224, 244)
 DIAMOND_BLU  = (138, 178, 232)
+# Pale-blue sapphire cabochon — sits on G2's silver lock plate in place of
+# the red ruby, so the chest never collides with the poison-vial pickup.
+LIGHT_SAPPHIRE_HI  = (190, 220, 248)
+LIGHT_SAPPHIRE_MID = (155, 196, 240)
+LIGHT_SAPPHIRE_LO  = ( 90, 147, 204)
 
 # G2 — Emerald & silver (forest-king treasury).
 EMERALD_HI   = ( 40, 147,  76)
@@ -86,9 +99,12 @@ RUBY_MID     = (200,  52,  72)
 RUBY_LO      = (132,  22,  40)
 
 # G3 — Obsidian & rose-gold (refined modern heirloom).
-OBSIDIAN_HI  = ( 42,  42,  62)
-OBSIDIAN_MID = ( 26,  26,  42)
-OBSIDIAN_LO  = (  8,   8,  15)
+# Mid + HI lifted another ~10 R/G/B in round 3 (on top of the round-2
+# lift) so the near-black body stops sinking into the dawn sky's lower
+# band at thumbnail scale.
+OBSIDIAN_HI  = ( 62,  62,  84)
+OBSIDIAN_MID = ( 46,  46,  64)
+OBSIDIAN_LO  = ( 14,  14,  22)
 ROSEGOLD_HI  = (250, 196, 176)
 ROSEGOLD_MID = (216, 138, 118)
 ROSEGOLD_LO  = (148,  78,  60)
@@ -107,9 +123,13 @@ TOPAZ_MID    = (236, 166,  56)
 TOPAZ_LO     = (164,  98,  16)
 
 # G5 — Midnight starfield (astronomer's hoard).
-MIDNIGHT_HI  = ( 25,  42,  82)
-MIDNIGHT_MID = ( 12,  26,  58)
-MIDNIGHT_LO  = (  4,   8,  26)
+# Pushed one step cooler / bluer than G1's sapphire so the two deep-blue
+# chests don't share a silhouette at pickup scale — G5 is the saturated
+# cyan-blue (low R, low G, strong B), G1 the warmer royal-blue.
+# Hex target: #162852 / #0a1840 / #020618 (mapped HI / MID / LO).
+MIDNIGHT_HI  = ( 22,  40,  82)
+MIDNIGHT_MID = ( 10,  24,  64)
+MIDNIGHT_LO  = (  2,   6,  24)
 STAR_CREAM   = (244, 240, 218)
 MOON_HI      = (250, 248, 224)
 MOON_LO      = (188, 192, 210)
@@ -135,10 +155,14 @@ DRIFT_HI     = (138, 148, 158)
 DRIFT_MID    = (106, 114, 128)
 DRIFT_LO     = ( 62,  70,  78)
 DRIFT_GRAIN  = ( 44,  50,  58)
-BRASS_HI     = (224, 188, 110)
-BRASS_MID    = (180, 138,  68)
-BRASS_LO     = (112,  82,  32)
-BRASS_INK    = ( 70,  46,  10)
+# Warmer / more golden brass so W3 reads as patinated metal at pickup
+# scale, not as cool steel-grey colliding with knight-armour palettes.
+# Hex target: HI ~ honey highlight, MID #caa454, then a darker shadow —
+# saturated honey-gold, not the cooler ochre we shipped in round 2.
+BRASS_HI     = (236, 204, 132)
+BRASS_MID    = (202, 164,  84)
+BRASS_LO     = (140, 108,  44)
+BRASS_INK    = ( 90,  62,  18)
 PATINA       = (110, 158, 122)
 COPPER_HI    = (232, 138,  92)
 COPPER_MID   = (184,  90,  48)
@@ -309,6 +333,29 @@ def _crescent_moon(big, cx, cy, r, ink_w):
     big.blit(moon, moon.get_rect(center=(cx, cy)))
 
 
+def _lid_rim_shadow(big, lid, shadow_col, ss):
+    """A 1-px darker band riding the lid arc, drawn just before the
+    unifier's warm-gold rim. The result reads as a thin "shadow line" right
+    underneath the rim light, separating the lid as its own volume from
+    the body — same arc as the unifier so the two stay parallel."""
+    arc_h = int(lid.height * 0.65)
+    cx = lid.centerx
+    half_w = lid.width // 2
+    pts = []
+    n = 24
+    # Inset a little further than the unifier so the shadow line sits
+    # one pixel INSIDE the rim light, not on top of it.
+    inset = max(2, ss // 3) + max(1, ss // 3)
+    for i in range(n + 1):
+        t = i / n
+        ang = math.pi * (1 - t)
+        ax = cx + math.cos(ang) * (half_w - inset)
+        ay = lid.top - math.sin(ang) * (arc_h - inset)
+        pts.append((ax, ay))
+    if len(pts) >= 2:
+        pygame.draw.lines(big, shadow_col, False, pts, max(1, ss // 3))
+
+
 def _hairline_engraving(big, lid_pts, lid_top_y, lid_rect, col, ink_w):
     """A faint 1-px engraving line riding just inside the lid seam — adds
     "engraved" texture without breaking silhouette. Drawn as a polyline a
@@ -400,6 +447,9 @@ def icon_g1():
     _gem_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink,
               GOLD_HI, GOLD_LO, GOLD_INK, jewel_fn=_diamond)
 
+    # Darker sapphire shadow band tucked under the lid-rim light — the lid
+    # then reads as a separate volume sitting on top of the body.
+    _lid_rim_shadow(big, lid, SAPPHIRE_SHADOW, SS)
     _apply_unifiers(big, body, lid)
     return _finish(big)
 
@@ -443,12 +493,15 @@ def icon_g2():
     lock_cx = body.centerx
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.06)
 
-    def _ruby(b, jx, jy):
+    def _pale_sapphire(b, jx, jy):
+        # Pale-blue sapphire cabochon — replaces the original ruby because
+        # red-on-emerald collided with the poison-vial pickup silhouette.
         _round_cabochon(b, jx, jy, max(3, int(lock_h * 0.28)),
-                        RUBY_HI, RUBY_MID, RUBY_LO, ink)
+                        LIGHT_SAPPHIRE_HI, LIGHT_SAPPHIRE_MID,
+                        LIGHT_SAPPHIRE_LO, ink)
 
     _gem_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink,
-              SILVER_HI, SILVER_LO, SILVER_INK, jewel_fn=_ruby)
+              SILVER_HI, SILVER_LO, SILVER_INK, jewel_fn=_pale_sapphire)
 
     _apply_unifiers(big, body, lid)
     return _finish(big)
@@ -485,30 +538,21 @@ def icon_g3():
     lock_cx = body.centerx
     lock_cy = body.top + lock_h // 2 - int(body.height * 0.06)
 
-    def _amethyst(b, jx, jy):
-        # Narrow vertical kite — reads as a faceted purple sliver.
-        w = max(3, int(lock_w * 0.30))
-        h = max(4, int(lock_h * 0.62))
-        pts = [(jx, jy - h // 2),
-               (jx + w // 2, jy),
-               (jx, jy + h // 2),
-               (jx - w // 2, jy)]
-        pygame.draw.polygon(b, AMETHYST_MID, pts)
-        pygame.draw.polygon(b, AMETHYST_HI,
-                            [(jx, jy - h // 2),
-                             (jx + w // 3, jy - h // 8),
-                             (jx - w // 3, jy - h // 8)])
-        pygame.draw.polygon(b, AMETHYST_LO,
-                            [(jx - w // 2, jy),
-                             (jx, jy + h // 2),
-                             (jx + w // 2, jy)])
-        pygame.draw.polygon(b, INK, pts, max(1, ink // 2))
-        pygame.draw.circle(b, (255, 255, 255),
-                           (jx - w // 5, jy - h // 4),
-                           max(1, ink // 2))
+    def _rosegold_boss(b, jx, jy):
+        # A small round rose-gold boss (no jewel) — the amethyst sliver it
+        # replaced read as a colour speck that competed with the rim light.
+        # SS=7, so a ~4 source-px disc lands at r = 2*SS = 14 big-space.
+        r = max(3, SS * 2)
+        pygame.draw.circle(b, ROSEGOLD_LO, (jx, jy + max(1, r // 4)), r)
+        pygame.draw.circle(b, ROSEGOLD_MID, (jx, jy), r)
+        pygame.draw.circle(b, ROSEGOLD_HI,
+                           (jx - r // 3, jy - r // 3),
+                           max(2, r * 2 // 3))
+        pygame.draw.circle(b, ROSEGOLD_INK, (jx, jy), r, max(1, ink // 2))
 
     _gem_lock(big, lock_cx, lock_cy, lock_w, lock_h, ink,
-              ROSEGOLD_HI, ROSEGOLD_LO, ROSEGOLD_INK, jewel_fn=_amethyst)
+              ROSEGOLD_HI, ROSEGOLD_LO, ROSEGOLD_INK,
+              jewel_fn=_rosegold_boss)
 
     _apply_unifiers(big, body, lid)
     return _finish(big)
@@ -529,6 +573,27 @@ def icon_g4():
                          grain=False, sheen=True)
     # A second short vein sweep on the lid for continuity.
     _marble_veining(big, lid, MARBLE_VEIN, ink, seed=9)
+
+    # An additional FAINTER, shorter vein on the lid only — slightly
+    # different angle from the seed=9 pass so the marble stops reading
+    # as a single decorative sticker glued to the body.
+    faint_vein_col = (
+        (MARBLE_VEIN[0] + MARBLE_HI[0]) // 2,
+        (MARBLE_VEIN[1] + MARBLE_HI[1]) // 2,
+        (MARBLE_VEIN[2] + MARBLE_HI[2]) // 2,
+    )
+    fv_len = int(lid.width * 0.28)
+    fv_x0 = lid.left + int(lid.width * 0.18)
+    fv_y0 = lid.top + int(lid.height * 0.55)
+    fv_ang = -math.pi * 0.18                # a softer diagonal
+    fv_pts = []
+    for i in range(5):
+        t = i / 4
+        jx = fv_x0 + math.cos(fv_ang) * fv_len * t
+        jy = fv_y0 + math.sin(fv_ang) * fv_len * t
+        fv_pts.append((jx, jy))
+    pygame.draw.lines(big, faint_vein_col, False, fv_pts,
+                      max(1, ink // 3))
 
     # Gold-leaf trim — thicker L-brackets than the other grandiose entries
     # so it reads as "museum-piece" rather than "minimal modern".
@@ -644,14 +709,18 @@ def _wooden_chest(big, ink,
                   lock_hi, lock_mid, lock_lo, lock_ink,
                   *,
                   lock_decoration=None,
+                  body_decoration=None,
                   strap_col_mid=None,
                   strap_col_ink=None):
     """Shared wooden-chest draw routine — keeps the W1..W5 silhouettes
     identical so the round reads as a metallurgy ladder, not five different
     chests. lock_decoration is an optional callable taking (big, cx, cy,
     w, h, ink_w) drawn after the lock plate (e.g. crest shield, larger
-    keyhole). strap_col_* default to the band colour so the lid strap
-    matches the bands."""
+    keyhole). body_decoration is an optional callable taking (big, body,
+    lid, ink_w) drawn after the lock + clasp but BEFORE the unifiers — it
+    is round 3's hook for the per-cell distinctness touches (W1 nails,
+    W2 glint, W5 nameplate). strap_col_* default to the band colour so
+    the lid strap matches the bands."""
     body, lid = _common_layout()
 
     _chest_body(big, body, ink, wood_hi, wood_mid, wood_lo)
@@ -839,19 +908,19 @@ def icon_w5():
 # Sheet assembly — 5 cols x 2 rows; grandiose on top, wooden on bottom.
 # ---------------------------------------------------------------------------
 GRANDIOSE = [
-    ("G1", "Sapphire & gold",     icon_g1),
-    ("G2", "Emerald & silver",    icon_g2),
-    ("G3", "Obsidian & rose-gold", icon_g3),
-    ("G4", "White marble & gold", icon_g4),
-    ("G5", "Midnight starfield",  icon_g5),
+    ("G1", "Sapphire & gold (lead)",   icon_g1),
+    ("G2", "Emerald + sapphire",       icon_g2),
+    ("G3", "Obsidian & rose-gold",     icon_g3),
+    ("G4", "White marble & gold",      icon_g4),
+    ("G5", "Midnight starfield",       icon_g5),
 ]
 
 WOODEN = [
-    ("W1", "Classic mahogany",         icon_w1),
+    ("W1", "Mahogany + iron nails",    icon_w1),
     ("W2", "Ebony + gold bands",       icon_w2),
     ("W3", "Driftwood + brass + copper", icon_w3),
-    ("W4", "Walnut + brass crest",     icon_w4),
-    ("W5", "Honey oak + iron",         icon_w5),
+    ("W4", "Walnut + brass star",      icon_w4),
+    ("W5", "Honey oak + nameplate",    icon_w5),
 ]
 
 
@@ -859,7 +928,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "treasure_box")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "grandiose_round_1.png")
+    out_path = os.path.join(out_dir, "grandiose_round_2.png")
 
     # Baked float-bob shift, same convention as the round-2 sheet.
     bob = int(round(math.sin(BOB_PULSE * 0.8) * 2))
@@ -880,12 +949,11 @@ def main():
         return pygame.font.SysFont("Arial", sz, bold=bold)
 
     title = font(26, bold=True).render(
-        "TREASURE BOX  grandiose + wooden  -  round 3 (10 directions)",
+        "TREASURE BOX  grandiose + wooden  -  round 2 (10 directions)",
         True, (240, 240, 246))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "Top row = grandiose jewel-tone palettes.  "
-        "Bottom row = wooden variants of B1.",
+        "round 2 - per-cell visibility + distinctness polish",
         True, (170, 178, 192))
     sheet.blit(sub, (pad, pad + 32))
     sub2 = font(13).render(
