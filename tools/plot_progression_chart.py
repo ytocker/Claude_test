@@ -43,6 +43,22 @@ UMBRELLA_RAIN_TH = config.UMBRELLA_SPAWN_RAIN
 # obviously the umbrella's window (and not just "another weather thing").
 UMBRELLA_BAND = "#54B9C4"
 
+# Lightning fires in-game from this inline gate in Weather.update
+# (weather.py ~558):  storming = 0.49 <= phase <= 0.58
+# This is NOT the same as the older weather.lightning_active() helper
+# (0.55..0.72) which the legacy plotters used — that helper isn't called
+# from any live gameplay code; the real in-game window overlaps the rain
+# peak at 0.50, so lightning happens DURING the rain, not after.
+LIGHTNING_PHASE_MIN = 0.49
+LIGHTNING_PHASE_MAX = 0.58
+
+
+def _lightning_active_real(phase: float) -> bool:
+    """The window that actually drives in-game flashes / thunder audio
+    (Weather.update inline check). Use this for the chart instead of
+    weather.lightning_active() so the timeline matches reality."""
+    return LIGHTNING_PHASE_MIN <= phase <= LIGHTNING_PHASE_MAX
+
 PHASE_LABELS = [
     (0.00000, "DAY"),
     (0.23125, "GOLDEN\nHOUR"),
@@ -58,13 +74,11 @@ def _hex(rgb):
     return "#%02x%02x%02x" % tuple(int(c) for c in rgb[:3])
 
 
-def _mist_intensity(phase: float) -> float:
-    """Mirrors the reference plotter — deferred cosmetic mist."""
-    return weather._bump(phase, 0.05, 0.05)
-
-
+# Only curves that are actually consumed by live gameplay code. The
+# `_mist_intensity` sketch from the reference plotter is dropped here
+# because no in-game system reads it — the chart is meant to mirror
+# what really happens in a run.
 CURVES = [
-    ("Dawn mist (cosmetic, planned)", _mist_intensity, "#9aa7b3"),
     ("Morning thermal (geysers)",     weather.thermal_intensity, "#e0663a"),
     ("Calm breeze (leaves)",          weather.calm_breeze,       "#d68a2e"),
     ("Rain",                          weather.rain_intensity,    "#2f6fb0"),
@@ -152,26 +166,29 @@ def main() -> None:
         fontsize=12, pad=8)
 
     # ── bottom panel: weather curves vs pillars ─────────────────────────
-    # Lightning windows (yellow shading).
+    # Lightning windows (yellow shading) — uses the REAL in-game gate
+    # (0.49..0.58) from Weather.update, not the stale lightning_active()
+    # helper. This overlaps the rain peak at 0.50, so the band correctly
+    # falls on top of the rain crest.
     in_window = False
     win_start = None
     legend_lightning = False
     for i, p in enumerate(phases):
-        active = weather.lightning_active(p)
+        active = _lightning_active_real(p)
         if active and not in_window:
             win_start = pillars[i]
             in_window = True
         elif not active and in_window:
             ax.axvspan(win_start, pillars[i], color="#f2d94e", alpha=0.30,
                        linewidth=0,
-                       label=("Lightning / thunder window"
+                       label=("Lightning / thunder window (in-game gate)"
                               if not legend_lightning else None))
             legend_lightning = True
             in_window = False
     if in_window:
         ax.axvspan(win_start, pillars[-1], color="#f2d94e", alpha=0.30,
                    linewidth=0,
-                   label=("Lightning / thunder window"
+                   label=("Lightning / thunder window (in-game gate)"
                           if not legend_lightning else None))
 
     # UMBRELLA spawn band — every pillar range where rain ≥ threshold is
