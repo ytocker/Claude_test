@@ -192,16 +192,16 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R5]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R6]
 
 ROW_NOTES = {
     "Flagstone Courtyard (BASELINE ~50px)": "HEIGHT BASELINE - the round-4 lead, ~50px (top_y=gy-50). Shorter rows below.",
-    "Cut-Stone Temple Flags": "~40px - FEWER, LARGER dressed slabs, clean tight joints, rare mossy flag",
-    "Crazy-Paving Fieldstone": "~40px - irregular polygonal stones, mossy joints, rustic (NOT a grid)",
-    "Cobblestone Setts": "~40px - small rounded setts in offset courses, paved-path read",
-    "Desert Dune Sand": "~38px - pale gold, fine wind-grain, DEAD-STRAIGHT ripple dashes, few pebbles",
-    "Wet-Shore Sand": "~38px - packed tan, darker DAMP tide band near front, shells + low sheen",
-    "Riverbank Sandbar": "~38px - coarse grain, flat river stones, sparse DRY grass tufts at back",
+    "Cut-Stone Temple Flags": "STONE LEAD ~40px - per-slab VALUE variation breaks the repeat, subtle joints under lane",
+    "Crazy-Paving Fieldstone": "~40px - irregular polygons, joint-shadow now SURVIVES night (no Cut-Stone collapse)",
+    "River-Cobble Paving": "~40px - LARGER irregular ROUNDED river cobbles in WIDE dark grout (NOT dressed slabs)",
+    "Desert Dune Sand": "SAND LEAD ~38px - night value-fall + faint scroll-locked grain speckle, dead-straight ripples",
+    "Wet-Shore Sand": "~38px - damp now SHORT jittered low-contrast smears (bright seam KILLED), shells",
+    "Riverbank Sandbar": "~38px - 2-3 SILHOUETTED dry-grass tufts at rear (no flecks), flat river stones",
 }
 
 
@@ -221,7 +221,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 5 - SHORTER flagstone (3) + SAND (3) vs ~50px baseline - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 6 - POLISH 2 LEADS: Cut-Stone (stone) + Desert Dune (sand); full 3-stone/3-sand - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -293,7 +293,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_5.png"
+    path = out / "round_6.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 

@@ -151,6 +151,27 @@ def _apply_grain(surf, x0, y0, w, hh, amp):
         surf.blit(strip_n, (x0, y0 + y), special_flags=pygame.BLEND_RGB_SUB)
 
 
+def _apply_grain_scroll(surf, x0, y0, w, hh, amp, scroll, speed=0.22):
+    """Scroll-LOCKED grain: the dither tile is phase-shifted by the world scroll
+    so the speckle rides the surface as it moves instead of crawling in screen
+    space (the screen-space _apply_grain shimmers under motion). The 4px tile
+    wraps on its own period, so a sub-tile phase offset is all that's needed to
+    anchor the grain to world-x; sand uses this so the tooth tracks the dunes."""
+    if amp <= 0 or hh <= 0:
+        return
+    pos, neg = _grain_tiles(amp)
+    # Build a w+4 strip so a 0..3px horizontal phase can slide without a gap.
+    strip_p = pygame.Surface((w + 4, 4))
+    strip_n = pygame.Surface((w + 4, 4))
+    for x in range(0, w + 4, 4):
+        strip_p.blit(pos, (x, 0))
+        strip_n.blit(neg, (x, 0))
+    ox = -int(scroll * speed) % 4
+    for y in range(0, hh, 4):
+        surf.blit(strip_p, (x0 - ox, y0 + y), special_flags=pygame.BLEND_RGB_ADD)
+        surf.blit(strip_n, (x0 - ox, y0 + y), special_flags=pygame.BLEND_RGB_SUB)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Concept 1 — Flagstone Courtyard / Paved Pilgrim Path  (~56px, temple-stone)
 # A flat foreshortened stone-slab pavement in receding courses. Mortar joints
@@ -820,18 +841,34 @@ def fg_cut_stone_flags(surf, w, gy, h, scroll, pal):
             pygame.draw.line(surf, jc, (jx, y_back), (jx, y_front), 1)
             if depth_t > 0.4:
                 pygame.draw.line(surf, _shade(jc, 16), (jx + 1, y_back), (jx + 1, y_front), 1)
-            # Rare worn/mossy slab — a soft darker wash + a few moss flecks along
-            # the slab's back joint. ~1 in 6 so most flags stay clean/formal.
-            if depth_t > 0.4 and srng.random() < 0.16:
-                ww = step - 6
+            # Per-slab VALUE variation so the paving never reads as a perfect
+            # repeat as it scrolls: most slabs sit at the base tone, but ~1 in 3
+            # carry a gentle lighter- or darker-faced wash (value only, no hue
+            # shift). The lift/drop is held low so it tells the slabs apart
+            # without lighting a bright patch under the bird lane.
+            roll = srng.random()
+            ww = step - 6
+            if roll < 0.34 and ww > 4:
+                dv = srng.choice((-13, -9, 9, 13))
                 wp = pygame.Surface((ww, max(3, (y_front - y_back) - 2)),
                                     pygame.SRCALPHA)
-                wp.fill((*_shade(back, -12), 46))
-                surf.blit(wp, (jx + 3, y_back + 2))
-                if night < 0.65:
-                    for mfx in range(jx + 4, jx + ww, 5):
-                        if srng.random() < 0.5:
-                            surf.set_at((min(w - 1, mfx), y_back + 2), moss)
+                # Brighten with ADD, darken with a low-alpha dark wash, so both
+                # stay value-only against whatever the night cool-mix made the base.
+                if dv > 0:
+                    wp.fill((dv, dv, dv))
+                    surf.blit(wp, (jx + 3, y_back + 2),
+                              special_flags=pygame.BLEND_RGB_ADD)
+                else:
+                    wp.fill((-dv, -dv, -dv))
+                    surf.blit(wp, (jx + 3, y_back + 2),
+                              special_flags=pygame.BLEND_RGB_SUB)
+            # Rare worn/mossy slab on top of the value variation — a few moss
+            # flecks along the back joint, daytime only. ~1 in 7 so it stays a
+            # quiet accent, not a feature.
+            if depth_t > 0.4 and roll > 0.86 and night < 0.65:
+                for mfx in range(jx + 4, jx + ww, 5):
+                    if srng.random() < 0.5:
+                        surf.set_at((min(w - 1, mfx), y_back + 2), moss)
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 4)
 
@@ -872,10 +909,12 @@ def fg_crazy_paving(surf, w, gy, h, scroll, pal):
         depth_t = f0
         course_h = y_front - y_back
         # Faint mossy mortar band under this course (so joints read greenish near
-        # the front, neutral toward the back).
+        # the front, neutral toward the back). The alpha gains a night floor so
+        # the joint-shadow survives after dark instead of letting the polygons
+        # collapse toward the flat Cut-Stone read once the base cools.
         mortar = _mix(joint, moss, 0.30 * (1 - depth_t) + 0.10)
         mb = pygame.Surface((w, course_h), pygame.SRCALPHA)
-        mb.fill((*mortar, int(60 + 50 * depth_t)))
+        mb.fill((*mortar, int(60 + 50 * depth_t + 40 * night)))
         surf.blit(mb, (0, y_back))
         # Irregular stones: walk world cells, each a jittered convex polygon that
         # fills most of its cell leaving a thin mortar gap. Stone widths/shapes
@@ -908,23 +947,32 @@ def fg_crazy_paving(surf, w, gy, h, scroll, pal):
                 lit = [p for p in pts if p[1] <= (inset_t + inset_b) // 2]
                 if len(lit) >= 2:
                     pygame.draw.lines(surf, _shade(face, 18), False, lit, 1)
-            # A 1px darker contact at the stone foot.
-            pygame.draw.line(surf, _shade(face, -18),
+            # A darker contact at the stone foot AND a short dark riser up each
+            # side, so the polygon keeps a visible recessed joint into the night
+            # (a single foot line alone vanished once the base cooled).
+            contact = _shade(face, -20 - int(10 * night))
+            pygame.draw.line(surf, contact,
                              (cx - half + 1, inset_b - 1),
                              (cx + half - 1, inset_b - 1), 1)
+            side_h = max(1, (inset_b - inset_t) // 3)
+            pygame.draw.line(surf, contact, (cx - half + 1, inset_b - 1),
+                             (cx - half + 1, inset_b - 1 - side_h), 1)
+            pygame.draw.line(surf, contact, (cx + half - 1, inset_b - 1),
+                             (cx + half - 1, inset_b - 1 - side_h), 1)
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 4)
 
 
-# ── Stone 3 — Cobblestone Setts (~40px) ─────────────────────────────────────
-# Small rounded/squared setts in receding courses — the most "paved road/path"
-# read. Each sett is a little rounded hump with a lit cap and a shadow gap, laid
-# in offset courses (informed by _draw_cobble_curb).
+# ── Stone 3 — River-Cobble Paving (~40px) ───────────────────────────────────
+# Distinctly NOT the dressed Cut-Stone slab: LARGER irregular ROUNDED river
+# cobbles, each a domed ellipse with its own size + tone, bedded in WIDE dark
+# mortar joints. Fewer-but-bigger rounded humps in offset courses reads as a
+# rough cobbled lane, the opposite of the flat dressed flag.
 
 def fg_cobblestone_setts(surf, w, gy, h, scroll, pal):
     night = _nightf(pal)
     top_y = gy - 40
-    stone = _mix(_sandstone(pal), (150, 132, 110), 0.28)   # a touch greyer/cooler
+    stone = _mix(_sandstone(pal), (150, 132, 110), 0.30)   # a touch greyer/cooler
     front = _shade(_sat(stone, 1.02), 3)
     back = _mix(_shade(_sat(stone, 0.86), -30), _horizon(pal), 0.16)
     front = _mix(front, (70, 80, 110), 0.30 * night)
@@ -932,12 +980,16 @@ def fg_cobblestone_setts(surf, w, gy, h, scroll, pal):
     region_h, mist_back = _grounded_base(surf, w, gy, h, top_y, pal, front, back,
                                          ease=0.82, recede=0.30)
 
-    gapc = _shade(_sat(stone, 0.8), -34 - int(8 * night))   # dark joint between setts
+    # WIDE dark mortar — the cobbles sit in deep grout, the defining contrast
+    # that separates this from the tight-jointed dressed flags. Lay the whole
+    # plane's bedding a notch darker so every cobble reads as a rounded hump
+    # lifted out of recessed grout.
+    grout = _shade(_sat(stone, 0.74), -38 - int(8 * night))
 
-    # Many short courses of small setts; courses pack tighter toward the back.
-    # Each sett is a rounded-rect hump with a lit upper cap and a 1px shadow on
-    # its lower-right, offset half a sett per course for the classic bond.
-    n_course = 7
+    # Fewer, larger rounded cobbles in offset courses. Each cobble is a domed
+    # ellipse (NOT a radius-rect) with per-cobble width/height/tone jitter, set
+    # with a clear gap to its neighbours so the wide grout always shows.
+    n_course = 5
     for c in range(n_course):
         f0 = c / n_course
         f1 = (c + 1) / n_course
@@ -946,27 +998,39 @@ def fg_cobblestone_setts(surf, w, gy, h, scroll, pal):
         if y_front <= y_back:
             continue
         depth_t = f0
-        ch = max(3, y_front - y_back)
-        sw = int(9 + 9 * depth_t)               # sett width grows toward player
-        bond = (c % 2) * (sw // 2)
+        ch = max(4, y_front - y_back)
+        # Big cobbles: cell step grows strongly toward the player so near cobbles
+        # are chunky rounded stones, not little setts.
+        step = int(16 + 18 * depth_t)
+        bond = (c % 2) * (step // 2)
         speed = 0.20 + 0.10 * depth_t
-        for sx, k, srng in _scatter(scroll, w, speed, sw, 0x3D9 + c):
-            jx = sx + bond + srng.randint(-1, 1)
-            cap = _shade(_mix(stone, front, 0.5 * depth_t), srng.randint(-10, 14))
+        # A bedding grout band so the gaps between rounded cobbles read deep.
+        gb = pygame.Surface((w, ch), pygame.SRCALPHA)
+        gb.fill((*grout, int(120 + 50 * depth_t + 30 * night)))
+        surf.blit(gb, (0, y_back))
+        for sx, k, srng in _scatter(scroll, w, speed, step, 0x3D9 + c):
+            jx = sx + bond
+            # Per-cobble size jitter — clearly irregular rounded stones, with a
+            # gap kept to the cell edge so the wide grout shows between them.
+            cw = step - srng.randint(5, 9)
+            chh = max(3, ch - srng.randint(1, 3))
+            cap = _shade(_mix(stone, front, 0.5 * depth_t), srng.randint(-12, 16))
             cap = _mix(cap, (66, 76, 106), 0.30 * night)
-            sh = max(2, ch - 2)
-            rect = pygame.Rect(jx, y_back + 1, max(3, sw - 2), sh)
-            # Dark joint surround first, then the rounded sett over it.
-            pygame.draw.rect(surf, gapc, rect.inflate(2, 1))
-            br = min(3, sh // 2)
-            pygame.draw.rect(surf, cap, rect, border_radius=br)
-            # Lit cap on top edge + a shadow on the lower-right for roundness.
-            if night < 0.72:
-                pygame.draw.line(surf, _shade(cap, 22),
-                                 (jx + 1, y_back + 1), (jx + max(3, sw - 4), y_back + 1), 1)
-            pygame.draw.line(surf, _shade(cap, -20),
-                             (jx + max(3, sw - 3), y_back + 2),
-                             (jx + max(3, sw - 3), y_back + sh - 1), 1)
+            ex = jx + (step - cw) // 2
+            ey = y_back + (ch - chh) // 2
+            # Dark contact ellipse under the cobble for bedded roundness.
+            pygame.draw.ellipse(surf, _shade(cap, -26 - int(8 * night)),
+                                (ex, ey + 1, cw, chh))
+            pygame.draw.ellipse(surf, cap, (ex, ey, cw, chh))
+            # Lit dome cap (upper-left arc) so each cobble reads as a 3D hump.
+            if night < 0.74 and cw >= 4:
+                pygame.draw.arc(surf, _shade(cap, 24),
+                                (ex, ey, cw, chh),
+                                math.radians(50), math.radians(165), 2)
+            # A darker lower-right shoulder.
+            pygame.draw.arc(surf, _shade(cap, -22),
+                            (ex, ey, cw, chh),
+                            math.radians(250), math.radians(350), 1)
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 3)
 
@@ -979,12 +1043,17 @@ def fg_desert_dune(surf, w, gy, h, scroll, pal):
     night = _nightf(pal)
     top_y = gy - 38
     sand = _sand(pal)
-    front = _shade(_sat(sand, 1.02), 4)
-    back = _mix(_shade(_sat(sand, 0.9), -22), _horizon(pal), 0.18)
-    front = _mix(front, (68, 78, 108), 0.30 * night)
-    back = _mix(back, (58, 68, 100), 0.34 * night)
+    # Hold a clear front->back value-fall even at night: the front lip keeps a
+    # touch of warm lift while the back deepens, so dusk/night don't flatten to a
+    # dead fill. The night cool-mix is applied AFTER the front/back spread so the
+    # spread survives instead of collapsing the two tones together.
+    front = _shade(_sat(sand, 1.02), 6)
+    back = _shade(_sat(sand, 0.88), -26)
+    back = _mix(back, _horizon(pal), 0.18)
+    front = _mix(front, (74, 84, 116), 0.26 * night)
+    back = _mix(back, (52, 62, 96), 0.40 * night)
     region_h, mist_back = _grounded_base(surf, w, gy, h, top_y, pal, front, back,
-                                         ease=0.88, recede=0.30)
+                                         ease=0.92, recede=0.30)
 
     # Wind ripples: DEAD-STRAIGHT horizontal striation pairs (a faint shadow line
     # + a faint lit line just above it) marching down the plane, packed tighter
@@ -1024,8 +1093,23 @@ def fg_desert_dune(surf, w, gy, h, scroll, pal):
         if night < 0.65:
             surf.set_at((sx, py - pr // 2), _shade(pc, 22))
 
-    # Slightly heavier grain than stone for the fine sand tooth.
-    _apply_grain(surf, 0, top_y, w, h - top_y, 6)
+    # Explicit grain speckle that survives dusk/night: a sparse scatter of single
+    # pixels a few % BRIGHTER than the local base, biased to the lower third so
+    # the near sand keeps a visible tooth after dark (the ordered-dither grain
+    # below shrinks to near-nothing once the plane darkens). Scroll-locked via
+    # _scatter so the speckle rides the dunes instead of crawling in screen space.
+    spk = _mix(front, (255, 244, 214), 0.22)
+    spk = _mix(spk, (120, 132, 160), 0.5 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.24, 5, 0x5C9):
+        py = top_y + int(srng.uniform(0.34, 1.0) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.16 + 0.30 * depth_t:
+            continue
+        surf.set_at((sx, py), _mix(spk, mist_back, max(0.0, 0.5 * (1 - depth_t))))
+
+    # Slightly heavier grain than stone for the fine sand tooth; scroll-locked so
+    # the tooth tracks the dunes rather than shimmering under motion.
+    _apply_grain_scroll(surf, 0, top_y, w, h - top_y, 6, scroll)
 
 
 # ── Sand 2 — Wet-Shore Sand (~38px) ─────────────────────────────────────────
@@ -1043,31 +1127,35 @@ def fg_wet_shore(surf, w, gy, h, scroll, pal):
     region_h, mist_back = _grounded_base(surf, w, gy, h, top_y, pal, front, back,
                                          ease=0.85, recede=0.30)
 
-    # Damp tide-line: a darker, slightly cooler band across the near third where
-    # the sand is wet. A FLAT horizontal band (no crest), darkest at its front
-    # edge, easing back to dry sand. A subtle additive sheen sits on the damp
-    # band so it reads glossy without a continuous bright seam.
-    damp = _mix(_sat(sand, 0.84), (120, 116, 110), 0.45)
+    # Damp patches — NOT a tide-line. A continuous darker/wet horizontal band
+    # across the lane read as the forbidden bright dashed seam fighting the bird.
+    # Instead the damp reads as SHORT, vertically-jittered, low-contrast smears
+    # scattered over the near half: each is a soft darker-cool blot a few px tall,
+    # capped so it can never lift more than ~10-12% over the surrounding sand and
+    # never aligns into a continuous horizontal run. Anchored to world-x so the
+    # damp rides the surface as it scrolls.
+    damp = _mix(_sat(sand, 0.88), (118, 116, 116), 0.32)
     damp = _mix(damp, (50, 60, 92), 0.34 * night)
-    band_top = top_y + int(region_h * 0.52)
-    for y in range(band_top, h):
-        t = (y - band_top) / max(1, h - band_top)   # 0 at band top -> 1 at foot
-        # Wet strongest mid-band, easing at the very foot (where dry footprints
-        # would sit) so it isn't a flat slab of dark.
-        wet = math.sin(min(1.0, t) * math.pi) * 0.5 + t * 0.4
-        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
-        ln.fill((*damp, int(110 * min(1.0, wet))))
-        surf.blit(ln, (0, y))
-    # Low sheen — a few soft additive smears riding the damp band, kept LOW and
-    # broken so it never becomes a bright horizontal seam.
-    if night < 0.75:
-        sheen = _mix(_horizon(pal), (255, 245, 220), 0.4)
-        for sx, k, srng in _scatter(scroll, w, 0.2, 56, 0x6C4):
-            sy = band_top + srng.randint(2, max(3, region_h // 4))
-            sw = srng.randint(18, 40)
-            sl = pygame.Surface((sw, 2), pygame.SRCALPHA)
-            sl.fill((*sheen, srng.randint(14, 26)))
-            surf.blit(sl, (sx - sw // 2, sy), special_flags=pygame.BLEND_RGB_ADD)
+    for sx, k, srng in _scatter(scroll, w, 0.22, 30, 0x6C4):
+        # Bias damp lower (nearer) where wet sand would sit, but jitter the y so
+        # no two smears share a row -> no horizontal seam can form.
+        py = top_y + int(srng.uniform(0.46, 0.98) * region_h)
+        if srng.random() < 0.35:
+            continue
+        depth_t = (py - top_y) / max(1, region_h)
+        sw = srng.randint(16, 34)
+        sh = srng.randint(2, 4)
+        # Cap the alpha low so the value shift stays within ~10-12% of the sand.
+        a = int(26 + 16 * depth_t)
+        blot = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        blot.fill((*damp, a))
+        surf.blit(blot, (sx - sw // 2, py - sh // 2))
+        # A faint cool-dark lower contact under the nearer smears so the blot
+        # reads as damp depth, not just a tint. Still per-smear, never a run.
+        if depth_t > 0.5:
+            edge = pygame.Surface((sw - 4, 1), pygame.SRCALPHA)
+            edge.fill((*_shade(damp, -10), a))
+            surf.blit(edge, (sx - sw // 2 + 2, py - sh // 2 + sh))
 
     # Scattered shells + pebbles, denser on the damp band.
     for sx, k, srng in _scatter(scroll, w, 0.22, 34, 0x9F3):
@@ -1093,7 +1181,7 @@ def fg_wet_shore(surf, w, gy, h, scroll, pal):
             if night < 0.65:
                 surf.set_at((sx, py - pr // 2), _shade(pc, 22))
 
-    _apply_grain(surf, 0, top_y, w, h - top_y, 5)
+    _apply_grain_scroll(surf, 0, top_y, w, h - top_y, 5, scroll)
 
 
 # ── Sand 3 — Riverbank Sandbar (~38px) ──────────────────────────────────────
@@ -1141,25 +1229,37 @@ def fg_riverbank_sandbar(surf, w, gy, h, scroll, pal):
             pygame.draw.line(surf, _shade(pc, 22), (sx - pw + 1, py - ph),
                              (sx + pw - 2, py - ph), 1)
 
-    # Sparse DRY grass tufts at the BACK edge only (where the bar meets the bank).
-    # Pale straw blades fanning up; clumped and sparse so the front sand stays
-    # open. Confined to the rear ~30% so they never crowd the bird lane.
-    straw = _mix((196, 184, 132), sand, 0.3)
+    # A FEW clearly-SILHOUETTED dry-grass tufts at the BACK edge (where the bar
+    # meets the bank). The round-5 many-thin-blade clumps read as noisy dark
+    # flecks at 1x; here each firing anchor draws ONE bold readable tuft — a
+    # filled straw fan (a solid silhouette) plus 2-3 outer blades for shape, taller
+    # and far more sparse so 2-3 distinct tufts carry the rear, never a flecky
+    # field. Confined to the rear ~28% so they never crowd the bird lane.
+    straw = _mix((198, 184, 130), sand, 0.28)
     straw = _mix(straw, (96, 104, 120), 0.34 * night)
-    straw_dk = _shade(straw, -26)
-    for sx, k, srng in _scatter(scroll, w, 0.2, 70, 0x8D2):
-        if srng.random() < 0.4:
+    straw_dk = _shade(straw, -30)
+    for sx, k, srng in _scatter(scroll, w, 0.2, 116, 0x8D2):
+        if srng.random() < 0.45:
             continue
-        ty = top_y + int(srng.uniform(0.06, 0.30) * region_h)
-        n_blade = srng.randint(3, 6)
-        for _b in range(n_blade):
-            bx = sx + srng.randint(-6, 6)
-            bh = srng.randint(5, 11)
-            lean = srng.randint(-3, 3)
-            col = straw if srng.random() < 0.6 else straw_dk
-            pygame.draw.line(surf, col, (bx, ty), (bx + lean, ty - bh), 1)
+        ty = top_y + int(srng.uniform(0.08, 0.26) * region_h)
+        th_ = srng.randint(11, 17)
+        spread = srng.randint(5, 8)
+        lean = srng.randint(-3, 3)
+        # Solid silhouette fan so the tuft reads as a shape, not a flick scatter.
+        apex = (sx + lean, ty - th_)
+        pygame.draw.polygon(surf, straw_dk, [
+            (sx - spread, ty), (sx + spread, ty),
+            (apex[0] + 2, apex[1] + 2), (apex[0] - 2, apex[1] + 2)])
+        # A couple of bright outer blades to catch the light and define the fan.
+        for bo in (-spread, -spread // 2, spread // 2, spread):
+            bx = sx + bo
+            bh = th_ - abs(bo)
+            pygame.draw.line(surf, straw, (bx, ty),
+                             (bx + lean // 2, ty - max(4, bh)), 1)
 
-    _apply_grain(surf, 0, top_y, w, h - top_y, 6)
+    # Coarse riverbar tooth + scroll-locked dither grain (the screen-space grain
+    # crawled under motion).
+    _apply_grain_scroll(surf, 0, top_y, w, h - top_y, 6, scroll)
 
 
 # ── registry (order matches the brief) ──────────────────────────────────────
@@ -1179,6 +1279,19 @@ CONCEPTS_R5 = [
     ("Cut-Stone Temple Flags", fg_cut_stone_flags),
     ("Crazy-Paving Fieldstone", fg_crazy_paving),
     ("Cobblestone Setts", fg_cobblestone_setts),
+    ("Desert Dune Sand", fg_desert_dune),
+    ("Wet-Shore Sand", fg_wet_shore),
+    ("Riverbank Sandbar", fg_riverbank_sandbar),
+]
+
+# Round-6 sheet: same 7-row layout, polishing the two LEADS (Cut-Stone +
+# Desert Dune) per the art-director punch list while keeping the full
+# 3-stone / 3-sand comparison.
+CONCEPTS_R6 = [
+    ("Flagstone Courtyard (BASELINE ~50px)", fg_flagstone_courtyard),
+    ("Cut-Stone Temple Flags", fg_cut_stone_flags),
+    ("Crazy-Paving Fieldstone", fg_crazy_paving),
+    ("River-Cobble Paving", fg_cobblestone_setts),
     ("Desert Dune Sand", fg_desert_dune),
     ("Wet-Shore Sand", fg_wet_shore),
     ("Riverbank Sandbar", fg_riverbank_sandbar),
