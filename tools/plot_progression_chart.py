@@ -43,21 +43,15 @@ UMBRELLA_RAIN_TH = config.UMBRELLA_SPAWN_RAIN
 # obviously the umbrella's window (and not just "another weather thing").
 UMBRELLA_BAND = "#54B9C4"
 
-# Lightning fires in-game from this inline gate in Weather.update
-# (weather.py ~558):  storming = 0.49 <= phase <= 0.58
-# This is NOT the same as the older weather.lightning_active() helper
-# (0.55..0.72) which the legacy plotters used — that helper isn't called
-# from any live gameplay code; the real in-game window overlaps the rain
-# peak at 0.50, so lightning happens DURING the rain, not after.
-LIGHTNING_PHASE_MIN = 0.49
-LIGHTNING_PHASE_MAX = 0.58
-
-
+# Lightning fires in-game from the inline `storming` gate in
+# Weather.update, which reads the module-level constants
+# `weather.LIGHTNING_PHASE_MIN/MAX`. Those constants are derived from
+# config.RAIN_START_PILLAR via the shared dwell formula, so the chart
+# auto-tracks any shift of the rain block — no separate literals here.
 def _lightning_active_real(phase: float) -> bool:
-    """The window that actually drives in-game flashes / thunder audio
-    (Weather.update inline check). Use this for the chart instead of
-    weather.lightning_active() so the timeline matches reality."""
-    return LIGHTNING_PHASE_MIN <= phase <= LIGHTNING_PHASE_MAX
+    """Wraps the in-game lightning gate so the chart stays in sync with
+    Weather.update no matter how the rain block is anchored."""
+    return weather.LIGHTNING_PHASE_MIN <= phase <= weather.LIGHTNING_PHASE_MAX
 
 PHASE_LABELS = [
     (0.00000, "DAY"),
@@ -249,8 +243,11 @@ def main() -> None:
                 fontweight="bold")
 
     # ── Storm peak marker ──────────────────────────────────────────────
-    p_storm = pillar_for_time(0.50 * CYCLE)
-    y_storm = weather.rain_intensity(0.50)
+    # Read the peak phase from the live weather module so the marker
+    # tracks the shifted rain block automatically.
+    storm_peak_phase = weather.RAIN_STORM_PEAK
+    p_storm = pillar_for_time(storm_peak_phase * CYCLE)
+    y_storm = weather.rain_intensity(storm_peak_phase)
     ax.plot([p_storm], [y_storm], marker="v", color="#2f6fb0", markersize=9,
             markeredgecolor="white", markeredgewidth=0.8, zorder=5)
     ax.annotate(f"storm peak\n@ p{int(p_storm)}", (p_storm, y_storm),

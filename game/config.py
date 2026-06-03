@@ -202,6 +202,16 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
+# RAIN + THUNDERSTORM anchor. The dusk storm block (drizzle build →
+# storm peak → fade, plus the in-game lightning gate) is shifted along
+# the biome phase axis so its drizzle's lower edge lands at this
+# pillar number. The block's SHAPE/WIDTH/PEAK HEIGHT is unchanged —
+# only the start anchor moves. Tune this to move the whole storm
+# earlier (smaller pillar) or later (larger pillar); weather.py
+# derives the phase shift from the same onboarding-ramp dwell math
+# the world uses, so the storm always lands at the chosen pillar.
+RAIN_START_PILLAR   = 70
+
 # UMBRELLA — independent power-up that cancels the rain flap-dampen during
 # thunderstorms. Spawns once per storm window (NOT in POWERUP_WEIGHTS or the
 # surprise re-roll) when rain intensity first crosses UMBRELLA_SPAWN_RAIN, so
