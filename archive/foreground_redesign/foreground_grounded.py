@@ -2223,6 +2223,316 @@ def fg_polished_pavement_v8(surf, w, gy, h, scroll, pal):
     _apply_grain(surf, 0, top_y, w, region_h, 3)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Round 9 — make the SAND cheerful: a REAL happy BEACH, not a serious riverbank.
+#
+# Round 8's Riverbank Sandbar is technically clean (capped tonal lower band, no
+# white pool, night-retint below the sky) but the MOOD reads "muted natural
+# desert/riverbank" — a touch serious. Round 9 keeps every v8 technical win by
+# reusing the v8 sand scaffolding VERBATIM (_premium_base_v8 warm-lit lip,
+# _sand_tones_v8's hard night pull, _sand_lowband_lift's capped value-only
+# raise) and changes only the MATERIAL/MOOD: a brighter, cheerier sand HUE
+# (more saturation + lighter, still under the day luma cap) plus playful beach
+# accents — scattered shells, starfish, and (for the wet take) a soft broken
+# damp scallop with a faint sky-blue reflection. The "cheerful" lives in the
+# day/sunset cells; the shared v8 night pull keeps NIGHT a calm moonlit beach
+# that still sits below the night sky.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _beach_base(pal, *, warmth, light):
+    """A brighter, cheerier beach hue derived from the v8 sand tone. `warmth`
+    pushes saturation toward a happy golden/coral cast; `light` lifts the value.
+    The cap in _sand_tones_v8 still clamps the lower band well under ~224 luma,
+    so this can stay cheerful in DAY without ever pooling toward white."""
+    base = _sand_v8(pal)
+    base = _sat(base, warmth)
+    return _shade(base, light)
+
+
+def _beach_shell(surf, cx, cy, r, col, *, night, ridged=False):
+    """A tiny scallop shell: a warm dome with a couple of radiating rib lines and
+    a soft lit crown. Drawn from the shell's OWN tone (lightened for the crown,
+    darkened for the ribs) — never an additive white dab — and pulled to the v8
+    dark night ground so it retints below the night sky instead of glinting."""
+    col = _mix(col, (28, 36, 58), 0.78 * night)
+    base_d = _shade(col, -26)
+    # Fan body: a small filled half-ellipse (dome up), seated with a shadow foot.
+    pygame.draw.ellipse(surf, base_d, (cx - r, cy - r + 1, r * 2, r * 2 - 1))
+    pygame.draw.ellipse(surf, col, (cx - r, cy - r, r * 2, r * 2 - 1))
+    # Radiating ribs from the hinge (bottom centre) — the unmistakable shell read.
+    rib = _shade(col, -18)
+    if r >= 2:
+        for dx in (-r + 1, 0, r - 1):
+            pygame.draw.line(surf, rib, (cx, cy + r - 1),
+                             (cx + dx, cy - r + 1), 1)
+    # Capped warm-lit crown, faded out toward night so it never glows after dark.
+    crown = _mix(_shade(col, 16), (244, 226, 196), 0.4 * (1.0 - night))
+    surf.set_at((cx, cy - r + 1), crown)
+    if ridged and r >= 3:
+        surf.set_at((cx - 1, cy - r + 2), _shade(col, 8))
+        surf.set_at((cx + 1, cy - r + 2), _shade(col, 8))
+
+
+def _beach_starfish(surf, cx, cy, r, col, *, night):
+    """A small five-arm starfish: a warm star polygon with a slightly lit centre.
+    Same tonal discipline as the shells — own tone lightened for the centre, no
+    additive white, retinted to the v8 dark night ground."""
+    col = _mix(col, (30, 38, 60), 0.78 * night)
+    pts = []
+    for i in range(5):
+        a = -math.pi / 2 + i * (2 * math.pi / 5)
+        pts.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
+        a2 = a + math.pi / 5
+        pts.append((cx + math.cos(a2) * r * 0.42, cy + math.sin(a2) * r * 0.42))
+    pygame.draw.polygon(surf, _shade(col, -22), pts)
+    pygame.draw.polygon(surf, col,
+                        [(x, y - 1) for (x, y) in pts])
+    # Lit core dot, capped + day-only so the star reads convex without glowing.
+    surf.set_at((cx, cy - 1),
+                _mix(_shade(col, 14), (240, 222, 192), 0.35 * (1.0 - night)))
+
+
+def _beach_accents(surf, w, top_y, region_h, h, scroll, base, *, night,
+                   density, palette, seed):
+    """Scatter small beach treasures (shells + the odd starfish) across the near
+    band of a beach strip. `density` scales how many appear; `palette` is the
+    list of cheerful accent hues to draw from. Kept in the FRONT band (out of the
+    quiet back lip), scroll-locked via _scatter, and capped at the readability
+    ceiling so even the playful take never clutters the bird lane."""
+    step = max(14, int(46 / max(0.1, density)))
+    for sx, k, srng in _scatter(scroll, w, 0.24, step, seed):
+        # Keep accents in the lower (near) band so the back lip stays quiet.
+        py = top_y + int(srng.uniform(0.52, 0.95) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.32 + 0.5 * depth_t:
+            continue
+        col = _mix(srng.choice(palette), base, 0.32)
+        kind = srng.random()
+        r = 2 + int(depth_t * 2)
+        # Small soft contact shadow under the treasure so it sits IN the sand.
+        sh = pygame.Surface((r * 2 + 2, 2), pygame.SRCALPHA)
+        sh.fill((0, 0, 0, 40))
+        surf.blit(sh, (sx - r - 1, py + r - 1), special_flags=pygame.BLEND_RGB_SUB)
+        if kind < 0.16 and r >= 2:
+            _beach_starfish(surf, sx, py, r + 1, col, night=night)
+        else:
+            _beach_shell(surf, sx, py, r, col, night=night,
+                         ridged=srng.random() < 0.5)
+
+
+# Cheerful accent hues, kept under the day luma cap (no near-white) so they pop
+# on the sand without pooling bright. Warm corals/peaches + a couple of cool
+# shell tones for variety; the painters mix each toward the sand base.
+_SHELL_WARM = [(232, 158, 132), (236, 186, 150), (226, 142, 120),
+               (240, 200, 158), (210, 150, 138)]
+_SHELL_PASTEL = [(238, 188, 196), (224, 196, 214), (200, 198, 222),
+                 (240, 206, 170), (210, 214, 206)]
+
+
+# ── Beach 1 — Sunny Golden Beach (45px, top@595) ─────────────────────────────
+# The minimal happy beach: bright warm cheerfully-saturated golden sand, a soft
+# CAPPED tonal sun-sparkle in the near band (value-only, never white), and a
+# few small scattered shells. Classic, clean, joyful.
+
+def fg_beach_golden(surf, w, gy, h, scroll, pal):
+    base = _beach_base(pal, warmth=1.22, light=14)
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 240, 206), lip_a=66)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Soft tonal sun-sparkle: a sparse field of capped warm-light specks (a few
+    # values above the lift, NEVER white, value-only) so the front sand twinkles
+    # like sun on dry beach. Retinted to the v8 night ground so it darkens with
+    # the stage rather than glowing.
+    spark = _mix(lift, (236, 212, 168), 0.5)
+    spark = _mix(spark, (34, 42, 64), 0.80 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.27, 7, 0x9A1):
+        py = top_y + int(srng.uniform(0.55, 0.98) * region_h)
+        if srng.random() < 0.62:
+            continue
+        surf.set_at((sx, py), spark)
+
+    # A few small scattered shells — minimal, the cheerful punctuation.
+    _beach_accents(surf, w, top_y, region_h, h, scroll, base, night=night,
+                   density=0.55, palette=_SHELL_WARM, seed=0xB31)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# ── Beach 2 — Tropical Coral Beach (45px, top@595) ───────────────────────────
+# The most pastel-cheerful take: lighter cream sand with a pink-coral cast, plus
+# playful colourful little shells and a starfish accent. Soft and sweet, the
+# "ice-cream beach" mood — still under the day luma cap, still retints at night.
+
+def fg_beach_coral(surf, w, gy, h, scroll, pal):
+    # Cream + coral cast: lighten + warm, then pull a touch toward a soft pink so
+    # the sand reads pastel-tropical, not plain tan. The _sand_tones_v8 cap keeps
+    # the lower band under ~224 luma so the cream never pools toward white.
+    base = _beach_base(pal, warmth=1.1, light=22)
+    base = _mix(base, (240, 210, 196), 0.30)        # gentle coral-cream blush
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 238, 224), lip_a=64)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Faint pastel mottle: a sparse two-tone speckle (a soft peach + a soft
+    # shell-pink) blended value-only so the cream sand has a playful candy grain
+    # rather than flat tan. Both tones pulled to the v8 night ground.
+    peach = _mix(base, (244, 206, 184), 0.5)
+    peach = _mix(peach, (34, 42, 64), 0.80 * night)
+    pink = _mix(base, (238, 196, 206), 0.5)
+    pink = _mix(pink, (34, 42, 64), 0.80 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.25, 6, 0xC42):
+        py = top_y + int(srng.uniform(0.5, 0.98) * region_h)
+        if srng.random() < 0.58:
+            continue
+        tone = peach if srng.random() < 0.5 else pink
+        ln = pygame.Surface((2, 1), pygame.SRCALPHA)
+        ln.fill((*tone, 70))
+        surf.blit(ln, (sx, py))
+
+    # Playful colourful shells + a starfish — the pastel-cheerful punctuation,
+    # drawn from the soft pastel accent set.
+    _beach_accents(surf, w, top_y, region_h, h, scroll, base, night=night,
+                   density=0.9, palette=_SHELL_PASTEL, seed=0xD73)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# ── Beach 3 — Wet-Shore Beach / gentle surf (45px, top@595) ──────────────────
+# Golden sand meeting a soft, BROKEN, low-contrast damp scalloped tide line —
+# NOT a bright continuous seam (that was the round-5 mistake). The damp patch
+# carries a faint sky-blue reflection (the happy "water just kissed the shore"
+# read) plus a couple of shells in the wet sand. Each scallop is a short broken
+# arc of slightly DARKER damp sand, never a lit run.
+
+def fg_beach_wetshore(surf, w, gy, h, scroll, pal):
+    base = _beach_base(pal, warmth=1.18, light=12)
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 240, 208), lip_a=66)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Damp band across the NEAR strip: the wet sand is a touch DARKER and cooler
+    # than the dry sand (water darkens sand — the opposite of a bright seam), with
+    # a faint sky-blue reflection mixed in. Value-only alpha, gentle vertical
+    # falloff so it has no hard top edge. Pulled to the v8 night ground.
+    sky_ref = pal.get('sky_top', (120, 180, 220))
+    damp = _shade(_sat(base, 0.92), -20)
+    damp = _mix(damp, sky_ref, 0.16)                # faint water reflection
+    damp = _mix(damp, (28, 36, 58), 0.80 * night)
+    damp_top = top_y + int(region_h * 0.66)
+    for y in range(damp_top, h):
+        t = (y - damp_top) / max(1, h - 1 - damp_top)
+        a = int(120 * (t ** 1.2) * (1.0 - 0.4 * night))
+        if a <= 0:
+            continue
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*damp, a))
+        surf.blit(ln, (0, y))
+
+    # The tide line itself: a BROKEN low-contrast damp scallop near the top of
+    # the wet band. Each scallop is a SHORT arc of slightly darker damp sand with
+    # a paler frothy bead a row above — but both are broken into tiny segments
+    # with deterministic gaps + wobble so the run is NEVER continuous and NEVER
+    # bright. The froth bead is a capped warm cream (value-only), not white.
+    scallop_dk = _mix(damp, _shade(back, -10), 0.4)
+    froth = _mix(lift, (240, 230, 214), 0.4)
+    froth = _mix(froth, (40, 48, 72), 0.78 * night)
+    tide_y = damp_top - 1
+    seg = 9
+    ph = int(scroll * 0.2)
+    x = -(ph % (seg * 2))
+    si = (ph // seg)
+    while x < w:
+        srng = random.Random(((si) * 2654435761 ^ 0xE19) & 0xFFFFFFFF)
+        si += 1
+        # Skip ~1 in 3 cells so the tide line is visibly broken, never a run.
+        if srng.random() < 0.34:
+            x += seg
+            continue
+        wob = srng.randint(-2, 2)
+        slen = seg - 3 - srng.randint(0, 2)
+        yy = tide_y + wob
+        # Short damp-darker scallop arc segment (value-only, low contrast).
+        arc = pygame.Surface((slen, 1), pygame.SRCALPHA)
+        arc.fill((*scallop_dk, 96))
+        surf.blit(arc, (x, yy))
+        # Pale frothy bead one row above — capped cream, broken with the scallop.
+        bead = pygame.Surface((slen - 2, 1), pygame.SRCALPHA)
+        bead.fill((*froth, 70))
+        surf.blit(bead, (x + 1, yy - 1))
+        x += seg
+
+    # A couple of shells washed up in the wet sand.
+    _beach_accents(surf, w, top_y, region_h, h, scroll, base, night=night,
+                   density=0.5, palette=_SHELL_WARM, seed=0xF57)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# ── Beach 4 — Shell-Dotted Playful Beach (45px, top@595) ─────────────────────
+# The "fun" extreme: cheerful warm sand with the most playful scatter of
+# colourful shells + starfish. Accent density is the highest of the set but still
+# held at the readability ceiling (kept in the near band, capped count) so the
+# bird lane stays clear. The sand itself is a friendly mid-golden so the colourful
+# treasures pop.
+
+def fg_beach_playful(surf, w, gy, h, scroll, pal):
+    base = _beach_base(pal, warmth=1.16, light=16)
+    night = _nightf(pal)
+    front, back, lift = _sand_tones_v8(pal, base, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        lip_warm=(255, 240, 210), lip_a=66)
+
+    _sand_lowband_lift(surf, w, top_y, region_h, h, lift, night=night)
+
+    # Light tonal twinkle so the sand isn't flat under the busy accents.
+    spark = _mix(lift, (234, 210, 166), 0.5)
+    spark = _mix(spark, (34, 42, 64), 0.80 * night)
+    for sx, k, srng in _scatter(scroll, w, 0.27, 9, 0x7C5):
+        py = top_y + int(srng.uniform(0.55, 0.98) * region_h)
+        if srng.random() < 0.66:
+            continue
+        surf.set_at((sx, py), spark)
+
+    # The playful punctuation: dense, colourful shells + starfish drawn from BOTH
+    # accent sets so the scatter is varied and fun. Density is the set max but
+    # _beach_accents still gates each on the near band + depth so the lane is
+    # clear. Two passes (warm + pastel) at offset seeds give a richer mix.
+    _beach_accents(surf, w, top_y, region_h, h, scroll, base, night=night,
+                   density=1.0, palette=_SHELL_WARM, seed=0x311)
+    _beach_accents(surf, w, top_y, region_h, h, scroll, base, night=night,
+                   density=0.8, palette=_SHELL_PASTEL, seed=0x9F4)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll)
+
+
+# Round-9 sheet: SAND-ONLY cheerful-beach spread. The stone leads are untouched.
+# Row 0 original ref + Row 1 the round-8 Riverbank (the BEFORE/contrast) + the
+# four cheerful beach takes (golden / coral-pastel / wet-shore / shell-dotted).
+CONCEPTS_R9 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Riverbank Sandbar v8", fg_riverbank_v8),
+    ("Sunny Golden Beach", fg_beach_golden),
+    ("Tropical Coral Beach", fg_beach_coral),
+    ("Wet-Shore Beach", fg_beach_wetshore),
+    ("Shell-Dotted Playful Beach", fg_beach_playful),
+]
+
+
 # Round-8 sheet: lean, focused on the two LEADS (Mosaic + Riverbank) with their
 # fallback/secondary, all netted to y=595 with the warm-lit lip + rescued sand.
 # Satin Sand is dropped; Glazed Cobble is dropped (its glaze never read clearly

@@ -192,14 +192,15 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R8]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R9]
 
 ROW_NOTES = {
     "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below nets to this exact top edge.",
-    "Inlaid Geometric Mosaic": "STONE LEAD - top@595, 45px. Fret border + diamond inlay tessellation, warm-lit lip (no dark seam), mid-band two-tone contrast quieted behind the bird lane.",
-    "Polished Temple Pavement": "stone fallback - top@595, 45px. Beveled crisp joints (dark riser + lit lip), per-slab glints, inlay panels, warm-lit top lip.",
-    "Riverbank Sandbar": "SAND LEAD - top@595, 45px. Warm TONAL lower-band lift (capped <230 luma, no white pool), tonal ripples, half-sunk lit stones + dry-grass tufts. Retints BELOW the night sky.",
-    "Golden Desert Dune": "secondary sand - top@595, 45px. Warm golden sand, gentle TONAL wind-relief (light-tan crest / mid-tan trough), capped lower-band lift, no glow at night.",
+    "Riverbank Sandbar v8": "BEFORE / CONTRAST - top@595, 45px. The round-8 sand lead: clean but MUTED/serious (riverbank-desert mood). Round 9 keeps its v8 tech wins and makes the sand CHEERFUL.",
+    "Sunny Golden Beach": "beach - top@595, 45px. Bright cheerful golden sand, soft CAPPED tonal sun-sparkle (value-only, never white), a few scattered shells. Classic happy beach, minimal.",
+    "Tropical Coral Beach": "beach - top@595, 45px. Lighter cream + pink-coral PASTEL sand, candy mottle, playful colourful shells + a starfish. The most pastel-cheerful take.",
+    "Wet-Shore Beach": "beach - top@595, 45px. Golden sand meeting a soft BROKEN low-contrast damp scallop (NOT a bright seam) + faint sky-blue damp reflection + washed-up shells.",
+    "Shell-Dotted Playful Beach": "beach - top@595, 45px. Cheerful golden sand with the most playful colourful shells + starfish (the FUN extreme); accent density held at the readability ceiling.",
 }
 
 
@@ -219,7 +220,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 8 - NET top@595 + RESCUED SAND (warm-lit lip, capped tonal sand, night-retint below sky): Original ref + Mosaic/Pavement stone + Riverbank/Dune sand - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 9 - SAND ONLY, made CHEERFUL (a real happy BEACH): Original ref + round-8 Riverbank (before) + Golden/Coral/Wet-Shore/Shell-Dotted beach - same v8 tech (warm-lit lip, capped tonal sand, night-retint below sky) - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -272,10 +273,9 @@ def make_sheet(images):
     return sheet
 
 
-# The two LEADS (stone Mosaic + sand Riverbank) get the bird + scrolling coin
-# dropped into their DAY and NIGHT cells so the surface can be checked behind
-# the player lane.
-LEAD_ROWS = {"Inlaid Geometric Mosaic", "Riverbank Sandbar"}
+# ONE beach lead gets the bird + scrolling coin dropped into its DAY and NIGHT
+# cells so the surface can be checked behind the player lane.
+LEAD_ROWS = {"Sunny Golden Beach"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -292,7 +292,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_8.png"
+    path = out / "round_9.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
