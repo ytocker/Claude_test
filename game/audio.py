@@ -216,6 +216,15 @@ def play_genie() -> None:
     _play("coin_triple", 0.85)
     _play("poof", 0.40)
 
+def play_treasure_pickup() -> None:
+    # Cycle-finale fanfare for the treasure box: triple-coin chime as the
+    # loot beat, poof for the lid pop, magnet whoosh as the bloom tail.
+    # Three-layer stack mirrors the genie summon pattern above so the
+    # payoff reads as heavier than any single-OGG pickup.
+    _play("triple_coin", 0.95)
+    _play("poof",        0.85)
+    _play("magnet",      0.65)
+
 def play_skateboard() -> None:   _play("grow", 0.70); _play("poof", 0.55)
 def play_knight() -> None:       _play("grow", 0.75); _play("thunder", 0.45)
 def play_backflip() -> None:     _play("poof", 0.50)

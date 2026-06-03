@@ -233,6 +233,23 @@ SPAWN_GRACE         = 1.5
 UMBRELLA_DURATION       = 8.0
 UMBRELLA_SPAWN_PILLARS  = (85, 97)
 
+# TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
+# cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS
+# pillars are forced into a continuous coin rush; the middle pillar (index
+# CYCLE_FINALE_BOX_INDEX, 0-based) additionally drops a treasure_box
+# PowerUp at the gap centre. Picking it up grants +TREASURE_BOX_GRANT to
+# the score with a grandiose fanfare animation. Not in POWERUP_WEIGHTS
+# (weight 0) — only the cycle-finale path spawns it, never a random roll.
+TREASURE_BOX_GRANT          = 100
+CYCLE_FINALE_RUSH_PILLARS   = 5
+CYCLE_FINALE_BOX_INDEX      = 2     # 0-based; pillar 3 of 5 carries the chest
+CYCLE_FINALE_PHASE_HI       = 0.95  # rollover detected when last phase > HI
+CYCLE_FINALE_PHASE_LO       = 0.05  # AND new phase < LO (wrap from ~1 to ~0)
+# Seconds the chest stays drawn after pickup, rendering the lid-popped
+# sprite + halo bloom + fade so the loot beat reads as a moment, not a
+# blink. Coincides with the audio fanfare tail.
+TREASURE_BOX_ANIM_T         = 0.6
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without

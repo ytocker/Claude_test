@@ -38,6 +38,9 @@ from game.config import (
     KNIGHT_DURATION, KNIGHT_INVULN,
     UMBRELLA_DURATION, UMBRELLA_SPAWN_PILLARS,
     DEATH_FADE_DURATION,
+    TREASURE_BOX_GRANT, TREASURE_BOX_ANIM_T,
+    CYCLE_FINALE_RUSH_PILLARS, CYCLE_FINALE_BOX_INDEX,
+    CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
     WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
@@ -221,8 +224,17 @@ class World:
             "ghost": 0, "grow": 0, "reverse": 0, "surprise": 0,
             "shrink": 0, "rail": 0, "lottery": 0,
             "skateboard": 0, "knight": 0, "genie": 0,
-            "poison": 0,
+            "poison": 0, "treasure": 0,
         }
+        # Cycle-finale "treasure box" state. _last_biome_phase samples the
+        # phase every frame so a wrap from ~1.0 back to ~0.0 can be detected
+        # one frame after biome_time crosses CYCLE_SECONDS. When that fires
+        # the next CYCLE_FINALE_RUSH_PILLARS pillars are forced into a coin
+        # rush; the middle pillar carries the chest. _finale_box_dropped is
+        # a one-shot guard inside a single finale.
+        self._last_biome_phase = 0.0
+        self._finale_rush_remaining = 0
+        self._finale_box_dropped = False
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -619,6 +631,16 @@ class World:
         # power-up. The visual announcement fires below.
         self.pipes_spawned += 1
         is_rush = (self.pipes_spawned % COIN_RUSH_INTERVAL == 0)
+        # Cycle-finale: while a finale is queued (5 pillars after the
+        # day/night rollover), every pillar is forced into a coin rush.
+        # The chamber path still wins if both coincide — the finale just
+        # yields that one pillar; the rush counter still ticks down.
+        is_finale_pillar = False
+        if (self._finale_rush_remaining > 0
+                and not self.genie_chamber_pending):
+            is_rush = True
+            is_finale_pillar = True
+            self._finale_rush_remaining -= 1
         # GENIE CHAMBER takes priority over coin-rush: if a chamber is
         # pending and we'd have rolled a rush, the chamber wins and the
         # rush is skipped (no double-boost; the rush counter still ticks).
@@ -673,6 +695,20 @@ class World:
         elif is_rush:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
+            # On the middle pillar of a cycle-finale rush, drop the
+            # treasure box at the gap centre. This is the deliberate
+            # exception to the "no power-ups on rush pillars" rule —
+            # the chest IS the cycle reward, not a roll. _finale_box_dropped
+            # is a one-shot guard inside a single finale.
+            mid_remaining = CYCLE_FINALE_RUSH_PILLARS - CYCLE_FINALE_BOX_INDEX - 1
+            if (is_finale_pillar
+                    and not self._finale_box_dropped
+                    and self._finale_rush_remaining == mid_remaining):
+                spacing = self._current_spacing()
+                bx = p.x + PIPE_W + spacing * 0.5
+                by = p.gap_y
+                self.powerups.append(PowerUp(bx, by, kind="treasure"))
+                self._finale_box_dropped = True
         else:
             # Advance (or reset) the thermal-event pillar counter — the
             # telegraph clock the rock ramp + geyser gate read.
@@ -1135,6 +1171,17 @@ class World:
         # predicts.
         if self.ready_t <= 0:
             self.biome_time += sdt
+        # Cycle-finale rollover detect: when the day/night phase wraps
+        # from the late-night band (> HI) back into early dawn (< LO),
+        # queue a 5-pillar coin rush; the middle pillar will drop the
+        # treasure box (see _spawn_pipe). Sampled every frame so the
+        # detect lands within one frame of the actual rollover.
+        _new_phase = self.biome_phase
+        if (self._last_biome_phase > CYCLE_FINALE_PHASE_HI
+                and _new_phase < CYCLE_FINALE_PHASE_LO):
+            self._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
+            self._finale_box_dropped = False
+        self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
         # Ambient scenes (V-flocks, fireworks, balloon, parrots, blossoms,
@@ -1239,7 +1286,11 @@ class World:
                     and self.rail_cart_pipe not in self.pipes):
                 self.rail_cart_pipe = None
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
-            self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
+            self.powerups = [
+                m for m in self.powerups
+                if m.x + 20 > 0
+                and (not m.collected or m.claimed_anim_t > 0.0)
+            ]
             self.geysers = [gy for gy in self.geysers if not gy.off_screen()]
             self.rocks = [r for r in self.rocks if not r.off_screen()]
 
@@ -1879,6 +1930,8 @@ class World:
             self._activate_poison(m)
         elif kind == "umbrella":
             self._activate_umbrella(m)
+        elif kind == "treasure":
+            self._activate_treasure_box(m)
 
     def _spawn_surprise_reveal(self, m):
         """Brief gold-burst + cloud puff so the player sees the box "open"
@@ -2047,6 +2100,64 @@ class World:
             "GROW!", m.x, m.y - 26, GROW_HI,
             size=30, life=1.3, vy=-30, style="powerup",
         ))
+
+    def _activate_treasure_box(self, m):
+        """Cycle-finale reward: +TREASURE_BOX_GRANT score with a grandiose
+        fanfare — lid pops, ~32 flying coins spray upward, the biggest
+        sparkle aura in the game, a "+100!" float, screen shake, and a
+        three-layer audio stack. The PowerUp instance is kept alive for
+        TREASURE_BOX_ANIM_T seconds via claimed_anim_t so the open-lid
+        sprite + halo can fade out (see PowerUp.draw)."""
+        grant = TREASURE_BOX_GRANT
+        self.score += grant
+        # 'treasure' is its own proof-ledger kind — plausibility only
+        # special-cases 'coin' and 'pipe' for dscore bounds, so the
+        # single +100 jump is accepted without raising the ceiling.
+        self._proof.record(self.time_alive, grant, "treasure")
+        self._finale_box_dropped = True
+
+        # Open-lid sprite + halo fade-out timer; ALSO gates the powerup
+        # cull so the chest stays drawn past the moment of collection.
+        m.claimed_anim_t = TREASURE_BOX_ANIM_T
+
+        # Screen shake — ~1.5× the megamagnet pickup, the loudest existing
+        # power-up pickup.
+        self.shake_mag = max(self.shake_mag, 7.0)
+        self.shake_t   = max(self.shake_t,   0.55)
+
+        # Coin explosion — 32 full-detail FlyingCoinParticle on an
+        # upward-biased cone. They arc, spin, fade naturally.
+        for _ in range(32):
+            ang = random.uniform(-math.pi + 0.17, -0.17)
+            spd = random.uniform(280, 540)
+            self.particles.append(FlyingCoinParticle(
+                m.x, m.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                life=random.uniform(1.5, 2.2),
+            ))
+
+        # Sparkle aura — 60 additive particles, the biggest burst in the
+        # game (vs. megamagnet's 42).
+        for _ in range(60):
+            ang = random.uniform(0, math.tau)
+            spd = random.uniform(100, 420)
+            col = random.choice((
+                UI_GOLD, UI_ORANGE, UI_CREAM, WHITE, PARTICLE_GOLD,
+            ))
+            self.particles.append(Particle(
+                m.x, m.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.6, 1.2),
+                random.randint(3, 6),
+                col, gravity=100,
+            ))
+
+        self.float_texts.append(FloatText(
+            f"+{grant}!", m.x, m.y - 30, UI_GOLD,
+            size=44, life=2.0, vy=-30, style="powerup",
+        ))
+
+        audio.play_treasure_pickup()
 
     def _spawn_poof(self, x, y):
         """Burst of expanding cloud puffs — used on KFC transformation start and end."""

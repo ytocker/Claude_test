@@ -1842,9 +1842,15 @@ class PowerUp:
         # alternate powerup pickups with this flag set. Picking up any
         # one cancels the others (see World._cull_genie_offers_except).
         self.is_genie_offer = False
+        # Treasure-box post-pickup animation timer. Drained by update();
+        # while > 0 the world keeps this PowerUp alive past collection so
+        # the open-lid sprite + halo can render to completion.
+        self.claimed_anim_t = 0.0
 
     def update(self, dt):
         self.pulse += dt * 3.5
+        if self.claimed_anim_t > 0.0:
+            self.claimed_anim_t = max(0.0, self.claimed_anim_t - dt)
 
     def draw(self, surf):
         if self.kind == "triple":
@@ -1882,6 +1888,23 @@ class PowerUp:
         elif self.kind == "umbrella":
             from game.umbrella import draw_pickup_icon
             draw_pickup_icon(surf, int(self.x), int(self.y), self.pulse)
+        elif self.kind == "treasure":
+            from game.treasure_box import draw_pickup_icon as _tb_closed
+            from game.treasure_box import draw_open_sprite as _tb_open
+            cx, cy = int(self.x), int(self.y)
+            if self.claimed_anim_t > 0.0:
+                from game.config import TREASURE_BOX_ANIM_T
+                from game.draw import blit_glow, UI_GOLD as _UI_GOLD
+                t = self.claimed_anim_t / TREASURE_BOX_ANIM_T
+                # Halo bloom + lid-popped sprite, both fading with the
+                # animation timer so the loot beat decays into a flash
+                # of light rather than snapping out.
+                blit_glow(surf, cx, cy, 36, _UI_GOLD,
+                          alpha=max(0, min(255, int(220 * t))))
+                _tb_open(surf, cx, cy,
+                         fade_alpha=max(0, min(255, int(255 * t))))
+            else:
+                _tb_closed(surf, cx, cy, self.pulse)
 
     # ── sprite variants ─────────────────────────────────────────────────────
     def _draw_mushroom(self, surf):

@@ -14,14 +14,15 @@ from game.world import World
 from game.hud import HUD, _font
 from game import audio
 from game import play_log
-from game.config import BIRD_X, SCROLL_BASE
+from game.config import BIRD_X, SCROLL_BASE, SPAWN_GRACE
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
 # Pixels of `bg_scroll` covered while the gameplay opener is active. After
 # the post-ready grace window, the cottage is fully off-screen-left and the
-# overlay shuts itself off.
-_OPENER_SCROLL_END = int(World.SPAWN_GRACE * SCROLL_BASE)
+# overlay shuts itself off. SPAWN_GRACE was moved to config but this
+# reference still pointed at the long-deleted World class attribute.
+_OPENER_SCROLL_END = int(SPAWN_GRACE * SCROLL_BASE)
 
 # Reused scratch surface for the lightning bolt so the strike doesn't allocate
 # (and full-screen-blit) one surface per glow-layer per bolt every frame.
@@ -715,6 +716,15 @@ class App:
         if e.type == pygame.KEYDOWN:
             if e.key == pygame.K_p:
                 self._toggle_pause()
+                return
+            # Debug hotkey: F9 force-triggers the cycle-finale rush so the
+            # treasure-box animation can be iterated on without sitting
+            # through a full 5-minute biome cycle. Mirrors the
+            # DEBUG_GENIE_PILLAR one-shot in config — local-only.
+            if e.key == pygame.K_F9 and self.state == STATE_PLAY:
+                from game.config import CYCLE_FINALE_RUSH_PILLARS
+                self.world._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
+                self.world._finale_box_dropped = False
                 return
             if e.key == pygame.K_ESCAPE:
                 if self.state in (STATE_PLAY, STATE_PAUSE):
