@@ -1207,6 +1207,12 @@ class World:
             self.rail_pipes = [
                 p for p in self.pipes if getattr(p, "rail_active", False)
             ]
+            # Drop the parked-cart reference once its host pillar has
+            # finally been culled off-screen, so we don't keep drawing
+            # the cart at a frozen position after the pipe is gone.
+            if (self.rail_cart_pipe is not None
+                    and self.rail_cart_pipe not in self.pipes):
+                self.rail_cart_pipe = None
             self.coins = [c for c in self.coins if c.x + 20 > 0 and not c.collected]
             self.powerups = [m for m in self.powerups if m.x + 20 > 0 and not m.collected]
             self.geysers = [gy for gy in self.geysers if not gy.off_screen()]
@@ -1241,8 +1247,6 @@ class World:
                             and getattr(p, "rail_active", False)
                             and self.rail_pillars_left > 0):
                         self.rail_pillars_left -= 1
-                        if p is getattr(self, "rail_cart_pipe", None):
-                            self.rail_cart_pipe = None
                         if self.rail_pillars_left == 0:
                             self._end_rail_ride()
 
