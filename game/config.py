@@ -212,6 +212,12 @@ KNIGHT_INVULN       = 1.5
 # the world uses, so the storm always lands at the chosen pillar.
 RAIN_START_PILLAR   = 70
 
+# SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
+# predawn snow-squall block in `weather.storm_intensity`. The bump's
+# lower edge lands at this pillar; the SHAPE/WIDTH (half-width 0.10,
+# scale 1.045) stay unchanged, so only the start anchor moves.
+SNOW_START_PILLAR   = 139
+
 # UMBRELLA — independent power-up that cancels the rain flap-dampen during
 # thunderstorms. Spawns once per storm window (NOT in POWERUP_WEIGHTS or the
 # surprise re-roll) when rain intensity first crosses UMBRELLA_SPAWN_RAIN, so

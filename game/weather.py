@@ -56,11 +56,17 @@ def _phase_for_pillar(pillar: int) -> float:
 
 # Baseline drizzle-start phase before any shift (the original literal).
 _RAIN_DRIZZLE_START_BASE = 0.32
+# Baseline snow-squall lower edge before any shift (center 0.85 − width
+# 0.10 — the original literal where storm_intensity first goes non-zero).
+_SNOW_LOWER_EDGE_BASE = 0.75
 
 # Resolved at import time so all downstream constants are stable.
-from game.config import RAIN_START_PILLAR as _RAIN_START_PILLAR
+from game.config import (RAIN_START_PILLAR as _RAIN_START_PILLAR,
+                         SNOW_START_PILLAR as _SNOW_START_PILLAR)
 _RAIN_PHASE_SHIFT = (_phase_for_pillar(_RAIN_START_PILLAR)
                      - _RAIN_DRIZZLE_START_BASE)
+_SNOW_PHASE_SHIFT = (_phase_for_pillar(_SNOW_START_PILLAR)
+                     - _SNOW_LOWER_EDGE_BASE)
 
 # Module-level rain + lightning phase constants. Each is the original
 # literal + _RAIN_PHASE_SHIFT where applicable; widths stay the same.
@@ -73,6 +79,10 @@ RAIN_COLOR_T_START   = 0.35 + _RAIN_PHASE_SHIFT
 RAIN_COLOR_T_RANGE   = 0.20
 LIGHTNING_PHASE_MIN  = 0.49 + _RAIN_PHASE_SHIFT
 LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
+
+# Snow squall (shifted by config.SNOW_START_PILLAR).
+SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
+SNOW_STORM_WIDTH     = 0.10
 
 
 # ── phase → intensity curves ────────────────────────────────────────────────
@@ -140,15 +150,17 @@ def calm_breeze(phase: float) -> float:
 
 
 def storm_intensity(phase: float) -> float:
-    """The predawn SNOW SQUALL event (phase 0.85) — the single
-    bump that drives the snow visuals, the cold atmospheric wash,
-    AND the tailwind gameplay (Pip's forward push + scroll boost).
-    A ~8-second plateau at the peak (phase 0.8375-0.8625) keeps
-    the climax sustained: the smoothstep bump is scaled 1.045 then
-    clamped at 1.0, flattening the top while the ramps stay
-    smooth. 0 everywhere outside the predawn window, so the
-    golden-hour breeze (calm_breeze) never triggers snow."""
-    return min(1.0, _bump(phase, 0.85, 0.10) * 1.045)
+    """The predawn SNOW SQUALL event — the single bump that drives the
+    snow visuals, the cold atmospheric wash, AND the tailwind gameplay
+    (Pip's forward push + scroll boost). The center is anchored to
+    `config.SNOW_START_PILLAR` via `_SNOW_PHASE_SHIFT` above. A short
+    plateau at the peak keeps the climax sustained: the smoothstep
+    bump is scaled 1.045 then clamped at 1.0, flattening the top
+    while the ramps stay smooth. 0 everywhere outside the snow
+    window, so the golden-hour breeze (`calm_breeze`) never triggers
+    snow."""
+    return min(1.0, _bump(phase, SNOW_STORM_CENTER, SNOW_STORM_WIDTH)
+               * 1.045)
 
 
 def wind_intensity(phase: float) -> float:

@@ -67,6 +67,7 @@ from game.weather import (
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
+    SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
 )
 from game.ambient import AmbientScenes
 
@@ -402,10 +403,13 @@ class World:
             self.bird.wind_lean = 0.0
 
         # Windblown snow on Pip — gradual build ∝ storm on the rise; melt is
-        # keyed to the squall being PAST ITS PEAK (phase 0.85), ramping in over
+        # keyed to the squall being PAST ITS PEAK, ramping in over
         # MELT_RAMP, so the build stays clean and the snow starts shedding soon
-        # after the peak, clearing gradually. (0.85 = storm_intensity peak.)
-        fade = max(0.0, min(1.0, (self.weather.phase - 0.85) / WEATHER_SNOW_MELT_RAMP))
+        # after the peak, clearing gradually. Anchor: weather.SNOW_STORM_CENTER
+        # tracks config.SNOW_START_PILLAR so the melt timing stays in sync
+        # with the shifted storm visuals.
+        fade = max(0.0, min(1.0, (self.weather.phase - _SNOW_STORM_CENTER)
+                                 / WEATHER_SNOW_MELT_RAMP))
         fade = fade * fade * (3.0 - 2.0 * fade)
         gain = WEATHER_SNOW_ACCUM_RATE * wi
         self.bird.snow_load = max(0.0, min(1.0,
