@@ -2698,3 +2698,408 @@ CONCEPTS_R8 = [
     ("Riverbank Sandbar", fg_riverbank_v8),
     ("Golden Desert Dune", fg_golden_dune_v8),
 ]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Round 11 — a COMPLETE NEW FLOOR: a premium PAVED BRICK / PAVER walkway.
+#
+# The prior leads were sand and dressed stone. This round chases a different
+# hero entirely: a manicured brick SIDEWALK the bird flies over — warm clay
+# laid in herringbone / running-bond / basketweave, plus a cool stone-paver
+# palette counterpoint. The amazing-UX bar is threefold: it looks PREMIUM
+# (per-brick bevel + a restrained specular dab), it stays QUIET behind the
+# play lane, and it TILES SEAMLESSLY under scroll.
+#
+# Seamless scroll is the make-or-break: every pattern is keyed off ONE integer
+# world phase (`ph = int(scroll * speed)`), and each brick/joint is placed by
+# its world-cell index so the wrap at the screen edge is just the next cell in
+# the same lattice — no pattern jump, no seam-doubling. The bevel lines (lit
+# UL / shadow LR) and the world-anchored grain ride the same phase, so the
+# whole surface translates as one rigid sheet as the world scrolls.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _clay(pal):
+    """Warm red-clay brick body tone tied to the Songyue masonry family: the
+    worn sandstone pulled toward a terracotta so the walkway reads as fired
+    clay brick, not raw sandstone. Stays warm in DAY; the painters cool it via
+    `_nightf` so the night walkway retints without glowing."""
+    terracotta = (196, 102, 70)
+    return _mix(_mix(pal.get('stone_dark', (95, 70, 55)), terracotta, 0.70),
+                _sandstone(pal), 0.22)
+
+
+def _brick_tones(pal, body, *, night, cool=False):
+    """Shared LIT-PLANE brick palette. Returns (front, back, mortar, bevel_lt,
+    bevel_dk) all retinted toward a cool dark night ground so the walkway sits
+    BELOW the night sky (the round's gate) with DARK mortar and no glow. `cool`
+    swaps the day warmth out for a stone-grey cast (the paver counterpoint).
+    Mortar is a desaturated, shaded body so a running-bond course can never
+    read as a bright/dark seam line across the screen."""
+    front = _shade(_sat(body, 1.05 if not cool else 0.92), 4)
+    if _luma(front) * 255.0 > 222:                # never approach white in DAY
+        front = _mix(front, _shade(body, -8), 0.5)
+    back = _shade(_sat(body, 0.88), -22)
+    # Night ground: cool + dark, so even the lit front lands under the ~89-luma
+    # night sky. Pavers pull to a slightly cooler blue than warm clay.
+    night_dk = (34, 42, 62) if not cool else (30, 40, 58)
+    front = _mix(front, night_dk, 0.72 * night)
+    back = _mix(back, _shade(night_dk, -8), 0.78 * night)
+    # Mortar: low-contrast, desaturated, a notch darker than the body — and
+    # night-cooled so it stays the darkest read on the plane after dark.
+    mortar = _shade(_sat(body, 0.74), -34 - int(8 * night))
+    mortar = _mix(mortar, _shade(night_dk, -12), 0.80 * night)
+    # Per-brick bevel: a lit upper-left lip + a shadow lower-right. Kept value-
+    # only and LOW-CONTRAST (close to the face) so that even where many bricks
+    # in a running-bond course share a top-edge y, the aligned lit lips never
+    # sum into a bright continuous horizontal seam across the screen. Per-brick
+    # face value variation, not the bevel, carries the primary relief read.
+    bevel_lt = _mix(front, (255, 246, 224) if not cool else (236, 240, 248),
+                    0.16 * (1.0 - 0.5 * night))
+    # Shadow bevel kept moderate (not deep) so an aligned course of brick
+    # bottoms reads as a soft recessed joint, never a hard dark seam line.
+    bevel_dk = _shade(_sat(body, 0.85), -20 - int(8 * night))
+    bevel_dk = _mix(bevel_dk, _shade(night_dk, -10), 0.78 * night)
+    return front, back, mortar, bevel_lt, bevel_dk
+
+
+def _brick_face(pal, base, srng, *, night, cool=False):
+    """Per-brick worn value variation around `base`: a small deterministic value
+    drift so no two bricks read identical (the worn-clay charm), kept tonal so
+    the field never sparkles. Capped under the day white-pool ceiling."""
+    d = srng.randint(-12, 12)
+    c = _shade(base, d)
+    # An occasional cooler/warmer clay so a course carries a few stand-out
+    # bricks, like a real reclaimed-brick walkway.
+    if srng.random() < 0.22:
+        tgt = (150, 70, 50) if not cool else (120, 126, 138)
+        c = _mix(c, _mix(tgt, (40, 48, 66), 0.7 * night), 0.28)
+    if _luma(c) * 255.0 > 222:
+        c = _mix(c, _shade(base, -10), 0.5)
+    return c
+
+
+def _brick_dab(surf, x, y, w, hh, night):
+    """The restrained premium specular: a single low-alpha warm ADD dab on a
+    brick's lit shoulder. Faded HARD toward night so a brick never glints after
+    dark, and kept tiny so it reads as a satin sheen, not a blown highlight. The
+    alpha is low enough that even stacked with the grain ADD it can't pool a
+    bright clay face toward white (the no-white-pool gate)."""
+    if night >= 0.5:
+        return
+    a = int(8 * (1.0 - 2.0 * night))
+    if a <= 0:
+        return
+    _spec_dab(surf, x, y, max(2, w), max(2, hh), (244, 226, 198), a)
+
+
+# ── Brick 1 — Herringbone Clay Brick (45px, top@595) ─────────────────────────
+# The hero "really nice bricks": warm terracotta laid in a classic 45deg
+# herringbone. Each brick is an angled parallelogram (NET-NEW vertex geometry)
+# with a 1px lit upper-left edge + 1px shadow lower-right, a low-contrast mortar
+# gap, and a restrained per-brick specular dab. The lattice is keyed off ONE
+# world phase so the diagonal weave wraps seamlessly under scroll.
+
+def fg_brick_herringbone(surf, w, gy, h, scroll, pal):
+    body = _clay(pal)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(pal, body, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 238, 212), lip_a=66)
+
+    # Herringbone is a lattice of unit cells of size (2L x 2L) tiling the plane,
+    # each holding two perpendicular bricks (one "/" leaning, one "\" leaning).
+    # A brick is L long x B wide. World-anchoring: the lattice origin marches
+    # with `ph` (integer world phase) so the weave is the SAME pattern wrapped
+    # at any scroll — the cell index does the tiling, the screen just samples it.
+    L = 22                                    # brick length
+    B = 9                                     # brick width
+    speed = 0.20
+    ph = int(scroll * speed)
+    # Cells span the full strip plus a margin so partial bricks at both edges
+    # come from real neighbour cells (no clipped-pattern seam at the wrap).
+    cols = w // (2 * L) + 3
+    rows = region_h // (2 * L) + 3
+    # The body fill behind the weave reads as deep mortar bedding. Kept LOW
+    # alpha so the bricks dominate the read and the terracotta stays warm/lit;
+    # only the thin 45deg gaps between angled bricks show the recessed mortar.
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 110))
+    surf.blit(bed, (0, top_y))
+
+    def _para(cx, cy, lean):
+        """Corners of an L x B brick centred at (cx, cy), leaning '/' (lean=+1)
+        or '\\' (lean=-1) at 45deg. The long axis is the diagonal; the brick is
+        a parallelogram swept B wide perpendicular to it."""
+        # Long-axis unit (45deg) and the perpendicular width offset.
+        ax, ay = (0.7071, -0.7071 * lean)
+        px, py = (-ay, ax)                    # perpendicular
+        hl, hw = L * 0.5, B * 0.5
+        return [
+            (cx - ax * hl - px * hw, cy - ay * hl - py * hw),
+            (cx + ax * hl - px * hw, cy + ay * hl - py * hw),
+            (cx + ax * hl + px * hw, cy + ay * hl + py * hw),
+            (cx - ax * hl + px * hw, cy - ay * hl + py * hw),
+        ]
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    for ry in range(-1, rows):
+        for cxi in range(-1, cols):
+            # Two bricks per cell, offset so they interlock into the weave.
+            cell_x = cxi * 2 * L - (ph % (2 * L))
+            cell_y = top_y + ry * 2 * L
+            srng = random.Random(((cxi + (ph // (2 * L))) * 2654435761
+                                  ^ (ry * 40503)) & 0xFFFFFFFF)
+            in_mid = mid_lo <= cell_y + L <= mid_hi
+            for bi, (ox, oy, lean) in enumerate((
+                    (L * 0.5, L * 0.5, +1),
+                    (L * 1.5, L * 0.5, -1))):
+                cx = cell_x + ox
+                cy = cell_y + oy
+                if cx < -L or cx > w + L or cy < top_y - L or cy > h + L:
+                    continue
+                pts = _para(cx, cy, lean)
+                fr = _brick_face(pal, _mix(back, front,
+                                           max(0.0, min(1.0, (cy - top_y) /
+                                                        max(1, region_h)))),
+                                 srng, night=night)
+                # Quiet the bird lane: pull mid-band bricks toward their mean so
+                # the weave reads calm behind the player.
+                if in_mid:
+                    fr = _mix(fr, _mix(back, front, 0.5), 0.18)
+                pygame.draw.polygon(surf, fr, [(int(x), int(y)) for x, y in pts])
+                # Bevel: lit upper-left edge, shadow lower-right edge. The two
+                # "upper-left" polygon edges get the lit lip; the opposite pair
+                # gets the shadow — a crisp 1px proud-brick read.
+                ip = [(int(x), int(y)) for x, y in pts]
+                pygame.draw.line(surf, bevel_lt, ip[0], ip[1], 1)
+                pygame.draw.line(surf, bevel_lt, ip[0], ip[3], 1)
+                pygame.draw.line(surf, bevel_dk, ip[1], ip[2], 1)
+                pygame.draw.line(surf, bevel_dk, ip[2], ip[3], 1)
+                # Restrained specular on the front, lit bricks only — kept out of
+                # the quiet mid band, faded out at night.
+                if not in_mid and cy > top_y + region_h * 0.6 and srng.random() < 0.4:
+                    _brick_dab(surf, int(cx) - 3, int(cy) - 3, 5, 4, night)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, speed)
+
+
+# ── Brick 2 — Running-Bond Clay Brick Sidewalk (45px, top@595) ───────────────
+# The clean classic sidewalk: horizontal courses of warm red-clay bricks in
+# running bond (each course offset a half-brick so vertical joints never stack).
+# Fine low-contrast mortar, subtle per-brick worn value variation, a 1px lit
+# top lip + shadow bottom on each brick. Courses foreshorten gently toward the
+# back. World-anchored on one phase so the bond wraps seamlessly.
+
+def fg_brick_running_bond(surf, w, gy, h, scroll, pal):
+    body = _clay(pal)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(pal, body, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 238, 212), lip_a=66)
+
+    # Bedding mortar behind the bricks so every gap reads as a recessed joint.
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 130))
+    surf.blit(bed, (0, top_y))
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    n_course = 6
+    for c in range(n_course):
+        f0 = c / n_course
+        f1 = (c + 1) / n_course
+        y_back = _perspective_y(top_y, h, 1.0 - f0)
+        y_front = _perspective_y(top_y, h, 1.0 - f1)
+        if y_front <= y_back + 1:
+            continue
+        depth_t = f0
+        brick_w = int(30 + 22 * depth_t)
+        # Running bond: alternate courses shift a half-brick. The shift is part
+        # of the world lattice (added to the world index) so it wraps with scroll.
+        bond = (c % 2) * (brick_w // 2)
+        speed = 0.18 + 0.08 * depth_t
+        in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
+        bh = y_front - y_back
+        # Mortar gap is the 1px between the bedding band and each brick face;
+        # inset the brick by 1px on all sides so the dark bedding shows as joints.
+        for sx, k, srng in _scatter(scroll, w, speed, brick_w, 0xB21 + c):
+            bx = sx + bond
+            base = _mix(back, front, depth_t)
+            fr = _brick_face(pal, base, srng, night=night)
+            if in_mid:
+                fr = _mix(fr, base, 0.16)
+            rect = (bx + 1, y_back + 1, brick_w - 2, bh - 2)
+            if rect[2] <= 0 or rect[3] <= 0:
+                continue
+            pygame.draw.rect(surf, fr, rect)
+            # Bevel only on the VERTICAL edges (lit left / shadow right) so the
+            # relief reads per-brick without ever forming a bright HORIZONTAL
+            # line: in running bond every brick in a course shares one top-edge
+            # y, so a lit top lip would sum into a continuous bright seam. The
+            # horizontal course joint instead reads softly from the recessed
+            # dark bedding gap alone — a low-contrast mortar course, not a seam.
+            pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                             (rect[0], rect[1] + rect[3] - 1), 1)
+            pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                             (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+            # No additive glint on this palette: the warm clay front already
+            # sits bright, and an ADD dab there risks a single clipped-white
+            # pixel where it stacks with the grain. The crisp vertical bevel +
+            # the recessed bedding joint carry the premium read.
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+# ── Brick 3 — Basketweave Brick (45px, top@595) ──────────────────────────────
+# A decorative premium promenade: brick PAIRS alternating horizontal / vertical
+# in a checkerboard basketweave (NET-NEW pair geometry). Each pair is two
+# bricks; the woven read comes from neighbouring pairs running perpendicular.
+# World-anchored on one phase so the weave wraps with scroll.
+
+def fg_brick_basketweave(surf, w, gy, h, scroll, pal):
+    body = _clay(pal)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(pal, body, night=night)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 238, 212), lip_a=66)
+
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 120))
+    surf.blit(bed, (0, top_y))
+
+    # A basketweave unit is a square block of side U holding either two
+    # HORIZONTAL stacked bricks or two VERTICAL side-by-side bricks; the choice
+    # alternates by (col+row) parity so the weave checkerboards. The block grid
+    # marches with the world phase for a seamless wrap.
+    U = 18
+    speed = 0.20
+    ph = int(scroll * speed)
+    cols = w // U + 3
+    rows = region_h // U + 2
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+
+    def _brick_rect(rect, base, srng, in_mid):
+        if rect[2] <= 1 or rect[3] <= 1:
+            return
+        fr = _brick_face(pal, base, srng, night=night)
+        if in_mid:
+            fr = _mix(fr, base, 0.18)
+        pygame.draw.rect(surf, fr, rect)
+        # Vertical-edge bevel only (lit left / shadow right): the weave packs
+        # many brick tops at one y, so a lit top lip would sum into a bright
+        # horizontal seam. The horizontal joints read from the dark bedding gap.
+        pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                         (rect[0], rect[1] + rect[3] - 1), 1)
+        pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                         (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+
+    for ry in range(0, rows):
+        by = top_y + ry * U
+        for cxi in range(-1, cols):
+            bx = cxi * U - (ph % U)
+            wci = cxi + (ph // U)             # world column index for parity
+            srng = random.Random(((wci * 2654435761) ^ (ry * 40503)) & 0xFFFFFFFF)
+            base = _mix(back, front,
+                        max(0.0, min(1.0, (by - top_y) / max(1, region_h))))
+            in_mid = mid_lo <= by + U * 0.5 <= mid_hi
+            horizontal = (wci + ry) % 2 == 0
+            if horizontal:
+                # Two stacked horizontal bricks (full width, half height each).
+                _brick_rect((bx + 1, by + 1, U - 2, U // 2 - 1),
+                            base, srng, in_mid)
+                _brick_rect((bx + 1, by + U // 2 + 1, U - 2, U - U // 2 - 2),
+                            _shade(base, srng.randint(-8, 8)), srng, in_mid)
+            else:
+                # Two side-by-side vertical bricks (half width, full height each).
+                _brick_rect((bx + 1, by + 1, U // 2 - 1, U - 2),
+                            base, srng, in_mid)
+                _brick_rect((bx + U // 2 + 1, by + 1, U - U // 2 - 2, U - 2),
+                            _shade(base, srng.randint(-8, 8)), srng, in_mid)
+            # No additive glint: the bevel + bedding joint carry the read and an
+            # ADD dab on the bright clay front risks a clipped-white pixel.
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, speed)
+
+
+# ── Brick 4 — Refined Stone / Concrete Pavers (45px, top@595) ────────────────
+# The "something else" PALETTE COUNTERPOINT: cool grey-taupe square pavers laid
+# in a clean grid (offset every other course a touch so it isn't a rigid mesh),
+# crisp recessed joints + a soft bevel. Modern-premium, the cool answer to the
+# warm clay. Same v8 scaffolding + world-anchored grid so it wraps seamlessly.
+
+def fg_paver_stone(surf, w, gy, h, scroll, pal):
+    # Cool stone derived from stone_mid/light, nudged grey-taupe.
+    body = _mix(pal.get('stone_mid', (150, 132, 110)),
+                pal.get('stone_light', (188, 170, 146)), 0.45)
+    body = _sat(body, 0.78)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(
+        pal, body, night=night, cool=True)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(244, 246, 250), lip_a=58)
+
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 120))
+    surf.blit(bed, (0, top_y))
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    n_course = 5
+    for c in range(n_course):
+        f0 = c / n_course
+        f1 = (c + 1) / n_course
+        y_back = _perspective_y(top_y, h, 1.0 - f0)
+        y_front = _perspective_y(top_y, h, 1.0 - f1)
+        if y_front <= y_back + 1:
+            continue
+        depth_t = f0
+        # Squarish pavers: width ~ tracks the course height so tiles read square.
+        pav_w = int(26 + 22 * depth_t)
+        bond = (c % 2) * (pav_w // 3)         # slight offset, not a rigid mesh
+        speed = 0.18 + 0.08 * depth_t
+        in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
+        bh = y_front - y_back
+        for sx, k, srng in _scatter(scroll, w, speed, pav_w, 0xC42 + c):
+            bx = sx + bond
+            base = _mix(back, front, depth_t)
+            fr = _brick_face(pal, base, srng, night=night, cool=True)
+            if in_mid:
+                fr = _mix(fr, base, 0.18)
+            rect = (bx + 1, y_back + 1, pav_w - 2, bh - 2)
+            if rect[2] <= 0 or rect[3] <= 0:
+                continue
+            pygame.draw.rect(surf, fr, rect)
+            # Vertical-edge bevel only (lit left / shadow right): an aligned
+            # course of lit TOP lips would read as a bright horizontal seam, so
+            # the horizontal joint is carried by the recessed dark bedding gap
+            # alone — a soft low-contrast course, never a bright line.
+            pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                             (rect[0], rect[1] + rect[3] - 1), 1)
+            pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                             (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+            # No specular dab here: the cool stone front is already bright, so a
+            # warm ADD glint would pool toward white. The crisp bevel + recessed
+            # joint carry the premium read for this palette instead.
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+# Round-11 sheet: a PAVED-WALKWAY spread — the new-floor hero hunt. Row 0 the
+# original ref, Row 1 the round-8 stone Mosaic lead (quality/contrast anchor),
+# then four brick/paver attempts covering PATTERN (herringbone / running-bond /
+# basketweave / grid) AND PALETTE (warm clay <-> cool stone).
+CONCEPTS_R11 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Inlaid Geometric Mosaic", fg_inlaid_mosaic_v8),
+    ("Herringbone Clay Brick", fg_brick_herringbone),
+    ("Running-Bond Clay Sidewalk", fg_brick_running_bond),
+    ("Basketweave Brick", fg_brick_basketweave),
+    ("Refined Stone Pavers", fg_paver_stone),
+]
