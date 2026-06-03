@@ -152,11 +152,11 @@ ROWS = [("Original meadow", None)] + [(name, fn) for name, fn in fg.CONCEPTS]
 
 ROW_NOTES = {
     "Original meadow": "today's kelly-green ground (clashes)",
-    "Near-Ridge Ink Bank": "thin-med ~50px · darkest near ridge + gold rim",
-    "Still-Water Inlet": "med-tall ~80px · jade water + reflections",
-    "Terraced Paddy Steps": "tall ~95px · Longji terraces, Songyue brick",
-    "Pine & Bamboo Fringe Bluff": "med ~65px · dark bank + pine/bamboo fringe",
-    "Mist-Veiled Stone Shore": "thin+veil ~45px · ink boulders in the void",
+    "Near-Ridge Ink Bank": "~50px · darkest near ridge, solid foot, gold rim",
+    "Still-Water Inlet": "dark bank + THIN water sliver + night lanterns",
+    "Terraced Paddy Steps": "LEAD ~74px · front darkest/crispest, gold lips",
+    "Pine & Bamboo Fringe Bluff": "ink-teal fringe on left, clean pillar zone",
+    "Mist-Veiled Stone Shore": "ALT · dark boulders, gold crowns, void mist",
 }
 
 
@@ -176,7 +176,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN — round 1 — biome held @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN — round 2 — biome held @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -241,7 +241,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_1.png"
+    path = out / "round_2.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
