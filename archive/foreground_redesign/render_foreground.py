@@ -28,6 +28,7 @@ Run from anywhere:
 """
 from __future__ import annotations
 
+import math
 import os
 import pathlib
 import sys
@@ -56,6 +57,9 @@ import pillar_pagoda_variants as pgv
 import mountain_variants_r2 as mv
 import foreground_grounded as fg
 import game.ground_variants as gv
+import game.parrot as parrot
+from game.config import BIRD_X, BIRD_R, COIN_R
+from game.draw import COIN_GOLD, COIN_LIGHT, COIN_DARK
 
 
 # ── biome held constant: misty_gorge, one of the locked sky winners ───────────
@@ -148,9 +152,41 @@ def _render_original(phase):
     return surf
 
 
-def _render_concept(painter, phase):
+def _draw_coin_standin(surf, cx, cy):
+    """A faithful gameplay-scale gold coin stand-in (the live Coin spins a cached
+    face; here a static disc with rim + sheen at COIN_R is enough to verify the
+    foreground stays quiet behind a scrolling coin in the bird lane). Read-only —
+    reuses the game's coin palette so the tone matches the real pickup."""
+    r = COIN_R
+    pygame.draw.circle(surf, COIN_DARK, (cx, cy), r)
+    pygame.draw.circle(surf, COIN_GOLD, (cx, cy), r - 1)
+    pygame.draw.circle(surf, COIN_LIGHT, (cx - r // 3, cy - r // 3), max(2, r // 2))
+    pygame.draw.circle(surf, COIN_GOLD, (cx, cy), r - 1, 1)
+    # Bright rim arc (upper-left) so the disc reads as metal, like the live face.
+    pygame.draw.arc(surf, (255, 250, 210),
+                    (cx - r + 1, cy - r + 1, 2 * r - 2, 2 * r - 2),
+                    math.radians(60), math.radians(170), 2)
+
+
+def _add_gameplay_actors(surf):
+    """Drop the parrot at gameplay scale + a scrolling coin into the bird lane so
+    the surface can be verified to stay quiet behind the player and the pillar
+    base. The parrot comes straight from game.parrot (read-only, cached); the
+    coin is a faithful stand-in. Only used on the two LEAD rows' DAY/NIGHT cells
+    so the other rows stay uncluttered."""
+    # Bird at its true on-screen position/scale, mid-flap frame, slight tilt.
+    sprite = parrot.get_parrot(1, -8)
+    rect = sprite.get_rect(center=(BIRD_X, GROUND_Y - 150))
+    surf.blit(sprite, rect.topleft)
+    # A coin a little ahead of the bird, riding the lane toward it.
+    _draw_coin_standin(surf, BIRD_X + 78, GROUND_Y - 138)
+
+
+def _render_concept(painter, phase, actors=False):
     surf, pal = _paint_context(phase)
     painter(surf, W, GROUND_Y, H, SCROLL, pal)
+    if actors:
+        _add_gameplay_actors(surf)
     return surf
 
 
@@ -160,11 +196,11 @@ ROWS = [("Original meadow", None)] + [(name, fn) for name, fn in fg.CONCEPTS]
 
 ROW_NOTES = {
     "Original meadow": "today's kelly-green ground (clashes)",
-    "Flagstone Courtyard": "~56px - paved temple stone, receding courses + joints",
-    "Sun-Cracked Packed Earth": "~50px - dry clay, polygon crack net + pebbles",
-    "Raked Zen-Gravel Garden": "~52px - pale gravel, raked furrows round set stones",
-    "Ink-Wash Meadow": "~48px - muted grass blades + reeds, NO flowers/bugs",
-    "Wood-Plank Boardwalk": "~58px - larch deck, grain + shadow gaps, recedes in",
+    "Flagstone Courtyard": "LEAD B ~50px - broken running-bond, worn slabs, feathered top edge",
+    "Sun-Cracked Packed Earth": "~50px - SHORT branching crack stubs (de-waved), warmer clay",
+    "Raked Zen-Gravel Garden": "~52px - DEAD-STRAIGHT furrows, tiny notch only at stones",
+    "Ink-Wash Meadow": "LEAD A ~48px - foreshortened value-fall, clumped reeds, desat green",
+    "Wood-Plank Boardwalk": "~58px - soft desat nosing (de-golded), near-flat deck",
 }
 
 
@@ -184,7 +220,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 3 - GROUNDED planes - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 4 - GROUNDED planes - A/B leads + bird/coin - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -237,6 +273,12 @@ def make_sheet(images):
     return sheet
 
 
+# The two art-director LEADS get the bird + scrolling coin dropped into their
+# DAY and NIGHT cells so the surface can be checked behind the player lane.
+LEAD_ROWS = {"Ink-Wash Meadow", "Flagstone Courtyard"}
+ACTOR_COLS = {"DAY", "NIGHT"}
+
+
 def main():
     images = {}
     for rname, fn in ROWS:
@@ -244,12 +286,13 @@ def main():
             if fn is None:
                 images[(rname, pname)] = _render_original(phase)
             else:
-                images[(rname, pname)] = _render_concept(fn, phase)
+                actors = rname in LEAD_ROWS and pname in ACTOR_COLS
+                images[(rname, pname)] = _render_concept(fn, phase, actors=actors)
 
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_3.png"
+    path = out / "round_4.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 

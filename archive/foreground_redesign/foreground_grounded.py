@@ -168,25 +168,48 @@ def _sandstone(pal):
 
 def fg_flagstone_courtyard(surf, w, gy, h, scroll, pal):
     night = _nightf(pal)
-    top_y = gy - 56
+    # Thinned to ~50px (was 52) so the band reads as a flat receding floor strip,
+    # not a tall wall of tile.
+    top_y = gy - 50
     stone = _sandstone(pal)
-    # Near->far value fall: warmer/lighter at the front lip, cooler/darker into
-    # the back where the mist sits. Cool the whole plane toward night.
-    front = _shade(_sat(stone, 1.04), -2)
-    back = _mix(_shade(_sat(stone, 0.86), -30), _horizon(pal), 0.10)
+    # Strong near->far value fall: warmer/lighter at the front lip, cooler/darker
+    # into the back where the mist sits, with a widened spread so the plane reads
+    # as a floor tilting to a horizon. Cool the whole plane toward night.
+    front = _shade(_sat(stone, 1.05), 2)
+    back = _mix(_shade(_sat(stone, 0.84), -34), _horizon(pal), 0.16)
     front = _mix(front, (70, 80, 110), 0.30 * night)
     back = _mix(back, (60, 70, 100), 0.34 * night)
-    _flat_slab(surf, w, h, top_y, back, front, ease=0.9)
+    _flat_slab(surf, w, h, top_y, back, front, ease=0.8)
+
+    # Foreshorten the back edge so the top line recedes into the mist instead of
+    # butting flat against the sky — a long value-lift across the rear band plus
+    # a tight 4px top-edge feather so the joint with the mist is gradient, never
+    # a drawn seam (matched to the meadow's treatment).
+    region_h = h - top_y
+    mist_back = _mix(back, _horizon(pal), 0.24 + 0.10 * night)
+    recede_h = int(region_h * 0.34)
+    for i in range(recede_h):
+        t = 1.0 - (i / max(1, recede_h - 1))
+        t = t * t
+        if t <= 0.01:
+            continue
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*_mix(back, mist_back, t), int(200 * t)))
+        surf.blit(ln, (0, top_y + i))
 
     joint = _shade(_mix(stone, (60, 44, 34), 0.5), -12 - int(8 * night))
-    joint_hi = _mix(_sat(stone, 1.1), (255, 232, 196), 0.4)
 
-    # Receding paving courses: 6 rows packed tighter toward the back (perspective),
-    # each a run of irregular-width slabs with inset mortar joints. The course
-    # lines are FLAT horizontals (no wave); slab breaks ride the world scroll so
-    # the joints flow with the ground.
+    # Receding paving courses: 6 rows packed tighter toward the back (perspective).
+    # The grid is deliberately BROKEN so it reads as a worn temple courtyard, not
+    # tile wallpaper: each course carries its own running-bond phase offset, slab
+    # widths/breaks vary per slab (not a fixed step), joint value jitters
+    # slab-to-slab, and a couple of slabs per front course are cracked/worn.
     n_course = 6
     rim = _mix(_horizon(pal), (255, 224, 168), 0.5)
+    # Per-course running-bond phase: a pseudo-random fraction of the step per
+    # course (not a rigid alternating half-step) so vertical joints never stack
+    # into the wallpaper grid the way an even offset would.
+    bond_rng = random.Random((int(scroll * 0.18) // 24) & 0xFFFFFFFF)
     for c in range(n_course):
         f0 = c / n_course
         f1 = (c + 1) / n_course
@@ -195,43 +218,70 @@ def fg_flagstone_courtyard(surf, w, gy, h, scroll, pal):
         if y_front <= y_back:
             continue
         depth_t = f0  # 0 at back, ->1 at front
-        # Slab width grows toward the player; joints march in world space.
+        # Mean slab width grows toward the player; the running-bond offset is an
+        # irregular per-course phase shift (0.2-0.8 of a step) so vertical joints
+        # never line up between courses (the wallpaper-grid killer). Per-course
+        # joint value also drifts so courses don't read identically toned.
         step = int(26 + 30 * depth_t)
+        bond = int(bond_rng.uniform(0.2, 0.8) * step)
         jc = _mix(joint, back, max(0.0, 0.45 * (1 - depth_t)))
+        jc = _shade(jc, bond_rng.randint(-6, 6))
         # Horizontal course joint (flat).
         pygame.draw.line(surf, jc, (0, y_back), (w, y_back), 1)
         if depth_t > 0.45:
             pygame.draw.line(surf, _shade(jc, 14), (0, y_back + 1), (w, y_back + 1), 1)
-        # Vertical slab joints across this course, jittered per world cell.
+        # Vertical slab joints across this course at IRREGULAR widths: each cell
+        # nudges its break by a wide per-slab fraction of the step so slab
+        # lengths vary strongly, and the joint value jitters so no two joints
+        # read identical.
         speed = 0.18 + 0.10 * depth_t
         for sx, k, srng in _scatter(scroll, w, speed, step, 0x9A1 + c):
             jy0, jy1 = y_back, y_front
-            jx = sx + srng.randint(-2, 2)
-            pygame.draw.line(surf, jc, (jx, jy0), (jx, jy1), 1)
+            jx = sx + bond + int(srng.uniform(-0.40, 0.40) * step)
+            jvar = _shade(jc, srng.randint(-9, 9))
+            pygame.draw.line(surf, jvar, (jx, jy0), (jx, jy1), 1)
             # Faint lit edge on the player-facing side of nearer slabs.
             if depth_t > 0.4:
-                pygame.draw.line(surf, _shade(jc, 18), (jx + 1, jy0), (jx + 1, jy1), 1)
-        # A few worn slabs catch a faint warm sheen on the front courses.
+                pygame.draw.line(surf, _shade(jvar, 18), (jx + 1, jy0), (jx + 1, jy1), 1)
+            # 1-2 cracked / worn slabs per front course: a hairline fracture and
+            # a chipped darker corner so the slab reads as aged, not pristine.
+            if depth_t > 0.45 and srng.random() < 0.30:
+                cw0 = jx + srng.randint(6, max(8, step - 8))
+                cw0 = min(w - 2, cw0)
+                crk = _shade(jc, -10)
+                midc = (jy0 + jy1) // 2 + srng.randint(-3, 3)
+                pygame.draw.line(surf, crk, (cw0, jy0 + 2),
+                                 (cw0 + srng.randint(-4, 4), midc), 1)
+                pygame.draw.line(surf, crk, (cw0 + srng.randint(-4, 4), midc),
+                                 (cw0 + srng.randint(-5, 5), jy1 - 1), 1)
+                # Worn/scuffed patch — a faint darker wash on the slab face.
+                wp = pygame.Surface((srng.randint(6, 12),
+                                     max(2, (jy1 - jy0) // 2)), pygame.SRCALPHA)
+                wp.fill((*_shade(back, -14), 40))
+                surf.blit(wp, (cw0 - 4, jy0 + 2))
+        # A few worn slabs catch a faint warm sheen on the front courses —
+        # kept LOW and per-slab, never a continuous bright seam across the band.
         if depth_t > 0.55:
             for sx, k, srng in _scatter(scroll, w, speed * 1.3, step, 0x9A1 + c + 40):
-                if srng.random() < 0.5:
-                    wy = (y_back + y_front) // 2
-                    sheen = pygame.Surface((step - 4, max(2, (y_front - y_back) // 2)),
+                if srng.random() < 0.42:
+                    sheen = pygame.Surface((step - 6, max(2, (y_front - y_back) // 2)),
                                            pygame.SRCALPHA)
-                    sheen.fill((*rim, int(26 + 20 * depth_t)))
+                    sheen.fill((*rim, int(18 + 14 * depth_t)))
                     surf.blit(sheen, (sx - step // 2, y_back + 2),
                               special_flags=pygame.BLEND_RGB_ADD)
 
     # Fine stone grain over the whole plane.
     _apply_grain(surf, 0, top_y, w, h - top_y, 4)
 
-    # The single front lip of the pavement gets a restrained warm edge — the
-    # paving stone the warm horizon light grazes. Not a mountain crest, just the
-    # near course edge picking up the same light the pagoda does.
-    lip_y = _perspective_y(top_y, h, 0.02)
-    edge = _mix(rim, (255, 214, 150), 0.2 + 0.3 * night)
-    pygame.draw.line(surf, edge, (0, top_y), (w, top_y), 1)
-    pygame.draw.line(surf, _shade(joint, -10), (0, top_y - 1), (w, top_y - 1), 1)
+    # Tight top-edge feather: a 4px soft transition that dissolves the back of
+    # the plane into the mist colour so the top line is a gradient, never a hard
+    # seam — matched to the meadow lead.
+    feather = _mix(mist_back, _horizon(pal), 0.16)
+    for i in range(4):
+        a = int(140 * (1.0 - i / 4.0))
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*feather, a))
+        surf.blit(ln, (0, top_y - 1 + i))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -243,10 +293,13 @@ def fg_flagstone_courtyard(surf, w, gy, h, scroll, pal):
 # ══════════════════════════════════════════════════════════════════════════
 
 def _clay(pal):
-    """Dry packed-clay tone — a desaturated warm ochre off the stage ground band,
-    a touch greyer than the courtyard stone so it reads as earth, not masonry."""
+    """Dry packed-clay tone — pulled toward the warm sandstone family for charm
+    (the round-3 clay read muddy-grey). Off the stage ground band, kept a touch
+    earthier than the courtyard stone so it still reads as baked earth, not
+    masonry, but warmer and more inviting than the prior muted ochre."""
     base = pal.get('ground_mid', (176, 142, 92))
-    return _mix(_sat(base, 0.82), (168, 138, 104), 0.5)
+    warm = _mix(base, (198, 158, 110), 0.5)
+    return _mix(_sat(warm, 0.90), (192, 152, 108), 0.4)
 
 
 def fg_cracked_earth(surf, w, gy, h, scroll, pal):
@@ -259,43 +312,40 @@ def fg_cracked_earth(surf, w, gy, h, scroll, pal):
     back = _mix(back, (58, 66, 96), 0.34 * night)
     _flat_slab(surf, w, h, top_y, back, front, ease=0.95)
 
-    crack = _shade(_sat(clay, 0.7), -42 - int(10 * night))
-    crack_hi = _shade(clay, 22)  # sunlit upper lip of an open crack
+    # Low-contrast cracks (lifted off the round-3 near-black so the net never
+    # resolves into a high-contrast ridge skyline).
+    crack = _shade(_sat(clay, 0.78), -30 - int(8 * night))
+    crack_hi = _shade(clay, 18)  # sunlit upper lip of an open crack
 
-    # Procedural polygon crack network: scatter seed nodes across the plane in
-    # world space, then join near neighbours with jagged 2-3 segment cracks. A
-    # deterministic per-cell rng keeps the network stable + seamless under scroll.
+    # SHORT, BRANCHING crack fragments — NOT a connected polygon mesh. Round 3
+    # chained every node to its sorted neighbour, which summed into a continuous
+    # jagged line that read as a mountain crest. Here each seed fires its OWN
+    # little star of 2-3 short stubby cracks radiating to nearby random angles,
+    # so the marks stay local, broken, and low-contrast: dry-mud crazing, never a
+    # continuous horizontal fracture across the band.
     region_h = h - top_y
-    nodes = []
-    for sx, k, srng in _scatter(scroll, w, 0.16, 30, 0x2C7):
-        ny = top_y + int(srng.uniform(0.08, 0.98) * region_h)
-        nodes.append((sx, ny, k, srng))
-    # Sort by x so neighbour joins are local; draw cracks between adjacent nodes
-    # and an occasional downward branch — the dry-mud polygon look.
-    nodes.sort(key=lambda n: n[0])
-    for i, (nx, ny, k, srng) in enumerate(nodes):
-        # Link to next 1-2 neighbours with a kinked crack.
-        for j in range(1, srng.randint(2, 3)):
-            if i + j >= len(nodes):
-                break
-            tx, ty, _, _ = nodes[i + j]
-            if abs(tx - nx) > 52:
-                continue
-            midx = (nx + tx) // 2 + srng.randint(-5, 5)
-            midy = (ny + ty) // 2 + srng.randint(-4, 4)
-            depth_t = (ny - top_y) / max(1, region_h)
-            cw = 2 if depth_t > 0.6 else 1
-            pts = [(nx, ny), (midx, midy), (tx, ty)]
+    for sx, k, srng in _scatter(scroll, w, 0.16, 26, 0x2C7):
+        ny = top_y + int(srng.uniform(0.16, 0.96) * region_h)
+        depth_t = (ny - top_y) / max(1, region_h)
+        n_arms = srng.randint(2, 3)
+        for _a in range(n_arms):
+            ang = srng.uniform(0, math.tau)
+            seg = srng.randint(6, 13)
+            # Two-segment kinked stub so each arm bends a little but stays short.
+            mx = sx + int(math.cos(ang) * seg * 0.6)
+            my = ny + int(math.sin(ang) * seg * 0.6)
+            ang2 = ang + srng.uniform(-0.6, 0.6)
+            ex = mx + int(math.cos(ang2) * seg * 0.5)
+            ey = my + int(math.sin(ang2) * seg * 0.5)
+            ey = max(top_y + 1, min(h - 1, ey))
+            my = max(top_y + 1, min(h - 1, my))
+            cw = 2 if depth_t > 0.7 else 1
+            pts = [(sx, ny), (mx, my), (ex, ey)]
             pygame.draw.lines(surf, crack, False, pts, cw)
-            # Sunlit upper lip on nearer cracks gives the crack a tiny relief.
-            if depth_t > 0.5 and night < 0.6:
-                pygame.draw.aalines(surf, _mix(crack_hi, front, 0.3), False,
+            # Sunlit upper lip on nearer cracks gives a tiny relief.
+            if depth_t > 0.55 and night < 0.6:
+                pygame.draw.aalines(surf, _mix(crack_hi, front, 0.35), False,
                                     [(p[0], p[1] - 1) for p in pts])
-        # A short downward hairline branch off some nodes.
-        if srng.random() < 0.5:
-            by = min(h - 1, ny + srng.randint(6, 16))
-            bx = nx + srng.randint(-6, 6)
-            pygame.draw.line(surf, crack, (nx, ny), (bx, by), 1)
 
     # Embedded pebbles half-sunk in the clay — small flat ellipses with a lit top
     # edge, larger/brighter toward the front plane.
@@ -314,10 +364,15 @@ def fg_cracked_earth(surf, w, gy, h, scroll, pal):
             surf.set_at((sx, py - pr // 2 - 1), _shade(pc, 26))
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 5)
-    # Restrained warm front edge — only a faint sun-graze, no golden crest.
-    edge = _mix(_horizon(pal), front, 0.45)
-    pygame.draw.line(surf, edge, (0, top_y), (w, top_y), 1)
-    pygame.draw.line(surf, crack, (0, top_y + 1), (w, top_y + 1), 1)
+    # Top edge: a soft 4px feather into the mist (NO drawn crack/edge lines — a
+    # continuous dark crack line at the top read as a connected fracture ridge).
+    mist_back = _mix(back, _horizon(pal), 0.20 + 0.10 * night)
+    feather = _mix(mist_back, _horizon(pal), 0.14)
+    for i in range(4):
+        a = int(140 * (1.0 - i / 4.0))
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*feather, a))
+        surf.blit(ln, (0, top_y - 1 + i))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -358,34 +413,42 @@ def fg_zen_gravel(surf, w, gy, h, scroll, pal):
     groove = _shade(_sat(gravel, 0.8), -26 - int(8 * night))
     ridge = _shade(gravel, 16)
 
-    # Parallel raked furrows: flat horizontal grooves stepping down the plane,
-    # each deflected upward into a smooth bump where it passes a stone (the
-    # karesansui ripple-around-rock). The deflection is a localized gaussian, NOT
-    # a periodic sine, so it reads as raking around an object, never as waves.
+    # Parallel raked furrows: DEAD-STRAIGHT horizontal grooves stepping down the
+    # plane. Round 3's wide gaussian deflection swelled the furrows into nested
+    # arcs that read as rolling waves on the floor. Here a furrow is a flat
+    # horizontal line; the ONLY deviation is a tiny, tight local nudge in a
+    # narrow band right at a stone's edge (radius ~ the stone itself, amplitude a
+    # few px) so the rake reads as combing snug around the rock — no swelling
+    # arcs, no nested contours, just straight lines with a small notch at a stone.
     n_groove = 11
     for gi in range(n_groove):
         f = gi / (n_groove - 1)
         base_y = _perspective_y(top_y, h, 1.0 - f * 0.96)
         depth_t = f
-        gw = 1 if depth_t < 0.55 else 2
 
-        def deflect(x):
+        def nudge(x):
             dy = 0.0
             for (scx, scy, sr) in stone_cx:
-                # Only furrows passing near/below the stone curve around it.
-                if base_y < scy - sr - 2:
+                # Only furrows passing right beside the stone get the small notch.
+                if abs(base_y - scy) > sr + 3:
                     continue
-                d = (x - scx) / (sr + 14.0)
-                dy -= math.exp(-d * d) * (sr + 10) * (0.5 + 0.5 * depth_t)
+                dx = abs(x - scx)
+                if dx > sr + 5:
+                    continue
+                # Tight cosine notch confined to the stone's own width; capped at
+                # a few px so it can never grow into a wave.
+                e = 0.5 + 0.5 * math.cos(math.pi * min(1.0, dx / (sr + 5.0)))
+                dy -= e * min(4.0, sr * 0.4)
             return dy
 
+        # Straight base line drawn in two flat halves with only the local notch
+        # where a stone sits; most of the furrow is a perfectly horizontal line.
         pts = []
         for x in range(0, w + 1, 4):
-            yy = base_y + deflect(x)
+            yy = base_y + nudge(x)
             if yy < top_y:
                 yy = top_y
             pts.append((x, int(yy)))
-        # Groove shadow + a thin raised ridge highlight just above it.
         pygame.draw.aalines(surf, groove, False, pts)
         if depth_t > 0.35:
             pygame.draw.aalines(surf, ridge, False, [(x, y - 1) for x, y in pts])
@@ -415,10 +478,14 @@ def fg_zen_gravel(surf, w, gy, h, scroll, pal):
             surf.set_at((mx, scy - sr + 2), moss)
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 4)
-    # Quiet front edge — gravel catches a soft pale light, no golden crest.
-    edge = _mix(_horizon(pal), front, 0.5)
-    pygame.draw.line(surf, edge, (0, top_y), (w, top_y), 1)
-    pygame.draw.line(surf, groove, (0, top_y + 1), (w, top_y + 1), 1)
+    # Top edge: soft 4px feather into the mist (no drawn continuous edge lines).
+    mist_back = _mix(back, _horizon(pal), 0.18 + 0.10 * night)
+    feather = _mix(mist_back, _horizon(pal), 0.14)
+    for i in range(4):
+        a = int(135 * (1.0 - i / 4.0))
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*feather, a))
+        surf.blit(ln, (0, top_y - 1 + i))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -432,22 +499,58 @@ def fg_zen_gravel(surf, w, gy, h, scroll, pal):
 def _meadow(pal):
     """Muted ink-wash grass — the stage foliage pulled hard toward a desaturated
     teal-green so it sits in the shan-shui frame instead of reading as the live
-    game's kelly meadow."""
+    game's kelly meadow. Pulled a further ~12% notch toward the misty biome's
+    muted teal-green (lower saturation, more of the cool teal mix) so the DAY
+    plane stops reading a hair too saturated/uniform against the misted ranks."""
     base = pal.get('foliage_mid', (60, 110, 80))
-    return _mix(_sat(base, 0.58), (74, 96, 76), 0.45)
+    return _mix(_sat(base, 0.42), (78, 100, 86), 0.58)
 
 
 def fg_inkwash_meadow(surf, w, gy, h, scroll, pal):
     night = _nightf(pal)
     top_y = gy - 48
     grass = _meadow(pal)
-    front = _shade(grass, 2)
-    back = _mix(_shade(_sat(grass, 0.85), -22), _horizon(pal), 0.10)
+    region_h = h - top_y
+
+    # Strong near->far value fall so the plane reads as a FLOOR tilting toward a
+    # horizon, not a stacked strip: the front lip sits clearly lighter/warmer and
+    # the back lifts toward the mist. Widen the front<->back spread (vs round 3's
+    # near-flat ramp) so the eye reads the plane receding, then ease<1 packs the
+    # darker mid into the near third under the bird lane.
+    front = _shade(grass, 10)
+    back = _mix(_shade(_sat(grass, 0.80), -30), _horizon(pal), 0.18)
     front = _mix(front, (52, 64, 96), 0.32 * night)
     back = _mix(back, (46, 58, 90), 0.36 * night)
-    _flat_slab(surf, w, h, top_y, back, front, ease=0.9)
+    _flat_slab(surf, w, h, top_y, back, front, ease=0.78)
 
-    region_h = h - top_y
+    # Foreshorten the back edge: the round-3 hard horizontal seam "stepped"
+    # against the mist. Replace it with (a) a soft multi-px transition right at
+    # the top line that dissolves the seam, and (b) a long value-fall lift across
+    # the rear ~40% of the band so the surface tilts away to a horizon. Two
+    # passes: a wide gentle lift, then a tight ~4px feather right at top_y so the
+    # joint with the mist is gradient, never a drawn line.
+    mist_back = _mix(back, _horizon(pal), 0.26 + 0.10 * night)
+    recede_h = int(region_h * 0.40)
+    for i in range(recede_h):
+        # 1 at the very back edge -> 0 where the recede band ends.
+        t = 1.0 - (i / max(1, recede_h - 1))
+        t = t * t
+        if t <= 0.01:
+            continue
+        col = _mix(back, mist_back, t)
+        a = int(205 * t)
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*col, a))
+        surf.blit(ln, (0, top_y + i))
+    # Tight top-edge feather: a 4px soft transition that bleeds the very back of
+    # the plane into the mist colour so the top line is never a hard seam.
+    feather = _mix(mist_back, _horizon(pal), 0.18)
+    for i in range(4):
+        a = int(150 * (1.0 - i / 4.0))
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*feather, a))
+        surf.blit(ln, (0, top_y - 1 + i))
+
     blade_dk = _shade(_sat(grass, 0.9), -24)
     blade_lt = _mix(grass, (150, 168, 130), 0.4)
     blade_lt = _mix(blade_lt, (70, 80, 108), 0.3 * night)
@@ -455,39 +558,60 @@ def fg_inkwash_meadow(surf, w, gy, h, scroll, pal):
     # Fine blade texture: short upward flicks scattered in world space, denser and
     # taller toward the front plane, leaning slightly with a gentle breeze phase.
     # Pure 1-2px lines — quiet, not the bright tuft clumps of the live meadow.
+    # Blades fade toward the receding back so they don't pepper the misted rim.
     lean = math.sin(scroll * 0.01) * 1.5
     for sx, k, srng in _scatter(scroll, w, 0.26, 7, 0x33D):
         by = top_y + int(srng.uniform(0.10, 1.0) * region_h)
         depth_t = (by - top_y) / max(1, region_h)
+        if depth_t < 0.16 and srng.random() < 0.7:
+            continue
         bl = int(3 + depth_t * 6 + srng.randint(0, 2))
         tip_x = sx + int(lean * (0.5 + depth_t)) + srng.randint(-1, 1)
         col = blade_dk if srng.random() < 0.6 else blade_lt
+        if depth_t < 0.3:
+            col = _mix(col, mist_back, 0.4)
         pygame.draw.line(surf, col, (sx, by), (tip_x, by - bl), 1)
 
-    # A few sparse reeds — taller, thinner stalks with a small seed-head tuft,
-    # clumped lightly and kept off the dead-centre so they don't crowd the lane.
+    # Sparse reeds — taller, thinner stalks with a small seed-head tuft. CLUMPED
+    # (Poisson-ish) rather than evenly stamped: a coarse world step picks sparse
+    # clump anchors, and to break the regular picket rhythm each firing anchor
+    # also drops a satellite tuft a random gap to one side, so reeds gather in
+    # uneven groups of marsh-grass with bare ground between — never a fence line.
     reed_dk = _shade(_sat(grass, 0.7), -30)
     reed_seed = _mix(_horizon(pal), grass, 0.5)
     reed_seed = _mix(reed_seed, (90, 100, 120), 0.35 * night)
-    for sx, k, srng in _scatter(scroll, w, 0.24, 64, 0x88E):
-        if srng.random() < 0.4:
+
+    def _draw_clump(cx0, cluster_y, srng, count):
+        for ci in range(count):
+            cx_off = srng.randint(-8, 8)
+            ry = cluster_y + srng.randint(-3, 3)
+            rx = cx0 + cx_off
+            rh = srng.randint(13 + ci, 24)
+            sway = int(lean * 1.6) + srng.randint(-1, 1)
+            tip = (rx + sway, ry - rh)
+            pygame.draw.line(surf, reed_dk, (rx, ry), tip, 1)
+            # Slim seed head — a short fatter stroke at the tip, not a flower.
+            pygame.draw.line(surf, reed_seed, (tip[0], tip[1]),
+                             (tip[0], tip[1] + 4), 2)
+            # A leaf flick off the stalk.
+            midy = ry - rh // 2
+            pygame.draw.line(surf, reed_dk, (rx, midy), (rx - 4, midy - 2), 1)
+
+    for sx, k, srng in _scatter(scroll, w, 0.24, 132, 0x88E):
+        # Sparse firing so clumps are well-separated; the wide step + jitter in
+        # _scatter already de-grids the anchors, the satellite adds local cluster.
+        if srng.random() < 0.40:
             continue
-        ry = top_y + int(srng.uniform(0.5, 0.95) * region_h)
-        rh = srng.randint(14, 24)
-        sway = int(lean * 1.6) + srng.randint(-1, 1)
-        tip = (sx + sway, ry - rh)
-        pygame.draw.line(surf, reed_dk, (sx, ry), tip, 1)
-        # Slim seed head — a short fatter stroke at the tip, not a flower.
-        pygame.draw.line(surf, reed_seed, (tip[0], tip[1]),
-                         (tip[0], tip[1] + 4), 2)
-        # A couple of leaf flicks off the stalk.
-        midy = ry - rh // 2
-        pygame.draw.line(surf, reed_dk, (sx, midy), (sx - 4, midy - 2), 1)
+        cluster_y = top_y + int(srng.uniform(0.58, 0.95) * region_h)
+        _draw_clump(sx, cluster_y, srng, srng.randint(2, 4))
+        # ~half the anchors spawn a tighter satellite tuft a short irregular gap
+        # away, so reeds bunch in uneven natural groups instead of even spacing.
+        if srng.random() < 0.5:
+            gap = srng.randint(10, 26) * (1 if srng.random() < 0.5 else -1)
+            sat_y = cluster_y + srng.randint(-4, 4)
+            _draw_clump(sx + gap, sat_y, srng, srng.randint(1, 2))
 
     _apply_grain(surf, 0, top_y, w, h - top_y, 4)
-    # No golden crest — the meadow's front lip is just a slightly lit blade line.
-    edge = _mix(_horizon(pal), front, 0.55)
-    pygame.draw.line(surf, _mix(blade_lt, edge, 0.5), (0, top_y), (w, top_y), 1)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -522,12 +646,16 @@ def fg_wood_boardwalk(surf, w, gy, h, scroll, pal):
     grain_lt = _shade(_sat(wood, 1.05), 20)
 
     # Planks run INTO the screen as long boards separated by vertical shadow gaps.
-    # The board edges converge slightly toward centre with depth (gentle one-point
-    # perspective) so the deck recedes. Boards ride the world scroll so the deck
-    # slides under the bird. The plank grid is the identity — flat plane, no wave.
+    # The board edges converge only VERY slightly toward centre with depth — a
+    # near-orthographic deck that reads as ground underfoot, not a pier deck
+    # pointing at a hard vanishing point. Boards ride the world scroll so the
+    # deck slides under the bird. The plank grid is the identity — flat, no wave.
     n_plank = 9
     vanish = w * 0.5
-    converge = 0.16  # how much board edges pull toward the vanishing column
+    # Near-orthographic: a very slight pull so boards barely converge — this
+    # reads as a flat deck underfoot rather than a pier deck aimed at a hard
+    # one-point vanish (the art-director's pier read).
+    converge = 0.025
     phase = scroll * 0.20
     board_w = w / n_plank
     for pi in range(n_plank + 1):
@@ -564,18 +692,33 @@ def fg_wood_boardwalk(surf, w, gy, h, scroll, pal):
             pygame.draw.ellipse(surf, grain_dk,
                                 (int(kx) - kr, ky - kr, kr * 2 + 1, kr + 1))
 
-    # Cross-board nosing line at the very front edge (the deck's leading board
-    # cap) catches the warm horizon light — a restrained material edge, not a
-    # mandatory golden ridge crest.
-    nose = _mix(_horizon(pal), front, 0.4 + 0.2 * night)
-    pygame.draw.line(surf, _shade(gap, -6), (0, top_y - 1), (w, top_y - 1), 1)
-    pygame.draw.line(surf, nose, (0, top_y), (w, top_y), 1)
-    pygame.draw.line(surf, _shade(nose, -18), (0, top_y + 2), (w, top_y + 2), 1)
-    # A faint warm sheen along the lit run of the front boards at low sun.
-    if night < 0.7:
-        sheen = pygame.Surface((w, 10), pygame.SRCALPHA)
-        sheen.fill((*_mix(nose, (255, 224, 168), 0.4), 26))
-        surf.blit(sheen, (0, top_y + 3), special_flags=pygame.BLEND_RGB_ADD)
+    # Foreshorten the back edge into the mist so the top line recedes, not steps.
+    region_top = h - top_y
+    mist_back = _mix(back, _horizon(pal), 0.18 + 0.10 * night)
+    recede_h = int(region_top * 0.28)
+    for i in range(recede_h):
+        t = 1.0 - (i / max(1, recede_h - 1))
+        t = t * t
+        if t <= 0.01:
+            continue
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*_mix(back, mist_back, t), int(170 * t)))
+        surf.blit(ln, (0, top_y + i))
+
+    # Cross-board nosing at the front edge is a SOFT, low-contrast, desaturated
+    # board cap — the forbidden mountain-crest echo means it must NEVER brighten
+    # or go golden at sunset. The nose is derived from the back timber (not the
+    # lit front), desaturated ~40% toward neutral and held BELOW the plane value
+    # so it can only ever read as a quiet recede, never a hot crest. No horizon
+    # warmth, no additive sheen, at any time of day. A 4px feather replaces the
+    # old drawn nose lines so the top edge is a gradient, never a stripe.
+    nose = _shade(_sat(_mix(back, front, 0.4), 0.6), -8)
+    feather = _mix(mist_back, nose, 0.5)
+    for i in range(4):
+        a = int(130 * (1.0 - i / 4.0))
+        ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+        ln.fill((*feather, a))
+        surf.blit(ln, (0, top_y - 1 + i))
 
 
 # ── registry (order matches the brief) ──────────────────────────────────────
