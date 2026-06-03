@@ -133,7 +133,7 @@ def _paint_context(phase):
     top_rect = pygame.Rect(px, 0, PIPE_W, gap_y - gap_h // 2)
     bot_rect = pygame.Rect(px, gap_y + gap_h // 2, PIPE_W,
                            GROUND_Y - (gap_y + gap_h // 2))
-    pgv.candidate_songyue_sandstone(surf, top_rect, bot_rect, pal, seed=7)
+    pgv.candidate_songyue_cream(surf, top_rect, bot_rect, pal, seed=7)
 
     return surf, pal
 
@@ -192,13 +192,15 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R12]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R13]
 
 ROW_NOTES = {
-    "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below nets to this exact top edge.",
-    "Running-Bond UNTUNED (r11)": "BEFORE - the round-11 lead as-is. Brick field starts ~6px LOW, mortar/bevel + worn spread + brick ratio all pre-tuning. The contrast row.",
-    "Tuned Running-Bond Clay (warm)": "VERSION A LEAD - top@595 FLUSH, 45px. Warm clay running bond, recessed-dark mortar (no bright seam), held-down bevel, wider worn spread, longer paver-ratio bricks. Bird + coin in DAY/NIGHT.",
-    "Running-Bond Cool Pavers": "VERSION B - top@595, 45px. SAME tuned geometry in the cool grey-taupe paver palette (best night coherence), day value dropped ~9%. The day/night-biome counterpoint. Bird + coin in DAY/NIGHT.",
+    "Terracotta Clay - running-bond": "BASELINE - the shipped round-12 warm clay running bond. Warm red terracotta, recessed-dark mortar, the known lead the other swatches are judged against.",
+    "Pale Buff Sandstone - running-bond": "LIGHT WARM - tone-on-tone with the cream pagoda. Pale buff/sandstone running bond, low-chroma cream-tan held under the day white-pool cap.",
+    "Cool Grey-Taupe - running-bond paver": "COOL NEUTRAL - the round-12 cool paver counterpoint. Grey-taupe running-bond paver (cool=True), best night coherence, day value dropped a notch.",
+    "Warm Honey - large flagstone": "DIFFERENT PATTERN - large-format ashlar flagstone (3 deep courses, big blocks). Warm honey-tan sandstone slabs, half-block stagger, flush@595.",
+    "Slate Blue-Grey - square setts": "DIFFERENT PATTERN - small square setts / cobble (6 short courses, near-square cells). Cool blue-grey slate, third-offset grid so it never reads as a rigid mesh.",
+    "Rosy-Red - herringbone": "BOLD + DIFFERENT PATTERN - the 45deg herringbone weave revived in a deeper rose-brick hue. Same shared bevel/mortar path, warm rosy red.",
 }
 
 
@@ -218,7 +220,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 12 - TUNE the chosen Running-Bond clay walkway + add its COOL counterpoint. Original ref + r11 UNTUNED before + Version A (tuned warm clay) + Version B (cool pavers) - flush@595, v8 lip, recessed-dark mortar, world-anchored seamless scroll - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 13 - SIDEWALK COLOR + DESIGN spread under a FIXED cream pagoda + parrot + coin in EVERY cell. 6 swatches differ in BOTH color (warm->neutral->cool->bold) AND pattern (running-bond / large flagstone / square setts / herringbone) - flush@595, v8 lip, recessed-dark mortar, seamless scroll - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -271,10 +273,9 @@ def make_sheet(images):
     return sheet
 
 
-# Both version rows (warm A + cool B) get the bird + scrolling coin in their
-# DAY and NIGHT cells so bird-lane quietness is judged on each palette.
-LEAD_ROWS = {"Tuned Running-Bond Clay (warm)", "Running-Bond Cool Pavers"}
-ACTOR_COLS = {"DAY", "NIGHT"}
+# Round 13 puts the parrot + scrolling coin in EVERY cell (every swatch x every
+# stage) so the USER can compare the TOTAL look — bird-lane quietness and the
+# parrot's read against each color/pattern — under the fixed cream pagoda.
 
 
 def main():
@@ -284,13 +285,12 @@ def main():
             if fn is None:
                 images[(rname, pname)] = _render_original(phase)
             else:
-                actors = rname in LEAD_ROWS and pname in ACTOR_COLS
-                images[(rname, pname)] = _render_concept(fn, phase, actors=actors)
+                images[(rname, pname)] = _render_concept(fn, phase, actors=True)
 
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_12.png"
+    path = out / "round_13.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 

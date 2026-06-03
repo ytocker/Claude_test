@@ -2810,13 +2810,19 @@ def _brick_dab(surf, x, y, w, hh, night):
 # gap, and a restrained per-brick specular dab. The lattice is keyed off ONE
 # world phase so the diagonal weave wraps seamlessly under scroll.
 
-def fg_brick_herringbone(surf, w, gy, h, scroll, pal):
-    body = _clay(pal)
+def fg_brick_herringbone(surf, w, gy, h, scroll, pal,
+                         *, body=None, cool=False,
+                         lip_warm=(255, 238, 212), lip_a=66):
+    # `body`/`cool`/`lip_*` default to the warm clay weave but let a swatch recolor
+    # the SAME weave geometry through the shared `_brick_tones` path (the round-13
+    # rosy-red herringbone), so the pattern tunes once and only the palette varies.
+    body = _clay(pal) if body is None else body
     night = _nightf(pal)
-    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(pal, body, night=night)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(
+        pal, body, night=night, cool=cool)
     top_y, region_h, night = _premium_base_v8(
         surf, w, gy, h, pal, front, back, ease=0.95,
-        lip_warm=(255, 238, 212), lip_a=66)
+        lip_warm=lip_warm, lip_a=lip_a)
 
     # Herringbone is a lattice of unit cells of size (2L x 2L) tiling the plane,
     # each holding two perpendicular bricks (one "/" leaning, one "\" leaning).
@@ -3227,6 +3233,212 @@ def fg_paver_stone(surf, w, gy, h, scroll, pal):
             # joint carry the premium read for this palette instead.
 
     _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Round 13 — a COLOR + DESIGN spread for the chosen brick sidewalk. The walkway
+# pattern is the variable now: the same v8 scaffolding, lip, recessed-dark
+# mortar and world-anchored seamless scroll carry across every swatch; only the
+# body HUE and the cell GEOMETRY change. Each body tone is derived from `pal`
+# (stone_*/ground_*) so every swatch retints day->night exactly like the lead.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _buff_body(pal):
+    """Pale buff / warm sandstone — a light, low-chroma cream-tan pulled from the
+    sandstone family, lifted toward bone so it reads tone-on-tone with the cream
+    pagoda. Warm (cool=False); the day cap in `_brick_tones` keeps it under the
+    white-pool ceiling."""
+    # Bone-lift target pulled a notch DOWN from a pure cream so the night retint
+    # (the lightest body resists the night_dk mix the most) lands the night body
+    # clearly UNDER the night-sky band — keeps the day buff light/tone-on-tone
+    # with the cream pagoda while clearing the no-glow night gate.
+    base = _mix(_sandstone(pal), pal.get('stone_light', (188, 170, 146)), 0.55)
+    return _mix(_sat(base, 0.82), (196, 178, 144), 0.45)
+
+
+def _honey_body(pal):
+    """Warm sand / honey — a richer golden-tan than buff, for the large-format
+    flagstone/ashlar. Sits between the clay and the buff in warmth so the big
+    blocks read as honeyed sandstone slabs, not pale brick."""
+    base = _mix(_sandstone(pal), pal.get('ground_mid', (176, 142, 92)), 0.40)
+    return _mix(_sat(base, 0.96), (208, 168, 110), 0.42)
+
+
+def _slate_body(pal):
+    """Slate blue-grey — a cool desaturated stone with a faint blue cast for the
+    small square setts / cobble. Cooler than the grey-taupe paver so the setts
+    read as a different cool family, not a recolor of the lead's counterpoint."""
+    base = _mix(pal.get('stone_mid', (150, 132, 110)),
+                pal.get('stone_dark', (95, 70, 55)), 0.30)
+    base = _sat(base, 0.62)
+    return _mix(_shade(base, -10), (96, 110, 128), 0.46)
+
+
+def _rosy_body(pal):
+    """Rosy-red — a deeper, bolder rose-brick than the terracotta clay for the
+    herringbone, so the 45deg weave revives in a fresh warm hue rather than the
+    lead's color. Warm; the day cap holds it under the white-pool ceiling."""
+    return _mix(_clay(pal), (172, 78, 72), 0.55)
+
+
+# ── Swatch: Pale Buff / Sandstone — running-bond (light warm, tone-on-tone) ──
+def fg_swatch_buff_running_bond(surf, w, gy, h, scroll, pal):
+    _running_bond_courses(
+        surf, w, gy, h, scroll, pal,
+        body=_buff_body(pal), cool=False,
+        lip_warm=(255, 244, 224), lip_a=60, stray_tgt=(176, 150, 112))
+
+
+# ── Swatch: Rosy-Red — herringbone (bolder warm hue, 45deg weave) ────────────
+def fg_swatch_rosy_herringbone(surf, w, gy, h, scroll, pal):
+    fg_brick_herringbone(surf, w, gy, h, scroll, pal,
+                         body=_rosy_body(pal), cool=False,
+                         lip_warm=(255, 234, 214), lip_a=64)
+
+
+# ── Swatch: Warm Sand / Honey — large-format flagstone / ashlar ──────────────
+# A DIFFERENT pattern: big rectangular ashlar slabs (far fewer, larger blocks
+# than the paver bond) laid in courses with a half-block stagger. Same v8 lip +
+# recessed-dark bedding + world-anchored seamless scroll; only the cell pitch
+# grows so the floor reads as large dressed flagstone, not small brick.
+def fg_swatch_honey_flagstone(surf, w, gy, h, scroll, pal):
+    body = _honey_body(pal)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(
+        pal, body, night=night, cool=False)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(255, 240, 218), lip_a=62)
+
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 150))
+    surf.blit(bed, (0, top_y))
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    # Only 3 deep courses over 45px — large-format slabs read as a few big blocks
+    # per course, not a brick field. First course anchored FLUSH at the lip via
+    # the same explicit-pitch walk the running bond uses (no foreshortened sliver).
+    n_course = 3
+    edges = [top_y]
+    acc = 0.0
+    weights = [0.82 + 0.14 * (c / max(1, n_course - 1)) for c in range(n_course)]
+    wsum = sum(weights)
+    for c in range(n_course):
+        acc += weights[c] / wsum * region_h
+        edges.append(top_y + int(round(acc)))
+    for c in range(n_course):
+        y_back = edges[c]
+        y_front = edges[c + 1]
+        if y_front <= y_back + 1:
+            continue
+        depth_t = (c + 0.5) / n_course
+        # Big ashlar blocks: roughly 2x the paver width so the floor reads as
+        # large dressed flagstone slabs.
+        block_w = int(70 + 36 * depth_t)
+        bond = (c % 2) * (block_w // 2)
+        speed = 0.18 + 0.08 * depth_t
+        in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
+        bh = y_front - y_back
+        cy_t = ((y_back + y_front) * 0.5 - top_y) / max(1, region_h)
+        cy_t = 0.5 + (cy_t - 0.5) * 0.55
+        for sx, k, srng in _scatter(scroll, w, speed, block_w, 0xD13 + c):
+            bx = sx + bond
+            base = _mix(back, front, cy_t)
+            fr = _brick_face(pal, base, srng, night=night, cool=False, spread=11)
+            if in_mid:
+                fr = _mix(fr, base, 0.16)
+            rect = (bx + 1, y_back + 1, block_w - 2, bh - 2)
+            if rect[2] <= 0 or rect[3] <= 0:
+                continue
+            pygame.draw.rect(surf, fr, rect)
+            # Vertical-edge bevel only (lit left / shadow right): a lit TOP lip
+            # across a course of aligned slab tops would sum into a bright
+            # horizontal seam, so the course joint reads from the recessed-dark
+            # bedding gap alone.
+            pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                             (rect[0], rect[1] + rect[3] - 1), 1)
+            pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                             (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+# ── Swatch: Slate Blue-Grey — square setts / cobble ──────────────────────────
+# A DIFFERENT pattern: small SQUARE setts in a tight grid (cool slate cobble),
+# the opposite extreme from the large flagstone. Many small near-square cells,
+# each course offset a third so the grid never reads as a rigid mesh. Same v8
+# lip + recessed-dark bedding + world-anchored seamless scroll.
+def fg_swatch_slate_setts(surf, w, gy, h, scroll, pal):
+    body = _slate_body(pal)
+    night = _nightf(pal)
+    front, back, mortar, bevel_lt, bevel_dk = _brick_tones(
+        pal, body, night=night, cool=True)
+    top_y, region_h, night = _premium_base_v8(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        lip_warm=(238, 244, 250), lip_a=54)
+
+    bed = pygame.Surface((w, region_h), pygame.SRCALPHA)
+    bed.fill((*mortar, 150))
+    surf.blit(bed, (0, top_y))
+
+    mid_lo = top_y + region_h * 0.30
+    mid_hi = top_y + region_h * 0.72
+    # 6 short courses so each sett is close to square at the course height. First
+    # course flush at the lip via the explicit-pitch walk.
+    n_course = 6
+    edges = [top_y]
+    acc = 0.0
+    weights = [0.84 + 0.12 * (c / max(1, n_course - 1)) for c in range(n_course)]
+    wsum = sum(weights)
+    for c in range(n_course):
+        acc += weights[c] / wsum * region_h
+        edges.append(top_y + int(round(acc)))
+    for c in range(n_course):
+        y_back = edges[c]
+        y_front = edges[c + 1]
+        if y_front <= y_back + 1:
+            continue
+        depth_t = (c + 0.5) / n_course
+        bh = y_front - y_back
+        # Square setts: width tracks the course height so each cell reads square.
+        sett_w = max(8, bh + int(2 * depth_t))
+        bond = (c % 3) * (sett_w // 3)        # third-offset, not a rigid mesh
+        speed = 0.18 + 0.08 * depth_t
+        in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
+        cy_t = ((y_back + y_front) * 0.5 - top_y) / max(1, region_h)
+        cy_t = 0.5 + (cy_t - 0.5) * 0.55
+        for sx, k, srng in _scatter(scroll, w, speed, sett_w, 0xE57 + c):
+            bx = sx + bond
+            base = _mix(back, front, cy_t)
+            fr = _brick_face(pal, base, srng, night=night, cool=True, spread=13)
+            if in_mid:
+                fr = _mix(fr, base, 0.16)
+            rect = (bx + 1, y_back + 1, sett_w - 2, bh - 2)
+            if rect[2] <= 0 or rect[3] <= 0:
+                continue
+            pygame.draw.rect(surf, fr, rect)
+            pygame.draw.line(surf, bevel_lt, (rect[0], rect[1]),
+                             (rect[0], rect[1] + rect[3] - 1), 1)
+            pygame.draw.line(surf, bevel_dk, (rect[0] + rect[2] - 1, rect[1]),
+                             (rect[0] + rect[2] - 1, rect[1] + rect[3] - 1), 1)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+
+
+# Round-13 sheet: 6 sidewalk swatches differing in BOTH color AND pattern, under
+# a fixed light (cream) pagoda + parrot + coin in every cell so the USER can
+# judge the TOTAL look. Warm->neutral->cool->bold across color; running-bond /
+# large flagstone / square setts / herringbone across pattern.
+CONCEPTS_R13 = [
+    ("Terracotta Clay - running-bond", fg_brick_running_bond),
+    ("Pale Buff Sandstone - running-bond", fg_swatch_buff_running_bond),
+    ("Cool Grey-Taupe - running-bond paver", fg_brick_running_bond_cool),
+    ("Warm Honey - large flagstone", fg_swatch_honey_flagstone),
+    ("Slate Blue-Grey - square setts", fg_swatch_slate_setts),
+    ("Rosy-Red - herringbone", fg_swatch_rosy_herringbone),
+]
 
 
 # Round-11 sheet: a PAVED-WALKWAY spread — the new-floor hero hunt. Row 0 the
