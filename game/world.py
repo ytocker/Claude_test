@@ -357,8 +357,12 @@ class World:
             self.bird.flap_dampen = 0.0
             # Storm has ended (or hasn't started this cycle). Re-arm the
             # umbrella spawn one-shot so the NEXT storm gets its own
-            # umbrella offer.
+            # umbrella offer, and cull any uncollected umbrella still
+            # floating on-world — the pickup can ONLY exist while it's
+            # raining.
             self._umbrella_spawned_this_storm = False
+            self.powerups = [m for m in self.powerups
+                             if m.kind != "umbrella"]
         else:
             amp_x = WEATHER_COIN_SHAKE_AMP * ri
             freq = 4.5 * (1.0 + ri)
