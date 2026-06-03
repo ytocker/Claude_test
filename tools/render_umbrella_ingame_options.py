@@ -213,6 +213,15 @@ def w2_wider(head_span):
     return surf, hem, 7
 
 
+def w2b_fifty(head_span):
+    """W2b — +50% width. The midpoint the user asked to see between W2
+    (+40%) and W3 (+60%)."""
+    surf, hem = _make_umbrella(int(head_span * 1.50), rise_scale=0.62,
+                               panels=5, handle_len=0.0, lean_deg=0.0,
+                               ferrule=True)
+    return surf, hem, 7
+
+
 def w3_shelter(head_span):
     """W3 — +60% width. Starts to read as a clear shelter covering Pip's
     head & shoulders, but still leaves silhouette legible."""
@@ -286,11 +295,9 @@ def v5_full_handle(head_span):
 
 
 VARIANTS = [
-    ("W1", "V4 baseline (+20%)", w1_v4_baseline),
-    ("W2", "Wider (+40%)", w2_wider),
-    ("W3", "Shelter (+60%)", w3_shelter),
-    ("W4", "Wide shelter (+80%)", w4_wide_shelter),
-    ("W5", "Max wide (+100%)", w5_max_wide),
+    ("W2",  "Wider (+40%)",        w2_wider),
+    ("W2b", "Fifty (+50%)",        w2b_fifty),
+    ("W3",  "Shelter (+60%)",      w3_shelter),
 ]
 
 POSES = [(+25.0, "rising"), (0.0, "level"), (-25.0, "diving")]
@@ -374,7 +381,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(THIS_DIR),
                            "docs", "umbrella_powerup")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "ingame_round_3.png")
+    out_path = os.path.join(out_dir, "ingame_round_3b_fifty.png")
 
     def font(sz, bold=False):
         return pygame.font.SysFont("Arial", sz, bold=bold)
@@ -397,12 +404,12 @@ def main():
     sheet.fill((18, 18, 28))
 
     title = font(24, bold=True).render(
-        "UMBRELLA in-gameplay — round 3 (wider V4-based options)", True,
-        (240, 240, 248))
+        "UMBRELLA in-gameplay — +50% (W2b) between W2 (+40%) and W3 (+60%)",
+        True, (240, 240, 248))
     sheet.blit(title, (pad, pad))
     sub = font(14).render(
-        "User picked V4 direction; 5 wider canopy widths over V4 baseline. "
-        "Umbrella TRACKS Pip's head crown — stays above the head as he tilts.",
+        "+40% / +50% / +60% widths side-by-side over the V4 canopy. "
+        "Umbrella tracks Pip's head crown — stays above the head as he tilts.",
         True, (172, 182, 200))
     sheet.blit(sub, (pad, pad + 30))
     sub2 = font(13).render(
