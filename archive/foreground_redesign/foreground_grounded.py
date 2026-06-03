@@ -1296,3 +1296,497 @@ CONCEPTS_R6 = [
     ("Wet-Shore Sand", fg_wet_shore),
     ("Riverbank Sandbar", fg_riverbank_sandbar),
 ]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Round 7 — PREMIUM 45px HERO STRIP.
+#
+# The round-5/6 floors painted from `top_y = gy - 40..50` down to h, so the
+# band was 85-95px tall and its top edge floated ~40-50px ABOVE the real
+# GROUND_Y, overlapping up into the mountain zone. They also leaned on a
+# muted, dithered, foreshortened "mist recede" wash that read as a near echo
+# of the ink-wash ridges rather than its own material.
+#
+# Round 7 fixes both. EVERY round-7 floor's top edge sits at `top_y = gy`
+# (y=595) so the painted plane occupies EXACTLY the original 45px strip
+# (595->640), flush with the mountain bases. And every concept is conceived
+# for that 45px hero strip with a SLICK, HIGH-END light model: a crisp
+# contact-shadow line where the floor meets the mountains (its own object,
+# not a continuation of the ridges), a controlled value-fall, refined
+# micro-relief with paired lit/shadow edges, a tasteful BLEND_RGB_ADD
+# specular sheen near the front lip, and a FINE dither tooth — not the muted
+# hazy wash of the prior rounds. Each carries its own material identity:
+# polished temple paving / inlaid mosaic / domed river cobble / golden dune
+# sand / satin wind-rippled sand / riverbar sand.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _premium_base(surf, w, gy, h, pal, front, back, *, ease=1.0,
+                  contact_a=150, sheen=None, sheen_a=30):
+    """The round-7 grounded plane on the 45px hero strip: an OPAQUE value-fall
+    slab from a FLAT top edge at GROUND_Y down to h, a CRISP 2px contact
+    shadow right at the top line (so the floor reads as its own solid object
+    meeting the mountains — never a bright seam, never a hazy recede), and an
+    optional soft BLEND_RGB_ADD specular sheen pooled in the near third for a
+    premium, lit-material read. Returns (top_y, region_h, night)."""
+    night = _nightf(pal)
+    top_y = gy                       # FLUSH with the mountain bases at y=595.
+    region_h = h - top_y             # exactly 45px on the live canvas.
+    _flat_slab(surf, w, h, top_y, back, front, ease=ease)
+
+    # Crisp contact shadow at the floor's back edge: a 2px darkened lip that
+    # sets the plane apart from the mountains as a distinct object. Darkened,
+    # never lightened, so it can never read as the forbidden bright crest.
+    csh = _shade(_sat(back, 0.9), -22 - int(8 * night))
+    sh = pygame.Surface((w, 3), pygame.SRCALPHA)
+    sh.fill((*csh, contact_a))
+    surf.blit(sh, (0, top_y), special_flags=pygame.BLEND_RGB_SUB)
+    # A single faint lit hairline just under the contact line gives the lip a
+    # tasteful soft bevel (premium edge), held low so it never seams.
+    bev = pygame.Surface((w, 1), pygame.SRCALPHA)
+    bev.fill((*_mix(front, (255, 250, 235), 0.25), int(46 * (1.0 - night))))
+    surf.blit(bev, (0, top_y + 3), special_flags=pygame.BLEND_RGB_ADD)
+
+    # Premium near-lip specular sheen: a soft additive glow pooled across the
+    # FRONT third so the material reads as catching the stage light. Pure
+    # additive + a vertical falloff so it never makes a hard horizontal band.
+    if sheen is not None:
+        sh_top = top_y + int(region_h * 0.45)
+        for y in range(sh_top, h):
+            t = (y - sh_top) / max(1, h - 1 - sh_top)
+            a = int(sheen_a * (t ** 1.4) * (1.0 - 0.55 * night))
+            if a <= 0:
+                continue
+            ln = pygame.Surface((w, 1), pygame.SRCALPHA)
+            ln.fill((*sheen, a))
+            surf.blit(ln, (0, y), special_flags=pygame.BLEND_RGB_ADD)
+    return top_y, region_h, night
+
+
+def _spec_dab(surf, x, y, w, hh, col, a):
+    """A small soft additive specular dab — the premium highlight beat. A tiny
+    SRCALPHA tile filled with a low-alpha bright tone, blitted ADD so it lifts
+    a controlled glint on a stone face / ripple crest without a hard edge."""
+    if w <= 0 or hh <= 0:
+        return
+    dab = pygame.Surface((w, hh), pygame.SRCALPHA)
+    dab.fill((*col, a))
+    surf.blit(dab, (x, y), special_flags=pygame.BLEND_RGB_ADD)
+
+
+# ── Stone A — Polished Temple Pavement (45px, top@595) ───────────────────────
+# Large dressed flagstones, but PREMIUM: crisp beveled joints (a 1px dark
+# riser + a 1px lit upper lip), per-slab specular glints, a controlled satin
+# sheen near the lip. Reads as polished, expensive inlaid temple stone — not
+# the muted dithered Cut-Stone repeat.
+
+def fg_polished_pavement(surf, w, gy, h, scroll, pal):
+    stone = _sandstone(pal)
+    # Rich-but-controlled colour: a warm lit front, a cooler set-back, both
+    # kept saturated enough to read as crafted stone, not hazy ground.
+    front = _shade(_sat(stone, 1.08), 6)
+    back = _shade(_sat(stone, 0.92), -20)
+    night = _nightf(pal)
+    front = _mix(front, (66, 78, 112), 0.28 * night)
+    back = _mix(back, (54, 66, 100), 0.32 * night)
+    sheen = _mix((255, 246, 222), front, 0.0)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=0.95, sheen=sheen, sheen_a=22)
+
+    joint_dk = _shade(_mix(stone, (54, 40, 30), 0.55), -16 - int(8 * night))
+    joint_lt = _mix(front, (255, 248, 226), 0.30)
+
+    # THREE crisp courses on the 45px strip — large dressed flags, tight clean
+    # joints. The premium read is the bevel: every joint is a 1px dark riser
+    # with a 1px lit upper lip, so each flag sits proud with a defined edge.
+    n_course = 3
+    for c in range(n_course):
+        f0 = c / n_course
+        f1 = (c + 1) / n_course
+        y_back = _perspective_y(top_y, h, 1.0 - f0)
+        y_front = _perspective_y(top_y, h, 1.0 - f1)
+        if y_front <= y_back:
+            continue
+        depth_t = f0
+        step = int(54 + 46 * depth_t)        # large dressed flags
+        bond = (c % 2) * (step // 2)
+        # Crisp horizontal course joint: dark riser + lit lip just below it.
+        pygame.draw.line(surf, joint_dk, (0, y_back), (w, y_back), 1)
+        if y_back + 1 < y_front:
+            pygame.draw.line(surf, joint_lt, (0, y_back + 1), (w, y_back + 1), 1)
+        speed = 0.18 + 0.10 * depth_t
+        for sx, k, srng in _scatter(scroll, w, speed, step, 0xE71 + c):
+            jx = sx + bond
+            # Vertical joint: a crisp dark riser with a lit right lip (light
+            # falls from upper-left), so the flag edge reads beveled + proud.
+            pygame.draw.line(surf, joint_dk, (jx, y_back), (jx, y_front), 1)
+            pygame.draw.line(surf, joint_lt, (jx + 1, y_back + 1),
+                             (jx + 1, y_front), 1)
+            # Per-slab face: a faint specular glint on ~1 in 2 near slabs — a
+            # soft additive dab pooled toward the slab's lit upper-left, the
+            # premium "polished" beat. Kept low + per-slab, never a seam.
+            if depth_t > 0.32 and srng.random() < 0.5:
+                gw = max(4, step - 12)
+                gh = max(2, (y_front - y_back) // 2)
+                _spec_dab(surf, jx + 4, y_back + 2, gw, gh,
+                          (255, 247, 224),
+                          int(18 + 16 * depth_t) - int(10 * night))
+            # ~1 in 4 near slabs carry a subtle darker inlay rectangle (a
+            # polished panel inset), giving the floor a designed, tiled feel.
+            if depth_t > 0.4 and srng.random() < 0.26:
+                iw = max(4, step - 16)
+                ih = max(2, (y_front - y_back) - 6)
+                inlay = pygame.Surface((iw, ih), pygame.SRCALPHA)
+                inlay.fill((10, 8, 6, 30))
+                surf.blit(inlay, (jx + 6, y_back + 3),
+                          special_flags=pygame.BLEND_RGB_SUB)
+                pygame.draw.rect(surf, joint_lt, (jx + 6, y_back + 3, iw, ih), 1)
+
+    _apply_grain(surf, 0, top_y, w, region_h, 3)
+
+
+# ── Stone B — Inlaid Geometric Mosaic (45px, top@595) ────────────────────────
+# A polished stone band laid as a repeating geometric mosaic: a fine inlaid
+# fret border at the back lip, then diamond/lozenge tessellation across the
+# near band, each tile catching a crisp light edge. The most "designed +
+# expensive" of the stone takes — its own material identity, distinct from
+# the ridges and from the dressed flags.
+
+def fg_inlaid_mosaic(surf, w, gy, h, scroll, pal):
+    stone = _sandstone(pal)
+    # Two-tone mosaic: a warm light tile + a cool dark tile, so the pattern
+    # reads as inlay, not texture. Both stay rich/controlled.
+    light = _shade(_sat(stone, 1.05), 12)
+    dark = _shade(_sat(_mix(stone, (120, 92, 70), 0.5), 0.95), -10)
+    night = _nightf(pal)
+    front = _mix(light, (66, 78, 112), 0.26 * night)
+    back = _mix(_shade(light, -22), (54, 66, 100), 0.32 * night)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        sheen=_mix((255, 244, 220), light, 0.0), sheen_a=20)
+
+    d_light = _mix(light, (66, 78, 112), 0.26 * night)
+    d_dark = _mix(dark, (50, 62, 96), 0.30 * night)
+    grout = _shade(_mix(stone, (54, 40, 30), 0.5), -16 - int(8 * night))
+    edge_lt = _mix(d_light, (255, 250, 232), 0.35)
+
+    # A fine inlaid FRET (key-pattern) border just below the contact line:
+    # crisp short dark+lit strokes stepping along the back lip, the premium
+    # temple-inlay signature. Scroll-locked so it rides the floor.
+    fret_y = top_y + 5
+    for sx, k, srng in _scatter(scroll, w, 0.16, 14, 0x1F4):
+        pygame.draw.line(surf, grout, (sx, fret_y), (sx, fret_y + 4), 1)
+        pygame.draw.line(surf, grout, (sx, fret_y), (sx + 5, fret_y), 1)
+        pygame.draw.line(surf, edge_lt, (sx + 1, fret_y + 1),
+                         (sx + 1, fret_y + 4), 1)
+
+    # Diamond/lozenge tessellation across the near band: each cell a filled
+    # rotated square alternating light/dark, edged with a crisp lit upper-left
+    # and dark lower-right so every tile reads as a beveled inlay piece.
+    band_top = top_y + 12
+    cell = 16
+    row = 0
+    y = band_top
+    while y < h:
+        ch = min(cell, h - y)
+        speed = 0.18 + 0.06 * ((y - top_y) / max(1, region_h))
+        for sx, k, srng in _scatter(scroll, w, speed, cell, 0x2A8 + row):
+            cx = sx + (cell // 2 if row % 2 else 0)
+            cy = y + ch // 2
+            r = cell // 2 - 1
+            tile = d_light if (k + row) % 2 == 0 else d_dark
+            # Diamond face.
+            pts = [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)]
+            pygame.draw.polygon(surf, tile, pts)
+            # Crisp lit upper-left edge + dark lower-right edge = beveled inlay.
+            pygame.draw.line(surf, edge_lt, (cx - r, cy), (cx, cy - r), 1)
+            pygame.draw.line(surf, edge_lt, (cx, cy - r), (cx + r, cy), 1)
+            pygame.draw.line(surf, grout, (cx + r, cy), (cx, cy + r), 1)
+            pygame.draw.line(surf, grout, (cx, cy + r), (cx - r, cy), 1)
+            # A small specular glint on the lit shoulder of near light tiles.
+            if tile is d_light and cy > top_y + region_h * 0.5:
+                _spec_dab(surf, cx - 2, cy - r + 1, 3, 3, (255, 248, 226),
+                          22 - int(12 * night))
+        y += ch
+        row += 1
+
+    _apply_grain(surf, 0, top_y, w, region_h, 3)
+
+
+# ── Stone C — Glazed River-Cobble (45px, top@595) ────────────────────────────
+# The River-Cobble direction carried forward but PREMIUM: fewer, larger domed
+# cobbles bedded in crisp dark grout, each with a defined dark contact, a lit
+# upper-left dome arc, AND a tight additive specular dab on the crown so the
+# stones read as glazed/wet-polished river rock — not the muted hump field.
+
+def fg_glazed_cobble(surf, w, gy, h, scroll, pal):
+    stone = _mix(_sandstone(pal), (150, 134, 114), 0.34)
+    front = _shade(_sat(stone, 1.04), 6)
+    back = _shade(_sat(stone, 0.9), -18)
+    night = _nightf(pal)
+    front = _mix(front, (66, 78, 112), 0.28 * night)
+    back = _mix(back, (54, 66, 100), 0.32 * night)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=0.95,
+        sheen=_mix((230, 240, 255), front, 0.0), sheen_a=16)
+
+    grout = _shade(_sat(stone, 0.74), -40 - int(8 * night))
+
+    # THREE courses of large domed cobbles on the strip; wide crisp grout.
+    n_course = 3
+    for c in range(n_course):
+        f0 = c / n_course
+        f1 = (c + 1) / n_course
+        y_back = _perspective_y(top_y, h, 1.0 - f0)
+        y_front = _perspective_y(top_y, h, 1.0 - f1)
+        if y_front <= y_back:
+            continue
+        depth_t = f0
+        ch = max(5, y_front - y_back)
+        step = int(20 + 22 * depth_t)
+        bond = (c % 2) * (step // 2)
+        speed = 0.20 + 0.10 * depth_t
+        # Crisp grout bedding band (not a hazy wash) so gaps read deep + clean.
+        gb = pygame.Surface((w, ch), pygame.SRCALPHA)
+        gb.fill((*grout, int(150 + 40 * depth_t)))
+        surf.blit(gb, (0, y_back))
+        for sx, k, srng in _scatter(scroll, w, speed, step, 0x6E2 + c):
+            jx = sx + bond
+            cw = step - srng.randint(5, 9)
+            chh = max(4, ch - srng.randint(1, 3))
+            cap = _shade(_mix(stone, front, 0.55 * depth_t), srng.randint(-10, 16))
+            cap = _mix(cap, (62, 74, 106), 0.28 * night)
+            ex = jx + (step - cw) // 2
+            ey = y_back + (ch - chh) // 2
+            # Crisp dark contact ellipse under each cobble for bedded roundness.
+            pygame.draw.ellipse(surf, _shade(cap, -30 - int(8 * night)),
+                                (ex, ey + 1, cw, chh))
+            pygame.draw.ellipse(surf, cap, (ex, ey, cw, chh))
+            # Lit upper-left dome arc + dark lower-right shoulder = crisp 3D.
+            if cw >= 5:
+                pygame.draw.arc(surf, _shade(cap, 28),
+                                (ex, ey, cw, chh),
+                                math.radians(55), math.radians(165), 2)
+                pygame.draw.arc(surf, _shade(cap, -24),
+                                (ex, ey, cw, chh),
+                                math.radians(250), math.radians(350), 1)
+            # Premium glaze glint: a tight additive specular dab on the crown
+            # of near cobbles so they read as wet-polished river stone.
+            if depth_t > 0.35 and cw >= 6 and night < 0.78:
+                _spec_dab(surf, ex + cw // 4, ey + chh // 5,
+                          max(2, cw // 4), max(2, chh // 3),
+                          (255, 252, 240), 30 - int(16 * night))
+
+    _apply_grain(surf, 0, top_y, w, region_h, 3)
+
+
+# ── Sand A — Golden Desert Dune (45px, top@595) ──────────────────────────────
+# Refined warm golden sand with CRISP wind-ripple micro-relief: each ripple is
+# a paired lit ridge-crest + shadow trough (not a hazy dashed line), packed
+# tighter to the back, with a satin specular sheen near the lip and a fine
+# scroll-locked tooth. Reads as designed, expensive desert sand.
+
+def fg_golden_dune(surf, w, gy, h, scroll, pal):
+    sand = _sand(pal)
+    front = _shade(_sat(sand, 1.06), 8)
+    back = _shade(_sat(sand, 0.92), -18)
+    night = _nightf(pal)
+    front = _mix(front, (70, 82, 116), 0.24 * night)
+    back = _mix(back, (52, 64, 98), 0.36 * night)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        sheen=_mix((255, 244, 206), front, 0.0), sheen_a=26)
+
+    # Wind ripples as CRISP micro-relief: for each ripple line a 1px shadow
+    # trough with a 1px lit crest immediately above it (the light catches the
+    # windward face). Solid short strokes, not hazy dashes — the relief reads
+    # as sculpted ripple, refined and defined. Packed tighter toward the back.
+    rip_dk = _shade(_sat(sand, 0.86), -22 - int(6 * night))
+    rip_lt = _mix(_shade(sand, 18), (255, 248, 214), 0.30)
+    rip_lt = _mix(rip_lt, (120, 132, 162), 0.5 * night)
+    n_rip = 10
+    for ri in range(n_rip):
+        f = (ri + 0.5) / n_rip
+        y = _perspective_y(top_y, h, 1.0 - f)
+        depth_t = f
+        # Gentle per-segment crest jitter (a few px) so the ripple reads as
+        # wind-sculpted relief, not a ruled line — still essentially straight,
+        # never an undulating arc.
+        ph = int(scroll * (0.16 + 0.08 * depth_t))
+        seg = 10 + int(depth_t * 8)
+        a_dk = int(70 + 60 * depth_t)
+        a_lt = int(50 + 70 * depth_t)
+        x = -(ph % (seg * 2))
+        while x < w:
+            jit = ((x // seg) % 3) - 1            # -1,0,1 deterministic wobble
+            yy = y + jit
+            shadow = pygame.Surface((seg, 1), pygame.SRCALPHA)
+            shadow.fill((*rip_dk, a_dk))
+            surf.blit(shadow, (x, yy))
+            if night < 0.72:
+                crest = pygame.Surface((seg, 1), pygame.SRCALPHA)
+                crest.fill((*rip_lt, a_lt))
+                surf.blit(crest, (x, yy - 1), special_flags=pygame.BLEND_RGB_ADD)
+            x += seg
+
+    # A few tiny pebbles, larger/brighter toward the front, each with a crisp
+    # lit top pixel — a small premium relief beat on the otherwise smooth sand.
+    for sx, k, srng in _scatter(scroll, w, 0.22, 44, 0x5B2):
+        py = top_y + int(srng.uniform(0.5, 0.96) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.3 + 0.35 * depth_t:
+            continue
+        pr = 1 + int(depth_t * 1.6)
+        pc = _mix(sand, (172, 152, 124), 0.5)
+        pc = _mix(pc, (60, 70, 100), 0.3 * night)
+        pygame.draw.ellipse(surf, _shade(pc, -22),
+                            (sx - pr, py - pr // 2, pr * 2, pr + 1))
+        if night < 0.7:
+            surf.set_at((sx, py - pr // 2), _shade(pc, 26))
+
+    # Fine scroll-locked tooth (kept low so it stays a refined micro-grain, not
+    # a hazy dither wash).
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 4, scroll)
+
+
+# ── Sand B — Satin Rippled Sand (45px, top@595) ──────────────────────────────
+# A finer, smoother satin sand: denser low-amplitude ripple relief + a broad
+# soft specular sheen sweeping the near band, giving a polished silk-dune look
+# distinct from the coarser golden dune. Its own refined material identity.
+
+def fg_satin_sand(surf, w, gy, h, scroll, pal):
+    sand = _mix(_sand(pal), (236, 212, 168), 0.4)   # paler, silkier gold
+    front = _shade(_sat(sand, 1.05), 8)
+    back = _shade(_sat(sand, 0.94), -14)
+    night = _nightf(pal)
+    front = _mix(front, (72, 84, 116), 0.24 * night)
+    back = _mix(back, (54, 66, 100), 0.34 * night)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        sheen=_mix((255, 248, 220), front, 0.0), sheen_a=34)
+
+    # Denser, lower-amplitude satin ripples: closely-spaced crisp crest lines,
+    # each a 1px lit line over a 1px shadow, so the surface reads as combed silk
+    # sand. Phase scrolls; jitter is tiny so the read stays smooth + refined.
+    rip_dk = _shade(_sat(sand, 0.9), -16 - int(6 * night))
+    rip_lt = _mix(_shade(sand, 20), (255, 250, 224), 0.35)
+    n_rip = 16
+    for ri in range(n_rip):
+        f = (ri + 0.5) / n_rip
+        y = _perspective_y(top_y, h, 1.0 - f)
+        depth_t = f
+        ph = int(scroll * (0.15 + 0.08 * depth_t))
+        seg = 14 + int(depth_t * 10)
+        a_dk = int(46 + 44 * depth_t)
+        a_lt = int(40 + 60 * depth_t)
+        x = -(ph % (seg * 2))
+        while x < w:
+            shadow = pygame.Surface((seg, 1), pygame.SRCALPHA)
+            shadow.fill((*rip_dk, a_dk))
+            surf.blit(shadow, (x, y))
+            if night < 0.74:
+                crest = pygame.Surface((seg, 1), pygame.SRCALPHA)
+                crest.fill((*rip_lt, a_lt))
+                surf.blit(crest, (x + seg // 2, y - 1),
+                          special_flags=pygame.BLEND_RGB_ADD)
+            x += seg
+
+    # A broad soft satin highlight sweep near the lip — a wide low-alpha
+    # additive ellipse so the silk sand catches a controlled sheen pool (the
+    # premium beat), held below night so dusk/night stay matte.
+    if night < 0.7:
+        sweep_h = int(region_h * 0.55)
+        glow = pygame.Surface((w, sweep_h), pygame.SRCALPHA)
+        gc = _mix((255, 248, 222), front, 0.0)
+        pygame.draw.ellipse(glow, (*gc, int(24 * (1.0 - night))),
+                            (-w // 6, 0, int(w * 1.33), sweep_h))
+        surf.blit(glow, (0, h - sweep_h), special_flags=pygame.BLEND_RGB_ADD)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 4, scroll)
+
+
+# ── Sand C — Riverbank Sandbar (45px, top@595) ───────────────────────────────
+# The riverbank carried forward, premium: coarse warm sand, crisp half-sunk
+# flat river stones with lit caps + dark contacts, and 2-3 bold silhouetted
+# dry-grass tufts at the back. Crisp relief, no hazy wash.
+
+def fg_premium_riverbank(surf, w, gy, h, scroll, pal):
+    sand = _mix(_sand(pal), (208, 186, 144), 0.28)
+    front = _shade(_sat(sand, 1.04), 6)
+    back = _shade(_sat(sand, 0.92), -16)
+    night = _nightf(pal)
+    front = _mix(front, (68, 80, 110), 0.28 * night)
+    back = _mix(back, (56, 68, 100), 0.32 * night)
+    top_y, region_h, night = _premium_base(
+        surf, w, gy, h, pal, front, back, ease=1.0,
+        sheen=_mix((255, 246, 212), front, 0.0), sheen_a=20)
+
+    # Coarse warm tooth — a sparse crisp speck scatter (lit + shadow specks),
+    # giving the riverbar grain without a hazy dither blanket.
+    for sx, k, srng in _scatter(scroll, w, 0.26, 6, 0x2F9):
+        py = top_y + int(srng.uniform(0.2, 1.0) * region_h)
+        if srng.random() < 0.5:
+            continue
+        d = srng.randint(-20, 22)
+        surf.set_at((sx, py), _shade(sand, d))
+
+    # Crisp half-sunk flat river stones: dark contact ellipse + lit cap + a
+    # 1px specular top, larger toward the front.
+    for sx, k, srng in _scatter(scroll, w, 0.22, 26, 0x4C7):
+        py = top_y + int(srng.uniform(0.42, 0.96) * region_h)
+        depth_t = (py - top_y) / max(1, region_h)
+        if srng.random() > 0.4 + 0.4 * depth_t:
+            continue
+        pw = 2 + int(depth_t * 4)
+        ph = max(1, pw // 2)
+        pc = _mix(sand, (152, 144, 130), 0.55)
+        pc = _mix(pc, _shade(pal.get('stone_dark', (95, 80, 70)), 22),
+                  srng.uniform(0.0, 0.35))
+        pc = _mix(pc, (60, 70, 100), 0.3 * night)
+        pygame.draw.ellipse(surf, _shade(pc, -22),
+                            (sx - pw, py - ph + 1, pw * 2, ph + 1))
+        pygame.draw.ellipse(surf, pc, (sx - pw, py - ph, pw * 2, ph + 1))
+        if night < 0.7:
+            pygame.draw.line(surf, _shade(pc, 26), (sx - pw + 1, py - ph),
+                             (sx + pw - 2, py - ph), 1)
+            _spec_dab(surf, sx - 1, py - ph, 2, 1, (255, 250, 232),
+                      24 - int(12 * night))
+
+    # 2-3 bold silhouetted dry-grass tufts at the BACK edge — solid straw fans
+    # plus a few lit outer blades, sparse + readable.
+    straw = _mix((200, 186, 132), sand, 0.3)
+    straw = _mix(straw, (96, 104, 120), 0.34 * night)
+    straw_dk = _shade(straw, -32)
+    for sx, k, srng in _scatter(scroll, w, 0.2, 120, 0x8E2):
+        if srng.random() < 0.5:
+            continue
+        ty = top_y + int(srng.uniform(0.12, 0.30) * region_h)
+        th_ = srng.randint(10, 15)
+        spread = srng.randint(5, 8)
+        lean = srng.randint(-3, 3)
+        apex = (sx + lean, ty - th_)
+        pygame.draw.polygon(surf, straw_dk, [
+            (sx - spread, ty), (sx + spread, ty),
+            (apex[0] + 2, apex[1] + 2), (apex[0] - 2, apex[1] + 2)])
+        for bo in (-spread, -spread // 2, spread // 2, spread):
+            bx = sx + bo
+            bh = th_ - abs(bo)
+            pygame.draw.line(surf, straw, (bx, ty),
+                             (bx + lean // 2, ty - max(4, bh)), 1)
+
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 4, scroll)
+
+
+# Round-7 sheet: the ORIGINAL game floor (height + "mountains start from the
+# floor top" reference) + a premium 3-stone / 3-sand set, all on the 45px hero
+# strip with top edge FLUSH at GROUND_Y. The original row is rendered by the
+# render module's `_render_original` (fn=None).
+CONCEPTS_R7 = [
+    ("ORIGINAL GAME FLOOR", None),
+    ("Polished Temple Pavement", fg_polished_pavement),
+    ("Inlaid Geometric Mosaic", fg_inlaid_mosaic),
+    ("Glazed River-Cobble", fg_glazed_cobble),
+    ("Golden Desert Dune", fg_golden_dune),
+    ("Satin Rippled Sand", fg_satin_sand),
+    ("Riverbank Sandbar", fg_premium_riverbank),
+]

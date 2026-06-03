@@ -192,16 +192,16 @@ def _render_concept(painter, phase, actors=False):
 
 # ── contact-sheet assembly (matches the mountain/biome sheet conventions) ─────
 
-ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R6]
+ROWS = [(name, fn) for name, fn in fg.CONCEPTS_R7]
 
 ROW_NOTES = {
-    "Flagstone Courtyard (BASELINE ~50px)": "HEIGHT BASELINE - the round-4 lead, ~50px (top_y=gy-50). Shorter rows below.",
-    "Cut-Stone Temple Flags": "STONE LEAD ~40px - per-slab VALUE variation breaks the repeat, subtle joints under lane",
-    "Crazy-Paving Fieldstone": "~40px - irregular polygons, joint-shadow now SURVIVES night (no Cut-Stone collapse)",
-    "River-Cobble Paving": "~40px - LARGER irregular ROUNDED river cobbles in WIDE dark grout (NOT dressed slabs)",
-    "Desert Dune Sand": "SAND LEAD ~38px - night value-fall + faint scroll-locked grain speckle, dead-straight ripples",
-    "Wet-Shore Sand": "~38px - damp now SHORT jittered low-contrast smears (bright seam KILLED), shells",
-    "Riverbank Sandbar": "~38px - 2-3 SILHOUETTED dry-grass tufts at rear (no flecks), flat river stones",
+    "ORIGINAL GAME FLOOR": "HEIGHT REFERENCE - the LIVE floor at y=595 (45px strip). Mountains start at the floor TOP. Every row below matches this height.",
+    "Polished Temple Pavement": "STONE LEAD - top@595, 45px. Beveled crisp joints (dark riser + lit lip), per-slab specular glints, inlay panels.",
+    "Inlaid Geometric Mosaic": "top@595, 45px. Fret border + diamond inlay tessellation, each tile crisp-beveled. Designed/expensive.",
+    "Glazed River-Cobble": "top@595, 45px. Domed cobbles in crisp grout, lit dome arc + ADD specular crown glint = wet-glazed rock.",
+    "Golden Desert Dune": "SAND LEAD - top@595, 45px. Crisp ripple relief (lit crest over shadow trough), satin sheen, fine tooth.",
+    "Satin Rippled Sand": "top@595, 45px. Dense low-amp silk ripples + broad soft sheen sweep. Polished silk-dune material.",
+    "Riverbank Sandbar": "top@595, 45px. Crisp lit river stones + ADD specular, 2-3 bold silhouetted dry-grass tufts.",
 }
 
 
@@ -221,7 +221,7 @@ def make_sheet(images):
     note_f = pygame.font.SysFont(None, 18)
     cap_f = pygame.font.SysFont(None, 22)
 
-    t = title.render("FOREGROUND REDESIGN - round 6 - POLISH 2 LEADS: Cut-Stone (stone) + Desert Dune (sand); full 3-stone/3-sand - biome @ misty_gorge",
+    t = title.render("FOREGROUND REDESIGN - round 7 - PREMIUM 45px HERO STRIP (top@595, flush w/ mountain bases): Original ref + 3 slick stone + 3 slick sand - biome @ misty_gorge",
                      True, (245, 235, 210))
     sheet.blit(t, (8, 6))
 
@@ -276,7 +276,7 @@ def make_sheet(images):
 
 # One stone + one sand lead get the bird + scrolling coin dropped into their
 # DAY and NIGHT cells so the surface can be checked behind the player lane.
-LEAD_ROWS = {"Cut-Stone Temple Flags", "Desert Dune Sand"}
+LEAD_ROWS = {"Polished Temple Pavement", "Golden Desert Dune"}
 ACTOR_COLS = {"DAY", "NIGHT"}
 
 
@@ -293,7 +293,7 @@ def main():
     sheet = make_sheet(images)
     out = _REPO / "docs" / "foreground_redesign"
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "round_6.png"
+    path = out / "round_7.png"
     pygame.image.save(sheet, path)
     print(f"wrote {path}  ({sheet.get_width()}x{sheet.get_height()})")
 
