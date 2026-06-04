@@ -391,6 +391,10 @@ def _grate(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         # Recessed iron frame.
         pygame.draw.rect(surf, iron_dk, (gx - 1, gy - 1, gw + 2, gh + 2))
         pygame.draw.rect(surf, iron, (gx, gy, gw, gh))
+        # A 1px inset shadow on the inner top edge so the grate reads as a slot
+        # SUNK below the paving lip, not a plate laid on top — the eye reads the
+        # darker hairline under the front lip as a recess.
+        pygame.draw.line(surf, _shade(iron_dk, -10), (gx + 1, gy), (gx + gw - 2, gy), 1)
         # Parallel slot bars (the open grid) — dark gaps with lit bar tops.
         for bx in range(gx + 2, gx + gw - 1, 3):
             pygame.draw.line(surf, iron_dk, (bx, gy + 1), (bx, gy + gh - 1), 1)
@@ -431,9 +435,12 @@ def _damp(surf, w, top_y, region_h, scroll, front, back, mortar, night,
             blot = pygame.Surface((sw, sh), pygame.SRCALPHA)
             blot.fill((*damp, a))
             surf.blit(blot, (sx - sw // 2, py - sh // 2))
-            # A tiny specular glint that fades HARD toward day-dry and toward
-            # night — the only additive in the whole system, capped <16 alpha.
-            ga = int(13 * wet * (1.0 - 0.8 * night))
+            # A tiny specular glint that fades HARD toward day-dry and goes FULLY
+            # MATTE by full night — the only additive in the whole system, capped
+            # <16 alpha. The damp at the festival peak is wet-dark stone with no
+            # specular catch (a glint at full night would read as a stray sparkle
+            # rivalling the lit props), so it's clamped to zero above ~0.85 night.
+            ga = int(13 * wet * max(0.0, 1.0 - 1.18 * night))
             if ga >= 2 and depth_t > 0.6:
                 glint = pygame.Surface((max(2, sw // 3), 1), pygame.SRCALPHA)
                 glint.fill((200, 210, 220, ga))
