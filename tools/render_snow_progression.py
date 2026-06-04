@@ -20,14 +20,17 @@ import tools.render_snow_fullcover as T
 
 OUT = os.path.join(T.ROOT, "docs", "snow_full_cover", "progression.png")
 
-# (builder, arg, caption). One continuous ramp: a clean bird, then the SAME W2
-# snow mound deepening monotonically (no face) until Pip is fully buried.
+# (builder, arg, caption). One monotonic ramp, no face. A clean bird, a light
+# shipped dusting, then the SAME W2 snow mound deepening until Pip is buried.
+# Mound steps are weighted toward the high end where most of the visible change
+# happens (the face/body only disappear past ~0.5), so each step reads distinct.
 STEPS = [
     (T.render_reference, 0.00, "clean"),
-    (T.render_cell, 0.12, "first snow"),
-    (T.render_cell, 0.38, "settling"),
-    (T.render_cell, 0.62, "half buried"),
-    (T.render_cell, 0.82, "almost gone"),
+    (T.render_reference, 0.30, "dusting"),
+    (T.render_cell, 0.15, "blanket"),
+    (T.render_cell, 0.50, "settling"),
+    (T.render_cell, 0.72, "half buried"),
+    (T.render_cell, 0.88, "almost gone"),
     (T.render_cell, 1.00, "fully covered"),
 ]
 
