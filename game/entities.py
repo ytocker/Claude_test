@@ -4237,7 +4237,11 @@ class CelebrationCrowd:
     in CROWD_LAYOUT distribute figures on both sides of the stripe.
     """
 
-    HALF_SPAN = 110   # cull slack — crowd dx range is ~-90..+90
+    # Cull slack — CROWD_LAYOUT dx range is -130..+140 (leftmost flag
+    # parrot to rightmost), plus ~20 px for figure width. Keep the
+    # crowd alive until even the leftmost parrot has fully scrolled
+    # off-screen left.
+    HALF_SPAN = 160
 
     def __init__(self, world_x: float):
         self.x = float(world_x)
