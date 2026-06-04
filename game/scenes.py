@@ -1103,6 +1103,10 @@ class App:
         # shadow + pillars layer on top.
         for gm in getattr(self.world, "celebration_ground_markers", ()):
             gm.draw(self.screen, sx, sy)
+        # Cheering crowd flanks the marker on both sides; same layer
+        # so the parrots stand on the grass behind Pip.
+        for cc in getattr(self.world, "celebration_crowds", ()):
+            cc.draw(self.screen, sx, sy)
         # Cycle-finale balloon cluster — sky-layer decor in the open gap.
         # Drawn before pipes so the (real) flanking pillars appear in
         # front of the balloons; in the phantom gap there are no pillars

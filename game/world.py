@@ -123,6 +123,9 @@ class World:
         self.celebration_buntings: list = []
         self.celebration_balloon_clusters: list = []
         self.celebration_ground_markers: list = []
+        # Cheering crowd of 7 parrots flanking the finish-line stripe —
+        # spawned in the same chest-drop branch as the marker.
+        self.celebration_crowds: list = []
         # Cycle counter — increments on every biome-phase wrap, so the
         # banner reads "DAY 1 COMPLETE!" on the first rollover, "DAY 2"
         # on the second, etc. Resets each fresh run (no save-file
@@ -745,7 +748,7 @@ class World:
                 # culled). Day number mirrors the banner / grant.
                 from game.entities import (
                     CelebrationGroundMarker, CelebrationBunting,
-                    CelebrationBalloonCluster)
+                    CelebrationBalloonCluster, CelebrationCrowd)
                 day = max(1, self.cycles_completed)
                 # Gap span from the leftmost phantom's left edge to the
                 # rightmost phantom's right edge: middle phantom is at
@@ -759,6 +762,11 @@ class World:
                     CelebrationBunting(bx - half_span, bx + half_span, gap_top))
                 self.celebration_balloon_clusters.append(
                     CelebrationBalloonCluster(bx - half_span, bx + half_span))
+                # Cheering crowd centred on the finish-line stripe at bx.
+                # CROWD_LAYOUT carries per-parrot dx offsets, so the
+                # cluster spans ~±90 px around bx (parrots on both
+                # sides of the line).
+                self.celebration_crowds.append(CelebrationCrowd(bx))
             return
 
         if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
@@ -1404,6 +1412,11 @@ class World:
                 bc.update(sdt, scroll_dx)
             self.celebration_balloon_clusters = [
                 bc for bc in self.celebration_balloon_clusters if bc.alive()
+            ]
+            for cc in self.celebration_crowds:
+                cc.update(sdt, scroll_dx)
+            self.celebration_crowds = [
+                cc for cc in self.celebration_crowds if cc.alive()
             ]
             # Genie chamber wishes pop in when Pip gets close enough so
             # the player sees them materialise instead of finding them

@@ -4226,6 +4226,35 @@ class CelebrationGroundMarker:
         surf.blit(spr, (target_left + sx, int(target_top + sy)))
 
 
+class CelebrationCrowd:
+    """7-parrot cheering crowd flanking the cycle-finale finish line.
+    Sprite + layout shipped from `game.cheering_crowd`; this class is
+    the world-x lifecycle wrapper (scroll, cull, animation tick) that
+    matches the pattern used by CelebrationGroundMarker / Bunting /
+    BalloonCluster.
+
+    World-anchored at the finish-line stripe's x; per-parrot dx offsets
+    in CROWD_LAYOUT distribute figures on both sides of the stripe.
+    """
+
+    HALF_SPAN = 110   # cull slack — crowd dx range is ~-90..+90
+
+    def __init__(self, world_x: float):
+        self.x = float(world_x)
+        self.t = 0.0
+
+    def alive(self) -> bool:
+        return self.x > -CelebrationCrowd.HALF_SPAN
+
+    def update(self, dt: float, scroll_dx: float = 0.0):
+        self.t += dt
+        self.x -= scroll_dx
+
+    def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
+        from game.cheering_crowd import draw_crowd
+        draw_crowd(surf, int(self.x + sx), int(GROUND_Y + sy), self.t)
+
+
 class CelebrationFireworkBurst:
     """One animated firework explosion — expands + sparkles + fades.
     Spawned in clumps from World._activate_treasure_box, staggered
