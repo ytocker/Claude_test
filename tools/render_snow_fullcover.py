@@ -6,38 +6,44 @@ ONE snow look only — the shipped snow_fx.py W2 "sculpted blanket": OFF body +
 bright WHITE crest over the top ~18%% of each filled column + cool-blue BLUE
 under-edge over the bottom ~26%%, with the CORNICE rear overhang and the sine
 ripple `nb`. We do NOT invent a new finish. At full cover that recipe is wrapped
-around the WHOLE dilated Pip+parcel contour so the bird is buried into one solid
-white mound (no red/blue/gold/parcel showing).
+around the enclosing contour so the bird is buried into one solid white mound
+(no red/blue/gold/parcel showing).
 
-ROUND 5 brings three owner requirements:
+ROUND 6 is a 3-DIRECTION STRUCTURE COMPARISON. Round 5 went full-classic on
+Pip's HORIZONTAL lying-down mound and the classic kit scattered (a vertical
+snowman's parts don't map onto a horizontal lump). The owner asked to "try all
+options and show me" and noted the snowman renders LARGER than the bird (~1.6-2x).
+So we hold ONE shared face treatment constant and vary ONLY the structure:
 
-1. ACCUMULATION RAMP. `_mound_overlay(silhouette, extra)` is parameterised by
-   `extra in [0,1]`. At `extra=0` it reproduces the shipped top-blanket look
-   (snow on the back/top, body still visible); at `extra=1` it is the full
-   enclosing white mound. As `extra` rises the snow creeps DOWN and ENVELOPS
-   the body rear-first (tailwind blows left->right so the rear/left buries
-   first), bottom rising, front/face last. The 3 mids are genuine progressive
-   burial in the W2 style — a deeper blanket pulling down over the silhouette,
-   not just a taller hat.
+  A · Head-concentrated — snowman identity packed into the HEAD bump only
+      (hat + eyes + carrot + smile + scarf at the neck). Body stays a clean
+      white W2 mound. NO body buttons, NO twig arms.
+  B · Full-classic (horizontal) — the round-5 approach kept for comparison:
+      shared face on the head + buttons down the horizontal body front + two
+      twig arms out the sides, rooted on the body contour.
+  C · Reshaped upright — at full cover the snow is rebuilt into an UPRIGHT
+      STACKED snowman silhouette (head ball + larger body ball, sized to
+      contain Pip), taller than the bird. The faithful W2 shading is applied
+      per-column to this new stacked contour, then the full vertical kit fits
+      naturally: hat on the head ball, face on the head ball, scarf at the
+      head/body neck, buttons down the body ball, twig arms out the body sides.
 
-2. SNOWMAN ELEMENT PLACEMENT FROM THE MOUND, not the bird. We no longer pin the
-   face to Pip's BEAK/EYE pixels. `_head_anchor` reads the head region off the
-   dilated enclosing contour (front ~30-35%% of the span, midline between the
-   top and bottom contour) and returns centre (hx,hy), radius hr, and a facing
-   axis. Every snowman part — coal eyes, carrot, smile, buttons, scarf, twig
-   arms, hat — is laid out relative to (hx,hy,hr) and inset so it reads ON the
-   snow. We "treat it as a new snowman".
+The SHARED face treatment (identical in A/B/C): black top-hat (hard flat brim +
+red band) + 2 coal eyes + carrot below-and-between the eyes pointing forward +
+a 3-dot downward coal smile arc directly under the carrot + one red-white scarf
+band at the neck + V4's deliberate macaw peek (green crown tuft + a blue
+wing-tip). The face is a TIGHT cluster on the head so it reads as a face at
+large size — never bars down the chest.
 
-3. FULL-CLASSIC snowman: twig arms out the body sides + a per-version hat on the
-   head bump, plus the canonical face (coal eyes high & close, carrot centred
-   pointing out, coal-pebble smile, buttons down the front, scarf at the neck).
+The ACCUMULATION STRIP (extra 0/.25/.50/.75/1.0, snow only, rear-first burial)
+is FROZEN per the art-director — kept exactly as round 5.
 
 The technique stays numpy-free / pure pygame so it ports straight into
 snow_fx.py later.
 
 Run from repo root:
   SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python -m tools.render_snow_fullcover
-Output: docs/snow_full_cover/round_5.png
+Output: docs/snow_full_cover/round_6.png
 """
 from __future__ import annotations
 
@@ -240,6 +246,98 @@ def _mound_overlay(silhouette, extra=1.0):
 def _native_size():
     _, _, w, h = snow_fx._topline(snow_fx._REF_FRAME)
     return w, h
+
+
+# ── C · UPRIGHT STACKED-SNOWMAN contour (numpy-free) ─────────────────────────
+# Direction C rejects the horizontal lying-down lump entirely: at full cover we
+# REBUILD the snow as a classic two-ball vertical snowman. Two filled circles
+# (a small head ball stacked on a larger body ball) are unioned into one
+# per-column top/bot contour, sized to comfortably CONTAIN Pip (taller than the
+# bird is wide — fine, the snowman renders ~1.7x the bird). The exact same W2
+# per-column recipe (OFF fill + WHITE crest top 18% + BLUE under-edge bottom 26%
+# + a soft cornice + sine ripple) is then run down this stacked contour, so it
+# still reads as the shipped SNOW finish — just shaped like a snowman, upright,
+# with a real neck pinch for the scarf and a body ball front for the buttons.
+def _stacked_overlay(cw, ch):
+    """Return (overlay_surface, geom) for an upright stacked snowman sized to
+    sit inside a (cw,ch) cell. geom mirrors _mound_overlay so every snowman
+    part helper works unchanged. The neck pinch between the two balls gives a
+    genuine head/body junction for the scarf."""
+    cx = cw * 0.52                                          # slight left bias: room for arms
+    # body ball sits low, head ball stacked on top; both fit the cell height.
+    body_r = ch * 0.255
+    head_r = body_r * 0.62
+    body_cy = ch * 0.62
+    # overlap the two balls so they fuse with a neck pinch rather than a gap.
+    head_cy = body_cy - (body_r + head_r) * 0.78
+    span_r = body_r                                         # widest extent for the envelope
+
+    top = [-1.0] * cw
+    bot = [-1.0] * cw
+    x_min, x_max = -1, -1
+    for x in range(cw):
+        ys = []
+        for (ccx, ccy, rr) in ((cx, body_cy, body_r), (cx, head_cy, head_r)):
+            dx = x - ccx
+            if abs(dx) <= rr:
+                dy = math.sqrt(max(0.0, rr * rr - dx * dx))
+                ys.append((ccy - dy, ccy + dy))
+        if not ys:
+            continue
+        t = min(y0 for y0, _ in ys)
+        b = max(y1 for _, y1 in ys)
+        top[x] = t
+        bot[x] = b
+        if x_min < 0:
+            x_min = x
+        x_max = x
+    if x_min < 0:
+        return None
+    # smooth the union seam (the neck) so the two circles read as one snow body.
+    for _ in range(2):
+        st, sb = list(top), list(bot)
+        for x in range(x_min, x_max + 1):
+            if top[x] < 0:
+                continue
+            ts = [top[k] for k in (x - 1, x, x + 1) if 0 <= k < cw and top[k] >= 0]
+            bs = [bot[k] for k in (x - 1, x, x + 1) if 0 <= k < cw and bot[k] >= 0]
+            st[x] = sum(ts) / len(ts)
+            sb[x] = sum(bs) / len(bs)
+        top, bot = st, sb
+
+    ov = pygame.Surface((cw, ch), pygame.SRCALPHA)
+    span = max(1.0, float(x_max - x_min))
+    taper_w = 13.0
+    for x in range(cw):
+        yt = top[x]
+        yb = bot[x]
+        if yt < 0 or yb < 0 or yb <= yt:
+            continue
+        xf = (x - x_min) / span
+        rear = 1.0 - xf
+        te = snow_fx._smooth((x - x_min) / taper_w)
+        over = snow_fx.CORNICE * rear * te
+        nb = (math.sin(x * 1.26) + math.sin(x * 0.34)) * 0.25 + 0.5
+        y0 = yt - over
+        y1 = yb + (nb - 0.5) * 2.4
+        d = y1 - y0
+        if d < 1.0:
+            continue
+        # IDENTICAL W2 recipe to snow_fx / _mound_overlay, run down the upright
+        # stacked contour: OFF fill + WHITE crest top 18% + BLUE under-edge 26%.
+        pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
+    geom = ([int(t) if t >= 0 else -1 for t in top],
+            [int(b) if b >= 0 else -1 for b in bot], x_min, x_max, cw, ch)
+    # carry the analytic anchors so the upright kit seats on the real ball
+    # centres (not the contour-bump heuristic, which assumes a horizontal lump).
+    anchors = {
+        "hx": cx, "hy": head_cy, "hr": head_r,
+        "bx": cx, "by": body_cy, "br": body_r,
+        "neck_y": (head_cy + head_r * 0.55),
+    }
+    return ov, geom, anchors
 
 
 # ── head anchor derived from the MOUND geometry (NOT the bird landmarks) ──────
@@ -577,64 +675,139 @@ def _pip_peeks(ov, hx, hy, hr, top, x_min, x_max):
                         [(wx, wy), (wx - 5, wy + 2), (wx, wy + 3)])
 
 
-# ── the 5 snowman treatments (snow base IDENTICAL; vary hat/scarf/pose) ──────
-def _face_common(ov, geom, *, button_eyes=False, stitch=False, glint=True,
-                 smile_n=5, smile_wide=False, carrot_len=1.15, carrot_droop=0.18,
-                 buttons_n=3, arms_pose="straight"):
+# ── THE ONE SHARED FACE TREATMENT (identical across A/B/C) ───────────────────
+# Round 6 holds the kit constant so STRUCTURE is the only variable. The shared
+# treatment is round-5's V4 read: black flat-brim top-hat + red band, 2 round
+# coal eyes, carrot below-and-between the eyes, a 3-dot downward coal smile arc
+# directly under the carrot, one red-white scarf band at the neck, and V4's
+# deliberate macaw peek (green crown tuft + blue wing-tip). The face is a TIGHT
+# cluster on the HEAD in every direction — only buttons/arms differ by structure.
+def _shared_head_face(ov, hx, hy, hr, facing):
+    """Draw the head-only kit (eyes + carrot + smile + hat + green tuft) as a
+    tight face cluster. Shared verbatim by A, B and C."""
+    _coal_eyes(ov, hx, hy, hr, facing, button=False, glint=True)
+    _carrot(ov, hx, hy, hr, facing, length_k=1.15, droop=0.18)
+    _coal_smile(ov, hx, hy, hr, facing, n=3)
+    _hat_top(ov, hx, hy, hr, facing, tilt=0.0, band=PIP_GREEN)
+
+
+def dir_a_head(ov, geom):
+    """A · Head-concentrated. Snowman identity lives in the HEAD bump only; the
+    body stays a clean white W2 mound. No buttons, no arms."""
     top, bot, x_min, x_max, w, h = geom
     hx, hy, hr, facing = _head_anchor(top, bot, x_min, x_max)
-    bxc, byc, _bc = _body_anchor(top, bot, x_min, x_max)
-    # arms behind the body so the buttons/scarf overlay them
-    _twig_arms(ov, top, bot, x_min, x_max, pose=arms_pose)
-    _buttons(ov, bxc, byc, top, bot, x_min, x_max, n=buttons_n)
-    _coal_eyes(ov, hx, hy, hr, facing, button=button_eyes, stitch=stitch, glint=glint)
-    _coal_smile(ov, hx, hy, hr, facing, n=smile_n, wide=smile_wide)
-    _carrot(ov, hx, hy, hr, facing, length_k=carrot_len, droop=carrot_droop)
-    return hx, hy, hr, facing
-
-
-def v1_classic(ov, geom):
-    top, bot, x_min, x_max, w, h = geom
-    hx, hy, hr, facing = _face_common(ov, geom, smile_n=5, buttons_n=3,
-                                      arms_pose="straight")
-    _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, tails=1)
-    _hat_top(ov, hx, hy, hr, facing, tilt=0.0)
-
-
-def v2_knit(ov, geom):
-    top, bot, x_min, x_max, w, h = geom
-    hx, hy, hr, facing = _face_common(ov, geom, button_eyes=True, stitch=True,
-                                      glint=False, smile_n=4, buttons_n=3,
-                                      arms_pose="straight")
-    _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, tails=1, knit=True)
-    _hat_beanie(ov, hx, hy, hr, facing)
-
-
-def v3_minimal(ov, geom):
-    top, bot, x_min, x_max, w, h = geom
-    hx, hy, hr, facing = _face_common(ov, geom, smile_n=3, buttons_n=2,
-                                      carrot_len=1.0, arms_pose="slim")
-    _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, tails=1, thin=True)
-    _hat_earmuffs(ov, hx, hy, hr, facing)
-
-
-def v4_hybrid(ov, geom):
-    top, bot, x_min, x_max, w, h = geom
-    hx, hy, hr, facing = _face_common(ov, geom, button_eyes=False, glint=True,
-                                      smile_n=5, buttons_n=3, arms_pose="straight")
+    _shared_head_face(ov, hx, hy, hr, facing)
     _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, red=PIP_SCARLET,
            white=SCARF_WHITE, tails=1)
-    _hat_top(ov, hx, hy, hr, facing, tilt=0.0, band=PIP_GREEN)
     _pip_peeks(ov, hx, hy, hr, top, x_min, x_max)
 
 
-def v5_jaunty(ov, geom):
+def dir_b_classic(ov, geom):
+    """B · Full-classic on the HORIZONTAL mound (round-5 approach, for
+    comparison). Shared face on the head + buttons down the front-centre of the
+    horizontal body + two twig arms rooted on the body contour sides."""
     top, bot, x_min, x_max, w, h = geom
-    hx, hy, hr, facing = _face_common(ov, geom, smile_n=5, smile_wide=True,
-                                      carrot_len=1.28, carrot_droop=0.34,
-                                      buttons_n=3, arms_pose="lively")
-    _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, tails=2)
-    _hat_top(ov, hx, hy, hr, facing, tilt=math.radians(-16))
+    hx, hy, hr, facing = _head_anchor(top, bot, x_min, x_max)
+    bxc, byc, _bc = _body_anchor(top, bot, x_min, x_max)
+    # arms first so buttons/scarf overlay their roots
+    _twig_arms(ov, top, bot, x_min, x_max, pose="straight")
+    _buttons(ov, bxc, byc, top, bot, x_min, x_max, n=3)
+    _shared_head_face(ov, hx, hy, hr, facing)
+    _scarf(ov, hx, hy, hr, top, bot, x_min, x_max, red=PIP_SCARLET,
+           white=SCARF_WHITE, tails=1)
+    _pip_peeks(ov, hx, hy, hr, top, x_min, x_max)
+
+
+def dir_c_upright(ov, geom, anchors):
+    """C · Reshaped UPRIGHT stacked snowman. Parts seat on the analytic ball
+    centres (not the horizontal-bump heuristic): hat + face on the head ball,
+    scarf at the neck pinch, buttons down the body ball front, twig arms out the
+    body ball sides. The vertical kit fits because the contour is now vertical."""
+    top, bot, x_min, x_max, w, h = geom
+    hx, hy, hr = anchors["hx"], anchors["hy"], anchors["hr"]
+    bx, by, br = anchors["bx"], anchors["by"], anchors["br"]
+    facing = math.radians(7.0)
+    # twig arms straight out the body ball's sides, drawn first so scarf/buttons
+    # overlay the roots; rooted at the body ball equator.
+    _twig_arms_upright(ov, bx, by, br)
+    # buttons march down the front-centre of the body ball.
+    _buttons_upright(ov, bx, by, br)
+    # tight face cluster + hat on the head ball.
+    _shared_head_face(ov, hx, hy, hr, facing)
+    # scarf wraps the genuine neck pinch between the two balls.
+    _scarf_upright(ov, hx, hy, hr, anchors["neck_y"])
+    # the deliberate macaw peek: green tuft under the brim + blue wing-tip on
+    # the body ball's rear shoulder.
+    _pip_peeks_upright(ov, hx, hy, hr, bx, by, br)
+
+
+# ── C-specific part placements (seat on the analytic two-ball geometry) ──────
+def _buttons_upright(ov, bx, by, br, *, n=3):
+    """Vertical column of coals down the FRONT-CENTRE of the body ball."""
+    for i in range(n):
+        t = (i + 0.5) / n
+        py = by - br * 0.55 + t * br * 1.15
+        _coal_dot(ov, bx, py, max(2, int(br * 0.09)))
+
+
+def _twig_arms_upright(ov, bx, by, br):
+    """Two bare-branch arms out the upper body ball, angled up-and-out with a
+    fork each, rooted on the body ball's equator so they read as planted."""
+    def branch(sx, sy, ang, ln, forks):
+        ex = sx + math.cos(ang) * ln
+        ey = sy + math.sin(ang) * ln
+        pygame.draw.line(ov, TWIG, (sx, sy), (ex, ey), 2)
+        pygame.draw.line(ov, TWIG_HI, (sx, sy), ((sx + ex) / 2, (sy + ey) / 2), 1)
+        for fk in forks:
+            mx = sx + (ex - sx) * fk
+            my = sy + (ey - sy) * fk
+            for da in (math.radians(32), math.radians(-28)):
+                fr = ln * 0.42
+                pygame.draw.line(ov, TWIG, (mx, my),
+                                 (mx + math.cos(ang + da) * fr,
+                                  my + math.sin(ang + da) * fr), 1)
+    ry = by - br * 0.30
+    branch(bx + br * 0.80, ry, math.radians(-22), br * 1.05, [0.6])    # right arm up-out
+    branch(bx - br * 0.80, ry, math.radians(180 + 26), br * 1.10, [0.6])  # left arm up-out
+
+
+def _scarf_upright(ov, hx, hy, hr, neck_y):
+    """Red-white scarf band wrapping the neck pinch, with a short forward tail."""
+    half_w = hr * 0.95
+    band_h = hr * 0.34
+    rw, ww = PIP_SCARLET, SCARF_WHITE
+    nseg = max(3, int(band_h + 2))
+    for i in range(nseg):
+        t = i / max(1, nseg - 1)
+        col = rw if (i // 2) % 2 == 0 else ww
+        yy = neck_y - band_h * 0.5 + t * band_h
+        # narrow toward the neck pinch so it hugs the junction
+        hw = half_w * (0.78 + 0.22 * math.sin(t * math.pi))
+        pygame.draw.line(ov, col, (hx - hw, yy), (hx + hw, yy), 1)
+    # short tail streaming forward/down with the tailwind
+    px = hx + half_w * 0.55
+    py = neck_y + band_h * 0.5
+    for j in range(7):
+        t = j / 7.0
+        x0 = px + t * hr * 0.9
+        y0 = py + t * hr * 0.7 + math.sin(t * 6.0) * 1.2
+        col = rw if (j // 2) % 2 == 0 else ww
+        pygame.draw.line(ov, col, (x0, y0), (x0 + 2, y0 + 1), 3)
+
+
+def _pip_peeks_upright(ov, hx, hy, hr, bx, by, br):
+    """V4 macaw wink for the upright build: green crown tuft poking from under
+    the hat brim + a blue wing-tip peek on the body ball's rear shoulder."""
+    cx = hx + hr * 0.45
+    cy = hy - hr * 0.28
+    pygame.draw.polygon(ov, PIP_GREEN,
+                        [(cx - 2, cy + 3), (cx - 1, cy - 4), (cx + 2, cy + 1)])
+    pygame.draw.polygon(ov, PIP_GREEN,
+                        [(cx + 1, cy + 3), (cx + 3, cy - 3), (cx + 5, cy + 2)])
+    wx = bx - br * 0.78
+    wy = by - br * 0.42
+    pygame.draw.polygon(ov, PIP_BLUE,
+                        [(wx, wy), (wx - 6, wy + 2), (wx, wy + 4)])
 
 
 # ── compose one Pip cell ──────────────────────────────────────────────────────
@@ -677,10 +850,11 @@ def render_cell(extra, *, face_fn=None):
     return pygame.transform.scale(cell, (cw * ZOOM, ch * ZOOM)), (cw, ch)
 
 
-def render_chip(face_fn, target_h=28):
-    """A 1x gameplay-size snowman chip (~28px tall) so small-scale legibility of
-    the face/hat/arm placement can be judged. Renders the full snowman at native
-    res, then scales the whole cell down to `target_h`."""
+# ── A / B render: the horizontal buried mound + the chosen kit ───────────────
+def render_mound_cell(face_fn):
+    """Full-cover horizontal mound (extra=1) with the A or B kit drawn from the
+    mound contour. Returns the native cell + its size (un-zoomed) so callers can
+    scale to whatever hero size they need."""
     nw, nh = _native_size()
     pad = 8
     cw, ch = nw + pad * 2, nh + pad * 2 + 18
@@ -701,8 +875,31 @@ def render_chip(face_fn, target_h=28):
         face_fn(fsurf, geom)
         ov.blit(fsurf, (0, 0))
         cell.blit(ov, (0, 0))
-    scale = target_h / ch
-    return pygame.transform.smoothscale(cell, (int(cw * scale), int(ch * scale))), (cw, ch)
+    return cell, (cw, ch)
+
+
+# ── C render: the rebuilt UPRIGHT stacked-snowman contour + the full kit ─────
+# Direction C does NOT bury the bird silhouette — it replaces the contour with a
+# procedural two-ball stacked snowman (taller than the bird, ~1.7x), then runs
+# the same W2 recipe down it. We size the cell TALL so the upright build is not
+# clipped, and seat the kit on the analytic ball anchors.
+def render_stacked_cell():
+    """Full upright stacked snowman (head ball + body ball) with the shared kit,
+    rendered into a portrait cell. Returns the native cell + its size."""
+    nw, nh = _native_size()
+    pad = 8
+    # portrait cell: the upright snowman is taller than the bird is wide.
+    cw = nw + pad * 2
+    ch = int((nw + pad * 2) * 1.42) + 18
+    cell = pygame.Surface((cw, ch), pygame.SRCALPHA)
+    built = _stacked_overlay(cw, ch - 14)
+    if built is not None:
+        ov, geom, anchors = built
+        fsurf = pygame.Surface((cw, ch), pygame.SRCALPHA)
+        dir_c_upright(fsurf, geom, anchors)
+        cell.blit(ov, (0, 0))
+        cell.blit(fsurf, (0, 0))
+    return cell, (cw, ch)
 
 
 # ── reference row via the REAL Bird.draw ─────────────────────────────────────
@@ -746,48 +943,80 @@ def on_panel(cell, panel_fn):
 
 
 # ── sheet layout ─────────────────────────────────────────────────────────────
-VERSIONS = [
-    ("V1 - Classic top-hat",
-     "black top hat, round coal eyes, carrot, 5-coal smile, red-white scarf + tail, 3 buttons, straight twig arms",
-     v1_classic),
-    ("V2 - Knit winter",
-     "red-white knit beanie + pom, matching knit scarf, flat stitch-cross button eyes, carrot, smile, buttons, twig arms",
-     v2_knit),
-    ("V3 - Minimal clean",
-     "earmuffs, 2 coal eyes + carrot + short smile, thin scarf, 2 buttons, slim twig arms - tuned for 1x legibility",
-     v3_minimal),
-    ("V4 - Pip-hybrid",
-     "full-classic snowman + DELIBERATE green crown tuft + blue wing-tip peek; scarf in Pip-scarlet, green hat band",
-     v4_hybrid),
-    ("V5 - Jaunty",
-     "tilted top hat, jaunty angled carrot, wide coal-pebble grin, two-tail scarf, livelier twig arm pose - most expressive",
-     v5_jaunty),
+# Round 6 holds ONE shared face treatment constant and varies ONLY the structure
+# across three direction rows (A / B / C).
+DIRECTIONS = [
+    ("A - Head-concentrated",
+     "Snowman identity lives in the HEAD bump only: hat + eyes + carrot + smile + scarf at the neck. "
+     "Body stays a clean white W2 mound. NO body buttons, NO twig arms.",
+     "mound", dir_a_head),
+    ("B - Full-classic (horizontal)",
+     "Round-5 approach, kept for comparison: the shared face on the head PLUS buttons down the front of the "
+     "horizontal body + two twig arms rooted on the body contour sides.",
+     "mound", dir_b_classic),
+    ("C - Reshaped UPRIGHT",
+     "At full cover the snow is REBUILT into an upright stacked snowman (head ball + larger body ball, taller "
+     "than the bird). Same W2 shading; the full vertical kit fits: hat + face on the head, scarf at the neck "
+     "pinch, buttons down the body, twig arms out the sides.",
+     "stacked", None),
 ]
 
 ACCUM = [0.0, 0.25, 0.50, 0.75, 1.0]
 
+# Hero cells render LARGE — the snowman is expected to read bigger than the bird.
+HERO_ZOOM = 8
+
+
+def _fit_into(cell, box_w, box_h, panel_fn):
+    """Centre `cell` (native res, scaled up by HERO_ZOOM) onto a panel of size
+    (box_w, box_h). Keeps the upright C cell from being stretched vs the wide
+    A/B cell — both share the same hero pixel scale, just different aspect."""
+    cw, ch = cell.get_size()
+    scaled = pygame.transform.scale(cell, (cw * HERO_ZOOM, ch * HERO_ZOOM))
+    sw, sh = scaled.get_size()
+    if sw > box_w or sh > box_h:
+        k = min(box_w / sw, box_h / sh)
+        scaled = pygame.transform.smoothscale(scaled, (int(sw * k), int(sh * k)))
+        sw, sh = scaled.get_size()
+    panel = panel_fn(box_w, box_h)
+    panel.blit(scaled, ((box_w - sw) // 2, (box_h - sh) // 2))
+    return panel
+
 
 def main():
-    label_w = 250
-    gap = 8
+    label_w = 264
+    gap = 10
     pad_out = 18
-    title_h = 86
+    title_h = 96
 
-    _, (cw, ch) = render_reference(1.0)
-    cell_w, cell_h = cw * ZOOM, ch * ZOOM
+    # reference / accumulation small cells use ZOOM; hero direction cells are LARGE
+    _, (rcw, rch) = render_reference(1.0)
+    small_w, small_h = rcw * ZOOM, rch * ZOOM
 
     ref_loads = [0.0, 0.35, 0.70, 1.00]
-    cols_max = max(len(ref_loads), len(ACCUM), 3)
-    row_h = cell_h + 30
-    sheet_w = label_w + cols_max * (cell_w + gap) + pad_out * 2
-    rows = 1 + 1 + len(VERSIONS)         # reference + accumulation + 5 versions
-    sheet_h = title_h + rows * (row_h + gap + 30) + pad_out
+    cols_max = max(len(ref_loads), len(ACCUM))
+
+    # hero cell box: tall enough for the upright C build at HERO_ZOOM.
+    _, (ccw, cch) = render_stacked_cell()
+    hero_h = cch * HERO_ZOOM + 12
+    # three hero cells across must fit the same row width as the small strips.
+    strip_w = cols_max * (small_w + gap)
+    hero_w = (strip_w - 2 * gap) // 3
+
+    small_row_h = small_h + 30
+    hero_row_h = hero_h + 44
+
+    sheet_w = label_w + strip_w + pad_out * 2
+    sheet_h = (title_h
+               + 2 * (small_row_h + gap + 30)     # reference + accumulation
+               + 3 * (hero_row_h + gap + 30)       # A / B / C
+               + pad_out)
 
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((14, 16, 24))
 
-    fbig = pygame.font.SysFont("Arial", 26, bold=True)
-    frow = pygame.font.SysFont("Arial", 17, bold=True)
+    fbig = pygame.font.SysFont("Arial", 25, bold=True)
+    frow = pygame.font.SysFont("Arial", 18, bold=True)
     fnote = pygame.font.SysFont("Arial", 13)
     fcell = pygame.font.SysFont("Arial", 13, bold=True)
 
@@ -796,15 +1025,15 @@ def main():
     DIM = (170, 184, 206)
 
     sheet.blit(fbig.render(
-        "Pip - snow FULL COVER -> SNOWMAN  (round 5: accumulation ramp + face from MOUND geometry + full-classic snowman)",
+        "Pip snow FULL COVER -> SNOWMAN  -  ROUND 6: 3-DIRECTION STRUCTURE COMPARISON (A / B / C)",
         True, GOLD), (pad_out, 14))
     sheet.blit(fnote.render(
-        "Snow = the faithful snow_fx W2 recipe (OFF body + WHITE crest + BLUE under-edge, same cornice/ripple). _mound_overlay now "
-        "ramps with extra in [0,1]: extra=0 ~ shipped top-blanket, extra=1 = full enclosing mound; the snow creeps DOWN rear-first.",
+        "ONE shared face treatment in all three (black top-hat + red/green band, 2 coal eyes, carrot below-and-between the eyes, "
+        "3-dot smile arc, red-white scarf at the neck, macaw peek: green crown tuft + blue wing-tip). STRUCTURE is the only variable.",
         True, DIM), (pad_out, 46))
     sheet.blit(fnote.render(
-        "Snowman parts are placed from the MOUND contour via _head_anchor (front ~32% bump, midline) + body contour - NOT Pip's "
-        "beak/eye pixels. Every version is full-classic: hat + twig arms + scarf at the neck pinch + coal face + buttons.",
+        "Snow stays the faithful snow_fx W2 recipe (OFF body + WHITE crest top 18% + BLUE under-edge bottom 26% + cornice + ripple). "
+        "ACCUMULATION strip below is FROZEN (round 5). Hero cells render LARGE; the in-game chip renders at ~1.7x the normal bird.",
         True, DIM), (pad_out, 64))
 
     y = title_h
@@ -812,84 +1041,108 @@ def main():
     def cell_label(txt, x, yy, col=WLBL):
         sheet.blit(fcell.render(txt, True, col), (x + 4, yy))
 
+    def wrap_note(txt, x, yy, maxchars=34, n=5):
+        words = txt.split(" ")
+        lines = [""] * n
+        li = 0
+        for wword in words:
+            if len(lines[li]) > maxchars and li < n - 1:
+                li += 1
+            lines[li] += wword + " "
+        for k, ln in enumerate(lines):
+            if ln.strip():
+                sheet.blit(fnote.render(ln.strip(), True, DIM), (x, yy + k * 16))
+
     # ── reference row ──
     sheet.blit(frow.render("REFERENCE - shipped", True, GOLD), (pad_out, y + 14))
-    sheet.blit(fnote.render("(real Bird.draw; anchor - do not alter)", True, DIM),
-               (pad_out, y + 36))
+    sheet.blit(fnote.render("real Bird.draw; anchor,", True, DIM), (pad_out, y + 38))
+    sheet.blit(fnote.render("do not alter", True, DIM), (pad_out, y + 54))
     cx = label_w + pad_out
     for ld in ref_loads:
         cell, _ = render_reference(ld)
         panel = on_panel(cell, neutral_panel)
         sheet.blit(panel, (cx, y + 18))
         pygame.draw.rect(sheet, (90, 104, 130),
-                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
+                         (cx - 1, y + 17, small_w + 2, small_h + 2), 1)
         cell_label(f"snow_load {ld:.2f}", cx, y)
-        cx += cell_w + gap
-    y += row_h + gap + 30
+        cx += small_w + gap
+    y += small_row_h + gap + 30
 
-    # ── accumulation strip (shared, snow only, NO face) ──
+    # ── accumulation strip (FROZEN; snow only, NO face) ──
     sheet.blit(frow.render("ACCUMULATION", True, GOLD), (pad_out, y + 14))
-    sheet.blit(fnote.render("strip - snow only, no face;", True, DIM), (pad_out, y + 36))
-    sheet.blit(fnote.render("rear buries first, face last", True, DIM), (pad_out, y + 52))
+    sheet.blit(fnote.render("FROZEN (round 5) - snow", True, DIM), (pad_out, y + 38))
+    sheet.blit(fnote.render("only; rear buries first,", True, DIM), (pad_out, y + 54))
+    sheet.blit(fnote.render("face last", True, DIM), (pad_out, y + 70))
     cx = label_w + pad_out
     for ex in ACCUM:
         cell, _ = render_cell(ex, face_fn=None)
         panel = on_panel(cell, neutral_panel)
         sheet.blit(panel, (cx, y + 18))
         pygame.draw.rect(sheet, (110, 130, 160),
-                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
+                         (cx - 1, y + 17, small_w + 2, small_h + 2), 1)
         cell_label(f"extra {ex:.2f}", cx, y, GOLD)
-        cx += cell_w + gap
-    y += row_h + gap + 30
+        cx += small_w + gap
+    y += small_row_h + gap + 30
 
-    # ── version rows ──
-    # Each row: [SNOWMAN dark, large] [SNOWMAN whiteout] [1x gameplay chip ~28px]
-    for name, note, face_fn in VERSIONS:
+    # ── three DIRECTION rows: each [hero dark] [hero whiteout] [in-game ~1.7x] ──
+    nw, _nh = _native_size()
+    chip_h = int(_nh * 1.7)              # in-game snowman renders ~1.7x the bird
+    for name, note, kind, face_fn in DIRECTIONS:
         sheet.blit(frow.render(name, True, GOLD), (pad_out, y + 12))
-        words = note.split(" ")
-        lines = ["", "", "", ""]
-        li = 0
-        for wword in words:
-            if len(lines[li]) > 30 and li < 3:
-                li += 1
-            lines[li] += wword + " "
-        for k, ln in enumerate(lines):
-            sheet.blit(fnote.render(ln.strip(), True, DIM), (pad_out, y + 36 + k * 16))
+        wrap_note(note, pad_out, y + 40)
+
+        if kind == "mound":
+            cell, _ = render_mound_cell(face_fn)
+        else:
+            cell, _ = render_stacked_cell()
 
         cx = label_w + pad_out
-        snow_cell, _ = render_cell(1.0, face_fn=face_fn)
-        # cell 1: SNOWMAN, dark panel, large
-        dark = on_panel(snow_cell.copy(), neutral_panel)
-        sheet.blit(dark, (cx, y + 18))
+        # cell 1: hero on dark
+        sheet.blit(_fit_into(cell.copy(), hero_w, hero_h, neutral_panel),
+                   (cx, y + 18))
         pygame.draw.rect(sheet, (120, 140, 170),
-                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
-        cell_label("SNOWMAN / dark", cx, y, GOLD)
-        cx += cell_w + gap
-        # cell 2: SNOWMAN, whiteout panel
-        white = on_panel(snow_cell.copy(), whiteout_panel)
-        sheet.blit(white, (cx, y + 18))
+                         (cx - 1, y + 17, hero_w + 2, hero_h + 2), 1)
+        cell_label("SNOWMAN / dark (LARGE)", cx, y, GOLD)
+        cx += hero_w + gap
+        # cell 2: hero on whiteout (silhouette must survive the white sky)
+        sheet.blit(_fit_into(cell.copy(), hero_w, hero_h, whiteout_panel),
+                   (cx, y + 18))
         pygame.draw.rect(sheet, (120, 140, 170),
-                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
-        cell_label("SNOWMAN / whiteout", cx, y, GOLD)
-        cx += cell_w + gap
-        # cell 3: 1x gameplay-size chip (~28px tall), centred in a cell box
-        chip, _ = render_chip(face_fn, target_h=28)
-        chip_box = neutral_panel(cell_w, cell_h)
+                         (cx - 1, y + 17, hero_w + 2, hero_h + 2), 1)
+        cell_label("SNOWMAN / whiteout (LARGE)", cx, y, GOLD)
+        cx += hero_w + gap
+        # cell 3: expected in-game size on a sky bg - a 1.0x reference bird on the
+        # left and the snowman at ~1.7x the bird beside it, sharing one world
+        # scale so the size relationship reads honestly.
+        chip_box = make_gradient_surface(hero_w, hero_h,
+                                         [(0.0, (132, 178, 226)), (1.0, (180, 210, 238))])
+        # pick a world scale where the 1.0x bird is a comfortable on-sheet size
+        # and the 1.7x snowman still fits the box height (C is the tallest).
+        cw0, ch0 = cell.get_size()
+        world = (hero_h - 28) / (ch0 * 1.7)          # native px -> sheet px
+        world = min(world, (hero_h * 0.30) / float(_nh))
+        # 1.0x bird (native cell scaled by `world`)
+        bnat = render_reference(0.0)[0]
+        bnat = pygame.transform.smoothscale(bnat, (rcw, rch))   # de-zoom to native
+        bird_chip = pygame.transform.smoothscale(
+            bnat, (max(1, int(rcw * world)), max(1, int(rch * world))))
+        bsw, bsh = bird_chip.get_size()
+        # snowman at ~1.7x the bird (same world scale * 1.7)
+        sscale = world * 1.7
+        chip = pygame.transform.smoothscale(
+            cell, (max(1, int(cw0 * sscale)), max(1, int(ch0 * sscale))))
         chw, chh = chip.get_size()
-        chip_box.blit(chip, ((cell_w - chw) // 2, (cell_h - chh) // 2))
-        # show a small 2x and 3x next to it for legibility judging
-        c2 = pygame.transform.scale(chip, (chw * 2, chh * 2))
-        c3 = pygame.transform.scale(chip, (chw * 3, chh * 3))
-        chip_box.blit(c2, (12, cell_h - chh * 2 - 12))
-        chip_box.blit(c3, (cell_w - chw * 3 - 12, cell_h - chh * 3 - 12))
+        baseline = hero_h - 16
+        chip_box.blit(bird_chip, (18, baseline - bsh))
+        chip_box.blit(chip, (18 + bsw + 22, baseline - chh))
         sheet.blit(chip_box, (cx, y + 18))
         pygame.draw.rect(sheet, (120, 140, 170),
-                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
-        cell_label("1x chip (+2x/3x)", cx, y, GOLD)
+                         (cx - 1, y + 17, hero_w + 2, hero_h + 2), 1)
+        cell_label("in-game ~1.7x bird (vs bird)", cx, y, GOLD)
 
-        y += row_h + gap + 30
+        y += hero_row_h + gap + 30
 
-    out = os.path.join(OUT_DIR, "round_5.png")
+    out = os.path.join(OUT_DIR, "round_6.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
