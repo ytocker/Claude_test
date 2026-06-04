@@ -138,11 +138,11 @@ POWERUP_REPLACED_AT = {
 # same gameplay moment every run regardless of coin pickups, lottery wins,
 # or storm-jolt deductions. A genie lamp is placed in the spacing between
 # pillar LATE_GAME_PILLAR and the next pillar (so the player encounters it
-# right after scoring pillar 65). From that moment, the genie is also added
+# right after scoring that pillar). From that moment, the genie is also added
 # to the regular spawn pool and the Surprise Box re-roll pool.
-LATE_GAME_PILLAR       = 65
+LATE_GAME_PILLAR       = 50
 # DEBUG: extra genie spawn early in the run so the pickup + chamber + wishes
-# can be exercised without playing through 65 pillars. Same one-shot rules
+# can be exercised without playing through the full milestone. Same one-shot rules
 # as the production milestone (also flips on the genie pool + surprise-box
 # choices). Set to None to disable.
 DEBUG_GENIE_PILLAR     = None
@@ -231,7 +231,7 @@ SPAWN_GRACE         = 1.5
 # only appears while it's raining (a cull step also drops any uncollected
 # umbrella once rain returns to 0).
 UMBRELLA_DURATION       = 8.0
-UMBRELLA_SPAWN_PILLARS  = (85, 97)
+UMBRELLA_SPAWN_PILLARS  = (75, 87)
 
 # TREASURE BOX — once-per-biome-cycle finale reward. When the day/night
 # cycle wraps from late-night back to dawn, the next CYCLE_FINALE_RUSH_PILLARS
