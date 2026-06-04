@@ -79,6 +79,20 @@ ramp: the ceiling clamps Pip instead of killing him (the ground still
 does), and the pipe collision radius is a few pixels smaller than the
 visible bird so brushes don't punish you.
 
+### Run progression at a glance
+
+One full biome cycle = ~5 minutes ≈ 175 pillars (counting the newbie
+ramp). The chart below maps the biome sky, weather events (rain,
+thunder, snow squall, geyser ramp), power-up milestones, and the
+end-of-day cycle-finale celebration onto the X-axis of pillars passed,
+driven directly by the live game constants.
+
+<p align="center">
+  <a href="docs/progression/run_progression.png">
+    <img src="docs/progression/run_progression.png" width="780" alt="Skybit run progression: biome, weather, power-up milestones, and cycle-finale celebration vs pillars passed">
+  </a>
+</p>
+
 ## Built procedurally
 
 Every sprite, gradient, glow, and effect in the game is computed in
