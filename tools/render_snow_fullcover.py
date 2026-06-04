@@ -20,7 +20,7 @@ snow_fx.py later.
 
 Run from repo root:
   SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python -m tools.render_snow_fullcover
-Output: docs/snow_full_cover/round_1.png
+Output: docs/snow_full_cover/round_2.png
 """
 from __future__ import annotations
 
@@ -54,6 +54,15 @@ OFF = (236, 244, 252)
 BLUE = (188, 206, 230)
 SHADOW = (150, 168, 198)
 GLAZE = (172, 214, 238)          # V4 glassy cyan-blue sheen
+RED = (240, 55, 55)              # shipped BIRD_RED — peeks must match exactly
+
+# Silhouette landmarks on the 64x60 _REF_FRAME (level-wing). Used to punch
+# character peeks (eye glint / beak nub / red sliver) back THROUGH the snow so
+# Pip stays recognisable at full cover. xf = x/64.
+EYE_PX = (50, 20)                # aviator centre
+BEAK_TIP_PX = (61, 24)           # hooked beak point
+HEAD_BACK_PX = (40, 16)          # crown→back-of-head break (the hard edge)
+RED_CHEEK_PX = (44, 26)          # lower cheek where scarlet shows under the lens
 
 ZOOM = 6                         # sprite is 64x60; render big for detail
 
@@ -128,38 +137,56 @@ def _native_size():
     return w, h
 
 
-# ── V1 · Smooth dome (snowman) ───────────────────────────────────────────────
-# A rounded soft white dome envelops the whole bird: clear parrot-shaped
-# mound, eye glint + beak tip peek through. MEDIUM read.
-def v1_smooth_dome(extra):
+# ── V1 · Icicle-fringe finish ────────────────────────────────────────────────
+# A smooth packed blanket over crown/back PLUS a row of small hanging icicles +
+# drip points along the lower/front edge — a distinct silhouette signature no
+# other version has. Eye glint + beak-tip nub survive. MEDIUM read.
+def v1_icicle_fringe(extra):
     w, h = _native_size()
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
     cols = _columns(extra, cap_lift=1.0, depth_gain=0.95, front_reach=0.85,
-                    cornice=1.2, noise_amp=1.0)
+                    cornice=1.2, noise_amp=0.8)
     if not cols:
         return None
-    # Smooth body fill from the columns (low noise = rounded surface).
+    # Smooth, low-noise packed blanket (rounded, dense surface).
+    edge_y = {}
     for x, y0, y1, d in cols:
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
-        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.20)), 1)
-        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.22)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.22)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.20)), (x, int(y1)), 1)
+        edge_y[x] = y1
     ov = _blur(ov, 2)                                    # smooth the surface
-    # A unifying dome cap: a big soft white ellipse over the whole top,
-    # giving the rounded snowman read; then re-clip to silhouette below.
-    if extra > 0.3:
-        xs = [c[0] for c in cols]
-        cx = sum(xs) / len(xs)
-        top_y = min(c[1] for c in cols)
-        amt = (extra - 0.3) / 0.7
-        dome = pygame.Surface((w, h), pygame.SRCALPHA)
-        rx = (max(xs) - min(xs)) * 0.5 * (0.85 + 0.15 * amt)
-        ry = (max(c[2] for c in cols) - top_y) * 0.5 * (0.7 + 0.4 * amt)
-        pygame.draw.ellipse(dome, (*OFF, int(150 * amt)),
-                            (int(cx - rx), int(top_y - ry * 0.25),
-                             int(rx * 2), int(ry * 2)))
-        dome = _blur(dome, 3)
-        ov.blit(dome, (0, 0))
-    return _clip_to_body(ov, extra, front_reach=0.85, cap_lift=1.0)
+    if extra > 0.2:
+        amt = (extra - 0.2) / 0.8
+        # Hanging icicles: a row of tapered teeth along the lower edge, longer
+        # toward the front (where blown snow over-hangs the face). Each tooth is
+        # a fat 3px white shaft narrowing to a cool-blue tip with a bead drip —
+        # the distinct silhouette signature no other version carries.
+        xs = sorted(edge_y)
+        for x in xs:
+            xf = x / w
+            sel = (math.sin(x * 0.7) * 0.5 + 0.5)
+            if sel < 0.55 or x % 4 != 0:
+                continue
+            length = (5.0 + 11.0 * amt) * (0.45 + 0.8 * xf) * (0.55 + 0.6 * sel)
+            ybase = edge_y[x] - 1
+            tip = ybase + length
+            mid = tip - length * 0.4
+            # tapering shaft: wide (3px) at the root, single px at the point
+            for dx, a in ((-1, 230), (0, 255), (1, 230)):
+                pygame.draw.line(ov, (*WHITE, a), (x + dx, int(ybase)),
+                                 (x + dx, int(mid)), 1)
+            pygame.draw.line(ov, (*WHITE, 255), (x, int(mid)),
+                             (x, int(tip - 1)), 1)
+            pygame.draw.line(ov, (*BLUE, 235), (x, int(tip - 1)), (x, int(tip)), 1)
+            # melt-bead drip clinging just below the point
+            pygame.draw.circle(ov, (*OFF, 235), (x, int(tip + 1)), 1)
+    ov = _clip_to_body(ov, extra, front_reach=0.85, cap_lift=1.0)
+    # Surviving eye glint + beak-tip nub through the blanket (medium read).
+    if extra > 0.5:
+        _peek_eye(ov)
+        _peek_beak(ov)
+    return ov
 
 
 # ── V2 · Chunky caked drift ──────────────────────────────────────────────────
@@ -175,16 +202,37 @@ def v2_chunky_drift(extra):
     for x, y0, y1, d in cols:
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
         pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.16)), 1)
-        pygame.draw.line(ov, (*SHADOW, 255), (x, int(y1 - d * 0.34)), (x, int(y1)), 1)
-    # Caked clumps: stamp opaque blobs at lump peaks for a chunky surface.
+        # De-mudded under-edge: the lower-body shadow is now mostly the shipped
+        # cool-blue snow shadow (BLUE) with only a thin deepest-crease SHADOW
+        # band, so the caked drift reads as cold snow — never grey-blue slush.
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.34)),
+                         (x, int(y1 - d * 0.08)), 1)
+        pygame.draw.line(ov, (*SHADOW, 165), (x, int(y1 - d * 0.08)), (x, int(y1)), 1)
+    # Caked clumps ANCHORED to the silhouette edge: stamp straddling the cornice
+    # over-hang line (y0) of the rear/crown columns so the clump's mass sits ON
+    # the snow surface — none float detached above it. The clump's own blue
+    # under-shadow ties it down to the surface below.
     for x, y0, y1, d in cols:
         lump = 0.5 + 0.5 * math.sin(x * 0.9)
-        if lump > 0.78 and d > 4.0:
-            r = max(2, int(2.0 + 2.5 * lump))
-            _stamp(ov, x, y0 + d * 0.18, r, OFF, 255)
-            _stamp(ov, x, y0 + d * 0.10, max(1, r - 1), WHITE, 220)
+        if lump > 0.72 and d > 4.0:
+            r = max(2, int(2.2 + 2.4 * lump))
+            anchor = y0 + r * 0.5                         # clump centre sits ON the edge
+            _stamp(ov, x, anchor, r, OFF, 255)
+            _stamp(ov, x, anchor - r * 0.3, max(1, r - 1), WHITE, 240)
+            # tie-down shadow merges the clump into the surface below it
+            pygame.draw.line(ov, (*BLUE, 210),
+                             (x, int(anchor + r * 0.5)),
+                             (x, int(anchor + r * 1.2)), 1)
     ov = _blur(ov, 1)
-    return _clip_to_body(ov, extra, front_reach=0.8, cap_lift=1.05)
+    ov = _clip_to_body(ov, extra, front_reach=0.8, cap_lift=1.05)
+    if extra > 0.45:
+        # Preserve a 2-3px dark eye-socket notch through full cover — a shadowed
+        # pit pressed into the drift (cool-blue rim around a dark core) so the
+        # face still has one fixed landmark even when fully caked.
+        _carve(ov, EYE_PX[0], EYE_PX[1], 3.0)
+        pygame.draw.circle(ov, (*BLUE, 230), EYE_PX, 3)
+        pygame.draw.circle(ov, (24, 30, 42), EYE_PX, 2)
+    return ov
 
 
 # ── V3 · Soft powder puff ────────────────────────────────────────────────────
@@ -193,20 +241,31 @@ def v2_chunky_drift(extra):
 def v3_powder_puff(extra):
     w, h = _native_size()
     ov = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)   # 2x for soft stamps
-    cols = _columns(extra, cap_lift=1.1, depth_gain=1.05, front_reach=0.92,
+    cols = _columns(extra, cap_lift=1.1, depth_gain=1.1, front_reach=0.92,
                     cornice=1.0, noise_amp=2.0)
     if not cols:
         return None
+    # Higher base alpha + cooler palette: the round-1 powder read warm/pink
+    # because the parrot's scarlet bled through thin low-alpha discs. Denser
+    # opaque stamps (alpha 170) skewed toward white/off-white kill the warm
+    # haze so it reads as cold snow, not pink fog.
     for x, y0, y1, d in cols:
-        n = max(2, int(d / 2.0) + 2)
+        n = max(2, int(d / 1.6) + 2)
         for i in range(n + 1):
             t = i / max(1, n)
             yy = (y0 + (y1 - y0) * t) * 2
-            # Fuzzy: many overlapping low-alpha soft discs.
-            col = WHITE if t < 0.4 else (OFF if t < 0.75 else BLUE)
-            _stamp(ov, x * 2, yy, 4.2, col, 120)
+            col = WHITE if t < 0.55 else (OFF if t < 0.82 else BLUE)
+            _stamp(ov, x * 2, yy, 4.4, col, 170)
     ov = _blur(ov, 4)                                       # heavy fuzz
     ov = pygame.transform.smoothscale(ov, (w, h))
+    # ONE hard internal edge: a carved cool-shadow valley at the crown->back
+    # seam so the soft mound still reads "bird" (a head over a body) before it
+    # dissolves into the whiteout. The only crisp feature on this row.
+    if extra > 0.4:
+        _hard_break(ov)
+        # a single faint eye glint is the only other surviving cue (camo row)
+        ex, ey = EYE_PX
+        pygame.draw.circle(ov, (210, 222, 238, 200), (ex, ey), 1)
     return _clip_to_body(ov, extra, front_reach=0.92, cap_lift=1.1)
 
 
@@ -216,27 +275,52 @@ def v3_powder_puff(extra):
 def v4_icy_glaze(extra):
     w, h = _native_size()
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    cols = _columns(extra, cap_lift=0.95, depth_gain=0.7, front_reach=0.95,
-                    cornice=1.0, noise_amp=1.6)
+    # Wider mid step (front_reach high) so the mid cell clearly differs from
+    # current-max; front_reach lets coverage push forward but we trim the chin
+    # in _clip_to_body so snow doesn't creep under the jaw.
+    cols = _columns(extra, cap_lift=0.92, depth_gain=0.85, front_reach=0.9,
+                    cornice=1.1, noise_amp=1.2)
     if not cols:
         return None
-    # Thinner, translucent snow so the red shows through the ice.
+    # OPAQUE-FIRST: lay a solid white/off-white snow base (alpha 255) so the
+    # whole cap reads as cold packed snow, not wet melt. The icy character is
+    # added AFTER, as a glaze confined to the lower third.
     for x, y0, y1, d in cols:
-        pygame.draw.line(ov, (*OFF, 200), (x, int(y0)), (x, int(y1)), 1)
-        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
-        pygame.draw.line(ov, (*GLAZE, 150), (x, int(y0 + d * 0.3)),
-                         (x, int(y1)), 1)
-        pygame.draw.line(ov, (*BLUE, 220), (x, int(y1 - d * 0.22)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.20)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.22)), (x, int(y1)), 1)
     ov = _blur(ov, 1)
-    # Glassy sparkles (4-point glints) deterministically scattered.
+    # Glaze pass: a glassy cyan sheen ONLY on the lower third of each column,
+    # where melt-refreeze ice would pool — the upper two-thirds stay matte snow.
+    glaze = pygame.Surface((w, h), pygame.SRCALPHA)
+    for x, y0, y1, d in cols:
+        if d < 3.0:
+            continue
+        gtop = y0 + d * 0.62
+        pygame.draw.line(glaze, (*GLAZE, 130), (x, int(gtop)), (x, int(y1)), 1)
+        pygame.draw.line(glaze, (*GLAZE, 90),
+                         (x, int(gtop - 2)), (x, int(gtop)), 1)
+    glaze = _blur(glaze, 1)
+    ov.blit(glaze, (0, 0))
+    # Sharp glassy glints (4-point stars) deterministically scattered on the
+    # glazed band — the frost sparkle that sells the ice without translucency.
     for x, y0, y1, d in cols:
         g = (math.sin(x * 12.99) * 4375.5) % 1.0
-        if g > 0.9 and d > 2.0:
-            sx, sy = x, int(y0 + d * 0.3)
+        if g > 0.88 and d > 3.0:
+            sx, sy = x, int(y0 + d * 0.78)
             for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
-                pygame.draw.line(ov, (*WHITE, 235), (sx, sy), (sx + dx, sy + dy), 1)
-    return _clip_to_body(ov, extra, front_reach=0.95, cap_lift=0.95,
-                         glaze_red=True)
+                pygame.draw.line(ov, (*WHITE, 240), (sx, sy), (sx + dx, sy + dy), 1)
+            pygame.draw.circle(ov, (*WHITE, 255), (sx, sy), 1)
+    # glaze_red lets a faint scarlet/blue read FROZEN-IN on the lower third
+    # only (handled in _clip_to_body), keeping the goggles-through-frost charm.
+    ov = _clip_to_body(ov, extra, front_reach=0.9, cap_lift=0.92,
+                       glaze_red=True)
+    # Goggles peek: punch the aviator lens through the frost (charming, on-brand)
+    # plus a faint frozen beak nub. Eye stays the clearest cue on this row.
+    if extra > 0.45:
+        _peek_eye(ov)
+        _peek_beak(ov)
+    return ov
 
 
 # ── V5 · Layered ridge blanket (extends shipped W2) ──────────────────────────
@@ -245,24 +329,47 @@ def v4_icy_glaze(extra):
 def v5_ridge_blanket(extra):
     w, h = _native_size()
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
-    cols = _columns(extra, cap_lift=0.9, depth_gain=0.85, front_reach=0.78,
-                    cornice=1.8, noise_amp=2.4)
+    # Lower noise_amp so the ridge bands stay clean (not shimmery) at montage
+    # size; cap_lift kept modest so the face keeps the most parrot of any row.
+    cols = _columns(extra, cap_lift=0.82, depth_gain=0.78, front_reach=0.72,
+                    cornice=1.8, noise_amp=1.0)
     if not cols:
         return None
-    # Shipped W2 fill...
+    # Shipped W2 fill: off-white body + bright crest + cool-blue under-edge.
     for x, y0, y1, d in cols:
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
-        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
-        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
-    # ...plus defined ridge lines: bright crest + blue shadow at two interior
-    # depths, so the blanket reads as sculpted overlapping drifts not a slab.
-    for ridge in (0.42, 0.7):
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.16)), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.24)), (x, int(y1)), 1)
+    # Exactly THREE thick ridge bands (overlapping wind-drifts). Each band is a
+    # broad blue shadow trough (the drift's downhill face) crested by a thick
+    # white lip — drawn fat (3-4px) so the ridge survives the 34px montage and
+    # reads as sculpture, not a flat slab. Only three, so it never shimmers.
+    cmap = {c[0]: c for c in cols}
+    for ridge, lip in ((0.30, 1.0), (0.55, 0.9), (0.80, 0.8)):
         for x, y0, y1, d in cols:
-            ry = y0 + d * ridge + math.sin(x * 0.55) * 1.2
-            pygame.draw.line(ov, (*WHITE, 200), (x, int(ry - 1)), (x, int(ry)), 1)
-            pygame.draw.line(ov, (*SHADOW, 170), (x, int(ry + 0.5)),
-                             (x, int(ry + 1.5)), 1)
-    return _clip_to_body(ov, extra, front_reach=0.78, cap_lift=0.9)
+            if d < 5.0:
+                continue
+            # Slow phase so the ridge undulates gently across columns (1 wave
+            # over the body) instead of jittering column-to-column.
+            ry = y0 + d * ridge + math.sin(x * 0.28) * 1.4
+            # Thick bright crest lip above the trough.
+            pygame.draw.line(ov, (*WHITE, 235),
+                             (x, int(ry - 2)), (x, int(ry)), 1)
+            pygame.draw.line(ov, (*OFF, 255),
+                             (x, int(ry - 3)), (x, int(ry - 2)), 1)
+            # Broad cool-blue shadow trough just below the lip.
+            pygame.draw.line(ov, (*BLUE, 210),
+                             (x, int(ry + 1)), (x, int(ry + 2)), 1)
+            pygame.draw.line(ov, (*SHADOW, int(150 * lip)),
+                             (x, int(ry + 2)), (x, int(ry + 4)), 1)
+    ov = _clip_to_body(ov, extra, front_reach=0.72, cap_lift=0.82)
+    # Character peeks survive at full cover: aviator lens + glint, beak nub,
+    # and a thin scarlet sliver in the shipped BIRD_RED — the readable lead.
+    if extra > 0.5:
+        _peek_eye(ov)
+        _peek_beak(ov)
+        _peek_red(ov, color=RED)
+    return ov
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -271,6 +378,51 @@ def _stamp(layer, x, y, r, color, alpha):
     s = pygame.Surface((d, d), pygame.SRCALPHA)
     pygame.draw.circle(s, (*color, alpha), (d // 2, d // 2), max(1, d // 2 - 1))
     layer.blit(s, (int(x - d / 2), int(y - d / 2)))
+
+
+def _carve(ov, x, y, r):
+    """Punch a transparent hole in the snow overlay so the sprite underneath
+    (eye lens, beak, scarlet cheek) shows through — the silhouette cue that
+    keeps Pip a parrot at full cover. Pure alpha erase, WASM-safe."""
+    d = max(2, int(r * 2) + 1)
+    hole = pygame.Surface((d, d), pygame.SRCALPHA)
+    pygame.draw.circle(hole, (0, 0, 0, 255), (d // 2, d // 2), max(1, int(r)))
+    ov.blit(hole, (int(x - d / 2), int(y - d / 2)),
+            special_flags=pygame.BLEND_RGBA_SUB)
+
+
+def _peek_eye(ov, scale=1.0):
+    # A small dark lens + bright glint reads as Pip's aviator at montage size.
+    ex, ey = EYE_PX
+    _carve(ov, ex, ey, 2.4 * scale)
+    pygame.draw.circle(ov, (28, 34, 46), (ex, ey), max(2, int(2.4 * scale)))
+    pygame.draw.circle(ov, (235, 242, 252), (ex - 1, ey - 1), 1)
+
+
+def _peek_beak(ov, scale=1.0):
+    bx, by = BEAK_TIP_PX
+    _carve(ov, bx - 1, by, 2.0 * scale)
+    pygame.draw.polygon(ov, (255, 185, 0),
+                        [(bx, by - 2), (bx + 1, by + 1), (bx - 3, by)])
+
+
+def _peek_red(ov, scale=1.0, color=RED):
+    # A thin scarlet sliver under the lens — the brand colour, shipped value.
+    rx, ry = RED_CHEEK_PX
+    _carve(ov, rx, ry, 2.2 * scale)
+    pygame.draw.line(ov, color, (rx - 3, ry + 1), (rx + 3, ry), 2)
+
+
+def _hard_break(ov):
+    """One carved cool-shadow valley at the crown→back-of-head seam so a
+    front (head) / back (body) split survives even under heavy cover — the
+    minimum cue that the white mound is still bird-shaped."""
+    hx, hy = HEAD_BACK_PX
+    for i in range(-2, 7):
+        pygame.draw.line(ov, (*SHADOW, 210),
+                         (hx, hy + i), (hx + 4, hy + i + 5), 1)
+        pygame.draw.line(ov, (*BLUE, 150),
+                         (hx + 4, hy + i), (hx + 8, hy + i + 5), 1)
 
 
 def _clip_to_body(ov, extra, *, front_reach, cap_lift, glaze_red=False):
@@ -291,6 +443,10 @@ def _clip_to_body(ov, extra, *, front_reach, cap_lift, glaze_red=False):
         if yt < 0:
             continue
         xf = x / w
+        # V4 only: trim the chin — don't let snow creep under the front/jaw
+        # (xf>0.78) so the goggles-through-frost stays clean, not muffled.
+        if glaze_red and xf > 0.78:
+            continue
         # Front/lower skim: faint snow clinging down the body face so the
         # silhouette fills with white at full cover (keeps red from dominating).
         depth = (8.0 + 14.0 * amt) * (0.4 + 0.6 * (1.0 - abs(xf - 0.45) * 1.4))
@@ -299,6 +455,15 @@ def _clip_to_body(ov, extra, *, front_reach, cap_lift, glaze_red=False):
         a = int(110 * amt) if not glaze_red else int(70 * amt)
         col = OFF if not glaze_red else GLAZE
         pygame.draw.line(skim, (*col, a), (x, yt + 2), (x, int(yt + depth)), 1)
+        if glaze_red:
+            # FROZEN-IN colour on the LOWER third only: a faint scarlet then
+            # cool-blue hint sealed under the ice, so Pip's brand red glows
+            # dimly through the glaze (charming) without reading as wet melt.
+            lo = int(yt + depth * 0.66)
+            pygame.draw.line(skim, (*RED, int(40 * amt)),
+                             (x, lo), (x, int(yt + depth * 0.85)), 1)
+            pygame.draw.line(skim, (*BLUE, int(55 * amt)),
+                             (x, int(yt + depth * 0.85)), (x, int(yt + depth)), 1)
     skim = _blur(skim, 2)
     ov.blit(skim, (0, 0))
     return ov
@@ -415,28 +580,32 @@ def on_panel(cell, panel_fn):
 
 
 # ── sheet layout ─────────────────────────────────────────────────────────────
+# Rows ordered along the visibility spectrum (easiest-to-track lead first):
+# V5 ridge -> V4 ice -> V2 chunky -> V1 icicle -> V3 camo.
 VERSIONS = [
-    ("V1 - Smooth dome (snowman)",
-     "rounded soft white mound; MEDIUM read - eye glint + beak tip peek",
-     v1_smooth_dome, 1, False),
-    ("V2 - Chunky caked drift",
-     "lumpy sculpted clumps + crown cornice; LOWER read - small eye peek",
-     v2_chunky_drift, 2, False),
-    ("V3 - Soft powder puff",
-     "fuzzy fresh powder, soft falloff; STRONG camo - dissolves into whiteout",
-     v3_powder_puff, 3, False),
-    ("V4 - Icy glaze / frost",
-     "snow + glassy cyan sheen + sparkles; MED-HIGH - red frozen-in, eye+beak",
-     v4_icy_glaze, 4, True),
     ("V5 - Layered ridge blanket (extends W2)",
-     "connected sculpted ridges over face; HIGHEST read - eye+beak+red sliver",
+     "3 thick connected ridge bands over face; HIGHEST read - eye+beak+red sliver",
      v5_ridge_blanket, 5, False),
+    ("V4 - Icy glaze / frost",
+     "opaque snow base + cyan glaze on lower third; MED-HIGH - goggles+red thru ice",
+     v4_icy_glaze, 4, True),
+    ("V2 - Chunky caked drift",
+     "lumpy clumps + crown cornice, cool-blue shadow; LOWER read - eye-socket notch",
+     v2_chunky_drift, 2, False),
+    ("V1 - Icicle-fringe finish",
+     "smooth blanket + hanging icicle teeth + drips; MEDIUM - eye glint + beak nub",
+     v1_icicle_fringe, 1, False),
+    ("V3 - Soft powder puff",
+     "fuzzy cool powder + 1 hard head-break; STRONG camo - dissolves into whiteout",
+     v3_powder_puff, 3, False),
 ]
 
-# Per-row extension progression. extra: 0 = shipped peak, 1 = fully covered.
+# Per-row extension progression. The FIRST cell is the shipped load=1.0 frame
+# (rendered via the REAL Bird.draw, identical to the reference row's last cell)
+# so every row reads as continuous accumulation from the exact same start; the
+# version finish only diverges from the mid cell onward. extra: mid / full.
 EXT_STEPS = [
-    ("current max", 0.0),
-    ("mid extension", 0.5),
+    ("mid extension", 0.55),
     ("FULLY COVERED", 1.0),
 ]
 
@@ -479,8 +648,9 @@ def main():
     sheet.blit(fbig.render("Pip - snow FULL COVER extension  (predawn squall whiteout)",
                            True, GOLD), (pad_out, 14))
     sheet.blit(fnote.render(
-        "Reference = shipped Bird.draw (stops at face-readable). V1-V5 extend "
-        "PAST load=1.0 to fully covered; last cell on dark + whiteout panels.",
+        "Each row CELL 1 = real shipped Bird.draw(load 1.00) (= ref row's last "
+        "cell) for continuity; then mid + FULLY COVERED. Rows ordered by "
+        "visibility: V5 (lead) -> V4 -> V2 -> V1 -> V3 (camo). Last cell on dark + whiteout.",
         True, DIM), (pad_out, 46))
 
     y = title_h
@@ -522,8 +692,18 @@ def main():
         sheet.blit(fnote.render(line2.strip(), True, DIM), (pad_out, y + 70))
 
         cx = label_w + pad_out
-        # first two progression steps (dark panel)
-        for sname, extra in EXT_STEPS[:2]:
+        # Continuity lock: cell 1 is the REAL shipped Bird.draw(load=1.0),
+        # byte-identical to the reference row's last cell, so the extension
+        # reads as one accumulation curve rather than a separate look.
+        ref_cell, _ = render_reference(1.0)
+        panel = on_panel(ref_cell, neutral_panel)
+        sheet.blit(panel, (cx, y + 18))
+        pygame.draw.rect(sheet, (90, 104, 130),
+                         (cx - 1, y + 17, cell_w + 2, cell_h + 2), 1)
+        cell_label("current max (load 1.00)", cx, y)
+        cx += cell_w + gap
+        # then the single mid-extension step (dark panel)
+        for sname, extra in EXT_STEPS[:1]:
             cell, _ = render_cell(fn, extra, vidx, glaze_red=glaze)
             panel = on_panel(cell, neutral_panel)
             sheet.blit(panel, (cx, y + 18))
@@ -547,7 +727,7 @@ def main():
 
         y += row_h + gap + 22
 
-    out = os.path.join(OUT_DIR, "round_1.png")
+    out = os.path.join(OUT_DIR, "round_2.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
