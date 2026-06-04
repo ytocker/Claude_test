@@ -3552,6 +3552,186 @@ class FloatText:
         surf.blit(self._baked, rect.topleft)
 
 
+class TreasureBanner:
+    """Cycle-finale celebration ribbon — "DAY N COMPLETE!" overlay.
+
+    A wide gold-gradient ribbon with notched forked ends, dark outline,
+    drop shadow, red velvet bottom rim, 4 corner sparkles, and bold
+    cream text. Drops in from above the chest, micro-bounce, holds,
+    fades. Spawned from World._activate_treasure_box.
+
+    Lifetime 1.4 s; the composite surface is baked once at construction
+    and reused with per-frame alpha + position so a fresh banner per
+    cycle-finale costs one draw call per frame, not a re-render."""
+
+    LIFE_MAX     = 1.4
+    DROP_IN_END  = 0.10       # cubic ease-out drop-in
+    BOUNCE_END   = 0.18       # tiny overshoot then settle
+    HOLD_END     = 1.10       # static hold (subtle sway)
+    FADE_END     = 1.40       # alpha to zero + float up
+
+    BANNER_W = 340
+    BANNER_H = 78
+    NOTCH    = 20             # depth of the chevron cut at each end
+    OUTLINE  = 3
+    SHADOW_DX = 4
+    SHADOW_DY = 5
+
+    GOLD_TOP   = (255, 232, 124)
+    GOLD_BOT   = (240, 188,  56)
+    GOLD_INK   = ( 72,  48,  12)
+    VELVET     = (168,  32,  16)
+    STAR_CREAM = (252, 244, 218)
+
+    def __init__(self, day_num: int, x: float, y_chest: float):
+        # Banner settles ~80 px above the chest centre — high enough not
+        # to overlap the chest sprite but still inside the pickup area.
+        self.cx = float(x)
+        self.cy_settled = float(y_chest) - 80.0
+        self.day = max(1, int(day_num))
+        # Time-since-spawn (counts UP) so the multi-phase envelope is
+        # easier to express than a draining life timer.
+        self.t = 0.0
+        self._baked: "pygame.Surface | None" = None
+
+    def alive(self) -> bool:
+        return self.t < TreasureBanner.FADE_END
+
+    def update(self, dt: float):
+        self.t += dt
+
+    def _envelope(self) -> tuple[float, int]:
+        """Compute (y, alpha) for the current self.t."""
+        t = self.t
+        y_settle = self.cy_settled
+        y_drop_start = y_settle - 60.0
+        y_overshoot  = y_settle - 6.0
+        y_fade_out   = y_settle - 14.0
+
+        if t < TreasureBanner.DROP_IN_END:
+            f = t / TreasureBanner.DROP_IN_END
+            ease = 1.0 - (1.0 - f) ** 3
+            y = y_drop_start + (y_settle - y_drop_start) * ease
+            alpha = int(255 * ease)
+        elif t < TreasureBanner.BOUNCE_END:
+            f = ((t - TreasureBanner.DROP_IN_END)
+                 / (TreasureBanner.BOUNCE_END - TreasureBanner.DROP_IN_END))
+            y = y_settle + math.sin(f * math.pi) * (y_overshoot - y_settle)
+            alpha = 255
+        elif t < TreasureBanner.HOLD_END:
+            y = y_settle
+            alpha = 255
+        elif t < TreasureBanner.FADE_END:
+            f = ((t - TreasureBanner.HOLD_END)
+                 / (TreasureBanner.FADE_END - TreasureBanner.HOLD_END))
+            y = y_settle + (y_fade_out - y_settle) * f
+            alpha = int(255 * (1.0 - f))
+        else:
+            y, alpha = y_fade_out, 0
+        return y, max(0, min(255, alpha))
+
+    def draw(self, surf: pygame.Surface):
+        if self._baked is None:
+            self._baked = self._build()
+        y, alpha = self._envelope()
+        if alpha <= 0:
+            return
+        sprite = self._baked
+        sprite.set_alpha(alpha)
+        # Tiny horizontal sway during HOLD keeps the banner alive.
+        sway = 0
+        if TreasureBanner.BOUNCE_END <= self.t < TreasureBanner.HOLD_END:
+            sway_t = self.t - TreasureBanner.BOUNCE_END
+            sway = int(round(math.sin(sway_t * math.tau * 1.5) * 1))
+        r = sprite.get_rect(center=(int(self.cx + sway), int(y)))
+        surf.blit(sprite, r.topleft)
+
+    def _build(self) -> pygame.Surface:
+        """Bake the static banner composite. Called once per instance."""
+        from game.hud import _font
+
+        cls = TreasureBanner
+        bw, bh = cls.BANNER_W, cls.BANNER_H
+        notch  = cls.NOTCH
+        # Extra room for the drop shadow to land inside the surface.
+        comp_w = bw + cls.SHADOW_DX
+        comp_h = bh + cls.SHADOW_DY
+        comp = pygame.Surface((comp_w, comp_h), pygame.SRCALPHA)
+
+        ribbon = [
+            (0, 0),
+            (bw, 0),
+            (bw - notch, bh // 2),
+            (bw, bh),
+            (0, bh),
+            (notch, bh // 2),
+        ]
+
+        # Drop shadow (the same silhouette, offset down-right, soft black).
+        shadow_pts = [(x + cls.SHADOW_DX, y + cls.SHADOW_DY) for (x, y) in ribbon]
+        pygame.draw.polygon(comp, (0, 0, 0, 170), shadow_pts)
+
+        # Mask + gold gradient body.
+        body = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        top, bot = cls.GOLD_TOP, cls.GOLD_BOT
+        for yy in range(bh):
+            t_grad = yy / max(1, bh - 1)
+            cc = (
+                int(top[0] + (bot[0] - top[0]) * t_grad),
+                int(top[1] + (bot[1] - top[1]) * t_grad),
+                int(top[2] + (bot[2] - top[2]) * t_grad),
+            )
+            pygame.draw.line(body, cc, (0, yy), (bw, yy))
+        mask = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255), ribbon)
+        body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        comp.blit(body, (0, 0))
+
+        # Red velvet bottom rim — a horizontal red strip masked to the
+        # ribbon polygon so it inherits the notched silhouette.
+        rim_h = 8
+        rim = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        pygame.draw.rect(rim, cls.VELVET, (0, bh - rim_h, bw, rim_h))
+        rim.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        comp.blit(rim, (0, 0))
+
+        # Dark outline tracing the ribbon polygon.
+        pygame.draw.polygon(comp, cls.GOLD_INK, ribbon, cls.OUTLINE)
+
+        # Four cream "+" sparkles at the inner corners (offset past the
+        # notch tips so they read as ornament, not silhouette noise).
+        for (sx, sy) in (
+            (notch + 14,         14),
+            (bw - notch - 14,    14),
+            (notch + 14,         bh - 14),
+            (bw - notch - 14,    bh - 14),
+        ):
+            pygame.draw.circle(comp, cls.STAR_CREAM, (sx, sy), 3)
+            pygame.draw.circle(comp, (255, 255, 255), (sx - 1, sy - 1), 1)
+
+        # Text — "DAY N COMPLETE!" cream fill + dark outline.
+        text_str = (f"DAY {self.day} COMPLETE!"
+                    if 1 <= self.day <= 99 else "DAY COMPLETE!")
+        # Auto-pick a font size that fits the banner width with margin.
+        font_size = 34
+        font = _font(font_size, bold=True)
+        margin = notch + 22
+        while font.size(text_str)[0] > bw - margin * 2 and font_size > 22:
+            font_size -= 2
+            font = _font(font_size, bold=True)
+        text_render = font.render(text_str, True, cls.STAR_CREAM)
+        out_render  = font.render(text_str, True, cls.GOLD_INK)
+        tw, th = text_render.get_size()
+        tx = (bw - tw) // 2
+        ty = (bh - th) // 2 - 3            # nudge up off the velvet rim
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            comp.blit(out_render, (tx + ox, ty + oy))
+        comp.blit(text_render, (tx, ty))
+
+        return comp
+
+
 class FlyingCoinParticle:
     """Full-detail Coin medallion with particle physics. Used by the
     storm jolt so the coins flying off Pip read as the SAME currency
