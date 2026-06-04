@@ -9,3 +9,4 @@ tools/screenshots/
 node_modules/
 *-pygbag.py
 analytics/.streamlit/secrets.toml
+.claude/settings.local.json
