@@ -1806,12 +1806,14 @@ class HUD:
         _draw_overlay_stars(surf, self._stars, self.title_t)
         _draw_mountain_silhouette(surf, alpha=160)
 
-        # Title — canonical gold-on-red treatment, same family as SKYBIT
-        _outlined_text(surf, "RUN  SUMMARY", (W // 2, 56),
+        # Title — canonical gold-on-red treatment, same family as SKYBIT.
+        # The whole top stack sits higher than a single-stat layout would
+        # need so the power-up strip below can grow to three full rows.
+        _outlined_text(surf, "RUN  SUMMARY", (W // 2, 50),
                        size=34, px=3, shadow_offset=(3, 5))
 
         # Hero score plaque
-        plaque = pygame.Rect(18, 104, W - 36, 156)
+        plaque = pygame.Rect(18, 88, W - 36, 140)
         _score_plaque(surf, plaque, world.score, best, new_best)
 
         # Stat tiles (TIME · COINS+% · PILLARS · FLAPS)
@@ -1837,7 +1839,7 @@ class HUD:
         tile_gap = 8
         total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
         start_x = (W - total_w) // 2
-        tile_y = 282
+        tile_y = 244
         for i, (kind, val, lbl, sub) in enumerate(tiles):
             r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                             tile_w, tile_h)
@@ -1846,9 +1848,10 @@ class HUD:
         # Power-ups row — Variant C "Horizontal Pills": each power-up
         # rendered as a navy gold-bordered chip with [icon | ×N] laid
         # out side-by-side. Strong text legibility and clear visual
-        # separation between kinds. When more chips than will fit in
-        # one row are picked (rare — 6+ distinct kinds in one run) we
-        # wrap to two rows split evenly so the strip stays readable.
+        # separation between kinds. The strip wraps into 1–3 even rows —
+        # the fewest whose split keeps every row within the canvas — and
+        # the block is vertically centred in its band so both a common
+        # single-row run and a long three-row run stay balanced.
         pu = [(k, c) for k, c in world.powerups_picked.items() if c > 0]
         if pu:
             # Lazy import: game.powerup_help imports from game.hud, so
@@ -1856,20 +1859,29 @@ class HUD:
             from game.powerup_help import (
                 _powerup_icon as _ingame_powerup_icon,
             )
-            cap_y = 414
+            cap_y = 374
             total_pu = sum(c for _, c in pu)
-            # _font already returns the bold face, so toggling bold there
-            # is a no-op; set_bold adds synthetic weight on top so the
-            # caption reads clearly heavier. Unset right after to leave the
-            # cached font untouched for other callers.
-            cf = _font(18, True)
+            # Bright heavy-bold caption flanked by short gold rules — a
+            # section-header treatment that gives the line clear presence
+            # in its own band, above the pill strip. _font already returns
+            # the bold face, so set_bold stacks synthetic weight on top;
+            # unset right after to leave the cached font untouched for
+            # other callers.
+            cf = _font(20, True)
             cf.set_bold(True)
             cap = cf.render(
                 f"{total_pu}  POWER-UPS USED",
-                True, _GOLD_MUTED)
+                True, _GOLD_BRIGHT)
             cf.set_bold(False)
-            cap.set_alpha(230)
-            surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
+            cap_rect = cap.get_rect(center=(W // 2, cap_y))
+            surf.blit(cap, cap_rect)
+            rule_run, rule_gap = 56, 14
+            pygame.draw.line(surf, _GOLD_BRIGHT,
+                             (cap_rect.left - rule_gap - rule_run, cap_y),
+                             (cap_rect.left - rule_gap, cap_y), 2)
+            pygame.draw.line(surf, _GOLD_BRIGHT,
+                             (cap_rect.right + rule_gap, cap_y),
+                             (cap_rect.right + rule_gap + rule_run, cap_y), 2)
 
             chip_h = 40
             icon_size = 30
@@ -1884,21 +1896,37 @@ class HUD:
 
             gap = 5
             available = W - 10
-            total = sum(c[2] for c in chips) + gap * (len(chips) - 1)
-            if total <= available:
-                rows = [chips]
-                first_row_y = cap_y + 38
-            else:
-                # Split into two roughly even rows.
-                half = (len(chips) + 1) // 2
-                rows = [chips[:half], chips[half:]]
-                first_row_y = cap_y + 30
+
+            def _split(n):
+                # Even split, any remainder loaded onto the earlier rows.
+                base, extra = divmod(len(chips), n)
+                out, i = [], 0
+                for r in range(n):
+                    k = base + (1 if r < extra else 0)
+                    out.append(chips[i:i + k])
+                    i += k
+                return out
+
+            n_rows = 3
+            for n in (1, 2, 3):
+                rows = _split(n)
+                if all(sum(c[2] for c in row) + gap * (len(row) - 1)
+                       <= available for row in rows if row):
+                    n_rows = n
+                    break
+            rows = _split(n_rows)
+
+            # Centre the row block in the band between the caption and the
+            # PLAY AGAIN button (centre y 468), so 1-row and 3-row screens
+            # both read balanced and the bottom row clears the button.
+            pitch = chip_h + 8
+            first_row_y = 468 - (n_rows - 1) * pitch // 2
 
             for ri, row_chips in enumerate(rows):
                 row_total = (sum(c[2] for c in row_chips)
                              + gap * (len(row_chips) - 1))
                 sx = (W - row_total) // 2
-                y = first_row_y + ri * (chip_h + 8)
+                y = first_row_y + ri * pitch
                 for kind, count, chip_w, tf in row_chips:
                     # Render the chip body at 2× then smoothscale down so
                     # the rounded corners + gold border are anti-aliased
@@ -1938,7 +1966,7 @@ class HUD:
         # stray tap from the death event doesn't immediately fire).
         if elapsed >= 0.6:
             self.stats_play_again_rect = _pill_btn(
-                surf, (W // 2, 568), "PLAY  AGAIN",
+                surf, (W // 2, 572), "PLAY  AGAIN",
                 size=22, alpha=255, min_width=240, primary=True, dim=True,
                 shadow=False)
             self.stats_main_menu_rect = _outline_pill_btn(
