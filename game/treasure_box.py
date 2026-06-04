@@ -50,10 +50,12 @@ GOLD_MID = (240, 196,  72)
 GOLD_LO  = (188, 138,  28)
 
 # Starburst rays — alternating cream / saturated gold / cream so the
-# 12-ray fan radiating behind the open chest carries a clear three-tone
+# fan radiating behind the open chest carries a clear three-tone
 # "jackpot" pop instead of a flat yellow halo.
 STAR_CREAM = (252, 244, 218)
 STAR_GOLD  = (252, 200,  88)
+STAR_SUN_HI = (255, 250, 220)         # core glow centre
+STAR_SUN_LO = (252, 196,  88)         # core glow rim
 
 # Lid grain ticks reuse the design tool's neutral wood-grain ink so the
 # walnut top has the same dark ladder of cross-strokes the docs sheet
@@ -395,32 +397,42 @@ def _gold_coin(big, cx, cy, r, ink_w, glyph=True):
 # independently of the chest. Sized 1.6x the chest footprint so the
 # rays extend ~30% past the chest silhouette on every side at peak.
 
-# Sized 1.3x the chest so the rays poke past the silhouette by ~15% per
-# side at peak scale — readable as a halo without swallowing the chest.
-_STARBURST_RADIUS = int(max(PICKUP_W, PICKUP_H) * 0.62)
+# Big, grandiose halo — the chest is the reward for completing a full
+# biome cycle so the burst is intentionally larger than the chest by
+# ~60% on every side. Rays extend ~1.6x the chest's max footprint.
+_STARBURST_RADIUS = int(max(PICKUP_W, PICKUP_H) * 1.40)
 _STARBURST_SIZE   = _STARBURST_RADIUS * 2
 
 
 def _build_starburst() -> pygame.Surface:
-    """12-ray cream/gold fan radiating from centre. Built at SS supersample
-    then smoothscaled. Alternating cream / saturated gold / cream tones
-    so the burst doesn't read as one flat yellow halo."""
+    """16-ray cream/gold fan + warm sun-disc + 8 tip sparkles. Built at
+    SS supersample then smoothscaled. Designed for the cycle-finale
+    pickup — once-per-cycle milestone, so the visual is sized + layered
+    deliberately to feel like a real celebration:
+
+      * 16 rays alternating LONG cream / SHORT gold so the silhouette
+        carries a clear 8-pointed dominant shape with secondary fill.
+      * Warm gold sun-disc at the centre (radial gradient via stacked
+        concentric circles) so the burst origin reads as a brilliant
+        light source, not an empty hub.
+      * 8 cream sparkle pearls past the long ray tips so the corona
+        keeps reading at the smallest scale + adds a "pixie dust" beat.
+    """
     big = pygame.Surface((_STARBURST_SIZE * SS, _STARBURST_SIZE * SS),
                          pygame.SRCALPHA)
     cx = _STARBURST_SIZE * SS // 2
     cy = _STARBURST_SIZE * SS // 2
-    r_long = _STARBURST_RADIUS * SS
-    r_short = int(r_long * 0.65)
-    # Each ray is a slim isoceles triangle from centre to its tip; we
-    # alternate between long/short to give the fan rhythm.
-    rays = 12
+    r_long  = int(_STARBURST_RADIUS * SS * 0.88)
+    r_short = int(r_long * 0.52)
+    rays = 16
+    long_half_w  = int(r_long * 0.090)
+    short_half_w = int(r_long * 0.075)
     for k in range(rays):
         ang = -math.pi / 2 + k * (math.tau / rays)
-        col = STAR_CREAM if k % 2 == 0 else STAR_GOLD
-        r_tip = r_long if k % 2 == 0 else r_short
-        half_w = int(r_long * 0.10)
-        # Triangle vertices: tip + two base corners offset perpendicular
-        # to the ray direction.
+        long_ray = (k % 2 == 0)
+        col = STAR_CREAM if long_ray else STAR_GOLD
+        r_tip = r_long if long_ray else r_short
+        half_w = long_half_w if long_ray else short_half_w
         tip = (cx + math.cos(ang) * r_tip,
                cy + math.sin(ang) * r_tip)
         base_a = (cx + math.cos(ang + math.pi / 2) * half_w,
@@ -428,8 +440,31 @@ def _build_starburst() -> pygame.Surface:
         base_b = (cx + math.cos(ang - math.pi / 2) * half_w,
                   cy + math.sin(ang - math.pi / 2) * half_w)
         pygame.draw.polygon(big, col, [tip, base_a, base_b])
-    # Soft cream core hides the messy intersection point at the centre.
-    pygame.draw.circle(big, STAR_CREAM, (cx, cy), int(r_long * 0.18))
+
+    # Center sun-disc — three concentric circles for a radial-glow
+    # falloff. Outer mid-gold ring grounds the burst; middle warm
+    # gold inner fill carries the body brightness; small cream-white
+    # specular pip at the apex sells "this is the LIGHT SOURCE".
+    sun_outer = int(r_long * 0.30)
+    sun_mid   = int(r_long * 0.20)
+    sun_core  = int(r_long * 0.10)
+    pygame.draw.circle(big, STAR_GOLD,   (cx, cy), sun_outer)
+    pygame.draw.circle(big, STAR_SUN_LO, (cx, cy), sun_mid)
+    pygame.draw.circle(big, STAR_SUN_HI, (cx, cy), sun_core)
+
+    # 8 tip sparkles past the long-ray ends — cream pearls + tiny
+    # specular highlight. Keeps the corona reading at thumbnail.
+    sparkle_r = max(2, int(SS * 1.1))
+    sparkle_dist = int(r_long * 1.10)
+    for k in range(0, rays, 2):                     # long-ray indices
+        ang = -math.pi / 2 + k * (math.tau / rays)
+        sx = cx + math.cos(ang) * sparkle_dist
+        sy = cy + math.sin(ang) * sparkle_dist
+        pygame.draw.circle(big, STAR_CREAM, (sx, sy), sparkle_r)
+        pygame.draw.circle(big, (255, 255, 255),
+                           (sx - sparkle_r // 3, sy - sparkle_r // 3),
+                           max(1, sparkle_r // 2))
+
     return pygame.transform.smoothscale(
         big, (_STARBURST_SIZE, _STARBURST_SIZE))
 
@@ -490,18 +525,27 @@ def draw_open_sprite(surf, cx, cy, anim_t, anim_t_max):
     # blowing out against bright dawn-sky backdrops. Max alpha capped
     # at 180 so the cream rays never wash out the chest underneath.
     burst = _starburst_sprite()
-    burst_window = anim_t_max * 0.55
+    burst_window = anim_t_max * 0.70
     if elapsed < burst_window:
-        burst_t = 1.0 - (elapsed / burst_window) ** 2
+        # Slower fade-out tail than v3 so the celebration LINGERS — the
+        # cycle-finale chest is the rarest pickup in the game and the
+        # corona earns the extra dwell time.
+        burst_t = 1.0 - (elapsed / burst_window) ** 1.8
     else:
         burst_t = 0.0
-    burst_alpha = max(0, min(180, int(180 * burst_t)))
+    burst_alpha = max(0, min(225, int(225 * burst_t)))
     if burst_alpha > 0:
-        # Slow CCW rotation gives the rays a shimmer without any zoom
-        # envelope — full size from frame 0 so the halo reads behind
-        # the chest on the very first frame of the animation.
-        deg = (elapsed * 75.0) % 360.0
-        burst_rot = pygame.transform.rotozoom(burst, deg, 1.0)
+        # Punch-in scale envelope: overshoot to 1.15 at ~0.10 s, then
+        # settle back to 1.0. Reads as a real "POP!" entrance rather
+        # than a static halo.
+        if elapsed < 0.10:
+            scale = 0.75 + (elapsed / 0.10) * 0.40        # 0.75 -> 1.15
+        elif elapsed < 0.22:
+            scale = 1.15 - ((elapsed - 0.10) / 0.12) * 0.15  # 1.15 -> 1.00
+        else:
+            scale = 1.0
+        deg = (elapsed * 95.0) % 360.0
+        burst_rot = pygame.transform.rotozoom(burst, deg, scale)
         burst_rot.set_alpha(burst_alpha)
         surf.blit(burst_rot, burst_rot.get_rect(center=(cx, cy)))
 
