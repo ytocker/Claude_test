@@ -3605,10 +3605,16 @@ class TreasureBanner:
     BEVEL_LO_A   = 110
 
     def __init__(self, day_num: int, x: float, y_chest: float):
-        # Banner settles ~80 px above the chest centre — high enough not
-        # to overlap the chest sprite but still inside the pickup area.
-        self.cx = float(x)
-        self.cy_settled = float(y_chest) - 80.0
+        # Banner settles near the TOP of the screen (well above the
+        # pillars + chest) so it never overlaps gameplay geometry and
+        # reads as a global "achievement notification" instead of a
+        # chest-specific overlay. The chest x is ignored — the banner
+        # is screen-centered horizontally; the chest x is kept in the
+        # signature so callers don't need to change.
+        from game.config import W as _SCREEN_W
+        del x, y_chest
+        self.cx = float(_SCREEN_W) * 0.5
+        self.cy_settled = 90.0
         self.day = max(1, int(day_num))
         # Time-since-spawn (counts UP) so the multi-phase envelope is
         # easier to express than a draining life timer.
@@ -3910,7 +3916,9 @@ class CelebrationGarland:
     FADE_END     = 1.40
 
     N_BULBS      = 8
-    DROOP        = 60          # catenary sag below the higher anchor
+    DROOP        = 32          # catenary sag — kept shallow so bulbs
+                               # stay in the airspace above the busy
+                               # coin-storm zone around the chest.
     THREAD_COL   = ( 48,  32,  12)
     BULB_BODY    = (255, 240, 200)
     BULB_GLOW    = (255, 220, 110)
@@ -3963,8 +3971,6 @@ class CelebrationGarland:
         ax, ay, bx, by = self._anchors()
         if bx <= ax:
             return  # pillars crossed (shouldn't happen but defensive)
-        # Sample the catenary with a parabolic approximation. Droop
-        # midpoint hangs `DROOP` px below the higher anchor.
         cls = CelebrationGarland
         droop = cls.DROOP
         samples = 24
@@ -3976,35 +3982,141 @@ class CelebrationGarland:
             x = ax * (1 - t) + bx * t
             y = base_y + sag
             pts.append((int(x + sx), int(y + sy)))
-        # Thread first — under the bulbs.
-        thread_col = (*cls.THREAD_COL, alpha)
-        # pygame.draw.lines doesn't take per-vertex alpha; render onto a
-        # temp surface and blit so per-frame alpha works.
-        # Cheap path: a single colour with set_alpha on a temp surface.
-        wseg = surf.get_size()
-        tmp = pygame.Surface(wseg, pygame.SRCALPHA)
-        if len(pts) >= 2:
-            pygame.draw.lines(tmp, cls.THREAD_COL, False, pts, 1)
-        # Bulbs evenly spaced along the same catenary — sample at the
-        # bulb positions (skip the very endpoints so bulbs don't sit
-        # inside the pillar caps).
+
+        # Halo layer — additive blend so the warm glow punches through
+        # the busy coin-storm zone instead of being lost in alpha mush.
+        halo = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        bulb_positions = []
         for k in range(cls.N_BULBS):
             t = (k + 1) / (cls.N_BULBS + 1)
             base_y = ay * (1 - t) + by * t
             sag = droop * 4 * t * (1 - t)
             bx_p = int(ax * (1 - t) + bx * t + sx)
             by_p = int(base_y + sag + sy)
-            # Soft additive halo — radius 8, warm gold.
-            for r in (8, 6, 4):
-                a = int({8: 28, 6: 48, 4: 80}[r])
-                pygame.draw.circle(tmp, (*cls.BULB_GLOW, a), (bx_p, by_p), r)
-            # Bulb body — warm cream pearl with dark outline.
-            pygame.draw.circle(tmp, cls.BULB_BODY, (bx_p, by_p), 3)
-            pygame.draw.circle(tmp, cls.BULB_INK, (bx_p, by_p), 3, 1)
-            # 1-px hot-yellow filament core inside.
-            pygame.draw.circle(tmp, cls.BULB_FILAMENT, (bx_p, by_p), 1)
-        tmp.set_alpha(alpha)
-        surf.blit(tmp, (0, 0))
+            bulb_positions.append((bx_p, by_p))
+            # Bigger, brighter additive halo — three layers of warm gold
+            # so the festoon reads as actual lit bulbs at gameplay scale.
+            a_mul = alpha / 255
+            for r, a in ((22, int(36 * a_mul)),
+                         (16, int(72 * a_mul)),
+                         (11, int(140 * a_mul)),
+                         ( 7, int(220 * a_mul))):
+                if a > 0:
+                    pygame.draw.circle(halo, (*cls.BULB_GLOW, a),
+                                       (bx_p, by_p), r)
+        surf.blit(halo, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+        # Solid layer — thread + bulb bodies. Plain alpha so the bulbs
+        # have crisp outlines instead of being additive-washed out.
+        solid = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        if len(pts) >= 2:
+            pygame.draw.lines(solid, cls.THREAD_COL, False, pts, 3)
+        for bx_p, by_p in bulb_positions:
+            pygame.draw.circle(solid, cls.BULB_BODY, (bx_p, by_p), 6)
+            pygame.draw.circle(solid, cls.BULB_INK,  (bx_p, by_p), 6, 1)
+            pygame.draw.circle(solid, cls.BULB_FILAMENT, (bx_p, by_p), 2)
+        solid.set_alpha(alpha)
+        surf.blit(solid, (0, 0))
+
+
+class CelebrationFireworkBurst:
+    """One animated firework explosion — expands + sparkles + fades.
+    Spawned in clumps from World._activate_treasure_box, staggered
+    across the banner's 1.4 s lifetime so multiple bursts pop one
+    after another instead of all at once. Drawn additively so the
+    flash punches against the twilight sky.
+
+    Each burst owns its own particle list (16 ray particles + central
+    flash). The expansion follows a soft cubic ease so the burst flares
+    fast then drifts."""
+
+    LIFE_MAX = 1.0
+    EASE_END = 0.55          # expansion completes at this fraction of life
+    RADIUS_MAX = 95
+    N_RAYS = 16
+    PALETTE = (
+        (255, 220, 110),     # gold
+        (248,  96,  88),     # red
+        (255, 128,  48),     # hot orange
+        (252, 244, 218),     # cream
+    )
+
+    def __init__(self, x: float, y: float, ignite_delay: float,
+                 color: tuple, radius_mul: float = 1.0):
+        self.x = float(x)
+        self.y = float(y)
+        self.t = -float(ignite_delay)        # negative = pre-ignite
+        self.colour = color
+        self.radius_max = CelebrationFireworkBurst.RADIUS_MAX * radius_mul
+        # Pre-compute the ray endpoints so jitter is stable per burst.
+        rng = random.Random(int(x * 1000 + y) ^ int(ignite_delay * 1000))
+        self.rays = []
+        for i in range(CelebrationFireworkBurst.N_RAYS):
+            ang = (i / CelebrationFireworkBurst.N_RAYS) * math.tau
+            length_mul = rng.uniform(0.78, 1.18)
+            self.rays.append((math.cos(ang), math.sin(ang), length_mul))
+        # Sparkle dots — small bright pearls scattered across the ray field.
+        self.sparkles = []
+        for _ in range(14):
+            ang = rng.uniform(0, math.tau)
+            rr = rng.uniform(0.45, 1.05)
+            self.sparkles.append((math.cos(ang), math.sin(ang), rr))
+
+    def alive(self) -> bool:
+        return self.t < CelebrationFireworkBurst.LIFE_MAX
+
+    def update(self, dt: float):
+        self.t += dt
+
+    def draw(self, surf: pygame.Surface):
+        cls = CelebrationFireworkBurst
+        if self.t < 0 or self.t >= cls.LIFE_MAX:
+            return
+        u = self.t / cls.LIFE_MAX
+        # Expansion ease — radius hits RADIUS_MAX at EASE_END then holds.
+        if u < cls.EASE_END:
+            f = u / cls.EASE_END
+            radius = self.radius_max * (1.0 - (1.0 - f) ** 3)
+        else:
+            radius = self.radius_max
+        # Alpha — bright snap on ignite, fades cubic.
+        alpha_mul = (1.0 - u) ** 1.4
+        layer_size = int(radius * 2 + 24)
+        layer = pygame.Surface((layer_size, layer_size), pygame.SRCALPHA)
+        lcx = layer_size // 2
+        lcy = layer_size // 2
+        col = self.colour
+        # Rays — bright tip, fading toward centre. Three samples per ray
+        # so a single explosion reads as a streak, not a single dot.
+        for cx_dir, cy_dir, length_mul in self.rays:
+            tip_x = cx_dir * radius * length_mul
+            tip_y = cy_dir * radius * length_mul
+            for step, base_a in ((1.00, 220), (0.75, 180), (0.50, 130),
+                                 (0.30,  90)):
+                px = int(lcx + tip_x * step)
+                py = int(lcy + tip_y * step)
+                a = int(base_a * alpha_mul)
+                if a > 4:
+                    pygame.draw.circle(layer, (*col, a), (px, py), 2)
+        # Sparkle pearls — scattered bright cream dots add fine grit.
+        for cx_dir, cy_dir, rr in self.sparkles:
+            px = int(lcx + cx_dir * radius * rr)
+            py = int(lcy + cy_dir * radius * rr)
+            a = int(220 * alpha_mul)
+            if a > 4:
+                pygame.draw.circle(layer, (255, 244, 200, a), (px, py), 1)
+        # Centre flash — bright cream core with coloured halo. Peaks
+        # early, fades fast so the eye registers the ignite moment.
+        flash_mul = max(0.0, 1.0 - u * 1.8)
+        if flash_mul > 0:
+            core_a = int(255 * flash_mul)
+            halo_a = int(120 * flash_mul)
+            pygame.draw.circle(layer, (255, 250, 220, core_a),
+                               (lcx, lcy), 4)
+            pygame.draw.circle(layer, (*col, halo_a),
+                               (lcx, lcy), 8)
+        rect = layer.get_rect(center=(int(self.x), int(self.y)))
+        surf.blit(layer, rect.topleft, special_flags=pygame.BLEND_RGB_ADD)
 
 
 class CelebrationConfetti:

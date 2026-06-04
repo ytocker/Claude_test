@@ -2219,6 +2219,35 @@ class World:
                 col, gravity=100,
             ))
 
+        # ── Firework bursts — 7 staggered explosions across 1.4 s ──────
+        # Sit in the air above + around the banner so the celebration
+        # has visible aerial fireworks (V3 motif). Drawn additively so
+        # the flash punches through the twilight sky. Each burst rides
+        # the world scroll via x decrement applied at draw time — they
+        # spawn as world-space FX particles + tick with self.particles.
+        from game.entities import CelebrationFireworkBurst
+        # Burst positions: 3 around the top-centre banner area + 2 at
+        # mid-height bracketing the chest + 2 finale bursts behind the
+        # chest. Stagger ignite delays so the bursts pop in sequence,
+        # not all at once.
+        burst_specs = [
+            (W * 0.30,  80.0,  0.05),    # upper-left, snap-ignite
+            (W * 0.70,  90.0,  0.15),    # upper-right
+            (W * 0.50,  60.0,  0.30),    # top-centre behind banner
+            (W * 0.20, 180.0,  0.50),    # mid-left
+            (W * 0.80, 170.0,  0.65),    # mid-right
+            (W * 0.40, 220.0,  0.85),    # finale-1, around the chest
+            (W * 0.60, 200.0,  1.00),    # finale-2
+        ]
+        palette = CelebrationFireworkBurst.PALETTE
+        for i, (fx, fy, delay) in enumerate(burst_specs):
+            colour = palette[i % len(palette)]
+            radius_mul = 1.2 if i == 2 else 1.0
+            self.particles.append(CelebrationFireworkBurst(
+                fx, fy, ignite_delay=delay,
+                color=colour, radius_mul=radius_mul,
+            ))
+
         # ── Confetti dusting — 16 rotating flakes ───────────────────────
         # World-space (rides scroll via vx). Spread across the upper
         # half of the scene around / above / beside the banner; an
