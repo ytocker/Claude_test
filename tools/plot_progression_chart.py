@@ -93,8 +93,12 @@ def build_time_for_pillar(max_pillars: int) -> list:
     `W + 60 + SPAWN_GRACE * SCROLL_BASE` and has to scroll all the way
     to `BIRD_X − PIPE_W` before scoring fires (~1.14 s longer than a
     normal inter-pillar dwell). Pillars 2..N use the inter-pillar dwell
-    `spacing / scroll` with `_ramp_t()` evaluated at the score just
-    after the previous pillar — same indexing the World uses."""
+    `(spacing + 60) / scroll` with `_ramp_t()` evaluated at the score
+    just after the previous pillar — same indexing the World uses. The
+    +60 is the W+60 spawn-clamp at world.py:~1528 — every new pipe
+    lands at `max(prev.x + spacing, W+60)`, and the clamp ALWAYS fires
+    (spawn trigger fires when prev.x < W - spacing, so prev.x + spacing
+    < W < W + 60). Effective inter-pillar world-x gap = spacing + 60."""
     seeded_x = config.W + 60 + int(config.SPAWN_GRACE * config.SCROLL_BASE)
     travel = seeded_x - config.BIRD_X - config.PIPE_W
     T = [0.0, travel / config.SCROLL_NEWBIE_BASE]
@@ -109,7 +113,7 @@ def build_time_for_pillar(max_pillars: int) -> list:
                    + (config.PIPE_SPACING - config.PIPE_SPACING_NEWBIE) * t)
         scroll = (config.SCROLL_NEWBIE_BASE
                   + (config.SCROLL_BASE - config.SCROLL_NEWBIE_BASE) * t)
-        T.append(T[-1] + spacing / scroll)
+        T.append(T[-1] + (spacing + 60) / scroll)
     return T
 
 
