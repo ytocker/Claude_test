@@ -85,7 +85,12 @@ class CelebrationSpawnAtWrap(unittest.TestCase):
         # then current phase past LO. The class's _last_biome_phase
         # snapshots last frame; pushing the biome_time forward so the
         # NEXT computed phase < LO triggers the rollover branch.
-        from game.config import CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO
+        from game.config import (
+            CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO, RAMP_PIPES)
+        # Bypass the newbie ramp so _current_spacing() returns
+        # PIPE_SPACING (not PIPE_SPACING_NEWBIE) — keeps the bunting
+        # geometry expectations pinned to the regular endpoints.
+        world.pillars_passed = RAMP_PIPES
         world._last_biome_phase = CYCLE_FINALE_PHASE_HI + 0.01
         from game.biome import CYCLE_SECONDS
         # Phase = (biome_time / CYCLE_SECONDS) mod 1.0 -- nudge time

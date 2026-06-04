@@ -72,7 +72,6 @@ from game.weather import (
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
     SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
-    SNOW_STORM_WIDTH as _SNOW_STORM_WIDTH,
 )
 from game.ambient import AmbientScenes
 
@@ -286,22 +285,13 @@ class World:
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at this value while ready_t > 0 so the sky doesn't tick over
-        # while the player is still on the start-of-run prompt.
-        #
-        # Run opens inside the snow squall's TAPER — half a bump-width past
-        # the storm_intensity peak (SNOW_STORM_CENTER + 0.5 * SNOW_STORM_WIDTH
-        # ~ phase 0.957, biome_time ~ 306 s). At frame 1 the squall is
-        # visibly winding down (storm_intensity ~0.5) but still snowing, and
-        # the cycle-wrap detect in update() fires organically ~14 s later
-        # as biome_phase climbs past CYCLE_FINALE_PHASE_HI=0.95 and rolls
-        # through ~1.0 -> ~0.0. That is the short loop the treasure-box
-        # chest playtest needs — see the snowstorm + the DAY N COMPLETE!
-        # banner + 5-pillar coin rush + chest, without slogging a full
-        # cycle. _last_biome_phase stays at 0.0; the wrap condition needs
-        # last>HI AND new<LO and the initial (0.0, 0.957) pair trips
-        # neither, so no mis-fire on frame 1.
-        self.biome_time = ((_SNOW_STORM_CENTER + 0.5 * _SNOW_STORM_WIDTH)
-                           * biome.CYCLE_SECONDS)
+        # while the player is still on the start-of-run prompt. Open at
+        # fresh-dawn (phase 0.0); the first cycle-finale chest fires
+        # organically ~CYCLE_SECONDS later, with the newbie ramp
+        # (~80 s at newbie scroll/spacing) safely finished by then.
+        # Manual chest-event playtest uses the debug F9 hotkey rather
+        # than a baked-in time shift.
+        self.biome_time = 0.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -348,13 +338,19 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Newbie onboarding ramp removed: every run starts at the regular
-        # tuning endpoints (GAP_START / SCROLL_BASE / PIPE_SPACING /
-        # POWERUP_CHANCE) from pillar 0. Kept as a method so the four
-        # _current_*() callers below — and weather.py's progression-chart
-        # math — keep a single hook to flip back to the old plateau-then-
-        # ease-out curve later if onboarding is reinstated.
-        return 1.0
+        # Newbie onboarding ramp: the first PLATEAU_PIPES pillars hold
+        # the four _current_*() helpers at the easier newbie endpoints
+        # (GAP_NEWBIE_START / SCROLL_NEWBIE_BASE / PIPE_SPACING_NEWBIE /
+        # POWERUP_CHANCE_NEWBIE), then an ease-out quadratic eases them
+        # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
+        # self.pillars_passed (per-run, NOT per-day) so the easier
+        # intro never re-triggers after the first cycle wraps.
+        pp = self.pillars_passed
+        if pp < PLATEAU_PIPES:
+            return 0.0
+        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
+        x = min(1.0, x)
+        return 1.0 - (1.0 - x) ** 2
 
     # ── biome ────────────────────────────────────────────────────────────────
 
