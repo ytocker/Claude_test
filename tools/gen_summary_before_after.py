@@ -39,27 +39,39 @@ PW, PH = 360, 640
 CASES = [("3row", "LONG RUN · 3-ROW"),
          ("2row", "MEDIUM RUN · 2-ROW"),
          ("1row", "SHORT RUN · 1-ROW")]
+# Per-cell mode tag shown beneath each panel, so the conditional layout
+# switch is verifiable at a glance. Column 0 = BEFORE, column 1 = AFTER.
+MODE = {
+    (0, "1row"): "original layout",
+    (0, "2row"): "original layout",
+    (0, "3row"): "original — overflows (2-row max)",
+    (1, "1row"): "original layout + new caption",
+    (1, "2row"): "original layout + new caption",
+    (1, "3row"): "N2 compact (3 rows fit)",
+}
 
 
 def main(before_dir, after_dir, out_path):
-    pad, label_h, head_h, cols = 18, 34, 52, 2
+    pad, label_h, tag_h, head_h, cols = 18, 34, 26, 52, 2
     rows = len(CASES)
     sheet_w = cols * PW + (cols + 1) * pad
-    sheet_h = head_h + rows * (PH + label_h) + (rows + 1) * pad
+    sheet_h = head_h + rows * (PH + label_h + tag_h) + (rows + 1) * pad
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((10, 6, 20))
 
     # Column headers
     hf = _font(20, True)
-    for ci, htext in enumerate(("BEFORE  (original)", "AFTER  (N2 shipped)")):
+    for ci, htext in enumerate(("BEFORE  (original)",
+                                "AFTER  (conditional)")):
         cx = pad + ci * (PW + pad) + PW // 2
         col = _GOLD_MUTED if ci == 0 else _GOLD_BRIGHT
         img = hf.render(htext, True, col)
         sheet.blit(img, img.get_rect(center=(cx, head_h // 2 + 4)))
 
     lf = _font(14, True)
+    tf = _font(12, True)
     for ri, (case, label) in enumerate(CASES):
-        y0 = head_h + pad + ri * (PH + label_h + pad)
+        y0 = head_h + pad + ri * (PH + label_h + tag_h + pad)
         for ci, src in enumerate((before_dir, after_dir)):
             x0 = pad + ci * (PW + pad)
             panel = pygame.image.load(os.path.join(src, f"{case}.png"))
@@ -69,6 +81,9 @@ def main(before_dir, after_dir, out_path):
             sheet.blit(panel, (x0, y0 + label_h))
             pygame.draw.rect(sheet, (60, 44, 96),
                              (x0, y0 + label_h, PW, PH), 1)
+            tag = tf.render(MODE[(ci, case)], True, _GOLD_MUTED)
+            sheet.blit(tag, tag.get_rect(
+                center=(x0 + PW // 2, y0 + label_h + PH + tag_h // 2)))
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     pygame.image.save(sheet, out_path)

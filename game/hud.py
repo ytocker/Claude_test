@@ -1806,14 +1806,78 @@ class HUD:
         _draw_overlay_stars(surf, self._stars, self.title_t)
         _draw_mountain_silhouette(surf, alpha=160)
 
+        # The power-up strip drives the whole layout. A run that grabbed
+        # enough distinct kinds to need three rows uses the compact
+        # arrangement (lifted title, shorter plaque, raised tiles) so the
+        # rows fit; every other run keeps the original, roomier layout. The
+        # bright bold gold-ruled caption is shared by both.
+        pu = [(k, c) for k, c in world.powerups_picked.items() if c > 0]
+        chip_h = 40
+        icon_size = 30
+        chip_radius = chip_h // 2
+        pad_l, pad_r = 3, 8
+        gap = 5
+        available = W - 10
+        pitch = chip_h + 8
+        chips, rows, n_rows = [], [], 0
+        if pu:
+            # Lazy import: game.powerup_help imports from game.hud, so
+            # we defer this until the first stats-screen render.
+            from game.powerup_help import (
+                _powerup_icon as _ingame_powerup_icon,
+            )
+            count_font = _font(16, True)
+            for kind, count in pu:
+                tf = count_font.render(f"×{count}", True, _GOLD_BRIGHT)
+                chip_w = pad_l + icon_size + 2 + tf.get_width() + pad_r
+                chips.append((kind, count, chip_w, tf))
+
+            def _split(n):
+                # Even split, any remainder loaded onto the earlier rows.
+                base, extra = divmod(len(chips), n)
+                out, i = [], 0
+                for r in range(n):
+                    k = base + (1 if r < extra else 0)
+                    out.append(chips[i:i + k])
+                    i += k
+                return out
+
+            n_rows = 3
+            for n in (1, 2, 3):
+                trial = _split(n)
+                if all(sum(c[2] for c in row) + gap * (len(row) - 1)
+                       <= available for row in trial if row):
+                    n_rows = n
+                    break
+            rows = _split(n_rows)
+
+        # Only a run that genuinely needs a third row gets the compact
+        # geometry; everything else (incl. no power-ups) stays original.
+        compact = (n_rows == 3)
+        if compact:
+            title_y = 50
+            plaque = pygame.Rect(18, 88, W - 36, 140)
+            tile_y = 244
+            cap_y = 374
+            # Centre the three-row block in the band between caption and
+            # the PLAY AGAIN button so it stays balanced and clears it.
+            first_row_y = 468 - (n_rows - 1) * pitch // 2
+            play_y, menu_y = 572, 618
+        else:
+            title_y = 56
+            plaque = pygame.Rect(18, 104, W - 36, 156)
+            tile_y = 282
+            cap_y = 414
+            # Anchor the row(s) just below the caption, as the original
+            # did; the +44 offset leaves the bigger bold caption clear air.
+            first_row_y = cap_y + 44
+            play_y, menu_y = 568, 618
+
         # Title — canonical gold-on-red treatment, same family as SKYBIT.
-        # The whole top stack sits higher than a single-stat layout would
-        # need so the power-up strip below can grow to three full rows.
-        _outlined_text(surf, "RUN  SUMMARY", (W // 2, 50),
+        _outlined_text(surf, "RUN  SUMMARY", (W // 2, title_y),
                        size=34, px=3, shadow_offset=(3, 5))
 
         # Hero score plaque
-        plaque = pygame.Rect(18, 88, W - 36, 140)
         _score_plaque(surf, plaque, world.score, best, new_best)
 
         # Stat tiles (TIME · COINS+% · PILLARS · FLAPS)
@@ -1839,7 +1903,6 @@ class HUD:
         tile_gap = 8
         total_w = len(tiles) * tile_w + (len(tiles) - 1) * tile_gap
         start_x = (W - total_w) // 2
-        tile_y = 244
         for i, (kind, val, lbl, sub) in enumerate(tiles):
             r = pygame.Rect(start_x + i * (tile_w + tile_gap), tile_y,
                             tile_w, tile_h)
@@ -1848,18 +1911,8 @@ class HUD:
         # Power-ups row — Variant C "Horizontal Pills": each power-up
         # rendered as a navy gold-bordered chip with [icon | ×N] laid
         # out side-by-side. Strong text legibility and clear visual
-        # separation between kinds. The strip wraps into 1–3 even rows —
-        # the fewest whose split keeps every row within the canvas — and
-        # the block is vertically centred in its band so both a common
-        # single-row run and a long three-row run stay balanced.
-        pu = [(k, c) for k, c in world.powerups_picked.items() if c > 0]
+        # separation between kinds, under a bright bold gold-ruled caption.
         if pu:
-            # Lazy import: game.powerup_help imports from game.hud, so
-            # we defer this until the first stats-screen render.
-            from game.powerup_help import (
-                _powerup_icon as _ingame_powerup_icon,
-            )
-            cap_y = 374
             total_pu = sum(c for _, c in pu)
             # Bright heavy-bold caption flanked by short gold rules — a
             # section-header treatment that gives the line clear presence
@@ -1882,45 +1935,6 @@ class HUD:
             pygame.draw.line(surf, _GOLD_BRIGHT,
                              (cap_rect.right + rule_gap, cap_y),
                              (cap_rect.right + rule_gap + rule_run, cap_y), 2)
-
-            chip_h = 40
-            icon_size = 30
-            chip_radius = chip_h // 2
-            pad_l, pad_r = 3, 8
-            count_font = _font(16, True)
-            chips = []
-            for kind, count in pu:
-                tf = count_font.render(f"×{count}", True, _GOLD_BRIGHT)
-                chip_w = pad_l + icon_size + 2 + tf.get_width() + pad_r
-                chips.append((kind, count, chip_w, tf))
-
-            gap = 5
-            available = W - 10
-
-            def _split(n):
-                # Even split, any remainder loaded onto the earlier rows.
-                base, extra = divmod(len(chips), n)
-                out, i = [], 0
-                for r in range(n):
-                    k = base + (1 if r < extra else 0)
-                    out.append(chips[i:i + k])
-                    i += k
-                return out
-
-            n_rows = 3
-            for n in (1, 2, 3):
-                rows = _split(n)
-                if all(sum(c[2] for c in row) + gap * (len(row) - 1)
-                       <= available for row in rows if row):
-                    n_rows = n
-                    break
-            rows = _split(n_rows)
-
-            # Centre the row block in the band between the caption and the
-            # PLAY AGAIN button (centre y 468), so 1-row and 3-row screens
-            # both read balanced and the bottom row clears the button.
-            pitch = chip_h + 8
-            first_row_y = 468 - (n_rows - 1) * pitch // 2
 
             for ri, row_chips in enumerate(rows):
                 row_total = (sum(c[2] for c in row_chips)
@@ -1966,11 +1980,11 @@ class HUD:
         # stray tap from the death event doesn't immediately fire).
         if elapsed >= 0.6:
             self.stats_play_again_rect = _pill_btn(
-                surf, (W // 2, 572), "PLAY  AGAIN",
+                surf, (W // 2, play_y), "PLAY  AGAIN",
                 size=22, alpha=255, min_width=240, primary=True, dim=True,
                 shadow=False)
             self.stats_main_menu_rect = _outline_pill_btn(
-                surf, (W // 2, 618), "MAIN MENU",
+                surf, (W // 2, menu_y), "MAIN MENU",
                 size=14, min_width=130)
         else:
             self.stats_play_again_rect = pygame.Rect(0, 0, 0, 0)
