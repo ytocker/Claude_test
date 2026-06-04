@@ -132,6 +132,39 @@ def _cap_lum(color, pal, *, cap=NIGHT_GLOW_CAP, warm=True):
     return (r, g, b)
 
 
+# The lion's IVORY fangs + mouth lip are the one near-life accent the art-director
+# gates to read crisp on EVERY base. The generic _cap_lum path caps at 138 luma and
+# leaves the fangs reading flat against the cool grey-taupe scene. These two helpers
+# hold a WARM ivory at the fang allowance (~145 luma — still far under the coin's
+# ~248) and do NOT over-retint toward the cool night, so the fangs/lip pop the same
+# on terracotta and grey-taupe. Day/golden are untouched (returned verbatim).
+
+def _warm_ivory_cap(color, pal, cap):
+    if not _is_dark(pal):
+        return color
+    r, g, b = color
+    # A warmer ivory clamp than _cap_lum (higher green/blue ceiling) so the fang
+    # stays ivory, not olive, when it lands at the slightly higher fang luma.
+    r, g, b = min(r, 168), min(g, 150), min(b, 126)
+    lum = 0.2126 * r + 0.7152 * g + 0.1145 * b
+    if lum > cap and lum > 0:
+        f = cap / lum
+        r, g, b = int(r * f), int(g * f), int(b * f)
+    return (r, g, b)
+
+
+def _fang_ivory(pal):
+    # A WARMER ivory source (more red, less green/blue) so that at the SAME ~144
+    # luma cap the fang reads as a warm tooth that separates from the cool grey-
+    # taupe surroundings just as crisply as it does on terracotta — the flat read
+    # on the cool base was a hue/contrast issue, not a value one, so the cap stays.
+    return _warm_ivory_cap((196, 170, 138), pal, cap=144)
+
+
+def _lip_ivory(pal):
+    return _warm_ivory_cap((186, 162, 128), pal, cap=142)
+
+
 def _near_glow(surf, cx, cy, pal, *, radius=12, color=(255, 170, 110)):
     if not _is_dark(pal):
         return
@@ -345,22 +378,49 @@ def _watch_arc(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
                  seated_bench=False, feet_y=feet_y)
 
 
-def _seated_spectator(surf, x, feet_y, robe, robe_dk, hair, pal):
+def _seated_spectator(surf, x, feet_y, robe, robe_dk, hair, pal, *,
+                      lean=0, raise_arm=False, t=0.0, face=1, gesture='cheer'):
     """A small spectator SEATED on the deck (knees forward), used to give a gathered
     crowd a couple of LOWER figures so it reads 'an audience sat watching the act'
-    rather than people walking past."""
+    rather than people walking past. `lean` tips the torso/head toward the act and
+    `raise_arm` adds an arm lifted toward the performer (direction `face`: +1=right)
+    so the pose reads unambiguously as 'audience facing the act'. `gesture`:
+    'cheer' (high bobbing arm) | 'point' (a lower forearm reaching toward the act)
+    — two distinct silhouettes so the pair don't read as identical clones."""
     night = _nightf(pal)
     skin = pr._retint_person((232, 192, 150), night)
     seat_y = feet_y - 2
     # Folded legs as a low wedge on the deck.
     pygame.draw.polygon(surf, _shade(robe_dk, -10), [
         (x - 6, seat_y), (x + 6, seat_y), (x + 4, seat_y - 4), (x - 4, seat_y - 4)])
-    # Compact torso + head, sitting low.
-    pygame.draw.rect(surf, robe, (x - 4, seat_y - 12, 8, 9))
-    pygame.draw.rect(surf, robe_dk, (x - 4, seat_y - 12, 8, 9), 1)
-    pygame.draw.circle(surf, skin, (x, seat_y - 15), 3)
-    pygame.draw.arc(surf, hair, (x - 3, seat_y - 19, 7, 7),
+    # Compact torso + head, sitting low; the torso top shifts by `lean` so the
+    # shoulders + head tip toward the act (a clear facing cue, not a flat block).
+    pygame.draw.polygon(surf, robe, [
+        (x - 4 + lean, seat_y - 12), (x + 4 + lean, seat_y - 12),
+        (x + 4, seat_y - 3), (x - 4, seat_y - 3)])
+    pygame.draw.polygon(surf, robe_dk, [
+        (x - 4 + lean, seat_y - 12), (x + 4 + lean, seat_y - 12),
+        (x + 4, seat_y - 3), (x - 4, seat_y - 3)], 1)
+    hx = x + lean
+    pygame.draw.circle(surf, skin, (hx, seat_y - 15), 3)
+    pygame.draw.arc(surf, hair, (hx - 3, seat_y - 19, 7, 7),
                     math.radians(0), math.radians(180), 2)
+    if raise_arm:
+        sh_y = seat_y - 10
+        if gesture == 'point':
+            # A lower forearm reaching out toward the performer with a skin-toned
+            # hand at the tip — a clear "looking that way" cue distinct from a
+            # raised cheer, so the two seated figures read as separate poses.
+            ex, ey = hx + face * 7, sh_y - 1
+            pygame.draw.line(surf, robe, (hx, sh_y), (ex, ey), 2)
+            pygame.draw.circle(surf, skin, (ex, ey), 1)
+        else:
+            # An arm lifted toward the performer (a small cheer), bobbing gently so
+            # the gathered crowd reads as actively watching the act.
+            wave = int(max(0.0, math.sin(t * 3.0)) * 2)
+            ex, ey = hx + face * 5, sh_y - 6 - wave
+            pygame.draw.line(surf, robe, (hx, sh_y), (ex, ey), 2)
+            pygame.draw.circle(surf, skin, (ex, ey), 1)
 
 
 def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
@@ -379,11 +439,16 @@ def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
                  seated_bench=False, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y)
     # Front row: two LOWER seated spectators close in, reading as the near edge of
-    # a gathered audience facing the performer.
-    _seated_spectator(surf, sx - 30, feet_y, rb, rb_dk, hr, pal)
+    # a gathered audience facing the performer. Both lean RIGHT toward the act (it
+    # sits at sx, to their right) with a stronger head-tip, and EACH gestures toward
+    # the performer in a DISTINCT pose (one high cheer, one reaching point) so the
+    # "audience facing the act" read lands instantly and the pair don't clone.
+    _seated_spectator(surf, sx - 30, feet_y, rb, rb_dk, hr, pal,
+                      lean=3, raise_arm=True, t=t, face=1, gesture='cheer')
     _seated_spectator(surf, sx - 14,
                       feet_y, pr._retint_person((150, 90, 80), night),
-                      pr._retint_person((100, 56, 50), night), hr, pal)
+                      pr._retint_person((100, 56, 50), night), hr, pal,
+                      lean=3, raise_arm=True, t=t, face=1, gesture='point')
 
 
 def perf_juggler(surf, sx, pal, t):
@@ -402,15 +467,21 @@ def perf_juggler(surf, sx, pal, t):
     _scaled_cast(surf, pr.draw_kids, sx + 46, pal, 1.4, t=t, n=2, feet_y=feet)
     hx, hy = _perf_body(surf, sx, feet, robe, robe_dk, hair, pal,
                         h=20, w=9, arms='juggle', arm_t=t * 3.0)
-    # Three balls on a small juggling cascade above the hands.
-    ball_cols = ((220, 200, 80), (210, 90, 90), (90, 160, 200))
+    # Three balls on a small juggling cascade above the hands. Sized a touch
+    # bigger (r=5 outer / 4 fill) and pushed to hot, fully-saturated primaries so
+    # the arc reads as juggling MOTION at 1x rather than as stray confetti — a
+    # juggling ball wants to read as a deliberate prop, not a paving fleck.
+    ball_cols = ((255, 176, 16), (240, 44, 40), (32, 132, 248))
     for i, col in enumerate(ball_cols):
         ph = (t * 1.6 + i / 3.0) % 1.0
         bx = sx + int(math.sin(ph * math.tau) * 9)
         by = hy - 4 - int(math.sin(ph * math.pi) * 13)
         col = pr._retint_person(col, night)
-        pygame.draw.circle(surf, _shade(col, -22), (bx, by), 3)
-        pygame.draw.circle(surf, col, (bx, by), 2)
+        pygame.draw.circle(surf, _shade(col, -24), (bx, by), 5)
+        pygame.draw.circle(surf, col, (bx, by), 4)
+        # A hot 2px highlight so each ball reads round, lit and tracking through
+        # the cascade rather than as a flat dot.
+        pygame.draw.circle(surf, _shade(col, 48), (bx - 1, by - 1), 2)
 
 
 def perf_musician(surf, sx, pal, t):
@@ -625,14 +696,30 @@ def perf_lion_dance(surf, sx, pal, t):
         (head_cx + 6, head_cy + 6 + jaw), (head_cx - 6, head_cy + 6 + jaw)])
     pygame.draw.line(surf, red, (head_cx - 8, head_cy + 4),
                      (head_cx + 8, head_cy + 4), 2)
-    pygame.draw.line(surf, gold, (head_cx - 6, head_cy + 6 + jaw),
+    pygame.draw.line(surf, _lip_ivory(pal), (head_cx - 6, head_cy + 6 + jaw),
                      (head_cx + 6, head_cy + 6 + jaw), 1)
-    # Two small ivory fangs at the lip.
-    fang = _cap_lum((160, 150, 130), pal)
+    # Two ivory fangs at the lip. The plain _cap_lum path over-retints these toward
+    # the cool night and lands them ~138 luma, which reads crisp on terracotta but
+    # flat on the cool base. _fang_ivory holds a warm ivory at the fang allowance
+    # (~145 luma, still well under the coin's ~248) and seats each fang on a dark
+    # gum line so it pops the same on the grey-taupe base.
+    fang = _fang_ivory(pal)
+    # A deep, near-black warm gum seat (independent of the fang shade so it bites
+    # the same on the cool base) plus a 1px warm tip highlight, so each ivory fang
+    # carries its OWN value range and stays crisp against cool-grey surroundings —
+    # not just relying on the mask behind it for contrast.
+    fang_sh = (30, 20, 18)
+    fang_lt = _warm_ivory_cap((214, 188, 152), pal, cap=144)
     for fx in (-4, 4):
-        pygame.draw.polygon(surf, fang, [
-            (head_cx + fx - 1, head_cy + 4), (head_cx + fx + 1, head_cy + 4),
-            (head_cx + fx, head_cy + 6)])
+        pts = [(head_cx + fx - 1, head_cy + 4), (head_cx + fx + 1, head_cy + 4),
+               (head_cx + fx, head_cy + 6)]
+        pygame.draw.polygon(surf, fang_sh, [
+            (p[0], p[1] + 1) for p in pts])     # dark seat for crisp separation
+        pygame.draw.polygon(surf, fang, pts)
+        # A 1px brighter ivory along the fang's lit top edge gives it internal
+        # value range so it reads carved, not a flat blob, on either base.
+        pygame.draw.line(surf, fang_lt, (head_cx + fx - 1, head_cy + 4),
+                         (head_cx + fx + 1, head_cy + 4), 1)
     # A red nose bridge above the mouth.
     pygame.draw.circle(surf, red, (head_cx, head_cy + 2), 2)
     # A capped warm glow off the lit mask at night so it reads festive, not flat.
