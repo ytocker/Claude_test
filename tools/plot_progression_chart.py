@@ -10,6 +10,12 @@ matplotlib idiom — extended with:
     per storm while raining — RAIN-tied, not pillar-tied)
   * the production GENIE one-shot marker at pillar
     ``config.LATE_GAME_PILLAR``
+  * the cycle-finale celebration band at the right edge — chest +
+    day-complete banner + parrot crowd + bunting + balloons fire when
+    ``biome_phase`` wraps past ``CYCLE_FINALE_PHASE_HI``
+  * a first-geyser marker — the 9th pillar where thermal intensity
+    crosses ``ROCK_SPAWN_THRESHOLD`` (= the 8-pillar rocks-only
+    telegraph followed by the guaranteed first geyser)
   * a row of thin grey ticks at the bottom marking pillar-score gates
     (``POWERUP_SCORE_GATES`` + ``POWERUP_REPLACED_AT``) so the rail /
     grow / lottery / megamagnet milestones land in context.
@@ -160,8 +166,8 @@ def main() -> None:
                     va="center", ha="left", fontweight="bold")
 
     ax_sky.set_title(
-        f"Skybit — run progression: biome + weather events + power-up "
-        f"milestones vs pillars passed   "
+        f"Skybit — run progression: biome + weather + power-up "
+        f"milestones + cycle-finale celebration vs pillars passed   "
         f"(1 biome cycle = {CYCLE:.0f} s ≈ {max_pillars} pillars "
         f"including the newbie ramp)",
         fontsize=12, pad=8)
@@ -248,6 +254,58 @@ def main() -> None:
                 textcoords="offset points", xytext=(0, 9),
                 ha="center", fontsize=7.5, color="#2f6fb0",
                 fontweight="bold")
+
+    # ── First geyser marker ────────────────────────────────────────────
+    # Geysers don't fire until 8 pillars of thermal warm-up rocks have
+    # telegraphed the event (GEYSER_RAMP_PILLARS). Walk the pillar
+    # samples in order, counting how many cross ROCK_SPAWN_THRESHOLD;
+    # the (GEYSER_RAMP_PILLARS+1)th carries the forced first geyser.
+    rock_threshold = config.ROCK_SPAWN_THRESHOLD
+    ramp_target = config.GEYSER_RAMP_PILLARS + 1
+    thermal_pillars = 0
+    first_geyser_pillar = None
+    for k in range(max_pillars):
+        phase_k = biome.phase_for_time(time_for_pillar[k] % CYCLE)
+        if weather.thermal_intensity(phase_k) > rock_threshold:
+            thermal_pillars += 1
+            if thermal_pillars >= ramp_target:
+                first_geyser_pillar = k
+                break
+    if first_geyser_pillar is not None:
+        ax.plot([first_geyser_pillar], [0.0], marker="D",
+                color="#e0663a", markersize=9, markeredgecolor="white",
+                markeredgewidth=0.8, zorder=5,
+                label="First geyser (after 8-pillar rocks ramp)")
+        ax.annotate(f"first geyser\n@ p{first_geyser_pillar}",
+                    (first_geyser_pillar, 0.0),
+                    textcoords="offset points", xytext=(0, 12),
+                    ha="center", fontsize=7.5, color="#e0663a",
+                    fontweight="bold")
+
+    # ── Cycle-finale celebration band ──────────────────────────────────
+    # The day/night phase climbs past CYCLE_FINALE_PHASE_HI = 0.95 and
+    # rolls through ~1.0 → ~0.0; the wrap fires inside world.update,
+    # spawning the chest + day-complete banner + parrot crowd + bunting
+    # + balloon cluster. Find the first pillar whose phase is in the
+    # HI..1.0 window — everything from there to the end of the chart
+    # is the celebration tail.
+    finale_hi = config.CYCLE_FINALE_PHASE_HI
+    finale_pillar = None
+    for k, p in enumerate(phases):
+        if p > finale_hi:
+            finale_pillar = pillars[k]
+            break
+    if finale_pillar is not None:
+        ax.axvspan(finale_pillar, max_pillars, color="#f5c33b",
+                   alpha=0.30, linewidth=0, zorder=1,
+                   label="Cycle-finale celebration (chest + parrots + bunting)")
+        ax.axvline(finale_pillar, color="#b8860b", linewidth=2.3,
+                   alpha=0.9, zorder=4)
+        ax.annotate("DAY COMPLETE\nchest + parrots + bunting",
+                    (finale_pillar, 0.55),
+                    textcoords="offset points", xytext=(4, 0),
+                    ha="left", va="center", fontsize=8.5,
+                    fontweight="bold", color="#8a5a00")
 
     # ── Power-up score gates (thin grey ticks at the bottom) ───────────
     gates = sorted({
