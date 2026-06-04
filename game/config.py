@@ -241,8 +241,8 @@ UMBRELLA_SPAWN_PILLARS  = (85, 97)
 # the score with a grandiose fanfare animation. Not in POWERUP_WEIGHTS
 # (weight 0) — only the cycle-finale path spawns it, never a random roll.
 TREASURE_BOX_GRANT          = 100
-CYCLE_FINALE_RUSH_PILLARS   = 5
-CYCLE_FINALE_BOX_INDEX      = 2     # 0-based; pillar 3 of 5 carries the chest
+CYCLE_FINALE_RUSH_PILLARS   = 3
+CYCLE_FINALE_BOX_INDEX      = 1     # 0-based; pillar 2 of 3 carries the chest
 CYCLE_FINALE_PHASE_HI       = 0.95  # rollover detected when last phase > HI
 CYCLE_FINALE_PHASE_LO       = 0.05  # AND new phase < LO (wrap from ~1 to ~0)
 # Seconds the chest stays drawn after pickup, rendering the lid-popped

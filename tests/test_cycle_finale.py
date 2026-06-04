@@ -7,8 +7,11 @@ Pins:
   - The chest's pickup hitbox tracks the FULL drawn sprite (~100 x 82
     px), not the small 34 px circle a regular power-up uses. Brushing
     the chest's outer corner picks it up.
-  - Bunting / balloons / crowd anchor to the flanking real pillars'
-    centres (last real before, first real after the 5-phantom band).
+  - Bunting / balloons / crowd spawn at the BIOME WRAP moment (not at
+    chest-drop) so the LEFT real flanking pillar — still on-screen —
+    visibly carries the rope as it scrolls past. Predicted right
+    endpoint coincides with the future RIGHT real pillar within a
+    frame's scroll tolerance.
 """
 import os
 import unittest
@@ -72,59 +75,113 @@ class ChestSpriteRectCollision(unittest.TestCase):
                          "far miss must not pick up the chest")
 
 
-class CelebrationSpawnAnchors(unittest.TestCase):
-    """Bunting + crowd + balloons spawn at flanking-pillar coords."""
+class CelebrationSpawnAtWrap(unittest.TestCase):
+    """Bunting + crowd + balloons spawn at biome WRAP, anchored to the
+    last real pillar (LEFT flanker). Predicted right endpoint lands on
+    the future RIGHT real pillar."""
 
-    def _force_finale(self, world):
-        # Advance biome wrap so the next pillar carries the finale flag,
-        # then call _spawn_pipe enough times to hit phantom #3 (chest
-        # drop). Easier path: poke the internal counters directly,
-        # matching what world.update would do at the wrap.
-        from game.config import (
-            CYCLE_FINALE_RUSH_PILLARS, CYCLE_FINALE_BOX_INDEX)
-        world._finale_rush_remaining = (
-            CYCLE_FINALE_RUSH_PILLARS - CYCLE_FINALE_BOX_INDEX)
-        world._finale_box_dropped = False
-        # Spawn one pillar — the next call will hit the middle-phantom
-        # branch and drop the chest plus all celebration items.
-        last_x = world.pipes[-1].x if world.pipes else 800.0
-        world._spawn_pipe(last_x + 280.0)
+    def _force_wrap(self, world):
+        # Reproduce world.update's wrap-detect: previous phase past HI
+        # then current phase past LO. The class's _last_biome_phase
+        # snapshots last frame; pushing the biome_time forward so the
+        # NEXT computed phase < LO triggers the rollover branch.
+        from game.config import CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO
+        world._last_biome_phase = CYCLE_FINALE_PHASE_HI + 0.01
+        from game.biome import CYCLE_SECONDS
+        # Phase = (biome_time / CYCLE_SECONDS) mod 1.0 -- nudge time
+        # to a point where phase wraps to ~0.01 < LO.
+        world.biome_time = CYCLE_SECONDS * 1.0 + 0.5
+        # Sanity-check: the computed phase IS below LO.
+        self.assertLess(world.biome_phase, CYCLE_FINALE_PHASE_LO,
+                        "test fixture: phase didn't wrap below LO")
+        # One update tick — wrap-detect fires inside world.update.
+        world.ready_t = 0.0   # let biome_time tick
+        world.bird.alive = True
+        world.game_over = False
+        world.update(1 / 60.0)
 
-    def test_spawn_creates_bunting_balloon_crowd(self):
+    def test_wrap_spawns_celebration_anchored_left(self):
         w = World()
-        # Need at least one real pillar in the list for the LEFT
-        # flanking anchor to be picked up. Spawn 3 normal pillars
-        # first so self.pipes has a non-phantom history.
         x = 800.0
         for _ in range(3):
             w._spawn_pipe(x)
             x += 280.0
         last_real = w.pipes[-1]
-        last_real_centre_x = last_real.x + PIPE_W * 0.5
-        self._force_finale(w)
+        expected_left_x = last_real.x + PIPE_W * 0.5
+        expected_left_y = last_real.gap_y - last_real.gap_h * 0.5
+        self._force_wrap(w)
         self.assertEqual(len(w.celebration_buntings), 1)
         self.assertEqual(len(w.celebration_balloon_clusters), 1)
         self.assertEqual(len(w.celebration_crowds), 1)
         bunting = w.celebration_buntings[-1]
-        # Left endpoint sits on the last real pillar's centre.
-        self.assertAlmostEqual(bunting.x_left, last_real_centre_x,
-                               places=2)
-        # Left y on the upper-pipe tip of that pillar.
-        expected_y = last_real.gap_y - last_real.gap_h * 0.5
-        self.assertAlmostEqual(bunting.y_left, expected_y, places=2)
-        # Right endpoint at predicted next-real-pillar x.
+        # Left endpoint sits on the last real pillar's centre (within
+        # one frame of scroll — wrap-detect runs INSIDE update so the
+        # captured pillar.x has already been scrolled once this tick).
+        self.assertAlmostEqual(bunting.x_left, expected_left_x,
+                               delta=20.0,
+                               msg="bunting.x_left should track LEFT pillar's centre")
+        self.assertAlmostEqual(bunting.y_left, expected_left_y, places=2)
+        # Right endpoint = left_x + (RUSH_PILLARS + 1) * effective_spacing
+        # where effective_spacing accounts for the W+60 spawn clamp
+        # (the spawn site clamps each new pillar to world-x = W+60 at
+        # the moment its trigger fires, so the world-x gap between
+        # consecutive pillars is spacing + 60, not the nominal spacing).
+        from game.config import (
+            CYCLE_FINALE_RUSH_PILLARS, PIPE_SPACING)
+        effective_spacing = PIPE_SPACING + 60
+        expected_span = (CYCLE_FINALE_RUSH_PILLARS + 1) * effective_spacing
+        self.assertAlmostEqual(bunting.x_right - bunting.x_left,
+                               expected_span, delta=1.0)
+        # finish_x sits at left_x + (BOX_INDEX + 1) * effective_spacing
         crowd = w.celebration_crowds[-1]
-        self.assertEqual(len(crowd.cluster_xs), 5,
-                         "crowd should have 5 clusters")
-        # One cluster x is the finish line itself.
-        chest = next(m for m in w.powerups if m.kind == "treasure")
-        finish_x = chest.x
-        self.assertIn(finish_x, crowd.cluster_xs,
-                      "one cluster must sit exactly on the finish stripe")
+        from game.config import CYCLE_FINALE_BOX_INDEX
+        expected_finish = bunting.x_left + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
+        self.assertIn(expected_finish, crowd.cluster_xs,
+                      "one crowd cluster must sit on the predicted finish stripe")
         # All clusters fall within the [left, right] span.
         for cx in crowd.cluster_xs:
             self.assertGreaterEqual(cx, bunting.x_left - 0.001)
             self.assertLessEqual(cx, bunting.x_right + 0.001)
+
+    def test_chest_lands_on_predicted_finish_x(self):
+        """The chest spawn x at phantom #2 must match the finish_x the
+        bunting predicted at wrap moment, within one frame of scroll.
+        Prevents a future spacing-ramp tweak from silently desyncing
+        the prediction."""
+        w = World()
+        x = 800.0
+        for _ in range(3):
+            w._spawn_pipe(x)
+            x += 280.0
+        self._force_wrap(w)
+        from game.config import (
+            CYCLE_FINALE_BOX_INDEX, PIPE_SPACING)
+        effective_spacing = PIPE_SPACING + 60
+        bunting = w.celebration_buntings[-1]
+        # Step until the chest is spawned. Keep the bird alive +
+        # away from pillars every frame so the update doesn't game-
+        # over and stop spawning pillars.
+        chest = None
+        for _ in range(2000):
+            w.bird.alive = True
+            w.game_over = False
+            w.bird.y = 320.0
+            w.bird.vy = 0.0
+            w.update(1 / 60.0)
+            chest = next((m for m in w.powerups if m.kind == "treasure"),
+                         None)
+            if chest is not None:
+                break
+        self.assertIsNotNone(chest, "chest must spawn within 2000 frames")
+        # Both bunting and chest scroll at the same world rate, so
+        # bunting.x_left + 2 * effective_spacing should equal chest.x
+        # at every frame after chest spawn (one frame of scroll
+        # tolerance for the frame the chest is spawned at).
+        predicted_finish_now = bunting.x_left + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
+        self.assertAlmostEqual(chest.x, predicted_finish_now, delta=20.0,
+                               msg=(f"chest x {chest.x:.1f} should match "
+                                    f"predicted finish {predicted_finish_now:.1f} "
+                                    f"within one frame of scroll"))
 
 
 if __name__ == "__main__":

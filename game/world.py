@@ -759,47 +759,6 @@ class World:
                 by = p.gap_y
                 self.powerups.append(PowerUp(bx, by, kind="treasure"))
                 self._finale_box_dropped = True
-                # Day-marker on the ground, bunting + balloon cluster in
-                # the sky — all anchored to world-space x coords spanning
-                # the 5-pillar phantom gap so they spawn at chest DROP
-                # and stay visible throughout the gap's on-screen pass
-                # (independent of when the chest itself is picked up or
-                # culled). Day number mirrors the banner / grant.
-                from game.entities import (
-                    CelebrationGroundMarker, CelebrationBunting,
-                    CelebrationBalloonCluster, CelebrationCrowd)
-                day = max(1, self.cycles_completed)
-                # Anchor bunting / balloons / crowd to the real pillars
-                # FLANKING the phantom band so the celebration reads as
-                # strung BETWEEN actual pillars, not floating in the
-                # gap. Last real pillar before is in self.pipes (the
-                # most recent non-phantom); first real pillar after
-                # hasn't spawned yet but its world-x is deterministic
-                # at bx + 3*spacing (chest is the middle of 5 phantoms,
-                # so the next real pillar lands 3 spacings further on).
-                left_pillar = next(
-                    (p_prev for p_prev in reversed(self.pipes[:-1])
-                     if not getattr(p_prev, "is_phantom", False)),
-                    None)
-                if left_pillar is not None:
-                    left_x = left_pillar.x + PIPE_W * 0.5
-                    left_y = left_pillar.gap_y - left_pillar.gap_h * 0.5
-                else:
-                    left_x = bx - 3 * spacing
-                    left_y = p.gap_y - p.gap_h * 0.5
-                right_x = bx + 3 * spacing
-                # Symmetric y at both ends — pillars don't vary enough
-                # to make the rope look askew, and matching y keeps
-                # the catenary sag readable.
-                right_y = left_y
-                self.celebration_ground_markers.append(
-                    CelebrationGroundMarker(bx, day))
-                self.celebration_buntings.append(
-                    CelebrationBunting(left_x, left_y, right_x, right_y))
-                self.celebration_balloon_clusters.append(
-                    CelebrationBalloonCluster(left_x, right_x))
-                self.celebration_crowds.append(
-                    CelebrationCrowd(left_x, right_x, finish_x=bx))
             return
 
         if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
@@ -1066,10 +1025,11 @@ class World:
                                       center_y: float, gap_h: int,
                                       spacing: int):
         """Cycle-finale long coin rush — one continuous formation across
-        the full 5-pillar phantom span, replacing the 5 per-pillar rush
-        formations the finale used to lay down. Variant pool excludes
-        'oval' (doesn't stretch wide). Pattern repeats / scales internally
-        so the long span reads as one shape, not five chunks."""
+        the full phantom span (CYCLE_FINALE_RUSH_PILLARS pillars wide),
+        replacing the per-pillar rush formations the finale used to lay
+        down. Variant pool excludes 'oval' (doesn't stretch wide).
+        Pattern repeats / scales internally so the long span reads as
+        one shape, not N chunks."""
         prev_count = len(self.coins)
         total_span = CYCLE_FINALE_RUSH_PILLARS * spacing
         # Bracket the formation half a spacing in from each end of the
@@ -1082,9 +1042,9 @@ class World:
         amp = min(gap_h * 0.32, 65)
         gy = center_y
 
-        # 'oval' from _spawn_rush_coins doesn't scale across a 1400 px
-        # span (the oval collapses to a horizontal line of coins) so it's
-        # excluded. The remaining four stretch cleanly.
+        # 'oval' from _spawn_rush_coins doesn't scale across the long
+        # span (the oval collapses to a horizontal line of coins) so
+        # it's excluded. The remaining four stretch cleanly.
         variant = random.choice(("wave", "s_curve", "chevron", "double_arc"))
 
         if variant == "wave":
@@ -1357,9 +1317,10 @@ class World:
             self.biome_time += sdt
         # Cycle-finale rollover detect: when the day/night phase wraps
         # from the late-night band (> HI) back into early dawn (< LO),
-        # queue a 5-pillar coin rush; the middle pillar will drop the
-        # treasure box (see _spawn_pipe). Sampled every frame so the
-        # detect lands within one frame of the actual rollover.
+        # queue a CYCLE_FINALE_RUSH_PILLARS-pillar coin rush; the
+        # middle pillar drops the treasure box (see _spawn_pipe).
+        # Sampled every frame so the detect lands within one frame of
+        # the actual rollover.
         _new_phase = self.biome_phase
         if (self._last_biome_phase > CYCLE_FINALE_PHASE_HI
                 and _new_phase < CYCLE_FINALE_PHASE_LO):
@@ -1370,6 +1331,54 @@ class World:
             # reads max(1, cycles_completed) so the first cycle the
             # player survives reads "DAY 1 COMPLETE!".
             self.cycles_completed += 1
+            # Spawn celebration items NOW (not later when the chest
+            # actually drops) so the LEFT real flanking pillar — which
+            # is still on-screen at this wrap moment — visibly carries
+            # the bunting's left rope-end as it scrolls past. By the
+            # time the chest spawns the LEFT pillar has scrolled
+            # ~2*spacing left and is leaving the screen; spawning the
+            # bunting then makes it pop into existence mid-air.
+            # Predicted positions are deterministic because pillars
+            # scroll at one rate and stay at one spacing apart in
+            # world-x: from LEFT.x, the chest lands at LEFT.x +
+            # BOX_INDEX*spacing + 1 and the RIGHT real flanker at
+            # LEFT.x + (RUSH_PILLARS+1)*spacing.
+            if self.pipes:
+                left_pillar = self.pipes[-1]
+                spacing = self._current_spacing()
+                # Pipes effectively land at world-x = W + 60 (the clamp
+                # at the spawn site below — see line ~1528:
+                # `max(prev.x + spacing, W + 60)`). The clamp ALWAYS
+                # fires because the spawn trigger fires when
+                # prev.x < W - spacing, so prev.x + spacing < W < W + 60.
+                # The resulting world-x gap between two consecutive
+                # pillars is therefore (W + 60) - (W - spacing) =
+                # spacing + 60, not the nominal spacing.
+                effective_spacing = spacing + 60
+                left_x = left_pillar.x + PIPE_W * 0.5
+                left_y = left_pillar.gap_y - left_pillar.gap_h * 0.5
+                # finish_x = future chest centre. With
+                # CYCLE_FINALE_BOX_INDEX phantoms before the chest,
+                # that's (BOX_INDEX + 1) effective-spacings past LEFT.
+                finish_x = left_x + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
+                # right_x = predicted RIGHT real pillar centre =
+                # (RUSH_PILLARS + 1) effective-spacings past LEFT.
+                # Symmetric y at both ends — pillar gaps vary < 30 px,
+                # well within the rope sag's visual tolerance.
+                right_x = left_x + (CYCLE_FINALE_RUSH_PILLARS + 1) * effective_spacing
+                right_y = left_y
+                from game.entities import (
+                    CelebrationGroundMarker, CelebrationBunting,
+                    CelebrationBalloonCluster, CelebrationCrowd)
+                day = max(1, self.cycles_completed)
+                self.celebration_ground_markers.append(
+                    CelebrationGroundMarker(finish_x, day))
+                self.celebration_buntings.append(
+                    CelebrationBunting(left_x, left_y, right_x, right_y))
+                self.celebration_balloon_clusters.append(
+                    CelebrationBalloonCluster(left_x, right_x))
+                self.celebration_crowds.append(
+                    CelebrationCrowd(left_x, right_x, finish_x=finish_x))
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
