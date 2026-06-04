@@ -769,23 +769,37 @@ class World:
                     CelebrationGroundMarker, CelebrationBunting,
                     CelebrationBalloonCluster, CelebrationCrowd)
                 day = max(1, self.cycles_completed)
-                # Gap span from the leftmost phantom's left edge to the
-                # rightmost phantom's right edge: middle phantom is at
-                # p.x with PIPE_W width, so span half-width is
-                # 2*spacing + PIPE_W/2.
-                half_span = 2 * spacing + PIPE_W * 0.5
-                gap_top = p.gap_y - p.gap_h * 0.5
+                # Anchor bunting / balloons / crowd to the real pillars
+                # FLANKING the phantom band so the celebration reads as
+                # strung BETWEEN actual pillars, not floating in the
+                # gap. Last real pillar before is in self.pipes (the
+                # most recent non-phantom); first real pillar after
+                # hasn't spawned yet but its world-x is deterministic
+                # at bx + 3*spacing (chest is the middle of 5 phantoms,
+                # so the next real pillar lands 3 spacings further on).
+                left_pillar = next(
+                    (p_prev for p_prev in reversed(self.pipes[:-1])
+                     if not getattr(p_prev, "is_phantom", False)),
+                    None)
+                if left_pillar is not None:
+                    left_x = left_pillar.x + PIPE_W * 0.5
+                    left_y = left_pillar.gap_y - left_pillar.gap_h * 0.5
+                else:
+                    left_x = bx - 3 * spacing
+                    left_y = p.gap_y - p.gap_h * 0.5
+                right_x = bx + 3 * spacing
+                # Symmetric y at both ends — pillars don't vary enough
+                # to make the rope look askew, and matching y keeps
+                # the catenary sag readable.
+                right_y = left_y
                 self.celebration_ground_markers.append(
                     CelebrationGroundMarker(bx, day))
                 self.celebration_buntings.append(
-                    CelebrationBunting(bx - half_span, bx + half_span, gap_top))
+                    CelebrationBunting(left_x, left_y, right_x, right_y))
                 self.celebration_balloon_clusters.append(
-                    CelebrationBalloonCluster(bx - half_span, bx + half_span))
-                # Cheering crowd centred on the finish-line stripe at bx.
-                # CROWD_LAYOUT carries per-parrot dx offsets, so the
-                # cluster spans ~±90 px around bx (parrots on both
-                # sides of the line).
-                self.celebration_crowds.append(CelebrationCrowd(bx))
+                    CelebrationBalloonCluster(left_x, right_x))
+                self.celebration_crowds.append(
+                    CelebrationCrowd(left_x, right_x, finish_x=bx))
             return
 
         if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
@@ -2022,6 +2036,23 @@ class World:
                 self._on_coin(c)
         for m in self.powerups:
             if m.collected:
+                continue
+            if m.kind == "treasure":
+                # The chest sprite is drawn at full PICKUP_W × PICKUP_H
+                # (~100 × 82 px) — much larger than a regular power-up
+                # circle. Use a circle-vs-rect test so any visible
+                # touch on the chest triggers pickup, instead of only
+                # the small ~34 px centre.
+                from game.treasure_box import PICKUP_W, PICKUP_H
+                half_w = PICKUP_W * 0.5
+                half_h = PICKUP_H * 0.5
+                closest_x = max(m.x - half_w, min(bx, m.x + half_w))
+                closest_y = max(m.y - half_h, min(by, m.y + half_h))
+                ddx = bx - closest_x
+                ddy = by - closest_y
+                if ddx * ddx + ddy * ddy < br * br:
+                    m.collected = True
+                    self._on_powerup(m)
                 continue
             dx = m.x - bx
             dy = m.y - by

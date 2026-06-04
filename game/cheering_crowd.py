@@ -37,6 +37,7 @@ celebration window. Round-3 fixes baked in:
 from __future__ import annotations
 
 import math
+import random
 from typing import Callable, Optional, Tuple
 
 import pygame
@@ -466,25 +467,36 @@ BOB_AMP = 2
 
 
 def draw_crowd(surf: pygame.Surface, stripe_x: int, ground_y: int,
-               t: float = 0.0) -> None:
+               t: float = 0.0, seed: int = 0) -> None:
     """Walk ``CROWD_LAYOUT`` and render every parrot. ``t`` is the
     elapsed time in seconds — pass 0.0 for a static screenshot, or the
     live world clock for the cheering bob animation.
 
-    The integrated ``CelebrationCrowd`` class will own ``t`` as
-    ``self.t`` and tick it in ``update(dt)``; this function is the
-    single-shot draw path it should delegate to.
+    ``seed`` (when non-zero) reshuffles the per-parrot plumage indices
+    in a deterministic, per-call permutation — used by
+    ``CelebrationCrowd`` so its 5 cluster copies don't look stamp-
+    identical. The visual carpentry (dx offsets, instruments, poses,
+    mirrors) stays from CROWD_LAYOUT — only the colour shuffle moves
+    per cluster.
     """
+    if seed:
+        rng = random.Random(seed)
+        plumage_perm = list(range(8))  # 8 plumage_idx variants exist
+        rng.shuffle(plumage_perm)
+    else:
+        plumage_perm = None
     for spec in CROWD_LAYOUT:
         bob = int(round(math.sin(t * 2 * math.pi * BOB_HZ
                                  + spec["bob_phase"]) * BOB_AMP))
         jump = spec["base_jump"] + bob
         factory = INSTRUMENT_FACTORIES[spec["instrument"]]
         instrument = factory(spec["instrument_kwargs"])
+        plumage_idx = (plumage_perm[spec["plumage_idx"] % len(plumage_perm)]
+                       if plumage_perm is not None else spec["plumage_idx"])
         draw_parrot(surf,
                     x=stripe_x + spec["dx"],
                     ground_y=ground_y,
-                    plumage_idx=spec["plumage_idx"],
+                    plumage_idx=plumage_idx,
                     jump=jump,
                     pose=spec["pose"],
                     instrument=instrument,

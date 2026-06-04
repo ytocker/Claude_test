@@ -4032,14 +4032,17 @@ class CelebrationGarland:
 
 
 class CelebrationBunting:
-    """World-space triangular-pennant string strung across the cycle-
-    finale phantom gap. Sits above the festoon garland so the celebration
-    zone reads as TWO layers of party decor.
+    """World-space triangular-pennant string tied between the upper-pipe
+    tips of the two real pillars flanking the cycle-finale phantom band.
+    Sits above the festoon garland so the celebration zone reads as TWO
+    layers of party decor.
 
-    Uses RAW world-x coords (not pillar refs) so the bunting can spawn at
-    chest DROP — when the right-flanking real pillar doesn't exist yet —
-    and still survive past chest pickup + culling. Renders one polyline
-    (the string) plus 14 small filled triangles per frame; cheap.
+    Endpoints are stored as raw world-coords (not pillar refs) and
+    scroll in lockstep with the world — same scroll rate as the
+    pillars, so the rope stays visually tied to the pillar tops
+    without holding a stale ref past cull. Each endpoint carries its
+    own y so a left/right pillar gap-height mismatch doesn't break the
+    rope geometry.
     """
 
     N_PENNANTS = 14
@@ -4056,11 +4059,12 @@ class CelebrationBunting:
         (252, 244, 218),
     )
 
-    def __init__(self, x_left: float, x_right: float, y_top: float):
+    def __init__(self, x_left: float, y_left: float,
+                 x_right: float, y_right: float):
         self.x_left = float(x_left)
         self.x_right = float(x_right)
-        # Anchor band above the gap; bunting hangs LIFT_Y above this.
-        self.y_top = float(y_top)
+        self.y_left = float(y_left)
+        self.y_right = float(y_right)
 
     def alive(self) -> bool:
         return self.x_right > -50
@@ -4073,21 +4077,22 @@ class CelebrationBunting:
         cls = CelebrationBunting
         if self.x_right <= self.x_left:
             return
-        ay = self.y_top - cls.LIFT_Y
         samples = 24
         pts = []
         for i in range(samples + 1):
             t = i / samples
             sag = cls.DROOP * 4 * t * (1 - t)
             x = self.x_left * (1 - t) + self.x_right * t
-            pts.append((int(x + sx), int(ay + sag + sy)))
+            y = self.y_left * (1 - t) + self.y_right * t
+            pts.append((int(x + sx), int(y - cls.LIFT_Y + sag + sy)))
         if len(pts) >= 2:
             pygame.draw.lines(surf, cls.THREAD, False, pts, 2)
         for k in range(cls.N_PENNANTS):
             t = (k + 1) / (cls.N_PENNANTS + 1)
             sag = cls.DROOP * 4 * t * (1 - t)
             cx = int(self.x_left * (1 - t) + self.x_right * t + sx)
-            cy_top = int(ay + sag + sy)
+            cy_anchor = self.y_left * (1 - t) + self.y_right * t
+            cy_top = int(cy_anchor - cls.LIFT_Y + sag + sy)
             col = cls.COLOURS[k % len(cls.COLOURS)]
             pts_tri = [
                 (cx - cls.PENNANT_W // 2, cy_top),
@@ -4227,36 +4232,53 @@ class CelebrationGroundMarker:
 
 
 class CelebrationCrowd:
-    """7-parrot cheering crowd flanking the cycle-finale finish line.
-    Sprite + layout shipped from `game.cheering_crowd`; this class is
-    the world-x lifecycle wrapper (scroll, cull, animation tick) that
-    matches the pattern used by CelebrationGroundMarker / Bunting /
-    BalloonCluster.
+    """Multi-cluster cheering crowd spanning the cycle-finale phantom
+    band. Each of N clusters is a copy of the 7-parrot CROWD_LAYOUT
+    (`game.cheering_crowd`), with per-cluster plumage / instrument
+    reshuffle so no two clusters look identical.
 
-    World-anchored at the finish-line stripe's x; per-parrot dx offsets
-    in CROWD_LAYOUT distribute figures on both sides of the stripe.
+    Cluster x's are drawn from a triangular distribution peaking at
+    ``finish_x``, so the crowd is densest right at the finish-line
+    stripe and thins toward the flanking real pillars. One cluster is
+    always pinned exactly on the finish line.
     """
 
-    # Cull slack — CROWD_LAYOUT dx range is -130..+140 (leftmost flag
-    # parrot to rightmost), plus ~20 px for figure width. Keep the
-    # crowd alive until even the leftmost parrot has fully scrolled
-    # off-screen left.
+    # Per-cluster CROWD_LAYOUT dx range is -130..+140 plus ~20 px; the
+    # rightmost cluster's stripe is at x_right (the right-flanking
+    # pillar's centre) so cull when even its leftmost parrot has fully
+    # scrolled past x=0.
     HALF_SPAN = 160
+    N_CLUSTERS = 5
 
-    def __init__(self, world_x: float):
-        self.x = float(world_x)
+    def __init__(self, x_left: float, x_right: float, finish_x: float):
+        cls = CelebrationCrowd
         self.t = 0.0
+        # Triangular puts the mode at finish_x, so ~half the samples
+        # fall within ±(x_right - x_left)/4 of the line — a natural
+        # density peak at the finish stripe.
+        xs = [random.triangular(x_left, x_right, finish_x)
+              for _ in range(cls.N_CLUSTERS - 1)]
+        xs.append(finish_x)
+        # Per-cluster seed → reshuffled plumages / instrument tints
+        # inside draw_crowd so the copies feel like a real crowd
+        # rather than a stamped repeat.
+        self.cluster_xs = [float(x) for x in xs]
+        self.cluster_seeds = [random.randint(1, 1 << 20)
+                              for _ in self.cluster_xs]
 
     def alive(self) -> bool:
-        return self.x > -CelebrationCrowd.HALF_SPAN
+        return max(self.cluster_xs) > -CelebrationCrowd.HALF_SPAN
 
     def update(self, dt: float, scroll_dx: float = 0.0):
         self.t += dt
-        self.x -= scroll_dx
+        if scroll_dx:
+            self.cluster_xs = [x - scroll_dx for x in self.cluster_xs]
 
     def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
         from game.cheering_crowd import draw_crowd
-        draw_crowd(surf, int(self.x + sx), int(GROUND_Y + sy), self.t)
+        for cx, seed in zip(self.cluster_xs, self.cluster_seeds):
+            draw_crowd(surf, int(cx + sx), int(GROUND_Y + sy),
+                       self.t, seed=seed)
 
 
 class CelebrationFireworkBurst:
