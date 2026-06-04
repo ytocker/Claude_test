@@ -115,6 +115,14 @@ class World:
         # share a 1.4 s fade envelope so they leave the scene as one.
         self.treasure_banners: list = []
         self.celebration_garlands: list = []
+        # Persistent sky + ground decor over the 5-pillar phantom gap.
+        # Spawned from World._activate_treasure_box (bunting + balloons)
+        # and World._spawn_pipe at chest drop (ground marker), so they
+        # signal "completed-the-day zone" for the whole time the gap is
+        # on screen, not just the 3.5 s celebration window.
+        self.celebration_buntings: list = []
+        self.celebration_balloon_clusters: list = []
+        self.celebration_ground_markers: list = []
         # Cycle counter — increments on every biome-phase wrap, so the
         # banner reads "DAY 1 COMPLETE!" on the first rollover, "DAY 2"
         # on the second, etc. Resets each fresh run (no save-file
@@ -729,6 +737,28 @@ class World:
                 by = p.gap_y
                 self.powerups.append(PowerUp(bx, by, kind="treasure"))
                 self._finale_box_dropped = True
+                # Day-marker on the ground, bunting + balloon cluster in
+                # the sky — all anchored to world-space x coords spanning
+                # the 5-pillar phantom gap so they spawn at chest DROP
+                # and stay visible throughout the gap's on-screen pass
+                # (independent of when the chest itself is picked up or
+                # culled). Day number mirrors the banner / grant.
+                from game.entities import (
+                    CelebrationGroundMarker, CelebrationBunting,
+                    CelebrationBalloonCluster)
+                day = max(1, self.cycles_completed)
+                # Gap span from the leftmost phantom's left edge to the
+                # rightmost phantom's right edge: middle phantom is at
+                # p.x with PIPE_W width, so span half-width is
+                # 2*spacing + PIPE_W/2.
+                half_span = 2 * spacing + PIPE_W * 0.5
+                gap_top = p.gap_y - p.gap_h * 0.5
+                self.celebration_ground_markers.append(
+                    CelebrationGroundMarker(bx, day))
+                self.celebration_buntings.append(
+                    CelebrationBunting(bx - half_span, bx + half_span, gap_top))
+                self.celebration_balloon_clusters.append(
+                    CelebrationBalloonCluster(bx - half_span, bx + half_span))
             return
 
         if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
@@ -1354,6 +1384,27 @@ class World:
             for m in self.powerups:
                 m.x -= speed * sdt
                 m.update(sdt)
+            # Cycle-finale party decor — ground marker, bunting, balloon
+            # cluster — all ride world scroll so they stay parked over
+            # the phantom gap as it crosses the playfield. The bunting
+            # and balloon cluster ALSO advance their internal time
+            # (balloon bob + upward drift) on each update.
+            scroll_dx = speed * sdt
+            for gm in self.celebration_ground_markers:
+                gm.update(sdt, scroll_dx)
+            self.celebration_ground_markers = [
+                gm for gm in self.celebration_ground_markers if gm.alive()
+            ]
+            for cb in self.celebration_buntings:
+                cb.update(sdt, scroll_dx)
+            self.celebration_buntings = [
+                cb for cb in self.celebration_buntings if cb.alive()
+            ]
+            for bc in self.celebration_balloon_clusters:
+                bc.update(sdt, scroll_dx)
+            self.celebration_balloon_clusters = [
+                bc for bc in self.celebration_balloon_clusters if bc.alive()
+            ]
             # Genie chamber wishes pop in when Pip gets close enough so
             # the player sees them materialise instead of finding them
             # pre-placed in the gap.
@@ -1628,8 +1679,11 @@ class World:
             tb for tb in self.treasure_banners if tb.alive()]
         for g in self.celebration_garlands:
             g.update(dt)
-        # Drop the garland if either of its pillar refs has been culled
-        # off-screen — anchors would dangle on a freed Pipe otherwise.
+        # Drop the garland if either pillar ref has been culled off-screen
+        # — anchors would dangle on a freed Pipe otherwise. The bunting,
+        # balloon cluster, and ground marker use world-x coords (not pipe
+        # refs) so they are scrolled + culled in the scroll loop above
+        # alongside coins / powerups.
         live_pipes = set(id(p) for p in self.pipes)
         self.celebration_garlands = [
             g for g in self.celebration_garlands
@@ -2050,7 +2104,13 @@ class World:
                 choices.append("genie")
             kind = random.choice(choices)
             self._spawn_surprise_reveal(m)
-        self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
+        # Treasure isn't a power-up, it's a once-per-day reward. Skip the
+        # pickup-counter increment so it doesn't surface in the run-summary
+        # power-ups strip alongside Magnet / Triple / etc. The dict key is
+        # kept at 0 in __init__ so existing analytics queries still find
+        # the column.
+        if kind != "treasure":
+            self.powerups_picked[kind] = self.powerups_picked.get(kind, 0) + 1
         if kind == "triple":
             self._activate_triple(m)
         elif kind == "magnet":
@@ -2409,6 +2469,9 @@ class World:
         if left is not None and right is not None:
             self.celebration_garlands.append(
                 CelebrationGarland(left, right))
+            # Bunting + balloons have already been appended at the first
+            # post-finale real-pillar spawn in _spawn_pipe — no double-
+            # spawn here.
 
         self.float_texts.append(FloatText(
             f"+{grant}!", m.x, m.y - 30, UI_GOLD,

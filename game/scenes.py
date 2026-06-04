@@ -1097,6 +1097,19 @@ class App:
             self.hud.draw_menu(self.screen, 1 / 60, self.best)
             return
 
+        # Cycle-finale ground marker ("{N} Day" gold bar) sits ON the
+        # grass band, BEHIND pillars + bird so foreground elements
+        # naturally overlap it. Drawn before pipes so the bird's
+        # shadow + pillars layer on top.
+        for gm in getattr(self.world, "celebration_ground_markers", ()):
+            gm.draw(self.screen, sx, sy)
+        # Cycle-finale balloon cluster — sky-layer decor in the open gap.
+        # Drawn before pipes so the (real) flanking pillars appear in
+        # front of the balloons; in the phantom gap there are no pillars
+        # so the balloons read as floating in open sky.
+        for bc in getattr(self.world, "celebration_balloon_clusters", ()):
+            bc.draw(self.screen, sx, sy)
+
         pipe_palette = self.world.biome_palette
         kfc_active = self.world.bird.kfc_active
         for p in self.world.pipes:
@@ -1142,6 +1155,10 @@ class App:
         # Pip flies past it as foreground.
         for cg in getattr(self.world, "celebration_garlands", ()):
             cg.draw(self.screen, sx, sy)
+        # Bunting hangs above the garland — drawn after so it sits in
+        # front of the festoon string in z-order; both ride world scroll.
+        for cb in getattr(self.world, "celebration_buntings", ()):
+            cb.draw(self.screen, sx, sy)
 
         # Gameplay opener: pickup post-house drifting off-screen-left + the
         # parcel tucked under Pip. Active only during STATE_PLAY's first

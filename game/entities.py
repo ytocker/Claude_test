@@ -4031,6 +4031,215 @@ class CelebrationGarland:
         surf.blit(solid, (0, 0))
 
 
+class CelebrationBunting:
+    """World-space triangular-pennant string strung across the cycle-
+    finale phantom gap. Sits above the festoon garland so the celebration
+    zone reads as TWO layers of party decor.
+
+    Uses RAW world-x coords (not pillar refs) so the bunting can spawn at
+    chest DROP — when the right-flanking real pillar doesn't exist yet —
+    and still survive past chest pickup + culling. Renders one polyline
+    (the string) plus 14 small filled triangles per frame; cheap.
+    """
+
+    N_PENNANTS = 14
+    PENNANT_W = 16
+    PENNANT_H = 22
+    DROOP     = 18
+    LIFT_Y    = 30            # px above the snapshot gap-top
+    THREAD    = ( 40,  28,  10)
+    INK       = ( 30,  20,   8)
+    COLOURS = (
+        (255, 220, 110),
+        (220,  64,  32),
+        ( 96, 176, 232),
+        (252, 244, 218),
+    )
+
+    def __init__(self, x_left: float, x_right: float, y_top: float):
+        self.x_left = float(x_left)
+        self.x_right = float(x_right)
+        # Anchor band above the gap; bunting hangs LIFT_Y above this.
+        self.y_top = float(y_top)
+
+    def alive(self) -> bool:
+        return self.x_right > -50
+
+    def update(self, dt: float, scroll_dx: float = 0.0):
+        self.x_left -= scroll_dx
+        self.x_right -= scroll_dx
+
+    def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
+        cls = CelebrationBunting
+        if self.x_right <= self.x_left:
+            return
+        ay = self.y_top - cls.LIFT_Y
+        samples = 24
+        pts = []
+        for i in range(samples + 1):
+            t = i / samples
+            sag = cls.DROOP * 4 * t * (1 - t)
+            x = self.x_left * (1 - t) + self.x_right * t
+            pts.append((int(x + sx), int(ay + sag + sy)))
+        if len(pts) >= 2:
+            pygame.draw.lines(surf, cls.THREAD, False, pts, 2)
+        for k in range(cls.N_PENNANTS):
+            t = (k + 1) / (cls.N_PENNANTS + 1)
+            sag = cls.DROOP * 4 * t * (1 - t)
+            cx = int(self.x_left * (1 - t) + self.x_right * t + sx)
+            cy_top = int(ay + sag + sy)
+            col = cls.COLOURS[k % len(cls.COLOURS)]
+            pts_tri = [
+                (cx - cls.PENNANT_W // 2, cy_top),
+                (cx + cls.PENNANT_W // 2, cy_top),
+                (cx,                       cy_top + cls.PENNANT_H),
+            ]
+            pygame.draw.polygon(surf, col, pts_tri)
+            pygame.draw.polygon(surf, cls.INK, pts_tri, 1)
+
+
+class CelebrationBalloonCluster:
+    """4 festive paneled balloons spaced across the cycle-finale phantom
+    gap. Bobs sinusoidally, drifts up slowly. Reuses the paneled balloon
+    sprite cache from game.ambient (`_build_balloon_surface`) so the
+    party balloons share the visual language of the ambient ones.
+
+    Uses RAW world-x coords like CelebrationBunting so it can spawn at
+    chest DROP and survive past chest pickup."""
+
+    SLOTS = (0.15, 0.35, 0.65, 0.85)
+    Y_BASE = 220.0
+    BOB_AMP = 8.0
+    BOB_HZ  = 0.8
+    DRIFT_VY = -8.0
+    PALETTE_IDX = (1, 0, 2, 3)
+
+    def __init__(self, x_left: float, x_right: float):
+        self.x_left = float(x_left)
+        self.x_right = float(x_right)
+        from game.ambient import _build_balloon_surface
+        self._sprites = []
+        for i in range(4):
+            surf_, env_cx, env_cy = _build_balloon_surface(1, self.PALETTE_IDX[i])
+            self._sprites.append((surf_, env_cx, env_cy))
+        self._phase = [i * (math.tau / 4) for i in range(4)]
+        self._dy = [0.0, 0.0, 0.0, 0.0]
+        self.t = 0.0
+
+    def alive(self) -> bool:
+        return self.x_right > -80
+
+    def update(self, dt: float, scroll_dx: float = 0.0):
+        self.t += dt
+        self.x_left -= scroll_dx
+        self.x_right -= scroll_dx
+        for i in range(4):
+            self._dy[i] += CelebrationBalloonCluster.DRIFT_VY * dt
+
+    def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
+        cls = CelebrationBalloonCluster
+        for i, slot_t in enumerate(cls.SLOTS):
+            bob = math.sin(self.t * cls.BOB_HZ * math.tau
+                           + self._phase[i]) * cls.BOB_AMP
+            cx = self.x_left * (1 - slot_t) + self.x_right * slot_t
+            cy = cls.Y_BASE + self._dy[i] + bob
+            sprite, env_cx, env_cy = self._sprites[i]
+            surf.blit(sprite,
+                      (int(cx - env_cx + sx), int(cy - env_cy + sy)))
+
+
+class CelebrationGroundMarker:
+    """Gold ground bar + "{N} Day" text painted at the chest's world-x
+    on the grass band. Anchored in world space — scrolls left with
+    everything else and self-culls when off-screen.
+
+    Built once at construction (composite cached) so per-frame cost is
+    a single blit."""
+
+    BAR_W = 200
+    BAR_H = 8
+    LIFT_FROM_GROUND = 4   # text baseline rises this much above the bar top
+    TEXT_SIZE = 28
+    BAR_HI   = (255, 220, 110)
+    BAR_LO   = (196, 132,  28)
+    INK      = ( 60,  40,  10)
+    TEXT_FILL = (255, 240, 180)
+
+    def __init__(self, world_x: float, day: int):
+        self.x = float(world_x)
+        self.day = max(1, int(day))
+        self._sprite = self._build()
+
+    def alive(self) -> bool:
+        return self.x > -CelebrationGroundMarker.BAR_W
+
+    def update(self, dt: float, scroll_dx: float = 0.0):
+        self.x -= scroll_dx
+
+    def _build(self) -> pygame.Surface:
+        from game.hud import _font
+        cls = CelebrationGroundMarker
+        # Render at 2x supersample so the gradient + outline are crisp.
+        ss = 2
+        # Composite needs to hold the bar PLUS the text above it.
+        bar_w_s = cls.BAR_W * ss
+        bar_h_s = cls.BAR_H * ss
+        text_band_h = cls.TEXT_SIZE * ss + 12 * ss
+        total_h = text_band_h + bar_h_s + 6 * ss
+        big = pygame.Surface((bar_w_s, total_h), pygame.SRCALPHA)
+        # Drop shadow under the bar.
+        bar_y = text_band_h
+        shadow = pygame.Surface((bar_w_s, bar_h_s + 4 * ss), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 90),
+                            (0, 2 * ss, bar_w_s, bar_h_s + 2 * ss))
+        big.blit(shadow, (0, bar_y - ss))
+        # Bar gradient.
+        for yy in range(bar_h_s):
+            t = yy / max(1, bar_h_s - 1)
+            r = int(cls.BAR_HI[0] + (cls.BAR_LO[0] - cls.BAR_HI[0]) * t)
+            g = int(cls.BAR_HI[1] + (cls.BAR_LO[1] - cls.BAR_HI[1]) * t)
+            b = int(cls.BAR_HI[2] + (cls.BAR_LO[2] - cls.BAR_HI[2]) * t)
+            pygame.draw.line(big, (r, g, b, 255),
+                             (0, bar_y + yy), (bar_w_s, bar_y + yy))
+        pygame.draw.rect(big, (*cls.INK, 230),
+                         (0, bar_y, bar_w_s, bar_h_s), max(1, ss))
+        # Text: "{N} Day" (literal user spec).
+        text = f"{self.day} Day"
+        font = _font(cls.TEXT_SIZE, True)
+        tx_face = font.render(text, True, cls.TEXT_FILL)
+        tx_ink  = font.render(text, True, cls.INK)
+        # 2-px outline by blitting the ink layer at 8 offsets.
+        tw, th = tx_face.get_size()
+        text_layer = pygame.Surface((tw + 8, th + 8), pygame.SRCALPHA)
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
+                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            text_layer.blit(tx_ink, (4 + ox, 4 + oy))
+        text_layer.blit(tx_face, (4, 4))
+        # Supersample-scale the text layer up to match the ss composite.
+        text_layer_s = pygame.transform.smoothscale(
+            text_layer,
+            (text_layer.get_width() * ss, text_layer.get_height() * ss))
+        tx_rect = text_layer_s.get_rect(
+            midbottom=(bar_w_s // 2, bar_y - cls.LIFT_FROM_GROUND * ss))
+        big.blit(text_layer_s, tx_rect.topleft)
+        # Smoothscale composite back to display size.
+        final = pygame.transform.smoothscale(
+            big, (cls.BAR_W, total_h // ss))
+        return final
+
+    def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
+        # Anchor: bar baseline sits ON the ground line, text rises above.
+        # The composite's bar is at y = text_band_h within the sprite;
+        # blit so the BAR's top sits 2 px above GROUND_Y.
+        cls = CelebrationGroundMarker
+        spr = self._sprite
+        bar_top_y_in_sprite = spr.get_height() - cls.BAR_H - 3
+        # We want bar_top to land at GROUND_Y - 2.
+        target_top = GROUND_Y - 2 - bar_top_y_in_sprite
+        rect = spr.get_rect(midtop=(int(self.x + sx), int(target_top + sy)))
+        surf.blit(spr, rect.topleft)
+
+
 class CelebrationFireworkBurst:
     """One animated firework explosion — expands + sparkles + fades.
     Spawned in clumps from World._activate_treasure_box, staggered
