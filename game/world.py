@@ -276,13 +276,19 @@ class World:
         # Held at this value while ready_t > 0 so the sky doesn't tick over
         # while the player is still on the start-of-run prompt.
         #
-        # Run starts at the biome moment the snow squall ENDS (upper edge
-        # of the storm_intensity bump = SNOW_STORM_CENTER + SNOW_STORM_WIDTH,
-        # converted to seconds via CYCLE_SECONDS). Modulo wrap puts the
-        # starting phase ~0.007 — the calm dawn immediately after the
-        # predawn snowstorm. _last_biome_phase stays 0.0 so the cycle-wrap
-        # detect below doesn't mis-fire a treasure-box finale on frame 1.
-        self.biome_time = ((_SNOW_STORM_CENTER + _SNOW_STORM_WIDTH)
+        # Run opens inside the snow squall's TAPER — half a bump-width past
+        # the storm_intensity peak (SNOW_STORM_CENTER + 0.5 * SNOW_STORM_WIDTH
+        # ~ phase 0.957, biome_time ~ 306 s). At frame 1 the squall is
+        # visibly winding down (storm_intensity ~0.5) but still snowing, and
+        # the cycle-wrap detect in update() fires organically ~14 s later
+        # as biome_phase climbs past CYCLE_FINALE_PHASE_HI=0.95 and rolls
+        # through ~1.0 -> ~0.0. That is the short loop the treasure-box
+        # chest playtest needs — see the snowstorm + the DAY N COMPLETE!
+        # banner + 5-pillar coin rush + chest, without slogging a full
+        # cycle. _last_biome_phase stays at 0.0; the wrap condition needs
+        # last>HI AND new<LO and the initial (0.0, 0.957) pair trips
+        # neither, so no mis-fire on frame 1.
+        self.biome_time = ((_SNOW_STORM_CENTER + 0.5 * _SNOW_STORM_WIDTH)
                            * biome.CYCLE_SECONDS)
 
         # Always-ticking clock used for purely-cosmetic idle animations
