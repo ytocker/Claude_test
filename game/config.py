@@ -248,7 +248,7 @@ CYCLE_FINALE_PHASE_LO       = 0.05  # AND new phase < LO (wrap from ~1 to ~0)
 # Seconds the chest stays drawn after pickup, rendering the lid-popped
 # sprite + halo bloom + fade so the loot beat reads as a moment, not a
 # blink. Coincides with the audio fanfare tail.
-TREASURE_BOX_ANIM_T         = 0.6
+TREASURE_BOX_ANIM_T         = 1.5
 
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.

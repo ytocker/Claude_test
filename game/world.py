@@ -708,6 +708,29 @@ class World:
         # rush pillar.
         p.rail_active = False
         self.pipes.append(p)
+
+        # ── Cycle-finale phantom branch ────────────────────────────────────
+        # Mark the 5 finale slots as invisible / non-colliding / non-
+        # scoring placeholders. The sky stays fully open across the span;
+        # the FIRST phantom seeds one continuous long-rush coin formation
+        # spanning all 5 slots, and the MIDDLE phantom drops the treasure
+        # box at the geometric centre of the span. The early-return skips
+        # the rail / chamber / per-pillar rush / coin / ramp / rock /
+        # geyser branches below.
+        if is_finale_pillar:
+            p.is_phantom = True
+            spacing = self._current_spacing()
+            if self._finale_rush_remaining == CYCLE_FINALE_RUSH_PILLARS - 1:
+                self._spawn_finale_long_rush_coins(p.x, p.gap_y, p.gap_h, spacing)
+            mid_remaining = CYCLE_FINALE_RUSH_PILLARS - CYCLE_FINALE_BOX_INDEX - 1
+            if (not self._finale_box_dropped
+                    and self._finale_rush_remaining == mid_remaining):
+                bx = p.x + PIPE_W * 0.5
+                by = p.gap_y
+                self.powerups.append(PowerUp(bx, by, kind="treasure"))
+                self._finale_box_dropped = True
+            return
+
         if getattr(self, "rail_pending", 0) > 0 and not is_rush and not is_chamber:
             p.rail_active = True
             self.rail_pipes.append(p)
@@ -722,20 +745,6 @@ class World:
         elif is_rush:
             self._spawn_rush_coins(p)
             self._announce_rush(p)
-            # On the middle pillar of a cycle-finale rush, drop the
-            # treasure box at the gap centre. This is the deliberate
-            # exception to the "no power-ups on rush pillars" rule —
-            # the chest IS the cycle reward, not a roll. _finale_box_dropped
-            # is a one-shot guard inside a single finale.
-            mid_remaining = CYCLE_FINALE_RUSH_PILLARS - CYCLE_FINALE_BOX_INDEX - 1
-            if (is_finale_pillar
-                    and not self._finale_box_dropped
-                    and self._finale_rush_remaining == mid_remaining):
-                spacing = self._current_spacing()
-                bx = p.x + PIPE_W + spacing * 0.5
-                by = p.gap_y
-                self.powerups.append(PowerUp(bx, by, kind="treasure"))
-                self._finale_box_dropped = True
         else:
             # Advance (or reset) the thermal-event pillar counter — the
             # telegraph clock the rock ramp + geyser gate read.
@@ -967,6 +976,83 @@ class World:
                 self.coins.append(Coin(x, y))
 
         elif variant == "double_arc":
+            half = n // 2
+            rest = n - half
+            for i in range(half):
+                t = i / max(half - 1, 1)
+                x = cx - span / 2 + span * t
+                y = gy - amp * 0.4 + math.sin(math.pi * t) * amp * 0.3
+                self.coins.append(Coin(x, y))
+            for i in range(rest):
+                t = i / max(rest - 1, 1)
+                x = cx - span / 2 + span * t
+                y = gy + amp * 0.4 - math.sin(math.pi * t) * amp * 0.3
+                self.coins.append(Coin(x, y))
+
+        self.coins_spawned += len(self.coins) - prev_count
+
+    def _spawn_finale_long_rush_coins(self, first_phantom_x: float,
+                                      center_y: float, gap_h: int,
+                                      spacing: int):
+        """Cycle-finale long coin rush — one continuous formation across
+        the full 5-pillar phantom span, replacing the 5 per-pillar rush
+        formations the finale used to lay down. Variant pool excludes
+        'oval' (doesn't stretch wide). Pattern repeats / scales internally
+        so the long span reads as one shape, not five chunks."""
+        prev_count = len(self.coins)
+        total_span = CYCLE_FINALE_RUSH_PILLARS * spacing
+        # Bracket the formation half a spacing in from each end of the
+        # phantom span so the entry + exit feel like the same beat the
+        # regular per-pillar rush has (formation centred between pillars,
+        # not flush with them).
+        cx = first_phantom_x + total_span * 0.5
+        span = total_span - spacing
+        n = CYCLE_FINALE_RUSH_PILLARS * COIN_RUSH_COINS
+        amp = min(gap_h * 0.32, 65)
+        gy = center_y
+
+        # 'oval' from _spawn_rush_coins doesn't scale across a 1400 px
+        # span (the oval collapses to a horizontal line of coins) so it's
+        # excluded. The remaining four stretch cleanly.
+        variant = random.choice(("wave", "s_curve", "chevron", "double_arc"))
+
+        if variant == "wave":
+            phase = random.uniform(0, math.tau)
+            # 5x more wavelengths than the per-pillar wave (1.0-1.6) so
+            # the long span has 5+ visible peaks instead of one.
+            waves = random.uniform(5.0, 8.0)
+            for i in range(n):
+                t = i / (n - 1)
+                x = cx - span / 2 + span * t
+                y = gy + math.sin(phase + waves * math.tau * t) * amp
+                self.coins.append(Coin(x, y))
+
+        elif variant == "s_curve":
+            phase = random.choice((0.0, math.pi))
+            # Triple the per-pillar variant's 3π / span so the same
+            # twist density carries across the 5x longer span.
+            for i in range(n):
+                t = i / (n - 1)
+                x = cx - span / 2 + span * t
+                y = gy + math.sin(phase + 9 * math.pi * t) * amp * 0.75
+                self.coins.append(Coin(x, y))
+
+        elif variant == "chevron":
+            flip = random.choice((1, -1))
+            # 5 chevron repeats so the zig-zag reads as motif, not a
+            # single triangle stretched across two screen widths.
+            repeats = CYCLE_FINALE_RUSH_PILLARS
+            for i in range(n):
+                t = i / (n - 1)
+                tri_t = (t * repeats) % 1.0
+                tri = 2.0 * abs(2.0 * tri_t - 1.0) - 1.0
+                x = cx - span / 2 + span * t
+                y = gy + flip * amp * tri
+                self.coins.append(Coin(x, y))
+
+        elif variant == "double_arc":
+            # Two parallel arcs running the full span — upper + lower.
+            # Each arc carries half the total coin count.
             half = n // 2
             rest = n - half
             for i in range(half):
@@ -1348,6 +1434,11 @@ class World:
             bx = self.bird.x
             by = self.bird.y
             for p in self.pipes:
+                # Cycle-finale phantom slots don't score — they're "not
+                # there" from the player's POV; the chest's +100 is the
+                # span's reward, not 5 pillar passes.
+                if p.is_phantom:
+                    continue
                 if not p.scored and p.x + PIPE_W < bx:
                     p.scored = True
                     self.score += 1
@@ -1374,6 +1465,9 @@ class World:
             # a narrow band of either edge without hitting. Fires as the pipe
             # passes behind the bird so it doesn't double-count mid-flight.
             for p in self.pipes:
+                # Phantoms have no visible edges to graze.
+                if p.is_phantom:
+                    continue
                 pid = id(p)
                 if self._near_miss_flags.get(pid):
                     continue
@@ -1659,6 +1753,9 @@ class World:
         # die). Side hits are still lethal.
         if skating:
             for p in self.pipes:
+                # Phantoms have no rim / crown to skate or bonk against.
+                if p.is_phantom:
+                    continue
                 if self._skateboard_handle_pipe(p, bx, by, br):
                     by = self.bird.y
                     break
@@ -2194,7 +2291,7 @@ class World:
             self.particles.append(FlyingCoinParticle(
                 m.x, m.y,
                 math.cos(ang) * spd, math.sin(ang) * spd,
-                life=random.uniform(1.8, 2.4),
+                life=random.uniform(4.5, 6.0),
             ))
         for _ in range(30):                       # medium
             ang = random.uniform(-math.pi + 0.05, -0.05)
@@ -2202,7 +2299,7 @@ class World:
             self.particles.append(FlyingCoinParticle(
                 m.x, m.y,
                 math.cos(ang) * spd, math.sin(ang) * spd,
-                life=random.uniform(1.4, 1.9),
+                life=random.uniform(3.5, 4.75),
             ))
         for _ in range(20):                       # soft
             ang = random.uniform(-math.pi + 0.05, -0.05)
@@ -2210,7 +2307,7 @@ class World:
             self.particles.append(FlyingCoinParticle(
                 m.x, m.y,
                 math.cos(ang) * spd, math.sin(ang) * spd,
-                life=random.uniform(1.0, 1.4),
+                life=random.uniform(2.5, 3.5),
             ))
 
         # Sparkle aura — 60 additive particles, the biggest burst in the
@@ -2240,14 +2337,17 @@ class World:
         # mid-height bracketing the chest + 2 finale bursts behind the
         # chest. Stagger ignite delays so the bursts pop in sequence,
         # not all at once.
+        # Restaggered across the new ~2.5 s "active hold" window so
+        # bursts keep popping during the banner hold instead of all
+        # clumping at the start.
         burst_specs = [
             (W * 0.30,  80.0,  0.05),    # upper-left, snap-ignite
-            (W * 0.70,  90.0,  0.15),    # upper-right
-            (W * 0.50,  60.0,  0.30),    # top-centre behind banner
-            (W * 0.20, 180.0,  0.50),    # mid-left
-            (W * 0.80, 170.0,  0.65),    # mid-right
-            (W * 0.40, 220.0,  0.85),    # finale-1, around the chest
-            (W * 0.60, 200.0,  1.00),    # finale-2
+            (W * 0.70,  90.0,  0.35),    # upper-right
+            (W * 0.50,  60.0,  0.70),    # top-centre behind banner
+            (W * 0.20, 180.0,  1.15),    # mid-left
+            (W * 0.80, 170.0,  1.55),    # mid-right
+            (W * 0.40, 220.0,  2.00),    # finale-1, around the chest
+            (W * 0.60, 200.0,  2.50),    # finale-2
         ]
         palette = CelebrationFireworkBurst.PALETTE
         for i, (fx, fy, delay) in enumerate(burst_specs):
@@ -2277,7 +2377,7 @@ class World:
             self.particles.append(CelebrationConfetti(
                 m.x + ox, m.y + oy, vx, vy,
                 random.choice(CelebrationConfetti.COLOURS),
-                life=random.uniform(1.4, 2.0),
+                life=random.uniform(3.5, 5.0),
                 spin=random.uniform(-6.0, 6.0),
             ))
 
@@ -2304,7 +2404,7 @@ class World:
 
         self.float_texts.append(FloatText(
             f"+{grant}!", m.x, m.y - 30, UI_GOLD,
-            size=44, life=2.0, vy=-30, style="powerup",
+            size=44, life=5.0, vy=-30, style="powerup",
         ))
 
         # Schedule the second wave: 40 more coins fired from the chest
@@ -2312,7 +2412,7 @@ class World:
         # tail). Snapshot position now so the wave fires from where the
         # chest WAS even if its sprite has scrolled left a touch by
         # then. Wave coins ride the world scroll the same way.
-        self._treasure_second_wave_t = 0.30
+        self._treasure_second_wave_t = 0.80
         self._treasure_second_wave_pos = (m.x, m.y)
 
         audio.play_treasure_pickup()
@@ -2320,10 +2420,15 @@ class World:
     def _flanking_pillars(self, x: float):
         """Return (left, right) pipes — the closest pipe whose centre is
         left of x and the closest whose centre is right of x. Either
-        may be None if x sits beyond the spawned-pipe range."""
+        may be None if x sits beyond the spawned-pipe range. Phantoms
+        skipped so the cycle-finale festoon hangs from the REAL pillars
+        bordering the open 5-pillar gap, not from two invisible phantoms
+        mid-span."""
         left = None
         right = None
         for p in self.pipes:
+            if p.is_phantom:
+                continue
             cx = p.x + PIPE_W * 0.5
             if cx < x:
                 if left is None or cx > left.x + PIPE_W * 0.5:
@@ -2349,7 +2454,7 @@ class World:
             self.particles.append(FlyingCoinParticle(
                 sx, sy,
                 math.cos(ang) * spd + scroll_vx, math.sin(ang) * spd,
-                life=random.uniform(1.2, 1.8),
+                life=random.uniform(3.0, 4.5),
             ))
 
     def _spawn_poof(self, x, y):

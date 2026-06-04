@@ -24,8 +24,8 @@ import pygame
 
 
 # ── Footprint + supersample ─────────────────────────────────────────────────
-PICKUP_W = 144
-PICKUP_H = 118
+PICKUP_W = 100
+PICKUP_H = 82
 SS = 7
 
 # ── Palette (verbatim copies of the design-tool constants) ──────────────────

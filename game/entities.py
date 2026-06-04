@@ -1177,6 +1177,12 @@ class Pipe:
         self.gap_h = gap_h
         self.scored = False
         self.is_rush = False
+        # Cycle-finale phantom: a non-drawn, non-colliding, non-scoring
+        # placeholder. The 5-pillar finale span uses these to consume the
+        # right slice of biome time + scroll cadence while leaving the sky
+        # completely open for the long coin rush + centred treasure chest.
+        # See World._spawn_pipe + World._spawn_finale_long_rush_coins.
+        self.is_phantom = False
         # Per-pipe sticky flag: set at spawn (if KFC was active when this pipe
         # was created) or retroactively when the powerup is picked up. Once
         # True it stays True for the rest of the pipe's life and gates the
@@ -1215,10 +1221,14 @@ class Pipe:
         return self.x + PIPE_W + 8 < 0
 
     def collides_circle(self, cx, cy, r):
+        if self.is_phantom:
+            return False
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
     def draw(self, surf, palette=None, kfc_visual=False):
+        if self.is_phantom:
+            return
         palette = palette or _DEFAULT_PILLAR
         if self.is_kfc and kfc_visual:
             if self._kfc_cache is None:
@@ -3565,11 +3575,13 @@ class TreasureBanner:
     with per-frame alpha + position so a fresh banner per cycle-finale
     costs one draw call per frame, not a re-render."""
 
-    LIFE_MAX     = 1.4
+    LIFE_MAX     = 3.50
     DROP_IN_END  = 0.10       # cubic ease-out drop-in
     BOUNCE_END   = 0.18       # tiny overshoot then settle
-    HOLD_END     = 1.10       # static hold (subtle sway)
-    FADE_END     = 1.40       # alpha to zero + float up
+    HOLD_END     = 3.05       # static hold (subtle sway) — extended from
+                              # 0.92 s to 2.87 s so the cycle-finale beat
+                              # reads as a once-per-day celebration.
+    FADE_END     = 3.50       # alpha to zero + float up
 
     BANNER_W = 340
     BANNER_H = 78
@@ -3910,10 +3922,10 @@ class CelebrationGarland:
     scroll left. Same 1.4 s lifetime envelope as the banner so they
     fade together. Spawned from World._activate_treasure_box."""
 
-    LIFE_MAX     = 1.4
+    LIFE_MAX     = 3.50
     DROP_IN_END  = 0.10
-    HOLD_END     = 1.10
-    FADE_END     = 1.40
+    HOLD_END     = 3.05
+    FADE_END     = 3.50
 
     N_BULBS      = 8
     DROOP        = 32          # catenary sag — kept shallow so bulbs
@@ -4030,8 +4042,12 @@ class CelebrationFireworkBurst:
     flash). The expansion follows a soft cubic ease so the burst flares
     fast then drifts."""
 
-    LIFE_MAX = 1.0
-    EASE_END = 0.55          # expansion completes at this fraction of life
+    LIFE_MAX = 2.5
+    EASE_END = 0.22          # expansion completes at this fraction of life
+                             # (was 0.55 of a 1.0 s burst -> 0.55 s; keep
+                             # the absolute expansion at ~0.55 s on the
+                             # longer 2.5 s lifetime so the burst still
+                             # flares quickly before holding its peak)
     RADIUS_MAX = 95
     N_RAYS = 16
     PALETTE = (
