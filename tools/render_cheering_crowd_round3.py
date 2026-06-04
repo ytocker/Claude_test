@@ -1,20 +1,18 @@
 """Cycle-finale cheering crowd — Round 3 FINAL polish on R2-1.
 
-Three surgical fixes folded into the round-2 leader (R2-1 Mixed band):
+Single 360×200 cell rendered on the real grass+soil ground band with the
+live ``CelebrationGroundMarker`` (``1 Day``) so the polish reads against
+the production scene. Three surgical fixes vs round 2:
 
-  1. Left-side flag pole nudged 2 px LEFT so its silhouette is clear of
-     the leftmost parrot's head at 1x scale.
-  2. Megaphone bell gets a 1-px CREAM lip-curl highlight so the cone
-     opening reads as a funnel, not a red blob.
-  3. Right-side party-horn parrot's jump apex lifted from 4 -> 7 px so
-     the three jumping right-side parrots no longer share an apex line.
+  1. LEFT flag pole nudged -2 px so the silhouette no longer kisses the
+     leftmost parrot's head crown.
+  2. RIGHT megaphone bell gets a 1-px CREAM rim highlight on the OUTER
+     cone edge — the cone now reads as a cone at 1×, not a blob.
+  3. RIGHT-side jump rhythm broken — the megaphone parrot's static lift
+     moves 0 → 3 px so the four right-side bob phases no longer split
+     into a 0/0 doublet (now 0 / 5 / 3 / 4).
 
-Nothing else changes — palette, head-tops, silhouettes, raised-arm
-posing, and crowd composition are already shipped from round 2.
-
-Output: docs/treasure_box/cheering_crowd_round3_final.png — one cell at
-native size (~360 x 200) on the real grass+soil band with the actual
-``CelebrationGroundMarker`` "1 Day" sprite.
+Output: docs/treasure_box/cheering_crowd_round3_final.png
 """
 from __future__ import annotations
 
@@ -34,32 +32,27 @@ sys.path.insert(0, REPO_ROOT)
 pygame.init()
 pygame.display.set_mode((1, 1))
 
-from game.config import GROUND_Y, H, W
+from game.config import GROUND_Y, H
 from game.draw import draw_ground, GROUND_TOP, GROUND_MID, GROUND_BOT
 from game.entities import CelebrationBunting, CelebrationGroundMarker
 
 # Bunting family — match CelebrationBunting.COLOURS verbatim so the crowd
-# lives inside the cycle-finale colour story rather than next to it.
-GOLD  = CelebrationBunting.COLOURS[0]   # (255, 220, 110)
-RED   = CelebrationBunting.COLOURS[1]   # (220,  64,  32)
-BLUE  = CelebrationBunting.COLOURS[2]   # ( 96, 176, 232)
-CREAM = CelebrationBunting.COLOURS[3]   # (252, 244, 218)
-INK   = CelebrationBunting.INK          # ( 30,  20,   8)
+# stays inside the cycle-finale colour story.
+GOLD  = CelebrationBunting.COLOURS[0]
+RED   = CelebrationBunting.COLOURS[1]
+BLUE  = CelebrationBunting.COLOURS[2]
+CREAM = CelebrationBunting.COLOURS[3]
+INK   = CelebrationBunting.INK
 
 CELL_W = 360
 CELL_H = 200
 
-# Sky — day-palette wrap colours pulled from the round-2 sheet for
-# continuity between rounds in the gallery.
 SKY_TOP = (90, 170, 230)
 SKY_MID = (140, 200, 240)
 SKY_BOT = (190, 230, 250)
 
-# Cell-local ground band; same 45-px band as the live world.
 CELL_GROUND_Y = GROUND_Y - (H - CELL_H)
 
-
-# ── colour helpers ─────────────────────────────────────────────────────────
 
 def _shade(col, d):
     return (
@@ -69,11 +62,7 @@ def _shade(col, d):
     )
 
 
-# ── ground + finish-line marker ────────────────────────────────────────────
-
 def _draw_sky(surf: pygame.Surface, cell_h: int) -> None:
-    """Vertical gradient confined to the cell — believable horizon behind
-    each parrot so silhouettes are read against the real game tone."""
     for y in range(cell_h):
         t = y / max(1, cell_h - 1)
         if t < 0.5:
@@ -107,9 +96,8 @@ def _draw_finish_marker(surf: pygame.Surface, stripe_x: int) -> None:
 
 
 # ── instrument primitives ──────────────────────────────────────────────────
-# Carried over verbatim from round 2 — except `_draw_megaphone`, which
-# gets a 1-px CREAM lip-curl on the bell so the cone shape registers at
-# 1x rather than smearing into a red blob (R3 fix #2).
+# All verbatim from round 2 except _draw_megaphone, which now carries the
+# round-3 cream rim highlight so the cone silhouette reads at 1×.
 
 def _draw_pompom(surf, cx, cy, fluff=GOLD, accent=RED):
     spikes = (
@@ -154,13 +142,9 @@ def _draw_drum(surf, cx, cy, shell=RED, rim=CREAM, stick=INK):
 
 
 def _draw_megaphone(surf, x, y, body=RED, mouth=CREAM):
-    """Megaphone pointed up-and-right.
-
-    R3 fix #2: a 1-px CREAM highlight runs along the bell's outer rim
-    (the open mouth lip) and a single CREAM pixel sits inside the bell
-    mouth so the funnel reads as a cone — not as a red rectangle — at
-    1x scale during the ~5-second scroll window.
-    """
+    """Megaphone pointed up-and-right. The round-3 fix is a 1-px CREAM
+    highlight along the upper outer cone edge plus a CREAM pixel on the
+    bell rim corner, so the funnel reads as a cone at 1×."""
     pts = [
         (x, y),
         (x + 11, y - 8),
@@ -169,15 +153,16 @@ def _draw_megaphone(surf, x, y, body=RED, mouth=CREAM):
     ]
     pygame.draw.polygon(surf, body, pts)
     pygame.draw.polygon(surf, INK, pts, 1)
-    # Bell lip — CREAM along the open-mouth edge so the cone OPENING
-    # reads as a hole rather than a flat polygon vertex.
+    # Round-3 fix: cream rim highlight on the OUTER cone edge — runs from
+    # throat to bell so the cone slope is visible against the red body.
+    pygame.draw.line(surf, mouth, (x + 1, y - 1), (x + 11, y - 8), 1)
+    # Mouthpiece (CREAM) — the inner colour ring at the open end (existing).
     pygame.draw.line(surf, mouth, (x + 11, y - 8), (x + 13, y - 4), 2)
-    # 1-px CREAM rim-curl along the TOP edge of the bell — the cue that
-    # tells the eye "this widens out into a funnel".
-    pygame.draw.line(surf, CREAM, (x + 9, y - 8), (x + 11, y - 8), 1)
-    # 1-px CREAM dot inside the bell mouth — the "hole" of the cone.
-    surf.set_at((x + 12, y - 6), CREAM)
-    # Grip stripe across the throat — hand-anchor cue.
+    # Single-pixel CREAM dot on the outer bell corner — the bell-edge
+    # specular that makes the cone shape pop at 1× zoom.
+    if 0 <= x + 12 < surf.get_width() and 0 <= y - 7 < surf.get_height():
+        surf.set_at((x + 12, y - 7), mouth)
+    # Grip stripe across the throat — hand-anchor cue (existing).
     pygame.draw.line(surf, _shade(body, -55), (x + 2, y), (x + 7, y - 4), 1)
 
 
@@ -219,7 +204,7 @@ def _draw_party_horn(surf, x, y, body=GOLD, tip=RED, streamer=CREAM):
     pygame.draw.circle(surf, streamer, (x + 16, y - 7), 1)
 
 
-# ── parrot figure (verbatim from round 2) ──────────────────────────────────
+# ── parrot figure (verbatim R2) ─────────────────────────────────────────────
 
 PLUMAGE = (
     (RED,   CREAM, GOLD,  GOLD),
@@ -235,7 +220,6 @@ PLUMAGE = (
 
 def _parrot(surf, x, ground_y, plumage_idx=0, jump=0, pose="raise",
             instrument=None, mirror=False):
-    """Round-bodied macaw, Pip cousin. ~22 px wide × 28 px tall."""
     body, belly, wing_accent, beak = PLUMAGE[plumage_idx % len(PLUMAGE)]
     feet_y = ground_y - 1 - jump
 
@@ -315,7 +299,7 @@ def _parrot(surf, x, ground_y, plumage_idx=0, jump=0, pose="raise",
                          (near_x + near_dir, body_top - 4), 2)
         if instrument:
             instrument(surf, near_x + near_dir * 4, body_top - 5)
-    else:  # "wave"
+    else:
         pygame.draw.polygon(surf, _shade(body, -25), [
             (far_x, body_top + 4),
             (far_x + (-near_dir) * 5, body_top + 2),
@@ -335,29 +319,27 @@ def _parrot(surf, x, ground_y, plumage_idx=0, jump=0, pose="raise",
             instrument(surf, near_x + near_dir * 4, body_top - 6)
 
 
-# ── R2-1 composition with the three R3 fixes ──────────────────────────────
+# ── R2-1 composition with the three round-3 surgical fixes ─────────────────
 
+def draw_r3_final(surf, stripe_x):
+    """R2-1 layout — mixed band, 7 parrots, 3 LEFT / 4 RIGHT — with the
+    three round-3 surgical fixes:
 
-def draw_variant_final(surf, stripe_x):
-    """R2-1 Mixed band, polished.
-
-    Per-fix deltas vs round 2:
-      - Leftmost LEFT parrot's flag: x_base -= 2 (clears the head).
-      - Megaphone now carries a CREAM rim-curl on the bell (added inside
-        ``_draw_megaphone`` itself).
-      - Right-side party-horn parrot's jump 4 -> 7 so its apex no longer
-        matches the trumpet parrot's apex.
+      FIX 1 (leftmost flag): pass ``hx - 2`` to ``_draw_flag`` so the
+        pole moves 2 px LEFT off the parrot head silhouette.
+      FIX 2 (right megaphone): handled inside ``_draw_megaphone`` —
+        cream rim highlight on the outer cone edge plus 1-px bell-corner
+        dot so the cone reads as a cone at 1×.
+      FIX 3 (right-side jump rhythm): megaphone-parrot jump 0 → 3 so the
+        right-side stack reads as 0 / 5 / 3 / 4 instead of clustering two
+        figures at jump=0.
     """
     gy = CELL_GROUND_Y + 4
 
-    # LEFT side (3) — flag · pom · drum
-    _parrot(
-        surf, stripe_x - 130, gy, 0, jump=4, pose="raise", mirror=True,
-        # R3 fix #1: nudge the flag pole 2 px LEFT so the silhouette gap
-        # to the parrot's head is clean at 1x.
-        instrument=lambda s, hx, hy: _draw_flag(
-            s, hx - 2, hy + 6, pole_h=20, banner=GOLD),
-    )
+    # LEFT side (3) — flag · pom · drum.
+    _parrot(surf, stripe_x - 130, gy, 0, jump=4, pose="raise", mirror=True,
+            instrument=lambda s, hx, hy: _draw_flag(s, hx - 2, hy + 6,
+                                                    pole_h=20, banner=GOLD))
     _parrot(surf, stripe_x - 95, gy, 5, jump=0, pose="wave", mirror=True,
             instrument=lambda s, hx, hy: _draw_pompom(s, hx - 1, hy - 1,
                                                        GOLD, RED))
@@ -365,36 +347,28 @@ def draw_variant_final(surf, stripe_x):
             instrument=lambda s, hx, hy: _draw_drum(s, hx + 4, hy + 12,
                                                     RED, CREAM))
 
-    # RIGHT side (4) — tambourine · trumpet · megaphone · party-horn
+    # RIGHT side (4) — tambourine · trumpet · megaphone · party-horn.
     _parrot(surf, stripe_x + 24, gy, 1, jump=0, pose="raise",
             instrument=lambda s, hx, hy: _draw_tambourine(s, hx + 2, hy - 1,
                                                           CREAM, GOLD))
     _parrot(surf, stripe_x + 60, gy, 6, jump=5, pose="raise",
             instrument=lambda s, hx, hy: _draw_trumpet(s, hx, hy, GOLD))
-    _parrot(surf, stripe_x + 100, gy, 3, jump=0, pose="wave",
+    _parrot(surf, stripe_x + 100, gy, 3, jump=3, pose="wave",
             instrument=lambda s, hx, hy: _draw_megaphone(s, hx, hy + 2,
                                                          RED, CREAM))
-    # R3 fix #3: party-horn jump bumped 4 -> 7 so its apex sits clearly
-    # above the trumpet's, breaking the uniform-rhythm look.
-    _parrot(surf, stripe_x + 140, gy, 7, jump=7, pose="raise",
+    _parrot(surf, stripe_x + 140, gy, 7, jump=4, pose="raise",
             instrument=lambda s, hx, hy: _draw_party_horn(s, hx, hy, GOLD,
                                                           RED, CREAM))
 
 
-def _make_cell(stripe_x=200) -> pygame.Surface:
+def main():
     cell = pygame.Surface((CELL_W, CELL_H))
     _draw_sky(cell, CELL_H)
     _draw_cell_ground(cell)
-    # Crowd FIRST so the white finish stripe + label paint above them —
-    # same draw order the world uses.
-    draw_variant_final(cell, stripe_x)
-    _draw_finish_marker(cell, stripe_x)
+    draw_r3_final(cell, stripe_x=200)
+    _draw_finish_marker(cell, 200)
     pygame.draw.rect(cell, (40, 30, 20), cell.get_rect(), 1)
-    return cell
 
-
-def main():
-    cell = _make_cell()
     out_path = os.path.join(
         REPO_ROOT, "docs", "treasure_box", "cheering_crowd_round3_final.png")
     pygame.image.save(cell, out_path)
