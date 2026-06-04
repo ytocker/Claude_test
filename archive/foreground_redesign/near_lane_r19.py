@@ -108,13 +108,39 @@ def _near_xs(scroll, w, period, x0, margin=80):
 # halo since they aren't r15 lamp heads. Reuse the promenade's cached warm-glow +
 # the 150 cap + the dusk->night intensity so a near light can never rival the coin.
 
+# Performer SOLID highlights (lion sclera, drum heads, lit cores) are not glow
+# blits — they're opaque pixels that out-shone the coin when left near-white. This
+# pulls any such highlight to <= NIGHT_GLOW_CAP *luma* (not per-channel) at night
+# while keeping a warm/ivory hue, so the brightest near-life pixel stays under the
+# coin yet still reads as a lit accent rather than flat grey.
+
+def _cap_lum(color, pal, *, cap=NIGHT_GLOW_CAP, warm=True):
+    # The cap is set BELOW NIGHT_GLOW_CAP so that when a capped highlight also takes
+    # the performer's additive warm halo on top, the summed pixel still lands under
+    # the ceiling and the coin stays the single brightest object.
+    cap = min(cap, 138)
+    if not _is_dark(pal):
+        return color
+    r, g, b = color
+    if warm:
+        # An ivory/amber target so a capped highlight reads warm, never blue-white.
+        r, g, b = min(r, 150), min(g, 134), min(b, 112)
+    lum = 0.2126 * r + 0.7152 * g + 0.1145 * b
+    if lum > cap and lum > 0:
+        f = cap / lum
+        r, g, b = int(r * f), int(g * f), int(b * f)
+    return (r, g, b)
+
+
 def _near_glow(surf, cx, cy, pal, *, radius=12, color=(255, 170, 110)):
     if not _is_dark(pal):
         return
     s = _lit_intensity(pal)
     if s <= 0.02:
         return
-    peak = int(sp._GLOW_PEAK * 1.0 * s)
+    # A touch below the promenade peak so the bloom CORE (its centre add summed onto
+    # the lit prop beneath) still lands under the cap and the coin stays brightest.
+    peak = int(sp._GLOW_PEAK * 0.46 * s)
     if peak <= 1:
         return
     g = sp._warm_glow(radius, _cap150(color), peak)
@@ -148,6 +174,10 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, 
         cast_fn(scratch, _SCRATCH_W // 2, pal, t=t, **kw)
     finally:
         pr.GROUND_Y = saved
+    # A LARGE near figure shouldn't pull focus from the parrot: knock its brightest
+    # fabric (the r17 cast's near-white ~248) down ~6% so it sits below the actors.
+    # Subtle whole-figure multiply (sheep/balls draw separately and stay bright).
+    scratch.fill((240, 240, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
     sw = max(1, int(_SCRATCH_W * scale))
     sh = max(1, int(_SCRATCH_H * scale))
     big = pygame.transform.scale(scratch, (sw, sh))
@@ -217,7 +247,16 @@ def _near_vine_lantern(surf, sx, pal, *, feet_y=NEAR_GROUND_Y):
     pot = _mix((120, 84, 52), (70, 76, 96), 0.32 * night)
     pygame.draw.rect(surf, _shade(pot, -18), (sx - 7, by - 11, 14, 11))
     pygame.draw.rect(surf, pot, (sx - 6, by - 11, 12, 9))
-    draw_cascading_vine(surf, sx, by - 12, 16, _fol(pal, night))
+    if _is_dark(pal):
+        # draw_cascading_vine paints a hardcoded (255,180,120) leaf-tip highlight
+        # that out-spiked the night cap. Render it on a scratch and knock its
+        # brightness down so no decor leaf rivals the coin at night.
+        sc = pygame.Surface((40, 36), pygame.SRCALPHA)
+        draw_cascading_vine(sc, 20, 4, 16, _fol(pal, night))
+        sc.fill((150, 150, 150, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(sc, (sx - 20, by - 16))
+    else:
+        draw_cascading_vine(surf, sx, by - 12, 16, _fol(pal, night))
 
 
 def _near_brazier(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, t=0.0):
@@ -232,7 +271,8 @@ def _near_brazier(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, t=0.0):
     pygame.draw.ellipse(surf, bowl, (sx - 8, by - 12, 16, 9))
     pygame.draw.ellipse(surf, _shade(bowl, -30), (sx - 6, by - 11, 12, 4))
     if _is_dark(pal):
-        ember = _cap150((180, 90, 50))
+        # Ember core kept low (cap_lum) so the additive halo over it never spikes.
+        ember = _cap_lum((150, 78, 46), pal)
         pygame.draw.ellipse(surf, ember, (sx - 4, by - 11, 8, 3))
         _near_glow(surf, sx, by - 10, pal, radius=9, color=(255, 150, 90))
     draw_incense_smoke(surf, sx, by - 12, length=18)
@@ -305,14 +345,61 @@ def _watch_arc(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
                  seated_bench=False, feet_y=feet_y)
 
 
+def _seated_spectator(surf, x, feet_y, robe, robe_dk, hair, pal):
+    """A small spectator SEATED on the deck (knees forward), used to give a gathered
+    crowd a couple of LOWER figures so it reads 'an audience sat watching the act'
+    rather than people walking past."""
+    night = _nightf(pal)
+    skin = pr._retint_person((232, 192, 150), night)
+    seat_y = feet_y - 2
+    # Folded legs as a low wedge on the deck.
+    pygame.draw.polygon(surf, _shade(robe_dk, -10), [
+        (x - 6, seat_y), (x + 6, seat_y), (x + 4, seat_y - 4), (x - 4, seat_y - 4)])
+    # Compact torso + head, sitting low.
+    pygame.draw.rect(surf, robe, (x - 4, seat_y - 12, 8, 9))
+    pygame.draw.rect(surf, robe_dk, (x - 4, seat_y - 12, 8, 9), 1)
+    pygame.draw.circle(surf, skin, (x, seat_y - 15), 3)
+    pygame.draw.arc(surf, hair, (x - 3, seat_y - 19, 7, 7),
+                    math.radians(0), math.radians(180), 2)
+
+
+def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
+    """A TIGHT, performer-FACING audience clustered to the LEFT of the act (so all
+    heads turn toward the performer on the right). The differentiator from the
+    day/dusk foot traffic is the CLUSTERING + uniform facing + a couple of LOWER
+    seated figures. Built from scaled r17 cast + two seated spectators."""
+    night = _nightf(pal)
+    rb = pr._retint_person((120, 110, 150), night)
+    rb_dk = pr._retint_person((78, 72, 108), night)
+    hr = pr._retint_person((58, 46, 42), night)
+    # Back row: standing figures packed close, all on the performer's left, so the
+    # group leans/looks toward the act rather than spreading symmetrically.
+    _scaled_cast(surf, pr.draw_kids, sx - 40, pal, 1.5, t=t, n=2, feet_y=feet_y)
+    _scaled_cast(surf, pr.draw_old_man, sx - 22, pal, 1.55, t=t,
+                 seated_bench=False, feet_y=feet_y)
+    _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y)
+    # Front row: two LOWER seated spectators close in, reading as the near edge of
+    # a gathered audience facing the performer.
+    _seated_spectator(surf, sx - 30, feet_y, rb, rb_dk, hr, pal)
+    _seated_spectator(surf, sx - 14,
+                      feet_y, pr._retint_person((150, 90, 80), night),
+                      pr._retint_person((100, 56, 50), night), hr, pal)
+
+
 def perf_juggler(surf, sx, pal, t):
     """DAY · a casual daytime BUSKER / juggler — a single performer tossing three
-    balls in a small arc. Low-key morning act; no crowd, no glow."""
+    balls in a small arc, with 1-2 near onlookers half-facing him so it reads
+    'busking', not a lone figure. Low-key morning act; no crowd, no glow."""
     night = _nightf(pal)
     robe = pr._retint_person((196, 92, 70), night)     # warm terracotta tunic
     robe_dk = pr._retint_person((150, 60, 52), night)
     hair = pr._retint_person((70, 50, 40), night)
     feet = NEAR_GROUND_Y
+    # A couple of onlookers stand to the RIGHT, half-facing the juggler, so the act
+    # reads as busking. Kept tight beside him, clear of the gameplay lanes.
+    _scaled_cast(surf, pr.draw_old_man, sx + 30, pal, 1.45, t=t,
+                 seated_bench=False, feet_y=feet)
+    _scaled_cast(surf, pr.draw_kids, sx + 46, pal, 1.4, t=t, n=2, feet_y=feet)
     hx, hy = _perf_body(surf, sx, feet, robe, robe_dk, hair, pal,
                         h=20, w=9, arms='juggle', arm_t=t * 3.0)
     # Three balls on a small juggling cascade above the hands.
@@ -327,26 +414,46 @@ def perf_juggler(surf, sx, pal, t):
 
 
 def perf_musician(surf, sx, pal, t):
-    """GOLDEN HOUR · a street MUSICIAN with a drum, gathering a small watching arc.
-    A seated/standing drummer + a barrel drum; the crowd head-bobs around him."""
+    """GOLDEN HOUR · a street MUSICIAN pulled INTO the near lane (forward + larger),
+    SEATED behind a visible barrel drum, with a TIGHT performer-FACING crowd
+    gathered to his left. The clustering + uniform facing distinguishes this act
+    from the day/dusk foot traffic."""
     night = _nightf(pal)
     robe = pr._retint_person((90, 110, 160), night)    # indigo musician robe
     robe_dk = pr._retint_person((58, 74, 116), night)
     hair = pr._retint_person((60, 45, 40), night)
     feet = NEAR_GROUND_Y
-    # Watching arc first (behind), then the drum, then the musician in front.
-    _watch_arc(surf, sx, pal, t, feet_y=feet)
-    # A barrel drum on the deck before him.
-    dx = sx - 13
-    dy = feet
+    # The gathered audience (behind), clustered on the performer's left + facing in.
+    _gathered_crowd(surf, sx, pal, t, feet_y=feet)
+    # A SEATED musician (lower torso, knees forward) on the deck behind a big drum.
+    skin = pr._retint_person((232, 192, 150), night)
+    seat_y = feet - 2
+    pygame.draw.polygon(surf, _shade(robe_dk, -10), [
+        (sx + 2, seat_y), (sx + 14, seat_y), (sx + 12, seat_y - 5), (sx + 4, seat_y - 5)])
+    pygame.draw.rect(surf, robe, (sx + 3, seat_y - 16, 9, 12))
+    pygame.draw.rect(surf, robe_dk, (sx + 3, seat_y - 16, 9, 12), 1)
+    hx, hy = sx + 7, seat_y - 19
+    pygame.draw.circle(surf, skin, (hx, hy), 4)
+    pygame.draw.arc(surf, hair, (hx - 4, hy - 5, 9, 9),
+                    math.radians(0), math.radians(180), 3)
+    # A LARGER barrel drum/gong stood on the deck in front of the seated musician.
+    dx, dy = sx - 4, feet
     drum = _mix((150, 60, 45), (70, 70, 96), 0.30 * night)
-    pygame.draw.ellipse(surf, _shade(drum, -22), (dx - 9, dy - 16, 18, 16))
-    pygame.draw.ellipse(surf, drum, (dx - 8, dy - 16, 16, 14))
-    head_col = _mix((225, 205, 170), (70, 76, 100), 0.32 * night)
-    pygame.draw.ellipse(surf, head_col, (dx - 7, dy - 16, 14, 5))
-    pygame.draw.ellipse(surf, _shade(head_col, -24), (dx - 7, dy - 16, 14, 5), 1)
-    _perf_body(surf, sx + 4, feet, robe, robe_dk, hair, pal,
-               h=20, w=9, arms='drum', arm_t=t * 4.5)
+    pygame.draw.ellipse(surf, _shade(drum, -24), (dx - 11, dy - 20, 22, 20))
+    pygame.draw.ellipse(surf, drum, (dx - 10, dy - 19, 20, 18))
+    head_col = _cap_lum((205, 182, 145), pal)
+    pygame.draw.ellipse(surf, head_col, (dx - 9, dy - 19, 18, 6))
+    pygame.draw.ellipse(surf, _shade(head_col, -26), (dx - 9, dy - 19, 18, 6), 1)
+    tack = _cap_lum((180, 150, 90), pal)
+    for ti in range(-2, 3):
+        pygame.draw.circle(surf, tack, (dx + ti * 5, dy - 12), 1)
+    # His hands beat the near drum head (mid-swing).
+    for ph in (0.0, math.pi):
+        lift = int(max(0.0, math.sin(t * 4.5 + ph)) * 5)
+        hxh = dx + (4 if ph else -4)
+        pygame.draw.line(surf, robe, (sx + 5, seat_y - 12),
+                         (hxh, dy - 18 - lift), 2)
+    _near_glow(surf, dx, dy - 12, pal, radius=10, color=(255, 150, 90))
 
 
 def perf_stilt(surf, sx, pal, t):
@@ -384,86 +491,151 @@ def perf_lion_dance(surf, sx, pal, t):
     _scaled_cast(surf, pr.draw_old_man, sx + 48, pal, 1.55, t=t,
                  seated_bench=False, feet_y=feet)
 
-    # Drummer + drum to the right of the lion.
-    drx = sx + 30
+    # Drummer + drum to the right of the lion — an EXPLICIT round drum stood in
+    # FRONT of the elder with a stick caught mid-swing, so the lion dance's audio
+    # source is legible rather than a robed bystander.
+    drx = sx + 32
     robe = pr._retint_person((110, 60, 70), night)
     robe_dk = pr._retint_person((74, 40, 50), night)
     hair = pr._retint_person((50, 40, 38), night)
-    ddx, ddy = drx - 12, feet
-    drum = _mix((160, 55, 45), (70, 70, 96), 0.34 * night)
-    pygame.draw.ellipse(surf, _shade(drum, -24), (ddx - 10, ddy - 18, 20, 18))
-    pygame.draw.ellipse(surf, drum, (ddx - 9, ddy - 18, 18, 15))
-    dhead = _cap150((210, 150, 90)) if _is_dark(pal) else (225, 200, 160)
-    pygame.draw.ellipse(surf, dhead, (ddx - 8, ddy - 18, 16, 5))
-    _near_glow(surf, ddx, ddy - 14, pal, radius=11, color=(255, 150, 90))
-    _perf_body(surf, drx + 4, feet, robe, robe_dk, hair, pal,
+    _perf_body(surf, drx, feet, robe, robe_dk, hair, pal,
                h=21, w=9, arms='drum', arm_t=t * 6.0)
+    # The drum body sits on the deck in front of the drummer (round shell + heads).
+    ddx, ddy = drx - 10, feet - 1
+    shell = _mix((160, 55, 45), (70, 70, 96), 0.34 * night)
+    pygame.draw.ellipse(surf, _shade(shell, -28), (ddx - 9, ddy - 17, 18, 17))
+    pygame.draw.ellipse(surf, shell, (ddx - 8, ddy - 16, 16, 15))
+    for hy in (ddy - 16, ddy - 3):
+        head = _cap_lum((200, 178, 140), pal)
+        pygame.draw.ellipse(surf, head, (ddx - 8, hy, 16, 5))
+        pygame.draw.ellipse(surf, _shade(shell, -34), (ddx - 8, hy, 16, 5), 1)
+    # Brass tacks around the rim — capped so they never spike over the cap.
+    tack = _cap_lum((180, 150, 90), pal)
+    for ti in range(-2, 3):
+        pygame.draw.circle(surf, tack, (ddx + ti * 4, ddy - 9), 1)
+    # A drumstick caught mid-swing above the near head.
+    stick = pr._retint_person((180, 140, 95), night)
+    swing = int(max(0.0, math.sin(t * 6.0)) * 6)
+    pygame.draw.line(surf, stick, (ddx + 4, ddy - 16),
+                     (ddx + 10, ddy - 20 - swing), 2)
+    _near_glow(surf, ddx, ddy - 9, pal, radius=11, color=(255, 150, 90))
 
-    # ── the LION (two dancers under a flowing body) ───────────────────────────
-    # Rear dancer's legs under a draped cloth body; front dancer holds the head.
+    # ── the LION DANCE (two dancers under a flowing body) ─────────────────────
+    # The silhouette must read as a Chinese temple lion, not a round mascot: a
+    # ridged horned head, a scalloped frilled mane, a gaping lip-lined mouth, and
+    # a long trailing cloth body with a SECOND pair of legs behind the front pair.
     bob = int(max(0.0, math.sin(t * 3.2)) * 3)        # the lion's bouncy lift
     body_y = feet - 16 - bob
-    # Flowing cloth body — a long undulating drape from the head back to the rear.
-    cloth = pr._retint_person((205, 70, 55), night)   # festive red
+    cloth = pr._retint_person((205, 70, 55), night)   # festive red drape
     cloth_dk = pr._retint_person((150, 45, 42), night)
-    trim = pr._retint_person((230, 195, 90), night)   # gold trim
-    bx0 = sx - 30                                      # tail end (behind head)
+    trim = _cap_lum((230, 195, 90), pal)              # gold hem (capped at night)
+    # The trailing cloth body runs from BEHIND (tail, left) up to the head (right);
+    # a long undulating drape so the two dancers clearly share one costume.
+    bx0 = sx - 36                                      # tail end (behind head)
     seg_pts = []
-    for i in range(7):
-        tt = i / 6.0
-        px = bx0 + int(tt * 30)
+    for i in range(8):
+        tt = i / 7.0
+        px = bx0 + int(tt * 36)
         wave = int(math.sin(t * 3.0 + tt * 4.0) * 3)
-        py = body_y + 6 + wave + int(tt * 4)
+        py = body_y + 7 + wave + int(tt * 3)
         seg_pts.append((px, py))
-    # Draped body as a thick polygon hugging the spine points + a hem.
-    top = [(p[0], p[1] - 6) for p in seg_pts]
-    bot = [(p[0], p[1] + 6) for p in reversed(seg_pts)]
+    top = [(p[0], p[1] - 7) for p in seg_pts]
+    bot = [(p[0], p[1] + 7) for p in reversed(seg_pts)]
     pygame.draw.polygon(surf, cloth_dk, top + bot)
-    pygame.draw.polygon(surf, cloth, [(p[0], p[1] - 4) for p in seg_pts] +
-                        [(p[0], p[1] + 4) for p in reversed(seg_pts)])
-    # Scalloped gold trim along the hem.
-    for px, py in seg_pts[::2]:
-        pygame.draw.circle(surf, trim, (px, py + 5), 1)
-    # Two pairs of dancer legs poking from under the cloth (front + rear dancer).
-    leg = pr._retint_person((60, 50, 60), night)
-    for lx, ph in ((sx - 24, 0.0), (sx - 18, math.pi), (sx + 2, 0.7), (sx + 8, math.pi + 0.7)):
+    pygame.draw.polygon(surf, cloth, [(p[0], p[1] - 5) for p in seg_pts] +
+                        [(p[0], p[1] + 5) for p in reversed(seg_pts)])
+    # A scalloped gold hem (a run of small arcs) so the drape reads "costume".
+    for px, py in seg_pts:
+        pygame.draw.circle(surf, trim, (px, py + 6), 2)
+        pygame.draw.circle(surf, _shade(trim, -30), (px, py + 6), 2, 1)
+    # A frilled tail tuft at the back end.
+    for fa in (-30, 0, 30):
+        fx = bx0 - 3 + int(math.cos(math.radians(fa)) * 5)
+        fy = seg_pts[0][1] + int(math.sin(math.radians(fa)) * 5)
+        pygame.draw.circle(surf, trim, (fx, fy), 2)
+    # TWO pairs of dancer legs from under the cloth: a REAR pair (back/left) and a
+    # FRONT pair (under the head), so it clearly reads "two people in one costume".
+    leg = pr._retint_person((58, 48, 58), night)
+    legpx = _cap_lum((150, 120, 70), pal)             # gold trouser cuffs (capped)
+    for lx, ph, back in ((sx - 26, 0.0, True), (sx - 20, math.pi, True),
+                         (sx + 6, 0.7, False), (sx + 12, math.pi + 0.7, False)):
         step = int(max(0.0, math.sin(t * 4.0 + ph)) * 3)
-        pygame.draw.line(surf, leg, (lx, feet - 8), (lx + (1 if step else -1), feet), 2)
+        fy = feet - (10 if back else 9)
+        pygame.draw.line(surf, leg, (lx, fy), (lx + (1 if step else -1), feet - 1), 3)
+        pygame.draw.line(surf, legpx, (lx, feet - 2), (lx + (1 if step else -1), feet), 3)
 
-    # The lion HEAD — a bulbous decorated dome held high at the front. Kept in a
-    # clear horizontal zone via the caller; here it crowns the front of the body.
-    head_cx = sx + 18
-    head_cy = body_y - 6 - bob
-    horn = pr._retint_person((235, 200, 90), night)
-    mane = pr._retint_person((215, 75, 55), night)
-    mane_dk = pr._retint_person((150, 48, 44), night)
-    face = pr._retint_person((245, 225, 200), night)
-    # Furry mane ring behind the face.
-    for ang in range(0, 360, 30):
-        mx = head_cx + int(math.cos(math.radians(ang)) * 11)
-        my = head_cy + int(math.sin(math.radians(ang)) * 10)
-        pygame.draw.circle(surf, mane_dk, (mx, my), 3)
-        pygame.draw.circle(surf, mane, (mx, my), 2)
-    # Big round head.
-    pygame.draw.circle(surf, _shade(face, -28), (head_cx, head_cy), 10)
-    pygame.draw.circle(surf, face, (head_cx, head_cy), 9)
-    # Brow ridge + two big googly eyes.
-    pygame.draw.arc(surf, mane_dk, (head_cx - 9, head_cy - 9, 18, 12),
-                    math.radians(200), math.radians(340), 2)
-    blink = 1 if (math.sin(t * 2.0) > -0.9) else 0
-    for ex in (-4, 4):
-        pygame.draw.circle(surf, (245, 245, 240), (head_cx + ex, head_cy - 2), 3)
-        if blink:
-            pygame.draw.circle(surf, (30, 25, 30), (head_cx + ex, head_cy - 2), 2)
-    # A golden horn crest + a red nose.
+    # ── the lion HEAD — a wide ridged horned mask with a scalloped frill mane and
+    # a gaping mouth, held high at the FRONT (right) of the body. ───────────────
+    head_cx = sx + 22
+    head_cy = body_y - 7 - bob
+    # Festival accents are routed through _cap_lum so even the bright gold/ivory
+    # mask never spikes a near-life pixel over the cap at night (warm bloom only).
+    horn = _cap_lum((235, 200, 90), pal)
+    horn_dk = _cap_lum((180, 145, 60), pal)
+    face = _cap_lum((225, 205, 170), pal)   # ivory mask, not white
+    face_dk = _cap_lum((175, 150, 120), pal)
+    green = _cap_lum((70, 150, 110), pal)
+    red = _cap_lum((210, 70, 60), pal)
+    gold = _cap_lum((230, 190, 90), pal)
+    # (b) the SCALLOPED MANE — an arc of small gold/green/red frill triangles
+    # ringing the face (front-facing half-ring, densest over the brow).
+    frill_cols = (gold, green, red)
+    for k, ang in enumerate(range(-150, 151, 22)):
+        rad = math.radians(ang)
+        mx = head_cx + int(math.cos(rad) * 13)
+        my = head_cy + int(math.sin(rad) * 12)
+        c = frill_cols[k % 3]
+        pygame.draw.polygon(surf, _shade(c, -28), [
+            (mx - 3, my + 2), (mx + 3, my + 2),
+            (mx + int(math.cos(rad) * 5), my + int(math.sin(rad) * 5))])
+        pygame.draw.polygon(surf, c, [
+            (mx - 2, my + 1), (mx + 2, my + 1),
+            (mx + int(math.cos(rad) * 4), my + int(math.sin(rad) * 4))])
+    # (a) a WIDER ridged head: a flat-topped dome wider than tall, with a raised
+    # brow bump, not a soft circle.
+    pygame.draw.ellipse(surf, face_dk, (head_cx - 12, head_cy - 9, 24, 19))
+    pygame.draw.ellipse(surf, face, (head_cx - 11, head_cy - 8, 22, 16))
+    # The brow ridge — a darker raised band across the upper face.
+    pygame.draw.arc(surf, face_dk, (head_cx - 11, head_cy - 9, 22, 14),
+                    math.radians(195), math.radians(345), 3)
+    # A central HORN/brow bump on top (gold, ridged).
+    pygame.draw.polygon(surf, horn_dk, [
+        (head_cx - 3, head_cy - 7), (head_cx + 3, head_cy - 7),
+        (head_cx + 1, head_cy - 16), (head_cx - 1, head_cy - 16)])
     pygame.draw.polygon(surf, horn, [
-        (head_cx, head_cy - 9), (head_cx - 3, head_cy - 14), (head_cx + 3, head_cy - 14)])
-    pygame.draw.circle(surf, pr._retint_person((220, 70, 60), night),
-                       (head_cx, head_cy + 4), 3)
-    # A tiny mouth line.
-    pygame.draw.arc(surf, mane_dk, (head_cx - 4, head_cy + 3, 9, 6),
-                    math.radians(20), math.radians(160), 1)
-    # A capped warm glow off the lit head at night so it reads festive, not flat.
+        (head_cx - 2, head_cy - 8), (head_cx + 2, head_cy - 8),
+        (head_cx, head_cy - 15)])
+    pygame.draw.circle(surf, horn, (head_cx, head_cy - 15), 2)
+    # Two side ear/horn nubs flanking the brow.
+    for ex in (-9, 9):
+        pygame.draw.circle(surf, gold, (head_cx + ex, head_cy - 6), 2)
+        pygame.draw.circle(surf, _shade(gold, -30), (head_cx + ex, head_cy - 6), 2, 1)
+    # The eyes — capped IVORY/amber sclera (never white) under a heavy brow, with a
+    # dark pupil so they read as carved festival-mask eyes.
+    eye = _cap_lum((150, 138, 112), pal)
+    for ex in (-5, 5):
+        pygame.draw.circle(surf, _shade(eye, -34), (head_cx + ex, head_cy - 2), 3)
+        pygame.draw.circle(surf, eye, (head_cx + ex, head_cy - 2), 2)
+        pygame.draw.circle(surf, (28, 22, 26), (head_cx + ex, head_cy - 1), 1)
+    # (c) a GAPING MOUTH — a dark notch with a red/gold lip line; the jaw bounces a
+    # touch with the bob so it reads "snapping".
+    jaw = 2 + int(max(0.0, math.sin(t * 3.2 + 0.5)) * 2)
+    pygame.draw.polygon(surf, (26, 18, 22), [
+        (head_cx - 8, head_cy + 4), (head_cx + 8, head_cy + 4),
+        (head_cx + 6, head_cy + 6 + jaw), (head_cx - 6, head_cy + 6 + jaw)])
+    pygame.draw.line(surf, red, (head_cx - 8, head_cy + 4),
+                     (head_cx + 8, head_cy + 4), 2)
+    pygame.draw.line(surf, gold, (head_cx - 6, head_cy + 6 + jaw),
+                     (head_cx + 6, head_cy + 6 + jaw), 1)
+    # Two small ivory fangs at the lip.
+    fang = _cap_lum((160, 150, 130), pal)
+    for fx in (-4, 4):
+        pygame.draw.polygon(surf, fang, [
+            (head_cx + fx - 1, head_cy + 4), (head_cx + fx + 1, head_cy + 4),
+            (head_cx + fx, head_cy + 6)])
+    # A red nose bridge above the mouth.
+    pygame.draw.circle(surf, red, (head_cx, head_cy + 2), 2)
+    # A capped warm glow off the lit mask at night so it reads festive, not flat.
     _near_glow(surf, head_cx, head_cy, pal, radius=14, color=(255, 160, 100))
 
 
@@ -477,9 +649,21 @@ def _near_banner(surf, sx, pal, *, feet_y=NEAR_GROUND_Y):
     banner = _mix((190, 60, 50), (70, 64, 96), 0.30 * night)
     draw_darchog_pole(surf, sx, feet_y, 40, banner)
     if _is_dark(pal):
-        draw_paper_lantern(surf, sx, feet_y - 44, strand=4, scale=0.7, color='red')
-        # Re-cap the lantern's own (uncapped) glow by overpainting a capped halo.
-        _near_glow(surf, sx, feet_y - 36, pal, radius=10, color=(255, 150, 100))
+        # draw_darchog_pole tops the pole with an uncapped gold finial (220,180,60)
+        # that spiked over the night cap; overpaint it capped at night.
+        pygame.draw.circle(surf, _cap_lum((210, 175, 90), pal), (sx, feet_y - 40), 2)
+        # A small paper lantern hung at the pole top, drawn from scratch with a
+        # CAPPED warm shell so its core never out-shines the coin (the game helper
+        # paints an uncapped near-white core + bright body that spiked the cap).
+        lcy = feet_y - 40
+        shell = _cap_lum((150, 70, 60), pal)
+        shell_lt = _cap_lum((150, 96, 80), pal)
+        pygame.draw.line(surf, (40, 30, 25), (sx, lcy), (sx, lcy + 3), 1)
+        pygame.draw.ellipse(surf, shell, (sx - 4, lcy + 3, 8, 11))
+        pygame.draw.ellipse(surf, shell_lt, (sx - 3, lcy + 4, 6, 9))
+        pygame.draw.rect(surf, (50, 34, 26), (sx - 3, lcy + 3, 6, 2))
+        pygame.draw.rect(surf, (50, 34, 26), (sx - 3, lcy + 12, 6, 2))
+        _near_glow(surf, sx, lcy + 8, pal, radius=10, color=(255, 150, 100))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -519,8 +703,9 @@ def phase_day(surf, w, gy, h, scroll, pal, t):
     performance is a casual BUSKER / juggler in a clear mid-left zone. No glow."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
-    # The juggler busks in the open near-left zone (clear of the lanes' centres).
-    perf_juggler(surf, 36, pal, t)
+    # The juggler busks in the open near-left zone, nudged IN from the cell edge
+    # so the ball arc doesn't crowd the border (clear of the lanes' centres).
+    perf_juggler(surf, 44, pal, t)
 
 
 def phase_golden(surf, w, gy, h, scroll, pal, t):
