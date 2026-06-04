@@ -719,12 +719,17 @@ class App:
                 return
             # Debug hotkey: F9 force-triggers the cycle-finale rush so the
             # treasure-box animation can be iterated on without sitting
-            # through a full 5-minute biome cycle. Mirrors the
-            # DEBUG_GENIE_PILLAR one-shot in config — local-only.
+            # through a full 5-minute biome cycle. Also bumps
+            # cycles_completed so the "DAY N COMPLETE!" banner reads
+            # the next day each press AND so the scaling +100*day chest
+            # reward can be playtested across multiple days from F9
+            # alone. Mirrors the DEBUG_GENIE_PILLAR one-shot in config —
+            # local-only.
             if e.key == pygame.K_F9 and self.state == STATE_PLAY:
                 from game.config import CYCLE_FINALE_RUSH_PILLARS
                 self.world._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
                 self.world._finale_box_dropped = False
+                self.world.cycles_completed += 1
                 return
             if e.key == pygame.K_ESCAPE:
                 if self.state in (STATE_PLAY, STATE_PAUSE):

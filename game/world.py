@@ -2256,17 +2256,25 @@ class World:
 
     def _activate_treasure_box(self, m):
         """Cycle-finale reward — the rarest moment in the game, calibrated
-        over-the-top: +TREASURE_BOX_GRANT score, 90 first-wave flying
-        coins in 3 velocity buckets, 40 more 0.30 s later as a settling
-        tail, a "DAY N COMPLETE!" banner that drops above the chest,
-        a world-space festoon garland strung between the two flanking
-        pillars, 16 confetti flakes, the biggest sparkle aura in the
-        game, +100 float, screen shake, three-layer audio fanfare."""
-        grant = TREASURE_BOX_GRANT
+        over-the-top: +TREASURE_BOX_GRANT * day score, 90 first-wave
+        flying coins in 3 velocity buckets, 40 more 0.30 s later as a
+        settling tail, a "DAY N COMPLETE!" banner that drops above the
+        chest, a world-space festoon garland strung between the two
+        flanking pillars, 16 confetti flakes, the biggest sparkle aura in
+        the game, +grant float, screen shake, three-layer audio fanfare.
+
+        Grant scales linearly with the day count: day 1 -> 100, day 2 ->
+        200, day N -> 100 * N. Survives-through-the-day reward, scoped
+        to in-run progression — cycles_completed resets to 0 on a fresh
+        run so each playthrough starts the scaling chain over."""
+        day = max(1, self.cycles_completed)
+        grant = TREASURE_BOX_GRANT * day
         self.score += grant
         # 'treasure' is its own proof-ledger kind — plausibility only
         # special-cases 'coin' and 'pipe' for dscore bounds, so the
-        # single +100 jump is accepted without raising the ceiling.
+        # variable scaling jump is accepted without changing any
+        # per-event bound. The MAX_PLAUSIBLE_SCORE = 100_000 ceiling
+        # still bounds the total run score.
         self._proof.record(self.time_alive, grant, "treasure")
         self._finale_box_dropped = True
 
