@@ -332,7 +332,9 @@ def _build_open() -> pygame.Surface:
     big.blit(rot, rot.get_rect(midbottom=hinge))
 
     # Coin pile — pile_cy / coin_r0 match the B2 design recipe so the
-    # spacing and overlap stay battle-tested.
+    # spacing and overlap stay battle-tested. Round 4 promoted the pile
+    # from 9 to 22 coins so the cycle-finale chest reads as a HOARD,
+    # not a handful: back-row + lateral-spill + deep-pile + 3 sky-drifters.
     pile_cy = body.top + int(body.height * 0.55)
     coin_r0 = int(body.height * 0.18)
 
@@ -340,6 +342,18 @@ def _build_open() -> pygame.Surface:
     for (ox, oy, rs) in ((-0.28, -0.20, 1.0),
                          ( 0.08, -0.26, 1.0),
                          ( 0.32, -0.10, 0.9)):
+        _gold_coin(big,
+                   body.centerx + int(body.width * ox),
+                   pile_cy + int(body.height * oy),
+                   max(3, int(coin_r0 * rs)),
+                   ink)
+
+    # Deep-pile coins — 4 stacked higher behind the front lip so the
+    # pile reads with depth, not as one flat row.
+    for (ox, oy, rs) in ((-0.18, -0.42, 0.95),
+                         ( 0.18, -0.40, 1.00),
+                         (-0.04, -0.34, 0.90),
+                         ( 0.24, -0.28, 0.85)):
         _gold_coin(big,
                    body.centerx + int(body.width * ox),
                    pile_cy + int(body.height * oy),
@@ -358,6 +372,18 @@ def _build_open() -> pygame.Surface:
                    max(3, int(coin_r0 * rs)),
                    ink)
 
+    # Lateral-spill coins — 4 cascading off the left and right edges
+    # so the pour reads as omnidirectional, not just forward.
+    for (ox, oy, rs) in ((-0.58,  0.04, 0.90),
+                         (-0.50, -0.10, 0.80),
+                         ( 0.56,  0.06, 0.85),
+                         ( 0.48, -0.12, 0.80)):
+        _gold_coin(big,
+                   body.centerx + int(body.width * ox),
+                   pile_cy + int(body.height * oy),
+                   max(3, int(coin_r0 * rs)),
+                   ink)
+
     # One bigger coin leaping out above the open lid — captures the
     # "GOLD IS ERUPTING" beat at a focal point above the body.
     _gold_coin(big,
@@ -365,6 +391,18 @@ def _build_open() -> pygame.Surface:
                pile_cy + int(body.height * -0.92),
                max(4, int(coin_r0 * 1.10)),
                ink)
+
+    # 3 small "drifter" coins floating in the air above the open lid —
+    # a tiny constellation sized down so they read as airborne, not
+    # crowding the larger leaping coin.
+    for (ox, oy, rs) in ((-0.32, -0.72, 0.55),
+                         ( 0.40, -0.78, 0.55),
+                         ( 0.02, -1.18, 0.55)):
+        _gold_coin(big,
+                   body.centerx + int(body.width * ox),
+                   pile_cy + int(body.height * oy),
+                   max(3, int(coin_r0 * rs)),
+                   ink)
 
     return _smoothscale(big)
 

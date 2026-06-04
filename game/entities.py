@@ -3555,14 +3555,15 @@ class FloatText:
 class TreasureBanner:
     """Cycle-finale celebration ribbon — "DAY N COMPLETE!" overlay.
 
-    A wide gold-gradient ribbon with notched forked ends, dark outline,
-    drop shadow, red velvet bottom rim, 4 corner sparkles, and bold
-    cream text. Drops in from above the chest, micro-bounce, holds,
-    fades. Spawned from World._activate_treasure_box.
+    A polished gold ribbon with notched forked ends sitting in front of
+    a three-burst firework backdrop (dominant centre gold burst + two
+    demoted warm side bursts). Drops in from above the chest with a
+    micro-bounce + hold + fade-up envelope. Spawned from
+    World._activate_treasure_box.
 
-    Lifetime 1.4 s; the composite surface is baked once at construction
-    and reused with per-frame alpha + position so a fresh banner per
-    cycle-finale costs one draw call per frame, not a re-render."""
+    Lifetime 1.4 s; composite baked once at construction and reused
+    with per-frame alpha + position so a fresh banner per cycle-finale
+    costs one draw call per frame, not a re-render."""
 
     LIFE_MAX     = 1.4
     DROP_IN_END  = 0.10       # cubic ease-out drop-in
@@ -3576,12 +3577,32 @@ class TreasureBanner:
     OUTLINE  = 3
     SHADOW_DX = 4
     SHADOW_DY = 5
+    # Composite is wider + taller than the ribbon so the firework bursts
+    # can extend ~70 px past each end and a tall centre burst can sit
+    # behind the ribbon. Ribbon stays centred inside the composite.
+    COMP_PAD_X = 90
+    COMP_PAD_Y = 70
 
-    GOLD_TOP   = (255, 232, 124)
-    GOLD_BOT   = (240, 188,  56)
+    # 4-stop gold gradient — round 2 quality jump. Highlight cream
+    # holds 0-15%, hot gold 15-55%, sat gold 55-92%, deep amber 92-100%.
+    GOLD_STOPS = (
+        (0.00, (255, 244, 188)),   # highlight cream
+        (0.15, (255, 220, 110)),   # hot gold
+        (0.55, (240, 188,  56)),   # saturated gold
+        (0.92, (196, 132,  28)),   # deep amber
+        (1.00, (180, 116,  24)),
+    )
     GOLD_INK   = ( 72,  48,  12)
     VELVET     = (168,  32,  16)
+    VELVET_HI  = (220,  64,  32)   # scarlet rim highlight (1 px on top of velvet)
     STAR_CREAM = (252, 244, 218)
+    # Firework palette — round 3 polish: cyan dropped, hot orange in.
+    BURST_GOLD   = (255, 220, 110)
+    BURST_RED    = (248,  96,  88)
+    BURST_ORANGE = (255, 128,  48)
+    BURST_GLOW   = (255, 200,  96)
+    BEVEL_HI_A   = 78              # ~70% of 255 per critic on the highlight band
+    BEVEL_LO_A   = 110
 
     def __init__(self, day_num: int, x: float, y_chest: float):
         # Banner settles ~80 px above the chest centre — high enough not
@@ -3647,89 +3668,398 @@ class TreasureBanner:
         surf.blit(sprite, r.topleft)
 
     def _build(self) -> pygame.Surface:
-        """Bake the static banner composite. Called once per instance."""
+        """Bake the static banner composite. Called once per instance.
+
+        Renders at 2x supersample to a big surface, then smoothscales
+        down — kills outline aliasing on the polygon edges and makes
+        the embossed bevel + 1-px text drops crisp at final size."""
         from game.hud import _font
 
         cls = TreasureBanner
         bw, bh = cls.BANNER_W, cls.BANNER_H
         notch  = cls.NOTCH
-        # Extra room for the drop shadow to land inside the surface.
-        comp_w = bw + cls.SHADOW_DX
-        comp_h = bh + cls.SHADOW_DY
-        comp = pygame.Surface((comp_w, comp_h), pygame.SRCALPHA)
+        # Composite holds ribbon + firework bursts (extending past ribbon)
+        # + drop shadow. Ribbon centred horizontally + vertically inside.
+        comp_w = bw + cls.COMP_PAD_X * 2
+        comp_h = bh + cls.COMP_PAD_Y * 2
+        ss = 2  # supersample factor
+        big = pygame.Surface((comp_w * ss, comp_h * ss), pygame.SRCALPHA)
 
-        ribbon = [
-            (0, 0),
-            (bw, 0),
-            (bw - notch, bh // 2),
-            (bw, bh),
-            (0, bh),
-            (notch, bh // 2),
+        rx = cls.COMP_PAD_X * ss
+        ry = cls.COMP_PAD_Y * ss
+        bw_s, bh_s = bw * ss, bh * ss
+        notch_s = notch * ss
+
+        ribbon_pts = [
+            (rx,                   ry),
+            (rx + bw_s,            ry),
+            (rx + bw_s - notch_s,  ry + bh_s // 2),
+            (rx + bw_s,            ry + bh_s),
+            (rx,                   ry + bh_s),
+            (rx + notch_s,         ry + bh_s // 2),
         ]
+        ribbon_cx = rx + bw_s // 2
+        ribbon_cy = ry + bh_s // 2
 
-        # Drop shadow (the same silhouette, offset down-right, soft black).
-        shadow_pts = [(x + cls.SHADOW_DX, y + cls.SHADOW_DY) for (x, y) in ribbon]
-        pygame.draw.polygon(comp, (0, 0, 0, 170), shadow_pts)
+        # ── Firework backdrop ───────────────────────────────────────────
+        # Three procedural starburst explosions live on their own
+        # surface so they can be clipped against the inflated ribbon
+        # silhouette (no ray crossing the chevron notch — per round-3
+        # critic). Centre gold burst dominant (1.6x), outer red + orange
+        # bursts at 40% opacity, demoted to background sparks.
+        burst_surf = pygame.Surface((comp_w * ss, comp_h * ss), pygame.SRCALPHA)
+        self._draw_burst(burst_surf,
+                         ribbon_cx, ribbon_cy,
+                         radius=int(115 * ss),
+                         color=cls.BURST_GOLD,
+                         glow=cls.BURST_GLOW,
+                         alpha=255,
+                         spokes=18, sparkles=22, ss=ss)
+        self._draw_burst(burst_surf,
+                         ribbon_cx - int(140 * ss), ribbon_cy - int(10 * ss),
+                         radius=int(72 * ss),
+                         color=cls.BURST_RED,
+                         glow=cls.BURST_RED,
+                         alpha=102,
+                         spokes=14, sparkles=12, ss=ss)
+        self._draw_burst(burst_surf,
+                         ribbon_cx + int(140 * ss), ribbon_cy - int(10 * ss),
+                         radius=int(72 * ss),
+                         color=cls.BURST_ORANGE,
+                         glow=cls.BURST_ORANGE,
+                         alpha=102,
+                         spokes=14, sparkles=12, ss=ss)
+        # Clip the burst's alpha to OUTSIDE the inflated ribbon silhouette
+        # so no spoke crosses the chevron notch. Inflate by 2 ss-px so the
+        # outline isn't bisected at sub-pixel edges.
+        clip = pygame.Surface((comp_w * ss, comp_h * ss), pygame.SRCALPHA)
+        clip.fill((255, 255, 255, 255))
+        inflate = 2 * ss
+        infl_pts = [
+            (rx - inflate,                   ry - inflate),
+            (rx + bw_s + inflate,            ry - inflate),
+            (rx + bw_s - notch_s + inflate,  ry + bh_s // 2),
+            (rx + bw_s + inflate,            ry + bh_s + inflate),
+            (rx - inflate,                   ry + bh_s + inflate),
+            (rx + notch_s - inflate,         ry + bh_s // 2),
+        ]
+        pygame.draw.polygon(clip, (0, 0, 0, 0), infl_pts)
+        burst_surf.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(burst_surf, (0, 0))
 
-        # Mask + gold gradient body.
-        body = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        top, bot = cls.GOLD_TOP, cls.GOLD_BOT
-        for yy in range(bh):
-            t_grad = yy / max(1, bh - 1)
-            cc = (
-                int(top[0] + (bot[0] - top[0]) * t_grad),
-                int(top[1] + (bot[1] - top[1]) * t_grad),
-                int(top[2] + (bot[2] - top[2]) * t_grad),
-            )
-            pygame.draw.line(body, cc, (0, yy), (bw, yy))
-        mask = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        pygame.draw.polygon(mask, (255, 255, 255, 255), ribbon)
+        # ── Drop shadow ─────────────────────────────────────────────────
+        shadow_dx_s = cls.SHADOW_DX * ss
+        shadow_dy_s = cls.SHADOW_DY * ss
+        shadow_pts = [(x + shadow_dx_s, y + shadow_dy_s) for (x, y) in ribbon_pts]
+        pygame.draw.polygon(big, (0, 0, 0, 170), shadow_pts)
+
+        # ── Ribbon body — 4-stop gold gradient ──────────────────────────
+        body = pygame.Surface((bw_s, bh_s), pygame.SRCALPHA)
+        for yy in range(bh_s):
+            t_grad = yy / max(1, bh_s - 1)
+            cc = _interp_stops(cls.GOLD_STOPS, t_grad)
+            pygame.draw.line(body, cc, (0, yy), (bw_s, yy))
+        local_ribbon = [(x - rx, y - ry) for (x, y) in ribbon_pts]
+        mask = pygame.Surface((bw_s, bh_s), pygame.SRCALPHA)
+        pygame.draw.polygon(mask, (255, 255, 255, 255), local_ribbon)
         body.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        comp.blit(body, (0, 0))
+        big.blit(body, (rx, ry))
 
-        # Red velvet bottom rim — a horizontal red strip masked to the
-        # ribbon polygon so it inherits the notched silhouette.
-        rim_h = 8
-        rim = pygame.Surface((bw, bh), pygame.SRCALPHA)
-        pygame.draw.rect(rim, cls.VELVET, (0, bh - rim_h, bw, rim_h))
+        # ── Embossed bevel ──────────────────────────────────────────────
+        # White-alpha 2-px highlight inside the top edge + dark-alpha 2-px
+        # shadow inside the bottom edge of the ribbon outline. Reads as
+        # polished metal vs. flat paint.
+        bevel = pygame.Surface((bw_s, bh_s), pygame.SRCALPHA)
+        bw_inset = 2 * ss
+        # Top highlight — strip across the top inside the outline, then
+        # mask to ribbon silhouette so the notch shape inherits.
+        pygame.draw.polygon(
+            bevel, (255, 255, 255, cls.BEVEL_HI_A),
+            [(0, 0), (bw_s, 0),
+             (bw_s, bw_inset), (0, bw_inset)])
+        # Bottom shadow — same logic on the underside.
+        pygame.draw.polygon(
+            bevel, (32, 18, 4, cls.BEVEL_LO_A),
+            [(0, bh_s - bw_inset), (bw_s, bh_s - bw_inset),
+             (bw_s, bh_s), (0, bh_s)])
+        bevel.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(bevel, (rx, ry))
+
+        # ── Red velvet bottom rim + scarlet highlight ───────────────────
+        rim_h = 8 * ss
+        rim = pygame.Surface((bw_s, bh_s), pygame.SRCALPHA)
+        pygame.draw.rect(rim, cls.VELVET, (0, bh_s - rim_h, bw_s, rim_h))
+        pygame.draw.rect(rim, cls.VELVET_HI, (0, bh_s - rim_h, bw_s, 1 * ss))
         rim.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        comp.blit(rim, (0, 0))
+        big.blit(rim, (rx, ry))
 
-        # Dark outline tracing the ribbon polygon.
-        pygame.draw.polygon(comp, cls.GOLD_INK, ribbon, cls.OUTLINE)
+        # ── Dark outline tracing the ribbon polygon ─────────────────────
+        pygame.draw.polygon(big, cls.GOLD_INK, ribbon_pts, cls.OUTLINE * ss)
 
-        # Four cream "+" sparkles at the inner corners (offset past the
-        # notch tips so they read as ornament, not silhouette noise).
-        for (sx, sy) in (
-            (notch + 14,         14),
-            (bw - notch - 14,    14),
-            (notch + 14,         bh - 14),
-            (bw - notch - 14,    bh - 14),
-        ):
-            pygame.draw.circle(comp, cls.STAR_CREAM, (sx, sy), 3)
-            pygame.draw.circle(comp, (255, 255, 255), (sx - 1, sy - 1), 1)
-
-        # Text — "DAY N COMPLETE!" cream fill + dark outline.
+        # ── Text — "DAY N COMPLETE!" with embossed drops ────────────────
         text_str = (f"DAY {self.day} COMPLETE!"
                     if 1 <= self.day <= 99 else "DAY COMPLETE!")
         # Auto-pick a font size that fits the banner width with margin.
-        font_size = 34
+        # ss factor folded in so the source render is supersampled too.
+        font_size = 34 * ss
         font = _font(font_size, bold=True)
-        margin = notch + 22
-        while font.size(text_str)[0] > bw - margin * 2 and font_size > 22:
-            font_size -= 2
+        margin = (notch + 22) * ss
+        while font.size(text_str)[0] > bw_s - margin * 2 and font_size > 22 * ss:
+            font_size -= 2 * ss
             font = _font(font_size, bold=True)
-        text_render = font.render(text_str, True, cls.STAR_CREAM)
-        out_render  = font.render(text_str, True, cls.GOLD_INK)
-        tw, th = text_render.get_size()
-        tx = (bw - tw) // 2
-        ty = (bh - th) // 2 - 3            # nudge up off the velvet rim
-        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
-                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
-            comp.blit(out_render, (tx + ox, ty + oy))
-        comp.blit(text_render, (tx, ty))
+        text_cream = font.render(text_str, True, cls.STAR_CREAM)
+        text_ink   = font.render(text_str, True, cls.GOLD_INK)
+        text_hi    = font.render(text_str, True, (255, 255, 255))
+        tw, th = text_cream.get_size()
+        tx = rx + (bw_s - tw) // 2
+        ty = ry + (bh_s - th) // 2 - 3 * ss   # nudge up off the velvet rim
+        # 1-px outline ring (was 2 px in round 1 — critic said too heavy).
+        d = 1 * ss
+        for ox, oy in ((-d, 0), (d, 0), (0, -d), (0, d),
+                       (-d, -d), (d, -d), (-d, d), (d, d)):
+            big.blit(text_ink, (tx + ox, ty + oy))
+        # Embossed text: 1-px white drop on TOP edge + 1-px dark drop on
+        # BOTTOM edge BEFORE the cream fill. Letters read as etched.
+        hi_surf = text_hi.copy(); hi_surf.set_alpha(140)
+        lo_surf = text_ink.copy(); lo_surf.set_alpha(180)
+        big.blit(hi_surf, (tx, ty - d))
+        big.blit(lo_surf, (tx, ty + d))
+        big.blit(text_cream, (tx, ty))
 
-        return comp
+        # Smoothscale the 2x supersample down to final size — kills outline
+        # aliasing and crisps the embossed details.
+        return pygame.transform.smoothscale(big, (comp_w, comp_h))
+
+    @staticmethod
+    def _draw_burst(surf: pygame.Surface,
+                    cx: int, cy: int, radius: int,
+                    color: tuple, glow: tuple,
+                    alpha: int, spokes: int, sparkles: int, ss: int):
+        """One procedural starburst — soft additive glow disc + tapered
+        spokes + scattered sparkle dots. Same vocabulary as the
+        treasure-box halo so the FX family reads as one visual language.
+
+        alpha controls overall opacity (centre burst at 255, outer
+        bursts at ~100 per round-3 critic's "demoted to background
+        sparks" note)."""
+        # Glow disc — cubic falloff so it stays warm haze on the
+        # twilight bg, not a bleached spotlight (round-2 fix).
+        glow_r = int(radius * 1.05)
+        for i in range(glow_r, 0, -2):
+            t = i / glow_r
+            a = int(alpha * 0.35 * (1.0 - t) ** 3)
+            if a > 0:
+                pygame.draw.circle(surf, (*glow, a), (cx, cy), i)
+        # Spokes — tapered triangles, alternating lengths ±15% so the
+        # silhouette breathes (per round-3 critic on the round-1 V1).
+        for i in range(spokes):
+            ang = (i / spokes) * math.tau
+            length_mul = 1.15 if (i % 2 == 0) else 0.85
+            length = int(radius * length_mul)
+            tip_x = cx + math.cos(ang) * length
+            tip_y = cy + math.sin(ang) * length
+            base_w = max(3 * ss, int(radius * 0.07))
+            perp_x = -math.sin(ang) * base_w
+            perp_y =  math.cos(ang) * base_w
+            spoke_pts = [
+                (cx + perp_x, cy + perp_y),
+                (cx - perp_x, cy - perp_y),
+                (tip_x,       tip_y),
+            ]
+            pygame.draw.polygon(surf, (*color, alpha), spoke_pts)
+        # Sparkle dots — small pearls scattered along the rays at random
+        # radii so the burst has fine grit, not just clean polygons.
+        rng = random.Random(cx * 1000 + cy + radius)  # stable per burst
+        for _ in range(sparkles):
+            ang = rng.uniform(0, math.tau)
+            rr = rng.uniform(radius * 0.55, radius * 1.10)
+            px = int(cx + math.cos(ang) * rr)
+            py = int(cy + math.sin(ang) * rr)
+            r = rng.choice((1, 1, 2, 2, 3)) * ss
+            pygame.draw.circle(surf, (255, 240, 200, alpha), (px, py), r)
+
+
+def _interp_stops(stops, t: float) -> tuple:
+    """Multi-stop colour gradient interpolation. stops is a tuple of
+    (position 0..1, (r, g, b)) pairs in ascending position order."""
+    t = max(0.0, min(1.0, t))
+    for i in range(len(stops) - 1):
+        p0, c0 = stops[i]
+        p1, c1 = stops[i + 1]
+        if t <= p1:
+            span = max(1e-6, p1 - p0)
+            f = (t - p0) / span
+            return (int(c0[0] + (c1[0] - c0[0]) * f),
+                    int(c0[1] + (c1[1] - c0[1]) * f),
+                    int(c0[2] + (c1[2] - c0[2]) * f))
+    return stops[-1][1]
+
+
+class CelebrationGarland:
+    """World-space festoon strung between two pillars flanking the
+    cycle-finale treasure chest. Catenary curve + 8 warm Edison-style
+    bulbs with hot-yellow filament cores + soft additive halos.
+
+    Tracks pillar references live so the curve follows them as they
+    scroll left. Same 1.4 s lifetime envelope as the banner so they
+    fade together. Spawned from World._activate_treasure_box."""
+
+    LIFE_MAX     = 1.4
+    DROP_IN_END  = 0.10
+    HOLD_END     = 1.10
+    FADE_END     = 1.40
+
+    N_BULBS      = 8
+    DROOP        = 60          # catenary sag below the higher anchor
+    THREAD_COL   = ( 48,  32,  12)
+    BULB_BODY    = (255, 240, 200)
+    BULB_GLOW    = (255, 220, 110)
+    BULB_FILAMENT = (255, 236, 128)
+    BULB_INK     = ( 64,  48,  16)
+
+    def __init__(self, left_pipe, right_pipe):
+        # Pillars are world-space — they scroll left every frame.
+        # Storing the refs (vs. snapshotting positions) is what makes
+        # the garland TRACK them, not stick to a stale snapshot.
+        self.left = left_pipe
+        self.right = right_pipe
+        self.t = 0.0
+
+    def alive(self) -> bool:
+        if self.left is None or self.right is None:
+            return False
+        return self.t < CelebrationGarland.FADE_END
+
+    def update(self, dt: float):
+        self.t += dt
+
+    def _alpha(self) -> int:
+        cls = CelebrationGarland
+        t = self.t
+        if t < cls.DROP_IN_END:
+            return int(255 * (t / cls.DROP_IN_END))
+        if t < cls.HOLD_END:
+            return 255
+        if t < cls.FADE_END:
+            f = (t - cls.HOLD_END) / (cls.FADE_END - cls.HOLD_END)
+            return int(255 * (1.0 - f))
+        return 0
+
+    def _anchors(self) -> tuple:
+        """Return the two anchor points in world-space — bottom centre
+        of each flanking pillar's UPPER pipe segment. Recomputed every
+        frame so pillar scroll is tracked."""
+        from game.config import PIPE_W
+        ax = self.left.x + PIPE_W * 0.5
+        ay = self.left.gap_y - self.left.gap_h * 0.5
+        bx = self.right.x + PIPE_W * 0.5
+        by = self.right.gap_y - self.right.gap_h * 0.5
+        return ax, ay, bx, by
+
+    def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
+        alpha = self._alpha()
+        if alpha <= 0 or self.left is None or self.right is None:
+            return
+        ax, ay, bx, by = self._anchors()
+        if bx <= ax:
+            return  # pillars crossed (shouldn't happen but defensive)
+        # Sample the catenary with a parabolic approximation. Droop
+        # midpoint hangs `DROOP` px below the higher anchor.
+        cls = CelebrationGarland
+        droop = cls.DROOP
+        samples = 24
+        pts = []
+        for i in range(samples + 1):
+            t = i / samples
+            base_y = ay * (1 - t) + by * t
+            sag = droop * 4 * t * (1 - t)
+            x = ax * (1 - t) + bx * t
+            y = base_y + sag
+            pts.append((int(x + sx), int(y + sy)))
+        # Thread first — under the bulbs.
+        thread_col = (*cls.THREAD_COL, alpha)
+        # pygame.draw.lines doesn't take per-vertex alpha; render onto a
+        # temp surface and blit so per-frame alpha works.
+        # Cheap path: a single colour with set_alpha on a temp surface.
+        wseg = surf.get_size()
+        tmp = pygame.Surface(wseg, pygame.SRCALPHA)
+        if len(pts) >= 2:
+            pygame.draw.lines(tmp, cls.THREAD_COL, False, pts, 1)
+        # Bulbs evenly spaced along the same catenary — sample at the
+        # bulb positions (skip the very endpoints so bulbs don't sit
+        # inside the pillar caps).
+        for k in range(cls.N_BULBS):
+            t = (k + 1) / (cls.N_BULBS + 1)
+            base_y = ay * (1 - t) + by * t
+            sag = droop * 4 * t * (1 - t)
+            bx_p = int(ax * (1 - t) + bx * t + sx)
+            by_p = int(base_y + sag + sy)
+            # Soft additive halo — radius 8, warm gold.
+            for r in (8, 6, 4):
+                a = int({8: 28, 6: 48, 4: 80}[r])
+                pygame.draw.circle(tmp, (*cls.BULB_GLOW, a), (bx_p, by_p), r)
+            # Bulb body — warm cream pearl with dark outline.
+            pygame.draw.circle(tmp, cls.BULB_BODY, (bx_p, by_p), 3)
+            pygame.draw.circle(tmp, cls.BULB_INK, (bx_p, by_p), 3, 1)
+            # 1-px hot-yellow filament core inside.
+            pygame.draw.circle(tmp, cls.BULB_FILAMENT, (bx_p, by_p), 1)
+        tmp.set_alpha(alpha)
+        surf.blit(tmp, (0, 0))
+
+
+class CelebrationConfetti:
+    """World-space confetti flake — small rotating rectangle with
+    light gravity + horizontal drift. Spawned in clumps from
+    World._activate_treasure_box. Rides the world scroll via vx so
+    it tracks the chest position as the player flies forward."""
+
+    SIZE    = (3, 5)
+    COLOURS = (
+        (255, 220, 110),   # gold
+        (220,  64,  32),   # scarlet
+        (255, 128,  48),   # orange
+        (252, 244, 218),   # cream
+    )
+
+    def __init__(self, x: float, y: float, vx: float, vy: float,
+                 colour: tuple, life: float, spin: float):
+        self.x = float(x)
+        self.y = float(y)
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.angle = random.uniform(0, math.tau)
+        self.spin = spin
+        self.colour = colour
+        self.life = float(life)
+        self.life_max = float(life)
+        self._tile: "pygame.Surface | None" = None
+
+    def alive(self) -> bool:
+        return self.life > 0
+
+    def update(self, dt: float):
+        self.life -= dt
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.vy += 320 * dt    # light gravity — confetti falls
+        self.vx *= 0.985       # horizontal drag
+        self.angle += self.spin * dt
+
+    def draw(self, surf: pygame.Surface):
+        if self.life <= 0:
+            return
+        if self._tile is None:
+            w, h = CelebrationConfetti.SIZE
+            tile = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
+            pygame.draw.rect(tile, self.colour, (1, 1, w, h))
+            self._tile = tile
+        rot = pygame.transform.rotate(self._tile, math.degrees(self.angle))
+        # Fade in the last 30% of life so flakes don't pop out.
+        fade_frac = max(0.0, min(1.0, self.life / max(0.01, self.life_max * 0.3)))
+        if fade_frac < 1.0:
+            rot.set_alpha(int(255 * fade_frac))
+        rect = rot.get_rect(center=(int(self.x), int(self.y)))
+        surf.blit(rot, rect.topleft)
 
 
 class FlyingCoinParticle:

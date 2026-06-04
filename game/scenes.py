@@ -1130,6 +1130,14 @@ class App:
         for m in self.world.powerups:
             m.draw(self.screen)
 
+        # Cycle-finale celebration festoon — world-space catenary +
+        # bulbs hung between the two pillars flanking the open chest.
+        # Drawn after the pillars / coins / powerups so it visibly
+        # hangs IN FRONT of the pillar caps, and BEFORE the bird so
+        # Pip flies past it as foreground.
+        for cg in getattr(self.world, "celebration_garlands", ()):
+            cg.draw(self.screen, sx, sy)
+
         # Gameplay opener: pickup post-house drifting off-screen-left + the
         # parcel tucked under Pip. Active only during STATE_PLAY's first
         # ~2.5 s, mirroring the intro's beat-2 closing image.

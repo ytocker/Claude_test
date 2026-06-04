@@ -108,6 +108,23 @@ class World:
         geyser_fx.prewarm()   # bake cone/steam/rock caches → no first-eruption hitch
         self.particles: list[Particle] = []
         self.float_texts: list[FloatText] = []
+        # Cycle-finale celebration entities. Banner is screen-space;
+        # garland tracks 2 pillar refs in world-space and scrolls with
+        # them. Both are spawned together in _activate_treasure_box and
+        # share a 1.4 s fade envelope so they leave the scene as one.
+        self.treasure_banners: list = []
+        self.celebration_garlands: list = []
+        # Cycle counter — increments on every biome-phase wrap, so the
+        # banner reads "DAY 1 COMPLETE!" on the first rollover, "DAY 2"
+        # on the second, etc. Resets each fresh run (no save-file
+        # persistence — every run starts at day 0 pre-rollover).
+        self.cycles_completed: int = 0
+        # Second-wave coin storm: 0.30 s after the chest pickup, a tail
+        # of 40 more flying coins spawns from the chest's last known
+        # position. Stays > 0 between activation and fire; reset to 0
+        # afterward so a second pickup in the same run schedules cleanly.
+        self._treasure_second_wave_t: float = 0.0
+        self._treasure_second_wave_pos: tuple = (0.0, 0.0)
 
         self.scroll_speed = SCROLL_BASE
         self.bg_scroll = 0.0
@@ -1181,6 +1198,11 @@ class World:
                 and _new_phase < CYCLE_FINALE_PHASE_LO):
             self._finale_rush_remaining = CYCLE_FINALE_RUSH_PILLARS
             self._finale_box_dropped = False
+            # Day counter ticks once per cycle wrap. The banner that
+            # rides the chest pickup later in this same finale rush
+            # reads max(1, cycles_completed) so the first cycle the
+            # player survives reads "DAY 1 COMPLETE!".
+            self.cycles_completed += 1
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)
@@ -1492,6 +1514,30 @@ class World:
         for b in self.trick_bubbles:
             b.update(dt)
         self.trick_bubbles = [b for b in self.trick_bubbles if b.alive()]
+        # Cycle-finale celebration entities — banner + garland share a
+        # 1.4 s envelope. Second-wave coin storm fires 0.30 s after the
+        # chest pickup (drains here so it tracks gameplay dt, not real
+        # time — slow-mo stretches the wait too).
+        for tb in self.treasure_banners:
+            tb.update(dt)
+        self.treasure_banners = [
+            tb for tb in self.treasure_banners if tb.alive()]
+        for g in self.celebration_garlands:
+            g.update(dt)
+        # Drop the garland if either of its pillar refs has been culled
+        # off-screen — anchors would dangle on a freed Pipe otherwise.
+        live_pipes = set(id(p) for p in self.pipes)
+        self.celebration_garlands = [
+            g for g in self.celebration_garlands
+            if g.alive()
+            and id(g.left) in live_pipes
+            and id(g.right) in live_pipes
+        ]
+        if self._treasure_second_wave_t > 0:
+            self._treasure_second_wave_t -= dt
+            if self._treasure_second_wave_t <= 0:
+                self._treasure_second_wave_t = 0.0
+                self._fire_treasure_second_wave()
 
     def world_idle_tick(self, dt):
         """Run the background without handling bird death/pipe spawning
@@ -2102,12 +2148,13 @@ class World:
         ))
 
     def _activate_treasure_box(self, m):
-        """Cycle-finale reward: +TREASURE_BOX_GRANT score with a grandiose
-        fanfare — lid pops, ~32 flying coins spray upward, the biggest
-        sparkle aura in the game, a "+100!" float, screen shake, and a
-        three-layer audio stack. The PowerUp instance is kept alive for
-        TREASURE_BOX_ANIM_T seconds via claimed_anim_t so the open-lid
-        sprite + halo can fade out (see PowerUp.draw)."""
+        """Cycle-finale reward — the rarest moment in the game, calibrated
+        over-the-top: +TREASURE_BOX_GRANT score, 90 first-wave flying
+        coins in 3 velocity buckets, 40 more 0.30 s later as a settling
+        tail, a "DAY N COMPLETE!" banner that drops above the chest,
+        a world-space festoon garland strung between the two flanking
+        pillars, 16 confetti flakes, the biggest sparkle aura in the
+        game, +100 float, screen shake, three-layer audio fanfare."""
         grant = TREASURE_BOX_GRANT
         self.score += grant
         # 'treasure' is its own proof-ledger kind — plausibility only
@@ -2125,15 +2172,35 @@ class World:
         self.shake_mag = max(self.shake_mag, 7.0)
         self.shake_t   = max(self.shake_t,   0.55)
 
-        # Coin explosion — 32 full-detail FlyingCoinParticle on an
-        # upward-biased cone. They arc, spin, fade naturally.
-        for _ in range(32):
-            ang = random.uniform(-math.pi + 0.17, -0.17)
-            spd = random.uniform(280, 540)
+        # ── Coin storm — first wave, 3 velocity buckets ─────────────────
+        # 40 "rocket" coins: high arc, longest life. 30 "medium" mid arc.
+        # 20 "soft" low arc. The staggered peaks mean the screen doesn't
+        # see ALL coins crest at the same frame — the spectacle sustains.
+        # Cone widened almost to a full upward 180° so the fan reads as
+        # an eruption, not a tight jet.
+        for _ in range(40):                       # rocket
+            ang = random.uniform(-math.pi + 0.05, -0.05)
+            spd = random.uniform(380, 560)
             self.particles.append(FlyingCoinParticle(
                 m.x, m.y,
                 math.cos(ang) * spd, math.sin(ang) * spd,
-                life=random.uniform(1.5, 2.2),
+                life=random.uniform(1.8, 2.4),
+            ))
+        for _ in range(30):                       # medium
+            ang = random.uniform(-math.pi + 0.05, -0.05)
+            spd = random.uniform(240, 360)
+            self.particles.append(FlyingCoinParticle(
+                m.x, m.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                life=random.uniform(1.4, 1.9),
+            ))
+        for _ in range(20):                       # soft
+            ang = random.uniform(-math.pi + 0.05, -0.05)
+            spd = random.uniform(120, 220)
+            self.particles.append(FlyingCoinParticle(
+                m.x, m.y,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                life=random.uniform(1.0, 1.4),
             ))
 
         # Sparkle aura — 60 additive particles, the biggest burst in the
@@ -2152,12 +2219,99 @@ class World:
                 col, gravity=100,
             ))
 
+        # ── Confetti dusting — 16 rotating flakes ───────────────────────
+        # World-space (rides scroll via vx). Spread across the upper
+        # half of the scene around / above / beside the banner; an
+        # exclusion ellipse keeps them off the chest pile.
+        from game.entities import CelebrationConfetti
+        scroll_vx = -self._current_scroll()
+        for _ in range(16):
+            # Spawn around the chest with a sky-biased offset so flakes
+            # arc through the banner reveal area instead of dropping
+            # into the chest interior.
+            ox = random.uniform(-140, 140)
+            oy = random.uniform(-80, -30)
+            ang = random.uniform(-math.pi * 0.85, -math.pi * 0.15)
+            spd = random.uniform(140, 280)
+            vx = math.cos(ang) * spd + scroll_vx
+            vy = math.sin(ang) * spd
+            self.particles.append(CelebrationConfetti(
+                m.x + ox, m.y + oy, vx, vy,
+                random.choice(CelebrationConfetti.COLOURS),
+                life=random.uniform(1.4, 2.0),
+                spin=random.uniform(-6.0, 6.0),
+            ))
+
+        # ── DAY N COMPLETE! banner ──────────────────────────────────────
+        # Drops in screen-space above the chest. cycles_completed was
+        # incremented at the cycle rollover earlier in this finale.
+        from game.entities import TreasureBanner, CelebrationGarland
+        self.treasure_banners.append(TreasureBanner(
+            day_num=max(1, self.cycles_completed),
+            x=m.x,
+            y_chest=m.y,
+        ))
+
+        # ── Festoon garland across flanking pillars ─────────────────────
+        # World-space: tracks the two pipes flanking the chest's x by
+        # ref so the catenary follows them as they scroll. If somehow
+        # one side is missing (e.g. an edge case at the very first
+        # cycle), the garland silently skips — the banner + coins
+        # carry the moment alone.
+        left, right = self._flanking_pillars(m.x)
+        if left is not None and right is not None:
+            self.celebration_garlands.append(
+                CelebrationGarland(left, right))
+
         self.float_texts.append(FloatText(
             f"+{grant}!", m.x, m.y - 30, UI_GOLD,
             size=44, life=2.0, vy=-30, style="powerup",
         ))
 
+        # Schedule the second wave: 40 more coins fired from the chest
+        # position 0.30 s later, downward-biased (the "settling debris"
+        # tail). Snapshot position now so the wave fires from where the
+        # chest WAS even if its sprite has scrolled left a touch by
+        # then. Wave coins ride the world scroll the same way.
+        self._treasure_second_wave_t = 0.30
+        self._treasure_second_wave_pos = (m.x, m.y)
+
         audio.play_treasure_pickup()
+
+    def _flanking_pillars(self, x: float):
+        """Return (left, right) pipes — the closest pipe whose centre is
+        left of x and the closest whose centre is right of x. Either
+        may be None if x sits beyond the spawned-pipe range."""
+        left = None
+        right = None
+        for p in self.pipes:
+            cx = p.x + PIPE_W * 0.5
+            if cx < x:
+                if left is None or cx > left.x + PIPE_W * 0.5:
+                    left = p
+            elif cx > x:
+                if right is None or cx < right.x + PIPE_W * 0.5:
+                    right = p
+        return left, right
+
+    def _fire_treasure_second_wave(self):
+        """Tail of 40 more flying coins from the chest's pickup position.
+        Downward-biased so it reads as "settling coin debris" after the
+        rocket peak — keeps the eye occupied through the chest's
+        claimed_anim_t fade-out."""
+        sx, sy = self._treasure_second_wave_pos
+        scroll_vx = -self._current_scroll()
+        for _ in range(40):
+            # Wide downward fan — angles in -0.3..pi+0.3 cover sideways
+            # + down. Gravity (baked into FlyingCoinParticle physics)
+            # carries them naturally to the ground.
+            ang = random.uniform(-0.3, math.pi + 0.3)
+            spd = random.uniform(120, 280)
+            self.particles.append(FlyingCoinParticle(
+                sx, sy,
+                math.cos(ang) * spd + scroll_vx, math.sin(ang) * spd,
+                life=random.uniform(1.2, 1.8),
+            ))
 
     def _spawn_poof(self, x, y):
         """Burst of expanding cloud puffs — used on KFC transformation start and end."""

@@ -1702,6 +1702,13 @@ class HUD:
         for ft in world.float_texts:
             ft.draw(surf)
 
+        # Cycle-finale "DAY N COMPLETE!" banner — screen-space overlay
+        # drawn after float texts so the "+100!" pops UNDER the banner
+        # text. The banner's own envelope (drop-in / bounce / hold /
+        # fade) advances in World.update.
+        for tb in getattr(world, "treasure_banners", ()):
+            tb.draw(surf)
+
         # SKATEBOARD trick bubbles — comic halftone bursts stacked
         # near the score so the pop-art badge reads as part of the
         # score visual when a trick lands.
