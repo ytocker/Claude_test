@@ -10,3 +10,4 @@ node_modules/
 *-pygbag.py
 analytics/.streamlit/secrets.toml
 .claude/settings.local.json
+docs/snow_full_cover/_*.png
