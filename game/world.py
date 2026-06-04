@@ -11,6 +11,7 @@ import pygame
 from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
+    DAY_SCROLL_STEP, DAY_SCROLL_CAP, DAY_GAP_STEP, DAY_GAP_FLOOR,
     GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
     PLATEAU_PIPES, SPAWN_GRACE,
     PIPE_HITBOX_SHRINK,
@@ -365,11 +366,29 @@ class World:
     def biome_palette(self):
         return biome.palette_for_phase(self.biome_phase)
 
+    def _day_delta_scroll(self) -> float:
+        # Each completed biome cycle (day) adds DAY_SCROLL_STEP to the
+        # scroll base, capped at DAY_SCROLL_CAP. Applied on top of the
+        # post-newbie-ramp base, BEFORE the RAIL/SKATEBOARD/WEATHER
+        # multipliers stack — so relative boosts (RAIL ×2.5, etc.) feel
+        # the same shape, just at a higher base.
+        return min(self.cycles_completed * DAY_SCROLL_STEP,
+                   DAY_SCROLL_CAP - SCROLL_BASE)
+
+    def _day_delta_gap(self) -> int:
+        # Each completed day removes DAY_GAP_STEP px from the gap, with
+        # a floor at DAY_GAP_FLOOR — kept well above the inert GAP_MIN
+        # so casual players don't hit "feels random" territory.
+        return -min(self.cycles_completed * DAY_GAP_STEP,
+                    GAP_START - DAY_GAP_FLOOR)
+
     def _current_gap(self):
-        return int(_lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t()))
+        base = _lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t())
+        return int(base + self._day_delta_gap())
 
     def _current_scroll(self):
         base = _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        base += self._day_delta_scroll()
         # RAIL: world rushes by RAIL_SCROLL_MULT× while Pip is locked on
         # the cart. Pre-lock, normal speed so the player can take their
         # time deciding whether to land on the parked cart.

@@ -250,6 +250,21 @@ CYCLE_FINALE_PHASE_LO       = 0.05  # AND new phase < LO (wrap from ~1 to ~0)
 # blink. Coincides with the audio fanfare tail.
 TREASURE_BOX_ANIM_T         = 1.5
 
+# ── Per-day difficulty ramp ──────────────────────────────────────────────────
+# Skybit's biome cycle (~5.3 min) is a "day". Each cycle a player completes
+# nudges the world a touch harder so a skilled run doesn't plateau on
+# muscle memory. Step-then-plateau curve — applied at the cycle-finale
+# wrap, holds for the new day, no gradual creep within a day. Silent (no
+# HUD telegraph) — the chest-finale banner is the only signal players need.
+DAY_SCROLL_STEP   = 8.0   # px/s added to SCROLL_BASE per completed day
+DAY_SCROLL_CAP    = 220.0 # ceiling on the post-ramp scroll base (RAIL ×2.5
+                          # and weather wind still stack on top — day-8
+                          # RAIL run = 550 px/s, inside plausibility window)
+DAY_GAP_STEP      = 5     # px removed from GAP_START per completed day
+DAY_GAP_FLOOR     = 135   # gap floor — sits well above the inert GAP_MIN
+                          # (115); below ~130 the play-area for Pip + parcel
+                          # starts to feel random rather than challenging.
+
 # ── Pipe collision (hitbox forgiveness) ──────────────────────────────────────
 # Effective bird radius for pipe collisions = BIRD_R - PIPE_HITBOX_SHRINK.
 # Was 12 px (BIRD_R - 2); 10 px makes pillars feel less magnetic without
