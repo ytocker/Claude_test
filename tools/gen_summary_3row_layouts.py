@@ -1,22 +1,21 @@
-"""RUN SUMMARY — five layout suggestions that make room for THREE full
-rows of power-up pills, plus the current ``BASE`` for comparison.
+"""RUN SUMMARY — layout suggestions that make room for THREE full rows of
+power-up pills AND give the "N POWER-UPS USED" caption its own clear,
+bolder band (nothing overlapping it above or below).
 
-The power-up pill itself (chip_h=40, icon 30, gold border, navy gradient)
-is NOT touched — only the *vertical arrangement* of the surrounding
-elements (title, score plaque, stat tiles, caption, buttons) moves so a
-third pill row fits without colliding with PLAY AGAIN. This mirrors the
-team's earlier "shade reclaim" room-finding work.
+ROUND 2: vs. the current shipping screen, five suggestions (N1..N5) each
+(a) reclaim vertical room for a third pill row, (b) reserve a clear gap
+around the caption, and (c) render that caption with more presence —
+bigger / brighter / heavier, with the *treatment* varied per panel so the
+caption look can be chosen too. The power-up pill itself (chip_h=40, icon
+30, gold border, navy gradient) is NOT touched — only the surrounding
+vertical arrangement + the caption styling move.
 
-Every panel is drawn by reusing the REAL primitives from ``game/hud.py``
-(``_score_plaque``, ``_stat_tile_chunky``, ``_pill_btn``,
-``_outline_pill_btn``, ``_outlined_text``, the overlay stars + mountain
-silhouette) and the real in-world power-up icons, so the pills/tiles/
-buttons are pixel-identical to the live screen — these are faithful
-mockups, not re-draws. Panels render at native 360x640 then upscale 2x
-(720x1280), matching docs/run_summary_redesign/.
+Every panel reuses the REAL primitives from ``game/hud.py`` so the
+pills/tiles/buttons/title are pixel-identical to the live screen. Panels
+render at native 360x640 then upscale 2x (720x1280).
 
-Output: docs/run_summary_3row/{base,s1_lift,s2_shortplaque,s3_dropbuttons,
-s4_tightpitch,s5_balanced}.png + contact_sheet.png
+Output: docs/run_summary_3row/round2/{current,n1_lift,n2_rules,n3_bigcap,
+n4_outline,n5_balanced}.png + contact_sheet.png
 
 Run from repo root:
 
@@ -48,7 +47,7 @@ SCALE = 2
 NIGHT_MID = (22, 14, 58)
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "docs",
-                   "run_summary_3row")
+                   "run_summary_3row", "round2")
 os.makedirs(OUT, exist_ok=True)
 
 # Twinkling-star field, seeded identically to HUD.__init__ so the backdrop
@@ -86,6 +85,58 @@ def _backdrop(surf):
     surf.blit(dim, (0, 0))
     _draw_overlay_stars(surf, STARS, 1.2)
     _draw_mountain_silhouette(surf, alpha=160)
+
+
+def draw_caption(surf, text, cap_y, style):
+    """Render the 'N POWER-UPS USED' line. ``style`` selects the presence
+    treatment; all of the round-2 styles read brighter/heavier than the
+    shipping muted caption. Returns nothing — drawn centered on cap_y."""
+    if style == "current":
+        # The shipping look: size 18, synthetic bold, muted gold @ 230.
+        f = _font(18, True)
+        f.set_bold(True)
+        img = f.render(text, True, _GOLD_MUTED)
+        f.set_bold(False)
+        img.set_alpha(230)
+        surf.blit(img, img.get_rect(center=(W // 2, cap_y)))
+        return
+
+    if style == "outline":
+        # Title-family treatment: bright gold with a thin red pixel
+        # outline + small drop shadow — maximum legibility over the busy
+        # tiles/pills backdrop.
+        _outlined_text(surf, text, (W // 2, cap_y), size=19, px=2,
+                       shadow_offset=(2, 3))
+        return
+
+    # Remaining styles share a bright-gold heavy-bold core; size + accents
+    # vary.
+    size = 22 if style == "big" else 20
+    f = _font(size, True)
+    f.set_bold(True)
+    img = f.render(text, True, _GOLD_BRIGHT)
+    f.set_bold(False)
+    rect = img.get_rect(center=(W // 2, cap_y))
+    surf.blit(img, rect)
+
+    if style == "rules":
+        # Short gold divider rules flanking the text — a section-header
+        # framing that gives the line clear presence without crowding it.
+        margin, run = 14, 56
+        ly = cap_y
+        pygame.draw.line(surf, _GOLD_BRIGHT,
+                         (rect.left - margin - run, ly),
+                         (rect.left - margin, ly), 2)
+        pygame.draw.line(surf, _GOLD_BRIGHT,
+                         (rect.right + margin, ly),
+                         (rect.right + margin + run, ly), 2)
+    elif style == "underline":
+        # Thin centered underline rule for a polished header feel.
+        uw = rect.width + 24
+        uy = rect.bottom + 5
+        rule = pygame.Surface((uw, 2), pygame.SRCALPHA)
+        rule.fill((*_GOLD_BRIGHT, 220))
+        surf.blit(rule, rule.get_rect(center=(W // 2, uy)))
 
 
 def _chunk_even(seq, n):
@@ -174,17 +225,12 @@ def render_summary(layout):
                         tile_w, tile_h)
         _stat_tile_chunky(surf, r, kind, val, lbl, subline=sub)
 
-    cap_y = layout["cap_y"]
     total_pu = sum(c for _, c in POWERUPS)
-    cf = _font(18, True)
-    cf.set_bold(True)
-    cap = cf.render(f"{total_pu}  POWER-UPS USED", True, _GOLD_MUTED)
-    cf.set_bold(False)
-    cap.set_alpha(230)
-    surf.blit(cap, cap.get_rect(center=(W // 2, cap_y)))
+    draw_caption(surf, f"{total_pu}  POWER-UPS USED",
+                 layout["cap_y"], layout["caption"])
 
     _draw_pill_rows(surf, POWERUPS, layout["pill_first_row_y"],
-                    n_rows=3, pitch=layout["pill_pitch"])
+                    n_rows=layout.get("n_rows", 3), pitch=layout["pill_pitch"])
 
     _pill_btn(surf, (W // 2, layout["play_y"]), "PLAY  AGAIN",
               size=22, alpha=255, min_width=240, primary=True, dim=True,
@@ -195,28 +241,41 @@ def render_summary(layout):
     return pygame.transform.smoothscale(surf, (W * SCALE, H * SCALE))
 
 
-# ── The 6 panels: BASE (current geometry) + 5 suggestions ──────────────────
+# ── ROUND 2: CURRENT (ships now) + N1..N5 ──────────────────────────────────
 # pill_first_row_y is the CENTER y of the first of three rows; the block
-# spans (first - 20) .. (first + 2*pitch + 20).
+# spans (first - 20) .. (first + 2*pitch + 20). Each layout reserves clear
+# air around the caption (no overlap above from tiles / below from pills).
 PANELS = [
-    ("base", "BASE  —  3 ROWS OVERFLOW", dict(
-        title_y=56, plaque_top=104, plaque_h=156, tiles_y=282, cap_y=414,
-        pill_first_row_y=444, pill_pitch=48, play_y=568, menu_y=618)),
-    ("s1_lift", "S1  ·  LIFT TOP STACK", dict(
-        title_y=48, plaque_top=88, plaque_h=156, tiles_y=258, cap_y=384,
-        pill_first_row_y=408, pill_pitch=48, play_y=568, menu_y=618)),
-    ("s2_shortplaque", "S2  ·  SHORTER PLAQUE", dict(
-        title_y=52, plaque_top=96, plaque_h=140, tiles_y=252, cap_y=378,
-        pill_first_row_y=402, pill_pitch=48, play_y=568, menu_y=618)),
-    ("s3_dropbuttons", "S3  ·  DROP BUTTONS", dict(
-        title_y=56, plaque_top=104, plaque_h=156, tiles_y=282, cap_y=406,
-        pill_first_row_y=428, pill_pitch=48, play_y=580, menu_y=620)),
-    ("s4_tightpitch", "S4  ·  TIGHTER PITCH", dict(
-        title_y=54, plaque_top=100, plaque_h=156, tiles_y=274, cap_y=398,
-        pill_first_row_y=420, pill_pitch=46, play_y=572, menu_y=618)),
-    ("s5_balanced", "S5  ·  BALANCED  (recommended)", dict(
-        title_y=52, plaque_top=92, plaque_h=156, tiles_y=264, cap_y=392,
-        pill_first_row_y=414, pill_pitch=48, play_y=574, menu_y=620)),
+    ("current", "CURRENT  (ships now)", dict(
+        title_y=56, plaque_top=104, plaque_h=156, tiles_y=282,
+        cap_y=414, caption="current",
+        pill_first_row_y=444, pill_pitch=48, n_rows=2,
+        play_y=568, menu_y=618)),
+    ("n1_lift", "N1  ·  LIFTED STACK", dict(
+        title_y=44, plaque_top=62, plaque_h=156, tiles_y=232,
+        cap_y=360, caption="bold",
+        pill_first_row_y=416, pill_pitch=48, n_rows=3,
+        play_y=568, menu_y=618)),
+    ("n2_rules", "N2  ·  HEADER RULES", dict(
+        title_y=50, plaque_top=88, plaque_h=140, tiles_y=244,
+        cap_y=374, caption="rules",
+        pill_first_row_y=420, pill_pitch=48, n_rows=3,
+        play_y=572, menu_y=618)),
+    ("n3_bigcap", "N3  ·  BIG CAPTION", dict(
+        title_y=50, plaque_top=80, plaque_h=156, tiles_y=252,
+        cap_y=382, caption="big",
+        pill_first_row_y=422, pill_pitch=48, n_rows=3,
+        play_y=576, menu_y=620)),
+    ("n4_outline", "N4  ·  OUTLINED CAPTION", dict(
+        title_y=52, plaque_top=90, plaque_h=150, tiles_y=256,
+        cap_y=388, caption="outline",
+        pill_first_row_y=430, pill_pitch=44, n_rows=3,
+        play_y=574, menu_y=618)),
+    ("n5_balanced", "N5  ·  BALANCED + UNDERLINE  (recommended)", dict(
+        title_y=50, plaque_top=86, plaque_h=146, tiles_y=246,
+        cap_y=372, caption="underline",
+        pill_first_row_y=418, pill_pitch=48, n_rows=3,
+        play_y=576, menu_y=620)),
 ]
 
 
@@ -229,7 +288,7 @@ def contact_sheet(panels):
     sheet_h = rows * (ph + label_h) + (rows + 1) * pad
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((10, 6, 20))
-    lf = _font(16, True)
+    lf = _font(15, True)
     for i, (img, label) in enumerate(panels):
         col, row = i % cols, i // cols
         x = pad + col * (pw + pad)
