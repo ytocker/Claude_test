@@ -44,10 +44,16 @@ BRASS_INK = (90, 62, 18)
 
 GOLD_INK = (110, 72, 10)
 
-# Interior treasure-light gradient — used only by the open variant to
-# fill the gap between the raised lid and the body.
-GLOW_HI = (255, 244, 196)
-GLOW_LO = (220, 152, 48)
+# Gold-coin palette (for the spilling coin pile in the open variant).
+GOLD_HI  = (255, 232, 124)
+GOLD_MID = (240, 196,  72)
+GOLD_LO  = (188, 138,  28)
+
+# Starburst rays — alternating cream / saturated gold / cream so the
+# 12-ray fan radiating behind the open chest carries a clear three-tone
+# "jackpot" pop instead of a flat yellow halo.
+STAR_CREAM = (252, 244, 218)
+STAR_GOLD  = (252, 200,  88)
 
 # Lid grain ticks reuse the design tool's neutral wood-grain ink so the
 # walnut top has the same dark ladder of cross-strokes the docs sheet
@@ -278,40 +284,154 @@ def _build_closed() -> pygame.Surface:
 
 
 def _build_open() -> pygame.Surface:
-    """Lid lifted, gold interior visible through the gap. The brass
-    lock stays on the body (where it'd really be bolted); the brass
-    star reads as a focal anchor over the spilled treasure light."""
+    """Open chest, B2 'overflowing gold' recipe in W4 walnut + brass.
+
+    Half-open lid rotated 28 deg back on a rear hinge; dark interior
+    void inside the body so the gold pile reads against a shadow; 3
+    coins behind the front lip, 5 coins spilling over the lip (breaking
+    the silhouette so the spill reads as motion), 1 larger coin
+    floating above the open lid. Drawn at SS, smoothscaled to footprint.
+
+    The starburst halo sits BEHIND this sprite at draw time — it lives
+    on its own cached surface so it can rotate independently with the
+    animation timer (see draw_open_sprite)."""
     big = _new_big()
     ink = max(3, int(SS * 1.05))
     body, lid = _common_layout()
 
+    # Body — same walnut as the closed sprite so it still reads as W4.
     _chest_body(big, body, ink, WALNUT_HI, WALNUT_MID, WALNUT_LO)
     _brass_bands_and_grain(big, body, ink)
 
-    rise = int(body.height * 0.18)
-    raised_lid = lid.move(0, -rise)
-    _curved_lid(big, raised_lid, ink, WALNUT_HI, WALNUT_MID, WALNUT_LO,
+    # Inside-of-box dark void so the spilled coins read against shadow.
+    inner = pygame.Rect(body.left + int(body.width * 0.10),
+                        body.top + int(body.height * 0.04),
+                        body.width - int(body.width * 0.20),
+                        int(body.height * 0.40))
+    _vgrad_rect(big, inner, (32, 22, 14), (12, 8, 4),
+                radius=max(2, inner.width // 16))
+    pygame.draw.rect(big, INK, inner,
+                     max(1, ink // 2),
+                     border_radius=max(2, inner.width // 16))
+
+    # Half-open curved lid rotated ~28 deg back. Hinged at the back-top
+    # of the body (mirrors icon_b2's pattern from the design tool).
+    lid_w = lid.width
+    lid_h = int(lid.height * 1.6)
+    lid_surf = pygame.Surface((lid_w + 8, lid_h + 8), pygame.SRCALPHA)
+    local_lid = pygame.Rect(4, lid_h - lid.height, lid_w, lid.height)
+    _curved_lid(lid_surf, local_lid, ink,
+                WALNUT_HI, WALNUT_MID, WALNUT_LO,
                 grain=True, sheen=True)
-    _lid_strap(big, raised_lid, ink)
+    _lid_strap(lid_surf, local_lid, ink)
+    rot = pygame.transform.rotate(lid_surf, 28)
+    hinge = (body.left + int(lid.width * 0.18),
+             body.top - int(lid.height * 0.10))
+    big.blit(rot, rot.get_rect(midbottom=hinge))
 
-    # Gold-glow interior fills the vertical gap exposed by the lift.
-    glow_top = raised_lid.bottom
-    glow_bot = body.top + int(body.height * 0.06)
-    glow_w = body.width - int(body.width * 0.18)
-    glow_h = max(SS, glow_bot - glow_top)
-    glow = pygame.Rect(0, 0, glow_w, glow_h)
-    glow.midtop = (body.centerx, glow_top)
-    _vgrad_rect(big, glow, GLOW_HI, GLOW_LO,
-                radius=max(2, int(glow.width * 0.10)))
-    pygame.draw.rect(big, GOLD_INK, glow, max(1, ink // 2),
-                     border_radius=max(2, int(glow.width * 0.10)))
+    # Coin pile — pile_cy / coin_r0 match the B2 design recipe so the
+    # spacing and overlap stay battle-tested.
+    pile_cy = body.top + int(body.height * 0.55)
+    coin_r0 = int(body.height * 0.18)
 
-    # Lock + brass star — drawn AFTER the glow so the focal ornament
-    # sits above the spilled light. Clasp dropped (the lid took it).
-    _brass_lock_plate(big, body, ink, with_clasp=False)
+    # Back-row coins inside the box (3, partially behind the front lip).
+    for (ox, oy, rs) in ((-0.28, -0.20, 1.0),
+                         ( 0.08, -0.26, 1.0),
+                         ( 0.32, -0.10, 0.9)):
+        _gold_coin(big,
+                   body.centerx + int(body.width * ox),
+                   pile_cy + int(body.height * oy),
+                   max(3, int(coin_r0 * rs)),
+                   ink)
 
-    _apply_unifiers(big, body, raised_lid)
+    # Front-spill coins (5) breaking the body's front edge silhouette.
+    for (ox, oy, rs) in ((-0.36,  0.18, 1.05),
+                         (-0.10,  0.30, 1.10),
+                         ( 0.18,  0.32, 1.00),
+                         ( 0.40,  0.20, 0.95),
+                         (-0.22,  0.40, 0.90)):
+        _gold_coin(big,
+                   body.centerx + int(body.width * ox),
+                   pile_cy + int(body.height * oy),
+                   max(3, int(coin_r0 * rs)),
+                   ink)
+
+    # One bigger coin leaping out above the open lid — captures the
+    # "GOLD IS ERUPTING" beat at a focal point above the body.
+    _gold_coin(big,
+               body.centerx + int(body.width * 0.12),
+               pile_cy + int(body.height * -0.92),
+               max(4, int(coin_r0 * 1.10)),
+               ink)
+
     return _smoothscale(big)
+
+
+def _gold_coin(big, cx, cy, r, ink_w, glyph=True):
+    """Stylised gold coin — concentric gradient + rim + $-glyph chord.
+    Verbatim copy of the design tool helper (tools/render_treasure_box_
+    options.py:268). Used by the open variant's spilling-coin pile."""
+    pygame.draw.circle(big, GOLD_LO, (cx, cy + max(1, r // 6)), r)
+    pygame.draw.circle(big, GOLD_HI, (cx, cy), r)
+    pygame.draw.circle(big, GOLD_MID, (cx, cy), max(1, int(r * 0.78)))
+    pygame.draw.circle(big, GOLD_INK, (cx, cy), r, max(1, ink_w // 2))
+    if glyph and r >= 4:
+        pygame.draw.line(big, GOLD_INK,
+                         (cx - r // 3, cy - r // 3),
+                         (cx + r // 3, cy - r // 3),
+                         max(1, ink_w // 2))
+        pygame.draw.line(big, GOLD_INK,
+                         (cx - r // 3, cy + r // 3),
+                         (cx + r // 3, cy + r // 3),
+                         max(1, ink_w // 2))
+        pygame.draw.line(big, GOLD_INK,
+                         (cx, cy - r // 2),
+                         (cx, cy + r // 2),
+                         max(1, ink_w // 2))
+
+
+# ── Starburst halo ──────────────────────────────────────────────────────────
+# Lives on its own cached surface so the draw path can rotate it
+# independently of the chest. Sized 1.6x the chest footprint so the
+# rays extend ~30% past the chest silhouette on every side at peak.
+
+# Sized 1.3x the chest so the rays poke past the silhouette by ~15% per
+# side at peak scale — readable as a halo without swallowing the chest.
+_STARBURST_RADIUS = int(max(PICKUP_W, PICKUP_H) * 0.62)
+_STARBURST_SIZE   = _STARBURST_RADIUS * 2
+
+
+def _build_starburst() -> pygame.Surface:
+    """12-ray cream/gold fan radiating from centre. Built at SS supersample
+    then smoothscaled. Alternating cream / saturated gold / cream tones
+    so the burst doesn't read as one flat yellow halo."""
+    big = pygame.Surface((_STARBURST_SIZE * SS, _STARBURST_SIZE * SS),
+                         pygame.SRCALPHA)
+    cx = _STARBURST_SIZE * SS // 2
+    cy = _STARBURST_SIZE * SS // 2
+    r_long = _STARBURST_RADIUS * SS
+    r_short = int(r_long * 0.65)
+    # Each ray is a slim isoceles triangle from centre to its tip; we
+    # alternate between long/short to give the fan rhythm.
+    rays = 12
+    for k in range(rays):
+        ang = -math.pi / 2 + k * (math.tau / rays)
+        col = STAR_CREAM if k % 2 == 0 else STAR_GOLD
+        r_tip = r_long if k % 2 == 0 else r_short
+        half_w = int(r_long * 0.10)
+        # Triangle vertices: tip + two base corners offset perpendicular
+        # to the ray direction.
+        tip = (cx + math.cos(ang) * r_tip,
+               cy + math.sin(ang) * r_tip)
+        base_a = (cx + math.cos(ang + math.pi / 2) * half_w,
+                  cy + math.sin(ang + math.pi / 2) * half_w)
+        base_b = (cx + math.cos(ang - math.pi / 2) * half_w,
+                  cy + math.sin(ang - math.pi / 2) * half_w)
+        pygame.draw.polygon(big, col, [tip, base_a, base_b])
+    # Soft cream core hides the messy intersection point at the centre.
+    pygame.draw.circle(big, STAR_CREAM, (cx, cy), int(r_long * 0.18))
+    return pygame.transform.smoothscale(
+        big, (_STARBURST_SIZE, _STARBURST_SIZE))
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -319,6 +439,7 @@ def _build_open() -> pygame.Surface:
 
 _CLOSED_CACHE: "pygame.Surface | None" = None
 _OPEN_CACHE: "pygame.Surface | None" = None
+_STARBURST_CACHE: "pygame.Surface | None" = None
 
 
 def _closed_sprite() -> pygame.Surface:
@@ -335,6 +456,13 @@ def _open_sprite() -> pygame.Surface:
     return _OPEN_CACHE
 
 
+def _starburst_sprite() -> pygame.Surface:
+    global _STARBURST_CACHE
+    if _STARBURST_CACHE is None:
+        _STARBURST_CACHE = _build_starburst()
+    return _STARBURST_CACHE
+
+
 def draw_pickup_icon(surf, cx, cy, pulse):
     """Closed-lid in-air sprite. Gentle sine bob on `pulse`, same idiom
     as the rest of the procedural icon family."""
@@ -344,11 +472,42 @@ def draw_pickup_icon(surf, cx, cy, pulse):
     surf.blit(icon, r.topleft)
 
 
-def draw_open_sprite(surf, cx, cy, fade_alpha):
-    """Open-lid sprite for the post-pickup lid-pop animation. The
-    caller fades alpha 255 → 0 over the animation duration."""
-    icon = _open_sprite()
-    sprite = icon.copy()
-    sprite.set_alpha(max(0, min(255, int(fade_alpha))))
-    r = sprite.get_rect(center=(int(cx), int(cy)))
-    surf.blit(sprite, r.topleft)
+def draw_open_sprite(surf, cx, cy, anim_t, anim_t_max):
+    """Open-chest sprite (O3+O4 combined): a slowly-rotating cream/gold
+    starburst halo behind the chest, then the half-open lid + spilling
+    coin pile on top. Fades 255 → 0 over the post-pickup window.
+
+    anim_t  — seconds remaining on the lid-pop timer (drains to 0).
+    anim_t_max — initial timer value (== TREASURE_BOX_ANIM_T)."""
+    t = max(0.0, min(1.0, anim_t / anim_t_max)) if anim_t_max > 0 else 0.0
+    cx, cy = int(cx), int(cy)
+    elapsed = anim_t_max - anim_t
+
+    # Starburst halo — punches in over the first 0.15 s, then fades out
+    # over the FIRST half of the window (faster than the chest) so it
+    # reads as the "flash of the jackpot" rather than a permanent
+    # backdrop. Normal alpha (no BLEND_ADD) keeps the rays from
+    # blowing out against bright dawn-sky backdrops. Max alpha capped
+    # at 180 so the cream rays never wash out the chest underneath.
+    burst = _starburst_sprite()
+    burst_window = anim_t_max * 0.55
+    if elapsed < burst_window:
+        burst_t = 1.0 - (elapsed / burst_window) ** 2
+    else:
+        burst_t = 0.0
+    burst_alpha = max(0, min(180, int(180 * burst_t)))
+    if burst_alpha > 0:
+        # Slow CCW rotation gives the rays a shimmer without any zoom
+        # envelope — full size from frame 0 so the halo reads behind
+        # the chest on the very first frame of the animation.
+        deg = (elapsed * 75.0) % 360.0
+        burst_rot = pygame.transform.rotozoom(burst, deg, 1.0)
+        burst_rot.set_alpha(burst_alpha)
+        surf.blit(burst_rot, burst_rot.get_rect(center=(cx, cy)))
+
+    # Chest — half-open lid + spilling coin pile, fades over the full
+    # window so the loot read survives past the starburst flash.
+    chest_alpha = max(0, min(255, int(255 * t)))
+    sprite = _open_sprite().copy()
+    sprite.set_alpha(chest_alpha)
+    surf.blit(sprite, sprite.get_rect(center=(cx, cy)))

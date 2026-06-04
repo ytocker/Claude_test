@@ -1894,15 +1894,11 @@ class PowerUp:
             cx, cy = int(self.x), int(self.y)
             if self.claimed_anim_t > 0.0:
                 from game.config import TREASURE_BOX_ANIM_T
-                from game.draw import blit_glow, UI_GOLD as _UI_GOLD
-                t = self.claimed_anim_t / TREASURE_BOX_ANIM_T
-                # Halo bloom + lid-popped sprite, both fading with the
-                # animation timer so the loot beat decays into a flash
-                # of light rather than snapping out.
-                blit_glow(surf, cx, cy, 36, _UI_GOLD,
-                          alpha=max(0, min(255, int(220 * t))))
+                # Combined O3 (starburst) + O4 (spilling coins) — the
+                # starburst halo + chest fade are both driven by anim_t
+                # inside draw_open_sprite, so no extra glow needed here.
                 _tb_open(surf, cx, cy,
-                         fade_alpha=max(0, min(255, int(255 * t))))
+                         self.claimed_anim_t, TREASURE_BOX_ANIM_T)
             else:
                 _tb_closed(surf, cx, cy, self.pulse)
 
