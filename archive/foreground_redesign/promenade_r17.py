@@ -43,7 +43,7 @@ from game.pillar_variants import draw_prayer_flags
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
 from game.ambient import (
-    _SheepPack, _RunningDog, _WishingWell, _Bench, _Napper,
+    _RunningDog, _WishingWell, _Bench, _Napper,
 )
 
 GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
@@ -80,14 +80,19 @@ def _cap150(color):
 # NIGHT_GLOW_CAP so the coin stays the brightest object.
 
 def _lit_intensity(pal):
-    """0 by day, ~0.45 at dusk (lamps JUST beginning to glow), 1.0 at full night.
-    Monotonic in night-ness. Drives lit faces and halos in lockstep."""
+    """0 by day, ~0.40 at dusk (lamps JUST beginning to glow), 1.0 at full night.
+    Monotonic in night-ness. Drives lit faces and halos in lockstep.
+
+    The dusk floor is held a notch under night so EVERY emitter face is dimmer at
+    dusk than at night (per-element, not just on average) — the dusk bulb/lamp
+    faces were landing marginally hotter than the full-night set, so the floor was
+    pulled from 0.45 to 0.40 (~10% down) while night stays pinned at 1.0."""
     if not sp._is_dark_sky(pal):
         return 0.0
     night = _nightf(pal)
-    # Map the dusk night-ness (~0.38) to 0.45 and full night (~1.0) to 1.0 with a
+    # Map the dusk night-ness (~0.38) to 0.40 and full night (~1.0) to 1.0 with a
     # gentle floor so the first lit phase reads as "coming on", not dead.
-    return 0.45 + 0.55 * max(0.0, min(1.0, (night - 0.38) / 0.62))
+    return 0.40 + 0.60 * max(0.0, min(1.0, (night - 0.38) / 0.62))
 
 
 def _glow_strength(pal):
@@ -180,7 +185,10 @@ def _faint_wire_color(pal):
     the bulbs, not the string, should read."""
     sky = pal.get('sky_top', (60, 120, 200))
     # Lift a dark cord most of the way to the sky value; semi-transparent on top.
-    return _mix((60, 54, 50), sky, 0.55)
+    # Pulled one step further toward sky (0.55 -> 0.64) so the whole catenary set
+    # reads at one uniform faint value — no single span squiggles darker than the
+    # rest where it crosses a darker patch of sky.
+    return _mix((60, 54, 50), sky, 0.64)
 
 
 def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
@@ -301,8 +309,11 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3):
         # Oversized head relative to body — the universal "child" cue.
         hx, hy = bx + body_w // 2, body_y - head_r + 1
         pygame.draw.circle(surf, skin, (hx, hy), head_r)
-        pygame.draw.polygon(surf, hair,
-                            [(hx - head_r, hy - 1), (hx + head_r, hy - 1), (hx, hy - head_r - 1)])
+        # ROUND-CAP hair, NOT a cone: a domed half-disc capping the crown so the
+        # kids read as round-headed children (day AND night), never as the
+        # conical-hatted pilgrims/gnomes the old triangle suggested.
+        pygame.draw.arc(surf, hair, (hx - head_r, hy - head_r, head_r * 2 + 1, head_r * 2 + 1),
+                        math.radians(0), math.radians(180), head_r)
         pygame.draw.circle(surf, (30, 20, 15), (hx - 1, hy), 0)
         pygame.draw.circle(surf, (30, 20, 15), (hx + 1, hy), 0)
         # Two stubby running legs, swinging opposite phase.
@@ -322,52 +333,109 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3):
 
 
 def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False):
-    """A distinct elderly figure for the temple world: grey hair + a short grey
-    beard, a slightly stooped posture, a dark robe, and a walking cane. Adapts
-    the _draw_bench_person body idiom with the cane and grey colours. When
-    `seated_bench` he sits a touch lower (resting on the bench seat)."""
+    """A TEMPLE ELDER — built so the 1× silhouette alone reads "old man with a
+    cane": a bald/grey domed head (NO conical hat — that's the kids), a deeply
+    STOOPED back, a long wispy grey beard reaching the chest, a muted plum/indigo
+    robe so he can't be mistaken for the bright-shirted children, and a long
+    hooked CANE whose shaft runs the full body height down to the deck. The cane +
+    stoop + beard are the three unmistakable elder cues, sized up from the prior
+    too-subtle figure. `seated_bench` sits him a touch lower."""
     night = _nightf(pal)
-    skin = _retint_person((226, 190, 150), night)
-    robe = _retint_person((96, 86, 96), night)        # muted plum-grey robe
-    robe_dk = _retint_person((64, 56, 66), night)
-    grey = _retint_person((205, 205, 200), night)      # grey hair/beard
-    cane_c = _retint_person((120, 84, 52), night)
+    skin = _retint_person((222, 186, 148), night)
+    # A muted plum/indigo robe — a cool violet that sits apart from the kids'
+    # warm primaries and the bench couple's reds, so the elder owns his own hue.
+    robe = _retint_person((92, 72, 108), night)
+    robe_dk = _retint_person((58, 44, 74), night)
+    grey = _retint_person((212, 210, 202), night)      # grey hair/beard, near-white
+    cane_c = _retint_person((118, 80, 48), night)
 
     feet_y = GROUND_Y - 1
-    body_h = 9 if not seated_bench else 8
-    body_w = 6
-    body_y = feet_y - body_h - (3 if not seated_bench else 1)
-    # Pronounced forward STOOP — the robe block leans well over its feet so the
-    # silhouette alone reads as an elder, not just a grey-haired adult.
-    lean = 2 if not seated_bench else 1
+    # A TALLER robe block than the adults so the stoop has room to curve, and a
+    # wider hem so the bent-over posture reads as a heavy robe, not a thin coat.
+    body_h = 11 if not seated_bench else 9
+    body_w = 7
+    body_y = feet_y - body_h - (2 if not seated_bench else 0)
+    # PRONOUNCED forward stoop: the shoulders lean a full 3-4px over the feet so
+    # the silhouette is a clear hunched curve, the universal "elder" read.
+    lean = 4 if not seated_bench else 2
+    # Robe as a bent-over wedge: narrow stooped shoulders up front, broad hem.
     pygame.draw.polygon(surf, robe, [
-        (sx + lean, body_y + 1), (sx + body_w + lean, body_y),
-        (sx + body_w, body_y + body_h), (sx, body_y + body_h)])
+        (sx + lean, body_y + 2), (sx + body_w + lean - 1, body_y),
+        (sx + body_w + 1, body_y + body_h), (sx - 1, body_y + body_h)])
     pygame.draw.polygon(surf, robe_dk, [
-        (sx + lean, body_y + 1), (sx + body_w + lean, body_y),
-        (sx + body_w, body_y + body_h), (sx, body_y + body_h)], 1)
-    # Head tipped forward over the stoop, thin grey hair + a LONG wispy beard
-    # hanging off the chin (the temple-elder cue).
-    hx, hy = sx + body_w // 2 + lean + 1, body_y - 2
+        (sx + lean, body_y + 2), (sx + body_w + lean - 1, body_y),
+        (sx + body_w + 1, body_y + body_h), (sx - 1, body_y + body_h)], 1)
+    # A hunched upper-back hump where the stoop bends — extra elder cue.
+    pygame.draw.circle(surf, robe_dk, (sx + 1, body_y + 2), 2)
+    # Head tipped forward over the stoop. BALD/grey dome (a thin grey skull-cap of
+    # hair, no peak) so it can never read as a kid's conical hat.
+    hx, hy = sx + body_w // 2 + lean, body_y - 2
     pygame.draw.circle(surf, skin, (hx, hy), 3)
-    pygame.draw.polygon(surf, grey, [(hx - 3, hy - 1), (hx + 3, hy - 1), (hx, hy - 4)])
-    # Wispy beard: a tapering grey wedge dropping below the chin.
+    # Domed grey hair fringe — a flat semicircle hugging the skull, not a cone.
+    pygame.draw.arc(surf, grey, (hx - 3, hy - 4, 7, 7),
+                    math.radians(0), math.radians(180), 2)
+    # LONG wispy beard — a tapering grey wedge reaching well down the chest, the
+    # clearest temple-elder cue at 1×.
     pygame.draw.polygon(surf, grey, [
-        (hx - 2, hy + 2), (hx + 2, hy + 2), (hx, hy + 6)])
-    pygame.draw.circle(surf, (30, 20, 15), (hx + 1, hy), 0)
+        (hx - 2, hy + 2), (hx + 2, hy + 2), (hx + 1, hy + 8), (hx - 1, hy + 8)])
+    pygame.draw.circle(surf, _shade(grey, -30), (hx, hy + 6), 1)  # beard tip wisp
+    pygame.draw.circle(surf, (30, 20, 15), (hx, hy), 0)
+    # The CANE — drawn for both standing and seated so the elder always carries
+    # it. A long shaft from the leading hand all the way DOWN to the deck plus a
+    # clear hooked crook, so the silhouette plainly says "old man with a cane".
+    tap = int(round(math.sin(t * 1.3) * 1)) if not seated_bench else 0
+    cx0 = sx + body_w + lean + 2
+    hand_y = body_y + 3
+    pygame.draw.line(surf, cane_c, (cx0, hand_y), (cx0 + tap, feet_y), 2)
+    # Hooked crook curling back toward the hand.
+    pygame.draw.line(surf, cane_c, (cx0, hand_y), (cx0 - 3, hand_y), 2)
+    pygame.draw.line(surf, cane_c, (cx0 - 3, hand_y), (cx0 - 3, hand_y + 2), 2)
     if not seated_bench:
-        # A walking cane: a vertical shaft with a clear hooked handle in the
-        # leading hand, tapping in a slow gait.
-        tap = int(round(math.sin(t * 1.3) * 1))
-        cx0 = sx + body_w + lean + 2
-        pygame.draw.line(surf, cane_c, (cx0, body_y + 2),
-                         (cx0 + tap, feet_y), 1)
-        pygame.draw.line(surf, cane_c, (cx0, body_y + 2), (cx0 - 2, body_y + 2), 1)  # handle hook
         # Two robe-hem feet shuffling.
         pygame.draw.line(surf, robe_dk, (sx + 1, body_y + body_h),
                          (sx + 1, feet_y), 1)
         pygame.draw.line(surf, robe_dk, (sx + body_w - 1, body_y + body_h),
                          (sx + body_w - 1 + tap, feet_y), 1)
+
+
+def draw_flock(surf, sx, pal, *, t=0.0, n=3):
+    """A grazing flock of WOOLLY sheep. The live _SheepPack sprite reads at 1× as
+    a small dark-headed blob on thin tall legs — ambiguous, almost a bird on a
+    post. These are unmistakably sheep: each body is a fat rounded woolly OVAL
+    (clearly wider than tall) with a bumpy fleece top, SHORT stubby legs, and one
+    dark head bump at the front. A trailing lamb closes the group."""
+    night = _nightf(pal)
+    wool = _retint_person((238, 234, 226), night)
+    wool_sh = _retint_person((205, 198, 188), night)
+    wool_hi = _retint_person((250, 248, 244), night)
+    face = _retint_person((70, 62, 60), night)         # dark head + legs
+    spread = (-26, -6, 16, 32)   # 3 ewes + a trailing lamb
+    for i in range(n + 1):
+        adult = i < n
+        dx = spread[i]
+        bw = 16 if adult else 11        # body WIDER than tall -> reads woolly
+        bh = 9 if adult else 6
+        bx = sx + dx
+        # A gentle grazing bob so the still frame still feels alive.
+        bob = int(round(max(0.0, math.sin(t * 2.0 + i * 1.3)) * 1.0))
+        feet_y = GROUND_Y - 1
+        body_y = feet_y - bh - 2 - bob
+        # SHORT stubby legs (2px) — not the thin tall posts that read as a bird perch.
+        for lx in (bx + 3, bx + bw - 4):
+            pygame.draw.line(surf, face, (lx, body_y + bh - 1), (lx, feet_y), 1)
+        # Fat woolly body oval.
+        pygame.draw.ellipse(surf, wool_sh, (bx, body_y, bw, bh))
+        pygame.draw.ellipse(surf, wool, (bx, body_y, bw, bh - 1))
+        # Bumpy fleece across the top so it clearly reads as wool, not a smooth egg.
+        br = 2
+        cx = bx + br + 1
+        while cx <= bx + bw - br - 1:
+            pygame.draw.circle(surf, wool_hi, (cx, body_y + br), br)
+            cx += br + 1
+        # One clear DARK head bump at the front (right) — the "this is a sheep" cue.
+        hx = bx + bw - 1
+        pygame.draw.circle(surf, face, (hx, body_y + 2), 3 if adult else 2)
+        pygame.draw.circle(surf, _shade(face, 18), (hx + 1, body_y + 1), 1)  # ear/snout nub
 
 
 def draw_strollers(surf, sx, pal, *, t=0.0):
@@ -499,9 +567,11 @@ def draw_kiosk(surf, sx, pal, *, t=0.0, openness=1.0):
     # A hanging paper lantern under the eave — lit (capped) once the sky darkens.
     lx = sx + half_w - 7
     ly = post_top - 1
-    lan_dark = _mix((170, 40, 40), _shade((170, 40, 40), -40), 0.6 * night)
-    # Lit face routes through the (now capped + dusk-ramped) clamp so the kiosk
-    # lantern glows warm red, never white, and dims at dusk like every other light.
+    # Drive the WHOLE lantern (dark shell + lit face) off the shared dusk->night
+    # intensity so the kiosk lantern is strictly dimmer at dusk than at night,
+    # per-element — the dark shell no longer brightens as the sky lightens.
+    s = _lit_intensity(pal)
+    lan_dark = _mix((96, 28, 28), (150, 38, 38), s)
     lan_lit = (sp._clamp_night((250, 110, 80))[:3] if sp._is_dark_sky(pal)
                else (210, 110, 80))
     pygame.draw.line(surf, (50, 35, 25), (lx, ly), (lx, ly + 4), 1)
@@ -601,6 +671,44 @@ def draw_napper(surf, sx, pal, *, t=0.0):
         surf.blit(layer, (zx, zy))
 
 
+# ── bring the literal glow cap home on the cream pillar's BASE trim ───────────
+#
+# The pillar art (painted into the scene before any phase painter runs) carries
+# two warm highlights at its foot that read brighter than the 150 ceiling — a
+# small gold base sill (~rgb 255,230,100, luma 223) and a doorway-shrine trim
+# band (~rgb 208,187,131, luma 187). The pillar itself is praised and must NOT be
+# dulled, so this clamp touches ONLY the two narrow foot bands: any over-cap pixel
+# there is pulled DOWN to NIGHT_GLOW_CAP luma while keeping its hue, so the coin
+# stays the single brightest object even at the frame edge. The pillar body and
+# its lit niches higher up are untouched.
+
+# (x0, x1, y0, y1) — the cream pillar's FOOT, where its gold base sill and the
+# golden doorway-shrine trim band carry warm highlights that ran past 150 luma.
+# The tower's praised silhouette and lit niches live higher up (y < ~530) and are
+# left untouched; only the ground-level foot trim (which sits closest to the coin)
+# is clamped, so the coin stays the single brightest object even at the corner.
+_TRIM_BANDS = (
+    (244, 302, 530, GROUND_Y),
+)
+
+
+def _clamp_pillar_base_trim(surf, pal=None, cap=NIGHT_GLOW_CAP):
+    """Pull any pillar-foot trim pixel above `cap` luma down to it, hue-preserved,
+    so no static masonry highlight competes with the gold coin. Gated to a dark
+    sky — by day the foot is legitimately lit stone and is left alone; the cap is
+    a NIGHT contract, so only dusk/night foot trim is brought home."""
+    if pal is not None and not sp._is_dark_sky(pal):
+        return
+    for x0, x1, y0, y1 in _TRIM_BANDS:
+        for yy in range(y0, y1):
+            for xx in range(x0, x1):
+                r, g, b, a = surf.get_at((xx, yy))
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                if lum > cap:
+                    k = cap / lum
+                    surf.set_at((xx, yy), (int(r * k), int(g * k), int(b * k), a))
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Phase events — each recombines dressing layers + a living cast. Painters take
 # (surf, w, gy, h, scroll, pal, t) so the characters can show a gait frame.
@@ -660,11 +768,11 @@ def phase_day(surf, w, gy, h, scroll, pal, t):
     # gap well before the pillar base at x≈222 — no blob, no crowding the lane.
     well = _stepped(_WishingWell, pal, 20, 58)   # far left, off the open deck
     well.draw(surf)
-    flock = _stepped(_SheepPack, pal, 40, 120)   # grazing flock, left-centre
-    flock.draw(surf)
+    draw_flock(surf, 118, pal, t=t, n=3)         # woolly grazing flock, left-centre
     dog = _stepped(_RunningDog, pal, 30, 168)    # dog trotting between flock+kids
     dog.draw(surf)
     draw_kids(surf, 198, pal, t=t, n=2)          # 2 kids playing in the right gap
+    _clamp_pillar_base_trim(surf, pal)
 
 
 def phase_golden(surf, w, gy, h, scroll, pal, t):
@@ -685,10 +793,11 @@ def phase_golden(surf, w, gy, h, scroll, pal, t):
         if sp._ground_clear(sx, 12) and not (104 < sx < 132):
             sp._draw_planter(surf, sx, pal, kind='shrub')
     draw_kiosk(surf, 38, pal, t=t, openness=1.0)   # busy, fully open
-    # The old man (standing with a cane) strolls at far left near the kiosk; the
-    # bench with a chatting companion sits in the mid strip. Spread so figures
-    # don't stack and a clear gap precedes the pillar base.
-    draw_old_man(surf, 78, pal, t=t, seated_bench=False)
+    # The TEMPLE ELDER is the hero of the golden-hour bench: a clearly stooped,
+    # caned, long-bearded figure standing AT the bench in the open mid strip,
+    # placed where the bird/coin can't hide him and given the full standing
+    # silhouette (stoop + cane to the deck + beard) so he reads at 1×. A
+    # bright-shirted companion sits on the bench beside him.
     bench = _stepped(_Bench, pal, 20, 160)
     bench._blit_sprite(surf)
     # Match _Bench.draw: sprite is 42x28, top at GROUND_Y-27, seat at +19.
@@ -696,10 +805,14 @@ def phase_golden(surf, w, gy, h, scroll, pal, t):
     night = _nightf(pal)
     comp = tuple(_retint_person(c, night) for c in
                  ((215, 85, 100), (175, 50, 70), (80, 50, 30)))
-    _draw_bench_person(surf, 156, seat_y - 8, *comp, night=night)
+    _draw_bench_person(surf, 168, seat_y - 8, *comp, night=night)
+    # The standing elder just left of the bench, in the clear gap before it — his
+    # cane and stoop read against the open deck, distinct from the round-cap kids.
+    draw_old_man(surf, 140, pal, t=t, seated_bench=False)
     dog = _stepped(_RunningDog, pal, 30, 118)
     dog.draw(surf)
     draw_kids(surf, 200, pal, t=t, n=2)
+    _clamp_pillar_base_trim(surf, pal)
 
 
 def phase_dusk(surf, w, gy, h, scroll, pal, t):
@@ -720,9 +833,13 @@ def phase_dusk(surf, w, gy, h, scroll, pal, t):
         if sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='conifer')
     draw_kiosk(surf, 38, pal, t=t, openness=0.8)
-    # The napper rests at far left; a couple stroll the mid strip. Capped Z's.
+    # The napper rests at far left; the temple elder takes a slow cane-walk in the
+    # mid gap (carrying his read into dusk too, per the AD note); a couple stroll
+    # just beyond. Capped Z's.
     draw_napper(surf, 86, pal, t=t)
-    draw_strollers(surf, 168, pal, t=t)
+    draw_old_man(surf, 138, pal, t=t, seated_bench=False)
+    draw_strollers(surf, 192, pal, t=t)
+    _clamp_pillar_base_trim(surf, pal)
 
 
 def phase_night(surf, w, gy, h, scroll, pal, t):
@@ -750,6 +867,7 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
     draw_campfire(surf, 120, pal, t=t)
     # A couple of cozy figures strolling home near the fire.
     draw_strollers(surf, 170, pal, t=t)
+    _clamp_pillar_base_trim(surf, pal)
 
 
 # (label, painter)
