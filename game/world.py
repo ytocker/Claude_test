@@ -71,6 +71,7 @@ from game.weather import (
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
     SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
+    SNOW_STORM_WIDTH as _SNOW_STORM_WIDTH,
 )
 from game.ambient import AmbientScenes
 
@@ -272,9 +273,17 @@ class World:
         self._storm_buildup_t = 0.0
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
-        # Held at 0 while ready_t > 0 so the sky doesn't tick over while
-        # the player is still on the start-of-run prompt.
-        self.biome_time = 0.0
+        # Held at this value while ready_t > 0 so the sky doesn't tick over
+        # while the player is still on the start-of-run prompt.
+        #
+        # Run starts at the biome moment the snow squall ENDS (upper edge
+        # of the storm_intensity bump = SNOW_STORM_CENTER + SNOW_STORM_WIDTH,
+        # converted to seconds via CYCLE_SECONDS). Modulo wrap puts the
+        # starting phase ~0.007 — the calm dawn immediately after the
+        # predawn snowstorm. _last_biome_phase stays 0.0 so the cycle-wrap
+        # detect below doesn't mis-fire a treasure-box finale on frame 1.
+        self.biome_time = ((_SNOW_STORM_CENTER + _SNOW_STORM_WIDTH)
+                           * biome.CYCLE_SECONDS)
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -321,18 +330,13 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Plateau-then-ease-out onboarding curve. The first PLATEAU_PIPES
-        # pillars hold the full newbie tuning so a brand-new player has a
-        # short runway to internalize flap timing without anything
-        # tightening underneath them. From there the ramp eases out
-        # (1-(1-x)^2) so the bulk of the tightening lands in the middle
-        # pillars and the last few settle gently into GAP_START / SCROLL_BASE.
-        pp = self.pillars_passed
-        if pp < PLATEAU_PIPES:
-            return 0.0
-        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
-        x = min(1.0, x)
-        return 1.0 - (1.0 - x) ** 2
+        # Newbie onboarding ramp removed: every run starts at the regular
+        # tuning endpoints (GAP_START / SCROLL_BASE / PIPE_SPACING /
+        # POWERUP_CHANCE) from pillar 0. Kept as a method so the four
+        # _current_*() callers below — and weather.py's progression-chart
+        # math — keep a single hook to flip back to the old plateau-then-
+        # ease-out curve later if onboarding is reinstated.
+        return 1.0
 
     # ── biome ────────────────────────────────────────────────────────────────
 
