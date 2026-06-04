@@ -4149,21 +4149,27 @@ class CelebrationBalloonCluster:
 
 
 class CelebrationGroundMarker:
-    """Gold ground bar + "{N} Day" text painted at the chest's world-x
-    on the grass band. Anchored in world space — scrolls left with
-    everything else and self-culls when off-screen.
+    """Vertical white "finish-line" stripe + "{N} Day" white label,
+    confined to the GROUND BAND (grass + soil stripes). Marks the
+    world-x where the biome cycle finished — directly beneath the
+    chest. Reads like a track-race lane marker so the player feels
+    they've crossed a milestone.
 
-    Built once at construction (composite cached) so per-frame cost is
-    a single blit."""
+    Anchored in world space — scrolls left with the rest of the gap
+    decor and self-culls when off-screen. Cached composite, per-frame
+    cost is a single blit."""
 
-    BAR_W = 200
-    BAR_H = 8
-    LIFT_FROM_GROUND = 4   # text baseline rises this much above the bar top
-    TEXT_SIZE = 28
-    BAR_HI   = (255, 220, 110)
-    BAR_LO   = (196, 132,  28)
-    INK      = ( 60,  40,  10)
-    TEXT_FILL = (255, 240, 180)
+    LINE_W = 4              # vertical stripe width
+    LINE_COLOR = (252, 252, 252)
+    TEXT_COLOR = (252, 252, 252)
+    TEXT_INK   = ( 30,  20,   8)   # very thin shadow for grass legibility
+    TEXT_SIZE  = 16
+    TEXT_GAP_X = 6          # px between line and text
+    # Pad below GROUND_Y so the stripe + label hug the top of the grass
+    # band cleanly (the variant draw renders grass blades + flowers
+    # there).
+    TOP_PAD    = 2
+    BOTTOM_PAD = 2
 
     def __init__(self, world_x: float, day: int):
         self.x = float(world_x)
@@ -4171,7 +4177,7 @@ class CelebrationGroundMarker:
         self._sprite = self._build()
 
     def alive(self) -> bool:
-        return self.x > -CelebrationGroundMarker.BAR_W
+        return self.x > -200
 
     def update(self, dt: float, scroll_dx: float = 0.0):
         self.x -= scroll_dx
@@ -4179,65 +4185,45 @@ class CelebrationGroundMarker:
     def _build(self) -> pygame.Surface:
         from game.hud import _font
         cls = CelebrationGroundMarker
-        # Render at 2x supersample so the gradient + outline are crisp.
-        ss = 2
-        # Composite needs to hold the bar PLUS the text above it.
-        bar_w_s = cls.BAR_W * ss
-        bar_h_s = cls.BAR_H * ss
-        text_band_h = cls.TEXT_SIZE * ss + 12 * ss
-        total_h = text_band_h + bar_h_s + 6 * ss
-        big = pygame.Surface((bar_w_s, total_h), pygame.SRCALPHA)
-        # Drop shadow under the bar.
-        bar_y = text_band_h
-        shadow = pygame.Surface((bar_w_s, bar_h_s + 4 * ss), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 90),
-                            (0, 2 * ss, bar_w_s, bar_h_s + 2 * ss))
-        big.blit(shadow, (0, bar_y - ss))
-        # Bar gradient.
-        for yy in range(bar_h_s):
-            t = yy / max(1, bar_h_s - 1)
-            r = int(cls.BAR_HI[0] + (cls.BAR_LO[0] - cls.BAR_HI[0]) * t)
-            g = int(cls.BAR_HI[1] + (cls.BAR_LO[1] - cls.BAR_HI[1]) * t)
-            b = int(cls.BAR_HI[2] + (cls.BAR_LO[2] - cls.BAR_HI[2]) * t)
-            pygame.draw.line(big, (r, g, b, 255),
-                             (0, bar_y + yy), (bar_w_s, bar_y + yy))
-        pygame.draw.rect(big, (*cls.INK, 230),
-                         (0, bar_y, bar_w_s, bar_h_s), max(1, ss))
-        # Text: "{N} Day" (literal user spec).
+        band_h = (H - GROUND_Y) - cls.TOP_PAD - cls.BOTTOM_PAD
+        # Render text once to size the composite.
         text = f"{self.day} Day"
         font = _font(cls.TEXT_SIZE, True)
-        tx_face = font.render(text, True, cls.TEXT_FILL)
-        tx_ink  = font.render(text, True, cls.INK)
-        # 2-px outline by blitting the ink layer at 8 offsets.
-        tw, th = tx_face.get_size()
-        text_layer = pygame.Surface((tw + 8, th + 8), pygame.SRCALPHA)
-        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2),
-                       (-2, -2), (2, -2), (-2, 2), (2, 2)):
-            text_layer.blit(tx_ink, (4 + ox, 4 + oy))
-        text_layer.blit(tx_face, (4, 4))
-        # Supersample-scale the text layer up to match the ss composite.
-        text_layer_s = pygame.transform.smoothscale(
-            text_layer,
-            (text_layer.get_width() * ss, text_layer.get_height() * ss))
-        tx_rect = text_layer_s.get_rect(
-            midbottom=(bar_w_s // 2, bar_y - cls.LIFT_FROM_GROUND * ss))
-        big.blit(text_layer_s, tx_rect.topleft)
-        # Smoothscale composite back to display size.
-        final = pygame.transform.smoothscale(
-            big, (cls.BAR_W, total_h // ss))
-        return final
+        face = font.render(text, True, cls.TEXT_COLOR)
+        ink  = font.render(text, True, cls.TEXT_INK)
+        tw, th = face.get_size()
+        comp_w = cls.LINE_W + cls.TEXT_GAP_X + tw + 2
+        comp_h = max(band_h, th + 4)
+        big = pygame.Surface((comp_w, comp_h), pygame.SRCALPHA)
+        # Vertical white stripe — full ground-band height.
+        pygame.draw.rect(big, cls.LINE_COLOR,
+                         (0, 0, cls.LINE_W, band_h))
+        # Subtle 1-px grey shadow on the right edge of the stripe so it
+        # reads as a painted-on lane line, not a floating slab.
+        pygame.draw.line(big, (200, 200, 200, 200),
+                         (cls.LINE_W, 0),
+                         (cls.LINE_W, band_h - 1), 1)
+        # Text "{N} Day" — white with a 1-px dark drop shadow so it
+        # stays legible against the green grass + dark blades.
+        text_x = cls.LINE_W + cls.TEXT_GAP_X
+        text_y = (band_h - th) // 2
+        # 1-px ink shadow on 4 cardinal offsets.
+        for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            big.blit(ink, (text_x + ox, text_y + oy))
+        big.blit(face, (text_x, text_y))
+        return big
 
     def draw(self, surf: pygame.Surface, sx: int = 0, sy: int = 0):
-        # Anchor: bar baseline sits ON the ground line, text rises above.
-        # The composite's bar is at y = text_band_h within the sprite;
-        # blit so the BAR's top sits 2 px above GROUND_Y.
+        # Anchor: top of the white stripe sits TOP_PAD below GROUND_Y so
+        # the marker lives entirely inside the ground band (grass +
+        # soil), centred horizontally on the chest's world-x for the
+        # stripe edge.
         cls = CelebrationGroundMarker
         spr = self._sprite
-        bar_top_y_in_sprite = spr.get_height() - cls.BAR_H - 3
-        # We want bar_top to land at GROUND_Y - 2.
-        target_top = GROUND_Y - 2 - bar_top_y_in_sprite
-        rect = spr.get_rect(midtop=(int(self.x + sx), int(target_top + sy)))
-        surf.blit(spr, rect.topleft)
+        target_top = GROUND_Y + cls.TOP_PAD
+        # Centre the stripe on self.x (stripe is LINE_W wide).
+        target_left = int(self.x - cls.LINE_W * 0.5)
+        surf.blit(spr, (target_left + sx, int(target_top + sy)))
 
 
 class CelebrationFireworkBurst:
