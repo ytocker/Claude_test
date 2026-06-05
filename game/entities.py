@@ -738,9 +738,10 @@ class Bird:
             from game.umbrella import draw_overlay
             draw_overlay(surf, cx_int, cy_int, tilt)
         # Windblown snow on Pip during the squall — baked W2 overlay matched to
-        # the sprite's rotozoom(tilt) + body scale, so it stays glued on.
+        # the sprite's rotozoom(tilt) + body scale, so it stays glued on. Pass
+        # the current frame so the full-cover peak buries the actual wing pose.
         if self.snow_load > 0.04 and not skeleton_visible:
-            ov = snow_fx.get_snow_overlay(self.snow_load)
+            ov = snow_fx.get_snow_overlay(self.snow_load, frame_idx)
             if ov is not None:
                 from game.config import GROW_SCALE as _GS
                 bsc = (_GS if self.grow_active else 1.0) * self.shrink_scale

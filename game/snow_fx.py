@@ -81,19 +81,24 @@ def _topline(frame_idx):
     return _topline_cache[frame_idx]
 
 
-def get_snow_overlay(load):
-    """Cached W2 snow overlay (native frame size) for this load. Baked from a
-    single resting frame (frame-independent) so a wing flap never moves the
-    snow on the head."""
+def get_snow_overlay(load, frame_idx=None):
+    """Cached W2 snow overlay (native frame size) for this load. Below the
+    full-cover band it's baked from a single resting frame (frame-independent)
+    so a wing flap never jitters the head snow; at FULL cover (load≈1.0) it's
+    baked from the CURRENT frame so the actual silhouette — raised wing and all
+    — is buried."""
     if load <= 0.04:
         return None
     b = round(load / _BUCKET) * _BUCKET
-    key = b
+    # Per-frame only once the full-cover ramp engages (b ≥ 0.78); below that all
+    # frames share _REF_FRAME so the partial blanket stays stable across flaps.
+    use_frame = _REF_FRAME if (frame_idx is None or b < 0.78) else frame_idx
+    key = (b, use_frame)
     cached = _overlay_cache.get(key)
     if cached is not None:
         return cached
 
-    top, bot, x_min, w, h = _topline(_REF_FRAME)
+    top, bot, x_min, w, h = _topline(use_frame)
     if x_min < 0:
         _overlay_cache[key] = None
         return None
@@ -168,15 +173,21 @@ def _parcel_topline(mode):
     w, h = p.get_size()
     mask = pygame.mask.from_surface(p, 50)
     top = [-1] * w
+    bot = [-1] * w
     x_min = -1
     for x in range(w):
+        col_top = -1
+        col_bot = -1
         for y in range(h):
             if mask.get_at((x, y)):
-                top[x] = y
-                if x_min < 0:
-                    x_min = x
-                break
-    _parcel_top_cache[mode] = (top, x_min, w, h)
+                if col_top < 0:
+                    col_top = y
+                col_bot = y
+        top[x] = col_top
+        bot[x] = col_bot
+        if col_top >= 0 and x_min < 0:
+            x_min = x
+    _parcel_top_cache[mode] = (top, bot, x_min, w, h)
     return _parcel_top_cache[mode]
 
 
@@ -191,28 +202,36 @@ def get_parcel_snow(mode, load):
     cached = _parcel_ov_cache.get(key)
     if cached is not None:
         return cached
-    top, x_min, w, h = _parcel_topline(mode)
+    top, bot, x_min, w, h = _parcel_topline(mode)
     if x_min < 0:
         _parcel_ov_cache[key] = None
         return None
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
     taper_w = 4.0
+    # Full-cover ramp: a small lid early, but as the snow peaks the cap grows to
+    # bury the WHOLE parcel (every column filled top->bottom) so it whites out
+    # with Pip rather than keeping a bare underside.
+    fc = _smooth((ll - 0.45) / 0.55)
     drew = False
     for x in range(w):
         yt = top[x]
+        yb = bot[x]
         if yt < 0:
             continue
         rear = 1.0 - x / w
         te = _smooth((x - x_min) / taper_w)
-        d = PARCEL_MAXD * ll * (0.65 + 0.5 * rear) * te
+        d_cap = PARCEL_MAXD * ll * (0.65 + 0.5 * rear) * te
+        d_full = max(0.0, yb - yt)
+        d = d_cap * (1.0 - fc) + max(d_cap, d_full) * fc
         if d < 0.6:
             continue
         nb = math.sin(x * 1.7) * 0.25 + 0.5
-        y0 = yt - 0.6 * te
-        y1 = yt + d + (nb - 0.5) * 1.4
+        y0 = yt - 0.6 * te * (1.0 - fc)
+        y1 = yt + d + (nb - 0.5) * 1.4 * (1.0 - fc)
+        span = max(1.0, y1 - y0)
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
-        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.22)), 1)
-        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.3)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + max(1.5, span * 0.22))), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - max(1.5, span * 0.3))), (x, int(y1)), 1)
         drew = True
     if not drew:
         _parcel_ov_cache[key] = None
