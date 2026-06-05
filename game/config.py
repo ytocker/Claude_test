@@ -291,26 +291,26 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 #     the bird (in screen pixels) when wind = 1.0. Pure visual
 #     — does not affect collision (Bird.x stays at BIRD_X).
 #     Positive direction is rightward (ahead of normal), applied
-#     via Bird.draw shake_x. At 8.0 px Pip's push is ~12% of his
+#     via Bird.draw shake_x. At 11.0 px Pip's push is ~17% of his
 #     64-px sprite width, clearly visible as "tailwind boost".
 #   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
 #     is INCREASED at peak wind. At wind 1.0 the scroll runs at
 #     (1 + factor) × normal so pipes/coins approach faster and
-#     the player covers more distance per second. 0.30 means
-#     30% more progress at peak — felt as a real boost.
-WEATHER_WIND_LEAN_AMP     = 8.0
-WEATHER_WIND_SCROLL_FACTOR = 0.30
+#     the player covers more distance per second. 0.42 means
+#     42% more progress at peak — felt as a real boost.
+WEATHER_WIND_LEAN_AMP     = 11.0
+WEATHER_WIND_SCROLL_FACTOR = 0.42
 
-# Windblown snow accumulating on Pip during the snow squall (visual only).
-# bird.snow_load (0..1) follows a build → HOLD → clear arc keyed to the squall:
-#   - BUILD: a steady, gradual ramp 0→1 over FILL_SECONDS while the squall is
-#     active, so reaching FULL cover is a slow, readable transition.
-#   - HOLD: once full, snow stays fully covering Pip while the storm is strong.
-#   - CLEAR: when the squall starts dying (intensity below CLEAR_WI) the snow
-#     sheds quickly so Pip is clean again by the time the weather passes.
-WEATHER_SNOW_FILL_SECONDS = 40.0   # gradual build from first snow to FULL cover
-WEATHER_SNOW_CLEAR_RATE   = 0.16   # quick shed once the squall is dying out
-WEATHER_SNOW_CLEAR_WI     = 0.30   # storm intensity below which snow starts shedding
+# Windblown snow accumulating on Pip during the snow squall. bird.snow_load
+# (0..1) tracks the squall ITSELF rather than a fixed clock: it builds in
+# proportion to storm intensity on the rise (a stronger/longer squall buries
+# him faster and fuller, capping at full cover), then melts once the storm is
+# past its peak. The melt is keyed to the phase past SNOW_STORM_CENTER and
+# ramps in over MELT_RAMP, so the build stays clean through the climax and the
+# snow only sheds soon after the peak — clearing before the weather passes.
+WEATHER_SNOW_ACCUM_RATE = 0.13    # build pace ∝ storm intensity; reaches FULL by peak
+WEATHER_SNOW_MELT_RATE  = 0.075   # removal pace once past the peak (sheds a full cover in time)
+WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow phase ramp past the peak → removal STARTS soon after
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many

@@ -98,7 +98,7 @@ LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
 
 # Snow squall (shifted by config.SNOW_START_PILLAR).
 SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
-SNOW_STORM_WIDTH     = 0.10
+SNOW_STORM_WIDTH     = 0.13
 
 
 # ── phase → intensity curves ────────────────────────────────────────────────
@@ -203,7 +203,7 @@ def thermal_intensity(phase: float) -> float:
 # Cold wash colour for the snow squall — a deep blue-grey that
 # cools the whole scene so the bright white snow pops against it.
 SNOW_TINT = (74, 96, 130)
-SNOW_TINT_PEAK_A = 130
+SNOW_TINT_PEAK_A = 165
 _WHITE = (255, 255, 255)
 
 
@@ -599,7 +599,7 @@ class Weather:
         # Big soft foreground flakes (slow parallax depth).
         if storm > 0.10:
             drift_t = (storm - 0.10) / 0.90
-            target = int(drift_t * 30)
+            target = int(drift_t * 40)
             while len(self.wind_drifts) < target:
                 self._spawn_wind_drift(drift_t, phase)
         for wd in self.wind_drifts:
@@ -610,7 +610,7 @@ class Weather:
         # Bulk snowflakes — dense at peak (the body of the squall).
         if storm > 0.10:
             dust_t = (storm - 0.10) / 0.90
-            target = int(dust_t * 200)
+            target = int(dust_t * 260)
             while len(self.wind_dust) < target:
                 self._spawn_wind_dust(dust_t, phase)
         for du in self.wind_dust:
@@ -621,7 +621,7 @@ class Weather:
         # Driven-snow streaks (the wind-blown headline).
         if storm > 0.15:
             streak_t = (storm - 0.15) / 0.85
-            target = int(streak_t * 70)
+            target = int(streak_t * 90)
             while len(self.wind_streaks) < target:
                 self._spawn_wind_streak(streak_t, phase)
         for ws in self.wind_streaks:
@@ -632,7 +632,7 @@ class Weather:
         # Turbulence curls — small white eddies, peak only.
         if storm > 0.30:
             swirl_t = (storm - 0.30) / 0.70
-            target = int(swirl_t * 10)
+            target = int(swirl_t * 14)
             while len(self.wind_swirls) < target:
                 self._spawn_wind_swirl(swirl_t, phase)
         for sw_ in self.wind_swirls:

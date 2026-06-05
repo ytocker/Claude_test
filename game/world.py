@@ -44,7 +44,7 @@ from game.config import (
     CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    WEATHER_SNOW_FILL_SECONDS, WEATHER_SNOW_CLEAR_RATE, WEATHER_SNOW_CLEAR_WI,
+    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -68,6 +68,7 @@ from game import audio
 from game import geyser_fx
 from game.weather import (
     Weather,
+    SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
@@ -263,9 +264,6 @@ class World:
         self._last_biome_phase = 0.0
         self._finale_rush_remaining = 0
         self._finale_box_dropped = False
-        # Snow squall: latches once Pip reaches FULL cover so the build phase
-        # can't re-trigger; the quick clear at the squall's tail re-arms it.
-        self._snow_peaked = False
         # Transient flag so near-miss detection fires once per pillar.
         self._near_miss_flags: dict[int, bool] = {}
 
@@ -459,28 +457,20 @@ class World:
         else:
             self.bird.wind_lean = 0.0
 
-        # Windblown snow on Pip — build → HOLD → clear, all gated by the squall.
-        # While the storm is up, snow builds at a STEADY rate to FULL cover over
-        # WEATHER_SNOW_FILL_SECONDS (a slow, readable burial), then latches and
-        # HOLDS at full. Only once the squall is dying out (intensity below
-        # WEATHER_SNOW_CLEAR_WI) does it shed — quickly — so Pip is clean again
-        # before the weather passes. The clear re-arms the build for next cycle.
-        if wi > 0.02:
-            if not self._snow_peaked:
-                self.bird.snow_load = min(
-                    1.0, self.bird.snow_load + dt / WEATHER_SNOW_FILL_SECONDS)
-                if self.bird.snow_load >= 1.0 - 1e-6:
-                    self._snow_peaked = True
-            elif wi < WEATHER_SNOW_CLEAR_WI:
-                self.bird.snow_load = max(
-                    0.0, self.bird.snow_load - WEATHER_SNOW_CLEAR_RATE * dt)
-            # else: HOLD at full while the storm is still strong
-        else:
-            # Outside the squall: ensure Pip ends clean and re-arm the build.
-            self.bird.snow_load = max(
-                0.0, self.bird.snow_load - WEATHER_SNOW_CLEAR_RATE * dt)
-            if self.bird.snow_load <= 0.0:
-                self._snow_peaked = False
+        # Windblown snow on Pip — accumulation tracks the squall ITSELF: build
+        # ∝ storm intensity on the rise (so a stronger/longer storm buries him
+        # faster and fuller, capping at full cover), melt keyed to the phase
+        # being PAST THE PEAK and ramping in over WEATHER_SNOW_MELT_RAMP — so the
+        # build stays clean through the climax and the snow only starts shedding
+        # soon after the peak, clearing before the weather passes. Anchor:
+        # weather.SNOW_STORM_CENTER tracks config.SNOW_START_PILLAR so the melt
+        # timing stays in sync with the shifted storm visuals.
+        fade = max(0.0, min(1.0, (self.weather.phase - _SNOW_STORM_CENTER)
+                                 / WEATHER_SNOW_MELT_RAMP))
+        fade = fade * fade * (3.0 - 2.0 * fade)
+        gain = WEATHER_SNOW_ACCUM_RATE * wi
+        self.bird.snow_load = max(0.0, min(1.0,
+            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
 
         # Storm jolt: near-peak rain, after lockout, only if Pip has score
         # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.

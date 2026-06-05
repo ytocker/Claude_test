@@ -141,8 +141,13 @@ class CelebrationSpawnAtWrap(unittest.TestCase):
         crowd = w.celebration_crowds[-1]
         from game.config import CYCLE_FINALE_BOX_INDEX
         expected_finish = bunting.x_left + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
-        self.assertIn(expected_finish, crowd.cluster_xs,
-                      "one crowd cluster must sit on the predicted finish stripe")
+        # finish_x is appended verbatim to cluster_xs by the world, but this
+        # expected value is recomputed via a differently-grouped (mathematically
+        # equal) expression, so the two can differ by a few ULPs — match the
+        # stripe within float tolerance rather than bit-exact.
+        self.assertTrue(
+            any(abs(cx - expected_finish) < 1e-6 for cx in crowd.cluster_xs),
+            "one crowd cluster must sit on the predicted finish stripe")
         # All clusters fall within the [left, right] span.
         for cx in crowd.cluster_xs:
             self.assertGreaterEqual(cx, bunting.x_left - 0.001)
