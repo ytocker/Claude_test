@@ -311,7 +311,8 @@ WEATHER_WIND_SCROLL_FACTOR = 0.37
 # past its peak. The melt is keyed to the phase past SNOW_STORM_CENTER and
 # ramps in over MELT_RAMP, so the build stays clean through the climax and the
 # snow only sheds soon after the peak — clearing before the weather passes.
-WEATHER_SNOW_ACCUM_RATE = 0.13    # build pace ∝ storm intensity; reaches FULL by peak
+WEATHER_SNOW_ACCUM_RATE = 0.055   # build pace ∝ storm intensity; gradual — full cover
+                                  # is reached right AROUND the storm peak, not well before it
 WEATHER_SNOW_MELT_RATE  = 0.075   # removal pace once past the peak (sheds a full cover in time)
 WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow phase ramp past the peak → removal STARTS soon after
 
