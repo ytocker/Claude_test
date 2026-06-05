@@ -302,14 +302,15 @@ WEATHER_WIND_LEAN_AMP     = 8.0
 WEATHER_WIND_SCROLL_FACTOR = 0.30
 
 # Windblown snow accumulating on Pip during the snow squall (visual only).
-# bird.snow_load (0..1): gain = ACCUM * storm_intensity (gradual build through
-# the storm's rise). Melt is keyed to the storm being PAST ITS PEAK (phase
-# 0.85) rather than to intensity level — it's 0 on the rise (clean build) and
-# ramps in over MELT_RAMP just after the peak, so snow starts coming off soon
-# after the peak and clears gradually.
-WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
-WEATHER_SNOW_MELT_RATE  = 0.060   # gradual removal pace once past the peak
-WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow ramp past the 0.85 peak → removal STARTS sooner (~7s after peak) while the melt PACE stays the gradual rate above
+# bird.snow_load (0..1) follows a build → HOLD → clear arc keyed to the squall:
+#   - BUILD: a steady, gradual ramp 0→1 over FILL_SECONDS while the squall is
+#     active, so reaching FULL cover is a slow, readable transition.
+#   - HOLD: once full, snow stays fully covering Pip while the storm is strong.
+#   - CLEAR: when the squall starts dying (intensity below CLEAR_WI) the snow
+#     sheds quickly so Pip is clean again by the time the weather passes.
+WEATHER_SNOW_FILL_SECONDS = 40.0   # gradual build from first snow to FULL cover
+WEATHER_SNOW_CLEAR_RATE   = 0.16   # quick shed once the squall is dying out
+WEATHER_SNOW_CLEAR_WI     = 0.30   # storm intensity below which snow starts shedding
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
