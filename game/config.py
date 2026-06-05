@@ -310,10 +310,12 @@ WEATHER_WIND_SCROLL_FACTOR = 0.37
 # (~phase 0.84, not the first faint flakes), holds full through the heavy part,
 # then defrosts as the snowfall lightens — clearing as the storm ends (~1.03).
 # See the threshold model in weather.Weather.update.
-WEATHER_SNOW_ON_WI      = 0.45    # storm intensity at/above which snow builds (gates the
-                                  # start ~0.84 and the defrost onset on the way down)
-WEATHER_SNOW_ACCUM_RATE = 0.033   # constant build pace while it's snowing hard (~30 s to full)
-WEATHER_SNOW_MELT_RATE  = 0.055   # defrost pace once snowfall lightens (clears ~storm end)
+WEATHER_SNOW_ON_WI      = 0.45    # storm intensity at/above which snow builds — gates the
+                                  # START (~phase 0.84, a bit into the storm)
+WEATHER_SNOW_MELT_AT    = 0.04    # phase PAST the peak at which defrost begins (independent
+                                  # of the start): ~phase 0.95 → snow sheds and is gone ~1.0
+WEATHER_SNOW_ACCUM_RATE = 0.037   # constant build pace while it's snowing hard (~full by ~0.92)
+WEATHER_SNOW_MELT_RATE  = 0.06    # defrost pace past the peak (gone ~the day boundary)
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many

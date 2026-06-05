@@ -13,7 +13,7 @@ import random
 import pygame
 
 from game.config import (W, H, GROUND_Y,
-                         WEATHER_SNOW_ON_WI,
+                         WEATHER_SNOW_ON_WI, WEATHER_SNOW_MELT_AT,
                          WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE)
 from game import audio
 
@@ -571,14 +571,16 @@ class Weather:
     def update(self, dt, phase):
         self.phase = phase
 
-        # Snow squall cover on Pip — UNIFORM (constant-rate) build only while it's
-        # snowing HARD (storm_intensity >= WEATHER_SNOW_ON_WI). The threshold
-        # makes the snow start a bit INTO the storm (~phase 0.84, not the first
-        # faint flakes), build + hold through the heavy stretch, then defrost as
-        # the snowfall lightens — clearing as the storm ends (~1.03). Gated purely
-        # on intensity (a clean function of phase), so no phase-wrap math.
+        # Snow squall cover on Pip — UNIFORM (constant-rate) build while it's
+        # snowing HARD (storm_intensity >= WEATHER_SNOW_ON_WI) AND we're not yet
+        # past the melt point; defrost otherwise. The ON threshold gates the START
+        # (~phase 0.84, a bit into the storm, not the first faint flakes); the melt
+        # point WEATHER_SNOW_MELT_AT (phase past the peak) gates the DEFROST so it
+        # begins soon after the peak and Pip is clear by ~the day boundary — both
+        # independent. `d` is the wrap-safe signed distance from the peak.
         wi = storm_intensity(phase)
-        if wi >= WEATHER_SNOW_ON_WI:
+        d = ((phase - SNOW_STORM_CENTER + 0.5) % 1.0) - 0.5
+        if wi >= WEATHER_SNOW_ON_WI and d < WEATHER_SNOW_MELT_AT:
             self.snow_cover = min(1.0, self.snow_cover + WEATHER_SNOW_ACCUM_RATE * dt)
         else:
             self.snow_cover = max(0.0, self.snow_cover - WEATHER_SNOW_MELT_RATE * dt)
