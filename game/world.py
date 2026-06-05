@@ -44,7 +44,6 @@ from game.config import (
     CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -68,7 +67,6 @@ from game import audio
 from game import geyser_fx
 from game.weather import (
     Weather,
-    SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
@@ -457,21 +455,11 @@ class World:
         else:
             self.bird.wind_lean = 0.0
 
-        # Windblown snow on Pip — accumulation tracks the squall ITSELF: build
-        # ∝ storm intensity on the rise (so a stronger/longer storm buries him
-        # faster and fuller, capping at full cover). Melt is keyed to the phase
-        # PAST THE PEAK and ramps in over WEATHER_SNOW_MELT_RAMP, but the
-        # descending gain keeps net accumulation positive a while longer — so
-        # full cover holds through the whole climax and only sheds as the squall
-        # fades, clearing before the weather passes. Anchor:
-        # weather.SNOW_STORM_CENTER tracks config.SNOW_START_PILLAR so the melt
-        # timing stays in sync with the shifted storm visuals.
-        fade = max(0.0, min(1.0, (self.weather.phase - _SNOW_STORM_CENTER)
-                                 / WEATHER_SNOW_MELT_RAMP))
-        fade = fade * fade * (3.0 - 2.0 * fade)
-        gain = WEATHER_SNOW_ACCUM_RATE * wi
-        self.bird.snow_load = max(0.0, min(1.0,
-            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
+        # Windblown snow on Pip mirrors the squall's accumulated cover —
+        # weather.snow_cover is the single source that also drives the screen
+        # whiteout, so Pip buries and the scene whitens in lockstep (build ∝
+        # intensity, full cover held through the climax, shed as it passes).
+        self.bird.snow_load = self.weather.snow_cover
 
         # Storm jolt: near-peak rain, after lockout, only if Pip has score
         # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
