@@ -459,10 +459,11 @@ class World:
 
         # Windblown snow on Pip — accumulation tracks the squall ITSELF: build
         # ∝ storm intensity on the rise (so a stronger/longer storm buries him
-        # faster and fuller, capping at full cover), melt keyed to the phase
-        # being PAST THE PEAK and ramping in over WEATHER_SNOW_MELT_RAMP — so the
-        # build stays clean through the climax and the snow only starts shedding
-        # soon after the peak, clearing before the weather passes. Anchor:
+        # faster and fuller, capping at full cover). Melt is keyed to the phase
+        # PAST THE PEAK and ramps in over WEATHER_SNOW_MELT_RAMP, but the
+        # descending gain keeps net accumulation positive a while longer — so
+        # full cover holds through the whole climax and only sheds as the squall
+        # fades, clearing before the weather passes. Anchor:
         # weather.SNOW_STORM_CENTER tracks config.SNOW_START_PILLAR so the melt
         # timing stays in sync with the shifted storm visuals.
         fade = max(0.0, min(1.0, (self.weather.phase - _SNOW_STORM_CENTER)

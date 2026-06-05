@@ -258,8 +258,10 @@ TREASURE_BOX_ANIM_T         = 1.5
 # HUD telegraph) — the chest-finale banner is the only signal players need.
 DAY_SCROLL_STEP   = 8.0   # px/s added to SCROLL_BASE per completed day
 DAY_SCROLL_CAP    = 220.0 # ceiling on the post-ramp scroll base (RAIL ×2.5
-                          # and weather wind still stack on top — day-8
-                          # RAIL run = 550 px/s, inside plausibility window)
+                          # and the snow-squall tailwind ×1.42 still stack on
+                          # top — a day-8 RAIL ride cresting the squall peak ≈
+                          # 781 px/s, absorbed by the +2-pillar slack in
+                          # _plausibility.pillars_ceiling)
 DAY_GAP_STEP      = 5     # px removed from GAP_START per completed day
 DAY_GAP_FLOOR     = 135   # gap floor — sits well above the inert GAP_MIN
                           # (115); below ~130 the play-area for Pip + parcel
