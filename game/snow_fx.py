@@ -104,6 +104,11 @@ def get_snow_overlay(load, frame_idx=None):
     if x_min < 0:
         _overlay_cache[key] = None
         return None
+    # Resting-frame topline: at partial load the snow top is capped to this so a
+    # raised wing (frame 0 lifts the silhouette ~5–8px over the head/back) does
+    # NOT grow an isolated snow blob that pops above the eye between flap frames.
+    # At full cover (fc→1) we ease back to the live frame so the wing still buries.
+    ref_top = _topline(_REF_FRAME)[0]
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
     taper_w = 13.0
     # Full-cover ramp: below ~0.78 the rear-first sculpted blanket is unchanged;
@@ -117,6 +122,11 @@ def get_snow_overlay(load, frame_idx=None):
         yb = bot[x]
         if yt < 0:
             continue
+        # Cap the snow top to the resting silhouette at partial load (no snow on a
+        # lifted wing tip), easing to the live topline as full cover takes over.
+        rt = ref_top[x]
+        if rt >= 0:
+            yt = yt + max(0.0, rt - yt) * (1.0 - fc)
         xf = x / w
         # Coverage: rear-first blanket, but forced to full on every column as the
         # full-cover ramp engages so the front/head get buried too.

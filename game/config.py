@@ -305,14 +305,14 @@ WEATHER_WIND_LEAN_AMP     = 11.0
 WEATHER_WIND_SCROLL_FACTOR = 0.37
 
 # Windblown snow accumulating on Pip during the snow squall. bird.snow_load
-# (0..1) builds at a CONSTANT rate the whole time it's actively snowing, so the
-# growth is uniform and the full cover lands near the END of the squall (not at
-# its peak); once the storm is over the snow defrosts FASTER than it built. See
-# the storm-gated model in weather.Weather.update.
-WEATHER_SNOW_ACCUM_RATE = 0.016   # constant build pace while snowing (~62 s to full,
-                                  # reached in the last quarter of the squall)
-WEATHER_SNOW_MELT_RATE  = 0.09    # defrost pace once the storm is over (~11 s — clearly
-                                  # faster than the build)
+# (0..1) builds at a CONSTANT (uniform) rate while the squall RISES toward its
+# peak, reaching full cover around the predawn peak, then defrosts on the decline
+# — clearing by daybreak rather than lingering past the day boundary. See the
+# rise/decline model in weather.Weather.update.
+WEATHER_SNOW_ACCUM_RATE = 0.032   # constant build pace on the rise (~full cover a touch
+                                  # before the peak)
+WEATHER_SNOW_MELT_RATE  = 0.05    # defrost pace from the peak onward (clears before the
+                                  # day boundary, faster than the build)
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many

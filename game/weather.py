@@ -570,13 +570,16 @@ class Weather:
     def update(self, dt, phase):
         self.phase = phase
 
-        # Snow squall cover on Pip — a UNIFORM (constant-rate) build the whole
-        # time it's actively snowing, so the max lands near the END of the squall
-        # rather than at its peak, then a FASTER defrost once the storm is over.
-        # Gated on storm_intensity (exactly 0 outside the window) so there is no
-        # phase-wrap math: accumulate while it snows, melt only once it stops.
+        # Snow squall cover on Pip — UNIFORM (constant-rate) build only while the
+        # squall is RISING toward its peak, then defrost on the DECLINE (and off
+        # the storm). Keying the melt to the peak — not the storm's trailing edge —
+        # means Pip is fully covered around the predawn peak and has shed the snow
+        # by daybreak, instead of staying buried past the day boundary. `d` is the
+        # wrap-safe signed distance from the peak so the storm tail after the
+        # cycle wrap still counts as "declining" (never re-accumulates).
         wi = storm_intensity(phase)
-        if wi > 0.0:
+        d = ((phase - SNOW_STORM_CENTER + 0.5) % 1.0) - 0.5
+        if wi > 0.0 and d < 0.0:
             self.snow_cover = min(1.0, self.snow_cover + WEATHER_SNOW_ACCUM_RATE * dt)
         else:
             self.snow_cover = max(0.0, self.snow_cover - WEATHER_SNOW_MELT_RATE * dt)
