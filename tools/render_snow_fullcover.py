@@ -292,28 +292,36 @@ def _coal_smile(ov, hx, hy, hr, *, n=5):
         _coal_dot(ov, px, py, max(1.2, hr * 0.075))
 
 
-def _buttons(ov, bx, by, br, *, n=4):
-    """Tight coal-button column down the TRUE centreline of the lowest ball:
-    even, snug spacing (round 7 was too airy and read as stray coal). The column
-    sits in the upper-to-mid front of the ball, above the carved waist."""
+def _buttons(ov, bx, by, br, *, n=4, top_frac=-0.34, bot_frac=0.66):
+    """EXACTLY n coal buttons evenly spaced down the TRUE centreline of the lowest
+    ball, fully contained inside that ball: the column runs from by+top_frac*br to
+    by+bot_frac*br. Defaults keep the top button well BELOW the scarf/neck pinch
+    and the bottom button well ABOVE the ground-shadow edge, so neither end reads
+    as a stray coal nor merges with the face smile-arc above."""
     r = max(2, int(br * 0.11))
-    step = br * 0.40                              # tight, even gap
-    y0 = by - br * 0.22                           # start a touch above centre
+    y_top = by + top_frac * br
+    y_bot = by + bot_frac * br
+    step = (y_bot - y_top) / max(1, n - 1)
     for i in range(n):
-        _coal_dot(ov, bx, y0 + i * step, r)
+        _coal_dot(ov, bx, y_top + i * step, r)
 
 
-def _twig_arms(ov, mx, my, mr, *, pose="up"):
+def _twig_arms(ov, mx, my, mr, *, pose="up", sink=3.0):
     """Two thin bare twigs rooted on the UPPER THIRD of the body ball contour
     (not the gut), each ending in a fork so the tips don't dissolve. The root is
     the point on the circle along the outward+rise direction, so every arm starts
-    exactly on the contour. Trunk thickened ~1px for legibility against snow."""
+    exactly on the contour. Trunk thickened ~1px for legibility against snow.
+
+    `sink` pulls each branch root INWARD along its outward ray by that many px, so
+    the trunk overlaps the snow silhouette rather than starting at the geometric
+    circle edge — the smoothing/carve pass tucks the real contour slightly inside
+    the analytic circle, which otherwise leaves daylight between twig and snow."""
     # rise angle: arms go UP-and-out; the root sits high on the ball so the
     # outward ray meets the contour in its upper third.
     ang = math.radians(40) if pose == "up" else math.radians(8)
     for s in (-1, +1):
-        rx = mx + s * math.cos(ang) * mr
-        ry = my - math.sin(ang) * mr
+        rx = mx + s * math.cos(ang) * (mr - sink)
+        ry = my - math.sin(ang) * (mr - sink)
         ln = mr * 1.10
         ex = rx + s * math.cos(ang) * ln
         ey = ry - math.sin(ang) * ln
@@ -339,7 +347,8 @@ def _scarf(ov, hx, neck_y, neck_w, *, style="single"):
     band is thin enough that the neck pinch still reads through it and it doesn't
     crowd the chin. `style` toggles a single short tail vs a longer two-tier tail
     for the dressing-alt variant."""
-    band_h = neck_w * 0.26                        # ~38% slimmer than round 7's 0.42
+    band_h = neck_w * 0.23                        # thinned slightly at the neck pinch
+    neck_y = neck_y + 1.5                          # drop the wrap ~1-2px off the chin
     nseg = max(3, int(band_h + 1))
     for i in range(nseg):
         t = i / max(1, nseg - 1)
@@ -452,7 +461,11 @@ def build_variant(cw, ch, key):
         base, mid, head = circles
         def kit(ov, c):
             _twig_arms(ov, mid[0], mid[1], mid[2], pose="up")
-            _buttons(ov, base[0], base[1], base[2], n=4)
+            # spread 4 buttons UP from the upper base into the empty mid-belly so
+            # the front isn't unbuttoned; the top button still clears the mid-ball
+            # waist and the bottom clears the ground shadow.
+            _buttons(ov, base[0], base[1], base[2], n=4,
+                     top_frac=-0.72, bot_frac=0.58)
             _classic_face(ov, head[0], head[1], head[2])
             _scarf(ov, head[0], _neck_y(circles, 2, 1), head[2] * 1.02, style="single")
             _hat_top(ov, head[0], head[1], head[2])
@@ -469,7 +482,7 @@ def build_variant(cw, ch, key):
             _buttons(ov, body[0], body[1], body[2], n=4)
             _classic_face(ov, head[0], head[1], head[2])
             _scarf(ov, head[0], _neck_y(circles, 1, 0), head[2] * 1.02, style="long")
-            _hat_top(ov, head[0], head[1], head[2], tilt=math.radians(11))
+            _hat_top(ov, head[0], head[1], head[2], tilt=math.radians(7.7))
         return contour, kit
 
     raise KeyError(key)
@@ -561,13 +574,13 @@ def main():
     DIM = (168, 182, 204)
 
     sheet.blit(ftitle.render(
-        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 8: polished lead + ball-count A/B",
+        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 9: final polish on the confirmed LEAD",
         True, GOLD), (pad, 26))
     sheet.blit(fsub.render(
-        "LEAD = 2-ball - top-hat - arms-up, all round-7 fixes applied. Alongside: a PROPERLY-NECKED 3-ball (0.6:0.85:1.0, two pinches) at equal dressing for a fair ball-count pick,",
+        "LEAD = 2-ball - top-hat - arms-up (SHIP). Final fixes: exactly 4 buttons centered on the lower ball (top clears scarf, bottom clears ground shadow, separate from the face smile-arc),",
         True, DIM), (pad, 62))
     sheet.blit(fsub.render(
-        "plus one dressing alt. Signed off & kept: 2-eye + horizontal carrot + smile-arc face, flat-brim top hat, W2 snow recipe. Slimmer scarf, arms re-rooted high + forked, tight buttons, per-ball blue.",
+        "twig-arm roots sunk 3px into the body so there's no sky gap, scarf wrap dropped + thinned at the neck. Alts: 3-ball gets a 4th button spread up the belly; jaunty hat tilt eased ~30%.",
         True, DIM), (pad, 82))
 
     natives = {key: render_snowman(CW, CH, key) for _, key, _ in VARIANTS}
@@ -610,7 +623,7 @@ def main():
 
         x += col_w + gap
 
-    out = os.path.join(OUT_DIR, "round_8.png")
+    out = os.path.join(OUT_DIR, "round_9.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
