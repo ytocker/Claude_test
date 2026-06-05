@@ -12,8 +12,7 @@ from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
     DAY_SCROLL_STEP, DAY_SCROLL_CAP, DAY_GAP_STEP, DAY_GAP_FLOOR,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
-    PLATEAU_PIPES, SPAWN_GRACE,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, SPAWN_GRACE,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
@@ -338,19 +337,11 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Newbie onboarding ramp: the first PLATEAU_PIPES pillars hold
-        # the four _current_*() helpers at the easier newbie endpoints
-        # (GAP_NEWBIE_START / SCROLL_NEWBIE_BASE / PIPE_SPACING_NEWBIE /
-        # POWERUP_CHANCE_NEWBIE), then an ease-out quadratic eases them
-        # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
-        # self.pillars_passed (per-run, NOT per-day) so the easier
-        # intro never re-triggers after the first cycle wraps.
-        pp = self.pillars_passed
-        if pp < PLATEAU_PIPES:
-            return 0.0
-        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
-        x = min(1.0, x)
-        return 1.0 - (1.0 - x) ** 2
+        # Newbie onboarding ramp removed: pinned to 1.0 so the four
+        # _current_*() helpers always resolve to the regular endpoints
+        # (GAP_START / SCROLL_BASE / PIPE_SPACING / POWERUP_CHANCE) — the
+        # game plays at full tuning from the first pillar.
+        return 1.0
 
     # ── biome ────────────────────────────────────────────────────────────────
 
