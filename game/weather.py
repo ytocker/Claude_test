@@ -16,30 +16,88 @@ from game.config import W, H, GROUND_Y
 from game import audio
 
 
-# ── Weather phase anchors ────────────────────────────────────────────────────
-# Rain/thunderstorm and the predawn snow squall are pure time-of-day events
-# placed at fixed biome phases. A run OPENS at the snow squall's lower edge
-# (see World.__init__), so there is no pillar-based anchoring to derive — the
-# day/night cycle simply flows from the snow phase onward and every event comes
-# round at its phase each cycle.
+# ── Storm anchor: shift the rain + lightning phase window so the
+# drizzle's lower edge lands at config.RAIN_START_PILLAR. The shift is
+# derived from the same onboarding-ramp dwell math World.update
+# interpolates over, so the storm lands at the chosen pillar no matter
+# how the ramp constants are tuned. Only the rain/lightning curves use
+# this — the snow squall, morning thermal, and calm breeze keep their
+# original anchors.
 
-# Rain + lightning: the evening thunderstorm, centred on the dusk keyframe
-# (~0.5). Drizzle builds from ~0.32, peaks at dusk, fades by ~0.5; the
-# lightning gate (and the storm-jolt) ride the same window.
-RAIN_DRIZZLE_START   = 0.32
-RAIN_DRIZZLE_PEAK    = 0.42
-RAIN_DRIZZLE_END     = 0.50
-RAIN_STORM_PEAK      = 0.50
+def _phase_for_pillar(pillar: int) -> float:
+    """Cumulative biome phase elapsed to reach `pillar`, mirroring what
+    the game ACTUALLY does (not the simpler inter-pillar dwell math the
+    older plotter used).
+
+    Pillar 1 is special: it's seeded at `W + 60 + SPAWN_GRACE * SCROLL_BASE`
+    by `_seed_first_pipes`, then has to scroll all the way to `BIRD_X − PIPE_W`
+    before scoring fires. That seeded travel is ~1.14 s longer than a normal
+    inter-pillar dwell, and the previous formula didn't account for it —
+    so phase-for-pillar was ~0.6 pillars off the real gameplay axis.
+
+    Pillars 2..N then use the inter-pillar dwell `_current_spacing() /
+    _current_scroll()`, with `_ramp_t()` computed at `pillars_passed =
+    pp_after_previous_score` (which matches the live game). Phase is
+    unwrapped — values above 1.0 are possible if `pillar` exceeds one
+    biome cycle. Imports live here so a stale weather import never
+    touches `game.config`'s heavier module at top-level."""
+    from game.config import (
+        PLATEAU_PIPES, RAMP_PIPES,
+        PIPE_SPACING, PIPE_SPACING_NEWBIE,
+        SCROLL_BASE, SCROLL_NEWBIE_BASE,
+        SPAWN_GRACE, BIRD_X, PIPE_W, W,
+    )
+    from game.biome import CYCLE_SECONDS
+    if pillar <= 0:
+        return 0.0
+    # First-pillar seeded travel (plateau scroll).
+    seeded_x = W + 60 + int(SPAWN_GRACE * SCROLL_BASE)
+    travel = seeded_x - BIRD_X - PIPE_W
+    t = travel / SCROLL_NEWBIE_BASE
+    # Inter-pillar dwells for pillars 2..pillar.
+    for pp in range(1, int(pillar)):
+        if pp < PLATEAU_PIPES:
+            ramp_t = 0.0
+        else:
+            denom = max(1, RAMP_PIPES - PLATEAU_PIPES)
+            x = min(1.0, (pp - PLATEAU_PIPES) / denom)
+            ramp_t = 1.0 - (1.0 - x) ** 2
+        spacing = (PIPE_SPACING_NEWBIE
+                   + (PIPE_SPACING - PIPE_SPACING_NEWBIE) * ramp_t)
+        scroll = (SCROLL_NEWBIE_BASE
+                  + (SCROLL_BASE - SCROLL_NEWBIE_BASE) * ramp_t)
+        t += spacing / scroll
+    return t / CYCLE_SECONDS
+
+
+# Baseline drizzle-start phase before any shift (the original literal).
+_RAIN_DRIZZLE_START_BASE = 0.32
+# Baseline snow-squall lower edge before any shift (center 0.85 − width
+# 0.10 — the original literal where storm_intensity first goes non-zero).
+_SNOW_LOWER_EDGE_BASE = 0.75
+
+# Resolved at import time so all downstream constants are stable.
+from game.config import (RAIN_START_PILLAR as _RAIN_START_PILLAR,
+                         SNOW_START_PILLAR as _SNOW_START_PILLAR)
+_RAIN_PHASE_SHIFT = (_phase_for_pillar(_RAIN_START_PILLAR)
+                     - _RAIN_DRIZZLE_START_BASE)
+_SNOW_PHASE_SHIFT = (_phase_for_pillar(_SNOW_START_PILLAR)
+                     - _SNOW_LOWER_EDGE_BASE)
+
+# Module-level rain + lightning phase constants. Each is the original
+# literal + _RAIN_PHASE_SHIFT where applicable; widths stay the same.
+RAIN_DRIZZLE_START   = _RAIN_DRIZZLE_START_BASE + _RAIN_PHASE_SHIFT
+RAIN_DRIZZLE_PEAK    = 0.42 + _RAIN_PHASE_SHIFT
+RAIN_DRIZZLE_END     = 0.50 + _RAIN_PHASE_SHIFT
+RAIN_STORM_PEAK      = 0.50 + _RAIN_PHASE_SHIFT
 RAIN_STORM_WIDTH     = 0.08
-RAIN_COLOR_T_START   = 0.35
+RAIN_COLOR_T_START   = 0.35 + _RAIN_PHASE_SHIFT
 RAIN_COLOR_T_RANGE   = 0.20
-LIGHTNING_PHASE_MIN  = 0.49
-LIGHTNING_PHASE_MAX  = 0.58
+LIGHTNING_PHASE_MIN  = 0.49 + _RAIN_PHASE_SHIFT
+LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
 
-# Snow squall: the predawn bump (lower edge ~0.807 = predawn → sunrise). The
-# run opens at this bump's lower edge. Value preserves the established
-# snowstorm look/timing the pillar-anchoring used to resolve to.
-SNOW_STORM_CENTER    = 0.90731
+# Snow squall (shifted by config.SNOW_START_PILLAR).
+SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
 SNOW_STORM_WIDTH     = 0.10
 
 
@@ -68,9 +126,11 @@ def _skew_bump(phase: float, start: float, peak: float, end: float) -> float:
 
 
 def rain_intensity(phase: float) -> float:
-    """Drizzle build → dusk thunderstorm peak → fade. Anchored on a fixed
-    biome phase: the drizzle builds from ~0.32, the storm peaks at the dusk
-    keyframe (~0.5), then fades — a pure time-of-day event."""
+    """Drizzle build → dusk thunderstorm peak → fade. The entire block
+    is anchored to `config.RAIN_START_PILLAR` via `_RAIN_PHASE_SHIFT`
+    above — the drizzle's lower edge lands at that pillar's biome
+    phase, then the original shape (long buildup + storm peak + short
+    fade) plays out from there."""
     a = _skew_bump(phase, RAIN_DRIZZLE_START, RAIN_DRIZZLE_PEAK,
                    RAIN_DRIZZLE_END) * 0.35
     b = _bump(phase, RAIN_STORM_PEAK, RAIN_STORM_WIDTH) * 1.00
@@ -80,8 +140,9 @@ def rain_intensity(phase: float) -> float:
 def rain_color(phase: float):
     """Always blue/grey-dominant raindrops, shifting only slightly with the
     sky — a faintly warm-lit blue at the early drizzle, a deeper slate-blue
-    at the storm peak. `RAIN_COLOR_T_START` lines the warm→cool crossfade
-    up with the storm peak on the fixed dusk phase."""
+    at the storm peak. Anchors to the shifted rain block via
+    `RAIN_COLOR_T_START` so the warm→cool crossfade always lines up with
+    the storm peak no matter where `RAIN_START_PILLAR` puts it."""
     warm = (180, 192, 220)   # early-drizzle lit, still clearly blue-dominant
     cool = (135, 162, 212)   # cool slate-blue at the storm peak
     t_cool = min(1.0, max(0.0,
@@ -107,8 +168,8 @@ def calm_breeze(phase: float) -> float:
 def storm_intensity(phase: float) -> float:
     """The predawn SNOW SQUALL event — the single bump that drives the
     snow visuals, the cold atmospheric wash, AND the tailwind gameplay
-    (Pip's forward push + scroll boost). Centred on the fixed predawn
-    phase `SNOW_STORM_CENTER`; a run opens at its lower edge. A short
+    (Pip's forward push + scroll boost). The center is anchored to
+    `config.SNOW_START_PILLAR` via `_SNOW_PHASE_SHIFT` above. A short
     plateau at the peak keeps the climax sustained: the smoothstep
     bump is scaled 1.045 then clamped at 1.0, flattening the top
     while the ramps stay smooth. 0 everywhere outside the snow
@@ -583,8 +644,9 @@ class Weather:
         # dusk THUNDERSTORM, gated to open only once the rain is heavy (near
         # the peak) so the earlier light drizzle stays flash-free. The long
         # interval lands ~3 flashes over the storm; the storm-jolt strike on
-        # Pip adds its own flash near the peak. Gate rides the module-level
-        # LIGHTNING_PHASE_* constants (the fixed dusk-storm window).
+        # Pip adds its own flash near the peak. Gate tracks the shifted rain
+        # block via the module-level LIGHTNING_PHASE_* constants so moving
+        # RAIN_START_PILLAR also moves the lightning window in lockstep.
         storming = LIGHTNING_PHASE_MIN <= phase <= LIGHTNING_PHASE_MAX
         if storming:
             self.next_strike -= dt

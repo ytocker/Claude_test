@@ -35,6 +35,9 @@ COIN_RUSH_COINS    = 14
 
 POWERUP_R          = 14    # collision + footprint radius for every power-up
 POWERUP_CHANCE     = 0.24  # chance to spawn a power-up after a pipe gate
+POWERUP_CHANCE_NEWBIE = 0.10  # warmup starting chance; ramps to POWERUP_CHANCE
+                              # on the same _ramp_t() curve as gap/scroll/spacing
+                              # so the opening doesn't feel like a powerup parade
 POWERUP_COOLDOWN   = 5.5   # min seconds between power-up spawns
 # Dead-Pip cross-fade: alpha-blend from alive sprite to dead palette
 # over this many seconds starting at the collision moment.
@@ -199,14 +202,26 @@ HEELFLIP_DURATION     = 0.55
 KNIGHT_DURATION     = 30.0
 KNIGHT_INVULN       = 1.5
 
-# Weather events (rain/thunderstorm, snow squall) are anchored purely on
-# the biome phase axis — see the fixed phase constants in weather.py. A
-# run opens at the snow-squall phase (see World.__init__), so there is no
-# pillar-based storm anchoring to derive.
+# RAIN + THUNDERSTORM anchor. The dusk storm block (drizzle build →
+# storm peak → fade, plus the in-game lightning gate) is shifted along
+# the biome phase axis so its drizzle's lower edge lands at this
+# pillar number. The block's SHAPE/WIDTH/PEAK HEIGHT is unchanged —
+# only the start anchor moves. Tune this to move the whole storm
+# earlier (smaller pillar) or later (larger pillar); weather.py
+# derives the phase shift from the same onboarding-ramp dwell math
+# the world uses, so the storm always lands at the chosen pillar.
+RAIN_START_PILLAR   = 70
+
+# SNOW SQUALL anchor. Same idea as RAIN_START_PILLAR but for the
+# predawn snow-squall block in `weather.storm_intensity`. The bump's
+# lower edge lands at this pillar; the SHAPE/WIDTH (half-width 0.10,
+# scale 1.045) stay unchanged, so only the start anchor moves.
+SNOW_START_PILLAR   = 139
 
 # Seconds of scroll buffer added to the first seeded pipe's spawn x so
 # the cottage opener has clean air to scroll behind Pip before pillars
-# take over.
+# take over. Single source of truth so the chart's `_phase_for_pillar`
+# and the World's `_seed_first_pipes` agree on the first-pillar offset.
 SPAWN_GRACE         = 1.5
 
 # UMBRELLA — independent power-up that cancels the rain flap-dampen during
@@ -340,6 +355,25 @@ GEYSER_GX_SHIFT_MAX = 40
 # (Geyser.active flag stays False). Adds visual variety + asks the player to
 # read the field rather than assume every vent will lift them.
 GEYSER_DUD_CHANCE = 0.25
+
+# ── Onboarding warmup ramp ──────────────────────────────────────────────────
+# Keyed on pillars_passed: every pipe scored nudges the gap, scroll, and
+# spacing one notch closer to the regular endpoints (GAP_START / SCROLL_BASE
+# / PIPE_SPACING). After RAMP_PIPES the ramp is complete and the game stays
+# at today's regular tuning forever — no late-game tightening to GAP_MIN /
+# SCROLL_MAX.
+RAMP_PIPES           = 25
+# Pillars at the very start of a run that hold the full newbie tuning
+# (gap / scroll / spacing / powerup chance) flat before the ease-out ramp
+# in World._ramp_t kicks in. Gives complete first-timers a short
+# predictable runway to internalize flap timing without anything
+# tightening underneath them. Five pillars is ~15 s at PIPE_SPACING_NEWBIE
+# / SCROLL_NEWBIE_BASE — short enough that experienced players don't
+# perceive a "tutorial mode."
+PLATEAU_PIPES        = 5
+GAP_NEWBIE_START     = 225
+SCROLL_NEWBIE_BASE   = 125.0
+PIPE_SPACING_NEWBIE  = 370
 
 SAVE_FILE = "skybit_save.json"
 SCORES_FILE = "skybit_scores.json"
