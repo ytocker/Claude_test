@@ -67,6 +67,7 @@ from game import audio
 from game import geyser_fx
 from game.weather import (
     Weather,
+    RAIN_END as _RAIN_END,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
@@ -258,8 +259,10 @@ class World:
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
         # the next CYCLE_FINALE_RUSH_PILLARS pillars are forced into a coin
         # rush; the middle pillar carries the chest. _finale_box_dropped is
-        # a one-shot guard inside a single finale.
-        self._last_biome_phase = 0.0
+        # a one-shot guard inside a single finale. Seeded to the opening phase
+        # (the run opens at _RAIN_END) so the first frame can't read a false
+        # wrap.
+        self._last_biome_phase = _RAIN_END
         self._finale_rush_remaining = 0
         self._finale_box_dropped = False
         # Transient flag so near-miss detection fires once per pillar.
@@ -283,13 +286,12 @@ class World:
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at this value while ready_t > 0 so the sky doesn't tick over
-        # while the player is still on the start-of-run prompt. Open at
-        # fresh-dawn (phase 0.0); the first cycle-finale chest fires
-        # organically ~CYCLE_SECONDS later, with the newbie ramp
-        # (~80 s at newbie scroll/spacing) safely finished by then.
-        # Manual chest-event playtest uses the debug F9 hotkey rather
-        # than a baked-in time shift.
-        self.biome_time = 0.0
+        # while the player is still on the start-of-run prompt. The run OPENS
+        # exactly as the rain ends (_RAIN_END phase): the dusk thunderstorm has
+        # just cleared, a short calm leads into the predawn snow squall, and
+        # the cycle flows on normally from there. Manual chest-event playtest
+        # uses the debug F9 hotkey rather than a baked-in time shift.
+        self.biome_time = biome.CYCLE_SECONDS * _RAIN_END
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
