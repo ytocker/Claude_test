@@ -1,43 +1,39 @@
 """DESIGN EXPLORATION — Pip gets buried in a squall and ends as a SNOWMAN (the
 full-cover end state). Throwaway sheet tool; touches NO game code.
 
-ROUND 7 redesign. Round 6 (direction "C") built an upright stacked snowman but
-the owner rejected it: the shapes "looked bad and the placement of elements was
-not correct" (scattered red marks, vertical bars down the chest, floating arms,
-a dense comparison grid). This round throws out the buried-bird envelope entirely
-and builds a PURE CLASSIC SNOWMAN from analytic geometry — we LOSE Pip: no macaw
-crown tuft, no blue wing-tip, no scarlet. Just a real snowman, rendered LARGE
-(it is expected to be bigger than the bird in-game).
+ROUND 8. The lead is round-7 Variant 4 (2-ball - top-hat - arms-up). The
+art-director signed off the face cluster (2 coal eyes, HORIZONTAL carrot
+below-and-between them, coal smile arc), the W2 snow recipe on the contour, and
+the flat-brim top hat — those are KEPT verbatim. This round POLISHES the lead
+and settles ball-count by putting a clean 2-ball next to a *properly-necked*
+3-ball at equal dressing quality.
 
-THE CORE FIX is rigorous element placement on a stacked-ball skeleton:
-  * Body  — 2 or 3 vertically-aligned balls, each higher ball smaller.
-  * Hat   — flat on TOP of the head ball, brim horizontal, brim ~ head width.
-  * Eyes  — two coal dots, symmetric about the vertical axis, upper-front of head.
-  * Nose  — HORIZONTAL carrot, below-and-between the eyes, on the head front.
-  * Mouth — a short downward ARC of coal dots below the carrot (a smile), never
-            vertical bars.
-  * Scarf — wrapped at the NECK (head/torso junction), one tail down a side.
-  * Buttons — 2-3 coal dots in a vertical line down the CENTRE-FRONT of the torso.
-  * Arms  — thin bare twigs out the SIDES of the middle ball, rooted ON the
-            contour, each ending in 2-3 forked fingers.
+Round-7 ITERATE fixes applied here:
+  1. Ball-count A/B at equal quality. The 3-ball now reads as THREE distinct
+     stacked spheres: classic ratio head:middle:base = 0.6 : 0.85 : 1.0 with a
+     visible NECKING pinch at BOTH junctions. Round 7's 3-ball pear came from
+     unioning two near-equal lower balls into one blob; we now CARVE an explicit
+     inward pinch at each junction y-band so both seams read.
+  2. Scarf slimmed ~30-40%: one wrap + a single hanging tail, thinner band so
+     the neck pinch reads through it and the chin isn't crowded.
+  3. Twig arms re-rooted on the UPPER THIRD of the body ball contour (not the
+     gut), trunk thickened ~1px, with a fork so the tips don't dissolve.
+  4. Button column tightened: 3-4 coal buttons with even, tight spacing down the
+     true centreline of the lowest ball.
+  5. Blue W2 under-edge confined to the bottom ~26% of EACH ball (not the whole
+     lower body) so the cool shading SEPARATES the spheres instead of fusing
+     them into a pear.
+  6. Coal-cap direction cut entirely (read as a dirty/damaged crown).
 
-The SNOW is the faithful shipped snow_fx W2 recipe run down the stacked contour:
-OFF body fill + bright WHITE crest over the top ~18% + cool-blue BLUE under-edge
-over the bottom ~26% + a soft cornice overhang + the sine ripple. It must still
-read as the GAME's snow — just snowman-shaped.
-
-The sheet is CLEAN (the owner loved docs/snow_full_cover/progression.png and
-disliked the dense round_6 grid): ONE row of 5 LARGE, well-spaced variants on a
-simple sky, each with a compact WHITEOUT chip below proving the silhouette and
-its value-carriers (dark hat, warm carrot, cool-blue under-edge) survive a white
-sky. The 5 vary ONE/TWO structural axes (ball count, hat, arm pose) over the
-SAME correct face placement.
+CLEAN sheet: the lead front-and-centre, ~2-3 LARGE well-spaced variants, each
+with a compact whiteout chip beneath proving the silhouette + value-carriers
+(dark hat, warm carrot, cool-blue under-edge) survive a white sky.
 
 numpy-free / pure pygame so the contour + recipe port straight into snow_fx.py.
 
 Run from repo root:
   SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python -m tools.render_snow_fullcover
-Output: docs/snow_full_cover/round_7.png
+Output: docs/snow_full_cover/round_8.png
 """
 from __future__ import annotations
 
@@ -89,9 +85,10 @@ HAT_BAND = (196, 60, 64)
 
 # ── stacked-ball snowman contour (numpy-free) ────────────────────────────────
 # A snowman is a column of vertically-aligned balls, each higher one smaller.
-# We union the circles into one per-column (top, bot) envelope, then run the W2
-# recipe down it. `balls` is a list of (cy_fraction, radius_fraction) measured in
-# cell-height units, drawn bottom-first (largest first). Returning the analytic
+# We union the circles into one per-column (top, bot) envelope, then CARVE an
+# inward necking pinch at each ball junction so the spheres stay distinct rather
+# than fusing into a pear. `balls` is a list of (cy_fraction, radius_fraction) in
+# cell-height units, ordered bottom-first (largest first). Returning the analytic
 # ball list lets every kit element seat on a real centre — nothing floats.
 def _snowman_contour(cw, ch, balls):
     cx = cw * 0.5
@@ -116,8 +113,53 @@ def _snowman_contour(cw, ch, balls):
         x_max = x
     if x_min < 0:
         return None
-    # smooth the union seams (necks between balls) so the column reads as one
-    # snow body, not stacked discs.
+
+    # NECKING: a smooth union of two stacked balls bulges OUTWARD at the seam
+    # (the circles overlap there), so without a carve two near-equal lower balls
+    # fuse into one pear. We rebuild the silhouette so the body may never be wider
+    # than a per-height "waist profile" — the max ball half-width at that y, but
+    # tucked inward over a short band around each junction. Recomputing top/bot
+    # against this profile (rather than nudging the union) guarantees a clean
+    # pinch on the side view at every seam, and the smoothing pass below rounds
+    # the tuck into a natural waist instead of a hard notch.
+    def _max_half(yy):
+        """Widest the body may be at height yy: the radius of whichever ball
+        reaches farthest sideways here, minus a seam tuck near each junction."""
+        half = 0.0
+        for (ccx, ccy, rr) in circles:
+            dy = abs(yy - ccy)
+            if dy < rr:
+                half = max(half, math.sqrt(rr * rr - dy * dy))
+        for i in range(len(circles) - 1):
+            ux, uy, ur = circles[i + 1]
+            lx, ly, lr = circles[i]
+            jy = (uy + ur + (ly - lr)) * 0.5
+            band_y = (ur + lr) * 0.30
+            d = abs(yy - jy)
+            if d <= band_y:
+                k = math.cos(d / band_y * math.pi) * 0.5 + 0.5   # 1 seam → 0 edge
+                half = min(half, min(ur, lr) * (1.0 - 0.42 * k))
+        return half
+
+    for x in range(x_min, x_max + 1):
+        if top[x] < 0:
+            continue
+        ex = abs(x - cx)
+        # walk this column down; keep only the y-span where the waist profile is
+        # wide enough to include this column. The kept span is the new silhouette.
+        kept_top, kept_bot = -1.0, -1.0
+        y = top[x]
+        while y <= bot[x]:
+            if _max_half(y) >= ex:
+                if kept_top < 0:
+                    kept_top = y
+                kept_bot = y
+            y += 1.0
+        top[x] = kept_top
+        bot[x] = kept_bot if kept_top >= 0 else -1.0
+
+    # smooth the union seams so the column reads as one snow body, not stacked
+    # discs — but the carve above keeps the waist visible.
     for _ in range(2):
         st, sb = list(top), list(bot)
         for x in range(x_min, x_max + 1):
@@ -125,17 +167,39 @@ def _snowman_contour(cw, ch, balls):
                 continue
             ts = [top[k] for k in (x - 1, x, x + 1) if 0 <= k < cw and top[k] >= 0]
             bs = [bot[k] for k in (x - 1, x, x + 1) if 0 <= k < cw and bot[k] >= 0]
-            st[x] = sum(ts) / len(ts)
-            sb[x] = sum(bs) / len(bs)
+            if ts:
+                st[x] = sum(ts) / len(ts)
+            if bs:
+                sb[x] = sum(bs) / len(bs)
         top, bot = st, sb
     return top, bot, x_min, x_max, circles
+
+
+def _ball_bottom_at(circles, x):
+    """The bottom y of whichever ball owns column x's lowest edge — lets the W2
+    blue under-edge be confined to the bottom of EACH ball, so the shading marks
+    every sphere's underside and helps separate the stack."""
+    best = None
+    for (ccx, ccy, rr) in circles:
+        dx = x - ccx
+        if abs(dx) <= rr:
+            dy = math.sqrt(max(0.0, rr * rr - dx * dx))
+            b = ccy + dy
+            r = rr
+            if best is None or b > best[0]:
+                best = (b, r)
+    return best  # (bottom_y, radius) or None
 
 
 def _snow_body(ov, contour):
     """Run the faithful snow_fx W2 recipe per-column down the stacked contour:
     OFF fill + bright WHITE crest over the top 18% + cool-blue BLUE under-edge
-    over the bottom 26% + a soft cornice overhang + the sine ripple."""
-    top, bot, x_min, x_max, _circles = contour
+    over the bottom 26% + a soft cornice overhang + the sine ripple.
+
+    The blue under-edge is now confined PER BALL: it hugs the bottom 26% of the
+    ball that owns each column, so each sphere gets its own shaded underside and
+    the stack separates instead of reading as a single pear."""
+    top, bot, x_min, x_max, circles = contour
     cw = len(top)
     taper_w = 14.0
     for x in range(cw):
@@ -156,7 +220,18 @@ def _snow_body(ov, contour):
             continue
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
         pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
-        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
+        # per-ball blue under-edge: anchor the band to the owning ball's bottom
+        owner = _ball_bottom_at(circles, x)
+        if owner is not None:
+            bb, br = owner
+            band = max(2.0, br * 0.52)            # ≈ bottom 26% of the ball's diameter
+            ub_top = min(y1 - 1, bb - band)
+            ub_top = max(ub_top, y0 + d * 0.18 + 1)
+            if y1 - ub_top >= 1.0:
+                pygame.draw.line(ov, (*BLUE, 255), (x, int(ub_top)), (x, int(y1)), 1)
+        else:
+            pygame.draw.line(ov, (*BLUE, 255),
+                             (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
 
 
 # ── classic-snowman kit, every element seated on an analytic ball centre ─────
@@ -171,7 +246,7 @@ def _coal_dot(ov, x, y, r, *, glint=False):
 
 def _coal_eyes(ov, hx, hy, hr):
     """Two coal dots side by side, symmetric about the vertical axis, on the
-    UPPER-FRONT of the head ball."""
+    UPPER-FRONT of the head ball. (SIGNED OFF — unchanged.)"""
     r = max(2.0, hr * 0.16)
     sep = hr * 0.34
     ey = hy - hr * 0.30
@@ -181,11 +256,9 @@ def _coal_eyes(ov, hx, hy, hr):
 
 def _carrot(ov, hx, hy, hr):
     """HORIZONTAL carrot nose, pointing forward (right), rooted on the head
-    FRONT below-and-between the eyes. A flat triangle with a faint upward droop
-    so it reads as a real carrot, plus segment ridges and a lit top edge."""
+    FRONT below-and-between the eyes. (SIGNED OFF — DO NOT TOUCH.)"""
     droop = math.radians(6.0)                    # barely-there droop, not up-cheek
     fx, fy = math.cos(droop), math.sin(droop)
-    # root centred on the head front, just below the eye band
     rx = hx - hr * 0.04
     ry = hy - hr * 0.04
     length = hr * 0.95
@@ -208,7 +281,7 @@ def _carrot(ov, hx, hy, hr):
 
 def _coal_smile(ov, hx, hy, hr, *, n=5):
     """A short downward ARC of small coal dots BELOW the carrot — a smile that
-    curves with the head ball. NEVER vertical bars."""
+    curves with the head ball. (SIGNED OFF — unchanged.)"""
     cy = hy + hr * 0.34
     span = hr * 0.92
     n = max(4, n)
@@ -219,190 +292,184 @@ def _coal_smile(ov, hx, hy, hr, *, n=5):
         _coal_dot(ov, px, py, max(1.2, hr * 0.075))
 
 
-def _buttons(ov, bx, by, br, *, n=3):
-    """2-3 coal dots in a vertical line down the CENTRE-FRONT of the torso/base
-    ball, evenly spaced about the ball centre."""
-    r = max(2, int(br * 0.10))
-    total = br * 1.05
+def _buttons(ov, bx, by, br, *, n=4):
+    """Tight coal-button column down the TRUE centreline of the lowest ball:
+    even, snug spacing (round 7 was too airy and read as stray coal). The column
+    sits in the upper-to-mid front of the ball, above the carved waist."""
+    r = max(2, int(br * 0.11))
+    step = br * 0.40                              # tight, even gap
+    y0 = by - br * 0.22                           # start a touch above centre
     for i in range(n):
-        t = (i + 0.5) / n - 0.5                   # centred, even spacing
-        _coal_dot(ov, bx, by + t * total, r)
+        _coal_dot(ov, bx, y0 + i * step, r)
 
 
 def _twig_arms(ov, mx, my, mr, *, pose="up"):
-    """Two thin bare twigs out the SIDES of the MIDDLE ball, rooted ON the ball
-    contour (not floating), each ending in 2-3 forked fingers. `pose` toggles
-    raised vs relaxed/down. `ang` is the outward rise angle; the root is the
-    point on the circle along that same angle, so every arm starts exactly on
-    the contour."""
-    ang = math.radians(26) if pose == "up" else math.radians(-15)
+    """Two thin bare twigs rooted on the UPPER THIRD of the body ball contour
+    (not the gut), each ending in a fork so the tips don't dissolve. The root is
+    the point on the circle along the outward+rise direction, so every arm starts
+    exactly on the contour. Trunk thickened ~1px for legibility against snow."""
+    # rise angle: arms go UP-and-out; the root sits high on the ball so the
+    # outward ray meets the contour in its upper third.
+    ang = math.radians(40) if pose == "up" else math.radians(8)
     for s in (-1, +1):
-        # root point ON the ball contour, in the outward+rise direction
         rx = mx + s * math.cos(ang) * mr
         ry = my - math.sin(ang) * mr
-        ln = mr * 1.15
+        ln = mr * 1.10
         ex = rx + s * math.cos(ang) * ln
         ey = ry - math.sin(ang) * ln
-        pygame.draw.line(ov, TWIG, (rx, ry), (ex, ey), 2)
+        pygame.draw.line(ov, TWIG, (rx, ry), (ex, ey), 3)
         pygame.draw.line(ov, TWIG_HI, (rx, ry),
                          ((rx + ex) / 2, (ry + ey) / 2), 1)
-        # forked fingers: a two-prong split at the tip + one branch midway
-        for fk, spread in ((1.0, (20, -24)), (0.62, (26,))):
+        # forked fingers: a two-prong split at the tip + one branch midway, all
+        # drawn thick enough to survive scaling.
+        for fk, spread in ((1.0, (22, -26)), (0.60, (30,))):
             mxp = rx + (ex - rx) * fk
             myp = ry + (ey - ry) * fk
             for dd in spread:
                 fa = ang + math.radians(dd)
-                fr = ln * 0.34
+                fr = ln * 0.40
                 pygame.draw.line(ov, TWIG, (mxp, myp),
                                  (mxp + s * math.cos(fa) * fr,
-                                  myp - math.sin(fa) * fr), 1)
+                                  myp - math.sin(fa) * fr), 2)
 
 
-def _scarf(ov, hx, neck_y, neck_w, *, tail="right"):
-    """Scarf wrapped at the NECK (head/torso junction): a band of short across-
-    stripes hugging the neck, with ONE tail hanging down a side."""
-    band_h = neck_w * 0.42
-    nseg = max(4, int(band_h + 2))
+def _scarf(ov, hx, neck_y, neck_w, *, style="single"):
+    """Slimmed scarf (~30-40% less vertical coverage than round 7): ONE wrap band
+    hugging the neck + a SINGLE hanging tail. Keeps the red/white stripe but the
+    band is thin enough that the neck pinch still reads through it and it doesn't
+    crowd the chin. `style` toggles a single short tail vs a longer two-tier tail
+    for the dressing-alt variant."""
+    band_h = neck_w * 0.26                        # ~38% slimmer than round 7's 0.42
+    nseg = max(3, int(band_h + 1))
     for i in range(nseg):
         t = i / max(1, nseg - 1)
         col = SCARF_RED if (i // 2) % 2 == 0 else SCARF_WHITE
         yy = neck_y - band_h * 0.5 + t * band_h
-        hw = neck_w * (0.74 + 0.26 * math.sin(t * math.pi))   # hug the neck
+        hw = neck_w * (0.70 + 0.24 * math.sin(t * math.pi))   # hug the neck
         pygame.draw.line(ov, col, (hx - hw, yy), (hx + hw, yy), 1)
-    pygame.draw.line(ov, SCARF_DARK, (hx - neck_w * 0.74, neck_y),
-                     (hx + neck_w * 0.74, neck_y), 1)
-    # ONE tail hanging down the chosen side
-    s = 1 if tail == "right" else -1
-    tx = hx + s * neck_w * 0.62
+    pygame.draw.line(ov, SCARF_DARK, (hx - neck_w * 0.70, neck_y),
+                     (hx + neck_w * 0.70, neck_y), 1)
+    # ONE tail hanging down the right side
+    tx = hx + neck_w * 0.58
     ty = neck_y + band_h * 0.4
-    seg = max(6, int(neck_w * 0.9))
+    tail_len = neck_w * (1.25 if style == "long" else 0.85)
+    seg = max(5, int(tail_len))
     for j in range(seg):
         t = j / seg
-        x0 = tx + math.sin(t * 3.0) * 1.4                # gentle flutter
-        y0 = ty + t * neck_w * 1.05
+        x0 = tx + math.sin(t * 3.0) * 1.3                 # gentle flutter
+        y0 = ty + t * tail_len
         col = SCARF_RED if (j // 2) % 2 == 0 else SCARF_WHITE
-        pygame.draw.line(ov, col, (x0 - neck_w * 0.16, y0),
-                         (x0 + neck_w * 0.16, y0), 2)
+        pygame.draw.line(ov, col, (x0 - neck_w * 0.14, y0),
+                         (x0 + neck_w * 0.14, y0), 2)
 
 
-def _hat_top(ov, hx, hy, hr):
-    """Black top hat sitting FLAT ON TOP of the head ball: a horizontal brim of
-    ~head-ball width on the crown, then a vertical crown box and a red band."""
+def _hat_top(ov, hx, hy, hr, *, tilt=0.0):
+    """Black top hat sitting FLAT ON TOP of the head ball (SIGNED OFF): a
+    horizontal brim of ~head-ball width on the crown, a vertical crown box and a
+    red band. `tilt` (radians) gives the optional dressing-alt a jaunty lean
+    without lifting the brim off the crown."""
     seat_y = hy - hr * 0.66                       # rests on the head crown
     brim_w = hr * 1.18
     brim_h = max(2.0, hr * 0.14)
     crown_w = hr * 0.78
     crown_h = hr * 1.25
-    # brim (horizontal slab)
+    # brim (horizontal slab) — stays flat on the crown regardless of tilt
     pygame.draw.ellipse(ov, HAT_BLACK,
                         (hx - brim_w, seat_y - brim_h, brim_w * 2, brim_h * 2.2))
-    # crown
+    # crown — optionally sheared sideways for a jaunty tilt
     cy_top = seat_y - crown_h
-    pygame.draw.rect(ov, HAT_BLACK,
-                     (hx - crown_w, cy_top, crown_w * 2, crown_h),
-                     border_radius=max(1, int(hr * 0.06)))
+    shear = math.tan(tilt) * crown_h
+    crown_pts = [
+        (hx - crown_w, seat_y),
+        (hx + crown_w, seat_y),
+        (hx + crown_w + shear, cy_top),
+        (hx - crown_w + shear, cy_top),
+    ]
+    pygame.draw.polygon(ov, HAT_BLACK, crown_pts)
     # red band at the crown base
-    pygame.draw.rect(ov, HAT_BAND,
-                     (hx - crown_w, seat_y - crown_h * 0.26,
-                      crown_w * 2, crown_h * 0.20))
+    band_y = seat_y - crown_h * 0.20
+    band_shear = shear * 0.16
+    band_pts = [
+        (hx - crown_w, band_y),
+        (hx + crown_w, band_y),
+        (hx + crown_w + band_shear, band_y - crown_h * 0.20),
+        (hx - crown_w + band_shear, band_y - crown_h * 0.20),
+    ]
+    pygame.draw.polygon(ov, HAT_BAND, band_pts)
     # lit left + top edges so the felt reads as a solid block, not a void
     pygame.draw.line(ov, HAT_HI, (hx - crown_w, seat_y),
-                     (hx - crown_w, cy_top), 1)
-    pygame.draw.line(ov, HAT_HI, (hx - crown_w, cy_top),
-                     (hx + crown_w, cy_top), 1)
+                     (hx - crown_w + shear, cy_top), 1)
+    pygame.draw.line(ov, HAT_HI, (hx - crown_w + shear, cy_top),
+                     (hx + crown_w + shear, cy_top), 1)
 
 
-def _coal_cap(ov, hx, hy, hr):
-    """A low coal-lump cap — a cluster of dark stones on the head crown for a
-    rustic, hatless-but-not-bare read."""
-    seat_y = hy - hr * 0.62
-    pts = [(-0.45, 0.10), (-0.18, -0.20), (0.10, -0.26),
-           (0.36, -0.10), (0.20, 0.16), (-0.12, 0.20)]
-    for (fx, fy) in pts:
-        _coal_dot(ov, hx + fx * hr * 1.1, seat_y + fy * hr, max(2, hr * 0.16))
-
-
-# ── face cluster shared by every variant (SAME correct placement) ────────────
+# ── face cluster shared by every variant (SIGNED-OFF placement) ──────────────
 def _classic_face(ov, hx, hy, hr):
     _coal_eyes(ov, hx, hy, hr)
     _carrot(ov, hx, hy, hr)
     _coal_smile(ov, hx, hy, hr)
 
 
-# ── the 5 variant builders ───────────────────────────────────────────────────
-# Each returns (contour, draw_kit). draw_kit(ov, contour) lays the dressing on
-# the finished snow body. We vary ball count, hat, and arm pose over the SAME
-# face placement so the owner can pick a structure + dressing.
+# ── junction helper (where the scarf wraps) ──────────────────────────────────
 def _neck_y(circles, upper_i, lower_i):
-    """Vertical junction between two stacked balls (where the scarf wraps)."""
     ux, uy, ur = circles[upper_i]
     lx, ly, lr = circles[lower_i]
     return (uy + ur + (ly - lr)) * 0.5
 
 
+# ── the variant builders ─────────────────────────────────────────────────────
+# Lead = 2-ball - top-hat - arms-up, fully polished. Alternate = a properly
+# necked 3-ball at the classic head:middle:base = 0.6:0.85:1.0 ratio. Optional
+# dressing-alt reuses the lead proportions with a jauntier hat + long tail.
 def build_variant(cw, ch, key):
-    if key == "3ball_tophat_up":
-        balls = [(0.78, 0.215), (0.50, 0.165), (0.255, 0.120)]
-        contour = _snowman_contour(cw, ch, balls)
-        circles = contour[4]
-        base, mid, head = circles
-        def kit(ov, c):
-            _twig_arms(ov, mid[0], mid[1], mid[2], pose="up")
-            _buttons(ov, base[0], base[1], base[2], n=3)
-            _classic_face(ov, head[0], head[1], head[2])
-            _scarf(ov, head[0], _neck_y(circles, 2, 1), head[2] * 1.05, tail="right")
-            _hat_top(ov, head[0], head[1], head[2])
-        return contour, kit
-
-    if key == "3ball_tophat_down":
-        balls = [(0.78, 0.215), (0.50, 0.165), (0.255, 0.120)]
-        contour = _snowman_contour(cw, ch, balls)
-        circles = contour[4]
-        base, mid, head = circles
-        def kit(ov, c):
-            _twig_arms(ov, mid[0], mid[1], mid[2], pose="down")
-            _buttons(ov, base[0], base[1], base[2], n=3)
-            _classic_face(ov, head[0], head[1], head[2])
-            _scarf(ov, head[0], _neck_y(circles, 2, 1), head[2] * 1.05, tail="left")
-            _hat_top(ov, head[0], head[1], head[2])
-        return contour, kit
-
-    if key == "3ball_coalcap":
-        balls = [(0.78, 0.215), (0.50, 0.165), (0.255, 0.120)]
-        contour = _snowman_contour(cw, ch, balls)
-        circles = contour[4]
-        base, mid, head = circles
-        def kit(ov, c):
-            _twig_arms(ov, mid[0], mid[1], mid[2], pose="up")
-            _buttons(ov, base[0], base[1], base[2], n=3)
-            _classic_face(ov, head[0], head[1], head[2])
-            _scarf(ov, head[0], _neck_y(circles, 2, 1), head[2] * 1.05, tail="right")
-            _coal_cap(ov, head[0], head[1], head[2])
-        return contour, kit
-
-    if key == "2ball_tophat_up":
+    if key == "2ball_lead":
+        # head:body radius = 0.165:0.255 ≈ 0.65 : 1.0 — classic 2-ball.
         balls = [(0.70, 0.255), (0.345, 0.165)]
         contour = _snowman_contour(cw, ch, balls)
         circles = contour[4]
         body, head = circles
         def kit(ov, c):
-            _twig_arms(ov, body[0], body[1] - body[2] * 0.30, body[2], pose="up")
-            _buttons(ov, body[0], body[1] + body[2] * 0.15, body[2], n=3)
+            # arms rooted high on the body ball (upper third) — _twig_arms seats
+            # them on the contour itself, so pass the body centre directly.
+            _twig_arms(ov, body[0], body[1], body[2], pose="up")
+            _buttons(ov, body[0], body[1], body[2], n=4)
             _classic_face(ov, head[0], head[1], head[2])
-            _scarf(ov, head[0], _neck_y(circles, 1, 0), head[2] * 1.05, tail="right")
+            _scarf(ov, head[0], _neck_y(circles, 1, 0), head[2] * 1.02, style="single")
             _hat_top(ov, head[0], head[1], head[2])
         return contour, kit
 
-    if key == "2ball_bare":
+    if key == "3ball_alt":
+        # classic ratio head:middle:base = 0.6:0.85:1.0. Base radius 0.205.
+        # base=0.205, middle=0.205*0.85=0.174, head=0.205*0.60=0.123.
+        # Centres spaced so neighbouring balls overlap only ~30% (room to pinch).
+        rb, rm, rh = 0.205, 0.174, 0.123
+        cyb = 0.80
+        cym = cyb - (rb + rm) * 0.74                  # ~26% overlap → visible neck
+        cyh = cym - (rm + rh) * 0.74
+        balls = [(cyb, rb), (cym, rm), (cyh, rh)]
+        contour = _snowman_contour(cw, ch, balls)
+        circles = contour[4]
+        base, mid, head = circles
+        def kit(ov, c):
+            _twig_arms(ov, mid[0], mid[1], mid[2], pose="up")
+            _buttons(ov, base[0], base[1], base[2], n=4)
+            _classic_face(ov, head[0], head[1], head[2])
+            _scarf(ov, head[0], _neck_y(circles, 2, 1), head[2] * 1.02, style="single")
+            _hat_top(ov, head[0], head[1], head[2])
+        return contour, kit
+
+    if key == "2ball_dressalt":
+        # same lead proportions, jauntier hat tilt + a longer single tail.
         balls = [(0.70, 0.255), (0.345, 0.165)]
         contour = _snowman_contour(cw, ch, balls)
         circles = contour[4]
         body, head = circles
         def kit(ov, c):
-            _twig_arms(ov, body[0], body[1] - body[2] * 0.30, body[2], pose="down")
-            _buttons(ov, body[0], body[1] + body[2] * 0.15, body[2], n=3)
+            _twig_arms(ov, body[0], body[1], body[2], pose="up")
+            _buttons(ov, body[0], body[1], body[2], n=4)
             _classic_face(ov, head[0], head[1], head[2])
-            _scarf(ov, head[0], _neck_y(circles, 1, 0), head[2] * 1.05, tail="left")
+            _scarf(ov, head[0], _neck_y(circles, 1, 0), head[2] * 1.02, style="long")
+            _hat_top(ov, head[0], head[1], head[2], tilt=math.radians(11))
         return contour, kit
 
     raise KeyError(key)
@@ -443,43 +510,50 @@ def ground_shadow(panel, cx, base_y, w):
     panel.blit(sh, (int(cx - w / 2), int(base_y - sh.get_height() * 0.5)))
 
 
-# ── CLEAN sheet: one row of 5 large variants, each with a whiteout chip ───────
+# ── CLEAN sheet: the lead front-and-centre, well-spaced, whiteout chip each ──
 VARIANTS = [
-    ("3-ball - top-hat - arms up", "3ball_tophat_up"),
-    ("3-ball - top-hat - arms down", "3ball_tophat_down"),
-    ("3-ball - coal cap - arms up", "3ball_coalcap"),
-    ("2-ball - top-hat - arms up", "2ball_tophat_up"),
-    ("2-ball - bare head - arms down", "2ball_bare"),
+    ("LEAD  -  2-ball - top-hat - arms up", "2ball_lead", True),
+    ("3-ball - necked (0.6:0.85:1.0) - top-hat", "3ball_alt", False),
+    ("dressing alt - jaunty hat - long tail", "2ball_dressalt", False),
 ]
 
 
 def main():
-    # Render each snowman at a generous native resolution, then scale to a big
-    # hero tile. The snowman is deliberately LARGER than the bird; we do NOT
-    # optimise for tiny legibility.
-    CW, CH = 120, 168                 # native build canvas (portrait)
+    # Render each snowman at a generous native resolution, then scale up. The
+    # snowman is deliberately LARGER than the bird; we do NOT optimise for tiny
+    # legibility. The LEAD gets the biggest tile, front-and-centre.
+    CW, CH = 120, 168
 
-    pad = 40
-    gap = 34
-    title_h = 104
-    hero_w = 300                      # large hero tile
-    hero_h = int(hero_w * CH / CW)
-    chip_w = 150
-    chip_h = int(chip_w * CH / CW)
-    label_h = 30
+    pad = 48
+    gap = 52
+    title_h = 110
+
+    lead_w = 360                      # biggest — the hero
+    alt_w = 280                       # supporting tiles a step smaller
+
+    def hh(w):
+        return int(w * CH / CW)
+
+    chip_w = 156
+    chip_h = hh(chip_w)
+    label_h = 32
     chip_label_h = 22
 
+    widths = [lead_w if is_lead else alt_w for _, _, is_lead in VARIANTS]
+    col_ws = [max(w, chip_w) for w in widths]
+    hero_hs = [hh(w) for w in widths]
+    max_hero_h = max(hero_hs)
+
     n = len(VARIANTS)
-    col_w = max(hero_w, chip_w)
-    sheet_w = pad * 2 + n * col_w + (n - 1) * gap
-    sheet_h = (title_h + label_h + hero_h + 18 + chip_label_h + chip_h + pad)
+    sheet_w = pad * 2 + sum(col_ws) + (n - 1) * gap
+    sheet_h = (title_h + label_h + max_hero_h + 18 + chip_label_h + chip_h + pad)
 
     sheet = make_gradient_surface(sheet_w, sheet_h,
                                   [(0.0, (24, 30, 44)), (1.0, (16, 20, 30))])
 
     ftitle = pygame.font.SysFont("Arial", 30, bold=True)
     fsub = pygame.font.SysFont("Arial", 15)
-    flabel = pygame.font.SysFont("Arial", 16, bold=True)
+    flabel = pygame.font.SysFont("Arial", 17, bold=True)
     fchip = pygame.font.SysFont("Arial", 12)
 
     GOLD = (242, 208, 122)
@@ -487,39 +561,43 @@ def main():
     DIM = (168, 182, 204)
 
     sheet.blit(ftitle.render(
-        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 7: pure classic snowman, correct element placement",
+        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 8: polished lead + ball-count A/B",
         True, GOLD), (pad, 26))
     sheet.blit(fsub.render(
-        "Pip is fully buried and reads as a real SNOWMAN (no macaw identity). Same correct face on all five - eyes upper-front, HORIZONTAL carrot below-and-between the eyes,",
+        "LEAD = 2-ball - top-hat - arms-up, all round-7 fixes applied. Alongside: a PROPERLY-NECKED 3-ball (0.6:0.85:1.0, two pinches) at equal dressing for a fair ball-count pick,",
         True, DIM), (pad, 62))
     sheet.blit(fsub.render(
-        "smile a downward arc, scarf at the neck, buttons centred down the body, twigs rooted on the middle ball. Snow is the shipped snow_fx W2 recipe. Whiteout chip under each.",
+        "plus one dressing alt. Signed off & kept: 2-eye + horizontal carrot + smile-arc face, flat-brim top hat, W2 snow recipe. Slimmer scarf, arms re-rooted high + forked, tight buttons, per-ball blue.",
         True, DIM), (pad, 82))
 
-    # pre-render each snowman once at native res
-    natives = {key: render_snowman(CW, CH, key) for _, key in VARIANTS}
+    natives = {key: render_snowman(CW, CH, key) for _, key, _ in VARIANTS}
 
-    row_y = title_h + label_h
+    row_top = title_h + label_h
     x = pad
-    for label, key in VARIANTS:
+    for (label, key, is_lead), col_w, hero_w, hero_h in zip(
+            VARIANTS, col_ws, widths, hero_hs):
         nat = natives[key]
         cx_col = x + col_w / 2
 
         # label centred over the column
-        lbl = flabel.render(label, True, WLBL)
-        sheet.blit(lbl, (int(cx_col - lbl.get_width() / 2), row_y - label_h + 4))
+        lbl = flabel.render(label, True, GOLD if is_lead else WLBL)
+        sheet.blit(lbl, (int(cx_col - lbl.get_width() / 2), row_top - label_h + 4))
 
-        # hero on sky
+        # baseline-align the hero tiles so every snowman stands on one ground line
+        row_y = row_top + (max_hero_h - hero_h)
+
         hero = sky_panel(hero_w, hero_h)
         big = pygame.transform.smoothscale(nat, (hero_w, hero_h))
         ground_shadow(hero, hero_w / 2, hero_h - hero_h * 0.06, hero_w * 0.46)
         hero.blit(big, (0, 0))
         hx0 = int(cx_col - hero_w / 2)
         sheet.blit(hero, (hx0, row_y))
-        pygame.draw.rect(sheet, (96, 112, 140), (hx0 - 1, row_y - 1, hero_w + 2, hero_h + 2), 1)
+        frame = (244, 210, 124) if is_lead else (96, 112, 140)
+        pygame.draw.rect(sheet, frame, (hx0 - 2, row_y - 2, hero_w + 4, hero_h + 4),
+                         2 if is_lead else 1)
 
-        # whiteout chip below, with its own little label
-        chip_label_y = row_y + hero_h + 14
+        # whiteout chip below, baseline-anchored to the tallest column
+        chip_label_y = row_top + max_hero_h + 14
         clbl = fchip.render("whiteout silhouette test", True, GOLD)
         sheet.blit(clbl, (int(cx_col - clbl.get_width() / 2), chip_label_y))
         chip = whiteout_panel(chip_w, chip_h)
@@ -532,7 +610,7 @@ def main():
 
         x += col_w + gap
 
-    out = os.path.join(OUT_DIR, "round_7.png")
+    out = os.path.join(OUT_DIR, "round_8.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
