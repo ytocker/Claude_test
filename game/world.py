@@ -12,11 +12,10 @@ from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
     DAY_SCROLL_STEP, DAY_SCROLL_CAP, DAY_GAP_STEP, DAY_GAP_FLOOR,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
-    PLATEAU_PIPES, SPAWN_GRACE,
+    SPAWN_GRACE,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
-    POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
+    POWERUP_CHANCE, POWERUP_COOLDOWN,
     TRIPLE_DURATION, MAGNET_DURATION, MAGNET_RADIUS,
     MEGAMAGNET_DURATION, MEGAMAGNET_RADIUS,
     SLOWMO_DURATION, SLOWMO_SCALE, KFC_DURATION, KFC_GAP_BOOST, GHOST_DURATION,
@@ -71,12 +70,10 @@ from game.weather import (
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
+    SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
+    SNOW_STORM_WIDTH as _SNOW_STORM_WIDTH,
 )
 from game.ambient import AmbientScenes
-
-
-def _lerp(a, b, t):
-    return a + (b - a) * max(0.0, min(1.0, t))
 
 
 class World:
@@ -84,9 +81,8 @@ class World:
     # enter the visible frame. The intro hands gameplay the cottage + parcel
     # composition; this grace period gives the opener overlay time to scroll
     # the cottage off-screen before pillars take over. Lives in `game.config`
-    # as `SPAWN_GRACE` (single source of truth so the progression chart's
-    # `_phase_for_pillar` and `_seed_first_pipes` agree on the first-pillar
-    # offset).
+    # as `SPAWN_GRACE` (single source of truth so `_seed_first_pipes` uses one
+    # first-pillar offset).
 
     def __init__(self):
         # Reshuffle the meadow at the start of every new World — picks a
@@ -287,13 +283,18 @@ class World:
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at this value while ready_t > 0 so the sky doesn't tick over
-        # while the player is still on the start-of-run prompt. Open at
-        # fresh-dawn (phase 0.0); the first cycle-finale chest fires
-        # organically ~CYCLE_SECONDS later, with the newbie ramp
-        # (~80 s at newbie scroll/spacing) safely finished by then.
-        # Manual chest-event playtest uses the debug F9 hotkey rather
-        # than a baked-in time shift.
-        self.biome_time = 0.0
+        # while the player is still on the start-of-run prompt. The run OPENS
+        # just inside the predawn snow squall's leading edge — far enough in
+        # that storm_intensity clears the snow build gate from the first frame,
+        # so the start prompt already shows the snowy sky and snow begins
+        # building on Pip immediately. The cycle then flows normally: the storm
+        # passes, the sky brightens to day, and ~CYCLE_SECONDS later the squall
+        # (and the day-cycle finale) come round again.
+        snow_open_phase = _SNOW_STORM_CENTER - _SNOW_STORM_WIDTH * 0.85
+        self.biome_time = snow_open_phase * biome.CYCLE_SECONDS
+        # Seed the wrap-detector at the true opening phase so it doesn't read a
+        # spurious 0.0 → snow-phase jump as a day rollover on the first frame.
+        self._last_biome_phase = self.biome_phase
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -339,21 +340,6 @@ class World:
 
     # ── difficulty ───────────────────────────────────────────────────────────
 
-    def _ramp_t(self):
-        # Newbie onboarding ramp: the first PLATEAU_PIPES pillars hold
-        # the four _current_*() helpers at the easier newbie endpoints
-        # (GAP_NEWBIE_START / SCROLL_NEWBIE_BASE / PIPE_SPACING_NEWBIE /
-        # POWERUP_CHANCE_NEWBIE), then an ease-out quadratic eases them
-        # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
-        # self.pillars_passed (per-run, NOT per-day) so the easier
-        # intro never re-triggers after the first cycle wraps.
-        pp = self.pillars_passed
-        if pp < PLATEAU_PIPES:
-            return 0.0
-        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
-        x = min(1.0, x)
-        return 1.0 - (1.0 - x) ** 2
-
     # ── biome ────────────────────────────────────────────────────────────────
 
     @property
@@ -381,11 +367,10 @@ class World:
                     GAP_START - DAY_GAP_FLOOR)
 
     def _current_gap(self):
-        base = _lerp(GAP_NEWBIE_START, GAP_START, self._ramp_t())
-        return int(base + self._day_delta_gap())
+        return int(GAP_START + self._day_delta_gap())
 
     def _current_scroll(self):
-        base = _lerp(SCROLL_NEWBIE_BASE, SCROLL_BASE, self._ramp_t())
+        base = SCROLL_BASE
         base += self._day_delta_scroll()
         # RAIL: world rushes by RAIL_SCROLL_MULT× while Pip is locked on
         # the cart. Pre-lock, normal speed so the player can take their
@@ -406,10 +391,10 @@ class World:
         return base
 
     def _current_spacing(self):
-        return int(_lerp(PIPE_SPACING_NEWBIE, PIPE_SPACING, self._ramp_t()))
+        return PIPE_SPACING
 
     def _current_powerup_chance(self):
-        return _lerp(POWERUP_CHANCE_NEWBIE, POWERUP_CHANCE, self._ramp_t())
+        return POWERUP_CHANCE
 
     # ── weather → gameplay (rain hooks + thunderstorm storm-jolt) ──────────────
     def _apply_weather_effects(self, dt):

@@ -21,7 +21,6 @@ from game.config import (   # noqa: E402
     SCROLL_BASE, GAP_START,
     DAY_SCROLL_STEP, DAY_SCROLL_CAP,
     DAY_GAP_STEP, DAY_GAP_FLOOR,
-    RAMP_PIPES,
 )
 
 
@@ -42,15 +41,12 @@ DAY_RAMP_CURVE = (
 class DayRampTests(unittest.TestCase):
     def setUp(self):
         # Fresh World — neutralise the RAIL/SKATEBOARD/WEATHER multipliers
-        # and the newbie-onboarding ramp so _current_scroll() / _current_gap()
-        # return the unmodified post-day-ramp BASE (= regular endpoints
-        # + day delta, no newbie lerp).
+        # so _current_scroll() / _current_gap() return the unmodified base
+        # (regular endpoints + day delta).
         self.world = World()
         self.world.bird.cart_locked = False
         self.world.slide_boost = 0.0
         self.world.biome_time = 80.0  # mid-day phase, no storm
-        # _ramp_t = 1.0 once pillars_passed >= RAMP_PIPES.
-        self.world.pillars_passed = RAMP_PIPES
 
     def test_curve_matches(self):
         for cycles, expect_scroll, expect_gap in DAY_RAMP_CURVE:
