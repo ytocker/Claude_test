@@ -3,9 +3,11 @@
 Chosen design: **W2 "sculpted blanket"** from the tools/sketch_snow_accum.py
 exploration. The squall is a tailwind (blows left->right), so snow builds on
 Pip's rear/left-facing surfaces first and spreads forward + inward as the storm
-grows, keeping his face readable. Real-snow cues: rear end tapers to a point
-(no hard wall), a gentle inward pile (not just an outline rim), a bright crest
-highlight, and a cool-blue shadowed underside.
+grows. Real-snow cues: rear end tapers to a point (no hard wall), a gentle
+inward pile (not just an outline rim), a bright crest highlight, and a cool-blue
+shadowed underside. As the storm reaches its PEAK (load -> 1.0) the blanket
+grows to bury the entire parrot — every silhouette column filled top-to-bottom,
+the face cap lifted — so Pip ends up fully covered in snow at the climax.
 
 Overlays are baked per (frame, load-bucket) onto the native parrot frame using
 its own alpha silhouette, then cached — so per-frame cost in Bird.draw is just
@@ -50,8 +52,10 @@ def _cov(xf, load):
 
 
 def _topline(frame_idx):
-    """First opaque row per column of the native frame (the top silhouette),
-    plus the leftmost occupied column. Cached per frame; no numpy."""
+    """First AND last opaque row per column of the native frame (the top + bottom
+    silhouette edges), plus the leftmost occupied column. The bottom edge lets
+    the peak-storm overlay fill a whole column so Pip is fully buried. Cached per
+    frame; no numpy."""
     cached = _topline_cache.get(frame_idx)
     if cached is not None:
         return cached
@@ -59,15 +63,21 @@ def _topline(frame_idx):
     w, h = frame.get_size()
     mask = pygame.mask.from_surface(frame, 50)
     top = [-1] * w
+    bot = [-1] * w
     x_min = -1
     for x in range(w):
+        col_top = -1
+        col_bot = -1
         for y in range(h):
             if mask.get_at((x, y)):
-                top[x] = y
-                if x_min < 0:
-                    x_min = x
-                break
-    _topline_cache[frame_idx] = (top, x_min, w, h)
+                if col_top < 0:
+                    col_top = y
+                col_bot = y
+        top[x] = col_top
+        bot[x] = col_bot
+        if col_top >= 0 and x_min < 0:
+            x_min = x
+    _topline_cache[frame_idx] = (top, bot, x_min, w, h)
     return _topline_cache[frame_idx]
 
 
@@ -83,42 +93,57 @@ def get_snow_overlay(load):
     if cached is not None:
         return cached
 
-    top, x_min, w, h = _topline(_REF_FRAME)
+    top, bot, x_min, w, h = _topline(_REF_FRAME)
     if x_min < 0:
         _overlay_cache[key] = None
         return None
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
     taper_w = 13.0
+    # Full-cover ramp: below ~0.78 the rear-first sculpted blanket is unchanged;
+    # from 0.78 up to peak (load 1.0) the snow grows to bury the ENTIRE parrot —
+    # every column filled top->bottom of its silhouette, face cap lifted — so at
+    # the storm peak Pip is completely covered in snow (no readable-face cap).
+    fc = _smooth((b - 0.78) / (1.0 - 0.78))
     drew = False
     for x in range(w):
         yt = top[x]
+        yb = bot[x]
         if yt < 0:
             continue
         xf = x / w
-        cov = _cov(xf, b)
+        # Coverage: rear-first blanket, but forced to full on every column as the
+        # full-cover ramp engages so the front/head get buried too.
+        cov = max(_cov(xf, b), fc)
         if cov <= 0.0:
             continue
         rear = 1.0 - xf
         bulge = math.exp(-((xf - 0.40) / 0.26) ** 2)        # inward hump
-        d = MAXD * cov * (0.50 + 0.45 * rear + 0.45 * bulge)
+        d_bl = MAXD * cov * (0.50 + 0.45 * rear + 0.45 * bulge)
         if xf > 0.60:
             # Head: a thin crown cap at low load, but as the storm peaks
             # (load 0.68->1.0) snow creeps onto the face — more on the LEFT
             # (back) of the head, tapering so the front/beak stays readable.
             hi = max(0.0, (b - 0.68) / 0.32)
             headfrac = (xf - 0.60) / 0.40                   # 0 back-of-head .. 1 beak
-            d = min(d, 7.0 + hi * 11.0 * (1.0 - headfrac))
-        d *= _smooth((x - x_min) / taper_w)                 # rear-end slope
+            d_bl = min(d_bl, 7.0 + hi * 11.0 * (1.0 - headfrac))
+        taper = _smooth((x - x_min) / taper_w)              # rear-end slope
+        d_bl *= taper
+        # Blend the blanket depth toward the full silhouette column at peak.
+        d_full = max(0.0, yb - yt)
+        d = d_bl * (1.0 - fc) + max(d_bl, d_full) * fc
         if d < 0.6:
             continue
-        over = CORNICE * rear * _smooth((x - x_min) / taper_w)
+        # Rear-edge cornice eases out as full cover takes over (the whole top is
+        # snow by then, so a per-column lip would just look ragged).
+        over = CORNICE * (rear * taper * (1.0 - fc) + fc)
         nb = (math.sin(x * 1.26) + math.sin(x * 0.34)) * 0.25 + 0.5
         y0 = yt - over
-        y1 = yt + d + (nb - 0.5) * 2.4
+        y1 = yt + d + (nb - 0.5) * 2.4 * (1.0 - fc)         # quiet the noise at full cover
+        span = max(1.0, y1 - y0)
         # W2 sculpted blanket: clean fill + bright crest + cool under-edge.
         pygame.draw.line(ov, (*OFF, 255), (x, int(y0)), (x, int(y1)), 1)
-        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + d * 0.18)), 1)
-        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - d * 0.26)), (x, int(y1)), 1)
+        pygame.draw.line(ov, (*WHITE, 255), (x, int(y0)), (x, int(y0 + max(2.0, span * 0.18))), 1)
+        pygame.draw.line(ov, (*BLUE, 255), (x, int(y1 - max(2.0, span * 0.26))), (x, int(y1)), 1)
         drew = True
     if not drew:
         _overlay_cache[key] = None

@@ -207,12 +207,12 @@ def thermal_intensity(phase: float) -> float:
 
 
 # Cold wash colour for the snow squall. The wash starts as a deep
-# blue-grey (cooling the scene so flakes pop) and trends toward a
-# bright snowy white as the squall's cover builds, so the climax reads
-# as a genuine whiteout that keeps whitening into and around the peak.
+# blue-grey (cooling the scene so flakes pop) and trends toward a soft,
+# cool snowy white at the storm peak — a MODERATE wash (peak alpha ~half)
+# that reads as weather rather than a screen-filling whiteout.
 SNOW_TINT = (74, 96, 130)
-SNOW_TINT_WHITE = (226, 233, 242)
-SNOW_TINT_PEAK_A = 165
+SNOW_TINT_WHITE = (205, 218, 235)
+SNOW_TINT_PEAK_A = 128
 _WHITE = (255, 255, 255)
 
 
@@ -784,22 +784,20 @@ class Weather:
         for s in self.streaks:
             s.draw(surf)
         # Atmospheric wash for the snow squall — a full-screen overlay whose
-        # alpha AND colour track the accumulated snow cover, so the scene keeps
-        # getting whiter as the squall builds and holds white at and around the
-        # peak (vs a symmetric in-and-out). Colour trends from the cool blue-grey
-        # toward bright snowy white as cover deepens (cover**0.8 leads the
-        # whitening so the climax reads as a real whiteout, not just a denser
-        # blue wash). Drawn here (after pillars, before the snow + before the
-        # bird/coins which render later) so the background whites out while Pip +
-        # collectibles stay readable on top.
-        cover = self.snow_cover
-        if cover > 0.01:
-            a = int(SNOW_TINT_PEAK_A * cover)
+        # alpha AND colour track storm_intensity, so the scene cools+whitens on
+        # the rise, peaks WITH the storm, and clears exactly when the snowstorm
+        # ends (no lingering hold). Colour trends from the cool blue-grey toward
+        # a soft snowy white at the peak — a moderate wash that reads as weather,
+        # not a blinding whiteout. Drawn here (after pillars, before the snow +
+        # before the bird/coins which render later) so the background cools while
+        # Pip + collectibles stay readable on top.
+        wash_t = storm_intensity(self.phase)
+        if wash_t > 0.01:
+            a = int(SNOW_TINT_PEAK_A * wash_t)
             if a > 0:
-                t = cover ** 0.8
-                col = (int(SNOW_TINT[0] + (SNOW_TINT_WHITE[0] - SNOW_TINT[0]) * t),
-                       int(SNOW_TINT[1] + (SNOW_TINT_WHITE[1] - SNOW_TINT[1]) * t),
-                       int(SNOW_TINT[2] + (SNOW_TINT_WHITE[2] - SNOW_TINT[2]) * t))
+                col = (int(SNOW_TINT[0] + (SNOW_TINT_WHITE[0] - SNOW_TINT[0]) * wash_t),
+                       int(SNOW_TINT[1] + (SNOW_TINT_WHITE[1] - SNOW_TINT[1]) * wash_t),
+                       int(SNOW_TINT[2] + (SNOW_TINT_WHITE[2] - SNOW_TINT[2]) * wash_t))
                 wash = pygame.Surface((W, H), pygame.SRCALPHA)
                 wash.fill((*col, a))
                 surf.blit(wash, (0, 0))
