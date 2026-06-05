@@ -13,8 +13,7 @@ import random
 import pygame
 
 from game.config import (W, H, GROUND_Y,
-                         WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE,
-                         WEATHER_SNOW_MELT_RAMP)
+                         WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE)
 from game import audio
 
 
@@ -571,19 +570,16 @@ class Weather:
     def update(self, dt, phase):
         self.phase = phase
 
-        # Snow squall cover — builds ∝ storm intensity on the rise (so the
-        # whiteout deepens as the squall climbs), caps at full, holds through
-        # the climax, then sheds once the phase is past the peak. Melt onset is
-        # keyed to the phase being PAST SNOW_STORM_CENTER and ramps in over
-        # WEATHER_SNOW_MELT_RAMP, but the descending gain keeps net accumulation
-        # positive a while longer — so full cover holds at AND around the peak,
-        # then clears before the squall passes.
-        fade = max(0.0, min(1.0,
-            (phase - SNOW_STORM_CENTER) / WEATHER_SNOW_MELT_RAMP))
-        fade = fade * fade * (3.0 - 2.0 * fade)
-        gain = WEATHER_SNOW_ACCUM_RATE * storm_intensity(phase)
-        self.snow_cover = max(0.0, min(1.0,
-            self.snow_cover + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
+        # Snow squall cover on Pip — a UNIFORM (constant-rate) build the whole
+        # time it's actively snowing, so the max lands near the END of the squall
+        # rather than at its peak, then a FASTER defrost once the storm is over.
+        # Gated on storm_intensity (exactly 0 outside the window) so there is no
+        # phase-wrap math: accumulate while it snows, melt only once it stops.
+        wi = storm_intensity(phase)
+        if wi > 0.0:
+            self.snow_cover = min(1.0, self.snow_cover + WEATHER_SNOW_ACCUM_RATE * dt)
+        else:
+            self.snow_cover = max(0.0, self.snow_cover - WEATHER_SNOW_MELT_RATE * dt)
 
         # Rain
         intensity = rain_intensity(phase)

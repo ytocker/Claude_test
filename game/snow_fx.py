@@ -90,9 +90,11 @@ def get_snow_overlay(load, frame_idx=None):
     if load <= 0.04:
         return None
     b = round(load / _BUCKET) * _BUCKET
-    # Per-frame only once the full-cover ramp engages (b ≥ 0.78); below that all
-    # frames share _REF_FRAME so the partial blanket stays stable across flaps.
-    use_frame = _REF_FRAME if (frame_idx is None or b < 0.78) else frame_idx
+    # Bake from the CURRENT frame so the snow matches the drawn wing pose at every
+    # load. Only the full wing-up frame differs (head topline ~5px higher); using
+    # _REF_FRAME for it left a visible gap above the snow during flaps. _REF_FRAME
+    # is only the fallback when no frame is supplied.
+    use_frame = frame_idx if frame_idx is not None else _REF_FRAME
     key = (b, use_frame)
     cached = _overlay_cache.get(key)
     if cached is not None:
