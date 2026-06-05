@@ -306,22 +306,26 @@ def _buttons(ov, bx, by, br, *, n=4, top_frac=-0.34, bot_frac=0.66):
         _coal_dot(ov, bx, y_top + i * step, r)
 
 
-def _twig_arms(ov, mx, my, mr, *, pose="up", sink=3.0):
-    """Two thin bare twigs rooted on the UPPER THIRD of the body ball contour
-    (not the gut), each ending in a fork so the tips don't dissolve. The root is
-    the point on the circle along the outward+rise direction, so every arm starts
-    exactly on the contour. Trunk thickened ~1px for legibility against snow.
+def _twig_arms(ov, mx, my, mr, *, pose="up", overlap=4.0):
+    """Two thin bare twigs rooted ON the body-ball snow, each ending in a fork so
+    the tips don't dissolve. Trunk ~3px for legibility against snow.
 
-    `sink` pulls each branch root INWARD along its outward ray by that many px, so
-    the trunk overlaps the snow silhouette rather than starting at the geometric
-    circle edge — the smoothing/carve pass tucks the real contour slightly inside
-    the analytic circle, which otherwise leaves daylight between twig and snow."""
-    # rise angle: arms go UP-and-out; the root sits high on the ball so the
-    # outward ray meets the contour in its upper third.
+    The root must sit ON the silhouette, never floating in the sky. We pick a root
+    HEIGHT `ry` in the UPPER THIRD of the body ball — just below the neck pinch
+    where the body is already WIDE — then measure the ACTUAL horizontal edge of
+    the circle at that height (`dx = sqrt(r^2 - (ry-cy)^2)`) and plant the trunk a
+    few px INSIDE that measured edge. Rooting from the true edge (not the ball's
+    max radius `mr`, which it only reaches at the equator) guarantees the first
+    branch segment starts on solid snow with zero daylight on either side."""
+    # rise angle: arms go UP-and-out.
     ang = math.radians(40) if pose == "up" else math.radians(8)
+    # root height: upper third of the body ball — below the neck pinch, where the
+    # silhouette is still broad, so the measured edge sits deep in the snow.
+    ry = my - mr * 0.45
+    dx = math.sqrt(max(0.0, mr * mr - (ry - my) ** 2))
     for s in (-1, +1):
-        rx = mx + s * math.cos(ang) * (mr - sink)
-        ry = my - math.sin(ang) * (mr - sink)
+        # plant the root just INSIDE the measured circle edge at this height
+        rx = mx + s * (dx - overlap)
         ln = mr * 1.10
         ex = rx + s * math.cos(ang) * ln
         ey = ry - math.sin(ang) * ln
@@ -574,13 +578,13 @@ def main():
     DIM = (168, 182, 204)
 
     sheet.blit(ftitle.render(
-        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 9: final polish on the confirmed LEAD",
+        "Pip - SNOW FULL COVER -> SNOWMAN   *   ROUND 10: twig arms re-rooted on the silhouette edge",
         True, GOLD), (pad, 26))
     sheet.blit(fsub.render(
-        "LEAD = 2-ball - top-hat - arms-up (SHIP). Final fixes: exactly 4 buttons centered on the lower ball (top clears scarf, bottom clears ground shadow, separate from the face smile-arc),",
+        "LEAD = 2-ball - top-hat - arms-up (SHIP). ONE fix this round: each twig arm is now rooted from the ACTUAL circle edge at its root height (dx = sqrt(r^2-(ry-cy)^2)) with a 4px inward overlap,",
         True, DIM), (pad, 62))
     sheet.blit(fsub.render(
-        "twig-arm roots sunk 3px into the body so there's no sky gap, scarf wrap dropped + thinned at the neck. Alts: 3-ball gets a 4th button spread up the belly; jaunty hat tilt eased ~30%.",
+        "planted in the UPPER THIRD of the lower body ball where the snow is wide - so there is zero sky gap on either side. Buttons, face, carrot, scarf, hat and W2 snow are UNCHANGED.",
         True, DIM), (pad, 82))
 
     natives = {key: render_snowman(CW, CH, key) for _, key, _ in VARIANTS}
@@ -623,7 +627,7 @@ def main():
 
         x += col_w + gap
 
-    out = os.path.join(OUT_DIR, "round_9.png")
+    out = os.path.join(OUT_DIR, "round_10.png")
     pygame.image.save(sheet, out)
     print(f"saved {out}  ({sheet_w}x{sheet_h})")
 
