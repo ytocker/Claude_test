@@ -260,93 +260,56 @@ def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
 
 
-# Extra canvas the thick battered shell expands into (the fried knight ends up
-# noticeably LARGER than the bare knight — that bulk IS the crust).
-_FRY_MARGIN = 16
+# The fried knight is modestly plumper/bigger than the bare knight — the same
+# ~12-16% the fried parrot is over the plain parrot — via a clean uniform scale,
+# NOT a craggy crust shell. Tunable by the design loop.
+FRY_SCALE = 1.15
 
 
-def _pad(s, m):
-    w, h = s.get_size()
-    o = pygame.Surface((w + 2 * m, h + 2 * m), pygame.SRCALPHA)
-    o.blit(s, (m, m))
-    return o
-
-
-def _crispy_sil(out, col):
-    m = _amask(out)
-    m.fill((*col, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    return m
-
-
-def _disk(d):
-    return [(dx, dy) for dx in range(-d, d + 1) for dy in range(-d, d + 1)
-            if dx * dx + dy * dy <= d * d]
-
-
-def _batter_shell(out, outer, mid, lump_r, lump_p):
-    """A THICK layered battered crust BEHIND the knight: a deep crispy-dark base
-    crust dilated `outer`px, craggy dark lumps studded round its rim, then a
-    golden batter coat dilated `mid`px with golden lumps. The knight ends up
-    encased in a bulky, craggy fried shell much larger than the bare knight —
-    the same "drawn plumper" trick the fried parrot uses over the plain one."""
-    w, h = out.get_size()
-    res = pygame.Surface((w, h), pygame.SRCALPHA)
-    darksil = _crispy_sil(out, _CRISPY_DARK)
-    goldsil = _crispy_sil(out, _CRISPY_GOLD)
-    for ox, oy in _disk(outer):
-        res.blit(darksil, (ox, oy))
-    rim = pygame.mask.from_surface(res, 40).outline(5)     # craggy outer rim
-    rng = random.Random(0xC2057)
-    for x, y in rim:
-        if rng.random() < lump_p:
-            pygame.draw.circle(res, _CRISPY_DARK, (x, y), rng.randint(*lump_r))
-    for ox, oy in _disk(mid):
-        res.blit(goldsil, (ox, oy))
-    for x, y in rim:
-        if rng.random() < lump_p * 0.7:
-            pygame.draw.circle(res, _CRISPY_GOLD, (x, y), rng.randint(lump_r[0] - 1, lump_r[1] - 1))
-    return res
+def plump_frames(frames):
+    out = []
+    for f in frames:
+        w, h = f.get_size()
+        out.append(pygame.transform.smoothscale(f, (round(w * FRY_SCALE), round(h * FRY_SCALE))))
+    return out
 
 
 def _deep_fry(frame):
-    """Put a whole knight frame through the SAME deep-fry the fried parrot gets
-    (parrot._build_fried_frame): recolor its luminance onto the crispy batter
-    ramp, ENCASE it in a thick craggy battered shell (much bulkier than the bare
-    knight), then add fried TEXTURE — chunky crackle (dark valley + light ridge),
-    crispy spots, dark nuggets and a juicy golden grease sheen — clamped to the
-    silhouette. So helm, shield, sword, armour and body all read like one thickly
-    battered, extra-crispy fried thing. Fixed rng seeds keep the crust + texture
-    stable across the 4 wing frames."""
+    """Deep-fry a knight frame the SAME way the fried parrot is fried
+    (parrot._build_fried_frame): recolor its luminance onto the crispy golden
+    batter ramp, then add fried TEXTURE clamped to the silhouette — small crispy
+    spots + crackle lines (dark valley + light ridge = raised batter) + a juicy
+    golden grease sheen. A clean crispy skin ON the knight itself (no crust
+    shell). Fixed rng seed keeps the texture stable across the 4 wing frames."""
     out = _recolor(frame, _CRISPY_GOLD, add=(44, 20, 2))   # rich golden-brown batter
-    out = _pad(out, _FRY_MARGIN)
-    res = _batter_shell(out, 10, 6, (5, 9), 0.9)           # thick craggy shell behind
-    res.blit(out, (0, 0))
-    out = res
     w, h = out.get_size()
     tex = pygame.Surface((w, h), pygame.SRCALPHA)
     rng = random.Random(0x5C0FFEE)
-    for _ in range(16):                                    # chunky dark crust nuggets
-        pygame.draw.circle(tex, _CRISPY_DARK,
-                           (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(3, 5))
     for _ in range(70):                                    # fine crispy spots
         pygame.draw.circle(tex, _CRISPY_SPOT,
                            (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(1, 2))
-    for _ in range(24):                                    # thick crackle: dark valley + light ridge
+    for _ in range(24):                                    # crackle: dark valley + light ridge
         x1, y1 = rng.randint(2, w - 12), rng.randint(2, h - 12)
         dx, dy = rng.randint(5, 11), rng.randint(-5, 5)
         pygame.draw.line(tex, _CRISPY_DARK, (x1, y1), (x1 + dx, y1 + dy), 2)
         pygame.draw.line(tex, _CRISPY_LIGHT, (x1 - 1, y1 - 1), (x1 + dx - 1, y1 + dy - 1), 1)
     tex.blit(_amask(out), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     out.blit(tex, (0, 0))
-    _sheen(out, (255, 232, 160), (238, 186, 96), top_a=70, bot_a=44)   # juicy gloss
+    _sheen(out, (255, 232, 160), (238, 186, 96), top_a=64, bot_a=40)   # juicy gloss
     return out
 
 
-def build_knight_kfc_frames():
-    """THE FRIED KNIGHT — the regular STEEL knight run through the fried-parrot
-    deep-fry (crispy batter palette + crackle/spots/grease texture), so the whole
-    suit reads battered-crispy."""
+def fried_knight_core_frames():
+    """Normal-size deep-fried knight (recolor + crispy texture), BEFORE the
+    plump-up scale. The crowned stack crowns THIS then plumps, so the crown
+    seats and scales with the knight."""
     return [_deep_fry(f) for f in build_knight_frames()]
+
+
+def build_knight_kfc_frames():
+    """THE FRIED KNIGHT — the regular knight deep-fried crispy, then plumped up a
+    touch so it reads bigger like the fried parrot vs the plain parrot."""
+    return plump_frames(fried_knight_core_frames())
 
 
 def build_knight_ghost_frames():

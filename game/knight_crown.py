@@ -109,8 +109,10 @@ def build_knight_hat_frames():
 
 
 def build_knight_kfc_hat_frames():
-    from game.knight_skin import build_knight_kfc_frames
-    return crown_frames(build_knight_kfc_frames())
+    # Crown the NORMAL-size fried knight, then plump knight + crown together so
+    # the crown seats correctly and scales with the bigger fried knight.
+    from game.knight_skin import fried_knight_core_frames, plump_frames
+    return plump_frames(crown_frames(fried_knight_core_frames()))
 
 
 def build_knight_ghost_hat_frames():
