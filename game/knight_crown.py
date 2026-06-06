@@ -86,18 +86,19 @@ def _crown(surf, cx, cy):
 def crown_frames(knight_frames):
     """Composite the royal crown onto each of the given knight frames at the
     helm dome anchor (helm at ~0.73 x / 0.17 y of the sprite; crown seated ~2px
-    lower + 1px back so the plume clears behind it). Reusable across the plain
-    knight and the themed (fried/spectral) knights for the +3x stacks."""
+    lower + 1px back so the plume clears behind it). Anchored RELATIVE TO EACH
+    FRAME'S CENTRE so it lands correctly whether the frame is the standard knight
+    or the larger, thick-battered fried knight (which sits on a bigger canvas).
+    Reusable across the plain knight and the themed (fried/spectral) knights."""
     from game import parrot
-    PAD = 16
-    helm_cx = PAD + 0.73 * parrot.SPRITE_W
-    helm_top = PAD + 0.17 * parrot.SPRITE_H - 0.54 * parrot.SPRITE_H * 0.5
-    cx = int(helm_cx) - 1
-    cy = int(helm_top + 7)
+    # Offset of the helm anchor from the frame centre, derived from the standard
+    # layout (PAD=16): helm_cx = PAD + 0.73*W, helm_cy = PAD - 0.10*H + 7.
+    dx = int(0.23 * parrot.SPRITE_W) - 1
+    dy = int(-0.60 * parrot.SPRITE_H) + 7
     out = []
     for frame in knight_frames:
         f = frame.copy()
-        _crown(f, cx, cy)
+        _crown(f, f.get_width() // 2 + dx, f.get_height() // 2 + dy)
         out.append(f)
     return out
 
