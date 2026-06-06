@@ -204,11 +204,12 @@ def thermal_intensity(phase: float) -> float:
 
 # Cold wash colour for the snow squall. The wash starts as a deep
 # blue-grey (cooling the scene so flakes pop) and trends toward a soft,
-# cool snowy white at the storm peak — a MODERATE wash (peak alpha ~half)
-# that reads as weather rather than a screen-filling whiteout.
+# cool snowy white at the storm peak. Peak strength sits between the
+# calmer wash and the earlier stronger one — a clear whiteout that still
+# reads as weather, not a screen-filling blank.
 SNOW_TINT = (74, 96, 130)
-SNOW_TINT_WHITE = (205, 218, 235)
-SNOW_TINT_PEAK_A = 128
+SNOW_TINT_WHITE = (216, 226, 239)
+SNOW_TINT_PEAK_A = 146
 _WHITE = (255, 255, 255)
 
 

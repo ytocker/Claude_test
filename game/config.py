@@ -298,11 +298,11 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 #   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
 #     is INCREASED at peak wind. At wind 1.0 the scroll runs at
 #     (1 + factor) × normal so pipes/coins approach faster and
-#     the player covers more distance per second. 0.37 means
-#     37% more progress at peak — a clear boost, calibrated down
-#     from 0.42 which played too hard.
+#     the player covers more distance per second. 0.40 means
+#     40% more progress at peak — the sweet spot between the calmer
+#     0.37 and the 0.42 that played too hard.
 WEATHER_WIND_LEAN_AMP     = 11.0
-WEATHER_WIND_SCROLL_FACTOR = 0.37
+WEATHER_WIND_SCROLL_FACTOR = 0.40
 
 # Windblown snow accumulating on Pip during the snow squall. bird.snow_load
 # (0..1) builds at a CONSTANT (uniform) rate only while it's snowing HARD
