@@ -243,11 +243,30 @@ def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
 
 
+_SHIELD_ICON_CACHE: dict = {}
+
+
+def _get_shield_icon(size, scale):
+    """Cache the standalone heater-shield icon per (size, scale). `_ss` rebuilds
+    a full supersample + smoothscale on every call, so without this the genie's
+    knight offer re-rendered its shield every frame."""
+    key = (size, scale)
+    spr = _SHIELD_ICON_CACHE.get(key)
+    if spr is None:
+        spr = _ss(int(size * 0.82), size, _shield, scale=scale)
+        _SHIELD_ICON_CACHE[key] = spr
+    return spr
+
+
 def draw_shield_icon(surf, cx, cy, size=30):
     """In-world pickup + zoom previews: the heater shield, centred."""
-    _blit_ss(surf, cx, cy, int(size * 0.82), size, _shield, scale=5)
+    spr = _get_shield_icon(size, 5)
+    surf.blit(spr, (int(cx - spr.get_width() / 2),
+                    int(cy - spr.get_height() / 2)))
 
 
 def draw_shield_glyph(surf, cx, cy, size=22):
     """Compact HUD timer glyph — the same canonical heater shield."""
-    _blit_ss(surf, cx, cy, int(size * 0.82), size, _shield, scale=6)
+    spr = _get_shield_icon(size, 6)
+    surf.blit(spr, (int(cx - spr.get_width() / 2),
+                    int(cy - spr.get_height() / 2)))

@@ -453,6 +453,14 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
+# Static skateboard-mode sprites — built once, then only transformed per frame.
+# The helmet + board base were rebuilt from an 8x/4x supersample EVERY frame
+# (twice, via the HUD re-blit) while riding; caching them removes that cost.
+_HELMET_SPRITE = None
+_BOARD_BASE = None          # native board sprite, no wheel-spokes
+_BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
+_SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
+
 
 class Bird:
     def __init__(self):
@@ -856,14 +864,35 @@ class Bird:
                 surf.blit(pov, ps.topleft)
 
     def _draw_helmet(self, surf, cx, cy, flipped):
-        """Side-view punk-mohawk skater helmet — half-dome with the icon's
-        SKULL-BUNNY FACE on the dome (BONE skull + DOME sockets/nose/teeth +
-        RED bandage cross) and chunky red-tipped bunny ears poking up. 8×
-        supersampled so the ear's RED inner ellipse survives smoothscale
-        to the native 24×15 helm size. Anchor compensation shifts the blit
-        centre up by ear_top/2 so the dome stays seated on Pip's head
-        crown despite the taller subsurface needed for the ears."""
-        import math
+        """Side-view punk skater helmet. The static art is built ONCE and
+        cached (_build_helmet_sprite); per frame only the tilt rotation, flip
+        and seating offset vary, so the 8x supersample build never runs in the
+        draw loop (it used to, twice, via the HUD re-blit)."""
+        global _HELMET_SPRITE
+        s = 1.0
+        ear_top_n = 18
+        if _HELMET_SPRITE is None:
+            _HELMET_SPRITE = Bird._build_helmet_sprite()
+        helm = _HELMET_SPRITE
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
+        # dome's offset from the subsurface centre shifted by ear_top_n/2.
+        # Pulling the blit centre away from the helmet's original-top side
+        # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
+        ear_compensation = (ear_top_n / 2.0) * (1 if flipped else -1)
+        y_off = (10 * s if flipped else -10 * s) + ear_compensation
+        offset = pygame.math.Vector2(18 * s, y_off)
+        offset = offset.rotate(-tilt)
+        rotated = pygame.transform.rotate(helm, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(cx + offset.x),
+                                     int(cy + offset.y)))
+        surf.blit(rotated, r.topleft)
+
+    @staticmethod
+    def _build_helmet_sprite():
+        """Static side-view skater helmet — 8x supersample built once."""
         s = 1.0
         SS = 8
         hw_n = int(24 * s)
@@ -1044,30 +1073,13 @@ class Bird:
 
         native_size = (hw_n + pad_n * 2,
                        hh_n + pad_n * 2 + drop_n + ear_top_n)
-        helm = pygame.transform.smoothscale(helm, native_size)
-        tilt = -self.tilt_deg if flipped else self.tilt_deg
-        # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
-        # dome's offset from the subsurface centre shifted by ear_top_n/2.
-        # Pulling the blit centre away from the helmet's original-top side
-        # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
-        ear_compensation = (ear_top_n / 2.0) * (1 if flipped else -1)
-        y_off = (10 * s if flipped else -10 * s) + ear_compensation
-        offset = pygame.math.Vector2(18 * s, y_off)
-        offset = offset.rotate(-tilt)
-        rotated = pygame.transform.rotate(helm, tilt)
-        if flipped:
-            rotated = pygame.transform.flip(rotated, False, True)
-        r = rotated.get_rect(center=(int(cx + offset.x),
-                                     int(cy + offset.y)))
-        surf.blit(rotated, r.topleft)
+        return pygame.transform.smoothscale(helm, native_size)
 
-    def _draw_skateboard(self, surf, cx, cy, flipped):
-        """Skull skateboard under Pip's feet — black deck with a chrome
-        outline, white skull + crossbones, cream wheels with a red bullseye.
-        The board rides Pip's tilt, which during a backflip carries the full
-        360° spin so the deck flips with him. 4× supersampled like the
-        helmet for smooth curves."""
-        from game.config import PARCEL_Y_OFFSET
+    @staticmethod
+    def _build_board_base():
+        """Static skull-skateboard base (deck + trucks + wheels, NO spokes),
+        4x supersample built once. Returns (native_sprite, wheels) where wheels
+        is native-space [(wx, wy, r, sign)] for the live spinning spokes."""
         s = 1.0
         SS = 4
         board_w_n = int(48 * s)
@@ -1078,12 +1090,6 @@ class Bird:
         board_w = board_w_n * SS
         deck_h  = deck_h_n * SS
         pad     = pad_n * SS
-
-        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
-        offset = pygame.math.Vector2(0, y_off + 4 * s)
-        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
-        bx = cx + offset.x
-        by = cy + offset.y
         board_surf = pygame.Surface(
             (board_w + pad * 2, deck_h * 5 + pad * 2), pygame.SRCALPHA)
         bsx = board_surf.get_width() // 2
@@ -1114,7 +1120,7 @@ class Bird:
                            (sk_rect.centerx + 1 * SS, eye_y), 1 * SS)
         truck_h = max(1 * SS, int(2 * s * SS))
         wheel_r = max(2 * SS, int(3 * s * SS))
-        spin = self.frame_t * 4.0
+        wheels = []
         for sign in (-1, 1):
             tx = bsx + sign * int(board_w * 0.32) - 3 * SS
             pygame.draw.rect(board_surf, (60, 60, 70),
@@ -1126,12 +1132,33 @@ class Bird:
             pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy),
                                wheel_r)
             pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1 * SS)
-            sx_p = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
-            sy_p = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
-            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy),
-                             (sx_p, sy_p), SS)
-        board_surf = pygame.transform.smoothscale(board_surf,
-                                                  (native_w, native_h))
+            wheels.append((wx / SS, wy / SS, wheel_r / SS, sign))
+        base = pygame.transform.smoothscale(board_surf, (native_w, native_h))
+        return base, wheels
+
+    def _draw_skateboard(self, surf, cx, cy, flipped):
+        """Skull skateboard under Pip's feet. The static base (deck/skull/
+        trucks/wheels) is built once and cached (_build_board_base); per frame
+        we only stamp the two spinning wheel-spokes and apply Pip's tilt +
+        kickflip/heelflip/popshuvit + flip — no per-frame supersample rebuild
+        (which used to run twice via the HUD re-blit)."""
+        global _BOARD_BASE, _BOARD_WHEELS
+        from game.config import PARCEL_Y_OFFSET
+        s = 1.0
+        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
+        offset = pygame.math.Vector2(0, y_off + 4 * s)
+        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
+        bx = cx + offset.x
+        by = cy + offset.y
+        if _BOARD_BASE is None:
+            _BOARD_BASE, _BOARD_WHEELS = Bird._build_board_base()
+        board_surf = _BOARD_BASE.copy()
+        spin = self.frame_t * 4.0
+        for wx, wy, wr, sign in _BOARD_WHEELS:
+            sx_p = wx + math.cos(spin + sign * 1.0) * wr * 0.6
+            sy_p = wy + math.sin(spin + sign * 1.0) * wr * 0.6
+            pygame.draw.line(board_surf, (180, 50, 50),
+                             (int(wx), int(wy)), (int(sx_p), int(sy_p)), 1)
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         # KICKFLIP — 360° board-only spin layered on top of Pip's
         # velocity-banked tilt. Pip's posture is unchanged; only the
@@ -2585,15 +2612,22 @@ class PowerUp:
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_skateboard_icon(self, surf):
-        """SKATEBOARD pickup token (punk skull-bunny over crossed decks):
-        a bone skull-bunny head with red-tipped ears, a RED bandage cross
-        over the left eye socket, a RED bandana knot at the base of the
-        left ear, and a curly Jolly Roger mouth (3 vertical teeth with a
-        sine-arc dip connecting the bottoms), centred over two crossed
-        CHROME skateboard decks in an X. Painted at 6× supersample then
-        smoothscale'd down to a 96×96 native footprint."""
+        """SKATEBOARD pickup token (punk skull-bunny over crossed decks). The
+        art is static and built ONCE (_build_skate_icon); per frame we only
+        blit it at the bobbing position, so the 96px/6x supersample rebuild
+        (~1.2 ms, ×3 when the genie lays out its offers) no longer runs every
+        frame."""
+        global _SKATE_ICON_SPRITE
+        if _SKATE_ICON_SPRITE is None:
+            _SKATE_ICON_SPRITE = PowerUp._build_skate_icon()
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+        surf.blit(_SKATE_ICON_SPRITE,
+                  _SKATE_ICON_SPRITE.get_rect(center=(cx, cy)))
+
+    @staticmethod
+    def _build_skate_icon():
+        """Build the static skateboard pickup token (6x supersample → 68px)."""
 
         DOME   = (10, 10, 18)
         CHROME = (200, 200, 210)
@@ -2753,8 +2787,7 @@ class PowerUp:
         pygame.draw.polygon(big, DOME, bow_left, max(1, SS // 3))
         pygame.draw.polygon(big, DOME, bow_right, max(1, SS // 3))
 
-        icon = pygame.transform.smoothscale(big, (DISPLAY_N, DISPLAY_N))
-        surf.blit(icon, icon.get_rect(center=(cx, cy)))
+        return pygame.transform.smoothscale(big, (DISPLAY_N, DISPLAY_N))
 
     def _draw_knight_icon(self, surf):
         """In-world KNIGHT pickup — the K7 heater shield."""
