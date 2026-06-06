@@ -46,8 +46,10 @@ def _smooth(t):
 
 def _cov(xf, load):
     """Rear-first coverage: rear (left) columns snow at low load, the front
-    only as the storm builds."""
-    thr = 0.55 * xf
+    only as the storm builds. The 0.42 spread (was 0.55) lets the blanket
+    reach across more of the body sooner, so the first flakes read promptly
+    instead of leaving Pip looking bare through the early load range."""
+    thr = 0.42 * xf
     return 0.0 if load <= thr else min(1.0, (load - thr) / (1.0 - thr))
 
 
@@ -111,11 +113,18 @@ def get_snow_overlay(load, frame_idx=None):
     ref_top = _topline(_REF_FRAME)[0]
     ov = pygame.Surface((w, h), pygame.SRCALPHA)
     taper_w = 13.0
-    # Full-cover ramp: below ~0.78 the rear-first sculpted blanket is unchanged;
-    # from 0.78 up to peak (load 1.0) the snow grows to bury the ENTIRE parrot —
-    # every column filled top->bottom of its silhouette, face cap lifted — so at
-    # the storm peak Pip is completely covered in snow (no readable-face cap).
-    fc = _smooth((b - 0.78) / (1.0 - 0.78))
+    # Perceptual load: snow_load rises LINEARLY in time, but a linear load left
+    # Pip looking bare through the first chunk of the storm (the rear sliver is
+    # too thin to read) and then snapped to fully-buried near the peak. Ease the
+    # load IN (gamma < 1) so the visible accumulation is front-loaded — the first
+    # flakes show promptly and the curve climbs evenly instead of dead-then-rush.
+    bv = b ** 0.72
+    # Full-cover ramp: from 0.62 up to peak (load 1.0) the snow grows to bury the
+    # ENTIRE parrot — every column filled top->bottom of its silhouette, face cap
+    # lifted — so at the storm peak Pip is completely covered. Driven by the eased
+    # load over a wide range (was a narrow 0.78->1.0 snap), so the final
+    # "blanket -> fully buried" change is gradual, not a sudden snap near the peak.
+    fc = _smooth((bv - 0.62) / (1.0 - 0.62))
     drew = False
     for x in range(w):
         yt = top[x]
@@ -130,7 +139,7 @@ def get_snow_overlay(load, frame_idx=None):
         xf = x / w
         # Coverage: rear-first blanket, but forced to full on every column as the
         # full-cover ramp engages so the front/head get buried too.
-        cov = max(_cov(xf, b), fc)
+        cov = max(_cov(xf, bv), fc)
         if cov <= 0.0:
             continue
         rear = 1.0 - xf
@@ -140,7 +149,7 @@ def get_snow_overlay(load, frame_idx=None):
             # Head: a thin crown cap at low load, but as the storm peaks
             # (load 0.68->1.0) snow creeps onto the face — more on the LEFT
             # (back) of the head, tapering so the front/beak stays readable.
-            hi = max(0.0, (b - 0.68) / 0.32)
+            hi = max(0.0, (bv - 0.55) / 0.45)
             headfrac = (xf - 0.60) / 0.40                   # 0 back-of-head .. 1 beak
             d_bl = min(d_bl, 7.0 + hi * 11.0 * (1.0 - headfrac))
         taper = _smooth((x - x_min) / taper_w)              # rear-end slope
