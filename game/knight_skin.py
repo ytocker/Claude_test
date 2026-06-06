@@ -251,19 +251,26 @@ def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
 
 
+def _fry_recolor(f):
+    """Re-skin a whole frame as fried chicken: collapse it to luminance, then
+    map that onto a golden-brown duotone (gold MULTIPLY for the hue + a warm
+    ADDITIVE floor so the darkest pixels read crispy-brown, not black). Applied
+    to the ENTIRE knight so helm, shield, sword and armour all go fried-golden,
+    not just the bird's body."""
+    g = pygame.transform.grayscale(f)                       # luminance, keeps alpha
+    g.fill((255, 196, 104), special_flags=pygame.BLEND_RGB_MULT)
+    o = pygame.Surface(g.get_size(), pygame.SRCALPHA)
+    o.fill((54, 28, 4, 255))
+    o.blit(g, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # clamp to silhouette
+    g.blit(o, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return g
+
+
 def build_knight_kfc_frames():
-    """THE FRIED KNIGHT — KFC golden body + an ADDITIVE crispy-gold wash that
-    LIFTS the dark steel (helm/breastplate) into the same fried-golden family,
-    so the whole suit reads fried-crispy rather than a fried bird in plain steel
-    (a plain alpha tint left the near-black armet dark)."""
-    frames = [_build_knight_frame(f, body_recolor=False)
-              for f in parrot._get_kfc_frames()]
-    for f in frames:
-        o = pygame.Surface(f.get_size(), pygame.SRCALPHA)
-        o.fill((78, 44, 6, 255))
-        o.blit(f, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # clamp to silhouette
-        f.blit(o, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    return frames
+    """THE FRIED KNIGHT — the WHOLE suit (helm, shield, sword, armour, body)
+    re-skinned as crispy fried-golden via _fry_recolor, not just the bird."""
+    return [_fry_recolor(_build_knight_frame(f, body_recolor=False))
+            for f in parrot._get_kfc_frames()]
 
 
 def build_knight_ghost_frames():
