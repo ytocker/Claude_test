@@ -507,6 +507,138 @@ def _medal_row_pill(card_w, row_h, row_radius, rank):
     return pnl
 
 
+# ── Tabbed leaderboard (live CURRENT board + read-only LEGACY board) ──────────
+# Geometry in native (W×H) units; multiplied by S when drawn into the
+# supersampled cache, and reused as-is for screen-space hit rects because the
+# game window is exactly W×H (scenes.py: set_mode((W, H))).
+_LB_HEADER_Y = 32
+_LB_TAB_Y    = 52
+_LB_TAB_H    = 30
+_LB_SUB_Y    = 90
+_LB_CARD_Y   = 124
+_LB_ROW_H    = 35
+_LB_ROW_GAP  = 4
+_LB_SEAL_R   = 30
+_LB_BRONZE   = (150, 105, 55)   # tarnished legacy coin (vs bright gold = live)
+
+
+def _lb_tab_geometry():
+    """Native-unit (x, y, w, h) of the segmented CURRENT|LEGACY tab strip."""
+    return 14, _LB_TAB_Y, W - 28, _LB_TAB_H
+
+
+def _draw_lb_tabs(surf, S, selected_tab):
+    """Segmented two-tab control: filled-gold selected half vs hollow-navy
+    deselected, each carrying its era coin (bright gold = live CURRENT,
+    tarnished bronze = frozen LEGACY) so the boards read apart by value +
+    shape, not colour alone."""
+    tx, ty, tw, th = _lb_tab_geometry()
+    x, y, w, h = tx * S, ty * S, tw * S, th * S
+    rad = h // 2
+    track = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(track, (*_PANEL_DARK, 235), (0, 0, w, h),
+                     border_radius=rad)
+    surf.blit(track, (x, y))
+
+    half = w // 2
+    f = _font(14 * S, True)
+    coin_r = 6 * S
+    tabs = (("CURRENT", _GOLD_BRIGHT), ("LEGACY", _LB_BRONZE))
+    for idx, (label, coin_col) in enumerate(tabs):
+        hx = x + (0 if idx == 0 else half)
+        hw = half if idx == 0 else (w - half)
+        selected = (idx == selected_tab)
+        if selected:
+            fill = pygame.Surface((hw, h), pygame.SRCALPHA)
+            for yy in range(h):
+                fc = lerp_color(_GOLD_BRIGHT, _GOLD_DEEP, yy / max(1, h - 1))
+                pygame.draw.line(fill, fc, (0, yy), (hw, yy))
+            mask = pygame.Surface((hw, h), pygame.SRCALPHA)
+            if idx == 0:
+                pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, hw, h),
+                                 border_top_left_radius=rad,
+                                 border_bottom_left_radius=rad)
+            else:
+                pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, hw, h),
+                                 border_top_right_radius=rad,
+                                 border_bottom_right_radius=rad)
+            fill.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            surf.blit(fill, (hx, y))
+            txt_col = NEAR_BLACK
+        else:
+            txt_col = _GOLD_BRIGHT
+
+        img = f.render(label, True, txt_col)
+        if not selected:
+            img.set_alpha(216)   # deselected reads "tappable", never disabled
+        group_w = coin_r * 2 + 5 * S + img.get_width()
+        gx = hx + (hw - group_w) // 2
+        ccx, ccy = gx + coin_r, y + h // 2
+        pygame.draw.circle(surf, coin_col, (ccx, ccy), coin_r)
+        pygame.draw.circle(surf, NEAR_BLACK, (ccx, ccy), coin_r, max(1, S))
+        pygame.draw.circle(surf, (*WHITE, 150),
+                           (ccx - coin_r // 3, ccy - coin_r // 3),
+                           max(1, coin_r // 3))
+        surf.blit(img, (gx + coin_r * 2 + 5 * S, ccy - img.get_height() // 2))
+
+    pygame.draw.rect(surf, _GOLD_BRIGHT, (x, y, w, h),
+                     width=max(1, 2 * S), border_radius=rad)
+    pygame.draw.line(surf, (*_GOLD_BRIGHT, 120),
+                     (x + half, y + 4 * S), (x + half, y + h - 4 * S),
+                     max(1, S))
+
+
+def _draw_lb_subline(surf, S, selected_tab):
+    """CURRENT shows a plain 'LIVE' tag; LEGACY shows a one-line frozen
+    ribbon so a low live score never reads as broken next to the older,
+    higher hall-of-fame numbers."""
+    cx = (W * S) // 2
+    cy = _LB_SUB_Y * S
+    if selected_tab == 0:
+        _text(surf, "LIVE", (cx, cy), size=12 * S, color=_GOLD_MUTED,
+              shadow=False)
+        return
+    f = _font(11 * S, True)
+    img = f.render("FROZEN   ·   HALL OF FAME", True, _GOLD_PALE)
+    rw, rh = img.get_width() + 30 * S, img.get_height() + 8 * S
+    rx, ry = cx - rw // 2, cy - rh // 2
+    bar = pygame.Surface((rw, rh), pygame.SRCALPHA)
+    for yy in range(rh):
+        bc = lerp_color((40, 46, 86), (74, 60, 30), yy / max(1, rh - 1))
+        pygame.draw.line(bar, bc, (0, yy), (rw, yy))
+    mask = pygame.Surface((rw, rh), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (0, 0, rw, rh),
+                     border_radius=rh // 2)
+    bar.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    pygame.draw.rect(bar, (*_GOLD_DEEP, 210), (0, 0, rw, rh),
+                     width=max(1, S), border_radius=rh // 2)
+    surf.blit(bar, (rx, ry))
+    surf.blit(img, (cx - img.get_width() // 2, cy - img.get_height() // 2))
+    # Two hard frost ticks at the ribbon ends (flat, no feathery flourishes).
+    for ex in (rx - 4 * S, rx + rw):
+        pts = [(ex, cy), (ex + 3 * S, cy - 3 * S),
+               (ex + 6 * S, cy), (ex + 3 * S, cy + 3 * S)]
+        pygame.draw.polygon(surf, _GOLD_PALE, pts)
+
+
+def _draw_final_seal(surf, cx, cy, r, S):
+    """Procedural wax 'FINAL' seal — a scalloped scarlet disc — marking the
+    legacy board as a closed, frozen archive rather than an error state."""
+    n = 18
+    for k in range(n):
+        ang = 2 * math.pi * k / n
+        ex = cx + int(math.cos(ang) * r)
+        ey = cy + int(math.sin(ang) * r)
+        pygame.draw.circle(surf, _SCARLET_BOT, (ex, ey), int(r * 0.2))
+    pygame.draw.circle(surf, _SCARLET_TOP, (cx, cy), r)
+    pygame.draw.circle(surf, _SCARLET_BOT, (cx, cy), r, max(1, 2 * S))
+    pygame.draw.circle(surf, (*_GOLD_PALE, 90), (cx, cy), int(r * 0.72),
+                       max(1, S))
+    f = _font(int(r * 0.46), True)
+    img = pygame.transform.rotate(f.render("FINAL", True, _GOLD_PALE), 12)
+    surf.blit(img, img.get_rect(center=(cx, cy)))
+
+
 def _draw_trophy(surf, cx, cy, size):
     """Gold procedural trophy icon. `size` is approximate half-height.
     Drawn fully symmetric about a vertical axis through (cx, cy):
@@ -1399,6 +1531,11 @@ class HUD:
         self.menu_howto_rect: "pygame.Rect | None" = None
         self.menu_powerups_rect: "pygame.Rect | None" = None
         self.menu_top10_rect: "pygame.Rect | None" = None
+        # Leaderboard tab hit-rects (CURRENT | LEGACY) — populated each frame
+        # by draw_leaderboard in screen space, read by scenes.py to switch
+        # boards without dismissing the screen. None until the first draw.
+        self._lb_tab_current_rect: "pygame.Rect | None" = None
+        self._lb_tab_legacy_rect: "pygame.Rect | None" = None
 
     def draw_pause_overlay(self, surf, score: int = 0):
         # Deep blue-purple dim. The current score and coins pills from
@@ -1992,24 +2129,31 @@ class HUD:
             size=18, alpha=255, min_width=200)
 
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
-                         cooldown: float, fetch_error: str = ""):
+                         cooldown: float, fetch_error: str = "",
+                         legacy_scores: "list | None" = None,
+                         legacy_fetch_error: str = "", selected_tab: int = 0):
         # Internally render at 3× supersample so the leaderboard's text
         # and circle edges come out clean on both desktop and mobile.
-        # The whole static layout is cached (keyed on scores + rank +
-        # error + target surface size); only the animated TAP TO MENU
-        # prompt is re-rendered per frame.
+        # The whole static layout is cached (keyed on both boards' scores +
+        # rank + errors + selected tab + target size); only the animated
+        # TAP TO MENU prompt is re-rendered per frame.
         self.title_t += dt
         SCALE = 3
         target_w, target_h = surf.get_size()
 
-        scores_key = tuple((e["name"], e["score"]) for e in scores)
-        key = (target_w, target_h, scores_key, player_rank, fetch_error)
+        cur_key = tuple((e["name"], e["score"]) for e in scores)
+        leg_key = tuple((e["name"], e["score"]) for e in (legacy_scores or []))
+        key = (target_w, target_h, cur_key, leg_key, player_rank,
+               fetch_error, legacy_fetch_error, selected_tab)
 
         if self._lb_cache_key != key:
             hd_w, hd_h = W * SCALE, H * SCALE
             hd = pygame.Surface((hd_w, hd_h), pygame.SRCALPHA)
             self._render_leaderboard(hd, scores, player_rank,
-                                     fetch_error, SCALE)
+                                     fetch_error, SCALE,
+                                     legacy_scores=legacy_scores,
+                                     legacy_fetch_error=legacy_fetch_error,
+                                     selected_tab=selected_tab)
             if (target_w, target_h) == (hd_w, hd_h):
                 self._lb_cache = hd
             else:
@@ -2018,6 +2162,18 @@ class HUD:
             self._lb_cache_key = key
 
         surf.blit(self._lb_cache, (0, 0))
+
+        # Expose the tab hit-rects in screen space each frame so scenes.py can
+        # switch boards. The window is exactly W×H, so native geometry maps
+        # 1:1, but scale by the target ratio defensively for any size.
+        tx, ty, tw, th = _lb_tab_geometry()
+        sx, sy = target_w / W, target_h / H
+        half = tw // 2
+        self._lb_tab_current_rect = pygame.Rect(
+            int(tx * sx), int(ty * sy), int(half * sx), int(th * sy))
+        self._lb_tab_legacy_rect = pygame.Rect(
+            int((tx + half) * sx), int(ty * sy),
+            int((tw - half) * sx), int(th * sy))
 
         # TAP TO MENU prompt — pulses every frame, so rendered live on
         # top of the cached static layout. Show whenever the user can
@@ -2033,40 +2189,54 @@ class HUD:
             surf.blit(prompt, pr.topleft)
 
     def _render_leaderboard(self, surf, scores: list, player_rank: int,
-                            fetch_error: str, S: int):
+                            fetch_error: str, S: int,
+                            legacy_scores: "list | None" = None,
+                            legacy_fetch_error: str = "", selected_tab: int = 0):
         """Static leaderboard layout (no TAP TO MENU prompt) at scale S.
-        ``surf`` is sized ``(W*S, H*S)``; every coord, font size and
-        stroke width is multiplied by ``S``."""
+        ``surf`` is sized ``(W*S, H*S)``; every coord, font size and stroke
+        width is multiplied by ``S``. Draws the CURRENT|LEGACY tab control
+        plus whichever board ``selected_tab`` selects."""
         Ws, Hs = W * S, H * S
         dim = pygame.Surface((Ws, Hs), pygame.SRCALPHA)
         dim.fill((0, 0, 20, 200))
         surf.blit(dim, (0, 0))
 
         # Header: trophy icon — "TOP 10" — trophy icon
-        _outlined_text(surf, "TOP 10", (Ws // 2, 46 * S), size=32 * S,
+        _outlined_text(surf, "TOP 10", (Ws // 2, _LB_HEADER_Y * S), size=28 * S,
                        px=3 * S, shadow_offset=(3 * S, 5 * S))
         for side in (-1, 1):
-            tx = Ws // 2 + side * 88 * S
-            ty = 46 * S
-            _draw_trophy(surf, tx, ty, 18 * S)
+            _draw_trophy(surf, Ws // 2 + side * 84 * S, _LB_HEADER_Y * S, 15 * S)
+
+        # Segmented tab control + per-board subline / frozen ribbon.
+        _draw_lb_tabs(surf, S, selected_tab)
+        _draw_lb_subline(surf, S, selected_tab)
+
+        # The legacy board is read-only and never highlights a player.
+        if selected_tab == 1:
+            active, active_err, active_rank = (legacy_scores or []), \
+                legacy_fetch_error, -1
+        else:
+            active, active_err, active_rank = scores, fetch_error, player_rank
 
         card_x, card_w = 14 * S, (W - 28) * S
-        # Rows appear immediately at their settled position — the
-        # slide-in-from-below animation was removed per design feedback.
-        card_y = 88 * S
+        card_y = _LB_CARD_Y * S
 
-        n = len(scores)
+        n = len(active)
         if n == 0:
-            if fetch_error:
+            if active_err:
                 _text(surf, "Top-10 unavailable",
                       (Ws // 2, card_y + 60 * S),
                       size=18 * S, color=UI_CREAM, shadow=True)
                 _text(surf, "Check the browser console",
                       (Ws // 2, card_y + 94 * S),
                       size=12 * S, color=UI_CREAM, shadow=False)
-                _text(surf, "(" + fetch_error + ")",
+                _text(surf, "(" + active_err + ")",
                       (Ws // 2, card_y + 116 * S),
                       size=11 * S, color=UI_CREAM, shadow=False)
+            elif selected_tab == 1:
+                _text(surf, "No legacy scores",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
             else:
                 _text(surf, "No scores yet!",
                       (Ws // 2, card_y + 60 * S),
@@ -2074,102 +2244,115 @@ class HUD:
                 _text(surf, "Be the first.",
                       (Ws // 2, card_y + 94 * S),
                       size=14 * S, color=UI_CREAM, shadow=False)
-        else:
-            row_h = 42 * S
-            row_gap = 4 * S
+            return
 
-            SILVER = (185, 195, 205)
-            BRONZE = (185, 125,  55)
+        row_h = _LB_ROW_H * S
+        row_gap = _LB_ROW_GAP * S
 
-            f_badge = _font(13 * S, True)
-            f_name  = _font(16 * S, True)
-            f_you   = _font(10 * S, True)
-            f_score = _font(17 * S, True)
+        SILVER = (185, 195, 205)
+        BRONZE = (185, 125,  55)
 
-            hd_crown = _get_crown_sprite_hd(S)
+        f_badge = _font(13 * S, True)
+        f_name  = _font(16 * S, True)
+        f_you   = _font(10 * S, True)
+        f_score = _font(17 * S, True)
 
-            ry = card_y
-            for i, entry in enumerate(scores):
-                rank = i + 1
-                if rank == 1:    badge_col = _GOLD_BRIGHT
-                elif rank == 2:  badge_col = SILVER
-                elif rank == 3:  badge_col = BRONZE
-                else:            badge_col = _GOLD_BRIGHT
+        hd_crown = _get_crown_sprite_hd(S)
 
-                is_player = (i == player_rank)
-                row_cy = ry + row_h // 2
-                is_medal = rank in _MEDAL_GRADIENTS
+        ry = card_y
+        for i, entry in enumerate(active):
+            rank = i + 1
+            if rank == 1:    badge_col = _GOLD_BRIGHT
+            elif rank == 2:  badge_col = SILVER
+            elif rank == 3:  badge_col = BRONZE
+            else:            badge_col = _GOLD_BRIGHT
 
-                row_rect = pygame.Rect(card_x, ry, card_w, row_h)
-                row_radius = row_h // 2
-                if is_medal:
-                    pnl = _medal_row_pill(card_w, row_h, row_radius, rank)
-                else:
-                    pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
-                    pygame.draw.rect(pnl, (*_PANEL_DARK, 220),
-                                     (0, 0, card_w, row_h),
-                                     border_radius=row_radius)
-                    if is_player:
-                        pygame.draw.rect(pnl, _GOLD_BRIGHT,
-                                         (0, 0, card_w, row_h),
-                                         width=3 * S, border_radius=row_radius)
-                    else:
-                        pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
-                                         (0, 0, card_w, row_h),
-                                         width=1 * S, border_radius=row_radius)
-                surf.blit(pnl, row_rect.topleft)
+            is_player = (i == active_rank)
+            row_cy = ry + row_h // 2
+            is_medal = rank in _MEDAL_GRADIENTS
 
-                badge_cx = card_x + 24 * S
-                badge_r = 13 * S
-                if rank <= 3:
-                    pygame.draw.circle(surf, badge_col,
-                                       (badge_cx, row_cy), badge_r)
-                    pygame.draw.circle(surf, NEAR_BLACK,
-                                       (badge_cx, row_cy), badge_r, 1 * S)
-                    num_col = NEAR_BLACK
-                else:
-                    pygame.draw.circle(surf, badge_col,
-                                       (badge_cx, row_cy), badge_r, 2 * S)
-                    num_col = _GOLD_BRIGHT
-                num_img = f_badge.render(str(rank), True, num_col)
-                surf.blit(num_img,
-                          num_img.get_rect(center=(badge_cx, row_cy)))
-
-                if rank == 1:
-                    c_w, c_h = hd_crown.get_size()
-                    surf.blit(hd_crown,
-                              (badge_cx - c_w // 2,
-                               row_cy - 7 * S - c_h))
-
-                nm = entry["name"][:10]
-                if is_medal:
-                    name_col = NEAR_BLACK
-                else:
-                    name_col = _GOLD_BRIGHT if is_player else WHITE
-                nm_img = f_name.render(nm, True, name_col)
-                nm_x = card_x + 44 * S
-                surf.blit(nm_img,
-                          (nm_x, row_cy - nm_img.get_height() // 2))
-
+            row_rect = pygame.Rect(card_x, ry, card_w, row_h)
+            row_radius = row_h // 2
+            if is_medal:
+                pnl = _medal_row_pill(card_w, row_h, row_radius, rank)
+            else:
+                pnl = pygame.Surface(row_rect.size, pygame.SRCALPHA)
+                pygame.draw.rect(pnl, (*_PANEL_DARK, 220),
+                                 (0, 0, card_w, row_h),
+                                 border_radius=row_radius)
                 if is_player:
-                    you_img = f_you.render("YOU", True, WHITE)
-                    pw = you_img.get_width() + 10 * S
-                    ph = you_img.get_height() + 6 * S
-                    pxr = nm_x + nm_img.get_width() + 7 * S
-                    pyr = row_cy - ph // 2
-                    you_pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
-                    pygame.draw.rect(you_pill, _SCARLET_TOP,
-                                     (0, 0, pw, ph), border_radius=ph // 2)
-                    pygame.draw.rect(you_pill, _GOLD_BRIGHT,
-                                     (0, 0, pw, ph),
-                                     width=1 * S, border_radius=ph // 2)
-                    surf.blit(you_pill, (pxr, pyr))
-                    surf.blit(you_img, (pxr + 5 * S, pyr + 3 * S))
+                    pygame.draw.rect(pnl, _GOLD_BRIGHT,
+                                     (0, 0, card_w, row_h),
+                                     width=3 * S, border_radius=row_radius)
+                else:
+                    pygame.draw.rect(pnl, (*_GOLD_BRIGHT, 110),
+                                     (0, 0, card_w, row_h),
+                                     width=1 * S, border_radius=row_radius)
+            surf.blit(pnl, row_rect.topleft)
 
-                score_col = NEAR_BLACK if is_medal else _GOLD_BRIGHT
-                sc_img = f_score.render(str(entry["score"]), True, score_col)
-                surf.blit(sc_img,
-                          (card_x + card_w - 16 * S - sc_img.get_width(),
-                           row_cy - sc_img.get_height() // 2))
+            badge_cx = card_x + 24 * S
+            badge_r = 13 * S
+            if rank <= 3:
+                pygame.draw.circle(surf, badge_col,
+                                   (badge_cx, row_cy), badge_r)
+                pygame.draw.circle(surf, NEAR_BLACK,
+                                   (badge_cx, row_cy), badge_r, 1 * S)
+                num_col = NEAR_BLACK
+            else:
+                pygame.draw.circle(surf, badge_col,
+                                   (badge_cx, row_cy), badge_r, 2 * S)
+                num_col = _GOLD_BRIGHT
+            num_img = f_badge.render(str(rank), True, num_col)
+            surf.blit(num_img,
+                      num_img.get_rect(center=(badge_cx, row_cy)))
 
-                ry += row_h + row_gap
+            if rank == 1:
+                c_w, c_h = hd_crown.get_size()
+                surf.blit(hd_crown,
+                          (badge_cx - c_w // 2,
+                           row_cy - 7 * S - c_h))
+
+            nm = entry["name"][:10]
+            if is_medal:
+                name_col = NEAR_BLACK
+            else:
+                name_col = _GOLD_BRIGHT if is_player else WHITE
+            nm_img = f_name.render(nm, True, name_col)
+            nm_x = card_x + 44 * S
+            surf.blit(nm_img,
+                      (nm_x, row_cy - nm_img.get_height() // 2))
+
+            if is_player:
+                you_img = f_you.render("YOU", True, WHITE)
+                pw = you_img.get_width() + 10 * S
+                ph = you_img.get_height() + 6 * S
+                pxr = nm_x + nm_img.get_width() + 7 * S
+                pyr = row_cy - ph // 2
+                you_pill = pygame.Surface((pw, ph), pygame.SRCALPHA)
+                pygame.draw.rect(you_pill, _SCARLET_TOP,
+                                 (0, 0, pw, ph), border_radius=ph // 2)
+                pygame.draw.rect(you_pill, _GOLD_BRIGHT,
+                                 (0, 0, pw, ph),
+                                 width=1 * S, border_radius=ph // 2)
+                surf.blit(you_pill, (pxr, pyr))
+                surf.blit(you_img, (pxr + 5 * S, pyr + 3 * S))
+
+            score_col = NEAR_BLACK if is_medal else _GOLD_BRIGHT
+            sc_img = f_score.render(str(entry["score"]), True, score_col)
+            surf.blit(sc_img,
+                      (card_x + card_w - 16 * S - sc_img.get_width(),
+                       row_cy - sc_img.get_height() // 2))
+
+            ry += row_h + row_gap
+
+        # Legacy board: a cool aged-navy patina wash over the rows + a wax
+        # FINAL seal in the dead-zone below the last row, so the frozen hall
+        # of fame reads as an intentional archive rather than a broken board.
+        if selected_tab == 1:
+            rows_bottom = ry - row_gap
+            patina = pygame.Surface((card_w, rows_bottom - card_y),
+                                    pygame.SRCALPHA)
+            patina.fill((26, 36, 78, 40))
+            surf.blit(patina, (card_x, card_y))
+            seal_cy = (rows_bottom + (H - 30) * S) // 2
+            _draw_final_seal(surf, Ws // 2, seal_cy, _LB_SEAL_R * S, S)

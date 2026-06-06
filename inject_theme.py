@@ -630,6 +630,14 @@ _TELEMETRY_JS = """
     var a = "__SB_URL__";
     var b = "__SB_KEY__";
 
+    /* The leaderboard is split in two: the live "current" board (v5) lives
+       in scores_v5, and the read-only "legacy" board is the previous
+       version's scores table. This is the ONLY place the table names are
+       written. Writes are guarded to current-only in doSubmit. */
+    function tableFor(board) {
+        return String(board) === 'legacy' ? 'scores' : 'scores_v5';
+    }
+
     /* Surface build-time substitution result early so silently-empty
        leaderboard deploys are debuggable from DevTools. */
     try {
@@ -647,7 +655,7 @@ _TELEMETRY_JS = """
     try {
         if (a && b && a.indexOf('__SB_') < 0 && b.indexOf('__SB_') < 0) {
             setTimeout(function () {
-                fetch(a + '/rest/v1/scores?select=name,score&order=score.desc&limit=1', {
+                fetch(a + '/rest/v1/scores_v5?select=name,score&order=score.desc&limit=1', {
                     headers: {'apikey': b, 'Authorization': 'Bearer ' + b}
                 }).then(function (r) {
                     console.log('[skybit/lb] sanity-ping status:', r.status, r.statusText);
@@ -808,7 +816,7 @@ _TELEMETRY_JS = """
         return toHex(c);
     }
 
-    async function doSubmit(rawPayload) {
+    async function doSubmit(rawPayload, board) {
         rSubmit = null;
         rSubmitError = '';
         /* On any blocked submit, record WHY (polled by Python via
@@ -821,6 +829,10 @@ _TELEMETRY_JS = """
         }
         try {
             if (!a || !b) { fail('config'); return; }
+            /* Belt-and-suspenders: only the live current board is ever
+               writable. The legacy board is a frozen hall of fame — never
+               POST to it even if a caller passes the wrong board. */
+            if (tableFor(board) !== 'scores_v5') { fail('legacy-readonly'); return; }
             var payload;
             try {
                 payload = (typeof rawPayload === 'string')
@@ -846,7 +858,7 @@ _TELEMETRY_JS = """
                 var tid = setTimeout(function () { ac.abort(); }, 6000);
                 var r = null, threw = '';
                 try {
-                    r = await fetch(a + '/rest/v1/scores', {
+                    r = await fetch(a + '/rest/v1/' + tableFor(board), {
                         method: 'POST',
                         headers: {
                             'apikey': b,
@@ -888,7 +900,7 @@ _TELEMETRY_JS = """
         }
     }
 
-    async function doFetch() {
+    async function doFetch(board) {
         rFetch = null;
         rFetchError = '';
         try {
@@ -900,7 +912,7 @@ _TELEMETRY_JS = """
             }
             /* Wider slice + client-side plausibility filter so an injected
                row with score 999999 doesn't make it onto the visible top-10. */
-            var url = a + '/rest/v1/scores?select=name,score&order=score.desc&limit=200';
+            var url = a + '/rest/v1/' + tableFor(board) + '?select=name,score&order=score.desc&limit=200';
             /* 6 s deadline — the startup probe fires this fetch on page
                load; a half-open socket would keep the bridge in a
                pending state and stack up with the next request. */
@@ -985,12 +997,12 @@ _TELEMETRY_JS = """
         } catch (e) { rLog = false; }
     }
 
-    function dispatch(action, payload) {
+    function dispatch(action, payload, board) {
         switch (String(action || '')) {
-            case 'submit':       doSubmit(payload); return null;
+            case 'submit':       doSubmit(payload, board); return null;
             case 'submit_done':  return rSubmit;
             case 'submit_error': return rSubmitError;
-            case 'fetch':        doFetch();         return null;
+            case 'fetch':        doFetch(board);    return null;
             case 'fetch_done':   return rFetch;
             case 'fetch_error':  return rFetchError;
             case 'log':          doLog(payload);    return null;

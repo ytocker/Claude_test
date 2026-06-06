@@ -215,13 +215,17 @@ async def _log_submit_failure(world, reason: str) -> None:
         pass
 
 
-async def submit(name: str, world) -> bool:
+async def submit(name: str, world, board: str = "current") -> bool:
     """Save score for the run captured in ``world``. Browser: assembles a
     proof bundle, runs the plausibility check, ships through ``__sk``.
     Native: writes the visible ``world.score`` to the local JSON.
 
     Note: signature changed from ``submit(name, score)`` — the proof
-    state lives on ``world``, so passing the int alone would lose it."""
+    state lives on ``world``, so passing the int alone would lose it.
+
+    Scores are only ever written to the live "current" board; "legacy" is
+    read-only and the JS bridge hard-blocks any non-current write, so a
+    stray caller can never mutate the previous-version hall of fame."""
     if _IS_BROWSER:
         _resolve()
         if not _dispatcherReady:
@@ -233,7 +237,7 @@ async def submit(name: str, world) -> bool:
         try:
             import asyncio
             import platform as _p  # type: ignore
-            _p.window.__sk("submit", _to_json(payload))
+            _p.window.__sk("submit", _to_json(payload), board)
             while True:
                 v = _p.window.__sk("submit_done")
                 if v is not None:
@@ -259,9 +263,13 @@ async def submit(name: str, world) -> bool:
         return _native_submit(name, int(getattr(world, "score", 0)))
 
 
-async def fetch_top10() -> list:
+async def fetch_top10(board: str = "current") -> list:
     """GET top-10 scores. Browser: ``__sk('fetch')`` → Supabase fetch +
     client-side plausibility filter. Native: local JSON.
+
+    ``board`` selects which board to read: "current" (the live v5 board)
+    or "legacy" (the read-only previous-version board). On native there is
+    no previous-version source, so "legacy" is simply an empty board.
 
     On the browser path, also captures any fetch error code into the
     module-level ``_last_fetch_error`` so the leaderboard scene can
@@ -278,8 +286,8 @@ async def fetch_top10() -> list:
         try:
             import asyncio
             import platform as _p  # type: ignore
-            _pylog("fetch_top10: calling __sk('fetch')")
-            _p.window.__sk("fetch")
+            _pylog("fetch_top10: calling __sk('fetch') board=" + str(board))
+            _p.window.__sk("fetch", None, board)
             tries = 0
             while tries < 200:  # 200 * 0.05s = 10s timeout
                 v = _p.window.__sk("fetch_done")
@@ -324,4 +332,6 @@ async def fetch_top10() -> list:
             _last_fetch_error = "exception:" + type(e).__name__
             return []
     else:
-        return _native_fetch()
+        # Native has only the local JSON board; "legacy" has no desktop
+        # source, so it renders as an empty board (no error code).
+        return [] if board == "legacy" else _native_fetch()
