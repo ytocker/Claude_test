@@ -3061,7 +3061,16 @@ class GenieCharacter:
         self._display_scale = 0.42
         self._palm_dx = 58
         self._palm_dy = -20
-        self._cached_body = self._render_body_supersample()
+        # Render the genie once at 6x supersample for clean edges, then
+        # downsample to NATIVE here, once. _blit_sprite re-scales the body
+        # to its (always smaller) on-screen size every frame; scaling from
+        # this ~320x460 native cache instead of the full ~1920x2760
+        # supersample is ~16x less pixel work per frame — the genie is on
+        # screen for its whole ~3.3 s life, so smoothscaling 5.3 MP every
+        # frame was a real per-frame stutter, badly so on the WASM target.
+        self._cached_body = pygame.transform.smoothscale(
+            self._render_body_supersample(),
+            (self._native_w, self._native_h))
         self._spawn_appear_poof()
 
     def update(self, dt):
