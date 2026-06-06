@@ -19,24 +19,29 @@ pygame.display.set_mode((360, 640))
 
 from game.entities import Bird  # noqa: E402
 
+K = {"knight_active": True}
 # Each combo: label -> dict of Bird-flag overrides.
 COMBOS = [
     ("base", {}),
     ("3x (hat)", {"triple_active": True}),
     ("kfc", {"kfc_active": True}),
     ("ghost", {"ghost_active": True}),
-    ("knight", {"knight_active": True}),
-    ("knight+3x", {"knight_active": True, "triple_active": True}),
-    ("knight+kfc", {"knight_active": True, "kfc_active": True}),
-    ("knight+ghost", {"knight_active": True, "ghost_active": True}),
+    ("knight", {**K}),
+    ("knight+3x", {**K, "triple_active": True}),
+    ("knight+kfc", {**K, "kfc_active": True}),
+    ("knight+ghost", {**K, "ghost_active": True}),
+    ("kn+kfc+ghost", {**K, "kfc_active": True, "ghost_active": True}),
+    ("kn+kfc+3x", {**K, "kfc_active": True, "triple_active": True}),
+    ("kn+ghost+3x", {**K, "ghost_active": True, "triple_active": True}),
+    ("kn+kfc+gh+3x", {**K, "kfc_active": True, "ghost_active": True, "triple_active": True}),
     ("skate", {"skateboard_active": True}),
     ("skate+3x", {"skateboard_active": True, "triple_active": True}),
+    ("skate+knight", {"skateboard_active": True, **K}),
     ("skate+grow", {"skateboard_active": True, "grow_active": True}),
-    ("skate+shrink", {"skateboard_active": True, "shrink_scale": 0.6}),
     ("poison base", {"poison_active": True, "poison_t": 0.85}),
     ("poison kfc", {"poison_active": True, "poison_t": 0.85, "kfc_active": True}),
     ("poison ghost", {"poison_active": True, "poison_t": 0.85, "ghost_active": True}),
-    ("poison knight", {"poison_active": True, "poison_t": 0.85, "knight_active": True}),
+    ("poison knight", {"poison_active": True, "poison_t": 0.85, **K}),
 ]
 
 TW, TH = 150, 168

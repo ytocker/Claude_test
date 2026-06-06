@@ -83,20 +83,40 @@ def _crown(surf, cx, cy):
     _ruby_gem(surf, cx, by + h // 2 + 1, 2)
 
 
-def build_knight_hat_frames():
-    """Knight flat frames with the royal crown composited on the helm dome.
-    Mirrors the round-2 explore anchor (helm at ~0.73 x / 0.17 y of the sprite,
-    crown seated ~2px lower + 1px back so the plume clears behind it)."""
+def crown_frames(knight_frames):
+    """Composite the royal crown onto each of the given knight frames at the
+    helm dome anchor (helm at ~0.73 x / 0.17 y of the sprite; crown seated ~2px
+    lower + 1px back so the plume clears behind it). Reusable across the plain
+    knight and the themed (fried/spectral) knights for the +3x stacks."""
     from game import parrot
-    from game.knight_skin import build_knight_frames
     PAD = 16
     helm_cx = PAD + 0.73 * parrot.SPRITE_W
     helm_top = PAD + 0.17 * parrot.SPRITE_H - 0.54 * parrot.SPRITE_H * 0.5
     cx = int(helm_cx) - 1
     cy = int(helm_top + 7)
     out = []
-    for frame in build_knight_frames():
+    for frame in knight_frames:
         f = frame.copy()
         _crown(f, cx, cy)
         out.append(f)
     return out
+
+
+def build_knight_hat_frames():
+    from game.knight_skin import build_knight_frames
+    return crown_frames(build_knight_frames())
+
+
+def build_knight_kfc_hat_frames():
+    from game.knight_skin import build_knight_kfc_frames
+    return crown_frames(build_knight_kfc_frames())
+
+
+def build_knight_ghost_hat_frames():
+    from game.knight_skin import build_knight_ghost_frames
+    return crown_frames(build_knight_ghost_frames())
+
+
+def build_knight_kfc_ghost_hat_frames():
+    from game.knight_skin import build_knight_kfc_ghost_frames
+    return crown_frames(build_knight_kfc_ghost_frames())

@@ -225,11 +225,19 @@ def _sword(big, s):
     pygame.draw.circle(big, (210, 70, 90), (int(ge[0]), int(ge[1])), max(1, int(1.2 * s)))
 
 
-def _build_knight_frame(base_frame):
+def _build_knight_frame(base_frame, *, body_recolor=True):
     bw, bh = base_frame.get_size()
     char = pygame.Surface((bw + 2 * _PAD, bh + 2 * _PAD), pygame.SRCALPHA)
     nom = base_frame.get_rect(center=(char.get_width() // 2, char.get_height() // 2))
-    char.blit(_body(base_frame, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100), nom.topleft)
+    # body_recolor=True → steel-recolor the plain parrot (the lone-knight skin).
+    # body_recolor=False → blit an ALREADY-themed base (fried / spectral) raw so
+    # its palette shows through the armour gaps (belly/tail), giving fried-steel
+    # / spectral knights as compositions rather than new from-scratch art.
+    if body_recolor:
+        body = _body(base_frame, (140, 150, 174), (6, 9, 16), (236, 242, 254), (44, 50, 66), 118, 100)
+    else:
+        body = base_frame
+    char.blit(body, nom.topleft)
     _blit_ss(char, *_P(nom, 0.45, 0.62), int(nom.w * 0.5), int(nom.h * 0.30), _breast)
     sfx, sfy, swf, shf = _SHIELD_POS
     _blit_ss(char, *_P(nom, sfx, sfy), int(nom.w * swf), int(nom.h * shf), _shield)
@@ -241,6 +249,25 @@ def _build_knight_frame(base_frame):
 
 def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
+
+
+def build_knight_kfc_frames():
+    """Fried-steel knight — KFC golden body shows in the un-armoured belly/tail."""
+    return [_build_knight_frame(f, body_recolor=False)
+            for f in parrot._get_kfc_frames()]
+
+
+def build_knight_ghost_frames():
+    """Spectral knight — cyan spectral body under steel armour (the draw-time
+    ghost alpha-breath then makes the whole thing translucent)."""
+    return [_build_knight_frame(f, body_recolor=False)
+            for f in parrot._ensure_ghost_frames()]
+
+
+def build_knight_kfc_ghost_frames():
+    """Fried + spectral knight — the cyan-tinted fried body under steel armour."""
+    return [_build_knight_frame(f, body_recolor=False)
+            for f in parrot._ensure_kfc_ghost_frames()]
 
 
 _SHIELD_ICON_CACHE: dict = {}

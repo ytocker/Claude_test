@@ -1116,6 +1116,66 @@ def get_knight_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# Remaining bespoke knight combos: knight x {kfc, ghost, kfc+ghost} and their
+# +3x crowned stacks. Same lazy flat-build + per-(frame, angle) rotation-cache
+# shape as get_knight_parrot, produced via a factory so each is one line rather
+# than four boilerplate defs. Builders import lazily so a player who never
+# reaches a combo never pays its build cost.
+def _knight_combo_getter(build):
+    state = {"frames": None, "cache": {}}
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = build()
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["cache"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["cache"][key] = s
+        return s
+    return getter
+
+
+def _b_knight_kfc():
+    from game import knight_skin
+    return knight_skin.build_knight_kfc_frames()
+
+
+def _b_knight_ghost():
+    from game import knight_skin
+    return knight_skin.build_knight_ghost_frames()
+
+
+def _b_knight_kfc_ghost():
+    from game import knight_skin
+    return knight_skin.build_knight_kfc_ghost_frames()
+
+
+def _b_knight_kfc_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_kfc_hat_frames()
+
+
+def _b_knight_ghost_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_ghost_hat_frames()
+
+
+def _b_knight_kfc_ghost_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_kfc_ghost_hat_frames()
+
+
+get_knight_kfc_parrot = _knight_combo_getter(_b_knight_kfc)
+get_knight_ghost_parrot = _knight_combo_getter(_b_knight_ghost)
+get_knight_kfc_ghost_parrot = _knight_combo_getter(_b_knight_kfc_ghost)
+get_knight_kfc_hat_parrot = _knight_combo_getter(_b_knight_kfc_hat)
+get_knight_ghost_hat_parrot = _knight_combo_getter(_b_knight_ghost_hat)
+get_knight_kfc_ghost_hat_parrot = _knight_combo_getter(_b_knight_kfc_ghost_hat)
+
+
 # ── Poisoned (dead-Pip B) accessor ──────────────────────────────────────────
 #
 # Used by Bird.draw while poison_active to cross-fade between the healthy

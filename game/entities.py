@@ -645,6 +645,18 @@ class Bird:
         # > singles > grow > base, with poison applied as a tint afterward.
         if skeleton_visible:
             img = parrot.get_skeleton_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active and self.ghost_active and triple_vis:
+            img = parrot.get_knight_kfc_ghost_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active and self.ghost_active:
+            img = parrot.get_knight_kfc_ghost_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active and triple_vis:
+            img = parrot.get_knight_kfc_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.ghost_active and triple_vis:
+            img = parrot.get_knight_ghost_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active:
+            img = parrot.get_knight_kfc_parrot(frame_idx, tilt)
+        elif self.knight_active and self.ghost_active:
+            img = parrot.get_knight_ghost_parrot(frame_idx, tilt)
         elif self.knight_active and triple_vis:
             img = parrot.get_knight_hat_parrot(frame_idx, tilt)
         elif self.knight_active:
@@ -804,7 +816,11 @@ class Bird:
         # SKATEBOARD — Pip wears a helmet and the parcel becomes the board
         # under his feet. Drawn instead of the normal parcel.
         if self.skateboard_active:
-            self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
+            # A knight skater keeps his armet helm (a steel head-piece already),
+            # so skip the punk helmet to avoid two helmets stacking; he just
+            # rides the board.
+            if not self.knight_active:
+                self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
             self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y,
                                   flipped)
             return
