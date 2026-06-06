@@ -97,10 +97,6 @@ RAIN_COLOR_T_START   = 0.35 + _RAIN_PHASE_SHIFT
 RAIN_COLOR_T_RANGE   = 0.20
 LIGHTNING_PHASE_MIN  = 0.49 + _RAIN_PHASE_SHIFT
 LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
-# Phase at which the rain block fully clears (storm peak + its half-width).
-# A run opens here so play begins exactly as the rain ends — see
-# World.__init__.
-RAIN_END             = RAIN_STORM_PEAK + RAIN_STORM_WIDTH
 
 # Snow squall (shifted by config.SNOW_START_PILLAR).
 SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT

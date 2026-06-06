@@ -12,7 +12,8 @@ from game.config import (
     W, H, GROUND_Y, PIPE_W, PIPE_SPACING,
     GAP_START, SCROLL_BASE,
     DAY_SCROLL_STEP, DAY_SCROLL_CAP, DAY_GAP_STEP, DAY_GAP_FLOOR,
-    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, SPAWN_GRACE,
+    GAP_NEWBIE_START, SCROLL_NEWBIE_BASE, PIPE_SPACING_NEWBIE, RAMP_PIPES,
+    PLATEAU_PIPES, SPAWN_GRACE,
     PIPE_HITBOX_SHRINK,
     BIRD_X, BIRD_R, COIN_R, POWERUP_R, PARCEL_R, PARCEL_Y_OFFSET,
     POWERUP_CHANCE, POWERUP_CHANCE_NEWBIE, POWERUP_COOLDOWN,
@@ -66,7 +67,6 @@ from game import audio
 from game import geyser_fx
 from game.weather import (
     Weather,
-    RAIN_END as _RAIN_END,
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
@@ -258,10 +258,8 @@ class World:
         # one frame after biome_time crosses CYCLE_SECONDS. When that fires
         # the next CYCLE_FINALE_RUSH_PILLARS pillars are forced into a coin
         # rush; the middle pillar carries the chest. _finale_box_dropped is
-        # a one-shot guard inside a single finale. Seeded to the opening phase
-        # (the run opens at _RAIN_END) so the first frame can't read a false
-        # wrap.
-        self._last_biome_phase = _RAIN_END
+        # a one-shot guard inside a single finale.
+        self._last_biome_phase = 0.0
         self._finale_rush_remaining = 0
         self._finale_box_dropped = False
         # Transient flag so near-miss detection fires once per pillar.
@@ -285,12 +283,13 @@ class World:
 
         # Real elapsed gameplay seconds — drives the day/night biome cycle.
         # Held at this value while ready_t > 0 so the sky doesn't tick over
-        # while the player is still on the start-of-run prompt. The run OPENS
-        # exactly as the rain ends (_RAIN_END phase): the dusk thunderstorm has
-        # just cleared, a short calm leads into the predawn snow squall, and
-        # the cycle flows on normally from there. Manual chest-event playtest
-        # uses the debug F9 hotkey rather than a baked-in time shift.
-        self.biome_time = biome.CYCLE_SECONDS * _RAIN_END
+        # while the player is still on the start-of-run prompt. Open at
+        # fresh-dawn (phase 0.0); the first cycle-finale chest fires
+        # organically ~CYCLE_SECONDS later, with the newbie ramp
+        # (~80 s at newbie scroll/spacing) safely finished by then.
+        # Manual chest-event playtest uses the debug F9 hotkey rather
+        # than a baked-in time shift.
+        self.biome_time = 0.0
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
@@ -337,11 +336,19 @@ class World:
     # ── difficulty ───────────────────────────────────────────────────────────
 
     def _ramp_t(self):
-        # Newbie onboarding ramp removed: pinned to 1.0 so the four
-        # _current_*() helpers always resolve to the regular endpoints
-        # (GAP_START / SCROLL_BASE / PIPE_SPACING / POWERUP_CHANCE) — the
-        # game plays at full tuning from the first pillar.
-        return 1.0
+        # Newbie onboarding ramp: the first PLATEAU_PIPES pillars hold
+        # the four _current_*() helpers at the easier newbie endpoints
+        # (GAP_NEWBIE_START / SCROLL_NEWBIE_BASE / PIPE_SPACING_NEWBIE /
+        # POWERUP_CHANCE_NEWBIE), then an ease-out quadratic eases them
+        # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
+        # self.pillars_passed (per-run, NOT per-day) so the easier
+        # intro never re-triggers after the first cycle wraps.
+        pp = self.pillars_passed
+        if pp < PLATEAU_PIPES:
+            return 0.0
+        x = (pp - PLATEAU_PIPES) / max(1, RAMP_PIPES - PLATEAU_PIPES)
+        x = min(1.0, x)
+        return 1.0 - (1.0 - x) ** 2
 
     # ── biome ────────────────────────────────────────────────────────────────
 
