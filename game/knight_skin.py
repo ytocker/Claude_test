@@ -11,9 +11,18 @@ the three reads stay identical.
 Built lazily and cached by `parrot._get_knight_frames()`.
 """
 import math
+import random
 import pygame
 
 from game import parrot
+
+# Fried-chicken palette borrowed from the original fried parrot
+# (parrot._build_fried_frame) so the FRIED KNIGHT deep-fries with the exact same
+# crispy tones + texture recipe, just on the armoured base.
+_CRISPY_GOLD = parrot._CRISPY_GOLD
+_CRISPY_DARK = parrot._CRISPY_DARK
+_CRISPY_LIGHT = parrot._CRISPY_LIGHT
+_CRISPY_SPOT = parrot._CRISPY_SPOT
 
 # Steel + heraldry palette (shared across helm / breastplate / shield).
 OL = (24, 28, 38); D = (70, 78, 96); MID = (146, 156, 178); HI = (238, 244, 255)
@@ -251,26 +260,40 @@ def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
 
 
-def _fry_recolor(f):
-    """Re-skin a whole frame as fried chicken: collapse it to luminance, then
-    map that onto a golden-brown duotone (gold MULTIPLY for the hue + a warm
-    ADDITIVE floor so the darkest pixels read crispy-brown, not black). Applied
-    to the ENTIRE knight so helm, shield, sword and armour all go fried-golden,
-    not just the bird's body."""
-    g = pygame.transform.grayscale(f)                       # luminance, keeps alpha
-    g.fill((255, 196, 104), special_flags=pygame.BLEND_RGB_MULT)
-    o = pygame.Surface(g.get_size(), pygame.SRCALPHA)
-    o.fill((54, 28, 4, 255))
-    o.blit(g, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # clamp to silhouette
-    g.blit(o, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-    return g
+def _deep_fry(frame):
+    """Put a whole knight frame through the SAME deep-fry the fried parrot gets
+    (parrot._build_fried_frame): recolor its luminance onto the crispy batter
+    ramp, then add fried TEXTURE — scattered crispy spots, crackle lines (dark
+    valley + light ridge = raised batter) and a golden grease sheen — all clamped
+    to the silhouette. So helm, shield, sword, armour and body read battered-
+    crispy, not merely gold-tinted. A fixed rng seed keeps the texture identical
+    across the 4 wing frames (the parrot's spots/crackle are likewise fixed)."""
+    out = _recolor(frame, _CRISPY_GOLD, add=(44, 20, 2))   # rich golden-brown batter
+    w, h = out.get_size()
+    tex = pygame.Surface((w, h), pygame.SRCALPHA)
+    rng = random.Random(0x5C0FFEE)
+    for _ in range(12):                                    # dark crispy crust blotches
+        pygame.draw.circle(tex, _CRISPY_DARK,
+                           (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(2, 3))
+    for _ in range(66):                                    # fine crispy spots
+        pygame.draw.circle(tex, _CRISPY_SPOT,
+                           (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(1, 2))
+    for _ in range(24):                                    # crackle: dark valley + light ridge
+        x1, y1 = rng.randint(2, w - 9), rng.randint(2, h - 9)
+        dx, dy = rng.randint(4, 9), rng.randint(-4, 4)
+        pygame.draw.line(tex, _CRISPY_DARK, (x1, y1), (x1 + dx, y1 + dy), 1)
+        pygame.draw.line(tex, _CRISPY_LIGHT, (x1 - 1, y1 - 1), (x1 + dx - 1, y1 + dy - 1), 1)
+    tex.blit(_amask(out), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    out.blit(tex, (0, 0))
+    _sheen(out, (255, 225, 145), (235, 180, 90), top_a=52, bot_a=34)
+    return out
 
 
 def build_knight_kfc_frames():
-    """THE FRIED KNIGHT — the WHOLE suit (helm, shield, sword, armour, body)
-    re-skinned as crispy fried-golden via _fry_recolor, not just the bird."""
-    return [_fry_recolor(_build_knight_frame(f, body_recolor=False))
-            for f in parrot._get_kfc_frames()]
+    """THE FRIED KNIGHT — the regular STEEL knight run through the fried-parrot
+    deep-fry (crispy batter palette + crackle/spots/grease texture), so the whole
+    suit reads battered-crispy."""
+    return [_deep_fry(f) for f in build_knight_frames()]
 
 
 def build_knight_ghost_frames():
