@@ -645,6 +645,8 @@ class Bird:
         # > singles > grow > base, with poison applied as a tint afterward.
         if skeleton_visible:
             img = parrot.get_skeleton_parrot(frame_idx, tilt)
+        elif self.knight_active and triple_vis:
+            img = parrot.get_knight_hat_parrot(frame_idx, tilt)
         elif self.knight_active:
             img = parrot.get_knight_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active and triple_vis:

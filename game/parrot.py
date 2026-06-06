@@ -1091,6 +1091,31 @@ def get_knight_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
     return s
 
 
+# knight + triple — armoured Pip wearing the royal metallic crown
+_knight_hat_frames: "list | None" = None
+_knight_hat_rot_cache: dict = {}
+
+
+def _get_knight_hat_frames() -> "list[pygame.Surface]":
+    global _knight_hat_frames
+    if _knight_hat_frames is None:
+        from game import knight_crown
+        _knight_hat_frames = knight_crown.build_knight_hat_frames()
+    return _knight_hat_frames
+
+
+def get_knight_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Knight skin + royal crown (knight+3x), rotated, cached by (frame, angle)."""
+    frames = _get_knight_hat_frames()
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    s = _knight_hat_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        _knight_hat_rot_cache[key] = s
+    return s
+
+
 # ── Poisoned (dead-Pip B) accessor ──────────────────────────────────────────
 #
 # Used by Bird.draw while poison_active to cross-fade between the healthy
