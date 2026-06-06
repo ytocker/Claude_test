@@ -457,6 +457,7 @@ _DEFAULT_PILLAR = {
 # The helmet + board base were rebuilt from an 8x/4x supersample EVERY frame
 # (twice, via the HUD re-blit) while riding; caching them removes that cost.
 _HELMET_SPRITE = None
+_HELMET_SCALED: dict = {}    # per grow/shrink scale bucket -> scaled helmet
 _BOARD_BASE = None          # native board sprite, no wheel-spokes
 _BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
 _SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
@@ -632,46 +633,34 @@ class Bird:
             else:
                 bucket = int((3.0 - self.skeleton_flash_t) / 0.30)
                 skeleton_visible = (bucket % 2 == 0)
-        # Combo-aware sprite cascade. The four reachable stacks each have
-        # a dedicated themed sprite so no powerup is silently lost; check
-        # combos before single-mode flags so e.g. kfc+triple picks the
-        # crispy-hat sprite instead of falling through to plain kfc.
-        # Cascade order: skeleton-flash > poison > combos > singles > base.
+        # While skateboarding the punk helmet owns the head, so suppress the
+        # 3x top-hat in the SPRITE pick (otherwise hat + helmet double-stack).
+        triple_vis = self.triple_active and not self.skateboard_active
+        # Combo-aware sprite cascade. Every reachable stack has a dedicated
+        # themed sprite so no powerup is silently lost. KNIGHT is a first-class
+        # axis checked BEFORE the coin-buff skins so its armour is never
+        # dropped when 3x/KFC/Ghost overlap it (the overlapping buff still
+        # reads via its own world FX; bespoke knight+combo skins land in later
+        # phases). Cascade order: skeleton > knight > kfc/ghost/triple combos
+        # > singles > grow > base, with poison applied as a tint afterward.
         if skeleton_visible:
             img = parrot.get_skeleton_parrot(frame_idx, tilt)
-        elif self.poison_active:
-            # Cross-fade from the healthy frame to the dead-Pip B sprite at
-            # alpha = poison_t. Both frames share Pip's outline so the
-            # silhouette stays single.
-            healthy = parrot.get_parrot(frame_idx, tilt)
-            poisoned = parrot.get_poisoned_parrot(frame_idx, tilt)
-            if self.poison_t <= 0.0:
-                img = healthy
-            elif self.poison_t >= 1.0:
-                img = poisoned
-            else:
-                img = healthy.copy()
-                layer = poisoned.copy()
-                layer.set_alpha(int(255 * self.poison_t))
-                img.blit(layer, (0, 0))
-        elif self.kfc_active and self.ghost_active and self.triple_active:
+        elif self.knight_active:
+            img = parrot.get_knight_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.ghost_active and triple_vis:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active:
             img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
-        elif self.kfc_active and self.triple_active:
+        elif self.kfc_active and triple_vis:
             img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
-        elif self.ghost_active and self.triple_active:
+        elif self.ghost_active and triple_vis:
             img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active:
             img = parrot.get_fried_parrot(frame_idx, tilt)
         elif self.ghost_active:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
-        elif self.triple_active:
+        elif triple_vis:
             img = parrot.get_hat_parrot(frame_idx, tilt)
-        elif self.knight_active:
-            # KNIGHT skin — survive-one-hit buff. Identity is carried
-            # in-sprite (armour + shield); no halo.
-            img = parrot.get_knight_parrot(frame_idx, tilt)
         elif self.grow_active:
             # Hi-res grow-mode bird: pre-built at full grow display size by
             # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
@@ -681,8 +670,16 @@ class Bird:
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
+        # POISON — generic chartreuse tint over whichever skin the cascade
+        # chose (mask-clamped to the silhouette, ramped by poison_t), so the
+        # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
+        # fixed sprite. The terminal death overlay (below) still carries the
+        # X-eyes when the kill finally fires.
+        if self.poison_active and self.poison_t > 0.0:
+            img = parrot.tint_copy(img, (180, 225, 75),
+                                   min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
-                                  or self.triple_active):
+                                  or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
             # combo frames yet; this preserves correctness at the cost of
             # the same upscale blur the base bird used to have.
@@ -869,17 +866,28 @@ class Bird:
         and seating offset vary, so the 8x supersample build never runs in the
         draw loop (it used to, twice, via the HUD re-blit)."""
         global _HELMET_SPRITE
-        s = 1.0
+        from game.config import GROW_SCALE
+        # Track Pip's body scale so the helmet seats + sizes on a grown/shrunk
+        # bird instead of staying fixed (which left a tiny helm on a big Pip).
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
         ear_top_n = 18
         if _HELMET_SPRITE is None:
             _HELMET_SPRITE = Bird._build_helmet_sprite()
         helm = _HELMET_SPRITE
+        if abs(s - 1.0) > 1e-3:
+            key = round(s, 2)
+            helm = _HELMET_SCALED.get(key)
+            if helm is None:
+                hw, hh = _HELMET_SPRITE.get_size()
+                helm = pygame.transform.smoothscale(
+                    _HELMET_SPRITE, (max(1, int(hw * key)), max(1, int(hh * key))))
+                _HELMET_SCALED[key] = helm
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
         # dome's offset from the subsurface centre shifted by ear_top_n/2.
         # Pulling the blit centre away from the helmet's original-top side
         # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
-        ear_compensation = (ear_top_n / 2.0) * (1 if flipped else -1)
+        ear_compensation = (ear_top_n * s / 2.0) * (1 if flipped else -1)
         y_off = (10 * s if flipped else -10 * s) + ear_compensation
         offset = pygame.math.Vector2(18 * s, y_off)
         offset = offset.rotate(-tilt)
@@ -1143,8 +1151,10 @@ class Bird:
         kickflip/heelflip/popshuvit + flip — no per-frame supersample rebuild
         (which used to run twice via the HUD re-blit)."""
         global _BOARD_BASE, _BOARD_WHEELS
-        from game.config import PARCEL_Y_OFFSET
-        s = 1.0
+        from game.config import PARCEL_Y_OFFSET, GROW_SCALE
+        # Track Pip's body scale so the board sizes + seats under a grown/shrunk
+        # bird instead of staying fixed under a mismatched body.
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
         y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
         offset = pygame.math.Vector2(0, y_off + 4 * s)
         offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
@@ -1159,6 +1169,10 @@ class Bird:
             sy_p = wy + math.sin(spin + sign * 1.0) * wr * 0.6
             pygame.draw.line(board_surf, (180, 50, 50),
                              (int(wx), int(wy)), (int(sx_p), int(sy_p)), 1)
+        if abs(s - 1.0) > 1e-3:
+            bw, bh = board_surf.get_size()
+            board_surf = pygame.transform.smoothscale(
+                board_surf, (max(1, int(bw * s)), max(1, int(bh * s))))
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         # KICKFLIP — 360° board-only spin layered on top of Pip's
         # velocity-banked tilt. Pip's posture is unchanged; only the

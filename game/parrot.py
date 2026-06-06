@@ -953,6 +953,15 @@ def _cyan_tint_in_place(sprite, tint=(170, 230, 255), strength=0.55):
     sprite.blit(overlay, (0, 0))
 
 
+def tint_copy(sprite, tint, strength):
+    """Return a COPY of `sprite` tinted toward `tint` (mask-clamped to the
+    silhouette), leaving the source untouched — used to poison-tint whichever
+    cached skin frame the draw cascade picked without mutating the cache."""
+    out = sprite.copy()
+    _cyan_tint_in_place(out, tint=tint, strength=strength)
+    return out
+
+
 # kfc + triple — fried bird + crispy KFC hat
 _kfc_hat_frames: "list | None" = None
 _kfc_hat_cache: dict = {}
