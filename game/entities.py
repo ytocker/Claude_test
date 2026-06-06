@@ -453,6 +453,17 @@ _DEFAULT_PILLAR = {
 
 # ── Bird ─────────────────────────────────────────────────────────────────────
 
+# Static skateboard-mode sprites — built once, then only transformed per frame.
+# The helmet + board base were rebuilt from an 8x/4x supersample EVERY frame
+# (twice, via the HUD re-blit) while riding; caching them removes that cost.
+_HELMET_SPRITE = None
+_HELMET_SCALED: dict = {}    # per grow/shrink scale bucket -> scaled helmet
+_SKATE_HAT_SPRITE = None     # skate+3x gold bunny top-hat
+_SKATE_HAT_SCALED: dict = {}
+_BOARD_BASE = None          # native board sprite, no wheel-spokes
+_BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
+_SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
+
 
 class Bird:
     def __init__(self):
@@ -624,46 +635,48 @@ class Bird:
             else:
                 bucket = int((3.0 - self.skeleton_flash_t) / 0.30)
                 skeleton_visible = (bucket % 2 == 0)
-        # Combo-aware sprite cascade. The four reachable stacks each have
-        # a dedicated themed sprite so no powerup is silently lost; check
-        # combos before single-mode flags so e.g. kfc+triple picks the
-        # crispy-hat sprite instead of falling through to plain kfc.
-        # Cascade order: skeleton-flash > poison > combos > singles > base.
+        # While skateboarding the punk helmet owns the head, so suppress the
+        # 3x top-hat in the SPRITE pick (otherwise hat + helmet double-stack).
+        triple_vis = self.triple_active and not self.skateboard_active
+        # Combo-aware sprite cascade. Every reachable stack has a dedicated
+        # themed sprite so no powerup is silently lost. KNIGHT is a first-class
+        # axis checked BEFORE the coin-buff skins so its armour is never
+        # dropped when 3x/KFC/Ghost overlap it (the overlapping buff still
+        # reads via its own world FX; bespoke knight+combo skins land in later
+        # phases). Cascade order: skeleton > knight > kfc/ghost/triple combos
+        # > singles > grow > base, with poison applied as a tint afterward.
         if skeleton_visible:
             img = parrot.get_skeleton_parrot(frame_idx, tilt)
-        elif self.poison_active:
-            # Cross-fade from the healthy frame to the dead-Pip B sprite at
-            # alpha = poison_t. Both frames share Pip's outline so the
-            # silhouette stays single.
-            healthy = parrot.get_parrot(frame_idx, tilt)
-            poisoned = parrot.get_poisoned_parrot(frame_idx, tilt)
-            if self.poison_t <= 0.0:
-                img = healthy
-            elif self.poison_t >= 1.0:
-                img = poisoned
-            else:
-                img = healthy.copy()
-                layer = poisoned.copy()
-                layer.set_alpha(int(255 * self.poison_t))
-                img.blit(layer, (0, 0))
-        elif self.kfc_active and self.ghost_active and self.triple_active:
+        elif self.knight_active and self.kfc_active and self.ghost_active and triple_vis:
+            img = parrot.get_knight_kfc_ghost_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active and self.ghost_active:
+            img = parrot.get_knight_kfc_ghost_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active and triple_vis:
+            img = parrot.get_knight_kfc_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.ghost_active and triple_vis:
+            img = parrot.get_knight_ghost_hat_parrot(frame_idx, tilt)
+        elif self.knight_active and self.kfc_active:
+            img = parrot.get_knight_kfc_parrot(frame_idx, tilt)
+        elif self.knight_active and self.ghost_active:
+            img = parrot.get_knight_ghost_parrot(frame_idx, tilt)
+        elif self.knight_active and triple_vis:
+            img = parrot.get_knight_hat_parrot(frame_idx, tilt)
+        elif self.knight_active:
+            img = parrot.get_knight_parrot(frame_idx, tilt)
+        elif self.kfc_active and self.ghost_active and triple_vis:
             img = parrot.get_kfc_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active and self.ghost_active:
             img = parrot.get_kfc_ghost_parrot(frame_idx, tilt)
-        elif self.kfc_active and self.triple_active:
+        elif self.kfc_active and triple_vis:
             img = parrot.get_kfc_hat_parrot(frame_idx, tilt)
-        elif self.ghost_active and self.triple_active:
+        elif self.ghost_active and triple_vis:
             img = parrot.get_ghost_hat_parrot(frame_idx, tilt)
         elif self.kfc_active:
             img = parrot.get_fried_parrot(frame_idx, tilt)
         elif self.ghost_active:
             img = parrot.get_ghost_parrot(frame_idx, tilt)
-        elif self.triple_active:
+        elif triple_vis:
             img = parrot.get_hat_parrot(frame_idx, tilt)
-        elif self.knight_active:
-            # KNIGHT skin — survive-one-hit buff. Identity is carried
-            # in-sprite (armour + shield); no halo.
-            img = parrot.get_knight_parrot(frame_idx, tilt)
         elif self.grow_active:
             # Hi-res grow-mode bird: pre-built at full grow display size by
             # `parrot._build_grow_frame` (round-9 v3 = 3× supersample → 1.5×
@@ -673,8 +686,16 @@ class Bird:
             img = parrot.get_grow_parrot(frame_idx, tilt)
         else:
             img = parrot.get_parrot(frame_idx, tilt)
+        # POISON — generic chartreuse tint over whichever skin the cascade
+        # chose (mask-clamped to the silhouette, ramped by poison_t), so the
+        # poisoning reads on kfc/ghost/knight/hat rather than swapping to a
+        # fixed sprite. The terminal death overlay (below) still carries the
+        # X-eyes when the kill finally fires.
+        if self.poison_active and self.poison_t > 0.0:
+            img = parrot.tint_copy(img, (180, 225, 75),
+                                   min(0.78, 0.78 * self.poison_t))
         if self.grow_active and (self.kfc_active or self.ghost_active
-                                  or self.triple_active):
+                                  or triple_vis or self.knight_active):
             # Combo + grow: smoothscale-up the variant sprite. No hi-res
             # combo frames yet; this preserves correctness at the cost of
             # the same upscale blur the base bird used to have.
@@ -738,9 +759,10 @@ class Bird:
             from game.umbrella import draw_overlay
             draw_overlay(surf, cx_int, cy_int, tilt)
         # Windblown snow on Pip during the squall — baked W2 overlay matched to
-        # the sprite's rotozoom(tilt) + body scale, so it stays glued on.
+        # the sprite's rotozoom(tilt) + body scale, so it stays glued on. Pass
+        # the current frame so the full-cover peak buries the actual wing pose.
         if self.snow_load > 0.04 and not skeleton_visible:
-            ov = snow_fx.get_snow_overlay(self.snow_load)
+            ov = snow_fx.get_snow_overlay(self.snow_load, frame_idx)
             if ov is not None:
                 from game.config import GROW_SCALE as _GS
                 bsc = (_GS if self.grow_active else 1.0) * self.shrink_scale
@@ -796,9 +818,17 @@ class Bird:
         # SKATEBOARD — Pip wears a helmet and the parcel becomes the board
         # under his feet. Drawn instead of the normal parcel.
         if self.skateboard_active:
-            self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
-            self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y,
-                                  flipped)
+            hx, hy = self.x + shake_x, self.y + shake_y
+            # Head-piece while skating: a knight keeps his armet (no extra
+            # helmet); with 3x up Pip wears the gold '$' top-hat in the helmet's
+            # bunny-eared style; otherwise the punk skull-bunny helmet.
+            if self.knight_active:
+                pass
+            elif self.triple_active:
+                self._draw_skate_hat(surf, hx, hy, flipped)
+            else:
+                self._draw_helmet(surf, hx, hy, flipped)
+            self._draw_skateboard(surf, hx, hy, flipped)
             return
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
@@ -855,14 +885,46 @@ class Bird:
                 surf.blit(pov, ps.topleft)
 
     def _draw_helmet(self, surf, cx, cy, flipped):
-        """Side-view punk-mohawk skater helmet — half-dome with the icon's
-        SKULL-BUNNY FACE on the dome (BONE skull + DOME sockets/nose/teeth +
-        RED bandage cross) and chunky red-tipped bunny ears poking up. 8×
-        supersampled so the ear's RED inner ellipse survives smoothscale
-        to the native 24×15 helm size. Anchor compensation shifts the blit
-        centre up by ear_top/2 so the dome stays seated on Pip's head
-        crown despite the taller subsurface needed for the ears."""
-        import math
+        """Side-view punk skater helmet. The static art is built ONCE and
+        cached (_build_helmet_sprite); per frame only the tilt rotation, flip
+        and seating offset vary, so the 8x supersample build never runs in the
+        draw loop (it used to, twice, via the HUD re-blit)."""
+        global _HELMET_SPRITE
+        from game.config import GROW_SCALE
+        # Track Pip's body scale so the helmet seats + sizes on a grown/shrunk
+        # bird instead of staying fixed (which left a tiny helm on a big Pip).
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
+        ear_top_n = 18
+        if _HELMET_SPRITE is None:
+            _HELMET_SPRITE = Bird._build_helmet_sprite()
+        helm = _HELMET_SPRITE
+        if abs(s - 1.0) > 1e-3:
+            key = round(s, 2)
+            helm = _HELMET_SCALED.get(key)
+            if helm is None:
+                hw, hh = _HELMET_SPRITE.get_size()
+                helm = pygame.transform.smoothscale(
+                    _HELMET_SPRITE, (max(1, int(hw * key)), max(1, int(hh * key))))
+                _HELMET_SCALED[key] = helm
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
+        # dome's offset from the subsurface centre shifted by ear_top_n/2.
+        # Pulling the blit centre away from the helmet's original-top side
+        # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
+        ear_compensation = (ear_top_n * s / 2.0) * (1 if flipped else -1)
+        y_off = (10 * s if flipped else -10 * s) + ear_compensation
+        offset = pygame.math.Vector2(18 * s, y_off)
+        offset = offset.rotate(-tilt)
+        rotated = pygame.transform.rotate(helm, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+        r = rotated.get_rect(center=(int(cx + offset.x),
+                                     int(cy + offset.y)))
+        surf.blit(rotated, r.topleft)
+
+    @staticmethod
+    def _build_helmet_sprite():
+        """Static side-view skater helmet — 8x supersample built once."""
         s = 1.0
         SS = 8
         hw_n = int(24 * s)
@@ -1043,30 +1105,97 @@ class Bird:
 
         native_size = (hw_n + pad_n * 2,
                        hh_n + pad_n * 2 + drop_n + ear_top_n)
-        helm = pygame.transform.smoothscale(helm, native_size)
+        return pygame.transform.smoothscale(helm, native_size)
+
+    @staticmethod
+    def _build_skate_tophat_sprite():
+        """Skate + 3x head-piece: the gold '$' top-hat (3x identity) wearing the
+        skateboard helmet's red-tipped BUNNY EARS — the 3x hat rendered in the
+        helmet's bunny style. Built once at 6x supersample, then scaled/rotated
+        per frame exactly like the helmet."""
+        SS = 6
+        BONE = (240, 240, 230); DARK = (12, 10, 18); RED = (200, 50, 50)
+        G_DK = (168, 112, 26); G = (244, 196, 60)
+        G_MID = (216, 162, 40); G_LT = (255, 236, 150)
+        DOL = (74, 186, 110); DOL_DK = (18, 86, 50); DOL_HI = (220, 255, 232)
+        # A tall narrow gold cylinder reads clearly as a top-hat at small scale.
+        brim_w, cyl_w, cyl_h, ear_over, pad = 18, 10, 17, 6, 3
+        wn = brim_w + pad * 2
+        hn = cyl_h + 4 + ear_over + pad * 2
+        w, h = wn * SS, hn * SS
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        cx = w // 2
+        brim_cy = h - (pad + 2) * SS          # brim sits near the bottom
+        cyl_bot = brim_cy
+        cyl_top = cyl_bot - cyl_h * SS
+        # bunny ears first (behind the cylinder), poking up beside its top
+        ew, eh = 5 * SS, (ear_over + 9) * SS
+        for sign in (-1, 1):
+            ear = pygame.Surface((ew + 4 * SS, eh + 4 * SS), pygame.SRCALPHA)
+            er = pygame.Rect(0, 0, ew, eh)
+            er.center = (ear.get_width() // 2, ear.get_height() // 2)
+            pygame.draw.ellipse(ear, BONE, er)
+            pygame.draw.ellipse(ear, DARK, er, max(1, int(1.0 * SS)))
+            pygame.draw.ellipse(ear, RED, er.inflate(-int(2.2 * SS), -int(7 * SS)))
+            rot = pygame.transform.rotate(ear, -18 * sign)
+            rr = rot.get_rect(center=(cx + sign * 4 * SS, cyl_top + 1 * SS))
+            surf.blit(rot, rr.topleft)
+        # tall gold cylinder (hat body) with a rounded crown
+        cyl = pygame.Rect(cx - cyl_w * SS // 2, cyl_top, cyl_w * SS, cyl_h * SS)
+        pygame.draw.rect(surf, G_DK, cyl, border_radius=2 * SS)
+        pygame.draw.rect(surf, G_MID, cyl.inflate(-1 * SS, -1 * SS), border_radius=2 * SS)
+        pygame.draw.rect(surf, G, (cyl.x + 1 * SS, cyl.y + 1 * SS,
+                                   cyl.w - 3 * SS, cyl.h - 2 * SS), border_radius=1 * SS)
+        pygame.draw.rect(surf, G_LT, (cyl.x + 2 * SS, cyl.y + 2 * SS, 1 * SS, cyl.h - 5 * SS))
+        # green $ band across the cylinder face (the 3x identity)
+        band = pygame.Rect(cyl.x, cyl.centery - 2 * SS, cyl.w, 5 * SS)
+        pygame.draw.rect(surf, DOL_DK, band)
+        pygame.draw.rect(surf, DOL, band.inflate(0, -1 * SS))
+        gx, gy = cx, band.centery
+        pygame.draw.line(surf, DOL_HI, (gx, gy - 2 * SS), (gx, gy + 2 * SS), max(1, SS // 2))
+        surf.set_at((gx - SS, gy - 2 * SS), DOL_HI)
+        surf.set_at((gx + SS, gy + 2 * SS), DOL_HI)
+        # gold brim (ellipse) at the base, in front of the cylinder
+        brim = pygame.Rect(cx - brim_w * SS // 2, brim_cy - 2 * SS, brim_w * SS, 5 * SS)
+        pygame.draw.ellipse(surf, G_DK, brim)
+        pygame.draw.ellipse(surf, G, brim.inflate(-2 * SS, -1 * SS))
+        pygame.draw.ellipse(surf, G_LT, (brim.x + 3 * SS, brim.y + 1 * SS, brim.w - 8 * SS, 1 * SS))
+        return pygame.transform.smoothscale(surf, (wn, hn))
+
+    def _draw_skate_hat(self, surf, cx, cy, flipped):
+        """Gold bunny 3x top-hat on a skating Pip (replaces the punk helmet
+        when 3x is up). Same scale/seat machinery as _draw_helmet."""
+        global _SKATE_HAT_SPRITE
+        from game.config import GROW_SCALE
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
+        if _SKATE_HAT_SPRITE is None:
+            _SKATE_HAT_SPRITE = Bird._build_skate_tophat_sprite()
+        hat = _SKATE_HAT_SPRITE
+        if abs(s - 1.0) > 1e-3:
+            key = round(s, 2)
+            hat = _SKATE_HAT_SCALED.get(key)
+            if hat is None:
+                hw, hh = _SKATE_HAT_SPRITE.get_size()
+                hat = pygame.transform.smoothscale(
+                    _SKATE_HAT_SPRITE, (max(1, int(hw * key)), max(1, int(hh * key))))
+                _SKATE_HAT_SCALED[key] = hat
         tilt = -self.tilt_deg if flipped else self.tilt_deg
-        # Seating fix: the subsurface grew at the TOP by ear_top_n px, so the
-        # dome's offset from the subsurface centre shifted by ear_top_n/2.
-        # Pulling the blit centre away from the helmet's original-top side
-        # keeps the dome at the same on-Pip y as the pre-ear shipped helmet.
-        ear_compensation = (ear_top_n / 2.0) * (1 if flipped else -1)
-        y_off = (10 * s if flipped else -10 * s) + ear_compensation
-        offset = pygame.math.Vector2(18 * s, y_off)
-        offset = offset.rotate(-tilt)
-        rotated = pygame.transform.rotate(helm, tilt)
+        # The brim seats at Pip's head crown; the cylinder + ears rise above it.
+        anchor = pygame.math.Vector2(17 * s, 16 * s if flipped else -16 * s).rotate(-tilt)
+        ax, ay = int(cx + anchor.x), int(cy + anchor.y)
+        rotated = pygame.transform.rotate(hat, tilt)
         if flipped:
             rotated = pygame.transform.flip(rotated, False, True)
-        r = rotated.get_rect(center=(int(cx + offset.x),
-                                     int(cy + offset.y)))
+            r = rotated.get_rect(midtop=(ax, ay))
+        else:
+            r = rotated.get_rect(midbottom=(ax, ay))
         surf.blit(rotated, r.topleft)
 
-    def _draw_skateboard(self, surf, cx, cy, flipped):
-        """Skull skateboard under Pip's feet — black deck with a chrome
-        outline, white skull + crossbones, cream wheels with a red bullseye.
-        The board rides Pip's tilt, which during a backflip carries the full
-        360° spin so the deck flips with him. 4× supersampled like the
-        helmet for smooth curves."""
-        from game.config import PARCEL_Y_OFFSET
+    @staticmethod
+    def _build_board_base():
+        """Static skull-skateboard base (deck + trucks + wheels, NO spokes),
+        4x supersample built once. Returns (native_sprite, wheels) where wheels
+        is native-space [(wx, wy, r, sign)] for the live spinning spokes."""
         s = 1.0
         SS = 4
         board_w_n = int(48 * s)
@@ -1077,12 +1206,6 @@ class Bird:
         board_w = board_w_n * SS
         deck_h  = deck_h_n * SS
         pad     = pad_n * SS
-
-        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
-        offset = pygame.math.Vector2(0, y_off + 4 * s)
-        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
-        bx = cx + offset.x
-        by = cy + offset.y
         board_surf = pygame.Surface(
             (board_w + pad * 2, deck_h * 5 + pad * 2), pygame.SRCALPHA)
         bsx = board_surf.get_width() // 2
@@ -1113,7 +1236,7 @@ class Bird:
                            (sk_rect.centerx + 1 * SS, eye_y), 1 * SS)
         truck_h = max(1 * SS, int(2 * s * SS))
         wheel_r = max(2 * SS, int(3 * s * SS))
-        spin = self.frame_t * 4.0
+        wheels = []
         for sign in (-1, 1):
             tx = bsx + sign * int(board_w * 0.32) - 3 * SS
             pygame.draw.rect(board_surf, (60, 60, 70),
@@ -1125,12 +1248,39 @@ class Bird:
             pygame.draw.circle(board_surf, (245, 240, 230), (wx, wy),
                                wheel_r)
             pygame.draw.circle(board_surf, (200, 50, 50), (wx, wy), 1 * SS)
-            sx_p = wx + int(math.cos(spin + sign * 1.0) * wheel_r * 0.6)
-            sy_p = wy + int(math.sin(spin + sign * 1.0) * wheel_r * 0.6)
-            pygame.draw.line(board_surf, (180, 50, 50), (wx, wy),
-                             (sx_p, sy_p), SS)
-        board_surf = pygame.transform.smoothscale(board_surf,
-                                                  (native_w, native_h))
+            wheels.append((wx / SS, wy / SS, wheel_r / SS, sign))
+        base = pygame.transform.smoothscale(board_surf, (native_w, native_h))
+        return base, wheels
+
+    def _draw_skateboard(self, surf, cx, cy, flipped):
+        """Skull skateboard under Pip's feet. The static base (deck/skull/
+        trucks/wheels) is built once and cached (_build_board_base); per frame
+        we only stamp the two spinning wheel-spokes and apply Pip's tilt +
+        kickflip/heelflip/popshuvit + flip — no per-frame supersample rebuild
+        (which used to run twice via the HUD re-blit)."""
+        global _BOARD_BASE, _BOARD_WHEELS
+        from game.config import PARCEL_Y_OFFSET, GROW_SCALE
+        # Track Pip's body scale so the board sizes + seats under a grown/shrunk
+        # bird instead of staying fixed under a mismatched body.
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
+        y_off = -PARCEL_Y_OFFSET * s if flipped else PARCEL_Y_OFFSET * s
+        offset = pygame.math.Vector2(0, y_off + 4 * s)
+        offset = offset.rotate(-(self.tilt_deg if not flipped else -self.tilt_deg))
+        bx = cx + offset.x
+        by = cy + offset.y
+        if _BOARD_BASE is None:
+            _BOARD_BASE, _BOARD_WHEELS = Bird._build_board_base()
+        board_surf = _BOARD_BASE.copy()
+        spin = self.frame_t * 4.0
+        for wx, wy, wr, sign in _BOARD_WHEELS:
+            sx_p = wx + math.cos(spin + sign * 1.0) * wr * 0.6
+            sy_p = wy + math.sin(spin + sign * 1.0) * wr * 0.6
+            pygame.draw.line(board_surf, (180, 50, 50),
+                             (int(wx), int(wy)), (int(sx_p), int(sy_p)), 1)
+        if abs(s - 1.0) > 1e-3:
+            bw, bh = board_surf.get_size()
+            board_surf = pygame.transform.smoothscale(
+                board_surf, (max(1, int(bw * s)), max(1, int(bh * s))))
         tilt = -self.tilt_deg if flipped else self.tilt_deg
         # KICKFLIP — 360° board-only spin layered on top of Pip's
         # velocity-banked tilt. Pip's posture is unchanged; only the
@@ -2584,15 +2734,22 @@ class PowerUp:
         surf.blit(final, final.get_rect(center=(cx, cy)))
 
     def _draw_skateboard_icon(self, surf):
-        """SKATEBOARD pickup token (punk skull-bunny over crossed decks):
-        a bone skull-bunny head with red-tipped ears, a RED bandage cross
-        over the left eye socket, a RED bandana knot at the base of the
-        left ear, and a curly Jolly Roger mouth (3 vertical teeth with a
-        sine-arc dip connecting the bottoms), centred over two crossed
-        CHROME skateboard decks in an X. Painted at 6× supersample then
-        smoothscale'd down to a 96×96 native footprint."""
+        """SKATEBOARD pickup token (punk skull-bunny over crossed decks). The
+        art is static and built ONCE (_build_skate_icon); per frame we only
+        blit it at the bobbing position, so the 96px/6x supersample rebuild
+        (~1.2 ms, ×3 when the genie lays out its offers) no longer runs every
+        frame."""
+        global _SKATE_ICON_SPRITE
+        if _SKATE_ICON_SPRITE is None:
+            _SKATE_ICON_SPRITE = PowerUp._build_skate_icon()
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+        surf.blit(_SKATE_ICON_SPRITE,
+                  _SKATE_ICON_SPRITE.get_rect(center=(cx, cy)))
+
+    @staticmethod
+    def _build_skate_icon():
+        """Build the static skateboard pickup token (6x supersample → 68px)."""
 
         DOME   = (10, 10, 18)
         CHROME = (200, 200, 210)
@@ -2752,8 +2909,7 @@ class PowerUp:
         pygame.draw.polygon(big, DOME, bow_left, max(1, SS // 3))
         pygame.draw.polygon(big, DOME, bow_right, max(1, SS // 3))
 
-        icon = pygame.transform.smoothscale(big, (DISPLAY_N, DISPLAY_N))
-        surf.blit(icon, icon.get_rect(center=(cx, cy)))
+        return pygame.transform.smoothscale(big, (DISPLAY_N, DISPLAY_N))
 
     def _draw_knight_icon(self, surf):
         """In-world KNIGHT pickup — the K7 heater shield."""
@@ -3060,7 +3216,16 @@ class GenieCharacter:
         self._display_scale = 0.42
         self._palm_dx = 58
         self._palm_dy = -20
-        self._cached_body = self._render_body_supersample()
+        # Render the genie once at 6x supersample for clean edges, then
+        # downsample to NATIVE here, once. _blit_sprite re-scales the body
+        # to its (always smaller) on-screen size every frame; scaling from
+        # this ~320x460 native cache instead of the full ~1920x2760
+        # supersample is ~16x less pixel work per frame — the genie is on
+        # screen for its whole ~3.3 s life, so smoothscaling 5.3 MP every
+        # frame was a real per-frame stutter, badly so on the WASM target.
+        self._cached_body = pygame.transform.smoothscale(
+            self._render_body_supersample(),
+            (self._native_w, self._native_h))
         self._spawn_appear_poof()
 
     def update(self, dt):
@@ -4253,6 +4418,13 @@ class CelebrationCrowd:
     def __init__(self, x_left: float, x_right: float, finish_x: float):
         cls = CelebrationCrowd
         self.t = 0.0
+        # Keep the ENTIRE crowd off-screen at spawn so it scrolls in from
+        # the right edge like real scenery, never popping onto the playfield.
+        # A cluster's outermost parrots reach ±HALF_SPAN, so clamp the left
+        # sampling bound to one HALF_SPAN past the right screen edge — even
+        # the leftmost cluster then starts at x = W. finish_x is always well
+        # to the right of this, so the triangular mode stays valid.
+        x_left = max(x_left, W + cls.HALF_SPAN)
         # Triangular puts the mode at finish_x, so ~half the samples
         # fall within ±(x_right - x_left)/4 of the line — a natural
         # density peak at the finish stripe.

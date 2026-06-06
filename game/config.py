@@ -258,8 +258,10 @@ TREASURE_BOX_ANIM_T         = 1.5
 # HUD telegraph) — the chest-finale banner is the only signal players need.
 DAY_SCROLL_STEP   = 8.0   # px/s added to SCROLL_BASE per completed day
 DAY_SCROLL_CAP    = 220.0 # ceiling on the post-ramp scroll base (RAIL ×2.5
-                          # and weather wind still stack on top — day-8
-                          # RAIL run = 550 px/s, inside plausibility window)
+                          # and the snow-squall tailwind ×1.42 still stack on
+                          # top — a day-8 RAIL ride cresting the squall peak ≈
+                          # 781 px/s, absorbed by the +2-pillar slack in
+                          # _plausibility.pillars_ceiling)
 DAY_GAP_STEP      = 5     # px removed from GAP_START per completed day
 DAY_GAP_FLOOR     = 135   # gap floor — sits well above the inert GAP_MIN
                           # (115); below ~130 the play-area for Pip + parcel
@@ -291,25 +293,29 @@ WEATHER_FLAP_DAMPEN_MAX  = 0.18
 #     the bird (in screen pixels) when wind = 1.0. Pure visual
 #     — does not affect collision (Bird.x stays at BIRD_X).
 #     Positive direction is rightward (ahead of normal), applied
-#     via Bird.draw shake_x. At 8.0 px Pip's push is ~12% of his
+#     via Bird.draw shake_x. At 11.0 px Pip's push is ~17% of his
 #     64-px sprite width, clearly visible as "tailwind boost".
 #   - WEATHER_WIND_SCROLL_FACTOR: max fraction the world scroll
 #     is INCREASED at peak wind. At wind 1.0 the scroll runs at
 #     (1 + factor) × normal so pipes/coins approach faster and
-#     the player covers more distance per second. 0.30 means
-#     30% more progress at peak — felt as a real boost.
-WEATHER_WIND_LEAN_AMP     = 8.0
-WEATHER_WIND_SCROLL_FACTOR = 0.30
+#     the player covers more distance per second. 0.40 means
+#     40% more progress at peak — the sweet spot between the calmer
+#     0.37 and the 0.42 that played too hard.
+WEATHER_WIND_LEAN_AMP     = 11.0
+WEATHER_WIND_SCROLL_FACTOR = 0.40
 
-# Windblown snow accumulating on Pip during the snow squall (visual only).
-# bird.snow_load (0..1): gain = ACCUM * storm_intensity (gradual build through
-# the storm's rise). Melt is keyed to the storm being PAST ITS PEAK (phase
-# 0.85) rather than to intensity level — it's 0 on the rise (clean build) and
-# ramps in over MELT_RAMP just after the peak, so snow starts coming off soon
-# after the peak and clears gradually.
-WEATHER_SNOW_ACCUM_RATE = 0.050   # gradual build, ∝ storm intensity
-WEATHER_SNOW_MELT_RATE  = 0.060   # gradual removal pace once past the peak
-WEATHER_SNOW_MELT_RAMP  = 0.015   # narrow ramp past the 0.85 peak → removal STARTS sooner (~7s after peak) while the melt PACE stays the gradual rate above
+# Windblown snow accumulating on Pip during the snow squall. bird.snow_load
+# (0..1) builds at a CONSTANT (uniform) rate only while it's snowing HARD
+# (storm_intensity >= WEATHER_SNOW_ON_WI), so it starts a bit INTO the storm
+# (~phase 0.84, not the first faint flakes), holds full through the heavy part,
+# then defrosts as the snowfall lightens — clearing as the storm ends (~1.03).
+# See the threshold model in weather.Weather.update.
+WEATHER_SNOW_ON_WI      = 0.45    # storm intensity at/above which snow builds — gates the
+                                  # START (~phase 0.84, a bit into the storm)
+WEATHER_SNOW_MELT_AT    = 0.04    # phase PAST the peak at which defrost begins (independent
+                                  # of the start): ~phase 0.95 → snow sheds and is gone ~1.0
+WEATHER_SNOW_ACCUM_RATE = 0.037   # constant build pace while it's snowing hard (~full by ~0.92)
+WEATHER_SNOW_MELT_RATE  = 0.06    # defrost pace past the peak (gone ~the day boundary)
 
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many

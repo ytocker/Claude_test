@@ -44,7 +44,6 @@ from game.config import (
     CYCLE_FINALE_PHASE_HI, CYCLE_FINALE_PHASE_LO,
     WEATHER_HEAVY_THRESHOLD, WEATHER_COIN_SHAKE_AMP, WEATHER_PIP_SHIVER_AMP,
     WEATHER_FLAP_DAMPEN_MAX, WEATHER_WIND_LEAN_AMP, WEATHER_WIND_SCROLL_FACTOR,
-    WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE, WEATHER_SNOW_MELT_RAMP,
     THERMAL_SPAWN_THRESHOLD, THERMAL_SPAWN_CHANCE_MAX,
     GEYSER_MAX_CONCURRENT,
     ROCK_SPAWN_THRESHOLD, ROCK_PER_PILLAR_MAX, ROCK_RING_COUNT,
@@ -71,7 +70,6 @@ from game.weather import (
     rain_intensity as _rain_intensity,
     storm_intensity as _storm_intensity,
     thermal_intensity as _thermal_intensity,
-    SNOW_STORM_CENTER as _SNOW_STORM_CENTER,
 )
 from game.ambient import AmbientScenes
 
@@ -457,18 +455,11 @@ class World:
         else:
             self.bird.wind_lean = 0.0
 
-        # Windblown snow on Pip — gradual build ∝ storm on the rise; melt is
-        # keyed to the squall being PAST ITS PEAK, ramping in over
-        # MELT_RAMP, so the build stays clean and the snow starts shedding soon
-        # after the peak, clearing gradually. Anchor: weather.SNOW_STORM_CENTER
-        # tracks config.SNOW_START_PILLAR so the melt timing stays in sync
-        # with the shifted storm visuals.
-        fade = max(0.0, min(1.0, (self.weather.phase - _SNOW_STORM_CENTER)
-                                 / WEATHER_SNOW_MELT_RAMP))
-        fade = fade * fade * (3.0 - 2.0 * fade)
-        gain = WEATHER_SNOW_ACCUM_RATE * wi
-        self.bird.snow_load = max(0.0, min(1.0,
-            self.bird.snow_load + (gain - WEATHER_SNOW_MELT_RATE * fade) * dt))
+        # Windblown snow on Pip mirrors the squall's accumulated cover —
+        # weather.snow_cover is the single source that also drives the screen
+        # whiteout, so Pip buries and the scene whitens in lockstep (build ∝
+        # intensity, full cover held through the climax, shed as it passes).
+        self.bird.snow_load = self.weather.snow_cover
 
         # Storm jolt: near-peak rain, after lockout, only if Pip has score
         # to lose. Kicks off a ~4.4 s buildup of telegraph bolts → the strike.
@@ -1367,14 +1358,25 @@ class World:
                     CelebrationGroundMarker, CelebrationBunting,
                     CelebrationBalloonCluster, CelebrationCrowd)
                 day = max(1, self.cycles_completed)
+                # Band-spanning decor (bunting rope, balloons, crowd) anchors
+                # its LEFT edge to the FIRST phantom rush pillar — one
+                # effective-spacing past the on-screen left flanker — rather
+                # than the flanker itself. That pillar is always off the right
+                # screen edge at the wrap moment, so the whole celebration
+                # SCROLLS IN from the right like real scenery instead of
+                # popping onto the playfield. Both band ends are predicted
+                # rush-pillar positions, so the rope still hangs between pillar
+                # tips as they arrive; the ground marker already lives at
+                # finish_x (off-screen).
+                decor_left_x = left_x + effective_spacing
                 self.celebration_ground_markers.append(
                     CelebrationGroundMarker(finish_x, day))
                 self.celebration_buntings.append(
-                    CelebrationBunting(left_x, left_y, right_x, right_y))
+                    CelebrationBunting(decor_left_x, left_y, right_x, right_y))
                 self.celebration_balloon_clusters.append(
-                    CelebrationBalloonCluster(left_x, right_x))
+                    CelebrationBalloonCluster(decor_left_x, right_x))
                 self.celebration_crowds.append(
-                    CelebrationCrowd(left_x, right_x, finish_x=finish_x))
+                    CelebrationCrowd(decor_left_x, right_x, finish_x=finish_x))
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)

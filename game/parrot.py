@@ -953,6 +953,15 @@ def _cyan_tint_in_place(sprite, tint=(170, 230, 255), strength=0.55):
     sprite.blit(overlay, (0, 0))
 
 
+def tint_copy(sprite, tint, strength):
+    """Return a COPY of `sprite` tinted toward `tint` (mask-clamped to the
+    silhouette), leaving the source untouched — used to poison-tint whichever
+    cached skin frame the draw cascade picked without mutating the cache."""
+    out = sprite.copy()
+    _cyan_tint_in_place(out, tint=tint, strength=strength)
+    return out
+
+
 # kfc + triple — fried bird + crispy KFC hat
 _kfc_hat_frames: "list | None" = None
 _kfc_hat_cache: dict = {}
@@ -1080,6 +1089,91 @@ def get_knight_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
         s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
         _knight_rot_cache[key] = s
     return s
+
+
+# knight + triple — armoured Pip wearing the royal metallic crown
+_knight_hat_frames: "list | None" = None
+_knight_hat_rot_cache: dict = {}
+
+
+def _get_knight_hat_frames() -> "list[pygame.Surface]":
+    global _knight_hat_frames
+    if _knight_hat_frames is None:
+        from game import knight_crown
+        _knight_hat_frames = knight_crown.build_knight_hat_frames()
+    return _knight_hat_frames
+
+
+def get_knight_hat_parrot(frame_idx: int, tilt_deg: float) -> pygame.Surface:
+    """Knight skin + royal crown (knight+3x), rotated, cached by (frame, angle)."""
+    frames = _get_knight_hat_frames()
+    frame_idx = frame_idx % len(frames)
+    key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+    s = _knight_hat_rot_cache.get(key)
+    if s is None:
+        s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+        _knight_hat_rot_cache[key] = s
+    return s
+
+
+# Remaining bespoke knight combos: knight x {kfc, ghost, kfc+ghost} and their
+# +3x crowned stacks. Same lazy flat-build + per-(frame, angle) rotation-cache
+# shape as get_knight_parrot, produced via a factory so each is one line rather
+# than four boilerplate defs. Builders import lazily so a player who never
+# reaches a combo never pays its build cost.
+def _knight_combo_getter(build):
+    state = {"frames": None, "cache": {}}
+
+    def getter(frame_idx, tilt_deg):
+        if state["frames"] is None:
+            state["frames"] = build()
+        frames = state["frames"]
+        frame_idx %= len(frames)
+        key = (frame_idx, int(round(tilt_deg / 3.0)) * 3)
+        s = state["cache"].get(key)
+        if s is None:
+            s = pygame.transform.rotozoom(frames[frame_idx], key[1], 1.0)
+            state["cache"][key] = s
+        return s
+    return getter
+
+
+def _b_knight_kfc():
+    from game import knight_skin
+    return knight_skin.build_knight_kfc_frames()
+
+
+def _b_knight_ghost():
+    from game import knight_skin
+    return knight_skin.build_knight_ghost_frames()
+
+
+def _b_knight_kfc_ghost():
+    from game import knight_skin
+    return knight_skin.build_knight_kfc_ghost_frames()
+
+
+def _b_knight_kfc_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_kfc_hat_frames()
+
+
+def _b_knight_ghost_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_ghost_hat_frames()
+
+
+def _b_knight_kfc_ghost_hat():
+    from game import knight_crown
+    return knight_crown.build_knight_kfc_ghost_hat_frames()
+
+
+get_knight_kfc_parrot = _knight_combo_getter(_b_knight_kfc)
+get_knight_ghost_parrot = _knight_combo_getter(_b_knight_ghost)
+get_knight_kfc_ghost_parrot = _knight_combo_getter(_b_knight_kfc_ghost)
+get_knight_kfc_hat_parrot = _knight_combo_getter(_b_knight_kfc_hat)
+get_knight_ghost_hat_parrot = _knight_combo_getter(_b_knight_ghost_hat)
+get_knight_kfc_ghost_hat_parrot = _knight_combo_getter(_b_knight_kfc_ghost_hat)
 
 
 # ── Poisoned (dead-Pip B) accessor ──────────────────────────────────────────

@@ -12,7 +12,9 @@ import random
 
 import pygame
 
-from game.config import W, H, GROUND_Y
+from game.config import (W, H, GROUND_Y,
+                         WEATHER_SNOW_ON_WI, WEATHER_SNOW_MELT_AT,
+                         WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE)
 from game import audio
 
 
@@ -98,7 +100,7 @@ LIGHTNING_PHASE_MAX  = 0.58 + _RAIN_PHASE_SHIFT
 
 # Snow squall (shifted by config.SNOW_START_PILLAR).
 SNOW_STORM_CENTER    = 0.85 + _SNOW_PHASE_SHIFT
-SNOW_STORM_WIDTH     = 0.10
+SNOW_STORM_WIDTH     = 0.13
 
 
 # ── phase → intensity curves ────────────────────────────────────────────────
@@ -200,10 +202,14 @@ def thermal_intensity(phase: float) -> float:
     return _skew_bump(phase, 50.0 / 320.0, 96.0 / 320.0, 112.0 / 320.0)
 
 
-# Cold wash colour for the snow squall — a deep blue-grey that
-# cools the whole scene so the bright white snow pops against it.
+# Cold wash colour for the snow squall. The wash starts as a deep
+# blue-grey (cooling the scene so flakes pop) and trends toward a soft,
+# cool snowy white at the storm peak. Peak strength sits between the
+# calmer wash and the earlier stronger one — a clear whiteout that still
+# reads as weather, not a screen-filling blank.
 SNOW_TINT = (74, 96, 130)
-SNOW_TINT_PEAK_A = 130
+SNOW_TINT_WHITE = (216, 226, 239)
+SNOW_TINT_PEAK_A = 146
 _WHITE = (255, 255, 255)
 
 
@@ -549,12 +555,32 @@ class Weather:
         self.wind_swirls: list[_WindSwirl] = []
         self.phase: float = 0.0
 
+        # Accumulated snow squall cover (0..1) — the single source of truth for
+        # both the screen whiteout and Pip's burial (read in world). Persists
+        # across frames so the wash builds and holds rather than tracking the
+        # raw storm envelope symmetrically.
+        self.snow_cover: float = 0.0
+
         # Lightning state: countdown to next strike, and flash envelope 0..1.
         self.flash_remaining: float = 0.0
         self.next_strike: float = random.uniform(4.0, 9.0)
 
     def update(self, dt, phase):
         self.phase = phase
+
+        # Snow squall cover on Pip — UNIFORM (constant-rate) build while it's
+        # snowing HARD (storm_intensity >= WEATHER_SNOW_ON_WI) AND we're not yet
+        # past the melt point; defrost otherwise. The ON threshold gates the START
+        # (~phase 0.84, a bit into the storm, not the first faint flakes); the melt
+        # point WEATHER_SNOW_MELT_AT (phase past the peak) gates the DEFROST so it
+        # begins soon after the peak and Pip is clear by ~the day boundary — both
+        # independent. `d` is the wrap-safe signed distance from the peak.
+        wi = storm_intensity(phase)
+        d = ((phase - SNOW_STORM_CENTER + 0.5) % 1.0) - 0.5
+        if wi >= WEATHER_SNOW_ON_WI and d < WEATHER_SNOW_MELT_AT:
+            self.snow_cover = min(1.0, self.snow_cover + WEATHER_SNOW_ACCUM_RATE * dt)
+        else:
+            self.snow_cover = max(0.0, self.snow_cover - WEATHER_SNOW_MELT_RATE * dt)
 
         # Rain
         intensity = rain_intensity(phase)
@@ -599,7 +625,7 @@ class Weather:
         # Big soft foreground flakes (slow parallax depth).
         if storm > 0.10:
             drift_t = (storm - 0.10) / 0.90
-            target = int(drift_t * 30)
+            target = int(drift_t * 40)
             while len(self.wind_drifts) < target:
                 self._spawn_wind_drift(drift_t, phase)
         for wd in self.wind_drifts:
@@ -610,7 +636,7 @@ class Weather:
         # Bulk snowflakes — dense at peak (the body of the squall).
         if storm > 0.10:
             dust_t = (storm - 0.10) / 0.90
-            target = int(dust_t * 200)
+            target = int(dust_t * 260)
             while len(self.wind_dust) < target:
                 self._spawn_wind_dust(dust_t, phase)
         for du in self.wind_dust:
@@ -621,7 +647,7 @@ class Weather:
         # Driven-snow streaks (the wind-blown headline).
         if storm > 0.15:
             streak_t = (storm - 0.15) / 0.85
-            target = int(streak_t * 70)
+            target = int(streak_t * 90)
             while len(self.wind_streaks) < target:
                 self._spawn_wind_streak(streak_t, phase)
         for ws in self.wind_streaks:
@@ -632,7 +658,7 @@ class Weather:
         # Turbulence curls — small white eddies, peak only.
         if storm > 0.30:
             swirl_t = (storm - 0.30) / 0.70
-            target = int(swirl_t * 10)
+            target = int(swirl_t * 14)
             while len(self.wind_swirls) < target:
                 self._spawn_wind_swirl(swirl_t, phase)
         for sw_ in self.wind_swirls:
@@ -754,18 +780,23 @@ class Weather:
         # Rain
         for s in self.streaks:
             s.draw(surf)
-        # Cold atmospheric wash for the snow squall — a full-screen
-        # blue-grey overlay whose alpha tracks the storm envelope,
-        # so the scene cools as the snow builds and warms back as it
-        # fades. Drawn here (after pillars, before the snow + before
-        # the bird/coins which render later in the scene) so the
-        # background chills while Pip + collectibles stay vivid.
-        storm = storm_intensity(self.phase)
-        if storm > 0.01:
-            a = int(SNOW_TINT_PEAK_A * storm)
+        # Atmospheric wash for the snow squall — a full-screen overlay whose
+        # alpha AND colour track storm_intensity, so the scene cools+whitens on
+        # the rise, peaks WITH the storm, and clears exactly when the snowstorm
+        # ends (no lingering hold). Colour trends from the cool blue-grey toward
+        # a soft snowy white at the peak — a moderate wash that reads as weather,
+        # not a blinding whiteout. Drawn here (after pillars, before the snow +
+        # before the bird/coins which render later) so the background cools while
+        # Pip + collectibles stay readable on top.
+        wash_t = storm_intensity(self.phase)
+        if wash_t > 0.01:
+            a = int(SNOW_TINT_PEAK_A * wash_t)
             if a > 0:
+                col = (int(SNOW_TINT[0] + (SNOW_TINT_WHITE[0] - SNOW_TINT[0]) * wash_t),
+                       int(SNOW_TINT[1] + (SNOW_TINT_WHITE[1] - SNOW_TINT[1]) * wash_t),
+                       int(SNOW_TINT[2] + (SNOW_TINT_WHITE[2] - SNOW_TINT[2]) * wash_t))
                 wash = pygame.Surface((W, H), pygame.SRCALPHA)
-                wash.fill((*SNOW_TINT, a))
+                wash.fill((*col, a))
                 surf.blit(wash, (0, 0))
         # Snow layers — back-to-front for parallax depth:
         # big drift flakes → bulk flakes → driven streaks →

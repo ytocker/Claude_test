@@ -1190,8 +1190,9 @@ class App:
 
         for p in self.world.particles:
             p.draw(self.screen)
-        for g in self.world.genie_actors:
-            g.draw(self.screen)
+        # NOTE: genie_actors are NOT drawn here. The conjurer must read as the
+        # front-most graphic, so it is re-blitted AFTER the HUD below (the
+        # score panel + power-up bars would otherwise paint over it).
 
         # SKATEBOARD activation overlays: the deck-banner caption is
         # composited inside `hud.draw_play` (on top of coin/pause chrome,
@@ -1356,3 +1357,11 @@ class App:
                 and self.world.bird.skateboard_active):
             self.world.bird.draw(self.screen, sx, sy,
                                  flipped=self.world.reverse_timer > 0)
+
+        # GENIE: the conjurer is the front-most actor — re-blit it on top of
+        # everything (HUD score panel + power-up progress bars, screen tints)
+        # so nothing ever covers it. PLAY only; the pause / stats / leaderboard
+        # screens keep their modal chrome on top.
+        if self.state == STATE_PLAY:
+            for g in self.world.genie_actors:
+                g.draw(self.screen)

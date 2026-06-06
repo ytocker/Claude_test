@@ -715,6 +715,9 @@ def render_skateboard_score_e2(score: int) -> pygame.Surface:
     return surf
 
 
+_SCORE_E3_CACHE = None   # (score, surface) — burst+digits are static per score
+
+
 def render_skateboard_score_e3(score: int) -> pygame.Surface:
     """E3 — Halftone burst centered at the same on-screen position as
     the regular NA score plate (y=70). The HUD blits this overlay with
@@ -724,7 +727,14 @@ def render_skateboard_score_e3(score: int) -> pygame.Surface:
     score's _font(48, True); ro/ri size the burst around the bigger
     glyph; chaos=True throws each outer spike onto a punk-style
     long/short multiplier so the star reads as a deliberate uneven
-    pop-art shout instead of a symmetric snowflake."""
+    pop-art shout instead of a symmetric snowflake.
+
+    Memoised on `score`: the burst + digits only change when the score does
+    (≈ once per point), so this no longer rebuilds a full-screen halftone burst
+    (~1000 circle draws) every frame while the skateboard is active."""
+    global _SCORE_E3_CACHE
+    if _SCORE_E3_CACHE is not None and _SCORE_E3_CACHE[0] == score:
+        return _SCORE_E3_CACHE[1]
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
     cx, cy = W // 2, 96
     _halftone_filled_burst(surf, cx, cy, ro=62, ri=40, spikes=10,
@@ -736,6 +746,7 @@ def render_skateboard_score_e3(score: int) -> pygame.Surface:
                           bot_col=(230, 60, 50),
                           outline=INK, outline_w=3)
     surf.blit(num, num.get_rect(center=(cx, cy)))
+    _SCORE_E3_CACHE = (score, surf)
     return surf
 
 
