@@ -2131,7 +2131,8 @@ class HUD:
     def draw_leaderboard(self, surf, dt, scores: list, player_rank: int,
                          cooldown: float, fetch_error: str = "",
                          legacy_scores: "list | None" = None,
-                         legacy_fetch_error: str = "", selected_tab: int = 0):
+                         legacy_fetch_error: str = "", selected_tab: int = 0,
+                         legacy_loading: bool = False):
         # Internally render at 3× supersample so the leaderboard's text
         # and circle edges come out clean on both desktop and mobile.
         # The whole static layout is cached (keyed on both boards' scores +
@@ -2144,7 +2145,7 @@ class HUD:
         cur_key = tuple((e["name"], e["score"]) for e in scores)
         leg_key = tuple((e["name"], e["score"]) for e in (legacy_scores or []))
         key = (target_w, target_h, cur_key, leg_key, player_rank,
-               fetch_error, legacy_fetch_error, selected_tab)
+               fetch_error, legacy_fetch_error, selected_tab, legacy_loading)
 
         if self._lb_cache_key != key:
             hd_w, hd_h = W * SCALE, H * SCALE
@@ -2153,7 +2154,8 @@ class HUD:
                                      fetch_error, SCALE,
                                      legacy_scores=legacy_scores,
                                      legacy_fetch_error=legacy_fetch_error,
-                                     selected_tab=selected_tab)
+                                     selected_tab=selected_tab,
+                                     legacy_loading=legacy_loading)
             if (target_w, target_h) == (hd_w, hd_h):
                 self._lb_cache = hd
             else:
@@ -2191,7 +2193,8 @@ class HUD:
     def _render_leaderboard(self, surf, scores: list, player_rank: int,
                             fetch_error: str, S: int,
                             legacy_scores: "list | None" = None,
-                            legacy_fetch_error: str = "", selected_tab: int = 0):
+                            legacy_fetch_error: str = "", selected_tab: int = 0,
+                            legacy_loading: bool = False):
         """Static leaderboard layout (no TAP TO MENU prompt) at scale S.
         ``surf`` is sized ``(W*S, H*S)``; every coord, font size and stroke
         width is multiplied by ``S``. Draws the CURRENT|LEGACY tab control
@@ -2223,7 +2226,20 @@ class HUD:
 
         n = len(active)
         if n == 0:
-            if active_err:
+            if selected_tab == 1 and legacy_loading:
+                _text(surf, "Loading…",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
+            elif selected_tab == 1 and active_err:
+                # A legacy RLS/network failure isn't something the player can
+                # act on, so skip the developer-facing "browser console" hint.
+                _text(surf, "Legacy board unavailable",
+                      (Ws // 2, card_y + 60 * S),
+                      size=18 * S, color=UI_CREAM, shadow=True)
+                _text(surf, "Try again later.",
+                      (Ws // 2, card_y + 94 * S),
+                      size=14 * S, color=UI_CREAM, shadow=False)
+            elif active_err:
                 _text(surf, "Top-10 unavailable",
                       (Ws // 2, card_y + 60 * S),
                       size=18 * S, color=UI_CREAM, shadow=True)

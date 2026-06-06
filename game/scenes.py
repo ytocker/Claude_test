@@ -443,6 +443,7 @@ class App:
         self._lb_legacy_fetch_error: str = ""
         self._lb_selected_tab = 0  # 0 = CURRENT, 1 = LEGACY
         self._legacy_loaded = False
+        self._legacy_loading = False  # browser legacy fetch in flight
         self._legacy_task = None  # strong ref for the lazy legacy fetch
         self._start_name_entry = False
         self._fetch_pending = False
@@ -924,16 +925,28 @@ class App:
 
     def _reset_lb_tabs(self):
         """Clear tabbed-leaderboard state so each open lands on CURRENT and
-        re-pulls the (still-live) legacy board on demand."""
+        re-pulls the (still-live) legacy board on demand. Cancels any legacy
+        fetch left in flight from a previous open so it can't write back to
+        the next session's state."""
+        if self._legacy_task is not None:
+            try:
+                self._legacy_task.cancel()
+            except Exception:
+                pass
+            self._legacy_task = None
         self._lb_selected_tab = 0
         self._legacy_loaded = False
+        self._legacy_loading = False
         self._lb_legacy_scores = []
         self._lb_legacy_fetch_error = ""
 
     def _kick_legacy_fetch(self):
         """Load the read-only LEGACY board the first time its tab is opened.
         Native has no previous-version source, so it resolves to an empty
-        board; browser kicks an async read against the legacy table."""
+        board; browser kicks an async read against the legacy table. Only one
+        fetch runs at a time (the JS bridge has a single result slot), which
+        the open sequence already guarantees — the current-board fetch is
+        finished before the screen is interactive."""
         if self._legacy_loaded:
             return
         self._legacy_loaded = True
@@ -945,6 +958,7 @@ class App:
         import asyncio
         try:
             self._legacy_task = asyncio.create_task(self._fetch_legacy())
+            self._legacy_loading = True
         except RuntimeError:
             # No running event loop (smoke tests) — allow a later retry.
             self._legacy_loaded = False
@@ -957,6 +971,8 @@ class App:
             self._lb_legacy_fetch_error = leaderboard.last_fetch_error()
         except Exception:
             pass
+        finally:
+            self._legacy_loading = False
 
     def _open_leaderboard_from_menu(self):
         """Tap on the TOP 10 trophy panel in the main menu. Browser:
@@ -1414,6 +1430,7 @@ class App:
                 legacy_scores=self._lb_legacy_scores,
                 legacy_fetch_error=self._lb_legacy_fetch_error,
                 selected_tab=self._lb_selected_tab,
+                legacy_loading=self._legacy_loading,
             )
 
         # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
