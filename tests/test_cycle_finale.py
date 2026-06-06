@@ -8,9 +8,11 @@ Pins:
     px), not the small 34 px circle a regular power-up uses. Brushing
     the chest's outer corner picks it up.
   - Bunting / balloons / crowd spawn at the BIOME WRAP moment (not at
-    chest-drop) so the LEFT real flanking pillar — still on-screen —
-    visibly carries the rope as it scrolls past. Predicted right
-    endpoint coincides with the future RIGHT real pillar within a
+    chest-drop) but anchor their LEFT edge to the FIRST phantom rush
+    pillar (one effective-spacing past the on-screen left flanker), so
+    the whole celebration is off-screen at the wrap and SCROLLS IN from
+    the right instead of popping onto the playfield. Predicted right
+    endpoint still coincides with the future RIGHT real pillar within a
     frame's scroll tolerance.
 """
 import os
@@ -77,8 +79,9 @@ class ChestSpriteRectCollision(unittest.TestCase):
 
 class CelebrationSpawnAtWrap(unittest.TestCase):
     """Bunting + crowd + balloons spawn at biome WRAP, anchored to the
-    last real pillar (LEFT flanker). Predicted right endpoint lands on
-    the future RIGHT real pillar."""
+    FIRST phantom rush pillar (one effective-spacing past the left
+    flanker) so they start off-screen and scroll in. Predicted right
+    endpoint lands on the future RIGHT real pillar."""
 
     def _force_wrap(self, world):
         # Reproduce world.update's wrap-detect: previous phase past HI
@@ -105,42 +108,48 @@ class CelebrationSpawnAtWrap(unittest.TestCase):
         world.game_over = False
         world.update(1 / 60.0)
 
-    def test_wrap_spawns_celebration_anchored_left(self):
+    def test_wrap_spawns_celebration_offscreen(self):
+        from game.config import (
+            CYCLE_FINALE_RUSH_PILLARS, CYCLE_FINALE_BOX_INDEX, PIPE_SPACING)
+        # effective_spacing accounts for the W+60 spawn clamp (the spawn
+        # site clamps each new pillar to world-x = W+60 the moment its
+        # trigger fires, so the world-x gap between consecutive pillars
+        # is spacing + 60, not the nominal spacing).
+        effective_spacing = PIPE_SPACING + 60
         w = World()
         x = 800.0
         for _ in range(3):
             w._spawn_pipe(x)
             x += 280.0
         last_real = w.pipes[-1]
-        expected_left_x = last_real.x + PIPE_W * 0.5
-        expected_left_y = last_real.gap_y - last_real.gap_h * 0.5
+        flanker_x = last_real.x + PIPE_W * 0.5
+        flanker_y = last_real.gap_y - last_real.gap_h * 0.5
         self._force_wrap(w)
         self.assertEqual(len(w.celebration_buntings), 1)
         self.assertEqual(len(w.celebration_balloon_clusters), 1)
         self.assertEqual(len(w.celebration_crowds), 1)
         bunting = w.celebration_buntings[-1]
-        # Left endpoint sits on the last real pillar's centre (within
-        # one frame of scroll — wrap-detect runs INSIDE update so the
-        # captured pillar.x has already been scrolled once this tick).
-        self.assertAlmostEqual(bunting.x_left, expected_left_x,
+        # Left endpoint sits on the FIRST phantom rush pillar — one
+        # effective-spacing past the left flanker — so the decor starts
+        # off the right screen edge and scrolls in (within one frame of
+        # scroll, since wrap-detect runs INSIDE update after a tick of
+        # scroll).
+        self.assertAlmostEqual(bunting.x_left,
+                               flanker_x + effective_spacing,
                                delta=20.0,
-                               msg="bunting.x_left should track LEFT pillar's centre")
-        self.assertAlmostEqual(bunting.y_left, expected_left_y, places=2)
-        # Right endpoint = left_x + (RUSH_PILLARS + 1) * effective_spacing
-        # where effective_spacing accounts for the W+60 spawn clamp
-        # (the spawn site clamps each new pillar to world-x = W+60 at
-        # the moment its trigger fires, so the world-x gap between
-        # consecutive pillars is spacing + 60, not the nominal spacing).
-        from game.config import (
-            CYCLE_FINALE_RUSH_PILLARS, PIPE_SPACING)
-        effective_spacing = PIPE_SPACING + 60
-        expected_span = (CYCLE_FINALE_RUSH_PILLARS + 1) * effective_spacing
+                               msg="bunting.x_left should sit on the first rush pillar")
+        # y is unchanged (still the flanker's gap-top height; only x shifts).
+        self.assertAlmostEqual(bunting.y_left, flanker_y, places=2)
+        # Right endpoint = flanker + (RUSH_PILLARS + 1) * effective_spacing
+        # (the future RIGHT real pillar); from the first rush pillar the
+        # span is therefore RUSH_PILLARS * effective_spacing.
+        expected_span = CYCLE_FINALE_RUSH_PILLARS * effective_spacing
         self.assertAlmostEqual(bunting.x_right - bunting.x_left,
                                expected_span, delta=1.0)
-        # finish_x sits at left_x + (BOX_INDEX + 1) * effective_spacing
+        # finish_x = flanker + (BOX_INDEX + 1) * effective_spacing
+        #          = bunting.x_left + BOX_INDEX * effective_spacing.
         crowd = w.celebration_crowds[-1]
-        from game.config import CYCLE_FINALE_BOX_INDEX
-        expected_finish = bunting.x_left + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
+        expected_finish = bunting.x_left + CYCLE_FINALE_BOX_INDEX * effective_spacing
         # finish_x is appended verbatim to cluster_xs by the world, but this
         # expected value is recomputed via a differently-grouped (mathematically
         # equal) expression, so the two can differ by a few ULPs — match the
@@ -183,11 +192,12 @@ class CelebrationSpawnAtWrap(unittest.TestCase):
             if chest is not None:
                 break
         self.assertIsNotNone(chest, "chest must spawn within 2000 frames")
-        # Both bunting and chest scroll at the same world rate, so
-        # bunting.x_left + 2 * effective_spacing should equal chest.x
-        # at every frame after chest spawn (one frame of scroll
-        # tolerance for the frame the chest is spawned at).
-        predicted_finish_now = bunting.x_left + (CYCLE_FINALE_BOX_INDEX + 1) * effective_spacing
+        # Both bunting and chest scroll at the same world rate. The
+        # bunting's left endpoint now sits on the FIRST rush pillar, so
+        # the chest (BOX_INDEX phantoms further on) lands at
+        # bunting.x_left + BOX_INDEX * effective_spacing at every frame
+        # after chest spawn (one frame of scroll tolerance).
+        predicted_finish_now = bunting.x_left + CYCLE_FINALE_BOX_INDEX * effective_spacing
         self.assertAlmostEqual(chest.x, predicted_finish_now, delta=20.0,
                                msg=(f"chest x {chest.x:.1f} should match "
                                     f"predicted finish {predicted_finish_now:.1f} "

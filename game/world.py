@@ -1358,14 +1358,25 @@ class World:
                     CelebrationGroundMarker, CelebrationBunting,
                     CelebrationBalloonCluster, CelebrationCrowd)
                 day = max(1, self.cycles_completed)
+                # Band-spanning decor (bunting rope, balloons, crowd) anchors
+                # its LEFT edge to the FIRST phantom rush pillar — one
+                # effective-spacing past the on-screen left flanker — rather
+                # than the flanker itself. That pillar is always off the right
+                # screen edge at the wrap moment, so the whole celebration
+                # SCROLLS IN from the right like real scenery instead of
+                # popping onto the playfield. Both band ends are predicted
+                # rush-pillar positions, so the rope still hangs between pillar
+                # tips as they arrive; the ground marker already lives at
+                # finish_x (off-screen).
+                decor_left_x = left_x + effective_spacing
                 self.celebration_ground_markers.append(
                     CelebrationGroundMarker(finish_x, day))
                 self.celebration_buntings.append(
-                    CelebrationBunting(left_x, left_y, right_x, right_y))
+                    CelebrationBunting(decor_left_x, left_y, right_x, right_y))
                 self.celebration_balloon_clusters.append(
-                    CelebrationBalloonCluster(left_x, right_x))
+                    CelebrationBalloonCluster(decor_left_x, right_x))
                 self.celebration_crowds.append(
-                    CelebrationCrowd(left_x, right_x, finish_x=finish_x))
+                    CelebrationCrowd(decor_left_x, right_x, finish_x=finish_x))
         self._last_biome_phase = _new_phase
         # Weather tracks biome phase, scales with sdt so slowmo softens rain too.
         self.weather.update(sdt, self.biome_phase)

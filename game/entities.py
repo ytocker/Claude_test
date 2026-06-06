@@ -4254,6 +4254,13 @@ class CelebrationCrowd:
     def __init__(self, x_left: float, x_right: float, finish_x: float):
         cls = CelebrationCrowd
         self.t = 0.0
+        # Keep the ENTIRE crowd off-screen at spawn so it scrolls in from
+        # the right edge like real scenery, never popping onto the playfield.
+        # A cluster's outermost parrots reach ±HALF_SPAN, so clamp the left
+        # sampling bound to one HALF_SPAN past the right screen edge — even
+        # the leftmost cluster then starts at x = W. finish_x is always well
+        # to the right of this, so the triangular mode stays valid.
+        x_left = max(x_left, W + cls.HALF_SPAN)
         # Triangular puts the mode at finish_x, so ~half the samples
         # fall within ±(x_right - x_left)/4 of the line — a natural
         # density peak at the finish stripe.
