@@ -63,6 +63,44 @@ def tile(flags):
     return s
 
 
+# The NEW interactions added in the combo-skin effort — each saved as its own
+# zoomed PNG under docs/pip_combos/tiles/ so it can be linked individually.
+NEW_TILES = [
+    ("knight_3x", "KNIGHT + 3x  (royal crown)", {**K, "triple_active": True}),
+    ("knight_kfc", "KNIGHT + KFC  (fried steel)", {**K, "kfc_active": True}),
+    ("knight_ghost", "KNIGHT + GHOST  (spectral)", {**K, "ghost_active": True}),
+    ("knight_kfc_ghost", "KNIGHT + KFC + GHOST", {**K, "kfc_active": True, "ghost_active": True}),
+    ("knight_kfc_3x", "KNIGHT + KFC + 3x", {**K, "kfc_active": True, "triple_active": True}),
+    ("knight_ghost_3x", "KNIGHT + GHOST + 3x", {**K, "ghost_active": True, "triple_active": True}),
+    ("knight_kfc_ghost_3x", "KNIGHT + KFC + GHOST + 3x", {**K, "kfc_active": True, "ghost_active": True, "triple_active": True}),
+    ("skate_3x", "SKATEBOARD + 3x  (hat suppressed)", {"skateboard_active": True, "triple_active": True}),
+    ("skate_knight", "SKATEBOARD + KNIGHT  (armet, no 2nd helm)", {"skateboard_active": True, **K}),
+    ("skate_grow", "SKATEBOARD + GROW  (board scaled up)", {"skateboard_active": True, "grow_active": True}),
+    ("skate_shrink", "SKATEBOARD + SHRINK  (board scaled down)", {"skateboard_active": True, "shrink_scale": 0.6}),
+    ("poison_base", "POISON  (tints base)", {"poison_active": True, "poison_t": 0.85}),
+    ("poison_kfc", "POISON + KFC", {"poison_active": True, "poison_t": 0.85, "kfc_active": True}),
+    ("poison_ghost", "POISON + GHOST", {"poison_active": True, "poison_t": 0.85, "ghost_active": True}),
+    ("poison_knight", "POISON + KNIGHT", {"poison_active": True, "poison_t": 0.85, **K}),
+]
+
+
+def save_tiles():
+    """Each new interaction as its own 3x-zoomed PNG with a caption."""
+    out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "docs", "pip_combos", "tiles")
+    os.makedirs(out, exist_ok=True)
+    font = pygame.font.SysFont("monospace", 13, bold=True)
+    for slug, label, flags in NEW_TILES:
+        raw = tile(flags)                       # 150x168 sky tile, bird centred
+        big = pygame.transform.scale(raw, (raw.get_width() * 3, raw.get_height() * 3))
+        canvas = pygame.Surface((big.get_width(), big.get_height() + 30))
+        canvas.fill((22, 26, 36))
+        canvas.blit(font.render(label, True, (255, 235, 140)), (8, 8))
+        canvas.blit(big, (0, 30))
+        pygame.image.save(canvas, os.path.join(out, slug + ".png"))
+    print("saved", len(NEW_TILES), "tiles to", out)
+
+
 def main():
     rows = (len(COMBOS) + COLS - 1) // COLS
     sheet = pygame.Surface((TW * COLS, (TH + PAD_TOP) * rows))
@@ -83,3 +121,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    save_tiles()
