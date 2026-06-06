@@ -434,6 +434,17 @@ class App:
         # when scores is empty so a network/RLS failure doesn't look
         # like "no scores yet."
         self._lb_fetch_error: str = ""
+        # Tabbed leaderboard: the CURRENT board (above) plus a read-only
+        # LEGACY board (previous version's scores). The legacy board is
+        # fetched lazily the first time the player switches to its tab, so
+        # the common case (opening on CURRENT, never touching LEGACY) pays
+        # no extra network round-trip. Reset on every open via _reset_lb_tabs.
+        self._lb_legacy_scores: list = []
+        self._lb_legacy_fetch_error: str = ""
+        self._lb_selected_tab = 0  # 0 = CURRENT, 1 = LEGACY
+        self._legacy_loaded = False
+        self._legacy_loading = False  # browser legacy fetch in flight
+        self._legacy_task = None  # strong ref for the lazy legacy fetch
         self._start_name_entry = False
         self._fetch_pending = False
         self._final_score = 0
@@ -565,6 +576,21 @@ class App:
         elif self.state == STATE_NAMEENTRY:
             pass  # JS overlay handles input
         elif self.state == STATE_LEADERBOARD:
+            # Tabs switch the active board without dismissing the screen.
+            # Checked before the cooldown gate so a tab is tappable the
+            # instant the board opens; taps anywhere else fall through to
+            # the dismiss logic below. Keyboard (pos is None) dismisses.
+            if pos is not None:
+                tcur = getattr(self.hud, "_lb_tab_current_rect", None)
+                tleg = getattr(self.hud, "_lb_tab_legacy_rect", None)
+                if tcur is not None and tcur.collidepoint(pos):
+                    self._lb_selected_tab = 0
+                    return
+                if tleg is not None and tleg.collidepoint(pos):
+                    if self._lb_selected_tab != 1:
+                        self._lb_selected_tab = 1
+                        self._kick_legacy_fetch()
+                    return
             if self._cooldown_t <= 0:
                 # Branch on the run-summary intent so the player lands
                 # where they chose on the stats screen after they've
@@ -897,6 +923,57 @@ class App:
             return True
         return score > scores[-1]["score"]
 
+    def _reset_lb_tabs(self):
+        """Clear tabbed-leaderboard state so each open lands on CURRENT and
+        re-pulls the (still-live) legacy board on demand. Cancels any legacy
+        fetch left in flight from a previous open so it can't write back to
+        the next session's state."""
+        if self._legacy_task is not None:
+            try:
+                self._legacy_task.cancel()
+            except Exception:
+                pass
+            self._legacy_task = None
+        self._lb_selected_tab = 0
+        self._legacy_loaded = False
+        self._legacy_loading = False
+        self._lb_legacy_scores = []
+        self._lb_legacy_fetch_error = ""
+
+    def _kick_legacy_fetch(self):
+        """Load the read-only LEGACY board the first time its tab is opened.
+        Native has no previous-version source, so it resolves to an empty
+        board; browser kicks an async read against the legacy table. Only one
+        fetch runs at a time (the JS bridge has a single result slot), which
+        the open sequence already guarantees — the current-board fetch is
+        finished before the screen is interactive."""
+        if self._legacy_loaded:
+            return
+        self._legacy_loaded = True
+        import sys
+        if sys.platform != "emscripten":
+            self._lb_legacy_scores = []
+            self._lb_legacy_fetch_error = ""
+            return
+        import asyncio
+        try:
+            self._legacy_task = asyncio.create_task(self._fetch_legacy())
+            self._legacy_loading = True
+        except RuntimeError:
+            # No running event loop (smoke tests) — allow a later retry.
+            self._legacy_loaded = False
+
+    async def _fetch_legacy(self):
+        try:
+            from game import leaderboard
+            scores = await leaderboard.fetch_top10(board="legacy")
+            self._lb_legacy_scores = scores
+            self._lb_legacy_fetch_error = leaderboard.last_fetch_error()
+        except Exception:
+            pass
+        finally:
+            self._legacy_loading = False
+
     def _open_leaderboard_from_menu(self):
         """Tap on the TOP 10 trophy panel in the main menu. Browser:
         kick off an async Supabase fetch but stay on the menu — the
@@ -909,6 +986,7 @@ class App:
         tap pattern that lives in ``_flap_input`` handles the way back."""
         import sys
         self._lb_player_rank = -1
+        self._reset_lb_tabs()
         if sys.platform == "emscripten":
             if self._fetch_pending:
                 # An earlier tap is still in flight — ignore re-taps
@@ -948,6 +1026,7 @@ class App:
         self._cooldown_t = 0.25
 
     def _show_leaderboard_native(self, scores, submitted: bool):
+        self._reset_lb_tabs()
         self._lb_scores = scores
         if scores and submitted:
             self._lb_player_rank = next(
@@ -974,6 +1053,7 @@ class App:
         through name entry and land on the leaderboard so they can see
         where their name placed; non-qualifiers go straight back to
         the main menu instead of being parked on the leaderboard."""
+        self._reset_lb_tabs()
         qualified = False
         try:
             from game import leaderboard
@@ -1347,6 +1427,10 @@ class App:
                 self._lb_scores, self._lb_player_rank,
                 self._cooldown_t,
                 fetch_error=self._lb_fetch_error,
+                legacy_scores=self._lb_legacy_scores,
+                legacy_fetch_error=self._lb_legacy_fetch_error,
+                selected_tab=self._lb_selected_tab,
+                legacy_loading=self._legacy_loading,
             )
 
         # SKATEBOARD: re-blit Pip + the board on top of HUD overlays so
