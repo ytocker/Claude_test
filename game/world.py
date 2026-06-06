@@ -714,6 +714,10 @@ class World:
             gy = random.randint(lo, hi)
         p = Pipe(x, gy, gap_h)
         p.is_rush = is_rush
+        # pipes_spawned was bumped at the top of this call, so the first
+        # pillar of the run lands at spawn_index 0 — the pagoda ornament
+        # picker uses that for its first-pillar quiet rule.
+        p.spawn_index = self.pipes_spawned - 1
         p.is_genie_chamber = is_chamber
         # is_kfc is sticky for the pipe's lifetime - it gates the gap
         # widening (see _activate_kfc) so the wider gap outlives the

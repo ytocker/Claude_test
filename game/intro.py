@@ -33,7 +33,7 @@ from game.draw import (
 )
 from game import biome as _biome
 from game import parrot as _parrot
-from game.pillar_variants import draw_pillar_pair
+from game.pillar_pagodas import draw_pillar_pair
 from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
 from game.entities import Coin, PowerUp
 
@@ -1109,7 +1109,8 @@ def _tutorial_pillars(scene: "IntroScene", surf: pygame.Surface,
         # tints with the day→night cycle just like in gameplay.
         phase_now = _journey_phase(0.25)  # mid golden hour-ish
         palette = _biome.palette_for_phase(phase_now)
-        draw_pillar_pair(surf, top_rect, bot_rect, palette, seed=4242)
+        draw_pillar_pair(surf, top_rect, bot_rect, palette, seed=4242,
+                         phase=phase_now)
 
     # Pip — same calm bob the journey/arrival use so cuts are seamless.
     pip_x = W * 0.48 + math.sin(scene.t * 0.8) * 18

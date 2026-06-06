@@ -1196,8 +1196,10 @@ class App:
 
         pipe_palette = self.world.biome_palette
         kfc_active = self.world.bird.kfc_active
+        pipe_phase = self.world.biome_phase
         for p in self.world.pipes:
-            p.draw(self.screen, pipe_palette, kfc_visual=kfc_active)
+            p.draw(self.screen, pipe_palette, kfc_visual=kfc_active,
+                   phase=pipe_phase)
         # SKATEBOARD ramps: wooden wedges perched on lower-pillar
         # crowns. Drawn AFTER pipes so the wedge overpaints the crown
         # vegetation; below the bird so Pip rides on top.

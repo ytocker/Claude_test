@@ -28,7 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_variants import draw_pillar_pair
+from game.pillar_pagodas import draw_pillar_pair
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
 
@@ -1357,6 +1357,17 @@ class Pipe:
         # the dominant source of KFC-mode lag.
         self._kfc_cache: "pygame.Surface | None" = None
         self._kfc_cache_dx = 0  # x-offset between blit corner and self.x
+        # Pagoda body + ornaments are far heavier than the retired sandstone
+        # silhouette, and their internal draw helpers re-alias curved eaves
+        # every call. Bake the pair once into a per-instance bitmap (same
+        # pattern as the KFC cache) and blit it at the scrolling x — drawing
+        # straight to the screen every frame would blow the 60 FPS budget on
+        # WASM and re-roll the ornament layer each frame.
+        self._pagoda_cache: "pygame.Surface | None" = None
+        self._pagoda_cache_dx = 0
+        # Ornament density + first-pillar quiet rule key off the spawn order;
+        # World sets this at spawn (0 = first pillar of the run).
+        self.spawn_index = 0
 
     @property
     def top_rect(self):
@@ -1376,7 +1387,7 @@ class Pipe:
         return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
                self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
 
-    def draw(self, surf, palette=None, kfc_visual=False):
+    def draw(self, surf, palette=None, kfc_visual=False, phase=0.0):
         if self.is_phantom:
             return
         palette = palette or _DEFAULT_PILLAR
@@ -1386,7 +1397,32 @@ class Pipe:
             surf.blit(self._kfc_cache,
                       (int(self.x) + self._kfc_cache_dx, 0))
             return
-        draw_pillar_pair(surf, self.top_rect, self.bot_rect, palette, self.seed)
+        if self._pagoda_cache is None:
+            self._build_pagoda_cache(palette, phase)
+        surf.blit(self._pagoda_cache,
+                  (int(self.x) + self._pagoda_cache_dx, 0))
+
+    def _build_pagoda_cache(self, palette, phase):
+        """Render the pagoda pillar pair + ornament layer onto a per-instance
+        SRCALPHA surface once, then blit at the scrolling x each frame. Margin
+        covers curled eaves / finials / prayer-flag spans that overhang the
+        PIPE_W column. Baking once also freezes the ornament roll for the
+        pillar's lifetime (so it doesn't re-randomize per frame); the spawn-time
+        palette stays close enough over the few seconds a pillar is on screen."""
+        margin = 64
+        cache_w = PIPE_W + margin * 2
+        cache_h = GROUND_Y
+        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        draw_pillar_pair(cache, local_top, local_bot, palette, self.seed,
+                         phase=phase, is_rush=self.is_rush,
+                         pillar_index=self.spawn_index)
+        self._pagoda_cache = cache
+        self._pagoda_cache_dx = -margin
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
