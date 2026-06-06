@@ -808,6 +808,112 @@ def _cached_draw(candidate_name, draw_fn, surf, top_rect, bot_rect,
     draw_fn(surf, top_rect, bot_rect, palette, seed)
 
 
+def _fit_floors(avail, h_floor, *, min_count=1):
+    """Adaptive floor count for a pagoda half that must FILL its rect.
+
+    In-game a pillar section is anywhere from ~70 to ~355 px tall (the gap
+    position is random), but each pagoda was authored at a single ~230 px
+    reference. Squashing a fixed storey count into a short rect produced
+    1-3 px floors; capping the body left an invisible-killzone sky band
+    because collision spans the full rect. The user's directive is "trim
+    floors, fill the rect": keep floor HEIGHT roughly fixed (`h_floor`,
+    the candidate's natural floor size at the reference) and make floor
+    COUNT adaptive, then size floors to fill `avail` exactly.
+
+    Returns (count, floor_h). `floor_h` stays within ~±25% of `h_floor`
+    (round() picks the nearest count), so floors never squash or
+    over-stretch, and `count * floor_h == avail` so the half fills with no
+    empty band. Short rect → fewer floors; tall rect → more floors; a
+    1-storey stub is valid for a 70 px section.
+    """
+    if avail <= 0:
+        return min_count, 0.0
+    count = max(min_count, round(avail / max(1.0, h_floor)))
+    return count, avail / count
+
+
+def _tier_bounds(top_y, bot_y, tier_count, *, taper=0.06):
+    """Exact storey boundaries that FILL [top_y, bot_y] with no drift.
+
+    Returns a list of (wall_top, tier_height) ground-up (index 0 sits on
+    bot_y). The boundaries are cumulative fractions of the full span so the
+    topmost storey's wall_top lands EXACTLY on top_y — collision spans the
+    whole rect, so the old `max(N, int(total_h*w/wsum))` + early-`break`
+    stacking left an invisible-killzone sky band between the last storey and
+    the gap edge whenever rounding under-shot. `taper` weights storeys
+    slightly toward the base (a real pagoda's first storey is tallest)
+    without changing the total fill.
+    """
+    tier_count = max(1, tier_count)
+    total_h = bot_y - top_y
+    if total_h <= 0:
+        return []
+    weights = [1.0 - taper * i for i in range(tier_count)]
+    wsum = sum(weights)
+    bounds = [float(bot_y)]
+    acc = 0.0
+    for w in weights:
+        acc += w
+        bounds.append(bot_y - total_h * acc / wsum)
+    out = []
+    for i in range(tier_count):
+        y0 = int(round(bounds[i]))
+        wall_top = top_y if i == tier_count - 1 else int(round(bounds[i + 1]))
+        out.append((wall_top, y0 - wall_top))
+    return out
+
+
+def _mirror_fill_tower(surf, top_rect, *, plinth_h, finial_h, h_floor,
+                       draw_plinth, draw_to, min_count=1):
+    """Ceiling-mirror a stacked-floor tower so it FILLS top_rect exactly.
+
+    Replaces the old per-candidate "derive H_tier from the bottom, round the
+    count, fall back to natural on a ±30% ratio and accept a sky band" block.
+    Collision spans the FULL top_rect, so any leftover band below the flipped
+    finial is an invisible killzone. The temp is sized to EXACTLY
+    top_rect.height (so the flipped blit covers the whole rect) and the storey
+    COUNT is derived from this half's own available height keyed off the fixed
+    natural floor size `h_floor` (NOT the bottom's possibly-squashed value), so
+    floors stay un-squashed and the spire reaches the gap edge after the flip.
+
+    `draw_plinth(tmp, cx, base_y)` paints the candidate's plinth at the temp
+    floor; `draw_to(tmp, cx, top_y, bot_y, count)` paints the tier stack +
+    up-pointing finial into [top_y, bot_y]. Because the temp is flipped, the
+    finial that points "up" toward top_y=finial_h reaches the gap edge.
+    """
+    tcx = top_rect.x + top_rect.width // 2
+    avail = top_rect.height - plinth_h - finial_h
+    count, _ = _fit_floors(avail, h_floor, min_count=min_count)
+    tmp_h = top_rect.height
+    tmp_w = max(top_rect.width * 4, 120)
+    tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
+    tmp_cx = tmp_w // 2
+    tmp_bot = tmp_h - 1
+    draw_plinth(tmp, tmp_cx, tmp_bot)
+    envelope_bot = tmp_bot - plinth_h
+    draw_to(tmp, tmp_cx, finial_h, envelope_bot, count)
+    flipped = pygame.transform.flip(tmp, False, True)
+    surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+
+# Natural storey heights at each candidate's ~230 px design reference
+# (≈ (230 - plinth - finial) / design_count). Floor COUNT is derived from
+# the live rect height keyed off these so floors stay un-squashed; per-seed
+# variety rides a small jitter on the value rather than a random count.
+_HORYUJI_H_FLOOR = 37
+_FOGONG_H_FLOOR = 33
+_TOJI_H_FLOOR = 34
+_DAIGOJI_H_FLOOR = 36
+_YAKUSHIJI_H_FLOOR = 38
+_MUROJI_H_FLOOR = 34
+_PALSANGJEON_H_FLOOR = 30
+_BAOEN_H_FLOOR = 30
+# Songyue is a dwarf-eave column, not a storey stack: its "floor" is one
+# thin brick-and-cornice band. Natural band step at the design reference
+# (≈ 0.5 * 215 / 15 ≈ 7 px).
+_SONGYUE_H_EAVE = 7
+
+
 # ── 1. Hōryū-ji Tō ─────────────────────────────────────────────────────────
 #
 # Bottom = full 5-storey tō rooted on the ground, sōrin pointing UP.
@@ -842,25 +948,35 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     plaster_shadow = _shade(plaster, -25)
 
     total_h = bot_y - top_y
-    if total_h < 10:
+    if total_h < 8:
         return
+    tier_count = max(1, tier_count)
     # Tier height weighted slightly toward base — true to a real tō where
-    # the first storey is the tallest.
+    # the first storey is the tallest. The boundaries are computed as exact
+    # cumulative fractions of total_h so the stack FILLS [top_y, bot_y] with
+    # no drift: collision spans the whole rect, so any gap below the finial
+    # would be an invisible killzone. The topmost tier's wall_top lands
+    # exactly on top_y.
     weights = [1.0 - 0.06 * i for i in range(tier_count)]
     wsum = sum(weights)
-    tier_heights = [max(8, int(total_h * w / wsum)) for w in weights]
+    # Cumulative boundary y from bot_y up to top_y, weighted.
+    bounds = [bot_y]
+    acc = 0.0
+    for i in range(tier_count):
+        acc += weights[i]
+        bounds.append(bot_y - total_h * acc / wsum)
     body_widths = [max(12, int(base_w * (0.92 ** i)))
                    for i in range(tier_count)]
 
-    # Build tiers ground-up; first tier sits at bot_y, last tier ends near top_y.
-    y_cursor = bot_y
+    # Build tiers ground-up; first tier sits at bot_y, last tier ends ON top_y.
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        y_cursor = int(round(bounds[i]))
+        wall_top = int(round(bounds[i + 1])) if i < tier_count - 1 else top_y
+        th = y_cursor - wall_top
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         tier_tops.append((wall_top, bw, th))
         # Cedar column frame + plaster infill panel — what makes Hōryū-ji
         # read as cedar-wood, not generic Chinese cinnabar.
@@ -996,7 +1112,10 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = rng.choice([4, 5, 5])
+    # Per-seed variety now rides a small natural-floor-size jitter (not a
+    # random storey COUNT) so the count can stay height-derived and the
+    # tower always fills its rect.
+    h_floor = _HORYUJI_H_FLOOR + rng.randint(-3, 3)
     # Seed-driven variation — drives the per-seed strip the AD asked for.
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
@@ -1004,7 +1123,7 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
     shrub_jitter = rng.randint(-2, 2)
 
     # Ground tō.
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         # Atmospheric mist halo BEFORE pillar paint — pushes the silhouette
         # off the shan-shui mountain band at DUSK/NIGHT.
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
@@ -1045,6 +1164,10 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 36
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h_total
+        # Storey COUNT adaptive to the bottom's own height so the sōrin
+        # reaches the gap edge and floors stay natural-sized at any rect.
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         # Body widens (0.84 → 0.94 of pipe width) so the white plaster panels
         # have real weight against the dark cedar columns at PIPE_W = 58.
         _draw_horyuji_to(surf, bcx,
@@ -1080,87 +1203,49 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted tō — STRUCTURAL MIRROR with the KFC bucket pattern
-    # (game/pillar_kfc.py::_stack_buckets). Round 11 used the temp's full
-    # height which forced _draw_horyuji_to to squeeze `tier_count` tiers
-    # into less vertical space than the bottom got — top tiers ended up
-    # shorter. The KFC fix: derive a natural per-tier height H_tier from
-    # the BOTTOM, then count how many of those tiers actually fit in the
-    # top_rect, and size the temp so the auto-fit math produces exactly
-    # that natural height. Top pagoda is now genuinely shorter (fewer
-    # tiers, identical tier size) rather than a squeezed full mirror.
-    # Ornaments (mist, moss, lanterns) deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted tō — STRUCTURAL MIRROR that FILLS top_rect.
+    # _mirror_fill_tower sizes the temp to exactly top_rect.height and
+    # derives the storey count from this half's own available height keyed
+    # off the fixed natural floor size, so the flipped sōrin reaches the gap
+    # edge with no killzone band and floors stay un-squashed.
+    if top_rect.height > 30:
         finial_h = 36
         plinth_h_total = 10
         bot_row_h = 4
         top_row_h = plinth_h_total - bot_row_h
         plinth_w_bot = int(top_rect.width * 1.22)
         plinth_w_top = plinth_w_bot - 8
-        # Bottom's natural per-tier height — drives both the round-to-
-        # nearest tier count below and the proportional stretch.
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h_total - finial_h)
-                             // tier_count)
-        # User observation (round 13): the visible gap between top and
-        # bottom pagodas is roughly fixed, so the top tower should
-        # reliably reach NEAR the gap edge. Round 12's floor-division
-        # left empty sky between the finial and the gap when `top_avail`
-        # wasn't an exact multiple of H_tier. Round 13: round() the
-        # count and stretch H_tier proportionally so the tower fills
-        # `top_rect.height` exactly — bounded to ±30% of natural so a
-        # severe ratio falls back to the natural value (better a small
-        # sky band than a distorted pagoda).
-        top_avail = top_rect.height - plinth_h_total - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        # Temp height sized EXACTLY so the auto-fit math inside
-        # _draw_horyuji_to (which divides bot_y - top_y across top_n
-        # tiers) reproduces the stretched H_tier per tier.
-        tmp_h = plinth_h_total + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        # Replicate the bottom plinth — overhanging dark stone + inset
-        # column-grey top row + brass-rim stair notch.
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w_bot // 2,
-                          tmp_bot - bot_row_h,
-                          plinth_w_bot, bot_row_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w_top // 2,
-                          tmp_bot - plinth_h_total,
-                          plinth_w_top, top_row_h))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w_top // 2,
-                          tmp_bot - plinth_h_total,
-                          plinth_w_top, 1))
-        notch_w, notch_h = 6, 3
-        notch_x = tmp_cx - notch_w // 2
-        notch_y = tmp_bot - bot_row_h
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
-                         (notch_x, notch_y, notch_w, notch_h))
-        pygame.draw.line(tmp, _bronze(palette),
-                         (notch_x, notch_y),
-                         (notch_x + notch_w - 1, notch_y), 1)
-        envelope_bot = tmp_bot - plinth_h_total
-        _draw_horyuji_to(tmp, tmp_cx,
-                         finial_h + 4, envelope_bot,
-                         int(top_rect.width * 0.94), palette,
-                         tier_count=top_n, finial_h=finial_h,
-                         sorin_up=True,
-                         draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the finial
-        # lands at/near the gap edge in the common case; an out-of-
-        # bounds ratio falls back to natural H_tier and leaves a small
-        # sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _horyuji_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w_bot // 2,
+                              tmp_bot - bot_row_h, plinth_w_bot, bot_row_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w_top // 2,
+                              tmp_bot - plinth_h_total,
+                              plinth_w_top, top_row_h))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w_top // 2,
+                              tmp_bot - plinth_h_total, plinth_w_top, 1))
+            notch_w, notch_h = 6, 3
+            notch_x = tmp_cx - notch_w // 2
+            notch_y = tmp_bot - bot_row_h
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
+                             (notch_x, notch_y, notch_w, notch_h))
+            pygame.draw.line(tmp, _bronze(palette),
+                             (notch_x, notch_y),
+                             (notch_x + notch_w - 1, notch_y), 1)
+
+        def _horyuji_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_horyuji_to(tmp, tmp_cx, top_y, bot_y,
+                             int(top_rect.width * 0.94), palette,
+                             tier_count=count, finial_h=finial_h,
+                             sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h_total, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_horyuji_plinth, draw_to=_horyuji_to)
 
 
 def candidate_horyuji(surf, top_rect, bot_rect, palette, seed):
@@ -1865,54 +1950,32 @@ def _draw_wat_arun(surf, top_rect, bot_rect, palette, seed):
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
 
-    if bot_rect.height > 80:
+    if bot_rect.height > 30:
+        # total_h = the FULL rect height (cap removed): the receding base
+        # reaches the ground and the corncob spire reaches the gap edge, so
+        # the prang fills both edges with no killzone band at any size.
         body_w = int(bot_rect.width * 1.05)
         _draw_wat_arun_prang(surf, bcx, bot_rect.bottom, palette,
                             body_w=body_w,
-                            total_h=min(bot_rect.height, 250),
+                            total_h=bot_rect.height,
                             rng=rng)
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
                        bot_rect.width + 6, 14, palette, seed=seed)
 
-    if top_rect.height > 60:
-        # STRUCTURAL MIRROR via the KFC bucket pattern
-        # (game/pillar_kfc.py::_stack_buckets). The bottom prang's
-        # natural per-base-tier height is `(0.4 * min(bot_h, 250)) // 3`.
-        # Round 13: round() the tier count and let the corncob spire
-        # stretch up to 1.3× natural so the tower fills top_rect.height
-        # exactly. Bounded — a severe ratio falls back to the natural
-        # spire and accepts a small sky band.
+    if top_rect.height > 30:
+        # STRUCTURAL MIRROR that FILLS top_rect. The temp is sized to EXACTLY
+        # top_rect.height and the prang's own 40/60 base/spire split fills it,
+        # so the flipped corncob tip reaches the gap edge with no sky band
+        # (replaces the tier-count + ±30% spire-ratio fallback).
         body_w = int(top_rect.width * 1.05)
-        bot_total_h_for_h = min(bot_rect.height, 250)
-        H_tier_natural = max(6, int(bot_total_h_for_h * 0.40) // 3)
-        spire_h_natural = bot_total_h_for_h - int(bot_total_h_for_h * 0.40)
-        top_avail = min(top_rect.height, 250)
-        # Round-to-nearest tier count above the natural spire — capped
-        # at the bottom's 3 because Wat Arun reads as a 3-tier prang.
-        room_for_tiers = max(0, top_avail - spire_h_natural)
-        top_n_tiers = max(1, round(room_for_tiers / H_tier_natural))
-        top_n_tiers = min(3, top_n_tiers)
-        # Stretch the spire to swallow the leftover so the tip lands at
-        # the gap edge. Bounded to ±30% of natural — out of bounds, fall
-        # back to natural spire and accept the small sky band.
-        spire_h = top_avail - top_n_tiers * H_tier_natural
-        ratio = spire_h / max(1, spire_h_natural)
-        if ratio < 0.7 or ratio > 1.3:
-            spire_h = spire_h_natural
-        total_h = H_tier_natural * top_n_tiers + spire_h
-        tmp = pygame.Surface((body_w * 2 + 12, total_h + 12), pygame.SRCALPHA)
+        total_h = top_rect.height
+        tmp = pygame.Surface((body_w * 2 + 12, total_h), pygame.SRCALPHA)
         _draw_wat_arun_prang(tmp, tmp.get_width() // 2,
-                             total_h + 4, palette,
+                             total_h, palette,
                              body_w=body_w,
                              total_h=total_h,
-                             rng=random.Random(seed + 17),
-                             n_tiers=top_n_tiers,
-                             tier_h_override=H_tier_natural)
+                             rng=random.Random(seed + 17))
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the corncob
-        # tip lands at/near the gap edge in the common case; an
-        # out-of-bounds spire ratio falls back to natural and leaves
-        # a small sky band rather than distort the silhouette.
         surf.blit(flipped, (tcx - flipped.get_width() // 2,
                             top_rect.y))
 
@@ -1992,16 +2055,24 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
 
-    def draw_one(cx, base_y, top_y, body_w_base, dwarf_eaves=15):
+    def draw_one(cx, base_y, top_y, body_w_base, dwarf_eaves=None):
         """A single Songyue silhouette: tall main storey + dense eave column
-        + parabolic dome shoulder + lotus-bud finial."""
+        + parabolic dome shoulder + lotus-bud finial.
+
+        The dwarf-eave COUNT is height-adaptive (keyed off the natural eave
+        step `_SONGYUE_H_EAVE`) so the eave rhythm stays un-squashed at any
+        rect height and the silhouette FILLS [top_y, base_y] — collision
+        spans the full rect, so the old fixed-15-eave + `< 60` skip left an
+        invisible killzone on short/tall sections."""
         total_h = base_y - top_y
-        if total_h < 60:
+        if total_h < 24:
             return
         # Budget: 32% main storey, 50% dense-eave column, 18% lotus bud.
         main_h = int(total_h * 0.32)
         eave_h = int(total_h * 0.50)
         bud_h = total_h - main_h - eave_h
+        if dwarf_eaves is None:
+            dwarf_eaves = max(1, round(eave_h / _SONGYUE_H_EAVE))
 
         # Plinth.
         plinth_h = 6
@@ -2046,34 +2117,38 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
 
         # Dense-eave column — `dwarf_eaves` cornices stacked tightly.
         # The body underneath gradually narrows so the eaves trace a
-        # parabolic profile.
+        # parabolic profile. The column FILLS exactly eave_h (float step,
+        # int-rounded per band) so no gap opens between the stack and the
+        # dome cap regardless of count.
         eave_top_y = main_top - 1
-        step = max(2, eave_h // dwarf_eaves)
+        fstep = eave_h / dwarf_eaves
         for k in range(dwarf_eaves):
             t = k / max(1, dwarf_eaves - 1)
             # Parabolic taper.
             local_w = int(body_w_base * (1 - 0.55 * (t ** 1.2)))
-            ey = eave_top_y - k * step
+            band_bot = int(round(eave_top_y - k * fstep))
+            band_top = int(round(eave_top_y - (k + 1) * fstep))
+            bh = max(1, band_bot - band_top)
             # Brick body band between eaves.
-            _songyue_brick_band(surf, cx, ey - step + 1,
-                                local_w, step - 1, palette)
-            _songyue_dwarf_eave(surf, cx, ey - step + 1,
+            _songyue_brick_band(surf, cx, band_top, local_w, bh, palette)
+            _songyue_dwarf_eave(surf, cx, band_top,
                                 local_w // 2, palette, depth=2)
             # Small lit windows on every 3rd band so the body reads inhabited.
-            if k % 3 == 1 and local_w > 14:
-                _lit_niche(surf, cx, ey - step + 2,
-                           min(4, local_w // 3), min(3, step - 2), palette)
+            if k % 3 == 1 and local_w > 14 and bh > 3:
+                _lit_niche(surf, cx, band_top + 1,
+                           min(4, local_w // 3), min(3, bh - 2), palette)
 
         # Smooth dome shoulder topping the eave stack — short dark cap.
-        cap_y = eave_top_y - dwarf_eaves * step
+        cap_y = int(round(eave_top_y - dwarf_eaves * fstep))
         cap_w = max(6, int(body_w_base * 0.30))
         cap_rect = pygame.Rect(cx - cap_w // 2, cap_y - 5, cap_w, 10)
         pygame.draw.ellipse(surf, _shade(_terracotta(palette), -30), cap_rect)
         pygame.draw.ellipse(surf, _terracotta(palette),
                             cap_rect.inflate(-2, -2))
-        # Lotus-bud finial — Songyue's iconic crowning ornament.
+        # Lotus-bud finial — Songyue's iconic crowning ornament. The tip
+        # reaches top_y (the gap edge) so the silhouette FILLS the rect.
         bud_base_y = cap_y - 4
-        bud_tip_y = bud_base_y - max(8, bud_h - 4)
+        bud_tip_y = min(bud_base_y - 8, top_y)
         gold = _gold_deep(palette)
         bright = _gold_bright(palette)
         dark = palette['stone_dark']
@@ -2102,70 +2177,47 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         # AA the bud outline for a smooth silhouette.
         _aa_polyline(surf, dark, bud_pts, closed=True)
 
-    if bot_rect.height > 80:
+    if bot_rect.height > 30:
+        # dwarf_eaves=None → draw_one derives the count from this rect's
+        # eave budget so a short rect gets a few eaves and a tall rect more.
         draw_one(bcx, bot_rect.bottom, bot_rect.y,
-                 int(bot_rect.width * 1.00),
-                 dwarf_eaves=15)
+                 int(bot_rect.width * 1.00))
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
                        bot_rect.width + 6, 14, palette, seed=seed)
         draw_flower_bed(surf, bcx, bot_rect.bottom - 2,
                         bot_rect.width - 4, 6, seed=seed)
 
-    if top_rect.height > 60:
-        # STRUCTURAL MIRROR via the KFC bucket pattern
-        # (game/pillar_kfc.py::_stack_buckets). Bottom densely stacks
-        # 15 dwarf eaves over `eave_h = 0.50 * bot_envelope`, so each
-        # eave occupies `H_eave = eave_h // 15` px.
-        # Round 13 stretch: round() instead of floor + scale H_eave so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the dwarf-eave
-        # rhythm.
+    if top_rect.height > 30:
+        # STRUCTURAL MIRROR that FILLS top_rect. The temp is sized to
+        # EXACTLY top_rect.height and the mini's dwarf-eave count is derived
+        # from its own eave budget keyed off the fixed natural eave step, so
+        # the flipped lotus bud reaches the gap edge with no killzone band
+        # (replaces the back-solve + ±30% sky-band fallback).
         small_body_w = int(top_rect.width * 0.88)
-        bot_envelope = max(1, bot_rect.height - 6)
-        bot_eave_h = int(bot_envelope * 0.50)
-        H_eave_natural = max(2, bot_eave_h // 15)
-        top_avail = top_rect.height - 2
-        # Mini's eave column is 55% of small_h. Round-to-nearest
-        # eave count for the eave-column budget, bounded by 15.
-        eave_budget = top_avail * 0.55
-        top_n_eaves = max(1, min(15, round(eave_budget / H_eave_natural)))
-        # Stretch H_eave so the eave column fills `eave_budget` exactly,
-        # bounded to ±30% of natural.
-        H_eave = int(eave_budget) // top_n_eaves
-        ratio = H_eave / max(1, H_eave_natural)
-        if ratio < 0.7 or ratio > 1.3:
-            H_eave = H_eave_natural
-            top_n_eaves = max(1, min(15, int(eave_budget) // H_eave_natural))
-        target_eave_h = top_n_eaves * H_eave
-        # Back-solve small_h so 0.55 × small_h reproduces target_eave_h.
-        # Cap at top_avail in the natural-fallback case; the round-13
-        # stretch case already lands inside top_avail.
-        small_h = min(top_avail,
-                      max(40, (target_eave_h * 100 + 54) // 55))
-        tmp = pygame.Surface((small_body_w * 2 + 14, small_h + 8),
+        small_h = top_rect.height
+        tmp = pygame.Surface((small_body_w * 2 + 14, small_h),
                              pygame.SRCALPHA)
-        _draw_mini_songyue(tmp, tmp.get_width() // 2, small_h + 2, 2,
-                           small_body_w, palette, dwarf_eaves=top_n_eaves)
+        _draw_mini_songyue(tmp, tmp.get_width() // 2, small_h, 0,
+                           small_body_w, palette)
         flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the lotus
-        # bud lands at/near the gap edge in the common case; an
-        # out-of-bounds eave ratio falls back to natural H_eave and
-        # leaves a small sky band rather than distort the rhythm.
         surf.blit(flipped, (tcx - flipped.get_width() // 2, top_rect.y))
 
 
 def _draw_mini_songyue(surf, cx, base_y, top_y, body_w_base, palette,
-                       dwarf_eaves=11):
+                       dwarf_eaves=None):
     """Compact Songyue silhouette used for the ceiling twin — same DNA as
     the main draw_one but slimmer budget, callable from any surface so the
-    flip-into-temp trick can mirror it."""
+    flip-into-temp trick can mirror it. The dwarf-eave count is height-
+    adaptive and the silhouette FILLS [top_y, base_y] so the flipped twin
+    leaves no killzone band against the gap edge."""
     total_h = base_y - top_y
-    if total_h < 40:
+    if total_h < 24:
         return
     main_h = int(total_h * 0.30)
     eave_h = int(total_h * 0.55)
     bud_h = total_h - main_h - eave_h
+    if dwarf_eaves is None:
+        dwarf_eaves = max(1, round(eave_h / _SONGYUE_H_EAVE))
 
     plinth_h = 5
     plinth_w = int(body_w_base * 1.10)
@@ -2182,24 +2234,25 @@ def _draw_mini_songyue(surf, cx, base_y, top_y, body_w_base, palette,
                    min(6, body_w_base - 8), min(main_h - 4, 7), palette)
 
     eave_top_y = main_top - 1
-    step = max(2, eave_h // dwarf_eaves)
+    fstep = eave_h / dwarf_eaves
     for k in range(dwarf_eaves):
         t = k / max(1, dwarf_eaves - 1)
         local_w = int(body_w_base * (1 - 0.55 * (t ** 1.2)))
-        ey = eave_top_y - k * step
-        _songyue_brick_band(surf, cx, ey - step + 1,
-                            local_w, step - 1, palette)
-        _songyue_dwarf_eave(surf, cx, ey - step + 1,
+        band_bot = int(round(eave_top_y - k * fstep))
+        band_top = int(round(eave_top_y - (k + 1) * fstep))
+        bh = max(1, band_bot - band_top)
+        _songyue_brick_band(surf, cx, band_top, local_w, bh, palette)
+        _songyue_dwarf_eave(surf, cx, band_top,
                             local_w // 2, palette, depth=2)
 
-    cap_y = eave_top_y - dwarf_eaves * step
+    cap_y = int(round(eave_top_y - dwarf_eaves * fstep))
     cap_w = max(6, int(body_w_base * 0.30))
     cap_rect = pygame.Rect(cx - cap_w // 2, cap_y - 5, cap_w, 10)
     pygame.draw.ellipse(surf, _shade(_terracotta(palette), -30), cap_rect)
     pygame.draw.ellipse(surf, _terracotta(palette),
                         cap_rect.inflate(-2, -2))
     bud_base_y = cap_y - 4
-    bud_tip_y = bud_base_y - max(6, bud_h - 4)
+    bud_tip_y = min(bud_base_y - 6, top_y)
     gold = _gold_deep(palette)
     dark = palette['stone_dark']
     pygame.draw.ellipse(surf, dark, (cx - 4, bud_base_y - 1, 8, 3))
@@ -2570,22 +2623,21 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
     fringe_col = _shade(grey_tile, -15)
 
     total_h = bot_y - top_y
-    if total_h < 12:
+    if total_h < 8:
         return
-    weights = [1.0 - 0.06 * i for i in range(tier_count)]
-    wsum = sum(weights)
-    tier_heights = [max(9, int(total_h * w / wsum)) for w in weights]
+    tier_count = max(1, tier_count)
+    # Exact cumulative storey boundaries so the stack FILLS [top_y, bot_y];
+    # collision spans the whole rect, so a drifting `break` left a killzone.
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.06)
     body_widths = [max(12, int(base_w * (0.93 ** i)))
                    for i in range(tier_count)]
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         is_top_tier = (i == tier_count - 1)
         tier_tops.append((wall_top, bw, th))
         _draw_fogong_storey(surf, cx, wall_top, bw, th, palette,
@@ -2617,7 +2669,6 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
                                 palette, side=+1)
             _draw_chiwen_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                 palette, side=-1)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -2665,9 +2716,13 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
     shrub_jitter = rng.randint(-2, 2)
-    ground_tier_count = rng.choice([5, 5, 6])
+    # Per-seed variety now rides a small natural-floor-size jitter (not a
+    # random storey COUNT): the count is height-derived so towers always
+    # fill their rect, and the jitter only nudges how many natural floors a
+    # given height resolves to.
+    h_floor = _FOGONG_H_FLOOR + rng.randint(-3, 3)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         # Atmospheric mist halo behind the plinth — lifts the column off
         # the shan-shui mountain band at DUSK/NIGHT. AD note 10.
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
@@ -2708,6 +2763,10 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
         finial_h = 32
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        # Storey COUNT adaptive to the bottom's own height so the finial
+        # reaches the gap edge and floors stay natural-sized at any rect.
+        ground_tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         _draw_fogong_to(surf, bcx,
                         envelope_top + finial_h, envelope_bot,
                         int(bot_rect.width * 0.94), palette,
@@ -2740,79 +2799,50 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Fogong — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Fix per-tier height
-    # to the bottom's natural value, then count how many tiers actually
-    # fit in the top envelope. Top tower is genuinely shorter (fewer
-    # tiers, identical tier size) instead of a squeezed full-length
-    # mirror. Ornaments (mist, moss, lanterns) deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Fogong — STRUCTURAL MIRROR that FILLS top_rect.
+    # _mirror_fill_tower sizes the temp to exactly top_rect.height and
+    # derives the storey count from this half's own available height keyed
+    # off the fixed natural floor size, so the flipped finial reaches the
+    # gap edge with no killzone band and floors stay un-squashed.
+    if top_rect.height > 30:
         finial_h = 32
         plinth_h = 9
         plinth_w = int(top_rect.width * 1.22)
-        # Bottom's natural per-tier height — drives both the round-to-
-        # nearest tier count below and the proportional stretch.
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h)
-                             // ground_tier_count)
-        # Round 13 stretch: round() instead of floor + scale H_tier so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the tier.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        # Temp height sized so the auto-fit inside _draw_fogong_to
-        # (which divides bot_y - top_y across top_n tiers) reproduces
-        # the stretched H_tier per tier.
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        # Plinth — dark stone overhang + column-grey body + lit cap.
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 2))
-        # Sumeru-pedestal lotus-petal nicks — match the bottom's 7
-        # inverted V-cuts so the flipped silhouette keeps the carved
-        # base detail at the ceiling.
-        n_nicks = 7
-        nick_zone_w = plinth_w - 6
-        nick_dark = _shade(palette['stone_dark'], -25)
-        nick_lit = _bronze(palette)
-        for k in range(n_nicks):
-            t = (k + 0.5) / n_nicks
-            nx = tmp_cx - nick_zone_w // 2 + int(t * nick_zone_w)
-            ny = tmp_bot - plinth_h + 2
-            pygame.draw.polygon(tmp, nick_dark,
-                                [(nx - 1, ny),
-                                 (nx, ny + 2),
-                                 (nx + 1, ny)])
-            pygame.draw.line(tmp, nick_lit, (nx, ny), (nx, ny), 1)
-        envelope_bot = tmp_bot - plinth_h
-        _draw_fogong_to(tmp, tmp_cx,
-                        finial_h + 4, envelope_bot,
-                        int(top_rect.width * 0.94), palette,
-                        tier_count=top_n, finial_h=finial_h,
-                        sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the finial
-        # lands at/near the gap edge in the common case; an out-of-
-        # bounds ratio falls back to natural H_tier and leaves a small
-        # sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _fogong_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 2))
+            # Sumeru-pedestal lotus-petal nicks — match the bottom's 7.
+            n_nicks = 7
+            nick_zone_w = plinth_w - 6
+            nick_dark = _shade(palette['stone_dark'], -25)
+            nick_lit = _bronze(palette)
+            for k in range(n_nicks):
+                t = (k + 0.5) / n_nicks
+                nx = tmp_cx - nick_zone_w // 2 + int(t * nick_zone_w)
+                ny = tmp_bot - plinth_h + 2
+                pygame.draw.polygon(tmp, nick_dark,
+                                    [(nx - 1, ny), (nx, ny + 2), (nx + 1, ny)])
+                pygame.draw.line(tmp, nick_lit, (nx, ny), (nx, ny), 1)
+
+        def _fogong_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_fogong_to(tmp, tmp_cx, top_y, bot_y,
+                            int(top_rect.width * 0.94), palette,
+                            tier_count=count, finial_h=finial_h,
+                            sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_fogong_plinth, draw_to=_fogong_to)
 
 
 def candidate_fogong(surf, top_rect, bot_rect, palette, seed):
@@ -4071,24 +4101,22 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     tile_col = _shade(palette['stone_dark'], -25)
 
     total_h = bot_y - top_y
-    if total_h < 10:
+    if total_h < 8:
         return
+    tier_count = max(1, tier_count)
     # Tō-ji's storeys shrink LESS aggressively than Hōryū-ji's — body
-    # widths only taper 0.96^i so the silhouette reads squatter.
-    weights = [1.0 - 0.04 * i for i in range(tier_count)]
-    wsum = sum(weights)
-    tier_heights = [max(8, int(total_h * w / wsum)) for w in weights]
+    # widths only taper 0.96^i so the silhouette reads squatter. Exact
+    # cumulative boundaries FILL [top_y, bot_y] (no killzone band).
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.04)
     body_widths = [max(14, int(base_w * (0.96 ** i)))
                    for i in range(tier_count)]
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
         body_rect = pygame.Rect(x_l, wall_top, bw, th)
@@ -4164,7 +4192,6 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                                palette, side=+1)
             _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                palette, side=-1)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -4206,13 +4233,13 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = rng.choice([5, 5, 6])
+    h_floor = _TOJI_H_FLOOR + rng.randint(-3, 3)
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
     shrub_jitter = rng.randint(-2, 2)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.4), palette)
         plinth_h = 11
@@ -4239,6 +4266,8 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 38
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         _draw_toji_to(surf, bcx,
                       envelope_top + finial_h, envelope_bot,
                       int(bot_rect.width * 0.96), palette,
@@ -4264,65 +4293,44 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Tō-ji — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height is
-    # fixed to the bottom's natural value; tier count drops to whatever
-    # actually fits the top envelope. The hanger reads as a smaller
-    # tō-ji of identical tier proportions, not a squeezed full one.
-    # Ornaments (mist, moss, lanterns) deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Tō-ji — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower (temp sized to top_rect.height, count keyed off the
+    # fixed natural floor size). Reads as a smaller tō-ji of identical tier
+    # proportions, finial reaching the gap edge with no killzone band.
+    if top_rect.height > 30:
         finial_h = 38
         plinth_h = 11
         plinth_w = int(top_rect.width * 1.28)
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h)
-                             // tier_count)
-        # Round 13 stretch: round() + scale H_tier within ±30% so the
-        # tower fills top_rect.height exactly; fall back to the natural
-        # value if the math demands an extreme stretch.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        # Match the bottom's stair-notch so the flipped silhouette
-        # keeps the brass-rim worship-step centred at the ceiling edge.
-        notch_w, notch_h = 8, 4
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
-                         (tmp_cx - notch_w // 2, tmp_bot - notch_h,
-                          notch_w, notch_h))
-        pygame.draw.line(tmp, _bronze(palette),
-                         (tmp_cx - notch_w // 2, tmp_bot - notch_h),
-                         (tmp_cx + notch_w // 2 - 1, tmp_bot - notch_h), 1)
-        envelope_bot = tmp_bot - plinth_h
-        _draw_toji_to(tmp, tmp_cx,
-                      finial_h + 4, envelope_bot,
-                      int(top_rect.width * 0.96), palette,
-                      tier_count=top_n, finial_h=finial_h,
-                      sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the finial
-        # lands at/near the gap edge in the common case; an out-of-
-        # bounds ratio falls back to natural H_tier and leaves a small
-        # sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _toji_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+            notch_w, notch_h = 8, 4
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -25),
+                             (tmp_cx - notch_w // 2, tmp_bot - notch_h,
+                              notch_w, notch_h))
+            pygame.draw.line(tmp, _bronze(palette),
+                             (tmp_cx - notch_w // 2, tmp_bot - notch_h),
+                             (tmp_cx + notch_w // 2 - 1, tmp_bot - notch_h), 1)
+
+        def _toji_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_toji_to(tmp, tmp_cx, top_y, bot_y,
+                          int(top_rect.width * 0.96), palette,
+                          tier_count=count, finial_h=finial_h,
+                          sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_toji_plinth, draw_to=_toji_to)
 
 
 def candidate_toji(surf, top_rect, bot_rect, palette, seed):
@@ -4348,22 +4356,19 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     tile_col = _shade(palette['stone_dark'], -10)
 
     total_h = bot_y - top_y
-    if total_h < 10:
+    if total_h < 8:
         return
-    weights = [1.0 - 0.06 * i for i in range(tier_count)]
-    wsum = sum(weights)
-    tier_heights = [max(8, int(total_h * w / wsum)) for w in weights]
+    tier_count = max(1, tier_count)
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.06)
     body_widths = [max(12, int(base_w * (0.92 ** i)))
                    for i in range(tier_count)]
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
         # White plaster main panel — Daigo-ji reads as more plaster than
@@ -4443,7 +4448,6 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                                palette, side=+1)
             _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                palette, side=-1)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -4489,13 +4493,13 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = rng.choice([5, 5])
+    h_floor = _DAIGOJI_H_FLOOR + rng.randint(-3, 3)
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
     shrub_jitter = rng.randint(-2, 2)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.4), palette)
         plinth_h = 10
@@ -4514,6 +4518,8 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 44  # Daigo-ji finial is ~1/3 of tower height.
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         _draw_daigoji_to(surf, bcx,
                          envelope_top + finial_h, envelope_bot,
                          int(bot_rect.width * 0.94), palette,
@@ -4539,56 +4545,36 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Daigo-ji — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height is
-    # fixed at the bottom's natural value; tier count drops to whatever
-    # fits the top envelope. The long ⅓-tower gold sōrin stays the
-    # same absolute height — what shortens is the tier stack.
-    if top_rect.height > 50:
+    # Ceiling-mounted Daigo-ji — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower. The long ⅓-tower gold sōrin reaches the gap edge;
+    # the storey stack shortens/lengthens to fill the rect, no killzone band.
+    if top_rect.height > 30:
         finial_h = 44
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.22)
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h)
-                             // tier_count)
-        # Round 13 stretch: round() instead of floor + scale H_tier so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the tier.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        envelope_bot = tmp_bot - plinth_h
-        _draw_daigoji_to(tmp, tmp_cx,
-                         finial_h + 4, envelope_bot,
-                         int(top_rect.width * 0.94), palette,
-                         tier_count=top_n, finial_h=finial_h,
-                         sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the long
-        # gold sōrin lands at/near the gap edge in the common case;
-        # an out-of-bounds ratio falls back to natural H_tier and
-        # leaves a small sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _daigoji_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+
+        def _daigoji_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_daigoji_to(tmp, tmp_cx, top_y, bot_y,
+                             int(top_rect.width * 0.94), palette,
+                             tier_count=count, finial_h=finial_h,
+                             sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_daigoji_plinth, draw_to=_daigoji_to)
 
 
 def candidate_daigoji(surf, top_rect, bot_rect, palette, seed):
@@ -4613,26 +4599,23 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     tile_col = _shade(bluetile, -25)
 
     total_h = bot_y - top_y
-    if total_h < 12:
+    if total_h < 8:
         return
-    # 4 strong shelf-and-body alternations — the round-8 mokoshi conceit
-    # collapsed to 6 grey shelves at PIPE_W=58. Dropping mokoshi and
-    # committing to 4 alternations gives a legible bronze-eave cadence.
-    weights = [1.0, 0.88, 0.78, 0.68]
-    wsum = sum(weights)
-    tier_heights = [max(10, int(total_h * w / wsum)) for w in weights]
+    tier_count = max(1, tier_count)
+    # Strong shelf-and-body alternations with a legible bronze-eave cadence
+    # (the round-8 mokoshi conceit collapsed at PIPE_W=58). Exact cumulative
+    # boundaries FILL [top_y, bot_y]; count is supplied height-adaptive so
+    # short rects get few storeys and tall rects more, none squashed.
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.07)
     body_widths = [max(14, int(base_w * (0.93 ** i)))
                    for i in range(tier_count)]
-    mokoshi_h = 0  # Mokoshi disabled — keeps the 4 shelves crisp at scale.
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i] if i < len(tier_heights) else 12
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
         # White plaster wall with cedar posts.
@@ -4676,7 +4659,6 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                                palette, side=+1)
             _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                palette, side=-1)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -4723,12 +4705,13 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
+    h_floor = _YAKUSHIJI_H_FLOOR + rng.randint(-3, 3)
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
     shrub_jitter = rng.randint(-2, 2)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.4), palette)
         plinth_h = 10
@@ -4747,10 +4730,12 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 42
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         _draw_yakushiji_to(surf, bcx,
                            envelope_top + finial_h, envelope_bot,
                            int(bot_rect.width * 0.94), palette,
-                           tier_count=4, finial_h=finial_h,
+                           tier_count=tier_count, finial_h=finial_h,
                            sorin_up=True, entry_door_open=entry_open)
 
         body_half = int(bot_rect.width * 0.94) // 2
@@ -4772,56 +4757,37 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Yakushi-ji — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height
-    # fixed at the bottom's natural value (4 strong tier alternations
-    # over the bottom envelope); tier count drops to whatever fits.
-    # Mokoshi pent-roofs scale with the tiers automatically. Ornaments
-    # deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Yakushi-ji — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower. The bronze suien water-flame reaches the gap edge;
+    # storey count adapts to the rect height with no killzone band.
+    if top_rect.height > 30:
         finial_h = 42
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h) // 4)
-        # Round 13 stretch: round() instead of floor + scale H_tier so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the tier.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        envelope_bot = tmp_bot - plinth_h
-        _draw_yakushiji_to(tmp, tmp_cx,
-                           finial_h + 4, envelope_bot,
-                           int(top_rect.width * 0.94), palette,
-                           tier_count=top_n, finial_h=finial_h,
-                           sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the bronze
-        # suien water-flame lands at/near the gap edge in the common
-        # case; an out-of-bounds ratio falls back to natural H_tier
-        # and leaves a small sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _yakushiji_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+
+        def _yakushiji_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_yakushiji_to(tmp, tmp_cx, top_y, bot_y,
+                               int(top_rect.width * 0.94), palette,
+                               tier_count=count, finial_h=finial_h,
+                               sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_yakushiji_plinth,
+                           draw_to=_yakushiji_to)
 
 
 def candidate_yakushiji(surf, top_rect, bot_rect, palette, seed):
@@ -5558,24 +5524,110 @@ def candidate_liuhe(surf, top_rect, bot_rect, palette, seed):
 # panels at each storey + gilt eaves + interior glow at night.
 # Reference: https://en.wikipedia.org/wiki/Porcelain_Tower_of_Nanjing
 
-def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
-    rng = random.Random(seed)
-    bcx = bot_rect.x + bot_rect.width // 2
-    tcx = top_rect.x + top_rect.width // 2
-    vine_side = rng.choice(('left', 'right'))
-    entry_open = rng.choice((True, False))
-    has_pine_sprig = rng.random() < 0.7
-    shrub_jitter = rng.randint(-2, 2)
-
+def _draw_baoen_stack(surf, cx, top_y, bot_y, base_w, palette, *,
+                      tier_count, finial_h, entry_open=False,
+                      draw_entry_door=True, draw_lanterns=True):
+    """Porcelain storey stack + gilt eaves + pearl-and-flame finial that
+    FILLS [top_y, bot_y] exactly. Shared by the ground tower and the
+    ceiling mirror so both halves use the same height-adaptive count and
+    natural floor size (the old inline copies each had a min(...,230) cap
+    that under-filled tall rects → invisible killzone)."""
     white = _porcelain_white(palette)
     white_lit = _shade(white, 18)
     white_shadow = _shade(white, -28)
     gold = _gold_bright(palette)
     gold_d = _gold_deep(palette)
-    accent = _bronze(palette)
     tile_col = _shade(gold_d, -20)
 
-    if bot_rect.height > 80:
+    total_h = bot_y - top_y
+    if total_h < 8:
+        return
+    tier_count = max(1, tier_count)
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.06)
+    body_widths = [max(12, int(base_w * (0.94 ** i)))
+                   for i in range(tier_count)]
+
+    tier_tops = []
+    for i in range(tier_count):
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
+        bw = body_widths[i]
+        tier_tops.append((wall_top, bw, th))
+        x_l = cx - bw // 2
+        body_rect = pygame.Rect(x_l, wall_top, bw, th)
+        _gradient_rect(surf, body_rect, white_lit, white, white_shadow,
+                       vertical=True)
+        if bw >= 18 and th >= 8:
+            scroll_w = max(4, bw // 5)
+            scroll_h = min(th - 2, max(6, th - 3))
+            scroll_y = wall_top + (th - scroll_h) // 2
+            _draw_baoen_scroll(surf, cx, scroll_y, scroll_w, scroll_h, palette)
+        if th > 8 and bw > 18:
+            nw = max(2, bw // 8)
+            nh = min(4, th - 4)
+            win_x = cx + bw // 4
+            if _is_dark_sky(palette) or _is_warming_sky(palette):
+                _lit_niche(surf, win_x, wall_top + 2, nw, nh, palette)
+            else:
+                pygame.draw.rect(surf, _shade(white, -45),
+                                 (win_x - nw // 2, wall_top + 2, nw, nh))
+        if i == 0 and draw_entry_door and bw >= 14 and th >= 10:
+            _draw_entry_door(surf, cx, wall_top + th - 1, palette,
+                             w=2, h=4, open_glow=entry_open)
+        overhang = max(10, 13 - i)
+        depth = 4
+        is_top_tier = (i == tier_count - 1)
+        _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
+                        gold_d, gold, tile_col, curl=0.55,
+                        alternating_hatch=True, drop_shadow=True,
+                        skip_corner_hook=is_top_tier)
+        if draw_lanterns and i % 2 == 1:
+            half_outer = bw // 2 + overhang
+            for sign in (-1, 1):
+                _draw_mini_lantern(surf, cx + sign * (half_outer - 2),
+                                   wall_top, palette)
+        if is_top_tier:
+            half_outer = bw // 2 + overhang
+            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.55)))
+            _draw_chiwen_finial(surf, cx - half_outer + 1,
+                                tip_y_top + 1, palette, side=+1)
+            _draw_chiwen_finial(surf, cx + half_outer - 1,
+                                tip_y_top + 1, palette, side=-1)
+
+    if not tier_tops:
+        return
+    # Tall gilt-bronze pearl-and-flame finial on a needle.
+    top_wall_y = tier_tops[-1][0]
+    dark_pal = palette['stone_dark']
+    bright = _shade(gold, 60)
+    tip_y = top_wall_y - finial_h
+    pygame.draw.line(surf, dark_pal, (cx, top_wall_y - 2), (cx, tip_y), 2)
+    pygame.draw.line(surf, gold, (cx + 1, top_wall_y - 2), (cx + 1, tip_y), 1)
+    for k in range(7):
+        t = k / 6
+        ry = top_wall_y - 2 - int(t * (finial_h - 6))
+        rw = max(2, 6 - k // 2)
+        pygame.draw.ellipse(surf, dark_pal,
+                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
+        pygame.draw.ellipse(surf, gold, (cx - rw, ry, rw * 2, 2))
+    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
+    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 4)
+    pygame.draw.circle(surf, gold, (cx, tip_y), 3)
+    pygame.draw.circle(surf, bright, (cx - 1, tip_y - 1), 1)
+
+
+def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
+    rng = random.Random(seed)
+    bcx = bot_rect.x + bot_rect.width // 2
+    tcx = top_rect.x + top_rect.width // 2
+    h_floor = _BAOEN_H_FLOOR + rng.randint(-3, 3)
+    vine_side = rng.choice(('left', 'right'))
+    entry_open = rng.choice((True, False))
+    has_pine_sprig = rng.random() < 0.7
+    shrub_jitter = rng.randint(-2, 2)
+
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.4), palette)
         plinth_h = 10
@@ -5592,101 +5644,16 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
         envelope_bot = bot_rect.bottom - plinth_h
-        tier_count = 9
         finial_h = 30
-        total_h = min(bot_rect.height - plinth_h - finial_h, 230)
-        weights = [1.0 - 0.06 * i for i in range(tier_count)]
-        wsum = sum(weights)
-        tier_heights = [max(7, int(total_h * w / wsum)) for w in weights]
-        body_widths = [max(12, int(bot_rect.width * (0.94 ** i)))
-                       for i in range(tier_count)]
-
-        y_cursor = envelope_bot
-        tier_tops = []
-        for i in range(tier_count):
-            th = tier_heights[i]
-            bw = body_widths[i]
-            wall_top = y_cursor - th
-            if wall_top < bot_rect.y + finial_h:
-                break
-            tier_tops.append((wall_top, bw, th))
-            x_l = bcx - bw // 2
-            body_rect = pygame.Rect(x_l, wall_top, bw, th)
-            # White porcelain body — vertically lit (top whiter, bottom
-            # slightly cooler) so the glaze reads as glossy ceramic.
-            _gradient_rect(surf, body_rect, white_lit, white, white_shadow,
-                           vertical=True)
-            # ONE tall vertical aqua-on-white scroll per storey body — the
-            # round-8 3-pill panel row read as UI pills. A single narrow
-            # painted scroll keeps the porcelain identity without dazzle.
-            if bw >= 18 and th >= 8:
-                scroll_w = max(4, bw // 5)
-                scroll_h = min(th - 2, max(6, th - 3))
-                scroll_y = wall_top + (th - scroll_h) // 2
-                _draw_baoen_scroll(surf, bcx, scroll_y,
-                                   scroll_w, scroll_h, palette)
-            # ONE centred lit window per storey (cross-row unification) —
-            # bright at night, dark slit at day. Sits beside the scroll.
-            if th > 8 and bw > 18:
-                nw = max(2, bw // 8)
-                nh = min(4, th - 4)
-                # Window offset to the right of the scroll so they coexist.
-                win_x = bcx + bw // 4
-                if _is_dark_sky(palette) or _is_warming_sky(palette):
-                    _lit_niche(surf, win_x, wall_top + 2, nw, nh, palette)
-                else:
-                    pygame.draw.rect(surf, _shade(white, -45),
-                                     (win_x - nw // 2, wall_top + 2,
-                                      nw, nh))
-            if i == 0 and bw >= 14 and th >= 10:
-                _draw_entry_door(surf, bcx, wall_top + th - 1, palette,
-                                 w=2, h=4, open_glow=entry_open)
-            # GILT eave — Bao'en's eaves are gilded. Use gold as roof.
-            overhang = max(10, 13 - i)
-            depth = 4
-            is_top_tier = (i == tier_count - 1)
-            _eave_tang_curl(surf, bcx, wall_top, bw // 2, overhang, depth,
-                            gold_d, gold, tile_col, curl=0.55,
-                            alternating_hatch=True, drop_shadow=True,
-                            skip_corner_hook=is_top_tier)
-            # Lantern dangling at the corner — Bao'en was said to have 140
-            # lamps. Render compact dots only every 2 storeys.
-            if i % 2 == 1:
-                half_outer = bw // 2 + overhang
-                for sign in (-1, 1):
-                    _draw_mini_lantern(surf, bcx + sign * (half_outer - 2),
-                                       wall_top, palette)
-            if is_top_tier:
-                half_outer = bw // 2 + overhang
-                tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.55)))
-                _draw_chiwen_finial(surf, bcx - half_outer + 1,
-                                    tip_y_top + 1, palette, side=+1)
-                _draw_chiwen_finial(surf, bcx + half_outer - 1,
-                                    tip_y_top + 1, palette, side=-1)
-            y_cursor = wall_top - depth + 1
-
-        # Tall gilt-bronze finial — a pearl-and-flame on a needle.
-        if tier_tops:
-            top_wall_y = tier_tops[-1][0]
-            dark_pal = palette['stone_dark']
-            bright = _shade(gold, 60)
-            tip_y = top_wall_y - finial_h
-            pygame.draw.line(surf, dark_pal, (bcx, top_wall_y - 2),
-                             (bcx, tip_y), 2)
-            pygame.draw.line(surf, gold, (bcx + 1, top_wall_y - 2),
-                             (bcx + 1, tip_y), 1)
-            for k in range(7):
-                t = k / 6
-                ry = top_wall_y - 2 - int(t * (finial_h - 6))
-                rw = max(2, 6 - k // 2)
-                pygame.draw.ellipse(surf, dark_pal,
-                                    (bcx - rw - 1, ry - 1, rw * 2 + 2, 3))
-                pygame.draw.ellipse(surf, gold,
-                                    (bcx - rw, ry, rw * 2, 2))
-            _draw_sorin_flame_halo(surf, bcx, tip_y, palette)
-            pygame.draw.circle(surf, dark_pal, (bcx, tip_y), 4)
-            pygame.draw.circle(surf, gold, (bcx, tip_y), 3)
-            pygame.draw.circle(surf, bright, (bcx - 1, tip_y - 1), 1)
+        # Storey COUNT adaptive to the bottom's own height so the
+        # pearl-and-flame finial reaches the gap edge (the old
+        # min(..., 230) cap left an empty killzone band on tall rects).
+        tier_count, _ = _fit_floors(
+            envelope_bot - (bot_rect.y + finial_h), h_floor)
+        _draw_baoen_stack(surf, bcx, bot_rect.y + finial_h, envelope_bot,
+                          bot_rect.width, palette,
+                          tier_count=tier_count, finial_h=finial_h,
+                          entry_open=entry_open)
 
         body_half = bot_rect.width // 2
         vine_x = bcx - body_half + 1 if vine_side == 'left' else bcx + body_half - 1
@@ -5706,135 +5673,38 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Bao'en — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Bottom has a fixed
-    # 9-storey porcelain stack; the top stack length is whatever number
-    # of those natural-sized storeys actually fits the top envelope.
-    # Per-storey height stays identical to the bottom. The tall gilt
-    # pearl-and-flame finial keeps its full absolute height. Ornaments
-    # (mist, vines, lanterns) deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Bao'en — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower + the shared porcelain stack. The tall gilt
+    # pearl-and-flame finial reaches the gap edge; storey count adapts to
+    # the rect height with no killzone band. Corner lanterns are dropped on
+    # the hanging mirror (they read odd inverted).
+    if top_rect.height > 30:
         finial_h = 30
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
-        # Average storey height the BOTTOM uses (mirrors the bottom's
-        # `min(..., 230) / 9` divide). The weighted distribution makes
-        # individual storeys vary slightly around this — what matters
-        # is that the TOP gets storeys of the same size, not a squeeze.
-        bot_total_h = min(bot_rect.height - plinth_h - finial_h, 230)
-        H_storey_natural = max(7, bot_total_h // 9)
-        # Round 13 stretch: round() instead of floor + scale H_storey
-        # so the tower fills top_rect.height exactly. Bounded to ±30%
-        # of the natural value — out-of-bounds ratios fall back to
-        # natural and accept a small sky band rather than distort the
-        # storey.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_storey_natural))
-        H_storey = top_avail // top_n
-        ratio = H_storey / H_storey_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_storey = H_storey_natural
-            top_n = max(1, top_avail // H_storey_natural)
-        # Temp height sized so the per-storey weighted distribution
-        # below produces storeys of ~H_storey — no auto-fit squeeze.
-        tmp_h = plinth_h + top_n * H_storey + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        # Plinth — stone overhang + column-grey body + lit cap, same as
-        # the ground tō so the silhouette reads paired across the gap.
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        # Replicate the bottom's porcelain stack with gilt eaves +
-        # pearl-and-flame finial directly into the temp, but for
-        # `top_n` storeys instead of 9 — KFC bucket pattern. Keeping
-        # the paint code inline (rather than a shared helper)
-        # preserves the bottom-pillar code byte-for-byte unchanged.
-        envelope_bot = tmp_bot - plinth_h
-        tier_count = top_n
-        total_h = top_n * H_storey
-        weights = [1.0 - 0.06 * i for i in range(tier_count)]
-        wsum = sum(weights)
-        tier_heights = [max(7, int(total_h * w / wsum)) for w in weights]
-        body_widths = [max(12, int(top_rect.width * (0.94 ** i)))
-                       for i in range(tier_count)]
-        y_cursor = envelope_bot
-        tier_tops = []
-        for i in range(tier_count):
-            th = tier_heights[i]
-            bw = body_widths[i]
-            wall_top = y_cursor - th
-            if wall_top < finial_h + 4:
-                break
-            tier_tops.append((wall_top, bw, th))
-            x_l = tmp_cx - bw // 2
-            body_rect = pygame.Rect(x_l, wall_top, bw, th)
-            _gradient_rect(tmp, body_rect, white_lit, white, white_shadow,
-                           vertical=True)
-            if bw >= 18 and th >= 8:
-                scroll_w = max(4, bw // 5)
-                scroll_h = min(th - 2, max(6, th - 3))
-                scroll_y = wall_top + (th - scroll_h) // 2
-                _draw_baoen_scroll(tmp, tmp_cx, scroll_y,
-                                   scroll_w, scroll_h, palette)
-            if th > 8 and bw > 18:
-                nw = max(2, bw // 8)
-                nh = min(4, th - 4)
-                win_x = tmp_cx + bw // 4
-                if _is_dark_sky(palette) or _is_warming_sky(palette):
-                    _lit_niche(tmp, win_x, wall_top + 2, nw, nh, palette)
-                else:
-                    pygame.draw.rect(tmp, _shade(white, -45),
-                                     (win_x - nw // 2, wall_top + 2,
-                                      nw, nh))
-            overhang = max(10, 13 - i)
-            depth = 4
-            is_top_tier = (i == tier_count - 1)
-            _eave_tang_curl(tmp, tmp_cx, wall_top, bw // 2, overhang, depth,
-                            gold_d, gold, tile_col, curl=0.55,
-                            alternating_hatch=True, drop_shadow=True,
-                            skip_corner_hook=is_top_tier)
-            if is_top_tier:
-                half_outer = bw // 2 + overhang
-                tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.55)))
-                _draw_chiwen_finial(tmp, tmp_cx - half_outer + 1,
-                                    tip_y_top + 1, palette, side=+1)
-                _draw_chiwen_finial(tmp, tmp_cx + half_outer - 1,
-                                    tip_y_top + 1, palette, side=-1)
-            y_cursor = wall_top - depth + 1
-        # Tall gilt-bronze pearl-and-flame finial.
-        if tier_tops:
-            top_wall_y = tier_tops[-1][0]
-            dark_pal = palette['stone_dark']
-            bright = _shade(gold, 60)
-            tip_y = top_wall_y - finial_h
-            pygame.draw.line(tmp, dark_pal, (tmp_cx, top_wall_y - 2),
-                             (tmp_cx, tip_y), 2)
-            pygame.draw.line(tmp, gold, (tmp_cx + 1, top_wall_y - 2),
-                             (tmp_cx + 1, tip_y), 1)
-            for k in range(7):
-                t = k / 6
-                ry = top_wall_y - 2 - int(t * (finial_h - 6))
-                rw = max(2, 6 - k // 2)
-                pygame.draw.ellipse(tmp, dark_pal,
-                                    (tmp_cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-                pygame.draw.ellipse(tmp, gold,
-                                    (tmp_cx - rw, ry, rw * 2, 2))
-            _draw_sorin_flame_halo(tmp, tmp_cx, tip_y, palette)
-            pygame.draw.circle(tmp, dark_pal, (tmp_cx, tip_y), 4)
-            pygame.draw.circle(tmp, gold, (tmp_cx, tip_y), 3)
-            pygame.draw.circle(tmp, bright, (tmp_cx - 1, tip_y - 1), 1)
-        flipped = pygame.transform.flip(tmp, False, True)
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _baoen_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+
+        def _baoen_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_baoen_stack(tmp, tmp_cx, top_y, bot_y,
+                              top_rect.width, palette,
+                              tier_count=count, finial_h=finial_h,
+                              draw_entry_door=False, draw_lanterns=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_baoen_plinth, draw_to=_baoen_to)
 
 
 def candidate_baoen(surf, top_rect, bot_rect, palette, seed):
@@ -8999,24 +8869,22 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     thatch_lit = _cap_lit_for_dark_sky(thatch_lit, palette)
 
     total_h = bot_y - top_y
-    if total_h < 10:
+    if total_h < 8:
         return
+    tier_count = max(1, tier_count)
     # Slimmer + stubbier — base width pulled in vs Hōryū-ji so the tō
-    # reads as the intimate scaled-down forest pagoda.
-    weights = [1.0 - 0.05 * i for i in range(tier_count)]
-    wsum = sum(weights)
-    tier_heights = [max(7, int(total_h * w / wsum)) for w in weights]
+    # reads as the intimate scaled-down forest pagoda. Exact cumulative
+    # boundaries FILL [top_y, bot_y]; count is supplied height-adaptive.
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.05)
     body_widths = [max(11, int(base_w * (0.88 ** i)))
                    for i in range(tier_count)]
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         is_top_tier = (i == tier_count - 1)
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
@@ -9084,7 +8952,6 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                                palette, side=+1)
             _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
                                palette, side=-1)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -9128,13 +8995,13 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = rng.choice([5, 5, 5])
+    h_floor = _MUROJI_H_FLOOR + rng.randint(-3, 3)
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.85
     shrub_jitter = rng.randint(-2, 2)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.2), palette)
         # Smaller plinth — Murō-ji sits on a low rough-stone base rather
@@ -9155,6 +9022,8 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
         finial_h = 30
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         _draw_muroji_to(surf, bcx,
                         envelope_top + finial_h, envelope_bot,
                         int(bot_rect.width * 0.88), palette,
@@ -9184,57 +9053,36 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              24, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Murō-ji — STRUCTURAL MIRROR via the KFC bucket
-    # pattern (game/pillar_kfc.py::_stack_buckets). Per-tier height
-    # fixed at the bottom's natural value (5-storey cedar over the
-    # bottom envelope); tier count drops to whatever fits the top.
-    # Thatched bark curls invert with the flip naturally. Ornaments
-    # deferred per user scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Murō-ji — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower. The small sōrin reaches the gap edge; thatched
+    # bark curls invert with the flip; storey count adapts, no killzone band.
+    if top_rect.height > 30:
         finial_h = 30
         plinth_h = 7
         plinth_w = int(top_rect.width * 1.16)
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h)
-                             // tier_count)
-        # Round 13 stretch: round() instead of floor + scale H_tier so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the tier.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, _column_grey(palette),
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        envelope_bot = tmp_bot - plinth_h
-        _draw_muroji_to(tmp, tmp_cx,
-                        finial_h + 4, envelope_bot,
-                        int(top_rect.width * 0.88), palette,
-                        tier_count=top_n, finial_h=finial_h,
-                        sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the small
-        # sōrin lands at/near the gap edge in the common case; an
-        # out-of-bounds ratio falls back to natural H_tier and leaves
-        # a small sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _muroji_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, _column_grey(palette),
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+
+        def _muroji_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_muroji_to(tmp, tmp_cx, top_y, bot_y,
+                            int(top_rect.width * 0.88), palette,
+                            tier_count=count, finial_h=finial_h,
+                            sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_muroji_plinth, draw_to=_muroji_to)
 
 
 def candidate_muroji(surf, top_rect, bot_rect, palette, seed):
@@ -9813,26 +9661,24 @@ def _draw_palsangjeon_to(surf, cx, top_y, bot_y, base_w, palette, *,
     plaster_shadow = _shade(plaster, -22)
 
     total_h = bot_y - top_y
-    if total_h < 10:
+    if total_h < 8:
         return
-    # Body widening at base — square base widens into the lower tiers.
-    # Weights skew so the FIRST tier is the broadest, then taper.
-    weights = [1.1, 1.0, 0.92, 0.85, 0.78][:tier_count]
-    wsum = sum(weights)
-    tier_heights = [max(8, int(total_h * w / wsum)) for w in weights]
+    tier_count = max(1, tier_count)
+    # Body widening at base — square base widens into the lower tiers, then
+    # tapers. Exact cumulative boundaries FILL [top_y, bot_y]; count is
+    # supplied height-adaptive so the stack never squashes or under-fills.
+    layout = _tier_bounds(top_y, bot_y, tier_count, taper=0.06)
     # Base widens slightly into tier 0 (Korean square-base bell-out) then
     # tapers — explicit ternary keeps the precedence obvious vs `**`.
     body_widths = [max(13, int(base_w * (1.02 if i == 0 else (0.90 ** i))))
                    for i in range(tier_count)]
 
-    y_cursor = bot_y
     tier_tops = []
     for i in range(tier_count):
-        th = tier_heights[i]
+        wall_top, th = layout[i]
+        if th < 4:
+            continue
         bw = body_widths[i]
-        wall_top = y_cursor - th
-        if wall_top < top_y - 1:
-            break
         is_top_tier = (i == tier_count - 1)
         tier_tops.append((wall_top, bw, th))
         x_l = cx - bw // 2
@@ -9878,7 +9724,6 @@ def _draw_palsangjeon_to(surf, cx, top_y, bot_y, base_w, palette, *,
         _draw_korean_flat_eave(surf, cx, wall_top,
                                bw // 2, overhang, depth, palette,
                                draw_finials=True)
-        y_cursor = wall_top - depth + 1
 
     if not tier_tops:
         return
@@ -9894,13 +9739,13 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
-    tier_count = 5
+    h_floor = _PALSANGJEON_H_FLOOR + rng.randint(-3, 3)
     vine_side = rng.choice(('left', 'right'))
     entry_open = rng.choice((True, False))
     has_pine_sprig = rng.random() < 0.7
     shrub_jitter = rng.randint(-2, 2)
 
-    if bot_rect.height > 50:
+    if bot_rect.height > 30:
         _draw_plinth_mist(surf, bcx, bot_rect.bottom,
                           int(bot_rect.width * 2.4), palette)
         # Broad Joseon stone plinth — wider than Japanese pagodas because
@@ -9923,6 +9768,8 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
         finial_h = 32
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
+        tier_count, _ = _fit_floors(
+            envelope_bot - (envelope_top + finial_h), h_floor)
         # Body width slightly wider (0.96 vs Hōryū-ji's 0.94) because
         # Palsangjeon reads heavier than the Japanese tō.
         _draw_palsangjeon_to(surf, bcx,
@@ -9951,60 +9798,40 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
             draw_wuling_pine(surf, pine_x, bot_rect.bottom,
                              22, palette, lean=pine_side * 3, layers=4)
 
-    # Ceiling-mounted Palsangjeon — STRUCTURAL MIRROR via the KFC
-    # bucket pattern (game/pillar_kfc.py::_stack_buckets). Per-tier
-    # height fixed at the bottom's natural value; tier count drops to
-    # whatever fits the top envelope. Korean ridge-end upturns invert
-    # to downturns via the flip, keeping the tile-dark polygon +
-    # brass-tinted edge identity intact. Ornaments deferred per user
-    # scope.
-    if top_rect.height > 50:
+    # Ceiling-mounted Palsangjeon — STRUCTURAL MIRROR that FILLS top_rect via
+    # _mirror_fill_tower. Korean ridge-end upturns invert to downturns via
+    # the flip; the brass sangnyun reaches the gap edge; storey count adapts
+    # to the rect height with no killzone band.
+    if top_rect.height > 30:
         finial_h = 32
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.30)
         joseon_blue = _mix(_column_grey(palette),
                            palette['sky_mid'], 0.30)
-        H_tier_natural = max(8,
-                             (bot_rect.height - plinth_h - finial_h)
-                             // tier_count)
-        # Round 13 stretch: round() instead of floor + scale H_tier so
-        # the tower fills top_rect.height exactly. Bounded to ±30% of
-        # the natural value — out-of-bounds ratios fall back to natural
-        # and accept a small sky band rather than distort the tier.
-        top_avail = top_rect.height - plinth_h - finial_h
-        top_n = max(1, round(top_avail / H_tier_natural))
-        H_tier = top_avail // top_n
-        ratio = H_tier / H_tier_natural
-        if ratio < 0.7 or ratio > 1.3:
-            H_tier = H_tier_natural
-            top_n = max(1, top_avail // H_tier_natural)
-        tmp_h = plinth_h + top_n * H_tier + finial_h + 4
-        tmp_w = max(top_rect.width * 4, 120)
-        tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, plinth_h))
-        pygame.draw.rect(tmp, joseon_blue,
-                         (tmp_cx - plinth_w // 2 + 1,
-                          tmp_bot - plinth_h + 1,
-                          plinth_w - 2, plinth_h - 2))
-        pygame.draw.rect(tmp, palette['stone_light'],
-                         (tmp_cx - plinth_w // 2,
-                          tmp_bot - plinth_h, plinth_w, 1))
-        envelope_bot = tmp_bot - plinth_h
-        _draw_palsangjeon_to(tmp, tmp_cx,
-                             finial_h + 4, envelope_bot,
-                             int(top_rect.width * 0.96), palette,
-                             tier_count=top_n, finial_h=finial_h,
-                             sorin_up=True, draw_entry_door=False)
-        flipped = pygame.transform.flip(tmp, False, True)
-        # Plinth at the ceiling. With the round-13 stretch the
-        # sangnyun lands at/near the gap edge in the common case; an
-        # out-of-bounds ratio falls back to natural H_tier and leaves
-        # a small sky band rather than distort the tower.
-        surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
+
+        def _palsangjeon_plinth(tmp, tmp_cx, tmp_bot):
+            pygame.draw.rect(tmp, _shade(palette['stone_dark'], -10),
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, plinth_h))
+            pygame.draw.rect(tmp, joseon_blue,
+                             (tmp_cx - plinth_w // 2 + 1,
+                              tmp_bot - plinth_h + 1,
+                              plinth_w - 2, plinth_h - 2))
+            pygame.draw.rect(tmp, palette['stone_light'],
+                             (tmp_cx - plinth_w // 2,
+                              tmp_bot - plinth_h, plinth_w, 1))
+
+        def _palsangjeon_to(tmp, tmp_cx, top_y, bot_y, count):
+            _draw_palsangjeon_to(tmp, tmp_cx, top_y, bot_y,
+                                 int(top_rect.width * 0.96), palette,
+                                 tier_count=count, finial_h=finial_h,
+                                 sorin_up=True, draw_entry_door=False)
+
+        _mirror_fill_tower(surf, top_rect,
+                           plinth_h=plinth_h, finial_h=finial_h,
+                           h_floor=h_floor,
+                           draw_plinth=_palsangjeon_plinth,
+                           draw_to=_palsangjeon_to)
 
 
 def candidate_palsangjeon(surf, top_rect, bot_rect, palette, seed):
@@ -10515,57 +10342,48 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
     # (stepped square base at the ceiling, bell dome + harmika below,
     # 13-step spire + jewel pointing DOWN into the gap). We render the
     # anatomy upright into a temp surface, then flip it.
-    if top_rect.height > 60:
+    if top_rect.height > 30:
+        # FILL top_rect exactly: the temp is sized to top_rect.height and the
+        # stepped base swallows all the variable height while the spire
+        # (fixed 13-step finial), harmika and dome keep their natural sizes.
+        # The flipped finial tip reaches the gap edge, the flipped steps reach
+        # the ceiling — no killzone band (replaces the capped step count +
+        # ±30% dome/spire fallback that left a sky band on tall rects).
         harmika_h = 10
-        dome_h_natural = 24
-        spire_extent_natural = 16
-        # Bottom's natural step_h — derived from the bottom's own budget
-        # formula so the silhouettes match step-for-step.
-        bot_spire_extent = 30
-        bot_steps_avail = max(20, bot_rect.height - bot_spire_extent
-                              - harmika_h - dome_h_natural - 4)
-        step_h_natural = max(6, bot_steps_avail // step_count)
-        # Round-to-nearest top step count above the natural reserve.
-        steps_room = (top_rect.height - spire_extent_natural
-                      - harmika_h - dome_h_natural - 4)
-        top_step_count = max(1, round(steps_room / step_h_natural))
-        top_step_count = min(step_count, top_step_count)
-        step_h = step_h_natural
-        # Stretch the dome + spire extent to swallow leftover room.
-        non_step_natural = dome_h_natural + spire_extent_natural
-        non_step_avail = (top_rect.height - 4
-                          - harmika_h
-                          - step_h * top_step_count)
-        ratio = non_step_avail / max(1, non_step_natural)
-        if 0.7 <= ratio <= 1.3:
-            dome_h = max(12, int(dome_h_natural * ratio))
-            spire_extent = non_step_avail - dome_h
-        else:
-            dome_h = dome_h_natural
-            spire_extent = spire_extent_natural
-        widest = int(top_rect.width * 1.10)
-        narrowest = int(top_rect.width * 0.72)
-        tmp_h = (step_h * top_step_count + dome_h + harmika_h
-                 + spire_extent + 4)
-        tmp_w = max(widest + 16, top_rect.width * 4)
+        # _finial_chorten paints a fixed ~40 px above the harmika roof, so
+        # the spire zone is constant — reserving it lands the jewel tip at
+        # the temp top (= the gap edge after the flip).
+        spire_extent = 40
+        tmp_h = top_rect.height
+        tmp_w = max(int(top_rect.width * 1.10) + 16, top_rect.width * 4)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
         tmp_cx = tmp_w // 2
         tmp_bot = tmp_h - 1
+        dome_h = min(24, max(10, tmp_h - spire_extent - harmika_h - 8))
+        # All remaining height goes to the steps; count is adaptive keyed off
+        # a ~12 px natural step, sized to fill the zone exactly.
+        steps_zone = max(0, tmp_h - spire_extent - harmika_h - dome_h + 6)
+        top_step_count = max(1, round(steps_zone / 12)) if steps_zone > 0 else 1
+        widest = int(top_rect.width * 1.10)
+        narrowest = int(top_rect.width * 0.72)
+        # Top step's roof y — the steps fill [top_step_y, tmp_bot] exactly.
+        top_step_y = tmp_bot - steps_zone
         for i in range(top_step_count):
             t = i / max(1, top_step_count - 1)
             sw = int(widest + (narrowest - widest) * (1 - t))
-            sy = tmp_bot - step_h * (top_step_count - i)
-            if sy < 0:
-                break
-            pygame.draw.rect(tmp, edge, (tmp_cx - sw // 2, sy, sw, step_h))
+            sy = int(round(tmp_bot - steps_zone * (top_step_count - i)
+                           / top_step_count))
+            sy_next = int(round(tmp_bot - steps_zone * (top_step_count - i - 1)
+                                / top_step_count))
+            sh = max(1, sy_next - sy)
+            pygame.draw.rect(tmp, edge, (tmp_cx - sw // 2, sy, sw, sh))
             pygame.draw.rect(tmp, white,
-                             (tmp_cx - sw // 2 + 1, sy + 1, sw - 2, step_h - 2))
+                             (tmp_cx - sw // 2 + 1, sy + 1, sw - 2, sh - 2))
             pygame.draw.rect(tmp, shadow,
-                             (tmp_cx + sw // 2 - 2, sy + 1, 2, step_h - 2))
+                             (tmp_cx + sw // 2 - 2, sy + 1, 2, sh - 2))
             if i == top_step_count - 1:
                 pygame.draw.rect(tmp, gold,
                                  (tmp_cx - sw // 2 + 3, sy, sw - 6, 1))
-        top_step_y = tmp_bot - step_h * top_step_count
         dome_w = int(top_rect.width * 0.80)
         dome_y = top_step_y - dome_h + 6
         dome_rect = pygame.Rect(tmp_cx - dome_w // 2, dome_y, dome_w, dome_h)
