@@ -28,28 +28,39 @@ from game import parrot
 from game.knight_skin import BRASS, BRASS_HI
 
 # ── crown palette — a half-step warmer/brighter than the helm brass ──────────
-# The helm trim is BRASS/BRASS_HI. The crown is the same gold-on-steel family
-# but pushed a notch richer/royal so it reads as a crown, not just more trim:
-# the mid is warmer and lighter than BRASS, the highlight a touch hotter than
-# BRASS_HI. Deep seat below for the rounded bevel's shadow side.
-G_DK = (150, 112, 44)            # bevel shadow / band underside
-G_MID = (224, 184, 96)           # warm royal gold core (> BRASS 208,174,98)
-G_HI = (255, 238, 176)           # rim light (> BRASS_HI 255,232,168)
-G_GLINT = (255, 250, 224)        # hottest specular pip
-G_SEAT = (96, 68, 26)            # contact shadow where the band meets the dome
-RUBY = (198, 40, 56); RUBY_DK = (120, 18, 30); RUBY_HI = (255, 158, 168)
+# The helm trim is BRASS (208,174,98) / BRASS_HI (255,232,168). The crown is
+# the same gold-on-steel family but pushed a notch richer/royal so it reads as
+# a CROWN, not just more trim. The band uses a full 5-step ramp so its bevel
+# reads as a ROUNDED armour ring (a gradient top→bottom), never a flat painted
+# strip: seat-shadow → bevel-dark → warm mid core → warm light → specular pip.
+G_SEAT = (88, 60, 22)            # contact shadow where the band meets the dome
+G_DK = (150, 110, 42)            # lower bevel (curving away from the light)
+G_MID = (222, 180, 92)           # warm royal gold core (> BRASS 208,174,98)
+G_LT = (244, 212, 132)           # upper-mid lit gold (between core and rim)
+G_HI = (255, 238, 174)           # rim light (> BRASS_HI 255,232,168)
+G_GLINT = (255, 252, 228)        # hottest specular pip
+# Ruby: dark bezel, a 2-value faceted body (lower-right deeper, upper-left
+# brighter) and one white spark — a single warm gem does the work.
+RUBY = (196, 38, 54); RUBY_DK = (118, 16, 30)
+RUBY_LT = (236, 92, 96); RUBY_HI = (255, 168, 174)
 # The $-socket option: green tied to the 3x/wealth read (kept OUT of slot 1 so
 # the colourblind-safe ruby stays the lead).
-DOL = (74, 196, 116); DOL_DK = (24, 96, 56); DOL_HI = (188, 250, 210)
+DOL = (70, 192, 112); DOL_DK = (22, 92, 54); DOL_HI = (192, 252, 214)
 
 
 def _ruby_gem(surf, cx, cy, r):
-    """Faceted ruby set into the band face: dark bezel, body, upper-left glint
-    + a single white spark. Light from upper-left to match the helm."""
+    """Faceted ruby set into the band face. Light from the upper-left to match
+    the helm: dark bezel ring, a saturated body split into a deeper lower-right
+    and a brighter upper-left facet, then one white spark. Two body values are
+    what make a 4-5px stone read as cut rather than a flat dot."""
+    # bezel ring (one px proud of the body all round)
     pygame.draw.circle(surf, RUBY_DK, (cx, cy), r + 1)
+    # deeper body fills the whole stone, then the lit facet is laid upper-left
     pygame.draw.circle(surf, RUBY, (cx, cy), r)
-    pygame.draw.circle(surf, RUBY_HI, (cx - max(1, r // 3), cy - max(1, r // 3)), max(1, r // 2))
-    surf.set_at((cx - r // 3, cy - r // 3), (255, 255, 255))
+    pygame.draw.circle(surf, RUBY_LT, (cx - 1, cy - 1), max(1, r - 1))
+    # tiny bright facet + a single white spark, both upper-left
+    pygame.draw.circle(surf, RUBY_HI, (cx - 1, cy - 1), max(1, r // 2))
+    surf.set_at((cx - 1, cy - 1), (255, 255, 255))
 
 
 def _dollar_gem(surf, cx, cy, r):
@@ -65,35 +76,39 @@ def _dollar_gem(surf, cx, cy, r):
 
 
 def _band(surf, x0, x1, y, h):
-    """Thick coronet band with CIRCLET-grade rounded bevel: a dark contact
-    seat under the dome, a warm gold core, then a bright rim-light arc along
-    the upper-left edge so the band reads as a rounded armour ring, not a flat
-    painted strip. Band is ~1.3x the round-1 height (h>=6)."""
+    """Thick coronet band with CIRCLET-grade ROUNDED bevel. Rather than one
+    flat strip + outline, the band is a top→bottom value ramp — bevel-dark
+    along the bottom, warm core through the middle, a bright lit row near the
+    top and a thin specular rim hugging the upper-left — so it reads as a
+    curved armour ring catching upper-left light. ~1.3x the round-1 band (h=7).
+    """
     w = x1 - x0
     # contact shadow where gold meets the steel dome
-    pygame.draw.rect(surf, G_SEAT, (x0, y + h - 1, w, 2))
-    # dark bevel underside (the part curving away from the light)
+    pygame.draw.rect(surf, G_SEAT, (x0, y + h, w, 1))
+    # full-height bevel-dark base; successive insets from the BOTTOM build the
+    # rounded ramp so the lower edge stays dark and the light climbs the face
     pygame.draw.rect(surf, G_DK, (x0, y, w, h))
-    # warm gold core inset from the underside so G_DK shows as a lower bevel
     pygame.draw.rect(surf, G_MID, (x0 + 1, y + 1, w - 2, h - 2))
-    # rounded rim-light hugging ONLY the upper edge (upper-left brightest) — a
-    # short arc whose ellipse extends well below the band so just its top crown
-    # is drawn, giving a curved rather than flat-painted highlight.
-    pygame.draw.arc(surf, G_HI, (x0, y, w, h * 4), math.radians(40), math.radians(140), 1)
-    pygame.draw.line(surf, G_HI, (x0 + 1, y + 1), (x0 + w // 2, y + 1), 1)
-    surf.set_at((x0 + 2, y + 1), G_GLINT)
+    # upper-mid lit row + bright rim row sit in the top of the band only
+    pygame.draw.rect(surf, G_LT, (x0 + 1, y + 1, w - 2, 2))
+    pygame.draw.rect(surf, G_HI, (x0 + 2, y + 1, w - 4, 1))
+    # the brightest specular climbs toward the upper-LEFT corner of the band
+    surf.set_at((x0 + 3, y + 1), G_GLINT)
+    surf.set_at((x0 + 2, y + 2), G_GLINT)
 
 
 def _fat_point(surf, cx, base_y, top_y, half):
     """A fat, clearly triangular gold point (base width = 2*half, kept >=3px).
-    Dark bevel body + warm core + an upper-left lit edge so the points read as
-    the same rounded metal as the band. No thin spikes."""
+    Same rounded-metal read as the band: a dark bevel triangle, a warm core
+    inset off the right/under edges, a lit upper-left face climbing to the tip,
+    and a glint pip. No thin spikes."""
     # dark full triangle (bevel/shadow)
     pygame.draw.polygon(surf, G_DK, [(cx - half, base_y), (cx + half, base_y), (cx, top_y)])
     # warm core, inset on the right/underside so the dark shows as edge bevel
-    pygame.draw.polygon(surf, G_MID, [(cx - half + 1, base_y - 1), (cx + half - 1, base_y - 1), (cx, top_y + 2)])
-    # lit upper-left face + a glint at the tip
-    pygame.draw.line(surf, G_HI, (cx - half + 1, base_y - 1), (cx, top_y + 1), 1)
+    pygame.draw.polygon(surf, G_MID, [(cx - half + 1, base_y), (cx + half - 1, base_y), (cx, top_y + 2)])
+    # lit upper-left face: a filled sliver hugging the left edge up to the tip
+    pygame.draw.polygon(surf, G_LT, [(cx - half + 1, base_y), (cx - half + 2, base_y), (cx, top_y + 2), (cx, top_y + 3)])
+    pygame.draw.line(surf, G_HI, (cx - half + 2, base_y - 1), (cx, top_y + 1), 1)
     surf.set_at((cx, top_y + 1), G_GLINT)
 
 
@@ -102,14 +117,15 @@ def _coronet(surf, cx, cy, point_dh=0, gem="ruby"):
     tallest), one centred gem in the band face. `point_dh` nudges point height
     (-1/0/+1 native px); `gem` is 'ruby' or 'dollar'."""
     half = 11
-    h = 6                       # ~1.3x the round-1 band (was 5, mostly 4)
+    h = 7                       # ~1.3x the round-1 band (was 5, mostly 4)
     by = cy
-    _band(surf, cx - half, cx + half, by, h)
-    # three fat points: outer pair shorter, centre tallest, all base>=3px
+    # points sit UNDER the band draw so the band's lit top edge crosses cleanly
+    # in front of each point base — the points read as rising FROM the ring.
     ch = 9 + point_dh           # centre point height above the band top
     sh = 6 + point_dh           # side point height
-    for dx, ph, hw in ((-7, sh, 2), (0, ch, 2), (7, sh, 2)):
-        _fat_point(surf, cx + dx, by + 1, by - ph, hw)
+    for dx, ph, hw in ((-8, sh, 3), (0, ch, 3), (8, sh, 3)):
+        _fat_point(surf, cx + dx, by + 2, by - ph, hw)
+    _band(surf, cx - half, cx + half, by, h)
     # gem seated in the band face, centred over the brow
     if gem == "ruby":
         _ruby_gem(surf, cx, by + h // 2 + 1, 2)
@@ -173,15 +189,15 @@ def main():
     DIM = (150, 160, 180)
 
     cols = 3
-    cell_w = 250
+    cell_w = 270
     cell_h = 500
     head_h = 60
     sheet = pygame.Surface((cols * cell_w, head_h + cell_h), pygame.SRCALPHA)
     sheet.fill(BG)
 
-    title = pygame.font.SysFont("dejavusans", 22, bold=True).render(
+    title = pygame.font.SysFont("dejavusans", 18, bold=True).render(
         "Knight + 3x  —  METALLIC CROWN  ·  round 2  (CORONET x CIRCLET hybrid)", True, INK)
-    sheet.blit(title, (16, 12))
+    sheet.blit(title, (16, 13))
     subtitle = sub_font.render(
         "lead hybrid + tight tunings  ·  real knight armet helm  ·  top = ~2x play scale  ·  bottom = 5x detail",
         True, DIM)
@@ -207,7 +223,7 @@ def main():
         sheet.blit(cap, (panel.centerx - s2.get_width() // 2, panel.y + 32 + s2.get_height() + 2))
 
         # 5x detail crop — zoom the head/helm region only
-        crop = pygame.Rect(int(CROWN_CX - 27), int(CROWN_CY - 16), 52, 54)
+        crop = pygame.Rect(int(CROWN_CX - 28), int(CROWN_CY - 17), 56, 56)
         crop = crop.clamp(composed.get_rect())
         head = composed.subsurface(crop).copy()
         s5 = pygame.transform.scale(head, (head.get_width() * 5, head.get_height() * 5))
