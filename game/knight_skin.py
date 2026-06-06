@@ -260,32 +260,57 @@ def build_knight_frames():
     return [_build_knight_frame(f) for f in parrot._get_frames()]
 
 
+def _crust_edge(out, t, lump_p):
+    """A THICK battered crust ring behind the knight: the silhouette dilated by
+    `t`px in crispy-dark, then golden lumps studded along the rim, so the fried
+    coating reads thick (and bulks the silhouette out a touch) instead of a thin
+    skin. Lumps share the dilation's crispy palette so it reads as one coating."""
+    w, h = out.get_size()
+    dark = _amask(out)
+    dark.fill((*_CRISPY_DARK, 255), special_flags=pygame.BLEND_RGBA_MULT)
+    crust = pygame.Surface((w, h), pygame.SRCALPHA)
+    for dx in range(-t, t + 1):
+        for dy in range(-t, t + 1):
+            if dx * dx + dy * dy <= t * t and (dx or dy):
+                crust.blit(dark, (dx, dy))
+    rng = random.Random(0xC2057)
+    for x, y in pygame.mask.from_surface(out, 40).outline(6):
+        if rng.random() < lump_p:
+            pygame.draw.circle(crust, _CRISPY_GOLD, (x, y), rng.randint(2, 4))
+            pygame.draw.circle(crust, _CRISPY_DARK, (x, y), rng.randint(2, 4), 1)
+    return crust
+
+
 def _deep_fry(frame):
     """Put a whole knight frame through the SAME deep-fry the fried parrot gets
     (parrot._build_fried_frame): recolor its luminance onto the crispy batter
-    ramp, then add fried TEXTURE — scattered crispy spots, crackle lines (dark
-    valley + light ridge = raised batter) and a golden grease sheen — all clamped
-    to the silhouette. So helm, shield, sword, armour and body read battered-
-    crispy, not merely gold-tinted. A fixed rng seed keeps the texture identical
-    across the 4 wing frames (the parrot's spots/crackle are likewise fixed)."""
+    ramp, wrap it in a THICK battered crust edge, then add fried TEXTURE —
+    chunky crackle lines (dark valley + light ridge = raised batter), crispy
+    spots, dark nuggets and a golden grease sheen — all clamped to the silhouette.
+    So helm, shield, sword, armour and body read thickly battered-crispy, not
+    gold-tinted. Fixed rng seeds keep texture + lumps stable across the 4 wing
+    frames (the parrot's spots/crackle are likewise fixed)."""
     out = _recolor(frame, _CRISPY_GOLD, add=(44, 20, 2))   # rich golden-brown batter
+    crust = _crust_edge(out, 3, 0.8)                       # thick coating behind
+    crust.blit(out, (0, 0))
+    out = crust
     w, h = out.get_size()
     tex = pygame.Surface((w, h), pygame.SRCALPHA)
     rng = random.Random(0x5C0FFEE)
-    for _ in range(12):                                    # dark crispy crust blotches
+    for _ in range(14):                                    # chunky dark crust nuggets
         pygame.draw.circle(tex, _CRISPY_DARK,
-                           (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(2, 3))
-    for _ in range(66):                                    # fine crispy spots
+                           (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(3, 5))
+    for _ in range(60):                                    # fine crispy spots
         pygame.draw.circle(tex, _CRISPY_SPOT,
                            (rng.randint(0, w - 1), rng.randint(0, h - 1)), rng.randint(1, 2))
-    for _ in range(24):                                    # crackle: dark valley + light ridge
-        x1, y1 = rng.randint(2, w - 9), rng.randint(2, h - 9)
-        dx, dy = rng.randint(4, 9), rng.randint(-4, 4)
-        pygame.draw.line(tex, _CRISPY_DARK, (x1, y1), (x1 + dx, y1 + dy), 1)
+    for _ in range(22):                                    # thick crackle: dark valley + light ridge
+        x1, y1 = rng.randint(2, w - 12), rng.randint(2, h - 12)
+        dx, dy = rng.randint(5, 11), rng.randint(-5, 5)
+        pygame.draw.line(tex, _CRISPY_DARK, (x1, y1), (x1 + dx, y1 + dy), 2)
         pygame.draw.line(tex, _CRISPY_LIGHT, (x1 - 1, y1 - 1), (x1 + dx - 1, y1 + dy - 1), 1)
     tex.blit(_amask(out), (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     out.blit(tex, (0, 0))
-    _sheen(out, (255, 225, 145), (235, 180, 90), top_a=52, bot_a=34)
+    _sheen(out, (255, 225, 145), (235, 180, 90), top_a=48, bot_a=30)
     return out
 
 
