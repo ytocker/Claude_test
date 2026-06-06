@@ -461,10 +461,21 @@ def build_knight_ghost_frames():
             for f in parrot._ensure_ghost_frames()]
 
 
+def fried_ghost_knight_core_frames():
+    """Spectral FRIED knight (normal size, BEFORE plump): the deep-fried knight
+    — the SAME KFC fry recipe as the basis — given the ghost cyan tint, so the
+    KFC+Ghost stacks read as a fried knight gone spectral rather than a separate
+    cyan parrot under steel. The draw-time ghost alpha-breath then makes it
+    translucent; the +3x stack crowns THIS core then plumps."""
+    frames = fried_knight_core_frames()
+    for f in frames:
+        parrot._cyan_tint_in_place(f)
+    return frames
+
+
 def build_knight_kfc_ghost_frames():
-    """Fried + spectral knight — the cyan-tinted fried body under steel armour."""
-    return [_build_knight_frame(f, body_recolor=False)
-            for f in parrot._ensure_kfc_ghost_frames()]
+    """Spectral fried knight — the fried knight as the basis, ghost-tinted + plumped."""
+    return plump_frames(fried_ghost_knight_core_frames())
 
 
 _SHIELD_ICON_CACHE: dict = {}
