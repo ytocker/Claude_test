@@ -661,60 +661,6 @@ def _coin_icon(surf, cx, cy, r=10):
     surf.blit(target, rect.topleft)
 
 
-_pillar_icon_cache: dict = {}
-
-
-def _pillar_icon(surf, cx, cy, h=22):
-    # Tiny sandstone-pillar silhouette so the pillar counter shares the
-    # warm-stone language of the in-world pillars without re-rendering one of
-    # the heavyweight pillar_variants surfaces. Cached supersampled draw —
-    # the icon is constant size per HUD frame.
-    key = h
-    icon = _pillar_icon_cache.get(key)
-    if icon is None:
-        ss = 4
-        w = max(10, int(h * 0.62))
-        big = pygame.Surface((w * ss, h * ss), pygame.SRCALPHA)
-        bw, bh = big.get_size()
-        # body silhouette: slight taper + cap + base, matches stout pillar feel
-        cap_h = int(bh * 0.16)
-        base_h = int(bh * 0.16)
-        body_top = cap_h
-        body_bot = bh - base_h
-        # tapered body with subtle vertical gradient (sandstone warm)
-        for y in range(body_top, body_bot):
-            t = (y - body_top) / max(1, body_bot - body_top)
-            taper = 0.04 * math.sin(t * math.pi)
-            inset = int(bw * (0.08 + taper))
-            shade = 1.0 - 0.18 * t
-            r_c = int(212 * shade)
-            g_c = int(168 * shade)
-            b_c = int(108 * shade)
-            pygame.draw.line(big, (r_c, g_c, b_c, 255),
-                             (inset, y), (bw - inset, y))
-        # cap (slightly wider, darker top)
-        cap_rect = pygame.Rect(int(bw * 0.02), 0, bw - int(bw * 0.04), cap_h)
-        pygame.draw.rect(big, (148, 102, 60, 255), cap_rect)
-        pygame.draw.rect(big, (96, 64, 36, 255), cap_rect, max(1, ss))
-        # base
-        base_rect = pygame.Rect(int(bw * 0.02), bh - base_h,
-                                bw - int(bw * 0.04), base_h)
-        pygame.draw.rect(big, (148, 102, 60, 255), base_rect)
-        pygame.draw.rect(big, (96, 64, 36, 255), base_rect, max(1, ss))
-        # body outline
-        body_outline = pygame.Rect(int(bw * 0.10), body_top,
-                                   bw - int(bw * 0.20), body_bot - body_top)
-        pygame.draw.rect(big, (96, 64, 36, 255), body_outline, max(1, ss))
-        # highlight stripe down the left third of the body
-        hl_x = int(bw * 0.18)
-        pygame.draw.line(big, (244, 214, 168, 220),
-                         (hl_x, body_top + 2), (hl_x, body_bot - 2), max(1, ss))
-        icon = pygame.transform.smoothscale(big, (w, h))
-        _pillar_icon_cache[key] = icon
-    rect = icon.get_rect(center=(cx, cy))
-    surf.blit(icon, rect.topleft)
-
-
 # ── Neon-Arcade HUD kit (E2 layout, menu-yellow accent) ──────────────────────
 # Shipped from the gameplay-HUD design loop. The score/coins/pause sit on opaque
 # softened cut-corner slate plates: an OPAQUE body is the hard value floor that
@@ -1648,26 +1594,6 @@ class HUD:
                        fill=UI_GOLD, outline=NEAR_BLACK, px=2, shadow_offset=None)
         coin_surf.set_alpha(ui_alpha)
         surf.blit(coin_surf, (cp.x - pad, cp.y - pad))
-
-        # ── Pillar counter plate: sits directly below the coin plate.
-        # Score can drift above pillars_passed (chest grants +100, coin sweeps,
-        # etc.), so the player loses sight of their actual pillar-clearing
-        # progress — the counter below restores that read at a glance.
-        pillar_text = f"x{world.pillars_passed}"
-        pw = cf2.size("8" * len(pillar_text))[0] + 46
-        pp_rect = pygame.Rect(12, cp.bottom + 6, pw, 38)
-        pillar_surf = pygame.Surface(
-            (pw + pad * 2, 38 + pad * 2), pygame.SRCALPHA)
-        _na_plate(pillar_surf, pygame.Rect(pad, pad, pw, 38), cut=7, round_r=8,
-                  glow=False)
-        _pillar_icon(pillar_surf, pad + 19, pad + 19, 22)
-        ptw = cf2.size(pillar_text)[0]
-        _outlined_text(pillar_surf, pillar_text,
-                       (pad + 36 + ptw // 2, pad + 19), 20,
-                       fill=UI_CREAM, outline=NEAR_BLACK,
-                       px=2, shadow_offset=None)
-        pillar_surf.set_alpha(ui_alpha)
-        surf.blit(pillar_surf, (pp_rect.x - pad, pp_rect.y - pad))
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)
