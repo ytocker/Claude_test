@@ -67,13 +67,13 @@ def tile(flags):
 # zoomed PNG under docs/pip_combos/tiles/ so it can be linked individually.
 NEW_TILES = [
     ("knight_3x", "KNIGHT + 3x  (royal crown)", {**K, "triple_active": True}),
-    ("knight_kfc", "KNIGHT + KFC  (fried steel)", {**K, "kfc_active": True}),
+    ("knight_kfc", "KNIGHT + KFC  (the fried knight)", {**K, "kfc_active": True}),
     ("knight_ghost", "KNIGHT + GHOST  (spectral)", {**K, "ghost_active": True}),
     ("knight_kfc_ghost", "KNIGHT + KFC + GHOST", {**K, "kfc_active": True, "ghost_active": True}),
     ("knight_kfc_3x", "KNIGHT + KFC + 3x", {**K, "kfc_active": True, "triple_active": True}),
     ("knight_ghost_3x", "KNIGHT + GHOST + 3x", {**K, "ghost_active": True, "triple_active": True}),
     ("knight_kfc_ghost_3x", "KNIGHT + KFC + GHOST + 3x", {**K, "kfc_active": True, "ghost_active": True, "triple_active": True}),
-    ("skate_3x", "SKATEBOARD + 3x  (hat suppressed)", {"skateboard_active": True, "triple_active": True}),
+    ("skate_3x", "SKATEBOARD + 3x  (gold bunny top-hat)", {"skateboard_active": True, "triple_active": True}),
     ("skate_knight", "SKATEBOARD + KNIGHT  (armet, no 2nd helm)", {"skateboard_active": True, **K}),
     ("skate_grow", "SKATEBOARD + GROW  (board scaled up)", {"skateboard_active": True, "grow_active": True}),
     ("skate_shrink", "SKATEBOARD + SHRINK  (board scaled down)", {"skateboard_active": True, "shrink_scale": 0.6}),

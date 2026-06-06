@@ -458,6 +458,8 @@ _DEFAULT_PILLAR = {
 # (twice, via the HUD re-blit) while riding; caching them removes that cost.
 _HELMET_SPRITE = None
 _HELMET_SCALED: dict = {}    # per grow/shrink scale bucket -> scaled helmet
+_SKATE_HAT_SPRITE = None     # skate+3x gold bunny top-hat
+_SKATE_HAT_SCALED: dict = {}
 _BOARD_BASE = None          # native board sprite, no wheel-spokes
 _BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
 _SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
@@ -816,13 +818,17 @@ class Bird:
         # SKATEBOARD — Pip wears a helmet and the parcel becomes the board
         # under his feet. Drawn instead of the normal parcel.
         if self.skateboard_active:
-            # A knight skater keeps his armet helm (a steel head-piece already),
-            # so skip the punk helmet to avoid two helmets stacking; he just
-            # rides the board.
-            if not self.knight_active:
-                self._draw_helmet(surf, self.x + shake_x, self.y + shake_y, flipped)
-            self._draw_skateboard(surf, self.x + shake_x, self.y + shake_y,
-                                  flipped)
+            hx, hy = self.x + shake_x, self.y + shake_y
+            # Head-piece while skating: a knight keeps his armet (no extra
+            # helmet); with 3x up Pip wears the gold '$' top-hat in the helmet's
+            # bunny-eared style; otherwise the punk skull-bunny helmet.
+            if self.knight_active:
+                pass
+            elif self.triple_active:
+                self._draw_skate_hat(surf, hx, hy, flipped)
+            else:
+                self._draw_helmet(surf, hx, hy, flipped)
+            self._draw_skateboard(surf, hx, hy, flipped)
             return
 
         # Parcel — Pip's permanent companion. Tucked below his centre with
@@ -1100,6 +1106,90 @@ class Bird:
         native_size = (hw_n + pad_n * 2,
                        hh_n + pad_n * 2 + drop_n + ear_top_n)
         return pygame.transform.smoothscale(helm, native_size)
+
+    @staticmethod
+    def _build_skate_tophat_sprite():
+        """Skate + 3x head-piece: the gold '$' top-hat (3x identity) wearing the
+        skateboard helmet's red-tipped BUNNY EARS — the 3x hat rendered in the
+        helmet's bunny style. Built once at 6x supersample, then scaled/rotated
+        per frame exactly like the helmet."""
+        SS = 6
+        BONE = (240, 240, 230); DARK = (12, 10, 18); RED = (200, 50, 50)
+        G_DK = (168, 112, 26); G = (244, 196, 60)
+        G_MID = (216, 162, 40); G_LT = (255, 236, 150)
+        DOL = (74, 186, 110); DOL_DK = (18, 86, 50); DOL_HI = (220, 255, 232)
+        # A tall narrow gold cylinder reads clearly as a top-hat at small scale.
+        brim_w, cyl_w, cyl_h, ear_over, pad = 18, 10, 17, 6, 3
+        wn = brim_w + pad * 2
+        hn = cyl_h + 4 + ear_over + pad * 2
+        w, h = wn * SS, hn * SS
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        cx = w // 2
+        brim_cy = h - (pad + 2) * SS          # brim sits near the bottom
+        cyl_bot = brim_cy
+        cyl_top = cyl_bot - cyl_h * SS
+        # bunny ears first (behind the cylinder), poking up beside its top
+        ew, eh = 5 * SS, (ear_over + 9) * SS
+        for sign in (-1, 1):
+            ear = pygame.Surface((ew + 4 * SS, eh + 4 * SS), pygame.SRCALPHA)
+            er = pygame.Rect(0, 0, ew, eh)
+            er.center = (ear.get_width() // 2, ear.get_height() // 2)
+            pygame.draw.ellipse(ear, BONE, er)
+            pygame.draw.ellipse(ear, DARK, er, max(1, int(1.0 * SS)))
+            pygame.draw.ellipse(ear, RED, er.inflate(-int(2.2 * SS), -int(7 * SS)))
+            rot = pygame.transform.rotate(ear, -18 * sign)
+            rr = rot.get_rect(center=(cx + sign * 4 * SS, cyl_top + 1 * SS))
+            surf.blit(rot, rr.topleft)
+        # tall gold cylinder (hat body) with a rounded crown
+        cyl = pygame.Rect(cx - cyl_w * SS // 2, cyl_top, cyl_w * SS, cyl_h * SS)
+        pygame.draw.rect(surf, G_DK, cyl, border_radius=2 * SS)
+        pygame.draw.rect(surf, G_MID, cyl.inflate(-1 * SS, -1 * SS), border_radius=2 * SS)
+        pygame.draw.rect(surf, G, (cyl.x + 1 * SS, cyl.y + 1 * SS,
+                                   cyl.w - 3 * SS, cyl.h - 2 * SS), border_radius=1 * SS)
+        pygame.draw.rect(surf, G_LT, (cyl.x + 2 * SS, cyl.y + 2 * SS, 1 * SS, cyl.h - 5 * SS))
+        # green $ band across the cylinder face (the 3x identity)
+        band = pygame.Rect(cyl.x, cyl.centery - 2 * SS, cyl.w, 5 * SS)
+        pygame.draw.rect(surf, DOL_DK, band)
+        pygame.draw.rect(surf, DOL, band.inflate(0, -1 * SS))
+        gx, gy = cx, band.centery
+        pygame.draw.line(surf, DOL_HI, (gx, gy - 2 * SS), (gx, gy + 2 * SS), max(1, SS // 2))
+        surf.set_at((gx - SS, gy - 2 * SS), DOL_HI)
+        surf.set_at((gx + SS, gy + 2 * SS), DOL_HI)
+        # gold brim (ellipse) at the base, in front of the cylinder
+        brim = pygame.Rect(cx - brim_w * SS // 2, brim_cy - 2 * SS, brim_w * SS, 5 * SS)
+        pygame.draw.ellipse(surf, G_DK, brim)
+        pygame.draw.ellipse(surf, G, brim.inflate(-2 * SS, -1 * SS))
+        pygame.draw.ellipse(surf, G_LT, (brim.x + 3 * SS, brim.y + 1 * SS, brim.w - 8 * SS, 1 * SS))
+        return pygame.transform.smoothscale(surf, (wn, hn))
+
+    def _draw_skate_hat(self, surf, cx, cy, flipped):
+        """Gold bunny 3x top-hat on a skating Pip (replaces the punk helmet
+        when 3x is up). Same scale/seat machinery as _draw_helmet."""
+        global _SKATE_HAT_SPRITE
+        from game.config import GROW_SCALE
+        s = (GROW_SCALE if self.grow_active else 1.0) * self.shrink_scale
+        if _SKATE_HAT_SPRITE is None:
+            _SKATE_HAT_SPRITE = Bird._build_skate_tophat_sprite()
+        hat = _SKATE_HAT_SPRITE
+        if abs(s - 1.0) > 1e-3:
+            key = round(s, 2)
+            hat = _SKATE_HAT_SCALED.get(key)
+            if hat is None:
+                hw, hh = _SKATE_HAT_SPRITE.get_size()
+                hat = pygame.transform.smoothscale(
+                    _SKATE_HAT_SPRITE, (max(1, int(hw * key)), max(1, int(hh * key))))
+                _SKATE_HAT_SCALED[key] = hat
+        tilt = -self.tilt_deg if flipped else self.tilt_deg
+        # The brim seats at Pip's head crown; the cylinder + ears rise above it.
+        anchor = pygame.math.Vector2(17 * s, 16 * s if flipped else -16 * s).rotate(-tilt)
+        ax, ay = int(cx + anchor.x), int(cy + anchor.y)
+        rotated = pygame.transform.rotate(hat, tilt)
+        if flipped:
+            rotated = pygame.transform.flip(rotated, False, True)
+            r = rotated.get_rect(midtop=(ax, ay))
+        else:
+            r = rotated.get_rect(midbottom=(ax, ay))
+        surf.blit(rotated, r.topleft)
 
     @staticmethod
     def _build_board_base():

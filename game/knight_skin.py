@@ -252,9 +252,18 @@ def build_knight_frames():
 
 
 def build_knight_kfc_frames():
-    """Fried-steel knight — KFC golden body shows in the un-armoured belly/tail."""
-    return [_build_knight_frame(f, body_recolor=False)
-            for f in parrot._get_kfc_frames()]
+    """THE FRIED KNIGHT — KFC golden body + an ADDITIVE crispy-gold wash that
+    LIFTS the dark steel (helm/breastplate) into the same fried-golden family,
+    so the whole suit reads fried-crispy rather than a fried bird in plain steel
+    (a plain alpha tint left the near-black armet dark)."""
+    frames = [_build_knight_frame(f, body_recolor=False)
+              for f in parrot._get_kfc_frames()]
+    for f in frames:
+        o = pygame.Surface(f.get_size(), pygame.SRCALPHA)
+        o.fill((78, 44, 6, 255))
+        o.blit(f, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)  # clamp to silhouette
+        f.blit(o, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return frames
 
 
 def build_knight_ghost_frames():
