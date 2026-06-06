@@ -635,6 +635,17 @@ def _draw_mini_lantern(surf, cx, eave_y, palette):
               special_flags=pygame.BLEND_RGBA_ADD)
 
 
+def _sorin_rim(palette):
+    """Softened disc-rim shade for the sōrin/sangnyun stacks.
+
+    The discs used to be outlined in pure stone_dark, which against the
+    bright metal fill made a high-frequency light/dark barber-pole — that
+    shimmers badly at the gap edge on short (~70 px) sections in motion.
+    Lifting the rim toward a warm mid keeps each disc legible while killing
+    the hard contrast, so the shaft reads as one clean ribbed finial."""
+    return _mix(palette['stone_dark'], palette['stone_mid'], 0.45)
+
+
 def _draw_sorin_flame_halo(surf, cx, tip_y, palette):
     """1-px additive halo around the sōrin flame jewel — gated on dark
     skies so the spire becomes the night-time focal point like real
@@ -1092,7 +1103,7 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -1799,18 +1810,27 @@ def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
     spire_h = base_y - tip_y
     if spire_h < 20:
         return
-    rings = max(8, spire_h // 8)
+    # One ring per ~7 px so the notch period stays constant down the WHOLE
+    # spire regardless of height — a tall prang gets more ridges, not a
+    # longer smooth cone.
+    rings = max(8, spire_h // 7)
 
-    # Centre silhouette: parabolic taper from w at base to ~4 at tip.
+    def _ring_w(t):
+        return w * (1 - t * t) * 0.5 + 2
+
+    # Notched silhouette: every ring the edge alternately juts out (ridge)
+    # and tucks in (groove) by ~1.5 px so the corncob's stacked-disc
+    # profile reads at any height instead of a smooth featureless taper.
     centre_pts_l = []
     centre_pts_r = []
     for k in range(rings + 1):
         t = k / rings
-        # Parabolic taper — fatter near base for the corncob bulge.
-        local_w = int(w * (1 - t * t) * 0.5 + 2)
+        local_w = _ring_w(t)
+        notch = 1.5 if (k % 2 == 0) else 0.0   # ridge vs groove
+        lw = int(local_w + notch)
         ry = base_y - int(spire_h * t)
-        centre_pts_l.append((cx - local_w, ry))
-        centre_pts_r.append((cx + local_w, ry))
+        centre_pts_l.append((cx - lw, ry))
+        centre_pts_r.append((cx + lw, ry))
 
     body = list(reversed(centre_pts_l)) + centre_pts_r
     # Cream backing.
@@ -1818,22 +1838,33 @@ def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
     # Dark edge silhouette.
     _aa_polyline(surf, _shade(dark, 10), body, closed=True)
 
-    # Porcelain mosaic skin across the spire: thicker stripe rings + a row
-    # of small staggered lozenge dots per band so the body matches the
-    # mosaic-clad reference, not a plain striped cone.
+    # Corncob ridge texture across the FULL spire: each ring gets a dark
+    # groove-shadow line + a lit ridge highlight so the body reads as a
+    # stack of carved discs end to end, plus the porcelain stripe + lozenge
+    # inlay. Carried all the way to the tip so the lower spire never goes
+    # smooth.
     for k in range(rings):
         t = k / rings
-        local_w = int(w * (1 - t * t) * 0.5 + 2)
+        local_w = int(_ring_w(t))
         ry = base_y - int(spire_h * t)
-        stripe_col = pink if k % 2 == 0 else aqua
-        # 2-px stripe with a darker mortar line above so the band reads
-        # as a porcelain inlay row.
-        pygame.draw.line(surf, _shade(dark, 25),
-                         (cx - local_w + 1, ry - 1),
-                         (cx + local_w - 1, ry - 1), 1)
-        pygame.draw.line(surf, stripe_col,
+        ridge = (k % 2 == 0)
+        # Groove shadow under the ring — this is the procedural horizontal
+        # indent that gives the corncob its ridged look.
+        pygame.draw.line(surf, _shade(dark, 18),
+                         (cx - local_w + 1, ry + 1),
+                         (cx + local_w - 1, ry + 1), 1)
+        # Lit ridge crest just above the groove.
+        crest = _shade(cream, 16) if ridge else cream
+        pygame.draw.line(surf, crest,
                          (cx - local_w + 1, ry),
                          (cx + local_w - 1, ry), 1)
+        # Porcelain inlay stripe on the ridge rows so the texture also reads
+        # as mosaic, not just relief.
+        if ridge:
+            stripe_col = pink if (k // 2) % 2 == 0 else aqua
+            pygame.draw.line(surf, stripe_col,
+                             (cx - local_w + 2, ry - 1),
+                             (cx + local_w - 2, ry - 1), 1)
         # Staggered lozenge dots — pink/aqua/cream rotating so the column
         # reads tiled rather than striped.
         dot_col = cream if k % 3 == 0 else (aqua if k % 3 == 1 else pink)
@@ -1850,7 +1881,7 @@ def _prang_corncob(surf, cx, base_y, tip_y, palette, *, w=46, rng):
     # 3 rings.
     for k in range(0, rings, 3):
         t = k / rings
-        local_w = int(w * (1 - t * t) * 0.5 + 2)
+        local_w = int(_ring_w(t))
         ry = base_y - int(spire_h * t)
         bulge_col = aqua if k % 2 == 0 else pink
         pygame.draw.circle(surf, bulge_col, (cx - local_w - 1, ry), 1)
@@ -2122,10 +2153,16 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         # dome cap regardless of count.
         eave_top_y = main_top - 1
         fstep = eave_h / dwarf_eaves
+        # Entasis: a tall eave column would otherwise read as a flat uniform
+        # cone, so add a mild outward bulge low in the column (peaking ~30%
+        # up) that fades to zero on short sections (which already look right).
+        entasis = min(5.0, max(0.0, (eave_h - 90) * 0.045))
         for k in range(dwarf_eaves):
             t = k / max(1, dwarf_eaves - 1)
-            # Parabolic taper.
-            local_w = int(body_w_base * (1 - 0.55 * (t ** 1.2)))
+            # Parabolic taper with a gentle mid-low entasis swell.
+            bulge = entasis * math.sin(min(1.0, t / 0.30) * math.pi * 0.5) \
+                * (1 - t)
+            local_w = int(body_w_base * (1 - 0.55 * (t ** 1.2)) + bulge)
             band_bot = int(round(eave_top_y - k * fstep))
             band_top = int(round(eave_top_y - (k + 1) * fstep))
             bh = max(1, band_bot - band_top)
@@ -2694,7 +2731,7 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 11)))
         rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -4215,7 +4252,7 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / 8
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 8 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -4473,7 +4510,7 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 11)))
         rw = max(2, 8 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, gold_d,
                             (cx - rw, ry, rw * 2, 2))
@@ -4682,7 +4719,7 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / 8
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -4898,7 +4935,7 @@ def _draw_sensoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / 8
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, gold,
                             (cx - rw, ry, rw * 2, 2))
@@ -5608,7 +5645,7 @@ def _draw_baoen_stack(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / 6
         ry = top_wall_y - 2 - int(t * (finial_h - 6))
         rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, gold, (cx - rw, ry, rw * 2, 2))
     _draw_sorin_flame_halo(surf, cx, tip_y, palette)
@@ -8721,7 +8758,7 @@ def _draw_itsukushima_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -8977,7 +9014,7 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (4 + int(t * (finial_h - 9)))
         rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, accent,
                             (cx - rw, ry, rw * 2, 2))
@@ -9486,7 +9523,7 @@ def _draw_tianning_to(surf, cx, top_y, bot_y, base_w, palette, *,
         t = k / max(1, disks - 1)
         ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
         rw = max(2, 6 - k)
-        pygame.draw.ellipse(surf, dark_pal,
+        pygame.draw.ellipse(surf, _sorin_rim(palette),
                             (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
         pygame.draw.ellipse(surf, gold,
                             (cx - rw, ry, rw * 2, 2))
@@ -10157,25 +10194,47 @@ def _gilt(palette):
     return _mix(palette['stone_accent'], (235, 195, 90), 0.65)
 
 
-def _finial_chorten(surf, cx, harmika_top_y, palette):
-    """13-step chorten spire + sun-moon-flame jewel above the harmika.
+def _finial_chorten(surf, cx, harmika_top_y, palette, spire_h=None):
+    """Chorten sōrin spire (13 umbrella discs) + sun-moon-flame jewel.
 
-    Returns the y of the topmost flame tip so the caller knows the silhouette
-    extent. Spire steps taper linearly so the eye reads a triangle, not a stack
-    of equal lines."""
+    `spire_h` lets a tall section grow the *spire* to carry extra height —
+    a real chorten gains stature through its conical disc-stack, not by
+    multiplying the plinth. When omitted the spire keeps its natural ~26 px.
+    Disc spacing breathes with the spire so the gold shaft reads as a clean
+    tapering finial, not a high-frequency barber-pole that shimmers in
+    motion at the gap edge. Returns the flame-tip y for extent reporting."""
     gold = _gilt(palette)
     dark = palette['stone_dark']
-    bright = _shade(gold, 40)
-    # Spire — 13 narrowing steps anchored to the harmika roof.
-    steps = 13
-    step_h = 2
+    # Soft mid-gold for the disc bodies so the shaft is low-contrast; only
+    # the disc rims carry a slightly brighter accent.
+    soft = _mix(gold, palette['stone_mid'], 0.40)
+    bright = _shade(gold, 24)
+    jewel_zone = 14                       # lotus + moon + sun + flame stack
+    natural = 26
+    target = natural if spire_h is None else max(natural, int(spire_h))
+    disc_zone = max(8, target - jewel_zone)
     start_y = harmika_top_y - 1
-    for i in range(steps):
-        sy = start_y - i * step_h
-        rw = max(1, 6 - (i * 5) // steps)
-        pygame.draw.line(surf, dark, (cx - rw, sy + 1), (cx + rw, sy + 1), 1)
-        pygame.draw.line(surf, gold, (cx - rw, sy), (cx + rw, sy), 1)
-    spire_top = start_y - steps * step_h
+    base_rw = 6
+    spire_top = int(round(start_y - disc_zone))
+    # Continuous tapering central pole BEHIND the discs so the sōrin always
+    # reads as one solid conical shaft, never a dotted line of gold beads
+    # even when the section is very tall.
+    pole_pts = [(cx - 2, start_y), (cx + 2, start_y),
+                (cx + 1, spire_top), (cx - 1, spire_top)]
+    pygame.draw.polygon(surf, soft, pole_pts)
+    pygame.draw.line(surf, _shade(soft, -22), (cx - 1, start_y),
+                     (cx, spire_top), 1)
+    # Umbrella discs — spacing held to ~4 px so the stack stays continuous;
+    # a tall spire just gets MORE discs rather than wider gaps. Low contrast
+    # so the shaft doesn't shimmer at gameplay scale.
+    discs = max(6, disc_zone // 4)
+    step_h = disc_zone / discs
+    for i in range(discs):
+        sy = int(round(start_y - i * step_h))
+        t = i / max(1, discs - 1)
+        rw = max(1, int(round(base_rw * (1 - t * 0.78))))
+        pygame.draw.line(surf, soft, (cx - rw, sy), (cx + rw, sy), 2)
+        pygame.draw.line(surf, bright, (cx - rw, sy - 1), (cx + rw, sy - 1), 1)
     # Lotus pad.
     pygame.draw.ellipse(surf, dark, (cx - 4, spire_top - 2, 8, 4))
     pygame.draw.ellipse(surf, gold, (cx - 3, spire_top - 1, 6, 3))
@@ -10195,6 +10254,123 @@ def _finial_chorten(surf, cx, harmika_top_y, palette):
     return tip_y
 
 
+def _draw_chorten_upright(surf, cx, base_y, body_w, total_h, palette, *,
+                          plinth=True):
+    """Draw a dome-dominant chorten upright, base at `base_y`, growing UP to
+    `total_h`, filling the band edge-to-edge.
+
+    A stupa has NO storeys, so extra height must NOT come from more plinth
+    bands: the plinth stays a small fixed step count, the bell-dome (anda)
+    scales to ~40% of the band so it stays the dominant mass at any height,
+    and the remaining height is carried by the spire's umbrella-disc stack.
+    Returns the flame-tip y. `plinth=False` drops the steps entirely so a
+    very short band is dome+spire only (the silhouette still reads).
+
+    The bottom call and the (flipped) ceiling hanger share this one routine,
+    so the top is a true structural mirror of the bottom at every height."""
+    white = _chorten_white(palette)
+    edge = _shade(white, -55)
+    shadow = _shade(white, -28)
+    gold = _gilt(palette)
+    dark = palette['stone_dark']
+
+    # Plinth: a SMALL fixed stepped square base. 3 steps when there's room,
+    # else fewer; never multiplies with height.
+    if plinth and total_h >= 90:
+        step_count = 3
+        step_h = max(5, min(9, total_h // 18))
+    elif plinth and total_h >= 60:
+        step_count = 2
+        step_h = max(5, min(8, total_h // 12))
+    else:
+        step_count = 0
+        step_h = 0
+    plinth_h = step_count * step_h
+
+    # Spire + harmika + jewel sit above the dome. The dome is the dominant
+    # mass at ~40% of the band; whatever's left over the plinth + dome +
+    # harmika is poured into the spire so the silhouette fills the rect.
+    harmika_h = 8 if total_h >= 80 else 6
+    dome_h = max(16, int((total_h - plinth_h) * 0.38))
+    spire_h = total_h - plinth_h - dome_h - harmika_h
+    spire_h = max(20, spire_h)
+
+    widest = int(body_w * 1.06)
+    narrowest = int(body_w * 0.78)
+    for i in range(step_count):
+        t = i / max(1, step_count - 1)
+        sw = int(widest + (narrowest - widest) * t)
+        sy = base_y - step_h * (step_count - i)
+        pygame.draw.rect(surf, edge, (cx - sw // 2, sy, sw, step_h))
+        pygame.draw.rect(surf, white,
+                         (cx - sw // 2 + 1, sy + 1, sw - 2, step_h - 2))
+        pygame.draw.rect(surf, shadow,
+                         (cx + sw // 2 - 2, sy + 1, 2, step_h - 2))
+        if i == step_count - 1:
+            pygame.draw.rect(surf, gold, (cx - sw // 2 + 3, sy, sw - 6, 1))
+
+    # Bell dome (anda / bumpa) — the dominant mass. Built as a bell profile
+    # polygon (rounded shoulder near the top, gently tapering "waist" toward
+    # a narrower seat) so even a tall elongated dome reads as a Tibetan
+    # bumpa rather than a smooth balloon. Symmetric left/right edge.
+    dome_base_y = base_y - plinth_h
+    dome_w = int(body_w * (0.98 if step_count == 0 else 0.90))
+    dome_top = dome_base_y - dome_h
+    half = dome_w / 2
+    seat_half = half * 0.82               # the seat is slightly tucked in
+    rows = max(8, dome_h // 4)
+    left, right = [], []
+    for i in range(rows + 1):
+        t = i / rows                       # 0 = base seat, 1 = crown
+        # Shoulder bulge: widen fast off the seat, hold full width through the
+        # mid-body, then round GENTLY in at the crown so it leaves a flat-ish
+        # top wide enough to seat the harmika — a bell, not a bottle.
+        if t < 0.16:
+            w = seat_half + (half - seat_half) * (t / 0.16)
+        elif t < 0.80:
+            w = half
+        else:
+            tt = (t - 0.80) / 0.20
+            w = half * (1 - 0.45 * tt * tt)
+        ry = int(round(dome_base_y - dome_h * t))
+        left.append((int(round(cx - w)), ry))
+        right.append((int(round(cx + w)), ry))
+    poly = left + list(reversed(right))
+    pygame.draw.polygon(surf, white, poly)
+    _aa_polyline(surf, edge, poly, closed=True)
+    # Cool shadow down the lower-right flank for volume.
+    sh_pts = [right[i] for i in range(1, rows // 2)]
+    if len(sh_pts) >= 2:
+        pygame.draw.lines(surf, shadow, False,
+                          [(x - 2, y) for x, y in sh_pts], 1)
+    # Flat seat so the bumpa rests cleanly on the plinth.
+    pygame.draw.rect(surf, edge,
+                     (cx - int(seat_half), dome_base_y - 1,
+                      int(seat_half * 2), 2))
+    # Gold belly band — the dome's iconic decorative belt, low in the body.
+    belt_y = dome_base_y - int(dome_h * 0.30)
+    bw = int(half * 1.7)
+    pygame.draw.rect(surf, gold, (cx - bw // 2, belt_y, bw, 2))
+    pygame.draw.rect(surf, _shade(gold, -30), (cx - bw // 2, belt_y + 2, bw, 1))
+
+    # Harmika cube on the dome crown.
+    harmika_w = int(body_w * 0.42)
+    harmika_y = dome_top - harmika_h + 2
+    pygame.draw.rect(surf, edge,
+                     (cx - harmika_w // 2, harmika_y, harmika_w, harmika_h))
+    pygame.draw.rect(surf, white,
+                     (cx - harmika_w // 2 + 1, harmika_y + 1,
+                      harmika_w - 2, harmika_h - 2))
+    pygame.draw.rect(surf, shadow,
+                     (cx + harmika_w // 2 - 2, harmika_y + 1, 2, harmika_h - 2))
+    eye_y = harmika_y + harmika_h // 2 - 1
+    pygame.draw.line(surf, dark, (cx - 6, eye_y), (cx - 3, eye_y), 1)
+    pygame.draw.line(surf, dark, (cx + 3, eye_y), (cx + 6, eye_y), 1)
+    pygame.draw.circle(surf, gold, (cx, eye_y - 3), 1)
+
+    return _finial_chorten(surf, cx, harmika_y, palette, spire_h=spire_h)
+
+
 # Each seed deterministically selects one of five flavors so a row of five
 # pillars reads as five distinct temples.
 _CHORTEN_FLAVORS = ('plain', 'lantern', 'banner', 'pine', 'cairn')
@@ -10205,219 +10381,64 @@ def _chorten_flavor_for(seed: int) -> str:
 
 
 def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
-    """Bottom is a whitewashed chorten (square stepped base, bell-dome,
-    harmika cube, 13-step spire + sun-moon-flame jewel). Top is a 180°
-    structural mirror hung from the ceiling."""
-    rng = random.Random(seed)
+    """Bottom is a whitewashed chorten (small stepped plinth, dominant
+    bell-dome, harmika cube, umbrella-disc sōrin + sun-moon-flame jewel).
+    Top is a 180° structural mirror hung from the ceiling.
+
+    Both halves route through one dome-dominant anatomy routine: the dome
+    scales with the section so the stupa never collapses into a cone of
+    plinth bands at tall heights, and the spire carries the extra stature."""
     bcx = bot_rect.x + bot_rect.width // 2
     tcx = top_rect.x + top_rect.width // 2
     white = _chorten_white(palette)
     edge = _shade(white, -55)
-    shadow = _shade(white, -28)
     gold = _gilt(palette)
-    dark = palette['stone_dark']
     flavor = _chorten_flavor_for(seed)
 
-    step_count = rng.choice([3, 4, 5])
-
-    # ── Chorten ────────────────────────────────────────────────────────
-    if bot_rect.height > 60:
-        # Vertical budget — leave room for spire (~30) + harmika (8) + dome (24).
-        spire_extent = 30
-        harmika_h = 10
-        dome_h = 24
-        steps_avail = bot_rect.height - spire_extent - harmika_h - dome_h - 4
-        steps_avail = max(20, steps_avail)
-        # Square stepped base — each step widens slightly toward the bottom.
-        step_h = max(6, steps_avail // step_count)
-        widest = int(bot_rect.width * 1.10)
-        narrowest = int(bot_rect.width * 0.72)
-        # Bottom-up — top step (smallest) closest to the dome.
-        for i in range(step_count):
-            t = i / max(1, step_count - 1)
-            sw = int(widest + (narrowest - widest) * (1 - t))
-            sy = bot_rect.bottom - step_h * (step_count - i)
-            if sy < bot_rect.y:
-                break
-            # Edge shadow band.
-            pygame.draw.rect(surf, edge, (bcx - sw // 2, sy, sw, step_h))
-            pygame.draw.rect(surf, white,
-                             (bcx - sw // 2 + 1, sy + 1, sw - 2, step_h - 2))
-            # Right-edge cool shadow.
-            pygame.draw.rect(surf, shadow,
-                             (bcx + sw // 2 - 2, sy + 1, 2, step_h - 2))
-            # Gold trim along the top of the topmost step.
-            if i == step_count - 1:
-                pygame.draw.rect(surf, gold,
-                                 (bcx - sw // 2 + 3, sy, sw - 6, 1))
-
-        # Bell dome (anda) sits centered on the top of the topmost step. We
-        # draw it as a half-ellipse with a flat bottom so it doesn't read
-        # as a beach ball — extend slightly past the top step.
-        top_step_y = bot_rect.bottom - step_h * step_count
-        dome_w = int(bot_rect.width * 0.80)
-        dome_y = top_step_y - dome_h + 6
-        # Full ellipse but bottom clipped flat at top_step_y.
-        dome_rect = pygame.Rect(bcx - dome_w // 2, dome_y, dome_w, dome_h)
-        dome_inner = dome_rect.inflate(-2, -2)
-        # Mask: draw ellipse then a wall-color rect to "flatten" the bottom.
-        pygame.draw.ellipse(surf, edge, dome_rect)
-        pygame.draw.ellipse(surf, white, dome_inner)
-        # Cool shadow along the dome's lower-right.
-        for k in range(3):
-            pygame.draw.arc(surf, shadow, dome_inner,
-                            math.pi * 1.55, math.pi * 1.95, 1)
-        # Hard horizontal cut at the dome's base so the bell sits flat on the
-        # top step instead of bulging below it.
-        pygame.draw.rect(surf, edge,
-                         (bcx - dome_w // 2, top_step_y - 1, dome_w, 2))
-        # Gold belly band — the dome's iconic decorative belt.
-        belt_y = dome_y + dome_h - 9
-        pygame.draw.rect(surf, gold,
-                         (bcx - dome_w // 2 + 4, belt_y, dome_w - 8, 2))
-        pygame.draw.rect(surf, _shade(gold, -30),
-                         (bcx - dome_w // 2 + 4, belt_y + 2, dome_w - 8, 1))
-
-        # Harmika cube sits centered on top of the dome.
-        harmika_w = int(bot_rect.width * 0.46)
-        harmika_y = dome_y - harmika_h + 2
-        pygame.draw.rect(surf, edge,
-                         (bcx - harmika_w // 2, harmika_y, harmika_w,
-                          harmika_h))
-        pygame.draw.rect(surf, white,
-                         (bcx - harmika_w // 2 + 1, harmika_y + 1,
-                          harmika_w - 2, harmika_h - 2))
-        # Right-edge cool shadow.
-        pygame.draw.rect(surf, shadow,
-                         (bcx + harmika_w // 2 - 2, harmika_y + 1,
-                          2, harmika_h - 2))
-        # Buddha eyes — two small dark slashes.
-        eye_y = harmika_y + harmika_h // 2 - 1
-        pygame.draw.line(surf, dark, (bcx - 6, eye_y), (bcx - 3, eye_y), 1)
-        pygame.draw.line(surf, dark, (bcx + 3, eye_y), (bcx + 6, eye_y), 1)
-        # Tiny gold tilaka dot between the eyes.
-        pygame.draw.circle(surf, gold, (bcx, eye_y - 3), 1)
-
-        # 13-step spire + sun-moon-flame stack above the harmika.
-        _finial_chorten(surf, bcx, harmika_y, palette)
+    # ── Chorten (bottom, upright) ───────────────────────────────────────
+    if bot_rect.height > 30:
+        # No plinth on very short bands so the dome+spire silhouette survives;
+        # otherwise the small fixed plinth grounds the dome.
+        body_w = bot_rect.width
+        _draw_chorten_upright(surf, bcx, bot_rect.bottom, body_w,
+                              bot_rect.height, palette,
+                              plinth=bot_rect.height >= 60)
+        belt_y = bot_rect.bottom - int(bot_rect.height * 0.55)
+        widest = int(body_w * 1.06)
 
         # Per-seed flavours.
-        if flavor == 'pine':
-            draw_wuling_pine(surf, bot_rect.x + 4,
-                             bot_rect.bottom - step_h, 22,
+        if flavor == 'pine' and bot_rect.height >= 60:
+            draw_wuling_pine(surf, bot_rect.x + 4, bot_rect.bottom - 6, 22,
                              palette, lean=-5, layers=3)
             draw_wuling_pine(surf, bot_rect.x + bot_rect.width - 4,
-                             bot_rect.bottom - step_h, 22,
-                             palette, lean=5, layers=3)
-        elif flavor == 'cairn':
+                             bot_rect.bottom - 6, 22, palette, lean=5, layers=3)
+        elif flavor == 'cairn' and bot_rect.height >= 60:
             draw_cairn(surf, bcx + bot_rect.width // 2 + 8,
                        bot_rect.bottom - 2, n=3, pennant=True)
-        elif flavor == 'lantern':
-            # Butter lamps either side, sitting on the dome's belly band.
-            lamp_y = belt_y - 14
-            draw_paper_lantern(surf, bcx - widest // 2 - 4, lamp_y,
+        elif flavor == 'lantern' and bot_rect.height >= 80:
+            draw_paper_lantern(surf, bcx - widest // 2 - 4, belt_y - 14,
                                strand=4, scale=0.65, color='gold')
-            draw_paper_lantern(surf, bcx + widest // 2 + 4, lamp_y,
+            draw_paper_lantern(surf, bcx + widest // 2 + 4, belt_y - 14,
                                strand=4, scale=0.65, color='gold')
-        elif flavor == 'banner':
-            # A short carved offering stone at the base.
+        elif flavor == 'banner' and bot_rect.height >= 60:
             ox = bcx - widest // 2 - 6
             pygame.draw.rect(surf, edge, (ox - 3, bot_rect.bottom - 7, 7, 6))
-            pygame.draw.rect(surf, white,
-                             (ox - 2, bot_rect.bottom - 6, 5, 4))
-            pygame.draw.rect(surf, gold,
-                             (ox - 2, bot_rect.bottom - 6, 5, 1))
+            pygame.draw.rect(surf, white, (ox - 2, bot_rect.bottom - 6, 5, 4))
+            pygame.draw.rect(surf, gold, (ox - 2, bot_rect.bottom - 6, 5, 1))
 
-        # Ground cover always.
         draw_grass_bed(surf, bcx, bot_rect.bottom - 1,
                        bot_rect.width + 8, 14, palette, seed=seed)
-    elif bot_rect.height > 0:
-        # Degenerate small chorten if the gap is huge — single capsule.
-        pygame.draw.ellipse(surf, white,
-                            (bot_rect.x + 4, bot_rect.y + 2,
-                             bot_rect.width - 8, max(1, bot_rect.height - 4)))
 
-    # ── Ceiling-mounted chorten — STRUCTURAL MIRROR ────────────────────
-    # The top is a true 180° structural mirror of the bottom chorten
-    # (stepped square base at the ceiling, bell dome + harmika below,
-    # 13-step spire + jewel pointing DOWN into the gap). We render the
-    # anatomy upright into a temp surface, then flip it.
+    # ── Ceiling-mounted chorten — STRUCTURAL MIRROR ─────────────────────
+    # Same dome-dominant anatomy rendered upright into a temp sized to the
+    # rect height, then flipped: the jewel tip reaches the gap edge and the
+    # plinth base reaches the ceiling, filling the rect with no killzone.
     if top_rect.height > 30:
-        # FILL top_rect exactly: the temp is sized to top_rect.height and the
-        # stepped base swallows all the variable height while the spire
-        # (fixed 13-step finial), harmika and dome keep their natural sizes.
-        # The flipped finial tip reaches the gap edge, the flipped steps reach
-        # the ceiling — no killzone band (replaces the capped step count +
-        # ±30% dome/spire fallback that left a sky band on tall rects).
-        harmika_h = 10
-        # _finial_chorten paints a fixed ~40 px above the harmika roof, so
-        # the spire zone is constant — reserving it lands the jewel tip at
-        # the temp top (= the gap edge after the flip).
-        spire_extent = 40
         tmp_h = top_rect.height
         tmp_w = max(int(top_rect.width * 1.10) + 16, top_rect.width * 4)
         tmp = pygame.Surface((tmp_w, tmp_h), pygame.SRCALPHA)
-        tmp_cx = tmp_w // 2
-        tmp_bot = tmp_h - 1
-        dome_h = min(24, max(10, tmp_h - spire_extent - harmika_h - 8))
-        # All remaining height goes to the steps; count is adaptive keyed off
-        # a ~12 px natural step, sized to fill the zone exactly.
-        steps_zone = max(0, tmp_h - spire_extent - harmika_h - dome_h + 6)
-        top_step_count = max(1, round(steps_zone / 12)) if steps_zone > 0 else 1
-        widest = int(top_rect.width * 1.10)
-        narrowest = int(top_rect.width * 0.72)
-        # Top step's roof y — the steps fill [top_step_y, tmp_bot] exactly.
-        top_step_y = tmp_bot - steps_zone
-        for i in range(top_step_count):
-            t = i / max(1, top_step_count - 1)
-            sw = int(widest + (narrowest - widest) * (1 - t))
-            sy = int(round(tmp_bot - steps_zone * (top_step_count - i)
-                           / top_step_count))
-            sy_next = int(round(tmp_bot - steps_zone * (top_step_count - i - 1)
-                                / top_step_count))
-            sh = max(1, sy_next - sy)
-            pygame.draw.rect(tmp, edge, (tmp_cx - sw // 2, sy, sw, sh))
-            pygame.draw.rect(tmp, white,
-                             (tmp_cx - sw // 2 + 1, sy + 1, sw - 2, sh - 2))
-            pygame.draw.rect(tmp, shadow,
-                             (tmp_cx + sw // 2 - 2, sy + 1, 2, sh - 2))
-            if i == top_step_count - 1:
-                pygame.draw.rect(tmp, gold,
-                                 (tmp_cx - sw // 2 + 3, sy, sw - 6, 1))
-        dome_w = int(top_rect.width * 0.80)
-        dome_y = top_step_y - dome_h + 6
-        dome_rect = pygame.Rect(tmp_cx - dome_w // 2, dome_y, dome_w, dome_h)
-        dome_inner = dome_rect.inflate(-2, -2)
-        pygame.draw.ellipse(tmp, edge, dome_rect)
-        pygame.draw.ellipse(tmp, white, dome_inner)
-        for _ in range(3):
-            pygame.draw.arc(tmp, shadow, dome_inner,
-                            math.pi * 1.55, math.pi * 1.95, 1)
-        pygame.draw.rect(tmp, edge,
-                         (tmp_cx - dome_w // 2, top_step_y - 1, dome_w, 2))
-        belt_y = dome_y + dome_h - 9
-        pygame.draw.rect(tmp, gold,
-                         (tmp_cx - dome_w // 2 + 4, belt_y, dome_w - 8, 2))
-        pygame.draw.rect(tmp, _shade(gold, -30),
-                         (tmp_cx - dome_w // 2 + 4, belt_y + 2, dome_w - 8, 1))
-        harmika_w = int(top_rect.width * 0.46)
-        harmika_y = dome_y - harmika_h + 2
-        pygame.draw.rect(tmp, edge,
-                         (tmp_cx - harmika_w // 2, harmika_y,
-                          harmika_w, harmika_h))
-        pygame.draw.rect(tmp, white,
-                         (tmp_cx - harmika_w // 2 + 1, harmika_y + 1,
-                          harmika_w - 2, harmika_h - 2))
-        pygame.draw.rect(tmp, shadow,
-                         (tmp_cx + harmika_w // 2 - 2, harmika_y + 1,
-                          2, harmika_h - 2))
-        eye_y = harmika_y + harmika_h // 2 - 1
-        pygame.draw.line(tmp, dark, (tmp_cx - 6, eye_y),
-                         (tmp_cx - 3, eye_y), 1)
-        pygame.draw.line(tmp, dark, (tmp_cx + 3, eye_y),
-                         (tmp_cx + 6, eye_y), 1)
-        pygame.draw.circle(tmp, gold, (tmp_cx, eye_y - 3), 1)
-        _finial_chorten(tmp, tmp_cx, harmika_y, palette)
+        _draw_chorten_upright(tmp, tmp_w // 2, tmp_h - 1, top_rect.width,
+                              tmp_h, palette, plinth=tmp_h >= 60)
         flipped = pygame.transform.flip(tmp, False, True)
         surf.blit(flipped, (tcx - tmp_w // 2, top_rect.y))
 
