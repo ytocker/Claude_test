@@ -7,11 +7,12 @@ import pygame
 
 from game.config import W, H, FPS, TITLE, GROUND_Y
 from game.draw import (
-    get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground,
+    get_sky_surface_biome, draw_mountains, draw_cloud,
     UI_RED,
 )
 from game import biome as _biome
 from game import cloud_variants
+from game import foreground
 from game.world import World
 from game.hud import HUD, _font
 from game import audio
@@ -1167,8 +1168,9 @@ class App:
         # ground band so they read as "out there in the world" — behind
         # gameplay entities (pipes, coins, bird) but in front of terrain.
         self.world.ambient.draw(surf)
-        draw_ground(surf, GROUND_Y, W, H, scroll,
-                    palette['ground_top'], palette['ground_mid'], (60, 40, 25))
+        # The buff sandstone sidewalk IS the play floor now (replaces the grass
+        # meadow); promenade + near-lane layers fold in here in later stages.
+        foreground.draw_foreground_floor(surf, scroll, palette)
 
     def _render(self):
         # Intro renders its own self-contained scene (sky + pillars + cottage
