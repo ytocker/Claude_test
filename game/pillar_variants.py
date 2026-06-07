@@ -9,7 +9,9 @@ archived sandstone variants (archive/sandstone_pillars.py).
 import math, random
 import pygame
 
-from game.draw import draw_wuling_pine
+from game.draw import (
+    draw_wuling_pine, _shade_c, _accent_under_foliage,
+)
 
 
 # ── Density vegetation helpers ──────────────────────────────────────────────
@@ -200,18 +202,55 @@ def draw_terrace_wall(surf, cx, y, width=36):
 
 
 def draw_cascading_vine(surf, x, y, length, palette):
-    dark, mid, top = palette['foliage_dark'], palette['foliage_mid'], palette['foliage_top']
-    for i in range(length):
-        t = i / max(1, length - 1)
-        off = int(math.sin(t * 4) * 2)
-        pygame.draw.line(surf, dark, (x + off, y + i), (x + off, y + i + 1), 2)
-    for frac, r in ((0.25, 3), (0.55, 4), (0.85, 4)):
-        py = y + int(frac * length)
-        px = x + int(math.sin(frac * 4) * 2)
-        pygame.draw.circle(surf, dark, (px, py), r + 1)
-        pygame.draw.circle(surf, mid, (px, py), r)
-        pygame.draw.circle(surf, top, (px - 1, py - 1), max(1, r - 2))
-        pygame.draw.circle(surf, (255, 180, 120), (px + 1, py + 1), 1)
+    """A CLEAR draped silhouette spilling over a front-left lip: one thicker
+    primary strand + one shorter secondary, 3-4 readable teardrop leaf nodes, a
+    curling tendril tip, and one small bloom where the vine grips the rim. `(x,y)`
+    is the rim attachment point; the strand falls and curls outward. The bloom +
+    leaf-tip highlight are routed through _accent_under_foliage so no decor leaf
+    out-glows the coin at night. Signature unchanged (the near-lane caller still
+    draws it on a scratch + dims it, which now stacks safely under the cap)."""
+    dark = palette['foliage_dark']
+    mid  = palette['foliage_mid']
+    top  = palette['foliage_top']
+    leaf_lt = _accent_under_foliage(top, palette)
+
+    def strand(x0, y0, ln, sway, width, nodes):
+        pts = [(x0, y0)]
+        for i in range(1, ln + 1):
+            t = i / ln
+            px = x0 - int(math.sin(t * 2.0) * sway) - int(t * 3)
+            py = y0 + int(t * (ln + 6))
+            pts.append((px, py))
+        pygame.draw.lines(surf, _shade_c(dark, -14), False, pts, width + 1)
+        pygame.draw.lines(surf, dark, False, pts, width)
+        for ni in range(nodes):
+            idx = 1 + (ni + 1) * (len(pts) - 2) // (nodes + 1)
+            px, py = pts[idx]
+            side = -1 if ni % 2 == 0 else 1
+            lx = px + side * 3
+            pygame.draw.polygon(surf, mid,
+                                [(px, py - 1), (lx, py - 2),
+                                 (lx + side, py + 1), (px, py + 2)])
+            pygame.draw.line(surf, leaf_lt, (px, py - 1), (lx, py - 1), 1)
+        return pts
+
+    # Primary draped strand — longest, spilling furthest over the lip. Length
+    # tracks the `length` arg so the pillar eaves and the near-lane both scale.
+    ln = max(8, length)
+    primary = strand(x, y, ln, 4, 2, 3)
+    strand(x + 3, y + 1, max(5, ln - 4), 3, 1, 2)
+    # The top two leaf pixels tuck just behind/at the rim so the vine visibly
+    # grips the edge with no floating gap (handled here by anchoring the strand
+    # AT (x, y); a small grip leaf sits right at the attachment).
+    pygame.draw.polygon(surf, mid, [(x, y), (x - 3, y - 1), (x - 2, y + 2)])
+    pygame.draw.line(surf, leaf_lt, (x, y - 1), (x - 3, y - 1), 1)
+    # Curling tendril tip at the very end of the primary strand.
+    ex, ey = primary[-1]
+    pygame.draw.lines(surf, dark, False,
+                      [(ex, ey), (ex + 2, ey + 2), (ex, ey + 3)], 1)
+    # One small bloom tucked at the rim attachment, value-capped under foliage.
+    pygame.draw.circle(surf, _accent_under_foliage((240, 196, 124), palette),
+                       (x - 1, y + 2), 1)
 
 
 def draw_ladder(surf, x, top_y, bot_y):

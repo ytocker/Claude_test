@@ -35,7 +35,7 @@ import pygame
 # Read-only imports of the live game's procedural primitives.
 from game.ambient import _build_bench_sprite
 from game.pillar_variants import draw_cascading_vine, draw_cairn
-from game.draw import draw_side_shrub
+from game.draw import draw_side_shrub, draw_wuling_pine
 
 # The night-luma contract + dark-sky gate live in the pillar-redesign archive.
 # Night-luma helpers live with the promoted pagoda art on the live branch.
@@ -224,15 +224,47 @@ def _draw_planter(surf, sx, pal, *, w=18, kind='shrub', color=None):
         'foliage_top': _mix(pal.get('foliage_top', (96, 150, 100)), (60, 80, 110), 0.3 * night),
     }
     if kind == 'conifer':
-        cy = by - box_h
-        gd, gm, gt = fol['foliage_dark'], fol['foliage_mid'], fol['foliage_top']
-        for i, (tw, th, dy) in enumerate(((10, 8, 0), (8, 7, 6), (5, 6, 11))):
-            ty = cy - 14 + dy
-            pygame.draw.polygon(surf, gd, [(sx - tw // 2, ty + th), (sx + tw // 2, ty + th), (sx, ty)])
-            pygame.draw.polygon(surf, gm, [(sx - tw // 2 + 1, ty + th), (sx + tw // 2 - 1, ty + th), (sx, ty + 1)])
-        pygame.draw.polygon(surf, gt, [(sx - 2, cy - 14 + 3), (sx + 2, cy - 14 + 3), (sx, cy - 16)])
+        # The plant family's tiered ink-wash bonsai-pine, planted in the box.
+        draw_wuling_pine(surf, sx, by - box_h - 1, 30, fol)
+    elif kind == 'bamboo':
+        _draw_bamboo_canes(surf, sx, by - box_h, fol, night)
     else:
         draw_side_shrub(surf, sx, by - box_h - 2, fol, scale=1.15)
+
+
+def _draw_bamboo_canes(surf, sx, top_y, fol, night):
+    """Three vertical SEGMENTED bamboo canes with visible node bands + a small
+    leaf tuft at each top — NO umbrella crown. Cane colour is the warm green of
+    the foliage mid, cooled toward night so it stays in the deck value band."""
+    dark, mid, top = fol['foliage_dark'], fol['foliage_mid'], fol['foliage_top']
+    cane = _mix((150, 178, 108), (60, 74, 100), 0.34 * night)
+    cane_dk = _shade(cane, -36)
+    cane_lt = _shade(cane, 18)
+    for dx, htop, lean in ((-4, 31, -1), (1, 38, 1), (5, 28, 2)):
+        cx = sx + dx
+        ct = top_y - htop
+        segs = 5
+        for s in range(segs):
+            y0 = top_y - htop * s // segs
+            y1 = top_y - htop * (s + 1) // segs
+            nx0 = cx + int(lean * (s / segs))
+            nx1 = cx + int(lean * ((s + 1) / segs))
+            pygame.draw.line(surf, cane, (nx0, y0), (nx1, y1 + 1), 2)
+            pygame.draw.line(surf, cane_lt, (nx0, y0), (nx1, y1 + 1), 1)
+            pygame.draw.line(surf, cane_dk, (nx1 - 1, y1), (nx1 + 1, y1), 2)
+        _leaf_tuft(surf, cx + lean, ct, 1.55, 9, mid, n=3, spread=0.7)
+        _leaf_tuft(surf, cx + lean, ct, 1.95, 7, top, n=2, spread=0.5)
+        _leaf_tuft(surf, cx + lean, ct + 4, 1.25, 6, dark, n=2, spread=0.6)
+
+
+def _leaf_tuft(surf, ox, oy, ang, length, col, *, n=4, spread=0.5):
+    for i in range(n):
+        a = ang + (i - (n - 1) / 2) * spread / max(1, n - 1)
+        ex = ox + int(math.cos(a) * length)
+        ey = oy - int(math.sin(a) * length)
+        mx = ox + int(math.cos(a) * length * 0.5)
+        my = oy - int(math.sin(a) * length * 0.5) - 1
+        pygame.draw.lines(surf, col, False, [(ox, oy), (mx, my), (ex, ey)], 1)
 
 
 # Lamp posts are SHORT in r15: the head sits in the lower band (~y490+) so a
@@ -458,14 +490,17 @@ def _draw_barrel(surf, sx, pal):
 
 
 def _draw_vine_trail(surf, sx, pal):
-    """A short cascading vine spilling onto the sidewalk (e.g. off a planter)."""
+    """A cascading vine draped over a planter's front-left lip onto the sidewalk.
+    The attachment sits at the box rim so the vine visibly grips the edge (its
+    grip leaf tucks at the lip) rather than floating above the pavement."""
     night = _nightf(pal)
     fol = {
         'foliage_dark': _mix(pal.get('foliage_dark', (40, 80, 55)), (40, 56, 86), 0.3 * night),
         'foliage_mid': _mix(pal.get('foliage_mid', (60, 110, 75)), (46, 64, 94), 0.3 * night),
         'foliage_top': _mix(pal.get('foliage_top', (96, 150, 100)), (60, 80, 110), 0.3 * night),
     }
-    draw_cascading_vine(surf, sx, GROUND_Y - 16, 14, fol)
+    # The planter box rim is ~9px tall with feet at GROUND_Y-1; attach at the rim.
+    draw_cascading_vine(surf, sx, GROUND_Y - 10, 14, fol)
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -776,6 +776,11 @@ def _ground_furniture(surf, w, scroll, pal, density=1.0):
         if sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='shrub')
             sp._draw_vine_trail(surf, sx + 11, pal)
+    # A single segmented-bamboo planter per stretch — kept sparse (wide period,
+    # its own offset) so the new cane idiom shows in-game without over-packing.
+    for sx, k in sp._world_xs(scroll, w, int(360 * ps), x0=70):
+        if sp._ground_clear(sx, 12):
+            sp._draw_planter(surf, sx, pal, kind='bamboo')
 
 
 # ── grouped scenarios ─────────────────────────────────────────────────────────
