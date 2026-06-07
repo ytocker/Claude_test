@@ -75,7 +75,10 @@ def _nightf(pal):
 # matches the near-floor parallax the running-bond courses use (~0.20).
 
 GROUND_Y = 595  # sidewalk top edge; props' feet rest here.
-PROP_MULT = 0.20
+# The foreground IS the ground plane the pillars stand on, so it scrolls at the
+# full world speed (1.0×) — props/people pass at the same rate pillars approach.
+GROUND_MULT = 1.0
+PROP_MULT = GROUND_MULT
 
 
 def _world_xs(scroll, w, period, x0, mult=PROP_MULT, margin=70):
@@ -107,10 +110,10 @@ _POST_DEADZONE = (138, 182)
 
 
 def _in_quiet_zone(sx, half_w=10):
-    # Live world: keep only the bird/coin column clear; the old fixed-pillar lane
-    # is gone (pillars scroll and draw on top of the foreground).
-    lo, hi = _BIRD_LANE
-    return sx + half_w > lo and sx - half_w < hi
+    # Full-speed scroll: gating an element out at the bird column would make it
+    # WINK as it scrolled through mid-screen. The bird + pipes draw on top of the
+    # foreground, so nothing needs a clear lane — let everything scroll cleanly.
+    return False
 
 
 # Short ground furniture (benches, planters, cairns, barrels — all ≤~28px tall)
@@ -128,10 +131,9 @@ def _ground_clear(sx, half_w=10):
 
 
 def _post_ok(sx, half_w=6):
-    """A tall post may stand anywhere on the deck except the bird/coin column
-    (live pillars scroll and draw on top, so no fixed-pillar exclusion)."""
-    lo, hi = _BIRD_LANE
-    return not (sx + half_w > lo and sx - half_w < hi)
+    # Posts scroll through freely; the bird/pipes draw on top so a post passing
+    # behind the bird is fine, and gating it would make it wink mid-screen.
+    return True
 
 
 # ── warm lit halo, night-only, capped ────────────────────────────────────────

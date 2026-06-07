@@ -774,108 +774,109 @@ def _ground_furniture(surf, w, scroll, pal):
             sp._draw_vine_trail(surf, sx + 11, pal)
 
 
+# ── grouped scenarios ─────────────────────────────────────────────────────────
+#
+# Coherent little scenes placed at world-x slots: the bird passes one, then open
+# road, then the next. Each scene's contents are seeded by its slot index `k`
+# (NOT by `scroll`), so a scene is identical frame-to-frame as it scrolls past —
+# world-anchored, no flicker (same idiom as the mountain-ornament fix). Members
+# animate in place from the live clock `t`; positions ride the scroll.
+
+_SCENARIO_PERIOD = 460          # world-px between scenes -> ~1 on screen + open road
+_SCENE_MARGIN = 200             # wide enough to slide a whole scene in/out smoothly
+
+def _scene_market(surf, bx, pal, t, rng):
+    """Food/market stall with a grazing flock and kids beside it."""
+    draw_kiosk(surf, bx, pal, t=t, openness=0.9)
+    draw_flock(surf, bx + 80, pal, t=t, n=rng.choice((2, 3)))
+    draw_kids(surf, bx + 152, pal, t=t, n=2)
+
+def _scene_pastoral(surf, bx, pal, t, rng):
+    """Wishing well + a trotting dog + a planter."""
+    well = _stepped(_WishingWell, pal, 20, bx)
+    well.draw(surf)
+    dog = _stepped(_RunningDog, pal, 30, bx + 66)
+    dog.draw(surf)
+    sp._draw_planter(surf, bx + 122, pal, kind='shrub')
+
+def _scene_bench(surf, bx, pal, t, rng):
+    """The temple elder beside a bench with a seated companion."""
+    bench = _stepped(_Bench, pal, 20, bx)
+    bench._blit_sprite(surf)
+    seat_y = (GROUND_Y - 27) + 19            # match _Bench.draw seat geometry
+    night = _nightf(pal)
+    comp = tuple(_retint_person(c, night) for c in
+                 ((215, 85, 100), (175, 50, 70), (80, 50, 30)))
+    _draw_bench_person(surf, bx + 8, seat_y - 8, *comp, night=night)
+    draw_old_man(surf, bx + 44, pal, t=t, seated_bench=False)
+
+def _scene_stroll(surf, bx, pal, t, rng):
+    """A strolling couple + the elder on a slow walk."""
+    draw_strollers(surf, bx, pal, t=t)
+    draw_old_man(surf, bx + 48, pal, t=t, seated_bench=False)
+
+def _scene_rest(surf, bx, pal, t, rng):
+    """A napper on a mat beside a planter."""
+    draw_napper(surf, bx, pal, t=t)
+    sp._draw_planter(surf, bx + 46, pal, kind='conifer')
+
+def _scene_campfire(surf, bx, pal, t, rng):
+    """A campfire with cozy strollers + kids gathered (lit by the drawer at night)."""
+    draw_campfire(surf, bx, pal, t=t)
+    draw_strollers(surf, bx + 56, pal, t=t)
+    draw_kids(surf, bx + 100, pal, t=t, n=2)
+
+def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
+    """Place the beat's scene roster at world-x slots, scrolling at world speed."""
+    for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
+                              mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
+        rng = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
+        roster[k % len(roster)](surf, bx, pal, t, rng)
+
+
 def phase_day(surf, w, gy, h, scroll, pal, t):
-    """DAY · Pastoral Morning. Sparse dressing: planters + prayer-flag bunting +
-    a kiosk just opening. Living: a grazing sheep flock, a running dog, kids, a
-    wishing well. Bright, calm, essentially unlit. The cast is SPREAD across the
-    open left-centre deck (x≈90..200) with a clear gap before the pillar base, so
-    DAY reads genuinely sparse rather than one brown/white blob at the pillar."""
+    """DAY · Pastoral Morning. Prayer-flag bunting overhead; pastoral/market
+    scenes scroll past. Bright, calm, unlit."""
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
-    # ONE clean prayer-flag span per period strung high across the promenade.
     for xl, xr in sp._garland_spans(scroll, w, period=150, x0=20):
         draw_prayer_flags(surf, int(xl), GROUND_Y - 118, int(xr), GROUND_Y - 116, n=5)
-    # One planter only, anchored to land in the open gap between the dog and the
-    # kids (not in the flock), so DAY stays genuinely sparse and uncluttered.
-    for sx, k in sp._world_xs(scroll, w, 250, x0=180):
-        if sp._ground_clear(sx, 12) and not (84 < sx < 154):
-            sp._draw_planter(surf, sx, pal, kind='shrub')
-    # Kiosk just opening (low openness) at the far-left clear strip.
-    draw_kiosk(surf, 38, pal, t=t, openness=0.2)
-    # Living cast, drawn after dressing so they read in front. Staggered across
-    # the open deck at distinct x AND depth so silhouettes separate; the flock is
-    # pulled left to ~120 (covers ~90..150) and the kids sit at ~196 in a clear
-    # gap well before the pillar base at x≈222 — no blob, no crowding the lane.
-    well = _stepped(_WishingWell, pal, 20, 58)   # far left, off the open deck
-    well.draw(surf)
-    draw_flock(surf, 118, pal, t=t, n=3)         # woolly grazing flock, left-centre
-    dog = _stepped(_RunningDog, pal, 30, 168)    # dog trotting between flock+kids
-    dog.draw(surf)
-    draw_kids(surf, 198, pal, t=t, n=2)          # 2 kids playing in the right gap
+    _scenarios(surf, w, scroll, pal, t, (_scene_market, _scene_pastoral), x0=40)
 
 
 def phase_golden(surf, w, gy, h, scroll, pal, t):
-    """GOLDEN HOUR · Afternoon Promenade. Mid dressing: lamp posts up, a lantern
-    garland being strung, a busy kiosk. Living: the old man on a bench with a
-    companion, kids, the dog. Warm amber, still unlit."""
+    """GOLDEN HOUR · lamp posts up + a lantern garland; bench/market scenes."""
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 96,
                              period=150, sag=22, per_span=2)
     for sx, k in sp._world_xs(scroll, w, 250, x0=20):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
     for sx, k in sp._world_xs(scroll, w, 250, x0=160):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
-    for sx, k in sp._world_xs(scroll, w, 250, x0=185):
-        if sp._ground_clear(sx, 12) and not (104 < sx < 132):
-            sp._draw_planter(surf, sx, pal, kind='shrub')
-    draw_kiosk(surf, 38, pal, t=t, openness=1.0)   # busy, fully open
-    # The TEMPLE ELDER is the hero of the golden-hour bench: a clearly stooped,
-    # caned, long-bearded figure standing AT the bench in the open mid strip,
-    # placed where the bird/coin can't hide him and given the full standing
-    # silhouette (stoop + cane to the deck + beard) so he reads at 1×. A
-    # bright-shirted companion sits on the bench beside him.
-    bench = _stepped(_Bench, pal, 20, 160)
-    bench._blit_sprite(surf)
-    # Match _Bench.draw: sprite is 42x28, top at GROUND_Y-27, seat at +19.
-    seat_y = (GROUND_Y - 27) + 19
-    night = _nightf(pal)
-    comp = tuple(_retint_person(c, night) for c in
-                 ((215, 85, 100), (175, 50, 70), (80, 50, 30)))
-    _draw_bench_person(surf, 168, seat_y - 8, *comp, night=night)
-    # The standing elder just left of the bench, in the clear gap before it — his
-    # cane and stoop read against the open deck, distinct from the round-cap kids.
-    draw_old_man(surf, 140, pal, t=t, seated_bench=False)
-    dog = _stepped(_RunningDog, pal, 30, 118)
-    dog.draw(surf)
-    draw_kids(surf, 200, pal, t=t, n=2)
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
+    _scenarios(surf, w, scroll, pal, t, (_scene_bench, _scene_market), x0=70)
 
 
 def phase_dusk(surf, w, gy, h, scroll, pal, t):
-    """DUSK · Lamps Lighting. Lamps + fairy lights JUST beginning to glow (gated
-    to the now-dark sky), the kiosk lantern lit, planters. Living: a couple of
-    strolling figures + a napper resting. Lavender, quieter."""
+    """DUSK · lamps + fairy lights lighting (gated to the dark sky); rest/stroll
+    scenes. Lavender, quieter."""
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 92,
                           period=210, sag=26, per_span=5)
     for sx, k in sp._world_xs(scroll, w, 250, x0=24):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=94, lantern='red')
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=94, lantern='red')
     for sx, k in sp._world_xs(scroll, w, 250, x0=158):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=88, lantern='glass')
-    for sx, k in sp._world_xs(scroll, w, 250, x0=128):
-        if sp._ground_clear(sx, 12):
-            sp._draw_planter(surf, sx, pal, kind='conifer')
-    draw_kiosk(surf, 38, pal, t=t, openness=0.8)
-    # The napper rests at far left; the temple elder takes a slow cane-walk in the
-    # mid gap (carrying his read into dusk too, per the AD note); a couple stroll
-    # just beyond. Capped Z's.
-    draw_napper(surf, 86, pal, t=t)
-    draw_old_man(surf, 138, pal, t=t, seated_bench=False)
-    draw_strollers(surf, 192, pal, t=t)
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=88, lantern='glass')
+    _scenarios(surf, w, scroll, pal, t, (_scene_rest, _scene_stroll), x0=55)
 
 
 def phase_night(surf, w, gy, h, scroll, pal, t):
-    """NIGHT · Festival. Full festival: lantern garland + fairy lights + lamp
-    posts all glowing (capped), a campfire, the kiosk glowing. Living: a few
-    cozy figures. The payoff cell."""
+    """NIGHT · Festival. Lantern garland + fairy lights + lamp posts all glowing
+    (capped); campfire/market scenes. The payoff."""
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
@@ -884,20 +885,10 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 78,
                           period=200, sag=22, per_span=5)
     for sx, k in sp._world_xs(scroll, w, 250, x0=18):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
     for sx, k in sp._world_xs(scroll, w, 250, x0=152):
-        if sp._post_ok(sx):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
-    for sx, k in sp._world_xs(scroll, w, 250, x0=192):
-        if sp._ground_clear(sx, 12) and not (104 < sx < 138):
-            sp._draw_planter(surf, sx, pal, kind='conifer')
-    draw_kiosk(surf, 38, pal, t=t, openness=1.0)
-    # A campfire warms the mid strip — amber-cored + capped sparks (no white-hot
-    # centre), additive halo scaled by the dusk->night intensity.
-    draw_campfire(surf, 120, pal, t=t)
-    # A couple of cozy figures strolling home near the fire.
-    draw_strollers(surf, 170, pal, t=t)
+        sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
+    _scenarios(surf, w, scroll, pal, t, (_scene_campfire, _scene_market), x0=30)
 
 
 # (label, painter)

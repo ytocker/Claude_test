@@ -156,7 +156,7 @@ def _cracks(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         # Front courses carry the read; the back course gets few, faint cracks.
         front_w = depth_t
         step = width(c, depth_t)
-        speed = 0.18 + 0.08 * depth_t
+        speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, step, 0x2C7 + c):
             # Density falls off toward the back; sparse everywhere.
             if srng.random() > 0.18 + 0.34 * front_w:
@@ -204,7 +204,7 @@ def _weeds(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         y_back, y_front = edges[c], edges[c + 1]
         step = width(c, depth_t)
         bond = (c % 2) * (step // 2)
-        speed = 0.18 + 0.08 * depth_t
+        speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, step, 0x5EED + c):
             if srng.random() > 0.20 + 0.18 * depth_t:
                 continue
@@ -250,7 +250,7 @@ def _moss(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         y_back, y_front = edges[c], edges[c + 1]
         step = width(c, depth_t)
         bond = (c % 2) * (step // 2)
-        speed = 0.18 + 0.08 * depth_t
+        speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, step, 0x4A33 + c):
             if srng.random() > chance * (0.5 + depth_t):
                 continue
@@ -282,7 +282,7 @@ def _litter(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         depth_t = (c + 0.5) / n_course
         y_back, y_front = edges[c], edges[c + 1]
         step = width(c, depth_t)
-        speed = 0.18 + 0.08 * depth_t
+        speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, max(10, step // 2), 0x1EAF + c):
             roll = srng.random()
             if roll > 0.42:
@@ -323,7 +323,7 @@ def _medallion(surf, w, top_y, region_h, scroll, front, back, mortar, night,
     depth_t = (c + 0.5) / n_course
     y_back, y_front = edges[c], edges[c + 1]
     step = width(c, depth_t)
-    speed = 0.18 + 0.08 * depth_t
+    speed = 1.0  # locked to the floor bricks (full world-speed scroll)
     # One medallion per long stretch: fire only on the cell whose world-index is
     # a multiple of 4, so they sit ~4 slabs apart and ride the scroll.
     bond = (c % 2) * (step // 2)
@@ -360,7 +360,7 @@ def _grate(surf, w, top_y, region_h, scroll, front, back, mortar, night,
     depth_t = (c + 0.5) / n_course
     y_back, y_front = edges[c], edges[c + 1]
     step = width(c, depth_t)
-    speed = 0.18 + 0.08 * depth_t
+    speed = 1.0  # locked to the floor bricks (full world-speed scroll)
     iron = _nretint(_shade(_sat(mortar, 0.5), -28), night)
     iron_lt = _cap_hi(_nretint(_shade(iron, 22), night))
     iron_dk = _nretint(_shade(iron, -16), night)
@@ -407,7 +407,7 @@ def _damp(surf, w, top_y, region_h, scroll, front, back, mortar, night,
         depth_t = (c + 0.5) / n_course
         y_back, y_front = edges[c], edges[c + 1]
         step = width(c, depth_t)
-        speed = 0.18 + 0.08 * depth_t
+        speed = 1.0  # locked to the floor bricks (full world-speed scroll)
         for sx, k, srng in _scatter(scroll, w, speed, max(16, step), 0x9D7A + c):
             if srng.random() > 0.22 * wet + 0.08:
                 continue

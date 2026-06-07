@@ -62,7 +62,8 @@ from game.pillar_variants import (
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
-NEAR_MULT = 0.35                     # faster than the far props (0.20) -> "closer".
+NEAR_MULT = 1.15                     # closest layer: a touch faster than the far
+                                     # ground plane (1.0) for parallax depth.
 
 # Reuse the promenade's night contract verbatim so the near lights obey the same
 # ceiling and the coin stays the single brightest object.
@@ -88,10 +89,9 @@ _PILLAR_LANE = (212, 320)
 
 
 def _tall_ok(sx, half_w=10):
-    """True where a TALL near element clears the bird/coin column (live pillars
-    scroll and draw on top, so no fixed-pillar exclusion)."""
-    lo, hi = _BIRD_LANE
-    return not (sx + half_w > lo and sx - half_w < hi)
+    # Full-speed scroll: tall near elements scroll through freely; gating would
+    # wink them mid-screen, and the bird/pipes draw on top of the foreground.
+    return True
 
 
 # ── near-anchored placement: same world-x idiom as the far props, faster mult ──
@@ -786,14 +786,24 @@ def _general_greenery(surf, w, scroll, pal, t):
             _near_pine(surf, sx, pal)
 
 
+# A performance (performer + its own crowd) is itself a scene cluster; place it at
+# world-x slots so it scrolls past at the near-lane speed and recycles, instead of
+# riding the camera. Sparser than the general near life so a performance reads as a
+# distinct event the bird passes.
+_PERF_PERIOD = 540
+_PERF_MARGIN = 220
+
+def _perform(surf, w, scroll, pal, t, perf_fn, x0):
+    for bx, k in _near_xs(scroll, w, _PERF_PERIOD, x0=x0, margin=_PERF_MARGIN):
+        perf_fn(surf, bx, pal, t)
+
+
 def phase_day(surf, w, gy, h, scroll, pal, t):
-    """DAY · Pastoral Morning. Front edge: larger pedestrians + dog + planters; the
-    performance is a casual BUSKER / juggler in a clear mid-left zone. No glow."""
+    """DAY · Pastoral Morning. Front edge: larger pedestrians + dog + planters; a
+    casual BUSKER / juggler performs as the bird passes. No glow."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
-    # The juggler busks in the open near-left zone, nudged IN from the cell edge
-    # so the ball arc doesn't crowd the border (clear of the lanes' centres).
-    perf_juggler(surf, 44, pal, t)
+    _perform(surf, w, scroll, pal, t, perf_juggler, x0=40)
 
 
 def phase_golden(surf, w, gy, h, scroll, pal, t):
@@ -801,35 +811,32 @@ def phase_golden(surf, w, gy, h, scroll, pal, t):
     head-bobbing watching arc. Warm, still unlit."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
-    perf_musician(surf, 38, pal, t)
+    _perform(surf, w, scroll, pal, t, perf_musician, x0=200)
 
 
 def phase_dusk(surf, w, gy, h, scroll, pal, t):
     """DUSK · Lamps Lighting. The crowd grows and a STILT-WALKER warms up as the
-    lamps come on; a near banner pole lights in the clear left zone. Brazier glows."""
+    lamps come on; near banner poles + braziers glow as they pass."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
     for sx, k in _near_xs(scroll, w, 340, x0=30):
-        if _tall_ok(sx, 6):
-            _near_banner(surf, sx, pal)
+        _near_banner(surf, sx, pal)
     for sx, k in _near_xs(scroll, w, 300, x0=120):
         _near_brazier(surf, sx, pal, t=t)
-    perf_stilt(surf, 40, pal, t)
+    _perform(surf, w, scroll, pal, t, perf_stilt, x0=120)
 
 
 def phase_night(surf, w, gy, h, scroll, pal, t):
-    """NIGHT · Festival. The peak: the full LION DANCE + drummer + a bigger crowd on
-    the front edge, braziers + a banner glowing (all capped, gated). The coin +
-    parrot still draw after this and stay brightest."""
+    """NIGHT · Festival. The peak: a full LION DANCE + drummer + crowd passes on the
+    front edge, with braziers + banners glowing (all capped). The coin + parrot
+    still draw after this and stay brightest."""
     _general_greenery(surf, w, scroll, pal, t)
     _general_pedestrians(surf, w, scroll, pal, t)
     for sx, k in _near_xs(scroll, w, 340, x0=30):
-        if _tall_ok(sx, 6):
-            _near_banner(surf, sx, pal)
+        _near_banner(surf, sx, pal)
     for sx, k in _near_xs(scroll, w, 280, x0=110):
         _near_brazier(surf, sx, pal, t=t)
-    # The lion dance owns the near-left festival zone, kept clear of the lanes.
-    perf_lion_dance(surf, 44, pal, t)
+    _perform(surf, w, scroll, pal, t, perf_lion_dance, x0=320)
 
 
 # Dispatch by phase NAME (day/golden/dusk/night) — the render harness derives the

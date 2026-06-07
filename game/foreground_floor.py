@@ -271,7 +271,10 @@ def _running_bond_courses(surf, w, gy, h, scroll, pal, *, body, cool,
         # Running bond: alternate courses shift a half-brick. The shift is part
         # of the world lattice (added to the world index) so it wraps with scroll.
         bond = (c % 2) * (brick_w // 2)
-        speed = 0.18 + 0.08 * depth_t
+        # The sidewalk IS the ground plane the pillars stand on → it scrolls at
+        # the full world speed (1.0), locked to the props so a planter stays on
+        # its brick. (Was a slow ~0.2 parallax that read as "not moving".)
+        speed = 1.0
         in_mid = mid_lo <= (y_back + y_front) * 0.5 <= mid_hi
         bh = y_front - y_back
         # Mortar gap is the 1px between the bedding band and each brick face;
@@ -316,7 +319,7 @@ def _running_bond_courses(surf, w, gy, h, scroll, pal, *, body, cool,
             # stacks with the grain. The crisp vertical bevel + the recessed
             # bedding joint carry the premium read.
 
-    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 0.20)
+    _apply_grain_scroll(surf, 0, top_y, w, region_h, 3, scroll, 1.0)
 
 def _buff_body(pal):
     """Pale buff / warm sandstone — a light, low-chroma cream-tan pulled from the
