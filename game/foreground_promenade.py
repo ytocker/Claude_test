@@ -789,19 +789,153 @@ def _ground_furniture(surf, w, scroll, pal, density=1.0):
 _SCENARIO_PERIOD = 460          # world-px between scenes -> ~1 on screen + open road
 _SCENE_MARGIN = 200             # wide enough to slide a whole scene in/out smoothly
 
+# ── re-themed cast + hero beats (Chinese market) ──────────────────────────────
+
+def draw_wish_tree(surf, sx, pal, *, t=0.0):
+    """A potted WISH-TREE hung with red prayer ribbons — the market's answer to the
+    old European wishing well. Gnarled trunk + a tiered canopy in a glazed pot, with
+    fluttering red wish-cards; a couple catch a capped warm glint once the sky darks."""
+    night = _nightf(pal)
+    feet = GROUND_Y - 1
+    pot = _mix((150, 96, 70), (60, 70, 100), 0.34 * night)
+    pygame.draw.rect(surf, _shade(pot, -20), (sx - 8, feet - 8, 16, 8))
+    pygame.draw.rect(surf, pot, (sx - 7, feet - 8, 14, 6))
+    pygame.draw.rect(surf, _shade(pot, 18), (sx - 7, feet - 8, 14, 1))
+    trunk = _mix((96, 66, 42), (60, 66, 92), 0.30 * night)
+    ty0 = feet - 8
+    pygame.draw.line(surf, trunk, (sx, ty0), (sx - 1, ty0 - 9), 2)
+    pygame.draw.line(surf, trunk, (sx - 1, ty0 - 9), (sx + 1, ty0 - 18), 2)
+    fol = _mix((72, 122, 72), (44, 60, 92), 0.42 * night)
+    fol_d = _shade(fol, -16)
+    cy = ty0 - 22
+    for ox, oy, r in ((-6, 4, 6), (6, 4, 6), (0, -2, 8), (0, 6, 7)):
+        pygame.draw.circle(surf, fol_d, (sx + ox, cy + oy + 1), r)
+        pygame.draw.circle(surf, fol, (sx + ox, cy + oy), r)
+    pygame.draw.circle(surf, _shade(fol, 14), (sx - 2, cy - 3), 2)
+    rib = _mix((210, 60, 56), (70, 64, 96), 0.40 * night)
+    rib_l = _shade(rib, 22)
+    for i, (rx, ry) in enumerate(((-7, -2), (5, 0), (-2, 8), (8, 6), (-9, 6))):
+        flut = int(round(math.sin(t * 2.2 + i * 1.4) * 1.5))
+        x = sx + rx
+        y0 = cy + ry
+        pygame.draw.line(surf, rib, (x, y0), (x + flut, y0 + 6), 2)
+        pygame.draw.line(surf, rib_l, (x, y0), (x + flut, y0 + 2), 1)
+    if night > 0.5:
+        _glow(surf, sx, cy + 2, pal, radius=11, color=(230, 120, 90), scale=0.5)
+
+
+def draw_birdcage_stand(surf, sx, pal, *, t=0.0):
+    """A market SONGBIRD CAGE on a tall stand — the Chinese-market replacement for
+    the grazing flock. A domed bamboo cage with a hopping finch sways gently; a seed
+    dish sits at the foot."""
+    night = _nightf(pal)
+    feet = GROUND_Y - 1
+    sway = math.sin(t * 1.6) * 1.0
+    pole = _mix((110, 78, 46), (60, 66, 92), 0.30 * night)
+    pygame.draw.line(surf, pole, (sx, feet), (sx, feet - 20), 2)
+    pygame.draw.line(surf, _shade(pole, -18), (sx + 1, feet), (sx + 1, feet - 20), 1)
+    pygame.draw.rect(surf, _shade(pole, -10), (sx - 4, feet - 2, 8, 2))
+    cgx = sx + int(round(sway))
+    cgy = feet - 32
+    bar = _mix((188, 168, 116), (60, 70, 100), 0.42 * night)
+    bar_d = _shade(bar, -26)
+    pygame.draw.line(surf, pole, (sx, feet - 20), (cgx, cgy + 3), 1)
+    pygame.draw.arc(surf, bar, (cgx - 7, cgy, 14, 9), 0.0, math.pi, 2)
+    body = pygame.Rect(cgx - 7, cgy + 4, 14, 13)
+    pygame.draw.rect(surf, _mix((205, 188, 150), (58, 66, 96), 0.45 * night), body)
+    pygame.draw.rect(surf, bar_d, body, 1)
+    for bxv in range(cgx - 5, cgx + 6, 3):
+        pygame.draw.line(surf, bar_d, (bxv, cgy + 4), (bxv, cgy + 16), 1)
+    pygame.draw.line(surf, bar_d, (cgx - 7, cgy + 10), (cgx + 6, cgy + 10), 1)
+    hop = int(round(max(0.0, math.sin(t * 5.0)) * 2))
+    bird = _retint_person((240, 180, 70), night)
+    by = cgy + 14 - hop
+    pygame.draw.circle(surf, bird, (cgx, by), 2)
+    pygame.draw.circle(surf, _shade(bird, -20), (cgx + 1, by + 1), 1)
+    pygame.draw.circle(surf, (40, 30, 20), (cgx + 1, by - 1), 0)
+    pygame.draw.ellipse(surf, _mix((150, 140, 120), (60, 70, 100), 0.40 * night),
+                        (sx - 5, feet - 3, 10, 3))
+
+
+def draw_lamplighter(surf, sx, pal, *, t=0.0):
+    """A LAMPLIGHTER reaching a long pole up to a street lantern, kindling it at
+    dusk — the 'lights coming on' beat. The pole tip carries a capped flame; the
+    lantern above blooms a capped warm glow once touched."""
+    night = _nightf(pal)
+    feet = GROUND_Y - 1
+    coat = _retint_person((124, 92, 152), night)
+    coat_d = _shade(coat, -18)
+    hair = _retint_person((60, 45, 35), night)
+    body_y = feet - 11
+    _draw_bench_person(surf, sx, body_y, coat, coat_d, hair, night=night)
+    leg = _shade(coat_d, -14)
+    pygame.draw.line(surf, leg, (sx + 1, body_y + 8), (sx, feet), 1)
+    pygame.draw.line(surf, leg, (sx + 4, body_y + 8), (sx + 6, feet), 1)
+    px0, py0 = sx + 5, body_y + 1
+    px1, py1 = sx + 16, body_y - 16
+    pygame.draw.line(surf, _mix((110, 80, 50), (60, 66, 92), 0.30 * night),
+                     (px0, py0), (px1, py1), 1)
+    flick = int(round(math.sin(t * 8.0)))
+    pygame.draw.circle(surf, sp._clamp_night((250, 170, 90))[:3], (px1, py1 - 1 + flick), 1)
+    lan = pygame.Rect(px1 - 3, py1 - 9, 7, 8)
+    pygame.draw.ellipse(surf, _mix((150, 40, 40), (150, 38, 38), 0.5), lan)
+    lit = (sp._clamp_night((250, 120, 90))[:3] if sp._is_dark_sky(pal) else (220, 120, 90))
+    pygame.draw.ellipse(surf, lit, lan.inflate(-2, -2))
+    _glow(surf, px1, py1 - 5, pal, radius=10, color=(255, 160, 110), scale=0.6)
+
+
+def draw_market_setup(surf, sx, pal, *, t=0.0):
+    """DAWN MARKET SET-UP — stacked produce crates and a vendor hoisting a basket
+    overhead as the stalls are raised. The 'morning assembly' beat that opens the day."""
+    night = _nightf(pal)
+    feet = GROUND_Y - 1
+    crate = _mix((150, 110, 66), (60, 70, 100), 0.34 * night)
+    for cx, cy, w, h in ((-2, 0, 12, 8), (11, 0, 9, 6), (4, 8, 10, 7)):
+        r = pygame.Rect(sx + cx, feet - cy - h, w, h)
+        pygame.draw.rect(surf, _shade(crate, -16), r)
+        pygame.draw.rect(surf, crate, r.inflate(-2, -2))
+        pygame.draw.line(surf, _shade(crate, -24),
+                         (r.left, r.centery), (r.right, r.centery), 1)
+    shirt = _retint_person((90, 140, 120), night)
+    shirt_d = _shade(shirt, -16)
+    hair = _retint_person((50, 40, 30), night)
+    vx = sx + 24
+    body_y = feet - 11
+    _draw_bench_person(surf, vx, body_y, shirt, shirt_d, hair, night=night)
+    lift = int(round(max(0.0, math.sin(t * 2.0)) * 1))
+    bk = _mix((160, 120, 70), (60, 70, 100), 0.34 * night)
+    by = body_y - 6 - lift
+    pygame.draw.ellipse(surf, _shade(bk, -14), (vx, by, 10, 5))
+    pygame.draw.ellipse(surf, bk, (vx + 1, by, 8, 4))
+    pygame.draw.line(surf, shirt_d, (vx + 2, body_y + 1), (vx + 1, by + 3), 1)
+    pygame.draw.line(surf, shirt_d, (vx + 5, body_y + 1), (vx + 8, by + 3), 1)
+    leg = _shade(shirt_d, -12)
+    pygame.draw.line(surf, leg, (vx + 1, body_y + 8), (vx + 1, feet), 1)
+    pygame.draw.line(surf, leg, (vx + 4, body_y + 8), (vx + 5, feet), 1)
+
+
 def _scene_market(surf, bx, pal, t, rng):
-    """Food/market stall with a grazing flock and kids beside it."""
+    """Food/market stall with a songbird-cage stand and kids beside it."""
     draw_kiosk(surf, bx, pal, t=t, openness=0.9)
-    draw_flock(surf, bx + 80, pal, t=t, n=rng.choice((2, 3)))
+    draw_birdcage_stand(surf, bx + 84, pal, t=t)
     draw_kids(surf, bx + 152, pal, t=t, n=2)
 
 def _scene_pastoral(surf, bx, pal, t, rng):
-    """Wishing well + a trotting dog + a planter."""
-    well = _stepped(_WishingWell, pal, 20, bx)
-    well.draw(surf)
+    """Wish-tree + a trotting dog + a planter."""
+    draw_wish_tree(surf, bx, pal, t=t)
     dog = _stepped(_RunningDog, pal, 30, bx + 66)
     dog.draw(surf)
     sp._draw_planter(surf, bx + 122, pal, kind='shrub')
+
+def _scene_lamplighter(surf, bx, pal, t, rng):
+    """A lamplighter kindling the street lanterns at dusk + a potted conifer."""
+    draw_lamplighter(surf, bx, pal, t=t)
+    sp._draw_planter(surf, bx + 40, pal, kind='conifer')
+
+def _scene_dawn_setup(surf, bx, pal, t, rng):
+    """Vendors assembling the morning market."""
+    draw_market_setup(surf, bx, pal, t=t)
+
 
 def _scene_bench(surf, bx, pal, t, rng):
     """The temple elder beside a bench with a seated companion."""
