@@ -252,7 +252,7 @@ from game import cloud_variants
 
 def draw_cloud(surf, x, y, scale=1.0, variant: int = 0, palette=None):
     """Dispatch to one of the palette-aware shan-shui cloud variants (slots
-    0..5 in `cloud_variants._VARIANTS`). `palette` lets each cloud retint with
+    0..VARIANT_COUNT-1 in `cloud_variants._VARIANTS`). `palette` lets each cloud retint with
     the biome cycle; callers with no palette in scope (offline tools) fall back
     to the day palette so they keep rendering."""
     if palette is None:
