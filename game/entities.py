@@ -1484,16 +1484,59 @@ class Pipe:
         key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
         CANDIDATES[key](surf, local_top, local_bot,
                         _biome.palette_for_phase(0.0), self.seed)
-        # Erase the antenna bands (full width) at each gap edge so the thin spire
-        # is non-lethal while the roof just below it stays in the mask.
-        fc = self.finial_clear
-        if fc > 0:
-            w = surf.get_width()
-            top_edge = int(self.gap_y - self.gap_h / 2)
-            surf.fill((0, 0, 0, 0), pygame.Rect(0, lbt, w, fc))
-            surf.fill((0, 0, 0, 0), pygame.Rect(0, top_edge - fc, w, fc))
         self._collision_mask = pygame.mask.from_surface(surf, 50)
         self._collision_mask_dx = -margin
+        # Carve the decorative finial SPIRE out of the kill zone so the thin
+        # centered antenna is non-lethal on every variant. (The old fixed-height
+        # band erased the wrong region — into the body, not up into the gap — and
+        # was shorter than several spires, so antennas still killed.)
+        gap_top = int(self.gap_y - self.gap_h / 2)
+        self._erase_finial_spire(self._collision_mask, gap_top, lbt)
+
+    # Finial spire is decorative: the thin centered antenna is erased from the
+    # kill mask. The spire is < _FINIAL_ROOF_W px wide; the real roof eaves are
+    # wider (measured: every variant's spire <= 33 px, first eave >= 34 px).
+    _FINIAL_ROOF_W = 34     # first row this wide (tip -> body) is the eave; stop
+    _FINIAL_SCAN = 56       # how far out past the gap edge to seek the spire tip
+    _FINIAL_MAX = 64        # safety cap on spire depth (measured max ~53 px)
+
+    def _erase_finial_spire(self, mask, gap_top, gap_bot):
+        """Clear the decorative finial spire from the kill mask so the thin
+        centered antenna never kills, while the wide roof eaves stay lethal.
+        Variant-agnostic: from each gap edge find the spire TIP, then clear rows
+        toward the body until the structure widens into the roof eave
+        (>= _FINIAL_ROOF_W) or the depth cap is hit. The lower pagoda's spire
+        points UP into the gap; the upper pagoda's mirrors DOWN."""
+        mw, mh = mask.get_size()
+
+        def row_w(y):
+            return sum(mask.get_at((x, y)) for x in range(mw))
+
+        def clear_row(y):
+            for x in range(mw):
+                if mask.get_at((x, y)):
+                    mask.set_at((x, y), 0)
+
+        def carve(rows):
+            tip = None
+            for y in rows:
+                if 0 <= y < mh and row_w(y) > 0:
+                    tip = y
+                    break
+            if tip is None:
+                return
+            step = 1 if rows.step is None or rows.step > 0 else -1
+            y = tip
+            for _ in range(self._FINIAL_MAX):
+                if not (0 <= y < mh) or row_w(y) >= self._FINIAL_ROOF_W:
+                    break
+                clear_row(y)
+                y += step
+
+        # lower spire pokes UP toward the gap → seek tip scanning downward
+        carve(range(gap_bot - self._FINIAL_SCAN, gap_bot + self._FINIAL_MAX))
+        # upper spire pokes DOWN toward the gap → seek tip scanning upward
+        carve(range(gap_top + self._FINIAL_SCAN, gap_top - self._FINIAL_MAX, -1))
 
     def skate_surfaces(self):
         """SKATEBOARD ride surfaces (lower_crown_top_y, upper_crown_bottom_y),
