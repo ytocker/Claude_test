@@ -11,9 +11,6 @@ SKY_MID       = (25,  60, 130)
 SKY_BOT       = (40, 140, 210)
 HORIZON_GLOW  = (255, 200, 100)
 
-MTN_FAR       = (35,  45, 100)
-MTN_NEAR      = (22,  30,  72)
-
 GROUND_TOP    = ( 60, 190,  60)
 GROUND_MID    = ( 30, 140,  30)
 GROUND_BOT    = ( 80,  50,  20)
@@ -237,34 +234,15 @@ def blit_glow(surf, cx, cy, radius, color, alpha=160):
 
 # ── mountain drawing ─────────────────────────────────────────────────────────
 
-def draw_mountains(surf, scroll, ground_y, w, far_color=None, near_color=None):
-    far_color  = far_color  or MTN_FAR
-    near_color = near_color or MTN_NEAR
-    # Tint the back layer halfway between sky-bottom-ish and far colour so
-    # it reads as genuinely further away without needing a new palette key.
-    back_color = (
-        max(0, min(255, (far_color[0] + 200) // 2)),
-        max(0, min(255, (far_color[1] + 210) // 2)),
-        max(0, min(255, (far_color[2] + 230) // 2)),
-    )
-    pts_back = [(0, ground_y)]
-    pts_far  = [(0, ground_y)]
-    pts_near = [(0, ground_y)]
-    for x in range(0, w + 1, 2):
-        bx = x + scroll * 0.06
-        hb = int(105 + math.sin(bx * 0.008) * 32 + math.sin(bx * 0.023 + 2.1) * 14)
-        pts_back.append((x, ground_y - hb))
-        fx = x + scroll * 0.15
-        hf = int(80 + math.sin(fx * 0.012) * 42 + math.sin(fx * 0.031) * 22)
-        pts_far.append((x, ground_y - hf))
-        nx = x + scroll * 0.28
-        hn = int(55 + math.sin(nx * 0.019 + 1.4) * 34 + math.sin(nx * 0.047 + 0.7) * 16)
-        pts_near.append((x, ground_y - hn))
-    for pts in (pts_back, pts_far, pts_near):
-        pts.append((w, ground_y))
-    pygame.draw.polygon(surf, back_color, pts_back)
-    pygame.draw.polygon(surf, far_color,  pts_far)
-    pygame.draw.polygon(surf, near_color, pts_near)
+from game import mountains_v14
+
+
+def draw_mountains(surf, scroll, ground_y, w, phase=0.02):
+    """Live mountains = the V14 'Pagoda-Crowned Ridges' design (body lives in
+    game/mountains_v14). Thin shim preserving the historical import surface so
+    every existing `draw_mountains(...)` call site keeps working; `phase` drives
+    the biome day/night retint."""
+    mountains_v14.draw_mountains_v14(surf, scroll, ground_y, w, phase=phase)
 
 
 # ── cloud drawing ────────────────────────────────────────────────────────────

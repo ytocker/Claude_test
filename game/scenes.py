@@ -1162,7 +1162,7 @@ class App:
                                   scroll_offset)
         else:
             draw_mountains(surf, scroll, GROUND_Y, W,
-                            palette['mtn_far'], palette['mtn_near'])
+                           phase=self.world.biome_phase)
         # Ambient scenes (V-flocks, fireworks) sit between mountains and the
         # ground band so they read as "out there in the world" — behind
         # gameplay entities (pipes, coins, bird) but in front of terrain.
