@@ -1388,6 +1388,13 @@ class Pipe:
         # it, so flags/vines/lanterns stay non-lethal. Built with the bake.
         self._collision_mask = None
         self._collision_mask_dx = 0
+        # SKATEBOARD ride surfaces (lazy, derived from the mask): the LOWER
+        # pagoda's roof crown (highest lethal y Pip rides over) and the UPPER
+        # pagoda's underside (lowest lethal y the helmet bonks). The roofs
+        # overhang the gap rim, so these are NOT the gap edges.
+        self._skate_computed = False
+        self._skate_low = None
+        self._skate_up = None
         # Ornament density + first-pillar quiet rule key off the spawn order;
         # World sets this at spawn (0 = first pillar of the run).
         self.spawn_index = 0
@@ -1487,6 +1494,33 @@ class Pipe:
             surf.fill((0, 0, 0, 0), pygame.Rect(0, top_edge - fc, w, fc))
         self._collision_mask = pygame.mask.from_surface(surf, 50)
         self._collision_mask_dx = -margin
+
+    def skate_surfaces(self):
+        """SKATEBOARD ride surfaces (lower_crown_top_y, upper_crown_bottom_y),
+        read off the structural mask. `lower_crown_top` is the HIGHEST lethal
+        pixel of the lower pagoda — the roofline Pip rides over; `upper_crown_bot`
+        is the LOWEST lethal pixel of the upper pagoda — where the helmet bonks.
+        The pagoda roofs overhang the gap rim (the roof tiers rise above
+        gap_bot / hang below gap_top), so these are NOT the gap edges: snapping to
+        the gap edge left Pip clipping the roof and dying. Cached per pipe."""
+        if self._skate_computed:
+            return self._skate_low, self._skate_up
+        if self._collision_mask is None:
+            self._build_collision_mask()
+        low = up = None
+        # The gap splits the silhouette into an upper and a lower component; the
+        # mask carries no x-offset in y, so rect.top/.bottom are world-y directly.
+        for rc in self._collision_mask.get_bounding_rects():
+            if rc.centery < self.gap_y:
+                up = rc.bottom if up is None else max(up, rc.bottom)
+            else:
+                low = rc.top if low is None else min(low, rc.top)
+        self._skate_low = (float(low) if low is not None
+                           else self.gap_y + self.gap_h / 2)
+        self._skate_up = (float(up) if up is not None
+                          else self.gap_y - self.gap_h / 2)
+        self._skate_computed = True
+        return self._skate_low, self._skate_up
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA

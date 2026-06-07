@@ -1871,7 +1871,11 @@ class World:
                     continue
                 if self._skateboard_handle_pipe(p, bx, by, br):
                     by = self.bird.y
-                    break
+            # Skating RIDES OVER pagodas — it never dies to a pillar. The ride
+            # snaps above keep Pip on the rooflines (and bonk the undersides), so
+            # skip the lethal pipe loop entirely (mirrors the ghost phase-through
+            # return). The ground slide + ceiling clamp already ran above.
+            return
         # Pip's hitboxes: body (existing) + parcel below him. The parcel
         # offset rotates with his tilt so when he dives the parcel swings
         # forward/down with him.
@@ -1916,46 +1920,49 @@ class World:
                 return
 
     def _skateboard_handle_pipe(self, p, bx, by, br) -> bool:
-        """When SKATEBOARD is active, intercept lethal pipe collisions.
+        """When SKATEBOARD is active, RIDE OVER the pagoda instead of dying on it.
 
-        Returns True if the collision was absorbed (no death):
-          - Bottom-pillar TOP hit: land and roll along the rim.
-          - Upper-pillar UNDERSIDE hit: helmet CLONK! deflect with
-            stars + audio + shake. The cyan-lamp / skull-bunny helmet
-            absorbs the bonk so Pip bounces gently instead of dying.
-        Returns False for side hits, which are still lethal.
+        If Pip's circle overlaps the pagoda's structural silhouette, eject him to
+        the nearest rideable surface and absorb the hit (returns True):
+          - Lower half of the gap → land/roll along the LOWER pagoda's ROOFLINE
+            (snap to its true mask crown — the roof overhangs the gap rim, so the
+            old gap-rim snap left Pip clipping the roof and dying). Sets
+            `_sliding_this_frame` so a NOSE / TAIL grind can fire on landing.
+          - Upper half → helmet CLONK! off the UPPER pagoda's underside (stars +
+            audio + shake; the punk helmet absorbs the bonk).
+        The crown / underside come from `p.skate_surfaces()`, read off the actual
+        per-pixel mask, so every pagoda variant's overhanging roof is cleared.
         """
-        gap_top = p.gap_y - p.gap_h / 2
-        gap_bot = p.gap_y + p.gap_h / 2
-        in_column = (p.x - br < bx < p.x + PIPE_W + br)
-        if (in_column and by < gap_bot and self.bird.vy >= -50
-                and (by + br) >= gap_bot):
-            self.bird.y = gap_bot - br
+        if p.is_phantom:
+            return False
+        if not p.collides_circle(bx, by, br):
+            return False
+        low, up = p.skate_surfaces()
+        if by >= p.gap_y:                       # lower half → ride the rooftop
+            self.bird.y = low - br
             self.bird.vy = 0.0
-            self._maybe_skateboard_dust(bx, gap_bot)
-            self._maybe_grind_sparks(gap_bot)
+            self._maybe_skateboard_dust(bx, low)
+            self._maybe_grind_sparks(low)
             self._sliding_this_frame = True
             return True
-        if (in_column and by > gap_top and self.bird.vy <= 50
-                and (by - br) <= gap_top):
-            self.bird.y = gap_top + br
-            self.bird.vy = max(self.bird.vy, 0.0) + 25
-            self.shake_mag = max(self.shake_mag, 5.0)
-            self.shake_t = max(self.shake_t, 0.18)
-            audio.play_helmet_bonk()
-            for _ in range(10):
-                ang = random.uniform(-math.pi, 0)
-                spd = random.uniform(120, 220)
-                self.particles.append(Particle(
-                    bx, gap_top,
-                    math.cos(ang) * spd, math.sin(ang) * spd,
-                    random.uniform(0.3, 0.6),
-                    random.randint(2, 4),
-                    random.choice((UI_GOLD, UI_CREAM, WHITE)),
-                    gravity=400,
-                ))
-            return True
-        return False
+        # upper half → helmet bonk off the underside
+        self.bird.y = up + br
+        self.bird.vy = max(self.bird.vy, 0.0) + 25
+        self.shake_mag = max(self.shake_mag, 5.0)
+        self.shake_t = max(self.shake_t, 0.18)
+        audio.play_helmet_bonk()
+        for _ in range(10):
+            ang = random.uniform(-math.pi, 0)
+            spd = random.uniform(120, 220)
+            self.particles.append(Particle(
+                bx, up,
+                math.cos(ang) * spd, math.sin(ang) * spd,
+                random.uniform(0.3, 0.6),
+                random.randint(2, 4),
+                random.choice((UI_GOLD, UI_CREAM, WHITE)),
+                gravity=400,
+            ))
+        return True
 
     def _maybe_skateboard_dust(self, x, y_ground):
         """Occasional dust puff while sliding — throttled, not every frame."""
