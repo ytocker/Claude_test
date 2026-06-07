@@ -51,13 +51,19 @@ def _scatter(scroll, w, speed, step, seed_off, margin=24):
     deterministically per cell. The plane itself is static; this only places
     surface marks (pebbles, stones, reeds) that ride the scroll."""
     phase = scroll * speed
-    first = int((phase - margin) // step) - 1
+    # A placed element extends RIGHT of its cell x by up to ~the cell size (a full
+    # running-bond brick tile is `step` wide and can sit a half-brick to the right
+    # of `sx`). Keep a cell live on the LEFT until it is FULLY past the edge —
+    # culling at -margin dropped tiles whose right half was still on screen, which
+    # flickered the sidewalk's left edge as tiles scrolled off.
+    left = 2 * step + margin
+    first = int((phase - left) // step) - 1
     last = int((phase + w + margin) // step) + 2
     for k in range(first, last + 1):
         rng = random.Random((k * 2654435761 ^ seed_off) & 0xFFFFFFFF)
         wx = k * step + rng.uniform(-step * 0.25, step * 0.25)
         sx = int(wx - phase)
-        if -margin < sx < w + margin:
+        if -left < sx < w + margin:
             yield sx, k, rng
 
 def _flat_slab(surf, w, h, top_y, top_col, bot_col, ease=1.0):
