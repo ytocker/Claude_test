@@ -82,13 +82,13 @@ def _alpha_surf(w, h) -> pygame.Surface:
 
 # ── ruyi-lobe / ink helpers ──────────────────────────────────────────────────
 
-def _seeded_jit(x: float, y: float, idx: int, amp: int) -> int:
-    # Deterministic per-spawn LCG step so silhouette jitter doesn't
-    # reshuffle frame-to-frame. Matches the seeding pattern used by the
-    # round-23 baseline so jitter "feels" the same across variants.
-    seed = (int(x) * 0x9E3779B1) ^ (int(y) * 0x7F4A7C15)
-    v = ((seed + idx * 2654435761) & 0xFFFF) / 0xFFFF
-    return int((v - 0.5) * 2 * amp)
+def _cozy_lobe_sway(x: float, idx: int, amp: float) -> int:
+    # Gentle continuous lobe drift keyed to the cloud's scroll position rather
+    # than a per-frame hash of it: the silhouette breathes smoothly instead of
+    # flickering. Long spatial period + small amplitude keep it cozy at every
+    # parallax depth. (A hashed jitter re-rolled every frame as x/y changed,
+    # which read as an unpleasant flicker.)
+    return int(math.sin(x * 0.06 + idx * 2.1) * amp)
 
 def _is_night(palette: dict) -> bool:
     # Single luminance test used to gate night-only branches like the
@@ -275,7 +275,7 @@ def _draw_base_ruyi(
     base_lobes = tuple(
         (
             int(w * xf),
-            cy + int(h * yo) + _seeded_jit(x, y, i, max(2, int(h * 0.06))),
+            cy + int(h * yo) + _cozy_lobe_sway(x, i, h * 0.035),
             int(h * rf),
         )
         for i, (xf, yo, rf) in enumerate(zip(lobe_xs, lobe_y_offsets, lobe_r_fracs))
