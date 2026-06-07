@@ -463,3 +463,7 @@ def add_embedded_detail(kind, surf, w, gy, h, scroll, pal):
     _litter(*common, leaf_tint=(170, 140, 95))
     _grate(surf, w, top_y, region_h, scroll, front, back, mortar, night,
            n_course, edges, width)
+    # A sparse inlaid medallion set into the front course — re-tinted off the buff
+    # body via the tones above so it reads as inlaid sandstone, not a sticker.
+    _medallion(surf, w, top_y, region_h, scroll, front, back, mortar, night,
+               n_course, edges, width, pal)

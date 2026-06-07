@@ -757,6 +757,23 @@ def _stepped(cls, pal, frames, x, *, rng_seed=7):
     return obj
 
 
+def _ground_furniture(surf, w, scroll, pal):
+    """World-anchored ground props re-added from the source set: a barrel, a
+    cairn, and a planter trailing a cascading vine. Low density and clears the
+    bird column (sp._ground_clear) so they dress the deck without crowding; drawn
+    early in each beat so they sit behind the living cast."""
+    for sx, k in sp._world_xs(scroll, w, 260, x0=14):
+        if sp._ground_clear(sx, 10):
+            sp._draw_barrel(surf, sx, pal)
+    for sx, k in sp._world_xs(scroll, w, 260, x0=118):
+        if sp._ground_clear(sx, 12):
+            sp._draw_cairn(surf, sx, pal, scale=1.2)
+    for sx, k in sp._world_xs(scroll, w, 300, x0=205):
+        if sp._ground_clear(sx, 12):
+            sp._draw_planter(surf, sx, pal, kind='shrub')
+            sp._draw_vine_trail(surf, sx + 11, pal)
+
+
 def phase_day(surf, w, gy, h, scroll, pal, t):
     """DAY · Pastoral Morning. Sparse dressing: planters + prayer-flag bunting +
     a kiosk just opening. Living: a grazing sheep flock, a running dog, kids, a
@@ -765,6 +782,7 @@ def phase_day(surf, w, gy, h, scroll, pal, t):
     DAY reads genuinely sparse rather than one brown/white blob at the pillar."""
     global _CUR_PAL
     _CUR_PAL = pal
+    _ground_furniture(surf, w, scroll, pal)
     # ONE clean prayer-flag span per period strung high across the promenade.
     for xl, xr in sp._garland_spans(scroll, w, period=150, x0=20):
         draw_prayer_flags(surf, int(xl), GROUND_Y - 118, int(xr), GROUND_Y - 116, n=5)
@@ -793,6 +811,7 @@ def phase_golden(surf, w, gy, h, scroll, pal, t):
     companion, kids, the dog. Warm amber, still unlit."""
     global _CUR_PAL
     _CUR_PAL = pal
+    _ground_furniture(surf, w, scroll, pal)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 96,
                              period=150, sag=22, per_span=2)
     for sx, k in sp._world_xs(scroll, w, 250, x0=20):
@@ -832,6 +851,7 @@ def phase_dusk(surf, w, gy, h, scroll, pal, t):
     strolling figures + a napper resting. Lavender, quieter."""
     global _CUR_PAL
     _CUR_PAL = pal
+    _ground_furniture(surf, w, scroll, pal)
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 92,
                           period=210, sag=26, per_span=5)
     for sx, k in sp._world_xs(scroll, w, 250, x0=24):
@@ -858,6 +878,7 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
     cozy figures. The payoff cell."""
     global _CUR_PAL
     _CUR_PAL = pal
+    _ground_furniture(surf, w, scroll, pal)
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 98,
                              period=118, sag=24, per_span=3)
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 78,
