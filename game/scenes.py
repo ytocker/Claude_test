@@ -373,8 +373,9 @@ STATE_INTRO = 7
 STATE_POWERUPS = 8
 
 # Background cloud depth slots: (base_x, base_y, scale). Geometry is fixed so the
-# parallax-depth spread stays good; which variant occupies each slot is re-rolled
-# per run (see App._shuffle_clouds) so the sky arrangement varies between runs.
+# parallax-depth spread stays good; all slots share one cloud design per run,
+# picked at random (see App._pick_cloud_variant), so each run has a consistent
+# cloud style that varies between runs.
 _CLOUD_SLOTS = (
     (20, 90, 0.9), (180, 140, 1.1), (60, 220, 0.8),
     (230, 60, 0.7), (320, 180, 0.9), (140, 40, 1.0),
@@ -413,8 +414,8 @@ class App:
         self._intro_from_menu = False
         self.state = STATE_INTRO
         self._cloud_phase = 0.0
-        self._cloud_variant_slots = []
-        self._shuffle_clouds()
+        self._cloud_variant = 0
+        self._pick_cloud_variant()
         self._running = True
         self._stats_t = 0.0
         # True while the HTML splash overlay is still painted on top of
@@ -622,16 +623,12 @@ class App:
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
 
-    def _shuffle_clouds(self):
-        """Re-roll which variant occupies each background cloud slot. Called
-        once per run so the sky's mix varies between runs yet stays stable
-        within a run (re-rolling per frame would flicker). With as many
-        variants as slots this is a permutation — every design still appears,
-        just at a different depth/scale each run."""
-        pool = list(range(cloud_variants.VARIANT_COUNT))
-        random.shuffle(pool)
-        self._cloud_variant_slots = [pool[i % len(pool)]
-                                     for i in range(len(_CLOUD_SLOTS))]
+    def _pick_cloud_variant(self):
+        """Pick the single cloud design used by every cloud for the whole run,
+        chosen at random. Called once per run so each run has one consistent
+        cloud style that varies between runs (re-rolling per frame would
+        flicker)."""
+        self._cloud_variant = random.randrange(cloud_variants.VARIANT_COUNT)
 
     def _start_play(self):
         # The menu IS the start-of-game screen, so the click that brought
@@ -642,7 +639,7 @@ class App:
         self.world = World()
         self.world.ready_t = 0.0
         self.world.flap()
-        self._shuffle_clouds()
+        self._pick_cloud_variant()
         self.state = STATE_PLAY
 
     def _finish_intro(self, skipped: bool):
@@ -690,7 +687,7 @@ class App:
         self.world = World()
         self.world.ready_t = 0.0
         self.world.flap()
-        self._shuffle_clouds()
+        self._pick_cloud_variant()
         self.state = STATE_PLAY
 
     # ── run loop ────────────────────────────────────────────────────────────
@@ -1154,7 +1151,7 @@ class App:
             ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
-                       sc, variant=self._cloud_variant_slots[i], palette=palette)
+                       sc, variant=self._cloud_variant, palette=palette)
         if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
             # Pre-rendered fries pile per parallax layer - blit cheaply
             # at the offset since activation so the pile drifts at the
