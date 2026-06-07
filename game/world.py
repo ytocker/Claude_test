@@ -830,7 +830,9 @@ class World:
         ramp_w = 38 + random.randint(-2, 2)
         ramp_h = 22 + random.randint(-2, 2)
         ramp_w = min(ramp_w, PIPE_W - 2)
-        base_y = pipe.gap_y + pipe.gap_h / 2
+        # Sit the wedge on the pagoda ROOF (body top), not the decorative finial
+        # tip — finial_clear is the non-lethal antenna height pulled off the gap edge.
+        base_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear
         rx = pipe.x + PIPE_W - ramp_w
         self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
         pipe.has_ramp = True
@@ -3037,7 +3039,7 @@ class World:
         pillar's gap, so touching the pillar BODY of the same pipe
         returns False and falls through to normal pipe collision."""
         cart_cx = pipe.x + PIPE_W // 2
-        rail_y = pipe.gap_y + pipe.gap_h / 2
+        rail_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear  # roof, not finial tip
         left = cart_cx - self._CART_HALF_W
         right = cart_cx + self._CART_HALF_W
         top = rail_y - self._CART_TOP_OFF
@@ -3065,14 +3067,14 @@ class World:
 
         for i, p in enumerate(sorted_pipes):
             if p.x - 6 <= bx <= p.x + PIPE_W + 6:
-                rail_y = p.gap_y + p.gap_h / 2
+                rail_y = p.gap_y + p.gap_h / 2 + p.finial_clear  # roof, not finial tip
                 self.bird.y = rail_y - offset
                 self.bird.vy = 0.0
                 if i + 1 < len(sorted_pipes):
                     nxt = sorted_pipes[i + 1]
                     self.bird.cart_tilt_deg = self._rail_slope_deg(
                         p.x + PIPE_W, rail_y,
-                        nxt.x, nxt.gap_y + nxt.gap_h / 2)
+                        nxt.x, nxt.gap_y + nxt.gap_h / 2 + nxt.finial_clear)
                 else:
                     self.bird.cart_tilt_deg = 0.0
                 return
@@ -3082,8 +3084,8 @@ class World:
             if p1.x + PIPE_W <= bx <= p2.x:
                 span = max(1, p2.x - (p1.x + PIPE_W))
                 t = (bx - (p1.x + PIPE_W)) / span
-                y1 = p1.gap_y + p1.gap_h / 2
-                y2 = p2.gap_y + p2.gap_h / 2
+                y1 = p1.gap_y + p1.gap_h / 2 + p1.finial_clear
+                y2 = p2.gap_y + p2.gap_h / 2 + p2.finial_clear
                 self.bird.y = (y1 + (y2 - y1) * t) - offset
                 self.bird.vy = 0.0
                 self.bird.cart_tilt_deg = self._rail_slope_deg(

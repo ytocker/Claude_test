@@ -28,7 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_pagodas import draw_pillar_pair
+from game.pillar_pagodas import draw_pillar_pair, finial_clearance
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
 
@@ -1349,6 +1349,10 @@ class Pipe:
         self.has_ramp = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
+        # The pagoda finial ("antenna") is decorative-only: the kill zone stops
+        # this many px back from each gap edge (at the body roof), so clipping the
+        # spire is non-lethal. Drawing still fills the full gap extent.
+        self.finial_clear = finial_clearance(self.seed)
         # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
         # stable for a Pipe's lifetime) and never animates, so we render
         # it once on first KFC frame and blit the bitmap each frame after.
@@ -1371,12 +1375,16 @@ class Pipe:
 
     @property
     def top_rect(self):
-        return pygame.Rect(int(self.x), 0, PIPE_W, int(self.gap_y - self.gap_h / 2))
+        # Collision only (draw uses its own full-extent rects). The bottom edge is
+        # pulled UP by finial_clear so the downward finial sits in non-lethal gap.
+        h = max(0, int(self.gap_y - self.gap_h / 2 - self.finial_clear))
+        return pygame.Rect(int(self.x), 0, PIPE_W, h)
 
     @property
     def bot_rect(self):
-        top = int(self.gap_y + self.gap_h / 2)
-        return pygame.Rect(int(self.x), top, PIPE_W, GROUND_Y - top)
+        # Top edge pushed DOWN by finial_clear so the upward finial is non-lethal.
+        top = int(self.gap_y + self.gap_h / 2 + self.finial_clear)
+        return pygame.Rect(int(self.x), top, PIPE_W, max(0, GROUND_Y - top))
 
     def off_screen(self):
         return self.x + PIPE_W + 8 < 0

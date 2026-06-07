@@ -10480,6 +10480,24 @@ VARIANT_KEYS = (
 )
 VARIANT_COUNT = len(VARIANT_KEYS)
 
+# Per-variant decorative finial ("antenna") height in px — the thin spire/jewel
+# above each pagoda's top roof. It is VISUAL-ONLY: the kill zone stops this many
+# px back from the gap edge (at the body roof), so clipping the antenna is safe,
+# like the vegetation that overhung the old sandstone pillars. Values ≈ each
+# candidate's own finial_h; tunable. wat_arun is small because only its diamond
+# bud is antenna-like, not the structural corncob spire.
+FINIAL_CLEARANCE = {
+    "stupa_canopy": 32, "wat_arun": 24, "songyue_sandstone": 28,
+    "horyuji": 34, "fogong": 18, "toji": 40, "daigoji": 38,
+    "yakushiji": 30, "baoen": 24, "muroji": 26, "palsangjeon": 20,
+}
+
+
+def finial_clearance(seed):
+    """Px of non-lethal decorative finial above the body roof for `seed`'s variant
+    (mirrors the seed->variant mapping used by draw_pillar_pair)."""
+    return FINIAL_CLEARANCE.get(VARIANT_KEYS[seed % VARIANT_COUNT], 0)
+
 
 def draw_pillar_pair(surf, top_rect, bot_rect, palette, seed,
                      *, phase=0.0, is_rush=False, pillar_index=1):
