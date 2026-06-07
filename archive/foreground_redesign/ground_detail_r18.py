@@ -90,6 +90,8 @@ def _base_kind(floor_painter):
         return "cool"
     if floor_painter is fg.fg_swatch_honey_flagstone:
         return "honey"
+    if floor_painter is fg.fg_swatch_buff_running_bond:
+        return "buff"
     return "terracotta"
 
 
@@ -98,6 +100,8 @@ def _body_for(kind, pal):
         return fg._paver_cool_body(pal), True
     if kind == "honey":
         return fg._honey_body(pal), False
+    if kind == "buff":
+        return fg._buff_body(pal), False
     return fg._clay(pal), False
 
 
