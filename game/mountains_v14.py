@@ -377,10 +377,14 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
         c1 = int(math.floor((cam + w + margin) / cell))
 
         def _project(wx):
-            # World-x → screen; y read from the silhouette at that exact column
-            # so the base sits on the drawn ridge pixel.
-            sx = int(round(wx - cam))
-            return sx, ground_y - int(_ridge_h(sx + cam, base_h, terms))
+            # World-x -> screen. y is sampled at the element's TRUE world-x, so
+            # it's constant frame-to-frame: the ornament slides horizontally with
+            # the scroll and never bobs vertically. (Reading it at the rounded
+            # screen column reprojected — sx+cam — made y wobble ±0.5px as `cam`
+            # drifted between integer x-steps, which read as jitter.) Any <=1px
+            # static gap from the shimmering ridge edge hides behind the fill.
+            return (int(round(wx - cam)),
+                    ground_y - int(round(_ridge_h(wx, base_h, terms))))
 
         def _draw_tree(rng, kind, tx, ty):
             # Region-style picks the kind; this routes to the right helper
