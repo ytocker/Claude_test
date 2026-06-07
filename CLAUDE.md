@@ -91,6 +91,11 @@ These are project identity. Don't violate without explicit user OK.
 - **Comments are WHY-only.** Match the existing rationale style.
   Never line-by-line WHAT comments. Never reference the current task,
   PR, or caller in a comment.
+- **Share visuals as git links only.** When surfacing a rendered image
+  (filmstrip, candidate sheet, screenshot), commit it under `docs/` and
+  give its GitHub blob URL on the working branch — e.g.
+  `https://github.com/ytocker/skybit/blob/<branch>/docs/<path>.png`.
+  Never send or embed images in chat (no SendUserFile, no inline images).
 
 ## Power-ups (6 early-game + Surprise Box + late-game gated tier)
 
