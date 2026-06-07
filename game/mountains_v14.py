@@ -4,8 +4,10 @@ Five parallax ridge bands washed with ink-gradient depth, then scattered with
 pagodas, pavilions, pines, bamboo, willows, stone lanterns and banners whose mix
 follows a per-world-x region archetype — so each stretch of the ridgeline reads
 as a different village. Everything re-tints across the biome day/night cycle via
-the imported palette; placement is seeded off scroll position so a given world-x
-always paints the same scene (no per-frame flicker).
+the imported palette. Ornaments are anchored to fixed WORLD cells (RNG seeded off
+the cell's world index, not the camera), so a given village keeps its identity and
+scrolls smoothly with the ridge — a few alive at once, new ones entering at the
+right edge — instead of re-rolling every frame.
 
 Consolidated single module for the live game (one import surface). Source of
 truth for the design exploration + the user-picked winner lives in
@@ -247,21 +249,30 @@ def _hanging_banner(surf, x, top_y, length, color):
 
 # ── ridge analysis ───────────────────────────────────────────────────────────
 
-def _local_peaks(heights, look=14):
-    """Return indices of local maxima (highest crest points) so element
-    placement lands on visible summits, not random pixels."""
-    out = []
-    for i in range(look, len(heights) - look):
-        x, y = heights[i]
-        if all(y <= heights[i + d][1] for d in range(-look, look + 1)):
-            out.append(i)
-    return out
+def _layer_terms(k):
+    """Sine terms for ridge band k — shared by the silhouette (`_ridge`) and the
+    ornament projection (`_ridge_h`) so both read the same crest line."""
+    return [(0.011 + k * 0.002, 24 - k * 2, 0.6 + k),
+            (0.030 + k * 0.004, 12, 1.5 - k * 0.3)]
 
-def _seed_for(scroll, layer_const):
-    """Deterministic per-scroll-bucket seed. Bucket size 1px so the variation
-    re-rolls smoothly as the world moves; layer_const keeps each band's RNG
-    independent so the three layers aren't lockstep."""
-    return (int(scroll) ^ layer_const) & 0xFFFFFFFF
+def _ridge_h(wx, base_h, terms):
+    """Scalar ridge height at WORLD-x `wx` — the same per-point sum `_ridge`
+    evaluates, so an ornament placed here sits on the drawn silhouette pixel."""
+    h = base_h
+    for freq, amp, ph in terms:
+        h += math.sin(wx * freq + ph) * amp
+    return h
+
+def _summit_near(wx, base_h, terms, span=16):
+    """Nudge a world-x to the nearest crest within ±span so ornaments crown
+    summits rather than slopes. World-space stand-in for the old screen-index
+    peak scan — stable as the world scrolls because it's a function of `wx`."""
+    best_x, best_h = wx, _ridge_h(wx, base_h, terms)
+    for d in range(-span, span + 1):
+        ch = _ridge_h(wx + d, base_h, terms)
+        if ch > best_h:
+            best_h, best_x = ch, wx + d
+    return best_x
 
 # ── region archetype system ──────────────────────────────────────────────────
 
@@ -335,14 +346,13 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
         (0.20, 80, 218, _sat(_mix(near, far, 0.4), 1.25), _mix(near, far, 0.5)),
         (0.28, 64, 244, _sat(near, 1.30), _mix(near, far, 0.28)),
     ]
-    crest_heights = []
+    layer_params = []
     for k, (speed, base_h, atop, itop, ibot) in enumerate(specs):
-        pts, h = _ridge(w, ground_y, scroll, speed, base_h,
-                        [(0.011 + k * 0.002, 24 - k * 2, 0.6 + k),
-                         (0.030 + k * 0.004, 12, 1.5 - k * 0.3)])
+        terms = _layer_terms(k)
+        pts, h = _ridge(w, ground_y, scroll, speed, base_h, terms)
         _ink_wash_strong(surf, h, ground_y, itop, ibot, atop, fade=1.6,
                          rim_col=_shade(_sat(itop, 1.2), -28))
-        crest_heights.append(h)
+        layer_params.append((speed, base_h, terms))
 
     pag_far = _shade(_sat(_mix(far, near, 0.7), 1.15), -42)
     pag_mid = _shade(_sat(near, 1.20), -46)
@@ -352,21 +362,27 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
     banner_col = _shade(_mix(_sat(horizon, 1.3), (190, 70, 60), 0.5),
                         int(-70 * night))
 
-    def scatter_pagoda(heights, layer_idx, base_color, layer_seed,
-                       pag_scale_range, tier_choices, tree_scale=1.0,
+    def scatter_pagoda(speed, base_h, terms, base_color, layer_seed,
+                       pag_scale_range, cell, tree_scale=1.0,
                        allow_banner=True):
-        rng = random.Random(_seed_for(scroll, layer_seed))
-        # Far band runs sparser than mid/near so the horizon stays calm.
-        if layer_idx == 2:
-            n_sections = 1
-        else:
-            n_sections = 2
-        cuts = sorted(rng.sample(range(40, w - 40), n_sections - 1))
-        bounds = [0] + cuts + [w]
-        peaks = _local_peaks(heights, look=18)
-        peaks_by_x = sorted([(heights[i][0], i) for i in peaks])
+        # Ornaments are anchored to fixed WORLD cells: each cell's RNG is seeded
+        # from its world index + the band const, NEVER from `scroll`. So a
+        # village feature keeps its identity/type/scale and simply slides left
+        # with the ridge as the world advances — instead of re-rolling every
+        # frame (the old camera-seeded scatter flickered). Only the handful of
+        # cells overlapping the view are drawn; new ones enter from the right.
+        cam = scroll * speed
+        margin = 60                       # keep ornaments sliding in/out smoothly
+        c0 = int(math.floor((cam - margin) / cell))
+        c1 = int(math.floor((cam + w + margin) / cell))
 
-        def _draw_tree(kind, tx, ty):
+        def _project(wx):
+            # World-x → screen; y read from the silhouette at that exact column
+            # so the base sits on the drawn ridge pixel.
+            sx = int(round(wx - cam))
+            return sx, ground_y - int(_ridge_h(sx + cam, base_h, terms))
+
+        def _draw_tree(rng, kind, tx, ty):
             # Region-style picks the kind; this routes to the right helper
             # at a kind-appropriate height (scaled by depth band).
             if kind == 'pine_bent':
@@ -385,90 +401,67 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
                 _willow(surf, tx, ty,
                         int(rng.randint(9, 14) * tree_scale), base_color)
 
-        for s in range(n_sections):
-            lo, hi = bounds[s], bounds[s + 1]
-            section_peaks = [i for x, i in peaks_by_x if lo <= x <= hi]
-            # Section flavour follows the REGION at the section's world-x —
-            # so consecutive regions feel like different villages on the
-            # same shan-shui ridgeline.
-            sec_wx = scroll + (lo + hi) * 0.5
-            sec_region = _v14_region(sec_wx)
-            flavour = _v14_weighted(rng, sec_region['flavour_weights'])
+        for c in range(c0, c1 + 1):
+            rng = random.Random((c * 0x9E3779B1) ^ layer_seed)
+            # One village cluster per cell, anchored at a crest inside the cell.
+            anchor = _summit_near(c * cell + rng.uniform(12, cell - 12),
+                                  base_h, terms)
+            # Flavour follows the REGION at the anchor's world-x — so successive
+            # regions read as different villages on the same shan-shui ridge.
+            region = _v14_region(anchor)
+            flavour = _v14_weighted(rng, region['flavour_weights'])
+            cx, cy = _project(anchor)
 
-            if flavour == 'pagoda' and section_peaks:
-                idx = rng.choice(section_peaks)
-                cx, cy = heights[idx]
-                elem_region = _v14_region(scroll + cx)
-                tiers = rng.choice(elem_region['tier_choices'])
+            if flavour == 'pagoda':
+                tiers = rng.choice(region['tier_choices'])
                 bw = rng.randint(10, 16)
                 lo_s, hi_s = pag_scale_range
-                sc = rng.uniform(lo_s, hi_s) * elem_region['pag_scale_mul']
+                sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
                 _pagoda(surf, cx, cy - 1, tiers, bw, base_color, accent, sc)
                 if rng.random() < 0.25:
                     _stone_lantern(surf, cx - 10, cy - 1, base_color, accent)
                     _stone_lantern(surf, cx + 10, cy - 1, base_color, accent)
-            elif flavour == 'grove' and section_peaks:
-                idx = rng.choice(section_peaks)
-                cx, cy = heights[idx]
-                count = rng.randint(1, 2)
-                for _ in range(count):
-                    tx = cx + rng.randint(-22, 22)
-                    if not (lo <= tx <= hi):
-                        continue
-                    ty = heights[min(tx, len(heights) - 1)][1]
-                    elem_region = _v14_region(scroll + tx)
-                    kind = _v14_weighted(rng, elem_region['tree_weights'])
-                    _draw_tree(kind, tx, ty)
+            elif flavour == 'grove':
+                for _ in range(rng.randint(1, 2)):
+                    twx = anchor + rng.randint(-22, 22)
+                    tx, ty = _project(twx)
+                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                    _draw_tree(rng, kind, tx, ty)
                 if allow_banner and rng.random() < 0.30:
-                    bx = cx + rng.randint(-18, 18)
-                    by = heights[min(bx, len(heights) - 1)][1]
+                    bx, by = _project(anchor + rng.randint(-18, 18))
                     _hanging_banner(surf, bx, by - 18,
                                     rng.randint(10, 16), banner_col)
-            elif flavour == 'shrine' and section_peaks:
-                idx = rng.choice(section_peaks)
-                cx, cy = heights[idx]
-                elem_region = _v14_region(scroll + cx)
-                pscale = rng.uniform(0.85, 1.15) * elem_region['pag_scale_mul']
+            elif flavour == 'shrine':
+                pscale = rng.uniform(0.85, 1.15) * region['pag_scale_mul']
                 _pavilion(surf, cx, cy - 1, base_color, accent, scale=pscale)
-                _stone_lantern(surf, cx + rng.choice((-12, 12)), cy - 1,
-                               base_color, accent)
+                lx, ly = _project(anchor + rng.choice((-12, 12)))
+                _stone_lantern(surf, lx, ly - 1, base_color, accent)
                 if rng.random() < 0.50:
-                    tx = cx + rng.randint(-26, 26)
-                    if lo <= tx <= hi:
-                        ty = heights[min(tx, len(heights) - 1)][1]
-                        kind = _v14_weighted(rng,
-                                             elem_region['tree_weights'])
-                        _draw_tree(kind, tx, ty)
+                    twx = anchor + rng.randint(-26, 26)
+                    tx, ty = _project(twx)
+                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                    _draw_tree(rng, kind, tx, ty)
             else:  # 'mixed' — one pagoda + at most one accent tree
-                if section_peaks:
-                    idx = rng.choice(section_peaks)
-                    cx, cy = heights[idx]
-                    elem_region = _v14_region(scroll + cx)
-                    tiers = rng.choice(elem_region['tier_choices'])
-                    lo_s, hi_s = pag_scale_range
-                    sc = rng.uniform(lo_s, hi_s) * elem_region['pag_scale_mul']
-                    _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
-                            base_color, accent, scale=sc)
-                if rng.random() < 0.50 and hi - lo >= 20:
-                    tx = rng.randint(lo + 6, hi - 6)
-                    ty = heights[min(tx, len(heights) - 1)][1]
-                    elem_region = _v14_region(scroll + tx)
-                    kind = _v14_weighted(rng, elem_region['tree_weights'])
-                    _draw_tree(kind, tx, ty)
+                tiers = rng.choice(region['tier_choices'])
+                lo_s, hi_s = pag_scale_range
+                sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
+                _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
+                        base_color, accent, scale=sc)
+                if rng.random() < 0.50:
+                    twx = anchor + rng.randint(-14, 14)
+                    tx, ty = _project(twx)
+                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                    _draw_tree(rng, kind, tx, ty)
 
+    # Cell widths set how many villages share the view per band: far runs
+    # sparser so the horizon stays calm, near densest. (specs[2..4] bands.)
     # Far band — small pagodas, no trees.
-    scatter_pagoda(crest_heights[2], layer_idx=2,
-                   base_color=pag_far, layer_seed=0xE14A,
-                   pag_scale_range=(0.7, 0.95),
-                   tier_choices=(3, 5), tree_scale=0.7,
+    scatter_pagoda(*layer_params[2], base_color=pag_far, layer_seed=0xE14A,
+                   pag_scale_range=(0.7, 0.95), cell=230, tree_scale=0.7,
                    allow_banner=False)
     # Mid band — full vocabulary.
-    scatter_pagoda(crest_heights[3], layer_idx=3,
-                   base_color=pag_mid, layer_seed=0xE14B,
-                   pag_scale_range=(0.95, 1.25),
-                   tier_choices=(3, 5, 5, 7), tree_scale=1.0)
+    scatter_pagoda(*layer_params[3], base_color=pag_mid, layer_seed=0xE14B,
+                   pag_scale_range=(0.95, 1.25), cell=190, tree_scale=1.0)
     # Near band — biggest pagodas + trees.
-    scatter_pagoda(crest_heights[4], layer_idx=4,
-                   base_color=pag_near, layer_seed=0xE14C,
-                   pag_scale_range=(1.15, 1.55),
-                   tier_choices=(5, 7, 7), tree_scale=1.3)
+    scatter_pagoda(*layer_params[4], base_color=pag_near, layer_seed=0xE14C,
+                   pag_scale_range=(1.15, 1.55), cell=165, tree_scale=1.3)
