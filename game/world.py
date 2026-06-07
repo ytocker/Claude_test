@@ -1905,11 +1905,13 @@ class World:
         # Parcel shouldn't graze the ground unless the bird already would
         # have died (the bird circle's r > parcel offset+r in normal flight).
         # Skip ground/ceiling re-check; only pipes are added.
+        kfc_now = self.kfc_timer > 0
         for p in self.pipes:
-            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK):
+            kfc = kfc_now and p.is_kfc
+            if p.collides_circle(bx, by, br - PIPE_HITBOX_SHRINK, kfc=kfc):
                 self._die()
                 return
-            if pr > 0 and p.collides_circle(px, py, pr - 1):
+            if pr > 0 and p.collides_circle(px, py, pr - 1, kfc=kfc):
                 self._die()
                 return
 

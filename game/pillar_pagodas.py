@@ -10487,9 +10487,9 @@ VARIANT_COUNT = len(VARIANT_KEYS)
 # candidate's own finial_h; tunable. wat_arun is small because only its diamond
 # bud is antenna-like, not the structural corncob spire.
 FINIAL_CLEARANCE = {
-    "stupa_canopy": 32, "wat_arun": 24, "songyue_sandstone": 28,
-    "horyuji": 34, "fogong": 18, "toji": 40, "daigoji": 38,
-    "yakushiji": 30, "baoen": 24, "muroji": 26, "palsangjeon": 20,
+    "stupa_canopy": 32, "wat_arun": 14, "songyue_sandstone": 12,
+    "horyuji": 36, "fogong": 30, "toji": 38, "daigoji": 40,
+    "yakushiji": 34, "baoen": 30, "muroji": 28, "palsangjeon": 18,
 }
 
 

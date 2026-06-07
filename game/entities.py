@@ -28,7 +28,21 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_pagodas import draw_pillar_pair, finial_clearance
+from game.pillar_pagodas import (draw_pillar_pair, finial_clearance,
+                                 CANDIDATES, VARIANT_KEYS, VARIANT_COUNT)
+
+# Cached filled-circle masks (one per integer radius) for pagoda mask collision.
+_CIRCLE_MASKS: dict = {}
+
+def _circle_mask(r):
+    r = max(1, int(round(r)))
+    m = _CIRCLE_MASKS.get(r)
+    if m is None:
+        s = pygame.Surface((r * 2 + 1, r * 2 + 1), pygame.SRCALPHA)
+        pygame.draw.circle(s, (255, 255, 255, 255), (r, r), r)
+        m = pygame.mask.from_surface(s, 50)
+        _CIRCLE_MASKS[r] = m
+    return m
 from game.dollar_coin_glyphs import draw_coin_font_bold as _draw_dollar_coin
 from game.surprise_box_variants import draw_cross as _draw_surprise_box
 
@@ -1369,31 +1383,43 @@ class Pipe:
         # WASM and re-roll the ornament layer each frame.
         self._pagoda_cache: "pygame.Surface | None" = None
         self._pagoda_cache_dx = 0
+        # Per-pixel collision mask of the pagoda STRUCTURE (body + every floor
+        # roof/eave incl. overhangs) minus the antenna band; ornaments are not in
+        # it, so flags/vines/lanterns stay non-lethal. Built with the bake.
+        self._collision_mask = None
+        self._collision_mask_dx = 0
         # Ornament density + first-pillar quiet rule key off the spawn order;
         # World sets this at spawn (0 = first pillar of the run).
         self.spawn_index = 0
 
     @property
     def top_rect(self):
-        # Collision only (draw uses its own full-extent rects). The bottom edge is
-        # pulled UP by finial_clear so the downward finial sits in non-lethal gap.
-        h = max(0, int(self.gap_y - self.gap_h / 2 - self.finial_clear))
-        return pygame.Rect(int(self.x), 0, PIPE_W, h)
+        # Full gap extent. Used as the KFC fallback hitbox; pagoda collision uses
+        # the per-pixel structural mask (which carves out the antenna).
+        return pygame.Rect(int(self.x), 0, PIPE_W, int(self.gap_y - self.gap_h / 2))
 
     @property
     def bot_rect(self):
-        # Top edge pushed DOWN by finial_clear so the upward finial is non-lethal.
-        top = int(self.gap_y + self.gap_h / 2 + self.finial_clear)
-        return pygame.Rect(int(self.x), top, PIPE_W, max(0, GROUND_Y - top))
+        top = int(self.gap_y + self.gap_h / 2)
+        return pygame.Rect(int(self.x), top, PIPE_W, GROUND_Y - top)
 
     def off_screen(self):
         return self.x + PIPE_W + 8 < 0
 
-    def collides_circle(self, cx, cy, r):
+    def collides_circle(self, cx, cy, r, *, kfc=False):
         if self.is_phantom:
             return False
-        return self.top_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2)) or \
-               self.bot_rect.colliderect(pygame.Rect(cx - r, cy - r, r * 2, r * 2))
+        if kfc:
+            # Fries re-skin roughly fills the rect and has no antenna — keep the
+            # cheap AABB hitbox during the KFC window.
+            box = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
+            return self.top_rect.colliderect(box) or self.bot_rect.colliderect(box)
+        # Pagoda: kill zone == the structural silhouette (every floor roof/eave,
+        # including overhangs) minus the antenna band + ornaments.
+        if self._collision_mask is None:
+            self._build_collision_mask()
+        offset = (int(cx - r - self.x - self._collision_mask_dx), int(cy - r))
+        return self._collision_mask.overlap(_circle_mask(r), offset) is not None
 
     def draw(self, surf, palette=None, kfc_visual=False, phase=0.0):
         if self.is_phantom:
@@ -1431,6 +1457,36 @@ class Pipe:
                          pillar_index=self.spawn_index)
         self._pagoda_cache = cache
         self._pagoda_cache_dx = -margin
+        # Build the collision mask now (first draw, well before the pillar reaches
+        # the bird) so there's no collision-time hitch.
+        if self._collision_mask is None:
+            self._build_collision_mask()
+
+    def _build_collision_mask(self):
+        """Per-pixel kill-zone mask = the pagoda STRUCTURE (body + all floor
+        roofs/eaves, including the overhangs past PIPE_W) with the decorative
+        antenna band erased. Structure only (no ornaments), so prayer flags /
+        vines / lanterns are non-lethal. Geometry is palette-independent."""
+        from game import biome as _biome
+        margin = 64
+        surf = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        lbt = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, lbt, PIPE_W, GROUND_Y - lbt)
+        key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
+        CANDIDATES[key](surf, local_top, local_bot,
+                        _biome.palette_for_phase(0.0), self.seed)
+        # Erase the antenna bands (full width) at each gap edge so the thin spire
+        # is non-lethal while the roof just below it stays in the mask.
+        fc = self.finial_clear
+        if fc > 0:
+            w = surf.get_width()
+            top_edge = int(self.gap_y - self.gap_h / 2)
+            surf.fill((0, 0, 0, 0), pygame.Rect(0, lbt, w, fc))
+            surf.fill((0, 0, 0, 0), pygame.Rect(0, top_edge - fc, w, fc))
+        self._collision_mask = pygame.mask.from_surface(surf, 50)
+        self._collision_mask_dx = -margin
 
     def _build_kfc_cache(self, palette):
         """Render the KFC pillar pair onto a per-instance SRCALPHA
