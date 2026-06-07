@@ -630,15 +630,6 @@ def draw_ruyi_mandala(surf, x, y, palette, scale=1.0):
     _ruyi_lobe(s, cx, cy, centre_r, body, edge, lit,
                body_a=250, key_a=180, lit_arc=True)
 
-    # Connecting ring keyline — single thin elliptical arc tying the
-    # mandala together, painted at low alpha so it whispers rather than
-    # rules the silhouette into a flat badge.
-    pygame.draw.ellipse(
-        s, (*edge, 90),
-        pygame.Rect(cx - ring_radius - 4, cy - int(ring_radius * 0.78) - 3,
-                    (ring_radius + 4) * 2, int(ring_radius * 0.78 * 2) + 6),
-        1)
-
     surf.blit(s, (int(x - cx), int(y - cy)))
 
 def draw_ruyi_deco(surf, x, y, palette, scale=1.0):
