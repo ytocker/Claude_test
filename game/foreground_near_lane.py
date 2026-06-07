@@ -727,6 +727,298 @@ def perf_lion_dance(surf, sx, pal, t):
     _near_glow(surf, head_cx, head_cy, pal, radius=14, color=(255, 160, 100))
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# perf_dragon_dance — the night festival's MARQUEE act, a SIBLING of the lion
+# dance (same warm red/gold value key, the same capped-glow / _cap_lum / _nightf
+# contract) but LONGER and SERPENTINE: a 7-segment dragon carried on poles by a
+# distinct per-pole dancer crew, undulating across the front edge.
+#
+# Read contract (survives the near-lane shrink): a right-facing PROFILE head with
+# a snout LIFTED forward into the scroll, ONE dominant eye, tall regal antlers, a
+# ROARING drop-jaw, one continuous trailing whisker; a body that RISES into the
+# head over a CONTINUOUS sawtooth dorsal ridge; a light-gold belly against a
+# dark-red back on every segment (the colour-blind value split); ONE flame locus
+# (the head) and a tail tapering to a single wisp. Glow is amber/lacquer-orange —
+# cooled AWAY from coin-gold — and capped so no dorsal tooth reads as a coin.
+# ══════════════════════════════════════════════════════════════════════════
+
+# Distinct festival robe palettes for the dancer crew (crowd energy, retinted at
+# night). V2's set is the locked phase/colour ordering from the convergence sheet.
+_DRAGON_ROBES = [(60, 110, 160), (180, 70, 120), (70, 140, 90), (200, 150, 60)]
+
+# An amber / lacquer-orange glow source, pulled ~12% off the lion's warm halo and
+# AWAY from coin-gold so a head sparkle or dorsal tooth is never read as a coin.
+_DRAGON_GLOW = (255, 150, 78)
+
+
+def _dragon_kit(pal, skin):
+    """Colour kit for the serpent. `skin='red'` is the shipped red/gold festival
+    dragon; `skin='jade'` is candidate V5's jade ALT (kept selectable, not default).
+    Every channel routes through _cap_lum so no accent spikes over the night cap."""
+    if skin == 'jade':
+        return dict(
+            scale=_cap_lum((54, 146, 104), pal), scale_dk=_cap_lum((36, 100, 74), pal),
+            outline=_cap_lum((22, 64, 50), pal),
+            belly=_cap_lum((236, 200, 98), pal), belly_dk=_cap_lum((190, 152, 64), pal),
+            hi=_cap_lum((150, 196, 142), pal),
+            ridge=_cap_lum((226, 188, 92), pal), ridge_dk=_cap_lum((30, 88, 64), pal),
+            face=_cap_lum((216, 204, 170), pal), face_dk=_cap_lum((160, 148, 120), pal),
+            horn=_cap_lum((232, 196, 96), pal), horn_dk=_cap_lum((172, 136, 56), pal),
+            gold=_cap_lum((234, 200, 108), pal), red=_cap_lum((210, 84, 64), pal),
+            eye=_cap_lum((248, 196, 72), pal),
+            jaw=_lip_ivory(pal), fang=_fang_ivory(pal),
+            whisk=_cap_lum((214, 200, 118), pal))
+    return dict(
+        scale=_cap_lum((196, 58, 50), pal), scale_dk=_cap_lum((140, 38, 36), pal),
+        outline=_cap_lum((96, 24, 26), pal),
+        belly=_cap_lum((238, 198, 92), pal), belly_dk=_cap_lum((196, 150, 60), pal),
+        hi=_cap_lum((216, 146, 96), pal),       # snout/plate accent, pulled ~15%
+                                                # in value so the eye + gold antler
+                                                # stay the brightest forward accents
+        ridge=_cap_lum((230, 190, 88), pal), ridge_dk=_cap_lum((150, 46, 42), pal),
+        face=_cap_lum((222, 200, 164), pal), face_dk=_cap_lum((170, 144, 114), pal),
+        horn=_cap_lum((236, 200, 94), pal), horn_dk=_cap_lum((176, 138, 56), pal),
+        gold=_cap_lum((240, 206, 110), pal), red=_cap_lum((214, 70, 58), pal),
+        eye=_cap_lum((250, 196, 70), pal),
+        jaw=_lip_ivory(pal), fang=_fang_ivory(pal),
+        whisk=_cap_lum((226, 182, 104), pal))
+
+
+def _dragon_spine(sx, feet_y, n, length, amp, t, *, head_rise=16, sag=18):
+    """A single undulating sine spine sampled tail(left)->head(right). The head end
+    RISES so the dragon reads as a climbing serpent; amplitude eases UP toward the
+    head so the front dances more than the dragged tail. 2x oversampling keeps the
+    discs overlapping into one ribbon."""
+    pts = []
+    span = max(1, (n - 1) * 2)
+    for i in range(span + 1):
+        tt = i / span
+        x = sx - length // 2 + int(tt * length)
+        wave = math.sin(t * 3.0 - tt * 5.6) * amp * (0.55 + 0.45 * tt)
+        float_y = feet_y - sag - int(tt * head_rise)
+        pts.append((x, int(float_y + wave)))
+    return pts
+
+
+def _dragon_dancers(surf, pts, feet_y, pal, t, *, robes, leg_stagger):
+    """Each real segment centre gets a dancer holding a pole up to the body. Distinct
+    robe per pole (festival crowd), a clear 2-leg silhouette, and a leg phase
+    staggered down the line so the crew reads MARCHING. Legs are clamped to the
+    ground baseline so the rear-most dancer never kicks below the deck on a down-beat."""
+    night = _nightf(pal)
+    j = 0
+    for i, (px, py) in enumerate(pts):
+        if i % 2:                       # dancers stand under REAL centres only
+            continue
+        robe = pr._retint_person(robes[j % len(robes)], night)
+        robe_dk = _shade(robe, -36)
+        sash = _cap_lum((232, 196, 96), pal)
+        skin = pr._retint_person((232, 192, 150), night)
+        feet = feet_y
+        mph = t * 5.0 + (j * leg_stagger)
+        bob = int(max(0.0, math.sin(mph)) * 2)
+        body_y = feet - 14 + bob
+        pygame.draw.polygon(surf, robe, [
+            (px - 4, body_y), (px + 4, body_y), (px + 5, feet - 4), (px - 5, feet - 4)])
+        pygame.draw.polygon(surf, robe_dk, [
+            (px - 4, body_y), (px + 4, body_y), (px + 5, feet - 4), (px - 5, feet - 4)], 1)
+        pygame.draw.line(surf, sash, (px - 4, body_y + 5), (px + 4, body_y + 5), 1)
+        pygame.draw.circle(surf, skin, (px, body_y - 4), 3)
+        pygame.draw.arc(surf, robe_dk, (px - 3, body_y - 8, 7, 7),
+                        math.radians(0), math.radians(180), 2)
+        # TWO legs, each lifting on opposite halves of the march phase. The lifted
+        # foot is clamped to `feet` so no shin ever extends BELOW the ground
+        # baseline (the rear dancer was the one clipping on a down-beat).
+        for dx, ph in ((-2, 0.0), (2, math.pi)):
+            step = int(max(0.0, math.sin(mph + ph)) * 3)
+            foot_y = min(feet, feet - step)
+            pygame.draw.line(surf, robe_dk, (px + dx, feet - 5),
+                             (px + dx + (1 if step else -1), foot_y), 2)
+        lift = int(max(0.0, math.sin(t * 3.0 + i)) * 2)
+        pygame.draw.line(surf, robe, (px, body_y + 1), (px - 2, body_y - 5 - lift), 2)
+        pygame.draw.line(surf, pr._retint_person((120, 90, 56), night),
+                         (px - 2, body_y - 5 - lift), (px, py + 5), 2)
+        j += 1
+
+
+def _dragon_body(surf, pts, pal, *, kit):
+    """Draw tail->head: a 1px darker OUTLINE sheath, the deep-red scaled back, a
+    bright GOLD belly band (the colour-blind value split kept on EVERY segment), a
+    CONTINUOUS low sawtooth dorsal ridge with a tooth on every seam (no flat spot
+    at the curve apex), and a small per-plate bead."""
+    seg_r = 8
+    scale = kit['scale']
+    belly = kit['belly']; belly_dk = kit['belly_dk']; hi = kit['hi']
+    outline = kit['outline']
+    for (x, y) in pts:
+        pygame.draw.circle(surf, outline, (x, y), seg_r + 1)
+    for (x, y) in pts:
+        pygame.draw.circle(surf, scale, (x, y), seg_r)
+    # Bright GOLD belly discs on the lower arc of EVERY sample so a light belly /
+    # dark back value split survives on every segment (never flattens to mid-red).
+    for (x, y) in pts:
+        pygame.draw.circle(surf, belly_dk, (x, y + seg_r - 3), seg_r - 3)
+        pygame.draw.circle(surf, belly, (x, y + seg_r - 3), seg_r - 4)
+    # CONTINUOUS dorsal SAWTOOTH: one zigzag polyline along the top edge tail->head.
+    # A tooth peak is inserted at EVERY interval (not every other) so the ridge runs
+    # unbroken across each segment seam, including the curve apex at the 4th-5th join
+    # where the old every-other cadence left a flat spot.
+    top = [(x, y - seg_r) for (x, y) in pts]
+    ridge = []
+    for i in range(0, len(top) - 1):
+        x0, y0 = top[i]
+        x1, y1 = top[i + 1]
+        ridge.append((x0, y0))
+        ridge.append(((x0 + x1) // 2, (y0 + y1) // 2 - 4))
+    ridge.append(top[-1])
+    pygame.draw.lines(surf, kit['ridge_dk'], False, ridge, 2)
+    pygame.draw.lines(surf, kit['ridge'], False, ridge, 1)
+    for i in range(0, len(pts), 2):
+        x, y = pts[i]
+        pygame.draw.circle(surf, hi, (x - 2, y - 1), 1)
+
+
+def _dragon_tail(surf, pt, nxt, pal, *, kit, t):
+    """Taper to a single point with ONE small trailing wisp — the head holds the
+    only flame locus. A thin pointed fin that sways with the dance."""
+    x, y = pt
+    sway = int(math.sin(t * 3.0) * 3)
+    dx = x - nxt[0]; dy = y - nxt[1]
+    tip = (x + (dx if dx else -10), y + dy + sway)
+    pygame.draw.polygon(surf, kit['outline'], [(x, y - 6), (x, y + 6), tip])
+    pygame.draw.polygon(surf, kit['scale'], [(x, y - 5), (x, y + 5), (tip[0] + 1, tip[1])])
+    pygame.draw.line(surf, kit['ridge'], (tip[0], tip[1]),
+                     (tip[0] - 4, tip[1] - 3 + sway), 1)
+
+
+def _dragon_antlers(surf, hx, hy, kit):
+    """Two TALL swept-back prongs — regal, the V2 antler. A small ember tip on the
+    back prong is one of the two allowed crest glow sources (gold, capped)."""
+    horn = kit['horn']; horn_dk = kit['horn_dk']
+    base_x, base_y = hx + 1, hy - 6
+    for off in (0, 3):
+        pygame.draw.line(surf, horn_dk, (base_x - off, base_y),
+                         (base_x - off - 4, base_y - 14), 3)
+        pygame.draw.line(surf, horn, (base_x - off, base_y),
+                         (base_x - off - 4, base_y - 14), 2)
+    pygame.draw.circle(surf, kit['gold'], (base_x - 7, base_y - 11), 1)
+
+
+def _dragon_whisker(surf, jx, jy, pal, t, kit):
+    """A SINGLE continuous 1px whisker anchored at the JAW, flicking forward off the
+    snout then trailing BACK over the body and TAPERING TO NOTHING — no detached
+    endpoint / dotted specks (that was V4's small-size failure). Drawn as a chain of
+    overlapping short segments whose width steps 2px->1px->hairline so it fades out
+    instead of ending on a bright bead."""
+    drift = math.sin(t * 2.2) * 3
+    whisk = kit['whisk']
+    length = 12
+    pts = [(jx, jy)]
+    pts.append((jx + 2, jy - 3 + int(drift)))          # a short forward flick
+    for s in range(1, 6):
+        frac = s / 5.0
+        wx = jx + 2 - int(frac * length)
+        wy = jy - 3 + int(frac * 7) + int(math.sin(t * 2.2 + s) * 2 + drift)
+        pts.append((wx, wy))
+    # Step the width down along the trail so it tapers to a hairline; the final
+    # link is 1px and lands ON the body, never as a separate glowing dot.
+    for i in range(len(pts) - 1):
+        w = 2 if i < 2 else 1
+        pygame.draw.line(surf, whisk, pts[i], pts[i + 1], w)
+
+
+def _dragon_head(surf, pt, pal, t, kit):
+    """The V2 PROFILE head: domed brow, a snout LIFTED forward (its tip the forward-
+    most pixel), tall antlers, ONE dominant 3/4 eye, a ROARING drop-jaw, one trailing
+    whisker. A 1px dark line separates the back of the jowl from body segment 1 so
+    the head never fuses into the body at the arc apex. ONE amber flame locus."""
+    hx, hy = pt
+    hy -= 6                                              # SNOUT-LIFT (V2 lift=6)
+    hy -= int(max(0.0, math.sin(t * 3.2)) * 2)          # bob
+    face = kit['face']; face_dk = kit['face_dk']
+    gold = kit['gold']; red = kit['red']; outline = kit['outline']
+
+    # A short scalloped neck-mane behind the head ties it into the body.
+    for k, ang in enumerate(range(120, 241, 20)):
+        rad = math.radians(ang)
+        mx = hx + int(math.cos(rad) * 11)
+        my = hy + int(math.sin(rad) * 11)
+        c = (gold, red)[k % 2]
+        pygame.draw.circle(surf, _shade(c, -26), (mx, my), 3)
+        pygame.draw.circle(surf, c, (mx, my), 2)
+
+    # A 1px dark separation line between the back of the head/jowl and the first body
+    # segment so the head reads as a distinct mass at the arc apex.
+    pygame.draw.line(surf, outline, (hx - 11, hy - 6), (hx - 10, hy + 7), 1)
+
+    snout_tip_x = hx + 18
+    skull = [
+        (hx - 9, hy - 7), (hx + 3, hy - 8), (hx + 9, hy - 6),
+        (snout_tip_x, hy - 4), (snout_tip_x - 2, hy + 1),
+        (hx + 9, hy + 3), (hx - 8, hy + 6)]
+    pygame.draw.polygon(surf, outline, skull)
+    pygame.draw.polygon(surf, face_dk, skull)
+    pygame.draw.polygon(surf, face, [
+        (hx - 8, hy - 6), (hx + 3, hy - 7), (hx + 8, hy - 5),
+        (snout_tip_x - 1, hy - 3), (snout_tip_x - 3, hy), (hx + 8, hy + 2),
+        (hx - 7, hy + 4)])
+    pygame.draw.line(surf, face_dk, (hx - 6, hy - 5), (hx + 6, hy - 5), 2)
+
+    _dragon_antlers(surf, hx, hy, kit)
+
+    # ONE dominant 3/4 eye under the brow + a much smaller far-eye hint so the read
+    # is profile, not frontal. The eye stays one of the two brightest forward accents.
+    ex, ey = hx + 3, hy - 1
+    pygame.draw.circle(surf, outline, (ex, ey), 3)
+    pygame.draw.circle(surf, kit['eye'], (ex, ey), 2)
+    pygame.draw.circle(surf, (24, 18, 22), (ex + 1, ey), 1)
+    pygame.draw.circle(surf, _shade(kit['eye'], -40), (hx - 2, hy - 2), 1)
+
+    # The ROARING wide drop-jaw (V2 mouth='roar').
+    jaw = 3 + int(max(0.0, math.sin(t * 3.2 + 0.4)) * 3)
+    mouth_x0, mouth_x1 = hx + 9, snout_tip_x - 2
+    pygame.draw.polygon(surf, (22, 14, 18), [
+        (mouth_x0, hy + 2), (mouth_x1, hy + 1),
+        (mouth_x1 - 1, hy + 2 + jaw), (mouth_x0, hy + 3 + jaw)])
+    pygame.draw.line(surf, red, (mouth_x0, hy + 2), (mouth_x1, hy + 1), 1)
+    pygame.draw.line(surf, kit['jaw'], (mouth_x0, hy + 3 + jaw),
+                     (mouth_x1 - 1, hy + 2 + jaw), 1)
+    fx = hx + 11
+    pygame.draw.polygon(surf, kit['fang'], [
+        (fx - 1, hy + 2), (fx + 1, hy + 2), (fx, hy + 5)])
+    pygame.draw.circle(surf, red, (snout_tip_x - 3, hy), 1)
+
+    # One continuous trailing whisker anchored at the JAW hinge.
+    _dragon_whisker(surf, hx + 8, hy + 3, pal, t, kit)
+
+    # GLOW: a SINGLE amber/lacquer-orange ember on the crest — cooled away from
+    # coin-gold and capped so a head sparkle is never mistaken for a collectible.
+    _near_glow(surf, hx + 2, hy - 6, pal, radius=8, color=_DRAGON_GLOW)
+
+
+def perf_dragon_dance(surf, sx, pal, t, *, skin='red'):
+    """NIGHT · the festival's MARQUEE act — a 7-segment serpent DRAGON DANCE carried
+    on poles by a distinct per-pole dancer crew, undulating across the front edge.
+    A longer, more serpentine SIBLING of perf_lion_dance: same warm red/gold night
+    value key and the same capped-glow contract. `skin='red'` (default) ships the
+    red/gold dragon; `skin='jade'` selects candidate V5's jade ALT colorway."""
+    feet = NEAR_GROUND_Y
+    # The bigger festival crowd flanks the act (behind, drawn first) — same cast +
+    # placement family as the lion dance so the two acts read as one festival.
+    _scaled_cast(surf, pr.draw_strollers, sx - 60, pal, 1.5, t=t, feet_y=feet)
+    _scaled_cast(surf, pr.draw_kids, sx - 80, pal, 1.55, t=t, n=3, feet_y=feet)
+    _scaled_cast(surf, pr.draw_old_man, sx + 70, pal, 1.55, t=t,
+                 seated_bench=False, feet_y=feet)
+
+    kit = _dragon_kit(pal, skin)
+    # 7 segments, V3 body rhythm; the LOCKED V2 dancer phasing (leg_stagger=1.4).
+    pts = _dragon_spine(sx, feet, 7, 156, amp=10, t=t)
+    _dragon_dancers(surf, pts, feet, pal, t, robes=_DRAGON_ROBES, leg_stagger=1.4)
+    _dragon_tail(surf, pts[0], pts[1], pal, kit=kit, t=t)
+    _dragon_body(surf, pts, pal, kit=kit)
+    _dragon_head(surf, pts[-1], pal, t, kit)
+
+
 # ── a tall festival BANNER pole for the night/dusk near edge (clear zone only) ─
 
 def _near_banner(surf, sx, pal, *, feet_y=NEAR_GROUND_Y):
@@ -801,6 +1093,18 @@ def _perform(surf, w, scroll, pal, t, perf_fn, x0):
         perf_fn(surf, bx, pal, t)
 
 
+def _perform_festival(surf, w, scroll, pal, t, x0):
+    """The NIGHT festival's headline run — the LION dance and the marquee DRAGON
+    dance ALTERNATE per world-anchored performance slot (by slot index `k`), so the
+    bird passes a lion, then a dragon, then a lion… The slot index is world-anchored,
+    so which act sits in a slot is stable across the scroll wrap (no flicker)."""
+    for bx, k in _near_xs(scroll, w, _PERF_PERIOD, x0=x0, margin=_PERF_MARGIN):
+        if k % 2:
+            perf_dragon_dance(surf, bx, pal, t)   # the marquee act
+        else:
+            perf_lion_dance(surf, bx, pal, t)
+
+
 def phase_day(surf, w, gy, h, scroll, pal, t):
     """DAY · Pastoral Morning. Front edge: larger pedestrians + dog + planters; a
     casual BUSKER / juggler performs as the bird passes. No glow."""
@@ -839,7 +1143,7 @@ def phase_night(surf, w, gy, h, scroll, pal, t):
         _near_banner(surf, sx, pal)
     for sx, k in _near_xs(scroll, w, 280, x0=110):
         _near_brazier(surf, sx, pal, t=t)
-    _perform(surf, w, scroll, pal, t, perf_lion_dance, x0=320)
+    _perform_festival(surf, w, scroll, pal, t, x0=320)
 
 
 # Dispatch by phase NAME (day/golden/dusk/night) — the render harness derives the
@@ -864,11 +1168,14 @@ def add_near_lane(surf, w, gy, h, scroll, pal, phase_name, t):
 # One performance act per time-of-day, the front crowd thinned by the same
 # crowd-density curve + run-start fill the promenade uses, in a single pass (no
 # crossfade double-draw). The performer escalation IS the night build-up:
-# juggler (day) -> musician (golden) -> stilt-walker (dusk) -> LION dance (night).
+# juggler (day) -> musician (golden) -> stilt-walker (dusk) -> the NIGHT festival
+# (LION dance + the marquee DRAGON dance, alternating per slot — handled inline in
+# draw_near_lane via _perform_festival, not here, since that window runs TWO acts).
 
 def _perf_for(phase):
-    """(performer_fn, x0) appropriate to the time of day, or None when the street
-    is between acts (pre-dawn teardown)."""
+    """(performer_fn, x0) for the SINGLE-act phases (day/golden/dusk), or None when
+    the street is between acts (pre-dawn teardown). The NIGHT festival window
+    (0.58..0.80) is driven by _perform_festival, not this single-act lookup."""
     p = phase % 1.0
     if p >= 0.85 or p < 0.25:
         return (perf_juggler, 40)
@@ -876,8 +1183,6 @@ def _perf_for(phase):
         return (perf_musician, 200)
     if p < 0.58:
         return (perf_stilt, 120)
-    if p < 0.80:
-        return (perf_lion_dance, 320)
     return None
 
 def draw_near_lane(surf, scroll, pal, phase, t):
@@ -896,6 +1201,14 @@ def draw_near_lane(surf, scroll, pal, phase, t):
             _near_banner(surf, sx, pal)
         for sx, k in _near_xs(scroll, W, 290, x0=115):
             _near_brazier(surf, sx, pal, t=t)
-    perf = _perf_for(phase)
-    if perf is not None and density > 0.25:           # an act passes when the street is busy
-        _perform(surf, W, scroll, pal, t, perf[0], perf[1])
+    if density > 0.25:                                # an act passes when the street is busy
+        if 0.58 <= p < 0.80:
+            # NIGHT festival peak — the lion dance and the marquee DRAGON dance
+            # ALTERNATE per world-anchored slot, so the bird passes a lion then a
+            # dragon. Kept gated to the busy night density (the pre-dawn teardown,
+            # p>=0.80, still spawns no performers).
+            _perform_festival(surf, W, scroll, pal, t, x0=320)
+        else:
+            perf = _perf_for(phase)
+            if perf is not None:
+                _perform(surf, W, scroll, pal, t, perf[0], perf[1])
