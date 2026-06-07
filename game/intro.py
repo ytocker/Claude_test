@@ -722,7 +722,7 @@ def _draw_world(surf: pygame.Surface, phase: float, scroll: float,
             (40, 110, 0.85, 0), (220, 70, 0.7, 2), (120, 200, 1.0, 4))):
         ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
         draw_cloud(surf, ox, by + math.sin(cloud_phase * 0.3 + i) * 3,
-                   sc, variant=variant)
+                   sc, variant=variant, palette=palette)
     draw_mountains(surf, scroll, GROUND_Y, W,
                    palette['mtn_far'], palette['mtn_near'])
     if ground:

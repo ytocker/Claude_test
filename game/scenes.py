@@ -1126,13 +1126,13 @@ class App:
 
         scroll = self.world.bg_scroll
         for i, (bx, by, sc, variant) in enumerate((
-                (20, 90, 0.9, 0), (180, 140, 1.1, 2),
-                (60, 220, 0.8, 3), (230, 60, 0.7, 1),
-                (320, 180, 0.9, 4))):
+                (20, 90, 0.9, 0), (180, 140, 1.1, 1),
+                (60, 220, 0.8, 2), (230, 60, 0.7, 3),
+                (320, 180, 0.9, 4), (140, 40, 1.0, 5))):
             ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
-                       sc, variant=variant)
+                       sc, variant=variant, palette=palette)
         if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
             # Pre-rendered fries pile per parallax layer - blit cheaply
             # at the offset since activation so the pile drifts at the

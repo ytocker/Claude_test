@@ -269,41 +269,19 @@ def draw_mountains(surf, scroll, ground_y, w, far_color=None, near_color=None):
 
 # ── cloud drawing ────────────────────────────────────────────────────────────
 
-# Five hand-tuned cloud puff layouts: (ox, oy, radius, alpha). Each column in
-# the list is one variant, so scenes that draw multiple clouds can pick
-# different variants via modulo.
-_CLOUD_VARIANTS: list[list[tuple[float, float, float, int]]] = [
-    # V0 — classic wide, 5-bump
-    [(0, 0, 22, 230), (28, -6, 28, 235), (56, 0, 20, 225),
-     (14, 10, 18, 220), (42, 10, 18, 220)],
-    # V1 — narrow tall, 4-bump with a tall centre
-    [(0, 2, 18, 220), (22, -8, 24, 235), (40, 0, 20, 225),
-     (16, 12, 16, 215)],
-    # V2 — long stretched wisp, 6-bump
-    [(0, 4, 16, 205), (18, -2, 22, 230), (38, -6, 22, 235),
-     (58, -2, 20, 225), (78, 4, 14, 205), (28, 12, 16, 215)],
-    # V3 — compact puff, 3-bump almost round
-    [(0, 2, 22, 230), (20, -8, 26, 235), (42, 4, 18, 220)],
-    # V4 — asymmetric, heavy on the left
-    [(0, -4, 26, 235), (26, 2, 22, 228), (48, -2, 18, 222),
-     (12, 14, 18, 215), (36, 14, 14, 205)],
-]
+from game import cloud_variants
 
 
-def draw_cloud(surf, x, y, scale=1.0, variant: int = 0):
-    """Draw a stylised cloud. `variant` picks one of the hand-tuned shapes
-    so scenes don't paint the same 5-circle blob repeatedly. Each puff is
-    composited with its OWN alpha (from the variant tuple), giving the
-    cloud soft edges where small puffs overlap larger ones."""
-    puffs = _CLOUD_VARIANTS[variant % len(_CLOUD_VARIANTS)]
-    for ox, oy, r, a in puffs:
-        rr = max(2, int(r * scale))
-        s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (255, 255, 255, a), (rr + 1, rr + 1), rr)
-        surf.blit(s, (int(x + ox * scale) - rr - 1,
-                      int(y + oy * scale) - rr - 1))
-    # No underside shadow band — that solid-fill rectangle read as a hard
-    # blue bar pinned to the cloud's bottom rather than as soft shading.
+def draw_cloud(surf, x, y, scale=1.0, variant: int = 0, palette=None):
+    """Dispatch to one of the palette-aware shan-shui cloud variants (slots
+    0..5 in `cloud_variants._VARIANTS`). `palette` lets each cloud retint with
+    the biome cycle; callers with no palette in scope (offline tools) fall back
+    to the day palette so they keep rendering."""
+    if palette is None:
+        from game import biome  # lazy: biome imports draw.lerp_color (cycle)
+        palette = biome.palette_for_phase(0.0)
+    cloud_variants._VARIANTS[variant % cloud_variants.VARIANT_COUNT](
+        surf, x, y, palette, scale)
 
 
 # ── ground drawing ───────────────────────────────────────────────────────────
