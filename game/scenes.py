@@ -1169,8 +1169,10 @@ class App:
         # gameplay entities (pipes, coins, bird) but in front of terrain.
         self.world.ambient.draw(surf)
         # The buff sandstone sidewalk IS the play floor now (replaces the grass
-        # meadow); promenade + near-lane layers fold in here in later stages.
+        # meadow); promenade props + living cast ride on top of it.
         foreground.draw_foreground_floor(surf, scroll, palette)
+        foreground.draw_promenade(surf, scroll, palette,
+                                  self.world.biome_phase, self.world.biome_time)
 
     def _render(self):
         # Intro renders its own self-contained scene (sky + pillars + cottage
