@@ -759,17 +759,20 @@ def _near_banner(surf, sx, pal, *, feet_y=NEAR_GROUND_Y):
 # performance, drawn back-to-front within the lane. World-anchored at NEAR_MULT.
 # ══════════════════════════════════════════════════════════════════════════
 
-def _general_pedestrians(surf, w, scroll, pal, t):
+def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     """A couple of LARGER pedestrians crossing the front edge + the near dog. These
     are SHORT, so they may pass under the bird/pillar lanes. World-anchored so they
-    parallax with the near lane and tile at the wrap."""
-    # Two repeating pedestrian anchors at distinct periods so they don't lockstep.
-    for sx, k in _near_xs(scroll, w, 196, x0=20):
+    parallax with the near lane and tile at the wrap. `density` (day-arc) stretches
+    the spacing so the front empties off-peak and fills toward the festival."""
+    if density <= 0.05:
+        return
+    ps = 1.0 / max(0.15, density)
+    for sx, k in _near_xs(scroll, w, int(196 * ps), x0=20):
         _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
-    for sx, k in _near_xs(scroll, w, 224, x0=150):
+    for sx, k in _near_xs(scroll, w, int(224 * ps), x0=150):
         _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
     # The near dog trots across the front on its own anchor.
-    for sx, k in _near_xs(scroll, w, 300, x0=96):
+    for sx, k in _near_xs(scroll, w, int(300 * ps), x0=96):
         _near_dog(surf, sx, pal, t=t, scale=1.7)
 
 
@@ -856,25 +859,43 @@ def add_near_lane(surf, w, gy, h, scroll, pal, phase_name, t):
     painter(surf, w, gy, h, scroll, pal, t)
 
 
-# ── live composition: crossfade selector (reuses the promenade's beat arcs so the
-# near performances rotate in lock-step with the far dressing) ─────────────────
+# ── live composition: the day-arc DIRECTOR (mirrors the promenade) ─────────────
+#
+# One performance act per time-of-day, the front crowd thinned by the same
+# crowd-density curve + run-start fill the promenade uses, in a single pass (no
+# crossfade double-draw). The performer escalation IS the night build-up:
+# juggler (day) -> musician (golden) -> stilt-walker (dusk) -> LION dance (night).
 
-_BEAT_FNS = {"day": phase_day, "golden": phase_golden,
-             "dusk": phase_dusk, "night": phase_night}
+def _perf_for(phase):
+    """(performer_fn, x0) appropriate to the time of day, or None when the street
+    is between acts (pre-dawn teardown)."""
+    p = phase % 1.0
+    if p >= 0.85 or p < 0.25:
+        return (perf_juggler, 40)
+    if p < 0.40:
+        return (perf_musician, 200)
+    if p < 0.58:
+        return (perf_stilt, 120)
+    if p < 0.80:
+        return (perf_lion_dance, 320)
+    return None
 
 def draw_near_lane(surf, scroll, pal, phase, t):
-    """Draw the near/front activity lane + the active performance for the live
-    biome `phase`, crossfading between adjacent beats near phase boundaries."""
-    # _near_dog borrows pr._stepped, so keep the promenade's cache clock current.
+    """Draw the near/front activity lane + the time-appropriate performance, thinned
+    by the day-arc crowd density and filling in from empty at run-start."""
+    # _near_dog / _scaled_cast borrow pr._stepped, so keep the cache clock current.
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
-    for name, wgt in pr._beat_mix(phase):
-        fn = _BEAT_FNS[name]
-        if wgt >= 0.999:
-            fn(surf, W, GROUND_Y, H, scroll, pal, t)
-        else:
-            layer = pygame.Surface((W, H), pygame.SRCALPHA)
-            fn(layer, W, GROUND_Y, H, scroll, pal, t)
-            layer.fill((255, 255, 255, int(wgt * 255)),
-                       special_flags=pygame.BLEND_RGBA_MULT)
-            surf.blit(layer, (0, 0))
+    pr._CUR_PAL = pal
+    density = pr._population(phase) * pr._run_fill(t)
+    _general_greenery(surf, W, scroll, pal, t)        # front planters/pines are fixtures
+    _general_pedestrians(surf, W, scroll, pal, t, density)
+    p = phase % 1.0
+    if 0.45 <= p < 0.86:                               # festival banners + braziers
+        for sx, k in _near_xs(scroll, W, 340, x0=30):
+            _near_banner(surf, sx, pal)
+        for sx, k in _near_xs(scroll, W, 290, x0=115):
+            _near_brazier(surf, sx, pal, t=t)
+    perf = _perf_for(phase)
+    if perf is not None and density > 0.25:           # an act passes when the street is busy
+        _perform(surf, W, scroll, pal, t, perf[0], perf[1])

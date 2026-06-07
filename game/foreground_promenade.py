@@ -757,18 +757,22 @@ def _stepped(cls, pal, frames, x, *, rng_seed=7):
     return obj
 
 
-def _ground_furniture(surf, w, scroll, pal):
+def _ground_furniture(surf, w, scroll, pal, density=1.0):
     """World-anchored ground props re-added from the source set: a barrel, a
-    cairn, and a planter trailing a cascading vine. Low density and clears the
-    bird column (sp._ground_clear) so they dress the deck without crowding; drawn
-    early in each beat so they sit behind the living cast."""
-    for sx, k in sp._world_xs(scroll, w, 260, x0=14):
+    cairn, and a planter trailing a cascading vine. `density` (0..1, set by the
+    day-arc director) stretches the spacing so the deck thins out off-peak and
+    fills toward the festival; clears the bird column (sp._ground_clear) so they
+    dress the deck without crowding; drawn behind the living cast."""
+    if density <= 0.05:
+        return
+    ps = 1.0 / max(0.15, density)   # sparser when the street is quiet
+    for sx, k in sp._world_xs(scroll, w, int(260 * ps), x0=14):
         if sp._ground_clear(sx, 10):
             sp._draw_barrel(surf, sx, pal)
-    for sx, k in sp._world_xs(scroll, w, 260, x0=118):
+    for sx, k in sp._world_xs(scroll, w, int(260 * ps), x0=118):
         if sp._ground_clear(sx, 12):
             sp._draw_cairn(surf, sx, pal, scale=1.2)
-    for sx, k in sp._world_xs(scroll, w, 300, x0=205):
+    for sx, k in sp._world_xs(scroll, w, int(300 * ps), x0=205):
         if sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='shrub')
             sp._draw_vine_trail(surf, sx + 11, pal)
@@ -900,48 +904,98 @@ PHASES_R17 = [
 ]
 
 
-# ── live composition: phase-window selector with crossfade ────────────────────
+# ── live composition: the day-arc DIRECTOR ────────────────────────────────────
 #
-# The 4 beats were authored as discrete cells. Live, `phase` is continuous, so we
-# map each beat to a contiguous arc aligned with the biome sky and crossfade in a
-# small band at each boundary so dressing fades in/out rather than popping.
+# Replaces the old 4 interchangeable crossfade beats (which read as an artificial,
+# evenly-packed loop) with ONE continuous story of a market street's day: it
+# ASSEMBLES at run-start, builds through the day, PEAKS as a night festival, then
+# tears down to a near-empty pre-dawn before the next day. Two signals drive it,
+# both already in hand: `phase` (the biome day-cycle position) picks the dressing +
+# cast vocabulary and the crowd density; `t` (= world.biome_time, 0 at run-start,
+# monotonic) ramps the street from empty as the run opens. Dressing is drawn in a
+# SINGLE pass (no per-frame double-beat layer) — also cheaper than the old crossfade.
 
-_BEAT_FNS = {"day": phase_day, "golden": phase_golden,
-             "dusk": phase_dusk, "night": phase_night}
-# (boundary_phase, beat_before, beat_after) — arcs: day[0.85..0.25) golden[0.25..0.43)
-# dusk[0.43..0.60) night[0.60..0.85).
-_BOUNDS = [(0.25, "day", "golden"), (0.43, "golden", "dusk"),
-           (0.60, "dusk", "night"), (0.85, "night", "day")]
-_XF_HALF = 0.025
+# Crowd-density curve over the day (piecewise-linear keypoints, phase -> 0..1):
+# near-empty at dawn/pre-dawn, a daytime bustle, a dip at the golden lull, rising
+# through dusk to the NIGHT PEAK, then a fast teardown to the empty pre-dawn.
+_POP_KEYS = [
+    (0.00, 0.45), (0.18, 0.72), (0.30, 0.58), (0.45, 0.72), (0.60, 0.90),
+    (0.70, 1.00), (0.80, 0.92), (0.88, 0.16), (0.93, 0.10), (1.00, 0.45),
+]
 
-def _beat_mix(phase):
+def _population(phase):
     p = phase % 1.0
-    for bp, before, after in _BOUNDS:
-        signed = ((p - bp + 0.5) % 1.0) - 0.5    # circular signed distance to bp
-        if abs(signed) < _XF_HALF:
-            frac = max(0.0, min(1.0, 0.5 + signed / (2 * _XF_HALF)))
-            return [(before, 1.0 - frac), (after, frac)]
-    if p < 0.25 or p >= 0.85:
-        return [("day", 1.0)]
-    if p < 0.43:
-        return [("golden", 1.0)]
-    if p < 0.60:
-        return [("dusk", 1.0)]
-    return [("night", 1.0)]
+    for i in range(len(_POP_KEYS) - 1):
+        a, va = _POP_KEYS[i]
+        b, vb = _POP_KEYS[i + 1]
+        if a <= p <= b:
+            f = (p - a) / (b - a) if b > a else 0.0
+            return va + (vb - va) * f
+    return _POP_KEYS[-1][1]
+
+_FILL_SECONDS = 7.0   # the market "opens" over the first few seconds of a run
+
+def _run_fill(t):
+    x = max(0.0, min(1.0, t / _FILL_SECONDS))
+    return x * x * (3.0 - 2.0 * x)   # smoothstep: street starts empty, fills in
+
+def _roster_for(phase):
+    """The cast vocabulary appropriate to the time of day."""
+    p = phase % 1.0
+    if p >= 0.85 or p < 0.25:          # DAY — morning market
+        return (_scene_market, _scene_pastoral)
+    if p < 0.40:                       # GOLDEN — afternoon promenade
+        return (_scene_bench, _scene_market)
+    if p < 0.58:                       # DUSK — quieter, settling in
+        return (_scene_rest, _scene_stroll, _scene_bench)
+    if p < 0.80:                       # NIGHT — festival
+        return (_scene_campfire, _scene_market, _scene_stroll)
+    return (_scene_rest,)              # PRE-DAWN — near-empty teardown
+
+def _dressing(surf, w, scroll, pal, phase):
+    """Phase-gated street fixtures in one pass (glow follows the palette). Lamps +
+    lanterns are installed for the evening and stay as fixtures; the prayer-flag
+    bunting is the daytime look."""
+    p = phase % 1.0
+    if p >= 0.85 or p < 0.28:                                   # daytime bunting
+        for xl, xr in sp._garland_spans(scroll, w, period=150, x0=20):
+            draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
+                              int(xr), GROUND_Y - 116, n=5)
+    if 0.20 <= p < 0.92:                                        # lantern garland
+        sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
+                                 period=128, sag=23, per_span=3)
+    if 0.20 <= p < 0.93:                                        # lamp posts
+        for sx, k in sp._world_xs(scroll, w, 250, x0=18):
+            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
+        for sx, k in sp._world_xs(scroll, w, 250, x0=152):
+            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
+    if 0.40 <= p < 0.86:                                        # festival fairy lights
+        sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
+                              period=205, sag=24, per_span=5)
+
+def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
+    """Place the time-appropriate cast at world-x slots, but THINNED by `density`:
+    the slot spacing stretches and each slot is included only with probability
+    `density` (seeded by slot index so it's stable as it scrolls). Off-peak the
+    street is mostly open paving; at the festival it fills in."""
+    if density <= 0.03 or not roster:
+        return
+    period = int(_SCENARIO_PERIOD * (0.78 + 0.85 * (1.0 - density)))
+    for bx, k in sp._world_xs(scroll, w, period, x0,
+                              mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
+        r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
+        if r.random() > density:        # stable per-slot inclusion -> negative space
+            continue
+        roster[r.randrange(len(roster))](surf, bx, pal, t, r)
 
 def draw_promenade(surf, scroll, pal, phase, t):
-    """Draw the promenade dressing + living cast for the live biome `phase`,
-    crossfading between adjacent beats near phase boundaries."""
-    global _CUR_BUCKET, _CUR_T
+    """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
+    crowd-density curve, and the whole street filling in from empty at run-start."""
+    global _CUR_BUCKET, _CUR_T, _CUR_PAL
     _CUR_BUCKET = _biome.phase_bucket(phase)
     _CUR_T = t
-    for name, wgt in _beat_mix(phase):
-        fn = _BEAT_FNS[name]
-        if wgt >= 0.999:
-            fn(surf, W, GROUND_Y, H, scroll, pal, t)
-        else:
-            layer = pygame.Surface((W, H), pygame.SRCALPHA)
-            fn(layer, W, GROUND_Y, H, scroll, pal, t)
-            layer.fill((255, 255, 255, int(wgt * 255)),
-                       special_flags=pygame.BLEND_RGBA_MULT)
-            surf.blit(layer, (0, 0))
+    _CUR_PAL = pal
+    density = _population(phase) * _run_fill(t)
+    _ground_furniture(surf, W, scroll, pal, density=density)
+    _dressing(surf, W, scroll, pal, phase)
+    _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
