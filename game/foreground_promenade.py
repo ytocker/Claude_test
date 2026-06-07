@@ -1,28 +1,22 @@
-"""Round-17 LIVING PROMENADE — a day->night ESCALATION of one promenade.
+"""LIVING PROMENADE — one Chinese-market street told as a full day's arc.
 
-Rounds 14-16 presented the sidewalk dressing as five separate STYLES. The
-corrected intent: those are really the SAME promenade with layers stacked on.
-So round 17 turns the layers into a gradual time-of-day escalation — each phase
-is its own EVENT, sparse by day -> a full festival by night — and POPULATES the
-walk with LIVING characters (sheep, dog, kids, an old man, a vendor) so the
-world feels inhabited rather than decorated.
+The sidewalk is driven by a DAY-ARC DIRECTOR (see `draw_promenade` below): a single
+continuous story rather than a loop of interchangeable styles. Two signals from the
+caller drive it — `phase` (biome day-cycle position) selects the dressing + cast
+vocabulary and a crowd-density curve; `t` (= biome_time, 0 at run-start) ramps the
+street in from empty as a run opens (the market "opening"). The arc:
 
-Four phase events, escalating:
+  DAY    Morning market — prayer-flag bunting + a kiosk; vendors setting up
+         (crate stacks), a songbird-cage stand, kids, a dog, a wish-tree.
+  GOLDEN Afternoon — lamp posts + lantern garland go up; the elder on a bench.
+  DUSK   Lamps lighting — a LAMPLIGHTER kindling the lanterns, strollers.
+  NIGHT  Festival PEAK — garland + fairy lights + lamps glowing (capped), a
+         campfire, a busy kiosk, full crowd. Then a near-empty PRE-DAWN teardown.
 
-  DAY    Pastoral morning — planters + prayer-flag bunting + a kiosk just
-         opening; sheep flock grazing, a running dog, kids, a wishing well.
-         Few/no lights.
-  GOLDEN Afternoon promenade — lamp posts up, a lantern garland being strung,
-         a busy kiosk; the old man on a bench with a companion, kids, the dog.
-         Warm amber, still unlit.
-  DUSK   Lamps lighting — lamps + fairy lights JUST beginning to glow, the
-         kiosk lantern lit, planters; a couple of strolling figures, a napper.
-  NIGHT  Festival — lantern garland + fairy lights + lamp posts all glowing
-         (capped), a campfire, the kiosk glowing; a few cozy figures.
-
-Dressing primitives are recombined from sidewalk_props_r15 (lamp posts, lantern
-garland, fairy lights, planters); prayer-flag bunting comes from
-game.pillar_variants. The KIDS, OLD MAN and KIOSK are net-new here.
+Dressing primitives (lamp posts, lantern garland, fairy lights, planters) come from
+game.foreground_props; prayer-flag bunting from game.pillar_variants. The kids, the
+elder, the kiosk, and the re-themed cast (wish-tree, songbird cage, lamplighter,
+dawn set-up) are drawn here.
 
 Glow contract preserved: capped under the coin (NIGHT_LUMA_CAP), gated to a dark
 sky, and given a gentle dusk->night fade-in so dusk reads "lamps just lighting"
