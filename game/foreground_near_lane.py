@@ -195,28 +195,44 @@ _SCRATCH_H = 56
 _SCRATCH_W = 96
 
 
+# A near cast sprite is identical for a given (fn, scale, palette, animation-frame,
+# kwargs) regardless of WHERE it's placed — the fns draw at the scratch centre and
+# don't depend on sx. So we bake it ONCE and reuse: every same-kind near figure on a
+# frame (and across frames within an animation bucket) shares one cached surface,
+# instead of allocating + redrawing + scaling a scratch deck per figure per frame.
+# That per-figure alloc was the dominant near-lane cost; this is the perf safeguard.
+_CAST_CACHE = {}
+_CAST_CACHE_CAP = 384
+_CAST_FPS = 8                            # animation buckets/sec for background figures
+
 def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, **kw):
-    """Render an r17 cast fn at 1x onto a scratch surface (its feet on the scratch
-    deck), scale up by `scale` with NEAREST, and blit so the scaled feet land on
-    `feet_y`. The cast fns read pr.GROUND_Y; we point that at the scratch deck for
-    the duration so the figure sits where we can crop it cleanly."""
-    scratch = pygame.Surface((_SCRATCH_W, _SCRATCH_H), pygame.SRCALPHA)
-    deck = _SCRATCH_H - 1                 # scratch deck near the bottom edge
-    saved = pr.GROUND_Y
-    pr.GROUND_Y = deck
-    try:
-        cast_fn(scratch, _SCRATCH_W // 2, pal, t=t, **kw)
-    finally:
-        pr.GROUND_Y = saved
-    # A LARGE near figure shouldn't pull focus from the parrot: knock its brightest
-    # fabric (the r17 cast's near-white ~248) down ~6% so it sits below the actors.
-    # Subtle whole-figure multiply (sheep/balls draw separately and stay bright).
-    scratch.fill((240, 240, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    sw = max(1, int(_SCRATCH_W * scale))
-    sh = max(1, int(_SCRATCH_H * scale))
-    big = pygame.transform.scale(scratch, (sw, sh))
-    # Scaled feet sit at (deck*scale) from the scratch top; align that to feet_y.
-    feet_in_big = int((deck + 1) * scale)
+    """Bake an r17 cast fn (feet on a scratch deck) scaled up by `scale` with
+    NEAREST, memoized by (fn, scale, palette, coarse animation frame, kwargs), and
+    blit so the scaled feet land on `feet_y`. The cast fns read pr.GROUND_Y; we
+    point that at the scratch deck while baking so the figure crops cleanly."""
+    tb = int(t * _CAST_FPS)              # quantise the gait clock -> bounded cache
+    key = (cast_fn.__name__, round(scale, 3), id(pal), tb, tuple(sorted(kw.items())))
+    big = _CAST_CACHE.get(key)
+    if big is None:
+        scratch = pygame.Surface((_SCRATCH_W, _SCRATCH_H), pygame.SRCALPHA)
+        deck = _SCRATCH_H - 1             # scratch deck near the bottom edge
+        saved = pr.GROUND_Y
+        pr.GROUND_Y = deck
+        try:
+            cast_fn(scratch, _SCRATCH_W // 2, pal, t=tb / _CAST_FPS, **kw)
+        finally:
+            pr.GROUND_Y = saved
+        # A LARGE near figure shouldn't pull focus from the parrot: knock its
+        # brightest fabric down ~6% so it sits below the actors (subtle multiply).
+        scratch.fill((240, 240, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        big = pygame.transform.scale(scratch, (max(1, int(_SCRATCH_W * scale)),
+                                               max(1, int(_SCRATCH_H * scale))))
+        if len(_CAST_CACHE) > _CAST_CACHE_CAP:
+            _CAST_CACHE.clear()
+        _CAST_CACHE[key] = big
+    sw, sh = big.get_size()
+    # Scaled feet sit at (_SCRATCH_H*scale) from the scratch top; align that to feet_y.
+    feet_in_big = int(_SCRATCH_H * scale)
     surf.blit(big, (sx - sw // 2, feet_y - feet_in_big))
 
 
@@ -1074,16 +1090,20 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
             _near_dog(surf, sx, pal, t=t, scale=1.7)
 
 
-def _general_greenery(surf, w, scroll, pal, t):
+def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     """Low near plants on the front edge — larger planters + a vine tub + the odd
-    pine. Short greenery may sit under the lanes; the taller pine is gated to a
-    clear zone."""
-    for sx, k in _near_xs(scroll, w, 260, x0=60):
-        _near_planter(surf, sx, pal)
-    for sx, k in _near_xs(scroll, w, 320, x0=200):
-        _near_vine_lantern(surf, sx, pal)
-    for sx, k in _near_xs(scroll, w, 300, x0=12):
-        if _tall_ok(sx, 12):
+    pine. Fixtures, so thinned by the phase-only furniture density `fd` via a stable
+    per-slot gate (present from t=0, no flicker) and spaced on wide periods, so the
+    front edge stays open most of the day. Short greenery may sit under the lanes;
+    the taller pine is gated to a clear zone."""
+    for sx, k in _near_xs(scroll, w, 420, x0=60):
+        if pr._slot_on(k, 21, fd):
+            _near_planter(surf, sx, pal)
+    for sx, k in _near_xs(scroll, w, 520, x0=200):
+        if pr._slot_on(k, 22, fd):
+            _near_vine_lantern(surf, sx, pal)
+    for sx, k in _near_xs(scroll, w, 480, x0=12):
+        if pr._slot_on(k, 23, fd) and _tall_ok(sx, 12):
             _near_pine(surf, sx, pal)
 
 
@@ -1091,11 +1111,17 @@ def _general_greenery(surf, w, scroll, pal, t):
 # world-x slots so it scrolls past at the near-lane speed and recycles, instead of
 # riding the camera. Sparser than the general near life so a performance reads as a
 # distinct event the bird passes.
-_PERF_PERIOD = 540
+_PERF_PERIOD = 720
 _PERF_MARGIN = 220
 
 def _perform(surf, w, scroll, pal, t, perf_fn, x0):
+    """A single-act busker (juggler/musician/stilt) — placed at only ~1 in 4
+    performance slots (stable per-slot gate), so it reads as a lucky encounter the
+    bird happens to pass, NOT a metronome. The NIGHT festival uses _perform_festival
+    instead and stays frequent — that density IS the headline event."""
     for bx, k in _near_xs(scroll, w, _PERF_PERIOD, x0=x0, margin=_PERF_MARGIN):
+        if not pr._slot_on(k, 7, 0.25):
+            continue
         perf_fn(surf, bx, pal, t)
 
 
@@ -1199,7 +1225,7 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     pr._CUR_T = t
     pr._CUR_PAL = pal
     density = pr._population(phase) * pr._run_fill(t)
-    _general_greenery(surf, W, scroll, pal, t)        # front planters/pines are fixtures
+    _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
     _general_pedestrians(surf, W, scroll, pal, t, density)
     p = phase % 1.0
     if 0.45 <= p < 0.86:                               # festival banners + braziers

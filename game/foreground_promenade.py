@@ -754,27 +754,26 @@ def _stepped(cls, pal, frames, x, *, rng_seed=7):
     return obj
 
 
-def _ground_furniture(surf, w, scroll, pal, density=1.0):
+def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     """World-anchored ground FIXTURES — a barrel, a cairn, a planter trailing a
-    cascading vine, and a sparse bamboo planter. These are part of the street,
-    not part of the crowd: FIXED spacing (never density-scaled) so they stay
-    pinned to the sidewalk and scroll at world speed, present from t=0. (Scaling
-    the period by a per-frame density made the anchors slide/flicker.) `density`
-    is accepted but ignored. Clears the bird column; drawn behind the cast."""
-    for sx, k in sp._world_xs(scroll, w, 260, x0=14):
-        if sp._ground_clear(sx, 10):
+    cascading vine, and a sparse bamboo planter. Part of the street, not the crowd:
+    FIXED spacing so they stay pinned to the sidewalk and scroll at world speed.
+    `fd` is the furniture density: each lane is thinned by a STABLE per-slot gate
+    (keyed to the world slot, not t/scroll) so the deck reads scattered, never a
+    wall — yet stays present from t=0 and never flickers. Wide periods + the gate
+    keep the average scene open. Clears the bird column; drawn behind the cast."""
+    for sx, k in sp._world_xs(scroll, w, 440, x0=14):
+        if _slot_on(k, 11, fd) and sp._ground_clear(sx, 10):
             sp._draw_barrel(surf, sx, pal)
-    for sx, k in sp._world_xs(scroll, w, 260, x0=118):
-        if sp._ground_clear(sx, 12):
+    for sx, k in sp._world_xs(scroll, w, 440, x0=118):
+        if _slot_on(k, 12, fd) and sp._ground_clear(sx, 12):
             sp._draw_cairn(surf, sx, pal, scale=1.2)
-    for sx, k in sp._world_xs(scroll, w, 300, x0=205):
-        if sp._ground_clear(sx, 12):
+    for sx, k in sp._world_xs(scroll, w, 520, x0=205):
+        if _slot_on(k, 13, fd) and sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='shrub')
             sp._draw_vine_trail(surf, sx + 11, pal)
-    # A single segmented-bamboo planter per stretch — wide period + its own
-    # offset keeps the cane idiom present without over-packing the deck.
-    for sx, k in sp._world_xs(scroll, w, 360, x0=70):
-        if sp._ground_clear(sx, 12):
+    for sx, k in sp._world_xs(scroll, w, 620, x0=70):
+        if _slot_on(k, 14, fd) and sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='bamboo')
 
 
@@ -786,8 +785,10 @@ def _ground_furniture(surf, w, scroll, pal, density=1.0):
 # world-anchored, no flicker (same idiom as the mountain-ornament fix). Members
 # animate in place from the live clock `t`; positions ride the scroll.
 
-_SCENARIO_PERIOD = 460          # world-px between scenes -> ~1 on screen + open road
-_SCENE_MARGIN = 200             # wide enough to slide a whole scene in/out smoothly
+_SCENARIO_PERIOD = 640          # world-px between scene SLOTS -> lots of open road;
+                                # most calm slots are also empty (density gate), so a
+                                # vignette is an occasional event, not a metronome.
+_SCENE_MARGIN = 220             # wide enough to slide a whole scene in/out smoothly
 
 # ── re-themed cast + hero beats (Chinese market) ──────────────────────────────
 
@@ -945,6 +946,16 @@ def _scene_dawn_setup(surf, bx, pal, t, rng):
     """Vendors assembling the morning market."""
     draw_market_setup(surf, bx, pal, t=t)
 
+def _scene_vendor(surf, bx, pal, t, rng):
+    """A lone songbird-cage seller beside a potted plant — a calm market remnant."""
+    draw_birdcage_stand(surf, bx, pal, t=t)
+    sp._draw_planter(surf, bx + 26, pal, kind='conifer')
+
+def _scene_quiet(surf, bx, pal, t, rng):
+    """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
+    sp._draw_planter(surf, bx, pal, kind='shrub')
+    draw_old_man(surf, bx + 30, pal, t=t, seated_bench=False)
+
 
 def _scene_bench(surf, bx, pal, t, rng):
     """The temple elder beside a bench with a seated companion."""
@@ -1058,12 +1069,25 @@ PHASES_R17 = [
 # monotonic) ramps the street from empty as the run opens. Dressing is drawn in a
 # SINGLE pass (no per-frame double-beat layer) — also cheaper than the old crossfade.
 
-# Crowd-density curve over the day (piecewise-linear keypoints, phase -> 0..1):
-# near-empty at dawn/pre-dawn, a daytime bustle, a dip at the golden lull, rising
-# through dusk to the NIGHT PEAK, then a fast teardown to the empty pre-dawn.
+# Crowd-density curve over the day (piecewise-linear keypoints, phase -> 0..1).
+# Two NAMED PEAK EVENTS rise out of an otherwise-CALM ("lightly populated") day:
+# the early-Day FOOD-MARKET rush (the run opens on it) and the NIGHT FESTIVAL.
+# Everything between is a quiet ~0.25 stroll, and pre-dawn is near-empty. Keeping
+# the floor this low is also the main lag win (object count dominates the cost).
 _POP_KEYS = [
-    (0.00, 0.45), (0.18, 0.72), (0.30, 0.58), (0.45, 0.72), (0.60, 0.90),
-    (0.70, 1.00), (0.80, 0.92), (0.88, 0.16), (0.93, 0.10), (1.00, 0.45),
+    (0.00, 0.58),   # run-start: the market is already opening (peak fills via _run_fill)
+    (0.06, 0.85),   # FOOD-MARKET peak
+    (0.14, 0.50),   # market winding down
+    (0.20, 0.26),   # calm late-morning
+    (0.34, 0.24),   # golden lull — just strolling
+    (0.50, 0.30),   # dusk, lamps starting to light
+    (0.58, 0.55),   # festival ramp
+    (0.66, 1.00),   # NIGHT FESTIVAL peak
+    (0.74, 0.94),
+    (0.80, 0.22),   # teardown
+    (0.86, 0.06),   # pre-dawn — near-empty
+    (0.93, 0.22),   # sunrise — first vendors return
+    (1.00, 0.58),   # wrap back to the opener
 ]
 
 def _population(phase):
@@ -1090,18 +1114,34 @@ def _slot_on(k, salt, density):
     h = ((k * 0x9E3779B1) ^ (salt * 0x85EBCA77)) & 0xFFFF
     return (h / 65535.0) < density
 
+def _slot_pick(k, n):
+    """Stable per-slot choice in [0, n): which roster entry a world slot uses. Keyed
+    to the slot index so the choice is identical as the slot scrolls (no flicker)."""
+    return ((k * 0x9E3779B1) >> 16) % n
+
+def _furn_density(phase):
+    """Fixture density (planters/cairns/greenery). Gentle and PHASE-ONLY — NOT
+    multiplied by `_run_fill` — so the static deck dressing is present from t=0 and
+    never flickers; just sparser off-peak and a touch fuller at the peak events."""
+    return 0.34 + 0.22 * _population(phase)
+
 def _roster_for(phase):
-    """The cast vocabulary appropriate to the time of day."""
+    """The cast vocabulary by time of day. The early-Day window is the FOOD-MARKET
+    rush (busy, market-heavy); the rest of the day is light (strolling/quiet beats)
+    until the NIGHT festival. Pre-dawn is near-empty. Bigger, more varied rosters
+    (4–5 options) + the no-repeat rule in _place_scenarios kill the short loop."""
     p = phase % 1.0
-    if p >= 0.85 or p < 0.25:          # DAY — morning market
-        return (_scene_market, _scene_pastoral)
-    if p < 0.40:                       # GOLDEN — afternoon promenade
-        return (_scene_bench, _scene_market)
-    if p < 0.58:                       # DUSK — quieter, settling in
-        return (_scene_rest, _scene_stroll, _scene_bench)
+    if p < 0.14:                       # DAY — FOOD-MARKET rush (the run opener)
+        return (_scene_market, _scene_dawn_setup, _scene_market, _scene_vendor)
+    if p < 0.25 or p >= 0.85:          # DAY / SUNRISE — calm morning
+        return (_scene_pastoral, _scene_vendor, _scene_quiet, _scene_stroll)
+    if p < 0.40:                       # GOLDEN — afternoon stroll
+        return (_scene_stroll, _scene_pastoral, _scene_quiet, _scene_bench)
+    if p < 0.58:                       # DUSK — lamps lighting
+        return (_scene_lamplighter, _scene_stroll, _scene_bench, _scene_rest)
     if p < 0.80:                       # NIGHT — festival
-        return (_scene_campfire, _scene_market, _scene_stroll)
-    return (_scene_rest,)              # PRE-DAWN — near-empty teardown
+        return (_scene_campfire, _scene_market, _scene_stroll, _scene_bench)
+    return (_scene_quiet, _scene_rest) # PRE-DAWN — near-empty teardown
 
 def _dressing(surf, w, scroll, pal, phase):
     """Phase-gated street fixtures in one pass (glow follows the palette). Lamps +
@@ -1132,12 +1172,22 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
     crowd fills in. Off-peak the street is mostly open paving; at night it fills."""
     if density <= 0.03 or not roster:
         return
+    n = len(roster)
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
         r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
         if r.random() > density:        # stable per-slot inclusion -> negative space
             continue
-        roster[r.randrange(len(roster))](surf, bx, pal, t, r)
+        # Scene choice is a stable per-slot hash; if it matches the adjacent slot's
+        # choice, bump it — so the same vignette never lands back-to-back (kills the
+        # "same scene every few seconds" loop). Both are pure fns of k -> no flicker.
+        idx = _slot_pick(k, n)
+        if n > 1 and idx == _slot_pick(k - 1, n):
+            idx = (idx + 1) % n
+        # Small per-slot x-jitter breaks the perfectly even grid rhythm (deterministic,
+        # within the slide margin, so scenes stay pinned and seam-free at the wrap).
+        jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
+        roster[idx](surf, bx + jit, pal, t, r)
 
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
@@ -1147,6 +1197,6 @@ def draw_promenade(surf, scroll, pal, phase, t):
     _CUR_T = t
     _CUR_PAL = pal
     density = _population(phase) * _run_fill(t)
-    _ground_furniture(surf, W, scroll, pal, density=density)
+    _ground_furniture(surf, W, scroll, pal, fd=_furn_density(phase))
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
