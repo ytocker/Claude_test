@@ -32,6 +32,7 @@ from game.draw import (
     UI_GOLD, UI_CREAM, WHITE, NEAR_BLACK,
 )
 from game import biome as _biome
+from game import cloud_variants
 from game import parrot as _parrot
 from game.pillar_pagodas import draw_pillar_pair
 from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
@@ -668,6 +669,9 @@ class IntroScene:
         self.t = 0.0
         self.done = False
         self._title_t = 0.0
+        # One random cloud design for the whole cinematic, matching the
+        # one-design-per-run rule used in gameplay.
+        self.cloud_variant = random.randrange(cloud_variants.VARIANT_COUNT)
 
     def update(self, dt: float) -> None:
         self.t += dt
@@ -712,17 +716,18 @@ def _draw_sky(surf: pygame.Surface, phase: float) -> None:
 
 
 def _draw_world(surf: pygame.Surface, phase: float, scroll: float,
-                cloud_phase: float, ground: bool = True) -> None:
+                cloud_phase: float, ground: bool = True,
+                cloud_variant: int = 0) -> None:
     """Sky + mountains + (optional) ground for the given phase. Intro beats
     pass ``ground=True`` so the green grass band matches gameplay."""
     palette = _biome.palette_for_phase(phase)
     _draw_sky(surf, phase)
     # Three drifting clouds for ambient depth
-    for i, (bx, by, sc, variant) in enumerate((
-            (40, 110, 0.85, 0), (220, 70, 0.7, 2), (120, 200, 1.0, 4))):
+    for i, (bx, by, sc) in enumerate(
+            ((40, 110, 0.85), (220, 70, 0.7), (120, 200, 1.0))):
         ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
         draw_cloud(surf, ox, by + math.sin(cloud_phase * 0.3 + i) * 3,
-                   sc, variant=variant, palette=palette)
+                   sc, variant=cloud_variant, palette=palette)
     draw_mountains(surf, scroll, GROUND_Y, W,
                    palette['mtn_far'], palette['mtn_near'])
     if ground:
@@ -798,7 +803,7 @@ def _beat_dawn(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
     # the journey beat cycles through the day/night arc.
     phase = 0.0
     _draw_world(surf, phase, scroll=u * 4.0, cloud_phase=scene.t,
-                ground=True)
+                ground=True, cloud_variant=scene.cloud_variant)
 
     # Pickup post-house — anchored on the LEFT, slightly above centre,
     # with a slow weightless bob.
@@ -837,7 +842,8 @@ def _beat_handoff(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
     # Same locked clear-day biome as beat 1 — pickup never shifts colours.
     sky_phase = 0.0
     _draw_world(surf, sky_phase, scroll=10.0 + u * 6.0,
-                cloud_phase=scene.t, ground=True)
+                cloud_phase=scene.t, ground=True,
+                cloud_variant=scene.cloud_variant)
 
     # Reuse the EXACT post-house from beat 1.
     house = _get_sprite("skyhouse_post")
@@ -1279,7 +1285,8 @@ def _beat_tutorial(scene: "IntroScene", surf: pygame.Surface,
     # bird is clearly travelling, but the cinematic still feels measured.
     # Arrival beat's starting scroll below continues from here.
     scroll = 16.0 + u * 400.0
-    _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True)
+    _draw_world(surf, phase, scroll=scroll, cloud_phase=scene.t, ground=True,
+                cloud_variant=scene.cloud_variant)
 
     # A distant V-flock keeps the world alive; same window the journey
     # had it on (now expressed in tutorial-local-u).
@@ -1317,7 +1324,8 @@ def _beat_arrival(scene: "IntroScene", surf: pygame.Surface, u: float) -> None:
     # parallax doesn't pop on the cut.
     phase = 0.62
     _draw_world(surf, phase, scroll=416.0 + u * 30.0,
-                cloud_phase=scene.t, ground=True)
+                cloud_phase=scene.t, ground=True,
+                cloud_variant=scene.cloud_variant)
 
     # Floating sky-house, centred. The cottage was approached during the
     # last 35% of the journey (scrolled in from off-screen-right), so the
