@@ -11,6 +11,7 @@ from game.config import W, H, GROUND_Y
 from game import foreground_floor as _floor
 from game import foreground_detail as _detail
 from game import foreground_promenade as _promenade
+from game import foreground_near_lane as _near
 
 
 def draw_foreground_floor(surf, scroll, pal):
@@ -24,3 +25,9 @@ def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade props + living cast on the sidewalk, crossfading
     between day→night beats by the live biome `phase`."""
     _promenade.draw_promenade(surf, scroll, pal, phase, t)
+
+
+def draw_near_lane(surf, scroll, pal, phase, t):
+    """Draw the near/front activity lane (bigger pedestrians + the active
+    day→night performance), crossfading by the live biome `phase`."""
+    _near.draw_near_lane(surf, scroll, pal, phase, t)

@@ -1173,6 +1173,8 @@ class App:
         foreground.draw_foreground_floor(surf, scroll, palette)
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
+        foreground.draw_near_lane(surf, scroll, palette,
+                                  self.world.biome_phase, self.world.biome_time)
 
     def _render(self):
         # Intro renders its own self-contained scene (sky + pillars + cottage
