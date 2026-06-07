@@ -289,9 +289,10 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3):
     for i in range(n):
         dx = spread[i]
         shirt, shirt_dk, hair = (_retint_person(c, night) for c in kit[i])
-        # Each kid runs on its own phase so the group reads as alive.
-        gait = math.sin(t * 6.0 + i * 1.7)
-        lift = -max(0.0, gait) * 1.5  # only the up-swing lifts
+        # Each kid bobs on its own phase so the group reads as alive — but SLOW
+        # and small (ground-locked; a fast run cycle would moonwalk).
+        gait = math.sin(t * 1.8 + i * 1.7)
+        lift = -max(0.0, gait) * 0.8  # only the up-swing lifts
         bx = sx + dx
         feet_y = GROUND_Y - 1 + int(round(lift))
         # CHIBI proportions: a tiny 4px torso under a big 3px head -> total ~7px,
@@ -313,9 +314,9 @@ def draw_kids(surf, sx, pal, *, t=0.0, n=3):
                         math.radians(0), math.radians(180), head_r)
         pygame.draw.circle(surf, (30, 20, 15), (hx - 1, hy), 0)
         pygame.draw.circle(surf, (30, 20, 15), (hx + 1, hy), 0)
-        # Two stubby running legs, swinging opposite phase.
+        # Two stubby legs with a small shuffle (not a sprint).
         leg = _shade(shirt_dk, -18)
-        swing = int(round(gait * 2))
+        swing = int(round(gait * 1))
         pygame.draw.line(surf, leg, (bx + 1, body_y + body_h),
                          (bx + 1 - swing, feet_y), 1)
         pygame.draw.line(surf, leg, (bx + body_w - 1, body_y + body_h),
@@ -444,13 +445,15 @@ def draw_strollers(surf, sx, pal, *, t=0.0):
     for i, (shirt, shirt_dk, hair) in enumerate(pairs):
         shirt, shirt_dk, hair = (_retint_person(c, night) for c in (shirt, shirt_dk, hair))
         dx = -8 + i * 14
-        gait = math.sin(t * 2.2 + i * 1.1)
-        feet_y = GROUND_Y - 1 - int(round(max(0.0, gait) * 0.8))
+        # Slow, small gait: these figures are pinned to the deck, so a brisk walk
+        # cycle reads as moonwalking. Gentle weight-shift + nearly-planted feet.
+        gait = math.sin(t * 0.8 + i * 1.1)
+        feet_y = GROUND_Y - 1 - int(round(max(0.0, gait) * 0.5))
         body_y = feet_y - 8 - 3
         _draw_bench_person(surf, sx + dx, body_y, shirt, shirt_dk, hair, night=night)
-        # Walking legs under the body block.
+        # Legs barely shift under the body block.
         leg = _shade(shirt_dk, -16)
-        sw = int(round(gait * 2))
+        sw = int(round(gait * 1))
         pygame.draw.line(surf, leg, (sx + dx + 1, body_y + 8),
                          (sx + dx + 1 - sw, feet_y), 1)
         pygame.draw.line(surf, leg, (sx + dx + 4, body_y + 8),
@@ -752,27 +755,25 @@ def _stepped(cls, pal, frames, x, *, rng_seed=7):
 
 
 def _ground_furniture(surf, w, scroll, pal, density=1.0):
-    """World-anchored ground props re-added from the source set: a barrel, a
-    cairn, and a planter trailing a cascading vine. `density` (0..1, set by the
-    day-arc director) stretches the spacing so the deck thins out off-peak and
-    fills toward the festival; clears the bird column (sp._ground_clear) so they
-    dress the deck without crowding; drawn behind the living cast."""
-    if density <= 0.05:
-        return
-    ps = 1.0 / max(0.15, density)   # sparser when the street is quiet
-    for sx, k in sp._world_xs(scroll, w, int(260 * ps), x0=14):
+    """World-anchored ground FIXTURES — a barrel, a cairn, a planter trailing a
+    cascading vine, and a sparse bamboo planter. These are part of the street,
+    not part of the crowd: FIXED spacing (never density-scaled) so they stay
+    pinned to the sidewalk and scroll at world speed, present from t=0. (Scaling
+    the period by a per-frame density made the anchors slide/flicker.) `density`
+    is accepted but ignored. Clears the bird column; drawn behind the cast."""
+    for sx, k in sp._world_xs(scroll, w, 260, x0=14):
         if sp._ground_clear(sx, 10):
             sp._draw_barrel(surf, sx, pal)
-    for sx, k in sp._world_xs(scroll, w, int(260 * ps), x0=118):
+    for sx, k in sp._world_xs(scroll, w, 260, x0=118):
         if sp._ground_clear(sx, 12):
             sp._draw_cairn(surf, sx, pal, scale=1.2)
-    for sx, k in sp._world_xs(scroll, w, int(300 * ps), x0=205):
+    for sx, k in sp._world_xs(scroll, w, 300, x0=205):
         if sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='shrub')
             sp._draw_vine_trail(surf, sx + 11, pal)
-    # A single segmented-bamboo planter per stretch — kept sparse (wide period,
-    # its own offset) so the new cane idiom shows in-game without over-packing.
-    for sx, k in sp._world_xs(scroll, w, int(360 * ps), x0=70):
+    # A single segmented-bamboo planter per stretch — wide period + its own
+    # offset keeps the cane idiom present without over-packing the deck.
+    for sx, k in sp._world_xs(scroll, w, 360, x0=70):
         if sp._ground_clear(sx, 12):
             sp._draw_planter(surf, sx, pal, kind='bamboo')
 
@@ -919,11 +920,20 @@ def _scene_market(surf, bx, pal, t, rng):
     draw_birdcage_stand(surf, bx + 84, pal, t=t)
     draw_kids(surf, bx + 152, pal, t=t, n=2)
 
+def _draw_calm_dog(surf, sx, pal, *, t=0.0):
+    """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
+    direction — so it reads as walking forward, not moonwalking backward. Reuses
+    the live _RunningDog frames; the shared class is left untouched."""
+    dog = _stepped(_RunningDog, pal, 30, sx)
+    frame = dog._frames[int(t * 2) % 2]                  # slow 2-frame shuffle
+    frame = pygame.transform.flip(frame, True, False)    # face the travel direction
+    sw, sh = frame.get_size()
+    surf.blit(frame, (sx - sw // 2, GROUND_Y - sh + 1))
+
 def _scene_pastoral(surf, bx, pal, t, rng):
-    """Wish-tree + a trotting dog + a planter."""
+    """Wish-tree + a slow dog ambling with the street + a planter."""
     draw_wish_tree(surf, bx, pal, t=t)
-    dog = _stepped(_RunningDog, pal, 30, bx + 66)
-    dog.draw(surf)
+    _draw_calm_dog(surf, bx + 66, pal, t=t)
     sp._draw_planter(surf, bx + 122, pal, kind='shrub')
 
 def _scene_lamplighter(surf, bx, pal, t, rng):
@@ -1072,6 +1082,14 @@ def _run_fill(t):
     x = max(0.0, min(1.0, t / _FILL_SECONDS))
     return x * x * (3.0 - 2.0 * x)   # smoothstep: street starts empty, fills in
 
+def _slot_on(k, salt, density):
+    """Stable per-slot inclusion gate: hash (slot index, salt) to [0,1) and admit
+    the slot iff that fixed threshold is below `density`. Because the threshold is
+    keyed to the WORLD slot (not the frame), a slot pops in exactly once as the
+    density curve rises and never flickers — and its x never moves."""
+    h = ((k * 0x9E3779B1) ^ (salt * 0x85EBCA77)) & 0xFFFF
+    return (h / 65535.0) < density
+
 def _roster_for(phase):
     """The cast vocabulary appropriate to the time of day."""
     p = phase % 1.0
@@ -1107,14 +1125,14 @@ def _dressing(surf, w, scroll, pal, phase):
                               period=205, sag=24, per_span=5)
 
 def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
-    """Place the time-appropriate cast at world-x slots, but THINNED by `density`:
-    the slot spacing stretches and each slot is included only with probability
-    `density` (seeded by slot index so it's stable as it scrolls). Off-peak the
-    street is mostly open paving; at the festival it fills in."""
+    """Place the time-appropriate cast at FIXED world-x slots, THINNED by `density`:
+    each slot is admitted only with probability `density` (seeded by slot index so
+    it's stable as it scrolls). The spacing is constant — only the per-slot gate
+    changes with density — so a figure pops in once instead of sliding when the
+    crowd fills in. Off-peak the street is mostly open paving; at night it fills."""
     if density <= 0.03 or not roster:
         return
-    period = int(_SCENARIO_PERIOD * (0.78 + 0.85 * (1.0 - density)))
-    for bx, k in sp._world_xs(scroll, w, period, x0,
+    for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
         r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
         if r.random() > density:        # stable per-slot inclusion -> negative space

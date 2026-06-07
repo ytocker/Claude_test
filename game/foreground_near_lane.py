@@ -221,10 +221,13 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, 
 
 
 def _near_dog(surf, sx, pal, *, t=0.0, scale=1.7, feet_y=NEAR_GROUND_Y):
-    """The live running dog, enlarged with NEAREST and dropped at the near deck so
-    it trots across the FRONT of the promenade, occluding the far cast."""
+    """The live dog, enlarged with NEAREST and dropped at the near deck so it
+    ambles across the FRONT of the promenade, occluding the far cast. SLOW
+    2-frame shuffle and flipped to face LEFT (the scroll/travel direction) so it
+    reads as walking forward, not moonwalking backward."""
     dog = pr._stepped(_RunningDog, pal, 30, _SCRATCH_W // 2)
-    frame = dog._frames[int(t * 9) % 2]
+    frame = dog._frames[int(t * 2) % 2]
+    frame = pygame.transform.flip(frame, True, False)
     night = _nightf(pal)
     if night > 0.05:
         frame = frame.copy()
@@ -1052,20 +1055,23 @@ def _near_banner(surf, sx, pal, *, feet_y=NEAR_GROUND_Y):
 # ══════════════════════════════════════════════════════════════════════════
 
 def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
-    """A couple of LARGER pedestrians crossing the front edge + the near dog. These
-    are SHORT, so they may pass under the bird/pillar lanes. World-anchored so they
-    parallax with the near lane and tile at the wrap. `density` (day-arc) stretches
-    the spacing so the front empties off-peak and fills toward the festival."""
+    """A couple of LARGER pedestrians + the near dog on the front edge, at FIXED
+    world spacing so they stay pinned to the deck (no per-frame slide). `density`
+    thins them via a STABLE per-slot gate — each slot pops in/out once as the
+    crowd curve rises/falls, but never changes x. Short, so they may pass under
+    the bird/pillar lanes; world-anchored, tiling at the wrap."""
     if density <= 0.05:
         return
-    ps = 1.0 / max(0.15, density)
-    for sx, k in _near_xs(scroll, w, int(196 * ps), x0=20):
-        _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
-    for sx, k in _near_xs(scroll, w, int(224 * ps), x0=150):
-        _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
-    # The near dog trots across the front on its own anchor.
-    for sx, k in _near_xs(scroll, w, int(300 * ps), x0=96):
-        _near_dog(surf, sx, pal, t=t, scale=1.7)
+    for sx, k in _near_xs(scroll, w, 196, x0=20):
+        if pr._slot_on(k, 1, density):
+            _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
+    for sx, k in _near_xs(scroll, w, 224, x0=150):
+        if pr._slot_on(k, 2, density):
+            _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
+    # The near dog ambles across the front on its own anchor.
+    for sx, k in _near_xs(scroll, w, 300, x0=96):
+        if pr._slot_on(k, 3, density):
+            _near_dog(surf, sx, pal, t=t, scale=1.7)
 
 
 def _general_greenery(surf, w, scroll, pal, t):
