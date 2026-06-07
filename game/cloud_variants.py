@@ -436,24 +436,19 @@ def draw_cloud_ruyi(surf, x, y, palette, scale=1.0):
     cx = pad + w // 2
     cy = pad + h // 2
 
-    # Seeded RNG so the y jitter is deterministic per spawn position
-    # (cloud doesn't reshuffle each frame).
-    rng_seed = (int(x) * 0x9E3779B1) ^ (int(y) * 0x7F4A7C15)
-
-    def _jit(idx, amp):
-        # Cheap LCG step keyed off seed+idx, returns [-amp, +amp].
-        v = ((rng_seed + idx * 2654435761) & 0xFFFF) / 0xFFFF
-        return int((v - 0.5) * 2 * amp)
-
-    # 3-lobe layout — break the strict diagonal by jittering y per lobe
-    # ±0.06h. Dominant lobe still on the leading (right) side.
+    # 3-lobe layout — the base y offsets already break the strict diagonal
+    # (dominant lobe on the leading right side). The small per-lobe vertical
+    # variation uses the smooth scroll-keyed sway (_cozy_lobe_sway), NOT a hash
+    # of the live x: the old hash re-rolled every frame as the cloud drifted, so
+    # the lobes jumped and the silhouette flickered. The sway breathes gently
+    # with a long spatial period — almost no motion, and no flicker.
     base_lobes = (
         (int(w * 0.25), cy - int(h * 0.05), int(h * 0.36)),
         (int(w * 0.55), cy - int(h * 0.18), int(h * 0.42)),
         (int(w * 0.82), cy - int(h * 0.08), int(h * 0.38)),
     )
     lobes = tuple(
-        (lx, ly + _jit(i, int(h * 0.06)), lr)
+        (lx, ly + _cozy_lobe_sway(x, i, h * 0.045), lr)
         for i, (lx, ly, lr) in enumerate(base_lobes)
     )
 
