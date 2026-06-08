@@ -1081,18 +1081,21 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     thins them via a STABLE per-slot gate — each slot pops in/out once as the
     crowd curve rises/falls, but never changes x. Short, so they may pass under
     the bird/pillar lanes; world-anchored, tiling at the wrap."""
-    if density <= 0.05:
-        return
+    # Inclusion latched at entry (off-screen) so a pedestrian never blinks out in
+    # view when the crowd curve dips — it walks in from the right and off the left.
     for sx, k in _near_xs(scroll, w, 196, x0=20):
-        if pr._slot_on(k, 1, density):
+        if sp._slot_latch(('ped', 1), k, lambda k=k: pr._slot_on(k, 1, density)):
             _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
+    sp._latch_prune(('ped', 1))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
-        if pr._slot_on(k, 2, density):
+        if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
             _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
+    sp._latch_prune(('ped', 2))
     # The near dog ambles across the front on its own anchor.
     for sx, k in _near_xs(scroll, w, 300, x0=96):
-        if pr._slot_on(k, 3, density):
+        if sp._slot_latch(('ped', 3), k, lambda k=k: pr._slot_on(k, 3, density)):
             _near_dog(surf, sx, pal, t=t, scale=1.7)
+    sp._latch_prune(('ped', 3))
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
@@ -1102,14 +1105,17 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     front edge stays open most of the day. Short greenery may sit under the lanes;
     the taller pine is gated to a clear zone."""
     for sx, k in _near_xs(scroll, w, 420, x0=60):
-        if pr._slot_on(k, 21, fd):
+        if sp._slot_latch(('grn', 21), k, lambda k=k: pr._slot_on(k, 21, fd)):
             _near_planter(surf, sx, pal)
+    sp._latch_prune(('grn', 21))
     for sx, k in _near_xs(scroll, w, 520, x0=200):
-        if pr._slot_on(k, 22, fd):
+        if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
             _near_vine_lantern(surf, sx, pal)
+    sp._latch_prune(('grn', 22))
     for sx, k in _near_xs(scroll, w, 480, x0=12):
-        if pr._slot_on(k, 23, fd) and _tall_ok(sx, 12):
+        if sp._slot_latch(('grn', 23), k, lambda k=k: pr._slot_on(k, 23, fd)):
             _near_pine(surf, sx, pal)
+    sp._latch_prune(('grn', 23))
 
 
 # A performance (performer + its own crowd) is itself a scene cluster; place it at
@@ -1118,6 +1124,7 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
 # distinct event the bird passes.
 _PERF_PERIOD = 720
 _PERF_MARGIN = 220
+_PERF_X0 = 120          # single unified performer grid (all acts share it)
 
 def _perform(surf, w, scroll, pal, t, perf_fn, x0):
     """A single-act busker (juggler/musician/stilt) — placed at only ~1 in 4
@@ -1222,6 +1229,22 @@ def _perf_for(phase):
         return (perf_stilt, 120)
     return None
 
+def _perf_decide(k, phase, density):
+    """The act a performer slot holds (or None) — sampled ONCE at slot entry and
+    latched. Festival window: lion/dragon alternate every slot; otherwise the
+    single day act (juggler/musician/stilt) at the sparse 1-in-4 gate. The busy-
+    street gate (density>0.25) is captured here too, so a slot that opened during
+    a busy stretch keeps its act as the street later empties around it."""
+    if density <= 0.25:
+        return None
+    p = phase % 1.0
+    if 0.58 <= p < 0.80:
+        return perf_dragon_dance if (k % 2) else perf_lion_dance
+    if not pr._slot_on(k, 7, 0.25):
+        return None
+    pf = _perf_for(phase)
+    return pf[0] if pf else None
+
 def draw_near_lane(surf, scroll, pal, phase, t):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
     by the day-arc crowd density and filling in from empty at run-start."""
@@ -1233,19 +1256,25 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
     _general_pedestrians(surf, W, scroll, pal, t, density)
     p = phase % 1.0
-    if 0.45 <= p < 0.86:                               # festival banners + braziers
-        for sx, k in _near_xs(scroll, W, 340, x0=30):
+    # Festival banners + braziers: discrete world slots, each latching its window
+    # membership at entry so the row scrolls in/out instead of the on-screen ones
+    # blinking when the festival window opens/closes.
+    banner_win = (0.45 <= p < 0.86)
+    for sx, k in _near_xs(scroll, W, 340, x0=30):
+        if sp._slot_latch(('banner',), k, lambda: banner_win):
             _near_banner(surf, sx, pal)
-        for sx, k in _near_xs(scroll, W, 290, x0=115):
+    sp._latch_prune(('banner',))
+    for sx, k in _near_xs(scroll, W, 290, x0=115):
+        if sp._slot_latch(('brazier',), k, lambda: banner_win):
             _near_brazier(surf, sx, pal, t=t)
-    if density > 0.25:                                # an act passes when the street is busy
-        if 0.58 <= p < 0.80:
-            # NIGHT festival peak — the lion dance and the marquee DRAGON dance
-            # ALTERNATE per world-anchored slot, so the bird passes a lion then a
-            # dragon. Kept gated to the busy night density (the pre-dawn teardown,
-            # p>=0.80, still spawns no performers).
-            _perform_festival(surf, W, scroll, pal, t, x0=320)
-        else:
-            perf = _perf_for(phase)
-            if perf is not None:
-                _perform(surf, W, scroll, pal, t, perf[0], perf[1])
+    sp._latch_prune(('brazier',))
+    # Performers: ONE world-anchored grid. Each slot latches at entry both whether
+    # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
+    # morphs (juggler->musician etc.) or blinks (density crossing 0.25, day<->festival)
+    # while on screen — it performs its act for the whole pass and scrolls off.
+    for bx, k in _near_xs(scroll, W, _PERF_PERIOD, x0=_PERF_X0, margin=_PERF_MARGIN):
+        act = sp._slot_latch(('perf',), k,
+                             lambda k=k: _perf_decide(k, phase, density))
+        if act is not None:
+            act(surf, bx, pal, t)
+    sp._latch_prune(('perf',))

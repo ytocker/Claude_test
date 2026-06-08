@@ -94,6 +94,52 @@ def _world_xs(scroll, w, period, x0, mult=PROP_MULT, margin=70):
             yield sx, k
 
 
+# ── per-slot decision latch ───────────────────────────────────────────────────
+#
+# A world-anchored slot is first yielded by `_world_xs`/`_near_xs` while it is
+# still OFF-SCREEN to the right (the window runs out to sx < w+margin) and stops
+# being yielded once OFF-SCREEN to the left (sx <= -margin). So if every
+# time-varying decision for a slot (is it shown? which scene/act? is its phase
+# window open?) is computed ONCE the first frame the slot appears and then held,
+# nothing can pop, vanish, or morph while any part of it is on screen — objects
+# only ever scroll in from the right and scroll off the left. The day-arc still
+# changes the street: it just takes effect for slots that haven't entered yet.
+
+_LATCH: dict = {}        # {row_id: {k: decision}}
+_LATCH_SEEN: dict = {}   # {row_id: set(k seen this frame)}
+
+
+def _slot_latch(row_id, k, compute):
+    """Return slot `k`'s decision for `row_id`, computed once at first sighting
+    (off-screen) and reused until the slot scrolls out (then dropped by
+    `_latch_prune`). `compute` is a 0-arg callable evaluated at most once."""
+    row = _LATCH.get(row_id)
+    if row is None:
+        row = _LATCH[row_id] = {}
+    if k not in row:
+        row[k] = compute()
+    seen = _LATCH_SEEN.get(row_id)
+    if seen is None:
+        seen = _LATCH_SEEN[row_id] = set()
+    seen.add(k)
+    return row[k]
+
+
+def _latch_prune(row_id):
+    """Drop latched slots not seen this frame — they've scrolled off (or out of
+    the placement window), so a far-future re-entry is re-decided fresh. Call once
+    after a row's placement loop."""
+    seen = _LATCH_SEEN.pop(row_id, None)
+    row = _LATCH.get(row_id)
+    if not row:
+        return
+    if not seen:
+        row.clear()
+        return
+    for k in [k for k in row if k not in seen]:
+        del row[k]
+
+
 # ── lane quiet zones ──────────────────────────────────────────────────────────
 #
 # The bird flies at x≈BIRD_X=90 with the coin a little ahead (~x168). Keep that
@@ -384,7 +430,7 @@ def _garland_spans(scroll, w, period, x0, mult=PROP_MULT):
         xl = x0 + k * period - phase
         xr = xl + period
         if xr > -10 and xl < w + 10:
-            yield xl, xr
+            yield xl, xr, k
 
 
 def _span_point(xl, xr, top_y, sag, t):
@@ -395,15 +441,18 @@ def _span_point(xl, xr, top_y, sag, t):
 
 
 def _draw_lantern_garland(surf, w, scroll, pal, *, top_y, period=120, sag=24,
-                          per_span=3, colors=('red', 'gold')):
+                          per_span=3, colors=('red', 'gold'), span_gate=None):
     """A self-contained, world-anchored strand of paper lanterns slung in
     repeating catenary spans across the whole pavement. Each lantern carries a
     capped night halo; the rope sags on a quadratic arc between hook points a
     `period` apart, so it reads as continuous festive bunting independent of the
-    lamp posts."""
+    lamp posts. `span_gate(k)` (optional) latches each span in/out at entry so the
+    strand scrolls in/out span-by-span instead of the whole row flashing."""
     night = _nightf(pal)
     rope = _mix((62, 52, 44), (40, 44, 60), 0.3 * night)
-    for xl, xr in _garland_spans(scroll, w, period, x0=12):
+    for xl, xr, k in _garland_spans(scroll, w, period, x0=12):
+        if span_gate is not None and not span_gate(k):
+            continue
         pts = _catenary_pts(xl, xr, top_y, sag, 16)
         pygame.draw.lines(surf, rope, False, [(int(x), int(y)) for x, y in pts], 1)
         for j in range(per_span):
@@ -414,17 +463,21 @@ def _draw_lantern_garland(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                                glow_radius=7, glow_alpha=52)
 
 
-def _draw_fairy_lights(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5):
+def _draw_fairy_lights(surf, w, scroll, pal, *, top_y, period=200, sag=26,
+                       per_span=5, span_gate=None):
     """Warm fairy-light bunting redrawn for r15 as ONE clean catenary with FEWER,
     LARGER, brighter bulbs (3px lit nodes + a soft per-bulb halo) so it reads as
     a festive string rather than a scribbly wire crossing the lane. The wire is a
-    single thin arc; only the bulbs carry weight."""
+    single thin arc; only the bulbs carry weight. `span_gate(k)` (optional) latches
+    each span in/out at entry so the strand scrolls rather than flashing."""
     night = _nightf(pal)
     wire = _mix((78, 70, 62), (46, 50, 66), 0.35 * night)
     dark = _is_dark_sky(pal)
     warm = (250, 200, 120)
     bead = _mix(warm, (118, 108, 94), 0.55)
-    for xl, xr in _garland_spans(scroll, w, period, x0=8):
+    for xl, xr, k in _garland_spans(scroll, w, period, x0=8):
+        if span_gate is not None and not span_gate(k):
+            continue
         pts = _catenary_pts(xl, xr, top_y, sag, 20)
         pygame.draw.lines(surf, wire, False, [(int(x), int(y)) for x, y in pts], 1)
         for j in range(per_span):

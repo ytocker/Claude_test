@@ -218,9 +218,11 @@ def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
 
 
 def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
-                   per_span=3, colors=('red', 'gold')):
+                   per_span=3, colors=('red', 'gold'), span_gate=None):
     """r15 lantern garland with the faint single-catenary wire."""
-    for xl, xr in sp._garland_spans(scroll, w, period, x0=12):
+    for xl, xr, k in sp._garland_spans(scroll, w, period, x0=12):
+        if span_gate is not None and not span_gate(k):
+            continue
         _draw_faint_catenary(surf, xl, xr, top_y, sag, 16, pal)
         for j in range(per_span):
             tt = (j + 0.5) / per_span
@@ -230,12 +232,15 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                                   glow_radius=7, glow_alpha=52)
 
 
-def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5):
+def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
+                 span_gate=None):
     """r15 fairy lights with the faint single-catenary wire + capped warm bulbs."""
     dark = sp._is_dark_sky(pal)
     warm = (250, 200, 120)
     bead = _mix(warm, (118, 108, 94), 0.55)
-    for xl, xr in sp._garland_spans(scroll, w, period, x0=8):
+    for xl, xr, k in sp._garland_spans(scroll, w, period, x0=8):
+        if span_gate is not None and not span_gate(k):
+            continue
         _draw_faint_catenary(surf, xl, xr, top_y, sag, 20, pal)
         for j in range(per_span):
             tt = (j + 0.5) / per_span
@@ -782,19 +787,26 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     (keyed to the world slot, not t/scroll) so the deck reads scattered, never a
     wall — yet stays present from t=0 and never flickers. Wide periods + the gate
     keep the average scene open. Clears the bird column; drawn behind the cast."""
+    # Each lane's inclusion is latched at entry (off-screen) so a fixture never
+    # blinks out in view when `fd` dips — it scrolls in and out like the deck it
+    # sits on.
     for sx, k in sp._world_xs(scroll, w, 440, x0=14):
-        if _slot_on(k, 11, fd) and sp._ground_clear(sx, 10):
+        if sp._slot_latch(('furn', 11), k, lambda k=k: _slot_on(k, 11, fd)):
             sp._draw_barrel(surf, sx, pal)
+    sp._latch_prune(('furn', 11))
     for sx, k in sp._world_xs(scroll, w, 440, x0=118):
-        if _slot_on(k, 12, fd) and sp._ground_clear(sx, 12):
+        if sp._slot_latch(('furn', 12), k, lambda k=k: _slot_on(k, 12, fd)):
             sp._draw_cairn(surf, sx, pal, scale=1.2)
+    sp._latch_prune(('furn', 12))
     for sx, k in sp._world_xs(scroll, w, 520, x0=205):
-        if _slot_on(k, 13, fd) and sp._ground_clear(sx, 12):
+        if sp._slot_latch(('furn', 13), k, lambda k=k: _slot_on(k, 13, fd)):
             sp._draw_planter(surf, sx, pal, kind='shrub')
             sp._draw_vine_trail(surf, sx + 11, pal)
+    sp._latch_prune(('furn', 13))
     for sx, k in sp._world_xs(scroll, w, 620, x0=70):
-        if _slot_on(k, 14, fd) and sp._ground_clear(sx, 12):
+        if sp._slot_latch(('furn', 14), k, lambda k=k: _slot_on(k, 14, fd)):
             sp._draw_planter(surf, sx, pal, kind='bamboo')
+    sp._latch_prune(('furn', 14))
 
 
 # ── grouped scenarios ─────────────────────────────────────────────────────────
@@ -1018,7 +1030,7 @@ def phase_day(surf, w, gy, h, scroll, pal, t):
     global _CUR_PAL
     _CUR_PAL = pal
     _ground_furniture(surf, w, scroll, pal)
-    for xl, xr in sp._garland_spans(scroll, w, period=150, x0=20):
+    for xl, xr, _k in sp._garland_spans(scroll, w, period=150, x0=20):
         draw_prayer_flags(surf, int(xl), GROUND_Y - 118, int(xr), GROUND_Y - 116, n=5)
     _scenarios(surf, w, scroll, pal, t, (_scene_market, _scene_pastoral), x0=40)
 
@@ -1168,21 +1180,39 @@ def _dressing(surf, w, scroll, pal, phase):
     lanterns are installed for the evening and stay as fixtures; the prayer-flag
     bunting is the daytime look."""
     p = phase % 1.0
-    if p >= 0.85 or p < 0.28:                                   # daytime bunting
-        for xl, xr in sp._garland_spans(scroll, w, period=150, x0=20):
+    # Garland strands are continuous, so each SPAN latches its window membership at
+    # entry: the strand scrolls in/out span-by-span instead of the whole row
+    # flashing at the phase-window edge.
+    bunting_win = (p >= 0.85 or p < 0.28)                        # daytime bunting
+    for xl, xr, k in sp._garland_spans(scroll, w, period=150, x0=20):
+        if sp._slot_latch(('bunting',), k, lambda: bunting_win):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
-    if 0.20 <= p < 0.92:                                        # lantern garland
-        sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
-                                 period=128, sag=23, per_span=3)
-    if 0.20 <= p < 0.93:                                        # lamp posts
-        for sx, k in sp._world_xs(scroll, w, 250, x0=18):
+    sp._latch_prune(('bunting',))
+    lantern_win = (0.20 <= p < 0.92)                            # lantern garland
+    sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
+                             period=128, sag=23, per_span=3,
+                             span_gate=lambda k: sp._slot_latch(('lantgar',), k,
+                                                                lambda: lantern_win))
+    sp._latch_prune(('lantgar',))
+    # Lamp posts: a discrete world-slot row. Latch each post's "is the evening
+    # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
+    # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
+    lamp_win = (0.20 <= p < 0.93)
+    for sx, k in sp._world_xs(scroll, w, 250, x0=18):
+        if sp._slot_latch(('lampR',), k, lambda: lamp_win):
             sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
-        for sx, k in sp._world_xs(scroll, w, 250, x0=152):
+    sp._latch_prune(('lampR',))
+    for sx, k in sp._world_xs(scroll, w, 250, x0=152):
+        if sp._slot_latch(('lampG',), k, lambda: lamp_win):
             sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
-    if 0.40 <= p < 0.86:                                        # festival fairy lights
-        sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
-                              period=205, sag=24, per_span=5)
+    sp._latch_prune(('lampG',))
+    fairy_win = (0.40 <= p < 0.86)                              # festival fairy lights
+    sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
+                          period=205, sag=24, per_span=5,
+                          span_gate=lambda k: sp._slot_latch(('fairy',), k,
+                                                             lambda: fairy_win))
+    sp._latch_prune(('fairy',))
 
 def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
     """Place the time-appropriate cast at FIXED world-x slots, THINNED by `density`:
@@ -1190,24 +1220,35 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
     it's stable as it scrolls). The spacing is constant — only the per-slot gate
     changes with density — so a figure pops in once instead of sliding when the
     crowd fills in. Off-peak the street is mostly open paving; at night it fills."""
-    if density <= 0.03 or not roster:
+    if not roster:
         return
     n = len(roster)
+    row = ('scenario', x0)
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
-        r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
-        if r.random() > density:        # stable per-slot inclusion -> negative space
-            continue
-        # Scene choice is a stable per-slot hash; if it matches the adjacent slot's
-        # choice, bump it — so the same vignette never lands back-to-back (kills the
-        # "same scene every few seconds" loop). Both are pure fns of k -> no flicker.
-        idx = _slot_pick(k, n)
-        if n > 1 and idx == _slot_pick(k - 1, n):
-            idx = (idx + 1) % n
-        # Small per-slot x-jitter breaks the perfectly even grid rhythm (deterministic,
-        # within the slide margin, so scenes stay pinned and seam-free at the wrap).
-        jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
-        roster[idx](surf, bx + jit, pal, t, r)
+        # Decide ONCE, while the slot is still off-screen to the right: whether it
+        # is occupied (density gate) and WHICH vignette it holds (roster choice +
+        # no-repeat). Latched for the whole traversal so a slot never blinks on/off
+        # or morphs as the day-density curve and roster shift under it — it only
+        # scrolls in and out. New slots entering later read the new density/roster.
+        def _decide(k=k):
+            r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
+            if r.random() > density:        # stable per-slot inclusion
+                return None
+            idx = _slot_pick(k, n)
+            if n > 1 and idx == _slot_pick(k - 1, n):
+                idx = (idx + 1) % n
+            jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
+            return (roster[idx], jit)
+        dec = sp._slot_latch(row, k, _decide)
+        if dec is not None:
+            scene_fn, jit = dec
+            # Recreate the per-slot RNG and consume the inclusion draw so the scene's
+            # internal variety matches the pre-latch behaviour exactly.
+            r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
+            r.random()
+            scene_fn(surf, bx + jit, pal, t, r)
+    sp._latch_prune(row)
 
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
