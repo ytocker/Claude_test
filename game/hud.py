@@ -807,8 +807,11 @@ _NA_PAD = 11  # padding baked around each cached plate so its soft glow can blee
 
 # The coin plate is composited fresh every play frame though it only changes when
 # the count changes — memoize it by its text so the per-frame cost is set_alpha +
-# blit (the alpha fade still tracks the bird's height each frame).
+# blit (the alpha fade still tracks the bird's height each frame). The count only
+# ever climbs within a run, so old entries are never revisited — cap the cache
+# (FIFO) so a long run can't grow it without bound on the WASM memory ceiling.
 _COIN_PLATE_CACHE: dict = {}
+_COIN_PLATE_CAP = 64
 
 _NA_SLATE    = ( 40,  38,  36)   # warm slate plate body (opaque value floor)
 _NA_SLATE_D  = ( 22,  18,  16)
@@ -1737,6 +1740,8 @@ class HUD:
             _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19),
                            20, fill=UI_GOLD, outline=NEAR_BLACK, px=2,
                            shadow_offset=None)
+            if len(_COIN_PLATE_CACHE) >= _COIN_PLATE_CAP:
+                del _COIN_PLATE_CACHE[next(iter(_COIN_PLATE_CACHE))]
             _COIN_PLATE_CACHE[coin_text] = coin_surf
         coin_surf.set_alpha(ui_alpha)
         surf.blit(coin_surf, (12 - pad, 14 - pad))

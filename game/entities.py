@@ -3238,8 +3238,9 @@ Mushroom = PowerUp
 
 # Solid-disc sprite cache shared by Particle (additive blit) and CloudPuff
 # (normal blit) — both draw the identical disc, only the blend differs, so one
-# cache keyed by (colour, radius, alpha bucket) serves both and avoids a fresh
-# Surface per particle per frame.
+# cache keyed by (colour, radius, exact alpha) serves both and avoids a fresh
+# Surface per particle per frame. Exact alpha keeps it pixel-identical; the key
+# space is small (few colours × small radii × 0–255) so the cache stays tiny.
 _DISC_CACHE: dict = {}
 
 
