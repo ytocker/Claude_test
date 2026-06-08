@@ -369,6 +369,32 @@ def _magnet_hex_grid(radius: int) -> pygame.Surface:
     return surf
 
 
+# Persistent magnet-field composite surface (one per field diameter) reused each
+# frame, plus a cache of the breathing hex grid scaled to each target size — so
+# the active magnet field costs no per-frame Surface alloc and no per-frame
+# smoothscale (only the breathing rings/glow are redrawn).
+_MAGNET_FIELD_SURF: "dict[int, pygame.Surface]" = {}
+_MAGNET_HEX_SCALED: dict = {}
+
+
+def _magnet_field_surf(d: int) -> pygame.Surface:
+    s = _MAGNET_FIELD_SURF.get(d)
+    if s is None:
+        s = pygame.Surface((d, d), pygame.SRCALPHA)
+        _MAGNET_FIELD_SURF[d] = s
+    return s
+
+
+def _magnet_hex_scaled(rad: int, scaled_d: int) -> pygame.Surface:
+    key = (rad, scaled_d)
+    s = _MAGNET_HEX_SCALED.get(key)
+    if s is None:
+        s = pygame.transform.smoothscale(_magnet_hex_grid(rad),
+                                         (scaled_d, scaled_d))
+        _MAGNET_HEX_SCALED[key] = s
+    return s
+
+
 STATE_MENU = 0
 STATE_PLAY = 1
 STATE_NAMEENTRY = 2
@@ -1366,8 +1392,8 @@ class App:
             # first activation; rings + glow scale by `rad` naturally.
             rad = (MEGAMAGNET_RADIUS if self.world.megamagnet_timer > 0
                    else MAGNET_RADIUS)
-            field = pygame.Surface((rad * 2 + 8, rad * 2 + 8),
-                                   pygame.SRCALPHA)
+            field = _magnet_field_surf(rad * 2 + 8)
+            field.fill((0, 0, 0, 0))
             lcx, lcy = rad + 4, rad + 4
 
             # Outer-ring pulse factor — drives BOTH the rings and the glow
@@ -1400,8 +1426,7 @@ class App:
             scaled_d = int(rad * outer_factor) * 2 + 8
             full_d = int(rad) * 2 + 8
             if scaled_d != full_d:
-                hex_layer = pygame.transform.smoothscale(
-                    hex_full, (scaled_d, scaled_d))
+                hex_layer = _magnet_hex_scaled(rad, scaled_d)
                 offset = (full_d - scaled_d) // 2
                 field.blit(hex_layer, (offset, offset))
             else:

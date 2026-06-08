@@ -805,6 +805,11 @@ def _coin_icon(surf, cx, cy, r=10):
 _SS = 4  # supersample factor — composite big, smoothscale down for crisp edges
 _NA_PAD = 11  # padding baked around each cached plate so its soft glow can bleed
 
+# The coin plate is composited fresh every play frame though it only changes when
+# the count changes — memoize it by its text so the per-frame cost is set_alpha +
+# blit (the alpha fade still tracks the bird's height each frame).
+_COIN_PLATE_CACHE: dict = {}
+
 _NA_SLATE    = ( 40,  38,  36)   # warm slate plate body (opaque value floor)
 _NA_SLATE_D  = ( 22,  18,  16)
 _NA_ACCENT   = _GOLD_BRIGHT       # menu-text yellow: rim + glow + glyphs
@@ -1718,19 +1723,23 @@ class HUD:
         # icon + gold count are composited on one surface so the whole element
         # fades together as the bird nears the top edge.
         coin_text = f"x{world.coin_count}"
-        cf2 = _font(20, True)
-        cw = cf2.size("8" * len(coin_text))[0] + 46
-        cp = pygame.Rect(12, 14, cw, 38)
         pad = _NA_PAD
-        coin_surf = pygame.Surface((cw + pad * 2, 38 + pad * 2), pygame.SRCALPHA)
-        _na_plate(coin_surf, pygame.Rect(pad, pad, cw, 38), cut=7, round_r=8,
-                  glow=False)
-        _coin_icon(coin_surf, pad + 19, pad + 19, 12)
-        tw = cf2.size(coin_text)[0]
-        _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19), 20,
-                       fill=UI_GOLD, outline=NEAR_BLACK, px=2, shadow_offset=None)
+        coin_surf = _COIN_PLATE_CACHE.get(coin_text)
+        if coin_surf is None:
+            cf2 = _font(20, True)
+            cw = cf2.size("8" * len(coin_text))[0] + 46
+            coin_surf = pygame.Surface((cw + pad * 2, 38 + pad * 2),
+                                       pygame.SRCALPHA)
+            _na_plate(coin_surf, pygame.Rect(pad, pad, cw, 38), cut=7, round_r=8,
+                      glow=False)
+            _coin_icon(coin_surf, pad + 19, pad + 19, 12)
+            tw = cf2.size(coin_text)[0]
+            _outlined_text(coin_surf, coin_text, (pad + 36 + tw // 2, pad + 19),
+                           20, fill=UI_GOLD, outline=NEAR_BLACK, px=2,
+                           shadow_offset=None)
+            _COIN_PLATE_CACHE[coin_text] = coin_surf
         coin_surf.set_alpha(ui_alpha)
-        surf.blit(coin_surf, (cp.x - pad, cp.y - pad))
+        surf.blit(coin_surf, (12 - pad, 14 - pad))
 
         # Pause button
         self.pause_btn.draw(surf, paused=paused)

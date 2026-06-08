@@ -15,6 +15,12 @@ import pygame
 
 from game.config import W, H, GROUND_Y
 
+# One persistent full-screen overlay reused by the small additive/normal FX
+# layers (campfire flame + sparks, firework bursts + trails, drift sparkles) so
+# none of them allocate a fresh W×H Surface every frame. Each user does
+# fill→draw→blit before the next, mirroring weather._OVERLAY.
+_FX_OVERLAY = pygame.Surface((W, H), pygame.SRCALPHA)
+
 
 # ── Phase windows & cooldowns (tuned for sparseness) ─────────────────────────
 # Biome cycle is 5 minutes (CYCLE_SECONDS=300), 8 keyframes (DAY → GOLDEN →
@@ -236,7 +242,8 @@ class _Fireworks:
             if age < 0 or age > self.BURST_LIFE:
                 continue
             if layer is None:
-                layer = pygame.Surface((W, H), pygame.SRCALPHA)
+                layer = _FX_OVERLAY
+                layer.fill((0, 0, 0, 0))
             u = age / self.BURST_LIFE
             radius = int(8 + u * 16)
             alpha_mul = (1.0 - u) ** 1.4
@@ -816,7 +823,8 @@ class _Campfire:
         flicker = (math.sin(self.t * 12.0 + self._flicker_seed) * 0.5 +
                    math.sin(self.t * 7.5 + self._flicker_seed * 2) * 0.5)
         h_off = int(round(flicker * 1.5))   # -1..+1 px height jitter
-        flame = pygame.Surface((W, H), pygame.SRCALPHA)
+        flame = _FX_OVERLAY
+        flame.fill((0, 0, 0, 0))
         pygame.draw.ellipse(flame, (255,  90,  50, 200),
                             (x - 5, y - 7 - h_off, 10, 8 + h_off))
         pygame.draw.ellipse(flame, (255, 150,  60, 230),
@@ -830,7 +838,8 @@ class _Campfire:
         surf.blit(flame, (0, 0))
         pygame.draw.circle(surf, (255, 250, 220), (x, y - 5), 1)
         # Sparks (additive)
-        spark_layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        spark_layer = _FX_OVERLAY
+        spark_layer.fill((0, 0, 0, 0))
         for sx, sy, _, _, life, color in self._sparks:
             life_u = max(0.0, min(1.0, life / 1.3))
             a = int(220 * life_u)
@@ -1330,7 +1339,8 @@ class _ShootingStar(_AirEventBase):
         life_t = min(1.0, self.t / self.DURATION_MAX)
         head_a = int(255 * (1.0 - life_t * 0.7))
         # Trail as fading line segments
-        layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        layer = _FX_OVERLAY
+        layer.fill((0, 0, 0, 0))
         n = len(self._trail)
         for i in range(n - 1):
             t_frac = (i + 1) / n
@@ -1961,7 +1971,8 @@ class _MushroomRing(_GroundEventBase):
     def draw(self, surf):
         self._blit_sprite(surf)
         # Upward-drifting sparkles
-        layer = pygame.Surface((W, H), pygame.SRCALPHA)
+        layer = _FX_OVERLAY
+        layer.fill((0, 0, 0, 0))
         for off_x, phase in self._sparkles:
             cycle = (self.t * 0.4 + phase / math.tau) % 1.0  # 0..1
             sx = int(self.x) + int(off_x + math.sin(cycle * math.tau) * 3)

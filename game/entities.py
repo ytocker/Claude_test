@@ -476,6 +476,7 @@ _SKATE_HAT_SPRITE = None     # skate+3x gold bunny top-hat
 _SKATE_HAT_SCALED: dict = {}
 _BOARD_BASE = None          # native board sprite, no wheel-spokes
 _BOARD_WHEELS = None        # native-space [(wx, wy, wr, sign), ...] for the spokes
+_BOARD_SCRATCH = None       # reused scratch for the per-frame spoke stamp
 _SKATE_ICON_SPRITE = None   # genie skateboard-offer pickup token
 
 
@@ -1272,7 +1273,7 @@ class Bird:
         we only stamp the two spinning wheel-spokes and apply Pip's tilt +
         kickflip/heelflip/popshuvit + flip — no per-frame supersample rebuild
         (which used to run twice via the HUD re-blit)."""
-        global _BOARD_BASE, _BOARD_WHEELS
+        global _BOARD_BASE, _BOARD_WHEELS, _BOARD_SCRATCH
         from game.config import PARCEL_Y_OFFSET, GROW_SCALE
         # Track Pip's body scale so the board sizes + seats under a grown/shrunk
         # bird instead of staying fixed under a mismatched body.
@@ -1284,7 +1285,11 @@ class Bird:
         by = cy + offset.y
         if _BOARD_BASE is None:
             _BOARD_BASE, _BOARD_WHEELS = Bird._build_board_base()
-        board_surf = _BOARD_BASE.copy()
+            _BOARD_SCRATCH = pygame.Surface(_BOARD_BASE.get_size(),
+                                            pygame.SRCALPHA)
+        board_surf = _BOARD_SCRATCH
+        board_surf.fill((0, 0, 0, 0))
+        board_surf.blit(_BOARD_BASE, (0, 0))
         spin = self.frame_t * 4.0
         for wx, wy, wr, sign in _BOARD_WHEELS:
             sx_p = wx + math.cos(spin + sign * 1.0) * wr * 0.6
@@ -2266,6 +2271,24 @@ class PowerUp:
         sprite = _get_surprise_sprite()
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
+    @staticmethod
+    def _render_magnet_body(sz, scx, scy, outer_r, inner_r, leg_span):
+        """Static crimson horseshoe with the inner hollow + leg gap punched out.
+        Position-independent (callers blit it at the per-frame magnet centre)."""
+        s = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        pygame.draw.circle(s, (80, 5, 8), (scx, scy), outer_r + 2)
+        pygame.draw.rect(s, (80, 5, 8),
+                         (scx - outer_r - 2, scy, (outer_r + 2) * 2, leg_span + 4))
+        RED_HI = (235, 35, 45)
+        pygame.draw.circle(s, RED_HI, (scx, scy), outer_r + 1)
+        pygame.draw.rect(s, RED_HI,
+                         (scx - outer_r - 1, scy, (outer_r + 1) * 2, leg_span + 3))
+        pygame.draw.circle(s, (255, 95, 95), (scx, scy), inner_r + 1, 2)
+        pygame.draw.circle(s, (255, 85, 85), (scx, scy), outer_r, 2)
+        pygame.draw.circle(s, (0, 0, 0, 0), (scx, scy), inner_r)
+        pygame.draw.rect(s, (0, 0, 0, 0), (scx - inner_r, scy, inner_r * 2, sz - scy))
+        return s
+
     def _draw_magnet(self, surf):
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.1) * 3)   # float bob
@@ -2275,40 +2298,16 @@ class PowerUp:
         arch_cy = cy - 3
         leg_bot = cy + 12
 
-        # Build the horseshoe on an SRCALPHA scratch surface so the hollow
-        # can be punched cleanly with alpha=0 overdraw.
+        # The horseshoe body is position-independent (rect heights only use the
+        # constant leg_bot-arch_cy span), so it is baked once and reused.
         sz  = 42
         scx = sz // 2
         scy = outer_r + 4
-
-        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
-
-        # Dark shadow rim
-        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), outer_r + 2)
-        pygame.draw.rect(scratch, (80, 5, 8),
-                         (scx - outer_r - 2, scy,
-                          (outer_r + 2) * 2, leg_bot - arch_cy + 4))
-
-        # Vivid crimson body
-        RED_HI = (235, 35, 45)
-        pygame.draw.circle(scratch, RED_HI, (scx, scy), outer_r + 1)
-        pygame.draw.rect(scratch, RED_HI,
-                         (scx - outer_r - 1, scy,
-                          (outer_r + 1) * 2, leg_bot - arch_cy + 3))
-
-        # No upper specular sheen — the body keeps a clean uniform red.
-
-        # Highlight rings
-        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), inner_r + 1, 2)
-        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), outer_r, 2)
-
-        # Punch inner hollow
-        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), inner_r)
-        # Punch gap between legs
-        pygame.draw.rect(scratch, (0, 0, 0, 0),
-                         (scx - inner_r, scy, inner_r * 2, sz - scy))
-
-        surf.blit(scratch, (cx - scx, arch_cy - scy))
+        global _MAGNET_BODY
+        if _MAGNET_BODY is None:
+            _MAGNET_BODY = self._render_magnet_body(
+                sz, scx, scy, outer_r, inner_r, leg_span=15)
+        surf.blit(_MAGNET_BODY, (cx - scx, arch_cy - scy))
 
         # Chrome pole tips
         left_cx  = cx - inner_r - (outer_r - inner_r) // 2
@@ -2404,28 +2403,16 @@ class PowerUp:
         arch_cy = cy - 3
         leg_bot = cy + 13
 
-        # Build the horseshoe on an SRCALPHA scratch surface so the
-        # hollow can be punched cleanly with alpha=0 overdraw.
+        # The horseshoe body is position-independent (rect heights only use the
+        # constant leg_bot-arch_cy span), so it is baked once and reused.
         sz = 52
         scx = sz // 2
         scy = OUTER_R + 4
-
-        scratch = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        pygame.draw.circle(scratch, (80, 5, 8), (scx, scy), OUTER_R + 2)
-        pygame.draw.rect(scratch, (80, 5, 8),
-                         (scx - OUTER_R - 2, scy,
-                          (OUTER_R + 2) * 2, leg_bot - arch_cy + 4))
-        RED_HI = (235, 35, 45)
-        pygame.draw.circle(scratch, RED_HI, (scx, scy), OUTER_R + 1)
-        pygame.draw.rect(scratch, RED_HI,
-                         (scx - OUTER_R - 1, scy,
-                          (OUTER_R + 1) * 2, leg_bot - arch_cy + 3))
-        pygame.draw.circle(scratch, (255, 95, 95), (scx, scy), INNER_R + 1, 2)
-        pygame.draw.circle(scratch, (255, 85, 85), (scx, scy), OUTER_R, 2)
-        pygame.draw.circle(scratch, (0, 0, 0, 0), (scx, scy), INNER_R)
-        pygame.draw.rect(scratch, (0, 0, 0, 0),
-                         (scx - INNER_R, scy, INNER_R * 2, sz - scy))
-        surf.blit(scratch, (cx - scx, arch_cy - scy))
+        global _MEGAMAGNET_BODY
+        if _MEGAMAGNET_BODY is None:
+            _MEGAMAGNET_BODY = self._render_magnet_body(
+                sz, scx, scy, OUTER_R, INNER_R, leg_span=16)
+        surf.blit(_MEGAMAGNET_BODY, (cx - scx, arch_cy - scy))
 
         left_cx = cx - INNER_R - ARM_W // 2
         right_cx = cx + INNER_R + ARM_W // 2
@@ -2494,17 +2481,11 @@ class PowerUp:
             pygame.draw.circle(surf, (255, 255, 240),
                                (tip_cx, ball_cy), max(1, BALL_R - 2))
 
-    def _draw_slowmo(self, surf):
-        cx = int(self.x)
-        cy = int(self.y + math.sin(self.pulse * 0.7) * 3)
-        R = POWERUP_R  # 14
-
-        # Clock face on scratch SRCALPHA surface for clean edges
-        PAD = 2
-        D = (R + PAD) * 2
+    @staticmethod
+    def _render_slowmo_face(R, D, gc):
+        """Static clock face: shadow ring, bezel, face, specular highlight and
+        the 12 tick marks. The animated hands + pin are drawn per-frame on top."""
         g = pygame.Surface((D, D), pygame.SRCALPHA)
-        gc = (D // 2, D // 2)
-
         # Outer shadow ring
         pygame.draw.circle(g, (15, 0, 35, 200), gc, R + 1)
         # Bezel: two rings for a bevelled metallic look
@@ -2533,6 +2514,26 @@ class PowerUp:
             col = (230, 200, 255, 240) if major else (165, 125, 210, 160)
             pygame.draw.line(g, col, (int(x1), int(y1)), (int(x2), int(y2)),
                              2 if major else 1)
+        return g
+
+    def _draw_slowmo(self, surf):
+        cx = int(self.x)
+        cy = int(self.y + math.sin(self.pulse * 0.7) * 3)
+        R = POWERUP_R  # 14
+        PAD = 2
+        D = (R + PAD) * 2
+        gc = (D // 2, D // 2)
+
+        # Static face is baked once; the per-frame composite reuses one scratch
+        # so the alpha hands still blend over the face exactly as before with no
+        # per-frame allocation.
+        global _SLOWMO_FACE, _SLOWMO_SCRATCH
+        if _SLOWMO_FACE is None:
+            _SLOWMO_FACE = self._render_slowmo_face(R, D, gc)
+            _SLOWMO_SCRATCH = pygame.Surface((D, D), pygame.SRCALPHA)
+        g = _SLOWMO_SCRATCH
+        g.fill((0, 0, 0, 0))
+        g.blit(_SLOWMO_FACE, (0, 0))
 
         # Hour hand — short, thick, slow
         hr_ang = self.pulse * 0.15 - math.pi / 2
@@ -2652,13 +2653,23 @@ class PowerUp:
         surf.blit(sprite, sprite.get_rect(center=(cx, cy)))
 
     def _draw_rail_icon(self, surf):
-        """RAIL pickup — Victorian engraved train ticket (RT2): sepia
-        paper card with a thick black outer perimeter, a lighter
-        engraved inner border, a small "TRAIN" caption, and a
-        detailed steam-locomotive silhouette centred on the card."""
+        """RAIL pickup — Victorian engraved train ticket. The card art is fully
+        static, so the supersample is built once and cached; per frame only the
+        small sin() tilt + bob vary (handled via the bucketed icon cache)."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 1.0) * 2)
+        global _RAIL_BIG
+        if _RAIL_BIG is None:
+            _RAIL_BIG = self._render_rail_big()
+        tilt = math.sin(self.pulse * 0.7) * 4
+        final = _tilt_icon(_RAIL_BIG, 6, tilt)
+        surf.blit(final, final.get_rect(center=(cx, cy)))
 
+    @staticmethod
+    def _render_rail_big():
+        """Sepia paper card with a thick black outer perimeter, a lighter
+        engraved inner border, a small "TRAIN" caption, and a detailed
+        steam-locomotive silhouette centred on the card."""
         SS = 6
         NATIVE_W, NATIVE_H = 48, 36
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
@@ -2757,20 +2768,25 @@ class PowerUp:
                          card.top + int(SS * 6.5) + dy)))
 
         locomotive(card.centerx, card.centery + int(SS * 3.5), scale=1.15)
-
-        tilt = math.sin(self.pulse * 0.7) * 4
-        rotated = pygame.transform.rotate(big, tilt)
-        rw, rh = rotated.get_size()
-        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
-        surf.blit(final, final.get_rect(center=(cx, cy)))
+        return big
 
     def _draw_lottery_icon(self, surf):
-        """Scratch-off lottery card: gold body with a chrome perimeter,
-        a red LUCKY chip riding the top edge, and 3 large silver
-        scratch cells each with a single "?"."""
+        """Scratch-off lottery card. Fully static art → build the supersample
+        once, cache it, and let the bucketed icon cache handle the per-frame
+        sin() tilt + bob."""
         cx = int(self.x)
         cy = int(self.y + math.sin(self.pulse * 0.8) * 2)
+        global _LOTTERY_BIG
+        if _LOTTERY_BIG is None:
+            _LOTTERY_BIG = self._render_lottery_big()
+        tilt = math.sin(self.pulse * 0.7) * 5
+        final = _tilt_icon(_LOTTERY_BIG, 6, tilt)
+        surf.blit(final, final.get_rect(center=(cx, cy)))
 
+    @staticmethod
+    def _render_lottery_big():
+        """Gold body with a chrome perimeter, a red LUCKY chip riding the top
+        edge, and 3 large silver scratch cells each with a single "?"."""
         SS = 6
         NATIVE_W, NATIVE_H = 56, 42
         sw, sh = NATIVE_W * SS, NATIVE_H * SS
@@ -2916,12 +2932,7 @@ class PowerUp:
             cell = pygame.Rect(x0, cell_top, cell_w, cell_h)
             silver_cell(cell, radius=int(SS * 1.5))
             fit_question_mark(cell)
-
-        tilt = math.sin(self.pulse * 0.7) * 5
-        rotated = pygame.transform.rotate(big, tilt)
-        rw, rh = rotated.get_size()
-        final = pygame.transform.smoothscale(rotated, (rw // SS, rh // SS))
-        surf.blit(final, final.get_rect(center=(cx, cy)))
+        return big
 
     def _draw_skateboard_icon(self, surf):
         """SKATEBOARD pickup token (punk skull-bunny over crossed decks). The
@@ -3225,6 +3236,44 @@ Mushroom = PowerUp
 
 # ── Particle ─────────────────────────────────────────────────────────────────
 
+# Solid-disc sprite cache shared by Particle (additive blit) and CloudPuff
+# (normal blit) — both draw the identical disc, only the blend differs, so one
+# cache keyed by (colour, radius, alpha bucket) serves both and avoids a fresh
+# Surface per particle per frame.
+_DISC_CACHE: dict = {}
+
+
+def _disc_sprite(color, r, alpha):
+    r = max(1, int(r))
+    a = max(0, min(255, int(alpha)))
+    key = (tuple(color), r, a)
+    spr = _DISC_CACHE.get(key)
+    if spr is None:
+        spr = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(spr, (*color, a), (r + 1, r + 1), r)
+        _DISC_CACHE[key] = spr
+    return spr
+
+
+# Static-art pickup icons (Lottery, Rail): the heavy part is rebuilding the 6×
+# supersample every frame (gradients, scratch cells, fonts + several intermediate
+# surfaces). Build it ONCE and cache; the per-frame rotate+smoothscale uses the
+# exact tilt so the output stays pixel-identical.
+_LOTTERY_BIG = None
+_RAIL_BIG = None
+_SLOWMO_FACE = None
+_SLOWMO_SCRATCH = None
+_MAGNET_BODY = None
+_MEGAMAGNET_BODY = None
+
+
+def _tilt_icon(big, ss, tilt_deg):
+    rotated = pygame.transform.rotate(big, tilt_deg)
+    rw, rh = rotated.get_size()
+    return pygame.transform.smoothscale(rotated, (max(1, rw // ss),
+                                                  max(1, rh // ss)))
+
+
 class Particle:
     __slots__ = ("x", "y", "vx", "vy", "life", "life_max", "r", "color", "gravity")
 
@@ -3252,8 +3301,7 @@ class Particle:
         t = max(0.0, self.life / self.life_max)
         a = int(255 * t)
         rr = max(1, int(self.r * (0.4 + 0.6 * t)))
-        s = pygame.Surface((rr * 2 + 2, rr * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*self.color, a), (rr + 1, rr + 1), rr)
+        s = _disc_sprite(self.color, rr, a)
         surf.blit(s, (int(self.x - rr - 1), int(self.y - rr - 1)), special_flags=pygame.BLEND_ADD)
 
 
@@ -3283,8 +3331,7 @@ class CloudPuff:
         t = max(0.0, self.life / self.life_max)          # 1→0 as puff dies
         alpha = int(200 * t)
         r = max(1, int(self.r_start + (self.r_end - self.r_start) * (1.0 - t)))
-        s = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*self.color, alpha), (r + 1, r + 1), r)
+        s = _disc_sprite(self.color, r, alpha)
         surf.blit(s, (int(self.x - r - 1), int(self.y - r - 1)))
 
 
@@ -3368,6 +3415,14 @@ def _lazy_import_genie_design():
     return cache
 
 
+# The genie body is deterministic and identical for every instance, so it is
+# built once (shared native cache) and the per-display-size smoothscale is
+# memoized — scale is a constant 1.0 through the long HOLD — so the heavy 320×460
+# smoothscale stops running every frame; only the cheap exact rotate remains.
+_GENIE_BODY = None
+_GENIE_SCALE_CACHE: dict = {}
+
+
 class GenieCharacter:
     """Conjured genie that hovers ahead of Pip and casts three Genie offer
     powerups. Procedural sprite drawn from game/_genie_assets.py, translucent
@@ -3413,9 +3468,12 @@ class GenieCharacter:
         # supersample is ~16x less pixel work per frame — the genie is on
         # screen for its whole ~3.3 s life, so smoothscaling 5.3 MP every
         # frame was a real per-frame stutter, badly so on the WASM target.
-        self._cached_body = pygame.transform.smoothscale(
-            self._render_body_supersample(),
-            (self._native_w, self._native_h))
+        global _GENIE_BODY
+        if _GENIE_BODY is None:
+            _GENIE_BODY = pygame.transform.smoothscale(
+                self._render_body_supersample(),
+                (self._native_w, self._native_h))
+        self._cached_body = _GENIE_BODY
         self._spawn_appear_poof()
 
     def update(self, dt):
@@ -3579,8 +3637,14 @@ class GenieCharacter:
         eff = scale * self._display_scale
         out_w = max(2, int(self._native_w * eff))
         out_h = max(2, int(self._native_h * eff))
-        scaled = pygame.transform.smoothscale(self._cached_body,
-                                              (out_w, out_h))
+        # Cache the costly smoothscale (320×460 source) per display size — scale
+        # is a constant 1.0 through the long HOLD, so this is one entry reused —
+        # then rotate by the exact sway each frame (cheap, keeps it identical).
+        scaled = _GENIE_SCALE_CACHE.get((out_w, out_h))
+        if scaled is None:
+            scaled = pygame.transform.smoothscale(self._cached_body,
+                                                  (out_w, out_h))
+            _GENIE_SCALE_CACHE[(out_w, out_h)] = scaled
         sway = math.sin(self._t * 1.4) * 3.0
         rotated = pygame.transform.rotate(scaled, sway)
         rotated.set_alpha(alpha)
