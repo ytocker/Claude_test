@@ -1126,6 +1126,15 @@ _PERF_PERIOD = 720
 _PERF_MARGIN = 220
 _PERF_X0 = 120          # single unified performer grid (all acts share it)
 
+# ── DEAD per-phase painter path — NOT in the live call chain ───────────────────
+# `_perform`, `_perform_festival`, the `phase_*` painters, and `add_near_lane`
+# below are the OLD per-phase dispatch, superseded by the live `draw_near_lane`
+# director (which routes through `foreground.draw_near_lane`). Nothing calls
+# `add_near_lane` anywhere in the project. Kept only as reference scaffolding.
+# IMPORTANT: their placement loops are UNLATCHED — they would reintroduce the
+# in-place pop/morph bug. Do not wire this path back in without converting every
+# loop to `sp._slot_latch` / `sp._latch_prune` like the live director does.
+
 def _perform(surf, w, scroll, pal, t, perf_fn, x0):
     """A single-act busker (juggler/musician/stilt) — placed at only ~1 in 4
     performance slots (stable per-slot gate), so it reads as a lucky encounter the
@@ -1217,9 +1226,9 @@ def add_near_lane(surf, w, gy, h, scroll, pal, phase_name, t):
 # draw_near_lane via _perform_festival, not here, since that window runs TWO acts).
 
 def _perf_for(phase):
-    """(performer_fn, x0) for the SINGLE-act phases (day/golden/dusk), or None when
-    the street is between acts (pre-dawn teardown). The NIGHT festival window
-    (0.58..0.80) is driven by _perform_festival, not this single-act lookup."""
+    """(performer_fn, x0) for the SINGLE-act phases (day/golden/dusk), else None.
+    The NIGHT festival window (0.58..0.80) is handled by the caller (`_perf_decide`),
+    and 0.80..0.85 is the pre-dawn teardown (no act) — both return None here."""
     p = phase % 1.0
     if p >= 0.85 or p < 0.25:
         return (perf_juggler, 40)
@@ -1227,7 +1236,7 @@ def _perf_for(phase):
         return (perf_musician, 200)
     if p < 0.58:
         return (perf_stilt, 120)
-    return None
+    return None                          # 0.58..0.85: festival (caller) / pre-dawn
 
 def _perf_decide(k, phase, density):
     """The act a performer slot holds (or None) — sampled ONCE at slot entry and
