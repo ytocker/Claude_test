@@ -198,11 +198,18 @@ _GLOW_PEAK = 92
 
 def _warm_glow(radius, color, peak):
     """A cached radial halo for BLEND_RGB_ADD whose RGB falls off to zero at the
-    rim. `peak` is the centre add (capped); ratios preserve the warm hue."""
+    rim. `peak` is the centre add (capped); ratios preserve the warm hue. `peak`
+    is bucketed to 8-steps so the dusk->night night-ness ramp (which slides peak
+    continuously) reuses ~12 cached halos per (radius,colour) instead of baking a
+    fresh gradient each step — and the cache stays bounded (8-step quantisation is
+    imperceptible on an additive halo)."""
+    peak = (max(0, int(peak)) // 8) * 8
     key = (radius, color, peak)
     g = _GLOW_CACHE.get(key)
     if g is not None:
         return g
+    if len(_GLOW_CACHE) >= 256:          # FIFO bound — never grows unboundedly
+        del _GLOW_CACHE[next(iter(_GLOW_CACHE))]
     size = radius * 2 + 2
     surf = pygame.Surface((size, size))
     surf.fill((0, 0, 0))

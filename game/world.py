@@ -54,7 +54,7 @@ from game.config import (
 from game.entities import (
     Bird, Pipe, Coin, PowerUp, Particle, CloudPuff, PoofGrain, FloatText,
     GenieCharacter, TrickBubble, Ramp,
-    FlyingCoinParticle, Geyser, Rock,
+    FlyingCoinParticle, Geyser, Rock, RockPatch,
 )
 from game._proof import ProofState
 from game.draw import (
@@ -903,21 +903,36 @@ class World:
         """Lay `count` rocks across [x_lo, x_hi] as natural little clusters —
         a larger anchor rock with 1-3 smaller companions huddled around it —
         rather than an even sprinkle, so the field reads as real scree."""
+        # Bake the whole cluster into ONE patch surface (blitted as a single
+        # sprite each frame) instead of 100s of per-rock blits. The RNG draw
+        # order/positions/variants are unchanged, so the scatter looks identical.
+        variants = geyser_fx.get_rock_variants()
+        pad = geyser_fx.ROCK_MAX_W + 16        # cover companion offset + sprite half
+        patch_x = x_lo - pad
+        patch_top = GROUND_Y - 24
+        patch = pygame.Surface((max(1, int(x_hi - x_lo) + 2 * pad), 44),
+                               pygame.SRCALPHA)
+
+        def _stamp(rx, ry, v):
+            s, ox, oy = variants[v]
+            patch.blit(s, (int(rx - patch_x - ox), int(ry - patch_top - oy)))
+
         placed = 0
         while placed < count:
             cx = random.uniform(x_lo, x_hi)
             for _ in range(random.randint(1, 3)):       # smaller companions (behind)
                 if placed >= count:
                     break
-                self.rocks.append(Rock(cx + random.uniform(-15.0, 15.0),
-                                       GROUND_Y + random.uniform(0.0, 6.0),
-                                       random.randint(0, 3)))
+                _stamp(cx + random.uniform(-15.0, 15.0),
+                       GROUND_Y + random.uniform(0.0, 6.0),
+                       random.randint(0, 3))
                 placed += 1
             if placed >= count:
                 break
-            self.rocks.append(Rock(cx, GROUND_Y + random.uniform(1.0, 5.0),
-                                   random.randint(3, geyser_fx.ROCK_N - 1)))
-            placed += 1                                  # larger anchor (in front)
+            _stamp(cx, GROUND_Y + random.uniform(1.0, 5.0),
+                   random.randint(3, geyser_fx.ROCK_N - 1))   # larger anchor (front)
+            placed += 1
+        self.rocks.append(RockPatch(patch_x, patch_top, patch))
 
     def _maybe_spawn_rocks(self, pipe: Pipe):
         # The rock field is the event's telegraph: density ramps by PILLAR
