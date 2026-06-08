@@ -834,8 +834,8 @@ class World:
         ramp_w = 38 + random.randint(-2, 2)
         ramp_h = 22 + random.randint(-2, 2)
         ramp_w = min(ramp_w, PIPE_W - 2)
-        # Sit the wedge on the pagoda ROOF (body top), not the decorative finial
-        # tip — finial_clear is the non-lethal antenna height pulled off the gap edge.
+        # Sit the wedge on the pagoda ROOF (body top), not the finial tip —
+        # finial_clear is the spire height pulled off the gap edge to the roof.
         base_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear
         rx = pipe.x + PIPE_W - ramp_w
         self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
