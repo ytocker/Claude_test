@@ -325,11 +325,70 @@ def _v14_weighted(rng, weights):
             return k
     return weights[-1][0]
 
-# ── entry point ──────────────────────────────────────────────────────────────
+# ── baked-strip cache ─────────────────────────────────────────────────────────
+#
+# draw_mountains_v14 is a pure function of (scroll, phase): every ridge sample is
+# a function of camera-x (cam = scroll*speed) and every ornament is world-cell
+# seeded. Recomputing it per frame cost ~5.8 ms (per-pixel ridge scans + a
+# Surface+mask per layer in _ink_wash_strong + per-cell ornament draws). So bake
+# each render unit into a wide strip ONCE per (phase bucket, camera window) and
+# blit it at the parallax offset — mirroring foreground._bake_floor_strip
+# (game/foreground.py:37-67). A unit re-bakes only when its bucket changes or its
+# scroll offset leaves the window. Colours snap per phase bucket exactly like the
+# baked floor strip; the cross-blend the sky uses can't apply here because these
+# strips carry per-pixel alpha (set_alpha is ignored on SRCALPHA surfaces).
+#
+# Render units are kept in BLIT ORDER — all 5 ink-wash layers (far->near) then the
+# 3 ornament bands (far->near) — so a far village still paints over a nearer ridge
+# exactly as the original single-pass draw did (washes first, scatter last).
 
-def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
-    # lazy import: biome imports draw.lerp_color, so importing it at module
-    # top would form a draw->mountains_v14->biome->draw cycle.
+_MTN_MARGIN = 96            # camera-space slack each side; > widest ornament half-w
+_MTN_BAND_H = 340           # tallest crest (124) + sine swing + tallest ornament
+_SPECS_SPEED = (0.05, 0.08, 0.13, 0.20, 0.28)
+_UNITS = (('wash', 0), ('wash', 1), ('wash', 2), ('wash', 3), ('wash', 4),
+          ('deco', 2), ('deco', 3), ('deco', 4))
+_NUM_UNITS = len(_UNITS)
+# Per-band ornament config (mirrors the old scatter_pagoda call sites). `base` =
+# index into the (pag_far, pag_mid, pag_near) colour triple.
+_SCATTER = {
+    2: dict(base=0, layer_seed=0xE14A, pag_scale_range=(0.7, 0.95), cell=230,
+            tree_scale=0.7, allow_banner=False),
+    3: dict(base=1, layer_seed=0xE14B, pag_scale_range=(0.95, 1.25), cell=190,
+            tree_scale=1.0, allow_banner=True),
+    4: dict(base=2, layer_seed=0xE14C, pag_scale_range=(1.15, 1.55), cell=165,
+            tree_scale=1.3, allow_banner=True),
+}
+
+_u_surf:   list = [None] * _NUM_UNITS   # baked pygame.Surface per unit (cropped)
+_u_anchor: list = [0] * _NUM_UNITS      # integer camera-x mapped to strip local x=0
+_u_bucket: list = [-1] * _NUM_UNITS     # biome.phase_bucket the strip was baked for
+_u_top:    list = [0] * _NUM_UNITS      # screen-y the cropped strip blits at
+_u_left:   list = [0] * _NUM_UNITS      # crop x-offset (local x=0 -> anchor + left)
+_u_dims = None                          # (w, ground_y) the cache was built for
+_EMPTY_STRIP = None                     # shared 1x1 placeholder for empty units
+
+# At most this many COLOUR-only re-bakes per frame: a phase-bucket change dirties
+# all 8 units at once and re-baking them in one frame is a ~14 ms hitch, so spread
+# them over a few frames (each unit keeps blitting its prior-bucket strip until its
+# turn — a few frames of slightly-stale tint, invisible). Geometry (window-exit)
+# re-bakes are NOT budgeted — they must happen the frame they're needed.
+_MTN_REBAKE_BUDGET = 2
+
+
+def _ensure_dims(w, ground_y):
+    global _u_dims, _EMPTY_STRIP
+    if _EMPTY_STRIP is None:
+        _EMPTY_STRIP = pygame.Surface((1, 1), pygame.SRCALPHA)
+    if _u_dims != (w, ground_y):
+        _u_dims = (w, ground_y)
+        for i in range(_NUM_UNITS):
+            _u_surf[i] = None
+
+
+def _resolve_specs(phase):
+    """Palette-derived layer specs + ornament colours at `phase` (the BUCKET edge
+    phase, so baked colours match the sky's per-bucket palette). Verbatim of the
+    old draw_mountains_v14 colour block."""
     from game import biome as _biome
     pal = _biome.palette_for_phase(phase)
     far = pal['mtn_far']
@@ -337,7 +396,6 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
     horizon = pal['horizon']
     night = min(1.0, pal['star_alpha'] / 235.0)
     haze = _mix(_haze(far, near), horizon, 0.32)
-
     far_tint = _mix(far, horizon, 0.42)
     specs = [
         (0.05, 124, 140, _mix(far_tint, (235, 238, 248), 0.28), far_tint),
@@ -346,126 +404,170 @@ def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
         (0.20, 80, 218, _sat(_mix(near, far, 0.4), 1.25), _mix(near, far, 0.5)),
         (0.28, 64, 244, _sat(near, 1.30), _mix(near, far, 0.28)),
     ]
-    layer_params = []
-    for k, (speed, base_h, atop, itop, ibot) in enumerate(specs):
-        terms = _layer_terms(k)
-        pts, h = _ridge(w, ground_y, scroll, speed, base_h, terms)
-        _ink_wash_strong(surf, h, ground_y, itop, ibot, atop, fade=1.6,
-                         rim_col=_shade(_sat(itop, 1.2), -28))
-        layer_params.append((speed, base_h, terms))
-
     pag_far = _shade(_sat(_mix(far, near, 0.7), 1.15), -42)
     pag_mid = _shade(_sat(near, 1.20), -46)
     pag_near = _shade(_sat(near, 1.30), -58)
     accent = _mix(horizon, (255, 230, 180), 0.55)
-    # Banners pull a warm cinnabar by day, dim toward night.
     banner_col = _shade(_mix(_sat(horizon, 1.3), (190, 70, 60), 0.5),
                         int(-70 * night))
+    return specs, (pag_far, pag_mid, pag_near, accent, banner_col)
 
-    def scatter_pagoda(speed, base_h, terms, base_color, layer_seed,
-                       pag_scale_range, cell, tree_scale=1.0,
-                       allow_banner=True):
-        # Ornaments are anchored to fixed WORLD cells: each cell's RNG is seeded
-        # from its world index + the band const, NEVER from `scroll`. So a
-        # village feature keeps its identity/type/scale and simply slides left
-        # with the ridge as the world advances — instead of re-rolling every
-        # frame (the old camera-seeded scatter flickered). Only the handful of
-        # cells overlapping the view are drawn; new ones enter from the right.
-        cam = scroll * speed
-        margin = 60                       # keep ornaments sliding in/out smoothly
-        c0 = int(math.floor((cam - margin) / cell))
-        c1 = int(math.floor((cam + w + margin) / cell))
 
-        def _project(wx):
-            # World-x -> screen. y is sampled at the element's TRUE world-x, so
-            # it's constant frame-to-frame: the ornament slides horizontally with
-            # the scroll and never bobs vertically. (Reading it at the rounded
-            # screen column reprojected — sx+cam — made y wobble ±0.5px as `cam`
-            # drifted between integer x-steps, which read as jitter.) Any <=1px
-            # static gap from the shimmering ridge edge hides behind the fill.
-            return (int(round(wx - cam)),
-                    ground_y - int(round(_ridge_h(wx, base_h, terms))))
+def _scatter_pagoda_strip(surf, strip_w, gy_local, cam, base_h, terms,
+                          base_color, layer_seed, pag_scale_range, cell,
+                          accent, banner_col, tree_scale=1.0, allow_banner=True):
+    """Module-level form of the old `scatter_pagoda` closure, drawing into a baked
+    strip whose local x=0 maps to camera-x `cam`. Placement/seeding is identical to
+    the live path (cell RNG by index, summit by world-x), so baked villages match."""
+    margin = 60
+    c0 = int(math.floor((cam - margin) / cell))
+    c1 = int(math.floor((cam + strip_w + margin) / cell))
 
-        def _draw_tree(rng, kind, tx, ty):
-            # Region-style picks the kind; this routes to the right helper
-            # at a kind-appropriate height (scaled by depth band).
-            if kind == 'pine_bent':
-                _bent_pine(surf, tx, ty - 1,
-                           int(rng.randint(14, 26) * tree_scale),
-                           base_color, accent, lean=rng.choice((-1, 1)))
-            elif kind == 'pine_fan':
-                _fan_pine(surf, tx, ty - 1,
-                          int(rng.randint(20, 32) * tree_scale),
-                          base_color, accent)
-            elif kind == 'bamboo':
-                _bamboo(surf, tx, ty - 1,
-                        int(rng.randint(10, 18) * tree_scale),
-                        base_color, accent)
-            else:
-                _willow(surf, tx, ty,
-                        int(rng.randint(9, 14) * tree_scale), base_color)
+    def _project(wx):
+        return (int(round(wx - cam)),
+                gy_local - int(round(_ridge_h(wx, base_h, terms))))
 
-        for c in range(c0, c1 + 1):
-            rng = random.Random((c * 0x9E3779B1) ^ layer_seed)
-            # One village cluster per cell, anchored at a crest inside the cell.
-            anchor = _summit_near(c * cell + rng.uniform(12, cell - 12),
-                                  base_h, terms)
-            # Flavour follows the REGION at the anchor's world-x — so successive
-            # regions read as different villages on the same shan-shui ridge.
-            region = _v14_region(anchor)
-            flavour = _v14_weighted(rng, region['flavour_weights'])
-            cx, cy = _project(anchor)
+    def _draw_tree(rng, kind, tx, ty):
+        if kind == 'pine_bent':
+            _bent_pine(surf, tx, ty - 1,
+                       int(rng.randint(14, 26) * tree_scale),
+                       base_color, accent, lean=rng.choice((-1, 1)))
+        elif kind == 'pine_fan':
+            _fan_pine(surf, tx, ty - 1,
+                      int(rng.randint(20, 32) * tree_scale),
+                      base_color, accent)
+        elif kind == 'bamboo':
+            _bamboo(surf, tx, ty - 1,
+                    int(rng.randint(10, 18) * tree_scale),
+                    base_color, accent)
+        else:
+            _willow(surf, tx, ty,
+                    int(rng.randint(9, 14) * tree_scale), base_color)
 
-            if flavour == 'pagoda':
-                tiers = rng.choice(region['tier_choices'])
-                bw = rng.randint(10, 16)
-                lo_s, hi_s = pag_scale_range
-                sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
-                _pagoda(surf, cx, cy - 1, tiers, bw, base_color, accent, sc)
-                if rng.random() < 0.25:
-                    _stone_lantern(surf, cx - 10, cy - 1, base_color, accent)
-                    _stone_lantern(surf, cx + 10, cy - 1, base_color, accent)
-            elif flavour == 'grove':
-                for _ in range(rng.randint(1, 2)):
-                    twx = anchor + rng.randint(-22, 22)
-                    tx, ty = _project(twx)
-                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
-                    _draw_tree(rng, kind, tx, ty)
-                if allow_banner and rng.random() < 0.30:
-                    bx, by = _project(anchor + rng.randint(-18, 18))
-                    _hanging_banner(surf, bx, by - 18,
-                                    rng.randint(10, 16), banner_col)
-            elif flavour == 'shrine':
-                pscale = rng.uniform(0.85, 1.15) * region['pag_scale_mul']
-                _pavilion(surf, cx, cy - 1, base_color, accent, scale=pscale)
-                lx, ly = _project(anchor + rng.choice((-12, 12)))
-                _stone_lantern(surf, lx, ly - 1, base_color, accent)
-                if rng.random() < 0.50:
-                    twx = anchor + rng.randint(-26, 26)
-                    tx, ty = _project(twx)
-                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
-                    _draw_tree(rng, kind, tx, ty)
-            else:  # 'mixed' — one pagoda + at most one accent tree
-                tiers = rng.choice(region['tier_choices'])
-                lo_s, hi_s = pag_scale_range
-                sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
-                _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
-                        base_color, accent, scale=sc)
-                if rng.random() < 0.50:
-                    twx = anchor + rng.randint(-14, 14)
-                    tx, ty = _project(twx)
-                    kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
-                    _draw_tree(rng, kind, tx, ty)
+    for c in range(c0, c1 + 1):
+        rng = random.Random((c * 0x9E3779B1) ^ layer_seed)
+        anchor = _summit_near(c * cell + rng.uniform(12, cell - 12),
+                              base_h, terms)
+        region = _v14_region(anchor)
+        flavour = _v14_weighted(rng, region['flavour_weights'])
+        cx, cy = _project(anchor)
 
-    # Cell widths set how many villages share the view per band: far runs
-    # sparser so the horizon stays calm, near densest. (specs[2..4] bands.)
-    # Far band — small pagodas, no trees.
-    scatter_pagoda(*layer_params[2], base_color=pag_far, layer_seed=0xE14A,
-                   pag_scale_range=(0.7, 0.95), cell=230, tree_scale=0.7,
-                   allow_banner=False)
-    # Mid band — full vocabulary.
-    scatter_pagoda(*layer_params[3], base_color=pag_mid, layer_seed=0xE14B,
-                   pag_scale_range=(0.95, 1.25), cell=190, tree_scale=1.0)
-    # Near band — biggest pagodas + trees.
-    scatter_pagoda(*layer_params[4], base_color=pag_near, layer_seed=0xE14C,
-                   pag_scale_range=(1.15, 1.55), cell=165, tree_scale=1.3)
+        if flavour == 'pagoda':
+            tiers = rng.choice(region['tier_choices'])
+            bw = rng.randint(10, 16)
+            lo_s, hi_s = pag_scale_range
+            sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
+            _pagoda(surf, cx, cy - 1, tiers, bw, base_color, accent, sc)
+            if rng.random() < 0.25:
+                _stone_lantern(surf, cx - 10, cy - 1, base_color, accent)
+                _stone_lantern(surf, cx + 10, cy - 1, base_color, accent)
+        elif flavour == 'grove':
+            for _ in range(rng.randint(1, 2)):
+                twx = anchor + rng.randint(-22, 22)
+                tx, ty = _project(twx)
+                kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                _draw_tree(rng, kind, tx, ty)
+            if allow_banner and rng.random() < 0.30:
+                bx, by = _project(anchor + rng.randint(-18, 18))
+                _hanging_banner(surf, bx, by - 18,
+                                rng.randint(10, 16), banner_col)
+        elif flavour == 'shrine':
+            pscale = rng.uniform(0.85, 1.15) * region['pag_scale_mul']
+            _pavilion(surf, cx, cy - 1, base_color, accent, scale=pscale)
+            lx, ly = _project(anchor + rng.choice((-12, 12)))
+            _stone_lantern(surf, lx, ly - 1, base_color, accent)
+            if rng.random() < 0.50:
+                twx = anchor + rng.randint(-26, 26)
+                tx, ty = _project(twx)
+                kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                _draw_tree(rng, kind, tx, ty)
+        else:  # 'mixed' — one pagoda + at most one accent tree
+            tiers = rng.choice(region['tier_choices'])
+            lo_s, hi_s = pag_scale_range
+            sc = rng.uniform(lo_s, hi_s) * region['pag_scale_mul']
+            _pagoda(surf, cx, cy - 1, tiers, rng.randint(9, 13),
+                    base_color, accent, scale=sc)
+            if rng.random() < 0.50:
+                twx = anchor + rng.randint(-14, 14)
+                tx, ty = _project(twx)
+                kind = _v14_weighted(rng, _v14_region(twx)['tree_weights'])
+                _draw_tree(rng, kind, tx, ty)
+
+
+def _bake_unit(ui, w, ground_y, anchor, bucket):
+    """Bake one render unit's strip (ink-wash layer OR ornament band) at camera
+    anchor `anchor` for phase `bucket`. Returns (surface, screen_top)."""
+    from game import biome as _biome
+    kind, layer = _UNITS[ui]
+    bphase = bucket / _biome.PHASE_BUCKETS
+    specs, deco = _resolve_specs(bphase)
+    speed, base_h, atop, itop, ibot = specs[layer]
+    terms = _layer_terms(layer)
+    strip_w = w + 2 * _MTN_MARGIN
+    band_top = max(0, ground_y - _MTN_BAND_H)
+    gy_local = ground_y - band_top
+    strip = pygame.Surface((strip_w, gy_local), pygame.SRCALPHA)
+    if kind == 'wash':
+        # speed=1.0, scroll=anchor -> per-pixel sample sx = x + anchor = camera-x.
+        _, heights = _ridge(strip_w, gy_local, anchor, 1.0, base_h, terms)
+        _ink_wash_strong(strip, heights, gy_local, itop, ibot, atop, fade=1.6,
+                         rim_col=_shade(_sat(itop, 1.2), -28))
+    else:
+        cfg = _SCATTER[layer]
+        _scatter_pagoda_strip(strip, strip_w, gy_local, anchor, base_h, terms,
+                              deco[cfg['base']], cfg['layer_seed'],
+                              cfg['pag_scale_range'], cfg['cell'],
+                              deco[3], deco[4], tree_scale=cfg['tree_scale'],
+                              allow_banner=cfg['allow_banner'])
+    # Crop to the drawn content so the per-frame blit only touches live pixels —
+    # the washes are mostly transparent sky above the crest and the ornament
+    # strips are nearly empty. Store the crop's (left, top) so the blit re-adds it.
+    bbox = strip.get_bounding_rect()
+    if bbox.width == 0 or bbox.height == 0:
+        return _EMPTY_STRIP, band_top, 0
+    return strip.subsurface(bbox).copy(), band_top + bbox.y, bbox.x
+
+
+def prewarm(w, ground_y, phase=0.02):
+    """Bake every unit for the current bucket at scroll=0 so the first gameplay
+    frame is a cache hit (mirrors geyser_fx.prewarm)."""
+    from game import biome as _biome
+    _ensure_dims(w, ground_y)
+    bucket = _biome.phase_bucket(phase)
+    for ui in range(_NUM_UNITS):
+        anchor = -_MTN_MARGIN
+        (_u_surf[ui], _u_top[ui],
+         _u_left[ui]) = _bake_unit(ui, w, ground_y, anchor, bucket)
+        _u_anchor[ui] = anchor
+        _u_bucket[ui] = bucket
+
+
+
+# ── entry point ──────────────────────────────────────────────────────────────
+
+def draw_mountains_v14(surf, scroll, ground_y, w, *, phase=0.02):
+    """Blit the baked ridge/ornament strips at their per-layer parallax offsets,
+    re-baking a unit only when its phase bucket changes or its scroll offset
+    leaves the baked window — the mountains' equivalent of the cached floor strip.
+    Pure blits on the steady-state frame; the heavy procedural draw happens at most
+    once per bucket/window change per unit."""
+    from game import biome as _biome
+    _ensure_dims(w, ground_y)
+    bucket = _biome.phase_bucket(phase)
+    win = 2 * _MTN_MARGIN
+    budget = _MTN_REBAKE_BUDGET
+    for ui in range(_NUM_UNITS):
+        cam = scroll * _SPECS_SPEED[_UNITS[ui][1]]
+        off = cam - _u_anchor[ui]
+        need_geom = _u_surf[ui] is None or off < 0 or off > win
+        need_color = bucket != _u_bucket[ui]
+        if need_geom or (need_color and budget > 0):
+            anchor = int(round(cam)) - _MTN_MARGIN
+            (_u_surf[ui], _u_top[ui],
+             _u_left[ui]) = _bake_unit(ui, w, ground_y, anchor, bucket)
+            _u_anchor[ui] = anchor
+            _u_bucket[ui] = bucket
+            off = cam - anchor
+            if need_color and not need_geom:
+                budget -= 1
+        surf.blit(_u_surf[ui], (round(-off) + _u_left[ui], _u_top[ui]))

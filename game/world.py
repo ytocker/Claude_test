@@ -290,6 +290,10 @@ class World:
         # Manual chest-event playtest uses the debug F9 hotkey rather
         # than a baked-in time shift.
         self.biome_time = 0.0
+        # Bake the parallax mountain strips for the opening bucket so the first
+        # rendered frame is a cache hit (mirrors geyser_fx.prewarm above).
+        from game import mountains_v14 as _mtn
+        _mtn.prewarm(W, GROUND_Y, self.biome_phase)
 
         # Always-ticking clock used for purely-cosmetic idle animations
         # (bird bob during the ready wait) so they keep moving even while
