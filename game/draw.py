@@ -15,11 +15,6 @@ GROUND_TOP    = ( 60, 190,  60)
 GROUND_MID    = ( 30, 140,  30)
 GROUND_BOT    = ( 80,  50,  20)
 
-PIPE_HILIGHT  = (110, 240, 110)
-PIPE_MID      = ( 45, 185,  45)
-PIPE_DARK     = ( 20, 100,  20)
-PIPE_SHADOW   = ( 12,  60,  12)
-
 COIN_GOLD     = (255, 210,  20)
 COIN_LIGHT    = (255, 245, 120)
 COIN_DARK     = (200, 140,   0)
@@ -186,34 +181,6 @@ def get_sky_surface_biome(w, h, ground_y, palette, phase_bucket):
     return surf
 
 
-def get_pipe_body_gradient(w, h):
-    key = ('pipebody', w, h)
-    if key not in _bg_cache:
-        stops = [
-            (0.0,  PIPE_HILIGHT),
-            (0.18, PIPE_MID),
-            (0.55, PIPE_DARK),
-            (0.82, PIPE_DARK),
-            (1.0,  PIPE_SHADOW),
-        ]
-        _bg_cache[key] = make_gradient_surface(w, h, stops, horizontal=True)
-    return _bg_cache[key]
-
-
-def get_pipe_cap_gradient(w, h):
-    key = ('pipecap', w, h)
-    if key not in _bg_cache:
-        stops = [
-            (0.0,  PIPE_HILIGHT),
-            (0.12, PIPE_MID),
-            (0.50, PIPE_DARK),
-            (0.88, PIPE_DARK),
-            (1.0,  PIPE_SHADOW),
-        ]
-        _bg_cache[key] = make_gradient_surface(w, h, stops, horizontal=True)
-    return _bg_cache[key]
-
-
 # ── glow cache ───────────────────────────────────────────────────────────────
 
 _glow_cache: dict = {}
@@ -273,140 +240,6 @@ def draw_ground(surf, ground_y, w, h, scroll, top_color=None, mid_color=None, bo
                     top_color or GROUND_TOP,
                     mid_color or GROUND_MID,
                     bot_color or GROUND_BOT)
-
-
-# ── Stone pillar drawing ────────────────────────────────────────────────────
-
-def _shade(c, d):
-    return (max(0, min(255, c[0] + d)),
-            max(0, min(255, c[1] + d)),
-            max(0, min(255, c[2] + d)))
-
-
-def _make_stone_pillar_body(w, h, light, mid, dark, accent, body_seed=0):
-    """Quartzite column: vertical striations + erosion fissures,
-    warm sunlit side → cool shadow side, no mid-column banding. `body_seed`
-    shifts the pseudo-random crack layout so adjacent pillars don't share
-    horizontal seam heights (REVIEW.md finding)."""
-    surf = pygame.Surface((w, h), pygame.SRCALPHA)
-
-    # Horizontal cylinder shading (sunlit left → shadow right).
-    for x in range(w):
-        t = x / max(1, w - 1)
-        if t < 0.18:
-            c = lerp_color(mid, light, (0.18 - t) / 0.18)
-        elif t < 0.55:
-            seg = (t - 0.18) / 0.37
-            c = lerp_color(light, mid, seg * seg * (3 - 2 * seg))
-        else:
-            seg = (t - 0.55) / 0.45
-            c = lerp_color(mid, dark, seg * seg * (3 - 2 * seg))
-        pygame.draw.line(surf, c, (x, 0), (x, h - 1))
-
-    # Warm accent highlight stripe along the sunlit side (subtle).
-    accent_surf = pygame.Surface((3, h), pygame.SRCALPHA)
-    accent_surf.fill((*accent, 90))
-    surf.blit(accent_surf, (int(w * 0.14), 0))
-
-    # Vertical erosion striations — long thin grooves.
-    import random as _r
-    rng = _r.Random(w * 7919 + h + body_seed * 6151)
-    for _ in range(4):
-        gx = rng.randint(3, w - 4)
-        col = _shade(dark, -10)
-        pygame.draw.line(surf, col, (gx, 0), (gx, h - 1), 1)
-    # Occasional horizontal crack for erosion realism.
-    crack_step = 80
-    ystart = rng.randint(10, crack_step)
-    for cy in range(ystart, h - 10, crack_step):
-        jitter = rng.randint(-3, 3)
-        col = _shade(dark, -20)
-        pygame.draw.line(surf, col, (2, cy + jitter), (w - 3, cy + jitter + rng.randint(-1, 1)), 1)
-        # Tiny bright pebble flecks just below the crack
-        pygame.draw.line(surf, light, (rng.randint(4, w - 5), cy + jitter + 1),
-                         (rng.randint(4, w - 5), cy + jitter + 2), 1)
-
-    return surf
-
-
-_pillar_body_cache: dict = {}
-
-
-def get_stone_pillar_body(w, h, light, mid, dark, accent, body_seed=0):
-    # Quantize very-tall heights so we don't re-cache tiny differences.
-    # Bucket body_seed to 8 distinct layouts so the cache stays finite.
-    qh = ((h + 7) // 8) * 8
-    bucket = body_seed % 8
-    key = (w, qh, light, mid, dark, accent, bucket)
-    s = _pillar_body_cache.get(key)
-    if s is None or s.get_height() < h:
-        s = _make_stone_pillar_body(w, max(qh, h), light, mid, dark, accent, bucket)
-        _pillar_body_cache[key] = s
-    return s.subsurface((0, 0, w, h))
-
-
-# ── Template A: Slender Spire silhouettes ──────────────────────────────────
-
-def silhouette_bottom_spire(w, h):
-    """Bottom-pillar silhouette polygon: tapers to a single asymmetric peak
-    at the top (y=0). Width `w`, height `h`. Coords are local to the rect."""
-    s = w / 90.0
-    pkR = (w // 2 + max(2, int(s * 12)), 0)
-    pkL = (w // 2 - max(2, int(s * 8)),  0)
-    right_taper = [
-        (w - max(1, int(s * 18)), int(s * 18)),
-        (w - max(1, int(s * 6)),  int(s * 40)),
-        (w - max(1, int(s * 4)),  int(s * 80)),
-        (w,                       int(s * 130)),
-    ]
-    left_taper = [
-        (0,                  int(s * 130)),
-        (max(1, int(s * 8)), int(s * 80)),
-        (max(1, int(s * 14)), int(s * 40)),
-        (max(1, int(s * 24)), int(s * 18)),
-    ]
-    rs = [pt for pt in right_taper if pt[1] < h]
-    ls = [pt for pt in left_taper  if pt[1] < h]
-    return [pkR] + rs + [(w, h), (0, h)] + ls + [pkL]
-
-
-def silhouette_top_spire(w, h):
-    """Top-pillar silhouette polygon: hangs from the ceiling (y=0) and
-    tapers to an asymmetric downward fang at y=h."""
-    s = w / 90.0
-    pkR = (w // 2 + max(2, int(s * 10)), h)
-    pkL = (w // 2 - max(2, int(s * 6)),  h)
-    right_taper = [
-        (w,                        h - int(s * 50)),
-        (w - max(1, int(s * 4)),   h - int(s * 22)),
-        (w - max(1, int(s * 14)),  h - int(s * 8)),
-    ]
-    left_taper = [
-        (max(1, int(s * 16)), h - int(s * 8)),
-        (max(1, int(s * 4)),  h - int(s * 22)),
-        (0,                   h - int(s * 50)),
-    ]
-    rs = [pt for pt in right_taper if pt[1] > 0]
-    ls = [pt for pt in left_taper  if pt[1] > 0]
-    return [(0, 0), (w, 0)] + rs + [pkR, pkL] + ls
-
-
-def silhouette_blit(target, body, polygon, top_left, shadow_alpha=110):
-    """Mask a stone-body surface to a silhouette polygon and blit to `target`
-    at `top_left`. Includes a soft drop shadow and a dark outline."""
-    w, h = body.get_size()
-    if shadow_alpha > 0:
-        sh_surf = pygame.Surface((w + 8, h + 6), pygame.SRCALPHA)
-        pygame.draw.polygon(sh_surf, (0, 0, 0, shadow_alpha),
-                            [(p[0] + 4, p[1] + 3) for p in polygon])
-        target.blit(sh_surf, (top_left[0] - 2, top_left[1] + 1))
-    masked = body.copy()
-    mask = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.polygon(mask, (255, 255, 255, 255), polygon)
-    masked.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    target.blit(masked, top_left)
-    pygame.draw.polygon(target, (40, 28, 22),
-                        [(p[0] + top_left[0], p[1] + top_left[1]) for p in polygon], 1)
 
 
 # ── Plant-family helpers (celadon foliage discipline + ink-wash trunk) ────────
