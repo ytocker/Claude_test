@@ -213,6 +213,28 @@ SNOW_TINT_PEAK_A = 146
 _WHITE = (255, 255, 255)
 
 
+# A reused scratch surface for the per-particle wind streaks/swirls (each used to
+# allocate a fresh SRCALPHA surface every frame — ~100+ allocations/frame in a
+# storm). Particles draw sequentially, so one shared scratch (cleared per use)
+# serves them all with zero allocations. Grown on demand to the largest bound.
+_SCRATCH = pygame.Surface((1, 1), pygame.SRCALPHA)
+
+
+def _scratch(w, h):
+    global _SCRATCH
+    w = max(1, int(w)); h = max(1, int(h))
+    sw, sh = _SCRATCH.get_size()
+    if w > sw or h > sh:
+        _SCRATCH = pygame.Surface((max(w, sw), max(h, sh)), pygame.SRCALPHA)
+    _SCRATCH.fill((0, 0, 0, 0), (0, 0, w, h))
+    return _SCRATCH
+
+
+# One persistent full-screen overlay reused for the snow-wash + lightning-flash
+# (both fill+blit a transient W×H SRCALPHA surface every active frame).
+_OVERLAY = pygame.Surface((W, H), pygame.SRCALPHA)
+
+
 # Cached soft round snowflake sprites — pre-rendered once per
 # (radius, alpha-bucket) so each flake is a cheap blit of a smooth
 # anti-aliased disc (no per-frame surface building, no aliased
@@ -368,7 +390,7 @@ class _WindStreak:
         oy = min(y1, y2) - 3
         sw = abs(x2 - x1) + 6
         sh = abs(y2 - y1) + 6
-        sub = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        sub = _scratch(sw, sh)
         for i in range(n):
             t0 = i / n
             t1 = (i + 1) / n
@@ -387,7 +409,7 @@ class _WindStreak:
             pygame.draw.line(sub, (255, 255, 255, core_a),
                              (int(sx0 - ox), int(sy0 - oy)),
                              (int(sx1 - ox), int(sy1 - oy)), 1)
-        surf.blit(sub, (ox, oy))
+        surf.blit(sub, (ox, oy), (0, 0, sw, sh))
 
 
 class _WindDrift:
@@ -492,7 +514,7 @@ class _WindSwirl:
         oy = int(min(p[1] for p in pts)) - 4
         sw = int(max(p[0] for p in pts)) - ox + 4
         sh = int(max(p[1] for p in pts)) - oy + 4
-        sub = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        sub = _scratch(sw, sh)
         local_pts = [(int(p[0]) - ox, int(p[1]) - oy) for p in pts]
         for w, col, a_mul in (
             (4, self.color,        0.35),   # outer halo
@@ -503,7 +525,7 @@ class _WindSwirl:
             if a <= 0:
                 continue
             pygame.draw.lines(sub, (*col, a), False, local_pts, w)
-        surf.blit(sub, (ox, oy))
+        surf.blit(sub, (ox, oy), (0, 0, sw, sh))
 
 
 class _WindDust:
@@ -795,9 +817,8 @@ class Weather:
                 col = (int(SNOW_TINT[0] + (SNOW_TINT_WHITE[0] - SNOW_TINT[0]) * wash_t),
                        int(SNOW_TINT[1] + (SNOW_TINT_WHITE[1] - SNOW_TINT[1]) * wash_t),
                        int(SNOW_TINT[2] + (SNOW_TINT_WHITE[2] - SNOW_TINT[2]) * wash_t))
-                wash = pygame.Surface((W, H), pygame.SRCALPHA)
-                wash.fill((*col, a))
-                surf.blit(wash, (0, 0))
+                _OVERLAY.fill((*col, a))
+                surf.blit(_OVERLAY, (0, 0))
         # Snow layers — back-to-front for parallax depth:
         # big drift flakes → bulk flakes → driven streaks →
         # turbulence curls.
@@ -817,6 +838,5 @@ class Weather:
         if self.flash_remaining > 0:
             t = self.flash_remaining / 0.18
             alpha = int(180 * t)
-            flash = pygame.Surface((W, H), pygame.SRCALPHA)
-            flash.fill((210, 220, 255, alpha))
-            surf.blit(flash, (0, 0))
+            _OVERLAY.fill((210, 220, 255, alpha))
+            surf.blit(_OVERLAY, (0, 0))

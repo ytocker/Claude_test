@@ -147,14 +147,30 @@ def draw_stupa(surf, cx, base_y):
     pygame.draw.polygon(surf, (220, 180, 60), [(cx, base_y - 22), (cx - 3, base_y - 18), (cx + 3, base_y - 18)])
 
 
+_INCENSE_CACHE: dict = {}
+
+
+def _incense_smoke_sprite(length):
+    """The incense wisp is a fixed sin-curve fade (no time/palette input), so it
+    bakes once per `length` rather than allocating ~`length` tiny surfaces every
+    call (this ran ~32 allocations/frame across the night braziers)."""
+    spr = _INCENSE_CACHE.get(length)
+    if spr is None:
+        spr = pygame.Surface((8, length + 1), pygame.SRCALPHA)
+        ry = length - 1
+        puff = pygame.Surface((4, 2), pygame.SRCALPHA)
+        for i in range(length):
+            t = i / max(1, length)
+            off = int(math.sin(t * 6) * 2)
+            a = int(140 * (1 - t))
+            puff.fill((230, 230, 230, a))
+            spr.blit(puff, (off + 2, ry - i))
+        _INCENSE_CACHE[length] = spr
+    return spr
+
+
 def draw_incense_smoke(surf, x, y, length=20):
-    for i in range(length):
-        t = i / max(1, length)
-        off = int(math.sin(t * 6) * 2)
-        a = int(140 * (1 - t))
-        s = pygame.Surface((4, 2), pygame.SRCALPHA)
-        s.fill((230, 230, 230, a))
-        surf.blit(s, (x + off - 2, y - i))
+    surf.blit(_incense_smoke_sprite(length), (x - 4, y - (length - 1)))
 
 
 def draw_bird_sil(surf, cx, cy, size=5):

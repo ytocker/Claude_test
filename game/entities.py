@@ -1891,6 +1891,22 @@ class Ramp:
                          (x1 - 1, y0 - 1), 1)
 
 
+# Pre-rendered coin-sparkle dot, cached per alpha bucket -- the twinkle used to
+# allocate a fresh 6x6 SRCALPHA surface per sparkle (~100/frame in a coin rush).
+_SPARKLE_CACHE: dict = {}
+
+
+def _sparkle_sprite(alpha):
+    a = max(8, min(255, (int(alpha) // 8) * 8))
+    spr = _SPARKLE_CACHE.get(a)
+    if spr is None:
+        spr = pygame.Surface((6, 6), pygame.SRCALPHA)
+        pygame.draw.circle(spr, (255, 250, 220, a), (3, 3), 2)
+        pygame.draw.circle(spr, (255, 255, 255, a), (3, 3), 1)
+        _SPARKLE_CACHE[a] = spr
+    return spr
+
+
 class Coin:
     """Spinning gold parrot medallion. Built once at 4x super-sample with a
     bold dark outline + vertical gold gradient + embossed parrot + soft
@@ -1955,10 +1971,7 @@ class Coin:
                 t = 0.5 + 0.5 * math.sin(self.float_t * 3.0 + phase)
                 if t > 0.7:
                     a = int(255 * (t - 0.7) / 0.3)
-                    star = pygame.Surface((6, 6), pygame.SRCALPHA)
-                    pygame.draw.circle(star, (255, 250, 220, a), (3, 3), 2)
-                    pygame.draw.circle(star, (255, 255, 255, a), (3, 3), 1)
-                    surf.blit(star, (cx + dx - 3, cy + dy - 3))
+                    surf.blit(_sparkle_sprite(a), (cx + dx - 3, cy + dy - 3))
 
 
 # ── PowerUp ──────────────────────────────────────────────────────────────────

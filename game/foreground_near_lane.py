@@ -211,7 +211,12 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, 
     blit so the scaled feet land on `feet_y`. The cast fns read pr.GROUND_Y; we
     point that at the scratch deck while baking so the figure crops cleanly."""
     tb = int(t * _CAST_FPS)              # quantise the gait clock -> bounded cache
-    key = (cast_fn.__name__, round(scale, 3), id(pal), tb, tuple(sorted(kw.items())))
+    # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
+    # the play palette is a fresh dict every frame, so id(pal) only ever hit within
+    # a frame -- bucketing lets the bake survive across frames (the same per-bucket
+    # palette quantisation the pillars/floor already use).
+    key = (cast_fn.__name__, round(scale, 3), pr._CUR_BUCKET, tb,
+           tuple(sorted(kw.items())))
     big = _CAST_CACHE.get(key)
     if big is None:
         scratch = pygame.Surface((_SCRATCH_W, _SCRATCH_H), pygame.SRCALPHA)

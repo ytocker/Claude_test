@@ -62,7 +62,11 @@ def _scatter(scroll, w, speed, step, seed_off, margin=24):
     for k in range(first, last + 1):
         rng = random.Random((k * 2654435761 ^ seed_off) & 0xFFFFFFFF)
         wx = k * step + rng.uniform(-step * 0.25, step * 0.25)
-        sx = int(wx - phase)
+        # floor (not int truncation): truncation rounds toward zero, so a mark
+        # straddling x=0 hops 1px as it crosses the origin AND lands differently
+        # when the same world content is baked at a shifted origin. floor is
+        # origin-invariant, so a strip baked at any anchor matches the live draw.
+        sx = math.floor(wx - phase)
         if -left < sx < w + margin:
             yield sx, k, rng
 

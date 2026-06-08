@@ -18,6 +18,11 @@ from game.hud import HUD, _font
 from game import audio
 from game import play_log
 from game.config import BIRD_X, SCROLL_BASE, SPAWN_GRACE
+
+# One persistent full-screen overlay reused for every play-scene tint
+# (slow-mo / KFC / ghost / hit-flash) so an active effect costs a fill+blit
+# instead of allocating a fresh W x H SRCALPHA surface each frame.
+_SCENE_TINT = pygame.Surface((W, H), pygame.SRCALPHA)
 from game import intro as _intro
 from game.lottery_slot import draw_reveal as _draw_lottery_reveal
 
@@ -1170,7 +1175,7 @@ class App:
         self.world.ambient.draw(surf)
         # The buff sandstone sidewalk IS the play floor now (replaces the grass
         # meadow); promenade props + living cast ride on top of it.
-        foreground.draw_foreground_floor(surf, scroll, palette)
+        foreground.draw_foreground_floor(surf, scroll, palette, phase)
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
         foreground.draw_near_lane(surf, scroll, palette,
@@ -1325,23 +1330,20 @@ class App:
         # Slow-mo: subtle violet tint overlay so the player feels the effect
         # even without looking at the HUD.
         if self.world.slowmo_timer > 0:
-            tint = pygame.Surface((W, H), pygame.SRCALPHA)
-            tint.fill((140, 70, 210, 28))
-            self.screen.blit(tint, (0, 0))
+            _SCENE_TINT.fill((140, 70, 210, 28))
+            self.screen.blit(_SCENE_TINT, (0, 0))
 
         # KFC mode: warm amber tint
         if self.world.kfc_timer > 0:
-            tint = pygame.Surface((W, H), pygame.SRCALPHA)
-            tint.fill((210, 120, 10, 20))
-            self.screen.blit(tint, (0, 0))
+            _SCENE_TINT.fill((210, 120, 10, 20))
+            self.screen.blit(_SCENE_TINT, (0, 0))
 
         # Ghost mode: cool blue-white screen tint. The ring around the bird
         # was removed — the SPECTRAL parrot palette + breathing-fade alpha
         # already carry the ghost read.
         if self.world.ghost_timer > 0:
-            tint = pygame.Surface((W, H), pygame.SRCALPHA)
-            tint.fill((140, 180, 255, 18))
-            self.screen.blit(tint, (0, 0))
+            _SCENE_TINT.fill((140, 180, 255, 18))
+            self.screen.blit(_SCENE_TINT, (0, 0))
 
         # LOTTERY reveal: top-left slot-machine cabinet shows the
         # roll for ~2.2 s. Drawn ON TOP of the world tints so the
@@ -1429,9 +1431,8 @@ class App:
 
         if self.world.hit_flash > 0:
             t = self.world.hit_flash / 0.35
-            overlay = pygame.Surface((W, H), pygame.SRCALPHA)
-            overlay.fill((*UI_RED, int(120 * t)))
-            self.screen.blit(overlay, (0, 0))
+            _SCENE_TINT.fill((*UI_RED, int(120 * t)))
+            self.screen.blit(_SCENE_TINT, (0, 0))
 
         if self.state == STATE_MENU:
             self.hud.draw_menu(self.screen, 1 / 60, self.best)

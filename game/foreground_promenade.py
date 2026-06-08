@@ -45,6 +45,22 @@ from game.ambient import (
 
 GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
 
+# A reused bounding-box scratch for the faint catenary wires. Each wire used to
+# allocate a full W×H SRCALPHA layer just to draw a single 1px curve (~7/frame);
+# a small shared scratch sized to the span's bounds keeps the alpha blend but
+# drops the per-wire allocation. Wires draw sequentially, so one buffer serves.
+_WIRE_SCRATCH = pygame.Surface((1, 1), pygame.SRCALPHA)
+
+
+def _wire_scratch(w, h):
+    global _WIRE_SCRATCH
+    w = max(1, int(w)); h = max(1, int(h))
+    sw, sh = _WIRE_SCRATCH.get_size()
+    if w > sw or h > sh:
+        _WIRE_SCRATCH = pygame.Surface((max(w, sw), max(h, sh)), pygame.SRCALPHA)
+    _WIRE_SCRATCH.fill((0, 0, 0, 0), (0, 0, w, h))
+    return _WIRE_SCRATCH
+
 _mix = sp._mix
 _shade = sp._shade
 _clamp = sp._clamp
@@ -190,11 +206,15 @@ def _faint_wire_color(pal):
 
 def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
     col = _faint_wire_color(pal)
-    pts = sp._catenary_pts(xl, xr, top_y, sag, steps)
-    layer = pygame.Surface((surf.get_width(), surf.get_height()), pygame.SRCALPHA)
+    pts = [(int(x), int(y)) for x, y in sp._catenary_pts(xl, xr, top_y, sag, steps)]
+    ox = min(p[0] for p in pts) - 1
+    oy = min(p[1] for p in pts) - 1
+    sw = max(p[0] for p in pts) - ox + 2
+    sh = max(p[1] for p in pts) - oy + 2
+    layer = _wire_scratch(sw, sh)
     pygame.draw.lines(layer, (*col, 150), False,
-                      [(int(x), int(y)) for x, y in pts], 1)
-    surf.blit(layer, (0, 0))
+                      [(x - ox, y - oy) for x, y in pts], 1)
+    surf.blit(layer, (ox, oy), (0, 0, sw, sh))
 
 
 def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,

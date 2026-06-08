@@ -228,9 +228,13 @@ def _weeds(surf, w, top_y, region_h, scroll, front, back, mortar, night,
                 flick = srng.choice((-2, -1, 1, 2))
                 pygame.draw.line(surf, fol_mid, (jx, jy), (jx + flick, jy - 1), 1)
             # A tiny lit tip on the nearest weeds in daylight (foliage top, capped).
+            # Skip (don't clamp) an off-surface tip: clamping smeared a spurious
+            # green pixel onto the left edge for weeds scrolling off, and that
+            # edge-only artifact also broke the strip-cache's origin invariance.
             if depth_t > 0.7 and night < 0.55:
-                surf.set_at((max(0, min(w - 1, tip[0])),
-                             max(0, min(639, tip[1]))), fol_top)
+                tx, ty = tip
+                if 0 <= tx < w and 0 <= ty < surf.get_height():
+                    surf.set_at((tx, ty), fol_top)
 
 
 def _moss(surf, w, top_y, region_h, scroll, front, back, mortar, night,
