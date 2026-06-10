@@ -13,6 +13,7 @@ from game.draw import (
 from game import biome as _biome
 from game import cloud_variants
 from game import foreground
+from game import sky_designs
 from game.world import World
 from game.hud import HUD, _font
 from game import audio
@@ -1162,43 +1163,42 @@ class App:
         phase = self.world.biome_phase
         palette = self.world.biome_palette
 
-        # Future hook — intentionally not wired; the dormant biome sky-design
-        # registry (game/sky_designs.py) stays inert while ACTIVE_SKY_DESIGN is
-        # None, so the live shan-shui sky below is unchanged. To trial a design,
-        # set ACTIVE_SKY_DESIGN and uncomment:
-        #   from game import sky_designs
-        #   if sky_designs.ACTIVE_SKY_DESIGN and sky_designs.render_active(
-        #           surf, W, H, GROUND_Y, palette, phase):
-        #       return
+        # An active sky design (game/sky_designs.py) paints its own per-phase sky
+        # here, with the same two-bucket fade; only when none is active do we bake
+        # the live shan-shui sky below. Either way flow continues to the mountains
+        # and foreground, which stay on the live biome palette.
+        if not sky_designs.render_active(surf, W, H, GROUND_Y, palette, phase):
+            # The sky gradient is cached per phase bucket (see biome.PHASE_BUCKETS).
+            # Blending the current bucket with the next one, weighted by how far
+            # into the bucket we are, turns the otherwise ~10-second snap into a
+            # continuous fade.
+            buckets = _biome.PHASE_BUCKETS
+            bucket_f = (phase % 1.0) * buckets
+            a = int(bucket_f) % buckets
+            b = (a + 1) % buckets
+            t = bucket_f - int(bucket_f)
 
-        # The sky gradient is cached per phase bucket (see biome.PHASE_BUCKETS).
-        # Blending the current bucket with the next one, weighted by how far
-        # into the bucket we are, turns the otherwise ~10-second snap into a
-        # continuous fade.
-        buckets = _biome.PHASE_BUCKETS
-        bucket_f = (phase % 1.0) * buckets
-        a = int(bucket_f) % buckets
-        b = (a + 1) % buckets
-        t = bucket_f - int(bucket_f)
+            pal_a = _biome.palette_for_phase(a / buckets)
+            pal_b = _biome.palette_for_phase(b / buckets)
+            sky_a = get_sky_surface_biome(W, H, GROUND_Y, pal_a, a)
+            sky_b = get_sky_surface_biome(W, H, GROUND_Y, pal_b, b)
 
-        pal_a = _biome.palette_for_phase(a / buckets)
-        pal_b = _biome.palette_for_phase(b / buckets)
-        sky_a = get_sky_surface_biome(W, H, GROUND_Y, pal_a, a)
-        sky_b = get_sky_surface_biome(W, H, GROUND_Y, pal_b, b)
+            sky_a.set_alpha(None)
+            surf.blit(sky_a, (0, 0))
+            if t > 0:
+                sky_b.set_alpha(int(t * 255))
+                surf.blit(sky_b, (0, 0))
+                sky_b.set_alpha(None)
 
-        sky_a.set_alpha(None)
-        surf.blit(sky_a, (0, 0))
-        if t > 0:
-            sky_b.set_alpha(int(t * 255))
-            surf.blit(sky_b, (0, 0))
-            sky_b.set_alpha(None)
-
+        # Clouds retint to the active sky design's palette so they match the sky;
+        # falls back to the live palette when no design is active.
+        cloud_pal = sky_designs.active_cloud_palette(phase, palette) or palette
         scroll = self.world.bg_scroll
         for i, (bx, by, sc) in enumerate(_CLOUD_SLOTS):
             ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
-                       sc, variant=self._cloud_variant, palette=palette)
+                       sc, variant=self._cloud_variant, palette=cloud_pal)
         if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
             # Pre-rendered fries pile per parallax layer - blit cheaply
             # at the offset since activation so the pile drifts at the

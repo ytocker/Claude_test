@@ -36,12 +36,18 @@ import pygame  # noqa: E402
 pygame.init()
 
 import game.scenes as scenes                       # noqa: E402
+import game.sky_designs as _sky_designs            # noqa: E402
 from game.config import W, H, GROUND_Y             # noqa: E402
 from game.scenes import App, STATE_PLAY            # noqa: E402
 from game.world import World                       # noqa: E402
 from game.biome_sky import paint_sky               # noqa: E402
 from game.biome_sky_keyframes import STAGES, BIOMES  # noqa: E402
 from game.sky_designs import CATALOG               # noqa: E402
+
+# This sheet drives the sky per cell via its own monkeypatch of the live bake;
+# force the live-bake path (else an active design would short-circuit it and
+# paint the same design in every row).
+_sky_designs.ACTIVE_SKY_DESIGN = None
 
 OUT = os.path.join(_ROOT, "docs", "biome_redesign", "sky_designs_gameplay_grid.png")
 CYCLE_SECONDS = 320.0  # game/biome.py: phase = (t / 320) % 1

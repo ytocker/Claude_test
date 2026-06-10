@@ -19,42 +19,32 @@ def _cloud_body_color(palette: dict) -> tuple[int, int, int]:
     horizon = palette['horizon']
     sky_bot = palette['sky_bot']
     sky_top = palette['sky_top']
-    # At night the horizon channel is still warm-ish (residual dusk), so a
-    # 70/30 horizon-led mix paints clouds as pale-WARM blobs after dark —
-    # wrong: night cumulus should read pale-cool, lit by moon or scattered
-    # sky. When sky_top luminance drops below 90 we re-weight 50/50 against
-    # sky_top so the body cools off; daytime keeps the warmer horizon-led
-    # mix that ties clouds to the dawn/dusk rim light.
+    # A warm horizon-led mix (0.70 horizon / 0.30 sky_bot) by day ties clouds to
+    # the dawn/dusk rim light; a cooler sky_top-led mix (0.50 / 0.50) after dark
+    # keeps night cumulus pale-COOL instead of warm. Crossfade the two by sky_top
+    # luminance with a smoothstep over a band around lum 90, so the body fades
+    # between recipes across the cycle instead of SNAPPING at one phase.
     top_lum = (sky_top[0] * 299 + sky_top[1] * 587 + sky_top[2] * 114) / 1000
-    if top_lum < 90:
-        r = int(horizon[0] * 0.50 + sky_top[0] * 0.50)
-        g = int(horizon[1] * 0.50 + sky_top[1] * 0.50)
-        b = int(horizon[2] * 0.50 + sky_top[2] * 0.50)
-    else:
-        r = int(horizon[0] * 0.70 + sky_bot[0] * 0.30)
-        g = int(horizon[1] * 0.70 + sky_bot[1] * 0.30)
-        b = int(horizon[2] * 0.70 + sky_bot[2] * 0.30)
-    r, g, b = min(255, r + 25), min(255, g + 25), min(255, b + 25)
-    # Bright-blue DAY (sky_top luminance 150–200) still washes the body
-    # out against the cyan dome — Ruyi-round-2 AD measured ~25% value
-    # contrast and called it. Pull the mixed body 30% toward warm paper-
-    # white only on that luminance band so night-cool (lum < 90) and
-    # sunset-warm (lum 90–150) branches are preserved verbatim.
-    if 150 < top_lum < 200:
-        r = int(r * 0.70 + 252 * 0.30)
-        g = int(g * 0.70 + 252 * 0.30)
-        b = int(b * 0.70 + 245 * 0.30)
-    return (r, g, b)
+    f = (105.0 - top_lum) / 30.0          # 0 = bright day, 1 = dark night
+    f = 0.0 if f < 0.0 else (1.0 if f > 1.0 else f)
+    f = f * f * (3.0 - 2.0 * f)           # smoothstep
+    out = []
+    for hc, bc, tc in zip(horizon, sky_bot, sky_top):
+        warm = hc * 0.70 + bc * 0.30
+        cool = hc * 0.50 + tc * 0.50
+        out.append(min(255, int(warm + (cool - warm) * f) + 25))
+    return tuple(out)
 
 def _ink_shadow_color(palette: dict) -> tuple[int, int, int]:
-    # The "wet ink" edge of a calligraphic wash — pulls from the deepest
-    # palette key around (mtn_far → sky_top) so it stays in-key.
-    far = palette['mtn_far']
+    # The "wet ink" edge of a calligraphic wash — pulled from the sky (deep
+    # sky_top toward sky_mid) so it tracks the active sky design rather than the
+    # separately-themed mountains, and stays valid on a sky-only palette.
     top = palette['sky_top']
+    mid = palette.get('sky_mid', top)
     return (
-        max(0, int(far[0] * 0.55 + top[0] * 0.45) - 10),
-        max(0, int(far[1] * 0.55 + top[1] * 0.45) - 10),
-        max(0, int(far[2] * 0.55 + top[2] * 0.45) - 10),
+        max(0, int(top[0] * 0.55 + mid[0] * 0.45) - 10),
+        max(0, int(top[1] * 0.55 + mid[1] * 0.45) - 10),
+        max(0, int(top[2] * 0.55 + mid[2] * 0.45) - 10),
     )
 
 def _lit_edge_color(palette: dict) -> tuple[int, int, int]:

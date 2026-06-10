@@ -27,12 +27,14 @@ import pygame
 
 from game.config import W, H, GROUND_Y
 from game.draw import (
-    get_sky_surface_biome, draw_mountains, draw_cloud, draw_ground,
+    get_sky_surface_biome, draw_mountains, draw_cloud,
     blit_glow, lerp_color, rounded_rect_grad,
     UI_GOLD, UI_CREAM, WHITE, NEAR_BLACK,
 )
 from game import biome as _biome
 from game import cloud_variants
+from game import foreground
+from game import sky_designs
 from game import parrot as _parrot
 from game.pillar_pagodas import draw_pillar_pair
 from game.hud import _font, _GOLD_BRIGHT, _RED_OUTLINE
@@ -697,6 +699,11 @@ def _draw_sky(surf: pygame.Surface, phase: float) -> None:
     """Paint the biome-aware sky for `phase`, blending two adjacent buckets so
     a slowly-changing phase reads as a continuous fade. Mirrors the trick in
     `scenes.py:_draw_background`."""
+    # An active sky design paints its own per-phase sky (same two-bucket fade);
+    # only when none is active do we bake the live biome sky below.
+    if sky_designs.render_active(surf, W, H, GROUND_Y,
+                                 _biome.palette_for_phase(phase), phase):
+        return
     buckets = _biome.PHASE_BUCKETS
     pf = phase % 1.0
     bucket_f = pf * buckets
@@ -718,20 +725,23 @@ def _draw_sky(surf: pygame.Surface, phase: float) -> None:
 def _draw_world(surf: pygame.Surface, phase: float, scroll: float,
                 cloud_phase: float, ground: bool = True,
                 cloud_variant: int = 0) -> None:
-    """Sky + mountains + (optional) ground for the given phase. Intro beats
-    pass ``ground=True`` so the green grass band matches gameplay."""
+    """Sky + mountains + (optional) floor for the given phase. Intro beats
+    pass ``ground=True`` so the buff sandstone sidewalk matches gameplay."""
     palette = _biome.palette_for_phase(phase)
     _draw_sky(surf, phase)
-    # Three drifting clouds for ambient depth
+    # Three drifting clouds for ambient depth — retint to the active sky design
+    # so they match the sky, else the live palette.
+    cloud_pal = sky_designs.active_cloud_palette(phase, palette) or palette
     for i, (bx, by, sc) in enumerate(
             ((40, 110, 0.85), (220, 70, 0.7), (120, 200, 1.0))):
         ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
         draw_cloud(surf, ox, by + math.sin(cloud_phase * 0.3 + i) * 3,
-                   sc, variant=cloud_variant, palette=palette)
+                   sc, variant=cloud_variant, palette=cloud_pal)
     draw_mountains(surf, scroll, GROUND_Y, W, phase=phase)
     if ground:
-        draw_ground(surf, GROUND_Y, W, H, scroll,
-                    palette['ground_top'], palette['ground_mid'], (60, 40, 25))
+        # The buff sandstone sidewalk is the gameplay floor; the intro shares it
+        # so the cinematic ground matches the game (was the retired grass band).
+        foreground.draw_foreground_floor(surf, scroll, palette, phase)
 
 
 def _draw_distant_pillar(surf: pygame.Surface, x_center: int,
