@@ -40,10 +40,12 @@ from game.biome_sky import BiomeSpec, SkyParams
 
 
 # ── 1. Tropical Lagoon — turquoise day, teal blue-hour, warm reef sunset ───────
+# Pushed the midday horizon off near-white into a richer reef-turquoise so the
+# lower third keeps its saltwater identity colour at noon instead of bleaching.
 _LAGOON_KF = [
-    (0.06, dict(sky_top=(28, 138, 204), sky_mid=(86, 196, 224), sky_bot=(168, 236, 232), horizon=(224, 250, 236), star_alpha=0)),
-    (0.18, dict(sky_top=(22, 146, 216), sky_mid=(74, 200, 230), sky_bot=(158, 238, 234), horizon=(214, 248, 234), star_alpha=0)),
-    (0.30, dict(sky_top=(30, 150, 214), sky_mid=(96, 206, 226), sky_bot=(176, 240, 230), horizon=(238, 246, 214), star_alpha=0)),
+    (0.06, dict(sky_top=(20, 138, 210), sky_mid=(44, 196, 224), sky_bot=(64, 226, 210), horizon=(86, 238, 188), star_alpha=0)),
+    (0.18, dict(sky_top=(14, 146, 220), sky_mid=(34, 200, 228), sky_bot=(54, 228, 208), horizon=(72, 236, 178), star_alpha=0)),
+    (0.30, dict(sky_top=(22, 150, 216), sky_mid=(54, 206, 226), sky_bot=(80, 230, 204), horizon=(112, 238, 178), star_alpha=0)),
     (0.40, dict(sky_top=(64, 158, 206), sky_mid=(132, 214, 206), sky_bot=(244, 218, 150), horizon=(255, 222, 138), star_alpha=0)),
     (0.50, dict(sky_top=(58, 110, 168), sky_mid=(180, 142, 150), sky_bot=(255, 158, 110), horizon=(255, 188, 120), star_alpha=10)),
     (0.62, dict(sky_top=(22, 58, 110), sky_mid=(40, 116, 142), sky_bot=(120, 156, 150), horizon=(232, 162, 120), star_alpha=70)),
@@ -84,76 +86,90 @@ AURORA_TUNDRA = BiomeSpec(
 
 
 # ── 3. Mars Glow Desert — butterscotch dome, dusty-rose haze, blue solar dusk ─
+# Lifted day chroma and a clean two-hue arc: a dusty-rose / mauve-violet zenith
+# over a vivid burnt-orange→peach horizon, so it stops reading as one flat muddy
+# tan. Brighter, more saturated terracotta through the day; the night horizon is
+# pulled up to a saturated cobalt-dark instead of a neutral grey-blue.
 _MARS_KF = [
-    (0.06, dict(sky_top=(150, 120, 110), sky_mid=(206, 168, 130), sky_bot=(236, 196, 146), horizon=(246, 206, 150), star_alpha=0)),
-    (0.18, dict(sky_top=(160, 132, 118), sky_mid=(214, 178, 138), sky_bot=(240, 202, 152), horizon=(248, 210, 152), star_alpha=0)),
-    (0.30, dict(sky_top=(168, 128, 112), sky_mid=(220, 172, 130), sky_bot=(244, 198, 144), horizon=(250, 204, 144), star_alpha=0)),
-    (0.40, dict(sky_top=(150, 100, 100), sky_mid=(214, 150, 116), sky_bot=(246, 184, 132), horizon=(252, 192, 128), star_alpha=0)),
-    (0.50, dict(sky_top=(96, 72, 110), sky_mid=(168, 110, 116), sky_bot=(226, 158, 128), horizon=(150, 158, 180), star_alpha=20)),
-    (0.62, dict(sky_top=(48, 40, 78), sky_mid=(98, 64, 84), sky_bot=(168, 104, 100), horizon=(108, 130, 176), star_alpha=90)),
-    (0.72, dict(sky_top=(18, 14, 36), sky_mid=(44, 26, 42), sky_bot=(84, 46, 50), horizon=(58, 74, 124), star_alpha=215)),
-    (0.80, dict(sky_top=(30, 22, 48), sky_mid=(72, 44, 58), sky_bot=(132, 78, 72), horizon=(96, 102, 150), star_alpha=120)),
-    (0.88, dict(sky_top=(110, 84, 104), sky_mid=(190, 132, 116), sky_bot=(236, 176, 134), horizon=(214, 178, 162), star_alpha=20)),
-    (0.94, dict(sky_top=(150, 116, 110), sky_mid=(214, 166, 128), sky_bot=(242, 194, 142), horizon=(246, 202, 148), star_alpha=0)),
+    (0.06, dict(sky_top=(132, 60, 150), sky_mid=(214, 96, 108), sky_bot=(252, 138, 64), horizon=(255, 168, 84), star_alpha=0)),
+    (0.18, dict(sky_top=(142, 60, 152), sky_mid=(226, 98, 100), sky_bot=(255, 138, 56), horizon=(255, 170, 76), star_alpha=0)),
+    (0.30, dict(sky_top=(150, 54, 138), sky_mid=(236, 94, 84), sky_bot=(255, 134, 50), horizon=(255, 164, 66), star_alpha=0)),
+    (0.40, dict(sky_top=(132, 44, 124), sky_mid=(230, 80, 74), sky_bot=(255, 122, 46), horizon=(255, 154, 56), star_alpha=0)),
+    (0.50, dict(sky_top=(92, 40, 124), sky_mid=(184, 66, 100), sky_bot=(244, 116, 80), horizon=(132, 124, 196), star_alpha=20)),
+    (0.62, dict(sky_top=(50, 30, 92), sky_mid=(116, 48, 84), sky_bot=(196, 84, 74), horizon=(80, 100, 190), star_alpha=90)),
+    (0.72, dict(sky_top=(20, 12, 46), sky_mid=(56, 22, 52), sky_bot=(116, 42, 56), horizon=(34, 56, 150), star_alpha=215)),
+    (0.80, dict(sky_top=(34, 16, 60), sky_mid=(90, 36, 64), sky_bot=(166, 64, 60), horizon=(58, 82, 178), star_alpha=120)),
+    (0.88, dict(sky_top=(118, 50, 134), sky_mid=(212, 88, 92), sky_bot=(252, 134, 56), horizon=(244, 158, 92), star_alpha=20)),
+    (0.94, dict(sky_top=(132, 58, 148), sky_mid=(216, 94, 102), sky_bot=(252, 136, 60), horizon=(255, 166, 80), star_alpha=0)),
 ]
 
 MARS_GLOW_DESERT = BiomeSpec(
     name='Mars Glow Desert',
-    note='Butterscotch iron-dust dome with a rare blue solar twilight; alien-warm by day, cold indigo at night.',
+    note='Vivid terracotta iron-dust dome — dusty-rose / mauve-violet zenith over a burnt-orange→peach horizon — with a rare cobalt solar twilight and a saturated cobalt-indigo night.',
     keyframes=_MARS_KF,
     sky=SkyParams(positions=(0.0, 0.28, 0.56, 0.82, 1.0), dither_amp=2.6, zenith_dark=0.10),
 )
 
 
-# ── 4. Monsoon Storm Front — bruised slate-teal day, green squall, rain-dusk ──
+# ── 4. Monsoon Storm Front — deep teal-indigo dome, luminous sickly-green squall ──
+# Reworked to kill the grey-melancholic read: VALUE stays low but CHROMA runs
+# HIGH. The zenith is a saturated indigo-violet bruise; the midband a deep teal-
+# slate; and the lower third carries a LUMINOUS sickly-green / chartreuse storm-
+# light band — the hot squall glow under a black cloud deck. Moody, never washed.
 _MONSOON_KF = [
-    (0.06, dict(sky_top=(64, 92, 110), sky_mid=(108, 142, 150), sky_bot=(160, 188, 184), horizon=(196, 214, 200), star_alpha=0)),
-    (0.18, dict(sky_top=(56, 86, 108), sky_mid=(98, 134, 146), sky_bot=(150, 182, 178), horizon=(188, 210, 196), star_alpha=0)),
-    (0.30, dict(sky_top=(46, 74, 96), sky_mid=(82, 120, 132), sky_bot=(128, 166, 162), horizon=(170, 196, 180), star_alpha=0)),
-    (0.40, dict(sky_top=(40, 64, 88), sky_mid=(74, 108, 118), sky_bot=(132, 158, 142), horizon=(200, 196, 150), star_alpha=0)),
-    (0.50, dict(sky_top=(52, 56, 92), sky_mid=(108, 100, 120), sky_bot=(178, 150, 128), horizon=(230, 178, 124), star_alpha=10)),
-    (0.62, dict(sky_top=(26, 36, 68), sky_mid=(52, 72, 96), sky_bot=(96, 122, 122), horizon=(168, 158, 132), star_alpha=80)),
-    (0.72, dict(sky_top=(8, 16, 40), sky_mid=(20, 38, 62), sky_bot=(40, 70, 84), horizon=(74, 108, 110), star_alpha=190)),
-    (0.80, dict(sky_top=(14, 24, 52), sky_mid=(34, 56, 84), sky_bot=(64, 98, 108), horizon=(120, 142, 134), star_alpha=110)),
-    (0.88, dict(sky_top=(40, 62, 92), sky_mid=(80, 116, 134), sky_bot=(130, 168, 162), horizon=(198, 200, 168), star_alpha=20)),
-    (0.94, dict(sky_top=(54, 82, 104), sky_mid=(98, 136, 146), sky_bot=(152, 184, 178), horizon=(208, 212, 184), star_alpha=0)),
+    (0.06, dict(sky_top=(40, 26, 104), sky_mid=(20, 86, 118), sky_bot=(46, 168, 130), horizon=(170, 232, 86), star_alpha=0)),
+    (0.18, dict(sky_top=(38, 24, 112), sky_mid=(16, 92, 124), sky_bot=(40, 176, 134), horizon=(184, 240, 78), star_alpha=0)),
+    (0.30, dict(sky_top=(42, 22, 102), sky_mid=(18, 84, 118), sky_bot=(44, 162, 128), horizon=(160, 224, 80), star_alpha=0)),
+    (0.40, dict(sky_top=(54, 24, 100), sky_mid=(36, 70, 116), sky_bot=(70, 142, 124), horizon=(198, 216, 84), star_alpha=0)),
+    (0.50, dict(sky_top=(70, 22, 104), sky_mid=(122, 44, 116), sky_bot=(196, 96, 100), horizon=(236, 168, 74), star_alpha=10)),
+    (0.62, dict(sky_top=(40, 16, 88), sky_mid=(70, 32, 104), sky_bot=(96, 92, 110), horizon=(150, 184, 84), star_alpha=90)),
+    (0.72, dict(sky_top=(12, 8, 48), sky_mid=(20, 30, 80), sky_bot=(26, 78, 92), horizon=(60, 156, 96), star_alpha=200)),
+    (0.80, dict(sky_top=(18, 12, 60), sky_mid=(30, 42, 96), sky_bot=(38, 108, 108), horizon=(98, 190, 92), star_alpha=120)),
+    (0.88, dict(sky_top=(40, 24, 104), sky_mid=(18, 86, 120), sky_bot=(44, 168, 130), horizon=(168, 230, 84), star_alpha=20)),
+    (0.94, dict(sky_top=(40, 26, 106), sky_mid=(20, 88, 120), sky_bot=(46, 170, 130), horizon=(174, 234, 82), star_alpha=0)),
 ]
 
 MONSOON_STORM_FRONT = BiomeSpec(
     name='Monsoon Storm Front',
-    note='Bruised slate-teal sky shot with a sickly-green squall line and a thin amber rain-break at sunset; moody, alive.',
+    note='Low-value, HIGH-chroma: a saturated indigo-violet bruise zenith over deep teal-slate, lit by a luminous sickly-green chartreuse squall band at the horizon, bruising to violet-amber at sunset. Moody, never grey.',
     keyframes=_MONSOON_KF,
     sky=SkyParams(positions=(0.0, 0.34, 0.62, 0.84, 1.0), dither_amp=2.4, zenith_dark=0.12),
 )
 
 
 # ── 5. Cherry-Blossom Spring — periwinkle day, sakura-pink horizon, lilac dusk ─
+# Anti-candy: deepened the zenith value (was too light at midday) and threaded a
+# distinct cool PERIWINKLE band through the upper-mid so the row isn't a uniform
+# bubblegum pink — a painterly lilac→periwinkle→sakura arc with real value depth.
 _SAKURA_KF = [
-    (0.06, dict(sky_top=(108, 150, 220), sky_mid=(176, 200, 238), sky_bot=(234, 224, 236), horizon=(255, 224, 226), star_alpha=0)),
-    (0.18, dict(sky_top=(96, 146, 224), sky_mid=(168, 198, 240), sky_bot=(228, 222, 238), horizon=(252, 222, 228), star_alpha=0)),
-    (0.30, dict(sky_top=(110, 152, 222), sky_mid=(182, 202, 238), sky_bot=(238, 222, 234), horizon=(255, 220, 222), star_alpha=0)),
-    (0.40, dict(sky_top=(130, 150, 216), sky_mid=(218, 196, 220), sky_bot=(255, 214, 206), horizon=(255, 210, 196), star_alpha=0)),
-    (0.50, dict(sky_top=(132, 116, 184), sky_mid=(220, 162, 192), sky_bot=(255, 188, 184), horizon=(255, 202, 188), star_alpha=10)),
-    (0.62, dict(sky_top=(64, 56, 124), sky_mid=(134, 100, 162), sky_bot=(212, 152, 176), horizon=(248, 184, 184), star_alpha=70)),
-    (0.72, dict(sky_top=(16, 16, 56), sky_mid=(40, 32, 84), sky_bot=(82, 60, 112), horizon=(150, 110, 138), star_alpha=205)),
-    (0.80, dict(sky_top=(30, 26, 78), sky_mid=(66, 52, 116), sky_bot=(126, 96, 150), horizon=(212, 162, 178), star_alpha=110)),
-    (0.88, dict(sky_top=(96, 110, 192), sky_mid=(190, 176, 218), sky_bot=(252, 206, 212), horizon=(255, 212, 204), star_alpha=20)),
-    (0.94, dict(sky_top=(110, 146, 214), sky_mid=(190, 198, 232), sky_bot=(248, 220, 228), horizon=(255, 220, 220), star_alpha=0)),
+    (0.06, dict(sky_top=(64, 88, 198), sky_mid=(120, 142, 224), sky_bot=(212, 162, 212), horizon=(250, 146, 184), star_alpha=0)),
+    (0.18, dict(sky_top=(54, 82, 202), sky_mid=(112, 136, 226), sky_bot=(208, 158, 212), horizon=(250, 140, 180), star_alpha=0)),
+    (0.30, dict(sky_top=(66, 88, 200), sky_mid=(124, 142, 224), sky_bot=(214, 160, 210), horizon=(252, 142, 180), star_alpha=0)),
+    (0.40, dict(sky_top=(90, 90, 196), sky_mid=(166, 146, 214), sky_bot=(238, 180, 200), horizon=(255, 168, 182), star_alpha=0)),
+    (0.50, dict(sky_top=(112, 92, 176), sky_mid=(202, 142, 186), sky_bot=(252, 178, 184), horizon=(255, 192, 184), star_alpha=10)),
+    (0.62, dict(sky_top=(54, 46, 122), sky_mid=(120, 86, 158), sky_bot=(200, 138, 172), horizon=(246, 174, 180), star_alpha=70)),
+    (0.72, dict(sky_top=(14, 14, 56), sky_mid=(36, 28, 86), sky_bot=(76, 54, 112), horizon=(146, 100, 134), star_alpha=205)),
+    (0.80, dict(sky_top=(26, 22, 80), sky_mid=(58, 44, 116), sky_bot=(118, 86, 148), horizon=(206, 150, 172), star_alpha=110)),
+    (0.88, dict(sky_top=(74, 84, 188), sky_mid=(160, 150, 218), sky_bot=(244, 196, 208), horizon=(255, 200, 198), star_alpha=20)),
+    (0.94, dict(sky_top=(72, 110, 206), sky_mid=(150, 172, 228), sky_bot=(236, 208, 222), horizon=(255, 210, 212), star_alpha=0)),
 ]
 
 CHERRY_BLOSSOM_SPRING = BiomeSpec(
     name='Cherry-Blossom Spring',
-    note='Soft periwinkle daytime with a perpetual sakura-pink wash at the horizon, blooming to a lilac dusk.',
+    note='A deep periwinkle zenith threaded through lilac into a sakura-pink horizon — painterly value depth, never bubblegum — blooming to a lilac dusk.',
     keyframes=_SAKURA_KF,
-    sky=SkyParams(positions=(0.0, 0.30, 0.56, 0.80, 1.0), dither_amp=1.8, zenith_dark=0.06),
+    sky=SkyParams(positions=(0.0, 0.30, 0.56, 0.80, 1.0), dither_amp=1.8, zenith_dark=0.08),
 )
 
 
 # ── 6. Savanna Ember Dusk — gold-hazed day, ember-orange dusk, hot-coal night ─
+# Carried a warm straw/amber undertone all the way through midday so the midband
+# never slumps to neutral grey-green — the whole row now reads sun-baked, a hazy
+# gold dome over a hot amber horizon even at noon.
 _SAVANNA_KF = [
-    (0.06, dict(sky_top=(86, 142, 198), sky_mid=(176, 196, 196), sky_bot=(240, 222, 178), horizon=(255, 220, 158), star_alpha=0)),
-    (0.18, dict(sky_top=(74, 140, 206), sky_mid=(170, 196, 196), sky_bot=(236, 218, 172), horizon=(252, 216, 150), star_alpha=0)),
-    (0.30, dict(sky_top=(96, 138, 192), sky_mid=(196, 192, 168), sky_bot=(248, 212, 150), horizon=(255, 206, 130), star_alpha=0)),
+    (0.06, dict(sky_top=(58, 126, 198), sky_mid=(194, 184, 128), sky_bot=(248, 198, 96), horizon=(255, 184, 70), star_alpha=0)),
+    (0.18, dict(sky_top=(50, 124, 204), sky_mid=(192, 182, 120), sky_bot=(248, 192, 88), horizon=(255, 178, 62), star_alpha=0)),
+    (0.30, dict(sky_top=(72, 120, 192), sky_mid=(210, 178, 110), sky_bot=(252, 188, 80), horizon=(255, 172, 56), star_alpha=0)),
     (0.40, dict(sky_top=(132, 124, 158), sky_mid=(236, 174, 116), sky_bot=(255, 196, 110), horizon=(255, 192, 92), star_alpha=0)),
     (0.50, dict(sky_top=(120, 70, 96), sky_mid=(220, 110, 70), sky_bot=(255, 150, 66), horizon=(255, 174, 70), star_alpha=10)),
     (0.62, dict(sky_top=(56, 30, 60), sky_mid=(132, 56, 56), sky_bot=(208, 100, 50), horizon=(248, 140, 60), star_alpha=80)),
@@ -176,8 +192,8 @@ _OCEANIC_KF = [
     (0.06, dict(sky_top=(20, 70, 158), sky_mid=(64, 128, 204), sky_bot=(146, 192, 232), horizon=(202, 224, 240), star_alpha=0)),
     (0.18, dict(sky_top=(16, 76, 172), sky_mid=(56, 134, 212), sky_bot=(140, 196, 234), horizon=(196, 224, 240), star_alpha=0)),
     (0.30, dict(sky_top=(22, 72, 162), sky_mid=(70, 130, 204), sky_bot=(154, 196, 232), horizon=(214, 224, 232), star_alpha=0)),
-    (0.40, dict(sky_top=(34, 64, 146), sky_mid=(96, 124, 184), sky_bot=(190, 196, 212), horizon=(240, 220, 196), star_alpha=0)),
-    (0.50, dict(sky_top=(32, 44, 122), sky_mid=(82, 88, 158), sky_bot=(176, 154, 170), horizon=(244, 186, 152), star_alpha=20)),
+    (0.40, dict(sky_top=(34, 64, 146), sky_mid=(98, 124, 182), sky_bot=(202, 196, 200), horizon=(252, 214, 168), star_alpha=0)),
+    (0.50, dict(sky_top=(32, 44, 122), sky_mid=(86, 88, 156), sky_bot=(188, 152, 160), horizon=(252, 178, 134), star_alpha=20)),
     (0.62, dict(sky_top=(14, 24, 82), sky_mid=(28, 56, 122), sky_bot=(66, 108, 160), horizon=(150, 168, 184), star_alpha=120)),
     (0.72, dict(sky_top=(4, 10, 42), sky_mid=(10, 28, 78), sky_bot=(22, 58, 110), horizon=(56, 104, 146), star_alpha=235)),
     (0.80, dict(sky_top=(8, 16, 58), sky_mid=(18, 44, 100), sky_bot=(40, 88, 142), horizon=(96, 138, 168), star_alpha=160)),
@@ -194,68 +210,78 @@ OCEANIC_BLUE_HOUR = BiomeSpec(
 
 
 # ── 8. Emerald Rainforest — jade-warm day, chartreuse haze, deep viridian night ─
+# Cured the swamp midband: the deep jade zenith is pushed bluer/deeper and the
+# horizon is steered off the muddy-yellow hue toward a LUMINOUS lime→aqua, so the
+# midday read stays jungle-lush and electric instead of dishwater.
 _RAINFOREST_KF = [
-    (0.06, dict(sky_top=(70, 150, 158), sky_mid=(150, 204, 178), sky_bot=(216, 234, 192), horizon=(238, 240, 196), star_alpha=0)),
-    (0.18, dict(sky_top=(60, 150, 162), sky_mid=(140, 202, 178), sky_bot=(208, 232, 190), horizon=(232, 238, 194), star_alpha=0)),
-    (0.30, dict(sky_top=(64, 146, 150), sky_mid=(146, 198, 166), sky_bot=(214, 230, 178), horizon=(240, 236, 178), star_alpha=0)),
-    (0.40, dict(sky_top=(78, 140, 138), sky_mid=(172, 196, 142), sky_bot=(232, 222, 154), horizon=(248, 224, 152), star_alpha=0)),
-    (0.50, dict(sky_top=(76, 104, 116), sky_mid=(160, 158, 120), sky_bot=(226, 192, 130), horizon=(248, 204, 134), star_alpha=10)),
-    (0.62, dict(sky_top=(28, 60, 70), sky_mid=(56, 110, 96), sky_bot=(118, 158, 112), horizon=(196, 188, 132), star_alpha=80)),
-    (0.72, dict(sky_top=(6, 22, 34), sky_mid=(14, 56, 56), sky_bot=(28, 96, 80), horizon=(76, 140, 100), star_alpha=205)),
-    (0.80, dict(sky_top=(10, 30, 44), sky_mid=(24, 76, 76), sky_bot=(52, 124, 100), horizon=(118, 164, 122), star_alpha=120)),
-    (0.88, dict(sky_top=(50, 118, 134), sky_mid=(120, 186, 158), sky_bot=(196, 224, 178), horizon=(230, 236, 184), star_alpha=20)),
-    (0.94, dict(sky_top=(66, 146, 156), sky_mid=(146, 202, 176), sky_bot=(214, 234, 190), horizon=(238, 240, 192), star_alpha=0)),
+    (0.06, dict(sky_top=(20, 124, 152), sky_mid=(56, 198, 178), sky_bot=(120, 236, 168), horizon=(176, 248, 140), star_alpha=0)),
+    (0.18, dict(sky_top=(16, 128, 160), sky_mid=(48, 202, 184), sky_bot=(110, 240, 168), horizon=(168, 250, 132), star_alpha=0)),
+    (0.30, dict(sky_top=(18, 122, 150), sky_mid=(52, 198, 176), sky_bot=(118, 234, 158), horizon=(178, 244, 124), star_alpha=0)),
+    (0.40, dict(sky_top=(28, 110, 134), sky_mid=(80, 184, 156), sky_bot=(156, 222, 140), horizon=(212, 236, 124), star_alpha=0)),
+    (0.50, dict(sky_top=(52, 92, 120), sky_mid=(128, 158, 132), sky_bot=(208, 196, 134), horizon=(244, 210, 132), star_alpha=10)),
+    (0.62, dict(sky_top=(22, 58, 74), sky_mid=(44, 116, 104), sky_bot=(96, 168, 120), horizon=(180, 200, 124), star_alpha=80)),
+    (0.72, dict(sky_top=(4, 24, 38), sky_mid=(10, 58, 60), sky_bot=(20, 102, 86), horizon=(58, 150, 102), star_alpha=205)),
+    (0.80, dict(sky_top=(8, 32, 50), sky_mid=(18, 80, 84), sky_bot=(40, 132, 108), horizon=(100, 176, 122), star_alpha=120)),
+    (0.88, dict(sky_top=(34, 114, 140), sky_mid=(92, 188, 172), sky_bot=(168, 230, 178), horizon=(214, 244, 162), star_alpha=20)),
+    (0.94, dict(sky_top=(48, 138, 160), sky_mid=(112, 204, 188), sky_bot=(184, 238, 178), horizon=(220, 248, 156), star_alpha=0)),
 ]
 
 EMERALD_RAINFOREST = BiomeSpec(
     name='Emerald Rainforest',
-    note='Humid jade-and-chartreuse canopy light by day sinking to a deep viridian, firefly-starred night.',
+    note='Humid deep-jade canopy light over a luminous lime→aqua horizon by day, sinking to a deep viridian, firefly-starred night.',
     keyframes=_RAINFOREST_KF,
     sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=2.0, zenith_dark=0.10),
 )
 
 
-# ── 9. High-Altitude Cosmos — thin violet-blue day, magenta dusk, galactic night ─
+# ── 9. High-Altitude Cosmos — deep indigo thin air, cyan-edged horizon, galactic night ─
+# Split decisively COOL from Rose-Gold: indigo/blue-violet zenith over a
+# cyan-edged horizon, never pink. This owns the "thin air / deep space" end —
+# the darkest, bluest day of the band, with the strongest starfield.
 _COSMOS_KF = [
-    (0.06, dict(sky_top=(48, 56, 150), sky_mid=(108, 124, 200), sky_bot=(180, 192, 226), horizon=(220, 220, 232), star_alpha=20)),
-    (0.18, dict(sky_top=(42, 54, 158), sky_mid=(100, 122, 206), sky_bot=(174, 190, 228), horizon=(214, 218, 232), star_alpha=10)),
-    (0.30, dict(sky_top=(52, 56, 150), sky_mid=(114, 122, 198), sky_bot=(186, 190, 224), horizon=(224, 218, 226), star_alpha=10)),
-    (0.40, dict(sky_top=(72, 58, 144), sky_mid=(148, 120, 184), sky_bot=(220, 188, 212), horizon=(244, 210, 212), star_alpha=10)),
-    (0.50, dict(sky_top=(72, 40, 122), sky_mid=(146, 70, 150), sky_bot=(224, 138, 174), horizon=(250, 178, 178), star_alpha=30)),
-    (0.62, dict(sky_top=(36, 20, 88), sky_mid=(80, 38, 116), sky_bot=(150, 78, 142), horizon=(206, 138, 160), star_alpha=130)),
-    (0.72, dict(sky_top=(8, 6, 38), sky_mid=(26, 18, 70), sky_bot=(56, 36, 100), horizon=(116, 78, 130), star_alpha=245)),
-    (0.80, dict(sky_top=(14, 10, 52), sky_mid=(40, 28, 92), sky_bot=(84, 56, 128), horizon=(160, 110, 152), star_alpha=180)),
-    (0.88, dict(sky_top=(40, 36, 124), sky_mid=(100, 88, 174), sky_bot=(176, 158, 206), horizon=(228, 196, 212), star_alpha=50)),
-    (0.94, dict(sky_top=(50, 54, 148), sky_mid=(116, 120, 198), sky_bot=(190, 190, 224), horizon=(232, 216, 226), star_alpha=20)),
+    (0.06, dict(sky_top=(30, 34, 132), sky_mid=(46, 96, 196), sky_bot=(78, 178, 224), horizon=(120, 224, 230), star_alpha=44)),
+    (0.18, dict(sky_top=(26, 32, 140), sky_mid=(40, 100, 204), sky_bot=(70, 184, 228), horizon=(108, 228, 232), star_alpha=34)),
+    (0.30, dict(sky_top=(34, 34, 132), sky_mid=(50, 98, 196), sky_bot=(82, 178, 222), horizon=(126, 222, 226), star_alpha=30)),
+    (0.40, dict(sky_top=(52, 36, 130), sky_mid=(88, 92, 184), sky_bot=(140, 168, 214), horizon=(196, 214, 220), star_alpha=24)),
+    (0.50, dict(sky_top=(60, 30, 116), sky_mid=(120, 56, 152), sky_bot=(206, 116, 168), horizon=(248, 168, 150), star_alpha=36)),
+    (0.62, dict(sky_top=(30, 18, 86), sky_mid=(62, 34, 116), sky_bot=(118, 70, 148), horizon=(150, 128, 188), star_alpha=140)),
+    (0.72, dict(sky_top=(6, 6, 40), sky_mid=(18, 18, 78), sky_bot=(36, 44, 116), horizon=(58, 96, 158), star_alpha=255)),
+    (0.80, dict(sky_top=(10, 10, 52), sky_mid=(28, 30, 100), sky_bot=(52, 70, 144), horizon=(86, 134, 182), star_alpha=190)),
+    (0.88, dict(sky_top=(26, 26, 116), sky_mid=(56, 80, 176), sky_bot=(96, 158, 210), horizon=(160, 210, 224), star_alpha=64)),
+    (0.94, dict(sky_top=(30, 32, 130), sky_mid=(44, 94, 196), sky_bot=(78, 176, 222), horizon=(124, 218, 228), star_alpha=44)),
 ]
 
 HIGH_ALTITUDE_COSMOS = BiomeSpec(
     name='High-Altitude Cosmos',
-    note='Thin near-space air: violet-blue daylight, a magenta solar dusk, and a star-dense galactic indigo night.',
+    note='Thin near-space air: deep indigo/blue-violet zenith over a cyan-edged horizon, a magenta solar dusk, and the band\'s densest galactic-indigo night.',
     keyframes=_COSMOS_KF,
-    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.80, 1.0), dither_amp=1.6, zenith_dark=0.18),
+    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.80, 1.0), dither_amp=1.6, zenith_dark=0.20),
 )
 
 
-# ── 10. Rose-Gold Salt Flat — mirror-pale day, peach-gold sunset, mauve night ─
+# ── 10. Rose-Gold Salt Flat — soft lavender day, champagne-amber horizon, rose night ─
+# Split decisively WARM from Cosmos: a soft lavender zenith pouring down into a
+# genuinely champagne-AMBER horizon — rose-gold metal, not pink wash. Holds a
+# warm chroma through midday so it never bleaches to PowerPoint white, and a
+# saturated mauve-rose night that doesn't drift neutral.
 _SALTFLAT_KF = [
-    (0.06, dict(sky_top=(132, 168, 214), sky_mid=(206, 216, 224), sky_bot=(250, 234, 218), horizon=(255, 228, 206), star_alpha=0)),
-    (0.18, dict(sky_top=(120, 166, 220), sky_mid=(200, 214, 224), sky_bot=(248, 232, 216), horizon=(255, 226, 202), star_alpha=0)),
-    (0.30, dict(sky_top=(138, 168, 212), sky_mid=(214, 216, 220), sky_bot=(252, 230, 210), horizon=(255, 222, 194), star_alpha=0)),
-    (0.40, dict(sky_top=(160, 162, 200), sky_mid=(240, 204, 186), sky_bot=(255, 218, 184), horizon=(255, 210, 172), star_alpha=0)),
-    (0.50, dict(sky_top=(146, 116, 168), sky_mid=(238, 162, 158), sky_bot=(255, 196, 162), horizon=(255, 204, 168), star_alpha=10)),
-    (0.62, dict(sky_top=(72, 56, 112), sky_mid=(154, 102, 132), sky_bot=(226, 154, 150), horizon=(252, 188, 166), star_alpha=70)),
-    (0.72, dict(sky_top=(20, 18, 54), sky_mid=(52, 38, 78), sky_bot=(102, 70, 102), horizon=(178, 130, 140), star_alpha=200)),
-    (0.80, dict(sky_top=(34, 28, 72), sky_mid=(80, 58, 104), sky_bot=(146, 104, 132), horizon=(228, 168, 168), star_alpha=110)),
-    (0.88, dict(sky_top=(120, 124, 192), sky_mid=(212, 190, 204), sky_bot=(255, 210, 198), horizon=(255, 206, 190), star_alpha=20)),
-    (0.94, dict(sky_top=(134, 164, 210), sky_mid=(216, 214, 218), sky_bot=(255, 226, 210), horizon=(255, 222, 200), star_alpha=0)),
+    (0.06, dict(sky_top=(146, 134, 196), sky_mid=(220, 184, 178), sky_bot=(252, 212, 158), horizon=(255, 198, 128), star_alpha=0)),
+    (0.18, dict(sky_top=(140, 130, 200), sky_mid=(218, 180, 174), sky_bot=(252, 208, 150), horizon=(255, 194, 120), star_alpha=0)),
+    (0.30, dict(sky_top=(150, 134, 192), sky_mid=(228, 182, 168), sky_bot=(255, 206, 144), horizon=(255, 190, 114), star_alpha=0)),
+    (0.40, dict(sky_top=(158, 128, 178), sky_mid=(244, 178, 152), sky_bot=(255, 200, 132), horizon=(255, 186, 108), star_alpha=0)),
+    (0.50, dict(sky_top=(150, 100, 156), sky_mid=(244, 154, 138), sky_bot=(255, 184, 124), horizon=(255, 192, 124), star_alpha=10)),
+    (0.62, dict(sky_top=(84, 52, 116), sky_mid=(176, 96, 124), sky_bot=(238, 150, 122), horizon=(255, 182, 132), star_alpha=70)),
+    (0.72, dict(sky_top=(28, 16, 60), sky_mid=(70, 36, 80), sky_bot=(132, 66, 92), horizon=(204, 120, 110), star_alpha=205)),
+    (0.80, dict(sky_top=(42, 26, 76), sky_mid=(102, 56, 102), sky_bot=(174, 100, 116), horizon=(244, 158, 132), star_alpha=115)),
+    (0.88, dict(sky_top=(132, 110, 184), sky_mid=(224, 174, 178), sky_bot=(255, 200, 158), horizon=(255, 192, 130), star_alpha=20)),
+    (0.94, dict(sky_top=(146, 132, 194), sky_mid=(222, 182, 176), sky_bot=(254, 210, 156), horizon=(255, 196, 126), star_alpha=0)),
 ]
 
 ROSE_GOLD_SALT_FLAT = BiomeSpec(
     name='Rose-Gold Salt Flat',
-    note='Pale mirror-bright daylight warming to a peach-gold sunset and a quiet mauve, faintly-rose night.',
+    note='Soft lavender zenith pouring into a champagne-amber horizon — genuine rose-gold metal, not pink — warming to a peach sunset and a saturated mauve-rose night.',
     keyframes=_SALTFLAT_KF,
-    sky=SkyParams(positions=(0.0, 0.32, 0.60, 0.82, 1.0), dither_amp=1.6, zenith_dark=0.05),
+    sky=SkyParams(positions=(0.0, 0.32, 0.60, 0.82, 1.0), dither_amp=1.6, zenith_dark=0.07),
 )
 
 
