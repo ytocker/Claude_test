@@ -62,6 +62,7 @@ from game.pillar_variants import (
 from game import foreground_zbuffer as _zbuf
 from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 from game import foreground_sprite as _spr
+from game import foreground_variants as _fv
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
@@ -471,7 +472,8 @@ def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
     _scaled_cast(surf, pr.draw_kids, sx - 40, pal, 1.5, t=t, n=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_old_man, sx - 22, pal, 1.55, t=t,
                  seated_bench=False, feet_y=feet_y)
-    _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y)
+    _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y,
+                 variant=3)
     # Front row: two LOWER seated spectators close in, reading as the near edge of
     # a gathered audience facing the performer. Both lean RIGHT toward the act (it
     # sits at sx, to their right) with a stronger head-tip, and EACH gestures toward
@@ -591,7 +593,8 @@ def perf_lion_dance(surf, sx, pal, t):
     night = _nightf(pal)
     feet = NEAR_GROUND_Y
     # The bigger crowd flanks the act (behind, drawn first).
-    _scaled_cast(surf, pr.draw_strollers, sx - 44, pal, 1.5, t=t, feet_y=feet)
+    _scaled_cast(surf, pr.draw_strollers, sx - 44, pal, 1.5, t=t, feet_y=feet,
+                 variant=13)
     _scaled_cast(surf, pr.draw_kids, sx - 64, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 48, pal, 1.55, t=t,
                  seated_bench=False, feet_y=feet)
@@ -1038,7 +1041,8 @@ def perf_dragon_dance(surf, sx, pal, t, *, skin='red'):
     feet = NEAR_GROUND_Y
     # The bigger festival crowd flanks the act (behind, drawn first) — same cast +
     # placement family as the lion dance so the two acts read as one festival.
-    _scaled_cast(surf, pr.draw_strollers, sx - 60, pal, 1.5, t=t, feet_y=feet)
+    _scaled_cast(surf, pr.draw_strollers, sx - 60, pal, 1.5, t=t, feet_y=feet,
+                 variant=4)
     _scaled_cast(surf, pr.draw_kids, sx - 80, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 70, pal, 1.55, t=t,
                  seated_bench=False, feet_y=feet)
@@ -1090,17 +1094,22 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     thins them via a STABLE per-slot gate — each slot pops in/out once as the
     crowd curve rises/falls, but never changes x. Short, so they may pass under
     the bird/pillar lanes; world-anchored, tiling at the wrap."""
-    # Inclusion latched at entry (off-screen) so a pedestrian never blinks out in
-    # view when the crowd curve dips — it walks in from the right and off the left.
-    # `umbrella` is passed as a kwarg (not read from the global inside the cast)
-    # so it enters _scaled_cast's cache key — the baked figure then carries a
-    # brolly exactly when the weather says so, instead of a stale clear-sky bake.
-    brolly = pr._wants_umbrella()
+    # Inclusion AND the pool variant are latched together at entry (off-screen):
+    # the variant is frozen to the slot's entry beat/weather so it never re-rolls
+    # mid-screen, and it rides into _scaled_cast's cache key (smooth=True gives the
+    # near figure light anti-aliasing; the FAR lane stays crisp).
     ny = NEAR_GROUND_Y
+
+    def _ped_decide(k):
+        return (pr._slot_on(k, 1, density),
+                _fv.select_variant('pedestrian', _fv.slot_seed(k, 31),
+                                   _fv.beat_for_phase(pr._CUR_PHASE),
+                                   _fv.weather_bucket(pr._CUR_RAIN, pr._CUR_SNOW)))
     for sx, k in _near_xs(scroll, w, 196, x0=20):
-        if sp._slot_latch(('ped', 1), k, lambda k=k: pr._slot_on(k, 1, density)):
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx: _scaled_cast(
-                s, pr.draw_strollers, sx, pal, 1.6, t=t, umbrella=brolly))
+        on, var = sp._slot_latch(('ped', 1), k, lambda k=k: _ped_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, var=var: _scaled_cast(
+                s, pr.draw_strollers, sx, pal, 1.6, t=t, variant=var))
     sp._latch_prune(('ped', 1))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
         if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
@@ -1279,6 +1288,7 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
     pr._CUR_PAL = pal
+    pr._CUR_PHASE = phase
     # Same day-arc density as the far lane, thinned by the weather so the near
     # edge empties out in a storm too (promenade sets pr._CUR_RAIN/SNOW/WIND just
     # before this call, so the umbrella gate downstream reads the live weather).

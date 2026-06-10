@@ -40,6 +40,8 @@ from game.weather import rain_intensity, storm_intensity, wind_intensity
 from game.pillar_variants import draw_prayer_flags
 from game import foreground_zbuffer as _zbuf
 from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
+from game import foreground_variants as _fv
+from game import ped_cast as _ped
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -58,6 +60,7 @@ GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
 _CUR_RAIN = 0.0
 _CUR_SNOW = 0.0
 _CUR_WIND = 0.0
+_CUR_PHASE = 0.0    # live biome phase — drives the day-arc beat for variant picks
 
 
 def _weather_crowd_factor(phase):
@@ -545,39 +548,16 @@ def draw_flock(surf, sx, pal, *, t=0.0, n=3):
         pygame.draw.circle(surf, _shade(face, 18), (hx + 1, body_y + 1), 1)  # ear/snout nub
 
 
-def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None):
-    """A couple of strolling adults for the quiet DUSK event — the bench-person
-    idiom walking, with a slow gait and a small head bob. Calm, unhurried.
-
-    `umbrella` overrides the live weather gate: the near lane BAKES this figure
-    into a kwargs-keyed cache, so it passes an explicit bool to keep the bake in
-    sync with the weather (a global read wouldn't be in the cache key). Left None
-    for the live far-lane path, which reads the frame's weather directly."""
-    night = _nightf(pal)
-    pairs = [((180, 120, 170), (130, 80, 120), (70, 50, 40)),   # plum coat
-             ((90, 140, 165), (55, 95, 115), (60, 45, 35))]      # teal coat
-    # In the rain the calm stroll becomes a hurry: the gait clock speeds up so
-    # the legs scissor harder (the umbrellas then read as people pressing on
-    # through the wet, not posing).
-    gait_hz = 0.8 + _CUR_RAIN * 2.2
-    brolly = _wants_umbrella() if umbrella is None else umbrella
-    for i, (shirt, shirt_dk, hair) in enumerate(pairs):
-        shirt, shirt_dk, hair = (_retint_person(c, night) for c in (shirt, shirt_dk, hair))
-        dx = -8 + i * 14
-        # Gentle weight-shift + nearly-planted feet (faster when hurrying through rain).
-        gait = math.sin(t * gait_hz + i * 1.1)
-        feet_y = GROUND_Y - 1 - int(round(max(0.0, gait) * 0.5))
-        body_y = feet_y - 8 - 3
-        _draw_bench_person(surf, sx + dx, body_y, shirt, shirt_dk, hair, night=night)
-        # Legs barely shift under the body block.
-        leg = _shade(shirt_dk, -16)
-        sw = int(round(gait * 1))
-        pygame.draw.line(surf, leg, (sx + dx + 1, body_y + 8),
-                         (sx + dx + 1 - sw, feet_y), 1)
-        pygame.draw.line(surf, leg, (sx + dx + 4, body_y + 8),
-                         (sx + dx + 4 + sw, feet_y), 1)
-        if brolly:
-            _draw_umbrella(surf, sx + dx + 3, body_y - 7, i, night=night)
+def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None, variant=0):
+    """Draw ONE adult pedestrian from the 50-strong variety pool (ped_cast),
+    feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the
+    near lane passes it as a kwarg so it enters the bake cache key. Umbrella/hood/
+    coat looks now come from weather-weighted pool variants, so the old `umbrella`
+    flag is accepted only for signature compatibility and ignored."""
+    v = _fv.get("pedestrian", variant)
+    if v is None:
+        return
+    _ped._draw_one(surf, sx, GROUND_Y - 1, pal, v, _nightf(pal), t)
 
 
 def _shelter_figures(surf, w, scroll, pal, t):
@@ -1081,7 +1061,7 @@ def draw_market_setup(surf, sx, pal, *, t=0.0):
 # back-structure (STRUCTURE) on the same ground line — fixing e.g. a kid drawn
 # behind its own kiosk. `emit` fixes the far-lane feet line; tier breaks the tie.
 
-def _scene_market(emit, bx, pal, t, rng):
+def _scene_market(emit, bx, pal, t, rng, pick=None):
     """Food/market stall with a songbird-cage stand and kids beside it."""
     emit(TB_STRUCTURE, lambda s: draw_kiosk(s, bx, pal, t=t, openness=0.9))
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
@@ -1097,33 +1077,33 @@ def _draw_calm_dog(surf, sx, pal, *, t=0.0):
     sw, sh = frame.get_size()
     surf.blit(frame, (sx - sw // 2, GROUND_Y - sh + 1))
 
-def _scene_pastoral(emit, bx, pal, t, rng):
+def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     """Wish-tree + a slow dog ambling with the street + a planter."""
     emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
     emit(TB_CAST, lambda s: _draw_calm_dog(s, bx + 66, pal, t=t))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 122, pal, kind='shrub'))
 
-def _scene_lamplighter(emit, bx, pal, t, rng):
+def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     """A lamplighter kindling the street lanterns at dusk + a potted conifer."""
     emit(TB_CAST, lambda s: draw_lamplighter(s, bx, pal, t=t))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 40, pal, kind='conifer'))
 
-def _scene_dawn_setup(emit, bx, pal, t, rng):
+def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
     """Vendors assembling the morning market."""
     emit(TB_FIXTURE, lambda s: draw_market_setup(s, bx, pal, t=t))
 
-def _scene_vendor(emit, bx, pal, t, rng):
+def _scene_vendor(emit, bx, pal, t, rng, pick=None):
     """A lone songbird-cage seller beside a potted plant — a calm market remnant."""
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 26, pal, kind='conifer'))
 
-def _scene_quiet(emit, bx, pal, t, rng):
+def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx, pal, kind='shrub'))
     emit(TB_CAST, lambda s: draw_old_man(s, bx + 30, pal, t=t, seated_bench=False))
 
 
-def _scene_bench(emit, bx, pal, t, rng):
+def _scene_bench(emit, bx, pal, t, rng, pick=None):
     """The temple elder beside a bench with a seated companion."""
     night = _nightf(pal)
     comp = tuple(_retint_person(c, night) for c in
@@ -1137,20 +1117,26 @@ def _scene_bench(emit, bx, pal, t, rng):
     emit(TB_CAST, lambda s: _draw_bench_person(s, bx + 8, seat_y - 8, *comp, night=night))
     emit(TB_CAST, lambda s: draw_old_man(s, bx + 44, pal, t=t, seated_bench=False))
 
-def _scene_stroll(emit, bx, pal, t, rng):
-    """A strolling couple + the elder on a slow walk."""
-    emit(TB_CAST, lambda s: draw_strollers(s, bx, pal, t=t))
+def _scene_stroll(emit, bx, pal, t, rng, pick=None):
+    """Two strolling adults from the variety pool + the elder on a slow walk."""
+    v1 = pick(11) if pick else 0
+    v2 = pick(12) if pick else 0
+    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx - 7, pal, t=t, variant=v1))
+    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 9, pal, t=t, variant=v2))
     emit(TB_CAST, lambda s: draw_old_man(s, bx + 48, pal, t=t, seated_bench=False))
 
-def _scene_rest(emit, bx, pal, t, rng):
+def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat beside a planter."""
     emit(TB_CAST, lambda s: draw_napper(s, bx, pal, t=t))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 46, pal, kind='conifer'))
 
-def _scene_campfire(emit, bx, pal, t, rng):
-    """A campfire with cozy strollers + kids gathered (lit by the drawer at night)."""
+def _scene_campfire(emit, bx, pal, t, rng, pick=None):
+    """A campfire with cozy pool adults + kids gathered (lit by the drawer at night)."""
+    v1 = pick(21) if pick else 0
+    v2 = pick(22) if pick else 0
     emit(TB_FIXTURE, lambda s: draw_campfire(s, bx, pal, t=t))
-    emit(TB_CAST, lambda s: draw_strollers(s, bx + 56, pal, t=t))
+    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx + 50, pal, t=t, variant=v1))
+    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 64, pal, t=t, variant=v2))
     emit(TB_CAST, lambda s: draw_kids(s, bx + 100, pal, t=t, n=2))
 
 def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
@@ -1384,10 +1370,16 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             if n > 1 and idx == _slot_pick(k - 1, n):
                 idx = (idx + 1) % n
             jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
-            return (roster[idx], jit)
+            # Freeze the day-arc beat + weather bucket at slot ENTRY so the cast's
+            # variant choices stay fixed for the whole on-screen traversal (a slot
+            # that entered in clear weather keeps its clear dress even if rain
+            # starts while it crosses; new slots entering in rain get brollies).
+            beat0 = _fv.beat_for_phase(_CUR_PHASE)
+            wb0 = _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW)
+            return (roster[idx], jit, beat0, wb0)
         dec = sp._slot_latch(row, k, _decide)
         if dec is not None:
-            scene_fn, jit = dec
+            scene_fn, jit, beat0, wb0 = dec
             # Recreate the per-slot RNG and consume the inclusion draw so the scene's
             # internal variety matches the pre-latch behaviour exactly.
             r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
@@ -1396,16 +1388,21 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             # it passes orders props/cast vs structures at that shared line.
             def _emit(tier, fn):
                 _zbuf.enqueue(GROUND_Y - 1, tier, fn)
-            scene_fn(_emit, bx + jit, pal, t, r)
+            # Stable per-figure variant picker for this slot, frozen to the entry
+            # beat/weather — scenes call pick(salt) for each pedestrian they place.
+            def _pick(salt, k=k, beat0=beat0, wb0=wb0):
+                return _fv.select_variant('pedestrian', _fv.slot_seed(k, salt), beat0, wb0)
+            scene_fn(_emit, bx + jit, pal, t, r, _pick)
     sp._latch_prune(row)
 
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
     crowd-density curve, and the whole street filling in from empty at run-start."""
-    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND
+    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND, _CUR_PHASE
     _CUR_BUCKET = _biome.phase_bucket(phase)
     _CUR_T = t
     _CUR_PAL = pal
+    _CUR_PHASE = phase
     _CUR_RAIN = rain_intensity(phase)
     _CUR_SNOW = storm_intensity(phase)
     _CUR_WIND = wind_intensity(phase)

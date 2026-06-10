@@ -75,14 +75,16 @@ def slot_seed(k: int, salt: int) -> int:
 class Variant:
     """One look in a family pool. `palette` maps named colour roles the drawer
     reads (e.g. {'coat': (...), 'coat_dk': (...), 'hair': (...)}); `pose` and
-    `accessory` are flag sets the drawer toggles existing code paths on. Weights
-    shift the mix by day-arc beat and weather bucket."""
+    `accessory` are flag sets the drawer toggles existing code paths on; `attrs`
+    carries family-specific scalars/strings (e.g. archetype, height, stoop,
+    build). Weights shift the mix by day-arc beat and weather bucket."""
     palette: dict = field(default_factory=dict)
     pose: frozenset = field(default_factory=frozenset)
     accessory: frozenset = field(default_factory=frozenset)
     base_weight: float = 1.0
     beat_weights: dict = field(default_factory=dict)       # beat -> multiplier
     weather_weights: dict = field(default_factory=dict)    # wbucket -> multiplier
+    attrs: dict = field(default_factory=dict)              # family-specific params
 
 
 # Per-family pools. Index 0 of every family MUST reproduce the drawer's legacy
