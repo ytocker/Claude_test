@@ -1090,7 +1090,7 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
     # Central needle.
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -1928,7 +1928,7 @@ def _draw_wat_arun_prang(surf, cx, base_y, palette, *,
     if tier_h_override is not None:
         tier_h = tier_h_override
         base_h = tier_h * n_tiers
-        spire_h = total_h - base_h - 5
+        spire_h = total_h - base_h
     else:
         tier_h = base_h // n_tiers
     widest = int(body_w * 1.20)
@@ -2186,7 +2186,7 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         # Lotus-bud finial — Songyue's iconic crowning ornament. The tip
         # reaches top_y (the gap edge) so the silhouette FILLS the rect.
         bud_base_y = cap_y - 4
-        bud_tip_y = min(bud_base_y - 8, top_y) + 5
+        bud_tip_y = min(bud_base_y - 8, top_y) - 1
         gold = _gold_deep(palette)
         bright = _gold_bright(palette)
         dark = palette['stone_dark']
@@ -2290,7 +2290,7 @@ def _draw_mini_songyue(surf, cx, base_y, top_y, body_w_base, palette,
     pygame.draw.ellipse(surf, _terracotta(palette),
                         cap_rect.inflate(-2, -2))
     bud_base_y = cap_y - 4
-    bud_tip_y = min(bud_base_y - 6, top_y) + 3
+    bud_tip_y = min(bud_base_y - 6, top_y)
     gold = _gold_deep(palette)
     dark = palette['stone_dark']
     pygame.draw.ellipse(surf, dark, (cx - 4, bud_base_y - 1, 8, 3))
@@ -2720,7 +2720,7 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 4  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4243,7 +4243,7 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
     pygame.draw.ellipse(surf, accent, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4501,7 +4501,7 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(gold, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
     pygame.draw.ellipse(surf, gold, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4712,7 +4712,7 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -5643,7 +5643,7 @@ def _draw_baoen_stack(surf, cx, top_y, bot_y, base_w, palette, *,
     top_wall_y = tier_tops[-1][0]
     dark_pal = palette['stone_dark']
     bright = _shade(gold, 60)
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 3  # land the lethal spire tip on the gap edge (gap = 170)
     tip_y = top_wall_y - finial_h
     pygame.draw.line(surf, dark_pal, (cx, top_wall_y - 2), (cx, tip_y), 2)
     pygame.draw.line(surf, gold, (cx + 1, top_wall_y - 2), (cx + 1, tip_y), 1)
@@ -9008,7 +9008,7 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 40)
     pygame.draw.ellipse(surf, dark_pal, (cx - 5, base_y + dir_sign * 1, 10, 4))
     pygame.draw.ellipse(surf, accent, (cx - 4, base_y + dir_sign * 1 + 1, 8, 2))
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 5  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 3),
@@ -9660,7 +9660,7 @@ def _draw_palsangjeon_sangnyun(surf, cx, base_y, palette, *,
     pygame.draw.ellipse(surf, brass,
                         (cx - 6, base_y + dir_sign * 2 + 1, 12, 3))
     # Needle.
-    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 5  # land the lethal spire tip on the gap edge (gap = 170)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark,
                      (cx - 1, base_y + dir_sign * 5),
@@ -10202,7 +10202,7 @@ def _gilt(palette):
     return _mix(palette['stone_accent'], (235, 195, 90), 0.65)
 
 
-def _finial_chorten(surf, cx, harmika_top_y, palette):
+def _finial_chorten(surf, cx, harmika_top_y, palette, *, steps=13):
     """13-step chorten spire + sun-moon-flame jewel above the harmika.
 
     Returns the y of the topmost flame tip so the caller knows the silhouette
@@ -10212,7 +10212,6 @@ def _finial_chorten(surf, cx, harmika_top_y, palette):
     dark = palette['stone_dark']
     bright = _shade(gold, 40)
     # Spire — 13 narrowing steps anchored to the harmika roof.
-    steps = 13
     step_h = 2
     start_y = harmika_top_y - 1
     for i in range(steps):
@@ -10233,7 +10232,7 @@ def _finial_chorten(surf, cx, harmika_top_y, palette):
     pygame.draw.circle(surf, dark, (cx, spire_top - 9), 2)
     pygame.draw.circle(surf, gold, (cx, spire_top - 9), 1)
     # Flame jewel tip.
-    tip_y = spire_top - 11
+    tip_y = spire_top - 14
     pygame.draw.polygon(surf, bright,
                         [(cx, tip_y), (cx - 2, spire_top - 10),
                          (cx + 2, spire_top - 10)])
@@ -10344,7 +10343,7 @@ def candidate_stupa_canopy(surf, top_rect, bot_rect, palette, seed):
         pygame.draw.circle(surf, gold, (bcx, eye_y - 3), 1)
 
         # 13-step spire + sun-moon-flame stack above the harmika.
-        _finial_chorten(surf, bcx, harmika_y, palette)
+        _finial_chorten(surf, bcx, harmika_y, palette, steps=15)
 
         # Per-seed flavours.
         if flavor == 'pine':
