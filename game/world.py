@@ -822,24 +822,20 @@ class World:
                 self._spawn_genie_chamber_offers(p)
 
     def _maybe_spawn_ramp(self, pipe: Pipe):
-        """During the SKATEBOARD window, sometimes drop a wooden wedge
-        on top of this pipe's LOWER pillar. 38x22 gentle incline with
-        a small +/-2 px jitter so wedges look hand-placed. Right-
-        aligned on the pillar so the kicker sits flush with the
-        pillar's right edge."""
+        """During the SKATEBOARD window, sometimes drop a wooden wedge on the
+        GROUND in the open lane just past this pillar — never on a pillar top.
+        38x22 gentle kicker with small jitter so wedges look hand-placed."""
         if self.skateboard_timer <= 0:
             return
         if random.random() >= 0.55:
             return
         ramp_w = 38 + random.randint(-2, 2)
         ramp_h = 22 + random.randint(-2, 2)
-        ramp_w = min(ramp_w, PIPE_W - 2)
-        # Sit the wedge on the pagoda ROOF (body top), not the finial tip —
-        # finial_clear is the spire height pulled off the gap edge to the roof.
-        base_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear
-        rx = pipe.x + PIPE_W - ramp_w
-        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=base_y))
-        pipe.has_ramp = True
+        # Sit the wedge on the FLOOR, roughly centred in the open lane after the
+        # pillar so it never overlaps a pillar base or its eave overhang.
+        lane = PIPE_SPACING - PIPE_W
+        rx = pipe.x + PIPE_W + max(16, (lane - ramp_w) // 2) + random.randint(-8, 8)
+        self.ramps.append(Ramp(rx, ramp_w, ramp_h, base_y=GROUND_Y))
 
     def _maybe_spawn_geyser(self, pipe: Pipe):
         # Geysers are held back until the rock field has ramped across

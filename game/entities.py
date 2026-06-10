@@ -1361,11 +1361,6 @@ class Pipe:
         # stone at timer=0 alongside the fries mountain + fried Pip; only
         # the wider gap outlives the timer.
         self.is_kfc = False
-        # SKATEBOARD: True when World._maybe_spawn_ramp drops a wooden
-        # wedge on top of this pipe's lower-pillar crown. Used by the
-        # ramp draw + collision logic in World; the Pipe itself stays
-        # unchanged in its own draw (the wedge overpaints the crown).
-        self.has_ramp = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
         # The pagoda finial ("antenna") is decorative-only: the kill zone stops
@@ -1813,12 +1808,10 @@ def _get_coin_face_triple() -> pygame.Surface:
 
 
 class Ramp:
-    """SKATEBOARD ramp — a wooden wedge perched on a lower pillar's
-    crown that Pip can skate up while the buff is active. Shape
-    ``/|`` : slope rises LEFT→RIGHT and the vertical kicker face is
-    on the RIGHT. ``base_y`` is the bottom edge of the wedge — defaults
-    to GROUND_Y for legacy floor placement, otherwise set to the host
-    pipe's ``gap_y + gap_h / 2``."""
+    """SKATEBOARD ramp — a wooden wedge on the GROUND that Pip can skate up
+    while the buff is active (never placed on a pillar top). Shape ``/|`` :
+    slope rises LEFT→RIGHT and the vertical kicker face is on the RIGHT.
+    ``base_y`` is the bottom edge of the wedge, defaulting to GROUND_Y."""
 
     def __init__(self, x: float, w: float, h: float,
                  base_y: float | None = None):
