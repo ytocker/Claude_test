@@ -16,6 +16,7 @@ from game import foreground_detail as _detail
 from game import foreground_promenade as _promenade
 from game import foreground_near_lane as _near
 from game import foreground_weather as _gweather
+from game import foreground_zbuffer as _zbuf
 
 
 # The floor + embedded detail are STATIC: a pure function of world-x (scroll) and
@@ -76,12 +77,17 @@ def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
 
 
 def draw_promenade(surf, scroll, pal, phase, t):
-    """Draw the promenade props + living cast on the sidewalk, crossfading
-    between day→night beats by the live biome `phase`."""
-    _promenade.draw_promenade(surf, scroll, pal, phase, t)
+    """Draw the FAR promenade props + living cast on the sidewalk, depth-sorted by
+    feet-Y. Flushed here (in _draw_background, before the gameplay pillars) so the
+    far lane sits BEHIND the pillars, as it always has."""
+    _zbuf.reset()
+    _promenade.draw_promenade(surf, scroll, pal, phase, t)   # enqueue only
+    _zbuf.flush(surf)
 
 
 def draw_near_lane(surf, scroll, pal, phase, t):
-    """Draw the near/front activity lane (bigger pedestrians + the active
-    day→night performance), crossfading by the live biome `phase`."""
-    _near.draw_near_lane(surf, scroll, pal, phase, t)
+    """Draw the NEAR/front activity lane, depth-sorted by feet-Y. Flushed here —
+    relocated in scenes._render to run AFTER the gameplay pillars — so near-lane
+    plants/people (feet lower on screen) occlude the pillar bases."""
+    _near.draw_near_lane(surf, scroll, pal, phase, t)        # enqueue only
+    _zbuf.flush(surf)

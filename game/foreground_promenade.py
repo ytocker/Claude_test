@@ -38,6 +38,8 @@ from game.config import (W, H, WEATHER_CROWD_RAIN_MIN, WEATHER_CROWD_SNOW_MIN,
                          WEATHER_UMBRELLA_RAIN_AT)
 from game.weather import rain_intensity, storm_intensity, wind_intensity
 from game.pillar_variants import draw_prayer_flags
+from game import foreground_zbuffer as _zbuf
+from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -599,8 +601,11 @@ def _shelter_figures(surf, w, scroll, pal, t):
         hair = _retint_person((60, 45, 38), night)
         # Standing still (sheltering) — no gait, feet planted on the kerb.
         body_y = GROUND_Y - 1 - 8 - 3
-        _draw_bench_person(surf, bx, body_y, shirt, shirt_dk, hair, night=night)
-        _draw_umbrella(surf, bx + 3, body_y - 6, (h >> 2), night=night)
+        def _figure(s, bx=bx, body_y=body_y, shirt=shirt, shirt_dk=shirt_dk,
+                    hair=hair, h=h):
+            _draw_bench_person(s, bx, body_y, shirt, shirt_dk, hair, night=night)
+            _draw_umbrella(s, bx + 3, body_y - 6, (h >> 2), night=night)
+        _zbuf.enqueue(GROUND_Y - 1, TB_CAST, _figure)
 
 
 # ── KIOSK / vendor stall: a pagoda-roofed market stall ───────────────────────
@@ -908,22 +913,28 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     # Each lane's inclusion is latched at entry (off-screen) so a fixture never
     # blinks out in view when `fd` dips — it scrolls in and out like the deck it
     # sits on.
+    fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 440, x0=14):
         if sp._slot_latch(('furn', 11), k, lambda k=k: _slot_on(k, 11, fd)):
-            sp._draw_barrel(surf, sx, pal)
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx: sp._draw_barrel(s, sx, pal))
     sp._latch_prune(('furn', 11))
     for sx, k in sp._world_xs(scroll, w, 440, x0=118):
         if sp._slot_latch(('furn', 12), k, lambda k=k: _slot_on(k, 12, fd)):
-            sp._draw_cairn(surf, sx, pal, scale=1.2)
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
     for sx, k in sp._world_xs(scroll, w, 520, x0=205):
         if sp._slot_latch(('furn', 13), k, lambda k=k: _slot_on(k, 13, fd)):
-            sp._draw_planter(surf, sx, pal, kind='shrub')
-            sp._draw_vine_trail(surf, sx + 11, pal)
+            def _planter_vine(s, sx=sx):
+                sp._draw_planter(s, sx, pal, kind='shrub')
+                sp._draw_vine_trail(s, sx + 11, pal)
+            _zbuf.enqueue(fy, TB_FIXTURE, _planter_vine)
     sp._latch_prune(('furn', 13))
     for sx, k in sp._world_xs(scroll, w, 620, x0=70):
         if sp._slot_latch(('furn', 14), k, lambda k=k: _slot_on(k, 14, fd)):
-            sp._draw_planter(surf, sx, pal, kind='bamboo')
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx: sp._draw_planter(s, sx, pal, kind='bamboo'))
     sp._latch_prune(('furn', 14))
 
 
@@ -1065,11 +1076,16 @@ def draw_market_setup(surf, sx, pal, *, t=0.0):
     pygame.draw.line(surf, leg, (vx + 4, body_y + 8), (vx + 5, feet), 1)
 
 
-def _scene_market(surf, bx, pal, t, rng):
+# Each scene EMITS its sub-objects into the depth buffer (emit(tier, fn)) instead
+# of painting directly, so a free-standing figure (CAST) sorts in front of a fixed
+# back-structure (STRUCTURE) on the same ground line — fixing e.g. a kid drawn
+# behind its own kiosk. `emit` fixes the far-lane feet line; tier breaks the tie.
+
+def _scene_market(emit, bx, pal, t, rng):
     """Food/market stall with a songbird-cage stand and kids beside it."""
-    draw_kiosk(surf, bx, pal, t=t, openness=0.9)
-    draw_birdcage_stand(surf, bx + 84, pal, t=t)
-    draw_kids(surf, bx + 152, pal, t=t, n=2)
+    emit(TB_STRUCTURE, lambda s: draw_kiosk(s, bx, pal, t=t, openness=0.9))
+    emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
+    emit(TB_CAST, lambda s: draw_kids(s, bx + 152, pal, t=t, n=2))
 
 def _draw_calm_dog(surf, sx, pal, *, t=0.0):
     """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
@@ -1081,65 +1097,73 @@ def _draw_calm_dog(surf, sx, pal, *, t=0.0):
     sw, sh = frame.get_size()
     surf.blit(frame, (sx - sw // 2, GROUND_Y - sh + 1))
 
-def _scene_pastoral(surf, bx, pal, t, rng):
+def _scene_pastoral(emit, bx, pal, t, rng):
     """Wish-tree + a slow dog ambling with the street + a planter."""
-    draw_wish_tree(surf, bx, pal, t=t)
-    _draw_calm_dog(surf, bx + 66, pal, t=t)
-    sp._draw_planter(surf, bx + 122, pal, kind='shrub')
+    emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s: _draw_calm_dog(s, bx + 66, pal, t=t))
+    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 122, pal, kind='shrub'))
 
-def _scene_lamplighter(surf, bx, pal, t, rng):
+def _scene_lamplighter(emit, bx, pal, t, rng):
     """A lamplighter kindling the street lanterns at dusk + a potted conifer."""
-    draw_lamplighter(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 40, pal, kind='conifer')
+    emit(TB_CAST, lambda s: draw_lamplighter(s, bx, pal, t=t))
+    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 40, pal, kind='conifer'))
 
-def _scene_dawn_setup(surf, bx, pal, t, rng):
+def _scene_dawn_setup(emit, bx, pal, t, rng):
     """Vendors assembling the morning market."""
-    draw_market_setup(surf, bx, pal, t=t)
+    emit(TB_FIXTURE, lambda s: draw_market_setup(s, bx, pal, t=t))
 
-def _scene_vendor(surf, bx, pal, t, rng):
+def _scene_vendor(emit, bx, pal, t, rng):
     """A lone songbird-cage seller beside a potted plant — a calm market remnant."""
-    draw_birdcage_stand(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 26, pal, kind='conifer')
+    emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
+    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 26, pal, kind='conifer'))
 
-def _scene_quiet(surf, bx, pal, t, rng):
+def _scene_quiet(emit, bx, pal, t, rng):
     """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
-    sp._draw_planter(surf, bx, pal, kind='shrub')
-    draw_old_man(surf, bx + 30, pal, t=t, seated_bench=False)
+    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx, pal, kind='shrub'))
+    emit(TB_CAST, lambda s: draw_old_man(s, bx + 30, pal, t=t, seated_bench=False))
 
 
-def _scene_bench(surf, bx, pal, t, rng):
+def _scene_bench(emit, bx, pal, t, rng):
     """The temple elder beside a bench with a seated companion."""
-    bench = _stepped(_Bench, pal, 20, bx)
-    bench._blit_sprite(surf)
-    seat_y = (GROUND_Y - 27) + 19            # match _Bench.draw seat geometry
     night = _nightf(pal)
     comp = tuple(_retint_person(c, night) for c in
                  ((215, 85, 100), (175, 50, 70), (80, 50, 30)))
-    _draw_bench_person(surf, bx + 8, seat_y - 8, *comp, night=night)
-    draw_old_man(surf, bx + 44, pal, t=t, seated_bench=False)
+    seat_y = (GROUND_Y - 27) + 19            # match _Bench.draw seat geometry
 
-def _scene_stroll(surf, bx, pal, t, rng):
+    def _bench(s):
+        bench = _stepped(_Bench, pal, 20, bx)
+        bench._blit_sprite(s)
+    emit(TB_FIXTURE, _bench)
+    emit(TB_CAST, lambda s: _draw_bench_person(s, bx + 8, seat_y - 8, *comp, night=night))
+    emit(TB_CAST, lambda s: draw_old_man(s, bx + 44, pal, t=t, seated_bench=False))
+
+def _scene_stroll(emit, bx, pal, t, rng):
     """A strolling couple + the elder on a slow walk."""
-    draw_strollers(surf, bx, pal, t=t)
-    draw_old_man(surf, bx + 48, pal, t=t, seated_bench=False)
+    emit(TB_CAST, lambda s: draw_strollers(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s: draw_old_man(s, bx + 48, pal, t=t, seated_bench=False))
 
-def _scene_rest(surf, bx, pal, t, rng):
+def _scene_rest(emit, bx, pal, t, rng):
     """A napper on a mat beside a planter."""
-    draw_napper(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 46, pal, kind='conifer')
+    emit(TB_CAST, lambda s: draw_napper(s, bx, pal, t=t))
+    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 46, pal, kind='conifer'))
 
-def _scene_campfire(surf, bx, pal, t, rng):
+def _scene_campfire(emit, bx, pal, t, rng):
     """A campfire with cozy strollers + kids gathered (lit by the drawer at night)."""
-    draw_campfire(surf, bx, pal, t=t)
-    draw_strollers(surf, bx + 56, pal, t=t)
-    draw_kids(surf, bx + 100, pal, t=t, n=2)
+    emit(TB_FIXTURE, lambda s: draw_campfire(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s: draw_strollers(s, bx + 56, pal, t=t))
+    emit(TB_CAST, lambda s: draw_kids(s, bx + 100, pal, t=t, n=2))
 
 def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
-    """Place the beat's scene roster at world-x slots, scrolling at world speed."""
+    """Place the beat's scene roster at world-x slots, scrolling at world speed.
+
+    Legacy gallery path (PHASES_R17): scenes now EMIT their sub-objects, so give
+    them an emit that paints immediately in submission order — no depth buffer."""
+    def _emit(_tier, fn):
+        fn(surf)
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
         rng = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
-        roster[k % len(roster)](surf, bx, pal, t, rng)
+        roster[k % len(roster)](_emit, bx, pal, t, rng)
 
 
 def phase_day(surf, w, gy, h, scroll, pal, t):
@@ -1317,13 +1341,16 @@ def _dressing(surf, w, scroll, pal, phase):
     # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
     # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
     lamp_win = (0.20 <= p < 0.93)
+    fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 250, x0=18):
         if sp._slot_latch(('lampR',), k, lambda: lamp_win):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx: sp._draw_lamp_post(
+                s, sx, pal, style='ornate', height=96, lantern='red'))
     sp._latch_prune(('lampR',))
     for sx, k in sp._world_xs(scroll, w, 250, x0=152):
         if sp._slot_latch(('lampG',), k, lambda: lamp_win):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx: sp._draw_lamp_post(
+                s, sx, pal, style='ornate', height=90, lantern='gold'))
     sp._latch_prune(('lampG',))
     fairy_win = (0.40 <= p < 0.86)                              # festival fairy lights
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
@@ -1365,7 +1392,11 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             # internal variety matches the pre-latch behaviour exactly.
             r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
             r.random()
-            scene_fn(surf, bx + jit, pal, t, r)
+            # Each scene enqueues its sub-objects on the far-lane feet line; the tier
+            # it passes orders props/cast vs structures at that shared line.
+            def _emit(tier, fn):
+                _zbuf.enqueue(GROUND_Y - 1, tier, fn)
+            scene_fn(_emit, bx + jit, pal, t, r)
     sp._latch_prune(row)
 
 def draw_promenade(surf, scroll, pal, phase, t):

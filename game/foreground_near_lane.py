@@ -59,6 +59,8 @@ from game.pillar_variants import (
     draw_cascading_vine, draw_paper_lantern, draw_cairn,
     draw_darchog_pole, draw_incense_smoke,
 )
+from game import foreground_zbuffer as _zbuf
+from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
@@ -1087,18 +1089,22 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     # so it enters _scaled_cast's cache key — the baked figure then carries a
     # brolly exactly when the weather says so, instead of a stale clear-sky bake.
     brolly = pr._wants_umbrella()
+    ny = NEAR_GROUND_Y
     for sx, k in _near_xs(scroll, w, 196, x0=20):
         if sp._slot_latch(('ped', 1), k, lambda k=k: pr._slot_on(k, 1, density)):
-            _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t, umbrella=brolly)
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx: _scaled_cast(
+                s, pr.draw_strollers, sx, pal, 1.6, t=t, umbrella=brolly))
     sp._latch_prune(('ped', 1))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
         if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
-            _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx: _scaled_cast(
+                s, pr.draw_kids, sx, pal, 1.55, t=t, n=2))
     sp._latch_prune(('ped', 2))
     # The near dog ambles across the front on its own anchor.
     for sx, k in _near_xs(scroll, w, 300, x0=96):
         if sp._slot_latch(('ped', 3), k, lambda k=k: pr._slot_on(k, 3, density)):
-            _near_dog(surf, sx, pal, t=t, scale=1.7)
+            _zbuf.enqueue(ny, TB_CAST,
+                          lambda s, sx=sx: _near_dog(s, sx, pal, t=t, scale=1.7))
     sp._latch_prune(('ped', 3))
 
 
@@ -1108,17 +1114,18 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     per-slot gate (present from t=0, no flicker) and spaced on wide periods, so the
     front edge stays open most of the day. Short greenery may sit under the lanes;
     the taller pine is gated to a clear zone."""
+    ny = NEAR_GROUND_Y
     for sx, k in _near_xs(scroll, w, 420, x0=60):
         if sp._slot_latch(('grn', 21), k, lambda k=k: pr._slot_on(k, 21, fd)):
-            _near_planter(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_planter(s, sx, pal))
     sp._latch_prune(('grn', 21))
     for sx, k in _near_xs(scroll, w, 520, x0=200):
         if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
-            _near_vine_lantern(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
     sp._latch_prune(('grn', 22))
     for sx, k in _near_xs(scroll, w, 480, x0=12):
         if sp._slot_latch(('grn', 23), k, lambda k=k: pr._slot_on(k, 23, fd)):
-            _near_pine(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_pine(s, sx, pal))
     sp._latch_prune(('grn', 23))
 
 
@@ -1276,13 +1283,14 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     # membership at entry so the row scrolls in/out instead of the on-screen ones
     # blinking when the festival window opens/closes.
     banner_win = (0.45 <= p < 0.86)
+    ny = NEAR_GROUND_Y
     for sx, k in _near_xs(scroll, W, 340, x0=30):
         if sp._slot_latch(('banner',), k, lambda: banner_win):
-            _near_banner(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx: _near_banner(s, sx, pal))
     sp._latch_prune(('banner',))
     for sx, k in _near_xs(scroll, W, 290, x0=115):
         if sp._slot_latch(('brazier',), k, lambda: banner_win):
-            _near_brazier(surf, sx, pal, t=t)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_brazier(s, sx, pal, t=t))
     sp._latch_prune(('brazier',))
     # Performers: ONE world-anchored grid. Each slot latches at entry both whether
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
@@ -1292,5 +1300,5 @@ def draw_near_lane(surf, scroll, pal, phase, t):
         act = sp._slot_latch(('perf',), k,
                              lambda k=k: _perf_decide(k, phase, density))
         if act is not None:
-            act(surf, bx, pal, t)
+            _zbuf.enqueue(ny, TB_CAST, lambda s, act=act, bx=bx: act(s, bx, pal, t))
     sp._latch_prune(('perf',))
