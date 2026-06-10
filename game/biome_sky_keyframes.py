@@ -1,5 +1,5 @@
 """
-Sky-only day/night keyframe tables for the 10 biome sky designs.
+Sky-only day/night keyframe tables for the biome sky designs.
 
 Ported from the biome exploration's `biome_variants.py`, stripped to the
 sky-relevant keys only — `sky_top`, `sky_mid`, `sky_bot`, `horizon`,
@@ -9,9 +9,10 @@ dropped: these designs contribute a sky color field + night-star sprinkle,
 nothing else. The 10-stage day→night arc falls out of interpolating each
 biome's keyframes against `phase` (0..1).
 
-Preview-only data, reached solely through `game/sky_designs.py`. The
-`BIOMES` map is in sheet order (matches the rows of
-`docs/biome_redesign/round_7_all_skystars_daynight.png`).
+Reached through `game/sky_designs.py`. The first ten `BIOMES` entries are in
+sheet order (matching the rows of
+`docs/biome_redesign/round_7_all_skystars_daynight.png`); `alpine_haze` is a
+later calm-lineage addition appended after them and is the current live sky.
 """
 from game.biome_sky import BiomeSpec, SkyParams
 
@@ -211,8 +212,37 @@ MOONLIT_PINE_CLIFF = BiomeSpec(
     sky=SkyParams(positions=(0.0, 0.3, 0.6, 0.82, 1.0), dither_amp=1.6, zenith_dark=0.16),
 )
 
+# ── Calm-lineage addition (round-12 UX exploration, not in the round_7 sheet) ─
+# Alpine Haze — the cool high-altitude-haze concept that won the calm/UX sky
+# study (docs/biome_redesign/round_14.png): a glacial cyan-cool zenith
+# desaturating into a pale cloud-grey haze line at the horizon, with a clean
+# cool-cyan night. Authored against the same sky-only keyframe model as the
+# original ten; ported verbatim from the study so the live sky matches the
+# signed-off figure (the engine's smoothstep+dither bake reproduces the study's
+# stops — only the mid-segment easing differs from the study's preview ramp).
+_ALPINE_HAZE_KF = [
+    (0.06, dict(sky_top=(86, 158, 186), sky_mid=(150, 192, 202), sky_bot=(196, 212, 210), horizon=(214, 218, 212), star_alpha=0)),
+    (0.18, dict(sky_top=(76, 168, 192), sky_mid=(144, 198, 208), sky_bot=(196, 214, 212), horizon=(216, 220, 212), star_alpha=0)),
+    (0.30, dict(sky_top=(86, 160, 188), sky_mid=(152, 192, 204), sky_bot=(198, 212, 208), horizon=(216, 218, 210), star_alpha=0)),
+    (0.40, dict(sky_top=(88, 152, 178), sky_mid=(156, 186, 196), sky_bot=(202, 208, 202), horizon=(220, 214, 204), star_alpha=0)),
+    (0.50, dict(sky_top=(74, 126, 160), sky_mid=(146, 168, 184), sky_bot=(202, 200, 196), horizon=(230, 204, 184), star_alpha=12)),
+    (0.62, dict(sky_top=(34, 76, 116), sky_mid=(76, 126, 160), sky_bot=(134, 172, 186), horizon=(190, 204, 200), star_alpha=80)),
+    (0.72, dict(sky_top=(8, 28, 62), sky_mid=(16, 64, 104), sky_bot=(34, 104, 136), horizon=(70, 144, 164), star_alpha=210)),
+    (0.80, dict(sky_top=(12, 38, 78), sky_mid=(26, 84, 124), sky_bot=(54, 126, 156), horizon=(108, 166, 186), star_alpha=130)),
+    (0.88, dict(sky_top=(76, 146, 176), sky_mid=(140, 186, 200), sky_bot=(190, 210, 208), horizon=(214, 218, 210), star_alpha=20)),
+    (0.94, dict(sky_top=(84, 156, 184), sky_mid=(148, 192, 202), sky_bot=(196, 212, 210), horizon=(214, 218, 212), star_alpha=0)),
+]
 
-# id → spec, in sheet order.
+ALPINE_HAZE = BiomeSpec(
+    name='Alpine Haze',
+    note='Thin high-altitude air — glacial cyan-cool zenith desaturating into a pale cloud-grey haze line at the horizon — crisp, airy, distinct from cobalt blue, clean cool-cyan night.',
+    keyframes=_ALPINE_HAZE_KF,
+    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14),
+)
+
+
+# id → spec. The first ten are in round_7 sheet order; alpine_haze is the
+# calm-lineage addition appended after them.
 BIOMES = {
     "desert_mesa": DESERT_MESA,
     "alpine_snowpeak": ALPINE_SNOWPEAK,
@@ -224,6 +254,7 @@ BIOMES = {
     "maple_monastery": MAPLE_MONASTERY,
     "cloud_sea_peaks": CLOUD_SEA_PEAKS,
     "moonlit_pine_cliff": MOONLIT_PINE_CLIFF,
+    "alpine_haze": ALPINE_HAZE,
 }
 
 BIOME_NAMES = {k: v.name for k, v in BIOMES.items()}

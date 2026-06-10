@@ -24,7 +24,7 @@ import pygame
 
 # The active switch. Set to a CATALOG design id to make that sky live; None keeps
 # the original shan-shui biome sky.
-ACTIVE_SKY_DESIGN = "karst_watertown"
+ACTIVE_SKY_DESIGN = "alpine_haze"
 
 
 def _make_render(design_id):
