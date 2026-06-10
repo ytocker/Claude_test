@@ -22,8 +22,60 @@ pygame.init()
 pygame.display.set_mode((1, 1))
 
 from game.config import W, H, GROUND_Y          # noqa: E402
-from game.biome_sky import paint_sky            # noqa: E402
+from game import biome_sky_field as sf          # noqa: E402
+from game.biome_sky import _sky_stops, _scatter_stars  # noqa: E402
 from tools.sky_concepts import CONCEPTS         # noqa: E402
+
+
+# ── smoother sky bake (figure-only) ──────────────────────────────────────────
+# The shared engine eases each stop segment with smoothstep, which flattens the
+# gradient to a near-zero slope at every interior stop. Those plateaus span tall
+# bands of rows that quantize to the same 8-bit colour, so the eye reads a hard
+# horizontal contour at each stop. A Catmull-Rom pass through the OKLab stops has
+# a continuous non-zero slope everywhere — no plateaus, no contour lines — and a
+# touch more dither dissolves the residual 8-bit steps. Kept here (not in
+# game/biome_sky_field) so the live sky path stays byte-for-byte unchanged.
+def _catmull_rows(stops, n):
+    st = sorted(stops, key=lambda s: s[0])
+    P = [sf.srgb_to_oklab(c) for _, c in st]
+    pos = [p for p, _ in st]
+    out = []
+    for i in range(n):
+        u = i / max(1, n - 1)
+        seg = 0
+        while seg < len(pos) - 2 and u > pos[seg + 1]:
+            seg += 1
+        p0, p1 = pos[seg], pos[seg + 1]
+        span = p1 - p0 if p1 > p0 else 1e-6
+        t = min(1.0, max(0.0, (u - p0) / span))
+        P1, P2 = P[seg], P[seg + 1]
+        P0 = P[seg - 1] if seg - 1 >= 0 else P[seg]
+        P3 = P[seg + 2] if seg + 2 < len(P) else P[seg + 1]
+        c = tuple(
+            0.5 * ((2 * P1[k])
+                   + (-P0[k] + P2[k]) * t
+                   + (2 * P0[k] - 5 * P1[k] + 4 * P2[k] - P3[k]) * t * t
+                   + (-P0[k] + 3 * P1[k] - 3 * P2[k] + P3[k]) * t * t * t)
+            for k in range(3)
+        )
+        out.append(sf.oklab_to_srgb(c))
+    return out
+
+
+def paint_sky(tile, spec, w, h, phase, stars=True, ground_y=None):
+    """Sky-only bake with the smoother Catmull-Rom ramp + a little extra dither."""
+    pal = spec.palette_for_phase(phase)
+    stops = _sky_stops(spec, pal)
+    for y, col in enumerate(_catmull_rows(stops, h)):
+        pygame.draw.line(tile, col, (0, y), (w - 1, y))
+    amp = max(spec.sky.dither_amp, 3.0)
+    pos, neg = sf._dither_overlays(w, h, amp)
+    tile.blit(pos, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    tile.blit(neg, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
+    if stars:
+        sa = int(pal.get('star_alpha', 0))
+        if sa > 0:
+            _scatter_stars(tile, w, ground_y or h, sa)
 
 
 # Local 12-phase day-ordered sampling — intentionally NOT the shared STAGES, so
@@ -81,7 +133,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     # Title rides in the top-left gutter corner above the rows.
-    title = f_title.render("Skybit sky concepts — round 10 (polish)", True, (245, 246, 250))
+    title = f_title.render("Skybit sky concepts — round 11 (smoother gradients)", True, (245, 246, 250))
     sheet.blit(title, (10, 6))
 
     # Column labels (phase names) along the top strip.
@@ -106,7 +158,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "round_10.png")
+                       "docs", "biome_redesign", "round_11.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")
