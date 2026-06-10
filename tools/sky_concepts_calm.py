@@ -84,23 +84,23 @@ DAWN_ROSE_GREY = BiomeSpec(
 # cornflower zenith opening to a powder-blue mid and a barely-warm pale horizon.
 # The most universally-readable backdrop — calm, cool, foreground-first.
 _POWDER_KF = [
-    (0.06, dict(sky_top=(78, 138, 204), sky_mid=(132, 184, 226), sky_bot=(192, 218, 238), horizon=(220, 232, 240), star_alpha=0)),
-    (0.18, dict(sky_top=(82, 144, 212), sky_mid=(136, 190, 230), sky_bot=(196, 222, 240), horizon=(224, 234, 240), star_alpha=0)),
-    (0.30, dict(sky_top=(86, 142, 206), sky_mid=(140, 188, 226), sky_bot=(200, 220, 236), horizon=(228, 230, 234), star_alpha=0)),
-    (0.40, dict(sky_top=(88, 134, 196), sky_mid=(146, 180, 216), sky_bot=(206, 214, 224), horizon=(236, 222, 210), star_alpha=0)),
-    (0.50, dict(sky_top=(74, 110, 174), sky_mid=(140, 154, 196), sky_bot=(206, 196, 206), horizon=(238, 206, 188), star_alpha=12)),
-    (0.62, dict(sky_top=(40, 64, 124), sky_mid=(74, 110, 162), sky_bot=(132, 162, 192), horizon=(190, 198, 202), star_alpha=80)),
-    (0.72, dict(sky_top=(12, 22, 60), sky_mid=(22, 48, 100), sky_bot=(38, 80, 130), horizon=(70, 118, 156), star_alpha=210)),
-    (0.80, dict(sky_top=(18, 32, 78), sky_mid=(34, 70, 124), sky_bot=(60, 110, 152), horizon=(108, 152, 178), star_alpha=130)),
-    (0.88, dict(sky_top=(60, 116, 186), sky_mid=(120, 170, 216), sky_bot=(188, 212, 230), horizon=(228, 224, 216), star_alpha=22)),
-    (0.94, dict(sky_top=(76, 136, 202), sky_mid=(130, 184, 226), sky_bot=(192, 218, 236), horizon=(224, 230, 234), star_alpha=0)),
+    (0.06, dict(sky_top=(150, 178, 210), sky_mid=(196, 214, 232), sky_bot=(224, 232, 242), horizon=(236, 236, 240), star_alpha=0)),
+    (0.18, dict(sky_top=(154, 182, 214), sky_mid=(198, 218, 234), sky_bot=(226, 234, 242), horizon=(238, 238, 240), star_alpha=0)),
+    (0.30, dict(sky_top=(154, 180, 210), sky_mid=(200, 216, 230), sky_bot=(226, 232, 240), horizon=(238, 236, 238), star_alpha=0)),
+    (0.40, dict(sky_top=(152, 174, 202), sky_mid=(200, 210, 224), sky_bot=(228, 228, 232), horizon=(240, 230, 220), star_alpha=0)),
+    (0.50, dict(sky_top=(124, 142, 184), sky_mid=(184, 188, 208), sky_bot=(224, 212, 216), horizon=(242, 214, 196), star_alpha=12)),
+    (0.62, dict(sky_top=(48, 72, 130), sky_mid=(88, 122, 168), sky_bot=(146, 172, 198), horizon=(198, 204, 206), star_alpha=80)),
+    (0.72, dict(sky_top=(14, 24, 62), sky_mid=(24, 50, 102), sky_bot=(40, 82, 132), horizon=(72, 120, 158), star_alpha=210)),
+    (0.80, dict(sky_top=(20, 34, 80), sky_mid=(36, 72, 126), sky_bot=(62, 112, 154), horizon=(110, 154, 180), star_alpha=130)),
+    (0.88, dict(sky_top=(108, 150, 196), sky_mid=(164, 196, 226), sky_bot=(208, 224, 236), horizon=(234, 230, 222), star_alpha=22)),
+    (0.94, dict(sky_top=(122, 160, 204), sky_mid=(174, 202, 228), sky_bot=(212, 226, 238), horizon=(230, 234, 238), star_alpha=0)),
 ]
 
 POWDER_MORNING = BiomeSpec(
     name='Powder Morning',
-    note='Clean powder-blue clear day — deepened cornflower zenith, pale calm horizon — easing to a gentle cool dusk and a deep navy night.',
+    note='The lightest, airiest porcelain-periwinkle clear day — high-value low-chroma blue clearly above Slate, a hair warm — easing to a gentle cool dusk and a deep navy night.',
     keyframes=_POWDER_KF,
-    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.12),
+    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.20),
 )
 
 
@@ -109,11 +109,11 @@ POWDER_MORNING = BiomeSpec(
 # in the LOWER half (pale amber/sand horizon), the zenith stays a cool dusty
 # blue, so the bird zone never goes warm. Hazy, sun-through-dust afternoon.
 _AMBER_KF = [
-    (0.06, dict(sky_top=(108, 142, 178), sky_mid=(176, 188, 192), sky_bot=(226, 214, 184), horizon=(238, 220, 178), star_alpha=0)),
-    (0.18, dict(sky_top=(114, 150, 186), sky_mid=(182, 194, 196), sky_bot=(230, 218, 184), horizon=(242, 222, 176), star_alpha=0)),
-    (0.30, dict(sky_top=(116, 146, 180), sky_mid=(184, 192, 190), sky_bot=(232, 214, 176), horizon=(244, 218, 166), star_alpha=0)),
-    (0.40, dict(sky_top=(120, 140, 172), sky_mid=(192, 188, 178), sky_bot=(238, 212, 166), horizon=(248, 212, 152), star_alpha=0)),
-    (0.50, dict(sky_top=(104, 116, 156), sky_mid=(186, 168, 162), sky_bot=(240, 200, 156), horizon=(248, 196, 138), star_alpha=12)),
+    (0.06, dict(sky_top=(110, 144, 180), sky_mid=(170, 190, 200), sky_bot=(224, 214, 188), horizon=(238, 220, 178), star_alpha=0)),
+    (0.18, dict(sky_top=(116, 152, 188), sky_mid=(174, 196, 204), sky_bot=(228, 218, 188), horizon=(242, 222, 176), star_alpha=0)),
+    (0.30, dict(sky_top=(118, 148, 182), sky_mid=(176, 192, 200), sky_bot=(230, 214, 180), horizon=(244, 218, 166), star_alpha=0)),
+    (0.40, dict(sky_top=(116, 142, 178), sky_mid=(178, 188, 192), sky_bot=(236, 210, 168), horizon=(248, 212, 152), star_alpha=0)),
+    (0.50, dict(sky_top=(98, 116, 160), sky_mid=(174, 168, 174), sky_bot=(238, 198, 156), horizon=(248, 194, 136), star_alpha=12)),
     (0.62, dict(sky_top=(56, 64, 104), sky_mid=(116, 108, 124), sky_bot=(186, 162, 142), horizon=(224, 184, 142), star_alpha=78)),
     (0.72, dict(sky_top=(20, 22, 52), sky_mid=(44, 42, 72), sky_bot=(88, 76, 88), horizon=(146, 116, 100), star_alpha=195)),
     (0.80, dict(sky_top=(32, 32, 66), sky_mid=(70, 62, 90), sky_bot=(132, 110, 110), horizon=(200, 162, 130), star_alpha=115)),
@@ -134,21 +134,21 @@ PALE_AMBER_HAZE = BiomeSpec(
 # desaturated sea-mist by day, the horizon a touch paler. Owns the teal hue at
 # moderate chroma, with a saturated-dark teal night.
 _TEAL_KF = [
-    (0.06, dict(sky_top=(58, 128, 144), sky_mid=(112, 176, 178), sky_bot=(176, 210, 200), horizon=(206, 224, 208), star_alpha=0)),
-    (0.18, dict(sky_top=(54, 134, 152), sky_mid=(108, 182, 184), sky_bot=(172, 214, 202), horizon=(204, 226, 208), star_alpha=0)),
-    (0.30, dict(sky_top=(58, 130, 146), sky_mid=(114, 178, 178), sky_bot=(178, 212, 198), horizon=(208, 224, 204), star_alpha=0)),
-    (0.40, dict(sky_top=(62, 122, 140), sky_mid=(122, 170, 172), sky_bot=(186, 206, 192), horizon=(218, 216, 192), star_alpha=0)),
-    (0.50, dict(sky_top=(56, 100, 128), sky_mid=(124, 150, 162), sky_bot=(196, 192, 184), horizon=(232, 200, 168), star_alpha=12)),
-    (0.62, dict(sky_top=(28, 60, 92), sky_mid=(56, 110, 126), sky_bot=(110, 158, 158), horizon=(170, 192, 178), star_alpha=80)),
-    (0.72, dict(sky_top=(6, 26, 48), sky_mid=(14, 60, 78), sky_bot=(28, 98, 104), horizon=(60, 134, 124), star_alpha=205)),
-    (0.80, dict(sky_top=(10, 34, 58), sky_mid=(24, 78, 96), sky_bot=(48, 124, 124), horizon=(102, 162, 150), star_alpha=120)),
-    (0.88, dict(sky_top=(46, 116, 136), sky_mid=(100, 172, 176), sky_bot=(170, 210, 198), horizon=(208, 224, 202), star_alpha=20)),
-    (0.94, dict(sky_top=(56, 126, 144), sky_mid=(110, 178, 180), sky_bot=(176, 212, 200), horizon=(206, 224, 206), star_alpha=0)),
+    (0.06, dict(sky_top=(118, 146, 162), sky_mid=(164, 188, 198), sky_bot=(202, 216, 218), horizon=(216, 224, 222), star_alpha=0)),
+    (0.18, dict(sky_top=(120, 150, 168), sky_mid=(166, 192, 202), sky_bot=(204, 218, 220), horizon=(218, 226, 224), star_alpha=0)),
+    (0.30, dict(sky_top=(120, 148, 164), sky_mid=(166, 190, 200), sky_bot=(204, 216, 216), horizon=(218, 224, 222), star_alpha=0)),
+    (0.40, dict(sky_top=(120, 142, 158), sky_mid=(168, 186, 194), sky_bot=(208, 212, 210), horizon=(224, 218, 208), star_alpha=0)),
+    (0.50, dict(sky_top=(104, 120, 148), sky_mid=(160, 166, 182), sky_bot=(210, 202, 198), horizon=(232, 204, 182), star_alpha=12)),
+    (0.62, dict(sky_top=(48, 74, 108), sky_mid=(84, 122, 148), sky_bot=(136, 168, 178), horizon=(186, 200, 196), star_alpha=80)),
+    (0.72, dict(sky_top=(8, 26, 56), sky_mid=(16, 58, 94), sky_bot=(28, 96, 124), horizon=(58, 132, 146), star_alpha=205)),
+    (0.80, dict(sky_top=(12, 34, 66), sky_mid=(24, 76, 112), sky_bot=(46, 120, 144), horizon=(98, 158, 168), star_alpha=120)),
+    (0.88, dict(sky_top=(106, 138, 154), sky_mid=(156, 186, 196), sky_bot=(198, 216, 218), horizon=(216, 224, 220), star_alpha=20)),
+    (0.94, dict(sky_top=(116, 144, 160), sky_mid=(162, 188, 198), sky_bot=(202, 216, 218), horizon=(214, 224, 222), star_alpha=0)),
 ]
 
 MISTY_TEAL = BiomeSpec(
     name='Misty Teal',
-    note='Soft sea-mist teal day kept clearly teal (not green, not plain blue), through a muted aqua dusk to a saturated-dark teal night.',
+    note='Whisper of blue-teal sea-mist — low-chroma, hue pushed past cyan to blue-teal so it reads as recessive backdrop not foliage — through a muted aqua dusk to a saturated-dark teal night.',
     keyframes=_TEAL_KF,
     sky=SkyParams(positions=(0.0, 0.32, 0.60, 0.82, 1.0), dither_amp=2.0, zenith_dark=0.10),
 )
@@ -211,16 +211,16 @@ LAVENDER_DUSK = BiomeSpec(
 # day. Owns the "deep starlit navy" win from the vivid set, kept restrained:
 # rich but never neon, the strongest starfield of the band.
 _NAVY_KF = [
-    (0.06, dict(sky_top=(34, 60, 124), sky_mid=(58, 102, 168), sky_bot=(110, 156, 198), horizon=(160, 196, 216), star_alpha=30)),
-    (0.18, dict(sky_top=(32, 66, 134), sky_mid=(54, 110, 178), sky_bot=(104, 162, 204), horizon=(154, 200, 220), star_alpha=22)),
-    (0.30, dict(sky_top=(36, 62, 128), sky_mid=(60, 106, 172), sky_bot=(112, 158, 200), horizon=(162, 196, 216), star_alpha=20)),
-    (0.40, dict(sky_top=(38, 56, 118), sky_mid=(70, 98, 158), sky_bot=(128, 150, 190), horizon=(184, 196, 210), star_alpha=18)),
-    (0.50, dict(sky_top=(36, 46, 108), sky_mid=(78, 82, 146), sky_bot=(150, 138, 176), horizon=(216, 184, 176), star_alpha=28)),
+    (0.06, dict(sky_top=(24, 42, 96), sky_mid=(38, 70, 126), sky_bot=(62, 102, 150), horizon=(94, 134, 170), star_alpha=40)),
+    (0.18, dict(sky_top=(22, 46, 102), sky_mid=(36, 76, 134), sky_bot=(60, 108, 156), horizon=(92, 140, 176), star_alpha=32)),
+    (0.30, dict(sky_top=(26, 44, 100), sky_mid=(40, 72, 128), sky_bot=(64, 104, 152), horizon=(96, 136, 170), star_alpha=30)),
+    (0.40, dict(sky_top=(28, 42, 94), sky_mid=(46, 70, 120), sky_bot=(72, 100, 146), horizon=(108, 134, 168), star_alpha=28)),
+    (0.50, dict(sky_top=(28, 38, 92), sky_mid=(56, 64, 122), sky_bot=(98, 100, 148), horizon=(150, 136, 154), star_alpha=34)),
     (0.62, dict(sky_top=(20, 30, 80), sky_mid=(38, 62, 120), sky_bot=(78, 116, 162), horizon=(140, 174, 192), star_alpha=120)),
     (0.72, dict(sky_top=(6, 10, 44), sky_mid=(12, 28, 80), sky_bot=(24, 58, 116), horizon=(50, 100, 150), star_alpha=240)),
     (0.80, dict(sky_top=(8, 16, 56), sky_mid=(20, 44, 100), sky_bot=(40, 86, 142), horizon=(88, 138, 176), star_alpha=160)),
-    (0.88, dict(sky_top=(28, 50, 110), sky_mid=(50, 96, 164), sky_bot=(104, 156, 198), horizon=(160, 198, 216), star_alpha=50)),
-    (0.94, dict(sky_top=(34, 58, 122), sky_mid=(56, 102, 168), sky_bot=(110, 156, 198), horizon=(160, 196, 216), star_alpha=34)),
+    (0.88, dict(sky_top=(24, 42, 98), sky_mid=(38, 72, 128), sky_bot=(62, 104, 152), horizon=(96, 138, 174), star_alpha=58)),
+    (0.94, dict(sky_top=(24, 42, 96), sky_mid=(38, 70, 126), sky_bot=(62, 102, 150), horizon=(94, 134, 170), star_alpha=42)),
 ]
 
 STARLIT_NAVY = BiomeSpec(
@@ -237,21 +237,21 @@ STARLIT_NAVY = BiomeSpec(
 # distant peaks). Crisp and airy, the horizon paler/cooler than Powder Morning,
 # with a clean cool-blue night.
 _ALPINE_KF = [
-    (0.06, dict(sky_top=(56, 110, 184), sky_mid=(116, 162, 204), sky_bot=(172, 196, 210), horizon=(198, 212, 216), star_alpha=0)),
-    (0.18, dict(sky_top=(52, 116, 194), sky_mid=(112, 168, 210), sky_bot=(170, 200, 214), horizon=(198, 214, 218), star_alpha=0)),
-    (0.30, dict(sky_top=(58, 112, 186), sky_mid=(118, 164, 204), sky_bot=(176, 196, 210), horizon=(202, 212, 214), star_alpha=0)),
-    (0.40, dict(sky_top=(58, 104, 174), sky_mid=(122, 154, 194), sky_bot=(182, 192, 204), horizon=(210, 210, 210), star_alpha=0)),
-    (0.50, dict(sky_top=(52, 84, 152), sky_mid=(118, 134, 182), sky_bot=(186, 184, 200), horizon=(224, 200, 188), star_alpha=12)),
-    (0.62, dict(sky_top=(28, 46, 104), sky_mid=(62, 96, 152), sky_bot=(118, 152, 184), horizon=(178, 192, 200), star_alpha=80)),
-    (0.72, dict(sky_top=(8, 16, 52), sky_mid=(16, 42, 96), sky_bot=(32, 76, 126), horizon=(64, 116, 158), star_alpha=210)),
-    (0.80, dict(sky_top=(12, 26, 68), sky_mid=(26, 60, 116), sky_bot=(50, 102, 148), horizon=(98, 148, 180), star_alpha=130)),
-    (0.88, dict(sky_top=(46, 96, 168), sky_mid=(104, 154, 200), sky_bot=(166, 194, 210), horizon=(200, 212, 214), star_alpha=20)),
-    (0.94, dict(sky_top=(54, 108, 182), sky_mid=(114, 162, 204), sky_bot=(172, 196, 210), horizon=(198, 212, 216), star_alpha=0)),
+    (0.06, dict(sky_top=(86, 158, 186), sky_mid=(150, 192, 202), sky_bot=(196, 212, 210), horizon=(214, 218, 212), star_alpha=0)),
+    (0.18, dict(sky_top=(82, 164, 194), sky_mid=(148, 196, 208), sky_bot=(196, 214, 212), horizon=(216, 220, 212), star_alpha=0)),
+    (0.30, dict(sky_top=(86, 160, 188), sky_mid=(152, 192, 204), sky_bot=(198, 212, 208), horizon=(216, 218, 210), star_alpha=0)),
+    (0.40, dict(sky_top=(88, 152, 178), sky_mid=(156, 186, 196), sky_bot=(202, 208, 202), horizon=(220, 214, 204), star_alpha=0)),
+    (0.50, dict(sky_top=(74, 126, 160), sky_mid=(146, 168, 184), sky_bot=(202, 200, 196), horizon=(230, 204, 184), star_alpha=12)),
+    (0.62, dict(sky_top=(34, 76, 116), sky_mid=(76, 126, 160), sky_bot=(134, 172, 186), horizon=(190, 204, 200), star_alpha=80)),
+    (0.72, dict(sky_top=(8, 28, 62), sky_mid=(16, 64, 104), sky_bot=(34, 104, 136), horizon=(70, 144, 164), star_alpha=210)),
+    (0.80, dict(sky_top=(12, 38, 78), sky_mid=(26, 84, 124), sky_bot=(54, 126, 156), horizon=(108, 166, 186), star_alpha=130)),
+    (0.88, dict(sky_top=(76, 146, 176), sky_mid=(140, 186, 200), sky_bot=(190, 210, 208), horizon=(214, 218, 210), star_alpha=20)),
+    (0.94, dict(sky_top=(84, 156, 184), sky_mid=(148, 192, 202), sky_bot=(196, 212, 210), horizon=(214, 218, 212), star_alpha=0)),
 ]
 
 ALPINE_HAZE = BiomeSpec(
     name='Alpine Haze',
-    note='Thin high-altitude air — deep clean cobalt zenith fading to a cool cloud-blue haze line at the horizon — crisp, airy, clean cool-blue night.',
+    note='Thin high-altitude air — glacial cyan-cool zenith desaturating into a pale cloud-grey haze line at the horizon — crisp, airy, distinct from cobalt blue, clean cool-cyan night.',
     keyframes=_ALPINE_KF,
     sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14),
 )
@@ -263,21 +263,21 @@ ALPINE_HAZE = BiomeSpec(
 # green) zenith over a paler dust-sage horizon. Soft, dry, herbal. The chroma is
 # low and the hue sits past cyan toward blue at the top to stay off-foliage.
 _EUCALYPTUS_KF = [
-    (0.06, dict(sky_top=(96, 150, 158), sky_mid=(154, 192, 184), sky_bot=(198, 216, 198), horizon=(214, 222, 200), star_alpha=0)),
-    (0.18, dict(sky_top=(98, 156, 166), sky_mid=(158, 198, 190), sky_bot=(200, 220, 200), horizon=(216, 224, 200), star_alpha=0)),
-    (0.30, dict(sky_top=(100, 152, 160), sky_mid=(160, 194, 186), sky_bot=(202, 216, 196), horizon=(216, 220, 196), star_alpha=0)),
-    (0.40, dict(sky_top=(100, 144, 154), sky_mid=(162, 186, 178), sky_bot=(206, 212, 190), horizon=(222, 216, 188), star_alpha=0)),
-    (0.50, dict(sky_top=(88, 120, 142), sky_mid=(158, 166, 168), sky_bot=(210, 200, 182), horizon=(232, 204, 174), star_alpha=12)),
-    (0.62, dict(sky_top=(44, 70, 96), sky_mid=(86, 124, 134), sky_bot=(146, 174, 166), horizon=(196, 204, 184), star_alpha=78)),
-    (0.72, dict(sky_top=(12, 28, 46), sky_mid=(24, 64, 76), sky_bot=(46, 104, 102), horizon=(86, 144, 130), star_alpha=200)),
-    (0.80, dict(sky_top=(18, 36, 56), sky_mid=(36, 80, 92), sky_bot=(66, 126, 122), horizon=(124, 168, 152), star_alpha=118)),
-    (0.88, dict(sky_top=(84, 138, 150), sky_mid=(146, 188, 182), sky_bot=(196, 216, 198), horizon=(214, 222, 200), star_alpha=20)),
-    (0.94, dict(sky_top=(94, 148, 158), sky_mid=(152, 192, 184), sky_bot=(198, 216, 198), horizon=(214, 222, 200), star_alpha=0)),
+    (0.06, dict(sky_top=(104, 128, 162), sky_mid=(160, 180, 196), sky_bot=(202, 214, 200), horizon=(216, 220, 192), star_alpha=0)),
+    (0.18, dict(sky_top=(106, 132, 168), sky_mid=(164, 184, 200), sky_bot=(204, 216, 200), horizon=(218, 222, 192), star_alpha=0)),
+    (0.30, dict(sky_top=(108, 130, 164), sky_mid=(166, 182, 196), sky_bot=(206, 214, 196), horizon=(218, 218, 188), star_alpha=0)),
+    (0.40, dict(sky_top=(108, 126, 158), sky_mid=(168, 178, 190), sky_bot=(210, 210, 188), horizon=(224, 214, 180), star_alpha=0)),
+    (0.50, dict(sky_top=(94, 110, 146), sky_mid=(162, 160, 174), sky_bot=(214, 198, 178), horizon=(234, 202, 168), star_alpha=12)),
+    (0.62, dict(sky_top=(46, 66, 102), sky_mid=(92, 116, 138), sky_bot=(152, 172, 160), horizon=(202, 204, 176), star_alpha=78)),
+    (0.72, dict(sky_top=(12, 26, 52), sky_mid=(24, 58, 80), sky_bot=(48, 102, 100), horizon=(92, 146, 126), star_alpha=200)),
+    (0.80, dict(sky_top=(18, 34, 62), sky_mid=(36, 74, 94), sky_bot=(68, 124, 120), horizon=(130, 168, 148), star_alpha=118)),
+    (0.88, dict(sky_top=(92, 120, 154), sky_mid=(152, 178, 192), sky_bot=(200, 214, 198), horizon=(216, 220, 192), star_alpha=20)),
+    (0.94, dict(sky_top=(102, 126, 160), sky_mid=(158, 180, 196), sky_bot=(202, 214, 200), horizon=(216, 220, 192), star_alpha=0)),
 ]
 
 COOL_EUCALYPTUS = BiomeSpec(
     name='Cool Eucalyptus',
-    note='Hazy pale sage-cyan day steered COOL (clearly blue-green, never leaf green) over a dust-sage horizon — soft, dry, herbal — to a deep slate-teal night.',
+    note='Grey-blue slate zenith with the eucalyptus sage confined to a low dust-sage horizon band — cool up high so it never competes with foliage, herbal warmth only at the ground — to a deep slate-teal night.',
     keyframes=_EUCALYPTUS_KF,
     sky=SkyParams(positions=(0.0, 0.32, 0.60, 0.82, 1.0), dither_amp=2.2, zenith_dark=0.10),
 )
@@ -289,23 +289,23 @@ COOL_EUCALYPTUS = BiomeSpec(
 # the horizon. The softest, most diffuse, lowest-contrast backdrop — overcast
 # but luminous, never flat charcoal. Night is a saturated blue-grey, not black.
 _PEARL_KF = [
-    (0.06, dict(sky_top=(118, 142, 172), sky_mid=(174, 192, 206), sky_bot=(214, 220, 220), horizon=(230, 226, 214), star_alpha=0)),
-    (0.18, dict(sky_top=(122, 148, 180), sky_mid=(178, 198, 212), sky_bot=(216, 222, 222), horizon=(232, 228, 216), star_alpha=0)),
-    (0.30, dict(sky_top=(120, 144, 176), sky_mid=(176, 194, 208), sky_bot=(214, 220, 218), horizon=(230, 224, 212), star_alpha=0)),
-    (0.40, dict(sky_top=(120, 138, 168), sky_mid=(178, 190, 200), sky_bot=(218, 218, 212), horizon=(236, 222, 204), star_alpha=0)),
-    (0.50, dict(sky_top=(106, 118, 156), sky_mid=(174, 174, 192), sky_bot=(220, 208, 202), horizon=(240, 212, 188), star_alpha=12)),
-    (0.62, dict(sky_top=(56, 68, 108), sky_mid=(108, 124, 152), sky_bot=(170, 184, 192), horizon=(212, 212, 204), star_alpha=72)),
-    (0.72, dict(sky_top=(20, 26, 56), sky_mid=(42, 54, 90), sky_bot=(78, 96, 124), horizon=(126, 142, 158), star_alpha=185)),
-    (0.80, dict(sky_top=(30, 38, 72), sky_mid=(62, 76, 112), sky_bot=(116, 132, 152), horizon=(186, 188, 184), star_alpha=108)),
-    (0.88, dict(sky_top=(106, 130, 164), sky_mid=(168, 188, 204), sky_bot=(214, 220, 218), horizon=(232, 224, 210), star_alpha=18)),
-    (0.94, dict(sky_top=(118, 142, 174), sky_mid=(174, 194, 208), sky_bot=(214, 220, 220), horizon=(230, 226, 214), star_alpha=0)),
+    (0.06, dict(sky_top=(140, 142, 170), sky_mid=(190, 192, 208), sky_bot=(218, 218, 222), horizon=(230, 224, 216), star_alpha=0)),
+    (0.18, dict(sky_top=(144, 146, 176), sky_mid=(192, 196, 212), sky_bot=(220, 220, 224), horizon=(232, 226, 218), star_alpha=0)),
+    (0.30, dict(sky_top=(142, 144, 174), sky_mid=(190, 194, 210), sky_bot=(218, 218, 222), horizon=(230, 224, 214), star_alpha=0)),
+    (0.40, dict(sky_top=(140, 140, 168), sky_mid=(190, 190, 204), sky_bot=(220, 216, 216), horizon=(236, 222, 206), star_alpha=0)),
+    (0.50, dict(sky_top=(124, 120, 156), sky_mid=(184, 178, 196), sky_bot=(222, 208, 204), horizon=(240, 212, 190), star_alpha=12)),
+    (0.62, dict(sky_top=(66, 66, 110), sky_mid=(116, 122, 152), sky_bot=(174, 184, 192), horizon=(212, 210, 204), star_alpha=72)),
+    (0.72, dict(sky_top=(28, 26, 58), sky_mid=(50, 54, 92), sky_bot=(86, 96, 126), horizon=(132, 142, 160), star_alpha=185)),
+    (0.80, dict(sky_top=(38, 38, 76), sky_mid=(70, 76, 114), sky_bot=(122, 132, 154), horizon=(188, 188, 186), star_alpha=108)),
+    (0.88, dict(sky_top=(128, 132, 164), sky_mid=(182, 188, 206), sky_bot=(218, 218, 222), horizon=(232, 224, 212), star_alpha=18)),
+    (0.94, dict(sky_top=(140, 142, 172), sky_mid=(190, 192, 208), sky_bot=(218, 218, 222), horizon=(230, 224, 216), star_alpha=0)),
 ]
 
 PEARL_OVERCAST = BiomeSpec(
     name='Pearl Overcast',
     note='Softest diffuse backdrop — pearl-grey-blue held cool by a decisive blue cast with one barely-warm cream wash low — overcast but luminous, blue-grey night, never charcoal.',
     keyframes=_PEARL_KF,
-    sky=SkyParams(positions=(0.0, 0.34, 0.62, 0.84, 1.0), dither_amp=2.4, zenith_dark=0.09),
+    sky=SkyParams(positions=(0.0, 0.34, 0.62, 0.84, 1.0), dither_amp=2.4, zenith_dark=0.15),
 )
 
 
