@@ -40,19 +40,21 @@ from game.biome_sky import BiomeSpec, SkyParams
 
 
 # ── 1. Tropical Lagoon — turquoise day, teal blue-hour, warm reef sunset ───────
-# Pushed the midday horizon off near-white into a richer reef-turquoise so the
-# lower third keeps its saltwater identity colour at noon instead of bleaching.
+# Pushed the midday horizon off near-white into a richer reef-turquoise. Beside
+# its cool blue neighbours (Cosmos/Emerald) the day horizon glow is tipped a few
+# degrees toward aqua-green turquoise (hue ~170°) and the zenith given a faint
+# warmth, so it reads unmistakably "lagoon" rather than generic blue sky.
 _LAGOON_KF = [
-    (0.06, dict(sky_top=(20, 138, 210), sky_mid=(44, 196, 224), sky_bot=(64, 226, 210), horizon=(86, 238, 188), star_alpha=0)),
-    (0.18, dict(sky_top=(14, 146, 220), sky_mid=(34, 200, 228), sky_bot=(54, 228, 208), horizon=(72, 236, 178), star_alpha=0)),
-    (0.30, dict(sky_top=(22, 150, 216), sky_mid=(54, 206, 226), sky_bot=(80, 230, 204), horizon=(112, 238, 178), star_alpha=0)),
+    (0.06, dict(sky_top=(36, 148, 204), sky_mid=(50, 202, 222), sky_bot=(64, 230, 214), horizon=(76, 240, 214), star_alpha=0)),
+    (0.18, dict(sky_top=(34, 156, 210), sky_mid=(44, 206, 224), sky_bot=(58, 232, 214), horizon=(72, 240, 212), star_alpha=0)),
+    (0.30, dict(sky_top=(42, 160, 206), sky_mid=(64, 210, 222), sky_bot=(82, 234, 212), horizon=(102, 240, 210), star_alpha=0)),
     (0.40, dict(sky_top=(64, 158, 206), sky_mid=(132, 214, 206), sky_bot=(244, 218, 150), horizon=(255, 222, 138), star_alpha=0)),
     (0.50, dict(sky_top=(58, 110, 168), sky_mid=(180, 142, 150), sky_bot=(255, 158, 110), horizon=(255, 188, 120), star_alpha=10)),
     (0.62, dict(sky_top=(22, 58, 110), sky_mid=(40, 116, 142), sky_bot=(120, 156, 150), horizon=(232, 162, 120), star_alpha=70)),
     (0.72, dict(sky_top=(6, 22, 56), sky_mid=(12, 56, 92), sky_bot=(26, 92, 110), horizon=(72, 132, 134), star_alpha=210)),
     (0.80, dict(sky_top=(10, 30, 70), sky_mid=(20, 76, 116), sky_bot=(48, 128, 138), horizon=(150, 178, 156), star_alpha=120)),
     (0.88, dict(sky_top=(20, 96, 162), sky_mid=(70, 168, 196), sky_bot=(190, 214, 178), horizon=(255, 216, 168), star_alpha=20)),
-    (0.94, dict(sky_top=(26, 132, 198), sky_mid=(92, 198, 216), sky_bot=(214, 240, 204), horizon=(255, 230, 184), star_alpha=0)),
+    (0.94, dict(sky_top=(32, 140, 200), sky_mid=(94, 202, 216), sky_bot=(206, 240, 206), horizon=(255, 230, 186), star_alpha=0)),
 ]
 
 TROPICAL_LAGOON = BiomeSpec(
@@ -64,17 +66,21 @@ TROPICAL_LAGOON = BiomeSpec(
 
 
 # ── 2. Aurora Tundra — cold cyan day, green-violet curtains over indigo night ─
+# Daytime (cols 4-7) was the palest, most neutral block on the sheet and drifted
+# toward melancholic in motion. The day horizon band now carries a faint aurora
+# green-teal shimmer (hue ~178°, sat lifted to ~0.32) so the row keeps its polar
+# identity through the bright phases — the spectacular dusk/night is untouched.
 _AURORA_KF = [
-    (0.06, dict(sky_top=(36, 96, 168), sky_mid=(96, 168, 206), sky_bot=(176, 214, 224), horizon=(214, 234, 230), star_alpha=0)),
-    (0.18, dict(sky_top=(30, 104, 182), sky_mid=(88, 176, 214), sky_bot=(170, 216, 228), horizon=(206, 232, 230), star_alpha=0)),
-    (0.30, dict(sky_top=(38, 100, 176), sky_mid=(102, 172, 208), sky_bot=(182, 216, 224), horizon=(222, 232, 222), star_alpha=0)),
-    (0.40, dict(sky_top=(58, 92, 158), sky_mid=(128, 168, 188), sky_bot=(214, 210, 196), horizon=(244, 222, 186), star_alpha=0)),
+    (0.06, dict(sky_top=(34, 100, 176), sky_mid=(80, 182, 214), sky_bot=(124, 224, 218), horizon=(158, 240, 234), star_alpha=0)),
+    (0.18, dict(sky_top=(28, 108, 188), sky_mid=(70, 190, 222), sky_bot=(112, 228, 220), horizon=(160, 240, 238), star_alpha=0)),
+    (0.30, dict(sky_top=(36, 104, 182), sky_mid=(86, 186, 216), sky_bot=(130, 226, 216), horizon=(170, 238, 230), star_alpha=0)),
+    (0.40, dict(sky_top=(58, 92, 158), sky_mid=(126, 170, 192), sky_bot=(210, 214, 202), horizon=(238, 226, 200), star_alpha=0)),
     (0.50, dict(sky_top=(46, 64, 132), sky_mid=(108, 110, 160), sky_bot=(204, 158, 160), horizon=(248, 188, 154), star_alpha=20)),
     (0.62, dict(sky_top=(18, 36, 92), sky_mid=(34, 92, 122), sky_bot=(72, 158, 142), horizon=(168, 184, 150), star_alpha=110)),
     (0.72, dict(sky_top=(6, 14, 48), sky_mid=(16, 60, 86), sky_bot=(34, 130, 118), horizon=(96, 176, 138), star_alpha=235)),
     (0.80, dict(sky_top=(10, 18, 56), sky_mid=(24, 70, 100), sky_bot=(58, 132, 134), horizon=(126, 168, 150), star_alpha=170)),
     (0.88, dict(sky_top=(22, 48, 108), sky_mid=(56, 116, 158), sky_bot=(128, 184, 196), horizon=(206, 218, 204), star_alpha=40)),
-    (0.94, dict(sky_top=(32, 86, 158), sky_mid=(92, 162, 200), sky_bot=(178, 212, 220), horizon=(226, 230, 220), star_alpha=10)),
+    (0.94, dict(sky_top=(30, 92, 166), sky_mid=(82, 172, 208), sky_bot=(140, 222, 212), horizon=(174, 238, 212), star_alpha=10)),
 ]
 
 AURORA_TUNDRA = BiomeSpec(
@@ -138,20 +144,22 @@ MONSOON_STORM_FRONT = BiomeSpec(
 
 
 # ── 5. Cherry-Blossom Spring — periwinkle day, sakura-pink horizon, lilac dusk ─
-# Anti-candy: deepened the zenith value (was too light at midday) and threaded a
-# distinct cool PERIWINKLE band through the upper-mid so the row isn't a uniform
-# bubblegum pink — a painterly lilac→periwinkle→sakura arc with real value depth.
+# Anti-candy: deepened the zenith value and threaded a distinct cool PERIWINKLE
+# band through the upper-mid. The daytime mid-field now carries a THIRD value
+# step — a thin warm lilac→peach break at the sky_bot stop (~0.55 vertical) — so
+# the grade has a painterly middle instead of a straight periwinkle→pink lerp;
+# midday horizon saturation nudged up so the sakura reads richer at noon.
 _SAKURA_KF = [
-    (0.06, dict(sky_top=(64, 88, 198), sky_mid=(120, 142, 224), sky_bot=(212, 162, 212), horizon=(250, 146, 184), star_alpha=0)),
-    (0.18, dict(sky_top=(54, 82, 202), sky_mid=(112, 136, 226), sky_bot=(208, 158, 212), horizon=(250, 140, 180), star_alpha=0)),
-    (0.30, dict(sky_top=(66, 88, 200), sky_mid=(124, 142, 224), sky_bot=(214, 160, 210), horizon=(252, 142, 180), star_alpha=0)),
+    (0.06, dict(sky_top=(64, 88, 198), sky_mid=(126, 148, 226), sky_bot=(232, 182, 194), horizon=(252, 132, 174), star_alpha=0)),
+    (0.18, dict(sky_top=(54, 82, 202), sky_mid=(118, 142, 228), sky_bot=(230, 178, 192), horizon=(252, 124, 168), star_alpha=0)),
+    (0.30, dict(sky_top=(66, 88, 200), sky_mid=(130, 148, 226), sky_bot=(234, 180, 190), horizon=(254, 126, 168), star_alpha=0)),
     (0.40, dict(sky_top=(90, 90, 196), sky_mid=(166, 146, 214), sky_bot=(238, 180, 200), horizon=(255, 168, 182), star_alpha=0)),
     (0.50, dict(sky_top=(112, 92, 176), sky_mid=(202, 142, 186), sky_bot=(252, 178, 184), horizon=(255, 192, 184), star_alpha=10)),
     (0.62, dict(sky_top=(54, 46, 122), sky_mid=(120, 86, 158), sky_bot=(200, 138, 172), horizon=(246, 174, 180), star_alpha=70)),
     (0.72, dict(sky_top=(14, 14, 56), sky_mid=(36, 28, 86), sky_bot=(76, 54, 112), horizon=(146, 100, 134), star_alpha=205)),
     (0.80, dict(sky_top=(26, 22, 80), sky_mid=(58, 44, 116), sky_bot=(118, 86, 148), horizon=(206, 150, 172), star_alpha=110)),
     (0.88, dict(sky_top=(74, 84, 188), sky_mid=(160, 150, 218), sky_bot=(244, 196, 208), horizon=(255, 200, 198), star_alpha=20)),
-    (0.94, dict(sky_top=(72, 110, 206), sky_mid=(150, 172, 228), sky_bot=(236, 208, 222), horizon=(255, 210, 212), star_alpha=0)),
+    (0.94, dict(sky_top=(72, 110, 206), sky_mid=(150, 172, 228), sky_bot=(244, 196, 204), horizon=(255, 196, 202), star_alpha=0)),
 ]
 
 CHERRY_BLOSSOM_SPRING = BiomeSpec(
@@ -261,20 +269,21 @@ HIGH_ALTITUDE_COSMOS = BiomeSpec(
 
 # ── 10. Rose-Gold Salt Flat — soft lavender day, champagne-amber horizon, rose night ─
 # Split decisively WARM from Cosmos: a soft lavender zenith pouring down into a
-# genuinely champagne-AMBER horizon — rose-gold metal, not pink wash. Holds a
-# warm chroma through midday so it never bleaches to PowerPoint white, and a
-# saturated mauve-rose night that doesn't drift neutral.
+# genuinely champagne-AMBER horizon — rose-gold metal, not pink wash. The day
+# zenith is deepened ~10% for more presence and the midday horizon glow warmed
+# (hue ~28°, sat up) so the row carries real daytime energy instead of sitting
+# lowest on the sheet — still a saturated mauve-rose night that won't drift grey.
 _SALTFLAT_KF = [
-    (0.06, dict(sky_top=(146, 134, 196), sky_mid=(220, 184, 178), sky_bot=(252, 212, 158), horizon=(255, 198, 128), star_alpha=0)),
-    (0.18, dict(sky_top=(140, 130, 200), sky_mid=(218, 180, 174), sky_bot=(252, 208, 150), horizon=(255, 194, 120), star_alpha=0)),
-    (0.30, dict(sky_top=(150, 134, 192), sky_mid=(228, 182, 168), sky_bot=(255, 206, 144), horizon=(255, 190, 114), star_alpha=0)),
+    (0.06, dict(sky_top=(118, 106, 174), sky_mid=(218, 176, 164), sky_bot=(252, 202, 138), horizon=(255, 178, 106), star_alpha=0)),
+    (0.18, dict(sky_top=(112, 102, 176), sky_mid=(216, 172, 158), sky_bot=(252, 196, 128), horizon=(255, 176, 100), star_alpha=0)),
+    (0.30, dict(sky_top=(122, 106, 168), sky_mid=(226, 174, 154), sky_bot=(255, 194, 124), horizon=(255, 172, 96), star_alpha=0)),
     (0.40, dict(sky_top=(158, 128, 178), sky_mid=(244, 178, 152), sky_bot=(255, 200, 132), horizon=(255, 186, 108), star_alpha=0)),
     (0.50, dict(sky_top=(150, 100, 156), sky_mid=(244, 154, 138), sky_bot=(255, 184, 124), horizon=(255, 192, 124), star_alpha=10)),
     (0.62, dict(sky_top=(84, 52, 116), sky_mid=(176, 96, 124), sky_bot=(238, 150, 122), horizon=(255, 182, 132), star_alpha=70)),
     (0.72, dict(sky_top=(28, 16, 60), sky_mid=(70, 36, 80), sky_bot=(132, 66, 92), horizon=(204, 120, 110), star_alpha=205)),
     (0.80, dict(sky_top=(42, 26, 76), sky_mid=(102, 56, 102), sky_bot=(174, 100, 116), horizon=(244, 158, 132), star_alpha=115)),
     (0.88, dict(sky_top=(132, 110, 184), sky_mid=(224, 174, 178), sky_bot=(255, 200, 158), horizon=(255, 192, 130), star_alpha=20)),
-    (0.94, dict(sky_top=(146, 132, 194), sky_mid=(222, 182, 176), sky_bot=(254, 210, 156), horizon=(255, 196, 126), star_alpha=0)),
+    (0.94, dict(sky_top=(132, 118, 184), sky_mid=(222, 178, 166), sky_bot=(254, 204, 142), horizon=(255, 184, 108), star_alpha=0)),
 ]
 
 ROSE_GOLD_SALT_FLAT = BiomeSpec(

@@ -2,7 +2,7 @@
 
 Renders the 10 `tools.sky_concepts.CONCEPTS` (rows) across 12 day-phase samples
 in natural day order (columns), sky-only via `paint_sky` with stars kept on,
-into `docs/biome_redesign/round_9.png`. Larger cells than the old port-check
+into `docs/biome_redesign/round_10.png`. Larger cells than the old port-check
 sheet for the requested high-quality read. Dev aid only — the game never
 imports this; the live `ACTIVE_SKY_DESIGN` is untouched.
 
@@ -81,7 +81,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     # Title rides in the top-left gutter corner above the rows.
-    title = f_title.render("Skybit sky concepts — round 9 (10 fresh)", True, (245, 246, 250))
+    title = f_title.render("Skybit sky concepts — round 10 (polish)", True, (245, 246, 250))
     sheet.blit(title, (10, 6))
 
     # Column labels (phase names) along the top strip.
@@ -106,7 +106,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "round_9.png")
+                       "docs", "biome_redesign", "round_10.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")
