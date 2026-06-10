@@ -43,6 +43,7 @@ from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 from game import foreground_variants as _fv
 from game import ped_cast as _ped
 from game import day_cast as _day
+from game import food_stalls as _food
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -1039,6 +1040,43 @@ def _scene_market(emit, bx, pal, t, rng, pick=None):
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
     emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 152, pal, t=t, n=2, variant=kv))
 
+
+def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer"):
+    """One food-market stall structure (steamer/cauldron/grill/wok/tea) from
+    food_stalls, feet/base on GROUND_Y, centred on `sx`. A far-lane STRUCTURE; the
+    working vendor is placed separately (CAST) so it sorts in front of the booth."""
+    fn, _pose = _food.STALLS.get(kind, _food.STALLS["steamer"])
+    fn(surf, sx, GROUND_Y - 1, _nightf(pal), t)
+
+
+def _scene_food(emit, bx, pal, t, kind, vendor_variant, *, pick=None, cust_salt=0):
+    """A food stall + the vendor working it (fixed pose: fanner at the grill,
+    ladler at the cauldron, etc.) + a browsing customer in front."""
+    cust = pick('pedestrian', cust_salt) if pick else 0
+    emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind))
+    emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
+    emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 32, pal, t=t, variant=cust))
+
+
+def _scene_food_grill(emit, bx, pal, t, rng, pick=None):
+    """A barbecue skewer-grill stall, a vendor fanning the coals, a hungry customer."""
+    _scene_food(emit, bx, pal, t, 'grill', _food.STALLS['grill'][1], pick=pick, cust_salt=61)
+
+
+def _scene_food_soup(emit, bx, pal, t, rng, pick=None):
+    """A big soup-cauldron stall with a vendor ladling broth + a customer."""
+    _scene_food(emit, bx, pal, t, 'cauldron', _food.STALLS['cauldron'][1], pick=pick, cust_salt=62)
+
+
+def _scene_food_steamer(emit, bx, pal, t, rng, pick=None):
+    """A bamboo-steamer dim-sum stall with a vendor + a customer."""
+    _scene_food(emit, bx, pal, t, 'steamer', _food.STALLS['steamer'][1], pick=pick, cust_salt=63)
+
+
+def _scene_food_tea(emit, bx, pal, t, rng, pick=None):
+    """A tea/drinks-urn stall with a vendor + a customer pausing for a cup."""
+    _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], pick=pick, cust_salt=64)
+
 def _draw_calm_dog(surf, sx, pal, *, t=0.0):
     """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
     direction — so it reads as walking forward, not moonwalking backward. Reuses
@@ -1270,15 +1308,16 @@ def _roster_for(phase):
     (4–5 options) + the no-repeat rule in _place_scenarios kill the short loop."""
     p = phase % 1.0
     if p < 0.14:                       # DAY — FOOD-MARKET rush (the run opener)
-        return (_scene_market, _scene_dawn_setup, _scene_market, _scene_vendor)
+        return (_scene_food_grill, _scene_food_soup, _scene_market, _scene_food_steamer,
+                _scene_food_tea, _scene_dawn_setup, _scene_vendor)
     if p < 0.25 or p >= 0.85:          # DAY / SUNRISE — calm morning
         return (_scene_pastoral, _scene_vendor, _scene_quiet, _scene_stroll)
     if p < 0.40:                       # GOLDEN — afternoon stroll
         return (_scene_stroll, _scene_pastoral, _scene_quiet, _scene_bench)
     if p < 0.58:                       # DUSK — lamps lighting
         return (_scene_lamplighter, _scene_stroll, _scene_bench, _scene_rest)
-    if p < 0.80:                       # NIGHT — festival
-        return (_scene_campfire, _scene_market, _scene_stroll, _scene_bench)
+    if p < 0.80:                       # NIGHT — festival (food stalls glow nicely)
+        return (_scene_campfire, _scene_food_grill, _scene_food_soup, _scene_stroll, _scene_bench)
     return (_scene_quiet, _scene_rest) # PRE-DAWN — near-empty teardown
 
 def _dressing(surf, w, scroll, pal, phase):
