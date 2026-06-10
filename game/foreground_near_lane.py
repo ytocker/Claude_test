@@ -61,6 +61,7 @@ from game.pillar_variants import (
 )
 from game import foreground_zbuffer as _zbuf
 from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
+from game import foreground_sprite as _spr
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
@@ -203,44 +204,50 @@ _SCRATCH_W = 96
 # frame (and across frames within an animation bucket) shares one cached surface,
 # instead of allocating + redrawing + scaling a scratch deck per figure per frame.
 # That per-figure alloc was the dominant near-lane cost; this is the perf safeguard.
-_CAST_CACHE = {}
-_CAST_CACHE_CAP = 384
 _CAST_FPS = 8                            # animation buckets/sec for background figures
 
-def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, **kw):
-    """Bake an r17 cast fn (feet on a scratch deck) scaled up by `scale` with
-    NEAREST, memoized by (fn, scale, palette, coarse animation frame, kwargs), and
-    blit so the scaled feet land on `feet_y`. The cast fns read pr.GROUND_Y; we
-    point that at the scratch deck while baking so the figure crops cleanly."""
+# Per-drawer authoring box (w, h). Default fits a standing cast figure; taller/
+# wider acts (performers) get their own box so the supersample bake never clips.
+_NATIVE_BOX = {}
+_DEFAULT_BOX = (_SCRATCH_W, _SCRATCH_H)
+
+
+def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
+                 ss=1, smooth=False, **kw):
+    """Bake a cast fn (feet on a scratch deck) to a footprint `scale`× its box and
+    blit so the feet land on `feet_y`. Served from the shared sprite cache, keyed
+    by (fn, footprint, mode, palette bucket, gait frame, kwargs) — so a `variant=`
+    kwarg bakes distinctly without flicker. NEAREST by default (crisp pixels); a
+    drawer authored at higher detail can pass ss>1 + smooth=True to supersample
+    then anti-alias down. The cast fns read pr.GROUND_Y; we point that at the
+    scratch deck while baking so the figure crops cleanly."""
+    box_w, box_h = _NATIVE_BOX.get(cast_fn.__name__, _DEFAULT_BOX)
+    render_box = (box_w * ss, box_h * ss)
+    foot_w = max(1, int(box_w * scale))
+    foot_h = max(1, int(box_h * scale))
     tb = int(t * _CAST_FPS)              # quantise the gait clock -> bounded cache
     # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
-    # the play palette is a fresh dict every frame, so id(pal) only ever hit within
-    # a frame -- bucketing lets the bake survive across frames (the same per-bucket
-    # palette quantisation the pillars/floor already use).
-    key = (cast_fn.__name__, round(scale, 3), pr._CUR_BUCKET, tb,
+    # the play palette is a fresh dict every frame, so id(pal) only ever hits within
+    # a frame -- bucketing lets the bake survive across frames.
+    key = (cast_fn.__name__, foot_w, foot_h, ss, smooth, pr._CUR_BUCKET, tb,
            tuple(sorted(kw.items())))
-    big = _CAST_CACHE.get(key)
-    if big is None:
-        scratch = pygame.Surface((_SCRATCH_W, _SCRATCH_H), pygame.SRCALPHA)
-        deck = _SCRATCH_H - 1             # scratch deck near the bottom edge
+
+    def _render(scratch):
+        deck = render_box[1] - 1         # scratch deck near the bottom edge
         saved = pr.GROUND_Y
         pr.GROUND_Y = deck
         try:
-            cast_fn(scratch, _SCRATCH_W // 2, pal, t=tb / _CAST_FPS, **kw)
+            cast_fn(scratch, render_box[0] // 2, pal, t=tb / _CAST_FPS, **kw)
         finally:
             pr.GROUND_Y = saved
-        # A LARGE near figure shouldn't pull focus from the parrot: knock its
-        # brightest fabric down ~6% so it sits below the actors (subtle multiply).
-        scratch.fill((240, 240, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        big = pygame.transform.scale(scratch, (max(1, int(_SCRATCH_W * scale)),
-                                               max(1, int(_SCRATCH_H * scale))))
-        if len(_CAST_CACHE) > _CAST_CACHE_CAP:
-            _CAST_CACHE.clear()
-        _CAST_CACHE[key] = big
-    sw, sh = big.get_size()
-    # Scaled feet sit at (_SCRATCH_H*scale) from the scratch top; align that to feet_y.
-    feet_in_big = int(_SCRATCH_H * scale)
-    surf.blit(big, (sx - sw // 2, feet_y - feet_in_big))
+
+    # A LARGE near figure shouldn't pull focus from the parrot: knock its
+    # brightest fabric down ~6% (applied pre-resample so a smoothscale averages
+    # already-dimmed pixels).
+    big = _spr.baked_sprite(key, render_box, (foot_w, foot_h), _render,
+                            dim=(240, 240, 240), smooth=smooth)
+    sw, _sh = big.get_size()
+    surf.blit(big, (sx - sw // 2, feet_y - foot_h))
 
 
 def _near_dog(surf, sx, pal, *, t=0.0, scale=1.7, feet_y=NEAR_GROUND_Y):
