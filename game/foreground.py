@@ -15,6 +15,7 @@ from game import foreground_floor as _floor
 from game import foreground_detail as _detail
 from game import foreground_promenade as _promenade
 from game import foreground_near_lane as _near
+from game import foreground_weather as _gweather
 
 
 # The floor + embedded detail are STATIC: a pure function of world-x (scroll) and
@@ -65,6 +66,13 @@ def draw_foreground_floor(surf, scroll, pal, phase):
         _bake_floor_strip(scroll, pal, bucket)
         off = scroll - _floor_anchor
     surf.blit(_floor_strip, (round(-off), _FLOOR_BAND_TOP))
+
+
+def draw_ground_weather(surf, scroll, pal, wetness, snow_cover):
+    """Paint the weather's reactive ground state (wet sheen + puddles, snow
+    dusting) onto the sidewalk band — drawn after the floor, before the crowd, so
+    it glazes/frosts the paving UNDER the cast's feet."""
+    _gweather.draw_ground_weather(surf, scroll, pal, wetness, snow_cover)
 
 
 def draw_promenade(surf, scroll, pal, phase, t):

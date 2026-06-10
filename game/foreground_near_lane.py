@@ -1083,9 +1083,13 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     the bird/pillar lanes; world-anchored, tiling at the wrap."""
     # Inclusion latched at entry (off-screen) so a pedestrian never blinks out in
     # view when the crowd curve dips — it walks in from the right and off the left.
+    # `umbrella` is passed as a kwarg (not read from the global inside the cast)
+    # so it enters _scaled_cast's cache key — the baked figure then carries a
+    # brolly exactly when the weather says so, instead of a stale clear-sky bake.
+    brolly = pr._wants_umbrella()
     for sx, k in _near_xs(scroll, w, 196, x0=20):
         if sp._slot_latch(('ped', 1), k, lambda k=k: pr._slot_on(k, 1, density)):
-            _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
+            _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t, umbrella=brolly)
     sp._latch_prune(('ped', 1))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
         if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
@@ -1261,7 +1265,10 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
     pr._CUR_PAL = pal
-    density = pr._population(phase) * pr._run_fill(t)
+    # Same day-arc density as the far lane, thinned by the weather so the near
+    # edge empties out in a storm too (promenade sets pr._CUR_RAIN/SNOW/WIND just
+    # before this call, so the umbrella gate downstream reads the live weather).
+    density = pr._population(phase) * pr._run_fill(t) * pr._weather_crowd_factor(phase)
     _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
     _general_pedestrians(surf, W, scroll, pal, t, density)
     p = phase % 1.0

@@ -34,7 +34,9 @@ import pygame
 
 from game import foreground_props as sp
 from game import biome as _biome
-from game.config import W, H
+from game.config import (W, H, WEATHER_CROWD_RAIN_MIN, WEATHER_CROWD_SNOW_MIN,
+                         WEATHER_UMBRELLA_RAIN_AT)
+from game.weather import rain_intensity, storm_intensity, wind_intensity
 from game.pillar_variants import draw_prayer_flags
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
@@ -44,6 +46,86 @@ from game.ambient import (
 )
 
 GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
+
+# ── weather the street reacts to ─────────────────────────────────────────────
+#
+# Live rain/snow/wind for the current frame, set by draw_promenade/draw_near_lane
+# from the same phase-driven curves the sky uses. Exposed as module state (the
+# _CUR_* idiom) so the figure drawers can raise umbrellas / hurry / bundle up
+# without threading a weather arg through every cast signature. 0 in clear skies.
+_CUR_RAIN = 0.0
+_CUR_SNOW = 0.0
+_CUR_WIND = 0.0
+
+
+def _weather_crowd_factor(phase):
+    """Crowd-density multiplier for the weather: 1.0 in clear skies, falling as
+    rain/snow worsen — the street empties out in a storm. Takes the HARSHER of
+    the two so a downpour and a squall don't compound into a ghost town earlier
+    than intended; the snow squall bottoms out near-empty."""
+    ri = rain_intensity(phase)
+    wi = storm_intensity(phase)
+    rain_f = 1.0 - (1.0 - WEATHER_CROWD_RAIN_MIN) * ri
+    snow_f = 1.0 - (1.0 - WEATHER_CROWD_SNOW_MIN) * wi
+    return min(rain_f, snow_f)
+
+
+# A small festive palette so brollies pop against the muted shan-shui street;
+# the per-figure pick is a stable index (clothing slot), capped under the coin
+# at night like every other lit/bright element here.
+_UMBRELLA_COLORS = (
+    (212, 76, 76),    # red
+    (74, 122, 198),   # blue
+    (228, 182, 64),   # gold
+    (96, 162, 112),   # green
+    (180, 96, 172),   # violet
+)
+
+
+def _wants_umbrella():
+    """True when the weather is wet/snowy enough that a walking figure would put
+    up a brolly. A single frame-wide gate (not a per-figure random) so umbrellas
+    appear together as the rain crosses in — no per-figure strobing."""
+    return _CUR_RAIN >= WEATHER_UMBRELLA_RAIN_AT or _CUR_SNOW >= 0.35
+
+
+def _draw_umbrella(surf, cx, canopy_y, color_idx, *, night=0.0, scale=1.0,
+                   pole_len=9):
+    """A small held umbrella: a domed, gently-scalloped canopy with a top nub, a
+    couple of ribs, and a pole running down to the hand. Leans into the wind by
+    `_CUR_WIND`. Opaque draws (no alpha) so it composites straight onto the deck;
+    colour capped under the coin at night."""
+    color = _UMBRELLA_COLORS[color_idx % len(_UMBRELLA_COLORS)]
+    if night > 0.05:
+        color = _cap150(_mix(color, (54, 64, 96), min(0.5, 0.4 * night + 0.15)))
+    dark = _shade(color, -46)
+    r = max(5, int(8 * scale))
+    tilt = int(round(_CUR_WIND * 3.0)) + 1          # lean downwind (rain drives left→ canopy right)
+    apex_x = cx + tilt
+    cy = int(canopy_y)
+    # Dome + scalloped hem as one filled fan.
+    canopy = [
+        (cx - r, cy),
+        (apex_x - int(r * 0.55), cy - int(r * 0.55)),
+        (apex_x, cy - r),
+        (apex_x + int(r * 0.55), cy - int(r * 0.55)),
+        (cx + r, cy),
+        (cx + int(r * 0.6), cy + 2),
+        (cx, cy + 1),
+        (cx - int(r * 0.6), cy + 2),
+    ]
+    pygame.draw.polygon(surf, color, canopy)
+    pygame.draw.polygon(surf, dark, canopy, 1)
+    # Ribs from the apex out to the hem scallops, and a top nub.
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx, cy + 1), 1)
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx - int(r * 0.6), cy + 2), 1)
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx + int(r * 0.6), cy + 2), 1)
+    pygame.draw.circle(surf, dark, (apex_x, cy - r), 1)
+    # Pole down to the hand (slightly off the canopy centre so the figure "holds" it).
+    hand_x = cx - 1
+    pygame.draw.line(surf, (96, 74, 52), (cx, cy + 1),
+                     (hand_x, cy + int(pole_len * scale)), 1)
+
 
 # A reused bounding-box scratch for the faint catenary wires. Each wire used to
 # allocate a full W×H SRCALPHA layer just to draw a single 1px curve (~7/frame);
@@ -461,18 +543,27 @@ def draw_flock(surf, sx, pal, *, t=0.0, n=3):
         pygame.draw.circle(surf, _shade(face, 18), (hx + 1, body_y + 1), 1)  # ear/snout nub
 
 
-def draw_strollers(surf, sx, pal, *, t=0.0):
+def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None):
     """A couple of strolling adults for the quiet DUSK event — the bench-person
-    idiom walking, with a slow gait and a small head bob. Calm, unhurried."""
+    idiom walking, with a slow gait and a small head bob. Calm, unhurried.
+
+    `umbrella` overrides the live weather gate: the near lane BAKES this figure
+    into a kwargs-keyed cache, so it passes an explicit bool to keep the bake in
+    sync with the weather (a global read wouldn't be in the cache key). Left None
+    for the live far-lane path, which reads the frame's weather directly."""
     night = _nightf(pal)
     pairs = [((180, 120, 170), (130, 80, 120), (70, 50, 40)),   # plum coat
              ((90, 140, 165), (55, 95, 115), (60, 45, 35))]      # teal coat
+    # In the rain the calm stroll becomes a hurry: the gait clock speeds up so
+    # the legs scissor harder (the umbrellas then read as people pressing on
+    # through the wet, not posing).
+    gait_hz = 0.8 + _CUR_RAIN * 2.2
+    brolly = _wants_umbrella() if umbrella is None else umbrella
     for i, (shirt, shirt_dk, hair) in enumerate(pairs):
         shirt, shirt_dk, hair = (_retint_person(c, night) for c in (shirt, shirt_dk, hair))
         dx = -8 + i * 14
-        # Slow, small gait: these figures are pinned to the deck, so a brisk walk
-        # cycle reads as moonwalking. Gentle weight-shift + nearly-planted feet.
-        gait = math.sin(t * 0.8 + i * 1.1)
+        # Gentle weight-shift + nearly-planted feet (faster when hurrying through rain).
+        gait = math.sin(t * gait_hz + i * 1.1)
         feet_y = GROUND_Y - 1 - int(round(max(0.0, gait) * 0.5))
         body_y = feet_y - 8 - 3
         _draw_bench_person(surf, sx + dx, body_y, shirt, shirt_dk, hair, night=night)
@@ -483,6 +574,33 @@ def draw_strollers(surf, sx, pal, *, t=0.0):
                          (sx + dx + 1 - sw, feet_y), 1)
         pygame.draw.line(surf, leg, (sx + dx + 4, body_y + 8),
                          (sx + dx + 4 + sw, feet_y), 1)
+        if brolly:
+            _draw_umbrella(surf, sx + dx + 3, body_y - 7, i, night=night)
+
+
+def _shelter_figures(surf, w, scroll, pal, t):
+    """A few people standing huddled under umbrellas at stable world slots, shown
+    only once the open deck has emptied (heavy rain / real snow) — so the street
+    still feels lived-in at the storm's worst instead of dead. Sparse + world-
+    anchored (a fixed per-slot hash admits ~1 in 4), so they scroll past without
+    flicker and pop in/out only as the weather crosses the threshold."""
+    sev = max(_CUR_RAIN, _CUR_SNOW)
+    if sev < 0.45:
+        return
+    night = _nightf(pal)
+    for sx, k in sp._world_xs(scroll, w, 250, x0=30, mult=sp.GROUND_MULT, margin=40):
+        h = (k * 0x9E3779B1) & 0xFFFFFFFF
+        if (h & 3) != 0:                       # ~1 in 4 slots is occupied
+            continue
+        bx = sx + 6 + (h >> 4 & 7)
+        base = (78 + (h >> 6 & 63), 84 + (h >> 9 & 55), 108 + (h >> 12 & 47))
+        shirt = _retint_person(base, night)
+        shirt_dk = _shade(shirt, -34)
+        hair = _retint_person((60, 45, 38), night)
+        # Standing still (sheltering) — no gait, feet planted on the kerb.
+        body_y = GROUND_Y - 1 - 8 - 3
+        _draw_bench_person(surf, bx, body_y, shirt, shirt_dk, hair, night=night)
+        _draw_umbrella(surf, bx + 3, body_y - 6, (h >> 2), night=night)
 
 
 # ── KIOSK / vendor stall: a pagoda-roofed market stall ───────────────────────
@@ -1253,11 +1371,20 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
     crowd-density curve, and the whole street filling in from empty at run-start."""
-    global _CUR_BUCKET, _CUR_T, _CUR_PAL
+    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND
     _CUR_BUCKET = _biome.phase_bucket(phase)
     _CUR_T = t
     _CUR_PAL = pal
-    density = _population(phase) * _run_fill(t)
+    _CUR_RAIN = rain_intensity(phase)
+    _CUR_SNOW = storm_intensity(phase)
+    _CUR_WIND = wind_intensity(phase)
+    # The crowd thins in bad weather: the day-arc density is scaled down by rain/
+    # snow. Multiplying only lowers each slot's stable inclusion gate, so figures
+    # walk off ONCE as the storm builds (no flicker) and the survivors get brollies.
+    density = _population(phase) * _run_fill(t) * _weather_crowd_factor(phase)
     _ground_furniture(surf, W, scroll, pal, fd=_furn_density(phase))
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
+    # A few souls shelter near the dressing (kiosk awnings / lamp posts) when the
+    # open deck has emptied — keeps the street alive at the storm's worst.
+    _shelter_figures(surf, W, scroll, pal, t)

@@ -14,7 +14,9 @@ import pygame
 
 from game.config import (W, H, GROUND_Y,
                          WEATHER_SNOW_ON_WI, WEATHER_SNOW_MELT_AT,
-                         WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE)
+                         WEATHER_SNOW_ACCUM_RATE, WEATHER_SNOW_MELT_RATE,
+                         WEATHER_WET_ON_RI, WEATHER_WET_RISE_RATE,
+                         WEATHER_WET_DRY_RATE)
 from game import audio
 
 
@@ -265,9 +267,13 @@ def _snow_flake(radius: int, alpha: int):
 # ── particle: a single rain streak ──────────────────────────────────────────
 
 class _Streak:
-    __slots__ = ("x", "y", "vx", "vy", "len", "color", "intensity")
+    # `splash_y` is a per-drop contact line jittered DOWN INTO the ~45px sidewalk
+    # band (GROUND_Y..H) so drops land at varied depths across the perspective
+    # floor instead of all stopping at the old flat GROUND_Y cull — the drop is
+    # retired there and hands off to a ground _Splash.
+    __slots__ = ("x", "y", "vx", "vy", "len", "color", "intensity", "splash_y")
 
-    def __init__(self, x, y, vx, vy, length, color, intensity):
+    def __init__(self, x, y, vx, vy, length, color, intensity, splash_y):
         self.x = x
         self.y = y
         self.vx = vx
@@ -275,13 +281,17 @@ class _Streak:
         self.len = length
         self.color = color
         self.intensity = intensity
+        self.splash_y = splash_y
 
     def update(self, dt):
         self.x += self.vx * dt
         self.y += self.vy * dt
 
-    def off_screen(self):
-        return self.y > GROUND_Y or self.x < -8 or self.x > W + 8
+    def landed(self):
+        return self.y >= self.splash_y
+
+    def gone_sideways(self):
+        return self.x < -8 or self.x > W + 8
 
     def draw(self, surf):
         dx = self.vx / max(1.0, abs(self.vy)) * self.len
@@ -297,6 +307,75 @@ class _Streak:
             head = (min(255, c[0] + 42), min(255, c[1] + 36),
                     min(255, c[2] + 26))
             pygame.draw.circle(surf, head, (hx, hy), 2)
+
+
+# ── particle: a rain drop hitting the sidewalk ───────────────────────────────
+#
+# Spawned where a _Streak crosses its splash_y. A small ground impact: an
+# expanding ripple ring plus one or two ricochet droplets that hop and fade.
+# Drawn through one shared SRCALPHA scratch so the alpha fade costs no per-splash
+# surface allocation (the wire/overlay idiom used elsewhere in this module).
+
+_SPLASH_W, _SPLASH_H = 24, 18
+_SPLASH_CX, _SPLASH_CY = _SPLASH_W // 2, _SPLASH_H - 4
+_SPLASH_SCRATCH = pygame.Surface((_SPLASH_W, _SPLASH_H), pygame.SRCALPHA)
+
+
+def _splash_scratch():
+    _SPLASH_SCRATCH.fill((0, 0, 0, 0))
+    return _SPLASH_SCRATCH
+
+
+class _Splash:
+    __slots__ = ("x", "splash_y", "age", "life", "intensity",
+                 "ring_col", "drop_col", "ricochet")
+
+    def __init__(self, x, y, intensity, color):
+        self.x = x
+        self.splash_y = y
+        self.age = 0.0
+        self.life = 0.26 + intensity * 0.14
+        self.intensity = intensity
+        # Lift the streak colour toward white so the impact reads a touch
+        # brighter than the falling rain — a wet glint, not a new hue.
+        self.ring_col = (min(255, color[0] + 50), min(255, color[1] + 48),
+                         min(255, color[2] + 40))
+        self.drop_col = (min(255, color[0] + 72), min(255, color[1] + 68),
+                         min(255, color[2] + 58))
+        # One ricochet droplet for drizzle, two for the heavier downpour.
+        n = 2 if intensity >= 0.4 else 1
+        self.ricochet = [random.uniform(-1.0, 1.0) for _ in range(n)]
+
+    def update(self, dt):
+        self.age += dt
+
+    def alive(self):
+        return self.age < self.life
+
+    def draw(self, surf):
+        t = self.age / self.life
+        if t >= 1.0:
+            return
+        fade = 1.0 - t
+        scr = _splash_scratch()
+        cx, cy = _SPLASH_CX, _SPLASH_CY
+        ring_w = 3 + t * 15
+        ring_h = 1 + t * 3.5
+        a = int(150 * fade)
+        if a > 0:
+            pygame.draw.ellipse(scr, (*self.ring_col, a),
+                                (int(cx - ring_w / 2), int(cy - ring_h / 2),
+                                 max(2, int(ring_w)), max(1, int(ring_h))), 1)
+        # Ricochet droplets hop up on a short arc and fade in the first ~70%.
+        if t < 0.7:
+            rise = math.sin(min(1.0, t / 0.7) * math.pi)
+            da = int(210 * fade)
+            for dirx in self.ricochet:
+                px = int(cx + dirx * (2 + t * 5))
+                py = int(cy - rise * (5 + self.intensity * 5))
+                if 0 <= px < _SPLASH_W and 0 <= py < _SPLASH_H:
+                    pygame.draw.circle(scr, (*self.drop_col, da), (px, py), 1)
+        surf.blit(scr, (int(self.x) - cx, int(self.splash_y) - cy))
 
 
 class _Leaf:
@@ -562,6 +641,7 @@ class _WindDust:
 class Weather:
     def __init__(self):
         self.streaks: list[_Streak] = []
+        self.splashes: list[_Splash] = []
         self.leaves: list[_Leaf] = []
         # Wind-event particle pools — layered for parallax depth:
         #   drift   = slow background, longest visible early
@@ -582,6 +662,12 @@ class Weather:
         # across frames so the wash builds and holds rather than tracking the
         # raw storm envelope symmetrically.
         self.snow_cover: float = 0.0
+
+        # Wet-paving sheen (0..1) — ramps up while the rain is heavy, dries after.
+        # Read by the foreground so the sidewalk glazes over in the downpour and
+        # dries out before the next clear stretch (the ground analogue of
+        # snow_cover). Persists across frames so it lags the raw rain envelope.
+        self.wetness: float = 0.0
 
         # Lightning state: countdown to next strike, and flash envelope 0..1.
         self.flash_remaining: float = 0.0
@@ -606,20 +692,28 @@ class Weather:
 
         # Rain
         intensity = rain_intensity(phase)
+        color = rain_color(phase)
         if intensity > 0:
-            color = rain_color(phase)
             target = int(80 + intensity * 170)   # heavier downpour for the storm climax
             # Top up the pool — streaks spawn above the screen and fall.
             while len(self.streaks) < target:
                 self._spawn_streak(intensity, color)
-            for s in self.streaks:
-                s.update(dt)
-            self.streaks = [s for s in self.streaks if not s.off_screen()]
+            self._advance_rain(dt, intensity, color)
         else:
-            # Fade out lingering rain
-            self.streaks = [s for s in self.streaks if not s.off_screen()][:max(0, len(self.streaks) - 2)]
-            for s in self.streaks:
-                s.update(dt)
+            # Fade out lingering rain: no respawn, and trim a couple each frame.
+            self._advance_rain(dt, 0.0, color)
+            if self.streaks:
+                self.streaks = self.streaks[:-2]
+
+        # Ground splashes the drops kicked up, and the paving's wet sheen which
+        # lags the rain (soaks up in the downpour, dries on the clear shoulders).
+        for sp in self.splashes:
+            sp.update(dt)
+        self.splashes = [sp for sp in self.splashes if sp.alive()]
+        if intensity >= WEATHER_WET_ON_RI:
+            self.wetness = min(1.0, self.wetness + WEATHER_WET_RISE_RATE * dt)
+        else:
+            self.wetness = max(0.0, self.wetness - WEATHER_WET_DRY_RATE * dt)
 
         # Golden-hour leaves — ambient autumn drift, driven only by
         # the calm breeze bump (phase 0.18) so they never mix with
@@ -716,7 +810,28 @@ class Weather:
         vx = -60 - intensity * 60            # GENTLE slant (not the steep V2 wind)
         vy = 420 + intensity * 220
         length = 12 + int(intensity * 18)
-        self.streaks.append(_Streak(x, y, vx, vy, length, color, intensity))
+        # Land somewhere ACROSS the perspective sidewalk band, not on a flat line.
+        splash_y = random.uniform(GROUND_Y + 2, H - 3)
+        self.streaks.append(
+            _Streak(x, y, vx, vy, length, color, intensity, splash_y))
+
+    def _advance_rain(self, dt, intensity, color):
+        """Step the rain pool, retire drops that land on the sidewalk (kicking up
+        a splash) or blow off the sides. One pass so the fall + contact + cull
+        stay in lockstep for both the active storm and the fade-out tail."""
+        splash_prob = 0.10 + intensity * 0.30
+        survivors = []
+        for s in self.streaks:
+            s.update(dt)
+            if s.gone_sideways():
+                continue
+            if s.landed():
+                if random.random() < splash_prob and len(self.splashes) < 70:
+                    self.splashes.append(
+                        _Splash(s.x, s.splash_y, intensity, color))
+                continue
+            survivors.append(s)
+        self.streaks = survivors
 
     def _spawn_leaf(self, wind):
         x = -10
@@ -799,9 +914,11 @@ class Weather:
             _WindDust(x, y, vx, vy, radius, _WHITE, alpha))
 
     def draw(self, surf):
-        # Rain
+        # Rain — falling streaks, then the splashes they kick up on the sidewalk.
         for s in self.streaks:
             s.draw(surf)
+        for sp in self.splashes:
+            sp.draw(surf)
         # Atmospheric wash for the snow squall — a full-screen overlay whose
         # alpha AND colour track storm_intensity, so the scene cools+whitens on
         # the rise, peaks WITH the storm, and clears exactly when the snowstorm

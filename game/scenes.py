@@ -1208,6 +1208,12 @@ class App:
         # The buff sandstone sidewalk IS the play floor now (replaces the grass
         # meadow); promenade props + living cast ride on top of it.
         foreground.draw_foreground_floor(surf, scroll, palette, phase)
+        # The sidewalk reacts to weather: rain glazes it + pools puddles, the snow
+        # squall frosts it. Drawn on the paving UNDER the crowd's feet (the falling
+        # rain + its splashes are an in-front layer in weather.draw later).
+        foreground.draw_ground_weather(surf, scroll, palette,
+                                       self.world.weather.wetness,
+                                       self.world.weather.snow_cover)
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
         foreground.draw_near_lane(surf, scroll, palette,
