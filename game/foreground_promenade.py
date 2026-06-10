@@ -44,11 +44,12 @@ from game import foreground_variants as _fv
 from game import ped_cast as _ped
 from game import day_cast as _day
 from game import food_stalls as _food
+from game import animals_cast as _animals
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
 from game.ambient import (
-    _RunningDog, _WishingWell, _Bench, _Napper,
+    _WishingWell, _Bench, _Napper,
 )
 
 GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
@@ -1049,48 +1050,64 @@ def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer"):
     fn(surf, sx, GROUND_Y - 1, _nightf(pal), t)
 
 
-def _scene_food(emit, bx, pal, t, kind, vendor_variant, *, pick=None, cust_salt=0):
+def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_salt=0):
     """A food stall + the vendor working it (fixed pose: fanner at the grill,
-    ladler at the cauldron, etc.) + a browsing customer in front."""
+    ladler at the cauldron, etc.) + a browsing customer, and critters foraging the
+    scraps (pigeons mostly, sometimes a market cat or a hen) so it reads alive."""
     cust = pick('pedestrian', cust_salt) if pick else 0
+    crit = rng.choice(('pigeons', 'pigeons', 'cat', 'hen'))
     emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind))
     emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
-    emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 32, pal, t=t, variant=cust))
+    emit(TB_CAST, lambda s, crit=crit: draw_critter(s, bx + 16, pal, t=t, kind=crit))
+    emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 36, pal, t=t, variant=cust))
 
 
 def _scene_food_grill(emit, bx, pal, t, rng, pick=None):
     """A barbecue skewer-grill stall, a vendor fanning the coals, a hungry customer."""
-    _scene_food(emit, bx, pal, t, 'grill', _food.STALLS['grill'][1], pick=pick, cust_salt=61)
+    _scene_food(emit, bx, pal, t, 'grill', _food.STALLS['grill'][1], rng, pick=pick, cust_salt=61)
 
 
 def _scene_food_soup(emit, bx, pal, t, rng, pick=None):
     """A big soup-cauldron stall with a vendor ladling broth + a customer."""
-    _scene_food(emit, bx, pal, t, 'cauldron', _food.STALLS['cauldron'][1], pick=pick, cust_salt=62)
+    _scene_food(emit, bx, pal, t, 'cauldron', _food.STALLS['cauldron'][1], rng, pick=pick, cust_salt=62)
 
 
 def _scene_food_steamer(emit, bx, pal, t, rng, pick=None):
     """A bamboo-steamer dim-sum stall with a vendor + a customer."""
-    _scene_food(emit, bx, pal, t, 'steamer', _food.STALLS['steamer'][1], pick=pick, cust_salt=63)
+    _scene_food(emit, bx, pal, t, 'steamer', _food.STALLS['steamer'][1], rng, pick=pick, cust_salt=63)
 
 
 def _scene_food_tea(emit, bx, pal, t, rng, pick=None):
     """A tea/drinks-urn stall with a vendor + a customer pausing for a cup."""
-    _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], pick=pick, cust_salt=64)
+    _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], rng, pick=pick, cust_salt=64)
 
-def _draw_calm_dog(surf, sx, pal, *, t=0.0):
-    """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
-    direction — so it reads as walking forward, not moonwalking backward. Reuses
-    the live _RunningDog frames; the shared class is left untouched."""
-    dog = _stepped(_RunningDog, pal, 30, sx)
-    frame = dog._frames[int(t * 2) % 2]                  # slow 2-frame shuffle
-    frame = pygame.transform.flip(frame, True, False)    # face the travel direction
-    sw, sh = frame.get_size()
-    surf.blit(frame, (sx - sw // 2, GROUND_Y - sh + 1))
+def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
+    """One street dog from the 5-strong 'dog' pool (animals_cast), feet on
+    GROUND_Y, centred on `sx`, ambling/facing the scroll direction. `variant` is a
+    resolved pool index; the near lane passes it as a kwarg into the bake cache."""
+    v = _fv.get("dog", variant)
+    if v is None:
+        return
+    _animals.draw_dog(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
+    """One street critter (pigeons/hen/cat/duck) from the 'critter' pool, feet on
+    GROUND_Y, centred on `sx`. Placed near the food stalls so the market reads as
+    alive (birds pecking scraps, a market cat, a hen)."""
+    v = _fv.get("critter", _animals.critter_index(kind))
+    if v is None:
+        return
+    _animals.draw_critter(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
 
 def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
-    """Wish-tree + a slow dog ambling with the street + a planter."""
+    """Wish-tree + a varied dog ambling with the street + a foraging critter."""
+    dv = pick('dog', 71) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
-    emit(TB_CAST, lambda s: _draw_calm_dog(s, bx + 66, pal, t=t))
+    emit(TB_CAST, lambda s, dv=dv: draw_dog(s, bx + 66, pal, t=t, variant=dv))
+    emit(TB_CAST, lambda s: draw_critter(s, bx + 96, pal, t=t,
+                                         kind=rng.choice(('pigeons', 'cat', 'hen', 'duck'))))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 122, pal, kind='shrub'))
 
 def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):

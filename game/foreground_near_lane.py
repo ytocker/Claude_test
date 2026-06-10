@@ -20,8 +20,8 @@ What makes the depth read (the contract the art-director gates):
     gameplay actors, so near figures cover the far cast's feet (real depth, not a
     transparent overlay). Within the near lane we still draw back-to-front.
 
-The cast functions are the r17 ones (`draw_kids`, `draw_old_man`, `draw_strollers`,
-`draw_flock`) and the live `_RunningDog`, lifted READ-ONLY and rendered onto a
+The cast functions are the pooled ones (`draw_kids`, `draw_old_man`,
+`draw_strollers`, `draw_dog`) and `draw_flock`, rendered onto a
 scratch surface that we scale up with NEAREST so the pixels stay crisp, then drop
 at the near deck. The PERFORMANCES — a day busker/juggler, a golden-hour street
 musician + watching arc, a dusk stilt-walker, and the NIGHT festival LION DANCE +
@@ -53,7 +53,6 @@ from game import foreground_props as sp
 from game import foreground_promenade as pr
 from game import biome as _biome
 from game.config import W, H
-from game.ambient import _RunningDog
 from game.draw import draw_side_shrub, draw_wuling_pine
 from game.pillar_variants import (
     draw_cascading_vine, draw_paper_lantern, draw_cairn,
@@ -249,26 +248,6 @@ def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
                             dim=(240, 240, 240), smooth=smooth)
     sw, _sh = big.get_size()
     surf.blit(big, (sx - sw // 2, feet_y - foot_h))
-
-
-def _near_dog(surf, sx, pal, *, t=0.0, scale=1.7, feet_y=NEAR_GROUND_Y):
-    """The live dog, enlarged with NEAREST and dropped at the near deck so it
-    ambles across the FRONT of the promenade, occluding the far cast. SLOW
-    2-frame shuffle and flipped to face LEFT (the scroll/travel direction) so it
-    reads as walking forward, not moonwalking backward."""
-    dog = pr._stepped(_RunningDog, pal, 30, _SCRATCH_W // 2)
-    frame = dog._frames[int(t * 2) % 2]
-    frame = pygame.transform.flip(frame, True, False)
-    night = _nightf(pal)
-    if night > 0.05:
-        frame = frame.copy()
-        k = int(255 * (1 - 0.40 * night))
-        kb = int(255 * (1 - 0.30 * night))
-        frame.fill((k, k, kb, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    sw, sh = frame.get_size()
-    big = pygame.transform.scale(frame, (int(sw * scale), int(sh * scale)))
-    bw, bh = big.get_size()
-    surf.blit(big, (sx - bw // 2, feet_y - bh + 1))
 
 
 # ── near greenery / ornaments (parametric game helpers, retinted, night-capped)─
@@ -1121,11 +1100,17 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
             _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, kvar=kvar: _scaled_cast(
                 s, pr.draw_kids, sx, pal, 1.55, t=t, n=2, variant=kvar))
     sp._latch_prune(('ped', 2))
-    # The near dog ambles across the front on its own anchor.
+    # A varied pooled dog ambles across the front on its own anchor — breed frozen
+    # per slot so it doesn't re-roll mid-screen, and rides the bake cache key.
+    def _dog_decide(k):
+        return (pr._slot_on(k, 3, density),
+                _fv.select_variant('dog', _fv.slot_seed(k, 51),
+                                   _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
     for sx, k in _near_xs(scroll, w, 300, x0=96):
-        if sp._slot_latch(('ped', 3), k, lambda k=k: pr._slot_on(k, 3, density)):
-            _zbuf.enqueue(ny, TB_CAST,
-                          lambda s, sx=sx: _near_dog(s, sx, pal, t=t, scale=1.7))
+        on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, dvar=dvar: _scaled_cast(
+                s, pr.draw_dog, sx, pal, 1.5, t=t, variant=dvar))
     sp._latch_prune(('ped', 3))
 
 
@@ -1289,7 +1274,7 @@ def _perf_decide(k, phase, density):
 def draw_near_lane(surf, scroll, pal, phase, t):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
     by the day-arc crowd density and filling in from empty at run-start."""
-    # _near_dog / _scaled_cast borrow pr._stepped, so keep the cache clock current.
+    # _scaled_cast borrows pr._stepped, so keep the cache clock current.
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
     pr._CUR_PAL = pal
