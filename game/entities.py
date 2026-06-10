@@ -13,7 +13,7 @@ import pygame
 from game.config import (
     W, H, GRAVITY, FLAP_V, MAX_FALL,
     BIRD_X, BIRD_R, PIPE_W, COIN_R, POWERUP_R, GROUND_Y,
-    BACKFLIP_DURATION, DEATH_FADE_DURATION,
+    BACKFLIP_DURATION, DEATH_FADE_DURATION, RAIL_ABOVE_FINIAL,
     GEYSER_W, GEYSER_H, GEYSER_TELEGRAPH,
     GEYSER_ACTIVE_HOT, GEYSER_ACTIVE_COLD,
     GEYSER_DORMANT_HOT, GEYSER_DORMANT_COLD,
@@ -1414,6 +1414,19 @@ class Pipe:
     def bot_rect(self):
         top = int(self.gap_y + self.gap_h / 2)
         return pygame.Rect(int(self.x), top, PIPE_W, GROUND_Y - top)
+
+    @property
+    def finial_tip_y(self):
+        """Y of the bottom pillar's lethal finial tip = the kill-zone top the
+        grind rail rests on. The finials are calibrated to reach the gap edge."""
+        return self.gap_y + self.gap_h / 2
+
+    @property
+    def rail_y(self):
+        """Y of the grind-rail track — RAIL_ABOVE_FINIAL px above the finial
+        tips, so the cart rides on top of the kill zone / just above the
+        antennas (short support posts connect the rail down to the tips)."""
+        return self.gap_y + self.gap_h / 2 - RAIL_ABOVE_FINIAL
 
     def off_screen(self):
         return self.x + PIPE_W + 8 < 0

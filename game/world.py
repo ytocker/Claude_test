@@ -3067,7 +3067,7 @@ class World:
         pillar's gap, so touching the pillar BODY of the same pipe
         returns False and falls through to normal pipe collision."""
         cart_cx = pipe.x + PIPE_W // 2
-        rail_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear  # roof, not finial tip
+        rail_y = pipe.rail_y
         left = cart_cx - self._CART_HALF_W
         right = cart_cx + self._CART_HALF_W
         top = rail_y - self._CART_TOP_OFF
@@ -3095,14 +3095,13 @@ class World:
 
         for i, p in enumerate(sorted_pipes):
             if p.x - 6 <= bx <= p.x + PIPE_W + 6:
-                rail_y = p.gap_y + p.gap_h / 2 + p.finial_clear  # roof, not finial tip
+                rail_y = p.rail_y
                 self.bird.y = rail_y - offset
                 self.bird.vy = 0.0
                 if i + 1 < len(sorted_pipes):
                     nxt = sorted_pipes[i + 1]
                     self.bird.cart_tilt_deg = self._rail_slope_deg(
-                        p.x + PIPE_W, rail_y,
-                        nxt.x, nxt.gap_y + nxt.gap_h / 2 + nxt.finial_clear)
+                        p.x + PIPE_W, rail_y, nxt.x, nxt.rail_y)
                 else:
                     self.bird.cart_tilt_deg = 0.0
                 return
@@ -3112,8 +3111,8 @@ class World:
             if p1.x + PIPE_W <= bx <= p2.x:
                 span = max(1, p2.x - (p1.x + PIPE_W))
                 t = (bx - (p1.x + PIPE_W)) / span
-                y1 = p1.gap_y + p1.gap_h / 2 + p1.finial_clear
-                y2 = p2.gap_y + p2.gap_h / 2 + p2.finial_clear
+                y1 = p1.rail_y
+                y2 = p2.rail_y
                 self.bird.y = (y1 + (y2 - y1) * t) - offset
                 self.bird.vy = 0.0
                 self.bird.cart_tilt_deg = self._rail_slope_deg(
@@ -3144,12 +3143,19 @@ class World:
         self.bird.cart_active = False
         self.bird.cart_locked = False
         self.bird.cart_tilt_deg = 0.0
-        self.rail_cart_pipe = None
         if was_locked:
+            # Leave the cart parked where the ride ended (nearest rail pillar) so
+            # it stays in place and scrolls off with the world instead of
+            # vanishing. cart_active is False now, so it can't re-lock Pip.
+            self.rail_cart_pipe = min(
+                self.rail_pipes, key=lambda p: abs(p.x - self.bird.x),
+                default=None)
             sign = -1 if self.reverse_timer > 0 else 1
             self.bird.vy = FLAP_V * sign
             self.bird.flap_boost = 0.45
             audio.play_flap()
+        else:
+            self.rail_cart_pipe = None
 
     def _apply_lottery_result(self):
         anim = self.lottery_anim

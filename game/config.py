@@ -68,6 +68,9 @@ RAIL_PILLAR_COUNT  = 7       # cart rides over exactly N pillars then releases
 RAIL_LEAD_PILLARS  = 1       # pillars to skip before the cart so players have
                             # time to reach it (cart parks on the 2nd ahead)
 RAIL_SCROLL_MULT   = 2.5     # world scrolls 2.5x faster during the ride
+RAIL_ABOVE_FINIAL  = 6       # rail track sits this many px above the (lethal)
+                            # finial tips — on top of the kill zone, just above
+                            # the antennas, with short posts connecting down
 # Lottery tiers: (label, weight, coin_delta). Weights need not sum to anything
 # — normalized at pick time. Loss tiers clamp at score 0 (see
 # World._apply_lottery_result), so total coins never go negative.

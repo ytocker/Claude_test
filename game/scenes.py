@@ -240,7 +240,7 @@ def _draw_parked_cart(surf, pipe):
     tagged pillar). Removed once Pip locks or the pillar scrolls past."""
     from game.config import PIPE_W
     cx = pipe.x + PIPE_W // 2
-    rail_y = pipe.gap_y + pipe.gap_h / 2 + pipe.finial_clear  # roof, not finial tip
+    rail_y = pipe.rail_y
     # 32-px lift matches World._CART_LOCKED_OFFSET so the parked cart
     # sits visually identical to the locked-ride cart.
     _draw_parked_cart_at(surf, cx, rail_y - 16)
@@ -259,15 +259,21 @@ def _draw_cart_on_bird(surf, world, sx, sy, layer="all"):
 
 
 def _draw_rails(surf, rail_pipes):
-    """Continuous pine-tie + twin iron-rail polyline across every
-    rail-tagged pipe top."""
+    """Continuous pine-tie + twin iron-rail polyline just above every rail-tagged
+    pillar's finial tips, with a short post dropping the rail onto each antenna so
+    the track reads as resting on top of the kill zone."""
     from game.config import PIPE_W
     if not rail_pipes:
         return
     pipes_sorted = sorted(rail_pipes, key=lambda p: p.x)
     pts = []
     for p in pipes_sorted:
-        rail_y = int(p.gap_y + p.gap_h / 2 + p.finial_clear)  # roof, not finial tip
+        rail_y = int(p.rail_y)
+        # Support post: connect the rail down onto this pillar's antenna tip.
+        cx = int(p.x + PIPE_W // 2)
+        tip = int(p.finial_tip_y) + 1
+        pygame.draw.line(surf, _IRON_DK, (cx, rail_y), (cx, tip), 3)
+        pygame.draw.line(surf, _IRON, (cx, rail_y), (cx, tip), 1)
         pts.append((int(p.x), rail_y))
         pts.append((int(p.x + PIPE_W), rail_y))
     _draw_trestle_rail(surf, pts)
