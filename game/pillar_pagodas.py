@@ -1090,7 +1090,7 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
     # Central needle.
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -1919,7 +1919,7 @@ def _draw_wat_arun_prang(surf, cx, base_y, palette, *,
     gold = _gold_deep(palette)
     # ~40% base tiers, ~60% corncob spire.
     base_h = max(28, int(total_h * 0.40))
-    spire_h = total_h - base_h - 3
+    spire_h = total_h - base_h - 5
 
     # Stepped square base — receding tiers. The opt-in override path
     # fixes per-tier height at the bottom's natural value (KFC bucket
@@ -1928,7 +1928,7 @@ def _draw_wat_arun_prang(surf, cx, base_y, palette, *,
     if tier_h_override is not None:
         tier_h = tier_h_override
         base_h = tier_h * n_tiers
-        spire_h = total_h - base_h - 3
+        spire_h = total_h - base_h - 5
     else:
         tier_h = base_h // n_tiers
     widest = int(body_w * 1.20)
@@ -2186,7 +2186,7 @@ def _draw_songyue(surf, top_rect, bot_rect, palette, seed):
         # Lotus-bud finial — Songyue's iconic crowning ornament. The tip
         # reaches top_y (the gap edge) so the silhouette FILLS the rect.
         bud_base_y = cap_y - 4
-        bud_tip_y = min(bud_base_y - 8, top_y) + 3
+        bud_tip_y = min(bud_base_y - 8, top_y) + 5
         gold = _gold_deep(palette)
         bright = _gold_bright(palette)
         dark = palette['stone_dark']
@@ -2720,7 +2720,7 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4243,7 +4243,7 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
     pygame.draw.ellipse(surf, accent, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4501,7 +4501,7 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(gold, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
     pygame.draw.ellipse(surf, gold, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -4712,7 +4712,7 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 45)
     pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
     pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 4),
@@ -5643,7 +5643,7 @@ def _draw_baoen_stack(surf, cx, top_y, bot_y, base_w, palette, *,
     top_wall_y = tier_tops[-1][0]
     dark_pal = palette['stone_dark']
     bright = _shade(gold, 60)
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     tip_y = top_wall_y - finial_h
     pygame.draw.line(surf, dark_pal, (cx, top_wall_y - 2), (cx, tip_y), 2)
     pygame.draw.line(surf, gold, (cx + 1, top_wall_y - 2), (cx + 1, tip_y), 1)
@@ -9008,7 +9008,7 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
     bright = _shade(accent, 40)
     pygame.draw.ellipse(surf, dark_pal, (cx - 5, base_y + dir_sign * 1, 10, 4))
     pygame.draw.ellipse(surf, accent, (cx - 4, base_y + dir_sign * 1 + 1, 8, 2))
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark_pal,
                      (cx - 1, base_y + dir_sign * 3),
@@ -9660,7 +9660,7 @@ def _draw_palsangjeon_sangnyun(surf, cx, base_y, palette, *,
     pygame.draw.ellipse(surf, brass,
                         (cx - 6, base_y + dir_sign * 2 + 1, 12, 3))
     # Needle.
-    finial_h -= 6  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
+    finial_h -= 8  # trim the gap-facing spire so it clears the gap edge (the ceiling mirror already clips its spire flush)
     needle_tip = base_y + dir_sign * (finial_h - 4)
     pygame.draw.line(surf, dark,
                      (cx - 1, base_y + dir_sign * 5),
