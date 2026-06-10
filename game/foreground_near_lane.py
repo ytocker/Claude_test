@@ -410,7 +410,7 @@ def _watch_arc(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
     # A few kids + an elder + strollers, spread either side of the performer.
     _scaled_cast(surf, pr.draw_kids, sx - 30, pal, 1.45, t=t, n=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_old_man, sx + 30, pal, 1.5, t=t,
-                 seated_bench=False, feet_y=feet_y)
+                 seated_bench=False, variant=1, feet_y=feet_y)
 
 
 def _seated_spectator(surf, x, feet_y, robe, robe_dk, hair, pal, *,
@@ -471,7 +471,7 @@ def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
     # group leans/looks toward the act rather than spreading symmetrically.
     _scaled_cast(surf, pr.draw_kids, sx - 40, pal, 1.5, t=t, n=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_old_man, sx - 22, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet_y)
+                 seated_bench=False, variant=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y,
                  variant=3)
     # Front row: two LOWER seated spectators close in, reading as the near edge of
@@ -499,7 +499,7 @@ def perf_juggler(surf, sx, pal, t):
     # A couple of onlookers stand to the RIGHT, half-facing the juggler, so the act
     # reads as busking. Kept tight beside him, clear of the gameplay lanes.
     _scaled_cast(surf, pr.draw_old_man, sx + 30, pal, 1.45, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_kids, sx + 46, pal, 1.4, t=t, n=2, feet_y=feet)
     hx, hy = _perf_body(surf, sx, feet, robe, robe_dk, hair, pal,
                         h=20, w=9, arms='juggle', arm_t=t * 3.0)
@@ -597,7 +597,7 @@ def perf_lion_dance(surf, sx, pal, t):
                  variant=13)
     _scaled_cast(surf, pr.draw_kids, sx - 64, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 48, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=4, feet_y=feet)
 
     # Drummer + drum to the right of the lion — an EXPLICIT round drum stood in
     # FRONT of the elder with a stick caught mid-swing, so the lion dance's audio
@@ -1045,7 +1045,7 @@ def perf_dragon_dance(surf, sx, pal, t, *, skin='red'):
                  variant=4)
     _scaled_cast(surf, pr.draw_kids, sx - 80, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 70, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=0, feet_y=feet)
 
     kit = _dragon_kit(pal, skin)
     # 7 segments, V3 body rhythm; the LOCKED V2 dancer phasing (leg_stagger=1.4).
@@ -1111,10 +1111,15 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
             _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, var=var: _scaled_cast(
                 s, pr.draw_strollers, sx, pal, 1.6, t=t, variant=var))
     sp._latch_prune(('ped', 1))
+    def _kid_decide(k):
+        return (pr._slot_on(k, 2, density),
+                _fv.select_variant('kid', _fv.slot_seed(k, 41),
+                                   _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
-        if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
-            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx: _scaled_cast(
-                s, pr.draw_kids, sx, pal, 1.55, t=t, n=2))
+        on, kvar = sp._slot_latch(('ped', 2), k, lambda k=k: _kid_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, kvar=kvar: _scaled_cast(
+                s, pr.draw_kids, sx, pal, 1.55, t=t, n=2, variant=kvar))
     sp._latch_prune(('ped', 2))
     # The near dog ambles across the front on its own anchor.
     for sx, k in _near_xs(scroll, w, 300, x0=96):

@@ -42,6 +42,7 @@ from game import foreground_zbuffer as _zbuf
 from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 from game import foreground_variants as _fv
 from game import ped_cast as _ped
+from game import day_cast as _day
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -383,73 +384,41 @@ def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair, *, night=0.0
     pygame.draw.circle(surf, (30, 20, 15), (x_base + 4, head_y + 1), 0)
 
 
-def draw_kids(surf, sx, pal, *, t=0.0, n=3):
-    """2-3 small walking/playing children: shorter, rounder, brighter-clothed
-    than the bench adults. Built from a scaled-down _draw_bench_person idiom — a
-    little body block + round head + simple hair — with a playful gait bob and a
-    couple of stubby running legs so they read as kids at play, not statues."""
+def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
+    """`n` small children drawn from the 6-strong 'kid' variety pool (day_cast),
+    feet on GROUND_Y. `variant` is a resolved base pool index; each of the n kids
+    takes the next pool member (variant, variant+1, …) so a group reads as several
+    different children, not one cloned thrice."""
     night = _nightf(pal)
-    skin = _retint_person((235, 195, 150), night)
-    # Bright primary clothes so the kids pop against the muted shan-shui floor.
-    kit = [
-        ((235, 95, 90), (175, 55, 60), (90, 55, 35)),    # red shirt
-        ((90, 165, 220), (50, 110, 165), (60, 45, 35)),  # blue shirt
-        ((250, 200, 70), (200, 150, 40), (70, 50, 35)),  # yellow shirt
-    ]
-    # Wider spread so the kids don't stack; depth-staggered lift keeps them apart.
-    spread = (-13, 9, 26)
+    cnt = _fv.variant_count("kid")
+    if not cnt:
+        return
+    spread = (-13, 9, 26, 40, -28)
     for i in range(n):
-        dx = spread[i]
-        shirt, shirt_dk, hair = (_retint_person(c, night) for c in kit[i])
-        # Each kid bobs on its own phase so the group reads as alive — but SLOW
-        # and small (ground-locked; a fast run cycle would moonwalk).
-        gait = math.sin(t * 1.8 + i * 1.7)
-        lift = -max(0.0, gait) * 0.8  # only the up-swing lifts
-        bx = sx + dx
-        feet_y = GROUND_Y - 1 + int(round(lift))
-        # CHIBI proportions: a tiny 4px torso under a big 3px head -> total ~7px,
-        # ~60% the adult's ~11px so a kid beside an adult instantly reads "child".
-        body_h = 4
-        body_w = 4
-        head_r = 3
-        body_y = feet_y - body_h - 2
-        # Rounder torso (filled ellipse, not a hard rect) + bright shirt.
-        pygame.draw.ellipse(surf, shirt, (bx, body_y, body_w, body_h + 1))
-        pygame.draw.ellipse(surf, shirt_dk, (bx, body_y, body_w, body_h + 1), 1)
-        # Oversized head relative to body — the universal "child" cue.
-        hx, hy = bx + body_w // 2, body_y - head_r + 1
-        pygame.draw.circle(surf, skin, (hx, hy), head_r)
-        # ROUND-CAP hair, NOT a cone: a domed half-disc capping the crown so the
-        # kids read as round-headed children (day AND night), never as the
-        # conical-hatted pilgrims/gnomes the old triangle suggested.
-        pygame.draw.arc(surf, hair, (hx - head_r, hy - head_r, head_r * 2 + 1, head_r * 2 + 1),
-                        math.radians(0), math.radians(180), head_r)
-        pygame.draw.circle(surf, (30, 20, 15), (hx - 1, hy), 0)
-        pygame.draw.circle(surf, (30, 20, 15), (hx + 1, hy), 0)
-        # Two stubby legs with a small shuffle (not a sprint).
-        leg = _shade(shirt_dk, -18)
-        swing = int(round(gait * 1))
-        pygame.draw.line(surf, leg, (bx + 1, body_y + body_h),
-                         (bx + 1 - swing, feet_y), 1)
-        pygame.draw.line(surf, leg, (bx + body_w - 1, body_y + body_h),
-                         (bx + body_w - 1 + swing, feet_y), 1)
-        # Most kids reach an arm up (chasing / waving) — the playful pose the AD
-        # liked; alternate which arm so the group has varied silhouettes.
-        if i != 1:
-            ax = bx + body_w - 1 if i % 2 == 0 else bx
-            adx = 2 if i % 2 == 0 else -2
-            pygame.draw.line(surf, shirt, (ax, body_y + 1),
-                             (ax + adx, body_y - 2 - max(0, swing)), 1)
+        v = _fv.get("kid", (variant + i) % cnt)
+        _day.draw_kid(surf, sx + spread[i % len(spread)], GROUND_Y - 1, v, night, t + i * 0.6)
 
 
-def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False):
-    """A TEMPLE ELDER — built so the 1× silhouette alone reads "old man with a
-    cane": a bald/grey domed head (NO conical hat — that's the kids), a deeply
-    STOOPED back, a long wispy grey beard reaching the chest, a muted plum/indigo
-    robe so he can't be mistaken for the bright-shirted children, and a long
-    hooked CANE whose shaft runs the full body height down to the deck. The cane +
-    stoop + beard are the three unmistakable elder cues, sized up from the prior
-    too-subtle figure. `seated_bench` sits him a touch lower."""
+def draw_vendor(surf, sx, pal, *, t=0.0, variant=0):
+    """One standing market vendor/worker from the 7-strong 'vendor' pool
+    (day_cast), feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool
+    index; the near lane passes it as a kwarg so it enters the bake cache key."""
+    v = _fv.get("vendor", variant)
+    if v is None:
+        return
+    _day.draw_vendor(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False, variant=0):
+    """A TEMPLE ELDER from the 6-strong 'elder' variety pool (day_cast) — varied
+    stance (stoop+cane / tai-chi / birdcage / hands-behind / seated+tea / feeding
+    birds), feet on GROUND_Y. `variant` is a resolved pool index. The legacy
+    seated-on-bench companion pose is kept as a fallback for `seated_bench`."""
+    if not seated_bench:
+        v = _fv.get("elder", variant)
+        if v is not None:
+            _day.draw_elder(surf, sx + 3, GROUND_Y - 1, v, _nightf(pal), t)
+            return
     night = _nightf(pal)
     skin = _retint_person((222, 186, 148), night)
     # A muted plum/indigo robe — a cool violet that sits apart from the kids'
@@ -1062,10 +1031,13 @@ def draw_market_setup(surf, sx, pal, *, t=0.0):
 # behind its own kiosk. `emit` fixes the far-lane feet line; tier breaks the tie.
 
 def _scene_market(emit, bx, pal, t, rng, pick=None):
-    """Food/market stall with a songbird-cage stand and kids beside it."""
+    """Food/market stall with a vendor working it, a songbird-cage stand and kids."""
+    vv = pick('vendor', 31) if pick else 0
+    kv = pick('kid', 32) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_kiosk(s, bx, pal, t=t, openness=0.9))
+    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 10, pal, t=t, variant=vv))
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
-    emit(TB_CAST, lambda s: draw_kids(s, bx + 152, pal, t=t, n=2))
+    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 152, pal, t=t, n=2, variant=kv))
 
 def _draw_calm_dog(surf, sx, pal, *, t=0.0):
     """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
@@ -1093,14 +1065,17 @@ def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
     emit(TB_FIXTURE, lambda s: draw_market_setup(s, bx, pal, t=t))
 
 def _scene_vendor(emit, bx, pal, t, rng, pick=None):
-    """A lone songbird-cage seller beside a potted plant — a calm market remnant."""
+    """A songbird-cage seller working the stand beside a potted plant."""
+    vv = pick('vendor', 33) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 12, pal, t=t, variant=vv))
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 26, pal, kind='conifer'))
 
 def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
+    ev = pick('elder', 14) if pick else 0
     emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx, pal, kind='shrub'))
-    emit(TB_CAST, lambda s: draw_old_man(s, bx + 30, pal, t=t, seated_bench=False))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev))
 
 
 def _scene_bench(emit, bx, pal, t, rng, pick=None):
@@ -1114,16 +1089,18 @@ def _scene_bench(emit, bx, pal, t, rng, pick=None):
         bench = _stepped(_Bench, pal, 20, bx)
         bench._blit_sprite(s)
     emit(TB_FIXTURE, _bench)
+    ev = pick('elder', 15) if pick else 0
     emit(TB_CAST, lambda s: _draw_bench_person(s, bx + 8, seat_y - 8, *comp, night=night))
-    emit(TB_CAST, lambda s: draw_old_man(s, bx + 44, pal, t=t, seated_bench=False))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 44, pal, t=t, variant=ev))
 
 def _scene_stroll(emit, bx, pal, t, rng, pick=None):
-    """Two strolling adults from the variety pool + the elder on a slow walk."""
-    v1 = pick(11) if pick else 0
-    v2 = pick(12) if pick else 0
+    """Two strolling adults from the variety pool + a varied elder on a slow walk."""
+    v1 = pick('pedestrian', 11) if pick else 0
+    v2 = pick('pedestrian', 12) if pick else 0
+    ev = pick('elder', 13) if pick else 0
     emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx - 7, pal, t=t, variant=v1))
     emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 9, pal, t=t, variant=v2))
-    emit(TB_CAST, lambda s: draw_old_man(s, bx + 48, pal, t=t, seated_bench=False))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 48, pal, t=t, variant=ev))
 
 def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat beside a planter."""
@@ -1132,12 +1109,13 @@ def _scene_rest(emit, bx, pal, t, rng, pick=None):
 
 def _scene_campfire(emit, bx, pal, t, rng, pick=None):
     """A campfire with cozy pool adults + kids gathered (lit by the drawer at night)."""
-    v1 = pick(21) if pick else 0
-    v2 = pick(22) if pick else 0
+    v1 = pick('pedestrian', 21) if pick else 0
+    v2 = pick('pedestrian', 22) if pick else 0
+    kv = pick('kid', 23) if pick else 0
     emit(TB_FIXTURE, lambda s: draw_campfire(s, bx, pal, t=t))
     emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx + 50, pal, t=t, variant=v1))
     emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 64, pal, t=t, variant=v2))
-    emit(TB_CAST, lambda s: draw_kids(s, bx + 100, pal, t=t, n=2))
+    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 100, pal, t=t, n=2, variant=kv))
 
 def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
     """Place the beat's scene roster at world-x slots, scrolling at world speed.
@@ -1389,9 +1367,10 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             def _emit(tier, fn):
                 _zbuf.enqueue(GROUND_Y - 1, tier, fn)
             # Stable per-figure variant picker for this slot, frozen to the entry
-            # beat/weather — scenes call pick(salt) for each pedestrian they place.
-            def _pick(salt, k=k, beat0=beat0, wb0=wb0):
-                return _fv.select_variant('pedestrian', _fv.slot_seed(k, salt), beat0, wb0)
+            # beat/weather — scenes call pick(family, salt) for each figure they
+            # place (family one of 'pedestrian'/'kid'/'elder'/'vendor').
+            def _pick(family, salt, k=k, beat0=beat0, wb0=wb0):
+                return _fv.select_variant(family, _fv.slot_seed(k, salt), beat0, wb0)
             scene_fn(_emit, bx + jit, pal, t, r, _pick)
     sp._latch_prune(row)
 
