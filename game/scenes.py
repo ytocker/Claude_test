@@ -1162,6 +1162,15 @@ class App:
         phase = self.world.biome_phase
         palette = self.world.biome_palette
 
+        # Future hook — intentionally not wired; the dormant biome sky-design
+        # registry (game/sky_designs.py) stays inert while ACTIVE_SKY_DESIGN is
+        # None, so the live shan-shui sky below is unchanged. To trial a design,
+        # set ACTIVE_SKY_DESIGN and uncomment:
+        #   from game import sky_designs
+        #   if sky_designs.ACTIVE_SKY_DESIGN and sky_designs.render_active(
+        #           surf, W, H, GROUND_Y, palette, phase):
+        #       return
+
         # The sky gradient is cached per phase bucket (see biome.PHASE_BUCKETS).
         # Blending the current bucket with the next one, weighted by how far
         # into the bucket we are, turns the otherwise ~10-second snap into a
