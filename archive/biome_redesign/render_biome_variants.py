@@ -146,6 +146,14 @@ def main():
     # Sky-only / stars modes triggered by tokens in the round tag.
     SKY_ONLY = "sky" in tag.lower() or (len(sys.argv) > 3 and sys.argv[3] == "sky")
     SKY_STARS = "star" in tag.lower()
+    # "daynight" token adds two explicit anchor columns to the stage arc: a clear
+    # DAY swatch right after midday, and a deep NIGHT swatch at the far end.
+    if "daynight" in tag.lower():
+        stages = list(bv.STAGES)
+        mi = next(i for i, (lbl, _ph) in enumerate(stages) if lbl == "midday")
+        stages.insert(mi + 1, ("day", 0.15))
+        stages.append(("night", 0.74))
+        bv.STAGES = stages
     if which == "A":
         rows = bv.GROUP_A
     elif which == "B":
