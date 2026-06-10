@@ -261,20 +261,6 @@ def _fol(pal, night):
     }
 
 
-def _near_planter(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, w=26):
-    """A LARGER potted planter for the front edge — the r15 box idiom, scaled up,
-    feet on the near deck so it reads as a closer pot than the far planters."""
-    night = _nightf(pal)
-    box_h = 13
-    by = feet_y
-    box = _mix(pal.get('stone_mid', (150, 132, 110)), (150, 120, 92), 0.5)
-    box = _mix(box, (60, 70, 100), 0.30 * night)
-    pygame.draw.rect(surf, _shade(box, -18), (sx - w // 2, by - box_h, w, box_h))
-    pygame.draw.rect(surf, box, (sx - w // 2 + 1, by - box_h, w - 2, box_h - 2))
-    pygame.draw.rect(surf, _shade(box, 16), (sx - w // 2 + 1, by - box_h, w - 2, 2))
-    draw_side_shrub(surf, sx, by - box_h - 3, _fol(pal, night), scale=1.9)
-
-
 def _near_pine(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, height=34):
     """A near Wuling pine in a tub — a taller piece of front greenery. Only placed
     in a clear horizontal zone since it climbs higher than a planter."""
@@ -1121,9 +1107,17 @@ def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     front edge stays open most of the day. Short greenery may sit under the lanes;
     the taller pine is gated to a clear zone."""
     ny = NEAR_GROUND_Y
+
+    def _grn_decide(k):
+        return (pr._slot_on(k, 21, fd),
+                _fv.select_variant('greenery', _fv.slot_seed(k, 91),
+                                   _fv.beat_for_phase(pr._CUR_PHASE),
+                                   _fv.weather_bucket(pr._CUR_RAIN, pr._CUR_SNOW)))
     for sx, k in _near_xs(scroll, w, 420, x0=60):
-        if sp._slot_latch(('grn', 21), k, lambda k=k: pr._slot_on(k, 21, fd)):
-            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_planter(s, sx, pal))
+        on, gv = sp._slot_latch(('grn', 21), k, lambda k=k: _grn_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, gv=gv: _scaled_cast(
+                s, pr.draw_greenery, sx, pal, 1.55, t=t, variant=gv))
     sp._latch_prune(('grn', 21))
     for sx, k in _near_xs(scroll, w, 520, x0=200):
         if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):

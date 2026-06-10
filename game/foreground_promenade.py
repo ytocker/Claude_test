@@ -45,6 +45,7 @@ from game import ped_cast as _ped
 from game import day_cast as _day
 from game import food_stalls as _food
 from game import animals_cast as _animals
+from game import greenery_cast as _green
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -876,16 +877,20 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
                           lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
     for sx, k in sp._world_xs(scroll, w, 520, x0=205):
-        if sp._slot_latch(('furn', 13), k, lambda k=k: _slot_on(k, 13, fd)):
-            def _planter_vine(s, sx=sx):
-                sp._draw_planter(s, sx, pal, kind='shrub')
+        on, gv = sp._slot_latch(('furn', 13), k, lambda k=k: (
+            _slot_on(k, 13, fd), _greenery_latch(('furn', 13), k, 13)))
+        if on:
+            def _planter_vine(s, sx=sx, gv=gv):
+                draw_greenery(s, sx, pal, t=_CUR_T, variant=gv)
                 sp._draw_vine_trail(s, sx + 11, pal)
             _zbuf.enqueue(fy, TB_FIXTURE, _planter_vine)
     sp._latch_prune(('furn', 13))
     for sx, k in sp._world_xs(scroll, w, 620, x0=70):
-        if sp._slot_latch(('furn', 14), k, lambda k=k: _slot_on(k, 14, fd)):
+        on, gv = sp._slot_latch(('furn', 14), k, lambda k=k: (
+            _slot_on(k, 14, fd), _greenery_latch(('furn', 14), k, 14)))
+        if on:
             _zbuf.enqueue(fy, TB_FIXTURE,
-                          lambda s, sx=sx: sp._draw_planter(s, sx, pal, kind='bamboo'))
+                          lambda s, sx=sx, gv=gv: draw_greenery(s, sx, pal, t=_CUR_T, variant=gv))
     sp._latch_prune(('furn', 14))
 
 
@@ -1101,6 +1106,24 @@ def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
     _animals.draw_critter(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
 
 
+def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
+    """One potted plant / tree from the 10-design 'greenery' pool (greenery_cast),
+    feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the near
+    lane passes it as a kwarg into the bake cache. Replaces the fixed planter."""
+    v = _fv.get("greenery", variant)
+    if v is None:
+        return
+    _green.draw_greenery(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def _greenery_latch(row, k, salt):
+    """Freeze a greenery variant at slot entry (greenery is beat/weather-neutral
+    but select_variant folds beat/weather into the seed, so freeze for no flicker)."""
+    return _fv.select_variant('greenery', _fv.slot_seed(k, salt),
+                              _fv.beat_for_phase(_CUR_PHASE),
+                              _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW))
+
+
 def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     """Wish-tree + a varied dog ambling with the street + a foraging critter."""
     dv = pick('dog', 71) if pick else 0
@@ -1108,12 +1131,14 @@ def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     emit(TB_CAST, lambda s, dv=dv: draw_dog(s, bx + 66, pal, t=t, variant=dv))
     emit(TB_CAST, lambda s: draw_critter(s, bx + 96, pal, t=t,
                                          kind=rng.choice(('pigeons', 'cat', 'hen', 'duck'))))
-    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 122, pal, kind='shrub'))
+    gv = pick('greenery', 81) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 122, pal, t=t, variant=gv))
 
 def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     """A lamplighter kindling the street lanterns at dusk + a potted conifer."""
     emit(TB_CAST, lambda s: draw_lamplighter(s, bx, pal, t=t))
-    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 40, pal, kind='conifer'))
+    gv = pick('greenery', 82) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 40, pal, t=t, variant=gv))
 
 def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
     """Vendors assembling the morning market."""
@@ -1124,12 +1149,14 @@ def _scene_vendor(emit, bx, pal, t, rng, pick=None):
     vv = pick('vendor', 33) if pick else 0
     emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
     emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 12, pal, t=t, variant=vv))
-    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 26, pal, kind='conifer'))
+    gv = pick('greenery', 83) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 26, pal, t=t, variant=gv))
 
 def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
     ev = pick('elder', 14) if pick else 0
-    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx, pal, kind='shrub'))
+    gv = pick('greenery', 84) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx, pal, t=t, variant=gv))
     emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev))
 
 
@@ -1160,7 +1187,8 @@ def _scene_stroll(emit, bx, pal, t, rng, pick=None):
 def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat beside a planter."""
     emit(TB_CAST, lambda s: draw_napper(s, bx, pal, t=t))
-    emit(TB_FIXTURE, lambda s: sp._draw_planter(s, bx + 46, pal, kind='conifer'))
+    gv = pick('greenery', 85) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 46, pal, t=t, variant=gv))
 
 def _scene_campfire(emit, bx, pal, t, rng, pick=None):
     """A campfire with cozy pool adults + kids gathered (lit by the drawer at night)."""
