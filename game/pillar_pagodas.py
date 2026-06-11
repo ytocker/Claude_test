@@ -956,18 +956,13 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                     entry_door_open=False, draw_entry_door=True):
     """Stack of `tier_count` cedar-and-plaster storeys with wide flat eaves.
 
-    `top_y`/`bot_y` define the tier-stack envelope (excluding the finial).
-    When `sorin_up` is True the sōrin sits ABOVE top_y (Japanese tō);
-    when False, the finial points DOWN past bot_y (mirrored hanging tō).
-
-    Round-7 polish per the AD punchlist:
+    `top_y`/`bot_y` define the tier-stack envelope; the topmost storey keeps its
+    eave corner hooks so the bare roofed crown reads on the gap line (no spire).
+    Detail per storey:
       * niche centred on EACH plaster panel of every visible storey
-      * topmost eave gets a bronze shibi fish-tail finial (not on every tier)
-      * wood grain stippled across each plaster panel
       * nageshi rails: double horizontal shadows at 1/3 and 2/3 down per panel
       * sashi: a 1-px vertical centre-line shadow on each panel
-      * recessed entry door at the lowest visible storey
-      * additive halo around the sōrin flame jewel (dark sky only)"""
+      * recessed entry door at the lowest visible storey"""
     cedar = _cedar(palette)
     plaster = _plaster(palette)
     roof = _shade(cedar, -10)
@@ -2604,21 +2599,18 @@ def _draw_fogong_storey(surf, cx, wall_top, bw, th, palette, *,
 def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
                     tier_count=5, finial_h=30, sorin_up=True,
                     draw_entry_door=True, entry_door_open=False):
-    """Stacked Fogong storeys ending in a small bronze sōrin (down-pointing
-    in the mirrored hanging variant). Each storey gets gentle Chinese-tile
-    eave curls — between Hōryū-ji-flat and Khmer-corner-sweep so the
-    silhouette doesn't blur with the Japanese tō.
+    """Stacked Fogong storeys topped by a roofed crown (no spire) — the topmost
+    eave keeps its corner curls so the crown reads on the gap line. Each storey
+    gets gentle Chinese-tile eave curls — between Hōryū-ji-flat and
+    Khmer-corner-sweep so the silhouette doesn't blur with the Japanese tō.
 
-    Round-7 polish per AD punchlist:
       * tier_index passed through so the storey gets the +5%/tier
         atmospheric-recession value lift.
       * eave curl ramps to 0.75 on bottom 3 storeys, 0.6 on upper 2 —
         Chinese eaves curl harder at the base.
       * 2-px hanging tile-end fringe under each eave keyline (pendant-tile
         cue, distinct from Hōryū-ji's flat shingles).
-      * topmost eave gets paired chiwen dragon-head finials.
-      * recessed entry door at the lowest visible storey.
-      * additive halo around the sōrin finial jewel under dark skies."""
+      * recessed entry door at the lowest visible storey."""
     wood = _ochre_wood(palette)
     wood_lit = _ochre_wood_lit(palette)
     accent = _bronze(palette)
