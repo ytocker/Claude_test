@@ -28,7 +28,7 @@ from game.draw import (
 )
 from game import parrot
 from game import snow_fx
-from game.pillar_pagodas import (draw_pillar_pair, finial_clearance,
+from game.pillar_pagodas import (draw_pillar_pair,
                                  CANDIDATES, VARIANT_KEYS, VARIANT_COUNT)
 
 # Cached filled-circle masks (one per integer radius) for pagoda mask collision.
@@ -1363,10 +1363,6 @@ class Pipe:
         self.is_kfc = False
         # Per-instance random seed → chooses variant + stable decoration seed
         self.seed = random.randint(0, 0xFFFFFF)
-        # The pagoda finial ("antenna") is decorative-only: the kill zone stops
-        # this many px back from each gap edge (at the body roof), so clipping the
-        # spire is non-lethal. Drawing still fills the full gap extent.
-        self.finial_clear = finial_clearance(self.seed)
         # KFC re-skin is deterministic per pipe (seed + gap_y + gap_h all
         # stable for a Pipe's lifetime) and never animates, so we render
         # it once on first KFC frame and blit the bitmap each frame after.
@@ -1383,9 +1379,9 @@ class Pipe:
         # WASM and re-roll the ornament layer each frame.
         self._pagoda_cache: "pygame.Surface | None" = None
         self._pagoda_cache_dx = 0
-        # Per-pixel collision mask of the pagoda STRUCTURE (body + every floor
-        # roof/eave incl. overhangs) minus the antenna band; ornaments are not in
-        # it, so flags/vines/lanterns stay non-lethal. Built with the bake.
+        # Per-pixel collision mask of the whole pagoda STRUCTURE (body + every
+        # floor roof/eave incl. overhangs + the crown at the gap edge); ornaments
+        # are not in it, so flags/vines/lanterns stay non-lethal. Built with the bake.
         self._collision_mask = None
         self._collision_mask_dx = 0
         # SKATEBOARD ride surfaces (lazy, derived from the mask): the LOWER
@@ -1402,7 +1398,7 @@ class Pipe:
     @property
     def top_rect(self):
         # Full gap extent. Used as the KFC fallback hitbox; pagoda collision uses
-        # the per-pixel structural mask (which carves out the antenna).
+        # the per-pixel structural mask of the whole silhouette.
         return pygame.Rect(int(self.x), 0, PIPE_W, int(self.gap_y - self.gap_h / 2))
 
     @property
@@ -1412,15 +1408,15 @@ class Pipe:
 
     @property
     def finial_tip_y(self):
-        """Y of the bottom pillar's lethal finial tip = the kill-zone top the
-        grind rail rests on. The finials are calibrated to reach the gap edge."""
+        """Y of the bottom pillar's lethal crown = the kill-zone top the grind
+        rail rests on. Every variant's crown is calibrated to the gap edge."""
         return self.gap_y + self.gap_h / 2
 
     @property
     def rail_y(self):
-        """Y of the grind-rail track — RAIL_ABOVE_FINIAL px above the finial
-        tips, so the cart rides on top of the kill zone / just above the
-        antennas (short support posts connect the rail down to the tips)."""
+        """Y of the grind-rail track — RAIL_ABOVE_FINIAL px above the crown, so
+        the cart rides on top of the kill zone / just above the roof (short
+        support posts connect the rail down to the crown)."""
         return self.gap_y + self.gap_h / 2 - RAIL_ABOVE_FINIAL
 
     def off_screen(self):
@@ -1435,9 +1431,9 @@ class Pipe:
             box = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
             return self.top_rect.colliderect(box) or self.bot_rect.colliderect(box)
         # Pagoda: kill zone == the structural silhouette (body + every floor
-        # roof/eave incl. overhangs + the finial spire). Only the loose ornaments
-        # (prayer flags / vines / lanterns) are non-lethal, and those are never in
-        # the mask (CANDIDATES draws structure only).
+        # roof/eave incl. overhangs + the crown at the gap edge). Only the loose
+        # ornaments (prayer flags / vines / lanterns) are non-lethal, and those are
+        # never in the mask (CANDIDATES draws structure only).
         if self._collision_mask is None:
             self._build_collision_mask()
         offset = (int(cx - r - self.x - self._collision_mask_dx), int(cy - r))
@@ -1486,12 +1482,12 @@ class Pipe:
 
     def _build_collision_mask(self):
         """Per-pixel kill-zone mask = the whole pagoda STRUCTURE (body + all floor
-        roofs/eaves incl. overhangs past PIPE_W + the finial spire). Structure only
-        (no ornaments), so prayer flags / vines / lanterns are non-lethal. The
-        finial spire IS lethal — it pokes into the gap to ~the nominal gap edge, so
-        keeping it gives an effective passable gap of ~gap_h (matching the old
-        sandstone-pillar AABB collision) rather than the much wider gap left when it
-        was carved out. Geometry is palette-independent."""
+        roofs/eaves incl. overhangs past PIPE_W + the crown). Structure only (no
+        ornaments), so prayer flags / vines / lanterns are non-lethal. Each
+        variant's lethal top reaches ~the nominal gap edge — the tiered tō present a
+        solid wide roofed crown there (no thin spire to sneak past), the spired
+        variants their spire — so the effective passable gap is ~gap_h, matching the
+        old sandstone-pillar AABB collision. Geometry is palette-independent."""
         from game import biome as _biome
         margin = 64
         surf = pygame.Surface((PIPE_W + margin * 2, GROUND_Y), pygame.SRCALPHA)
