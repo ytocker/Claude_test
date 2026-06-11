@@ -1028,6 +1028,12 @@ _FOL_CYCAD = dict(foliage_dark=(26, 62, 44), foliage_mid=(42, 92, 60), foliage_t
 _FOL_BANANA = dict(foliage_dark=(32, 76, 46), foliage_mid=(54, 112, 66), foliage_top=(108, 164, 96))
 _FOL_LOTUS = dict(foliage_dark=(34, 80, 56), foliage_mid=(58, 116, 78), foliage_top=(112, 162, 116))
 _FOL_MOSS = dict(foliage_dark=(40, 78, 50), foliage_mid=(64, 110, 70), foliage_top=(108, 152, 100))
+# batch-3 combo foliage banks (new palettes over the shipped drawers)
+_FOL_LUSH = dict(foliage_dark=(28, 74, 46), foliage_mid=(48, 108, 66), foliage_top=(96, 152, 92))
+_FOL_PINE = dict(foliage_dark=(30, 70, 58), foliage_mid=(46, 96, 78), foliage_top=(82, 134, 104))
+_FOL_BOX = dict(foliage_dark=(48, 92, 56), foliage_mid=(80, 130, 82), foliage_top=(128, 172, 116))
+_FOL_AZALEA = dict(foliage_dark=(40, 82, 52), foliage_mid=(64, 116, 74), foliage_top=(106, 156, 98))
+_FOL_DRAPE = dict(foliage_dark=(28, 70, 50), foliage_mid=(46, 100, 68), foliage_top=(90, 144, 100))
 
 
 def _row(*banks, **attrs):
@@ -1075,6 +1081,14 @@ def _build_greenery():
         _row(_STONE, _FOL_MOSS, dict(rock=(150, 152, 158), rock_dk=(96, 100, 110),
                                      vessel=(96, 78, 60), vessel_dk=(60, 48, 38)),
              vessel="tray", species="rock", vlift=0.0),
+        # ── batch 3: fresh combos of existing species (indices 20-24) ──
+        _row(_TUB, _FOL_LUSH, vessel="tub", species="shrub", mass=1.2),
+        _row(_TERRA, _FOL_PINE, vessel="terracotta", species="conifer"),
+        _row(_BAMBOO_V, _FOL_BOX, dict(trunk=(120, 92, 60)),
+             vessel="bamboo", species="topiary", tiers=2),
+        _row(_TERRA, _FOL_AZALEA, dict(accent=(238, 158, 120)),
+             vessel="terracotta", species="flowering", day_chroma=186),
+        _row(_BAMBOO_V, _FOL_DRAPE, vessel="bamboo", species="vine"),
     ]
 
 
