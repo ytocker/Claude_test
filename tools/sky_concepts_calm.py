@@ -67,16 +67,16 @@ _ROSEGREY_KF = [
     (0.06, dict(sky_top=(96, 110, 140), sky_mid=(150, 156, 174), sky_bot=(206, 190, 192), horizon=(224, 196, 188), star_alpha=0)),
     (0.18, dict(sky_top=(104, 122, 152), sky_mid=(158, 168, 186), sky_bot=(208, 200, 200), horizon=(222, 204, 196), star_alpha=0)),
     (0.30, dict(sky_top=(100, 116, 148), sky_mid=(152, 162, 182), sky_bot=(204, 194, 196), horizon=(220, 196, 190), star_alpha=0)),
-    (0.40, dict(sky_top=(110, 106, 146), sky_mid=(176, 148, 174), sky_bot=(222, 168, 182), horizon=(234, 162, 168), star_alpha=0)),
-    (0.44, dict(sky_top=(104, 96, 142), sky_mid=(180, 140, 172), sky_bot=(230, 158, 178), horizon=(240, 152, 162), star_alpha=0)),
-    (0.50, dict(sky_top=(96, 86, 138), sky_mid=(176, 130, 168), sky_bot=(230, 148, 172), horizon=(238, 142, 156), star_alpha=10)),
-    (0.56, dict(sky_top=(82, 74, 128), sky_mid=(158, 116, 160), sky_bot=(214, 138, 166), horizon=(228, 134, 152), star_alpha=24)),
-    (0.62, dict(sky_top=(58, 56, 106), sky_mid=(114, 94, 146), sky_bot=(170, 124, 158), horizon=(208, 142, 156), star_alpha=70)),
+    (0.40, dict(sky_top=(110, 106, 146), sky_mid=(180, 138, 168), sky_bot=(222, 150, 172), horizon=(236, 138, 158), star_alpha=0)),
+    (0.44, dict(sky_top=(104, 96, 142), sky_mid=(184, 126, 162), sky_bot=(228, 136, 166), horizon=(236, 122, 150), star_alpha=0)),
+    (0.50, dict(sky_top=(96, 86, 138), sky_mid=(180, 112, 154), sky_bot=(226, 120, 158), horizon=(230, 106, 138), star_alpha=10)),
+    (0.56, dict(sky_top=(82, 74, 128), sky_mid=(162, 100, 146), sky_bot=(212, 114, 150), horizon=(220, 104, 134), star_alpha=24)),
+    (0.62, dict(sky_top=(58, 56, 106), sky_mid=(114, 92, 144), sky_bot=(172, 112, 148), horizon=(204, 114, 138), star_alpha=70)),
     (0.72, dict(sky_top=(26, 28, 56), sky_mid=(48, 48, 84), sky_bot=(78, 72, 110), horizon=(120, 100, 130), star_alpha=190)),
-    (0.80, dict(sky_top=(40, 38, 80), sky_mid=(88, 70, 120), sky_bot=(142, 104, 146), horizon=(196, 138, 156), star_alpha=110)),
-    (0.84, dict(sky_top=(58, 52, 102), sky_mid=(128, 98, 148), sky_bot=(196, 138, 160), horizon=(232, 152, 156), star_alpha=56)),
-    (0.88, dict(sky_top=(80, 76, 126), sky_mid=(164, 130, 166), sky_bot=(226, 160, 172), horizon=(240, 158, 160), star_alpha=24)),
-    (0.90, dict(sky_top=(90, 92, 138), sky_mid=(170, 144, 174), sky_bot=(224, 172, 182), horizon=(236, 172, 168), star_alpha=12)),
+    (0.80, dict(sky_top=(40, 38, 80), sky_mid=(90, 68, 120), sky_bot=(146, 96, 142), horizon=(196, 110, 142), star_alpha=110)),
+    (0.84, dict(sky_top=(58, 52, 102), sky_mid=(130, 92, 146), sky_bot=(198, 120, 152), horizon=(228, 116, 142), star_alpha=56)),
+    (0.88, dict(sky_top=(80, 76, 126), sky_mid=(166, 118, 160), sky_bot=(224, 138, 162), horizon=(236, 124, 148), star_alpha=24)),
+    (0.90, dict(sky_top=(90, 92, 138), sky_mid=(170, 136, 170), sky_bot=(224, 156, 174), horizon=(232, 144, 158), star_alpha=12)),
     (0.94, dict(sky_top=(96, 110, 142), sky_mid=(158, 158, 180), sky_bot=(210, 188, 194), horizon=(228, 188, 184), star_alpha=0)),
 ]
 
@@ -104,14 +104,14 @@ _POWDER_KF = [
     (0.40, dict(sky_top=(134, 154, 196), sky_mid=(228, 192, 198), sky_bot=(252, 208, 192), horizon=(255, 198, 170), star_alpha=0)),
     (0.44, dict(sky_top=(128, 146, 192), sky_mid=(232, 184, 192), sky_bot=(254, 200, 182), horizon=(255, 188, 156), star_alpha=0)),
     (0.50, dict(sky_top=(118, 134, 186), sky_mid=(228, 172, 186), sky_bot=(254, 192, 174), horizon=(255, 178, 144), star_alpha=10)),
-    (0.56, dict(sky_top=(96, 112, 172), sky_mid=(198, 154, 178), sky_bot=(244, 180, 170), horizon=(252, 174, 144), star_alpha=26)),
-    (0.62, dict(sky_top=(50, 74, 134), sky_mid=(118, 128, 170), sky_bot=(192, 176, 184), horizon=(232, 188, 172), star_alpha=80)),
+    (0.56, dict(sky_top=(96, 112, 172), sky_mid=(204, 150, 170), sky_bot=(250, 176, 158), horizon=(255, 170, 134), star_alpha=26)),
+    (0.62, dict(sky_top=(50, 74, 134), sky_mid=(138, 122, 154), sky_bot=(220, 168, 158), horizon=(248, 172, 138), star_alpha=80)),
     (0.72, dict(sky_top=(14, 24, 62), sky_mid=(24, 50, 102), sky_bot=(40, 82, 132), horizon=(72, 120, 158), star_alpha=210)),
     (0.80, dict(sky_top=(22, 36, 84), sky_mid=(70, 78, 124), sky_bot=(154, 130, 158), horizon=(216, 168, 164), star_alpha=130)),
     (0.84, dict(sky_top=(40, 56, 110), sky_mid=(142, 120, 162), sky_bot=(230, 174, 180), horizon=(255, 184, 154), star_alpha=58)),
     (0.88, dict(sky_top=(88, 116, 176), sky_mid=(204, 180, 202), sky_bot=(250, 200, 188), horizon=(255, 190, 160), star_alpha=24)),
     (0.90, dict(sky_top=(106, 138, 192), sky_mid=(206, 192, 214), sky_bot=(246, 210, 202), horizon=(252, 204, 180), star_alpha=12)),
-    (0.94, dict(sky_top=(122, 160, 204), sky_mid=(174, 202, 228), sky_bot=(212, 226, 238), horizon=(232, 232, 234), star_alpha=0)),
+    (0.94, dict(sky_top=(122, 160, 204), sky_mid=(174, 202, 228), sky_bot=(222, 222, 224), horizon=(248, 214, 202), star_alpha=0)),
 ]
 
 POWDER_MORNING = BiomeSpec(
@@ -177,7 +177,7 @@ _TEAL_KF = [
     (0.84, dict(sky_top=(30, 56, 92), sky_mid=(62, 106, 142), sky_bot=(164, 150, 158), horizon=(242, 148, 116), star_alpha=64)),
     (0.88, dict(sky_top=(78, 116, 146), sky_mid=(140, 166, 188), sky_bot=(216, 182, 172), horizon=(250, 162, 128), star_alpha=22)),
     (0.90, dict(sky_top=(96, 130, 154), sky_mid=(150, 180, 194), sky_bot=(218, 198, 190), horizon=(246, 180, 150), star_alpha=12)),
-    (0.94, dict(sky_top=(116, 144, 160), sky_mid=(162, 190, 200), sky_bot=(204, 214, 214), horizon=(224, 212, 202), star_alpha=0)),
+    (0.94, dict(sky_top=(116, 144, 160), sky_mid=(162, 190, 200), sky_bot=(210, 206, 200), horizon=(240, 192, 180), star_alpha=0)),
 ]
 
 MISTY_TEAL = BiomeSpec(
@@ -203,8 +203,8 @@ _SLATE_KF = [
     (0.40, dict(sky_top=(66, 84, 130), sky_mid=(122, 134, 166), sky_bot=(206, 178, 168), horizon=(244, 168, 116), star_alpha=0)),
     (0.44, dict(sky_top=(60, 76, 124), sky_mid=(126, 124, 158), sky_bot=(220, 168, 148), horizon=(250, 154, 98), star_alpha=0)),
     (0.50, dict(sky_top=(54, 66, 116), sky_mid=(124, 114, 150), sky_bot=(228, 158, 134), horizon=(250, 142, 86), star_alpha=12)),
-    (0.56, dict(sky_top=(44, 56, 104), sky_mid=(104, 100, 142), sky_bot=(210, 150, 132), horizon=(240, 138, 90), star_alpha=30)),
-    (0.62, dict(sky_top=(36, 50, 92), sky_mid=(74, 88, 130), sky_bot=(150, 144, 162), horizon=(212, 158, 124), star_alpha=85)),
+    (0.56, dict(sky_top=(44, 56, 104), sky_mid=(112, 96, 134), sky_bot=(218, 144, 118), horizon=(246, 130, 80), star_alpha=30)),
+    (0.62, dict(sky_top=(36, 50, 92), sky_mid=(92, 84, 120), sky_bot=(192, 138, 122), horizon=(234, 138, 88), star_alpha=85)),
     (0.72, dict(sky_top=(10, 18, 50), sky_mid=(20, 40, 84), sky_bot=(36, 70, 114), horizon=(66, 106, 146), star_alpha=215)),
     (0.80, dict(sky_top=(16, 28, 66), sky_mid=(38, 60, 102), sky_bot=(110, 104, 138), horizon=(208, 138, 112), star_alpha=135)),
     (0.84, dict(sky_top=(30, 44, 88), sky_mid=(86, 90, 134), sky_bot=(196, 146, 138), horizon=(248, 142, 92), star_alpha=70)),
@@ -312,7 +312,7 @@ _ALPINE_KF = [
     (0.84, dict(sky_top=(28, 74, 118), sky_mid=(108, 142, 162), sky_bot=(220, 188, 160), horizon=(255, 188, 132), star_alpha=66)),
     (0.88, dict(sky_top=(72, 148, 182), sky_mid=(192, 200, 190), sky_bot=(252, 208, 170), horizon=(255, 196, 142), star_alpha=20)),
     (0.90, dict(sky_top=(80, 154, 184), sky_mid=(196, 204, 192), sky_bot=(248, 212, 180), horizon=(255, 202, 156), star_alpha=12)),
-    (0.94, dict(sky_top=(84, 156, 184), sky_mid=(148, 192, 202), sky_bot=(200, 212, 208), horizon=(228, 212, 198), star_alpha=0)),
+    (0.94, dict(sky_top=(84, 156, 184), sky_mid=(150, 190, 198), sky_bot=(212, 206, 192), horizon=(246, 202, 168), star_alpha=0)),
 ]
 
 ALPINE_HAZE = BiomeSpec(
@@ -369,17 +369,17 @@ _PEARL_KF = [
     (0.06, dict(sky_top=(140, 142, 170), sky_mid=(190, 192, 208), sky_bot=(218, 218, 222), horizon=(230, 224, 216), star_alpha=0)),
     (0.18, dict(sky_top=(144, 146, 176), sky_mid=(192, 196, 212), sky_bot=(220, 220, 224), horizon=(232, 226, 218), star_alpha=0)),
     (0.30, dict(sky_top=(142, 144, 174), sky_mid=(190, 194, 210), sky_bot=(218, 218, 222), horizon=(230, 224, 214), star_alpha=0)),
-    (0.40, dict(sky_top=(150, 146, 172), sky_mid=(214, 202, 198), sky_bot=(250, 228, 210), horizon=(255, 226, 200), star_alpha=0)),
-    (0.44, dict(sky_top=(148, 142, 170), sky_mid=(220, 200, 196), sky_bot=(254, 228, 206), horizon=(255, 224, 196), star_alpha=0)),
-    (0.50, dict(sky_top=(140, 134, 166), sky_mid=(222, 198, 196), sky_bot=(255, 228, 204), horizon=(255, 224, 194), star_alpha=12)),
-    (0.56, dict(sky_top=(116, 110, 150), sky_mid=(204, 184, 188), sky_bot=(252, 222, 200), horizon=(255, 220, 190), star_alpha=28)),
-    (0.62, dict(sky_top=(70, 70, 114), sky_mid=(142, 134, 158), sky_bot=(220, 202, 198), horizon=(244, 212, 196), star_alpha=72)),
+    (0.40, dict(sky_top=(150, 146, 172), sky_mid=(216, 200, 194), sky_bot=(252, 224, 202), horizon=(255, 218, 186), star_alpha=0)),
+    (0.44, dict(sky_top=(148, 142, 170), sky_mid=(222, 198, 190), sky_bot=(255, 222, 196), horizon=(255, 214, 180), star_alpha=0)),
+    (0.50, dict(sky_top=(140, 134, 166), sky_mid=(224, 194, 188), sky_bot=(255, 222, 194), horizon=(255, 212, 176), star_alpha=12)),
+    (0.56, dict(sky_top=(116, 110, 150), sky_mid=(206, 180, 182), sky_bot=(254, 216, 190), horizon=(255, 208, 174), star_alpha=28)),
+    (0.62, dict(sky_top=(70, 70, 114), sky_mid=(144, 132, 154), sky_bot=(224, 198, 188), horizon=(248, 204, 180), star_alpha=72)),
     (0.72, dict(sky_top=(28, 26, 58), sky_mid=(50, 54, 92), sky_bot=(86, 96, 126), horizon=(132, 142, 160), star_alpha=185)),
-    (0.80, dict(sky_top=(38, 38, 76), sky_mid=(82, 80, 114), sky_bot=(166, 146, 156), horizon=(228, 196, 188), star_alpha=108)),
-    (0.84, dict(sky_top=(58, 56, 100), sky_mid=(134, 124, 150), sky_bot=(224, 196, 192), horizon=(255, 208, 182), star_alpha=58)),
-    (0.88, dict(sky_top=(128, 124, 162), sky_mid=(200, 190, 202), sky_bot=(248, 226, 214), horizon=(255, 222, 196), star_alpha=18)),
-    (0.90, dict(sky_top=(140, 138, 170), sky_mid=(202, 198, 210), sky_bot=(244, 230, 222), horizon=(255, 224, 206), star_alpha=10)),
-    (0.94, dict(sky_top=(140, 142, 172), sky_mid=(190, 192, 208), sky_bot=(218, 218, 222), horizon=(232, 220, 208), star_alpha=0)),
+    (0.80, dict(sky_top=(38, 38, 76), sky_mid=(84, 78, 110), sky_bot=(170, 144, 150), horizon=(232, 192, 176), star_alpha=108)),
+    (0.84, dict(sky_top=(58, 56, 100), sky_mid=(136, 122, 146), sky_bot=(228, 192, 184), horizon=(255, 202, 170), star_alpha=58)),
+    (0.88, dict(sky_top=(128, 124, 162), sky_mid=(202, 188, 198), sky_bot=(250, 222, 206), horizon=(255, 216, 184), star_alpha=18)),
+    (0.90, dict(sky_top=(140, 138, 170), sky_mid=(204, 196, 206), sky_bot=(246, 226, 214), horizon=(255, 216, 192), star_alpha=10)),
+    (0.94, dict(sky_top=(140, 142, 172), sky_mid=(192, 190, 204), sky_bot=(222, 216, 216), horizon=(244, 210, 192), star_alpha=0)),
 ]
 
 PEARL_OVERCAST = BiomeSpec(
