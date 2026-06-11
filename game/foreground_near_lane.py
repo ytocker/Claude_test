@@ -1286,12 +1286,18 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     banner_win = (0.45 <= p < 0.86)
     ny = NEAR_GROUND_Y
     for sx, k in _near_xs(scroll, W, 340, x0=30):
-        if sp._slot_latch(('banner',), k, lambda: banner_win):
-            _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx: _near_banner(s, sx, pal))
+        on, bv = sp._slot_latch(('banner',), k, lambda k=k: (
+            banner_win, pr._prop_latch('prop_banner', k, 41)))
+        if on:
+            _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx, bv=bv: _scaled_cast(
+                s, pr.draw_prop_banner, sx, pal, 1.5, t=t, variant=bv))
     sp._latch_prune(('banner',))
     for sx, k in _near_xs(scroll, W, 290, x0=115):
-        if sp._slot_latch(('brazier',), k, lambda: banner_win):
-            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_brazier(s, sx, pal, t=t))
+        on, fvar = sp._slot_latch(('brazier',), k, lambda k=k: (
+            banner_win, pr._prop_latch('prop_fire', k, 42)))
+        if on:
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, fvar=fvar: _scaled_cast(
+                s, pr.draw_prop_fire, sx, pal, 1.5, t=t, variant=fvar))
     sp._latch_prune(('brazier',))
     # Performers: ONE world-anchored grid. Each slot latches at entry both whether
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never

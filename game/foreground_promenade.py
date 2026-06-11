@@ -46,6 +46,7 @@ from game import day_cast as _day
 from game import food_stalls as _food
 from game import animals_cast as _animals
 from game import greenery_cast as _green
+from game import props_cast as _props
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
@@ -1124,6 +1125,38 @@ def _greenery_latch(row, k, salt):
                               _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW))
 
 
+def _prop_latch(family, k, salt):
+    """Freeze a prop-pool variant (lamp/banner/fire/...) at slot entry, same reason
+    as the greenery latch — no flicker as the beat/weather seed shifts."""
+    return _fv.select_variant(family, _fv.slot_seed(k, salt),
+                              _fv.beat_for_phase(_CUR_PHASE),
+                              _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW))
+
+
+def draw_prop_lamp(surf, sx, pal, *, t=0.0, variant=0):
+    """One street lamp/lantern from the 'prop_lamp' pool (slim-post / paired /
+    stone-shrine), feet on GROUND_Y. Lit head capped under the night ceiling."""
+    v = _fv.get("prop_lamp", variant)
+    if v is not None:
+        _props.draw_lamp(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_banner(surf, sx, pal, *, t=0.0, variant=0):
+    """One hanging banner/sign from the 'prop_banner' pool (cloth / pennant /
+    signboard), feet on GROUND_Y."""
+    v = _fv.get("prop_banner", variant)
+    if v is not None:
+        _props.draw_banner(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_fire(surf, sx, pal, *, t=0.0, variant=0):
+    """One brazier/censer from the 'prop_fire' pool (tripod / coal-basket / temple
+    censer), feet on GROUND_Y. Capped ember glow + thin smoke wisp."""
+    v = _fv.get("prop_fire", variant)
+    if v is not None:
+        _props.draw_fire(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
 def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
     """Wish-tree + a varied dog ambling with the street + a foraging critter."""
     dv = pick('dog', 71) if pick else 0
@@ -1391,14 +1424,18 @@ def _dressing(surf, w, scroll, pal, phase):
     lamp_win = (0.20 <= p < 0.93)
     fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 250, x0=18):
-        if sp._slot_latch(('lampR',), k, lambda: lamp_win):
-            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx: sp._draw_lamp_post(
-                s, sx, pal, style='ornate', height=96, lantern='red'))
+        on, lv = sp._slot_latch(('lampR',), k, lambda k=k: (
+            lamp_win, _prop_latch('prop_lamp', k, 31)))
+        if on:
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
+                s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampR',))
     for sx, k in sp._world_xs(scroll, w, 250, x0=152):
-        if sp._slot_latch(('lampG',), k, lambda: lamp_win):
-            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx: sp._draw_lamp_post(
-                s, sx, pal, style='ornate', height=90, lantern='gold'))
+        on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
+            lamp_win, _prop_latch('prop_lamp', k, 32)))
+        if on:
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
+                s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampG',))
     fairy_win = (0.40 <= p < 0.86)                              # festival fairy lights
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
