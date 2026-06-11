@@ -50,16 +50,24 @@ _sky_designs.ACTIVE_SKY_DESIGN = None
 
 CYCLE_SECONDS = 320.0  # game/biome.py: phase = (t / 320) % 1
 
-# Same 12-phase day arc and order as the sky-only study sheet, so the columns
-# line up with the sheets already under review.
+# Same day arc and order as the sky-only study sheet, so the columns line up.
+# Densified to 18 columns: +3 across the sunrise->day handoff and +3 across the
+# day->sunset onset, to read how gradual those two transitions are. Pure
+# sampling — the design keyframes are unchanged.
 PHASES = [
     ("predawn", 0.80),
     ("dawn", 0.88),
     ("sunrise", 0.94),
+    ("to-day1", 0.955),
+    ("to-day2", 0.97),
+    ("to-day3", 0.985),
     ("early-morning", 0.02),
     ("morning", 0.10),
     ("midday", 0.20),
     ("afternoon", 0.32),
+    ("to-set1", 0.345),
+    ("to-set2", 0.37),
+    ("to-set3", 0.395),
     ("golden", 0.42),
     ("sunset", 0.50),
     ("dusk", 0.60),
@@ -146,7 +154,7 @@ def main():
 
     sheet.blit(f_title.render(
         "Skybit Alpine Haze — in-game (mountains + pagodas + parrot, empty walk) "
-        "— v3 round 2", True, (245, 246, 250)), (10, 6))
+        "— v3 transition sampling (18 phases)", True, (245, 246, 250)), (10, 6))
 
     for c, (label, _ph) in enumerate(cols):
         x = GUT + c * (TW + PAD)
@@ -171,7 +179,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(app.screen, (TW, TH)), (x, y))
 
     out = os.path.join(_ROOT, "docs", "biome_redesign",
-                       "alpine_sunsets_v3_ingame_round_2.png")
+                       "alpine_sunsets_v3_ingame_transitions.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
