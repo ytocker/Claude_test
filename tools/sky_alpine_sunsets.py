@@ -104,199 +104,238 @@ def _spec(name, note, overrides):
 #     and the dwell is widened with 0.44/0.56 (sunset) + 0.86/0.90 (sunrise).
 #   * MODERATE/NATURAL: rich colour kept to a horizon-to-low band; the mid stays
 #     closer to Alpine cool so the moment reads as a clean horizon glow.
-#   * The sunrise is a softer take on the SAME family as the sunset, so both
-#     moments read as that design's signature colour.
+#   * DECOUPLED moments — the rule that drives this whole set: the SUNSET is the
+#     magnificent, emotional half — bolder, deeper, more saturated, pushed for
+#     grandeur. The SUNRISE is a genuinely DIFFERENT moment, never a softer
+#     mirror of the same colour. It is EITHER:
+#       [C] a CONTRASTING, cooler/quieter hue family from the sunset (dove-blue,
+#           cyan-peach, pink-grey, soft gold, gentle peach), so dawn and dusk
+#           read as plainly different times of day; OR
+#       [S] the SAME hue family as the sunset but at a FRACTION of its chroma —
+#           a low, restrained whisper, far quieter in saturation AND value, kept
+#           to a thin near-horizon band so it never twins the sunset's bloom.
+#     Either way the sunrise must read CALMER and lower-energy than that row's
+#     sunset. (Real dawn skies are clearer, paler and cooler; dusk holds the
+#     richer, weary, more saturated colour — the study leans into that truth.)
 
 
-# 1. Golden Hour — saturated amber-GOLD with a hot sun-kissed core, MODERATE band.
-GOLDEN_HOUR = _spec(
-    'Golden Hour',
-    'A saturated amber-gold horizon (H44 S~0.55) with a hotter H30 sun-kissed core at the very band — reads true gold, not tan — kept low so the cyan mid still breathes. MODERATE.',
+# 1. Molten Gold & Ember — grand blazing gold->ember sunset, DRAMATIC.
+#    Dawn [S]: pale apricot whisper (same warm family, a fraction of the chroma).
+MOLTEN_GOLD_EMBER = _spec(
+    'Molten Gold & Ember',
+    'SUNSET: a grand blazing gold (H46) sky_bot deepening to a molten ember-orange (H22) horizon, the fire climbing up through the mid to ~40% of the frame, widened dwell — the most opulent gold row. SUNRISE [S]: a pale apricot whisper, same warm family at a fraction of the chroma, kept to a thin low band. DRAMATIC.',
     {
-        # sky_bot carries the amber-gold (H~44 S~0.55) and horizon holds a hotter,
-        # higher-chroma H30 sun-kissed core, so the band reads gold not flat tan.
-        0.40: dict(sky_top=(92, 150, 174), sky_mid=(182, 190, 168), sky_bot=(252, 192, 100), horizon=(255, 162, 56)),
-        0.50: dict(sky_top=(82, 130, 160), sky_mid=(192, 182, 150), sky_bot=(255, 184, 80),  horizon=(255, 142, 40)),
-        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(100, 132, 154), sky_bot=(212, 172, 118), horizon=(252, 156, 70)),
-        0.88: dict(sky_top=(80, 146, 174), sky_mid=(178, 192, 176), sky_bot=(246, 196, 128), horizon=(255, 172, 84)),
-        0.94: dict(sky_top=(86, 156, 182), sky_mid=(168, 196, 186), sky_bot=(234, 202, 148), horizon=(253, 182, 110)),
+        # SUNSET — gold sky_bot over an ember horizon, the warm bloom lifted high
+        # into a buttery sky_mid so it reads sky-filling and magnificent, not a
+        # low band; cyan retreats to the zenith only.
+        0.40: dict(sky_top=(92, 148, 174), sky_mid=(214, 184, 138), sky_bot=(255, 192, 86),  horizon=(255, 150, 56)),
+        0.44: dict(sky_top=(88, 140, 170), sky_mid=(226, 178, 120), sky_bot=(255, 184, 72),  horizon=(255, 134, 44)),
+        0.50: dict(sky_top=(80, 126, 160), sky_mid=(234, 170, 104), sky_bot=(255, 176, 58),  horizon=(252, 116, 34)),
+        0.56: dict(sky_top=(60, 102, 144), sky_mid=(220, 156, 104), sky_bot=(252, 162, 60),  horizon=(244, 104, 36)),
+        0.62: dict(sky_top=(36, 78, 116),  sky_mid=(150, 130, 130), sky_bot=(230, 154, 86),  horizon=(238, 116, 50)),
+        # SUNRISE [S] — same warm family, but a soft pale apricot kept low and pale:
+        # far lower chroma than the sunset's molten gold, the mid barely tinted.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(176, 192, 188), sky_bot=(238, 204, 176), horizon=(252, 192, 152)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(166, 196, 196), sky_bot=(226, 206, 192), horizon=(248, 198, 170)),
     },
 )
 
 
-# 2. Tangerine Blaze — vivid orange, DRAMATIC sky-filling.
-TANGERINE_BLAZE = _spec(
-    'Tangerine Blaze',
-    'A vivid tangerine that climbs from the horizon through the whole lower-mid frame, cyan held only at the zenith — sky-filling, widened dwell. DRAMATIC.',
+# 2. Volcanic Crimson — deep scarlet-red, sky-filling, DRAMATIC.
+#    Dawn [C]: calm dove-blue / soft lilac (a contrasting cool, quiet hue).
+VOLCANIC_CRIMSON = _spec(
+    'Volcanic Crimson',
+    'SUNSET: a deep volcanic scarlet-red (H4) flooding the lower sky and washing the mid a smouldering crimson, cyan only at the zenith — the most intense red of the set, widened dwell. SUNRISE [C]: a calm dove-blue mid melting into a soft lilac horizon, a cool contrasting hue clearly different from the fiery dusk. DRAMATIC.',
     {
-        0.40: dict(sky_top=(92, 146, 172), sky_mid=(214, 168, 138), sky_bot=(250, 168, 92),  horizon=(255, 148, 64)),
-        0.44: dict(sky_top=(88, 138, 168), sky_mid=(224, 158, 120), sky_bot=(255, 156, 78),  horizon=(255, 134, 52)),
-        0.50: dict(sky_top=(80, 124, 158), sky_mid=(228, 146, 108), sky_bot=(255, 146, 70),  horizon=(255, 120, 46)),
-        0.56: dict(sky_top=(60, 100, 142), sky_mid=(210, 130, 104), sky_bot=(252, 138, 72),  horizon=(252, 112, 48)),
-        0.62: dict(sky_top=(36, 78, 116),  sky_mid=(140, 116, 138), sky_bot=(228, 138, 92),  horizon=(248, 124, 62)),
-        0.86: dict(sky_top=(40, 84, 122),  sky_mid=(166, 134, 142), sky_bot=(244, 160, 110), horizon=(255, 144, 76)),
-        0.88: dict(sky_top=(78, 142, 172), sky_mid=(206, 168, 152), sky_bot=(250, 176, 120), horizon=(255, 158, 92)),
-        0.90: dict(sky_top=(82, 150, 178), sky_mid=(190, 184, 170), sky_bot=(246, 190, 142), horizon=(255, 170, 110)),
-        0.94: dict(sky_top=(86, 156, 182), sky_mid=(172, 192, 188), sky_bot=(230, 202, 162), horizon=(252, 184, 128)),
+        # SUNSET — scarlet horizon, the red bloom carried up through a hot-crimson
+        # sky_bot into a dusky-red mid so the whole lower frame burns.
+        0.40: dict(sky_top=(90, 140, 166), sky_mid=(206, 132, 132), sky_bot=(244, 96, 76),   horizon=(232, 50, 40)),
+        0.44: dict(sky_top=(86, 130, 162), sky_mid=(214, 118, 116), sky_bot=(244, 80, 64),   horizon=(224, 40, 36)),
+        0.50: dict(sky_top=(78, 116, 152), sky_mid=(218, 104, 102), sky_bot=(242, 66, 54),   horizon=(214, 32, 32)),
+        0.56: dict(sky_top=(58, 96, 138),  sky_mid=(198, 96, 100),  sky_bot=(234, 64, 56),   horizon=(204, 34, 36)),
+        0.62: dict(sky_top=(36, 76, 114),  sky_mid=(132, 90, 122),  sky_bot=(204, 78, 76),   horizon=(196, 46, 50)),
+        # SUNRISE [C] — a cool, quiet dove-blue / lilac dawn: nothing red at all, so
+        # the morning reads as an entirely different, calmer moment.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(168, 184, 204), sky_bot=(196, 192, 214), horizon=(214, 196, 216)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(160, 188, 206), sky_bot=(190, 196, 216), horizon=(206, 198, 216)),
     },
 )
 
 
-# 3. Coral Reef — coral-pink -> salmon, MODERATE.
-CORAL_REEF = _spec(
-    'Coral Reef',
-    'A clear salmon-coral melting up from the horizon, sat lifted (~0.40) so it reads unmistakably coral; the mid stays a cool blush for a clean reef glow, the sunrise warmed off neutral. MODERATE.',
+# 3. Magenta Storm — intense magenta->purple, DRAMATIC.
+#    Dawn [S]: a low mauve mist (same family, far quieter).
+MAGENTA_STORM = _spec(
+    'Magenta Storm',
+    'SUNSET: an intense storm-magenta (H322) horizon blooming up through a hot-magenta sky_bot into a brooding purple mid (~40% of the frame), widened dwell — electric and tempestuous. SUNRISE [S]: a low mauve mist, the same magenta family bled down to a pale whisper kept near the horizon. DRAMATIC.',
     {
-        # sat lifted across the band so it reads salmon-coral not near-neutral; the
-        # sunrise (0.88/0.94) warmed off grey into a clear pale coral.
-        0.40: dict(sky_top=(92, 148, 174), sky_mid=(202, 170, 174), sky_bot=(255, 166, 138), horizon=(255, 128, 100)),
-        0.50: dict(sky_top=(82, 128, 160), sky_mid=(208, 158, 164), sky_bot=(255, 150, 122), horizon=(255, 90, 64)),
-        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(116, 126, 150), sky_bot=(222, 150, 146), horizon=(252, 120, 102)),
-        0.88: dict(sky_top=(80, 146, 174), sky_mid=(196, 176, 178), sky_bot=(252, 176, 152), horizon=(255, 140, 116)),
-        0.94: dict(sky_top=(86, 156, 182), sky_mid=(176, 190, 188), sky_bot=(238, 192, 172), horizon=(252, 158, 134)),
+        # SUNSET — the magenta climbs high; sky_mid goes deep storm-purple while the
+        # horizon stays the hottest magenta, the meeting routed through a bright
+        # sky_bot so it never greys out.
+        0.40: dict(sky_top=(92, 142, 172), sky_mid=(168, 110, 184), sky_bot=(228, 92, 184),  horizon=(244, 56, 152)),
+        0.44: dict(sky_top=(84, 130, 168), sky_mid=(156, 94, 184),  sky_bot=(230, 74, 178),  horizon=(244, 40, 144)),
+        0.50: dict(sky_top=(74, 114, 158), sky_mid=(142, 80, 182),  sky_bot=(230, 58, 172),  horizon=(240, 28, 134)),
+        0.56: dict(sky_top=(54, 94, 142),  sky_mid=(120, 72, 168),  sky_bot=(216, 60, 166),  horizon=(228, 32, 132)),
+        0.62: dict(sky_top=(34, 74, 112),  sky_mid=(86, 66, 146),   sky_bot=(184, 70, 158),  horizon=(214, 44, 130)),
+        # SUNRISE [S] — same magenta family but a soft, low mauve mist: chroma
+        # dropped hard, value lifted, kept to a thin near-horizon band.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(182, 178, 202), sky_bot=(216, 178, 204), horizon=(232, 172, 200)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(174, 186, 204), sky_bot=(212, 184, 204), horizon=(226, 178, 200)),
     },
 )
 
 
-# 4. Crimson Fire — fiery red-orange, DRAMATIC.
-CRIMSON_FIRE = _spec(
-    'Crimson Fire',
-    'A fiery red-into-scarlet-orange that floods the lower sky and washes the mid ember, cool cyan only at the very top. DRAMATIC.',
+# 4. Tropical Fuchsia-Cyan — bold fuchsia under a kept Alpine-cyan band, MODERATE.
+#    Dawn [C]: clean pale cyan-peach (a cool contrasting hue).
+TROPICAL_FUCHSIA_CYAN = _spec(
+    'Tropical Fuchsia-Cyan',
+    'SUNSET: the duotone clash IS the feature — a bold hot-fuchsia (H322) horizon band held cleanly beneath a KEPT Alpine-cyan sliver in the mid: magenta-below / cyan-above, vivid and intentional. SUNRISE [C]: a clean pale cyan-peach dawn — cool cyan mid warming to the faintest peach horizon, a different and calmer hue than the dusk. MODERATE.',
     {
-        # horizon core nudged a hair redder (toward H8) to widen the gap from
-        # Tangerine's orange core; the rest of the fiery ramp is unchanged.
-        0.40: dict(sky_top=(90, 142, 168), sky_mid=(206, 156, 144), sky_bot=(248, 134, 90),  horizon=(242, 82, 52)),
-        0.44: dict(sky_top=(86, 132, 162), sky_mid=(216, 144, 130), sky_bot=(250, 120, 78),  horizon=(236, 66, 44)),
-        0.50: dict(sky_top=(78, 118, 152), sky_mid=(222, 130, 116), sky_bot=(250, 108, 70),  horizon=(228, 52, 38)),
-        0.56: dict(sky_top=(58, 96, 138),  sky_mid=(204, 116, 110), sky_bot=(244, 106, 72),  horizon=(218, 50, 40)),
-        0.62: dict(sky_top=(36, 76, 114),  sky_mid=(138, 102, 130), sky_bot=(224, 112, 86),  horizon=(214, 62, 50)),
-        0.86: dict(sky_top=(40, 82, 120),  sky_mid=(166, 124, 138), sky_bot=(240, 138, 110), horizon=(238, 96, 78)),
-        0.88: dict(sky_top=(78, 142, 170), sky_mid=(204, 158, 150), sky_bot=(246, 158, 126), horizon=(246, 116, 94)),
-        0.90: dict(sky_top=(82, 150, 178), sky_mid=(190, 178, 168), sky_bot=(244, 176, 142), horizon=(250, 138, 112)),
-        0.94: dict(sky_top=(86, 156, 182), sky_mid=(172, 192, 188), sky_bot=(228, 198, 166), horizon=(250, 158, 134)),
+        # SUNSET — the cyan retention is the signature: sky_mid stays strongly
+        # Alpine-cyan while sky_bot/horizon push to true fuchsia, so the clash is
+        # sharp and deliberate, kept to a horizon-to-low band (MODERATE).
+        0.40: dict(sky_top=(90, 152, 180), sky_mid=(136, 192, 204), sky_bot=(232, 116, 188), horizon=(252, 70, 162)),
+        0.50: dict(sky_top=(80, 132, 166), sky_mid=(124, 184, 202), sky_bot=(240, 86, 180),  horizon=(250, 38, 144)),
+        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(76, 138, 172),  sky_bot=(190, 90, 172),  horizon=(232, 52, 142)),
+        # SUNRISE [C] — cyan-peach: the mid keeps a cool cyan while the horizon warms
+        # only to a pale peach, so dawn is clearly cooler and quieter than the dusk.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(150, 196, 204), sky_bot=(212, 204, 196), horizon=(244, 198, 168)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(152, 198, 204), sky_bot=(206, 206, 200), horizon=(240, 200, 176)),
     },
 )
 
 
-# 5. Rose-Magenta — bright jewel rose H338, MODERATE.
-ROSE_MAGENTA = _spec(
-    'Rose-Magenta',
-    'A bright jewel rose (H338, chroma ~0.45, higher value) rising from a vivid rose horizon into a quiet violet blush, cyan mid held above — clean and luminous, the brightest of the pink family. MODERATE.',
+# 5. Amethyst & Rose — luxe violet->rose, MODERATE.
+#    Dawn [S]: subtle lavender haze (same family, far quieter).
+AMETHYST_ROSE = _spec(
+    'Amethyst & Rose',
+    'SUNSET: a luxe amethyst-violet (H280) sky_bot melting into a jewel-rose (H338) horizon — a rich violet-to-rose duotone kept to a horizon-to-low band, the cyan mid breathing above. SUNRISE [S]: a subtle lavender haze, the same violet family pared to a pale low whisper. MODERATE.',
     {
-        # rose pushed brighter/higher-chroma (H~338, ~0.45) and lighter in value so
-        # it separates by HUE *and* value from the deeper Ember/Fuchsia pink rows.
-        0.40: dict(sky_top=(94, 146, 176), sky_mid=(204, 162, 192), sky_bot=(255, 150, 192), horizon=(255, 96, 156)),
-        0.50: dict(sky_top=(84, 124, 164), sky_mid=(210, 146, 190), sky_bot=(255, 124, 184), horizon=(255, 64, 140)),
-        0.62: dict(sky_top=(38, 78, 118),  sky_mid=(124, 106, 156), sky_bot=(212, 124, 180), horizon=(244, 84, 148)),
-        0.88: dict(sky_top=(80, 146, 176), sky_mid=(198, 166, 196), sky_bot=(252, 160, 196), horizon=(255, 110, 166)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(172, 188, 198), sky_bot=(234, 184, 202), horizon=(252, 123, 176)),
+        # SUNSET — amethyst above, rose at the horizon; MODERATE, so the colour is
+        # rich but held low and the sky_mid stays nearer the Alpine cool.
+        0.40: dict(sky_top=(94, 146, 176), sky_mid=(180, 156, 202), sky_bot=(204, 130, 198), horizon=(248, 110, 158)),
+        0.50: dict(sky_top=(84, 126, 164), sky_mid=(178, 142, 202), sky_bot=(206, 110, 196), horizon=(250, 82, 146)),
+        0.62: dict(sky_top=(38, 78, 118),  sky_mid=(116, 110, 162), sky_bot=(176, 110, 182), horizon=(232, 92, 144)),
+        # SUNRISE [S] — same violet family, a pale lavender haze: chroma far lower,
+        # value lifted, only a faint low band.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(184, 180, 204), sky_bot=(208, 184, 208), horizon=(224, 178, 204)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(176, 188, 204), sky_bot=(204, 188, 208), horizon=(218, 182, 204)),
     },
 )
 
 
-# 6. Violet Twilight — purple-violet + pink, DRAMATIC.
-VIOLET_TWILIGHT = _spec(
-    'Violet Twilight',
-    'Deep purple-violet blooming HIGH into the mid over a hot-pink horizon band — the dreamiest of the dramatic rows, colour reaching ~40% of the frame, cyan retreating to the zenith. DRAMATIC.',
+# 6. Tangerine Inferno — vivid sky-filling orange, DRAMATIC.
+#    Dawn [C]: cool pink-grey calm (a contrasting muted cool hue).
+TANGERINE_INFERNO = _spec(
+    'Tangerine Inferno',
+    'SUNSET: a vivid tangerine (H26) that climbs from the horizon through the whole lower-mid frame, cyan held only at the zenith — a sky-filling inferno, widened dwell. SUNRISE [C]: a cool pink-grey calm — a desaturated dove-pink mid over a faint grey-pink horizon, plainly quieter and cooler than the blazing dusk. DRAMATIC.',
     {
-        # bloom pushed HIGH: the violet now saturates the mid (~40% of frame) with
-        # a hotter pink horizon, so it reads clearly more dramatic than the moderate
-        # magenta rows below it; cyan retreats to the zenith only.
-        0.40: dict(sky_top=(94, 144, 176), sky_mid=(152, 130, 198), sky_bot=(190, 116, 194), horizon=(236, 108, 172)),
-        0.44: dict(sky_top=(84, 130, 172), sky_mid=(140, 114, 198), sky_bot=(182, 102, 192), horizon=(236, 92, 166)),
-        0.50: dict(sky_top=(70, 110, 160), sky_mid=(128, 96, 196),  sky_bot=(174, 88, 190),  horizon=(232, 74, 158)),
-        0.56: dict(sky_top=(52, 90, 144),  sky_mid=(108, 84, 186),  sky_bot=(162, 86, 186),  horizon=(224, 72, 154)),
-        0.62: dict(sky_top=(34, 72, 114),  sky_mid=(82, 78, 162),   sky_bot=(144, 90, 180),  horizon=(212, 78, 150)),
-        0.86: dict(sky_top=(42, 82, 122),  sky_mid=(120, 98, 178),  sky_bot=(184, 112, 190), horizon=(232, 94, 164)),
-        0.88: dict(sky_top=(80, 142, 172), sky_mid=(160, 138, 200), sky_bot=(202, 138, 200), horizon=(238, 112, 172)),
-        0.90: dict(sky_top=(82, 150, 178), sky_mid=(166, 158, 204), sky_bot=(206, 152, 204), horizon=(240, 128, 180)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(162, 186, 204), sky_bot=(206, 184, 206), horizon=(240, 146, 186)),
+        # SUNSET — tangerine floods the lower frame and washes the mid warm; the
+        # bloom reaches ~40% of the frame for a true inferno.
+        0.40: dict(sky_top=(92, 146, 172), sky_mid=(218, 166, 130), sky_bot=(252, 158, 80),  horizon=(255, 134, 52)),
+        0.44: dict(sky_top=(88, 138, 168), sky_mid=(228, 154, 112), sky_bot=(255, 146, 68),  horizon=(255, 120, 44)),
+        0.50: dict(sky_top=(80, 124, 158), sky_mid=(232, 142, 98),  sky_bot=(255, 136, 58),  horizon=(255, 106, 38)),
+        0.56: dict(sky_top=(60, 100, 142), sky_mid=(214, 128, 98),  sky_bot=(252, 128, 60),  horizon=(252, 100, 40)),
+        0.62: dict(sky_top=(36, 78, 116),  sky_mid=(144, 114, 134), sky_bot=(230, 128, 78),  horizon=(248, 112, 52)),
+        # SUNRISE [C] — cool pink-grey: a muted dove-pink mid and a soft grey-pink
+        # horizon, low chroma, no orange — a calm, cool counterpoint to the inferno.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(184, 186, 198), sky_bot=(208, 188, 198), horizon=(222, 188, 198)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(178, 190, 200), sky_bot=(204, 192, 200), horizon=(216, 190, 198)),
     },
 )
 
 
-# 7. Fuchsia-Cyan — true fuchsia band under a held Alpine-cyan sliver, MODERATE.
-FUCHSIA_CYAN = _spec(
-    'Fuchsia-Cyan',
-    'The duotone clash IS the feature: a true hot-fuchsia (H320) horizon band held cleanly beneath a kept Alpine-cyan sliver in the mid — magenta-below / cyan-above, vivid and intentional. MODERATE.',
+# 7. Coral Blaze — warm coral->salmon, MODERATE.
+#    Dawn [S]: soft blush whisper (same coral family, far quieter).
+CORAL_BLAZE = _spec(
+    'Coral Blaze',
+    'SUNSET: a warm coral (H14) melting up from a salmon-red horizon, sat lifted so it reads unmistakably coral; the mid stays a cool blush for a clean reef glow, kept to a horizon-to-low band. SUNRISE [S]: a soft blush whisper, the same coral family pared to a pale low band. MODERATE.',
     {
-        # The cyan retention is the SIGNATURE: sky_mid stays strongly Alpine-cyan
-        # while sky_bot/horizon push to true fuchsia (H~320, S0.55+), so the duotone
-        # clash is sharp and intentional rather than a washed blend.
-        0.40: dict(sky_top=(90, 152, 180), sky_mid=(136, 192, 204), sky_bot=(232, 120, 190), horizon=(252, 76, 166)),
-        0.50: dict(sky_top=(80, 132, 166), sky_mid=(124, 184, 202), sky_bot=(240, 92, 182),  horizon=(250, 44, 148)),
-        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(76, 138, 172),  sky_bot=(190, 94, 174),  horizon=(234, 58, 146)),
-        0.88: dict(sky_top=(80, 146, 176), sky_mid=(134, 194, 206), sky_bot=(234, 132, 194), horizon=(252, 86, 170)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(140, 198, 206), sky_bot=(220, 174, 202), horizon=(248, 116, 180)),
+        # SUNSET — salmon-coral; MODERATE, so the rich coral is held low while the
+        # sky_mid keeps a cool blush rather than blooming high.
+        0.40: dict(sky_top=(92, 148, 174), sky_mid=(204, 168, 172), sky_bot=(255, 162, 132), horizon=(255, 118, 92)),
+        0.50: dict(sky_top=(82, 128, 160), sky_mid=(210, 156, 162), sky_bot=(255, 144, 116), horizon=(255, 82, 60)),
+        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(118, 124, 150), sky_bot=(222, 144, 142), horizon=(252, 112, 96)),
+        # SUNRISE [S] — same coral family, a soft blush: chroma dropped, value up,
+        # only a faint warm band near the horizon.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(190, 184, 192), sky_bot=(236, 196, 188), horizon=(252, 184, 168)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(180, 190, 196), sky_bot=(230, 198, 192), horizon=(248, 188, 176)),
     },
 )
 
 
-# 8. Lavender-Peach — soft lilac -> peach, GENTLE/NATURAL.
-LAVENDER_PEACH = _spec(
-    'Lavender-Peach',
-    'The quietest of the set, but now two readable hues: a soft lilac (H285 S~0.30) upper-warm band melting through a clean blend into a pale peach (H28 S~0.40) horizon. Kept gentle by LOW value contrast, sky mostly cyan — not by killing saturation. NATURAL.',
+# 8. Indigo & Fire — fiery red-orange horizon under a DEEP INDIGO sky, DRAMATIC.
+#    Dawn [C]: soft gold whisper (a quiet warm contrast to the indigo dusk).
+INDIGO_FIRE = _spec(
+    'Indigo & Fire',
+    'SUNSET: the high-contrast jewel of the set — a fiery red-orange (H18) horizon burning beneath a DEEP INDIGO (H250) sky_bot/mid, the cool indigo pressing down on the flame within a single sky, widened dwell. SUNRISE [C]: a soft gold whisper, a quiet warm glow that contrasts the indigo dusk and reads far calmer. DRAMATIC.',
     {
-        # two committed hues — lilac (H~285) in the warm band, peach (H~28) at the
-        # horizon — kept gentle via low VALUE contrast and a low natural band, so
-        # the sky stays mostly cyan rather than washing to grey.
-        0.40: dict(sky_top=(92, 150, 176), sky_mid=(200, 168, 210), sky_bot=(236, 192, 178), horizon=(252, 178, 138)),
-        0.50: dict(sky_top=(82, 130, 162), sky_mid=(202, 158, 212), sky_bot=(240, 182, 168), horizon=(254, 159, 111)),
-        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(120, 116, 164), sky_bot=(200, 152, 168), horizon=(240, 156, 128)),
-        0.88: dict(sky_top=(80, 146, 176), sky_mid=(196, 174, 210), sky_bot=(234, 194, 182), horizon=(252, 184, 146)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(174, 188, 206), sky_bot=(224, 198, 188), horizon=(250, 190, 158)),
+        # SUNSET — the drama is the COLLISION inside one sky: indigo dominates the
+        # mid/bot while the horizon holds a thin, fierce red-orange flame. Route the
+        # indigo->flame meeting through a violet sky_bot so it doesn't grey out.
+        0.40: dict(sky_top=(86, 132, 168), sky_mid=(96, 96, 168),   sky_bot=(150, 92, 152),  horizon=(248, 120, 64)),
+        0.44: dict(sky_top=(78, 120, 162), sky_mid=(82, 84, 164),   sky_bot=(146, 80, 142),  horizon=(250, 104, 52)),
+        0.50: dict(sky_top=(66, 104, 152), sky_mid=(68, 72, 158),   sky_bot=(142, 70, 132),  horizon=(250, 88, 44)),
+        0.56: dict(sky_top=(50, 86, 138),  sky_mid=(58, 66, 146),   sky_bot=(134, 70, 128),  horizon=(244, 84, 46)),
+        0.62: dict(sky_top=(32, 70, 112),  sky_mid=(48, 60, 128),   sky_bot=(120, 72, 122),  horizon=(232, 92, 56)),
+        # SUNRISE [C] — a soft gold whisper: a pale warm glow, low chroma, kept low,
+        # a calm and entirely different mood from the indigo-and-flame dusk.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(178, 190, 184), sky_bot=(232, 202, 168), horizon=(250, 196, 146)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(170, 194, 192), sky_bot=(224, 204, 180), horizon=(246, 200, 164)),
     },
 )
 
 
-# 9. Ember Red-Purple — deep red -> purple, DRAMATIC.
-EMBER_RED_PURPLE = _spec(
-    'Ember Red-Purple',
-    'A moody deep ember-red horizon bleeding up through a higher-value magenta mid-step into a smouldering purple mid — the darkest, most cinematic of the dramatic rows, the colour bloom now reaching ~40% of the frame. The magenta hand-off keeps the red->purple meeting from greying out. DRAMATIC.',
+# 9. Rose-Gold Royale — opulent hot-pink->gold duotone, MODERATE.
+#    Dawn [S]: quiet rose-gold haze (same family, far quieter).
+ROSE_GOLD_ROYALE = _spec(
+    'Rose-Gold Royale',
+    'SUNSET: an opulent duotone — a hot-pink (H335) mid-band sitting over a rich gold (H42) horizon, pink-above / gold-below, celebratory and regal, kept to a horizon-to-low band. SUNRISE [S]: a quiet rose-gold haze, the same pink-gold family pared to a pale low whisper. MODERATE.',
     {
-        # The red->purple hand-off is routed through a brighter MAGENTA sky_bot so
-        # the meeting doesn't grey out; sky_mid stays deep purple, horizon deep red,
-        # and the bloom is lifted higher (~40%) to read as one of the dramatic rows.
-        0.40: dict(sky_top=(90, 142, 170), sky_mid=(166, 116, 178), sky_bot=(224, 110, 162), horizon=(230, 74, 96)),
-        0.44: dict(sky_top=(82, 130, 166), sky_mid=(156, 100, 176), sky_bot=(224, 92, 156),  horizon=(224, 58, 84)),
-        0.50: dict(sky_top=(72, 112, 154), sky_mid=(142, 84, 172),  sky_bot=(222, 76, 150),  horizon=(216, 46, 76)),
-        0.56: dict(sky_top=(54, 92, 140),  sky_mid=(120, 74, 162),  sky_bot=(208, 74, 148),  horizon=(206, 46, 78)),
-        0.62: dict(sky_top=(34, 74, 112),  sky_mid=(86, 66, 146),   sky_bot=(178, 80, 146),  horizon=(196, 56, 86)),
-        0.86: dict(sky_top=(40, 82, 120),  sky_mid=(124, 92, 166),  sky_bot=(206, 104, 156), horizon=(222, 76, 98)),
-        0.88: dict(sky_top=(80, 142, 170), sky_mid=(160, 132, 184), sky_bot=(214, 128, 170), horizon=(228, 94, 112)),
-        0.90: dict(sky_top=(82, 150, 178), sky_mid=(164, 152, 192), sky_bot=(216, 142, 176), horizon=(230, 110, 126)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(160, 184, 198), sky_bot=(212, 178, 194), horizon=(230, 134, 146)),
+        # SUNSET — explicit two-tone: a hot-pink sky_bot/mid band over a gold
+        # horizon core; MODERATE, held low so it reads as a clean rose-gold glow.
+        0.40: dict(sky_top=(92, 148, 174), sky_mid=(218, 156, 184), sky_bot=(252, 126, 164), horizon=(255, 174, 80)),
+        0.50: dict(sky_top=(82, 128, 160), sky_mid=(222, 140, 178), sky_bot=(252, 102, 152), horizon=(255, 156, 58)),
+        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(120, 120, 158), sky_bot=(214, 112, 152), horizon=(250, 152, 84)),
+        # SUNRISE [S] — same rose-gold family, a quiet haze: chroma dropped, value
+        # lifted, only a faint pink-warm low band.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(196, 180, 192), sky_bot=(236, 188, 184), horizon=(252, 196, 158)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(182, 188, 196), sky_bot=(230, 192, 190), horizon=(248, 198, 170)),
     },
 )
 
 
-# 10. Pink-Gold — explicit pink -> gold DUOTONE, MODERATE.
-PINK_GOLD = _spec(
-    'Pink-Gold',
-    'An explicit duotone: a visible hot-pink mid-band (H335 S~0.45) sitting over a gold horizon (H40) — pink-above / gold-below, celebratory and clearly distinct from the single-story Golden Hour. Cool cyan kept up top. MODERATE.',
+# 10. Aurora Teal-Magenta — bold teal<->magenta "electric" aurora sky, DRAMATIC.
+#     Dawn [C]: gentle peach calm (a warm, quiet contrast to the electric dusk).
+AURORA_TEAL_MAGENTA = _spec(
+    'Aurora Teal-Magenta',
+    'SUNSET: an electric aurora sky — a bold magenta (H320) horizon arcing up into a luminous TEAL (H180) mid that ties to the Alpine cyan, a teal<->magenta charge filling the lower-mid frame, widened dwell. SUNRISE [C]: a gentle peach calm, a soft warm low glow that reads quiet and different from the electric dusk. DRAMATIC.',
     {
-        # explicit two-tone: sky_bot/mid carry a hot-pink band (H~335) while the
-        # horizon holds a gold core (H~40), so it reads as a pink->gold duotone and
-        # not a second Golden Hour.
-        0.40: dict(sky_top=(92, 148, 174), sky_mid=(216, 158, 184), sky_bot=(250, 132, 168), horizon=(255, 178, 86)),
-        0.50: dict(sky_top=(82, 128, 160), sky_mid=(220, 144, 180), sky_bot=(252, 110, 158), horizon=(255, 162, 66)),
-        0.62: dict(sky_top=(38, 80, 118),  sky_mid=(120, 122, 158), sky_bot=(214, 118, 156), horizon=(250, 158, 90)),
-        0.88: dict(sky_top=(80, 146, 174), sky_mid=(212, 162, 186), sky_bot=(248, 142, 172), horizon=(255, 184, 102)),
-        0.94: dict(sky_top=(86, 156, 182), sky_mid=(186, 184, 196), sky_bot=(234, 168, 186), horizon=(253, 192, 128)),
+        # SUNSET — the aurora charge: a hot magenta horizon meeting a glowing teal
+        # mid (the teal is on-brand with the Alpine cyan), the bloom lifted high so
+        # the electric clash fills the lower-mid frame.
+        0.40: dict(sky_top=(88, 152, 182), sky_mid=(80, 188, 184),  sky_bot=(196, 132, 196), horizon=(244, 78, 168)),
+        0.44: dict(sky_top=(82, 146, 180), sky_mid=(66, 188, 182),  sky_bot=(202, 116, 194), horizon=(246, 60, 162)),
+        0.50: dict(sky_top=(72, 134, 174), sky_mid=(54, 186, 180),  sky_bot=(208, 100, 192), horizon=(246, 44, 154)),
+        0.56: dict(sky_top=(54, 110, 158), sky_mid=(52, 168, 174),  sky_bot=(198, 96, 184),  horizon=(236, 48, 152)),
+        0.62: dict(sky_top=(34, 78, 120),  sky_mid=(52, 130, 158),  sky_bot=(172, 92, 174),  horizon=(222, 58, 146)),
+        # SUNRISE [C] — gentle peach: a soft, low, warm glow, low chroma, no teal or
+        # magenta — a calm, plainly different counterpoint to the electric dusk.
+        0.88: dict(sky_top=(80, 146, 176), sky_mid=(184, 190, 190), sky_bot=(238, 200, 180), horizon=(252, 192, 160)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(176, 192, 196), sky_bot=(230, 202, 188), horizon=(248, 196, 174)),
     },
 )
 
 
-# Sheet order matches the 10 curated directions in the brief.
+# Sheet order matches the 10 fresh directions in the brief.
 CONCEPTS = [
-    ('golden_hour', GOLDEN_HOUR),
-    ('tangerine_blaze', TANGERINE_BLAZE),
-    ('coral_reef', CORAL_REEF),
-    ('crimson_fire', CRIMSON_FIRE),
-    ('rose_magenta', ROSE_MAGENTA),
-    ('violet_twilight', VIOLET_TWILIGHT),
-    ('fuchsia_cyan', FUCHSIA_CYAN),
-    ('lavender_peach', LAVENDER_PEACH),
-    ('ember_red_purple', EMBER_RED_PURPLE),
-    ('pink_gold', PINK_GOLD),
+    ('molten_gold_ember', MOLTEN_GOLD_EMBER),
+    ('volcanic_crimson', VOLCANIC_CRIMSON),
+    ('magenta_storm', MAGENTA_STORM),
+    ('tropical_fuchsia_cyan', TROPICAL_FUCHSIA_CYAN),
+    ('amethyst_rose', AMETHYST_ROSE),
+    ('tangerine_inferno', TANGERINE_INFERNO),
+    ('coral_blaze', CORAL_BLAZE),
+    ('indigo_fire', INDIGO_FIRE),
+    ('rose_gold_royale', ROSE_GOLD_ROYALE),
+    ('aurora_teal_magenta', AURORA_TEAL_MAGENTA),
 ]
