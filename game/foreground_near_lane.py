@@ -62,6 +62,7 @@ from game import foreground_zbuffer as _zbuf
 from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
 from game import foreground_sprite as _spr
 from game import foreground_variants as _fv
+from game import performers_cast as _pf
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
@@ -1249,12 +1250,36 @@ def _perf_for(phase):
         return (perf_stilt, 120)
     return None                          # 0.58..0.85: festival (caller) / pre-dawn
 
+def _perf_band(p):
+    """The performer beat-band for a day-arc phase (festival 0.58..0.80 + the
+    0.80..0.85 teardown are handled by the caller and return None here)."""
+    if p >= 0.85 or p < 0.25:
+        return "day"
+    if p < 0.40:
+        return "golden"
+    if p < 0.58:
+        return "dusk"
+    return None
+
+
+def _pooled_perf(variant):
+    """Wrap a frozen 'performer' pool index as the act callable the director invokes
+    — draws the shared draw_act at the near deck with the live night factor."""
+    v = _fv.get("performer", variant)
+
+    def _draw(s, bx, pal, t):
+        if v is not None:
+            _pf.draw_act(s, bx, NEAR_GROUND_Y, v, _nightf(pal), t)
+    return _draw
+
+
 def _perf_decide(k, phase, density):
     """The act a performer slot holds (or None) — sampled ONCE at slot entry and
-    latched. Festival window: lion/dragon alternate every slot; otherwise the
-    single day act (juggler/musician/stilt) at the sparse 1-in-4 gate. The busy-
-    street gate (density>0.25) is captured here too, so a slot that opened during
-    a busy stretch keeps its act as the street later empties around it."""
+    latched. Festival window: lion/dragon alternate every slot; otherwise a busker
+    FROZEN from the time-appropriate beat band of the 8-act 'performer' pool (so the
+    bird passes a varied cast, not the same act on a metronome), at the sparse
+    1-in-4 gate. The busy-street gate (density>0.25) is captured here too, so a slot
+    that opened during a busy stretch keeps its act as the street empties around it."""
     if density <= 0.25:
         return None
     p = phase % 1.0
@@ -1262,8 +1287,12 @@ def _perf_decide(k, phase, density):
         return perf_dragon_dance if (k % 2) else perf_lion_dance
     if not pr._slot_on(k, 7, 0.25):
         return None
-    pf = _perf_for(phase)
-    return pf[0] if pf else None
+    band = _perf_band(p)
+    if band is None:
+        return None
+    idxs = _pf.PERFORMERS_BY_BEAT[band]
+    variant = idxs[_fv.slot_seed(k, 73) % len(idxs)]
+    return _pooled_perf(variant)
 
 def draw_near_lane(surf, scroll, pal, phase, t):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
