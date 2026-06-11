@@ -516,6 +516,125 @@ def _place_performers_near(surf, pal):
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# FESTIVAL — the night-marquee special objects (NOT in the day/golden pools):
+# the LION DANCE + DRAGON DANCE (red + jade skins) carried high, plus the night
+# festival dressing (banner poles + glowing braziers). All live in the NEAR lane
+# at NEAR_GROUND_Y and read in the festival NIGHT palette.
+# ════════════════════════════════════════════════════════════════════════════
+
+_NIGHT_PAL = _biome.palette_for_phase(0.66)   # festival peak (window 0.58..0.80)
+
+
+def _festival_cell(draw_fn, *, cap_h, half_w):
+    """A render_catalogue-compatible draw(cell, cx, base): the festival act draws at
+    the fixed NEAR_GROUND_Y on a full-frame temp, then the band around it is blitted
+    into the cell with the act's feet aligned to the cell baseline."""
+    from game.foreground_near_lane import NEAR_GROUND_Y
+
+    def _d(cell, cx, base):
+        tmp = pygame.Surface((W, H), pygame.SRCALPHA)
+        draw_fn(tmp)
+        src = pygame.Rect(120 - half_w, NEAR_GROUND_Y - cap_h, half_w * 2, cap_h + 5)
+        src = src.clip(tmp.get_rect())
+        crop = tmp.subsurface(src).copy()
+        cell.blit(crop, (cx - crop.get_width() // 2, base + 5 - crop.get_height()))
+    return _d
+
+
+def _festival_cells():
+    from game import foreground_near_lane as fnl
+    t = 2.0
+    return [
+        ("lion dance + drummer",
+         _festival_cell(lambda s: fnl.perf_lion_dance(s, 120, _NIGHT_PAL, t),
+                        cap_h=58, half_w=62)),
+        ("dragon dance (red)",
+         _festival_cell(lambda s: fnl.perf_dragon_dance(s, 120, _NIGHT_PAL, t, skin="red"),
+                        cap_h=58, half_w=70)),
+        ("dragon dance (jade)",
+         _festival_cell(lambda s: fnl.perf_dragon_dance(s, 120, _NIGHT_PAL, t, skin="jade"),
+                        cap_h=58, half_w=70)),
+        ("festival banner pole",
+         _festival_cell(lambda s: fnl._near_banner(s, 120, _NIGHT_PAL),
+                        cap_h=74, half_w=26)),
+        ("glowing brazier",
+         _festival_cell(lambda s: fnl._near_brazier(s, 120, _NIGHT_PAL, t=t),
+                        cap_h=44, half_w=26)),
+    ]
+
+
+def render_festival_designs(out_path):
+    """A dark night-marquee catalogue (the festival objects only read at night)."""
+    cells = _festival_cells()
+    pad, head_h = 14, 58
+    cols, cell_w, cell_h = 5, 150, 124
+    width = pad * 2 + cols * cell_w + (cols - 1) * 8
+    height = head_h + cell_h + 10 + (cell_h + 8) + pad
+
+    NIGHT_BG, NIGHT_DECK, NIGHT_LINE = (30, 28, 52), (22, 20, 38), (44, 40, 70)
+    sheet = pygame.Surface((width, height))
+    sheet.fill((20, 18, 34))
+    _text(sheet, "SKYBIT PROMENADE — FESTIVAL (night marquee)", pad, 12, 18,
+          (238, 230, 216), bold=True)
+    _text(sheet, "Night-festival special objects (phase 0.58..0.80) — the LION & "
+                 "DRAGON dance + banner/brazier dressing; NEAR lane, NIGHT.",
+          pad, 36, 11, (170, 166, 196))
+
+    def _night_strip(w, h):
+        c = pygame.Surface((w, h))
+        c.fill(NIGHT_BG)
+        base = h - 16
+        pygame.draw.rect(c, NIGHT_DECK, (0, base, w, h - base))
+        pygame.draw.line(c, NIGHT_LINE, (0, base), (w, base), 1)
+        return c, base
+
+    yard, yb = _night_strip(width - pad * 2, cell_h)
+    _adult_ref(yard, 40, yb)
+    _text_center(yard, "adult (~18px)", 40, yb + 3, 9, (170, 166, 196))
+    _gold_coin(yard, 120, yb - 14, r=8)
+    _text_center(yard, "gold coin", 120, yb + 3, 9, (170, 166, 196))
+    _text(yard, "SCALE YARDSTICK — the lion & dragon are carried HIGH (the tallest "
+                "near-lane acts); braziers/drum glow stay capped under the coin.",
+          170, yb - 14, 10, (170, 166, 196))
+    sheet.blit(yard, (pad, head_h))
+    pygame.draw.rect(sheet, (60, 56, 88), (pad, head_h, width - pad * 2, cell_h), 1)
+
+    y0 = head_h + cell_h + 10
+    for i, (label, draw_fn) in enumerate(cells):
+        x = pad + i * (cell_w + 8)
+        cell, base = _night_strip(cell_w, cell_h)
+        try:
+            draw_fn(cell, cell_w // 2, base)
+        except Exception as exc:
+            _text(cell, f"ERR {exc}", 4, 4, 8, (220, 110, 100))
+        _text_center(cell, label, cell_w // 2, base + 3, 9, (224, 218, 232))
+        sheet.blit(cell, (x, y0))
+        pygame.draw.rect(sheet, (60, 56, 88), (x, y0, cell_w, cell_h), 1)
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    pygame.image.save(sheet, out_path)
+    return out_path, sheet.get_size()
+
+
+def _place_festival_far(surf, pal):
+    # A little ambient crowd behind the marquee (the festival draws its own crowd too).
+    _ambient_strollers(surf, pal, 2.4, [70, 320])
+
+
+def _place_festival_near(surf, pal):
+    """The night marquee on the near deck: banner + brazier dressing rows, then the
+    lion dance and the marquee dragon carried high."""
+    from game import foreground_near_lane as fnl
+    t = 2.4
+    for sx in (28, 196, 344):
+        fnl._near_banner(surf, sx, pal)
+    for sx in (118, 286):
+        fnl._near_brazier(surf, sx, pal, t=t)
+    fnl.perf_lion_dance(surf, 92, pal, t)
+    fnl.perf_dragon_dance(surf, 252, pal, t, skin="red")
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # Family registry + the 14-image run.
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -595,7 +714,20 @@ def run():
         results.append((p, sz))
         print("saved", p, sz)
 
-    print("\n=== SHOWCASE COMPLETE — 14 images ===")
+    # FESTIVAL — the night marquee (special objects outside the day/golden pools).
+    fdpath = os.path.join(OUT_DIR, "festival_designs.png")
+    p, sz = render_festival_designs(fdpath)
+    results.append((p, sz)); counts["festival"] = len(_festival_cells())
+    print("saved", p, sz, f"({counts['festival']} objects)")
+    fgpath = os.path.join(OUT_DIR, "festival_gameplay.png")
+    p, sz = render_gameplay(fgpath, "FESTIVAL — the night lion & dragon dance",
+                            0.66, _place_festival_far,
+                            place_near=_place_festival_near,
+                            columns=[(420, 240, 200), (620, 300, 200)])
+    results.append((p, sz))
+    print("saved", p, sz)
+
+    print("\n=== SHOWCASE COMPLETE — 16 images ===")
     for p, sz in results:
         print(" ", p, sz)
     print("\n=== per-family variant counts ===")
