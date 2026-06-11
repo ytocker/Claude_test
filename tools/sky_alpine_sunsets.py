@@ -222,21 +222,26 @@ def _spec(name, note, overrides):
 #    to a deep bronze-indigo starry night. Sunrise: a rich warm amber-rose dawn.
 EMBER_GOLD = _spec(
     'Ember Gold',
-    'SUNSET [a · over-time sweep]: gold→red→purple TRAVELS over time — golden 0.40 reads molten GOLD, sunset 0.50 cools to SCARLET-EMBER, the 0.56 dwell tips PLUM-MAGENTA — the hue PATH over time is the identity. WARM and DARKENING throughout. NIGHT: a deep bronze-indigo near-black, star_alpha peaks ~236. SUNRISE: a rich warm amber-rose dawn, never pale.',
+    'SUNSET [a · over-time sweep, multi-hue]: gold→orange→plum TRAVELS over time AND stacks vertically — golden 0.40 reads molten GOLD; by sunset 0.50 the horizon rotates BURNT-ORANGE and a CORAL-RED pushes into the MID; by the 0.56 dwell VIOLET bleeds into the TOP, so a dusk column reads gold/ember horizon → coral mid → violet top. WARM and DARKENING throughout. NIGHT: a deep bronze-indigo near-black, star_alpha peaks ~236. SUNRISE: a rich warm amber-rose dawn, never pale.',
     {
-        # SUNSET (a) over-time sweep — the WHOLE sky migrates hue frame to frame:
-        # gold@0.40, the bloom reddening to scarlet-ember@0.50, then tipping into
-        # plum-magenta by the 0.56 dwell as the top deepens to violet. Each frame's
-        # column stays one hue FAMILY; the JOURNEY is over time. The rose-magenta
-        # only appears once the warm has reddened, so no taupe seam.
-        0.40: dict(sky_top=(96, 92, 110),  sky_mid=(224, 162, 104), sky_bot=(255, 184, 70),  horizon=(255, 130, 36)),
-        0.44: dict(sky_top=(90, 72, 102),  sky_mid=(230, 142, 92),  sky_bot=(255, 162, 56),  horizon=(252, 100, 34)),
-        0.50: dict(sky_top=(82, 56, 92),   sky_mid=(228, 110, 84),  sky_bot=(250, 122, 52),  horizon=(238, 64, 40)),
-        0.56: dict(sky_top=(70, 42, 84),   sky_mid=(196, 80, 104),  sky_bot=(224, 86, 88),   horizon=(216, 58, 64)),
+        # SUNSET (a) over-time sweep — REWORKED so it is unmistakably MULTI-HUE on
+        # both axes (the round-1 row read mono gold with only a value-darken). golden
+        # 0.40 is now PURE molten gold (top warmed off taupe so even golden hour is
+        # gold, not grey); by sunset 0.50 the horizon has swept to a deep BURNT-ORANGE
+        # while a saturated CORAL-RED owns the MID band and a clear VIOLET has entered
+        # the TOP; by the 0.56 dwell the TOP is full PLUM-VIOLET, the mid coral-rose,
+        # the horizon ember-orange — so a vertical dusk sample reads gold/ember horizon
+        # → coral mid → violet top, AND across columns the dominant hue travels
+        # gold→orange→plum. The coral-red mid is the saturated bridge that keeps the
+        # gold→violet column from greying to taupe.
+        0.40: dict(sky_top=(124, 96, 70),   sky_mid=(244, 174, 78),  sky_bot=(255, 192, 64),  horizon=(255, 150, 36)),
+        0.44: dict(sky_top=(104, 70, 96),   sky_mid=(238, 138, 86),  sky_bot=(255, 168, 54),  horizon=(252, 110, 32)),
+        0.50: dict(sky_top=(82, 48, 116),   sky_mid=(232, 94, 90),   sky_bot=(252, 134, 50),  horizon=(238, 80, 30)),
+        0.56: dict(sky_top=(78, 40, 124),   sky_mid=(210, 72, 116),  sky_bot=(230, 92, 70),   horizon=(218, 66, 48)),
         # DUSK→TWILIGHT→NIGHT — slow darken into bronze-indigo; a warm ember holds
         # at the base while the top sinks to near-black indigo. Stars emerge.
-        0.62: dict(sky_top=(36, 30, 60),   sky_mid=(120, 78, 78),   sky_bot=(178, 110, 64),  horizon=(206, 96, 44),  star_alpha=88),
-        0.68: dict(sky_top=(24, 22, 48),   sky_mid=(74, 52, 66),    sky_bot=(120, 80, 64),   horizon=(158, 88, 50),  star_alpha=156),
+        0.62: dict(sky_top=(38, 28, 70),   sky_mid=(126, 70, 90),   sky_bot=(184, 108, 64),  horizon=(210, 96, 44),  star_alpha=88),
+        0.68: dict(sky_top=(26, 20, 54),   sky_mid=(78, 48, 72),    sky_bot=(124, 78, 64),   horizon=(160, 88, 50),  star_alpha=156),
         0.72: dict(sky_top=(12, 12, 30),   sky_mid=(30, 26, 48),    sky_bot=(56, 46, 56),    horizon=(96, 64, 48),   star_alpha=236),
         0.80: dict(sky_top=(16, 16, 38),   sky_mid=(36, 34, 58),    sky_bot=(64, 56, 64),    horizon=(102, 76, 58),  star_alpha=168),
         # SUNRISE — rich warm amber-rose; clearer and fresher than the dusk fire,
@@ -323,15 +328,19 @@ BLOOD_SCARLET = _spec(
     'SUNSET [a · over-time sweep · ROW 2×3 CROSS]: the Blood Orange × Scarlet Crimson blend — golden 0.40 reads blood-ORANGE, sunset 0.50 migrates to hot SCARLET, the 0.56 dwell tips CRIMSON-oxblood. The orange→scarlet hue PATH over time is the identity. NIGHT: a deep oxblood-wine near-black, star_alpha peaks ~236. SUNRISE: a fresh peach-rose dawn, full colour.',
     {
         # SUNSET (a) over-time sweep — SEEDED by averaging row 2 (Blood Orange) and
-        # row 3 (Scarlet Crimson) sunset frames, then refined so the WHOLE sky
-        # migrates orange→scarlet over time: golden 0.40 still carries row 2's
-        # blood-orange base, by sunset 0.50 the horizon/bot have swept to row 3's
-        # scarlet, and the 0.56 dwell tips crimson-oxblood. The mid holds a hot
-        # rose-red bridge throughout so the warm→violet-top column never greys.
-        0.40: dict(sky_top=(74, 44, 104),  sky_mid=(210, 84, 98),   sky_bot=(244, 102, 52),  horizon=(248, 96, 38)),
-        0.44: dict(sky_top=(66, 40, 96),   sky_mid=(210, 66, 88),   sky_bot=(242, 86, 48),   horizon=(238, 70, 34)),
-        0.50: dict(sky_top=(58, 34, 86),   sky_mid=(210, 54, 84),   sky_bot=(238, 70, 44),   horizon=(224, 50, 34)),
-        0.56: dict(sky_top=(48, 30, 70),   sky_mid=(190, 50, 82),   sky_bot=(218, 64, 46),   horizon=(202, 42, 38)),
+        # row 3 (Scarlet Crimson), then refined to SHARPEN THE CROSS so it doesn't
+        # read as a third interpolation step between 2 and 3. The CROSS identity is
+        # the warm-bottom/cool-top SPREAD: the horizon is given a slightly ORANGER
+        # cast than row 3's scarlet (more green in the warm end → a blood-orange that
+        # has caught fire, not a pure scarlet), AND the top is pushed slightly more
+        # PURPLE than row 2's wine (more blue up top → a deeper violet), so a vertical
+        # sample crosses oranger-warm → more-violet-cool than either parent. The whole
+        # sky still migrates orange→scarlet over time; the mid holds a hot rose-red
+        # bridge so the warm→violet column never greys.
+        0.40: dict(sky_top=(76, 42, 116),  sky_mid=(212, 82, 96),   sky_bot=(246, 106, 50),  horizon=(252, 104, 40)),
+        0.44: dict(sky_top=(68, 38, 108),  sky_mid=(212, 64, 86),   sky_bot=(244, 90, 46),   horizon=(244, 78, 34)),
+        0.50: dict(sky_top=(60, 32, 98),   sky_mid=(212, 52, 82),   sky_bot=(240, 76, 42),   horizon=(232, 60, 32)),
+        0.56: dict(sky_top=(50, 28, 82),   sky_mid=(192, 48, 80),   sky_bot=(220, 68, 44),   horizon=(208, 50, 36)),
         # DUSK→TWILIGHT→NIGHT — oxblood-wine deepening to near-black; the average of
         # the two parents' nights, a touch warmer than row 3's pure indigo so the
         # cross reads as its own flavour. Stars emerge.
@@ -371,7 +380,10 @@ AMETHYST_NIGHTFALL = _spec(
         # red pulled well down) so it is unmistakably separate from the warmer
         # oxblood/plum nights of the red rows at 0.72 — the cool indigo is this
         # row's own flavoured near-black.
-        0.62: dict(sky_top=(28, 26, 86),   sky_mid=(60, 50, 144),   sky_bot=(104, 60, 152),  horizon=(168, 58, 130),  star_alpha=88),
+        # Dusk (0.62) mid held a touch MORE SATURATED (a cleaner violet-magenta, red
+        # nudged up, green pulled down) so where it meets the mountain silhouette at
+        # this one phase it never edges to a muddy plum-grey seam.
+        0.62: dict(sky_top=(28, 24, 90),   sky_mid=(66, 46, 150),   sky_bot=(110, 56, 156),  horizon=(172, 54, 132),  star_alpha=88),
         0.68: dict(sky_top=(18, 20, 70),   sky_mid=(36, 36, 106),   sky_bot=(62, 46, 116),   horizon=(112, 54, 112),  star_alpha=156),
         0.72: dict(sky_top=(6, 8, 42),     sky_mid=(14, 18, 64),    sky_bot=(26, 28, 78),    horizon=(46, 40, 90),    star_alpha=238),
         0.80: dict(sky_top=(8, 12, 48),    sky_mid=(18, 24, 70),    sky_bot=(32, 34, 84),    horizon=(56, 48, 98),    star_alpha=168),
@@ -395,10 +407,15 @@ CORAL_BLAZE_V2 = _spec(
         # cooled to a deep rose, and the 0.56 dwell tips dusky plum-magenta as the
         # top deepens. Each frame stays one hue FAMILY; the JOURNEY is over time.
         # The rose-plum only arrives once the coral has cooled, so no taupe seam.
-        0.40: dict(sky_top=(96, 76, 100),  sky_mid=(244, 124, 124), sky_bot=(255, 150, 116), horizon=(255, 108, 80)),
-        0.44: dict(sky_top=(84, 64, 94),   sky_mid=(246, 110, 118), sky_bot=(255, 138, 104), horizon=(255, 94, 66)),
-        0.50: dict(sky_top=(70, 52, 84),   sky_mid=(238, 96, 124),  sky_bot=(252, 120, 100), horizon=(248, 84, 72)),
-        0.56: dict(sky_top=(58, 42, 78),   sky_mid=(204, 80, 120),  sky_bot=(228, 96, 102),  horizon=(220, 70, 80)),
+        # The horizon line carries a thin SATURATED EMBER/CORAL bridge at every warm
+        # frame so this cool-leaning row still reads as a SUNSET's few-colour journey
+        # (a hot ember kissing the ridge), never an early blue-hour twilight — the
+        # horizon is given fuller chroma (a brighter, redder coral-ember) than the
+        # cooler rose mid above it, keeping the warm story alive at the base.
+        0.40: dict(sky_top=(96, 76, 100),  sky_mid=(244, 124, 124), sky_bot=(255, 150, 116), horizon=(255, 100, 64)),
+        0.44: dict(sky_top=(84, 64, 94),   sky_mid=(246, 110, 118), sky_bot=(255, 138, 104), horizon=(255, 86, 54)),
+        0.50: dict(sky_top=(70, 52, 84),   sky_mid=(238, 96, 124),  sky_bot=(252, 120, 100), horizon=(252, 76, 58)),
+        0.56: dict(sky_top=(58, 42, 78),   sky_mid=(204, 80, 120),  sky_bot=(228, 96, 102),  horizon=(226, 64, 66)),
         # DUSK→TWILIGHT→NIGHT — the v2 cyan-top survivor is fully killed: the
         # upper-mid band now descends through a WARM plum-navy (red-leaning, blue
         # pulled down so it never reads teal), with the coral/salmon kept hot and
@@ -424,18 +441,23 @@ ROSE_GOLD_TWILIGHT = _spec(
     'Rose-Gold Twilight',
     'SUNSET [b · top-to-bottom bands]: ONE opulent banded sky — a rich gold (H42) horizon, a hot-pink (H335) mid band, and a deep mauve-VIOLET top, gold-below / pink-mid / violet-above, stacked as a clear three-zone gradient that darkens as a unit. NIGHT: a dusky mauve-navy near-black, star_alpha peaks ~234. SUNRISE: a quiet warm blush-gold dawn, soft but with real colour — never pale.',
     {
-        # SUNSET (b) banded — a deliberate three-zone stack: rich gold horizon, a
-        # hot-pink mid (the saturated rose bridge between gold and violet), and a
-        # deep mauve-violet top. The bands stay fixed; the whole stack darkens as a
-        # UNIT over time, each frame's values falling. The hot-pink mid is exactly
-        # the bridge that stops the gold→violet column greying to taupe.
-        0.40: dict(sky_top=(76, 50, 118),  sky_mid=(232, 88, 168),  sky_bot=(248, 132, 108), horizon=(255, 172, 64)),
-        0.44: dict(sky_top=(66, 44, 110),  sky_mid=(224, 78, 162),  sky_bot=(240, 118, 94),  horizon=(250, 152, 54)),
-        0.50: dict(sky_top=(58, 40, 100),  sky_mid=(212, 68, 156),  sky_bot=(228, 102, 80),  horizon=(238, 130, 46)),
-        0.56: dict(sky_top=(48, 34, 86),   sky_mid=(180, 60, 138),  sky_bot=(200, 88, 76),   horizon=(212, 114, 48)),
-        # DUSK→TWILIGHT→NIGHT — mauve-navy deepening to near-black.
-        0.62: dict(sky_top=(40, 26, 64),   sky_mid=(124, 50, 124),  sky_bot=(176, 78, 116),  horizon=(214, 110, 64),  star_alpha=86),
-        0.68: dict(sky_top=(28, 20, 54),   sky_mid=(74, 38, 86),    sky_bot=(116, 56, 86),   horizon=(160, 84, 60),   star_alpha=154),
+        # SUNSET (b) banded — row 7 now OWNS the DESATURATED DUSTY-ROSE identity (its
+        # separator from the hot rows 8/9): a soft rose-gold horizon, a muted
+        # MAUVE-ROSE mid (chroma pulled well down from a hot pink — R and B closer,
+        # greyer), and a dusty plum top. Still a clear three-zone band stack that
+        # darkens as a unit, but the whole mood is the quiet, powdery dusty-rose
+        # option rather than the electric magenta of row 8 or the tangerine of 9.
+        0.40: dict(sky_top=(86, 66, 116),  sky_mid=(214, 124, 164), sky_bot=(238, 152, 130), horizon=(248, 168, 110)),
+        0.44: dict(sky_top=(76, 58, 108),  sky_mid=(206, 112, 156), sky_bot=(230, 138, 116), horizon=(242, 152, 98)),
+        0.50: dict(sky_top=(66, 50, 98),   sky_mid=(198, 102, 150), sky_bot=(222, 126, 104), horizon=(234, 140, 88)),
+        0.56: dict(sky_top=(56, 44, 86),   sky_mid=(172, 92, 134),  sky_bot=(198, 112, 96),  horizon=(212, 124, 84)),
+        # DUSK→TWILIGHT→NIGHT — mauve-navy deepening to near-black. The dusk (0.62)
+        # mid is held MORE SATURATED still (a clear rose-mauve, red lifted and green
+        # pulled down, not a plum-grey) so where the violet mid meets the mountain
+        # silhouette at this one phase it never edges to muddy plum-grey — it stays a
+        # dusty-rose evening.
+        0.62: dict(sky_top=(40, 28, 64),   sky_mid=(148, 62, 120),  sky_bot=(190, 92, 112),  horizon=(218, 118, 74),  star_alpha=86),
+        0.68: dict(sky_top=(28, 20, 54),   sky_mid=(80, 44, 84),    sky_bot=(120, 62, 84),   horizon=(162, 88, 62),   star_alpha=154),
         0.72: dict(sky_top=(12, 10, 32),   sky_mid=(30, 20, 50),    sky_bot=(54, 32, 56),    horizon=(90, 56, 50),    star_alpha=234),
         0.80: dict(sky_top=(16, 12, 38),   sky_mid=(36, 24, 56),    sky_bot=(60, 38, 62),    horizon=(98, 64, 56),    star_alpha=166),
         # SUNRISE — quiet warm blush-gold; soft but real colour, fresher hue.
@@ -455,21 +477,26 @@ ROSE_GOLD_TWILIGHT = _spec(
 #    starry indigo. Sunrise: a cool fresh steel-blue & gold dawn.
 INDIGO_FIRE = _spec(
     'Indigo & Fire',
-    'SUNSET [c · both — banded AND migrating]: the high-contrast jewel — a fiery red-orange (H18) horizon, a magenta-violet mid bridge, and a DEEP INDIGO (H250) top, banded AND migrating: over time the flame recedes and the indigo floods downward, the cool pressing on the flame as it darkens. NIGHT: near-black starry indigo, star_alpha peaks ~238 — the dark brief suits it perfectly. SUNRISE: a cool fresh steel-blue and gold dawn.',
+    'SUNSET [c · both — banded AND migrating · HOT-MAGENTA-VIOLET point of the 7/8/9 cluster]: the high-contrast jewel — a magenta-RED (H348) horizon, a hot PURPLE-MAGENTA mid bridge (orange driven out), and a DEEP INDIGO (H250) top, banded AND migrating: over time the flame recedes and the indigo floods downward, the cool pressing on the flame as it darkens. NIGHT: near-black starry indigo, star_alpha peaks ~238 — the dark brief suits it perfectly. SUNRISE: a cool fresh steel-blue and gold dawn.',
     {
-        # SUNSET (c) both — a three-band stack (flame horizon, magenta-violet mid
-        # bridge, deep indigo top) whose bands MIGRATE over time: frame to frame
-        # the indigo presses lower (mid bluer, bot darker) and the flame narrows at
-        # the horizon, so the column is banded at every step yet sweeping indigo-
-        # down. The magenta-violet mid is the saturated bridge that keeps the
-        # flame→indigo column from greying.
-        0.40: dict(sky_top=(46, 48, 110),  sky_mid=(108, 64, 150),  sky_bot=(176, 78, 128),  horizon=(250, 120, 56)),
-        0.44: dict(sky_top=(40, 42, 104),  sky_mid=(94, 56, 146),   sky_bot=(166, 68, 120),  horizon=(248, 102, 48)),
-        0.50: dict(sky_top=(34, 36, 96),   sky_mid=(78, 50, 140),   sky_bot=(150, 60, 114),  horizon=(246, 84, 40)),
-        0.56: dict(sky_top=(30, 30, 84),   sky_mid=(62, 46, 126),   sky_bot=(132, 58, 108),  horizon=(232, 78, 42)),
-        # DUSK→TWILIGHT→NIGHT — indigo to near-black; flame fades at the base.
-        0.62: dict(sky_top=(24, 24, 70),   sky_mid=(42, 40, 100),   sky_bot=(104, 60, 96),   horizon=(206, 84, 48),  star_alpha=90),
-        0.68: dict(sky_top=(18, 18, 56),   sky_mid=(32, 30, 76),    sky_bot=(72, 48, 80),    horizon=(150, 66, 50),  star_alpha=158),
+        # SUNSET (c) both — row 8 now owns the HOT-MAGENTA-VIOLET point of the
+        # 7/8/9 cluster (its separator from dusty-rose 7 and tangerine 9): the mid
+        # is pulled COOLER and more VIOLET (a hot purple-magenta, the orange driven
+        # OUT of it), the deep indigo top floods harder, and the horizon flame is
+        # cooled from pure tangerine toward a magenta-RED so the warm end leans
+        # toward the magenta family, not the orange one. Still a three-band stack
+        # (flame-magenta horizon, purple-magenta mid bridge, deep indigo top) that
+        # MIGRATES indigo-down over time. The purple-magenta mid is the saturated
+        # bridge keeping the flame→indigo column from greying.
+        0.40: dict(sky_top=(50, 44, 124),  sky_mid=(128, 52, 176),  sky_bot=(196, 60, 144),  horizon=(234, 80, 116)),
+        0.44: dict(sky_top=(44, 38, 118),  sky_mid=(114, 46, 172),  sky_bot=(186, 52, 136),  horizon=(228, 66, 104)),
+        0.50: dict(sky_top=(38, 32, 110),  sky_mid=(98, 42, 166),   sky_bot=(174, 46, 128),  horizon=(222, 54, 96)),
+        0.56: dict(sky_top=(34, 28, 98),   sky_mid=(80, 40, 150),   sky_bot=(154, 46, 122),  horizon=(208, 50, 98)),
+        # DUSK→TWILIGHT→NIGHT — indigo to near-black; the magenta-flame fades at the
+        # base, the horizon kept magenta-leaning (not orange) so row 8 stays the cool
+        # purple-magenta of the cluster right through dusk.
+        0.62: dict(sky_top=(26, 24, 78),   sky_mid=(54, 38, 114),   sky_bot=(116, 52, 116),  horizon=(192, 64, 100), star_alpha=90),
+        0.68: dict(sky_top=(18, 18, 60),   sky_mid=(36, 30, 86),    sky_bot=(78, 44, 92),    horizon=(142, 56, 80),  star_alpha=158),
         0.72: dict(sky_top=(8, 8, 32),     sky_mid=(18, 18, 50),    sky_bot=(36, 30, 58),    horizon=(78, 44, 48),   star_alpha=238),
         0.80: dict(sky_top=(10, 12, 38),   sky_mid=(24, 24, 56),    sky_bot=(44, 36, 64),    horizon=(86, 52, 52),   star_alpha=168),
         # SUNRISE — cool fresh steel-blue mid lifting to a thin gold horizon; a
@@ -480,33 +507,36 @@ INDIGO_FIRE = _spec(
 )
 
 
-# 9. Aurora Teal-Magenta — ARRANGEMENT (c) BOTH (banded AND migrating). At golden
-#    a banded aurora — a hot magenta horizon → magenta-rose mid → indigo top with
-#    a teal sliver at the horizon edge — and over time the bands BOTH darken AND
-#    migrate: the magenta cools upward, the teal re-enters as a TWILIGHT accent,
-#    so the banded aurora sweeps magenta→indigo→teal-glow frame to frame. → deep
-#    indigo night with one signature low teal-green glow. Sunrise: fresh cyan-peach.
+# 9. Aurora Teal-Magenta — ARRANGEMENT (c) BOTH (banded AND migrating). Owns the
+#    WARM TANGERINE end of the 7/8/9 magenta cluster: a banded aurora — a tangerine-
+#    coral horizon → warm magenta-rose mid → indigo top with a teal sliver at the
+#    horizon edge — and over time the bands BOTH darken AND migrate: the warm end
+#    cools upward, the teal re-enters as a TWILIGHT accent, so the banded aurora
+#    sweeps tangerine→magenta→indigo→teal-glow frame to frame. → deep indigo night
+#    with one signature low teal-green glow. Sunrise: fresh cyan-peach.
 AURORA_TEAL_MAGENTA = _spec(
     'Aurora Teal-Magenta',
-    'SUNSET [c · both — banded AND migrating]: a banded aurora — a hot magenta (H320) horizon, a magenta-rose mid, an indigo top, with a thin TEAL sliver at the horizon edge — whose bands ALSO migrate: over time the magenta cools upward and the teal re-blooms as the TWILIGHT (0.68) accent, so the banded sky sweeps magenta→indigo→teal-glow. NIGHT: a deep indigo near-black carrying ONE signature low teal-green star-glow at the horizon (its separator from rows 5/8), star_alpha peaks ~236. SUNRISE [C]: a fresh cyan-and-peach dawn, calm and clearly different from the electric dusk.',
+    'SUNSET [c · both — banded AND migrating · WARM-TANGERINE end of the 7/8/9 cluster]: a banded aurora — a TANGERINE-coral (H14) horizon, a warm magenta-rose mid, an indigo top, with a thin TEAL sliver at the horizon edge — whose bands ALSO migrate: over time the warm end cools upward and the teal re-blooms as the TWILIGHT (0.68) accent, so the banded sky sweeps tangerine→magenta→indigo→teal-glow. NIGHT: a deep indigo near-black carrying ONE signature low teal-green star-glow at the horizon (its separator from rows 5/8), star_alpha peaks ~236. SUNRISE [C]: a fresh cyan-and-peach dawn, calm and clearly different from the electric dusk.',
     {
-        # SUNSET (c) both — a banded aurora that MIGRATES: at 0.40 a clear stack
-        # (indigo top, magenta-rose mid, hot-magenta horizon with a luminous teal
-        # sliver at the very edge); frame to frame the magenta cools upward and the
-        # indigo presses down, so the column stays banded while sweeping toward the
-        # cool. The magenta-rose mid is the saturated bridge; teal's real feature
-        # moment is the twilight (0.68) accent below.
-        0.40: dict(sky_top=(56, 50, 110),  sky_mid=(196, 96, 196),  sky_bot=(232, 78, 172),  horizon=(236, 70, 150)),
-        0.44: dict(sky_top=(48, 42, 104),  sky_mid=(194, 80, 192),  sky_bot=(234, 62, 162),  horizon=(232, 56, 138)),
-        0.50: dict(sky_top=(40, 34, 96),   sky_mid=(192, 66, 188),  sky_bot=(234, 50, 152),  horizon=(226, 44, 126)),
-        0.56: dict(sky_top=(32, 28, 84),   sky_mid=(170, 60, 168),  sky_bot=(216, 50, 144),  horizon=(206, 44, 122)),
+        # SUNSET (c) both — a banded aurora that MIGRATES, now pulled to OWN THE WARM
+        # TANGERINE END of the 7/8/9 magenta sweep (its separator: 7 dusty-rose, 8
+        # hot-magenta-violet, 9 warm-tangerine-magenta). The horizon/bot are warmed
+        # decisively toward tangerine-coral (orange driven INTO the warm end), while
+        # the mid stays a warm magenta-rose bridge and the top an indigo, with a
+        # luminous teal sliver kept at the very edge. Frame to frame the warm end
+        # cools upward and the indigo presses down — banded yet sweeping cool — but
+        # the WARM anchor is now plainly tangerine, not the cool hot-magenta of row 8.
+        0.40: dict(sky_top=(60, 50, 108),  sky_mid=(228, 110, 158), sky_bot=(252, 110, 116), horizon=(255, 110, 78)),
+        0.44: dict(sky_top=(52, 44, 102),  sky_mid=(226, 92, 152),  sky_bot=(252, 92, 104),  horizon=(255, 94, 64)),
+        0.50: dict(sky_top=(44, 36, 94),   sky_mid=(224, 78, 148),  sky_bot=(250, 78, 96),   horizon=(252, 80, 56)),
+        0.56: dict(sky_top=(36, 30, 84),   sky_mid=(200, 66, 138),  sky_bot=(232, 66, 96),   horizon=(228, 66, 60)),
         # DUSK→TWILIGHT→NIGHT — indigo deepening to near-black; magenta cools out,
         # and TEAL re-enters as the unmistakable TWILIGHT (0.68) accent (its real
         # feature moment, pushed brighter/greener here) before settling into the
         # night's one signature low cool teal-GREEN star-glow at the horizon —
         # deepened and greened so it clearly separates this row's night from the
         # pure-indigo nights of rows 5/8.
-        0.62: dict(sky_top=(26, 22, 76),   sky_mid=(96, 50, 132),   sky_bot=(160, 62, 134),  horizon=(196, 56, 124),  star_alpha=88),
+        0.62: dict(sky_top=(28, 24, 78),   sky_mid=(108, 54, 122),  sky_bot=(180, 68, 116),  horizon=(214, 76, 96),   star_alpha=88),
         0.68: dict(sky_top=(14, 26, 64),   sky_mid=(34, 80, 110),   sky_bot=(70, 116, 128),  horizon=(64, 150, 142),  star_alpha=156),
         0.72: dict(sky_top=(6, 14, 32),    sky_mid=(12, 36, 52),    sky_bot=(24, 56, 60),    horizon=(38, 104, 86),   star_alpha=236),
         0.80: dict(sky_top=(8, 18, 40),    sky_mid=(16, 46, 64),    sky_bot=(32, 64, 72),    horizon=(46, 112, 92),   star_alpha=168),
@@ -526,26 +556,27 @@ AURORA_TEAL_MAGENTA = _spec(
 #     peach-gold dawn.
 SUNFIRE_TANGERINE = _spec(
     'Sunfire Tangerine',
-    'SUNSET [a · over-time sweep]: a sky-filling inferno that TRAVELS — golden 0.40 reads vivid TANGERINE (H26), sunset 0.50 cools to deep RED-amber, the 0.56 dwell tips smoky PLUM-magenta. The tangerine→red→plum path over time is the identity. NIGHT: a smoky violet near-black, star_alpha peaks ~236. SUNRISE: a warm fresh peach-gold dawn, full real colour.',
+    'SUNSET [a · over-time sweep, explicit migration]: a sky-filling inferno that TRAVELS coral→rose→indigo — golden 0.40 reads vivid TANGERINE (H26), sunset 0.50 a true CORAL, then the 0.56 dwell drives the horizon to MAGENTA-ROSE while a real BLUE-VIOLET pulls DOWN into the mid (not just coral over blue). NIGHT: a smoky violet near-black, star_alpha peaks ~236. SUNRISE: a warm fresh peach-gold dawn, full real colour.',
     {
-        # SUNSET (a) over-time sweep — the WHOLE sky-filling warm migrates over
-        # time: vivid tangerine@0.40 floods the lower-mid, by sunset 0.50 it has
-        # cooled to a deep red-amber, and the 0.56 dwell tips smoky plum-magenta as
-        # the top deepens to violet. Each frame stays one hue FAMILY; the JOURNEY is
-        # over time. Saturated coral mid bridges the warm→violet column.
-        0.40: dict(sky_top=(92, 78, 108),  sky_mid=(238, 148, 110), sky_bot=(252, 150, 66),  horizon=(255, 124, 44)),
-        0.44: dict(sky_top=(80, 66, 102),  sky_mid=(238, 132, 100), sky_bot=(255, 130, 54),  horizon=(252, 100, 36)),
-        0.50: dict(sky_top=(68, 52, 94),   sky_mid=(232, 108, 92),  sky_bot=(250, 108, 48),  horizon=(240, 76, 34)),
-        0.56: dict(sky_top=(54, 42, 82),   sky_mid=(204, 88, 96),   sky_bot=(232, 96, 56),   horizon=(216, 64, 44)),
-        # DUSK→TWILIGHT→NIGHT — smoky violet deepening to near-black. The
-        # tangerine→violet crossover no longer greys: saturation is HELD up across
-        # the handoff — a hot SATURATED ember line stays at the horizon and the
-        # mid keeps a clean coral-amber (R well above G well above B) as the violet
-        # climbs the top, so no vertical sample drops to grey, the way rows 1/3
-        # stay clean. The 0.68 mid in particular is re-saturated (was the dead
-        # band). Stars emerge.
-        0.62: dict(sky_top=(40, 28, 66),   sky_mid=(190, 94, 60),   sky_bot=(222, 116, 50),  horizon=(244, 104, 38),  star_alpha=88),
-        0.68: dict(sky_top=(28, 22, 56),   sky_mid=(132, 62, 48),   sky_bot=(166, 84, 48),   horizon=(198, 92, 42),   star_alpha=156),
+        # SUNSET (a) over-time sweep — migration made EXPLICIT so the sweep is no
+        # longer near-invisible (round-1 read near-mono coral over blue across the
+        # warm columns). golden 0.40 reads vivid TANGERINE; sunset 0.50 a true CORAL;
+        # by the 0.56 dwell the horizon has driven to MAGENTA-ROSE while a real
+        # BLUE-VIOLET is pulled DOWN into the mid — so over time the column reads
+        # coral → rose → INDIGO, not just "coral over blue". The horizon's rose and
+        # the mid's blue-violet now arrive earlier (0.50 mid cooled, 0.56 horizon
+        # deep magenta-rose) so the journey is visible even on the warm columns.
+        0.40: dict(sky_top=(90, 76, 112),  sky_mid=(240, 150, 104), sky_bot=(252, 150, 60),  horizon=(255, 122, 40)),
+        0.44: dict(sky_top=(76, 58, 116),  sky_mid=(238, 118, 110), sky_bot=(255, 124, 52),  horizon=(252, 90, 44)),
+        0.50: dict(sky_top=(58, 44, 118),  sky_mid=(214, 86, 120),  sky_bot=(250, 104, 62),  horizon=(246, 70, 58)),
+        0.56: dict(sky_top=(48, 38, 128),  sky_mid=(118, 64, 158),  sky_bot=(214, 76, 110),  horizon=(220, 56, 116)),
+        # DUSK→TWILIGHT→NIGHT — the migration continues into dusk: the horizon holds
+        # a MAGENTA-ROSE glow (its travelled warm end) while the mid keeps a real
+        # blue-violet so the coral→rose→indigo story stays legible, then both sink
+        # to a smoky violet near-black. Saturation is HELD up across the handoff so
+        # no vertical sample greys, the way rows 1/3 stay clean. Stars emerge.
+        0.62: dict(sky_top=(34, 26, 96),   sky_mid=(88, 56, 128),   sky_bot=(196, 86, 108),  horizon=(218, 70, 100),  star_alpha=88),
+        0.68: dict(sky_top=(22, 20, 70),   sky_mid=(54, 40, 96),    sky_bot=(126, 64, 84),   horizon=(168, 64, 80),   star_alpha=156),
         0.72: dict(sky_top=(12, 10, 32),   sky_mid=(34, 22, 44),    sky_bot=(60, 38, 48),    horizon=(102, 56, 44),  star_alpha=236),
         0.80: dict(sky_top=(16, 14, 38),   sky_mid=(40, 28, 50),    sky_bot=(66, 44, 54),    horizon=(110, 64, 48),  star_alpha=168),
         # SUNRISE — warm fresh peach-gold; full colour, clearer than the dusk.
