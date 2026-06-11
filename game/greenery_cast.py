@@ -74,6 +74,20 @@ def _night_lift(col, night, frac):
 
 def draw_greenery(surf, cx, base_y, v, night, t):
     A = v.attrs
+    sp = A.get("species", "shrub")
+    if sp == "rock" and not (surf.get_flags() & pygame.SRCALPHA):
+        # The scholar's-rock through-holes can't show real transparency on an
+        # opaque target, so sample the painted background just above the rock and
+        # hand it in as the hole fill, so the pierces read as the surrounding
+        # sky/ground rather than black dots. (On SRCALPHA targets — the near-lane
+        # bake scratch — the drawer clears the holes to transparent instead.)
+        sy = max(0, int(base_y) - 40)
+        try:
+            A = dict(A)
+            A["hole_bg"] = surf.get_at((min(cx, surf.get_width() - 1), sy))[:3]
+            v = fv.Variant(palette=v.palette, attrs=A)
+        except Exception:
+            pass
     rim_y = _draw_vessel(surf, cx, base_y, v, night, A.get("vessel", "terracotta"))
     {
         "shrub": _sp_shrub, "conifer": _sp_conifer, "topiary": _sp_topiary,
@@ -81,7 +95,9 @@ def draw_greenery(surf, cx, base_y, v, night, t):
         "flovine": _sp_flovine, "kumquat": _sp_kumquat, "wishtree": _sp_wishtree,
         "peony": _sp_peony, "chrysanthemum": _sp_chrysanthemum, "plum": _sp_plum,
         "maple": _sp_maple, "narcissus": _sp_narcissus,
-    }[A.get("species", "shrub")](surf, cx, rim_y, v, night, t)
+        "lotus": _sp_lotus, "fern": _sp_fern, "cycad": _sp_cycad,
+        "banana": _sp_banana, "rock": _sp_rock,
+    }[sp](surf, cx, rim_y, v, night, t)
 
 
 # ── vessels — each a distinct outline; returns the rim y the canopy plants into ─
@@ -197,6 +213,40 @@ def _draw_vessel(surf, cx, base_y, v, night, kind):
         peb = pf((158, 160, 166))
         for dxp in (-7, -2, 3, 7, 0):
             pygame.draw.circle(surf, peb, (cx + dxp, ty + 1), 1)
+        return ty
+
+    if kind == "basin":
+        # a wide shallow WATER basin — the flattest/widest vessel; the cool-blue
+        # water glaze filling the mouth is the surface the lotus pads float ON.
+        h = 7
+        top_w, bot_w = 28, 22
+        ty = g - h
+        pygame.draw.polygon(surf, dk, [
+            (cx - top_w // 2, ty), (cx + top_w // 2, ty),
+            (cx + bot_w // 2, g), (cx - bot_w // 2, g)])
+        pygame.draw.polygon(surf, body, [
+            (cx - top_w // 2 + 1, ty + 2), (cx + top_w // 2 - 1, ty + 2),
+            (cx + bot_w // 2, g - 1), (cx - bot_w // 2, g - 1)])
+        pygame.draw.line(surf, lt, (cx - top_w // 2 + 1, ty), (cx + top_w // 2 - 2, ty), 1)
+        water = _hi(_retint(P.get("glaze", (62, 100, 152)), night), 8, night)
+        water_lt = _hi(water, 18, night)
+        pygame.draw.rect(surf, water, (cx - top_w // 2 + 2, ty + 1, top_w - 4, 3))
+        for dxp in (-10, -3, 4, 10):
+            pygame.draw.line(surf, water_lt, (cx + dxp, ty + 2), (cx + dxp + 3, ty + 2), 1)
+        return ty + 1
+
+    if kind == "tray":
+        # a low literati TRAY — a thin dark slab + foot-blocks the rock stands ON,
+        # so the scholar's rock reads as MOUNTED, not growing from a pot.
+        w = 24
+        h = 5
+        ty = g - h
+        for fx in (cx - w // 2 + 2, cx + w // 2 - 4):
+            pygame.draw.rect(surf, dk, (fx, g - 2, 3, 3))
+        pygame.draw.rect(surf, dk, (cx - w // 2, ty, w, h - 1))
+        pygame.draw.rect(surf, body, (cx - w // 2 + 1, ty, w - 2, h - 3))
+        pygame.draw.line(surf, lt, (cx - w // 2 + 1, ty), (cx + w // 2 - 2, ty), 1)
+        pygame.draw.line(surf, _shade(dk, -14), (cx - w // 2, g - 3), (cx + w // 2 - 1, g - 3), 1)
         return ty
 
     return g - VESSEL_H
@@ -665,6 +715,299 @@ def _sp_narcissus(surf, cx, rim_y, v, night, t):
         pygame.draw.circle(surf, cup, (fx, fy), 0)
 
 
+def _sp_lotus(surf, cx, rim_y, v, night, t):
+    """LOTUS (lianhua) — the floating PADS are the hero: three flat round lily-pad
+    DISCS at water level (the dominant horizontal mass), each a flat ellipse with a
+    1px darker waterline rim + a lighter top face + a single radial vein-notch slit,
+    so each reads as a top-lit pad floating on water. The pink is a SMALL accent —
+    one open petal-cup + one bud on a single short stem just clear of the pads — so
+    the bloom doesn't dominate (no collision with the narcissus 'flowering stems')."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    ripple = math.sin(t * 1.1) * 0.5
+    pads = ((1, -2, 5, 2, +1), (-7, 0, 9, 3, -1), (6, 1, 9, 3, +1))
+    for dx, dy, rw, rh, vdir in pads:
+        px = cx + dx + int(ripple * (dy < 0))
+        py = base + dy
+        pygame.draw.ellipse(surf, _shade(dark, -14), (px - rw, py - rh, rw * 2, rh * 2))
+        pygame.draw.ellipse(surf, mid, (px - rw + 1, py - rh + 1, rw * 2 - 2, rh * 2 - 1))
+        pygame.draw.ellipse(surf, top, (px - rw + 2, py - rh + 1, rw * 2 - 4, max(1, rh)))
+        pygame.draw.line(surf, _shade(dark, -10), (px, py), (px + vdir * (rw - 1), py), 1)
+    stem = _retint(P.get("stem", (96, 138, 84)), night)
+    bloom = P.get("accent", (228, 150, 178))
+    dc = A.get("day_chroma", 176)
+    pet_dk = _accent(_shade(bloom, -40), night, day_ceil=dc)
+    pet = _accent(bloom, night, day_ceil=dc)
+    pet_lt = _accent(_shade(bloom, 26), night, day_ceil=dc)
+    heart = _accent(P.get("accent2", (232, 206, 120)), night, day_ceil=dc)
+    obx = cx - 3
+    oby = base - 9 + int(ripple)
+    pygame.draw.line(surf, _shade(stem, -16), (obx, base - 2), (obx, oby + 2), 2)
+    pygame.draw.line(surf, _shade(stem, 18), (obx, base - 2), (obx, oby + 2), 1)
+    pygame.draw.polygon(surf, pet_dk, [
+        (obx - 3, oby + 2), (obx, oby - 3), (obx + 3, oby + 2), (obx, oby + 1)])
+    for sx, hgt in ((-3, 3), (0, 5), (3, 3)):
+        tipx = obx + sx
+        pygame.draw.line(surf, pet, (obx, oby + 1), (tipx, oby - hgt), 2)
+        pygame.draw.line(surf, pet_lt, (obx, oby + 1), (tipx, oby - hgt + 1), 1)
+    pygame.draw.circle(surf, heart, (obx, oby - 1), 1)
+    bbx = cx + 5
+    bby = base - 7 - int(ripple)
+    pygame.draw.line(surf, _shade(stem, -16), (bbx, base - 2), (bbx, bby + 1), 2)
+    pygame.draw.line(surf, _shade(stem, 18), (bbx, base - 2), (bbx, bby + 1), 1)
+    pygame.draw.polygon(surf, pet_dk, [(bbx - 2, bby + 2), (bbx, bby - 3), (bbx + 2, bby + 2)])
+    pygame.draw.polygon(surf, pet, [(bbx - 1, bby + 1), (bbx, bby - 2), (bbx + 1, bby + 1)])
+    pygame.draw.circle(surf, pet_lt, (bbx, bby - 1), 0)
+
+
+def _sp_fern(surf, cx, rim_y, v, night, t):
+    """FERN (Boston / sword) — a symmetric SHUTTLECOCK fountain: arching fronds
+    spreading evenly up-and-out from a central crown in mirrored pairs. Each frond is
+    a curved rachis (bowing outward then dropping at the tip) hung with short pinnae
+    notches; the front three carry the notch rhythm so it reads LACY, the low outer
+    pair arches + droops to form the fountain rim. Soft/cool ARCHED counterpart to
+    the cycad's stiff radial star, and a tight ground rosette unlike the bamboo."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    crown_x = cx
+    crown_y = base - 1
+    sway = math.sin(t * 1.5) * 0.10
+    fronds = (
+        (1.5708, 18, 0.25, 0, True),
+        (1.86, 17, 0.42, 0, True), (1.28, 17, 0.42, 0, True),
+        (2.18, 17, 0.66, 1, False), (0.96, 17, 0.66, 1, False),
+        (2.50, 16, 0.92, 1, False), (0.64, 16, 0.92, 1, False),
+    )
+    for ang0, ln, arch, droop, notched in fronds:
+        ang0 += sway * (1 if ang0 < 1.5708 else -1)
+        pts = []
+        steps = 6
+        x, y = float(crown_x), float(crown_y)
+        ang = ang0
+        seg = ln / steps
+        for s in range(steps + 1):
+            pts.append((int(round(x)), int(round(y))))
+            tt = s / steps
+            a = ang - arch * tt - (droop * 0.7 * tt * tt)
+            x += math.cos(a) * seg
+            y -= math.sin(a) * seg
+        pygame.draw.lines(surf, dark, False, pts, 2)
+        pygame.draw.lines(surf, mid, False, pts, 1)
+        if notched:
+            for s in range(1, steps):
+                (x0, y0) = pts[s]
+                (x1, y1) = pts[s + 1]
+                dxs, dys = x1 - x0, y1 - y0
+                blen = max(1, 3 - s // 2)
+                nx, ny = -dys, dxs
+                nl = math.hypot(nx, ny) or 1.0
+                nx, ny = nx / nl, ny / nl
+                bx = x0 + int(round(nx * blen))
+                by = y0 + int(round(ny * blen))
+                pygame.draw.line(surf, dark, (x0, y0), (bx, by), 1)
+                pygame.draw.line(surf, dark, (x0, y0),
+                                 (x0 - int(round(nx * blen)), y0 - int(round(ny * blen))), 1)
+        pygame.draw.circle(surf, top, pts[-1], 0)
+    pygame.draw.circle(surf, dark, (crown_x, crown_y), 2)
+    pygame.draw.circle(surf, mid, (crown_x, crown_y - 1), 1)
+
+
+def _sp_cycad(surf, cx, rim_y, v, night, t):
+    """CYCAD / sago palm — a stiff symmetric crown of rigid straight spear-fronds
+    radiating in a flat STAR from a fat scaly trunk-knob. Each frond is a straight
+    rachis (no arch) lined with stiff comb-teeth + a spine tip; the 2 outermost
+    spears each side taper to single-pixel needle points so the hard radial star
+    reads crisp — the architectural opposite of the fern's soft droop."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    knob = _retint(P.get("trunk", (104, 84, 56)), night)
+    knob_dk = _shade(knob, -26)
+    knob_lt = _hi(knob, 18, night)
+    ky = base - 4
+    pygame.draw.ellipse(surf, knob_dk, (cx - 6, ky - 1, 12, 9))
+    pygame.draw.ellipse(surf, knob, (cx - 5, ky, 10, 7))
+    pygame.draw.arc(surf, knob_lt, (cx - 5, ky, 10, 7), math.radians(40), math.radians(150), 1)
+    for sx in (-3, 0, 3):
+        pygame.draw.line(surf, knob_dk, (cx + sx, ky + 1), (cx + sx, ky + 5), 1)
+    for sy in (ky + 2, ky + 4):
+        pygame.draw.line(surf, knob_dk, (cx - 4, sy), (cx + 4, sy), 1)
+    crown_x = cx
+    crown_y = ky - 1
+    breathe = math.sin(t * 1.2) * 0.05
+    n = 11
+    a_lo, a_hi = math.radians(8), math.radians(172)
+    for i in range(n):
+        frac = i / (n - 1)
+        ang = a_lo + (a_hi - a_lo) * frac + breathe * math.cos(frac * math.pi)
+        ln = 17 if (0.30 < frac < 0.70) else 14
+        ex = crown_x + int(round(math.cos(ang) * ln))
+        ey = crown_y - int(round(math.sin(ang) * ln))
+        lit = 0.30 < frac < 0.70
+        spine = top if lit else mid
+        outer = (i <= 1) or (i >= n - 2)
+        pygame.draw.line(surf, dark, (crown_x, crown_y), (ex, ey), 2)
+        pygame.draw.line(surf, spine, (crown_x, crown_y), (ex, ey), 1)
+        dxs, dys = ex - crown_x, ey - crown_y
+        nl = math.hypot(dxs, dys) or 1.0
+        ux, uy = dxs / nl, dys / nl
+        px, py = -uy, ux
+        for k in range(3, ln - 1, 3):
+            bx = crown_x + ux * k
+            by = crown_y + uy * k
+            tlen = 2
+            pygame.draw.line(surf, dark,
+                             (int(round(bx + px * tlen)), int(round(by + py * tlen))),
+                             (int(round(bx - px * tlen)), int(round(by - py * tlen))), 1)
+        if outer:
+            tipx = crown_x + int(round(ux * (ln + 1)))
+            tipy = crown_y + int(round(uy * (ln + 1)))
+            pygame.draw.line(surf, dark, (ex, ey), (tipx, tipy), 1)
+            pygame.draw.circle(surf, dark, (tipx, tipy), 0)
+        else:
+            pygame.draw.circle(surf, dark, (ex, ey), 0)
+    pygame.draw.circle(surf, top, (crown_x, crown_y - 1), 1)
+
+
+def _sp_banana(surf, cx, rim_y, v, night, t):
+    """BANANA / broadleaf (Musa) — 2 huge paddle leaves (long lozenge blades about a
+    bold central midrib, the windward edge cut with the species' tear-notches) +
+    one upright furled new-leaf spike, splaying from a short pseudostem. The biggest,
+    broadest leaf-mass in the family — tropical, no flowers; the torn edges + heavy
+    midrib are the signature, distinct from the cycad's spiky star + the fern's lace."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    rib = _retint(P.get("stem", (150, 176, 96)), night)
+    sway = math.sin(t * 1.0) * 0.08
+    pygame.draw.line(surf, _shade(rib, -22), (cx + 1, base + 1), (cx + 1, base - 4), 3)
+    pygame.draw.line(surf, rib, (cx, base + 1), (cx, base - 4), 2)
+    cy = base - 4
+
+    def _paddle(ang, ln, half, side, lit):
+        ang += sway
+        ux, uy = math.cos(ang), -math.sin(ang)
+        px, py = -uy, ux
+        tip = (cx + ux * ln, cy + uy * ln)
+        edge_a, edge_b = [], []
+        steps = 7
+        for s in range(steps + 1):
+            tt = s / steps
+            w = half * math.sin(min(1.0, tt * 1.15) * math.pi) ** 0.7
+            bx = cx + ux * (ln * tt)
+            by = cy + uy * (ln * tt)
+            edge_a.append((bx + px * w, by + py * w))
+            edge_b.append((bx - px * w, by - py * w))
+        poly = [(int(round(x)), int(round(y))) for x, y in edge_a] + \
+               [(int(round(x)), int(round(y))) for x, y in reversed(edge_b)]
+        pygame.draw.polygon(surf, dark, poly)
+        inner = []
+        for s in range(steps + 1):
+            tt = s / steps
+            w = max(0.0, half * math.sin(min(1.0, tt * 1.15) * math.pi) ** 0.7 - 1.4)
+            bx = cx + ux * (ln * tt)
+            by = cy + uy * (ln * tt)
+            inner.append((bx + px * w, by + py * w))
+        for s in range(steps + 1):
+            tt = (steps - s) / steps
+            w = max(0.0, half * math.sin(min(1.0, tt * 1.15) * math.pi) ** 0.7 - 1.4)
+            bx = cx + ux * (ln * tt)
+            by = cy + uy * (ln * tt)
+            inner.append((bx - px * w, by - py * w))
+        inner = [(int(round(x)), int(round(y))) for x, y in inner]
+        if len(inner) >= 3:
+            pygame.draw.polygon(surf, mid, inner)
+        pygame.draw.line(surf, _shade(rib, -10), (cx, cy),
+                         (int(round(tip[0])), int(round(tip[1]))), 2)
+        pygame.draw.line(surf, rib, (cx, cy),
+                         (int(round(tip[0])), int(round(tip[1]))), 1)
+        if lit:
+            le = [edge_a[s] if side > 0 else edge_b[s] for s in range(2, steps)]
+            le = [(int(round(x)), int(round(y))) for x, y in le]
+            if len(le) >= 2:
+                pygame.draw.lines(surf, top, False, le, 1)
+        for s in (2, 4, 6):
+            tt = s / steps
+            w = half * math.sin(min(1.0, tt * 1.15) * math.pi) ** 0.7
+            bx = cx + ux * (ln * tt)
+            by = cy + uy * (ln * tt)
+            ox, oy = (px, py) if side > 0 else (-px, -py)
+            x_e = bx + ox * w
+            y_e = by + oy * w
+            x_i = bx + ox * (w * 0.45)
+            y_i = by + oy * (w * 0.45)
+            pygame.draw.line(surf, dark,
+                             (int(round(x_e)), int(round(y_e))),
+                             (int(round(x_i)), int(round(y_i))), 1)
+
+    _paddle(2.50, 17, 6, +1, True)
+    _paddle(0.64, 17, 6, -1, True)
+    sp_ang = 1.5708 + sway * 0.5
+    sx2 = cx + int(round(math.cos(sp_ang) * 18))
+    sy2 = cy - int(round(math.sin(sp_ang) * 18))
+    pygame.draw.line(surf, dark, (cx, cy), (sx2, sy2), 3)
+    pygame.draw.line(surf, mid, (cx, cy), (sx2, sy2), 1)
+    pygame.draw.circle(surf, top, (sx2, sy2), 1)
+
+
+def _sp_rock(surf, cx, rim_y, v, night, t):
+    """SCHOLAR'S ROCK (gongshi / Taihu) — a tall asymmetric pierced grey limestone
+    monolith on its tray, with a small moss/fern tuft at the foot: the literati-garden
+    OBJECT, the only non-plant silhouette. A craggy vertical fang in three cool greys
+    (shadow / body / lit ridge), fluted with erosion grooves and PIERCED with two
+    through-holes (the dissolution pockets of Lake Tai stone) that show the background
+    through the rock — transparent on an SRCALPHA target, else the sampled hole_bg."""
+    P, A = v.palette, v.attrs
+    base = rim_y
+    stone = _night_lift(_retint(P.get("rock", (150, 152, 158)), night), night, 0.18)
+    stone_dk = _night_lift(_retint(P.get("rock_dk", (96, 100, 110)), night), night, 0.12)
+    stone_lt = _hi(stone, 22, night)
+    body = [
+        (cx - 6, base), (cx - 7, base - 7), (cx - 4, base - 13), (cx - 6, base - 19),
+        (cx - 3, base - 25), (cx - 4, base - 29), (cx + 1, base - 31), (cx + 4, base - 27),
+        (cx + 2, base - 22), (cx + 6, base - 17), (cx + 4, base - 9), (cx + 7, base),
+    ]
+    pygame.draw.polygon(surf, stone_dk, body)
+    inner = [(x - (1 if x > cx else -1), y + (1 if y < base else 0)) for x, y in body]
+    pygame.draw.polygon(surf, stone, inner)
+    ridge = [(cx - 5, base - 8), (cx - 3, base - 14), (cx - 4, base - 20),
+             (cx - 2, base - 26), (cx + 1, base - 30)]
+    pygame.draw.lines(surf, stone_lt, False, ridge, 1)
+    for gx, gy0, gy1 in ((-2, base - 6, base - 24), (2, base - 4, base - 20),
+                         (4, base - 12, base - 25)):
+        pygame.draw.line(surf, stone_dk, (cx + gx, gy0), (cx + gx, gy1), 1)
+    hole_bg = A.get("hole_bg")
+    srcalpha = bool(surf.get_flags() & pygame.SRCALPHA)
+    for hx, hy, hr in ((-2, base - 16, 2), (2, base - 23, 1)):
+        cxp, cyp = cx + hx, hy
+        pygame.draw.circle(surf, stone_dk, (cxp, cyp), hr + 1)
+        if srcalpha:
+            for ddx in range(-hr, hr + 1):
+                for ddy in range(-hr, hr + 1):
+                    if ddx * ddx + ddy * ddy <= hr * hr:
+                        surf.set_at((cxp + ddx, cyp + ddy), (0, 0, 0, 0))
+        elif hole_bg is not None:
+            pygame.draw.circle(surf, hole_bg, (cxp, cyp), hr)
+        else:
+            pygame.draw.circle(surf, _shade(stone_dk, -34), (cxp, cyp), hr)
+        pygame.draw.arc(surf, stone_lt, (cxp - hr - 1, cyp - hr - 1, (hr + 1) * 2, (hr + 1) * 2),
+                        math.radians(200), math.radians(340), 1)
+    dark, mid, top = _foliage(P, night)
+    pygame.draw.ellipse(surf, dark, (cx - 7, base - 2, 16, 4))
+    pygame.draw.ellipse(surf, mid, (cx - 6, base - 2, 14, 3))
+    sway = math.sin(t * 1.6) * 0.12
+    for ox, ang, ln in ((-5, 2.1, 6), (-3, 1.9, 5), (6, 1.1, 6), (8, 1.3, 5)):
+        a = ang + sway * (1 if ang < 1.5708 else -1)
+        ex = cx + ox + int(round(math.cos(a) * ln))
+        ey = base - 1 - int(round(math.sin(a) * ln))
+        mx = cx + ox + int(round(math.cos(a) * ln * 0.5))
+        my = base - 1 - int(round(math.sin(a) * ln * 0.5))
+        pygame.draw.lines(surf, mid, False, [(cx + ox, base - 1), (mx, my), (ex, ey)], 1)
+        pygame.draw.circle(surf, top, (ex, ey), 0)
+
+
 # ── the 30-design pool → foreground_variants rows ─────────────────────────────
 
 _TERRA = dict(vessel=(176, 104, 70), vessel_dk=(120, 64, 42))
@@ -679,6 +1022,12 @@ _FOL_CLIP = dict(foliage_dark=(46, 86, 56), foliage_mid=(72, 120, 78), foliage_t
 _FOL_BROAD = dict(foliage_dark=(36, 78, 50), foliage_mid=(58, 110, 70), foliage_top=(100, 152, 96))
 # maple AUTUMN canopy carried in the foliage roles (warm; capped via _accent)
 _FOL_MAPLE = dict(foliage_dark=(132, 50, 40), foliage_mid=(192, 86, 48), foliage_top=(226, 150, 66))
+# batch-2 structural foliage banks
+_FOL_FERN = dict(foliage_dark=(34, 82, 62), foliage_mid=(56, 118, 84), foliage_top=(110, 166, 124))
+_FOL_CYCAD = dict(foliage_dark=(26, 62, 44), foliage_mid=(42, 92, 60), foliage_top=(92, 146, 96))
+_FOL_BANANA = dict(foliage_dark=(32, 76, 46), foliage_mid=(54, 112, 66), foliage_top=(108, 164, 96))
+_FOL_LOTUS = dict(foliage_dark=(34, 80, 56), foliage_mid=(58, 116, 78), foliage_top=(112, 162, 116))
+_FOL_MOSS = dict(foliage_dark=(40, 78, 50), foliage_mid=(64, 110, 70), foliage_top=(108, 152, 100))
 
 
 def _row(*banks, **attrs):
@@ -716,6 +1065,16 @@ def _build_greenery():
              vessel="tub", species="maple", day_chroma=182),
         _row(_URN, _FOL_BROAD, dict(accent=(238, 234, 224), accent2=(230, 180, 58)),
              vessel="dish", species="narcissus", day_chroma=180),
+        # ── batch 2: structural / foliage new species (indices 15-19) ──
+        _row(_STONE, _FOL_LOTUS, dict(glaze=(62, 100, 152), stem=(96, 138, 84),
+                                      accent=(228, 150, 178), accent2=(232, 206, 120)),
+             vessel="basin", species="lotus", vlift=0.10, day_chroma=176),
+        _row(_STONE, _FOL_FERN, dict(vlift=0.10), vessel="trough", species="fern"),
+        _row(_URN, _FOL_CYCAD, dict(trunk=(106, 86, 58)), vessel="urn", species="cycad"),
+        _row(_TUB, _FOL_BANANA, dict(stem=(150, 176, 96)), vessel="tub", species="banana"),
+        _row(_STONE, _FOL_MOSS, dict(rock=(150, 152, 158), rock_dk=(96, 100, 110),
+                                     vessel=(96, 78, 60), vessel_dk=(60, 48, 38)),
+             vessel="tray", species="rock", vlift=0.0),
     ]
 
 
