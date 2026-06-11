@@ -150,7 +150,7 @@ CORAL_REEF = _spec(
         # sat lifted across the band so it reads salmon-coral not near-neutral; the
         # sunrise (0.88/0.94) warmed off grey into a clear pale coral.
         0.40: dict(sky_top=(92, 148, 174), sky_mid=(202, 170, 174), sky_bot=(255, 166, 138), horizon=(255, 128, 100)),
-        0.50: dict(sky_top=(82, 128, 160), sky_mid=(208, 158, 164), sky_bot=(255, 150, 122), horizon=(255, 106, 82)),
+        0.50: dict(sky_top=(82, 128, 160), sky_mid=(208, 158, 164), sky_bot=(255, 150, 122), horizon=(255, 90, 64)),
         0.62: dict(sky_top=(38, 80, 118),  sky_mid=(116, 126, 150), sky_bot=(222, 150, 146), horizon=(252, 120, 102)),
         0.88: dict(sky_top=(80, 146, 174), sky_mid=(196, 176, 178), sky_bot=(252, 176, 152), horizon=(255, 140, 116)),
         0.94: dict(sky_top=(86, 156, 182), sky_mid=(176, 190, 188), sky_bot=(238, 192, 172), horizon=(252, 158, 134)),
@@ -189,7 +189,7 @@ ROSE_MAGENTA = _spec(
         0.50: dict(sky_top=(84, 124, 164), sky_mid=(210, 146, 190), sky_bot=(255, 124, 184), horizon=(255, 64, 140)),
         0.62: dict(sky_top=(38, 78, 118),  sky_mid=(124, 106, 156), sky_bot=(212, 124, 180), horizon=(244, 84, 148)),
         0.88: dict(sky_top=(80, 146, 176), sky_mid=(198, 166, 196), sky_bot=(252, 160, 196), horizon=(255, 110, 166)),
-        0.94: dict(sky_top=(86, 156, 184), sky_mid=(172, 188, 198), sky_bot=(234, 184, 202), horizon=(252, 136, 184)),
+        0.94: dict(sky_top=(86, 156, 184), sky_mid=(172, 188, 198), sky_bot=(234, 184, 202), horizon=(252, 123, 176)),
     },
 )
 
@@ -241,7 +241,7 @@ LAVENDER_PEACH = _spec(
         # horizon — kept gentle via low VALUE contrast and a low natural band, so
         # the sky stays mostly cyan rather than washing to grey.
         0.40: dict(sky_top=(92, 150, 176), sky_mid=(200, 168, 210), sky_bot=(236, 192, 178), horizon=(252, 178, 138)),
-        0.50: dict(sky_top=(82, 130, 162), sky_mid=(202, 158, 212), sky_bot=(240, 182, 168), horizon=(254, 168, 124)),
+        0.50: dict(sky_top=(82, 130, 162), sky_mid=(202, 158, 212), sky_bot=(240, 182, 168), horizon=(254, 159, 111)),
         0.62: dict(sky_top=(38, 80, 118),  sky_mid=(120, 116, 164), sky_bot=(200, 152, 168), horizon=(240, 156, 128)),
         0.88: dict(sky_top=(80, 146, 176), sky_mid=(196, 174, 210), sky_bot=(234, 194, 182), horizon=(252, 184, 146)),
         0.94: dict(sky_top=(86, 156, 184), sky_mid=(174, 188, 206), sky_bot=(224, 198, 188), horizon=(250, 190, 158)),
