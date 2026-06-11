@@ -277,6 +277,33 @@ sp._clamp_night = _capped_clamp_night
 sp._add_lamp_glow = _capped_add_glow
 
 
+# ── hung STRING lights stay lit all cycle (unlike the dusk-gated lamp posts) ───
+#
+# The festival lantern garland + fairy lights are strung to read "on" day AND
+# night and to cast a gentle warm wash on the promenade. Their lit faces + halos
+# follow a daytime FLOOR under the normal dusk->night curve, so they never drop
+# dark the way the street lamps (which only kindle at dusk) correctly do. At full
+# night the floor is moot (intensity is already 1.0), so the night-cap behaviour
+# — capped faces + capped additive halos staying under the coin — is unchanged.
+_STRING_DAY_FLOOR = 0.40
+
+
+def _string_intensity(pal):
+    return max(_STRING_DAY_FLOOR, _lit_intensity(pal))
+
+
+def _string_glow(surf, cx, cy, pal, *, radius=8, alpha=66, color=(255, 196, 110)):
+    """A capped warm halo for the always-on string lights — same peak math + 150
+    cap as _capped_add_glow, but alive by day (no dark-sky gate) via the string
+    floor, so the hung bulbs light the scene a little even in daylight."""
+    s = _string_intensity(pal)
+    peak = int(min(sp._GLOW_PEAK, sp._GLOW_PEAK * (alpha / 120.0)) * s)
+    if peak < 1:
+        return
+    g = sp._warm_glow(radius, _cap150(color), peak)
+    surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_RGB_ADD)
+
+
 # ── lighten the festival WIRE so the eye reads "bulbs on a line" ──────────────
 #
 # The r15 garland rope / fairy wire were dark (≈62,52,44) so at night the strung
@@ -311,7 +338,9 @@ def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
 
 def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                    per_span=3, colors=('red', 'gold'), span_gate=None):
-    """r15 lantern garland with the faint single-catenary wire."""
+    """r15 lantern garland with the faint single-catenary wire. The hung lanterns
+    stay lit + cast a soft warm halo across the WHOLE cycle (string-light floor,
+    not the dusk lamp gate), so the strand never reads 'off'."""
     for xl, xr, k in sp._garland_spans(scroll, w, period, x0=12):
         if span_gate is not None and not span_gate(k):
             continue
@@ -319,17 +348,25 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
         for j in range(per_span):
             tt = (j + 0.5) / per_span
             bx, by = sp._span_point(xl, xr, top_y, sag, tt)
+            color = colors[j % len(colors)]
+            # Halo via _string_glow (alive by day), so suppress the head's own
+            # dusk-gated halo to avoid double-counting it at night.
             sp._draw_lantern_head(surf, int(bx), int(by), pal,
-                                  color=colors[j % len(colors)], scale=0.6,
-                                  glow_radius=7, glow_alpha=52)
+                                  color=color, scale=0.6,
+                                  glow_radius=7, glow_alpha=0)
+            glow_col = (255, 150, 110) if color == 'red' else (255, 205, 120)
+            _string_glow(surf, int(bx), int(by) + 5, pal, radius=7, alpha=52,
+                         color=glow_col)
 
 
 def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
                  span_gate=None):
-    """r15 fairy lights with the faint single-catenary wire + capped warm bulbs."""
+    """r15 fairy lights with the faint single-catenary wire. The hung bulbs stay
+    LIT all cycle (a warm bulb + a capped halo via the string-light floor) instead
+    of dropping to dead grey beads by day, so the strand always reads 'on' and
+    lights the scene a little."""
     dark = sp._is_dark_sky(pal)
     warm = (250, 200, 120)
-    bead = _mix(warm, (118, 108, 94), 0.55)
     for xl, xr, k in sp._garland_spans(scroll, w, period, x0=8):
         if span_gate is not None and not span_gate(k):
             continue
@@ -338,14 +375,12 @@ def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
             tt = (j + 0.5) / per_span
             bx, by = sp._span_point(xl, xr, top_y, sag, tt)
             bx, by = int(bx), int(by) + 2
-            if dark:
-                lit = sp._clamp_night(warm)[:3]
-                pygame.draw.circle(surf, _mix(lit, (110, 78, 46), 0.4), (bx, by), 3)
-                pygame.draw.circle(surf, lit, (bx, by), 2)
-                sp._add_lamp_glow(surf, bx, by, pal, radius=7, alpha=54, color=warm)
-            else:
-                pygame.draw.circle(surf, _shade(bead, -10), (bx, by), 3)
-                pygame.draw.circle(surf, bead, (bx, by), 2)
+            # night: the shipped capped+dusk-ramped warm bulb (night-cap safe);
+            # day: a full warm paper-bulb so the strand stays clearly lit.
+            face = sp._clamp_night(warm)[:3] if dark else warm
+            pygame.draw.circle(surf, _mix(face, (110, 78, 46), 0.4), (bx, by), 3)
+            pygame.draw.circle(surf, face, (bx, by), 2)
+            _string_glow(surf, bx, by, pal, radius=7, alpha=54, color=warm)
 
 
 sp._draw_lantern_garland = _garland_faint
@@ -1427,7 +1462,7 @@ def _dressing(surf, w, scroll, pal, phase):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
     sp._latch_prune(('bunting',))
-    lantern_win = (0.20 <= p < 0.92)                            # lantern garland
+    lantern_win = True                  # hung lantern garland stays strung + lit all cycle
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
                              period=128, sag=23, per_span=3,
                              span_gate=lambda k: sp._slot_latch(('lantgar',), k,
@@ -1452,7 +1487,7 @@ def _dressing(surf, w, scroll, pal, phase):
             _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
                 s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampG',))
-    fairy_win = (0.40 <= p < 0.86)                              # festival fairy lights
+    fairy_win = True                    # hung fairy lights stay strung + lit all cycle
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
                           period=205, sag=24, per_span=5,
                           span_gate=lambda k: sp._slot_latch(('fairy',), k,
