@@ -1115,7 +1115,7 @@ def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
 
 
 def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
-    """One potted plant / tree from the 10-design 'greenery' pool (greenery_cast),
+    """One potted plant / tree from the 'greenery' pool (greenery_cast),
     feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the near
     lane passes it as a kwarg into the bake cache. Replaces the fixed planter."""
     v = _fv.get("greenery", variant)

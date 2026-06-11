@@ -79,6 +79,8 @@ def draw_greenery(surf, cx, base_y, v, night, t):
         "shrub": _sp_shrub, "conifer": _sp_conifer, "topiary": _sp_topiary,
         "flowering": _sp_flowering, "bamboo": _sp_bamboo, "vine": _sp_vine,
         "flovine": _sp_flovine, "kumquat": _sp_kumquat, "wishtree": _sp_wishtree,
+        "peony": _sp_peony, "chrysanthemum": _sp_chrysanthemum, "plum": _sp_plum,
+        "maple": _sp_maple, "narcissus": _sp_narcissus,
     }[A.get("species", "shrub")](surf, cx, rim_y, v, night, t)
 
 
@@ -174,6 +176,27 @@ def _draw_vessel(surf, cx, base_y, v, night, kind):
         pygame.draw.rect(surf, _shade(stone, -14), (cx - w // 2 + 1, ty + 2, w - 2, 1))
         for dxp in (-6, 2, 7):
             pygame.draw.circle(surf, _shade(stone, -18), (cx + dxp, ty + 5), 1)
+        return ty
+
+    if kind == "dish":
+        # the flattest vessel — a shallow flared porcelain bowl of pebbles for the
+        # narcissus; rim lifted one value step so it stays present in the night band.
+        h = 6
+        top_w, bot_w = 24, 16
+        ty = g - h
+        pygame.draw.polygon(surf, dk, [
+            (cx - top_w // 2, ty), (cx + top_w // 2, ty),
+            (cx + bot_w // 2, g), (cx - bot_w // 2, g)])
+        pygame.draw.polygon(surf, body, [
+            (cx - top_w // 2 + 1, ty + 1), (cx + top_w // 2 - 1, ty + 1),
+            (cx + bot_w // 2, g - 1), (cx - bot_w // 2, g - 1)])
+        pygame.draw.line(surf, lt, (cx - top_w // 2 + 1, ty + 1), (cx + top_w // 2 - 2, ty + 1), 1)
+        pygame.draw.line(surf, lt, (cx - top_w // 2 + 1, ty), (cx + top_w // 2 - 2, ty), 1)
+        glaze = _hi(_retint(P.get("glaze", (72, 104, 168)), night), 16, night)
+        pygame.draw.line(surf, glaze, (cx - top_w // 2 + 2, ty + 3), (cx + top_w // 2 - 2, ty + 3), 1)
+        peb = pf((158, 160, 166))
+        for dxp in (-7, -2, 3, 7, 0):
+            pygame.draw.circle(surf, peb, (cx + dxp, ty + 1), 1)
         return ty
 
     return g - VESSEL_H
@@ -462,7 +485,187 @@ def _sp_wishtree(surf, cx, rim_y, v, night, t):
         pygame.draw.line(surf, rib_l, (rx, ry), (rx + flut, ry + 2), 1)
 
 
-# ── the 10-design pool → foreground_variants rows ─────────────────────────────
+def _sp_peony(surf, cx, rim_y, v, night, t):
+    """PEONY (mudan) — a low broad-leaf clump carrying 2-3 BIG layered double-blooms.
+    Each head is a ruffled rosette (dark outer ring / mid body / lit whorl / pale
+    petal-base eye — the Tang gongbi cinnabar-rose-over-white build). The few big
+    heads proud above a trimmed leaf row are the silhouette — far bigger + fewer than
+    the chrysanthemum's many tiny buttons, so the two flowering pots never read alike."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    sway = math.sin(t * 1.3) * 0.6
+    for dx, dy, rw, rh in ((-6, 0, 7, 3), (6, 0, 7, 3), (0, -2, 8, 4)):
+        _dome(surf, cx + dx, base + dy, rw, rh, dark, mid, top)
+    bloom = P.get("accent", (208, 96, 110))
+    dc = A.get("day_chroma", 178)
+    pet_dk = _accent(_shade(bloom, -40), night, day_ceil=dc)
+    pet = _accent(bloom, night, day_ceil=dc)
+    pet_lt = _accent(_shade(bloom, 28), night, day_ceil=dc)
+    base_pet = _accent(P.get("accent_pale", (236, 206, 200)), night, day_ceil=dc)
+    for hx, hy, r in ((-6, -8, 5), (6, -9, 5), (0, -14, 6)):
+        px = cx + hx + int(sway * (hy < -10))
+        py = base + hy
+        for a in range(6):
+            ang = a / 6 * math.tau
+            ex = px + int(round(math.cos(ang) * r * 0.82))
+            ey = py + int(round(math.sin(ang) * r * 0.82))
+            pygame.draw.circle(surf, pet_dk, (ex, ey), 2)
+        pygame.draw.circle(surf, pet_dk, (px, py), r)
+        pygame.draw.circle(surf, pet, (px, py), r - 1)
+        pygame.draw.circle(surf, pet_lt, (px - 1, py - 1), max(1, r - 3))
+        pygame.draw.circle(surf, base_pet, (px, py + 1), 1)
+        pygame.draw.circle(surf, pet_dk, (px, py + 1), 1, 1)
+
+
+def _sp_chrysanthemum(surf, cx, rim_y, v, night, t):
+    """CHRYSANTHEMUM cushion mound — a dense LOW pincushion solidly studded with many
+    small spoon-petal blooms (gold / russet). The whole surface is bloom, not foliage
+    with stray dots — the opposite of the peony's few big heads. Russet shadow blooms
+    low, gold catching light up top, the topmost crown blooms a value brighter so the
+    crown reads MANY-studded, not a flat mound; kept clearly lower/wider than the peony."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    sway = math.sin(t * 1.5) * 0.5
+    for dx, dy, rw, rh in ((-6, -2, 7, 5), (6, -2, 7, 5), (0, -6, 8, 6)):
+        _dome(surf, cx + dx, base + dy, rw, rh, dark, mid)
+    bloom = P.get("accent", (220, 162, 56))
+    dc = A.get("day_chroma", 182)
+    russet = P.get("accent2", (176, 96, 44))
+    b_dk = _accent(_shade(bloom, -34), night, day_ceil=dc)
+    b = _accent(bloom, night, day_ceil=dc)
+    b_lt = _accent(_shade(bloom, 26), night, day_ceil=dc)
+    b_crown = _accent(_shade(bloom, 44), night, day_ceil=dc)
+    r_dk = _accent(_shade(russet, -26), night, day_ceil=dc)
+    r_mid = _accent(russet, night, day_ceil=dc)
+    spots = ((-7, -2, 0, 0), (-4, -6, 1, 0), (-1, -9, 1, 1), (2, -10, 1, 1),
+             (5, -7, 1, 0), (7, -3, 0, 0), (-5, -3, 0, 0), (0, -6, 1, 0),
+             (3, -6, 1, 0), (-2, -4, 0, 0), (5, -3, 0, 0), (-7, -5, 0, 0),
+             (1, -12, 1, 1), (-3, -10, 1, 1), (6, -9, 1, 0))
+    for bx, byp, gold, crown in spots:
+        px, py = cx + bx + int(sway * (byp < -8)), base + byp
+        if gold:
+            pygame.draw.circle(surf, b_dk, (px, py), 2)
+            pygame.draw.circle(surf, b, (px, py), 1)
+            pygame.draw.circle(surf, b_crown if crown else b_lt, (px, py - 1), 0)
+        else:
+            pygame.draw.circle(surf, r_dk, (px, py), 2)
+            pygame.draw.circle(surf, r_mid, (px, py), 1)
+
+
+def _sp_plum(surf, cx, rim_y, v, night, t):
+    """PLUM-BLOSSOM branch (winter meihua) — dark zig-zag dragon-branches from a slim
+    vessel, the BLOSSOM clustered at tips + joints so the FLOWER is the silhouette,
+    not garnish on a dead twig. Most nodes carry a 2x2 pink-white petal cluster with a
+    warm-white centre pip; a few carry an unopened bud. The branch ink is lifted one
+    value step + the low tangle thinned so the airy angular read survives at far size."""
+    P, A = v.palette, v.attrs
+    branch = _retint(_shade(P.get("trunk", (74, 58, 52)), 14), night)
+    br_lt = _hi(branch, 22, night)
+    base = rim_y
+    sway = int(round(math.sin(t * 1.4) * 1.0))
+    branches = (
+        [(0, 0), (-3, -6), (1, -11), (-2, -17), (sway, -22)],
+        [(1, -4), (6, -8), (3, -13), (7, -18)],
+        [(0, -6), (-5, -10), (-8, -14)],
+    )
+    nodes = []
+    for seg in branches:
+        pts = [(cx + dx, base + dy) for dx, dy in seg]
+        pygame.draw.lines(surf, branch, False, pts, 2)
+        pygame.draw.lines(surf, br_lt, False, [(x - 1, y) for x, y in pts], 1)
+        nodes.extend(pts[1:])
+    bloom = P.get("accent", (234, 198, 208))
+    dc = A.get("day_chroma", 176)
+    pet = _accent(bloom, night, day_ceil=dc)
+    pet_dk = _accent(_shade(bloom, -34), night, day_ceil=dc)
+    pet_ctr = _accent(_shade(bloom, 30), night, day_ceil=dc)
+    bud = _accent(P.get("accent2", (208, 122, 140)), night, day_ceil=dc)
+    for i, (nx, ny) in enumerate(nodes):
+        if i % 3 == 2:
+            pygame.draw.circle(surf, bud, (nx, ny), 0)
+        else:
+            pygame.draw.rect(surf, pet_dk, (nx - 1, ny - 1, 4, 4))
+            pygame.draw.rect(surf, pet, (nx - 1, ny - 1, 3, 3))
+            pygame.draw.circle(surf, pet_ctr, (nx, ny), 0)
+
+
+def _sp_maple(surf, cx, rim_y, v, night, t):
+    """RED MAPLE (Acer palmatum) — a small palmate-leaf tree: a slim forking trunk
+    lifting a broad AUTUMN canopy of clustered shaded leaf masses (the warm canopy
+    lives in the foliage_* roles, capped via _accent). A maroon underside notch + an
+    amber rim-lit top edge keep the crown reading as clustered masses, not a solid
+    disc — a little fire-tree in a wooden tub."""
+    P, A = v.palette, v.attrs
+    trunk = _retint(P.get("trunk", (96, 70, 50)), night)
+    base = rim_y
+    dc = A.get("day_chroma", 182)
+    leaf_dk = _accent(P.get("foliage_dark", (132, 50, 40)), night, day_ceil=dc)
+    leaf_mid = _accent(P.get("foliage_mid", (190, 84, 48)), night, day_ceil=dc)
+    leaf_lt = _accent(P.get("foliage_top", (224, 150, 64)), night, day_ceil=dc)
+    leaf_notch = _accent(_shade(P.get("foliage_dark", (132, 50, 40)), -30), night, day_ceil=dc)
+    sway = math.sin(t * 1.3) * 0.5
+    th = 9
+    pygame.draw.line(surf, _shade(trunk, -18), (cx + 1, base + 1), (cx + 1, base - th), 2)
+    pygame.draw.line(surf, trunk, (cx, base + 1), (cx, base - th), 2)
+    pygame.draw.line(surf, trunk, (cx, base - th + 2), (cx - 4, base - th - 2), 1)
+    pygame.draw.line(surf, trunk, (cx, base - th + 2), (cx + 4, base - th - 2), 1)
+    cy = base - th - 2
+    lobes = ((-6, 1, 5, 4), (6, 1, 5, 4), (0, -4, 6, 5),
+             (-4, -3, 4, 4), (4, -3, 4, 4), (0, 2, 5, 4))
+    for dx, dy, rw, rh in lobes:
+        _dome(surf, cx + dx + int(sway * (dy < -2)), cy + dy, rw, rh,
+              leaf_dk, leaf_mid, leaf_lt)
+    pygame.draw.line(surf, leaf_notch, (cx - 1, cy + 4), (cx + 1, cy + 5), 2)
+    pygame.draw.circle(surf, leaf_notch, (cx, cy + 5), 1)
+    pygame.draw.arc(surf, leaf_lt, (cx - 6, cy - 9, 12, 11),
+                    math.radians(35), math.radians(150), 1)
+    for px, py in ((-7, -2), (-2, -7), (3, -6), (7, -1), (0, -8), (-5, 2), (5, 2)):
+        pygame.draw.circle(surf, leaf_lt, (cx + px, cy + py), 0)
+
+
+def _sp_narcissus(surf, cx, rim_y, v, night, t):
+    """NARCISSUS / paperwhite (shuixian) — a clump of strappy upright blades fanning
+    from a shallow dish, topped with 4 small WHITE cup flowers (a petal ring over a
+    dark calyx seat so the cup has body) each with a GOLD centre pip as the warm focal.
+    The lowest, most delicate read in the family — delicate but not absent, surviving
+    the night band."""
+    P, A = v.palette, v.attrs
+    dark, mid, top = _foliage(P, night)
+    base = rim_y
+    sway = math.sin(t * 1.7) * 0.8
+    blades = ((-6, 11, -2), (-3, 14, -1), (0, 16, 0), (3, 14, 1), (6, 12, 2),
+              (-1, 13, -1), (1, 15, 1))
+    for ox, ln, drift in blades:
+        sx = cx + ox
+        tipx = sx + drift + int(sway * (ln > 13))
+        midx = sx + (drift // 2)
+        col = top if (ln >= 15) else mid
+        pygame.draw.lines(surf, dark, False,
+                          [(sx, base), (midx, base - ln // 2), (tipx, base - ln)], 1)
+        pygame.draw.line(surf, col, (sx, base - 1), (midx, base - ln // 2), 1)
+    bloom = P.get("accent", (236, 232, 222))
+    dc = A.get("day_chroma", 180)
+    pet = _accent(bloom, night, day_ceil=dc)
+    pet_dk = _accent(_shade(bloom, -40), night, day_ceil=dc)
+    cup = _accent(P.get("accent2", (228, 178, 56)), night, day_ceil=dc)
+    cup_dk = _accent(_shade(P.get("accent2", (228, 178, 56)), -28), night, day_ceil=dc)
+    for ox, ln in ((-3, 14), (2, 15), (5, 12), (-6, 11)):
+        fx = cx + ox + int(sway)
+        fy = base - ln
+        pygame.draw.circle(surf, pet_dk, (fx, fy), 2)
+        for a in range(6):
+            ang = a / 6 * math.tau
+            ex = fx + int(round(math.cos(ang) * 1.7))
+            ey = fy + int(round(math.sin(ang) * 1.7))
+            pygame.draw.circle(surf, pet, (ex, ey), 0)
+        pygame.draw.circle(surf, pet, (fx, fy), 1)
+        pygame.draw.circle(surf, cup_dk, (fx, fy), 1, 1)
+        pygame.draw.circle(surf, cup, (fx, fy), 0)
+
+
+# ── the 30-design pool → foreground_variants rows ─────────────────────────────
 
 _TERRA = dict(vessel=(176, 104, 70), vessel_dk=(120, 64, 42))
 _URN = dict(vessel=(228, 230, 234), vessel_dk=(170, 176, 188), glaze=(72, 104, 168))
@@ -472,6 +675,10 @@ _STONE = dict(vessel=(156, 148, 130), vessel_dk=(104, 98, 86))
 _FOL_LEAFY = dict(foliage_dark=(40, 84, 54), foliage_mid=(62, 116, 74), foliage_top=(104, 158, 100))
 _FOL_DARK = dict(foliage_dark=(30, 64, 48), foliage_mid=(44, 88, 62), foliage_top=(74, 122, 86))
 _FOL_CLIP = dict(foliage_dark=(46, 86, 56), foliage_mid=(72, 120, 78), foliage_top=(118, 162, 110))
+# broad grass-green peony/mum/narcissus leaf bank (Tang gongbi "grass green")
+_FOL_BROAD = dict(foliage_dark=(36, 78, 50), foliage_mid=(58, 110, 70), foliage_top=(100, 152, 96))
+# maple AUTUMN canopy carried in the foliage roles (warm; capped via _accent)
+_FOL_MAPLE = dict(foliage_dark=(132, 50, 40), foliage_mid=(192, 86, 48), foliage_top=(226, 150, 66))
 
 
 def _row(*banks, **attrs):
@@ -498,6 +705,17 @@ def _build_greenery():
              vessel="terracotta", species="kumquat"),
         _row(_URN, _FOL_DARK, dict(trunk=(96, 66, 42), accent=(192, 64, 60)),
              vessel="urn", species="wishtree", mass=1.15, ribbons=6, night_chroma_drop=0.22),
+        # ── batch 1: flowering / seasonal new species (indices 10-14) ──
+        _row(_URN, _FOL_BROAD, dict(accent=(208, 90, 108), accent_pale=(236, 208, 202)),
+             vessel="urn", species="peony", day_chroma=178),
+        _row(_TERRA, _FOL_BROAD, dict(accent=(222, 164, 56), accent2=(178, 98, 46)),
+             vessel="terracotta", species="chrysanthemum", day_chroma=182),
+        _row(_BAMBOO_V, dict(trunk=(74, 58, 52), accent=(236, 200, 210), accent2=(210, 124, 142)),
+             vessel="bamboo", species="plum", day_chroma=176),
+        _row(_TUB, _FOL_MAPLE, dict(trunk=(96, 70, 50)),
+             vessel="tub", species="maple", day_chroma=182),
+        _row(_URN, _FOL_BROAD, dict(accent=(238, 234, 224), accent2=(230, 180, 58)),
+             vessel="dish", species="narcissus", day_chroma=180),
     ]
 
 
