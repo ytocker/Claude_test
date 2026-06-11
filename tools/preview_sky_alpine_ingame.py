@@ -146,7 +146,7 @@ def main():
 
     sheet.blit(f_title.render(
         "Skybit Alpine Haze — in-game (mountains + pagodas + parrot, empty walk) "
-        "— v3 round 1", True, (245, 246, 250)), (10, 6))
+        "— v3 round 2", True, (245, 246, 250)), (10, 6))
 
     for c, (label, _ph) in enumerate(cols):
         x = GUT + c * (TW + PAD)
@@ -171,7 +171,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(app.screen, (TW, TH)), (x, y))
 
     out = os.path.join(_ROOT, "docs", "biome_redesign",
-                       "alpine_sunsets_v3_ingame_round_1.png")
+                       "alpine_sunsets_v3_ingame_round_2.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
