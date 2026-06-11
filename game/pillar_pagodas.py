@@ -925,6 +925,23 @@ _BAOEN_H_FLOOR = 30
 _SONGYUE_H_EAVE = 7
 
 
+# Tiered tō stacks reserve a SHORT roof headroom at the top of their envelope
+# instead of a tall lethal spire, so the crown roof (top tier eave + corner
+# tips) lands on the gap line on BOTH the ground tower and the mirrored ceiling
+# tower. The top tier KEEPS its corner hooks (no shibi/chiwen swap) so the bare
+# roofed crown silhouette reads on the line. Per-variant reserves are tuned so
+# each crown's highest lethal pixel touches the gap edge, restoring the
+# project's "every pagoda's passable gap == 170" calibration.
+_HORYUJI_ROOF_RESERVE = 4
+_FOGONG_ROOF_RESERVE = 9
+_TOJI_ROOF_RESERVE = 4
+_DAIGOJI_ROOF_RESERVE = 6
+_YAKUSHIJI_ROOF_RESERVE = 8
+_BAOEN_ROOF_RESERVE = 6
+_MUROJI_ROOF_RESERVE = 6
+_PALSANGJEON_ROOF_RESERVE = 8
+
+
 # ── 1. Hōryū-ji Tō ─────────────────────────────────────────────────────────
 #
 # Bottom = full 5-storey tō rooted on the ground, sōrin pointing UP.
@@ -1059,65 +1076,14 @@ def _draw_horyuji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(10, 13 - i)
         depth = 5
         is_top_tier = (i == tier_count - 1)
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         roof, accent, tile_col, curl=0.40,
                         alternating_hatch=True,
                         drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
-        # Topmost tier ONLY gets bronze shibi fish-tail finials. Drawn after
-        # the eave so the polygon sits over the curl tip cleanly. We skip
-        # the corner-hook on the top tier so the shibi takes its place.
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.40)))
-            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                               palette, side=+1)
-            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                               palette, side=-1)
+                        skip_corner_hook=False)
         y_cursor = wall_top - depth + 1
-
-    if not tier_tops:
-        return
-
-    # Bronze sōrin — 9-disk stack on a needle + flame jewel. Mirrored when the
-    # tō hangs from the ceiling.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(accent, 40)
-    # Lotus pad base.
-    pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
-    pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    # Central needle.
-    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 4),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, accent,
-                     (cx, base_y + dir_sign * 4),
-                     (cx, needle_tip), 1)
-    # 9 disks tapering toward the flame.
-    disks = 9
-    for k in range(disks):
-        t = k / max(1, disks - 1)
-        ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
-        rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, accent,
-                            (cx - rw, ry, rw * 2, 2))
-    # Flame jewel orb + tongue. Halo painted BEFORE the orb so the orb
-    # remains the bright centre of the bloom on night palettes.
-    tip_y = base_y + dir_sign * finial_h
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, accent, (cx, tip_y), 2)
-    flame = [(cx, tip_y + dir_sign * 5),
-             (cx - 2, tip_y + dir_sign * 1),
-             (cx + 2, tip_y + dir_sign * 1)]
-    pygame.draw.polygon(surf, bright, flame)
 
 
 def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
@@ -1173,7 +1139,7 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
                          (notch_x, notch_y),
                          (notch_x + notch_w - 1, notch_y), 1)
 
-        finial_h = 36
+        finial_h = _HORYUJI_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h_total
         # Storey COUNT adaptive to the bottom's own height so the sōrin
@@ -1221,7 +1187,7 @@ def _draw_horyuji(surf, top_rect, bot_rect, palette, seed):
     # off the fixed natural floor size, so the flipped sōrin reaches the gap
     # edge with no killzone band and floors stay un-squashed.
     if top_rect.height > 30:
-        finial_h = 36
+        finial_h = _HORYUJI_ROOF_RESERVE
         plinth_h_total = 10
         bot_row_h = 4
         top_row_h = plinth_h_total - bot_row_h
@@ -2692,57 +2658,13 @@ def _draw_fogong_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(11, 14 - i)
         depth = 6
         eave_curl = 0.75 if i < 3 else 0.60
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top - 1, bw // 2,
                         overhang, depth, grey_tile, accent, tile_col,
                         curl=eave_curl, fringe=True, fringe_col=fringe_col,
                         drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
-        # Topmost eave ONLY: paired chiwen dragon-heads at each upper tip,
-        # the canonical Fogong roof crest. Drawn after the eave so the
-        # silhouette sits cleanly over the curl.
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - 1 - max(2, int(depth * (0.5 + eave_curl)))
-            _draw_chiwen_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                                palette, side=+1)
-            _draw_chiwen_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                                palette, side=-1)
-
-    if not tier_tops:
-        return
-
-    # Bronze sōrin — shorter than Hōryū-ji's, with only 5 disks because
-    # Fogong's finial is more compact relative to the body.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(accent, 45)
-    pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
-    pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 4  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 4),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, accent,
-                     (cx, base_y + dir_sign * 4),
-                     (cx, needle_tip), 1)
-    disks = 5
-    for k in range(disks):
-        t = k / max(1, disks - 1)
-        ry = base_y + dir_sign * (5 + int(t * (finial_h - 11)))
-        rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, accent,
-                            (cx - rw, ry, rw * 2, 2))
-    tip_y = base_y + dir_sign * finial_h
-    # Sōrin flame halo painted before the orb so the orb remains the
-    # bright centre under dark skies.
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, bright, (cx, tip_y), 2)
+                        skip_corner_hook=False)
 
 
 def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
@@ -2799,7 +2721,7 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
                                  (nx + 1, ny)])
             pygame.draw.line(surf, nick_lit, (nx, ny), (nx, ny), 1)
 
-        finial_h = 32
+        finial_h = _FOGONG_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         # Storey COUNT adaptive to the bottom's own height so the finial
@@ -2844,7 +2766,7 @@ def _draw_fogong(surf, top_rect, bot_rect, palette, seed):
     # off the fixed natural floor size, so the flipped finial reaches the
     # gap edge with no killzone band and floors stay un-squashed.
     if top_rect.height > 30:
-        finial_h = 32
+        finial_h = _FOGONG_ROOF_RESERVE
         plinth_h = 9
         plinth_w = int(top_rect.width * 1.22)
 
@@ -4219,54 +4141,13 @@ def _draw_toji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(12, 15 - i)
         depth = 7
         is_top_tier = (i == tier_count - 1)
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         cypress, accent, tile_col, curl=0.35,
                         alternating_hatch=True,
                         drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.35)))
-            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                               palette, side=+1)
-            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                               palette, side=-1)
-
-    if not tier_tops:
-        return
-
-    # Bronze sōrin — 9-disk stack, taller than Fogong's compact 5.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(accent, 45)
-    pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
-    pygame.draw.ellipse(surf, accent, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 4),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, accent,
-                     (cx, base_y + dir_sign * 4),
-                     (cx, needle_tip), 1)
-    for k in range(9):
-        t = k / 8
-        ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
-        rw = max(2, 8 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, accent,
-                            (cx - rw, ry, rw * 2, 2))
-    tip_y = base_y + dir_sign * finial_h
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, accent, (cx, tip_y), 2)
-    flame = [(cx, tip_y + dir_sign * 5),
-             (cx - 2, tip_y + dir_sign * 1),
-             (cx + 2, tip_y + dir_sign * 1)]
-    pygame.draw.polygon(surf, bright, flame)
+                        skip_corner_hook=False)
 
 
 def _draw_toji(surf, top_rect, bot_rect, palette, seed):
@@ -4303,7 +4184,7 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
                          (bcx - notch_w // 2, bot_rect.bottom - notch_h),
                          (bcx + notch_w // 2 - 1, bot_rect.bottom - notch_h), 1)
 
-        finial_h = 38
+        finial_h = _TOJI_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         tier_count, _ = _fit_floors(
@@ -4338,7 +4219,7 @@ def _draw_toji(surf, top_rect, bot_rect, palette, seed):
     # fixed natural floor size). Reads as a smaller tō-ji of identical tier
     # proportions, finial reaching the gap edge with no killzone band.
     if top_rect.height > 30:
-        finial_h = 38
+        finial_h = _TOJI_ROOF_RESERVE
         plinth_h = 11
         plinth_w = int(top_rect.width * 1.28)
 
@@ -4477,57 +4358,12 @@ def _draw_daigoji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(10, 13 - i)
         depth = 5
         is_top_tier = (i == tier_count - 1)
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         vermilion, gold, tile_col, curl=0.45,
                         alternating_hatch=True, drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.45)))
-            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                               palette, side=+1)
-            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                               palette, side=-1)
-
-    if not tier_tops:
-        return
-
-    # Extra-long gold sōrin — at Daigo-ji the finial is 1/3 of total tower
-    # height, so we boost finial_h passed in and use 11 disks rather than 9.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(gold, 45)
-    pygame.draw.ellipse(surf, dark_pal, (cx - 7, base_y + dir_sign * 1, 14, 5))
-    pygame.draw.ellipse(surf, gold, (cx - 6, base_y + dir_sign * 1 + 1, 12, 3))
-    finial_h -= 6  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 4),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, gold,
-                     (cx, base_y + dir_sign * 4),
-                     (cx, needle_tip), 1)
-    disks = 11
-    for k in range(disks):
-        t = k / max(1, disks - 1)
-        ry = base_y + dir_sign * (5 + int(t * (finial_h - 11)))
-        rw = max(2, 8 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, gold_d,
-                            (cx - rw, ry, rw * 2, 2))
-        pygame.draw.line(surf, bright,
-                         (cx - rw + 1, ry), (cx - rw + 2, ry), 1)
-    tip_y = base_y + dir_sign * finial_h
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, gold, (cx, tip_y), 2)
-    flame = [(cx, tip_y + dir_sign * 5),
-             (cx - 2, tip_y + dir_sign * 1),
-             (cx + 2, tip_y + dir_sign * 1)]
-    pygame.draw.polygon(surf, bright, flame)
+                        skip_corner_hook=False)
 
 
 def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
@@ -4556,7 +4392,7 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
-        finial_h = 44  # Daigo-ji finial is ~1/3 of tower height.
+        finial_h = _DAIGOJI_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         tier_count, _ = _fit_floors(
@@ -4590,7 +4426,7 @@ def _draw_daigoji(surf, top_rect, bot_rect, palette, seed):
     # _mirror_fill_tower. The long ⅓-tower gold sōrin reaches the gap edge;
     # the storey stack shortens/lengthens to fill the rect, no killzone band.
     if top_rect.height > 30:
-        finial_h = 44
+        finial_h = _DAIGOJI_ROOF_RESERVE
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.22)
 
@@ -4689,58 +4525,12 @@ def _draw_yakushiji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(11, 14 - i)
         depth = 6
         is_top_tier = (i == tier_count - 1)
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         bluetile, accent, tile_col, curl=0.50,
                         alternating_hatch=True, drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.50)))
-            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                               palette, side=+1)
-            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                               palette, side=-1)
-
-    if not tier_tops:
-        return
-
-    # Bronze sōrin — standard 9-disk.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(accent, 45)
-    pygame.draw.ellipse(surf, dark_pal, (cx - 6, base_y + dir_sign * 1, 12, 5))
-    pygame.draw.ellipse(surf, accent, (cx - 5, base_y + dir_sign * 1 + 1, 10, 3))
-    finial_h -= 8  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 4),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, accent,
-                     (cx, base_y + dir_sign * 4),
-                     (cx, needle_tip), 1)
-    for k in range(9):
-        t = k / 8
-        ry = base_y + dir_sign * (5 + int(t * (finial_h - 10)))
-        rw = max(2, 7 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, accent,
-                            (cx - rw, ry, rw * 2, 2))
-    tip_y = base_y + dir_sign * finial_h
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, accent, (cx, tip_y), 2)
-    # Suien (water-vase) — Yakushi-ji's iconic finial has an openwork
-    # bronze water-flame instead of the usual orb. Wider flat polygon.
-    suien = [(cx, tip_y + dir_sign * 7),
-             (cx - 4, tip_y + dir_sign * 4),
-             (cx - 2, tip_y + dir_sign * 1),
-             (cx + 2, tip_y + dir_sign * 1),
-             (cx + 4, tip_y + dir_sign * 4)]
-    pygame.draw.polygon(surf, bright, suien)
-    pygame.draw.lines(surf, accent, True, suien, 1)
+                        skip_corner_hook=False)
 
 
 def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
@@ -4769,7 +4559,7 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
-        finial_h = 42
+        finial_h = _YAKUSHIJI_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         tier_count, _ = _fit_floors(
@@ -4803,7 +4593,7 @@ def _draw_yakushiji(surf, top_rect, bot_rect, palette, seed):
     # _mirror_fill_tower. The bronze suien water-flame reaches the gap edge;
     # storey count adapts to the rect height with no killzone band.
     if top_rect.height > 30:
-        finial_h = 42
+        finial_h = _YAKUSHIJI_ROOF_RESERVE
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
 
@@ -5620,44 +5410,17 @@ def _draw_baoen_stack(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(10, 13 - i)
         depth = 4
         is_top_tier = (i == tier_count - 1)
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         gold_d, gold, tile_col, curl=0.55,
                         alternating_hatch=True, drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
+                        skip_corner_hook=False)
         if draw_lanterns and i % 2 == 1:
             half_outer = bw // 2 + overhang
             for sign in (-1, 1):
                 _draw_mini_lantern(surf, cx + sign * (half_outer - 2),
                                    wall_top, palette)
-        if is_top_tier:
-            half_outer = bw // 2 + overhang
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.55)))
-            _draw_chiwen_finial(surf, cx - half_outer + 1,
-                                tip_y_top + 1, palette, side=+1)
-            _draw_chiwen_finial(surf, cx + half_outer - 1,
-                                tip_y_top + 1, palette, side=-1)
-
-    if not tier_tops:
-        return
-    # Tall gilt-bronze pearl-and-flame finial on a needle.
-    top_wall_y = tier_tops[-1][0]
-    dark_pal = palette['stone_dark']
-    bright = _shade(gold, 60)
-    finial_h -= 3  # land the lethal spire tip on the gap edge (gap = 170)
-    tip_y = top_wall_y - finial_h
-    pygame.draw.line(surf, dark_pal, (cx, top_wall_y - 2), (cx, tip_y), 2)
-    pygame.draw.line(surf, gold, (cx + 1, top_wall_y - 2), (cx + 1, tip_y), 1)
-    for k in range(7):
-        t = k / 6
-        ry = top_wall_y - 2 - int(t * (finial_h - 6))
-        rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, gold, (cx - rw, ry, rw * 2, 2))
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 4)
-    pygame.draw.circle(surf, gold, (cx, tip_y), 3)
-    pygame.draw.circle(surf, bright, (cx - 1, tip_y - 1), 1)
 
 
 def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
@@ -5687,7 +5450,7 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
         envelope_bot = bot_rect.bottom - plinth_h
-        finial_h = 30
+        finial_h = _BAOEN_ROOF_RESERVE
         # Storey COUNT adaptive to the bottom's own height so the
         # pearl-and-flame finial reaches the gap edge (the old
         # min(..., 230) cap left an empty killzone band on tall rects).
@@ -5722,7 +5485,7 @@ def _draw_baoen(surf, top_rect, bot_rect, palette, seed):
     # the rect height with no killzone band. Corner lanterns are dropped on
     # the hanging mirror (they read odd inverted).
     if top_rect.height > 30:
-        finial_h = 30
+        finial_h = _BAOEN_ROOF_RESERVE
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.25)
 
@@ -8964,12 +8727,14 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
         overhang = max(9, 12 - i)
         depth = 5
         # Draw the eave body in thatch tones (instead of grey tile).
+        # The top tier KEEPS its corner hook so the bare roofed crown
+        # silhouette reads on the gap line.
         _eave_tang_curl(surf, cx, wall_top, bw // 2, overhang, depth,
                         thatch, accent, _thatch_warm_shadow(palette),
                         curl=0.35,
                         alternating_hatch=False,
                         drop_shadow=True,
-                        skip_corner_hook=is_top_tier)
+                        skip_corner_hook=False)
         # Round-10 v2 thatch placement — bark dabs hang from the eave's
         # DRIP LINE (bottom edge) not the ridge top, restricting the
         # bark band to the LOWER HALF of the roof slope. The upper half
@@ -8989,51 +8754,6 @@ def _draw_muroji_to(surf, cx, top_y, bot_y, base_w, palette, *,
                            cx + half_body,
                            drip_y,
                            palette, depth=4)
-        if is_top_tier:
-            tip_y_top = wall_top - max(2, int(depth * (0.5 + 0.35)))
-            _draw_shibi_finial(surf, cx - half_outer + 1, tip_y_top + 1,
-                               palette, side=+1)
-            _draw_shibi_finial(surf, cx + half_outer - 1, tip_y_top + 1,
-                               palette, side=-1)
-
-    if not tier_tops:
-        return
-
-    # Sōrin scaled to the smaller body — 7 disks (down from 9) so the
-    # finial doesn't outweigh the intimate tō silhouette.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    dir_sign = -1 if sorin_up else 1
-    dark_pal = palette['stone_dark']
-    bright = _shade(accent, 40)
-    pygame.draw.ellipse(surf, dark_pal, (cx - 5, base_y + dir_sign * 1, 10, 4))
-    pygame.draw.ellipse(surf, accent, (cx - 4, base_y + dir_sign * 1 + 1, 8, 2))
-    finial_h -= 5  # land the lethal spire tip on the gap edge (gap = 170)
-    needle_tip = base_y + dir_sign * (finial_h - 4)
-    pygame.draw.line(surf, dark_pal,
-                     (cx - 1, base_y + dir_sign * 3),
-                     (cx - 1, needle_tip), 2)
-    pygame.draw.line(surf, accent,
-                     (cx, base_y + dir_sign * 3),
-                     (cx, needle_tip), 1)
-    disks = 7
-    for k in range(disks):
-        t = k / max(1, disks - 1)
-        ry = base_y + dir_sign * (4 + int(t * (finial_h - 9)))
-        rw = max(2, 6 - k // 2)
-        pygame.draw.ellipse(surf, _sorin_rim(palette),
-                            (cx - rw - 1, ry - 1, rw * 2 + 2, 3))
-        pygame.draw.ellipse(surf, accent,
-                            (cx - rw, ry, rw * 2, 2))
-    tip_y = base_y + dir_sign * finial_h
-    _draw_sorin_flame_halo(surf, cx, tip_y, palette)
-    pygame.draw.circle(surf, dark_pal, (cx, tip_y), 3)
-    pygame.draw.circle(surf, accent, (cx, tip_y), 2)
-    flame = [(cx, tip_y + dir_sign * 4),
-             (cx - 2, tip_y + dir_sign * 1),
-             (cx + 2, tip_y + dir_sign * 1)]
-    pygame.draw.polygon(surf, bright, flame)
-
 
 def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
@@ -9063,7 +8783,7 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
-        finial_h = 30
+        finial_h = _MUROJI_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         tier_count, _ = _fit_floors(
@@ -9101,7 +8821,7 @@ def _draw_muroji(surf, top_rect, bot_rect, palette, seed):
     # _mirror_fill_tower. The small sōrin reaches the gap edge; thatched
     # bark curls invert with the flip; storey count adapts, no killzone band.
     if top_rect.height > 30:
-        finial_h = 30
+        finial_h = _MUROJI_ROOF_RESERVE
         plinth_h = 7
         plinth_w = int(top_rect.width * 1.16)
 
@@ -9773,12 +9493,6 @@ def _draw_palsangjeon_to(surf, cx, top_y, bot_y, base_w, palette, *,
     if not tier_tops:
         return
 
-    # Brass sangnyun above the topmost wall.
-    top_wall_y = tier_tops[-1][0]
-    base_y = top_wall_y - 2 if sorin_up else bot_y + 2
-    _draw_palsangjeon_sangnyun(surf, cx, base_y, palette,
-                               sorin_up=sorin_up, finial_h=finial_h)
-
 
 def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
     rng = random.Random(seed)
@@ -9810,7 +9524,7 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
                          (bcx - plinth_w // 2,
                           bot_rect.bottom - plinth_h, plinth_w, 1))
 
-        finial_h = 32
+        finial_h = _PALSANGJEON_ROOF_RESERVE
         envelope_top = bot_rect.y
         envelope_bot = bot_rect.bottom - plinth_h
         tier_count, _ = _fit_floors(
@@ -9848,7 +9562,7 @@ def _draw_palsangjeon(surf, top_rect, bot_rect, palette, seed):
     # the flip; the brass sangnyun reaches the gap edge; storey count adapts
     # to the rect height with no killzone band.
     if top_rect.height > 30:
-        finial_h = 32
+        finial_h = _PALSANGJEON_ROOF_RESERVE
         plinth_h = 10
         plinth_w = int(top_rect.width * 1.30)
         joseon_blue = _mix(_column_grey(palette),
@@ -10486,24 +10200,6 @@ VARIANT_KEYS = (
     "toji", "daigoji", "yakushiji", "baoen", "muroji", "palsangjeon",
 )
 VARIANT_COUNT = len(VARIANT_KEYS)
-
-# Per-variant decorative finial ("antenna") height in px — the thin spire/jewel
-# above each pagoda's top roof. It is VISUAL-ONLY: the kill zone stops this many
-# px back from the gap edge (at the body roof), so clipping the antenna is safe,
-# like the vegetation that overhung the old sandstone pillars. Values ≈ each
-# candidate's own finial_h; tunable. wat_arun is small because only its diamond
-# bud is antenna-like, not the structural corncob spire.
-FINIAL_CLEARANCE = {
-    "stupa_canopy": 32, "wat_arun": 14, "songyue_sandstone": 12,
-    "horyuji": 36, "fogong": 30, "toji": 38, "daigoji": 40,
-    "yakushiji": 34, "baoen": 30, "muroji": 28, "palsangjeon": 18,
-}
-
-
-def finial_clearance(seed):
-    """Px of non-lethal decorative finial above the body roof for `seed`'s variant
-    (mirrors the seed->variant mapping used by draw_pillar_pair)."""
-    return FINIAL_CLEARANCE.get(VARIANT_KEYS[seed % VARIANT_COUNT], 0)
 
 
 def draw_pillar_pair(surf, top_rect, bot_rect, palette, seed,
