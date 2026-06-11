@@ -1,23 +1,23 @@
-"""Headless 10x12 IN-GAME sheet for the Alpine Haze sunset/sunrise study.
+"""Headless IN-GAME sheet for the Alpine sunset study — HONEST TIME AXIS.
 
-Same rows/columns as `tools/preview_sky_alpine_sunsets.py` (10 study designs x
-12 day-phase samples) but every cell is a real engine frame instead of a bare
-sky swatch: the candidate sky is baked through the live `game.biome_sky`
-gradient, then the actual in-game **mountains + pagodas** (phase-driven), the
-empty sandstone **ground/sidewalk**, and the **parrot** are composited over it
-exactly as `App._draw_background` does. This lets the palette be judged the way
-it reads in gameplay — the hollow ink-wash mountains show the candidate's lower
-sky gradient THROUGH them, which a sky-only swatch can't reveal.
+Same rows + same evenly-time-spaced columns as `tools/preview_sky_alpine_sunsets.py`,
+but every cell is a real engine frame: the candidate sky baked through the live
+`game.biome_sky` gradient, then the actual in-game **mountains + pagodas**
+(phase-driven), the empty sandstone **ground/sidewalk**, and the **parrot**
+composited over it exactly as `App._draw_background` does.
 
-Deliberately omitted so the figure stays about the SKY+terrain palette: pillars,
-coins, power-ups, weather, HUD, and the promenade's people/props (the sidewalk
-is rendered but left empty). The pagodas DO retint across the day because the
-mountain layer keys off `world.biome_phase`.
+The columns are sampled at EQUAL TIME STEPS across one full cycle (phase =
+t / CYCLE_SECONDS, real gameplay seconds), so the width given to day / sunset /
+night honestly reflects how long each lasts — not how many stage phases were
+hand-picked. A stage-name ribbon marks where each named stage truly falls; each
+column is labelled with elapsed time (m:ss) and an approximate pillar count.
 
-Why the engine bake (not the Catmull preview bake): this sheet answers "what
-does activating this design look like in the running game", so it uses the same
-`game.biome_sky.paint_sky` the live `_draw_background` uses. Dev aid only; the
-game never imports this and `ACTIVE_SKY_DESIGN` stays untouched.
+Omitted so the figure stays about the sky+terrain palette: pillars, coins,
+power-ups, weather, HUD, and the promenade people/props (the sidewalk is drawn
+but empty). Pagodas DO retint across the day (they key off `world.biome_phase`).
+
+Dev aid only; the game never imports this and `ACTIVE_SKY_DESIGN` stays untouched.
+Output: docs/biome_redesign/alpine_sunsets_v3_ingame_timeaxis.png
 
     python tools/preview_sky_alpine_ingame.py
 """
@@ -43,53 +43,45 @@ from game.world import World                       # noqa: E402
 from game.biome_sky import paint_sky               # noqa: E402
 from tools.sky_alpine_sunsets import CONCEPTS      # noqa: E402
 
-# Force the live-bake path so our per-cell sky shim is the only sky source
-# (an active design would short-circuit `_draw_background` and paint one sky
-# in every row).
+# Force the live-bake path so our per-cell sky shim is the only sky source.
 _sky_designs.ACTIVE_SKY_DESIGN = None
 
-CYCLE_SECONDS = 320.0  # game/biome.py: phase = (t / 320) % 1
+# game/biome.py: phase = t / CYCLE_SECONDS, so phase IS linear in gameplay time.
+CYCLE_SECONDS = 320.0
+# Approx seconds per pillar at base scroll: PIPE_SPACING 280 / SCROLL_BASE 160 =
+# 1.75 s. Pillar counts are APPROXIMATE (scroll speed ramps over a run); time is
+# the exact invariant.
+SEC_PER_PILLAR = 280.0 / 160.0
+N_COLS = 25                      # one column every 320/25 = 12.8 s
+STEP = 1.0 / N_COLS
+PHASES = [i * STEP for i in range(N_COLS)]
 
-# Same day arc and order as the sky-only study sheet, so the columns line up.
-# Densified to 18 columns: +3 across the sunrise->day handoff and +3 across the
-# day->sunset onset, to read how gradual those two transitions are. Pure
-# sampling — the design keyframes are unchanged.
-PHASES = [
-    ("predawn", 0.80),
-    ("dawn", 0.88),
-    ("sunrise", 0.94),
-    ("to-day1", 0.955),
-    ("to-day2", 0.97),
-    ("to-day3", 0.985),
-    ("early-morning", 0.02),
-    ("morning", 0.10),
-    ("midday", 0.20),
-    ("afternoon", 0.32),
-    ("to-set1", 0.345),
-    ("to-set2", 0.37),
-    ("to-set3", 0.395),
-    ("golden", 0.42),
-    ("sunset", 0.50),
-    ("dusk", 0.60),
-    ("twilight", 0.68),
-    ("night", 0.74),
+STAGES_REF = [
+    ("morning", 0.06), ("midday", 0.18), ("afternoon", 0.30), ("golden", 0.40),
+    ("sunset", 0.50), ("dusk", 0.62), ("twilight", 0.68), ("night", 0.72),
+    ("predawn", 0.80), ("dawn", 0.88), ("sunrise", 0.94),
 ]
 
-# Native frame downscaled to a legible tile (~440 px tall, matching the study
-# sheet's cell height).
-TILE_H = 440
+
+def _mmss(phase):
+    s = int(round(phase * CYCLE_SECONDS))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def _pillars(phase):
+    return int(round(phase * CYCLE_SECONDS / SEC_PER_PILLAR))
+
+
+# Native frame downscaled so the full 25-column cycle fits.
+TILE_H = 250
 TILE_SCALE = TILE_H / H
 TW, TH = int(W * TILE_SCALE), int(H * TILE_SCALE)
-GUT = 220          # left gutter for the design name + note
-HEAD = 34          # top strip for phase labels
+GUT = 210
+HEAD = 96
 PAD = 4
 
 
 # ── per-cell sky swap ─────────────────────────────────────────────────────────
-# `_draw_background` calls get_sky_surface_biome(w,h,ground_y,palette,bucket)
-# (twice, for the bucket cross-fade); we ignore the live palette/bucket and hand
-# back the current cell's pre-baked study sky. Both calls share one phase so the
-# cross-fade is a no-op and the cell shows a single clean design sky.
 _CUR = {"spec": None, "phase": 0.0}
 _sky_cache = {}
 
@@ -105,9 +97,12 @@ def _design_sky_shim(w, h, ground_y, palette, phase_bucket):
     return surf.copy()
 
 
-f_title = pygame.font.SysFont("dejavusans", 20, bold=True)
-f_phase = pygame.font.SysFont("dejavusans", 15, bold=True)
-f_name = pygame.font.SysFont("dejavusans", 19, bold=True)
+f_title = pygame.font.SysFont("dejavusans", 19, bold=True)
+f_sub = pygame.font.SysFont("dejavusans", 12)
+f_stage = pygame.font.SysFont("dejavusans", 12, bold=True)
+f_axis = pygame.font.SysFont("dejavusans", 11, bold=True)
+f_axis2 = pygame.font.SysFont("dejavusans", 10)
+f_name = pygame.font.SysFont("dejavusans", 18, bold=True)
 f_note = pygame.font.SysFont("dejavusans", 12)
 
 
@@ -126,9 +121,12 @@ def _wrap(text, font, max_w):
     return lines
 
 
+def _col_x(phase):
+    return GUT + (phase / STEP) * (TW + PAD) + TW / 2
+
+
 def main():
-    # Empty sidewalk: keep the sandstone floor, drop the promenade's people/props
-    # and the near-lane cast so the figure stays about the sky+terrain palette.
+    # Empty sidewalk: keep the sandstone floor, drop the promenade people/props.
     foreground.draw_promenade = lambda *a, **k: None
     foreground.draw_near_lane = lambda *a, **k: None
     scenes.get_sky_surface_biome = _design_sky_shim
@@ -142,7 +140,7 @@ def main():
 
     world = World()
     world.ready_t = 0.0
-    world.bird.y = H * 0.42          # mid-air, clear of the mountains + floor
+    world.bird.y = H * 0.42
     app.world = world
     app.state = STATE_PLAY
 
@@ -153,13 +151,29 @@ def main():
     sheet.fill((20, 20, 24))
 
     sheet.blit(f_title.render(
-        "Skybit Alpine Haze — in-game (mountains + pagodas + parrot, empty walk) "
-        "— v3 transition sampling (18 phases)", True, (245, 246, 250)), (10, 6))
+        "Skybit Alpine — in-game over a full day/night on an HONEST TIME axis (v3)",
+        True, (245, 246, 250)), (10, 6))
+    sheet.blit(f_sub.render(
+        "Columns equally spaced in real gameplay time (phase = t/320 s). "
+        "One cycle = 320 s (5:20); each column = 12.8 s. Width per stage = how "
+        "long it truly lasts. ~p = approx pillars at base speed (1.75 s/pillar; "
+        "faster as the run speeds up). Mountains + pagodas + parrot; empty walk.",
+        True, (185, 188, 198)), (10, 28))
 
-    for c, (label, _ph) in enumerate(cols):
+    for i, (nm, ph) in enumerate(STAGES_REF):
+        x = _col_x(ph)
+        yy = 48 if i % 2 == 0 else 62
+        lbl = f_stage.render(nm, True, (250, 232, 184))
+        sheet.blit(lbl, (int(x - lbl.get_width() / 2), yy))
+        pygame.draw.line(sheet, (120, 116, 96),
+                         (int(x), yy + 14), (int(x), HEAD - 26), 1)
+
+    for c, phase in enumerate(PHASES):
         x = GUT + c * (TW + PAD)
-        lbl = f_phase.render(label, True, (250, 232, 184))
-        sheet.blit(lbl, (x + (TW - lbl.get_width()) // 2, HEAD - 22))
+        t = f_axis.render(_mmss(phase), True, (236, 238, 244))
+        sheet.blit(t, (x + (TW - t.get_width()) // 2, HEAD - 25))
+        p = f_axis2.render(f"~{_pillars(phase)}p", True, (150, 160, 175))
+        sheet.blit(p, (x + (TW - p.get_width()) // 2, HEAD - 13))
 
     for r, (cid, spec) in enumerate(rows):
         y = HEAD + r * (TH + PAD)
@@ -170,7 +184,7 @@ def main():
         for line in _wrap(spec.note, f_note, GUT - 18):
             sheet.blit(f_note.render(line, True, (176, 180, 190)), (10, ny))
             ny += f_note.get_height() + 2
-        for c, (_label, phase) in enumerate(cols):
+        for c, phase in enumerate(PHASES):
             x = GUT + c * (TW + PAD)
             _CUR["phase"] = phase
             world.biome_time = phase * CYCLE_SECONDS
@@ -179,7 +193,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(app.screen, (TW, TH)), (x, y))
 
     out = os.path.join(_ROOT, "docs", "biome_redesign",
-                       "alpine_sunsets_v3_ingame_transitions.png")
+                       "alpine_sunsets_v3_ingame_timeaxis.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "

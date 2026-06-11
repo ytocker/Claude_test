@@ -1,14 +1,19 @@
-"""Headless 10x12 exploration sheet for the Alpine Haze sunset/sunrise study.
+"""Headless exploration sheet for the Alpine sunset/sunrise study — HONEST TIME AXIS.
 
-Renders the 10 `tools.sky_alpine_sunsets.CONCEPTS` (rows) across 12 day-phase
-samples in natural day order (columns), sky-only via the smoother Catmull-Rom
-`paint_sky` (stars kept on), into
-`docs/biome_redesign/alpine_sunsets_v3_transitions.png`.
+Renders the `tools.sky_alpine_sunsets.CONCEPTS` (rows) across the day/night cycle
+(columns), sky-only via the smoother Catmull-Rom `paint_sky` (stars kept on),
+into `docs/biome_redesign/alpine_sunsets_v3_timeaxis.png`.
 
-This is a copy of `tools/preview_sky_concepts_calm.py` pointed at the Alpine
-sunset study; it inherits the band-free Catmull gradient bake so the restrained
-pastels read clean (no contour lines, no muddy plateaus). Dev aid only — the
-game never imports this; the live `ACTIVE_SKY_DESIGN` is untouched.
+The columns are sampled at EQUAL TIME STEPS across one full cycle, not at hand-
+picked stage phases. The biome cycle is `phase = t / CYCLE_SECONDS` (real
+gameplay seconds), so equal phase steps = equal wall-clock time, and the screen
+width given to day / sunset / night now reflects how long each ACTUALLY lasts.
+A previous version sampled stage phases unevenly, which made the sunset look far
+longer than the night — a sampling artefact this layout removes. A stage-name
+ribbon marks where each named stage truly falls on the time axis; each column is
+labelled with elapsed time (m:ss) and an approximate pillar count.
+
+Dev aid only — the game never imports this; `ACTIVE_SKY_DESIGN` is untouched.
 
     python tools/preview_sky_alpine_sunsets.py
 """
@@ -82,41 +87,47 @@ def paint_sky(tile, spec, w, h, phase, stars=True, ground_y=None):
             _scatter_stars(tile, w, ground_y or h, sa)
 
 
-# Local day-ordered sampling — intentionally NOT the shared STAGES, so this
-# exploration can show a finer arc (predawn through night) without touching the
-# live keyframe tables. Densified to 18 columns: +3 across the sunrise->day
-# handoff and +3 across the day->sunset onset, to read how gradual those two
-# transitions are. Pure sampling — the design keyframes are unchanged.
-PHASES = [
-    ("predawn", 0.80),
-    ("dawn", 0.88),
-    ("sunrise", 0.94),
-    ("to-day1", 0.955),
-    ("to-day2", 0.97),
-    ("to-day3", 0.985),
-    ("early-morning", 0.02),
-    ("morning", 0.10),
-    ("midday", 0.20),
-    ("afternoon", 0.32),
-    ("to-set1", 0.345),
-    ("to-set2", 0.37),
-    ("to-set3", 0.395),
-    ("golden", 0.42),
-    ("sunset", 0.50),
-    ("dusk", 0.60),
-    ("twilight", 0.68),
-    ("night", 0.74),
+# ── honest time axis ─────────────────────────────────────────────────────────
+# game/biome.py: phase = t / CYCLE_SECONDS, so phase IS linear in gameplay time.
+CYCLE_SECONDS = 320.0
+# Approx seconds per pillar at base scroll: PIPE_SPACING 280 px / SCROLL_BASE
+# 160 px/s = 1.75 s. Pillars/cycle and the per-column counts are APPROXIMATE —
+# the scroll speed ramps over a run, so later pillars arrive faster. Time is the
+# exact invariant; pillars are a rough gameplay-feel reference only.
+SEC_PER_PILLAR = 280.0 / 160.0
+N_COLS = 25                      # one column every 320/25 = 12.8 s
+STEP = 1.0 / N_COLS
+PHASES = [i * STEP for i in range(N_COLS)]
+
+# Named stages at their TRUE phase, drawn as a ribbon so the layout shows where
+# each falls in real time (and how wide a slice of the cycle it occupies).
+STAGES_REF = [
+    ("morning", 0.06), ("midday", 0.18), ("afternoon", 0.30), ("golden", 0.40),
+    ("sunset", 0.50), ("dusk", 0.62), ("twilight", 0.68), ("night", 0.72),
+    ("predawn", 0.80), ("dawn", 0.88), ("sunrise", 0.94),
 ]
 
-# Larger cells than the old sheet (was 151x268) for the requested quality.
-CW, CH = 280, 500
-GUT = 220          # left gutter for concept name
-HEAD = 34          # top strip for phase labels
+
+def _mmss(phase):
+    s = int(round(phase * CYCLE_SECONDS))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def _pillars(phase):
+    return int(round(phase * CYCLE_SECONDS / SEC_PER_PILLAR))
+
+
+CW, CH = 150, 266            # narrower cells so the full 25-column cycle fits
+GUT = 210                    # left gutter for concept name
+HEAD = 96                    # top strip: title + legend + stage ribbon + axis
 PAD = 4
 
-f_title = pygame.font.SysFont("dejavusans", 20, bold=True)
-f_phase = pygame.font.SysFont("dejavusans", 15, bold=True)
-f_name = pygame.font.SysFont("dejavusans", 19, bold=True)
+f_title = pygame.font.SysFont("dejavusans", 19, bold=True)
+f_sub = pygame.font.SysFont("dejavusans", 12)
+f_stage = pygame.font.SysFont("dejavusans", 12, bold=True)
+f_axis = pygame.font.SysFont("dejavusans", 11, bold=True)
+f_axis2 = pygame.font.SysFont("dejavusans", 10)
+f_name = pygame.font.SysFont("dejavusans", 18, bold=True)
 f_note = pygame.font.SysFont("dejavusans", 12)
 
 
@@ -136,6 +147,11 @@ def _wrap(text, font, max_w):
     return lines
 
 
+def _col_x(phase):
+    """Pixel centre of where `phase` lands on the evenly-time-spaced axis."""
+    return GUT + (phase / STEP) * (CW + PAD) + CW / 2
+
+
 def main():
     cols = len(PHASES)
     rows = len(CONCEPTS)
@@ -144,15 +160,33 @@ def main():
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((20, 20, 24))
 
-    # Title rides in the top-left gutter corner above the rows.
-    title = f_title.render("Skybit Alpine Haze — evening + transition sampling (v3, 18 phases)", True, (245, 246, 250))
-    sheet.blit(title, (10, 6))
+    sheet.blit(f_title.render(
+        "Skybit Alpine — full day/night on an HONEST TIME axis (v3)",
+        True, (245, 246, 250)), (10, 6))
+    sheet.blit(f_sub.render(
+        "Columns are equally spaced in real gameplay time (phase = t/320 s). "
+        "One full cycle = 320 s (5:20); each column = 12.8 s. "
+        "Width per stage = how long it truly lasts. ~p = approx pillars at base "
+        "speed (1.75 s/pillar; faster as the run speeds up).",
+        True, (185, 188, 198)), (10, 28))
 
-    # Column labels (phase names) along the top strip.
-    for c, (label, _phase) in enumerate(PHASES):
+    # Stage-name ribbon at the true phase positions, staggered to avoid overlap,
+    # with a tick down toward the grid.
+    for i, (nm, ph) in enumerate(STAGES_REF):
+        x = _col_x(ph)
+        yy = 48 if i % 2 == 0 else 62
+        lbl = f_stage.render(nm, True, (250, 232, 184))
+        sheet.blit(lbl, (int(x - lbl.get_width() / 2), yy))
+        pygame.draw.line(sheet, (120, 116, 96),
+                         (int(x), yy + 14), (int(x), HEAD - 26), 1)
+
+    # Per-column axis: elapsed time (m:ss) + approx pillar count.
+    for c, phase in enumerate(PHASES):
         x = GUT + c * (CW + PAD)
-        lbl = f_phase.render(label, True, (250, 232, 184))
-        sheet.blit(lbl, (x + (CW - lbl.get_width()) // 2, HEAD - 22))
+        t = f_axis.render(_mmss(phase), True, (236, 238, 244))
+        sheet.blit(t, (x + (CW - t.get_width()) // 2, HEAD - 25))
+        p = f_axis2.render(f"~{_pillars(phase)}p", True, (150, 160, 175))
+        sheet.blit(p, (x + (CW - p.get_width()) // 2, HEAD - 13))
 
     for r, (cid, spec) in enumerate(CONCEPTS):
         y = HEAD + r * (CH + PAD)
@@ -160,17 +194,16 @@ def main():
         sheet.blit(nm, (10, y + 8))
         ny = y + 8 + nm.get_height() + 6
         for line in _wrap(spec.note, f_note, GUT - 18):
-            ln = f_note.render(line, True, (176, 180, 190))
-            sheet.blit(ln, (10, ny))
-            ny += ln.get_height() + 2
-        for c, (_label, phase) in enumerate(PHASES):
+            sheet.blit(f_note.render(line, True, (176, 180, 190)), (10, ny))
+            ny += f_note.get_height() + 2
+        for c, phase in enumerate(PHASES):
             x = GUT + c * (CW + PAD)
             tile = pygame.Surface((W, H))
             paint_sky(tile, spec, W, H, phase, stars=True, ground_y=GROUND_Y)
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "alpine_sunsets_v3_transitions.png")
+                       "docs", "biome_redesign", "alpine_sunsets_v3_timeaxis.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")
