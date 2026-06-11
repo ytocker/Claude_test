@@ -3,7 +3,7 @@
 Renders the 10 `tools.sky_alpine_sunsets.CONCEPTS` (rows) across 12 day-phase
 samples in natural day order (columns), sky-only via the smoother Catmull-Rom
 `paint_sky` (stars kept on), into
-`docs/biome_redesign/alpine_sunsets_v2_round_3.png`.
+`docs/biome_redesign/alpine_sunsets_v3_round_1.png`.
 
 This is a copy of `tools/preview_sky_concepts_calm.py` pointed at the Alpine
 sunset study; it inherits the band-free Catmull gradient bake so the restrained
@@ -137,7 +137,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     # Title rides in the top-left gutter corner above the rows.
-    title = f_title.render("Skybit Alpine Haze — decoupled sunset/sunrise (v2, round 3)", True, (245, 246, 250))
+    title = f_title.render("Skybit Alpine Haze — decoupled sunset/sunrise (v3, round 1)", True, (245, 246, 250))
     sheet.blit(title, (10, 6))
 
     # Column labels (phase names) along the top strip.
@@ -162,7 +162,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "alpine_sunsets_v2_round_3.png")
+                       "docs", "biome_redesign", "alpine_sunsets_v3_round_1.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")
