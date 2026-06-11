@@ -245,16 +245,22 @@ TANGERINE_INFERNO = _spec(
     'SUNSET: a vivid tangerine (H26) that climbs from the horizon through the whole lower-mid frame, cyan held only at the zenith — a sky-filling inferno, widened dwell. SUNRISE [C]: a cool pink-grey calm — a desaturated dove-pink mid over a faint grey-pink horizon, plainly quieter and cooler than the blazing dusk. DRAMATIC.',
     {
         # SUNSET — tangerine floods the lower frame and washes the mid warm; the
-        # bloom reaches ~40% of the frame for a true inferno. sky_mid is held a
-        # hotter, more saturated apricot-orange (G/B pulled well under R) so the
-        # cyan->tangerine top blend never greys to a neutral seam.
-        0.40: dict(sky_top=(92, 146, 172), sky_mid=(238, 150, 92),  sky_bot=(252, 152, 70),  horizon=(255, 128, 46)),
-        0.44: dict(sky_top=(88, 138, 168), sky_mid=(244, 140, 80),  sky_bot=(255, 142, 60),  horizon=(255, 114, 38)),
-        0.50: dict(sky_top=(80, 124, 158), sky_mid=(248, 130, 70),  sky_bot=(255, 130, 50),  horizon=(255, 100, 32)),
-        0.56: dict(sky_top=(60, 100, 142), sky_mid=(234, 120, 70),  sky_bot=(252, 122, 52),  horizon=(252, 94, 34)),
-        # dusk mid held a saturated amber-orange (not a neutral) so the
-        # cyan->tangerine meeting never greys out.
-        0.62: dict(sky_top=(36, 78, 116),  sky_mid=(204, 106, 64),  sky_bot=(230, 118, 64),  horizon=(248, 98, 40)),
+        # bloom reaches ~40% of the frame for a true inferno. The cyan->tangerine
+        # seam (~50-58% up) was greying to a desaturated taupe because the deep
+        # pure-orange mid was too far in lightness AND hue from the cool sky_top:
+        # the OKLab path between them sank through a neutral. Routing sky_mid
+        # through a SATURATED coral/salmon (hue ~14-17, S>=0.45 — R high, G mid,
+        # B lifted just enough to bridge the cyan) keeps the whole vertical >=0.30
+        # sat, and lifting that coral a touch lighter pulls the warmth ~8% higher
+        # so the cyan retreats and the neutral overlap narrows. sky_bot/horizon
+        # keep the full tangerine fire untouched. Zenith stays cool cyan (B>R).
+        0.40: dict(sky_top=(92, 146, 172), sky_mid=(236, 156, 122), sky_bot=(252, 152, 70),  horizon=(255, 128, 46)),
+        0.44: dict(sky_top=(88, 138, 168), sky_mid=(234, 152, 118), sky_bot=(255, 142, 60),  horizon=(255, 114, 38)),
+        0.50: dict(sky_top=(80, 124, 158), sky_mid=(232, 150, 116), sky_bot=(255, 130, 50),  horizon=(255, 100, 32)),
+        0.56: dict(sky_top=(60, 100, 142), sky_mid=(224, 140, 108), sky_bot=(252, 122, 52),  horizon=(252, 94, 34)),
+        # dusk mid held the same saturated coral (not a neutral) so the
+        # cyan->tangerine meeting never greys out at the seam either.
+        0.62: dict(sky_top=(36, 78, 116),  sky_mid=(200, 122, 96),  sky_bot=(230, 118, 64),  horizon=(248, 98, 40)),
         # SUNRISE [C] — genuinely COOL pink-grey: B held clearly >= R (R-B negative)
         # so it commits to cool rather than reading neutral-warm, but with R and B
         # both lifted over G for a faint MAGENTA-grey cast that distinguishes it from
