@@ -1,9 +1,10 @@
 """Promenade PLANTS & GREENERY — a varied potted-plant / tree pool.
 
-Replaces the single shrub-planter / conifer-planter / wish-tree with a 10-design
+Replaces the single shrub-planter / conifer-planter / wish-tree with a 30-design
 pool built as VESSEL × SPECIES over one shared draw_greenery (data rows = palette
-+ vessel/species/attrs flags). Art-director SHIP-READY
-(docs/sidewalk_overhaul/greenery/round_3.png), sibling to the ped_cast / day_cast
++ vessel/species/attrs flags). 19 species across 8 vessels; the original 10
+(round_3) plus 20 added in four art-director SHIP-READY rounds
+(docs/sidewalk_overhaul/greenery/round_3..round_10.png), sibling to the ped_cast / day_cast
 / food_stalls / animals families.
 
 Variety lives in the OUTLINE (vessel shape + canopy shape): terracotta / glazed
@@ -1034,6 +1035,12 @@ _FOL_PINE = dict(foliage_dark=(30, 70, 58), foliage_mid=(46, 96, 78), foliage_to
 _FOL_BOX = dict(foliage_dark=(48, 92, 56), foliage_mid=(80, 130, 82), foliage_top=(128, 172, 116))
 _FOL_AZALEA = dict(foliage_dark=(40, 82, 52), foliage_mid=(64, 116, 74), foliage_top=(106, 156, 98))
 _FOL_DRAPE = dict(foliage_dark=(28, 70, 50), foliage_mid=(46, 100, 68), foliage_top=(90, 144, 100))
+# batch-4 combo foliage banks
+_FOL_CITRUS = dict(foliage_dark=(26, 66, 50), foliage_mid=(42, 92, 64), foliage_top=(78, 130, 90))
+_FOL_YEW = dict(foliage_dark=(30, 62, 42), foliage_mid=(46, 92, 58), foliage_top=(86, 134, 84))
+_FOL_GARDENIA = dict(foliage_dark=(34, 74, 58), foliage_mid=(54, 104, 80), foliage_top=(96, 146, 110))
+_FOL_WISTERIA = dict(foliage_dark=(38, 80, 52), foliage_mid=(60, 112, 70), foliage_top=(102, 152, 96))
+_FOL_EMBER = dict(foliage_dark=(120, 46, 44), foliage_mid=(178, 78, 50), foliage_top=(214, 138, 70))
 
 
 def _row(*banks, **attrs):
@@ -1089,6 +1096,17 @@ def _build_greenery():
         _row(_TERRA, _FOL_AZALEA, dict(accent=(238, 158, 120)),
              vessel="terracotta", species="flowering", day_chroma=186),
         _row(_BAMBOO_V, _FOL_DRAPE, vessel="bamboo", species="vine"),
+        # ── batch 4: final combos to 30 (indices 25-29) ──
+        _row(_URN, _FOL_CITRUS, dict(accent=(224, 150, 56), trunk=(116, 86, 56)),
+             vessel="urn", species="kumquat"),
+        _row(_TUB, _FOL_YEW, dict(trunk=(104, 78, 52)),
+             vessel="tub", species="topiary", tiers=3),
+        _row(_STONE, _FOL_GARDENIA, dict(accent=(232, 230, 222)),
+             vessel="trough", species="flowering", day_chroma=150, vlift=0.10),
+        _row(_TERRA, _FOL_WISTERIA, dict(accent=(158, 130, 196)),
+             vessel="terracotta", species="flovine", day_chroma=160),
+        _row(_URN, _FOL_EMBER, dict(trunk=(92, 66, 48)),
+             vessel="urn", species="maple", day_chroma=178),
     ]
 
 
