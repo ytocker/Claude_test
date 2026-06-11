@@ -82,6 +82,39 @@ _VARY_PHASES = {0.40, 0.50, 0.62, 0.68, 0.72, 0.80, 0.88, 0.94}
 _INSERT_PHASES = {0.44, 0.56, 0.68, 0.86, 0.90}
 
 
+# ── night-balanced retiming (study) ──────────────────────────────────────────
+# The cycle's keyframe phases were lopsided: a long day + a long evening descent,
+# then only ~26 s of genuinely-dark night (the lone 0.72 anchor) before predawn
+# 0.80 already lifted toward dawn. This remaps every frame's PHASE — colours are
+# untouched — onto a timeline where the dark, starry night HOLDS about as long as
+# the sunset arc, and inserts a flat repeat of the night frame so the sky sits
+# dark instead of immediately climbing back. Approx durations (×320 s cycle):
+#   day ~74 s · evening descent ~93 s · dark night hold ~96 s · dawn ~57 s.
+# Applied in `_compose`, so all 11 rows shift identically; ported to the live
+# game/biome keyframes only once a design is chosen.
+_RETIME = [
+    (0.06, 0.04), (0.18, 0.12), (0.30, 0.20),                                    # day (compressed)
+    (0.40, 0.27), (0.50, 0.37), (0.62, 0.47), (0.68, 0.52), (0.72, 0.56),        # descent -> night
+    (0.80, 0.86), (0.88, 0.92), (0.94, 0.97),                                    # predawn -> dawn -> sunrise
+]
+_NIGHT_HOLD_PHASE = 0.82   # flat repeat of the 0.72 night frame — holds the dark
+
+
+def _retime(ph):
+    """Piecewise-linear remap of an old keyframe phase onto the balanced timeline."""
+    a = _RETIME
+    if ph <= a[0][0]:
+        return a[0][1]
+    if ph >= a[-1][0]:
+        (o0, n0), (o1, n1) = a[-2], a[-1]
+        return n1 + (ph - o1) * (n1 - n0) / (o1 - o0)
+    for (o0, n0), (o1, n1) in zip(a, a[1:]):
+        if o0 <= ph <= o1:
+            return n0 + (ph - o0) * (n1 - n0) / (o1 - o0)
+    return ph
+
+
+
 def _compose(overrides: dict) -> list:
     """Clone the frozen day + spine and apply a design's sunset→night→sunrise.
 
@@ -108,7 +141,14 @@ def _compose(overrides: dict) -> list:
             # INSERT without an authored alpha: interpolated fallback.
             frame['star_alpha'] = _INSERT_STAR_ALPHA[ph]
         by_phase[ph] = frame
-    return [(ph, by_phase[ph]) for ph in sorted(by_phase)]
+    # Remap every frame onto the night-balanced timeline (colours unchanged) and
+    # add the flat dark hold so the night sits dark rather than climbing at once.
+    out = [(round(_retime(ph), 4), pal) for ph, pal in sorted(by_phase.items())]
+    night = by_phase.get(0.72)
+    if night is not None:
+        out.append((_NIGHT_HOLD_PHASE, dict(night)))
+    out.sort(key=lambda kv: kv[0])
+    return out
 
 
 def _spec(name, note, overrides):

@@ -2,7 +2,7 @@
 
 Renders the `tools.sky_alpine_sunsets.CONCEPTS` (rows) across the day/night cycle
 (columns), sky-only via the smoother Catmull-Rom `paint_sky` (stars kept on),
-into `docs/biome_redesign/alpine_sunsets_v3_timeaxis.png`.
+into `docs/biome_redesign/alpine_sunsets_v3_timeaxis_balanced.png`.
 
 The columns are sampled at EQUAL TIME STEPS across one full cycle, not at hand-
 picked stage phases. The biome cycle is `phase = t / CYCLE_SECONDS` (real
@@ -101,10 +101,12 @@ PHASES = [i * STEP for i in range(N_COLS)]
 
 # Named stages at their TRUE phase, drawn as a ribbon so the layout shows where
 # each falls in real time (and how wide a slice of the cycle it occupies).
+# Positioned at the NIGHT-BALANCED phases (see _RETIME in sky_alpine_sunsets):
+# day compressed, evening descent + dark night hold each ~the same length.
 STAGES_REF = [
-    ("morning", 0.06), ("midday", 0.18), ("afternoon", 0.30), ("golden", 0.40),
-    ("sunset", 0.50), ("dusk", 0.62), ("twilight", 0.68), ("night", 0.72),
-    ("predawn", 0.80), ("dawn", 0.88), ("sunrise", 0.94),
+    ("morning", 0.04), ("midday", 0.12), ("afternoon", 0.20), ("golden", 0.27),
+    ("sunset", 0.37), ("dusk", 0.47), ("twilight", 0.52), ("night", 0.66),
+    ("predawn", 0.86), ("dawn", 0.92), ("sunrise", 0.97),
 ]
 
 
@@ -161,7 +163,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     sheet.blit(f_title.render(
-        "Skybit Alpine — full day/night on an HONEST TIME axis (v3)",
+        "Skybit Alpine — full day/night, HONEST TIME axis + night-balanced timing (v3)",
         True, (245, 246, 250)), (10, 6))
     sheet.blit(f_sub.render(
         "Columns are equally spaced in real gameplay time (phase = t/320 s). "
@@ -203,7 +205,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "alpine_sunsets_v3_timeaxis.png")
+                       "docs", "biome_redesign", "alpine_sunsets_v3_timeaxis_balanced.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")

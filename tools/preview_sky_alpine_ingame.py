@@ -17,7 +17,7 @@ power-ups, weather, HUD, and the promenade people/props (the sidewalk is drawn
 but empty). Pagodas DO retint across the day (they key off `world.biome_phase`).
 
 Dev aid only; the game never imports this and `ACTIVE_SKY_DESIGN` stays untouched.
-Output: docs/biome_redesign/alpine_sunsets_v3_ingame_timeaxis.png
+Output: docs/biome_redesign/alpine_sunsets_v3_ingame_timeaxis_balanced.png
 
     python tools/preview_sky_alpine_ingame.py
 """
@@ -56,10 +56,12 @@ N_COLS = 25                      # one column every 320/25 = 12.8 s
 STEP = 1.0 / N_COLS
 PHASES = [i * STEP for i in range(N_COLS)]
 
+# Positioned at the NIGHT-BALANCED phases (see _RETIME in sky_alpine_sunsets):
+# day compressed, evening descent + dark night hold each ~the same length.
 STAGES_REF = [
-    ("morning", 0.06), ("midday", 0.18), ("afternoon", 0.30), ("golden", 0.40),
-    ("sunset", 0.50), ("dusk", 0.62), ("twilight", 0.68), ("night", 0.72),
-    ("predawn", 0.80), ("dawn", 0.88), ("sunrise", 0.94),
+    ("morning", 0.04), ("midday", 0.12), ("afternoon", 0.20), ("golden", 0.27),
+    ("sunset", 0.37), ("dusk", 0.47), ("twilight", 0.52), ("night", 0.66),
+    ("predawn", 0.86), ("dawn", 0.92), ("sunrise", 0.97),
 ]
 
 
@@ -151,7 +153,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     sheet.blit(f_title.render(
-        "Skybit Alpine — in-game over a full day/night on an HONEST TIME axis (v3)",
+        "Skybit Alpine — in-game over a full day/night, HONEST TIME + night-balanced timing (v3)",
         True, (245, 246, 250)), (10, 6))
     sheet.blit(f_sub.render(
         "Columns equally spaced in real gameplay time (phase = t/320 s). "
@@ -193,7 +195,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(app.screen, (TW, TH)), (x, y))
 
     out = os.path.join(_ROOT, "docs", "biome_redesign",
-                       "alpine_sunsets_v3_ingame_timeaxis.png")
+                       "alpine_sunsets_v3_ingame_timeaxis_balanced.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
