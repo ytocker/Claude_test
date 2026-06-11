@@ -893,6 +893,13 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
             _zbuf.enqueue(fy, TB_FIXTURE,
                           lambda s, sx=sx, gv=gv: draw_greenery(s, sx, pal, t=_CUR_T, variant=gv))
     sp._latch_prune(('furn', 14))
+    for sx, k in sp._world_xs(scroll, w, 700, x0=330):
+        on, dv = sp._slot_latch(('furn', 15), k, lambda k=k: (
+            _slot_on(k, 15, fd), _prop_latch('prop_dress', k, 15)))
+        if on:
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx, dv=dv: draw_prop_dress(s, sx, pal, t=_CUR_T, variant=dv))
+    sp._latch_prune(('furn', 15))
 
 
 # ── grouped scenarios ─────────────────────────────────────────────────────────
@@ -1155,6 +1162,14 @@ def draw_prop_fire(surf, sx, pal, *, t=0.0, variant=0):
     v = _fv.get("prop_fire", variant)
     if v is not None:
         _props.draw_fire(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_dress(surf, sx, pal, *, t=0.0, variant=0):
+    """One piece of market clutter from the 'prop_dress' pool (produce crates /
+    woven baskets / rolled-mat + sacks), feet on GROUND_Y."""
+    v = _fv.get("prop_dress", variant)
+    if v is not None:
+        _props.draw_dressing(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
 
 
 def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
