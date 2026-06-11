@@ -136,7 +136,7 @@ def main():
     sheet.fill((20, 20, 24))
 
     # Title rides in the top-left gutter corner above the rows.
-    title = f_title.render("Skybit sky concepts — round 14 (calm / UX)", True, (245, 246, 250))
+    title = f_title.render("Skybit sky concepts — round 15 (calm day/night, colourful sunrise+sunset)", True, (245, 246, 250))
     sheet.blit(title, (10, 6))
 
     # Column labels (phase names) along the top strip.
@@ -161,7 +161,7 @@ def main():
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
     out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "round_14.png")
+                       "docs", "biome_redesign", "round_15.png")
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")
