@@ -1,4 +1,4 @@
-"""Look-dev mockup: the dice-clown presenter's EVOLVED "BOSS" form (ROUND 1).
+"""Look-dev mockup: the dice-clown presenter's EVOLVED "BOSS" form (ROUND 2).
 
 The approved FRIENDLY presenter — tile #13 of `render_jester_variants.py`
 ("Plum & Lime — FINAL (no shadow)") — fronts an EASY route. This sheet explores
@@ -6,24 +6,37 @@ his EVOLVED BOSS form: the bigger, MEANER jester the player meets later, who
 offers a MUCH HARDER route. The brief is a PLAYFUL-MENACING mini-boss (casual-
 arcade, NOT horror-gore) who still reads as the SAME clown, evolved.
 
+ROUND 2 reaction to the art-director critique. The single fatal blocker in
+round 1 was the body aura: it was a bright near-WHITE additive DISC, so the
+boss read HOLY/spotlit and at 1x collapsed into "a glowing ball with legs."
+This round INVERTS it — the boss now LOOMS OUT OF SHADOW:
+  - The aura is built FROM the boss's own SILHOUETTE (not a circular disc): the
+    figure is rendered first, its alpha mask taken, then the aura is grown OUT
+    of that shape so it edge-lights the body instead of haloing a circle.
+  - DARK CORE: the area right behind the body is pushed DARKER than the sky (a
+    deep crimson-black / bruise-violet), so the figure reads as shadow.
+  - SATURATED EDGE RIM: a danger-colour ring (crimson / violet / fiery / cold)
+    hugs the silhouette edge and falls off OUTWARD into smoke — this rim is the
+    legibility carrier that keeps the dark boss crisp against the day sky.
+  - SMOKE + EMBERS, not a clean radial: low-alpha smoke wisps licking up off the
+    shoulders/cap plus a few drifting additive embers. Clean glow = holy; smoke
+    + embers = danger.
+
 Panel 0 is the UNCHANGED original #13 (the friendly easy-route presenter) for
 side-by-side comparison. Panels 1-5 are five distinct evolved bosses. Every
 boss is:
   - PHYSICALLY LARGER — the whole jester FIGURE layer is rendered then scaled up
-    ~1.3-1.45x inside a taller panel, while the real parrot stays the SAME size
+    ~1.3-1.5x inside a taller panel, while the real parrot stays the SAME size
     in every panel, so the boss visibly dwarfs both the parrot and #13.
   - MEANER — a `menace` face path: steeper low-angled brows, GLOWING eyes (a hot
-    pupil + a coloured `blit_glow`), a wider jagged grin with bigger FANGS.
-  - WRAPPED IN AN OMINOUS BODY AURA — a new `body_aura` helper layers radial
-    glows (per-version dark-crimson / violet / black hue) BEHIND the figure, with
-    a few floating ember/spark particles. This is the danger telegraph.
+    pupil + a coloured `blit_glow`), a wider jagged snarl with bigger FANGS.
   - CORRUPTED in palette — #13's plum/lime/gold deepened + desaturated + pushed
     toward each version's aura hue, still recognisably the same clown.
   - STILL PRESENTING the route DIE (the 3D cube + its yellow aura, upper-LEFT,
     LEFT arm raised to it) — the offer is unchanged, only the offerer is.
 
 Nothing under `game/` is touched; we import the real kit and mutate no state.
-Headless + deterministic. Output: docs/jester/boss_round_1.png.
+Headless + deterministic. Output: docs/jester/boss_round_2.png.
 
     PYTHONPATH=. python tools/render_jester_boss.py
 """
@@ -83,66 +96,131 @@ def corrupt_palette(hue, **kw):
 
 
 # ── ominous body aura (the danger telegraph) ─────────────────────────────────
-# A layered radial glow BEHIND the whole figure plus a few floating embers. The
-# core reads on VALUE (a dark vignette ring that darkens the sky behind the boss)
-# so the menace survives any sky, with an additive coloured bloom on top for the
-# "corruption" colour pop. `breathe` pulses it so the aura looks alive.
+# Round 2 rebuild. The aura is grown FROM the boss's own SILHOUETTE so the boss
+# LOOMS OUT OF SHADOW instead of being haloed by a bright disc:
+#   1. DARK CORE — the silhouette is dilated and stamped DARK (deeper than the
+#      sky) behind the figure, so the body reads as shadow against the day sky.
+#   2. EDGE RIM — a saturated danger-colour ring hugs the silhouette edge and
+#      falls off OUTWARD into smoke; this rim is the legibility carrier that
+#      keeps the dark figure crisp. Brightest at the edge, never at the centre.
+#   3. SMOKE + EMBERS — low-alpha smoke wisps lick up off the shoulders/cap and
+#      a few additive embers drift, so it telegraphs DANGER (smoke), not HOLY
+#      (a clean radial glow). `breathe` pulses everything so the aura is alive.
 
-def body_aura(surf, cx, cy, radius, hue, breathe, *, dark=(8, 4, 12),
-              embers=True, seed=0):
-    """Paint a breathing corruption halo centred on the boss torso. Two passes:
-    an ALPHA dark→hue vignette (reads on value, telegraphs "danger" on any sky),
-    then an additive coloured bloom for the glow, then drifting ember sparks."""
-    size = radius * 2 + 4
-    s = pygame.Surface((size, size), pygame.SRCALPHA)
-    c = radius + 2
-    # Dark→hue alpha vignette. Outer edge is the deep danger dark fading to
-    # nothing; the body of the halo carries the version hue. Drawn large→small so
-    # inner rings overpaint, feathering each band into the next.
-    stops = [
-        (1.00, dark, 0),
-        (0.86, dark, 150),
-        (0.62, hue, 165),
-        (0.40, hue, 120),
-        (0.20, _shade(hue, 60), 70),
-    ]
-    for t_out, col, a_in in stops:
-        r = max(1, int(radius * t_out))
-        steps = max(4, r // 5)
-        for k in range(steps):
-            rr = int(r * (1 - k / steps))
-            if rr < 1:
-                break
-            a = int(a_in * (k / steps) ** 0.5)
-            a = min(255, int(a * (0.80 + 0.20 * breathe)))
-            pygame.draw.circle(s, (*col, a), (c, c), rr)
-    surf.blit(s, (cx - c, cy - c))
-    # Additive coloured bloom layered on top so the corruption hue GLOWS (pops
-    # off the value vignette without washing it flat).
-    blit_glow(surf, cx, cy, int(radius * 0.62 * (1.0 + 0.06 * breathe)),
-              _shade(hue, 70), alpha=46 + int(26 * breathe))
+def _silhouette_mask(fig):
+    """Binary-ish silhouette: the figure's own alpha, hard-thresholded, used as
+    the seed shape the dark core + rim grow out of (so the aura hugs the BODY,
+    not a circle)."""
+    mask = pygame.mask.from_surface(fig, 40)
+    sil = mask.to_surface(setcolor=(255, 255, 255, 255),
+                          unsetcolor=(0, 0, 0, 0))
+    return sil
+
+
+def _grow(sil, px):
+    """Cheap silhouette dilation: stamp the shape offset in a ring of directions
+    so a fattened copy comes back. Used to push the dark core + rim OUTSIDE the
+    body edge without a per-pixel morphology pass."""
+    w, h = sil.get_size()
+    out = pygame.Surface((w, h), pygame.SRCALPHA)
+    for ang in range(0, 360, 30):
+        dx = int(round(math.cos(math.radians(ang)) * px))
+        dy = int(round(math.sin(math.radians(ang)) * px))
+        out.blit(sil, (dx, dy))
+    out.blit(sil, (0, 0))
+    return out
+
+
+def silhouette_aura(big, fig_big, cx, cy, hue, breathe, *, dark=(8, 4, 12),
+                    rim=None, embers=True, smoke=True, seed=0, scl=1.0,
+                    bulk=1.0):
+    """Paint the ominous aura BEHIND the already-scaled figure `fig_big`, derived
+    from its silhouette. `big` is the supersampled scene; `fig_big` is the boss
+    layer at panel size; (cx, cy) is the torso centre on `big` in supersample px.
+    `scl` carries the supersample factor (so the rim stays crisp); `bulk` is a
+    mild figure-scale nudge (bigger boss → slightly bigger shadow). `rim` is the
+    saturated edge colour (defaults to a lifted `hue`)."""
+    rim = rim or _shade(hue, 70)
+    sil = _silhouette_mask(fig_big)
+    u = scl * bulk                                # one tuned unit ≈ 1px at 1x
+
+    # 1. DARK CORE — a dilated silhouette stamped a deep danger-dark, blurred soft,
+    # so the sky directly behind/around the boss goes DARKER than the surrounding
+    # day. This is what makes the figure read as shadow looming out of the light.
+    dk = pygame.Surface(fig_big.get_size(), pygame.SRCALPHA)
+    for gpx, a in ((11, 90), (7, 150), (4, 205), (2, 240)):
+        layer_a = int(a * (0.85 + 0.15 * breathe))
+        blob = _grow(sil, int(gpx * u))
+        tint = pygame.Surface(blob.get_size(), pygame.SRCALPHA)
+        tint.fill((*dark, layer_a))
+        tint.blit(blob, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        dk.blit(tint, (0, 0))
+    big.blit(_softscale(dk), (0, 0))
+
+    # 2. EDGE RIM — the bright danger ring. Stamp the silhouette grown by a small
+    # ring radius, subtract the body itself, and what's left is a band hugging the
+    # edge. Three bands (tight bright → wide soft) feather it outward into smoke;
+    # this rim is the legibility carrier that keeps the dark figure crisp.
+    rim_col = rim
+    for grow_px, base_a, lift in ((2, 215, 80), (5, 130, 35), (10, 60, 0)):
+        band = _grow(sil, max(1, int(grow_px * scl)))
+        hole = pygame.Surface(band.get_size(), pygame.SRCALPHA)
+        hole.blit(band, (0, 0))
+        hole.blit(sil, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # punch body
+        ring = pygame.Surface(band.get_size(), pygame.SRCALPHA)
+        a = int(base_a * (0.78 + 0.22 * breathe))
+        ring.fill((*_shade(rim_col, lift), a))
+        ring.blit(hole, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        big.blit(_softscale(ring), (0, 0), special_flags=pygame.BLEND_ADD)
+
+    # 3. SMOKE wisps licking UP off the shoulders/cap — low-alpha violet/black
+    # tongues so the silhouette frays into danger, not a clean halo.
+    rng = __import__('random').Random(seed * 6151 + 11)
+    if smoke:
+        smoke_col = lerp_color(dark, hue, 0.5)
+        sw = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+        for i in range(5):
+            ox = cx + int(rng.uniform(-30, 30) * scl)
+            oy = cy - int(rng.uniform(20, 54) * scl)
+            puff_r = int(rng.uniform(12, 22) * scl)
+            climb = int(((breathe * 18 + i * 7) % 26) * scl)
+            for k in range(4):
+                rr = puff_r - k * (puff_r // 5)
+                if rr < 2:
+                    break
+                a = int((34 + 16 * breathe) * (1 - k / 4))
+                pygame.draw.circle(sw, (*smoke_col, a),
+                                   (ox + rng.randint(-4, 4),
+                                    oy - climb - k * int(6 * scl)), rr)
+        big.blit(sw, (0, 0))
 
     if not embers:
         return
-    # A few floating ember/spark particles rising out of the aura — the boss is
-    # smouldering. Deterministic angles/radii per `seed` so the sheet is stable.
-    rng = __import__('random').Random(seed * 977 + 3)
+    # A few floating embers rising out of the aura — the boss is smouldering.
     ember_col = _shade(hue, 120)
-    for i in range(7):
+    for i in range(8):
         a0 = rng.uniform(0, math.tau)
-        rad = radius * rng.uniform(0.45, 0.92)
+        rad = rng.uniform(22, 58) * scl
         drift = breathe * 8 + i * 3
         ex = int(cx + math.cos(a0) * rad)
-        ey = int(cy + math.sin(a0) * rad * 0.82) - int(drift % 14)
+        ey = int(cy + math.sin(a0) * rad * 0.86) - int((drift % 16) * scl)
         tw = 0.5 + 0.5 * math.sin(breathe * 6.0 + i * 1.7)
-        sz = 2 + int(2 * tw)
+        sz = max(2, int((2 + 2 * tw) * scl))
         spark = pygame.Surface((sz * 4, sz * 4), pygame.SRCALPHA)
         al = int(120 + 120 * tw)
         pygame.draw.circle(spark, (*ember_col, al), (sz * 2, sz * 2), sz)
         pygame.draw.circle(spark, (255, 240, 220, al), (sz * 2, sz * 2),
                            max(1, sz // 2))
-        surf.blit(spark, (ex - sz * 2, ey - sz * 2),
-                  special_flags=pygame.BLEND_ADD)
+        big.blit(spark, (ex - sz * 2, ey - sz * 2),
+                 special_flags=pygame.BLEND_ADD)
+
+
+def _softscale(surf):
+    """Soften a mask-derived layer by down/up bouncing it, cheaply blurring the
+    hard dilation edges so the dark core + rim feather instead of stairstepping."""
+    w, h = surf.get_size()
+    small = pygame.transform.smoothscale(surf, (max(1, w // 6), max(1, h // 6)))
+    return pygame.transform.smoothscale(small, (w, h))
 
 
 # ── the MEAN boss face (overrides the friendly #13 face) ─────────────────────
@@ -291,33 +369,81 @@ def cap_crown(surf, cx, base_y, hr, cols):
 # Mirrors render_jester_variants._draw_tilted_head but routes through menace_face
 # instead of the friendly naughty_face, and lets each version override the cap.
 
+def _shadow_eyes(surf, cx, hy, hr, glow_col):
+    """Wraith face: NO lit features — only two cold glowing pinpoint eyes burning
+    out of a head already sunk in shadow. Silhouette + eyes carry the read."""
+    ex = max(6, hr // 2)
+    for s in (-1, 1):
+        x = cx + s * ex
+        blit_glow(surf, x, hy, 9, glow_col, alpha=190)
+        pygame.draw.circle(surf, glow_col, (x - 2, hy), 2)
+        pygame.draw.circle(surf, (255, 255, 255), (x - 2, hy), 1)
+
+
 def _draw_boss_head(surf, cx, cy, hr, skin, cap_fn, cap_cols, tilt_deg,
-                    *, nose_col, glow_col, fang_xtra=0, narrow_eyes=False):
+                    *, nose_col, glow_col, fang_xtra=0, narrow_eyes=False,
+                    shadow_face=False):
     pad = 80
     scratch = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     sx, sy = pad, pad
     _round_head(scratch, sx, sy, hr, skin, blush=False)
     cap_fn(scratch, sx, sy - hr + 7, hr, cap_cols)
-    menace_face(scratch, sx, sy, hr, nose_col=nose_col, glow_col=glow_col,
-                fang_xtra=fang_xtra, narrow_eyes=narrow_eyes)
+    if shadow_face:
+        # Sink the whole head into shadow (a dark wash clipped to the head disc)
+        # so it reads as a near-silhouette, THEN burn the cold eyes on top — the
+        # wraith is a shape with two glowing eyes, not a lit grey clown.
+        veil = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
+        pygame.draw.circle(veil, (6, 6, 12, 215), (sx, sy), hr + 1)
+        scratch.blit(veil, (0, 0))
+        _shadow_eyes(scratch, sx, sy, hr, glow_col)
+    else:
+        menace_face(scratch, sx, sy, hr, nose_col=nose_col, glow_col=glow_col,
+                    fang_xtra=fang_xtra, narrow_eyes=narrow_eyes)
     rot = pygame.transform.rotate(scratch, tilt_deg)
     surf.blit(rot, (cx - rot.get_width() // 2, cy - rot.get_height() // 2))
 
 
+def _broad_shoulders(surf, cx, hip_y, dark, light, gold, *, span, hunch):
+    """Slabs of extra deltoid mass for the BRUTE: two heavy quartered shoulder
+    plates bulging out past the collar, with a hunched neck-hump between them, so
+    the silhouette reads as a wide brawler — not just a taller #13."""
+    sh_y = hip_y - 56
+    for s in (-1, 1):
+        ox = cx + s * span
+        plate = [(cx + s * 6, sh_y - 6), (ox, sh_y - hunch),
+                 (ox + s * 3, sh_y + 16), (cx + s * 8, sh_y + 20)]
+        pygame.draw.polygon(surf, _shade(dark, -18), plate)
+        pygame.draw.polygon(surf, _shade(dark, -55), plate, 2)
+        # Quartered lime wedge so the plate stays harlequin, not a blank slab.
+        wedge = [(ox, sh_y - hunch), (ox + s * 3, sh_y + 16),
+                 (cx + s * 9, sh_y + 6)]
+        pygame.draw.polygon(surf, _shade(light, -28), wedge)
+        _bell(surf, ox + s * 1, sh_y - hunch + 2, r=3, col=_shade(gold, -10))
+    # Hunched trapezius hump rising between the shoulders behind the neck.
+    hump = [(cx - span + 6, sh_y - 4), (cx, sh_y - hunch - 8),
+            (cx + span - 6, sh_y - 4)]
+    pygame.draw.polygon(surf, _shade(dark, -30), hump)
+
+
 def build_boss(surf, cx, feet_y, hand_up, *, dark, light, gold, cap_fn,
                glow_col, nose_col=(150, 30, 30), fang_xtra=0,
-               narrow_eyes=False, skin=(214, 168, 150)):
+               narrow_eyes=False, skin=(214, 168, 150), shadow_face=False,
+               mass=1.0, lean=0.0, head_extra_tilt=0):
     """Draw the EVOLVED boss jester: the approved chunky body/pose from
     build_jester, but with the costume's HEAD swapped for the menace head. We
     reuse build_jester for everything from the neck down (so the body, pose,
     collar, costume, harlequin legs and presenting arms are pixel-family with
     #13), then OVER-draw the boss head on top with the mean glowing face + the
     version cap. `skin` is dulled toward a corpse-grey so the face reads corrupted.
-    """
+    `mass` widens the torso (Brute brawler); `lean` shears the upper body off
+    vertical (Corrupted's broken/unstable posture); `head_extra_tilt` cocks the
+    head further. Everything is drawn to a scratch so mass/lean can transform the
+    whole figure before it lands on `surf`, keeping the feet planted."""
+    scratch = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
     # Body, pose, collar, costume, legs, arms — straight from the approved kit so
     # the boss is unmistakably the same jester. Its friendly head is then painted
     # OVER by the menace head below (same head seat math as build_jester).
-    build_jester(surf, cx, feet_y, hand_up, dark=dark, light=light, gold=gold,
+    build_jester(scratch, cx, feet_y, hand_up, dark=dark, light=light, gold=gold,
                  cap_fn=cap_four_point, motif="quartered", collar="scalloped",
                  variant="browcock", collar_in_gold=True, skin=skin,
                  nose_col=nose_col)
@@ -331,9 +457,34 @@ def build_boss(surf, cx, feet_y, hand_up, *, dark, light, gold, cap_fn,
     head_cx = hip_cx - 4
     hy_center = neck_y - hr
     cap_cols = (dark, light, gold, dark)
-    _draw_boss_head(surf, head_cx, hy_center, hr, skin, cap_fn, cap_cols, -8,
-                    nose_col=nose_col, glow_col=glow_col, fang_xtra=fang_xtra,
-                    narrow_eyes=narrow_eyes)
+    if mass > 1.02:
+        _broad_shoulders(scratch, hip_cx, hip_y, dark, light, gold,
+                         span=int(26 * mass), hunch=int(22 * mass))
+    _draw_boss_head(scratch, head_cx, hy_center, hr, skin, cap_fn, cap_cols,
+                    -8 + head_extra_tilt, nose_col=nose_col, glow_col=glow_col,
+                    fang_xtra=fang_xtra, narrow_eyes=narrow_eyes,
+                    shadow_face=shadow_face)
+
+    # Widen the torso about the centreline for the Brute's brawler mass, and shear
+    # the upper body off vertical for the Corrupted's broken stance — both pivot
+    # about the FEET so the boss stays planted while the bulk/lean grows upward.
+    if mass > 1.02 or abs(lean) > 0.001:
+        if mass > 1.02:
+            w = int(PANEL_W * mass)
+            wide = pygame.transform.smoothscale(scratch, (w, PANEL_H))
+            scratch = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
+            scratch.blit(wide, (int(cx - cx * mass), 0))
+        if abs(lean) > 0.001:
+            sheared = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
+            for y in range(0, feet_y, 2):
+                # Top of the body shifts most; nothing below the feet shifts.
+                t = max(0.0, (feet_y - y) / float(feet_y))
+                dx = int(lean * 48 * (t ** 1.6))
+                sheared.blit(scratch, (dx, y), (0, y, PANEL_W, 2))
+            sheared.blit(scratch, (0, feet_y), (0, feet_y, PANEL_W,
+                                                PANEL_H - feet_y))
+            scratch = sheared
+    surf.blit(scratch, (0, 0))
 
 
 # ── the five evolved bosses ──────────────────────────────────────────────────
@@ -348,42 +499,61 @@ SMOKE = (40, 36, 52)
 PURPLE = (96, 36, 168)
 
 BOSSES = [
-    # 1 — THE BRUTE: bulked + hunched, deep-red corrupted palette, red glowing
-    # eyes, dark-red body aura. The widest, most looming silhouette.
-    dict(name="The Brute", vibe="bigger · hunched · dark-red aura · red eyes",
-         pal=corrupt_palette(CRIMSON, deep=0.40, desat=0.30, tint=0.34),
-         aura_hue=(150, 20, 20), aura_dark=(20, 4, 6), glow=(255, 70, 50),
-         cap=cap_four_point, scale=1.46, fang_xtra=2),
-    # 2 — THE CORRUPTED: violet-black corruption, eerie magenta eye-glow, sharper
-    # teeth (extra-jagged grin reads via the bigger fangs). Cracked-seam palette.
+    # 1 — THE BRUTE (round 2: was weakest — now the BIGGEST + MEANEST mass): real
+    # brawler bulk via `mass` (broad quartered shoulder plates + a hunched neck-
+    # hump), the tallest `scale`, a hard down-V scowl with long fangs. Dark-RED
+    # ominous aura: deep crimson-black core, crimson edge rim, red embers.
+    dict(name="The Brute",
+         vibe="brawler mass · hunched · DARK-RED rim aura · snarl",
+         pal=corrupt_palette(CRIMSON, deep=0.40, desat=0.28, tint=0.36),
+         aura_hue=(200, 30, 36), aura_dark=(26, 6, 10), rim=(200, 30, 46),
+         glow=(255, 70, 50), cap=cap_four_point, scale=1.52, fang_xtra=3,
+         mass=1.22, head_tilt=-3),
+    # 2 — THE CORRUPTED (round 2: now UNSTABLE + BROKEN, differentiated from the
+    # upright King): an off-vertical `lean` so the posture reads wrong/glitched,
+    # bright glowing seam-tears, magenta eye-glow. Magenta/violet-black rim aura.
     dict(name="The Corrupted",
-         vibe="violet-black corruption · magenta glow · seams",
-         pal=corrupt_palette(VIOLET, deep=0.34, desat=0.46, tint=0.40),
-         aura_hue=(120, 24, 150), aura_dark=(14, 4, 18), glow=(236, 70, 230),
-         cap=cap_four_point, scale=1.34, fang_xtra=1, seams=True),
-    # 3 — THE DEMON JESTER: small horns through the cap, fiery red/orange aura,
-    # glowing YELLOW eyes, prominent long fangs.
+         vibe="ASYMMETRIC broken stance · glitch seams · magenta rim",
+         pal=corrupt_palette(VIOLET, deep=0.34, desat=0.46, tint=0.42),
+         aura_hue=(150, 24, 168), aura_dark=(18, 4, 24), rim=(214, 40, 220),
+         glow=(244, 80, 240), cap=cap_four_point, scale=1.36, fang_xtra=1,
+         seams=True, lean=0.40, head_tilt=-6),
+    # 3 — THE DEMON JESTER (round 2: best face kept — fangs + yellow eye-glow —
+    # but PLUM/LIME pulled back so it stops drifting olive/khaki): lighter deepen
+    # + a plum/lime re-tint pass on top of the fire corruption. Fiery orange-red
+    # rim aura, glowing yellow eyes, the longest fangs.
     dict(name="The Demon Jester",
-         vibe="horns · fiery aura · yellow eyes · long fangs",
-         pal=corrupt_palette(FIRE, deep=0.30, desat=0.24, tint=0.30),
-         aura_hue=(214, 70, 16), aura_dark=(22, 6, 2), glow=(255, 206, 40),
-         cap=cap_demon, scale=1.38, fang_xtra=4),
-    # 4 — THE SHADOW WRAITH: darkened near-silhouette, cold smoky-black aura,
-    # hollow glowing eyes. Ominous + quiet (no embers — it's still).
+         vibe="horns · PLUM/LIME + fiery rim · yellow eyes · long fangs",
+         pal={"dark": lerp_color(corrupt(BASE["dark"], FIRE, deep=0.22,
+                                         desat=0.16, tint=0.22), VIOLET, 0.30),
+              "light": lerp_color(corrupt(BASE["light"], FIRE, deep=0.16,
+                                          desat=0.14, tint=0.18),
+                                  (132, 218, 116), 0.34),
+              "gold": corrupt(BASE["gold"], FIRE, deep=0.18, desat=0.10,
+                              tint=0.20)},
+         aura_hue=(232, 92, 18), aura_dark=(30, 8, 4), rim=(248, 120, 30),
+         glow=(255, 206, 40), cap=cap_demon, scale=1.40, fang_xtra=5),
+    # 4 — THE SHADOW WRAITH (round 2: face DROPPED INTO SHADOW — only the eyes
+    # glow): `shadow_face` sinks the head to a near-silhouette and burns two cold
+    # violet/cyan pinpoints; no lit clown face. Cold smoky-black rim aura with
+    # cool embers (it smoulders cold, not warm).
     dict(name="The Shadow Wraith",
-         vibe="near-silhouette · cold smoke · hollow eyes",
-         pal=corrupt_palette(SMOKE, deep=0.62, desat=0.62, tint=0.45),
-         aura_hue=(44, 40, 64), aura_dark=(4, 4, 8), glow=(120, 200, 220),
-         cap=cap_four_point, scale=1.40, narrow_eyes=True, embers=False,
-         skin=(150, 140, 150)),
-    # 5 — THE GENIE KING (boss): regal dark-gold menace, taller crown cap,
-    # commanding purple aura, a sly evil grin. The climactic hard-route boss.
+         vibe="face IN SHADOW · only eyes glow · cold smoke rim",
+         pal=corrupt_palette(SMOKE, deep=0.66, desat=0.60, tint=0.50),
+         aura_hue=(60, 56, 92), aura_dark=(4, 4, 10), rim=(96, 150, 200),
+         glow=(150, 220, 255), cap=cap_four_point, scale=1.42,
+         shadow_face=True, embers=True, skin=(120, 116, 132), head_tilt=2),
+    # 5 — THE GENIE KING (round 2: UPRIGHT + GOLD-HEAVY + CROWNED, differentiated
+    # from the Corrupted): no lean, the crown cap, a gold-lifted regal palette and
+    # a commanding royal-VIOLET rim aura. The climactic hard-route boss — regal,
+    # not broken.
     dict(name="The Genie King",
-         vibe="crown · commanding purple aura · regal menace",
-         pal={**corrupt_palette(PURPLE, deep=0.30, desat=0.26, tint=0.30),
-              "gold": (212, 158, 40)},
-         aura_hue=(108, 36, 188), aura_dark=(12, 4, 24), glow=(210, 120, 255),
-         cap=cap_crown, scale=1.42, fang_xtra=1),
+         vibe="UPRIGHT · gold-heavy · CROWNED · royal-violet rim",
+         pal={**corrupt_palette(PURPLE, deep=0.26, desat=0.22, tint=0.28),
+              "gold": (236, 184, 56)},
+         aura_hue=(120, 44, 206), aura_dark=(16, 6, 30), rim=(176, 96, 244),
+         glow=(214, 130, 255), cap=cap_crown, scale=1.44, fang_xtra=1,
+         head_tilt=-2),
 ]
 
 
@@ -473,16 +643,7 @@ def render_boss(spec, idx):
     die_base_y = 36
 
     breathe = 0.5 + 0.5 * math.sin((idx * 1.7 + 2.0) * 1.3)
-
-    # OMINOUS BODY AURA first, behind the figure — centred on the torso, scaled
-    # with the boss so the bigger bosses carry a bigger halo. Drawn straight onto
-    # the supersampled `big` so the soft radial falloff stays smooth.
     scale = spec["scale"]
-    torso_x = int(jester_cx * SS)
-    torso_y = int((FEET_Y - 64) * SS)
-    aura_r = int(96 * scale * SS)
-    body_aura(big, torso_x, torso_y, aura_r, spec["aura_hue"], breathe,
-              dark=spec["aura_dark"], embers=spec.get("embers", True), seed=idx)
 
     # The boss FIGURE on its own transparent layer so we can scale it UP (bigger
     # = more menacing) while the parrot + die stay at base size. Feet are seated
@@ -496,25 +657,43 @@ def render_boss(spec, idx):
                cap_fn=spec["cap"], glow_col=spec["glow"],
                fang_xtra=spec.get("fang_xtra", 0),
                narrow_eyes=spec.get("narrow_eyes", False),
-               skin=spec.get("skin", (214, 168, 150)))
+               skin=spec.get("skin", (214, 168, 150)),
+               shadow_face=spec.get("shadow_face", False),
+               mass=spec.get("mass", 1.0), lean=spec.get("lean", 0.0),
+               head_extra_tilt=spec.get("head_tilt", 0))
     if spec.get("seams"):
         _add_seams(fig, jester_cx, base_feet, spec["glow"])
 
-    # Scale the figure layer up ABOUT THE FEET so the boss looms taller/broader
-    # but stays planted on the ground line. Anchor the scaled surface so the feet
-    # pixel-column stays put and the extra height grows UPWARD.
+    # Place the boss onto a PANEL-sized layer at its final scaled size + position
+    # (scaled ABOUT THE FEET so it looms taller/broader yet stays planted on the
+    # ground line). We need this composited layer FIRST because the ominous aura
+    # is grown out of the boss's own SILHOUETTE — so it edge-lights the BODY, not
+    # a circle. Round-1's bright circular disc read holy; this reads as shadow.
     sw, sh = int(PANEL_W * scale), int(PANEL_H * scale)
     fig_big = pygame.transform.smoothscale(fig, (sw, sh))
     off_x = int(jester_cx - jester_cx * scale)
     off_y = int(base_feet - base_feet * scale)
-    layer.blit(fig_big, (off_x, off_y))
+    boss_layer = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
+    boss_layer.blit(fig_big, (off_x, off_y))
 
-    # The route DIE + its yellow aura, unchanged, floating upper-left at BASE
-    # scale (the offer the boss presents is identical to #13's).
-    draw_cupped_die(layer, die_x, die_base_y, idx * 1.7 + 2.0)
-    _blit_parrot(layer)
+    # Supersample-resolution silhouette of just-the-boss drives the aura on the
+    # smooth `big` surface. Torso centre (in supersample px) seeds smoke/embers.
+    boss_ss = pygame.transform.smoothscale(boss_layer, (bw, bh))
+    torso_x = int(jester_cx * SS)
+    torso_y = int((FEET_Y - 70) * SS)
+    silhouette_aura(big, boss_ss, torso_x, torso_y, spec["aura_hue"], breathe,
+                    dark=spec["aura_dark"], rim=spec.get("rim"),
+                    embers=spec.get("embers", True),
+                    smoke=spec.get("smoke", True), seed=idx, scl=SS,
+                    bulk=0.85 + 0.35 * scale)
 
-    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    # Boss over its own aura, then the route DIE + its yellow aura (unchanged, at
+    # BASE scale — the offer is identical to #13's) and the un-scaled parrot.
+    big.blit(boss_ss, (0, 0))
+    overlay = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
+    draw_cupped_die(overlay, die_x, die_base_y, idx * 1.7 + 2.0)
+    _blit_parrot(overlay)
+    big.blit(pygame.transform.smoothscale(overlay, (bw, bh)), (0, 0))
     return pygame.transform.smoothscale(big, (PANEL_W, PANEL_H))
 
 
@@ -573,25 +752,28 @@ def main():
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
     title = f_title.render(
-        "DICE JESTER — EVOLVED BOSS form (round 1)", True, (252, 226, 226))
+        "DICE JESTER — EVOLVED BOSS form (round 2)", True, (252, 226, 226))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "Panel 0 = the approved FRIENDLY #13 (easy route). Panels 1-5 = the "
-        "MEANER, LARGER boss who offers a MUCH HARDER route — each bulked + "
-        "looming (parrot kept at the SAME size for scale), with a glowing-eye "
-        "fanged menace face, an ominous breathing BODY AURA + embers, and a "
-        "corrupted plum/lime/gold palette. Still presents the route die.",
+        "Round 2 — INVERTED the aura: the boss now LOOMS OUT OF SHADOW. The aura "
+        "is grown from the boss's own SILHOUETTE — a DARK crimson/bruise core "
+        "(deeper than the sky) + a saturated danger-colour EDGE RIM + smoke "
+        "wisps + embers — never a bright disc. Brute = brawler mass + snarl; "
+        "Corrupted = broken/asymmetric + glitch-seams; Demon = plum/lime + fiery "
+        "fangs; Wraith = face in shadow, only eyes glow; King = upright, gold, "
+        "crowned. Parrot kept the SAME size for scale. Still presents the die.",
         True, (196, 190, 200))
     canvas.blit(sub, (PAD, PAD + 54))
 
     y0 = PAD + TITLE_H
-    strongest = None
+    strong_cells = {}
+    STRONG = {2, 3, 5}            # the three to push: Corrupted, Demon, King
     for i, cell in enumerate(cells):
         r, c = divmod(i, cols)
         cx = PAD + c * (sw + GAP)
         cy = y0 + r * (sh + CAP_H + GAP)
         scaled = pygame.transform.smoothscale(cell, (sw, sh))
-        border = (210, 60, 60) if i == 4 else (70, 60, 80)  # ring the strongest
+        border = (210, 60, 60) if i in STRONG else (70, 60, 80)
         pygame.draw.rect(canvas, border,
                          pygame.Rect(cx - 2, cy - 2, sw + 4, sh + 4), 2)
         canvas.blit(scaled, (cx, cy))
@@ -601,29 +783,38 @@ def main():
         canvas.blit(cap, (cx + (sw - cap.get_width()) // 2, cy + sh + 8))
         sub2 = f_caps.render(vibe, True, (190, 184, 196))
         canvas.blit(sub2, (cx + (sw - sub2.get_width()) // 2, cy + sh + 42))
-        if i == 5:
-            strongest = cell      # the Genie King — the climactic boss
+        if i in (3, 5):
+            strong_cells[i] = cell    # Demon + King — the 1x validation gate
 
-    # 1x inset proving the strongest evolved boss reads at in-game scale.
-    if strongest is not None:
-        foot_y = y0 + rows * (sh + CAP_H) + (rows - 1) * GAP + 16
-        ix = PAD
+    # TWO 1x insets — the aura-inversion validation GATE. At in-game scale each
+    # strong boss must read as a DARK looming silhouette rimmed in danger-colour
+    # (NOT a light disc). Demon (fiery) + King (royal-violet) shown side by side.
+    foot_y = y0 + rows * (sh + CAP_H) + (rows - 1) * GAP + 16
+    cap_intro = f_cap.render(
+        "1x in-game scale — does it read DARK + ominous (not holy)?",
+        True, (236, 196, 196))
+    canvas.blit(cap_intro, (PAD, foot_y - 4))
+    iy = foot_y + 40
+    for n, (idx_s, label) in enumerate((
+            (3, "The Demon Jester — fiery rim, plum/lime, fangs"),
+            (5, "The Genie King — royal-violet rim, crowned"))):
+        cell = strong_cells.get(idx_s)
+        if cell is None:
+            continue
+        ix = PAD + n * (PANEL_W + 200)
         pygame.draw.rect(canvas, (210, 60, 60),
-                         pygame.Rect(ix - 2, foot_y - 2, PANEL_W + 4,
+                         pygame.Rect(ix - 2, iy - 2, PANEL_W + 4,
                                      PANEL_H + 4), 2)
-        canvas.blit(strongest, (ix, foot_y))
-        tag = f_cap.render(
-            "1x in-game scale (The Genie King, the climactic hard-route boss) — "
-            "proving the looming silhouette, the breathing dark-purple body aura, "
-            "the crown cap and the glowing-eye fanged menace face still read at "
-            "the size the player meets him.",
-            True, (206, 200, 210))
-        # Wrap the tag across two lines beside the inset.
-        canvas.blit(tag, (ix + PANEL_W + 24, foot_y + PANEL_H // 2 - 14))
+        canvas.blit(cell, (ix, iy))
+        lab = f_caps.render(label, True, (206, 200, 210))
+        canvas.blit(lab, (ix + PANEL_W + 16, iy + PANEL_H // 2 - 30))
+        lab2 = f_caps.render("dark core · edge rim · smoke + embers",
+                             True, (170, 164, 178))
+        canvas.blit(lab2, (ix + PANEL_W + 16, iy + PANEL_H // 2 + 2))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "boss_round_1.png")
+    out_path = os.path.join(out_dir, "boss_round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
