@@ -97,4 +97,22 @@ for ph in (0.58, 0.82):
         zr, zg, zb = zenith_mean(spec, ph)
         print(f"    {nm:42s} zenith RGB=({zr:5.1f},{zg:5.1f},{zb:5.1f}) val={val((zr,zg,zb)):5.1f}")
 
+print("\n=== 3. ENGINE-PATH sunset-vs-night zenith DELTA (invariant: night clearly darker) ===")
+# Sunset peak retimes 0.50->0.37; deep-night 0.72->0.56 holding to 0.82. Sample
+# the live-rendered zenith at both and require night to sit clearly below sunset.
+TARGET = 5.0
+inv_fail = []
+for short, spec in CONCEPTS:
+    if 'live' in short.lower():
+        continue
+    sv = val(zenith_mean(spec, 0.37))
+    nv = val(zenith_mean(spec, 0.58))
+    delta = sv - nv
+    flag = "" if delta >= TARGET else f"  <-- below +{TARGET:.0f} target"
+    print(f"  {short:22s} sunset_zen={sv:5.1f}  night_zen={nv:5.1f}  delta={delta:+6.1f}{flag}")
+    if delta < TARGET:
+        inv_fail.append((short, delta))
+print("  -> " + ("ALL deltas >= +%.0f" % TARGET if not inv_fail
+                  else "PINCHED: " + ", ".join(f"{n}({d:+.1f})" for n, d in inv_fail)))
+
 print("\nDONE")
