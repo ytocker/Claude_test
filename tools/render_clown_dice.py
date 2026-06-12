@@ -33,17 +33,21 @@ from tools.render_warren_mockup import shaped_palette
 DAY_PHASE = 0.05
 
 # Supersample factor: draw each cell at SS x then smoothscale down so every
-# curved clown edge and pip is anti-aliased.
+# curved clown edge and pip is anti-aliased. Kept at the source resolution; the
+# final per-cell display size (sw/sh) is ~2x round 2 so the sheet reads big.
 SS = 2
 
 # Each cell is a TIGHT crop around the figure rather than the full 360x640
 # canvas — the clown should fill ~70-80% of the cell height, not float in a sea
-# of empty sky. We draw the clown in a local viewport this tall.
-VIEW_W = 188
-VIEW_H = 244
+# of empty sky. The viewport carries deliberate UPPER-RIGHT headroom so the
+# offered die floats fully CLEAR of the head silhouette (like a takeable coin /
+# surprise box hovering beside the clown), never occluding the face.
+VIEW_W = 200
+VIEW_H = 256
 # Where the boots meet the ground inside the viewport (leaves a sliver of grass
-# + cast shadow below, with head + die in the upper third).
-VIEW_FEET_Y = VIEW_H - 30
+# + cast shadow below). The figure sits low so the head lands in the middle band
+# and the die can float in the clear upper-right corner.
+VIEW_FEET_Y = VIEW_H - 26
 
 
 # ── small colour helpers (local — never touch game state) ────────────────────
@@ -346,34 +350,39 @@ def _draw_die_face(surf, cx, cy, size, *, pips=None, number=None,
             pygame.draw.circle(surf, _shade(pip_col, 130), (px - 1, py - 1), 1)
 
 
-def draw_floating_die(surf, cx, base_y, pulse, *, show_inset=False):
+def draw_floating_die(surf, cx, base_y, pulse, *, show_inset=False,
+                      halo_boost=0):
     """The complete power-up read: gold glow halo + gently bobbing pip-die +
-    rim light + 4 orbiting sparkles. The die is head-sized so it reads as the
-    clear secondary focal point. `show_inset` adds a tiny rolled-result chip to
-    hint that the die resolves to a route-length number."""
+    rim light + 4 orbiting sparkles. The die floats OFF to one side of the
+    clown, clear of the head — a distinct takeable pickup the player reaches
+    for. `show_inset` adds a tiny rolled-result chip to hint that the die
+    resolves to a route-length number; `halo_boost` strengthens the gold glow
+    for low-contrast clowns (e.g. Pierrot on pale sky)."""
     cy = int(base_y + math.sin(pulse * 1.1) * 3)
     size = 40  # ~ a clown head — a clear secondary focal.
 
     # Warm gold radial glow halo behind the die.
     glow_r = 42
     blit_glow(surf, cx, cy, glow_r, (255, 205, 85),
-              alpha=120 + int(35 * (0.5 + 0.5 * math.sin(pulse * 1.3))))
-    blit_glow(surf, cx, cy, glow_r - 16, (255, 245, 200), alpha=120)
+              alpha=min(255, 120 + halo_boost
+                        + int(35 * (0.5 + 0.5 * math.sin(pulse * 1.3)))))
+    blit_glow(surf, cx, cy, glow_r - 16, (255, 245, 200),
+              alpha=min(255, 120 + halo_boost))
 
     _draw_die_face(surf, cx, cy, size, pips=HERO_PIPS)
 
     # Two-state hint: a small inset chip showing the die has tumbled to a
-    # route-length RESULT — only in flagged cells so the hero die stays a pip die.
+    # route-length RESULT — only in flagged cells so the hero die stays a pip
+    # die. Pushed further out (up-right) so it never crowds the hero die.
     if show_inset:
         ins = 24
-        ix, iy = cx + 30, cy - 26
+        ix, iy = cx + 40, cy - 36
         # Little motion-arc from the hero die to the result chip.
-        for k in range(3):
-            t = k / 3
+        for k in range(4):
+            t = k / 4
             ax = int(cx + (ix - cx) * t)
-            ay = int(cy + (iy - cy) * t) - int(8 * math.sin(t * math.pi))
-            pygame.draw.circle(surf, (255, 240, 190, 0), (ax, ay), 1)
-            pygame.draw.circle(surf, (250, 225, 150), (ax, ay), 2 - k)
+            ay = int(cy + (iy - cy) * t) - int(9 * math.sin(t * math.pi))
+            pygame.draw.circle(surf, (250, 225, 150), (ax, ay), max(1, 3 - k))
         _draw_die_face(surf, ix, iy, ins, number=27,
                        body=(255, 246, 224), pip_col=(190, 70, 40))
 
@@ -423,12 +432,19 @@ def clown_whiteface(surf, cx, feet_y, hand_up):
     _ruff(surf, cx, neck_y, 26, (236, 236, 246), lobes=13)
     hr = 23
     hy = neck_y - hr - 4
-    _round_head(surf, cx, hy, hr, None, white_face=True)
+    _round_head(surf, cx, hy, hr, None, white_face=True, blush=False)
+    # Trends austere otherwise — so give him the MOST blush of the set (big
+    # warm cheek discs) and the widest up-curved grin so he reads unmistakably
+    # playful, never uncanny.
+    for s in (-1, 1):
+        cheek = pygame.Surface((20, 16), pygame.SRCALPHA)
+        pygame.draw.ellipse(cheek, (255, 150, 150, 200), cheek.get_rect())
+        surf.blit(cheek, (cx + s * (hr - 7) - 10, hy + 1))
     _eyes(surf, cx, hy - 2, hr, style="happy")
     for s in (-1, 1):
         pygame.draw.circle(surf, (212, 44, 64), (cx + s * 11, hy - 11), 2)
     _nose(surf, cx, hy + 5, 5, (222, 72, 92))
-    _smile(surf, cx, hy + 11, 18, (200, 50, 70))
+    _smile(surf, cx, hy + 12, 24, (210, 56, 76))
     tip = (cx + 7, hy - hr - 48)
     _facet_body(surf, [(cx - 18, hy - hr + 2), (cx + 18, hy - hr + 2), tip],
                 (44, 74, 178), top_left_lift=55)
@@ -534,11 +550,18 @@ def clown_pierrot(surf, cx, feet_y, hand_up):
     presenting the die."""
     hip_y = feet_y - 98
     SILK = (240, 240, 248)
+    # Pale-on-pale vanished into the sky — paint a soft COOL-BLUE rim down the
+    # whole left silhouette FIRST so the figure separates from the day sky.
+    cool = (150, 192, 240)
+    for pts in ([(cx - 36, hip_y + 14), (cx - 17, hip_y - 54)],):
+        pygame.draw.line(surf, cool, pts[0], pts[1], 4)
     _shoes(surf, cx, feet_y, 15, 28, (236, 236, 242))
     _legs(surf, cx, hip_y, feet_y, 11, 13, (246, 246, 251))
     _facet_body(surf, [(cx - 36, hip_y + 14), (cx + 36, hip_y + 14),
                        (cx + 17, hip_y - 54), (cx - 17, hip_y - 54)],
                 SILK, top_left_lift=18)
+    pygame.draw.line(surf, cool, (cx - 35, hip_y + 12),
+                     (cx - 16, hip_y - 52), 3)  # cool rim over the silk edge
     for i in range(3):
         by = hip_y - 40 + i * 16
         pygame.draw.circle(surf, (44, 44, 60), (cx, by), 5)
@@ -548,10 +571,18 @@ def clown_pierrot(surf, cx, feet_y, hand_up):
     _arm(surf, (cx + 26, hip_y - 50), hand_up, 9, SILK,
          glove=(252, 252, 255), up=True)
     neck_y = hip_y - 54
-    _ruff(surf, cx, neck_y, 24, (250, 250, 255), lobes=13)
+    # One COLOURED accent: a soft cool-blue ruff (instead of pure white) plus a
+    # blue chest pom so he isn't a colourless ghost.
+    _ruff(surf, cx, neck_y, 24, (188, 214, 248), lobes=13)
+    pygame.draw.circle(surf, (96, 150, 224), (cx, hip_y - 8), 6)
+    pygame.draw.circle(surf, (150, 192, 240), (cx - 2, hip_y - 10), 2)
     hr = 23
     hy = neck_y - hr - 4
     _round_head(surf, cx, hy, hr, None, white_face=True, blush=True)
+    # Cool-blue rim down the face's left edge so it reads against pale sky.
+    pygame.draw.arc(surf, (150, 192, 240),
+                    (cx - hr, hy - hr, hr * 2, hr * 2),
+                    math.pi * 0.55, math.pi * 1.35, 2)
     _eyes(surf, cx, hy - 2, hr, style="sad")
     # Single pale teardrop — wistful, not creepy.
     pygame.draw.circle(surf, (120, 180, 235), (cx - 9, hy + 6), 2)
@@ -570,19 +601,27 @@ def clown_harlequin(surf, cx, feet_y, hand_up):
     """Mischievous Harlequin: tight diamond-patch motley, felt bicorne,
     half-mask. The benchmark — kept and scaled up, chunkier, presenting."""
     hip_y = feet_y - 96
-    diamonds = [(212, 52, 72), (250, 200, 62), (62, 142, 172), (92, 172, 92)]
+    # Just TWO bold motley tones in a few LARGE diamonds — high value contrast,
+    # with a lit top-left facet per diamond — instead of a busy fine grid.
+    D_RED, D_GOLD = (208, 48, 70), (250, 198, 60)
 
     def _motley(rect):
         clip = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-        step = 13
+        step = rect.w // 2  # only ~2 columns of big diamonds
         for row in range(-1, rect.h // step + 2):
             for col in range(-1, rect.w // step + 2):
                 dx = col * step + (step // 2 if row % 2 else 0)
                 dy = row * step
-                c = diamonds[(row + col) % len(diamonds)]
+                c = D_RED if (row + col) % 2 else D_GOLD
+                pts = [(dx, dy - step // 2 - 2), (dx + step // 2 + 2, dy),
+                       (dx, dy + step // 2 + 2), (dx - step // 2 - 2, dy)]
+                pygame.draw.polygon(clip, _shade(c, -45), pts)
                 pygame.draw.polygon(clip, c, [
                     (dx, dy - step // 2), (dx + step // 2, dy),
                     (dx, dy + step // 2), (dx - step // 2, dy)])
+                # Lit top-left facet on each diamond for value pop.
+                pygame.draw.polygon(clip, _shade(c, 55), [
+                    (dx, dy - step // 2), (dx, dy), (dx - step // 2, dy)])
         return clip
 
     _shoes(surf, cx, feet_y, 16, 30, (42, 42, 58))
@@ -642,7 +681,9 @@ def clown_jester(surf, cx, feet_y, hand_up):
     body (left/right halves, NO diamonds), an exaggerated three-point belled
     cap, two-tone tights. Capering on one leg, presenting the die."""
     hip_y = feet_y - 92
-    PURPLE, GREEN, GOLD = (122, 62, 172), (72, 168, 98), (250, 205, 72)
+    # Widen the value gap between the two halves — a DEEP plum vs a BRIGHT lime —
+    # so the split reads crisply instead of muddying together.
+    PURPLE, GREEN, GOLD = (86, 38, 138), (126, 214, 110), (250, 205, 72)
     _shoes(surf, cx, feet_y, 14, 26, (200, 62, 72), toe=(250, 210, 100))
     # Two-tone split tights.
     _leg(surf, (cx - 7, hip_y), (cx - 13, feet_y - 9), 12, PURPLE)
@@ -693,20 +734,32 @@ def clown_ringmaster(surf, cx, feet_y, hand_up):
     _legs(surf, cx, hip_y, feet_y, 13, 13, (246, 241, 236))
     _facet_body(surf, [(cx - 28, hip_y + 6), (cx + 28, hip_y + 6),
                        (cx + 20, hip_y - 56), (cx - 20, hip_y - 56)], RED)
+    # Long pointed TAILCOAT tails sweeping down behind the legs — committed hard
+    # so the silhouette is unmistakably a tailcoat, not a generic tunic.
     for s in (-1, 1):
-        _poly(surf, _shade(RED, -28),
-              [(cx + s * 7, hip_y + 4), (cx + s * 24, hip_y + 6),
-               (cx + s * 19, hip_y + 28), (cx + s * 9, hip_y + 22)])
-    # Gold frogging — horizontal braid rungs across the chest.
-    for i in range(4):
-        ry = hip_y - 44 + i * 11
-        pygame.draw.line(surf, GOLD, (cx - 13, ry), (cx + 13, ry), 3)
-        for s in (-1, 1):
-            pygame.draw.circle(surf, GOLD, (cx + s * 13, ry), 3)
+        _poly(surf, _shade(RED, -30),
+              [(cx + s * 6, hip_y + 2), (cx + s * 26, hip_y + 6),
+               (cx + s * 16, hip_y + 40), (cx + s * 7, hip_y + 24)])
+        pygame.draw.line(surf, GOLD, (cx + s * 24, hip_y + 8),
+                         (cx + s * 15, hip_y + 36), 1)
     # White waistcoat V.
     _poly(surf, (245, 240, 232),
           [(cx - 10, hip_y - 50), (cx + 10, hip_y - 50), (cx, hip_y - 10)],
           oc=_shade((245, 240, 232), -50))
+    # Bright diagonal SASH across the chest — the showman read at a glance.
+    SASH = (236, 196, 70)
+    _poly(surf, SASH,
+          [(cx - 22, hip_y - 50), (cx - 14, hip_y - 52),
+           (cx + 22, hip_y + 4), (cx + 14, hip_y + 6)],
+          oc=_shade(SASH, -55))
+    pygame.draw.line(surf, _shade(SASH, 70), (cx - 20, hip_y - 50),
+                     (cx + 18, hip_y + 4), 1)
+    # Gold frogging — horizontal braid rungs across the chest, over the sash.
+    for i in range(4):
+        ry = hip_y - 44 + i * 11
+        pygame.draw.line(surf, GOLD, (cx - 11, ry), (cx + 11, ry), 3)
+        for s in (-1, 1):
+            pygame.draw.circle(surf, GOLD, (cx + s * 11, ry), 3)
     # Gold epaulets on the shoulders.
     for s in (-1, 1):
         pygame.draw.ellipse(surf, GOLD, (cx + s * 24 - 7, hip_y - 52, 14, 9))
@@ -733,12 +786,15 @@ def clown_ringmaster(surf, cx, feet_y, hand_up):
     pygame.draw.arc(surf, (92, 62, 42), (cx, hy + 4, 11, 8), 0, math.pi, 3)
     _nose(surf, cx, hy + 3, 5, (226, 112, 112))
     _smile(surf, cx, hy + 12, 14, (180, 70, 70))
-    pygame.draw.ellipse(surf, (30, 28, 36), (cx - 19, hy - hr - 1, 38, 9))
-    pygame.draw.rect(surf, (36, 33, 44), (cx - 13, hy - hr - 27, 26, 27),
+    # Tall TOP HAT with a wide brim + red hatband — commits the showman read.
+    pygame.draw.ellipse(surf, (26, 24, 32), (cx - 22, hy - hr - 1, 44, 10))
+    pygame.draw.rect(surf, (36, 33, 44), (cx - 14, hy - hr - 36, 28, 36),
                      border_radius=3)
-    pygame.draw.rect(surf, RED, (cx - 13, hy - hr - 9, 26, 6))
-    pygame.draw.rect(surf, _shade((36, 33, 44), 45),
-                     (cx - 11, hy - hr - 24, 5, 20))
+    pygame.draw.ellipse(surf, (44, 40, 52), (cx - 14, hy - hr - 39, 28, 8))
+    pygame.draw.rect(surf, RED, (cx - 14, hy - hr - 12, 28, 7))
+    pygame.draw.circle(surf, GOLD, (cx + 9, hy - hr - 9), 2)
+    pygame.draw.rect(surf, _shade((36, 33, 44), 50),
+                     (cx - 11, hy - hr - 33, 5, 27))
 
 
 def clown_mascot(surf, cx, feet_y, hand_up):
@@ -796,16 +852,36 @@ def clown_rainbow(surf, cx, feet_y, hand_up):
           [(cx - 9, hip_y - 52), (cx + 9, hip_y - 52),
            (cx + 7, hip_y + 6), (cx - 7, hip_y + 6)],
           oc=_shade((244, 246, 250), -45))
-    btn_cols = [(230, 52, 62), (250, 210, 72), (92, 192, 102)]
-    for i, c in enumerate(btn_cols):
-        by = hip_y - 40 + i * 16
+    # Rainbow lives in the trim, not the body: bright POM-POM buttons run the
+    # full spectrum down the placket.
+    RAINBOW = [(232, 52, 62), (245, 150, 60), (250, 212, 72),
+               (92, 192, 102), (72, 140, 224), (150, 86, 200)]
+    for i in range(4):
+        c = RAINBOW[i]
+        by = hip_y - 44 + i * 16
         pygame.draw.circle(surf, _shade(c, -50), (cx, by), 6)
         pygame.draw.circle(surf, c, (cx, by), 5)
-        pygame.draw.circle(surf, _shade(c, 85), (cx - 2, by - 2), 2)
+        pygame.draw.circle(surf, _shade(c, 90), (cx - 2, by - 2), 2)
     _arm(surf, (cx - 28, hip_y - 48), (cx - 38, hip_y - 6), 9, BODY)
     _arm(surf, (cx + 28, hip_y - 50), hand_up, 9, BODY, up=True)
+    # Rainbow CUFFS at both wrists — bright spectrum rings on the gloves.
+    for s, (hx, hy0) in ((-1, (cx - 38, hip_y - 6)), (1, hand_up)):
+        for j, rc in enumerate(RAINBOW[:3]):
+            pygame.draw.circle(surf, rc, (hx, hy0 + 7 + j * 2), 9 - j, 2)
     neck_y = hip_y - 54
-    _ruff(surf, cx, neck_y, 25, (250, 210, 72), lobes=12)
+    # Rainbow RUFF — alternating spectrum scallops earn the "Rainbow" name while
+    # the body stays one dominant blue and the face sits on a clean field.
+    for i in range(12):
+        a = i * math.tau / 12
+        lx = cx + math.cos(a) * 25
+        ly = neck_y + math.sin(a) * 12.5
+        rc = RAINBOW[i % len(RAINBOW)]
+        pygame.draw.circle(surf, _shade(rc, -50), (int(lx), int(ly)), 8)
+        pygame.draw.circle(surf, rc, (int(lx), int(ly)), 7)
+        pygame.draw.circle(surf, _shade(rc, 60),
+                           (int(lx) - 2, int(ly) - 2), 2)
+    pygame.draw.circle(surf, (244, 246, 250), (cx, neck_y), 12)
+    pygame.draw.circle(surf, _shade((244, 246, 250), -35), (cx, neck_y), 12, 1)
     hr = 23
     hy = neck_y - hr - 6
     _round_head(surf, cx, hy, hr, (255, 228, 202))
@@ -947,25 +1023,34 @@ def render_cell(draw_clown, idx, show_inset):
 
     # Figure + die + parrot on a 1x logical layer (simple coords), blitted up.
     layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
-    clown_cx = VIEW_W // 2 + 4
+    # Figure nudged LEFT of centre so the die has clear sky in the upper-right
+    # to float in, fully off the head silhouette.
+    clown_cx = VIEW_W // 2 - 12
     feet_y = VIEW_FEET_Y
     _shadow(layer, clown_cx, feet_y, 96)
 
-    # The die sits in the upper-centre focal slot; the raised hand reaches to it.
-    die_x = clown_cx + 16
-    die_base_y = 44
-    hand_up = (die_x - 22, die_base_y + 20)
+    # The die floats in the clear UPPER-RIGHT corner — well above and to the
+    # side of every clown's head — so it reads as a separate takeable pickup,
+    # never an occluding "dice head". The raised presenting hand reaches up
+    # toward it from below-left (the clown-side base of the die).
+    die_x = clown_cx + 66
+    die_base_y = 46
+    hand_up = (die_x - 26, die_base_y + 32)
     draw_clown(layer, clown_cx, feet_y, hand_up)
 
     pulse = idx * 1.7 + 2.0
-    draw_floating_die(layer, die_x, die_base_y, pulse, show_inset=show_inset)
+    # Boost the gold halo for the pale Pierrot so the die pops off the sky.
+    halo = 70 if idx == 3 else 0
+    draw_floating_die(layer, die_x, die_base_y, pulse, show_inset=show_inset,
+                      halo_boost=halo)
 
-    # Real parrot flying in from the left at mid-height for scale/context.
+    # Real parrot flying in low from the left for scale/context — kept clear of
+    # both the figure and the upper-right die.
     bird = get_parrot(1, 10)
     bird = pygame.transform.smoothscale(
-        bird, (int(bird.get_width() * 0.95), int(bird.get_height() * 0.95)))
-    layer.blit(bird, (24 - bird.get_width() // 2,
-                      (feet_y - 96) - bird.get_height() // 2))
+        bird, (int(bird.get_width() * 0.92), int(bird.get_height() * 0.92)))
+    layer.blit(bird, (22 - bird.get_width() // 2,
+                      (feet_y - 64) - bird.get_height() // 2))
 
     big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
     return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
@@ -977,53 +1062,74 @@ def main():
     pygame.display.set_mode((W, H))
 
     cols, rows = 5, 2
-    # Cells are sized to the tight clown viewport (portraitish), a touch larger
-    # than round 1 so the now-dominant figure reads clearly.
-    sw, sh = int(VIEW_W * 0.95), int(VIEW_H * 0.95)
+    # Look-dev sheet (docs only, never bundled) — render BIG (~2x round 2, cells
+    # ~376px wide) so faceting, rim light and blush actually read. The source
+    # viewport is supersampled then displayed at this larger size.
+    sw, sh = int(VIEW_W * 1.88), int(VIEW_H * 1.88)
 
-    PAD = 26
-    GAP = 14
-    TITLE_H = 56
-    CAP_H = 26
+    PAD = 44
+    GAP = 22
+    TITLE_H = 92
+    CAP_H = 40
+    # Footer band carries the 1x in-game-scale legibility inset.
+    FOOT_H = VIEW_H + 28
 
     canvas_w = PAD * 2 + cols * sw + (cols - 1) * GAP
-    canvas_h = PAD * 2 + TITLE_H + rows * (sh + CAP_H) + (rows - 1) * GAP
+    canvas_h = (PAD * 2 + TITLE_H + rows * (sh + CAP_H) + (rows - 1) * GAP
+                + FOOT_H)
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill((24, 22, 30))
 
-    f_title = pygame.font.SysFont(None, 42, bold=True)
-    f_sub = pygame.font.SysFont(None, 22, bold=True)
-    f_cap = pygame.font.SysFont(None, 24, bold=True)
+    f_title = pygame.font.SysFont(None, 70, bold=True)
+    f_sub = pygame.font.SysFont(None, 34, bold=True)
+    f_cap = pygame.font.SysFont(None, 40, bold=True)
 
     title = f_title.render("DICE CLOWN — pre-warren designs", True,
                            (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "clearing before the Pagoda Warren · the clown OFFERS the die · take it "
-        "to roll the route length · 10 archetypes",
+        "clearing before the Pagoda Warren · the clown OFFERS the die (a "
+        "takeable pickup, off the face) · take it to roll the route length",
         True, (190, 195, 205))
-    canvas.blit(sub, (PAD, PAD + 30))
+    canvas.blit(sub, (PAD, PAD + 50))
 
     # Show the rolled-result INSET in a couple of cells (Auguste, Cute Mascot)
     # to hint the route-length mechanic; the hero die stays pips everywhere.
     inset_cells = {1, 7}
 
     y0 = PAD + TITLE_H
+    mascot_cell = None
     for i, (name, fn) in enumerate(CLOWNS):
         r, c = divmod(i, cols)
         cx = PAD + c * (sw + GAP)
         cy = y0 + r * (sh + CAP_H + GAP)
         cell = render_cell(fn, i, show_inset=(i in inset_cells))
+        if i == 7:  # Cute Mascot — the placement template; keep at 1x for inset.
+            mascot_cell = cell
         scaled = pygame.transform.smoothscale(cell, (sw, sh))
         pygame.draw.rect(canvas, (70, 76, 96),
                          pygame.Rect(cx - 1, cy - 1, sw + 2, sh + 2), 1)
         canvas.blit(scaled, (cx, cy))
         cap = f_cap.render(f"{i + 1}. {name}", True, (235, 225, 165))
-        canvas.blit(cap, (cx + (sw - cap.get_width()) // 2, cy + sh + 4))
+        canvas.blit(cap, (cx + (sw - cap.get_width()) // 2, cy + sh + 6))
+
+    # ONE 1x legibility inset proving the design still reads at in-game scale:
+    # the Cute Mascot cell at its native VIEW_W x VIEW_H, in the footer band.
+    if mascot_cell is not None:
+        foot_y = y0 + rows * (sh + CAP_H) + (rows - 1) * GAP + 14
+        ix = PAD
+        pygame.draw.rect(canvas, (70, 76, 96),
+                         pygame.Rect(ix - 2, foot_y - 2, VIEW_W + 4,
+                                     VIEW_H + 4), 1)
+        canvas.blit(mascot_cell, (ix, foot_y))
+        tag = f_cap.render(
+            "1x in-game scale (Cute Mascot) — die stays a clear takeable "
+            "pickup, fully off the face", True, (200, 206, 216))
+        canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "clown_dice")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
