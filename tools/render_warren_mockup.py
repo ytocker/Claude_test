@@ -83,9 +83,9 @@ def _gentle_sine_tube(x0):
     masonry above and below.
     """
     out, x = [], x0
-    base = 312
-    n = 9
-    for i in range(n):
+    base = 308                                     # apex nudged up ~4px so the
+    n = 9                                          # sunset pinch has symmetric
+    for i in range(n):                             # clear air above and below
         # Cosine crest gives rounded tops/bottoms (no kinked apex) and the
         # per-step delta stays well under one flap's climb.
         cy = base + math.cos(i * 0.62) * 52        # 52 px sweep < DRIFT_MAX
@@ -113,10 +113,14 @@ def _chevron_zigzag(x0):
     each peak instead of kinking. Tight spacing welds the legs into a single
     saw-tooth wall."""
     out, x = [], x0
-    lo, mid, hi = 276, 308, 340               # 64 px swing < drift ceiling
+    # Amplitude pulled in from 64px to 40px swing: the zig now reads as a
+    # gentle characterful wave (still the "challenging" archetype) instead of
+    # a saw-tooth that mimics brick texture. Gap height bumped to 174 so the
+    # channel stays the same generous tube even with the calmer wander.
+    lo, mid, hi = 290, 310, 330               # 40 px swing < drift ceiling
     pattern = [lo, mid, hi, hi, mid, lo, lo, mid, hi]
     for i, cy in enumerate(pattern):
-        out.append((x, cy, 168, 5))                # toji family
+        out.append((x, cy, 174, 5))                # toji family
         x += 76
     return out
 
@@ -149,12 +153,17 @@ def _straight_undulating(x0):
     return out
 
 
+# `dense=True` rows over-read in round 2 as a "brick wall with a slot": their
+# tighter spacing packs more high-frequency masonry on screen. We flag them so
+# the renderer flattens their brick-coursing contrast (one calm recessive wall
+# value) and strengthens the lighter tube-interior band — WITHOUT touching the
+# channel width / passability asserts.
 DESIGNS = [
-    ("Gentle Sine Tube", _gentle_sine_tube),
-    ("Terraced Staircase", _terraced_staircase),
-    ("Chevron Zig-Zag", _chevron_zigzag),
-    ("Woven Offset", _woven_offset),
-    ("Straight Undulating Tunnel", _straight_undulating),
+    ("Gentle Sine Tube", _gentle_sine_tube, False),
+    ("Terraced Staircase", _terraced_staircase, False),
+    ("Chevron Zig-Zag", _chevron_zigzag, True),
+    ("Woven Offset", _woven_offset, True),
+    ("Straight Undulating Tunnel", _straight_undulating, True),
 ]
 
 TIMES = [("DAY", 0.05), ("SUNSET", 0.36), ("NIGHT", 0.64)]
@@ -216,14 +225,36 @@ def _shift(c, dr, dg, db):
             max(0, min(255, c[2] + db)))
 
 
-def shaped_palette(phase):
+def _toward(c, target, t):
+    """Blend colour c a fraction t toward target — used to collapse the brick
+    AO/edge value gap without changing hue families."""
+    return (int(round(c[0] + (target[0] - c[0]) * t)),
+            int(round(c[1] + (target[1] - c[1]) * t)),
+            int(round(c[2] + (target[2] - c[2]) * t)))
+
+
+def shaped_palette(phase, dense=False):
     """A local copy of the biome palette tuned so the carved corridor reads
-    at every time of day. Never mutates the cached biome dict."""
+    at every time of day. Never mutates the cached biome dict.
+
+    `dense=True` flattens the brick-coursing CONTRAST: the dark edge/AO tone
+    (`stone_dark`) is lifted ~35% toward the mid body and the light tone
+    pulled gently down, so the masonry collapses into one calm recessive
+    value instead of a high-frequency lattice. This changes only how the wall
+    READS — the corridor geometry / asserts are untouched."""
     pal = dict(palette_for_phase(phase))
     if 0.30 < phase < 0.45:        # SUNSET — darken + cool the stone
         for k in ('stone_light', 'stone_mid', 'stone_dark', 'stone_accent'):
             r, g, b = pal[k]
             pal[k] = _shift((r, g, b), -28, -14, +8)
+    if dense:
+        mid = pal['stone_mid']
+        # Collapse the AO/edge darkness ~35% toward the body so per-brick
+        # coursing recedes; ease the light tone down a touch so the lit faces
+        # stop sparkling. Net: lower wall contrast, calmer recessive mass.
+        pal['stone_dark'] = _toward(pal['stone_dark'], mid, 0.38)
+        pal['stone_light'] = _toward(pal['stone_light'], mid, 0.20)
+        pal['stone_accent'] = _toward(pal['stone_accent'], mid, 0.22)
     return pal
 
 
@@ -271,13 +302,43 @@ def _channel_polys(pagodas):
     return pts_top, pts_bot
 
 
-def draw_corridor_glow(surf, pagodas, phase):
-    """Subtle INNER glow that reads as light pooling on the carved channel
-    floor — not a pasted ribbon. We feather a soft band hugging the lower
-    wall of the slot, brightest near the floor and fading up, so the route
-    feels lit from inside the passage. SUNSET gets a cooler tint to separate
-    from the warm sky; NIGHT pushes the interior value up so the ROUTE is the
-    brightest thing on screen."""
+def _channel_fill_poly(pts_top, pts_bot):
+    """Closed polygon covering the whole threadable interior (top rim across,
+    bottom rim back) — the negative-space slot, used as a mask boundary."""
+    return pts_top + pts_bot[::-1]
+
+
+def draw_wall_recede(surf, pagodas, palette, phase):
+    """Mat a thin recessive veil over the WALL masonry of dense rows so the
+    brick coursing collapses into one calm value and the corridor becomes the
+    only high-contrast event. We paint a full-cell veil tinted toward the
+    sky/ground value, then punch the channel interior back out so the route
+    keeps its full contrast."""
+    pts_top, pts_bot = _channel_polys(pagodas)
+    veil = pygame.Surface((surf.get_width(), surf.get_height()), pygame.SRCALPHA)
+    # Tint the veil toward the local sky value so walls drift back into the
+    # atmosphere rather than going muddy — keeps the warren airy.
+    if 0.55 < phase < 0.75:           # NIGHT — pull walls toward dim sky-blue
+        tint, a = (40, 52, 80), 70
+    elif 0.30 < phase < 0.45:         # SUNSET — cool the masonry back
+        tint, a = (120, 110, 130), 58
+    else:                              # DAY — gentle haze
+        tint, a = (205, 200, 195), 56
+    veil.fill((*tint, a))
+    # Punch the channel interior fully transparent so only the WALLS recede.
+    interior = _channel_fill_poly(pts_top, pts_bot)
+    if len(interior) >= 3:
+        pygame.draw.polygon(veil, (0, 0, 0, 0), interior)
+    surf.blit(veil, (0, 0))
+
+
+def draw_corridor_glow(surf, pagodas, phase, *, dense=False):
+    """Carve the slot into a TUBE, not a gap: a clear lighter-value interior
+    band hugs BOTH channel walls (top + bottom) so the parrot reads as flying
+    INSIDE a corridor, plus a floor-pooled inner glow for depth. SUNSET gets a
+    cooler tint to separate from the warm sky; NIGHT pushes the interior value
+    up so the ROUTE is the brightest thing on screen. Dense rows get the band
+    pushed brighter/wider so packed walls can't out-read the corridor."""
     pts_top, pts_bot = _channel_polys(pagodas)
     band = pygame.Surface((surf.get_width(), surf.get_height()), pygame.SRCALPHA)
 
@@ -286,23 +347,46 @@ def draw_corridor_glow(surf, pagodas, phase):
         tint = (200, 235, 245)
         layers = 5
         base_a = 18
+        rim_tint, rim_a = (225, 245, 250), 40
     elif 0.55 < phase < 0.75:         # NIGHT — bright moonlit channel floor
         tint = (200, 230, 255)
         layers = 7
         base_a = 26
+        rim_tint, rim_a = (215, 235, 255), 52
     else:                              # DAY — gentle warm pooling
         tint = (255, 248, 210)
         layers = 4
         base_a = 14
+        rim_tint, rim_a = (255, 250, 225), 34
 
-    # Stack progressively thinner polys hugging the floor: each layer fills
-    # from the bottom rim up to a fraction of the channel height, so alpha
-    # accumulates toward the floor — an inner glow, not a flat fill.
+    if dense:
+        # On packed rows the walls compete hardest, so the tube band needs to
+        # win: brighter interior + an extra ~15% value at NIGHT per the brief.
+        base_a += 8
+        rim_a += 14
+
+    # Interior "tube" band hugging BOTH walls: a lit lining a fixed fraction in
+    # from each rim. Lighting both sides (not just the floor) is what turns a
+    # "gap between two objects" into a corridor the bird flies down the middle
+    # of — the single fix for the Woven-Offset 'two walls' read.
+    inset = 0.30                       # band depth as fraction of channel height
+    upper_in = [(xt, yt + (yb - yt) * inset)
+                for (xt, yt), (xb, yb) in zip(pts_top, pts_bot)]
+    lower_in = [(xb, yb - (yb - yt) * inset)
+                for (xt, yt), (xb, yb) in zip(pts_top, pts_bot)]
+    # Top lining: between the top rim and its inset edge.
+    top_band = pts_top + upper_in[::-1]
+    # Bottom lining: between the bottom rim and its inset edge.
+    bot_band = lower_in + pts_bot[::-1]
+    for poly in (top_band, bot_band):
+        if len(poly) >= 3:
+            pygame.draw.polygon(band, (*rim_tint, rim_a), poly)
+
+    # Floor-pooled inner glow: stack progressively thinner polys hugging the
+    # floor so alpha accumulates toward the channel bottom (depth, not a flat
+    # fill).
     for li in range(layers):
         f = (li + 1) / layers            # 1.0 = whole channel, small = near floor
-        # Upper edge of this layer rides 'f' of the way up from the floor rim;
-        # closing back along the floor rim makes each layer a band that hugs
-        # the floor, so stacked alpha brightens toward the channel bottom.
         upper = [(xb, yb + (yt - yb) * f)
                  for (xt, yt), (xb, yb) in zip(pts_top, pts_bot)]
         floor = [(xb, yb) for (xt, yt), (xb, yb)
@@ -314,18 +398,25 @@ def draw_corridor_glow(surf, pagodas, phase):
     surf.blit(band, (0, 0))
 
 
-def draw_rim_light(surf, pagodas, palette):
-    """Cool moonlit rim along the carved channel walls — a 2 px lit edge that
+def draw_rim_light(surf, pagodas, palette, *, dense=False):
+    """Cool moonlit rim along the carved channel walls — a 1-2 px lit edge that
     traces the serrated silhouette so the corridor walls read crisply at
-    NIGHT instead of dissolving into the dark sky."""
+    NIGHT instead of dissolving into the dark sky. On dense rows the wall rim
+    is knocked down (thinner + dimmer) so the bright channel interior, not the
+    serrated wall edge, stays the brightest thing on screen."""
     pts_top, pts_bot = _channel_polys(pagodas)
     rim = palette.get('stone_accent', (200, 225, 255))
     rim = _shift(rim, 0, 6, 20)
+    if dense:
+        rim = _shift(rim, -55, -45, -25)     # dimmer edge on packed walls
+        width = 1
+    else:
+        width = 2
     if len(pts_top) >= 2:
         pygame.draw.lines(surf, rim, False,
-                          [(int(x), int(y)) for x, y in pts_top], 2)
+                          [(int(x), int(y)) for x, y in pts_top], width)
         pygame.draw.lines(surf, rim, False,
-                          [(int(x), int(y)) for x, y in pts_bot], 2)
+                          [(int(x), int(y)) for x, y in pts_bot], width)
 
 
 def draw_flight_path(surf, pagodas):
@@ -369,13 +460,16 @@ def _path_y_at(pagodas, bx):
     return cys[-1]
 
 
-def render_cell(cell_w, cell_h, design_fn, phase, *, highlight=True):
+def render_cell(cell_w, cell_h, design_fn, phase, *, highlight=True,
+                dense=False):
     """One gameplay strip: sky/ground + fused pagoda walls + (optional) carved
     inner glow + parabolic dotted path + the real parrot threading the slot.
 
     `highlight=False` is the structure-check mode: glow, rim-light and path
-    are suppressed so the corridor must read from silhouette alone."""
-    palette = shaped_palette(phase)
+    are suppressed so the corridor must read from silhouette alone.
+    `dense=True` flattens the masonry contrast (recessive wall) and strengthens
+    the tube-interior band, so packed rows read as a corridor not a brick wall."""
+    palette = shaped_palette(phase, dense=dense)
     is_night = 0.55 < phase < 0.75
     surf = pygame.Surface((cell_w, cell_h))
     draw_sky_ground(surf, cell_w, cell_h, palette)
@@ -393,10 +487,16 @@ def render_cell(cell_w, cell_h, design_fn, phase, *, highlight=True):
         draw_pillar_pair(surf, top_rect, bot_rect, palette, seed,
                          phase=phase, is_rush=False, pillar_index=idx + 1)
 
+    # Dense rows get a thin recessive veil matted over the WALL mass only (the
+    # channel interior is cut back out below), settling the high-frequency
+    # coursing into one calm value so the corridor becomes the contrast event.
+    if dense:
+        draw_wall_recede(surf, pagodas, palette, phase)
+
     if highlight:
-        draw_corridor_glow(surf, pagodas, phase)
+        draw_corridor_glow(surf, pagodas, phase, dense=dense)
         if is_night:
-            draw_rim_light(surf, pagodas, palette)
+            draw_rim_light(surf, pagodas, palette, dense=dense)
         draw_flight_path(surf, pagodas)
 
     # Parrot seated ON the path near mid-corridor, with deliberate clear
@@ -423,8 +523,6 @@ def main():
     CELL_W, CELL_H = 960, 640
     SCALE = 0.42                      # shrink wide strips into a tidy grid
     sw, sh = int(CELL_W * SCALE), int(CELL_H * SCALE)
-    # The structure-check strip uses smaller tiles so it stays a compact band.
-    cw, ch = int(sw * 0.78), int(sh * 0.78)
 
     cols = len(TIMES)
     rows = len(DESIGNS)
@@ -437,9 +535,18 @@ def main():
     STRIP_LBL = 24
 
     grid_h = rows * sh + (rows - 1) * GAP
-    strip_h = STRIP_LBL + ch
 
     canvas_w = ROW_LBL + cols * sw + (cols - 1) * GAP + PAD * 2
+    # Structure-check strip: all 5 designs across the full grid span, so the
+    # tile width is the available span / 5 and the height follows the cell
+    # aspect. Reserve the strip's true height in the canvas up front.
+    strip_x0 = PAD + ROW_LBL
+    strip_avail = canvas_w - strip_x0 - PAD
+    scw = (strip_avail - (rows - 1) * GAP) // rows
+    sch = int(scw * CELL_H / CELL_W)
+    CAP_H = 22
+    strip_h = STRIP_LBL + sch + CAP_H
+
     canvas_h = (TITLE_H + COL_LBL + grid_h + STRIP_GAP + strip_h + PAD * 2)
     canvas = pygame.Surface((canvas_w, canvas_h))
     canvas.fill((22, 24, 32))
@@ -464,14 +571,14 @@ def main():
         canvas.blit(lbl, (cx + (sw - lbl.get_width()) // 2,
                           y0 - COL_LBL + 2))
 
-    for r, (dname, design_fn) in enumerate(DESIGNS):
+    for r, (dname, design_fn, dense) in enumerate(DESIGNS):
         ry = y0 + r * (sh + GAP)
         # design name in the left gutter, vertically centred on the row
         for li, line in enumerate(_wrap(dname, 14)):
             lbl = f_row.render(line, True, (235, 225, 160))
             canvas.blit(lbl, (PAD, ry + sh // 2 - 12 + li * 18))
         for c, (tname, phase) in enumerate(TIMES):
-            cell = render_cell(CELL_W, CELL_H, design_fn, phase)
+            cell = render_cell(CELL_W, CELL_H, design_fn, phase, dense=dense)
             scaled = pygame.transform.smoothscale(cell, (sw, sh))
             cx = x0 + c * (sw + GAP)
             pygame.draw.rect(canvas, (70, 78, 100),
@@ -482,28 +589,29 @@ def main():
     # Proves the winding route reads from the carved silhouette alone: no
     # glow, no rim-light, no dotted path, no parrot.
     strip_y = y0 + grid_h + STRIP_GAP
-    strip_lbl = f_strip.render("STRUCTURE CHECK — highlight off (DAY)", True,
-                               (255, 210, 150))
+    strip_lbl = f_strip.render(
+        "STRUCTURE CHECK — all 5 designs, highlight off (DAY)", True,
+        (255, 210, 150))
     canvas.blit(strip_lbl, (PAD, strip_y))
     sy = strip_y + STRIP_LBL
-    strip_x0 = PAD + ROW_LBL
     day_phase = TIMES[0][1]
-    for r, (dname, design_fn) in enumerate(DESIGNS):
-        scol = strip_x0 + r * (cw + GAP)
-        if scol + cw > canvas_w - PAD:
-            break
+    # All 5 designs across the full grid span (scw/sch computed up front) — the
+    # two recuts (Woven Offset and Straight Undulating) most need the
+    # silhouette test, so none is dropped for width.
+    for r, (dname, design_fn, dense) in enumerate(DESIGNS):
+        scol = strip_x0 + r * (scw + GAP)
         cell = render_cell(CELL_W, CELL_H, design_fn, day_phase,
-                           highlight=False)
-        scaled = pygame.transform.smoothscale(cell, (cw, ch))
+                           highlight=False, dense=dense)
+        scaled = pygame.transform.smoothscale(cell, (scw, sch))
         pygame.draw.rect(canvas, (70, 78, 100),
-                         pygame.Rect(scol - 1, sy - 1, cw + 2, ch + 2), 1)
+                         pygame.Rect(scol - 1, sy - 1, scw + 2, sch + 2), 1)
         canvas.blit(scaled, (scol, sy))
         cap = f_cap.render(dname[:16], True, (200, 205, 215))
-        canvas.blit(cap, (scol + (cw - cap.get_width()) // 2, sy + ch + 2))
+        canvas.blit(cap, (scol + (scw - cap.get_width()) // 2, sy + sch + 2))
 
     out_dir = os.path.join("docs", "pagoda_warren")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
     print("all passability asserts passed")
