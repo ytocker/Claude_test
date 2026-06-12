@@ -204,8 +204,10 @@ def main():
             paint_sky(tile, spec, W, H, phase, stars=True, ground_y=GROUND_Y)
             sheet.blit(pygame.transform.smoothscale(tile, (CW, CH)), (x, y))
 
-    out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "docs", "biome_redesign", "alpine_sunsets_v3_timeaxis_balanced.png")
+    out = os.environ.get("SKY_SHEET_OUT") or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "docs", "biome_redesign", "alpine_sunsets_v3_timeaxis_balanced.png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "
           f"{rows} rows x {cols} cols, cell {CW}x{CH})")

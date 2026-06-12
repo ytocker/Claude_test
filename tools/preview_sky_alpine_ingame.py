@@ -194,8 +194,9 @@ def main():
             world.bird.draw(app.screen, 0, 0)
             sheet.blit(pygame.transform.smoothscale(app.screen, (TW, TH)), (x, y))
 
-    out = os.path.join(_ROOT, "docs", "biome_redesign",
-                       "alpine_sunsets_v3_ingame_timeaxis_balanced.png")
+    out = os.environ.get("SKY_SHEET_OUT") or os.path.join(
+        _ROOT, "docs", "biome_redesign",
+        "alpine_sunsets_v3_ingame_timeaxis_balanced.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()}, "

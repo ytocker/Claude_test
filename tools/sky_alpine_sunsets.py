@@ -295,13 +295,17 @@ AMBER_WARM = _spec(
     'ANCHOR [amber-warm]: Ember Gold deepened to a honey AMBER. GOLDEN ONSET eases the cyan top into a luminous warm amber zenith (0.40 bright amber-gold, never brown). SUNSET travels amber→amber-orange→warm-plum, the top reaching deep violet only by the 0.56 dwell. NIGHT: a dark cool indigo dome — the amber horizon ember persists through dusk, fades by twilight, fully cool by deep night, star_alpha peaks ~222. SUNRISE: a warm honey-peach dawn.',
     {
         # GOLDEN ONSET — same cyan→warm easing, but the warm end is a deeper HONEY
-        # AMBER (less yellow, more amber-orange) than Ember Gold's pale gold, so the
-        # zenith reads amber-warm. Still luminous at 0.40, gradual descent after.
-        0.35: dict(sky_top=(154, 174, 176), sky_mid=(220, 196, 162), sky_bot=(250, 200, 142), horizon=(255, 178, 100)),
-        0.40: dict(sky_top=(198, 176, 148), sky_mid=(250, 184, 110), sky_bot=(255, 178, 78),  horizon=(255, 140, 44)),
-        0.44: dict(sky_top=(166, 130, 138), sky_mid=(246, 156, 90),  sky_bot=(255, 162, 60),  horizon=(248, 110, 36)),
-        0.50: dict(sky_top=(108, 72, 122),  sky_mid=(236, 110, 80),  sky_bot=(250, 128, 50),  horizon=(234, 84, 32)),
-        0.56: dict(sky_top=(80, 44, 116),   sky_mid=(214, 80, 102),  sky_bot=(230, 92, 64),   horizon=(216, 70, 44)),
+        # AMBER, pushed CLEARLY redder/deeper than Ember Gold's neutral pale gold so
+        # the two separate at a glance in motion: the golden 0.40 horizon drives to a
+        # deep amber-orange (~255,128,32) and the mid is a richer honey-amber (less
+        # yellow). Still luminous at 0.40, gradual descent after.
+        0.35: dict(sky_top=(154, 172, 172), sky_mid=(222, 192, 150), sky_bot=(252, 194, 124), horizon=(255, 166, 84)),
+        0.40: dict(sky_top=(198, 172, 140), sky_mid=(250, 174, 92),  sky_bot=(255, 162, 60),  horizon=(255, 128, 32)),
+        0.44: dict(sky_top=(166, 124, 130), sky_mid=(246, 144, 74),  sky_bot=(255, 146, 48),  horizon=(248, 100, 28)),
+        # SUNSET mid is ORANGE-AMBER (warm tangerine), not coral — keeps Amber Warm
+        # in the honey/amber family vs Ember Gold's brighter neutral fire.
+        0.50: dict(sky_top=(106, 68, 116),  sky_mid=(240, 124, 56),  sky_bot=(250, 118, 40),  horizon=(232, 78, 28)),
+        0.56: dict(sky_top=(78, 42, 112),   sky_mid=(216, 92, 70),   sky_bot=(228, 84, 52),   horizon=(214, 64, 38)),
         # DUSK→TWILIGHT→NIGHT [MID] — amber ember holds through dusk, fades at
         # twilight, dark+cool by deep night (horizon/bot cooled to indigo). Top
         # lifted floor (26,32,64). A touch warmer-amber than Ember Gold at dusk so
@@ -361,9 +365,11 @@ CORAL_EMBER = _spec(
         # luminously at 0.40 before the gradual descent. Coral keeps real chroma.
         0.35: dict(sky_top=(158, 172, 176), sky_mid=(232, 188, 166), sky_bot=(255, 186, 144), horizon=(255, 164, 104)),
         0.40: dict(sky_top=(202, 168, 156), sky_mid=(254, 168, 126), sky_bot=(255, 158, 96),  horizon=(255, 122, 60)),
-        0.44: dict(sky_top=(168, 122, 140), sky_mid=(250, 142, 108), sky_bot=(255, 142, 78),  horizon=(252, 100, 52)),
-        0.50: dict(sky_top=(108, 66, 116),  sky_mid=(240, 102, 96),  sky_bot=(252, 120, 66),  horizon=(244, 80, 50)),
-        0.56: dict(sky_top=(80, 42, 112),   sky_mid=(218, 78, 110),  sky_bot=(230, 90, 78),   horizon=(224, 68, 60)),
+        0.44: dict(sky_top=(168, 122, 140), sky_mid=(250, 138, 100), sky_bot=(255, 138, 72),  horizon=(252, 96, 48)),
+        # 0.50 coral-red nudged a hair HOTTER/oranger (more red+orange in the mid)
+        # so the "reef" identity holds clear of Rose-Gold Glow's pinker coral.
+        0.50: dict(sky_top=(108, 66, 116),  sky_mid=(244, 96, 80),   sky_bot=(252, 116, 60),  horizon=(246, 76, 44)),
+        0.56: dict(sky_top=(80, 42, 112),   sky_mid=(222, 74, 98),   sky_bot=(232, 86, 70),   horizon=(226, 64, 54)),
         # DUSK→TWILIGHT→NIGHT [MID] — coral ember holds through dusk, fades at
         # twilight, dark+cool by deep night into a PLUM-indigo. Top lifted floor
         # (26,32,66). No orange/coral ember at the deepest point — bottom fully cool.
@@ -396,15 +402,16 @@ DEEP_PLUM_EMBER = _spec(
         0.44: dict(sky_top=(146, 110, 150), sky_mid=(242, 156, 102), sky_bot=(255, 172, 66),  horizon=(250, 116, 42)),
         0.50: dict(sky_top=(96, 56, 138),   sky_mid=(228, 100, 104), sky_bot=(250, 132, 54),  horizon=(236, 84, 32)),
         0.56: dict(sky_top=(72, 38, 134),   sky_mid=(202, 70, 124),  sky_bot=(228, 88, 72),   horizon=(214, 64, 50)),
-        # DUSK→TWILIGHT→NIGHT [DEEP-BUT-COOL] — the deepest cool indigo of the warm
-        # family: the gold ember holds through dusk, fades at twilight, and the deep-
-        # night top sinks to a lifted-but-low (20,24,56) with a dark cool indigo
-        # bottom (no warm ember). Cooler/bluer up top than the MID anchors so it
-        # stays the deepest-plum option without going black.
-        0.62: dict(sky_top=(36, 30, 70),   sky_mid=(118, 60, 92),   sky_bot=(168, 90, 76),   horizon=(202, 88, 50),  star_alpha=90),
-        0.68: dict(sky_top=(28, 28, 64),   sky_mid=(62, 42, 76),    sky_bot=(92, 58, 76),    horizon=(122, 70, 72),   star_alpha=158),
-        0.72: dict(sky_top=(20, 24, 56),   sky_mid=(30, 32, 60),    sky_bot=(40, 42, 68),    horizon=(54, 54, 78),    star_alpha=230),
-        0.80: dict(sky_top=(22, 26, 58),   sky_mid=(32, 34, 62),    sky_bot=(42, 44, 70),    horizon=(58, 58, 82),    star_alpha=170),
+        # DUSK→TWILIGHT→NIGHT [DEEP-BUT-COOL] — the WARMER deep-plum twin (vs Cool
+        # Plum Gold's slate-BLUE floor): the deep night is a warmer-VIOLET dome where
+        # RED leads BLUE so it reads plum-warm, not slate. The gold ember holds
+        # through dusk, fades at twilight, and the deep-night top sinks to a lifted-
+        # but-low warm-violet (26,22,54) — still dark+cool (no warm horizon ember),
+        # but the two deep-plum NIGHTS now differ in HUE, not a 2-point RGB delta.
+        0.62: dict(sky_top=(42, 30, 64),   sky_mid=(124, 60, 86),   sky_bot=(170, 88, 72),   horizon=(204, 86, 48),  star_alpha=90),
+        0.68: dict(sky_top=(34, 28, 58),   sky_mid=(70, 42, 70),    sky_bot=(98, 56, 72),    horizon=(126, 68, 68),   star_alpha=158),
+        0.72: dict(sky_top=(26, 22, 54),   sky_mid=(38, 30, 56),    sky_bot=(48, 40, 64),    horizon=(64, 52, 74),    star_alpha=230),
+        0.80: dict(sky_top=(28, 24, 56),   sky_mid=(40, 32, 58),    sky_bot=(50, 42, 66),    horizon=(68, 56, 78),    star_alpha=170),
         # SUNRISE — warm plum-peach; the plum reborn fresh over a peach horizon.
         0.88: dict(sky_top=(74, 118, 156), sky_mid=(206, 156, 162), sky_bot=(252, 174, 146), horizon=(255, 160, 116)),
         0.94: dict(sky_top=(84, 142, 176), sky_mid=(214, 176, 180), sky_bot=(255, 186, 160), horizon=(255, 172, 138)),
@@ -420,26 +427,34 @@ COOL_PLUM_GOLD = _spec(
     'Cool Plum Gold',
     'ANCHOR [cooler-plum-leaning gold]: the coolest of the warm family. GOLDEN ONSET eases the cyan top into a luminous COOL lemon-gold zenith (0.40 bright, a hair cooler than Ember Gold). SUNSET travels cool-gold→amber→a BLUE-VIOLET plum (cooler than Deep Plum Ember). NIGHT: a deep cool slate-indigo dome (DEEP tier) — the gold ember persists through dusk, fades by twilight, fully cool by deep night, star_alpha peaks ~228. SUNRISE: a cool gold-and-rose dawn.',
     {
-        # GOLDEN ONSET — the warm end is a COOLER lemon-gold (more green-yellow,
-        # less orange) than Ember Gold, and the top carries a touch more blue, so
-        # the gold reads cool. The 0.35 ease keeps the cyan→gold path clean; 0.40
-        # still luminous. The plum it travels to is BLUE-violet, not warm-plum.
-        0.35: dict(sky_top=(146, 180, 188), sky_mid=(208, 206, 184), sky_bot=(240, 216, 170), horizon=(252, 200, 128)),
-        0.40: dict(sky_top=(186, 188, 164), sky_mid=(238, 204, 138), sky_bot=(252, 200, 100), horizon=(252, 164, 64)),
-        0.44: dict(sky_top=(150, 138, 162), sky_mid=(232, 170, 116), sky_bot=(250, 180, 78),  horizon=(244, 128, 52)),
-        0.50: dict(sky_top=(96, 70, 144),   sky_mid=(214, 116, 116), sky_bot=(244, 140, 64),  horizon=(232, 96, 44)),
-        0.56: dict(sky_top=(70, 48, 138),   sky_mid=(186, 84, 134),  sky_bot=(222, 100, 84),  horizon=(210, 78, 60)),
-        # DUSK→TWILIGHT→NIGHT [DEEP-BUT-COOL] — a SLATE-indigo: bluer/cooler than
-        # Deep Plum Ember's warm plum, the gold ember holding through dusk then
-        # fading to a dark cool slate by deep night (top (18,24,58), bottom fully
-        # cool, no warm ember). The coolest deep night of the warm family.
-        0.62: dict(sky_top=(34, 32, 76),   sky_mid=(108, 64, 102),  sky_bot=(160, 92, 86),   horizon=(196, 90, 56),  star_alpha=90),
-        0.68: dict(sky_top=(26, 30, 70),   sky_mid=(56, 46, 86),    sky_bot=(86, 60, 84),    horizon=(116, 72, 76),   star_alpha=158),
-        0.72: dict(sky_top=(18, 24, 58),   sky_mid=(28, 32, 62),    sky_bot=(38, 42, 70),    horizon=(52, 54, 80),    star_alpha=228),
-        0.80: dict(sky_top=(20, 26, 60),   sky_mid=(30, 34, 64),    sky_bot=(40, 44, 72),    horizon=(56, 58, 84),    star_alpha=168),
-        # SUNRISE — cool gold over a rose horizon; cooler/fresher than the dusk.
-        0.88: dict(sky_top=(78, 130, 162), sky_mid=(214, 168, 158), sky_bot=(250, 184, 144), horizon=(255, 168, 118)),
-        0.94: dict(sky_top=(88, 150, 180), sky_mid=(222, 186, 176), sky_bot=(255, 194, 158), horizon=(255, 178, 136)),
+        # GOLDEN ONSET — COMMITTED cool identity (vs Deep Plum Ember's warm twin):
+        # the warm end is a genuinely GREEN-LEMON gold (green nudged up, red pulled
+        # back) so the zenith reads a cool-leaning gold, not the warm gold of the
+        # others. The 0.35 ease keeps the cyan→gold path clean; 0.40 still luminous.
+        # The plum it travels to is a genuine BLUE-violet (blue added in the tops).
+        0.35: dict(sky_top=(144, 182, 190), sky_mid=(204, 210, 184), sky_bot=(234, 220, 168), horizon=(244, 204, 126)),
+        0.40: dict(sky_top=(180, 192, 162), sky_mid=(228, 210, 134), sky_bot=(244, 206, 98),  horizon=(246, 170, 66)),
+        # 0.44 lifted off the dull warm-grey-mauve onto a cleaner COOL LILAC (it was
+        # the dullest single cell in the set) — more blue, less red/green muddiness.
+        0.44: dict(sky_top=(146, 144, 178), sky_mid=(224, 174, 118), sky_bot=(244, 182, 78),  horizon=(238, 130, 54)),
+        # SUNSET plum is genuinely BLUE-VIOLET — blue pushed clearly above red in the
+        # 0.50/0.56 tops so it reads cool against Deep Plum Ember's warm plum.
+        0.50: dict(sky_top=(82, 64, 156),   sky_mid=(200, 110, 124), sky_bot=(238, 138, 64),  horizon=(228, 96, 46)),
+        0.56: dict(sky_top=(58, 46, 150),   sky_mid=(168, 80, 146),  sky_bot=(214, 100, 92),  horizon=(204, 80, 64)),
+        # DUSK→TWILIGHT→NIGHT [DEEP-BUT-COOL] — a true SLATE-BLUE floor: blue clearly
+        # dominant over the violet-warm twin's red, the lemon-gold ember holding
+        # through dusk then fading to a dark cool slate-blue by deep night (top
+        # (16,24,62), blue dominant, bottom fully cool, no warm ember). The coolest,
+        # bluest deep night of the warm family — distinct in HUE from Deep Plum's
+        # warmer-violet floor, not by a 2-point RGB delta.
+        0.62: dict(sky_top=(30, 32, 84),   sky_mid=(94, 62, 112),   sky_bot=(146, 88, 96),   horizon=(184, 88, 64),  star_alpha=90),
+        0.68: dict(sky_top=(24, 30, 78),   sky_mid=(48, 46, 96),    sky_bot=(76, 60, 94),    horizon=(104, 72, 86),   star_alpha=158),
+        0.72: dict(sky_top=(16, 24, 62),   sky_mid=(24, 32, 70),    sky_bot=(32, 42, 80),    horizon=(44, 54, 92),    star_alpha=228),
+        0.80: dict(sky_top=(18, 26, 64),   sky_mid=(26, 34, 72),    sky_bot=(34, 44, 82),    horizon=(48, 58, 96),    star_alpha=168),
+        # SUNRISE — cool lemon-gold over a soft rose horizon; cooler/fresher than
+        # the dusk and a touch cooler in the mid than the warm-twin's peach dawn.
+        0.88: dict(sky_top=(80, 134, 166), sky_mid=(206, 174, 168), sky_bot=(244, 190, 148), horizon=(252, 174, 120)),
+        0.94: dict(sky_top=(90, 152, 182), sky_mid=(214, 190, 186), sky_bot=(250, 200, 162), horizon=(254, 184, 138)),
     },
 )
 
@@ -492,13 +507,15 @@ INDIGO_FIRE = _spec(
     {
         # GOLDEN ONSET — FIX 1 even here: 0.35/0.40 are a LUMINOUS warm coral-gold,
         # NOT an immediate indigo. The flame+indigo banding blooms across
-        # 0.44→0.50→0.56 as the deep indigo floods down and the flame cools toward
-        # magenta-red — gradual top descent. The purple-magenta mid is the bridge.
+        # 0.44→0.50→0.56 as the deep indigo floods down. To preserve the "fire", a
+        # hotter MAGENTA-RED band is HELD one column lower — the 0.50 mid stays a hot
+        # magenta-red (was a muddy purple-magenta where it met the indigo top) so the
+        # flame punch survives until the indigo floods the mid at 0.56.
         0.35: dict(sky_top=(156, 168, 178), sky_mid=(226, 184, 176), sky_bot=(252, 178, 152), horizon=(255, 152, 110)),
         0.40: dict(sky_top=(168, 142, 176), sky_mid=(232, 140, 158), sky_bot=(248, 128, 136), horizon=(255, 116, 100)),
-        0.44: dict(sky_top=(96, 72, 158),   sky_mid=(176, 80, 176),  sky_bot=(220, 76, 144),  horizon=(244, 88, 116)),
-        0.50: dict(sky_top=(44, 38, 124),   sky_mid=(108, 46, 168),  sky_bot=(182, 50, 130),  horizon=(228, 60, 100)),
-        0.56: dict(sky_top=(36, 30, 104),   sky_mid=(84, 42, 152),   sky_bot=(158, 48, 124),  horizon=(212, 52, 100)),
+        0.44: dict(sky_top=(96, 72, 158),   sky_mid=(208, 72, 144),  sky_bot=(228, 70, 130),  horizon=(244, 80, 108)),
+        0.50: dict(sky_top=(44, 38, 124),   sky_mid=(196, 56, 116),  sky_bot=(214, 54, 112),  horizon=(228, 56, 92)),
+        0.56: dict(sky_top=(36, 30, 104),   sky_mid=(96, 44, 150),   sky_bot=(160, 48, 122),  horizon=(212, 52, 98)),
         # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT, DEEPER END] — a deep but clearly-LIT
         # indigo dome held to the DEEP end of the moonlit band (deep-night sky_top
         # (22,30,74), blue dominant) so the silhouette reads against a moonlit
@@ -527,13 +544,15 @@ AURORA_TEAL_MAGENTA = _spec(
     {
         # GOLDEN ONSET — FIX 1: 0.35/0.40 LUMINOUS warm coral-gold (not a cyan-blue
         # twilight). The aurora bands bloom across 0.44→0.50→0.56 — tangerine
-        # horizon, magenta-rose mid, indigo top — migrating cool over time. The
-        # teal sliver lives at the very edge until twilight re-blooms it.
+        # horizon, magenta-rose mid, indigo top. The TEAL edge is now brought in
+        # EARLIER and WIDER (a teal-green cast in the sky_top at 0.50/0.56, where it
+        # used to stay pure indigo) so the aurora identity reads as teal↔magenta
+        # BEFORE twilight, not only at it — magenta below, teal-green above.
         0.35: dict(sky_top=(158, 170, 180), sky_mid=(228, 186, 174), sky_bot=(252, 180, 150), horizon=(255, 154, 104)),
-        0.40: dict(sky_top=(168, 146, 174), sky_mid=(238, 146, 158), sky_bot=(252, 138, 122), horizon=(255, 124, 78)),
-        0.44: dict(sky_top=(96, 74, 152),   sky_mid=(228, 108, 158), sky_bot=(248, 102, 110), horizon=(255, 102, 70)),
-        0.50: dict(sky_top=(48, 40, 110),   sky_mid=(220, 80, 150),  sky_bot=(248, 80, 96),   horizon=(250, 82, 58)),
-        0.56: dict(sky_top=(38, 32, 92),    sky_mid=(196, 66, 140),  sky_bot=(228, 66, 96),   horizon=(226, 66, 62)),
+        0.40: dict(sky_top=(166, 152, 172), sky_mid=(238, 146, 158), sky_bot=(252, 138, 122), horizon=(255, 124, 78)),
+        0.44: dict(sky_top=(80, 92, 148),   sky_mid=(228, 108, 158), sky_bot=(248, 102, 110), horizon=(255, 102, 70)),
+        0.50: dict(sky_top=(38, 86, 124),   sky_mid=(216, 80, 150),  sky_bot=(248, 80, 96),   horizon=(250, 82, 58)),
+        0.56: dict(sky_top=(30, 76, 108),   sky_mid=(190, 66, 140),  sky_bot=(228, 66, 96),   horizon=(226, 66, 62)),
         # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT, COOLER] — a lit TEAL-NAVY dome held
         # to the DEEP end of the moonlit band (deep-night sky_top (24,34,70), blue
         # dominant with green nudged over the pure-indigo bold rows). The magenta
