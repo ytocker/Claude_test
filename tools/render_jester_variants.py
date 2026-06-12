@@ -993,6 +993,12 @@ JESTERS = [
         dark=(196, 52, 56), light=(250, 212, 96), gold=(246, 202, 92),
         cap_fn=cap_three_point, motif="quartered", collar="scalloped",
         variant="tongue")),
+    # 11 — design #2's STRUCTURE (splayed four-point cap, quartered body,
+    # scalloped collar, cocked-brow grin) recoloured in #1's plum/lime/gold.
+    ("Plum & Lime 4-Point", dict(
+        dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
+        cap_fn=cap_four_point, motif="quartered", collar="scalloped",
+        variant="browcock")),
 ]
 
 
@@ -1085,6 +1091,7 @@ CAPTIONS = [
     "wine/teal · curled-bell hood · cocked-brow grin",
     "slate/ice · SPLAYED 4-point · fang grin",
     "scarlet/gold · 3-point cap · grin + tongue",
+    "plum/lime · SPLAYED 4-point · cocked-brow (= #2 in #1's colours)",
 ]
 
 
@@ -1093,7 +1100,7 @@ def main():
     pygame.font.init()
     pygame.display.set_mode((W, H))
 
-    cols, rows = 5, 2
+    cols, rows = 5, 3          # 11 tiles: 5 + 5 + 1 (the new #11 leads row 3)
     sw, sh = int(VIEW_W * 1.88), int(VIEW_H * 1.88)
 
     PAD = 44
@@ -1113,7 +1120,7 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 9)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 10)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -1164,7 +1171,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_9.png")
+    out_path = os.path.join(out_dir, "round_10.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
