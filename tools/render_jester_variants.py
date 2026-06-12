@@ -574,8 +574,10 @@ def _draw_tilted_head(surf, cx, cy, hr, skin, cap_fn, cap_cols, variant,
     scratch = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     sx, sy = pad, pad
     _round_head(scratch, sx, sy, hr, skin, blush=False)
-    # Cap BEFORE the face so droops never cover the eyes.
-    cap_fn(scratch, sx, sy - hr, hr, cap_cols)
+    # Cap BEFORE the face so droops never cover the eyes. Seat the cap base ~7px
+    # DOWN into the crown so it hugs the skull instead of perching on top and
+    # leaving a bald forehead gap; still clears the eyes for every cap style.
+    cap_fn(scratch, sx, sy - hr + 7, hr, cap_cols)
     naughty_face(scratch, sx, sy, hr, nose_col=nose_col, variant=variant)
     rot = pygame.transform.rotate(scratch, tilt_deg)
     surf.blit(rot, (cx - rot.get_width() // 2, cy - rot.get_height() // 2))
@@ -1020,7 +1022,10 @@ def render_cell(spec, idx, show_inset):
     # so the bright aura sits fully over the open sky clearing.
     die_x = jester_cx - 66
     die_base_y = 36
-    hand_up = (die_x + 26, die_base_y + 54)
+    # Round-4 raised-arm target: a shorter, steeper presenting gesture toward the
+    # die rather than a long out-stretched point. The die stays HIGH up-left; only
+    # the hand target reverts so the arm reads as round 4's tucked raise.
+    hand_up = (die_x + 6, 76)
 
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
@@ -1078,7 +1083,7 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 7)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 8)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -1128,7 +1133,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_7.png")
+    out_path = os.path.join(out_dir, "round_8.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
