@@ -98,9 +98,9 @@ COBALT_ALPINE = BiomeSpec(
 # so noon already reads sun-baked. The sunset goes deep amber-red, low, with a
 # strong Earth-shadow at the belt.
 _DESERT_KF = [
-    (0.05, dict(sky_top=(58, 122, 196), sky_mid=(128, 178, 220), sky_bot=(214, 224, 224), horizon=(248, 234, 198), star_alpha=0)),
-    (0.16, dict(sky_top=(54, 118, 200), sky_mid=(124, 176, 222), sky_bot=(212, 224, 224), horizon=(250, 234, 194), star_alpha=0)),
-    (0.27, dict(sky_top=(60, 122, 194), sky_mid=(132, 180, 218), sky_bot=(218, 224, 220), horizon=(252, 232, 188), star_alpha=0)),
+    (0.05, dict(sky_top=(58, 122, 196), sky_mid=(140, 180, 210), sky_bot=(228, 222, 202), horizon=(252, 230, 184), star_alpha=0)),
+    (0.16, dict(sky_top=(54, 118, 200), sky_mid=(136, 178, 212), sky_bot=(226, 222, 200), horizon=(253, 228, 180), star_alpha=0)),
+    (0.27, dict(sky_top=(60, 122, 194), sky_mid=(144, 182, 210), sky_bot=(230, 222, 198), horizon=(254, 226, 176), star_alpha=0)),
     (0.33, dict(sky_top=(66, 118, 184), sky_mid=(150, 168, 198), sky_bot=(244, 212, 168), horizon=(255, 206, 120), star_alpha=0)),
     (0.39, dict(sky_top=(62, 86, 148), sky_mid=(178, 134, 138), sky_bot=(255, 158, 96), horizon=(238, 96, 58), star_alpha=10)),
     (0.47, dict(sky_top=(40, 52, 112), sky_mid=(170, 116, 132), sky_bot=(78, 78, 116), horizon=(222, 134, 96), star_alpha=60)),
@@ -260,8 +260,8 @@ _SLATE_KF = [
     (0.39, dict(sky_top=(44, 58, 110), sky_mid=(96, 110, 144), sky_bot=(150, 150, 156), horizon=(224, 158, 116), star_alpha=10)),
     (0.47, dict(sky_top=(30, 42, 92), sky_mid=(96, 124, 146), sky_bot=(40, 56, 98), horizon=(120, 120, 130), star_alpha=60)),
     (0.55, dict(sky_top=(24, 32, 74), sky_mid=(46, 56, 96), sky_bot=(56, 66, 102), horizon=(98, 102, 124), star_alpha=140)),
-    (0.66, dict(sky_top=(14, 18, 48), sky_mid=(24, 30, 62), sky_bot=(30, 40, 74), horizon=(48, 56, 90), star_alpha=225)),
-    (0.80, dict(sky_top=(14, 18, 46), sky_mid=(24, 30, 60), sky_bot=(30, 40, 72), horizon=(48, 54, 88), star_alpha=225)),
+    (0.66, dict(sky_top=(20, 26, 60), sky_mid=(32, 40, 78), sky_bot=(40, 52, 92), horizon=(58, 68, 104), star_alpha=225)),
+    (0.80, dict(sky_top=(20, 26, 58), sky_mid=(32, 40, 76), sky_bot=(40, 52, 90), horizon=(58, 66, 102), star_alpha=225)),
     (0.88, dict(sky_top=(28, 36, 90), sky_mid=(108, 102, 124), sky_bot=(60, 70, 106), horizon=(204, 152, 128), star_alpha=70)),
     (0.96, dict(sky_top=(72, 100, 144), sky_mid=(136, 160, 184), sky_bot=(198, 208, 214), horizon=(238, 208, 168), star_alpha=10)),
 ]
