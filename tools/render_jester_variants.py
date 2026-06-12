@@ -1,4 +1,4 @@
-"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 3).
+"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 4).
 
 The user loved the Court Jester from the dice-clown sheet for its sly,
 "up-to-something / NAUGHTY" read. This sheet explores TEN higher-quality
@@ -17,14 +17,23 @@ die at upper-right). The die's power-up treatment is kept EXACTLY consistent
 across all ten: classic d6 pips, gold glow halo (BLEND_ADD), top-left rim
 light, gentle bob, orbiting sparkles.
 
-ROUND-3 direction (art-director notes folded in):
-  - REBUILT EYES: round-2's eyes read as CLOSED peaceful lash-arcs (asleep).
-    Now every eye is unmistakably OPEN + half-lidded — a flat heavy upper lid
-    over white sclera with a DARK pupil shoved to the outer corner (a sidelong
-    glance toward the upper-left die).
-  - PINCHED scheming-V brows (inner ends DOWN + pinched to the nose, outer ends
-    raised) + an ASYMMETRIC SMIRK (one corner pulled up/back into a cheek
-    dimple, the other dropped) on all ten.
+ROUND-4 direction (FACE-ONLY pass; everything below the chin ships unchanged):
+  The round-3 face read SAD / PLEADING / WEEPY — the exact opposite of naughty.
+  Three shared face-geometry fixes (applied to the one shared recipe so all 10
+  update together):
+  - FLIPPED BROW TO A REAL SCHEMING "V": the inner corner is now HIGH + pulled
+    INWARD to the nose-bridge, the outer corner LOW + out — the hard inverse of
+    round-3's inner-low/outer-high "about-to-cry" brow, exaggerated so the angle
+    reads at 1x.
+  - DELETED EVERY TEAR STREAK + WATERY HIGHLIGHT: the under-eye blush that
+    streaked like tears is moved low onto the cheek apple; the glossy tear-dot
+    and down-curved watery lower lid are gone. Each eye is now a FLAT half-lidded
+    almond — a straight (outer end dipping DOWN) heavy upper lid over white
+    sclera, with a dark pupil jammed into the DIE-SIDE corner (sly sidelong
+    up-left glance).
+  - COMMITTED LOPSIDED UP-SMIRK: the die-side corner is pulled clearly UP + back
+    with a hook + cheek dimple, the far corner dropped low — a definite
+    asymmetric up-hook, never a symmetric down-curve.
   - COMMITTED plotting BODY LEAN on every figure: die-side shoulder dropped 7px,
     hip cocked hard, weight on the die-side leg, the trailing knee bent.
   - Coxcomb crests ANCHORED to the scalp by a base band; #2/#9 value contrast
@@ -81,39 +90,48 @@ MOUTH = (188, 56, 66)
 
 
 def _scheme_eye(surf, x, y, *, look):
-    """A half-lidded but VISIBLY OPEN eye with a dark pupil shoved to the outer
-    corner for a sly sidelong glance toward the die. Round-2 read as a CLOSED
-    peaceful lash-arc (asleep); this rebuild keeps the eye unmistakably open:
-    a flat upper-lid line sits at ~55-60% of the eye height, the white sclera
-    shows BELOW it, and the pupil presses into the outer corner. `look` is the
+    """A FLAT half-lidded almond — confident and sly, never droopy or weepy.
+    Round-3 still read teary: a curved/down lower lid plus an under-eye streak
+    looked like tears. This rebuild is a hard, simple almond: a STRAIGHT (very
+    slightly DOWN at the outer end) heavy upper-lid line, a white sclera showing
+    below it, and a dark pupil shoved hard into the DIE-SIDE corner for a sly
+    sidelong glance up toward the die. NO tear streak, NO glossy watery dot, NO
+    up-curving sad lash-arc, NO down-curved watery lower lid. `look` is the
     horizontal pupil shove (negative = toward the upper-left die)."""
-    ew, eh = 5, 5  # eye half-extents
-    # White sclera as a small ellipse — the OPEN eye whites the lid sits over.
-    eye_rect = pygame.Rect(x - ew, y - eh + 2, ew * 2, eh * 2)
+    ew, eh = 5, 4  # almond half-extents (a touch flatter than a round eye)
+    # White sclera — a low, wide almond. Kept compact so the heavy lid above can
+    # cover the top half without the eye ever reading wide/surprised or weepy.
+    eye_rect = pygame.Rect(x - ew, y - eh + 3, ew * 2, eh * 2)
     pygame.draw.ellipse(surf, WHITE, eye_rect)
-    pygame.draw.ellipse(surf, _shade(WHITE, -40), eye_rect, 1)
-    # Dark pupil pushed to the outer corner (sidelong glance toward the die).
+    # Dark pupil jammed into the DIE-SIDE corner (sidelong up-left glance). NO
+    # bright watery specular catch at all — round-3's white highlight read as a
+    # glossy tear, so the pupil is a flat matte dot only.
     px = x + look
-    py = y + 2
+    py = y + 3
     pygame.draw.circle(surf, (40, 36, 54), (px, py), 3)
     pygame.draw.circle(surf, (16, 14, 24), (px, py), 3, 1)
-    pygame.draw.circle(surf, WHITE, (px - 1, py - 1), 1)
-    # FLAT heavy upper lid covering the top ~45% — half-lidded, never a closed
-    # downward arc. Drawn as an opaque skin-shadow band clipped to the eye top.
-    lid_y = y - 1
-    pygame.draw.line(surf, INK, (x - ew - 1, lid_y - 1), (x + ew + 1, lid_y - 1), 3)
-    # A short lower-lid hint so the bottom of the open eye is grounded, not lash.
-    pygame.draw.line(surf, _shade(INK, 60), (x - ew + 1, y + eh + 1),
-                     (x + ew - 1, y + eh + 1), 1)
+    # FLAT heavy upper lid as a STRAIGHT bar with a slight DOWN-slant AWAY from
+    # the die (the lid sits higher on the die-glance side and dips down on the
+    # far side) — a hooded, knowing squint, never an up-curving sad lash. Both
+    # eyes slant the same screen direction so the sidelong read is consistent.
+    hi_side = -1 if look < 0 else 1   # lid rides high on the die-glance side
+    lid_hi = (x + hi_side * (ew + 1), y - 1)
+    lid_lo = (x - hi_side * (ew + 1), y + 1)  # far end dips DOWN 2px
+    pygame.draw.line(surf, INK, lid_hi, lid_lo, 3)
 
 
 def _cheek(surf, cx, cy, r, *, strong=False):
-    """Warm cheek blush discs so the mischief always reads charming, not cold."""
+    """Warm cheek blush discs so the mischief always reads charming, not cold.
+    Round-3 placed these high + narrow directly UNDER the inner eye, where they
+    read as red TEAR streaks running down the cheek. They are now low, round and
+    pushed OUTWARD onto the apple of the cheek (well below the eye/nose line) so
+    they read unmistakably as a warm flush, never a tear."""
     for s in (-1, 1):
-        a = 205 if strong else 150
-        blush = pygame.Surface((16, 12), pygame.SRCALPHA)
+        a = 190 if strong else 135
+        blush = pygame.Surface((14, 10), pygame.SRCALPHA)
         pygame.draw.ellipse(blush, (*ROSY, a), blush.get_rect())
-        surf.blit(blush, (cx + s * (r - 7) - 8, cy + 1))
+        # Low on the cheek apple and well out toward the head edge.
+        surf.blit(blush, (cx + s * (r - 5) - 7, cy + 6))
 
 
 def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
@@ -134,39 +152,47 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     for s in (-1, 1):
         exx = cx + s * ex
         _scheme_eye(surf, exx, hy, look=look)
-        # PINCHED scheming "V": the INNER end drives DOWN toward the nose-bridge
-        # and pinches inward, the OUTER end lifts UP and out. Round-2 brows were
-        # too soft/high; these dig low and angular so the scowl-smirk reads.
-        inner = (exx + s * 3, hy - 5)        # inner end low + pinched to nose
-        outer = (exx - s * 7, hy - 12)       # outer end raised
+        # REAL scheming "V": the INNER end is HIGH and pulled INWARD toward the
+        # nose-bridge; the OUTER end drives LOW and out. This is the hard INVERSE
+        # of round-3's inner-low/outer-high "worried / about-to-cry" brow — the
+        # single sign-flip that turns weepy into plotting. The inner/outer y-gap
+        # is exaggerated (8px) so the down-and-in angle reads even at 1x.
+        # Inner end (nose-side, toward centre cx) is HIGH; outer end (temple
+        # side) is LOW. For the left eye nose-side is +x, for the right eye it
+        # is -x, hence the `-s` / `+s` x-signs.
+        inner = (exx - s * 2, hy - 13)       # inner end HIGH + pinched to nose
+        outer = (exx + s * 8, hy - 5)        # outer end LOW + out
         cock = cock_left and s < 0
         if cock:
             inner = (inner[0], inner[1] - 4)
-            outer = (outer[0], outer[1] - 5)
+            outer = (outer[0], outer[1] - 3)
         pygame.draw.line(surf, INK, inner, outer, 3)
-        # A short heavier stub at the inner (pinched) end thickens the frown root.
+        # A short heavier stub at the inner (high, pinched) end thickens the
+        # knitted brow-root so the two inner ends crowd the nose-bridge.
         pygame.draw.line(surf, INK, inner, (inner[0] + s * 2, inner[1] + 2), 3)
 
     _nose(surf, cx, hy + 6, 6, nose_col)
 
-    # ASYMMETRIC SMIRK: one corner (viewer-RIGHT) pulls UP and back into a cheek
-    # dimple; the other (LEFT) corner drops flat-low. Built as a single off-centre
-    # rising line + a curl tail so it is clearly lopsided, never a symmetric curve.
-    lo = (cx - 9, hy + 13)               # dropped low-left corner
-    mid = (cx + 2, hy + 12)
-    hi = (cx + 10, hy + 8)               # raised right corner, pulled back/up
+    # COMMITTED lopsided up-SMIRK. The DIE-SIDE corner (viewer-LEFT, where the
+    # eyes are glancing) is pulled clearly UP and BACK; the far corner drops low.
+    # Built as a definite asymmetric up-hook (never the round-3 soft symmetric
+    # down-curve): the line climbs from the dropped far corner up to the raised
+    # die-side corner, then flicks up into a smirk hook.
+    hi = (cx - 10, hy + 8)               # raised die-side (LEFT) corner, up/back
+    mid = (cx - 1, hy + 13)
+    lo = (cx + 9, hy + 14)               # dropped far (RIGHT) corner, flat-low
     pygame.draw.lines(surf, MOUTH, False, [lo, mid, hi], 3)
-    # Curl tail flicking up off the high corner so it reads as a smirk hook.
-    pygame.draw.line(surf, MOUTH, hi, (hi[0] + 2, hi[1] - 3), 3)
-    # Single cheek dimple crease on the RAISED (right) side only.
-    pygame.draw.line(surf, _shade(nose_col, -40), (hi[0] + 3, hi[1] - 1),
-                     (hi[0] + 4, hi[1] + 3), 2)
+    # Curl tail flicking UP off the raised die-side corner so the hook reads.
+    pygame.draw.line(surf, MOUTH, hi, (hi[0] - 2, hi[1] - 3), 3)
+    # Single cheek dimple crease on the RAISED (die-side / LEFT) side only.
+    pygame.draw.line(surf, _shade(nose_col, -40), (hi[0] - 3, hi[1] - 1),
+                     (hi[0] - 4, hi[1] + 3), 2)
 
     if variant in ("tongue", "tonguecock"):
-        # Tongue tip poking out the high (right) smirk corner.
-        pygame.draw.ellipse(surf, (236, 120, 130), (hi[0] - 1, hi[1], 8, 7))
+        # Tongue tip poking out the raised (die-side / LEFT) smirk corner.
+        pygame.draw.ellipse(surf, (236, 120, 130), (hi[0] - 7, hi[1], 8, 7))
         pygame.draw.ellipse(surf, _shade((236, 120, 130), -45),
-                            (hi[0] - 1, hi[1], 8, 7), 1)
+                            (hi[0] - 7, hi[1], 8, 7), 1)
 
 
 # ── belled-cap kit ────────────────────────────────────────────────────────────
@@ -826,16 +852,16 @@ def render_cell(spec, idx, show_inset):
 
 
 CAPTIONS = [
-    "plum/lime · 3-point cap · open sidelong eyes + smirk",
-    "ruby/cream · SPLAYED 4-point · cocked-brow smirk",
-    "royal-blue/gold · donkey-EAR cap · sidelong smirk",
-    "teal/magenta · ANCHORED coxcomb · smirk + tongue",
-    "charcoal-plum · IMPISH horned hood · brow + tongue",
-    "violet/orange · ANCHORED coxcomb · smirk + tongue",
-    "emerald/gold · 3-point cap · open sidelong eyes",
-    "wine/teal · curled-bell hood · cocked-brow smirk",
-    "slate/ice · SPLAYED 4-point · sidelong smirk",
-    "scarlet/gold · 3-point cap · smirk + tongue",
+    "plum/lime · 3-point cap · V-brow sidelong up-smirk",
+    "ruby/cream · SPLAYED 4-point · cocked V-brow smirk",
+    "royal-blue/gold · donkey-EAR cap · V-brow up-smirk",
+    "teal/magenta · ANCHORED coxcomb · V-brow + tongue",
+    "charcoal-plum · IMPISH horned hood · V-brow + tongue",
+    "violet/orange · ANCHORED coxcomb · V-brow + tongue",
+    "emerald/gold · 3-point cap · V-brow sidelong smirk",
+    "wine/teal · curled-bell hood · cocked V-brow smirk",
+    "slate/ice · SPLAYED 4-point · V-brow up-smirk",
+    "scarlet/gold · 3-point cap · V-brow smirk + tongue",
 ]
 
 
@@ -864,13 +890,13 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 3)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 4)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "OPEN half-lidded sidelong eyes + pinched V brows + lopsided smirk on all "
-        "10 · committed plot-lean · crests anchored · #2/#9 contrast raised · "
-        "die UPPER-LEFT CUPPED by the raised mitt",
+        "FACE PASS: inner-HIGH/outer-LOW scheming V brows + FLAT sidelong almond "
+        "eyes (tear streaks & watery dots removed) + committed lopsided up-smirk "
+        "on all 10 · everything below the chin unchanged (ship-ready)",
         True, (190, 195, 205))
     canvas.blit(sub, (PAD, PAD + 50))
 
@@ -904,14 +930,14 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Teal & Magenta) — OPEN sidelong eyes + V brows + "
-            "lopsided smirk still read; die stays a clear takeable pickup",
+            "1x in-game scale (Teal & Magenta) — inner-high V brows + flat "
+            "sidelong eyes + lopsided up-smirk read as UP TO SOMETHING; no tears",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_3.png")
+    out_path = os.path.join(out_dir, "round_4.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
