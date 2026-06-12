@@ -411,8 +411,8 @@ AMETHYST_NIGHTFALL = _spec(
         # ridgeline silhouette reads crisply against a clearly-lit indigo sky (well
         # off the old (6,8,42) void). Decisively COOLER than the warm red rows —
         # blue clearly leads, red pulled down — so it stays this row's own flavour.
-        # Because the dome is lit, star_alpha is LOWERED at deep night (160) so the
-        # field sits on the sky without washing out. Dusk (0.62) mid held a touch
+        # Because the dome is lit, star_alpha at deep night (185) is set so the white
+        # star cores stay crisp/contrasty against the bright dome. Dusk (0.62) mid held a touch
         # MORE SATURATED so its meeting with the mountain never edges to plum-grey.
         # The night sky_top is held to the LOW end of the moonlit band ((30,40,90))
         # so its VALUE stays clearly DARKER than this row's own deep-violet sunset top
@@ -421,7 +421,7 @@ AMETHYST_NIGHTFALL = _spec(
         # silhouette reads against.
         0.62: dict(sky_top=(36, 42, 104),  sky_mid=(70, 52, 150),   sky_bot=(110, 60, 156),  horizon=(172, 58, 132),  star_alpha=82),
         0.68: dict(sky_top=(32, 40, 96),   sky_mid=(48, 46, 118),   sky_bot=(72, 56, 128),   horizon=(120, 62, 116),  star_alpha=132),
-        0.72: dict(sky_top=(30, 40, 90),   sky_mid=(40, 44, 96),    sky_bot=(54, 52, 104),   horizon=(80, 60, 106),   star_alpha=160),
+        0.72: dict(sky_top=(30, 40, 90),   sky_mid=(40, 44, 96),    sky_bot=(54, 52, 104),   horizon=(80, 60, 106),   star_alpha=185),
         0.80: dict(sky_top=(31, 41, 91),   sky_mid=(42, 46, 98),    sky_bot=(56, 54, 106),   horizon=(84, 64, 108),   star_alpha=120),
         # SUNRISE — rich rose-violet reborn; fresher, lighter, clearly distinct.
         0.88: dict(sky_top=(78, 132, 168), sky_mid=(190, 158, 210), sky_bot=(228, 168, 204), horizon=(248, 158, 184)),
@@ -532,20 +532,22 @@ INDIGO_FIRE = _spec(
         0.44: dict(sky_top=(44, 38, 118),  sky_mid=(114, 46, 172),  sky_bot=(186, 52, 136),  horizon=(228, 66, 104)),
         0.50: dict(sky_top=(38, 32, 110),  sky_mid=(98, 42, 166),   sky_bot=(174, 46, 128),  horizon=(222, 54, 96)),
         0.56: dict(sky_top=(34, 28, 98),   sky_mid=(80, 40, 150),   sky_bot=(154, 46, 122),  horizon=(208, 50, 98)),
-        # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT] — a deep but clearly-LIT indigo dome:
-        # the deep-night sky_top is lifted to (36, 46, 96) (off the old (8,8,32)
-        # void) so the silhouette reads against a moonlit indigo, the magenta-flame
+        # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT, DEEPER END] — a deep but clearly-LIT
+        # indigo dome, held to the DEEP end of the moonlit band so the descent reads
+        # as a clean step-DOWN through dusk→twilight→night with no bright bump at
+        # night. The deep-night sky_top sits at (22, 30, 74), a deep indigo (blue
+        # dominant) so the silhouette reads against a moonlit indigo, the magenta-flame
         # fading at the base, the horizon kept magenta-leaning (not orange) so row 8
         # stays the cool purple-magenta of the cluster. Because the dome is lit,
         # star_alpha is LOWERED at deep night (170) so the field reads without wash.
         # This row's sunset top is itself a very dark deep-indigo ((38,32,110)); the
-        # night sky_top is held to the LOW end of the moonlit band ((26,36,82)) so
-        # its VALUE stays clearly DARKER than that sunset top — still night, not a
-        # second sunset — yet a plainly LIT indigo dome the silhouette reads against.
+        # night sky_top VALUE stays clearly DARKER than that sunset top AND below the
+        # twilight before it — still night, not a second sunset — yet a plainly LIT
+        # indigo dome the silhouette reads against.
         0.62: dict(sky_top=(32, 38, 98),   sky_mid=(58, 44, 120),   sky_bot=(116, 56, 116),  horizon=(192, 66, 100), star_alpha=86),
         0.68: dict(sky_top=(28, 36, 88),   sky_mid=(44, 42, 104),   sky_bot=(78, 50, 102),   horizon=(146, 62, 84),  star_alpha=140),
-        0.72: dict(sky_top=(26, 36, 82),   sky_mid=(36, 42, 88),    sky_bot=(52, 48, 88),    horizon=(90, 54, 66),   star_alpha=170),
-        0.80: dict(sky_top=(27, 37, 83),   sky_mid=(38, 44, 90),    sky_bot=(54, 50, 90),    horizon=(94, 58, 68),   star_alpha=126),
+        0.72: dict(sky_top=(22, 30, 74),   sky_mid=(36, 42, 88),    sky_bot=(52, 48, 88),    horizon=(90, 54, 66),   star_alpha=170),
+        0.80: dict(sky_top=(23, 31, 74),   sky_mid=(38, 44, 90),    sky_bot=(54, 50, 90),    horizon=(94, 58, 68),   star_alpha=126),
         # SUNRISE — cool fresh steel-blue mid lifting to a thin gold horizon; a
         # genuinely different, brighter moment than the indigo-and-flame dusk.
         0.88: dict(sky_top=(78, 142, 178), sky_mid=(160, 192, 216), sky_bot=(206, 204, 204), horizon=(252, 196, 138)),
@@ -578,21 +580,22 @@ AURORA_TEAL_MAGENTA = _spec(
         0.44: dict(sky_top=(52, 44, 102),  sky_mid=(226, 92, 152),  sky_bot=(252, 92, 104),  horizon=(255, 94, 64)),
         0.50: dict(sky_top=(44, 36, 94),   sky_mid=(224, 78, 148),  sky_bot=(250, 78, 96),   horizon=(252, 80, 56)),
         0.56: dict(sky_top=(36, 30, 84),   sky_mid=(200, 66, 138),  sky_bot=(232, 66, 96),   horizon=(228, 66, 60)),
-        # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT] — a lit TEAL-NAVY dome: the deep-night
-        # sky_top is lifted to (34, 50, 92) (off the old (6,14,32) void), a true
-        # teal-leaning indigo (green nudged up over the pure-indigo rows 5/8) so the
-        # silhouette reads against a moonlit teal-navy. Magenta cools out, TEAL
-        # re-enters as the unmistakable TWILIGHT (0.68) accent, and the night keeps
-        # its one signature low cool teal-GREEN glow at the horizon — its separator
-        # from 5/8. Because the dome is lit, star_alpha is LOWERED at deep night (162).
-        # The night sky_top is held to the LOW end of the moonlit band ((28,40,80),
-        # teal-leaning: green nudged over red) so its VALUE stays clearly DARKER than
-        # this row's sunset top ((44,36,94)) — still night, not a second sunset — yet
-        # a plainly LIT teal-navy dome the silhouette reads against.
+        # DUSK→TWILIGHT→NIGHT [MOONLIT-BRIGHT, COOLER/DEEPER] — a lit TEAL-NAVY dome,
+        # held to the DEEP end of the moonlit band so night reads clearly darker than
+        # this row's own dark deep-violet sunset top. The deep-night sky_top sits at
+        # (24, 34, 70), a true teal-leaning indigo (blue dominant, green present and
+        # nudged over the pure-indigo rows 5/8) so the silhouette reads against a
+        # moonlit teal-navy that no longer bumps back up brighter than the twilight
+        # before it. Magenta cools out, TEAL re-enters as the unmistakable TWILIGHT
+        # (0.68) accent, and the night keeps its one signature low cool teal-GREEN
+        # glow at the horizon (46,108,90) — its separator from 5/8 — held EXACTLY.
+        # The night sky_top VALUE stays clearly DARKER than this row's sunset top
+        # ((44,36,94)) — still night, not a second sunset. The dome is now a touch
+        # deeper, so star_alpha is raised (185) to keep cores crisp on the lit sky.
         0.62: dict(sky_top=(30, 40, 96),   sky_mid=(108, 58, 122),  sky_bot=(180, 72, 116),  horizon=(214, 78, 96),   star_alpha=84),
         0.68: dict(sky_top=(28, 40, 86),   sky_mid=(38, 80, 108),   sky_bot=(70, 116, 128),  horizon=(64, 150, 142),  star_alpha=134),
-        0.72: dict(sky_top=(28, 40, 80),   sky_mid=(34, 50, 80),    sky_bot=(44, 62, 80),    horizon=(46, 108, 90),   star_alpha=162),
-        0.80: dict(sky_top=(29, 41, 80),   sky_mid=(36, 52, 82),    sky_bot=(46, 64, 82),    horizon=(48, 110, 92),   star_alpha=120),
+        0.72: dict(sky_top=(24, 34, 70),   sky_mid=(34, 50, 80),    sky_bot=(44, 62, 80),    horizon=(46, 108, 90),   star_alpha=185),
+        0.80: dict(sky_top=(25, 35, 70),   sky_mid=(36, 52, 82),    sky_bot=(46, 64, 82),    horizon=(48, 110, 92),   star_alpha=120),
         # SUNRISE [C] — fresh cyan-and-peach; cool, calm, plainly a different
         # moment than the electric dusk (B leads, only a breath of peach at base).
         # Re-SATURATED so "calm" reads saturated-SOFT, not pale: the cyan carries
