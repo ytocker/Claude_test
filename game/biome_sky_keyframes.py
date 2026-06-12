@@ -246,9 +246,9 @@ _ALPINE_HAZE_KF = [
 
 ALPINE_HAZE = BiomeSpec(
     name='Alpine Haze',
-    note='Glacial cyan-cool high-altitude day melting into a Coral Ember evening — a luminous coral-gold golden hour that travels gold-coral to coral-red to coral-plum, then slowly darkens into a dark cool plum-indigo star-rich night, then a fresh coral-cream dawn. Crisp airy day, warm coral dusk, deep cool plum-indigo night that reads as night yet never goes black.',
+    note='Glacial cyan-cool high-altitude day melting into a Coral Ember evening — a luminous coral-gold golden hour that travels gold-coral to coral-red to coral-plum, then slowly darkens into a dark cool plum-indigo star-rich night, then a fresh coral-cream dawn. The warm cool->warm line sinks toward the horizon as the sun sets (and rises again at dawn). Crisp airy day, warm coral dusk, deep cool plum-indigo night that reads as night yet never goes black.',
     keyframes=_ALPINE_HAZE_KF,
-    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14),
+    sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14, descent_drop=0.20),
 )
 
 

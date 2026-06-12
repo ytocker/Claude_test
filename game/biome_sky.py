@@ -83,6 +83,13 @@ class SkyParams:
     positions: tuple = (0.0, 0.30, 0.62, 0.85, 1.0)
     dither_amp: float = 2.0
     zenith_dark: float = 0.06
+    # Time-of-day descent of the warm band: a real sunset's cool->warm line sinks
+    # toward the horizon as the sun drops. `descent_drop` is the max downward
+    # translation of the interior stops, eased in across the evening and back out
+    # at dawn (0 = the classic static placement, every other biome). The anchors
+    # are the (golden, deep-night, dawn-start, dawn-end) phases shaping the ease.
+    descent_drop: float = 0.0
+    descent_anchors: tuple = (0.235, 0.56, 0.82, 0.97)
 
 
 @dataclass
@@ -104,9 +111,31 @@ class BiomeSpec:
 
 # ── the sky painter ───────────────────────────────────────────────────────────
 
-def _sky_stops(spec, pal):
+def _smoothstep(t):
+    t = 0.0 if t < 0.0 else 1.0 if t > 1.0 else t
+    return t * t * (3 - 2 * t)
+
+
+def _evening_progress(phase, anchors):
+    """0 in daylight, eased to 1 across the evening, held through the dark night,
+    eased back to 0 across dawn — the shape the warm band's descent follows so it
+    starts at its day height, sinks as the sun sets, and rises again at sunrise."""
+    golden, night, dawn0, dawn1 = anchors
+    p = phase % 1.0
+    if p <= golden or p >= dawn1:
+        return 0.0
+    if p < night:
+        return _smoothstep((p - golden) / (night - golden))
+    if p <= dawn0:
+        return 1.0
+    return _smoothstep(1.0 - (p - dawn0) / (dawn1 - dawn0))
+
+
+def _sky_stops(spec, pal, phase=None):
     """The 5 positional OKLab stops for a biome's sky at one stage — a deepened
-    zenith over the palette's sky_top/mid/bot/horizon."""
+    zenith over the palette's sky_top/mid/bot/horizon. When the biome sets
+    `descent_drop` and a `phase` is supplied, the interior stops translate down
+    with the evening so the warm sunset band sinks toward the horizon over time."""
     sky_top = pal.get('sky_top', (40, 110, 200))
     cols = [
         sf.with_value(sky_top, -spec.sky.zenith_dark),
@@ -115,7 +144,12 @@ def _sky_stops(spec, pal):
         pal.get('sky_bot', (200, 220, 240)),
         pal.get('horizon', (245, 235, 215)),
     ]
-    return list(zip(spec.sky.positions, cols))
+    positions = spec.sky.positions
+    if phase is not None and spec.sky.descent_drop:
+        delta = _evening_progress(phase, spec.sky.descent_anchors) * spec.sky.descent_drop
+        z, top, mid, bot, hz = positions
+        positions = (z, top + delta, mid + delta, min(bot + delta, 0.985), hz)
+    return list(zip(positions, cols))
 
 
 def paint_sky(surf, spec, w, h, phase, stars=False, ground_y=None):
@@ -125,7 +159,7 @@ def paint_sky(surf, spec, w, h, phase, stars=False, ground_y=None):
     `ground_y` so the upper-band layout matches), gated on the stage's
     `star_alpha`."""
     pal = spec.palette_for_phase(phase)
-    stops = _sky_stops(spec, pal)
+    stops = _sky_stops(spec, pal, phase)
     surf.blit(sf.make_sky_field(w, h, stops, dither_amp=spec.sky.dither_amp), (0, 0))
     if stars:
         sa = int(pal.get('star_alpha', 0))
