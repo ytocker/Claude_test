@@ -140,15 +140,16 @@ def silhouette_aura(big, fig_big, cx, cy, hue, breathe, *, dark=(8, 4, 12),
     `scl` carries the supersample factor (so the rim stays crisp); `bulk` is a
     mild figure-scale nudge (bigger boss → slightly bigger shadow). `rim` is the
     saturated edge colour (defaults to a lifted `hue`)."""
-    rim = rim or _shade(hue, 70)
+    rim = rim or _shade(hue, 8)
     sil = _silhouette_mask(fig_big)
     u = scl * bulk                                # one tuned unit ≈ 1px at 1x
 
-    # 1. DARK CORE — a dilated silhouette stamped a deep danger-dark, blurred soft,
-    # so the sky directly behind/around the boss goes DARKER than the surrounding
-    # day. This is what makes the figure read as shadow looming out of the light.
+    # 1. DARK CORE — a LARGE soft shadow pool, the silhouette grown WIDE and
+    # stamped a deep danger-dark, so a clear region around/behind the boss goes
+    # DARKER than the bright day clearing. This pool (not a thin edge) is what
+    # makes the figure read as a shadow LOOMING OUT of the light.
     dk = pygame.Surface(fig_big.get_size(), pygame.SRCALPHA)
-    for gpx, a in ((11, 90), (7, 150), (4, 205), (2, 240)):
+    for gpx, a in ((52, 78), (36, 120), (22, 165), (12, 205), (5, 235)):
         layer_a = int(a * (0.85 + 0.15 * breathe))
         blob = _grow(sil, int(gpx * u))
         tint = pygame.Surface(blob.get_size(), pygame.SRCALPHA)
@@ -157,12 +158,11 @@ def silhouette_aura(big, fig_big, cx, cy, hue, breathe, *, dark=(8, 4, 12),
         dk.blit(tint, (0, 0))
     big.blit(_softscale(dk), (0, 0))
 
-    # 2. EDGE RIM — the bright danger ring. Stamp the silhouette grown by a small
-    # ring radius, subtract the body itself, and what's left is a band hugging the
-    # edge. Three bands (tight bright → wide soft) feather it outward into smoke;
-    # this rim is the legibility carrier that keeps the dark figure crisp.
+    # 2. EDGE RIM — a RESTRAINED, dim danger edge accent (NOT a bright neon loop:
+    # a full bright ring reads "selected / powered-up / holy"). Two thin low-alpha
+    # bands hugging the silhouette edge just lift the dark figure off the sky.
     rim_col = rim
-    for grow_px, base_a, lift in ((2, 215, 80), (5, 130, 35), (10, 60, 0)):
+    for grow_px, base_a, lift in ((2, 110, 24), (4, 52, 8)):
         band = _grow(sil, max(1, int(grow_px * scl)))
         hole = pygame.Surface(band.get_size(), pygame.SRCALPHA)
         hole.blit(band, (0, 0))
@@ -197,19 +197,19 @@ def silhouette_aura(big, fig_big, cx, cy, hue, breathe, *, dark=(8, 4, 12),
     if not embers:
         return
     # A few floating embers rising out of the aura — the boss is smouldering.
-    ember_col = _shade(hue, 120)
-    for i in range(8):
+    ember_col = _shade(hue, 40)
+    for i in range(6):
         a0 = rng.uniform(0, math.tau)
         rad = rng.uniform(22, 58) * scl
         drift = breathe * 8 + i * 3
         ex = int(cx + math.cos(a0) * rad)
         ey = int(cy + math.sin(a0) * rad * 0.86) - int((drift % 16) * scl)
         tw = 0.5 + 0.5 * math.sin(breathe * 6.0 + i * 1.7)
-        sz = max(2, int((2 + 2 * tw) * scl))
+        sz = max(2, int((2 + 1.5 * tw) * scl))
         spark = pygame.Surface((sz * 4, sz * 4), pygame.SRCALPHA)
-        al = int(120 + 120 * tw)
+        al = int(70 + 80 * tw)
         pygame.draw.circle(spark, (*ember_col, al), (sz * 2, sz * 2), sz)
-        pygame.draw.circle(spark, (255, 240, 220, al), (sz * 2, sz * 2),
+        pygame.draw.circle(spark, (*_shade(ember_col, 60), al), (sz * 2, sz * 2),
                            max(1, sz // 2))
         big.blit(spark, (ex - sz * 2, ey - sz * 2),
                  special_flags=pygame.BLEND_ADD)
@@ -259,7 +259,9 @@ def menace_face(surf, cx, hy, hr, *, nose_col, glow_col, fang_xtra=0,
     the fangs (demon read); `narrow_eyes` gives the hollow wraith slit."""
     ex = max(6, hr // 2)
     look = -3
-    _cheek(surf, cx, hy + 5, hr, strong=False)
+    # NO cheek blush on the boss — the pink apples are #13's "cute" cue and kept
+    # dragging the menace back toward friendly. The mean read is carried by the
+    # glowing eyes + anger-V brows + fang snarl alone.
 
     for s in (-1, 1):
         exx = cx + s * ex
@@ -752,7 +754,7 @@ def main():
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
     title = f_title.render(
-        "DICE JESTER — EVOLVED BOSS form (round 2)", True, (252, 226, 226))
+        "DICE JESTER — EVOLVED BOSS form (round 3 — DARK shadow-pool aura, no blush)", True, (252, 226, 226))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
         "Round 2 — INVERTED the aura: the boss now LOOMS OUT OF SHADOW. The aura "
@@ -814,7 +816,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "boss_round_2.png")
+    out_path = os.path.join(out_dir, "boss_round_3.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
