@@ -231,18 +231,18 @@ _ALPINE_HAZE_KF = [
     (0.31, dict(sky_top=(104, 70, 96), sky_mid=(238, 138, 86), sky_bot=(255, 168, 54), horizon=(252, 110, 32), star_alpha=5)),
     (0.37, dict(sky_top=(82, 48, 116), sky_mid=(232, 94, 90), sky_bot=(252, 134, 50), horizon=(238, 80, 30), star_alpha=12)),
     (0.42, dict(sky_top=(78, 40, 124), sky_mid=(210, 72, 116), sky_bot=(230, 92, 70), horizon=(218, 66, 48), star_alpha=30)),
-    (0.47, dict(sky_top=(38, 28, 70), sky_mid=(126, 70, 90), sky_bot=(184, 108, 64), horizon=(210, 96, 44), star_alpha=88)),
-    (0.52, dict(sky_top=(26, 20, 54), sky_mid=(78, 48, 72), sky_bot=(124, 78, 64), horizon=(160, 88, 50), star_alpha=156)),
-    (0.56, dict(sky_top=(12, 12, 30), sky_mid=(30, 26, 48), sky_bot=(56, 46, 56), horizon=(96, 64, 48), star_alpha=236)),
-    (0.82, dict(sky_top=(12, 12, 30), sky_mid=(30, 26, 48), sky_bot=(56, 46, 56), horizon=(96, 64, 48), star_alpha=236)),
-    (0.86, dict(sky_top=(16, 16, 38), sky_mid=(36, 34, 58), sky_bot=(64, 56, 64), horizon=(102, 76, 58), star_alpha=168)),
+    (0.47, dict(sky_top=(40, 36, 84), sky_mid=(128, 76, 92), sky_bot=(184, 110, 66), horizon=(210, 98, 46), star_alpha=88)),
+    (0.52, dict(sky_top=(32, 34, 76), sky_mid=(82, 56, 78), sky_bot=(126, 82, 66), horizon=(162, 90, 52), star_alpha=156)),
+    (0.56, dict(sky_top=(26, 34, 68), sky_mid=(46, 44, 70), sky_bot=(72, 58, 64), horizon=(108, 74, 54), star_alpha=224)),
+    (0.82, dict(sky_top=(26, 34, 68), sky_mid=(46, 44, 70), sky_bot=(72, 58, 64), horizon=(108, 74, 54), star_alpha=224)),
+    (0.86, dict(sky_top=(28, 36, 72), sky_mid=(50, 48, 74), sky_bot=(78, 64, 70), horizon=(114, 82, 60), star_alpha=168)),
     (0.92, dict(sky_top=(72, 110, 150), sky_mid=(220, 158, 134), sky_bot=(255, 178, 132), horizon=(255, 168, 110), star_alpha=20)),
     (0.97, dict(sky_top=(82, 138, 172), sky_mid=(228, 178, 158), sky_bot=(255, 192, 150), horizon=(255, 182, 132), star_alpha=0)),
 ]
 
 ALPINE_HAZE = BiomeSpec(
     name='Alpine Haze',
-    note='Glacial cyan-cool high-altitude day melting into an Ember Gold evening — gold-to-burnt-orange-to-plum sunset that slowly darkens into a bronze-indigo star-rich night, then a rich amber-rose dawn. Crisp airy day, warm darkening dusk, genuinely dark night.',
+    note='Glacial cyan-cool high-altitude day melting into an Ember Gold evening — gold-to-burnt-orange-to-plum sunset that slowly darkens into a bronze-indigo star-rich night, then a rich amber-rose dawn. Crisp airy day, warm darkening dusk, deep bronze-indigo night that never goes black.',
     keyframes=_ALPINE_HAZE_KF,
     sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14),
 )
