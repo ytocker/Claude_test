@@ -181,19 +181,17 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
         # outer end tucks slightly lower/out — a raised, surprised, up-to-no-good
         # arch that can never knit into a frown. The whole brow also floats a row
         # higher above the open eye so it reads as a lifted "oh-really" smirk-brow.
-        inner = (exx - s * 1, hy - 17)       # inner end LIFTED HIGH (anti-anger)
-        outer = (exx + s * 10, hy - 14)      # outer end tucks gently down + out
+        # A CLEAN raised brow: the inner (nose-side) end sits clearly HIGHER than
+        # the outer end — a single straight up-and-in line that reads as a lifted,
+        # quizzical "oh-really" arch and can NEVER knit into the angry inner-down V.
+        # Drawn thin (2px) in a soft warm brown (not heavy black INK) so it stops
+        # dominating the face into a scowl (art-director: reduce brow weight ~30%).
+        inner = (exx - s * 2, hy - 20)       # inner end HIGH (anti-anger)
+        outer = (exx + s * 9, hy - 12)       # outer end LOW — a clear 8px raise
         cock = cock_left and s < 0
         if cock:
-            # The single cocked brow rides even higher for the "oh-really" beat —
-            # still a RAISE, never a downward-knit.
-            inner = (inner[0], inner[1] - 3)
-            outer = (outer[0], outer[1] - 2)
-        # Drawn as a smooth arch whose CREST sits over the inner half (peak near
-        # the nose-side end) so the brow lifts UP-and-IN — the gleeful read, not
-        # the angry inner-down V.
-        peak = (exx + s * 3, min(inner[1], outer[1]) - 2)
-        pygame.draw.lines(surf, INK, False, [inner, peak, outer], 3)
+            inner = (inner[0], inner[1] - 3)  # cocked brow rides even higher
+        pygame.draw.line(surf, (76, 56, 60), inner, outer, 2)
 
     # Big red ball nose — SHRUNK and seated UP between the eyes so it stops
     # crowding the grin below (round-4's r=6 nose at hy+6 sat on top of the
@@ -230,11 +228,18 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     fang = [(cx - 5, my + 3), (cx - 1, my + 3), (cx - 3, my + 7)]
     pygame.draw.polygon(surf, (252, 250, 244), fang)
     pygame.draw.polygon(surf, _shade((252, 250, 244), -70), fang, 1)
-    # The up-curved LIP line wrapping the grin — corners flicking UP so the smile
-    # reads unmistakably HAPPY + lopsided at 1x.
-    pygame.draw.lines(surf, MOUTH, False,
-                      [(l_corner[0] - 2, l_corner[1] - 3), l_corner,
-                       bottom, r_corner, (r_corner[0] + 2, r_corner[1] - 2)], 3)
+    # The LIP line wrapping the grin — a single SMOOTH up-curving crescent (a
+    # parabola: corners high, centre dipped) so it reads as one clean happy smile
+    # at 1x, never a jagged sawtooth/snarl. Corners flick UP for the lopsided sly
+    # accent (die-side corner highest).
+    lip = []
+    for k in range(13):
+        t = k / 12.0
+        lx = l_corner[0] - 2 + (r_corner[0] + 2 - (l_corner[0] - 2)) * t
+        ly = (l_corner[1] - 3) + ((r_corner[1] - 2) - (l_corner[1] - 3)) * t \
+            + (1.0 - (2.0 * t - 1.0) ** 2) * 9.0
+        lip.append((lx, ly))
+    pygame.draw.lines(surf, MOUTH, False, lip, 3)
     # Cheek dimple creases on BOTH sides where the grin pushes the cheeks up —
     # the die-side (LEFT) one deeper for the lopsided sly accent.
     pygame.draw.line(surf, _shade(nose_col, -40),
@@ -711,11 +716,11 @@ def _aura_surface(radius, breathe):
     c = radius + 1
     # (t_outer, colour, alpha) stops, drawn large→small so inner overpaints.
     stops = [
-        (1.00, (255, 196, 40), 0),                # amber edge fades to nothing
-        (0.78, (255, 206, 56), 70),               # warm amber body
-        (0.52, (255, 224, 86), 150),              # bright yellow
-        (0.30, (255, 244, 168), 220),             # hot pale yellow
-        (0.15, (255, 255, 240), 255),             # near-white hot core
+        (1.00, (255, 174, 26), 0),                # amber edge fades to nothing
+        (0.84, (255, 188, 36), 130),              # amber body
+        (0.60, (255, 206, 46), 215),              # SATURATED bright yellow (dominant)
+        (0.36, (255, 224, 78), 245),              # bright yellow
+        (0.17, (255, 242, 140), 255),             # hot pale-YELLOW core (NOT white)
     ]
     for t_out, col, a_in in stops:
         r = max(1, int(radius * t_out))
@@ -746,13 +751,14 @@ def draw_cupped_die(surf, cx, base_y, pulse, *, show_inset=False):
     # die is airborne, no cupping mitt beneath it).
     breathe = 0.5 + 0.5 * math.sin(pulse * 1.3)
     pr = 1.0 + 0.10 * breathe                      # radius pulse
-    aura_r = int(38 * pr)                          # ~1.8x the ~42px die footprint
+    aura_r = int(50 * pr)                          # ~2.4x the ~42px die footprint
     aura = _aura_surface(aura_r, breathe)
     surf.blit(aura, (cx - aura_r - 1, cy - aura_r - 1))
-    # A light additive bloom on top so the halo reads as EMITTING light (a glow),
-    # kept modest so it lifts the core without washing the yellow to flat white.
-    blit_glow(surf, cx, cy, int(26 * pr), (255, 238, 150),
-              alpha=70 + int(40 * breathe))
+    # A SMALL, tight additive core bloom only — lifts the core so it reads as
+    # EMITTING light without washing the broad yellow halo to flat white on the
+    # pale day sky (round-5/6's big additive bloom was the white-out culprit).
+    blit_glow(surf, cx, cy, int(13 * pr), (255, 236, 110),
+              alpha=55 + int(30 * breathe))
 
     # The 3D isometric cube prop, identical across all ten.
     _draw_die_face_noshadow(surf, cx, cy, size, pips=HERO_PIPS)
@@ -1072,7 +1078,7 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 6)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 7)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -1093,7 +1099,7 @@ def main():
         cx = PAD + c * (sw + GAP)
         cy = y0 + r * (sh + CAP_H + GAP)
         cell = render_cell(spec, i, show_inset=(i in inset_cells))
-        if i == 3:  # Teal & Magenta — the naughty-face reference; use for inset.
+        if i == 0:  # Plum & Lime — the LEAD/template face; showcase it at 1x.
             template_cell = cell
         scaled = pygame.transform.smoothscale(cell, (sw, sh))
         pygame.draw.rect(canvas, (70, 76, 96),
@@ -1113,16 +1119,16 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Teal & Magenta) — RAISED arched brow + bright "
-            "eyes + sly grin read HAPPY/cheeky (not angry); die reads as a "
-            "glowing near-white→YELLOW-aura 3D CUBE floating high upper-left, "
+            "1x in-game scale (Plum & Lime, the lead) — raised inner-high brow + "
+            "bright eyes + smooth sly grin read HAPPY/cheeky (not angry); die "
+            "reads as a glowing YELLOW-aura 3D CUBE floating high upper-left, "
             "clear of the corner, with the LEFT arm pointing up at it",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_6.png")
+    out_path = os.path.join(out_dir, "round_7.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
