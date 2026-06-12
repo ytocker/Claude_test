@@ -1,4 +1,4 @@
-"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 5).
+"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 6).
 
 The user loved the Court Jester from the dice-clown sheet for its sly,
 "up-to-something / NAUGHTY" read. This sheet explores TEN higher-quality
@@ -14,9 +14,10 @@ airborne die (gesturing at it), and the viewer's-RIGHT arm (`cx + …`) hangs
 down with a visible mitt and a slight outward bow. This MIRRORS the original
 jester (which raised its right arm to a die at upper-right).
 
-ROUND-5 direction (everything below the chin still ships unchanged — bodies,
-lean, pose-arms, caps, costumes, collars, shoes, palettes, the parrot, the 1x
-inset and 2x supersample are all kept). Four targeted "pump it up" changes:
+Prior ROUND-5 direction (kept for lineage; everything below the chin still ships
+unchanged — bodies, lean, pose-arms, caps, costumes, collars, shoes, palettes,
+the parrot, the 1x inset and 2x supersample are all kept). Four "pump it up"
+changes that landed, now refined by the round-6 notes further below:
   - HAPPY-with-a-MEAN-SMILE face: round-4 still read SAD (heavy hooded almond
     eyes + a thin smirk line). Reworked into a GLEEFUL villain GRIN — the mouth
     is now the dominant feature: a WIDE, upturned, OPEN grin with a row of teeth
@@ -37,6 +38,28 @@ inset and 2x supersample are all kept). Four targeted "pump it up" changes:
     top-left lit) with pips on the visible faces (different counts per face like
     a real die). The "27" roll-result inset is the same cube with the number on
     the top face. Consistent across all ten.
+
+ROUND-6 direction (bodies, lean, pose-arms, caps, costumes, palettes, the 3D
+cube FORM and the high top-left float all LANDED and ship unchanged). Two
+blockers + polish, all confined to the FACE, the DIE and its PLACEMENT:
+  - UN-ANGRY the grin: round-5's brows had swung to a hard inner-DOWN "V" (the
+    universal anger shape). The brow is rebuilt to RAISE the INNER end into a
+    cheeky arch (crest over the nose-side half), matching the gleeful tile #1
+    read, applied to ALL ten. The brow stays UP, never lowering toward the nose.
+  - DE-STACK the red around the eyes: the heavy rosy eye-rim is replaced by a
+    thin soft NEUTRAL ink-brown squint crease, and the cheek blush is eased, so
+    the red nose + cheeks no longer reinforce into a feverish/angry look.
+  - REAL power-up AURA: round-5's pure BLEND_ADD halo washed to white on the day
+    sky and effectively vanished. It is rebuilt as an explicit alpha-blended
+    near-WHITE core → bright YELLOW → warm AMBER falloff at ~1.8x the die
+    footprint (reads on VALUE, so it survives night + colourblind), with a light
+    additive bloom on top for the glow pop. Orbiting sparkles kept.
+  - Cube PIPS cleaned: crisper high-contrast dark pips with a light separation
+    halo + more spacing, and simpler per-face counts (top 4, sides 1 + 2) so
+    they read clean at 1x. The cube FORM is unchanged.
+  - The die is nudged ~12px IN from the top-left corner so at 1x it clears the
+    HUD/score gutter, and the cheeky tongue-tip is tightened so it stops reading
+    as a smudge/drip.
 
 Each cell is supersampled 2x then smoothscaled for crisp anti-aliasing.
 
@@ -105,11 +128,13 @@ def _scheme_eye(surf, x, y, *, look):
     pygame.draw.arc(surf, INK, (x - ew - 1, y - eh, ew * 2 + 2, eh + 2),
                     math.pi * 0.15, math.pi * 0.85, 2)
     # LOWER lid pushed UP into a happy-squint arc — the cheek crowding up under
-    # the eye, the unmistakable "smiling eyes" cue. A short upward crescent that
-    # bites into the bottom of the sclera.
-    pygame.draw.arc(surf, _shade(ROSY, -40),
-                    (x - ew, y, ew * 2, eh + 2),
-                    math.pi * 1.1, math.tau * 0.95, 2)
+    # the eye, the unmistakable "smiling eyes" cue. The art-director flagged the
+    # round-5 RED eye-rim as stacking too much red into a feverish/angry look, so
+    # the rim is now a SOFT NEUTRAL ink-brown crease (no rosy red), thin (1px), and
+    # drawn shorter so it whispers "squint" without ringing the eye in red.
+    pygame.draw.arc(surf, (118, 96, 96),
+                    (x - ew + 1, y, ew * 2 - 2, eh),
+                    math.pi * 1.18, math.tau * 0.92, 1)
 
 
 def _cheek(surf, cx, cy, r, *, strong=False):
@@ -118,8 +143,11 @@ def _cheek(surf, cx, cy, r, *, strong=False):
     read as red TEAR streaks running down the cheek. They are now low, round and
     pushed OUTWARD onto the apple of the cheek (well below the eye/nose line) so
     they read unmistakably as a warm flush, never a tear."""
+    # Softer alpha than round-5: the art-director flagged the red-stack (rimmed
+    # eyes + red nose + strong blush) reading feverish/angry, so the blush is
+    # eased to a gentle warm flush that supports "charming", not another red note.
     for s in (-1, 1):
-        a = 190 if strong else 135
+        a = 140 if strong else 105
         blush = pygame.Surface((14, 10), pygame.SRCALPHA)
         pygame.draw.ellipse(blush, (*ROSY, a), blush.get_rect())
         # Low on the cheek apple and well out toward the head edge.
@@ -146,22 +174,26 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     for s in (-1, 1):
         exx = cx + s * ex
         _scheme_eye(surf, exx, hy, look=look)
-        # LIGHT angled mischievous brow, LIFTED + HAPPY (not a worried frown).
-        # The inner end rides a touch higher than round-4 and the whole brow is
-        # raised well clear of the now-OPEN eye so it reads "sly + delighted",
-        # never knitted/worried. A gentle sly arch, thinner than the old V.
-        # Inner end (nose-side, toward cx) sits slightly down/in; outer end lifts
-        # UP and out — a cocked, amused eyebrow, the cheeky-arch read.
-        inner = (exx - s * 2, hy - 13)       # inner end, pinched toward nose
-        outer = (exx + s * 9, hy - 16)       # outer end LIFTED up + out (happy)
+        # PLAYFUL RAISED brow — the cheeky-arch read from tile #1, applied to all
+        # ten. The art-director flagged round-5 as ANGRY: the inner (nose-side)
+        # ends had swung DOWN toward the nose into the universal anger "V". The
+        # fix INVERTS that: the INNER end now rides HIGH (lifted, arched) and the
+        # outer end tucks slightly lower/out — a raised, surprised, up-to-no-good
+        # arch that can never knit into a frown. The whole brow also floats a row
+        # higher above the open eye so it reads as a lifted "oh-really" smirk-brow.
+        inner = (exx - s * 1, hy - 17)       # inner end LIFTED HIGH (anti-anger)
+        outer = (exx + s * 10, hy - 14)      # outer end tucks gently down + out
         cock = cock_left and s < 0
         if cock:
+            # The single cocked brow rides even higher for the "oh-really" beat —
+            # still a RAISE, never a downward-knit.
             inner = (inner[0], inner[1] - 3)
-            outer = (outer[0], outer[1] - 4)
-        # Drawn as a shallow arched line (mid-point lifted) so it reads as a
-        # lively raised brow rather than a hard angular frown-V.
-        midb = ((inner[0] + outer[0]) // 2, min(inner[1], outer[1]) - 2)
-        pygame.draw.lines(surf, INK, False, [inner, midb, outer], 3)
+            outer = (outer[0], outer[1] - 2)
+        # Drawn as a smooth arch whose CREST sits over the inner half (peak near
+        # the nose-side end) so the brow lifts UP-and-IN — the gleeful read, not
+        # the angry inner-down V.
+        peak = (exx + s * 3, min(inner[1], outer[1]) - 2)
+        pygame.draw.lines(surf, INK, False, [inner, peak, outer], 3)
 
     # Big red ball nose — SHRUNK and seated UP between the eyes so it stops
     # crowding the grin below (round-4's r=6 nose at hy+6 sat on top of the
@@ -214,11 +246,17 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
 
     if variant in ("tongue", "tonguecock"):
         # Tongue tip licking out the raised (die-side / LEFT) grin corner — a
-        # cheeky relish, riding just below the fang.
-        pygame.draw.ellipse(surf, (236, 120, 130),
-                            (l_corner[0] - 6, my + 4, 8, 7))
-        pygame.draw.ellipse(surf, _shade((236, 120, 130), -45),
-                            (l_corner[0] - 6, my + 4, 8, 7), 1)
+        # cheeky relish. Round-5's blob read as a smudge/drip at 1x; this is a
+        # tighter, smaller rounded tip seated INSIDE the grin corner (not hanging
+        # below the lip), with a crisp dark outline + a centre crease so it reads
+        # as a tongue, not a drop.
+        tx0 = l_corner[0] - 2
+        ty0 = my + 2
+        tongue = pygame.Rect(tx0, ty0, 6, 5)
+        pygame.draw.ellipse(surf, (228, 110, 124), tongue)
+        pygame.draw.ellipse(surf, _shade((228, 110, 124), -60), tongue, 1)
+        pygame.draw.line(surf, _shade((228, 110, 124), -60),
+                         (tx0 + 3, ty0 + 1), (tx0 + 3, ty0 + 4), 1)
 
 
 # ── belled-cap kit ────────────────────────────────────────────────────────────
@@ -651,11 +689,48 @@ def _draw_costume(surf, cx, hip_y, dark, light, gold, motif, *, lean=0):
         pygame.draw.circle(surf, _shade(gold, 70), (bx - 1, hip_y + 5), 1)
 
 
-# ── the airborne power-up DIE (3D cube + pulsing yellow aura) ────────────────
+# ── the airborne power-up DIE (3D cube + real yellow aura) ───────────────────
 # A 3D isometric cube in a large PULSING YELLOW power-up aura, floating high in
-# the upper-left sky. Layered BLEND_ADD glow + orbiting sparkles read it as a
-# magical takeable pickup; the LEFT arm points up at it. No cast shadow / no
-# under-die contact-glow (it is airborne, not cupped).
+# the upper-left sky. The aura is an explicit alpha-blended near-white→yellow→
+# amber halo (so the hue survives the pale day sky) topped by a light additive
+# bloom + orbiting sparkles, reading as a magical takeable pickup; the LEFT arm
+# points up at it. No cast shadow / no under-die contact-glow (it is airborne).
+
+def _aura_surface(radius, breathe):
+    """Build a REAL layered power-up halo as a single ALPHA-blended disc: a hot
+    near-WHITE core → bright YELLOW → warm AMBER falloff drawn as concentric
+    rings. The art-director flagged the round-5 BLEND_ADD-only aura as effectively
+    absent — additive layers on the pale day sky just washed toward white and the
+    yellow hue vanished at 1x. Alpha-blending these explicit colour stops keeps
+    the YELLOW hue intact against a bright sky, AND the bright near-white core
+    means it reads as a glowing object on VALUE (so it survives at night + reads
+    colourblind-safe). A light additive bloom is layered on top by the caller for
+    the extra glow pop. Colour stops by normalised radius t (0=core, 1=edge)."""
+    size = radius * 2 + 2
+    s = pygame.Surface((size, size), pygame.SRCALPHA)
+    c = radius + 1
+    # (t_outer, colour, alpha) stops, drawn large→small so inner overpaints.
+    stops = [
+        (1.00, (255, 196, 40), 0),                # amber edge fades to nothing
+        (0.78, (255, 206, 56), 70),               # warm amber body
+        (0.52, (255, 224, 86), 150),              # bright yellow
+        (0.30, (255, 244, 168), 220),             # hot pale yellow
+        (0.15, (255, 255, 240), 255),             # near-white hot core
+    ]
+    for t_out, col, a_in in stops:
+        r = max(1, int(radius * t_out))
+        # Per-stop soft falloff so each band feathers into the next, never a hard
+        # disc edge. Brightens with the breathe pulse so the whole halo pulses.
+        steps = max(3, r // 4)
+        for k in range(steps):
+            rr = int(r * (1 - k / steps))
+            if rr < 1:
+                break
+            a = int((a_in * (k / steps) ** 0.4))
+            a = min(255, int(a * (0.78 + 0.22 * breathe)))
+            pygame.draw.circle(s, (*col, a), (c, c), rr)
+    return s
+
 
 def draw_cupped_die(surf, cx, base_y, pulse, *, show_inset=False):
     cy = int(base_y + math.sin(pulse * 1.1) * 3)
@@ -663,18 +738,21 @@ def draw_cupped_die(surf, cx, base_y, pulse, *, show_inset=False):
 
     # A bright, large, PULSING YELLOW power-up AURA behind the airborne die so it
     # unmistakably reads as a magical pickup floating in the sky (not a held
-    # prop). Layered BLEND_ADD via blit_glow: a wide soft yellow outer halo, a
-    # mid yellow ring, and a hot yellow-white inner core — every layer breathing
-    # with the bob `pulse` so the whole thing visibly pulses. The under-die
-    # contact-glow is GONE (the die is airborne, no cupping mitt beneath it).
+    # prop). Built as an explicit alpha-blended near-white→yellow→amber halo so
+    # the yellow hue + bright core both survive the pale day sky (round-5's pure
+    # BLEND_ADD washed to white and the signal vanished), at ~1.8x the die's
+    # footprint, with a light additive bloom on top for the glow pop. The whole
+    # halo breathes with the bob `pulse`. The under-die contact-glow is GONE (the
+    # die is airborne, no cupping mitt beneath it).
     breathe = 0.5 + 0.5 * math.sin(pulse * 1.3)
-    pr = 1.0 + 0.12 * breathe                     # radius pulse
-    blit_glow(surf, cx, cy, int(58 * pr), (255, 224, 60),
-              alpha=110 + int(70 * breathe))      # wide soft outer yellow
-    blit_glow(surf, cx, cy, int(40 * pr), (255, 232, 96),
-              alpha=130 + int(60 * breathe))      # mid yellow body
-    blit_glow(surf, cx, cy, int(22 * pr), (255, 252, 210),
-              alpha=150 + int(70 * breathe))      # hot yellow-white core
+    pr = 1.0 + 0.10 * breathe                      # radius pulse
+    aura_r = int(38 * pr)                          # ~1.8x the ~42px die footprint
+    aura = _aura_surface(aura_r, breathe)
+    surf.blit(aura, (cx - aura_r - 1, cy - aura_r - 1))
+    # A light additive bloom on top so the halo reads as EMITTING light (a glow),
+    # kept modest so it lifts the core without washing the yellow to flat white.
+    blit_glow(surf, cx, cy, int(26 * pr), (255, 238, 150),
+              alpha=70 + int(40 * breathe))
 
     # The 3D isometric cube prop, identical across all ten.
     _draw_die_face_noshadow(surf, cx, cy, size, pips=HERO_PIPS)
@@ -722,10 +800,13 @@ def _iso_face_pips(surf, quad, pips, pip_col, *, scale):
         boty = bl[1] + (br[1] - bl[1]) * fx
         px = int(topx + (botx - topx) * fy)
         py = int(topy + (boty - topy) * fy)
+        # Crisper, higher-contrast pips than round-5: a tiny light halo separates
+        # each pip from the cube face, a solid DARK fill (no muddy mid-tone ring),
+        # and a single specular dot. Reads clean + punchy at 1x rather than blurry.
         pr = max(2, int(3 * scale))
-        pygame.draw.circle(surf, _shade(pip_col, -25), (px, py), pr)
-        pygame.draw.circle(surf, pip_col, (px, py), pr - 1)
-        pygame.draw.circle(surf, _shade(pip_col, 130), (px - 1, py - 1), 1)
+        pygame.draw.circle(surf, (255, 252, 244), (px, py), pr + 1)
+        pygame.draw.circle(surf, _shade(pip_col, -45), (px, py), pr)
+        pygame.draw.circle(surf, _shade(pip_col, 150), (px - 1, py - 1), 1)
 
 
 def _draw_die_face_noshadow(surf, cx, cy, size, *, pips=None, number=None,
@@ -782,17 +863,19 @@ def _draw_die_face_noshadow(surf, cx, cy, size, *, pips=None, number=None,
         tcy = (t_top[1] + t_front[1]) // 2
         surf.blit(txt, (tcx - txt.get_width() // 2,
                         tcy - txt.get_height() // 2))
-        # Sides still get pips so it still reads as a die.
-        _iso_face_pips(surf, [t_left, t_front, bf, bl], 2, pip_col, scale=scale)
-        _iso_face_pips(surf, [t_front, t_right, brr, bf], 3, pip_col,
+        # Sides still get pips so it still reads as a die — LOW counts so they
+        # stay clean at 1x.
+        _iso_face_pips(surf, [t_left, t_front, bf, bl], 1, pip_col, scale=scale)
+        _iso_face_pips(surf, [t_front, t_right, brr, bf], 2, pip_col,
                        scale=scale)
     else:
-        # A real-die face triad: top shows HERO_PIPS, sides show different
-        # counts. Consistent across all ten so the prop is identical.
-        _iso_face_pips(surf, [t_top, t_right, t_front, t_left], 5, pip_col,
+        # A real-die face triad with DELIBERATELY LOW counts (top 4, left 1,
+        # right 2) so the pips read crisp + uncrowded at 1x rather than muddy.
+        # Consistent across all ten so the prop is identical.
+        _iso_face_pips(surf, [t_top, t_right, t_front, t_left], 4, pip_col,
                        scale=scale)
-        _iso_face_pips(surf, [t_left, t_front, bf, bl], 2, pip_col, scale=scale)
-        _iso_face_pips(surf, [t_front, t_right, brr, bf], 3, pip_col,
+        _iso_face_pips(surf, [t_left, t_front, bf, bl], 1, pip_col, scale=scale)
+        _iso_face_pips(surf, [t_front, t_right, brr, bf], 2, pip_col,
                        scale=scale)
 
     # Thin dark keylines on every cube edge so the 3D form reads crisply.
@@ -925,9 +1008,13 @@ def render_cell(spec, idx, show_inset):
     # die (gesturing "look at THIS"). `hand_up` sits well below + right of the
     # die so the pointing arm reads as aiming up at it across open sky, never
     # touching it, and stays clear of the head silhouette.
-    die_x = jester_cx - 78
-    die_base_y = 24
-    hand_up = (die_x + 26, die_base_y + 56)
+    # Nudged ~12px IN from the very top-left corner (round-5 jammed the aura into
+    # the corner / off-canvas, where at 1x it would collide with the HUD score
+    # gutter). It still floats HIGH and clearly upper-LEFT, just clear of the edge
+    # so the bright aura sits fully over the open sky clearing.
+    die_x = jester_cx - 66
+    die_base_y = 36
+    hand_up = (die_x + 26, die_base_y + 54)
 
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
@@ -985,14 +1072,14 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 5)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 6)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "PUMPED: HAPPY-with-a-MEAN-SMILE faces (wide open grin + teeth + one fang, "
-        "bright open smiling eyes, lifted sly brows) · die is now a 3D ISOMETRIC "
-        "CUBE in a PULSING YELLOW power-up aura, floating HIGH upper-left · LEFT "
-        "arm POINTS up at it · bodies/pose/caps/costumes unchanged",
+        "FIXED: brows now RAISED/arched + INNER-end LIFTED on all ten (un-angry, "
+        "matches tile #1) · red DE-STACKED (neutral soft eye-rim, eased blush) · "
+        "REAL near-white→YELLOW→amber power-up AURA on the 3D cube · pips cleaned "
+        "(top 4 / sides 1+2) · die nudged IN off the top-left corner · tongue tightened",
         True, (190, 195, 205))
     canvas.blit(sub, (PAD, PAD + 50))
 
@@ -1026,15 +1113,16 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Teal & Magenta) — wide open grin + fang reads "
-            "HAPPY+MEAN; die reads as a glowing YELLOW-aura 3D CUBE floating "
-            "high upper-left with the LEFT arm pointing up at it",
+            "1x in-game scale (Teal & Magenta) — RAISED arched brow + bright "
+            "eyes + sly grin read HAPPY/cheeky (not angry); die reads as a "
+            "glowing near-white→YELLOW-aura 3D CUBE floating high upper-left, "
+            "clear of the corner, with the LEFT arm pointing up at it",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_5.png")
+    out_path = os.path.join(out_dir, "round_6.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
