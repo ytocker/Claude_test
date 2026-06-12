@@ -1010,6 +1010,12 @@ JESTERS = [
         dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
         cap_fn=cap_four_point, motif="quartered", collar="scalloped",
         variant="browcock", collar_in_gold=True)),
+    # 13 — THE FINAL PICK: exactly #12, but with the ground cast-shadow beneath
+    # the figure removed (`no_shadow`).
+    ("Plum & Lime — FINAL (no shadow)", dict(
+        dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
+        cap_fn=cap_four_point, motif="quartered", collar="scalloped",
+        variant="browcock", collar_in_gold=True, no_shadow=True)),
 ]
 
 
@@ -1020,6 +1026,10 @@ def render_cell(spec, idx, show_inset):
     + cast shadow, the chunky jester filling ~70-80% of the cell, the head-sized
     power-up die floating high in the upper-LEFT focal slot with the raised LEFT
     arm pointing up at it, and the real parrot for scale. Returns VIEW_W x VIEW_H."""
+    # `no_shadow` is a per-tile spec flag (popped here so it never reaches
+    # build_jester) that suppresses the ground cast-shadow under the figure.
+    spec = dict(spec)
+    no_shadow = spec.pop('no_shadow', False)
     palette = shaped_palette(DAY_PHASE)
     bw, bh = VIEW_W * SS, VIEW_H * SS
     big = pygame.Surface((bw, bh))
@@ -1056,7 +1066,8 @@ def render_cell(spec, idx, show_inset):
     # to float in, fully off the head silhouette (mirror of the original).
     jester_cx = VIEW_W // 2 + 12
     feet_y = VIEW_FEET_Y
-    _shadow(layer, jester_cx, feet_y, 96)
+    if not no_shadow:
+        _shadow(layer, jester_cx, feet_y, 96)
 
     # The die floats HIGH in the upper-LEFT sky, clearly airborne. The raised
     # LEFT arm no longer cups it — it POINTS diagonally UP toward the floating
@@ -1104,6 +1115,7 @@ CAPTIONS = [
     "scarlet/gold · 3-point cap · grin + tongue",
     "plum/lime · SPLAYED 4-point · cocked-brow (= #2 in #1's colours)",
     "plum/lime · 4-point · GOLD scalloped ruff (= #11, yellow collar circles)",
+    "FINAL PICK · = #12 with NO ground shadow beneath the figure",
 ]
 
 
@@ -1132,7 +1144,7 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 11)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 12)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -1183,7 +1195,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_11.png")
+    out_path = os.path.join(out_dir, "round_12.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
