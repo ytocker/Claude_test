@@ -445,6 +445,27 @@ def _collar_scalloped(surf, cx, neck_y, col, r=22, lobes=9, tilt=0):
               col=(240, 235, 200))
 
 
+def _shoulder_pom(surf, x, y, gold, *, lobes=3):
+    """A small belled POM / epaulet tuft seated right where an arm meets the
+    torso, to BRIDGE the shoulder seam on the narrower belled-collar tiles whose
+    raised shoulder is otherwise exposed (the scalloped-ruff tiles already drape
+    over the joint and need none). Built from the sheet's own ornament
+    vocabulary — a cluster of soft gold lobes crowned by a lit bell — so it reads
+    native to the costume's gold-accent / collar-bell language, not pasted on."""
+    # A fan of small gold lobes packed over the joint so the cluster physically
+    # overlaps both the upper arm and the torso edge, closing the visible seam.
+    spread = (lobes - 1) / 2
+    for i in range(lobes):
+        s = i - spread
+        lx = int(x + s * 5)
+        ly = int(y + abs(s) * 2)            # outer lobes ride a touch lower
+        pygame.draw.circle(surf, _shade(gold, -55), (lx, ly), 6)
+        pygame.draw.circle(surf, gold, (lx, ly), 5)
+        pygame.draw.circle(surf, _shade(gold, 70), (lx - 2, ly - 2), 2)
+    # Crown the tuft with a lit cream bell, matching the collar/cap bell style.
+    _bell(surf, x, y - 4, r=3, col=(245, 240, 200))
+
+
 # ── belled curled-toe jester shoes + thumb-divided mitts ─────────────────────
 
 def _jester_shoes(surf, cx, feet_y, sep, length, color, toe, *, lean=0):
@@ -496,7 +517,7 @@ def _mitt_thumb(surf, hand, gr, glove, *, side):
 
 def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
                  cap_fn, motif, collar, variant, skin=(255, 209, 169),
-                 nose_col=(232, 72, 72), imp=False):
+                 nose_col=(232, 72, 72), imp=False, shoulder_orn=False):
     """Draw ONE chunky court jester in the fixed mirrored presenting pose with a
     plotting body lean. `variant` selects the small face flavour layered on the
     shared naughty recipe. `imp` is a spec marker for the single horned-hood
@@ -545,6 +566,15 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     r_hand = (hip_cx + 34, hip_y - 4)
     _arm(surf, r_sh, r_hand, 8, light)
     _mitt_thumb(surf, r_hand, 7, (250, 250, 252), side=-1)
+
+    # Belled shoulder POMS — drawn AFTER the arms so they overlap the arm/torso
+    # junction and close the exposed seam. Only the narrower belled-collar tiles
+    # need this; the scalloped ruff already drapes over the joint. The die-side
+    # (LEFT, raised) shoulder is the one whose seam shows, so its pom is mirrored
+    # on the RIGHT shoulder for a balanced, intentional epaulet pair.
+    if shoulder_orn:
+        _shoulder_pom(surf, l_sh[0] + 4, l_sh[1] + 2, gold)
+        _shoulder_pom(surf, r_sh[0] - 4, r_sh[1] + 2, gold)
 
     # Collar — every jester gets a belled, pointed/scalloped collar (no bare
     # necks), sheared to follow the leaning shoulders.
@@ -911,7 +941,7 @@ JESTERS = [
     ("Plum & Lime", dict(
         dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
         cap_fn=cap_three_point, motif="split", collar="belled",
-        variant="plain")),
+        variant="plain", shoulder_orn=True)),
     # 2 — NOT-a-crown floppy four-point; ruby/cream warm family. Round-2 washed
     # out on the day sky, so the ruby is deepened to a darker mid-value and the
     # cream pulled off near-white toward a warm tan so the silhouette survives.
@@ -1083,14 +1113,14 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 8)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 9)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "FIXED: brows now RAISED/arched + INNER-end LIFTED on all ten (un-angry, "
-        "matches tile #1) · red DE-STACKED (neutral soft eye-rim, eased blush) · "
-        "REAL near-white→YELLOW→amber power-up AURA on the 3D cube · pips cleaned "
-        "(top 4 / sides 1+2) · die nudged IN off the top-left corner · tongue tightened",
+        "FIXED (tile #1 ONLY): added belled GOLD shoulder POMS / epaulets at both "
+        "shoulders so the raised LEFT arm now reads CONNECTED to the body — the "
+        "belled-collar seam at the exposed raised shoulder is bridged by the "
+        "costume's own bell/pom vocabulary. All other 9 tiles unchanged from round 8.",
         True, (190, 195, 205))
     canvas.blit(sub, (PAD, PAD + 50))
 
@@ -1124,16 +1154,17 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Plum & Lime, the lead) — raised inner-high brow + "
-            "bright eyes + smooth sly grin read HAPPY/cheeky (not angry); die "
-            "reads as a glowing YELLOW-aura 3D CUBE floating high upper-left, "
-            "clear of the corner, with the LEFT arm pointing up at it",
+            "1x in-game scale (Plum & Lime, the lead) — NEW belled gold shoulder "
+            "poms now bridge the belled-collar seam so the raised LEFT arm reads "
+            "CONNECTED to the body; raised brow + bright eyes + smooth sly grin "
+            "read HAPPY/cheeky; die reads as a glowing YELLOW-aura 3D CUBE high "
+            "upper-left with the LEFT arm pointing up at it",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_8.png")
+    out_path = os.path.join(out_dir, "round_9.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
