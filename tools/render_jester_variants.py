@@ -1,4 +1,4 @@
-"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 4).
+"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 5).
 
 The user loved the Court Jester from the dice-clown sheet for its sly,
 "up-to-something / NAUGHTY" read. This sheet explores TEN higher-quality
@@ -8,45 +8,35 @@ power-up die. Everything is drawn from pygame primitives; we import the REAL
 game helpers (biome palette, glow cache, live parrot) and the chunky body
 kit from the dice-clown mockup, and mutate no game state.
 
-THE FIXED POSE (identical on all ten — a hard requirement): the die floats in
-the upper-LEFT focal slot, the viewer's-LEFT arm (`cx - …`) is raised
-diagonally up presenting an open offering glove that CUPS UNDER the die, and
-the viewer's-RIGHT arm (`cx + …`) hangs down with a visible mitt and a slight
-outward bow. This MIRRORS the original jester (which raised its right arm to a
-die at upper-right). The die's power-up treatment is kept EXACTLY consistent
-across all ten: classic d6 pips, gold glow halo (BLEND_ADD), top-left rim
-light, gentle bob, orbiting sparkles.
+THE POSE (identical on all ten): the die floats HIGH in the upper-LEFT sky,
+the viewer's-LEFT arm (`cx - …`) is raised diagonally up and POINTS toward the
+airborne die (gesturing at it), and the viewer's-RIGHT arm (`cx + …`) hangs
+down with a visible mitt and a slight outward bow. This MIRRORS the original
+jester (which raised its right arm to a die at upper-right).
 
-ROUND-4 direction (FACE-ONLY pass; everything below the chin ships unchanged):
-  The round-3 face read SAD / PLEADING / WEEPY — the exact opposite of naughty.
-  Three shared face-geometry fixes (applied to the one shared recipe so all 10
-  update together):
-  - FLIPPED BROW TO A REAL SCHEMING "V": the inner corner is now HIGH + pulled
-    INWARD to the nose-bridge, the outer corner LOW + out — the hard inverse of
-    round-3's inner-low/outer-high "about-to-cry" brow, exaggerated so the angle
-    reads at 1x.
-  - DELETED EVERY TEAR STREAK + WATERY HIGHLIGHT: the under-eye blush that
-    streaked like tears is moved low onto the cheek apple; the glossy tear-dot
-    and down-curved watery lower lid are gone. Each eye is now a FLAT half-lidded
-    almond — a straight (outer end dipping DOWN) heavy upper lid over white
-    sclera, with a dark pupil jammed into the DIE-SIDE corner (sly sidelong
-    up-left glance).
-  - COMMITTED LOPSIDED UP-SMIRK: the die-side corner is pulled clearly UP + back
-    with a hook + cheek dimple, the far corner dropped low — a definite
-    asymmetric up-hook, never a symmetric down-curve.
-  - COMMITTED plotting BODY LEAN on every figure: die-side shoulder dropped 7px,
-    hip cocked hard, weight on the die-side leg, the trailing knee bent.
-  - Coxcomb crests ANCHORED to the scalp by a base band; #2/#9 value contrast
-    raised so they hold against the day sky; #2's four-point cap splayed out.
-  - Every costume lifted to the #6 standard: scalloped/pointed belled collar,
-    per-panel costume shading, curled-toe belled shoes, two-tone harlequin
-    hose, thumb-divided mitts.
-  - Die now CUPPED by the open mitt with a soft contact-glow (no flat grey
-    drop-shadow under the floating die).
-  - Caps fixed: a true two-eared donkey cap, a not-a-crown belled four-point,
-    a single IMPISH (charcoal-plum, soft bell-nub) horned hood.
-  - Palettes de-clustered off the purple family toward distinct warm / cool
-    families; proportions biased to the shorter rounder chibi build.
+ROUND-5 direction (everything below the chin still ships unchanged — bodies,
+lean, pose-arms, caps, costumes, collars, shoes, palettes, the parrot, the 1x
+inset and 2x supersample are all kept). Four targeted "pump it up" changes:
+  - HAPPY-with-a-MEAN-SMILE face: round-4 still read SAD (heavy hooded almond
+    eyes + a thin smirk line). Reworked into a GLEEFUL villain GRIN — the mouth
+    is now the dominant feature: a WIDE, upturned, OPEN grin with a row of teeth
+    and ONE pointed fang for the mean edge; cheeks pushed up. Eyes opened up
+    bright + lively with a happy-squint lower lid and a catchlight (pupils still
+    glancing sidelong at the die). Brows lifted into a light sly arch (happy +
+    cheeky, not a worried frown). The big red ball nose shrunk + seated higher
+    so it no longer crowds the grin. Cheek blush kept.
+  - DIE FLOATS HIGHER, up in the top-left sky (clearly airborne): `die_base_y`
+    dropped and `die_x` pulled further left; the LEFT arm now POINTS up at it
+    rather than cupping under it.
+  - YELLOW power-up AURA: the gold halo is replaced by a brighter, larger,
+    PULSING yellow aura (layered BLEND_ADD glow — wide soft outer + hot
+    yellow-white core, breathing with the bob). Orbiting sparkles kept; the
+    under-die contact-glow dropped (it's airborne, not cupped).
+  - 3D ISOMETRIC CUBE: the flat die square is replaced by an axonometric cube
+    (top rhombus + left + right faces in three shades, dark edge keylines,
+    top-left lit) with pips on the visible faces (different counts per face like
+    a real die). The "27" roll-result inset is the same cube with the number on
+    the top face. Consistent across all ten.
 
 Each cell is supersampled 2x then smoothscaled for crisp anti-aliasing.
 
@@ -76,48 +66,50 @@ from tools.render_clown_dice import (
 )
 
 
-# ── the NAUGHTY face kit (ONE locked recipe on all ten) ──────────────────────
-# Round-1 critique: only the teal/magenta tile fully sold the scheming read;
-# the rest drifted neutral/surprised/sour. The signature is now a SINGLE recipe
-# applied to every jester (the #4 reference), built from the same friendly-but-
-# cheeky vocabulary so the read is consistent: scheming "V" brows (inner ends
-# DOWN, outer ends UP), half-lidded eyes with both pupils shoved to one side
-# (a sidelong glance), and an ASYMMETRIC smirk (one corner higher, slight
-# curl — never a symmetric frown or flat line). Variants layer on a single
-# cocked brow and a tongue-tip at the smirk corner for variety.
+# ── the HAPPY-MEAN face kit (ONE locked recipe on all ten) ───────────────────
+# The signature is a SINGLE recipe applied to every jester: a wide OPEN happy
+# GRIN (the dominant feature) with a row of teeth and one pointed fang for the
+# mean edge, bright OPEN smiling eyes with a sidelong glance toward the die,
+# and lifted sly brows — gleeful + up-to-no-good, never sad/droopy/pleading.
+# Variants layer on a single cocked brow and a tongue-tip at the grin corner
+# for variety.
 
 MOUTH = (188, 56, 66)
 
 
 def _scheme_eye(surf, x, y, *, look):
-    """A FLAT half-lidded almond — confident and sly, never droopy or weepy.
-    Round-3 still read teary: a curved/down lower lid plus an under-eye streak
-    looked like tears. This rebuild is a hard, simple almond: a STRAIGHT (very
-    slightly DOWN at the outer end) heavy upper-lid line, a white sclera showing
-    below it, and a dark pupil shoved hard into the DIE-SIDE corner for a sly
-    sidelong glance up toward the die. NO tear streak, NO glossy watery dot, NO
-    up-curving sad lash-arc, NO down-curved watery lower lid. `look` is the
-    horizontal pupil shove (negative = toward the upper-left die)."""
-    ew, eh = 5, 4  # almond half-extents (a touch flatter than a round eye)
-    # White sclera — a low, wide almond. Kept compact so the heavy lid above can
-    # cover the top half without the eye ever reading wide/surprised or weepy.
-    eye_rect = pygame.Rect(x - ew, y - eh + 3, ew * 2, eh * 2)
+    """A BRIGHT, OPEN, lively eye that smiles — gleeful + sly, NOT droopy/weepy.
+    Round-4's flat half-lidded almond still read SAD (heavy hooded down-slant
+    lid + matte pupil). This rebuild opens the eye up: a tall round white sclera
+    with a bright pupil + a real specular catchlight (alive, not glossy-teary),
+    and the LOWER lid curved UP into the cheek (a genuine happy-squint arc) so
+    the eye reads as laughing. The pupil still shoves hard toward the DIE-SIDE
+    corner for the sly sidelong glance up at the floating die. NO heavy hooded
+    top lid, NO down-slanted sad lid. `look` is the horizontal pupil shove
+    (negative = toward the upper-left die)."""
+    ew, eh = 5, 6  # taller/rounder than round-4 so the eye reads OPEN and alive
+    # White sclera — a tall bright open eye. Big and round so the figure reads
+    # wide-awake and delighted, never hooded or droopy.
+    eye_rect = pygame.Rect(x - ew, y - eh + 2, ew * 2, eh * 2)
     pygame.draw.ellipse(surf, WHITE, eye_rect)
-    # Dark pupil jammed into the DIE-SIDE corner (sidelong up-left glance). NO
-    # bright watery specular catch at all — round-3's white highlight read as a
-    # glossy tear, so the pupil is a flat matte dot only.
+    # Bright pupil jammed into the DIE-SIDE corner (sidelong up-left glance) with
+    # a real specular catchlight so the eye sparkles with mischief — placed top-
+    # left of the pupil (lit, lively), not a watery centre tear.
     px = x + look
-    py = y + 3
-    pygame.draw.circle(surf, (40, 36, 54), (px, py), 3)
-    pygame.draw.circle(surf, (16, 14, 24), (px, py), 3, 1)
-    # FLAT heavy upper lid as a STRAIGHT bar with a slight DOWN-slant AWAY from
-    # the die (the lid sits higher on the die-glance side and dips down on the
-    # far side) — a hooded, knowing squint, never an up-curving sad lash. Both
-    # eyes slant the same screen direction so the sidelong read is consistent.
-    hi_side = -1 if look < 0 else 1   # lid rides high on the die-glance side
-    lid_hi = (x + hi_side * (ew + 1), y - 1)
-    lid_lo = (x - hi_side * (ew + 1), y + 1)  # far end dips DOWN 2px
-    pygame.draw.line(surf, INK, lid_hi, lid_lo, 3)
+    py = y + 1
+    pygame.draw.circle(surf, (44, 38, 60), (px, py), 4)
+    pygame.draw.circle(surf, (14, 12, 22), (px, py), 4, 1)
+    pygame.draw.circle(surf, (255, 255, 255), (px - 1, py - 2), 1)
+    # Thin LIGHT upper lid arched UP (a happy lifted lid) — drawn as a shallow
+    # up-curving arc over the top of the sclera, never a heavy hooded down-bar.
+    pygame.draw.arc(surf, INK, (x - ew - 1, y - eh, ew * 2 + 2, eh + 2),
+                    math.pi * 0.15, math.pi * 0.85, 2)
+    # LOWER lid pushed UP into a happy-squint arc — the cheek crowding up under
+    # the eye, the unmistakable "smiling eyes" cue. A short upward crescent that
+    # bites into the bottom of the sclera.
+    pygame.draw.arc(surf, _shade(ROSY, -40),
+                    (x - ew, y, ew * 2, eh + 2),
+                    math.pi * 1.1, math.tau * 0.95, 2)
 
 
 def _cheek(surf, cx, cy, r, *, strong=False):
@@ -135,64 +127,98 @@ def _cheek(surf, cx, cy, r, *, strong=False):
 
 
 def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
-    """Paint the ONE locked scheming expression. `variant` only layers small
+    """Paint the ONE locked HAPPY-with-a-MEAN-SMILE expression. The read is a
+    gleeful, up-to-no-good villain GRIN — the dominant feature is a wide, open,
+    upturned smile with teeth and ONE pointed fang. `variant` only layers small
     extra flavour on top of the shared recipe:
         "plain"   — the base recipe.
         "browcock"— one eyebrow cocked high (oh-really).
-        "tongue"  — a tongue-tip poking the smirk corner.
+        "tongue"  — a tongue-tip licking the grin corner.
         "tonguecock" — both of the above.
     The whole head (face + cap) is rotated by the caller for the plotting lean,
     so the features always tilt WITH the body rather than floating level."""
     ex = max(6, hr // 2)
-    # Pupils glance sidelong toward the die (upper-LEFT) — caught plotting.
+    # Pupils glance sidelong toward the die (upper-LEFT) — gleefully eyeing it.
     look = -3
-    _cheek(surf, cx, hy + 3, hr, strong=variant in ("tongue", "tonguecock"))
+    _cheek(surf, cx, hy + 5, hr, strong=True)
 
     cock_left = variant in ("browcock", "tonguecock")
     for s in (-1, 1):
         exx = cx + s * ex
         _scheme_eye(surf, exx, hy, look=look)
-        # REAL scheming "V": the INNER end is HIGH and pulled INWARD toward the
-        # nose-bridge; the OUTER end drives LOW and out. This is the hard INVERSE
-        # of round-3's inner-low/outer-high "worried / about-to-cry" brow — the
-        # single sign-flip that turns weepy into plotting. The inner/outer y-gap
-        # is exaggerated (8px) so the down-and-in angle reads even at 1x.
-        # Inner end (nose-side, toward centre cx) is HIGH; outer end (temple
-        # side) is LOW. For the left eye nose-side is +x, for the right eye it
-        # is -x, hence the `-s` / `+s` x-signs.
-        inner = (exx - s * 2, hy - 13)       # inner end HIGH + pinched to nose
-        outer = (exx + s * 8, hy - 5)        # outer end LOW + out
+        # LIGHT angled mischievous brow, LIFTED + HAPPY (not a worried frown).
+        # The inner end rides a touch higher than round-4 and the whole brow is
+        # raised well clear of the now-OPEN eye so it reads "sly + delighted",
+        # never knitted/worried. A gentle sly arch, thinner than the old V.
+        # Inner end (nose-side, toward cx) sits slightly down/in; outer end lifts
+        # UP and out — a cocked, amused eyebrow, the cheeky-arch read.
+        inner = (exx - s * 2, hy - 13)       # inner end, pinched toward nose
+        outer = (exx + s * 9, hy - 16)       # outer end LIFTED up + out (happy)
         cock = cock_left and s < 0
         if cock:
-            inner = (inner[0], inner[1] - 4)
-            outer = (outer[0], outer[1] - 3)
-        pygame.draw.line(surf, INK, inner, outer, 3)
-        # A short heavier stub at the inner (high, pinched) end thickens the
-        # knitted brow-root so the two inner ends crowd the nose-bridge.
-        pygame.draw.line(surf, INK, inner, (inner[0] + s * 2, inner[1] + 2), 3)
+            inner = (inner[0], inner[1] - 3)
+            outer = (outer[0], outer[1] - 4)
+        # Drawn as a shallow arched line (mid-point lifted) so it reads as a
+        # lively raised brow rather than a hard angular frown-V.
+        midb = ((inner[0] + outer[0]) // 2, min(inner[1], outer[1]) - 2)
+        pygame.draw.lines(surf, INK, False, [inner, midb, outer], 3)
 
-    _nose(surf, cx, hy + 6, 6, nose_col)
+    # Big red ball nose — SHRUNK and seated UP between the eyes so it stops
+    # crowding the grin below (round-4's r=6 nose at hy+6 sat on top of the
+    # mouth). Smaller radius + lifted so the wide grin owns the lower face.
+    _nose(surf, cx, hy + 3, 4, nose_col)
 
-    # COMMITTED lopsided up-SMIRK. The DIE-SIDE corner (viewer-LEFT, where the
-    # eyes are glancing) is pulled clearly UP and BACK; the far corner drops low.
-    # Built as a definite asymmetric up-hook (never the round-3 soft symmetric
-    # down-curve): the line climbs from the dropped far corner up to the raised
-    # die-side corner, then flicks up into a smirk hook.
-    hi = (cx - 10, hy + 8)               # raised die-side (LEFT) corner, up/back
-    mid = (cx - 1, hy + 13)
-    lo = (cx + 9, hy + 14)               # dropped far (RIGHT) corner, flat-low
-    pygame.draw.lines(surf, MOUTH, False, [lo, mid, hi], 3)
-    # Curl tail flicking UP off the raised die-side corner so the hook reads.
-    pygame.draw.line(surf, MOUTH, hi, (hi[0] - 2, hi[1] - 3), 3)
-    # Single cheek dimple crease on the RAISED (die-side / LEFT) side only.
-    pygame.draw.line(surf, _shade(nose_col, -40), (hi[0] - 3, hi[1] - 1),
-                     (hi[0] - 4, hi[1] + 3), 2)
+    # THE DOMINANT FEATURE: a WIDE, upturned, OPEN happy GRIN with a row of teeth
+    # and one pointed fang for the mean edge. Built as a filled mouth shape: a
+    # dark open interior arc bounded by an up-curved lip, the die-side (LEFT)
+    # corner pulled highest so the grin still reads lopsided/sly. The grin is
+    # large — it spans most of the lower face and pushes the cheeks up.
+    mw = 11                                   # half-width of the grin
+    my = hy + 12                              # vertical seat of the mouth line
+    # The smile baseline: corners up, centre dropped — a fat up-curving crescent.
+    l_corner = (cx - mw - 1, my - 2)          # die-side (LEFT) corner, highest
+    r_corner = (cx + mw, my)                  # far (RIGHT) corner, a touch lower
+    bottom = (cx, my + 8)                     # open-mouth low point
+    # Filled open mouth interior (dark warm throat) so it reads OPEN, not a line.
+    mouth_poly = [l_corner, (cx - 5, my + 1), (cx + 5, my + 1), r_corner,
+                  (cx + 6, my + 4), bottom, (cx - 6, my + 4)]
+    pygame.draw.polygon(surf, (120, 30, 42), mouth_poly)
+    # Top row of TEETH: a bright white band along the top of the open grin.
+    teeth = [l_corner, (cx - 5, my), (cx + 5, my), r_corner,
+             (cx + 5, my + 3), (cx - 5, my + 3)]
+    pygame.draw.polygon(surf, (250, 248, 240), teeth)
+    pygame.draw.polygon(surf, _shade((250, 248, 240), -70), teeth, 1)
+    # Tooth separators so the white band reads as individual teeth.
+    for tx in range(-2, 3):
+        gx = cx + tx * 4
+        pygame.draw.line(surf, _shade((250, 248, 240), -70),
+                         (gx, my), (gx, my + 3), 1)
+    # ONE pointed FANG dropping below the teeth row on the die-side (LEFT) for
+    # the "mean" edge — a small white triangle hanging into the dark mouth.
+    fang = [(cx - 5, my + 3), (cx - 1, my + 3), (cx - 3, my + 7)]
+    pygame.draw.polygon(surf, (252, 250, 244), fang)
+    pygame.draw.polygon(surf, _shade((252, 250, 244), -70), fang, 1)
+    # The up-curved LIP line wrapping the grin — corners flicking UP so the smile
+    # reads unmistakably HAPPY + lopsided at 1x.
+    pygame.draw.lines(surf, MOUTH, False,
+                      [(l_corner[0] - 2, l_corner[1] - 3), l_corner,
+                       bottom, r_corner, (r_corner[0] + 2, r_corner[1] - 2)], 3)
+    # Cheek dimple creases on BOTH sides where the grin pushes the cheeks up —
+    # the die-side (LEFT) one deeper for the lopsided sly accent.
+    pygame.draw.line(surf, _shade(nose_col, -40),
+                     (l_corner[0] - 2, l_corner[1] - 1),
+                     (l_corner[0] - 4, l_corner[1] + 4), 2)
+    pygame.draw.line(surf, _shade(nose_col, -40),
+                     (r_corner[0] + 2, r_corner[1]),
+                     (r_corner[0] + 3, r_corner[1] + 3), 1)
 
     if variant in ("tongue", "tonguecock"):
-        # Tongue tip poking out the raised (die-side / LEFT) smirk corner.
-        pygame.draw.ellipse(surf, (236, 120, 130), (hi[0] - 7, hi[1], 8, 7))
+        # Tongue tip licking out the raised (die-side / LEFT) grin corner — a
+        # cheeky relish, riding just below the fang.
+        pygame.draw.ellipse(surf, (236, 120, 130),
+                            (l_corner[0] - 6, my + 4, 8, 7))
         pygame.draw.ellipse(surf, _shade((236, 120, 130), -45),
-                            (hi[0] - 7, hi[1], 8, 7), 1)
+                            (l_corner[0] - 6, my + 4, 8, 7), 1)
 
 
 # ── belled-cap kit ────────────────────────────────────────────────────────────
@@ -420,8 +446,8 @@ def _mitt_thumb(surf, hand, gr, glove, *, side):
 
 # ── the unified jester builder (fixed pose + plotting lean) ───────────────────
 # Every variation funnels through ONE builder so the MIRRORED POSE is literally
-# identical across all ten: die upper-LEFT, LEFT arm raised CUPPING the die,
-# RIGHT arm hanging down with a bowed mitt. On top of that hard pose, a shared
+# identical across all ten: die high in the upper-LEFT, LEFT arm raised POINTING
+# UP at the die, RIGHT arm hanging down with a bowed mitt. On top of that pose, a shared
 # "plotting" LEAN breaks the round-1 bolt-upright symmetry: the head tilts ~5°,
 # one shoulder drops, the hip cocks, weight rests on one leg.
 
@@ -466,9 +492,9 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     _draw_costume(surf, hip_cx, hip_y, dark, light, gold, motif, lean=4)
 
     # POSE — the hard requirement, now with the lean baked in. The LEFT (die-
-    # side) shoulder DROPS; its arm reaches up and the open mitt CUPS UNDER the
-    # die. The RIGHT arm hangs down with a slight outward BOW so both hands read
-    # in silhouette.
+    # side) shoulder DROPS; its arm reaches up and the mitt POINTS diagonally up
+    # at the airborne die. The RIGHT arm hangs down with a slight outward BOW so
+    # both hands read in silhouette.
     l_sh = (hip_cx - 25, hip_y - 46 + drop)
     r_sh = (hip_cx + 25, hip_y - 50)
     _arm(surf, l_sh, hand_up, 8, dark, up=True)
@@ -625,31 +651,32 @@ def _draw_costume(surf, cx, hip_y, dark, light, gold, motif, *, lean=0):
         pygame.draw.circle(surf, _shade(gold, 70), (bx - 1, hip_y + 5), 1)
 
 
-# ── the floating power-up DIE (cupped, with a contact-glow) ──────────────────
-# Same approved treatment as the clown sheet (pip-die, gold halo, rim light,
-# bob, sparkles) but the round-1 flat grey drop-shadow under the die is GONE —
-# replaced by a soft warm CONTACT-GLOW so the die reads as magically floating
-# just above the cupped offering mitt, not casting a stone shadow in mid-air.
+# ── the airborne power-up DIE (3D cube + pulsing yellow aura) ────────────────
+# A 3D isometric cube in a large PULSING YELLOW power-up aura, floating high in
+# the upper-left sky. Layered BLEND_ADD glow + orbiting sparkles read it as a
+# magical takeable pickup; the LEFT arm points up at it. No cast shadow / no
+# under-die contact-glow (it is airborne, not cupped).
 
 def draw_cupped_die(surf, cx, base_y, pulse, *, show_inset=False):
     cy = int(base_y + math.sin(pulse * 1.1) * 3)
     size = 40
 
-    # Warm gold radial glow halo behind the die.
-    glow_r = 42
-    blit_glow(surf, cx, cy, glow_r, (255, 205, 85),
-              alpha=120 + int(35 * (0.5 + 0.5 * math.sin(pulse * 1.3))))
-    blit_glow(surf, cx, cy, glow_r - 16, (255, 245, 200), alpha=120)
-    # Soft CONTACT-GLOW just under the die (where the cupped mitt sits) so the
-    # float reads as magical levitation, not a dropped object's hard shadow.
-    blit_glow(surf, cx, cy + size // 2 + 4, 18, (255, 226, 150),
-              alpha=100 + int(40 * (0.5 + 0.5 * math.sin(pulse * 1.3))))
+    # A bright, large, PULSING YELLOW power-up AURA behind the airborne die so it
+    # unmistakably reads as a magical pickup floating in the sky (not a held
+    # prop). Layered BLEND_ADD via blit_glow: a wide soft yellow outer halo, a
+    # mid yellow ring, and a hot yellow-white inner core — every layer breathing
+    # with the bob `pulse` so the whole thing visibly pulses. The under-die
+    # contact-glow is GONE (the die is airborne, no cupping mitt beneath it).
+    breathe = 0.5 + 0.5 * math.sin(pulse * 1.3)
+    pr = 1.0 + 0.12 * breathe                     # radius pulse
+    blit_glow(surf, cx, cy, int(58 * pr), (255, 224, 60),
+              alpha=110 + int(70 * breathe))      # wide soft outer yellow
+    blit_glow(surf, cx, cy, int(40 * pr), (255, 232, 96),
+              alpha=130 + int(60 * breathe))      # mid yellow body
+    blit_glow(surf, cx, cy, int(22 * pr), (255, 252, 210),
+              alpha=150 + int(70 * breathe))      # hot yellow-white core
 
-    # Reuse the approved die face but suppress its own baked cast-shadow by
-    # drawing onto a scratch and skipping nothing — the face helper draws a
-    # shadow; we instead draw the die WITHOUT it by painting over with a clean
-    # halo. To keep the prop pixel-consistent we call the shared face drawer on
-    # a scratch surface that has no shadow region beneath it.
+    # The 3D isometric cube prop, identical across all ten.
     _draw_die_face_noshadow(surf, cx, cy, size, pips=HERO_PIPS)
 
     if show_inset:
@@ -680,37 +707,103 @@ def draw_cupped_die(surf, cx, base_y, pulse, *, show_inset=False):
                   special_flags=pygame.BLEND_ADD)
 
 
+def _iso_face_pips(surf, quad, pips, pip_col, *, scale):
+    """Map the flat unit-square pip layout onto an axonometric quad via bilinear
+    interpolation of its 4 corners, so each pip sits correctly foreshortened on
+    a tilted cube face. `quad` is [tl, tr, br, bl] in screen space (the face's
+    own top-left, top-right, bottom-right, bottom-left)."""
+    tl, tr, br, bl = quad
+    for fx, fy in _PIP_LAYOUT[pips]:
+        # Bilinear blend: top edge tl->tr at fx, bottom edge bl->br at fx, then
+        # lerp those two by fy down the face.
+        topx = tl[0] + (tr[0] - tl[0]) * fx
+        topy = tl[1] + (tr[1] - tl[1]) * fx
+        botx = bl[0] + (br[0] - bl[0]) * fx
+        boty = bl[1] + (br[1] - bl[1]) * fx
+        px = int(topx + (botx - topx) * fy)
+        py = int(topy + (boty - topy) * fy)
+        pr = max(2, int(3 * scale))
+        pygame.draw.circle(surf, _shade(pip_col, -25), (px, py), pr)
+        pygame.draw.circle(surf, pip_col, (px, py), pr - 1)
+        pygame.draw.circle(surf, _shade(pip_col, 130), (px - 1, py - 1), 1)
+
+
 def _draw_die_face_noshadow(surf, cx, cy, size, *, pips=None, number=None,
                             body=(252, 250, 244), pip_col=(44, 40, 58)):
-    """The approved die face WITHOUT the flat grey cast-shadow ellipse (the
-    contact-glow replaces it). Geometry/pips/rim are otherwise identical to the
-    shared `_draw_die_face` so the prop stays pixel-consistent."""
-    half = size // 2
-    rect = pygame.Rect(cx - half, cy - half, size, size)
-    br = size // 5
-    pygame.draw.rect(surf, _shade(body, -70), rect, border_radius=br)
-    inner = rect.inflate(-3, -3)
-    pygame.draw.rect(surf, body, inner, border_radius=br)
-    pygame.draw.rect(surf, _shade(body, 28),
-                     pygame.Rect(inner.x, inner.y, inner.w, inner.h // 2),
-                     border_radius=br)
-    pygame.draw.line(surf, RIM, (inner.left + br, inner.top + 1),
-                     (inner.right - br, inner.top + 1), 2)
-    pygame.draw.line(surf, RIM, (inner.left + 1, inner.top + br),
-                     (inner.left + 1, inner.bottom - br), 2)
-    pygame.draw.rect(surf, _shade(body, -80), rect, 2, border_radius=br)
+    """A 3D AXONOMETRIC die CUBE (no longer a flat square): a top rhombus + a
+    left side face + a right side face, in THREE shades for solid form (top
+    lightest, left side mid, right side darkest), with thin dark keylines along
+    every cube edge and the light reading from the top-left. PIPS are mapped onto
+    each visible face foreshortened — a few faces show different counts like a
+    real die. When `number` is given (the roll-result inset) the number is set on
+    the TOP face instead of pips. The contact-glow/aura behind it replaces any
+    cast shadow, so none is drawn here."""
+    scale = size / 40.0
+    # Cube half-extents. `w` is the horizontal reach of the top rhombus; `dz` is
+    # how tall the rhombus diamond is (the iso "depth"); `h` is the side-face
+    # height dropping from the front bottom corners.
+    w = int(size * 0.52)
+    dz = int(size * 0.26)
+    h = int(size * 0.50)
+
+    # TOP rhombus corners (clockwise from the back/top point).
+    t_top = (cx, cy - dz - h // 2 + 2)            # far back point
+    t_right = (cx + w, cy - h // 2 + 2)           # right point
+    t_front = (cx, cy + dz - h // 2 + 2)          # near front point
+    t_left = (cx - w, cy - h // 2 + 2)            # left point
+
+    # Side faces drop straight down from the front edges by `h`.
+    bl = (t_left[0], t_left[1] + h)               # bottom-left
+    bf = (t_front[0], t_front[1] + h)             # bottom-front (centre)
+    brr = (t_right[0], t_right[1] + h)            # bottom-right
+
+    top_col = _shade(body, 26)                    # lit top, lightest
+    left_col = _shade(body, -34)                  # mid side
+    right_col = _shade(body, -74)                 # darkest side
+    edge = _shade(body, -96)                      # keyline
+
+    top_quad = [t_top, t_right, t_front, t_left]
+    left_quad = [t_left, t_front, bf, bl]
+    right_quad = [t_front, t_right, brr, bf]
+
+    # Fill the three faces back-to-front (sides first, top last so its keyline
+    # crowns the form).
+    pygame.draw.polygon(surf, left_col, left_quad)
+    pygame.draw.polygon(surf, right_col, right_quad)
+    pygame.draw.polygon(surf, top_col, top_quad)
+
+    # PIPS / number on the faces. Map each flat unit-square layout onto the
+    # matching quad (corner order tl, tr, br, bl as the face sees it).
     if number is not None:
-        f = pygame.font.SysFont(None, int(size * 0.72), bold=True)
+        f = pygame.font.SysFont(None, max(10, int(size * 0.42)), bold=True)
         txt = f.render(str(number), True, pip_col)
-        surf.blit(txt, (cx - txt.get_width() // 2, cy - txt.get_height() // 2))
-    elif pips is not None:
-        pr = max(2, size // 8)
-        for fx, fy in _PIP_LAYOUT[pips]:
-            px = rect.x + int(fx * size)
-            py = rect.y + int(fy * size)
-            pygame.draw.circle(surf, _shade(pip_col, -25), (px, py), pr)
-            pygame.draw.circle(surf, pip_col, (px, py), pr - 1)
-            pygame.draw.circle(surf, _shade(pip_col, 130), (px - 1, py - 1), 1)
+        # Seat the number on the TOP face, centred on the rhombus.
+        tcx = (t_top[0] + t_front[0]) // 2
+        tcy = (t_top[1] + t_front[1]) // 2
+        surf.blit(txt, (tcx - txt.get_width() // 2,
+                        tcy - txt.get_height() // 2))
+        # Sides still get pips so it still reads as a die.
+        _iso_face_pips(surf, [t_left, t_front, bf, bl], 2, pip_col, scale=scale)
+        _iso_face_pips(surf, [t_front, t_right, brr, bf], 3, pip_col,
+                       scale=scale)
+    else:
+        # A real-die face triad: top shows HERO_PIPS, sides show different
+        # counts. Consistent across all ten so the prop is identical.
+        _iso_face_pips(surf, [t_top, t_right, t_front, t_left], 5, pip_col,
+                       scale=scale)
+        _iso_face_pips(surf, [t_left, t_front, bf, bl], 2, pip_col, scale=scale)
+        _iso_face_pips(surf, [t_front, t_right, brr, bf], 3, pip_col,
+                       scale=scale)
+
+    # Thin dark keylines on every cube edge so the 3D form reads crisply.
+    pygame.draw.polygon(surf, edge, top_quad, 2)
+    pygame.draw.line(surf, edge, t_left, bl, 2)
+    pygame.draw.line(surf, edge, t_front, bf, 2)
+    pygame.draw.line(surf, edge, t_right, brr, 2)
+    pygame.draw.line(surf, edge, bl, bf, 2)
+    pygame.draw.line(surf, edge, bf, brr, 2)
+    # Top-left lit rim catch along the two top-back edges.
+    pygame.draw.line(surf, RIM, t_left, t_top, 2)
 
 
 # ── the ten jester variations ────────────────────────────────────────────────
@@ -787,8 +880,8 @@ JESTERS = [
 def render_cell(spec, idx, show_inset):
     """One tight day-clearing scene at SS supersample: sky + a sliver of grass
     + cast shadow, the chunky jester filling ~70-80% of the cell, the head-sized
-    power-up die in the upper-LEFT focal slot CUPPED by the raised mitt, and the
-    real parrot for scale. Returns VIEW_W x VIEW_H."""
+    power-up die floating high in the upper-LEFT focal slot with the raised LEFT
+    arm pointing up at it, and the real parrot for scale. Returns VIEW_W x VIEW_H."""
     palette = shaped_palette(DAY_PHASE)
     bw, bh = VIEW_W * SS, VIEW_H * SS
     big = pygame.Surface((bw, bh))
@@ -827,12 +920,14 @@ def render_cell(spec, idx, show_inset):
     feet_y = VIEW_FEET_Y
     _shadow(layer, jester_cx, feet_y, 96)
 
-    # The die floats in the clear UPPER-LEFT; the raised LEFT mitt CUPS UNDER it.
-    # The hand target sits just below the die so the open palm cradles it and
-    # the gap from round-1 closes ("offering", not "pointing near").
-    die_x = jester_cx - 66
-    die_base_y = 50
-    hand_up = (die_x + 6, die_base_y + 26)
+    # The die floats HIGH in the upper-LEFT sky, clearly airborne. The raised
+    # LEFT arm no longer cups it — it POINTS diagonally UP toward the floating
+    # die (gesturing "look at THIS"). `hand_up` sits well below + right of the
+    # die so the pointing arm reads as aiming up at it across open sky, never
+    # touching it, and stays clear of the head silhouette.
+    die_x = jester_cx - 78
+    die_base_y = 24
+    hand_up = (die_x + 26, die_base_y + 56)
 
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
@@ -852,16 +947,16 @@ def render_cell(spec, idx, show_inset):
 
 
 CAPTIONS = [
-    "plum/lime · 3-point cap · V-brow sidelong up-smirk",
-    "ruby/cream · SPLAYED 4-point · cocked V-brow smirk",
-    "royal-blue/gold · donkey-EAR cap · V-brow up-smirk",
-    "teal/magenta · ANCHORED coxcomb · V-brow + tongue",
-    "charcoal-plum · IMPISH horned hood · V-brow + tongue",
-    "violet/orange · ANCHORED coxcomb · V-brow + tongue",
-    "emerald/gold · 3-point cap · V-brow sidelong smirk",
-    "wine/teal · curled-bell hood · cocked V-brow smirk",
-    "slate/ice · SPLAYED 4-point · V-brow up-smirk",
-    "scarlet/gold · 3-point cap · V-brow smirk + tongue",
+    "plum/lime · 3-point cap · grin+fang · cube up-left",
+    "ruby/cream · SPLAYED 4-point · cocked-brow grin",
+    "royal-blue/gold · donkey-EAR cap · fang grin",
+    "teal/magenta · ANCHORED coxcomb · grin + tongue",
+    "charcoal-plum · IMPISH horned hood · grin + tongue",
+    "violet/orange · ANCHORED coxcomb · grin + tongue",
+    "emerald/gold · 3-point cap · happy-mean grin",
+    "wine/teal · curled-bell hood · cocked-brow grin",
+    "slate/ice · SPLAYED 4-point · fang grin",
+    "scarlet/gold · 3-point cap · grin + tongue",
 ]
 
 
@@ -890,13 +985,14 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 4)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 5)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "FACE PASS: inner-HIGH/outer-LOW scheming V brows + FLAT sidelong almond "
-        "eyes (tear streaks & watery dots removed) + committed lopsided up-smirk "
-        "on all 10 · everything below the chin unchanged (ship-ready)",
+        "PUMPED: HAPPY-with-a-MEAN-SMILE faces (wide open grin + teeth + one fang, "
+        "bright open smiling eyes, lifted sly brows) · die is now a 3D ISOMETRIC "
+        "CUBE in a PULSING YELLOW power-up aura, floating HIGH upper-left · LEFT "
+        "arm POINTS up at it · bodies/pose/caps/costumes unchanged",
         True, (190, 195, 205))
     canvas.blit(sub, (PAD, PAD + 50))
 
@@ -930,14 +1026,15 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Teal & Magenta) — inner-high V brows + flat "
-            "sidelong eyes + lopsided up-smirk read as UP TO SOMETHING; no tears",
+            "1x in-game scale (Teal & Magenta) — wide open grin + fang reads "
+            "HAPPY+MEAN; die reads as a glowing YELLOW-aura 3D CUBE floating "
+            "high upper-left with the LEFT arm pointing up at it",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_4.png")
+    out_path = os.path.join(out_dir, "round_5.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
