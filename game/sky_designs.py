@@ -15,6 +15,8 @@ hands the design's per-phase sky palette to the cloud painter so clouds retint t
 match the active sky. While `ACTIVE_SKY_DESIGN is None` both short-circuit and the
 live render path is untouched.
 """
+from collections import OrderedDict
+
 from game import biome as _biome
 from game.biome_sky import paint_sky
 from game.biome_sky_keyframes import BIOMES, BIOME_NAMES, BIOME_NOTES
@@ -54,19 +56,26 @@ _CATALOG_BY_ID = {bid: fn for bid, _name, _note, fn in CATALOG}
 
 
 # Per-(design, size, bucket) baked sky surfaces. `paint_sky` is an OKLab bake, so
-# — exactly like draw._bg_cache for the live sky — we bake once per phase bucket
-# and reuse, keeping the per-frame cost to two cached blits.
-_sky_cache: dict = {}
+# we bake once per phase bucket and reuse, keeping the per-frame cost to two
+# cached blits. Bounded LRU: only the two adjacent buckets are needed per frame,
+# so a handful of resident surfaces covers the active pair plus hysteresis — this
+# keeps RAM flat (~6 x ~0.9 MB) no matter how fine PHASE_BUCKETS gets.
+_SKY_CACHE_MAX = 6
+_sky_cache: "OrderedDict[tuple, pygame.Surface]" = OrderedDict()
 
 
 def _design_sky(design_id, w, h, ground_y, bucket):
     key = (design_id, w, h, bucket)
     surf = _sky_cache.get(key)
-    if surf is None:
-        surf = pygame.Surface((w, h))
-        paint_sky(surf, BIOMES[design_id], w, h, bucket / _biome.PHASE_BUCKETS,
-                  stars=True, ground_y=ground_y)
-        _sky_cache[key] = surf
+    if surf is not None:
+        _sky_cache.move_to_end(key)
+        return surf
+    surf = pygame.Surface((w, h))
+    paint_sky(surf, BIOMES[design_id], w, h, bucket / _biome.PHASE_BUCKETS,
+              stars=True, ground_y=ground_y)
+    _sky_cache[key] = surf
+    if len(_sky_cache) > _SKY_CACHE_MAX:
+        _sky_cache.popitem(last=False)
     return surf
 
 

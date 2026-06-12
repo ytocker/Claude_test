@@ -3,6 +3,8 @@ Low-level drawing utilities: gradients, glow, rounded rects, etc.
 All surfaces are pre-computed once and cached.
 """
 import math
+from collections import OrderedDict
+
 import pygame
 
 # ── colour constants ────────────────────────────────────────────────────────
@@ -141,11 +143,21 @@ def get_sky_surface(w, h, ground_y):
     return _bg_cache[key]
 
 
+# Bounded LRU for the biome sky surfaces, kept separate from `_bg_cache` so the
+# count-based eviction can't drop the legacy static-sky entry. Only the two
+# adjacent phase buckets are touched per frame, so a small cap holds RAM flat
+# regardless of PHASE_BUCKETS. (This path is the dormant fallback — the live sky
+# goes through sky_designs.render_active — but it stays bounded for safety.)
+_SKY_B_CACHE_MAX = 6
+_sky_b_cache: OrderedDict = OrderedDict()
+
+
 def get_sky_surface_biome(w, h, ground_y, palette, phase_bucket):
     """Biome-aware sky: cached by quantized phase bucket."""
     key = ('sky_b', w, h, phase_bucket)
-    cached = _bg_cache.get(key)
+    cached = _sky_b_cache.get(key)
     if cached is not None:
+        _sky_b_cache.move_to_end(key)
         return cached
     stops = [
         (0.0,  palette['sky_top']),
@@ -177,7 +189,9 @@ def get_sky_surface_biome(w, h, ground_y, palette, phase_bucket):
             col = (255, 240, 200, min(255, sa + 20))
             pygame.draw.circle(surf, col, (sx, sy), 2)
 
-    _bg_cache[key] = surf
+    _sky_b_cache[key] = surf
+    if len(_sky_b_cache) > _SKY_B_CACHE_MAX:
+        _sky_b_cache.popitem(last=False)
     return surf
 
 

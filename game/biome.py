@@ -225,7 +225,16 @@ def palette_for_time(elapsed_seconds: float) -> dict:
 
 # ── cached-palette bucket helpers ────────────────────────────────────────────
 
-PHASE_BUCKETS = 32
+# The sky and every phase-tinted foreground strip (mountains, ground, pagoda
+# ornaments) bake once per bucket and reuse, so the bucket count is the temporal
+# resolution of the whole day cycle. At 32 the sunset — the fastest-changing arc
+# — only got ~9 nodes, so the sky's piecewise-linear cross-fade faceted and the
+# foreground tint snapped in visible ~10s steps. 120 makes each step ~2.7s with a
+# ~4x smaller colour delta, below the perceptual threshold. The count is now
+# decoupled from RAM: the accumulating per-bucket surface caches (sky_designs
+# ._sky_cache, draw._sky_b_cache, pagoda_ornaments._CELL_CACHE) are LRU-bounded,
+# since only the two adjacent buckets are ever needed per frame.
+PHASE_BUCKETS = 120
 
 
 def phase_bucket(phase: float) -> int:

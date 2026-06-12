@@ -76,7 +76,7 @@ print("\n=== 2. ENGINE-PATH zenith brightness (live draw.get_sky_surface_biome) 
 # Retimed deep-night sits ~0.56 (from 0.72) holding to 0.82; sample both.
 def zenith_mean(spec, phase, band_frac=0.06):
     pal = spec.palette_for_phase(phase)
-    draw._bg_cache.clear()
+    draw._sky_b_cache.clear()
     surf = draw.get_sky_surface_biome(W, H, GROUND_Y, pal, int(phase * 240))
     band = max(1, int(GROUND_Y * band_frac))
     r = g = b = 0

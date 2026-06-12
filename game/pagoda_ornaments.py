@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections import OrderedDict
 from typing import Callable
 
 import pygame
@@ -1131,7 +1132,12 @@ _CELL_W = 64
 _CELL_H = 64
 _CELL_CX = _CELL_W // 2
 _CELL_CY = _CELL_H // 2
-_CELL_CACHE: dict[tuple, pygame.Surface] = {}
+# Bounded LRU: keyed partly by phase bucket, so a finer PHASE_BUCKETS would let
+# this grow ~linearly with the bucket count over a session. Only a few ornament
+# kinds are on screen at once (x2 buckets mid-fade), so a cap well above the live
+# working set evicts stale bucket variants without thrash. Cells are tiny (64x64).
+_CELL_CACHE_MAX = 256
+_CELL_CACHE: "OrderedDict[tuple, pygame.Surface]" = OrderedDict()
 
 
 def _flag_signature(flags: dict) -> tuple:
@@ -1147,11 +1153,14 @@ def _get_cell(name: str, palette: dict, phase: float,
     key = (name, bucket, seed % 32, _flag_signature(flags))
     cached = _CELL_CACHE.get(key)
     if cached is not None:
+        _CELL_CACHE.move_to_end(key)
         return cached
     cell = pygame.Surface((_CELL_W, _CELL_H), pygame.SRCALPHA)
     _, draw_fn, _ = _REGISTRY[name]
     draw_fn(cell, (_CELL_CX, _CELL_CY), palette, seed, **flags)
     _CELL_CACHE[key] = cell
+    if len(_CELL_CACHE) > _CELL_CACHE_MAX:
+        _CELL_CACHE.popitem(last=False)
     return cell
 
 
