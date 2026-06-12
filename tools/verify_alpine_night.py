@@ -87,8 +87,12 @@ def zenith_mean(spec, phase, band_frac=0.06):
             r += c[0]; g += c[1]; b += c[2]; n += 1
     return (r / n, g / n, b / n)
 
-samples = ['Ember Gold', 'Blood Orange', 'Amethyst Nightfall', 'Aurora Teal-Magenta',
-           'Ember Gold (LIVE · current — too dark)']
+# A representative spread of rows plus the LIVE reference, derived from CONCEPTS
+# so the table survives row renames across study revisions.
+_live_name = next((s.name for cid, s in CONCEPTS if 'live' in cid.lower()), None)
+samples = [s.name for cid, s in CONCEPTS if 'live' not in cid.lower()][:4]
+if _live_name:
+    samples.append(_live_name)
 by_name = {s.name: s for _, s in CONCEPTS}
 for ph in (0.58, 0.82):
     print(f"  -- phase {ph} --")

@@ -1,9 +1,9 @@
-"""Integration confirmation — renders the LIVE `ALPINE_HAZE` biome (now carrying
-the signed-off Ember Gold evening) over the real in-game mountains/pagodas/parrot,
+"""Integration confirmation — renders the LIVE `ALPINE_HAZE` biome (carrying the
+signed-off evening of the day) over the real in-game mountains/pagodas/parrot,
 straight from `game.biome_sky_keyframes`, NOT the study module. Confirms the port
 into the live render path reads as the approved study row.
 
-Output: docs/biome_redesign/alpine_haze_live_ember_gold_ingame.png
+Output: docs/biome_redesign/alpine_haze_live_evening_ingame.png
 """
 import os
 import sys
@@ -20,7 +20,7 @@ _orig_join = os.path.join
 
 def _patched_save(sheet, _out):
     out = _orig_join(P._ROOT, "docs", "biome_redesign",
-                     "alpine_haze_live_ember_gold_ingame.png")
+                     "alpine_haze_live_evening_ingame.png")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     _real_save(sheet, out)
     print(f"wrote {out}  ({sheet.get_width()}x{sheet.get_height()})")

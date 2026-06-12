@@ -215,34 +215,38 @@ MOONLIT_PINE_CLIFF = BiomeSpec(
 # ── Calm-lineage addition (round-12 UX exploration, not in the round_7 sheet) ─
 # Alpine Haze — the cool high-altitude-haze DAY (glacial cyan-cool zenith into a
 # pale cloud-grey horizon haze) that won the calm/UX study, now carrying the
-# signed-off "Ember Gold" multi-hue evening: the day holds the loved cyan, then
-# golden hour travels gold → burnt-orange → plum (gold/ember horizon, coral mid,
-# violet top), the sky slowly darkens into a bronze-indigo star-rich night, and a
-# rich amber-rose dawn lifts it back. Ported verbatim from the sunset study
-# (`tools/sky_alpine_sunsets.py` row 1) with its night-balanced retiming applied,
-# so the live sky matches the signed-off figure — the dark night now holds about
-# as long as the sunset arc instead of climbing back at once. The three DAY
+# signed-off "Coral Ember" multi-hue evening: the day holds the loved cyan, then
+# a luminous coral-gold golden hour eases in — a warm bridge at 0.235 keeps the
+# cyan→gold onset gradual so the zenith never snaps dark — and travels gold-coral
+# → deep coral-red → coral-plum, the top deepening to violet only by the dwell.
+# It then darkens into a dark COOL plum-indigo star-rich night: the coral horizon
+# ember persists through dusk, fades by twilight, and is fully cool by deep night
+# so the WHOLE dome reads as night (never black), before a fresh coral-cream dawn
+# lifts it back. Ported verbatim from the sunset study
+# (`tools/sky_alpine_sunsets.py` row 'coral_ember') with its night-balanced
+# retiming applied, so the live sky matches the signed-off figure. The three DAY
 # anchors (0.04/0.12/0.20) are the original cyan day, byte-for-byte.
 _ALPINE_HAZE_KF = [
     (0.04, dict(sky_top=(86, 158, 186), sky_mid=(150, 192, 202), sky_bot=(196, 212, 210), horizon=(214, 218, 212), star_alpha=0)),
     (0.12, dict(sky_top=(76, 168, 192), sky_mid=(144, 198, 208), sky_bot=(196, 214, 212), horizon=(216, 220, 212), star_alpha=0)),
     (0.20, dict(sky_top=(86, 160, 188), sky_mid=(152, 192, 204), sky_bot=(198, 212, 208), horizon=(216, 218, 210), star_alpha=0)),
-    (0.27, dict(sky_top=(124, 96, 70), sky_mid=(244, 174, 78), sky_bot=(255, 192, 64), horizon=(255, 150, 36), star_alpha=0)),
-    (0.31, dict(sky_top=(104, 70, 96), sky_mid=(238, 138, 86), sky_bot=(255, 168, 54), horizon=(252, 110, 32), star_alpha=5)),
-    (0.37, dict(sky_top=(82, 48, 116), sky_mid=(232, 94, 90), sky_bot=(252, 134, 50), horizon=(238, 80, 30), star_alpha=12)),
-    (0.42, dict(sky_top=(78, 40, 124), sky_mid=(210, 72, 116), sky_bot=(230, 92, 70), horizon=(218, 66, 48), star_alpha=30)),
-    (0.47, dict(sky_top=(40, 36, 84), sky_mid=(128, 76, 92), sky_bot=(184, 110, 66), horizon=(210, 98, 46), star_alpha=88)),
-    (0.52, dict(sky_top=(32, 34, 76), sky_mid=(82, 56, 78), sky_bot=(126, 82, 66), horizon=(162, 90, 52), star_alpha=156)),
-    (0.56, dict(sky_top=(26, 34, 68), sky_mid=(46, 44, 70), sky_bot=(72, 58, 64), horizon=(108, 74, 54), star_alpha=224)),
-    (0.82, dict(sky_top=(26, 34, 68), sky_mid=(46, 44, 70), sky_bot=(72, 58, 64), horizon=(108, 74, 54), star_alpha=224)),
-    (0.86, dict(sky_top=(28, 36, 72), sky_mid=(50, 48, 74), sky_bot=(78, 64, 70), horizon=(114, 82, 60), star_alpha=168)),
-    (0.92, dict(sky_top=(72, 110, 150), sky_mid=(220, 158, 134), sky_bot=(255, 178, 132), horizon=(255, 168, 110), star_alpha=20)),
-    (0.97, dict(sky_top=(82, 138, 172), sky_mid=(228, 178, 158), sky_bot=(255, 192, 150), horizon=(255, 182, 132), star_alpha=0)),
+    (0.235, dict(sky_top=(158, 172, 176), sky_mid=(232, 188, 166), sky_bot=(255, 186, 144), horizon=(255, 164, 104), star_alpha=0)),
+    (0.27, dict(sky_top=(202, 168, 156), sky_mid=(254, 168, 126), sky_bot=(255, 158, 96), horizon=(255, 122, 60), star_alpha=0)),
+    (0.31, dict(sky_top=(168, 122, 140), sky_mid=(250, 138, 100), sky_bot=(255, 138, 72), horizon=(252, 96, 48), star_alpha=5)),
+    (0.37, dict(sky_top=(108, 66, 116), sky_mid=(244, 96, 80), sky_bot=(252, 116, 60), horizon=(246, 76, 44), star_alpha=12)),
+    (0.42, dict(sky_top=(80, 42, 112), sky_mid=(222, 74, 98), sky_bot=(232, 86, 70), horizon=(226, 64, 54), star_alpha=30)),
+    (0.47, dict(sky_top=(42, 34, 80), sky_mid=(136, 68, 92), sky_bot=(192, 96, 78), horizon=(216, 90, 60), star_alpha=88)),
+    (0.52, dict(sky_top=(32, 34, 74), sky_mid=(78, 48, 78), sky_bot=(114, 66, 76), horizon=(146, 78, 70), star_alpha=156)),
+    (0.56, dict(sky_top=(26, 32, 66), sky_mid=(38, 40, 70), sky_bot=(50, 52, 78), horizon=(66, 64, 86), star_alpha=222)),
+    (0.82, dict(sky_top=(26, 32, 66), sky_mid=(38, 40, 70), sky_bot=(50, 52, 78), horizon=(66, 64, 86), star_alpha=222)),
+    (0.86, dict(sky_top=(28, 34, 68), sky_mid=(40, 42, 72), sky_bot=(52, 54, 80), horizon=(70, 68, 90), star_alpha=166)),
+    (0.92, dict(sky_top=(76, 124, 158), sky_mid=(244, 160, 144), sky_bot=(255, 178, 150), horizon=(255, 158, 120), star_alpha=20)),
+    (0.97, dict(sky_top=(86, 146, 176), sky_mid=(248, 180, 166), sky_bot=(255, 190, 164), horizon=(255, 170, 140), star_alpha=0)),
 ]
 
 ALPINE_HAZE = BiomeSpec(
     name='Alpine Haze',
-    note='Glacial cyan-cool high-altitude day melting into an Ember Gold evening — gold-to-burnt-orange-to-plum sunset that slowly darkens into a bronze-indigo star-rich night, then a rich amber-rose dawn. Crisp airy day, warm darkening dusk, deep bronze-indigo night that never goes black.',
+    note='Glacial cyan-cool high-altitude day melting into a Coral Ember evening — a luminous coral-gold golden hour that travels gold-coral to coral-red to coral-plum, then slowly darkens into a dark cool plum-indigo star-rich night, then a fresh coral-cream dawn. Crisp airy day, warm coral dusk, deep cool plum-indigo night that reads as night yet never goes black.',
     keyframes=_ALPINE_HAZE_KF,
     sky=SkyParams(positions=(0.0, 0.30, 0.58, 0.82, 1.0), dither_amp=1.8, zenith_dark=0.14),
 )
