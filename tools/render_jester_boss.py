@@ -140,38 +140,35 @@ def silhouette_aura(big, fig_big, cx, cy, hue, breathe, *, dark=(8, 4, 12),
     `scl` carries the supersample factor (so the rim stays crisp); `bulk` is a
     mild figure-scale nudge (bigger boss → slightly bigger shadow). `rim` is the
     saturated edge colour (defaults to a lifted `hue`)."""
-    rim = rim or _shade(hue, 8)
-    sil = _silhouette_mask(fig_big)
-    u = scl * bulk                                # one tuned unit ≈ 1px at 1x
-
-    # 1. DARK CORE — a LARGE soft shadow pool, the silhouette grown WIDE and
-    # stamped a deep danger-dark, so a clear region around/behind the boss goes
-    # DARKER than the bright day clearing. This pool (not a thin edge) is what
-    # makes the figure read as a shadow LOOMING OUT of the light.
-    dk = pygame.Surface(fig_big.get_size(), pygame.SRCALPHA)
-    for gpx, a in ((52, 78), (36, 120), (22, 165), (12, 205), (5, 235)):
-        layer_a = int(a * (0.85 + 0.15 * breathe))
-        blob = _grow(sil, int(gpx * u))
-        tint = pygame.Surface(blob.get_size(), pygame.SRCALPHA)
-        tint.fill((*dark, layer_a))
-        tint.blit(blob, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        dk.blit(tint, (0, 0))
-    big.blit(_softscale(dk), (0, 0))
-
-    # 2. EDGE RIM — a RESTRAINED, dim danger edge accent (NOT a bright neon loop:
-    # a full bright ring reads "selected / powered-up / holy"). Two thin low-alpha
-    # bands hugging the silhouette edge just lift the dark figure off the sky.
-    rim_col = rim
-    for grow_px, base_a, lift in ((2, 110, 24), (4, 52, 8)):
-        band = _grow(sil, max(1, int(grow_px * scl)))
-        hole = pygame.Surface(band.get_size(), pygame.SRCALPHA)
-        hole.blit(band, (0, 0))
-        hole.blit(sil, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)  # punch body
-        ring = pygame.Surface(band.get_size(), pygame.SRCALPHA)
-        a = int(base_a * (0.78 + 0.22 * breathe))
-        ring.fill((*_shade(rim_col, lift), a))
-        ring.blit(hole, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-        big.blit(_softscale(ring), (0, 0), special_flags=pygame.BLEND_ADD)
+    # 1. A BIG AMORPHOUS DARK POOL the boss EMERGES FROM — NOT a body-hugging
+    # halo. The art-director's gate (3 rounds): a silhouette-shaped dark core
+    # hides behind the figure and a continuous bright rim reads HOLY. So instead
+    # we lay a soft RADIAL shadow ellipse ~1.9x the figure's width, centred on the
+    # boss and DARKER than the day sky, that the figure then sits INSIDE — it
+    # emerges from darkness rather than wearing a dark coat. No bright rim at all;
+    # the menace light leaks from WITHIN (the glowing eyes/snarl/seams).
+    mask = pygame.mask.from_surface(fig_big, 40)
+    rects = mask.get_bounding_rects()
+    if rects:
+        br = rects[0]
+        for r in rects[1:]:
+            br = br.union(r)
+    else:
+        br = fig_big.get_rect()
+    pcx = cx
+    pcy = cy + int(br.height * 0.12)              # bias down onto the body mass
+    rx = int(br.width * 0.98)
+    ry = int(br.height * 0.70)
+    pool = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+    steps = 24
+    for i in range(steps):
+        t = i / (steps - 1)                        # 0 = faint outer → 1 = dark core
+        a = int((8 + 170 * t) * (0.9 + 0.1 * breathe))
+        ex = max(2, int(rx * (1.0 - 0.9 * t)))
+        ey = max(2, int(ry * (1.0 - 0.9 * t)))
+        pygame.draw.ellipse(pool, (*dark, a),
+                            (pcx - ex, pcy - ey, ex * 2, ey * 2))
+    big.blit(_softscale(pool), (0, 0))
 
     # 3. SMOKE wisps licking UP off the shoulders/cap — low-alpha violet/black
     # tongues so the silhouette frays into danger, not a clean halo.
@@ -754,7 +751,7 @@ def main():
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
     title = f_title.render(
-        "DICE JESTER — EVOLVED BOSS form (round 3 — DARK shadow-pool aura, no blush)", True, (252, 226, 226))
+        "DICE JESTER — EVOLVED BOSS form (round 4 — amorphous shadow pool, no rim)", True, (252, 226, 226))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
         "Round 2 — INVERTED the aura: the boss now LOOMS OUT OF SHADOW. The aura "
@@ -816,7 +813,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "boss_round_3.png")
+    out_path = os.path.join(out_dir, "boss_round_4.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
