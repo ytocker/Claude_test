@@ -1,4 +1,4 @@
-"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 2).
+"""Look-dev mockup: 10 NEW Court Jester power-up dice presenters (ROUND 3).
 
 The user loved the Court Jester from the dice-clown sheet for its sly,
 "up-to-something / NAUGHTY" read. This sheet explores TEN higher-quality
@@ -17,12 +17,18 @@ die at upper-right). The die's power-up treatment is kept EXACTLY consistent
 across all ten: classic d6 pips, gold glow halo (BLEND_ADD), top-left rim
 light, gentle bob, orbiting sparkles.
 
-ROUND-2 direction (art-director notes folded in):
-  - ONE naughty-face recipe locked onto all ten (the #4 reference): scheming
-    "V" brows (inner down / outer up), half-lidded sidelong eyes, an
-    ASYMMETRIC smirk; a few add a raised brow + tongue-tip.
-  - A "plotting" BODY LEAN on every figure (head tilt, dropped shoulder,
-    cocked hip) — symmetry broken everywhere.
+ROUND-3 direction (art-director notes folded in):
+  - REBUILT EYES: round-2's eyes read as CLOSED peaceful lash-arcs (asleep).
+    Now every eye is unmistakably OPEN + half-lidded — a flat heavy upper lid
+    over white sclera with a DARK pupil shoved to the outer corner (a sidelong
+    glance toward the upper-left die).
+  - PINCHED scheming-V brows (inner ends DOWN + pinched to the nose, outer ends
+    raised) + an ASYMMETRIC SMIRK (one corner pulled up/back into a cheek
+    dimple, the other dropped) on all ten.
+  - COMMITTED plotting BODY LEAN on every figure: die-side shoulder dropped 7px,
+    hip cocked hard, weight on the die-side leg, the trailing knee bent.
+  - Coxcomb crests ANCHORED to the scalp by a base band; #2/#9 value contrast
+    raised so they hold against the day sky; #2's four-point cap splayed out.
   - Every costume lifted to the #6 standard: scalloped/pointed belled collar,
     per-panel costume shading, curled-toe belled shoes, two-tone harlequin
     hose, thumb-divided mitts.
@@ -74,16 +80,31 @@ from tools.render_clown_dice import (
 MOUTH = (188, 56, 66)
 
 
-def _scheme_eye(surf, x, y, *, look, lidded=True):
-    """A half-lidded eye with the pupil shoved to one side for a sly sidelong
-    glance. `look` is the horizontal pupil shove (toward the die / the viewer)."""
-    pygame.draw.circle(surf, WHITE, (x, y), 4)
-    pygame.draw.circle(surf, _shade(WHITE, -34), (x, y), 4, 1)
-    pygame.draw.circle(surf, (44, 40, 58), (x + look, y + 1), 3)
-    pygame.draw.circle(surf, WHITE, (x + look - 1, y - 1), 1)
-    if lidded:
-        # Heavy upper lid skims the eye for the half-lidded scheming droop.
-        pygame.draw.line(surf, INK, (x - 5, y - 3), (x + 5, y - 4), 2)
+def _scheme_eye(surf, x, y, *, look):
+    """A half-lidded but VISIBLY OPEN eye with a dark pupil shoved to the outer
+    corner for a sly sidelong glance toward the die. Round-2 read as a CLOSED
+    peaceful lash-arc (asleep); this rebuild keeps the eye unmistakably open:
+    a flat upper-lid line sits at ~55-60% of the eye height, the white sclera
+    shows BELOW it, and the pupil presses into the outer corner. `look` is the
+    horizontal pupil shove (negative = toward the upper-left die)."""
+    ew, eh = 5, 5  # eye half-extents
+    # White sclera as a small ellipse — the OPEN eye whites the lid sits over.
+    eye_rect = pygame.Rect(x - ew, y - eh + 2, ew * 2, eh * 2)
+    pygame.draw.ellipse(surf, WHITE, eye_rect)
+    pygame.draw.ellipse(surf, _shade(WHITE, -40), eye_rect, 1)
+    # Dark pupil pushed to the outer corner (sidelong glance toward the die).
+    px = x + look
+    py = y + 2
+    pygame.draw.circle(surf, (40, 36, 54), (px, py), 3)
+    pygame.draw.circle(surf, (16, 14, 24), (px, py), 3, 1)
+    pygame.draw.circle(surf, WHITE, (px - 1, py - 1), 1)
+    # FLAT heavy upper lid covering the top ~45% — half-lidded, never a closed
+    # downward arc. Drawn as an opaque skin-shadow band clipped to the eye top.
+    lid_y = y - 1
+    pygame.draw.line(surf, INK, (x - ew - 1, lid_y - 1), (x + ew + 1, lid_y - 1), 3)
+    # A short lower-lid hint so the bottom of the open eye is grounded, not lash.
+    pygame.draw.line(surf, _shade(INK, 60), (x - ew + 1, y + eh + 1),
+                     (x + ew - 1, y + eh + 1), 1)
 
 
 def _cheek(surf, cx, cy, r, *, strong=False):
@@ -113,29 +134,39 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     for s in (-1, 1):
         exx = cx + s * ex
         _scheme_eye(surf, exx, hy, look=look)
-        # Scheming "V": inner end DOWN, outer end UP. Inner is toward cx.
-        inner = (exx + s * 4, hy - 8)
-        outer = (exx - s * 6, hy - 11)
+        # PINCHED scheming "V": the INNER end drives DOWN toward the nose-bridge
+        # and pinches inward, the OUTER end lifts UP and out. Round-2 brows were
+        # too soft/high; these dig low and angular so the scowl-smirk reads.
+        inner = (exx + s * 3, hy - 5)        # inner end low + pinched to nose
+        outer = (exx - s * 7, hy - 12)       # outer end raised
         cock = cock_left and s < 0
         if cock:
-            inner = (inner[0], inner[1] - 5)
-            outer = (outer[0], outer[1] - 6)
+            inner = (inner[0], inner[1] - 4)
+            outer = (outer[0], outer[1] - 5)
         pygame.draw.line(surf, INK, inner, outer, 3)
+        # A short heavier stub at the inner (pinched) end thickens the frown root.
+        pygame.draw.line(surf, INK, inner, (inner[0] + s * 2, inner[1] + 2), 3)
 
     _nose(surf, cx, hy + 6, 6, nose_col)
 
-    # ASYMMETRIC smirk: flat-low on the left, curling UP hard on the right.
-    pygame.draw.arc(surf, MOUTH, (cx - 9, hy + 8, 22, 13),
-                    math.pi * 1.16, math.tau * 1.0, 3)
-    # A short flat under-lip stub on the low (left) corner sells the asymmetry.
-    pygame.draw.line(surf, _shade(MOUTH, -30), (cx - 9, hy + 12),
-                     (cx - 4, hy + 13), 2)
+    # ASYMMETRIC SMIRK: one corner (viewer-RIGHT) pulls UP and back into a cheek
+    # dimple; the other (LEFT) corner drops flat-low. Built as a single off-centre
+    # rising line + a curl tail so it is clearly lopsided, never a symmetric curve.
+    lo = (cx - 9, hy + 13)               # dropped low-left corner
+    mid = (cx + 2, hy + 12)
+    hi = (cx + 10, hy + 8)               # raised right corner, pulled back/up
+    pygame.draw.lines(surf, MOUTH, False, [lo, mid, hi], 3)
+    # Curl tail flicking up off the high corner so it reads as a smirk hook.
+    pygame.draw.line(surf, MOUTH, hi, (hi[0] + 2, hi[1] - 3), 3)
+    # Single cheek dimple crease on the RAISED (right) side only.
+    pygame.draw.line(surf, _shade(nose_col, -40), (hi[0] + 3, hi[1] - 1),
+                     (hi[0] + 4, hi[1] + 3), 2)
 
     if variant in ("tongue", "tonguecock"):
         # Tongue tip poking out the high (right) smirk corner.
-        pygame.draw.ellipse(surf, (236, 120, 130), (cx + 8, hy + 13, 8, 7))
+        pygame.draw.ellipse(surf, (236, 120, 130), (hi[0] - 1, hi[1], 8, 7))
         pygame.draw.ellipse(surf, _shade((236, 120, 130), -45),
-                            (cx + 8, hy + 13, 8, 7), 1)
+                            (hi[0] - 1, hi[1], 8, 7), 1)
 
 
 # ── belled-cap kit ────────────────────────────────────────────────────────────
@@ -171,15 +202,17 @@ def cap_three_point(surf, cx, base_y, hr, cols):
 
 
 def cap_four_point(surf, cx, base_y, hr, cols):
-    """Four belled points whose tips DROOP inward + outward so the cluster reads
-    as a soft fool's cap, never a king's crown (round-1 #2 looked royal). The
-    points lean and dangle bells rather than standing up stiff and regal."""
+    """Four belled points SPLAYED outward so the cluster reads as a floppy fool's
+    cap, never an upright king's crown (round-2 #2 still read royal). The two
+    outer points flop hard down-and-OUT past the head edges and the two inner
+    points lean low and apart — a wide drooping fan, not vertical spikes."""
     a, b, c, _d = cols
-    # Inner two flop inward; outer two droop down-and-out — a floppy fan.
-    _cap_point(surf, cx, base_y, hr, -6, -34, b, span=15)
-    _cap_point(surf, cx, base_y, hr, 8, -34, c, span=15)
-    _cap_point(surf, cx, base_y, hr, -30, -18, a, span=15)
-    _cap_point(surf, cx, base_y, hr, 30, -16, a, span=15)
+    # Outer pair flops WAY out past the head silhouette and drops low; inner pair
+    # leans outward too so nothing stands upright in the middle.
+    _cap_point(surf, cx, base_y, hr, -42, -6, a, span=14)
+    _cap_point(surf, cx, base_y, hr, 42, -4, a, span=14)
+    _cap_point(surf, cx, base_y, hr, -16, -28, b, span=14)
+    _cap_point(surf, cx, base_y, hr, 16, -26, c, span=14)
 
 
 def cap_donkey(surf, cx, base_y, hr, cols):
@@ -212,9 +245,18 @@ def cap_donkey(surf, cx, base_y, hr, cols):
 
 
 def cap_coxcomb(surf, cx, base_y, hr, cols):
-    """Rooster-crest coxcomb: a row of stiff scalloped lobes along the crown,
-    with a bell dangling off the crest tip (the #4/#6 quality reference)."""
+    """Rooster-crest coxcomb: a row of scalloped lobes ATTACHED to the scalp by a
+    base band along the hairline. Round-2 read as detached floating spheres; now
+    a filled base band tucks under the lobes and the rearmost lobe sits BEHIND the
+    head crown so the crest reads as growing out of the head, not hovering."""
     a, b = cols[0], cols[1]
+    # Base band hugging the crown — a filled wedge along the hairline the lobes
+    # all root into, so no lobe floats free of the head.
+    band = [(cx - 24, base_y + 2), (cx - 14, base_y - 12),
+            (cx + 2, base_y - 16), (cx + 18, base_y - 10),
+            (cx + 22, base_y + 2)]
+    pygame.draw.polygon(surf, _shade(a, -30), band)
+    pygame.draw.polygon(surf, _shade(a, -70), band, 2)
     lobes = [(-22, -14), (-9, -28), (5, -32), (18, -20)]
     for i, (dx, dy) in enumerate(lobes):
         col = a if i % 2 == 0 else b
@@ -369,29 +411,33 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     Build bias: a SHORTER, ROUNDER chibi proportion (round-1 #1/#4 read best
     small; the lanky long-legged tiles were reined in)."""
     _ = imp  # palette/cap already encode the impish read; kept for spec clarity
-    # Plotting lean: the whole figure leans toward the die. The hip cocks to
-    # viewer-LEFT (toward the die), the upper body counter-shifts a touch, the
-    # head tilts. Kept gentle (~5°) so it reads as attitude, not a stumble.
-    hip_dx = -4          # hip cocked toward the die side
-    head_tilt = -5       # degrees; head cocks toward the die
-    drop = 4             # the die-side (left) shoulder drops
+    # COMMITTED plotting lean (round-2 still read at-attention on most figures).
+    # The whole figure shifts weight onto the die-side (LEFT) leg: the hip cocks
+    # hard toward the die, the die-side shoulder DROPS 7px, the OTHER hip rides
+    # up, the trailing (right) knee bends inward, and the head cocks. This is now
+    # a clear contrapposto plot-stance, not a gentle nudge.
+    hip_dx = -6          # hip cocked toward the die side (harder than round-2)
+    head_tilt = -8       # degrees; head cocks toward the die
+    drop = 7             # the die-side (left) shoulder drops a full 7px
 
     hip_y = feet_y - 84  # shorter build than round-1's 92
     hip_cx = cx + hip_dx
 
-    # Curled-toe belled shoes, weight cocked onto the left (die-side) leg.
+    # Curled-toe belled shoes, weight planted on the LEFT (die-side) leg, the
+    # trailing RIGHT foot set back and turned out.
     _jester_shoes(surf, cx, feet_y, 15, 24, _shade(dark, -10),
-                  _shade(gold, 10), lean=3)
-    # Two-tone HARLEQUIN hose: each leg split into an upper + lower band of the
-    # opposite tone so no leg is a solid stick (round-1 critique). Weight leg
-    # (left) is planted; trailing leg (right) is set back and bent.
-    _harlequin_leg(surf, (hip_cx - 7, hip_y), (cx - 13, feet_y - 8), 12,
+                  _shade(gold, 10), lean=5)
+    # Two-tone HARLEQUIN hose. The weight leg (LEFT) is planted nearly straight
+    # under the cocked hip; the trailing (RIGHT) leg sets back with a BENT KNEE
+    # (a mid-point kicked inward) so the stance reads as weight-shifted, never a
+    # symmetric T. The hip anchors differ in height to sell the cocked pelvis.
+    _harlequin_leg(surf, (hip_cx - 9, hip_y + 2), (cx - 12, feet_y - 8), 12,
                    light, dark)
-    _harlequin_leg(surf, (hip_cx + 9, hip_y), (cx + 14, feet_y - 8), 11,
-                   dark, light)
+    _harlequin_leg(surf, (hip_cx + 11, hip_y - 2), (cx + 15, feet_y - 8), 11,
+                   dark, light, knee=(cx + 4, hip_y + 26))
 
     neck_y = hip_y - 50
-    _draw_costume(surf, hip_cx, hip_y, dark, light, gold, motif, lean=2)
+    _draw_costume(surf, hip_cx, hip_y, dark, light, gold, motif, lean=4)
 
     # POSE — the hard requirement, now with the lean baked in. The LEFT (die-
     # side) shoulder DROPS; its arm reaches up and the open mitt CUPS UNDER the
@@ -408,15 +454,16 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     # Collar — every jester gets a belled, pointed/scalloped collar (no bare
     # necks), sheared to follow the leaning shoulders.
     if collar == "scalloped":
-        _collar_scalloped(surf, hip_cx, neck_y, _shade(light, 10), tilt=2)
+        _collar_scalloped(surf, hip_cx, neck_y, _shade(light, 10), tilt=4)
     else:
-        _collar_belled(surf, hip_cx, neck_y, gold, tilt=2)
+        _collar_belled(surf, hip_cx, neck_y, gold, tilt=4)
 
     hr = 22
     # The head sits on the neck but tilts toward the die. We draw the head +
     # cap + face onto a small surface and rotate the whole cluster so the tilt
-    # is real, not just shoved features.
-    head_cx = hip_cx - 2
+    # is real, not just shoved features. The neck shifts toward the dropped
+    # (die-side) shoulder so the head sits OVER the weight leg, not centred.
+    head_cx = hip_cx - 4
     hy_center = neck_y - hr
     cap_cols = (dark, light, gold, dark)
     _draw_tilted_head(surf, head_cx, hy_center, hr, skin, cap_fn, cap_cols,
@@ -439,12 +486,16 @@ def _draw_tilted_head(surf, cx, cy, hr, skin, cap_fn, cap_cols, variant,
     surf.blit(rot, (cx - rot.get_width() // 2, cy - rot.get_height() // 2))
 
 
-def _harlequin_leg(surf, hip, ankle, w, upper, lower):
+def _harlequin_leg(surf, hip, ankle, w, upper, lower, *, knee=None):
     """One two-tone harlequin leg: an upper band in `upper`, a lower band in
     `lower`, with a rounded cuff + a top-left rim. Replaces round-1's solid
-    single-colour stick legs."""
-    midx = (hip[0] + ankle[0]) // 2
-    midy = (hip[1] + ankle[1]) // 2
+    single-colour stick legs. Pass `knee` to BEND the leg at an explicit joint
+    (the trailing weight-shifted leg) instead of running it straight."""
+    if knee is not None:
+        midx, midy = knee
+    else:
+        midx = (hip[0] + ankle[0]) // 2
+        midy = (hip[1] + ankle[1]) // 2
     pygame.draw.line(surf, _shade(upper, -50), hip, (midx, midy), w + 3)
     pygame.draw.line(surf, _shade(lower, -50), (midx, midy), ankle, w + 3)
     pygame.draw.line(surf, upper, hip, (midx, midy), w)
@@ -651,9 +702,11 @@ JESTERS = [
         dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
         cap_fn=cap_three_point, motif="split", collar="belled",
         variant="plain")),
-    # 2 — NOT-a-crown floppy four-point; ruby/cream warm family.
+    # 2 — NOT-a-crown floppy four-point; ruby/cream warm family. Round-2 washed
+    # out on the day sky, so the ruby is deepened to a darker mid-value and the
+    # cream pulled off near-white toward a warm tan so the silhouette survives.
     ("Ruby & Cream", dict(
-        dark=(190, 40, 60), light=(246, 236, 214), gold=(244, 198, 78),
+        dark=(158, 28, 48), light=(228, 206, 168), gold=(238, 186, 64),
         cap_fn=cap_four_point, motif="quartered", collar="scalloped",
         variant="browcock")),
     # 3 — TRUE two-eared donkey cap; royal-blue/gold (cool+warm).
@@ -688,8 +741,11 @@ JESTERS = [
         cap_fn=cap_hood, motif="split", collar="scalloped",
         variant="browcock")),
     # 9 — COOL ice family pulled off the purple cluster: slate/ice four-point.
+    # Round-2 washed out on the day sky; the slate is darkened to a deeper navy
+    # mid-value and the ice pulled off near-white toward a cooler grey-blue so the
+    # silhouette holds its value against the sky.
     ("Slate & Ice", dict(
-        dark=(58, 92, 132), light=(206, 230, 244), gold=(250, 210, 84),
+        dark=(40, 66, 104), light=(176, 204, 226), gold=(244, 200, 78),
         cap_fn=cap_four_point, motif="panels", collar="belled",
         variant="plain")),
     # 10 — warm scarlet/gold three-point (was a 2nd horned hood; recast).
@@ -770,15 +826,15 @@ def render_cell(spec, idx, show_inset):
 
 
 CAPTIONS = [
-    "plum/lime · 3-point cap · sly smirk + lean",
-    "ruby/cream · floppy 4-point · raised-brow smirk",
+    "plum/lime · 3-point cap · open sidelong eyes + smirk",
+    "ruby/cream · SPLAYED 4-point · cocked-brow smirk",
     "royal-blue/gold · donkey-EAR cap · sidelong smirk",
-    "teal/magenta · coxcomb crest · smirk + tongue",
+    "teal/magenta · ANCHORED coxcomb · smirk + tongue",
     "charcoal-plum · IMPISH horned hood · brow + tongue",
-    "violet/orange · coxcomb crest · smirk + tongue",
-    "emerald/gold · 3-point cap · sly smirk + lean",
-    "wine/teal · curled-bell hood · raised-brow smirk",
-    "slate/ice · floppy 4-point · sidelong smirk",
+    "violet/orange · ANCHORED coxcomb · smirk + tongue",
+    "emerald/gold · 3-point cap · open sidelong eyes",
+    "wine/teal · curled-bell hood · cocked-brow smirk",
+    "slate/ice · SPLAYED 4-point · sidelong smirk",
     "scarlet/gold · 3-point cap · smirk + tongue",
 ]
 
@@ -808,13 +864,13 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 2)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 3)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "ONE scheming face + plotting lean on all 10 · die UPPER-LEFT CUPPED by "
-        "the raised mitt · costumes lifted to coxcomb standard · palettes "
-        "de-clustered",
+        "OPEN half-lidded sidelong eyes + pinched V brows + lopsided smirk on all "
+        "10 · committed plot-lean · crests anchored · #2/#9 contrast raised · "
+        "die UPPER-LEFT CUPPED by the raised mitt",
         True, (190, 195, 205))
     canvas.blit(sub, (PAD, PAD + 50))
 
@@ -848,14 +904,14 @@ def main():
                                      VIEW_H + 4), 1)
         canvas.blit(template_cell, (ix, foot_y))
         tag = f_cap.render(
-            "1x in-game scale (Teal & Magenta) — scheming face + cupped die "
-            "still read; die stays a clear takeable pickup off the face",
+            "1x in-game scale (Teal & Magenta) — OPEN sidelong eyes + V brows + "
+            "lopsided smirk still read; die stays a clear takeable pickup",
             True, (200, 206, 216))
         canvas.blit(tag, (ix + VIEW_W + 24, foot_y + VIEW_H // 2 - 14))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
