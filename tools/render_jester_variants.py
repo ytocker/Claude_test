@@ -517,7 +517,8 @@ def _mitt_thumb(surf, hand, gr, glove, *, side):
 
 def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
                  cap_fn, motif, collar, variant, skin=(255, 209, 169),
-                 nose_col=(232, 72, 72), imp=False, shoulder_orn=False):
+                 nose_col=(232, 72, 72), imp=False, shoulder_orn=False,
+                 collar_in_gold=False):
     """Draw ONE chunky court jester in the fixed mirrored presenting pose with a
     plotting body lean. `variant` selects the small face flavour layered on the
     shared naughty recipe. `imp` is a spec marker for the single horned-hood
@@ -579,7 +580,11 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     # Collar — every jester gets a belled, pointed/scalloped collar (no bare
     # necks), sheared to follow the leaning shoulders.
     if collar == "scalloped":
-        _collar_scalloped(surf, hip_cx, neck_y, _shade(light, 10), tilt=4)
+        # The scalloped ruff lobes are normally the costume `light` colour; when
+        # `collar_in_gold` is set, recolour every lobe to the GOLD of the cap so
+        # the "scarf of circles" matches the hat's bells.
+        ruff_col = _shade(gold, 6) if collar_in_gold else _shade(light, 10)
+        _collar_scalloped(surf, hip_cx, neck_y, ruff_col, tilt=4)
     else:
         _collar_belled(surf, hip_cx, neck_y, gold, tilt=4)
 
@@ -999,6 +1004,12 @@ JESTERS = [
         dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
         cap_fn=cap_four_point, motif="quartered", collar="scalloped",
         variant="browcock")),
+    # 12 — #11 with the scalloped "scarf of circles" collar recoloured to the
+    # GOLD of the cap (every ruff lobe yellow, matching the hat bells).
+    ("Plum & Lime — Gold Ruff", dict(
+        dark=(96, 44, 150), light=(132, 218, 116), gold=(250, 205, 72),
+        cap_fn=cap_four_point, motif="quartered", collar="scalloped",
+        variant="browcock", collar_in_gold=True)),
 ]
 
 
@@ -1092,6 +1103,7 @@ CAPTIONS = [
     "slate/ice · SPLAYED 4-point · fang grin",
     "scarlet/gold · 3-point cap · grin + tongue",
     "plum/lime · SPLAYED 4-point · cocked-brow (= #2 in #1's colours)",
+    "plum/lime · 4-point · GOLD scalloped ruff (= #11, yellow collar circles)",
 ]
 
 
@@ -1120,7 +1132,7 @@ def main():
     f_cap = pygame.font.SysFont(None, 38, bold=True)
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
-    title = f_title.render("COURT JESTER — naughty dice presenter (round 10)",
+    title = f_title.render("COURT JESTER — naughty dice presenter (round 11)",
                            True, (250, 240, 210))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -1171,7 +1183,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_10.png")
+    out_path = os.path.join(out_dir, "round_11.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
