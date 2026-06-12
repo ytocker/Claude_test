@@ -54,7 +54,8 @@ from tools.sky_round_realism import CONCEPTS        # noqa: E402
 # force the live-bake path so the shim is actually used for every row.
 _sky_designs.ACTIVE_SKY_DESIGN = None
 
-OUT = os.path.join(_ROOT, "docs", "biome_redesign", "round_realism_1_ingame.png")
+OUT = os.environ.get("SKY_SHEET_OUT") or os.path.join(
+    _ROOT, "docs", "biome_redesign", "round_realism_1_ingame.png")  # env override lets the round sheet be re-rendered cleanly
 CYCLE_SECONDS = 320.0  # game/biome.py: phase = (t / 320) % 1
 
 # ~12 representative columns sampled on the honest time axis of the SHARED
