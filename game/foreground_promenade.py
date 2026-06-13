@@ -1152,11 +1152,16 @@ def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
 def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
     """One potted plant / tree from the 'greenery' pool (greenery_cast),
     feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the near
-    lane passes it as a kwarg into the bake cache. Replaces the fixed planter."""
+    lane passes it as a kwarg into the bake cache. Replaces the fixed planter.
+
+    Greenery is STATIC street furniture: it travels only with the world scroll, never
+    animating in place. The live clock `t` is therefore ignored in favour of a frozen
+    per-variant pose (a golden-angle stride gives each design its own fixed micro-lean),
+    which also keeps the near lane's bake cache to one surface per variant."""
     v = _fv.get("greenery", variant)
     if v is None:
         return
-    _green.draw_greenery(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+    _green.draw_greenery(surf, sx, GROUND_Y - 1, v, _nightf(pal), variant * 2.39996)
 
 
 def _greenery_latch(row, k, salt):
