@@ -19,13 +19,14 @@ import random
 import pygame
 
 from game.config import W, GROUND_Y, BIRD_X, BIRD_R, PIPE_W
-from game.entities import Pipe, FloatText
+from game.entities import Pipe
 from game import draw as gfx
 
 # ── script timing (seconds) ──────────────────────────────────────────────────
 T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
 T_SPIN = 0.9              # dice tumble before the rolled number is revealed
 T_AFTER_PICKUP = 2.0      # beat between the reveal and the route
+CELE_LIFE = 1.5           # result celebration banner life (< T_AFTER_PICKUP)
 T_AFTER_ROUTE = 2.0       # free flight after the route before Pip drops
 
 # ── warren geometry ──────────────────────────────────────────────────────────
@@ -81,8 +82,7 @@ class WarrenDemo:
         self.spin_t = 0.0          # dice tumble clock (phase "rolling")
         self._spin_face = 15       # number shown on the tumbling cube
         self._spin_face_t = 0.0    # countdown to the next tumble face
-        self.die_pop_t = 0.0       # result-die linger after the reveal
-        self.die_pop_y = DICE_Y
+        self.die_pop_t = 0.0       # celebration-banner life after the reveal
 
         self.route = None          # list of (gap_cy, gap_h) for N pillars
         self.route_pipes = []      # Pipes we spawned, in order
@@ -92,6 +92,8 @@ class WarrenDemo:
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
         self._sign_font = None     # cached sign font
+        self._cele_font = None     # cached celebration number font
+        self._cele_label_font = None
 
     # ── public hooks ─────────────────────────────────────────────────────────
     def gates_flap(self):
@@ -103,8 +105,7 @@ class WarrenDemo:
         self.pt += dt
         self.pulse += dt * 3.5
         if self.die_pop_t > 0.0:
-            self.die_pop_t = max(0.0, self.die_pop_t - dt)
-            self.die_pop_y -= 26 * dt            # the result die drifts up
+            self.die_pop_t = max(0.0, self.die_pop_t - dt)   # celebration life
 
         speed = world._current_scroll()
         dx = speed * dt
@@ -138,11 +139,7 @@ class WarrenDemo:
                 self._goto("wait_route")
 
         elif self.phase == "wait_route":
-            # clown keeps strolling off-screen left while N is revealed
-            if self.clown_x is not None:
-                self.clown_x -= dx
-                if self.clown_x < -140:
-                    self.clown_x = None
+            # clown stays put where it handed over the die; N is revealed
             if self.pt >= T_AFTER_PICKUP:
                 self._make_route(world)
                 if self.ghost_run:
@@ -150,10 +147,6 @@ class WarrenDemo:
                 self._goto("running")
 
         elif self.phase == "running":
-            if self.clown_x is not None:
-                self.clown_x -= dx
-                if self.clown_x < -140:
-                    self.clown_x = None
             # feed pillars in from the right at the fused spacing
             while (self.spawned < len(self.route)
                    and (not self.route_pipes
@@ -198,12 +191,14 @@ class WarrenDemo:
                 self._draw_floating_die(surf, dx, int(self.dice_y + sy))
             elif self.phase == "rolling":                # tumbling roll
                 self._draw_spinning_die(surf, dx, int(self.dice_y + sy))
-            elif self.die_pop_t > 0.0:                   # revealed result, rising
-                self._draw_result_die(surf, dx, int(self.die_pop_y + sy))
+            # The settled result is NOT painted on the cube — it pops as a
+            # celebration banner in a fixed spot (see _draw_celebration).
 
     def draw_sign(self, surf, world, sx, sy):
         """The N-of-pillars sign hung from the first route pagoda — drawn AFTER
-        the pillars so it reads in front of the pagoda tops."""
+        the pillars so it reads in front of the pagoda tops. Also hosts the
+        result celebration banner (drawn here so it layers over the route)."""
+        self._draw_celebration(surf)               # fixed-spot popup; self-gated
         p = self.sign_pipe
         if p is None or self.roll is None:
             return
@@ -269,34 +264,94 @@ class WarrenDemo:
             surf.blit(spark, (sxp - sz * 2, syp - sz * 2),
                       special_flags=pygame.BLEND_ADD)
 
-    def _draw_result_die(self, surf, dx, dy):
-        """The settled roll. A GHOST result gets a clearly spooky read — an
-        ethereal cyan glow, a cyan-tinted cube + number, and rising wisps — so
-        a ghost 10 never looks like a plain 10. A normal roll stays warm gold."""
-        if not self.ghost_run:
-            try:
-                self._draw_die_face(surf, dx, dy, 44, number=self.roll,
-                                    body=(255, 246, 224), pip_col=(190, 70, 40))
-            except Exception:
-                pass
+    def _draw_celebration(self, surf):
+        """The settled roll, popped as a celebration in a fixed on-screen spot
+        (not painted on the cube). Its own festive look — confetti starburst +
+        big number + label — deliberately NOT tied to the clown's motif. A
+        GHOST result reads spooky (cyan + wisps) so its 10 never looks plain."""
+        if self.roll is None or self.die_pop_t <= 0.0:
             return
-        br = 0.5 + 0.5 * math.sin(self.pulse * 2.2)
-        gfx.blit_glow(surf, dx, dy, int(42 + 9 * br), (84, 214, 196), alpha=115)
-        gfx.blit_glow(surf, dx, dy, int(22 + 4 * br), (188, 255, 242), alpha=85)
-        # rising ectoplasm wisps
-        for i in range(3):
-            climb = (self.pulse * 18 + i * 13) % 36
-            wx = int(dx + math.sin(self.pulse * 1.4 + i * 2.1) * (9 + i * 4))
-            wy = int(dy - 4 - climb)
-            a = max(0, 150 - int(climb * 4))
-            wisp = pygame.Surface((12, 12), pygame.SRCALPHA)
-            pygame.draw.circle(wisp, (196, 255, 242, a), (6, 6), 4)
-            surf.blit(wisp, (wx - 6, wy - 6), special_flags=pygame.BLEND_ADD)
-        try:
-            self._draw_die_face(surf, dx, dy, 44, number=self.roll,
-                                body=(204, 244, 238), pip_col=(36, 92, 96))
-        except Exception:
-            pass
+        ghost = self.ghost_run
+        cx, cy = W // 2, 150
+        age = max(0.0, CELE_LIFE - self.die_pop_t)        # secs since the reveal
+
+        # ease-out-back pop-in over the first ~0.3s, then hold at full size
+        p = min(1.0, age / 0.30)
+        s = 1.70158
+        e = 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2
+        scale = 0.35 + 0.65 * e
+
+        # Spinning sunburst rosette behind the number. Normal-blended (NOT an
+        # additive glow — additive over the pale sky just blows out white) so it
+        # stays a festive colour, like a little prize wheel.
+        R = max(8, int(64 * scale))
+        rays = 12
+        rose_cols = ([(120, 220, 210), (150, 174, 255)] if ghost
+                     else [(255, 184, 72), (255, 138, 150)])
+        rose = pygame.Surface((2 * R + 4, 2 * R + 4), pygame.SRCALPHA)
+        rc = R + 2
+        spin = self.pulse * 0.5
+        step = math.tau / rays
+        for i in range(rays):
+            a0 = spin + i * step
+            a1 = a0 + step
+            col = rose_cols[i % 2] + (82,)
+            pygame.draw.polygon(rose, col, [
+                (rc, rc),
+                (rc + math.cos(a0) * R, rc + math.sin(a0) * R),
+                (rc + math.cos(a1) * R, rc + math.sin(a1) * R)])
+        surf.blit(rose, (cx - rc, cy - rc))
+
+        # confetti spraying outward (colour-keyed, normal blend so it reads warm
+        # on the bright sky instead of washing white)
+        burst = min(1.0, age / 0.55)
+        conf = [(255, 210, 90), (255, 120, 150), (120, 200, 255), (170, 255, 150)]
+        for i in range(14):
+            a = (i / 14) * math.tau + (0.22 if ghost else 0.0)
+            dist = R * 0.7 + burst * 56 + (i % 3) * 6
+            px = int(cx + math.cos(a) * dist)
+            py = int(cy + math.sin(a) * dist * 0.82)
+            al = int(220 * (1.0 - burst * 0.7))
+            if al <= 0:
+                continue
+            col = ((196, 255, 242, al) if ghost else conf[i % 4] + (al,))
+            dot = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(dot, col, (4, 4), 3)
+            surf.blit(dot, (px - 4, py - 4))
+
+        if self._cele_font is None:
+            self._cele_font = pygame.font.SysFont(None, 92, bold=True)
+        if self._cele_label_font is None:
+            self._cele_label_font = pygame.font.SysFont(None, 30, bold=True)
+
+        num_col = (212, 248, 242) if ghost else (255, 232, 158)
+        out_col = (28, 44, 60) if ghost else (120, 70, 20)
+        num = self._cele_font.render(str(self.roll), True, num_col)
+        out = self._cele_font.render(str(self.roll), True, out_col)
+        if scale != 1.0:
+            num = pygame.transform.rotozoom(num, 0, scale)
+            out = pygame.transform.rotozoom(out, 0, scale)
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+            surf.blit(out, out.get_rect(center=(cx + ox, cy + oy)))
+        nb = num.get_rect(center=(cx, cy))
+        surf.blit(num, nb)
+
+        label_txt = "GHOST!" if ghost else "PILLARS"
+        label_col = (172, 240, 224) if ghost else (255, 244, 210)
+        label = self._cele_label_font.render(label_txt, True, label_col)
+        surf.blit(label, label.get_rect(center=(cx, nb.bottom + 12)))
+
+        if ghost:                                          # rising ectoplasm wisps
+            for i in range(3):
+                climb = (self.pulse * 16 + i * 13) % 40
+                wx = int(cx - 30 + i * 30 + math.sin(self.pulse * 1.3 + i) * 6)
+                wy = int(cy + 34 - climb)
+                al = max(0, 150 - int(climb * 3))
+                if al <= 0:
+                    continue
+                wsp = pygame.Surface((12, 12), pygame.SRCALPHA)
+                pygame.draw.circle(wsp, (196, 255, 242, al), (6, 6), 4)
+                surf.blit(wsp, (wx - 6, wy - 6), special_flags=pygame.BLEND_ADD)
 
     def _draw_spinning_die(self, surf, dx, dy):
         """A short cube tumble before the reveal: the die spun by an ease-out
@@ -337,16 +392,9 @@ class WarrenDemo:
         self._spin_face_t = 0.06
 
     def _reveal_roll(self, world):
-        # Spin done — the rolled number pops up and the result cube lingers.
-        self.die_pop_t = 1.2
-        self.die_pop_y = self.dice_y
-        world.float_texts.append(
-            FloatText(str(self.roll), self.dice_x, self.dice_y - 12,
-                      (255, 226, 150), size=46, life=1.6, vy=-42, style="powerup"))
-        if self.ghost_run:
-            world.float_texts.append(
-                FloatText("GHOST!", self.dice_x, self.dice_y - 48,
-                          (160, 232, 214), size=34, life=1.9, vy=-28, style="powerup"))
+        # Spin done — arm the celebration banner (drawn in a fixed spot, not on
+        # the cube). die_pop_t is its life clock; _draw_celebration reads it.
+        self.die_pop_t = CELE_LIFE
 
     def _spawn_next(self, world):
         gap_cy, gap_h = self.route[self.spawned]
