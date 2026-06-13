@@ -77,6 +77,7 @@ class WarrenDemo:
         self.dice_y = DICE_Y
         self.collected = False
         self.roll = None
+        self.ghost_run = False     # GHOST outcome: phase through the whole route
         self.spin_t = 0.0          # dice tumble clock (phase "rolling")
         self._spin_face = 15       # number shown on the tumbling cube
         self._spin_face_t = 0.0    # countdown to the next tumble face
@@ -144,6 +145,8 @@ class WarrenDemo:
                     self.clown_x = None
             if self.pt >= T_AFTER_PICKUP:
                 self._make_route(world)
+                if self.ghost_run:
+                    world.ghost_timer = max(world.ghost_timer, 2.0)  # ghost on from route start
                 self._goto("running")
 
         elif self.phase == "running":
@@ -156,9 +159,15 @@ class WarrenDemo:
                    and (not self.route_pipes
                         or self.route_pipes[-1].x <= SPAWN_X - SP)):
                 self._spawn_next(world)
+            # GHOST roll: phase through the whole route. World decays ghost_timer
+            # each frame, so keep it topped up while flying the route.
+            if self.ghost_run:
+                world.ghost_timer = max(world.ghost_timer, 2.0)
             # route done once the last pillar has slipped past Pip
             if (self.spawned >= len(self.route) and self.route_pipes
                     and self.route_pipes[-1].x + PIPE_W < BIRD_X):
+                if self.ghost_run:
+                    world.ghost_timer = 1.0   # ... then stay a ghost one more second
                 self._goto("post_route")
 
         elif self.phase == "post_route":
@@ -292,9 +301,13 @@ class WarrenDemo:
 
     def _collect(self, world):
         # Grab → the cube tumbles (phase "rolling"); the number is revealed
-        # only once the spin settles (see _reveal_roll).
+        # only once the spin settles (see _reveal_roll). One extra slot in the
+        # roll pool is GHOST: the die lands on the range minimum and Pip phases
+        # through the whole route (applied in the "running" phase).
         self.collected = True
-        self.roll = random.randint(10, 25)
+        pick = random.choice(list(range(10, 26)) + ["ghost"])
+        self.ghost_run = pick == "ghost"
+        self.roll = 10 if self.ghost_run else pick
         self.spin_t = 0.0
         self._spin_face = random.randint(10, 25)
         self._spin_face_t = 0.06
@@ -306,6 +319,10 @@ class WarrenDemo:
         world.float_texts.append(
             FloatText(str(self.roll), self.dice_x, self.dice_y - 12,
                       (255, 226, 150), size=46, life=1.6, vy=-42, style="powerup"))
+        if self.ghost_run:
+            world.float_texts.append(
+                FloatText("GHOST!", self.dice_x, self.dice_y - 48,
+                          (160, 232, 214), size=34, life=1.9, vy=-28, style="powerup"))
 
     def _spawn_next(self, world):
         gap_cy, gap_h = self.route[self.spawned]
