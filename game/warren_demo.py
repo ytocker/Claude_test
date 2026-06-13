@@ -37,6 +37,11 @@ DICE_DX = 70              # die floats this far LEFT of the clown
 DICE_Y = 330              # die height — comfortably reachable mid-flight
 DICE_PICK_R = 30          # generous pickup radius around the die
 
+# Local coords for the cached clown bitmap (its shape never changes — only its
+# scroll position does — so it's rendered once and blitted each frame).
+CLOWN_W, CLOWN_H = 200, 300
+CLOWN_CX, CLOWN_FEET = 100, 250
+
 
 class WarrenDemo:
     def __init__(self):
@@ -78,6 +83,10 @@ class WarrenDemo:
         self.route_pipes = []      # Pipes we spawned, in order
         self.spawned = 0
         self.sign_pipe = None      # first route pillar (carries the N sign)
+
+        self._clown_surf = None    # cached clown bitmap (built on first draw)
+        self._clown_ok = True      # cleared if build_jester ever throws
+        self._sign_font = None     # cached sign font
 
     # ── public hooks ─────────────────────────────────────────────────────────
     def gates_flap(self):
@@ -149,10 +158,10 @@ class WarrenDemo:
             shadow = pygame.Surface((84, 14), pygame.SRCALPHA)
             pygame.draw.ellipse(shadow, (0, 0, 0, 70), (0, 0, 84, 14))
             surf.blit(shadow, (cx - 42, fy - 6))
-            hand_up = (cx - 30, fy - 150)
-            try:
-                self._build_jester(surf, cx, fy, hand_up, **self.spec)
-            except Exception:
+            cs = self._clown_surface()
+            if cs is not None:
+                surf.blit(cs, (cx - CLOWN_CX, fy - CLOWN_FEET))
+            else:
                 pygame.draw.circle(surf, (150, 90, 200), (cx, fy - 80), 36)
 
         if not self.collected and self.dice_x is not None:
@@ -179,13 +188,14 @@ class WarrenDemo:
         p = self.sign_pipe
         if p is None or self.roll is None:
             return
-        if p.x + PIPE_W < -20 or p.x > W + 40:
+        if p.x + PIPE_W < 0 or p.x > W + 40:        # bail once fully off either edge
             return
         cx = int(p.x + PIPE_W / 2 + sx)
         top = int(p.gap_y - p.gap_h / 2 + sy)     # gap rim under the top pagoda
         txt = str(self.roll)
-        font = pygame.font.SysFont(None, 34, bold=True)
-        label = font.render(txt, True, (60, 40, 20))
+        if self._sign_font is None:
+            self._sign_font = pygame.font.SysFont(None, 34, bold=True)
+        label = self._sign_font.render(txt, True, (60, 40, 20))
         pw = label.get_width() + 22
         ph = label.get_height() + 14
         bx, by = cx - pw // 2, top + 8
@@ -198,6 +208,20 @@ class WarrenDemo:
         surf.blit(label, (cx - label.get_width() // 2, by + 7))
 
     # ── internals ────────────────────────────────────────────────────────────
+    def _clown_surface(self):
+        """Render the clown once into a local bitmap (its shape is constant —
+        only its scroll position changes) and reuse it each frame instead of
+        re-running build_jester (which rotates a scratch surface) per frame."""
+        if self._clown_surf is None and self._clown_ok:
+            try:
+                s = pygame.Surface((CLOWN_W, CLOWN_H), pygame.SRCALPHA)
+                hand_up = (CLOWN_CX - 30, CLOWN_FEET - 150)
+                self._build_jester(s, CLOWN_CX, CLOWN_FEET, hand_up, **self.spec)
+                self._clown_surf = s
+            except Exception:
+                self._clown_ok = False
+        return self._clown_surf
+
     def _goto(self, phase):
         self.phase = phase
         self.pt = 0.0
