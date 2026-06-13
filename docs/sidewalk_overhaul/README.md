@@ -40,7 +40,10 @@ so the on-screen street never reads as a short loop. Counts and drawers:
 > specials and the showcase gallery were added alongside. The 30-design pool is
 > now planted as small **static cluster beds** standing directly on the sidewalk
 > (a tall centre + short flanker, ±a low filler) rather than scattered lone pots —
-> placed by `_ground_furniture` via `_draw_greenery_cluster`.
+> placed by `_ground_furniture` via `_draw_greenery_cluster`. Unlike the rest of
+> the cast, the plants **hold their daytime colour the whole day-night cycle**
+> (cluster passes `night=0`): `greenery_cast`'s night retint cooled the foliage
+> to a muddy blue-green after dusk, which read worse than the clean day colour.
 
 **Street fixtures (the "dressing")** are a separate layer from the cast: prayer-flag
 bunting, the **lantern garland**, **fairy-light strings**, two rows of **lamp posts**,
