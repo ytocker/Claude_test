@@ -1,44 +1,53 @@
 """Look-dev mockup: the EVOLVED "Demon Jester" boss pushed into FIVE distinct
-DEMON variations — all MORE REDDISH, MORE MASSIVE and MEANER (round 1).
+DEMON variations — all UNMISTAKABLY RED, MORE MASSIVE and MEANER (round 2).
 
-The user loved boss #3 of `render_jester_boss.py` ("The Demon Jester": horns via
-`cap_demon`, plum/lime pulled back under a fiery-corrupted palette, glowing
-YELLOW eyes, long fangs, the round-4 amorphous dark fiery shadow-pool aura, scale
-1.40). This sheet keeps that DNA and explores five climactic demons, each clearly
-heavier than the original Demon and clearly different from each other:
+Round 1 kept the Demon DNA but the art-director pixel-sampled the bodies as
+GREEN-dominant (lime legs read plum/LIME, not "red demon"). Round 2 is a palette
+RE-BASE, not a nudge — every body now reads RED at a glance:
 
-  1. INFERNO DEMON   — bright fiery orange-red, the biggest flaming aura + most
-                       embers; the classic fire-demon.
-  2. CRIMSON BRUTE   — hulking oxblood MASS (broadest shoulders, biggest scale),
-                       huge blunt horns; the heaviest of the set.
-  3. ARCHFIEND       — dark blood-red + black, big curved crown-horns, regal
-                       boss-of-bosses; the climactic one.
-  4. MOLTEN / MAGMA  — body cracked with glowing red-orange MAGMA seams, a
-                       smouldering volcanic read.
-  5. SHADOWFLAME     — dark red-black, sleeker but sinister, cold-edged smoke +
-                       hot red glowing eyes/fangs; "quiet but deadly".
+  - The costume's TWO roles are both RED now: `dark` is a TRUE CRIMSON
+    (~180/40/40 core) and `light` — which the legs lean on hardest — is moved off
+    lime onto a desaturated OXBLOOD / MAROON, so green stops dominating the
+    silhouette. Lime survives ONLY as a tiny TRIM accent (a collar/cuff edge) via
+    a per-figure `_lime_trim` overlay.
+
+The five climactic demons, each a distinct SILHOUETTE hook (tellable at 1x), all
+clearly heavier than the original Demon and clearly different from each other:
+
+  1. INFERNO DEMON   — flame-tip shoulders / rising flame accents; the biggest
+                       flaming aura + most embers. The "flame" one.
+  2. CRIMSON BRUTE   — genuinely the MOST MASSIVE: ~25% wider shoulders, a
+                       thicker torso block, heavier stubby limbs, a low wide
+                       stance. A wall of true-crimson muscle.
+  3. ARCHFIEND       — the regal CROWN-horns (the best hook), lifted off near-
+                       black so it holds contrast at 1x.
+  4. MOLTEN MAGMA    — glowing red-orange body-CRACKS across the torso/limbs; the
+                       best red-hot read, pushed. The lead direction's heat
+                       treatment.
+  5. ASH OGRE        — a hunched horned heavyweight: smoke wisps + the darkest
+                       mood, but RE-ROLLED off the sleeker "Shadowflame" into a
+                       distinct stooped ogre so it reads apart AND reddish.
+
+Lead direction (art-director): Molten Magma's red-hot body treatment rebuilt on
+the Brute's heavy proportions — a true-crimson, genuinely-bulky boss.
 
 Panel 0 is the UNCHANGED original Demon Jester (boss #3 verbatim) for the side-
 by-side comparison.
 
-Three DIE ("cube") fixes the user asked for, applied to EVERY panel:
-  1. The die is REPOSITIONED UP + LEFT to meet the ENLARGED raised arm. The
-     figure is scaled ABOUT THE FEET, so the raised LEFT mitt lands at
-     ~`jester_cx - 60*scale` in x (further left + higher) as the boss grows — the
-     die now tracks there instead of staying at its base seat, so the big arm
-     CRADLES the die rather than reaching past it. Bigger scale ⇒ die further
-     up-left.
-  2. The die is BIGGER — `size≈54` (the friendly die hardcodes 40), keeping the
-     3D isometric cube + foreshortened pips.
-  3. The die aura is MEANER — re-tinted from the friendly YELLOW toward a CRIMSON
-     → ember-orange falloff and widened so it reads as a DANGEROUS reward, not a
-     friendly power-up.
+Three DIE ("cube") fixes, applied to every NEW panel:
+  1. The die is CRADLED in the mitt — the raised hand cups/overlaps the die into
+     ONE shape (no air-gap), seated down-and-right of the head so it clears the
+     horns/shoulder silhouette.
+  2. The die is BIGGER — `size≈70` (up ~30% from round 1's 54), so it doesn't
+     shrink against the bigger bodies; same 3D isometric cube + pips.
+  3. The die aura is a layered CRIMSON→EMBER radial glow (restrained, no neon
+     rim), so it reads as a DANGEROUS power object — not a friendly bonus pip.
 
 All of that lives in a LOCAL `draw_boss_die` here — the friendly #13 die in
 `render_jester_variants.py` is left untouched.
 
 Nothing under `game/` is touched; we import the real kit and the boss kit and
-mutate no state. Headless + deterministic. Output: docs/jester/demon_round_1.png.
+mutate no state. Headless + deterministic. Output: docs/jester/demon_round_2.png.
 
     PYTHONPATH=. python tools/render_demon_variants.py
 """
@@ -71,7 +80,7 @@ from tools.render_jester_variants import (
 # brawler-mass shoulders, the corruption seams and the boss build path. We only
 # ADD reddish/massive demon flavour on top — we don't fork the boss code.
 from tools.render_jester_boss import (
-    BASE, corrupt,
+    BASE, corrupt, _deepen, _desat,
     silhouette_aura, build_boss, _add_seams,
     _horn,
     PANEL_W, PANEL_H, FEET_Y, _scene_bg, _blit_parrot,
@@ -126,12 +135,31 @@ def cap_crown_horns(surf, cx, base_y, hr, cols):
 
 
 def cap_demon_tall(surf, cx, base_y, hr, cols):
-    """The Inferno/Shadowflame slim-but-TALLER horns: the demon spikes of
-    `cap_demon` lengthened + raked back so they read sharper and meaner."""
+    """Inferno/Molten slim-but-TALLER horns: the demon spikes of `cap_demon`
+    lengthened + raked back so they read sharper and meaner."""
     cap_four_point(surf, cx, base_y, hr, cols)
     horn = (32, 12, 16)
     _horn(surf, (cx - 13, base_y - 4), (cx - 26, base_y - 34), horn)
     _horn(surf, (cx + 13, base_y - 4), (cx + 26, base_y - 34), horn)
+
+
+def cap_ogre(surf, cx, base_y, hr, cols):
+    """The Ash Ogre's brutish low horns: a single pair of short, in-curving tusk-
+    horns sweeping forward + down off a heavy brow line, set wider + lower than
+    the Brute's so the hunched ogre reads apart at a glance."""
+    cap_four_point(surf, cx, base_y, hr, cols)
+    horn = (30, 14, 16)
+    for s in (-1, 1):
+        bx, by = cx + s * 15, base_y + 1
+        tip = (cx + s * 27, base_y + 6)              # sweeps DOWN + forward (ogre)
+        mid = (cx + s * 24, base_y - 8)
+        pts = [(bx - 5, by + 2), (bx + 5, by - 3), mid, tip,
+               (tip[0] - s * 4, tip[1] + 5)]
+        pygame.draw.polygon(surf, horn, pts)
+        pygame.draw.polygon(surf, _shade(horn, 42),
+                            [(bx - 5, by + 2), (bx + 3, by - 1), mid])
+        pygame.draw.polygon(surf, _shade(horn, -72), pts, 2)
+        pygame.draw.circle(surf, (188, 142, 116), tip, 3)
 
 
 # ── the reddish, MASSIVE, mean BOSS die ──────────────────────────────────────
@@ -141,20 +169,23 @@ def cap_demon_tall(surf, cx, base_y, hr, cols):
 # routine so the friendly die in render_jester_variants stays untouched.
 
 def _boss_aura_surface(radius, breathe, *, core, mid, edge):
-    """A crimson→ember power-up halo, same alpha-stop construction as the friendly
-    `_aura_surface` but re-tinted toward danger: a hot ember core → crimson body →
-    deep-red edge. Reads on VALUE (bright core) so it survives the day sky, but
-    the HUE now says 'dangerous reward', not 'friendly pickup'. Bigger radius is
-    passed in by the caller so the whole aura reads more massive."""
+    """A layered CRIMSON→EMBER power-up halo. Round-1's halo still read pale-
+    yellow/white because the bright core dominated the broad falloff. Round 2
+    rebuilds it so CRIMSON is the dominant body of the glow and the hot core is a
+    tight, contained ember — the halo reads RED-hot + dangerous, not a friendly
+    yellow bonus pip. Same alpha-stop construction as the friendly `_aura_surface`
+    so it stays in-family; bigger radius is passed in by the caller so the whole
+    aura looms more massive. NO neon ring (matches the approved shadow-pool aura)."""
     size = radius * 2 + 2
     s = pygame.Surface((size, size), pygame.SRCALPHA)
     c = radius + 1
     stops = [
         (1.00, edge, 0),                  # deep-red edge fades to nothing
-        (0.86, edge, 140),                # deep crimson body
-        (0.60, mid, 220),                 # SATURATED ember-red (dominant)
-        (0.34, mid, 248),                 # bright ember-orange
-        (0.16, core, 255),               # hot ember-yellow core (the heat)
+        (0.92, edge, 150),                # deep crimson edge body
+        (0.74, edge, 210),                # crimson is the DOMINANT band now
+        (0.50, mid, 234),                 # ember-red shoulder
+        (0.30, mid, 250),                 # bright ember-orange
+        (0.15, core, 255),               # tight hot ember core (contained)
     ]
     for t_out, col, a_in in stops:
         r = max(1, int(radius * t_out))
@@ -169,13 +200,13 @@ def _boss_aura_surface(radius, breathe, *, core, mid, edge):
     return s
 
 
-def draw_boss_die(surf, cx, base_y, pulse, *, size=54,
-                  core=(255, 226, 120), mid=(255, 120, 36),
-                  edge=(150, 16, 16), spark=(255, 196, 120)):
-    """The demon's presented die: a BIGGER 3D isometric cube (`size≈54` vs the
-    friendly 40) inside a MASSIVE crimson→ember aura, with red-hot orbiting
+def draw_boss_die(surf, cx, base_y, pulse, *, size=70,
+                  core=(255, 196, 86), mid=(240, 96, 30),
+                  edge=(150, 16, 16), spark=(255, 170, 96)):
+    """The demon's presented die: a BIGGER 3D isometric cube (`size≈70`, up ~30%
+    from round 1's 54) inside a MASSIVE crimson→ember aura, with red-hot orbiting
     sparkles. Per-demon `core`/`mid`/`edge` let each version's die echo its own
-    fire (oxblood Brute, blood-red Archfiend, magma, cold-shadow red…)."""
+    fire (oxblood Brute, blood-red Archfiend, magma, ash-ember…)."""
     cy = int(base_y + math.sin(pulse * 1.1) * 3)
     breathe = 0.5 + 0.5 * math.sin(pulse * 1.3)
     pr = 1.0 + 0.10 * breathe
@@ -184,10 +215,11 @@ def draw_boss_die(surf, cx, base_y, pulse, *, size=54,
     aura_r = int(size * 1.55 * pr)
     aura = _boss_aura_surface(aura_r, breathe, core=core, mid=mid, edge=edge)
     surf.blit(aura, (cx - aura_r - 1, cy - aura_r - 1))
-    # A tight additive ember core bloom so the centre reads as EMITTING heat
-    # without washing the broad crimson halo to flat white on the day sky.
-    blit_glow(surf, cx, cy, int(16 * pr), core,
-              alpha=60 + int(34 * breathe))
+    # A SMALL, tight additive ember bloom so the centre reads as EMITTING heat —
+    # kept narrow + ember-warm (not near-white) so it never washes the dominant
+    # CRIMSON halo back toward a friendly pale-yellow pip on the day sky.
+    blit_glow(surf, cx, cy, int(12 * pr), mid,
+              alpha=46 + int(26 * breathe))
 
     # The 3D isometric cube prop — same form as the friendly die, just bigger.
     _draw_die_face_noshadow(surf, cx, cy, size, pips=HERO_PIPS)
@@ -213,48 +245,118 @@ def draw_boss_die(surf, cx, base_y, pulse, *, size=54,
 # ── magma seams (fiery re-tint of the Corrupted's glitch cracks) ─────────────
 
 def _add_magma_seams(surf, cx, feet_y):
-    """Glowing red-orange MAGMA cracks across the Molten boss's torso — the
-    Corrupted `_add_seams` idea re-tinted fiery: a deep-red fissure with a hot
-    orange-yellow molten core glowing along it, so the body reads as cracked
-    cooling lava rather than glitched corruption."""
+    """Glowing red-orange MAGMA cracks across the Molten boss's torso AND limbs —
+    the lead direction's red-hot read, pushed: deep-red fissures with a hot
+    orange-yellow molten core glowing along each, plus a few small glowing nodes
+    where seams branch, so the body reads as cracked cooling lava. Spread wider +
+    onto the legs this round so the heat covers the whole silhouette, not just a
+    torso patch."""
     hip_y = feet_y - 84
     top = hip_y - 50
     rng = __import__('random').Random(909)
-    for _ in range(5):
-        x0 = cx + rng.randint(-24, 24)
-        y0 = top + rng.randint(2, 10)
+
+    def _seam(x0, y0, segs, span):
         pts = [(x0, y0)]
-        for _ in range(3):
-            x0 += rng.randint(-7, 7)
+        for _ in range(segs):
+            x0 += rng.randint(-span, span)
             y0 += rng.randint(8, 16)
             pts.append((x0, y0))
-        # Dark fissure walls, then a hot molten core line glowing inside them.
+        # Dark fissure walls, a hot molten core line, then a white-hot centre.
         pygame.draw.lines(surf, (60, 8, 4), False, pts, 4)
         pygame.draw.lines(surf, (236, 92, 20), False, pts, 2)
-        pygame.draw.lines(surf, (255, 220, 120), False, pts, 1)
+        pygame.draw.lines(surf, (255, 224, 128), False, pts, 1)
+        # A glowing node at a branch point so the magma reads as pooling, not lines.
+        nx, ny = pts[len(pts) // 2]
+        blit_glow(surf, nx, ny, 5, (255, 150, 40), alpha=120)
+
+    # Torso fissures.
+    for _ in range(5):
+        _seam(cx + rng.randint(-24, 24), top + rng.randint(2, 10), 3, 7)
+    # Limb fissures — short cracks down each thigh so the legs glow red-hot too.
+    for s in (-1, 1):
+        _seam(cx + s * 12, hip_y + rng.randint(4, 10), 2, 4)
 
 
-# ── the demon palette helper ─────────────────────────────────────────────────
-# All five share the Demon DNA — plum/lime pulled back, RED-shifted — but each
-# is anchored to its own red so the costumes read apart. Built like boss #3's
-# palette (a fire/red corruption, then a light plum/lime re-tint so it never
-# drifts olive/khaki), parameterised per demon by its `red` anchor + amounts.
+def _lime_trim(surf, cx, feet_y, lime):
+    """The ONLY surviving lime: a tiny harlequin TRIM accent so the costume keeps
+    a whisper of its plum/LIME jester DNA without letting green dominate the now-
+    RED silhouette — a thin lime piping along the collar lobes + a small lime cuff
+    band on each ankle. Restrained on purpose (the bodies must read RED first)."""
+    hip_y = feet_y - 84
+    neck_y = hip_y - 50
+    hip_cx = cx - 6
+    # A short lime arc piping under the collar ruff.
+    pygame.draw.arc(surf, lime, (hip_cx - 16, neck_y - 4, 32, 18),
+                    math.pi * 0.12, math.pi * 0.88, 2)
+    # A thin lime cuff ring at each ankle.
+    for ax in (cx - 12, cx + 15):
+        pygame.draw.circle(surf, lime, (ax, feet_y - 12), 5, 2)
 
-def demon_palette(red, *, deep, desat, tint, plum_back=0.26, lime_back=0.30,
-                  gold_lift=0.0):
-    """A RED-shifted demon costume: corrupt #13's plum/lime/gold toward `red`,
-    then pull the dark back toward plum and the light back toward lime a touch so
-    the harlequin DNA still reads under the red wash."""
-    dark = lerp_color(corrupt(BASE["dark"], red, deep=deep, desat=desat,
-                              tint=tint), (96, 44, 150), plum_back)
-    light = lerp_color(corrupt(BASE["light"], red, deep=deep * 0.7,
-                               desat=desat * 0.8, tint=tint * 0.9),
-                       (132, 218, 116), lime_back)
-    gold = corrupt(BASE["gold"], red, deep=deep * 0.6, desat=desat * 0.5,
-                   tint=tint * 0.7)
+
+def _flame_shoulders(surf, cx, feet_y, flame, ember):
+    """Inferno's hook: flame-tip SHOULDERS — a fan of rising flame tongues
+    licking up off each shoulder so the silhouette itself reads as fire, not just
+    a red body in a fiery aura. Drawn on the figure layer so it scales WITH the
+    boss and stays part of the silhouette."""
+    hip_y = feet_y - 84
+    sh_y = hip_y - 48
+    for s in (-1, 1):
+        base_x = cx - 6 + s * 24
+        for j, (dx, dh) in enumerate(((0, 26), (-s * 6, 18), (s * 7, 20))):
+            tipx = base_x + dx + s * 2
+            tipy = sh_y - dh
+            flick = s * 5
+            pts = [(base_x - 5, sh_y + 2), (base_x + 5, sh_y + 2),
+                   (tipx + flick, tipy + 6), (tipx, tipy)]
+            pygame.draw.polygon(surf, flame, pts)
+            # Hot inner core tongue.
+            pygame.draw.polygon(surf, ember,
+                                [(base_x - 2, sh_y), (base_x + 2, sh_y),
+                                 (tipx, tipy + 5)])
+
+
+# ── the demon palette helper (ROUND 2 — a full RED RE-BASE) ──────────────────
+# Round 1 read GREEN-dominant because the legs lean on `light`, which was a lime.
+# Round 2 RE-BASES both costume roles onto RED so the silhouette reads
+# unmistakably red at a glance:
+#   - `dark`  → a TRUE CRIMSON anchored on (180, 40, 40), nudged per demon.
+#   - `light` → a desaturated OXBLOOD / MAROON (NOT lime) — this is the colour
+#     the legs use most, so green no longer dominates the legs.
+# Both roles stay close in HUE (two reds) but apart in VALUE so the quartered
+# harlequin torso + two-tone hose still read as a costume, just a RED one. Lime
+# survives only as the tiny `_lime_trim` accent, never as a body role.
+
+CRIMSON_CORE = (182, 42, 42)            # the true-crimson torso anchor
+OXBLOOD_LEG = (120, 34, 36)            # the desaturated maroon the legs ride on
+
+
+def demon_palette(red, *, deep=0.0, light_deep=0.0, desat=0.0, tint=0.0,
+                  gold_lift=0.0, lift=0.0):
+    """A fully RED demon costume. `dark` is the true crimson torso anchor pulled
+    a touch toward this demon's own `red` (so the five read apart on hue/value
+    without any leaving red); `light` is the oxblood/maroon leg+panel role,
+    deepened by `light_deep` for the moodier demons. `lift` raises the whole
+    value (Archfiend, so it doesn't crush near-black at 1x); `desat` greys both
+    roles slightly (the Ash Ogre's ashen read)."""
+    dark = lerp_color(CRIMSON_CORE, red, tint)
+    light = lerp_color(OXBLOOD_LEG, red, tint * 0.5)
+    if deep:
+        dark = _deepen(dark, deep)
+    if light_deep:
+        light = _deepen(light, light_deep)
+    if desat:
+        dark = _desat(dark, desat)
+        light = _desat(light, desat)
+    if lift:
+        dark = lerp_color(dark, (210, 96, 80), lift)
+        light = lerp_color(light, (170, 70, 64), lift)
+    gold = corrupt(BASE["gold"], red, deep=0.18, desat=0.12, tint=0.18)
     if gold_lift:
         gold = lerp_color(gold, (236, 184, 56), gold_lift)
-    return {"dark": dark, "light": light, "gold": gold}
+    # The lime that now survives only as a trim accent — kept here so each spec
+    # can pass its own (slightly desaturated so it never shouts over the red).
+    lime = _desat((132, 218, 116), 0.22)
+    return {"dark": dark, "light": light, "gold": gold, "lime": lime}
 
 
 # ── the five reddish/massive demons ──────────────────────────────────────────
@@ -263,64 +365,69 @@ def demon_palette(red, *, deep, desat, tint, plum_back=0.26, lime_back=0.30,
 # the original Demon (scale 1.40) and distinct from the others. `die` carries the
 # per-demon crimson→ember die tint so the dangerous reward echoes each fire.
 
-INFERNO = (236, 84, 18)
-OXBLOOD = (138, 22, 22)
-BLOOD = (120, 12, 16)
-MAGMA = (210, 64, 14)
-SHADOWRED = (96, 18, 24)
+# Per-demon RED anchors — all reds, spread across hue/value so the five read
+# apart while every body stays unmistakably RED. The torso/legs are RE-BASED onto
+# crimson/oxblood (demon_palette); these only NUDGE that base toward each fire.
+INFERNO = (236, 92, 30)            # orange-leaning crimson (fire)
+BRUTE_RED = (176, 44, 40)          # broad true crimson (muscle)
+BLOOD = (150, 40, 44)              # blood-red, lifted so it holds at 1x
+MAGMA = (210, 70, 26)              # smouldering orange-red (lava)
+ASH_RED = (140, 48, 46)            # ashen desaturated red (the ogre)
 
 DEMONS = [
-    # 1 — INFERNO DEMON: bright fiery orange-red, the BIGGEST flaming aura + most
-    # embers. The classic fire-demon — hot, loud, all flame.
+    # 1 — INFERNO DEMON: the FLAME one. Flame-tip shoulders rising off the
+    # silhouette + the biggest flaming aura + most embers. Orange-leaning crimson.
     dict(name="Inferno Demon",
-         vibe="bright fire orange-red · biggest flame aura · most embers",
-         pal=demon_palette(INFERNO, deep=0.20, desat=0.16, tint=0.34),
+         vibe="FLAME-TIP shoulders · biggest flame aura · most embers",
+         pal=demon_palette(INFERNO, tint=0.40),
          aura_hue=(248, 120, 24), aura_dark=(40, 10, 4), rim=(255, 150, 40),
          glow=(255, 196, 40), cap=cap_demon_tall, scale=1.50, fang_xtra=5,
-         mass=1.08, aura_bulk=1.35, ember_boost=True,
-         die=dict(core=(255, 236, 150), mid=(255, 138, 30),
-                  edge=(190, 40, 8), spark=(255, 206, 120))),
-    # 2 — CRIMSON BRUTE: hulking oxblood MASS — the broadest shoulders + biggest
-    # scale of the set, huge blunt horns, the heaviest. A wall of red muscle.
+         mass=1.08, aura_bulk=1.35, ember_boost=True, flames=True, lime_trim=True,
+         die=dict(core=(255, 196, 96), mid=(248, 110, 28),
+                  edge=(176, 30, 8), spark=(255, 176, 96))),
+    # 2 — CRIMSON BRUTE: genuinely the MOST MASSIVE — ~25% wider shoulders, a
+    # thicker torso block, heavier stubby limbs, a low wide stance. True crimson.
     dict(name="Crimson Brute",
-         vibe="hulking oxblood MASS · broadest · biggest · blunt horns",
-         pal=demon_palette(OXBLOOD, deep=0.42, desat=0.30, tint=0.40),
-         aura_hue=(196, 26, 30), aura_dark=(28, 4, 6), rim=(200, 30, 40),
-         glow=(255, 84, 56), cap=cap_demon_blunt, scale=1.60, fang_xtra=4,
-         mass=1.30, head_tilt=-3, aura_bulk=1.15,
-         die=dict(core=(255, 206, 120), mid=(230, 70, 30),
-                  edge=(120, 12, 12), spark=(255, 150, 90))),
-    # 3 — ARCHFIEND (HELL-KING): dark blood-red + black, big curved CROWN-horns,
-    # regal boss-of-bosses. Upright, commanding, the climactic demon.
+         vibe="MOST MASSIVE · wide shoulders · thick block · low stance",
+         pal=demon_palette(BRUTE_RED, tint=0.30),
+         aura_hue=(196, 30, 30), aura_dark=(28, 4, 6), rim=(200, 36, 40),
+         glow=(255, 84, 56), cap=cap_demon_blunt, scale=1.62, fang_xtra=4,
+         mass=1.52, head_tilt=-3, aura_bulk=1.25, lime_trim=True,
+         die=dict(core=(255, 170, 84), mid=(222, 70, 30),
+                  edge=(132, 14, 14), spark=(255, 140, 84))),
+    # 3 — ARCHFIEND: the regal CROWN-horns (the best hook). LIFTED off near-black
+    # (~+15% value) so it holds contrast at 1x — blood-red, commanding.
     dict(name="Archfiend",
-         vibe="blood-red + black · CROWN-horns · regal boss-of-bosses",
-         pal=demon_palette(BLOOD, deep=0.50, desat=0.34, tint=0.46,
-                           gold_lift=0.30),
-         aura_hue=(168, 16, 22), aura_dark=(20, 2, 4), rim=(180, 24, 32),
-         glow=(255, 64, 48), cap=cap_crown_horns, scale=1.52, fang_xtra=3,
-         mass=1.14, head_tilt=-2, aura_bulk=1.2,
-         die=dict(core=(255, 196, 110), mid=(220, 48, 24),
-                  edge=(108, 6, 10), spark=(255, 130, 80))),
-    # 4 — MOLTEN / MAGMA: body cracked with glowing red-orange MAGMA seams,
-    # smouldering volcanic. The cracked-lava demon.
+         vibe="regal CROWN-horns · blood-red · lifted, holds at 1x",
+         pal=demon_palette(BLOOD, tint=0.34, lift=0.18, gold_lift=0.34),
+         aura_hue=(180, 26, 30), aura_dark=(26, 6, 8), rim=(196, 36, 40),
+         glow=(255, 80, 56), cap=cap_crown_horns, scale=1.54, fang_xtra=3,
+         mass=1.14, head_tilt=-2, aura_bulk=1.2, lime_trim=True,
+         die=dict(core=(255, 178, 96), mid=(224, 64, 30),
+                  edge=(140, 18, 16), spark=(255, 150, 90))),
+    # 4 — MOLTEN MAGMA (the lead direction): the red-hot body-CRACKS pushed across
+    # torso AND limbs, rebuilt on heavy proportions — a true-crimson, bulky boss.
     dict(name="Molten Magma",
-         vibe="cracked MAGMA seams · smouldering volcanic · glowing core",
-         pal=demon_palette(MAGMA, deep=0.46, desat=0.40, tint=0.42),
-         aura_hue=(228, 78, 16), aura_dark=(34, 8, 4), rim=(244, 110, 26),
-         glow=(255, 170, 36), cap=cap_demon_tall, scale=1.46, fang_xtra=4,
-         mass=1.10, magma=True, aura_bulk=1.25, ember_boost=True,
-         die=dict(core=(255, 230, 140), mid=(244, 110, 24),
-                  edge=(150, 28, 6), spark=(255, 184, 100))),
-    # 5 — SHADOWFLAME DEMON: dark red-black, sleeker but sinister, cold-edged
-    # smoke + HOT red glowing eyes/fangs. The quiet-but-deadly one.
-    dict(name="Shadowflame Demon",
-         vibe="dark red-black · sleek + sinister · cold smoke · hot red eyes",
-         pal=demon_palette(SHADOWRED, deep=0.60, desat=0.50, tint=0.48),
-         aura_hue=(150, 20, 28), aura_dark=(10, 2, 6), rim=(150, 24, 34),
-         glow=(255, 60, 70), cap=cap_demon_tall, scale=1.44, fang_xtra=5,
-         narrow_eyes=True, skin=(150, 110, 110), head_tilt=2, aura_bulk=1.1,
-         die=dict(core=(255, 170, 120), mid=(206, 40, 32),
-                  edge=(86, 6, 14), spark=(255, 110, 90))),
+         vibe="red-hot CRACKS torso+limbs · heavy · smouldering volcanic",
+         pal=demon_palette(MAGMA, tint=0.42),
+         aura_hue=(228, 84, 18), aura_dark=(34, 8, 4), rim=(244, 110, 26),
+         glow=(255, 170, 36), cap=cap_demon_tall, scale=1.52, fang_xtra=4,
+         mass=1.32, head_tilt=-2, magma=True, aura_bulk=1.28, ember_boost=True,
+         lime_trim=True,
+         die=dict(core=(255, 196, 100), mid=(244, 110, 24),
+                  edge=(160, 32, 8), spark=(255, 170, 96))),
+    # 5 — ASH OGRE (re-rolled off the sleek "Shadowflame"): a HUNCHED horned
+    # heavyweight — the darkest mood + smoke wisps, but a distinct stooped ogre
+    # silhouette (forward lean, low tusk-horns) so it reads apart AND reddish.
+    dict(name="Ash Ogre",
+         vibe="HUNCHED heavyweight · low tusk-horns · ashen red · smoke",
+         pal=demon_palette(ASH_RED, tint=0.30, light_deep=0.18, desat=0.18),
+         aura_hue=(150, 30, 30), aura_dark=(14, 4, 6), rim=(168, 36, 38),
+         glow=(255, 78, 58), cap=cap_ogre, scale=1.50, fang_xtra=5,
+         mass=1.34, lean=0.12, head_tilt=6, skin=(168, 124, 118),
+         aura_bulk=1.2, lime_trim=True,
+         die=dict(core=(255, 164, 88), mid=(212, 66, 34),
+                  edge=(120, 18, 16), spark=(255, 132, 86))),
 ]
 
 
@@ -329,18 +436,20 @@ DEMONS = [
 # the die is repositioned UP-LEFT to track the ENLARGED raised arm and drawn with
 # the bigger reddish boss die.
 
-def _die_seat(scale):
-    """Where the BIGGER die should sit so the SCALED raised LEFT mitt cradles it.
-    The figure is scaled about the feet, so the raised hand (built at base
-    `jester_cx + (hand_up_x - jester_cx)`) lands at `jester_cx - ~60*scale` in x
-    and proportionally HIGHER in y. We seat the die there: bigger scale ⇒ die
-    further UP + LEFT to meet the reaching mitt."""
+def _die_seat(scale, *, original=False):
+    """Where the die sits. Panel 0 (`original`) keeps its round-1 BEFORE placement
+    verbatim so the comparison baseline is unchanged. The new demons use the
+    round-2 CRADLE seat (round 1 left an air-gap up-right of the cube and the die
+    clipped the horns): the die is pulled IN (less far left) so it clears the
+    horn/shoulder silhouette and seated a touch LOWER so the raised mitt can come
+    up under it; both still rise with scale (the figure is scaled about the feet)."""
     jester_cx = PANEL_W // 2 + 12
-    die_x = int(jester_cx - 60 * scale)            # tracks the scaled mitt x
-    # Base die_base_y was 36 with the hand at y≈76+(PANEL_H-VIEW_H). As the figure
-    # grows about the feet the hand rises; raise the die proportionally so it stays
-    # in the cup of the mitt rather than below the enlarged reach.
-    die_base_y = int(36 - 30 * (scale - 1.0))
+    if original:
+        die_x = int(jester_cx - 60 * scale)
+        die_base_y = int(36 - 30 * (scale - 1.0))
+        return jester_cx, die_x, die_base_y
+    die_x = int(jester_cx - 52 * scale)            # pulled IN so it clears horns
+    die_base_y = int(46 - 26 * (scale - 1.0))
     return jester_cx, die_x, die_base_y
 
 
@@ -363,16 +472,30 @@ def _render_demon(spec, idx, *, original):
 
     breathe = 0.5 + 0.5 * math.sin((idx * 1.7 + 2.0) * 1.3)
     scale = spec["scale"]
-    jester_cx, die_x, die_base_y = _die_seat(scale)
+    jester_cx, die_x, die_base_y = _die_seat(scale, original=original)
     base_feet = FEET_Y
 
-    # The raised LEFT arm reaches to the (now repositioned) die. Built at base,
-    # the hand seat must point at the die's pre-scale position so that AFTER the
-    # about-the-feet scale it lands on the die. Solve the inverse: a point P on the
-    # figure maps to jester_cx + (P - jester_cx)*scale; we want that to equal the
-    # die, so P = jester_cx + (die - jester_cx)/scale.
-    hand_x = int(jester_cx + (die_x + 6 - jester_cx) / scale)
-    hand_y = int(base_feet + (die_base_y + 34 - base_feet) / scale)
+    # The raised LEFT arm CRADLES the die. Built at base, the hand seat must point
+    # at the die's pre-scale position so that AFTER the about-the-feet scale it
+    # lands where we want on the die. Solve the inverse: a point P on the figure
+    # maps to jester_cx + (P - jester_cx)*scale; we want that to equal the cradle
+    # point, so P = jester_cx + (target - jester_cx)/scale. Round-2 cradle fix: the
+    # mitt is seated UNDER + slightly LEFT of the die centre so the round glove cups
+    # the cube's lower-left corner and overlaps it into ONE shape (round 1 sat the
+    # mitt ~5px below the smaller cube's bottom edge → a visible air-gap up-right).
+    # `build_boss` also widens the figure horizontally by `mass` ABOUT jester_cx
+    # before this about-feet scale, so the hand's net horizontal factor from the
+    # centreline is mass*scale (vertical is scale only). Fold mass into the inverse
+    # solve so the cradle stays married on the heavy (high-mass) demons too. Panel
+    # 0 keeps its round-1 BEFORE reach verbatim (no cradle offset, mass 1.0).
+    mass = spec.get("mass", 1.0)
+    if original:
+        cradle_x, cradle_y = die_x + 6, die_base_y + 34
+    else:
+        cradle_x = die_x - 8                   # cup the die's LOWER-LEFT corner
+        cradle_y = die_base_y + 26             # tucked UP into the cube's belly
+    hand_x = int(jester_cx + (cradle_x - jester_cx) / (scale * mass))
+    hand_y = int(base_feet + (cradle_y - base_feet) / scale)
     hand_up = (hand_x, hand_y)
 
     fig = pygame.Surface((PANEL_W, PANEL_H), pygame.SRCALPHA)
@@ -386,10 +509,19 @@ def _render_demon(spec, idx, *, original):
                shadow_face=spec.get("shadow_face", False),
                mass=spec.get("mass", 1.0), lean=spec.get("lean", 0.0),
                head_extra_tilt=spec.get("head_tilt", 0))
+    if spec.get("flames"):
+        # Drawn on the figure layer (pre-scale) so the flame-tips scale WITH the
+        # boss and become part of the silhouette — Inferno's distinct hook.
+        _flame_shoulders(fig, jester_cx, base_feet, spec["aura_hue"],
+                         (255, 224, 130))
     if spec.get("magma"):
         _add_magma_seams(fig, jester_cx, base_feet)
     if spec.get("seams"):
         _add_seams(fig, jester_cx, base_feet, spec["glow"])
+    if spec.get("lime_trim"):
+        # The ONLY surviving lime — a tiny harlequin trim accent so the now-RED
+        # costume keeps a whisper of its plum/lime jester DNA.
+        _lime_trim(fig, jester_cx, base_feet, pal["lime"])
 
     # Scale the figure UP about the FEET so it looms taller/broader yet stays
     # planted, then grow the amorphous reddish shadow-pool aura from its own
@@ -433,7 +565,7 @@ def _render_demon(spec, idx, *, original):
                       edge=(232, 150, 30), spark=(255, 236, 140))
     else:
         dk = spec["die"]
-        draw_boss_die(overlay, die_x, die_base_y, idx * 1.7 + 2.0, size=54,
+        draw_boss_die(overlay, die_x, die_base_y, idx * 1.7 + 2.0, size=70,
                       core=dk["core"], mid=dk["mid"], edge=dk["edge"],
                       spark=dk["spark"])
     _blit_parrot(overlay)
@@ -453,7 +585,7 @@ def main():
     cells.append(render_original(0))
     captions.append(("ORIGINAL Demon Jester",
                      "boss #3 verbatim · scale 1.40 · base die placement "
-                     "(the BEFORE)"))
+                     "(the BEFORE — note the LIME legs)"))
     for i, spec in enumerate(DEMONS, start=1):
         cells.append(render_demon(spec, i))
         captions.append((spec["name"], spec["vibe"]))
@@ -479,23 +611,23 @@ def main():
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
     title = f_title.render(
-        "DEMON JESTER — 5 reddish · massive · meaner variations (round 1)",
+        "DEMON JESTER — 5 RED-rebased · massive · meaner variations (round 2)",
         True, (255, 214, 200))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
-        "Panel 0 = the ORIGINAL Demon Jester (the BEFORE). Panels 1-5 push it "
-        "MORE REDDISH + MORE MASSIVE + MEANER: Inferno (fire) · Brute (oxblood "
-        "MASS) · Archfiend (blood-red crown-horns) · Molten (magma seams) · "
-        "Shadowflame (red-black, hot eyes). Each keeps the Demon DNA — horns, "
-        "RED-shifted plum/lime, fangs, glowing eyes, the amorphous reddish "
-        "shadow-pool aura. DIE FIXES: repositioned UP-LEFT into the enlarged "
-        "mitt · bigger cube (54 vs 40) · MASSIVE crimson->ember aura.",
+        "Round 2 RE-BASES the lineup to RED: torsos true CRIMSON, legs OXBLOOD/"
+        "MAROON (off lime — lime survives only as a tiny collar/cuff trim). "
+        "Structurally distinct: Inferno = FLAME-TIP shoulders · Brute = MOST "
+        "MASSIVE (wide block, low stance) · Archfiend = regal CROWN-horns "
+        "(lifted off black) · Molten = red-hot CRACKS on torso+limbs · Ash Ogre "
+        "= hunched tusk-horn heavyweight. DIE FIXES: CRADLED in the mitt (no air-"
+        "gap, clears horns) · BIGGER cube (70 vs 54) · CRIMSON->EMBER aura.",
         True, (210, 184, 184))
     canvas.blit(sub, (PAD, PAD + 54))
 
     y0 = PAD + TITLE_H
-    STRONG = {1, 2, 3}            # the loudest fire/mass demons get a red border
-    strong_cell = None
+    STRONG = {2, 4}              # the lead heavyweights (Brute, Molten) flagged
+    inset_cells = {}
     for i, cell in enumerate(cells):
         r, c = divmod(i, cols)
         cx = PAD + c * (sw + GAP)
@@ -511,37 +643,43 @@ def main():
         canvas.blit(cap, (cx + (sw - cap.get_width()) // 2, cy + sh + 8))
         sub2 = f_caps.render(vibe, True, (206, 178, 178))
         canvas.blit(sub2, (cx + (sw - sub2.get_width()) // 2, cy + sh + 42))
-        if i == 2:                # Crimson Brute — the strongest demon for 1x
-            strong_cell = cell
+        if i in (2, 4):           # Brute + Molten — the two 1x validation cells
+            inset_cells[i] = cell
 
-    # ONE 1x inset of the strongest demon — the alignment + reddish-die GATE. At
-    # in-game scale the enlarged mitt must CRADLE the bigger die and the die aura
-    # must read CRIMSON/ember (dangerous), not friendly yellow.
+    # TWO 1x insets — the validation GATE at in-game scale: (a) the enlarged mitt
+    # must CRADLE the bigger die into one shape, and (b) the die aura must read
+    # CRIMSON/ember (dangerous), not friendly yellow. Brute = the mass + cradle
+    # read; Molten = the red-hot cracks + die-aura read (the lead direction).
     foot_y = y0 + rows * (sh + CAP_H) + (rows - 1) * GAP + 16
     cap_intro = f_cap.render(
-        "1x in-game scale — does the enlarged mitt CRADLE the bigger die, and "
-        "does the die aura read CRIMSON/ember (dangerous)?",
+        "1x in-game scale — die CRADLED in the mitt (one shape, clears horns) + "
+        "CRIMSON/ember die aura?",
         True, (252, 200, 190))
     canvas.blit(cap_intro, (PAD, foot_y - 4))
     iy = foot_y + 40
-    if strong_cell is not None:
-        ix = PAD
+    insets = (
+        (2, "Crimson Brute — the heaviest · die cradled in the mitt",
+         "most massive silhouette · crimson->ember die aura · long fangs"),
+        (4, "Molten Magma — red-hot cracks torso+limbs · die cradled",
+         "the lead direction · crimson body · dangerous ember die aura"),
+    )
+    for n, (idx_s, lab_t, lab2_t) in enumerate(insets):
+        cell = inset_cells.get(idx_s)
+        if cell is None:
+            continue
+        ix = PAD + n * (PANEL_W + 360)
         pygame.draw.rect(canvas, (220, 60, 40),
                          pygame.Rect(ix - 2, iy - 2, PANEL_W + 4,
                                      PANEL_H + 4), 2)
-        canvas.blit(strong_cell, (ix, iy))
-        lab = f_caps.render(
-            "Crimson Brute — the heaviest · die up-left in the mitt",
-            True, (216, 188, 188))
+        canvas.blit(cell, (ix, iy))
+        lab = f_caps.render(lab_t, True, (216, 188, 188))
         canvas.blit(lab, (ix + PANEL_W + 16, iy + PANEL_H // 2 - 30))
-        lab2 = f_caps.render(
-            "reddish shadow-pool aura · crimson->ember die aura · long fangs",
-            True, (186, 162, 162))
+        lab2 = f_caps.render(lab2_t, True, (186, 162, 162))
         canvas.blit(lab2, (ix + PANEL_W + 16, iy + PANEL_H // 2 + 2))
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "demon_round_1.png")
+    out_path = os.path.join(out_dir, "demon_round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
