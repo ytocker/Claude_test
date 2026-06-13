@@ -470,14 +470,12 @@ def _place_animals(surf, pal):
 
 
 def _place_greenery(surf, pal):
-    t = 1.0
-    n = fv.variant_count("greenery")
-    # A row of distinct potted species lining the promenade + a couple of walkers.
-    picks = [0, 5, 10, 13, 18, 26]    # shrub / flovine / wishtree / maple / banana / topiary
-    xs = [44, 104, 168, 232, 292, 340]
-    for x, idx in zip(xs, picks):
-        fp.draw_greenery(surf, x, pal, t=t + x * 0.01, variant=idx % n)
-    _ambient_strollers(surf, pal, t, [76, 264])
+    # Greenery now plants as static cluster beds directly on the sidewalk rather than
+    # lone pots — show a few across the deck, varied by slot key so the frame carries
+    # both the 3-pot triad (even k) and the 2-pot pair (odd k) footprints.
+    for sx, k in [(70, 0), (200, 3), (322, 2)]:
+        fp._draw_greenery_cluster(surf, sx, pal, k)
+    _ambient_strollers(surf, pal, 1.0, [130, 264])
 
 
 def _place_props(surf, pal):
@@ -673,7 +671,7 @@ FAMILIES = [
      "SKYBIT PROMENADE — GREENERY",
      "The 30-design potted-plant pool (fv 'greenery'), drawn by greenery_cast.draw_greenery, DAY.",
      _greenery_cells, dict(cols=10, cell_w=72, cell_h=86),
-     "GREENERY — potted plants line the golden promenade", 0.33,
+     "GREENERY — cluster beds line the sidewalk promenade", 0.33,
      _place_greenery, None),
 
     ("props",
