@@ -470,7 +470,7 @@ def _place_animals(surf, pal):
 
 
 def _place_greenery(surf, pal):
-    # Greenery now plants as static cluster beds on low kerb planters rather than
+    # Greenery now plants as static cluster beds directly on the sidewalk rather than
     # lone pots — show a few across the deck, varied by slot key so the frame carries
     # both the 3-pot triad (even k) and the 2-pot pair (odd k) footprints.
     for sx, k in [(70, 0), (200, 3), (322, 2)]:
@@ -671,7 +671,7 @@ FAMILIES = [
      "SKYBIT PROMENADE — GREENERY",
      "The 30-design potted-plant pool (fv 'greenery'), drawn by greenery_cast.draw_greenery, DAY.",
      _greenery_cells, dict(cols=10, cell_w=72, cell_h=86),
-     "GREENERY — cluster beds on kerb planters line the promenade", 0.33,
+     "GREENERY — cluster beds line the sidewalk promenade", 0.33,
      _place_greenery, None),
 
     ("props",

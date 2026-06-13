@@ -38,9 +38,9 @@ so the on-screen street never reads as a short loop. Counts and drawers:
 
 > Greenery was expanded from 10 → **30** designs this round; the festival
 > specials and the showcase gallery were added alongside. The 30-design pool is
-> now planted as small **static cluster beds** on low kerb planters (a tall
-> centre + short flanker, ±a low filler) rather than scattered lone pots — placed
-> by `_ground_furniture` via `_draw_greenery_cluster`.
+> now planted as small **static cluster beds** standing directly on the sidewalk
+> (a tall centre + short flanker, ±a low filler) rather than scattered lone pots —
+> placed by `_ground_furniture` via `_draw_greenery_cluster`.
 
 **Street fixtures (the "dressing")** are a separate layer from the cast: prayer-flag
 bunting, the **lantern garland**, **fairy-light strings**, two rows of **lamp posts**,

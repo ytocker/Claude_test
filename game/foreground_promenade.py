@@ -1157,8 +1157,8 @@ def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
 
 
 # Greenery is placed as STATIC street planting in small, deliberate CLUSTERS rather
-# than lone pots: a low kerb planter seats a tall centre + a short flanker, with a
-# low filler tucked behind for depth. Count (2 vs 3) and footprint alternate off the
+# than lone pots: a tall centre + a short flanker stand directly on the sidewalk, with
+# a low filler tucked behind for depth. Count (2 vs 3) and footprint alternate off the
 # stable world-slot key so a repeat reads as a fresh streetscape, not a loop. Centres
 # stay cool/green and flankers pink/green so nothing on the deck rivals the warm gold
 # coin. (Art-directed — see docs/sidewalk_overhaul/greenery_clusters.)
@@ -1171,30 +1171,13 @@ def _grn_pick(pool, k, salt):
     return pool[(k * salt + salt) % len(pool)]
 
 
-def _draw_kerb_planter(surf, sx, base_y, w, pal):
-    """A low buff-stone kerb planter the cluster seats on — lifts the green mass off
-    the bottom edge and reads as a built feature. Warm-neutral + LOW saturation so it
-    never competes with the coin; darkened toward night with the rest of the deck."""
-    night = _nightf(pal)
-    dark = sp._is_dark_sky(pal)
-    def nt(c):
-        c = _mix(c, (54, 64, 96), min(0.5, 0.42 * night)) if night > 0.05 else c
-        return _cap150(c) if dark else c   # keep the planter under the coin at night
-    h = 9
-    x0 = sx - w // 2
-    pygame.draw.rect(surf, nt((188, 176, 156)), (x0, base_y - h, w, h))
-    pygame.draw.rect(surf, nt((150, 138, 116)), (x0, base_y - h, w, h), 1)
-    pygame.draw.rect(surf, nt((214, 204, 184)), (x0, base_y - h, w, 3))
-    return base_y - h + 3   # the soil line the pots seat on
-
-
 def _draw_greenery_cluster(surf, sx, pal, k):
-    """One static planting bed centred on `sx`; deterministic in `k` (no flicker)."""
+    """One static planting bed centred on `sx`; deterministic in `k` (no flicker).
+    The pots stand directly on the sidewalk (same ground line as a lone planter)."""
     night = _nightf(pal)
     triad = (k % 2 == 0)
     spread = 23 if (k % 3) else 16
-    pw = (2 * spread + 26) if triad else (spread + 26)
-    soil = _draw_kerb_planter(surf, sx, GROUND_Y - 1, pw, pal)
+    soil = GROUND_Y - 1
 
     def _g(idx, x):
         v = _fv.get("greenery", idx)

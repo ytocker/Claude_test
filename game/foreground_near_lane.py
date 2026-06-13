@@ -1103,7 +1103,7 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
     """Near-lane greenery accents — a vine tub + the odd pine. The pooled potted
-    plants now live in the RAISED far-band cluster beds (see
+    plants now live in the far-band cluster beds on the sidewalk (see
     foreground_promenade._draw_greenery_cluster), so the front edge is kept open
     rather than jammed with large low pots. Fixtures, so thinned by the phase-only
     furniture density `fd` via a stable per-slot gate (present from t=0, no flicker)
