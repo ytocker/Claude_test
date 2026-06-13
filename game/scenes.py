@@ -13,6 +13,7 @@ from game.draw import (
 from game import biome as _biome
 from game import cloud_variants
 from game import foreground
+from game import sky_designs
 from game.world import World
 from game.hud import HUD, _font
 from game import audio
@@ -1162,34 +1163,42 @@ class App:
         phase = self.world.biome_phase
         palette = self.world.biome_palette
 
-        # The sky gradient is cached per phase bucket (see biome.PHASE_BUCKETS).
-        # Blending the current bucket with the next one, weighted by how far
-        # into the bucket we are, turns the otherwise ~10-second snap into a
-        # continuous fade.
-        buckets = _biome.PHASE_BUCKETS
-        bucket_f = (phase % 1.0) * buckets
-        a = int(bucket_f) % buckets
-        b = (a + 1) % buckets
-        t = bucket_f - int(bucket_f)
+        # An active sky design (game/sky_designs.py) paints its own per-phase sky
+        # here, with the same two-bucket fade; only when none is active do we bake
+        # the live shan-shui sky below. Either way flow continues to the mountains
+        # and foreground, which stay on the live biome palette.
+        if not sky_designs.render_active(surf, W, H, GROUND_Y, palette, phase):
+            # The sky gradient is cached per phase bucket (see biome.PHASE_BUCKETS).
+            # Blending the current bucket with the next one, weighted by how far
+            # into the bucket we are, turns the otherwise ~10-second snap into a
+            # continuous fade.
+            buckets = _biome.PHASE_BUCKETS
+            bucket_f = (phase % 1.0) * buckets
+            a = int(bucket_f) % buckets
+            b = (a + 1) % buckets
+            t = bucket_f - int(bucket_f)
 
-        pal_a = _biome.palette_for_phase(a / buckets)
-        pal_b = _biome.palette_for_phase(b / buckets)
-        sky_a = get_sky_surface_biome(W, H, GROUND_Y, pal_a, a)
-        sky_b = get_sky_surface_biome(W, H, GROUND_Y, pal_b, b)
+            pal_a = _biome.palette_for_phase(a / buckets)
+            pal_b = _biome.palette_for_phase(b / buckets)
+            sky_a = get_sky_surface_biome(W, H, GROUND_Y, pal_a, a)
+            sky_b = get_sky_surface_biome(W, H, GROUND_Y, pal_b, b)
 
-        sky_a.set_alpha(None)
-        surf.blit(sky_a, (0, 0))
-        if t > 0:
-            sky_b.set_alpha(int(t * 255))
-            surf.blit(sky_b, (0, 0))
-            sky_b.set_alpha(None)
+            sky_a.set_alpha(None)
+            surf.blit(sky_a, (0, 0))
+            if t > 0:
+                sky_b.set_alpha(int(t * 255))
+                surf.blit(sky_b, (0, 0))
+                sky_b.set_alpha(None)
 
+        # Clouds retint to the active sky design's palette so they match the sky;
+        # falls back to the live palette when no design is active.
+        cloud_pal = sky_designs.active_cloud_palette(phase, palette) or palette
         scroll = self.world.bg_scroll
         for i, (bx, by, sc) in enumerate(_CLOUD_SLOTS):
             ox = ((bx - scroll * (0.04 + 0.02 * i)) % (W + 160)) - 80
             draw_cloud(surf, ox,
                        by + math.sin(self._cloud_phase * 0.3 + i) * 3,
-                       sc, variant=self._cloud_variant, palette=palette)
+                       sc, variant=self._cloud_variant, palette=cloud_pal)
         if self.world.kfc_timer > 0 and self.world.kfc_mountain_layers:
             # Pre-rendered fries pile per parallax layer - blit cheaply
             # at the offset since activation so the pile drifts at the
@@ -1208,10 +1217,17 @@ class App:
         # The buff sandstone sidewalk IS the play floor now (replaces the grass
         # meadow); promenade props + living cast ride on top of it.
         foreground.draw_foreground_floor(surf, scroll, palette, phase)
+        # The sidewalk reacts to weather: rain glazes it + pools puddles, the snow
+        # squall frosts it. Drawn on the paving UNDER the crowd's feet (the falling
+        # rain + its splashes are an in-front layer in weather.draw later).
+        foreground.draw_ground_weather(surf, scroll, palette,
+                                       self.world.weather.wetness,
+                                       self.world.weather.snow_cover)
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
-        foreground.draw_near_lane(surf, scroll, palette,
-                                  self.world.biome_phase, self.world.biome_time)
+        # NOTE: the NEAR/front lane is intentionally NOT drawn here. It is painted
+        # later in _render, AFTER the gameplay pillars, so the front-lane plants +
+        # people (feet lower on screen) occlude the pillar bases.
 
     def _render(self):
         # Intro renders its own self-contained scene (sky + pillars + cottage
@@ -1231,6 +1247,11 @@ class App:
         # house on the left with Pip standing in front of it holding the
         # parcel. No pillars or world entities until the user taps to start.
         if self.state == STATE_MENU:
+            # No pillars in the menu, so the near lane just rides on the floor here
+            # (depth-vs-pillar is moot); draw it so the street backdrop matches play.
+            foreground.draw_near_lane(self.screen, self.world.bg_scroll,
+                                      self.world.biome_palette,
+                                      self.world.biome_phase, self.world.biome_time)
             house = _intro.get_sprite("skyhouse_post")
             hx = int(W * 0.30) - house.get_width() // 2
             hy = int(H * 0.42) - house.get_height() // 2
@@ -1279,6 +1300,15 @@ class App:
         # foreground atmosphere sitting behind the coins + bird.
         for gy in self.world.geysers:
             gy.draw(self.screen)
+
+        # NEAR/front sidewalk lane — drawn HERE (after the pillars + play-field
+        # props) so the closest foreground plants/people occlude the pillar bases,
+        # matching their depth (feet lower on screen = nearer the camera). Still
+        # behind weather/coins/bird, so rain falls in front of them and Pip stays
+        # on top.
+        foreground.draw_near_lane(self.screen, self.world.bg_scroll,
+                                  self.world.biome_palette,
+                                  self.world.biome_phase, self.world.biome_time)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.

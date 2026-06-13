@@ -20,8 +20,8 @@ What makes the depth read (the contract the art-director gates):
     gameplay actors, so near figures cover the far cast's feet (real depth, not a
     transparent overlay). Within the near lane we still draw back-to-front.
 
-The cast functions are the r17 ones (`draw_kids`, `draw_old_man`, `draw_strollers`,
-`draw_flock`) and the live `_RunningDog`, lifted READ-ONLY and rendered onto a
+The cast functions are the pooled ones (`draw_kids`, `draw_old_man`,
+`draw_strollers`, `draw_dog`) and `draw_flock`, rendered onto a
 scratch surface that we scale up with NEAREST so the pixels stay crisp, then drop
 at the near deck. The PERFORMANCES — a day busker/juggler, a golden-hour street
 musician + watching arc, a dusk stilt-walker, and the NIGHT festival LION DANCE +
@@ -53,12 +53,16 @@ from game import foreground_props as sp
 from game import foreground_promenade as pr
 from game import biome as _biome
 from game.config import W, H
-from game.ambient import _RunningDog
 from game.draw import draw_side_shrub, draw_wuling_pine
 from game.pillar_variants import (
     draw_cascading_vine, draw_paper_lantern, draw_cairn,
     draw_darchog_pole, draw_incense_smoke,
 )
+from game import foreground_zbuffer as _zbuf
+from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
+from game import foreground_sprite as _spr
+from game import foreground_variants as _fv
+from game import performers_cast as _pf
 
 GROUND_Y = sp.GROUND_Y               # 595 — the FAR deck (r17 cast feet).
 NEAR_GROUND_Y = GROUND_Y + 43        # 638 — the NEAR deck; figures clip at bottom.
@@ -201,64 +205,50 @@ _SCRATCH_W = 96
 # frame (and across frames within an animation bucket) shares one cached surface,
 # instead of allocating + redrawing + scaling a scratch deck per figure per frame.
 # That per-figure alloc was the dominant near-lane cost; this is the perf safeguard.
-_CAST_CACHE = {}
-_CAST_CACHE_CAP = 384
 _CAST_FPS = 8                            # animation buckets/sec for background figures
 
-def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y, **kw):
-    """Bake an r17 cast fn (feet on a scratch deck) scaled up by `scale` with
-    NEAREST, memoized by (fn, scale, palette, coarse animation frame, kwargs), and
-    blit so the scaled feet land on `feet_y`. The cast fns read pr.GROUND_Y; we
-    point that at the scratch deck while baking so the figure crops cleanly."""
+# Per-drawer authoring box (w, h). Default fits a standing cast figure; taller/
+# wider acts (performers) get their own box so the supersample bake never clips.
+_NATIVE_BOX = {}
+_DEFAULT_BOX = (_SCRATCH_W, _SCRATCH_H)
+
+
+def _scaled_cast(surf, cast_fn, sx, pal, scale, *, t=0.0, feet_y=NEAR_GROUND_Y,
+                 ss=1, smooth=False, **kw):
+    """Bake a cast fn (feet on a scratch deck) to a footprint `scale`× its box and
+    blit so the feet land on `feet_y`. Served from the shared sprite cache, keyed
+    by (fn, footprint, mode, palette bucket, gait frame, kwargs) — so a `variant=`
+    kwarg bakes distinctly without flicker. NEAREST by default (crisp pixels); a
+    drawer authored at higher detail can pass ss>1 + smooth=True to supersample
+    then anti-alias down. The cast fns read pr.GROUND_Y; we point that at the
+    scratch deck while baking so the figure crops cleanly."""
+    box_w, box_h = _NATIVE_BOX.get(cast_fn.__name__, _DEFAULT_BOX)
+    render_box = (box_w * ss, box_h * ss)
+    foot_w = max(1, int(box_w * scale))
+    foot_h = max(1, int(box_h * scale))
     tb = int(t * _CAST_FPS)              # quantise the gait clock -> bounded cache
     # Key on the biome phase BUCKET (set per frame by draw_near_lane), not id(pal):
-    # the play palette is a fresh dict every frame, so id(pal) only ever hit within
-    # a frame -- bucketing lets the bake survive across frames (the same per-bucket
-    # palette quantisation the pillars/floor already use).
-    key = (cast_fn.__name__, round(scale, 3), pr._CUR_BUCKET, tb,
+    # the play palette is a fresh dict every frame, so id(pal) only ever hits within
+    # a frame -- bucketing lets the bake survive across frames.
+    key = (cast_fn.__name__, foot_w, foot_h, ss, smooth, pr._CUR_BUCKET, tb,
            tuple(sorted(kw.items())))
-    big = _CAST_CACHE.get(key)
-    if big is None:
-        scratch = pygame.Surface((_SCRATCH_W, _SCRATCH_H), pygame.SRCALPHA)
-        deck = _SCRATCH_H - 1             # scratch deck near the bottom edge
+
+    def _render(scratch):
+        deck = render_box[1] - 1         # scratch deck near the bottom edge
         saved = pr.GROUND_Y
         pr.GROUND_Y = deck
         try:
-            cast_fn(scratch, _SCRATCH_W // 2, pal, t=tb / _CAST_FPS, **kw)
+            cast_fn(scratch, render_box[0] // 2, pal, t=tb / _CAST_FPS, **kw)
         finally:
             pr.GROUND_Y = saved
-        # A LARGE near figure shouldn't pull focus from the parrot: knock its
-        # brightest fabric down ~6% so it sits below the actors (subtle multiply).
-        scratch.fill((240, 240, 240, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        big = pygame.transform.scale(scratch, (max(1, int(_SCRATCH_W * scale)),
-                                               max(1, int(_SCRATCH_H * scale))))
-        if len(_CAST_CACHE) > _CAST_CACHE_CAP:
-            _CAST_CACHE.clear()
-        _CAST_CACHE[key] = big
-    sw, sh = big.get_size()
-    # Scaled feet sit at (_SCRATCH_H*scale) from the scratch top; align that to feet_y.
-    feet_in_big = int(_SCRATCH_H * scale)
-    surf.blit(big, (sx - sw // 2, feet_y - feet_in_big))
 
-
-def _near_dog(surf, sx, pal, *, t=0.0, scale=1.7, feet_y=NEAR_GROUND_Y):
-    """The live dog, enlarged with NEAREST and dropped at the near deck so it
-    ambles across the FRONT of the promenade, occluding the far cast. SLOW
-    2-frame shuffle and flipped to face LEFT (the scroll/travel direction) so it
-    reads as walking forward, not moonwalking backward."""
-    dog = pr._stepped(_RunningDog, pal, 30, _SCRATCH_W // 2)
-    frame = dog._frames[int(t * 2) % 2]
-    frame = pygame.transform.flip(frame, True, False)
-    night = _nightf(pal)
-    if night > 0.05:
-        frame = frame.copy()
-        k = int(255 * (1 - 0.40 * night))
-        kb = int(255 * (1 - 0.30 * night))
-        frame.fill((k, k, kb, 255), special_flags=pygame.BLEND_RGBA_MULT)
-    sw, sh = frame.get_size()
-    big = pygame.transform.scale(frame, (int(sw * scale), int(sh * scale)))
-    bw, bh = big.get_size()
-    surf.blit(big, (sx - bw // 2, feet_y - bh + 1))
+    # A LARGE near figure shouldn't pull focus from the parrot: knock its
+    # brightest fabric down ~6% (applied pre-resample so a smoothscale averages
+    # already-dimmed pixels).
+    big = _spr.baked_sprite(key, render_box, (foot_w, foot_h), _render,
+                            dim=(240, 240, 240), smooth=smooth)
+    sw, _sh = big.get_size()
+    surf.blit(big, (sx - sw // 2, feet_y - foot_h))
 
 
 # ── near greenery / ornaments (parametric game helpers, retinted, night-capped)─
@@ -270,20 +260,6 @@ def _fol(pal, night):
         'foliage_mid': _mix(pal.get('foliage_mid', (60, 115, 50)), (46, 64, 94), 0.3 * night),
         'foliage_top': _mix(pal.get('foliage_top', (90, 150, 70)), (60, 80, 110), 0.3 * night),
     }
-
-
-def _near_planter(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, w=26):
-    """A LARGER potted planter for the front edge — the r15 box idiom, scaled up,
-    feet on the near deck so it reads as a closer pot than the far planters."""
-    night = _nightf(pal)
-    box_h = 13
-    by = feet_y
-    box = _mix(pal.get('stone_mid', (150, 132, 110)), (150, 120, 92), 0.5)
-    box = _mix(box, (60, 70, 100), 0.30 * night)
-    pygame.draw.rect(surf, _shade(box, -18), (sx - w // 2, by - box_h, w, box_h))
-    pygame.draw.rect(surf, box, (sx - w // 2 + 1, by - box_h, w - 2, box_h - 2))
-    pygame.draw.rect(surf, _shade(box, 16), (sx - w // 2 + 1, by - box_h, w - 2, 2))
-    draw_side_shrub(surf, sx, by - box_h - 3, _fol(pal, night), scale=1.9)
 
 
 def _near_pine(surf, sx, pal, *, feet_y=NEAR_GROUND_Y, height=34):
@@ -400,7 +376,7 @@ def _watch_arc(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
     # A few kids + an elder + strollers, spread either side of the performer.
     _scaled_cast(surf, pr.draw_kids, sx - 30, pal, 1.45, t=t, n=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_old_man, sx + 30, pal, 1.5, t=t,
-                 seated_bench=False, feet_y=feet_y)
+                 seated_bench=False, variant=1, feet_y=feet_y)
 
 
 def _seated_spectator(surf, x, feet_y, robe, robe_dk, hair, pal, *,
@@ -461,8 +437,9 @@ def _gathered_crowd(surf, sx, pal, t, *, feet_y=NEAR_GROUND_Y):
     # group leans/looks toward the act rather than spreading symmetrically.
     _scaled_cast(surf, pr.draw_kids, sx - 40, pal, 1.5, t=t, n=2, feet_y=feet_y)
     _scaled_cast(surf, pr.draw_old_man, sx - 22, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet_y)
-    _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y)
+                 seated_bench=False, variant=2, feet_y=feet_y)
+    _scaled_cast(surf, pr.draw_strollers, sx - 56, pal, 1.45, t=t, feet_y=feet_y,
+                 variant=3)
     # Front row: two LOWER seated spectators close in, reading as the near edge of
     # a gathered audience facing the performer. Both lean RIGHT toward the act (it
     # sits at sx, to their right) with a stronger head-tip, and EACH gestures toward
@@ -488,7 +465,7 @@ def perf_juggler(surf, sx, pal, t):
     # A couple of onlookers stand to the RIGHT, half-facing the juggler, so the act
     # reads as busking. Kept tight beside him, clear of the gameplay lanes.
     _scaled_cast(surf, pr.draw_old_man, sx + 30, pal, 1.45, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_kids, sx + 46, pal, 1.4, t=t, n=2, feet_y=feet)
     hx, hy = _perf_body(surf, sx, feet, robe, robe_dk, hair, pal,
                         h=20, w=9, arms='juggle', arm_t=t * 3.0)
@@ -582,10 +559,11 @@ def perf_lion_dance(surf, sx, pal, t):
     night = _nightf(pal)
     feet = NEAR_GROUND_Y
     # The bigger crowd flanks the act (behind, drawn first).
-    _scaled_cast(surf, pr.draw_strollers, sx - 44, pal, 1.5, t=t, feet_y=feet)
+    _scaled_cast(surf, pr.draw_strollers, sx - 44, pal, 1.5, t=t, feet_y=feet,
+                 variant=13)
     _scaled_cast(surf, pr.draw_kids, sx - 64, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 48, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=4, feet_y=feet)
 
     # Drummer + drum to the right of the lion — an EXPLICIT round drum stood in
     # FRONT of the elder with a stick caught mid-swing, so the lion dance's audio
@@ -1029,10 +1007,11 @@ def perf_dragon_dance(surf, sx, pal, t, *, skin='red'):
     feet = NEAR_GROUND_Y
     # The bigger festival crowd flanks the act (behind, drawn first) — same cast +
     # placement family as the lion dance so the two acts read as one festival.
-    _scaled_cast(surf, pr.draw_strollers, sx - 60, pal, 1.5, t=t, feet_y=feet)
+    _scaled_cast(surf, pr.draw_strollers, sx - 60, pal, 1.5, t=t, feet_y=feet,
+                 variant=4)
     _scaled_cast(surf, pr.draw_kids, sx - 80, pal, 1.55, t=t, n=3, feet_y=feet)
     _scaled_cast(surf, pr.draw_old_man, sx + 70, pal, 1.55, t=t,
-                 seated_bench=False, feet_y=feet)
+                 seated_bench=False, variant=0, feet_y=feet)
 
     kit = _dragon_kit(pal, skin)
     # 7 segments, V3 body rhythm; the LOCKED V2 dancer phasing (leg_stagger=1.4).
@@ -1081,40 +1060,63 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
     thins them via a STABLE per-slot gate — each slot pops in/out once as the
     crowd curve rises/falls, but never changes x. Short, so they may pass under
     the bird/pillar lanes; world-anchored, tiling at the wrap."""
-    # Inclusion latched at entry (off-screen) so a pedestrian never blinks out in
-    # view when the crowd curve dips — it walks in from the right and off the left.
+    # Inclusion AND the pool variant are latched together at entry (off-screen):
+    # the variant is frozen to the slot's entry beat/weather so it never re-rolls
+    # mid-screen, and it rides into _scaled_cast's cache key (smooth=True gives the
+    # near figure light anti-aliasing; the FAR lane stays crisp).
+    ny = NEAR_GROUND_Y
+
+    def _ped_decide(k):
+        return (pr._slot_on(k, 1, density),
+                _fv.select_variant('pedestrian', _fv.slot_seed(k, 31),
+                                   _fv.beat_for_phase(pr._CUR_PHASE),
+                                   _fv.weather_bucket(pr._CUR_RAIN, pr._CUR_SNOW)))
     for sx, k in _near_xs(scroll, w, 196, x0=20):
-        if sp._slot_latch(('ped', 1), k, lambda k=k: pr._slot_on(k, 1, density)):
-            _scaled_cast(surf, pr.draw_strollers, sx, pal, 1.6, t=t)
+        on, var = sp._slot_latch(('ped', 1), k, lambda k=k: _ped_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, var=var: _scaled_cast(
+                s, pr.draw_strollers, sx, pal, 1.6, t=t, variant=var))
     sp._latch_prune(('ped', 1))
+    def _kid_decide(k):
+        return (pr._slot_on(k, 2, density),
+                _fv.select_variant('kid', _fv.slot_seed(k, 41),
+                                   _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
     for sx, k in _near_xs(scroll, w, 224, x0=150):
-        if sp._slot_latch(('ped', 2), k, lambda k=k: pr._slot_on(k, 2, density)):
-            _scaled_cast(surf, pr.draw_kids, sx, pal, 1.55, t=t, n=2)
+        on, kvar = sp._slot_latch(('ped', 2), k, lambda k=k: _kid_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, kvar=kvar: _scaled_cast(
+                s, pr.draw_kids, sx, pal, 1.55, t=t, n=2, variant=kvar))
     sp._latch_prune(('ped', 2))
-    # The near dog ambles across the front on its own anchor.
+    # A varied pooled dog ambles across the front on its own anchor — breed frozen
+    # per slot so it doesn't re-roll mid-screen, and rides the bake cache key.
+    def _dog_decide(k):
+        return (pr._slot_on(k, 3, density),
+                _fv.select_variant('dog', _fv.slot_seed(k, 51),
+                                   _fv.beat_for_phase(pr._CUR_PHASE), _fv.WB_CLEAR))
     for sx, k in _near_xs(scroll, w, 300, x0=96):
-        if sp._slot_latch(('ped', 3), k, lambda k=k: pr._slot_on(k, 3, density)):
-            _near_dog(surf, sx, pal, t=t, scale=1.7)
+        on, dvar = sp._slot_latch(('ped', 3), k, lambda k=k: _dog_decide(k))
+        if on:
+            _zbuf.enqueue(ny, TB_CAST, lambda s, sx=sx, dvar=dvar: _scaled_cast(
+                s, pr.draw_dog, sx, pal, 1.5, t=t, variant=dvar))
     sp._latch_prune(('ped', 3))
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
-    """Low near plants on the front edge — larger planters + a vine tub + the odd
-    pine. Fixtures, so thinned by the phase-only furniture density `fd` via a stable
-    per-slot gate (present from t=0, no flicker) and spaced on wide periods, so the
-    front edge stays open most of the day. Short greenery may sit under the lanes;
-    the taller pine is gated to a clear zone."""
-    for sx, k in _near_xs(scroll, w, 420, x0=60):
-        if sp._slot_latch(('grn', 21), k, lambda k=k: pr._slot_on(k, 21, fd)):
-            _near_planter(surf, sx, pal)
-    sp._latch_prune(('grn', 21))
+    """Near-lane greenery accents — a vine tub + the odd pine. The pooled potted
+    plants now live in the far-band cluster beds on the sidewalk (see
+    foreground_promenade._draw_greenery_cluster), so the front edge is kept open
+    rather than jammed with large low pots. Fixtures, so thinned by the phase-only
+    furniture density `fd` via a stable per-slot gate (present from t=0, no flicker)
+    and spaced on wide periods; the taller pine is gated to a clear zone."""
+    ny = NEAR_GROUND_Y
+
     for sx, k in _near_xs(scroll, w, 520, x0=200):
         if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
-            _near_vine_lantern(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
     sp._latch_prune(('grn', 22))
     for sx, k in _near_xs(scroll, w, 480, x0=12):
         if sp._slot_latch(('grn', 23), k, lambda k=k: pr._slot_on(k, 23, fd)):
-            _near_pine(surf, sx, pal)
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_pine(s, sx, pal))
     sp._latch_prune(('grn', 23))
 
 
@@ -1238,12 +1240,36 @@ def _perf_for(phase):
         return (perf_stilt, 120)
     return None                          # 0.58..0.85: festival (caller) / pre-dawn
 
+def _perf_band(p):
+    """The performer beat-band for a day-arc phase (festival 0.58..0.80 + the
+    0.80..0.85 teardown are handled by the caller and return None here)."""
+    if p >= 0.85 or p < 0.25:
+        return "day"
+    if p < 0.40:
+        return "golden"
+    if p < 0.58:
+        return "dusk"
+    return None
+
+
+def _pooled_perf(variant):
+    """Wrap a frozen 'performer' pool index as the act callable the director invokes
+    — draws the shared draw_act at the near deck with the live night factor."""
+    v = _fv.get("performer", variant)
+
+    def _draw(s, bx, pal, t):
+        if v is not None:
+            _pf.draw_act(s, bx, NEAR_GROUND_Y, v, _nightf(pal), t)
+    return _draw
+
+
 def _perf_decide(k, phase, density):
     """The act a performer slot holds (or None) — sampled ONCE at slot entry and
-    latched. Festival window: lion/dragon alternate every slot; otherwise the
-    single day act (juggler/musician/stilt) at the sparse 1-in-4 gate. The busy-
-    street gate (density>0.25) is captured here too, so a slot that opened during
-    a busy stretch keeps its act as the street later empties around it."""
+    latched. Festival window: lion/dragon alternate every slot; otherwise a busker
+    FROZEN from the time-appropriate beat band of the 8-act 'performer' pool (so the
+    bird passes a varied cast, not the same act on a metronome), at the sparse
+    1-in-4 gate. The busy-street gate (density>0.25) is captured here too, so a slot
+    that opened during a busy stretch keeps its act as the street empties around it."""
     if density <= 0.25:
         return None
     p = phase % 1.0
@@ -1251,17 +1277,25 @@ def _perf_decide(k, phase, density):
         return perf_dragon_dance if (k % 2) else perf_lion_dance
     if not pr._slot_on(k, 7, 0.25):
         return None
-    pf = _perf_for(phase)
-    return pf[0] if pf else None
+    band = _perf_band(p)
+    if band is None:
+        return None
+    idxs = _pf.PERFORMERS_BY_BEAT[band]
+    variant = idxs[_fv.slot_seed(k, 73) % len(idxs)]
+    return _pooled_perf(variant)
 
 def draw_near_lane(surf, scroll, pal, phase, t):
     """Draw the near/front activity lane + the time-appropriate performance, thinned
     by the day-arc crowd density and filling in from empty at run-start."""
-    # _near_dog / _scaled_cast borrow pr._stepped, so keep the cache clock current.
+    # _scaled_cast borrows pr._stepped, so keep the cache clock current.
     pr._CUR_BUCKET = _biome.phase_bucket(phase)
     pr._CUR_T = t
     pr._CUR_PAL = pal
-    density = pr._population(phase) * pr._run_fill(t)
+    pr._CUR_PHASE = phase
+    # Same day-arc density as the far lane, thinned by the weather so the near
+    # edge empties out in a storm too (promenade sets pr._CUR_RAIN/SNOW/WIND just
+    # before this call, so the umbrella gate downstream reads the live weather).
+    density = pr._population(phase) * pr._run_fill(t) * pr._weather_crowd_factor(phase)
     _general_greenery(surf, W, scroll, pal, t, pr._furn_density(phase))  # fixtures, sparse
     _general_pedestrians(surf, W, scroll, pal, t, density)
     p = phase % 1.0
@@ -1269,13 +1303,20 @@ def draw_near_lane(surf, scroll, pal, phase, t):
     # membership at entry so the row scrolls in/out instead of the on-screen ones
     # blinking when the festival window opens/closes.
     banner_win = (0.45 <= p < 0.86)
+    ny = NEAR_GROUND_Y
     for sx, k in _near_xs(scroll, W, 340, x0=30):
-        if sp._slot_latch(('banner',), k, lambda: banner_win):
-            _near_banner(surf, sx, pal)
+        on, bv = sp._slot_latch(('banner',), k, lambda k=k: (
+            banner_win, pr._prop_latch('prop_banner', k, 41)))
+        if on:
+            _zbuf.enqueue(ny, TB_STRUCTURE, lambda s, sx=sx, bv=bv: _scaled_cast(
+                s, pr.draw_prop_banner, sx, pal, 1.5, t=t, variant=bv))
     sp._latch_prune(('banner',))
     for sx, k in _near_xs(scroll, W, 290, x0=115):
-        if sp._slot_latch(('brazier',), k, lambda: banner_win):
-            _near_brazier(surf, sx, pal, t=t)
+        on, fvar = sp._slot_latch(('brazier',), k, lambda k=k: (
+            banner_win, pr._prop_latch('prop_fire', k, 42)))
+        if on:
+            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, fvar=fvar: _scaled_cast(
+                s, pr.draw_prop_fire, sx, pal, 1.5, t=t, variant=fvar))
     sp._latch_prune(('brazier',))
     # Performers: ONE world-anchored grid. Each slot latches at entry both whether
     # it is occupied (busy-street gate) and WHICH act it holds, so a busker never
@@ -1285,5 +1326,5 @@ def draw_near_lane(surf, scroll, pal, phase, t):
         act = sp._slot_latch(('perf',), k,
                              lambda k=k: _perf_decide(k, phase, density))
         if act is not None:
-            act(surf, bx, pal, t)
+            _zbuf.enqueue(ny, TB_CAST, lambda s, act=act, bx=bx: act(s, bx, pal, t))
     sp._latch_prune(('perf',))
