@@ -1,30 +1,32 @@
-"""Look-dev renderer (Round 2): the DEVILISH dice-results medallion, locked.
+"""Look-dev renderer (Round 3): the DEVILISH dice-results medallion, refined.
 
 Round 1 ranged across cheeky → devilish → menacing; the art director locked the
-DEVILISH cell-2 face as the standard "you rolled N!" celebration look and
-dropped the menacing variant (its dagged crest read as a gear/sunburst and its
-cold gold read as tin at true size).
+DEVILISH face as the standard "you rolled N!" celebration look. Round 2 held the
+geometry the AD signed off on (keep-out ring, constant cream disc R*0.74, horn
+top-clearance, N drawn LAST and dominant) but flagged three reads to fix.
 
-Round 2 builds the whole sheet around that one face — soft plum IMP HORNS
-cresting the top, sidelong GOLD eye-GLINTS, ONE cocked brow, a fanged grin —
-and tightens it to the AD notes:
+Round 3 holds ALL the round-2 geometry unchanged and lands the final fixes:
 
-  * N is protected as the hero in EVERY cell: a CONSTANT cream-disc diameter
-    with a clean ~10px ornament-free KEEP-OUT ring just outside it. Horns,
-    bells, poms and danglers ALL live outside that ring.
-  * Bells are the SAME warm gold as the bezel (GOLD) with a plum bell-mouth
-    shadow + a single specular dot — never green, never a bead.
-  * The reward ramp reads on just TWO levers: crest-bell DENSITY (sparse low →
-    dense high) and the banderole LABEL ("PAGODAS" vs "JACKPOT"). On the
-    jackpot the bell-ring value is knocked DOWN so the gold recedes behind N.
-  * A friendlier CHEEKY fallback is kept alive with a properly directional
-    closed wink (a downturned lash curve).
+  * BELLS read as BELLS — not pins/antennae. Each crest/dangler bell is now a
+    proper bell SILHOUETTE: a rounded-trapezoid dome body with a visibly FLARED
+    MOUTH at the bottom, the plum bell-mouth shadow, a clapper bead, and a
+    single specular dot. Reads as a chunky reward bell at true 264px.
+  * NO clock-dial rim. The dense ring of even-length even-angle radial gold
+    ticks is gone; the bezel is a smooth gold band carrying IRREGULAR gold
+    sparkle flecks off the angular grid, so the rim never reads watch/gear.
+  * The grin is sharpened to DEVILISH: narrower, with the locked single
+    ASYMMETRIC fang, ONE corner curled up under the cocked brow — smug imp, not
+    happy emoji.
+
+The CHEEKY fallback is CUT — one face system everywhere. Any low-roll softening
+is carried by the banderole LABEL only. The only ramp levers across tiers are
+(a) crest-bell DENSITY (3 / 7 / 11) and (b) the LABEL ("PAGODAS" vs "JACKPOT").
 
 Judged at TRUE 264px on the day sky WITH an actual-size inset.
 
 Run (headless):
     PYTHONPATH=. python tools/render_dice_medallion.py
-Writes docs/dice_results/medallion/round_2.png.
+Writes docs/dice_results/medallion/round_3.png.
 """
 import math
 import os
@@ -74,28 +76,70 @@ MOUTH_DK = (120, 30, 42)
 # so it reads as the SAME mischief vocabulary scaled UP to a hero frame.
 
 def _bell(canvas, x, y, r, *, col=GOLD):
-    """A warm-GOLD jingle bell matched to the bezel metal (always GOLD — never a
-    green/cool tint, the single biggest identity break in round 1). A dark-gold
-    seat, the gold body, a PLUM bell-MOUTH shadow notched into the bottom rim, a
-    small loop crown on top, and ONE hot specular dot top-left. The plum mouth +
-    crown + single highlight are what stop it reading as a bead/rivet at true
-    size — so bells must stay big enough to hold that mouth (callers reduce the
-    COUNT before shrinking the radius)."""
-    x, y, r = int(x), int(y), int(r)
-    # Small loop crown poking above the body — a clear bell silhouette cue.
-    pygame.draw.circle(canvas, _shade(col, -30), (x, y - int(r * 0.92)),
-                       max(1, int(r * 0.3)), max(1, int(r * 0.18)))
-    pygame.draw.circle(canvas, _shade(col, -60), (x, y), r + max(1, int(r * 0.12)))
-    pygame.draw.circle(canvas, col, (x, y), r)
-    # Plum bell-mouth: a small dark arc seated into the bottom rim, so the gold
-    # sphere reads as an open-mouthed jingle bell rather than a flat disc.
-    mouth_r = max(2, int(r * 0.5))
-    pygame.draw.circle(canvas, PLUM_DK, (x, y + int(r * 0.42)), mouth_r)
-    pygame.draw.circle(canvas, _shade(col, -30), (x, y + int(r * 0.42)), mouth_r,
-                       max(1, int(r * 0.16)))
-    # Single hot specular catch — top-left, the only highlight, so it stays a bell.
-    pygame.draw.circle(canvas, _shade(col, 90),
-                       (x - int(r * 0.34), y - int(r * 0.34)), max(1, int(r * 0.34)))
+    """A chunky warm-GOLD jingle bell drawn as a true bell SILHOUETTE so it never
+    reads as a pin/antenna/stud (the round-2 break: a gold dot on a stalk topped
+    by a ring). The round-3 shape is a SOLID single-piece bell read at a glance:
+    a domed SHOULDER that swells out and FLARES into a wide bell-MOUTH at the
+    bottom (the body is one continuous teardrop-trapezoid, not a ball-on-stalk),
+    a TINY suspension loop barely peeking over the dome (so the top reads "hung
+    bell", never "antenna"), the plum bell-mouth shadow + clapper, and ONE hot
+    specular dot. `r` is the body half-width; the body half-width at the mouth
+    is ~1.3r so the flared silhouette holds at true 264px. Always the bezel
+    GOLD — never a green/cool tint."""
+    x, y = int(x), int(y)
+    r = max(3, int(r))
+    # The bell occupies a generous box so the loop + flared mouth never clip;
+    # everything is composited from a local SRCALPHA surface for clean edges.
+    bw = r * 3
+    bh = int(r * 3.2)
+    s = pygame.Surface((bw, bh), pygame.SRCALPHA)
+    cxp = bw // 2
+    body_dk = _shade(col, -65)
+    # Geometry of the one continuous bell body, top to bottom.
+    loop_y = max(2, int(r * 0.35))          # tiny suspension loop, barely peeking
+    shoulder_cy = int(r * 1.25)             # centre of the domed shoulder circle
+    shoulder_r = int(r * 0.92)              # dome radius (the rounded top mass)
+    mouth_y = bh - max(2, int(r * 0.45))    # the flared lip line
+    top_hw = int(r * 0.82)                  # body half-width where it leaves dome
+    bot_hw = int(r * 1.30)                  # body half-width at the flared mouth
+    waist_y = int(shoulder_cy + shoulder_r * 0.55)  # where dome meets the flare
+    # TINY suspension loop — a short stub + small ring, only just clearing the
+    # dome so it never reads as a long stalk/antenna.
+    pygame.draw.line(s, body_dk, (cxp, loop_y + int(r * 0.2)),
+                     (cxp, shoulder_cy - int(shoulder_r * 0.4)), max(2, int(r * 0.22)))
+    pygame.draw.circle(s, body_dk, (cxp, loop_y), max(2, int(r * 0.26)),
+                       max(1, int(r * 0.14)))
+    # The body is ONE filled silhouette: a flared trapezoid skirt from the waist
+    # down to the mouth, capped by the domed shoulder circle above it, so the
+    # whole thing reads as a single continuous bell mass. Dark base for a clean
+    # outline, then the lighter face inset on top.
+    skirt = [(cxp - top_hw, waist_y), (cxp + top_hw, waist_y),
+             (cxp + bot_hw, mouth_y), (cxp - bot_hw, mouth_y)]
+    pygame.draw.polygon(s, body_dk, skirt)
+    pygame.draw.circle(s, body_dk, (cxp, shoulder_cy), shoulder_r)
+    inset = max(1, int(r * 0.2))
+    skirt_in = [(cxp - top_hw + inset, waist_y + inset),
+                (cxp + top_hw - inset, waist_y + inset),
+                (cxp + bot_hw - inset, mouth_y - 1), (cxp - bot_hw + inset, mouth_y - 1)]
+    pygame.draw.polygon(s, col, skirt_in)
+    pygame.draw.circle(s, col, (cxp, shoulder_cy), shoulder_r - inset)
+    # Flared MOUTH: a wide shallow lip closing the bottom of the skirt. The plum
+    # bell-mouth shadow ellipse reads as the hollow opening; a gold rim around it
+    # and a small clapper bead in the centre complete the open-bell read.
+    lip_h = max(3, int(r * 0.72))
+    pygame.draw.ellipse(s, PLUM_DK,
+                        (cxp - bot_hw, mouth_y - lip_h // 2, bot_hw * 2, lip_h))
+    pygame.draw.ellipse(s, col,
+                        (cxp - bot_hw, mouth_y - lip_h // 2, bot_hw * 2, lip_h),
+                        max(1, int(r * 0.22)))
+    pygame.draw.circle(s, _shade(col, 55), (cxp, mouth_y - max(1, int(r * 0.04))),
+                       max(2, int(r * 0.28)))  # clapper bead in the mouth
+    # ONE hot specular catch on the upper-left of the dome — the only highlight.
+    pygame.draw.circle(s, _shade(col, 95),
+                       (cxp - int(shoulder_r * 0.4), shoulder_cy - int(shoulder_r * 0.35)),
+                       max(1, int(r * 0.3)))
+    # Seat the bell so (x, y) is roughly its visual centre on the cord.
+    canvas.blit(s, s.get_rect(center=(x, y + int(r * 0.3))))
 
 
 def _dangler(canvas, cx, cy, ang, R, ss, *, length, bell_r, col=GOLD,
@@ -200,40 +244,59 @@ def _sly_brow(canvas, x, y, ss, *, sgn, cocked=False, col=(76, 56, 60), thick=1.
 
 def _fanged_grin(canvas, cx, gy, ss, *, w, fang_sgn=-1, tongue=False,
                  lip_col=(188, 56, 66)):
-    """The dominant mischief cue ported to bezel scale: a wide upturned OPEN grin
-    with a tooth band and ONE pointed fang, riding the lower bezel arc beneath the
-    disc. `fang_sgn` picks the fang side; `tongue` licks the raised corner."""
-    l_corner = (cx - w, gy - 2 * ss)
-    r_corner = (cx + w, gy)
-    bottom = (cx, gy + 13 * ss)
-    mouth = [l_corner, (cx - w * 0.45, gy + 2 * ss), (cx + w * 0.45, gy + 2 * ss),
-             r_corner, (cx + w * 0.5, gy + 7 * ss), bottom, (cx - w * 0.5, gy + 7 * ss)]
+    """The locked DEVILISH grin: a NARROW, asymmetric smirk — not a wide even
+    happy smile. ONE corner (the fang side) curls UP higher than the other under
+    the cocked brow, the mouth carries only a few teeth (not a full even band)
+    plus the single prominent ASYMMETRIC FANG, so it reads "smug imp", not
+    "happy emoji". `fang_sgn` picks the fang/curl side; `tongue` adds a tip lick.
+
+    Geometry is unchanged from round 2 (same seat radius / `w` lever); only the
+    SHAPE of the mouth is re-cut."""
+    # The curled corner rides HIGH; the opposite corner sits low — that tilt is
+    # the whole devilish read. fang_sgn<0 -> left corner curls up. The mouth is
+    # NARROWED (~0.78*w of round 2's seat) so it reads a tight smirk, not a wide
+    # even happy arc; geometry seat / `w` lever itself is unchanged.
+    up = fang_sgn  # which side curls up
+    nw = w * 0.78  # the effective NARROW half-width of the smirk
+    curl_c = (cx + up * nw, gy - 8 * ss)        # high, sharply curled corner
+    flat_c = (cx - up * nw * 0.85, gy + 3 * ss)  # low corner, lower than round 2
+    bottom = (cx - up * nw * 0.12, gy + 10 * ss)
+    # The dark mouth gap — a tight asymmetric lens slanted hard toward the curl.
+    mouth = [curl_c, (cx + up * nw * 0.32, gy - 2 * ss), flat_c,
+             (cx - up * nw * 0.28, gy + 6 * ss), bottom, (cx + up * nw * 0.16, gy + 5 * ss)]
     pygame.draw.polygon(canvas, MOUTH_DK, mouth)
-    teeth = [l_corner, (cx - w * 0.45, gy), (cx + w * 0.45, gy), r_corner,
-             (cx + w * 0.45, gy + 5 * ss), (cx - w * 0.45, gy + 5 * ss)]
+    # Only a SLIVER of upper teeth on the curled side — just enough to catch the
+    # light, never a full even tooth band (which read happy-emoji in round 2).
+    teeth = [curl_c, (cx + up * nw * 0.32, gy - 2 * ss),
+             (cx + up * nw * 0.06, gy + 1 * ss), (cx + up * nw * 0.14, gy + 3 * ss),
+             (cx + up * nw * 0.34, gy + 2 * ss)]
     pygame.draw.polygon(canvas, (250, 248, 240), teeth)
     pygame.draw.polygon(canvas, _shade((250, 248, 240), -80), teeth, max(1, int(ss)))
-    for k in range(-2, 3):
-        gx = cx + k * w * 0.22
-        pygame.draw.line(canvas, _shade((250, 248, 240), -80),
-                         (gx, gy), (gx, gy + 5 * ss), max(1, int(ss)))
-    # The single mean FANG dropping into the dark mouth.
-    fx = cx + fang_sgn * w * 0.36
-    fang = [(fx - 3 * ss, gy + 5 * ss), (fx + 3 * ss, gy + 5 * ss), (fx, gy + 12 * ss)]
+    # A single dividing line in the tooth sliver — one notch, not a grid.
+    gx = cx + up * nw * 0.2
+    pygame.draw.line(canvas, _shade((250, 248, 240), -80),
+                     (gx, gy - 1 * ss), (gx, gy + 3 * ss), max(1, int(ss)))
+    # The single mean FANG dropping from the upper lip into the dark mouth, on
+    # the curl side — the locked round-1 asymmetric fang, made the dominant
+    # tooth: longer + wider than the sliver so it is unmistakably one big fang.
+    fx = cx + fang_sgn * nw * 0.46
+    fang = [(fx - 5 * ss, gy + 1 * ss), (fx + 5 * ss, gy + 1 * ss), (fx, gy + 12 * ss)]
     pygame.draw.polygon(canvas, (252, 250, 244), fang)
     pygame.draw.polygon(canvas, _shade((252, 250, 244), -80), fang, max(1, int(ss)))
-    # Smooth up-curving lip crescent (parabola: corners high, centre dipped).
+    # The lip line: a hard SMIRK curve — sweeps UP into the curled corner, sags
+    # under the low corner. Strongly asymmetric (never a symmetric parabola).
     lip = []
     for k in range(13):
         t = k / 12.0
-        lx = (l_corner[0] - 2 * ss) + ((r_corner[0] + 2 * ss) - (l_corner[0] - 2 * ss)) * t
-        ly = (l_corner[1] - 3 * ss) + ((r_corner[1] - 2 * ss) - (l_corner[1] - 3 * ss)) * t \
-            + (1.0 - (2.0 * t - 1.0) ** 2) * 13 * ss
+        lx = flat_c[0] + (curl_c[0] - flat_c[0]) * t
+        # Quadratic that lifts the curl end hard and sags the flat end.
+        ly = flat_c[1] + (curl_c[1] - flat_c[1]) * t + (1.0 - t) * t * 18 * ss \
+            - (t ** 2) * 6 * ss
         lip.append((lx, ly))
     pygame.draw.lines(canvas, lip_col, False, lip, max(2, int(3 * ss)))
     if tongue:
-        tx0 = l_corner[0]
-        ty0 = gy + 4 * ss
+        tx0 = curl_c[0] - up * 5 * ss
+        ty0 = gy + 3 * ss
         pygame.draw.ellipse(canvas, (228, 110, 124),
                             (tx0 - 4 * ss, ty0, 9 * ss, 7 * ss))
         pygame.draw.ellipse(canvas, _shade((228, 110, 124), -60),
@@ -285,15 +348,28 @@ def _medallion_shell(canvas, c, R, ss, *, field_plum=PLUM, field_dk=PLUM_DK,
             canvas.blit(d, d.get_rect(center=(int(px), int(py))))
         else:
             pygame.draw.circle(canvas, col, (int(px), int(py)), int(3 * ss))
-    # Fluted gold bezel.
+    # Smooth gold bezel BAND — no radial fluting. The round-2 even-length,
+    # even-angle radial ticks turned the rim into a clock/gear face; a clean
+    # band with a soft inner shadow + outer keyline keeps it reading as a metal
+    # frame, leaving the bells + flecks to carry the festive rim.
+    pygame.draw.circle(canvas, GOLD_DK, (c, c), R + int(4 * ss))
+    pygame.draw.circle(canvas, gold_face, (c, c), R)
+    pygame.draw.circle(canvas, _shade(gold_face, 55), (c, c), R, max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, GOLD_DK, (c, c), R - int(6 * ss), max(2, int(3 * ss)))
+    pygame.draw.circle(canvas, gold_face, (c, c), R - int(8 * ss))
+    # IRREGULAR gold sparkle on the band — jittered angle, distance and size
+    # (and a few skipped) so it never falls on the even angular grid that read
+    # as tick marks. A scattering of treasure-glints, not a dial.
     for i in range(bezel_segs):
-        a = i * math.tau / bezel_segs
-        rr = R + (6 * ss if i % 2 == 0 else 2 * ss)
-        pygame.draw.line(canvas, GOLD_MD,
-                         (c + math.cos(a) * (R - 2 * ss), c + math.sin(a) * (R - 2 * ss)),
-                         (c + math.cos(a) * rr, c + math.sin(a) * rr), max(2, int(3 * ss)))
-    pygame.draw.circle(canvas, GOLD_DK, (c, c), R)
-    pygame.draw.circle(canvas, gold_face, (c, c), R - 5 * ss)
+        a = i * math.tau / bezel_segs + (i * i % 7) * 0.11
+        if i % 5 == 3:
+            continue  # break the rhythm so no even cadence survives
+        rr = R - (3 + (i * 3 % 5)) * ss
+        sx = c + math.cos(a) * rr
+        sy = c + math.sin(a) * rr
+        sz = (2 + (i % 3)) * ss
+        col = [_shade(gold_face, 70), CREAM, _shade(gold_face, 30)][i % 3]
+        pygame.draw.circle(canvas, col, (int(sx), int(sy)), max(1, int(sz * 0.5)))
     # Cream inner field — the number's home, a CONSTANT diameter every cell.
     cr = int(R * DISC_INNER)
     pygame.draw.circle(canvas, (255, 244, 212), (c, c), cr)
@@ -480,8 +556,9 @@ def var_hero_2digit(roll, ss):
 
 
 def var_ramp_low(roll, ss):
-    """RAMP LOW (PAGODAS) — the plain tier: the devilish face with SPARSE gold
-    crest bells, a thinner bezel and fewer flecks. The everyday low roll."""
+    """RAMP LOW (PAGODAS) — the plain tier: the devilish face with a SPARSE
+    3-bell crest (now reading as proper bells, the round-2 fix that mattered
+    most here), a thinner bezel and fewer flecks. The everyday low roll."""
     return _devil_medallion(roll, ss, bell_count=3, label="PAGODAS",
                             bezel_segs=40, fleck_n=12, grin_w=0.34)
 
@@ -496,28 +573,52 @@ def var_ramp_jackpot(roll, ss):
                             ramp_recede=True, horn_len=1.05)
 
 
-def var_cheeky(roll, ss):
-    """CHEEKY FALLBACK — the friendlier tone kept alive: the same devilish
-    template but with the right eye CLOSED into a directional downturned WINK
-    (lash curve + outer flicks, distinct from the open eye at ~8px) and a
-    tongue-tip grin. Same fixed gold crest bells + danglers. A wink, not a
-    threat."""
-    return _devil_medallion(roll, ss, bell_count=5, label="PAGODAS",
-                            glint=False, cocked=False, wink_right=True,
-                            tongue=True, grin_w=0.34)
+def var_detail(roll, ss):
+    """DETAIL INSET — a zoomed verification panel (NOT a medallion) showing the
+    two round-3 fixes up close so they can be eyeballed at large scale: the NEW
+    bell silhouette (dome + flared mouth, no antenna) and the sharpened DEVILISH
+    grin (narrow, single asymmetric fang, one curled corner). On a plum panel
+    with gold keyline; `roll` is ignored. Same draw helpers as the live cells so
+    what is verified here is exactly what ships."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+    # Plum verification panel with a gold keyline, matching the family metal.
+    pygame.draw.rect(canvas, PLUM_DK, canvas.get_rect(), border_radius=int(18 * ss))
+    pygame.draw.rect(canvas, GOLD, canvas.get_rect(), max(2, int(3 * ss)),
+                     border_radius=int(18 * ss))
+    # LEFT: one big bell at ~3x the live crest size so the dome + flared mouth +
+    # tiny suspension loop read unambiguously. A short cord roots it like a crest
+    # bell so the hung-bell silhouette is shown in context.
+    big_r = int(18 * ss)
+    bx = c - int(58 * ss)
+    by = c - int(6 * ss)
+    pygame.draw.line(canvas, PLUM_DK, (bx, by - int(big_r * 2.4)),
+                     (bx, by - int(big_r * 1.4)), max(2, int(3 * ss)))
+    _bell(canvas, bx, by, big_r)
+    # RIGHT: the sharpened grin alone, large, on a cream chip so the asymmetry +
+    # single fang + curled corner read without the eyes/horns around it.
+    chip_r = int(46 * ss)
+    gx = c + int(48 * ss)
+    gy = c - int(2 * ss)
+    pygame.draw.circle(canvas, (255, 244, 212), (gx, gy), chip_r)
+    pygame.draw.circle(canvas, PLUM, (gx, gy), chip_r, max(2, int(2 * ss)))
+    _fanged_grin(canvas, gx, gy + int(2 * ss), ss, w=int(34 * ss))
+    return canvas, D
 
 
 VARIANTS = [
-    ("1  DEVILISH HERO", "imp horns, gold-glint eyes, cocked brow, fang", "day",
+    ("1  STANDARD CELEBRATION", "7 bell crest, no clock rim, sharpened fang grin", "day",
      var_hero, 19),
-    ("2  DEVILISH HERO — 2-digit", "same template, 2-digit N stays hero", "day",
+    ("2  STANDARD CELEBRATION", "same template, different digits, confirms read", "day",
      var_hero_2digit, 22),
-    ("3  RAMP LOW — PAGODAS", "plain tier: SPARSE gold bells, thinner bezel", "day",
-     var_ramp_low, 14),
-    ("4  RAMP JACKPOT — JACKPOT", "DENSE gold bells, de-cluttered, ring receded", "day",
+    ("3  RAMP LOW — PAGODAS", "SPARSE 3-bell crest (now true bells), thinner bezel", "day",
+     var_ramp_low, 11),
+    ("4  RAMP JACKPOT — JACKPOT", "DENSE 11-bell crest, ring receded, the payoff", "day",
      var_ramp_jackpot, 25),
-    ("5  CHEEKY FALLBACK", "directional wink, tongue grin, same gold bells", "day",
-     var_cheeky, 11),
+    ("5  DETAIL INSET", "NEW bell silhouette + sharpened devilish grin, up close", "day",
+     var_detail, 0),
 ]
 
 
@@ -539,15 +640,15 @@ def main():
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
     sheet.blit(title_f.render(
-        "Dice Medallion — Round 2: DEVILISH locked. One face, N held hero on a constant disc",
+        "Dice Medallion — Round 3: bells read as BELLS, no clock-dial rim, sharpened devilish grin",
         True, (255, 255, 255)), (pad, 12))
     sheet.blit(sub_f.render(
-        "True 264px on day sky + actual-size inset. Imp horns + gold-glint eyes + cocked brow "
-        "+ fang on every cell. Constant cream disc + 10px keep-out ring protects N.",
+        "Geometry HELD from round 2 (keep-out ring, constant cream disc R*0.74, horn clearance, "
+        "N drawn LAST + dominant). Crest bells now a dome + flared-mouth silhouette, not a dot on a stalk.",
         True, (200, 205, 215)), (pad, 40))
     sheet.blit(sub_f.render(
-        "Ramp reads on TWO levers: crest-bell DENSITY (sparse 3/4 -> dense 4) + the label "
-        "(PAGODAS vs JACKPOT). Bells are always the bezel GOLD with a plum mouth.",
+        "Rim is a smooth gold band with IRREGULAR sparkle (no radial ticks). Grin narrowed to a smug "
+        "smirk: ONE curled corner + single asymmetric fang. Cheeky face CUT — one face everywhere.",
         True, (170, 178, 190)), (pad, 58))
 
     label_f = hud._font(18, True)
@@ -591,14 +692,16 @@ def main():
         cap = pygame.Surface((tile_w, 24), pygame.SRCALPHA)
         cap.fill((20, 22, 28, 205))
         tile.blit(cap, (0, tile_h - 24))
-        tile.blit(samp_f.render(f"{desc}  (roll {roll})", True, (220, 225, 235)),
+        # The detail-inset cell has no roll; everything else always rolls 10..25.
+        cap_txt = desc if roll == 0 else f"{desc}  (roll {roll})"
+        tile.blit(samp_f.render(cap_txt, True, (220, 225, 235)),
                   (8, tile_h - 21))
         sheet.blit(tile, (tx, ty))
 
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "dice_results", "medallion")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
