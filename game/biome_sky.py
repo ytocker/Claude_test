@@ -117,18 +117,19 @@ def _smoothstep(t):
 
 
 def _evening_progress(phase, anchors):
-    """0 in daylight, eased to 1 across the evening, held through the dark night,
-    eased back to 0 across dawn — the shape the warm band's descent follows so it
-    starts at its day height, sinks as the sun sets, and rises again at sunrise."""
+    """0 in daylight, rising LINEARLY across the evening from golden hour, held
+    through the dark night, falling linearly back across dawn. A steady, gradual
+    descent that begins right at golden hour (a constant rate, not eased-in late)
+    so the warm band visibly starts sinking the moment golden hour arrives."""
     golden, night, dawn0, dawn1 = anchors
     p = phase % 1.0
     if p <= golden or p >= dawn1:
         return 0.0
     if p < night:
-        return _smoothstep((p - golden) / (night - golden))
+        return (p - golden) / (night - golden)
     if p <= dawn0:
         return 1.0
-    return _smoothstep(1.0 - (p - dawn0) / (dawn1 - dawn0))
+    return 1.0 - (p - dawn0) / (dawn1 - dawn0)
 
 
 def _sky_stops(spec, pal, phase=None):
