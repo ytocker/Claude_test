@@ -443,7 +443,7 @@ def build_boss(surf, cx, feet_y, hand_up, *, dark, light, gold, cap_fn,
     # the boss is unmistakably the same jester. Its friendly head is then painted
     # OVER by the menace head below (same head seat math as build_jester).
     build_jester(scratch, cx, feet_y, hand_up, dark=dark, light=light, gold=gold,
-                 cap_fn=cap_four_point, motif="quartered", collar="scalloped",
+                 cap_fn=cap_four_point, motif="panels", collar="scalloped",
                  variant="browcock", collar_in_gold=True, skin=skin,
                  nose_col=nose_col)
     # Re-derive the head seat exactly as build_jester does, then over-draw the

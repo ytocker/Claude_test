@@ -212,14 +212,16 @@ def draw_boss_die(surf, cx, base_y, pulse, *, size=70,
     pr = 1.0 + 0.10 * breathe
     # MORE MASSIVE than the friendly die's ~50px: ~1.5x the bigger cube footprint
     # so the reddish aura looms as a dangerous heat-bloom around the reward.
-    aura_r = int(size * 1.55 * pr)
-    aura = _boss_aura_surface(aura_r, breathe, core=core, mid=mid, edge=edge)
-    surf.blit(aura, (cx - aura_r - 1, cy - aura_r - 1))
-    # A SMALL, tight additive ember bloom so the centre reads as EMITTING heat —
-    # kept narrow + ember-warm (not near-white) so it never washes the dominant
-    # CRIMSON halo back toward a friendly pale-yellow pip on the day sky.
-    blit_glow(surf, cx, cy, int(12 * pr), mid,
-              alpha=46 + int(26 * breathe))
+    # A bright warm ADDITIVE ember glow. A dark alpha-crimson halo just read muddy/
+    # cool over the bright day sky; a hot REWARD die must GLOW. Layered additive
+    # rings — red edge → ember mid → bright orange core — read as HEAT at 1x while
+    # staying warm (cores orange, never pale-white).
+    b = 0.82 + 0.18 * breathe
+    aura_r = int(size * 1.6 * pr)
+    for r_mul, col, al in ((1.05, edge, 80), (0.72, mid, 110),
+                           (0.46, mid, 135), (0.26, core, 155)):
+        blit_glow(surf, cx, cy, max(2, int(aura_r * r_mul)), col,
+                  alpha=int(al * b))
 
     # The 3D isometric cube prop — same form as the friendly die, just bigger.
     _draw_die_face_noshadow(surf, cx, cy, size, pips=HERO_PIPS)
@@ -448,8 +450,8 @@ def _die_seat(scale, *, original=False):
         die_x = int(jester_cx - 60 * scale)
         die_base_y = int(36 - 30 * (scale - 1.0))
         return jester_cx, die_x, die_base_y
-    die_x = int(jester_cx - 52 * scale)            # pulled IN so it clears horns
-    die_base_y = int(46 - 26 * (scale - 1.0))
+    die_x = int(jester_cx - 64 * scale)            # OUTWARD (left) so it clears horns
+    die_base_y = int(38 - 28 * (scale - 1.0))       # + a touch higher, off the head
     return jester_cx, die_x, die_base_y
 
 
@@ -611,7 +613,7 @@ def main():
     f_caps = pygame.font.SysFont(None, 28, bold=True)
 
     title = f_title.render(
-        "DEMON JESTER — 5 RED-rebased · massive · meaner variations (round 2)",
+        "DEMON JESTER — 5 RED-rebased · massive · meaner variations (round 3 (final): warm-glow die · cleared horns · no torso cross)",
         True, (255, 214, 200))
     canvas.blit(title, (PAD, PAD - 2))
     sub = f_sub.render(
@@ -679,7 +681,7 @@ def main():
 
     out_dir = os.path.join("docs", "jester")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "demon_round_2.png")
+    out_path = os.path.join(out_dir, "demon_round_3.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
