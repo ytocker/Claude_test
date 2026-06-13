@@ -51,13 +51,12 @@ class WarrenDemo:
         # so this import happens after the real display is up (the modules'
         # SDL_VIDEODRIVER=dummy setdefault is then a no-op) and never on web.
         from tools.render_jester_variants import (
-            build_jester, draw_cupped_die, _draw_die_face_noshadow, JESTERS,
+            build_jester, _draw_die_face_noshadow, JESTERS,
         )
         from tools.render_warren_routes import Route
         from tools.render_warren_mockup import assert_passable
 
         self._build_jester = build_jester
-        self._draw_die = draw_cupped_die
         self._draw_die_face = _draw_die_face_noshadow
         self._Route = Route
         self._assert_passable = assert_passable
@@ -187,16 +186,11 @@ class WarrenDemo:
         if self.dice_x is not None:
             dx = int(self.dice_x + sx)
             if not self.collected:                       # floating, pre-grab
-                try:
-                    self._draw_die(surf, dx, int(self.dice_y + sy), self.pulse)
-                except Exception:
-                    pygame.draw.rect(surf, (250, 246, 230),
-                                     (dx - 16, int(self.dice_y + sy) - 16, 32, 32))
+                self._draw_floating_die(surf, dx, int(self.dice_y + sy))
             elif self.phase == "rolling":                # tumbling roll
                 self._draw_spinning_die(surf, dx, int(self.dice_y + sy))
             elif self.die_pop_t > 0.0:                   # revealed result, rising
                 dy = int(self.die_pop_y + sy)
-                gfx.blit_glow(surf, dx, dy, 34, (255, 230, 120), alpha=130)
                 try:
                     self._draw_die_face(surf, dx, dy, 44, number=self.roll,
                                         body=(255, 246, 224), pip_col=(190, 70, 40))
@@ -246,14 +240,36 @@ class WarrenDemo:
                 self._clown_ok = False
         return self._clown_surf
 
+    def _draw_floating_die(self, surf, dx, dy):
+        """The pre-grab die: a clean bobbing 3D cube with a few orbiting
+        sparkles — NO glow/aura halo (it washed white on the pale sky)."""
+        cy = int(dy + math.sin(self.pulse * 1.1) * 3)
+        try:
+            self._draw_die_face(surf, dx, cy, 40, pips=5)
+        except Exception:
+            pygame.draw.rect(surf, (250, 246, 230), (dx - 16, cy - 16, 32, 32))
+            return
+        for i in range(4):
+            a = i * math.tau / 4 + self.pulse * 0.4
+            rr = 30 + 4 * math.sin(self.pulse * 0.9 + i)
+            sxp = int(dx + math.cos(a) * rr)
+            syp = int(cy + math.sin(a) * rr * 0.85)
+            tw = 0.5 + 0.5 * math.sin(self.pulse * 2.0 + i * 1.7)
+            al = int(110 + 130 * tw)
+            sz = 3 + int(2 * tw)
+            spark = pygame.Surface((sz * 4, sz * 4), pygame.SRCALPHA)
+            c = (255, 244, 200, al)
+            pygame.draw.line(spark, c, (sz * 2, 0), (sz * 2, sz * 4), 1)
+            pygame.draw.line(spark, c, (0, sz * 2), (sz * 4, sz * 2), 1)
+            pygame.draw.circle(spark, (255, 255, 230, al), (sz * 2, sz * 2), sz)
+            surf.blit(spark, (sxp - sz * 2, syp - sz * 2),
+                      special_flags=pygame.BLEND_ADD)
+
     def _draw_spinning_die(self, surf, dx, dy):
-        """A short cube tumble before the reveal: a pulsing glow plus the die
-        spun by an ease-out angle (settling upright) with its face flickering
-        through numbers, so it reads as a real dice roll."""
+        """A short cube tumble before the reveal: the die spun by an ease-out
+        angle (settling upright) with its face flickering through numbers, so
+        it reads as a real dice roll. No glow/aura (kept off, per the clean look)."""
         u = min(1.0, self.spin_t / T_SPIN)
-        breathe = 0.5 + 0.5 * math.sin(self.pulse * 1.3)
-        gfx.blit_glow(surf, dx, dy, int(48 + 8 * breathe), (250, 210, 70), alpha=120)
-        gfx.blit_glow(surf, dx, dy, 18, (255, 242, 150), alpha=95)
         try:
             sc = pygame.Surface((96, 96), pygame.SRCALPHA)
             self._draw_die_face(sc, 48, 48, 40, number=self._spin_face,
