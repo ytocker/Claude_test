@@ -452,14 +452,15 @@ class App:
         # of the POWERUPS explainer.
         self._intro_from_menu = False
         self.state = STATE_INTRO
-        # Branch-only prototype: running natively on this R&D branch drops
-        # straight into the scripted Warren demo (clown → dice → route → fall),
-        # skipping the menu. Native-only (pygbag never populates sys.argv, and
-        # tools/ — which the demo reuses — isn't bundled on web); `--normal`
-        # opts out so the ordinary game is still runnable for regression checks.
+        # Branch-only prototype: this R&D branch (v5_skybit_enrich) is the
+        # "event test" deploy — running the game drops straight into the
+        # scripted Warren demo (clown → dice → route → fall), skipping the
+        # menu, on BOTH native and the pygbag/web build (the four look-dev
+        # renderers it reuses are staged into this branch's bundle by the
+        # deploy workflow). `--normal` (native CLI) opts out so the ordinary
+        # game is still runnable for regression checks.
         import sys as _sys
-        self._warren_demo = (_sys.platform != "emscripten"
-                             and "--normal" not in _sys.argv)
+        self._warren_demo = "--normal" not in _sys.argv
         if self._warren_demo:
             self._start_warren_demo()
         self._cloud_phase = 0.0
