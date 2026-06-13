@@ -4,6 +4,7 @@
       "Bash",
       "Edit",
       "Write"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   }
 }
