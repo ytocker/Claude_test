@@ -685,6 +685,11 @@ class App:
         self._cloud_variant = random.randrange(cloud_variants.VARIANT_COUNT)
 
     def _start_play(self):
+        # On the event-test branch the demo is the ONLY mode — every run
+        # start (menu, restart) replays it, so route through it here.
+        if self._warren_demo:
+            self._start_warren_demo()
+            return
         # The menu IS the start-of-game screen, so the click that brought
         # us here counts as the first flap — drop the ready_t freeze and
         # apply an initial flap so Pip launches immediately. The gameplay
@@ -698,12 +703,14 @@ class App:
 
     def _start_warren_demo(self):
         """Launch the scripted Warren demo. If the controller can't be built
-        (e.g. tools/ unavailable), fall back to a normal run so a run never
-        gets bricked by the prototype."""
+        (e.g. tools/ unavailable), disable the flag and fall back to a normal
+        run permanently, so a run never gets bricked by the prototype (and the
+        _start_play delegation above can't recurse)."""
         try:
             from game.warren_demo import WarrenDemo
             demo = WarrenDemo()
         except Exception:
+            self._warren_demo = False
             self._start_play()
             return
         self.world = World(demo=demo)
@@ -753,6 +760,10 @@ class App:
         self._cooldown_t = 0.25
 
     def _restart(self):
+        # Event-test branch: a restart replays the demo, not a normal run.
+        if self._warren_demo:
+            self._start_warren_demo()
+            return
         # Same contract as `_start_play`: the tap that triggered the
         # restart counts as the first flap, no ready freeze.
         self.world = World()
@@ -984,6 +995,13 @@ class App:
         straight back to the main menu — the leaderboard is still
         one tap away from there via the TOP 10 trophy."""
         import sys
+        # Event-test branch: the demo is the only mode — any stats-screen tap
+        # starts a fresh demo run, skipping the name-entry / leaderboard detour.
+        if self._warren_demo:
+            self.hud.title_t = 0.0
+            self._start_warren_demo()
+            self._cooldown_t = 0.25
+            return
         self._final_score = self.world.score
         self._name_input_buf = ""
         if sys.platform == "emscripten":
