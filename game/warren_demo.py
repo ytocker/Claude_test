@@ -199,12 +199,7 @@ class WarrenDemo:
             elif self.phase == "rolling":                # tumbling roll
                 self._draw_spinning_die(surf, dx, int(self.dice_y + sy))
             elif self.die_pop_t > 0.0:                   # revealed result, rising
-                dy = int(self.die_pop_y + sy)
-                try:
-                    self._draw_die_face(surf, dx, dy, 44, number=self.roll,
-                                        body=(255, 246, 224), pip_col=(190, 70, 40))
-                except Exception:
-                    pass
+                self._draw_result_die(surf, dx, int(self.die_pop_y + sy))
 
     def draw_sign(self, surf, world, sx, sy):
         """The N-of-pillars sign hung from the first route pagoda — drawn AFTER
@@ -273,6 +268,35 @@ class WarrenDemo:
             pygame.draw.circle(spark, (255, 255, 230, al), (sz * 2, sz * 2), sz)
             surf.blit(spark, (sxp - sz * 2, syp - sz * 2),
                       special_flags=pygame.BLEND_ADD)
+
+    def _draw_result_die(self, surf, dx, dy):
+        """The settled roll. A GHOST result gets a clearly spooky read — an
+        ethereal cyan glow, a cyan-tinted cube + number, and rising wisps — so
+        a ghost 10 never looks like a plain 10. A normal roll stays warm gold."""
+        if not self.ghost_run:
+            try:
+                self._draw_die_face(surf, dx, dy, 44, number=self.roll,
+                                    body=(255, 246, 224), pip_col=(190, 70, 40))
+            except Exception:
+                pass
+            return
+        br = 0.5 + 0.5 * math.sin(self.pulse * 2.2)
+        gfx.blit_glow(surf, dx, dy, int(42 + 9 * br), (84, 214, 196), alpha=115)
+        gfx.blit_glow(surf, dx, dy, int(22 + 4 * br), (188, 255, 242), alpha=85)
+        # rising ectoplasm wisps
+        for i in range(3):
+            climb = (self.pulse * 18 + i * 13) % 36
+            wx = int(dx + math.sin(self.pulse * 1.4 + i * 2.1) * (9 + i * 4))
+            wy = int(dy - 4 - climb)
+            a = max(0, 150 - int(climb * 4))
+            wisp = pygame.Surface((12, 12), pygame.SRCALPHA)
+            pygame.draw.circle(wisp, (196, 255, 242, a), (6, 6), 4)
+            surf.blit(wisp, (wx - 6, wy - 6), special_flags=pygame.BLEND_ADD)
+        try:
+            self._draw_die_face(surf, dx, dy, 44, number=self.roll,
+                                body=(204, 244, 238), pip_col=(36, 92, 96))
+        except Exception:
+            pass
 
     def _draw_spinning_die(self, surf, dx, dy):
         """A short cube tumble before the reveal: the die spun by an ease-out
