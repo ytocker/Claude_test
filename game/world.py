@@ -87,7 +87,13 @@ class World:
     # `_phase_for_pillar` and `_seed_first_pipes` agree on the first-pillar
     # offset).
 
-    def __init__(self):
+    def __init__(self, demo=None):
+        # `demo`, when set, is a branch-only scripted prototype controller
+        # (see game/warren_demo.py) that owns spawning + the clown/dice/route
+        # beat. Every demo branch below is gated on `demo is not None`, so the
+        # normal run path is untouched.
+        self.demo = demo
+
         # Reshuffle the meadow at the start of every new World — picks a
         # fresh ground theme + sparsity baseline + decoration positions
         # so no two plays look the same.
@@ -326,7 +332,9 @@ class World:
         # to pillar 65. Also enables the late-game pool/surprise rules.
         self._debug_genie_milestone_fired = False
 
-        self._seed_first_pipes()
+        # Demo starts on an EMPTY sky; the controller feeds the route in later.
+        if self.demo is None:
+            self._seed_first_pipes()
 
     # Back-compat: older snapshot/playtest scripts poke `world.mushrooms`.
     @property
@@ -347,6 +355,10 @@ class World:
         # toward the regular endpoints by pillar RAMP_PIPES. Keyed off
         # self.pillars_passed (per-run, NOT per-day) so the easier
         # intro never re-triggers after the first cycle wraps.
+        # Demo runs at the regular (post-ramp) tuning from pillar 0 — no
+        # newbie warmup.
+        if self.demo is not None:
+            return 1.0
         pp = self.pillars_passed
         if pp < PLATEAU_PIPES:
             return 0.0
@@ -1441,6 +1453,11 @@ class World:
             # snow tailwind + back-snow, and the storm-jolt scheduling.
             self._apply_weather_effects(sdt)
 
+            # Scripted demo beat (clown → dice → route → fall); spawns its own
+            # pillars, so the auto-spawn block below is gated off for it.
+            if self.demo is not None:
+                self.demo.update(self, sdt)
+
             speed = self._current_scroll() if not self.game_over else 0
             self.bg_scroll += speed * sdt
             for p in self.pipes:
@@ -1543,7 +1560,7 @@ class World:
             # list may be empty (all rail pipes culled); re-seed one
             # fresh pipe so the player has something to navigate.
             spacing = self._current_spacing()
-            if not self.bird.cart_active:
+            if self.demo is None and not self.bird.cart_active:
                 if not self.pipes:
                     self._spawn_pipe(W + 60)
                 elif self.pipes[-1].x < W - spacing:

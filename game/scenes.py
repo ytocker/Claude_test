@@ -452,6 +452,16 @@ class App:
         # of the POWERUPS explainer.
         self._intro_from_menu = False
         self.state = STATE_INTRO
+        # Branch-only prototype: running natively on this R&D branch drops
+        # straight into the scripted Warren demo (clown → dice → route → fall),
+        # skipping the menu. Native-only (pygbag never populates sys.argv, and
+        # tools/ — which the demo reuses — isn't bundled on web); `--normal`
+        # opts out so the ordinary game is still runnable for regression checks.
+        import sys as _sys
+        self._warren_demo = (_sys.platform != "emscripten"
+                             and "--normal" not in _sys.argv)
+        if self._warren_demo:
+            self._start_warren_demo()
         self._cloud_phase = 0.0
         self._cloud_variant = 0
         self._pick_cloud_variant()
@@ -607,6 +617,10 @@ class App:
             # player wants the game to continue exactly as it was frozen.
             if self._resume_grace_t > 0:
                 return
+            # Demo locks input for the final scripted fall.
+            if getattr(self.world, "demo", None) is not None \
+                    and self.world.demo.gates_flap():
+                return
             self.world.flap()
         elif self.state == STATE_PAUSE:
             self.state = STATE_PLAY
@@ -678,6 +692,23 @@ class App:
         self.world = World()
         self.world.ready_t = 0.0
         self.world.flap()
+        self._pick_cloud_variant()
+        self.state = STATE_PLAY
+
+    def _start_warren_demo(self):
+        """Launch the scripted Warren demo. If the controller can't be built
+        (e.g. tools/ unavailable), fall back to a normal run so a run never
+        gets bricked by the prototype."""
+        try:
+            from game.warren_demo import WarrenDemo
+            demo = WarrenDemo()
+        except Exception:
+            self._start_play()
+            return
+        self.world = World(demo=demo)
+        self.world.ready_t = 0.0
+        self.world.flap()
+        self.intro = None
         self._pick_cloud_variant()
         self.state = STATE_PLAY
 
@@ -929,11 +960,13 @@ class App:
         # (browser-only; native is a silent no-op). Strong ref on
         # self prevents GC from killing the task mid-flight.
         import asyncio as _asyncio
-        try:
-            self._play_log_task = _asyncio.create_task(play_log.log_run(self.world))
-        except RuntimeError:
-            # No running loop (e.g. headless smoke tests) — skip silently.
-            pass
+        # The branch-only demo never writes telemetry / the DB.
+        if getattr(self.world, "demo", None) is None:
+            try:
+                self._play_log_task = _asyncio.create_task(play_log.log_run(self.world))
+            except RuntimeError:
+                # No running loop (e.g. headless smoke tests) — skip silently.
+                pass
         # Game-over screen no longer plays its own jingle — death.ogg
         # at the moment of impact carries the whole "run ended" cue.
         self.state = STATE_STATS
@@ -1277,12 +1310,20 @@ class App:
         for bc in getattr(self.world, "celebration_balloon_clusters", ()):
             bc.draw(self.screen, sx, sy)
 
+        # Demo clown + floating die — behind the pillars (the route occludes
+        # the strolling clown), mirroring the celebration-crowd layer above.
+        if getattr(self.world, "demo", None) is not None:
+            self.world.demo.draw_world(self.screen, self.world, sx, sy)
+
         pipe_palette = self.world.biome_palette
         kfc_active = self.world.bird.kfc_active
         pipe_phase = self.world.biome_phase
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active,
                    phase=pipe_phase)
+        # Demo route sign — in front of the pagoda tops it hangs from.
+        if getattr(self.world, "demo", None) is not None:
+            self.world.demo.draw_sign(self.screen, self.world, sx, sy)
         # SKATEBOARD ramps: wooden wedges perched on lower-pillar
         # crowns. Drawn AFTER pipes so the wedge overpaints the crown
         # vegetation; below the bird so Pip rides on top.

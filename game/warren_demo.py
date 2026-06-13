@@ -1,0 +1,290 @@
+"""Branch-only scripted prototype of the Pagoda-Warren beat:
+
+    empty sky → a clown walks on with a floating dice power-up → the player
+    grabs the die (rolls N = 15..30) → after a beat, a warren route of N fused
+    pagodas scrolls in with N on a sign hung from the first pillar → the player
+    flies the route → a couple of seconds later Pip falls to its death.
+
+This is a feel-test harness, NOT shipped gameplay: there is no event trigger,
+no gating, no DB write. It only runs when `App` decides to launch it (native,
+this R&D branch). The clown, die, and route shapes are the already-approved
+look-dev designs, reused verbatim by lazily importing the `tools/` renderers
+the first time the demo is constructed — after the display exists, and never on
+web (where `tools/` isn't even bundled). Every reuse point is wrapped so a
+missing/renamed helper degrades to a plain fallback instead of crashing a run.
+"""
+import random
+
+import pygame
+
+from game.config import W, GROUND_Y, BIRD_X, BIRD_R, PIPE_W
+from game.entities import Pipe, FloatText
+from game import draw as gfx
+
+# ── script timing (seconds) ──────────────────────────────────────────────────
+T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
+T_AFTER_PICKUP = 2.0      # beat between the roll and the route
+T_AFTER_ROUTE = 2.0       # free flight after the route before Pip drops
+
+# ── warren geometry ──────────────────────────────────────────────────────────
+SP = 72                   # fused centre-to-centre spacing (warren window 62-84)
+SPAWN_X = W + 40          # where each route pillar enters from the right
+ROUTE_SEED = 0            # one pagoda family for the whole route (stupa canopy)
+ROUTE_GAP = 172           # per-pillar gap height (inside the 150-185 window)
+
+# ── clown / die placement ────────────────────────────────────────────────────
+DICE_DX = 70              # die floats this far LEFT of the clown
+DICE_Y = 330              # die height — comfortably reachable mid-flight
+DICE_PICK_R = 30          # generous pickup radius around the die
+
+
+class WarrenDemo:
+    def __init__(self):
+        # Lazy reuse of the look-dev kit. Constructed only when the demo runs,
+        # so this import happens after the real display is up (the modules'
+        # SDL_VIDEODRIVER=dummy setdefault is then a no-op) and never on web.
+        from tools.render_jester_variants import (
+            build_jester, draw_cupped_die, _draw_die_face_noshadow, JESTERS,
+        )
+        from tools.render_warren_routes import Route
+        from tools.render_warren_mockup import assert_passable
+
+        self._build_jester = build_jester
+        self._draw_die = draw_cupped_die
+        self._draw_die_face = _draw_die_face_noshadow
+        self._Route = Route
+        self._assert_passable = assert_passable
+        # Hero clown #13 ("Plum & Lime — FINAL"); `no_shadow` is a render_cell
+        # flag, not a build_jester kwarg, so drop it (we draw our own shadow).
+        spec = dict(JESTERS[-1][1])
+        spec.pop("no_shadow", None)
+        self.spec = spec
+
+        self.phase = "fly_in"
+        self.t = 0.0               # global elapsed
+        self.pt = 0.0              # current-phase timer
+        self.pulse = 0.0           # die bob/sparkle clock
+        self.input_locked = False
+
+        self.clown_x = None        # world x of the clown's feet (None until in)
+        self.dice_x = None
+        self.dice_y = DICE_Y
+        self.collected = False
+        self.roll = None
+        self.die_pop_t = 0.0       # result-die linger after pickup
+        self.die_pop_y = DICE_Y
+
+        self.route = None          # list of (gap_cy, gap_h) for N pillars
+        self.route_pipes = []      # Pipes we spawned, in order
+        self.spawned = 0
+        self.sign_pipe = None      # first route pillar (carries the N sign)
+
+    # ── public hooks ─────────────────────────────────────────────────────────
+    def gates_flap(self):
+        """True once Pip's input is cut (the final scripted fall)."""
+        return self.input_locked
+
+    def update(self, world, dt):
+        self.t += dt
+        self.pt += dt
+        self.pulse += dt * 3.5
+        if self.die_pop_t > 0.0:
+            self.die_pop_t = max(0.0, self.die_pop_t - dt)
+            self.die_pop_y -= 26 * dt            # the result die drifts up
+
+        speed = world._current_scroll()
+        dx = speed * dt
+
+        if self.phase == "fly_in":
+            if self.t >= T_CLOWN_IN:
+                self.clown_x = float(SPAWN_X)
+                self.dice_x = self.clown_x - DICE_DX
+                self._goto("offer")
+
+        elif self.phase == "offer":
+            self.clown_x -= dx
+            self.dice_x -= dx
+            if self._dice_hit(world) or self.dice_x < BIRD_X - 60:
+                self._collect(world)
+                self._goto("wait_route")
+
+        elif self.phase == "wait_route":
+            # clown keeps strolling off-screen left while N is revealed
+            if self.clown_x is not None:
+                self.clown_x -= dx
+                if self.clown_x < -140:
+                    self.clown_x = None
+            if self.pt >= T_AFTER_PICKUP:
+                self._make_route(world)
+                self._goto("running")
+
+        elif self.phase == "running":
+            if self.clown_x is not None:
+                self.clown_x -= dx
+                if self.clown_x < -140:
+                    self.clown_x = None
+            # feed pillars in from the right at the fused spacing
+            while (self.spawned < len(self.route)
+                   and (not self.route_pipes
+                        or self.route_pipes[-1].x <= SPAWN_X - SP)):
+                self._spawn_next(world)
+            # route done once the last pillar has slipped past Pip
+            if (self.spawned >= len(self.route) and self.route_pipes
+                    and self.route_pipes[-1].x + PIPE_W < BIRD_X):
+                self._goto("post_route")
+
+        elif self.phase == "post_route":
+            if self.pt >= T_AFTER_ROUTE:
+                self.input_locked = True        # let gravity carry Pip down
+                self._goto("falling")
+
+        # "falling": nothing to drive — the normal ground collision ends the run.
+
+    def draw_world(self, surf, world, sx, sy):
+        """Clown + floating die — drawn BEFORE the pillars so the route occludes
+        the strolling clown the way the celebration crowd is layered."""
+        if self.clown_x is not None and self.clown_x > -140:
+            cx = int(self.clown_x + sx)
+            fy = int(GROUND_Y + sy)
+            shadow = pygame.Surface((84, 14), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow, (0, 0, 0, 70), (0, 0, 84, 14))
+            surf.blit(shadow, (cx - 42, fy - 6))
+            hand_up = (cx - 30, fy - 150)
+            try:
+                self._build_jester(surf, cx, fy, hand_up, **self.spec)
+            except Exception:
+                pygame.draw.circle(surf, (150, 90, 200), (cx, fy - 80), 36)
+
+        if not self.collected and self.dice_x is not None:
+            dx = int(self.dice_x + sx)
+            dy = int(self.dice_y + sy)
+            try:
+                self._draw_die(surf, dx, dy, self.pulse)
+            except Exception:
+                pygame.draw.rect(surf, (250, 246, 230), (dx - 16, dy - 16, 32, 32))
+        elif self.die_pop_t > 0.0 and self.dice_x is not None:
+            # the rolled result, lingering on the cube as it floats up
+            dx = int(self.dice_x + sx)
+            dy = int(self.die_pop_y + sy)
+            gfx.blit_glow(surf, dx, dy, 34, (255, 230, 120), alpha=130)
+            try:
+                self._draw_die_face(surf, dx, dy, 44, number=self.roll,
+                                    body=(255, 246, 224), pip_col=(190, 70, 40))
+            except Exception:
+                pass
+
+    def draw_sign(self, surf, world, sx, sy):
+        """The N-of-pillars sign hung from the first route pagoda — drawn AFTER
+        the pillars so it reads in front of the pagoda tops."""
+        p = self.sign_pipe
+        if p is None or self.roll is None:
+            return
+        if p.x + PIPE_W < -20 or p.x > W + 40:
+            return
+        cx = int(p.x + PIPE_W / 2 + sx)
+        top = int(p.gap_y - p.gap_h / 2 + sy)     # gap rim under the top pagoda
+        txt = str(self.roll)
+        font = pygame.font.SysFont(None, 34, bold=True)
+        label = font.render(txt, True, (60, 40, 20))
+        pw = label.get_width() + 22
+        ph = label.get_height() + 14
+        bx, by = cx - pw // 2, top + 8
+        # two short ropes from the rim down to the plaque
+        for rx in (bx + 8, bx + pw - 8):
+            pygame.draw.line(surf, (120, 86, 48), (rx, top), (rx, by + 2), 3)
+        gfx.blit_glow(surf, cx, by + ph // 2, int(pw * 0.7), (255, 214, 110), alpha=120)
+        gfx.rounded_rect(surf, (bx, by, pw, ph), 7, (244, 210, 130))
+        pygame.draw.rect(surf, (150, 104, 48), (bx, by, pw, ph), 2, border_radius=7)
+        surf.blit(label, (cx - label.get_width() // 2, by + 7))
+
+    # ── internals ────────────────────────────────────────────────────────────
+    def _goto(self, phase):
+        self.phase = phase
+        self.pt = 0.0
+
+    def _dice_hit(self, world):
+        b = world.bird
+        ddx = self.dice_x - b.x
+        ddy = self.dice_y - b.y
+        return ddx * ddx + ddy * ddy <= (DICE_PICK_R + BIRD_R) ** 2
+
+    def _collect(self, world):
+        self.collected = True
+        self.roll = random.randint(15, 30)
+        self.die_pop_t = 1.1
+        self.die_pop_y = self.dice_y
+        world.float_texts.append(
+            FloatText(str(self.roll), self.dice_x, self.dice_y - 12,
+                      (255, 226, 150), size=46, life=1.6, vy=-42, style="powerup"))
+
+    def _spawn_next(self, world):
+        gap_cy, gap_h = self.route[self.spawned]
+        p = Pipe(float(SPAWN_X), gap_cy, gap_h)
+        p.seed = ROUTE_SEED
+        p.spawn_index = self.spawned + 1          # >=1: keep ornaments (no quiet rule)
+        p.is_rush = False
+        p.is_kfc = False
+        world.pipes.append(p)
+        self.route_pipes.append(p)
+        if self.spawned == 0:
+            self.sign_pipe = p
+        self.spawned += 1
+
+    def _make_route(self, world):
+        """Build EXACTLY N (=roll) passable pagodas of a random difficulty-1-5
+        archetype; on any passability failure fall back to a flat tube."""
+        n = self.roll
+        archetype = random.choice([
+            self._r_plunge, self._r_ascent, self._r_rolling,
+            self._r_valley, self._r_crest,
+        ])
+        try:
+            route = archetype(n)
+            self._assert_passable(route.name, route.pagodas)
+        except Exception:
+            route = self._Route("Flat Tube", "fallback")
+            route.hold("flat", n, 300, ROUTE_GAP)
+        self.route = [(cy, gap_h) for (_x, cy, gap_h, _seed) in route.pagodas]
+        self.spawned = 0
+        self.route_pipes = []
+
+    def _pads(self, n):
+        pad = 2 if n >= 8 else 1
+        return pad, pad
+
+    def _r_plunge(self, n):               # d2 — the long gentle dip
+        r = self._Route("Long Plunge", "ride the fall")
+        h, t = self._pads(n); m = n - h - t
+        r.hold("in", h, 210, ROUTE_GAP).ramp("plunge", 410, m, ROUTE_GAP) \
+            .hold("out", t, r.cy, ROUTE_GAP)
+        return r
+
+    def _r_ascent(self, n):               # d3 — steady climb
+        r = self._Route("The Ascent", "steady climb")
+        h, t = self._pads(n); m = n - h - t
+        r.hold("in", h, 410, ROUTE_GAP).ramp("climb", 210, m, ROUTE_GAP) \
+            .hold("out", t, r.cy, ROUTE_GAP)
+        return r
+
+    def _r_rolling(self, n):              # d3 — smooth sine
+        r = self._Route("Rolling Hills", "smooth alternation")
+        h, t = self._pads(n); m = n - h - t
+        r.hold("in", h, 300, ROUTE_GAP).sine("roll", 62, 10, m, ROUTE_GAP, base=300) \
+            .hold("out", t, r.cy, ROUTE_GAP)
+        return r
+
+    def _r_valley(self, n):               # d4 — fall then climb (V)
+        r = self._Route("The Valley", "fall to climb")
+        h, t = self._pads(n); m = n - h - t
+        m1 = m // 2; m2 = m - m1
+        r.hold("in", h, 230, ROUTE_GAP).ramp("fall", 410, m1, ROUTE_GAP) \
+            .ramp("climb", 230, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
+        return r
+
+    def _r_crest(self, n):                # d4 — climb then fall (hill)
+        r = self._Route("The Crest", "apex management")
+        h, t = self._pads(n); m = n - h - t
+        m1 = m // 2; m2 = m - m1
+        r.hold("in", h, 410, ROUTE_GAP).ramp("climb", 220, m1, ROUTE_GAP) \
+            .ramp("fall", 410, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
+        return r
