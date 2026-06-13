@@ -1174,7 +1174,10 @@ def _grn_pick(pool, k, salt):
 def _draw_greenery_cluster(surf, sx, pal, k):
     """One static planting bed centred on `sx`; deterministic in `k` (no flicker).
     The pots stand directly on the sidewalk (same ground line as a lone planter)."""
-    night = _nightf(pal)
+    # Greenery holds its daytime look the whole cycle: greenery_cast's night retint
+    # cooled the foliage to a muddy blue-green after dusk, which read worse than just
+    # leaving the plants their clean day colour. `pal` is kept for call-site uniformity.
+    night = 0.0
     triad = (k % 2 == 0)
     spread = 23 if (k % 3) else 16
     soil = GROUND_Y - 1
