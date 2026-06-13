@@ -36,9 +36,6 @@ ROUTE_SEED = 0            # one pagoda family for the whole route (stupa canopy)
 ROUTE_GAP = 172           # per-pillar gap height (inside the 150-185 window)
 
 # ── clown / die placement ────────────────────────────────────────────────────
-CLOWN_X = 170             # the clown is a STATIC fixture: it stands here, in
-                          # view, from the moment it appears and never moves
-OFFER_TIMEOUT = 7.0       # auto-grab if the player never flies into the die
 DICE_DX = 70              # die floats this far LEFT of the clown
 DICE_Y = 330              # die height — comfortably reachable mid-flight
 DICE_PICK_R = 30          # generous pickup radius around the die
@@ -108,16 +105,26 @@ class WarrenDemo:
         if self.die_pop_t > 0.0:
             self.die_pop_t = max(0.0, self.die_pop_t - dt)   # celebration life
 
+        # The clown + die are world-anchored scenery in a static pose: once they
+        # enter (a few seconds in) they ride the world scroll leftward and slide
+        # off the left edge — they never walk or hold position on screen. The die
+        # rides at the clown's hand until it's grabbed.
+        if self.clown_x is not None:
+            self.clown_x -= world._current_scroll() * dt
+            if not self.collected:
+                self.dice_x = self.clown_x - DICE_DX
+            if self.clown_x < -160:
+                self.clown_x = None
+
         if self.phase == "fly_in":
             if self.t >= T_CLOWN_IN:
-                self.clown_x = float(CLOWN_X)          # appears in place...
-                self.dice_x = self.clown_x - DICE_DX   # ...and never moves
+                self.clown_x = float(SPAWN_X)          # enters from the right...
+                self.dice_x = self.clown_x - DICE_DX   # ...and scrolls with the world
                 self._goto("offer")
 
         elif self.phase == "offer":
-            # The clown + die are a static fixture; just wait for the player to
-            # fly into the die (safety timeout so a looping demo never stalls).
-            if self._dice_hit(world) or self.pt >= OFFER_TIMEOUT:
+            # grab on contact, or auto-grab once the die has scrolled past Pip
+            if self._dice_hit(world) or self.dice_x < BIRD_X - 60:
                 self._collect(world)
                 self._goto("rolling")
 
@@ -137,7 +144,7 @@ class WarrenDemo:
                 self._goto("wait_route")
 
         elif self.phase == "wait_route":
-            # clown stays put where it handed over the die; N is revealed
+            # the result celebration is up; the clown keeps scrolling off-screen
             if self.pt >= T_AFTER_PICKUP:
                 self._make_route(world)
                 if self.ghost_run:
