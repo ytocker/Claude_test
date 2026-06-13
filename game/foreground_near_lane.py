@@ -1102,24 +1102,14 @@ def _general_pedestrians(surf, w, scroll, pal, t, density=1.0):
 
 
 def _general_greenery(surf, w, scroll, pal, t, fd=1.0):
-    """Low near plants on the front edge — larger planters + a vine tub + the odd
-    pine. Fixtures, so thinned by the phase-only furniture density `fd` via a stable
-    per-slot gate (present from t=0, no flicker) and spaced on wide periods, so the
-    front edge stays open most of the day. Short greenery may sit under the lanes;
-    the taller pine is gated to a clear zone."""
+    """Near-lane greenery accents — a vine tub + the odd pine. The pooled potted
+    plants now live in the RAISED far-band cluster beds (see
+    foreground_promenade._draw_greenery_cluster), so the front edge is kept open
+    rather than jammed with large low pots. Fixtures, so thinned by the phase-only
+    furniture density `fd` via a stable per-slot gate (present from t=0, no flicker)
+    and spaced on wide periods; the taller pine is gated to a clear zone."""
     ny = NEAR_GROUND_Y
 
-    def _grn_decide(k):
-        return (pr._slot_on(k, 21, fd),
-                _fv.select_variant('greenery', _fv.slot_seed(k, 91),
-                                   _fv.beat_for_phase(pr._CUR_PHASE),
-                                   _fv.weather_bucket(pr._CUR_RAIN, pr._CUR_SNOW)))
-    for sx, k in _near_xs(scroll, w, 420, x0=60):
-        on, gv = sp._slot_latch(('grn', 21), k, lambda k=k: _grn_decide(k))
-        if on:
-            _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx, gv=gv: _scaled_cast(
-                s, pr.draw_greenery, sx, pal, 1.55, t=t, variant=gv))
-    sp._latch_prune(('grn', 21))
     for sx, k in _near_xs(scroll, w, 520, x0=200):
         if sp._slot_latch(('grn', 22), k, lambda k=k: pr._slot_on(k, 22, fd)):
             _zbuf.enqueue(ny, TB_FIXTURE, lambda s, sx=sx: _near_vine_lantern(s, sx, pal))
