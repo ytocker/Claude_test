@@ -20,7 +20,6 @@ import pygame
 
 from game.config import W, GROUND_Y, BIRD_X, BIRD_R, PIPE_W
 from game.entities import Pipe
-from game import draw as gfx
 
 # ── script timing (seconds) ──────────────────────────────────────────────────
 T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
@@ -87,11 +86,9 @@ class WarrenDemo:
         self.route = None          # list of (gap_cy, gap_h) for N pillars
         self.route_pipes = []      # Pipes we spawned, in order
         self.spawned = 0
-        self.sign_pipe = None      # first route pillar (carries the N sign)
 
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
-        self._sign_font = None     # cached sign font
 
     # ── public hooks ─────────────────────────────────────────────────────────
     def gates_flap(self):
@@ -200,31 +197,10 @@ class WarrenDemo:
             # celebration banner in a fixed spot (see _draw_celebration).
 
     def draw_sign(self, surf, world, sx, sy):
-        """The N-of-pillars sign hung from the first route pagoda — drawn AFTER
-        the pillars so it reads in front of the pagoda tops. Also hosts the
-        result celebration banner (drawn here so it layers over the route)."""
+        """Hosts the result celebration banner — drawn AFTER the pillars so it
+        layers in front of the route. (The old N-of-pillars plaque that hung
+        from the first pagoda was removed; the banner already shows N.)"""
         self._draw_celebration(surf)               # fixed-spot popup; self-gated
-        p = self.sign_pipe
-        if p is None or self.roll is None:
-            return
-        if p.x + PIPE_W < 0 or p.x > W + 40:        # bail once fully off either edge
-            return
-        cx = int(p.x + PIPE_W / 2 + sx)
-        top = int(p.gap_y - p.gap_h / 2 + sy)     # gap rim under the top pagoda
-        txt = str(self.roll)
-        if self._sign_font is None:
-            self._sign_font = pygame.font.SysFont(None, 34, bold=True)
-        label = self._sign_font.render(txt, True, (60, 40, 20))
-        pw = label.get_width() + 22
-        ph = label.get_height() + 14
-        bx, by = cx - pw // 2, top + 8
-        # two short ropes from the rim down to the plaque
-        for rx in (bx + 8, bx + pw - 8):
-            pygame.draw.line(surf, (120, 86, 48), (rx, top), (rx, by + 2), 3)
-        gfx.blit_glow(surf, cx, by + ph // 2, int(pw * 0.7), (255, 214, 110), alpha=120)
-        gfx.rounded_rect(surf, (bx, by, pw, ph), 7, (244, 210, 130))
-        pygame.draw.rect(surf, (150, 104, 48), (bx, by, pw, ph), 2, border_radius=7)
-        surf.blit(label, (cx - label.get_width() // 2, by + 7))
 
     # ── internals ────────────────────────────────────────────────────────────
     def _clown_surface(self):
@@ -437,8 +413,6 @@ class WarrenDemo:
         p.is_kfc = False
         world.pipes.append(p)
         self.route_pipes.append(p)
-        if self.spawned == 0:
-            self.sign_pipe = p
         self.spawned += 1
 
     def _make_route(self, world):
