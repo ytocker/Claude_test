@@ -1,16 +1,20 @@
 """Exploration renderer for the dice-results celebration popup.
 
 The clown's floating die settles on a roll N (10..25 pagodas) or a special
-GHOST outcome, and a festive popup announces it. This script draws 5 distinct
-structural directions for that "you rolled N!" moment over a representative
-pale-day-sky tile, then tiles them into one labelled comparison sheet.
+GHOST outcome, and a festive popup announces it. This script draws the
+surviving structural directions for that "you rolled N!" moment at their TRUE
+on-screen size (the popup is ~264 design px wide on the 360 canvas), composited
+over a pale-day-sky swatch, with a small actual-size inset per cell so real
+small-screen legibility is judged honestly — no flattering zoom-only cells.
 
-Some variants are deliberately built on the hero clown's "Plum & Lime" motif
-(plum/lime/gold) per the brief; others explore other festive treatments.
+Every survivor is built on the hero clown's "Plum & Lime" motif (plum/lime/gold)
+and shares one number treatment: cream fill + thick plum outline + drop shadow,
+the proven combo. Lime is a panel/backing colour only, never the number or
+body text on the sky (it vibrates against cyan).
 
 Run (headless):
     python tools/render_dice_celebration.py
-Writes docs/dice_results/round_1.png.
+Writes docs/dice_results/round_2.png.
 """
 import math
 import os
@@ -34,28 +38,32 @@ SKY_BOT = (170, 220, 245)
 
 # Hero clown "Plum & Lime" palette (from the brief).
 PLUM = (96, 44, 150)
+PLUM_DK = (66, 28, 110)
 LIME = (132, 218, 116)
 GOLD = (250, 205, 72)
+CREAM = (255, 248, 224)
+# GHOST sibling re-skin: same silhouette, dark navy/plum body.
+NAVY = (38, 24, 74)
+NAVY_LT = (60, 40, 104)
 
 
 def sky_tile(w, h):
-    """A representative pale-day-sky background, slightly lighter toward the
-    bottom — the popup sits high (cy~152) where the sky is still fairly bright,
-    so we sample a mid-band of the full-screen gradient rather than the top."""
+    """A representative pale-day-sky background. The popup sits high (cy~152)
+    where the sky is still fairly bright, so we sample a mid-band of the
+    full-screen gradient rather than the top."""
     s = pygame.Surface((w, h))
     for y in range(h):
-        # Sample the lower-middle of the day gradient (where the popup lives).
         t = 0.35 + 0.45 * (y / max(1, h - 1))
         col = tuple(int(SKY_TOP[i] + (SKY_BOT[i] - SKY_TOP[i]) * t) for i in range(3))
         pygame.draw.line(s, col, (0, y), (w, y))
     return s
 
 
-def _num_block(canvas, c, ncy, roll, num_col, edge_col, ss, size=70,
-               shadow_a=95, edge_w=3):
-    """The hero number — vendored bold font with drop shadow + thick edge ring,
-    the shared treatment that keeps the rolled N reading as the dominant element
-    rather than a plain score."""
+def _num_block(canvas, c, ncy, roll, ss, size=88, num_col=CREAM, edge_col=PLUM,
+               shadow_a=110, edge_w=4):
+    """The hero number — vendored bold font with a soft drop shadow + thick
+    plum outline ring. Standardised cream-on-plum-outline across every survivor
+    so the rolled N is unmistakably the dominant element, never a plain score."""
     nf = hud._font(int(size * ss), True)
     num = nf.render(str(roll), True, num_col)
     edge = nf.render(str(roll), True, edge_col)
@@ -63,110 +71,38 @@ def _num_block(canvas, c, ncy, roll, num_col, edge_col, ss, size=70,
     shadow.set_alpha(shadow_a)
     canvas.blit(shadow, shadow.get_rect(center=(c + 3 * ss, ncy + 5 * ss)))
     o = edge_w * ss
-    for ox, oy in ((-o, 0), (o, 0), (0, -o), (0, o),
-                   (-o, -o), (o, -o), (-o, o), (o, o)):
+    ring = []
+    for ang in range(0, 360, 30):
+        ring.append((math.cos(math.radians(ang)) * o, math.sin(math.radians(ang)) * o))
+    for ox, oy in ring:
         canvas.blit(edge, edge.get_rect(center=(c + ox, ncy + oy)))
     nb = num.get_rect(center=(c, ncy))
     canvas.blit(num, nb)
     return nb
 
 
-def _label(canvas, c, lcy, txt, label_col, edge_col, ss, size=26, track=True):
+def _label_plate(canvas, c, cy, txt, ss, plate_col, text_col, edge_col,
+                 size=27, track=True, pad_x=18, pad_y=7, plate_alpha=255):
+    """Seat the label on a rounded plate so it never drops out against the sky,
+    with the same cream/outline lettering as the number for one read."""
     lf = hud._font(int(size * ss), True)
     spaced = " ".join(txt) if track else txt
-    lab = lf.render(spaced, True, label_col)
-    labedge = lf.render(spaced, True, edge_col)
-    for ox, oy in ((-SS, 0), (SS, 0), (0, -SS), (0, SS)) if (SS := ss) else ():
-        canvas.blit(labedge, labedge.get_rect(center=(c + ox, lcy + oy)))
-    canvas.blit(lab, lab.get_rect(center=(c, lcy)))
-
-
-# ── Variant 1: Plum & Lime sunburst rosette ───────────────────────────────────
-def var_rosette_clown(roll, ss):
-    """Clown-coloured restyle of the current sunburst rosette: plum/lime wedges,
-    gold hub, gold number, gold confetti — same proven structure, clown motif."""
-    D = 264
-    HD = D * ss
-    c = HD // 2
-    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
-    rose = [PLUM, LIME]
-    rays = 24
-    step = math.tau / rays
-    Rr = int(HD * 0.30)
-    for i in range(rays):
-        a0 = 0.35 + i * step
-        a1 = a0 + step * 0.9
-        am = (a0 + a1) * 0.5
-        col = rose[i % 2] + (88,)
-        pygame.draw.polygon(canvas, col, [
-            (c, c),
-            (c + math.cos(a0) * Rr, c + math.sin(a0) * Rr),
-            (c + math.cos(am) * Rr * 1.05, c + math.sin(am) * Rr * 1.05),
-            (c + math.cos(a1) * Rr, c + math.sin(a1) * Rr)])
-    hub = pygame.Surface((HD, HD), pygame.SRCALPHA)
-    pygame.draw.circle(hub, GOLD + (70,), (c, c), int(HD * 0.185))
-    pygame.draw.circle(hub, PLUM + (120,), (c, c), int(HD * 0.185), 4 * ss)
-    canvas.blit(hub, (0, 0))
-    conf = [GOLD, LIME, (255, 255, 255), PLUM]
-    for i in range(18):
-        a = (i / 18) * math.tau
-        dist = HD * 0.30 + (i % 3) * 9 * ss
-        px = c + math.cos(a) * dist
-        py = c + math.sin(a) * dist * 0.86
-        sz = (5 + (i % 3) * 2) * ss
-        d = pygame.Surface((sz, sz), pygame.SRCALPHA)
-        pygame.draw.polygon(d, conf[i % 4] + (230,),
-                            [(sz // 2, 0), (sz, sz // 2), (sz // 2, sz), (0, sz // 2)])
-        d = pygame.transform.rotate(d, (i * 53) % 360)
-        canvas.blit(d, (int(px - d.get_width() / 2), int(py - d.get_height() / 2)))
-    nb = _num_block(canvas, c, c - int(8 * ss), roll, GOLD, PLUM, ss)
-    _label(canvas, c, nb.bottom + int(16 * ss), "PAGODAS", LIME, PLUM, ss)
-    return canvas, D
-
-
-# ── Variant 2: Plum & Lime ribbon banner placard ──────────────────────────────
-def var_ribbon_banner(roll, ss):
-    """A festive carnival banner: a lime placard with notched ribbon tails and a
-    plum rolled-edge frame, gold star toppers. No wheel — the placard itself is
-    the festive object, with the number filling its centre. Clown-coloured."""
-    D = 264
-    HD = D * ss
-    c = HD // 2
-    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
-
-    bw, bh = int(HD * 0.72), int(HD * 0.46)
-    bx, by = c - bw // 2, c - bh // 2
-
-    # Ribbon tails flaring left/right behind the placard (plum, with a notch).
-    tail_w = int(HD * 0.20)
-    for sgn in (-1, 1):
-        x0 = c + sgn * (bw // 2 - 4 * ss)
-        pts = [
-            (x0, by + int(bh * 0.16)),
-            (x0 + sgn * tail_w, by + int(bh * 0.04)),
-            (x0 + sgn * tail_w * 0.7, by + bh // 2),
-            (x0 + sgn * tail_w, by + int(bh * 0.96)),
-            (x0, by + int(bh * 0.84)),
-        ]
-        pygame.draw.polygon(canvas, (66, 28, 110), pts)          # shaded back tail
-    # Placard body — lime, rolled plum frame, soft gold inner line.
-    rad = int(18 * ss)
-    pygame.draw.rect(canvas, PLUM, (bx - 6 * ss, by - 6 * ss, bw + 12 * ss, bh + 12 * ss),
-                     border_radius=rad + 6 * ss)
-    pygame.draw.rect(canvas, LIME, (bx, by, bw, bh), border_radius=rad)
-    pygame.draw.rect(canvas, GOLD, (bx + 6 * ss, by + 6 * ss, bw - 12 * ss, bh - 12 * ss),
-                     width=2 * ss, border_radius=rad - 4 * ss)
-    # Top highlight band on the lime for a glossy festive sheen.
-    gloss = pygame.Surface((bw - 12 * ss, bh // 3), pygame.SRCALPHA)
-    gloss.fill((255, 255, 255, 46))
-    canvas.blit(gloss, (bx + 6 * ss, by + 6 * ss))
-    # Gold star toppers riding the frame's top corners.
-    for sx in (bx + int(bw * 0.16), bx + int(bw * 0.84)):
-        _star(canvas, sx, by - 2 * ss, 11 * ss, GOLD, PLUM, ss)
-
-    nb = _num_block(canvas, c, c - int(6 * ss), roll, (255, 255, 255), PLUM, ss, size=66)
-    _label(canvas, c, by + bh + int(20 * ss), "PAGODAS", GOLD, PLUM, ss)
-    return canvas, D
+    lab = lf.render(spaced, True, text_col)
+    pw = lab.get_width() + int(pad_x * 2 * ss)
+    ph = lab.get_height() + int(pad_y * 2 * ss)
+    plate = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    pc = plate_col + (plate_alpha,) if len(plate_col) == 3 else plate_col
+    pygame.draw.rect(plate, pc, plate.get_rect(), border_radius=int(ph * 0.5))
+    pygame.draw.rect(plate, GOLD + (180,), plate.get_rect(),
+                     width=max(1, 2 * ss), border_radius=int(ph * 0.5))
+    pr = plate.get_rect(center=(c, cy))
+    canvas.blit(plate, pr)
+    # Thin outline under the lettering for crisp edges on the plate.
+    edge = lf.render(spaced, True, edge_col)
+    for ox, oy in ((-ss, 0), (ss, 0), (0, -ss), (0, ss)):
+        canvas.blit(edge, edge.get_rect(center=(c + ox, cy + oy)))
+    canvas.blit(lab, lab.get_rect(center=(c, cy)))
+    return pr
 
 
 def _star(canvas, cx, cy, r, fill, edge, ss, points=5):
@@ -180,35 +116,194 @@ def _star(canvas, cx, cy, r, fill, edge, ss, points=5):
     pygame.draw.polygon(canvas, fill, inner)
 
 
-# ── Variant 3: Gold medallion plaque (warm/neutral festive) ───────────────────
-def var_medallion(roll, ss):
-    """A struck gold medallion on a deep-plum field with a fluted bezel and a
-    laurel sweep — a "prize" framing. Clown-adjacent (plum field, gold coin) but
-    leans neutral-festive. The number is stamped into the coin face."""
+def _keyline_halo(canvas, rect_pts_fn, ss):
+    """A 2px plum keyline drawn just outside the banner silhouette to kill the
+    lime/sky edge vibration — the eye reads a hard plum frame, not a buzzing
+    lime/cyan boundary."""
+    pass  # banners draw their own plum rolled-edge; halo handled inline.
+
+
+def _confetti_layer(canvas, c, ss, spread=0.46, n=22, behind=True):
+    """Recoloured (plum/lime/gold) pop-in confetti burst FX — diamonds, dots and
+    short streamers radiating out behind the frame so the ease-out-back scale
+    gets its juice without a competing structure."""
+    HD = canvas.get_width()
+    pal = [GOLD, LIME, PLUM, CREAM, GOLD, LIME]
+    # Short streamer curls.
+    for i in range(12):
+        a = i * math.tau / 12 + 0.3
+        r0 = HD * 0.30
+        r1 = HD * spread + (i % 3) * 7 * ss
+        col = pal[i % len(pal)]
+        pts = []
+        for t in range(6):
+            tt = t / 5
+            r = r0 + (r1 - r0) * tt
+            aa = a + math.sin(tt * 3.0 + i) * 0.16
+            pts.append((c + math.cos(aa) * r, c + math.sin(aa) * r * 0.92))
+        pygame.draw.lines(canvas, col, False, pts, max(2, 3 * ss))
+    # Diamonds + dots scattered along the burst front.
+    for i in range(n):
+        a = i * math.tau / n + 0.5
+        dist = HD * 0.30 + (i * 37 % 110) / 110 * HD * 0.16
+        px = c + math.cos(a) * dist
+        py = c + math.sin(a) * dist * 0.92
+        col = pal[i % len(pal)]
+        if i % 2 == 0:
+            sz = (5 + i % 3 * 2) * ss
+            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
+            pygame.draw.polygon(d, col + (235,), [(sz // 2, 0), (sz, sz // 2),
+                                                  (sz // 2, sz), (0, sz // 2)])
+            d = pygame.transform.rotate(d, (i * 47) % 360)
+            canvas.blit(d, d.get_rect(center=(int(px), int(py))))
+        else:
+            pygame.draw.circle(canvas, col, (int(px), int(py)), 3 * ss + i % 2 * ss)
+
+
+def _banner_body(canvas, c, ss, body_col, frame_col, tail_col, gloss_a=46):
+    """Shared ribbon-banner silhouette: flared plum ribbon tails behind a
+    rounded placard with a rolled plum frame, a soft gold inner keyline, a glossy
+    top sheen, and gold star toppers. The normal roll and the GHOST sibling are
+    two skins of THIS one shape — only the body/tail colours differ."""
+    HD = canvas.get_width()
+    bw, bh = int(HD * 0.74), int(HD * 0.50)
+    bx, by = c - bw // 2, c - bh // 2
+
+    tail_w = int(HD * 0.19)
+    for sgn in (-1, 1):
+        x0 = c + sgn * (bw // 2 - 4 * ss)
+        pts = [
+            (x0, by + int(bh * 0.18)),
+            (x0 + sgn * tail_w, by + int(bh * 0.05)),
+            (x0 + sgn * tail_w * 0.7, by + bh // 2),
+            (x0 + sgn * tail_w, by + int(bh * 0.95)),
+            (x0, by + int(bh * 0.82)),
+        ]
+        pygame.draw.polygon(canvas, tail_col, pts)
+
+    rad = int(20 * ss)
+    # Plum keyline halo + rolled frame: a hard plum boundary that kills the
+    # body/sky edge vibration.
+    pygame.draw.rect(canvas, frame_col,
+                     (bx - 8 * ss, by - 8 * ss, bw + 16 * ss, bh + 16 * ss),
+                     border_radius=rad + 8 * ss)
+    pygame.draw.rect(canvas, body_col, (bx, by, bw, bh), border_radius=rad)
+    pygame.draw.rect(canvas, GOLD, (bx + 6 * ss, by + 6 * ss, bw - 12 * ss, bh - 12 * ss),
+                     width=2 * ss, border_radius=rad - 4 * ss)
+    gloss = pygame.Surface((bw - 12 * ss, bh // 3), pygame.SRCALPHA)
+    gloss.fill((255, 255, 255, gloss_a))
+    canvas.blit(gloss, (bx + 6 * ss, by + 6 * ss))
+    for sx in (bx + int(bw * 0.14), bx + int(bw * 0.86)):
+        _star(canvas, sx, by - 1 * ss, 11 * ss, GOLD, frame_col, ss)
+    return bx, by, bw, bh
+
+
+# ── LEAD: Ribbon Banner (refined) — normal roll ──────────────────────────────
+def var_ribbon_banner(roll, ss):
+    """Refined lead. Larger number with the dead lime above/below it killed,
+    "PAGODAS" seated on a plum plate riding the lower frame, a 2px plum keyline
+    halo around the whole banner. Clown lime body, plum frame, gold stars."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+    bx, by, bw, bh = _banner_body(canvas, c, ss, LIME, PLUM, PLUM_DK)
+    # Number sits high in the body; label plate straddles the lower frame so the
+    # lime real-estate is the number's, not dead air.
+    _num_block(canvas, c, c - int(10 * ss), roll, ss, size=96)
+    _label_plate(canvas, c, by + bh + int(2 * ss), "PAGODAS", ss, PLUM, CREAM, PLUM_DK)
+    return canvas, D
+
+
+# ── GHOST sibling re-skin — same banner, dark navy/plum body ──────────────────
+def var_ghost_sibling(roll, ss):
+    """GHOST as a SIBLING of the lead, not a new shape: the exact ribbon-banner
+    silhouette re-skinned to a dark navy/plum body, a friendly ghost mascot
+    peeking centred above the panel, "GHOST!" on the same plum plate. No
+    ectoplasm columns. The normal roll and this read as two skins of one popup."""
     D = 264
     HD = D * ss
     c = HD // 2
     canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
 
-    # Soft plum backing glow disc.
-    disc = pygame.Surface((HD, HD), pygame.SRCALPHA)
-    pygame.draw.circle(disc, PLUM + (60,), (c, c), int(HD * 0.40))
-    canvas.blit(disc, (0, 0))
+    # Ghost mascot centred above, peeking from behind the panel top edge.
+    gr = int(HD * 0.115)
+    gx = c
+    gy = c - int(HD * 0.30)
+    gw, gh = gr * 3, int(gr * 3.4)
+    ghost = pygame.Surface((gw, gh), pygame.SRCALPHA)
+    pygame.draw.circle(ghost, (240, 250, 255, 240), (gw // 2, gr), gr)
+    pygame.draw.rect(ghost, (240, 250, 255, 240),
+                     (gw // 2 - gr, gr, gr * 2, int(gr * 1.5)))
+    for k in range(4):  # scalloped hem
+        pygame.draw.circle(ghost, (240, 250, 255, 240),
+                           (gw // 2 - gr + int(gr * (0.45 + k * 0.55)), int(gr * 2.45)),
+                           int(gr * 0.32))
+    # Soft body shade for volume.
+    sh = pygame.Surface((gw, gh), pygame.SRCALPHA)
+    pygame.draw.circle(sh, (150, 170, 210, 70), (int(gw * 0.62), int(gr * 1.2)),
+                       int(gr * 0.8))
+    ghost.blit(sh, (0, 0))
+    for ex in (-1, 1):
+        pygame.draw.circle(ghost, NAVY, (gw // 2 + ex * gr // 2, gr), gr // 4)
+    # Rosy cheeks for friendliness.
+    for ex in (-1, 1):
+        pygame.draw.circle(ghost, (255, 170, 190, 150),
+                           (gw // 2 + ex * int(gr * 0.78), int(gr * 1.35)), int(gr * 0.18))
+    canvas.blit(ghost, ghost.get_rect(center=(gx, gy)))
 
-    R = int(HD * 0.30)
-    # Fluted bezel — alternating gold notches around the rim.
-    for i in range(40):
+    bx, by, bw, bh = _banner_body(canvas, c, ss, NAVY, PLUM, NAVY_LT)
+    _num_block(canvas, c, c - int(10 * ss), roll, ss, size=96, edge_col=PLUM)
+    _label_plate(canvas, c, by + bh + int(2 * ss), "GHOST!", ss, PLUM, CREAM, PLUM_DK)
+    return canvas, D
+
+
+# ── B-direction: Gold Medallion (refined) ─────────────────────────────────────
+def var_medallion(roll, ss):
+    """Refined B-direction. Clean symmetric 2-sprig laurel with a real
+    silhouette, "PAGODAS" on a cream/plum band off the bezel shadow, gold
+    confetti flecks for "festive roll" not "trophy", warmer/tighter plum field
+    so the disc feels framed not floating on a bruise."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    # Tighter, warmer framed plum field (ring, not a flat bruise).
+    field = pygame.Surface((HD, HD), pygame.SRCALPHA)
+    pygame.draw.circle(field, PLUM + (235,), (c, c), int(HD * 0.40))
+    pygame.draw.circle(field, GOLD + (210,), (c, c), int(HD * 0.40), max(2, 3 * ss))
+    pygame.draw.circle(field, PLUM_DK + (235,), (c, c), int(HD * 0.345))
+    canvas.blit(field, (0, 0))
+
+    # Festive gold confetti flecks over the field (reads "roll", not "award").
+    for i in range(16):
+        a = i * math.tau / 16 + 0.4
+        dist = HD * 0.345 + (i % 3) * 6 * ss
+        px = c + math.cos(a) * dist
+        py = c + math.sin(a) * dist
+        col = [GOLD, LIME, CREAM][i % 3]
+        if i % 2 == 0:
+            sz = (5 + i % 2 * 2) * ss
+            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
+            pygame.draw.polygon(d, col + (235,),
+                                [(sz // 2, 0), (sz, sz // 2), (sz // 2, sz), (0, sz // 2)])
+            d = pygame.transform.rotate(d, (i * 51) % 360)
+            canvas.blit(d, d.get_rect(center=(int(px), int(py))))
+        else:
+            pygame.draw.circle(canvas, col, (int(px), int(py)), 3 * ss)
+
+    R = int(HD * 0.275)
+    for i in range(40):  # fluted bezel
         a = i * math.tau / 40
         rr = R + (6 * ss if i % 2 == 0 else 2 * ss)
         pygame.draw.line(canvas, (200, 150, 30),
                          (c + math.cos(a) * (R - 2 * ss), c + math.sin(a) * (R - 2 * ss)),
-                         (c + math.cos(a) * rr, c + math.sin(a) * rr), 3 * ss)
-    # Coin body — radial-ish gold with a darker rim ring and inner bright field.
+                         (c + math.cos(a) * rr, c + math.sin(a) * rr), max(2, 3 * ss))
     pygame.draw.circle(canvas, (180, 132, 28), (c, c), R)
     pygame.draw.circle(canvas, GOLD, (c, c), R - 5 * ss)
-    pygame.draw.circle(canvas, (255, 232, 150), (c, c), R - 5 * ss, 3 * ss)
-    # Top-left specular highlight crescent, clipped to the coin face so the
-    # glossy sheen stays inside the bezel (the mask multiply trims the disc).
+    pygame.draw.circle(canvas, (255, 232, 150), (c, c), R - 5 * ss, max(2, 3 * ss))
+    # Clipped top-left specular crescent.
     hl = pygame.Surface((HD, HD), pygame.SRCALPHA)
     pygame.draw.circle(hl, (255, 255, 255, 90), (c - int(R * 0.32), c - int(R * 0.32)),
                        int(R * 0.55))
@@ -216,189 +311,193 @@ def var_medallion(roll, ss):
     pygame.draw.circle(mask, (255, 255, 255, 255), (c, c), R - 8 * ss)
     hl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     canvas.blit(hl, (0, 0))
-    # Laurel sweeps along the lower coin edge (lime leaves).
-    for sgn in (-1, 1):
-        for k in range(6):
-            a = math.pi * 0.5 + sgn * (0.30 + k * 0.13)
-            lx = c + math.cos(a) * (R - 14 * ss)
-            ly = c + math.sin(a) * (R - 14 * ss)
-            leaf = pygame.Surface((14 * ss, 8 * ss), pygame.SRCALPHA)
-            pygame.draw.ellipse(leaf, LIME, leaf.get_rect())
-            leaf = pygame.transform.rotate(leaf, -math.degrees(a) + 90 * sgn)
-            canvas.blit(leaf, leaf.get_rect(center=(lx, ly)))
 
-    nb = _num_block(canvas, c, c - int(8 * ss), roll, PLUM, (255, 240, 190), ss,
-                    size=72, edge_w=2)
-    _label(canvas, c, nb.bottom + int(14 * ss), "PAGODAS", (120, 60, 20), GOLD, ss)
-    return canvas, D
-
-
-# ── Variant 4: Pure confetti burst — no wheel (warm baseline) ──────────────────
-def var_confetti_burst(roll, ss):
-    """No rosette, no frame: just a dense radial confetti explosion (streamers +
-    diamonds + dots) framing a free-floating number. Keeps the existing warm
-    orange→pink/gold confetti direction as a baseline reference point."""
-    D = 264
-    HD = D * ss
-    c = HD // 2
-    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
-
-    pal = [(255, 208, 88), (255, 118, 150), (118, 200, 255),
-           (172, 255, 150), (255, 168, 70)]
-    # Streamer curls — short bezier-ish arcs of colour radiating out.
-    for i in range(14):
-        a = i * math.tau / 14 + 0.2
-        r0 = HD * 0.16
-        r1 = HD * 0.40 + (i % 3) * 8 * ss
-        col = pal[i % len(pal)]
-        pts = []
+    # CLEAN symmetric 2-sprig laurel framing the lower disc — each sprig a stem
+    # with paired leaves, a real silhouette rather than a smear.
+    def sprig(sgn):
+        base_a = math.pi * 0.5 + sgn * 0.62
+        stem = []
         for t in range(7):
             tt = t / 6
-            r = r0 + (r1 - r0) * tt
-            aa = a + math.sin(tt * 3.0 + i) * 0.18
-            pts.append((c + math.cos(aa) * r, c + math.sin(aa) * r * 0.9))
-        pygame.draw.lines(canvas, col, False, pts, 4 * ss)
-    # Diamonds + dots scattered along the burst front.
-    for i in range(26):
-        a = i * math.tau / 26 + 0.5
-        dist = HD * 0.22 + (i * 37 % 110) / 110 * HD * 0.22
-        px = c + math.cos(a) * dist
-        py = c + math.sin(a) * dist * 0.9
-        col = pal[i % len(pal)]
-        if i % 2 == 0:
-            sz = (5 + i % 3 * 2) * ss
-            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
-            pygame.draw.polygon(d, col, [(sz // 2, 0), (sz, sz // 2),
-                                         (sz // 2, sz), (0, sz // 2)])
-            d = pygame.transform.rotate(d, (i * 47) % 360)
-            canvas.blit(d, d.get_rect(center=(int(px), int(py))))
-        else:
-            pygame.draw.circle(canvas, col, (int(px), int(py)), 3 * ss + i % 2 * ss)
-    nb = _num_block(canvas, c, c - int(6 * ss), roll, (255, 224, 118), (122, 62, 14),
-                    ss, size=78)
-    _label(canvas, c, nb.bottom + int(16 * ss), "PILLARS", (255, 240, 196),
-           (122, 62, 14), ss)
+            ar = base_a - sgn * tt * 0.62
+            rr = (R - 9 * ss) + tt * 14 * ss
+            stem.append((c + math.cos(ar) * rr, c + math.sin(ar) * rr))
+        pygame.draw.lines(canvas, (70, 150, 60), False, stem, max(2, 3 * ss))
+        for k, (sx, sy) in enumerate(stem):
+            if k == 0:
+                continue
+            la = math.atan2(sy - stem[k - 1][1], sx - stem[k - 1][0])
+            for side in (-1, 1):
+                lw, lh = int(13 * ss), int(7 * ss)
+                leaf = pygame.Surface((lw, lh), pygame.SRCALPHA)
+                pygame.draw.ellipse(leaf, LIME, leaf.get_rect())
+                pygame.draw.ellipse(leaf, (70, 150, 60), leaf.get_rect(), max(1, ss))
+                leaf = pygame.transform.rotate(
+                    leaf, -math.degrees(la) + side * 42)
+                canvas.blit(leaf, leaf.get_rect(center=(int(sx), int(sy))))
+    sprig(-1)
+    sprig(1)
+    # Tie ribbon knot at the laurel base.
+    pygame.draw.circle(canvas, GOLD, (c, c + R + int(2 * ss)), int(6 * ss))
+    pygame.draw.circle(canvas, PLUM, (c, c + R + int(2 * ss)), int(6 * ss), max(1, 2 * ss))
+
+    nb = _num_block(canvas, c, c - int(14 * ss), roll, ss, size=80,
+                    num_col=CREAM, edge_col=PLUM, edge_w=3)
+    _label_plate(canvas, c, c + int(28 * ss), "PAGODAS", ss, CREAM, PLUM, PLUM,
+                 size=22)
     return canvas, D
 
 
-# ── Variant 5: Clown-coloured GHOST starburst plaque ──────────────────────────
-def var_ghost_clown(roll, ss):
-    """The GHOST outcome rendered in a haunted twist of the clown motif: a plum
-    night field with lime-edged ectoplasm wisps, a jagged lime/gold starburst,
-    and a glowing little ghost mascot beside the number. Shows how GHOST reads
-    while still belonging to the clown's family."""
+# ── Ribbon Banner + recoloured confetti-burst FX (the "juice" frame) ──────────
+def var_ribbon_juice(roll, ss):
+    """The lead frame with the recoloured (plum/lime/gold) confetti-burst pop-in
+    FX layer firing behind it — shows the ease-out-back scale's juice without a
+    competing structure. Same number/label treatment as the lead."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+    _confetti_layer(canvas, c, ss, spread=0.48, n=24)
+    bx, by, bw, bh = _banner_body(canvas, c, ss, LIME, PLUM, PLUM_DK)
+    _num_block(canvas, c, c - int(10 * ss), roll, ss, size=96)
+    _label_plate(canvas, c, by + bh + int(2 * ss), "PAGODAS", ss, PLUM, CREAM, PLUM_DK)
+    return canvas, D
+
+
+# ── 5th option: framed plaque / starburst-pop alternative ─────────────────────
+def var_starburst_plaque(roll, ss):
+    """A legitimate alternative that still makes the number the hero: a gold
+    pointed-star plaque on a plum sunray field, number stamped on the gold,
+    "PAGODAS" on a plum plate beneath. Clown-coloured, different silhouette from
+    the banner so we keep a real 5th choice."""
     D = 264
     HD = D * ss
     c = HD // 2
     canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
 
-    # Jagged spiky starburst (alternating long/short points) in lime over plum.
+    # Plum sunray field behind (alternating shade) so the plaque sits framed.
+    rays = 20
+    for i in range(rays):
+        a0 = i * math.tau / rays
+        a1 = a0 + math.tau / rays
+        col = PLUM if i % 2 == 0 else PLUM_DK
+        pygame.draw.polygon(canvas, col + (210,), [
+            (c, c),
+            (c + math.cos(a0) * HD * 0.42, c + math.sin(a0) * HD * 0.42),
+            (c + math.cos(a1) * HD * 0.42, c + math.sin(a1) * HD * 0.42)])
+    # Big rounded-point gold star plaque.
+    R = int(HD * 0.32)
     pts = []
-    spikes = 16
-    for i in range(spikes * 2):
-        rr = HD * 0.34 if i % 2 == 0 else HD * 0.20
-        a = i * math.pi / spikes
+    pn = 12
+    for i in range(pn * 2):
+        rr = R if i % 2 == 0 else R * 0.78
+        a = -math.pi / 2 + i * math.pi / pn
         pts.append((c + math.cos(a) * rr, c + math.sin(a) * rr))
-    pygame.draw.polygon(canvas, PLUM + (150,), pts)
-    pygame.draw.polygon(canvas, GOLD + (150,), pts, 3 * ss)   # gold-rimmed spikes
-    inner = [(c + (px - c) * 0.80, c + (py - c) * 0.80) for px, py in pts]
-    pygame.draw.polygon(canvas, LIME + (110,), inner)
-    pygame.draw.circle(canvas, (40, 18, 70, 180), (c, c), int(HD * 0.20))
+    pygame.draw.polygon(canvas, PLUM, [(c + (px - c) * 1.07, c + (py - c) * 1.07)
+                                       for px, py in pts])  # plum keyline
+    pygame.draw.polygon(canvas, (200, 150, 30), pts)
+    inner = [(c + (px - c) * 0.92, c + (py - c) * 0.92) for px, py in pts]
+    pygame.draw.polygon(canvas, GOLD, inner)
+    # Inner cream disc field for the number to read against.
+    pygame.draw.circle(canvas, (255, 240, 200), (c, c), int(R * 0.62))
+    pygame.draw.circle(canvas, PLUM, (c, c), int(R * 0.62), max(1, 2 * ss))
+    # Lime gem accents at the four cardinal star tips.
+    for k in range(4):
+        a = -math.pi / 2 + k * math.pi / 2
+        gx2, gy2 = c + math.cos(a) * R * 0.92, c + math.sin(a) * R * 0.92
+        pygame.draw.circle(canvas, LIME, (int(gx2), int(gy2)), int(5 * ss))
+        pygame.draw.circle(canvas, PLUM, (int(gx2), int(gy2)), int(5 * ss), max(1, ss))
 
-    # Rising ectoplasm wisps (lime-tinted), each a vertical column of fading
-    # blobs so they read as steam curling up rather than scattered dots.
-    for i in range(7):
-        wx = int(c - 66 * ss + i * 22 * ss)
-        sway = int(math.sin(i * 1.3) * 6 * ss)
-        for k in range(3):
-            wy = int(c + 40 * ss - k * 18 * ss)
-            al = max(0, 150 - k * 45 - (i % 2) * 20)
-            pygame.draw.circle(canvas, (180, 255, 200, al),
-                               (wx + sway + (k % 2) * 3 * ss, wy), (6 - k) * ss)
-
-    # Little ghost mascot up-right, gold eyes — the friendly spook.
-    gx, gy = c + int(HD * 0.20), c - int(HD * 0.22)
-    gr = int(HD * 0.085)
-    ghost = pygame.Surface((gr * 3, gr * 4), pygame.SRCALPHA)
-    gw, gh = gr * 3, gr * 4
-    pygame.draw.circle(ghost, (236, 255, 240, 235), (gw // 2, gr), gr)
-    pygame.draw.rect(ghost, (236, 255, 240, 235), (gw // 2 - gr, gr, gr * 2, gr * 1.6))
-    for k in range(4):  # scalloped hem
-        pygame.draw.circle(ghost, (236, 255, 240, 235),
-                           (gw // 2 - gr + int(gr * (0.4 + k * 0.55)), int(gr * 2.6)),
-                           int(gr * 0.34))
-    pygame.draw.circle(ghost, PLUM, (gw // 2 - gr // 2, gr), gr // 4)
-    pygame.draw.circle(ghost, PLUM, (gw // 2 + gr // 2, gr), gr // 4)
-    canvas.blit(ghost, ghost.get_rect(center=(gx, gy)))
-
-    nb = _num_block(canvas, c, c - int(6 * ss), roll, (236, 255, 240), PLUM, ss, size=72)
-    _label(canvas, c, nb.bottom + int(16 * ss), "GHOST!", LIME, PLUM, ss)
+    nb = _num_block(canvas, c, c - int(10 * ss), roll, ss, size=82,
+                    num_col=PLUM, edge_col=CREAM, edge_w=3)
+    _label_plate(canvas, c, c + int(R * 0.62) + int(16 * ss), "PAGODAS", ss,
+                 PLUM, CREAM, PLUM_DK, size=22)
     return canvas, D
 
 
 VARIANTS = [
-    ("1  Clown Rosette", "plum/lime sunburst + gold hub", var_rosette_clown, 17, True),
-    ("2  Ribbon Banner", "lime placard + plum frame + gold stars", var_ribbon_banner, 22, True),
-    ("3  Gold Medallion", "struck coin on plum + lime laurel", var_medallion, 14, True),
-    ("4  Confetti Burst", "warm streamer explosion, no wheel", var_confetti_burst, 19, False),
-    ("5  Ghost Starburst", "haunted plum/lime spike + mascot", var_ghost_clown, 10, True),
+    ("1  Ribbon Banner (LEAD)", "refined lead, normal roll", var_ribbon_banner, 22),
+    ("2  Ribbon Banner — GHOST", "SIBLING re-skin: navy body + mascot", var_ghost_sibling, 10),
+    ("3  Gold Medallion", "refined: clean laurel + cream band", var_medallion, 14),
+    ("4  Ribbon + Confetti FX", "lead + recoloured pop-in burst (juice)", var_ribbon_juice, 17),
+    ("5  Starburst Plaque", "gold star on plum sunrays (alt)", var_starburst_plaque, 23),
 ]
 
 
 def main():
-    SS = 3
-    tile_w, tile_h = 320, 360
-    cols, rows = 3, 2
-    pad = 16
-    head = 56
+    SS = 4  # supersample for crisp downscale to true size
+    # True on-screen size: popup is 264 design px on the 360 canvas.
+    TRUE = 264
+    INSET = 116  # the actual-size inset shows the popup at ~half real size again
+    cols = 3
+    rows = 2
+    pad = 20
+    head = 64
+    tile_w = TRUE + INSET + 40   # room for the inset to sit clear of the popup
+    tile_h = TRUE + 96
     sheet_w = cols * tile_w + (cols + 1) * pad
     sheet_h = head + rows * tile_h + (rows + 1) * pad
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((30, 34, 42))
 
     title_f = hud._font(30, True)
-    sub_f = hud._font(16, True)
-    sheet.blit(title_f.render("Dice-Results Celebration — Round 1 (5 variants)",
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render("Dice-Results Celebration — Round 2 (true on-screen size)",
                               True, (255, 255, 255)), (pad, 12))
-    sheet.blit(sub_f.render("Clown 'Plum & Lime' variants: 1, 2, 3, 5  |  baseline warm: 4",
-                            True, (200, 205, 215)), (pad, 38))
+    sheet.blit(sub_f.render(
+        "Each popup at its real 264px size over day-sky + a tiny actual-size inset. "
+        "Cell 2 = GHOST sibling.",
+        True, (200, 205, 215)), (pad, 40))
 
-    label_f = hud._font(20, True)
-    samp_f = hud._font(14, True)
+    label_f = hud._font(19, True)
+    samp_f = hud._font(13, True)
 
-    for idx, (name, desc, fn, roll, clown) in enumerate(VARIANTS):
+    for idx, (name, desc, fn, roll) in enumerate(VARIANTS):
         col = idx % cols
         row = idx // cols
         tx = pad + col * (tile_w + pad)
         ty = head + pad + row * (tile_h + pad)
 
         tile = sky_tile(tile_w, tile_h)
-        # Faint plum tag on clown variants so the motif grouping reads.
-        tag = (LIME if clown else (255, 208, 88))
-
         canvas, D = fn(roll, SS)
-        # Display the popup near its true on-screen scale (264 design px), but
-        # fit within the tile with a little headroom for labels.
-        disp = min(tile_w - 24, 264)
-        out = pygame.transform.smoothscale(canvas, (disp, disp))
-        tile.blit(out, out.get_rect(center=(tile_w // 2, tile_h // 2 - 6)))
 
-        # Header strip + footer caption on the tile.
+        # True on-screen size render, sitting left so the inset stays clear.
+        out = pygame.transform.smoothscale(canvas, (TRUE, TRUE))
+        tile.blit(out, out.get_rect(center=(16 + TRUE // 2, 36 + TRUE // 2)))
+
+        # Actual-size inset in the clear right column (the popup as it really
+        # sits, framed on a mini sky chip) so small-screen legibility is judged
+        # honestly without overlapping the true-size render.
+        chip = sky_tile(INSET + 16, INSET + 16)
+        ins = pygame.transform.smoothscale(canvas, (INSET, INSET))
+        chip.blit(ins, ins.get_rect(center=((INSET + 16) // 2, (INSET + 16) // 2)))
+        pygame.draw.rect(chip, (255, 255, 255), chip.get_rect(), 2)
+        cr = chip.get_rect()
+        cr.bottomright = (tile_w - 8, tile_h - 34)
+        tile.blit(chip, cr)
+        ilab = samp_f.render("actual size", True, (255, 255, 255))
+        ib = pygame.Surface((ilab.get_width() + 6, ilab.get_height() + 2),
+                            pygame.SRCALPHA)
+        ib.fill((20, 22, 28, 200))
+        ib.blit(ilab, (3, 1))
+        tile.blit(ib, (cr.left, cr.top - ib.get_height() - 1))
+
         strip = pygame.Surface((tile_w, 30), pygame.SRCALPHA)
-        strip.fill((20, 22, 28, 200))
+        strip.fill((20, 22, 28, 205))
         tile.blit(strip, (0, 0))
-        tile.blit(label_f.render(name, True, tag), (8, 5))
+        tag = (255, 210, 110) if "GHOST" in name else LIME
+        tile.blit(label_f.render(name, True, tag), (8, 6))
         cap = pygame.Surface((tile_w, 24), pygame.SRCALPHA)
-        cap.fill((20, 22, 28, 200))
+        cap.fill((20, 22, 28, 205))
         tile.blit(cap, (0, tile_h - 24))
         tile.blit(samp_f.render(f"{desc}  (roll {roll})", True, (220, 225, 235)),
-                  (8, tile_h - 22))
+                  (8, tile_h - 21))
         sheet.blit(tile, (tx, ty))
 
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "dice_results")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
