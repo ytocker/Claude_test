@@ -13,6 +13,7 @@ the first time the demo is constructed — after the display exists, and never o
 web (where `tools/` isn't even bundled). Every reuse point is wrapped so a
 missing/renamed helper degrades to a plain fallback instead of crashing a run.
 """
+import math
 import random
 
 import pygame
@@ -23,7 +24,8 @@ from game import draw as gfx
 
 # ── script timing (seconds) ──────────────────────────────────────────────────
 T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
-T_AFTER_PICKUP = 2.0      # beat between the roll and the route
+T_SPIN = 0.9              # dice tumble before the rolled number is revealed
+T_AFTER_PICKUP = 2.0      # beat between the reveal and the route
 T_AFTER_ROUTE = 2.0       # free flight after the route before Pip drops
 
 # ── warren geometry ──────────────────────────────────────────────────────────
@@ -76,7 +78,10 @@ class WarrenDemo:
         self.dice_y = DICE_Y
         self.collected = False
         self.roll = None
-        self.die_pop_t = 0.0       # result-die linger after pickup
+        self.spin_t = 0.0          # dice tumble clock (phase "rolling")
+        self._spin_face = 15       # number shown on the tumbling cube
+        self._spin_face_t = 0.0    # countdown to the next tumble face
+        self.die_pop_t = 0.0       # result-die linger after the reveal
         self.die_pop_y = DICE_Y
 
         self.route = None          # list of (gap_cy, gap_h) for N pillars
@@ -115,6 +120,21 @@ class WarrenDemo:
             self.dice_x -= dx
             if self._dice_hit(world) or self.dice_x < BIRD_X - 60:
                 self._collect(world)
+                self._goto("rolling")
+
+        elif self.phase == "rolling":
+            # the cube tumbles in place; the displayed face flickers, settling
+            # onto the real roll for the last stretch, then the number reveals.
+            self.spin_t += dt
+            if self.spin_t >= T_SPIN - 0.18:
+                self._spin_face = self.roll
+            else:
+                self._spin_face_t -= dt
+                if self._spin_face_t <= 0.0:
+                    self._spin_face = random.randint(15, 30)
+                    self._spin_face_t = 0.06
+            if self.spin_t >= T_SPIN:
+                self._reveal_roll(world)
                 self._goto("wait_route")
 
         elif self.phase == "wait_route":
@@ -164,23 +184,24 @@ class WarrenDemo:
             else:
                 pygame.draw.circle(surf, (150, 90, 200), (cx, fy - 80), 36)
 
-        if not self.collected and self.dice_x is not None:
+        if self.dice_x is not None:
             dx = int(self.dice_x + sx)
-            dy = int(self.dice_y + sy)
-            try:
-                self._draw_die(surf, dx, dy, self.pulse)
-            except Exception:
-                pygame.draw.rect(surf, (250, 246, 230), (dx - 16, dy - 16, 32, 32))
-        elif self.die_pop_t > 0.0 and self.dice_x is not None:
-            # the rolled result, lingering on the cube as it floats up
-            dx = int(self.dice_x + sx)
-            dy = int(self.die_pop_y + sy)
-            gfx.blit_glow(surf, dx, dy, 34, (255, 230, 120), alpha=130)
-            try:
-                self._draw_die_face(surf, dx, dy, 44, number=self.roll,
-                                    body=(255, 246, 224), pip_col=(190, 70, 40))
-            except Exception:
-                pass
+            if not self.collected:                       # floating, pre-grab
+                try:
+                    self._draw_die(surf, dx, int(self.dice_y + sy), self.pulse)
+                except Exception:
+                    pygame.draw.rect(surf, (250, 246, 230),
+                                     (dx - 16, int(self.dice_y + sy) - 16, 32, 32))
+            elif self.phase == "rolling":                # tumbling roll
+                self._draw_spinning_die(surf, dx, int(self.dice_y + sy))
+            elif self.die_pop_t > 0.0:                   # revealed result, rising
+                dy = int(self.die_pop_y + sy)
+                gfx.blit_glow(surf, dx, dy, 34, (255, 230, 120), alpha=130)
+                try:
+                    self._draw_die_face(surf, dx, dy, 44, number=self.roll,
+                                        body=(255, 246, 224), pip_col=(190, 70, 40))
+                except Exception:
+                    pass
 
     def draw_sign(self, surf, world, sx, sy):
         """The N-of-pillars sign hung from the first route pagoda — drawn AFTER
@@ -215,12 +236,33 @@ class WarrenDemo:
         if self._clown_surf is None and self._clown_ok:
             try:
                 s = pygame.Surface((CLOWN_W, CLOWN_H), pygame.SRCALPHA)
-                hand_up = (CLOWN_CX - 30, CLOWN_FEET - 150)
+                # Same raised-arm reach as the chosen design (#13): the left
+                # hand points up-left toward the floating die — (cx-60, feet-154)
+                # mirrors render_cell's hand_up so the arm isn't stubby.
+                hand_up = (CLOWN_CX - 60, CLOWN_FEET - 154)
                 self._build_jester(s, CLOWN_CX, CLOWN_FEET, hand_up, **self.spec)
                 self._clown_surf = s
             except Exception:
                 self._clown_ok = False
         return self._clown_surf
+
+    def _draw_spinning_die(self, surf, dx, dy):
+        """A short cube tumble before the reveal: a pulsing glow plus the die
+        spun by an ease-out angle (settling upright) with its face flickering
+        through numbers, so it reads as a real dice roll."""
+        u = min(1.0, self.spin_t / T_SPIN)
+        breathe = 0.5 + 0.5 * math.sin(self.pulse * 1.3)
+        gfx.blit_glow(surf, dx, dy, int(48 + 8 * breathe), (250, 210, 70), alpha=120)
+        gfx.blit_glow(surf, dx, dy, 18, (255, 242, 150), alpha=95)
+        try:
+            sc = pygame.Surface((96, 96), pygame.SRCALPHA)
+            self._draw_die_face(sc, 48, 48, 40, number=self._spin_face,
+                                body=(255, 246, 224), pip_col=(190, 70, 40))
+            deg = 360.0 * 3 * (1.0 - (1.0 - u) ** 2)   # 3 turns, decelerate to upright
+            rot = pygame.transform.rotate(sc, deg)
+            surf.blit(rot, (dx - rot.get_width() // 2, dy - rot.get_height() // 2))
+        except Exception:
+            pygame.draw.rect(surf, (250, 246, 230), (dx - 16, dy - 16, 32, 32))
 
     def _goto(self, phase):
         self.phase = phase
@@ -233,9 +275,17 @@ class WarrenDemo:
         return ddx * ddx + ddy * ddy <= (DICE_PICK_R + BIRD_R) ** 2
 
     def _collect(self, world):
+        # Grab → the cube tumbles (phase "rolling"); the number is revealed
+        # only once the spin settles (see _reveal_roll).
         self.collected = True
         self.roll = random.randint(15, 30)
-        self.die_pop_t = 1.1
+        self.spin_t = 0.0
+        self._spin_face = random.randint(15, 30)
+        self._spin_face_t = 0.06
+
+    def _reveal_roll(self, world):
+        # Spin done — the rolled number pops up and the result cube lingers.
+        self.die_pop_t = 1.2
         self.die_pop_y = self.dice_y
         world.float_texts.append(
             FloatText(str(self.roll), self.dice_x, self.dice_y - 12,
