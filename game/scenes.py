@@ -1217,10 +1217,17 @@ class App:
         # The buff sandstone sidewalk IS the play floor now (replaces the grass
         # meadow); promenade props + living cast ride on top of it.
         foreground.draw_foreground_floor(surf, scroll, palette, phase)
+        # The sidewalk reacts to weather: rain glazes it + pools puddles, the snow
+        # squall frosts it. Drawn on the paving UNDER the crowd's feet (the falling
+        # rain + its splashes are an in-front layer in weather.draw later).
+        foreground.draw_ground_weather(surf, scroll, palette,
+                                       self.world.weather.wetness,
+                                       self.world.weather.snow_cover)
         foreground.draw_promenade(surf, scroll, palette,
                                   self.world.biome_phase, self.world.biome_time)
-        foreground.draw_near_lane(surf, scroll, palette,
-                                  self.world.biome_phase, self.world.biome_time)
+        # NOTE: the NEAR/front lane is intentionally NOT drawn here. It is painted
+        # later in _render, AFTER the gameplay pillars, so the front-lane plants +
+        # people (feet lower on screen) occlude the pillar bases.
 
     def _render(self):
         # Intro renders its own self-contained scene (sky + pillars + cottage
@@ -1240,6 +1247,11 @@ class App:
         # house on the left with Pip standing in front of it holding the
         # parcel. No pillars or world entities until the user taps to start.
         if self.state == STATE_MENU:
+            # No pillars in the menu, so the near lane just rides on the floor here
+            # (depth-vs-pillar is moot); draw it so the street backdrop matches play.
+            foreground.draw_near_lane(self.screen, self.world.bg_scroll,
+                                      self.world.biome_palette,
+                                      self.world.biome_phase, self.world.biome_time)
             house = _intro.get_sprite("skyhouse_post")
             hx = int(W * 0.30) - house.get_width() // 2
             hy = int(H * 0.42) - house.get_height() // 2
@@ -1288,6 +1300,15 @@ class App:
         # foreground atmosphere sitting behind the coins + bird.
         for gy in self.world.geysers:
             gy.draw(self.screen)
+
+        # NEAR/front sidewalk lane — drawn HERE (after the pillars + play-field
+        # props) so the closest foreground plants/people occlude the pillar bases,
+        # matching their depth (feet lower on screen = nearer the camera). Still
+        # behind weather/coins/bird, so rain falls in front of them and Pip stays
+        # on top.
+        foreground.draw_near_lane(self.screen, self.world.bg_scroll,
+                                  self.world.biome_palette,
+                                  self.world.biome_phase, self.world.biome_time)
 
         # Weather sits between pillars and collectibles so rain/fog passes
         # behind the coins + bird — same layer a real foreground has.

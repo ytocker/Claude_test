@@ -320,6 +320,31 @@ WEATHER_SNOW_MELT_AT    = 0.04    # phase PAST the peak at which defrost begins 
 WEATHER_SNOW_ACCUM_RATE = 0.037   # constant build pace while it's snowing hard (~full by ~0.92)
 WEATHER_SNOW_MELT_RATE  = 0.06    # defrost pace past the peak (gone ~the day boundary)
 
+# ── Weather reacting on the sidewalk ────────────────────────────────────────
+# The promenade (sidewalk floor + living crowd) reads the same phase-driven
+# weather curves the sky does, so the street reacts: rain lands + splashes on
+# the paving, puddles glaze it, the crowd thins under rain/snow and the
+# survivors carry umbrellas. Purely visual — no physics/score change.
+#
+# Wet sheen on the paving: a 0..1 state that ramps up while the rain is heavy
+# and dries after, so the ground reads soaked at the storm peak and merely damp
+# on the drizzle shoulders, then dries out before the next clear stretch.
+WEATHER_WET_ON_RI    = 0.18   # rain intensity at/above which the paving wets up
+WEATHER_WET_RISE_RATE = 0.45  # per-second wetness build while raining hard
+WEATHER_WET_DRY_RATE  = 0.18  # per-second dry-out once the rain eases
+
+# Crowd thinning by weather. The day-arc density is multiplied by a factor that
+# falls as the rain/snow worsen, taking the HARSHER of the two so a storm reads
+# as "everyone went inside". At the snow-squall peak the deck is near-empty
+# (a lone umbrella or two braving it), per the chosen severity.
+WEATHER_CROWD_RAIN_MIN = 0.22   # crowd-density multiplier at the heaviest rain
+WEATHER_CROWD_SNOW_MIN = 0.06   # crowd-density multiplier at the snow-squall peak (near-empty)
+
+# Umbrella adoption: the fraction of the (thinned) cast that raises an umbrella,
+# ramping with rain so a stray brolly appears in drizzle and nearly everyone
+# left is under one in the downpour. Snow gets a lighter share.
+WEATHER_UMBRELLA_RAIN_AT = 0.12  # rain intensity at which umbrellas start appearing
+
 # ── Morning-thermal geysers ─────────────────────────────────────────────────
 # Ground geysers spawned during the thermal window. Spawn density + how many
 # appear at once (1→GEYSER_MAX_CONCURRENT) scale with the live intensity, so

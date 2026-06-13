@@ -34,16 +34,108 @@ import pygame
 
 from game import foreground_props as sp
 from game import biome as _biome
-from game.config import W, H
+from game.config import (W, H, WEATHER_CROWD_RAIN_MIN, WEATHER_CROWD_SNOW_MIN,
+                         WEATHER_UMBRELLA_RAIN_AT)
+from game.weather import rain_intensity, storm_intensity, wind_intensity
 from game.pillar_variants import draw_prayer_flags
+from game import foreground_zbuffer as _zbuf
+from game.foreground_zbuffer import TB_STRUCTURE, TB_FIXTURE, TB_CAST
+from game import foreground_variants as _fv
+from game import ped_cast as _ped
+from game import day_cast as _day
+from game import food_stalls as _food
+from game import animals_cast as _animals
+from game import greenery_cast as _green
+from game import props_cast as _props
 
 # Read-only access to the live ambient characters — instantiated, stepped a few
 # frames to a pleasant gait, then drawn at a chosen world-x.
 from game.ambient import (
-    _RunningDog, _WishingWell, _Bench, _Napper,
+    _WishingWell, _Bench, _Napper,
 )
 
 GROUND_Y = sp.GROUND_Y  # 595 — the sidewalk top edge; feet rest here.
+
+# ── weather the street reacts to ─────────────────────────────────────────────
+#
+# Live rain/snow/wind for the current frame, set by draw_promenade/draw_near_lane
+# from the same phase-driven curves the sky uses. Exposed as module state (the
+# _CUR_* idiom) so the figure drawers can raise umbrellas / hurry / bundle up
+# without threading a weather arg through every cast signature. 0 in clear skies.
+_CUR_RAIN = 0.0
+_CUR_SNOW = 0.0
+_CUR_WIND = 0.0
+_CUR_PHASE = 0.0    # live biome phase — drives the day-arc beat for variant picks
+
+
+def _weather_crowd_factor(phase):
+    """Crowd-density multiplier for the weather: 1.0 in clear skies, falling as
+    rain/snow worsen — the street empties out in a storm. Takes the HARSHER of
+    the two so a downpour and a squall don't compound into a ghost town earlier
+    than intended; the snow squall bottoms out near-empty."""
+    ri = rain_intensity(phase)
+    wi = storm_intensity(phase)
+    rain_f = 1.0 - (1.0 - WEATHER_CROWD_RAIN_MIN) * ri
+    snow_f = 1.0 - (1.0 - WEATHER_CROWD_SNOW_MIN) * wi
+    return min(rain_f, snow_f)
+
+
+# A small festive palette so brollies pop against the muted shan-shui street;
+# the per-figure pick is a stable index (clothing slot), capped under the coin
+# at night like every other lit/bright element here.
+_UMBRELLA_COLORS = (
+    (212, 76, 76),    # red
+    (74, 122, 198),   # blue
+    (228, 182, 64),   # gold
+    (96, 162, 112),   # green
+    (180, 96, 172),   # violet
+)
+
+
+def _wants_umbrella():
+    """True when the weather is wet/snowy enough that a walking figure would put
+    up a brolly. A single frame-wide gate (not a per-figure random) so umbrellas
+    appear together as the rain crosses in — no per-figure strobing."""
+    return _CUR_RAIN >= WEATHER_UMBRELLA_RAIN_AT or _CUR_SNOW >= 0.35
+
+
+def _draw_umbrella(surf, cx, canopy_y, color_idx, *, night=0.0, scale=1.0,
+                   pole_len=9):
+    """A small held umbrella: a domed, gently-scalloped canopy with a top nub, a
+    couple of ribs, and a pole running down to the hand. Leans into the wind by
+    `_CUR_WIND`. Opaque draws (no alpha) so it composites straight onto the deck;
+    colour capped under the coin at night."""
+    color = _UMBRELLA_COLORS[color_idx % len(_UMBRELLA_COLORS)]
+    if night > 0.05:
+        color = _cap150(_mix(color, (54, 64, 96), min(0.5, 0.4 * night + 0.15)))
+    dark = _shade(color, -46)
+    r = max(5, int(8 * scale))
+    tilt = int(round(_CUR_WIND * 3.0)) + 1          # lean downwind (rain drives left→ canopy right)
+    apex_x = cx + tilt
+    cy = int(canopy_y)
+    # Dome + scalloped hem as one filled fan.
+    canopy = [
+        (cx - r, cy),
+        (apex_x - int(r * 0.55), cy - int(r * 0.55)),
+        (apex_x, cy - r),
+        (apex_x + int(r * 0.55), cy - int(r * 0.55)),
+        (cx + r, cy),
+        (cx + int(r * 0.6), cy + 2),
+        (cx, cy + 1),
+        (cx - int(r * 0.6), cy + 2),
+    ]
+    pygame.draw.polygon(surf, color, canopy)
+    pygame.draw.polygon(surf, dark, canopy, 1)
+    # Ribs from the apex out to the hem scallops, and a top nub.
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx, cy + 1), 1)
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx - int(r * 0.6), cy + 2), 1)
+    pygame.draw.line(surf, dark, (apex_x, cy - r), (cx + int(r * 0.6), cy + 2), 1)
+    pygame.draw.circle(surf, dark, (apex_x, cy - r), 1)
+    # Pole down to the hand (slightly off the canopy centre so the figure "holds" it).
+    hand_x = cx - 1
+    pygame.draw.line(surf, (96, 74, 52), (cx, cy + 1),
+                     (hand_x, cy + int(pole_len * scale)), 1)
+
 
 # A reused bounding-box scratch for the faint catenary wires. Each wire used to
 # allocate a full W×H SRCALPHA layer just to draw a single 1px curve (~7/frame);
@@ -185,6 +277,33 @@ sp._clamp_night = _capped_clamp_night
 sp._add_lamp_glow = _capped_add_glow
 
 
+# ── hung STRING lights stay lit all cycle (unlike the dusk-gated lamp posts) ───
+#
+# The festival lantern garland + fairy lights are strung to read "on" day AND
+# night and to cast a gentle warm wash on the promenade. Their lit faces + halos
+# follow a daytime FLOOR under the normal dusk->night curve, so they never drop
+# dark the way the street lamps (which only kindle at dusk) correctly do. At full
+# night the floor is moot (intensity is already 1.0), so the night-cap behaviour
+# — capped faces + capped additive halos staying under the coin — is unchanged.
+_STRING_DAY_FLOOR = 0.40
+
+
+def _string_intensity(pal):
+    return max(_STRING_DAY_FLOOR, _lit_intensity(pal))
+
+
+def _string_glow(surf, cx, cy, pal, *, radius=8, alpha=66, color=(255, 196, 110)):
+    """A capped warm halo for the always-on string lights — same peak math + 150
+    cap as _capped_add_glow, but alive by day (no dark-sky gate) via the string
+    floor, so the hung bulbs light the scene a little even in daylight."""
+    s = _string_intensity(pal)
+    peak = int(min(sp._GLOW_PEAK, sp._GLOW_PEAK * (alpha / 120.0)) * s)
+    if peak < 1:
+        return
+    g = sp._warm_glow(radius, _cap150(color), peak)
+    surf.blit(g, (cx - radius - 1, cy - radius - 1), special_flags=pygame.BLEND_RGB_ADD)
+
+
 # ── lighten the festival WIRE so the eye reads "bulbs on a line" ──────────────
 #
 # The r15 garland rope / fairy wire were dark (≈62,52,44) so at night the strung
@@ -219,7 +338,9 @@ def _draw_faint_catenary(surf, xl, xr, top_y, sag, steps, pal):
 
 def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
                    per_span=3, colors=('red', 'gold'), span_gate=None):
-    """r15 lantern garland with the faint single-catenary wire."""
+    """r15 lantern garland with the faint single-catenary wire. The hung lanterns
+    stay lit + cast a soft warm halo across the WHOLE cycle (string-light floor,
+    not the dusk lamp gate), so the strand never reads 'off'."""
     for xl, xr, k in sp._garland_spans(scroll, w, period, x0=12):
         if span_gate is not None and not span_gate(k):
             continue
@@ -227,17 +348,25 @@ def _garland_faint(surf, w, scroll, pal, *, top_y, period=120, sag=24,
         for j in range(per_span):
             tt = (j + 0.5) / per_span
             bx, by = sp._span_point(xl, xr, top_y, sag, tt)
+            color = colors[j % len(colors)]
+            # Halo via _string_glow (alive by day), so suppress the head's own
+            # dusk-gated halo to avoid double-counting it at night.
             sp._draw_lantern_head(surf, int(bx), int(by), pal,
-                                  color=colors[j % len(colors)], scale=0.6,
-                                  glow_radius=7, glow_alpha=52)
+                                  color=color, scale=0.6,
+                                  glow_radius=7, glow_alpha=0)
+            glow_col = (255, 150, 110) if color == 'red' else (255, 205, 120)
+            _string_glow(surf, int(bx), int(by) + 5, pal, radius=7, alpha=52,
+                         color=glow_col)
 
 
 def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
                  span_gate=None):
-    """r15 fairy lights with the faint single-catenary wire + capped warm bulbs."""
+    """r15 fairy lights with the faint single-catenary wire. The hung bulbs stay
+    LIT all cycle (a warm bulb + a capped halo via the string-light floor) instead
+    of dropping to dead grey beads by day, so the strand always reads 'on' and
+    lights the scene a little."""
     dark = sp._is_dark_sky(pal)
     warm = (250, 200, 120)
-    bead = _mix(warm, (118, 108, 94), 0.55)
     for xl, xr, k in sp._garland_spans(scroll, w, period, x0=8):
         if span_gate is not None and not span_gate(k):
             continue
@@ -246,14 +375,12 @@ def _fairy_faint(surf, w, scroll, pal, *, top_y, period=200, sag=26, per_span=5,
             tt = (j + 0.5) / per_span
             bx, by = sp._span_point(xl, xr, top_y, sag, tt)
             bx, by = int(bx), int(by) + 2
-            if dark:
-                lit = sp._clamp_night(warm)[:3]
-                pygame.draw.circle(surf, _mix(lit, (110, 78, 46), 0.4), (bx, by), 3)
-                pygame.draw.circle(surf, lit, (bx, by), 2)
-                sp._add_lamp_glow(surf, bx, by, pal, radius=7, alpha=54, color=warm)
-            else:
-                pygame.draw.circle(surf, _shade(bead, -10), (bx, by), 3)
-                pygame.draw.circle(surf, bead, (bx, by), 2)
+            # night: the shipped capped+dusk-ramped warm bulb (night-cap safe);
+            # day: a full warm paper-bulb so the strand stays clearly lit.
+            face = sp._clamp_night(warm)[:3] if dark else warm
+            pygame.draw.circle(surf, _mix(face, (110, 78, 46), 0.4), (bx, by), 3)
+            pygame.draw.circle(surf, face, (bx, by), 2)
+            _string_glow(surf, bx, by, pal, radius=7, alpha=54, color=warm)
 
 
 sp._draw_lantern_garland = _garland_faint
@@ -296,73 +423,41 @@ def _draw_bench_person(surf, x_base, body_y, shirt, shirt_dk, hair, *, night=0.0
     pygame.draw.circle(surf, (30, 20, 15), (x_base + 4, head_y + 1), 0)
 
 
-def draw_kids(surf, sx, pal, *, t=0.0, n=3):
-    """2-3 small walking/playing children: shorter, rounder, brighter-clothed
-    than the bench adults. Built from a scaled-down _draw_bench_person idiom — a
-    little body block + round head + simple hair — with a playful gait bob and a
-    couple of stubby running legs so they read as kids at play, not statues."""
+def draw_kids(surf, sx, pal, *, t=0.0, n=3, variant=0):
+    """`n` small children drawn from the 6-strong 'kid' variety pool (day_cast),
+    feet on GROUND_Y. `variant` is a resolved base pool index; each of the n kids
+    takes the next pool member (variant, variant+1, …) so a group reads as several
+    different children, not one cloned thrice."""
     night = _nightf(pal)
-    skin = _retint_person((235, 195, 150), night)
-    # Bright primary clothes so the kids pop against the muted shan-shui floor.
-    kit = [
-        ((235, 95, 90), (175, 55, 60), (90, 55, 35)),    # red shirt
-        ((90, 165, 220), (50, 110, 165), (60, 45, 35)),  # blue shirt
-        ((250, 200, 70), (200, 150, 40), (70, 50, 35)),  # yellow shirt
-    ]
-    # Wider spread so the kids don't stack; depth-staggered lift keeps them apart.
-    spread = (-13, 9, 26)
+    cnt = _fv.variant_count("kid")
+    if not cnt:
+        return
+    spread = (-13, 9, 26, 40, -28)
     for i in range(n):
-        dx = spread[i]
-        shirt, shirt_dk, hair = (_retint_person(c, night) for c in kit[i])
-        # Each kid bobs on its own phase so the group reads as alive — but SLOW
-        # and small (ground-locked; a fast run cycle would moonwalk).
-        gait = math.sin(t * 1.8 + i * 1.7)
-        lift = -max(0.0, gait) * 0.8  # only the up-swing lifts
-        bx = sx + dx
-        feet_y = GROUND_Y - 1 + int(round(lift))
-        # CHIBI proportions: a tiny 4px torso under a big 3px head -> total ~7px,
-        # ~60% the adult's ~11px so a kid beside an adult instantly reads "child".
-        body_h = 4
-        body_w = 4
-        head_r = 3
-        body_y = feet_y - body_h - 2
-        # Rounder torso (filled ellipse, not a hard rect) + bright shirt.
-        pygame.draw.ellipse(surf, shirt, (bx, body_y, body_w, body_h + 1))
-        pygame.draw.ellipse(surf, shirt_dk, (bx, body_y, body_w, body_h + 1), 1)
-        # Oversized head relative to body — the universal "child" cue.
-        hx, hy = bx + body_w // 2, body_y - head_r + 1
-        pygame.draw.circle(surf, skin, (hx, hy), head_r)
-        # ROUND-CAP hair, NOT a cone: a domed half-disc capping the crown so the
-        # kids read as round-headed children (day AND night), never as the
-        # conical-hatted pilgrims/gnomes the old triangle suggested.
-        pygame.draw.arc(surf, hair, (hx - head_r, hy - head_r, head_r * 2 + 1, head_r * 2 + 1),
-                        math.radians(0), math.radians(180), head_r)
-        pygame.draw.circle(surf, (30, 20, 15), (hx - 1, hy), 0)
-        pygame.draw.circle(surf, (30, 20, 15), (hx + 1, hy), 0)
-        # Two stubby legs with a small shuffle (not a sprint).
-        leg = _shade(shirt_dk, -18)
-        swing = int(round(gait * 1))
-        pygame.draw.line(surf, leg, (bx + 1, body_y + body_h),
-                         (bx + 1 - swing, feet_y), 1)
-        pygame.draw.line(surf, leg, (bx + body_w - 1, body_y + body_h),
-                         (bx + body_w - 1 + swing, feet_y), 1)
-        # Most kids reach an arm up (chasing / waving) — the playful pose the AD
-        # liked; alternate which arm so the group has varied silhouettes.
-        if i != 1:
-            ax = bx + body_w - 1 if i % 2 == 0 else bx
-            adx = 2 if i % 2 == 0 else -2
-            pygame.draw.line(surf, shirt, (ax, body_y + 1),
-                             (ax + adx, body_y - 2 - max(0, swing)), 1)
+        v = _fv.get("kid", (variant + i) % cnt)
+        _day.draw_kid(surf, sx + spread[i % len(spread)], GROUND_Y - 1, v, night, t + i * 0.6)
 
 
-def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False):
-    """A TEMPLE ELDER — built so the 1× silhouette alone reads "old man with a
-    cane": a bald/grey domed head (NO conical hat — that's the kids), a deeply
-    STOOPED back, a long wispy grey beard reaching the chest, a muted plum/indigo
-    robe so he can't be mistaken for the bright-shirted children, and a long
-    hooked CANE whose shaft runs the full body height down to the deck. The cane +
-    stoop + beard are the three unmistakable elder cues, sized up from the prior
-    too-subtle figure. `seated_bench` sits him a touch lower."""
+def draw_vendor(surf, sx, pal, *, t=0.0, variant=0):
+    """One standing market vendor/worker from the 7-strong 'vendor' pool
+    (day_cast), feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool
+    index; the near lane passes it as a kwarg so it enters the bake cache key."""
+    v = _fv.get("vendor", variant)
+    if v is None:
+        return
+    _day.draw_vendor(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_old_man(surf, sx, pal, *, t=0.0, seated_bench=False, variant=0):
+    """A TEMPLE ELDER from the 6-strong 'elder' variety pool (day_cast) — varied
+    stance (stoop+cane / tai-chi / birdcage / hands-behind / seated+tea / feeding
+    birds), feet on GROUND_Y. `variant` is a resolved pool index. The legacy
+    seated-on-bench companion pose is kept as a fallback for `seated_bench`."""
+    if not seated_bench:
+        v = _fv.get("elder", variant)
+        if v is not None:
+            _day.draw_elder(surf, sx + 3, GROUND_Y - 1, v, _nightf(pal), t)
+            return
     night = _nightf(pal)
     skin = _retint_person((222, 186, 148), night)
     # A muted plum/indigo robe — a cool violet that sits apart from the kids'
@@ -461,28 +556,44 @@ def draw_flock(surf, sx, pal, *, t=0.0, n=3):
         pygame.draw.circle(surf, _shade(face, 18), (hx + 1, body_y + 1), 1)  # ear/snout nub
 
 
-def draw_strollers(surf, sx, pal, *, t=0.0):
-    """A couple of strolling adults for the quiet DUSK event — the bench-person
-    idiom walking, with a slow gait and a small head bob. Calm, unhurried."""
+def draw_strollers(surf, sx, pal, *, t=0.0, umbrella=None, variant=0):
+    """Draw ONE adult pedestrian from the 50-strong variety pool (ped_cast),
+    feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the
+    near lane passes it as a kwarg so it enters the bake cache key. Umbrella/hood/
+    coat looks now come from weather-weighted pool variants, so the old `umbrella`
+    flag is accepted only for signature compatibility and ignored."""
+    v = _fv.get("pedestrian", variant)
+    if v is None:
+        return
+    _ped._draw_one(surf, sx, GROUND_Y - 1, pal, v, _nightf(pal), t)
+
+
+def _shelter_figures(surf, w, scroll, pal, t):
+    """A few people standing huddled under umbrellas at stable world slots, shown
+    only once the open deck has emptied (heavy rain / real snow) — so the street
+    still feels lived-in at the storm's worst instead of dead. Sparse + world-
+    anchored (a fixed per-slot hash admits ~1 in 4), so they scroll past without
+    flicker and pop in/out only as the weather crosses the threshold."""
+    sev = max(_CUR_RAIN, _CUR_SNOW)
+    if sev < 0.45:
+        return
     night = _nightf(pal)
-    pairs = [((180, 120, 170), (130, 80, 120), (70, 50, 40)),   # plum coat
-             ((90, 140, 165), (55, 95, 115), (60, 45, 35))]      # teal coat
-    for i, (shirt, shirt_dk, hair) in enumerate(pairs):
-        shirt, shirt_dk, hair = (_retint_person(c, night) for c in (shirt, shirt_dk, hair))
-        dx = -8 + i * 14
-        # Slow, small gait: these figures are pinned to the deck, so a brisk walk
-        # cycle reads as moonwalking. Gentle weight-shift + nearly-planted feet.
-        gait = math.sin(t * 0.8 + i * 1.1)
-        feet_y = GROUND_Y - 1 - int(round(max(0.0, gait) * 0.5))
-        body_y = feet_y - 8 - 3
-        _draw_bench_person(surf, sx + dx, body_y, shirt, shirt_dk, hair, night=night)
-        # Legs barely shift under the body block.
-        leg = _shade(shirt_dk, -16)
-        sw = int(round(gait * 1))
-        pygame.draw.line(surf, leg, (sx + dx + 1, body_y + 8),
-                         (sx + dx + 1 - sw, feet_y), 1)
-        pygame.draw.line(surf, leg, (sx + dx + 4, body_y + 8),
-                         (sx + dx + 4 + sw, feet_y), 1)
+    for sx, k in sp._world_xs(scroll, w, 250, x0=30, mult=sp.GROUND_MULT, margin=40):
+        h = (k * 0x9E3779B1) & 0xFFFFFFFF
+        if (h & 3) != 0:                       # ~1 in 4 slots is occupied
+            continue
+        bx = sx + 6 + (h >> 4 & 7)
+        base = (78 + (h >> 6 & 63), 84 + (h >> 9 & 55), 108 + (h >> 12 & 47))
+        shirt = _retint_person(base, night)
+        shirt_dk = _shade(shirt, -34)
+        hair = _retint_person((60, 45, 38), night)
+        # Standing still (sheltering) — no gait, feet planted on the kerb.
+        body_y = GROUND_Y - 1 - 8 - 3
+        def _figure(s, bx=bx, body_y=body_y, shirt=shirt, shirt_dk=shirt_dk,
+                    hair=hair, h=h):
+            _draw_bench_person(s, bx, body_y, shirt, shirt_dk, hair, night=night)
+            _draw_umbrella(s, bx + 3, body_y - 6, (h >> 2), night=night)
+        _zbuf.enqueue(GROUND_Y - 1, TB_CAST, _figure)
 
 
 # ── KIOSK / vendor stall: a pagoda-roofed market stall ───────────────────────
@@ -790,23 +901,40 @@ def _ground_furniture(surf, w, scroll, pal, fd=1.0):
     # Each lane's inclusion is latched at entry (off-screen) so a fixture never
     # blinks out in view when `fd` dips — it scrolls in and out like the deck it
     # sits on.
+    fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 440, x0=14):
         if sp._slot_latch(('furn', 11), k, lambda k=k: _slot_on(k, 11, fd)):
-            sp._draw_barrel(surf, sx, pal)
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx: sp._draw_barrel(s, sx, pal))
     sp._latch_prune(('furn', 11))
     for sx, k in sp._world_xs(scroll, w, 440, x0=118):
         if sp._slot_latch(('furn', 12), k, lambda k=k: _slot_on(k, 12, fd)):
-            sp._draw_cairn(surf, sx, pal, scale=1.2)
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx: sp._draw_cairn(s, sx, pal, scale=1.2))
     sp._latch_prune(('furn', 12))
     for sx, k in sp._world_xs(scroll, w, 520, x0=205):
-        if sp._slot_latch(('furn', 13), k, lambda k=k: _slot_on(k, 13, fd)):
-            sp._draw_planter(surf, sx, pal, kind='shrub')
-            sp._draw_vine_trail(surf, sx + 11, pal)
+        on, gv = sp._slot_latch(('furn', 13), k, lambda k=k: (
+            _slot_on(k, 13, fd), _greenery_latch(('furn', 13), k, 13)))
+        if on:
+            def _planter_vine(s, sx=sx, gv=gv):
+                draw_greenery(s, sx, pal, t=_CUR_T, variant=gv)
+                sp._draw_vine_trail(s, sx + 11, pal)
+            _zbuf.enqueue(fy, TB_FIXTURE, _planter_vine)
     sp._latch_prune(('furn', 13))
     for sx, k in sp._world_xs(scroll, w, 620, x0=70):
-        if sp._slot_latch(('furn', 14), k, lambda k=k: _slot_on(k, 14, fd)):
-            sp._draw_planter(surf, sx, pal, kind='bamboo')
+        on, gv = sp._slot_latch(('furn', 14), k, lambda k=k: (
+            _slot_on(k, 14, fd), _greenery_latch(('furn', 14), k, 14)))
+        if on:
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx, gv=gv: draw_greenery(s, sx, pal, t=_CUR_T, variant=gv))
     sp._latch_prune(('furn', 14))
+    for sx, k in sp._world_xs(scroll, w, 700, x0=330):
+        on, dv = sp._slot_latch(('furn', 15), k, lambda k=k: (
+            _slot_on(k, 15, fd), _prop_latch('prop_dress', k, 15)))
+        if on:
+            _zbuf.enqueue(fy, TB_FIXTURE,
+                          lambda s, sx=sx, dv=dv: draw_prop_dress(s, sx, pal, t=_CUR_T, variant=dv))
+    sp._latch_prune(('furn', 15))
 
 
 # ── grouped scenarios ─────────────────────────────────────────────────────────
@@ -947,81 +1075,225 @@ def draw_market_setup(surf, sx, pal, *, t=0.0):
     pygame.draw.line(surf, leg, (vx + 4, body_y + 8), (vx + 5, feet), 1)
 
 
-def _scene_market(surf, bx, pal, t, rng):
-    """Food/market stall with a songbird-cage stand and kids beside it."""
-    draw_kiosk(surf, bx, pal, t=t, openness=0.9)
-    draw_birdcage_stand(surf, bx + 84, pal, t=t)
-    draw_kids(surf, bx + 152, pal, t=t, n=2)
+# Each scene EMITS its sub-objects into the depth buffer (emit(tier, fn)) instead
+# of painting directly, so a free-standing figure (CAST) sorts in front of a fixed
+# back-structure (STRUCTURE) on the same ground line — fixing e.g. a kid drawn
+# behind its own kiosk. `emit` fixes the far-lane feet line; tier breaks the tie.
 
-def _draw_calm_dog(surf, sx, pal, *, t=0.0):
-    """The promenade dog at a SLOW amble, flipped to face LEFT — the scroll/travel
-    direction — so it reads as walking forward, not moonwalking backward. Reuses
-    the live _RunningDog frames; the shared class is left untouched."""
-    dog = _stepped(_RunningDog, pal, 30, sx)
-    frame = dog._frames[int(t * 2) % 2]                  # slow 2-frame shuffle
-    frame = pygame.transform.flip(frame, True, False)    # face the travel direction
-    sw, sh = frame.get_size()
-    surf.blit(frame, (sx - sw // 2, GROUND_Y - sh + 1))
+def _scene_market(emit, bx, pal, t, rng, pick=None):
+    """Food/market stall with a vendor working it, a songbird-cage stand and kids."""
+    vv = pick('vendor', 31) if pick else 0
+    kv = pick('kid', 32) if pick else 0
+    emit(TB_STRUCTURE, lambda s: draw_kiosk(s, bx, pal, t=t, openness=0.9))
+    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 10, pal, t=t, variant=vv))
+    emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx + 84, pal, t=t))
+    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 152, pal, t=t, n=2, variant=kv))
 
-def _scene_pastoral(surf, bx, pal, t, rng):
-    """Wish-tree + a slow dog ambling with the street + a planter."""
-    draw_wish_tree(surf, bx, pal, t=t)
-    _draw_calm_dog(surf, bx + 66, pal, t=t)
-    sp._draw_planter(surf, bx + 122, pal, kind='shrub')
 
-def _scene_lamplighter(surf, bx, pal, t, rng):
+def draw_food_stall(surf, sx, pal, *, t=0.0, kind="steamer"):
+    """One food-market stall structure (steamer/cauldron/grill/wok/tea) from
+    food_stalls, feet/base on GROUND_Y, centred on `sx`. A far-lane STRUCTURE; the
+    working vendor is placed separately (CAST) so it sorts in front of the booth."""
+    fn, _pose = _food.STALLS.get(kind, _food.STALLS["steamer"])
+    fn(surf, sx, GROUND_Y - 1, _nightf(pal), t)
+
+
+def _scene_food(emit, bx, pal, t, kind, vendor_variant, rng, *, pick=None, cust_salt=0):
+    """A food stall + the vendor working it (fixed pose: fanner at the grill,
+    ladler at the cauldron, etc.) + a browsing customer, and critters foraging the
+    scraps (pigeons mostly, sometimes a market cat or a hen) so it reads alive."""
+    cust = pick('pedestrian', cust_salt) if pick else 0
+    crit = rng.choice(('pigeons', 'pigeons', 'cat', 'hen'))
+    emit(TB_STRUCTURE, lambda s: draw_food_stall(s, bx, pal, t=t, kind=kind))
+    emit(TB_CAST, lambda s: draw_vendor(s, bx - 6, pal, t=t, variant=vendor_variant))
+    emit(TB_CAST, lambda s, crit=crit: draw_critter(s, bx + 16, pal, t=t, kind=crit))
+    emit(TB_CAST, lambda s, cust=cust: draw_strollers(s, bx + 36, pal, t=t, variant=cust))
+
+
+def _scene_food_grill(emit, bx, pal, t, rng, pick=None):
+    """A barbecue skewer-grill stall, a vendor fanning the coals, a hungry customer."""
+    _scene_food(emit, bx, pal, t, 'grill', _food.STALLS['grill'][1], rng, pick=pick, cust_salt=61)
+
+
+def _scene_food_soup(emit, bx, pal, t, rng, pick=None):
+    """A big soup-cauldron stall with a vendor ladling broth + a customer."""
+    _scene_food(emit, bx, pal, t, 'cauldron', _food.STALLS['cauldron'][1], rng, pick=pick, cust_salt=62)
+
+
+def _scene_food_steamer(emit, bx, pal, t, rng, pick=None):
+    """A bamboo-steamer dim-sum stall with a vendor + a customer."""
+    _scene_food(emit, bx, pal, t, 'steamer', _food.STALLS['steamer'][1], rng, pick=pick, cust_salt=63)
+
+
+def _scene_food_tea(emit, bx, pal, t, rng, pick=None):
+    """A tea/drinks-urn stall with a vendor + a customer pausing for a cup."""
+    _scene_food(emit, bx, pal, t, 'tea', _food.STALLS['tea'][1], rng, pick=pick, cust_salt=64)
+
+def draw_dog(surf, sx, pal, *, t=0.0, variant=0):
+    """One street dog from the 5-strong 'dog' pool (animals_cast), feet on
+    GROUND_Y, centred on `sx`, ambling/facing the scroll direction. `variant` is a
+    resolved pool index; the near lane passes it as a kwarg into the bake cache."""
+    v = _fv.get("dog", variant)
+    if v is None:
+        return
+    _animals.draw_dog(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_critter(surf, sx, pal, *, t=0.0, kind="pigeons"):
+    """One street critter (pigeons/hen/cat/duck) from the 'critter' pool, feet on
+    GROUND_Y, centred on `sx`. Placed near the food stalls so the market reads as
+    alive (birds pecking scraps, a market cat, a hen)."""
+    v = _fv.get("critter", _animals.critter_index(kind))
+    if v is None:
+        return
+    _animals.draw_critter(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_greenery(surf, sx, pal, *, t=0.0, variant=0):
+    """One potted plant / tree from the 'greenery' pool (greenery_cast),
+    feet on GROUND_Y, centred on `sx`. `variant` is a resolved pool index; the near
+    lane passes it as a kwarg into the bake cache. Replaces the fixed planter."""
+    v = _fv.get("greenery", variant)
+    if v is None:
+        return
+    _green.draw_greenery(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def _greenery_latch(row, k, salt):
+    """Freeze a greenery variant at slot entry (greenery is beat/weather-neutral
+    but select_variant folds beat/weather into the seed, so freeze for no flicker)."""
+    return _fv.select_variant('greenery', _fv.slot_seed(k, salt),
+                              _fv.beat_for_phase(_CUR_PHASE),
+                              _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW))
+
+
+def _prop_latch(family, k, salt):
+    """Freeze a prop-pool variant (lamp/banner/fire/...) at slot entry, same reason
+    as the greenery latch — no flicker as the beat/weather seed shifts."""
+    return _fv.select_variant(family, _fv.slot_seed(k, salt),
+                              _fv.beat_for_phase(_CUR_PHASE),
+                              _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW))
+
+
+def draw_prop_lamp(surf, sx, pal, *, t=0.0, variant=0):
+    """One street lamp/lantern from the 'prop_lamp' pool (slim-post / paired /
+    stone-shrine), feet on GROUND_Y. Lit head capped under the night ceiling."""
+    v = _fv.get("prop_lamp", variant)
+    if v is not None:
+        _props.draw_lamp(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_banner(surf, sx, pal, *, t=0.0, variant=0):
+    """One hanging banner/sign from the 'prop_banner' pool (cloth / pennant /
+    signboard), feet on GROUND_Y."""
+    v = _fv.get("prop_banner", variant)
+    if v is not None:
+        _props.draw_banner(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_fire(surf, sx, pal, *, t=0.0, variant=0):
+    """One brazier/censer from the 'prop_fire' pool (tripod / coal-basket / temple
+    censer), feet on GROUND_Y. Capped ember glow + thin smoke wisp."""
+    v = _fv.get("prop_fire", variant)
+    if v is not None:
+        _props.draw_fire(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def draw_prop_dress(surf, sx, pal, *, t=0.0, variant=0):
+    """One piece of market clutter from the 'prop_dress' pool (produce crates /
+    woven baskets / rolled-mat + sacks), feet on GROUND_Y."""
+    v = _fv.get("prop_dress", variant)
+    if v is not None:
+        _props.draw_dressing(surf, sx, GROUND_Y - 1, v, _nightf(pal), t)
+
+
+def _scene_pastoral(emit, bx, pal, t, rng, pick=None):
+    """Wish-tree + a varied dog ambling with the street + a foraging critter."""
+    dv = pick('dog', 71) if pick else 0
+    emit(TB_STRUCTURE, lambda s: draw_wish_tree(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s, dv=dv: draw_dog(s, bx + 66, pal, t=t, variant=dv))
+    emit(TB_CAST, lambda s: draw_critter(s, bx + 96, pal, t=t,
+                                         kind=rng.choice(('pigeons', 'cat', 'hen', 'duck'))))
+    gv = pick('greenery', 81) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 122, pal, t=t, variant=gv))
+
+def _scene_lamplighter(emit, bx, pal, t, rng, pick=None):
     """A lamplighter kindling the street lanterns at dusk + a potted conifer."""
-    draw_lamplighter(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 40, pal, kind='conifer')
+    emit(TB_CAST, lambda s: draw_lamplighter(s, bx, pal, t=t))
+    gv = pick('greenery', 82) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 40, pal, t=t, variant=gv))
 
-def _scene_dawn_setup(surf, bx, pal, t, rng):
+def _scene_dawn_setup(emit, bx, pal, t, rng, pick=None):
     """Vendors assembling the morning market."""
-    draw_market_setup(surf, bx, pal, t=t)
+    emit(TB_FIXTURE, lambda s: draw_market_setup(s, bx, pal, t=t))
 
-def _scene_vendor(surf, bx, pal, t, rng):
-    """A lone songbird-cage seller beside a potted plant — a calm market remnant."""
-    draw_birdcage_stand(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 26, pal, kind='conifer')
+def _scene_vendor(emit, bx, pal, t, rng, pick=None):
+    """A songbird-cage seller working the stand beside a potted plant."""
+    vv = pick('vendor', 33) if pick else 0
+    emit(TB_STRUCTURE, lambda s: draw_birdcage_stand(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s, vv=vv: draw_vendor(s, bx + 12, pal, t=t, variant=vv))
+    gv = pick('greenery', 83) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 26, pal, t=t, variant=gv))
 
-def _scene_quiet(surf, bx, pal, t, rng):
+def _scene_quiet(emit, bx, pal, t, rng, pick=None):
     """The temple elder pausing by a shrub — a quiet, near-empty-street beat."""
-    sp._draw_planter(surf, bx, pal, kind='shrub')
-    draw_old_man(surf, bx + 30, pal, t=t, seated_bench=False)
+    ev = pick('elder', 14) if pick else 0
+    gv = pick('greenery', 84) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx, pal, t=t, variant=gv))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 30, pal, t=t, variant=ev))
 
 
-def _scene_bench(surf, bx, pal, t, rng):
+def _scene_bench(emit, bx, pal, t, rng, pick=None):
     """The temple elder beside a bench with a seated companion."""
-    bench = _stepped(_Bench, pal, 20, bx)
-    bench._blit_sprite(surf)
-    seat_y = (GROUND_Y - 27) + 19            # match _Bench.draw seat geometry
     night = _nightf(pal)
     comp = tuple(_retint_person(c, night) for c in
                  ((215, 85, 100), (175, 50, 70), (80, 50, 30)))
-    _draw_bench_person(surf, bx + 8, seat_y - 8, *comp, night=night)
-    draw_old_man(surf, bx + 44, pal, t=t, seated_bench=False)
+    seat_y = (GROUND_Y - 27) + 19            # match _Bench.draw seat geometry
 
-def _scene_stroll(surf, bx, pal, t, rng):
-    """A strolling couple + the elder on a slow walk."""
-    draw_strollers(surf, bx, pal, t=t)
-    draw_old_man(surf, bx + 48, pal, t=t, seated_bench=False)
+    def _bench(s):
+        bench = _stepped(_Bench, pal, 20, bx)
+        bench._blit_sprite(s)
+    emit(TB_FIXTURE, _bench)
+    ev = pick('elder', 15) if pick else 0
+    emit(TB_CAST, lambda s: _draw_bench_person(s, bx + 8, seat_y - 8, *comp, night=night))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 44, pal, t=t, variant=ev))
 
-def _scene_rest(surf, bx, pal, t, rng):
+def _scene_stroll(emit, bx, pal, t, rng, pick=None):
+    """Two strolling adults from the variety pool + a varied elder on a slow walk."""
+    v1 = pick('pedestrian', 11) if pick else 0
+    v2 = pick('pedestrian', 12) if pick else 0
+    ev = pick('elder', 13) if pick else 0
+    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx - 7, pal, t=t, variant=v1))
+    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 9, pal, t=t, variant=v2))
+    emit(TB_CAST, lambda s, ev=ev: draw_old_man(s, bx + 48, pal, t=t, variant=ev))
+
+def _scene_rest(emit, bx, pal, t, rng, pick=None):
     """A napper on a mat beside a planter."""
-    draw_napper(surf, bx, pal, t=t)
-    sp._draw_planter(surf, bx + 46, pal, kind='conifer')
+    emit(TB_CAST, lambda s: draw_napper(s, bx, pal, t=t))
+    gv = pick('greenery', 85) if pick else 0
+    emit(TB_FIXTURE, lambda s, gv=gv: draw_greenery(s, bx + 46, pal, t=t, variant=gv))
 
-def _scene_campfire(surf, bx, pal, t, rng):
-    """A campfire with cozy strollers + kids gathered (lit by the drawer at night)."""
-    draw_campfire(surf, bx, pal, t=t)
-    draw_strollers(surf, bx + 56, pal, t=t)
-    draw_kids(surf, bx + 100, pal, t=t, n=2)
+def _scene_campfire(emit, bx, pal, t, rng, pick=None):
+    """A campfire with cozy pool adults + kids gathered (lit by the drawer at night)."""
+    v1 = pick('pedestrian', 21) if pick else 0
+    v2 = pick('pedestrian', 22) if pick else 0
+    kv = pick('kid', 23) if pick else 0
+    emit(TB_FIXTURE, lambda s: draw_campfire(s, bx, pal, t=t))
+    emit(TB_CAST, lambda s, v1=v1: draw_strollers(s, bx + 50, pal, t=t, variant=v1))
+    emit(TB_CAST, lambda s, v2=v2: draw_strollers(s, bx + 64, pal, t=t, variant=v2))
+    emit(TB_CAST, lambda s, kv=kv: draw_kids(s, bx + 100, pal, t=t, n=2, variant=kv))
 
 def _scenarios(surf, w, scroll, pal, t, roster, x0=40):
-    """Place the beat's scene roster at world-x slots, scrolling at world speed."""
+    """Place the beat's scene roster at world-x slots, scrolling at world speed.
+
+    Legacy gallery path (PHASES_R17): scenes now EMIT their sub-objects, so give
+    them an emit that paints immediately in submission order — no depth buffer."""
+    def _emit(_tier, fn):
+        fn(surf)
     for bx, k in sp._world_xs(scroll, w, _SCENARIO_PERIOD, x0,
                               mult=sp.GROUND_MULT, margin=_SCENE_MARGIN):
         rng = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
-        roster[k % len(roster)](surf, bx, pal, t, rng)
+        roster[k % len(roster)](_emit, bx, pal, t, rng)
 
 
 def phase_day(surf, w, gy, h, scroll, pal, t):
@@ -1164,15 +1436,16 @@ def _roster_for(phase):
     (4–5 options) + the no-repeat rule in _place_scenarios kill the short loop."""
     p = phase % 1.0
     if p < 0.14:                       # DAY — FOOD-MARKET rush (the run opener)
-        return (_scene_market, _scene_dawn_setup, _scene_market, _scene_vendor)
+        return (_scene_food_grill, _scene_food_soup, _scene_market, _scene_food_steamer,
+                _scene_food_tea, _scene_dawn_setup, _scene_vendor)
     if p < 0.25 or p >= 0.85:          # DAY / SUNRISE — calm morning
         return (_scene_pastoral, _scene_vendor, _scene_quiet, _scene_stroll)
     if p < 0.40:                       # GOLDEN — afternoon stroll
         return (_scene_stroll, _scene_pastoral, _scene_quiet, _scene_bench)
     if p < 0.58:                       # DUSK — lamps lighting
         return (_scene_lamplighter, _scene_stroll, _scene_bench, _scene_rest)
-    if p < 0.80:                       # NIGHT — festival
-        return (_scene_campfire, _scene_market, _scene_stroll, _scene_bench)
+    if p < 0.80:                       # NIGHT — festival (food stalls glow nicely)
+        return (_scene_campfire, _scene_food_grill, _scene_food_soup, _scene_stroll, _scene_bench)
     return (_scene_quiet, _scene_rest) # PRE-DAWN — near-empty teardown
 
 def _dressing(surf, w, scroll, pal, phase):
@@ -1189,7 +1462,7 @@ def _dressing(surf, w, scroll, pal, phase):
             draw_prayer_flags(surf, int(xl), GROUND_Y - 118,
                               int(xr), GROUND_Y - 116, n=5)
     sp._latch_prune(('bunting',))
-    lantern_win = (0.20 <= p < 0.92)                            # lantern garland
+    lantern_win = True                  # hung lantern garland stays strung + lit all cycle
     sp._draw_lantern_garland(surf, w, scroll, pal, top_y=GROUND_Y - 97,
                              period=128, sag=23, per_span=3,
                              span_gate=lambda k: sp._slot_latch(('lantgar',), k,
@@ -1199,15 +1472,22 @@ def _dressing(surf, w, scroll, pal, phase):
     # window open?" at entry so the row scrolls IN when dusk arrives and scrolls
     # OUT after dawn, instead of the whole on-screen row blinking at the window edge.
     lamp_win = (0.20 <= p < 0.93)
+    fy = GROUND_Y - 1
     for sx, k in sp._world_xs(scroll, w, 250, x0=18):
-        if sp._slot_latch(('lampR',), k, lambda: lamp_win):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=96, lantern='red')
+        on, lv = sp._slot_latch(('lampR',), k, lambda k=k: (
+            lamp_win, _prop_latch('prop_lamp', k, 31)))
+        if on:
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
+                s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampR',))
     for sx, k in sp._world_xs(scroll, w, 250, x0=152):
-        if sp._slot_latch(('lampG',), k, lambda: lamp_win):
-            sp._draw_lamp_post(surf, sx, pal, style='ornate', height=90, lantern='gold')
+        on, lv = sp._slot_latch(('lampG',), k, lambda k=k: (
+            lamp_win, _prop_latch('prop_lamp', k, 32)))
+        if on:
+            _zbuf.enqueue(fy, TB_STRUCTURE, lambda s, sx=sx, lv=lv: draw_prop_lamp(
+                s, sx, pal, t=_CUR_T, variant=lv))
     sp._latch_prune(('lampG',))
-    fairy_win = (0.40 <= p < 0.86)                              # festival fairy lights
+    fairy_win = True                    # hung fairy lights stay strung + lit all cycle
     sp._draw_fairy_lights(surf, w, scroll, pal, top_y=GROUND_Y - 84,
                           period=205, sag=24, per_span=5,
                           span_gate=lambda k: sp._slot_latch(('fairy',), k,
@@ -1239,25 +1519,50 @@ def _place_scenarios(surf, w, scroll, pal, t, roster, density, x0=40):
             if n > 1 and idx == _slot_pick(k - 1, n):
                 idx = (idx + 1) % n
             jit = (((k * 0x85EBCA77) >> 13) % 97) - 48
-            return (roster[idx], jit)
+            # Freeze the day-arc beat + weather bucket at slot ENTRY so the cast's
+            # variant choices stay fixed for the whole on-screen traversal (a slot
+            # that entered in clear weather keeps its clear dress even if rain
+            # starts while it crosses; new slots entering in rain get brollies).
+            beat0 = _fv.beat_for_phase(_CUR_PHASE)
+            wb0 = _fv.weather_bucket(_CUR_RAIN, _CUR_SNOW)
+            return (roster[idx], jit, beat0, wb0)
         dec = sp._slot_latch(row, k, _decide)
         if dec is not None:
-            scene_fn, jit = dec
+            scene_fn, jit, beat0, wb0 = dec
             # Recreate the per-slot RNG and consume the inclusion draw so the scene's
             # internal variety matches the pre-latch behaviour exactly.
             r = random.Random((k * 0x9E3779B1) & 0xFFFFFFFF)
             r.random()
-            scene_fn(surf, bx + jit, pal, t, r)
+            # Each scene enqueues its sub-objects on the far-lane feet line; the tier
+            # it passes orders props/cast vs structures at that shared line.
+            def _emit(tier, fn):
+                _zbuf.enqueue(GROUND_Y - 1, tier, fn)
+            # Stable per-figure variant picker for this slot, frozen to the entry
+            # beat/weather — scenes call pick(family, salt) for each figure they
+            # place (family one of 'pedestrian'/'kid'/'elder'/'vendor').
+            def _pick(family, salt, k=k, beat0=beat0, wb0=wb0):
+                return _fv.select_variant(family, _fv.slot_seed(k, salt), beat0, wb0)
+            scene_fn(_emit, bx + jit, pal, t, r, _pick)
     sp._latch_prune(row)
 
 def draw_promenade(surf, scroll, pal, phase, t):
     """Draw the promenade as a living day-arc: fixtures by phase, cast thinned by a
     crowd-density curve, and the whole street filling in from empty at run-start."""
-    global _CUR_BUCKET, _CUR_T, _CUR_PAL
+    global _CUR_BUCKET, _CUR_T, _CUR_PAL, _CUR_RAIN, _CUR_SNOW, _CUR_WIND, _CUR_PHASE
     _CUR_BUCKET = _biome.phase_bucket(phase)
     _CUR_T = t
     _CUR_PAL = pal
-    density = _population(phase) * _run_fill(t)
+    _CUR_PHASE = phase
+    _CUR_RAIN = rain_intensity(phase)
+    _CUR_SNOW = storm_intensity(phase)
+    _CUR_WIND = wind_intensity(phase)
+    # The crowd thins in bad weather: the day-arc density is scaled down by rain/
+    # snow. Multiplying only lowers each slot's stable inclusion gate, so figures
+    # walk off ONCE as the storm builds (no flicker) and the survivors get brollies.
+    density = _population(phase) * _run_fill(t) * _weather_crowd_factor(phase)
     _ground_furniture(surf, W, scroll, pal, fd=_furn_density(phase))
     _dressing(surf, W, scroll, pal, phase)
     _place_scenarios(surf, W, scroll, pal, t, _roster_for(phase), density)
+    # A few souls shelter near the dressing (kiosk awnings / lamp posts) when the
+    # open deck has emptied — keeps the street alive at the storm's worst.
+    _shelter_figures(surf, W, scroll, pal, t)
