@@ -1,7 +1,7 @@
 """Branch-only scripted prototype of the Pagoda-Warren beat:
 
     empty sky → a clown walks on with a floating dice power-up → the player
-    grabs the die (rolls N = 15..30) → after a beat, a warren route of N fused
+    grabs the die (rolls N = 10..25) → after a beat, a warren route of N fused
     pagodas scrolls in with N on a sign hung from the first pillar → the player
     flies the route → a couple of seconds later Pip falls to its death.
 
@@ -131,7 +131,7 @@ class WarrenDemo:
             else:
                 self._spin_face_t -= dt
                 if self._spin_face_t <= 0.0:
-                    self._spin_face = random.randint(15, 30)
+                    self._spin_face = random.randint(10, 25)
                     self._spin_face_t = 0.06
             if self.spin_t >= T_SPIN:
                 self._reveal_roll(world)
@@ -278,9 +278,9 @@ class WarrenDemo:
         # Grab → the cube tumbles (phase "rolling"); the number is revealed
         # only once the spin settles (see _reveal_roll).
         self.collected = True
-        self.roll = random.randint(15, 30)
+        self.roll = random.randint(10, 25)
         self.spin_t = 0.0
-        self._spin_face = random.randint(15, 30)
+        self._spin_face = random.randint(10, 25)
         self._spin_face_t = 0.06
 
     def _reveal_roll(self, world):
@@ -348,17 +348,19 @@ class WarrenDemo:
         return r
 
     def _r_valley(self, n):               # d4 — fall then climb (V)
+        # Endpoints kept within 50px/pagoda even when each leg is only 3 long
+        # (N=10), so the V stays inside the drift budget at every length.
         r = self._Route("The Valley", "fall to climb")
         h, t = self._pads(n); m = n - h - t
         m1 = m // 2; m2 = m - m1
-        r.hold("in", h, 230, ROUTE_GAP).ramp("fall", 410, m1, ROUTE_GAP) \
-            .ramp("climb", 230, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
+        r.hold("in", h, 255, ROUTE_GAP).ramp("fall", 405, m1, ROUTE_GAP) \
+            .ramp("climb", 255, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
         return r
 
     def _r_crest(self, n):                # d4 — climb then fall (hill)
         r = self._Route("The Crest", "apex management")
         h, t = self._pads(n); m = n - h - t
         m1 = m // 2; m2 = m - m1
-        r.hold("in", h, 410, ROUTE_GAP).ramp("climb", 220, m1, ROUTE_GAP) \
-            .ramp("fall", 410, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
+        r.hold("in", h, 405, ROUTE_GAP).ramp("climb", 255, m1, ROUTE_GAP) \
+            .ramp("fall", 405, m2, ROUTE_GAP).hold("out", t, r.cy, ROUTE_GAP)
         return r
