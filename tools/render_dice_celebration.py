@@ -207,11 +207,11 @@ def var_medallion(roll, ss):
     pygame.draw.circle(canvas, (180, 132, 28), (c, c), R)
     pygame.draw.circle(canvas, GOLD, (c, c), R - 5 * ss)
     pygame.draw.circle(canvas, (255, 232, 150), (c, c), R - 5 * ss, 3 * ss)
-    # Top-left specular highlight crescent.
+    # Top-left specular highlight crescent, clipped to the coin face so the
+    # glossy sheen stays inside the bezel (the mask multiply trims the disc).
     hl = pygame.Surface((HD, HD), pygame.SRCALPHA)
     pygame.draw.circle(hl, (255, 255, 255, 90), (c - int(R * 0.32), c - int(R * 0.32)),
                        int(R * 0.55))
-    hl.blit(pygame.Surface((HD, HD), pygame.SRCALPHA), (0, 0))
     mask = pygame.Surface((HD, HD), pygame.SRCALPHA)
     pygame.draw.circle(mask, (255, 255, 255, 255), (c, c), R - 8 * ss)
     hl.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -300,16 +300,21 @@ def var_ghost_clown(roll, ss):
         a = i * math.pi / spikes
         pts.append((c + math.cos(a) * rr, c + math.sin(a) * rr))
     pygame.draw.polygon(canvas, PLUM + (150,), pts)
+    pygame.draw.polygon(canvas, GOLD + (150,), pts, 3 * ss)   # gold-rimmed spikes
     inner = [(c + (px - c) * 0.80, c + (py - c) * 0.80) for px, py in pts]
     pygame.draw.polygon(canvas, LIME + (110,), inner)
     pygame.draw.circle(canvas, (40, 18, 70, 180), (c, c), int(HD * 0.20))
 
-    # Rising ectoplasm wisps (lime-tinted) behind the number.
-    for i in range(6):
-        wx = int(c - 60 * ss + i * 24 * ss)
-        wy = int(c + 36 * ss - (i % 3) * 14 * ss)
-        al = 120 - (i % 3) * 30
-        pygame.draw.circle(canvas, (180, 255, 200, al), (wx, wy), (5 + i % 3) * ss)
+    # Rising ectoplasm wisps (lime-tinted), each a vertical column of fading
+    # blobs so they read as steam curling up rather than scattered dots.
+    for i in range(7):
+        wx = int(c - 66 * ss + i * 22 * ss)
+        sway = int(math.sin(i * 1.3) * 6 * ss)
+        for k in range(3):
+            wy = int(c + 40 * ss - k * 18 * ss)
+            al = max(0, 150 - k * 45 - (i % 2) * 20)
+            pygame.draw.circle(canvas, (180, 255, 200, al),
+                               (wx + sway + (k % 2) * 3 * ss, wy), (6 - k) * ss)
 
     # Little ghost mascot up-right, gold eyes — the friendly spook.
     gx, gy = c + int(HD * 0.20), c - int(HD * 0.22)
