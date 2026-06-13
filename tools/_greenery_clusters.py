@@ -82,8 +82,69 @@ def _plant(surf, cx, base_y, variant, scale=1.0):
     surf.blit(scaled, (cx - sw // 2, base_y - (sh - int(4 * scale))))
 
 
+def _plant_back(surf, cx, base_y, variant, scale):
+    """A back-row plant: scaled down AND knocked cool/low-contrast (BLEND_RGB_MULT)
+    so the depth tier reads without the sprig vanishing into the buff band."""
+    v = fv.get("greenery", variant)
+    if v is None:
+        return
+    tw, th = 150, 220
+    tmp = pygame.Surface((tw, th), pygame.SRCALPHA)
+    _green.draw_greenery(tmp, tw // 2, th - 4, v, 0.0, _POSE(variant))
+    sw, sh = int(tw * scale), int(th * scale)
+    scaled = pygame.transform.scale(tmp, (sw, sh))
+    scaled.fill((196, 202, 220, 255), special_flags=pygame.BLEND_RGB_MULT)  # cool knock-back
+    surf.blit(scaled, (cx - sw // 2, base_y - (sh - int(4 * scale))))
+
+
 def _lamp(surf, sx):
     fp.draw_prop_lamp(surf, sx, _DAY, t=0.0, variant=31)
+
+
+def _planter(surf, cx, base_y, w):
+    """A low buff-stone kerb planter (lifts the green mass off the bottom edge, reads
+    as a built feature). Warm-neutral + LOW saturation so it never rivals the coin."""
+    h = 10
+    body, rim, dk = (190, 178, 158), (216, 206, 186), (150, 138, 116)
+    pygame.draw.rect(surf, body, (cx - w // 2, base_y - h, w, h))
+    pygame.draw.rect(surf, dk, (cx - w // 2, base_y - h, w, h), 1)
+    pygame.draw.rect(surf, rim, (cx - w // 2, base_y - h, w, 3))
+    return base_y - h + 3   # soil line the plants seat on
+
+
+# ── round 2: the art-director's production recipe ─────────────────────────────
+# Triad-on-planter backbone, two depth tiers, a long-short 2-beat spacing phrase
+# with MIXED 2/3 counts + varied footprints, lamp as an occasional landmark, and
+# coin-safe plant selection (cool/green/pink up front; warm orange kept sparse).
+# A cluster spec: (cx, planter_w, lamp_dx_or_None, [(dx, variant, scale, back)...]).
+
+def _cluster(surf, cx, pw, lamp_dx, members):
+    if lamp_dx is not None:
+        _lamp(surf, cx + lamp_dx)
+    soil = _planter(surf, cx, GROUND_Y - 1, pw)
+    for dx, var, scl, back in members:
+        if back:
+            _plant_back(surf, cx + dx, soil, var, scl)
+        else:
+            _plant(surf, cx + dx, soil, var, scl)
+
+# Two scroll snapshots — different fills + a shifted rhythm so a repeat reads as a
+# fresh streetscape, not a conveyor loop. Empty stretches are the "breath."
+_FRAME_A = [   # cx, pw, lamp, members(dx,var,scale,back)
+    (46, 60, None, [(8, 1, 0.70, True), (-2, 9, 1.0, False), (24, 20, 0.9, False)]),   # tight triad
+    (168, 46, None, [(-12, 6, 1.0, False), (14, 16, 0.85, False)]),                    # loose pair
+    (250, 40, None, [(-9, 10, 0.95, False), (12, 11, 0.8, False)]),                    # short pair (coin-safe)
+    (336, 54, -26, [(10, 14, 0.74, True), (-2, 26, 1.0, False), (22, 0, 0.86, False)]),# lamp-landmark triad
+]
+_FRAME_B = [
+    (58, 46, None, [(-10, 17, 1.0, False), (12, 10, 0.85, False)]),                    # pair
+    (150, 58, None, [(12, 0, 0.68, True), (-4, 2, 1.0, False), (20, 23, 0.9, False)]), # tight triad
+    (304, 60, -28, [(14, 20, 0.70, True), (-6, 21, 1.0, False), (16, 11, 0.86, False)]),# lamp triad, loose
+]
+
+def production(surf, frame):
+    for spec in (_FRAME_A if frame == 0 else _FRAME_B):
+        _cluster(surf, *spec)
 
 
 # ── the five formation treatments ────────────────────────────────────────────
@@ -191,5 +252,33 @@ def run():
     return path
 
 
+def run2():
+    """Round 2 — the production formation (two scroll snapshots) per the critique."""
+    panels = []
+    titles = ("Production formation — snapshot A (triads-on-planters, 2-beat rhythm, lamp landmark)",
+              "Production formation — snapshot B (different fills + shifted rhythm — no visible loop)")
+    for i, title in enumerate(titles):
+        panels.append(_panel(title, lambda s, i=i: production(s, i)))
+    pw = panels[0].get_width()
+    head = 60
+    gap = 8
+    sheet = pygame.Surface((pw, head + len(panels) * (panels[0].get_height() + gap)))
+    sheet.fill((232, 226, 214))
+    sc._text(sheet, "GREENERY — CLUSTER FORMATION (round 2, final)", 10, 9, 17, (44, 38, 32), bold=True)
+    sc._text(sheet, "Triad-on-planter backbone + two depth tiers (cool back row), long-short 2-beat",
+             10, 29, 10, (108, 98, 84))
+    sc._text(sheet, "spacing, mixed 2/3 counts & footprints, lamp as occasional landmark, coin-safe palette.",
+             10, 42, 10, (108, 98, 84))
+    y = head
+    for p in panels:
+        sheet.blit(p, (0, y))
+        y += p.get_height() + gap
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, "round_2.png")
+    pygame.image.save(sheet, path)
+    print("saved", path, sheet.get_size())
+    return path
+
+
 if __name__ == "__main__":
-    run()
+    run2() if "--r2" in sys.argv else run()
