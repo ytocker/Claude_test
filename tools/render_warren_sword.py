@@ -5163,12 +5163,363 @@ def _render_clown_r6_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ── Round-7 DETAILED HANDS polish ─────────────────────────────────────────────
+#  Round 6's three matched-pair hand treatments are right in spirit but got the
+#  art-director note: at true 1x the digits merge into a mitt, the grip reads as
+#  "beside" not "gripping", and the two gloves are uneven. Round 7 keeps the size
+#  (~16px footprint is correct — never enlarge) and pushes legibility through
+#  VALUE instead: a single TOP-LEFT rim on every digit, a macaw-matched 1px dark
+#  keyline, a 1-shade-darker GROOVE in every inter-finger gap, and a darker
+#  OCCLUSION band where the shaft passes behind the fingers so the wrap reads as
+#  in-front/behind. The grips now show a real thumb crossing the FRONT of the
+#  shaft plus fingertips peeking on the same side, so the grasp is shown.
+
+_R7_GLOVE    = (250, 250, 252)
+_R7_GROOVE   = _shade(_R7_GLOVE, -78)   # 1-shade-darker inter-finger groove
+_R7_OCCLUDE  = _shade(_R7_GLOVE, -96)   # darkest: shaft-behind-fingers band
+_R7_GLOVE_MD = _shade(_R7_GLOVE, -26)
+_R7_GLOVE_HI = (255, 255, 255)
+
+# Outline value matched to the shipped macaw/coin 1px hairline so the gloves sit
+# naturally beside existing art; rim is ALWAYS top-left (-1,-1) for consistency.
+_R7_OUTLINE  = (20, 12, 18)
+
+
+def _r7_finger(surf, base, tip, w, *, crease=True, groove_above=False):
+    """One rounded finger capsule, base→tip, with a macaw-weight dark keyline, a
+    constant TOP-LEFT rim sheen, and an optional darker GROOVE skimming its upper
+    edge so the negative space between adjacent fingers reads as a real gap even
+    when the digits are only 3-4px wide at hero scale. `groove_above` paints that
+    separating groove so neighbouring fingers never melt into one mitt."""
+    # A darker separating groove laid just above this finger first, so the
+    # finger's own keyline crisply overdraws its lower lip (value separation).
+    if groove_above:
+        pygame.draw.line(surf, _R7_GROOVE,
+                         (base[0], base[1] - w // 2 - 1), (tip[0], tip[1] - w // 2 - 1),
+                         max(1, w // 2))
+    pygame.draw.line(surf, _R7_OUTLINE, base, tip, w + 2)   # macaw-weight keyline
+    pygame.draw.line(surf, _R7_GLOVE, base, tip, w)
+    pygame.draw.circle(surf, _R7_GLOVE, tip, max(1, w // 2))
+    pygame.draw.circle(surf, _R7_OUTLINE, tip, max(1, w // 2), 1)
+    pygame.draw.line(surf, _R7_GLOVE_HI,
+                     (base[0] - 1, base[1] - 1), (tip[0] - 1, tip[1] - 1),
+                     max(1, w // 3))                          # constant top-left rim
+    if crease:
+        mx = (base[0] + tip[0]) // 2
+        my = (base[1] + tip[1]) // 2
+        pygame.draw.line(surf, _R7_GLOVE_MD, (mx - w // 3, my), (mx + w // 3, my), 1)
+
+
+def _r7_palm(surf, cx, cy, rx, ry):
+    """Rounded palm mass: macaw-weight dark keyline ellipse + glove fill + a
+    top-left alpha sheen so the palm reads round and lifts off the shaft / sky."""
+    rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, _R7_OUTLINE, rect)
+    pygame.draw.ellipse(surf, _R7_GLOVE, rect.inflate(-2, -2))
+    sheen = pygame.Surface((rx, ry), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (255, 255, 255, 90), sheen.get_rect())
+    surf.blit(sheen, (cx - rx + 1, cy - ry + 1))
+
+
+def _r7_occlusion(surf, hand, shaft_w):
+    """The 1-shade-darker band painted on the shaft exactly where the front
+    fingers will cross it, so the wood reads as passing BEHIND those digits
+    rather than sitting beside the hand. Drawn after the shaft, before the
+    front pass."""
+    hx, hy = hand
+    pygame.draw.line(surf, _R7_OCCLUDE,
+                     (hx - shaft_w - 2, hy - 4), (hx - shaft_w - 2, hy + 8), shaft_w + 1)
+
+
+# OPEN presenting hands — palm tipped up under the floating die, fingers spread.
+# All stay inside the ~16px box; legibility comes from grooves + rim, not size.
+
+def _r7_open_realistic(surf, hand):
+    """Slim separated fingers + an opposed thumb over a compact palm. Each finger
+    carries a darker groove above it so the inter-finger negative space stays a
+    crisp ≥1px gap at 1x instead of fusing into a mitt."""
+    hx, hy = hand
+    _r7_palm(surf, hx, hy, 7, 6)
+    # Wider angular spread than r6 (-64..28 vs -58..18) so gaps open up; the
+    # groove rides above each digit to value-separate adjacent fingers.
+    for i, ang in enumerate((-64, -34, -4, 28)):
+        a = math.radians(ang - 90)
+        ln = 10 - abs(i - 1)             # middle pair longest, outers shorter
+        tip = (hx + int(math.cos(a) * ln), hy + int(math.sin(a) * ln))
+        _r7_finger(surf, (hx, hy - 2), tip, 3, groove_above=(i > 0))
+    # KEEP the convincing r6 thumb placement/angle on the raised hand.
+    _r7_finger(surf, (hx - 3, hy + 3), (hx - 9, hy + 4), 4, crease=False)
+
+
+def _r7_open_mascot(surf, hand):
+    """Three plump gloved fingers + a fat thumb, with bold dark Mickey-glove
+    seams. EQUALIZED to the grip hand: same finger width (4) and the same 4-seam
+    grammar (3 inter-finger + 1 thumb split) so both gloves match in mass."""
+    hx, hy = hand
+    _r7_palm(surf, hx, hy, 7, 6)
+    for ang in (-52, -18, 16):
+        a = math.radians(ang - 90)
+        tip = (hx + int(math.cos(a) * 9), hy + int(math.sin(a) * 9))
+        _r7_finger(surf, (hx, hy - 1), tip, 4)
+    _r7_finger(surf, (hx - 4, hy + 3), (hx - 10, hy + 5), 4, crease=False)
+    # Four bold glove seams (one per finger) — the toon read, matched to the grip.
+    for ang in (-52, -18, 16):
+        a = math.radians(ang - 90)
+        ex = hx + int(math.cos(a) * 8)
+        ey = hy + int(math.sin(a) * 8)
+        pygame.draw.line(surf, _R7_GROOVE, (hx, hy), (ex, ey), 2)
+    pygame.draw.line(surf, _R7_GROOVE, (hx - 2, hy + 2), (hx - 8, hy + 4), 2)
+
+
+def _r7_open_elegant(surf, hand):
+    """Refined oval palm + slender tapered fingers, but SHORTENED ~28% from r6 so
+    the hand returns to the ~16px mitt footprint, dropped to THREE fingers with
+    wider gaps for clean 1x legibility, each with a base knuckle crease."""
+    hx, hy = hand
+    _r7_palm(surf, hx, hy, 6, 7)
+    # Three fingers (r6 had four) at a wider spread, lengths cut ~28% (was 13/11).
+    for i, ang in enumerate((-60, -26, 12)):
+        a = math.radians(ang - 90)
+        ln = 9 - (1 if i == 1 else 0)    # gentle taper, all short
+        tip = (hx + int(math.cos(a) * ln), hy + int(math.sin(a) * ln))
+        _r7_finger(surf, (hx, hy - 2), tip, 3, groove_above=(i > 0))
+        pygame.draw.circle(surf, _R7_GLOVE_MD,
+                           (hx + int(math.cos(a) * 3), hy + int(math.sin(a) * 3)), 1)
+    _r7_finger(surf, (hx - 3, hy + 2), (hx - 9, hy), 3, crease=False)
+
+
+# WRAP grips — three z-passes (caller blits shaft between behind / front). The
+# `behind` pass paints the palm heel + back fingers; the `front` pass paints the
+# fingertips + a THUMB crossing the FRONT face of the shaft so the grasp is shown.
+
+def _r7_wrap_realistic(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r7_palm(surf, hx + 2, hy, 7, 6)
+        for k, dy in enumerate((-5, -1, 3, 7)):
+            _r7_finger(surf, (hx + 5, hy + dy), (hx - shaft_w + 1, hy + dy), 3,
+                       groove_above=(k > 0))
+    else:
+        # Two fingertips cross clearly IN FRONT of the shaft + a thumb over its
+        # front face — the grasp reads, not "beside". The caller has already laid
+        # the occlusion band so the wood darkens under these digits.
+        for dy in (-3, 5):
+            _r7_finger(surf, (hx + 4, hy + dy), (hx - shaft_w - 3, hy + dy), 3)
+        _r7_finger(surf, (hx + 6, hy - 7), (hx - shaft_w - 1, hy - 2), 4, crease=False)
+
+
+def _r7_wrap_mascot(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r7_palm(surf, hx + 2, hy, 7, 6)
+        for dy in (-4, 3, 9):
+            _r7_finger(surf, (hx + 6, hy + dy), (hx - shaft_w + 1, hy + dy), 4)
+    else:
+        # Two fat fingertips peek on the FRONT side + a thumb wraps over the
+        # shaft's front face — the grip is shown, not implied. Four-seam grammar
+        # matches the open hand for equalized gloves.
+        for dy in (-1, 7):
+            _r7_finger(surf, (hx + 5, hy + dy), (hx - shaft_w - 3, hy + dy), 4)
+        _r7_finger(surf, (hx + 7, hy - 6), (hx - shaft_w - 2, hy - 1), 4, crease=False)
+        # Bold seams between the two front fingers + along the thumb (toon read).
+        pygame.draw.line(surf, _R7_GROOVE, (hx - 1, hy - 2), (hx - shaft_w - 2, hy + 4), 2)
+        pygame.draw.line(surf, _R7_GROOVE, (hx + 2, hy - 4), (hx - shaft_w, hy - 1), 2)
+
+
+def _r7_wrap_elegant(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r7_palm(surf, hx + 3, hy, 6, 7)
+        for k, dy in enumerate((-5, -1, 4)):
+            _r7_finger(surf, (hx + 4, hy + dy), (hx - shaft_w, hy + dy), 3,
+                       groove_above=(k > 0))
+    else:
+        # A slender index fingertip crosses in front + a poised thumb over the
+        # shaft's front face — light, but unambiguously a grasp.
+        _r7_finger(surf, (hx + 4, hy + 1), (hx - shaft_w - 4, hy - 1), 3)
+        _r7_finger(surf, (hx + 6, hy - 7), (hx - shaft_w - 1, hy - 3), 3, crease=False)
+
+
+_R7_HAND_KITS = {
+    "realistic": (_r7_open_realistic, _r7_wrap_realistic),
+    "mascot":    (_r7_open_mascot,    _r7_wrap_mascot),
+    "elegant":   (_r7_open_elegant,   _r7_wrap_elegant),
+}
+
+
+def render_clown_staff_r7(idx, *, total_px, bauble_px, hands):
+    """Round-7 hero panel: the approved round-5 held-marotte composition VERBATIM
+    with ONLY the two HANDS re-detailed at the round-7 polish (consistent top-left
+    rim, macaw-weight keyline, inter-finger grooves, shaft occlusion band, and a
+    thumb crossing the FRONT of the shaft on the grip). Size is held at the ~16px
+    footprint — all the added legibility is value, never bulk. The in-game clown
+    is never touched; all detail lives in this look-dev overdraw."""
+    open_fn, wrap_fn = _R7_HAND_KITS[hands]
+
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    hand_up = (jester_cx - 60, feet_y - 154)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    open_fn(layer, hand_up)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # Three z-passes: back fingers + palm heel BEHIND the shaft, then the shaft,
+    # then an occlusion band on the wood, then the fingertips + thumb IN FRONT.
+    shaft_w = 2
+    wrap_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r7_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    wrap_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    draw_cupped_die(layer, jester_cx - 56, 30, idx * 1.7 + 2.0, show_inset=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+_CLOWN_R7_VARIANTS = [
+    ("Realistic", dict(total_px=200, bauble_px=15, hands="realistic"),
+     "wider grooved gaps + 2 fingertips crossing the shaft front"),
+    ("Mascot", dict(total_px=200, bauble_px=15, hands="mascot"),
+     "equalized 4-seam gloves + thumb wrapping the shaft front"),
+    ("Elegant", dict(total_px=200, bauble_px=15, hands="elegant"),
+     "shortened 3-finger slender hand, wide gaps, poised grasp"),
+]
+
+
+_CLOWN_R7_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 7: DETAILED HANDS polish (staff held constant; hand detail is the only variable)",
+     (255, 255, 255)),
+    ("Round-6 fixes applied: top-left rim + macaw keyline, grooved finger gaps, shaft-occlusion band, real front-of-shaft grip. "
+     "Size held at ~16px (legibility via VALUE, never bulk). Three treatments — PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r7_sheet():
+    """Round-7 clown look-dev: a 1-row strip of three hero panels differing ONLY
+    in the polished hand-detail treatment, plus a true-1x shrink-test strip of all
+    three over day AND night sky beneath. Writes docs/warren_clown/round_7.png —
+    never overwrites an existing round sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = 3
+    pad = 20
+    head = 86
+    name_strip = 34
+    gap = 14
+    shrink_h = 40 + VIEW_H            # label band + one true-1x row pair
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R7_HEADERS[0][0], True, _CLOWN_R7_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R7_HEADERS[1][0], True, _CLOWN_R7_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R7_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 20))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r7(idx, **kw)        # true 1x VIEW_W×VIEW_H
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    # SHRINK-TEST: each panel at TRUE 1x, composited over day AND night sky so the
+    # gate "must stay legible at 1x against day and night" is verifiable on-sheet.
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)      # mid-night phase for the contrast gate
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        # Day on the left half of the cell, night on the right half, panel on each.
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_7.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -5179,6 +5530,7 @@ def main():
     do_clown_r4 = "--clown-r4" in args      # round-4 clown hero look-dev (FINAL), opt-in
     do_clown_final = "--clown-final" in args  # corrected clown look-dev sheet, opt-in
     do_clown_r6 = "--clown-r6" in args      # round-6 detailed-hands look-dev, opt-in
+    do_clown_r7 = "--clown-r7" in args      # round-7 detailed-hands polish, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -5199,6 +5551,8 @@ def main():
         _render_clown_final_sheet()
     if do_clown_r6:
         _render_clown_r6_sheet()
+    if do_clown_r7:
+        _render_clown_r7_sheet()
 
 
 if __name__ == "__main__":
