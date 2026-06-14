@@ -2787,6 +2787,100 @@ def prop_14k(surf, bw, bh, ss):
     _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
 
 
+# ════════════════════════════════════════════════════════════════════════════
+#  BELL-FOOT VARIANTS (prop_14l … prop_14n) — three siblings re-shod with the
+#  Marionette-Master flared BELL foot (a gold trumpet collar above a foot-ferrule
+#  band) in place of the gem-ball pommel. The bell terminus reads as the more
+#  elegant, formal scepter butt; everything above the foot is unchanged.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ---- 14l. Carousel Barker · bell foot ---------------------------------------
+def prop_14l(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(13 * ss)
+    hy = int(34 * ss)
+    shaft_top = hy + hr
+    hwid = int(7 * ss)
+    _shaft_twist(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, GOLD, PLUM_DK)
+    _ferrule(surf, cx, bh * 0.5, hwid, ss, GOLD, h=9, jewel=PLUM)
+    _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    base_y = hy - hr + int(1 * ss)
+    for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
+                          (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
+        bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
+        span = int(8 * ss)
+        tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
+        pygame.draw.polygon(surf, col, tri)
+        pygame.draw.polygon(surf, _shade_c(col, 50),
+                            [(cx - span, base_y + int(2 * ss)), (cx, base_y + int(2 * ss)),
+                             (bxp, byp)])
+        pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)), max(1, int(ss)))
+    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, LIME, lobes=9)
+    _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
+
+
+# ---- 14m. Jingles & Filigree · bell foot ------------------------------------
+def prop_14m(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(13 * ss)
+    hy = int(36 * ss)
+    shaft_top = hy + hr
+    hwid = int(7 * ss)
+    _shaft_guilloche(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK)
+    _ferrule(surf, cx, shaft_top + int(3 * ss), hwid, ss, GOLD, h=7)
+    _ferrule(surf, cx, bh * 0.62, hwid, ss, GOLD, h=7, jewel=LIME)
+    _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    base_y = hy - hr + int(1 * ss)
+    for (dx, dy, col) in [(-15, -22, PLUM_DK), (15, -20, LIME_DK)]:
+        bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
+        span = int(7 * ss)
+        tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
+        pygame.draw.polygon(surf, col, tri)
+        pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+    for (ax, ay) in [(-15, -22), (15, -20)]:
+        ex, ey = cx + int(ax * ss), base_y + int(ay * ss)
+        pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey)), max(3, int(3.8 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(ex), int(ey)), max(2, int(3.0 * ss)))
+        pygame.draw.circle(surf, GOLD_HI, (int(ex - ss), int(ey - ss)), max(1, int(1.4 * ss)))
+    _marotte_ruff(surf, cx, hy + hr + int(1 * ss), int(hr * 1.25), ss, PLUM_DK,
+                  lobes=11, fringe=GOLD)
+    _marotte_ruff(surf, cx, hy + hr - int(3 * ss), int(hr * 0.95), ss, LIME, lobes=9, bell_col=GOLD)
+    _mini_clown_face(surf, cx, hy, hr, ss, expr="tongue")
+
+
+# ---- 14n. Golden Jester · bell foot -----------------------------------------
+def prop_14n(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(13 * ss)
+    hy = int(34 * ss)
+    shaft_top = hy + hr
+    hwid = int(7 * ss)
+    _shaft_spiral_flute(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK,
+                        gem_a=LIME, gem_b=GOLD)
+    _ferrule(surf, cx, shaft_top + int(4 * ss), hwid, ss, GOLD, h=9, jewel=PLUM)
+    _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    base_y = hy - hr + int(1 * ss)
+    for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
+                          (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
+        bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
+        span = int(8 * ss)
+        tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
+        pygame.draw.polygon(surf, col, tri)
+        pygame.draw.polygon(surf, _shade_c(col, 50),
+                            [(cx - span, base_y + int(2 * ss)), (cx, base_y + int(2 * ss)),
+                             (bxp, byp)])
+        pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)), max(1, int(ss)))
+    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.1), ss, LIME_DK, lobes=11, bell_col=GOLD)
+    _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
+
+
 # ---- 15. Shepherd's Crook ---------------------------------------------------
 # A long pale-wood crook whose hooked top is the gap terminus — the hook curls
 # IN so the inner mouth of the hook reads as a clean dark-on-bright end.
@@ -3328,6 +3422,18 @@ MAROTTE_CRAFT_VERSIONS = [
      "Twisted-Jester body recolored to LIME/GOLD gem inlays · four-point splayed cap (design 2) · "
      "jewelled ferrule + gem ball pommel (no collar bead)",
      prop_14k, "staff"),
+    ("Carousel Barker · Bell-Foot", "STAFFS",
+     "design 2 re-shod with the design-3 flared BELL foot (gold trumpet collar + foot ferrule) "
+     "in place of the gem ball pommel",
+     prop_14l, "staff"),
+    ("Jingles & Filigree · Bell-Foot", "STAFFS",
+     "design 4 re-shod with the design-3 flared BELL foot (gold trumpet collar + foot ferrule) "
+     "in place of the gem ball pommel",
+     prop_14m, "staff"),
+    ("Golden Jester · Bell-Foot", "STAFFS",
+     "design 7 re-shod with the design-3 flared BELL foot (gold trumpet collar + foot ferrule) "
+     "in place of the gem ball pommel",
+     prop_14n, "staff"),
 ]
 
 
