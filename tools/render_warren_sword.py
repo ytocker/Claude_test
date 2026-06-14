@@ -2463,10 +2463,11 @@ def _ferrule(surf, cx, y, hw, ss, col, *, h=8, jewel=None):
                            (int(cx - jr * 0.3), int(y - jr * 0.3)), max(1, int(jr * 0.4)))
 
 
-def _pommel_finial(surf, cx, bot_y, hw, ss, col, *, kind="ball", gem=None):
+def _pommel_finial(surf, cx, bot_y, hw, ss, col, *, kind="ball", gem=None, bead=True):
     """A finished finial/pommel at the foot so the staff reads as a real scepter
     butt, not a sawn-off pole. `kind` picks the silhouette: a knobbed "ball", a
-    spike-tipped "spike", or a flared collared "bell"."""
+    spike-tipped "spike", or a flared collared "bell". `bead` adds the small
+    collar bead above a ball pommel; drop it for a cleaner single-knob foot."""
     if kind == "spike":
         pr = int(hw * 1.5)
         pygame.draw.polygon(surf, _shade_c(col, -50),
@@ -2505,8 +2506,9 @@ def _pommel_finial(surf, cx, bot_y, hw, ss, col, *, kind="ball", gem=None):
         pygame.draw.circle(surf, gem, (cx, pcy), max(2, int(pr * 0.32)))
         pygame.draw.circle(surf, _shade_c(gem, 90),
                            (int(cx - pr * 0.16), int(pcy - pr * 0.16)), max(1, int(pr * 0.14)))
-    pygame.draw.circle(surf, _shade_c(col, -45), (cx, int(bot_y - pr * 1.25)),
-                       max(2, int(hw * 0.8)))
+    if bead:
+        pygame.draw.circle(surf, _shade_c(col, -45), (cx, int(bot_y - pr * 1.25)),
+                           max(2, int(hw * 0.8)))
 
 
 # ---- 14f. Carousel Barker ---------------------------------------------------
@@ -2743,6 +2745,42 @@ def prop_14j(surf, bw, bh, ss):
         pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
         pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(2.8 * ss)))
         pygame.draw.circle(surf, GOLD_HI, (int(bxp - ss), int(byp - ss)), max(1, int(ss)))
+    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.1), ss, LIME_DK, lobes=11, bell_col=GOLD)
+    _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
+
+
+# ---- 14k. Golden Jester (Twisted-Jester recolor + four-point cap) -----------
+# The Twisted-Jester lead re-dressed: the spiral-flute shaft keeps its winding
+# flutes but swaps the plum/lime gem studs for LIME/GOLD inlays, the foot pommel
+# drops its collar bead for a cleaner gold-ball-on-purple-gem butt, and the
+# coronet is replaced by the Carousel-Barker four-point splayed cap so the bauble
+# wears the same loud fool's cap as the jolliest sibling.
+def prop_14k(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(13 * ss)
+    hy = int(34 * ss)                      # cap seats as on prop_14f (the borrowed cap)
+    shaft_top = hy + hr
+    hwid = int(7 * ss)
+    _shaft_spiral_flute(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK,
+                        gem_a=LIME, gem_b=GOLD)
+    _ferrule(surf, cx, shaft_top + int(4 * ss), hwid, ss, GOLD, h=9, jewel=PLUM)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=PLUM,
+                   bead=False)
+    # The four-point splayed cap from prop_14f: two outer points flop far out + low,
+    # two inner points lean apart, each bell-tipped.
+    base_y = hy - hr + int(1 * ss)
+    for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
+                          (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
+        bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
+        span = int(8 * ss)
+        tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
+        pygame.draw.polygon(surf, col, tri)
+        pygame.draw.polygon(surf, _shade_c(col, 50),
+                            [(cx - span, base_y + int(2 * ss)), (cx, base_y + int(2 * ss)),
+                             (bxp, byp)])
+        pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)), max(1, int(ss)))
     _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.1), ss, LIME_DK, lobes=11, bell_col=GOLD)
     _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
 
@@ -3284,6 +3322,10 @@ MAROTTE_CRAFT_VERSIONS = [
     ("Twisted Jester", "STAFFS",
      "SPIRAL-FLUTE shaft with plum/lime GEM inlays · ornate crown-cap · jewelled ferrule + gem pommel",
      prop_14j, "staff"),
+    ("Golden Jester", "STAFFS",
+     "Twisted-Jester body recolored to LIME/GOLD gem inlays · four-point splayed cap (design 2) · "
+     "jewelled ferrule + gem ball pommel (no collar bead)",
+     prop_14k, "staff"),
 ]
 
 
@@ -3683,8 +3725,8 @@ _ROUND9_HEADERS = [
 def _render_craft_sheet(versions, out_name, headers):
     """Round-9 single-staff sheet: ONE marotte per panel at MAXIMUM size, bauble
     UP, foot planted on a day-sky + ground strip — the staff 'from the route, as
-    big as the panel allows'. A 2x3 grid of tall panels lets each staff read big
-    enough that the bauble's mini-clown face + the shaft ornament are legible.
+    big as the panel allows'. A 3-column grid of tall panels lets each staff read
+    big enough that the bauble's mini-clown face + the shaft ornament are legible.
     Renders each staff through `_render_obstacle` (head-UP, no flip) at a HIGH
     supersample so the ported face + shaft detail stays crisp. Prints each prop's
     median body luma with the same OK<140 / HOT>=140 tag as `_render_sheet`."""
@@ -3699,7 +3741,8 @@ def _render_craft_sheet(versions, out_name, headers):
     DISP_W = int(PANEL_W * SCALE)
     DISP_H = int(PANEL_H * SCALE)
 
-    cols, rows = 3, 2
+    cols = 3
+    rows = -(-len(versions) // cols)   # ceil so a 7th panel adds a row, not overflows
     pad = 20
     head = 104
     name_strip = 30
