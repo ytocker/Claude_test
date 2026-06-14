@@ -400,77 +400,29 @@ def _straight_body(cx, tip_y, base_y, hw, *, taper=0.0):
     return [(cx - bw, base_y), (cx, tip_y), (cx + bw, base_y)], bw
 
 
-def _saber_halfwidth(t, hw, *, edge, point, belly_at, shoulder=0.18):
-    """The shared blade half-width profile for the crystal sabers — a genuine
-    SWORD/ESTOC taper, not a cleaver. `t` runs 0 at the base/guard to 1 at the tip.
-
-    The widest steel sits HIGH near the guard: the width holds at ~full over a
-    short `shoulder` band off the base, then a single smooth concave sweep draws it
-    down to ZERO at the very tip. The remap `s = (t-shoulder)/(1-shoulder)` keeps
-    the taper a long unbroken line and `point` controls how convex that line is —
-    higher `point` makes the upper blade collapse into a finer, longer needle so
-    the last ~30% is an unmistakably sharp point (no stubby nub at the planted
-    ground-end). Any `edge` belly swell is biased LOW (peaking near `belly_at`) and
-    forced to ZERO by mid-blade so it can never re-widen the upper blade and blunt
-    the tip — the cutting edge above the belly is one clean inward sweep to the
-    point. The result reads pointy at both hero and route scale."""
-    # Hold full width over the guard-side shoulder, then one smooth taper to a
-    # zero-width tip so the silhouette converges to a true point (not a flat nub).
-    if t <= shoulder:
-        core = 1.0
-    else:
-        s = (t - shoulder) / max(1e-3, 1.0 - shoulder)
-        core = (1.0 - s) ** point
-    # A guard-biased belly that swells only the lower blade and vanishes by ~0.5,
-    # so the cutting edge above mid-blade is one clean inward sweep to the point.
-    if t < 0.5:
-        bell = math.sin(min(1.0, t / max(0.04, belly_at)) * math.pi * 0.5)
-        bell *= max(0.0, 1.0 - t / 0.5)
-    else:
-        bell = 0.0
-    return hw * core + edge * hw * 0.5 * bell
-
-
-def _curved_body(cx, tip_y, base_y, hw, *, bow=0.30, edge=1.0,
-                 point=1.0, belly_at=0.5, shoulder=0.18):
-    """A single-edged CURVED (saber/falchion) silhouette tapering to a hard tip.
-    `bow` is the sideways lean of the tip. With `point` left at 1.0 this keeps the
-    legacy near-linear taper (used by the cartoon/realistic swords). The crystal
-    sabers pass `point` > 1 so the widest steel sits HIGH near the guard and BOTH
-    edges draw out into a long fine point (see `_saber_halfwidth`); they also bias
-    the belly swell LOW via `belly_at`. Returns (pts, bw).
-
-    In the saber (non-legacy) path the SPINE side converges with the cutting edge:
-    its offset is tied to the same `(1-s)` taper as the edge so the two edges meet
-    at the tip in a true point — the old fixed `bw*0.32` spine offset never tapered
-    and left a flat/blunt planted ground-end, which is exactly what 'sharp & pointy'
-    is fixing."""
+def _curved_body(cx, tip_y, base_y, hw, *, bow=0.30, edge=1.0):
+    """A single-edged CURVED (saber/falchion) silhouette: the back spine bows
+    one way, the cutting edge swells then sweeps to the same hard tip. `bow` is
+    the sideways curve of the tip; `edge` swells the belly. Returns (pts, bw)."""
     span = base_y - tip_y
     bw = hw
     spine, edgep = [], []
     n = 14
-    legacy = point == 1.0 and belly_at == 0.5
+    # The body keeps its original profile, but the back spine used to hold a fixed
+    # offset while the edge only narrowed to ~0.08*hw, so the two sides never met
+    # and the blade ended in a blunt FLAT edge. Over the last stretch (t > TIP_CLOSE)
+    # ramp BOTH sides in to zero so they converge on the tip vertex — closing that
+    # flat end into a sharp point without touching the rest of the silhouette.
+    TIP_CLOSE = 0.74
     for i in range(n + 1):
         t = i / n                       # 0 at base, 1 at tip
         y = base_y - span * t
+        arc = math.sin(t * math.pi)     # 0 at ends, 1 mid
         cxt = cx + bow * hw * (t ** 1.3)   # whole blade leans toward the tip side
-        if legacy:
-            arc = math.sin(t * math.pi)
-            bwt = hw * (1.0 - t * 0.92) + edge * hw * 0.5 * arc * (1 - t * 0.4)
-            spine.append((cxt - bw * 0.32 - bwt * 0.18, y))  # back (spine) side
-            edgep.append((cxt + bwt, y))                     # cutting (belly) side
-        else:
-            bwt = _saber_halfwidth(t, hw, edge=edge, point=point, belly_at=belly_at,
-                                   shoulder=shoulder)
-            # The spine is a narrow back-bevel that tapers on the SAME schedule as
-            # the cutting edge, so both sides collapse to the tip in a fine point.
-            if t <= shoulder:
-                taper = 1.0
-            else:
-                taper = (1.0 - (t - shoulder) / max(1e-3, 1.0 - shoulder)) ** point
-            sp = bw * 0.30 * taper
-            spine.append((cxt - sp, y))                      # back (spine) side
-            edgep.append((cxt + bwt, y))                     # cutting (belly) side
+        bwt = hw * (1.0 - t * 0.92) + edge * hw * 0.5 * arc * (1 - t * 0.4)
+        close = 1.0 if t <= TIP_CLOSE else 1.0 - (t - TIP_CLOSE) / (1.0 - TIP_CLOSE)
+        spine.append((cxt - (bw * 0.32 + bwt * 0.18) * close, y))  # back (spine)
+        edgep.append((cxt + bwt * close, y))                       # cutting (belly)
     tip = (cx + bow * hw, tip_y)
     pts = spine + [tip] + list(reversed(edgep))
     return pts, bw
@@ -1061,8 +1013,7 @@ def sword_11(surf, bw, bh, ss):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=1,
-                 body=None, outline=None, ow=2, point=1.0, belly_at=0.5, edge=0.0,
-                 shoulder=0.18):
+                 body=None, outline=None, ow=2):
     """Stack angular crystal facets up a curved blade — the shared faceting core
     the variants tune (cut count, tones, lateral lean). A bright crystalline ridge
     runs to the apex so the tip reads as a hard lit edge against the gap.
@@ -1086,16 +1037,8 @@ def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=
         y1 = base_y - span * cuts[i + 1]
         cx0 = cx + lean * hw * (cuts[i] ** 1.3)
         cx1 = cx + lean * hw * (cuts[i + 1] ** 1.3)
-        # Track the sword taper so facets stay inside the long fine point; with the
-        # legacy point==1.0 this reduces to the old near-linear width.
-        if point == 1.0 and belly_at == 0.5 and edge == 0.0:
-            w0 = hw * (1.0 - cuts[i] * 0.9)
-            w1 = hw * (1.0 - cuts[i + 1] * 0.9)
-        else:
-            w0 = _saber_halfwidth(cuts[i], hw, edge=edge, point=point,
-                                  belly_at=belly_at, shoulder=shoulder)
-            w1 = _saber_halfwidth(cuts[i + 1], hw, edge=edge, point=point,
-                                  belly_at=belly_at, shoulder=shoulder)
+        w0 = hw * (1.0 - cuts[i] * 0.9)
+        w1 = hw * (1.0 - cuts[i + 1] * 0.9)
         ow0 = max(0.0, w0 * 0.78 - edge_in)
         ow1 = max(0.0, w1 * 0.78 - edge_in)
         pygame.draw.polygon(surf, _shade_c(tones[i % len(tones)], -24),
@@ -1140,19 +1083,14 @@ def sword_11a(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 1.04)
     ghw = _guard_hw(ss)
-    # Widest right at the guard shoulder, a soft LOW belly that dies by mid-blade,
-    # then a long convex sweep collapsing both edges to a fine point over the upper
-    # ~40%: a classic broad-shouldered saber that tapers to a genuinely sharp tip,
-    # not a low-belly blade with a stubby ground-end.
-    A_PT, A_BAT, A_EDGE, A_SH = 2.2, 0.14, 0.22, 0.16
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.20, edge=A_EDGE,
-                              point=A_PT, belly_at=A_BAT, shoulder=A_SH)
+    # A gentler belly (edge 0.26) keeps the cutting edge a single smooth arc rather
+    # than a bulging belly that reads wavy beside the internal facets at route scale.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.20, edge=0.26)
     ow = max(2, int(2.0 * ss))
     _vgrad_poly(surf, body, A_A, A_CORE, outline=A_DK, ow=ow)
     _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.28, 0.52, 0.78, 1.0],
                  [A_B, A_A, A_B, A_A], A_HI, lean=0.20, ss=ss,
-                 body=body, outline=A_DK, ow=ow,
-                 point=A_PT, belly_at=A_BAT, edge=A_EDGE, shoulder=A_SH)
+                 body=body, outline=A_DK, ow=ow)
     # Four-shard FANNED guard (more angular spread than the round-6 two-shard).
     for sgn in (-1, 1):
         for k, sc in ((0.55, 0.7), (1.0, 1.0)):
@@ -1218,13 +1156,9 @@ def sword_11c(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 0.98)
     ghw = _guard_hw(ss)
-    # A recurve sweep (bow 0.24) but now on the SABER taper: widest at the guard
-    # shoulder, a light low belly, then a long convex collapse to a fine point — the
-    # icy blade tapers to a real sharp tip instead of carrying its width low into a
-    # stubby recurved nub. The bow leans the whole sweep without re-widening the tip.
-    C_PT, C_BAT, C_EDGE, C_SH = 2.0, 0.16, 0.18, 0.16
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.24, edge=C_EDGE,
-                              point=C_PT, belly_at=C_BAT, shoulder=C_SH)
+    # A calmer recurve (bow 0.26) so the long edge stays one smooth sweep; the high
+    # bow plus a thin facet stack used to step the silhouette into a wavy edge.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.26, edge=0.14)
     ow = max(2, int(2.0 * ss))
     # Body keyed off the MID tone so the icy-blue fill clears the 140 luma gate;
     # the bright C_A / white ridge stays on the facet edges only.
@@ -1234,8 +1168,7 @@ def sword_11c(surf, bw, bh, ss):
     _xtal_facets(surf, cx, tip_y, base_y, hw,
                  [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0],
                  [C_B, C_A], C_HI, lean=0.24, ss=ss,
-                 body=body, outline=C_DK, ow=ow,
-                 point=C_PT, belly_at=C_BAT, edge=C_EDGE, shoulder=C_SH)
+                 body=body, outline=C_DK, ow=ow)
     # Bias the BELLY-side internal shading one step deeper so the recurve registers
     # as a curve at route scale: a translucent dark strip hugging the cutting-edge
     # side, INSET well inside the silhouette (margin keyed to blade width) so it
@@ -1248,9 +1181,9 @@ def sword_11c(surf, bw, bh, ss):
     for i in range(n + 1):
         t = i / n
         y = base_y - span_c * t
-        cxt = cx + 0.24 * hw * (t ** 1.3)
-        bwt = _saber_halfwidth(t, hw, edge=C_EDGE, point=C_PT, belly_at=C_BAT,
-                               shoulder=C_SH)
+        arc = math.sin(t * math.pi)
+        cxt = cx + 0.26 * hw * (t ** 1.3)
+        bwt = hw * (1.0 - t * 0.92) + 0.14 * hw * 0.5 * arc * (1 - t * 0.4)
         belly_x = cxt + bwt - margin
         inner.append((belly_x - hw * 0.30, y))
         outer_in.append((belly_x, y))
@@ -1326,19 +1259,13 @@ def sword_11e(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 0.82)        # narrow needle
     ghw = _guard_hw(ss)
-    # The estoc reference shape: a short guard-shoulder at full (already-narrow)
-    # width, then a long single convex taper — both edges converge to a true needle
-    # over the upper ~45%, the finest sharp point of the set.
-    E_PT, E_BAT, E_EDGE, E_SH = 2.4, 0.14, 0.04, 0.14
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.10, edge=E_EDGE,
-                              point=E_PT, belly_at=E_BAT, shoulder=E_SH)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.10, edge=0.06)
     ow = max(2, int(2.0 * ss))
     _vgrad_poly(surf, body, E_A, E_CORE, outline=E_DK, ow=ow)
     _xtal_facets(surf, cx, tip_y, base_y, hw,
                  [0.0, 0.16, 0.32, 0.48, 0.64, 0.80, 1.0],
                  [E_B, E_A], E_HI, lean=0.10, ss=ss,
-                 body=body, outline=E_DK, ow=ow,
-                 point=E_PT, belly_at=E_BAT, edge=E_EDGE, shoulder=E_SH)
+                 body=body, outline=E_DK, ow=ow)
     # A low diamond guard (two flat shards meeting in a point each side).
     for sgn in (-1, 1):
         shard = [(cx + sgn * int(3 * ss), gy - int(2 * ss)),
@@ -1519,15 +1446,13 @@ def sword_11g(surf, bw, bh, ss):
 #  wing, collar nor geode. 2-3 bold beats each, no fizz at route scale.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ---- 11h. Obsidian Sawglass (smoky charcoal-violet, broad-shouldered bowie) ---
-# A broad-shouldered crystal BOWIE/SEAX point — the widest steel sits right at the
-# guard shoulder (the broad chest that gives the variety), then a long convex
-# clip-point sweep collapses both edges to one genuinely sharp apex. This replaces
-# the old flat-bottomed cleaver: the planted ground-end is now a real point, not a
-# blunt chopping edge, while the broad shoulders keep it the beefiest of the set.
-# The guard is a round knuckle-DISC plate (a flat pierced crystal disc — a guard
-# form distinct from the shard-fans / spikes / wings / rings), the pommel a heavy
-# faceted ANVIL wedge. Smoky charcoal-violet keeps it the darkest, moodiest member.
+# ---- 11h. Obsidian Cleaver (smoky charcoal-violet, clean broad cleaver edge) --
+# A single-edge crystal CLEAVER with a clean broad swept cutting edge sweeping to
+# one hard apex (de-serrated: the old sawtooth read as a broken edge at route
+# scale; a sharp cleaver keeps the identity without the notches). The guard is a
+# round knuckle-DISC plate (a flat pierced crystal disc — a guard form distinct
+# from the shard-fans / spikes / wings / rings), the pommel a heavy faceted ANVIL
+# wedge. Smoky charcoal-violet keeps it the darkest, moodiest of the set.
 H_CORE, H_A, H_B, H_HI, H_DK = (28, 22, 40), (118, 96, 150), (74, 60, 104), (198, 184, 224), (14, 10, 22)
 
 
@@ -1537,22 +1462,18 @@ def sword_11h(surf, bw, bh, ss):
     hw = int(_blade_hw(ss) * 1.06)
     ghw = _guard_hw(ss)
     span = base_y - tip_y
-    # A broad-shouldered bowie point: a LONGER guard-shoulder holds the wide chest,
-    # then a long convex clip-point sweep (high `point`) draws both edges to one
-    # sharp apex. A light low belly fills out the shoulder; it dies by mid-blade so
-    # the upper edge is a single clean inward sweep to the point.
-    H_PT, H_BAT, H_EDGE, H_SH = 2.0, 0.16, 0.24, 0.24
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.16, edge=H_EDGE,
-                              point=H_PT, belly_at=H_BAT, shoulder=H_SH)
+    # A broad single-edge cleaver: a calm belly (edge 0.22) sweeping to one hard
+    # apex so the outer silhouette is a SINGLE smooth sharp edge, not a row of
+    # teeth that rasterised into notches at route scale.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.16, edge=0.22)
     ow = max(2, int(2.2 * ss))
     _vgrad_poly(surf, body, H_B, H_CORE, outline=H_DK, ow=ow)
     # Internal-only crystal facets (outer vertices inset inside the body boundary)
-    # so the bowie glints like cut glass without stepping the sharp edge; the body
-    # outline is re-stroked LAST to keep one clean break to the fine tip.
+    # so the cleaver glints like cut glass without stepping the sharp edge; the
+    # body outline is re-stroked LAST to keep one clean break to the fine tip.
     _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.30, 0.56, 0.80, 1.0],
                  [H_B, H_A, H_B, H_A], H_HI, lean=0.16, ss=ss,
-                 body=body, outline=H_DK, ow=ow,
-                 point=H_PT, belly_at=H_BAT, edge=H_EDGE, shoulder=H_SH)
+                 body=body, outline=H_DK, ow=ow)
     # A dark fuller groove + a bright lit ridge to the apex (the 2 internal beats);
     # the ridge keeps the tip a hard lit edge against the gap (GATE 1).
     pygame.draw.line(surf, H_CORE, (cx - hw * 0.06, base_y - int(8 * ss)),
@@ -1606,29 +1527,14 @@ def sword_11i(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 0.9)         # slim straight ceremonial blade
     ghw = _guard_hw(ss)
-    span = base_y - tip_y
-    # A SYMMETRIC straight estoc: no bow, no belly, full width held over a short
-    # guard-shoulder then both edges sweeping concavely in to one fine apex (the
-    # `_saber_halfwidth` taper with edge=0). The old near-parallel triangle ended
-    # in a wedge; this draws the upper ~40% out into a genuinely sharp ceremonial
-    # point so the planted ground-end reads pointy, not flat.
-    I_PT, I_SH = 2.2, 0.16
-    left, right = [], []
-    n = 14
-    for i in range(n + 1):
-        t = i / n
-        y = base_y - span * t
-        w = _saber_halfwidth(t, hw, edge=0.0, point=I_PT, belly_at=0.5, shoulder=I_SH)
-        left.append((cx - w, y))
-        right.append((cx + w, y))
-    body = left + [(cx, tip_y)] + list(reversed(right))
+    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.02)
     _vgrad_poly(surf, body, I_B, I_CORE, outline=I_DK, ow=max(2, int(2.0 * ss)))
     # A bold symmetric chevron facet stack down the centreline to a hot apex ridge
-    # (the straight-blade read, no lateral lean) — 2-3 bold beats, tracking the
-    # estoc taper so the chevrons stay inside the converging point.
+    # (the straight-blade read, no lateral lean) — 2-3 bold beats.
+    span = base_y - tip_y
     for t in (0.20, 0.48, 0.76):
         y = base_y - span * t
-        w = _saber_halfwidth(t, hw, edge=0.0, point=I_PT, belly_at=0.5, shoulder=I_SH)
+        w = hw * (1.0 - t * 0.92)
         pygame.draw.line(surf, I_HI, (cx - w, y), (cx, y - int(7 * ss)),
                          max(1, int(1.6 * ss)))
         pygame.draw.line(surf, I_HI, (cx + w, y), (cx, y - int(7 * ss)),
@@ -2585,19 +2491,19 @@ VERSIONS = [
 # "blade" so the clown leans on it TIP-DOWN with the gloved hand on the HANDLE.
 SABER_VERSIONS = [
     ("Twilight Estoc", "BLADES",
-     "deep indigo NARROW needle · long fine point · tall chevron facet stack · low diamond guard · triple-gem stack pommel",
+     "deep indigo NARROW needle · tall chevron facet stack · low diamond guard · triple-gem stack pommel",
      sword_11e, "blade"),
     ("Glacier Saber", "BLADES",
-     "icy-blue RECURVE tapering to a sharp point · many thin glinting facets · frosty three-spike guard · iceberg pommel",
+     "icy-blue deep RECURVE · many thin glinting facets · frosty three-spike guard · iceberg pommel",
      sword_11c, "blade"),
     ("Amethyst Saber", "BLADES",
-     "cool-violet crystal · broad guard shoulder, long taper to a sharp tip · four-shard FANNED guard · 4-gem cluster pommel",
+     "cool-violet crystal · deep belly (edge 0.34) · four-shard FANNED guard · 4-gem cluster pommel",
      sword_11a, "blade"),
     ("Obsidian Sawglass", "BLADES",
-     "smoky charcoal-violet · broad-shouldered BOWIE point (re-pointed, no longer a cleaver) · round knuckle-DISC guard · faceted anvil pommel",
+     "smoky charcoal-violet · clean broad CLEAVER edge · round knuckle-DISC guard · faceted anvil pommel",
      sword_11h, "blade"),
     ("Halo Reliquary", "BLADES",
-     "regal amber-gold STRAIGHT estoc to a fine point · closed crystalline RING/HALO guard · pierced ring pommel",
+     "regal amber-gold STRAIGHT ceremonial blade · closed crystalline RING/HALO guard · pierced ring pommel",
      sword_11i, "blade"),
 ]
 
@@ -2960,14 +2866,13 @@ _ROUND7_HEADERS = [
 ]
 
 _ROUND8_HEADERS = [
-    ("Warren BLADE Route — Round 8 (SABERS ONLY · all 5 RE-PROFILED to sharp pointy swords · pick one · hi-res)",
+    ("Warren BLADE Route — Round 8 (SABERS ONLY · pick one: 3 round-7 keepers + 2 fresh crystal directions · hi-res)",
      (255, 255, 255)),
     ("POSE: the clown leans on the blade TIP-DOWN, gloved hand on the HANDLE (handle/pommel UP); "
      "the OTHER hand presents the floating power-up die. Marotte is already settled (Mini-Clown) — sabers only here.",
      (205, 210, 220)),
-    ("ALL FIVE re-profiled to a SHARP POINTY sword: widest at the guard shoulder, a long fine taper to a needle tip "
-     "planted on the ground. Obsidian Sawglass is re-pointed (broad-shouldered bowie, NOT a cleaver). "
-     "LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
+    ("KEEPERS = Twilight Estoc · Glacier Saber · Amethyst Saber.  FRESH = Obsidian Sawglass (sawtooth edge) · "
+     "Halo Reliquary (closed ring guard).  LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
      (170, 178, 190)),
 ]
 
