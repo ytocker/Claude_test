@@ -4715,12 +4715,177 @@ def _render_clown_r4_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+def render_clown_staff_final(idx, *, total_px, bauble_px, grip_frac, fingers):
+    """The corrected held-marotte hero panel: the canonical `render_clown_panel`
+    staging UNCHANGED — real hero clown (its own untouched face), the figure's OWN
+    raised arm presenting the floating die, the lean, slippers + palette — with only
+    the two requested changes folded in: the prop is prop_14n at HELD-MAROTTE scale
+    (longer/slimmer) and the near hand wraps the shaft with the compact real-finger
+    fist. There is exactly ONE raised arm (build_jester's) and ONE grip arm; no
+    custom presenting arm is drawn over the figure, so nothing crosses the face."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    # The raised hand presents the die high in the sky; build_jester paints its OWN
+    # raised arm reaching for it (the approved presenter read shared with the ten
+    # power-up presenters). The die is drawn AFTER, just above that hand.
+    die_x = jester_cx - 40
+    die_base_y = 34
+    hand_up = (die_x + 10, 80)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    # prop_14n at HELD-MAROTTE scale (the only staff change is overall scale + length).
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rotated = pygame.transform.rotate(prop, rot)
+    foot_local = (p_w / 2, p_h - 2)
+    cxr, cyr = p_w / 2, p_h / 2
+    rad = math.radians(rot)
+    dx = foot_local[0] - cxr
+    dy = foot_local[1] - cyr
+    rfx = cxr + (dx * math.cos(rad) + dy * math.sin(rad))
+    rfy = cyr + (-dx * math.sin(rad) + dy * math.cos(rad))
+    rfx += (rotated.get_width() - p_w) / 2
+    rfy += (rotated.get_height() - p_h) / 2
+    plant_x = jester_cx + 30
+    plant_y = ground_y - 1
+    prop_ox = int(plant_x - rfx)
+    prop_oy = int(plant_y - rfy)
+    layer.blit(rotated, (prop_ox, prop_oy))
+
+    # Grip point on the slim shaft BODY, below the lobed head.
+    grip_local = (p_w / 2, p_h * grip_frac)
+    gdx = grip_local[0] - cxr
+    gdy = grip_local[1] - cyr
+    rgx = cxr + (gdx * math.cos(rad) + gdy * math.sin(rad))
+    rgy = cyr + (-gdx * math.sin(rad) + gdy * math.cos(rad))
+    rgx += (rotated.get_width() - p_w) / 2
+    rgy += (rotated.get_height() - p_h) / 2
+    grip_x = prop_ox + rgx
+    grip_y = prop_oy + rgy
+
+    # Re-pose only the near/lower arm onto the grip + the compact real-finger fist;
+    # the raised arm above is build_jester's own and is left untouched.
+    r_sh = (hip_cx + 25, hip_y - 50)
+    grip_hand = (int(grip_x), int(grip_y))
+    light = spec["light"]
+    _arm(layer, r_sh, grip_hand, 8, light)
+    _r3_grip_fist(layer, grip_hand, (250, 250, 252), fingers=fingers, side=1)
+
+    # The floating power-up die presented above the raised hand (no roll-result inset).
+    draw_cupped_die(layer, die_x, die_base_y, idx * 1.7 + 2.0, show_inset=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# Five PICK options on the corrected staging — the SAME canonical hero clown (its
+# own untouched face + its own raised presenting arm), differing only in the two
+# requested axes: staff LENGTH (held-marotte scale) and the grip-fist finger style
+# / grip height on the shaft.
+_CLOWN_FINAL_VARIANTS = [
+    ("Short · Curl",   dict(total_px=176, bauble_px=16, grip_frac=0.46, fingers="curl"),
+     "modestly longer than stock, mid grip, three curled fingers"),
+    ("Medium · Ridged", dict(total_px=200, bauble_px=16, grip_frac=0.46, fingers="ridged"),
+     "medium shaft, mid grip, crisp knuckle ridges"),
+    ("Tall · Wrapped",  dict(total_px=224, bauble_px=15, grip_frac=0.44, fingers="wrapped"),
+     "tall slim shaft, grip a touch higher, smooth banded wrap"),
+    ("Tall · Curl-low", dict(total_px=224, bauble_px=15, grip_frac=0.54, fingers="curl"),
+     "tall slim shaft, LOW grip well down the body, curled fingers"),
+    ("X-Tall · Ridged", dict(total_px=242, bauble_px=15, grip_frac=0.50, fingers="ridged"),
+     "longest slim shaft, mid-low grip, knuckle ridges"),
+]
+
+
+_CLOWN_FINAL_HEADERS = [
+    ("Warren Clown HERO look-dev — CORRECTED (canonical clown, untouched face + its own single raised arm)",
+     (255, 255, 255)),
+    ("Reverted the unrequested face change and removed the duplicate raised arm that crossed the face. "
+     "ONE raised presenting arm + ONE grip hand. Only the staff LENGTH and the grip-fist fingers vary below — PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_final_sheet():
+    """Corrected clown look-dev sheet: a 1-row strip of five clown-holding-marotte
+    PICK options at hero scale. Writes docs/warren_clown/round_5.png. No soft-face
+    tier is touched — the canonical hero face renders exactly as shipped."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = 5
+    pad = 20
+    head = 86
+    name_strip = 34
+    gap = 14
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_FINAL_HEADERS[0][0], True, _CLOWN_FINAL_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_FINAL_HEADERS[1][0], True, _CLOWN_FINAL_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    for idx, (name, kw, note) in enumerate(_CLOWN_FINAL_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 20))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_final(idx, **kw)
+        clown = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(clown, (10, 12, 18), clown.get_rect(), 2)
+        sheet.blit(clown, (px, py + name_strip))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_5.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -4729,6 +4894,7 @@ def main():
     do_clown_r2 = "--clown-r2" in args      # round-2 clown hero look-dev, opt-in
     do_clown_r3 = "--clown-r3" in args      # round-3 clown hero look-dev, opt-in
     do_clown_r4 = "--clown-r4" in args      # round-4 clown hero look-dev (FINAL), opt-in
+    do_clown_final = "--clown-final" in args  # corrected clown look-dev sheet, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -4745,6 +4911,8 @@ def main():
         _render_clown_r3_sheet()
     if do_clown_r4:
         _render_clown_r4_sheet()
+    if do_clown_final:
+        _render_clown_final_sheet()
 
 
 if __name__ == "__main__":
