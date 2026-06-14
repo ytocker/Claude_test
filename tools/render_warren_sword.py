@@ -995,6 +995,243 @@ def sword_11(surf, bw, bh, ss):
                        max(1, int(pr * 0.18)))
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  CRYSTAL-SABER VARIANTS (round-7 maturation of sword_11)
+#  Five DISTINCT amethyst-family blades. They share the opaque dark-crystal
+#  language (so the body luma stays well below the 140 gate — round-6 measured
+#  44.6) but each varies curvature, facet stacking, guard form, pommel cluster
+#  and palette TEMPERATURE along a cool-violet → warm-magenta → icy-blue ramp.
+#  Per-variant XTAL ramps (CORE deep/opaque, A mid, B shade, HI bright glint,
+#  DK keyline) so the gap-facing TIP stays a hard dark→bright break (GATE 1).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=1):
+    """Stack angular crystal facets up a curved blade — the shared faceting core
+    the variants tune (cut count, tones, lateral lean). A bright crystalline ridge
+    runs to the apex so the tip reads as a hard lit edge against the gap."""
+    span = base_y - tip_y
+    for i in range(len(cuts) - 1):
+        y0 = base_y - span * cuts[i]
+        y1 = base_y - span * cuts[i + 1]
+        cx0 = cx + lean * hw * (cuts[i] ** 1.3)
+        cx1 = cx + lean * hw * (cuts[i + 1] ** 1.3)
+        w0 = hw * (1.0 - cuts[i] * 0.9)
+        w1 = hw * (1.0 - cuts[i + 1] * 0.9)
+        pygame.draw.polygon(surf, _shade_c(tones[i % len(tones)], -24),
+                            [(cx0 - w0 * 0.4, y0), (cx0 + w0, y0),
+                             (cx1 + w1, y1), (cx1 - w1 * 0.4, y1)])
+        pygame.draw.line(surf, hi, (cx0 - w0 * 0.4, y0), (cx1 - w1 * 0.4, y1),
+                         max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, (255, 255, 255), (cx + lean * hw, tip_y + int(3 * ss)),
+                     (cx + hw * 0.1, base_y - int(8 * ss)), max(2, int(2.0 * ss)))
+
+
+def _gem_cluster(surf, cx, py, pr, core, dk, hi, ss, gems):
+    """A raw-gem pommel cluster: a glow halo, then a set of diamond facets at the
+    given (dx, dy, r-scale) offsets, capped with a hot glint. The opaque dark
+    keyline keeps the cluster reading as a dark mass on day-blue."""
+    _glow_disc(surf, cx, py, int(pr * 1.1), core, ss, alpha=110)
+    for (dx, dy, rr) in gems:
+        gx, gy2 = cx + dx * pr, py + dy * pr
+        pygame.draw.polygon(surf, core,
+                            [(gx, gy2 - pr * rr), (gx + pr * rr * 0.7, gy2),
+                             (gx, gy2 + pr * rr), (gx - pr * rr * 0.7, gy2)])
+        pygame.draw.polygon(surf, dk,
+                            [(gx, gy2 - pr * rr), (gx + pr * rr * 0.7, gy2),
+                             (gx, gy2 + pr * rr), (gx - pr * rr * 0.7, gy2)],
+                            max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, hi, (int(cx - pr * 0.2), int(py - pr * 0.2)),
+                       max(1, int(pr * 0.18)))
+
+
+# ---- 11a. Amethyst Saber (cool violet, deep belly) --------------------------
+# The base amethyst tuned WARMER-cool: a deeper-bellied sweep (edge 0.34) and a
+# four-shard fanned guard so it reads richer than the round-6 base.
+A_CORE, A_A, A_B, A_HI, A_DK = (38, 22, 64), (132, 74, 214), (86, 50, 162), (216, 188, 255), (18, 12, 34)
+
+
+def sword_11a(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 1.04)
+    ghw = _guard_hw(ss)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.20, edge=0.34)
+    _vgrad_poly(surf, body, A_A, A_CORE, outline=A_DK, ow=max(2, int(2.0 * ss)))
+    _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.28, 0.52, 0.78, 1.0],
+                 [A_B, A_A, A_B, A_A], A_HI, lean=0.20, ss=ss)
+    # Four-shard FANNED guard (more angular spread than the round-6 two-shard).
+    for sgn in (-1, 1):
+        for k, sc in ((0.55, 0.7), (1.0, 1.0)):
+            shard = [(cx + sgn * int(5 * ss), gy + int(9 * ss)),
+                     (cx + sgn * ghw * 0.5 * sc, gy - int(7 * ss) * sc),
+                     (cx + sgn * ghw * sc, gy + int(2 * ss)),
+                     (cx + sgn * ghw * 0.7 * sc, gy + int(12 * ss))]
+            pygame.draw.polygon(surf, A_B, shard)
+            pygame.draw.polygon(surf, A_DK, shard, max(2, int(2 * ss)))
+        pygame.draw.line(surf, A_HI, (cx + sgn * ghw * 0.5, gy - int(7 * ss)),
+                         (cx + sgn * ghw * 0.6, gy + int(10 * ss)), max(1, int(1.6 * ss)))
+    _wrap_grip(surf, cx, gy + int(12 * ss), gbot, int(hw * 0.32), (44, 30, 66), ss)
+    pr = int(hw * 0.48)
+    _gem_cluster(surf, cx, py, pr, A_A, A_DK, (255, 255, 255), ss,
+                 ((0, 0, 0.95), (-0.55, 0.3, 0.5), (0.55, 0.35, 0.5), (0, -0.55, 0.45)))
+
+
+# ---- 11b. Magenta Tanto (warm magenta, near-straight broad facets) ----------
+# A short, broad, near-straight crystal blade (bow ~0, shallow belly) with FEW
+# big bold facets — the chunkiest, warmest variant; a flat slab pommel gem.
+B_CORE, B_A, B_B, B_HI, B_DK = (52, 16, 50), (196, 60, 168), (140, 40, 120), (255, 196, 240), (28, 8, 26)
+
+
+def sword_11b(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 1.12)        # broader slab
+    ghw = _guard_hw(ss)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.04, edge=0.12)
+    _vgrad_poly(surf, body, B_A, B_CORE, outline=B_DK, ow=max(2, int(2.2 * ss)))
+    # Few BIG facets (3) so the slab stays bold, not fizzy, at route scale.
+    _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.40, 0.72, 1.0],
+                 [B_B, B_A, B_B], B_HI, lean=0.06, ss=ss)
+    # A solid crystalline CROSS-shard guard: one wide low bar of two fused shards.
+    bar = [(cx - ghw, gy + int(3 * ss)), (cx - ghw * 0.4, gy - int(8 * ss)),
+           (cx + ghw * 0.4, gy - int(8 * ss)), (cx + ghw, gy + int(3 * ss)),
+           (cx + ghw * 0.5, gy + int(12 * ss)), (cx - ghw * 0.5, gy + int(12 * ss))]
+    pygame.draw.polygon(surf, B_B, bar)
+    pygame.draw.polygon(surf, B_DK, bar, max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, B_HI, (cx - ghw * 0.4, gy - int(8 * ss)),
+                     (cx + ghw * 0.4, gy - int(8 * ss)), max(1, int(1.8 * ss)))
+    _wrap_grip(surf, cx, gy + int(12 * ss), gbot, int(hw * 0.30), (54, 18, 50), ss)
+    # Flat slab gem pommel (single big faceted lozenge, no cluster).
+    pr = int(hw * 0.46)
+    _glow_disc(surf, cx, py, int(pr * 1.1), B_A, ss, alpha=110)
+    slab = [(cx, py - pr), (cx + pr * 0.8, py - pr * 0.2),
+            (cx + pr * 0.55, py + pr), (cx - pr * 0.55, py + pr),
+            (cx - pr * 0.8, py - pr * 0.2)]
+    pygame.draw.polygon(surf, B_A, slab)
+    pygame.draw.polygon(surf, B_DK, slab, max(2, int(2 * ss)))
+    pygame.draw.line(surf, B_HI, (cx, py - pr), (cx - pr * 0.55, py + pr),
+                     max(1, int(1.6 * ss)))
+
+
+# ---- 11c. Glacier Saber (icy blue, deep recurve) ----------------------------
+# An icy-blue crystal with a strong RECURVE (high bow), many thin stacked facets
+# climbing the long sweep, a spiky three-shard guard, an iceberg shard pommel.
+C_CORE, C_A, C_B, C_HI, C_DK = (16, 36, 64), (74, 150, 224), (44, 100, 180), (200, 236, 255), (10, 20, 40)
+
+
+def sword_11c(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 0.98)
+    ghw = _guard_hw(ss)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.36, edge=0.20)
+    # Body keyed off the MID tone so the icy-blue fill clears the 140 luma gate;
+    # the bright C_A / white ridge stays on the facet edges only.
+    _vgrad_poly(surf, body, C_B, C_CORE, outline=C_DK, ow=max(2, int(2.0 * ss)))
+    # Many thin facets so the long recurve glints like a glacier shard.
+    _xtal_facets(surf, cx, tip_y, base_y, hw,
+                 [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0],
+                 [C_B, C_A], C_HI, lean=0.34, ss=ss)
+    # Three upright spike shards (a frosty crown guard).
+    for sgn, sc in ((-1, 1.0), (0, 0.6), (1, 1.0)):
+        bx = cx + sgn * ghw * 0.7
+        shard = [(bx - int(5 * ss), gy + int(10 * ss)),
+                 (bx, gy - int(12 * ss) * sc),
+                 (bx + int(5 * ss), gy + int(10 * ss))]
+        pygame.draw.polygon(surf, C_B, shard)
+        pygame.draw.polygon(surf, C_DK, shard, max(2, int(2 * ss)))
+        pygame.draw.line(surf, C_HI, (bx, gy - int(12 * ss) * sc),
+                         (bx - int(4 * ss), gy + int(8 * ss)), max(1, int(1.4 * ss)))
+    _wrap_grip(surf, cx, gy + int(12 * ss), gbot, int(hw * 0.32), (24, 40, 64), ss)
+    # Iceberg pommel: one big jagged shard pointing down.
+    pr = int(hw * 0.5)
+    _glow_disc(surf, cx, py, int(pr * 1.15), C_A, ss, alpha=110)
+    berg = [(cx - pr * 0.7, py - pr * 0.6), (cx + pr * 0.7, py - pr * 0.5),
+            (cx + pr * 0.3, py + pr * 1.1), (cx - pr * 0.2, py + pr * 0.7),
+            (cx - pr * 0.6, py + pr * 0.3)]
+    pygame.draw.polygon(surf, C_A, berg)
+    pygame.draw.polygon(surf, C_DK, berg, max(2, int(2 * ss)))
+    pygame.draw.line(surf, C_HI, (cx - pr * 0.7, py - pr * 0.6),
+                     (cx + pr * 0.3, py + pr * 1.1), max(1, int(1.6 * ss)))
+
+
+# ---- 11d. Rose-Quartz Khopesh (warm pink, hooked sickle) --------------------
+# A warm rose-quartz blade with an exaggerated HOOK/sickle bow and a SWELLED
+# belly, a single fat triangular guard shard, a twin-gem pommel — the most
+# silhouette-distinct of the saber set (a curved hook reads instantly at scale).
+D_CORE, D_A, D_B, D_HI, D_DK = (60, 24, 44), (224, 118, 158), (170, 78, 116), (255, 214, 230), (32, 12, 24)
+
+
+def sword_11d(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 1.06)
+    ghw = _guard_hw(ss)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.52, edge=0.40)
+    # Body keyed off the MID tone (not the bright lit tone) so the warm-pink broad
+    # fill stays well below the 140 luma gate; D_A lives on the facet glints only.
+    _vgrad_poly(surf, body, D_B, D_CORE, outline=D_DK, ow=max(2, int(2.2 * ss)))
+    _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.30, 0.58, 0.82, 1.0],
+                 [D_B, D_A, D_B, D_A], D_HI, lean=0.50, ss=ss)
+    # One fat angular guard shard sweeping toward the hook side.
+    shard = [(cx - ghw * 0.5, gy + int(10 * ss)),
+             (cx - ghw * 0.2, gy - int(8 * ss)),
+             (cx + ghw, gy - int(2 * ss)),
+             (cx + ghw * 0.7, gy + int(13 * ss))]
+    pygame.draw.polygon(surf, D_B, shard)
+    pygame.draw.polygon(surf, D_DK, shard, max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, D_HI, (cx - ghw * 0.2, gy - int(8 * ss)),
+                     (cx + ghw, gy - int(2 * ss)), max(1, int(1.8 * ss)))
+    _wrap_grip(surf, cx, gy + int(12 * ss), gbot, int(hw * 0.32), (62, 26, 46), ss)
+    pr = int(hw * 0.46)
+    _gem_cluster(surf, cx, py, pr, D_A, D_DK, (255, 255, 255), ss,
+                 ((-0.35, -0.1, 0.7), (0.35, 0.25, 0.7)))
+
+
+# ---- 11e. Twilight Estoc (deep violet-indigo, narrow needle, gem-stack) -----
+# A long NARROW thrusting needle in the deepest violet-indigo, with a tall stack
+# of small chevron facets and a vertical TRIPLE-gem stacked pommel — the darkest,
+# most regal variant; the slim profile contrasts the broad tanto.
+E_CORE, E_A, E_B, E_HI, E_DK = (26, 18, 58), (96, 78, 196), (60, 48, 140), (190, 178, 252), (14, 10, 30)
+
+
+def sword_11e(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 0.82)        # narrow needle
+    ghw = _guard_hw(ss)
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.10, edge=0.06)
+    _vgrad_poly(surf, body, E_A, E_CORE, outline=E_DK, ow=max(2, int(2.0 * ss)))
+    _xtal_facets(surf, cx, tip_y, base_y, hw,
+                 [0.0, 0.16, 0.32, 0.48, 0.64, 0.80, 1.0],
+                 [E_B, E_A], E_HI, lean=0.10, ss=ss)
+    # A low diamond guard (two flat shards meeting in a point each side).
+    for sgn in (-1, 1):
+        shard = [(cx + sgn * int(3 * ss), gy - int(2 * ss)),
+                 (cx + sgn * ghw, gy + int(2 * ss)),
+                 (cx + sgn * int(4 * ss), gy + int(11 * ss))]
+        pygame.draw.polygon(surf, E_B, shard)
+        pygame.draw.polygon(surf, E_DK, shard, max(2, int(2 * ss)))
+    pygame.draw.line(surf, E_HI, (cx - ghw, gy + int(2 * ss)),
+                     (cx + ghw, gy + int(2 * ss)), max(1, int(1.6 * ss)))
+    _wrap_grip(surf, cx, gy + int(11 * ss), gbot - int(10 * ss), int(hw * 0.36), (32, 24, 64), ss)
+    # Vertical TRIPLE-gem stacked pommel down from the grip.
+    pr = int(hw * 0.5)
+    _glow_disc(surf, cx, py, int(pr * 1.0), E_A, ss, alpha=110)
+    for k, dy in enumerate((-0.7, 0.1, 0.9)):
+        rr = (0.55, 0.85, 0.55)[k]
+        gy2 = py + dy * pr
+        pygame.draw.polygon(surf, E_A,
+                            [(cx, gy2 - pr * rr), (cx + pr * rr * 0.7, gy2),
+                             (cx, gy2 + pr * rr), (cx - pr * rr * 0.7, gy2)])
+        pygame.draw.polygon(surf, E_DK,
+                            [(cx, gy2 - pr * rr), (cx + pr * rr * 0.7, gy2),
+                             (cx, gy2 + pr * rr), (cx - pr * rr * 0.7, gy2)],
+                            max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, (255, 255, 255),
+                       (int(cx - pr * 0.2), int(py - pr * 0.9)), max(1, int(pr * 0.16)))
+
+
 # ---- 12. Bone / Demon Blade -------------------------------------------------
 # A carved BONE blade with a fanged DEMON-SKULL guard, a VERTEBRA grip, a HORNED
 # skull pommel. The monstrous boss weapon — pure bone, no metal.
@@ -1236,6 +1473,202 @@ def prop_14(surf, bw, bh, ss):
     pygame.draw.arc(surf, INK, (int(cx - hr * 0.5), int(hy + hr * 0.1),
                                 int(hr), int(hr * 0.7)),
                     math.pi * 0.15, math.pi * 0.85, max(2, int(2 * ss)))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  JESTER-MAROTTE VARIANTS (round-7 maturation of prop_14)
+#  Five DISTINCT fool's-head baubles. They keep the plum shaft + cream fool's
+#  head + non-circular lobed terminus (the gap-break cue that separates the
+#  marotte from the orb/skull staffs at route scale — round-6 luma 62.1), but
+#  vary lobe spread/COUNT (2 vs 3), bell-nub styling/size, face expression,
+#  and shaft binds. ONE variant (prop_14e) crowns the bauble with a mini version
+#  of the CLOWN's own four-point cap, so it reads as a tiny clown bauble.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _marotte_face(surf, cx, hy, hr, ss, *, mouth="smile"):
+    """The tiny cream fool's-head face shared by the marotte variants. `mouth`
+    swaps the expression: a smile arc, an open 'O', or a sly tongue-out grin."""
+    pygame.draw.circle(surf, _shade_c(CREAM, -50), (cx, int(hy)), hr)
+    pygame.draw.circle(surf, CREAM, (cx, int(hy)), int(hr - ss))
+    for sgn in (-1, 1):
+        pygame.draw.circle(surf, INK, (int(cx + sgn * hr * 0.4), int(hy - hr * 0.1)),
+                           max(2, int(2.2 * ss)))
+    pygame.draw.circle(surf, CANDY_RED, (cx, int(hy + hr * 0.2)), max(2, int(2.6 * ss)))
+    if mouth == "smile":
+        pygame.draw.arc(surf, INK, (int(cx - hr * 0.5), int(hy + hr * 0.1),
+                                    int(hr), int(hr * 0.7)),
+                        math.pi * 0.15, math.pi * 0.85, max(2, int(2 * ss)))
+    elif mouth == "open":
+        pygame.draw.circle(surf, INK, (cx, int(hy + hr * 0.5)), max(2, int(hr * 0.3)))
+    elif mouth == "tongue":
+        pygame.draw.arc(surf, INK, (int(cx - hr * 0.5), int(hy + hr * 0.1),
+                                    int(hr), int(hr * 0.7)),
+                        math.pi * 0.05, math.pi * 0.95, max(2, int(2 * ss)))
+        pygame.draw.circle(surf, CANDY_RED, (int(cx + hr * 0.2), int(hy + hr * 0.55)),
+                           max(2, int(hr * 0.22)))
+
+
+def _bell_lobe(surf, cx, hy, hr, sgn, ex, ey, col, ss, *, nub=7):
+    """One splayed donkey-ear hood lobe ending in a fat bell-nub knob, shared by
+    the marotte variants. `ex,ey` is the nub centre; `nub` scales the knob."""
+    lobe = [(cx + sgn * int(2 * ss), hy - hr * 0.1),
+            (cx + sgn * int(5 * ss), hy - hr * 1.1),
+            (ex - sgn * int(6 * ss), ey + int(4 * ss)),
+            (ex + sgn * int(6 * ss), ey + int(3 * ss)),
+            (ex + sgn * int(4 * ss), ey - int(7 * ss)),
+            (cx + sgn * int(10 * ss), hy - hr * 0.4)]
+    pygame.draw.polygon(surf, col, lobe)
+    pygame.draw.polygon(surf, _shade_c(col, -50), lobe, max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, col, (int(ex), int(ey)), int(nub * ss))
+    pygame.draw.circle(surf, _shade_c(col, -50), (int(ex), int(ey)), int(nub * ss),
+                       max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, GOLD, (int(ex), int(ey - 4 * ss)), max(2, int(3.4 * ss)))
+    pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey - 4 * ss)), max(2, int(3.4 * ss)),
+                       max(1, int(ss)))
+
+
+# ---- 14a. Marotte — Wide-Ear (round-6 silhouette, refined binds) ------------
+# The two-lobe round-6 read kept, but with a smiling face and an extra plum bind
+# ring so the shaft reads richer at hero scale.
+def prop_14a(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(11 * ss)
+    hy = int(26 * ss)
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.45, bh * 0.7], int(6.5 * ss), ss, GOLD_DK)
+    for sgn, col in ((-1, PLUM_DK), (1, LIME_DK)):
+        _bell_lobe(surf, cx, hy, hr, sgn, cx + sgn * int(22 * ss), int(8 * ss), col, ss)
+    _marotte_face(surf, cx, hy, hr, ss, mouth="smile")
+
+
+# ---- 14b. Marotte — Three-Ear Crown (3 lobes, open-mouth glee) --------------
+# THREE lobes (left, top, right) so the terminus reads as a triple-eared fool's
+# crown — a clearly different non-circular break from the two-ear base. Bigger
+# bell-nubs; an open-O surprised face.
+def prop_14b(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(10 * ss)
+    hy = int(28 * ss)
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.6], int(6.5 * ss), ss, GOLD_DK)
+    # Two splayed side lobes plus one tall central lobe spiking straight up.
+    for sgn, col in ((-1, PLUM_DK), (1, LIME_DK)):
+        _bell_lobe(surf, cx, hy, hr, sgn, cx + sgn * int(24 * ss), int(12 * ss),
+                   col, ss, nub=8)
+    centre = [(cx - int(5 * ss), hy - hr * 0.4), (cx - int(3 * ss), int(2 * ss)),
+              (cx + int(3 * ss), int(2 * ss)), (cx + int(5 * ss), hy - hr * 0.4)]
+    pygame.draw.polygon(surf, GOLD_DK, centre)
+    pygame.draw.polygon(surf, _shade_c(GOLD_DK, -50), centre, max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, GOLD_DK, (cx, int(3 * ss)), int(7 * ss))
+    pygame.draw.circle(surf, _shade_c(GOLD_DK, -50), (cx, int(3 * ss)), int(7 * ss),
+                       max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, GOLD, (cx, int(2 * ss)), max(2, int(3.4 * ss)))
+    _marotte_face(surf, cx, hy, hr, ss, mouth="open")
+
+
+# ---- 14c. Marotte — Coxcomb Crest (single tall scalloped lobe) --------------
+# A single ROOSTER-COMB crest: a tall scalloped lobe leaning to one side, the
+# coxcomb fool's head. A sly tongue-out grin; the comb's scallops carry the
+# non-circular break.
+def prop_14c(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(11 * ss)
+    hy = int(28 * ss)
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.5, bh * 0.75], int(6.5 * ss), ss, LIME_DK)
+    # A scalloped coxcomb sweeping up-and-over: a bold filled crest with three
+    # rounded scallop humps + bell tips, leaning right.
+    comb = [(cx - int(8 * ss), hy - hr * 0.2),
+            (cx - int(4 * ss), int(14 * ss)),
+            (cx + int(4 * ss), int(4 * ss)),
+            (cx + int(14 * ss), int(2 * ss)),
+            (cx + int(20 * ss), int(10 * ss)),
+            (cx + int(14 * ss), int(16 * ss)),
+            (cx + int(8 * ss), hy - hr * 0.3)]
+    pygame.draw.polygon(surf, PLUM_DK, comb)
+    pygame.draw.polygon(surf, _shade_c(PLUM_DK, -50), comb, max(1, int(1.4 * ss)))
+    for (bx, by) in ((cx - int(4 * ss), int(14 * ss)), (cx + int(14 * ss), int(2 * ss)),
+                     (cx + int(20 * ss), int(10 * ss))):
+        pygame.draw.circle(surf, GOLD, (int(bx), int(by)), max(2, int(3 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(bx), int(by)), max(2, int(3 * ss)),
+                           max(1, int(ss)))
+    _marotte_face(surf, cx, hy, hr, ss, mouth="tongue")
+
+
+# ---- 14d. Marotte — Belled Spray (many small bells, fanned spray) -----------
+# A FAN of four short stubby nubs spraying outward, each tipped with a small
+# bell — a busier, jollier terminus than the two long ears, but kept bold (four
+# fat lobes, no fizz). A wide smile.
+def prop_14d(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(11 * ss)
+    hy = int(26 * ss)
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.6], int(6.5 * ss), ss, GOLD_DK)
+    spray = [(-26, 14, PLUM_DK), (-12, 4, LIME_DK), (12, 4, PLUM_DK), (26, 14, LIME_DK)]
+    for (ox, oy, col) in spray:
+        ex, ey = cx + int(ox * ss), int(oy * ss)
+        sgn = 1 if ox >= 0 else -1
+        stub = [(cx + sgn * int(2 * ss), hy - hr * 0.2),
+                (cx + sgn * int(6 * ss), hy - hr * 0.9),
+                (ex, ey + int(3 * ss)),
+                (ex + sgn * int(2 * ss), ey - int(4 * ss)),
+                (cx + sgn * int(9 * ss), hy - hr * 0.4)]
+        pygame.draw.polygon(surf, col, stub)
+        pygame.draw.polygon(surf, _shade_c(col, -50), stub, max(1, int(1.3 * ss)))
+        pygame.draw.circle(surf, col, (int(ex), int(ey)), int(5 * ss))
+        pygame.draw.circle(surf, _shade_c(col, -50), (int(ex), int(ey)), int(5 * ss),
+                           max(1, int(1.2 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(ex), int(ey - 2 * ss)), max(2, int(3 * ss)))
+    _marotte_face(surf, cx, hy, hr, ss, mouth="smile")
+
+
+# ---- 14e. Marotte — Mini-Clown (the bauble wears the CLOWN's own cap) -------
+# The bauble head is crowned with a SCALED-DOWN version of the hero clown's own
+# four-point splayed cap (the same cap_four_point geometry from build_jester:
+# plum/lime/gold points flopping out past the head, each bell-tipped), so the
+# marotte reads as a tiny twin of the clown holding it. The face stays the cream
+# fool's head; the cap supplies the non-circular gap-break terminus.
+def prop_14e(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(11 * ss)
+    hy = int(30 * ss)                       # head dropped so the cap towers above
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.6], int(6.5 * ss), ss, GOLD_DK)
+    # The clown's cap, scaled to the bauble. Mirror cap_four_point's splayed
+    # four-point fan (two outer points flopping far out + low, two inner points
+    # leaning apart), each a triangle to a bell knob, in the clown's plum/lime/
+    # gold. base_y sits at the head crown; offsets scale with ss.
+    base_y = hy - hr + int(1 * ss)
+    # The two OUTER points flop far out past the head and lift high; the two INNER
+    # points lean apart — mirroring cap_four_point so nothing stands upright and
+    # the terminus breaks the round head into a clearly four-pointed fool's cap.
+    pts = [(-26, -8, PLUM_DK), (26, -6, PLUM_DK), (-11, -24, LIME_DK), (11, -22, GOLD_DK)]
+    for (dx, dy, col) in pts:
+        bx, by = cx + int(dx * ss), base_y + int(dy * ss)
+        span = int(7 * ss)
+        tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)),
+               (bx, by)]
+        pygame.draw.polygon(surf, col, tri)
+        pygame.draw.polygon(surf, _shade_c(col, 50),
+                            [(cx - span, base_y + int(2 * ss)),
+                             (cx, base_y + int(2 * ss)), (bx, by)])
+        pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+        # Bell knob at the point tip.
+        pygame.draw.circle(surf, GOLD, (int(bx), int(by)), max(2, int(3.2 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(bx), int(by)), max(2, int(3.2 * ss)),
+                           max(1, int(ss)))
+    _marotte_face(surf, cx, hy, hr, ss, mouth="smile")
 
 
 # ---- 15. Shepherd's Crook ---------------------------------------------------
@@ -1661,56 +2094,44 @@ def prop_23(surf, bw, bh, ss):
 # (~4/4/4/3): A SWORDS & BLADES · B STAFFS & SCEPTERS · C CLOWN PROPS ·
 # D MYSTIC & MENACING. Every prop is a COMPLETE, structurally distinct object,
 # authored gap-facing-end UP so the route flip scaffolding plants it correctly.
+# Round 7: the user picked TWO round-6 winners — the Crystal Saber (#3) and the
+# Jester Marotte (#6) — and asked each matured into 5 distinct variants. Each row
+# carries a `hold` flag so the clown's lean is FAMILY-AWARE: a BLADE leans tip-DOWN
+# on the ground with the gloved hand on the HANDLE near the top, while a STAFF
+# stands point-UP with the hand gripping the shaft below the head.
 VERSIONS = [
-    # A — SWORDS & BLADES (round-5 winners, re-posed point-on-ground)
-    ("Bone / Demon Blade", "BLADES",
-     "clawed BONE blade · fanged DEMON-SKULL guard · VERTEBRA grip · glowing red eyes (round-5 hero)",
-     sword_12),
-    ("Cleaver Falchion", "BLADES",
-     "broad single-edge CLIP-POINT chopper · simple iron cross · leather grip · flat DISC pommel",
-     sword_05),
-    ("Crystal Saber", "BLADES",
-     "opaque AMETHYST faceted curved blade · jagged raw-shard guard · raw-gem cluster pommel",
-     sword_11),
-    ("Rune Greatsword", "BLADES",
-     "dark forged blade · ONE glowing CYAN rune · angular anvil guard · faceted gem pommel",
-     sword_10),
-    # B — STAFFS & SCEPTERS
-    ("Wizard Orb Staff", "STAFFS",
-     "gnarled dark rod · glowing crystal ORB clutched in a claw finial · gold bind rings",
-     prop_13),
-    ("Jester Marotte", "STAFFS",
-     "fool's-head bauble scepter · tiny belled jester head on a plum stick · on-theme",
-     prop_14),
-    ("Shepherd's Crook", "STAFFS",
-     "long pale-wood staff · bold hooked CROOK top (curl-mouth terminus) · leather binds",
-     prop_15),
-    ("Skull-Topped Gold Rod", "STAFFS",
-     "ornate dark-gold scepter · bone SKULL finial · gem catch · gold point collar",
-     prop_16),
-    # C — CLOWN PROPS
-    ("Candy Cane", "CLOWN PROPS",
-     "red/white SPIRAL cane · hooked candy top · bold low-freq stripes (kept dark)",
-     prop_17),
-    ("Giant Lollipop", "CLOWN PROPS",
-     "big SWIRL disc on a striped stick · hard dark rim so the blunt top still reads the gap",
-     prop_18),
-    ("Ringmaster Cane", "CLOWN PROPS",
-     "black/gold show cane · round gold KNOB top · dark-underside knob keeps gap readable",
-     prop_19),
-    ("Furled Parasol", "CLOWN PROPS",
-     "closed plum/lime parasol · tight furl to a POINTED ferrule · curved cane handle",
-     prop_20),
-    # D — MYSTIC & MENACING
-    ("Trident", "MYSTIC",
-     "dark iron trident · THREE sharp prongs terminus · swept crossbar · wrapped haft",
-     prop_21),
-    ("Star Wand", "MYSTIC",
-     "slender dark wand · glowing five-point STAR finial · gold bands · sharp star points",
-     prop_22),
-    ("Flaming Torch", "MYSTIC",
-     "dark cloth-wrapped torch · bold FLAME with one pointed tongue · dark-cored, hot tip",
-     prop_23),
+    # A — CRYSTAL-SABER VARIANTS (blade tip planted on the ground, handle up)
+    ("Amethyst Saber", "BLADES",
+     "cool-violet crystal · deep belly (edge 0.34) · four-shard FANNED guard · 4-gem cluster pommel",
+     sword_11a, "blade"),
+    ("Magenta Tanto", "BLADES",
+     "warm-magenta BROAD near-straight slab · few bold facets · fused cross-shard guard · slab gem",
+     sword_11b, "blade"),
+    ("Glacier Saber", "BLADES",
+     "icy-blue deep RECURVE · many thin glinting facets · frosty three-spike guard · iceberg pommel",
+     sword_11c, "blade"),
+    ("Rose-Quartz Khopesh", "BLADES",
+     "warm-pink HOOKED sickle · swelled belly · one fat sweeping guard shard · twin-gem pommel",
+     sword_11d, "blade"),
+    ("Twilight Estoc", "BLADES",
+     "deep indigo NARROW needle · tall chevron facet stack · low diamond guard · triple-gem stack pommel",
+     sword_11e, "blade"),
+    # B — JESTER-MAROTTE VARIANTS (point-up, hand grips shaft below the head)
+    ("Marotte — Wide-Ear", "STAFFS",
+     "round-6 two-ear silhouette · smiling face · twin plum/lime bell-nub ears · extra bind ring",
+     prop_14a, "staff"),
+    ("Marotte — Three-Ear Crown", "STAFFS",
+     "THREE lobes (L/top/R) · open-O surprised face · big bell-nubs · triple-eared fool's crown",
+     prop_14b, "staff"),
+    ("Marotte — Coxcomb Crest", "STAFFS",
+     "single tall scalloped ROOSTER-comb crest · sly tongue-out grin · three bell-tipped scallops",
+     prop_14c, "staff"),
+    ("Marotte — Belled Spray", "STAFFS",
+     "FAN of four short stubby bell-nubs spraying out · jollier busy terminus · wide smile",
+     prop_14d, "staff"),
+    ("Marotte — Mini-Clown", "STAFFS",
+     "the bauble WEARS the clown's own four-point cap (plum/lime/gold, bell-tipped) · tiny twin",
+     prop_14e, "staff"),
 ]
 
 
@@ -1805,13 +2226,18 @@ def _grounded_prop_surface(draw_fn, prop_px, ss):
     return pygame.transform.smoothscale(surf, (out_w, H)), out_w, H
 
 
-def render_clown_panel(draw_fn, idx):
-    """The REAL hero Plum & Lime jester (exactly as warren_demo builds it) in the
-    FIXED round-6 lean pose: the prop stands VERTICALLY beside the clown with its
-    bottom tip planted ON the ground, the near/lower gloved hand grips it near the
-    top (a relaxed showman lean, weight resting on the prop), while the OTHER hand
-    still presents the floating power-up die up high. The pose is identical every
-    row; only the prop changes. Returns a VIEW_W x VIEW_H surface."""
+def render_clown_panel(draw_fn, idx, hold="staff"):
+    """The REAL hero Plum & Lime jester (exactly as warren_demo builds it) in a
+    FAMILY-AWARE lean pose: the prop stands VERTICALLY beside the clown with one
+    end planted ON the ground, the near/lower gloved hand wraps its GRIP, while
+    the OTHER hand presents the floating power-up die up high.
+
+    `hold` orients the prop by family so the clown never grips the business end:
+      - "blade": the prop is FLIPPED so the blade TIP rests on the ground and the
+        HANDLE/pommel point UP; the gloved hand wraps the handle (top region).
+      - "staff": kept as round 6 — head/bauble UP, the hand grips the shaft just
+        below the head, the shaft foot on the ground.
+    Returns a VIEW_W x VIEW_H surface."""
     spec = dict(JESTERS[-1][1])
     spec.pop("no_shadow", None)
     ss = CLOWN_SS
@@ -1850,9 +2276,20 @@ def render_clown_panel(draw_fn, idx):
     # prop is rendered gap-end-UP, so its bottom edge is the resting tip.
     hip_y = feet_y - _HIP_OFF
     hip_cx = jester_cx + _HIP_DX
-    prop_px = 150                      # finial near head height, tip on the ground
-    p_ss = 4
+    # Per-family height + grip so the prop is PROPORTIONATE to the figure and the
+    # gloved hand meets a real grip rather than the business end. Blades are taller
+    # (the planted tip eats length the handle must clear the hip); the marotte is
+    # shorter so the bauble sits near head height with the hand below it.
+    if hold == "blade":
+        prop_px = 184                  # blade tip on ground, handle reaching the hip
+    else:
+        prop_px = 150                  # bauble near head height, foot on the ground
+    p_ss = 6                           # finer hero source than the route tiles
     prop, p_w, p_h = _grounded_prop_surface(draw_fn, prop_px, p_ss)
+    # Blades flip so the TIP (authored at the top) ends DOWN on the ground and the
+    # handle/pommel (authored at the bottom) points UP into the gloved hand.
+    if hold == "blade":
+        prop = pygame.transform.flip(prop, False, True)
     rot = -7                           # slight cane lean (top tips toward the clown)
     rotated = pygame.transform.rotate(prop, rot)
     # Plant the bottom-centre of the prop on the ground, set out to the clown's
@@ -1872,10 +2309,13 @@ def render_clown_panel(draw_fn, idx):
     prop_oy = int(plant_y - rfy)
     layer.blit(rotated, (prop_ox, prop_oy))
 
-    # The GRIP point on the prop's upper shaft (where the gloved hand wraps). It
-    # is the unrotated point ~30% down from the top, mapped through the rotation +
-    # blit offset so it lands ON the prop's upper shaft in panel space.
-    grip_local = (p_w / 2, p_h * 0.30)
+    # The GRIP point on the prop's UPPER region (where the gloved hand wraps). For
+    # a flipped blade the handle now sits near the TOP, so the grip rides higher
+    # (~0.28 down, on the handle between guard and pommel, never the blade); the marotte grips the
+    # shaft ~0.32 down, just below the lobed head. Mapped through the rotation +
+    # blit offset so it lands ON the prop in panel space.
+    grip_frac = 0.28 if hold == "blade" else 0.32
+    grip_local = (p_w / 2, p_h * grip_frac)
     gdx = grip_local[0] - cxr
     gdy = grip_local[1] - cyr
     rgx = cxr + (gdx * math.cos(rad) + gdy * math.sin(rad))
@@ -1937,12 +2377,17 @@ def _median_body_luma(draw_fn, ss, *, body_px=240):
 # ════════════════════════════════════════════════════════════════════════════
 
 def main():
-    SS = 4
+    SS = 6                             # route supersample bumped 4→6 for crisper tiles
 
+    # The sheet is rendered LARGER this round (ROW_SCALE) so the crisper SS=6 /
+    # p_ss=6 sources are shown at higher resolution, not shrunk back down.
+    ROW_SCALE = 1.4
     clown_w, clown_h = VIEW_W, VIEW_H
     N_STEPS = 11
     ROUTE_W = SP * N_STEPS + 40
     ROUTE_H = PLAY_H
+    DISP_ROUTE_W = int(ROUTE_W * ROW_SCALE)
+    DISP_ROUTE_H = int(ROUTE_H * ROW_SCALE)
 
     pad = 18
     head = 104
@@ -1950,14 +2395,14 @@ def main():
     name_strip = 30
     inner_gap = 22
 
-    # The route panel is the tall one (640); scale the clown panel up to match its
-    # height so both panels in a row sit on the same baseline.
-    clown_scale = ROUTE_H / clown_h
+    # The route panel is the tall one; scale the clown panel up to match its
+    # displayed height so both panels in a row sit on the same baseline.
+    clown_scale = DISP_ROUTE_H / clown_h
     clown_dw = int(clown_w * clown_scale)
-    clown_dh = ROUTE_H
+    clown_dh = DISP_ROUTE_H
 
-    row_w = clown_dw + inner_gap + ROUTE_W
-    row_h = name_strip + ROUTE_H
+    row_w = clown_dw + inner_gap + DISP_ROUTE_W
+    row_h = name_strip + DISP_ROUTE_H
 
     sheet_w = pad * 2 + row_w
     sheet_h = head + len(VERSIONS) * (row_h + row_gap) + pad
@@ -1967,22 +2412,22 @@ def main():
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
     sheet.blit(title_f.render(
-        "Warren Prop Route — Round 6 (BROADENED: ~15 props, 4 families · NEW lean-on-grounded-prop pose)",
+        "Warren Prop Route — Round 7 (TWO winners matured: 5 Crystal-Saber + 5 Jester-Marotte variants · hi-res)",
         True, (255, 255, 255)), (pad, 14))
     sheet.blit(sub_f.render(
-        "POSE: prop stands VERTICALLY, bottom tip on the GROUND beside the clown; the near gloved hand "
-        "grips it near the top (relaxed showman LEAN) while the OTHER hand presents the floating die up high.",
+        "POSE (family-aware): BLADES lean TIP-DOWN with the gloved hand on the HANDLE (handle/pommel UP); "
+        "MAROTTES stand point-UP, hand on the shaft below the head; the OTHER hand presents the floating die.",
         True, (205, 210, 220)), (pad, 48))
     sheet.blit(sub_f.render(
-        "Families: BLADES (round-5 winners) · STAFFS & SCEPTERS · CLOWN PROPS · MYSTIC & MENACING.  "
-        "LEFT = the REAL hero clown LEANING on this prop · RIGHT = the route FILLED with it.",
+        "BLADES = amethyst-crystal family (cool-violet → warm-magenta → icy-blue).  STAFFS = jester-marotte family "
+        "(one bauble wears the clown's own cap).  LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
         True, (170, 178, 190)), (pad, 70))
 
     name_f = hud._font(19, True)
     reg_f = hud._font(13, True)
     note_f = hud._font(13, False)
 
-    for idx, (name, register, note, draw_fn) in enumerate(VERSIONS):
+    for idx, (name, register, note, draw_fn, hold) in enumerate(VERSIONS):
         ry = head + idx * (row_h + row_gap)
         strip = pygame.Surface((row_w, name_strip), pygame.SRCALPHA)
         strip.fill((18, 20, 28, 220))
@@ -2001,13 +2446,16 @@ def main():
         body_y = ry + name_strip
 
         # --- LEFT: the clown LEANING on this grounded prop + presenting the die ---
-        clown = render_clown_panel(draw_fn, idx)
+        clown = render_clown_panel(draw_fn, idx, hold)
         clown = pygame.transform.smoothscale(clown, (clown_dw, clown_dh))
         pygame.draw.rect(clown, (10, 12, 18), clown.get_rect(), 2)
         sheet.blit(clown, (pad, body_y))
 
         # --- RIGHT: the route filled with this prop ---
+        # Rendered at native game px (fixed geometry) from SS=6 supersampled tiles,
+        # then scaled up to the displayed size so the crisp tiles read large.
         route = _route_panel(draw_fn, ROUTE_W, ROUTE_H, SS)
+        route = pygame.transform.smoothscale(route, (DISP_ROUTE_W, DISP_ROUTE_H))
         sheet.blit(route, (pad + clown_dw + inner_gap, body_y))
 
         # Measure + print the median BODY luma of this prop at route scale (GATE 2:
@@ -2019,7 +2467,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "warren_sword")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_6.png")
+    out_path = os.path.join(out_dir, "round_7.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
