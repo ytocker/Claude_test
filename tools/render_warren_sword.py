@@ -2071,7 +2071,11 @@ def _mini_clown_face(surf, cx, hy, hr, ss, *, expr="grin", look=None):
                           int(hy + hr * 0.28)))
     ex = hr * 0.42                         # eye spacing
     ew, eh = 2.0 * u, 2.5 * u              # tall round OPEN eye (alive, not hooded)
-    stare = expr == "stare"
+    # "smirk" shares the dead pinprick eyes with "stare" but carries a sly raised
+    # brow + a one-corner-up closed mouth so it reads as a mischievous clown, not an
+    # empty doll. `dead` drives the eye treatment; the mouth branch splits below.
+    smirk = expr == "smirk"
+    stare = expr == "stare" or smirk
     for s in (-1, 1):
         exx = cx + s * ex
         # White sclera — a tall bright open eye.
@@ -2105,21 +2109,56 @@ def _mini_clown_face(surf, cx, hy, hr, ss, *, expr="grin", look=None):
         inner = (exx - s * 1.0 * u * ss, hy - 5.4 * u * ss)
         mid = (exx + s * 1.8 * u * ss, hy - 5.6 * u * ss)
         outer = (exx + s * 4.6 * u * ss, hy - 3.6 * u * ss)
-        if stare:
+        if stare and not smirk:
             # A flatter, lower brow for the blank-stare so the calm reads colder.
             inner = (exx - s * 1.0 * u * ss, hy - 4.6 * u * ss)
             mid = (exx + s * 1.8 * u * ss, hy - 4.6 * u * ss)
             outer = (exx + s * 4.6 * u * ss, hy - 4.4 * u * ss)
+        elif smirk:
+            # ONE sly raised brow (the die-side / LEFT, s == -1) cocks up high; the
+            # other stays flat + low — a single cocked brow over dead eyes is the
+            # whole "knowing menace-glee" tell of the sinister smirk.
+            if s < 0:
+                inner = (exx - s * 1.0 * u * ss, hy - 6.4 * u * ss)
+                mid = (exx + s * 1.8 * u * ss, hy - 6.8 * u * ss)
+                outer = (exx + s * 4.6 * u * ss, hy - 5.0 * u * ss)
+            else:
+                inner = (exx - s * 1.0 * u * ss, hy - 4.4 * u * ss)
+                mid = (exx + s * 1.8 * u * ss, hy - 4.4 * u * ss)
+                outer = (exx + s * 4.6 * u * ss, hy - 4.4 * u * ss)
         pygame.draw.lines(surf, BROW_COL, False,
                           [(int(inner[0]), int(inner[1])), (int(mid[0]), int(mid[1])),
                            (int(outer[0]), int(outer[1]))], max(1, int(1.3 * ss)))
     # Red ball nose, lifted up between the eyes so the grin owns the lower face.
-    nr = max(2, int(1.9 * u * ss))
+    # Bumped up again so the warm dot is the last face cue to survive at 30px, where
+    # the eyes/brows dissolve and only "warm nose over dark smile" reads — the dot
+    # has to win the silhouette fight against the cap clutter above it.
+    nr = max(3, int(3.0 * u * ss))
     pygame.draw.circle(surf, _shade_c(NOSE_RED, -60), (cx, int(hy + 1.4 * u * ss)), nr + 1)
     pygame.draw.circle(surf, NOSE_RED, (cx, int(hy + 1.4 * u * ss)), nr)
     pygame.draw.circle(surf, _shade_c(NOSE_RED, 100),
                        (int(cx - nr * 0.4), int(hy + 1.4 * u * ss - nr * 0.4)),
                        max(1, int(nr * 0.4)))
+    if smirk:
+        # A closed-mouth SMIRK: a smooth lip curve with the die-side (LEFT) corner
+        # cocked UP and the other corner held low — a sliver of menace-glee so the
+        # dead eyes read as a sly clown, not a vacant doll. A short dimple tick seats
+        # the raised corner so the asymmetry survives shrinking.
+        my = hy + 5.0 * u * ss
+        l_up = (cx - 4.2 * u * ss, my - 1.8 * u * ss)
+        r_lo = (cx + 4.2 * u * ss, my + 1.2 * u * ss)
+        smk = []
+        for k in range(11):
+            t = k / 10.0
+            sx = l_up[0] + (r_lo[0] - l_up[0]) * t
+            sy = l_up[1] + (r_lo[1] - l_up[1]) * t + (1.0 - (2.0 * t - 1.0) ** 2) * 1.2 * u * ss
+            smk.append((int(sx), int(sy)))
+        pygame.draw.lines(surf, LIP, False, smk, max(2, int(2.2 * ss)))
+        pygame.draw.line(surf, _shade_c(LIP, -40),
+                         (int(l_up[0]), int(l_up[1])),
+                         (int(l_up[0] + 1.2 * u * ss), int(l_up[1] - 1.6 * u * ss)),
+                         max(1, int(1.4 * ss)))
+        return
     if stare:
         # A small flat closed line-mouth for the unsettling calm — no toothy grin.
         my = hy + 5.4 * u * ss
@@ -2140,7 +2179,10 @@ def _mini_clown_face(surf, cx, hy, hr, ss, *, expr="grin", look=None):
              (cx + 2.3 * u * ss, my + 0.5 * u * ss), r_corner,
              (cx + 2.7 * u * ss, my + 1.8 * u * ss), bottom,
              (cx - 2.7 * u * ss, my + 1.8 * u * ss)]
-    pygame.draw.polygon(surf, MOUTH_THROAT, [(int(p[0]), int(p[1])) for p in mouth])
+    # Throat darkened one step so the open grin reads as a solid dark smile-band
+    # at route scale (the "dark smile under a warm dot" cue) once the teeth blur.
+    pygame.draw.polygon(surf, _shade_c(MOUTH_THROAT, -34),
+                        [(int(p[0]), int(p[1])) for p in mouth])
     # Bright tooth band across the top of the open grin + tooth separators.
     teeth = [l_corner, (cx - 2.3 * u * ss, my), (cx + 2.3 * u * ss, my), r_corner,
              (cx + 2.3 * u * ss, my + 1.4 * u * ss), (cx - 2.3 * u * ss, my + 1.4 * u * ss)]
@@ -2151,12 +2193,20 @@ def _mini_clown_face(surf, cx, hy, hr, ss, *, expr="grin", look=None):
         gx = cx + k * 1.9 * u * ss
         pygame.draw.line(surf, _shade_c(TEETH, -70), (int(gx), int(my)),
                          (int(gx), int(my + 1.4 * u * ss)), max(1, int(ss)))
-    # One pointed FANG dropping below the tooth row on the die-side (LEFT).
-    fang = [(cx - 2.3 * u * ss, my + 1.4 * u * ss), (cx - 0.4 * u * ss, my + 1.4 * u * ss),
-            (cx - 1.4 * u * ss, my + 3.2 * u * ss)]
+    # One pointed FANG dropping below the tooth row on the die-side (LEFT). It is the
+    # MVP of the "mean" read and the FIRST thing to vanish when shrunk, so it is now
+    # seated HIGH into the tooth band (base up at the tooth-band top) with a wider
+    # base and a longer drop — a fat triangular spike that reads as a single dark-
+    # rimmed tusk even after the tooth separators blur. Drawn against the dark throat
+    # FIRST as a fat throat wedge so the fang silhouette persists, then the bright
+    # tooth fang over it with a heavy keyline.
+    fang = [(cx - 3.4 * u * ss, my), (cx + 0.2 * u * ss, my),
+            (cx - 1.6 * u * ss, my + 4.8 * u * ss)]
+    pygame.draw.polygon(surf, _shade_c(MOUTH_THROAT, -34),
+                        [(int(p[0] - 0.5 * u * ss), int(p[1] + 0.6 * u * ss)) for p in fang])
     pygame.draw.polygon(surf, TEETH, [(int(p[0]), int(p[1])) for p in fang])
     pygame.draw.polygon(surf, _shade_c(TEETH, -70),
-                        [(int(p[0]), int(p[1])) for p in fang], max(1, int(ss)))
+                        [(int(p[0]), int(p[1])) for p in fang], max(2, int(1.6 * ss)))
     # The lip line wrapping the grin — a single smooth up-curving crescent.
     lip = []
     for k in range(13):
@@ -2176,16 +2226,28 @@ def _mini_clown_face(surf, cx, hy, hr, ss, *, expr="grin", look=None):
         pygame.draw.ellipse(surf, _shade_c(TONGUE, -60), tr, max(1, int(ss)))
 
 
-def _marotte_ruff(surf, cx, ny, r, ss, col, *, lobes=9, bell_col=GOLD):
+def _marotte_ruff(surf, cx, ny, r, ss, col, *, lobes=9, bell_col=GOLD, fringe=None):
     """A scalloped ruff under the bauble (the clown's neck collar), ported into
     ss space: a row of overlapping lit lobes ringing the neck with a small bell
     dangling at each outer edge, so the mini-clown reads as a costumed head, not
-    a bare ball. Drawn dark-cored so it holds value on the day sky."""
+    a bare ball. Drawn dark-cored so it holds value on the day sky. `fringe` (a
+    gold) hangs a fat bell off the bottom of each lobe — the jingle density moved
+    to the collar so it can't blur the head silhouette into a halo."""
     for i in range(lobes):
         t = i / (lobes - 1)
         lx = cx - r + 2 * r * t
         ly = ny + 2.0 * ss + math.sin(t * math.pi) * -2.0 * ss
         rad = max(3, int(r * 0.30))
+        if fringe is not None:
+            # A short thread + fat bell hanging off the lobe's lower edge — a tidy
+            # belled fringe along the collar reads as "jingles" at any scale.
+            by = ly + rad + int(4 * ss)
+            pygame.draw.line(surf, _shade_c(fringe, -60), (int(lx), int(ly + rad)),
+                             (int(lx), int(by)), max(2, int(2.0 * ss)))
+            pygame.draw.circle(surf, _shade_c(fringe, -55), (int(lx), int(by)), max(3, int(3.6 * ss)))
+            pygame.draw.circle(surf, fringe, (int(lx), int(by)), max(2, int(2.8 * ss)))
+            pygame.draw.circle(surf, _shade_c(fringe, 80),
+                               (int(lx - ss), int(by - ss)), max(1, int(1.2 * ss)))
         pygame.draw.circle(surf, _shade_c(col, -55), (int(lx), int(ly)), rad)
         pygame.draw.circle(surf, col, (int(lx), int(ly)), max(2, rad - int(ss)))
         pygame.draw.circle(surf, _shade_c(col, 55),
@@ -2231,11 +2293,12 @@ def _shaft_twist(surf, cx, top_y, bot_y, hw, ss, col_a, col_b, lo):
     clip = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     stripe = max(4, int(7 * ss))
     n = int((bot_y - top_y) / stripe) + 4
-    # A 3-band cycle (plum, plum, gold) so the dark plum dominates the body 2:1
-    # and the gold ribbon stays a bold accent — keeps the route median dark.
+    # A 4-band cycle (plum x3, gold x1) so the dark plum dominates ~3:1 and the gold
+    # ribbon reads as a bold spiral accent — the old 2:1 strobed/flickered at
+    # distance, and the wider plum keeps the route median dark.
     for i in range(-2, n):
         y0 = top_y + i * stripe
-        c = col_b if i % 3 == 2 else col_a
+        c = col_b if i % 4 == 3 else col_a
         quad = [(cx - hw, y0), (cx + hw, y0 - hw * 1.5),
                 (cx + hw, y0 - hw * 1.5 + stripe), (cx - hw, y0 + stripe)]
         pygame.draw.polygon(clip, c, [(int(p[0]), int(p[1])) for p in quad])
@@ -2461,9 +2524,12 @@ def prop_14f(surf, bw, bh, ss):
     _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=CANDY_RED)
     # The clown's own four-point splayed cap (mirrors cap_four_point): two outer
     # points flop far out + low, two inner points lean apart, each bell-tipped.
+    # Inner points splayed further apart (±19) and lifted so the cap clears the
+    # forehead and stops shadowing the eyes; the two outer points still flop far
+    # out + low.
     base_y = hy - hr + int(1 * ss)
     for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
-                          (-13, -28, LIME_DK), (13, -26, GOLD_DK)]:
+                          (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
         bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
         span = int(8 * ss)
         tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
@@ -2493,11 +2559,17 @@ def prop_14g(surf, bw, bh, ss):
     _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
     _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
     # A close lime hood-cap with two forward-leaning bell points (heraldic, tidy).
+    # Crown lifted one step to LIME so it reads as lime, not olive, where it meets
+    # the dark plum point above it.
     base_y = hy - hr + int(1 * ss)
-    pygame.draw.ellipse(surf, _shade_c(LIME_DK, -10),
-                        (int(cx - hr - ss), int(base_y - 6 * ss), int(hr * 2 + 2 * ss), int(11 * ss)))
     pygame.draw.ellipse(surf, LIME_DK,
+                        (int(cx - hr - ss), int(base_y - 6 * ss), int(hr * 2 + 2 * ss), int(11 * ss)))
+    pygame.draw.ellipse(surf, LIME,
                         (int(cx - hr), int(base_y - 6 * ss), int(hr * 2), int(10 * ss)))
+    # A brighter lit crown band across the cap top so it reads clearly as LIME (not
+    # an olive smudge where LIME_DK met the dark plum point) once shrunk.
+    pygame.draw.ellipse(surf, _shade_c(LIME, 45),
+                        (int(cx - hr * 0.78), int(base_y - 6 * ss), int(hr * 1.56), int(6 * ss)))
     for (dx, dy, col) in [(-20, -16, PLUM_DK), (20, -14, GOLD_DK)]:
         bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
         span = int(7 * ss)
@@ -2508,11 +2580,26 @@ def prop_14g(surf, bw, bh, ss):
         pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.2 * ss)), max(1, int(ss)))
     _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, PLUM, lobes=9, bell_col=GOLD)
     _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
-    # The marionette signature: a hinged-jaw line under the grin so the head reads
-    # like a segmented puppet jaw that could clack open.
-    pygame.draw.arc(surf, _shade_c(CREAM, -60),
-                    (int(cx - hr * 0.7), int(hy + hr * 0.3), int(hr * 1.4), int(hr * 0.8)),
-                    math.pi * 1.1, math.tau * 0.95, max(1, int(1.4 * ss)))
+    # The marionette signature: a REAL second jaw-line well below the grin so the
+    # head reads as a segmented puppet jaw that could clack open. Drawn as a deep
+    # INK-dark, fat crescent set a clear gap below the lip — a soft shadow band under
+    # it gives the lower jaw volume so the split survives shrinking instead of
+    # reading as one faint scratch.
+    jy = hy + int(hr * 1.00)
+    jaw, jaw_lo = [], []
+    for k in range(11):
+        t = k / 10.0
+        jx = cx - hr * 0.66 + hr * 1.32 * t
+        dip = (1.0 - (2.0 * t - 1.0) ** 2) * hr * 0.36
+        jaw.append((int(jx), int(jy + dip)))
+        jaw_lo.append((int(jx), int(jy + dip + 2.0 * ss)))
+    pygame.draw.lines(surf, _shade_c(CREAM, -50), False, jaw_lo, max(2, int(2.4 * ss)))
+    pygame.draw.lines(surf, INK, False, jaw, max(3, int(2.8 * ss)))
+    # Two short hinge ticks at the jaw corners reinforce the clack-open puppet read.
+    for s in (-1, 1):
+        hx = cx + s * int(hr * 0.66)
+        pygame.draw.line(surf, INK, (hx, int(jy + hr * 0.06)),
+                         (int(hx - s * 2 * ss), int(hy + hr * 0.46)), max(2, int(2.0 * ss)))
 
 
 # ---- 14h. Jingles & Filigree ------------------------------------------------
@@ -2538,17 +2625,21 @@ def prop_14h(surf, bw, bh, ss):
         tri = [(cx - span, base_y + int(2 * ss)), (cx + span, base_y + int(2 * ss)), (bxp, byp)]
         pygame.draw.polygon(surf, col, tri)
         pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
-    # The dangling bell spray — short dark threads, each ending in a lit gold bell.
-    for (ax, ay) in [(-26, 2), (-20, -8), (-8, -14), (8, -14), (20, -8), (26, 2)]:
+    # The radiating crown spray (even 4 bells) collapsed into a fuzzy gold halo that
+    # broke the head silhouette at 30px, so the jingle density is RELOCATED to the
+    # ruff as a fat belled FRINGE (see `bell_fringe` below) — the head stays a clean
+    # round dome and "jingles" now lives at the collar where it can't blur the face.
+    # Just two tight bells sit ON the cap points as the only head-level jingle.
+    for (ax, ay) in [(-15, -22), (15, -20)]:
         ex, ey = cx + int(ax * ss), base_y + int(ay * ss)
-        pygame.draw.line(surf, PLUM_DK, (int(cx + ax * 0.35 * ss), int(base_y + 2 * ss)),
-                         (int(ex), int(ey)), max(1, int(1.4 * ss)))
-        pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey)), max(2, int(3.4 * ss)))
-        pygame.draw.circle(surf, GOLD, (int(ex), int(ey)), max(2, int(2.8 * ss)))
-        pygame.draw.circle(surf, GOLD_HI, (int(ex - ss), int(ey - ss)), max(1, int(ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey)), max(3, int(3.8 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(ex), int(ey)), max(2, int(3.0 * ss)))
+        pygame.draw.circle(surf, GOLD_HI, (int(ex - ss), int(ey - ss)), max(1, int(1.4 * ss)))
     # Layered DOUBLE ruff (a wide outer scallop + a tighter inner one) for the
-    # filigree-rich neck read.
-    _marotte_ruff(surf, cx, hy + hr + int(1 * ss), int(hr * 1.25), ss, PLUM_DK, lobes=11)
+    # filigree-rich neck read; the outer ruff carries the dense belled fringe so the
+    # "jingles" payoff reads at the collar without crowding the head.
+    _marotte_ruff(surf, cx, hy + hr + int(1 * ss), int(hr * 1.25), ss, PLUM_DK,
+                  lobes=11, fringe=GOLD)
     _marotte_ruff(surf, cx, hy + hr - int(3 * ss), int(hr * 0.95), ss, LIME, lobes=9, bell_col=GOLD)
     _mini_clown_face(surf, cx, hy, hr, ss, expr="tongue")
 
@@ -2557,8 +2648,11 @@ def prop_14h(surf, bw, bh, ss):
 # The "MEAN" pole: a SKELETAL fluted near-black shaft pinched into a spine, a
 # blank-stare dead-eyed mini-clown under a drooping single horned hood, an iron
 # ferrule and a downward SPIKE foot. Amusing-but-unsettling.
-SINISTER_LO = (38, 26, 48)
-SINISTER_MD = (84, 60, 104)
+# The sinister body is now on-palette: a deep PLUM_DK shaft (still dark — clears the
+# luma gate) lit on one edge, with GOLD_DK metalwork. "Mean" comes from VALUE +
+# expression, not the old cool blue-grey iron that read cheap and off-palette.
+SINISTER_LO = (44, 24, 58)             # deep plum shaft core (a touch warmer than PLUM_DK)
+SINISTER_MD = (96, 52, 118)            # the lit plum edge / hood face
 
 
 def prop_14i(surf, bw, bh, ss):
@@ -2568,31 +2662,49 @@ def prop_14i(surf, bw, bh, ss):
     shaft_top = hy + hr
     hwid = int(8 * ss)
     _shaft_fluted(surf, cx, shaft_top, bh - int(10 * ss), hwid, ss, SINISTER_MD, SINISTER_LO)
-    _ferrule(surf, cx, shaft_top + int(3 * ss), int(hwid * 0.8), ss, IRON_MD, h=7)
-    _pommel_finial(surf, cx, bh - int(6 * ss), int(hwid * 0.7), ss, IRON_MD, kind="spike")
-    # A single drooping horned hood — one long forward-flopping point + a small
-    # back nub, in cold plum, so the silhouette leans sinister, not jolly.
+    # A visible lit plum rail down one side so the near-black shaft no longer reads
+    # as an indistinct dark stick at route scale — it catches a clear edge of light.
+    pygame.draw.line(surf, SINISTER_MD, (int(cx - hwid * 0.62), int(shaft_top + 4 * ss)),
+                     (int(cx - hwid * 0.62), int(bh - 12 * ss)), max(2, int(2.0 * ss)))
+    # Metalwork re-spec'd to GOLD_DK (on-palette) instead of cool iron. A warm gold
+    # collar with a candy-red cabochon is the one focal POP that pulls the eye to the
+    # face and keeps the dark prop reading as a clown staff at distance.
+    _ferrule(surf, cx, shaft_top + int(3 * ss), int(hwid * 0.85), ss, GOLD_DK, h=8,
+             jewel=CANDY_RED)
+    _pommel_finial(surf, cx, bh - int(6 * ss), int(hwid * 0.7), ss, GOLD_DK, kind="spike")
+    # A single drooping horned hood — one forward point ROUNDED (no longer a sharp
+    # witch-hat spike) + a prominent back HORN-NUB so the "horned hood" cue reads,
+    # in lit plum so the silhouette leans sinister, not jolly.
     base_y = hy - hr + int(1 * ss)
     pygame.draw.ellipse(surf, _shade_c(SINISTER_LO, 20),
                         (int(cx - hr), int(base_y - 5 * ss), int(hr * 2), int(10 * ss)))
+    # The forward point is built with a blunt rounded crook (two near-apex points)
+    # so it reads as a flopped horn, not a pointed hat.
     hood = [(cx - int(6 * ss), base_y - int(2 * ss)),
-            (cx + int(4 * ss), base_y - int(6 * ss)),
-            (cx + int(28 * ss), base_y - int(26 * ss)),
-            (cx + int(22 * ss), base_y - int(8 * ss)),
+            (cx + int(4 * ss), base_y - int(7 * ss)),
+            (cx + int(22 * ss), base_y - int(24 * ss)),
+            (cx + int(27 * ss), base_y - int(20 * ss)),
+            (cx + int(24 * ss), base_y - int(13 * ss)),
+            (cx + int(22 * ss), base_y - int(7 * ss)),
             (cx + int(10 * ss), base_y + int(2 * ss))]
     pygame.draw.polygon(surf, SINISTER_MD, [(int(p[0]), int(p[1])) for p in hood])
     pygame.draw.polygon(surf, _shade_c(SINISTER_LO, -10),
                         [(int(p[0]), int(p[1])) for p in hood], max(1, int(1.4 * ss)))
-    pygame.draw.circle(surf, GOLD_DK, (int(cx + 28 * ss), int(base_y - 26 * ss)), max(2, int(3.2 * ss)))
-    pygame.draw.circle(surf, GOLD, (int(cx + 28 * ss), int(base_y - 26 * ss)), max(2, int(2.6 * ss)))
-    # A short back horn-nub the other way so the hood isn't a lone spike.
-    nub = [(cx - int(4 * ss), base_y - int(4 * ss)), (cx - int(16 * ss), base_y - int(14 * ss)),
-           (cx - int(10 * ss), base_y - int(2 * ss))]
+    # A rounded gold bell knob caps the flopped forward horn.
+    pygame.draw.circle(surf, GOLD_DK, (int(cx + 24 * ss), int(base_y - 22 * ss)), max(3, int(3.6 * ss)))
+    pygame.draw.circle(surf, GOLD, (int(cx + 24 * ss), int(base_y - 22 * ss)), max(2, int(3.0 * ss)))
+    # A MORE PROMINENT back horn-nub (fatter + longer) so the "horned" read is
+    # legible and balances the forward horn instead of looking like one hat-tip.
+    nub = [(cx - int(5 * ss), base_y - int(4 * ss)), (cx - int(20 * ss), base_y - int(20 * ss)),
+           (cx - int(13 * ss), base_y - int(18 * ss)),
+           (cx - int(12 * ss), base_y - int(2 * ss))]
     pygame.draw.polygon(surf, SINISTER_MD, [(int(p[0]), int(p[1])) for p in nub])
     pygame.draw.polygon(surf, _shade_c(SINISTER_LO, -10),
                         [(int(p[0]), int(p[1])) for p in nub], max(1, int(1.4 * ss)))
-    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, SINISTER_MD, lobes=9, bell_col=IRON_HI)
-    _mini_clown_face(surf, cx, hy, hr, ss, expr="stare")
+    pygame.draw.circle(surf, GOLD_DK, (int(cx - 20 * ss), int(base_y - 20 * ss)), max(2, int(2.8 * ss)))
+    pygame.draw.circle(surf, GOLD, (int(cx - 20 * ss), int(base_y - 20 * ss)), max(2, int(2.2 * ss)))
+    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, SINISTER_MD, lobes=9, bell_col=GOLD_DK)
+    _mini_clown_face(surf, cx, hy, hr, ss, expr="smirk")
 
 
 # ---- 14j. Twisted Jester ----------------------------------------------------
@@ -2614,17 +2726,23 @@ def prop_14j(surf, bw, bh, ss):
     pygame.draw.arc(surf, GOLD_DK, (int(cx - hr - ss), int(base_y - 4 * ss),
                                     int(hr * 2 + 2 * ss), int(12 * ss)),
                     math.pi, math.tau, max(2, int(3 * ss)))
-    pts = [(-22, -16, PLUM_DK), (-11, -24, LIME_DK), (0, -28, PLUM_DK),
-           (11, -24, LIME_DK), (22, -16, PLUM_DK)]
+    # Staggered heights read the points as a coronet ARC, not a picket fence: the
+    # CENTRE point spikes tallest, the inner pair drop a clear step, the outer pair
+    # drop another step lower — a smooth bell of heights so the eye reads a crowned
+    # arc even after the gold tips blur at route scale.
+    pts = [(-22, -12, PLUM_DK), (-11, -24, LIME_DK), (0, -34, PLUM_DK),
+           (11, -24, LIME_DK), (22, -12, PLUM_DK)]
     for (dx, dy, col) in pts:
         bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
         span = int(5 * ss)
         tri = [(cx + int(dx * ss) - span, base_y), (cx + int(dx * ss) + span, base_y), (bxp, byp)]
         pygame.draw.polygon(surf, col, tri)
         pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.2 * ss)))
-        tipcol = LIME if col == PLUM_DK else PLUM
-        pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(3 * ss)))
-        pygame.draw.circle(surf, tipcol, (int(bxp), int(byp)), max(1, int(1.6 * ss)))
+        # A single fat gold tip — the old lime-on-plum / plum-on-lime centre dot
+        # vanished by 30px, so one clean gold bead keeps every point reading.
+        pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(2.8 * ss)))
+        pygame.draw.circle(surf, GOLD_HI, (int(bxp - ss), int(byp - ss)), max(1, int(ss)))
     _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.1), ss, LIME_DK, lobes=11, bell_col=GOLD)
     _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
 
