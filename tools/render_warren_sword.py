@@ -2804,7 +2804,9 @@ def prop_14l(surf, bw, bh, ss):
     _shaft_twist(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, GOLD, PLUM_DK)
     _ferrule(surf, cx, bh * 0.5, hwid, ss, GOLD, h=9, jewel=PLUM)
     _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
-    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    # Foot planted ON the ground line (bot_y == bh): the flared bell ends at the
+    # box bottom rather than 4 px above it, so the staff rests on the ground.
+    _pommel_finial(surf, cx, bh, hwid, ss, GOLD, kind="bell")
     base_y = hy - hr + int(1 * ss)
     for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
                           (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
@@ -2833,7 +2835,7 @@ def prop_14m(surf, bw, bh, ss):
     _ferrule(surf, cx, shaft_top + int(3 * ss), hwid, ss, GOLD, h=7)
     _ferrule(surf, cx, bh * 0.62, hwid, ss, GOLD, h=7, jewel=LIME)
     _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
-    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    _pommel_finial(surf, cx, bh, hwid, ss, GOLD, kind="bell")
     base_y = hy - hr + int(1 * ss)
     for (dx, dy, col) in [(-15, -22, PLUM_DK), (15, -20, LIME_DK)]:
         bxp, byp = cx + int(dx * ss), base_y + int(dy * ss)
@@ -2863,7 +2865,7 @@ def prop_14n(surf, bw, bh, ss):
                         gem_a=LIME, gem_b=GOLD)
     _ferrule(surf, cx, shaft_top + int(4 * ss), hwid, ss, GOLD, h=9, jewel=PLUM)
     _ferrule(surf, cx, bh - int(20 * ss), hwid, ss, GOLD, h=8)
-    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="bell")
+    _pommel_finial(surf, cx, bh, hwid, ss, GOLD, kind="bell")
     base_y = hy - hr + int(1 * ss)
     for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
                           (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
