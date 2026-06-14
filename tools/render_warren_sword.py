@@ -2508,6 +2508,30 @@ SABER_VERSIONS = [
 ]
 
 
+# ── STAFF-ROUTE marotte browse ────────────────────────────────────────────────
+# The mirror of SABER_VERSIONS for the STAFF-route decision: the five latest
+# jester-marotte variants on their own sheet so the staff prop can be browsed in
+# isolation. Every row holds "staff" so the clown leans on it point-UP with the
+# gloved hand on the shaft just below the lobed head.
+MAROTTE_VERSIONS = [
+    ("Marotte — Wide-Ear", "STAFFS",
+     "round-6 two-ear silhouette · smiling face · twin plum/lime bell-nub ears · extra bind ring",
+     prop_14a, "staff"),
+    ("Marotte — Three-Ear Crown", "STAFFS",
+     "THREE lobes (L/top/R) · open-O surprised face · big bell-nubs · triple-eared fool's crown",
+     prop_14b, "staff"),
+    ("Marotte — Coxcomb Crest", "STAFFS",
+     "single tall scalloped ROOSTER-comb crest · sly tongue-out grin · three bell-tipped scallops",
+     prop_14c, "staff"),
+    ("Marotte — Belled Spray", "STAFFS",
+     "FAN of four short stubby bell-nubs spraying out · jollier busy terminus · wide smile",
+     prop_14d, "staff"),
+    ("Marotte — Mini-Clown", "STAFFS",
+     "the bauble WEARS the clown's own four-point cap (plum/lime/gold, bell-tipped) · tiny twin",
+     prop_14e, "staff"),
+]
+
+
 # ════════════════════════════════════════════════════════════════════════════
 #  ROUTE PANORAMA — true px, carried from round 2/4 unchanged
 # ════════════════════════════════════════════════════════════════════════════
@@ -2877,17 +2901,33 @@ _ROUND8_HEADERS = [
 ]
 
 
+_ROUND8M_HEADERS = [
+    ("Warren STAFF Route — Marotte browse (STAFFS ONLY · the five latest jester-marotte variants · hi-res)",
+     (255, 255, 255)),
+    ("POSE: the clown leans on the marotte point-UP, gloved hand on the shaft just below the lobed head; "
+     "the OTHER hand presents the floating power-up die. Sabers live on their own sheet — marottes only here.",
+     (205, 210, 220)),
+    ("VARIANTS = Wide-Ear · Three-Ear Crown · Coxcomb Crest · Belled Spray · Mini-Clown (wears the clown's own cap).  "
+     "LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
+     (170, 178, 190)),
+]
+
+
 def main():
-    # Default: emit the round-8 SABER-ONLY browse alongside the untouched round-7
-    # sheet. `--sabers` renders only the saber sheet (faster when iterating on it);
-    # `--round7` renders only the original 10-row sheet.
+    # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
+    # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
+    # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    do_round7 = "--sabers" not in args
-    do_sabers = "--round7" not in args
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7"))
+    do_round7 = "--round7" in args or not only
+    do_sabers = "--sabers" in args or not only
+    do_marottes = "--marottes" in args or not only
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
         _render_sheet(SABER_VERSIONS, "round_8_sabers.png", _ROUND8_HEADERS)
+    if do_marottes:
+        _render_sheet(MAROTTE_VERSIONS, "round_8_marottes.png", _ROUND8M_HEADERS)
 
 
 if __name__ == "__main__":
