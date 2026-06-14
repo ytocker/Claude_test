@@ -1,4 +1,31 @@
-"""Look-dev renderer (Round 5): the WARREN EVENT sword — CONCEPT REDESIGN.
+"""Look-dev renderer (Round 6): the WARREN EVENT prop — BROADENED + RE-POSED.
+
+ROUND 6 broadens the concept beyond swords and fixes the lean pose. Two changes
+drove this round:
+  (1) BROADEN — the clown can hold ANYTHING interesting. ~15 holistic props now
+      span FOUR families (~4/4/4/3): A SWORDS & BLADES (the round-5 winners,
+      re-posed), B STAFFS & SCEPTERS, C CLOWN PROPS, D MYSTIC & MENACING. Each
+      is a COMPLETE, structurally distinct object, authored gap-facing-end UP so
+      the route flip scaffolding plants it correctly.
+  (2) FIX THE POSE — round 5 held the sword awkwardly upward behind the head. The
+      new pose stands the prop VERTICALLY with its bottom tip resting ON THE
+      GROUND beside the clown; the near/lower gloved hand grips it near the top
+      (a relaxed showman LEAN, weight resting on the prop) while the OTHER hand
+      still presents the floating power-up die up high. The pose is IDENTICAL
+      every row; only the prop changes.
+
+The three gameplay GATES still drive every prop at ROUTE scale (~30-40 px wide):
+  1. GAP READABILITY — the gap-facing END is a clean readable terminus (point,
+     finial, orb, hook, prongs, star) with a hard dark-body→bright-gap value
+     break; even BLUNT-topped props (lollipop, orb, knob cane) are shaped + dark-
+     rimmed so the sky-gap stays the brightest, sharpest band.
+  2. DAY-SKY CONTRAST — median BODY luma under ~140 against the ~190 day sky
+     (round-5 ran hot at 165-172; highlight ramps pulled down ~15-20%). Opaque
+     dark cores; no pale-on-blue.
+  3. DE-NOISE — 2-3 bold elements per prop in the route silhouette; the LEFT
+     leaned hero shot may carry finer detail than the tiled RIGHT version.
+
+Prior lineage (Round 5): the WARREN EVENT sword — CONCEPT REDESIGN.
 
 Rounds 1-4 (35 swords) were ALL rejected for one root reason finally pinned
 down: every version was the SAME silhouette recolored. The old code piped all
@@ -53,7 +80,7 @@ held-clown panel are new.
 Run (headless):
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYTHONPATH=. \
         python tools/render_warren_sword.py
-Writes docs/warren_sword/round_5.png.
+Writes docs/warren_sword/round_6.png.
 """
 import math
 import os
@@ -1068,47 +1095,537 @@ def sword_12(surf, bw, bh, ss):
                          (cx - int(3 * ss), py + pr * 0.7)])
 
 
+# ════════════════════════════════════════════════════════════════════════════
+#  BROADENED ROUND-6 PROPS — STAFFS · CLOWN PROPS · MYSTIC
+#  Every prop is authored TIP/FINIAL-UP in the box (gap-facing end at y=0, the
+#  bottom resting end at the box bottom) so the existing route flip scaffolding
+#  plants it point-UP from the ground and point-DOWN from the ceiling unchanged.
+#  Bodies are keyed DARK (median luma < ~140 on the ~190 day sky): the shaft fill
+#  is a dark core with only a SLIM lit rail, and finials carry the value break.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Dark woods / staves that always hold value on day-blue.
+WOOD_HI = (120, 92, 58)
+WOOD_MD = (84, 62, 38)
+WOOD_LO = (48, 34, 20)
+WOOD_KEY = (30, 20, 12)
+ROD_HI = (150, 158, 172)
+ROD_MD = (78, 84, 96)
+ROD_LO = (40, 44, 52)
+
+
+def _shaft(surf, cx, top_y, bot_y, hw, ss, hi, md, lo, *, gnarl=0.0, key=None):
+    """A vertical staff/cane SHAFT as a dark volume: a `lo`→`md` body gradient
+    with a single SLIM lit rail down the lit side, so the body stays dark on the
+    day sky while still reading round. `gnarl` waggles the silhouette into a
+    knobbed wizard rod; 0 keeps it a clean straight cane."""
+    key = key or _shade_c(lo, -40)
+    span = max(1, bot_y - top_y)
+    left, right = [], []
+    n = 16
+    for i in range(n + 1):
+        t = i / n
+        y = top_y + span * t
+        wob = math.sin(t * math.pi * 3.0) * gnarl * hw
+        left.append((cx - hw + wob, y))
+        right.append((cx + hw + wob, y))
+    body = left + list(reversed(right))
+    _vgrad_poly(surf, body, md, lo, outline=key, ow=max(2, int(2.0 * ss)))
+    # One slim lit rail down the lit (left) side — kept thin so the body luma
+    # stays dark on day-blue.
+    rail = [(p[0] + hw * 0.32, p[1]) for p in left]
+    pygame.draw.lines(surf, hi, False, rail, max(1, int(1.6 * ss)))
+
+
+def _bind_rings(surf, cx, ys, hw, ss, col):
+    """A couple of bold binding rings around a shaft (a 2-3 bold-element accent)."""
+    for y in ys:
+        pygame.draw.line(surf, _shade_c(col, -40), (cx - hw - int(1.5 * ss), y),
+                         (cx + hw + int(1.5 * ss), y), max(2, int(3 * ss)))
+        pygame.draw.line(surf, _shade_c(col, 30), (cx - hw, y - int(ss)),
+                         (cx + hw, y - int(ss)), max(1, int(1.4 * ss)))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  FAMILY B — STAFFS & SCEPTERS (gap-facing FINIAL at box top)
+# ════════════════════════════════════════════════════════════════════════════
+
+# ---- 13. Wizard Orb Staff ---------------------------------------------------
+# A gnarled dark rod with a glowing crystal ORB clutched in a claw finial. The
+# orb's hard rim is the gap terminus: a dark claw frames a bright cyan core so
+# the blunt round top still reads as a clean, contrast-y gap end.
+ORB_CORE = (40, 120, 150)
+ORB_GLOW = (120, 226, 245)
+ORB_HOT = (224, 250, 255)
+
+
+def prop_13(surf, bw, bh, ss):
+    cx = bw // 2
+    finial_r = int(15 * ss)
+    fy = finial_r + int(8 * ss)            # orb centre sits just below the top
+    shaft_top = fy + int(finial_r * 0.4)
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(7 * ss), ss,
+           WOOD_HI, WOOD_MD, WOOD_LO, gnarl=0.10)
+    _bind_rings(surf, cx, [bh * 0.55, bh * 0.8], int(7.5 * ss), ss, GOLD_DK)
+    # Dark claw prongs clutching the orb (the value-break frame around the blunt
+    # round top so the gap stays readable).
+    for sgn in (-1, 0, 1):
+        bx = cx + sgn * finial_r * 0.7
+        prong = [(cx + sgn * int(3 * ss), shaft_top + int(2 * ss)),
+                 (bx, fy + finial_r * 0.2),
+                 (bx + sgn * int(4 * ss), fy - finial_r * 0.5)]
+        pygame.draw.lines(surf, WOOD_LO, False, prong, max(3, int(4 * ss)))
+        pygame.draw.lines(surf, WOOD_KEY, False, prong, max(1, int(1.4 * ss)))
+    # The glowing orb finial — a dark rim, a saturated core, a hot glint.
+    _glow_disc(surf, cx, fy, int(finial_r * 1.3), ORB_GLOW, ss, alpha=150)
+    pygame.draw.circle(surf, (18, 36, 46), (cx, int(fy)), finial_r)
+    pygame.draw.circle(surf, ORB_CORE, (cx, int(fy)), int(finial_r - ss))
+    pygame.draw.circle(surf, ORB_GLOW, (cx, int(fy)), int(finial_r * 0.55))
+    pygame.draw.circle(surf, ORB_HOT, (int(cx - finial_r * 0.3), int(fy - finial_r * 0.3)),
+                       max(2, int(finial_r * 0.26)))
+
+
+# ---- 14. Jester Marotte -----------------------------------------------------
+# A fool's-head bauble SCEPTER: a plum rod topped by a tiny belled jester head
+# (the fool's own face on a stick), the on-theme clown prop. The little head's
+# pointed cap tips read as the gap terminus.
+def prop_14(surf, bw, bh, ss):
+    cx = bw // 2
+    hr = int(13 * ss)
+    hy = int(20 * ss)                      # tiny head centre
+    shaft_top = hy + hr
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           _shade_c(PLUM, 40), PLUM, PLUM_DK)
+    _bind_rings(surf, cx, [bh * 0.6], int(6.5 * ss), ss, GOLD_DK)
+    # Two little belled cap points making the gap-facing terminus (pointed, so a
+    # clean readable end), one plum one lime.
+    for sgn, col in ((-1, PLUM_DK), (1, LIME_DK)):
+        tip = (cx + sgn * int(12 * ss), int(3 * ss))
+        pygame.draw.polygon(surf, col,
+                            [(cx - int(4 * ss), hy - hr * 0.4),
+                             (cx + int(4 * ss), hy - hr * 0.4), tip])
+        pygame.draw.polygon(surf, _shade_c(col, -50),
+                            [(cx - int(4 * ss), hy - hr * 0.4),
+                             (cx + int(4 * ss), hy - hr * 0.4), tip], max(1, int(ss)))
+        pygame.draw.circle(surf, GOLD, tip, max(2, int(3 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, tip, max(2, int(3 * ss)), max(1, int(ss)))
+    # The tiny fool's head (cream face) — bold + simple so it reads at route scale.
+    pygame.draw.circle(surf, _shade_c(CREAM, -50), (cx, int(hy)), hr)
+    pygame.draw.circle(surf, CREAM, (cx, int(hy)), int(hr - ss))
+    for sgn in (-1, 1):
+        pygame.draw.circle(surf, INK, (int(cx + sgn * hr * 0.4), int(hy - hr * 0.1)),
+                           max(2, int(2.2 * ss)))
+    pygame.draw.circle(surf, CANDY_RED, (cx, int(hy + hr * 0.2)), max(2, int(2.6 * ss)))
+    pygame.draw.arc(surf, INK, (int(cx - hr * 0.5), int(hy + hr * 0.1),
+                                int(hr), int(hr * 0.7)),
+                    math.pi * 0.15, math.pi * 0.85, max(2, int(2 * ss)))
+
+
+# ---- 15. Shepherd's Crook ---------------------------------------------------
+# A long pale-wood crook whose hooked top is the gap terminus — the hook curls
+# IN so the inner mouth of the hook reads as a clean dark-on-bright end.
+CROOK_HI = (176, 150, 110)
+CROOK_MD = (120, 96, 62)
+CROOK_LO = (70, 54, 32)
+
+
+def prop_15(surf, bw, bh, ss):
+    cx = bw // 2
+    hook_h = int(46 * ss)
+    _shaft(surf, cx, hook_h, bh - int(4 * ss), int(6 * ss), ss,
+           CROOK_HI, CROOK_MD, CROOK_LO)
+    # The hook: a bold C curling from the shaft top up and back round. Drawn as a
+    # thick dark arc with a slim lit inner rail so the hook reads as one bold
+    # element, the curl mouth a clean terminus.
+    hw = int(6 * ss)
+    rad = int(16 * ss)
+    cxh = cx + int(2 * ss)
+    cyh = hook_h - int(4 * ss)
+    rect = pygame.Rect(int(cxh - rad), int(cyh - rad), int(rad * 2), int(rad * 2))
+    pygame.draw.arc(surf, CROOK_LO, rect, math.pi * 0.15, math.pi * 1.95, hw + int(2 * ss))
+    pygame.draw.arc(surf, CROOK_MD, rect, math.pi * 0.15, math.pi * 1.95, hw)
+    pygame.draw.arc(surf, CROOK_HI, rect.inflate(-int(3 * ss), -int(3 * ss)),
+                    math.pi * 0.7, math.pi * 1.6, max(1, int(1.6 * ss)))
+    # A bold leather binding band where hook meets shaft.
+    _bind_rings(surf, cx, [hook_h + int(6 * ss), bh * 0.62], int(6.5 * ss), ss,
+                LEATHER_DK)
+
+
+# ---- 16. Skull-Topped Gold Rod ----------------------------------------------
+# An ornate dark-gold scepter rod with a bone SKULL finial crowned by a faceted
+# gem. The skull's domed cranium + the gem catch are the gap terminus.
+def prop_16(surf, bw, bh, ss):
+    cx = bw // 2
+    sk_r = int(14 * ss)
+    sy = int(20 * ss)
+    shaft_top = sy + sk_r
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
+           GOLD_DK, GOLD_SHADOW, _shade_c(GOLD_SHADOW, -30))
+    _bind_rings(surf, cx, [bh * 0.5, bh * 0.78], int(6.5 * ss), ss, GOLD)
+    # Collar of gold points beneath the skull.
+    for sgn in (-1, 1):
+        pygame.draw.polygon(surf, GOLD_DK,
+                            [(cx + sgn * int(4 * ss), shaft_top + int(4 * ss)),
+                             (cx + sgn * int(13 * ss), shaft_top + int(2 * ss)),
+                             (cx + sgn * int(7 * ss), shaft_top - int(8 * ss))])
+    # Bone skull finial — a domed cranium (clean rounded terminus), dark eye
+    # sockets, a small jaw, crowned by a faceted gem catch for the hard value pop.
+    pygame.draw.circle(surf, BONE_DK, (cx, int(sy)), sk_r)
+    pygame.draw.circle(surf, BONE, (cx, int(sy - ss)), int(sk_r - ss))
+    for sgn in (-1, 1):
+        pygame.draw.circle(surf, (24, 18, 16), (int(cx + sgn * sk_r * 0.42), int(sy + ss)),
+                           max(2, int(sk_r * 0.28)))
+    pygame.draw.polygon(surf, (24, 18, 16),
+                        [(cx, int(sy + sk_r * 0.45)),
+                         (cx + int(3 * ss), int(sy + sk_r * 0.75)),
+                         (cx - int(3 * ss), int(sy + sk_r * 0.75))])
+    pygame.draw.rect(surf, BONE_DK, (int(cx - sk_r * 0.5), int(sy + sk_r * 0.7),
+                                     int(sk_r), int(5 * ss)))
+    _facet_gem(surf, cx, int(sy - sk_r * 0.65), int(5 * ss), CANDY_RED,
+               (255, 150, 150), CANDY_RED_DK, ss)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  FAMILY C — CLOWN PROPS (gap-facing end at box top)
+# ════════════════════════════════════════════════════════════════════════════
+
+# ---- 17. Candy Cane ---------------------------------------------------------
+# A red/white spiral cane with the hooked top as the gap terminus. The stripes
+# are kept BOLD (few fat diagonals) so they never fizz; the body reads dark via
+# deep candy-red cores between the cream stripes + a dark keyline.
+CANE_RED = (190, 40, 50)
+CANE_RED_DK = (120, 22, 30)
+CANE_CREAM = (244, 236, 220)
+
+
+def _candy_band(surf, cx, top_y, bot_y, hw, ss, *, red=CANE_RED, cream=CANE_CREAM,
+                vert=True):
+    """A barber-pole striped column/segment kept DARK overall: deep-red cores
+    with fewer, slimmer cream diagonals + a dark keyline, so the body luma stays
+    under the day sky. Clipped to the column rect via a mask."""
+    w = int(hw * 2)
+    h = max(1, int(bot_y - top_y))
+    seg = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
+    seg.fill(red + (255,))
+    stripe = max(4, int(8 * ss))
+    for i in range(-2, (w + h) // stripe + 3):
+        x0 = i * stripe
+        pygame.draw.polygon(seg, cream + (255,),
+                            [(x0, 0), (x0 + stripe // 2, 0),
+                             (x0 + stripe // 2 - h, h), (x0 - h, h)])
+    # Re-darken the RGB only (NOT alpha — BLEND_RGB_SUB leaves the band fully
+    # opaque) so the cream reads cooler/darker and the whole band median sits
+    # below the day sky, while the column stays a solid dark obstacle.
+    seg.fill((60, 60, 60), special_flags=pygame.BLEND_RGB_SUB)
+    mask = pygame.Surface((w + 2, h + 2), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), (1, 0, w, h),
+                     border_radius=int(hw))
+    seg.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(seg, (int(cx - hw), int(top_y)))
+    pygame.draw.rect(surf, CANE_RED_DK, (int(cx - hw), int(top_y), w, h),
+                     max(1, int(1.6 * ss)), border_radius=int(hw))
+
+
+def prop_17(surf, bw, bh, ss):
+    cx = bw // 2
+    hw = int(7 * ss)
+    hook_h = int(40 * ss)
+    rad = int(15 * ss)
+    cxh = cx + int(2 * ss)
+    cyh = hook_h - int(2 * ss)
+    # Straight striped shaft.
+    _candy_band(surf, cx, hook_h, bh - int(4 * ss), hw, ss)
+    # Hooked top — a thick striped arc. Draw a dark base arc then a few bold
+    # cream stripe ticks across it so the hook reads candy without fizz.
+    rect = pygame.Rect(int(cxh - rad), int(cyh - rad), int(rad * 2), int(rad * 2))
+    pygame.draw.arc(surf, CANE_RED_DK, rect, math.pi * 0.1, math.pi * 1.95,
+                    int(hw * 2 + 2 * ss))
+    pygame.draw.arc(surf, CANE_RED, rect, math.pi * 0.1, math.pi * 1.95, int(hw * 2))
+    for k in range(7):
+        a = math.pi * 0.2 + k * (math.pi * 1.6 / 6)
+        x0 = cxh + math.cos(a) * (rad)
+        y0 = cyh + math.sin(a) * (rad)
+        pygame.draw.line(surf, CANE_CREAM,
+                         (x0 + math.cos(a) * hw, y0 + math.sin(a) * hw),
+                         (x0 - math.cos(a) * hw, y0 - math.sin(a) * hw),
+                         max(2, int(2.6 * ss)))
+    pygame.draw.arc(surf, CANE_RED_DK, rect, math.pi * 0.1, math.pi * 1.95,
+                    max(1, int(1.6 * ss)))
+
+
+# ---- 18. Giant Lollipop -----------------------------------------------------
+# A big swirl DISC on a striped stick. A fat round top is the worst case for gap
+# readability, so the disc is given a hard dark rim + a tight bright swirl core
+# and the disc is kept NARROW enough (and dark-rimmed) that the sky-gap above its
+# crown still reads as the brightest band.
+LOLLI_A = (224, 96, 120)
+LOLLI_B = (255, 232, 210)
+LOLLI_RIM = (96, 30, 50)
+
+
+def prop_18(surf, bw, bh, ss):
+    cx = bw // 2
+    disc_r = int(17 * ss)
+    dy = disc_r + int(6 * ss)
+    stick_top = dy + int(disc_r * 0.4)
+    # A DARK candy-red stick (not a pale white one — a cream stick would wash on
+    # the day sky, failing GATE 2), bound with cream rings for the candy read.
+    _shaft(surf, cx, stick_top, bh - int(4 * ss), int(5 * ss), ss,
+           CANE_RED, CANE_RED_DK, _shade_c(CANE_RED_DK, -30))
+    _bind_rings(surf, cx, [bh * 0.5, bh * 0.72], int(5.5 * ss), ss, CANE_CREAM)
+    # The swirl disc: a hard DARK rim (the value break that keeps the gap above it
+    # reading), then a bold two-tone spiral kept LOW-frequency (a few fat arms).
+    pygame.draw.circle(surf, LOLLI_RIM, (cx, int(dy)), disc_r + int(ss))
+    pygame.draw.circle(surf, LOLLI_A, (cx, int(dy)), disc_r)
+    arms = 5
+    for k in range(arms):
+        a0 = k * math.tau / arms
+        pts = []
+        for j in range(7):
+            t = j / 6
+            ang = a0 + t * 2.0
+            rr = disc_r * t
+            pts.append((cx + math.cos(ang) * rr, dy + math.sin(ang) * rr))
+        pygame.draw.lines(surf, LOLLI_B, False, pts, max(2, int(3 * ss)))
+    pygame.draw.circle(surf, LOLLI_RIM, (cx, int(dy)), disc_r, max(2, int(2.4 * ss)))
+    pygame.draw.circle(surf, (255, 250, 244), (int(cx - disc_r * 0.35),
+                                               int(dy - disc_r * 0.35)),
+                       max(2, int(disc_r * 0.18)))
+
+
+# ---- 19. Ringmaster Cane ----------------------------------------------------
+# A black/gold show cane with a round gold KNOB top. The blunt knob is shaped
+# with a hard dark underside + a tight specular so the gap still reads; a gold
+# collar bands it.
+CANE_BLACK = (34, 32, 40)
+CANE_BLACK_HI = (78, 76, 88)
+
+
+def prop_19(surf, bw, bh, ss):
+    cx = bw // 2
+    knob_r = int(11 * ss)
+    ky = knob_r + int(6 * ss)
+    shaft_top = ky + int(knob_r * 0.6)
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(5.5 * ss), ss,
+           CANE_BLACK_HI, CANE_BLACK, _shade_c(CANE_BLACK, -18))
+    # Gold bands striping the black cane (the bold show accent).
+    for yt in (0.34, 0.55, 0.76):
+        _bind_rings(surf, cx, [shaft_top + (bh - shaft_top) * yt], int(6 * ss), ss, GOLD)
+    # Gold collar + round knob. A dark crescent across the knob's lower half is
+    # the value break that keeps the gap above the knob reading bright.
+    pygame.draw.rect(surf, GOLD_DK, (int(cx - knob_r * 0.7), int(shaft_top - 3 * ss),
+                                     int(knob_r * 1.4), int(6 * ss)))
+    pygame.draw.circle(surf, GOLD_DK, (cx, int(ky)), knob_r)
+    pygame.draw.circle(surf, GOLD, (cx, int(ky - ss)), int(knob_r - ss))
+    pygame.draw.circle(surf, GOLD_SHADOW, (cx, int(ky + knob_r * 0.35)),
+                       int(knob_r * 0.7))
+    pygame.draw.circle(surf, GOLD, (cx, int(ky - ss)), int(knob_r - ss),
+                       max(1, int(ss)))
+    pygame.draw.circle(surf, GOLD_HI, (int(cx - knob_r * 0.32), int(ky - knob_r * 0.34)),
+                       max(2, int(knob_r * 0.26)))
+
+
+# ---- 20. Furled Parasol -----------------------------------------------------
+# A closed plum/lime parasol: a tight furled bundle tapering to a POINTED ferrule
+# at the top — a clean sharp terminus — with a curved cane handle at the bottom.
+def prop_20(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y = int(4 * ss)
+    bundle_bot = bh - int(40 * ss)
+    hw = int(9 * ss)
+    # Furled bundle: a long dark taper from a pointed ferrule down to the handle,
+    # built as a few bold vertical rib facets (plum / lime alternating, dark).
+    ribs = 4
+    for i in range(ribs):
+        t0 = i / ribs - 0.5
+        col = PLUM_DK if i % 2 == 0 else LIME_DK
+        x0 = cx + t0 * hw * 1.8
+        poly = [(cx, tip_y), (x0 + hw * 0.5, bundle_bot - int(6 * ss)),
+                (x0 + hw * 0.5 + hw / ribs, bundle_bot - int(6 * ss))]
+        pygame.draw.polygon(surf, col, poly)
+    # Overlay a single bold dark spine + a slim lit edge so it reads as ONE furled
+    # bundle, not stripes.
+    spine = [(cx - hw, bundle_bot - int(6 * ss)), (cx, tip_y),
+             (cx + hw, bundle_bot - int(6 * ss))]
+    pygame.draw.polygon(surf, _shade_c(PLUM_DK, -30), spine, max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, LIME, (cx, tip_y + int(6 * ss)),
+                     (cx - hw * 0.5, bundle_bot - int(20 * ss)), max(1, int(1.6 * ss)))
+    # Pointed metal ferrule terminus.
+    pygame.draw.polygon(surf, ROD_HI, [(cx, tip_y), (cx - int(3 * ss), tip_y + int(12 * ss)),
+                                       (cx + int(3 * ss), tip_y + int(12 * ss))])
+    pygame.draw.polygon(surf, ROD_LO, [(cx, tip_y), (cx - int(3 * ss), tip_y + int(12 * ss)),
+                                       (cx + int(3 * ss), tip_y + int(12 * ss))],
+                        max(1, int(ss)))
+    # A gold tie-band cinching the furl.
+    _bind_rings(surf, cx, [bundle_bot - int(20 * ss)], hw, ss, GOLD)
+    # Dark cane shaft + a curved handle at the bottom (the resting end).
+    _shaft(surf, cx, bundle_bot - int(6 * ss), bh - int(18 * ss), int(5 * ss), ss,
+           WOOD_HI, WOOD_MD, WOOD_LO)
+    rad = int(10 * ss)
+    rect = pygame.Rect(int(cx - rad * 2), int(bh - int(20 * ss)), int(rad * 2), int(rad * 2))
+    pygame.draw.arc(surf, WOOD_MD, rect, math.pi * 1.5, math.tau, max(3, int(4 * ss)))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  FAMILY D — MYSTIC & MENACING (gap-facing end at box top)
+# ════════════════════════════════════════════════════════════════════════════
+
+# ---- 21. Trident ------------------------------------------------------------
+# A dark iron trident: three sharp prongs (the gap terminus reads as a trio of
+# clean points), a swept crossbar, a wrapped haft.
+def prop_21(surf, bw, bh, ss):
+    cx = bw // 2
+    bar_y = int(40 * ss)
+    hw = int(6 * ss)
+    _shaft(surf, cx, bar_y, bh - int(4 * ss), hw, ss, ROD_HI, ROD_MD, ROD_LO)
+    _wrap_grip(surf, cx, bh * 0.45, bh - int(8 * ss), int(hw * 0.9), LEATHER, ss,
+               diag=True)
+    # Three prongs rising to sharp points (the trident head). Centre tallest.
+    for sgn, h_mul, x_mul in ((-1, 0.7, 1.0), (0, 1.0, 0.0), (1, 0.7, 1.0)):
+        px = cx + sgn * int(13 * ss) * x_mul
+        tipy = bar_y - int(34 * ss) * h_mul
+        prong = [(px - int(4 * ss), bar_y), (px, tipy), (px + int(4 * ss), bar_y)]
+        _vgrad_poly(surf, prong, ROD_MD, ROD_LO, outline=(18, 20, 26),
+                    ow=max(1, int(1.6 * ss)))
+        pygame.draw.line(surf, ROD_HI, (px, tipy + int(3 * ss)),
+                         (px - int(2 * ss), bar_y), max(1, int(1.4 * ss)))
+    # Swept crossbar the prongs root into.
+    bar = [(cx - int(16 * ss), bar_y + int(2 * ss)), (cx + int(16 * ss), bar_y + int(2 * ss)),
+           (cx + int(12 * ss), bar_y + int(10 * ss)), (cx - int(12 * ss), bar_y + int(10 * ss))]
+    pygame.draw.polygon(surf, ROD_LO, bar)
+    pygame.draw.polygon(surf, (18, 20, 26), bar, max(2, int(2 * ss)))
+    pygame.draw.line(surf, ROD_HI, (cx - int(14 * ss), bar_y + int(4 * ss)),
+                     (cx + int(14 * ss), bar_y + int(4 * ss)), max(1, int(1.4 * ss)))
+
+
+# ---- 22. Star Wand ----------------------------------------------------------
+# A slender dark wand tipped with a glowing five-point STAR — the star's sharp
+# upper points are the gap terminus, framed by its own glow.
+STAR_GLOW = (255, 232, 120)
+STAR_HOT = (255, 250, 220)
+
+
+def prop_22(surf, bw, bh, ss):
+    cx = bw // 2
+    star_r = int(15 * ss)
+    sy = star_r + int(8 * ss)
+    shaft_top = sy + int(star_r * 0.5)
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(4.5 * ss), ss,
+           CANE_BLACK_HI, CANE_BLACK, _shade_c(CANE_BLACK, -18))
+    # A couple of bold gold bands so the slim wand still carries 2-3 elements.
+    _bind_rings(surf, cx, [bh * 0.5, bh * 0.74], int(5 * ss), ss, GOLD)
+    # Glowing five-point star finial — built from its outer + inner radii points.
+    pts = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5
+        rr = star_r if k % 2 == 0 else star_r * 0.42
+        pts.append((cx + math.cos(a) * rr, sy + math.sin(a) * rr))
+    _glow_disc(surf, cx, sy, int(star_r * 1.4), STAR_GLOW, ss, alpha=150)
+    pygame.draw.polygon(surf, GOLD_DK, pts)
+    pygame.draw.polygon(surf, STAR_GLOW, [(cx + (p[0] - cx) * 0.82, sy + (p[1] - sy) * 0.82)
+                                          for p in pts])
+    pygame.draw.polygon(surf, GOLD_SHADOW, pts, max(1, int(1.6 * ss)))
+    pygame.draw.circle(surf, STAR_HOT, (cx, int(sy)), max(2, int(star_r * 0.22)))
+
+
+# ---- 23. Flaming Torch ------------------------------------------------------
+# A dark torch wrapped in cloth, crowned by a bold FLAME. The flame's pointed
+# tongue is the gap terminus; the flame body is kept opaque + dark-cored at the
+# base so it never washes pale on the day sky, hot only at the very tip.
+FLAME_LO = (180, 60, 24)
+FLAME_MD = (236, 130, 36)
+FLAME_HI = (255, 214, 96)
+
+
+def prop_23(surf, bw, bh, ss):
+    cx = bw // 2
+    flame_top = int(4 * ss)
+    bowl_y = int(46 * ss)
+    _shaft(surf, cx, bowl_y, bh - int(4 * ss), int(7 * ss), ss,
+           WOOD_HI, WOOD_MD, WOOD_LO)
+    # Cloth wrap bindings on the haft (bold criss-cross feel via a couple rings).
+    _bind_rings(surf, cx, [bh * 0.55, bh * 0.72, bh * 0.88], int(7.5 * ss), ss,
+                LEATHER_DK)
+    # Dark pitch bowl the flame rises from.
+    pygame.draw.polygon(surf, (40, 30, 22),
+                        [(cx - int(12 * ss), bowl_y), (cx + int(12 * ss), bowl_y),
+                         (cx + int(8 * ss), bowl_y - int(8 * ss)),
+                         (cx - int(8 * ss), bowl_y - int(8 * ss))])
+    # Flame: bold layered tongues. Outer dark-orange body to a single pointed tip
+    # (the terminus), then a slimmer mid + a hot core kept small so the bulk of
+    # the flame body stays dark on day-blue.
+    outer = [(cx - int(11 * ss), bowl_y - int(6 * ss)),
+             (cx - int(6 * ss), bowl_y - int(24 * ss)),
+             (cx - int(8 * ss), bowl_y - int(34 * ss)),
+             (cx, flame_top),
+             (cx + int(7 * ss), bowl_y - int(30 * ss)),
+             (cx + int(5 * ss), bowl_y - int(18 * ss)),
+             (cx + int(11 * ss), bowl_y - int(6 * ss))]
+    _vgrad_poly(surf, outer, FLAME_MD, FLAME_LO, outline=(120, 36, 14),
+                ow=max(2, int(2 * ss)))
+    mid = [(cx - int(6 * ss), bowl_y - int(8 * ss)),
+           (cx - int(2 * ss), flame_top + int(16 * ss)),
+           (cx + int(2 * ss), flame_top + int(10 * ss)),
+           (cx + int(5 * ss), bowl_y - int(10 * ss))]
+    pygame.draw.polygon(surf, FLAME_HI, mid)
+    _glow_disc(surf, cx, bowl_y - int(20 * ss), int(14 * ss), FLAME_MD, ss, alpha=90)
+
+
 # ── version registry ──────────────────────────────────────────────────────────
-# (name, register, one-line distinct-hilt note, draw_fn). 12 rows, ~4 per
-# register, every one a COMPLETE distinct weapon (own blade + guard + grip +
-# pommel — no shared handle/base).
+# (name, family, one-line distinct note, draw_fn). ~15 rows across FOUR families
+# (~4/4/4/3): A SWORDS & BLADES · B STAFFS & SCEPTERS · C CLOWN PROPS ·
+# D MYSTIC & MENACING. Every prop is a COMPLETE, structurally distinct object,
+# authored gap-facing-end UP so the route flip scaffolding plants it correctly.
 VERSIONS = [
-    ("Candy-Twist Cutlass", "CARTOON",
-     "fat curved toon blade · brass swoop guard · barber-pole candy grip · peppermint pommel",
-     sword_01),
-    ("Jester-Bell Sabre", "CARTOON",
-     "playful sabre · row-of-bells guard · plum diag grip · gold pommel w/ LIME tassel",
-     sword_02),
-    ("Balloon-Pommel Shortsword", "CARTOON",
-     "chunky short blade · rounded LIME guard · fat plum grip · HUGE glossy balloon pommel",
-     sword_03),
-    ("Foam-Wobble Greatsword", "CARTOON",
-     "oversized wobbly soft blade · lime ric-rac guard · plum 2-hand grip · gem pommel",
-     sword_04),
-    ("Cleaver Falchion", "REALISTIC",
-     "broad single-edge clip-point · simple iron cross · leather grip · flat DISC pommel",
-     sword_05),
-    ("Basket-Hilt Saber", "REALISTIC",
-     "curved cavalry sabre · woven steel BASKET guard · wire-ribbed grip · teardrop pommel",
-     sword_06),
-    ("Leaf-Blade Shortsword", "REALISTIC",
-     "bronze-age LEAF silhouette · flared crescent guard · riveted bronze grip · crescent pommel",
-     sword_07),
-    ("Two-Hand War-Blade", "REALISTIC",
-     "long double-edge w/ ricasso + SIDE-RINGS · steel cross · long 2-hand grip · pear pommel",
-     sword_08),
-    ("Winged-Guard Relic", "FANTASY",
-     "gem-core gold blade · swept feathered WING guard · gold grip · CROWN-of-points pommel",
-     sword_09),
-    ("Rune Greatsword", "FANTASY",
-     "dark blade · ONE glowing rune · angular anvil guard · ribbed grip · faceted gem pommel",
-     sword_10),
-    ("Crystal Saber", "FANTASY",
-     "opaque amethyst faceted blade · JAGGED raw-shard guard · dark grip · raw-gem CLUSTER pommel",
-     sword_11),
-    ("Bone / Demon Blade", "FANTASY",
-     "clawed BONE blade · fanged DEMON-SKULL guard · VERTEBRA grip · HORNED skull pommel",
+    # A — SWORDS & BLADES (round-5 winners, re-posed point-on-ground)
+    ("Bone / Demon Blade", "BLADES",
+     "clawed BONE blade · fanged DEMON-SKULL guard · VERTEBRA grip · glowing red eyes (round-5 hero)",
      sword_12),
+    ("Cleaver Falchion", "BLADES",
+     "broad single-edge CLIP-POINT chopper · simple iron cross · leather grip · flat DISC pommel",
+     sword_05),
+    ("Crystal Saber", "BLADES",
+     "opaque AMETHYST faceted curved blade · jagged raw-shard guard · raw-gem cluster pommel",
+     sword_11),
+    ("Rune Greatsword", "BLADES",
+     "dark forged blade · ONE glowing CYAN rune · angular anvil guard · faceted gem pommel",
+     sword_10),
+    # B — STAFFS & SCEPTERS
+    ("Wizard Orb Staff", "STAFFS",
+     "gnarled dark rod · glowing crystal ORB clutched in a claw finial · gold bind rings",
+     prop_13),
+    ("Jester Marotte", "STAFFS",
+     "fool's-head bauble scepter · tiny belled jester head on a plum stick · on-theme",
+     prop_14),
+    ("Shepherd's Crook", "STAFFS",
+     "long pale-wood staff · bold hooked CROOK top (curl-mouth terminus) · leather binds",
+     prop_15),
+    ("Skull-Topped Gold Rod", "STAFFS",
+     "ornate dark-gold scepter · bone SKULL finial · gem catch · gold point collar",
+     prop_16),
+    # C — CLOWN PROPS
+    ("Candy Cane", "CLOWN PROPS",
+     "red/white SPIRAL cane · hooked candy top · bold low-freq stripes (kept dark)",
+     prop_17),
+    ("Giant Lollipop", "CLOWN PROPS",
+     "big SWIRL disc on a striped stick · hard dark rim so the blunt top still reads the gap",
+     prop_18),
+    ("Ringmaster Cane", "CLOWN PROPS",
+     "black/gold show cane · round gold KNOB top · dark-underside knob keeps gap readable",
+     prop_19),
+    ("Furled Parasol", "CLOWN PROPS",
+     "closed plum/lime parasol · tight furl to a POINTED ferrule · curved cane handle",
+     prop_20),
+    # D — MYSTIC & MENACING
+    ("Trident", "MYSTIC",
+     "dark iron trident · THREE sharp prongs terminus · swept crossbar · wrapped haft",
+     prop_21),
+    ("Star Wand", "MYSTIC",
+     "slender dark wand · glowing five-point STAR finial · gold bands · sharp star points",
+     prop_22),
+    ("Flaming Torch", "MYSTIC",
+     "dark cloth-wrapped torch · bold FLAME with one pointed tongue · dark-cored, hot tip",
+     prop_23),
 ]
 
 
@@ -1170,60 +1687,46 @@ def _route_panel(draw_fn, w, h, ss):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  THE CLOWN HOLDING THE SWORD — left panel
+#  THE CLOWN LEANING ON THE GROUNDED PROP — left panel
 # ════════════════════════════════════════════════════════════════════════════
 
-from tools.render_jester_variants import build_jester, JESTERS  # noqa: E402
+from tools.render_jester_variants import (  # noqa: E402
+    build_jester, JESTERS, draw_cupped_die, _mitt_thumb,
+)
 from tools.render_clown_dice import (  # noqa: E402
-    _shade, VIEW_W, VIEW_H, VIEW_FEET_Y, SS as CLOWN_SS,
+    _shade, _arm, VIEW_W, VIEW_H, VIEW_FEET_Y, SS as CLOWN_SS,
 )
 from tools.render_warren_mockup import shaped_palette  # noqa: E402
 from tools.render_clown_dice import DAY_PHASE  # noqa: E402
 
+# The clown's down-arm geometry baked into build_jester (warren_demo hero spec):
+# hip_y = feet_y - 84, the near/down shoulder r_sh = (hip_cx + 25, hip_y - 50),
+# hip_cx = cx + hip_dx with hip_dx = -6. We re-derive these to RE-POSE the down
+# arm onto the grounded prop after build_jester paints its default down arm.
+_HIP_DX = -6
+_HIP_OFF = 84
 
-def _held_sword_surface(draw_fn, blade_px, ss):
-    """Render ONE complete sword (tip UP, hilt at the bottom) into its own tight
-    box at hero scale, for the clown to grip. The held version can carry more
-    detail than the route tile (the brief: held > tiled). Returns a 1x surface
-    plus the box height so the caller can seat the hilt."""
-    H = blade_px
+
+def _grounded_prop_surface(draw_fn, prop_px, ss):
+    """Render ONE complete prop (gap-facing end UP, resting end at the box
+    bottom) into its own tight box at hero scale, for the clown to LEAN on with
+    the prop's bottom tip planted on the ground. The held/leaned LEFT version can
+    carry finer detail than the tiled route version (brief: held > tiled).
+    Returns a 1x surface + its (w, h)."""
+    H = prop_px
     surf, bw, bh = _box(H, ss)
     draw_fn(surf, bw, bh, ss)
     out_w = PIPE_W + 2 * OVERHANG
     return pygame.transform.smoothscale(surf, (out_w, H)), out_w, H
 
 
-def _draw_grip_fingers(surf, hx, hy, glove, ss, *, span):
-    """A few gloved FINGERS + a thumb wrapping OVER the hilt at (hx, hy) so the
-    sword reads as truly HELD, not floating. `span` is the half-width of the hilt
-    the fingers curl across (in the rotated panel's pixel space)."""
-    dk = _shade(glove, -60)
-    # Four stubby fingers curling across the front of the grip.
-    for i in range(4):
-        fy = hy - span * 0.7 + i * span * 0.5
-        pygame.draw.line(surf, dk, (hx - span * 1.1, fy), (hx + span * 1.1, fy),
-                         max(3, int(4 * ss)))
-        pygame.draw.line(surf, glove, (hx - span * 1.0, fy),
-                         (hx + span * 1.0, fy), max(2, int(2.6 * ss)))
-        pygame.draw.circle(surf, glove, (int(hx + span * 1.0), int(fy)),
-                           max(2, int(2.4 * ss)))
-        pygame.draw.circle(surf, dk, (int(hx + span * 1.0), int(fy)),
-                           max(2, int(2.4 * ss)), max(1, int(ss)))
-    # A thumb hooking up from the far side.
-    pygame.draw.line(surf, dk, (hx - span * 1.1, hy + span * 0.2),
-                     (hx - span * 0.2, hy - span * 0.9), max(3, int(4 * ss)))
-    pygame.draw.line(surf, glove, (hx - span * 1.0, hy + span * 0.2),
-                     (hx - span * 0.3, hy - span * 0.8), max(2, int(2.6 * ss)))
-    pygame.draw.circle(surf, glove, (int(hx - span * 0.3), int(hy - span * 0.8)),
-                       max(2, int(2.6 * ss)))
-    pygame.draw.circle(surf, dk, (int(hx - span * 0.3), int(hy - span * 0.8)),
-                       max(2, int(2.6 * ss)), max(1, int(ss)))
-
-
 def render_clown_panel(draw_fn, idx):
-    """The REAL game jester (hero Plum & Lime, exactly as warren_demo builds it)
-    gripping THIS sword in its raised gloved hand, blade pointing up + out, with
-    fingers over the hilt so it reads as held. Returns a VIEW_W x VIEW_H surface."""
+    """The REAL hero Plum & Lime jester (exactly as warren_demo builds it) in the
+    FIXED round-6 lean pose: the prop stands VERTICALLY beside the clown with its
+    bottom tip planted ON the ground, the near/lower gloved hand grips it near the
+    top (a relaxed showman lean, weight resting on the prop), while the OTHER hand
+    still presents the floating power-up die up high. The pose is identical every
+    row; only the prop changes. Returns a VIEW_W x VIEW_H surface."""
     spec = dict(JESTERS[-1][1])
     spec.pop("no_shadow", None)
     ss = CLOWN_SS
@@ -1232,7 +1735,8 @@ def render_clown_panel(draw_fn, idx):
     big = pygame.Surface((bw, bh))
 
     # Day-clearing sky + a sliver of grass (the warren clearing read).
-    g_y = int(VIEW_FEET_Y * ss) + 6 * ss
+    ground_y = VIEW_FEET_Y + 4        # the ground line the prop rests ON
+    g_y = int(ground_y * ss)
     for y in range(g_y):
         t = 0.45 + 0.55 * (y / g_y)
         pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
@@ -1244,46 +1748,107 @@ def render_clown_panel(draw_fn, idx):
     pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
 
     layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
-    jester_cx = VIEW_W // 2 - 6
+    jester_cx = VIEW_W // 2 - 10
     feet_y = VIEW_FEET_Y
 
-    # The raised gloved hand seats the HILT. Put the hand mid-upper-right so the
-    # raised arm reads as hoisting the sword aloft; the blade then points up + out
-    # to the upper-RIGHT, leaving the clown's face clear.
-    hand_up = (jester_cx + 30, 96)
+    # The OTHER (raised) hand presents the floating die high in the upper sky. The
+    # die itself is drawn AFTER, up-left of the head, with the raised arm pointing
+    # at it (the approved presenter read).
+    die_x = jester_cx - 40
+    die_base_y = 34
+    hand_up = (die_x + 10, 80)
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
-    # Build the held sword at hero scale, rotate it so the blade points up-and-
-    # right (a hoisted display pose), then seat its grip in the gloved hand.
-    blade_px = 168
-    s_ss = 4
-    sword, sw_w, sw_h = _held_sword_surface(draw_fn, blade_px, s_ss)
-    # The grip sits near the bottom of the sword box; rotate about that grip.
-    rot = 28  # degrees CCW → tip leans up-right
-    rotated = pygame.transform.rotate(sword, rot)
-    # Grip point in the unrotated sword: centre-x, ~84% down (within the hilt).
-    grip_local = (sw_w / 2, sw_h * 0.86)
-    # Where that point lands after rotation about the surface centre.
-    cxr, cyr = sw_w / 2, sw_h / 2
+    # --- the GROUNDED prop the clown leans on -------------------------------
+    # Stand the prop vertically to the clown's near (right) side, bottom tip ON
+    # the ground line, slightly angled like a cane so the lean reads relaxed. The
+    # prop is rendered gap-end-UP, so its bottom edge is the resting tip.
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    prop_px = 150                      # finial near head height, tip on the ground
+    p_ss = 4
+    prop, p_w, p_h = _grounded_prop_surface(draw_fn, prop_px, p_ss)
+    rot = -7                           # slight cane lean (top tips toward the clown)
+    rotated = pygame.transform.rotate(prop, rot)
+    # Plant the bottom-centre of the prop on the ground, set out to the clown's
+    # near side. We compute where the unrotated bottom-centre lands post-rotation.
+    foot_local = (p_w / 2, p_h - 2)
+    cxr, cyr = p_w / 2, p_h / 2
     rad = math.radians(rot)
-    dx = grip_local[0] - cxr
-    dy = grip_local[1] - cyr
-    rgx = cxr + (dx * math.cos(rad) + dy * math.sin(rad))
-    rgy = cyr + (-dx * math.sin(rad) + dy * math.cos(rad))
-    rgx += (rotated.get_width() - sw_w) / 2
-    rgy += (rotated.get_height() - sw_h) / 2
-    # Seat the grip at the gloved hand.
-    hx, hy = hand_up
-    layer.blit(rotated, (int(hx - rgx), int(hy - rgy)))
-    # Gripping fingers + thumb OVER the hilt at the hand so it reads truly held.
-    _draw_grip_fingers(layer, hx, hy, (252, 250, 246), 1, span=5)
+    dx = foot_local[0] - cxr
+    dy = foot_local[1] - cyr
+    rfx = cxr + (dx * math.cos(rad) + dy * math.sin(rad))
+    rfy = cyr + (-dx * math.sin(rad) + dy * math.cos(rad))
+    rfx += (rotated.get_width() - p_w) / 2
+    rfy += (rotated.get_height() - p_h) / 2
+    plant_x = jester_cx + 30           # plant point on the ground beside the clown
+    plant_y = ground_y - 1
+    prop_ox = int(plant_x - rfx)
+    prop_oy = int(plant_y - rfy)
+    layer.blit(rotated, (prop_ox, prop_oy))
+
+    # The GRIP point on the prop's upper shaft (where the gloved hand wraps). It
+    # is the unrotated point ~30% down from the top, mapped through the rotation +
+    # blit offset so it lands ON the prop's upper shaft in panel space.
+    grip_local = (p_w / 2, p_h * 0.30)
+    gdx = grip_local[0] - cxr
+    gdy = grip_local[1] - cyr
+    rgx = cxr + (gdx * math.cos(rad) + gdy * math.sin(rad))
+    rgy = cyr + (-gdx * math.sin(rad) + gdy * math.cos(rad))
+    rgx += (rotated.get_width() - p_w) / 2
+    rgy += (rotated.get_height() - p_h) / 2
+    grip_x = prop_ox + rgx
+    grip_y = prop_oy + rgy
+
+    # --- RE-POSE the near/lower arm onto the grip (a confident showman lean) ---
+    # build_jester already painted a default down arm into the hip; redraw OVER it
+    # so a gloved hand rests on the grounded prop, resting weight. Use the same
+    # _arm + _mitt_thumb kit so the limb matches the figure exactly. The shoulder
+    # is the hard-coded down shoulder r_sh = (hip_cx + 25, hip_y - 50).
+    r_sh = (hip_cx + 25, hip_y - 50)
+    grip_hand = (int(grip_x), int(grip_y))
+    light = spec["light"]
+    _arm(layer, r_sh, grip_hand, 8, light)
+    _mitt_thumb(layer, grip_hand, 7, (250, 250, 252), side=1)
+
+    # --- the floating power-up die, presented up high by the raised hand -------
+    pulse = idx * 1.7 + 2.0
+    draw_cupped_die(layer, die_x, die_base_y, pulse, show_inset=(idx % 5 == 0))
 
     big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
     return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  THE SHEET — 12 rows, each = clown-holding (left) + route panorama (right)
+#  GATE-2 METER — median BODY luma of a prop at route scale
+# ════════════════════════════════════════════════════════════════════════════
+
+def _median_body_luma(draw_fn, ss, *, body_px=240):
+    """Render ONE prop into a route-scale tile and return the MEDIAN perceptual
+    luma of its opaque body pixels (the gap-facing END + finial highlights are a
+    minority of pixels, so the median tracks the BODY). GATE 2 aims < ~140 vs the
+    ~190 day sky. Measured on the route-tile render (the tiled version the player
+    actually threads), not the finer LEFT hero shot."""
+    small = _render_obstacle(draw_fn, body_px, ss, flip=False)
+    small.lock()
+    vals = []
+    w, h = small.get_size()
+    # Sample on a stride so the meter is fast but representative.
+    for y in range(0, h, 2):
+        for x in range(0, w, 2):
+            r, g, b, a = small.get_at((x, y))
+            if a < 200:
+                continue
+            vals.append(0.299 * r + 0.587 * g + 0.114 * b)
+    small.unlock()
+    if not vals:
+        return 0.0
+    vals.sort()
+    return vals[len(vals) // 2]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  THE SHEET — ~15 rows, each = clown-leaning (left) + route panorama (right)
 # ════════════════════════════════════════════════════════════════════════════
 
 def main():
@@ -1317,15 +1882,15 @@ def main():
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
     sheet.blit(title_f.render(
-        "Warren Sword Route — Round 5 (CONCEPT REDESIGN: 12 COMPLETE distinct weapons)",
+        "Warren Prop Route — Round 6 (BROADENED: ~15 props, 4 families · NEW lean-on-grounded-prop pose)",
         True, (255, 255, 255)), (pad, 14))
     sheet.blit(sub_f.render(
-        "Fixes the root note: every prior round shared ONE hilt (handle+base recolored). "
-        "Now each of 12 = its OWN blade + guard + grip + pommel — no shared handle/base, no recolors.",
+        "POSE: prop stands VERTICALLY, bottom tip on the GROUND beside the clown; the near gloved hand "
+        "grips it near the top (relaxed showman LEAN) while the OTHER hand presents the floating die up high.",
         True, (205, 210, 220)), (pad, 48))
     sheet.blit(sub_f.render(
-        "Registers: CARTOON (Plum & Lime world) · REALISTIC (4 real sword families) · FANTASY (hero/boss).  "
-        "LEFT = the REAL hero clown GRIPPING this sword · RIGHT = the route FILLED with it.",
+        "Families: BLADES (round-5 winners) · STAFFS & SCEPTERS · CLOWN PROPS · MYSTIC & MENACING.  "
+        "LEFT = the REAL hero clown LEANING on this prop · RIGHT = the route FILLED with it.",
         True, (170, 178, 190)), (pad, 70))
 
     name_f = hud._font(19, True)
@@ -1336,8 +1901,9 @@ def main():
         ry = head + idx * (row_h + row_gap)
         strip = pygame.Surface((row_w, name_strip), pygame.SRCALPHA)
         strip.fill((18, 20, 28, 220))
-        reg_col = ((250, 150, 90) if register == "CARTOON" else
-                   (150, 200, 235) if register == "REALISTIC" else
+        reg_col = ((150, 200, 235) if register == "BLADES" else
+                   (250, 200, 120) if register == "STAFFS" else
+                   (250, 150, 90) if register == "CLOWN PROPS" else
                    (210, 150, 250))
         ntxt = name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255))
         strip.blit(ntxt, (8, 5))
@@ -1349,20 +1915,26 @@ def main():
 
         body_y = ry + name_strip
 
-        # --- LEFT: the clown holding this sword ---
+        # --- LEFT: the clown LEANING on this grounded prop + presenting the die ---
         clown = render_clown_panel(draw_fn, idx)
         clown = pygame.transform.smoothscale(clown, (clown_dw, clown_dh))
         pygame.draw.rect(clown, (10, 12, 18), clown.get_rect(), 2)
         sheet.blit(clown, (pad, body_y))
 
-        # --- RIGHT: the route filled with this sword ---
+        # --- RIGHT: the route filled with this prop ---
         route = _route_panel(draw_fn, ROUTE_W, ROUTE_H, SS)
         sheet.blit(route, (pad + clown_dw + inner_gap, body_y))
+
+        # Measure + print the median BODY luma of this prop at route scale (GATE 2:
+        # aim < 140 against the ~190 day sky).
+        luma = _median_body_luma(draw_fn, SS)
+        print(f"  {idx + 1:2d}. {name:<22s} [{register:<11s}] median body luma = {luma:5.1f}"
+              + ("  OK<140" if luma < 140 else "  HOT>=140"))
 
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "warren_sword")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_5.png")
+    out_path = os.path.join(out_dir, "round_6.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
