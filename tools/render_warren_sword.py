@@ -5514,12 +5514,381 @@ def _render_clown_r7_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ── Round-8 REFERENCE-GROUNDED HANDS ──────────────────────────────────────────
+#  Round 7's value polish was right, but two reads stayed wrong: the GRIP read as
+#  a fist/blob beside the pole (no four-finger wrap), and the OPEN hand was a flat
+#  splayed star floating disconnected below the die. Round 8 rebuilds both from
+#  cartoon-hand construction rules:
+#    GRIP  — four sausage finger SEGMENTS banded across the NEAR face of the shaft,
+#            each separated by a dark groove and curling so the shaft passes BEHIND
+#            them (one tall occlusion band), a thumb wrapping over from the near
+#            side overlapping the index, a back-of-hand knuckle line, the top
+#            finger a touch looser. The point is it reads as 4 fingers, not a mitt.
+#    CUP   — a rounded cup/oblong palm with four sausage fingers fanning UP and
+#            curling inward (a cradle, never a flat star), thumb to the side. The
+#            cube sits IN the curled fingers — CRADLE poses nudge the floating die
+#            DOWN locally to meet the cup; PRESENT poses leave the die afloat with
+#            a clean upturned cup beneath. Size held at the ~16px footprint; the
+#            round-7 globals (top-left rim, macaw keyline, glove white) carry over.
+
+_R8_GLOVE   = _R7_GLOVE
+_R8_GROOVE  = _R7_GROOVE
+_R8_OCCLUDE = _R7_OCCLUDE
+_R8_GLOVE_MD = _R7_GLOVE_MD
+_R8_GLOVE_HI = _R7_GLOVE_HI
+_R8_OUTLINE = _R7_OUTLINE
+
+
+def _r8_segment(surf, base, tip, w, *, rim=True, cap=True):
+    """One finger SEGMENT capsule (base→tip) with the macaw-weight keyline, glove
+    fill, rounded tip cap and the constant TOP-LEFT rim sheen. Unlike r7's open
+    finger it carries no mid-crease — grip segments read by their bounding GROOVES,
+    not internal creases, so they don't muddy at 3-4px wide."""
+    pygame.draw.line(surf, _R8_OUTLINE, base, tip, w + 2)
+    pygame.draw.line(surf, _R8_GLOVE, base, tip, w)
+    if cap:
+        pygame.draw.circle(surf, _R8_GLOVE, tip, max(1, w // 2))
+        pygame.draw.circle(surf, _R8_OUTLINE, tip, max(1, w // 2), 1)
+    if rim:
+        pygame.draw.line(surf, _R8_GLOVE_HI,
+                         (base[0] - 1, base[1] - 1), (tip[0] - 1, tip[1] - 1),
+                         max(1, w // 3))
+
+
+def _r8_palm(surf, cx, cy, rx, ry):
+    """Rounded palm/cup mass — keyline ellipse, glove fill, top-left alpha sheen."""
+    rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, _R8_OUTLINE, rect)
+    pygame.draw.ellipse(surf, _R8_GLOVE, rect.inflate(-2, -2))
+    sheen = pygame.Surface((rx, ry), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (255, 255, 255, 90), sheen.get_rect())
+    surf.blit(sheen, (cx - rx + 1, cy - ry + 1))
+
+
+def _r8_grip_occlusion(surf, hand, shaft_w):
+    """The dark band on the shaft spanning the full height of the FOUR banded
+    fingers, so the wood reads as passing behind the whole grip rather than beside
+    one digit. Taller than r7's because all four fingers cross the wood here."""
+    hx, hy = hand
+    pygame.draw.line(surf, _R8_OCCLUDE,
+                     (hx - shaft_w - 2, hy - 8), (hx - shaft_w - 2, hy + 11),
+                     shaft_w + 2)
+
+
+# GRIP builders — three z-passes (caller blits the shaft between behind / front).
+#   behind  : palm heel + the back of the hand BEHIND the shaft.
+#   front   : FOUR finger segments banded across the near face, separated by dark
+#             grooves, plus a thumb wrapping over and overlapping the index.
+# `fw`/`gap`/`dys` shape each variant's finger mass + banding rhythm.
+
+def _r8_grip_core(surf, hand, shaft_w, *, behind, fw, dys, palm_rx, palm_ry,
+                  thumb_w, loose_top=1, knuckle=True):
+    hx, hy = hand
+    reach = shaft_w + 5                         # how far past the shaft a band runs
+    if behind:
+        # The back of the hand / palm heel sits behind the shaft; the four bands
+        # are painted in the FRONT pass so they crisply overdraw the wood.
+        _r8_palm(surf, hx + 3, hy + 1, palm_rx, palm_ry)
+        # Back-of-hand knuckle ridge line (a single dark crease down the heel) so
+        # the mass reads as a hand back, not a ball.
+        if knuckle:
+            pygame.draw.line(surf, _R8_GROOVE,
+                             (hx + 3, hy - palm_ry + 2), (hx + 3, hy + palm_ry - 2), 1)
+        return
+    # FRONT: four banded finger segments. Each band is a short horizontal capsule
+    # crossing the near face of the shaft; the top one sits a touch looser (lifted
+    # + reaching further) to break the stack and sell a real grip.
+    for k, dy in enumerate(dys):
+        loose = loose_top if k == 0 else 0
+        # A dark groove laid just ABOVE each lower band first, then the band
+        # overdraws it — guarantees a ≥1px value gap between adjacent fingers.
+        if k > 0:
+            pygame.draw.line(surf, _R8_GROOVE,
+                             (hx + 4, hy + dy - fw // 2 - 1),
+                             (hx - reach + 1, hy + dy - fw // 2 - 1 - loose),
+                             max(1, fw // 2))
+        base = (hx + 4, hy + dy)
+        tip = (hx - reach - loose, hy + dy - loose)
+        _r8_segment(surf, base, tip, fw)
+    # THUMB wraps over from the near (lower) side, tip up + inward, overlapping
+    # the index band — drawn last so it reads as crossing in front of the fingers.
+    tb = (hx + thumb_w + 2, hy + dys[-1] + 3)
+    tt = (hx - 2, hy + dys[0] - 1)
+    _r8_segment(surf, tb, tt, thumb_w)
+
+
+def _r8_grip_glove(surf, hand, shaft_w, *, behind):
+    """Classic 4-finger glove grip: four plump even bands, fat thumb over."""
+    _r8_grip_core(surf, hand, shaft_w, behind=behind, fw=4,
+                  dys=(-6, -1, 4, 9), palm_rx=6, palm_ry=8, thumb_w=4)
+
+
+def _r8_grip_mascot(surf, hand, shaft_w, *, behind):
+    """Rounded mascot grip: chunky bands, bold grooves, very fat thumb."""
+    hx, hy = hand
+    _r8_grip_core(surf, hand, shaft_w, behind=behind, fw=5,
+                  dys=(-6, 0, 6, 11), palm_rx=7, palm_ry=8, thumb_w=5, loose_top=2)
+    if not behind:
+        # An extra bold Mickey-glove seam splitting the thumb from the palm.
+        pygame.draw.line(surf, _R8_GROOVE,
+                         (hx + 4, hy + 9), (hx - shaft_w - 1, hy + 5), 2)
+
+
+def _r8_grip_slim(surf, hand, shaft_w, *, behind):
+    """Slimmer articulated grip: four narrow bands, tighter banding, slim thumb."""
+    _r8_grip_core(surf, hand, shaft_w, behind=behind, fw=3,
+                  dys=(-5, -1, 3, 7), palm_rx=5, palm_ry=7, thumb_w=3, loose_top=2)
+
+
+# CUP builders — a rounded cup palm with four fingers fanning UP and curling
+# inward toward the object. `present` leaves the floating die where it is and
+# seats a clean upturned cup beneath; `cradle` raises the cup and the caller
+# nudges the die down so the curled fingertips contact it.
+
+def _r8_cup_core(surf, hand, *, fw, palm_rx, palm_ry, fan, ln, thumb_w, curl):
+    """Paint a cradle/offer cup at `hand`. Fingers fan across `fan` (degrees, left
+    to right, measured from straight-up) and curl inward by `curl` so their tips
+    arc toward the held object instead of splaying flat."""
+    hx, hy = hand
+    _r8_palm(surf, hx, hy, palm_rx, palm_ry)
+    angs = [fan[0] + (fan[1] - fan[0]) * i / 3 for i in range(4)]
+    for i, ang in enumerate(angs):
+        a = math.radians(ang - 90)
+        l = ln - abs(i - 1.5) * 0.6              # middle fingers longest
+        # Each finger roots at a DISTINCT knuckle spread across the cup's top rim
+        # (not one shared point), so the four digits read individually rather than
+        # fanning from a single knot.
+        root = (hx + int(math.cos(a) * palm_rx * 0.55),
+                hy - 2 + int(math.sin(a) * palm_ry * 0.45))
+        # Curl: the tip bends inward (toward centre) + up, so the fan cups instead
+        # of splaying — two short segments per finger sell the bend at hero scale.
+        mid = (root[0] + int(math.cos(a) * l * 0.55),
+               root[1] + int(math.sin(a) * l * 0.55))
+        ca = a - math.radians(curl) * (1 if ang < 0 else -1)
+        tip = (mid[0] + int(math.cos(ca) * l * 0.5),
+               mid[1] + int(math.sin(ca) * l * 0.5))
+        if i > 0:
+            pygame.draw.line(surf, _R8_GROOVE,
+                             root, (mid[0], mid[1] - fw // 2 - 1), max(1, fw // 2))
+        _r8_segment(surf, root, mid, fw, cap=False)
+        _r8_segment(surf, mid, tip, fw)
+    # THUMB out to the side, also curling up, framing the cup's near rim.
+    tb = (hx - palm_rx + 1, hy + 2)
+    tt = (hx - palm_rx - thumb_w, hy - thumb_w)
+    _r8_segment(surf, tb, tt, thumb_w)
+
+
+def _r8_cup_glove(surf, hand):
+    _r8_cup_core(surf, hand, fw=4, palm_rx=7, palm_ry=6,
+                 fan=(-52, 38), ln=9, thumb_w=4, curl=18)
+
+
+def _r8_cup_mascot(surf, hand):
+    _r8_cup_core(surf, hand, fw=5, palm_rx=7, palm_ry=7,
+                 fan=(-48, 34), ln=8, thumb_w=5, curl=20)
+
+
+def _r8_cup_slim(surf, hand):
+    _r8_cup_core(surf, hand, fw=3, palm_rx=6, palm_ry=6,
+                 fan=(-56, 42), ln=10, thumb_w=3, curl=15)
+
+
+# Each variant pairs a grip builder + a cup builder + a cube relationship.
+#   relation = "cradle": raise the cup `cup_dy` px and pull the die DOWN `die_dy`
+#              so the curled fingertips meet the cube (local hero overdraw only).
+#   relation = "present": die stays afloat; a clean upturned cup sits beneath it.
+_R8_HAND_KITS = {
+    "glove":  (_r8_grip_glove,  _r8_cup_glove),
+    "mascot": (_r8_grip_mascot, _r8_cup_mascot),
+    "slim":   (_r8_grip_slim,   _r8_cup_slim),
+}
+
+
+def render_clown_staff_r8(idx, *, total_px, bauble_px, grip, cup, relation,
+                          cup_dy=0, die_dy=0):
+    """Round-8 hero panel: the approved round-5 held-marotte composition VERBATIM
+    with ONLY the two HANDS swapped for the reference-grounded four-finger GRIP and
+    cupped CRADLE/OFFER hands. `grip`/`cup` name the cartoon-hand style; `relation`
+    is the cube read (cradle vs present). Size held at the ~16px footprint."""
+    grip_fn = _R8_HAND_KITS[grip][0]
+    cup_fn = _R8_HAND_KITS[cup][1]
+
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    # The open hand lifts by `cup_dy` for cradle poses so the curled fingers reach
+    # up to the cube; presents keep the round-5 hand height.
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    # The floating die — drawn FIRST so the cradle cup can overdraw its lower edge
+    # (the fingers wrap in FRONT of the cube). `die_dy` pulls it down to the cup
+    # on cradle poses; present poses leave it afloat (die_dy=0).
+    draw_cupped_die(layer, jester_cx - 56, 30 + die_dy, idx * 1.7 + 2.0,
+                    show_inset=False)
+
+    cup_fn(layer, hand_up)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # Grip z-order: back-of-hand + palm heel BEHIND the shaft, shaft, a tall
+    # occlusion band on the wood, then the FOUR banded fingers + thumb IN FRONT.
+    shaft_w = 2
+    grip_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    grip_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+_CLOWN_R8_VARIANTS = [
+    ("Glove · Cradle", dict(total_px=200, bauble_px=15, grip="glove", cup="glove",
+                            relation="cradle", cup_dy=2, die_dy=9),
+     "classic 4-finger glove: 4 banded fingers grip the staff; cup raised to CRADLE the die"),
+    ("Mascot · Cradle", dict(total_px=200, bauble_px=15, grip="mascot", cup="mascot",
+                             relation="cradle", cup_dy=2, die_dy=8),
+     "chunky rounded mascot: bold 4-band grip + thumb over; fat cup CRADLES the die"),
+    ("Glove · Present", dict(total_px=200, bauble_px=15, grip="glove", cup="glove",
+                             relation="present", cup_dy=6),
+     "classic glove grip; die floats free above a clean upturned PRESENTING cup"),
+    ("Slim · Present", dict(total_px=200, bauble_px=15, grip="slim", cup="slim",
+                            relation="present", cup_dy=6),
+     "slim articulated hand: 4 tight bands grip the staff; airy cup PRESENTS the floating die"),
+    ("Best-of · Cradle", dict(total_px=200, bauble_px=15, grip="glove", cup="mascot",
+                              relation="cradle", cup_dy=2, die_dy=9),
+     "refined pick: glove 4-band grip + mascot cradle cup conforming to the die"),
+]
+
+
+_CLOWN_R8_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 8: REFERENCE-GROUNDED HANDS (staff held constant; only the two hands change)",
+     (255, 255, 255)),
+    ("Fixes: GRIP now reads as FOUR banded fingers wrapping the staff (shaft occluded behind, thumb over). "
+     "OPEN hand is a cupped CRADLE/OFFER conforming to the die — never a flat star. Size held ~16px. PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r8_sheet():
+    """Round-8 clown look-dev: five hero panels varying BOTH the cartoon-hand
+    style AND the grip-wrap + cradle/present pose, plus the carried-over true-1x
+    day/night shrink-test strip so the hands are confirmed legible at real size.
+    Writes docs/warren_clown/round_8.png — never overwrites an existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = 5
+    pad = 20
+    head = 86
+    name_strip = 38
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R8_HEADERS[0][0], True, _CLOWN_R8_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R8_HEADERS[1][0], True, _CLOWN_R8_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R8_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r8(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_8.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -5531,6 +5900,7 @@ def main():
     do_clown_final = "--clown-final" in args  # corrected clown look-dev sheet, opt-in
     do_clown_r6 = "--clown-r6" in args      # round-6 detailed-hands look-dev, opt-in
     do_clown_r7 = "--clown-r7" in args      # round-7 detailed-hands polish, opt-in
+    do_clown_r8 = "--clown-r8" in args      # round-8 reference-grounded hands, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -5553,6 +5923,8 @@ def main():
         _render_clown_r6_sheet()
     if do_clown_r7:
         _render_clown_r7_sheet()
+    if do_clown_r8:
+        _render_clown_r8_sheet()
 
 
 if __name__ == "__main__":
