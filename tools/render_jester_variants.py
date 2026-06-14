@@ -99,6 +99,13 @@ from tools.render_clown_dice import (
 
 MOUTH = (188, 56, 66)
 
+# A DEEPER soft tier (opt-in, set only by the round-4 held-clown renderer) that
+# pushes the friendly-mascot read further than `soft` alone: rounder approachable
+# eyes (soft dark oval + a single white catch-light, ~30% less brow/lash mass) and
+# a slightly narrower, softer-cornered grin. Kept module-level + default OFF so the
+# ten power-up presenters and the round-3 held clown render unchanged.
+_R4_SOFT = False
+
 
 def _scheme_eye(surf, x, y, *, look, soft=False):
     """A BRIGHT, OPEN, lively eye that smiles — gleeful + sly, NOT droopy/weepy.
@@ -110,6 +117,27 @@ def _scheme_eye(surf, x, y, *, look, soft=False):
     corner for the sly sidelong glance up at the floating die. NO heavy hooded
     top lid, NO down-slanted sad lid. `look` is the horizontal pupil shove
     (negative = toward the upper-left die)."""
+    # The deepest (round-4) soft tier swaps the almond sclera + heavy ink lash for
+    # a rounder approachable-mascot eye: a soft dark oval with a single white
+    # catch-light and a much lighter lid, so the face reads Crossy-Road friendly
+    # rather than circus-poster sly. Lash/brow mass is eased ~30% on this path.
+    if _R4_SOFT and soft:
+        er = 5                              # a round, gentle eye
+        # A small white backing so the dark eye still pops off the skin, then a
+        # fully ROUND soft dark eye (warm near-black, not pure ink) + a hot 1px
+        # catch-light. A round disc (not the almond ellipse) reads as the
+        # approachable mascot eye the brief asks for — Crossy-Road register.
+        pygame.draw.circle(surf, WHITE, (x, y + 1), er + 1)
+        px = x + look // 3                  # gaze nearly centred — warm + direct
+        py = y + 1
+        pygame.draw.circle(surf, (46, 40, 58), (px, py), er)
+        pygame.draw.circle(surf, (255, 255, 255), (px - 2, py - 2), 1)
+        # A whisper-thin upper lash arc only — ~30% lighter than the soft default,
+        # no lower-lid crease, so the eye stays open and unguarded.
+        pygame.draw.arc(surf, (96, 78, 84),
+                        (x - er - 1, y - er, er * 2 + 2, er + 3),
+                        math.pi * 0.18, math.pi * 0.82, 1)
+        return
     # The soft read rounds the sclera toward a circle and softens the sidelong
     # shove so the eye reads round + open + friendly rather than a sly almond.
     ew, eh = (6, 6) if soft else (5, 6)
@@ -201,7 +229,14 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain",
         cock = cock_left and s < 0
         if cock:
             inner = (inner[0], inner[1] - 3)  # cocked brow rides even higher
-        pygame.draw.line(surf, (76, 56, 60), inner, outer, 2)
+        if _R4_SOFT and soft:
+            # ~30% less brow mass for the friendly-mascot read: a shorter, thinner,
+            # paler arch that reads as a gentle lifted brow, not a heavy stroke.
+            inner = (exx - s * 1, hy - 19)
+            outer = (exx + s * 7, hy - 13)
+            pygame.draw.line(surf, (120, 102, 104), inner, outer, 1)
+        else:
+            pygame.draw.line(surf, (76, 56, 60), inner, outer, 2)
 
     # Big red ball nose — SHRUNK and seated UP between the eyes so it stops
     # crowding the grin below (round-4's r=6 nose at hy+6 sat on top of the
@@ -213,13 +248,24 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain",
     # dark open interior arc bounded by an up-curved lip, the die-side (LEFT)
     # corner pulled highest so the grin still reads lopsided/sly. The grin is
     # large — it spans most of the lower face and pushes the cheeks up.
-    mw = 11                                   # half-width of the grin
+    # ~15% narrower on the deepest soft tier so the grin loses the wide jack-o'-
+    # lantern span and reads as a warm, contained smile.
+    mw = 9 if (_R4_SOFT and soft) else 11     # half-width of the grin
     # The soft read seats the grin a touch HIGHER so the smile lifts into a
     # rounder, friendlier curve rather than a low villain leer.
     my = hy + (10 if soft else 12)            # vertical seat of the mouth line
     # The smile baseline: corners up, centre dropped — a fat up-curving crescent.
-    l_corner = (cx - mw - 1, my - 2)          # die-side (LEFT) corner, highest
-    r_corner = (cx + mw, my)                  # far (RIGHT) corner, a touch lower
+    # The r4-soft tier rounds BOTH corners up evenly (no sly lopsided pull) so the
+    # mouth reads as a symmetric friendly smile.
+    if _R4_SOFT and soft:
+        # Both corners lifted evenly AND a touch higher than the soft default, so
+        # the grin curls up into a warm contained smile rather than a wide leer —
+        # dropping the last of the jack-o'-lantern read.
+        l_corner = (cx - mw - 1, my - 4)
+        r_corner = (cx + mw, my - 4)
+    else:
+        l_corner = (cx - mw - 1, my - 2)      # die-side (LEFT) corner, highest
+        r_corner = (cx + mw, my)              # far (RIGHT) corner, a touch lower
     bottom = (cx, my + 8)                     # open-mouth low point
     # Filled open mouth interior (dark warm throat) so it reads OPEN, not a line.
     mouth_poly = [l_corner, (cx - 5, my + 1), (cx + 5, my + 1), r_corner,
