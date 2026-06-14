@@ -3926,17 +3926,264 @@ def _render_craft_sheet(versions, out_name, headers):
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ════════════════════════════════════════════════════════════════════════════
+#  WARREN CLOWN HERO LOOK-DEV — Round 2 (the FULL clown gripping prop_14n)
+# ════════════════════════════════════════════════════════════════════════════
+# Built on render_clown_panel (the approved hero composition): the REAL Plum &
+# Lime jester from build_jester, the prop_14n marotte rendered VERBATIM and stood
+# vertically with its foot on the ground, the near hand wrapping the shaft, the
+# raised hand presenting the floating die. Round 2 changes nothing about the
+# clown's drawing kit or the marotte's design; it only retunes four pose knobs:
+#   - staff LENGTH  (a taller source box at the same ss lengthens the shaft span
+#     only — the head px is fixed, so head size + shaft width are untouched),
+#   - GRIP HEIGHT   (pushed DOWN onto the mid/lower shaft, clear of bauble+lobes),
+#   - the GRIP HAND (a compact wrap built from the figure's own glove kit, sized
+#     to _mitt_thumb's radius-7 glove — small realistic fingers, not fat digits),
+#   - the RAISED ARM reach (a clearly LONG left arm presenting the die up high).
+
+
+def _staff_grip_hand(surf, hand, shaft_w, glove, light, *, fingers, side=1):
+    """A COMPACT gloved hand wrapping a vertical shaft, proportioned to the
+    figure's own radius-7 mitt (`_mitt_thumb`). The read: the back of the hand
+    sits BEHIND the shaft (small knuckle nubs peek above the wrap) while the
+    thumb + front fingers cross IN FRONT of it, so weight rests on a real grip.
+
+    `fingers` selects the front-finger styling so the five variants differ only
+    in how the hand reads, never in scale:
+      - "wrap"     : a smooth mitt band + thumb-over (round, minimal digits),
+      - "split"    : two short front fingers separated by a single groove,
+      - "knuckles" : three small rounded knuckle bumps over the shaft front.
+    `side`=+1 means the thumb crosses on the figure's inner (left) side."""
+    hx, hy = int(hand[0]), int(hand[1])
+    gr = 7                                 # matches the figure's down-mitt glove
+    dk = _shade_c(glove, -55)
+    # Back-of-hand knuckles BEHIND the shaft: small dark-edged nubs cresting the
+    # top of the wrap so the shaft visibly passes through the fist.
+    for k in (-1, 0, 1):
+        bx = hx + k * (gr // 2)
+        by = hy - gr + 1
+        pygame.draw.circle(surf, dk, (bx, by), 3)
+        pygame.draw.circle(surf, _shade_c(glove, -25), (bx, by), 2)
+    # The palm band: a short rounded mitt clamping the shaft front, the wrist cuff
+    # tucking under it. Kept compact (a touch wider than tall) so it reads as a
+    # closed fist on the pole, not a ball stuck to it.
+    palm = pygame.Rect(0, 0, gr * 2 + 2, gr + 3)
+    palm.center = (hx, hy + 1)
+    pygame.draw.rect(surf, dk, palm, border_radius=gr // 2 + 1)
+    palm2 = palm.inflate(-2, -2)
+    pygame.draw.rect(surf, glove, palm2, border_radius=gr // 2)
+    # Top-left sheen on the palm so the glove catches light like the other mitts.
+    pygame.draw.circle(surf, _shade_c(glove, 35), (hx - 2, hy - 1), 2)
+    # Thumb crossing OVER the shaft on the inner side — a small nub + nail groove.
+    tx = hx - side * (gr - 1)
+    pygame.draw.circle(surf, dk, (tx, hy + 1), gr // 2 + 1)
+    pygame.draw.circle(surf, glove, (tx, hy + 1), gr // 2)
+    # Front fingers crossing the shaft, styled per variant — all SMALL.
+    if fingers == "wrap":
+        pygame.draw.line(surf, dk, (hx - gr + 1, hy + 2), (hx + gr - 1, hy + 2), 1)
+    elif fingers == "split":
+        for fx in (hx - 2, hx + 3):
+            pygame.draw.circle(surf, dk, (fx, hy + gr - 2), 3)
+            pygame.draw.circle(surf, glove, (fx, hy + gr - 2), 2)
+        pygame.draw.line(surf, dk, (hx, hy + 2), (hx, hy + gr - 1), 1)
+    else:  # "knuckles"
+        for fx in (hx - 3, hx + 1, hx + 5):
+            pygame.draw.circle(surf, dk, (fx, hy + gr - 3), 2)
+            pygame.draw.circle(surf, _shade_c(glove, 10), (fx, hy + gr - 3), 1)
+    # Crisp keyline around the whole hand so it lifts off the shaft + sky.
+    pygame.draw.rect(surf, dk, palm, border_radius=gr // 2 + 1, width=1)
+    _ = (shaft_w, light)                   # kept for call-site symmetry/future use
+
+
+def render_clown_staff_r2(idx, *, prop_px, grip_frac, reach, fingers):
+    """Round-2 hero panel: the REAL build_jester clown gripping prop_14n VERBATIM.
+    Only the four pose knobs vary across variants — see `_staff_grip_hand` and the
+    module banner. Returns a VIEW_W x VIEW_H surface (same canvas as the approved
+    render_clown_panel)."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    # The raised LEFT arm presents the floating die high in the sky. `reach` pulls
+    # the open offering palm farther up + out so the left arm reads clearly LONG
+    # (build_jester's true shoulder is fixed; a higher hand target lengthens the
+    # visible reach). The die hovers just above that open palm.
+    die_x = jester_cx - 40
+    die_base_y = 34 - reach // 2
+    hand_up = (die_x + 12, 80 - reach)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    # --- prop_14n stood vertically beside the clown, foot on the ground ---------
+    # Rendered VERBATIM through the grounded-prop path; `prop_px` is the ONLY lever
+    # and it lengthens the SHAFT only (head px fixed in the source draw).
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    p_ss = 6
+    prop, p_w, p_h = _grounded_prop_surface(prop_14n, prop_px, p_ss, w_scale=1.0)
+    rot = -7                               # the relaxed cane lean (top toward clown)
+    rotated = pygame.transform.rotate(prop, rot)
+    foot_local = (p_w / 2, p_h - 2)
+    cxr, cyr = p_w / 2, p_h / 2
+    rad = math.radians(rot)
+    dx = foot_local[0] - cxr
+    dy = foot_local[1] - cyr
+    rfx = cxr + (dx * math.cos(rad) + dy * math.sin(rad))
+    rfy = cyr + (-dx * math.sin(rad) + dy * math.cos(rad))
+    rfx += (rotated.get_width() - p_w) / 2
+    rfy += (rotated.get_height() - p_h) / 2
+    plant_x = jester_cx + 30
+    plant_y = ground_y - 1
+    prop_ox = int(plant_x - rfx)
+    prop_oy = int(plant_y - rfy)
+    layer.blit(rotated, (prop_ox, prop_oy))
+
+    # The grip point pushed DOWN the shaft (well below the lobed head + ear lobes)
+    # so the compact hand wraps the mid/lower shaft body.
+    grip_local = (p_w / 2, p_h * grip_frac)
+    gdx = grip_local[0] - cxr
+    gdy = grip_local[1] - cyr
+    rgx = cxr + (gdx * math.cos(rad) + gdy * math.sin(rad))
+    rgy = cyr + (-gdx * math.sin(rad) + gdy * math.cos(rad))
+    rgx += (rotated.get_width() - p_w) / 2
+    rgy += (rotated.get_height() - p_h) / 2
+    grip_x = prop_ox + rgx
+    grip_y = prop_oy + rgy
+
+    # --- re-pose the near/lower arm onto the grip + lay the COMPACT wrap hand ----
+    # build_jester already painted a default down arm into the hip; redraw the limb
+    # OVER it with the figure's own _arm kit, then a compact grip hand replaces the
+    # plain mitt so small realistic fingers read as wrapping the shaft.
+    r_sh = (hip_cx + 25, hip_y - 50)
+    grip_hand = (int(grip_x), int(grip_y))
+    light = spec["light"]
+    _arm(layer, r_sh, grip_hand, 8, light)
+    shaft_w = int(7 * CLOWN_SS)
+    _staff_grip_hand(layer, grip_hand, shaft_w, (250, 250, 252), light,
+                     fingers=fingers, side=1)
+
+    # --- the floating power-up die, presented up high by the raised hand --------
+    pulse = idx * 1.7 + 2.0
+    draw_cupped_die(layer, die_x, die_base_y, pulse, show_inset=(idx % 5 == 0))
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# Five FULL clown-with-staff variants — same real clown + real prop_14n, varying
+# ONLY: staff length, grip height, compact grip-hand finger styling, raised reach.
+_CLOWN_R2_VARIANTS = [
+    ("Tall Wrap",      dict(prop_px=176, grip_frac=0.50, reach=10, fingers="wrap"),
+     "long shaft, mid-shaft wrap grip, smooth mitt, raised arm extended"),
+    ("Low Knuckles",   dict(prop_px=186, grip_frac=0.58, reach=14, fingers="knuckles"),
+     "longer shaft, lower grip, three small knuckles, longest reach"),
+    ("Mid Split",      dict(prop_px=170, grip_frac=0.46, reach=8, fingers="split"),
+     "long shaft, mid grip, two split front fingers, high reach"),
+    ("Slim Low Wrap",  dict(prop_px=182, grip_frac=0.55, reach=12, fingers="wrap"),
+     "tall shaft, low wrap grip, smooth mitt, extended reach"),
+    ("High Knuckles",  dict(prop_px=172, grip_frac=0.44, reach=6, fingers="knuckles"),
+     "long shaft, upper-mid grip, small knuckles, tallest die present"),
+]
+
+
+_CLOWN_R2_HEADERS = [
+    ("Warren Clown HERO look-dev — Round 2 (FULL clown gripping prop_14n · 5 variants · hi-res p_ss=6)",
+     (255, 255, 255)),
+    ("REAL build_jester clown + prop_14n VERBATIM (only its LENGTH changes). Grip pushed DOWN the shaft body, "
+     "below the lobed head; the grip hand is a COMPACT wrap sized to the figure's own radius-7 mitt.",
+     (205, 210, 220)),
+    ("Variants vary ONLY: staff length · grip height · compact grip-hand fingers · raised-arm reach. "
+     "Long left arm presents the floating power-up die over an open offering palm.",
+     (170, 178, 190)),
+]
+
+
+def _render_clown_r2_sheet():
+    """Round-2 clown look-dev sheet: a 1-column stack of the five FULL
+    clown-with-staff variants at hero scale, each labelled with what differs.
+    Writes docs/warren_clown/round_2.png. A fresh, uniquely-named renderer so it
+    never overwrites an existing sheet (the round-10 caching lesson)."""
+    SCALE = 2.4                            # show the hero VIEW_W x VIEW_H source large
+    clown_w, clown_h = VIEW_W, VIEW_H
+    disp_w = int(clown_w * SCALE)
+    disp_h = int(clown_h * SCALE)
+
+    cols = 5
+    pad = 20
+    head = 110
+    name_strip = 34
+    gap = 14
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R2_HEADERS[0][0], True, _CLOWN_R2_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R2_HEADERS[1][0], True, _CLOWN_R2_HEADERS[1][1]), (pad, 50))
+    sheet.blit(sub_f.render(_CLOWN_R2_HEADERS[2][0], True, _CLOWN_R2_HEADERS[2][1]), (pad, 74))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    for idx, (name, kw, note) in enumerate(_CLOWN_R2_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        ntxt = name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255))
+        strip.blit(ntxt, (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 20))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r2(idx, **kw)
+        clown = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(clown, (10, 12, 18), clown.get_rect(), 2)
+        sheet.blit(clown, (px, py + name_strip))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_2.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
     do_craft = "--craft" in args            # round-9 craft sheet is opt-in only
     do_round10 = "--round10" in args        # round-10 craft + bell-foot sheet, opt-in
+    do_clown_r2 = "--clown-r2" in args      # round-2 clown hero look-dev, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -3947,6 +4194,8 @@ def main():
         _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_9_marottes.png", _ROUND9_HEADERS)
     if do_round10:
         _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_10_marottes.png", _ROUND10_HEADERS)
+    if do_clown_r2:
+        _render_clown_r2_sheet()
 
 
 if __name__ == "__main__":
