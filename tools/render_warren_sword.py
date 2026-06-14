@@ -2522,8 +2522,9 @@ def prop_14f(surf, bw, bh, ss):
     shaft_top = hy + hr
     hwid = int(7 * ss)
     _shaft_twist(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, GOLD, PLUM_DK)
-    _ferrule(surf, cx, bh * 0.5, hwid, ss, GOLD, h=9, jewel=CANDY_RED)
-    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=CANDY_RED)
+    _ferrule(surf, cx, bh * 0.5, hwid, ss, GOLD, h=9, jewel=PLUM)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=PLUM,
+                   bead=False)
     # The clown's own four-point splayed cap (mirrors cap_four_point): two outer
     # points flop far out + low, two inner points lean apart, each bell-tipped.
     # Inner points splayed further apart (±19) and lifted so the cap clears the
@@ -2542,7 +2543,7 @@ def prop_14f(surf, bw, bh, ss):
         pygame.draw.polygon(surf, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
         pygame.draw.circle(surf, GOLD, (int(bxp), int(byp)), max(2, int(3.4 * ss)))
         pygame.draw.circle(surf, GOLD_DK, (int(bxp), int(byp)), max(2, int(3.4 * ss)), max(1, int(ss)))
-    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, CANDY_RED, lobes=9)
+    _marotte_ruff(surf, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, LIME, lobes=9)
     _mini_clown_face(surf, cx, hy, hr, ss, expr="grin")
 
 
@@ -2617,7 +2618,8 @@ def prop_14h(surf, bw, bh, ss):
     _shaft_guilloche(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK)
     _ferrule(surf, cx, shaft_top + int(3 * ss), hwid, ss, GOLD, h=7)
     _ferrule(surf, cx, bh * 0.62, hwid, ss, GOLD, h=7, jewel=LIME)
-    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=LIME)
+    _pommel_finial(surf, cx, bh - int(4 * ss), hwid, ss, GOLD, kind="ball", gem=LIME,
+                   bead=False)
     # A compact two-point cap, then a DENSE belled spray fanning round the head so
     # the terminus jingles. Bells alternate gold so the cluster reads rich, not noisy.
     base_y = hy - hr + int(1 * ss)
