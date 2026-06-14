@@ -1,9 +1,15 @@
-"""Look-dev renderer (Round 3): the WARREN EVENT sword — 15 NEW versions.
+"""Look-dev renderer (Round 4): the WARREN EVENT sword — final polish.
 
-Round-3 brief is a FRESH START. Rounds 1-2 were 20 literal metal-weapon
-archetypes (saber / greatsword / falchion / executioner / joker-skin steel
-…) and NONE landed. This round abandons that whole "which historical blade"
-axis and explores swords as CONCEPTS across four creative directions:
+Round 3's concept-direction set LANDED; the art-director crowned a lead set
+and called for tightening, not rebuilding. Round 4 carries forward the 6 crown
+picks + 6 strong keepers (each with a targeted FIX) and REPLACES the 3 that
+washed out / died small (Grin, Frost, Winged Crown) with 3 new DARK-FILL
+concepts (Molten / Tribal Totem / Wraith), all body luma well under ~120 so
+they hold hard on day-sky blue. 15 rows, grouped by direction.
+
+Round-3 lineage notes (kept for context): Rounds 1-2 were 20 literal
+metal-weapon archetypes and NONE landed. Round 3 abandoned that "which
+historical blade" axis and explored swords as CONCEPTS across four directions:
 
   A) FANTASTICAL / ELEMENTAL — the blade IS energy: flame, frost, lightning,
      void-rune. Each gets an OPAQUE DARK CORE (never a translucent wash) so
@@ -63,7 +69,7 @@ from round 2 unchanged — only the 15 draw functions are new.
 Run (headless):
     SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYTHONPATH=. \
         python tools/render_warren_sword.py
-Writes docs/warren_sword/round_3.png.
+Writes docs/warren_sword/round_4.png.
 """
 import math
 import os
@@ -322,51 +328,62 @@ def draw_v1(surf, bw, bh, ss):
     _glow_disc(surf, cx, py, int(hw * 0.3), EMBER_HOT, ss, alpha=130)
 
 
-# ---- 2. Frost Blade — DIRECTION A / COOL-EPIC -------------------------------
-# Solid ICE: an opaque deep-teal core (NOT a translucent tint), big internal
-# facet planes, frozen cracks, and a hard cold-white rim keyline so the
-# silhouette reads on blue. Hard point.
-FROST_CORE = (22, 54, 78)      # opaque deep teal core
-FROST_MD = (46, 110, 150)
-FROST_HI = (150, 214, 240)
-FROST_RIM = (228, 248, 255)
-FROST_DK = (12, 30, 50)
+# ---- 2. Tribal Totem Blade — DIRECTION B / PLAYFUL-MEAN ---------------------
+# REPLACES Frost (washed out on day sky). A dark carved-WOOD blade — a living
+# character in the totem-mask key — carrying ONE bold painted glyph/mask mark
+# in its lower third. One big graphic mark (NOT a face), so it survives small
+# where Grin's face died. Body luma kept well under ~120 on the dark wood.
+WOOD_LO = (40, 26, 18)         # deep carved-wood core
+WOOD_MD = (74, 50, 32)
+WOOD_HI = (108, 76, 48)
+WOOD_KEY = (22, 13, 8)
+PAINT_RED = (208, 60, 44)      # tribal ochre-red paint
+PAINT_BONE = (232, 216, 176)   # bone-white paint
+PAINT_TEAL = (60, 168, 150)
 
 
 def draw_v2(surf, bw, bh, ss):
     cx = bw // 2
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
-    hw = int(_blade_hw(ss) * 1.04)
+    hw = int(_blade_hw(ss) * 1.08)
     ghw = _guard_hw(ss)
-    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.02)
-    _vgrad_poly(surf, body, FROST_MD, FROST_CORE, outline=FROST_DK,
-                ow=max(2, int(1.8 * ss)))
-    # Two big internal facet planes (left dark, right lit) — bold, reads small.
-    pygame.draw.polygon(surf, _shade_c(FROST_CORE, 14),
-                        [(cx - bwid, base_y), (cx, tip_y), (cx, base_y)])
-    pygame.draw.polygon(surf, _shade_c(FROST_MD, 12),
-                        [(cx + bwid, base_y), (cx, tip_y), (cx, base_y)])
-    # One bold cold highlight wedge down the centre ridge.
-    pygame.draw.polygon(surf, FROST_HI,
-                        [(cx - bwid * 0.16, base_y), (cx, tip_y),
-                         (cx + bwid * 0.16, base_y)])
-    # A couple of big frozen cracks branching off the ridge (2 bold elements).
-    for sgn, t0 in ((-1, 0.44), (1, 0.66)):
-        cy0 = base_y + (tip_y - base_y) * t0
-        cw = bwid * (1.0 - (cy0 - tip_y) / max(1, base_y - tip_y))
-        pygame.draw.line(surf, FROST_HI, (cx, cy0),
-                         (cx + sgn * cw * 0.7, cy0 - int(10 * ss)), max(1, int(1.4 * ss)))
-    # Hard cold-white rim keyline + a faint cold edge glow (kept restrained).
-    _edge_glow(surf, [(cx - bwid, base_y), (cx, tip_y)], (150, 210, 255), ss,
-               alpha=80, spread=3)
-    _edge_glow(surf, [(cx + bwid, base_y), (cx, tip_y)], (150, 210, 255), ss,
-               alpha=80, spread=3)
-    pygame.draw.line(surf, FROST_RIM, (cx - bwid, base_y), (cx, tip_y + int(3 * ss)),
-                     max(1, int(1.8 * ss)))
-    pygame.draw.line(surf, FROST_RIM, (cx + bwid, base_y), (cx, tip_y + int(3 * ss)),
-                     max(1, int(1.8 * ss)))
-    _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=(54, 92, 122),
-                metal_dk=FROST_DK, grip=(30, 50, 72), jewel=FROST_RIM)
+    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.03)
+    _vgrad_poly(surf, body, WOOD_MD, WOOD_LO, outline=WOOD_KEY,
+                ow=max(2, int(2.0 * ss)))
+    span = base_y - tip_y
+    # Two long wood-grain gouges riding the body (the carved-plank read) — bold,
+    # not a comb, so the wood reads without fizz.
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, WOOD_KEY,
+                         (cx + sgn * bwid * 0.42, base_y - int(6 * ss)),
+                         (cx + sgn * int(2 * ss), tip_y + int(span * 0.30)),
+                         max(1, int(1.6 * ss)))
+        pygame.draw.line(surf, WOOD_HI,
+                         (cx + sgn * bwid * 0.42, base_y - int(9 * ss)),
+                         (cx + sgn * int(3 * ss), tip_y + int(span * 0.32)),
+                         max(1, int(1.4 * ss)))
+    # The ONE hero mark: a bold painted totem-MASK glyph in the lower third —
+    # a chevron brow, two slit eyes, a fanged bar. One big graphic, reads small.
+    my = base_y - int(span * 0.24)
+    mw = bwid * (1.0 - (my - tip_y) / max(1, base_y - tip_y)) * 0.78
+    pygame.draw.lines(surf, PAINT_RED, False,
+                      [(cx - mw, my - int(11 * ss)), (cx, my - int(2 * ss)),
+                       (cx + mw, my - int(11 * ss))], max(3, int(3.4 * ss)))
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, PAINT_BONE,
+                         (cx + sgn * mw * 0.52, my + int(1 * ss)),
+                         (cx + sgn * mw * 0.18, my + int(1 * ss)), max(3, int(3.2 * ss)))
+    # A small teal under-bar finishes the mask (the third paint colour, restrained).
+    pygame.draw.line(surf, PAINT_TEAL, (cx - mw * 0.5, my + int(9 * ss)),
+                     (cx + mw * 0.5, my + int(9 * ss)), max(2, int(2.6 * ss)))
+    # Bone-painted cutting edges into a hard apex (keeps the gap break crisp).
+    pygame.draw.line(surf, PAINT_BONE, (cx - bwid, base_y),
+                     (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, PAINT_BONE, (cx + bwid, base_y),
+                     (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
+    _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=(96, 66, 40),
+                metal_dk=WOOD_KEY, grip=(46, 30, 20), jewel=PAINT_RED,
+                curve=int(4 * ss))
 
 
 # ---- 3. Lightning Blade — DIRECTION A / COOL-EPIC ---------------------------
@@ -436,16 +453,11 @@ def draw_v4(surf, bw, bh, ss):
                         [(cx - bwid * 0.22, base_y), (cx, tip_y),
                          (cx + bwid * 0.22, base_y)])
     span = base_y - tip_y
-    # Rune 1: a bold chevron sigil lower on the blade.
-    ry1 = base_y - int(span * 0.30)
-    rw1 = bwid * (1.0 - (ry1 - tip_y) / max(1, base_y - tip_y)) * 0.55
-    chev = [(cx - rw1, ry1 - int(7 * ss)), (cx, ry1 + int(5 * ss)),
-            (cx + rw1, ry1 - int(7 * ss))]
-    _edge_glow(surf, chev, RUNE, ss, alpha=170, spread=5)
-    pygame.draw.lines(surf, RUNE_HOT, False, chev, max(2, int(2.2 * ss)))
-    # Rune 2: a glowing ring sigil higher up.
-    ry2 = base_y - int(span * 0.58)
-    rr = int(bwid * 0.34)
+    # Exactly ONE rune sigil, locked to the blade's UPPER THIRD (nearer the tip):
+    # a glowing ring crossed by a bar. At route scale two stacked runes blobbed
+    # into a mid-blade smear, so the design now carries a single hero sigil.
+    ry2 = base_y - int(span * 0.66)
+    rr = int(bwid * (1.0 - (ry2 - tip_y) / max(1, base_y - tip_y)) * 0.46)
     _glow_disc(surf, cx, ry2, rr + int(3 * ss), RUNE, ss, alpha=150)
     pygame.draw.circle(surf, RUNE_HOT, (cx, ry2), rr, max(2, int(2.0 * ss)))
     pygame.draw.line(surf, RUNE_HOT, (cx, ry2 - int(rr * 0.5)),
@@ -470,69 +482,60 @@ def draw_v4(surf, bw, bh, ss):
 #  the blade; the silhouette stays a hard-pointed blade so the gap holds.
 # ════════════════════════════════════════════════════════════════════════════
 
-# ---- 5. Grin Blade — DIRECTION B / PLAYFUL ----------------------------------
-# A wicked grinning face worked into a steel blade: two angry brow-slit eyes and
-# a big toothy grin near the guard. Clean steel above so the tip/gap stays sharp.
-# Darkened gunmetal steel for the Living/Ornate steel bodies — kept cool +
-# polished but pulled well under day-sky luma so the silhouette holds on blue
-# without a wash (GATE 2); the highlight ridge supplies the "polished" read.
-STEEL_LO = (44, 52, 66)
-STEEL_MD = (92, 104, 124)
-STEEL_HI = (170, 184, 206)
-STEEL_EDGE = (236, 244, 255)
-GRIN_INK = (16, 20, 28)
-GRIN_RED = (224, 56, 60)
+# ---- 5. Molten Obsidian Blade — DIRECTION A / MEAN --------------------------
+# REPLACES Grin (face died at route scale). A near-BLACK obsidian blade split by
+# ONE thin glowing lava crack up the centre — Void's mean energy in a WARM key.
+# Reads DISTINCT from #1 Flame: Flame is full fire tongues on the edges; this is
+# a single restrained molten seam on pure black. Body luma very low (GATE 2).
+OBS_CORE = (14, 11, 12)        # opaque obsidian black
+OBS_MD = (30, 24, 26)
+OBS_HI = (58, 48, 52)          # cool stony sheen, still far under sky luma
+LAVA = (255, 122, 30)
+LAVA_HOT = (255, 226, 150)
+LAVA_DK = (150, 44, 14)
 
 
 def draw_v5(surf, bw, bh, ss):
     cx = bw // 2
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
-    hw = int(_blade_hw(ss) * 1.10)
+    hw = int(_blade_hw(ss) * 1.04)
     ghw = _guard_hw(ss)
-    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.02)
-    _vgrad_poly(surf, body, STEEL_HI, STEEL_LO, outline=GRIN_INK,
-                ow=max(2, int(1.8 * ss)))
-    pygame.draw.polygon(surf, _shade_c(STEEL_HI, 16),
-                        [(cx - bwid * 0.22, base_y), (cx, tip_y),
-                         (cx + bwid * 0.22, base_y)])
+    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.03)
+    _vgrad_poly(surf, body, OBS_MD, OBS_CORE, outline=(6, 5, 6),
+                ow=max(2, int(2.0 * ss)))
     span = base_y - tip_y
-    # The grin sits in the lower-middle of the blade (the widest readable zone).
-    fy = base_y - int(span * 0.26)
-    fw = bwid * (1.0 - (fy - tip_y) / max(1, base_y - tip_y))
-    # Two slanted angry eyes (brow slits) above the mouth.
-    ey = fy - int(span * 0.10)
-    ew = fw * 0.9
-    for sgn in (-1, 1):
-        eyex = cx + sgn * ew * 0.42
-        pygame.draw.polygon(surf, GRIN_INK,
-                            [(eyex - sgn * int(6 * ss), ey - int(5 * ss)),
-                             (eyex + sgn * int(7 * ss), ey + int(2 * ss)),
-                             (eyex - sgn * int(2 * ss), ey + int(4 * ss))])
-    # The big toothy grin: a curved dark mouth with a few zig-zag teeth.
-    mw = fw * 0.82
-    mouth_top = []
-    mouth_bot = []
-    n = 8
-    for i in range(n + 1):
-        t = i / n
-        mx = cx - mw + 2 * mw * t
-        sag = math.sin(t * math.pi) * int(10 * ss)
-        mouth_top.append((mx, fy - int(4 * ss) + sag * 0.4))
-        mouth_bot.append((mx, fy + int(7 * ss) + sag))
-    pygame.draw.polygon(surf, GRIN_INK, mouth_top + list(reversed(mouth_bot)))
-    # Zig-zag teeth across the grin (a few big triangles, not a comb).
-    nteeth = 5
-    for i in range(nteeth):
-        t = (i + 0.5) / nteeth
-        mx = cx - mw + 2 * mw * t
-        sag = math.sin(t * math.pi) * int(10 * ss)
-        ty0 = fy - int(3 * ss) + sag * 0.4
-        pygame.draw.polygon(surf, CREAM,
-                            [(mx - int(5 * ss), ty0),
-                             (mx + int(5 * ss), ty0),
-                             (mx, ty0 + int(9 * ss) + sag * 0.5)])
-    _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=IRON_MD,
-                metal_dk=IRON_DK, grip=LEATHER_DK, jewel=GRIN_RED)
+    # One cool stony glint plane catches the light so the black reads as polished
+    # obsidian, not a flat void — a single facet, no fizz.
+    pygame.draw.polygon(surf, OBS_HI,
+                        [(cx - bwid * 0.36, base_y), (cx, tip_y),
+                         (cx - bwid * 0.06, base_y)])
+    # The ONE molten crack: a thin jagged glowing seam up the centre. Glow first,
+    # then a hot white-orange core so it reads as live lava in the black.
+    crack = [(cx, base_y - int(6 * ss)),
+             (cx + int(3 * ss), base_y - int(span * 0.28)),
+             (cx - int(3 * ss), base_y - int(span * 0.52)),
+             (cx + int(2 * ss), base_y - int(span * 0.74)),
+             (cx, tip_y + int(16 * ss))]
+    _edge_glow(surf, crack, LAVA, ss, alpha=180, spread=6)
+    pygame.draw.lines(surf, LAVA, False, crack, max(2, int(2.2 * ss)))
+    pygame.draw.lines(surf, LAVA_HOT, False, crack, max(1, int(1.0 * ss)))
+    # Two short branch cracks off the seam (small molten veins, kept minimal).
+    for sgn, t0 in ((-1, 0.40), (1, 0.62)):
+        by0 = base_y - int(span * t0)
+        bx0 = cx + (3 if t0 < 0.5 else -3) * ss
+        bend = [(bx0, by0), (cx + sgn * int(9 * ss), by0 - int(8 * ss))]
+        _edge_glow(surf, bend, LAVA, ss, alpha=130, spread=3)
+        pygame.draw.lines(surf, LAVA, False, bend, max(1, int(1.4 * ss)))
+    # Faint warm glow just inside the cutting edges (the blade radiating heat),
+    # stopping shy of the apex so the dark->gap break stays razor-hard.
+    pygame.draw.line(surf, LAVA_DK, (cx - bwid, base_y),
+                     (cx, tip_y + int(10 * ss)), max(1, int(1.4 * ss)))
+    pygame.draw.line(surf, LAVA_DK, (cx + bwid, base_y),
+                     (cx, tip_y + int(10 * ss)), max(1, int(1.4 * ss)))
+    _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=(40, 30, 28),
+                metal_dk=(16, 12, 12), grip=(28, 20, 18), jewel=LAVA,
+                curve=int(4 * ss))
+    _glow_disc(surf, cx, py, int(hw * 0.3), LAVA, ss, alpha=130)
 
 
 # ---- 6. Eye Blade — DIRECTION B / PLAYFUL-MEAN ------------------------------
@@ -581,14 +584,8 @@ def draw_v6(surf, bw, bh, ss):
     pygame.draw.circle(surf, EYE_PUPIL, (cx, ey), int(ir * 0.42))
     pygame.draw.circle(surf, EYE_WHITE, (int(cx - ir * 0.3), int(ey - ir * 0.3)),
                        max(1, int(ir * 0.18)))
-    # Heavy lash spikes around the top of the eye (a few bold spikes).
-    for k in range(-2, 3):
-        a = math.pi * 1.5 + k * 0.34
-        lx = cx + math.cos(a) * ew
-        ly = ey + math.sin(a) * eh
-        pygame.draw.line(surf, (16, 18, 26), (lx, ly),
-                         (lx + math.cos(a) * int(9 * ss), ly + math.sin(a) * int(9 * ss)),
-                         max(2, int(2.0 * ss)))
+    # Lash spikes dropped — at 1x they read as fizz. The single cyan iris + the
+    # corner blood-veins now carry the "watching eye" read on their own.
     _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=IRON_MD,
                 metal_dk=IRON_DK, grip=(30, 30, 40), jewel=EYE_IRIS)
 
@@ -612,12 +609,15 @@ def draw_v7(surf, bw, bh, ss):
     ghw = _guard_hw(ss)
     # The blade as a fang/tongue: a deep-red tongue core with a bony fang ridge.
     body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.0)
-    _vgrad_poly(surf, body, TONGUE_HI, TONGUE_LO, outline=(20, 10, 14),
-                ow=max(2, int(1.8 * ss)))
-    # A bony fang ridge down the centre (one bold light wedge) + bright edges.
+    # Thicken the dark-maroon spine ~30% (darker key, heavier outline) so the
+    # cream fang ridge sits on a bolder dark body and the cream tip-half does
+    # not soften into the bright gap band.
+    _vgrad_poly(surf, body, _shade_c(TONGUE_HI, -22), _shade_c(TONGUE_LO, -14),
+                outline=(16, 8, 12), ow=max(2, int(2.4 * ss)))
+    # A bony fang ridge down the centre — NARROWED ~30% so more dark spine reads.
     pygame.draw.polygon(surf, FANG,
-                        [(cx - bwid * 0.20, base_y), (cx, tip_y),
-                         (cx + bwid * 0.20, base_y)])
+                        [(cx - bwid * 0.14, base_y), (cx, tip_y),
+                         (cx + bwid * 0.14, base_y)])
     pygame.draw.line(surf, FANG, (cx - bwid, base_y), (cx, tip_y + int(4 * ss)),
                      max(1, int(1.6 * ss)))
     pygame.draw.line(surf, FANG, (cx + bwid, base_y), (cx, tip_y + int(4 * ss)),
@@ -696,10 +696,11 @@ def draw_v8(surf, bw, bh, ss):
     pygame.draw.polygon(surf, SNAKE_BELLY,
                         [(cx - bwid * 0.16, base_y), (cx, tip_y),
                          (cx + bwid * 0.16, base_y)])
-    # A row of big scale chevrons riding the body (a few bold Vs, de-noised).
-    nsc = 5
+    # A row of big scale chevrons riding the body — cut from ~6 to 4 BOLD Vs,
+    # wider-spaced, so the scales read as a few graphic marks instead of fizz.
+    nsc = 4
     for i in range(nsc):
-        t = 0.14 + i * 0.16
+        t = 0.18 + i * 0.21
         sy = tip_y + span * t
         sw = bwid * (1.0 - (sy - tip_y) / max(1, base_y - tip_y)) * 0.7
         pygame.draw.lines(surf, SNAKE_DK, False,
@@ -764,9 +765,12 @@ def _facet_gem(surf, cx, cy, r, col, hi, dk, ss):
 # ---- 9. Gem-Core Greatblade — DIRECTION C / EPIC ----------------------------
 # A broad gold blade with a huge faceted RUBY set into the fuller. Dark gold
 # body holds value; the gem is the one bold accent.
-GOLDBLADE_LO = (120, 84, 28)
-GOLDBLADE_MD = (190, 150, 60)
-GOLDBLADE_HI = (244, 214, 120)
+# Darkened ~1.5 value steps toward Filigree's bronze so the day-sky body-vs-sky
+# contrast lifts from ~38% toward 55%+; the ruby + central highlight ridge still
+# read it as gleaming boss-loot, just keyed lower.
+GOLDBLADE_LO = (58, 38, 12)
+GOLDBLADE_MD = (98, 72, 26)
+GOLDBLADE_HI = (160, 130, 62)
 RUBY = (224, 44, 60)
 RUBY_HI = (255, 140, 150)
 RUBY_DK = (120, 16, 30)
@@ -803,18 +807,16 @@ def draw_v9(surf, bw, bh, ss):
     _facet_gem(surf, cx, py, int(hw * 0.3), RUBY, RUBY_HI, RUBY_DK, ss)
 
 
-# ---- 10. Winged Crown Relic — DIRECTION C / EPIC ----------------------------
-# A polished light-steel blade with an ORNATE gold guard: two swept golden wings
-# and a small crown boss, a sapphire pommel. Boss-loot silhouette.
-# Darkened polished steel for the relic body — the gold furniture carries the
-# "shiny" read, so the blade itself is pulled under day-sky luma (GATE 2) while
-# its bright central ridge keeps the polished highlight.
-RELIC_LO = (78, 90, 108)
-RELIC_MD = (130, 144, 164)
-RELIC_HI = (220, 230, 244)
-SAPPHIRE = (60, 110, 230)
-SAPPHIRE_HI = (150, 190, 255)
-SAPPHIRE_DK = (24, 50, 130)
+# ---- 10. Wraith Blade — DIRECTION D / COOL ----------------------------------
+# REPLACES Winged Crown (steel body washed out on day sky). The INVERSE of #15
+# Neon: a matte near-BLACK silhouette with a single thin WHITE edge-light down
+# ONE side only — pure shadow shape, no fill glow. Iconic + ice-cold. Body luma
+# floor (GATE 2); the lone hard white rim makes the silhouette snap on blue.
+WRAITH_FILL = (15, 16, 22)     # matte near-black body
+WRAITH_MD = (26, 28, 36)
+WRAITH_EDGE = (244, 248, 255)  # the single white edge-light
+WRAITH_DIM = (70, 78, 96)      # the unlit (shadow) side rim
+WRAITH_GUARD = (20, 22, 30)
 
 
 def draw_v10(surf, bw, bh, ss):
@@ -823,51 +825,38 @@ def draw_v10(surf, bw, bh, ss):
     hw = _blade_hw(ss)
     ghw = _guard_hw(ss)
     body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.0)
-    _vgrad_poly(surf, body, RELIC_MD, RELIC_LO, outline=(40, 48, 60),
-                ow=max(2, int(1.8 * ss)))
-    pygame.draw.polygon(surf, RELIC_HI,
-                        [(cx - bwid * 0.24, base_y), (cx, tip_y),
-                         (cx + bwid * 0.24, base_y)])
-    pygame.draw.line(surf, (255, 255, 255), (cx - bwid, base_y),
-                     (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
-    pygame.draw.line(surf, (255, 255, 255), (cx + bwid, base_y),
-                     (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
-    # A small gold sapphire-set boss at the blade root.
-    _facet_gem(surf, cx, base_y - int(2 * ss), int(bwid * 0.34),
-               SAPPHIRE, SAPPHIRE_HI, SAPPHIRE_DK, ss)
-    # Two swept golden WINGS forming the crossguard.
-    for sgn in (-1, 1):
-        wing = [(cx + sgn * int(6 * ss), gy + int(2 * ss)),
-                (cx + sgn * ghw * 0.6, gy - int(10 * ss)),
-                (cx + sgn * ghw, gy - int(4 * ss)),
-                (cx + sgn * ghw * 0.92, gy + int(8 * ss)),
-                (cx + sgn * ghw * 0.5, gy + int(10 * ss))]
-        pygame.draw.polygon(surf, GOLD, wing)
-        pygame.draw.polygon(surf, GOLD_DK, wing, max(1, int(1.4 * ss)))
-        # feather lines (a few bold strokes, not fine barbs).
-        for f in range(3):
-            t = 0.4 + f * 0.2
-            pygame.draw.line(surf, GOLD_DK,
-                             (cx + sgn * ghw * 0.3, gy - int(2 * ss)),
-                             (cx + sgn * ghw * (0.6 + t * 0.35),
-                              gy - int(6 * ss) + f * int(5 * ss)),
-                             max(1, int(1.2 * ss)))
-    # A small gold crown boss at the guard centre (3 points).
-    cb = int(10 * ss)
-    pygame.draw.polygon(surf, GOLD,
-                        [(cx - cb, gy + cb), (cx - cb, gy - int(2 * ss)),
-                         (cx - cb * 0.5, gy - cb), (cx, gy - int(2 * ss)),
-                         (cx + cb * 0.5, gy - cb), (cx + cb, gy - int(2 * ss)),
-                         (cx + cb, gy + cb)])
-    pygame.draw.polygon(surf, GOLD_DK,
-                        [(cx - cb, gy + cb), (cx - cb, gy - int(2 * ss)),
-                         (cx - cb * 0.5, gy - cb), (cx, gy - int(2 * ss)),
-                         (cx + cb * 0.5, gy - cb), (cx + cb, gy - int(2 * ss)),
-                         (cx + cb, gy + cb)], max(1, int(1.4 * ss)))
-    _wrap_grip(surf, cx, gy + cb + int(2 * ss), gbot, int(hw * 0.40),
-               (70, 60, 40), ss)
-    _pommel(surf, cx, py, int(hw * 0.46), GOLD, ss, dk=GOLD_DK)
-    _facet_gem(surf, cx, py, int(hw * 0.26), SAPPHIRE, SAPPHIRE_HI, SAPPHIRE_DK, ss)
+    # Matte body, very faint vertical lift so it isn't a dead flat block.
+    _vgrad_poly(surf, body, WRAITH_MD, WRAITH_FILL, outline=(6, 7, 10),
+                ow=max(2, int(2.0 * ss)))
+    # The whole identity: ONE crisp white edge-light down the LEFT cutting edge,
+    # carried hard into the apex. The right edge stays a dim shadow rim only —
+    # pure silhouette lit from one side, the inverse of Neon's full-outline glow.
+    pygame.draw.line(surf, WRAITH_EDGE, (cx - bwid, base_y),
+                     (cx, tip_y + int(3 * ss)), max(2, int(2.8 * ss)))
+    pygame.draw.line(surf, WRAITH_DIM, (cx + bwid, base_y),
+                     (cx, tip_y + int(5 * ss)), max(1, int(1.4 * ss)))
+    # A single thin white sliver tracing just inside the lit edge sells the
+    # rim-light volume — one bold accent, nothing else on the body.
+    pygame.draw.line(surf, WRAITH_EDGE,
+                     (cx - bwid * 0.78, base_y - int(8 * ss)),
+                     (cx - int(2 * ss), tip_y + int(20 * ss)), max(1, int(1.2 * ss)))
+    # Dark guard, lit only on the same left side so the rim-light reads consistent.
+    grect = [(cx - ghw, gy - int(6 * ss)), (cx + ghw, gy - int(6 * ss)),
+             (cx + ghw, gy + int(6 * ss)), (cx - ghw, gy + int(6 * ss))]
+    pygame.draw.polygon(surf, WRAITH_GUARD, grect)
+    pygame.draw.polygon(surf, (8, 9, 12), grect, max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, WRAITH_EDGE, (cx - ghw, gy - int(6 * ss)),
+                     (cx - ghw, gy + int(6 * ss)), max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, WRAITH_EDGE, (cx - ghw, gy - int(6 * ss)),
+                     (cx + ghw, gy - int(6 * ss)), max(1, int(1.4 * ss)))
+    _wrap_grip(surf, cx, gy + int(8 * ss), gbot, int(hw * 0.38), WRAITH_GUARD, ss)
+    pr = int(hw * 0.44)
+    pygame.draw.circle(surf, WRAITH_FILL, (cx, py), pr)
+    pygame.draw.circle(surf, (8, 9, 12), (cx, py), pr, max(1, int(1.6 * ss)))
+    # Left-side crescent rim-light on the pommel — same single light direction.
+    pygame.draw.arc(surf, WRAITH_EDGE,
+                    (int(cx - pr), int(py - pr), int(pr * 2), int(pr * 2)),
+                    math.pi * 0.55, math.pi * 1.45, max(2, int(2.0 * ss)))
 
 
 # ---- 11. Filigree Gold Blade — DIRECTION C / EPIC ---------------------------
@@ -901,16 +890,19 @@ def draw_v11(surf, bw, bh, ss):
     pygame.draw.polygon(surf, SCROLL_HI,
                         [(cx, dy - dw), (cx + dw * 0.6, dy),
                          (cx, dy + dw), (cx - dw * 0.6, dy)], max(2, int(2.0 * ss)))
-    # Two big symmetric S-scrolls flanking the diamond (BOLD strokes, few arcs).
-    for sgn in (-1, 1):
-        for off, scr in ((0.50, SCROLL_HI), (0.66, SCROLL_HI)):
+    # MAX 2 scroll pairs on the body (one above, one below the cartouche), each
+    # a BOLD symmetric S-arc. The diamond cartouche stays the single hero mark;
+    # more scrolls than this fizzed at route scale.
+    for off in (0.50, 0.66):
+        for sgn in (-1, 1):
             syc = base_y - int(span * off)
             sw = bwid * (1.0 - (syc - tip_y) / max(1, base_y - tip_y)) * 0.55
             rect = (int(cx + sgn * sw * 0.2 - sw * 0.5),
                     int(syc - sw * 0.5), int(sw), int(sw))
             pygame.draw.arc(surf, SCROLL_DK, rect, 0, math.pi * 1.3,
-                            max(2, int(2.6 * ss)))
-            pygame.draw.arc(surf, scr, rect, 0, math.pi * 1.3, max(1, int(1.6 * ss)))
+                            max(2, int(3.0 * ss)))
+            pygame.draw.arc(surf, SCROLL_HI, rect, 0, math.pi * 1.3,
+                            max(1, int(1.8 * ss)))
     # Bright engraved edges into a hard apex.
     pygame.draw.line(surf, SCROLL_HI, (cx - bwid, base_y),
                      (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
@@ -944,8 +936,10 @@ def draw_v12(surf, bw, bh, ss):
                 ow=max(2, int(1.8 * ss)))
     span = base_y - tip_y
     # Big angular prism facets stacked up the blade, alternating jewel tones.
+    # The TIP-most band (last) is now violet, not sapphire-blue, so no facet
+    # sits near the day-sky luma right where it meets the bright gap band.
     cuts = [0.0, 0.30, 0.54, 0.74, 1.0]
-    tones = [PRISM_B, PRISM_C, PRISM_A, PRISM_B]
+    tones = [PRISM_B, PRISM_C, PRISM_A, PRISM_A]
     for i in range(len(cuts) - 1):
         y0 = base_y - span * cuts[i]
         y1 = base_y - span * cuts[i + 1]
@@ -962,10 +956,11 @@ def draw_v12(surf, bw, bh, ss):
     pygame.draw.polygon(surf, PRISM_HI,
                         [(cx - bwid * 0.10, base_y), (cx, tip_y),
                          (cx + bwid * 0.10, base_y)])
+    # Thickened white rim keyline so the faceted silhouette reads crisp on blue.
     pygame.draw.line(surf, (255, 255, 255), (cx + bwid, base_y),
-                     (cx, tip_y + int(3 * ss)), max(1, int(1.6 * ss)))
-    pygame.draw.line(surf, PRISM_HI, (cx - bwid, base_y),
-                     (cx, tip_y + int(3 * ss)), max(1, int(1.6 * ss)))
+                     (cx, tip_y + int(3 * ss)), max(2, int(2.6 * ss)))
+    pygame.draw.line(surf, (255, 255, 255), (cx - bwid, base_y),
+                     (cx, tip_y + int(3 * ss)), max(2, int(2.6 * ss)))
     _hilt_basic(surf, cx, gy, gbot, py, hw, ghw, ss, metal=(70, 60, 100),
                 metal_dk=PRISM_DK, grip=(34, 28, 52), jewel=PRISM_HI)
     _glow_disc(surf, cx, py, int(hw * 0.28), PRISM_A, ss, alpha=120)
@@ -982,8 +977,10 @@ def draw_v12(surf, bw, bh, ss):
 ICON_BLADE = (66, 88, 120)
 ICON_BLADE_DK = (34, 48, 72)
 ICON_STRIPE = (224, 234, 246)
-ICON_GUARD = (244, 176, 64)
-ICON_GUARD_DK = (176, 116, 30)
+# Teal guard — matches Skybit's HUD accent and pops as the complement of the
+# slate-blue blade, so the furniture is the colour beat instead of generic gold.
+ICON_GUARD = (44, 196, 188)
+ICON_GUARD_DK = (24, 120, 116)
 
 
 def draw_v13(surf, bw, bh, ss):
@@ -995,11 +992,12 @@ def draw_v13(surf, bw, bh, ss):
     # Flat fill + a fat dark keyline — no gradient.
     pygame.draw.polygon(surf, ICON_BLADE, body)
     pygame.draw.polygon(surf, ICON_BLADE_DK, body, max(2, int(2.4 * ss)))
-    # ONE bold cream centre stripe (the single accent), stopping shy of the apex.
+    # ONE bold cream centre stripe (the single accent), widened ~40% so it holds
+    # as a confident graphic beat, stopping shy of the apex.
     pygame.draw.polygon(surf, ICON_STRIPE,
-                        [(cx - bwid * 0.16, base_y - int(6 * ss)),
+                        [(cx - bwid * 0.224, base_y - int(6 * ss)),
                          (cx, tip_y + int(14 * ss)),
-                         (cx + bwid * 0.16, base_y - int(6 * ss))])
+                         (cx + bwid * 0.224, base_y - int(6 * ss))])
     # Flat guard bar + round pommel, all flat colour.
     pygame.draw.rect(surf, ICON_GUARD, (int(cx - ghw), int(gy - 7 * ss),
                                         int(ghw * 2), int(14 * ss)),
@@ -1042,17 +1040,28 @@ def draw_v14(surf, bw, bh, ss):
     right = [(cx, tip_y), (cx + twk, base_y - int(span * 0.72)),
              (cx + shw, shy), (cx + shw * 0.74, base_y)]
     body = left + right
-    # Two flat colour halves split hard down the centre (low-poly read).
-    pygame.draw.polygon(surf, GEO_DK, left + [(cx, base_y)])
-    pygame.draw.polygon(surf, GEO_LIT, [(cx, base_y)] + right)
+    # Split the facet TIP-vs-BASE (not left/right) so the DARK-teal half is
+    # always the gap-facing (tip) end on BOTH orientations — the bright mint
+    # half never borders the sky-gap directly. `flip` swaps top/bottom but not
+    # this tip-down dark band, so it holds for the hanging and standing blade.
+    splity = base_y - int(span * 0.50)
+    sw_split = shw * (1.0 - (base_y - splity) / span)
+    tip_band = [(cx, tip_y), (cx + twk, base_y - int(span * 0.72)),
+                (cx + sw_split, splity), (cx - sw_split, splity),
+                (cx - twk, base_y - int(span * 0.72))]
+    base_band = [(cx - sw_split, splity), (cx + sw_split, splity),
+                 (cx + shw, shy), (cx + shw * 0.74, base_y),
+                 (cx - shw * 0.74, base_y), (cx - shw, shy)]
+    pygame.draw.polygon(surf, GEO_LIT, base_band)
+    pygame.draw.polygon(surf, GEO_DK, tip_band)
     pygame.draw.polygon(surf, GEO_KEY, body, max(2, int(2.4 * ss)))
-    pygame.draw.line(surf, GEO_KEY, (cx, tip_y + int(6 * ss)), (cx, base_y),
-                     max(2, int(2.0 * ss)))
-    # A couple of bold facet lines on each half (de-noised, just 1 each).
-    pygame.draw.line(surf, _shade_c(GEO_DK, 26), (cx - shw, shy),
-                     (cx, base_y - int(span * 0.2)), max(1, int(1.6 * ss)))
-    pygame.draw.line(surf, _shade_c(GEO_LIT, 30), (cx + shw, shy),
-                     (cx, base_y - int(span * 0.2)), max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, GEO_KEY, (cx - sw_split, splity),
+                     (cx + sw_split, splity), max(2, int(2.0 * ss)))
+    # One bold facet line per band (de-noised).
+    pygame.draw.line(surf, _shade_c(GEO_DK, 26), (cx, tip_y + int(8 * ss)),
+                     (cx + sw_split * 0.6, splity), max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, _shade_c(GEO_LIT, 30), (cx - shw, shy),
+                     (cx, base_y - int(span * 0.12)), max(1, int(1.6 * ss)))
     # Flat angular guard (a chevron block) + chunky pommel.
     pygame.draw.polygon(surf, GEO_GUARD,
                         [(cx - ghw, gy - int(4 * ss)), (cx + ghw, gy - int(4 * ss)),
@@ -1074,9 +1083,11 @@ def draw_v14(surf, bw, bh, ss):
 # ---- 15. Neon Outline Blade — DIRECTION D / COOL ----------------------------
 # Dark near-black fill + a single bright NEON-cyan outline stroke that glows —
 # a synthwave icon. The neon traces the silhouette + one centre line.
+# Warmed ~5% toward teal (green-biased cyan) so the neon stroke is visibly its
+# own colour rather than reading identical to the HUD's pure-cyan timers.
 NEON_FILL = (16, 14, 26)
-NEON = (60, 240, 240)
-NEON_HOT = (200, 255, 255)
+NEON = (48, 236, 214)
+NEON_HOT = (196, 255, 248)
 NEON_GUARD_FILL = (22, 20, 34)
 
 
@@ -1111,42 +1122,48 @@ def draw_v15(surf, bw, bh, ss):
 
 
 # ── version registry ──────────────────────────────────────────────────────────
-# (name, direction, tone, draw_fn, note). NIGHT picks get an extra night strip.
+# (name, direction, tone, draw_fn, note). 15 rows grouped by DIRECTION; the
+# crown set + strong keepers carried forward with their Round-4 FIX, plus the 3
+# new dark-fill replacements. NIGHT picks get an extra night strip.
 VERSIONS = [
+    # ── A · ELEMENTAL ─────────────────────────────────────────────────────────
     ("Flame Blade", "A · Elemental", "MEAN", draw_v1,
-     "charred opaque core, ember crack, fire licking the edges"),
-    ("Frost Blade", "A · Elemental", "COOL/EPIC", draw_v2,
-     "solid ice, opaque teal core, frozen cracks, cold-white rim"),
+     "KEEP: charred opaque core, ember crack, fire tongues on the edges"),
     ("Lightning Blade", "A · Elemental", "COOL/EPIC", draw_v3,
-     "storm-grey body, jagged electric-yellow bolt down the fuller"),
+     "KEEP: storm-grey body, jagged electric-yellow bolt down the fuller"),
     ("Void Rune Blade", "A · Elemental", "MEAN", draw_v4,
-     "near-black core, two glowing rune sigils, magenta energy edge"),
-    ("Grin Blade", "B · Living", "PLAYFUL", draw_v5,
-     "wicked toothy grin + angry brow-slit eyes worked in steel"),
+     "CROWN: near-black core, ONE rune sigil locked to the upper third"),
+    ("Molten Obsidian Blade", "A · Elemental", "MEAN", draw_v5,
+     "NEW: near-black obsidian, ONE thin glowing lava crack (warm-key, vs Flame)"),
+    # ── B · LIVING ────────────────────────────────────────────────────────────
+    ("Tribal Totem Blade", "B · Living", "PLAYFUL/MEAN", draw_v2,
+     "NEW: dark carved-wood blade, ONE bold painted totem-mask glyph"),
     ("Eye Blade", "B · Living", "PLAYFUL/MEAN", draw_v6,
-     "single watching iris, lash spikes, blood veins"),
+     "FIX: lash spikes cut — single cyan iris + veins carry it"),
     ("Maw Blade", "B · Living", "MEAN", draw_v7,
-     "fanged beast-mouth guard, blade as a bony tongue/fang"),
+     "CROWN: fanged maw guard, dark-maroon spine thickened ~30%"),
     ("Serpent Blade", "B · Living", "COOL", draw_v8,
-     "scaled snake-body blade, big scale chevrons, cobra-hood guard"),
+     "FIX: scale chevrons cut to 4 bold Vs (de-fizzed)"),
+    # ── C · ORNATE ────────────────────────────────────────────────────────────
     ("Gem-Core Greatblade", "C · Ornate", "EPIC", draw_v9,
-     "broad gold blade, huge faceted ruby set in the fuller"),
-    ("Winged Crown Relic", "C · Ornate", "EPIC", draw_v10,
-     "polished steel, gold wings + crown guard, sapphire pommel"),
+     "FIX: gold body darkened toward bronze (body-vs-sky contrast lifted)"),
     ("Filigree Gold Blade", "C · Ornate", "EPIC", draw_v11,
-     "dark-gold blade, BOLD S-scrolls + diamond cartouche, ruby pommel"),
+     "CROWN: dark-gold, MAX 2 S-scroll pairs + single diamond cartouche"),
     ("Crystal Prism Blade", "C · Ornate", "COOL/EPIC", draw_v12,
-     "opaque violet core, big angular jewel-tone prism facets"),
+     "FIX: tip facet swapped to violet, white rim thickened"),
+    # ── D · ICONIC ────────────────────────────────────────────────────────────
     ("Flat Icon Sword", "D · Iconic", "PLAYFUL", draw_v13,
-     "emoji-clean flat slate blade, one cream stripe, teal guard"),
+     "CROWN: flat slate blade, TEAL guard, cream stripe widened ~40%"),
     ("Chunky Geo Blade", "D · Iconic", "COOL", draw_v14,
-     "low-poly faceted shape, 2 flat colours split hard"),
+     "CROWN: low-poly facets, dark-teal half always the sky-facing edge"),
+    ("Wraith Blade", "D · Iconic", "COOL", draw_v10,
+     "NEW: matte near-black silhouette, single white edge-light (inverse of Neon)"),
     ("Neon Outline Blade", "D · Iconic", "COOL", draw_v15,
-     "dark fill + single bright neon-cyan glowing outline stroke"),
+     "CROWN (lead): dark fill + single neon stroke, warmed ~5% toward teal"),
 ]
-# The strongest picks (one per direction-ish) get an extra NIGHT route strip so
-# the emissive cores read in both biomes: Flame, Void-Rune, Neon.
-NIGHT = {0, 3, 14}
+# The most emissive picks get an extra NIGHT route strip so the glowing cores
+# read in both biomes: Flame, Void-Rune, the new Molten, and Neon (the lead).
+NIGHT = {0, 2, 3, 14}
 
 
 # ── obstacle compositing (true px) — carried from round 2 ─────────────────────
@@ -1237,11 +1254,11 @@ def main():
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
     sheet.blit(title_f.render(
-        "Warren Sword Route — Round 3 (FRESH START: 15 new swords, 4 directions)",
+        "Warren Sword Route — Round 4 (FINAL POLISH: crown set + keepers + 3 new dark-fills)",
         True, (255, 255, 255)), (pad, 14))
     sheet.blit(sub_f.render(
-        "Directions: A Elemental (flame/frost/lightning/void) · B Living (grin/eye/maw/serpent) · "
-        "C Ornate (gem/crown/filigree/prism) · D Iconic (flat/geo/neon).",
+        "Directions: A Elemental (flame/lightning/void/MOLTEN) · B Living (TOTEM/eye/maw/serpent) · "
+        "C Ornate (gem/filigree/prism) · D Iconic (flat/geo/WRAITH/neon).  NEW dark-fills in CAPS.",
         True, (205, 210, 220)), (pad, 48))
     sheet.blit(sub_f.render(
         "GATES on ALL 15: (1) sky-gap brightest/sharpest band, hard tips · (2) opaque dark core, body clears day-blue · "
@@ -1299,7 +1316,7 @@ def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "warren_sword")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_3.png")
+    out_path = os.path.join(out_dir, "round_4.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
