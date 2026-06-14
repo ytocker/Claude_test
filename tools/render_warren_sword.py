@@ -1005,11 +1005,26 @@ def sword_11(surf, bw, bh, ss):
 #  DK keyline) so the gap-facing TIP stays a hard dark→bright break (GATE 1).
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=1):
+def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=1,
+                 body=None, outline=None, ow=2):
     """Stack angular crystal facets up a curved blade — the shared faceting core
     the variants tune (cut count, tones, lateral lean). A bright crystalline ridge
-    runs to the apex so the tip reads as a hard lit edge against the gap."""
+    runs to the apex so the tip reads as a hard lit edge against the gap.
+
+    The facets are strictly INTERNAL shading: every outer (cutting-edge-side)
+    vertex is pulled a couple of px INSIDE the body boundary so the faceting never
+    touches or steps the silhouette — at route scale a facet landing on the edge
+    rasterises into a notched/stepped outline, which reads as a broken (not sharp)
+    blade. To guarantee one clean razor edge the caller passes the body polygon +
+    its outline colour so the body's continuous outline is re-stroked LAST, on top
+    of the facets, restoring a single smooth dark→bright break to the fine tip."""
     span = base_y - tip_y
+    # Outer vertices are scaled in AND pulled a margin inside the edge so the
+    # faceting stays internal regardless of how far the body belly swells. The
+    # margin is keyed to BLADE WIDTH (not just SS px) so the gap survives the
+    # downscale to ~30-40px route width — a few SS px of inset collapses to a
+    # sub-pixel after smoothscale and re-steps the silhouette.
+    edge_in = max(2.0 * ss, hw * 0.14)
     for i in range(len(cuts) - 1):
         y0 = base_y - span * cuts[i]
         y1 = base_y - span * cuts[i + 1]
@@ -1017,13 +1032,19 @@ def _xtal_facets(surf, cx, tip_y, base_y, hw, cuts, tones, hi, *, lean=0.22, ss=
         cx1 = cx + lean * hw * (cuts[i + 1] ** 1.3)
         w0 = hw * (1.0 - cuts[i] * 0.9)
         w1 = hw * (1.0 - cuts[i + 1] * 0.9)
+        ow0 = max(0.0, w0 * 0.78 - edge_in)
+        ow1 = max(0.0, w1 * 0.78 - edge_in)
         pygame.draw.polygon(surf, _shade_c(tones[i % len(tones)], -24),
-                            [(cx0 - w0 * 0.4, y0), (cx0 + w0, y0),
-                             (cx1 + w1, y1), (cx1 - w1 * 0.4, y1)])
+                            [(cx0 - w0 * 0.4, y0), (cx0 + ow0, y0),
+                             (cx1 + ow1, y1), (cx1 - w1 * 0.4, y1)])
         pygame.draw.line(surf, hi, (cx0 - w0 * 0.4, y0), (cx1 - w1 * 0.4, y1),
                          max(1, int(1.6 * ss)))
     pygame.draw.line(surf, (255, 255, 255), (cx + lean * hw, tip_y + int(3 * ss)),
                      (cx + hw * 0.1, base_y - int(8 * ss)), max(2, int(2.0 * ss)))
+    # Re-stroke the body's clean outer outline LAST so the silhouette is a single
+    # continuous edge converging to the fine sharp tip, not the facet steps.
+    if body is not None and outline is not None:
+        pygame.draw.polygon(surf, outline, body, max(1, ow))
 
 
 def _gem_cluster(surf, cx, py, pr, core, dk, hi, ss, gems):
@@ -1055,10 +1076,14 @@ def sword_11a(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 1.04)
     ghw = _guard_hw(ss)
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.20, edge=0.34)
-    _vgrad_poly(surf, body, A_A, A_CORE, outline=A_DK, ow=max(2, int(2.0 * ss)))
+    # A gentler belly (edge 0.26) keeps the cutting edge a single smooth arc rather
+    # than a bulging belly that reads wavy beside the internal facets at route scale.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.20, edge=0.26)
+    ow = max(2, int(2.0 * ss))
+    _vgrad_poly(surf, body, A_A, A_CORE, outline=A_DK, ow=ow)
     _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.28, 0.52, 0.78, 1.0],
-                 [A_B, A_A, A_B, A_A], A_HI, lean=0.20, ss=ss)
+                 [A_B, A_A, A_B, A_A], A_HI, lean=0.20, ss=ss,
+                 body=body, outline=A_DK, ow=ow)
     # Four-shard FANNED guard (more angular spread than the round-6 two-shard).
     for sgn in (-1, 1):
         for k, sc in ((0.55, 0.7), (1.0, 1.0)):
@@ -1124,14 +1149,19 @@ def sword_11c(surf, bw, bh, ss):
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
     hw = int(_blade_hw(ss) * 0.98)
     ghw = _guard_hw(ss)
-    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.36, edge=0.20)
+    # A calmer recurve (bow 0.26) so the long edge stays one smooth sweep; the high
+    # bow plus a thin facet stack used to step the silhouette into a wavy edge.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.26, edge=0.14)
+    ow = max(2, int(2.0 * ss))
     # Body keyed off the MID tone so the icy-blue fill clears the 140 luma gate;
     # the bright C_A / white ridge stays on the facet edges only.
-    _vgrad_poly(surf, body, C_B, C_CORE, outline=C_DK, ow=max(2, int(2.0 * ss)))
-    # Many thin facets so the long recurve glints like a glacier shard.
+    _vgrad_poly(surf, body, C_B, C_CORE, outline=C_DK, ow=ow)
+    # Many thin INTERNAL facets so the long recurve glints like a glacier shard
+    # without breaking the clean edge; lean trimmed to keep them inside the body.
     _xtal_facets(surf, cx, tip_y, base_y, hw,
                  [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0],
-                 [C_B, C_A], C_HI, lean=0.34, ss=ss)
+                 [C_B, C_A], C_HI, lean=0.24, ss=ss,
+                 body=body, outline=C_DK, ow=ow)
     # Three upright spike shards (a frosty crown guard).
     for sgn, sc in ((-1, 1.0), (0, 0.6), (1, 1.0)):
         bx = cx + sgn * ghw * 0.7
@@ -1201,10 +1231,12 @@ def sword_11e(surf, bw, bh, ss):
     hw = int(_blade_hw(ss) * 0.82)        # narrow needle
     ghw = _guard_hw(ss)
     body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.10, edge=0.06)
-    _vgrad_poly(surf, body, E_A, E_CORE, outline=E_DK, ow=max(2, int(2.0 * ss)))
+    ow = max(2, int(2.0 * ss))
+    _vgrad_poly(surf, body, E_A, E_CORE, outline=E_DK, ow=ow)
     _xtal_facets(surf, cx, tip_y, base_y, hw,
                  [0.0, 0.16, 0.32, 0.48, 0.64, 0.80, 1.0],
-                 [E_B, E_A], E_HI, lean=0.10, ss=ss)
+                 [E_B, E_A], E_HI, lean=0.10, ss=ss,
+                 body=body, outline=E_DK, ow=ow)
     # A low diamond guard (two flat shards meeting in a point each side).
     for sgn in (-1, 1):
         shard = [(cx + sgn * int(3 * ss), gy - int(2 * ss)),
@@ -1385,10 +1417,10 @@ def sword_11g(surf, bw, bh, ss):
 #  wing, collar nor geode. 2-3 bold beats each, no fizz at route scale.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ---- 11h. Obsidian Sawglass (smoky charcoal-violet, SERRATED sawtooth edge) --
-# A single-edge crystal cleaver whose CUTTING edge is a row of bold SAWTOOTH
-# crystal teeth (a serrated silhouette tried nowhere in 11a-g, which are all
-# smooth curved/straight/leaf bodies) climbing to one hard apex. The guard is a
+# ---- 11h. Obsidian Cleaver (smoky charcoal-violet, clean broad cleaver edge) --
+# A single-edge crystal CLEAVER with a clean broad swept cutting edge sweeping to
+# one hard apex (de-serrated: the old sawtooth read as a broken edge at route
+# scale; a sharp cleaver keeps the identity without the notches). The guard is a
 # round knuckle-DISC plate (a flat pierced crystal disc — a guard form distinct
 # from the shard-fans / spikes / wings / rings), the pommel a heavy faceted ANVIL
 # wedge. Smoky charcoal-violet keeps it the darkest, moodiest of the set.
@@ -1401,39 +1433,22 @@ def sword_11h(surf, bw, bh, ss):
     hw = int(_blade_hw(ss) * 1.06)
     ghw = _guard_hw(ss)
     span = base_y - tip_y
-    # A near-straight back spine; the cutting (right) edge is built as a row of a
-    # FEW big sawtooth teeth (kept bold, low-frequency so it doesn't fizz at route
-    # scale) that step inward as the blade tapers to one hard apex at the gap end.
-    back = []
-    n = 10
-    for i in range(n + 1):
-        t = i / n
-        y = base_y - span * t
-        back.append((cx - hw * (0.52 - t * 0.42), y))
-    # Sawtooth cutting edge: alternate an OUT crest and an IN trough, five teeth.
-    teeth = []
-    n_teeth = 5
-    for i in range(n_teeth * 2 + 1):
-        t = i / (n_teeth * 2)
-        y = base_y - span * (t * 0.92)
-        env = hw * (1.0 - t * 0.74)         # the overall taper envelope
-        crest = env if i % 2 == 0 else env * 0.52
-        teeth.append((cx + crest, y))
-    body = back + [(cx + hw * 0.06, tip_y)] + list(reversed(teeth))
-    _vgrad_poly(surf, body, H_B, H_CORE, outline=H_DK, ow=max(2, int(2.2 * ss)))
-    # A dark fuller groove + a bright lit ridge to the apex (2 bold beats); the
-    # ridge keeps the tip a hard lit edge against the gap (GATE 1).
+    # A broad single-edge cleaver: a calm belly (edge 0.22) sweeping to one hard
+    # apex so the outer silhouette is a SINGLE smooth sharp edge, not a row of
+    # teeth that rasterised into notches at route scale.
+    body, bwid = _curved_body(cx, tip_y, base_y, hw, bow=0.16, edge=0.22)
+    ow = max(2, int(2.2 * ss))
+    _vgrad_poly(surf, body, H_B, H_CORE, outline=H_DK, ow=ow)
+    # Internal-only crystal facets (outer vertices inset inside the body boundary)
+    # so the cleaver glints like cut glass without stepping the sharp edge; the
+    # body outline is re-stroked LAST to keep one clean break to the fine tip.
+    _xtal_facets(surf, cx, tip_y, base_y, hw, [0.0, 0.30, 0.56, 0.80, 1.0],
+                 [H_B, H_A, H_B, H_A], H_HI, lean=0.16, ss=ss,
+                 body=body, outline=H_DK, ow=ow)
+    # A dark fuller groove + a bright lit ridge to the apex (the 2 internal beats);
+    # the ridge keeps the tip a hard lit edge against the gap (GATE 1).
     pygame.draw.line(surf, H_CORE, (cx - hw * 0.06, base_y - int(8 * ss)),
                      (cx + hw * 0.02, tip_y + int(span * 0.22)), max(2, int(2.4 * ss)))
-    pygame.draw.line(surf, (255, 255, 255), (cx - hw * 0.42, base_y),
-                     (cx + hw * 0.06, tip_y + int(4 * ss)), max(2, int(2.0 * ss)))
-    # A hot glint on each tooth crest so the serration sparkles like cut glass.
-    for i in range(0, n_teeth * 2 + 1, 2):
-        t = i / (n_teeth * 2)
-        y = base_y - span * (t * 0.92)
-        env = hw * (1.0 - t * 0.74)
-        pygame.draw.line(surf, H_HI, (cx + env, y),
-                         (cx + env * 0.6, y + int(4 * ss)), max(1, int(1.4 * ss)))
     # Round knuckle-DISC guard: a flat pierced crystal plate edge-on (a squat
     # faceted oval) — a guard architecture not used by the other variants.
     rect = pygame.Rect(int(cx - ghw), int(gy - 9 * ss), int(ghw * 2), int(18 * ss))
@@ -2442,7 +2457,7 @@ SABER_VERSIONS = [
      "cool-violet crystal · deep belly (edge 0.34) · four-shard FANNED guard · 4-gem cluster pommel",
      sword_11a, "blade"),
     ("Obsidian Sawglass", "BLADES",
-     "smoky charcoal-violet · SERRATED sawtooth cutting edge · round knuckle-DISC guard · faceted anvil pommel",
+     "smoky charcoal-violet · clean broad CLEAVER edge · round knuckle-DISC guard · faceted anvil pommel",
      sword_11h, "blade"),
     ("Halo Reliquary", "BLADES",
      "regal amber-gold STRAIGHT ceremonial blade · closed crystalline RING/HALO guard · pierced ring pommel",
@@ -2528,16 +2543,20 @@ _HIP_DX = -6
 _HIP_OFF = 84
 
 
-def _grounded_prop_surface(draw_fn, prop_px, ss):
+def _grounded_prop_surface(draw_fn, prop_px, ss, *, w_scale=1.0):
     """Render ONE complete prop (gap-facing end UP, resting end at the box
     bottom) into its own tight box at hero scale, for the clown to LEAN on with
     the prop's bottom tip planted on the ground. The held/leaned LEFT version can
     carry finer detail than the tiled route version (brief: held > tiled).
+
+    `w_scale` narrows ONLY the hero output width (the held prop) so a shortened
+    blade stays slender beside the figure; the ROUTE tiles render through
+    `_render_obstacle` at the full column width and are untouched by this.
     Returns a 1x surface + its (w, h)."""
     H = prop_px
     surf, bw, bh = _box(H, ss)
     draw_fn(surf, bw, bh, ss)
-    out_w = PIPE_W + 2 * OVERHANG
+    out_w = max(1, int((PIPE_W + 2 * OVERHANG) * w_scale))
     return pygame.transform.smoothscale(surf, (out_w, H)), out_w, H
 
 
@@ -2596,11 +2615,17 @@ def render_clown_panel(draw_fn, idx, hold="staff"):
     # (the planted tip eats length the handle must clear the hip); the marotte is
     # shorter so the bauble sits near head height with the hand below it.
     if hold == "blade":
-        prop_px = 184                  # blade tip on ground, handle reaching the hip
+        prop_px = 128                  # ~48% of the clown's display height: tip on
+                                       # the ground, hilt at the hand near the hip,
+                                       # no longer towering over the head
     else:
         prop_px = 150                  # bauble near head height, foot on the ground
     p_ss = 6                           # finer hero source than the route tiles
-    prop, p_w, p_h = _grounded_prop_surface(draw_fn, prop_px, p_ss)
+    # Shortening the blade alone leaves it relatively stubby (output width is fixed
+    # to the column), so the hero held blade is slimmed; the route width is set in
+    # _render_obstacle and is NOT affected by this hero-only scale.
+    w_scale = 0.74 if hold == "blade" else 1.0
+    prop, p_w, p_h = _grounded_prop_surface(draw_fn, prop_px, p_ss, w_scale=w_scale)
     # Blades flip so the TIP (authored at the top) ends DOWN on the ground and the
     # handle/pommel (authored at the bottom) points UP into the gloved hand.
     if hold == "blade":
