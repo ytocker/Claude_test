@@ -3830,6 +3830,18 @@ _ROUND9_HEADERS = [
 ]
 
 
+_ROUND10_HEADERS = [
+    ("Warren STAFF — Round 10 (CRAFT roster + BELL-FOOT variants · ONE big staff per panel)",
+     (255, 255, 255)),
+    ("Panels 1-7 = the round-9 craft roster. Panels 8-10 re-shoe designs 2 / 4 / 7 with the design-3 "
+     "flared BELL foot (gold trumpet collar + foot ferrule) in place of the gem ball pommel.",
+     (205, 210, 220)),
+    ("Everything above the foot is unchanged per design; only the staff terminus differs on 8-10 — "
+     "the bell reads as the more elegant, formal scepter butt.",
+     (170, 178, 190)),
+]
+
+
 def _render_craft_sheet(versions, out_name, headers):
     """Round-9 single-staff sheet: ONE marotte per panel at MAXIMUM size, bauble
     UP, foot planted on a day-sky + ground strip — the staff 'from the route, as
@@ -3917,11 +3929,12 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
     do_craft = "--craft" in args            # round-9 craft sheet is opt-in only
+    do_round10 = "--round10" in args        # round-10 craft + bell-foot sheet, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -3930,6 +3943,8 @@ def main():
         _render_sheet(MAROTTE_VERSIONS, "round_8_marottes.png", _ROUND8M_HEADERS)
     if do_craft:
         _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_9_marottes.png", _ROUND9_HEADERS)
+    if do_round10:
+        _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_10_marottes.png", _ROUND10_HEADERS)
 
 
 if __name__ == "__main__":
