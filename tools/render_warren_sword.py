@@ -1162,6 +1162,28 @@ def sword_11c(surf, bw, bh, ss):
                  [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0],
                  [C_B, C_A], C_HI, lean=0.24, ss=ss,
                  body=body, outline=C_DK, ow=ow)
+    # Bias the BELLY-side internal shading one step deeper so the recurve registers
+    # as a curve at route scale: a translucent dark strip hugging the cutting-edge
+    # side, INSET well inside the silhouette (margin keyed to blade width) so it
+    # never touches the clean outer edge the facets just re-stroked. Deepest at the
+    # mid-belly where the recurve bows most, fading to the tip and base.
+    span_c = base_y - tip_y
+    margin = max(2.0 * ss, hw * 0.16)
+    inner, outer_in = [], []
+    n = 14
+    for i in range(n + 1):
+        t = i / n
+        y = base_y - span_c * t
+        arc = math.sin(t * math.pi)
+        cxt = cx + 0.26 * hw * (t ** 1.3)
+        bwt = hw * (1.0 - t * 0.92) + 0.14 * hw * 0.5 * arc * (1 - t * 0.4)
+        belly_x = cxt + bwt - margin
+        inner.append((belly_x - hw * 0.30, y))
+        outer_in.append((belly_x, y))
+    strip = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(strip, _shade_c(C_CORE, -16) + (150,),
+                        inner + list(reversed(outer_in)))
+    surf.blit(strip, (0, 0))
     # Three upright spike shards (a frosty crown guard).
     for sgn, sc in ((-1, 1.0), (0, 0.6), (1, 1.0)):
         bx = cx + sgn * ghw * 0.7
@@ -1481,7 +1503,15 @@ def sword_11h(surf, bw, bh, ss):
 # collars). The pommel echoes it as a smaller pierced RING. A warm amber-gold core
 # warmed against the cool violet facets gives the set its one regal-warm member;
 # the body stays keyed dark so the slim blade still clears the 140 gate.
-I_CORE, I_A, I_B, I_HI, I_DK = (44, 30, 30), (206, 150, 86), (146, 98, 60), (255, 224, 168), (24, 14, 12)
+# Body warmed ~25% in value and shifted toward gold so the BLADE ITSELF reads
+# amber-gold at route scale (not the brown/charcoal of the prior round): the
+# whole body gradient is warmed ~25% in value and pushed toward gold so even the
+# lower core reads warm amber rather than brown — the gradient top (I_B) is a lit
+# amber and the core (I_CORE) a lifted warm gold (no longer a near-black bronze).
+# The deeper crystalline RING rim (I_DK + I_VIO) stays the cooler/darker accent so
+# the ring still contrasts the gold body. Median body luma still clears the <140
+# day-sky gate with headroom (the renderer prints the figure).
+I_CORE, I_A, I_B, I_HI, I_DK = (108, 76, 34), (236, 184, 104), (214, 164, 82), (255, 236, 184), (28, 16, 10)
 I_VIO = (120, 86, 168)
 
 
@@ -1504,27 +1534,33 @@ def sword_11i(surf, bw, bh, ss):
                          max(1, int(1.6 * ss)))
     pygame.draw.line(surf, (255, 255, 255), (cx, tip_y + int(3 * ss)),
                      (cx, base_y - int(10 * ss)), max(2, int(2.0 * ss)))
-    # CLOSED crystalline RING / HALO guard encircling the base — a faceted band
-    # drawn as an outer + inner polygon so the sky reads THROUGH the ring's eye
-    # only as a small pierced dot, while the ring itself is a hard dark mass. A
-    # violet inner facet ring contrasts the warm amber body.
-    halo_r = int(ghw * 0.92)
-    ring_w = int(7 * ss)
-    pygame.draw.circle(surf, I_DK, (cx, int(gy)), halo_r)
-    pygame.draw.circle(surf, I_A, (cx, int(gy)), halo_r - int(1.5 * ss))
-    pygame.draw.circle(surf, I_VIO, (cx, int(gy)), halo_r - ring_w)
-    pygame.draw.circle(surf, I_DK, (cx, int(gy)), halo_r - ring_w, max(2, int(2 * ss)))
+    # CLOSED crystalline RING / HALO guard SEATED at the blade base — drawn as an
+    # outer + inner ring so the sky reads THROUGH its eye, the ring itself a hard
+    # dark mass with a violet inner facet rim. The ring is sized as a base GUARD
+    # (not a column-filling hoop) and its CENTRE is pushed below the blade base so
+    # its top rim just meets the base while its bulk sits toward the grip: the
+    # straight blade then rises CLEAN above the ring, so when the shared blade flip
+    # plants the TIP on the ground the long blade reads as the body and the ring +
+    # grip + pommel lift UP to the hand — matching the other four sabers' guards
+    # (which seat at the base and never engulf the blade).
+    halo_r = int(ghw * 0.66)
+    halo_cy = int(gy + halo_r * 0.42)
+    ring_w = int(6 * ss)
+    pygame.draw.circle(surf, I_DK, (cx, halo_cy), halo_r)
+    pygame.draw.circle(surf, I_A, (cx, halo_cy), halo_r - int(1.5 * ss))
+    pygame.draw.circle(surf, I_VIO, (cx, halo_cy), halo_r - ring_w)
+    pygame.draw.circle(surf, I_DK, (cx, halo_cy), halo_r - ring_w, max(2, int(2 * ss)))
     # A few bold facet keylines spoking the halo so it reads cut, not a flat hoop.
     for k in range(6):
         a = k * math.tau / 6 - math.pi / 2
         x0 = cx + math.cos(a) * (halo_r - ring_w)
-        y0 = gy + math.sin(a) * (halo_r - ring_w)
+        y0 = halo_cy + math.sin(a) * (halo_r - ring_w)
         x1 = cx + math.cos(a) * halo_r
-        y1 = gy + math.sin(a) * halo_r
+        y1 = halo_cy + math.sin(a) * halo_r
         pygame.draw.line(surf, I_DK, (x0, y0), (x1, y1), max(1, int(1.4 * ss)))
-    pygame.draw.circle(surf, I_HI, (int(cx - halo_r * 0.4), int(gy - halo_r * 0.4)),
+    pygame.draw.circle(surf, I_HI, (int(cx - halo_r * 0.4), int(halo_cy - halo_r * 0.4)),
                        max(2, int(halo_r * 0.18)))
-    _wrap_grip(surf, cx, gy + int(halo_r * 0.5), gbot, int(hw * 0.34), (46, 30, 24), ss)
+    _wrap_grip(surf, cx, halo_cy + int(halo_r * 0.7), gbot, int(hw * 0.34), (46, 30, 24), ss)
     # Pierced RING pommel echoing the halo (a smaller open ring, not a gem/cluster).
     pr = int(hw * 0.5)
     _glow_disc(surf, cx, py, int(pr * 1.05), I_A, ss, alpha=100)
@@ -2650,11 +2686,13 @@ def render_clown_panel(draw_fn, idx, hold="staff"):
     layer.blit(rotated, (prop_ox, prop_oy))
 
     # The GRIP point on the prop's UPPER region (where the gloved hand wraps). For
-    # a flipped blade the handle now sits near the TOP, so the grip rides higher
-    # (~0.28 down, on the handle between guard and pommel, never the blade); the marotte grips the
-    # shaft ~0.32 down, just below the lobed head. Mapped through the rotation +
-    # blit offset so it lands ON the prop in panel space.
-    grip_frac = 0.28 if hold == "blade" else 0.32
+    # a flipped blade the handle now sits near the TOP, so the grip rides high
+    # (on the handle between guard and pommel, never the blade); nudged DOWN onto
+    # the grip band (~0.34) from the prior 0.28 so the gloved mitt clearly OVERLAPS
+    # the hilt on all five sabers rather than floating just above it. The marotte
+    # grips the shaft ~0.32 down, just below the lobed head. Mapped through the
+    # rotation + blit offset so it lands ON the prop in panel space.
+    grip_frac = 0.34 if hold == "blade" else 0.32
     grip_local = (p_w / 2, p_h * grip_frac)
     gdx = grip_local[0] - cxr
     gdy = grip_local[1] - cyr
