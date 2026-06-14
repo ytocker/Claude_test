@@ -4871,12 +4871,304 @@ def _render_clown_final_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ── Round-6 DETAILED HANDS look-dev ───────────────────────────────────────────
+#  The round-5 held-marotte hero is approved; the ONLY open note was that the
+#  clown's HANDS read under-detailed. These primitives reintroduce the proven
+#  round-1 palm+finger kit, COMPACTED ~35% (finger w 3-4 / len 8-12, palm r 6-7)
+#  so a real open offering hand and a real wrapping grip read at hero scale
+#  without ever bulking past the ~16px mitt the art-director sized us to. The
+#  detail is in CREASES + KEYLINES + OCCLUSION, never in size.
+
+_R6_GLOVE = (250, 250, 252)
+_R6_GLOVE_DK = _shade(_R6_GLOVE, -58)
+_R6_GLOVE_MD = _shade(_R6_GLOVE, -26)
+_R6_GLOVE_HI = (255, 255, 255)
+
+
+def _r6_finger(surf, base, tip, w, *, crease=True):
+    """One rounded finger capsule from knuckle `base` to `tip`, keylined with a
+    top-left sheen and a soft mid crease so it reads as a digit, not a stripe.
+    Digit definition is carried by the keyline + crease, so it survives the
+    compact widths (3-4px) the hero scale demands."""
+    pygame.draw.line(surf, _R6_GLOVE_DK, base, tip, w + 2)
+    pygame.draw.line(surf, _R6_GLOVE, base, tip, w)
+    pygame.draw.circle(surf, _R6_GLOVE, tip, max(1, w // 2))
+    pygame.draw.circle(surf, _R6_GLOVE_DK, tip, max(1, w // 2), 1)
+    pygame.draw.line(surf, _R6_GLOVE_HI,
+                     (base[0] - 1, base[1] - 1), (tip[0] - 1, tip[1] - 1),
+                     max(1, w // 3))
+    if crease:
+        mx = (base[0] + tip[0]) // 2
+        my = (base[1] + tip[1]) // 2
+        pygame.draw.line(surf, _R6_GLOVE_MD, (mx - w // 3, my), (mx + w // 3, my), 1)
+
+
+def _r6_palm(surf, cx, cy, rx, ry):
+    """The rounded palm mass: dark keyline ellipse + glove fill + a soft top-left
+    alpha sheen so the palm reads round and lifts off the shaft / sky."""
+    rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, _R6_GLOVE_DK, rect)
+    pygame.draw.ellipse(surf, _R6_GLOVE, rect.inflate(-2, -2))
+    sheen = pygame.Surface((rx, ry), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (255, 255, 255, 90), sheen.get_rect())
+    surf.blit(sheen, (cx - rx + 1, cy - ry + 1))
+
+
+# OPEN presenting hands — palm tipped up under the floating die, fingers spread.
+# Each treatment carries its own finger grammar; all stay inside a ~16px box.
+
+def _r6_open_realistic(surf, hand):
+    """Slim separated fingers + an opposed thumb fanned over a compact palm."""
+    hx, hy = hand
+    _r6_palm(surf, hx, hy, 7, 6)
+    for i, ang in enumerate((-58, -30, -6, 18)):
+        a = math.radians(ang - 90)
+        ln = 10 - abs(i - 1)             # middle pair longest, outers shorter
+        tip = (hx + int(math.cos(a) * ln), hy + int(math.sin(a) * ln))
+        _r6_finger(surf, (hx, hy - 2), tip, 3)
+    _r6_finger(surf, (hx - 3, hy + 3), (hx - 9, hy + 4), 4, crease=False)
+
+
+def _r6_open_mascot(surf, hand):
+    """Three plump gloved fingers + a fat thumb, with bold dark Mickey-glove
+    seams splitting them — read-at-a-glance toon hand, still compact."""
+    hx, hy = hand
+    _r6_palm(surf, hx, hy, 7, 6)
+    for ang in (-52, -18, 16):
+        a = math.radians(ang - 90)
+        tip = (hx + int(math.cos(a) * 9), hy + int(math.sin(a) * 9))
+        _r6_finger(surf, (hx, hy - 1), tip, 4)
+    _r6_finger(surf, (hx - 4, hy + 3), (hx - 10, hy + 5), 5, crease=False)
+    for ang in (-35, 0):
+        a = math.radians(ang - 90)
+        ex = hx + int(math.cos(a) * 8)
+        ey = hy + int(math.sin(a) * 8)
+        pygame.draw.line(surf, _R6_GLOVE_DK, (hx, hy), (ex, ey), 2)
+
+
+def _r6_open_elegant(surf, hand):
+    """Long-ish slender tapered fingers off a refined oval palm, each carrying a
+    base knuckle crease so the hand reads poised and articulated, not stiff."""
+    hx, hy = hand
+    _r6_palm(surf, hx, hy, 6, 7)
+    for i, ang in enumerate((-64, -40, -16, 10)):
+        a = math.radians(ang - 90)
+        ln = 13 - abs(i - 1) * 2         # graceful long taper
+        tip = (hx + int(math.cos(a) * ln), hy + int(math.sin(a) * ln))
+        _r6_finger(surf, (hx, hy - 2), tip, 3)
+        pygame.draw.circle(surf, _R6_GLOVE_MD,
+                           (hx + int(math.cos(a) * 4), hy + int(math.sin(a) * 4)), 1)
+    _r6_finger(surf, (hx - 3, hy + 2), (hx - 11, hy - 1), 4, crease=False)
+
+
+# WRAP grips — drawn in TWO of the three z-passes here (the caller blits the
+# shaft between them): `behind=True` paints the palm heel + back fingers BEFORE
+# the shaft; `behind=False` paints the front fingertips + thumb crossing the
+# shaft AFTER it. `shaft_w` is the shaft half-width so digits land ON the wood.
+
+def _r6_wrap_realistic(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r6_palm(surf, hx + 2, hy, 7, 6)
+        for dy in (-5, -1, 3, 7):
+            _r6_finger(surf, (hx + 5, hy + dy), (hx - shaft_w + 1, hy + dy), 3)
+    else:
+        for dy in (-3, 5):
+            _r6_finger(surf, (hx + 5, hy + dy), (hx - shaft_w - 2, hy + dy), 3)
+        _r6_finger(surf, (hx + 6, hy - 7), (hx - 2, hy - 8), 4, crease=False)
+
+
+def _r6_wrap_mascot(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r6_palm(surf, hx + 2, hy, 7, 6)
+        for dy in (-4, 3, 9):
+            _r6_finger(surf, (hx + 6, hy + dy), (hx - shaft_w + 1, hy + dy), 4)
+    else:
+        for dy in (-1, 7):
+            _r6_finger(surf, (hx + 6, hy + dy), (hx - shaft_w - 2, hy + dy), 4)
+        _r6_finger(surf, (hx + 7, hy - 7), (hx - 2, hy - 9), 5, crease=False)
+        # A bold seam between the two front fingers for the toon glove read.
+        pygame.draw.line(surf, _R6_GLOVE_DK, (hx - 1, hy - 3), (hx - shaft_w - 1, hy + 3), 2)
+
+
+def _r6_wrap_elegant(surf, hand, shaft_w, *, behind):
+    hx, hy = hand
+    if behind:
+        _r6_palm(surf, hx + 3, hy, 6, 7)
+        for dy in (-6, -2, 2, 6):
+            _r6_finger(surf, (hx + 4, hy + dy), (hx - shaft_w, hy + dy), 3)
+    else:
+        # A single long index + thumb cross in front — a light, poised rest.
+        _r6_finger(surf, (hx + 5, hy + 1), (hx - shaft_w - 3, hy - 1), 3)
+        _r6_finger(surf, (hx + 6, hy - 8), (hx - 2, hy - 10), 4, crease=False)
+
+
+# The 3 matched-pair treatments: each maps a (open, wrap) drawing function pair.
+_R6_HAND_KITS = {
+    "realistic": (_r6_open_realistic, _r6_wrap_realistic),
+    "mascot":    (_r6_open_mascot,    _r6_wrap_mascot),
+    "elegant":   (_r6_open_elegant,   _r6_wrap_elegant),
+}
+
+
+def render_clown_staff_r6(idx, *, total_px, bauble_px, hands):
+    """Round-6 hero panel: the approved round-5 held-marotte composition VERBATIM
+    (exact in-game `build_jester`, marotte seated into the figure's own down hand,
+    foot on ground, untouched hero face, one arm per side) with ONLY the two HANDS
+    re-detailed. `hands` selects one of the three matched-pair treatments applied
+    to BOTH the raised presenting hand (a local OVERDRAW over build_jester's plain
+    mitt) and the staff-grip hand (a three-z-pass wrap around the shaft). The
+    in-game clown is never touched — all detail lives in this look-dev overdraw."""
+    open_fn, wrap_fn = _R6_HAND_KITS[hands]
+
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    # EXACT in-game raised-arm reach (warren_demo: hand_up = cx-60, feet-154).
+    hand_up = (jester_cx - 60, feet_y - 154)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    # Detailed OPEN presenting hand drawn OVER build_jester's plain raised mitt —
+    # palm + spread fingers + opposed thumb, tipped up so it cups under the die.
+    open_fn(layer, hand_up)
+
+    # build_jester's OWN down hand — the staff seats into it; we never add an arm.
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # THREE-Z-PASS grip so the wrap reads as a real grasp: palm heel + back
+    # fingers BEHIND the shaft, then the shaft, then fingertips + thumb IN FRONT.
+    # The slim held shaft is ~2px half-width at hero scale, so digits land on wood.
+    shaft_w = 2
+    wrap_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    wrap_fn(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    # The floating power-up die presented just beyond the extended raised hand.
+    draw_cupped_die(layer, jester_cx - 56, 30, idx * 1.7 + 2.0, show_inset=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# The staff is HELD CONSTANT (the Tall finalist) so the only variable across the
+# three panels is the hand-detail treatment applied to BOTH hands as a pair.
+_CLOWN_R6_VARIANTS = [
+    ("Realistic", dict(total_px=200, bauble_px=15, hands="realistic"),
+     "slim separated fingers + opposed thumb, compact anatomical"),
+    ("Mascot", dict(total_px=200, bauble_px=15, hands="mascot"),
+     "plump 3-finger gloved read with bold dark seams"),
+    ("Elegant", dict(total_px=200, bauble_px=15, hands="elegant"),
+     "long slender tapered fingers + refined oval palm + knuckle creases"),
+]
+
+
+_CLOWN_R6_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 6: DETAILED HANDS (staff held constant; hand detail is the only variable)",
+     (255, 255, 255)),
+    ("Round-5 hero approved. ONLY note: hands under-detailed. Both hands (raised presenting + staff grip) re-detailed, "
+     "kept COMPACT (~16px). Three matched-pair treatments below — PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r6_sheet():
+    """Round-6 clown look-dev: a 1-row strip of three hero panels that differ ONLY
+    in the hand-detail treatment (the staff is the constant Tall finalist). Writes
+    docs/warren_clown/round_6.png — never overwrites an existing round sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = 3
+    pad = 20
+    head = 86
+    name_strip = 34
+    gap = 14
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R6_HEADERS[0][0], True, _CLOWN_R6_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R6_HEADERS[1][0], True, _CLOWN_R6_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    for idx, (name, kw, note) in enumerate(_CLOWN_R6_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 20))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r6(idx, **kw)
+        clown = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(clown, (10, 12, 18), clown.get_rect(), 2)
+        sheet.blit(clown, (px, py + name_strip))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_6.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -4886,6 +5178,7 @@ def main():
     do_clown_r3 = "--clown-r3" in args      # round-3 clown hero look-dev, opt-in
     do_clown_r4 = "--clown-r4" in args      # round-4 clown hero look-dev (FINAL), opt-in
     do_clown_final = "--clown-final" in args  # corrected clown look-dev sheet, opt-in
+    do_clown_r6 = "--clown-r6" in args      # round-6 detailed-hands look-dev, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -4904,6 +5197,8 @@ def main():
         _render_clown_r4_sheet()
     if do_clown_final:
         _render_clown_final_sheet()
+    if do_clown_r6:
+        _render_clown_r6_sheet()
 
 
 if __name__ == "__main__":
