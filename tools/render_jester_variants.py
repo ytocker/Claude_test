@@ -100,7 +100,7 @@ from tools.render_clown_dice import (
 MOUTH = (188, 56, 66)
 
 
-def _scheme_eye(surf, x, y, *, look):
+def _scheme_eye(surf, x, y, *, look, soft=False):
     """A BRIGHT, OPEN, lively eye that smiles — gleeful + sly, NOT droopy/weepy.
     Round-4's flat half-lidded almond still read SAD (heavy hooded down-slant
     lid + matte pupil). This rebuild opens the eye up: a tall round white sclera
@@ -110,15 +110,18 @@ def _scheme_eye(surf, x, y, *, look):
     corner for the sly sidelong glance up at the floating die. NO heavy hooded
     top lid, NO down-slanted sad lid. `look` is the horizontal pupil shove
     (negative = toward the upper-left die)."""
-    ew, eh = 5, 6  # taller/rounder than round-4 so the eye reads OPEN and alive
+    # The soft read rounds the sclera toward a circle and softens the sidelong
+    # shove so the eye reads round + open + friendly rather than a sly almond.
+    ew, eh = (6, 6) if soft else (5, 6)
     # White sclera — a tall bright open eye. Big and round so the figure reads
     # wide-awake and delighted, never hooded or droopy.
     eye_rect = pygame.Rect(x - ew, y - eh + 2, ew * 2, eh * 2)
     pygame.draw.ellipse(surf, WHITE, eye_rect)
     # Bright pupil jammed into the DIE-SIDE corner (sidelong up-left glance) with
     # a real specular catchlight so the eye sparkles with mischief — placed top-
-    # left of the pupil (lit, lively), not a watery centre tear.
-    px = x + look
+    # left of the pupil (lit, lively), not a watery centre tear. The soft read
+    # nearly centres the pupil so the gaze is warm + direct, not sidelong-sly.
+    px = x + (look // 2 if soft else look)
     py = y + 1
     pygame.draw.circle(surf, (44, 38, 60), (px, py), 4)
     pygame.draw.circle(surf, (14, 12, 22), (px, py), 4, 1)
@@ -154,11 +157,18 @@ def _cheek(surf, cx, cy, r, *, strong=False):
         surf.blit(blush, (cx + s * (r - 5) - 7, cy + 6))
 
 
-def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
+def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain",
+                 soft=False):
     """Paint the ONE locked HAPPY-with-a-MEAN-SMILE expression. The read is a
     gleeful, up-to-no-good villain GRIN — the dominant feature is a wide, open,
     upturned smile with teeth and ONE pointed fang. `variant` only layers small
     extra flavour on top of the shared recipe:
+
+    `soft=True` warms the same grin toward FRIENDLY-CASUAL for a held-prop hero
+    that wants to read welcoming rather than menacing: it drops the pointed fang
+    and the red die-side dimple crease (which can read as a lip-drip at 1x), and
+    lifts the smile so it sits a touch higher and rounder. Everything else (eyes,
+    brows, nose, teeth, lip crescent) is shared so the figure stays on-model.
         "plain"   — the base recipe.
         "browcock"— one eyebrow cocked high (oh-really).
         "tongue"  — a tongue-tip licking the grin corner.
@@ -173,7 +183,7 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     cock_left = variant in ("browcock", "tonguecock")
     for s in (-1, 1):
         exx = cx + s * ex
-        _scheme_eye(surf, exx, hy, look=look)
+        _scheme_eye(surf, exx, hy, look=look, soft=soft)
         # PLAYFUL RAISED brow — the cheeky-arch read from tile #1, applied to all
         # ten. The art-director flagged round-5 as ANGRY: the inner (nose-side)
         # ends had swung DOWN toward the nose into the universal anger "V". The
@@ -204,7 +214,9 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
     # corner pulled highest so the grin still reads lopsided/sly. The grin is
     # large — it spans most of the lower face and pushes the cheeks up.
     mw = 11                                   # half-width of the grin
-    my = hy + 12                              # vertical seat of the mouth line
+    # The soft read seats the grin a touch HIGHER so the smile lifts into a
+    # rounder, friendlier curve rather than a low villain leer.
+    my = hy + (10 if soft else 12)            # vertical seat of the mouth line
     # The smile baseline: corners up, centre dropped — a fat up-curving crescent.
     l_corner = (cx - mw - 1, my - 2)          # die-side (LEFT) corner, highest
     r_corner = (cx + mw, my)                  # far (RIGHT) corner, a touch lower
@@ -224,10 +236,12 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
         pygame.draw.line(surf, _shade((250, 248, 240), -70),
                          (gx, my), (gx, my + 3), 1)
     # ONE pointed FANG dropping below the teeth row on the die-side (LEFT) for
-    # the "mean" edge — a small white triangle hanging into the dark mouth.
-    fang = [(cx - 5, my + 3), (cx - 1, my + 3), (cx - 3, my + 7)]
-    pygame.draw.polygon(surf, (252, 250, 244), fang)
-    pygame.draw.polygon(surf, _shade((252, 250, 244), -70), fang, 1)
+    # the "mean" edge — a small white triangle hanging into the dark mouth. The
+    # soft read drops the fang entirely so the grin is purely friendly.
+    if not soft:
+        fang = [(cx - 5, my + 3), (cx - 1, my + 3), (cx - 3, my + 7)]
+        pygame.draw.polygon(surf, (252, 250, 244), fang)
+        pygame.draw.polygon(surf, _shade((252, 250, 244), -70), fang, 1)
     # The LIP line wrapping the grin — a single SMOOTH up-curving crescent (a
     # parabola: corners high, centre dipped) so it reads as one clean happy smile
     # at 1x, never a jagged sawtooth/snarl. Corners flick UP for the lopsided sly
@@ -241,13 +255,16 @@ def naughty_face(surf, cx, hy, hr, *, nose_col=(232, 72, 72), variant="plain"):
         lip.append((lx, ly))
     pygame.draw.lines(surf, MOUTH, False, lip, 3)
     # Cheek dimple creases on BOTH sides where the grin pushes the cheeks up —
-    # the die-side (LEFT) one deeper for the lopsided sly accent.
-    pygame.draw.line(surf, _shade(nose_col, -40),
-                     (l_corner[0] - 2, l_corner[1] - 1),
-                     (l_corner[0] - 4, l_corner[1] + 4), 2)
-    pygame.draw.line(surf, _shade(nose_col, -40),
-                     (r_corner[0] + 2, r_corner[1]),
-                     (r_corner[0] + 3, r_corner[1] + 3), 1)
+    # the die-side (LEFT) one deeper for the lopsided sly accent. The deep RED
+    # die-side crease can read as a lip-DRIP at 1x, so the soft read drops both
+    # red creases for a clean, friendly smile corner.
+    if not soft:
+        pygame.draw.line(surf, _shade(nose_col, -40),
+                         (l_corner[0] - 2, l_corner[1] - 1),
+                         (l_corner[0] - 4, l_corner[1] + 4), 2)
+        pygame.draw.line(surf, _shade(nose_col, -40),
+                         (r_corner[0] + 2, r_corner[1]),
+                         (r_corner[0] + 3, r_corner[1] + 3), 1)
 
     if variant in ("tongue", "tonguecock"):
         # Tongue tip licking out the raised (die-side / LEFT) grin corner — a
@@ -518,7 +535,7 @@ def _mitt_thumb(surf, hand, gr, glove, *, side):
 def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
                  cap_fn, motif, collar, variant, skin=(255, 209, 169),
                  nose_col=(232, 72, 72), imp=False, shoulder_orn=False,
-                 collar_in_gold=False):
+                 collar_in_gold=False, soft_face=False):
     """Draw ONE chunky court jester in the fixed mirrored presenting pose with a
     plotting body lean. `variant` selects the small face flavour layered on the
     shared naughty recipe. `imp` is a spec marker for the single horned-hood
@@ -597,11 +614,11 @@ def build_jester(surf, cx, feet_y, hand_up, *, dark, light, gold,
     hy_center = neck_y - hr
     cap_cols = (dark, light, gold, dark)
     _draw_tilted_head(surf, head_cx, hy_center, hr, skin, cap_fn, cap_cols,
-                      variant, nose_col, head_tilt)
+                      variant, nose_col, head_tilt, soft_face=soft_face)
 
 
 def _draw_tilted_head(surf, cx, cy, hr, skin, cap_fn, cap_cols, variant,
-                      nose_col, tilt_deg):
+                      nose_col, tilt_deg, *, soft_face=False):
     """Compose head + cap + naughty face on a scratch surface and rotate it by
     `tilt_deg` so the whole head cocks with the plotting lean. Drawing onto a
     padded scratch surface keeps the rotation clean and centred on the face."""
@@ -613,7 +630,8 @@ def _draw_tilted_head(surf, cx, cy, hr, skin, cap_fn, cap_cols, variant,
     # DOWN into the crown so it hugs the skull instead of perching on top and
     # leaving a bald forehead gap; still clears the eyes for every cap style.
     cap_fn(scratch, sx, sy - hr + 7, hr, cap_cols)
-    naughty_face(scratch, sx, sy, hr, nose_col=nose_col, variant=variant)
+    naughty_face(scratch, sx, sy, hr, nose_col=nose_col, variant=variant,
+                 soft=soft_face)
     rot = pygame.transform.rotate(scratch, tilt_deg)
     surf.blit(rot, (cx - rot.get_width() // 2, cy - rot.get_height() // 2))
 
