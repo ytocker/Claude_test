@@ -1232,6 +1232,295 @@ def sword_11e(surf, bw, bh, ss):
                        (int(cx - pr * 0.2), int(py - pr * 0.9)), max(1, int(pr * 0.16)))
 
 
+# ---- 11f. Prism Greatcrystal (teal-cyan, double-edge SYMMETRIC longsword) ---
+# A FRESH silhouette for the saber line: not a curved single-edge body like the
+# other four, but a broad DOUBLE-EDGED symmetric crystal longsword — a straight
+# faceted slab tapering on BOTH edges to one hard central apex, so the tip stays
+# the single dark→bright break at the gap (GATE 1). The signature is a WINGED /
+# BRANCHING cross-guard: the crossbar flares up into two swept crystal WINGS (a
+# guard architecture not used by 11a-e, which are all shard-fans / spikes / fused
+# slabs). A teal-cyan temperature sits between the icy Glacier and violet
+# Amethyst. Body keyed dark (CORE/MID fill) so the broad slab clears the 140 gate.
+F_CORE, F_A, F_B, F_HI, F_DK = (16, 50, 56), (64, 196, 196), (40, 124, 132), (196, 248, 248), (8, 26, 30)
+
+
+def sword_11f(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss, hilt_px=150)
+    hw = int(_blade_hw(ss) * 1.0)
+    ghw = _guard_hw(ss)
+    span = base_y - tip_y
+    # SYMMETRIC double-edge crystal slab: both edges taper evenly to one apex, a
+    # mid-blade shoulder so it reads as a broad faceted greatsword, not a saber.
+    left, right = [], []
+    n = 12
+    for i in range(n + 1):
+        t = i / n
+        y = base_y - span * t
+        # A gentle double-bevel: full width low, a soft shoulder, hard taper to tip.
+        w = hw * (1.0 - 0.12 * math.sin(t * math.pi) - t * 0.86)
+        left.append((cx - w, y))
+        right.append((cx + w, y))
+    body = left + [(cx, tip_y)] + list(reversed(right))
+    _vgrad_poly(surf, body, F_B, F_CORE, outline=F_DK, ow=max(2, int(2.2 * ss)))
+    # A bold symmetric chevron facet stack down the centreline (no lateral lean —
+    # the double-edge read) climbing to a hot crystalline apex ridge.
+    for t in (0.16, 0.40, 0.64, 0.86):
+        y = base_y - span * t
+        w = hw * (1.0 - 0.12 * math.sin(t * math.pi) - t * 0.86)
+        pygame.draw.line(surf, F_HI, (cx - w, y), (cx, y - int(7 * ss)),
+                         max(1, int(1.6 * ss)))
+        pygame.draw.line(surf, F_HI, (cx + w, y), (cx, y - int(7 * ss)),
+                         max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, (255, 255, 255), (cx, tip_y + int(3 * ss)),
+                     (cx, base_y - int(10 * ss)), max(2, int(2.0 * ss)))
+    # WINGED / BRANCHING guard: a low crossbar that BRANCHES into two crystal wings
+    # sweeping UP toward the blade — two bold elements, dark-keyed + lit ridges.
+    pygame.draw.line(surf, F_DK, (cx - ghw, gy + int(2 * ss)),
+                     (cx + ghw, gy + int(2 * ss)), max(2, int(3 * ss)))
+    for sgn in (-1, 1):
+        wing = [(cx + sgn * int(4 * ss), gy + int(6 * ss)),
+                (cx + sgn * ghw * 0.55, gy - int(16 * ss)),
+                (cx + sgn * ghw, gy - int(6 * ss)),
+                (cx + sgn * ghw * 0.78, gy + int(9 * ss))]
+        pygame.draw.polygon(surf, F_B, wing)
+        pygame.draw.polygon(surf, F_DK, wing, max(2, int(2.2 * ss)))
+        pygame.draw.line(surf, F_HI, (cx + sgn * int(4 * ss), gy + int(6 * ss)),
+                         (cx + sgn * ghw * 0.55, gy - int(16 * ss)), max(1, int(1.8 * ss)))
+    _wrap_grip(surf, cx, gy + int(12 * ss), gbot, int(hw * 0.32), (20, 44, 50), ss)
+    # A faceted octahedron pommel (single bold lit gem, distinct from the clusters).
+    pr = int(hw * 0.48)
+    _glow_disc(surf, cx, py, int(pr * 1.1), F_A, ss, alpha=110)
+    oct_pts = [(cx, py - pr), (cx + pr * 0.72, py - pr * 0.18),
+               (cx + pr * 0.5, py + pr * 0.9), (cx - pr * 0.5, py + pr * 0.9),
+               (cx - pr * 0.72, py - pr * 0.18)]
+    pygame.draw.polygon(surf, F_A, oct_pts)
+    pygame.draw.polygon(surf, F_DK, oct_pts, max(2, int(2 * ss)))
+    pygame.draw.line(surf, F_HI, (cx, py - pr), (cx - pr * 0.5, py + pr * 0.9),
+                     max(1, int(1.6 * ss)))
+    pygame.draw.circle(surf, (255, 255, 255),
+                       (int(cx - pr * 0.24), int(py - pr * 0.32)), max(1, int(pr * 0.16)))
+
+
+# ---- 11g. Geode Glaive (wine-violet, broad LEAF blade, pommel-heavy geode) --
+# The SECOND fresh direction, maximising silhouette variety: a broad LEAF-shaped
+# crystal glaive — a body that swells to a wide belly mid-blade then tapers to a
+# single hard apex (distinct from every curved single-edge saber AND the narrow
+# Estoc needle). The weight sits at the BASE: a pommel-heavy ceremonial GEODE — a
+# big rounded crust cracked open to a pocket of small bright crystals (a cluster
+# pommel form not used by 11a-e). A deep wine-violet keeps the broad leaf body
+# dark on day-blue (GATE 2) while the geode pocket carries the brightest beat.
+G_CORE, G_A, G_B, G_HI, G_DK = (44, 16, 56), (150, 64, 188), (100, 44, 132), (224, 184, 248), (22, 8, 30)
+
+
+def sword_11g(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 1.14)        # broad leaf belly
+    ghw = int(_guard_hw(ss) * 0.84)
+    span = base_y - tip_y
+    # LEAF silhouette: narrow base, a wide belly ~55% up, graceful taper to a hard
+    # apex (the gap-facing dark→bright break, GATE 1). Symmetric, so it reads as a
+    # leaf-glaive head rather than a curved saber.
+    left, right = [], []
+    n = 14
+    for i in range(n + 1):
+        t = i / n
+        y = base_y - span * t
+        leaf = math.sin(min(1, t * 1.02) * math.pi) ** 0.72
+        w = hw * (0.30 + 0.78 * leaf)
+        left.append((cx - w, y))
+        right.append((cx + w, y))
+    body = left + [(cx, tip_y)] + list(reversed(right))
+    _vgrad_poly(surf, body, G_B, G_CORE, outline=G_DK, ow=max(2, int(2.2 * ss)))
+    # A bold raised crystal midrib to the apex + a pair of lit veins (2-3 beats).
+    pygame.draw.polygon(surf, G_B,
+                        [(cx - hw * 0.14, base_y), (cx, tip_y + int(6 * ss)),
+                         (cx + hw * 0.14, base_y)])
+    pygame.draw.line(surf, (255, 255, 255), (cx, base_y - int(8 * ss)),
+                     (cx, tip_y + int(8 * ss)), max(2, int(2.0 * ss)))
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, G_HI,
+                         (cx, base_y - span * 0.5),
+                         (cx + sgn * hw * 0.62, base_y - span * 0.34),
+                         max(1, int(1.6 * ss)))
+    # A short flared crystal collar guard (low, so the eye reads the heavy pommel).
+    collar = [(cx - ghw, gy + int(4 * ss)), (cx - ghw * 0.4, gy - int(6 * ss)),
+              (cx + ghw * 0.4, gy - int(6 * ss)), (cx + ghw, gy + int(4 * ss)),
+              (cx + ghw * 0.5, gy + int(11 * ss)), (cx - ghw * 0.5, gy + int(11 * ss))]
+    pygame.draw.polygon(surf, G_B, collar)
+    pygame.draw.polygon(surf, G_DK, collar, max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, G_HI, (cx - ghw * 0.4, gy - int(6 * ss)),
+                     (cx + ghw * 0.4, gy - int(6 * ss)), max(1, int(1.8 * ss)))
+    _wrap_grip(surf, cx, gy + int(11 * ss), gbot, int(hw * 0.30), (40, 18, 52), ss)
+    # POMMEL-HEAVY GEODE: a big rounded dark crust cracked open to a bright pocket
+    # of small crystals — the ceremonial signature, the visual weight at the base.
+    pr = int(hw * 0.66)
+    _glow_disc(surf, cx, py, int(pr * 1.15), G_A, ss, alpha=120)
+    pygame.draw.circle(surf, G_DK, (cx, int(py)), pr)
+    pygame.draw.circle(surf, G_CORE, (cx, int(py)), pr - int(2 * ss))
+    # The cracked-open pocket: a bright inner cup, then a fan of small crystals.
+    pocket = [(cx - pr * 0.62, py - pr * 0.2), (cx, py - pr * 0.66),
+              (cx + pr * 0.62, py - pr * 0.2), (cx + pr * 0.4, py + pr * 0.5),
+              (cx - pr * 0.4, py + pr * 0.5)]
+    pygame.draw.polygon(surf, G_B, pocket)
+    pygame.draw.polygon(surf, G_DK, pocket, max(1, int(1.8 * ss)))
+    for dx in (-0.34, 0.0, 0.34):
+        gx = cx + dx * pr
+        cluster = [(gx, py - pr * 0.5), (gx + pr * 0.18, py + pr * 0.18),
+                   (gx - pr * 0.18, py + pr * 0.18)]
+        pygame.draw.polygon(surf, G_A, cluster)
+        pygame.draw.polygon(surf, G_HI, cluster, max(1, int(ss)))
+    pygame.draw.circle(surf, (255, 255, 255),
+                       (int(cx - pr * 0.18), int(py - pr * 0.34)), max(1, int(pr * 0.16)))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CRYSTAL-SABER — TWO FRESH DIRECTIONS (round-8 saber-only browse)
+#  Both stay in the faceted opaque-dark crystal language (body keyed off the
+#  MID/CORE tones so the median luma clears the 140 day-sky gate) and keep a hard
+#  dark→bright TIP terminus for route gap-readability. They explore silhouettes +
+#  guard architectures NOT used by 11a-g: a SAWTOOTH cutting edge (11h) and a
+#  closed RING / HALO guard (11i) — neither a shard-fan, spike-crown, fused slab,
+#  wing, collar nor geode. 2-3 bold beats each, no fizz at route scale.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ---- 11h. Obsidian Sawglass (smoky charcoal-violet, SERRATED sawtooth edge) --
+# A single-edge crystal cleaver whose CUTTING edge is a row of bold SAWTOOTH
+# crystal teeth (a serrated silhouette tried nowhere in 11a-g, which are all
+# smooth curved/straight/leaf bodies) climbing to one hard apex. The guard is a
+# round knuckle-DISC plate (a flat pierced crystal disc — a guard form distinct
+# from the shard-fans / spikes / wings / rings), the pommel a heavy faceted ANVIL
+# wedge. Smoky charcoal-violet keeps it the darkest, moodiest of the set.
+H_CORE, H_A, H_B, H_HI, H_DK = (28, 22, 40), (118, 96, 150), (74, 60, 104), (198, 184, 224), (14, 10, 22)
+
+
+def sword_11h(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 1.06)
+    ghw = _guard_hw(ss)
+    span = base_y - tip_y
+    # A near-straight back spine; the cutting (right) edge is built as a row of a
+    # FEW big sawtooth teeth (kept bold, low-frequency so it doesn't fizz at route
+    # scale) that step inward as the blade tapers to one hard apex at the gap end.
+    back = []
+    n = 10
+    for i in range(n + 1):
+        t = i / n
+        y = base_y - span * t
+        back.append((cx - hw * (0.52 - t * 0.42), y))
+    # Sawtooth cutting edge: alternate an OUT crest and an IN trough, five teeth.
+    teeth = []
+    n_teeth = 5
+    for i in range(n_teeth * 2 + 1):
+        t = i / (n_teeth * 2)
+        y = base_y - span * (t * 0.92)
+        env = hw * (1.0 - t * 0.74)         # the overall taper envelope
+        crest = env if i % 2 == 0 else env * 0.52
+        teeth.append((cx + crest, y))
+    body = back + [(cx + hw * 0.06, tip_y)] + list(reversed(teeth))
+    _vgrad_poly(surf, body, H_B, H_CORE, outline=H_DK, ow=max(2, int(2.2 * ss)))
+    # A dark fuller groove + a bright lit ridge to the apex (2 bold beats); the
+    # ridge keeps the tip a hard lit edge against the gap (GATE 1).
+    pygame.draw.line(surf, H_CORE, (cx - hw * 0.06, base_y - int(8 * ss)),
+                     (cx + hw * 0.02, tip_y + int(span * 0.22)), max(2, int(2.4 * ss)))
+    pygame.draw.line(surf, (255, 255, 255), (cx - hw * 0.42, base_y),
+                     (cx + hw * 0.06, tip_y + int(4 * ss)), max(2, int(2.0 * ss)))
+    # A hot glint on each tooth crest so the serration sparkles like cut glass.
+    for i in range(0, n_teeth * 2 + 1, 2):
+        t = i / (n_teeth * 2)
+        y = base_y - span * (t * 0.92)
+        env = hw * (1.0 - t * 0.74)
+        pygame.draw.line(surf, H_HI, (cx + env, y),
+                         (cx + env * 0.6, y + int(4 * ss)), max(1, int(1.4 * ss)))
+    # Round knuckle-DISC guard: a flat pierced crystal plate edge-on (a squat
+    # faceted oval) — a guard architecture not used by the other variants.
+    rect = pygame.Rect(int(cx - ghw), int(gy - 9 * ss), int(ghw * 2), int(18 * ss))
+    pygame.draw.ellipse(surf, H_B, rect)
+    pygame.draw.ellipse(surf, H_DK, rect, max(2, int(2.2 * ss)))
+    pygame.draw.line(surf, H_HI, (cx - ghw + int(4 * ss), gy - int(3 * ss)),
+                     (cx + ghw - int(4 * ss), gy - int(3 * ss)), max(1, int(1.8 * ss)))
+    pygame.draw.circle(surf, H_CORE, (cx, int(gy)), max(2, int(4 * ss)))   # pierced eye
+    _wrap_grip(surf, cx, gy + int(11 * ss), gbot, int(hw * 0.32), (36, 28, 52), ss)
+    # Heavy faceted ANVIL wedge pommel (a broad flat-bottomed crystal block, not a
+    # cluster or single gem) — the dark weight at the base.
+    pr = int(hw * 0.52)
+    _glow_disc(surf, cx, py, int(pr * 1.05), H_A, ss, alpha=100)
+    anvil = [(cx - pr * 0.5, py - pr), (cx + pr * 0.5, py - pr),
+             (cx + pr, py + pr * 0.3), (cx + pr * 0.7, py + pr),
+             (cx - pr * 0.7, py + pr), (cx - pr, py + pr * 0.3)]
+    pygame.draw.polygon(surf, H_A, anvil)
+    pygame.draw.polygon(surf, H_DK, anvil, max(2, int(2 * ss)))
+    pygame.draw.line(surf, H_HI, (cx - pr * 0.5, py - pr), (cx - pr, py + pr * 0.3),
+                     max(1, int(1.6 * ss)))
+    pygame.draw.circle(surf, (255, 255, 255),
+                       (int(cx - pr * 0.2), int(py - pr * 0.4)), max(1, int(pr * 0.16)))
+
+
+# ---- 11i. Halo Reliquary (amber-gold violet, straight blade, RING/HALO guard) -
+# A slim STRAIGHT ceremonial crystal blade (no curve, no belly — distinct from the
+# curved sabers, the recurve and the broad bodies) rising to one hard apex. The
+# signature is a CLOSED crystalline RING / HALO encircling the base of the blade —
+# a guard architecture none of 11a-g use (all are open shards / spikes / wings /
+# collars). The pommel echoes it as a smaller pierced RING. A warm amber-gold core
+# warmed against the cool violet facets gives the set its one regal-warm member;
+# the body stays keyed dark so the slim blade still clears the 140 gate.
+I_CORE, I_A, I_B, I_HI, I_DK = (44, 30, 30), (206, 150, 86), (146, 98, 60), (255, 224, 168), (24, 14, 12)
+I_VIO = (120, 86, 168)
+
+
+def sword_11i(surf, bw, bh, ss):
+    cx = bw // 2
+    tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
+    hw = int(_blade_hw(ss) * 0.9)         # slim straight ceremonial blade
+    ghw = _guard_hw(ss)
+    body, bwid = _straight_body(cx, tip_y, base_y, hw, taper=0.02)
+    _vgrad_poly(surf, body, I_B, I_CORE, outline=I_DK, ow=max(2, int(2.0 * ss)))
+    # A bold symmetric chevron facet stack down the centreline to a hot apex ridge
+    # (the straight-blade read, no lateral lean) — 2-3 bold beats.
+    span = base_y - tip_y
+    for t in (0.20, 0.48, 0.76):
+        y = base_y - span * t
+        w = hw * (1.0 - t * 0.92)
+        pygame.draw.line(surf, I_HI, (cx - w, y), (cx, y - int(7 * ss)),
+                         max(1, int(1.6 * ss)))
+        pygame.draw.line(surf, I_HI, (cx + w, y), (cx, y - int(7 * ss)),
+                         max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, (255, 255, 255), (cx, tip_y + int(3 * ss)),
+                     (cx, base_y - int(10 * ss)), max(2, int(2.0 * ss)))
+    # CLOSED crystalline RING / HALO guard encircling the base — a faceted band
+    # drawn as an outer + inner polygon so the sky reads THROUGH the ring's eye
+    # only as a small pierced dot, while the ring itself is a hard dark mass. A
+    # violet inner facet ring contrasts the warm amber body.
+    halo_r = int(ghw * 0.92)
+    ring_w = int(7 * ss)
+    pygame.draw.circle(surf, I_DK, (cx, int(gy)), halo_r)
+    pygame.draw.circle(surf, I_A, (cx, int(gy)), halo_r - int(1.5 * ss))
+    pygame.draw.circle(surf, I_VIO, (cx, int(gy)), halo_r - ring_w)
+    pygame.draw.circle(surf, I_DK, (cx, int(gy)), halo_r - ring_w, max(2, int(2 * ss)))
+    # A few bold facet keylines spoking the halo so it reads cut, not a flat hoop.
+    for k in range(6):
+        a = k * math.tau / 6 - math.pi / 2
+        x0 = cx + math.cos(a) * (halo_r - ring_w)
+        y0 = gy + math.sin(a) * (halo_r - ring_w)
+        x1 = cx + math.cos(a) * halo_r
+        y1 = gy + math.sin(a) * halo_r
+        pygame.draw.line(surf, I_DK, (x0, y0), (x1, y1), max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, I_HI, (int(cx - halo_r * 0.4), int(gy - halo_r * 0.4)),
+                       max(2, int(halo_r * 0.18)))
+    _wrap_grip(surf, cx, gy + int(halo_r * 0.5), gbot, int(hw * 0.34), (46, 30, 24), ss)
+    # Pierced RING pommel echoing the halo (a smaller open ring, not a gem/cluster).
+    pr = int(hw * 0.5)
+    _glow_disc(surf, cx, py, int(pr * 1.05), I_A, ss, alpha=100)
+    pygame.draw.circle(surf, I_DK, (cx, int(py)), pr)
+    pygame.draw.circle(surf, I_A, (cx, int(py)), pr - int(1.5 * ss))
+    pygame.draw.circle(surf, I_CORE, (cx, int(py)), int(pr * 0.42))
+    pygame.draw.circle(surf, I_DK, (cx, int(py)), int(pr * 0.42), max(1, int(1.6 * ss)))
+    pygame.draw.circle(surf, (255, 255, 255),
+                       (int(cx - pr * 0.4), int(py - pr * 0.4)), max(1, int(pr * 0.16)))
+
+
 # ---- 12. Bone / Demon Blade -------------------------------------------------
 # A carved BONE blade with a fanged DEMON-SKULL guard, a VERTEBRA grip, a HORNED
 # skull pommel. The monstrous boss weapon — pure bone, no metal.
@@ -2135,6 +2424,32 @@ VERSIONS = [
 ]
 
 
+# ── BLADE-ROUTE saber browse (round 8) ────────────────────────────────────────
+# A FOCUSED saber-only comparison for the BLADE-route decision: the three
+# strongest crystal sabers from round 7 KEPT as-is, plus TWO fresh crystalline
+# directions exploring silhouettes / guard architectures untried in 11a-g — a
+# SAWTOOTH cutting edge (11h) and a closed RING / HALO guard (11i). The marotte is
+# already settled (Mini-Clown), so this sheet is sabers ONLY. Every row holds
+# "blade" so the clown leans on it TIP-DOWN with the gloved hand on the HANDLE.
+SABER_VERSIONS = [
+    ("Twilight Estoc", "BLADES",
+     "deep indigo NARROW needle · tall chevron facet stack · low diamond guard · triple-gem stack pommel",
+     sword_11e, "blade"),
+    ("Glacier Saber", "BLADES",
+     "icy-blue deep RECURVE · many thin glinting facets · frosty three-spike guard · iceberg pommel",
+     sword_11c, "blade"),
+    ("Amethyst Saber", "BLADES",
+     "cool-violet crystal · deep belly (edge 0.34) · four-shard FANNED guard · 4-gem cluster pommel",
+     sword_11a, "blade"),
+    ("Obsidian Sawglass", "BLADES",
+     "smoky charcoal-violet · SERRATED sawtooth cutting edge · round knuckle-DISC guard · faceted anvil pommel",
+     sword_11h, "blade"),
+    ("Halo Reliquary", "BLADES",
+     "regal amber-gold STRAIGHT ceremonial blade · closed crystalline RING/HALO guard · pierced ring pommel",
+     sword_11i, "blade"),
+]
+
+
 # ════════════════════════════════════════════════════════════════════════════
 #  ROUTE PANORAMA — true px, carried from round 2/4 unchanged
 # ════════════════════════════════════════════════════════════════════════════
@@ -2376,11 +2691,16 @@ def _median_body_luma(draw_fn, ss, *, body_px=240):
 #  THE SHEET — ~15 rows, each = clown-leaning (left) + route panorama (right)
 # ════════════════════════════════════════════════════════════════════════════
 
-def main():
+def _render_sheet(versions, out_name, headers):
+    """Render ONE comparison sheet (LEFT clown-lean + RIGHT route panorama per row)
+    from a versions list and write it to docs/warren_sword/<out_name>. The hi-res
+    settings (SS=6 route, p_ss=6 hero, ROW_SCALE=1.4) are shared so the saber-only
+    round-8 browse renders identically to the round-7 sheet, only with fewer rows.
+    `headers` is a list of (text, rgb) banner lines drawn under the title."""
     SS = 6                             # route supersample bumped 4→6 for crisper tiles
 
-    # The sheet is rendered LARGER this round (ROW_SCALE) so the crisper SS=6 /
-    # p_ss=6 sources are shown at higher resolution, not shrunk back down.
+    # The sheet is rendered LARGER (ROW_SCALE) so the crisper SS=6 / p_ss=6 sources
+    # are shown at higher resolution, not shrunk back down.
     ROW_SCALE = 1.4
     clown_w, clown_h = VIEW_W, VIEW_H
     N_STEPS = 11
@@ -2405,29 +2725,21 @@ def main():
     row_h = name_strip + DISP_ROUTE_H
 
     sheet_w = pad * 2 + row_w
-    sheet_h = head + len(VERSIONS) * (row_h + row_gap) + pad
+    sheet_h = head + len(versions) * (row_h + row_gap) + pad
     sheet = pygame.Surface((sheet_w, sheet_h))
     sheet.fill((26, 28, 36))
 
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
-    sheet.blit(title_f.render(
-        "Warren Prop Route — Round 7 (TWO winners matured: 5 Crystal-Saber + 5 Jester-Marotte variants · hi-res)",
-        True, (255, 255, 255)), (pad, 14))
-    sheet.blit(sub_f.render(
-        "POSE (family-aware): BLADES lean TIP-DOWN with the gloved hand on the HANDLE (handle/pommel UP); "
-        "MAROTTES stand point-UP, hand on the shaft below the head; the OTHER hand presents the floating die.",
-        True, (205, 210, 220)), (pad, 48))
-    sheet.blit(sub_f.render(
-        "BLADES = amethyst-crystal family (cool-violet → warm-magenta → icy-blue).  STAFFS = jester-marotte family "
-        "(one bauble wears the clown's own cap).  LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
-        True, (170, 178, 190)), (pad, 70))
+    sheet.blit(title_f.render(headers[0][0], True, headers[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(headers[1][0], True, headers[1][1]), (pad, 48))
+    sheet.blit(sub_f.render(headers[2][0], True, headers[2][1]), (pad, 70))
 
     name_f = hud._font(19, True)
     reg_f = hud._font(13, True)
     note_f = hud._font(13, False)
 
-    for idx, (name, register, note, draw_fn, hold) in enumerate(VERSIONS):
+    for idx, (name, register, note, draw_fn, hold) in enumerate(versions):
         ry = head + idx * (row_h + row_gap)
         strip = pygame.Surface((row_w, name_strip), pygame.SRCALPHA)
         strip.fill((18, 20, 28, 220))
@@ -2467,9 +2779,45 @@ def main():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "warren_sword")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_7.png")
+    out_path = os.path.join(out_dir, out_name)
     pygame.image.save(sheet, out_path)
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
+_ROUND7_HEADERS = [
+    ("Warren Prop Route — Round 7 (TWO winners matured: 5 Crystal-Saber + 5 Jester-Marotte variants · hi-res)",
+     (255, 255, 255)),
+    ("POSE (family-aware): BLADES lean TIP-DOWN with the gloved hand on the HANDLE (handle/pommel UP); "
+     "MAROTTES stand point-UP, hand on the shaft below the head; the OTHER hand presents the floating die.",
+     (205, 210, 220)),
+    ("BLADES = amethyst-crystal family (cool-violet → warm-magenta → icy-blue).  STAFFS = jester-marotte family "
+     "(one bauble wears the clown's own cap).  LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
+     (170, 178, 190)),
+]
+
+_ROUND8_HEADERS = [
+    ("Warren BLADE Route — Round 8 (SABERS ONLY · pick one: 3 round-7 keepers + 2 fresh crystal directions · hi-res)",
+     (255, 255, 255)),
+    ("POSE: the clown leans on the blade TIP-DOWN, gloved hand on the HANDLE (handle/pommel UP); "
+     "the OTHER hand presents the floating power-up die. Marotte is already settled (Mini-Clown) — sabers only here.",
+     (205, 210, 220)),
+    ("KEEPERS = Twilight Estoc · Glacier Saber · Amethyst Saber.  FRESH = Obsidian Sawglass (sawtooth edge) · "
+     "Halo Reliquary (closed ring guard).  LEFT = hero clown LEANING on it · RIGHT = the route FILLED with it.",
+     (170, 178, 190)),
+]
+
+
+def main():
+    # Default: emit the round-8 SABER-ONLY browse alongside the untouched round-7
+    # sheet. `--sabers` renders only the saber sheet (faster when iterating on it);
+    # `--round7` renders only the original 10-row sheet.
+    args = sys.argv[1:]
+    do_round7 = "--sabers" not in args
+    do_sabers = "--round7" not in args
+    if do_round7:
+        _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
+    if do_sabers:
+        _render_sheet(SABER_VERSIONS, "round_8_sabers.png", _ROUND8_HEADERS)
 
 
 if __name__ == "__main__":
