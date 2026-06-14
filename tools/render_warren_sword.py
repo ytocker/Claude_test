@@ -620,7 +620,9 @@ def sword_04(surf, bw, bh, ss):
 def sword_05(surf, bw, bh, ss):
     cx = bw // 2
     tip_y, base_y, gy, gtop, gbot, py = _layout(bh, ss)
-    hw = int(_blade_hw(ss) * 1.14)
+    # Narrowed ~15% from round 6 so the broad chopper threads as cleanly as its
+    # blade siblings instead of eating into the sky-gap.
+    hw = int(_blade_hw(ss) * 0.97)
     ghw = int(_guard_hw(ss) * 0.86)
     span = base_y - tip_y
     # Broad falchion: a near-straight back spine, a belly that swells toward the
@@ -897,17 +899,14 @@ def sword_10(surf, bw, bh, ss):
     _vgrad_poly(surf, body, RUNE_BODY_HI, RUNE_BODY_LO, outline=(12, 14, 20),
                 ow=max(2, int(2.2 * ss)))
     span = base_y - tip_y
-    # ONE bold glowing rune locked to the lower-mid fuller (a chevron + bar).
-    ry = base_y - int(span * 0.34)
-    rw = bwid * (1.0 - (ry - tip_y) / span) * 0.5
-    glyph = [(cx - rw, ry - int(9 * ss)), (cx, ry - int(1 * ss)),
-             (cx + rw, ry - int(9 * ss))]
-    _edge_glow(surf, glyph, RUNE_GLOW, ss, alpha=180, spread=6)
-    pygame.draw.lines(surf, RUNE_HOT, False, glyph, max(2, int(2.4 * ss)))
-    _edge_glow(surf, [(cx, ry - int(2 * ss)), (cx, ry + int(10 * ss))], RUNE_GLOW,
-               ss, alpha=160, spread=5)
-    pygame.draw.line(surf, RUNE_HOT, (cx, ry - int(2 * ss)), (cx, ry + int(10 * ss)),
-                     max(2, int(2.2 * ss)))
+    # ONE bold SOLID glowing rune locked to the lower-mid fuller — a single filled
+    # diamond sigil, no inner detail, so it reads as one clean glyph at route scale.
+    ry = base_y - int(span * 0.36)
+    gr = int(11 * ss)
+    glyph = [(cx, ry - gr), (cx + gr * 0.62, ry), (cx, ry + gr), (cx - gr * 0.62, ry)]
+    _glow_disc(surf, cx, ry, int(gr * 1.5), RUNE_GLOW, ss, alpha=170)
+    pygame.draw.polygon(surf, RUNE_GLOW, glyph)
+    pygame.draw.polygon(surf, RUNE_HOT, glyph, max(2, int(2.2 * ss)))
     # A thin cool edge-light to a hard apex.
     pygame.draw.line(surf, (150, 170, 200), (cx - bwid, base_y),
                      (cx, tip_y + int(4 * ss)), max(1, int(1.6 * ss)))
@@ -1002,9 +1001,12 @@ def sword_11(surf, bw, bh, ss):
 # Bone keyed so the blade BODY (the lower core of the gradient) sits dark on
 # day-blue (GATE 2); the pale ivory lives on the spine highlight + the skull/grip
 # furniture, not the broad blade fill.
-DEMON_BONE_HI = (172, 162, 134)
-DEMON_BONE_LO = (74, 66, 48)
-DEMON_BONE_KEY = (40, 34, 24)
+# Body keyed ~12% deeper than round 6 (it measured 133.8, closest to the 140 gate)
+# so it keeps clear margin below 140 against the bright day sky; the skull guard +
+# ivory spine sliver still carry the pale read.
+DEMON_BONE_HI = (150, 141, 117)
+DEMON_BONE_LO = (64, 57, 42)
+DEMON_BONE_KEY = (36, 30, 21)
 DEMON_RED = (200, 40, 44)
 DEMON_HOT = (255, 120, 80)
 
@@ -1167,13 +1169,15 @@ def prop_13(surf, bw, bh, ss):
     _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(7 * ss), ss,
            WOOD_HI, WOOD_MD, WOOD_LO, gnarl=0.10)
     _bind_rings(surf, cx, [bh * 0.55, bh * 0.8], int(7.5 * ss), ss, GOLD_DK)
-    # Dark claw prongs clutching the orb (the value-break frame around the blunt
-    # round top so the gap stays readable).
+    # Dark claw prongs cupping ONLY the orb's lower half — they stop at the orb
+    # equator so the UPPER half of the sphere stays a smooth unbroken circle. That
+    # clean round crown is the wizard staff's terminus cue (vs the marotte's two
+    # ears and the skull's domed-jaw), the distinct SPHERE in the staff family.
     for sgn in (-1, 0, 1):
         bx = cx + sgn * finial_r * 0.7
         prong = [(cx + sgn * int(3 * ss), shaft_top + int(2 * ss)),
-                 (bx, fy + finial_r * 0.2),
-                 (bx + sgn * int(4 * ss), fy - finial_r * 0.5)]
+                 (bx, fy + finial_r * 0.55),
+                 (bx + sgn * int(3 * ss), fy)]
         pygame.draw.lines(surf, WOOD_LO, False, prong, max(3, int(4 * ss)))
         pygame.draw.lines(surf, WOOD_KEY, False, prong, max(1, int(1.4 * ss)))
     # The glowing orb finial — a dark rim, a saturated core, a hot glint.
@@ -1186,30 +1190,43 @@ def prop_13(surf, bw, bh, ss):
 
 
 # ---- 14. Jester Marotte -----------------------------------------------------
-# A fool's-head bauble SCEPTER: a plum rod topped by a tiny belled jester head
-# (the fool's own face on a stick), the on-theme clown prop. The little head's
-# pointed cap tips read as the gap terminus.
+# A fool's-head bauble SCEPTER: a plum rod topped by a belled jester head whose
+# TWO splayed donkey-ear hood lobes break the round outline into a distinctly
+# LOBED/EARED silhouette (NOT a circle) — that non-circular eared head is the
+# gap terminus that sets the marotte apart from the orb / skull staffs at 1x.
 def prop_14(surf, bw, bh, ss):
     cx = bw // 2
-    hr = int(13 * ss)
-    hy = int(20 * ss)                      # tiny head centre
+    hr = int(11 * ss)                      # the central head shrunk so the EARS
+    hy = int(26 * ss)                      # dominate the terminus silhouette
     shaft_top = hy + hr
     _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6 * ss), ss,
            _shade_c(PLUM, 40), PLUM, PLUM_DK)
     _bind_rings(surf, cx, [bh * 0.6], int(6.5 * ss), ss, GOLD_DK)
-    # Two little belled cap points making the gap-facing terminus (pointed, so a
-    # clean readable end), one plum one lime.
+    # TWO big splayed hood lobes (donkey-ear jester hood) flaring far up-and-OUT
+    # past the head circle so the terminus silhouette reads as two distinct EARS
+    # breaking the round outline, never a ball — the cue that separates the marotte
+    # from the orb SPHERE and skull DOME at 1x. Each lobe is a long horn ending in a
+    # fat bell-nub knob (one plum, one lime) that bulges clearly outward.
     for sgn, col in ((-1, PLUM_DK), (1, LIME_DK)):
-        tip = (cx + sgn * int(12 * ss), int(3 * ss))
-        pygame.draw.polygon(surf, col,
-                            [(cx - int(4 * ss), hy - hr * 0.4),
-                             (cx + int(4 * ss), hy - hr * 0.4), tip])
-        pygame.draw.polygon(surf, _shade_c(col, -50),
-                            [(cx - int(4 * ss), hy - hr * 0.4),
-                             (cx + int(4 * ss), hy - hr * 0.4), tip], max(1, int(ss)))
-        pygame.draw.circle(surf, GOLD, tip, max(2, int(3 * ss)))
-        pygame.draw.circle(surf, GOLD_DK, tip, max(2, int(3 * ss)), max(1, int(ss)))
-    # The tiny fool's head (cream face) — bold + simple so it reads at route scale.
+        ex = cx + sgn * int(22 * ss)       # bell-nub centre, far outside the head
+        ey = int(8 * ss)                   # raised high so the ears tower over the head
+        lobe = [(cx + sgn * int(2 * ss), hy - hr * 0.1),
+                (cx + sgn * int(5 * ss), hy - hr * 1.1),
+                (ex - sgn * int(6 * ss), ey + int(4 * ss)),
+                (ex + sgn * int(6 * ss), ey + int(3 * ss)),
+                (ex + sgn * int(4 * ss), ey - int(7 * ss)),
+                (cx + sgn * int(10 * ss), hy - hr * 0.4)]
+        pygame.draw.polygon(surf, col, lobe)
+        pygame.draw.polygon(surf, _shade_c(col, -50), lobe, max(1, int(1.4 * ss)))
+        # Bell-nub knob bulge at the lobe tip so the bump clearly rounds OUTWARD.
+        pygame.draw.circle(surf, col, (int(ex), int(ey)), int(7 * ss))
+        pygame.draw.circle(surf, _shade_c(col, -50), (int(ex), int(ey)), int(7 * ss),
+                           max(1, int(1.4 * ss)))
+        pygame.draw.circle(surf, GOLD, (int(ex), int(ey - 4 * ss)), max(2, int(3.4 * ss)))
+        pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey - 4 * ss)), max(2, int(3.4 * ss)),
+                           max(1, int(ss)))
+    # The tiny fool's head (cream face) nested between the two lobes — bold + simple
+    # so it reads at route scale; the lobes carry the non-circular silhouette.
     pygame.draw.circle(surf, _shade_c(CREAM, -50), (cx, int(hy)), hr)
     pygame.draw.circle(surf, CREAM, (cx, int(hy)), int(hr - ss))
     for sgn in (-1, 1):
@@ -1231,23 +1248,45 @@ CROOK_LO = (70, 54, 32)
 
 def prop_15(surf, bw, bh, ss):
     cx = bw // 2
-    hook_h = int(46 * ss)
-    _shaft(surf, cx, hook_h, bh - int(4 * ss), int(6 * ss), ss,
+    hook_h = int(48 * ss)
+    # Thicker shaft so the whole crook reads as a SOLID pillar, not a wire.
+    _shaft(surf, cx, hook_h, bh - int(4 * ss), int(10 * ss), ss,
            CROOK_HI, CROOK_MD, CROOK_LO)
-    # The hook: a bold C curling from the shaft top up and back round. Drawn as a
-    # thick dark arc with a slim lit inner rail so the hook reads as one bold
-    # element, the curl mouth a clean terminus.
-    hw = int(6 * ss)
-    rad = int(16 * ss)
+    # The hook: a THICK SOLID C curling from the shaft top up and back round. The
+    # round-6 read flagged the open hook as the weakest gap-break (its hollow inner
+    # curl let bright sky through and pygame's thin arc rasterising left seams), so
+    # the hook is built as a CLOSED filled band polygon (outer sweep + inner sweep)
+    # — a guaranteed hard dark mass against the gap, no sky bleed, no arc seams.
+    hw = int(11 * ss)                      # heavier hook band
+    rad = int(19 * ss)
     cxh = cx + int(2 * ss)
-    cyh = hook_h - int(4 * ss)
-    rect = pygame.Rect(int(cxh - rad), int(cyh - rad), int(rad * 2), int(rad * 2))
-    pygame.draw.arc(surf, CROOK_LO, rect, math.pi * 0.15, math.pi * 1.95, hw + int(2 * ss))
-    pygame.draw.arc(surf, CROOK_MD, rect, math.pi * 0.15, math.pi * 1.95, hw)
-    pygame.draw.arc(surf, CROOK_HI, rect.inflate(-int(3 * ss), -int(3 * ss)),
-                    math.pi * 0.7, math.pi * 1.6, max(1, int(1.6 * ss)))
+    cyh = hook_h - int(6 * ss)
+    a0, a1 = math.pi * 0.06, math.pi * 1.98
+    n = 22
+    outer, inner = [], []
+    for i in range(n + 1):
+        a = a0 + i / n * (a1 - a0)
+        outer.append((cxh + math.cos(a) * (rad + hw * 0.5),
+                      cyh + math.sin(a) * (rad + hw * 0.5)))
+        inner.append((cxh + math.cos(a) * (rad - hw * 0.5),
+                      cyh + math.sin(a) * (rad - hw * 0.5)))
+    band = outer + list(reversed(inner))
+    # Dark keyline mass first (the silhouette), then the mid body inset.
+    pygame.draw.polygon(surf, CROOK_LO, band)
+    inner_band = ([(cxh + math.cos(a0 + i / n * (a1 - a0)) * (rad + hw * 0.5 - ss),
+                    cyh + math.sin(a0 + i / n * (a1 - a0)) * (rad + hw * 0.5 - ss))
+                   for i in range(n + 1)] +
+                  list(reversed(
+                      [(cxh + math.cos(a0 + i / n * (a1 - a0)) * (rad - hw * 0.5 + ss),
+                        cyh + math.sin(a0 + i / n * (a1 - a0)) * (rad - hw * 0.5 + ss))
+                       for i in range(n + 1)])))
+    pygame.draw.polygon(surf, CROOK_MD, inner_band)
+    # Slim lit rail on the outer curl for form (kept thin so the mass stays dark).
+    pygame.draw.lines(surf, CROOK_HI, False,
+                      [outer[i] for i in range(int(n * 0.4), int(n * 0.85))],
+                      max(1, int(1.6 * ss)))
     # A bold leather binding band where hook meets shaft.
-    _bind_rings(surf, cx, [hook_h + int(6 * ss), bh * 0.62], int(6.5 * ss), ss,
+    _bind_rings(surf, cx, [hook_h + int(6 * ss), bh * 0.62], int(8.5 * ss), ss,
                 LEATHER_DK)
 
 
@@ -1268,20 +1307,49 @@ def prop_16(surf, bw, bh, ss):
                             [(cx + sgn * int(4 * ss), shaft_top + int(4 * ss)),
                              (cx + sgn * int(13 * ss), shaft_top + int(2 * ss)),
                              (cx + sgn * int(7 * ss), shaft_top - int(8 * ss))])
-    # Bone skull finial — a domed cranium (clean rounded terminus), dark eye
-    # sockets, a small jaw, crowned by a faceted gem catch for the hard value pop.
-    pygame.draw.circle(surf, BONE_DK, (cx, int(sy)), sk_r)
-    pygame.draw.circle(surf, BONE, (cx, int(sy - ss)), int(sk_r - ss))
+    # Bone SKULL finial built as a true skull SILHOUETTE (not a ball): a wide domed
+    # cranium that pinches IN at the cheeks then steps OUT to a square jaw, so the
+    # outline reads as a skull at 1x — that distinct shape sets it apart from the
+    # orb / marotte staffs. Dark eye sockets + a jaw notch carry the value break.
+    dome = []
+    n = 12
+    for i in range(n + 1):                 # the rounded cranium cap (top half-arc)
+        a = math.pi + i / n * math.pi
+        dome.append((cx + math.cos(a) * sk_r, sy - sk_r * 0.25 + math.sin(a) * sk_r * 0.95))
+    skull = (dome +
+             [(cx + sk_r * 0.96, sy + sk_r * 0.15),       # temple (wide cranium)
+              (cx + sk_r * 0.34, sy + sk_r * 0.62),       # cheek pinch DEEP in
+              (cx + sk_r * 0.52, sy + sk_r * 1.15),       # jaw steps OUT below
+              (cx + sk_r * 0.34, sy + sk_r * 1.32),       # square jaw corner
+              (cx - sk_r * 0.34, sy + sk_r * 1.32),
+              (cx - sk_r * 0.52, sy + sk_r * 1.15),
+              (cx - sk_r * 0.34, sy + sk_r * 0.62),
+              (cx - sk_r * 0.96, sy + sk_r * 0.15)])
+    pygame.draw.polygon(surf, BONE_DK, skull)
+    pygame.draw.polygon(surf, _shade_c(BONE_DK, -40), skull, max(1, int(1.6 * ss)))
+    # Lit cranium dome inset so the rounded top reads bright above the dark sockets.
+    pygame.draw.polygon(surf, BONE, [(p[0], p[1] + ss) for p in dome] +
+                        [(cx + sk_r * 0.7, sy + sk_r * 0.1),
+                         (cx - sk_r * 0.7, sy + sk_r * 0.1)])
+    # Deep BIG angular eye sockets (the unmistakable skull cue) + a triangular nose.
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, (24, 18, 16), (int(cx + sgn * sk_r * 0.42), int(sy + ss)),
-                           max(2, int(sk_r * 0.28)))
+        pygame.draw.polygon(surf, (24, 18, 16),
+                            [(int(cx + sgn * sk_r * 0.14), int(sy + sk_r * 0.16)),
+                             (int(cx + sgn * sk_r * 0.74), int(sy + sk_r * 0.06)),
+                             (int(cx + sgn * sk_r * 0.66), int(sy + sk_r * 0.54)),
+                             (int(cx + sgn * sk_r * 0.24), int(sy + sk_r * 0.54))])
     pygame.draw.polygon(surf, (24, 18, 16),
-                        [(cx, int(sy + sk_r * 0.45)),
-                         (cx + int(3 * ss), int(sy + sk_r * 0.75)),
-                         (cx - int(3 * ss), int(sy + sk_r * 0.75))])
-    pygame.draw.rect(surf, BONE_DK, (int(cx - sk_r * 0.5), int(sy + sk_r * 0.7),
-                                     int(sk_r), int(5 * ss)))
-    _facet_gem(surf, cx, int(sy - sk_r * 0.65), int(5 * ss), CANDY_RED,
+                        [(cx, int(sy + sk_r * 0.52)),
+                         (cx + int(3.5 * ss), int(sy + sk_r * 0.82)),
+                         (cx - int(3.5 * ss), int(sy + sk_r * 0.82))])
+    # Jaw NOTCH: dark teeth gaps cut DEEP into the square jaw so the bottom reads as
+    # a row of teeth, not a rounded chin.
+    for sgn in (-1, 0, 1):
+        pygame.draw.line(surf, (24, 18, 16),
+                         (int(cx + sgn * sk_r * 0.26), int(sy + sk_r * 0.92)),
+                         (int(cx + sgn * sk_r * 0.26), int(sy + sk_r * 1.3)),
+                         max(1, int(1.8 * ss)))
+    _facet_gem(surf, cx, int(sy - sk_r * 0.85), int(5 * ss), CANDY_RED,
                (255, 150, 150), CANDY_RED_DK, ss)
 
 
@@ -1406,11 +1474,13 @@ def prop_19(surf, bw, bh, ss):
     knob_r = int(11 * ss)
     ky = knob_r + int(6 * ss)
     shaft_top = ky + int(knob_r * 0.6)
-    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(5.5 * ss), ss,
+    # Widened ~22% so the show cane reads as a genuine pillar to thread, not a
+    # wire; the round gold knob top still carries the gap-read.
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(6.7 * ss), ss,
            CANE_BLACK_HI, CANE_BLACK, _shade_c(CANE_BLACK, -18))
     # Gold bands striping the black cane (the bold show accent).
     for yt in (0.34, 0.55, 0.76):
-        _bind_rings(surf, cx, [shaft_top + (bh - shaft_top) * yt], int(6 * ss), ss, GOLD)
+        _bind_rings(surf, cx, [shaft_top + (bh - shaft_top) * yt], int(7.2 * ss), ss, GOLD)
     # Gold collar + round knob. A dark crescent across the knob's lower half is
     # the value break that keeps the gap above the knob reading bright.
     pygame.draw.rect(surf, GOLD_DK, (int(cx - knob_r * 0.7), int(shaft_top - 3 * ss),
@@ -1433,23 +1503,19 @@ def prop_20(surf, bw, bh, ss):
     tip_y = int(4 * ss)
     bundle_bot = bh - int(40 * ss)
     hw = int(9 * ss)
-    # Furled bundle: a long dark taper from a pointed ferrule down to the handle,
-    # built as a few bold vertical rib facets (plum / lime alternating, dark).
-    ribs = 4
-    for i in range(ribs):
-        t0 = i / ribs - 0.5
-        col = PLUM_DK if i % 2 == 0 else LIME_DK
-        x0 = cx + t0 * hw * 1.8
-        poly = [(cx, tip_y), (x0 + hw * 0.5, bundle_bot - int(6 * ss)),
-                (x0 + hw * 0.5 + hw / ribs, bundle_bot - int(6 * ss))]
+    by = bundle_bot - int(6 * ss)
+    # Furled bundle: ONE solid dark tapered triangle from a pointed ferrule down to
+    # the handle, panelled into exactly THREE BOLD full-height furl facets (plum /
+    # lime / plum). No thin hairline ribs — each facet is a fat wedge that holds at
+    # 1x, the dark spine + keyline carry the silhouette.
+    facets = [(-1.0, -0.33, PLUM_DK), (-0.33, 0.33, LIME_DK), (0.33, 1.0, PLUM_DK)]
+    for fa, fb, col in facets:
+        poly = [(cx + fa * hw * 0.04, tip_y), (cx + fb * hw * 0.04, tip_y),
+                (cx + fb * hw, by), (cx + fa * hw, by)]
         pygame.draw.polygon(surf, col, poly)
-    # Overlay a single bold dark spine + a slim lit edge so it reads as ONE furled
-    # bundle, not stripes.
-    spine = [(cx - hw, bundle_bot - int(6 * ss)), (cx, tip_y),
-             (cx + hw, bundle_bot - int(6 * ss))]
-    pygame.draw.polygon(surf, _shade_c(PLUM_DK, -30), spine, max(2, int(2.2 * ss)))
-    pygame.draw.line(surf, LIME, (cx, tip_y + int(6 * ss)),
-                     (cx - hw * 0.5, bundle_bot - int(20 * ss)), max(1, int(1.6 * ss)))
+    # A single bold dark spine keyline so the bundle reads as ONE furled volume.
+    spine = [(cx - hw, by), (cx, tip_y), (cx + hw, by)]
+    pygame.draw.polygon(surf, _shade_c(PLUM_DK, -30), spine, max(2, int(2.4 * ss)))
     # Pointed metal ferrule terminus.
     pygame.draw.polygon(surf, ROD_HI, [(cx, tip_y), (cx - int(3 * ss), tip_y + int(12 * ss)),
                                        (cx + int(3 * ss), tip_y + int(12 * ss))])
@@ -1510,10 +1576,12 @@ def prop_22(surf, bw, bh, ss):
     star_r = int(15 * ss)
     sy = star_r + int(8 * ss)
     shaft_top = sy + int(star_r * 0.5)
-    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(4.5 * ss), ss,
+    # Widened ~28% again so the wand reads as a genuine pillar to thread, not a
+    # hairline; the glowing star finial still carries the gap-read.
+    _shaft(surf, cx, shaft_top, bh - int(4 * ss), int(7.4 * ss), ss,
            CANE_BLACK_HI, CANE_BLACK, _shade_c(CANE_BLACK, -18))
     # A couple of bold gold bands so the slim wand still carries 2-3 elements.
-    _bind_rings(surf, cx, [bh * 0.5, bh * 0.74], int(5 * ss), ss, GOLD)
+    _bind_rings(surf, cx, [bh * 0.5, bh * 0.74], int(7.9 * ss), ss, GOLD)
     # Glowing five-point star finial — built from its outer + inner radii points.
     pts = []
     for k in range(10):
@@ -1529,46 +1597,63 @@ def prop_22(surf, bw, bh, ss):
 
 
 # ---- 23. Flaming Torch ------------------------------------------------------
-# A dark torch wrapped in cloth, crowned by a bold FLAME. The flame's pointed
-# tongue is the gap terminus; the flame body is kept opaque + dark-cored at the
-# base so it never washes pale on the day sky, hot only at the very tip.
+# A dark cloth-wrapped torch whose gap-facing terminus is the DARK torch HEAD —
+# a heavy dark pitch-soaked cloth knot crowning the top so the route reads a hard
+# dark-body→bright-gap break (GATE 1). The warm FLAME is an ACCENT that licks up
+# AROUND the head's sides and only to the head's crown, never spiking past it into
+# the bright sky-gap, so the brightest band stays the gap, not the flame.
 FLAME_LO = (180, 60, 24)
 FLAME_MD = (236, 130, 36)
 FLAME_HI = (255, 214, 96)
+TORCH_HEAD = (38, 30, 24)
+TORCH_HEAD_HI = (78, 62, 48)
 
 
 def prop_23(surf, bw, bh, ss):
     cx = bw // 2
-    flame_top = int(4 * ss)
-    bowl_y = int(46 * ss)
+    head_top = int(6 * ss)                 # the DARK head crown faces the gap
+    head_bot = int(40 * ss)
+    bowl_y = int(48 * ss)
     _shaft(surf, cx, bowl_y, bh - int(4 * ss), int(7 * ss), ss,
            WOOD_HI, WOOD_MD, WOOD_LO)
     # Cloth wrap bindings on the haft (bold criss-cross feel via a couple rings).
     _bind_rings(surf, cx, [bh * 0.55, bh * 0.72, bh * 0.88], int(7.5 * ss), ss,
                 LEATHER_DK)
-    # Dark pitch bowl the flame rises from.
+    # The warm flame ACCENT first, UNDER the dark head so the head overlaps it on
+    # top: tongues fan up the head's SIDES, cresting only to the head crown — the
+    # warm glow frames the dark terminus instead of pointing into the gap.
+    for sgn in (-1, 1):
+        tongue = [(cx + sgn * int(4 * ss), bowl_y - int(4 * ss)),
+                  (cx + sgn * int(13 * ss), head_bot - int(2 * ss)),
+                  (cx + sgn * int(10 * ss), head_top + int(10 * ss)),
+                  (cx + sgn * int(3 * ss), head_top + int(4 * ss)),
+                  (cx + sgn * int(2 * ss), head_bot)]
+        _vgrad_poly(surf, tongue, FLAME_MD, FLAME_LO, outline=(120, 36, 14),
+                    ow=max(1, int(1.6 * ss)))
+    _glow_disc(surf, cx, head_top + int(12 * ss), int(15 * ss), FLAME_MD, ss, alpha=80)
+    # The DARK torch HEAD — a heavy rounded dark mass (cloth knot) crowning the top,
+    # drawn OVER the flame so the topmost gap-facing pixels are dark, with only a
+    # slim warm rim where the flame catches its lower edge.
+    head = [(cx - int(11 * ss), head_bot),
+            (cx - int(10 * ss), head_top + int(12 * ss)),
+            (cx - int(5 * ss), head_top),
+            (cx + int(5 * ss), head_top),
+            (cx + int(10 * ss), head_top + int(12 * ss)),
+            (cx + int(11 * ss), head_bot)]
+    _vgrad_poly(surf, head, TORCH_HEAD_HI, TORCH_HEAD, outline=(18, 14, 10),
+                ow=max(2, int(2.2 * ss)))
+    # A few dark cloth-wrap seams across the head + a hot flame-lick rim at its base.
+    for t in (0.32, 0.6):
+        hy = head_top + (head_bot - head_top) * t
+        pygame.draw.line(surf, (16, 12, 8), (cx - int(9 * ss), hy),
+                         (cx + int(9 * ss), hy), max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, FLAME_HI, (cx - int(9 * ss), head_bot - int(2 * ss)),
+                     (cx + int(9 * ss), head_bot - int(2 * ss)), max(1, int(1.8 * ss)))
+    # Dark pitch collar where the head meets the haft.
     pygame.draw.polygon(surf, (40, 30, 22),
                         [(cx - int(12 * ss), bowl_y), (cx + int(12 * ss), bowl_y),
                          (cx + int(8 * ss), bowl_y - int(8 * ss)),
                          (cx - int(8 * ss), bowl_y - int(8 * ss))])
-    # Flame: bold layered tongues. Outer dark-orange body to a single pointed tip
-    # (the terminus), then a slimmer mid + a hot core kept small so the bulk of
-    # the flame body stays dark on day-blue.
-    outer = [(cx - int(11 * ss), bowl_y - int(6 * ss)),
-             (cx - int(6 * ss), bowl_y - int(24 * ss)),
-             (cx - int(8 * ss), bowl_y - int(34 * ss)),
-             (cx, flame_top),
-             (cx + int(7 * ss), bowl_y - int(30 * ss)),
-             (cx + int(5 * ss), bowl_y - int(18 * ss)),
-             (cx + int(11 * ss), bowl_y - int(6 * ss))]
-    _vgrad_poly(surf, outer, FLAME_MD, FLAME_LO, outline=(120, 36, 14),
-                ow=max(2, int(2 * ss)))
-    mid = [(cx - int(6 * ss), bowl_y - int(8 * ss)),
-           (cx - int(2 * ss), flame_top + int(16 * ss)),
-           (cx + int(2 * ss), flame_top + int(10 * ss)),
-           (cx + int(5 * ss), bowl_y - int(10 * ss))]
-    pygame.draw.polygon(surf, FLAME_HI, mid)
-    _glow_disc(surf, cx, bowl_y - int(20 * ss), int(14 * ss), FLAME_MD, ss, alpha=90)
 
 
 # ── version registry ──────────────────────────────────────────────────────────
