@@ -6436,12 +6436,308 @@ def _render_clown_r10_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ── Round-11 GRIP FOURTH FINGER JOINED + DIE OVER A SIDE-VIEW OPEN HAND ────────
+#  Two prescriptive fixes on the won round-10 geometry:
+#   1. Grip: round-10 joined the TOP THREE fingers to the right-side palm/knuckle
+#      mass but left the FOURTH (bottom) finger floating alone. The knuckle mass
+#      is now extended down so all FOUR finger roots emerge from ONE continuous
+#      gripping hand on the right — no orphan digit. Groove separation, shaft
+#      occlusion behind, and the slightly looser top finger are all unchanged; the
+#      removed thumb-over is NOT re-added.
+#   2. Open hand: the front-on open palm is retired for a SIDE / PROFILE open hand.
+#      From the side a hand is a thin slab — you see the palm edge, the thumb
+#      projecting off the near/top edge, and the four fingers as a layered/stacked
+#      set extending outward (only the near 1-2 fully read, the rest stepped just
+#      behind). The die's float position + gap, its glow ring and sparkles are
+#      unchanged; only the hand pose under it becomes a profile. Three profile
+#      reads vary so the clearest can be picked.
+#  Globals (top-left rim, macaw keyline, glove white, shaft occlusion band) carry
+#  over unchanged; hero face/body, the marotte in the DOWN hand and the bell foot
+#  are identical to round 10.
+
+_R11_GLOVE   = _R10_GLOVE
+_R11_GROOVE  = _R10_GROOVE
+_R11_OCCLUDE = _R10_OCCLUDE
+_R11_GLOVE_HI = _R10_GLOVE_HI
+_R11_OUTLINE = _R10_OUTLINE
+
+
+def _r11_grip_glove(surf, hand, shaft_w, *, behind):
+    """LOCKED four-finger staff grip with FIX 1 applied: round-10's behind pass
+    drew a single palm ellipse whose narrowing bottom edge left the FOURTH finger
+    root (dy=9) uncovered, so that digit read as floating free of the hand mass.
+    Here the back-of-hand mass is widened into a tall knuckle ridge that spans the
+    full -6..+9 finger band on the right, so ALL FOUR finger bases emerge from one
+    continuous palm. The four banded fingers, their grooves, the looser top finger
+    and the shaft occlusion behind are verbatim from round 10; no thumb is added."""
+    hx, hy = hand
+    fw = 4
+    dys = (-6, -1, 4, 9)
+    palm_rx, palm_ry = 6, 8
+    loose_top = 1
+    reach = shaft_w + 5
+    if behind:
+        # Back of hand / palm heel behind the shaft. The ellipse is kept (heel +
+        # rounded back), then a knuckle ridge is added down the RIGHT side spanning
+        # every finger root so the bottom finger is no longer an orphan: it joins
+        # the same mass as the top three.
+        _r8_palm(surf, hx + 3, hy + 1, palm_rx, palm_ry)
+        # Tall knuckle ridge on the grip side — a rounded slab from the top finger
+        # band (dy=-6) down past the bottom one (dy=9) so all four roots fuse.
+        ridge = pygame.Rect(0, 0, fw + 4, (dys[-1] - dys[0]) + fw + 4)
+        ridge.center = (hx + 4, hy + (dys[0] + dys[-1]) // 2)
+        pygame.draw.rect(surf, _R11_OUTLINE, ridge, border_radius=fw)
+        pygame.draw.rect(surf, _R11_GLOVE, ridge.inflate(-2, -2), border_radius=fw)
+        pygame.draw.line(surf, _R11_GROOVE,
+                         (hx + 3, hy - palm_ry + 2), (hx + 3, hy + palm_ry - 2), 1)
+        return
+    # FRONT: four banded finger segments only, rooted in the knuckle ridge above.
+    # The top one sits a touch looser (lifted + reaching further) to break the
+    # stack and sell a real grip.
+    for k, dy in enumerate(dys):
+        loose = loose_top if k == 0 else 0
+        if k > 0:
+            pygame.draw.line(surf, _R11_GROOVE,
+                             (hx + 4, hy + dy - fw // 2 - 1),
+                             (hx - reach + 1, hy + dy - fw // 2 - 1 - loose),
+                             max(1, fw // 2))
+        base = (hx + 4, hy + dy)
+        tip = (hx - reach - loose, hy + dy - loose)
+        _r8_segment(surf, base, tip, fw)
+
+
+def _r11_side_open_hand(surf, hand, *, tilt, thumb_up, finger_w=4):
+    """FIX 2 — a SIMPLE open hand seen from the SIDE / in profile, the die floating
+    free above it. From the side a hand is a THIN SLAB, not a broad palm face: a
+    narrow palm edge, the THUMB projecting off the near/top edge, and the four
+    fingers reading as a LAYERED set extending out to the side — the near finger
+    fully visible, the rest stepped just behind it (not a flat face-on spread).
+    `tilt` rotates the whole splay up toward the die (0 = level); `thumb_up` raises
+    the thumb to a clear thumb-up read. NO front palm face, NO star, NO cup. Kept
+    inside the ~16px round-8/9 footprint."""
+    hx, hy = hand
+    ang = math.radians(-tilt)          # negative = fingers angle UP toward the die
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def _proj(dx, dy):
+        # Local hand frame (x = out along the slab, y = up) → screen, with tilt.
+        return (hx + int(dx * ca - dy * sa), hy + int(dx * sa + dy * ca))
+
+    # Palm seen edge-on: a thin vertical slab, taller than it is wide. Drawn as a
+    # rounded capsule so the side silhouette stays slim, not a broad disc.
+    top = _proj(0, -5)
+    bot = _proj(0, 5)
+    pygame.draw.line(surf, _R11_OUTLINE, top, bot, finger_w + 5)
+    pygame.draw.line(surf, _R11_GLOVE, top, bot, finger_w + 3)
+    sheen = _proj(-1, -3)
+    pygame.draw.circle(surf, _R11_GLOVE_HI, sheen, 2)
+
+    # Four fingers extend OUT to the side as a stacked layer: the near (lowest)
+    # one reads full, the rest step back+up just behind it with a slight backward
+    # curve (extended-finger silhouette). Stepping in screen-y keeps them legibly
+    # layered at 1x instead of merging into one blob.
+    finger_rows = ((5, 13), (3, 12), (1, 11), (-1, 10))
+    for k, (oy, ln) in enumerate(finger_rows):
+        base = _proj(4, oy)
+        # Slight backward (downward-trailing) curve at the tip of extended fingers.
+        tip = _proj(4 + ln, oy + 1)
+        if k > 0:
+            # Groove shadow where each layered finger tucks behind the one in front.
+            sh = _proj(4, oy + 2)
+            st = _proj(4 + ln - 1, oy + 3)
+            pygame.draw.line(surf, _R11_GROOVE, sh, st, 1)
+        _r8_segment(surf, base, tip, finger_w)
+
+    # Thumb projects off the NEAR/TOP edge of the slab — the side-view signature.
+    th_base = _proj(1, -4)
+    th_tip = _proj(2 + thumb_up, -4 - 8 - thumb_up * 2)
+    _r8_segment(surf, th_base, th_tip, finger_w)
+
+
+def render_clown_staff_r11(idx, *, total_px, bauble_px, cup_dy, side_tilt,
+                           thumb_up, die_pulse_off=2.0):
+    """Round-11 hero panel built on round-10 geometry with the two prescriptive
+    fixes: a four-finger staff grip whose bottom finger now joins the same palm
+    mass as the other three, and a SIDE-VIEW open hand under the FREELY FLOATING
+    die. Panels differ ONLY in the side-view hand's tilt / thumb (`side_tilt` /
+    `thumb_up`); the staff grip and floating die are identical across all three."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    die_cx = jester_cx - 56
+    die_cy = 30
+    # Side-view open hand sits a touch above the bare arm tip; a short wrist stub
+    # bridges the arm tip into the slab so the profile hand reads as the same arm.
+    open_hand = (die_cx + 2, die_cy + 60)
+    pygame.draw.line(layer, _R11_OUTLINE, hand_up, (open_hand[0], open_hand[1] + 5), 9)
+    pygame.draw.line(layer, _R11_GLOVE, hand_up, (open_hand[0], open_hand[1] + 5), 7)
+
+    # Profile open hand UNDER the gap, then the floating die ABOVE it with its glow
+    # ring + sparkles — die position + gap unchanged from round 10.
+    _r11_side_open_hand(layer, open_hand, tilt=side_tilt, thumb_up=thumb_up)
+    draw_cupped_die(layer, die_cx, die_cy, idx * 1.7 + die_pulse_off,
+                    show_inset=False)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    shaft_w = 2
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# Three SIDE-VIEW open-hand reads on the SAME (Fix-1) grip + floating die: only
+# the profile hand's tilt / thumb varies so the clearest read can be picked.
+# side_tilt = how far the fingers angle UP toward the die; thumb_up = how raised
+# the near-edge thumb sits (0 = relaxed forward, higher = clear thumb-up).
+_CLOWN_R11_VARIANTS = [
+    ("Flat-profile", dict(total_px=200, bauble_px=15, cup_dy=2,
+                          side_tilt=0, thumb_up=0, die_pulse_off=2.0),
+     "flat side profile: thin palm edge, fingers extend horizontally, thumb off the near edge"),
+    ("Tilt-present", dict(total_px=200, bauble_px=15, cup_dy=2,
+                          side_tilt=18, thumb_up=0, die_pulse_off=2.0),
+     "side view tilted UP, presenting the layered fingers toward the floating die"),
+    ("Thumb-up", dict(total_px=200, bauble_px=15, cup_dy=2,
+                      side_tilt=8, thumb_up=2, die_pulse_off=2.0),
+     "side view with a raised thumb-up read; fingers stacked, extending to the side"),
+]
+
+
+_CLOWN_R11_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 11: GRIP 4TH FINGER JOINED + DIE FLOATS OVER A SIDE-VIEW OPEN HAND (grip + die constant; only the profile hand varies)",
+     (255, 255, 255)),
+    ("Fix 1: ALL FOUR grip fingers now emerge from one palm mass on the right (no orphan bottom finger; thumb-over still gone). "
+     "Fix 2: the open hand is now a SIDE / PROFILE view (thin slab, thumb off the near edge, layered fingers) under the same floating die. PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r11_sheet():
+    """Round-11 clown look-dev: 3 hero panels of the SAME Fix-1 four-finger grip +
+    freely floating die, varying only the SIDE-VIEW open hand beneath the die, plus
+    the carried-over true-1x day/night shrink-test strip so both fixes are confirmed
+    legible at real size. Writes docs/warren_clown/round_11.png — never overwrites
+    an existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = len(_CLOWN_R11_VARIANTS)
+    pad = 20
+    head = 86
+    name_strip = 38
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R11_HEADERS[0][0], True, _CLOWN_R11_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R11_HEADERS[1][0], True, _CLOWN_R11_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R11_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r11(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_11.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -6456,6 +6752,7 @@ def main():
     do_clown_r8 = "--clown-r8" in args      # round-8 reference-grounded hands, opt-in
     do_clown_r9 = "--clown-r9" in args      # round-9 die-seated-in-cradle, opt-in
     do_clown_r10 = "--clown-r10" in args    # round-10 de-thumbed grip + floating die, opt-in
+    do_clown_r11 = "--clown-r11" in args    # round-11 4th-finger joined + side-view open hand, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -6484,6 +6781,8 @@ def main():
         _render_clown_r9_sheet()
     if do_clown_r10:
         _render_clown_r10_sheet()
+    if do_clown_r11:
+        _render_clown_r11_sheet()
 
 
 if __name__ == "__main__":
