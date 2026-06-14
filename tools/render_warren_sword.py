@@ -4715,14 +4715,14 @@ def _render_clown_r4_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
-def render_clown_staff_final(idx, *, total_px, bauble_px, grip_frac, fingers):
-    """The corrected held-marotte hero panel: the canonical `render_clown_panel`
-    staging UNCHANGED — real hero clown (its own untouched face), the figure's OWN
-    raised arm presenting the floating die, the lean, slippers + palette — with only
-    the two requested changes folded in: the prop is prop_14n at HELD-MAROTTE scale
-    (longer/slimmer) and the near hand wraps the shaft with the compact real-finger
-    fist. There is exactly ONE raised arm (build_jester's) and ONE grip arm; no
-    custom presenting arm is drawn over the figure, so nothing crosses the face."""
+def render_clown_staff_final(idx, *, total_px, bauble_px, fingers):
+    """The corrected held-marotte hero panel: the EXACT in-game clown
+    (`build_jester` with warren_demo's own `hand_up` reach — its raised LEFT arm
+    presenting the die and its single down RIGHT arm) with the staff placed INTO
+    that existing right hand. No extra arm is ever drawn, so there is exactly one
+    arm per side; the marotte's shaft simply passes through the down hand and the
+    compact grip fist is drawn over the figure's own mitt. The only authored
+    changes vs the in-game figure are the held staff and that grip fist."""
     spec = dict(JESTERS[-1][1])
     spec.pop("no_shadow", None)
     ss = CLOWN_SS
@@ -4746,56 +4746,47 @@ def render_clown_staff_final(idx, *, total_px, bauble_px, grip_frac, fingers):
     jester_cx = VIEW_W // 2 - 10
     feet_y = VIEW_FEET_Y
 
-    # The raised hand presents the die high in the sky; build_jester paints its OWN
-    # raised arm reaching for it (the approved presenter read shared with the ten
-    # power-up presenters). The die is drawn AFTER, just above that hand.
-    die_x = jester_cx - 40
-    die_base_y = 34
-    hand_up = (die_x + 10, 80)
+    # EXACT in-game raised-arm reach (warren_demo: hand_up = cx-60, feet-154) so the
+    # left arm matches the deployed clown rather than a shorter, stubbier reach.
+    hand_up = (jester_cx - 60, feet_y - 154)
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
-    # prop_14n at HELD-MAROTTE scale (the only staff change is overall scale + length).
+    # build_jester's OWN down RIGHT hand (baked geometry) — the staff is seated into
+    # it; we never add a second arm. The shaft passes through this point and the
+    # grip fist is drawn over the figure's default mitt.
     hip_y = feet_y - _HIP_OFF
     hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    # prop_14n at HELD-MAROTTE scale. grip_frac is DERIVED so the bell foot rests on
+    # the ground while the grip sits in the existing hand — `total_px` (the length)
+    # then governs only how far the bauble rises above the hand.
     prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
     rot = -7
-    rotated = pygame.transform.rotate(prop, rot)
-    foot_local = (p_w / 2, p_h - 2)
-    cxr, cyr = p_w / 2, p_h / 2
     rad = math.radians(rot)
-    dx = foot_local[0] - cxr
-    dy = foot_local[1] - cyr
-    rfx = cxr + (dx * math.cos(rad) + dy * math.sin(rad))
-    rfy = cyr + (-dx * math.sin(rad) + dy * math.cos(rad))
-    rfx += (rotated.get_width() - p_w) / 2
-    rfy += (rotated.get_height() - p_h) / 2
-    plant_x = jester_cx + 30
-    plant_y = ground_y - 1
-    prop_ox = int(plant_x - rfx)
-    prop_oy = int(plant_y - rfy)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
     layer.blit(rotated, (prop_ox, prop_oy))
 
-    # Grip point on the slim shaft BODY, below the lobed head.
-    grip_local = (p_w / 2, p_h * grip_frac)
-    gdx = grip_local[0] - cxr
-    gdy = grip_local[1] - cyr
-    rgx = cxr + (gdx * math.cos(rad) + gdy * math.sin(rad))
-    rgy = cyr + (-gdx * math.sin(rad) + gdy * math.cos(rad))
-    rgx += (rotated.get_width() - p_w) / 2
-    rgy += (rotated.get_height() - p_h) / 2
-    grip_x = prop_ox + rgx
-    grip_y = prop_oy + rgy
+    # The compact real-finger fist over the figure's own mitt (matches the down
+    # hand's thumb side), so the existing hand reads as gripping the shaft.
+    _r3_grip_fist(layer, (int(r_hand[0]), int(r_hand[1])), (250, 250, 252),
+                  fingers=fingers, side=-1)
 
-    # Re-pose only the near/lower arm onto the grip + the compact real-finger fist;
-    # the raised arm above is build_jester's own and is left untouched.
-    r_sh = (hip_cx + 25, hip_y - 50)
-    grip_hand = (int(grip_x), int(grip_y))
-    light = spec["light"]
-    _arm(layer, r_sh, grip_hand, 8, light)
-    _r3_grip_fist(layer, grip_hand, (250, 250, 252), fingers=fingers, side=1)
-
-    # The floating power-up die presented above the raised hand (no roll-result inset).
-    draw_cupped_die(layer, die_x, die_base_y, idx * 1.7 + 2.0, show_inset=False)
+    # The floating power-up die presented just beyond the extended raised hand (no
+    # roll-result inset). Its aura reads it as an airborne pickup, not a held prop.
+    draw_cupped_die(layer, jester_cx - 56, 30, idx * 1.7 + 2.0, show_inset=False)
 
     big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
     return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
@@ -4806,16 +4797,16 @@ def render_clown_staff_final(idx, *, total_px, bauble_px, grip_frac, fingers):
 # requested axes: staff LENGTH (held-marotte scale) and the grip-fist finger style
 # / grip height on the shaft.
 _CLOWN_FINAL_VARIANTS = [
-    ("Short · Curl",   dict(total_px=176, bauble_px=16, grip_frac=0.46, fingers="curl"),
-     "modestly longer than stock, mid grip, three curled fingers"),
-    ("Medium · Ridged", dict(total_px=200, bauble_px=16, grip_frac=0.46, fingers="ridged"),
-     "medium shaft, mid grip, crisp knuckle ridges"),
-    ("Tall · Wrapped",  dict(total_px=224, bauble_px=15, grip_frac=0.44, fingers="wrapped"),
-     "tall slim shaft, grip a touch higher, smooth banded wrap"),
-    ("Tall · Curl-low", dict(total_px=224, bauble_px=15, grip_frac=0.54, fingers="curl"),
-     "tall slim shaft, LOW grip well down the body, curled fingers"),
-    ("X-Tall · Ridged", dict(total_px=242, bauble_px=15, grip_frac=0.50, fingers="ridged"),
-     "longest slim shaft, mid-low grip, knuckle ridges"),
+    ("Short · Curl",   dict(total_px=150, bauble_px=16, fingers="curl"),
+     "short marotte, bauble just above the hand, three curled fingers"),
+    ("Medium · Ridged", dict(total_px=176, bauble_px=16, fingers="ridged"),
+     "medium shaft, crisp knuckle ridges"),
+    ("Tall · Wrapped",  dict(total_px=200, bauble_px=15, fingers="wrapped"),
+     "tall slim shaft, smooth banded wrap"),
+    ("Tall · Curl",    dict(total_px=224, bauble_px=15, fingers="curl"),
+     "tall slim shaft, curled fingers"),
+    ("X-Tall · Ridged", dict(total_px=246, bauble_px=15, fingers="ridged"),
+     "longest slim shaft, bauble well above the head, knuckle ridges"),
 ]
 
 
