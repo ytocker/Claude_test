@@ -5883,12 +5883,296 @@ def _render_clown_r8_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ── Round-9 DIE SEATED IN THE CRADLE ──────────────────────────────────────────
+#  Round 8 LOCKED the four-finger staff grip (Panel-1 "glove" grip is canonical —
+#  reused here verbatim) and picked Panel-5's chunky mascot cup as the best cradle
+#  shape. The one remaining blocker was the OPEN hand never actually HOLDING the
+#  die: every "present"/"cradle" pose left a clean sky gap between the upturned
+#  hand and the floating cube, so it read as "loose hand + separately floating
+#  die." Round 9 retires "present" entirely and fixes the read with a single
+#  device the whole "holding" cue rests on: the near cup fingertips are redrawn
+#  OVER the die's lower-front corner — a tooth of glove crossing IN FRONT of the
+#  cube, so there is never clean sky between hand and object (the Subway-Surfers /
+#  Crossy-Road held-prop rule). The cup is also tightened to a shallow C of three
+#  curled ridges hugging the cube's bottom corner (no splayed 5-finger fan, which
+#  muddies the 1x noise budget), and the die is dropped so its bottom corner
+#  overlaps the fingertips. Only the cube-seating varies across the panels; the
+#  grip is the locked Panel-1 glove grip on every one. Globals (top-left rim,
+#  macaw keyline, glove white, shaft occlusion band) carry over from r7/r8.
+
+_R9_GLOVE   = _R8_GLOVE
+_R9_GROOVE  = _R8_GROOVE
+_R9_OCCLUDE = _R8_OCCLUDE
+_R9_GLOVE_HI = _R8_GLOVE_HI
+_R9_OUTLINE = _R8_OUTLINE
+
+
+# The LOCKED grip is Panel-1's glove grip, reused unchanged so the won read does
+# not regress. Only an alias — the builder itself is _r8_grip_glove verbatim.
+_r9_grip = _r8_grip_glove
+
+
+def _r9_cradle_cup(surf, hand, *, behind):
+    """Panel-5's chunky mascot CUP, re-cut as a shallow C that HUGS the die's
+    lower corner instead of fanning at empty sky. The `behind` pass paints the
+    palm mass + the LEFT-side ridges/thumb that sit beside the cube; the near
+    (right) fingertips that overdraw the cube are painted later by
+    _r9_cradle_occlude. Kept at the round-8 ~16px footprint — the contact
+    OVERLAP, not size, is the read. We keep the silhouette to a shallow C of three
+    readable ridges (left ridge + a short mid ridge + the two near teeth), never a
+    splayed five-finger fan, to fit the 1x noise budget."""
+    hx, hy = hand
+    fw = 5
+    palm_rx, palm_ry = 7, 7
+    if behind:
+        # Cup palm mass + the far (left) side of the C sit behind the die so the
+        # near fingertips can later wrap over the cube's front face.
+        _r8_palm(surf, hx, hy, palm_rx, palm_ry)
+        # Far-LEFT ridge: roots at the palm's left rim, curls up + inward so the
+        # cube's left underside rests in it. One groove sets it off the palm.
+        root = (hx - palm_rx + 2, hy - 2)
+        mid = (root[0] + 1, root[1] - 7)
+        tip = (mid[0] + 4, mid[1] - 4)
+        pygame.draw.line(surf, _R9_GROOVE, root, (root[0] + 2, root[1] - 5), 2)
+        _r8_segment(surf, root, mid, fw, cap=False)
+        _r8_segment(surf, mid, tip, fw)
+        # Fat THUMB framing the near (right) base of the C, curling up.
+        tb = (hx + palm_rx - 1, hy + 2)
+        tt = (hx + palm_rx + 3, hy - 4)
+        _r8_segment(surf, tb, tt, 5)
+        return
+    # FRONT (over the die not yet drawn here — only the SHORT mid ridge that sits
+    # between the left ridge and the near teeth, completing the C's floor).
+    root = (hx - 1, hy - 3)
+    mid = (root[0] + 1, root[1] - 6)
+    pygame.draw.line(surf, _R9_GROOVE, (root[0] - 3, root[1]), root, 2)
+    _r8_segment(surf, root, mid, fw)
+
+
+def _r9_cradle_occlude(surf, hand, die_corner):
+    """The ENTIRE "holding" read: the two NEAR (right-side) cup fingertips drawn as
+    short glove teeth crossing IN FRONT of the die's lower-front corner, so a
+    fingertip visibly overlaps the cube and there is no clean sky between hand and
+    object. `die_corner` is the cube's bottom-front point in layer space. A dark
+    groove between the two teeth keeps them reading as separate digits, and a
+    shadow notch where they meet the cube sells the wrap."""
+    hx, hy = hand
+    dx, dy = die_corner
+    # Two distinct teeth rising from the cup's near rim onto the cube's lower-front
+    # corner — the inner one buries into the corner, the outer one clasps the front
+    # face a touch higher, so the glove unmistakably closes over the cube edge.
+    inner = ((hx + 1, hy - 4), (dx - 2, dy - 1))
+    outer = ((hx + 4, hy - 3), (dx + 3, dy - 4))
+    # Dark groove between the two teeth so they don't merge into a blob.
+    pygame.draw.line(surf, _R9_GROOVE, inner[0], (outer[1][0], outer[1][1] + 2), 2)
+    _r8_segment(surf, *inner, 5)
+    _r8_segment(surf, *outer, 5)
+    # A short shadow notch where the teeth cross the cube — seats them ON the face
+    # rather than merely touching the edge.
+    pygame.draw.line(surf, _R9_GROOVE, (dx - 3, dy - 5), (dx + 4, dy - 7), 1)
+
+
+def render_clown_staff_r9(idx, *, total_px, bauble_px, cup_dy, die_dy, die_dx=0,
+                          die_pulse_off=2.0):
+    """Round-9 hero panel: the approved round-5 held-marotte composition with the
+    LOCKED Panel-1 glove staff grip on the down hand and the Panel-5-derived
+    cradle cup on the open hand — now with the die SEATED INTO the cup. The die is
+    dropped (`die_dy`) so its bottom corner overlaps the curled fingertips, then a
+    near-fingertip occlusion pass draws glove teeth OVER that corner. Panels differ
+    ONLY in how the cube is seated (`die_dy`/`die_dx`/`die_pulse_off`)."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    # The open arm lifts so the cradle reaches up to the seated die.
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    die_cx = jester_cx - 56 + die_dx
+    die_cy = 30 + die_dy
+    bob = int(math.sin((idx * 1.7 + die_pulse_off) * 1.1) * 3)
+    # The cube's bottom-front corner in layer space (cube geometry: bf = cy + 22 at
+    # size 40). The cup is anchored DIRECTLY beneath this corner — not at the bare
+    # arm endpoint — so the curled C wraps the corner instead of sitting off to one
+    # side; a wrist stub bridges the gap back to the build_jester arm tip.
+    die_bf = (die_cx, die_cy + bob + 22)
+    cup = (die_bf[0], die_bf[1] + 4)
+    # Wrist stub from the arm endpoint up into the cup so the cradle reads as a
+    # continuation of the same arm, not a free-floating hand.
+    pygame.draw.line(layer, _R9_OUTLINE, hand_up, (cup[0], cup[1] + 5), 9)
+    pygame.draw.line(layer, _R9_GLOVE, hand_up, (cup[0], cup[1] + 5), 7)
+
+    # z-order for the HOLDING read: cup palm mass BEHIND the die, then the die,
+    # then the curled ridges, then the near fingertip TEETH overdrawing the cube's
+    # lower-front corner so a glove tooth crosses in front of the cube (no sky gap).
+    _r9_cradle_cup(layer, cup, behind=True)
+
+    draw_cupped_die(layer, die_cx, die_cy, idx * 1.7 + die_pulse_off,
+                    show_inset=False)
+
+    _r9_cradle_cup(layer, cup, behind=False)
+    _r9_cradle_occlude(layer, cup, die_bf)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # Grip z-order (LOCKED Panel-1 glove grip): back-of-hand + palm heel BEHIND
+    # the shaft, shaft, the tall occlusion band on the wood, then the FOUR banded
+    # fingers + thumb IN FRONT.
+    shaft_w = 2
+    _r9_grip(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    _r9_grip(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# All four panels share the LOCKED grip + the Panel-5 cradle cup; ONLY the die
+# seating differs. die_dy seats the cube's bottom corner onto the fingertips;
+# die_dx / die_pulse_off tune which corner contacts and the tilt of the bob.
+_CLOWN_R9_VARIANTS = [
+    ("Corner-rest", dict(total_px=200, bauble_px=15, cup_dy=2, die_dy=12,
+                         die_dx=0, die_pulse_off=2.0),
+     "die balanced CORNER-DOWN on the fingertips; near teeth clasp the lower-front corner"),
+    ("Flat-seat", dict(total_px=200, bauble_px=15, cup_dy=2, die_dy=14,
+                       die_dx=2, die_pulse_off=0.6),
+     "die sits FLATTER across the fingertips; cube edge buried into the curled C"),
+    ("Near-corner", dict(total_px=200, bauble_px=15, cup_dy=2, die_dy=13,
+                         die_dx=4, die_pulse_off=3.4),
+     "die shifted onto the NEAR corner; thumb-side rim + teeth close over that corner"),
+    ("Deep-seat", dict(total_px=200, bauble_px=15, cup_dy=3, die_dy=16,
+                       die_dx=1, die_pulse_off=1.5),
+     "die sunk DEEPEST into the cup; most glove crosses the cube's lower face"),
+]
+
+
+_CLOWN_R9_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 9: DIE SEATED IN THE CRADLE (grip LOCKED to Panel-1; only the cube seating varies)",
+     (255, 255, 255)),
+    ("Fix: the open hand now HOLDS the die — near glove fingertips overdraw the cube's lower-front corner (no sky gap). "
+     "Cradle is a shallow C of <=3 curled ridges hugging the cube. Glow kept behind the contact. PICK ONE SEATING.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r9_sheet():
+    """Round-9 clown look-dev: 3-4 hero panels of the SAME best-of merge (locked
+    Panel-1 grip + Panel-5 cradle cup) varying only how the die is seated into the
+    cup, plus the carried-over true-1x day/night shrink-test strip. Writes
+    docs/warren_clown/round_9.png — never overwrites an existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = len(_CLOWN_R9_VARIANTS)
+    pad = 20
+    head = 86
+    name_strip = 38
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R9_HEADERS[0][0], True, _CLOWN_R9_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R9_HEADERS[1][0], True, _CLOWN_R9_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R9_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r9(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_9.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -5901,6 +6185,7 @@ def main():
     do_clown_r6 = "--clown-r6" in args      # round-6 detailed-hands look-dev, opt-in
     do_clown_r7 = "--clown-r7" in args      # round-7 detailed-hands polish, opt-in
     do_clown_r8 = "--clown-r8" in args      # round-8 reference-grounded hands, opt-in
+    do_clown_r9 = "--clown-r9" in args      # round-9 die-seated-in-cradle, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -5925,6 +6210,8 @@ def main():
         _render_clown_r7_sheet()
     if do_clown_r8:
         _render_clown_r8_sheet()
+    if do_clown_r9:
+        _render_clown_r9_sheet()
 
 
 if __name__ == "__main__":
