@@ -35,8 +35,8 @@ ROUTE_SEED = 0            # one pagoda family for the whole route (stupa canopy)
 ROUTE_GAP = 172           # per-pillar gap height (inside the 150-185 window)
 
 # ── clown / die placement ────────────────────────────────────────────────────
-DICE_DX = 70              # die floats this far LEFT of the clown
-DICE_Y = 330              # die height — comfortably reachable mid-flight
+DICE_DX = 144             # die sits up-LEFT of the clown, on the pointing-finger
+DICE_Y = 347              # line (the chosen design's die position), still reachable
 DICE_PICK_R = 30          # generous pickup radius around the die
 
 # Local coords for the cached clown bitmap (its shape never changes — only its
