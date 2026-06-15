@@ -24,8 +24,8 @@ from game.entities import Pipe
 # ── script timing (seconds) ──────────────────────────────────────────────────
 T_CLOWN_IN = 3.0          # empty-sky flight before the clown arrives
 T_SPIN = 0.9              # dice tumble before the rolled number is revealed
-T_AFTER_PICKUP = 2.0      # beat between the reveal and the route
-CELE_LIFE = 1.5           # result celebration banner life (< T_AFTER_PICKUP)
+T_AFTER_PICKUP = 2.7      # beat between the reveal and the route
+CELE_LIFE = 2.2           # result celebration banner life (< T_AFTER_PICKUP)
 T_AFTER_ROUTE = 2.0       # free flight after the route before Pip drops
 
 # ── warren geometry ──────────────────────────────────────────────────────────
