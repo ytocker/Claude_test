@@ -8567,7 +8567,9 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
     without running off the frame. All zero reproduces the original panel exactly."""
     spec = dict(JESTERS[-1][1])
     spec.pop("no_shadow", None)
-    ss = CLOWN_SS
+    ss = 3                                 # higher supersample so the staff texture
+                                           # + bauble face stay crisp when a sheet
+                                           # scales the figure up (was CLOWN_SS=2)
     palette = shaped_palette(DAY_PHASE)
     cw, ch = VIEW_W + ext_left + ext_right, VIEW_H + ext_top
     bw, bh = cw * ss, ch * ss
@@ -8625,17 +8627,29 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
         return rx, ry
 
     grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
-    prop_ox = int(r_hand[0] - grip_rx)
-    prop_oy = int(r_hand[1] - grip_ry)
+    prop_ox = r_hand[0] - grip_rx
+    prop_oy = r_hand[1] - grip_ry
+    rhi = (int(r_hand[0]), int(r_hand[1]))
 
     shaft_w = 2
-    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
-    layer.blit(rotated, (prop_ox, prop_oy))
-    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
-    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
-
+    # The thin staff carries the fine shaft texture + the mini-clown bauble face,
+    # so render it (and the front grip) at the FULL supersample resolution and
+    # composite onto `big` rather than the 1x layer — on the 1x layer the staff is
+    # only ~8px wide, and upscaling that in a sheet softens the texture + face to
+    # mush. The body/open-hand stay on the 1x layer (flat fills upscale cleanly).
+    _r11_grip_glove(layer, rhi, shaft_w, behind=True)
     big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
-    return pygame.transform.smoothscale(big, (cw, ch))
+
+    prop_hi, _pw_hi, _ph_hi = _held_marotte_surface(total_px * ss, bauble_px * ss,
+                                                    draw_fn=staff_fn)
+    rotated_hi = pygame.transform.rotate(prop_hi, rot)
+    big.blit(rotated_hi, (int(round(prop_ox * ss)), int(round(prop_oy * ss))))
+
+    top = pygame.Surface((cw, ch), pygame.SRCALPHA)
+    _r8_grip_occlusion(top, rhi, shaft_w)
+    _r11_grip_glove(top, rhi, shaft_w, behind=False)
+    big.blit(pygame.transform.smoothscale(top, (bw, bh)), (0, 0))
+    return big
 
 
 def _render_die_hand_crop_r17(kw, *, crop_px=150, zoom=7):
