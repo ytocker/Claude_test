@@ -8835,6 +8835,83 @@ def _render_clown_r17_die():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+def _r17_die4_offsets():
+    """The locked die placement (#4 from the die sweep) — s=100 up the pointing
+    line on the enlarged canvas — as (die_dx, die_dy) for `render_clown_staff_r17`."""
+    extL, extT = _R17_EXT_LEFT, _R17_EXT_TOP
+    jester_cx = VIEW_W // 2 - 10 + extL
+    tip_x = jester_cx - 60 - 15.6
+    tip_y = (VIEW_FEET_Y + extT) - 156 - 19.8
+    s = 100
+    tx = tip_x - 0.687 * s
+    ty = tip_y - 0.727 * s
+    return int(round(tx - (jester_cx - 56))), int(round(ty - (30 + extT)))
+
+
+_R17_STAFF_LENGTHS = [
+    ("Short", 150),
+    ("Medium", 175),
+    ("Tall (current)", 200),
+    ("Taller", 225),
+    ("X-Tall", 250),
+]
+
+
+def _render_clown_r17_staff():
+    """Round-17 STAFF-LENGTH chooser, rebuilt on the LOCKED design (pointing pose v4
+    + die position #4 + enlarged canvas): 5 cells, same clown/pose/die, only the
+    marotte staff length (`total_px`) changes. Writes
+    docs/warren_clown/round_17_staff.png."""
+    extL, extT, extR = _R17_EXT_LEFT, _R17_EXT_TOP, _R17_EXT_RIGHT
+    cw = VIEW_W + extL + extR
+    ch = VIEW_H + extT
+    SCALE = 2.2
+    disp_w = int(cw * SCALE)
+    disp_h = int(ch * SCALE)
+    cols, rows = 3, 2
+    pad = 24
+    head = 64
+    label_h = 34
+    gap = 18
+    cell_w = disp_w
+    cell_h = label_h + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + rows * cell_h + (rows - 1) * gap + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(26, True)
+    label_f = hud._font(18, True)
+    sheet.blit(title_f.render(
+        "Warren Clown — STAFF LENGTH chooser on the locked design (pointing pose "
+        "+ die #4). Only the staff length changes. Pick the best.", True,
+        (255, 255, 255)), (pad, 18))
+
+    base_kw = dict(_CLOWN_R17_VARIANTS[3][1])      # the locked "Pointing" pose
+    die_dx, die_dy = _r17_die4_offsets()
+    for i, (name, total_px) in enumerate(_R17_STAFF_LENGTHS):
+        kw = dict(base_kw)
+        kw.update(total_px=total_px, die_dx=die_dx, die_dy=die_dy,
+                  ext_left=extL, ext_top=extT, ext_right=extR)
+        fig = render_clown_staff_r17(i, **kw)
+        label = f"{i + 1}. {name}  (total_px={total_px})"
+        r, c = divmod(i, cols)
+        cx = pad + c * (cell_w + gap)
+        cy = head + r * (cell_h + gap)
+        pygame.draw.rect(sheet, (40, 43, 54), (cx, cy, cell_w, label_h))
+        sheet.blit(label_f.render(label, True, (235, 238, 246)), (cx + 8, cy + 8))
+        sheet.blit(pygame.transform.smoothscale(fig, (disp_w, disp_h)),
+                   (cx, cy + label_h))
+        pygame.draw.rect(sheet, (70, 76, 92), (cx, cy, cell_w, cell_h), 2)
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17_staff.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -8923,7 +9000,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -8995,6 +9072,8 @@ def main():
         _render_clown_r17_compare()
     if "--clown-r17-die" in args:
         _render_clown_r17_die()
+    if "--clown-r17-staff" in args:
+        _render_clown_r17_staff()
 
 
 if __name__ == "__main__":
