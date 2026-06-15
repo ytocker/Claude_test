@@ -1,4 +1,4 @@
-"""Look-dev: the HORNED SOVEREIGN — late-game EPIC event boss (round 2).
+"""Look-dev: the HORNED SOVEREIGN — late-game EPIC event boss (round 3).
 
 Thesis: the classic horned devil reimagined as a regal infernal MONARCH —
 broad-shouldered, sweeping ram-horns curling up into a CROWN-OF-HORNS, a
@@ -386,23 +386,42 @@ def build_sovereign(surf, cx, feet_y, s, *, night=False):
                             [(cx + fx * s - 2 * s, my + s), (cx + fx * s + 2 * s, my + s),
                              (cx + fx * s, my + 5 * s)])
 
-    # ── CROWN-OF-HORNS — the silhouette signature. Two great ram-horns spring
-    # from the temples and SWEEP UP-AND-OUTWARD in a bold C-curve (no inward
-    # handlebar curl), so the blackout reads unmistakably "horned crown". They
-    # are the tallest, widest gold mass on the figure — drawn boldest + dark-
-    # cored so they hold against a bright day sky. Between them sits a SINGLE
-    # dominant crest point (no fussy thin spike pair). This is the upper-
-    # radiating shape that survives at 1x.
+    # ── CROWN-OF-HORNS — the silhouette signature. In blackout the eye must read
+    # ONE crowning gold MASS (Diablo / Doom-Slayer boss read), never three thin
+    # slivers. So the two ram-horns no longer float off the temples: they spring
+    # from a SOLID crown band laid across the brow, and they are re-arced with
+    # MASS — thick at the skull, lifting UP-and-outward (more vertical lift, less
+    # horizontal spread) so the tips land high and stay INBOARD of the shoulders.
+    # The central crest is the widest gold point so it dominates as the apex and
+    # ties the trio into a single regal silhouette.
+    #
+    # The crown band first: a solid gold arc bridging temple to temple just above
+    # the brow, so the horns read as growing OUT OF the crown, not detached. It
+    # is drawn before the horns so the horn roots overlap and fuse onto it.
+    band_y = hy - 6 * s
+    band = [(cx - 22 * s, band_y + 6 * s), (cx - 18 * s, band_y - 4 * s),
+            (cx, band_y - 8 * s), (cx + 18 * s, band_y - 4 * s),
+            (cx + 22 * s, band_y + 6 * s), (cx + 16 * s, band_y + 9 * s),
+            (cx - 16 * s, band_y + 9 * s)]
+    pygame.draw.polygon(surf, GOLD_DK, [(int(p[0]), int(p[1])) for p in band])
+    pygame.draw.polygon(surf, GOLD,
+                        [(int(cx - 19 * s), int(band_y + 4 * s)),
+                         (int(cx), int(band_y - 5 * s)),
+                         (int(cx + 19 * s), int(band_y + 4 * s)),
+                         (int(cx + 14 * s), int(band_y + 7 * s)),
+                         (int(cx - 14 * s), int(band_y + 7 * s))])
+    pygame.draw.line(surf, GOLD_LIT, (int(cx - 17 * s), int(band_y + 2 * s)),
+                     (int(cx + 17 * s), int(band_y + 2 * s)), max(1, s))
+
     for sgn in (-1, 1):
-        base = (cx + sgn * 16 * s, hy - 2 * s)
-        # A bold ram-horn C-curve sweeping UP-AND-OUTWARD: a quadratic spine
-        # whose control point throws the curve OUT low, then the tip lands high
-        # AND wide of the base (the tip x is the widest point) — never hooking
-        # back inward. ~20% taller + wider than round 1 so the blackout reads
-        # unmistakably "horned crown". The spine is fattened to a solid tapering
-        # mass (thick root → needle tip), drawn dark-cored to hold on day sky.
-        ctrl = (base[0] + sgn * 50 * s, base[1] - 30 * s)  # throw OUT, already rising
-        tip = (base[0] + sgn * 58 * s, base[1] - 76 * s)   # land HIGH + WIDE
+        # Horn roots sit ON the crown band (wide, so the base fuses into it), and
+        # the curve LIFTS hard upward: the control point rises steeply while only
+        # nudging outward, and the tip lands HIGH but pulled INBOARD (tip x well
+        # inside the shoulder line) so nothing reads as a horizontal antenna and
+        # nothing clips at 58px. A short tip flick gives the ram-horn its tell.
+        base = (cx + sgn * 18 * s, band_y + 2 * s)
+        ctrl = (base[0] + sgn * 26 * s, base[1] - 44 * s)  # LIFT first, slight out
+        tip = (base[0] + sgn * 30 * s, base[1] - 84 * s)   # high, kept INBOARD
         spine = []
         n = 18
         for i in range(n + 1):
@@ -414,11 +433,13 @@ def build_sovereign(surf, cx, feet_y, s, *, night=False):
         # Walk the spine offsetting perpendicular by a tapering half-width to
         # build a solid horn polygon. The perpendicular is forced to point so
         # that `outer` is always the AWAY-from-centre side, keeping both horns
-        # symmetric regardless of the curve's local direction.
+        # symmetric regardless of the curve's local direction. The root half-
+        # width is ~40% chunkier than round 2 so the base reads as MASS where it
+        # meets the crown, then it tapers to a needle.
         inner, outer = [], []
         for i, (px, py) in enumerate(spine):
             t = i / n
-            wseg = (13 - 11 * t) * s                  # chunky root → needle tip
+            wseg = (20 - 17 * t) * s                  # heavy root → needle tip
             j = min(i + 1, n)
             k = max(i - 1, 0)
             tx, ty = spine[j][0] - spine[k][0], spine[j][1] - spine[k][1]
@@ -442,21 +463,22 @@ def build_sovereign(surf, cx, feet_y, s, *, night=False):
             pygame.draw.line(surf, GOLD_DK, (int(a[0]), int(a[1])),
                              (int(b[0]), int(b[1])), max(1, s))
         _rim(surf, outer, GOLD_LIT, max(1, s))
-    # A SINGLE dominant central crest spire crowning the head — one bold gold
-    # point standing taller than the horns' shoulders, the apex of the crown.
+    # A SINGLE dominant central crest spire crowning the head — the apex of the
+    # crown. Beefed ~30% wider than round 2 so it out-masses each horn root and
+    # the trio reads as one regal silhouette, not three competing slivers.
     crest_base_y = hy - 4 * s
-    crest_tip_y = hy - 62 * s
-    crest = [(cx - 9 * s, crest_base_y), (cx + 9 * s, crest_base_y),
-             (cx + 3 * s, crest_tip_y + 10 * s), (cx, crest_tip_y),
-             (cx - 3 * s, crest_tip_y + 10 * s)]
+    crest_tip_y = hy - 66 * s
+    crest = [(cx - 12 * s, crest_base_y), (cx + 12 * s, crest_base_y),
+             (cx + 4 * s, crest_tip_y + 12 * s), (cx, crest_tip_y),
+             (cx - 4 * s, crest_tip_y + 12 * s)]
     pygame.draw.polygon(surf, GOLD_DK, [(int(p[0]), int(p[1])) for p in crest])
     pygame.draw.polygon(surf, GOLD,
-                        [(int(cx - 4 * s), int(crest_base_y)),
-                         (int(cx + 4 * s), int(crest_base_y)),
-                         (int(cx), int(crest_tip_y + 5 * s))])
-    pygame.draw.line(surf, GOLD_LIT, (int(cx), int(crest_tip_y + 5 * s)),
-                     (int(cx - 3 * s), int(crest_base_y)), max(1, s))
-    # A small ember jewel seating the crest into the brow.
+                        [(int(cx - 6 * s), int(crest_base_y)),
+                         (int(cx + 6 * s), int(crest_base_y)),
+                         (int(cx), int(crest_tip_y + 6 * s))])
+    pygame.draw.line(surf, GOLD_LIT, (int(cx), int(crest_tip_y + 6 * s)),
+                     (int(cx - 4 * s), int(crest_base_y)), max(1, s))
+    # A small ember jewel seating the crest into the crown band.
     _glow(surf, cx, crest_base_y, 6 * s, EMBER)
     pygame.draw.circle(surf, EMBER, (cx, int(crest_base_y)), max(1, int(2.4 * s)))
     pygame.draw.circle(surf, EMBER_HOT, (cx, int(crest_base_y - s)), max(1, int(1.2 * s)))
@@ -617,7 +639,7 @@ def main():
 
     # Header.
     surf.blit(font.render("HORNED SOVEREIGN", True, GOLD_LIT), (40, 24))
-    surf.blit(sub.render("infernal monarch event boss — crown-of-horns + grand trident — round 2",
+    surf.blit(sub.render("infernal monarch event boss — crown-of-horns + grand trident — round 3",
                          True, (210, 196, 168)), (40, 60))
     # Palette swatches.
     px = 470
@@ -627,7 +649,7 @@ def main():
         surf.blit(sub.render(name, True, (210, 210, 220)), (px + 34, 36))
         px += 130
 
-    out = "docs/epic_boss/horned-sovereign/round_2.png"
+    out = "docs/epic_boss/horned-sovereign/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(surf, out)
     print("wrote", out)
