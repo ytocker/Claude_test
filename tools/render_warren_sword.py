@@ -8540,18 +8540,25 @@ def _r17_die_hand(surf, hand, *, wrist, gesture="mitt", knuckles_up=False,
 
 def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
                            gesture="mitt", knuckles_up=False, point_len=0.0,
-                           point_bow=0.0, die_dx=0, die_dy=0, die_pulse_off=2.0):
+                           point_bow=0.0, die_dx=0, die_dy=0,
+                           ext_left=0, ext_top=0, ext_right=0, die_pulse_off=2.0):
     """Round-17 hero panel — identical to r16 except the die-side hand is drawn by
     `_r17_die_hand` (a simple closed-glove gesture, not an open palm). Locked grip,
-    floating die, and heel-on-wrist ~47deg continuation are unchanged."""
+    floating die, and heel-on-wrist ~47deg continuation are unchanged.
+
+    `ext_left`/`ext_top`/`ext_right` grow the CANVAS (in VIEW px) without resizing
+    the clown or die — the figure simply shifts right/down by the margins — so the
+    floating die has room to sit further up-left (where the pointing finger aims)
+    without running off the frame. All zero reproduces the original panel exactly."""
     spec = dict(JESTERS[-1][1])
     spec.pop("no_shadow", None)
     ss = CLOWN_SS
     palette = shaped_palette(DAY_PHASE)
-    bw, bh = VIEW_W * ss, VIEW_H * ss
+    cw, ch = VIEW_W + ext_left + ext_right, VIEW_H + ext_top
+    bw, bh = cw * ss, ch * ss
     big = pygame.Surface((bw, bh))
 
-    ground_y = VIEW_FEET_Y + 4
+    ground_y = VIEW_FEET_Y + 4 + ext_top
     g_y = int(ground_y * ss)
     for y in range(g_y):
         t = 0.45 + 0.55 * (y / g_y)
@@ -8563,15 +8570,15 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
                          (0, y), (bw, y))
     pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
 
-    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
-    jester_cx = VIEW_W // 2 - 10
-    feet_y = VIEW_FEET_Y
+    layer = pygame.Surface((cw, ch), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10 + ext_left
+    feet_y = VIEW_FEET_Y + ext_top
 
     hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
     die_cx = jester_cx - 56 + die_dx
-    die_cy = 30 + die_dy
+    die_cy = 30 + ext_top + die_dy
     die_hand = (hand_up[0], hand_up[1])
 
     _r17_die_hand(layer, die_hand, wrist=wrist, gesture=gesture,
@@ -8608,7 +8615,7 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
     _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
 
     big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
-    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+    return pygame.transform.smoothscale(big, (cw, ch))
 
 
 def _render_die_hand_crop_r17(kw, *, crop_px=150, zoom=7):
@@ -8754,26 +8761,26 @@ def _render_clown_r17_compare():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
-_R17_DIE_POSITIONS = [
-    # 5 die placements that walk UP-LEFT along the pointing line so the player can
-    # pick the one that best lands on the extended finger. Offsets are added to the
-    # default die centre (jester_cx-56, 30); the label shows the resulting centre.
-    ("A: nudged up-left", dict(die_dx=-4, die_dy=-4)),
-    ("B: left, toward the finger", dict(die_dx=-9, die_dy=4)),
-    ("C: left + down a touch", dict(die_dx=-12, die_dy=12)),
-    ("D: out on the fingertip", dict(die_dx=-14, die_dy=20)),
-    ("E: high upper-left", dict(die_dx=-10, die_dy=-8)),
-]
+# The canvas is grown up-and-left so the die can sit where the pointing finger
+# actually aims (a steep up-left line that ran off the old frame). The clown/die
+# keep their size — only the image gets bigger and the figure shifts right/down.
+_R17_EXT_LEFT = 120
+_R17_EXT_TOP = 55
+_R17_EXT_RIGHT = 12
 
 
 def _render_clown_r17_die():
     """Round-17 DIE-POSITION sweep: the SAME pointing pose (gesture v4) on the whole
-    figure across 5 cells; the ONLY thing that changes between cells is where the
-    floating die sits, so the player can pick the placement that the extended finger
-    actually points at. Writes docs/warren_clown/round_17_die.png."""
-    SCALE = 3.0
-    disp_w = int(VIEW_W * SCALE)
-    disp_h = int(VIEW_H * SCALE)
+    figure across 5 cells, on an ENLARGED canvas; the ONLY thing that changes is
+    where the floating die sits — walked up-left along the extended finger's line —
+    so the player can pick the placement the clown actually points at. Writes
+    docs/warren_clown/round_17_die.png."""
+    extL, extT, extR = _R17_EXT_LEFT, _R17_EXT_TOP, _R17_EXT_RIGHT
+    cw = VIEW_W + extL + extR
+    ch = VIEW_H + extT
+    SCALE = 2.2
+    disp_w = int(cw * SCALE)
+    disp_h = int(ch * SCALE)
     cols, rows = 3, 2
     pad = 24
     head = 64
@@ -8789,18 +8796,28 @@ def _render_clown_r17_die():
     title_f = hud._font(26, True)
     label_f = hud._font(18, True)
     sheet.blit(title_f.render(
-        "Warren Clown — SAME pointing pose (v4), only the DIE POSITION changes "
-        "between cells. Pick the one the finger points at.", True,
+        "Warren Clown — bigger canvas, SAME pointing pose + SAME clown/die size. "
+        "Only the DIE POSITION moves (up the finger line). Pick the best.", True,
         (255, 255, 255)), (pad, 18))
 
     base_kw = dict(_CLOWN_R17_VARIANTS[3][1])      # the "Pointing - extended" pose
-    jester_cx = VIEW_W // 2 - 10
-    for i, (name, off) in enumerate(_R17_DIE_POSITIONS):
+    jester_cx = VIEW_W // 2 - 10 + extL
+    # Approx fingertip for this pose + the up-left direction it points along.
+    tip_x = jester_cx - 60 - 15.6
+    tip_y = (VIEW_FEET_Y + extT) - 156 - 19.8
+    dir_x, dir_y = -0.687, -0.727
+    s_values = (40, 60, 80, 100, 114)              # distance up the finger line
+
+    for i, s in enumerate(s_values):
+        tx = tip_x + dir_x * s
+        ty = tip_y + dir_y * s
+        die_dx = int(round(tx - (jester_cx - 56)))
+        die_dy = int(round(ty - (30 + extT)))
         kw = dict(base_kw)
-        kw.update(off)
+        kw.update(die_dx=die_dx, die_dy=die_dy,
+                  ext_left=extL, ext_top=extT, ext_right=extR)
         fig = render_clown_staff_r17(i, **kw)
-        die_c = (jester_cx - 56 + off["die_dx"], 30 + off["die_dy"])
-        label = f"{i + 1}. {name}  (die at {die_c[0]},{die_c[1]})"
+        label = f"{i + 1}. die at ({int(round(tx))},{int(round(ty))})"
         r, c = divmod(i, cols)
         cx = pad + c * (cell_w + gap)
         cy = head + r * (cell_h + gap)
