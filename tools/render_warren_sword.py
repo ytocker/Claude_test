@@ -8411,12 +8411,383 @@ def _render_clown_r16_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+_R17_GLOVE    = _R16_GLOVE
+_R17_GROOVE   = _R16_GROOVE
+_R17_GLOVE_HI = _R16_GLOVE_HI
+_R17_OUTLINE  = _R16_OUTLINE
+_R17_FOREARM_DEG = _R16_FOREARM_DEG
+
+
+def _r17_die_hand(surf, hand, *, wrist, gesture="mitt", knuckles_up=False,
+                  point_len=0.0, point_bow=0.0, base_w=4):
+    """Round-17 die-side hand: a DIRECTION CHANGE away from the open palm. At
+    ~16px on screen there are too few pixels to carry knuckle-arch + four tapered
+    fingers, so r11-r16 open hands read as malformed. r17 instead draws a SIMPLE
+    closed-glove gesture whose read comes from one strong silhouette plus 1-2 dark
+    grooves — never from fine finger anatomy.
+
+    Same local frame + heel-on-wrist `_proj` ~47deg continuation as the r16 hand,
+    so it still flows out of the raised forearm as one limb. `gesture` selects:
+      - "mitt": a clean rounded 4-finger glove fist at the wrist (one blob,
+        knuckle band hinted). `knuckles_up` rotates the band toward the die.
+      - "point": the same fist with ONE clean tapered digit extended toward the
+        floating die; `point_len`/`point_bow` set its reach and curve.
+      - "reach": the fingers curl UP toward the die as a single cupped unit (a
+        soft-grab silhouette, not individual splayed fingers).
+    """
+    hx, hy = hand
+    ang = math.radians(-wrist)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def _proj(dx, dy):
+        # Heel laid a hair up the hand so the forearm tip lands INSIDE the mitt
+        # mass — the locked r13-r16 continuation anchor (no stub/gap).
+        return (hx - int(round(dx * ca - dy * sa)),
+                hy + int(round(-dx * sa - dy * ca)) - int(round(2 * ca)))
+
+    # --- The fist body: one rounded blob spanning wrist -> knuckle crown. A
+    # closed mitt is read as a soft oval, so a polygon ring of points around the
+    # local frame keeps the silhouette clean at any size (no spiky edges at 1x).
+    # `crown` is the knuckle-row apex; `knuckles_up` lifts/rounds it toward the
+    # die so the dark knuckle band sits at the top of the read.
+    crown = 9.6 + (1.2 if knuckles_up else 0.0)
+    HALF = 6.2                          # half-width of the fist across the band
+    body_local = [
+        (-3.6, -3.6),                   # inner wrist corner (narrow heel)
+        (-HALF, 3.0),                   # widen out toward the knuckle band
+        (-HALF * 0.86, crown - 1.0),
+        (-HALF * 0.30, crown),          # knuckle crown, viewer-left lobe
+        ( HALF * 0.30, crown),          # knuckle crown, viewer-right lobe
+        ( HALF * 0.86, crown - 1.0),
+        ( HALF + 0.4, 3.0),
+        ( 4.0, -3.6),                   # outer wrist corner (narrow heel)
+    ]
+    body_pts = [_proj(x, y) for (x, y) in body_local]
+
+    # --- A short, low thumb wedge folded against the index side of the fist:
+    # present enough to break the pure-oval read, never an extended digit.
+    thenar = [
+        _proj(4.6, -1.4),               # wrist root, outside
+        _proj(7.0, 1.6),                # thumb knuckle swell
+        _proj(5.2, 4.4),                # tucks back into the fist
+        _proj(3.2, 2.0),
+    ]
+
+    def _draw_blob():
+        pygame.draw.polygon(surf, _R17_OUTLINE, thenar)
+        pygame.draw.polygon(surf, _R17_GLOVE, [_proj(x * 0.9, y) for (x, y) in
+                                               ((4.6, -1.4), (7.0, 1.6),
+                                                (5.2, 4.4), (3.2, 2.0))])
+        pygame.draw.polygon(surf, _R17_OUTLINE, body_pts)
+        pygame.draw.polygon(surf, _R17_GLOVE,
+                            [_proj(x * 0.9, y) for (x, y) in body_local])
+
+    # --- ONE clean tapered digit. For "point" it extends straight toward the
+    # die; for "reach" it curls back over the fist as a soft cupped grab. Either
+    # way it is a SINGLE shape, never four fingers.
+    def _digit(reach_back):
+        # Root just above the knuckle crown, on the die-facing edge of the fist.
+        root_x, root_y = -HALF * 0.30, crown - 0.6
+        segs = (0.0, 0.42, 0.76, 1.0)
+        pts = []
+        for t in segs:
+            up = root_y + point_len * t
+            bow = point_bow * (t * t)
+            if reach_back:
+                # A soft grab: the unit arcs back over the fist instead of out,
+                # so the silhouette cups upward toward the die as one mass.
+                up = root_y + point_len * (t - 1.2 * t * t)
+                bow = -point_bow * (t * t) - HALF * 0.30 * t
+            pts.append((root_x + bow, up))
+        return [_proj(x, y) for (x, y) in pts]
+
+    def _taper_w(t):
+        # The digit tapers tip-ward but never below what the keyline reads at 1x.
+        return max(2, int(round(base_w - 1.2 * t)))
+
+    def _draw_digit(reach_back=False):
+        pts = _digit(reach_back)
+        for col, lw_off in ((_R17_OUTLINE, 2), (_R17_GLOVE, 0)):
+            for i in range(len(pts) - 1):
+                t = i / (len(pts) - 1)
+                pygame.draw.line(surf, col, pts[i], pts[i + 1], _taper_w(t) + lw_off)
+            pygame.draw.circle(surf, col, pts[-1],
+                               max(1, (_taper_w(1.0) + lw_off) // 2))
+
+    # The extended digit roots ABOVE the fist, so paint it under the body for
+    # "reach" (grab curls in front of the fist) and over the body for "point".
+    if gesture == "reach":
+        _draw_digit(reach_back=True)
+        _draw_blob()
+    elif gesture == "point":
+        _draw_blob()
+        _draw_digit(reach_back=False)
+    else:
+        _draw_blob()
+
+    # --- Legible-but-light detail: ONE curved dark knuckle groove across the
+    # band and a hairline crease at the wrist, plus a single rim-sheen lobe. This
+    # is the whole "anatomy" budget — sparse so it never fizzes at true 1x.
+    band_y = crown - 2.4
+    groove = [_proj(x, band_y + (0.8 if knuckles_up else 0.0))
+              for x in (-HALF * 0.7, -HALF * 0.2, HALF * 0.3, HALF * 0.72)]
+    if len(groove) >= 2:
+        pygame.draw.lines(surf, _R17_GROOVE, False, groove, 1)
+    pygame.draw.line(surf, _R17_GROOVE, _proj(-HALF * 0.6, 0.2),
+                     _proj(HALF * 0.6, 0.2), 1)
+    pygame.draw.circle(surf, _R17_GLOVE_HI, _proj(-HALF * 0.25, crown - 3.4), 2)
+
+
+def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
+                           gesture="mitt", knuckles_up=False, point_len=0.0,
+                           point_bow=0.0, die_pulse_off=2.0):
+    """Round-17 hero panel — identical to r16 except the die-side hand is drawn by
+    `_r17_die_hand` (a simple closed-glove gesture, not an open palm). Locked grip,
+    floating die, and heel-on-wrist ~47deg continuation are unchanged."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    die_cx = jester_cx - 56
+    die_cy = 30
+    die_hand = (hand_up[0], hand_up[1])
+
+    _r17_die_hand(layer, die_hand, wrist=wrist, gesture=gesture,
+                  knuckles_up=knuckles_up, point_len=point_len,
+                  point_bow=point_bow)
+    draw_cupped_die(layer, die_cx, die_cy, idx * 1.7 + die_pulse_off,
+                    show_inset=False)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    shaft_w = 2
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+def _render_die_hand_crop_r17(kw, *, crop_px=150, zoom=7):
+    """Isolated HERO-ZOOM crop of JUST the r17 die-side gesture on a flat neutral
+    card (no sky, no die, so no die-glow bloom on the glove). Mirrors the r16 crop
+    so the simple silhouette + grooves can be judged at native pixels."""
+    tile = pygame.Surface((96, 96), pygame.SRCALPHA)
+    origin = (52, 70)
+    _r17_die_hand(tile, origin, wrist=kw["wrist"], gesture=kw.get("gesture", "mitt"),
+                  knuckles_up=kw.get("knuckles_up", False),
+                  point_len=kw.get("point_len", 0.0),
+                  point_bow=kw.get("point_bow", 0.0))
+
+    bbox = tile.get_bounding_rect()
+    if bbox.width == 0 or bbox.height == 0:
+        bbox = pygame.Rect(0, 0, 96, 96)
+    bbox.inflate_ip(6, 6)
+    bbox = bbox.clip(tile.get_rect())
+    hand_sub = tile.subsurface(bbox).copy()
+
+    zw = int(bbox.width * zoom)
+    zh = int(bbox.height * zoom)
+    zoomed = pygame.transform.scale(hand_sub, (zw, zh))
+
+    card_w = max(zw + 28, int(crop_px * 0.9))
+    card = pygame.Surface((card_w, crop_px), pygame.SRCALPHA)
+    card.fill((38, 41, 52, 255))
+    pygame.draw.rect(card, (70, 76, 92), card.get_rect(), 2)
+    cx = (card_w - zw) // 2
+    cy = (crop_px - zh) // 2
+    card.blit(zoomed, (cx, cy))
+    return card
+
+
+_CLOWN_R17_VARIANTS = [
+    # 1 RELAXED CLOSED MITT — the safest read: a clean rounded glove fist at the
+    #   wrist, knuckle band hinted by one curved groove, no extended digit.
+    ("Relaxed mitt",
+     dict(total_px=200, bauble_px=15, cup_dy=2, wrist=_R17_FOREARM_DEG,
+          gesture="mitt", knuckles_up=False, die_pulse_off=2.0),
+     "clean rounded 4-finger glove fist at the wrist, knuckle band hinted"),
+    # 2 MITT, KNUCKLES-UP — same fist rotated so the dark knuckle row faces the
+    #   die for a subtle 'ready' read.
+    ("Mitt - knuckles up",
+     dict(total_px=200, bauble_px=15, cup_dy=2, wrist=_R17_FOREARM_DEG,
+          gesture="mitt", knuckles_up=True, die_pulse_off=2.0),
+     "same fist, knuckle row turned toward the die for a subtle 'ready' read"),
+    # 3 POINTING UP AT THE DIE — index extended toward the floating die, rest of
+    #   the hand a closed mitt; directs the eye to the power-up.
+    ("Pointing at die",
+     dict(total_px=200, bauble_px=15, cup_dy=2, wrist=_R17_FOREARM_DEG,
+          gesture="point", point_len=11.0, point_bow=-0.6, die_pulse_off=2.0),
+     "one clean tapered digit points up at the die, rest a closed mitt"),
+    # 4 POINTING, EXTENDED REACH — same point with more reach/energy toward the die.
+    ("Pointing - extended",
+     dict(total_px=200, bauble_px=15, cup_dy=2, wrist=_R17_FOREARM_DEG,
+          gesture="point", point_len=15.0, point_bow=-1.0, die_pulse_off=2.0),
+     "same point reaching further up toward the die for more energy"),
+    # 5 REACHING / SOFT GRAB — fingers curl UP toward the die as one cupped unit.
+    ("Reaching soft-grab",
+     dict(total_px=200, bauble_px=15, cup_dy=2, wrist=_R17_FOREARM_DEG,
+          gesture="reach", point_len=12.0, point_bow=2.2, die_pulse_off=2.0),
+     "fingers curl up toward the die as one soft cupped grab, not splayed"),
+]
+
+
+_CLOWN_R17_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 17: DIRECTION CHANGE on the die-side hand. The open palm is abandoned (too few pixels at ~16px for real finger anatomy) — replaced by a SIMPLE closed-glove gesture that reads from one strong silhouette + 1-2 dark grooves",
+     (255, 255, 255)),
+    ("Two families across 5 versions: CLOSED MITT (1-2) and POINTING / REACHING toward the die (3-5). Each panel: LARGE isolated gesture crop (~7x, neutral card) above the full figure + the true-1x day/night strip below. "
+     "Locked: heel-on-wrist + ~47deg continuation, the staff grip, and the floating die (glow stays on the die only).",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r17_crops():
+    """Emit each of the 5 r17 gestures as its OWN full-res PNG so the simple
+    silhouette + grooves can be read at native pixels instead of collapsing inside
+    the wide contact sheet. Mirrors `_render_clown_r16_crops`; never touches
+    round_16* or earlier outputs."""
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    for idx, (name, kw, note) in enumerate(_CLOWN_R17_VARIANTS, start=1):
+        card = _render_die_hand_crop_r17(kw, crop_px=300, zoom=14)
+        out_path = os.path.join(out_dir, f"round_17_crop_v{idx}.png")
+        pygame.image.save(card, out_path)
+        print("wrote", out_path, f"({card.get_width()}x{card.get_height()})", "-", name)
+
+
+def _render_clown_r17_sheet():
+    """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
+    /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
+    hero-zoom gesture crop, the full-figure panel, and the true-1x day/night shrink
+    strip. Writes docs/warren_clown/round_17.png — never overwrites an existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+    crop_h = 150
+
+    cols = len(_CLOWN_R17_VARIANTS)
+    pad = 20
+    head = 96
+    name_strip = 38
+    crop_gap = 10
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + crop_h + crop_gap + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R17_HEADERS[0][0], True, _CLOWN_R17_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R17_HEADERS[1][0], True, _CLOWN_R17_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+    crop_tag_f = hud._font(12, True)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R17_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        crop = _render_die_hand_crop_r17(kw, crop_px=crop_h, zoom=7)
+        cx = px + (cell_w - crop.get_width()) // 2
+        sheet.blit(crop, (cx, py + name_strip))
+        sheet.blit(crop_tag_f.render("hero-zoom: simple silhouette + grooves (no open-palm anatomy)",
+                                     True, (255, 235, 120)),
+                   (px + 6, py + name_strip + crop_h - 16))
+
+        clown = render_clown_staff_r17(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip + crop_h + crop_gap))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -8437,6 +8808,7 @@ def main():
     do_clown_r14 = "--clown-r14" in args    # round-14 thumb moved to the BACK of the open hand, opt-in
     do_clown_r15 = "--clown-r15" in args    # round-15 die hand rebuilt FROM SCRATCH on real proportions, opt-in
     do_clown_r16 = "--clown-r16" in args    # round-16 hero-zoom hand crop + tamed V2 fan + deeper V5 back-arch, opt-in
+    do_clown_r17 = "--clown-r17" in args    # round-17 SIMPLE die-side gesture (closed mitt + pointing/reaching), opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -8479,6 +8851,10 @@ def main():
         _render_clown_r16_sheet()
     if "--clown-r16-crops" in args:
         _render_clown_r16_crops()
+    if do_clown_r17:
+        _render_clown_r17_sheet()
+    if "--clown-r17-crops" in args:
+        _render_clown_r17_crops()
 
 
 if __name__ == "__main__":
