@@ -1371,6 +1371,11 @@ class Pipe:
         # the dominant source of KFC-mode lag.
         self._kfc_cache: "pygame.Surface | None" = None
         self._kfc_cache_dx = 0  # x-offset between blit corner and self.x
+        # Carousel-Barker staff re-skin (warren demo route): same bake-once
+        # bitmap treatment as KFC since the jester-staff art never animates.
+        self.is_staff = False
+        self._staff_cache: "pygame.Surface | None" = None
+        self._staff_cache_dx = 0
         # Pagoda body + ornaments are far heavier than the retired sandstone
         # silhouette, and their internal draw helpers re-alias curved eaves
         # every call. Bake the pair once into a per-instance bitmap (same
@@ -1443,6 +1448,11 @@ class Pipe:
         if self.is_phantom:
             return
         palette = palette or _DEFAULT_PILLAR
+        if self.is_staff:
+            if self._staff_cache is None:
+                self._build_staff_cache(palette)
+            surf.blit(self._staff_cache, (int(self.x) + self._staff_cache_dx, 0))
+            return
         if self.is_kfc and kfc_visual:
             if self._kfc_cache is None:
                 self._build_kfc_cache(palette)
@@ -1495,9 +1505,14 @@ class Pipe:
                                 PIPE_W, int(self.gap_y - self.gap_h / 2))
         lbt = int(self.gap_y + self.gap_h / 2)
         local_bot = pygame.Rect(margin, lbt, PIPE_W, GROUND_Y - lbt)
-        key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
-        CANDIDATES[key](surf, local_top, local_bot,
-                        _biome.palette_for_phase(0.0), self.seed)
+        if self.is_staff:
+            from game.pillar_staff import draw_pillar_pair_staff
+            draw_pillar_pair_staff(surf, local_top, local_bot,
+                                   _biome.palette_for_phase(0.0), self.seed)
+        else:
+            key = VARIANT_KEYS[self.seed % VARIANT_COUNT]
+            CANDIDATES[key](surf, local_top, local_bot,
+                            _biome.palette_for_phase(0.0), self.seed)
         self._collision_mask = pygame.mask.from_surface(surf, 50)
         self._collision_mask_dx = -margin
 
@@ -1546,6 +1561,28 @@ class Pipe:
         draw_pillar_pair_kfc(cache, local_top, local_bot, palette, self.seed)
         self._kfc_cache = cache
         self._kfc_cache_dx = -margin
+
+    def _build_staff_cache(self, palette):
+        """Render the Carousel-Barker staff pillar pair onto a per-instance
+        SRCALPHA surface once; later frames blit the bitmap at the scrolling x.
+        Margin covers the cap tips / ruff bells that overhang the PIPE_W column."""
+        from game.pillar_staff import draw_pillar_pair_staff
+        margin = 64
+        cache_w = PIPE_W + margin * 2
+        cache_h = GROUND_Y
+        cache = pygame.Surface((cache_w, cache_h), pygame.SRCALPHA)
+        local_top = pygame.Rect(margin, 0,
+                                PIPE_W, int(self.gap_y - self.gap_h / 2))
+        local_bot_top = int(self.gap_y + self.gap_h / 2)
+        local_bot = pygame.Rect(margin, local_bot_top,
+                                PIPE_W, GROUND_Y - local_bot_top)
+        draw_pillar_pair_staff(cache, local_top, local_bot, palette, self.seed)
+        self._staff_cache = cache
+        self._staff_cache_dx = -margin
+        # Bake the matching collision mask now so the kill-zone follows the staff
+        # silhouette (built well before the pillar reaches the bird, no hitch).
+        if self._collision_mask is None:
+            self._build_collision_mask()
 
 
 # ── Coin ─────────────────────────────────────────────────────────────────────

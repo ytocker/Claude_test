@@ -321,6 +321,7 @@ class WarrenDemo:
         p.spawn_index = self.spawned + 1          # >=1: keep ornaments (no quiet rule)
         p.is_rush = False
         p.is_kfc = False
+        p.is_staff = True
         world.pipes.append(p)
         self.route_pipes.append(p)
         self.spawned += 1
