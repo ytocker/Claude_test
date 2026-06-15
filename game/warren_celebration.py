@@ -151,13 +151,13 @@ def _ghost_nameplate(canvas, cx, cy, R, ss):
     w, h = int(R * 1.52), int(30 * ss)
     rect = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
     rr = int(9 * ss)
-    # Deep-navy keyline frame (matches the number's outline system), then chrome fill.
+    # Single thin deep-navy keyline (a filled frame behind the chrome fill), then
+    # the chrome gradient + top catch-light. No second edge stroke — one hairline.
     pygame.draw.rect(canvas, GH_INDIGO_DK, rect.inflate(int(2 * ss), int(2 * ss)),
                      border_radius=rr + int(1 * ss))
     _chrome_vgrad(canvas, rect, rr, ss)
     pygame.draw.line(canvas, GH_METAL_HI, (rect.x + rr, rect.y + max(1, int(ss))),
                      (rect.right - rr, rect.y + max(1, int(ss))), max(1, int(ss)))
-    pygame.draw.rect(canvas, GH_INDIGO_DK, rect, max(1, int(ss)), border_radius=rr)
     _flat_text(canvas, "GHOST", cx, cy - int(ss), ss, size=18,
                fill=GH_INDIGO_DK, edge=GH_CREAM, edge_w=2, shadow_a=0,
                letter_spacing=1.12)
