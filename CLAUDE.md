@@ -159,20 +159,22 @@ Project subagents ship in `.claude/agents/` and load automatically in
 every session (cloud + local); each is auto-delegated by its
 `description`:
 
-- `graphics-designer` (opus) — procedural visual design; produces and
-  revises candidate sheets on art-director notes (no self-critique).
+- `graphics-designer` (opus) — procedural visual design; brainstorms concept
+  directions, then produces and revises a single concept on art-director notes
+  (no self-critique).
 - `art-director` (opus) — veteran casual-gaming design critic; reviews
-  `graphics-designer` candidate sheets and returns actionable critique to
-  steer the next iteration.
+  `graphics-designer` brainstorms + candidate sheets and returns actionable
+  critique to steer the next iteration.
 - `sound-designer` (opus) — dual-backend SFX; never `pygame.mixer` on the
   web path.
 - `gaming-experience-tester` (sonnet) — read-only QA for feel, balance,
   power-ups, scene flow, and both build targets.
-- `data-analyst` (opus) — Streamlit + Supabase analytics dashboard; produces
-  and revises analysis on analytics-director notes (no self-critique).
+- `data-analyst` (opus) — Streamlit + Supabase analytics dashboard; brainstorms
+  analysis directions, then produces and revises analysis on analytics-director
+  notes (no self-critique).
 - `analytics-director` (opus) — veteran analytics critic; reviews
-  data-analyst round notes and returns actionable critique to steer the next
-  iteration.
+  data-analyst brainstorms + round notes and returns actionable critique to
+  steer the next iteration.
 
 ## Design loop (orchestrator-run)
 
@@ -180,13 +182,13 @@ Subagents can't call each other, so the main session runs the design loop —
 it is NOT something `graphics-designer` does alone. For any task that designs
 or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
 
-1. Delegate the brief to `graphics-designer` → it returns ONE combined review
-   image (5 versions, committed under `docs/<feature>/round_N.png`). It does
-   NOT self-critique.
+1. Delegate the brief to `graphics-designer` → it renders ONE concept (the
+   single design under development), committed under `docs/<feature>/round_N.png`.
+   It does NOT self-critique.
 2. Hand that image to `art-director` → it returns a critique whose first line
    is `VERDICT: SHIP-READY | ITERATE | RE-ROLL`.
 3. On ITERATE / RE-ROLL, feed the critique back to `graphics-designer` as the
-   next-round brief → new combined image → back to step 2.
+   next-round brief → new image → back to step 2.
 4. Stop when a critique returns SHIP-READY, or once the turn budget is spent —
    the `art-director` critiques up to 2 times and the `graphics-designer` gets
    up to 3 turns, so it always gets a final pass to implement the 2nd critique
@@ -198,6 +200,24 @@ or restyles a visual (e.g. a new power-up icon, a parrot/pillar/sky look):
    earlier SHIP-READY, the final designer sheet already folds in the last
    critique — surface it, flag that it didn't get a ship-ready sign-off, and let
    the user decide.
+
+**Multiple concepts (N options).** When the brief asks for several distinct
+concepts/options (e.g. "give me 5 designs"), do NOT cram them into one rushed
+sheet — that breeds look-alikes. Instead:
+
+- **Brainstorm first (GD↔AD).** `graphics-designer` (brainstorm mode) proposes N
+  genuinely distinct concept *directions* (theses + short descriptions, optional
+  rough thumbnails — no full render); `art-director` (brainstorm-critique mode)
+  culls duplicates and recommends the N to pursue; an optional final GD pass locks
+  the briefs. Light budget: GD ≤2, AD ≤1, ending on GD. Distinctness is governed
+  by the `distinct-design-variants` skill.
+- **Then loop each concept on its own** through steps 1–5 above (a full GD3/AD2
+  loop per concept; artifacts under `docs/<feature>/<concept-slug>/round_N.png`).
+  Concepts are independent — the per-concept loops MAY run in parallel.
+- **Showcase all at the end.** Surface one combined sheet of every matured final
+  (`docs/<feature>/showcase.png`) + per-concept git links + a one-line thesis and
+  ship-status each; the user picks. Run straight through — no checkpoint between
+  the brainstorm and the per-concept loops.
 
 Trivial recolors may skip the loop at the user's discretion.
 
@@ -222,5 +242,25 @@ a KPI or chart, or extends the dashboard:
    spent without SHIP-READY, the final analyst notes already fold in the last
    critique — surface them, flag that they didn't get a ship-ready sign-off,
    and let the user decide.
+
+**Multiple directions (N options).** Same shape as the Design loop's "Multiple
+concepts" flow. When the brief asks for several distinct analytical
+directions/options (e.g. "explore 3 ways to show retention"), don't batch them
+into one round — brainstorm first, then mature each on its own:
+
+- **Brainstorm (analyst↔director).** `data-analyst` (brainstorm mode) proposes N
+  genuinely distinct directions (one-line theses: the question each answers, the
+  metric + chart it implies — no full build); `analytics-director`
+  (brainstorm-critique mode) culls overlaps and recommends the N to pursue; an
+  optional final analyst pass locks the briefs. Light budget: analyst ≤2,
+  director ≤1, ending on analyst. Each direction must answer a different "so
+  what" — no rephrasings of one idea.
+- **Then loop each direction** through steps 1–5 above (a full analyst4/director3
+  loop per direction; notes under
+  `analytics/reviews/<feature>/<direction-slug>/round_N.md`). Independent — the
+  per-direction loops MAY run in parallel.
+- **Showcase all at the end.** Surface every matured round's notes (git links) +
+  a one-line thesis and ship-status each; the user picks. Run straight through —
+  no checkpoint between the brainstorm and the per-direction loops.
 
 Trivial fixes (typos, colour tweaks) may skip the loop at the user's discretion.

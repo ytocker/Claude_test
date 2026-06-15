@@ -48,6 +48,24 @@ A variant is INVALID if the only thing separating it from another is:
 4. **If you run dry, widen the search** (fresh references, new shape language) —
    never pad the set with near-duplicates to hit the count.
 
+## How this runs in the design loop (orchestrator)
+Distinctness is won at the **brainstorm**, before anything is rendered, then
+protected while each concept matures on its own — never by rushing N finals into
+one sheet. Per CLAUDE.md's Design loop "Multiple concepts" flow:
+
+1. **Brainstorm the directions (GD↔AD).** `graphics-designer` proposes the N
+   theses + their silhouette / construction / shape language (the bottom-up step
+   above, no full render); `art-director` runs the distinctness gate on the SET
+   (the tests below) and culls any look-alikes before a single full render happens.
+2. **Mature each concept in its own loop.** Each locked concept gets its own full
+   designer↔critic loop and its own `docs/<feature>/<concept-slug>/round_N.png`.
+   The tests still apply across the maturing set — a concept that drifts into
+   another's territory gets corrected, not shipped as a near-twin.
+3. **Showcase all N at the end** for the user to choose.
+
+So the tests below run on the **set of concept directions** (and are re-checked on
+the finals) — not on a single combined options sheet.
+
 ## Distinctiveness tests — run ALL before delivering
 - **Blackout test:** fill each variant solid black. All N must read as clearly
   different shapes. Any two that match are duplicates — replace one.
