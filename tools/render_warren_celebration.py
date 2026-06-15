@@ -820,10 +820,13 @@ VARIANTS_R3 = [
 TOPPER_DW, TOPPER_DH = 264, 360
 
 
-def var_wheel_topper(roll, ss, *, R_frac, wcy_frac, b_hr_ss):
+def var_wheel_topper(roll, ss, *, R_frac, wcy_frac, b_hr_ss, seat_factor=1.6):
     """A jester prize-wheel seated low with the full clown bauble (cap+ruff+face)
     crowning the TOP. `R_frac` = wheel radius vs width; `wcy_frac` = wheel centre
-    y vs height; `b_hr_ss` = bauble head radius (ss-px). Returns a TALL canvas."""
+    y vs height; `b_hr_ss` = bauble head radius (ss-px). `seat_factor` sets how far
+    the bauble is lifted above the rim — smaller seats it LOWER so the face itself
+    touches the round frame (1.6 floats it on the ruff; ~0.95 drops the face to the
+    rim). Returns a TALL canvas."""
     hdw, hdh = TOPPER_DW * ss, TOPPER_DH * ss
     cx = hdw // 2
     canvas = pygame.Surface((hdw, hdh), pygame.SRCALPHA)
@@ -845,9 +848,10 @@ def var_wheel_topper(roll, ss, *, R_frac, wcy_frac, b_hr_ss):
     num_size = max(46, int(96 * R / int(hdw * 0.40)))
     _num_block(canvas, cx, wcy, roll, ss, size=num_size,
                num_col=PLUM, edge_col=CREAM, edge_w=4)
-    # the full bauble crowns the top: ruff resting on the rim, cap rising above.
+    # the full bauble crowns the top; `seat_factor` lowers it so the face meets
+    # the round frame instead of floating above on the ruff.
     b_hr = int(b_hr_ss * ss)
-    b_hy = (wcy - R) - int(1.6 * b_hr)
+    b_hy = (wcy - R) - int(seat_factor * b_hr)
     _jester_bauble(canvas, cx, b_hy, b_hr, ss)
     return canvas
 
@@ -927,6 +931,78 @@ def render_topper_sheet():
                            "docs", "dice_results", "warren_roll")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "round_4.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path)
+
+
+# Round 5: keep D + E only, with the bauble dropped so the FACE touches the rim.
+TOPPER_VARIANTS_R5 = [
+    ("D  face on the frame", "big bauble, face dropped to touch the round frame",
+     0.30, 0.57, 24, 0.95),
+    ("E  face on the frame", "huge bauble, face dropped to touch the round frame",
+     0.27, 0.60, 28, 0.95),
+]
+
+
+def render_topper_sheet_r5():
+    """Round-5 study: D + E only, with the bauble seated LOWER so the clown's face
+    touches the round wheel frame (not floating above on the ruff). round_5.png."""
+    SS = 4
+    DW, DH = TOPPER_DW, TOPPER_DH
+    disp_w = 240
+    disp_h = int(disp_w * DH / DW)
+    ins_w = 100
+    ins_h = int(ins_w * DH / DW)
+    pad = 20
+    head = 64
+    tile_w = disp_w + ins_w + 36
+    tile_h = disp_h + 60
+    cols = 2
+    sheet_w = cols * tile_w + (cols + 1) * pad
+    sheet_h = head + tile_h + 2 * pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((30, 34, 42))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(
+        "Warren Roll Celebration — D & E with the face DROPPED onto the frame",
+        True, (255, 255, 255)), (pad, 12))
+    sheet.blit(sub_f.render(
+        "Bauble seated lower so the clown face touches the round wheel rim. "
+        "1x inset = true on-screen size.", True, (200, 205, 215)), (pad, 40))
+
+    label_f = hud._font(18, True)
+    samp_f = hud._font(13, True)
+
+    for idx, (name, desc, rf, wf, bh, seat) in enumerate(TOPPER_VARIANTS_R5):
+        tx = pad + idx * (tile_w + pad)
+        ty = head + pad
+        tile = sky_tile(tile_w, tile_h)
+        canvas = var_wheel_topper(ROLL, SS, R_frac=rf, wcy_frac=wf,
+                                  b_hr_ss=bh, seat_factor=seat)
+        tile.blit(pygame.transform.smoothscale(canvas, (disp_w, disp_h)), (14, 34))
+        chip = sky_tile(ins_w + 12, ins_h + 12)
+        chip.blit(pygame.transform.smoothscale(canvas, (ins_w, ins_h)), (6, 6))
+        pygame.draw.rect(chip, (255, 255, 255), chip.get_rect(), 2)
+        tile.blit(chip, (disp_w + 22, tile_h - ins_h - 40))
+        tile.blit(samp_f.render("actual size", True, (255, 255, 255)),
+                  (disp_w + 22, tile_h - ins_h - 58))
+        strip = pygame.Surface((tile_w, 28), pygame.SRCALPHA)
+        strip.fill((20, 22, 28, 210))
+        tile.blit(strip, (0, 0))
+        tile.blit(label_f.render(name, True, LIME), (8, 5))
+        cap = pygame.Surface((tile_w, 22), pygame.SRCALPHA)
+        cap.fill((20, 22, 28, 210))
+        tile.blit(cap, (0, tile_h - 22))
+        tile.blit(samp_f.render(f"{desc}  (roll {ROLL})", True, (220, 225, 235)),
+                  (8, tile_h - 19))
+        sheet.blit(tile, (tx, ty))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "dice_results", "warren_roll")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_5.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
@@ -1023,7 +1099,9 @@ def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
 
 def main():
     # Opt-in flags so these look-dev sheets aren't rendered by accident.
-    if "--warren-cele-r4" in sys.argv:
+    if "--warren-cele-r5" in sys.argv:
+        render_topper_sheet_r5()
+    elif "--warren-cele-r4" in sys.argv:
         render_topper_sheet()
     elif "--warren-cele-r3" in sys.argv:
         render_sheet(
