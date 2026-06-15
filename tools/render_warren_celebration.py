@@ -1,0 +1,520 @@
+"""Look-dev renderer for the warren-demo ROLL-RESULT celebration popup.
+
+The clown's floating die settles on a roll N (the number of STAFFS the route
+will carry) and a festive popup announces it. The current ship look is a
+low-res 12-wedge two-colour prize wheel (orange/pink) behind a system-font
+number + "PILLARS" — a fun "prize-reveal" read the user wants KEPT but elevated
+to high-res and themed to the jester clown + his Carousel-Barker staff.
+
+This sheet anchors that comparison: cell 1 ports the CURRENT wheel faithfully
+as the baseline, and cells 2-6 are five distinct high-res, on-theme variants in
+the staff's Plum & Lime palette. Every cell keeps the foundation read — a
+radiating festive burst/wheel behind a DOMINANT rolled number + a theme label
+("STAFFS") — and each is drawn at the true ~264 design-px popup size on the
+in-game day sky, with a true-1x inset per cell so real on-screen legibility is
+judged honestly (no flattering zoom-only cells).
+
+Run (headless):
+    python tools/render_warren_celebration.py --warren-cele
+Writes docs/dice_results/warren_roll/round_1.png.
+"""
+import math
+import os
+import sys
+
+os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import pygame
+
+pygame.init()
+pygame.display.set_mode((1, 1))
+
+from game import hud  # vendored bold TTF + cache
+from game.draw import _shade_c
+from game.pillar_staff import (
+    PLUM, PLUM_DK, LIME, LIME_DK, GOLD, GOLD_HI, GOLD_DK, CREAM,
+    _mini_clown_face, _marotte_ruff, _shaft_twist, _ferrule, _pommel_finial,
+)
+from tools.render_dice_celebration import (
+    sky_tile, _num_block, _label_plate, _star,
+    SKY_TOP, SKY_BOT, W,
+)
+
+ROLL = 17  # representative roll, held constant across every cell
+
+# A richer two-colour jester wheel lineage: plum + lime alternating wedges keep
+# the baseline's "two-colour prize wheel" read but in the staff's world palette.
+WHEEL_A = PLUM
+WHEEL_B = LIME
+
+
+def _jingle_bell(canvas, cx, cy, r, ss, col=GOLD):
+    """A small gold jingle bell: a lit dome with a dark band + slit, a hanging
+    clapper dot, and a top-left specular pip — the staff's signature jingle, used
+    to ring the festive frames so the popup ties to the Carousel-Barker bells."""
+    pygame.draw.circle(canvas, _shade_c(col, -55), (int(cx), int(cy)), int(r))
+    pygame.draw.circle(canvas, col, (int(cx), int(cy)), int(r - ss))
+    # Lower band + vertical slit so it reads as a bell, not a coin.
+    pygame.draw.arc(canvas, _shade_c(col, -70),
+                    (int(cx - r), int(cy - r), int(r * 2), int(r * 2)),
+                    math.pi * 1.08, math.pi * 1.92, max(1, int(1.6 * ss)))
+    pygame.draw.line(canvas, _shade_c(col, -70), (int(cx), int(cy + r * 0.2)),
+                     (int(cx), int(cy + r * 0.78)), max(1, int(1.4 * ss)))
+    pygame.draw.circle(canvas, _shade_c(col, -45), (int(cx), int(cy + r * 0.92)),
+                       max(2, int(r * 0.32)))
+    pygame.draw.circle(canvas, GOLD_HI, (int(cx - r * 0.34), int(cy - r * 0.34)),
+                       max(1, int(r * 0.26)))
+
+
+def _wheel(canvas, c, R, ss, wedges, col_a, col_b, *, spin=0.55, rim=None,
+           rim_w=6, hub=None):
+    """A radiating prize-wheel rosette: alternating two-colour wedges with hard
+    keylines, an optional crisp gold rim ring, and an optional hub disc. Normal-
+    blended so it stays a festive colour over the pale sky (additive blows white).
+    Keeps the baseline's spinning-wheel lineage, elevated and recoloured."""
+    step = math.tau / wedges
+    for i in range(wedges):
+        a0 = spin + i * step
+        a1 = a0 + step
+        col = col_a if i % 2 == 0 else col_b
+        pygame.draw.polygon(canvas, col, [
+            (c, c),
+            (c + math.cos(a0) * R, c + math.sin(a0) * R),
+            (c + math.cos(a1) * R, c + math.sin(a1) * R)])
+    # Hairline wedge keylines so the high-res wheel reads crisp, not muddy.
+    for i in range(wedges):
+        a = spin + i * step
+        pygame.draw.line(canvas, _shade_c(PLUM_DK, -10), (c, c),
+                         (c + math.cos(a) * R, c + math.sin(a) * R), max(1, ss))
+    if rim is not None:
+        pygame.draw.circle(canvas, _shade_c(rim, -45), (c, c), R, max(2, int((rim_w + 2) * ss)))
+        pygame.draw.circle(canvas, rim, (c, c), R, max(2, int(rim_w * ss)))
+        pygame.draw.circle(canvas, GOLD_HI, (c, c), R - int(rim_w * 0.5 * ss),
+                           max(1, ss))
+    if hub is not None:
+        pygame.draw.circle(canvas, _shade_c(hub, -45), (c, c), int(R * 0.30))
+        pygame.draw.circle(canvas, hub, (c, c), int(R * 0.30 - ss))
+
+
+# ── Cell 1: the CURRENT ship wheel, ported faithfully (the foundation) ────────
+def var_baseline(roll, ss):
+    """The current `_draw_celebration` look, ported 1:1 as the anchor: a 12-wedge
+    orange/pink prize wheel (normal-blended, slightly spun), 14 confetti dots
+    spraying outward, a system-font big number with a 4-way warm outline, and a
+    "PILLARS" label. Deliberately low-fidelity — it is the baseline the five
+    elevated variants are measured against."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    R = int(64 * ss)
+    rays = 12
+    rose_cols = [(255, 184, 72), (255, 138, 150)]
+    spin = 0.55
+    step = math.tau / rays
+    for i in range(rays):
+        a0 = spin + i * step
+        a1 = a0 + step
+        col = rose_cols[i % 2] + (82,)
+        pygame.draw.polygon(canvas, col, [
+            (c, c),
+            (c + math.cos(a0) * R, c + math.sin(a0) * R),
+            (c + math.cos(a1) * R, c + math.sin(a1) * R)])
+
+    conf = [(255, 210, 90), (255, 120, 150), (120, 200, 255), (170, 255, 150)]
+    for i in range(14):
+        a = (i / 14) * math.tau
+        dist = R * 0.7 + 40 * ss + (i % 3) * 6 * ss
+        px = int(c + math.cos(a) * dist)
+        py = int(c + math.sin(a) * dist * 0.82)
+        col = conf[i % 4] + (220,)
+        dot = pygame.Surface((8 * ss, 8 * ss), pygame.SRCALPHA)
+        pygame.draw.circle(dot, col, (4 * ss, 4 * ss), 3 * ss)
+        canvas.blit(dot, (px - 4 * ss, py - 4 * ss))
+
+    # System bold font + 4-way warm outline, matching the ship code exactly.
+    nf = pygame.font.SysFont(None, int(92 * ss), bold=True)
+    num = nf.render(str(roll), True, (255, 232, 158))
+    out = nf.render(str(roll), True, (120, 70, 20))
+    for ox, oy in ((-2 * ss, 0), (2 * ss, 0), (0, -2 * ss), (0, 2 * ss)):
+        canvas.blit(out, out.get_rect(center=(c + ox, c + oy)))
+    nb = num.get_rect(center=(c, c))
+    canvas.blit(num, nb)
+
+    lf = pygame.font.SysFont(None, int(30 * ss), bold=True)
+    label = lf.render("PILLARS", True, (255, 244, 210))
+    canvas.blit(label, label.get_rect(center=(c, nb.bottom + 12 * ss)))
+    return canvas, D
+
+
+# ── Cell 2: polished jester prize-wheel + crisp gold rim + jingle bells ───────
+def var_jester_wheel(roll, ss):
+    """The baseline wheel, elevated: a high-res plum/lime two-colour prize wheel
+    with a crisp double-stroke gold rim, a ring of gold jingle bells riding the
+    rim (the Carousel-Barker jingle), a cream number disc hub so the hero number
+    sits on cream not a wedge seam, and the number + "STAFFS" plate on top. The
+    direct, faithful upgrade of the foundation."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    R = int(HD * 0.40)
+    _wheel(canvas, c, R, ss, 12, WHEEL_A, WHEEL_B, spin=0.42,
+           rim=GOLD, rim_w=7)
+    # A ring of jingle bells seated just OUTSIDE the gold rim.
+    nb_bells = 8
+    for i in range(nb_bells):
+        a = i * math.tau / nb_bells - math.pi / 2
+        bx = c + math.cos(a) * (R + int(9 * ss))
+        by = c + math.sin(a) * (R + int(9 * ss))
+        _jingle_bell(canvas, bx, by, int(7 * ss), ss)
+    # Cream hub disc so the number reads on cream, ringed in plum + gold.
+    hub_r = int(R * 0.56)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r + int(4 * ss))
+    pygame.draw.circle(canvas, GOLD, (c, c), hub_r + int(4 * ss), max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, CREAM, (c, c), hub_r)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r, max(2, int(2 * ss)))
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=86,
+               num_col=PLUM, edge_col=CREAM, edge_w=4)
+    _label_plate(canvas, c, c + int(hub_r * 0.70), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=22)
+    return canvas, D
+
+
+# ── Cell 3: carousel-barker barber-twist framed sign ──────────────────────────
+def var_barber_sign(roll, ss):
+    """The staff's barber-twist spiral becomes the FRAME: two vertical barber-pole
+    shafts down the sides and two short horizontal ones top/bottom box a cream
+    sign, with gold-jewel ferrule corners and a clown-bell finial topper. The
+    spinning-wheel energy is re-read as the carousel barker's spiralling pole."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    half = int(HD * 0.34)
+    hw = int(8 * ss)
+    # Cream sign field behind the twist frame.
+    pad = int(hw * 1.3)
+    field = pygame.Rect(c - half + pad, c - half + pad,
+                        (half - pad) * 2, (half - pad) * 2)
+    pygame.draw.rect(canvas, _shade_c(CREAM, -16), field, border_radius=int(10 * ss))
+    pygame.draw.rect(canvas, CREAM, field.inflate(-2 * ss, -2 * ss),
+                     border_radius=int(10 * ss))
+
+    # Four barber-twist rails framing the sign (the staff's _shaft_twist).
+    _shaft_twist(canvas, c - half, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+    _shaft_twist(canvas, c + half, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+    # Horizontal rails: rotate a twist strip so the spiral wraps all four sides.
+    for yy in (c - half, c + half):
+        strip = pygame.Surface((HD, HD), pygame.SRCALPHA)
+        _shaft_twist(strip, c, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+        strip = pygame.transform.rotate(strip, 90)
+        off = (strip.get_width() - HD) // 2
+        canvas.blit(strip, (-off, yy - c - off))
+
+    # Gold jewelled ferrule beads clamp each corner so the frame reads finished.
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            jx, jy = c + sx * half, c + sy * half
+            pygame.draw.circle(canvas, _shade_c(GOLD, -45), (jx, jy), int(11 * ss))
+            pygame.draw.circle(canvas, GOLD, (jx, jy), int(9 * ss))
+            pygame.draw.circle(canvas, PLUM, (jx, jy), int(4 * ss))
+            pygame.draw.circle(canvas, GOLD_HI, (jx - int(3 * ss), jy - int(3 * ss)),
+                               int(2.4 * ss))
+    # Clown-bell finial topper crowning the sign.
+    _pommel_finial(canvas, c, c - half - int(8 * ss), hw, ss, GOLD, kind="bell")
+    _jingle_bell(canvas, c, c - half - int(20 * ss), int(8 * ss), ss)
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=88,
+               num_col=PLUM, edge_col=GOLD, edge_w=4)
+    _label_plate(canvas, c, c + int(half * 0.62), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=21)
+    return canvas, D
+
+
+# ── Cell 4: marotte-flanked plaque — two mini staffs frame the number ─────────
+def var_marotte_plaque(roll, ss):
+    """A rounded plum plaque flanked by two mini Carousel-Barker marottes (the
+    grinning clown head + belled ruff atop a short barber-twist shaft), so the
+    rolled number is literally announced by the clown's own scepters. A burst of
+    plum/lime/gold flecks fans out behind the plaque to keep the prize-reveal
+    pop, and "STAFFS" rides a cream plate below."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    # Festive fleck fan behind everything (the reveal burst, held off-centre).
+    pal = [GOLD, LIME, CREAM, PLUM]
+    for i in range(20):
+        a = i * math.tau / 20 + 0.3
+        dist = HD * 0.30 + (i % 4) * 8 * ss
+        px = c + math.cos(a) * dist
+        py = c + math.sin(a) * dist * 0.92
+        col = pal[i % len(pal)]
+        if i % 2 == 0:
+            sz = (5 + i % 3 * 2) * ss
+            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
+            pygame.draw.polygon(d, col + (235,),
+                                [(sz // 2, 0), (sz, sz // 2), (sz // 2, sz), (0, sz // 2)])
+            d = pygame.transform.rotate(d, (i * 47) % 360)
+            canvas.blit(d, d.get_rect(center=(int(px), int(py))))
+        else:
+            pygame.draw.circle(canvas, col, (int(px), int(py)), 3 * ss)
+
+    # Two mini Carousel-Barker marottes flank the plaque, heads turned inward.
+    def marotte(mx, lean):
+        hr = int(20 * ss)
+        hy = c - int(HD * 0.18)
+        shaft_top = hy + hr
+        shaft_bot = c + int(HD * 0.30)
+        hwid = int(6 * ss)
+        _shaft_twist(canvas, mx, shaft_top, shaft_bot, hwid, ss, PLUM, GOLD, PLUM_DK)
+        _ferrule(canvas, mx, (shaft_top + shaft_bot) // 2, hwid, ss, GOLD, h=7,
+                 jewel=PLUM)
+        _pommel_finial(canvas, mx, shaft_bot, hwid, ss, GOLD, kind="ball", gem=PLUM)
+        _marotte_ruff(canvas, mx, hy + hr - int(2 * ss), int(hr * 1.05), ss, LIME,
+                      lobes=9, fringe=GOLD)
+        _mini_clown_face(canvas, mx, hy, hr, ss, expr="grin", look=lean * 2.4 * ss)
+    marotte(c - int(HD * 0.36), 1)
+    marotte(c + int(HD * 0.36), -1)
+
+    # The central plaque the marottes present.
+    pw, ph = int(HD * 0.42), int(HD * 0.40)
+    plaque = pygame.Rect(c - pw // 2, c - ph // 2, pw, ph)
+    pygame.draw.rect(canvas, GOLD, plaque.inflate(8 * ss, 8 * ss),
+                     border_radius=int(16 * ss))
+    pygame.draw.rect(canvas, PLUM_DK, plaque.inflate(2 * ss, 2 * ss),
+                     border_radius=int(14 * ss))
+    pygame.draw.rect(canvas, PLUM, plaque, border_radius=int(13 * ss))
+    pygame.draw.rect(canvas, GOLD, plaque.inflate(-8 * ss, -8 * ss),
+                     width=max(1, 2 * ss), border_radius=int(10 * ss))
+
+    _num_block(canvas, c, c - int(6 * ss), roll, ss, size=84,
+               num_col=CREAM, edge_col=PLUM_DK, edge_w=4)
+    _label_plate(canvas, c, plaque.bottom + int(8 * ss), "STAFFS", ss, PLUM,
+                 CREAM, PLUM_DK, size=21)
+    return canvas, D
+
+
+# ── Cell 5: jester-cap / bell banderole ribbon banner ─────────────────────────
+def var_cap_banderole(roll, ss):
+    """A ribbon banner in the staff palette crowned by a three-point jester cap,
+    each point tipped with a gold jingle bell and the band split into alternating
+    plum/lime triangle pennants (the cap's harlequin read). Lime banner body, big
+    cream number, "STAFFS" on a plum plate, flared plum ribbon tails — the
+    festive ribbon lineage re-themed to the clown's cap + bells."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    bw, bh = int(HD * 0.70), int(HD * 0.42)
+    bx, by = c - bw // 2, c - bh // 2 + int(HD * 0.06)
+
+    # Flared plum ribbon tails behind the body.
+    tail_w = int(HD * 0.17)
+    for sgn in (-1, 1):
+        x0 = c + sgn * (bw // 2 - 4 * ss)
+        pts = [
+            (x0, by + int(bh * 0.20)),
+            (x0 + sgn * tail_w, by + int(bh * 0.05)),
+            (x0 + sgn * tail_w * 0.7, by + bh // 2),
+            (x0 + sgn * tail_w, by + int(bh * 0.95)),
+            (x0, by + int(bh * 0.80)),
+        ]
+        pygame.draw.polygon(canvas, PLUM_DK, [(int(p[0]), int(p[1])) for p in pts])
+
+    # Three-point jester cap crowning the banner, points tipped with bells.
+    cap_base_y = by - int(2 * ss)
+    n_pts = 3
+    seg = bw / n_pts
+    for k in range(n_pts):
+        bx0 = bx + k * seg
+        bx1 = bx + (k + 1) * seg
+        apex_x = (bx0 + bx1) / 2
+        apex_y = cap_base_y - int(bh * (0.62 if k == 1 else 0.50))
+        col = PLUM if k % 2 == 0 else LIME
+        pygame.draw.polygon(canvas, _shade_c(col, -40),
+                            [(bx0, cap_base_y), (bx1, cap_base_y), (apex_x, apex_y)])
+        pygame.draw.polygon(canvas, col,
+                            [(bx0 + ss, cap_base_y), (bx1 - ss, cap_base_y),
+                             (apex_x, apex_y + ss)])
+        _jingle_bell(canvas, apex_x, apex_y - int(2 * ss), int(6 * ss), ss)
+
+    # Lime banner body with rolled plum frame + soft gold keyline + top gloss.
+    rad = int(18 * ss)
+    halo = int(7 * ss)
+    pygame.draw.rect(canvas, PLUM, (bx - halo, by - halo, bw + 2 * halo, bh + 2 * halo),
+                     border_radius=rad + halo)
+    pygame.draw.rect(canvas, LIME, (bx, by, bw, bh), border_radius=rad)
+    pygame.draw.rect(canvas, GOLD, (bx + 6 * ss, by + 6 * ss, bw - 12 * ss, bh - 12 * ss),
+                     width=2 * ss, border_radius=rad - 4 * ss)
+    gloss = pygame.Surface((bw - 12 * ss, bh // 3), pygame.SRCALPHA)
+    gloss.fill((255, 255, 255, 42))
+    canvas.blit(gloss, (bx + 6 * ss, by + 6 * ss))
+
+    _num_block(canvas, c, by + bh // 2 - int(6 * ss), roll, ss, size=88,
+               num_col=CREAM, edge_col=PLUM, edge_w=5)
+    _label_plate(canvas, c, by + bh + int(2 * ss), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=22)
+    return canvas, D
+
+
+# ── Cell 6: radiant bell-burst sunburst — gold rays + ring of jingle bells ─────
+def var_bell_sunburst(roll, ss):
+    """A radiant gold sunburst — long/short alternating gold rays fanning out from
+    the centre — ringed by jingle bells, with a plum cream-cored medallion holding
+    the hero number. The most explosive 'reveal' read: the wheel re-imagined as a
+    bell-fringed sunburst so the prize-pop energy peaks while staying on-theme."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    # Two-tone radiating sunburst (long gold + short lime spokes between).
+    n = 16
+    for i in range(n):
+        a0 = i * math.tau / n - math.pi / 2
+        long_ray = i % 2 == 0
+        rr = HD * (0.46 if long_ray else 0.37)
+        col = GOLD if long_ray else LIME
+        half_w = (0.10 if long_ray else 0.07)
+        p_in = (c + math.cos(a0) * HD * 0.16, c + math.sin(a0) * HD * 0.16)
+        p_l = (c + math.cos(a0 - half_w) * rr, c + math.sin(a0 - half_w) * rr)
+        p_r = (c + math.cos(a0 + half_w) * rr, c + math.sin(a0 + half_w) * rr)
+        pygame.draw.polygon(canvas, _shade_c(col, -35),
+                            [(int(p_in[0]), int(p_in[1])),
+                             (int(p_l[0]), int(p_l[1])), (int(p_r[0]), int(p_r[1]))])
+        pygame.draw.polygon(canvas, col,
+                            [(int(c), int(c)),
+                             (int(p_l[0]), int(p_l[1])), (int(p_r[0]), int(p_r[1]))], 0)
+
+    # Ring of jingle bells at the long-ray tips.
+    for i in range(0, n, 2):
+        a0 = i * math.tau / n - math.pi / 2
+        bx = c + math.cos(a0) * HD * 0.44
+        by = c + math.sin(a0) * HD * 0.44
+        _jingle_bell(canvas, bx, by, int(8 * ss), ss)
+
+    # Plum medallion with a cream core so the number sits clear of the rays.
+    med_r = int(HD * 0.24)
+    pygame.draw.circle(canvas, GOLD, (c, c), med_r + int(5 * ss))
+    pygame.draw.circle(canvas, _shade_c(GOLD, -45), (c, c), med_r + int(5 * ss),
+                       max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, PLUM, (c, c), med_r)
+    pygame.draw.circle(canvas, CREAM, (c, c), int(med_r * 0.78))
+    pygame.draw.circle(canvas, PLUM, (c, c), int(med_r * 0.78), max(2, int(2 * ss)))
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=84,
+               num_col=PLUM, edge_col=CREAM, edge_w=4)
+    _label_plate(canvas, c, c + int(med_r * 0.70), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=21)
+    return canvas, D
+
+
+VARIANTS = [
+    ("1  Original (baseline)", "current 12-wedge orange/pink wheel + PILLARS",
+     var_baseline),
+    ("2  Jester prize-wheel", "plum/lime wheel, gold rim + jingle-bell ring",
+     var_jester_wheel),
+    ("3  Barber-twist sign", "staff barber-spiral as the framed sign",
+     var_barber_sign),
+    ("4  Marotte plaque", "two mini Carousel-Barker staffs flank the number",
+     var_marotte_plaque),
+    ("5  Cap-bell banderole", "ribbon banner under a belled jester cap",
+     var_cap_banderole),
+    ("6  Bell-burst sunburst", "gold rays + ring of jingle bells",
+     var_bell_sunburst),
+]
+
+
+def render_sheet():
+    SS = 4  # supersample for crisp downscale to true size
+    TRUE = 264   # popup is 264 design px on the 360 canvas
+    INSET = 116  # actual-size inset shows the popup at real small-screen size
+    cols = 3
+    rows = 2
+    pad = 20
+    head = 64
+    tile_w = TRUE + INSET + 40
+    tile_h = TRUE + 96
+    sheet_w = cols * tile_w + (cols + 1) * pad
+    sheet_h = head + rows * tile_h + (rows + 1) * pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((30, 34, 42))
+
+    title_f = hud._font(30, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(
+        "Warren Roll-Result Celebration — Round 1 (baseline + 5 jester variants)",
+        True, (255, 255, 255)), (pad, 12))
+    sheet.blit(sub_f.render(
+        "Cell 1 = current ship wheel. Cells 2-6 = high-res Plum & Lime clown+staff "
+        "takes. True 264px on day sky + actual-size inset.",
+        True, (200, 205, 215)), (pad, 40))
+
+    label_f = hud._font(19, True)
+    samp_f = hud._font(13, True)
+
+    for idx, (name, desc, fn) in enumerate(VARIANTS):
+        col = idx % cols
+        row = idx // cols
+        tx = pad + col * (tile_w + pad)
+        ty = head + pad + row * (tile_h + pad)
+
+        tile = sky_tile(tile_w, tile_h)
+        canvas, D = fn(ROLL, SS)
+
+        out = pygame.transform.smoothscale(canvas, (TRUE, TRUE))
+        tile.blit(out, out.get_rect(center=(16 + TRUE // 2, 36 + TRUE // 2)))
+
+        chip = sky_tile(INSET + 16, INSET + 16)
+        ins = pygame.transform.smoothscale(canvas, (INSET, INSET))
+        chip.blit(ins, ins.get_rect(center=((INSET + 16) // 2, (INSET + 16) // 2)))
+        pygame.draw.rect(chip, (255, 255, 255), chip.get_rect(), 2)
+        cr = chip.get_rect()
+        cr.bottomright = (tile_w - 8, tile_h - 34)
+        tile.blit(chip, cr)
+        ilab = samp_f.render("actual size", True, (255, 255, 255))
+        ib = pygame.Surface((ilab.get_width() + 6, ilab.get_height() + 2),
+                            pygame.SRCALPHA)
+        ib.fill((20, 22, 28, 200))
+        ib.blit(ilab, (3, 1))
+        tile.blit(ib, (cr.left, cr.top - ib.get_height() - 1))
+
+        strip = pygame.Surface((tile_w, 30), pygame.SRCALPHA)
+        strip.fill((20, 22, 28, 205))
+        tile.blit(strip, (0, 0))
+        tag = (190, 196, 206) if idx == 0 else LIME
+        tile.blit(label_f.render(name, True, tag), (8, 6))
+        cap = pygame.Surface((tile_w, 24), pygame.SRCALPHA)
+        cap.fill((20, 22, 28, 205))
+        tile.blit(cap, (0, tile_h - 24))
+        tile.blit(samp_f.render(f"{desc}  (roll {ROLL})", True, (220, 225, 235)),
+                  (8, tile_h - 21))
+        sheet.blit(tile, (tx, ty))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "dice_results", "warren_roll")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_1.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path)
+
+
+def main():
+    # Opt-in flag so this look-dev sheet isn't rendered by accident.
+    if "--warren-cele" in sys.argv:
+        render_sheet()
+    else:
+        print("pass --warren-cele to render docs/dice_results/warren_roll/round_1.png")
+
+
+if __name__ == "__main__":
+    main()
