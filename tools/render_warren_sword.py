@@ -8699,6 +8699,61 @@ def _render_clown_r17_crops():
         print("wrote", out_path, f"({card.get_width()}x{card.get_height()})", "-", name)
 
 
+def _render_clown_r17_compare():
+    """Round-17 SIDE-BY-SIDE: one 6-cell grid of WHOLE clown figures (staff + die)
+    so the poses can be compared in context, not as zoomed hands — cell 1 is the
+    current open-hand pose, cells 2-6 are the 5 simple gestures. Writes
+    docs/warren_clown/round_17_compare.png; never overwrites an existing sheet."""
+    SCALE = 3.0
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+    cols, rows = 3, 2
+    pad = 24
+    head = 64
+    label_h = 34
+    gap = 18
+    cell_w = disp_w
+    cell_h = label_h + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + rows * cell_h + (rows - 1) * gap + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(26, True)
+    label_f = hud._font(19, True)
+    sheet.blit(title_f.render(
+        "Warren Clown — die-side pose comparison: cell 1 = CURRENT (open hand), "
+        "cells 2-6 = the 5 simple gestures, each on the WHOLE figure", True,
+        (255, 255, 255)), (pad, 18))
+
+    # Cell 1 is the current open-hand pose (round-16, relaxed 3/4) as the baseline;
+    # the rest are the round-17 simple gestures in declaration order.
+    cur_name, cur_kw, _ = _CLOWN_R16_VARIANTS[0]
+    figs = [("1. CURRENT — open hand",
+             render_clown_staff_r16(0, **cur_kw))]
+    for i, (name, kw, _note) in enumerate(_CLOWN_R17_VARIANTS):
+        figs.append((f"{i + 2}. {name}", render_clown_staff_r17(i, **kw)))
+
+    for i, (label, fig) in enumerate(figs):
+        r, c = divmod(i, cols)
+        cx = pad + c * (cell_w + gap)
+        cy = head + r * (cell_h + gap)
+        # Label band over each cell so it's obvious which pose is which.
+        pygame.draw.rect(sheet, (40, 43, 54), (cx, cy, cell_w, label_h))
+        sheet.blit(label_f.render(label, True, (235, 238, 246)), (cx + 8, cy + 7))
+        scaled = pygame.transform.smoothscale(fig, (disp_w, disp_h))
+        sheet.blit(scaled, (cx, cy + label_h))
+        pygame.draw.rect(sheet, (70, 76, 92),
+                         (cx, cy, cell_w, cell_h), 2)
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17_compare.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -8787,7 +8842,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -8855,6 +8910,8 @@ def main():
         _render_clown_r17_sheet()
     if "--clown-r17-crops" in args:
         _render_clown_r17_crops()
+    if "--clown-r17-compare" in args:
+        _render_clown_r17_compare()
 
 
 if __name__ == "__main__":
