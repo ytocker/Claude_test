@@ -16,6 +16,16 @@ from game.config import PIPE_W
 # Guards may spill this far past the 58-px column on each side.
 OVERHANG = 12
 
+# Macaw-glove palette for the hero clown's gripping/pointing hands (the hands are
+# the only non-staff art this module draws — for the warren demo's settled hero).
+# Resolved literals so this module stays free of the look-dev alias chains.
+_GLOVE = (250, 250, 252)
+_GLOVE_OUTLINE = (20, 12, 18)
+_GLOVE_GROOVE = (172, 172, 174)        # 1-shade-darker inter-finger groove
+_GLOVE_OCCLUDE = (154, 154, 156)       # darkest: shaft-behind-fingers band
+_GLOVE_HI = (255, 255, 255)
+_FOREARM_DEG = 47.0                    # raised-forearm continuation angle
+
 # Plum & Lime clown world palette (so the staff ties to the hero clown).
 PLUM = (96, 44, 150)
 PLUM_DK = (66, 28, 110)
@@ -436,3 +446,244 @@ def draw_pillar_pair_staff(surf, top_rect, bot_rect, palette, seed):
     if bot_rect.height > 0:
         bot = _staff_obstacle(bot_rect.height, ss, flip=False)  # head points UP to gap
         surf.blit(bot, (bot_rect.x - OVERHANG, bot_rect.y))
+
+
+# ── Hero clown hands (warren demo's settled-hero composition) ─────────────────
+# The macaw-glove grip + pointing hands ported from the look-dev render, so the
+# demo's hero clown holds the design-8 staff and points at the die without any
+# tools/ import in shipped code. The grip is a three-z-pass build: the caller
+# blits the shaft between the BEHIND pass (palm heel + knuckle ridge) and the
+# FRONT pass (four banded fingers), with an occlusion band darkening the shaft
+# where the whole grip crosses it.
+
+def _r8_segment(surf, base, tip, w, *, rim=True, cap=True):
+    """One finger SEGMENT capsule (base→tip) with the macaw-weight keyline, glove
+    fill, rounded tip cap and the constant TOP-LEFT rim sheen. Grip segments read
+    by their bounding GROOVES, not internal creases, so they don't muddy at 3-4px."""
+    pygame.draw.line(surf, _GLOVE_OUTLINE, base, tip, w + 2)
+    pygame.draw.line(surf, _GLOVE, base, tip, w)
+    if cap:
+        pygame.draw.circle(surf, _GLOVE, tip, max(1, w // 2))
+        pygame.draw.circle(surf, _GLOVE_OUTLINE, tip, max(1, w // 2), 1)
+    if rim:
+        pygame.draw.line(surf, _GLOVE_HI,
+                         (base[0] - 1, base[1] - 1), (tip[0] - 1, tip[1] - 1),
+                         max(1, w // 3))
+
+
+def _r8_palm(surf, cx, cy, rx, ry):
+    """Rounded palm/cup mass — keyline ellipse, glove fill, top-left alpha sheen."""
+    rect = pygame.Rect(cx - rx, cy - ry, rx * 2, ry * 2)
+    pygame.draw.ellipse(surf, _GLOVE_OUTLINE, rect)
+    pygame.draw.ellipse(surf, _GLOVE, rect.inflate(-2, -2))
+    sheen = pygame.Surface((rx, ry), pygame.SRCALPHA)
+    pygame.draw.ellipse(sheen, (255, 255, 255, 90), sheen.get_rect())
+    surf.blit(sheen, (cx - rx + 1, cy - ry + 1))
+
+
+def _r8_grip_occlusion(surf, hand, shaft_w):
+    """The dark band on the shaft spanning the full height of the FOUR banded
+    fingers, so the wood reads as passing behind the whole grip rather than beside
+    one digit."""
+    hx, hy = hand
+    pygame.draw.line(surf, _GLOVE_OCCLUDE,
+                     (hx - shaft_w - 2, hy - 8), (hx - shaft_w - 2, hy + 11),
+                     shaft_w + 2)
+
+
+def _r11_grip_glove(surf, hand, shaft_w, *, behind):
+    """LOCKED four-finger staff grip: the behind pass widens the back-of-hand mass
+    into a tall knuckle ridge spanning the full -6..+9 finger band on the right, so
+    ALL FOUR finger bases emerge from one continuous palm (no orphan bottom digit).
+    The four banded fingers, their grooves, the looser top finger and the shaft
+    occlusion behind are drawn in the FRONT pass; no thumb is added."""
+    hx, hy = hand
+    fw = 4
+    dys = (-6, -1, 4, 9)
+    palm_rx, palm_ry = 6, 8
+    loose_top = 1
+    reach = shaft_w + 5
+    if behind:
+        # Back of hand / palm heel behind the shaft, then a knuckle ridge down the
+        # right side spanning every finger root so the bottom finger is no orphan.
+        _r8_palm(surf, hx + 3, hy + 1, palm_rx, palm_ry)
+        ridge = pygame.Rect(0, 0, fw + 4, (dys[-1] - dys[0]) + fw + 4)
+        ridge.center = (hx + 4, hy + (dys[0] + dys[-1]) // 2)
+        pygame.draw.rect(surf, _GLOVE_OUTLINE, ridge, border_radius=fw)
+        pygame.draw.rect(surf, _GLOVE, ridge.inflate(-2, -2), border_radius=fw)
+        pygame.draw.line(surf, _GLOVE_GROOVE,
+                         (hx + 3, hy - palm_ry + 2), (hx + 3, hy + palm_ry - 2), 1)
+        return
+    # FRONT: four banded finger segments rooted in the knuckle ridge above. The top
+    # one sits a touch looser (lifted + reaching further) to break the stack.
+    for k, dy in enumerate(dys):
+        loose = loose_top if k == 0 else 0
+        if k > 0:
+            pygame.draw.line(surf, _GLOVE_GROOVE,
+                             (hx + 4, hy + dy - fw // 2 - 1),
+                             (hx - reach + 1, hy + dy - fw // 2 - 1 - loose),
+                             max(1, fw // 2))
+        base = (hx + 4, hy + dy)
+        tip = (hx - reach - loose, hy + dy - loose)
+        _r8_segment(surf, base, tip, fw)
+
+
+def _r17_die_hand(surf, hand, *, wrist, gesture="mitt", knuckles_up=False,
+                  point_len=0.0, point_bow=0.0, base_w=4):
+    """The die-side hand: a SIMPLE closed-glove gesture whose read comes from one
+    strong silhouette plus 1-2 dark grooves — never from fine finger anatomy, which
+    fizzes at ~16px. Heel-on-wrist `_proj` continues the raised forearm as one limb.
+    `gesture` selects "mitt" (a clean rounded fist), "point" (the fist with ONE
+    tapered digit extended toward the die) or "reach" (the digit curls up as a soft
+    cupped grab). `point_len`/`point_bow` set the extended digit's reach and curve."""
+    hx, hy = hand
+    ang = math.radians(-wrist)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def _proj(dx, dy):
+        # Heel laid a hair up the hand so the forearm tip lands INSIDE the mitt mass.
+        return (hx - int(round(dx * ca - dy * sa)),
+                hy + int(round(-dx * sa - dy * ca)) - int(round(2 * ca)))
+
+    crown = 9.6 + (1.2 if knuckles_up else 0.0)
+    HALF = 6.2                          # half-width of the fist across the band
+    body_local = [
+        (-3.6, -3.6),                   # inner wrist corner (narrow heel)
+        (-HALF, 3.0),                   # widen out toward the knuckle band
+        (-HALF * 0.86, crown - 1.0),
+        (-HALF * 0.30, crown),          # knuckle crown, viewer-left lobe
+        ( HALF * 0.30, crown),          # knuckle crown, viewer-right lobe
+        ( HALF * 0.86, crown - 1.0),
+        ( HALF + 0.4, 3.0),
+        ( 4.0, -3.6),                   # outer wrist corner (narrow heel)
+    ]
+    body_pts = [_proj(x, y) for (x, y) in body_local]
+
+    # A short, low thumb wedge folded against the index side: enough to break the
+    # pure-oval read, never an extended digit.
+    thenar = [
+        _proj(4.6, -1.4),               # wrist root, outside
+        _proj(7.0, 1.6),                # thumb knuckle swell
+        _proj(5.2, 4.4),                # tucks back into the fist
+        _proj(3.2, 2.0),
+    ]
+
+    def _draw_blob():
+        pygame.draw.polygon(surf, _GLOVE_OUTLINE, thenar)
+        pygame.draw.polygon(surf, _GLOVE, [_proj(x * 0.9, y) for (x, y) in
+                                           ((4.6, -1.4), (7.0, 1.6),
+                                            (5.2, 4.4), (3.2, 2.0))])
+        pygame.draw.polygon(surf, _GLOVE_OUTLINE, body_pts)
+        pygame.draw.polygon(surf, _GLOVE,
+                            [_proj(x * 0.9, y) for (x, y) in body_local])
+
+    def _digit(reach_back):
+        # Root just above the knuckle crown, on the die-facing edge of the fist.
+        root_x, root_y = -HALF * 0.30, crown - 0.6
+        segs = (0.0, 0.42, 0.76, 1.0)
+        pts = []
+        for t in segs:
+            up = root_y + point_len * t
+            bow = point_bow * (t * t)
+            if reach_back:
+                up = root_y + point_len * (t - 1.2 * t * t)
+                bow = -point_bow * (t * t) - HALF * 0.30 * t
+            pts.append((root_x + bow, up))
+        return [_proj(x, y) for (x, y) in pts]
+
+    def _taper_w(t):
+        return max(2, int(round(base_w - 1.2 * t)))
+
+    def _draw_digit(reach_back=False):
+        pts = _digit(reach_back)
+        for col, lw_off in ((_GLOVE_OUTLINE, 2), (_GLOVE, 0)):
+            for i in range(len(pts) - 1):
+                t = i / (len(pts) - 1)
+                pygame.draw.line(surf, col, pts[i], pts[i + 1], _taper_w(t) + lw_off)
+            pygame.draw.circle(surf, col, pts[-1],
+                               max(1, (_taper_w(1.0) + lw_off) // 2))
+
+    if gesture == "reach":
+        _draw_digit(reach_back=True)
+        _draw_blob()
+    elif gesture == "point":
+        _draw_blob()
+        _draw_digit(reach_back=False)
+    else:
+        _draw_blob()
+
+    # ONE curved dark knuckle groove + a hairline wrist crease + a single rim-sheen
+    # lobe: the whole "anatomy" budget — sparse so it never fizzes at true 1x.
+    band_y = crown - 2.4
+    groove = [_proj(x, band_y + (0.8 if knuckles_up else 0.0))
+              for x in (-HALF * 0.7, -HALF * 0.2, HALF * 0.3, HALF * 0.72)]
+    if len(groove) >= 2:
+        pygame.draw.lines(surf, _GLOVE_GROOVE, False, groove, 1)
+    pygame.draw.line(surf, _GLOVE_GROOVE, _proj(-HALF * 0.6, 0.2),
+                     _proj(HALF * 0.6, 0.2), 1)
+    pygame.draw.circle(surf, _GLOVE_HI, _proj(-HALF * 0.25, crown - 3.4), 2)
+
+
+def _held_staff_surface(total_px, bauble_px):
+    """Render the design-8 Carousel-Barker staff (`prop_14l`) into a free-standing
+    bitmap whose bauble reads `bauble_px` tall and whose whole figure is `total_px`
+    tall, ready to be rotated + gripped. The internal supersample keys off the
+    bauble so the mini-clown face stays crisp regardless of staff length."""
+    f = bauble_px / 26.0
+    p_ss = 6
+    H = max(1, int(round(total_px / f)))
+    surf, bw, bh = _box(H, p_ss)
+    prop_14l(surf, bw, bh, p_ss)
+    disp_w = max(1, int(round((PIPE_W + 2 * OVERHANG) * f)))
+    disp_h = max(1, int(round(H * f)))
+    return pygame.transform.smoothscale(surf, (disp_w, disp_h)), disp_w, disp_h
+
+
+def draw_chosen_hero(surf, cx, feet_y, *, build_jester, spec):
+    """Draw the settled hero clown onto `surf`: build_jester body + the pointing
+    die-hand on the raised wrist + the design-8 Carousel-Barker staff (Taller,
+    total_px=225) gripped in the down hand with its bell foot planted. Mirrors the
+    look-dev render_clown_staff_r17 composition; the floating die is drawn
+    separately by the demo."""
+    ground_y = feet_y + 4
+
+    # Body + raised arm reaching up-left toward the die. Drawn first so the hands
+    # and staff layer over it.
+    hand_up = (cx - 60, feet_y - 156)
+    build_jester(surf, cx, feet_y, hand_up, **spec)
+
+    # The pointing hand on the raised wrist — one tapered digit aimed at the die.
+    _r17_die_hand(surf, hand_up, wrist=_FOREARM_DEG, gesture="point",
+                  point_len=15.0, point_bow=-1.0)
+
+    # The down hand grips the staff at the hip; the staff is rotated slightly and
+    # planted so its bell foot touches the ground line. The grip fraction climbs
+    # the shaft as needed so the foot lands at `foot_target` for any length.
+    hip_y = feet_y - 84
+    hip_cx = cx - 6
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_staff_surface(225, 15)
+    rot = -7
+    rad = math.radians(rot)
+    foot_target = ground_y + 7
+    grip_frac = max(0.16, 1.0 - (foot_target - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = r_hand[0] - grip_rx
+    prop_oy = r_hand[1] - grip_ry
+    rhi = (int(r_hand[0]), int(r_hand[1]))
+
+    # Three z-passes: palm heel behind → shaft → occlusion band → fingers in front.
+    _r11_grip_glove(surf, rhi, 2, behind=True)
+    surf.blit(rotated, (int(round(prop_ox)), int(round(prop_oy))))
+    _r8_grip_occlusion(surf, rhi, 2)
+    _r11_grip_glove(surf, rhi, 2, behind=False)

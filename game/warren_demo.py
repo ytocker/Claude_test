@@ -41,8 +41,10 @@ DICE_PICK_R = 30          # generous pickup radius around the die
 
 # Local coords for the cached clown bitmap (its shape never changes — only its
 # scroll position does — so it's rendered once and blitted each frame).
-CLOWN_W, CLOWN_H = 200, 300
-CLOWN_CX, CLOWN_FEET = 100, 250
+# Sized so nothing clips: the staff (total_px=225) rises well above the head and
+# the cap horns spill sideways, so the bitmap is taller + wider than the bare body.
+CLOWN_W, CLOWN_H = 240, 360
+CLOWN_CX, CLOWN_FEET = 120, 250
 
 
 class WarrenDemo:
@@ -210,11 +212,13 @@ class WarrenDemo:
         if self._clown_surf is None and self._clown_ok:
             try:
                 s = pygame.Surface((CLOWN_W, CLOWN_H), pygame.SRCALPHA)
-                # Same raised-arm reach as the chosen design (#13): the left
-                # hand points up-left toward the floating die — (cx-60, feet-154)
-                # mirrors render_cell's hand_up so the arm isn't stubby.
-                hand_up = (CLOWN_CX - 60, CLOWN_FEET - 154)
-                self._build_jester(s, CLOWN_CX, CLOWN_FEET, hand_up, **self.spec)
+                # The settled hero: build_jester body + a hand pointing up-left at
+                # the floating die + the design-8 Carousel-Barker staff gripped in
+                # the down hand (the chosen final look), composed by pillar_staff so
+                # no tools/ import is needed.
+                from game.pillar_staff import draw_chosen_hero
+                draw_chosen_hero(s, CLOWN_CX, CLOWN_FEET,
+                                 build_jester=self._build_jester, spec=self.spec)
                 self._clown_surf = s
             except Exception:
                 self._clown_ok = False
