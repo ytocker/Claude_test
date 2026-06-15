@@ -1295,55 +1295,67 @@ def build_tangle_lord(surf, cx, feet_y, K):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _minion_polish(surf, top_x, top_y, s, col, swing=0, scale=1.0):
-    """A clearly-limp dangling marionette-MINION (the comedy hook), enlarged for
-    legibility: a taut string to a bead head with a belled cap, a banded barrel
-    body, X-crossed limp arms + legs flung loose, and foot-strings tugging up to
-    the master's fingers. `swing` skews the puppet so the pair read as caught
-    mid-jerk; `scale` sizes it up so it survives the in-game downscale."""
+    """A miniature limp JESTER — unmistakably "tiny HIM": a 2-point belled cap
+    mirroring the parent's colours, a round dot-grin face, a banded barrel body,
+    and a wholly limp dead-weight pose (arms dropped straight down, legs hanging
+    X-crossed, belled feet). The dual belled cap + the dot-grin are what make it
+    read as a mini-jester rather than an egg/skull at the in-game downscale.
+    `swing` skews the puppet so the pair read as caught mid-jerk; `scale` sizes
+    it up so the joke survives the ~92px gameplay read. `col` is the puppet's
+    own loud half (one lime, one plum) — the other cap point + the body take the
+    complementary lineage colour."""
     u = s * scale
-    # Two control filaments converging onto the puppet head (taut, not slack).
+    other = PLUM_BRUISE if col == VENOM else VENOM
+    # Two taut control filaments converging onto the puppet head.
     hx = top_x + int(swing * 9 * u)
-    hcy = top_y + int(14 * u)
-    for fx in (-3, 3):
+    hcy = top_y + int(16 * u)
+    for fx in (-4, 4):
         pygame.draw.line(surf, STRING_DARK, (top_x + fx * s, top_y),
-                         (hx, hcy - 5 * u), max(1, s))
-    pygame.draw.line(surf, STRING_COL, (top_x, top_y), (hx, hcy - 6 * u),
+                         (hx, hcy - 6 * u), max(1, s))
+    pygame.draw.line(surf, STRING_COL, (top_x, top_y), (hx, hcy - 7 * u),
                      max(1, s))
-    # Bead head — bigger, with a hard dark keyline so it reads as a puppet skull.
-    pygame.draw.circle(surf, SKIN_SHADE, (hx, hcy), int(7 * u) + s)
-    pygame.draw.circle(surf, SKIN, (hx, hcy), int(7 * u))
-    # Two dot eyes + a tiny down-line mouth (a limp, lifeless little face).
+    # Round head with a hard dark keyline (reads as a head, not a bead).
+    hrad = int(8 * u)
+    pygame.draw.circle(surf, INK, (hx, hcy), hrad + s)
+    pygame.draw.circle(surf, SKIN_SHADE, (hx, hcy), hrad)
+    pygame.draw.circle(surf, SKIN, (hx, hcy), hrad - s)
+    # Dot-grin face — two ink dot eyes + an upturned grin arc (clearly a jester
+    # face, the comedy cue that separates it from a skull).
     for ex in (-3, 3):
-        pygame.draw.circle(surf, INK, (hx + int(ex * u), hcy - int(u)), max(1, int(1.6 * u)))
-    pygame.draw.line(surf, INK, (hx - int(2 * u), hcy + int(3 * u)),
-                     (hx + int(2 * u), hcy + int(3 * u)), max(1, s))
-    # Belled cap nub on the minion (lineage echo, shrunk).
-    cap_tip = (hx + int(swing * 4 * u), hcy - int(15 * u))
-    pygame.draw.polygon(surf, col, [(hx - int(5 * u), hcy - int(5 * u)),
-                                    (hx + int(5 * u), hcy - int(5 * u)), cap_tip])
-    pygame.draw.polygon(surf, _shade(col, -55),
-                        [(hx - int(5 * u), hcy - int(5 * u)),
-                         (hx + int(5 * u), hcy - int(5 * u)), cap_tip], s)
-    _bell(surf, cap_tip[0], cap_tip[1], max(2, int(2 * u)))
-    # Banded barrel body — a clear harlequin torso, not a thread.
-    bo_y = hcy + int(6 * u)
-    bo_bot = bo_y + int(15 * u)
+        pygame.draw.circle(surf, INK, (hx + int(ex * u), hcy - int(1.5 * u)),
+                           max(1, int(2 * u)))
+    pygame.draw.arc(surf, BLOOD_DARK,
+                    (hx - int(4 * u), hcy, int(8 * u), int(6 * u)),
+                    math.pi, math.tau, max(1, int(1.4 * u)))
+    # The TWO-POINT belled jester cap — one point in the puppet's loud colour,
+    # one in the complement, mirroring the parent. THIS is the "mini-HIM" cue.
+    cap_b = hcy - hrad + s
+    for psgn, pcol in ((-1, col), (1, other)):
+        tip = (hx + int((psgn * 7 + swing * 4) * u), cap_b - int(13 * u))
+        base = [(hx - int(7 * u), cap_b), (hx + int(7 * u), cap_b), tip]
+        pygame.draw.polygon(surf, pcol, base)
+        pygame.draw.polygon(surf, _shade(pcol, -55), base, s)
+        _bell(surf, tip[0], tip[1], max(2, int(2 * u)))
+    # Banded barrel body — a clear harlequin torso under the head.
+    bo_y = hcy + hrad
+    bo_bot = bo_y + int(16 * u)
     body_cx = hx + int(swing * 5 * u)
-    _harlequin_band(surf, (hx, bo_y), (body_cx, bo_bot), int(10 * u), s,
-                    col, GOLD, n=3)
-    # X-crossed LIMP arms flung loose off the shoulders.
+    _harlequin_band(surf, (hx, bo_y), (body_cx, bo_bot), int(11 * u), s,
+                    col, other, n=3)
+    # LIMP arms hanging straight DOWN off the shoulders (dead-weight, belled).
     for sgn in (-1, 1):
-        pygame.draw.line(surf, _shade(col, -45),
-                         (hx, bo_y + int(2 * u)),
-                         (hx + int(sgn * 10 * u), bo_y + int(12 * u)), max(2, int(3 * u)))
-        _bell(surf, hx + int(sgn * 10 * u), bo_y + int(12 * u), max(1, int(1.7 * u)))
-    # Limp dangling legs, knees buckled, belled feet — clearly a dead-weight doll.
+        sh = (hx + int(sgn * 5 * u), bo_y + int(2 * u))
+        hand = (sh[0] + int(sgn * 3 * u), bo_y + int(13 * u))
+        pygame.draw.line(surf, _shade(col, -45), sh, hand, max(2, int(3.5 * u)))
+        _bell(surf, hand[0], hand[1], max(1, int(1.8 * u)))
+    # X-crossed limp legs, belled feet — the unmistakable lifeless-doll dangle.
+    crot = (body_cx, bo_bot)
     for sgn in (-1, 1):
-        knee = (body_cx + int(sgn * 7 * u), bo_bot + int(6 * u))
-        foot = (body_cx + int(sgn * 11 * u), bo_bot + int(13 * u))
-        pygame.draw.line(surf, _shade(col, -45), (body_cx, bo_bot), knee, max(2, int(3 * u)))
-        pygame.draw.line(surf, _shade(col, -45), knee, foot, max(2, int(3 * u)))
-        _bell(surf, foot[0], foot[1], max(1, int(1.9 * u)))
+        knee = (body_cx - int(sgn * 4 * u), bo_bot + int(7 * u))
+        foot = (body_cx + int(sgn * 9 * u), bo_bot + int(13 * u))
+        pygame.draw.line(surf, _shade(col, -45), crot, knee, max(2, int(3.5 * u)))
+        pygame.draw.line(surf, _shade(col, -45), knee, foot, max(2, int(3.5 * u)))
+        _bell(surf, foot[0], foot[1], max(1, int(2 * u)))
 
 
 def build_tangle_lord_polish(surf, cx, feet_y, K):
@@ -1381,26 +1393,27 @@ def build_tangle_lord_polish(surf, cx, feet_y, K):
     pygame.draw.ellipse(surf, PLUM_DEEP, hump.inflate(-5 * s, -5 * s))
     pygame.draw.arc(surf, PLUM_BRUISE, hump.inflate(-10 * s, -10 * s),
                     math.pi * 0.85, math.pi * 1.45, 3 * s)
-    # A spine of venom diamonds running over the crown of the hunch (reads as the
-    # boss's hunched back even in silhouette).
-    for k in range(4):
-        t = k / 3
-        px = cx - 26 * s + int(t * 40 * s)
-        py = hump_y + 4 * s + int(abs(t - 0.5) * 26 * s)
-        d = (5 - k) * s + 3 * s
+    # ONE clean venom-diamond ridge running down the crest of the hunch — a
+    # single descending-size spine, the boss's "armoured back" read. The rest of
+    # the robe is deliberately CLEARED of diamonds so the silhouette stays clean
+    # and the focal hierarchy (face -> tangle+minions) wins.
+    crest = [(cx - 22 * s, hump_y - 2 * s), (cx - 8 * s, hump_y + 16 * s),
+             (cx + 4 * s, hump_y + 38 * s), (cx + 12 * s, hump_y + 62 * s),
+             (cx + 18 * s, hump_y + 86 * s)]
+    for k, (px, py) in enumerate(crest):
+        d = (5 - k) * s + 5 * s
+        # Dark seat so each diamond sits proud of the plum (separation).
+        pygame.draw.polygon(surf, PLUM_DARK,
+                            [(px, py - d - s), (px + d + s, py),
+                             (px, py + d + s), (px - d - s, py)])
         pygame.draw.polygon(surf, VENOM_DEEP,
                             [(px, py - d), (px + d, py), (px, py + d), (px - d, py)])
         pygame.draw.polygon(surf, VENOM,
                             [(px, py - d + s), (px + d - s, py), (px, py + d - s),
                              (px - d + s, py)])
-    # Harlequin diamonds scattered down the robe front — MASS, never void.
-    for (dx, dy) in ((-26, 30), (2, 44), (-34, 62), (14, 70), (-14, 54), (-2, 86)):
-        px, py = cx + dx * s, waist_y + dy * s
-        d = 6 * s
-        pygame.draw.polygon(surf, VENOM, [(px, py - d), (px + d, py), (px, py + d), (px - d, py)])
-        pygame.draw.polygon(surf, VENOM_DEEP, [(px, py - d), (px + d, py), (px, py + d), (px - d, py)], s)
-    # Bell-fringed hem.
-    n = 10
+    # Bell-fringed hem — QUIETED: ~40% fewer dags/bells so the lower third reads
+    # as a calm dark base and the minions own it.
+    n = 6
     for i in range(n):
         x0 = cx - hem_w + 6 * s + (2 * hem_w - 6 * s) * i / n
         x1 = cx - hem_w + 6 * s + (2 * hem_w - 6 * s) * (i + 1) / n
@@ -1409,18 +1422,22 @@ def build_tangle_lord_polish(surf, cx, feet_y, K):
         dag = [(x0, hem_y - 2 * s), (x1, hem_y - 2 * s), (mid, hem_y + 11 * s)]
         pygame.draw.polygon(surf, col, dag)
         pygame.draw.polygon(surf, _shade(col, -60), dag, s)
-        _bell(surf, mid, hem_y + 11 * s, 2 * s)
+        # Only every other dag carries a bell — thins the gold clutter further.
+        if i % 2 == 0:
+            _bell(surf, mid, hem_y + 11 * s, 2 * s)
     for sgn in (-1, 1):
         _gold_cuff(surf, cx + sgn * 30 * s - 6 * s, feet_y - 4 * s, 6 * s, s)
 
-    # Both thick arms reach DOWN-and-IN, cradling the tangle LOW in front of the
-    # gut — the downward cradle is the "hunched over his strings" read. Hands sit
-    # close together and well below the waist so the tangle hangs in a deep bowl.
+    # Both thick arms reach DOWN-and-OUT, cradling the tangle LOW and WIDE in
+    # front of the gut — the downward cradle is the "hunched over his strings"
+    # read. Hands sit WIDE apart and well below the waist so the two minions hang
+    # outboard of the robe edge (the robe must not swallow them) and the tangle
+    # slings in a deep bowl between them.
     hands = []
     for sgn, col_a, col_b in ((-1, VENOM, PLUM_BRUISE), (1, PLUM_BRUISE, VENOM)):
-        sh = (cx + sgn * 22 * s - 6 * s, waist_y - 10 * s)
-        elbow = (cx + sgn * 50 * s - 4 * s, waist_y + 14 * s)
-        hand = (cx + sgn * 28 * s - 4 * s, waist_y + 34 * s)
+        sh = (cx + sgn * 24 * s - 6 * s, waist_y - 10 * s)
+        elbow = (cx + sgn * 54 * s - 4 * s, waist_y + 16 * s)
+        hand = (cx + sgn * 50 * s - 4 * s, waist_y + 40 * s)
         _harlequin_band(surf, sh, elbow, 11 * s, s, col_a, col_b)
         _harlequin_band(surf, elbow, hand, 9 * s, s, col_b, col_a)
         _gold_cuff(surf, hand[0], hand[1], 8 * s, s)
@@ -1434,29 +1451,45 @@ def build_tangle_lord_polish(surf, cx, feet_y, K):
             pygame.draw.circle(surf, GOLD_DARK, (tipx, tipy), 2 * s)
         hands.append(hand)
     lh, rh = hands
-    # The cradled TANGLE: a deep sagging bowl of crossing filaments slung between
-    # the two low hands, dipping well below them so it reads as a held cat's-cradle.
-    for k in range(7):
-        t = k / 6
-        ax = lh[0] + (rh[0] - lh[0]) * t
-        sag = int(math.sin(t * math.pi) * 28 * s)
-        # Each filament strung hand-to-hand bowing down into the cradle.
-        col = STRING_COL if k % 2 else STRING_DARK
-        pygame.draw.line(surf, col,
-                         (lh[0] + 2 * s, lh[1] + 12 * s),
-                         (ax, lh[1] + 14 * s + sag), max(1, s))
-        pygame.draw.line(surf, col,
-                         (rh[0] - 2 * s, rh[1] + 12 * s),
-                         (ax, rh[1] + 14 * s + sag), max(1, s))
-    # A couple of slack cross-knots in the middle of the tangle (the "snarl").
-    knot_y = (lh[1] + rh[1]) // 2 + 30 * s
-    for kx in (-7, 4):
-        pygame.draw.circle(surf, STRING_DARK, (cx + kx * s - 4 * s, knot_y), 3 * s)
-        pygame.draw.circle(surf, STRING_COL, (cx + kx * s - 4 * s, knot_y), 2 * s)
-    # The two MINIONS — enlarged, clearly limp, strings taut up to the claws.
-    # They hang at staggered heights (caught mid-jerk) and end near the hem.
-    _minion_polish(surf, lh[0], lh[1] + 14 * s, s, VENOM, swing=-0.55, scale=1.1)
-    _minion_polish(surf, rh[0], rh[1] + 14 * s, s, PLUM_BRUISE, swing=0.5, scale=1.25)
+    # The cradled TANGLE rebuilt as a SHAPE, not a mesh: three BOLD confident
+    # sagging catenary lines slung hand-to-hand, each first laid down as a faint
+    # plum drop-shadow (separation against the dark robe) then a thick off-white
+    # cord with a brighter rim-light on top. Exaggerated sag so it reads as
+    # "holding strings" even at the 92px gameplay scale.
+    def _catenary(y0, dip, weight, col, shadow=True):
+        pts = []
+        for k in range(0, 21):
+            t = k / 20
+            x = lh[0] + 4 * s + (rh[0] - lh[0] - 8 * s) * t
+            y = y0 + int(math.sin(t * math.pi) * dip)
+            pts.append((x, y))
+        if shadow:
+            shp = [(x, y + 3 * s) for x, y in pts]
+            pygame.draw.lines(surf, PLUM_DARK, False, shp, weight + 2 * s)
+        pygame.draw.lines(surf, STRING_DARK, False, pts, weight + s)
+        pygame.draw.lines(surf, col, False, pts, weight)
+        rim = [(x, y - max(1, weight // 2)) for x, y in pts]
+        pygame.draw.lines(surf, (245, 242, 228), False, rim, max(1, s))
+        return pts
+    base_y = max(lh[1], rh[1]) + 16 * s
+    _catenary(base_y, 26 * s, 3 * s, STRING_COL)
+    _catenary(base_y + 8 * s, 34 * s, 4 * s, STRING_COL)
+    _catenary(base_y - 4 * s, 18 * s, 2 * s, STRING_DARK, shadow=False)
+    # Two deliberate KNOT-BLOBS where the cords snarl (bold, not specks).
+    knot_y = base_y + 30 * s
+    for kx, kr in ((-12, 5), (8, 6)):
+        kxx = cx + kx * s - 4 * s
+        pygame.draw.circle(surf, PLUM_DARK, (kxx, knot_y + 3 * s), kr * s + s)
+        pygame.draw.circle(surf, STRING_DARK, (kxx, knot_y), kr * s)
+        pygame.draw.circle(surf, STRING_COL, (kxx, knot_y), kr * s - 2 * s)
+        pygame.draw.circle(surf, (245, 242, 228),
+                           (kxx - 2 * s, knot_y - 2 * s), max(1, kr * s // 3))
+    # The two MINIONS — enlarged + pushed OUTBOARD so the robe can't swallow them.
+    # They hang at staggered heights (caught mid-jerk) and own the lower third.
+    _minion_polish(surf, lh[0] - 4 * s, lh[1] + 14 * s, s, VENOM,
+                   swing=-0.55, scale=1.25)
+    _minion_polish(surf, rh[0] + 4 * s, rh[1] + 14 * s, s, PLUM_BRUISE,
+                   swing=0.5, scale=1.4)
 
     # The lineage GOLD SCALLOPED RUFF, tilted forward off the craned neck.
     _scallop_ruff(surf, cx - 6 * s, hump_y + 8 * s, 26 * s, s, lobes=8, r=7)
@@ -1475,6 +1508,227 @@ def build_tangle_lord_polish(surf, cx, feet_y, K):
 
     # The EVOLVED belled cap flopping hard FORWARD over the brow — the flop is a
     # signature, and its bell tips lead the eye down toward the strings.
+    _evolved_cap(surf, hcx, hy - hr + 5 * s, s, lean=-0.6, scale=1.0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TANGLE-LORD — SHIP POLISH r2
+# The face, soured palette, gold ruff, and hunched grandiose silhouette of
+# polish r1 were called SHIP-QUALITY and are carried over UNCHANGED (same robe,
+# hump, crest-ridge spine, quieted hem, craned head + KEPT face, forward cap).
+# r2 fixes ONLY the defining feature that failed the ~92px gameplay gate: the
+# minions and the tangle. The minions become OBVIOUS mini-jesters — each a tiny
+# HIM, with a 2-point belled cap mirroring the parent, a dot-grin, and a limp
+# X-legged dangle — enlarged and pushed OUTBOARD/FORWARD so the robe can't
+# swallow them. The tangle becomes a confident SHAPE — two-to-three bold sagging
+# cords with deliberate knots and a rim-light that lifts it off the dark plum.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _minion_polish_2(surf, top_x, top_y, s, col, swing=0, scale=1.0):
+    """An OBVIOUS miniature limp jester — "tiny HIM" at gameplay scale. Reads as
+    a mini-jester (not an egg/skull) because of three loud cues that survive the
+    downscale: a clear TWO-POINT belled cap split into the parent's lime+plum, a
+    bold dot-grin face (two big ink eyes + an upturned blood grin), and a wholly
+    LIMP dead-doll pose — arms dropped straight down, legs hanging X-crossed,
+    every tip belled. Drawn with a hard INK keyline and a lit body band so the
+    puppet wins ~20% more contrast against both the dark robe and the sky.
+    `swing` skews the puppet so the pair read as caught mid-jerk; `col` is the
+    puppet's own loud half (one lime, one plum), the complement filling the rest."""
+    u = s * scale
+    other = PLUM_BRUISE if col == VENOM else VENOM
+    # Two taut control filaments converging onto the puppet head (with a faint
+    # dark backing so the threads separate from the sky and the robe).
+    hx = top_x + int(swing * 10 * u)
+    hcy = top_y + int(18 * u)
+    for fx in (-5, 5):
+        pygame.draw.line(surf, STRING_DARK, (top_x + fx * s, top_y),
+                         (hx, hcy - int(9 * u)), max(1, s))
+    pygame.draw.line(surf, (245, 242, 228), (top_x, top_y),
+                     (hx, hcy - int(10 * u)), max(1, s))
+    # Round head — a hard INK keyline rings it so it reads as a head, never a
+    # bead, even at the in-game downscale.
+    hrad = int(9 * u)
+    pygame.draw.circle(surf, INK, (hx, hcy), hrad + 2 * s)
+    pygame.draw.circle(surf, SKIN_SHADE, (hx, hcy), hrad)
+    pygame.draw.circle(surf, SKIN, (hx - s, hcy - s), hrad - s)
+    # Bold dot-grin face — big ink eyes + an upturned blood grin. This is the
+    # comedy cue that says "jester", not "skull".
+    for ex in (-4, 4):
+        pygame.draw.circle(surf, INK, (hx + int(ex * u), hcy - int(2 * u)),
+                           max(1, int(2.4 * u)))
+        pygame.draw.circle(surf, WHITE, (hx + int(ex * u) - s, hcy - int(3 * u)),
+                           max(1, int(0.9 * u)))
+    pygame.draw.arc(surf, BLOOD,
+                    (hx - int(5 * u), hcy + int(1 * u), int(10 * u), int(8 * u)),
+                    math.pi * 1.05, math.pi * 1.95, max(2, int(2 * u)))
+    # The TWO-POINT belled jester cap — one point in the puppet's loud colour,
+    # one in the complement, mirroring the PARENT's lime/plum. The single
+    # loudest "mini-HIM" cue; tips splay outward + flop with the swing.
+    cap_b = hcy - hrad + s
+    for psgn, pcol in ((-1, col), (1, other)):
+        tip = (hx + int((psgn * 9 + swing * 5) * u), cap_b - int(15 * u))
+        base = [(hx - int(8 * u), cap_b + s), (hx + int(8 * u), cap_b + s), tip]
+        pygame.draw.polygon(surf, INK, base, max(1, s))   # keyline first (mass)
+        pygame.draw.polygon(surf, pcol, base)
+        pygame.draw.polygon(surf, _shade(pcol, -55), base, s)
+        _bell(surf, tip[0], tip[1], max(2, int(2.4 * u)))
+    # Banded barrel body — a clear harlequin torso, lit one band brighter than r1
+    # so the puppet body separates from the robe behind it.
+    bo_y = hcy + hrad
+    bo_bot = bo_y + int(18 * u)
+    body_cx = hx + int(swing * 6 * u)
+    pygame.draw.line(surf, INK, (hx, bo_y), (body_cx, bo_bot), int(13 * u) + 2 * s)
+    _harlequin_band(surf, (hx, bo_y), (body_cx, bo_bot), int(12 * u), s,
+                    _shade(col, 30), other, n=3)
+    # A tiny gold belt-bell at the waist — extra "dressed jester" read.
+    _bell(surf, (hx + body_cx) // 2, (bo_y + bo_bot) // 2, max(1, int(2 * u)))
+    # LIMP arms hanging straight DOWN off the shoulders (dead-weight, belled).
+    for sgn in (-1, 1):
+        sh = (hx + int(sgn * 6 * u), bo_y + int(2 * u))
+        hand = (sh[0] + int(sgn * 3 * u), bo_y + int(15 * u))
+        pygame.draw.line(surf, INK, sh, hand, max(2, int(4.2 * u)))
+        pygame.draw.line(surf, col, sh, hand, max(2, int(3.2 * u)))
+        _bell(surf, hand[0], hand[1], max(1, int(2 * u)))
+    # X-crossed limp legs, belled feet — the unmistakable lifeless-doll dangle.
+    crot = (body_cx, bo_bot)
+    for sgn in (-1, 1):
+        knee = (body_cx - int(sgn * 5 * u), bo_bot + int(8 * u))
+        foot = (body_cx + int(sgn * 11 * u), bo_bot + int(15 * u))
+        for a, b in ((crot, knee), (knee, foot)):
+            pygame.draw.line(surf, INK, a, b, max(2, int(4.2 * u)))
+            pygame.draw.line(surf, other, a, b, max(2, int(3.2 * u)))
+        _bell(surf, foot[0], foot[1], max(1, int(2.2 * u)))
+
+
+def build_tangle_lord_polish_2(surf, cx, feet_y, K):
+    s = K
+    # ── KEPT FROM r1 (ship-quality): the forward-leaning robe mass + back-hump,
+    # the single venom-diamond crest-ridge spine, the quieted bell-fringe hem,
+    # the gold scalloped ruff, the craned head + KEPT villain face, the forward-
+    # flopped belled cap, the clawed gold-cuffed hooked grip. Geometry verbatim.
+    hem_y = feet_y - 8 * s
+    waist_y = feet_y - 100 * s
+    hump_y = feet_y - 150 * s
+    hem_w = 64 * s
+    robe = [(cx - 40 * s, hump_y + 10 * s),
+            (cx + 4 * s, hump_y - 6 * s),
+            (cx + 30 * s, waist_y - 18 * s),
+            (cx + 46 * s, waist_y + 6 * s),
+            (cx + hem_w, hem_y),
+            (cx - hem_w + 6 * s, hem_y),
+            (cx - 50 * s, waist_y)]
+    pygame.draw.polygon(surf, PLUM_DEEP, robe)
+    pygame.draw.polygon(surf, PLUM_BRUISE,
+                        [(cx - 50 * s, waist_y), (cx - 18 * s, waist_y + 6 * s),
+                         (cx - 30 * s, hem_y), (cx - hem_w + 6 * s, hem_y)])
+    pygame.draw.polygon(surf, PLUM_DARK,
+                        [(cx + 4 * s, hump_y - 6 * s), (cx + 30 * s, waist_y - 18 * s),
+                         (cx + 46 * s, waist_y + 6 * s), (cx + 22 * s, waist_y + 10 * s)])
+    pygame.draw.polygon(surf, PLUM_DARK, robe, 2 * s)
+    hump = pygame.Rect(0, 0, 72 * s, 64 * s)
+    hump.center = (cx - 12 * s, hump_y + 22 * s)
+    pygame.draw.ellipse(surf, PLUM_DARK, hump)
+    pygame.draw.ellipse(surf, PLUM_DEEP, hump.inflate(-5 * s, -5 * s))
+    pygame.draw.arc(surf, PLUM_BRUISE, hump.inflate(-10 * s, -10 * s),
+                    math.pi * 0.85, math.pi * 1.45, 3 * s)
+    crest = [(cx - 22 * s, hump_y - 2 * s), (cx - 8 * s, hump_y + 16 * s),
+             (cx + 4 * s, hump_y + 38 * s), (cx + 12 * s, hump_y + 62 * s),
+             (cx + 18 * s, hump_y + 86 * s)]
+    for k, (px, py) in enumerate(crest):
+        d = (5 - k) * s + 5 * s
+        pygame.draw.polygon(surf, PLUM_DARK,
+                            [(px, py - d - s), (px + d + s, py),
+                             (px, py + d + s), (px - d - s, py)])
+        pygame.draw.polygon(surf, VENOM_DEEP,
+                            [(px, py - d), (px + d, py), (px, py + d), (px - d, py)])
+        pygame.draw.polygon(surf, VENOM,
+                            [(px, py - d + s), (px + d - s, py), (px, py + d - s),
+                             (px - d + s, py)])
+    # Hem — quieted one notch further than r1 (n=5) so the minions own the lower
+    # third even more decisively. KEEP intent, slightly stronger.
+    n = 5
+    for i in range(n):
+        x0 = cx - hem_w + 6 * s + (2 * hem_w - 6 * s) * i / n
+        x1 = cx - hem_w + 6 * s + (2 * hem_w - 6 * s) * (i + 1) / n
+        mid = (x0 + x1) / 2
+        col = GOLD if i % 2 else VENOM
+        dag = [(x0, hem_y - 2 * s), (x1, hem_y - 2 * s), (mid, hem_y + 11 * s)]
+        pygame.draw.polygon(surf, col, dag)
+        pygame.draw.polygon(surf, _shade(col, -60), dag, s)
+        if i % 2 == 0:
+            _bell(surf, mid, hem_y + 11 * s, 2 * s)
+    for sgn in (-1, 1):
+        _gold_cuff(surf, cx + sgn * 30 * s - 6 * s, feet_y - 4 * s, 6 * s, s)
+
+    # Arms reach DOWN-and-OUT cradling the tangle low + WIDE. r2 spreads the
+    # hands a touch wider still and drops them slightly so the bigger outboard
+    # minions clear the robe edge with room to spare.
+    hands = []
+    for sgn, col_a, col_b in ((-1, VENOM, PLUM_BRUISE), (1, PLUM_BRUISE, VENOM)):
+        sh = (cx + sgn * 24 * s - 6 * s, waist_y - 10 * s)
+        elbow = (cx + sgn * 58 * s - 4 * s, waist_y + 16 * s)
+        hand = (cx + sgn * 56 * s - 4 * s, waist_y + 44 * s)
+        _harlequin_band(surf, sh, elbow, 11 * s, s, col_a, col_b)
+        _harlequin_band(surf, elbow, hand, 9 * s, s, col_b, col_a)
+        _gold_cuff(surf, hand[0], hand[1], 8 * s, s)
+        for f in (-1, 0, 1):
+            tipx = hand[0] + f * 5 * s
+            tipy = hand[1] + 12 * s + abs(f) * 2 * s
+            pygame.draw.line(surf, GOLD_DARK, hand, (tipx, tipy), 3 * s)
+            pygame.draw.line(surf, GOLD, hand, (tipx, tipy), s)
+            pygame.draw.circle(surf, GOLD_DARK, (tipx, tipy), 2 * s)
+        hands.append(hand)
+    lh, rh = hands
+    # The cradled TANGLE as a confident SHAPE: just TWO bold sagging cords slung
+    # hand-to-hand, each laid as a faint plum drop-shadow (separation against the
+    # dark robe), a dark backing, a thick off-white cord, then a bright rim-light
+    # on the crest so it lifts clear of the plum. Exaggerated deep sag so the
+    # "holding strings" read survives the 92px gameplay scale.
+    def _catenary(y0, dip, weight, col):
+        pts = []
+        for k in range(0, 21):
+            t = k / 20
+            x = lh[0] + 4 * s + (rh[0] - lh[0] - 8 * s) * t
+            y = y0 + int(math.sin(t * math.pi) * dip)
+            pts.append((x, y))
+        shp = [(x, y + 4 * s) for x, y in pts]
+        pygame.draw.lines(surf, PLUM_DARK, False, shp, weight + 3 * s)
+        pygame.draw.lines(surf, STRING_DARK, False, pts, weight + 2 * s)
+        pygame.draw.lines(surf, col, False, pts, weight)
+        rim = [(x, y - max(1, weight // 2)) for x, y in pts]
+        pygame.draw.lines(surf, (250, 248, 236), False, rim, max(1, s))
+        return pts
+    base_y = max(lh[1], rh[1]) + 18 * s
+    _catenary(base_y, 30 * s, 5 * s, STRING_COL)
+    _catenary(base_y + 12 * s, 40 * s, 6 * s, STRING_COL)
+    # Two deliberate, bold KNOT-BLOBS where the cords snarl (clear shapes, not
+    # specks) with a plum shadow + a white catchlight so they pop off the robe.
+    knot_y = base_y + 38 * s
+    for kx, kr in ((-14, 7), (10, 8)):
+        kxx = cx + kx * s - 4 * s
+        pygame.draw.circle(surf, PLUM_DARK, (kxx + s, knot_y + 4 * s), kr * s + 2 * s)
+        pygame.draw.circle(surf, STRING_DARK, (kxx, knot_y), kr * s)
+        pygame.draw.circle(surf, STRING_COL, (kxx, knot_y), kr * s - 2 * s)
+        pygame.draw.circle(surf, (250, 248, 236),
+                           (kxx - 2 * s, knot_y - 2 * s), max(1, kr * s // 3))
+    # The two MINIONS — bigger again (~15% over r1) and pushed further OUTBOARD,
+    # hung at staggered heights so the pair read as caught mid-jerk and clearly
+    # own the lower third. These are the joke; they must win the eye after face.
+    _minion_polish_2(surf, lh[0] - 6 * s, lh[1] + 14 * s, s, VENOM,
+                     swing=-0.6, scale=1.45)
+    _minion_polish_2(surf, rh[0] + 6 * s, rh[1] + 14 * s, s, PLUM_BRUISE,
+                     swing=0.55, scale=1.6)
+
+    # KEPT: ruff, head + face, forward-flopped cap — verbatim from r1.
+    _scallop_ruff(surf, cx - 6 * s, hump_y + 8 * s, 26 * s, s, lobes=8, r=7)
+    hr = 22 * s
+    hcx = cx - 4 * s
+    hy = hump_y - hr + 6 * s
+    pygame.draw.circle(surf, SKIN_SHADE, (hcx, hy), hr + s)
+    pygame.draw.circle(surf, SKIN, (hcx, hy), hr)
+    _bruise(surf, hcx + 11 * s, hy + 8 * s, 6 * s, 5 * s, 70)
+    _bruise(surf, hcx - 13 * s, hy + 2 * s, 4 * s, 6 * s, 55)
+    _villain_face(surf, hcx, hy, hr, s, brow_left=False, mood="grin")
     _evolved_cap(surf, hcx, hy - hr + 5 * s, s, lean=-0.6, scale=1.0)
 
 
@@ -2218,7 +2472,178 @@ def main_tanglelord():
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
 
+def main_tanglelord_2():
+    """Ship-polish r2 sheet — SAME four-cell layout as r1, rendering the r2
+    builder (rebuilt mini-jester minions + bold catenary tangle) to a NEW file
+    so r1 stays intact. The in-game cell is the gate: ~92px on sky beside a
+    pipe-gap. r2 also re-asserts the bright venom eye-glint AFTER the downscale
+    so the face doesn't flatten to dark slits at gameplay size."""
+    pygame.init()
+    pygame.font.init()
+    pygame.display.set_mode((360, 640))
+
+    K = 3
+
+    f_title = pygame.font.SysFont(None, 52, bold=True)
+    f_sub = pygame.font.SysFont(None, 28, bold=True)
+    f_cap = pygame.font.SysFont(None, 32, bold=True)
+    f_desc = pygame.font.SysFont(None, 26, bold=True)
+
+    PAD = 44
+    GAP = 22
+
+    hero_w, hero_h = 460, 760
+    hero = _figure_surface(build_tangle_lord_polish_2, K, BG_TOP, BG_BOT,
+                           hero_w, hero_h, feet_frac=0.95)
+
+    # IN-GAME SCALE — same figure, trimmed to its own bounding band then
+    # smoothscaled DOWN to ~92px on sky-blue beside a reference pipe-gap.
+    proof_src = _figure_surface(build_tangle_lord_polish_2, K, SKY_TOP, SKY_BOT,
+                                hero_w, hero_h, feet_frac=0.92)
+    fig_feet = int(hero_h * 0.92)
+    fig_top = fig_feet - 235 * K
+    fig_bot = fig_feet + 8 * K
+    fig_crop = pygame.Rect(0, fig_top, hero_w, fig_bot - fig_top).clip(
+        proof_src.get_rect())
+    fig = proof_src.subsurface(fig_crop).copy()
+    target_h = 92
+    scale_f = target_h / fig.get_height()
+    small_w = max(1, int(fig.get_width() * scale_f))
+    small_fig = pygame.transform.smoothscale(fig, (small_w, target_h))
+    # Re-assert the venom eye-glint at the downscaled head so it doesn't sink to
+    # a dark slit — the head centre maps from the builder geometry through the
+    # same crop + scale used above (carries the cell-3 win into the gate cell).
+    head_cx_src = hero_w // 2 - 4 * K
+    head_cy_src = fig_feet - 166 * K
+    gx = int((head_cx_src - fig_crop.x) * scale_f)
+    gy = int((head_cy_src - fig_crop.y) * scale_f)
+    for esgn in (-1, 1):
+        ex = gx + esgn * max(1, int(2 * scale_f * K))
+        pygame.draw.circle(small_fig, EYE_GLINT, (ex, gy), 1)
+    ingame_w, ingame_h = 300, 760
+    ingame = pygame.Surface((ingame_w, ingame_h))
+    _grad_v(ingame, (0, 0, ingame_w, ingame_h), SKY_TOP, SKY_BOT)
+    gap_top = ingame_h // 2 - 60
+    gap_bot = ingame_h // 2 + 60
+    for ry in (0, gap_bot):
+        rh = gap_top if ry == 0 else ingame_h - gap_bot
+        pygame.draw.rect(ingame, (74, 132, 84),
+                         pygame.Rect(ingame_w - 64, ry, 64, rh))
+        pygame.draw.rect(ingame, (104, 168, 110),
+                         pygame.Rect(ingame_w - 64, ry, 64, rh), 3)
+    ingame.blit(small_fig,
+                (ingame_w // 2 - small_fig.get_width() // 2 - 30,
+                 ingame_h // 2 - target_h // 2))
+
+    # FACE DETAIL — sharp integer-zoom crop of the hero head region.
+    feet_y_hero = int(hero_h * 0.95)
+    head_cx = hero_w // 2 - 4 * K
+    head_cy = feet_y_hero - 166 * K
+    crop = pygame.Rect(0, 0, 64 * K, 88 * K)
+    crop.center = (head_cx, head_cy - 18 * K)
+    crop = crop.clip(hero.get_rect())
+    face_src = hero.subsurface(crop).copy()
+    face_w, face_h = 300, 360
+    face = pygame.Surface((face_w, face_h))
+    _grad_v(face, (0, 0, face_w, face_h), BG_TOP, BG_BOT)
+    fz = min(face_w / crop.w, (face_h - 4) / crop.h)
+    face_zoom = pygame.transform.scale(
+        face_src, (int(crop.w * fz), int(crop.h * fz)))
+    face.blit(face_zoom,
+              (face_w // 2 - face_zoom.get_width() // 2,
+               face_h // 2 - face_zoom.get_height() // 2))
+
+    # ORIGINAL — the faithful current clown for lineage/scale.
+    orig_w, orig_h = 300, 360
+    orig = _figure_surface(None, K, BG_TOP, BG_BOT, orig_w, orig_h,
+                           feet_frac=0.92)
+
+    right_w = max(ingame_w, face_w, orig_w)
+    col_x = PAD + hero_w + GAP * 2
+    canvas_w = col_x + right_w + PAD
+    f_cap_h = f_cap.get_height()
+    f_desc_h = 24
+
+    title_lines = _wrap("EVOLVED WARREN CLOWN - THE TANGLE-LORD (ship polish r2)",
+                        f_title, canvas_w - PAD * 2)
+    sub_lines = _wrap(
+        "r1's face + soured palette + gold ruff + hunched silhouette KEPT "
+        "untouched. r2 fixes ONLY the gate failure: the two MINIONS are rebuilt "
+        "as obvious mini-jesters (2-point belled cap mirroring the parent, dot-"
+        "grin, limp X-legged dangle), enlarged + pushed OUTBOARD; the tangle is "
+        "now two BOLD sagging knotted cords with a rim-light. Cell 2 is the gate.",
+        f_sub, canvas_w - PAD * 2)
+    TITLE_H = len(title_lines) * (f_title.get_height() + 2) + 12 \
+        + len(sub_lines) * 26 + 16
+
+    def block_h(cell_h, desc):
+        return cell_h + 6 + f_cap_h + 4 + len(_wrap(desc, f_desc, right_w - 8)) * f_desc_h + 8
+
+    ingame_desc = ("IN-GAME SCALE (THE GATE) - the SAME figure downscaled to "
+                   "~92px on sky beside a pipe-gap: must read as a hunched "
+                   "schemer cradling two puppets on strings")
+    face_desc = ("FACE DETAIL - KEPT browcock grin + ONE fang, bright venom "
+                 "eye-glint, blood nose; hard macro shapes that survive the "
+                 "downscale (unchanged from r1)")
+    orig_desc = ("ORIGINAL (current) - the faithful Plum & Lime jester the "
+                 "Tangle-Lord evolves FROM, for lineage + size comparison")
+    hero_desc = ("HERO - polished Tangle-Lord at native K (crisp, no upscale): "
+                 "KEPT hunch + forward cap + ruff + face + gold-cuffed grip; "
+                 "NEW obvious mini-jester minions hung outboard + a bold "
+                 "knotted two-cord tangle with rim-light")
+
+    right_total = (block_h(ingame_h, ingame_desc) + GAP
+                   + block_h(face_h, face_desc) + GAP
+                   + block_h(orig_h, orig_desc))
+    hero_block = block_h(hero_h, hero_desc)
+    canvas_h = PAD + TITLE_H + max(hero_block, right_total) + PAD
+
+    canvas = pygame.Surface((canvas_w, canvas_h))
+    canvas.fill((30, 28, 38))
+
+    yy = PAD - 2
+    for line in title_lines:
+        canvas.blit(f_title.render(line, True, (236, 224, 196)), (PAD, yy))
+        yy += f_title.get_height() + 2
+    yy += 10
+    for line in sub_lines:
+        canvas.blit(f_sub.render(line, True, (190, 196, 208)), (PAD, yy))
+        yy += 26
+
+    def place(x, y, cell, name, desc, max_w):
+        pygame.draw.rect(canvas, (66, 72, 92),
+                         pygame.Rect(x - 1, y - 1, cell.get_width() + 2,
+                                     cell.get_height() + 2), 1)
+        canvas.blit(cell, (x, y))
+        cy = y + cell.get_height() + 6
+        for line in _wrap(name, f_cap, max_w - 6):
+            cap = f_cap.render(line, True, (234, 224, 168))
+            canvas.blit(cap, (x + (cell.get_width() - cap.get_width()) // 2, cy))
+            cy += f_cap_h
+        cy += 4
+        for line in _wrap(desc, f_desc, max_w - 8):
+            ds = f_desc.render(line, True, (188, 194, 206))
+            canvas.blit(ds, (x + (cell.get_width() - ds.get_width()) // 2, cy))
+            cy += f_desc_h
+        return cy + 8
+
+    y0 = PAD + TITLE_H
+    place(PAD, y0, hero, "1. HERO - THE TANGLE-LORD", hero_desc, hero_w)
+
+    ry = y0
+    ry = place(col_x, ry, ingame, "2. IN-GAME SCALE", ingame_desc, right_w) + GAP - 8
+    ry = place(col_x, ry, face, "3. FACE DETAIL", face_desc, right_w) + GAP - 8
+    place(col_x, ry, orig, "4. ORIGINAL (current)", orig_desc, right_w)
+
+    out_dir = os.path.join("docs", "evolved_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "tanglelord_polish_2.png")
+    pygame.image.save(canvas, out_path)
+    print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
+
+
 if __name__ == "__main__":
     main()
     main_round2()
     main_tanglelord()
+    main_tanglelord_2()
