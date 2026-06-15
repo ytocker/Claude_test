@@ -68,33 +68,36 @@ def _jingle_bell(canvas, cx, cy, r, ss, col=GOLD):
 
 
 def _wheel(canvas, c, R, ss, wedges, col_a, col_b, *, spin=0.55, rim=None,
-           rim_w=6, hub=None):
+           rim_w=6, hub=None, cy=None):
     """A radiating prize-wheel rosette: alternating two-colour wedges with hard
     keylines, an optional crisp gold rim ring, and an optional hub disc. Normal-
     blended so it stays a festive colour over the pale sky (additive blows white).
-    Keeps the baseline's spinning-wheel lineage, elevated and recoloured."""
+    Keeps the baseline's spinning-wheel lineage, elevated and recoloured.
+    `cy` overrides the vertical centre (default = `c`) so the wheel can sit low
+    while a tall bauble crowns the top."""
+    cy = c if cy is None else cy
     step = math.tau / wedges
     for i in range(wedges):
         a0 = spin + i * step
         a1 = a0 + step
         col = col_a if i % 2 == 0 else col_b
         pygame.draw.polygon(canvas, col, [
-            (c, c),
-            (c + math.cos(a0) * R, c + math.sin(a0) * R),
-            (c + math.cos(a1) * R, c + math.sin(a1) * R)])
+            (c, cy),
+            (c + math.cos(a0) * R, cy + math.sin(a0) * R),
+            (c + math.cos(a1) * R, cy + math.sin(a1) * R)])
     # Hairline wedge keylines so the high-res wheel reads crisp, not muddy.
     for i in range(wedges):
         a = spin + i * step
-        pygame.draw.line(canvas, _shade_c(PLUM_DK, -10), (c, c),
-                         (c + math.cos(a) * R, c + math.sin(a) * R), max(1, ss))
+        pygame.draw.line(canvas, _shade_c(PLUM_DK, -10), (c, cy),
+                         (c + math.cos(a) * R, cy + math.sin(a) * R), max(1, ss))
     if rim is not None:
-        pygame.draw.circle(canvas, _shade_c(rim, -45), (c, c), R, max(2, int((rim_w + 2) * ss)))
-        pygame.draw.circle(canvas, rim, (c, c), R, max(2, int(rim_w * ss)))
-        pygame.draw.circle(canvas, GOLD_HI, (c, c), R - int(rim_w * 0.5 * ss),
+        pygame.draw.circle(canvas, _shade_c(rim, -45), (c, cy), R, max(2, int((rim_w + 2) * ss)))
+        pygame.draw.circle(canvas, rim, (c, cy), R, max(2, int(rim_w * ss)))
+        pygame.draw.circle(canvas, GOLD_HI, (c, cy), R - int(rim_w * 0.5 * ss),
                            max(1, ss))
     if hub is not None:
-        pygame.draw.circle(canvas, _shade_c(hub, -45), (c, c), int(R * 0.30))
-        pygame.draw.circle(canvas, hub, (c, c), int(R * 0.30 - ss))
+        pygame.draw.circle(canvas, _shade_c(hub, -45), (c, cy), int(R * 0.30))
+        pygame.draw.circle(canvas, hub, (c, cy), int(R * 0.30 - ss))
 
 
 # ── Cell 1: the CURRENT ship wheel, ported faithfully (the foundation) ────────
@@ -810,6 +813,124 @@ VARIANTS_R3 = [
 ]
 
 
+# ── Round 4: bauble-TOPPER size/placement study (taller canvas) ───────────────
+# The bauble sits ON TOP of a low-seated wheel; the popup canvas is taller than
+# wide so the tall jester cap clears the top. Five sizes from "modest on top" to
+# "huge, crowning the whole wheel" for the user to pick from.
+TOPPER_DW, TOPPER_DH = 264, 360
+
+
+def var_wheel_topper(roll, ss, *, R_frac, wcy_frac, b_hr_ss):
+    """A jester prize-wheel seated low with the full clown bauble (cap+ruff+face)
+    crowning the TOP. `R_frac` = wheel radius vs width; `wcy_frac` = wheel centre
+    y vs height; `b_hr_ss` = bauble head radius (ss-px). Returns a TALL canvas."""
+    hdw, hdh = TOPPER_DW * ss, TOPPER_DH * ss
+    cx = hdw // 2
+    canvas = pygame.Surface((hdw, hdh), pygame.SRCALPHA)
+    R = int(hdw * R_frac)
+    wcy = int(hdh * wcy_frac)
+    _wheel(canvas, cx, R, ss, 8, WHEEL_A, WHEEL_B, spin=0.42, rim=GOLD, rim_w=7, cy=wcy)
+    # three side/bottom cardinal studs; the TOP one is replaced by the bauble.
+    for i in range(1, 4):
+        a = i * math.tau / 4 - math.pi / 2
+        sx = cx + math.cos(a) * (R + int(2 * ss))
+        sy = wcy + math.sin(a) * (R + int(2 * ss))
+        _gold_stud(canvas, sx, sy, int(11 * ss), ss)
+    # cream hub + hero number, scaled to the wheel so it stays the centre hero.
+    hub_r = int(R * 0.62)
+    pygame.draw.circle(canvas, PLUM, (cx, wcy), hub_r + int(4 * ss))
+    pygame.draw.circle(canvas, GOLD, (cx, wcy), hub_r + int(4 * ss), max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, CREAM, (cx, wcy), hub_r)
+    pygame.draw.circle(canvas, PLUM, (cx, wcy), hub_r, max(2, int(2 * ss)))
+    num_size = max(46, int(96 * R / int(hdw * 0.40)))
+    _num_block(canvas, cx, wcy, roll, ss, size=num_size,
+               num_col=PLUM, edge_col=CREAM, edge_w=4)
+    # the full bauble crowns the top: ruff resting on the rim, cap rising above.
+    b_hr = int(b_hr_ss * ss)
+    b_hy = (wcy - R) - int(1.6 * b_hr)
+    _jester_bauble(canvas, cx, b_hy, b_hr, ss)
+    return canvas
+
+
+TOPPER_VARIANTS = [
+    ("A  On-top small",  "modest bauble crowning a big wheel", 0.40, 0.50, 12),
+    ("B  On-top medium", "bigger bauble, slightly smaller wheel", 0.36, 0.515, 16),
+    ("C  On-top large",  "large bauble on a mid wheel", 0.33, 0.54, 20),
+    ("D  On-top XL",     "big bauble crowning the whole wheel", 0.30, 0.57, 24),
+    ("E  On-top huge",   "huge bauble dominating the top", 0.27, 0.60, 28),
+]
+
+
+def render_topper_sheet():
+    """Round-4 study: the 5 bauble-topper sizes on the taller popup canvas, each on
+    the day sky with a true-1x 'actual size' inset. Writes round_4.png."""
+    SS = 4
+    DW, DH = TOPPER_DW, TOPPER_DH
+    disp_w = 220
+    disp_h = int(disp_w * DH / DW)
+    ins_w = 90
+    ins_h = int(ins_w * DH / DW)
+    cols, rows = 3, 2
+    pad = 20
+    head = 64
+    tile_w = disp_w + ins_w + 36
+    tile_h = disp_h + 60
+    sheet_w = cols * tile_w + (cols + 1) * pad
+    sheet_h = head + rows * tile_h + (rows + 1) * pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((30, 34, 42))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(
+        "Warren Roll Celebration — bauble TOPPER size study (pick one)",
+        True, (255, 255, 255)), (pad, 12))
+    sheet.blit(sub_f.render(
+        "Full clown bauble (cap + ruff + face) crowning the wheel, on a taller "
+        "popup. A (small) -> E (huge). Number stays the hero; 1x inset = true size.",
+        True, (200, 205, 215)), (pad, 40))
+
+    label_f = hud._font(18, True)
+    samp_f = hud._font(13, True)
+
+    for idx, (name, desc, rf, wf, bh) in enumerate(TOPPER_VARIANTS):
+        col = idx % cols
+        row = idx // cols
+        tx = pad + col * (tile_w + pad)
+        ty = head + pad + row * (tile_h + pad)
+        tile = sky_tile(tile_w, tile_h)
+
+        canvas = var_wheel_topper(ROLL, SS, R_frac=rf, wcy_frac=wf, b_hr_ss=bh)
+        out = pygame.transform.smoothscale(canvas, (disp_w, disp_h))
+        tile.blit(out, (14, 34))
+
+        chip = sky_tile(ins_w + 12, ins_h + 12)
+        ins = pygame.transform.smoothscale(canvas, (ins_w, ins_h))
+        chip.blit(ins, (6, 6))
+        pygame.draw.rect(chip, (255, 255, 255), chip.get_rect(), 2)
+        tile.blit(chip, (disp_w + 22, tile_h - ins_h - 40))
+        tile.blit(samp_f.render("actual size", True, (255, 255, 255)),
+                  (disp_w + 22, tile_h - ins_h - 58))
+
+        strip = pygame.Surface((tile_w, 28), pygame.SRCALPHA)
+        strip.fill((20, 22, 28, 210))
+        tile.blit(strip, (0, 0))
+        tile.blit(label_f.render(name, True, LIME), (8, 5))
+        cap = pygame.Surface((tile_w, 22), pygame.SRCALPHA)
+        cap.fill((20, 22, 28, 210))
+        tile.blit(cap, (0, tile_h - 22))
+        tile.blit(samp_f.render(f"{desc}  (roll {ROLL})", True, (220, 225, 235)),
+                  (8, tile_h - 19))
+        sheet.blit(tile, (tx, ty))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "dice_results", "warren_roll")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_4.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path)
+
+
 VARIANTS_R2 = [
     ("1  Original (baseline)", "current 12-wedge orange/pink wheel + PILLARS",
      var_baseline),
@@ -902,7 +1023,9 @@ def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
 
 def main():
     # Opt-in flags so these look-dev sheets aren't rendered by accident.
-    if "--warren-cele-r3" in sys.argv:
+    if "--warren-cele-r4" in sys.argv:
+        render_topper_sheet()
+    elif "--warren-cele-r3" in sys.argv:
         render_sheet(
             VARIANTS_R3, "round_3.png",
             title="Warren Roll Celebration — Jester wheel refined "
