@@ -1,25 +1,29 @@
-"""Look-dev mockup: the `reaper-shade` EPIC EVENT-BOSS, round 1.
+"""Look-dev mockup: the `reaper-shade` EPIC EVENT-BOSS, round 2.
 
 WHY: a clean-sheet late-game boss that must out-class the chibi clown and stay
 distinct from its sibling concepts. Reaper-shade's thesis is "Death itself" — a
-faceless HOODED specter whose lower body DISSOLVES into smoke (no feet, the only
+FACELESS HOODED specter whose lower body DISSOLVES into smoke (no feet, the only
 legless read in the set), gliding rather than standing, with a huge curved
 GREAT-SCYTHE arcing overhead.
 
+FACELESS is the gate: the hood interior is pure black emptiness — no eyes, no
+orbs. Emptiness reads as more Death than any glow (Hollow Knight void / Cuphead
+Devil). At most a single narrow vertical void-glow sliver sits DEEP in the hood
+shadow at very low alpha; when in doubt, nothing.
+
 Palette discipline is the separation lever: a sibling lich owns teal/cyan, so
-this stays VOID-VIOLET dominant with the spectral pale-green as a THIN, cold,
-low-luminance ACCENT only (soul-light in the hood, a hairline blade gleam, a
-sparse ember or two) — never a lime wash.
+this stays VOID-VIOLET dominant. The spectral pale-green is a THIN cold ACCENT
+only — a 1px rim on the scythe's inner cutting edge and a faint underglow at the
+smoke-dissolve hem. Total green is a few percent of the figure, never a focal
+mass, never lime, never cyan.
 
 The signature prop is a GREAT-SCYTHE that must later mirror into a vertical
-PILLAR pair. The decision this round: the SNATH (the long straight shaft) is the
-pillar body, and the curved blade rides the GAP-EDGE as a flourish — so a
-top/bottom mirror reads as a clean vertical post with a hooked blade flourishing
-INTO the gap, not a confusing horizontal claw. The sheet proves this with a
-small pillar-fit thumbnail beside the full-scale held figure on day + night sky.
+PILLAR pair. The decision: the SNATH (the long straight shaft) is the pillar
+body, and the curved blade rides the GAP-EDGE as a flourish — so a top/bottom
+mirror reads as a clean vertical post with a hooked blade flourishing INTO the
+gap, not a confusing horizontal claw.
 
-Nothing under `game/` is touched; we import the real colour kit only. Headless +
-deterministic. Output: docs/epic_boss/reaper-shade/round_1.png.
+Nothing under `game/` is touched; we import the real colour kit only. Headless + deterministic. Output: docs/epic_boss/reaper-shade/round_2.png.
 
     PYTHONPATH=. python tools/render_epic_reaper.py
 """
@@ -65,34 +69,58 @@ def _blit_glow(surf, cx, cy, r, col, alpha):
     surf.blit(g, (cx - r, cy - r), special_flags=pygame.BLEND_RGBA_ADD)
 
 
+def _ramp_to_transparent(surf, x0, y0, w, h, ramp_top, ramp_bot):
+    """Erase the bottom band of an already-drawn figure into a smooth alpha
+    gradient, so the robe's base FADES OUT into the sky with no hard hem. Works by
+    multiplying a top→bottom alpha ramp over the region (BLEND_RGBA_MULT keeps the
+    colour, lowers the alpha), which sells the glide instead of a standing hem."""
+    ramp = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        gy = y0 + y
+        if gy <= ramp_top:
+            a = 255
+        elif gy >= ramp_bot:
+            a = 0
+        else:
+            a = int(255 * (1 - (gy - ramp_top) / max(1, (ramp_bot - ramp_top))) ** 1.3)
+        ramp.fill((255, 255, 255, a), (0, y, w, 1))
+    surf.blit(ramp, (x0, y0), special_flags=pygame.BLEND_RGBA_MULT)
+
+
 def _smoke_dissolve(surf, cx, base_y, width, ss, rng_seed=0):
     """The lower body breaking into wispy smoke instead of feet — the distinct
-    LEGLESS read. A spread of softening violet-grey tongues licking down + out,
-    each fading to transparent, so the silhouette has NO hard bottom edge and no
-    hint of legs. Drawn on a scratch so the alpha falloff composites cleanly."""
+    LEGLESS read. A few (3–5) WISPY VERTICAL tendrils of decreasing opacity drift
+    slightly outward below the faded robe base, so the silhouette trails off into
+    nothing rather than ending in a fringed skirt. Drawn on a scratch so the alpha
+    falloff composites cleanly under whatever sky sits behind."""
     import random
     rng = random.Random(rng_seed)
-    h = int(58 * ss)
+    h = int(90 * ss)
     scratch = pygame.Surface((width * 3, h), pygame.SRCALPHA)
     ox = width * 3 // 2
-    n = 9
-    for i in range(n):
-        t = i / (n - 1)
-        # Tongues fan from the robe column outward; outer ones reach lower + wider
-        # so the hem frays apart rather than ending in a flat skirt.
-        spread = (t - 0.5) * 2.0
+    # Five wispy tendrils that read as the body coming apart into rising smoke, not
+    # tassels: each starts thin, sways, and DRIFTS OUTWARD as it descends so the
+    # column frays wider and thinner toward the bottom, then vanishes to zero alpha.
+    offsets = (-0.34, -0.16, 0.0, 0.18, 0.36)
+    for i, spread in enumerate(offsets):
         x0 = ox + int(spread * width * 0.42)
-        length = int(h * (0.55 + 0.45 * (1 - abs(spread))))
-        sway = rng.uniform(2.0, 5.0) * ss
-        w0 = max(2, int((6 - 4 * abs(spread)) * ss))
+        length = int(h * (0.62 + 0.38 * rng.random()))
+        sway = rng.uniform(2.2, 4.0) * ss
+        w0 = max(2, int((4.5 - 3.0 * abs(spread)) * ss))
+        # Centre tendrils start a touch more opaque so the fray spreads from the
+        # middle; all stay low so smoke never competes with the solid robe above.
+        a0 = int(105 * (1 - abs(spread) * 0.7))
         prev = (x0, 0)
-        steps = 14
+        steps = 18
         for s in range(1, steps + 1):
             ft = s / steps
-            px = x0 + int(math.sin(ft * 3.0 + i) * sway * ft) + int(spread * width * 0.30 * ft)
+            # Outward drift grows with depth (ft**1.4) → wisps splay apart at the
+            # base; sway adds the organic curl of smoke.
+            px = x0 + int(math.sin(ft * 2.6 + i) * sway * ft) \
+                + int(spread * width * 0.34 * ft ** 1.4)
             py = int(length * ft)
-            a = int(150 * (1 - ft) ** 1.4)
-            w = max(1, int(w0 * (1 - ft * 0.7)))
+            a = int(a0 * (1 - ft) ** 2.0)        # steeper falloff → fully gone at tip
+            w = max(1, int(w0 * (1 - ft * 0.75)))
             col = lerp_color(VOID, SMOKE, ft)
             pygame.draw.line(scratch, (*col, a), prev, (px, py), w)
             prev = (px, py)
@@ -105,48 +133,59 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
     Construction (all keyed off `H`, the hood-to-hem figure height, so the figure
     scales as one mass):
       - a tall draped ROBE column, narrow at the cowl, flaring slightly at the
-        chest, then NOT resolving into a hem — it frays into smoke;
-      - a PEAKED, forward-drooping HOOD whose cavity is pure VOID with two thin
-        SOUL pinpricks (the faceless stare) + a faint inner soul bleed;
+        chest, then NOT resolving into a hem — its base is RAMPED to transparency
+        and frays into vertical smoke tendrils (no feet, no hard hem);
+      - a PEAKED, forward-drooping HOOD whose cavity is pure black EMPTINESS —
+        FACELESS, no eyes; at most one faint vertical void-glow sliver set deep in
+        the shadow at very low alpha;
       - one BONE skeletal hand emerging from a sleeve to grip the snath;
       - the GREAT-SCYTHE held: a long straight SNATH planted past the figure, a
-      huge bone BLADE sweeping in an arc overhead, lit by a hairline soul gleam.
+      huge bone BLADE sweeping in an arc overhead, outlined in violet-black so it
+      holds its silhouette on blue sky, with a 1px cold SOUL rim on the cutting
+      edge as the sole green accent on the figure.
     `feet_y` is where the smoke dissolves to nothing (the glide line)."""
     H = int(300 * scale * ss)
     W = int(120 * scale * ss)
     top_y = feet_y - H
 
     # — Robe column: a tapered draped mass, widest at the chest, pinching toward
-    #   the cowl and again toward the dissolving hem. Built as a silhouette polygon
-    #   so the violet body is one solid dark shape (the legibility carrier).
+    #   the cowl and again toward the dissolving base. Built as a silhouette polygon
+    #   so the violet body is one solid dark shape (the legibility carrier). The
+    #   robe + its folds + the shoulder drape are drawn onto a dedicated scratch so
+    #   the bottom band can be RAMPED to transparency as one mass — selling the
+    #   legless glide rather than a flat skirt with a hard hem.
     chest_y = top_y + int(H * 0.30)
     waist_y = top_y + int(H * 0.68)
-    hem_y   = feet_y - int(H * 0.16)            # smoke takes over below this
+    # Carry the robe LOWER (no early hem cut) so its base is what fades out; the
+    # alpha ramp, not a polygon edge, decides where the figure stops.
+    base_y  = feet_y - int(H * 0.02)
     cowl_w  = int(W * 0.30)
     chest_w = int(W * 0.52)
     waist_w = int(W * 0.40)
-    hem_w   = int(W * 0.30)
+    base_w  = int(W * 0.34)
+
+    robe = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     body = [
         (cx - cowl_w, top_y + int(H * 0.10)),
         (cx - chest_w, chest_y),
         (cx - waist_w, waist_y),
-        (cx - hem_w, hem_y),
-        (cx + hem_w, hem_y),
+        (cx - base_w, base_y),
+        (cx + base_w, base_y),
         (cx + waist_w, waist_y),
         (cx + chest_w, chest_y),
         (cx + cowl_w, top_y + int(H * 0.10)),
     ]
-    pygame.draw.polygon(surf, VOID, body)
-    pygame.draw.polygon(surf, VOID_DK, body, max(1, int(2 * ss)))
+    pygame.draw.polygon(robe, VOID, body)
+    pygame.draw.polygon(robe, VOID_DK, body, max(1, int(2 * ss)))
 
     # Vertical drape folds — a few long dark grooves so the robe reads as cloth,
     # not a flat blob, without lifting the value (folds stay at/under VOID).
     for fx in (-0.55, -0.18, 0.18, 0.55):
         x = cx + int(fx * chest_w * 1.2)
-        pygame.draw.line(surf, VOID_DK, (x, chest_y + int(8 * ss)),
-                         (x + int(fx * 6 * ss), hem_y), max(1, int(1.6 * ss)))
+        pygame.draw.line(robe, VOID_DK, (x, chest_y + int(8 * ss)),
+                         (x + int(fx * 6 * ss), base_y), max(1, int(1.6 * ss)))
     # One raised lit fold catch on the chest so the cloth has a hint of form.
-    pygame.draw.line(surf, VOID_HEM, (cx - int(chest_w * 0.2), chest_y),
+    pygame.draw.line(robe, VOID_HEM, (cx - int(chest_w * 0.2), chest_y),
                      (cx - int(waist_w * 0.1), waist_y), max(1, int(2 * ss)))
 
     # — Shoulders / cowl drape: two dark cloth lobes pulled up to the hood so the
@@ -158,11 +197,28 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
             (cx + s * chest_w, chest_y),
             (cx + s * int(chest_w * 0.55), top_y + int(H * 0.22)),
         ]
-        pygame.draw.polygon(surf, VOID, sh)
-        pygame.draw.polygon(surf, VOID_DK, sh, max(1, int(1.6 * ss)))
+        pygame.draw.polygon(robe, VOID, sh)
+        pygame.draw.polygon(robe, VOID_DK, sh, max(1, int(1.6 * ss)))
 
-    # — The dissolving smoke hem (drawn before the hood so the hood layers clean).
-    _smoke_dissolve(surf, cx, hem_y, W, ss, rng_seed=7)
+    # Ramp the bottom ~28% of the robe to FULL transparency so the base FADES into
+    # the sky with NO hard hem line and NO fringed-skirt read. The ramp begins well
+    # above the waist and reaches zero alpha before the polygon base, so the body
+    # is already gone where a hem would otherwise sit — the figure has no edge to
+    # stand on. A steep exponent keeps the upper robe solid then drops fast.
+    ramp_top = top_y + int(H * 0.72)
+    ramp_bot = top_y + int(H * 0.94)
+    _ramp_to_transparent(robe, 0, ramp_top, robe.get_width(),
+                          robe.get_height() - ramp_top, ramp_top, ramp_bot)
+    surf.blit(robe, (0, 0))
+
+    # — The dissolving smoke tendrils, rising/trailing from the faded base: a few
+    #   wispy vertical wisps of decreasing opacity that drift slightly outward, so
+    #   the silhouette trails off into nothing instead of ending in tassels.
+    _smoke_dissolve(surf, cx, ramp_top + int(H * 0.02), W, ss, rng_seed=7)
+    # — Faint cold SOUL underglow pooled where the robe dissolves — the figure's
+    #   ONLY green besides the blade rim. Deliberately tiny + low so it never blooms
+    #   into a focal mass: a thin cold breath at the hem, not a lamp.
+    _blit_glow(surf, cx, ramp_bot - int(H * 0.01), int(W * 0.34), SOUL_DIM, 12)
 
     # — PEAKED HOOD: a forward-drooping cowl, the strongest silhouette hook. Built
     #   as a pointed cloth shape leaning slightly toward the held scythe, with a
@@ -181,21 +237,32 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
     pygame.draw.polygon(surf, VOID, hood)
     pygame.draw.polygon(surf, VOID_DK, hood, max(1, int(2 * ss)))
 
-    # Hood cavity: a pure-VOID inner oval — the FACELESS dark — with a faint cold
-    # soul bleed and two thin SOUL pinprick eyes. This is the only place the green
-    # appears on the body, kept tiny so violet stays dominant.
-    cav_cx, cav_cy = cx + int(W * 0.01), top_y + int(H * 0.165)
-    cav = pygame.Rect(0, 0, int(W * 0.30), int(H * 0.13))
+    # Hood cavity: pure black EMPTINESS — the FACELESS read. NO eyes, NO orbs.
+    # A tall near-black void recessed under the cowl brow so the hood reads as a
+    # bottomless hollow, not a mask. Emptiness here is the whole point — Death is
+    # the absence of a face (Hollow Knight void / Cuphead Devil). The cavity is a
+    # vertical slot, NOT a round socket, so nothing can read as an eye.
+    cav_cx, cav_cy = cx + int(W * 0.01), top_y + int(H * 0.175)
+    cav = pygame.Rect(0, 0, int(W * 0.26), int(H * 0.15))
     cav.center = (cav_cx, cav_cy)
     pygame.draw.ellipse(surf, VOID_DK, cav)
-    pygame.draw.ellipse(surf, (8, 6, 14), cav.inflate(-int(4 * ss), -int(4 * ss)))
-    _blit_glow(surf, cav_cx, cav_cy + int(H * 0.01), int(W * 0.16), SOUL_DIM, 60)
-    for s in (-1, 1):
-        ex = cav_cx + s * int(W * 0.07)
-        ey = cav_cy - int(H * 0.005)
-        pygame.draw.line(surf, SOUL, (ex, ey - int(H * 0.018)),
-                         (ex, ey + int(H * 0.018)), max(1, int(1.6 * ss)))
-        _blit_glow(surf, ex, ey, max(3, int(4 * ss)), SOUL, 110)
+    pygame.draw.ellipse(surf, (5, 3, 9), cav.inflate(-int(5 * ss), -int(5 * ss)))
+    # The only light in the hood is a faint VIOLET cloth rim along the upper brow
+    # arc — it shapes the mouth of the cowl without lighting the void inside. Kept
+    # violet (never green) so the green budget stays wholly on the blade.
+    pygame.draw.arc(surf, VOID_HEM, cav.inflate(int(2 * ss), int(2 * ss)),
+                    math.radians(35), math.radians(145), max(1, int(1.4 * ss)))
+    # At most ONE narrow vertical void-glow sliver set DEEP in the shadow at a very
+    # low alpha — a single cold depth-cue, never a pair, never round. Deliberately
+    # set near the threshold of visible so emptiness, not glow, carries the read.
+    sliver = pygame.Surface((max(1, int(2 * ss)), int(H * 0.075)), pygame.SRCALPHA)
+    sw_, shh = sliver.get_size()
+    for yy in range(shh):
+        ft = yy / max(1, shh - 1)
+        a = int(15 * math.sin(ft * math.pi))     # fades at both ends → a sliver
+        sliver.fill((*SOUL_DIM, a), (0, yy, sw_, 1))
+    surf.blit(sliver, (cav_cx - sw_ // 2, cav_cy - shh // 2 + int(H * 0.012)),
+              special_flags=pygame.BLEND_RGBA_ADD)
 
     # — GREAT-SCYTHE, held across the body. The SNATH is the future pillar body:
     #   a long straight bone-grey shaft running top-to-bottom on the figure's left,
@@ -219,7 +286,7 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
     # as a filled crescent (outer arc + inner arc) so it reads as a solid scythe
     # blade, with a hairline SOUL gleam tracing the cutting edge.
     bx, by = snath_x, snath_top + int(4 * ss)
-    outer, inner, edge = [], [], []
+    outer, inner = [], []
     span = int(W * 1.15)
     rise = int(H * 0.30)
     for i in range(25):
@@ -228,17 +295,19 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
         ax = bx + int(span * t)
         ay = by - int(rise * math.sin(t * math.pi * 0.92))
         thick = (1 - t) * int(W * 0.16) + int(3 * ss)
-        outer.append((ax, ay - thick))
-        inner.append((ax, ay))
-        edge.append((ax, ay - thick))
+        outer.append((ax, ay - thick))   # blunt back (spine) of the blade
+        inner.append((ax, ay))           # concave cutting edge facing the figure
     blade = outer + list(reversed(inner))
     pygame.draw.polygon(surf, BONE, blade)
-    pygame.draw.polygon(surf, BONE_DK, blade, max(1, int(2 * ss)))
+    # FULL-blade violet-black outline so the bone arc keeps its silhouette on the
+    # bright blue day sky — without it the pale blade washes out against the sky.
+    pygame.draw.polygon(surf, VOID_DK, blade, max(2, int(2.4 * ss)))
     # Spine shadow along the back of the blade for form.
     pygame.draw.lines(surf, BONE_DK, False, [(p[0], p[1] + int(3 * ss)) for p in outer],
                       max(1, int(2 * ss)))
-    # Hairline cold SOUL gleam tracing the cutting (outer) edge — a thin accent.
-    pygame.draw.lines(surf, SOUL, False, edge, max(1, int(1.4 * ss)))
+    # The figure's ONLY scythe green: a 1px cold SOUL rim on the INNER (concave)
+    # cutting edge — a thin spectral gleam, never a focal mass.
+    pygame.draw.lines(surf, SOUL, False, inner, max(1, int(1.2 * ss)))
 
     # — Skeletal BONE HAND gripping the snath at chest height (one strong shape +
     #   a couple of dark grooves; anatomy fizzes small, so keep it sparse).
@@ -260,12 +329,9 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
         pygame.draw.line(surf, BONE_DK, (hx - int(3 * ss), fy + int(1 * ss)),
                          (hx + int(4 * ss), fy + int(2 * ss)), max(1, int(1 * ss)))
 
-    # A few sparse drifting soul EMBERS rising off the figure — the only other
-    # green, kept to 3 tiny additive motes so it stays an accent.
-    for ex, ey in [(cx + int(W * 0.34), top_y + int(H * 0.30)),
-                   (cx - int(W * 0.30), top_y + int(H * 0.50)),
-                   (cx + int(W * 0.20), top_y + int(H * 0.66))]:
-        _blit_glow(surf, ex, ey, max(2, int(3 * ss)), SOUL, 90)
+    # Deliberately NO drifting soul embers and NO robe dots: green is spent ONLY on
+    # the blade's inner-edge rim and the faint dissolve-hem underglow, so the total
+    # green stays a few percent of the figure and violet stays dominant.
 
 
 # ── pillar-fit thumbnail ──────────────────────────────────────────────────────
@@ -314,18 +380,16 @@ def draw_snath_pillar(surf, cx, top, bot, w, ss, *, flip):
 # ── sheet composition ─────────────────────────────────────────────────────────
 
 def _sky_panel(w, h, night):
-    """A day/night sky gradient + ground line matching the game's value range, so
-    the reaper is judged against the real backdrop it must read on."""
+    """The day/night sky gradient using the GAME's real biome keyframes (DAY and
+    NIGHT from game/biome.py), so the reaper is judged on the actual backdrop it
+    must read on — a bright blue day and a deep blue night — not a forgiving card."""
     surf = pygame.Surface((w, h))
     if night:
-        stops = [(0.0, (18, 20, 44)), (0.55, (40, 36, 70)), (1.0, (78, 60, 92))]
+        top, bot = (5, 8, 30), (35, 55, 115)          # biome NIGHT keyframe
     else:
-        stops = [(0.0, (150, 196, 232)), (0.55, (196, 222, 240)), (1.0, (228, 232, 224))]
+        top, bot = (40, 110, 200), (170, 220, 245)    # biome DAY keyframe
     for y in range(h):
-        t = y / h
-        col = lerp_color(stops[0][1], stops[1][1], min(1.0, t / 0.55)) if t < 0.55 \
-            else lerp_color(stops[1][1], stops[2][1], (t - 0.55) / 0.45)
-        pygame.draw.line(surf, col, (0, y), (w, y))
+        pygame.draw.line(surf, lerp_color(top, bot, y / h), (0, y), (w, y))
     return surf
 
 
@@ -345,9 +409,9 @@ def main():
     label_f = pygame.font.SysFont("dejavusans", 19, bold=True)
     note_f = pygame.font.SysFont("dejavusans", 14)
 
-    sheet.blit(title_f.render("EPIC EVENT-BOSS  —  reaper-shade  —  round 1", True, (236, 236, 240)), (28, 22))
+    sheet.blit(title_f.render("EPIC EVENT-BOSS  —  reaper-shade  —  round 2", True, (236, 236, 240)), (28, 22))
     sheet.blit(note_f.render(
-        "Death itself: faceless peaked HOOD, robe DISSOLVING into smoke (no feet), great-scythe overhead. "
+        "Death itself: FACELESS peaked HOOD (no eyes), robe DISSOLVING into smoke (no feet), great-scythe overhead. "
         "Void-violet dominant; spectral green a thin accent only.",
         True, (170, 170, 184)), (28, 60))
 
@@ -361,14 +425,18 @@ def main():
         small = pygame.transform.smoothscale(big, (PANEL_W, PANEL_H))
 
         panel = _sky_panel(PANEL_W, PANEL_H, night)
-        # Ground line + a soft cast shadow under the gliding hem.
+        # Ground band + a FAINT diffuse smoke pool (not a hard cast shadow): the
+        # specter glides, so there is no crisp standing-shadow to imply feet — just
+        # a soft low-alpha smudge where the dissolving robe meets the ground.
         pygame.draw.rect(panel, (40, 34, 30) if not night else (22, 20, 30),
                          (0, ground_y, PANEL_W, PANEL_H - ground_y))
         pygame.draw.line(panel, (60, 52, 44) if not night else (50, 44, 58),
                          (0, ground_y), (PANEL_W, ground_y), 2)
-        sh = pygame.Surface((PANEL_W, 30), pygame.SRCALPHA)
-        pygame.draw.ellipse(sh, (0, 0, 0, 70), (PANEL_W // 2 - 90, 6, 180, 22))
-        panel.blit(sh, (0, ground_y - 8))
+        pool = pygame.Surface((PANEL_W, 60), pygame.SRCALPHA)
+        for rr, aa in ((150, 14), (110, 18), (70, 22)):
+            pygame.draw.ellipse(pool, (8, 6, 14, aa),
+                                (PANEL_W // 2 - rr, 30 - 8, rr * 2, 24))
+        panel.blit(pool, (0, ground_y - 26))
         panel.blit(small, (0, 0))
 
         sheet.blit(panel, (px, py))
@@ -376,23 +444,44 @@ def main():
         lab = label_f.render(name, True, (236, 236, 240))
         sheet.blit(lab, (px + (PANEL_W - lab.get_width()) // 2, py + PANEL_H + 8))
 
-    # Blackout silhouette strip overlaid on the day panel as a 1x read check.
-    blk_w, blk_h = 150, 300
-    blk = pygame.Surface((blk_w * ss, blk_h * ss), pygame.SRCALPHA)
-    # Render in solid black to test the silhouette only.
-    tmp = pygame.Surface((blk_w * ss, blk_h * ss), pygame.SRCALPHA)
-    draw_reaper(tmp, int(blk_w * 0.52 * ss), int((blk_h - 18) * ss), scale=0.42, ss=ss)
+    # MANDATORY 1x AT-SCALE insets — the figure at true gameplay pixel size on the
+    # REAL day AND night skies (not a white card), so the faceless hood, the
+    # two-hook (peaked hood + scythe-arc) silhouette, and the smoke-dissolve base
+    # are all judged at the size the player actually sees. Two stacked insets sit
+    # over the top-left of the day panel; a solid-black silhouette beside them
+    # isolates the two-hook read.
+    ins_w, ins_h = 120, 200
+    ins_scale = 0.36           # ~ true 1x boss footprint within a 360x640 canvas
+    ix = GAP + 6
+    iy = 92 + 6
+    for j, night in enumerate((False, True)):
+        big_i = pygame.Surface((ins_w * ss, ins_h * ss), pygame.SRCALPHA)
+        draw_reaper(big_i, int(ins_w * 0.52 * ss), int((ins_h - 8) * ss),
+                    scale=ins_scale, ss=ss)
+        small_i = pygame.transform.smoothscale(big_i, (ins_w, ins_h))
+        sky_i = _sky_panel(ins_w, ins_h, night)
+        sky_i.blit(small_i, (0, 0))
+        frame = pygame.Surface((ins_w + 12, ins_h + 26), pygame.SRCALPHA)
+        frame.fill((20, 18, 26, 235))
+        frame.blit(sky_i, (6, 22))
+        frame.blit(note_f.render("1x  " + ("NIGHT" if night else "DAY"), True,
+                                 (220, 222, 230)), (8, 3))
+        pygame.draw.rect(frame, (90, 84, 104), (6, 22, ins_w, ins_h), 1)
+        sheet.blit(frame, (ix, iy + j * (ins_h + 30)))
+
+    # Solid-black silhouette beside the insets — strips colour so only the two-hook
+    # shape (peaked hood + overhead scythe arc) is left to judge.
+    sil_w, sil_h = 110, 230
+    tmp = pygame.Surface((sil_w * ss, sil_h * ss), pygame.SRCALPHA)
+    draw_reaper(tmp, int(sil_w * 0.52 * ss), int((sil_h - 12) * ss), scale=0.40, ss=ss)
     mask = pygame.mask.from_surface(tmp)
-    sil = mask.to_surface(setcolor=(12, 10, 16, 255), unsetcolor=(0, 0, 0, 0))
-    blk.blit(sil, (0, 0))
-    blk_small = pygame.transform.smoothscale(blk, (blk_w, blk_h))
-    bx = GAP + 6
-    by = 92 + 6
-    bsurf = pygame.Surface((blk_w + 12, blk_h + 30), pygame.SRCALPHA)
-    bsurf.fill((230, 232, 236, 235))
-    bsurf.blit(blk_small, (6, 24))
-    bsurf.blit(note_f.render("blackout @1x", True, (40, 40, 48)), (8, 4))
-    sheet.blit(bsurf, (bx, by))
+    sil = mask.to_surface(setcolor=(14, 12, 18, 255), unsetcolor=(0, 0, 0, 0))
+    sil_small = pygame.transform.smoothscale(sil, (sil_w, sil_h))
+    sframe = pygame.Surface((sil_w + 12, sil_h + 26), pygame.SRCALPHA)
+    sframe.fill((228, 230, 236, 235))
+    sframe.blit(sil_small, (6, 22))
+    sframe.blit(note_f.render("silhouette", True, (40, 40, 48)), (8, 3))
+    sheet.blit(sframe, (ix + ins_w + 22, iy))
 
     # — Pillar-fit thumbnail column on the right: a TOP + BOTTOM snath pillar pair
     #   over a sky strip, proving the mirror reads as a vertical obstacle.
@@ -431,7 +520,7 @@ def main():
     sheet.blit(note_f.render("blade = gap-edge flourish, not a claw", True, (170, 170, 184)),
                (tx + 4, ty + th + 32))
 
-    out = "/home/user/skybit/docs/epic_boss/reaper-shade/round_1.png"
+    out = "/home/user/skybit/docs/epic_boss/reaper-shade/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("wrote", out)
