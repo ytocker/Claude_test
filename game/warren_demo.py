@@ -117,8 +117,12 @@ class WarrenDemo:
 
         if self.phase == "fly_in":
             if self.t >= T_CLOWN_IN:
-                self.clown_x = float(SPAWN_X)          # enters from the right...
-                self.dice_x = self.clown_x - DICE_DX   # ...and scrolls with the world
+                # Spawn far enough right that the DIE (which sits DICE_DX left of
+                # the clown) starts off-screen at SPAWN_X and scrolls IN from the
+                # edge — otherwise it pops in mid-screen while the clown is still
+                # off the right. The die leads, the clown trails by DICE_DX.
+                self.clown_x = float(SPAWN_X + DICE_DX)
+                self.dice_x = self.clown_x - DICE_DX   # == SPAWN_X (off-screen right)
                 self._goto("offer")
 
         elif self.phase == "offer":
