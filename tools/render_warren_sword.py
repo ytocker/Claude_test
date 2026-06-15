@@ -3844,7 +3844,18 @@ _ROUND10_HEADERS = [
 ]
 
 
-def _render_craft_sheet(versions, out_name, headers):
+_ROUND10_BELLFOOT_HEADERS = [
+    ("Warren STAFF — BELL-FOOT designs only (8, 9, 10) · ONE big staff per panel",
+     (255, 255, 255)),
+    ("The three flared-BELL-foot scepters: Carousel Barker, Jingles & Filigree, and "
+     "Golden Jester (the one currently on the hero), each with the gold trumpet collar + foot ferrule.",
+     (205, 210, 220)),
+    ("Same heads/shafts as their craft-roster originals; only shown together here for a close compare.",
+     (170, 178, 190)),
+]
+
+
+def _render_craft_sheet(versions, out_name, headers, *, label_offset=0):
     """Round-9 single-staff sheet: ONE marotte per panel at MAXIMUM size, bauble
     UP, foot planted on a day-sky + ground strip — the staff 'from the route, as
     big as the panel allows'. A 3-column grid of tall panels lets each staff read
@@ -3900,7 +3911,7 @@ def _render_craft_sheet(versions, out_name, headers):
 
         strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
         strip.fill((18, 20, 28, 220))
-        ntxt = name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255))
+        ntxt = name_f.render(f"{idx + 1 + label_offset}. {name}", True, (255, 255, 255))
         strip.blit(ntxt, (8, 5))
         strip.blit(note_f.render(note, True, (188, 194, 206)), (12 + ntxt.get_width(), 9))
         sheet.blit(strip, (px, py))
@@ -9005,7 +9016,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--marottes-8910"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -9037,6 +9048,9 @@ def main():
         _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_9_marottes.png", _ROUND9_HEADERS)
     if do_round10:
         _render_craft_sheet(MAROTTE_CRAFT_VERSIONS, "round_10_marottes.png", _ROUND10_HEADERS)
+    if "--marottes-8910" in args:
+        _render_craft_sheet(MAROTTE_CRAFT_VERSIONS[7:10], "round_10_marottes_8910.png",
+                            _ROUND10_BELLFOOT_HEADERS, label_offset=7)
     if do_clown_r2:
         _render_clown_r2_sheet()
     if do_clown_r3:
