@@ -944,6 +944,72 @@ TOPPER_VARIANTS_R5 = [
 ]
 
 
+def render_facesize_ingame():
+    """Show the shipped roll celebration at several clown-FACE (bauble) sizes, each
+    composited on a game screen (day sky + the top-centre score counter, banner
+    drawn OVER it + a bit low, exactly as in game). One labelled row. round_6.png."""
+    from game import warren_celebration as wc
+    GW, GH = 360, 640
+    SS = 4
+    sizes = [20, 24, 28, 32, 34]          # bauble head radius (ss-px); 28 = current ship
+    disp_scale = 0.62
+    dw, dh = int(GW * disp_scale), int(GH * disp_scale)
+    pad = 18
+    head = 60
+    label_h = 26
+    gap = 14
+    cell_w, cell_h = dw, label_h + dh
+    sheet_w = pad * 2 + len(sizes) * cell_w + (len(sizes) - 1) * gap
+    sheet_h = head + cell_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((30, 34, 42))
+    title_f = hud._font(26, True)
+    lab_f = hud._font(17, True)
+    samp = hud._font(13, True)
+    sheet.blit(title_f.render(
+        "Warren roll celebration — clown-FACE size sweep (shown in game)",
+        True, (255, 255, 255)), (pad, 12))
+    sheet.blit(samp.render(
+        "Each = the popup as it appears in game (day sky + score counter, banner "
+        "drawn over it + a bit low). 28 = current ship.",
+        True, (200, 205, 215)), (pad, 40))
+
+    for idx, fs in enumerate(sizes):
+        scr = pygame.Surface((GW, GH))
+        for y in range(GH):
+            t = y / GH
+            scr.fill((int(120 + 55 * t), int(180 + 35 * t), int(225 + 20 * t)),
+                     (0, y, GW, 1))
+        # mock top-centre score plate (like draw_play) to show the overlay.
+        sw = 102
+        sp = pygame.Rect((GW - sw) // 2, 42, sw, 56)
+        pygame.draw.rect(scr, (54, 46, 38), sp, border_radius=9)
+        pygame.draw.rect(scr, GOLD, sp, 2, border_radius=9)
+        nf = hud._font(40, True)
+        scr.blit(nf.render("5", True, CREAM),
+                 nf.render("5", True, CREAM).get_rect(center=sp.center))
+        # the celebration at this face size, drawn OVER the score, a bit low.
+        canvas, cdw, cdh = wc.render(17, False, ss=SS, b_hr_ss=fs)
+        pop = pygame.transform.smoothscale(canvas, (cdw, cdh))
+        scr.blit(pop, pop.get_rect(center=(GW // 2, 210)))
+
+        tx = pad + idx * (cell_w + gap)
+        ty = head + pad
+        strip = pygame.Surface((cell_w, label_h))
+        strip.fill((20, 22, 28))
+        tag = "face %d%s" % (fs, "  (current)" if fs == 28 else "")
+        strip.blit(lab_f.render(tag, True, LIME), (6, 4))
+        sheet.blit(strip, (tx, ty))
+        sheet.blit(pygame.transform.smoothscale(scr, (dw, dh)), (tx, ty + label_h))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "dice_results", "warren_roll")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_6.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path)
+
+
 def render_topper_sheet_r5():
     """Round-5 study: D + E only, with the bauble seated LOWER so the clown's face
     touches the round wheel frame (not floating above on the ruff). round_5.png."""
@@ -1099,7 +1165,9 @@ def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
 
 def main():
     # Opt-in flags so these look-dev sheets aren't rendered by accident.
-    if "--warren-cele-r5" in sys.argv:
+    if "--warren-cele-r6" in sys.argv:
+        render_facesize_ingame()
+    elif "--warren-cele-r5" in sys.argv:
         render_topper_sheet_r5()
     elif "--warren-cele-r4" in sys.argv:
         render_topper_sheet()

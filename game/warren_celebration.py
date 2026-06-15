@@ -100,9 +100,10 @@ def _jester_bauble(canvas, cx, hy, hr, ss):
     _mini_clown_face(canvas, cx, hy, hr, ss, expr="grin")
 
 
-def render(roll, ghost=False, ss=4):
+def render(roll, ghost=False, ss=4, b_hr_ss=28):
     """Render design E into a `DW*ss x DH*ss` SRCALPHA surface. Returns
-    (surface, DW, DH); the caller downscales to true size + pop-scales it."""
+    (surface, DW, DH); the caller downscales to true size + pop-scales it.
+    `b_hr_ss` is the clown-bauble head radius (ss-px) — the face/topper size."""
     hdw, hdh = DW * ss, DH * ss
     cx = hdw // 2
     canvas = pygame.Surface((hdw, hdh), pygame.SRCALPHA)
@@ -127,7 +128,7 @@ def render(roll, ghost=False, ss=4):
     _num_block(canvas, cx, wcy, roll, ss, size=num_size,
                num_col=PLUM, edge_col=CREAM, edge_w=4)
     # the full clown bauble crowns the top, seated so the face touches the rim.
-    b_hr = int(28 * ss)
+    b_hr = int(b_hr_ss * ss)
     b_hy = (wcy - R) - int(0.95 * b_hr)
     _jester_bauble(canvas, cx, b_hy, b_hr, ss)
     return canvas, DW, DH
