@@ -275,7 +275,7 @@ class WarrenDemo:
             try:
                 from game import warren_celebration
                 canvas, dw, dh = warren_celebration.render(
-                    self.roll, self.ghost_run, ss=4)
+                    self.roll, self.ghost_run, ss=4, b_hr_ss=24)
                 self._cele_base = pygame.transform.smoothscale(canvas, (dw, dh))
                 self._cele_key = key
             except Exception:
