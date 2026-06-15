@@ -742,6 +742,50 @@ def var_bell_sunburst_r2(roll, ss):
     return canvas, D
 
 
+# ── Cell 2 (R3): the chosen wheel, label dropped + mini-clown face topper ─────
+def var_jester_wheel_r3(roll, ss):
+    """The chosen jester prize-wheel, refined per the user's pick: the "STAFFS"
+    label is dropped so the number stands alone, and the TOP cardinal stud is
+    replaced by the staff's own mini-clown bauble face crowning the wheel."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    R = int(HD * 0.40)
+    _wheel(canvas, c, R, ss, 8, WHEEL_A, WHEEL_B, spin=0.42, rim=GOLD, rim_w=7)
+    # Keep the three side/bottom cardinal studs; the TOP one becomes the face.
+    for i in range(1, 4):
+        a = i * math.tau / 4 - math.pi / 2
+        sx = c + math.cos(a) * (R + int(2 * ss))
+        sy = c + math.sin(a) * (R + int(2 * ss))
+        _gold_stud(canvas, sx, sy, int(11 * ss), ss)
+    # Cream hub disc + hero number, now CENTRED (no label plate below it).
+    hub_r = int(R * 0.62)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r + int(4 * ss))
+    pygame.draw.circle(canvas, GOLD, (c, c), hub_r + int(4 * ss), max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, CREAM, (c, c), hub_r)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r, max(2, int(2 * ss)))
+    _num_block(canvas, c, c, roll, ss, size=96, num_col=PLUM, edge_col=CREAM, edge_w=4)
+
+    # The staff's mini-clown bauble face crowns the top, seated where the stud was.
+    # A small gold disc behind it lifts the cream head off the wheel wedges.
+    face_hr = int(15 * ss)
+    fy = c - R + int(2 * ss)
+    pygame.draw.circle(canvas, GOLD, (c, fy), face_hr + int(3 * ss))
+    pygame.draw.circle(canvas, GOLD_DK, (c, fy), face_hr + int(3 * ss), max(1, int(ss)))
+    _mini_clown_face(canvas, c, fy, face_hr, ss, expr="grin")
+    return canvas, D
+
+
+VARIANTS_R3 = [
+    ("2  Jester wheel  (before)", "with STAFFS label + top gold stud",
+     var_jester_wheel_r2),
+    ("2  Clown-face topper  (NEW)", "no label, mini-clown face replaces the top stud",
+     var_jester_wheel_r3),
+]
+
+
 VARIANTS_R2 = [
     ("1  Original (baseline)", "current 12-wedge orange/pink wheel + PILLARS",
      var_baseline),
@@ -765,7 +809,7 @@ def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
     TRUE = 264   # popup is 264 design px on the 360 canvas
     INSET = 116  # actual-size inset shows the popup at real small-screen size
     cols = 3
-    rows = 2
+    rows = max(1, -(-len(variants) // cols))   # ceil, so a short list isn't padded
     pad = 20
     head = 64
     tile_w = TRUE + INSET + 40
@@ -834,7 +878,12 @@ def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
 
 def main():
     # Opt-in flags so these look-dev sheets aren't rendered by accident.
-    if "--warren-cele-r2" in sys.argv:
+    if "--warren-cele-r3" in sys.argv:
+        render_sheet(
+            VARIANTS_R3, "round_3.png",
+            title="Warren Roll Celebration — Jester wheel refined "
+            "(drop STAFFS label + mini-clown-face topper)")
+    elif "--warren-cele-r2" in sys.argv:
         render_sheet(
             VARIANTS_R2, "round_2.png",
             title="Warren Roll-Result Celebration — Round 2 "
