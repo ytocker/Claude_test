@@ -91,6 +91,8 @@ class WarrenDemo:
 
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
+        self._cele_font = None     # lazily-built celebration number/label fonts
+        self._cele_label_font = None
 
     # ── public hooks ─────────────────────────────────────────────────────────
     def gates_flap(self):
@@ -255,119 +257,92 @@ class WarrenDemo:
 
     def _draw_celebration(self, surf):
         """The settled roll, popped as a celebration in a fixed on-screen spot
-        (not painted on the cube). Its own festive look — a spinning sunburst
-        rosette, confetti, and a big number + label in the game's own font —
-        deliberately NOT the clown's motif. A GHOST result reads spooky (cyan +
-        ectoplasm wisps) so its 10 never looks like a plain 10.
-
-        Composited on a SS× supersampled canvas and smooth-scaled down each
-        frame (the HUD's trick) so every edge stays crisp at any pop scale."""
+        (not painted on the cube). Its own festive look — confetti starburst +
+        big number + label — deliberately NOT tied to the clown's motif. A
+        GHOST result reads spooky (cyan + wisps) so its 10 never looks plain."""
         if self.roll is None or self.die_pop_t <= 0.0:
             return
-        from game import hud                       # vendored bold TTF + cache
         ghost = self.ghost_run
-        cx, cy = W // 2, 152
+        cx, cy = W // 2, 150
         age = max(0.0, CELE_LIFE - self.die_pop_t)        # secs since the reveal
 
-        # ease-out-back pop-in (slight overshoot), then hold at full size
-        p = min(1.0, age / 0.34)
+        # ease-out-back pop-in over the first ~0.3s, then hold at full size
+        p = min(1.0, age / 0.30)
         s = 1.70158
-        pop = 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2
-        scale = 0.45 + 0.55 * pop
-        burst = min(1.0, age / 0.5)
+        e = 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2
+        scale = 0.35 + 0.65 * e
 
-        if ghost:
-            rose = [(86, 210, 204), (140, 150, 240)]
-            num_col, num_edge = (228, 252, 250), (16, 74, 92)
-            label_txt, label_col = "GHOST!", (158, 242, 228)
-            conf = [(150, 240, 226), (118, 200, 255), (206, 255, 248), (172, 172, 255)]
-        else:
-            rose = [(255, 178, 60), (255, 120, 138)]
-            num_col, num_edge = (255, 224, 118), (122, 62, 14)
-            label_txt, label_col = "PILLARS", (255, 240, 196)
-            conf = [(255, 208, 88), (255, 118, 150), (118, 200, 255), (172, 255, 150)]
-
-        SS = 3
-        D = 264                                    # design size in final px
-        HD = D * SS
-        c = HD // 2
-        canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
-
-        # spinning sunburst rosette — 24 tapered wedges, normal-blended so it
-        # stays a festive colour wheel (additive would blow out white on sky)
-        rays = 24
-        spin = self.pulse * 0.4
+        # Spinning sunburst rosette behind the number. Normal-blended (NOT an
+        # additive glow — additive over the pale sky just blows out white) so it
+        # stays a festive colour, like a little prize wheel.
+        R = max(8, int(64 * scale))
+        rays = 12
+        rose_cols = ([(120, 220, 210), (150, 174, 255)] if ghost
+                     else [(255, 184, 72), (255, 138, 150)])
+        rose = pygame.Surface((2 * R + 4, 2 * R + 4), pygame.SRCALPHA)
+        rc = R + 2
+        spin = self.pulse * 0.5
         step = math.tau / rays
-        Rr = int(HD * 0.30 * (0.7 + 0.3 * burst))
         for i in range(rays):
             a0 = spin + i * step
-            a1 = a0 + step * 0.9
-            am = (a0 + a1) * 0.5
-            col = rose[i % 2] + (66,)
-            pygame.draw.polygon(canvas, col, [
-                (c, c),
-                (c + math.cos(a0) * Rr, c + math.sin(a0) * Rr),
-                (c + math.cos(am) * Rr * 1.05, c + math.sin(am) * Rr * 1.05),
-                (c + math.cos(a1) * Rr, c + math.sin(a1) * Rr)])
-        # a soft colour hub seats the number (low-alpha disc, not white)
-        hub = pygame.Surface((HD, HD), pygame.SRCALPHA)
-        pygame.draw.circle(hub, rose[1] + (54,), (c, c), int(HD * 0.18))
-        canvas.blit(hub, (0, 0))
+            a1 = a0 + step
+            col = rose_cols[i % 2] + (82,)
+            pygame.draw.polygon(rose, col, [
+                (rc, rc),
+                (rc + math.cos(a0) * R, rc + math.sin(a0) * R),
+                (rc + math.cos(a1) * R, rc + math.sin(a1) * R)])
+        surf.blit(rose, (cx - rc, cy - rc))
 
-        # confetti diamonds spraying out, tumbling
-        for i in range(18):
-            a = (i / 18) * math.tau + (0.2 if ghost else 0.0) + spin * 0.25
-            dist = HD * 0.20 + burst * HD * 0.20 + (i % 3) * 9 * SS
-            px = c + math.cos(a) * dist
-            py = c + math.sin(a) * dist * 0.86
-            al = int(235 * (1.0 - burst * 0.55))
+        # confetti spraying outward (colour-keyed, normal blend so it reads warm
+        # on the bright sky instead of washing white)
+        burst = min(1.0, age / 0.55)
+        conf = [(255, 210, 90), (255, 120, 150), (120, 200, 255), (170, 255, 150)]
+        for i in range(14):
+            a = (i / 14) * math.tau + (0.22 if ghost else 0.0)
+            dist = R * 0.7 + burst * 56 + (i % 3) * 6
+            px = int(cx + math.cos(a) * dist)
+            py = int(cy + math.sin(a) * dist * 0.82)
+            al = int(220 * (1.0 - burst * 0.7))
             if al <= 0:
                 continue
-            sz = (5 + (i % 3) * 2) * SS
-            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
-            pygame.draw.polygon(d, conf[i % 4] + (al,),
-                                [(sz // 2, 0), (sz, sz // 2), (sz // 2, sz), (0, sz // 2)])
-            d = pygame.transform.rotate(d, (i * 53 + age * 200) % 360)
-            canvas.blit(d, (int(px - d.get_width() / 2), int(py - d.get_height() / 2)))
+            col = ((196, 255, 242, al) if ghost else conf[i % 4] + (al,))
+            dot = pygame.Surface((8, 8), pygame.SRCALPHA)
+            pygame.draw.circle(dot, col, (4, 4), 3)
+            surf.blit(dot, (px - 4, py - 4))
 
-        # ghost: rising ectoplasm wisps behind the number
-        if ghost:
-            for i in range(4):
-                climb = (self.pulse * 16 + i * 11) % 46
-                wx = int(c - 42 * SS + i * 28 * SS + math.sin(self.pulse * 1.3 + i) * 7 * SS)
-                wy = int(c + 30 * SS - climb * SS)
+        if self._cele_font is None:
+            self._cele_font = pygame.font.SysFont(None, 92, bold=True)
+        if self._cele_label_font is None:
+            self._cele_label_font = pygame.font.SysFont(None, 30, bold=True)
+
+        num_col = (212, 248, 242) if ghost else (255, 232, 158)
+        out_col = (28, 44, 60) if ghost else (120, 70, 20)
+        num = self._cele_font.render(str(self.roll), True, num_col)
+        out = self._cele_font.render(str(self.roll), True, out_col)
+        if scale != 1.0:
+            num = pygame.transform.rotozoom(num, 0, scale)
+            out = pygame.transform.rotozoom(out, 0, scale)
+        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+            surf.blit(out, out.get_rect(center=(cx + ox, cy + oy)))
+        nb = num.get_rect(center=(cx, cy))
+        surf.blit(num, nb)
+
+        label_txt = "GHOST!" if ghost else "PILLARS"
+        label_col = (172, 240, 224) if ghost else (255, 244, 210)
+        label = self._cele_label_font.render(label_txt, True, label_col)
+        surf.blit(label, label.get_rect(center=(cx, nb.bottom + 12)))
+
+        if ghost:                                          # rising ectoplasm wisps
+            for i in range(3):
+                climb = (self.pulse * 16 + i * 13) % 40
+                wx = int(cx - 30 + i * 30 + math.sin(self.pulse * 1.3 + i) * 6)
+                wy = int(cy + 34 - climb)
                 al = max(0, 150 - int(climb * 3))
                 if al <= 0:
                     continue
-                pygame.draw.circle(canvas, (200, 255, 246, al), (wx, wy), 4 * SS)
-
-        # number — vendored bold font, drop shadow + thick edge for pop
-        nf = hud._font(int(70 * SS), True)
-        num = nf.render(str(self.roll), True, num_col)
-        edge = nf.render(str(self.roll), True, num_edge)
-        shadow = nf.render(str(self.roll), True, (0, 0, 0))
-        shadow.set_alpha(95)
-        ncy = c - int(8 * SS)
-        canvas.blit(shadow, shadow.get_rect(center=(c + 3 * SS, ncy + 4 * SS)))
-        o = 3 * SS
-        for ox, oy in ((-o, 0), (o, 0), (0, -o), (0, o),
-                       (-o, -o), (o, -o), (-o, o), (o, o)):
-            canvas.blit(edge, edge.get_rect(center=(c + ox, ncy + oy)))
-        nb = num.get_rect(center=(c, ncy))
-        canvas.blit(num, nb)
-
-        # label under the number — same edge colour, tracked out a little
-        lf = hud._font(int(26 * SS), True)
-        spaced = " ".join(label_txt)
-        lab = lf.render(spaced, True, label_col)
-        labedge = lf.render(spaced, True, num_edge)
-        lcy = nb.bottom + int(16 * SS)
-        for ox, oy in ((-SS, 0), (SS, 0), (0, -SS), (0, SS)):
-            canvas.blit(labedge, labedge.get_rect(center=(c + ox, lcy + oy)))
-        canvas.blit(lab, lab.get_rect(center=(c, lcy)))
-
-        out = pygame.transform.smoothscale(canvas, (int(D * scale), int(D * scale)))
-        surf.blit(out, out.get_rect(center=(cx, cy)))
+                wsp = pygame.Surface((12, 12), pygame.SRCALPHA)
+                pygame.draw.circle(wsp, (196, 255, 242, al), (6, 6), 4)
+                surf.blit(wsp, (wx - 6, wy - 6), special_flags=pygame.BLEND_ADD)
 
     def _draw_spinning_die(self, surf, dx, dy):
         """A short cube tumble before the reveal: the die spun by an ease-out
