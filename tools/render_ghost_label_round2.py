@@ -262,53 +262,53 @@ def _nameplate_straight(canvas, cx, cy, R, ss, *, rivets=False):
                letter_spacing=1.08)
 
 
-def _nameplate_curved(canvas, cx, wcy, R, ss):
+def _nameplate_curved(canvas, cx, wcy, R, ss, hub_r):
     """Sub-variant C: the nameplate as a gently downward-curved chrome banner hugging
-    the lower rim arc, still inset into the wheel face. Built as an annulus slice band
-    between two radii across the bottom arc, chrome-shaded, dark keyline + drop shadow,
-    GHOST set per-glyph rotated tangent in deep navy so it holds contrast."""
-    r_mid = R - int(2 * ss)          # band centre radius — INSET inside the rim
-    half_w = int(16 * ss)            # band half-thickness
-    r_out = r_mid + half_w
+    the lower rim arc, inset into the wheel FACE (the annulus between hub and rim) so
+    it never slices the hub or the number. Built as an annulus slice band between two
+    radii across the bottom arc, top-down chrome-shaded (lit outer -> mid periwinkle
+    inner), 1px dark keyline + drop shadow, GHOST per-glyph rotated tangent in deep
+    navy so it holds contrast against the light chrome."""
+    half_w = int(13 * ss)            # band half-thickness
+    # Seat the band so its OUTER edge clears the rim (stays inside R) and its INNER
+    # edge clears the hub disc — purely on the lower face, lifted above the stud.
+    r_out = R - int(5 * ss)
+    r_mid = r_out - half_w
     r_in = r_mid - half_w
-    a0, a1 = math.radians(52), math.radians(128)
+    a0, a1 = math.radians(56), math.radians(124)
     n = 30
-    outer, inner = [], []
+    outer, inner, mid = [], [], []
     for i in range(n + 1):
         a = a0 + (a1 - a0) * i / n
         outer.append((cx + math.cos(a) * r_out, wcy + math.sin(a) * r_out))
         inner.append((cx + math.cos(a) * r_in, wcy + math.sin(a) * r_in))
+        mid.append((cx + math.cos(a) * r_mid, wcy + math.sin(a) * r_mid))
     band = outer + list(reversed(inner))
     poly = [(int(p[0]), int(p[1])) for p in band]
 
     # Soft drop shadow nudged down so the curved banner sits on the face.
-    shp = [(int(p[0]), int(p[1] + 3 * ss)) for p in band]
-    shsurf = canvas
     sh = pygame.Surface(canvas.get_size(), pygame.SRCALPHA)
-    pygame.draw.polygon(sh, (0, 0, 0, 110), shp)
+    pygame.draw.polygon(sh, (0, 0, 0, 95),
+                        [(int(p[0]), int(p[1] + 2.5 * ss)) for p in band])
     canvas.blit(sh, (0, 0))
 
-    # Dark keyline base, then a chrome-shaded face: lit outer band, darker inner.
+    # 1px dark keyline base, then a top-down chrome read: lit upper half in GH_METAL,
+    # mid periwinkle lower half — same icy metal as the rim, not a white sticker.
     pygame.draw.polygon(canvas, GH_INDIGO_DK, poly)
-    # Lit upper half (outer ring -> mid) in highlight metal.
-    mid = []
-    for i in range(n + 1):
-        a = a0 + (a1 - a0) * i / n
-        mid.append((cx + math.cos(a) * r_mid, wcy + math.sin(a) * r_mid))
     lit = outer + list(reversed(mid))
     shade = mid + list(reversed(inner))
-    pygame.draw.polygon(canvas, GH_METAL_HI, [(int(p[0]), int(p[1])) for p in lit])
-    pygame.draw.polygon(canvas, _shade_c(GH_METAL, -22),
+    pygame.draw.polygon(canvas, GH_METAL, [(int(p[0]), int(p[1])) for p in lit])
+    pygame.draw.polygon(canvas, GH_METAL_DK,
                         [(int(p[0]), int(p[1])) for p in shade])
-    # Crisp metal edge keylines top + bottom.
+    # Top catch-light + bottom dark keyline so the band reads domed.
     pygame.draw.lines(canvas, GH_METAL_HI, False,
                       [(int(p[0]), int(p[1])) for p in outer], max(1, int(ss)))
-    pygame.draw.lines(canvas, GH_METAL_DK, False,
+    pygame.draw.lines(canvas, GH_INDIGO_DK, False,
                       [(int(p[0]), int(p[1])) for p in inner], max(1, int(ss)))
 
-    _arc_text(canvas, "GHOST", cx, wcy, r_mid, ss, size=17,
-              fill=GH_INDIGO_DK, edge=GH_CREAM, edge_w=2, span_deg=66,
-              mid_deg=90, shadow_a=90, letter_spacing=1.08, face_out=False)
+    _arc_text(canvas, "GHOST", cx, wcy, r_mid, ss, size=16,
+              fill=GH_INDIGO_DK, edge=GH_METAL_HI, edge_w=2, span_deg=60,
+              mid_deg=90, shadow_a=70, letter_spacing=1.08, face_out=False)
 
 
 # ─── V3 swallow-tail ribbon refinement ───────────────────────────────────────
@@ -386,7 +386,7 @@ def _cell(variant, ss=4):
         elif variant == "B":
             _nameplate_straight(canvas, cx, plate_cy, R, ss, rivets=True)
         else:
-            _nameplate_curved(canvas, cx, wcy, R, ss)
+            _nameplate_curved(canvas, cx, wcy, R, ss, hub_r)
     else:  # "V3"
         _num_block(canvas, cx, wcy, ROLL, ss, ring, disc, size=88)
         _swallow_ribbon(canvas, cx, wcy, R, ss)
@@ -416,7 +416,7 @@ def main():
 
     title_f = hud._font(34, True)
     sub_f = hud._font(18, True)
-    head = title_f.render("Skybit  -  GHOST banner integration  -  round 2",
+    head = title_f.render("Skybit  -  GHOST banner  -  round 2",
                           True, (28, 30, 70))
     sheet.blit(head, head.get_rect(midleft=(margin, header_h // 2 + 8)))
     note = sub_f.render("V5 nameplate (A/B/C) + V3 alt - icy chrome, number hero, "
