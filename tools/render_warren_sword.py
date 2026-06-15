@@ -9008,6 +9008,53 @@ def _render_clown_r17_staffgrid():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+def _render_staff_route():
+    """The game ROUTE panorama filled with the STAFFS instead of swords — 3 rows,
+    one per bell-foot staff design (8/9/10), each the route tiled with that marotte
+    as the obstacle pairs. Writes docs/warren_sword/staff_route.png."""
+    SS = 6                             # route supersample (matches the saber sheets)
+    ROW_SCALE = 1.4
+    N_STEPS = 11
+    ROUTE_W = SP * N_STEPS + 40
+    ROUTE_H = PLAY_H
+    DISP_W = int(ROUTE_W * ROW_SCALE)
+    DISP_H = int(ROUTE_H * ROW_SCALE)
+
+    pad = 18
+    head = 70
+    row_gap = 14
+    name_strip = 30
+    row_h = name_strip + DISP_H
+    sheet_w = pad * 2 + DISP_W
+    sheet_h = head + len(_R17_STAFF_DESIGNS) * (row_h + row_gap) + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(26, True)
+    name_f = hud._font(19, True)
+    sheet.blit(title_f.render(
+        "Warren ROUTE filled with the STAFFS (not swords) — one row per staff "
+        "design (8, 9, 10)", True, (255, 255, 255)), (pad, 20))
+
+    for idx, (name, draw_fn) in enumerate(_R17_STAFF_DESIGNS):
+        ry = head + idx * (row_h + row_gap)
+        strip = pygame.Surface((DISP_W, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(name, True, (255, 255, 255)), (8, 5))
+        sheet.blit(strip, (pad, ry))
+
+        route = _route_panel(draw_fn, ROUTE_W, ROUTE_H, SS)
+        route = pygame.transform.smoothscale(route, (DISP_W, DISP_H))
+        sheet.blit(route, (pad, ry + name_strip))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_sword")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "staff_route.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -9096,7 +9143,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--clown-r17-staffgrid", "--marottes-8910"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--clown-r17-staffgrid", "--marottes-8910", "--staff-route"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -9175,6 +9222,8 @@ def main():
         _render_clown_r17_staff()
     if "--clown-r17-staffgrid" in args:
         _render_clown_r17_staffgrid()
+    if "--staff-route" in args:
+        _render_staff_route()
 
 
 if __name__ == "__main__":
