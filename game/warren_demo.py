@@ -152,8 +152,6 @@ class WarrenDemo:
             # the result celebration is up; the clown keeps scrolling off-screen
             if self.pt >= T_AFTER_PICKUP:
                 self._make_route(world)
-                if self.ghost_run:
-                    world.ghost_timer = max(world.ghost_timer, 2.0)  # ghost on from route start
                 self._goto("running")
 
         elif self.phase == "running":
@@ -162,15 +160,11 @@ class WarrenDemo:
                    and (not self.route_pipes
                         or self.route_pipes[-1].x <= SPAWN_X - SP)):
                 self._spawn_next(world)
-            # GHOST roll: phase through the whole route. World decays ghost_timer
-            # each frame, so keep it topped up while flying the route.
-            if self.ghost_run:
-                world.ghost_timer = max(world.ghost_timer, 2.0)
+            # GHOST roll: Pip is already a ghost from the reveal (the single
+            # window sized in _reveal_roll covers this whole stretch + a tail).
             # route done once the last pillar has slipped past Pip
             if (self.spawned >= len(self.route) and self.route_pipes
                     and self.route_pipes[-1].x + PIPE_W < BIRD_X):
-                if self.ghost_run:
-                    world.ghost_timer = 1.0   # ... then stay a ghost one more second
                 self._goto("post_route")
 
         elif self.phase == "post_route":
@@ -332,6 +326,18 @@ class WarrenDemo:
         # Spin done — arm the celebration banner (drawn in a fixed spot, not on
         # the cube). die_pop_t is its life clock; _draw_celebration reads it.
         self.die_pop_t = CELE_LIFE
+        if self.ghost_run:
+            # Turn Pip ghost the instant the result reveals, and size the ghost
+            # window to the whole event so the HUD bar drains once, end to end:
+            # the beat before the route + the time for all N pillars to scroll
+            # past Pip + the 2 s free-flight tail. The +tail covers any drift so
+            # Pip phases the entire route with margin. ghost_timer_total feeds the
+            # bar max so it reads the true window, not the 8 s pickup default.
+            v = max(1.0, world._current_scroll())
+            route_pass = ((self.roll - 1) * SP + (SPAWN_X - (BIRD_X - PIPE_W))) / v
+            total = T_AFTER_PICKUP + route_pass + T_AFTER_ROUTE
+            world.ghost_timer = total
+            world.ghost_timer_total = total
 
     def _spawn_next(self, world):
         gap_cy, gap_h = self.route[self.spawned]

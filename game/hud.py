@@ -1788,7 +1788,8 @@ class HUD:
         if world.kfc_timer > 0:
             active.append(("kfc", world.kfc_timer, KFC_DURATION))
         if world.ghost_timer > 0:
-            active.append(("ghost", world.ghost_timer, GHOST_DURATION))
+            active.append(("ghost", world.ghost_timer,
+                           getattr(world, "ghost_timer_total", GHOST_DURATION)))
         if world.grow_timer > 0:
             active.append(("grow", world.grow_timer, GROW_DURATION))
         if world.reverse_timer > 0:

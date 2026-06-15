@@ -165,6 +165,7 @@ class World:
         self.kfc_mountain_layers: "list[pygame.Surface] | None" = None
         self.kfc_activation_scroll = 0.0
         self.ghost_timer  = 0.0
+        self.ghost_timer_total = GHOST_DURATION  # full window the HUD bar drains over
         self.grow_timer   = 0.0
         self.reverse_timer = 0.0
         self.shrink_timer = 0.0
@@ -2389,6 +2390,7 @@ class World:
         GHOST_BLUE  = (140, 180, 255)
         GHOST_WHITE = (210, 225, 255)
         self.ghost_timer = GHOST_DURATION
+        self.ghost_timer_total = GHOST_DURATION
         self.bird.ghost_active = True
         self.shake_mag = max(self.shake_mag, 2.0)
         self.shake_t   = max(self.shake_t,   0.2)

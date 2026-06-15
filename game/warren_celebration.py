@@ -75,6 +75,27 @@ def _num_block(canvas, c, ncy, roll, ss, *, size=88, num_col=CREAM, edge_col=PLU
     canvas.blit(num, num.get_rect(center=(c, ncy)))
 
 
+def _ghost_label(canvas, cx, cy, ss):
+    """A small banderole reading GHOST for the ghost re-skin — cream bold text on a
+    deep-periwinkle plate with a gold keyline, so the result reads as GHOST and not
+    just a recoloured number. Tied to the cyan/periwinkle wheel palette."""
+    plate = _shade_c(WHEEL_B_G, -120)
+    f = hud._font(int(30 * ss), True)
+    txt = f.render("GHOST", True, CREAM)
+    pad_x, pad_y = int(18 * ss), int(8 * ss)
+    w, h = txt.get_width() + pad_x * 2, txt.get_height() + pad_y * 2
+    rect = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
+    rr = int(9 * ss)
+    pygame.draw.rect(canvas, _shade_c(plate, -40), rect.inflate(int(5 * ss), int(5 * ss)),
+                     border_radius=rr)
+    pygame.draw.rect(canvas, plate, rect, border_radius=rr)
+    pygame.draw.rect(canvas, GOLD, rect, max(2, int(2 * ss)), border_radius=rr)
+    sh = f.render("GHOST", True, (0, 0, 0))
+    sh.set_alpha(120)
+    canvas.blit(sh, sh.get_rect(center=(cx + 2 * ss, cy + 2 * ss)))
+    canvas.blit(txt, txt.get_rect(center=(cx, cy)))
+
+
 def _jester_bauble(canvas, cx, hy, hr, ss):
     """The staff's mini-clown bauble head: a 4-point bell-tipped jester CAP, the
     lime belled RUFF, and the grinning FACE. Cap offsets are authored for
@@ -131,4 +152,6 @@ def render(roll, ghost=False, ss=4, b_hr_ss=28):
     b_hr = int(b_hr_ss * ss)
     b_hy = (wcy - R) - int(0.95 * b_hr)
     _jester_bauble(canvas, cx, b_hy, b_hr, ss)
+    if ghost:
+        _ghost_label(canvas, cx, wcy + R + int(26 * ss), ss)
     return canvas, DW, DH
