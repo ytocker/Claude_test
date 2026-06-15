@@ -65,6 +65,15 @@ GROUND_LIT  = (104, 132, 74)
 BG_TOP      = (96, 92, 110)     # neutral mid-tone backdrop, slightly cool
 BG_BOT      = (78, 74, 92)
 
+# Round-2 development accents — the art-director flagged round-1's Janus banner
+# as "fire-red"; the evolved lineage wants a BRUISED OXBLOOD / maroon instead,
+# darker and more soured than a clean blood scarlet.
+OXBLOOD      = (112, 28, 36)    # bruised oxblood banner/sail body
+OXBLOOD_DARK = (70, 16, 24)     # banner shadow / keyline
+OXBLOOD_LIT  = (146, 46, 52)    # lit oxblood fold
+STRING_COL   = (206, 200, 182)  # taut marionette filament (aged ivory thread)
+STRING_DARK  = (150, 144, 126)
+
 
 # ── shared LOW-LEVEL paint helpers (allowed — not a figure builder) ──────────
 
@@ -928,6 +937,643 @@ def _janus_face(surf, cx, hy, hr, s):
     pygame.draw.circle(surf, _shade(BLOOD, 80), (cx - s, hy + 4 * s), 2 * s)
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# ROUND 2 — DEVELOPMENT of the two chosen directions: THE PUPPETEER and THE
+# JANUS HERALD. Two distinct takes per direction, all carrying the mandatory
+# lineage anchors (belled jester cap, gold scalloped ruff, browcock grin+fang),
+# all in the soured/bruised Plum & Lime palette. The art-director fixes are
+# folded in: the Puppeteer silhouette is now MASS (coat/robe + cuffed limbs,
+# never thin black sticks); the Janus faces are now PAINTED HARLEQUIN MASKS
+# (no emoji smiley) over a BRUISED OXBLOOD banner.
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+def _scallop_ruff(surf, cx, neck_y, half_w, s, lobes=9, r=7):
+    """The lineage GOLD SCALLOPED RUFF — a fan of overlapping tarnished-gold
+    lobes at the neck. Shared lineage anchor across all four bosses."""
+    for i in range(lobes):
+        t = i / (lobes - 1)
+        rx = cx + int((-1 + 2 * t) * half_w)
+        ry = neck_y + int(math.sin(t * math.pi) * -4 * s)
+        pygame.draw.circle(surf, GOLD_DARK, (rx, ry), r * s + s)
+        pygame.draw.circle(surf, GOLD, (rx, ry), r * s)
+        pygame.draw.circle(surf, GOLD_LIT, (rx - 2 * s, ry - 2 * s), max(s, r * s // 3))
+
+
+def _harlequin_band(surf, p0, p1, w, s, col_a, col_b, n=5):
+    """A thick limb drawn as alternating harlequin colour bands between two
+    points — the FILLED, MASS limb the art-director asked for (never a thin
+    black stick). Returns the endpoint for chaining."""
+    pygame.draw.line(surf, INK, p0, p1, w + 2 * s)
+    for i in range(n):
+        a = (p0[0] + (p1[0] - p0[0]) * i / n, p0[1] + (p1[1] - p0[1]) * i / n)
+        b = (p0[0] + (p1[0] - p0[0]) * (i + 1) / n,
+             p0[1] + (p1[1] - p0[1]) * (i + 1) / n)
+        col = col_a if i % 2 else col_b
+        pygame.draw.line(surf, col, a, b, w)
+    return p1
+
+
+def _gold_cuff(surf, x, y, r, s):
+    """A flared tarnished-gold cuff ring at a hand/foot — replaces the thin
+    black stick-ends the critique flagged."""
+    pygame.draw.circle(surf, GOLD_DARK, (int(x), int(y)), r + s)
+    pygame.draw.circle(surf, GOLD, (int(x), int(y)), r)
+    pygame.draw.circle(surf, GOLD_LIT, (int(x - r // 2), int(y - r // 2)),
+                       max(s, r // 2))
+
+
+def _villain_face(surf, cx, hy, hr, s, brow_left=True, mood="grin"):
+    """The lineage BROWCOCK GRIN + ONE FANG villain face — one cocked brow, a
+    bright eye-glint per eye, a blood nose and a gleeful grin with a single
+    fang. `mood='grin'` is the gleeful comedy read; `mood='tragedy'` keeps the
+    SAME hard macro shapes but flips the grin into a sinister down-snarl with a
+    weeping eye — still menacing, never sad-cute, never an emoji smiley."""
+    bsgn = -1 if brow_left else 1
+    # Cocked brow — one slammed-up hard bar (the macro shape that reads small).
+    pygame.draw.line(surf, INK, (cx + bsgn * 13 * s, hy - 10 * s),
+                     (cx + bsgn * 2 * s, hy - 6 * s), 4 * s)
+    # The other brow low + level.
+    pygame.draw.line(surf, INK, (cx - bsgn * 3 * s, hy - 5 * s),
+                     (cx - bsgn * 13 * s, hy - 4 * s), 4 * s)
+    for sgn in (-1, 1):
+        ex = cx + sgn * 8 * s
+        pygame.draw.ellipse(surf, WHITE, (ex - 6 * s, hy - 4 * s, 12 * s, 10 * s))
+        pygame.draw.circle(surf, INK, (ex + sgn * 2 * s, hy + s), 3 * s)
+        _glint(surf, ex + sgn * 1 * s, hy - s, 2 * s)
+    if mood == "tragedy":
+        # A painted weep-streak under the cocked eye (theatrical greasepaint,
+        # not a cutesy cartoon tear) + a venom diamond mask-marking.
+        pygame.draw.polygon(surf, VENOM_DEEP,
+                            [(cx + bsgn * 8 * s, hy + 4 * s),
+                             (cx + bsgn * 11 * s, hy + 16 * s),
+                             (cx + bsgn * 5 * s, hy + 16 * s)])
+    # Blood nose.
+    pygame.draw.circle(surf, BLOOD, (cx, hy + 6 * s), 4 * s)
+    pygame.draw.circle(surf, _shade(BLOOD, 80), (cx - s, hy + 4 * s), 2 * s)
+    teeth_y = hy + 14 * s
+    if mood == "tragedy":
+        # Sinister downturned snarl — same width, flipped curve, baring a fang.
+        pygame.draw.arc(surf, BLOOD_DARK, (cx - 14 * s, hy + 12 * s, 28 * s, 16 * s),
+                        math.pi * 1.0, math.pi * 2.0, 3 * s)
+        gum = [(cx - 12 * s, teeth_y + 8 * s), (cx + 12 * s, teeth_y + 8 * s),
+               (cx + 9 * s, teeth_y + 4 * s), (cx - 9 * s, teeth_y + 4 * s)]
+    else:
+        # Gleeful wide grin — upturned, baring a tooth row.
+        pygame.draw.arc(surf, BLOOD_DARK, (cx - 14 * s, hy + 9 * s, 28 * s, 14 * s),
+                        math.pi, math.tau, 3 * s)
+        gum = [(cx - 12 * s, teeth_y), (cx + 12 * s, teeth_y),
+               (cx + 9 * s, teeth_y + 4 * s), (cx - 9 * s, teeth_y + 4 * s)]
+    pygame.draw.polygon(surf, BONE, gum)
+    base_y = gum[2][1]
+    for tx in range(-2, 3):
+        gx = cx + tx * 5 * s
+        pygame.draw.line(surf, BLOOD_DARK, (gx, gum[0][1]), (gx, base_y), s)
+    # The ONE fang.
+    fang_top = base_y if mood != "tragedy" else gum[0][1]
+    pygame.draw.polygon(surf, BONE,
+                        [(cx - 9 * s, fang_top), (cx - 5 * s, fang_top),
+                         (cx - 7 * s, fang_top + (5 * s if mood != "tragedy" else 6 * s))])
+
+
+def _evolved_cap(surf, cx, cap_y, s, lean=0, scale=1.0):
+    """The lineage BELLED JESTER CAP, EVOLVED — three asymmetric, split-colour
+    points (taller, leaning), each tipped with a tarnished-gold bell. `lean`
+    skews the whole cap; `scale` stretches it. Clearly OUR cap, grown nastier."""
+    pts = [(-1, -16, -38, VENOM, VENOM_DEEP),
+           (0, 4, -48, GOLD, GOLD_DARK),
+           (1, 22, -34, PLUM_BRUISE, PLUM_DARK)]
+    for sgn, dx, dy, col, dk in pts:
+        dx = dx * scale + lean * abs(dy) * 0.3
+        dy = dy * scale
+        tip = (cx + dx * s, cap_y + dy * s)
+        base = [(cx - 10 * s, cap_y + 2 * s), (cx + 10 * s, cap_y + 2 * s), tip]
+        pygame.draw.polygon(surf, col, base)
+        pygame.draw.polygon(surf, dk, base, s)
+        # Split-colour stripe down the spire.
+        mid = ((base[0][0] + tip[0]) / 2, (base[0][1] + tip[1]) / 2)
+        pygame.draw.line(surf, _shade(col, -50), mid, tip, s)
+        _bell(surf, tip[0], tip[1], 3 * s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PUPPETEER TAKE A — THE STRING-MASTER
+# A TOWERING, robed mastermind holding a marionette CONTROL-CROSS aloft in both
+# fists, strings cascading from it. The body is FILLED by a long dramatic
+# bell-fringed robe; arms are thick harlequin-banded with gold cuffs. Grandiose
+# gleeful "I work the strings" menace.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_string_master(surf, cx, feet_y, K):
+    s = K
+    # Long dramatic robe — a tall flaring column that gives the figure MASS
+    # (the fix for the round-1 stilt-void). Hem flares wide at the ground.
+    hem_y = feet_y - 8 * s
+    shoulder_y = feet_y - 168 * s
+    hem_w = 56 * s
+    sh_w = 30 * s
+    robe = [(cx - sh_w, shoulder_y + 8 * s), (cx + sh_w, shoulder_y + 8 * s),
+            (cx + hem_w, hem_y), (cx - hem_w, hem_y)]
+    pygame.draw.polygon(surf, PLUM_DEEP, robe)
+    pygame.draw.polygon(surf, PLUM_BRUISE,
+                        [(cx - sh_w, shoulder_y + 8 * s), (cx - 6 * s, shoulder_y + 8 * s),
+                         (cx - 18 * s, hem_y), (cx - hem_w, hem_y)])
+    pygame.draw.polygon(surf, PLUM_DARK,
+                        [(cx + 10 * s, shoulder_y + 8 * s), (cx + sh_w, shoulder_y + 8 * s),
+                         (cx + hem_w, hem_y), (cx + 24 * s, hem_y)])
+    pygame.draw.polygon(surf, PLUM_DARK, robe, 2 * s)
+    # Venom centre-placket with gold frog-bells running the robe.
+    pygame.draw.polygon(surf, VENOM_DEEP,
+                        [(cx - 9 * s, shoulder_y + 10 * s), (cx + 9 * s, shoulder_y + 10 * s),
+                         (cx + 14 * s, hem_y - 2 * s), (cx - 14 * s, hem_y - 2 * s)])
+    pygame.draw.polygon(surf, VENOM,
+                        [(cx - 6 * s, shoulder_y + 10 * s), (cx + 4 * s, shoulder_y + 10 * s),
+                         (cx + 7 * s, hem_y - 2 * s), (cx - 9 * s, hem_y - 2 * s)])
+    for i in range(6):
+        by = shoulder_y + 18 * s + (hem_y - shoulder_y - 20 * s) * i / 5
+        _bell(surf, cx - s, by, 3 * s)
+    # Dagged bell-fringed hem giving the robe a theatrical skirt.
+    n = 9
+    for i in range(n):
+        x0 = cx - hem_w + 2 * hem_w * i / n
+        x1 = cx - hem_w + 2 * hem_w * (i + 1) / n
+        mid = (x0 + x1) / 2
+        col = VENOM if i % 2 else GOLD
+        dag = [(x0, hem_y - 2 * s), (x1, hem_y - 2 * s), (mid, hem_y + 10 * s)]
+        pygame.draw.polygon(surf, col, dag)
+        pygame.draw.polygon(surf, _shade(col, -60), dag, s)
+        _bell(surf, mid, hem_y + 10 * s, 2 * s)
+    # Two robe-hem feet peeking, in gold cuffs (no thin sticks).
+    for sgn in (-1, 1):
+        fx = cx + sgn * 28 * s
+        _gold_cuff(surf, fx, feet_y - 4 * s, 6 * s, s)
+
+    # Broad gold epaulet shelves the thick arms hang off.
+    for sgn in (-1, 1):
+        shx = cx + sgn * sh_w
+        ep = [(cx + sgn * 14 * s, shoulder_y + 6 * s),
+              (shx + sgn * 12 * s, shoulder_y),
+              (shx + sgn * 8 * s, shoulder_y + 16 * s),
+              (cx + sgn * 12 * s, shoulder_y + 16 * s)]
+        pygame.draw.polygon(surf, GOLD, ep)
+        pygame.draw.polygon(surf, GOLD_DARK, ep, s)
+
+    # The CONTROL-CROSS held ALOFT in both fists — the marionette gag, raised
+    # like a trophy. Drawn above the head between the two raised hands.
+    cross_y = shoulder_y - 44 * s
+    bar_x0, bar_x1 = cx - 40 * s, cx + 40 * s
+    # Thick arms reaching UP to the cross ends — harlequin-banded, gold cuffs.
+    for sgn, col_a, col_b in ((-1, VENOM, PLUM_BRUISE), (1, PLUM_BRUISE, VENOM)):
+        sh = (cx + sgn * (sh_w - 4 * s), shoulder_y + 12 * s)
+        elbow = (cx + sgn * 44 * s, shoulder_y - 6 * s)
+        hand = (cx + sgn * 40 * s, cross_y + 2 * s)
+        _harlequin_band(surf, sh, elbow, 10 * s, s, col_a, col_b)
+        _harlequin_band(surf, elbow, hand, 8 * s, s, col_b, col_a)
+        _gold_cuff(surf, hand[0], hand[1], 7 * s, s)
+    # The wooden control-cross itself: a horizontal bar + a short vertical, in
+    # tarnished gold, with string anchor-pegs.
+    pygame.draw.line(surf, GOLD_DARK, (bar_x0, cross_y + 2 * s), (bar_x1, cross_y + 2 * s), 7 * s)
+    pygame.draw.line(surf, GOLD, (bar_x0, cross_y), (bar_x1, cross_y), 4 * s)
+    pygame.draw.line(surf, GOLD_DARK, (cx, cross_y - 18 * s), (cx, cross_y + 6 * s), 7 * s)
+    pygame.draw.line(surf, GOLD, (cx, cross_y - 18 * s), (cx, cross_y + 6 * s), 4 * s)
+    pygame.draw.line(surf, GOLD, (cx - 16 * s, cross_y - 12 * s), (cx + 16 * s, cross_y - 12 * s), 4 * s)
+    for px in (bar_x0 + 6 * s, cx - 16 * s, cx + 16 * s, bar_x1 - 6 * s):
+        pygame.draw.circle(surf, GOLD_LIT, (int(px), int(cross_y)), 2 * s)
+    # Strings cascading from the cross pegs down past the robe — taut filaments.
+    anchors = [(bar_x0 + 6 * s, cross_y), (cx - 16 * s, cross_y - 12 * s),
+               (cx + 16 * s, cross_y - 12 * s), (bar_x1 - 6 * s, cross_y)]
+    drops = [cx - 36 * s, cx - 12 * s, cx + 12 * s, cx + 36 * s]
+    for (ax, ay), dx in zip(anchors, drops):
+        pygame.draw.line(surf, STRING_DARK, (ax + s, ay), (dx + s, hem_y + 6 * s), s)
+        pygame.draw.line(surf, STRING_COL, (ax, ay), (dx, hem_y + 6 * s), s)
+
+    # The lineage GOLD SCALLOPED RUFF.
+    _scallop_ruff(surf, cx, shoulder_y, 30 * s, s, lobes=9, r=7)
+
+    # HEAD — gaunt but not skeletal; the gleeful mastermind face.
+    hr = 20 * s
+    hy = shoulder_y - hr - 4 * s
+    pygame.draw.circle(surf, SKIN_SHADE, (cx, hy), hr + s)
+    pygame.draw.circle(surf, SKIN, (cx, hy), hr)
+    _bruise(surf, cx + 11 * s, hy + 6 * s, 6 * s, 5 * s, 70)
+    _villain_face(surf, cx, hy, hr, s, brow_left=True, mood="grin")
+
+    # The EVOLVED belled jester cap — tall, leaning, split-colour.
+    _evolved_cap(surf, cx, hy - hr + 4 * s, s, lean=0.15, scale=1.0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PUPPETEER TAKE B — THE TANGLE-LORD
+# A HUNCHED schemer crouched over a tangle of strings, with two tiny dangling
+# marionette-MINIONS swinging off its clawed, gold-cuffed hands. A heavy
+# hunched robe gives the body mass; the cap flops forward conspiratorially.
+# Reads as the same string-master lineage, lower and meaner.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _mini_marionette(surf, x, top_y, foot_y, s, col):
+    """A tiny dangling marionette-minion: a string, a bead head, a banded body
+    and limp little limbs — a small puppet hanging off the boss's hand."""
+    pygame.draw.line(surf, STRING_COL, (x, top_y), (x, top_y + 14 * s), s)
+    hx, hcy = x, top_y + 18 * s
+    pygame.draw.circle(surf, SKIN, (hx, hcy), 5 * s)
+    pygame.draw.circle(surf, SKIN_SHADE, (hx, hcy), 5 * s, s)
+    pygame.draw.circle(surf, INK, (hx - 2 * s, hcy - s), s)
+    pygame.draw.circle(surf, INK, (hx + 2 * s, hcy - s), s)
+    # Tiny cap nub.
+    pygame.draw.polygon(surf, col, [(hx - 4 * s, hcy - 4 * s),
+                                    (hx + 4 * s, hcy - 4 * s), (hx, hcy - 11 * s)])
+    _bell(surf, hx, hcy - 11 * s, 2 * s)
+    # Banded body.
+    bo_y = hcy + 5 * s
+    _harlequin_band(surf, (hx, bo_y), (hx, bo_y + 14 * s), 7 * s, s, col, GOLD, n=3)
+    # Limp dangling limbs + foot strings.
+    for sgn in (-1, 1):
+        pygame.draw.line(surf, _shade(col, -50), (hx, bo_y + 2 * s),
+                         (hx + sgn * 7 * s, bo_y + 12 * s), 3 * s)
+        pygame.draw.line(surf, _shade(col, -50), (hx, bo_y + 14 * s),
+                         (hx + sgn * 5 * s, foot_y), 3 * s)
+        _bell(surf, hx + sgn * 5 * s, foot_y, 2 * s)
+
+
+def build_tangle_lord(surf, cx, feet_y, K):
+    s = K
+    # A heavy HUNCHED robe — a broad rounded mass leaning forward, hem pooling on
+    # the ground. The hunch is the silhouette signature.
+    hem_y = feet_y - 8 * s
+    waist_y = feet_y - 96 * s
+    hump_y = feet_y - 132 * s
+    hem_w = 60 * s
+    robe = [(cx - 26 * s, hump_y + 6 * s), (cx + 30 * s, hump_y - 2 * s),
+            (cx + 40 * s, waist_y), (cx + hem_w, hem_y),
+            (cx - hem_w, hem_y), (cx - 38 * s, waist_y)]
+    pygame.draw.polygon(surf, PLUM_DEEP, robe)
+    pygame.draw.polygon(surf, PLUM_BRUISE,
+                        [(cx - 26 * s, hump_y + 6 * s), (cx - 4 * s, hump_y + 2 * s),
+                         (cx - 20 * s, hem_y), (cx - hem_w, hem_y), (cx - 38 * s, waist_y)])
+    pygame.draw.polygon(surf, PLUM_DARK, robe, 2 * s)
+    # A bulging hunched-back hump rounding the top-right of the robe.
+    hump = pygame.Rect(0, 0, 64 * s, 56 * s)
+    hump.center = (cx + 6 * s, hump_y + 18 * s)
+    pygame.draw.ellipse(surf, PLUM_DARK, hump)
+    pygame.draw.ellipse(surf, PLUM_DEEP, hump.inflate(-4 * s, -4 * s))
+    pygame.draw.arc(surf, PLUM_BRUISE, hump.inflate(-8 * s, -8 * s),
+                    math.pi * 0.9, math.pi * 1.5, 2 * s)
+    # Venom diamonds scattered down the robe (harlequin motif, MASS not void).
+    for (dx, dy) in ((-22, 40), (4, 56), (-30, 72), (10, 82), (-12, 64)):
+        px, py = cx + dx * s, waist_y + dy * s
+        d = 6 * s
+        pygame.draw.polygon(surf, VENOM, [(px, py - d), (px + d, py), (px, py + d), (px - d, py)])
+        pygame.draw.polygon(surf, VENOM_DEEP, [(px, py - d), (px + d, py), (px, py + d), (px - d, py)], s)
+    # Bell-fringed hem.
+    n = 9
+    for i in range(n):
+        x0 = cx - hem_w + 2 * hem_w * i / n
+        x1 = cx - hem_w + 2 * hem_w * (i + 1) / n
+        mid = (x0 + x1) / 2
+        col = GOLD if i % 2 else VENOM
+        dag = [(x0, hem_y - 2 * s), (x1, hem_y - 2 * s), (mid, hem_y + 10 * s)]
+        pygame.draw.polygon(surf, col, dag)
+        pygame.draw.polygon(surf, _shade(col, -60), dag, s)
+        _bell(surf, mid, hem_y + 10 * s, 2 * s)
+    for sgn in (-1, 1):
+        _gold_cuff(surf, cx + sgn * 30 * s, feet_y - 4 * s, 6 * s, s)
+
+    # Both thick arms reach DOWN-and-FORWARD over the tangle, clawed gold-cuffed
+    # hands each dangling a tiny marionette-minion. Harlequin-banded — MASS.
+    hands = []
+    for sgn, col_a, col_b in ((-1, VENOM, PLUM_BRUISE), (1, PLUM_BRUISE, VENOM)):
+        sh = (cx + sgn * 20 * s, waist_y - 6 * s)
+        elbow = (cx + sgn * 48 * s, waist_y + 12 * s)
+        hand = (cx + sgn * 40 * s, waist_y + 40 * s)
+        _harlequin_band(surf, sh, elbow, 10 * s, s, col_a, col_b)
+        _harlequin_band(surf, elbow, hand, 8 * s, s, col_b, col_a)
+        _gold_cuff(surf, hand[0], hand[1], 7 * s, s)
+        # Three clawed gold fingers spreading the strings.
+        for f in (-1, 0, 1):
+            fx = hand[0] + f * 5 * s
+            pygame.draw.line(surf, GOLD_DARK, hand, (fx, hand[1] + 10 * s), 2 * s)
+            pygame.draw.circle(surf, GOLD, (fx, hand[1] + 10 * s), 2 * s)
+        hands.append(hand)
+    # The TANGLE of crossing control-strings sagging between the two hands.
+    lh, rh = hands
+    for k in range(5):
+        t = k / 4
+        sag = 18 * s + int(math.sin(t * math.pi) * 10 * s)
+        ax = lh[0] + (rh[0] - lh[0]) * t
+        pygame.draw.line(surf, STRING_DARK, (lh[0], lh[1] + 10 * s),
+                         (ax, lh[1] + sag), s)
+        pygame.draw.line(surf, STRING_COL, (rh[0], rh[1] + 10 * s),
+                         (ax, rh[1] + sag), s)
+    # Two tiny dangling marionette-minions swinging off the hands.
+    _mini_marionette(surf, lh[0] - 4 * s, lh[1] + 12 * s, waist_y + 92 * s, s, VENOM)
+    _mini_marionette(surf, rh[0] + 4 * s, rh[1] + 12 * s, waist_y + 86 * s, s, PLUM_BRUISE)
+
+    # The lineage GOLD SCALLOPED RUFF, tilted with the hunch.
+    _scallop_ruff(surf, cx + 4 * s, hump_y + 6 * s, 26 * s, s, lobes=8, r=7)
+
+    # HEAD — craned forward off the hunch, conspiratorial.
+    hr = 20 * s
+    hy = hump_y - hr + 2 * s
+    hcx = cx + 6 * s
+    pygame.draw.circle(surf, SKIN_SHADE, (hcx, hy), hr + s)
+    pygame.draw.circle(surf, SKIN, (hcx, hy), hr)
+    _bruise(surf, hcx + 10 * s, hy + 7 * s, 6 * s, 5 * s, 70)
+    _villain_face(surf, hcx, hy, hr, s, brow_left=False, mood="grin")
+
+    # The EVOLVED belled cap flopping FORWARD over the brow (conspiratorial).
+    _evolved_cap(surf, hcx, hy - hr + 4 * s, s, lean=-0.45, scale=0.92)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JANUS TAKE A — THE TWIN-MASK MARQUEE
+# A grand front-facing herald, ONE head split down the middle into TWO PAINTED
+# HARLEQUIN MASKS (comedy grin+fang on the bright half, sinister weeping-tragedy
+# on the dark half), both menacing + browcock. A great BRUISED-OXBLOOD banner
+# sail balloons behind, blazoned with a painted twin-mask emblem (NOT a smiley).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_twin_mask(surf, cx, feet_y, K):
+    s = K
+    hip_y = feet_y - 104 * s
+    top_y = hip_y - 86 * s
+
+    # The billowing OXBLOOD banner sail behind (bruised maroon, NOT fire-red).
+    sail = [(cx + 8 * s, top_y - 8 * s), (cx + 92 * s, top_y + 8 * s),
+            (cx + 112 * s, hip_y - 8 * s), (cx + 98 * s, hip_y + 46 * s),
+            (cx + 64 * s, hip_y + 56 * s), (cx + 32 * s, hip_y + 34 * s)]
+    pygame.draw.polygon(surf, OXBLOOD_DARK, sail)
+    pygame.draw.polygon(surf, OXBLOOD,
+                        [(cx + 8 * s, top_y - 8 * s), (cx + 62 * s, top_y),
+                         (cx + 72 * s, hip_y), (cx + 32 * s, hip_y + 34 * s)])
+    pygame.draw.polygon(surf, OXBLOOD_LIT,
+                        [(cx + 14 * s, top_y - 2 * s), (cx + 40 * s, top_y + 4 * s),
+                         (cx + 30 * s, hip_y), (cx + 18 * s, hip_y - 12 * s)])
+    pygame.draw.polygon(surf, PLUM_DARK, sail, 2 * s)
+    for k in range(6):
+        t = k / 5
+        fx = (112 - (112 - 64) * t) * s
+        fy = (hip_y - 8 * s) + (hip_y + 56 * s - (hip_y - 8 * s)) * t
+        _bell(surf, cx + fx, fy, 2 * s)
+    # The banner blazon: a small PAINTED twin-mask emblem (comedy|tragedy split
+    # face), the marquee crest — explicitly a harlequin mask motif, not a smiley.
+    em = (cx + 58 * s, hip_y - 4 * s)
+    er = 13 * s
+    pygame.draw.circle(surf, BONE, em, er)
+    pygame.draw.line(surf, INK, (em[0], em[1] - er), (em[0], em[1] + er), s)
+    # comedy half (left of emblem): up-grin.
+    pygame.draw.arc(surf, BLOOD_DARK, (em[0] - 9 * s, em[1], 9 * s, 8 * s),
+                    math.pi, math.tau, 2 * s)
+    pygame.draw.circle(surf, INK, (em[0] - 5 * s, em[1] - 4 * s), 2 * s)
+    # tragedy half (right): down-snarl + weep streak.
+    pygame.draw.arc(surf, BLOOD_DARK, (em[0], em[1] + 2 * s, 9 * s, 8 * s),
+                    0, math.pi, 2 * s)
+    pygame.draw.circle(surf, INK, (em[0] + 5 * s, em[1] - 4 * s), 2 * s)
+    pygame.draw.line(surf, VENOM_DEEP, (em[0] + 5 * s, em[1] - 2 * s),
+                     (em[0] + 5 * s, em[1] + 6 * s), s)
+
+    # The MIRROR-SPLIT robe: comedy (venom/gold bright) viewer-left, tragedy
+    # (deep plum/bruise dark) viewer-right, meeting at a bone centre seam.
+    left_half = [(cx, hip_y + 16 * s), (cx, top_y),
+                 (cx - 34 * s, top_y + 8 * s), (cx - 46 * s, hip_y + 16 * s)]
+    right_half = [(cx, hip_y + 16 * s), (cx, top_y),
+                  (cx + 34 * s, top_y + 8 * s), (cx + 46 * s, hip_y + 16 * s)]
+    pygame.draw.polygon(surf, VENOM_DEEP, left_half)
+    pygame.draw.polygon(surf, VENOM,
+                        [(cx - 4 * s, top_y + 2 * s), (cx - 30 * s, top_y + 8 * s),
+                         (cx - 36 * s, hip_y + 12 * s), (cx - 6 * s, hip_y + 14 * s)])
+    pygame.draw.polygon(surf, PLUM_DARK, right_half)
+    pygame.draw.polygon(surf, PLUM_DEEP,
+                        [(cx + 4 * s, top_y + 2 * s), (cx + 30 * s, top_y + 8 * s),
+                         (cx + 36 * s, hip_y + 12 * s), (cx + 6 * s, hip_y + 14 * s)])
+    # Per-half motifs: gold bell-buttons on comedy, bruise-violet teardrop
+    # diamonds on tragedy.
+    for i in range(3):
+        dy = top_y + 24 * s + i * 22 * s
+        _bell(surf, cx - 20 * s, dy, 3 * s)
+        pygame.draw.polygon(surf, PLUM_BRUISE,
+                            [(cx + 20 * s, dy - 5 * s), (cx + 25 * s, dy),
+                             (cx + 20 * s, dy + 7 * s), (cx + 15 * s, dy)])
+    pygame.draw.line(surf, BONE, (cx, top_y), (cx, hip_y + 16 * s), 2 * s)
+    pygame.draw.polygon(surf, INK, left_half, 2 * s)
+    pygame.draw.polygon(surf, INK, right_half, 2 * s)
+
+    # Harlequin legs, each matching its half.
+    for sgn, col in ((-1, VENOM), (1, PLUM_BRUISE)):
+        lx = cx + sgn * 20 * s
+        _harlequin_band(surf, (lx, hip_y + 12 * s), (lx + sgn * 4 * s, feet_y - 8 * s),
+                        11 * s, s, col, _shade(col, -45))
+        boot = pygame.Rect(0, 0, 24 * s, 12 * s)
+        boot.center = (lx + sgn * 8 * s, feet_y - 4 * s)
+        pygame.draw.ellipse(surf, PLUM_DARK, boot)
+        pygame.draw.ellipse(surf, PLUM_DEEP, boot.inflate(-3 * s, -2 * s))
+        _bell(surf, boot.centerx + sgn * 12 * s, boot.centery - 2 * s, 3 * s)
+
+    # One arm flung wide presenting the masks, one planted — herald flare.
+    sh_l = (cx - 28 * s, top_y + 14 * s)
+    hand_l = (cx - 62 * s, top_y - 30 * s)
+    _harlequin_band(surf, sh_l, hand_l, 9 * s, s, VENOM, PLUM_BRUISE)
+    _gold_cuff(surf, hand_l[0], hand_l[1], 7 * s, s)
+    sh_r = (cx + 28 * s, top_y + 14 * s)
+    hand_r = (cx + 44 * s, hip_y - 8 * s)
+    _harlequin_band(surf, sh_r, (cx + 46 * s, top_y + 40 * s), 9 * s, s,
+                    PLUM_BRUISE, VENOM)
+    _harlequin_band(surf, (cx + 46 * s, top_y + 40 * s), hand_r, 8 * s, s,
+                    VENOM, PLUM_BRUISE)
+    _gold_cuff(surf, hand_r[0], hand_r[1], 7 * s, s)
+
+    # The lineage GOLD SCALLOPED RUFF framing the double face.
+    _scallop_ruff(surf, cx, top_y + 2 * s, 32 * s, s, lobes=11, r=7)
+
+    # HEAD — ONE head, split into two PAINTED HARLEQUIN MASKS.
+    hr = 24 * s
+    hy = top_y - hr - 2 * s
+    pygame.draw.circle(surf, SKIN_SHADE, (cx, hy), hr + s)
+    pygame.draw.circle(surf, SKIN, (cx, hy), hr)
+    # Dark greasepaint wash over the tragedy (right) half.
+    grey = pygame.Surface((hr * 2 + 2, hr * 2 + 2), pygame.SRCALPHA)
+    pygame.draw.polygon(grey, (52, 40, 70, 150),
+                        [(hr, 0), (hr * 2, 0), (hr * 2, hr * 2), (hr, hr * 2)])
+    cmask = pygame.Surface(grey.get_size(), pygame.SRCALPHA)
+    pygame.draw.circle(cmask, (255, 255, 255, 255), (hr, hr), hr)
+    grey.blit(cmask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surf.blit(grey, (cx - hr, hy - hr))
+    pygame.draw.line(surf, INK, (cx, hy - hr), (cx, hy + hr), 2 * s)
+    pygame.draw.circle(surf, SKIN_SHADE, (cx, hy), hr, 2 * s)
+    _twin_mask_face(surf, cx, hy, hr, s)
+
+    # The EVOLVED belled cap — split-colour, asymmetric: comedy spike tall on the
+    # bright side, tragedy spire drooping on the dark side, central gold point.
+    cap_y = hy - hr + 2 * s
+    lt = (cx - 28 * s, cap_y - 40 * s)
+    pygame.draw.polygon(surf, VENOM, [(cx - 12 * s, cap_y), (cx - s, cap_y - 4 * s), lt])
+    pygame.draw.polygon(surf, VENOM_DEEP, [(cx - 12 * s, cap_y), (cx - s, cap_y - 4 * s), lt], s)
+    _bell(surf, lt[0], lt[1], 3 * s)
+    ct = (cx + 2 * s, cap_y - 46 * s)
+    pygame.draw.polygon(surf, GOLD, [(cx - 7 * s, cap_y - 2 * s), (cx + 9 * s, cap_y - 2 * s), ct])
+    pygame.draw.polygon(surf, GOLD_DARK, [(cx - 7 * s, cap_y - 2 * s), (cx + 9 * s, cap_y - 2 * s), ct], s)
+    _bell(surf, ct[0], ct[1], 3 * s)
+    rt = (cx + 32 * s, cap_y - 8 * s)
+    pygame.draw.polygon(surf, PLUM_BRUISE, [(cx + s, cap_y - 4 * s), (cx + 12 * s, cap_y), rt])
+    pygame.draw.polygon(surf, PLUM_DARK, [(cx + s, cap_y - 4 * s), (cx + 12 * s, cap_y), rt], s)
+    _bell(surf, rt[0], rt[1], 3 * s)
+
+
+def _twin_mask_face(surf, cx, hy, hr, s):
+    # LEFT (comedy) half — a PAINTED harlequin half-mask: cocked-up brow, bright
+    # eye+glint, venom diamond eye-patch marking, gleeful up-grin baring a fang.
+    pygame.draw.polygon(surf, VENOM_DEEP,
+                        [(cx - 13 * s, hy - 7 * s), (cx - 4 * s, hy - 4 * s),
+                         (cx - 8 * s, hy + 4 * s), (cx - 16 * s, hy)])  # mask patch
+    pygame.draw.line(surf, INK, (cx - 16 * s, hy - 8 * s),
+                     (cx - 4 * s, hy - 11 * s), 4 * s)  # cocked-up brow
+    pygame.draw.ellipse(surf, WHITE, (cx - 14 * s, hy - 4 * s, 11 * s, 10 * s))
+    pygame.draw.circle(surf, INK, (cx - 9 * s, hy + s), 3 * s)
+    _glint(surf, cx - 10 * s, hy - s, 2 * s)
+    pygame.draw.arc(surf, BLOOD, (cx - 18 * s, hy + 5 * s, 22 * s, 20 * s),
+                    math.pi * 0.5, math.pi * 1.0, 3 * s)
+    pygame.draw.polygon(surf, BONE,
+                        [(cx - 14 * s, hy + 12 * s), (cx - s, hy + 13 * s),
+                         (cx - 2 * s, hy + 16 * s), (cx - 13 * s, hy + 17 * s)])
+    pygame.draw.polygon(surf, BONE, [(cx - 11 * s, hy + 16 * s),  # fang
+                                     (cx - 7 * s, hy + 16 * s), (cx - 9 * s, hy + 22 * s)])
+
+    # RIGHT (tragedy) half — PAINTED harlequin half-mask: down-furrowed brow,
+    # weeping eye with a painted greasepaint streak, sinister down-snarl + fang.
+    # Menacing, NOT sad-cute — sharp angles, baring teeth.
+    pygame.draw.polygon(surf, BLOOD_DARK,
+                        [(cx + 13 * s, hy - 7 * s), (cx + 4 * s, hy - 4 * s),
+                         (cx + 8 * s, hy + 4 * s), (cx + 16 * s, hy)])  # mask patch
+    pygame.draw.line(surf, INK, (cx + 4 * s, hy - 11 * s),
+                     (cx + 16 * s, hy - 6 * s), 4 * s)  # furrowed-down brow
+    pygame.draw.ellipse(surf, (220, 224, 230), (cx + 4 * s, hy - 4 * s, 11 * s, 10 * s))
+    pygame.draw.circle(surf, INK, (cx + 9 * s, hy + 2 * s), 3 * s)
+    _glint(surf, cx + 8 * s, hy, 2 * s)
+    # Painted weep-streak (greasepaint), venom-soured, not a baby-blue teardrop.
+    pygame.draw.polygon(surf, VENOM_DEEP,
+                        [(cx + 9 * s, hy + 5 * s), (cx + 11 * s, hy + 17 * s),
+                         (cx + 7 * s, hy + 17 * s)])
+    pygame.draw.arc(surf, BLOOD_DARK, (cx + s, hy + 11 * s, 22 * s, 22 * s),
+                    math.pi * 1.0, math.pi * 2.0, 3 * s)
+    pygame.draw.polygon(surf, BONE,
+                        [(cx + s, hy + 13 * s), (cx + 14 * s, hy + 12 * s),
+                         (cx + 13 * s, hy + 9 * s), (cx + 2 * s, hy + 10 * s)])
+    pygame.draw.polygon(surf, BONE, [(cx + 7 * s, hy + 10 * s),  # fang
+                                     (cx + 11 * s, hy + 10 * s), (cx + 9 * s, hy + 16 * s)])
+
+    # Shared blood nose straddling the seam.
+    pygame.draw.circle(surf, BLOOD, (cx, hy + 6 * s), 4 * s)
+    pygame.draw.circle(surf, _shade(BLOOD, 80), (cx - s, hy + 4 * s), 2 * s)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JANUS TAKE B — THE TWO-HEADED HERALD
+# The duality made LITERAL: TWO heads on two craning necks splaying apart off
+# one body, each a PAINTED HARLEQUIN MASK (one gleeful comedy grin+fang, one
+# sinister weeping-tragedy), both browcock + menacing. TWIN oxblood pennants
+# stream behind. A single belled cap bridges BOTH skulls. Differs from Take A by
+# the two-neck silhouette vs. the single split head.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_two_headed(surf, cx, feet_y, K):
+    s = K
+    hip_y = feet_y - 100 * s
+    top_y = hip_y - 70 * s
+
+    # TWIN oxblood pennants streaming behind, one to each side — the marquee.
+    for sgn in (-1, 1):
+        base = (cx + sgn * 14 * s, top_y - 4 * s)
+        pennant = [base, (cx + sgn * 84 * s, top_y - 18 * s),
+                   (cx + sgn * 100 * s, top_y + 18 * s),
+                   (cx + sgn * 74 * s, top_y + 22 * s),
+                   (cx + sgn * 40 * s, hip_y)]
+        pygame.draw.polygon(surf, OXBLOOD_DARK, pennant)
+        pygame.draw.polygon(surf, OXBLOOD,
+                            [base, (cx + sgn * 60 * s, top_y - 10 * s),
+                             (cx + sgn * 48 * s, top_y + 14 * s),
+                             (cx + sgn * 30 * s, hip_y - 8 * s)])
+        pygame.draw.polygon(surf, PLUM_DARK, pennant, 2 * s)
+        _bell(surf, cx + sgn * 98 * s, top_y + 16 * s, 3 * s)
+        _bell(surf, cx + sgn * 88 * s, top_y - 14 * s, 2 * s)
+
+    # A single broad herald robe (mass), split-colour down the middle.
+    hem_w = 48 * s
+    hem_y = feet_y - 8 * s
+    robe = [(cx - 32 * s, top_y + 6 * s), (cx + 32 * s, top_y + 6 * s),
+            (cx + hem_w, hem_y), (cx - hem_w, hem_y)]
+    pygame.draw.polygon(surf, VENOM_DEEP,
+                        [(cx, top_y + 6 * s), (cx - 32 * s, top_y + 6 * s),
+                         (cx - hem_w, hem_y), (cx, hem_y)])
+    pygame.draw.polygon(surf, PLUM_DEEP,
+                        [(cx, top_y + 6 * s), (cx + 32 * s, top_y + 6 * s),
+                         (cx + hem_w, hem_y), (cx, hem_y)])
+    pygame.draw.polygon(surf, VENOM,
+                        [(cx - 6 * s, top_y + 8 * s), (cx - 28 * s, top_y + 8 * s),
+                         (cx - hem_w + 8 * s, hem_y - 2 * s), (cx - 8 * s, hem_y - 2 * s)])
+    pygame.draw.polygon(surf, PLUM_BRUISE,
+                        [(cx + 22 * s, top_y + 8 * s), (cx + 30 * s, top_y + 8 * s),
+                         (cx + hem_w - 4 * s, hem_y - 2 * s), (cx + 30 * s, hem_y - 2 * s)])
+    pygame.draw.polygon(surf, PLUM_DARK, robe, 2 * s)
+    pygame.draw.line(surf, BONE, (cx, top_y + 6 * s), (cx, hem_y), 2 * s)
+    # Gold frog-bells down the seam + bell-fringed hem.
+    for i in range(5):
+        _bell(surf, cx, top_y + 18 * s + i * 16 * s, 3 * s)
+    n = 8
+    for i in range(n):
+        x0 = cx - hem_w + 2 * hem_w * i / n
+        x1 = cx - hem_w + 2 * hem_w * (i + 1) / n
+        mid = (x0 + x1) / 2
+        col = VENOM if i % 2 else GOLD
+        dag = [(x0, hem_y - 2 * s), (x1, hem_y - 2 * s), (mid, hem_y + 10 * s)]
+        pygame.draw.polygon(surf, col, dag)
+        pygame.draw.polygon(surf, _shade(col, -60), dag, s)
+        _bell(surf, mid, hem_y + 10 * s, 2 * s)
+    for sgn in (-1, 1):
+        _gold_cuff(surf, cx + sgn * 26 * s, feet_y - 4 * s, 6 * s, s)
+
+    # Two arms flung wide in a double herald proclamation — harlequin-banded.
+    for sgn, col_a, col_b in ((-1, VENOM, PLUM_BRUISE), (1, PLUM_BRUISE, VENOM)):
+        sh = (cx + sgn * 26 * s, top_y + 14 * s)
+        elbow = (cx + sgn * 50 * s, top_y - 6 * s)
+        hand = (cx + sgn * 58 * s, top_y - 34 * s)
+        _harlequin_band(surf, sh, elbow, 9 * s, s, col_a, col_b)
+        _harlequin_band(surf, elbow, hand, 8 * s, s, col_b, col_a)
+        _gold_cuff(surf, hand[0], hand[1], 7 * s, s)
+
+    # A wide GOLD SCALLOPED RUFF spanning both necks (lineage anchor).
+    _scallop_ruff(surf, cx, top_y + 4 * s, 36 * s, s, lobes=11, r=7)
+
+    # TWO craning necks splaying apart, each topped by a head.
+    hr = 18 * s
+    necks = []
+    for sgn in (-1, 1):
+        neck_base = (cx + sgn * 8 * s, top_y)
+        head_cx = cx + sgn * 26 * s
+        head_cy = top_y - hr - 22 * s
+        # Banded neck giving each head a stalk (mass, not a stick).
+        _harlequin_band(surf, neck_base, (head_cx, head_cy + hr - 2 * s), 10 * s, s,
+                        VENOM if sgn < 0 else PLUM_BRUISE,
+                        PLUM_DEEP if sgn < 0 else VENOM_DEEP, n=3)
+        necks.append((head_cx, head_cy, sgn))
+
+    for head_cx, head_cy, sgn in necks:
+        pygame.draw.circle(surf, SKIN_SHADE, (head_cx, head_cy), hr + s)
+        pygame.draw.circle(surf, SKIN, (head_cx, head_cy), hr)
+        if sgn < 0:
+            # Comedy head — gleeful grin+fang, cocked brow.
+            _bruise(surf, head_cx + 9 * s, head_cy + 6 * s, 5 * s, 4 * s, 70)
+            _villain_face(surf, head_cx, head_cy, hr, s, brow_left=True, mood="grin")
+            cap_lean = -0.2
+        else:
+            # Tragedy head — sinister weeping-snarl, cocked brow, greasepaint.
+            grey = pygame.Surface((hr * 2 + 2, hr * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(grey, (52, 40, 70, 110), (hr, hr), hr)
+            surf.blit(grey, (head_cx - hr, head_cy - hr))
+            _villain_face(surf, head_cx, head_cy, hr, s, brow_left=False, mood="tragedy")
+            cap_lean = 0.2
+        # Each head wears one evolved belled spire of the shared cap.
+        _evolved_cap(surf, head_cx, head_cy - hr + 4 * s, s, lean=cap_lean, scale=0.7)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Cell 0 — the FAITHFUL CURRENT clown, reproduced verbatim via the shipped
 # builder (NO die, NO staff).
@@ -1080,5 +1726,107 @@ def main():
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# ROUND 2 SHEET — five cells: cell 0 = ORIGINAL for lineage/scale, cells 1-2 =
+# two PUPPETEER takes, cells 3-4 = two JANUS takes. Bosses render at K so they
+# read LARGER than the original. Reuses the round-1 cell/sheet machinery.
+# ═════════════════════════════════════════════════════════════════════════════
+
+R2_TAKES = [
+    ("1. STRING-MASTER", build_string_master,
+     "Puppeteer A - towering robed mastermind, control-cross held ALOFT, "
+     "strings cascading; harlequin-banded gold-cuffed arms"),
+    ("2. TANGLE-LORD", build_tangle_lord,
+     "Puppeteer B - hunched over a string-tangle, two dangling marionette-"
+     "minions off clawed gold-cuffed hands; cap flopped forward"),
+    ("3. TWIN-MASK MARQUEE", build_twin_mask,
+     "Janus A - front-facing, ONE head split into two painted harlequin masks "
+     "(comedy grin+fang | weeping-tragedy); oxblood banner sail"),
+    ("4. TWO-HEADED HERALD", build_two_headed,
+     "Janus B - TWO craning necks + heads splaying apart, each a painted "
+     "harlequin mask; twin oxblood pennants, one belled cap per skull"),
+]
+
+
+def main_round2():
+    pygame.init()
+    pygame.font.init()
+    pygame.display.set_mode((360, 640))
+
+    # Same native-K render as round 1 so the size jump off the original reads.
+    K = 2
+
+    cols, rows = 3, 2
+    cw, ch = 300, 470
+    PAD = 40
+    GAP = 18
+    CAP_H = 140
+
+    f_title = pygame.font.SysFont(None, 48, bold=True)
+    f_sub = pygame.font.SysFont(None, 28, bold=True)
+    f_cap = pygame.font.SysFont(None, 30, bold=True)
+    f_desc = pygame.font.SysFont(None, 26, bold=True)
+
+    canvas_w = PAD * 2 + cols * cw + (cols - 1) * GAP
+
+    title_lines = _wrap("EVOLVED WARREN CLOWN - PUPPETEER + JANUS (redux r2)",
+                        f_title, canvas_w - PAD * 2)
+    sub_lines = _wrap(
+        "DEVELOPMENT of the two chosen directions. Cell 0 = faithful CURRENT "
+        "jester (lineage/scale). Cells 1-2 = two PUPPETEER takes (string-master "
+        "/ tangle-lord). Cells 3-4 = two JANUS takes (twin-mask / two-headed). "
+        "All carry the belled cap + gold scalloped ruff + browcock grin+fang; "
+        "Janus faces are PAINTED HARLEQUIN MASKS over a BRUISED-OXBLOOD banner.",
+        f_sub, canvas_w - PAD * 2)
+    TITLE_H = len(title_lines) * (f_title.get_height() + 2) + 10 \
+        + len(sub_lines) * 26 + 14
+
+    canvas_h = PAD * 2 + TITLE_H + rows * (ch + CAP_H) + (rows - 1) * GAP
+    canvas = pygame.Surface((canvas_w, canvas_h))
+    canvas.fill((30, 28, 38))
+
+    yy = PAD - 2
+    for line in title_lines:
+        canvas.blit(f_title.render(line, True, (236, 224, 196)), (PAD, yy))
+        yy += f_title.get_height() + 2
+    yy += 8
+    for line in sub_lines:
+        canvas.blit(f_sub.render(line, True, (188, 192, 204)), (PAD, yy))
+        yy += 26
+
+    cells = [("0. ORIGINAL (current)",
+              render_cell(0, None, K, current=True),
+              "Plum & Lime FINAL - the lineage all four bosses evolve FROM: "
+              "belled cap, gold ruff, quartered body, grin+fang")]
+    for name, builder, desc in R2_TAKES:
+        cells.append((name, render_cell(1, builder, K), desc))
+
+    y0 = PAD + TITLE_H
+    for i, (name, cell, desc) in enumerate(cells):
+        r, c = divmod(i, cols)
+        x = PAD + c * (cw + GAP)
+        y = y0 + r * (ch + CAP_H + GAP)
+        pygame.draw.rect(canvas, (66, 72, 92),
+                         pygame.Rect(x - 1, y - 1, cw + 2, ch + 2), 1)
+        canvas.blit(cell, (x, y))
+        cy = y + ch + 6
+        for line in _wrap(name, f_cap, cw - 6):
+            cap = f_cap.render(line, True, (234, 224, 168))
+            canvas.blit(cap, (x + (cw - cap.get_width()) // 2, cy))
+            cy += f_cap.get_height()
+        cy += 4
+        for line in _wrap(desc, f_desc, cw - 8):
+            ds = f_desc.render(line, True, (186, 192, 204))
+            canvas.blit(ds, (x + (cw - ds.get_width()) // 2, cy))
+            cy += 22
+
+    out_dir = os.path.join("docs", "evolved_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "redux_round_2.png")
+    pygame.image.save(canvas, out_path)
+    print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
+
+
 if __name__ == "__main__":
     main()
+    main_round2()
