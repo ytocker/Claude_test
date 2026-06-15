@@ -17,13 +17,24 @@ demon design: hunched and elongated vs. hulking and top-heavy, oversized clawed
 hands, jagged/horned cap silhouettes, dead pinprick or sunken eyes, exposed
 fangs, tattered dagged hems, and bells that read as a threat rather than play.
 
+ROUND 2 (art-director ITERATE): lead with the two strongest directions
+(Hulking Brute, Carrion Coxcomb); make every concept visibly BIGGER + broader
+than the hero; darken the palette into genuine bruise/venom/tarnish; rebuild
+every face around hard high-contrast macro shapes (sunken brow band, one bright
+eye-glint, hard maw) so menace reads at gameplay scale; keep every cap a MUTATED
+3-point jester cap; give hands clear separated claws + rim-light; cut the round-1
+Gaunt Stalker (read too small) for a low COILED stalker that still reads big.
+
 Clown-ONLY (no staff — that is a separate later cycle). Cell 0 is the CURRENT
-clown for direct comparison; cells 1-5 are the five evolved concepts, all drawn
-on ONE matched ground line and at a clearly bigger scale so the size jump reads
-at a glance. Supersampled 2x then smoothscaled for crisp edges.
+clown for direct comparison, drawn at its native scale so it reads SMALL beside
+the boss masses; cells 1-5 are the five evolved concepts, all on ONE matched
+ground line. Crispness: each figure is rendered DIRECTLY at K× the logical tile
+size (all geometry multiplied by `K`) and blitted 1:1 — no smoothscale upscale,
+so edges + eye-glints stay sharp.
 
     PYTHONPATH=. SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
         python tools/render_evolved_clown.py
+    # -> docs/evolved_clown/round_2.png
 """
 import math
 import os
@@ -34,7 +45,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 
 from game.config import W, H
-from tools.render_clown_dice import _shade, _poly, RIM
+from tools.render_clown_dice import _shade
 from tools.render_jester_variants import (
     build_jester, cap_four_point, _bell,
 )
@@ -48,23 +59,43 @@ ORIG = dict(
     variant="browcock", collar_in_gold=True,
 )
 
-# The SAME three hues pushed sinister: the plum bruised down toward a deep
-# blackened violet, the lime soured into a sickly venom green-yellow, the gold
-# tarnished + desaturated toward dirty brass. These anchor every concept so the
-# evolved figures all read as ONE darker grown-up of the hero, never a recolour
-# grab-bag. Per-concept accents (blood, bruise, bone) layer on top.
-E_PLUM = (58, 24, 92)            # bruised blackened violet (was 96,44,150)
-E_PLUM_DK = (34, 14, 56)         # deepest plum, near-black core
-E_LIME = (150, 196, 56)          # soured venom lime (was 132,218,116)
-E_LIME_DK = (86, 120, 30)
-E_GOLD = (182, 150, 64)          # tarnished dirty brass (was 250,205,72)
-E_GOLD_DK = (120, 96, 36)
-BLOOD = (150, 26, 36)            # blood/wound accent
-BRUISE = (84, 40, 120)           # bruise-violet accent
-BONE = (224, 214, 188)           # tarnished bone/ivory for fangs + claws
-SKIN_PALE = (214, 198, 196)      # sickly ashen greasepaint skin (was 255,209,169)
-DEAD_EYE = (196, 30, 44)         # the marotte's blood-pinprick dead eye
-SICK_EYE = (196, 224, 96)        # sickly luminous venom-yellow eye
+# The SAME three hues pushed sinister, but ROUND-2 darker: round 1 sat almost
+# on the hero's bright plum/lime, so the evolution didn't read. The plum is now
+# a bruised NEAR-BLACK violet; the lime is dragged down + grey into a true
+# "venom" green-gray (not the candy lime); the gold is tarnished hard toward a
+# green-gray brass (less yellow). "Same colours, gone rotten." Per-concept
+# blood / bruise / bone accents layer on top at eyes, knuckles + cap tips.
+E_PLUM = (40, 16, 64)            # bruised near-black violet (was 58,24,92)
+E_PLUM_DK = (22, 9, 38)          # deepest plum, near-black core
+E_LIME = (118, 150, 54)          # venom green-gray (desaturated + dirtied)
+E_LIME_DK = (60, 84, 26)
+E_GOLD = (150, 132, 72)          # tarnished green-gray brass (less yellow)
+E_GOLD_DK = (92, 78, 40)
+BLOOD = (140, 22, 32)            # blood/wound accent
+BRUISE = (66, 30, 96)            # bruise-violet accent
+BONE = (220, 210, 184)           # tarnished bone/ivory for fangs + claws
+SKIN_PALE = (150, 138, 142)      # bruised ashen greasepaint (darkened hard so
+                                 # "meaner" reads before any feature resolves)
+SKIN_DK = (92, 78, 88)           # the shadowed lower-face / sunken-brow tone
+DEAD_EYE = (210, 36, 48)         # the marotte's blood-pinprick dead eye
+SICK_EYE = (190, 228, 86)        # sickly luminous venom eye-glint (pops at 1x)
+CLAW = (210, 206, 200)           # bone-grey glove so digits read as claws
+
+
+# Crispness: round 1 drew figures at native px then smoothscaled UP, so every
+# edge was a blurry upscale. Now we render the figure tile at K× the logical
+# size with ALL geometry multiplied by K, then blit 1:1 (no upscale). `s()`
+# scales a scalar, `sw()` scales a line/outline width with a floor of 1 so thin
+# strokes never vanish.
+K = 2
+
+
+def s(v):
+    return int(round(v * K))
+
+
+def sw(v):
+    return max(1, int(round(v * K)))
 
 
 # ── shared evolved-menace primitives ─────────────────────────────────────────
@@ -72,21 +103,26 @@ SICK_EYE = (196, 224, 96)        # sickly luminous venom-yellow eye
 # tuned for the small happy presenter). Each concept composes them into its own
 # silhouette so no two share a body.
 
-def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=0.9,
+def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=1.0,
                curl=0.5, side=1):
-    """An oversized GLOVED claw — a heavy palm knuckle + long tapering talon
-    digits that hook inward. The hero's round mitt grown into a grasping hand:
-    the single loudest "this clown is now a predator" cue. `side` aims the
-    splay (negative = fingers fan left), `curl` hooks the talon tips."""
-    wx, wy = wrist
-    pygame.draw.circle(surf, _shade(glove, -60), (wx, wy), w + 2)
-    pygame.draw.circle(surf, glove, (wx, wy), w)
-    pygame.draw.circle(surf, RIM, (wx - 2, wy - 2), max(1, w // 3))
-    base_a = math.radians(70)
+    """An oversized clawed hand — a heavy palm knuckle + long tapering talon
+    digits with CLEAR separation, hard bone tips and a single rim-light. Boss
+    hands are big: this is the loudest "the clown is now a predator" cue. All
+    args are in LOGICAL px and scaled by K here. `side` aims the splay,
+    `curl` hooks the talon tips."""
+    wx, wy = int(wrist[0]), int(wrist[1])
+    w = s(w)
+    reach = s(reach)
+    # Knuckle slab — a rounded square so the back of the hand reads as mass,
+    # not a pom-pom. Dark keyline + a hot top-left rim-light.
+    kr = int(w * 1.25)
+    pygame.draw.circle(surf, _shade(glove, -75), (wx, wy), kr + sw(1))
+    pygame.draw.circle(surf, glove, (wx, wy), kr)
+    pygame.draw.circle(surf, _shade(glove, 70), (wx - kr // 3, wy - kr // 3),
+                       max(2, kr // 3))
     for i in range(fingers):
         t = i / max(1, fingers - 1) - 0.5
-        a = math.pi * 0.5 + side * t * spread + math.radians(28)
-        # Three-segment talon hooking toward the tip.
+        a = math.pi * 0.5 + side * t * spread + math.radians(22)
         seg = reach / 3.0
         x0, y0 = wx + math.cos(a) * w, wy + math.sin(a) * w
         a2 = a + side * curl * 0.6
@@ -95,582 +131,643 @@ def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=0.9,
         a3 = a2 + side * curl
         x2 = x1 + math.cos(a3) * seg
         y2 = y1 + math.sin(a3) * seg
-        fw = max(2, w // 2)
-        pygame.draw.line(surf, _shade(glove, -60), (x0, y0), (x1, y1), fw + 2)
+        fw = max(sw(2), int(w * 0.55))
+        # Each digit gets its own dark keyline so neighbours read as SEPARATE
+        # claws, not one mitten. Taper from knuckle to tip.
+        pygame.draw.line(surf, _shade(glove, -75), (x0, y0), (x1, y1), fw + sw(2))
         pygame.draw.line(surf, glove, (x0, y0), (x1, y1), fw)
-        pygame.draw.line(surf, _shade(glove, -60), (x1, y1), (x2, y2), fw)
-        pygame.draw.line(surf, glove, (x1, y1), (x2, y2), max(1, fw - 1))
-        # Tarnished-bone talon claw at the very tip.
-        ax = x2 + math.cos(a3) * seg * 0.5
-        ay = y2 + math.sin(a3) * seg * 0.5
+        pygame.draw.line(surf, _shade(glove, -75), (x1, y1), (x2, y2), fw)
+        pygame.draw.line(surf, glove, (x1, y1), (x2, y2), max(sw(1), fw - sw(1)))
+        pygame.draw.line(surf, _shade(glove, 60), (x0, y0),
+                         (x0 + math.cos(a2) * seg * 0.5,
+                          y0 + math.sin(a2) * seg * 0.5), max(sw(1), fw // 3))
+        # Hard tarnished-bone talon at the very tip.
+        ax = x2 + math.cos(a3) * seg * 0.7
+        ay = y2 + math.sin(a3) * seg * 0.7
         nail = [(x2 + math.cos(a3 + 1.6) * fw, y2 + math.sin(a3 + 1.6) * fw),
                 (x2 + math.cos(a3 - 1.6) * fw, y2 + math.sin(a3 - 1.6) * fw),
                 (ax, ay)]
         pygame.draw.polygon(surf, BONE, [(int(p[0]), int(p[1])) for p in nail])
-        pygame.draw.polygon(surf, _shade(BONE, -55),
-                            [(int(p[0]), int(p[1])) for p in nail], 1)
-        _ = base_a
+        pygame.draw.polygon(surf, _shade(BONE, -70),
+                            [(int(p[0]), int(p[1])) for p in nail], sw(1))
 
 
 def _tarnished_bell(surf, x, y, r=5):
     """A dull, cracked version of the hero's lit gold bell — tarnished brass
-    with a dark crack so even the jingles read sinister."""
-    pygame.draw.circle(surf, E_GOLD_DK, (x, y), r + 1)
+    with a dark crack so even the jingles read sinister. `r` is logical px."""
+    x, y, r = int(x), int(y), s(r)
+    pygame.draw.circle(surf, E_GOLD_DK, (x, y), r + sw(1))
     pygame.draw.circle(surf, E_GOLD, (x, y), r)
-    pygame.draw.circle(surf, _shade(E_GOLD, 60), (x - 1, y - 1), max(1, r // 3))
-    pygame.draw.line(surf, E_GOLD_DK, (x, y - r), (x - 1, y + r), 1)
+    pygame.draw.circle(surf, _shade(E_GOLD, 60), (x - r // 3, y - r // 3),
+                       max(1, r // 3))
+    pygame.draw.line(surf, E_GOLD_DK, (x, y - r), (x - sw(1), y + r), sw(1))
 
 
 def _dagged_hem(surf, cx, y, half_w, teeth, col, *, drop=14):
-    """A tattered DAGGED hem — a row of long jagged points hanging off the
-    tunic bottom (the carrion/demon-rag silhouette), each tipped with a dull
-    bell. Replaces the hero's neat scalloped circle hem."""
+    """A tattered DAGGED hem of long jagged points hanging off the tunic bottom
+    (the carrion/demon-rag silhouette), each tipped with a dull bell. Logical
+    px in; scaled by K. Fewer, LARGER teeth so it reads as ragged mass at scale
+    rather than fine noise."""
+    cx, y = int(cx), int(y)
+    half_w, drop = s(half_w), s(drop)
     n = teeth
     for i in range(n):
         t = i / (n - 1)
         x = cx - half_w + 2 * half_w * t
         nx = cx - half_w + 2 * half_w * (t + 1.0 / (n - 1)) if i < n - 1 else x
-        tip = ((x + nx) / 2, y + drop + (4 if i % 2 else 0))
-        col2 = col if i % 2 == 0 else _shade(col, -28)
+        tip = ((x + nx) / 2, y + drop + (s(4) if i % 2 else 0))
+        col2 = col if i % 2 == 0 else _shade(col, -34)
         pygame.draw.polygon(surf, col2,
-                            [(int(x), int(y)), (int(nx), int(y)),
+                            [(int(x), y), (int(nx), y),
                              (int(tip[0]), int(tip[1]))])
-        pygame.draw.polygon(surf, _shade(col2, -55),
-                            [(int(x), int(y)), (int(nx), int(y)),
-                             (int(tip[0]), int(tip[1]))], 1)
-        _tarnished_bell(surf, int(tip[0]), int(tip[1]) + 2, r=3)
+        pygame.draw.polygon(surf, _shade(col2, -65),
+                            [(int(x), y), (int(nx), y),
+                             (int(tip[0]), int(tip[1]))], sw(1))
+        _tarnished_bell(surf, int(tip[0]), int(tip[1]) + s(2), r=3)
 
 
 def _harlequin_torso(surf, cx, top_y, bot_y, half_top, half_bot, dark, light,
                      *, lean=0, diamonds=True):
-    """A tapering diamond-patched torso (the commedia harlequin's true lozenge
-    motif, evolved bruised). `lean` shears the top toward the looming side."""
+    """A tapering diamond-patched torso (the commedia harlequin lozenge motif,
+    bruised). Logical px in; all geometry scaled by K. `lean` shears the top
+    toward the looming side. Carries a dark core-shadow up the right + a lit
+    left rim so the slab reads as round MASS at gameplay scale."""
+    # `cx`, `top_y`, `bot_y` arrive as already-scaled absolute tile coords (they
+    # derive from the scaled `hip_y`); the half-widths + lean are logical px.
+    cx, top_y, bot_y = int(cx), int(top_y), int(bot_y)
+    half_top, half_bot, lean = s(half_top), s(half_bot), s(lean)
     quad = [(cx - half_bot, bot_y), (cx + half_bot, bot_y),
             (cx + half_top + lean, top_y), (cx - half_top + lean, top_y)]
     pygame.draw.polygon(surf, dark, quad)
-    pygame.draw.polygon(surf, _shade(dark, -60), quad, 2)
+    pygame.draw.polygon(surf, _shade(dark, -65), quad, sw(2))
     if diamonds:
-        # A staggered lozenge field clipped to the torso, alternating bruised
-        # plum / venom lime — the harlequin patchwork as a sickly bruise grid.
         prev = surf.get_clip()
         minx = min(p[0] for p in quad)
         maxx = max(p[0] for p in quad)
         surf.set_clip(pygame.Rect(int(minx), int(top_y),
                                   int(maxx - minx) + 1,
                                   int(bot_y - top_y) + 1).clip(prev))
-        d = 18
+        d = s(20)
         rows = int((bot_y - top_y) / d) + 2
         cols = int((2 * half_bot) / d) + 3
         for r in range(rows):
             for c in range(cols):
                 offs = (d // 2) if r % 2 else 0
                 px = cx - half_bot + c * d - d + offs
-                py = top_y + r * d
+                py = int(top_y) + r * d
                 if (r + c) % 2 == 0:
                     continue
                 lo = [(px, py - d // 2), (px + d // 2, py),
                       (px, py + d // 2), (px - d // 2, py)]
                 pygame.draw.polygon(surf, light, lo)
-                pygame.draw.polygon(surf, _shade(light, -45), lo, 1)
+                pygame.draw.polygon(surf, _shade(light, -45), lo, sw(1))
         surf.set_clip(prev)
-    # A lit left rim + a bruise smear down the right so the barrel reads round.
-    pygame.draw.line(surf, _shade(dark, 50),
-                     (cx - half_top + lean + 2, top_y + 3),
-                     (cx - half_bot + 2, bot_y - 3), 3)
+    # Lit left rim + a heavy bruise core-shadow up the right so it reads round.
+    pygame.draw.line(surf, _shade(dark, 55),
+                     (cx - half_top + lean + sw(2), top_y + s(3)),
+                     (cx - half_bot + sw(2), bot_y - s(3)), sw(3))
     smear = pygame.Surface((int(half_bot), int(bot_y - top_y)), pygame.SRCALPHA)
-    pygame.draw.ellipse(smear, (*BRUISE, 70), smear.get_rect())
-    surf.blit(smear, (int(cx + half_bot * 0.1), int(top_y + 4)))
+    pygame.draw.ellipse(smear, (*_shade(dark, -55), 150), smear.get_rect())
+    surf.blit(smear, (int(cx + half_bot * 0.05), int(top_y + s(4))))
+
+
+def _ruff(surf, cx, neck_y, half_w, lobes, *, dip=0, lift=0):
+    """The hero's gold scalloped ruff bloated + tarnished. A doubled row of fat
+    overlapping brass lobes so the shoulder line reads BROAD — the simplest way
+    to add the boss's wide silhouette mass. Logical px in."""
+    cx, neck_y = int(cx), int(neck_y)
+    half_w = s(half_w)
+    r = max(sw(7), int(half_w / lobes * 1.35))
+    for i in range(lobes):
+        t = i / (lobes - 1)
+        lx = int(cx - half_w + 2 * half_w * t)
+        ly = int(neck_y + s(dip) + math.sin(t * math.pi) * s(lift))
+        pygame.draw.circle(surf, E_GOLD_DK, (lx, ly), r + sw(1))
+        pygame.draw.circle(surf, E_GOLD, (lx, ly), r)
+        pygame.draw.circle(surf, _shade(E_GOLD, 65), (lx - r // 3, ly - r // 3),
+                           max(2, r // 3))
 
 
 def _evolved_head(surf, cx, cy, hr, *, eye="dead", mouth="fangs", gaunt=False,
                   tilt=0):
-    """A bigger, sicklier version of the hero head: ashen greasepaint skin,
-    sunken/dead or glowing-sick eyes, heavy jagged brows, and an exposed-fang
-    leer instead of the happy grin. `gaunt` hollows the cheeks; `tilt` cocks
-    the whole head. Drawn onto a scratch surface so the tilt is real."""
+    """A bigger, MEANER head built around 2-3 HIGH-CONTRAST MACRO shapes so the
+    menace survives downscale: a dark sunken brow band, one bright sick eye-
+    glint, and a hard-edged maw/grin. The soft pale face FILL is dropped —
+    the face is bruised + bottom-shadowed so "meaner" reads before any feature
+    resolves. Logical px in; geometry scaled by K and drawn onto a scratch
+    surface so the tilt is real."""
+    cx, cy, hr = int(cx), int(cy), s(hr)
     pad = hr * 3
     sc = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
     sx, sy = pad, pad
-    # Ashen head with a dark keyline + a hollow under-eye / cheek shadow.
-    pygame.draw.circle(sc, _shade(SKIN_PALE, -55), (sx, sy), hr + 2)
+    # MACRO 1 — the head as a bruised mass: dark keyline, ashen upper face,
+    # and a hard core-shadow flooding the LOWER half so the maw sits in gloom.
+    pygame.draw.circle(sc, _shade(SKIN_PALE, -70), (sx, sy), hr + sw(2))
     pygame.draw.circle(sc, SKIN_PALE, (sx, sy), hr)
+    shadow = pygame.Surface((hr * 2, hr * 2), pygame.SRCALPHA)
+    pygame.draw.circle(shadow, (*SKIN_DK, 200), (hr, hr), hr)
+    sc.set_clip(pygame.Rect(sx - hr, sy, hr * 2, hr * 2))
+    sc.blit(shadow, (sx - hr, sy - hr))
+    sc.set_clip(None)
     if gaunt:
-        for s in (-1, 1):
+        for sg in (-1, 1):
             hollow = pygame.Surface((hr, hr), pygame.SRCALPHA)
-            pygame.draw.ellipse(hollow, (40, 20, 40, 90), hollow.get_rect())
-            sc.blit(hollow, (sx + s * hr // 2 - hr // 2, sy - hr // 4))
-    pygame.draw.circle(sc, _shade(SKIN_PALE, -55), (sx, sy), hr, 2)
-    ex = max(7, hr // 2)
-    ey = sy - hr // 6
-    for s in (-1, 1):
-        exx = sx + s * ex
-        # Sunken socket shadow behind every eye.
-        sock = pygame.Surface((ex, ex), pygame.SRCALPHA)
-        pygame.draw.ellipse(sock, (28, 12, 30, 130), sock.get_rect())
-        sc.blit(sock, (exx - ex // 2, ey - ex // 2))
-        if eye == "dead":
-            # Blood-pinprick dead eye in a wide pale socket — vacant + cold.
-            pygame.draw.circle(sc, (236, 230, 222), (exx, ey), max(3, hr // 5))
-            pygame.draw.circle(sc, DEAD_EYE, (exx, ey), max(1, hr // 12))
-        elif eye == "sick":
-            # A luminous sickly venom-yellow eye with a slit pupil — glowing.
-            pygame.draw.circle(sc, _shade(SICK_EYE, -40), (exx, ey),
-                               max(3, hr // 4) + 1)
-            pygame.draw.circle(sc, SICK_EYE, (exx, ey), max(3, hr // 4))
-            pygame.draw.ellipse(sc, (20, 16, 10),
-                                (exx - 1, ey - hr // 4, 3, hr // 2))
-        else:  # "leer" — small black bead jammed to the inner corner, sidelong
-            pygame.draw.circle(sc, (236, 230, 222), (exx, ey), max(3, hr // 5))
-            pygame.draw.circle(sc, (16, 12, 20),
-                               (exx - s * (hr // 8), ey), max(2, hr // 9))
-        # Heavy jagged brow knitting DOWN toward the nose — the anger "V" the
-        # hero deliberately never had. This is the inversion that signals menace.
-        inner = (exx - s * (hr // 6), ey - hr // 3)
-        outer = (exx + s * (ex // 2 + 3), ey - hr // 2)
-        pygame.draw.line(sc, _shade(SKIN_PALE, -120), inner, outer,
-                         max(2, hr // 7))
-    # A small dull plum nose (the red ball gone bruise-dark, shrunk + sinister).
-    pygame.draw.circle(sc, _shade(BLOOD, -30), (sx, sy + hr // 5), max(3, hr // 6))
-    pygame.draw.circle(sc, BLOOD, (sx, sy + hr // 5), max(2, hr // 7))
-    # MOUTH — an exposed fanged leer or a wide jagged maw.
-    my = sy + hr // 2
+            pygame.draw.ellipse(hollow, (*E_PLUM_DK, 150), hollow.get_rect())
+            sc.blit(hollow, (sx + sg * hr // 2 - hr // 2, sy - hr // 5))
+    # MACRO 2 — a single HARD dark brow band slammed across the eyes, dipping
+    # to a centre V. This one shape carries most of the menace at small size.
+    brow_y = sy - int(hr * 0.30)
+    brow = [(sx - hr + sw(2), brow_y - s(3)),
+            (sx + hr - sw(2), brow_y - s(3)),
+            (sx + int(hr * 0.55), brow_y + s(5)),
+            (sx, brow_y + int(hr * 0.32)),
+            (sx - int(hr * 0.55), brow_y + s(5))]
+    pygame.draw.polygon(sc, _shade(E_PLUM_DK, -10), brow)
+    ex = max(sw(7), int(hr * 0.42))
+    ey = sy - int(hr * 0.04)
+    for sgn in (-1, 1):
+        exx = sx + sgn * ex
+        # Deep socket pocket under the brow band.
+        sock = pygame.Surface((ex + s(4), ex), pygame.SRCALPHA)
+        pygame.draw.ellipse(sock, (*E_PLUM_DK, 170), sock.get_rect())
+        sc.blit(sock, (exx - (ex + s(4)) // 2, ey - ex // 2))
+        # MACRO 3 — the bright eye-glint: a small hot dot that POPS at 1x.
+        if eye == "sick":
+            pygame.draw.circle(sc, _shade(SICK_EYE, -50), (exx, ey),
+                               max(sw(3), hr // 5) + sw(1))
+            pygame.draw.circle(sc, SICK_EYE, (exx, ey), max(sw(3), hr // 5))
+            pygame.draw.circle(sc, (240, 255, 210), (exx - sw(1), ey - sw(1)),
+                               max(sw(1), hr // 12))
+            pygame.draw.ellipse(sc, (16, 20, 8),
+                                (exx - sw(1), ey - hr // 5, sw(2), hr * 2 // 5))
+        elif eye == "dead":
+            pygame.draw.circle(sc, BONE, (exx, ey), max(sw(3), hr // 5))
+            pygame.draw.circle(sc, DEAD_EYE, (exx, ey), max(sw(2), hr // 8))
+            pygame.draw.circle(sc, (255, 210, 200),
+                               (exx - sw(1), ey - sw(1)), max(1, hr // 16))
+        else:  # "leer" — a hot pinprick jammed to the inner corner, sidelong
+            pygame.draw.circle(sc, BONE, (exx, ey), max(sw(3), hr // 5))
+            pygame.draw.circle(sc, SICK_EYE,
+                               (exx - sgn * (hr // 7), ey), max(sw(2), hr // 8))
+    # The bruise-dark nose (the red ball gone wound-dark, shrunk + seated low).
+    pygame.draw.circle(sc, _shade(BLOOD, -40), (sx, sy + hr // 4),
+                       max(sw(3), hr // 6))
+    pygame.draw.circle(sc, BLOOD, (sx, sy + hr // 4), max(sw(2), hr // 8))
+    pygame.draw.circle(sc, _shade(BLOOD, 50), (sx - sw(1), sy + hr // 4 - sw(1)),
+                       max(1, hr // 14))
+    # MOUTH — a hard-edged maw / grin sitting in the lower shadow.
+    my = sy + int(hr * 0.55)
     if mouth == "fangs":
-        # A wide dark maw with a full row of jagged fangs top + bottom.
-        mw = int(hr * 0.7)
-        maw = pygame.Rect(sx - mw, my - 2, mw * 2, hr // 2)
-        pygame.draw.ellipse(sc, (40, 8, 14), maw)
-        n = 7
+        mw = int(hr * 0.78)
+        maw = pygame.Rect(sx - mw, my - s(2), mw * 2, int(hr * 0.62))
+        pygame.draw.ellipse(sc, (28, 6, 12), maw)
+        n = 6
         for i in range(n):
             t = i / (n - 1)
             tx = sx - mw + 2 * mw * t
-            # Top fangs point down, bottom fangs point up — interlocking grin.
-            pygame.draw.polygon(sc, BONE, [(int(tx - 4), maw.top),
-                                           (int(tx + 4), maw.top),
-                                           (int(tx), maw.top + hr // 4)])
-            pygame.draw.polygon(sc, _shade(BONE, -60),
-                                [(int(tx - 4), maw.top),
-                                 (int(tx + 4), maw.top),
-                                 (int(tx), maw.top + hr // 4)], 1)
-        pygame.draw.ellipse(sc, _shade(BLOOD, -40), maw, 2)
+            fw = s(5)
+            pygame.draw.polygon(sc, BONE, [(int(tx - fw), maw.top),
+                                           (int(tx + fw), maw.top),
+                                           (int(tx), maw.top + hr // 3)])
+            pygame.draw.polygon(sc, _shade(BONE, -70),
+                                [(int(tx - fw), maw.top),
+                                 (int(tx + fw), maw.top),
+                                 (int(tx), maw.top + hr // 3)], sw(1))
+        pygame.draw.ellipse(sc, BLOOD, maw, sw(2))
     elif mouth == "grin":
-        # A long crescent grin curling UP into the cheeks (a too-wide smile)
-        # with two long corner fangs — the Glasgow-smile menace read.
-        mw = int(hr * 0.85)
+        mw = int(hr * 0.88)
         lip = []
-        for k in range(15):
-            t = k / 14.0
+        for kk in range(15):
+            t = kk / 14.0
             lx = sx - mw + 2 * mw * t
-            ly = my + (1.0 - (2.0 * t - 1.0) ** 2) * (-hr * 0.55)
+            ly = my + (1.0 - (2.0 * t - 1.0) ** 2) * (-hr * 0.62)
             lip.append((int(lx), int(ly)))
-        pygame.draw.lines(sc, (40, 8, 14), False, lip, max(3, hr // 8))
-        for s in (-1, 1):
-            fx = sx + s * mw
-            pygame.draw.polygon(sc, BONE, [(fx - 3, my - 2), (fx + 3, my - 2),
-                                           (fx + s * 1, my + hr // 4)])
-        # A blood crack at each corner extending the grin up the cheek.
-        for s in (-1, 1):
-            pygame.draw.line(sc, BLOOD, (sx + s * mw, my),
-                             (sx + s * (mw + hr // 4), my - hr // 4), 2)
-    else:  # "smirk" — one corner hooked up, the other flat: a cold knowing leer
-        mw = int(hr * 0.7)
-        pygame.draw.line(sc, (40, 8, 14), (sx - mw, my + hr // 6),
-                         (sx + mw, my - hr // 4), max(3, hr // 8))
-        # one corner fang
+        # A solid dark grin gap with a fang row so it reads at 1x, not a thin
+        # line. Build a closed maw under the lip curve.
+        gap = lip + [(int(sx + mw), my + s(2)), (int(sx - mw), my + s(2))]
+        pygame.draw.polygon(sc, (28, 6, 12), gap)
+        for i in range(7):
+            t = i / 6.0
+            tx = sx - mw + 2 * mw * t
+            ty = my + (1.0 - (2.0 * t - 1.0) ** 2) * (-hr * 0.5)
+            pygame.draw.polygon(sc, BONE, [(int(tx - s(4)), int(ty)),
+                                           (int(tx + s(4)), int(ty)),
+                                           (int(tx), int(ty + hr // 4))])
+        for sgn in (-1, 1):
+            pygame.draw.line(sc, BLOOD, (sx + sgn * mw, my),
+                             (sx + sgn * (mw + hr // 4), my - hr // 4), sw(2))
+    else:  # "smirk" — one corner hooked hard up, cold knowing leer
+        mw = int(hr * 0.74)
+        smirk = [(sx - mw, my + hr // 6), (sx + mw, my - hr // 3),
+                 (sx + mw, my - hr // 6), (sx - mw, my + hr // 3)]
+        pygame.draw.polygon(sc, (28, 6, 12), smirk)
         fx = sx + mw
-        pygame.draw.polygon(sc, BONE, [(fx - 4, my - hr // 4),
-                                       (fx + 2, my - hr // 4),
-                                       (fx - 1, my)])
+        pygame.draw.polygon(sc, BONE, [(fx - s(4), my - hr // 3),
+                                       (fx + s(2), my - hr // 3),
+                                       (fx - sw(1), my)])
         pygame.draw.line(sc, BLOOD, (sx - mw, my + hr // 6),
-                         (sx - mw - hr // 5, my + hr // 6 + 3), 2)
+                         (sx - mw - hr // 5, my + hr // 6 + s(3)), sw(2))
+    # Dark keyline re-stated on top so the whole head pops off the body.
+    pygame.draw.circle(sc, _shade(SKIN_PALE, -90), (sx, sy), hr, sw(2))
     rot = pygame.transform.rotate(sc, tilt)
     surf.blit(rot, (cx - rot.get_width() // 2, cy - rot.get_height() // 2))
 
 
-# ── evolved cap architectures (each concept owns one) ────────────────────────
+# ── evolved cap architectures — every one a MUTATED 3-point jester cap ───────
 
-def cap_gaunt_droop(surf, cx, base_y, hr, cols):
-    """Three impossibly LONG limp points drooping like dead snakes, each ending
-    in a heavy tarnished bell — the hero's jaunty 3-point cap gone wilted +
-    sinister."""
+def cap_coil_droop(surf, cx, base_y, hr, cols):
+    """A heavy mutated 3-point jester cap, points drooping low + asymmetric,
+    each ending in a fat tarnished bell — the coiled stalker's wilted crown."""
+    cx, base_y, hr = int(cx), int(base_y), s(hr)
     a, b, c = cols
-    for dx, dy, col, span in ((-4, -8, a, 14), (-30, 34, b, 12),
-                              (34, 30, c, 12)):
+    span = s(18)
+    for dx, dy, col in ((s(-6), s(-14), a), (s(-34), s(28), b),
+                        (s(40), s(20), c)):
         bx, by = cx + dx, base_y + dy
-        # A long S-curving limp lobe via a spine polygon.
-        pts = [(cx - span, base_y + 2), (cx + span, base_y + 2),
-               (bx + span // 2, (base_y + by) // 2 - 6),
-               (bx, by), (bx - span // 2, (base_y + by) // 2 + 2)]
+        pts = [(cx - span, base_y + s(2)), (cx + span, base_y + s(2)),
+               (bx + span // 2, (base_y + by) // 2 - s(6)),
+               (bx, by), (bx - span // 2, (base_y + by) // 2 + s(2))]
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, _shade(col, -60), pts, 2)
-        _tarnished_bell(surf, bx, by, r=5)
+        pygame.draw.polygon(surf, _shade(col, -65), pts, sw(2))
+    for dx, dy in ((s(-6), s(-14)), (s(-34), s(28)), (s(40), s(20))):
+        _tarnished_bell(surf, cx + dx, base_y + dy, r=6)
 
 
 def cap_brute_crown(surf, cx, base_y, hr, cols):
-    """Four heavy splayed points pulled into a low, broad, top-heavy crown that
-    flops out past the wide skull — the hero's four-point cap bloated into a
-    brutish slab silhouette."""
-    a, b, c, _d = cols
-    for dx, dy, col in ((-hr - 18, 6, a), (hr + 18, 8, a),
-                        (-hr // 2, -22, b), (hr // 2, -20, c)):
-        bx, by = cx + dx, base_y + dy
-        span = 22
-        pts = [(cx - span, base_y + 2), (cx + span, base_y + 2), (bx, by)]
+    """A HEAVY canted 3-point jester cap bloated into a brutish slab crown:
+    three thick points (one big centre, two splayed past the wide skull),
+    the whole crown tipped a few degrees so it reads as a mean, lopsided
+    weight pressing down on the brow. Keeps the 3-point lineage, escalated."""
+    cx, base_y, hr = int(cx), int(base_y), s(hr)
+    a, b, c = cols[0], cols[1], cols[2]
+    cant = s(6)
+    span = s(26)
+    for dx, dy, col in ((-hr - s(14), s(2), a), (s(2), -s(38), b),
+                        (hr + s(16), -s(2), c)):
+        bx, by = cx + dx + cant, base_y + dy
+        pts = [(cx - span, base_y + s(2)), (cx + span, base_y + s(2)), (bx, by)]
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, _shade(col, 45),
-                            [(cx - span, base_y + 2), (cx, base_y + 2),
+        pygame.draw.polygon(surf, _shade(col, 50),
+                            [(cx - span, base_y + s(2)), (cx, base_y + s(2)),
                              (bx, by)])
-        pygame.draw.polygon(surf, _shade(col, -60), pts, 2)
-        _tarnished_bell(surf, bx, by, r=6)
+        pygame.draw.polygon(surf, _shade(col, -70), pts, sw(2))
+        _tarnished_bell(surf, bx, by, r=7)
+    # A thick canted brim-band rooting the crown to the wide skull.
+    band = pygame.Rect(0, 0, hr * 2 + s(20), s(16))
+    band.center = (cx + cant // 2, base_y + s(4))
+    pygame.draw.ellipse(surf, _shade(a, -25), band)
+    pygame.draw.ellipse(surf, _shade(a, -70), band, sw(2))
 
 
-def cap_horns(surf, cx, base_y, hr, cols):
-    """The impish horned hood grown into two long SHARP back-curving horns +
-    a low jagged crest band — the Hellequin demon read made literal."""
+def cap_horn_droop(surf, cx, base_y, hr, cols):
+    """A mutated 3-point cap whose two SIDE points have stiffened + curled into
+    heavy back-swept horn-lobes (bone-tipped), with the centre point still a
+    clear belled jester spike between them — devil read, but unmistakably still
+    OUR cap, not a generic demon horn-pair."""
+    cx, base_y, hr = int(cx), int(base_y), s(hr)
     a, b = cols[0], cols[1]
-    # Low hood band hugging the skull.
     pygame.draw.ellipse(surf, _shade(a, -30),
-                        (cx - hr - 2, base_y - 8, hr * 2 + 4, 22))
-    for s, col in ((-1, a), (1, b)):
-        # A long horn sweeping up then curling BACK to a sharp bone tip.
-        bx0 = cx + s * (hr - 4)
-        pts = [(bx0, base_y + 4), (bx0 + s * 6, base_y - 22),
-               (bx0 + s * 2, base_y - 48), (bx0 - s * 10, base_y - 62),
-               (bx0 - s * 18, base_y - 50), (bx0 - s * 6, base_y - 30),
-               (bx0 - s * 12, base_y + 2)]
+                        (cx - hr - s(2), base_y - s(8), hr * 2 + s(4), s(20)))
+    # Centre jester spike (keeps the lineage explicit).
+    sp = [(cx - s(9), base_y), (cx + s(9), base_y), (cx + s(2), base_y - s(40))]
+    pygame.draw.polygon(surf, b, sp)
+    pygame.draw.polygon(surf, _shade(b, -65), sp, sw(2))
+    _tarnished_bell(surf, cx + s(2), base_y - s(40), r=5)
+    for sgn, col in ((-1, a), (1, b)):
+        # A thick cap-point that stiffens, sweeps up + curls BACK to a bone tip.
+        bx0 = cx + sgn * (hr - s(2))
+        pts = [(bx0, base_y + s(2)), (bx0 + sgn * s(8), base_y - s(20)),
+               (bx0 + sgn * s(4), base_y - s(42)),
+               (bx0 - sgn * s(12), base_y - s(56)),
+               (bx0 - sgn * s(20), base_y - s(44)),
+               (bx0 - sgn * s(6), base_y - s(26)),
+               (bx0 - sgn * s(10), base_y + s(2))]
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, _shade(col, -65), pts, 2)
-        # Bone horn-tip.
-        tip = (bx0 - s * 10, base_y - 62)
-        pygame.draw.circle(surf, BONE, tip, 4)
-        pygame.draw.circle(surf, _shade(BONE, -55), tip, 4, 1)
-    # A small jagged crest of teeth between the horns.
-    for i in range(-1, 2):
-        bx = cx + i * 9
-        pygame.draw.polygon(surf, _shade(a, 20),
-                            [(bx - 5, base_y - 4), (bx + 5, base_y - 4),
-                             (bx, base_y - 18)])
+        pygame.draw.polygon(surf, _shade(col, -70), pts, sw(2))
+        tip = (bx0 - sgn * s(12), base_y - s(56))
+        pygame.draw.circle(surf, BONE, tip, sw(4))
+        pygame.draw.circle(surf, _shade(BONE, -65), tip, sw(4), sw(1))
 
 
 def cap_carrion_crest(surf, cx, base_y, hr, cols):
-    """A jagged carrion COXCOMB: a row of tall ragged spikes along the crown
-    like a vulture's torn crest, rooted in a dark band, tipped with dull bells
-    on the tallest few."""
+    """A mutated 3-point cap whose points have torn + multiplied into a ragged
+    carrion COXCOMB — a few BIG jagged spikes (not fine noise) rooted in a dark
+    band, the three tallest bell-tipped to keep the jester read."""
+    cx, base_y, hr = int(cx), int(base_y), s(hr)
     a, b = cols[0], cols[1]
-    band = [(cx - hr, base_y + 4), (cx - hr // 2, base_y - 10),
-            (cx + 2, base_y - 14), (cx + hr // 2, base_y - 8),
-            (cx + hr, base_y + 4)]
-    pygame.draw.polygon(surf, _shade(a, -30), band)
-    pygame.draw.polygon(surf, _shade(a, -70), band, 2)
-    spikes = [(-hr + 4, -16, 18), (-hr // 2, -34, 26), (-4, -42, 30),
-              (hr // 2 - 2, -32, 24), (hr - 4, -14, 16)]
-    for i, (dx, dy, hgt) in enumerate(spikes):
+    band = [(cx - hr, base_y + s(4)), (cx - hr // 2, base_y - s(12)),
+            (cx + s(2), base_y - s(16)), (cx + hr // 2, base_y - s(10)),
+            (cx + hr, base_y + s(4))]
+    pygame.draw.polygon(surf, _shade(a, -35), band)
+    pygame.draw.polygon(surf, _shade(a, -75), band, sw(2))
+    spikes = [(-hr + s(6), -s(20), s(6)), (-hr // 3, -s(46), s(9)),
+              (s(2), -s(58), s(10)), (hr // 3, -s(44), s(9)),
+              (hr - s(6), -s(18), s(6))]
+    for i, (dx, dy, hw) in enumerate(spikes):
         col = a if i % 2 == 0 else b
         bx, by = cx + dx, base_y + dy
-        pts = [(bx - 7, base_y - 4), (bx + 7, base_y - 4), (bx, by)]
+        pts = [(bx - hw, base_y - s(4)), (bx + hw, base_y - s(4)), (bx, by)]
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, _shade(col, 40),
-                            [(bx - 7, base_y - 4), (bx, base_y - 4), (bx, by)])
-        pygame.draw.polygon(surf, _shade(col, -60), pts, 2)
+        pygame.draw.polygon(surf, _shade(col, 45),
+                            [(bx - hw, base_y - s(4)), (bx, base_y - s(4)),
+                             (bx, by)])
+        pygame.draw.polygon(surf, _shade(col, -70), pts, sw(2))
         if i in (1, 2, 3):
             _tarnished_bell(surf, bx, by, r=4)
 
 
 def cap_puppet_ears(surf, cx, base_y, hr, cols):
-    """Two heavy DONKEY-ear lobes drooping outward like dead horns, plus a tall
-    central spike — a regal-grotesque puppeteer's cap. Bigger + droopier than
-    the hero's, every tip a dull bell."""
+    """A mutated 3-point cap whose two side points have grown into heavy droopy
+    donkey-ear lobes, the centre still a tall belled jester spike — the regal-
+    grotesque puppeteer's distinctive eared crown."""
+    cx, base_y, hr = int(cx), int(base_y), s(hr)
     a, b, c = cols[0], cols[1], cols[2]
-    # Central tall spike.
-    sp = [(cx - 12, base_y + 2), (cx + 12, base_y + 2), (cx + 2, base_y - 54)]
+    sp = [(cx - s(12), base_y + s(2)), (cx + s(12), base_y + s(2)),
+          (cx + s(2), base_y - s(56))]
     pygame.draw.polygon(surf, b, sp)
-    pygame.draw.polygon(surf, _shade(b, -60), sp, 2)
-    _tarnished_bell(surf, cx + 2, base_y - 54, r=5)
-    for s, col in ((-1, a), (1, c)):
-        tipx, tipy = cx + s * (hr + 16), base_y + 30
-        spine = [(cx + s * 6, base_y), (cx + s * 22, base_y - 4),
-                 (cx + s * (hr + 10), base_y - 18), (tipx, tipy),
-                 (cx + s * (hr + 2), base_y + 4), (cx + s * 14, base_y + 10)]
+    pygame.draw.polygon(surf, _shade(b, -65), sp, sw(2))
+    _tarnished_bell(surf, cx + s(2), base_y - s(56), r=6)
+    for sgn, col in ((-1, a), (1, c)):
+        tipx, tipy = cx + sgn * (hr + s(18)), base_y + s(34)
+        spine = [(cx + sgn * s(6), base_y), (cx + sgn * s(22), base_y - s(6)),
+                 (cx + sgn * (hr + s(12)), base_y - s(20)), (tipx, tipy),
+                 (cx + sgn * (hr + s(2)), base_y + s(6)),
+                 (cx + sgn * s(14), base_y + s(12))]
         pygame.draw.polygon(surf, col, spine)
-        pygame.draw.polygon(surf, _shade(col, -60), spine, 2)
-        _tarnished_bell(surf, tipx, tipy, r=5)
+        pygame.draw.polygon(surf, _shade(col, -65), spine, sw(2))
+        _tarnished_bell(surf, tipx, tipy, r=6)
 
 
 # ── the FIVE evolved concepts (each its own builder + stance) ────────────────
-
-def concept_gaunt_stalker(surf, cx, feet_y):
-    """1. GAUNT STALKER — emaciated, towering, hunched forward; long limp cap;
-    narrow tapering diamond torso; one long claw reaching DOWN at the viewer."""
-    hip_y = feet_y - 120
-    # Long thin legs, weight forward, knees slightly bent inward.
-    for s, col in ((-1, E_PLUM), (1, E_LIME_DK)):
-        hip = (cx + s * 9, hip_y)
-        knee = (cx + s * 16, hip_y + 56)
-        ankle = (cx + s * 7, feet_y - 6)
-        for a, b in ((hip, knee), (knee, ankle)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 12)
-            pygame.draw.line(surf, col, a, b, 9)
-        # Long curled-toe shoe.
-        toe = [(ankle[0] - 14, feet_y), (ankle[0] + 14, feet_y),
-               (ankle[0] + 22, feet_y - 4), (ankle[0] + 18, feet_y - 12)]
-        pygame.draw.polygon(surf, E_PLUM_DK, toe)
-        _tarnished_bell(surf, ankle[0] + 18, feet_y - 12, r=4)
-    # Narrow tall torso leaning forward.
-    _harlequin_torso(surf, cx, hip_y - 88, hip_y + 6, 16, 24,
-                     E_PLUM, E_LIME, lean=-10)
-    _dagged_hem(surf, cx, hip_y + 4, 24, 6, E_PLUM, drop=16)
-    neck_y = hip_y - 84
-    # A tattered narrow ruff drooping forward.
-    for i in range(7):
-        t = i / 6
-        lx = int(cx - 22 + 44 * t)
-        ly = int(neck_y + 6 + math.sin(t * math.pi) * 4)
-        pygame.draw.polygon(surf, E_GOLD,
-                            [(cx, neck_y), (lx - 5, ly + 10), (lx + 5, ly + 10)])
-        pygame.draw.polygon(surf, _shade(E_GOLD, -60),
-                            [(cx, neck_y), (lx - 5, ly + 10), (lx + 5, ly + 10)], 1)
-    # Long left arm reaching DOWN-forward with an open claw; right arm tucked.
-    sh_l = (cx - 22, neck_y + 6)
-    wrist_l = (cx - 40, hip_y + 20)
-    pygame.draw.line(surf, _shade(E_PLUM, -55), sh_l, wrist_l, 13)
-    pygame.draw.line(surf, E_PLUM, sh_l, wrist_l, 10)
-    sh_r = (cx + 22, neck_y + 4)
-    wrist_r = (cx + 30, hip_y - 6)
-    pygame.draw.line(surf, _shade(E_LIME_DK, -55), sh_r, wrist_r, 12)
-    pygame.draw.line(surf, E_LIME_DK, sh_r, wrist_r, 9)
-    _claw_hand(surf, wrist_r, 16, 8, (236, 236, 240), side=1, curl=0.7)
-    _claw_hand(surf, wrist_l, 26, 9, (236, 236, 240), side=-1, curl=0.8)
-    # Head thrust forward + down on a long neck, hollow gaunt cheeks, smirk.
-    head_cx, head_cy, hr = cx - 14, neck_y - 18, 22
-    pygame.draw.line(surf, _shade(SKIN_PALE, -50), (cx, neck_y),
-                     (head_cx, head_cy + hr), 11)
-    cap_gaunt_droop(surf, head_cx, head_cy - hr + 8, hr,
-                    (E_PLUM, E_LIME_DK, E_GOLD))
-    _evolved_head(surf, head_cx, head_cy, hr, eye="smirk" if False else "dead",
-                  mouth="smirk", gaunt=True, tilt=12)
-
+# Concepts are written in LEAD order in the sheet: #1 = Hulking Brute (best),
+# #2 = Carrion Coxcomb (2nd). Every figure is built CLEARLY taller AND broader
+# than the hero's ~160px body so the size jump reads at a glance, and every
+# silhouette passes the blackout test (reads as "the jester, bigger, meaner").
 
 def concept_hulking_brute(surf, cx, feet_y):
-    """2. HULKING BRUTE — massive, top-heavy, squat low stance; broad slab
-    crown; barrel diamond torso; both fists planted wide, knuckles forward."""
-    hip_y = feet_y - 96
-    # Short thick legs splayed wide in a low power stance.
-    for s in (-1, 1):
-        col = E_PLUM if s < 0 else E_LIME_DK
-        hip = (cx + s * 22, hip_y)
-        ankle = (cx + s * 34, feet_y - 8)
-        pygame.draw.line(surf, _shade(col, -55), hip, ankle, 20)
-        pygame.draw.line(surf, col, hip, ankle, 16)
-        shoe = pygame.Rect(0, 0, 40, 20)
-        shoe.center = (ankle[0] + s * 6, feet_y - 2)
+    """LEAD 1. HULKING BRUTE — massive, top-heavy slab; low planted power
+    stance; wide shoulder-doubling ruff; canted heavy crown; both fists planted
+    with knuckle facets + rim-light; a wide fanged maw as the focal point."""
+    hip_y = feet_y - s(116)
+    # Short thick legs splayed wide + planted — the low boss stance.
+    for sgn in (-1, 1):
+        col = E_PLUM if sgn < 0 else E_LIME_DK
+        hip = (cx + sgn * s(26), hip_y)
+        ankle = (cx + sgn * s(42), feet_y - s(8))
+        pygame.draw.line(surf, _shade(col, -60), hip, ankle, sw(24))
+        pygame.draw.line(surf, col, hip, ankle, sw(20))
+        shoe = pygame.Rect(0, 0, s(50), s(24))
+        shoe.center = (ankle[0] + sgn * s(8), feet_y - s(2))
         pygame.draw.ellipse(surf, E_PLUM_DK, shoe)
-        pygame.draw.ellipse(surf, _shade(E_PLUM_DK, 30), shoe.inflate(-6, -8))
-        _tarnished_bell(surf, shoe.centerx + s * 18, shoe.top, r=4)
-    # Huge barrel torso, widest at the chest (top-heavy).
-    _harlequin_torso(surf, cx, hip_y - 86, hip_y + 8, 52, 36,
+        pygame.draw.ellipse(surf, _shade(E_PLUM_DK, 35), shoe.inflate(-s(8), -s(10)))
+        _tarnished_bell(surf, shoe.centerx + sgn * s(22), shoe.top, r=4)
+    # Huge barrel torso, widest at the chest — clearly broader than the hero.
+    _harlequin_torso(surf, cx, hip_y - s(100), hip_y + s(10), 30, 64,
                      E_PLUM, E_LIME)
-    _dagged_hem(surf, cx, hip_y + 6, 36, 9, E_PLUM, drop=12)
-    neck_y = hip_y - 82
-    # A massive scalloped ruff (the hero's ruff bloated, tarnished).
-    for i in range(13):
-        t = i / 12
-        lx = int(cx - 52 + 104 * t)
-        ly = int(neck_y + 6 + math.sin(t * math.pi) * -4)
-        pygame.draw.circle(surf, E_GOLD_DK, (lx, ly), 11)
-        pygame.draw.circle(surf, E_GOLD, (lx, ly), 9)
-        pygame.draw.circle(surf, _shade(E_GOLD, 60), (lx - 3, ly - 3), 3)
-    # Both arms spread wide, heavy, ending in big planted claw-fists.
-    for s in (-1, 1):
-        col = E_LIME_DK if s < 0 else E_PLUM
-        sh = (cx + s * 46, neck_y + 10)
-        elbow = (cx + s * 70, neck_y + 50)
-        wrist = (cx + s * 60, hip_y + 4)
+    _dagged_hem(surf, cx, hip_y + s(8), 64, 7, E_PLUM, drop=14)
+    neck_y = hip_y - s(94)
+    # Both arms spread wide + heavy, doubling the shoulder mass, ending in big
+    # planted claw-fists (drawn BEFORE the ruff so the ruff caps the shoulders).
+    for sgn in (-1, 1):
+        col = E_LIME_DK if sgn < 0 else E_PLUM
+        sh = (cx + sgn * s(58), neck_y + s(12))
+        elbow = (cx + sgn * s(84), neck_y + s(58))
+        wrist = (cx + sgn * s(70), hip_y + s(8))
         for a, b in ((sh, elbow), (elbow, wrist)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 22)
-            pygame.draw.line(surf, col, a, b, 18)
-        _claw_hand(surf, wrist, 18, 12, (236, 236, 240), side=s, curl=0.5)
-    # Tiny head sunk between massive shoulders — a wide fanged maw.
-    head_cx, head_cy, hr = cx, neck_y - 8, 24
-    cap_brute_crown(surf, head_cx, head_cy - hr + 8, hr,
-                    (E_PLUM, E_LIME, E_GOLD, E_PLUM))
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(26))
+            pygame.draw.line(surf, col, a, b, sw(22))
+        _claw_hand(surf, wrist, 22, 9, CLAW, side=sgn, curl=0.55)
+    # A massive shoulder-doubling brass ruff slung wide across the top.
+    _ruff(surf, cx, neck_y + s(6), 70, 15, dip=4, lift=-6)
+    # Head sunk low between the shoulders — the wide fanged maw is the focal.
+    head_cx, head_cy, hr = cx, neck_y - s(6), 28
+    cap_brute_crown(surf, head_cx, head_cy - s(hr) + s(10), hr,
+                    (E_PLUM, E_LIME, E_GOLD))
     _evolved_head(surf, head_cx, head_cy, hr, eye="dead", mouth="fangs",
-                  tilt=-3)
+                  tilt=-4)
+
+
+def concept_carrion(surf, cx, feet_y):
+    """LEAD 2. CARRION COXCOMB — vulture hunch with raised shoulders + head
+    thrust LOW and forward; a BROAD torso (bigger than the hero, not merely
+    hunched); a FEW big ragged tatters; a clear shadowed brow + one sharp
+    eye-glint; the meanest, most unique silhouette."""
+    hip_y = feet_y - s(112)
+    for sgn in (-1, 1):
+        col = E_PLUM if sgn < 0 else E_LIME_DK
+        hip = (cx + sgn * s(16), hip_y)
+        knee = (cx + sgn * s(26), hip_y + s(52))
+        ankle = (cx + sgn * s(18), feet_y - s(6))
+        for a, b in ((hip, knee), (knee, ankle)):
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(18))
+            pygame.draw.line(surf, col, a, b, sw(15))
+        toe = [(ankle[0] - s(15), feet_y), (ankle[0] + s(22), feet_y),
+               (ankle[0] + s(30), feet_y - s(10))]
+        pygame.draw.polygon(surf, E_PLUM_DK, [(int(p[0]), int(p[1])) for p in toe])
+        _tarnished_bell(surf, ankle[0] + s(30), feet_y - s(10), r=4)
+    # Broad hunched torso: top sheared hard forward, but WIDE so it still reads
+    # bigger than the hero — not a thin hunch.
+    _harlequin_torso(surf, cx, hip_y - s(92), hip_y + s(4), 30, 46, E_PLUM,
+                     E_LIME, lean=-s(18))
+    # A FEW big ragged tatters (not many small = noise) hanging off the hem.
+    _dagged_hem(surf, cx, hip_y + s(2), 46, 5, E_PLUM, drop=24)
+    neck_y = hip_y - s(86)
+    # Raised hunched shoulders (toward the ears) with long arms dangling fwd,
+    # hooked claws — drawn before the lopsided ruff caps them.
+    for sgn in (-1, 1):
+        col = E_LIME_DK if sgn < 0 else E_PLUM
+        sh = (cx + sgn * s(44), neck_y - s(10))    # raised high, hunched
+        elbow = (cx + sgn * s(50), neck_y + s(46))
+        wrist = (cx + sgn * s(28), hip_y + s(22))  # dangling forward + in
+        for a, b in ((sh, elbow), (elbow, wrist)):
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(18))
+            pygame.draw.line(surf, col, a, b, sw(14))
+        _claw_hand(surf, wrist, 20, 8, CLAW, side=sgn, curl=0.95)
+    # A lopsided tattered brass ruff slumped forward off the hunch.
+    _ruff(surf, cx - s(6), neck_y + s(8), 44, 11, dip=4, lift=7)
+    # Head thrust LOW + forward off the hunch (vulture peer), tilted, smirking.
+    head_cx, head_cy, hr = cx - s(22), neck_y + s(6), 25
+    pygame.draw.line(surf, _shade(SKIN_DK, -30),
+                     (cx - s(4), neck_y), (head_cx + s(8), head_cy), sw(16))
+    cap_carrion_crest(surf, head_cx, head_cy - s(hr) + s(8), hr, (E_PLUM, E_LIME))
+    _evolved_head(surf, head_cx, head_cy, hr, eye="sick", mouth="smirk",
+                  gaunt=True, tilt=20)
 
 
 def concept_horned_imp(surf, cx, feet_y):
-    """3. HORNED IMP-LORD — tall lean devil; long back-curving horns; lithe
-    diamond suit; one claw raised in a beckoning curl; luminous sick eyes."""
-    hip_y = feet_y - 116
-    for s, col in ((-1, E_LIME_DK), (1, E_PLUM)):
-        hip = (cx + s * 11, hip_y)
-        knee = (cx + s * 18, hip_y + 50)
-        ankle = (cx + s * 10, feet_y - 6)
+    """3. HORNED IMP-LORD — tall + broad-shouldered devil; mutated 3-point cap
+    with back-swept horn-lobes + a centre belled spike (still OUR cap); one big
+    clawed hand raised in a beckoning curl; luminous sick eyes."""
+    hip_y = feet_y - s(126)
+    for sgn in (-1, 1):
+        col = E_LIME_DK if sgn < 0 else E_PLUM
+        hip = (cx + sgn * s(13), hip_y)
+        knee = (cx + sgn * s(22), hip_y + s(54))
+        ankle = (cx + sgn * s(12), feet_y - s(6))
         for a, b in ((hip, knee), (knee, ankle)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 13)
-            pygame.draw.line(surf, col, a, b, 10)
-        toe = [(ankle[0] - 12, feet_y), (ankle[0] + 16, feet_y),
-               (ankle[0] + 24, feet_y - 10)]
-        pygame.draw.polygon(surf, E_PLUM_DK, toe)
-        _tarnished_bell(surf, ankle[0] + 24, feet_y - 10, r=4)
-    _harlequin_torso(surf, cx, hip_y - 80, hip_y + 4, 22, 26, E_PLUM, E_LIME)
-    _dagged_hem(surf, cx, hip_y + 2, 26, 7, E_PLUM, drop=14)
-    neck_y = hip_y - 76
-    # A pointed dagged collar (sharp lime points, not soft scallops).
-    for i in range(9):
-        t = i / 8
-        lx = int(cx - 30 + 60 * t)
-        ly = int(neck_y + 4 + abs(t - 0.5) * 10)
-        pygame.draw.polygon(surf, E_LIME,
-                            [(cx, neck_y - 2), (lx - 5, ly + 12), (lx + 5, ly + 12)])
-        pygame.draw.polygon(surf, _shade(E_LIME, -55),
-                            [(cx, neck_y - 2), (lx - 5, ly + 12), (lx + 5, ly + 12)], 1)
-        _tarnished_bell(surf, lx, ly + 13, r=3)
-    # Left arm raised high, claw curling in a "come here" beckon; right hangs.
-    sh_l = (cx - 24, neck_y + 8)
-    elbow_l = (cx - 42, neck_y - 18)
-    wrist_l = (cx - 30, neck_y - 48)
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(16))
+            pygame.draw.line(surf, col, a, b, sw(13))
+        toe = [(ankle[0] - s(13), feet_y), (ankle[0] + s(18), feet_y),
+               (ankle[0] + s(26), feet_y - s(11))]
+        pygame.draw.polygon(surf, E_PLUM_DK, [(int(p[0]), int(p[1])) for p in toe])
+        _tarnished_bell(surf, ankle[0] + s(26), feet_y - s(11), r=4)
+    _harlequin_torso(surf, cx, hip_y - s(90), hip_y + s(4), 26, 38, E_PLUM,
+                     E_LIME)
+    _dagged_hem(surf, cx, hip_y + s(2), 38, 6, E_PLUM, drop=18)
+    neck_y = hip_y - s(84)
+    # Right arm hangs with a big claw; left raised, claw curling in a beckon.
+    sh_r = (cx + s(30), neck_y + s(10))
+    wrist_r = (cx + s(42), hip_y - s(6))
+    pygame.draw.line(surf, _shade(E_LIME_DK, -60), sh_r, wrist_r, sw(16))
+    pygame.draw.line(surf, E_LIME_DK, sh_r, wrist_r, sw(13))
+    _claw_hand(surf, wrist_r, 18, 8, CLAW, side=1, curl=0.7)
+    sh_l = (cx - s(30), neck_y + s(10))
+    elbow_l = (cx - s(52), neck_y - s(20))
+    wrist_l = (cx - s(36), neck_y - s(56))
     for a, b in ((sh_l, elbow_l), (elbow_l, wrist_l)):
-        pygame.draw.line(surf, _shade(E_PLUM, -55), a, b, 13)
-        pygame.draw.line(surf, E_PLUM, a, b, 10)
-    _claw_hand(surf, wrist_l, 18, 8, (236, 236, 240), side=-1, curl=1.1)
-    sh_r = (cx + 24, neck_y + 8)
-    wrist_r = (cx + 34, hip_y - 8)
-    pygame.draw.line(surf, _shade(E_LIME_DK, -55), sh_r, wrist_r, 12)
-    pygame.draw.line(surf, E_LIME_DK, sh_r, wrist_r, 9)
-    _claw_hand(surf, wrist_r, 16, 8, (236, 236, 240), side=1, curl=0.7)
-    head_cx, head_cy, hr = cx + 2, neck_y - 22, 23
-    cap_horns(surf, head_cx, head_cy - hr + 10, hr, (E_PLUM, E_PLUM_DK))
+        pygame.draw.line(surf, _shade(E_PLUM, -60), a, b, sw(16))
+        pygame.draw.line(surf, E_PLUM, a, b, sw(13))
+    _claw_hand(surf, wrist_l, 22, 9, CLAW, side=-1, curl=1.15)
+    # A pointed dagged lime collar (sharp points, not soft scallops) + wide ruff.
+    _ruff(surf, cx, neck_y + s(6), 46, 12, dip=4, lift=-4)
+    head_cx, head_cy, hr = cx + s(2), neck_y - s(20), 26
+    cap_horn_droop(surf, head_cx, head_cy - s(hr) + s(10), hr,
+                   (E_PLUM, E_PLUM_DK))
     _evolved_head(surf, head_cx, head_cy, hr, eye="sick", mouth="grin",
                   tilt=-8)
 
 
-def concept_carrion(surf, cx, feet_y):
-    """4. CARRION COXCOMB — vulture-hunched; raised hunched shoulders; head
-    thrust low + forward; ragged crest; tattered dagged everything; smirk."""
-    hip_y = feet_y - 108
-    for s, col in ((-1, E_PLUM), (1, E_LIME_DK)):
-        hip = (cx + s * 12, hip_y)
-        knee = (cx + s * 20, hip_y + 50)
-        ankle = (cx + s * 14, feet_y - 6)
-        for a, b in ((hip, knee), (knee, ankle)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 14)
-            pygame.draw.line(surf, col, a, b, 11)
-        toe = [(ankle[0] - 13, feet_y), (ankle[0] + 18, feet_y),
-               (ankle[0] + 26, feet_y - 9)]
-        pygame.draw.polygon(surf, E_PLUM_DK, toe)
-        _tarnished_bell(surf, ankle[0] + 26, feet_y - 9, r=4)
-    # Torso hunched: top sheared hard forward, shoulders raised toward the ears.
-    _harlequin_torso(surf, cx, hip_y - 78, hip_y + 4, 26, 30, E_PLUM, E_LIME,
-                     lean=-14)
-    _dagged_hem(surf, cx, hip_y + 2, 30, 8, E_PLUM, drop=18)
-    neck_y = hip_y - 74
-    # A lopsided tattered ruff hanging forward off the hunch.
-    for i in range(9):
-        t = i / 8
-        lx = int(cx - 30 + 60 * t)
-        ly = int(neck_y + 8 + math.sin(t * math.pi) * 5 + 4)
-        col = E_GOLD if i % 2 else E_GOLD_DK
-        pygame.draw.polygon(surf, col,
-                            [(cx - 6, neck_y), (lx - 6, ly + 12), (lx + 4, ly + 14)])
-        pygame.draw.polygon(surf, _shade(col, -60),
-                            [(cx - 6, neck_y), (lx - 6, ly + 12), (lx + 4, ly + 14)], 1)
-    # Raised hunched shoulders; long arms dangling forward with hooked claws.
-    for s in (-1, 1):
-        col = E_LIME_DK if s < 0 else E_PLUM
-        sh = (cx + s * 34, neck_y - 6)             # raised toward the ears
-        elbow = (cx + s * 40, neck_y + 40)
-        wrist = (cx + s * 22, hip_y + 18)          # dangling forward + in
-        for a, b in ((sh, elbow), (elbow, wrist)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 15)
-            pygame.draw.line(surf, col, a, b, 11)
-        _claw_hand(surf, wrist, 18, 8, (236, 236, 240), side=s, curl=0.9)
-    # Head thrust LOW + forward off the hunch (vulture peer), tilted, smirking.
-    head_cx, head_cy, hr = cx - 18, neck_y + 2, 21
-    pygame.draw.line(surf, _shade(SKIN_PALE, -50), (cx - 4, neck_y),
-                     (head_cx + 6, head_cy), 12)
-    cap_carrion_crest(surf, head_cx, head_cy - hr + 6, hr, (E_PLUM, E_LIME))
-    _evolved_head(surf, head_cx, head_cy, hr, eye="dead", mouth="smirk",
-                  gaunt=True, tilt=18)
-
-
 def concept_puppeteer(surf, cx, feet_y):
-    """5. RINGMASTER PUPPETEER — towering, regal, arms flung WIDE + up in a
-    grand grotesque flourish; donkey-eared spiked cap; broad diamond robe;
-    the widest, most theatrically menacing silhouette; too-wide grin."""
-    hip_y = feet_y - 124
-    for s, col in ((-1, E_PLUM), (1, E_LIME_DK)):
-        hip = (cx + s * 14, hip_y)
-        ankle = (cx + s * 16, feet_y - 8)
-        pygame.draw.line(surf, _shade(col, -55), hip, ankle, 16)
-        pygame.draw.line(surf, col, hip, ankle, 13)
-        toe = [(ankle[0] - 15, feet_y), (ankle[0] + 20, feet_y),
-               (ankle[0] + 30, feet_y - 14), (ankle[0] + 24, feet_y - 22)]
-        pygame.draw.polygon(surf, E_PLUM_DK, toe)
-        _tarnished_bell(surf, ankle[0] + 24, feet_y - 22, r=5)
-    # A long broad robe-torso flaring at the hem (regal silhouette).
-    _harlequin_torso(surf, cx, hip_y - 92, hip_y + 8, 30, 42, E_PLUM, E_LIME)
-    _dagged_hem(surf, cx, hip_y + 6, 42, 9, E_PLUM, drop=20)
-    neck_y = hip_y - 88
-    # A grand wide scalloped + dagged double ruff.
-    for i in range(15):
-        t = i / 14
-        lx = int(cx - 56 + 112 * t)
-        ly = int(neck_y + 6 + math.sin(t * math.pi) * -5)
-        pygame.draw.circle(surf, E_GOLD_DK, (lx, ly), 10)
-        pygame.draw.circle(surf, E_GOLD, (lx, ly), 8)
-        pygame.draw.circle(surf, _shade(E_GOLD, 60), (lx - 2, ly - 2), 3)
-    # Arms flung WIDE and UP in a grand flourish, both claws spread skyward.
-    for s in (-1, 1):
-        col = E_LIME_DK if s < 0 else E_PLUM
-        sh = (cx + s * 30, neck_y + 8)
-        elbow = (cx + s * 58, neck_y - 6)
-        wrist = (cx + s * 80, neck_y - 40)
+    """4. RINGMASTER PUPPETEER — towering + broad; arms lowered + CLAWED in a
+    looming menacing reach (not a celebratory flourish); donkey-ear spike cap;
+    broad diamond robe; a too-wide corner-cracked grin."""
+    hip_y = feet_y - s(122)
+    for sgn in (-1, 1):
+        col = E_PLUM if sgn < 0 else E_LIME_DK
+        hip = (cx + sgn * s(16), hip_y)
+        ankle = (cx + sgn * s(18), feet_y - s(8))
+        pygame.draw.line(surf, _shade(col, -60), hip, ankle, sw(18))
+        pygame.draw.line(surf, col, hip, ankle, sw(15))
+        toe = [(ankle[0] - s(16), feet_y), (ankle[0] + s(22), feet_y),
+               (ankle[0] + s(32), feet_y - s(14)),
+               (ankle[0] + s(26), feet_y - s(22))]
+        pygame.draw.polygon(surf, E_PLUM_DK, [(int(p[0]), int(p[1])) for p in toe])
+        _tarnished_bell(surf, ankle[0] + s(26), feet_y - s(22), r=5)
+    _harlequin_torso(surf, cx, hip_y - s(100), hip_y + s(8), 32, 52, E_PLUM,
+                     E_LIME)
+    _dagged_hem(surf, cx, hip_y + s(6), 52, 7, E_PLUM, drop=24)
+    neck_y = hip_y - s(94)
+    # Arms held out + DOWN, clawed and reaching toward the viewer — a looming,
+    # menacing "closing in" gesture, not a celebratory V.
+    for sgn in (-1, 1):
+        col = E_LIME_DK if sgn < 0 else E_PLUM
+        sh = (cx + sgn * s(36), neck_y + s(10))
+        elbow = (cx + sgn * s(66), neck_y + s(34))
+        wrist = (cx + sgn * s(74), neck_y + s(80))
         for a, b in ((sh, elbow), (elbow, wrist)):
-            pygame.draw.line(surf, _shade(col, -55), a, b, 16)
-            pygame.draw.line(surf, col, a, b, 12)
-        # A trailing dagged sleeve hanging off the upper arm.
-        drape = [(sh[0], sh[1]), (elbow[0], elbow[1]),
-                 (elbow[0] - s * 6, elbow[1] + 26),
-                 ((sh[0] + elbow[0]) // 2, (sh[1] + elbow[1]) // 2 + 30)]
-        pygame.draw.polygon(surf, _shade(col, -25), drape)
-        pygame.draw.polygon(surf, _shade(col, -60), drape, 1)
-        _claw_hand(surf, wrist, 20, 9, (236, 236, 240), side=s, curl=0.9)
-    # Tall head held high + back, a too-wide corner-cracked grin.
-    head_cx, head_cy, hr = cx, neck_y - 24, 24
-    cap_puppet_ears(surf, head_cx, head_cy - hr + 8, hr,
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(18))
+            pygame.draw.line(surf, col, a, b, sw(14))
+        # A trailing dagged sleeve hanging off the forearm.
+        drape = [(elbow[0], elbow[1]), (wrist[0], wrist[1]),
+                 (wrist[0] - sgn * s(8), wrist[1] + s(26)),
+                 ((elbow[0] + wrist[0]) // 2 - sgn * s(10),
+                  (elbow[1] + wrist[1]) // 2 + s(30))]
+        pygame.draw.polygon(surf, _shade(col, -28),
+                            [(int(p[0]), int(p[1])) for p in drape])
+        pygame.draw.polygon(surf, _shade(col, -65),
+                            [(int(p[0]), int(p[1])) for p in drape], sw(1))
+        _claw_hand(surf, wrist, 22, 9, CLAW, side=sgn, curl=1.0)
+    # A grand wide brass ruff capping the broad shoulders.
+    _ruff(surf, cx, neck_y + s(6), 60, 15, dip=4, lift=-5)
+    head_cx, head_cy, hr = cx, neck_y - s(22), 27
+    cap_puppet_ears(surf, head_cx, head_cy - s(hr) + s(10), hr,
                     (E_PLUM, E_LIME, E_LIME_DK))
     _evolved_head(surf, head_cx, head_cy, hr, eye="dead", mouth="grin",
                   tilt=0)
 
 
+def concept_coiled_stalker(surf, cx, feet_y):
+    """5. COILED STALKER — replaces round-1's too-small Gaunt Stalker. A big
+    low-CROUCHING predator coiled to spring: deep-bent legs spread wide, torso
+    pitched forward + low over a broad hunched back, one big claw planted on the
+    ground + one raised mid-pounce. Reads BIG via width + forward mass even
+    though crouched. Mutated coil-droop 3-point cap, dead-eye smirk."""
+    # Crouched: hips sit LOW, but the spread + forward pitch make it read big.
+    hip_y = feet_y - s(70)
+    for sgn in (-1, 1):
+        col = E_PLUM if sgn < 0 else E_LIME_DK
+        hip = (cx + sgn * s(20), hip_y)
+        knee = (cx + sgn * s(48), hip_y + s(8))    # knees kicked WIDE + up
+        ankle = (cx + sgn * s(40), feet_y - s(6))
+        for a, b in ((hip, knee), (knee, ankle)):
+            pygame.draw.line(surf, _shade(col, -60), a, b, sw(20))
+            pygame.draw.line(surf, col, a, b, sw(16))
+        toe = [(ankle[0] - s(16), feet_y), (ankle[0] + s(20), feet_y),
+               (ankle[0] + s(28), feet_y - s(10))]
+        pygame.draw.polygon(surf, E_PLUM_DK, [(int(p[0]), int(p[1])) for p in toe])
+        _tarnished_bell(surf, ankle[0] + s(28), feet_y - s(10), r=4)
+    # Broad back pitched forward + low over the coil (sheared hard, wide base).
+    _harlequin_torso(surf, cx, hip_y - s(70), hip_y + s(6), 34, 48, E_PLUM,
+                     E_LIME, lean=-s(28))
+    _dagged_hem(surf, cx, hip_y + s(4), 48, 5, E_PLUM, drop=20)
+    neck_y = hip_y - s(64)
+    # One big claw planted forward on the GROUND (coiled), one raised to strike.
+    plant_sh = (cx - s(30), neck_y + s(6))
+    plant_wrist = (cx - s(58), feet_y - s(18))
+    for a, b in ((plant_sh, plant_wrist),):
+        pygame.draw.line(surf, _shade(E_PLUM, -60), a, b, sw(18))
+        pygame.draw.line(surf, E_PLUM, a, b, sw(15))
+    _claw_hand(surf, plant_wrist, 22, 9, CLAW, side=-1, curl=0.4)
+    raise_sh = (cx + s(34), neck_y - s(4))
+    raise_elbow = (cx + s(54), neck_y - s(30))
+    raise_wrist = (cx + s(40), neck_y - s(62))
+    for a, b in ((raise_sh, raise_elbow), (raise_elbow, raise_wrist)):
+        pygame.draw.line(surf, _shade(E_LIME_DK, -60), a, b, sw(18))
+        pygame.draw.line(surf, E_LIME_DK, a, b, sw(14))
+    _claw_hand(surf, raise_wrist, 22, 9, CLAW, side=1, curl=1.0)
+    # A lopsided ruff slumped forward off the low hunch.
+    _ruff(surf, cx - s(8), neck_y + s(6), 42, 11, dip=4, lift=6)
+    # Head thrust far forward + low along the coil, dead-eye smirk, tilted.
+    head_cx, head_cy, hr = cx - s(30), neck_y + s(4), 25
+    pygame.draw.line(surf, _shade(SKIN_DK, -30),
+                     (cx - s(6), neck_y), (head_cx + s(8), head_cy), sw(16))
+    cap_coil_droop(surf, head_cx, head_cy - s(hr) + s(8), hr,
+                   (E_PLUM, E_LIME_DK, E_GOLD))
+    _evolved_head(surf, head_cx, head_cy, hr, eye="dead", mouth="smirk",
+                  gaunt=True, tilt=22)
+
+
 # ── the original reference (clown-only, from build_jester) ───────────────────
 
 def concept_original(surf, cx, feet_y):
-    """Cell 0: the CURRENT hero clown, drawn clown-only (no staff) with the same
-    presenting body so the size + menace jump to the evolved cells reads."""
-    # A neutral down-forward hand so the figure stands alone without a die.
+    """Cell 0: the CURRENT hero clown, drawn clown-only (no staff). It must look
+    SMALL beside the evolved leads — drawn at the hero's native scale (no K), so
+    its ~160px body sits clearly under the boss masses around it."""
     hand_up = (cx - 30, feet_y - 92)
     build_jester(surf, cx, feet_y, hand_up, **ORIG)
 
 
 # ── the combined sheet ───────────────────────────────────────────────────────
 
+# Leads first: the two strongest directions (Hulking Brute, Carrion Coxcomb)
+# open the sheet so the eye lands on them before the supporting concepts.
 CONCEPTS = [
     ("ORIGINAL — Plum & Lime (locked)", concept_original),
-    ("1. GAUNT STALKER", concept_gaunt_stalker),
-    ("2. HULKING BRUTE", concept_hulking_brute),
+    ("1. HULKING BRUTE  ★lead", concept_hulking_brute),
+    ("2. CARRION COXCOMB  ★lead", concept_carrion),
     ("3. HORNED IMP-LORD", concept_horned_imp),
-    ("4. CARRION COXCOMB", concept_carrion),
-    ("5. RINGMASTER PUPPETEER", concept_puppeteer),
+    ("4. RINGMASTER PUPPETEER", concept_puppeteer),
+    ("5. COILED STALKER", concept_coiled_stalker),
 ]
 
 # Sub-captions describing each concept's distinct read.
 SUBS = [
-    "the early-game clown, clown-only · for scale + menace comparison",
-    "emaciated · hunched fwd · limp 3-droop cap · claw reaches DOWN · dead-eye smirk",
-    "top-heavy slab · low power stance · broad crown · fists planted · fanged maw",
-    "lean devil · long back-curving HORNS · beckoning claw · luminous sick eyes",
-    "vulture-hunched · raised shoulders · head thrust low · ragged crest · tatters",
-    "towering · arms flung WIDE+up · donkey-ear spike cap · too-wide cracked grin",
+    "the early-game clown, clown-only · drawn SMALL for scale + menace comparison",
+    "massive top-heavy slab · low planted stance · doubling ruff · canted crown · fanged maw",
+    "vulture hunch · raised shoulders · head thrust LOW · few big tatters · sick eye-glint",
+    "tall broad devil · mutated 3-pt cap w/ horn-lobes + belled spike · beckoning claw",
+    "towering · arms lowered + CLAWED, looming in · donkey-ear spike cap · too-wide grin",
+    "low CROUCH coiled to spring · spread wide · one claw planted, one raised · dead-eye smirk",
 ]
 
 
@@ -694,35 +791,38 @@ def main():
     pygame.font.init()
     pygame.display.set_mode((W, H))
 
-    # Each concept is drawn at NATIVE px on a tile (the concept geometry uses
-    # absolute offsets), then smoothscaled UP to the display cell so the figures
-    # read large + crisp on the sheet (the earlier supersample only enlarged the
-    # backdrop, so the downscale was shrinking every figure to half-size).
-    FIG_W, FIG_H = 260, 360
-    GROUND_Y = FIG_H - 36          # ONE matched ground line across every cell
-    FIGSCALE = 1.6
-    CELL_W, CELL_H = int(FIG_W * FIGSCALE), int(FIG_H * FIGSCALE)
+    # Crispness fix: the figure tile is rendered DIRECTLY at K× the logical size
+    # (every concept multiplies its geometry by K), then blitted 1:1 into the
+    # cell — no smoothscale upscale, so edges stay sharp and eye-glints stay
+    # crisp dots. The cell IS the K-rendered tile, so there is no resampling.
+    FIG_W, FIG_H = 260, 360                 # logical figure-tile size
+    GROUND_Y = FIG_H - 36                   # logical matched ground line
+    TILE_W, TILE_H = FIG_W * K, FIG_H * K   # actual rendered (crisp) tile
+    GROUND_Y_K = GROUND_Y * K
+    CELL_W, CELL_H = TILE_W, TILE_H
     cols, rows = 3, 2
-    PAD, GAP = 46, 26
+    PAD, GAP = 60, 34
 
-    f_title = pygame.font.SysFont(None, 56, bold=True)
-    f_sub = pygame.font.SysFont(None, 28, bold=True)
-    f_cap = pygame.font.SysFont(None, 36, bold=True)
-    f_caps = pygame.font.SysFont(None, 25, bold=True)
+    # Fonts bumped to match the larger K× canvas so captions stay legible.
+    f_title = pygame.font.SysFont(None, 72, bold=True)
+    f_sub = pygame.font.SysFont(None, 36, bold=True)
+    f_cap = pygame.font.SysFont(None, 46, bold=True)
+    f_caps = pygame.font.SysFont(None, 32, bold=True)
 
     canvas_w = PAD * 2 + cols * CELL_W + (cols - 1) * GAP
     inner_w = canvas_w - 2 * PAD
 
     title_lines = _wrap(
-        f_title, "EVOLVED WARREN CLOWN — late-game boss escalation (round 1)",
+        f_title, "EVOLVED WARREN CLOWN — late-game boss escalation (round 2)",
         inner_w)
     sub_lines = _wrap(
-        f_sub, "The SAME Plum & Lime character grown larger / meaner / nastier: "
-        "bruised plum, venom lime, tarnished gold + blood & bruise accents. Five "
-        "distinct menacing silhouettes on ONE matched ground line. No staff "
-        "(separate cycle).", inner_w)
+        f_sub, "The SAME Plum & Lime character, gone ROTTEN + BIG: near-black "
+        "bruise plum, venom green-gray lime, tarnished brass gold + blood/bruise "
+        "accents. Each face is built on hard macro shapes (sunken brow, bright "
+        "eye-glint, hard maw) so menace survives at gameplay scale. Leads ★ first; "
+        "the hero is drawn SMALL for scale. No staff (separate cycle).", inner_w)
     # Per-cell sub-captions wrapped to the cell width.
-    sub_wrapped = [_wrap(f_caps, s, CELL_W - 10) for s in SUBS]
+    sub_wrapped = [_wrap(f_caps, txt, CELL_W - 10) for txt in SUBS]
     max_sub_lines = max(len(x) for x in sub_wrapped)
 
     th = f_title.get_height() + 2
@@ -749,24 +849,33 @@ def main():
         cx = PAD + c * (CELL_W + GAP)
         cy = y0 + r * (CELL_H + CAP_H + GAP)
 
-        # Native figure tile: gradient backdrop + matched floor + contact shadow.
-        tile = pygame.Surface((FIG_W, FIG_H))
-        for yyf in range(FIG_H):
-            t = yyf / FIG_H
-            col = (int(104 - 20 * t), int(104 - 20 * t), int(112 - 18 * t))
-            pygame.draw.line(tile, col, (0, yyf), (FIG_W, yyf))
-        pygame.draw.rect(tile, (70, 68, 78), (0, GROUND_Y, FIG_W, FIG_H - GROUND_Y))
-        pygame.draw.line(tile, (120, 118, 128), (0, GROUND_Y), (FIG_W, GROUND_Y), 2)
-        shsurf = pygame.Surface((FIG_W, 22), pygame.SRCALPHA)
-        pygame.draw.ellipse(shsurf, (20, 18, 26, 120), (FIG_W // 2 - 70, 0, 140, 22))
-        tile.blit(shsurf, (0, GROUND_Y - 8))
+        # Crisp K× figure tile: a slightly DARKER backdrop than round 1 so the
+        # darkened evolved palette has somewhere to sit, with the matched floor
+        # + a contact shadow. The original (cell 0) is drawn at the hero's native
+        # scale so it reads small; the evolved concepts are K-scaled to fill.
+        tile = pygame.Surface((TILE_W, TILE_H))
+        for yyf in range(TILE_H):
+            t = yyf / TILE_H
+            col = (int(78 - 18 * t), int(76 - 18 * t), int(86 - 16 * t))
+            pygame.draw.line(tile, col, (0, yyf), (TILE_W, yyf))
+        pygame.draw.rect(tile, (52, 50, 60),
+                         (0, GROUND_Y_K, TILE_W, TILE_H - GROUND_Y_K))
+        pygame.draw.line(tile, (104, 102, 114), (0, GROUND_Y_K), (TILE_W, GROUND_Y_K),
+                         sw(2))
+        shsurf = pygame.Surface((TILE_W, s(22)), pygame.SRCALPHA)
+        pygame.draw.ellipse(shsurf, (14, 12, 20, 140),
+                            (TILE_W // 2 - s(78), 0, s(156), s(22)))
+        tile.blit(shsurf, (0, GROUND_Y_K - s(8)))
 
-        fn(tile, FIG_W // 2, GROUND_Y)
+        # Cell 0 draws the hero at its native fixed-offset scale (so it reads
+        # SMALL); the evolved concepts internally multiply geometry by K and so
+        # fill the crisp tile. Both anchor to the same K-scaled ground line.
+        fn(tile, TILE_W // 2, GROUND_Y_K)
 
-        scaled = pygame.transform.smoothscale(tile, (CELL_W, CELL_H))
+        scaled = tile        # 1:1 blit — no upscale resample
         frame = (236, 196, 90) if i == 0 else (60, 58, 70)
         pygame.draw.rect(canvas, frame,
-                         pygame.Rect(cx - 2, cy - 2, CELL_W + 4, CELL_H + 4), 3)
+                         pygame.Rect(cx - 3, cy - 3, CELL_W + 6, CELL_H + 6), 4)
         canvas.blit(scaled, (cx, cy))
 
         cap = f_cap.render(name, True,
@@ -780,7 +889,7 @@ def main():
 
     out_dir = os.path.join("docs", "evolved_clown")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(canvas, out_path)
     print(f"saved {out_path}  ({canvas_w}x{canvas_h})")
 
