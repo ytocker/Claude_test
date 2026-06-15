@@ -8311,6 +8311,21 @@ _CLOWN_R16_HEADERS = [
 ]
 
 
+def _render_clown_r16_crops():
+    """Emit each of the 5 open-hand HERO crops as its OWN full-res PNG so the four
+    landmarks (arch / pinky-low / wrist-rooted short thumb / finger taper) can be
+    read at native pixels, instead of collapsing inside the wide contact sheet.
+    Higher zoom than the in-sheet card; never touches the round_16.png composite."""
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    for idx, (name, kw, note) in enumerate(_CLOWN_R16_VARIANTS, start=1):
+        card = _render_open_hand_crop_r16(kw, crop_px=300, zoom=14)
+        out_path = os.path.join(out_dir, f"round_16_crop_v{idx}.png")
+        pygame.image.save(card, out_path)
+        print("wrote", out_path, f"({card.get_width()}x{card.get_height()})", "-", name)
+
+
 def _render_clown_r16_sheet():
     """Round-16 clown look-dev: the same 5 orientations as r15 but each panel now
     leads with a LARGE isolated hero-zoom crop of just the open hand (neutral
@@ -8401,7 +8416,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -8462,6 +8477,8 @@ def main():
         _render_clown_r15_sheet()
     if do_clown_r16:
         _render_clown_r16_sheet()
+    if "--clown-r16-crops" in args:
+        _render_clown_r16_crops()
 
 
 if __name__ == "__main__":
