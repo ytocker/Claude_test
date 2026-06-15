@@ -3,8 +3,14 @@
     "allow": [
       "Bash",
       "Edit",
-      "Write"
+      "Write",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch"
     ],
-    "defaultMode": "acceptEdits"
-  }
+    "defaultMode": "bypassPermissions"
+  },
+  "skipDangerousModePermissionPrompt": true
 }
