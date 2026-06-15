@@ -8594,7 +8594,12 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
     prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
     rot = -7
     rad = math.radians(rot)
-    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    # Plant the marotte FOOT a few px INTO the ground line for every staff length,
+    # so the lower shaft unmistakably touches the ground rather than hovering at
+    # ankle height. The hand keeps gripping the shaft (grip rides higher up for
+    # shorter staffs); the lower clamp just guards the bauble for extreme lengths.
+    foot_target = ground_y + 7
+    grip_frac = max(0.16, 1.0 - (foot_target - r_hand[1]) / (p_h * math.cos(rad)))
     rotated = pygame.transform.rotate(prop, rot)
     cxr, cyr = p_w / 2, p_h / 2
 
