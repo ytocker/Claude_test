@@ -8540,7 +8540,7 @@ def _r17_die_hand(surf, hand, *, wrist, gesture="mitt", knuckles_up=False,
 
 def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
                            gesture="mitt", knuckles_up=False, point_len=0.0,
-                           point_bow=0.0, die_pulse_off=2.0):
+                           point_bow=0.0, die_dx=0, die_dy=0, die_pulse_off=2.0):
     """Round-17 hero panel — identical to r16 except the die-side hand is drawn by
     `_r17_die_hand` (a simple closed-glove gesture, not an open palm). Locked grip,
     floating die, and heel-on-wrist ~47deg continuation are unchanged."""
@@ -8570,8 +8570,8 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
     hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
     build_jester(layer, jester_cx, feet_y, hand_up, **spec)
 
-    die_cx = jester_cx - 56
-    die_cy = 30
+    die_cx = jester_cx - 56 + die_dx
+    die_cy = 30 + die_dy
     die_hand = (hand_up[0], hand_up[1])
 
     _r17_die_hand(layer, die_hand, wrist=wrist, gesture=gesture,
@@ -8754,6 +8754,70 @@ def _render_clown_r17_compare():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+_R17_DIE_POSITIONS = [
+    # 5 die placements that walk UP-LEFT along the pointing line so the player can
+    # pick the one that best lands on the extended finger. Offsets are added to the
+    # default die centre (jester_cx-56, 30); the label shows the resulting centre.
+    ("A: nudged up-left", dict(die_dx=-4, die_dy=-4)),
+    ("B: left, toward the finger", dict(die_dx=-9, die_dy=4)),
+    ("C: left + down a touch", dict(die_dx=-12, die_dy=12)),
+    ("D: out on the fingertip", dict(die_dx=-14, die_dy=20)),
+    ("E: high upper-left", dict(die_dx=-10, die_dy=-8)),
+]
+
+
+def _render_clown_r17_die():
+    """Round-17 DIE-POSITION sweep: the SAME pointing pose (gesture v4) on the whole
+    figure across 5 cells; the ONLY thing that changes between cells is where the
+    floating die sits, so the player can pick the placement that the extended finger
+    actually points at. Writes docs/warren_clown/round_17_die.png."""
+    SCALE = 3.0
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+    cols, rows = 3, 2
+    pad = 24
+    head = 64
+    label_h = 34
+    gap = 18
+    cell_w = disp_w
+    cell_h = label_h + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + rows * cell_h + (rows - 1) * gap + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(26, True)
+    label_f = hud._font(18, True)
+    sheet.blit(title_f.render(
+        "Warren Clown — SAME pointing pose (v4), only the DIE POSITION changes "
+        "between cells. Pick the one the finger points at.", True,
+        (255, 255, 255)), (pad, 18))
+
+    base_kw = dict(_CLOWN_R17_VARIANTS[3][1])      # the "Pointing - extended" pose
+    jester_cx = VIEW_W // 2 - 10
+    for i, (name, off) in enumerate(_R17_DIE_POSITIONS):
+        kw = dict(base_kw)
+        kw.update(off)
+        fig = render_clown_staff_r17(i, **kw)
+        die_c = (jester_cx - 56 + off["die_dx"], 30 + off["die_dy"])
+        label = f"{i + 1}. {name}  (die at {die_c[0]},{die_c[1]})"
+        r, c = divmod(i, cols)
+        cx = pad + c * (cell_w + gap)
+        cy = head + r * (cell_h + gap)
+        pygame.draw.rect(sheet, (40, 43, 54), (cx, cy, cell_w, label_h))
+        sheet.blit(label_f.render(label, True, (235, 238, 246)), (cx + 8, cy + 8))
+        sheet.blit(pygame.transform.smoothscale(fig, (disp_w, disp_h)),
+                   (cx, cy + label_h))
+        pygame.draw.rect(sheet, (70, 76, 92), (cx, cy, cell_w, cell_h), 2)
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17_die.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -8842,7 +8906,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -8912,6 +8976,8 @@ def main():
         _render_clown_r17_crops()
     if "--clown-r17-compare" in args:
         _render_clown_r17_compare()
+    if "--clown-r17-die" in args:
+        _render_clown_r17_die()
 
 
 if __name__ == "__main__":
