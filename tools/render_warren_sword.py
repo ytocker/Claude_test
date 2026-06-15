@@ -9055,6 +9055,32 @@ def _render_staff_route():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# The LOCKED hero: pointing pose (v4) + die position #4 + grounded foot + the
+# Carousel-Barker bell-foot staff (design 8) at the "Taller" length (225).
+_R17_FINAL_KW = dict(_CLOWN_R17_VARIANTS[3][1])
+_R17_FINAL_KW.update(total_px=225, ext_left=_R17_EXT_LEFT, ext_top=_R17_EXT_TOP,
+                     ext_right=_R17_EXT_RIGHT, staff_fn=prop_14l)
+
+
+def _render_clown_r17_final():
+    """The settled hero clown: pointing pose, die #4, grounded foot, Carousel-Barker
+    staff (design 8) at Taller (225). Writes docs/warren_clown/round_17_final.png."""
+    kw = dict(_R17_FINAL_KW)
+    dx, dy = _r17_die4_offsets()
+    kw.update(die_dx=dx, die_dy=dy)
+    fig = render_clown_staff_r17(0, **kw)
+    cw = VIEW_W + _R17_EXT_LEFT + _R17_EXT_RIGHT
+    ch = VIEW_H + _R17_EXT_TOP
+    SCALE = 2.0
+    out = pygame.transform.smoothscale(fig, (int(cw * SCALE), int(ch * SCALE)))
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17_final.png")
+    pygame.image.save(out, out_path)
+    print("wrote", out_path, f"({out.get_width()}x{out.get_height()})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -9143,7 +9169,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--clown-r17-staffgrid", "--marottes-8910", "--staff-route"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--clown-r17-staffgrid", "--marottes-8910", "--staff-route", "--clown-r17-final"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -9224,6 +9250,8 @@ def main():
         _render_clown_r17_staffgrid()
     if "--staff-route" in args:
         _render_staff_route()
+    if "--clown-r17-final" in args:
+        _render_clown_r17_final()
 
 
 if __name__ == "__main__":
