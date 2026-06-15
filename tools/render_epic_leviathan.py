@@ -372,60 +372,71 @@ def draw_lure_column(surf, x, y_top, y_bot, t=0.0):
     """A vertical OPAQUE barnacled bone-spine studded with a RHYTHMIC stack of
     caged jade nodes. This is the signature prop AND the obstacle pillar.
 
-    Collision-clarity is the round-2 fix (note 5). Round 1's thin curved cyan
-    stalks read as soft seaweed and the bare bulbs read as grabbable coins. Now:
-      * the spine is a WIDE, fully OPAQUE pale-flesh bone column with hard edges
-        and crossbar joints — an obvious solid vertical WALL, not a tendril;
-      * each jade node sits ON the spine inside a pale bone CAGE (a rib that
-        wraps the glow) with a hard pale rim, so it reads 'do-not-touch fixture
-        on a wall', never a free-floating collectible coin.
+    Round-3 final fix — WALL FIRST, nodes second (AD blackout test). Round 2's
+    spine was too narrow + too dark, so at 1× only the bright round jade discs
+    popped and read as a string of collectible coins floating in the gap. Now:
+      * the column is the WIDEST, PALEST, MOST-PRESENT mass on screen — a
+        full-bleed pale-flesh bone wall with hard rim edges that survives the
+        blackout test as a SOLID BAR (not a dotted line) on either sky;
+      * each jade node is RECESSED deep into the bone behind a hard pale rib-cage
+        BRACKET — visible vertical bars cross the glow, and the node itself is
+        dimmer + desaturated below the esca, so it reads 'caged fixture embedded
+        in a wall', never a floating pickup;
+      * the node is read by SHAPE as much as value: a bracketed/barred socket,
+        angular-framed — so a colorblind player still sees 'structure, not loot'
+        where coins/esca are clean glowing circles.
     The straight central spine + symmetric placement is what mirrors cleanly:
     flip top-to-bottom and the caged nodes still face the gap."""
     h = y_bot - y_top
-    seg = max(38, h // 5)
-    half = 13   # the spine is WIDE so the wall reads solid even at 1×
+    seg = max(40, h // 5)
+    half = 22   # WIDE: the column must read as the brightest solid mass at 1×
 
-    # Opaque bone spine: a hard-edged column with a value ramp across its width
-    # (dark left occlusion → flesh body → rim-lit right edge) so it reads round
-    # and SOLID rather than a flat bar or a soft stalk.
+    # Opaque bone wall: a hard-edged column with a value ramp across its width
+    # (dark left occlusion → mid shade → broad PALE body → rim-lit right edge) so
+    # it reads as a rounded, fully solid WALL. The pale body is the dominant mass
+    # — brighter than any node — so the blackout silhouette is a solid bar.
     pygame.draw.rect(surf, ABYSS_DKR, (x - half - 2, y_top, half * 2 + 4, h))
     pygame.draw.rect(surf, FLESH_DKR, (x - half, y_top, half * 2, h))
-    pygame.draw.rect(surf, FLESH_DK, (x - half + 2, y_top, half * 2 - 5, h))
-    pygame.draw.rect(surf, FLESH, (x - half + 4, y_top, half - 2, h))
-    pygame.draw.line(surf, FLESH_HI, (x - half + 4, y_top),
-                     (x - half + 4, y_bot), 2)   # hard rim-lit left edge
+    pygame.draw.rect(surf, FLESH_DK, (x - half + 3, y_top, half * 2 - 7, h))
+    pygame.draw.rect(surf, FLESH, (x - half + 6, y_top, int(half * 1.3), h))
+    pygame.draw.rect(surf, FLESH_HI, (x - half + 6, y_top, 4, h))  # hard rim edge
+    pygame.draw.line(surf, FLESH_DKR, (x + half - half // 3, y_top),
+                     (x + half - half // 3, y_bot), 3)   # right-face core shade
     pygame.draw.line(surf, ABYSS_DKR, (x + half - 1, y_top),
-                     (x + half - 1, y_bot), 2)    # hard occluded right edge
+                     (x + half - 1, y_bot), 2)            # hard occluded edge
 
-    # Calcified vertebra joints across the spine at the node rhythm — the spine
-    # reads as fused bone, never a smooth pipe.
+    # Calcified vertebra joints banding the FULL width at a tight rhythm — the
+    # wall reads as fused, segmented bone, never a smooth pipe or a thin stalk.
     yy = y_top
     while yy < y_bot:
-        pygame.draw.line(surf, FLESH_DKR, (x - half, yy), (x + half, yy), 2)
-        pygame.draw.line(surf, FLESH_HI, (x - half + 3, yy - 1),
-                         (x + half - 3, yy - 1), 1)
+        pygame.draw.line(surf, FLESH_DKR, (x - half, yy), (x + half, yy), 3)
+        pygame.draw.line(surf, FLESH_HI, (x - half + 4, yy - 2),
+                         (x + half - 4, yy - 2), 1)
         yy += seg // 2
 
-    # Caged jade nodes at a fixed rhythm. Each node is a glow wrapped by a pale
-    # bone rib-cage so it reads as a FIXTURE bolted to the wall, not a coin.
+    # Caged jade nodes at a fixed rhythm. Each node is RECESSED into a square
+    # bone socket and shut behind hard pale BARS — bracket above/below + two
+    # vertical jail bars across the glow — so it reads as a barred fixture set
+    # INTO the wall. The jade is dim + desaturated (JADE_DIM core, no hot pale
+    # centre) so pillar-jade can never be mistaken for coin/esca-jade.
     node = 0
     yy = y_top + seg // 2
-    while yy < y_bot - 8:
-        # bony socket the node is set into
-        pygame.draw.circle(surf, FLESH_DK, (x, yy), 9)
-        pygame.draw.circle(surf, ABYSS_DKR, (x, yy), 7)
-        pulse = 0.8 + 0.25 * math.sin(t * 2 + node)
-        _glow(surf, x, yy, int(13 * pulse), JADE, alpha=70)
-        pygame.draw.circle(surf, JADE_DIM, (x, yy), 6)
-        pygame.draw.circle(surf, JADE, (x, yy), 5)
-        pygame.draw.circle(surf, JADE_PALE, (x - 1, yy - 1), 2)
-        # CAGE: two pale bone ribs arcing over the glow + a hard pale rim ring,
-        # so the node reads 'caged fixture, solid wall' not 'grabbable bulb'.
-        pygame.draw.circle(surf, FLESH_HI, (x, yy), 8, 2)
-        pygame.draw.arc(surf, FLESH, (x - 8, yy - 8, 16, 16),
-                        math.pi * 0.15, math.pi * 0.85, 2)
-        pygame.draw.line(surf, FLESH, (x - 6, yy - 5), (x - 6, yy + 5), 2)
-        pygame.draw.line(surf, FLESH, (x + 6, yy - 5), (x + 6, yy + 5), 2)
+    while yy < y_bot - 10:
+        # deep square recess cut into the bone — angular, never a round coin well
+        pygame.draw.rect(surf, FLESH_DK, (x - 11, yy - 11, 22, 22))
+        pygame.draw.rect(surf, ABYSS_DKR, (x - 9, yy - 9, 18, 18))
+        # contained, low glow — dimmer than the esca, kept inside the socket
+        pulse = 0.7 + 0.2 * math.sin(t * 2 + node)
+        _glow(surf, x, yy, int(9 * pulse), JADE_DIM, alpha=46)
+        pygame.draw.rect(surf, JADE_DIM, (x - 6, yy - 6, 12, 12))
+        pygame.draw.rect(surf, _lerp(JADE_DIM, JADE, 0.5), (x - 4, yy - 4, 8, 8))
+        # CAGE: a hard pale bone frame + bracket lip top & bottom + two vertical
+        # jail BARS crossing the glow → unmistakably 'barred socket', not a bulb.
+        pygame.draw.rect(surf, FLESH_HI, (x - 11, yy - 11, 22, 22), 2)
+        pygame.draw.line(surf, FLESH, (x - 11, yy - 9), (x + 11, yy - 9), 2)
+        pygame.draw.line(surf, FLESH, (x - 11, yy + 9), (x + 11, yy + 9), 2)
+        pygame.draw.line(surf, FLESH_HI, (x - 4, yy - 11), (x - 4, yy + 11), 2)
+        pygame.draw.line(surf, FLESH_HI, (x + 4, yy - 11), (x + 4, yy + 11), 2)
         node += 1
         yy += seg
 
@@ -508,7 +519,7 @@ def main():
             ptx = sw_w // 2 - 32
             sw.blit(top, (ptx, 0))
             sw.blit(bot, (ptx, 118))
-            sw.blit(tiny.render("GAP", True, JADE), (ptx - 2, 90))
+            sw.blit(tiny.render("GAP", True, JADE), (ptx + 8, 90))
         mid.blit(sw, (sx, sw_y))
         pygame.draw.rect(mid, (8, 10, 18), (sx, sw_y, sw_w, sw_h), 1)
         mid.blit(small.render(cap, True, JADE), (sx, cap_y))
@@ -530,9 +541,10 @@ def main():
     cx = tx + col_w + 50
     th.blit(big.render("PILLAR-FIT", True, FLESH_HI), (cx, 16))
     lines = [
-        "OPAQUE barnacled bone-spine (solid pale wall) studded with",
-        "CAGED jade nodes — pale rib-cage + hard rim so each node",
-        "reads 'fixture on a wall', NOT a grabbable coin. (note 5)",
+        "WIDE OPAQUE pale bone WALL first — brightest solid mass, hard",
+        "rim edges, full-bleed; passes the blackout SOLID-BAR test.",
+        "Jade nodes RECESSED behind a square bone bracket + jail BARS,",
+        "dim + desaturated → barred fixture by SHAPE, never a coin.",
         "",
         "TOP pillar = the SAME surface flipped vertically",
         "(top = flip(bottom)); caged nodes face the GAP because the",
@@ -547,10 +559,11 @@ def main():
     final = pygame.Surface((W, band_h + H + mid_h + strip_h))
     band = pygame.Surface((W, band_h))
     band.fill((8, 10, 18))
-    band.blit(big.render("deep-leviathan  —  round 2  —  abyssal whale-GOD",
+    band.blit(big.render("deep-leviathan  —  round 3  —  abyssal whale-GOD",
                          True, (235, 240, 245)), (12, 6))
-    band.blit(small.render("silhouette-first menace at 1×  ·  snapping underbite "
-                           "·  raked flukes  ·  one esca focal  ·  caged-node wall",
+    band.blit(small.render("creature LOCKED  ·  PILLAR-ONLY pass: wide pale bone "
+                           "WALL first, jade nodes recessed behind barred sockets "
+                           "(no coin-read)",
                            True, JADE), (12, 29))
     final.blit(band, (0, 0))
     final.blit(body, (0, band_h))
@@ -558,7 +571,7 @@ def main():
     final.blit(th, (0, band_h + H + mid_h))
 
     dst = os.path.join(os.path.dirname(__file__), "..",
-                       "docs", "epic_boss", "deep-leviathan", "round_2.png")
+                       "docs", "epic_boss", "deep-leviathan", "round_3.png")
     dst = os.path.abspath(dst)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     pygame.image.save(final, dst)
