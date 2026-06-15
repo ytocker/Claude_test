@@ -7023,12 +7023,300 @@ def _render_clown_r12_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# --- ROUND 13 ----------------------------------------------------------------
+#  Round 12 shipped the open palm-up read (broad palm mass, four fingers, thumb
+#  on the OUTSIDE edge) but ANCHORED it below-right of the bare forearm's wrist
+#  tip and drew it FLAT, so the silhouette reversed and kinked at the wrist and
+#  a detached "stub" line tried to hide the gap. Round 13 keeps that #1 open
+#  palm verbatim in shape and only fixes how it MEETS THE ARM: the heel is
+#  re-anchored ONTO the forearm's wrist tip and the whole hand is rotated so its
+#  wrist->palm axis FOLLOWS the forearm vector (up-and-left, ~47deg off vertical)
+#  with a natural wrist bend — one continuous limb, no slab, no reversed kink, no
+#  orphaned stub. ONLY this hand moves: the four-finger staff grip and the
+#  floating die (position / gap / glow / sparkles) are reused untouched.
+_R13_GLOVE   = _R12_GLOVE
+_R13_GROOVE  = _R12_GROOVE
+_R13_GLOVE_HI = _R12_GLOVE_HI
+_R13_OUTLINE = _R12_OUTLINE
+
+# Forearm vector of the LOCKED raised arm (shoulder->elbow->wrist tip): up-LEFT,
+# ~47deg off vertical. The open hand's up-the-fingers axis is rotated onto this
+# so the palm is the natural END of the arm rather than a pasted-on flat slab.
+_R13_FOREARM_DEG = 47.0
+
+
+def _r13_open_palm_hand(surf, hand, *, spread, wrist, finger_w=4):
+    """Round-12's #1 open palm-up hand REUSED in shape (broad palm pentagon, four
+    fingers fanning out — middle longest — and the THUMB as a wedge off the
+    OUTSIDE edge with its thenar swell) but rotated as a whole so the wrist->palm
+    axis CONTINUES THE FOREARM instead of standing flat. `hand` is the forearm's
+    wrist tip: the palm heel is laid right on it so the bare arm flows straight
+    into the palm. `wrist` is the total rotation of the up-the-hand axis (degrees,
+    CCW toward screen-left): set near the forearm angle for a colinear read, a
+    touch more to cock the open palm toward the floating die above. `spread` fans
+    the four fingers. Stays inside the round-8..12 ~16px footprint; reads as ONE
+    continuous limb ending in an OPEN palm, thumb on the OUTSIDE edge."""
+    hx, hy = hand
+    # Reuse round 12's `tilt`/`_proj` rotation math verbatim — the only change is
+    # that `wrist` carries the LARGE forearm-following angle (round 12 only ever
+    # passed a small `tilt`), so the whole hand swings onto the forearm axis.
+    ang = math.radians(-wrist)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def _proj(dx, dy):
+        # Local hand frame (x = across the palm, +x toward the OUTSIDE/left edge;
+        # y = up the hand) -> screen, rotated onto the forearm axis. The heel sits
+        # a hair UP the hand from `hand` so the wrist tip lands inside the palm
+        # mass (no gap, no stub) rather than at its very bottom corner.
+        return (hx - int(round(dx * ca - dy * sa)),
+                hy + int(round(-dx * sa - dy * ca)) - int(round(2 * ca)))
+
+    fingers = (
+        (-3.6, 9.8, -1.3),    # index  (toward the OUTSIDE/thumb side), shorter
+        (-1.2, 13.4, -0.4),   # middle (clearly longest — crowns the fan)
+        (1.2, 12.0, 0.4),     # ring   (a touch shorter than middle)
+        (3.5, 8.8, 1.3),      # pinky  (inner side, shortest)
+    )
+
+    def _finger_endpoints(rx, ln, fan):
+        base = _proj(rx, 5)
+        tip = _proj(rx + fan * spread, 5 + ln)
+        return base, tip
+
+    # Filled palm-up silhouette mass FIRST (keyline + glove) so palm + fingers +
+    # thumb read as continuous flesh — identical pentagon to round 12.
+    palm_pts_local = [
+        (5.0, 1.0),    # outer (thumb-side) heel
+        (5.6, 4.5),    # thumb root / thenar swell on the OUTSIDE edge
+        (-4.8, 5.0),   # inner knuckle corner (pinky side)
+        (-4.8, -3.0),  # inner wrist corner
+        (4.6, -3.0),   # outer wrist corner
+    ]
+    palm_pts = [_proj(x, y) for (x, y) in palm_pts_local]
+    pygame.draw.polygon(surf, _R13_OUTLINE, palm_pts)
+    pygame.draw.polygon(surf, _R13_GLOVE,
+                        [_proj(x * 0.92, y) for (x, y) in palm_pts_local])
+
+    for rx, ln, fan in fingers:
+        base, tip = _finger_endpoints(rx, ln, fan)
+        pygame.draw.line(surf, _R13_OUTLINE, base, tip, finger_w + 2)
+        pygame.draw.circle(surf, _R13_OUTLINE, tip, (finger_w + 2) // 2)
+    for rx, ln, fan in fingers:
+        base, tip = _finger_endpoints(rx, ln, fan)
+        pygame.draw.line(surf, _R13_GLOVE, base, tip, finger_w)
+        pygame.draw.circle(surf, _R13_GLOVE, tip, finger_w // 2)
+
+    # Thumb: SHORT fat wedge off the OUTSIDE edge, angled out+up — the palm-up
+    # signature, fused to the thenar swell already in the palm polygon.
+    th_base = _proj(5.2, 1.0)
+    th_tip = _proj(10.4, 4.0)
+    pygame.draw.line(surf, _R13_OUTLINE, th_base, th_tip, finger_w + 2)
+    pygame.draw.circle(surf, _R13_OUTLINE, th_tip, (finger_w + 2) // 2)
+    pygame.draw.line(surf, _R13_GLOVE, th_base, th_tip, finger_w)
+    pygame.draw.circle(surf, _R13_GLOVE, th_tip, finger_w // 2)
+
+    # Hairline groove HINTS only between knuckles so the fingers count as four
+    # without becoming a striped comb.
+    for k in range(1, len(fingers)):
+        rprev = fingers[k - 1][0]
+        rcur = fingers[k][0]
+        gv_b = _proj((rprev + rcur) / 2, 6)
+        gv_t = _proj((rprev + rcur) / 2, 6 + 4)
+        pygame.draw.line(surf, _R13_GROOVE, gv_b, gv_t, 1)
+
+    # Top-left rim sheen on the palm + a soft highlight up the middle finger.
+    sh = _proj(-2, 0)
+    pygame.draw.circle(surf, _R13_GLOVE_HI, sh, 2)
+    mb, mt = _finger_endpoints(*fingers[1])
+    pygame.draw.line(surf, _R13_GLOVE_HI, (mb[0] - 1, mb[1] - 1),
+                     (mt[0] - 1, mt[1] - 1), max(1, finger_w // 3))
+
+
+def render_clown_staff_r13(idx, *, total_px, bauble_px, cup_dy, spread, wrist,
+                           die_pulse_off=2.0):
+    """Round-13 hero panel: LOCKED round-11 four-finger staff grip + untouched
+    floating die, but the open hand is re-anchored onto the raised forearm's
+    wrist tip and rotated so its axis FOLLOWS the forearm — one continuous limb.
+    Panels differ ONLY in how much the wrist follows the forearm vs. cocks toward
+    the die (`wrist`) and the finger `spread`."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    die_cx = jester_cx - 56
+    die_cy = 30
+    # The open hand is anchored ON the forearm's wrist tip (`hand_up`) — NOT below
+    # and to the right of it as in round 12 — so the bare forearm flows straight
+    # into the palm heel with no detached stub and no drop-below-wrist reversal.
+    open_hand = (hand_up[0], hand_up[1])
+
+    # Open palm-up hand AT the wrist tip, axis along the forearm, then the LOCKED
+    # floating die ABOVE it with its glow ring + sparkles — die unchanged.
+    _r13_open_palm_hand(layer, open_hand, spread=spread, wrist=wrist)
+    draw_cupped_die(layer, die_cx, die_cy, idx * 1.7 + die_pulse_off,
+                    show_inset=False)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # LOCKED round-11 staff grip, verbatim (behind -> shaft -> occlusion -> front).
+    shaft_w = 2
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# Three CONTINUATION reads on the SAME locked grip + floating die: only how much
+# the open hand follows the forearm vs. cocks toward the die varies. The forearm
+# is ~47deg up-left; (a) sits the palm axis right on it, (b) bends a touch off it,
+# (c) cocks a little further so the open palm aims more at the floating die.
+_CLOWN_R13_VARIANTS = [
+    ("Inline", dict(total_px=200, bauble_px=15, cup_dy=2,
+                    spread=0.7, wrist=_R13_FOREARM_DEG, die_pulse_off=2.0),
+     "palm axis fully colinear with the forearm — the straightest continuation"),
+    ("Soft-bend", dict(total_px=200, bauble_px=15, cup_dy=2,
+                       spread=0.8, wrist=_R13_FOREARM_DEG - 12, die_pulse_off=2.0),
+     "a gentle natural wrist bend off the forearm axis"),
+    ("Cocked", dict(total_px=200, bauble_px=15, cup_dy=2,
+                    spread=0.9, wrist=_R13_FOREARM_DEG - 24, die_pulse_off=2.0),
+     "wrist cocked a touch further so the open palm aims more toward the die"),
+]
+
+
+_CLOWN_R13_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 13: open DIE HAND now CONTINUES THE RAISED ARM (heel on the wrist tip, axis along the forearm); LOCKED grip + floating die constant",
+     (255, 255, 255)),
+    ("Round 12's flat palm pasted below-right of the wrist is retired: the same open palm (thumb OUTSIDE) is re-anchored ONTO the forearm's wrist tip and rotated onto the forearm axis "
+     "so arm->wrist->palm reads as ONE limb. Only wrist-follow vs. die-cock varies. PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r13_sheet():
+    """Round-13 clown look-dev: 3 hero panels of the LOCKED four-finger grip +
+    untouched floating die, varying only how much the re-anchored OPEN PALM
+    follows the forearm vs. cocks toward the die, plus the carried-over true-1x
+    day/night shrink-test strip so the continuation + outside thumb stay legible
+    at real size. Writes docs/warren_clown/round_13.png — never overwrites an
+    existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = len(_CLOWN_R13_VARIANTS)
+    pad = 20
+    head = 86
+    name_strip = 38
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R13_HEADERS[0][0], True, _CLOWN_R13_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R13_HEADERS[1][0], True, _CLOWN_R13_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R13_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r13(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_13.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -7045,6 +7333,7 @@ def main():
     do_clown_r10 = "--clown-r10" in args    # round-10 de-thumbed grip + floating die, opt-in
     do_clown_r11 = "--clown-r11" in args    # round-11 4th-finger joined + side-view open hand, opt-in
     do_clown_r12 = "--clown-r12" in args    # round-12 die hand rebuilt as natural open palm-up, opt-in
+    do_clown_r13 = "--clown-r13" in args    # round-13 open hand continues the raised arm, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -7077,6 +7366,8 @@ def main():
         _render_clown_r11_sheet()
     if do_clown_r12:
         _render_clown_r12_sheet()
+    if do_clown_r13:
+        _render_clown_r13_sheet()
 
 
 if __name__ == "__main__":
