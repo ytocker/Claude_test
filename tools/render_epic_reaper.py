@@ -23,7 +23,7 @@ body, and the curved blade rides the GAP-EDGE as a flourish — so a top/bottom
 mirror reads as a clean vertical post with a hooked blade flourishing INTO the
 gap, not a confusing horizontal claw.
 
-Nothing under `game/` is touched; we import the real colour kit only. Headless + deterministic. Output: docs/epic_boss/reaper-shade/round_2.png.
+Nothing under `game/` is touched; we import the real colour kit only. Headless + deterministic. Output: docs/epic_boss/reaper-shade/round_3.png.
 
     PYTHONPATH=. python tools/render_epic_reaper.py
 """
@@ -252,17 +252,10 @@ def draw_reaper(surf, cx, feet_y, scale=1.0, ss=1):
     # violet (never green) so the green budget stays wholly on the blade.
     pygame.draw.arc(surf, VOID_HEM, cav.inflate(int(2 * ss), int(2 * ss)),
                     math.radians(35), math.radians(145), max(1, int(1.4 * ss)))
-    # At most ONE narrow vertical void-glow sliver set DEEP in the shadow at a very
-    # low alpha — a single cold depth-cue, never a pair, never round. Deliberately
-    # set near the threshold of visible so emptiness, not glow, carries the read.
-    sliver = pygame.Surface((max(1, int(2 * ss)), int(H * 0.075)), pygame.SRCALPHA)
-    sw_, shh = sliver.get_size()
-    for yy in range(shh):
-        ft = yy / max(1, shh - 1)
-        a = int(15 * math.sin(ft * math.pi))     # fades at both ends → a sliver
-        sliver.fill((*SOUL_DIM, a), (0, yy, sw_, 1))
-    surf.blit(sliver, (cav_cx - sw_ // 2, cav_cy - shh // 2 + int(H * 0.012)),
-              special_flags=pygame.BLEND_RGBA_ADD)
+    # No interior glow at all: the hood is a pure black VOID. Any green sliver here
+    # — however dim — out-contrasts the rest of the figure inside the dark slot and
+    # reads as a single glowing eye (a cyclops face, MORE of a face than two orbs).
+    # Emptiness is the faceless read; green earns full intensity only on the blade.
 
     # — GREAT-SCYTHE, held across the body. The SNATH is the future pillar body:
     #   a long straight bone-grey shaft running top-to-bottom on the figure's left,
@@ -409,7 +402,7 @@ def main():
     label_f = pygame.font.SysFont("dejavusans", 19, bold=True)
     note_f = pygame.font.SysFont("dejavusans", 14)
 
-    sheet.blit(title_f.render("EPIC EVENT-BOSS  —  reaper-shade  —  round 2", True, (236, 236, 240)), (28, 22))
+    sheet.blit(title_f.render("EPIC EVENT-BOSS  —  reaper-shade  —  round 3", True, (236, 236, 240)), (28, 22))
     sheet.blit(note_f.render(
         "Death itself: FACELESS peaked HOOD (no eyes), robe DISSOLVING into smoke (no feet), great-scythe overhead. "
         "Void-violet dominant; spectral green a thin accent only.",
@@ -520,7 +513,7 @@ def main():
     sheet.blit(note_f.render("blade = gap-edge flourish, not a claw", True, (170, 170, 184)),
                (tx + 4, ty + th + 32))
 
-    out = "/home/user/skybit/docs/epic_boss/reaper-shade/round_2.png"
+    out = "/home/user/skybit/docs/epic_boss/reaper-shade/round_3.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("wrote", out)
