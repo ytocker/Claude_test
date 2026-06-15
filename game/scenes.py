@@ -1560,8 +1560,14 @@ class App:
             self.hud.draw_play(self.screen, self.world, self.best)
             # The demo roll-celebration popup draws AFTER the HUD so it overlays
             # the score counter (the score no longer pokes through the banner).
-            if getattr(self.world, "demo", None) is not None:
-                self.world.demo.draw_sign(self.screen, self.world, 0, 0)
+            demo = getattr(self.world, "demo", None)
+            if demo is not None:
+                demo.draw_sign(self.screen, self.world, 0, 0)
+                # While the banner is up, re-draw Pip ON TOP of it so the parrot
+                # flies in front of the banner (which still overlays the score).
+                if getattr(demo, "die_pop_t", 0) > 0:
+                    self.world.bird.draw(self.screen, sx, sy,
+                                         flipped=self.world.reverse_timer > 0)
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)

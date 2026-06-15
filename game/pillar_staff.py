@@ -298,9 +298,18 @@ def _shaft_twist(surf, cx, top_y, bot_y, hw, ss, col_a, col_b, lo):
     pole, clipped to the column so the stripes stay inside the body. The carousel-
     barker shaft."""
     left, right = _shaft_outline(surf, cx, top_y, bot_y, hw, ss, lo)
-    clip = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     stripe = max(4, int(7 * ss))
     n = int((bot_y - top_y) / stripe) + 4
+    # Clip the diagonal ribbons to the (straight) shaft column with a cheap RECT
+    # clip and draw them straight onto `surf`. The old path allocated TWO
+    # full-size SRCALPHA surfaces and did a full-surface BLEND_RGBA_MULT mask
+    # composite per call — O(box area), which dominated the per-pillar build and
+    # stuttered the route. A rect clip is exact here (the marotte shaft is a
+    # straight column, taper=0) and costs nothing.
+    prev_clip = surf.get_clip()
+    shaft_rect = pygame.Rect(int(cx - hw), int(top_y),
+                             int(2 * hw) + 1, int(bot_y - top_y) + 1)
+    surf.set_clip(shaft_rect.clip(prev_clip))
     # A 4-band cycle (plum x3, gold x1) so the dark plum dominates ~3:1 and the gold
     # ribbon reads as a bold spiral accent — the old 2:1 strobed/flickered at
     # distance, and the wider plum keeps the route median dark.
@@ -309,17 +318,14 @@ def _shaft_twist(surf, cx, top_y, bot_y, hw, ss, col_a, col_b, lo):
         c = col_b if i % 4 == 3 else col_a
         quad = [(cx - hw, y0), (cx + hw, y0 - hw * 1.5),
                 (cx + hw, y0 - hw * 1.5 + stripe), (cx - hw, y0 + stripe)]
-        pygame.draw.polygon(clip, c, [(int(p[0]), int(p[1])) for p in quad])
-    mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    body = left + list(reversed(right))
-    pygame.draw.polygon(mask, (255, 255, 255, 255), [(int(p[0]), int(p[1])) for p in body])
-    clip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    surf.blit(clip, (0, 0))
+        pygame.draw.polygon(surf, c, [(int(p[0]), int(p[1])) for p in quad])
+    surf.set_clip(prev_clip)
     # A slim lit rail down the lit side reads the pole as round, not flat.
     pygame.draw.line(surf, _shade_c(col_a, 50), (int(cx - hw * 0.45), int(top_y)),
                      (int(cx - hw * 0.45), int(bot_y)), max(1, int(1.4 * ss)))
     pygame.draw.polygon(surf, _shade_c(lo, -45),
-                        [(int(p[0]), int(p[1])) for p in body], max(2, int(2.0 * ss)))
+                        [(int(p[0]), int(p[1])) for p in (left + list(reversed(right)))],
+                        max(2, int(2.0 * ss)))
 
 
 def _ferrule(surf, cx, y, hw, ss, col, *, h=8, jewel=None):
