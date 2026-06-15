@@ -1579,10 +1579,12 @@ class Pipe:
         draw_pillar_pair_staff(cache, local_top, local_bot, palette, self.seed)
         self._staff_cache = cache
         self._staff_cache_dx = -margin
-        # Bake the matching collision mask now so the kill-zone follows the staff
-        # silhouette (built well before the pillar reaches the bird, no hitch).
+        # Build the matching collision mask straight from the rendered cache (it
+        # already holds the staff silhouette in its alpha) — re-rendering the staff
+        # a second time here cost ~8ms/pillar and stuttered the route.
         if self._collision_mask is None:
-            self._build_collision_mask()
+            self._collision_mask = pygame.mask.from_surface(cache, 50)
+            self._collision_mask_dx = -margin
 
 
 # ── Coin ─────────────────────────────────────────────────────────────────────

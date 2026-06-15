@@ -438,7 +438,9 @@ def draw_pillar_pair_staff(surf, top_rect, bot_rect, palette, seed):
     gap on each). Matches the pagoda candidate signature so Pipe can cache it.
     `palette`/`seed` are accepted for signature parity; the staff uses its own
     fixed jester colours."""
-    ss = 5
+    # ss=3 is plenty for the ~58px scrolling route tile (ss=5 cost ~9ms/pillar and
+    # stuttered the route; ss=3 renders in ~2.5ms with no visible loss at this size).
+    ss = 3
     out_w = PIPE_W + 2 * OVERHANG
     if top_rect.height > 0:
         top = _staff_obstacle(top_rect.height, ss, flip=True)   # head points DOWN to gap
