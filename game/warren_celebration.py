@@ -145,16 +145,12 @@ def _chrome_vgrad(canvas, rect, rr, ss):
 def _ghost_nameplate(canvas, cx, cy, R, ss):
     """The GHOST flavour label as an icy-chrome nameplate INSET into the lower wheel
     face (design loop winner "V5-A"): a top-down periwinkle chrome gradient matching
-    the rim, a top catch-light, a deep-navy keyline frame + soft drop shadow so it
-    seats ON the wheel, and GHOST in deep navy at open tracking ~half the number
-    height — the rolled number stays the hero, this just names the result."""
+    the rim, a top catch-light, and a deep-navy keyline frame, with GHOST in deep navy
+    at open tracking ~half the number height — the rolled number stays the hero, this
+    just names the result. (Drop shadows are intentionally off here.)"""
     w, h = int(R * 1.52), int(30 * ss)
     rect = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
     rr = int(9 * ss)
-    # Soft drop shadow (kept light so the bottom rim stud below stays crisp).
-    sh = pygame.Surface((rect.w + int(8 * ss), rect.h + int(8 * ss)), pygame.SRCALPHA)
-    pygame.draw.rect(sh, (0, 0, 0, 95), sh.get_rect(), border_radius=rr + int(2 * ss))
-    canvas.blit(sh, (rect.x - int(4 * ss), rect.y + int(2 * ss)))
     # Deep-navy keyline frame (matches the number's outline system), then chrome fill.
     pygame.draw.rect(canvas, GH_INDIGO_DK, rect.inflate(int(2 * ss), int(2 * ss)),
                      border_radius=rr + int(1 * ss))
@@ -163,7 +159,7 @@ def _ghost_nameplate(canvas, cx, cy, R, ss):
                      (rect.right - rr, rect.y + max(1, int(ss))), max(1, int(ss)))
     pygame.draw.rect(canvas, GH_INDIGO_DK, rect, max(1, int(ss)), border_radius=rr)
     _flat_text(canvas, "GHOST", cx, cy - int(ss), ss, size=18,
-               fill=GH_INDIGO_DK, edge=GH_CREAM, edge_w=2, shadow_a=70,
+               fill=GH_INDIGO_DK, edge=GH_CREAM, edge_w=2, shadow_a=0,
                letter_spacing=1.12)
 
 
