@@ -298,7 +298,7 @@ class WarrenDemo:
         try:
             sc = pygame.Surface((96, 96), pygame.SRCALPHA)
             self._draw_die_face(sc, 48, 48, 40, number=self._spin_face,
-                                body=(255, 246, 224), pip_col=(190, 70, 40))
+                                body=(255, 246, 224))
             deg = 360.0 * 3 * (1.0 - (1.0 - u) ** 2)   # 3 turns, decelerate to upright
             rot = pygame.transform.rotate(sc, deg)
             surf.blit(rot, (dx - rot.get_width() // 2, dy - rot.get_height() // 2))
