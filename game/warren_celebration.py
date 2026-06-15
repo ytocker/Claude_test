@@ -22,12 +22,30 @@ from game.pillar_staff import (
 DW, DH = 264, 360
 WHEEL_A, WHEEL_B = PLUM, LIME
 WHEEL_A_G, WHEEL_B_G = (120, 220, 210), (150, 174, 255)   # ghost: cool cyan/periwinkle
+# Ghost re-skin palette — the WHOLE medallion goes spectral: icy chrome replaces the
+# warm gold, deep periwinkle replaces the plum, and a cool cream replaces the warm one.
+GH_METAL, GH_METAL_HI, GH_METAL_DK = (196, 232, 244), (236, 250, 252), (84, 138, 176)
+GH_INDIGO, GH_INDIGO_DK = (74, 86, 168), (44, 52, 112)
+GH_CREAM = (228, 240, 252)
+
+
+def _ghostify(surf):
+    """Wash a warm sub-render (the jester bauble) into the spectral ghost palette so
+    the crown matches the recoloured wheel — multiply toward periwinkle to cool the
+    hue, then lift with a cyan add so it glows ethereal instead of muddying."""
+    tint = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    tint.fill((150, 178, 252))
+    surf.blit(tint, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+    lift = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    lift.fill((30, 46, 74))
+    surf.blit(lift, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
 
 def _wheel(canvas, c, R, ss, wedges, col_a, col_b, *, spin=0.42, rim=None,
-           rim_w=6, cy=None):
+           rim_w=6, cy=None, hi=GOLD_HI, spoke=PLUM_DK):
     """A radiating two-colour prize-wheel rosette with hairline keylines + an
-    optional crisp gold rim. `cy` seats it low so a tall bauble can crown the top."""
+    optional crisp rim. `cy` seats it low so a tall bauble can crown the top;
+    `hi`/`spoke` let the ghost re-skin swap the rim sheen + spoke keylines."""
     cy = c if cy is None else cy
     step = math.tau / wedges
     for i in range(wedges):
@@ -40,20 +58,21 @@ def _wheel(canvas, c, R, ss, wedges, col_a, col_b, *, spin=0.42, rim=None,
             (c + math.cos(a1) * R, cy + math.sin(a1) * R)])
     for i in range(wedges):
         a = spin + i * step
-        pygame.draw.line(canvas, _shade_c(PLUM_DK, -10), (c, cy),
+        pygame.draw.line(canvas, _shade_c(spoke, -10), (c, cy),
                          (c + math.cos(a) * R, cy + math.sin(a) * R), max(1, ss))
     if rim is not None:
         pygame.draw.circle(canvas, _shade_c(rim, -45), (c, cy), R, max(2, int((rim_w + 2) * ss)))
         pygame.draw.circle(canvas, rim, (c, cy), R, max(2, int(rim_w * ss)))
-        pygame.draw.circle(canvas, GOLD_HI, (c, cy), R - int(rim_w * 0.5 * ss), max(1, ss))
+        pygame.draw.circle(canvas, hi, (c, cy), R - int(rim_w * 0.5 * ss), max(1, ss))
 
 
-def _gold_stud(canvas, cx, cy, r, ss, col=GOLD):
-    """A solid domed gold rivet/stud: dark seat + lit dome + a top-left pip — a
-    single bold disc that survives the downscale where a belled tip would mud."""
+def _gold_stud(canvas, cx, cy, r, ss, col=GOLD, hi=GOLD_HI):
+    """A solid domed rivet/stud: dark seat + lit dome + a top-left pip — a single
+    bold disc that survives the downscale where a belled tip would mud. `hi` lets
+    the ghost re-skin swap the warm sheen for an icy one."""
     pygame.draw.circle(canvas, _shade_c(col, -55), (int(cx), int(cy)), int(r))
     pygame.draw.circle(canvas, col, (int(cx), int(cy)), int(r - ss))
-    pygame.draw.circle(canvas, GOLD_HI, (int(cx - r * 0.34), int(cy - r * 0.34)),
+    pygame.draw.circle(canvas, hi, (int(cx - r * 0.34), int(cy - r * 0.34)),
                        max(1, int(r * 0.3)))
 
 
@@ -79,17 +98,17 @@ def _ghost_label(canvas, cx, cy, ss):
     """A small banderole reading GHOST for the ghost re-skin — cream bold text on a
     deep-periwinkle plate with a gold keyline, so the result reads as GHOST and not
     just a recoloured number. Tied to the cyan/periwinkle wheel palette."""
-    plate = _shade_c(WHEEL_B_G, -120)
+    plate = GH_INDIGO_DK
     f = hud._font(int(30 * ss), True)
-    txt = f.render("GHOST", True, CREAM)
+    txt = f.render("GHOST", True, GH_CREAM)
     pad_x, pad_y = int(18 * ss), int(8 * ss)
     w, h = txt.get_width() + pad_x * 2, txt.get_height() + pad_y * 2
     rect = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
     rr = int(9 * ss)
-    pygame.draw.rect(canvas, _shade_c(plate, -40), rect.inflate(int(5 * ss), int(5 * ss)),
+    pygame.draw.rect(canvas, _shade_c(plate, -30), rect.inflate(int(5 * ss), int(5 * ss)),
                      border_radius=rr)
     pygame.draw.rect(canvas, plate, rect, border_radius=rr)
-    pygame.draw.rect(canvas, GOLD, rect, max(2, int(2 * ss)), border_radius=rr)
+    pygame.draw.rect(canvas, GH_METAL, rect, max(2, int(2 * ss)), border_radius=rr)
     sh = f.render("GHOST", True, (0, 0, 0))
     sh.set_alpha(120)
     canvas.blit(sh, sh.get_rect(center=(cx + 2 * ss, cy + 2 * ss)))
@@ -131,27 +150,44 @@ def render(roll, ghost=False, ss=4, b_hr_ss=28):
 
     R = int(hdw * 0.27)
     wcy = int(hdh * 0.60)
-    a_col, b_col = (WHEEL_A_G, WHEEL_B_G) if ghost else (WHEEL_A, WHEEL_B)
-    _wheel(canvas, cx, R, ss, 8, a_col, b_col, spin=0.42, rim=GOLD, rim_w=7, cy=wcy)
+    # The ghost roll re-skins the ENTIRE medallion into the spectral palette — wheel,
+    # rim, studs, hub, number, label and the crowning bauble — not just the wedges.
+    if ghost:
+        a_col, b_col = WHEEL_A_G, WHEEL_B_G
+        metal, metal_hi = GH_METAL, GH_METAL_HI
+        ring, disc, spoke = GH_INDIGO, GH_CREAM, GH_INDIGO_DK
+    else:
+        a_col, b_col = WHEEL_A, WHEEL_B
+        metal, metal_hi = GOLD, GOLD_HI
+        ring, disc, spoke = PLUM, CREAM, PLUM_DK
+    _wheel(canvas, cx, R, ss, 8, a_col, b_col, spin=0.42, rim=metal, rim_w=7, cy=wcy,
+           hi=metal_hi, spoke=spoke)
     # three side/bottom cardinal studs; the TOP one is replaced by the bauble.
     for i in range(1, 4):
         a = i * math.tau / 4 - math.pi / 2
         sx = cx + math.cos(a) * (R + int(2 * ss))
         sy = wcy + math.sin(a) * (R + int(2 * ss))
-        _gold_stud(canvas, sx, sy, int(11 * ss), ss)
-    # cream hub + hero number, scaled to the wheel.
+        _gold_stud(canvas, sx, sy, int(11 * ss), ss, col=metal, hi=metal_hi)
+    # hub + hero number, scaled to the wheel.
     hub_r = int(R * 0.62)
-    pygame.draw.circle(canvas, PLUM, (cx, wcy), hub_r + int(4 * ss))
-    pygame.draw.circle(canvas, GOLD, (cx, wcy), hub_r + int(4 * ss), max(2, int(2 * ss)))
-    pygame.draw.circle(canvas, CREAM, (cx, wcy), hub_r)
-    pygame.draw.circle(canvas, PLUM, (cx, wcy), hub_r, max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, ring, (cx, wcy), hub_r + int(4 * ss))
+    pygame.draw.circle(canvas, metal, (cx, wcy), hub_r + int(4 * ss), max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, disc, (cx, wcy), hub_r)
+    pygame.draw.circle(canvas, ring, (cx, wcy), hub_r, max(2, int(2 * ss)))
     num_size = max(46, int(96 * R / int(hdw * 0.40)))
     _num_block(canvas, cx, wcy, roll, ss, size=num_size,
-               num_col=PLUM, edge_col=CREAM, edge_w=4)
-    # the full clown bauble crowns the top, seated so the face touches the rim.
+               num_col=ring, edge_col=disc, edge_w=4)
+    # the full clown bauble crowns the top, seated so the face touches the rim. For a
+    # ghost roll it is rendered to its own layer and washed into the spectral palette
+    # (its face/cap colours are baked into the shared marotte helpers).
     b_hr = int(b_hr_ss * ss)
     b_hy = (wcy - R) - int(0.95 * b_hr)
-    _jester_bauble(canvas, cx, b_hy, b_hr, ss)
     if ghost:
+        blayer = pygame.Surface((hdw, hdh), pygame.SRCALPHA)
+        _jester_bauble(blayer, cx, b_hy, b_hr, ss)
+        _ghostify(blayer)
+        canvas.blit(blayer, (0, 0))
         _ghost_label(canvas, cx, wcy + R + int(26 * ss), ss)
+    else:
+        _jester_bauble(canvas, cx, b_hy, b_hr, ss)
     return canvas, DW, DH
