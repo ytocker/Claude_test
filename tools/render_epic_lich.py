@@ -196,33 +196,43 @@ def _banner(surf, cx, b_top):
 
 def _crown(surf, cx, base_y, w, s):
     """THREE thick tapered crown shards — tall jagged center, shorter asymmetric
-    flanks, no ball finials. Built as solid blade-wedges so the silhouette is
-    aggressive in pure blackout, not antenna-thin."""
-    band_h = int(7 * s)
+    flanks. SOLID blade-wedges only: no thin needles, NO ball finials (those
+    revived a jester / insect-feeler read at night). Each shard carries enough
+    base mass + height that the skull+crown cluster reads as a jagged CROWNED
+    head even at ~58px 1× — the crown must survive small as hard as the skull."""
+    band_h = int(8 * s)
     half = w // 2
-    # crown band
+    # dark solid crown-band behind the shards (KEEP)
     pygame.draw.rect(surf, NAVY_DK, (cx - half, base_y, w, band_h))
     pygame.draw.rect(surf, ROBE_MID, (cx - half, base_y, w, max(1, band_h - 3)))
     pygame.draw.line(surf, ROBE_HI, (cx - half, base_y + 1), (cx + half, base_y + 1), 1)
-    # three shards: (x-offset, base half-width, height factor) — asymmetric tilt
+    # three shards: (x-offset, base half-width, height factor, lean) — asymmetric.
+    # Base half-widths are deliberately FAT (the wedge keeps mass most of its
+    # length and only points near the tip) so nothing reads as an antenna needle.
     shards = [
-        (-int(half * 0.62), 7, 0.78, -1),   # left flank, leans out, shorter
-        (int(half * 0.06), 9, 1.55, 0),     # tall center, near-vertical
-        (int(half * 0.66), 6, 0.62, 1),     # right flank, leans out, shortest
+        (-int(half * 0.58), 11, 0.92, -1),   # left flank — broad, leans out
+        (int(half * 0.04), 14, 1.50, 0),     # tall center — broadest, near-vertical
+        (int(half * 0.62), 10, 0.74, 1),     # right flank — broad, shortest
     ]
     for ox, bw, hf, lean in shards:
         bx = cx + ox
-        sh = int(40 * s * hf)
-        tip = (bx + lean * int(6 * s), base_y - sh)   # lean tilts the blade
-        bwp = int(bw * s)
-        # solid blade-wedge body so it has mass in blackout
-        pygame.draw.polygon(surf, NAVY_DK, [(bx - bwp, base_y),
-                                            (bx + bwp, base_y), tip])
-        pygame.draw.polygon(surf, ROBE_MID, [(bx - bwp + 1, base_y),
-                                             (bx + int(bwp * 0.3), base_y), tip])
-        # cold rim catching the leading edge + a tip ember (no round finial ball)
+        sh = int(44 * s * hf)
+        tip = (bx + lean * int(5 * s), base_y - sh)   # lean tilts the blade
+        bwp = max(2, int(bw * s))
+        # a chunky neck high on the blade keeps the wedge thick most of its run,
+        # so the silhouette stays a solid blade — it points only at the very tip
+        neck = (bx + int((tip[0] - bx) * 0.62), base_y - int(sh * 0.62))
+        nhw = max(1, int(bwp * 0.45))
+        pygame.draw.polygon(surf, NAVY_DK, [
+            (bx - bwp, base_y), (bx + bwp, base_y),
+            (neck[0] + nhw, neck[1]), tip, (neck[0] - nhw, neck[1])])
+        pygame.draw.polygon(surf, ROBE_MID, [
+            (bx - bwp + 1, base_y), (bx + int(bwp * 0.35), base_y),
+            (neck[0] + int(nhw * 0.4), neck[1]), tip])
+        # cold rim catching the leading edge — a single 1px tip pixel only, NO
+        # round bloom ball (that ball read as a jester finial in blackout)
         pygame.draw.line(surf, BONE_HI, (bx - bwp + 1, base_y - 2), tip, 1)
-        _glow(surf, tip[0], tip[1], int(6 * s), TEAL, alpha=150, falloff=2.0)
+        pygame.draw.line(surf, TEAL_HOT, tip, (tip[0], tip[1] + 1), 1)
 
 
 def _skull(surf, cx, cy, w, h):
@@ -283,13 +293,25 @@ def _skull(surf, cx, cy, w, h):
     pygame.draw.polygon(surf, NAVY_DK, [(cx, cy + int(half_h * 0.24)),
                                         (cx - 3, cy + int(half_h * 0.54)),
                                         (cx + 3, cy + int(half_h * 0.54))])
-    # hairline jaw line + clenched teeth notch — a dark seam splits upper/lower
-    # jaw so the skull has a mouth in blackout
+    # hairline jaw line + clenched teeth — a dark seam splits upper/lower jaw so
+    # the skull has a mouth in blackout. FEWER, CHUNKIER notches (3–4 fat dark
+    # gaps with a bright bone ridge between each) so the mean grin holds at 1×
+    # instead of muddying into one dark smear.
     pygame.draw.line(surf, NAVY_DK, (cx - int(half_w * 0.5), jaw_top - 1),
                      (cx + int(half_w * 0.5), jaw_top - 1), 2)
-    for tx in range(-int(half_w * 0.42), int(half_w * 0.42) + 1, 4):
-        pygame.draw.line(surf, NAVY_DK, (cx + tx, jaw_top),
-                         (cx + tx, jaw_top + 6), 1)
+    span = int(half_w * 0.46)
+    n_tooth = 4                       # 4 chunky teeth → 3 gaps; reads as a grin
+    step = (2 * span) / n_tooth
+    for k in range(n_tooth):
+        tx = int(-span + step * (k + 0.5))
+        # bright bone tooth ridge — the extra value-step that keeps the row crisp
+        pygame.draw.line(surf, BONE_HI, (cx + tx, jaw_top + 1),
+                         (cx + tx, jaw_top + 5), 2)
+        # fat dark gap on the right of each tooth (skip the last → row stays inset)
+        if k < n_tooth - 1:
+            gx = int(tx + step * 0.5)
+            pygame.draw.line(surf, NAVY_DK, (cx + gx, jaw_top),
+                             (cx + gx, jaw_top + 7), 2)
 
 
 # ── the full frost-lich figure ───────────────────────────────────────────────
@@ -496,7 +518,7 @@ def main():
     sheet.blit(small.render("PILLAR 1× (day)", True, NAVY_DK), (psx + 6, inset_y + 18))
 
     # titles + captions
-    title = font.render("FROST-LICH  —  epic boss  —  round 2", True, BONE_HI)
+    title = font.render("FROST-LICH  —  epic boss  —  round 3", True, BONE_HI)
     sheet.blit(title, (30, 18))
     thtag = small.render("PILLAR-FIT", True, TEAL_HOT)
     sheet.blit(thtag, (thx + 4, 60))
@@ -508,7 +530,7 @@ def main():
     sheet.blit(cap2, (30, H - 20))
 
     out = os.path.join(os.path.dirname(__file__), "..",
-                       "docs", "epic_boss", "frost-lich", "round_2.png")
+                       "docs", "epic_boss", "frost-lich", "round_3.png")
     out = os.path.abspath(out)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
