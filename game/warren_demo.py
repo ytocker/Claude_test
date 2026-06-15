@@ -91,8 +91,8 @@ class WarrenDemo:
 
         self._clown_surf = None    # cached clown bitmap (built on first draw)
         self._clown_ok = True      # cleared if build_jester ever throws
-        self._cele_font = None     # lazily-built celebration number/label fonts
-        self._cele_label_font = None
+        self._cele_base = None     # cached true-size celebration popup (design E)
+        self._cele_key = None      # (roll, ghost) the cached popup was built for
 
     # ── public hooks ─────────────────────────────────────────────────────────
     def gates_flap(self):
@@ -257,92 +257,36 @@ class WarrenDemo:
 
     def _draw_celebration(self, surf):
         """The settled roll, popped as a celebration in a fixed on-screen spot
-        (not painted on the cube). Its own festive look — confetti starburst +
-        big number + label — deliberately NOT tied to the clown's motif. A
-        GHOST result reads spooky (cyan + wisps) so its 10 never looks plain."""
+        (not painted on the cube): the chosen design "E" — a high-res jester
+        prize-wheel with the rolled N as the hero, crowned by the staff's
+        mini-clown bauble seated on the rim (see game.warren_celebration). A GHOST
+        roll re-skins the wheel cyan/periwinkle. The static popup is rendered once
+        per roll and pop-scaled each frame (ease-out-back over ~0.3s)."""
         if self.roll is None or self.die_pop_t <= 0.0:
             return
-        ghost = self.ghost_run
-        cx, cy = W // 2, 150
         age = max(0.0, CELE_LIFE - self.die_pop_t)        # secs since the reveal
-
-        # ease-out-back pop-in over the first ~0.3s, then hold at full size
         p = min(1.0, age / 0.30)
         s = 1.70158
         e = 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2
         scale = 0.35 + 0.65 * e
 
-        # Spinning sunburst rosette behind the number. Normal-blended (NOT an
-        # additive glow — additive over the pale sky just blows out white) so it
-        # stays a festive colour, like a little prize wheel.
-        R = max(8, int(64 * scale))
-        rays = 12
-        rose_cols = ([(120, 220, 210), (150, 174, 255)] if ghost
-                     else [(255, 184, 72), (255, 138, 150)])
-        rose = pygame.Surface((2 * R + 4, 2 * R + 4), pygame.SRCALPHA)
-        rc = R + 2
-        spin = self.pulse * 0.5
-        step = math.tau / rays
-        for i in range(rays):
-            a0 = spin + i * step
-            a1 = a0 + step
-            col = rose_cols[i % 2] + (82,)
-            pygame.draw.polygon(rose, col, [
-                (rc, rc),
-                (rc + math.cos(a0) * R, rc + math.sin(a0) * R),
-                (rc + math.cos(a1) * R, rc + math.sin(a1) * R)])
-        surf.blit(rose, (cx - rc, cy - rc))
+        key = (self.roll, self.ghost_run)
+        if self._cele_base is None or self._cele_key != key:
+            try:
+                from game import warren_celebration
+                canvas, dw, dh = warren_celebration.render(
+                    self.roll, self.ghost_run, ss=4)
+                self._cele_base = pygame.transform.smoothscale(canvas, (dw, dh))
+                self._cele_key = key
+            except Exception:
+                self._cele_base = None
+        if self._cele_base is None:
+            return
 
-        # confetti spraying outward (colour-keyed, normal blend so it reads warm
-        # on the bright sky instead of washing white)
-        burst = min(1.0, age / 0.55)
-        conf = [(255, 210, 90), (255, 120, 150), (120, 200, 255), (170, 255, 150)]
-        for i in range(14):
-            a = (i / 14) * math.tau + (0.22 if ghost else 0.0)
-            dist = R * 0.7 + burst * 56 + (i % 3) * 6
-            px = int(cx + math.cos(a) * dist)
-            py = int(cy + math.sin(a) * dist * 0.82)
-            al = int(220 * (1.0 - burst * 0.7))
-            if al <= 0:
-                continue
-            col = ((196, 255, 242, al) if ghost else conf[i % 4] + (al,))
-            dot = pygame.Surface((8, 8), pygame.SRCALPHA)
-            pygame.draw.circle(dot, col, (4, 4), 3)
-            surf.blit(dot, (px - 4, py - 4))
-
-        if self._cele_font is None:
-            self._cele_font = pygame.font.SysFont(None, 92, bold=True)
-        if self._cele_label_font is None:
-            self._cele_label_font = pygame.font.SysFont(None, 30, bold=True)
-
-        num_col = (212, 248, 242) if ghost else (255, 232, 158)
-        out_col = (28, 44, 60) if ghost else (120, 70, 20)
-        num = self._cele_font.render(str(self.roll), True, num_col)
-        out = self._cele_font.render(str(self.roll), True, out_col)
-        if scale != 1.0:
-            num = pygame.transform.rotozoom(num, 0, scale)
-            out = pygame.transform.rotozoom(out, 0, scale)
-        for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
-            surf.blit(out, out.get_rect(center=(cx + ox, cy + oy)))
-        nb = num.get_rect(center=(cx, cy))
-        surf.blit(num, nb)
-
-        label_txt = "GHOST!" if ghost else "PILLARS"
-        label_col = (172, 240, 224) if ghost else (255, 244, 210)
-        label = self._cele_label_font.render(label_txt, True, label_col)
-        surf.blit(label, label.get_rect(center=(cx, nb.bottom + 12)))
-
-        if ghost:                                          # rising ectoplasm wisps
-            for i in range(3):
-                climb = (self.pulse * 16 + i * 13) % 40
-                wx = int(cx - 30 + i * 30 + math.sin(self.pulse * 1.3 + i) * 6)
-                wy = int(cy + 34 - climb)
-                al = max(0, 150 - int(climb * 3))
-                if al <= 0:
-                    continue
-                wsp = pygame.Surface((12, 12), pygame.SRCALPHA)
-                pygame.draw.circle(wsp, (196, 255, 242, al), (6, 6), 4)
-                surf.blit(wsp, (wx - 6, wy - 6), special_flags=pygame.BLEND_ADD)
+        w = max(1, int(self._cele_base.get_width() * scale))
+        h = max(1, int(self._cele_base.get_height() * scale))
+        out = pygame.transform.smoothscale(self._cele_base, (w, h))
+        surf.blit(out, out.get_rect(center=(W // 2, 185)))
 
     def _draw_spinning_die(self, surf, dx, dy):
         """A short cube tumble before the reveal: the die spun by an ease-out
