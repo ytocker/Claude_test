@@ -7311,12 +7311,326 @@ def _render_clown_r13_sheet():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+# ---------------------------------------------------------------------------
+# ROUND 14 — back-of-hand read: the thumb moves BEHIND the open palm.
+#
+#  Round 13 locked Variation 1 "Inline (47deg)" as the winner: the open hand
+#  reads as a natural continuation of the raised arm. But its thumb sat on the
+#  FRONT/near OUTSIDE edge, projecting toward the viewer (palm-facing-us read).
+#  The user wants the BACK of the hand: the thumb belongs on the FAR/rear edge,
+#  tucked behind the palm mass rather than projecting forward. Drawing the thumb
+#  FIRST (so the filled palm polygon paints over it) and re-rooting it on the
+#  rear/inner side flips the read from palm-toward-us to knuckles-toward-us.
+#  Everything else from Inline (47deg) is kept verbatim: broad palm pentagon,
+#  four fingers (middle longest) fanning up-left along the forearm vector, die
+#  floating free with a gap, arm->wrist->palm as one continuous limb.
+_R14_GLOVE    = _R13_GLOVE
+_R14_GROOVE   = _R13_GROOVE
+_R14_GLOVE_HI = _R13_GLOVE_HI
+_R14_OUTLINE  = _R13_OUTLINE
+
+# Inherit Inline's locked forearm-following angle so the continuation is identical.
+_R14_FOREARM_DEG = _R13_FOREARM_DEG
+
+
+def _r14_open_palm_hand(surf, hand, *, spread, wrist, finger_w=4,
+                        thumb_base, thumb_tip, thumb_behind=True,
+                        thenar_x=4.8):
+    """Round-13 Inline open palm REUSED verbatim in shape and continuation, with
+    the ONLY change being the THUMB moved to the BACK of the hand so we read the
+    knuckle side facing us instead of the palm. Local hand frame is unchanged
+    (x = across the palm, +x toward the OUTSIDE/left edge; y = up the hand) and
+    the wrist->palm axis still FOLLOWS the forearm vector. `thumb_base`/`thumb_tip`
+    are local (x, y) endpoints re-rooted toward the FAR/rear edge; when
+    `thumb_behind` is set the thumb is painted FIRST so the filled palm polygon
+    occludes most of it — only the rear hint survives, giving a clean back-of-hand
+    silhouette. `thenar_x` pulls the palm's thumb-root corner IN off the outside
+    edge (the thenar swell that fronted the palm-up read is flattened, since on the
+    back of the hand the thumb root sits behind, not bulging toward us)."""
+    hx, hy = hand
+    ang = math.radians(-wrist)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def _proj(dx, dy):
+        # Identical projection to round 13 — heel laid a hair up the hand so the
+        # wrist tip lands inside the palm mass (continuous limb, no stub/gap).
+        return (hx - int(round(dx * ca - dy * sa)),
+                hy + int(round(-dx * sa - dy * ca)) - int(round(2 * ca)))
+
+    fingers = (
+        (-3.6, 9.8, -1.3),    # index  (toward the OUTSIDE edge), shorter
+        (-1.2, 13.4, -0.4),   # middle (clearly longest — crowns the fan)
+        (1.2, 12.0, 0.4),     # ring   (a touch shorter than middle)
+        (3.5, 8.8, 1.3),      # pinky  (inner side, shortest)
+    )
+
+    def _finger_endpoints(rx, ln, fan):
+        base = _proj(rx, 5)
+        tip = _proj(rx + fan * spread, 5 + ln)
+        return base, tip
+
+    def _draw_thumb():
+        th_base = _proj(*thumb_base)
+        th_tip = _proj(*thumb_tip)
+        pygame.draw.line(surf, _R14_OUTLINE, th_base, th_tip, finger_w + 2)
+        pygame.draw.circle(surf, _R14_OUTLINE, th_tip, (finger_w + 2) // 2)
+        pygame.draw.line(surf, _R14_GLOVE, th_base, th_tip, finger_w)
+        pygame.draw.circle(surf, _R14_GLOVE, th_tip, finger_w // 2)
+
+    # Back-of-hand order: the thumb goes DOWN FIRST so the palm paints over it.
+    if thumb_behind:
+        _draw_thumb()
+
+    # Filled silhouette mass (keyline + glove). The thenar swell that bulged off
+    # the OUTSIDE edge in round 13 is pulled in (`thenar_x`) because on the back
+    # of the hand the thumb root sits behind the knuckle line, not in front.
+    palm_pts_local = [
+        (5.0, 1.0),        # outer heel
+        (thenar_x, 4.5),   # thumb-root corner pulled IN (no forward thenar bulge)
+        (-4.8, 5.0),       # inner knuckle corner (pinky side)
+        (-4.8, -3.0),      # inner wrist corner
+        (4.6, -3.0),       # outer wrist corner
+    ]
+    palm_pts = [_proj(x, y) for (x, y) in palm_pts_local]
+    pygame.draw.polygon(surf, _R14_OUTLINE, palm_pts)
+    pygame.draw.polygon(surf, _R14_GLOVE,
+                        [_proj(x * 0.92, y) for (x, y) in palm_pts_local])
+
+    for rx, ln, fan in fingers:
+        base, tip = _finger_endpoints(rx, ln, fan)
+        pygame.draw.line(surf, _R14_OUTLINE, base, tip, finger_w + 2)
+        pygame.draw.circle(surf, _R14_OUTLINE, tip, (finger_w + 2) // 2)
+    for rx, ln, fan in fingers:
+        base, tip = _finger_endpoints(rx, ln, fan)
+        pygame.draw.line(surf, _R14_GLOVE, base, tip, finger_w)
+        pygame.draw.circle(surf, _R14_GLOVE, tip, finger_w // 2)
+
+    # A back-of-hand thumb on the rear edge (variations 2/3) is still drawn last
+    # for the surviving sliver only if it is NOT meant to be occluded — but here
+    # all three move it behind, so the post-palm pass is skipped. Knuckle dimples
+    # along the finger roots sell the BACK of the hand facing us.
+    for k in range(len(fingers)):
+        rx = fingers[k][0]
+        kn = _proj(rx, 4.6)
+        pygame.draw.circle(surf, _R14_GROOVE, kn, 1)
+
+    # Hairline grooves between fingers — four distinct digits, not a striped comb.
+    for k in range(1, len(fingers)):
+        rprev = fingers[k - 1][0]
+        rcur = fingers[k][0]
+        gv_b = _proj((rprev + rcur) / 2, 6)
+        gv_t = _proj((rprev + rcur) / 2, 6 + 4)
+        pygame.draw.line(surf, _R14_GROOVE, gv_b, gv_t, 1)
+
+    # Top-left rim sheen on the palm + a soft highlight up the middle finger.
+    sh = _proj(-2, 0)
+    pygame.draw.circle(surf, _R14_GLOVE_HI, sh, 2)
+    mb, mt = _finger_endpoints(*fingers[1])
+    pygame.draw.line(surf, _R14_GLOVE_HI, (mb[0] - 1, mb[1] - 1),
+                     (mt[0] - 1, mt[1] - 1), max(1, finger_w // 3))
+
+
+def render_clown_staff_r14(idx, *, total_px, bauble_px, cup_dy, spread, wrist,
+                           thumb_base, thumb_tip, thenar_x=4.8,
+                           die_pulse_off=2.0):
+    """Round-14 hero panel: identical to round-13 Inline (LOCKED grip + untouched
+    floating die + continuous-limb open palm on the forearm wrist tip) except the
+    open hand's THUMB is re-rooted BEHIND the palm so the BACK of the hand faces
+    the viewer. Panels differ ONLY in how far the thumb tucks behind."""
+    spec = dict(JESTERS[-1][1])
+    spec.pop("no_shadow", None)
+    ss = CLOWN_SS
+    palette = shaped_palette(DAY_PHASE)
+    bw, bh = VIEW_W * ss, VIEW_H * ss
+    big = pygame.Surface((bw, bh))
+
+    ground_y = VIEW_FEET_Y + 4
+    g_y = int(ground_y * ss)
+    for y in range(g_y):
+        t = 0.45 + 0.55 * (y / g_y)
+        pygame.draw.line(big, lerp_color(palette['sky_mid'], palette['sky_bot'], t),
+                         (0, y), (bw, y))
+    for y in range(g_y, bh):
+        t = (y - g_y) / max(1, bh - g_y)
+        pygame.draw.line(big, lerp_color(palette['ground_top'], palette['ground_mid'], t),
+                         (0, y), (bw, y))
+    pygame.draw.line(big, _shade(palette['ground_top'], 15), (0, g_y), (bw, g_y))
+
+    layer = pygame.Surface((VIEW_W, VIEW_H), pygame.SRCALPHA)
+    jester_cx = VIEW_W // 2 - 10
+    feet_y = VIEW_FEET_Y
+
+    hand_up = (jester_cx - 60, feet_y - 154 - cup_dy)
+    build_jester(layer, jester_cx, feet_y, hand_up, **spec)
+
+    die_cx = jester_cx - 56
+    die_cy = 30
+    # Open hand anchored ON the forearm's wrist tip (continuation), unchanged.
+    open_hand = (hand_up[0], hand_up[1])
+
+    _r14_open_palm_hand(layer, open_hand, spread=spread, wrist=wrist,
+                        thumb_base=thumb_base, thumb_tip=thumb_tip,
+                        thenar_x=thenar_x)
+    draw_cupped_die(layer, die_cx, die_cy, idx * 1.7 + die_pulse_off,
+                    show_inset=False)
+
+    hip_y = feet_y - _HIP_OFF
+    hip_cx = jester_cx + _HIP_DX
+    r_hand = (hip_cx + 34, hip_y - 4)
+
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    rot = -7
+    rad = math.radians(rot)
+    grip_frac = max(0.30, 1.0 - (ground_y - r_hand[1]) / (p_h * math.cos(rad)))
+    rotated = pygame.transform.rotate(prop, rot)
+    cxr, cyr = p_w / 2, p_h / 2
+
+    def _mapped(lx, ly):
+        ldx, ldy = lx - cxr, ly - cyr
+        rx = cxr + (ldx * math.cos(rad) + ldy * math.sin(rad)) + (rotated.get_width() - p_w) / 2
+        ry = cyr + (-ldx * math.sin(rad) + ldy * math.cos(rad)) + (rotated.get_height() - p_h) / 2
+        return rx, ry
+
+    grip_rx, grip_ry = _mapped(p_w / 2, p_h * grip_frac)
+    prop_ox = int(r_hand[0] - grip_rx)
+    prop_oy = int(r_hand[1] - grip_ry)
+
+    # LOCKED round-11 staff grip, verbatim (behind -> shaft -> occlusion -> front).
+    shaft_w = 2
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=True)
+    layer.blit(rotated, (prop_ox, prop_oy))
+    _r8_grip_occlusion(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w)
+    _r11_grip_glove(layer, (int(r_hand[0]), int(r_hand[1])), shaft_w, behind=False)
+
+    big.blit(pygame.transform.smoothscale(layer, (bw, bh)), (0, 0))
+    return pygame.transform.smoothscale(big, (VIEW_W, VIEW_H))
+
+
+# Three back-of-hand reads on the SAME locked grip + floating die + locked Inline
+# continuation: ONLY how far the thumb tucks behind varies. The thumb was on the
+# FRONT outside edge in round 13 (local ~base (5.2,1.0) -> tip (10.4,4.0), out+up
+# toward the viewer); here every variant moves it to the FAR/rear side so the
+# knuckles face us. The palm thenar corner is also pulled in so no forward bulge
+# survives.
+_CLOWN_R14_VARIANTS = [
+    # 1. Thumb fully behind: rooted on the inner/rear wrist corner and short, so the
+    #    palm polygon paints over nearly all of it — only a hint peeks at the rear
+    #    edge. Cleanest back-of-hand read.
+    ("Thumb fully behind",
+     dict(total_px=200, bauble_px=15, cup_dy=2, spread=0.7,
+          wrist=_R14_FOREARM_DEG,
+          thumb_base=(-3.4, -1.0), thumb_tip=(-5.4, 2.2),
+          thenar_x=4.4, die_pulse_off=2.0),
+     "thumb almost fully occluded behind the palm — only a hint at the rear edge"),
+    # 2. Thumb rear-edge: visible running DOWN the far/outside-rear edge but clearly
+    #    on the back side (rooted high, angled back-and-down, NOT projecting forward).
+    ("Thumb rear-edge",
+     dict(total_px=200, bauble_px=15, cup_dy=2, spread=0.7,
+          wrist=_R14_FOREARM_DEG,
+          thumb_base=(4.8, 2.0), thumb_tip=(6.0, -2.4),
+          thenar_x=4.6, die_pulse_off=2.0),
+     "thumb visible along the far/rear edge, clearly behind, not projecting forward"),
+    # 3. Thumb tucked-low: low and behind near the wrist HEEL on the rear side, the
+    #    knuckle-side read with the thumb almost in the wrist shadow.
+    ("Thumb tucked-low",
+     dict(total_px=200, bauble_px=15, cup_dy=2, spread=0.7,
+          wrist=_R14_FOREARM_DEG,
+          thumb_base=(4.2, -1.6), thumb_tip=(5.6, -4.6),
+          thenar_x=4.6, die_pulse_off=2.0),
+     "thumb low and behind, near the wrist heel on the rear side"),
+]
+
+
+_CLOWN_R14_HEADERS = [
+    ("Warren Clown HERO look-dev — ROUND 14: THUMB MOVED TO THE BACK of the open DIE HAND (back-of-hand / knuckle side faces us); LOCKED grip + floating die + Inline continuation constant",
+     (255, 255, 255)),
+    ("Round 13's winner (Inline 47deg) kept verbatim — broad open palm, four fingers fanning up-left along the forearm, die floating free with a gap, arm->wrist->palm as ONE limb — but the thumb that "
+     "projected off the FRONT outside edge is re-rooted BEHIND the hand so the knuckle side reads. Only how far the thumb tucks behind varies. PICK ONE.",
+     (205, 210, 220)),
+]
+
+
+def _render_clown_r14_sheet():
+    """Round-14 clown look-dev: 3 hero panels of the LOCKED four-finger grip +
+    untouched floating die + locked Inline continuation, varying only how far the
+    open hand's THUMB tucks BEHIND the palm so the BACK of the hand faces us, plus
+    the carried-over true-1x day/night shrink-test strip so the back-of-hand read
+    + continuation + open-palm hold stay legible at real size. Writes
+    docs/warren_clown/round_14.png — never overwrites an existing sheet."""
+    SCALE = 2.4
+    disp_w = int(VIEW_W * SCALE)
+    disp_h = int(VIEW_H * SCALE)
+
+    cols = len(_CLOWN_R14_VARIANTS)
+    pad = 20
+    head = 86
+    name_strip = 38
+    gap = 14
+    shrink_h = 40 + VIEW_H
+
+    cell_w = disp_w
+    cell_h = name_strip + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + cell_h + gap + shrink_h + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(28, True)
+    sub_f = hud._font(15, True)
+    sheet.blit(title_f.render(_CLOWN_R14_HEADERS[0][0], True, _CLOWN_R14_HEADERS[0][1]), (pad, 14))
+    sheet.blit(sub_f.render(_CLOWN_R14_HEADERS[1][0], True, _CLOWN_R14_HEADERS[1][1]), (pad, 50))
+
+    name_f = hud._font(18, True)
+    note_f = hud._font(12, False)
+
+    panels = []
+    for idx, (name, kw, note) in enumerate(_CLOWN_R14_VARIANTS):
+        px = pad + idx * (cell_w + gap)
+        py = head
+
+        strip = pygame.Surface((cell_w, name_strip), pygame.SRCALPHA)
+        strip.fill((18, 20, 28, 220))
+        strip.blit(name_f.render(f"{idx + 1}. {name}", True, (255, 255, 255)), (8, 4))
+        strip.blit(note_f.render(note, True, (188, 194, 206)), (10, 22))
+        sheet.blit(strip, (px, py))
+
+        clown = render_clown_staff_r14(idx, **kw)
+        panels.append(clown)
+        big = pygame.transform.smoothscale(clown, (disp_w, disp_h))
+        pygame.draw.rect(big, (10, 12, 18), big.get_rect(), 2)
+        sheet.blit(big, (px, py + name_strip))
+
+    sy = head + cell_h + gap
+    sheet.blit(name_f.render("Shrink test — true 1x (left half: day sky / right half: night sky)",
+                             True, (255, 235, 120)), (pad, sy))
+    sy += 34
+    day_pal = shaped_palette(DAY_PHASE)
+    night_pal = shaped_palette(0.5)
+    for idx, clown in enumerate(panels):
+        px = pad + idx * (cell_w + gap)
+        day_bg = pygame.Surface((VIEW_W, VIEW_H))
+        day_bg.fill(day_pal['sky_mid'])
+        night_bg = pygame.Surface((VIEW_W, VIEW_H))
+        night_bg.fill(night_pal['sky_mid'])
+        day_bg.blit(clown, (0, 0))
+        night_bg.blit(clown, (0, 0))
+        sheet.blit(day_bg, (px, sy))
+        sheet.blit(night_bg, (px + VIEW_W + 6, sy))
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_14.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def main():
     # Default: emit the round-8 SABER-ONLY and MAROTTE-ONLY browse sheets alongside
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -7334,6 +7648,7 @@ def main():
     do_clown_r11 = "--clown-r11" in args    # round-11 4th-finger joined + side-view open hand, opt-in
     do_clown_r12 = "--clown-r12" in args    # round-12 die hand rebuilt as natural open palm-up, opt-in
     do_clown_r13 = "--clown-r13" in args    # round-13 open hand continues the raised arm, opt-in
+    do_clown_r14 = "--clown-r14" in args    # round-14 thumb moved to the BACK of the open hand, opt-in
     if do_round7:
         _render_sheet(VERSIONS, "round_7.png", _ROUND7_HEADERS)
     if do_sabers:
@@ -7368,6 +7683,8 @@ def main():
         _render_clown_r12_sheet()
     if do_clown_r13:
         _render_clown_r13_sheet()
+    if do_clown_r14:
+        _render_clown_r14_sheet()
 
 
 if __name__ == "__main__":
