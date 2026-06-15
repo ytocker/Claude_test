@@ -1340,9 +1340,8 @@ class App:
         for p in self.world.pipes:
             p.draw(self.screen, pipe_palette, kfc_visual=kfc_active,
                    phase=pipe_phase)
-        # Demo route sign — in front of the pagoda tops it hangs from.
-        if getattr(self.world, "demo", None) is not None:
-            self.world.demo.draw_sign(self.screen, self.world, sx, sy)
+        # (The demo roll-celebration popup is drawn LATER, after the HUD, so it
+        # overlays the score counter — see the STATE_PLAY block below.)
         # SKATEBOARD ramps: wooden wedges perched on lower-pillar
         # crowns. Drawn AFTER pipes so the wedge overpaints the crown
         # vegetation; below the bird so Pip rides on top.
@@ -1559,6 +1558,10 @@ class App:
             self.hud.draw_menu(self.screen, 1 / 60, self.best)
         elif self.state == STATE_PLAY:
             self.hud.draw_play(self.screen, self.world, self.best)
+            # The demo roll-celebration popup draws AFTER the HUD so it overlays
+            # the score counter (the score no longer pokes through the banner).
+            if getattr(self.world, "demo", None) is not None:
+                self.world.demo.draw_sign(self.screen, self.world, 0, 0)
         elif self.state == STATE_PAUSE:
             self.hud.draw_play(self.screen, self.world, self.best, paused=True)
             self.hud.draw_pause_overlay(self.screen, score=self.world.score)

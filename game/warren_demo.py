@@ -286,7 +286,9 @@ class WarrenDemo:
         w = max(1, int(self._cele_base.get_width() * scale))
         h = max(1, int(self._cele_base.get_height() * scale))
         out = pygame.transform.smoothscale(self._cele_base, (w, h))
-        surf.blit(out, out.get_rect(center=(W // 2, 185)))
+        # Centred a bit low so the bauble crown overlays the top-centre score
+        # counter (this popup is drawn after the HUD, so it covers it).
+        surf.blit(out, out.get_rect(center=(W // 2, 210)))
 
     def _draw_spinning_die(self, surf, dx, dy):
         """A short cube tumble before the reveal: the die spun by an ease-out
