@@ -434,7 +434,333 @@ VARIANTS = [
 ]
 
 
-def render_sheet():
+# ── Round 2: art-director polish pass ─────────────────────────────────────────
+# Cell 3 (Barber-twist sign) is the chosen WINNER, cell 5 (Cap-bell banderole)
+# the alternate; the rest are tuned so the rolled NUMBER stays the dominant hero
+# and reads on value at the true-1x inset, never leaning on the "STAFFS" label.
+
+def _gold_stud(canvas, cx, cy, r, ss, col=GOLD):
+    """A solid domed gold rivet/stud: a dark seat, a lit dome, a top-left pip.
+    Replaces the tiny jingle bells that turned to mud at 1x — a stud is a single
+    bold disc that survives the downscale where a belled silhouette dissolves."""
+    pygame.draw.circle(canvas, _shade_c(col, -55), (int(cx), int(cy)), int(r))
+    pygame.draw.circle(canvas, col, (int(cx), int(cy)), int(r - ss))
+    pygame.draw.circle(canvas, GOLD_HI, (int(cx - r * 0.34), int(cy - r * 0.34)),
+                       max(1, int(r * 0.3)))
+
+
+def _shaft_twist_wide(surf, cx, top_y, bot_y, hw, ss, col_a, col_b, lo, *,
+                      pitch=8.0):
+    """A widened-pitch barber-pole twist for the winning frame: the spiral pitch
+    is opened up ~15% over the staff's stock `_shaft_twist` so the candy stripe
+    stays a clean read at the 1x inset instead of strobing. Same dark-cored body,
+    lit rail and keyline so it still matches the Carousel-Barker pole."""
+    from game.pillar_staff import _shaft_outline
+    left, right = _shaft_outline(surf, cx, top_y, bot_y, hw, ss, lo)
+    clip = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    stripe = max(4, int(pitch * ss))
+    n = int((bot_y - top_y) / stripe) + 4
+    # Same 4-band cycle (plum x3, gold x1) as the stock pole so plum dominates
+    # ~3:1; only the band height grows, opening the spiral.
+    for i in range(-2, n):
+        y0 = top_y + i * stripe
+        c = col_b if i % 4 == 3 else col_a
+        quad = [(cx - hw, y0), (cx + hw, y0 - hw * 1.5),
+                (cx + hw, y0 - hw * 1.5 + stripe), (cx - hw, y0 + stripe)]
+        pygame.draw.polygon(clip, c, [(int(p[0]), int(p[1])) for p in quad])
+    mask = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    body = left + list(reversed(right))
+    pygame.draw.polygon(mask, (255, 255, 255, 255),
+                        [(int(p[0]), int(p[1])) for p in body])
+    clip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    surf.blit(clip, (0, 0))
+    pygame.draw.line(surf, _shade_c(col_a, 50), (int(cx - hw * 0.45), int(top_y)),
+                     (int(cx - hw * 0.45), int(bot_y)), max(1, int(1.4 * ss)))
+    pygame.draw.polygon(surf, _shade_c(lo, -45),
+                        [(int(p[0]), int(p[1])) for p in body], max(2, int(2.0 * ss)))
+
+
+# ── Cell 2 (R2): 8-wedge wheel, big number hub, gold studs (no mud bells) ─────
+def var_jester_wheel_r2(roll, ss):
+    """8 wedges instead of 12 so the wheel can't shimmer at 1x; the rim's belled
+    ring is swapped for four bold gold studs at the cardinal points (small bells
+    turned to mud); the cream hub + hero number is pushed larger so the number
+    owns the centre."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    R = int(HD * 0.40)
+    _wheel(canvas, c, R, ss, 8, WHEEL_A, WHEEL_B, spin=0.42, rim=GOLD, rim_w=7)
+    # Four larger gold studs at the cardinals read where a bell ring muddied.
+    for i in range(4):
+        a = i * math.tau / 4 - math.pi / 2
+        sx = c + math.cos(a) * (R + int(2 * ss))
+        sy = c + math.sin(a) * (R + int(2 * ss))
+        _gold_stud(canvas, sx, sy, int(11 * ss), ss)
+    # Cream hub disc grown so the bigger number sits on cream, ringed plum + gold.
+    hub_r = int(R * 0.62)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r + int(4 * ss))
+    pygame.draw.circle(canvas, GOLD, (c, c), hub_r + int(4 * ss), max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, CREAM, (c, c), hub_r)
+    pygame.draw.circle(canvas, PLUM, (c, c), hub_r, max(2, int(2 * ss)))
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=96,
+               num_col=PLUM, edge_col=CREAM, edge_w=4)
+    _label_plate(canvas, c, c + int(hub_r * 0.74), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=22)
+    return canvas, D
+
+
+# ── Cell 3 (R2, WINNER): widened barber twist, lighter shadow, nudged number ──
+def var_barber_sign_r2(roll, ss):
+    """The winning framed sign, polished: the barber spiral pitch is widened ~15%
+    so it stays a clean candy-twist (no strobe) at 1x; the number's drop shadow is
+    lightened ~20% so the digits stay crisp; the number is nudged DOWN ~4px so its
+    optical centre accounts for the "STAFFS" lozenge below. Frame, ferrules, bell
+    topper, cream field and dominant number are otherwise untouched."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    half = int(HD * 0.34)
+    hw = int(8 * ss)
+    pad = int(hw * 1.3)
+    field = pygame.Rect(c - half + pad, c - half + pad,
+                        (half - pad) * 2, (half - pad) * 2)
+    pygame.draw.rect(canvas, _shade_c(CREAM, -16), field, border_radius=int(10 * ss))
+    pygame.draw.rect(canvas, CREAM, field.inflate(-2 * ss, -2 * ss),
+                     border_radius=int(10 * ss))
+
+    # Four widened-pitch barber-twist rails framing the sign.
+    _shaft_twist_wide(canvas, c - half, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+    _shaft_twist_wide(canvas, c + half, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+    for yy in (c - half, c + half):
+        strip = pygame.Surface((HD, HD), pygame.SRCALPHA)
+        _shaft_twist_wide(strip, c, c - half, c + half, hw, ss, PLUM, GOLD, PLUM_DK)
+        strip = pygame.transform.rotate(strip, 90)
+        off = (strip.get_width() - HD) // 2
+        canvas.blit(strip, (-off, yy - c - off))
+
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            jx, jy = c + sx * half, c + sy * half
+            pygame.draw.circle(canvas, _shade_c(GOLD, -45), (jx, jy), int(11 * ss))
+            pygame.draw.circle(canvas, GOLD, (jx, jy), int(9 * ss))
+            pygame.draw.circle(canvas, PLUM, (jx, jy), int(4 * ss))
+            pygame.draw.circle(canvas, GOLD_HI, (jx - int(3 * ss), jy - int(3 * ss)),
+                               int(2.4 * ss))
+    _pommel_finial(canvas, c, c - half - int(8 * ss), hw, ss, GOLD, kind="bell")
+    _jingle_bell(canvas, c, c - half - int(20 * ss), int(8 * ss), ss)
+
+    # Number nudged down ~4px + shadow lightened (~88 vs the stock 110 alpha).
+    _num_block(canvas, c, c - int(4 * ss), roll, ss, size=88,
+               num_col=PLUM, edge_col=GOLD, shadow_a=88, edge_w=4)
+    _label_plate(canvas, c, c + int(half * 0.62), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=21)
+    return canvas, D
+
+
+# ── Cell 4 (R2): squarer plaque, bigger number, smaller marottes low-flanking ──
+def var_marotte_plaque_r2(roll, ss):
+    """The plaque is squared up (less tall/narrow) so the hero number can grow
+    ~20%; the two marottes are shrunk ~30% and dropped to flank only the LOWER
+    third, so they stop crowding the number while keeping their charming faces."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    pal = [GOLD, LIME, CREAM, PLUM]
+    for i in range(20):
+        a = i * math.tau / 20 + 0.3
+        dist = HD * 0.30 + (i % 4) * 8 * ss
+        px = c + math.cos(a) * dist
+        py = c + math.sin(a) * dist * 0.92
+        col = pal[i % len(pal)]
+        if i % 2 == 0:
+            sz = (5 + i % 3 * 2) * ss
+            d = pygame.Surface((sz, sz), pygame.SRCALPHA)
+            pygame.draw.polygon(d, col + (235,),
+                                [(sz // 2, 0), (sz, sz // 2), (sz // 2, sz), (0, sz // 2)])
+            d = pygame.transform.rotate(d, (i * 47) % 360)
+            canvas.blit(d, d.get_rect(center=(int(px), int(py))))
+        else:
+            pygame.draw.circle(canvas, col, (int(px), int(py)), 3 * ss)
+
+    # Smaller marottes dropped to the LOWER third so they flank, never crowd.
+    def marotte(mx, lean):
+        hr = int(14 * ss)
+        hy = c + int(HD * 0.16)
+        shaft_top = hy + hr
+        shaft_bot = c + int(HD * 0.36)
+        hwid = int(5 * ss)
+        _shaft_twist(canvas, mx, shaft_top, shaft_bot, hwid, ss, PLUM, GOLD, PLUM_DK)
+        _pommel_finial(canvas, mx, shaft_bot, hwid, ss, GOLD, kind="ball", gem=PLUM)
+        _marotte_ruff(canvas, mx, hy + hr - int(2 * ss), int(hr * 1.05), ss, LIME,
+                      lobes=9, fringe=GOLD)
+        _mini_clown_face(canvas, mx, hy, hr, ss, expr="grin", look=lean * 2.0 * ss)
+    marotte(c - int(HD * 0.34), 1)
+    marotte(c + int(HD * 0.34), -1)
+
+    # Squared-up plaque (near 1:1) so the number has room to grow.
+    pw, ph = int(HD * 0.50), int(HD * 0.44)
+    plaque = pygame.Rect(c - pw // 2, c - ph // 2, pw, ph)
+    pygame.draw.rect(canvas, GOLD, plaque.inflate(8 * ss, 8 * ss),
+                     border_radius=int(16 * ss))
+    pygame.draw.rect(canvas, PLUM_DK, plaque.inflate(2 * ss, 2 * ss),
+                     border_radius=int(14 * ss))
+    pygame.draw.rect(canvas, PLUM, plaque, border_radius=int(13 * ss))
+    pygame.draw.rect(canvas, GOLD, plaque.inflate(-8 * ss, -8 * ss),
+                     width=max(1, 2 * ss), border_radius=int(10 * ss))
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=100,
+               num_col=CREAM, edge_col=PLUM_DK, edge_w=4)
+    _label_plate(canvas, c, plaque.bottom - int(2 * ss), "STAFFS", ss, PLUM,
+                 CREAM, PLUM_DK, size=21)
+    return canvas, D
+
+
+# ── Cell 5 (R2, ALTERNATE): keylined cap points + enlarged side bells ─────────
+def var_cap_banderole_r2(roll, ss):
+    """The alternate banner, hardened for dark/night sky: a thin cream/gold
+    keyline rings each dark-plum cap point so the crown silhouette survives on a
+    near-black sky, and the two side bells are enlarged ~25% so they're not the
+    only mud detail. Cap, lime banner and number scale are otherwise kept."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    bw, bh = int(HD * 0.70), int(HD * 0.42)
+    bx, by = c - bw // 2, c - bh // 2 + int(HD * 0.06)
+
+    tail_w = int(HD * 0.17)
+    for sgn in (-1, 1):
+        x0 = c + sgn * (bw // 2 - 4 * ss)
+        pts = [
+            (x0, by + int(bh * 0.20)),
+            (x0 + sgn * tail_w, by + int(bh * 0.05)),
+            (x0 + sgn * tail_w * 0.7, by + bh // 2),
+            (x0 + sgn * tail_w, by + int(bh * 0.95)),
+            (x0, by + int(bh * 0.80)),
+        ]
+        pygame.draw.polygon(canvas, PLUM_DK, [(int(p[0]), int(p[1])) for p in pts])
+
+    cap_base_y = by - int(2 * ss)
+    n_pts = 3
+    seg = bw / n_pts
+    for k in range(n_pts):
+        bx0 = bx + k * seg
+        bx1 = bx + (k + 1) * seg
+        apex_x = (bx0 + bx1) / 2
+        apex_y = cap_base_y - int(bh * (0.62 if k == 1 else 0.50))
+        col = PLUM if k % 2 == 0 else LIME
+        pygame.draw.polygon(canvas, _shade_c(col, -40),
+                            [(bx0, cap_base_y), (bx1, cap_base_y), (apex_x, apex_y)])
+        pygame.draw.polygon(canvas, col,
+                            [(bx0 + ss, cap_base_y), (bx1 - ss, cap_base_y),
+                             (apex_x, apex_y + ss)])
+        # Thin cream/gold keyline so the dark plum points hold their crown
+        # silhouette against a near-black night sky (the plum vanished before).
+        key = CREAM if k % 2 == 0 else GOLD
+        pygame.draw.lines(canvas, key, False,
+                          [(int(bx0), int(cap_base_y)), (int(apex_x), int(apex_y)),
+                           (int(bx1), int(cap_base_y))], max(1, int(1.6 * ss)))
+        # Larger bells (~25% up) so the cap-tip jingle is a real detail at 1x.
+        _jingle_bell(canvas, apex_x, apex_y - int(2 * ss), int(7.5 * ss), ss)
+
+    rad = int(18 * ss)
+    halo = int(7 * ss)
+    pygame.draw.rect(canvas, PLUM, (bx - halo, by - halo, bw + 2 * halo, bh + 2 * halo),
+                     border_radius=rad + halo)
+    pygame.draw.rect(canvas, LIME, (bx, by, bw, bh), border_radius=rad)
+    pygame.draw.rect(canvas, GOLD, (bx + 6 * ss, by + 6 * ss, bw - 12 * ss, bh - 12 * ss),
+                     width=2 * ss, border_radius=rad - 4 * ss)
+    gloss = pygame.Surface((bw - 12 * ss, bh // 3), pygame.SRCALPHA)
+    gloss.fill((255, 255, 255, 42))
+    canvas.blit(gloss, (bx + 6 * ss, by + 6 * ss))
+
+    _num_block(canvas, c, by + bh // 2 - int(6 * ss), roll, ss, size=88,
+               num_col=CREAM, edge_col=PLUM, edge_w=5)
+    _label_plate(canvas, c, by + bh + int(2 * ss), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=22)
+    return canvas, D
+
+
+# ── Cell 6 (R2): bigger medallion, shorter rays, 4 cardinal studs (no bells) ──
+def var_bell_sunburst_r2(roll, ss):
+    """The sunburst, tightened: the central medallion grows ~20% and the rays are
+    shortened ~15% so the burst frames the hero number instead of fighting it;
+    the ring of ray-tip bells is dropped for four larger gold studs at the
+    cardinal points (the bells turned to mud). Number gets the extra room."""
+    D = 264
+    HD = D * ss
+    c = HD // 2
+    canvas = pygame.Surface((HD, HD), pygame.SRCALPHA)
+
+    # Two-tone rays, shortened ~15% from the round-1 reach.
+    n = 16
+    for i in range(n):
+        a0 = i * math.tau / n - math.pi / 2
+        long_ray = i % 2 == 0
+        rr = HD * (0.39 if long_ray else 0.32)
+        col = GOLD if long_ray else LIME
+        half_w = (0.10 if long_ray else 0.07)
+        p_in = (c + math.cos(a0) * HD * 0.18, c + math.sin(a0) * HD * 0.18)
+        p_l = (c + math.cos(a0 - half_w) * rr, c + math.sin(a0 - half_w) * rr)
+        p_r = (c + math.cos(a0 + half_w) * rr, c + math.sin(a0 + half_w) * rr)
+        pygame.draw.polygon(canvas, _shade_c(col, -35),
+                            [(int(p_in[0]), int(p_in[1])),
+                             (int(p_l[0]), int(p_l[1])), (int(p_r[0]), int(p_r[1]))])
+        pygame.draw.polygon(canvas, col,
+                            [(int(c), int(c)),
+                             (int(p_l[0]), int(p_l[1])), (int(p_r[0]), int(p_r[1]))], 0)
+
+    # Four larger gold studs at the cardinals replace the muddy bell ring.
+    for i in range(4):
+        a0 = i * math.tau / 4 - math.pi / 2
+        sx = c + math.cos(a0) * HD * 0.37
+        sy = c + math.sin(a0) * HD * 0.37
+        _gold_stud(canvas, sx, sy, int(11 * ss), ss)
+
+    # Medallion grown ~20% so the number sits clearly framed within it.
+    med_r = int(HD * 0.29)
+    pygame.draw.circle(canvas, GOLD, (c, c), med_r + int(5 * ss))
+    pygame.draw.circle(canvas, _shade_c(GOLD, -45), (c, c), med_r + int(5 * ss),
+                       max(2, int(2 * ss)))
+    pygame.draw.circle(canvas, PLUM, (c, c), med_r)
+    pygame.draw.circle(canvas, CREAM, (c, c), int(med_r * 0.78))
+    pygame.draw.circle(canvas, PLUM, (c, c), int(med_r * 0.78), max(2, int(2 * ss)))
+
+    _num_block(canvas, c, c - int(8 * ss), roll, ss, size=88,
+               num_col=PLUM, edge_col=CREAM, edge_w=4)
+    _label_plate(canvas, c, c + int(med_r * 0.66), "STAFFS", ss, PLUM, CREAM,
+                 PLUM_DK, size=21)
+    return canvas, D
+
+
+VARIANTS_R2 = [
+    ("1  Original (baseline)", "current 12-wedge orange/pink wheel + PILLARS",
+     var_baseline),
+    ("2  Jester prize-wheel", "8 wedges, big-number hub, 4 gold studs",
+     var_jester_wheel_r2),
+    ("3  Barber-twist sign  (WINNER)", "wider spiral pitch, lighter shadow, "
+     "number nudged down", var_barber_sign_r2),
+    ("4  Marotte plaque", "squarer plaque, +20% number, smaller low marottes",
+     var_marotte_plaque_r2),
+    ("5  Cap-bell banderole  (ALT)", "keylined cap points + larger side bells",
+     var_cap_banderole_r2),
+    ("6  Bell-burst sunburst", "bigger medallion, shorter rays, 4 cardinal studs",
+     var_bell_sunburst_r2),
+]
+
+
+def render_sheet(variants=VARIANTS, out_name="round_1.png", *,
+                 title="Warren Roll-Result Celebration — Round 1 "
+                 "(baseline + 5 jester variants)"):
     SS = 4  # supersample for crisp downscale to true size
     TRUE = 264   # popup is 264 design px on the 360 canvas
     INSET = 116  # actual-size inset shows the popup at real small-screen size
@@ -451,9 +777,7 @@ def render_sheet():
 
     title_f = hud._font(30, True)
     sub_f = hud._font(15, True)
-    sheet.blit(title_f.render(
-        "Warren Roll-Result Celebration — Round 1 (baseline + 5 jester variants)",
-        True, (255, 255, 255)), (pad, 12))
+    sheet.blit(title_f.render(title, True, (255, 255, 255)), (pad, 12))
     sheet.blit(sub_f.render(
         "Cell 1 = current ship wheel. Cells 2-6 = high-res Plum & Lime clown+staff "
         "takes. True 264px on day sky + actual-size inset.",
@@ -462,7 +786,7 @@ def render_sheet():
     label_f = hud._font(19, True)
     samp_f = hud._font(13, True)
 
-    for idx, (name, desc, fn) in enumerate(VARIANTS):
+    for idx, (name, desc, fn) in enumerate(variants):
         col = idx % cols
         row = idx // cols
         tx = pad + col * (tile_w + pad)
@@ -503,17 +827,22 @@ def render_sheet():
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "dice_results", "warren_roll")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, out_name)
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
 
 def main():
-    # Opt-in flag so this look-dev sheet isn't rendered by accident.
-    if "--warren-cele" in sys.argv:
+    # Opt-in flags so these look-dev sheets aren't rendered by accident.
+    if "--warren-cele-r2" in sys.argv:
+        render_sheet(
+            VARIANTS_R2, "round_2.png",
+            title="Warren Roll-Result Celebration — Round 2 "
+            "(art-director polish: cell 3 WINNER, cell 5 ALT)")
+    elif "--warren-cele" in sys.argv:
         render_sheet()
     else:
-        print("pass --warren-cele to render docs/dice_results/warren_roll/round_1.png")
+        print("pass --warren-cele (round_1.png) or --warren-cele-r2 (round_2.png)")
 
 
 if __name__ == "__main__":
