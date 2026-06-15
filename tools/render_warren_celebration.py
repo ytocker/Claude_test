@@ -742,11 +742,38 @@ def var_bell_sunburst_r2(roll, ss):
     return canvas, D
 
 
-# ── Cell 2 (R3): the chosen wheel, label dropped + mini-clown face topper ─────
+def _jester_bauble(canvas, cx, hy, hr, ss):
+    """The staff's mini-clown BAUBLE head — the same assembly that crowns the
+    Carousel-Barker staff: a 4-point bell-tipped jester CAP (his hat), the lime
+    belled RUFF collar (the "scarf"), and the grinning mini-clown FACE. The cap
+    offsets are authored for hr = 13*ss, so they scale by u = hr / (13*ss)."""
+    u = hr / (13.0 * ss)
+    base_y = hy - hr + int(1 * ss)
+    span = max(2, int(8 * ss * u))
+    for (dx, dy, col) in [(-30, -8, PLUM_DK), (30, -6, PLUM_DK),
+                          (-19, -29, LIME_DK), (19, -27, GOLD_DK)]:
+        bxp = cx + int(dx * ss * u)
+        byp = base_y + int(dy * ss * u)
+        tri = [(cx - span, base_y + int(2 * ss)),
+               (cx + span, base_y + int(2 * ss)), (bxp, byp)]
+        pygame.draw.polygon(canvas, col, tri)
+        pygame.draw.polygon(canvas, _shade_c(col, 50),
+                            [(cx - span, base_y + int(2 * ss)),
+                             (cx, base_y + int(2 * ss)), (bxp, byp)])
+        pygame.draw.polygon(canvas, _shade_c(col, -60), tri, max(1, int(1.4 * ss)))
+        br = max(2, int(3.4 * ss * u))
+        pygame.draw.circle(canvas, GOLD, (int(bxp), int(byp)), br)
+        pygame.draw.circle(canvas, GOLD_DK, (int(bxp), int(byp)), br, max(1, int(ss)))
+    _marotte_ruff(canvas, cx, hy + hr - int(2 * ss), int(hr * 1.05), ss, LIME, lobes=9)
+    _mini_clown_face(canvas, cx, hy, hr, ss, expr="grin")
+
+
+# ── Cell 2 (R3): the chosen wheel, label dropped + mini-clown BAUBLE topper ───
 def var_jester_wheel_r3(roll, ss):
     """The chosen jester prize-wheel, refined per the user's pick: the "STAFFS"
     label is dropped so the number stands alone, and the TOP cardinal stud is
-    replaced by the staff's own mini-clown bauble face crowning the wheel."""
+    replaced by the staff's own mini-clown bauble (cap + ruff + face) crowning
+    the wheel."""
     D = 264
     HD = D * ss
     c = HD // 2
@@ -768,21 +795,18 @@ def var_jester_wheel_r3(roll, ss):
     pygame.draw.circle(canvas, PLUM, (c, c), hub_r, max(2, int(2 * ss)))
     _num_block(canvas, c, c, roll, ss, size=96, num_col=PLUM, edge_col=CREAM, edge_w=4)
 
-    # The staff's mini-clown bauble face crowns the top, seated where the stud was.
-    # A small gold disc behind it lifts the cream head off the wheel wedges.
-    face_hr = int(15 * ss)
-    fy = c - R + int(2 * ss)
-    pygame.draw.circle(canvas, GOLD, (c, fy), face_hr + int(3 * ss))
-    pygame.draw.circle(canvas, GOLD_DK, (c, fy), face_hr + int(3 * ss), max(1, int(ss)))
-    _mini_clown_face(canvas, c, fy, face_hr, ss, expr="grin")
+    # The staff's whole mini-clown bauble (cap + ruff + face) crowns the top,
+    # where the stud was — sized + seated so the cap clears the canvas top and the
+    # ruff rests on the wheel without dipping onto the number in the hub.
+    _jester_bauble(canvas, c, c - int(R * 0.87), int(11 * ss), ss)
     return canvas, D
 
 
 VARIANTS_R3 = [
     ("2  Jester wheel  (before)", "with STAFFS label + top gold stud",
      var_jester_wheel_r2),
-    ("2  Clown-face topper  (NEW)", "no label, mini-clown face replaces the top stud",
-     var_jester_wheel_r3),
+    ("2  Bauble topper  (NEW)", "no label, full clown bauble (cap + ruff + face) "
+     "replaces the top stud", var_jester_wheel_r3),
 ]
 
 
@@ -882,7 +906,7 @@ def main():
         render_sheet(
             VARIANTS_R3, "round_3.png",
             title="Warren Roll Celebration — Jester wheel refined "
-            "(drop STAFFS label + mini-clown-face topper)")
+            "(drop STAFFS label + clown bauble topper: cap + ruff + face)")
     elif "--warren-cele-r2" in sys.argv:
         render_sheet(
             VARIANTS_R2, "round_2.png",
