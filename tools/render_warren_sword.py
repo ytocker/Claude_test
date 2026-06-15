@@ -2798,7 +2798,8 @@ def prop_14k(surf, bw, bh, ss):
 def prop_14l(surf, bw, bh, ss):
     cx = bw // 2
     hr = int(13 * ss)
-    hy = int(34 * ss)
+    hy = int(50 * ss)                      # seat the head lower so the tall cap +
+                                           # its bell tips clear the box top (no clip)
     shaft_top = hy + hr
     hwid = int(7 * ss)
     _shaft_twist(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, GOLD, PLUM_DK)
@@ -2828,7 +2829,8 @@ def prop_14l(surf, bw, bh, ss):
 def prop_14m(surf, bw, bh, ss):
     cx = bw // 2
     hr = int(13 * ss)
-    hy = int(36 * ss)
+    hy = int(48 * ss)                      # seat the head lower so the tall cap +
+                                           # its bell tips clear the box top (no clip)
     shaft_top = hy + hr
     hwid = int(7 * ss)
     _shaft_guilloche(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK)
@@ -2858,7 +2860,8 @@ def prop_14m(surf, bw, bh, ss):
 def prop_14n(surf, bw, bh, ss):
     cx = bw // 2
     hr = int(13 * ss)
-    hy = int(34 * ss)
+    hy = int(50 * ss)                      # seat the head lower so the tall cap +
+                                           # its bell tips clear the box top (no clip)
     shaft_top = hy + hr
     hwid = int(7 * ss)
     _shaft_spiral_flute(surf, cx, shaft_top, bh - int(7 * ss), hwid, ss, PLUM, PLUM_DK,
