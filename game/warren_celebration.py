@@ -94,25 +94,77 @@ def _num_block(canvas, c, ncy, roll, ss, *, size=88, num_col=CREAM, edge_col=PLU
     canvas.blit(num, num.get_rect(center=(c, ncy)))
 
 
-def _ghost_label(canvas, cx, cy, ss):
-    """A small banderole reading GHOST for the ghost re-skin — cream bold text on a
-    deep-periwinkle plate with a gold keyline, so the result reads as GHOST and not
-    just a recoloured number. Tied to the cyan/periwinkle wheel palette."""
-    plate = GH_INDIGO_DK
-    f = hud._font(int(30 * ss), True)
-    txt = f.render("GHOST", True, GH_CREAM)
-    pad_x, pad_y = int(18 * ss), int(8 * ss)
-    w, h = txt.get_width() + pad_x * 2, txt.get_height() + pad_y * 2
+def _flat_text(canvas, text, cx, cy, ss, *, size, fill, edge, edge_w,
+               shadow_a=120, letter_spacing=1.0):
+    """A straight bold wordmark: drop shadow, ONE thick outline ring, fill stamped
+    last so counters stay open. `letter_spacing` > 1 opens the tracking. A single
+    solid fill (no per-letter outline, which smears at the popup downscale)."""
+    f = hud._font(int(size * ss), True)
+    surfs = [f.render(g, True, fill) for g in text]
+    advances = [s.get_width() * letter_spacing for s in surfs]
+    total = sum(advances)
+    o = edge_w * ss
+    x0 = cx - total / 2
+    x = x0
+    for g, adv in zip(text, advances):
+        sh = f.render(g, True, (0, 0, 0))
+        sh.set_alpha(shadow_a)
+        canvas.blit(sh, sh.get_rect(center=(int(x + adv / 2 + 2 * ss), int(cy + 3 * ss))))
+        x += adv
+    for da in range(0, 360, 30):
+        ox, oy = math.cos(math.radians(da)) * o, math.sin(math.radians(da)) * o
+        x = x0
+        for g, adv in zip(text, advances):
+            eg = f.render(g, True, edge)
+            canvas.blit(eg, eg.get_rect(center=(int(x + adv / 2 + ox), int(cy + oy))))
+            x += adv
+    x = x0
+    for s, adv in zip(surfs, advances):
+        canvas.blit(s, s.get_rect(center=(int(x + adv / 2), int(cy))))
+        x += adv
+
+
+def _chrome_vgrad(canvas, rect, rr, ss):
+    """Fill a rounded-rect with a top-down light->mid periwinkle vertical gradient so
+    the plate reads as the same brushed icy metal as the rim, masked to the round
+    rect so it only paints inside the plate."""
+    top, bot = GH_METAL_HI, _shade_c(GH_METAL, -22)
+    grad = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    for y in range(rect.h):
+        t = y / max(1, rect.h - 1)
+        grad.fill((int(top[0] + (bot[0] - top[0]) * t),
+                   int(top[1] + (bot[1] - top[1]) * t),
+                   int(top[2] + (bot[2] - top[2]) * t)),
+                  pygame.Rect(0, y, rect.w, 1))
+    mask = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=rr)
+    grad.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    canvas.blit(grad, rect.topleft)
+
+
+def _ghost_nameplate(canvas, cx, cy, R, ss):
+    """The GHOST flavour label as an icy-chrome nameplate INSET into the lower wheel
+    face (design loop winner "V5-A"): a top-down periwinkle chrome gradient matching
+    the rim, a top catch-light, a deep-navy keyline frame + soft drop shadow so it
+    seats ON the wheel, and GHOST in deep navy at open tracking ~half the number
+    height — the rolled number stays the hero, this just names the result."""
+    w, h = int(R * 1.52), int(30 * ss)
     rect = pygame.Rect(int(cx - w / 2), int(cy - h / 2), w, h)
     rr = int(9 * ss)
-    pygame.draw.rect(canvas, _shade_c(plate, -30), rect.inflate(int(5 * ss), int(5 * ss)),
-                     border_radius=rr)
-    pygame.draw.rect(canvas, plate, rect, border_radius=rr)
-    pygame.draw.rect(canvas, GH_METAL, rect, max(2, int(2 * ss)), border_radius=rr)
-    sh = f.render("GHOST", True, (0, 0, 0))
-    sh.set_alpha(120)
-    canvas.blit(sh, sh.get_rect(center=(cx + 2 * ss, cy + 2 * ss)))
-    canvas.blit(txt, txt.get_rect(center=(cx, cy)))
+    # Soft drop shadow (kept light so the bottom rim stud below stays crisp).
+    sh = pygame.Surface((rect.w + int(8 * ss), rect.h + int(8 * ss)), pygame.SRCALPHA)
+    pygame.draw.rect(sh, (0, 0, 0, 95), sh.get_rect(), border_radius=rr + int(2 * ss))
+    canvas.blit(sh, (rect.x - int(4 * ss), rect.y + int(2 * ss)))
+    # Deep-navy keyline frame (matches the number's outline system), then chrome fill.
+    pygame.draw.rect(canvas, GH_INDIGO_DK, rect.inflate(int(2 * ss), int(2 * ss)),
+                     border_radius=rr + int(1 * ss))
+    _chrome_vgrad(canvas, rect, rr, ss)
+    pygame.draw.line(canvas, GH_METAL_HI, (rect.x + rr, rect.y + max(1, int(ss))),
+                     (rect.right - rr, rect.y + max(1, int(ss))), max(1, int(ss)))
+    pygame.draw.rect(canvas, GH_INDIGO_DK, rect, max(1, int(ss)), border_radius=rr)
+    _flat_text(canvas, "GHOST", cx, cy - int(ss), ss, size=18,
+               fill=GH_INDIGO_DK, edge=GH_CREAM, edge_w=2, shadow_a=70,
+               letter_spacing=1.12)
 
 
 def _jester_bauble(canvas, cx, hy, hr, ss):
@@ -175,7 +227,11 @@ def render(roll, ghost=False, ss=4, b_hr_ss=28):
     pygame.draw.circle(canvas, disc, (cx, wcy), hub_r)
     pygame.draw.circle(canvas, ring, (cx, wcy), hub_r, max(2, int(2 * ss)))
     num_size = max(46, int(96 * R / int(hdw * 0.40)))
-    _num_block(canvas, cx, wcy, roll, ss, size=num_size,
+    # On a ghost roll the number is pulled UP and shrunk a touch so it clears the
+    # GHOST nameplate inset into the lower wheel face (both live on the hub).
+    num_cy = wcy - int(R * 0.11) if ghost else wcy
+    _num_block(canvas, cx, num_cy, roll, ss,
+               size=int(num_size * 0.9) if ghost else num_size,
                num_col=ring, edge_col=disc, edge_w=4)
     # the full clown bauble crowns the top, seated so the face touches the rim. For a
     # ghost roll it is rendered to its own layer and washed into the spectral palette
@@ -187,7 +243,8 @@ def render(roll, ghost=False, ss=4, b_hr_ss=28):
         _jester_bauble(blayer, cx, b_hy, b_hr, ss)
         _ghostify(blayer)
         canvas.blit(blayer, (0, 0))
-        _ghost_label(canvas, cx, wcy + R + int(26 * ss), ss)
+        # GHOST nameplate inset into the lower wheel face (design-loop winner V5-A).
+        _ghost_nameplate(canvas, cx, wcy + int(R * 0.62), R, ss)
     else:
         _jester_bauble(canvas, cx, b_hy, b_hr, ss)
     return canvas, DW, DH
