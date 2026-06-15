@@ -4210,7 +4210,7 @@ def _render_clown_r2_sheet():
 #   - the curl-toe bell slippers are build_jester's own — unchanged.
 
 
-def _held_marotte_surface(total_px, bauble_px):
+def _held_marotte_surface(total_px, bauble_px, draw_fn=prop_14n):
     """Render prop_14n VERBATIM at its NATIVE ASPECT, then scale the whole prop
     down UNIFORMLY so it reads as a slim HELD marotte beside the hero rather than a
     second full clown. `bauble_px` is the target display diameter of the lobed head
@@ -4225,7 +4225,7 @@ def _held_marotte_surface(total_px, bauble_px):
     p_ss = 6
     H = max(1, int(round(total_px / f)))   # source box height in true px (pre-ss)
     surf, bw, bh = _box(H, p_ss)
-    prop_14n(surf, bw, bh, p_ss)           # VERBATIM — no geometry/colour touched
+    draw_fn(surf, bw, bh, p_ss)            # VERBATIM — no geometry/colour touched
     disp_w = max(1, int(round((PIPE_W + 2 * OVERHANG) * f)))
     disp_h = max(1, int(round(H * f)))
     return pygame.transform.smoothscale(surf, (disp_w, disp_h)), disp_w, disp_h
@@ -8555,7 +8555,8 @@ def _r17_die_hand(surf, hand, *, wrist, gesture="mitt", knuckles_up=False,
 def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
                            gesture="mitt", knuckles_up=False, point_len=0.0,
                            point_bow=0.0, die_dx=0, die_dy=0,
-                           ext_left=0, ext_top=0, ext_right=0, die_pulse_off=2.0):
+                           ext_left=0, ext_top=0, ext_right=0, staff_fn=prop_14n,
+                           die_pulse_off=2.0):
     """Round-17 hero panel — identical to r16 except the die-side hand is drawn by
     `_r17_die_hand` (a simple closed-glove gesture, not an open palm). Locked grip,
     floating die, and heel-on-wrist ~47deg continuation are unchanged.
@@ -8605,7 +8606,7 @@ def render_clown_staff_r17(idx, *, total_px, bauble_px, cup_dy, wrist,
     hip_cx = jester_cx + _HIP_DX
     r_hand = (hip_cx + 34, hip_y - 4)
 
-    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px)
+    prop, p_w, p_h = _held_marotte_surface(total_px, bauble_px, draw_fn=staff_fn)
     rot = -7
     rad = math.radians(rot)
     # Plant the marotte FOOT a few px INTO the ground line for every staff length,
@@ -8931,6 +8932,68 @@ def _render_clown_r17_staff():
     print("wrote", out_path, f"({sheet_w}x{sheet_h})")
 
 
+_R17_STAFF_DESIGNS = [
+    ("8 · Carousel Barker", prop_14l),
+    ("9 · Jingles & Filigree", prop_14m),
+    ("10 · Golden Jester", prop_14n),
+]
+
+
+def _render_clown_r17_staffgrid():
+    """Round-17 STAFF DESIGN x LENGTH grid on the locked hero (pointing pose v4 +
+    die #4 + grounded foot): ONE ROW per bell-foot staff design (8/9/10), columns
+    across the staff lengths, so each design can be compared at every length.
+    Writes docs/warren_clown/round_17_staff_grid.png."""
+    extL, extT, extR = _R17_EXT_LEFT, _R17_EXT_TOP, _R17_EXT_RIGHT
+    cw = VIEW_W + extL + extR
+    ch = VIEW_H + extT
+    SCALE = 1.5
+    disp_w = int(cw * SCALE)
+    disp_h = int(ch * SCALE)
+    cols = len(_R17_STAFF_LENGTHS)
+    rows = len(_R17_STAFF_DESIGNS)
+    pad = 24
+    head = 64
+    label_h = 30
+    gap = 14
+    cell_w = disp_w
+    cell_h = label_h + disp_h
+    sheet_w = pad * 2 + cols * cell_w + (cols - 1) * gap
+    sheet_h = head + rows * cell_h + (rows - 1) * gap + pad
+    sheet = pygame.Surface((sheet_w, sheet_h))
+    sheet.fill((26, 28, 36))
+
+    title_f = hud._font(26, True)
+    label_f = hud._font(17, True)
+    sheet.blit(title_f.render(
+        "Warren Clown — staff DESIGN (rows: 8, 9, 10) x LENGTH (columns), locked "
+        "pointing pose + die #4 + grounded foot", True, (255, 255, 255)), (pad, 18))
+
+    base_kw = dict(_CLOWN_R17_VARIANTS[3][1])      # the locked "Pointing" pose
+    die_dx, die_dy = _r17_die4_offsets()
+    for r, (dname, staff_fn) in enumerate(_R17_STAFF_DESIGNS):
+        for c, (lname, total_px) in enumerate(_R17_STAFF_LENGTHS):
+            kw = dict(base_kw)
+            kw.update(total_px=total_px, die_dx=die_dx, die_dy=die_dy,
+                      ext_left=extL, ext_top=extT, ext_right=extR, staff_fn=staff_fn)
+            fig = render_clown_staff_r17(r * cols + c, **kw)
+            cx = pad + c * (cell_w + gap)
+            cy = head + r * (cell_h + gap)
+            pygame.draw.rect(sheet, (40, 43, 54), (cx, cy, cell_w, label_h))
+            sheet.blit(label_f.render(f"{dname}  —  {lname} ({total_px})", True,
+                                      (235, 238, 246)), (cx + 8, cy + 7))
+            sheet.blit(pygame.transform.smoothscale(fig, (disp_w, disp_h)),
+                       (cx, cy + label_h))
+            pygame.draw.rect(sheet, (70, 76, 92), (cx, cy, cell_w, cell_h), 2)
+
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "warren_clown")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "round_17_staff_grid.png")
+    pygame.image.save(sheet, out_path)
+    print("wrote", out_path, f"({sheet_w}x{sheet_h})")
+
+
 def _render_clown_r17_sheet():
     """Round-17 clown look-dev: 5 SIMPLE die-side gestures (closed mitt + pointing
     /reaching families). Same panel layout as r16 — a name strip, a LARGE isolated
@@ -9019,7 +9082,7 @@ def main():
     # the untouched round-7 sheet. `--sabers` / `--marottes` / `--round7` each render
     # only that one sheet (faster when iterating on a single sheet).
     args = sys.argv[1:]
-    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--marottes-8910"))
+    only = any(a in args for a in ("--sabers", "--marottes", "--round7", "--craft", "--round10", "--clown-r2", "--clown-r3", "--clown-r4", "--clown-final", "--clown-r6", "--clown-r7", "--clown-r8", "--clown-r9", "--clown-r10", "--clown-r11", "--clown-r12", "--clown-r13", "--clown-r14", "--clown-r15", "--clown-r16", "--clown-r16-crops", "--clown-r17", "--clown-r17-crops", "--clown-r17-compare", "--clown-r17-die", "--clown-r17-staff", "--clown-r17-staffgrid", "--marottes-8910"))
     do_round7 = "--round7" in args or not only
     do_sabers = "--sabers" in args or not only
     do_marottes = "--marottes" in args or not only
@@ -9096,6 +9159,8 @@ def main():
         _render_clown_r17_die()
     if "--clown-r17-staff" in args:
         _render_clown_r17_staff()
+    if "--clown-r17-staffgrid" in args:
+        _render_clown_r17_staffgrid()
 
 
 if __name__ == "__main__":
