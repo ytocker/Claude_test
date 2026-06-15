@@ -104,22 +104,24 @@ def sw(v):
 # silhouette so no two share a body.
 
 def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=1.0,
-               curl=0.5, side=1):
+               curl=0.5, side=1, scale=1.0, rim=1.0):
     """An oversized clawed hand — a heavy palm knuckle + long tapering talon
     digits with CLEAR separation, hard bone tips and a single rim-light. Boss
     hands are big: this is the loudest "the clown is now a predator" cue. All
     args are in LOGICAL px and scaled by K here. `side` aims the splay,
-    `curl` hooks the talon tips."""
+    `curl` hooks the talon tips. `scale` shrinks the whole hand and `rim` mutes
+    its rim-light so the FACE stays the brightest mass and the hands never steal
+    the focal point."""
     wx, wy = int(wrist[0]), int(wrist[1])
-    w = s(w)
-    reach = s(reach)
+    w = s(w * scale)
+    reach = s(reach * scale)
     # Knuckle slab — a rounded square so the back of the hand reads as mass,
     # not a pom-pom. Dark keyline + a hot top-left rim-light.
     kr = int(w * 1.25)
     pygame.draw.circle(surf, _shade(glove, -75), (wx, wy), kr + sw(1))
     pygame.draw.circle(surf, glove, (wx, wy), kr)
-    pygame.draw.circle(surf, _shade(glove, 70), (wx - kr // 3, wy - kr // 3),
-                       max(2, kr // 3))
+    pygame.draw.circle(surf, _shade(glove, int(70 * rim)),
+                       (wx - kr // 3, wy - kr // 3), max(2, kr // 3))
     for i in range(fingers):
         t = i / max(1, fingers - 1) - 0.5
         a = math.pi * 0.5 + side * t * spread + math.radians(22)
@@ -138,7 +140,7 @@ def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=1.0,
         pygame.draw.line(surf, glove, (x0, y0), (x1, y1), fw)
         pygame.draw.line(surf, _shade(glove, -75), (x1, y1), (x2, y2), fw)
         pygame.draw.line(surf, glove, (x1, y1), (x2, y2), max(sw(1), fw - sw(1)))
-        pygame.draw.line(surf, _shade(glove, 60), (x0, y0),
+        pygame.draw.line(surf, _shade(glove, int(60 * rim)), (x0, y0),
                          (x0 + math.cos(a2) * seg * 0.5,
                           y0 + math.sin(a2) * seg * 0.5), max(sw(1), fw // 3))
         # Hard tarnished-bone talon at the very tip.
@@ -152,14 +154,16 @@ def _claw_hand(surf, wrist, reach, w, glove, *, fingers=4, spread=1.0,
                             [(int(p[0]), int(p[1])) for p in nail], sw(1))
 
 
-def _tarnished_bell(surf, x, y, r=5):
+def _tarnished_bell(surf, x, y, r=5, *, glint=1.0):
     """A dull, cracked version of the hero's lit gold bell — tarnished brass
-    with a dark crack so even the jingles read sinister. `r` is logical px."""
+    with a dark crack so even the jingles read sinister. `r` is logical px.
+    `glint` scales the brass highlight DOWN (1.0 = full) so a crown's bells can
+    be muted to keep the face's eye-glint as the focal contest winner."""
     x, y, r = int(x), int(y), s(r)
     pygame.draw.circle(surf, E_GOLD_DK, (x, y), r + sw(1))
     pygame.draw.circle(surf, E_GOLD, (x, y), r)
-    pygame.draw.circle(surf, _shade(E_GOLD, 60), (x - r // 3, y - r // 3),
-                       max(1, r // 3))
+    pygame.draw.circle(surf, _shade(E_GOLD, int(60 * glint)),
+                       (x - r // 3, y - r // 3), max(1, r // 3))
     pygame.draw.line(surf, E_GOLD_DK, (x, y - r), (x - sw(1), y + r), sw(1))
 
 
@@ -187,11 +191,13 @@ def _dagged_hem(surf, cx, y, half_w, teeth, col, *, drop=14):
 
 
 def _harlequin_torso(surf, cx, top_y, bot_y, half_top, half_bot, dark, light,
-                     *, lean=0, diamonds=True):
+                     *, lean=0, diamonds=True, rot=False):
     """A tapering diamond-patched torso (the commedia harlequin lozenge motif,
     bruised). Logical px in; all geometry scaled by K. `lean` shears the top
     toward the looming side. Carries a dark core-shadow up the right + a lit
-    left rim so the slab reads as round MASS at gameplay scale."""
+    left rim so the slab reads as round MASS at gameplay scale. `rot` breaks the
+    diamond grid with 1-2 deterministic CRACKED / MISSING lozenges so the brute
+    reads as decayed rather than freshly patterned."""
     # `cx`, `top_y`, `bot_y` arrive as already-scaled absolute tile coords (they
     # derive from the scaled `hip_y`); the half-widths + lean are logical px.
     cx, top_y, bot_y = int(cx), int(top_y), int(bot_y)
@@ -210,6 +216,12 @@ def _harlequin_torso(surf, cx, top_y, bot_y, half_top, half_bot, dark, light,
         d = s(20)
         rows = int((bot_y - top_y) / d) + 2
         cols = int((2 * half_bot) / d) + 3
+        # Two fixed lozenges read as rot: one upper-chest lozenge is gone to
+        # bare bruise (missing), one is fractured by a dark crack (cracked).
+        # Keyed to the chest band (r 2-3) so the decay sits at the focal torso,
+        # not lost in the hem.
+        missing = (3, cols // 2)
+        cracked = (2, cols // 2 + 1)
         for r in range(rows):
             for c in range(cols):
                 offs = (d // 2) if r % 2 else 0
@@ -219,8 +231,20 @@ def _harlequin_torso(surf, cx, top_y, bot_y, half_top, half_bot, dark, light,
                     continue
                 lo = [(px, py - d // 2), (px + d // 2, py),
                       (px, py + d // 2), (px - d // 2, py)]
+                if rot and (r, c) == missing:
+                    # Missing patch: bare bruised plum where the lime once was.
+                    pygame.draw.polygon(surf, _shade(dark, -30), lo)
+                    pygame.draw.polygon(surf, _shade(dark, -70), lo, sw(1))
+                    continue
                 pygame.draw.polygon(surf, light, lo)
                 pygame.draw.polygon(surf, _shade(light, -45), lo, sw(1))
+                if rot and (r, c) == cracked:
+                    # A jagged dark fracture splitting the lozenge in two.
+                    pygame.draw.lines(surf, _shade(dark, -70), False,
+                                      [(px, py - d // 2),
+                                       (px + d // 6, py - d // 6),
+                                       (px - d // 8, py + d // 8),
+                                       (px, py + d // 2)], sw(2))
         surf.set_clip(prev)
     # Lit left rim + a heavy bruise core-shadow up the right so it reads round.
     pygame.draw.line(surf, _shade(dark, 55),
@@ -393,11 +417,13 @@ def cap_coil_droop(surf, cx, base_y, hr, cols):
         _tarnished_bell(surf, cx + dx, base_y + dy, r=6)
 
 
-def cap_brute_crown(surf, cx, base_y, hr, cols):
+def cap_brute_crown(surf, cx, base_y, hr, cols, *, glint=1.0):
     """A HEAVY canted 3-point jester cap bloated into a brutish slab crown:
     three thick points (one big centre, two splayed past the wide skull),
     the whole crown tipped a few degrees so it reads as a mean, lopsided
-    weight pressing down on the brow. Keeps the 3-point lineage, escalated."""
+    weight pressing down on the brow. Keeps the 3-point lineage, escalated.
+    `glint` pulls the crown's brass highlights DOWN so the face's eye-glint
+    wins the focal contest (the crown shouldn't out-sparkle the eyes)."""
     cx, base_y, hr = int(cx), int(base_y), s(hr)
     a, b, c = cols[0], cols[1], cols[2]
     cant = s(6)
@@ -407,11 +433,11 @@ def cap_brute_crown(surf, cx, base_y, hr, cols):
         bx, by = cx + dx + cant, base_y + dy
         pts = [(cx - span, base_y + s(2)), (cx + span, base_y + s(2)), (bx, by)]
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, _shade(col, 50),
+        pygame.draw.polygon(surf, _shade(col, int(50 * glint)),
                             [(cx - span, base_y + s(2)), (cx, base_y + s(2)),
                              (bx, by)])
         pygame.draw.polygon(surf, _shade(col, -70), pts, sw(2))
-        _tarnished_bell(surf, bx, by, r=7)
+        _tarnished_bell(surf, bx, by, r=7, glint=glint)
     # A thick canted brim-band rooting the crown to the wide skull.
     band = pygame.Rect(0, 0, hr * 2 + s(20), s(16))
     band.center = (cx + cant // 2, base_y + s(4))
@@ -522,8 +548,9 @@ def concept_hulking_brute(surf, cx, feet_y):
         pygame.draw.ellipse(surf, _shade(E_PLUM_DK, 35), shoe.inflate(-s(8), -s(10)))
         _tarnished_bell(surf, shoe.centerx + sgn * s(22), shoe.top, r=4)
     # Huge barrel torso, widest at the chest — clearly broader than the hero.
+    # `rot` breaks the diamond grid with 1-2 cracked/missing lozenges.
     _harlequin_torso(surf, cx, hip_y - s(100), hip_y + s(10), 30, 64,
-                     E_PLUM, E_LIME)
+                     E_PLUM, E_LIME, rot=True)
     _dagged_hem(surf, cx, hip_y + s(8), 64, 7, E_PLUM, drop=14)
     neck_y = hip_y - s(94)
     # Both arms spread wide + heavy, doubling the shoulder mass, ending in big
@@ -541,8 +568,9 @@ def concept_hulking_brute(surf, cx, feet_y):
     _ruff(surf, cx, neck_y + s(6), 70, 15, dip=4, lift=-6)
     # Head sunk low between the shoulders — the wide fanged maw is the focal.
     head_cx, head_cy, hr = cx, neck_y - s(6), 28
+    # Crown glint pulled DOWN ~15% so the bright eye-glint wins the focal fight.
     cap_brute_crown(surf, head_cx, head_cy - s(hr) + s(10), hr,
-                    (E_PLUM, E_LIME, E_GOLD))
+                    (E_PLUM, E_LIME, E_GOLD), glint=0.85)
     _evolved_head(surf, head_cx, head_cy, hr, eye="dead", mouth="fangs",
                   tilt=-4)
 
@@ -676,7 +704,10 @@ def concept_puppeteer(surf, cx, feet_y):
                             [(int(p[0]), int(p[1])) for p in drape])
         pygame.draw.polygon(surf, _shade(col, -65),
                             [(int(p[0]), int(p[1])) for p in drape], sw(1))
-        _claw_hand(surf, wrist, 22, 9, CLAW, side=sgn, curl=1.0)
+        # Hands tamed to 80% with the rim-light down 25% so the FACE out-brights
+        # them and they stop stealing the focal point.
+        _claw_hand(surf, wrist, 22, 9, CLAW, side=sgn, curl=1.0,
+                   scale=0.8, rim=0.75)
     # A grand wide brass ruff capping the broad shoulders.
     _ruff(surf, cx, neck_y + s(6), 60, 15, dip=4, lift=-5)
     head_cx, head_cy, hr = cx, neck_y - s(22), 27
