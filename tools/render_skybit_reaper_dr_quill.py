@@ -26,7 +26,7 @@ flourish — so a tiled pair reads as a vertical post capped by a sickly tinctur
 vial flourishing INTO the gap.
 
 Nothing under game/ is touched; only the real colour kit + helpers are imported.
-Headless + deterministic. Output: docs/skybit_reaper/dr_quill/round_1.png.
+Headless + deterministic. Output: docs/skybit_reaper/dr_quill/round_2.png.
 
     SDL_VIDEODRIVER=dummy python tools/render_skybit_reaper_dr_quill.py
 """
@@ -238,9 +238,12 @@ def build_dr_quill(scale=1.0, ss=3):
     feet_y = top + H
 
     # ── held VIAL-STAFF (drawn FIRST so the body hand overlaps the shaft) ──
-    staff_cx = ox + int(W * 0.40)
-    _draw_staff(surf, staff_cx, top + int(H * 0.10), feet_y - int(H * 0.02),
-                int(W * 0.035), ss)
+    # Pushed further right so the cane + its top vial clear the hat brim's right
+    # edge — the round-1 staff crowded the brim and made the disc read lopsided
+    # (directive 5). Its top cluster sits below the brim line, not behind it.
+    staff_cx = ox + int(W * 0.52)
+    _draw_staff(surf, staff_cx, top + int(H * 0.20), feet_y - int(H * 0.02),
+                int(W * 0.038), ss)
 
     # ── CAPE behind the body (the violet flash) — a wide flat fan ──
     cape_pts = [
@@ -251,6 +254,16 @@ def build_dr_quill(scale=1.0, ss=3):
     ]
     _poly(surf, CAPE_DK, [(p[0] + ss, p[1]) for p in cape_pts], ss)
     _poly(surf, CAPE, cape_pts, ss)
+    # A bright violet RIM stroke along the cape's outer silhouette so the cape
+    # carries its own light edge and survives the dark night sky (directive 3) —
+    # not just the ink outline, which alone vanishes the cape into night.
+    for a, b in (
+        (cape_pts[0], cape_pts[3]),     # left outer edge
+        (cape_pts[3], cape_pts[2]),     # bottom hem
+        (cape_pts[1], cape_pts[2]),     # right outer edge
+    ):
+        pygame.draw.line(surf, CAPE_HI, (int(a[0]), int(a[1])),
+                         (int(b[0]), int(b[1])), max(2, int(2.4 * ss)))
     # Cape top-left sheen panel + a couple of ink fold lines.
     _poly(surf, CAPE_HI, [
         (hip_cx - W * 0.27, body_top + head_r * 0.25),
@@ -264,15 +277,18 @@ def build_dr_quill(scale=1.0, ss=3):
                          (int(hip_cx + W * fx * 1.3), int(feet_y - head_r * 0.3)),
                          max(1, int(1.5 * ss)))
 
-    # ── bird-foot TALONS at the hem (seals the bird read) ──
-    for s, tx in ((-1, hip_cx - W * 0.14), (1, hip_cx + W * 0.13)):
-        base = (int(tx), int(feet_y - head_r * 0.28))
-        for spread in (-0.06, 0.0, 0.06):
-            tip = (int(tx + spread * W + s * 0.02 * W), int(feet_y + head_r * 0.05))
-            pygame.draw.line(surf, INK, base, tip, max(3, int(3.4 * ss)))
-            pygame.draw.line(surf, GLOVE, base, tip, max(2, int(2.0 * ss)))
-        pygame.draw.circle(surf, GLOVE, base, max(2, int(2.6 * ss)))
-        pygame.draw.circle(surf, GLOVE_DK, base, max(2, int(2.6 * ss)), max(1, int(ss)))
+    # ── bird-foot TALONS at the hem (seals the bird read) — thickened + dropped
+    # clear of the hem so they hold their own claw shape at 1x instead of melting
+    # into the keyline (directive 3). ──
+    for s, tx in ((-1, hip_cx - W * 0.13), (1, hip_cx + W * 0.13)):
+        base = (int(tx), int(feet_y - head_r * 0.18))
+        for spread in (-0.075, 0.0, 0.075):
+            tip = (int(tx + spread * W + s * 0.02 * W), int(feet_y + head_r * 0.16))
+            pygame.draw.line(surf, INK, base, tip, max(4, int(5.0 * ss)))
+            pygame.draw.line(surf, GLOVE, base, tip, max(2, int(2.8 * ss)))
+        pygame.draw.circle(surf, INK, base, max(3, int(3.6 * ss)))
+        pygame.draw.circle(surf, GLOVE, base, max(2, int(3.0 * ss)))
+        pygame.draw.circle(surf, GLOVE_DK, base, max(2, int(3.0 * ss)), max(1, int(ss)))
 
     # ── ROBE body (short wide bell, weight-shifted) — flat fill + triad ──
     robe_pts = [
@@ -380,20 +396,23 @@ def build_dr_quill(scale=1.0, ss=3):
     brim_rect = pygame.Rect(int(head_cx - brim_w), int(brim_cy - brim_h / 2),
                             int(brim_w * 2), int(brim_h))
     pygame.draw.ellipse(surf, INK, brim_rect.inflate(int(2 * ss), int(2 * ss)))
-    pygame.draw.ellipse(surf, _shade_c(ROBE, -55), brim_rect)
-    pygame.draw.ellipse(surf, ROBE, brim_rect.inflate(int(-2 * ss), int(-2 * ss)))
+    pygame.draw.ellipse(surf, HEAD_DK, brim_rect)
+    pygame.draw.ellipse(surf, HEAD, brim_rect.inflate(int(-2 * ss), int(-2 * ss)))
+    # A waxen-gold under-brim rim line breaks the brim off the head value-wise.
+    pygame.draw.ellipse(surf, WAX_DK, brim_rect.inflate(int(-2 * ss), int(-2 * ss)),
+                        max(1, int(ss)))
     # Brim top-left sheen crescent.
     sheen = pygame.Rect(int(head_cx - brim_w * 0.8), int(brim_cy - brim_h / 2),
                         int(brim_w * 0.9), int(brim_h * 0.5))
-    pygame.draw.ellipse(surf, ROBE_HI, sheen)
+    pygame.draw.ellipse(surf, HEAD_HI, sheen)
     # Low rounded crown + a waxen hatband (clinical apothecary touch).
     crown_w = head_r * 1.05
     crown_h = head_r * 0.78
     crown_rect = pygame.Rect(int(head_cx - crown_w / 2),
                              int(brim_cy - crown_h), int(crown_w), int(crown_h * 1.05))
-    pygame.draw.ellipse(surf, _shade_c(ROBE, -55), crown_rect)
-    pygame.draw.ellipse(surf, ROBE, crown_rect.inflate(int(-2 * ss), int(-2 * ss)))
-    pygame.draw.ellipse(surf, ROBE_HI,
+    pygame.draw.ellipse(surf, HEAD_DK, crown_rect)
+    pygame.draw.ellipse(surf, HEAD, crown_rect.inflate(int(-2 * ss), int(-2 * ss)))
+    pygame.draw.ellipse(surf, HEAD_HI,
                         pygame.Rect(int(head_cx - crown_w * 0.34),
                                     int(brim_cy - crown_h * 0.92),
                                     int(crown_w * 0.4), int(crown_h * 0.4)))
@@ -459,23 +478,43 @@ def build_pillar_pair(gap_h, col_h, ss=3):
         # column the flourish is at the bottom; for the bottom column, the top.
         gap_y = height - int(8 * ss) if not flip else int(8 * ss)
         far_y = int(8 * ss) if not flip else height - int(8 * ss)
-        # The banded cane shaft as the pillar body.
+        # The shaft is APOTHECARY-GREEN (the robe's green), NOT the waxen gold —
+        # gold reads too close to the sandstone pillars it sits beside, so the
+        # green post + gold banding clearly separates "Dr. Quill's cane" from an
+        # ordinary pillar (directive 4). Banding stays gold for the cane read.
         top_y, bot_y = sorted((gap_y, far_y))
         pygame.draw.rect(s, INK, (cx - hw - ss, top_y, 2 * hw + 2 * ss, bot_y - top_y))
-        pygame.draw.rect(s, _shade_c(WAX, -40), (cx - hw, top_y, 2 * hw, bot_y - top_y))
-        pygame.draw.rect(s, WAX, (cx - hw + ss, top_y, hw, bot_y - top_y))
-        pygame.draw.line(s, WAX_HI, (cx - hw + int(ss * 1.5), top_y),
+        pygame.draw.rect(s, ROBE_DK, (cx - hw, top_y, 2 * hw, bot_y - top_y))
+        pygame.draw.rect(s, ROBE, (cx - hw + ss, top_y, hw, bot_y - top_y))
+        pygame.draw.line(s, ROBE_HI, (cx - hw + int(ss * 1.5), top_y),
                          (cx - hw + int(ss * 1.5), bot_y), max(1, int(ss)))
-        # Grip banding along the post.
+        # Waxen-gold grip banding along the green post.
         span = bot_y - top_y
         n = max(4, int(span / (22 * ss)))
         for i in range(1, n):
             by = top_y + span * i / n
             pygame.draw.line(s, INK, (cx - hw - ss, int(by)),
-                             (cx + hw + ss, int(by)), max(2, int(2 * ss)))
-            pygame.draw.line(s, WAX_HI, (cx - hw, int(by - ss)),
-                             (cx + hw, int(by - ss)), max(1, int(ss)))
-        # The vial cluster flourish AT the gap edge.
+                             (cx + hw + ss, int(by)), max(3, int(3 * ss)))
+            pygame.draw.line(s, WAX, (cx - hw, int(by - ss * 0.5)),
+                             (cx + hw, int(by - ss * 0.5)), max(2, int(2 * ss)))
+            pygame.draw.line(s, WAX_HI, (cx - hw, int(by - ss * 1.2)),
+                             (cx + hw, int(by - ss * 1.2)), max(1, int(ss)))
+        # A gold COLLAR ferrule + value break between the green shaft and the gap
+        # flourish, so the vial pops off the post as a distinct prop, not debris.
+        coll_y = gap_y - int((1 if not flip else -1) * PIPE_W * 0.42 * ss)
+        ferr = pygame.Rect(int(cx - hw * 1.5), int(min(coll_y, gap_y)),
+                           int(hw * 3), int(abs(gap_y - coll_y)))
+        if ferr.height > ss:
+            pygame.draw.rect(s, INK, ferr.inflate(int(2 * ss), 0))
+            pygame.draw.rect(s, WAX, ferr.inflate(int(-2 * ss), int(-2 * ss)))
+        # Push a sickly-green glow burst at the GAP MOUTH — the signature read
+        # (the prop glowing INTO the gap). Drawn before the vial so the vial sits
+        # crisp on top of its own halo.
+        burst = pygame.Surface((int(hw * 8), int(hw * 8)), pygame.SRCALPHA)
+        bc = burst.get_rect().center
+        blit_glow(burst, bc[0], bc[1], int(hw * 2.6), TINCTURE, alpha=130)
+        s.blit(burst, (int(cx - hw * 4), int(gap_y - hw * 4)))
+        # The vial cluster flourish AT the gap edge (its own glow is outside-only).
         _draw_vial_cluster(s, cx, gap_y, int(PIPE_W * 0.42 * ss), ss)
         return s
 
@@ -568,7 +607,7 @@ def main():
                            "docs", "skybit_reaper", "dr_quill")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print(f"wrote {out_path}")
 

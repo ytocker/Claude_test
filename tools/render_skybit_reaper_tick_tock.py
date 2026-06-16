@@ -52,24 +52,27 @@ NIGHT_TOP, NIGHT_BOT = (5, 8, 30), (35, 55, 115)
 
 
 def _triad_circle(surf, cx, cy, r, col, ss):
-    """The house form-recipe in a disc: dark-core ring -> flat fill -> a small
-    top-left sheen, so a flat shape reads sculpted without any gradient."""
-    pygame.draw.circle(surf, _shade_c(col, -55), (int(cx), int(cy)), int(r))
-    pygame.draw.circle(surf, col, (int(cx), int(cy)), int(r - ss))
+    """The house form-recipe in a disc: a THIN dark-core keyline -> dominant flat
+    fill -> a small top-left sheen. The fill carries the mass (fill-forward); the
+    dark edge is a single crisp ink line, not a thick cored ring."""
+    pygame.draw.circle(surf, _shade_c(col, -38), (int(cx), int(cy)), int(r))
+    pygame.draw.circle(surf, col, (int(cx), int(cy)), max(1, int(r - ss)))
     pygame.draw.circle(surf, _shade_c(col, 55),
                        (int(cx - r * 0.34), int(cy - r * 0.34)),
                        max(1, int(r * 0.34)))
 
 
 def _triad_poly(surf, pts, col, ss, *, sheen_pts=None):
-    """Flat poly with a dark-core keyline and an optional top-left sheen wedge —
-    the poly version of the triad for the robe/hood masses."""
+    """Flat poly with a 1px dark keyline and an optional top-left sheen wedge — the
+    poly version of the triad. Fill-forward: the bright flat fill dominates the
+    mass and the internal keyline is a single thin line (the grown silhouette
+    outline supplies the real edge), so the body never reads as an inked slab."""
     ipts = [(int(p[0]), int(p[1])) for p in pts]
     pygame.draw.polygon(surf, col, ipts)
-    pygame.draw.polygon(surf, _shade_c(col, -55), ipts, max(2, int(2.0 * ss)))
     if sheen_pts is not None:
         pygame.draw.polygon(surf, _shade_c(col, 55),
                             [(int(p[0]), int(p[1])) for p in sheen_pts])
+    pygame.draw.polygon(surf, _shade_c(col, -38), ipts, max(1, int(ss)))
 
 
 # ── the hourglass: the shared identity unit of boss + pillar ──────────────────
@@ -122,7 +125,7 @@ def _hourglass(surf, cx, cy, half_w, half_h, ss, *, sand_t=0.5, glow=True):
     # The thin falling-sand thread through the neck (the live beat), with a soft
     # amber glow so it reads as luminous trickling time.
     if glow:
-        blit_glow(surf, int(cx), int(cy), max(3, int(half_w * 0.5)), SAND, alpha=90)
+        blit_glow(surf, int(cx), int(cy), max(3, int(half_w * 0.5)), SAND, alpha=66)
     pygame.draw.line(surf, SAND_HI, (int(cx), int(cy - half_h * 0.18)),
                      (int(cx), int(cy + half_h * 0.5)), max(1, int(1.4 * ss)))
 
@@ -159,10 +162,13 @@ def _smug_face(surf, cx, cy, hw, ss, *, look=-1):
     arched eyebrow-ridge, on a skull-pale crescent inside the hood. Charming, not
     a sneer — the 'I have all the time in the world; you don't' clerk. `look`
     aims the gaze (negative = toward the held hourglass on the right)."""
-    # Bone-cream face crescent recessed in the hood shadow.
+    # Bone-cream face crescent recessed in the hood shadow. Enlarged ~22% over the
+    # prior round so the SMIRK (the character) wins the read at 1x and out-reads the
+    # amber hourglass — the head is the focal point, the glass the supporting beat.
+    hw = hw * 1.22
     face = pygame.Rect(int(cx - hw), int(cy - hw * 0.62),
                        int(hw * 2), int(hw * 1.5))
-    pygame.draw.ellipse(surf, _shade_c(HOOD_FACE, -50), face)
+    pygame.draw.ellipse(surf, _shade_c(HOOD_FACE, -38), face)
     pygame.draw.ellipse(surf, HOOD_FACE, face.inflate(int(-2 * ss), int(-2 * ss)))
 
     ex = hw * 0.46
@@ -191,10 +197,8 @@ def _smug_face(surf, cx, cy, hw, ss, *, look=-1):
         pygame.draw.lines(surf, _shade_c(HOOD_FACE, -70), False,
                           [(int(inner[0]), int(inner[1])), (int(mid[0]), int(mid[1])),
                            (int(outer[0]), int(outer[1]))], max(2, int(1.8 * ss)))
-    # A small bony nose-bridge shadow between the eyes.
-    pygame.draw.line(surf, _shade_c(HOOD_FACE, -55),
-                     (int(cx), int(ey + hw * 0.02)), (int(cx), int(ey + hw * 0.34)),
-                     max(1, int(1.4 * ss)))
+    # (No nose-bridge tick — it reads as noise at the 1x inset; the half-lids +
+    #  smirk carry the smug clerk on their own.)
     # The SMUG closed mouth: a flat line with the gaze-side corner cocked UP into a
     # tiny dimple — the patient smirk. No teeth, no grimace.
     my = cy + hw * 0.56
@@ -275,22 +279,29 @@ def draw_tick_tock(surf, cx, feet_y, scale=1.0, ss=2):
         pygame.draw.circle(surf, ROBE, (int(lx), int(hem_y)), int(lr))
         pygame.draw.circle(surf, _shade_c(ROBE, -55), (int(lx), int(hem_y)), int(lr), max(1, int(ss)))
 
-    # Flat SASH belt across the waist with an ink keyline + a brass clasp.
-    waist_y = shoulder_y + U(20)
-    wl = sh_hw + (hem_hw - sh_hw) * 0.34
+    # Flat SASH belt across the waist — a bold warm horizontal that breaks the tall
+    # teal mass and gives the body a key legibility band. Widened + taller so it
+    # reads clearly at showcase scale and survives the 1x shrink.
+    waist_y = shoulder_y + U(19)
+    wl = sh_hw + (hem_hw - sh_hw) * 0.46
+    sash_h = U(13)
     sash = [(cx - wl, waist_y), (cx + wl, waist_y),
-            (cx + wl, waist_y + U(9)), (cx - wl, waist_y + U(9))]
+            (cx + wl, waist_y + sash_h), (cx - wl, waist_y + sash_h)]
     _triad_poly(surf, sash, SASH, ss)
-    _triad_circle(surf, cx, waist_y + U(4.5), U(6), FRAME, ss)
-    pygame.draw.circle(surf, SAND, (int(cx), int(waist_y + U(4.5))), int(U(2.4)))
+    _triad_circle(surf, cx, waist_y + sash_h * 0.5, U(7), FRAME, ss)
+    pygame.draw.circle(surf, SAND, (int(cx), int(waist_y + sash_h * 0.5)), int(U(2.8)))
 
     # ── arms: one sleeve-stub CRADLING the staff, one tucked smugly behind ──────
-    # Cradling arm (his right; viewer-right) — a fat sleeve lobe reaching to the pole.
-    cradle = [(cx + sh_hw * 0.5, shoulder_y + U(6)),
-              (cx + sh_hw + U(6), shoulder_y + U(2)),
-              (staff_x - U(2), pole_top + U(40)),
-              (staff_x - U(10), pole_top + U(48)),
-              (cx + sh_hw * 0.4, shoulder_y + U(22))]
+    # Cradling arm (his right; viewer-right) — one CONTINUOUS sleeve springing from
+    # the shoulder seam and sweeping out to clasp the pole (no detached floating
+    # slab). Top edge starts at the shoulder; bottom edge curves under to the mitt.
+    cradle = [(cx + sh_hw - U(2), shoulder_y + U(1)),       # shoulder seam (top)
+              (cx + sh_hw * 0.5, shoulder_y + U(7)),         # inner shoulder anchor
+              (cx + sh_hw * 0.7, shoulder_y + U(26)),        # inner underside
+              (staff_x - U(12), pole_top + U(50)),           # underside reaching pole
+              (staff_x - U(1), pole_top + U(46)),            # at the pole (forearm)
+              (staff_x - U(3), pole_top + U(36)),            # top of forearm
+              (cx + sh_hw + U(8), shoulder_y + U(4))]        # outer shoulder (top)
     _triad_poly(surf, cradle, ROBE, ss)
     # A small mitt hand on the pole, one stubby finger TAPPING the glass (waiting).
     _triad_circle(surf, staff_x - U(8), pole_top + U(44), U(7), HOOD_FACE, ss)
@@ -326,7 +337,7 @@ def draw_tick_tock(surf, cx, feet_y, scale=1.0, ss=2):
               (cx, hood_cy - hr * 0.74),
               (cx + hr * 0.56, hood_cy - hr * 0.42),
               (cx + hr * 0.66, hood_cy + hr * 0.62)]
-    pygame.draw.polygon(surf, _shade_c(ROBE_DK, -22),
+    pygame.draw.polygon(surf, CAVITY,
                         [(int(p[0]), int(p[1])) for p in cavity])
     # A brass collar trim where hood meets robe.
     pygame.draw.line(surf, FRAME, (int(cx - hr * 0.9), int(hood_cy + hr * 0.66)),
@@ -390,10 +401,12 @@ def draw_hourglass_pillar(surf, cx, gap_edge, far_edge, w, ss, *, flip):
         gy += band
 
     # The hourglass CAP at the gap edge — the silhouette bulge that owns the
-    # gameplay read. Sand drains toward the gap so the live falling-sand reads.
+    # gameplay read. Sand drains toward the gap so the live falling-sand reads. The
+    # half-width:half-height ratio is locked to the boss's staff glass (0.75) so the
+    # "one literal shape" prop->pillar mirror reads identical at a glance.
     hg_hh = min(span * 0.32, 30 * ss)
+    hg_hw = hg_hh * 0.75
     hg_cy = gap_edge + sign * (hg_hh + 6 * ss)
-    hg_hw = max(pole_hw * 2.2, 16 * ss)
     _hourglass(surf, cx, hg_cy, hg_hw, hg_hh, ss, sand_t=0.5)
 
 
@@ -438,7 +451,7 @@ def main():
     label_f = pygame.font.SysFont("dejavusans", 17, bold=True)
     note_f = pygame.font.SysFont("dejavusans", 13)
 
-    sheet.blit(title_f.render("SKYBIT REAPER  —  TICK-TOCK  —  round 1", True,
+    sheet.blit(title_f.render("SKYBIT REAPER  —  TICK-TOCK  —  round 2", True,
                               (236, 236, 240)), (24, 18))
     sheet.blit(note_f.render(
         "Bureaucrat of time: squat teal trapezoid robe, smug half-lidded glower, cradles an HOURGLASS-STAFF. "
@@ -498,7 +511,7 @@ def main():
 
     out_dir = "/home/user/skybit/docs/skybit_reaper/tick_tock"
     os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, "round_1.png")
+    out = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

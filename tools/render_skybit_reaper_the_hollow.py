@@ -20,7 +20,7 @@ The pole is the pillar body (top cap + repeatable mid band); the snuffer-bell +
 flame ride the GAP-EDGE as a flourish, proving the prop->pillar mirror.
 
 Nothing under game/ is touched; we import the real colour kit only. Headless +
-deterministic.  Output: docs/skybit_reaper/the_hollow/round_1.png
+deterministic.  Output: docs/skybit_reaper/the_hollow/round_2.png
 
     SDL_VIDEODRIVER=dummy python tools/render_skybit_reaper_the_hollow.py
 """
@@ -65,17 +65,25 @@ FLAME_PINK  = (255, 79, 168)      # soul-flame core (the soul-pink glow)
 FLAME_HOT   = (255, 196, 230)     # flame hot centre
 
 
-def _triad_poly(surf, pts, col, ss, *, sheen_inset=0.34):
+def _triad_poly(surf, pts, col, ss, *, sheen_inset=0.34, rim=True):
     """A FLAT-fill polygon dressed with the house triad: a dark-core keyline ring
     (no soft edge), the flat colour fill, then a top-left rim-sheen drawn as a
-    LIGHTER offset polyline along the upper-left edges. No within-shape gradient
-    — the form reads from three hard value steps, never a blur."""
+    WIDE lighter band along the upper-left edges. No within-shape gradient — the
+    form reads from three hard value steps, never a blur. `rim` traces a thin
+    cool-violet separation halo just inside the WHOLE silhouette so the mass clears
+    the night-sky gradient without leaning on the 1px ink outline."""
     ipts = [(int(p[0]), int(p[1])) for p in pts]
     pygame.draw.polygon(surf, _shade_c(col, -55), ipts)
     pygame.draw.polygon(surf, col, ipts)
+    # Interior cool-violet separation rim — drawn FIRST so the heavier ink keyline
+    # and the sheen overprint it; on dark sky this thin bright edge is what lifts
+    # the bell off the gradient even where the outline is hairline-thin.
+    if rim:
+        pygame.draw.polygon(surf, SHROUD_RIM, ipts, max(1, int(2 * ss)))
     pygame.draw.polygon(surf, INK, ipts, max(1, int(2 * ss)))
-    # Top-left sheen: trace the upper-left edges with a lighter rim a few px in,
-    # so the cloak catches light from the canonical top-left without any gradient.
+    # Top-left sheen: a WIDE lighter band a few px in along the upper-left edges,
+    # so the cloak catches a clearly readable third value from the canonical
+    # top-left light without any within-shape gradient.
     n = len(pts)
     inset = []
     cxg = sum(p[0] for p in pts) / n
@@ -92,9 +100,10 @@ def _triad_poly(surf, pts, col, ss, *, sheen_inset=0.34):
     upper_left = [pp for pp, src in zip(inset, pts)
                   if src[0] <= cxg or src[1] <= cyg]
     if len(upper_left) >= 2:
-        pygame.draw.lines(surf, _shade_c(col, 55), False,
+        # A fat sheen band (the third triad step) — was a thin hairline in r1.
+        pygame.draw.lines(surf, SHROUD_HI, False,
                           [(int(p[0]), int(p[1])) for p in upper_left],
-                          max(1, int(2 * ss)))
+                          max(2, int(4 * ss)))
 
 
 def _scallop_hem(surf, cx, hem_y, half_w, ss, col, *, lobes=7):
@@ -113,10 +122,13 @@ def _scallop_hem(surf, cx, hem_y, half_w, ss, col, *, lobes=7):
         # dark-core ring then flat fill then top-left sheen pip — the triad, hard.
         pygame.draw.circle(surf, _shade_c(col, -55), (lx, ly), r)
         pygame.draw.circle(surf, col, (lx, ly), max(2, r - int(ss)))
-        pygame.draw.circle(surf, _shade_c(col, 55),
+        pygame.draw.circle(surf, SHROUD_HI,
                            (int(lx - r * 0.34), int(ly - r * 0.34)),
-                           max(1, int(r * 0.32)))
-        pygame.draw.circle(surf, INK, (lx, ly), r, max(1, int(1.6 * ss)))
+                           max(1, int(r * 0.34)))
+        # A thin cool-violet rim on each lobe so the bottom edge of the bell
+        # separates from the night gradient even where the ink outline is thin.
+        pygame.draw.circle(surf, SHROUD_RIM, (lx, ly), r, max(1, int(1.4 * ss)))
+        pygame.draw.circle(surf, INK, (lx, ly), r, max(2, int(2 * ss)))
         lowest = max(lowest, ly + r)
     # A bone trim band sitting along the scallop tops so the hem reads finished.
     pygame.draw.line(surf, BONE_DK, (int(cx - half_w), int(hem_y - r * 0.2)),
@@ -167,40 +179,49 @@ def _hood_void(surf, cx, cav_cy, cav_w, cav_h, ss, *, eye_dx, blink=False):
 def draw_hollow(surf, cx, feet_y, scale=1.0, ss=1, *, eye_dx=0.0, blink=False):
     """THE HOLLOW chibi void-shroud, built on its own geometry, all keyed off `H`.
 
-    Chibi build: a BIG hood arch (~42% of height), round shoulders sloping into a
-    short wide bell-shaped robe, a hard scalloped lobe hem, two stub sleeve-arms
-    gripping the snuffer-pole. A slight weight-shift (one shoulder dropped, head
-    tilt baked into the hood lean) gives the playful presenting stance; the void
-    inside the hood is flat-black with star pixels + pinprick eyes (scary-cute)."""
-    H = int(190 * scale * ss)
-    W = int(150 * scale * ss)
+    Chibi build: a BIG hood arch sitting LOW, round shoulders sloping into a
+    SHORT, WIDER-THAN-TALL bell robe, a hard scalloped lobe hem, two stub
+    sleeve-arms gripping the snuffer-pole. A clear weight-shift (the whole bell
+    + hood lean toward the prop, one shoulder dropped) gives the playful
+    presenting stance; the void inside the hood is flat-black with star pixels +
+    pinprick eyes (scary-cute)."""
+    # WHY r2: r1 read "tall generic reaper" (H=190/W=150). Drop H and fatten W so
+    # the silhouette is an unmistakable WIDER-THAN-TALL chibi bell with a low
+    # centre of gravity, distinct from the other roster takes.
+    H = int(160 * scale * ss)
+    W = int(184 * scale * ss)
     top_y = feet_y - H
 
-    # — Short wide bell robe: a chibi trapezoid flaring to a wide hem, narrow at
-    #   the round shoulders. Drawn with the house triad as one flat midnight mass.
-    shoulder_y = top_y + int(H * 0.40)
-    hem_y = feet_y - int(H * 0.12)
+    # — Short wide bell robe: a squat chibi trapezoid flaring to a hem WIDER than
+    #   the figure is tall, narrow at the round shoulders. The big-hood mass starts
+    #   low so the whole centre of gravity sits in the bottom third.
+    shoulder_y = top_y + int(H * 0.46)        # shoulders dropped low -> big hood
+    hem_y = feet_y - int(H * 0.13)
     sh_half = int(W * 0.30)         # narrow round shoulders
-    hem_half = int(W * 0.46)        # wide bell hem (chibi low centre of gravity)
-    # A faint weight-shift: the whole bell leans a hair so it isn't a symmetric T.
-    lean = int(W * 0.03)
+    hem_half = int(W * 0.52)        # very wide bell hem (low centre of gravity)
+    # A real weight-shift: the bell leans toward the held prop so it presents,
+    # rather than standing as a stiff symmetric T.
+    lean = int(W * 0.06)
+    # Asymmetric hem — the prop-side skirt kicks out wider so the pose reads as a
+    # cocked-hip lean, not a mirror trapezoid.
     body = [
         (cx - sh_half + lean, shoulder_y),
-        (cx - hem_half + lean, hem_y),
-        (cx + hem_half + lean, hem_y),
+        (cx - hem_half + int(lean * 0.4), hem_y),
+        (cx + hem_half + int(lean * 1.5), hem_y),
         (cx + sh_half + lean, shoulder_y),
     ]
     _triad_poly(surf, body, SHROUD, ss)
 
     # Round shoulders: two dark cloth lobes pulled up to the hood so the chibi
-    # silhouette reads round-shouldered and broad, not a flat cone.
+    # silhouette reads round-shouldered and broad, not a flat cone. The figure's
+    # left (s<0) shoulder drops noticeably for the presenting weight-shift.
     for s in (-1, 1):
-        drop = int(H * 0.03) if s < 0 else 0      # die-side shoulder drops a touch
+        drop = int(H * 0.06) if s < 0 else 0      # dropped shoulder = the lean
         sh = [
             (cx + lean, shoulder_y - int(H * 0.05) + drop),
-            (cx + s * int(W * 0.34) + lean, shoulder_y + int(H * 0.02) + drop),
-            (cx + s * int(W * 0.26) + lean, shoulder_y + int(H * 0.14)),
-            (cx + lean, shoulder_y + int(H * 0.06)),
+            (cx + s * int(W * 0.40) + lean, shoulder_y + int(H * 0.04) + drop),
+            (cx + s * int(W * 0.32) + lean, shoulder_y + int(H * 0.18)),
+            (cx + lean, shoulder_y + int(H * 0.08)),
         ]
         _triad_poly(surf, sh, SHROUD, ss, sheen_inset=0.5)
 
@@ -224,27 +245,27 @@ def draw_hollow(surf, cx, feet_y, scale=1.0, ss=1, *, eye_dx=0.0, blink=False):
     pygame.draw.circle(surf, BRASS_HI,
                        (int(cx + lean - ss), int(clasp_y - ss)), max(1, int(1.4 * ss)))
 
-    # — The BIG HOOD: a broad teardrop cowl leaning slightly toward the held pole,
-    #   the archetypal Death silhouette done chibi-round. Built as a flat triad
-    #   mass with a deep cavity for the faceless void.
+    # — The BIG HOOD: a broad teardrop cowl leaning clearly toward the held pole,
+    #   the archetypal Death silhouette done chibi-round and OVERSIZED so it caps
+    #   the squat body. Built as a flat triad mass with a deep cavity for the void.
     hood_peak_y = top_y - int(H * 0.02)
-    hlean = int(W * 0.05)            # the hood droops/leans toward the prop side
+    hlean = int(W * 0.10)            # exaggerated cowl lean toward the prop side
     hood = [
-        (cx - int(W * 0.32), shoulder_y - int(H * 0.02)),     # left jaw, broad
-        (cx - int(W * 0.30), top_y + int(H * 0.14)),
-        (cx - int(W * 0.10) + hlean, hood_peak_y),            # rounded peak
-        (cx + int(W * 0.12) + hlean, hood_peak_y + int(H * 0.01)),
-        (cx + int(W * 0.32), top_y + int(H * 0.14)),
-        (cx + int(W * 0.34), shoulder_y - int(H * 0.02)),     # right jaw
-        (cx + int(W * 0.18), shoulder_y + int(H * 0.02)),     # chin scoop
-        (cx - int(W * 0.18), shoulder_y + int(H * 0.02)),
+        (cx - int(W * 0.34), shoulder_y - int(H * 0.02)),     # left jaw, broad
+        (cx - int(W * 0.33), top_y + int(H * 0.16)),
+        (cx - int(W * 0.12) + hlean, hood_peak_y),            # rounded peak
+        (cx + int(W * 0.14) + hlean, hood_peak_y + int(H * 0.01)),
+        (cx + int(W * 0.35) + hlean, top_y + int(H * 0.16)),
+        (cx + int(W * 0.37) + hlean, shoulder_y - int(H * 0.02)),  # right jaw
+        (cx + int(W * 0.20) + hlean, shoulder_y + int(H * 0.03)),  # chin scoop
+        (cx - int(W * 0.20), shoulder_y + int(H * 0.03)),
     ]
     _triad_poly(surf, hood, SHROUD, ss)
 
     # The faceless void cavity, set under the cowl brow with star pixels + eyes.
     cav_cx = cx + hlean
-    cav_cy = top_y + int(H * 0.21)
-    _hood_void(surf, cav_cx, cav_cy, int(W * 0.34), int(H * 0.26), ss,
+    cav_cy = top_y + int(H * 0.22)
+    _hood_void(surf, cav_cx, cav_cy, int(W * 0.34), int(H * 0.28), ss,
                eye_dx=eye_dx * ss, blink=blink)
 
     # — The hard scalloped hem along the robe base (the signature divergence).
@@ -252,31 +273,32 @@ def draw_hollow(surf, cx, feet_y, scale=1.0, ss=1, *, eye_dx=0.0, blink=False):
 
     # — Two stub sleeve-arms reaching to grip the snuffer-pole on the figure's
     #   right. Chibi stubs (rounded capsules), not anatomical arms.
-    pole_x = cx + int(W * 0.40) + lean
+    pole_x = cx + int(W * 0.46) + lean
+    grip_hi = shoulder_y + int(H * 0.04)
+    grip_lo = shoulder_y + int(H * 0.30)
     for (sx, sy, ex, ey) in (
-        (cx + int(W * 0.18) + lean, shoulder_y + int(H * 0.10),
-         pole_x, top_y + int(H * 0.30)),
-        (cx + int(W * 0.20) + lean, shoulder_y + int(H * 0.22),
-         pole_x, top_y + int(H * 0.46)),
+        (cx + int(W * 0.20) + lean, shoulder_y + int(H * 0.12), pole_x, grip_hi),
+        (cx + int(W * 0.22) + lean, shoulder_y + int(H * 0.24), pole_x, grip_lo),
     ):
-        pygame.draw.line(surf, SHROUD_DK, (sx, sy), (ex, ey), max(3, int(8 * ss)))
-        pygame.draw.line(surf, SHROUD, (sx, sy), (ex, ey), max(2, int(6 * ss)))
+        pygame.draw.line(surf, SHROUD_DK, (sx, sy), (ex, ey), max(4, int(10 * ss)))
+        pygame.draw.line(surf, SHROUD, (sx, sy), (ex, ey), max(3, int(7 * ss)))
         pygame.draw.line(surf, SHROUD_HI, (sx - int(ss), sy - int(ss)),
-                         (int((sx + ex) / 2), int((sy + ey) / 2)), max(1, int(2 * ss)))
+                         (int((sx + ex) / 2), int((sy + ey) / 2)), max(2, int(3 * ss)))
 
-    # — The SNUFFER-CANDLE POLE held upright: a tall banded pole capped by a
+    # — The SNUFFER-CANDLE POLE held upright: a tall FAT banded pole capped by a
     #   bell-shaped candle-snuffer cone with a soul-flame peeking under the rim.
-    pole_top = top_y - int(H * 0.18)
+    #   WHY r2: r1's pole was a hairline lost on night sky — thickened substantially.
+    pole_top = top_y - int(H * 0.20)
     pole_bot = feet_y - int(H * 0.04)
-    _snuffer_pole(surf, pole_x, pole_top, pole_bot, max(2, int(5 * ss)), ss,
+    _snuffer_pole(surf, pole_x, pole_top, pole_bot, max(4, int(9 * ss)), ss,
                   bell=True)
 
     # — Stub mitts over the pole so the grip reads (drawn last to sit on top).
-    for gy in (top_y + int(H * 0.30), top_y + int(H * 0.46)):
-        pygame.draw.circle(surf, INK, (int(pole_x), int(gy)), max(3, int(6 * ss)))
-        pygame.draw.circle(surf, SHROUD, (int(pole_x), int(gy)), max(2, int(5 * ss)))
+    for gy in (grip_hi, grip_lo):
+        pygame.draw.circle(surf, INK, (int(pole_x), int(gy)), max(4, int(8 * ss)))
+        pygame.draw.circle(surf, SHROUD, (int(pole_x), int(gy)), max(3, int(7 * ss)))
         pygame.draw.circle(surf, SHROUD_HI,
-                           (int(pole_x - ss), int(gy - ss)), max(1, int(1.8 * ss)))
+                           (int(pole_x - ss), int(gy - ss)), max(2, int(2.6 * ss)))
 
 
 def _snuffer_pole(surf, cx, top_y, bot_y, hw, ss, *, bell=True):
@@ -284,12 +306,16 @@ def _snuffer_pole(surf, cx, top_y, bot_y, hw, ss, *, bell=True):
     bone pole with brass band rings; the bell-cone caps the top and a soul-pink
     flame peeks under its rim with an additive glow. The pole alone (bell=False)
     is the repeatable PILLAR mid; bell=True is the gap-edge cap flourish."""
-    # Pole: dark-core mass, bone rail, hard keyline — reads round + holds value.
+    # Pole: dark-core mass, bone rail, bright bone highlight, hard keyline — reads
+    # round, fat, and holds value on dark sky (the bone rail is the bright cue).
     pygame.draw.line(surf, INK, (int(cx), int(top_y)), (int(cx), int(bot_y)),
-                     hw + max(2, int(3 * ss)))
+                     hw + max(3, int(5 * ss)))
     pygame.draw.line(surf, BONE_DK, (int(cx), int(top_y)), (int(cx), int(bot_y)), hw)
-    pygame.draw.line(surf, BONE, (int(cx - 1 * ss), int(top_y)),
-                     (int(cx - 1 * ss), int(bot_y)), max(1, int(2 * ss)))
+    # Brighter bone rail down the lit side so the round post pops off night sky.
+    pygame.draw.line(surf, BONE, (int(cx - hw * 0.28), int(top_y)),
+                     (int(cx - hw * 0.28), int(bot_y)), max(2, int(hw * 0.42)))
+    pygame.draw.line(surf, BRASS_HI, (int(cx - hw * 0.32), int(top_y)),
+                     (int(cx - hw * 0.32), int(bot_y)), max(1, int(2 * ss)))
     # Brass band rings — pillar banding when tiled.
     span = bot_y - top_y
     for t in (0.30, 0.62, 0.90):
@@ -302,36 +328,43 @@ def _snuffer_pole(surf, cx, top_y, bot_y, hw, ss, *, bell=True):
     if not bell:
         return
     # The candle-snuffer BELL cone: a flat cone (triad) flaring at the rim, with a
-    # tiny finial knob on top — the unmistakable snuffer silhouette.
-    bw = int(hw * 2.6)
-    bh = int(hw * 4.0)
+    # finial knob on top — the unmistakable snuffer silhouette. WHY r2: r1's cap
+    # barely registered at 1x, so the bell + rim + flame are all enlarged and the
+    # cone gets its own bright rim so it clears night sky like the body.
+    bw = int(hw * 2.2)
+    bh = int(hw * 3.4)
     by = top_y                       # bell rim sits at the pole top
     cone = [(cx, by - bh), (cx - bw, by), (cx + bw, by)]
-    pygame.draw.polygon(surf, _shade_c(SHROUD, -40),
-                        [(int(p[0]), int(p[1])) for p in cone])
+    icone = [(int(p[0]), int(p[1])) for p in cone]
+    pygame.draw.polygon(surf, _shade_c(SHROUD, -40), icone)
     pygame.draw.polygon(surf, SHROUD,
                         [(int(p[0] + ss), int(p[1])) for p in
                          ((cx, by - bh + ss), (cx - bw + ss, by - ss),
                           (cx + bw - ss, by - ss))])
     pygame.draw.line(surf, SHROUD_HI, (int(cx), int(by - bh)),
-                     (int(cx - bw + ss), int(by - ss)), max(1, int(2 * ss)))
-    pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in cone],
-                        max(1, int(2 * ss)))
-    # Brass rim band + finial knob.
-    pygame.draw.line(surf, BRASS, (int(cx - bw), int(by)), (int(cx + bw), int(by)),
-                     max(2, int(3 * ss)))
-    pygame.draw.circle(surf, BRASS, (int(cx), int(by - bh)), max(2, int(3 * ss)))
+                     (int(cx - bw + ss), int(by - ss)), max(2, int(3 * ss)))
+    pygame.draw.polygon(surf, SHROUD_RIM, icone, max(1, int(1.6 * ss)))
+    pygame.draw.polygon(surf, INK, icone, max(2, int(2.4 * ss)))
+    # Brass rim band + finial knob — thicker so the snuffer mouth reads.
+    pygame.draw.line(surf, _shade_c(BRASS, -50), (int(cx - bw), int(by)),
+                     (int(cx + bw), int(by)), max(3, int(5 * ss)))
+    pygame.draw.line(surf, BRASS, (int(cx - bw), int(by - ss)),
+                     (int(cx + bw), int(by - ss)), max(2, int(3 * ss)))
+    pygame.draw.circle(surf, BRASS, (int(cx), int(by - bh)), max(3, int(4 * ss)))
     pygame.draw.circle(surf, BRASS_HI, (int(cx - ss), int(by - bh - ss)),
-                       max(1, int(1.4 * ss)))
-    # The soul-flame peeking under the bell rim — a soul-pink teardrop with an
-    # additive glow (the prop's one glow accent; the void eyes share the cyan).
-    fy = by + int(hw * 0.6)
-    blit_glow(surf, int(cx), int(fy), max(3, int(7 * ss)), FLAME_PINK, alpha=170)
-    flame = [(cx, fy - int(hw * 1.6)), (cx - int(hw * 0.7), fy),
-             (cx, fy + int(hw * 0.5)), (cx + int(hw * 0.7), fy)]
+                       max(1, int(2 * ss)))
+    # The soul-flame peeking under the bell rim — a bigger soul-pink teardrop with
+    # a wider additive glow (the prop's signature accent; void eyes share the cyan).
+    fy = by + int(hw * 1.2)
+    blit_glow(surf, int(cx), int(fy), max(5, int(12 * ss)), FLAME_PINK, alpha=190)
+    flame = [(cx, fy - int(hw * 2.2)), (cx - int(hw * 1.0), fy),
+             (cx, fy + int(hw * 0.7)), (cx + int(hw * 1.0), fy)]
     pygame.draw.polygon(surf, FLAME_PINK, [(int(p[0]), int(p[1])) for p in flame])
-    pygame.draw.circle(surf, FLAME_HOT, (int(cx), int(fy - hw * 0.3)),
-                       max(1, int(hw * 0.5)))
+    pygame.draw.polygon(surf, FLAME_HOT,
+                        [(cx, int(fy - hw * 1.3)), (int(cx - hw * 0.5), int(fy)),
+                         (cx, int(fy + hw * 0.3)), (int(cx + hw * 0.5), int(fy))])
+    pygame.draw.circle(surf, STAR_WHITE, (int(cx), int(fy - hw * 0.5)),
+                       max(1, int(hw * 0.35)))
 
 
 def _add_outline(src, outline_color=(28, 22, 30, 230)):
@@ -411,7 +444,7 @@ def main():
 
     sheet = pygame.Surface((SHEET_W, SHEET_H))
     sheet.fill((24, 22, 32))
-    sheet.blit(title_f.render("SKYBIT ENDGAME BOSS  —  THE HOLLOW  —  round 1",
+    sheet.blit(title_f.render("SKYBIT ENDGAME BOSS  —  THE HOLLOW  —  round 2",
                               True, (236, 236, 240)), (28, 22))
     sheet.blit(note_f.render(
         "Faceless cosmic void-shroud, chibi-flat. Big hood + flat-black star-void + "
@@ -448,7 +481,9 @@ def main():
     gap_top = int(PILL_H * 0.40)
     gap_bot = int(PILL_H * 0.60)
     col_x = PILL_W // 2
-    post_w = max(3, int(6 * ss))
+    # WHY r2: r1's post was a near-invisible hairline on night sky — fattened to a
+    # real obstacle so the pillar reads as a tileable pole at gameplay scale.
+    post_w = max(6, int(11 * ss))
     big_t = pygame.Surface((PILL_W * ss, PILL_H * ss), pygame.SRCALPHA)
     # Bottom pier: post rises from the floor, bell caps UP into the gap.
     draw_pole_pillar(big_t, col_x * ss, gap_bot * ss, (PILL_H - 8) * ss,
@@ -490,7 +525,7 @@ def main():
         pygame.draw.rect(frame, (90, 84, 104), (6, 22, INS_W, INS_H), 1)
         sheet.blit(frame, (ix, top_y + j * (INS_H + 30)))
 
-    out = "/home/user/skybit/docs/skybit_reaper/the_hollow/round_1.png"
+    out = "/home/user/skybit/docs/skybit_reaper/the_hollow/round_2.png"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pygame.image.save(sheet, out)
     print("wrote", out)

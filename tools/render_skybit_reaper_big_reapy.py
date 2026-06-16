@@ -133,9 +133,12 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
         # A soft ember halo behind the socket so the fire reads as glowing from
-        # within the bone (additive, kept tight so warm-bone stays dominant).
-        glow = make_glow_surface(int(sock_r * 1.7), EMBER, alpha_center=150, falloff=2.0)
-        surf.blit(glow, (int(ex - sock_r * 1.7 - 1), int(ey - sock_r * 1.7 - 1)),
+        # within the bone (additive, kept tight so warm-bone stays dominant). On
+        # night skies push the halo so the eyes read LIT, not as two dark holes.
+        halo_a = 215 if night else 150
+        halo_r = sock_r * (2.0 if night else 1.7)
+        glow = make_glow_surface(int(halo_r), EMBER, alpha_center=halo_a, falloff=2.0)
+        surf.blit(glow, (int(ex - halo_r - 1), int(ey - halo_r - 1)),
                   special_flags=pygame.BLEND_ADD)
         # Deep ink cavity (the grayscale-legible shape — the read survives without
         # the ember colour).
@@ -284,79 +287,120 @@ def _cloak_body(surf, cx, neck_y, w, h, ss):
 # ── the bone-bident prop (and its pillar-tile components) ─────────────────────
 
 def _bone_shaft(surf, cx, top_y, bot_y, hw, ss):
-    """The bone shaft = the tileable PILLAR BODY. A chunky bone post with VERTEBRA
-    bumps down its length (the banding that tiles vertically). Triad-shaded so it
-    reads round. No fork here — the fork is the detachable top cap."""
-    # Core post.
-    pygame.draw.rect(surf, BONE_DK, (int(cx - hw), int(top_y), int(2 * hw), int(bot_y - top_y)))
-    pygame.draw.rect(surf, BONE, (int(cx - hw + ss), int(top_y),
-                                  int(2 * hw - 2 * ss), int(bot_y - top_y)))
-    # Lit rail down the top-left edge so the bone reads cylindrical.
-    pygame.draw.line(surf, BONE_SHEEN, (int(cx - hw * 0.5), int(top_y)),
-                     (int(cx - hw * 0.5), int(bot_y)), max(1, int(1.6 * ss)))
-    # Vertebra bumps: evenly spaced knuckle rings, each a small triad-lit lobe pair
-    # straddling the post — the repeatable banding that makes the post read as a
-    # spine and tiles cleanly at any pillar length.
-    band = int(18 * ss)
-    y = top_y + band // 2
-    while y < bot_y - band * 0.3:
+    """The bone shaft = the tileable PILLAR BODY: a chunky SPINE of stacked vertebra
+    knuckles, not a smooth post. Each segment is a fat triad-lit drum with a hard
+    dark groove ring between it and the next, sized so only 2-3 segments stack
+    across a gameplay-height pillar — chunky + high-contrast enough that the spine
+    read SURVIVES smoothscale instead of washing to a blank tan bar. No fork here;
+    the fork is the detachable top cap."""
+    length = bot_y - top_y
+    # Chunky segments: tall enough that ~2-3 stack across a scrolling pillar. Bound
+    # the count so we never regress to many thin rings that smoothscale away.
+    seg_h = max(int(24 * ss), int(hw * 2.6))
+    n = max(2, round(length / seg_h))
+    seg_h = length / n
+    for i in range(n):
+        sy = top_y + i * seg_h
+        cy = sy + seg_h * 0.5
+        # Dark groove gutter behind the segment so neighbours read separated.
+        pygame.draw.rect(surf, INK,
+                         (int(cx - hw), int(sy), int(2 * hw), int(seg_h)))
+        # The vertebra drum: a fat rounded barrel filling most of the segment, with
+        # the form triad so it reads as a round bone knuckle.
+        drum = pygame.Rect(0, 0, int(2 * hw), int(seg_h * 0.82))
+        drum.center = (int(cx), int(cy))
+        pygame.draw.rect(surf, _shade_c(BONE, -46), drum,
+                         border_radius=max(2, int(hw * 0.55)))
+        pygame.draw.rect(surf, BONE, drum.inflate(-int(2 * ss), -int(2 * ss)),
+                         border_radius=max(2, int(hw * 0.5)))
+        # Two side knuckle lobes bulging past the drum so the segment reads as a
+        # vertebra (transverse processes), not a plain pill.
         for s in (-1, 1):
-            kx = cx + s * hw * 0.92
-            pygame.draw.circle(surf, _shade_c(BONE, -46), (int(kx), int(y)), int(hw * 0.42))
-            pygame.draw.circle(surf, BONE, (int(kx), int(y)), max(1, int(hw * 0.34)))
-        # A dark groove ring across the post so the vertebra read as segmented.
-        pygame.draw.line(surf, BONE_DK, (int(cx - hw), int(y + hw * 0.5)),
-                         (int(cx + hw), int(y + hw * 0.5)), max(1, int(1.4 * ss)))
-        y += band
+            kx = cx + s * hw * 0.95
+            pygame.draw.circle(surf, _shade_c(BONE, -46), (int(kx), int(cy)),
+                               int(hw * 0.55))
+            pygame.draw.circle(surf, BONE, (int(kx), int(cy)),
+                               max(1, int(hw * 0.44)))
+        # Top-left sheen tick so the drum reads lit + cylindrical.
+        pygame.draw.circle(surf, BONE_SHEEN,
+                           (int(cx - hw * 0.4), int(cy - seg_h * 0.18)),
+                           max(1, int(hw * 0.3)))
 
 
 def _bone_fork(surf, cx, base_y, hw, ss, *, point_up=True):
     """The two-prong soul-catcher FORK = the detachable PILLAR TOP CAP that rides
-    the gap-edge ONLY. Two hooked bone prongs curving in toward a centre gap, with
-    a small ember soul-wisp caught between them. Mirrors with the shaft into a clean
-    vertical post; the prongs flourish INTO the gap, never bleeding the tiling body.
+    the gap-edge ONLY. Two CHUNKY hooked bone prongs that sweep out then hook hard
+    back inward, clearly cradling a centre gap, with a bright ember soul caught in
+    the cradle between the tips. The fork is the prop's SIGNATURE — bold and long
+    enough to survive the 1x pillar downscale, never a thin wishbone. Mirrors with
+    the shaft into a clean vertical post; the prongs flourish INTO the gap only.
     `point_up` orients the prongs away from the shaft (toward the gap)."""
     d = -1 if point_up else 1
-    prong_len = 30 * ss
-    spread = hw * 1.6
+    # ~1.8x the round-1 prong length + a wider sweep so the fork is a bold, obvious
+    # two-prong cradle even after smoothscale.
+    prong_len = 54 * ss
+    spread = hw * 2.1
+    tips = []
     for s in (-1, 1):
-        # Each prong: a curved bone tine sweeping out then hooking back inward to a
-        # sharp tip, framing the centre gap.
+        # Each prong: a fat bone tine sweeping out, then hooking hard back inward to
+        # a hooked tip so the two tips clearly close over a U-shaped soul-cradle.
         pts = []
-        n = 10
+        n = 14
         for i in range(n + 1):
             t = i / n
-            px = cx + s * (hw * 0.5 + spread * math.sin(t * math.pi * 0.5))
-            py = base_y + d * prong_len * t
-            # Hook the tip back toward centre.
+            # Sweep out early, then hook the upper third sharply back toward centre.
+            out = math.sin(min(t, 0.6) / 0.6 * math.pi * 0.5)
+            hook = 0.0
             if t > 0.6:
-                px -= s * (t - 0.6) * spread * 0.9
+                ht = (t - 0.6) / 0.4
+                hook = (ht * ht) * 1.15            # accelerating inward hook
+            px = cx + s * (hw * 0.55 + spread * out - spread * hook)
+            py = base_y + d * prong_len * t
             pts.append((px, py))
-        # Dark-core stroke then bone fill stroke then sheen — a fat tapering tine.
-        for col, wid in ((BONE_DK, 9 * ss), (BONE, 6 * ss), (BONE_SHEEN, 2 * ss)):
+        tips.append(pts[-1])
+        # Dark-core stroke -> bone fill -> sheen: a fat tapering tine (~1.7x thicker
+        # than round 1) so the prong stays a bold bone, not a frail twig, at 1x.
+        for col, wid in ((BONE_DK, 16 * ss), (BONE, 11 * ss), (BONE_SHEEN, 3 * ss)):
             for i in range(len(pts) - 1):
                 t = i / (len(pts) - 1)
-                w = max(1, int(wid * (1.0 - 0.55 * t)))
+                w = max(1, int(wid * (1.0 - 0.42 * t)))
                 a, b = pts[i], pts[i + 1]
                 if col is BONE_SHEEN:
                     a = (a[0] - ss, a[1]); b = (b[0] - ss, b[1])
                 pygame.draw.line(surf, col, (int(a[0]), int(a[1])),
                                  (int(b[0]), int(b[1])), w)
-        # Sharp ink tip.
-        pygame.draw.circle(surf, INK, (int(pts[-1][0]), int(pts[-1][1])), max(1, int(2 * ss)))
+            # Round the joints so the swept tine reads as one smooth bone.
+            for px, py in pts[::3]:
+                pygame.draw.circle(surf, col, (int(px), int(py)),
+                                   max(1, int(w * 0.5)))
+        # Hooked claw tip — a bone knob with a sharp ink point aimed into the cradle.
+        tx, ty = pts[-1]
+        pygame.draw.circle(surf, BONE_DK, (int(tx), int(ty)), max(2, int(5 * ss)))
+        pygame.draw.circle(surf, BONE, (int(tx), int(ty)), max(1, int(3.5 * ss)))
+        pygame.draw.circle(surf, INK, (int(tx - s * 2 * ss), int(ty + d * 2 * ss)),
+                           max(1, int(2 * ss)))
 
-    # The caught soul-wisp: an ember teardrop glowing between the prongs at the gap.
-    wy = base_y + d * prong_len * 0.55
-    glow = make_glow_surface(int(hw * 1.5), EMBER, alpha_center=170, falloff=1.9)
-    surf.blit(glow, (int(cx - hw * 1.5 - 1), int(wy - hw * 1.5 - 1)),
+    # The caught soul: a bright ember sphere seated UP in the cradle between the
+    # prong tips (not low on the shaft). Tight, bright halo + a hot inner core so it
+    # reads as one discrete glowing caught soul, not a smear of bone-bleed.
+    tip_y = (tips[0][1] + tips[1][1]) * 0.5
+    wy = tip_y - d * prong_len * 0.10            # nestled just inside the tips
+    soul_r = hw * 0.85
+    glow = make_glow_surface(int(soul_r * 2.0), EMBER, alpha_center=230, falloff=2.4)
+    surf.blit(glow, (int(cx - soul_r * 2.0 - 1), int(wy - soul_r * 2.0 - 1)),
               special_flags=pygame.BLEND_ADD)
-    pygame.draw.circle(surf, EMBER, (int(cx), int(wy)), max(2, int(hw * 0.55)))
-    pygame.draw.circle(surf, EMBER_HOT, (int(cx), int(wy - hw * 0.12)), max(1, int(hw * 0.30)))
+    pygame.draw.circle(surf, EMBER, (int(cx), int(wy)), max(2, int(soul_r)))
+    pygame.draw.circle(surf, EMBER_HOT, (int(cx), int(wy - soul_r * 0.18)),
+                       max(2, int(soul_r * 0.52)))
+    # A tiny white-hot pinprick so the core has a discrete bright centre.
+    pygame.draw.circle(surf, (255, 246, 224), (int(cx), int(wy - soul_r * 0.22)),
+                       max(1, int(soul_r * 0.22)))
 
 
-def build_big_reapy(scale=1.0, ss=3):
+def build_big_reapy(scale=1.0, ss=3, *, night=False):
     """The full boss figure on its own transparent surface. Head ~55% of total
-    height. Returns an outlined surface and its baseline (feet) y for placement."""
+    height. Returns an outlined surface and its baseline (feet) y for placement.
+    `night` pushes the socket ember so the eyes stay lit on a dark sky."""
     H = int(260 * scale)
     W = int(150 * scale)
     pad = int(70 * scale)
@@ -384,7 +428,7 @@ def build_big_reapy(scale=1.0, ss=3):
     _bone_fork(surf, bx, fork_base, bhw, ss, point_up=True)
 
     _cloak_body(surf, skull_cx, neck_y, body_w, body_h, ss)
-    _skull_face(surf, skull_cx, skull_cy, skull_r, ss)
+    _skull_face(surf, skull_cx, skull_cy, skull_r, ss, night=night)
 
     # Downscale, then grow the unifying keyline from the alpha mask.
     out_w = int(surf.get_width() / ss)
@@ -409,8 +453,8 @@ def _bident_pillar_obstacle(height, ss, *, flip):
     cx = bw // 2
     hw = 8 * ss
     # The fork cap rides the gap-edge (the bottom of the un-flipped tile); the shaft
-    # is the repeatable body filling the rest. Reserve a band for the fork.
-    cap_band = int(46 * ss)
+    # is the repeatable body filling the rest. Reserve a band for the beefed fork.
+    cap_band = int(70 * ss)
     _bone_shaft(surf, cx, 0, bh - cap_band, hw, ss)
     _bone_fork(surf, cx, bh - cap_band, hw, ss, point_up=False)
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
@@ -447,7 +491,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((36, 34, 44))
-    _label(sheet, font, "BIG REAPY  —  take #7  —  ember-bone & ash-blue  —  round 1", 18, 12)
+    _label(sheet, font, "BIG REAPY  —  take #7  —  ember-bone & ash-blue  —  round 2", 18, 12)
     _label(sheet, small, "the towering boss-skull: a GIANT jack-o-grin (~55% head) on a tiny cloaked body, carrying a bone-bident soul-catcher",
             18, 32, (200, 196, 210))
 
@@ -460,24 +504,46 @@ def main():
                       panel.bottom - boss.get_height() - 20))
     _label(sheet, font, "(a) BOSS  showcase scale", panel.x + 8, panel.y + 8)
 
-    # — Cell B: the bident as a tileable PILLAR pair (top cap + repeatable mid).
+    # — Cell B: the bident as a tileable PILLAR pair, proven at TRUE obstacle scale.
+    #   LEFT column = a real 360x640 virtual-canvas slice rendered at native 1x
+    #   pixels (this is exactly what scrolls in-game — no zoom). RIGHT column = a 2x
+    #   zoom of the same gap so the reviewer can read the beefed fork + chunky
+    #   vertebra banding that must survive that 1x downscale.
     panelB = pygame.Rect(394, 56, 360, 560)
     bg = _sky(panelB.w, panelB.h, (40, 110, 200), (90, 170, 230), (170, 220, 245))
     sheet.blit(bg, panelB.topleft)
     pygame.draw.rect(sheet, (90, 86, 104), panelB, 2, border_radius=8)
-    # A top + bottom pillar with a gap between — the fork caps face the gap.
-    gap_top = panelB.y + 200
-    gap_bot = panelB.y + 360
-    top_h = gap_top - panelB.y
-    bot_h = panelB.bottom - gap_bot
-    px = panelB.centerx - (PIPE_W + 2 * OVERHANG) // 2
+    _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE obstacle scale", panelB.x + 8, panelB.y + 8)
+
+    pw = PIPE_W + 2 * OVERHANG                  # 82px — the real obstacle width
+    # True 1x gameplay slice: a 200px-tall window of the 640-tall canvas with a
+    # realistic ~150px gap, pillars at native pixel size.
+    slice_h = 200
+    slice_x = panelB.x + 30
+    slice_y = panelB.y + 70
+    gap_top = 56
+    gap_h = 92
+    top_h = gap_top
+    bot_h = slice_h - gap_top - gap_h
     top_pillar = _bident_pillar_obstacle(top_h, 3, flip=True)
     bot_pillar = _bident_pillar_obstacle(bot_h, 3, flip=False)
-    sheet.blit(top_pillar, (px - 2, panelB.y - 2))
-    sheet.blit(bot_pillar, (px - 2, gap_bot - 2))
-    _label(sheet, font, "(b) PROP -> PILLAR mirror", panelB.x + 8, panelB.y + 8)
-    _label(sheet, small, "shaft = tileable body (vertebra banding)", panelB.x + 8, panelB.y + 28, (20, 20, 30))
-    _label(sheet, small, "fork = gap-edge soul-catcher cap", panelB.x + 8, gap_bot + 8, (20, 20, 30))
+    sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
+    sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
+    pygame.draw.rect(sheet, (255, 255, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
+    _label(sheet, small, "1x native (82px wide,", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
+    _label(sheet, small, "as it scrolls in-game)", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
+
+    # 2x zoom of the gap region so the fork + banding detail is legible to review.
+    zoom_src = pygame.Surface((pw, slice_h), pygame.SRCALPHA)
+    zoom_src.blit(top_pillar, (-2, -2))
+    zoom_src.blit(bot_pillar, (-2, gap_top + gap_h - 2))
+    zoom = pygame.transform.scale(zoom_src, (pw * 2, slice_h * 2))
+    zx = panelB.x + 165
+    zy = panelB.y + 60
+    sheet.blit(zoom, (zx, zy))
+    _label(sheet, small, "2x zoom: chunky vertebra", zx - 4, zy - 16, (255, 255, 255))
+    _label(sheet, small, "spine + beefed fork cradling", zx - 4, zy + slice_h * 2 + 4, (20, 20, 30))
+    _label(sheet, small, "the ember soul, top<->bottom mirror", zx - 4, zy + slice_h * 2 + 20, (20, 20, 30))
 
     # — Cell C: 1x in-game-scale INSET on BOTH day and night skies.
     panelC = pygame.Rect(770, 56, 392, 560)
