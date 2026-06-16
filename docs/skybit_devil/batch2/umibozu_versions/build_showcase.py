@@ -29,46 +29,48 @@ NAME_COL = (244, 244, 240)
 FACET_COL = (190, 192, 200)
 REF_TAG = (250, 214, 130)
 
-# Per-sheet hero windows (x, y, w, h) in source pixels, measured against a
-# 20px grid overlay on panel (a). Bounds reach each silhouette's true extent
-# (the lure stalk, the nine-arm spread, the hung rib-cage, the wide clam, the
-# spiral whorl) and stop clear of the panel caption text so only the creature
-# carries in.
+# Per-sheet hero windows (x, y, w, h) in source pixels. Each window was
+# auto-measured from panel (a)'s creature blob (deviation from the smooth
+# undersea gradient), then padded so every extremity — lure stalk, nine-arm
+# spread, hung rib-cage + tail, clam width + mirage plume, spiral cord + tail —
+# clears the crop edge with a background margin on all four sides. fit_inside
+# normalizes the differing window sizes, so generous windows never clip and
+# never distort.
 TILES = [
     {
         "file": "docs/skybit_devil/batch2/leyak_epic/umibozu/round_3.png",
-        "crop": (85, 140, 215, 340),
+        "crop": (82, 127, 192, 363),
         "name": "Umibozu",
         "facet": "the source sea-monk (shipped)",
         "reference": True,
     },
     {
         "file": "docs/skybit_devil/batch2/umibozu_versions/chochin_anko/round_2.png",
-        "crop": (88, 150, 248, 360),
+        "crop": (33, 140, 179, 379),
         "name": "Chochin-Anko",
         "facet": "anglerfish lure-fiend",
     },
     {
         "file": "docs/skybit_devil/batch2/umibozu_versions/akkorokamui/round_2.png",
-        "crop": (48, 110, 270, 165),
+        "crop": (39, 107, 236, 179),
         "name": "Akkorokamui",
         "facet": "sunset kraken-deity",
     },
     {
         "file": "docs/skybit_devil/batch2/umibozu_versions/bake_kujira/round_2.png",
-        "crop": (143, 110, 164, 405),
+        "crop": (50, 122, 266, 430),
         "name": "Bake-Kujira",
         "facet": "skeletal ghost-whale",
     },
     {
         "file": "docs/skybit_devil/batch2/umibozu_versions/hamaguri/round_2.png",
-        "crop": (113, 108, 200, 395),
+        "crop": (64, 111, 228, 414),
         "name": "Hamaguri-Shinkirou",
         "facet": "mirage drowned-city clam",
     },
     {
         "file": "docs/skybit_devil/batch2/umibozu_versions/tehom/round_4.png",
-        "crop": (88, 140, 230, 190),
+        "crop": (67, 103, 224, 266),
         "name": "Tehom-no-Tamago",
         "facet": "abyssal leviathan-egg",
     },

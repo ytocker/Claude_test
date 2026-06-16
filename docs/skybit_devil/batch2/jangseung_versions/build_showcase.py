@@ -26,45 +26,53 @@ NAME_COL = (244, 244, 240)
 FACET_COL = (190, 192, 200)
 REF_TAG = (250, 214, 130)
 
-# Per-sheet hero windows (x, y, w, h) in source pixels, measured against each
-# 1040x900 sheet. Bottoms are trimmed clear of each sheet's "(a) Hero ..."
-# caption and the windows stay left of the pillar/gap and (c)-chip columns so
-# only the hero post carries in.
+# Per-sheet hero windows (x, y, w, h) in source pixels. Each window was
+# re-measured from the actual painted creature bounds (an automated non-
+# background bounding-box scan of the hero panel) and padded with a clear
+# margin on every side, so no carved post, mane-ring, hat, lean, hair fan,
+# bird bill, scroll/pole base or keyline touches a crop edge. Generous extra
+# background is fine — fit_inside() normalizes every tile to the same size —
+# but clipping the creature is not. Windows stay left of the (b) gap-pillar /
+# (c) chip columns and above each sheet's "(a) Hero ..." caption so only the
+# hero carries in. Muljang is the tight case: its forward lean reaches within
+# 10px of the panel's left edge and its base plate ends only ~9px above its own
+# caption, so those two margins are the most the source affords without clipping
+# the figure or pulling caption text in.
 TILES = [
     {
         "file": "docs/skybit_devil/batch2/jiangshi_epic/jangseung/round_2.png",
-        "crop": (78, 75, 180, 460),
+        "crop": (80, 56, 159, 462),
         "name": "Jangseung",
         "facet": "the source post",
         "reference": True,
     },
     {
         "file": "docs/skybit_devil/batch2/jangseung_versions/haedung/round_4.png",
-        "crop": (30, 75, 300, 470),
+        "crop": (40, 56, 238, 475),
         "name": "Haedung",
         "facet": "fire-eating guardian-lion",
     },
     {
         "file": "docs/skybit_devil/batch2/jangseung_versions/harubang/round_2.png",
-        "crop": (70, 110, 200, 420),
+        "crop": (64, 99, 190, 438),
         "name": "Harubang",
         "facet": "bellied grandfather post",
     },
     {
         "file": "docs/skybit_devil/batch2/jangseung_versions/muljang/round_2.png",
-        "crop": (30, 118, 290, 429),
+        "crop": (0, 139, 325, 411),
         "name": "Muljang",
         "facet": "prow-rider figurehead",
     },
     {
         "file": "docs/skybit_devil/batch2/jangseung_versions/hyeoljang/round_2.png",
-        "crop": (80, 75, 160, 455),
+        "crop": (72, 56, 174, 457),
         "name": "Hyeoljang",
         "facet": "tongue-out warrior",
     },
     {
         "file": "docs/skybit_devil/batch2/jangseung_versions/sotjang/round_2.png",
-        "crop": (70, 90, 170, 450),
+        "crop": (71, 65, 164, 480),
         "name": "Sotjang",
         "facet": "sky-bird sentinel pole",
     },
