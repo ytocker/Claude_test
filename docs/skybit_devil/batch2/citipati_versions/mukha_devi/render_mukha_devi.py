@@ -113,70 +113,33 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
     pygame.draw.circle(surf, INK, c, r, ow)
 
 
-# ── the six holy relic-weapons (each cradled in one hand) ─────────────────────
+# ── the six holy relics — only TWO alternating TYPES (A-B-A-B-A-B) ────────────
 def relic(surf, kind, cx, cy, r, s, ang=0.0):
-    """Draw ONE of the six micro-relics as a single fat blob so the outer arc
-    reads as six DISTINCT shapes, never a fringe. WHY each is a chunky bone+gold
-    silhouette with the SAME footprint: at 32px the six must punch six even dots
-    around the starburst, so legibility comes from a clean round/triangular mass,
-    not from internal weapon detail that vanishes at scale. `kind` cycles the six
-    holy weapons; the gold trim + a rose glint give them deity sparkle."""
-    # common bone knuckle the relic sits on (ties relic to the hand)
-    triad_circle(surf, BONE, (cx, cy), int(r * 0.42), ow=max(1, int(1.2 * s)), core=False)
-    gx = cx + int(math.cos(ang) * r * 0.9)
-    gy = cy + int(math.sin(ang) * r * 0.9)
-
-    if kind == 0:   # CHAKRA disc — gold ring with rose hub
-        triad_circle(surf, GOLD, (gx, gy), int(r * 0.9), ow=max(1, int(1.4 * s)))
-        pygame.draw.circle(surf, ROSE, (gx, gy), int(r * 0.34))
-        pygame.draw.circle(surf, ROSE_BR, (gx - int(r * 0.12), gy - int(r * 0.12)), max(1, int(r * 0.14)))
-        for k in range(8):   # spoke ticks
-            a = k * math.pi / 4
-            pygame.draw.line(surf, GOLD_D,
-                             (gx + math.cos(a) * r * 0.4, gy + math.sin(a) * r * 0.4),
-                             (gx + math.cos(a) * r * 0.78, gy + math.sin(a) * r * 0.78),
-                             max(1, int(1 * s)))
-    elif kind == 1:   # TRIDENT / vajra-tip — triangular gold blade
-        tip = [(gx + math.cos(ang) * r * 1.1, gy + math.sin(ang) * r * 1.1),
-               (gx + math.cos(ang + 2.3) * r * 0.8, gy + math.sin(ang + 2.3) * r * 0.8),
-               (gx + math.cos(ang - 2.3) * r * 0.8, gy + math.sin(ang - 2.3) * r * 0.8)]
-        triad_blob(surf, GOLD, tip, ow=max(1, int(1.3 * s)))
-        pygame.draw.circle(surf, ROSE, (gx, gy), max(1, int(r * 0.22)))
-    elif kind == 2:   # SKULL-CUP (kapala) — bone bowl with rose brew
-        bowl = [(gx - int(r * 0.85), gy - int(r * 0.2)),
-                (gx + int(r * 0.85), gy - int(r * 0.2)),
-                (gx + int(r * 0.55), gy + int(r * 0.7)),
-                (gx - int(r * 0.55), gy + int(r * 0.7))]
-        triad_blob(surf, BONE, bowl, ow=max(1, int(1.3 * s)))
-        pygame.draw.ellipse(surf, ROSE, (gx - int(r * 0.62), gy - int(r * 0.28),
-                                         int(r * 1.24), int(r * 0.42)))
-        pygame.draw.ellipse(surf, ROSE_BR, (gx - int(r * 0.3), gy - int(r * 0.24),
-                                            int(r * 0.4), int(r * 0.2)))
-    elif kind == 3:   # BELL (ghanta) — teal sliver dome with gold lip
-        dome = [(gx - int(r * 0.7), gy - int(r * 0.5)),
-                (gx + int(r * 0.7), gy - int(r * 0.5)),
-                (gx + int(r * 0.85), gy + int(r * 0.55)),
-                (gx - int(r * 0.85), gy + int(r * 0.55))]
-        triad_blob(surf, BONE, dome, ow=max(1, int(1.3 * s)))
-        pygame.draw.line(surf, TEAL, (gx - int(r * 0.8), gy + int(r * 0.5)),
-                         (gx + int(r * 0.8), gy + int(r * 0.5)), max(2, int(2.4 * s)))
-        pygame.draw.line(surf, TEAL_BR, (gx - int(r * 0.7), gy + int(r * 0.46)),
-                         (gx + int(r * 0.1), gy + int(r * 0.46)), max(1, int(1 * s)))
-        pygame.draw.circle(surf, GOLD, (gx, gy - int(r * 0.6)), max(1, int(r * 0.22)))
-    elif kind == 4:   # LOTUS-JEWEL — rose gem in a gold cup
-        triad_circle(surf, GOLD, (gx, gy), int(r * 0.7), ow=max(1, int(1.3 * s)), core=False)
-        triad_circle(surf, ROSE, (gx, gy - int(r * 0.05)), int(r * 0.46),
-                     ow=max(1, int(1 * s)), core=False)
-        pygame.draw.circle(surf, ROSE_BR, (gx - int(r * 0.16), gy - int(r * 0.2)), max(1, int(r * 0.16)))
-    else:   # kind == 5 — CURVED KNIFE (kartika) — gold crescent
-        cres = [(gx - int(r * 0.8), gy - int(r * 0.55)),
-                (gx + int(r * 0.6), gy - int(r * 0.3)),
-                (gx + int(r * 0.2), gy + int(r * 0.2)),
-                (gx + int(r * 0.5), gy + int(r * 0.7)),
-                (gx - int(r * 0.4), gy + int(r * 0.4)),
-                (gx - int(r * 0.85), gy - int(r * 0.05))]
-        triad_blob(surf, GOLD, cres, ow=max(1, int(1.3 * s)))
-        pygame.draw.circle(surf, ROSE, (gx - int(r * 0.5), gy + int(r * 0.45)), max(1, int(r * 0.2)))
+    """Draw ONE of the six micro-relics. WHY only TWO alternating TYPES (a round
+    rose disc-relic and a gold flame/triangle-relic), not six distinct weapons:
+    at 32px six fussy silhouettes blur to mush and pull visual weight out to the
+    rim, starving the face — the AD ruling. Six even GLOW-CAPS in a ring is the
+    radial read that survives, so each is a clean chunky mass with the same
+    footprint, rose-vs-gold giving rhythm instead of per-weapon detail. `kind`
+    is taken mod 2 so the arc reads A-B-A-B-A-B."""
+    gx = cx + int(math.cos(ang) * r * 0.55)
+    gy = cy + int(math.sin(ang) * r * 0.55)
+    if kind % 2 == 0:   # TYPE A — round rose disc-relic in a gold ring
+        triad_circle(surf, GOLD, (gx, gy), int(r * 0.95), ow=max(1, int(1.4 * s)), core=False)
+        triad_circle(surf, ROSE, (gx, gy), int(r * 0.6), ow=max(1, int(1 * s)), core=False)
+        pygame.draw.circle(surf, ROSE_BR, (gx - int(r * 0.18), gy - int(r * 0.2)),
+                           max(1, int(r * 0.26)))
+    else:   # TYPE B — gold flame / triangle-relic with a rose ember at its heart
+        tip = [(gx + math.cos(ang - math.pi / 2) * r * 1.15,
+                gy + math.sin(ang - math.pi / 2) * r * 1.15),
+               (gx + math.cos(ang + math.pi / 2 + 0.55) * r * 0.95,
+                gy + math.sin(ang + math.pi / 2 + 0.55) * r * 0.95),
+               (gx + math.cos(ang + math.pi / 2 - 0.55) * r * 0.95,
+                gy + math.sin(ang + math.pi / 2 - 0.55) * r * 0.95)]
+        triad_blob(surf, GOLD, tip, ow=max(1, int(1.4 * s)))
+        pygame.draw.circle(surf, ROSE, (gx, gy), max(1, int(r * 0.4)))
+        pygame.draw.circle(surf, ROSE_BR, (gx - int(r * 0.12), gy - int(r * 0.14)),
+                           max(1, int(r * 0.18)))
 
 
 # ── a single ornamental tiara-skull (reused for tiara + pillar relics) ────────
@@ -200,40 +163,39 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 
 
 # ── the six-arm radial starburst (the KIND tell) ──────────────────────────────
-def draw_arm_fan(surf, cx, cy, s, hr, relic_r):
+def draw_arm_fan(surf, sh_cx, sh_cy, s, hr, relic_r):
     """Six fat bone arms splay in a wide symmetric STARBURST around the torso —
     the ONLY radial silhouette in the brood. WHY few-and-FAT: at 32px thin arms
     tangle; six chunky bone limbs hold a clean star, and each hand cradles one
-    micro-relic so the outer arc reads as six DISTINCT blobs. WHY the fan opens
-    UP and SIDEWAYS but leaves the lower-centre clear: the radial fan must FRAME
-    the face, not swallow it — the two lowest arms drop OUT to the flanks so the
-    chin/tiara stay open. Returns the six hand centres for relic placement.
+    micro-relic so the outer arc reads as six even glow-caps in a ring.
 
-    Arms are placed on a wide upper arc (≈ -200° to ≈ 20°), symmetric about the
-    vertical, three per side, evenly fanned."""
-    shoulder = (cx, cy - int(2 * s))
-    arm_len = int(hr * 2.7)
-    arm_th = int(11 * s)
-    # symmetric pairs: top-near-vertical, mid-diagonal, low-near-horizontal
-    # angles measured from +x;負 = up. Three per side mirrored about -90°.
-    spread = [62, 30, 4]   # degrees off the vertical for the 3 arms per side
-    hands = []
-    order = []   # (hand, angle) in draw order: back arms first
+    WHY the arms now ORIGIN at a low SHOULDER line and the topmost pair splays
+    near-HORIZONTAL: the AD ruling is that the fan must FRAME the face, not cap
+    it. With the origin dropped below the head and NO arm aimed straight up, a
+    clean wedge of negative space opens ABOVE the tiara — the fan brackets the
+    skull like a peacock tail behind it. The arc spans ≈ ±100° off vertical
+    (top arms near-horizontal, mid-diagonal, low-down), three per side, so the
+    silhouette stays a peripheral star and never reaches over the crown.
+    Returns the six hand centres for relic placement."""
+    shoulder = (sh_cx, sh_cy)
+    arm_len = int(hr * 1.95)
+    arm_th = int(12 * s)
+    # NO near-vertical arm: top arm is near-horizontal so the crown stays open.
+    spread = [100, 64, 28]   # degrees off the vertical for the 3 arms per side
+    order = []
     for sgn in (-1, 1):
         for d in spread:
             a = math.radians(-90 + sgn * d)
             order.append((sgn, d, a))
-    # draw from the most-horizontal (back) to the most-vertical (front) so the
-    # upper arms overlap cleanly over the lower flank arms
-    order.sort(key=lambda o: -abs(o[1]))
+    # draw the lowest (most-down) arms first so the upper splay overlaps cleanly
+    order.sort(key=lambda o: -o[1])
+    hands = []
     for sgn, d, a in order:
-        sh = (shoulder[0] + sgn * int(hr * 0.5), shoulder[1] + int(hr * 0.15))
-        # an elbow kink gives the arm a hint of a bend without thinning it
+        sh = (shoulder[0] + sgn * int(hr * 0.55), shoulder[1])
         elbow = (sh[0] + math.cos(a) * arm_len * 0.52,
                  sh[1] + math.sin(a) * arm_len * 0.52)
         hand = (sh[0] + math.cos(a) * arm_len,
                 sh[1] + math.sin(a) * arm_len)
-        # fat two-segment bone arm
         for (p, q) in ((sh, elbow), (elbow, hand)):
             dx, dy = q[0] - p[0], q[1] - p[1]
             L = max(1.0, math.hypot(dx, dy))
@@ -248,7 +210,6 @@ def draw_arm_fan(surf, cx, cy, s, hr, relic_r):
         triad_circle(surf, BONE, (int(elbow[0]), int(elbow[1])), int(arm_th * 0.55),
                      ow=max(1, int(1.2 * s)), core=False)
         hands.append((sgn, d, hand))
-    # restore canonical L→R order for relic kinds (top-left .. top-right)
     hands.sort(key=lambda h: (h[0], -h[1]))
     return [(int(h[2][0]), int(h[2][1])) for h in hands]
 

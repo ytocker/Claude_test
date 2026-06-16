@@ -1,5 +1,5 @@
 """
-Round-1 concept renderer for STUPIKA — the walking skull-stupa reliquary lord
+Round-2 concept renderer for STUPIKA — the walking skull-stupa reliquary lord
 (Batch 2 / Citipati-versions set, concept #2). Headless Pygame; ELEVATED
 pipeline (supersample SS=6 → smoothscale) so the stacked geometry stays crisp
 at downscale. Keeps the shipped house grammar: flat saturated fills, hard 1-2px
@@ -361,26 +361,33 @@ def draw_stupika(surf, cx, cy, s):
     # gilt cornice on the top plinth step
     gilt_cornice(surf, cx, base_bot - int(16 * s), int(plinth_w * 0.86), s, flare=0.12)
 
-    # === stubby walking feet poking out below the plinth (the toddled-off read)
-    foot_y = base_bot + int(2 * s)
-    for sgn, fx in ((-1, cx - int(26 * s)), (+1, cx + int(24 * s))):
+    # === stubby walking feet — ANCHORED into the plinth silhouette so they read
+    # as part of the base block, not detached flecks at 1x. Each foot's TOP
+    # overlaps up into the plinth (no gap to shimmer), and a short bone ankle
+    # ties it to the plinth underside so the toddled-off read survives downscale.
+    foot_y = base_bot - int(4 * s)
+    for sgn, fx in ((-1, cx - int(28 * s)), (+1, cx + int(26 * s))):
         # one foot lifted mid-stomp (the right one, slightly up & forward)
-        lift = int(6 * s) if sgn > 0 else 0
-        foot = [(fx - int(12 * s), foot_y - lift),
-                (fx + int(14 * s), foot_y - lift - int(2 * s)),
-                (fx + int(13 * s), foot_y - lift + int(9 * s)),
-                (fx - int(13 * s), foot_y - lift + int(8 * s))]
+        lift = int(5 * s) if sgn > 0 else 0
+        # ankle stub bridging plinth → foot (kills the detached look)
+        pygame.draw.rect(surf, BONE,
+                         (fx - int(6 * s), base_bot - int(16 * s),
+                          int(12 * s), int(16 * s)))
+        foot = [(fx - int(13 * s), foot_y - lift),
+                (fx + int(15 * s), foot_y - lift - int(2 * s)),
+                (fx + int(14 * s), foot_y - lift + int(10 * s)),
+                (fx - int(14 * s), foot_y - lift + int(9 * s))]
         triad_blob(surf, BONE, foot,
-                   sheen_pts=[(fx - int(12 * s), foot_y - lift),
+                   sheen_pts=[(fx - int(13 * s), foot_y - lift),
                               (fx + int(2 * s), foot_y - lift),
                               (fx + int(1 * s), foot_y - lift + int(3 * s)),
-                              (fx - int(12 * s), foot_y - lift + int(3 * s))],
+                              (fx - int(13 * s), foot_y - lift + int(3 * s))],
                    ow=max(1, int(1.4 * s)))
         # two stubby toe-bone ticks
-        for k in (-4, 2):
+        for k in (-5, 2):
             pygame.draw.line(surf, BONE_DD,
-                             (fx + int(k * s), foot_y - lift + int(4 * s)),
-                             (fx + int(k * s), foot_y - lift + int(8 * s)),
+                             (fx + int(k * s), foot_y - lift + int(5 * s)),
+                             (fx + int(k * s), foot_y - lift + int(9 * s)),
                              max(1, int(1.4 * s)))
 
     # === TIER 1 — wide base, the LIVE FACE (ground floor) ====================
@@ -389,16 +396,17 @@ def draw_stupika(surf, cx, cy, s):
     t1_hw = int(46 * s)
     skull_tier(surf, cx, t1_top, t1_hw, t1_h, s, face=True)
 
-    # vermilion prayer-cord swag slung across the base tier (thin linear accent)
-    prayer_swag(surf, cx, t1_top + int(8 * s), int(t1_hw * 0.82), s, droop=9)
-
     # === TIER 2 — bell-belly, narrower ========================================
     t2_h = int(34 * s)
     t2_hw = int(35 * s)
     t2_top = t1_top - t2_h
     skull_tier(surf, cx, t2_top, t2_hw, t2_h, s, face=False)
-    # a second, shorter swag between tier 2 and 3
-    prayer_swag(surf, cx, t2_top + int(6 * s), int(t2_hw * 0.8), s, droop=6)
+
+    # vermilion prayer-cord swag hung at the TIER 2/1 division — the cornice seam
+    # ABOVE the eye row, never crossing or kissing it. The cord must read as
+    # masonry trim while the eyes alone read as the creature; they cannot share
+    # a horizontal line (the round-1 merge that collapsed the face at 32px).
+    prayer_swag(surf, cx, t1_top - int(2 * s), int(t1_hw * 0.78), s, droop=8)
 
     # === TIER 3 — slim harmika neck ===========================================
     t3_h = int(24 * s)
@@ -472,7 +480,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("STUPIKA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "walking skull-stupa reliquary lord  ·  STACKED-TOWER · live face = lowest tier · gilt cornices + spire · round 1",
+        "walking skull-stupa reliquary lord  ·  STACKED-TOWER · ONE live face = lowest tier · gilt cornices + spire · round 2",
         True, LABEL_DIM), (210, 26))
 
     # === (a) BIG HERO =========================================================
@@ -481,9 +489,9 @@ def main():
     hero = grow_outline(pygame.transform.smoothscale(hero_big, (360, 470)), INK + (255,), 1)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("3 stacked stupa-tiers; the ONE live face is the LOWEST tier (big lamp eyes)", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("so it reads creature, not wall — mass at the BASE, never top-heavy. Stubby", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("feet mid-stomp. Gilt = cornices + spire ONLY; vermilion = thin swag only.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("ONLY the lowest tier is live: lamp-eyes SUNK in dark ink sockets, over a", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("teeth grin. Upper tiers are BLIND niches (no round/no glow). Swag moved", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("OFF the eye line to the tier seam above. Feet anchored to the plinth.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -569,7 +577,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

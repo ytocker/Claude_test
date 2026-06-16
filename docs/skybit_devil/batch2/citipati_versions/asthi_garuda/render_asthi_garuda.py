@@ -109,72 +109,77 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
     pygame.draw.circle(surf, INK, c, r, ow)
 
 
-# ── a single RIGID quill-BLADE (the hard tell — bone spline, not a membrane) ──
-def quill_blade(surf, root, ang, length, width, s, lit_tip=False):
-    """One rigid tapered bone quill: a hard lens-shaped spline rooted at `root`,
-    swept along `ang`, narrowing to a sharp tip. WHY a hard spline and not a
-    webbed membrane: this is the cross-set TELL — Asthi-Garuda's wings are tiered
-    HARD quill-BLADES (rigid bone), explicitly NOT Pazul's faceted membranes. A
-    central dark shaft groove + a pale-quill leading-edge sheen sell it as bone,
-    not skin. Each blade is its own closed polygon so sky reads BETWEEN blades."""
+# ── a single FAT RIGID bone-BLADE (the hard tell — a plank, never a thread) ───
+def bone_blade(surf, root, ang, length, width, s, tip_blunt=0.34):
+    """One FAT rigid bone-blade: a wide, near-parallel-sided plank rooted at
+    `root`, swept along `ang`, ending in a stubby CHISEL tip (never a hair). WHY
+    a fat plank and not a needle-quill: round-1 collapsed into a dandelion-puff
+    at 32px — the AD ruling is fat rigid BLADES so the winged tell survives at
+    gameplay scale. Each blade is triad-lit as its OWN form (dark-core spine →
+    flat fill → top-left sheen) so it reads as a plank of bone, and is its own
+    closed polygon so sky reads cleanly BETWEEN blades — the X stays an X."""
     ca, sa = math.cos(ang), math.sin(ang)
-    # perpendicular for the blade width
-    px, py = -sa, ca
-    tip = (root[0] + ca * length, root[1] + sa * length)
-    belly = 0.42 * length            # widest point sits out from the root
-    bx = (root[0] + ca * belly, root[1] + sa * belly)
+    px, py = -sa, ca                     # perpendicular = blade width axis
     hw = width * 0.5
-    # a four-point lens that tapers to a sharp tip (rigid feather/blade read)
+    # the chisel tip is a blunt flat edge (a stubby chisel), not a point
+    tip_c = (root[0] + ca * length, root[1] + sa * length)
+    tw = hw * tip_blunt                  # half-width at the chisel tip
+    # belly sits most of the way out so the plank stays wide nearly to the tip
+    belly = 0.72 * length
+    bx = (root[0] + ca * belly, root[1] + sa * belly)
+    # 6-point near-parallel plank: root edge → full-width belly → chisel tip edge
     blade = [
-        (root[0] + px * hw * 0.55, root[1] + py * hw * 0.55),
-        (bx[0] + px * hw, bx[1] + py * hw),
-        tip,
-        (bx[0] - px * hw, bx[1] - py * hw),
-        (root[0] - px * hw * 0.55, root[1] - py * hw * 0.55),
+        (root[0] + px * hw * 0.86, root[1] + py * hw * 0.86),
+        (bx[0]   + px * hw,        bx[1]   + py * hw),
+        (tip_c[0] + px * tw,       tip_c[1] + py * tw),
+        (tip_c[0] - px * tw,       tip_c[1] - py * tw),
+        (bx[0]   - px * hw,        bx[1]   - py * hw),
+        (root[0] - px * hw * 0.86, root[1] - py * hw * 0.86),
     ]
     pygame.draw.polygon(surf, INK, blade)
     pygame.draw.polygon(surf, BONE, blade)
-    # dark-core down the trailing half (toward the body) so the blade has volume
+    # dark-core spine down the trailing (body-side) half → the plank gets volume
     core = [
-        (root[0] - px * hw * 0.30, root[1] - py * hw * 0.30),
-        (bx[0] - px * hw * 0.55, bx[1] - py * hw * 0.55),
-        tip,
-        (bx[0] - px * hw * 0.10, bx[1] - py * hw * 0.10),
+        (root[0] - px * hw * 0.62, root[1] - py * hw * 0.62),
+        (bx[0]   - px * hw * 0.86, bx[1]   - py * hw * 0.86),
+        (tip_c[0] - px * tw,       tip_c[1] - py * tw),
+        (tip_c[0] + px * tw * 0.2, tip_c[1] + py * tw * 0.2),
+        (bx[0]   - px * hw * 0.10, bx[1]   - py * hw * 0.10),
     ]
     pygame.draw.polygon(surf, BONE_D, core)
-    # pale-quill leading-edge sheen (top-left lit edge → the rigid bone read)
+    # top-left leading-edge sheen — a fat pale rail, not a thread (rigid bone read)
     lead = [
-        (root[0] + px * hw * 0.40, root[1] + py * hw * 0.40),
-        (bx[0] + px * hw * 0.78, bx[1] + py * hw * 0.78),
-        tip,
+        (root[0] + px * hw * 0.70, root[1] + py * hw * 0.70),
+        (bx[0]   + px * hw * 0.92, bx[1]   + py * hw * 0.92),
+        (tip_c[0] + px * tw * 0.8, tip_c[1] + py * tw * 0.8),
+        (tip_c[0] + px * tw * 0.1, tip_c[1] + py * tw * 0.1),
+        (bx[0]   + px * hw * 0.30, bx[1]   + py * hw * 0.30),
     ]
     pygame.draw.polygon(surf, QUILL_HI, lead)
-    # central shaft groove — the hard quill rib
-    pygame.draw.line(surf, BONE_DD, (bx[0], bx[1]), tip, max(1, int(width * 0.10)))
-    pygame.draw.polygon(surf, INK, blade, max(1, int(width * 0.12)))
-    if lit_tip:
-        pygame.draw.circle(surf, GLOW, (int(tip[0]), int(tip[1])), max(1, int(width * 0.16)))
+    # central shaft groove — the hard quill rib, a confident line
+    pygame.draw.line(surf, BONE_DD, (bx[0], bx[1]), tip_c, max(2, int(width * 0.18)))
+    pygame.draw.polygon(surf, INK, blade, max(2, int(width * 0.16)))
 
 
-def scalloped_fan(surf, root, base_ang, spread, n, length, width, s, tier_drop=0.0):
-    """A tiered fan of rigid quill-blades sweeping from `root`. WHY scalloped &
-    tiered: the wing silhouette reads as a hard scalloped edge (bone splines), and
-    a second shorter inner tier gives the layered-feather depth without any
-    membrane webbing. Returns nothing; draws longest blades first so the inner
-    tier overlaps cleanly toward the body."""
-    # outer (long) tier
-    for i in range(n):
-        t = i / max(1, n - 1)
-        a = base_ang - spread * 0.5 + spread * t
-        # quills lengthen toward the wrist (mid of the arc) for a wing taper
-        taper = 1.0 - abs(t - 0.5) * 0.7
-        quill_blade(surf, root, a, length * (0.62 + 0.38 * taper), width, s)
-    # inner (short) tier nested between the outer blades — the scallop layering
-    for i in range(n - 1):
-        t = (i + 0.5) / max(1, n - 1)
-        a = base_ang - spread * 0.5 + spread * t
-        taper = 1.0 - abs(t - 0.5) * 0.7
-        quill_blade(surf, root, a, length * (0.40 + 0.26 * taper), width * 0.82, s)
+def blade_wing(surf, root, base_ang, s, sign, scale=1.0, length=58.0, width=12.0):
+    """ONE wing as a small set of FAT bone-blades forming TWO clean RANKS — an
+    outer PRIMARY rank (3 long blades that define the X-arm) + an inner COVERT
+    rank (2 short fat stubs at the shoulder). WHY two ranks not one fringe: the
+    brief asks for tiered fans; the longest primary points down `base_ang` and
+    is THE X-limb, its siblings tuck a few degrees behind it (NOT a radial
+    sunburst). `sign` (+1 right / -1 left) only mirrors the small spread offsets.
+    Total = 5 blades per wing, max — the AD blade budget."""
+    bw = max(4.0, width * s)
+    L = length * s * scale
+    # COVERT rank first (drawn behind): two short fat stubs hugging the shoulder
+    for k, (off, fac, wfac) in enumerate(((22, 0.42, 1.05), (40, 0.34, 0.92))):
+        a = base_ang + sign * math.radians(off)
+        bone_blade(surf, root, a, L * fac, bw * wfac, s, tip_blunt=0.46)
+    # PRIMARY rank: three long blades, the MIDDLE one is the X-limb (longest)
+    # tight ±13° spread so they read as one bold thrust, not a spreading fan
+    for k, (off, fac) in enumerate(((-13, 0.80), (0, 1.0), (13, 0.84))):
+        a = base_ang + math.radians(off)
+        bone_blade(surf, root, a, L * fac, bw, s, tip_blunt=0.30)
 
 
 # ── the beaked bone-skull (vulture head — reused for hero + pillar cap) ───────
@@ -240,19 +245,33 @@ def bird_skull(surf, cx, cy, r, s, lit=True, agape=True):
                  (cx - int(r * 0.12), cy + int(r * 0.96))]
         triad_blob(surf, BONE, lower, ow=max(1, int(1.2 * s)))
 
-    # === deep sockets pinned with blood-orange glow ==========================
+    # === deep bone sockets pinned with blood-orange glow =====================
+    # WHY no joining bridge-bar: round-1 read as goggles/spectacles. Each eye is
+    # set directly into its OWN hard bone socket — a raised bone RIM, a dark
+    # hollow, the orange glow nested deep inside — with a bony NASAL SEPTUM ridge
+    # between them (a divider, never a connecting lens-bar). Reads bone-vulture,
+    # not steampunk owl.
     for sgn in (-1, 1):
-        ex = cx + sgn * int(r * 0.46)
-        ey = cy - int(r * 0.04)
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(r * 0.36))
-        pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.30))
+        ex = cx + sgn * int(r * 0.48)
+        ey = cy - int(r * 0.02)
+        # raised bone socket rim (lit top-left), then the deep hollow inside it
+        pygame.draw.circle(surf, BONE_D, (ex, ey), int(r * 0.40))
+        pygame.draw.circle(surf, QUILL_HI, (ex - int(r * 0.14), ey - int(r * 0.16)),
+                           int(r * 0.16))
+        pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.32))
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(r * 0.27))
         if lit:
-            # rust ring under the glow so it doesn't blow out flat
+            # rust ring under the glow so the orange doesn't blow out flat
             pygame.draw.circle(surf, RUST, (ex, ey), int(r * 0.22))
             pygame.draw.circle(surf, GLOW, (ex + sgn * int(1 * s), ey + int(1 * s)),
-                               int(r * 0.16))
+                               int(r * 0.15))
             pygame.draw.circle(surf, GLOW_HOT, (ex - int(1 * s), ey - int(1 * s)),
-                               max(1, int(r * 0.07)))
+                               max(1, int(r * 0.06)))
+    # bony nasal septum ridge dividing the two sockets (a divider, NOT a bridge)
+    pygame.draw.line(surf, BONE_DD, (cx, cy - int(r * 0.16)),
+                     (cx, cy + int(r * 0.16)), max(1, int(2 * s)))
+    pygame.draw.line(surf, QUILL_HI, (cx - int(1 * s), cy - int(r * 0.14)),
+                     (cx - int(1 * s), cy + int(r * 0.10)), max(1, int(1 * s)))
 
 
 # ── the spread-wing hero ──────────────────────────────────────────────────────

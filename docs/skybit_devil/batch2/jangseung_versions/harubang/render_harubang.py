@@ -530,8 +530,8 @@ def main():
     hero = grow_outline(hero, INK + (255,), 1)
     sheet.blit(hero, (10, 72))
     sheet.blit(font.render("(a) Hero — domed-cap grandpa on a fat barrel", True, LABEL), (16, 548))
-    sheet.blit(font_sm.render("pupil-less owl-eye STARE + clasped belly-hands + modest", True, LABEL_DIM), (16, 572))
-    sheet.blit(font_sm.render("mushroom-cap = identity; gold belt-bands + belly grain repeat; bottom-heavy", True, LABEL_DIM), (16, 588))
+    sheet.blit(font_sm.render("owl-eye STARE + FAT pale-wood clasped hands (lifted off the belt,", True, LABEL_DIM), (16, 572))
+    sheet.blit(font_sm.render("dark gap under them) + domed mushroom-cap = identity; bottom-heavy", True, LABEL_DIM), (16, 588))
 
     # (b) pillar assembled — top segment + gap + bottom segment, MIRRORED ------
     pcx = 460
@@ -620,6 +620,7 @@ def main():
         (OAK, "bog-oak"), (OAK_D, "deep oak (core)"),
         (OAK_T, "oak sheen"), (OAK_GRV, "bevel groove"),
         (GOLD, "turmeric gold"), (GOLD_D, "deep gold"),
+        (HAND, "pale-wood hand"), (HAND_T, "hand sheen"),
         (LICHEN, "lichen-grey"), (LICHEN_D, "deep lichen"),
         (EYEGLOW, "eye-glow cream"), (EYEGLOW_D, "glow shade"),
         (INK, "ink keyline"),
@@ -647,19 +648,19 @@ def main():
         "  not noise) so it never reads as a cool Kitsune-mint accent.",
     ]
     notes_r = [
-        "• Identity = pupil-LESS bulging owl-eyes w/ bright rim-sheen",
-        "  STARE + two clasped belly-hands + modest mushroom-cap. Big&few.",
-        "• Fattest, BOTTOM-HEAVY barrel; gap-cap grandpa-head drawn",
-        "  CLEARLY smaller than belly width — best mirror, no top-heavy.",
-        "• Creature IS the pillar: hero barrel body == the shaft the",
-        "  pillar tiles; cap = mirrored partner grandpa-head, eyes lit.",
+        "• HANDS FIX (r2): enlarged, lifted to MID-belly off the belt-band",
+        "  w/ a hard dark bog-oak gap under them; PALE-WOOD (not gold) +",
+        "  rim-sheen so the body reads as 3 blobs at 32px — gold cap-eyes /",
+        "  dark belly / pale clasped-hands. Two mitts, 3 fat fingers. Big&few.",
+        "• Fattest, BOTTOM-HEAVY barrel; gap-cap grandpa-head CLEARLY",
+        "  smaller than belly — best mirror, no top-heavy; eyes glow-matched.",
     ]
     for i, line in enumerate(notes_l):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (26, note_y + 40 + i*19))
     for i, line in enumerate(notes_r):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (540, note_y + 40 + i*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

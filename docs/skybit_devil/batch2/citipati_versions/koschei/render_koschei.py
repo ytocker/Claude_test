@@ -47,11 +47,15 @@ BONE      = (190, 192, 158)   # corpse-tallow grey-green bone (dominant fill)
 BONE_D    = (146, 130,  92)   # olive-bone shade / dark-core
 BONE_DD   = (104,  94,  66)   # deepest bone hollow (rib gaps, joint sockets)
 BONE_SH   = (238, 232, 206)   # bone top-left rim-sheen
-# the SINGLE warm focal — the cupped soul-egg (poison-chartreuse glow)
-EGG       = (190, 222,  96)   # poison-chartreuse soul-egg body
-EGG_BR    = (224, 244, 150)   # hot egg inner glow
-EGG_HOT   = (244, 252, 214)   # hottest egg core (lightest)
-EGG_D     = (138, 168,  60)   # egg shade
+# the SINGLE warm focal — the cupped soul-egg (poison-chartreuse glow).
+# WHY pushed saturation/brightness vs round 1: at 32px the egg was outgunned by
+# the indigo eyes and bled into the tallow lap; it must be the brightest, most-
+# saturated thing in the figure so the cool body recedes as briefed.
+EGG       = (196, 232,  72)   # poison-chartreuse soul-egg body (more saturated)
+EGG_BR    = (228, 250, 132)   # hot egg inner glow
+EGG_HOT   = (248, 255, 206)   # hottest egg core (lightest)
+EGG_D     = (132, 166,  48)   # egg shade
+EGG_RIM   = (108, 138,  36)   # egg dark rim (its own crisp keyline, warmer than ink)
 # blackened-iron crown + throne frame (the dark structural accent)
 IRON      = ( 58,  54,  60)
 IRON_BR   = ( 96,  92, 100)   # iron top-left sheen
@@ -141,38 +145,61 @@ def bone_limb(surf, p0, p1, p2, thick, s, joint=True):
 
 
 # -- the cupped soul-egg (the SINGLE warm focal, reused in figure + pillar cap)-
+def egg_socket(surf, cx, cy, r, s):
+    """A dark blackened-iron RECESS the egg is set into. WHY drawn first, behind
+    the egg: at 32px the chartreuse alone won't separate from the tallow lap —
+    the AD ruling is that a hard dark frame on every side is what makes 'held
+    object' read at 1×. A full dark cup (taller-than-wide, matching the ovoid)
+    gives the egg a high-contrast socket gap on all sides; the cupping thumbs
+    then close it from below."""
+    sr = int(r * 1.30)
+    socket = []
+    for k in range(24):
+        a = math.radians(k * 15)
+        socket.append((cx + math.cos(a) * sr,
+                       cy + math.sin(a) * sr * 1.18))
+    pygame.draw.polygon(surf, INK, socket)
+    pygame.draw.polygon(surf, IRON_D,
+                        [(p[0], p[1]) for p in socket])
+    # inner deepest shadow so the rim of the socket itself reads as a lip
+    inner = [(cx + math.cos(math.radians(k * 15)) * sr * 0.82,
+              cy + math.sin(math.radians(k * 15)) * sr * 0.98)
+             for k in range(24)]
+    pygame.draw.polygon(surf, INK, inner)
+
+
 def soul_egg(surf, cx, cy, r, s):
-    """A glowing poison-chartreuse egg with a hot core. WHY a soft halo ring is
-    laid first: the egg is the one warm light source, so it must read as
-    EMITTING — a faint chartreuse aura bleeds past the shell onto the cool bone
-    around it, popping the figure's focal on both day and night skies."""
-    # emitted aura — concentric translucent rings (the only soft element; the
-    # body stays hard-edged so the egg owns the glow)
-    for i, (rr, a) in enumerate(((r * 1.9, 26), (r * 1.5, 46), (r * 1.2, 78))):
+    """A clean hard-rim poison-chartreuse OVOID with a hot top-left core. WHY a
+    single crisp vertical ovoid (taller than wide) with its own dark rim instead
+    of the round-1 lumpy contour: at 32px it must read as an EGG shape, not a
+    round blob, and the warm rim keeps it separated from the dark socket behind.
+    The egg is the one warm light source so a faint aura bleeds onto the cool
+    bone, popping the focal on both day and night."""
+    # emitted aura — concentric translucent rings (the only soft element)
+    for (rr, a) in ((r * 1.85, 30), (r * 1.45, 54), (r * 1.15, 90)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, EGG_BR + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
         surf.blit(halo, (cx - int(rr) - 2, cy - int(rr) - 2))
-    # the egg ovoid — narrower top, fuller bottom
+    # the egg ovoid — a clean vertical ellipse, taller than wide, narrower top
     egg_pts = []
-    for k in range(24):
-        a = math.radians(k * 15)
-        ex = cx + math.cos(a) * r * (0.78 if math.sin(a) < 0 else 0.86)
-        ey = cy + math.sin(a) * r * (1.02 if math.sin(a) < 0 else 1.12)
-        egg_pts.append((ex, ey))
-    triad_blob(surf, EGG, egg_pts,
-               core_pts=[(cx + int(r * 0.10), cy + int(r * 0.16)),
-                         (cx + int(r * 0.74), cy - int(r * 0.10)),
-                         (cx + int(r * 0.50), cy + int(r * 0.92)),
-                         (cx - int(r * 0.10), cy + int(r * 0.96))],
-               ow=max(1, int(1.4 * s)))
-    # hot inner core (top-left biased, the glow heart)
-    pygame.draw.circle(surf, EGG_BR, (cx - int(r * 0.12), cy - int(r * 0.10)),
-                       int(r * 0.52))
-    pygame.draw.circle(surf, EGG_HOT, (cx - int(r * 0.20), cy - int(r * 0.22)),
-                       max(1, int(r * 0.26)))
+    for k in range(28):
+        a = math.radians(k * (360 / 28))
+        wx = 0.74 if math.sin(a) < 0 else 0.80   # taper the top a hair
+        egg_pts.append((cx + math.cos(a) * r * wx,
+                        cy + math.sin(a) * r * 1.22))
+    # crisp dark rim keyline (warmer than ink so the egg still glows, not muddy)
+    pygame.draw.polygon(surf, EGG_RIM, egg_pts)
+    inner = [(cx + (p[0] - cx) * 0.86, cy + (p[1] - cy) * 0.88) for p in egg_pts]
+    pygame.draw.polygon(surf, EGG, inner)
+    # hot inner glow stacked top-left (the glow heart), kept tight + bright
+    pygame.draw.ellipse(surf, EGG_BR,
+                        (cx - int(r * 0.52), cy - int(r * 0.62),
+                         int(r * 0.84), int(r * 1.02)))
+    pygame.draw.circle(surf, EGG_HOT, (cx - int(r * 0.18), cy - int(r * 0.26)),
+                       max(1, int(r * 0.30)))
     # a thin meridian crack — hints the death-needle sealed inside
-    pygame.draw.line(surf, EGG_D, (cx + int(r * 0.30), cy - int(r * 0.74)),
-                     (cx - int(r * 0.10), cy + int(r * 0.86)), max(1, int(1.4 * s)))
+    pygame.draw.line(surf, EGG_D, (cx + int(r * 0.26), cy - int(r * 0.92)),
+                     (cx - int(r * 0.08), cy + int(r * 1.04)), max(1, int(1.4 * s)))
 
 
 # -- the blackened-iron tomb-crown of thin bent SPIKES (the HARD tell) ---------

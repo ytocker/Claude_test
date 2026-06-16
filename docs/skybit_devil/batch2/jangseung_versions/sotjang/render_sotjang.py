@@ -179,32 +179,42 @@ def turned_shaft(surf, cx, top, bot, half_w, s, knots=True):
                          (cx - int(half_w*0.18), gy + int(10*s)), max(1, int(1*s)))
         gy += int(70*s)
 
-    # LATHE RING-BANDS — full-width turned rings. WHY denser toward the bottom:
-    # graduating the pitch packs more carved mass low so the pole visibly
-    # bottom-weights; each ring is a triad channel (groove shadow + bright top
-    # lip) so it survives downscale as a stacked-ring read, not a flat bar.
-    def ring(ry, h):
+    # LATHE RING-BANDS — full-width turned rings. WHY denser AND DARKER toward
+    # the bottom: round 1 filled every ring with PINE (the shaft tone), so the
+    # rings carried no VALUE and washed out first at 32px — the exact marks that
+    # are supposed to anchor the bottom vanished, leaving a top-heavy lollipop.
+    # Now the low rings are filled DARK (PINE_D, ink groove cores, widening
+    # bulge), so the bottom of the pole carries the highest-contrast, widest
+    # mass on the whole figure and survives downscale as real dark weight.
+    def ring(ry, h, dark=0.0, bulge_mul=1.0):
         rh = max(2, int(h*s))
-        # slight bulge: rings read as turned beads, widest at their middle
-        bulge = int(half_w * 0.14)
+        # rings read as turned beads; the low ones bulge wider for more mass
+        bulge = int(half_w * (0.14 + 0.34*bulge_mul*dark))
+        fill = lerp(PINE, PINE_D, dark)
         bead = [(x0 - bulge, ry), (x0 + w + bulge, ry),
                 (x0 + w + bulge, ry + rh), (x0 - bulge, ry + rh)]
         pygame.draw.polygon(surf, INK, bead)
-        pygame.draw.polygon(surf, PINE, bead)
-        pygame.draw.line(surf, PINE_GRV, (x0 - bulge, ry + rh - max(1, int(1*s))),
-                         (x0 + w + bulge, ry + rh - max(1, int(1*s))), max(1, int(2*s)))
+        pygame.draw.polygon(surf, fill, bead)
+        # deep groove shadow along the BOTTOM edge — heavier on the dark rings
+        gh = max(1, int((2 + 2*dark)*s))
+        pygame.draw.line(surf, lerp(PINE_GRV, INK, dark*0.6),
+                         (x0 - bulge, ry + rh - gh//2),
+                         (x0 + w + bulge, ry + rh - gh//2), gh)
         pygame.draw.line(surf, PINE_T, (x0 - bulge, ry + max(1, int(1*s))),
                          (x0 + w + bulge, ry + max(1, int(1*s))), max(1, int(1.5*s)))
         pygame.draw.polygon(surf, INK, bead, max(1, int(1.5*s)))
 
     # graduated ring positions (fraction of span from the top) — clustered low
-    for frac, h in ((0.30, 6), (0.52, 7), (0.68, 8), (0.80, 9), (0.90, 11)):
-        ring(top + int(span*frac), h)
+    # and graduating from pale (dark=0) at top to deep dark (dark=1) in the
+    # foot-cluster, so visual VALUE-weight pools hard at the bottom.
+    for frac, h, dk in ((0.30, 6, 0.0), (0.50, 7, 0.20),
+                        (0.66, 8, 0.45), (0.78, 10, 0.72), (0.89, 13, 1.0)):
+        ring(top + int(span*frac), h, dark=dk, bulge_mul=1.0)
 
     if knots:
         # a couple of PRAYER-CLOTH KNOTS bulging off the lower shaft — pale cord
         # wraps that add real silhouette mass low. Two knots, offset sides.
-        for kfrac, kside in ((0.60, -1), (0.74, 1)):
+        for kfrac, kside in ((0.66, -1), (0.80, 1)):
             ky = top + int(span*kfrac)
             kw = int(half_w * 1.05)
             kh = int(half_w * 0.85)
@@ -236,16 +246,21 @@ def turned_shaft(surf, cx, top, bot, half_w, s, knots=True):
 
 
 # ── the duck crown: a grumpy sacred DUCK glaring down off the pole ────────────
-def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False):
+def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False, tuck=False):
     """The grumpy sacred duck. WHY a clean OVAL body with SPARSE feather-courses:
     this is the set's only top-heavy risk, so the body silhouette must read as
     one slim blob first; detail comes only after. The character lives in the
     comic UNDERBITE bill + the big saucer EYE + the heavy indigo neck-band. The
     duck looks DOWN the pole (toward the gap). `scale` shrinks the whole crown
     (the gap-cap duck is ~70%); `lit` brightens the bill + eye for the gap-cap;
-    `face_down` flips the glare direction for the upright bottom segment."""
+    `face_down` flips the glare direction for the upright bottom segment.
+    `tuck` pulls the underbite bill fully inside the shaft's vertical envelope —
+    used for the gap-cap duck, where any bill overhang at the most-scrutinized
+    gap-edge silhouette would read as a snag. Only the eye-glow may break the
+    column width on the cap; the bill never does."""
     S = s * scale
     flip = -1 if face_down else 1
+    bill_reach = 0.78 if tuck else 1.18   # how far the underbite juts past the head
 
     # ── body: one clean honey-tan OVAL blob, taller than wide, slim ──────────
     brx = int(34 * S)
@@ -403,23 +418,28 @@ def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False):
     # ── comic UNDERBITE BILL — the signature gag ─────────────────────────────
     # A wide flat duck bill where the LOWER mandible juts past the upper one;
     # bill points slightly DOWN (glaring down the pole). Bill lit on the cap.
-    bx = cx - int(hrx*0.7)
+    # On the gap-cap (`tuck`), seat the bill base closer to the axis so the
+    # whole bill swings inside the shaft's vertical envelope at the gap edge.
+    bx = cx - int(hrx*(0.55 if tuck else 0.7))
     bly = hy + int(hry*0.34)            # bill base y on the head
     blen = int(34 * S)
+    ureach = blen * (0.86 if tuck else 1.0)
     bup = BILL if not lit else lerp(BILL, EYEGLOW, 0.35)
     # upper mandible (shorter)
     upper = [(bx, bly - int(7*S)),
-             (bx - blen, bly - int(2*S)),
-             (bx - int(blen*0.92), bly + int(3*S)),
+             (bx - int(ureach), bly - int(2*S)),
+             (bx - int(ureach*0.92), bly + int(3*S)),
              (bx, bly + int(2*S))]
     triad_blob(surf, bup, upper,
-               core_pts=[(bx, bly - int(2*S)), (bx - int(blen*0.6), bly + int(1*S)),
-                         (bx - int(blen*0.55), bly + int(3*S)), (bx, bly + int(2*S))],
+               core_pts=[(bx, bly - int(2*S)), (bx - int(ureach*0.6), bly + int(1*S)),
+                         (bx - int(ureach*0.55), bly + int(3*S)), (bx, bly + int(2*S))],
                ow=max(1, int(1.5*S)))
-    # lower mandible (the UNDERBITE — juts further + droops, fatter)
+    # lower mandible (the UNDERBITE — juts further + droops, fatter). On the
+    # cap its reach is clamped (`bill_reach`) so the tip never crosses the shaft
+    # edge; on the hero it keeps the full comic jut.
     lower = [(bx, bly + int(2*S)),
-             (bx - int(blen*1.18), bly + int(6*S)),
-             (bx - int(blen*1.12), bly + int(13*S)),
+             (bx - int(blen*bill_reach), bly + int(6*S)),
+             (bx - int(blen*(bill_reach-0.06)), bly + int(13*S)),
              (bx + int(2*S), bly + int(11*S))]
     triad_blob(surf, lerp(bup, BILL_D, 0.15), lower,
                sheen_pts=[(bx - int(blen*0.2), bly + int(3*S)),
@@ -458,17 +478,32 @@ def draw_sotjang(surf, cx, cy, s):
     pole_bot = cy + int(180*s)
     turned_shaft(surf, cx, pole_top, pole_bot, half_w, s, knots=True)
 
-    # a wide plinth foot grounds the pole (extra bottom weight)
-    foot = [(cx - half_w - int(14*s), pole_bot - int(4*s)),
-            (cx + half_w + int(14*s), pole_bot - int(4*s)),
-            (cx + half_w + int(8*s), pole_bot + int(18*s)),
-            (cx - half_w - int(8*s), pole_bot + int(18*s))]
+    # a wide plinth foot grounds the pole (the heaviest bottom mass). WHY it is
+    # widened ~18% and given an INK-dark core: at 32px the foot must out-mass
+    # the head blob and be the WIDEST, darkest mark on the figure so the
+    # silhouette reads as a rooted pole, not a top-heavy lollipop. A taller,
+    # splayed plinth + a dark base shadow pool the value firmly at the ground.
+    fy0 = pole_bot - int(4*s)
+    fy1 = pole_bot + int(22*s)
+    foot = [(cx - half_w - int(20*s), fy0),
+            (cx + half_w + int(20*s), fy0),
+            (cx + half_w + int(11*s), fy1),
+            (cx - half_w - int(11*s), fy1)]
     triad_blob(surf, PINE_D, foot,
-               sheen_pts=[(cx - half_w - int(12*s), pole_bot - int(2*s)),
-                          (cx - int(4*s), pole_bot - int(2*s)),
-                          (cx - int(4*s), pole_bot + int(12*s)),
-                          (cx - half_w - int(8*s), pole_bot + int(12*s))],
+               core_pts=[(cx - half_w - int(20*s), fy0 + int((fy1-fy0)*0.5)),
+                         (cx + half_w + int(20*s), fy0 + int((fy1-fy0)*0.5)),
+                         (cx + half_w + int(11*s), fy1),
+                         (cx - half_w - int(11*s), fy1)],
+               sheen_pts=[(cx - half_w - int(18*s), fy0 + int(2*s)),
+                          (cx - int(4*s), fy0 + int(2*s)),
+                          (cx - int(4*s), fy0 + int((fy1-fy0)*0.5)),
+                          (cx - half_w - int(16*s), fy0 + int((fy1-fy0)*0.5))],
                ow=max(2, int(2*s)))
+    # a deep ink base-shadow line under the plinth — the darkest, widest mark,
+    # the visual ground the whole pole sits on.
+    pygame.draw.line(surf, INK, (cx - half_w - int(20*s), fy1 - max(1, int(2*s))),
+                     (cx + half_w + int(20*s), fy1 - max(1, int(2*s))),
+                     max(2, int(3*s)))
 
     # the grumpy duck crowning the pole — perched, glaring down
     duck(surf, cx, pole_top - int(36*s), s, scale=1.0, lit=False)
@@ -504,7 +539,7 @@ def draw_pillar_segment(surf, cx, top, bot, half_w, s, cap="bottom"):
     # FLIPPED for the bottom cap (proving the true top<->bottom mirror)
     dsz = int(150*s)
     dbuf = pygame.Surface((dsz, dsz), pygame.SRCALPHA)
-    duck(dbuf, dsz//2, dsz//2, s, scale=0.70, lit=True)
+    duck(dbuf, dsz//2, dsz//2, s, scale=0.70, lit=True, tuck=True)
     if face_down:
         dbuf = pygame.transform.flip(dbuf, False, True)
     surf.blit(dbuf, (cx - dsz//2, int(duck_cy) - dsz//2))
@@ -668,7 +703,7 @@ def main():
     for i, line in enumerate(notes_r):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (540, note_y + 40 + i*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

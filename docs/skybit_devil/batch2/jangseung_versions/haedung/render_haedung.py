@@ -651,7 +651,7 @@ def main():
     pw = W - panel_x - 14
     pygame.draw.rect(sheet, PANEL, (panel_x, 72, pw, 372))
     sheet.blit(font.render("(c) True 32px gameplay chip", True, LABEL), (panel_x + 14, 82))
-    sheet.blit(font_sm.render("ember maw + flame-curl anchor the read", True, LABEL_DIM), (panel_x + 14, 104))
+    sheet.blit(font_sm.render("flame-curl (ink-gapped, cream tip) bites above the maw corner", True, LABEL_DIM), (panel_x + 14, 104))
 
     # render at a true ~32px FACE read — the gameplay collision shows the
     # mask-topped cap end, so the chip frames the MASK (not the long shaft).
@@ -699,8 +699,8 @@ def main():
         (WOOD, "honey-cedar"), (WOOD_D, "cedar shade"),
         (WOOD_T, "cedar sheen"), (WOOD_GRV, "bevel groove"),
         (JADE, "jade band"), (JADE_D, "deep jade"),
-        (EMBER, "ember maw"), (EMBER_T, "ember core"),
-        (GOLD, "gold bell"), (EYEGLOW, "eye-glow amber"),
+        (EMBER, "ember maw"), (FLAME_TIP, "flame tip"),
+        (GOLD, "gold bell (muted)"), (EYEGLOW, "eye-glow amber"),
         (TOOTH, "fang bone"), (INK, "ink keyline"),
     ]
     sx, sy = panel_x + 14, pal_y + 40
@@ -722,15 +722,15 @@ def main():
         "  sheen (anti-Zhenmushou re-spec).",
         "• Jade is a single SCALE-BAND course + mane-TIP flecks —",
         "  blue-leaning ACCENT, never a body fill (cross-set teal rule).",
-        "• Ember MAW glow is the one warm focal (the fire it eats);",
-        "  eye glow stays a quieter warm amber.",
+        "• Ember MAW glow is the SOLE warm focal; gold bell toned",
+        "  ~22% down to hardware so it can't steal that focal (r2).",
     ]
     notes_r = [
         "• Eyes = round bug-eyes, SINGLE carved ring each (anti-goggle);",
-        "  ONE stubby centre brow-horn (no pair).",
-        "• Mane = sparse RING of 6 hard curl-lobes, jade-tipped.",
-        "• Fire-EATER gag: a carved flame-curl licks from ONE mouth",
-        "  corner — the character's soul, sized to read at 1x.",
+        "  ONE stubby brow-horn now triad-shaded + tapered (r2).",
+        "• Mane culled to 6 BOLD spaced curl-lobes, jade-tipped (r2).",
+        "• Fire-EATER gag (r2): chunky comma-lobe lifted clear of the",
+        "  lip with a HARD INK GAP + cream tip — reads as flame at 1x.",
         "• Creature IS the pillar: fish-scale courses tile the body;",
     ]
     for i, line in enumerate(notes_l):
@@ -740,7 +740,7 @@ def main():
     sheet.blit(font_sm.render("  cap = SMALLER mirrored lion-mask so the wide mask never overweights the gap.",
                               True, LABEL_DIM), (540, note_y + 40 + 6*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

@@ -159,13 +159,17 @@ def foam_scroll(surf, cx, cy, r, s, facing=1, teal_band=False):
     # the carved inner-spiral groove — one bold ring so the curl reads as a SCROLL
     inner_r = int(r * 0.5)
     if teal_band:
-        # sea-teal foam highlight rides the curl crest (the prow-foam band)
+        # sea-teal foam highlight rides the curl crest (the prow-foam band). WHY
+        # the foam leads with the DEEPER TEAL_D and only a small TEAL crest: the
+        # mid-body foam must read COOLER/deeper than the eye-paint rings so the
+        # two teal uses stay separated by value and the foam never grows into a
+        # second teal mass rivalling the eye cluster.
         pygame.draw.circle(surf, INK, (cx, cy), inner_r + max(1, int(2 * s)))
-        pygame.draw.circle(surf, TEAL, (cx, cy), inner_r)
-        pygame.draw.circle(surf, TEAL_D, (cx + int(inner_r * 0.3),
-                           cy + int(inner_r * 0.3)), int(inner_r * 0.6))
+        pygame.draw.circle(surf, TEAL_D, (cx, cy), inner_r)
+        pygame.draw.circle(surf, TEAL, (cx - int(inner_r * 0.25),
+                           cy - int(inner_r * 0.25)), int(inner_r * 0.55))
         pygame.draw.circle(surf, TEAL_T, (cx - int(inner_r * 0.35),
-                           cy - int(inner_r * 0.4)), max(1, int(inner_r * 0.3)))
+                           cy - int(inner_r * 0.4)), max(1, int(inner_r * 0.24)))
         # a tiny coral pearl at the foam-eye is forbidden (coral is lip/medallion
         # only) — instead a salt-white spume fleck rides the crest tip
         pygame.draw.circle(surf, SALT_T, (cx - int(inner_r * 0.2),
@@ -245,32 +249,40 @@ def figurehead_head(surf, cx, cy, s, lean_deg=0.0, lit=False, hair_fan=True):
     # up-and-back, echoing the foam scrolls. Drawn before the face so the face
     # plate overlaps their roots cleanly.
     if hair_fan:
+        # WHY exactly 5 CHUNKY locks with visible teak gaps and a SPARSE salt
+        # tell: round-1 fanned more locks and salt-edged every one, so at 32px
+        # night they collapsed into a single dark fringe with no internal read.
+        # Wider root spacing + fatter blades + teak gaps keep the fan reading as
+        # distinct swept HAIR (the motion hook), not noise.
         n = 5
         for k in range(n):
             t = k / (n - 1)            # 0..1 top->bottom along the back of head
-            root_x = fx0 + int(fw * 0.16)
-            root_y = fy0 + int(fh * (0.12 + 0.62 * t))
+            root_x = fx0 + int(fw * 0.18)
+            root_y = fy0 + int(fh * (0.10 + 0.66 * t))
             # blades sweep BACK (negative x) and the upper ones reach highest
-            reach = (1.0 - 0.45 * t)
-            tip_x = root_x - int(fw * (0.62 * reach))
-            tip_y = root_y - int(fh * (0.30 * reach)) + int(fh * 0.10 * t)
-            mid_x = root_x - int(fw * 0.34 * reach)
-            mid_y = root_y - int(fh * 0.05)
-            blade = [(root_x, root_y - int(7 * s)),
-                     (root_x, root_y + int(7 * s)),
-                     (mid_x, mid_y + int(6 * s)),
-                     (tip_x, tip_y + int(3 * s)),
-                     (tip_x - int(3 * s), tip_y - int(2 * s)),
-                     (mid_x, mid_y - int(6 * s))]
+            reach = (1.0 - 0.42 * t)
+            tip_x = root_x - int(fw * (0.66 * reach))
+            tip_y = root_y - int(fh * (0.32 * reach)) + int(fh * 0.10 * t)
+            mid_x = root_x - int(fw * 0.36 * reach)
+            mid_y = root_y - int(fh * 0.04)
+            # fatter root + tapered tip so each lock survives downscale as a slab
+            blade = [(root_x, root_y - int(10 * s)),
+                     (root_x, root_y + int(9 * s)),
+                     (mid_x, mid_y + int(8 * s)),
+                     (tip_x, tip_y + int(4 * s)),
+                     (tip_x - int(4 * s), tip_y - int(3 * s)),
+                     (mid_x, mid_y - int(8 * s))]
             triad_blob(surf, TEAK_D, blade,
-                       sheen_pts=[(root_x, root_y - int(5 * s)),
-                                  (mid_x, mid_y - int(4 * s)),
-                                  (tip_x, tip_y),
-                                  (mid_x, mid_y - int(1 * s))],
-                       ow=max(1, int(1.5 * s)))
-            # salt-bleach wind-edge along the top of each blade (wind-blown tell)
-            pygame.draw.line(surf, SALT, (root_x, root_y - int(6 * s)),
-                             (tip_x, tip_y - int(1 * s)), max(1, int(1.5 * s)))
+                       sheen_pts=[(root_x, root_y - int(7 * s)),
+                                  (mid_x, mid_y - int(5 * s)),
+                                  (tip_x, tip_y - int(1 * s)),
+                                  (mid_x, mid_y - int(2 * s))],
+                       ow=max(2, int(2 * s)))
+            # salt-bleach wind-edge ONLY on the top two locks (sparse wind tell);
+            # the lower locks keep clean teak gaps between them.
+            if k <= 1:
+                pygame.draw.line(surf, SALT, (mid_x, mid_y - int(7 * s)),
+                                 (tip_x, tip_y - int(2 * s)), max(1, int(1.5 * s)))
 
     # face plate — a forward-jutting prow-bust block (jaw leads, brow set back)
     face = [(fx0 + int(20 * s), fy0),                       # brow top-left
@@ -327,21 +339,26 @@ def figurehead_head(surf, cx, cy, s, lean_deg=0.0, lit=False, hair_fan=True):
                           (cx, brow_y + int(1 * s)),
                           (fx0 + int(16 * s), brow_y + int(3 * s))],
                ow=max(1, int(1.5 * s)))
-    med_r = int(8 * s)
-    med_y = fy0 + int(14 * s)
+    # WHY a bigger medallion: at true 32px the round-1 dot nearly vanished, so
+    # it's enlarged to read as a deliberate single coral focal dot on downscale.
+    med_r = int(11 * s)
+    med_y = fy0 + int(15 * s)
     pygame.draw.circle(surf, INK, (cx + int(4 * s), med_y), med_r + max(1, int(2 * s)))
     pygame.draw.circle(surf, CORAL, (cx + int(4 * s), med_y), med_r)
     pygame.draw.circle(surf, CORAL_D, (cx + int(4 * s) + int(med_r * 0.3),
                        med_y + int(med_r * 0.3)), int(med_r * 0.55))
     pygame.draw.circle(surf, CORAL_T, (cx + int(4 * s) - int(med_r * 0.35),
-                       med_y - int(med_r * 0.35)), max(1, int(med_r * 0.3)))
+                       med_y - int(med_r * 0.35)), max(1, int(med_r * 0.32)))
 
     # EYES — warm glow with a SEA-TEAL painted ring (the eye-paint band use)
     eye_dx = int(20 * s)
     eye_y = fy0 + int(50 * s)
     er = int(15 * s)
-    glow_a = 155 if lit else 95
-    glow_r = int(er * (2.1 if lit else 1.5))
+    # WHY the lit eyes carry more glow now: with the cap bleach pulled back to a
+    # thin rim, the WARM eye glow does the "lift the cap so it reads at night"
+    # job (per the ruling) instead of a pale face wash.
+    glow_a = 185 if lit else 95
+    glow_r = int(er * (2.35 if lit else 1.5))
     glow = pygame.Surface((glow_r * 4, glow_r * 4), pygame.SRCALPHA)
     for rr in range(glow_r, 0, -1):
         a = int(glow_a * (1 - rr / glow_r))
@@ -378,10 +395,12 @@ def figurehead_head(surf, cx, cy, s, lean_deg=0.0, lit=False, hair_fan=True):
     pygame.draw.line(surf, TEAK_T, (cx + int(6 * s), ny0),
                      (cx + int(5 * s), ny0 + int(20 * s)), max(1, int(1 * s)))
 
-    # CORAL lip — a determined set mouth (the second small warm focal)
+    # CORAL lip — a determined set mouth (the second small warm focal). WHY
+    # thicker: the round-1 lip line went sub-pixel at true 32px; a fatter bar
+    # keeps the coral lip present on downscale.
     my = fy0 + int(88 * s)
-    mw = int(24 * s)
-    mh = int(9 * s) if lit else int(7 * s)
+    mw = int(26 * s)
+    mh = int(12 * s) if lit else int(10 * s)
     if lit:
         mglow = pygame.Surface((mw * 4, mh * 6), pygame.SRCALPHA)
         for rr in range(int(mw * 1.2), 0, -1):
@@ -416,8 +435,9 @@ def draw_muljang(surf, cx, cy, s):
     post_top = cy - int(34 * s)
     post_bot = cy + int(168 * s)
 
-    # the carved foam-scroll body shaft — light a couple crests with the foam band
-    scroll_shaft(surf, cx, post_top, post_bot, half_w, s, foam_at={1, 3})
+    # the carved foam-scroll body shaft — light ONE mid crest with the foam band
+    # so the mid-body teal stays a small clustered accent, not a second mass.
+    scroll_shaft(surf, cx, post_top, post_bot, half_w, s, foam_at={2})
 
     # HEAVY scroll base — a broad pair of big foam-curls + a wide plinth so the
     # mass clearly sits low and balances the leaning head above (re-spec HARD).
@@ -502,7 +522,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("MULJANG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "prow-rider ship-figurehead spirit  ·  cooler-teak + sea-teal foam band + coral lip/medallion + warm eye glow  ·  round 1  ·  the only MOTION read",
+        "prow-rider ship-figurehead spirit  ·  cooler-teak + sea-teal foam band + coral lip/medallion + warm eye glow  ·  round 2  ·  teak-dominant cap, warm-glow night lift",
         True, LABEL_DIM), (200, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------
