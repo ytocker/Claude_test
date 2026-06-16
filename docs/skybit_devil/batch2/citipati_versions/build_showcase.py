@@ -29,45 +29,46 @@ NAME_COL = (244, 244, 240)
 FACET_COL = (190, 192, 200)
 REF_TAG = (250, 214, 130)
 
-# Per-sheet hero windows (x, y, w, h) in source pixels. Bottoms are trimmed
-# clear of each sheet's "creature ..." caption so only the creature carries in;
-# widths reach each silhouette's true extent (the serpent tail, the wing
-# spread, the six-arm fan, the throne base) so the KIND reads whole.
+# Per-sheet hero windows (x, y, w, h) in source pixels, measured from each
+# sheet's actual hero-panel ink/glow bounding box plus a 14px background margin
+# on every side so no extremity clips — the serpent's full coil base, the
+# stupa spire+plinth, the six-arm RADIAL fan tips, the full WINGSPAN+talons,
+# the iron-crown spikes+throne base. Generous bg is fine; fit_inside normalizes.
 TILES = [
     {
         "file": "docs/skybit_devil/batch2/jiangshi_epic/citipati/round_2.png",
-        "crop": (95, 185, 205, 330),
+        "crop": (89, 176, 215, 337),
         "name": "Citipati",
         "facet": "the source lord (shipped)",
         "reference": True,
     },
     {
         "file": "docs/skybit_devil/batch2/citipati_versions/nagaraja/round_2.png",
-        "crop": (105, 160, 200, 320),
+        "crop": (98, 153, 188, 319),
         "name": "Nagaraja",
         "facet": "bone-cobra serpent-king",
     },
     {
         "file": "docs/skybit_devil/batch2/citipati_versions/stupika/round_2.png",
-        "crop": (78, 100, 232, 348),
+        "crop": (72, 92, 244, 372),
         "name": "Stupika",
         "facet": "walking skull-stupa lord",
     },
     {
         "file": "docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png",
-        "crop": (38, 205, 305, 228),
+        "crop": (31, 198, 315, 224),
         "name": "Mukha-Devi",
         "facet": "six-armed bone-mother",
     },
     {
         "file": "docs/skybit_devil/batch2/citipati_versions/asthi_garuda/round_3.png",
-        "crop": (5, 213, 330, 220),
+        "crop": (40, 206, 303, 235),
         "name": "Asthi-Garuda",
         "facet": "bone-winged sky-eater",
     },
     {
         "file": "docs/skybit_devil/batch2/citipati_versions/koschei/round_2.png",
-        "crop": (83, 168, 216, 310),
+        "crop": (79, 147, 226, 340),
         "name": "Koschei",
         "facet": "deathless bone-throne king",
     },
