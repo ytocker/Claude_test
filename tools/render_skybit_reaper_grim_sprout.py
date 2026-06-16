@@ -136,8 +136,11 @@ def build_grim_sprout(scale=1.0, ss=3):
     # The snath stands NEAR-VERTICAL (only a slight lean), running from the imp's
     # grip all the way to a HIGH socket near the top — the pole alone is far
     # taller than the imp, and the blade dwarfs him again on top of that.
-    snath_top = (int(BW * 0.60), int(BH * 0.205))
-    snath_bot = (int(BW * 0.70), feet_y - int(2 * scale * ss))
+    # Snath nudged ~3px right (in 1x terms) so the near-vertical pole runs cleanly
+    # BESIDE the head silhouette rather than kissing the lower-right of the face
+    # crescent — the "held beside the head" read (final polish #1).
+    snath_top = (int(BW * 0.635), int(BH * 0.205))
+    snath_bot = (int(BW * 0.735), feet_y - int(2 * scale * ss))
     sw = int(8 * scale * ss)
     pygame.draw.line(s, WOOD_DK, snath_top, snath_bot, sw + max(2, int(3 * ss)))
     pygame.draw.line(s, WOOD, snath_top, snath_bot, sw)
@@ -151,7 +154,7 @@ def build_grim_sprout(scale=1.0, ss=3):
                      (snath_bot[0] - nx * off, snath_bot[1] - ny * off),
                      max(1, int(2 * ss)))
     # Banded grip wraps where his mitts will close — also the pillar-banding cue.
-    for t in (0.66, 0.80):
+    for t in (0.70, 0.84):
         bxp = int(snath_top[0] + dx * t)
         byp = int(snath_top[1] + dy * t)
         pygame.draw.circle(s, WOOD_DK, (bxp, byp), max(3, int(6 * scale * ss)))
@@ -274,7 +277,9 @@ def build_grim_sprout(scale=1.0, ss=3):
     # ── 6. STUB MITT ARMS — one UP (closed fist high), one BRACING low ──────────
     # The pose body-languages "hauling a weapon way too big": a high reach with a
     # closed fist and a low brace, the two mitts deliberately differentiated.
-    up_grip = (int(snath_top[0] + dx * 0.66), int(snath_top[1] + dy * 0.66))
+    # High grip dropped a touch down the snath (0.66 -> 0.70) so the closed fist
+    # clears the cheek and reads "fist on pole," not "fist on face" (polish #2).
+    up_grip = (int(snath_top[0] + dx * 0.70), int(snath_top[1] + dy * 0.70))
     lo_grip = (int(snath_top[0] + dx * 0.84), int(snath_top[1] + dy * 0.84))
     sh_l = (body_cx + int(2 * scale * ss), belly_cy - int(8 * scale * ss))   # up shoulder
     sh_r = (body_cx + int(14 * scale * ss), belly_cy + int(4 * scale * ss))  # low shoulder
@@ -283,9 +288,10 @@ def build_grim_sprout(scale=1.0, ss=3):
     pygame.draw.line(s, HOOD, sh_l, up_grip, int(8 * scale * ss))
     pygame.draw.line(s, HOOD_DK, sh_r, lo_grip, int(15 * scale * ss))
     pygame.draw.line(s, HOOD, sh_r, lo_grip, int(12 * scale * ss))
-    # The HIGH mitt is a bigger closed fist; the LOW mitt is a smaller brace pad.
-    _triad_circle(s, up_grip[0], up_grip[1], int(10 * scale * ss), BONE, ss)
-    pygame.draw.circle(s, INK, up_grip, int(10 * scale * ss), max(1, int(ss)))
+    # The HIGH mitt is a closed fist (trimmed a hair, 10 -> 9, so it doesn't crowd
+    # the cheek); the LOW mitt is a smaller brace pad.
+    _triad_circle(s, up_grip[0], up_grip[1], int(9 * scale * ss), BONE, ss)
+    pygame.draw.circle(s, INK, up_grip, int(9 * scale * ss), max(1, int(ss)))
     # A knuckle-line on the high fist to read as a clenched grip.
     pygame.draw.line(s, BONE_DK,
                      (up_grip[0] - int(6 * scale * ss), up_grip[1] - int(3 * scale * ss)),
@@ -395,7 +401,7 @@ def main():
     font = pygame.font.SysFont("dejavusans", 16, bold=True)
     fbig = pygame.font.SysFont("dejavusans", 22, bold=True)
 
-    _label(sheet, fbig, "GRIM SPROUT  -  baby reaper-imp (take #1)  R2", 20, 14)
+    _label(sheet, fbig, "GRIM SPROUT  -  baby reaper-imp (take #1)  R3", 20, 14)
 
     # (a) Showcase boss on a neutral panel.
     panel_w, panel_h = 330, 650

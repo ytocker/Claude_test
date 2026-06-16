@@ -468,7 +468,7 @@ def main():
     label_f = pygame.font.SysFont("dejavusans", 17, bold=True)
     note_f = pygame.font.SysFont("dejavusans", 13)
 
-    sheet.blit(title_f.render("SKYBIT REAPER  —  TICK-TOCK  —  round 2", True,
+    sheet.blit(title_f.render("SKYBIT REAPER  —  TICK-TOCK  —  round 3", True,
                               (236, 236, 240)), (24, 18))
     sheet.blit(note_f.render(
         "Bureaucrat of time: squat teal trapezoid robe, smug half-lidded glower, cradles an HOURGLASS-STAFF. "
@@ -512,6 +512,8 @@ def main():
                              True, (160, 160, 174)), (tx, ty + th + 28))
 
     # (c) 1x in-game-scale insets on BOTH day and night skies — true gameplay size.
+    # Plus a GRAYSCALE re-confirm: the face must be the highest-contrast read on the
+    # figure, the hourglass second (focal-hierarchy verification per the critique).
     ins_w, ins_h = 96, INS_H
     in_ss = 3
     iy = py + P_H + 40
@@ -529,9 +531,35 @@ def main():
         sheet.blit(note_f.render("(c) 1x  " + nm, True, (220, 222, 230)),
                    (fx, iy + ins_h + 4))
 
+    # (d) Grayscale check — showcase-scale boss desaturated, on a flat mid sky so
+    #     only value matters: the head/smirk should lead, the hourglass second.
+    gw, gh = 150, INS_H
+    g_ss = 3
+    big_g = pygame.Surface((gw * g_ss, gh * g_ss), pygame.SRCALPHA)
+    draw_tick_tock(big_g, int(gw * 0.5 * g_ss), int((gh - 6) * g_ss),
+                   scale=0.62, ss=g_ss)
+    big_g = _add_outline(big_g)
+    small_g = pygame.transform.smoothscale(big_g, (gw, gh))
+    gpanel = pygame.Surface((gw, gh))
+    gpanel.fill((118, 118, 122))
+    gpanel.blit(small_g, (-2, -2))
+    # Desaturate in place (luminance) so the value structure is judged honestly.
+    arr = pygame.surfarray.pixels3d(gpanel)
+    lum = (arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587
+           + arr[:, :, 2] * 0.114).astype("uint8")
+    arr[:, :, 0] = lum
+    arr[:, :, 1] = lum
+    arr[:, :, 2] = lum
+    del arr
+    gx = GAP + 2 * (ins_w + 24)
+    sheet.blit(gpanel, (gx, iy))
+    pygame.draw.rect(sheet, (90, 84, 104), (gx, iy, gw, gh), 1)
+    sheet.blit(note_f.render("(d) GRAYSCALE  face leads, glass 2nd", True,
+                             (220, 222, 230)), (gx, iy + ins_h + 4))
+
     out_dir = "/home/user/skybit/docs/skybit_reaper/tick_tock"
     os.makedirs(out_dir, exist_ok=True)
-    out = os.path.join(out_dir, "round_2.png")
+    out = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
