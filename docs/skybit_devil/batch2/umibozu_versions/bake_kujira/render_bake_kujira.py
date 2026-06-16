@@ -64,8 +64,9 @@ AMBER_DK    = (176, 138, 78)    # amber socket dark rim
 
 BALEEN      = (28, 30, 30)      # ink-baleen / deepest mouth bars
 INK         = (28, 22, 30)      # the house keyline
-INK_NIGHT   = (200, 224, 214)   # cool sea-bone keyline for night — a lifted-value
-                                # rim so the cool body edge survives midnight sky.
+INK_NIGHT   = (176, 210, 202)   # cool sea-bone keyline for night — a lifted-value
+                                # but COOL (teal-leaning) rim so the body edge
+                                # survives the midnight sky without reading warm.
 
 GHOST_BIRD  = (210, 222, 214)   # tiny ghost-bird companions — pale cool spectral
 
@@ -282,6 +283,9 @@ def _ghost_bird(surf, cx, cy, w, ss):
                       [(int(cx + w), int(cy - w * 0.34)),
                        (int(cx + w * 0.18), int(cy + w * 0.12)),
                        (int(cx), int(cy - w * 0.02))], lw)
+    # A single 1px amber pin-eye ties each companion to the whale's warm focal
+    # language without adding clutter (hero-only — they're absent at 32px).
+    pygame.draw.circle(surf, AMBER_CORE, (int(cx), int(cy - w * 0.04)), max(1, int(0.9 * ss)))
 
 
 # ── the blunt whale-skull head ───────────────────────────────────────────────
@@ -293,8 +297,12 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     rim-sheen on the pate. Looming + almost gentle — the scary-CUTE beat is the
     mournful lantern-eyes on a vast skull. `tell` bakes a bolder low-res face for
     the 32px read."""
-    body = _shade_c(BONE, 8) if night else BONE
-    sheen = _shade_c(BONE_SHEEN, 30) if night else BONE_SHEEN
+    # NIGHT bone is pulled COOLER + lower-value (toward the membrane teal-grey),
+    # NOT brightened toward warm white — otherwise the skull eye-mass reads as
+    # calaca cream and steals the amber sockets' warm monopoly. Only the two amber
+    # sockets stay warm at night.
+    body = lerp_color(BONE, MEMBRANE, 0.30) if night else BONE
+    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.34) if night else BONE_SHEEN
 
     # Blunt snout/jaw mass FIRST (occluded by the cranium dome) — a wide rounded
     # muzzle dropping below the cranium so the silhouette reads "whale skull,"
@@ -384,7 +392,9 @@ def build_bake_kujira(scale=1.0, ss=5, *, night=False, compact=False):
     cx = W // 2
 
     # Cage first so the skull snout occludes its top (one continuous body).
-    _ribcage(surf, cx, cage_top_y, cage_bot_y, span, ss, night=night)
+    # The compact gameplay variant uses the BOLD (fewer/thicker) rib-cage so the
+    # true-scale read stays a CAGE, not comb-mush.
+    _ribcage(surf, cx, cage_top_y, cage_bot_y, span, ss, night=night, bold=compact)
     _head(surf, cx, head_cy, head_r, ss, night=night, tell=compact)
 
     # Three tiny ghost-bird companions wheeling near the head (skip on compact so
@@ -418,8 +428,8 @@ def _skull_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
     skull_h = skull_w * 0.66
     by = cap_base_y + d * skull_h * 0.58
 
-    body = _shade_c(BONE, 8) if night else BONE
-    sheen = _shade_c(BONE_SHEEN, 30) if night else BONE_SHEEN
+    body = lerp_color(BONE, MEMBRANE, 0.30) if night else BONE
+    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.34) if night else BONE_SHEEN
 
     # Blunt skull dome facing the gap — a flat triad ellipse.
     dome = pygame.Rect(0, 0, int(skull_w), int(skull_h * 1.6))
@@ -435,10 +445,12 @@ def _skull_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
                        (int(cx - skull_w * 0.16), int(by - d * skull_h * 0.30)),
                        max(2, int(skull_w * 0.15)))
 
-    # ONE socket-orb glow dropped INTO the gap — the single warm focal of the cap,
-    # a small de-cluttered lantern (NOT a crown) so the cap stays modest.
+    # ONE socket-orb glow dropped INTO the gap — the single warm focal of the cap.
+    # Sized to be unmistakably the LARGEST + warmest round pip on the whole post so
+    # the eye locks the cap as the focal and never confuses it with the small cool
+    # vertebra knuckles down the keel (the brief's hierarchy fix).
     orb_y = by + d * skull_h * 0.46
-    _socket(surf, cx, orb_y, skull_w * 0.16, ss, night=night, sad=False)
+    _socket(surf, cx, orb_y, skull_w * 0.20, ss, night=night, sad=False)
 
 
 def _ribcage_pillar_obstacle(height, ss, *, flip, night=False):
@@ -455,10 +467,10 @@ def _ribcage_pillar_obstacle(height, ss, *, flip, night=False):
     span = (PIPE_W - 4) * ss
     cap_band = int(50 * ss)
     if flip:
-        _ribcage(surf, cx, 0, bh - cap_band, span, ss, night=night)
+        _ribcage(surf, cx, 0, bh - cap_band, span, ss, night=night, bold=True)
         _skull_cap(surf, cx, bh - cap_band, span, ss, point_up=False, night=night)
     else:
-        _ribcage(surf, cx, cap_band, bh, span, ss, night=night)
+        _ribcage(surf, cx, cap_band, bh, span, ss, night=night, bold=True)
         _skull_cap(surf, cx, cap_band, span, ss, point_up=True, night=night)
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
     oc = (*INK_NIGHT, 245) if night else (*INK, 235)
@@ -512,7 +524,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((50, 56, 56))
     _label(sheet, font,
-            "BAKE-KUJIRA  —  Umibozu-versions #3  —  skeletal ghost-whale (cool drowned sea-bone)  —  round 1", 18, 12)
+            "BAKE-KUJIRA  —  Umibozu-versions #3  —  skeletal ghost-whale (cool drowned sea-bone)  —  round 2", 18, 12)
     _label(sheet, small,
             "COOL teal-grey membrane DOMINANT (96,124,118) over greyed bone (160,170,158); two big SAD pale-amber sockets = sole warm focal; rib-cage body-as-pillar on a ghost-spine keel; blunt whale-skull cap. 3 tiny ghost-birds for charm.",
             18, 32, (196, 216, 210))
@@ -643,7 +655,7 @@ def main():
            18, SH - 22, (196, 216, 210))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

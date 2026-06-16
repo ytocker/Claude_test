@@ -205,8 +205,52 @@ def _finial(surf, cx, tip_y, w, h, ss, *, night=False, point_up=True):
 
     layer.set_alpha(178 if night else 152)
     surf.blit(layer, (0, 0))
-    # The hot knob core sits at full alpha so the cap has one bright focal pip.
-    pygame.draw.circle(surf, MIRAGE_LT, (int(cx), int(knob_y)), max(1, int(w * 0.05)))
+    # The hot knob core sits at full alpha as the brightest focal pip of the cap —
+    # carrying the same raised plume value the body's mirage now uses, so the
+    # gap-cap glows as brightly as the creature's exhaled plume.
+    hot = (230, 250, 236) if night else MIRAGE_LT
+    pygame.draw.circle(surf, hot, (int(cx), int(knob_y)), max(2, int(w * 0.075)))
+
+
+def _plume_pip(surf, cx, base_y, w, h, ss, *, night=False):
+    """A SINGLE bright pearl-green mirage PLUME pip rising from the parted lips —
+    the compact/32px mirage. Not a tower: one narrow tapering flame of light with
+    a tiny pagoda hint at its tip, floating ABOVE the split with air around it so
+    it never plugs the hinge or de-silhouettes the grin. It is the SOLE bright
+    focal pip — lifted well above shell value so it reads as LIGHT, not mass."""
+    # Halo first so the pip glows brighter than the warm shell on any sky.
+    _mirage_glow(surf, cx, base_y - h * 0.5, max(2, w * 0.7),
+                 night=night, mult=1.05)
+
+    core = MIRAGE_LT if not night else (230, 250, 236)
+    body = MIRAGE
+    # A narrow upward teardrop flame: wide-ish at the lips, tapering to a point.
+    flame = [
+        (cx - w * 0.5, base_y),
+        (cx - w * 0.18, base_y - h * 0.55),
+        (cx, base_y - h),
+        (cx + w * 0.18, base_y - h * 0.55),
+        (cx + w * 0.5, base_y),
+    ]
+    pygame.draw.polygon(surf, body, [(int(x), int(y)) for x, y in flame])
+    # Bright inner core flame so the centre is the brightest value on the sheet.
+    inner = [
+        (cx - w * 0.26, base_y - h * 0.06),
+        (cx, base_y - h * 0.92),
+        (cx + w * 0.26, base_y - h * 0.06),
+    ]
+    pygame.draw.polygon(surf, core, [(int(x), int(y)) for x, y in inner])
+    # A tiny pagoda-eave hint near the tip — the drowned-city read at hero scale,
+    # small enough to vanish gracefully at 32px (leaving just the bright plume).
+    ry = base_y - h * 0.62
+    rw = w * 0.62
+    pygame.draw.polygon(surf, core, [
+        (int(cx - rw * 0.5), int(ry)),
+        (int(cx), int(ry - h * 0.16)),
+        (int(cx + rw * 0.5), int(ry)),
+    ])
+    # Hot knob at the apex — one crisp bright dot crowning the plume.
+    pygame.draw.circle(surf, core, (int(cx), int(base_y - h)), max(1, int(w * 0.16)))
 
 
 # ── the mirage tower (creature exhalation + pillar body) ──────────────────────
@@ -237,13 +281,14 @@ def _shell_half(surf, cx, lip_y, hw, vh, ss, *, upper, night=False):
     flares from the hinge line outward. `upper` mirrors it above the lip; the
     lower valve sits below. The valve is deliberately WIDE and SHALLOW so the two
     halves meet at a long HORIZONTAL split — never rounding into a vertical ball.
-    Relief = bold RADIATING fan-ribs fanning from the hinge to the lip edge."""
+    Relief = a few BOLD value-stepped fan WEDGES (chunky rays) that survive the
+    32px downscale as fan-DIRECTION, distinct from any spiral whorl."""
     d = -1 if upper else 1                       # vertical direction of the bulge
     body = _shade_c(SHELL, 12) if night else SHELL
     sheen = _shade_c(PEARL, 14) if night else PEARL
 
     # Valve silhouette: a wide low arc — a flattened half-ellipse so the shell is
-    # ~2x wider than tall (the horizontal-grin pin). The lip edge runs flat across
+    # MUCH wider than tall (the horizontal-grin pin). The lip edge runs flat across
     # the hinge line; the back fans up/down into a shallow bulge.
     steps = 48
     edge = []          # the curved outer rim (back of the valve)
@@ -264,28 +309,41 @@ def _shell_half(surf, cx, lip_y, hw, vh, ss, *, upper, night=False):
     pygame.draw.polygon(surf, body,
                         [(int(x), int(y)) for x, y in (inset + inset_lip)])
 
-    # — Bold RADIATING fan-ribs: straight ridges fanning from the hinge apex out
-    #   to the curved rim. Alternating valley-dark / ridge-light so the fan reads
-    #   as sculpted corrugation (distinct from any spiral whorl).
-    apex = (cx, lip_y - d * vh * 0.04)           # ribs radiate from near the hinge
-    n_ribs = 11
-    for k in range(n_ribs):
-        t = k / (n_ribs - 1)
-        rim_x = cx - hw * 0.92 + (2 * hw * 0.92) * t
-        rim_ang = math.pi * (0.04 + 0.92 * t)
-        rim_y = lip_y + d * (math.sin(rim_ang) ** 0.78) * vh * 0.96
-        valley = _shade_c(body, -24)
-        ridge = _shade_c(body, 22)
-        pygame.draw.line(surf, valley, (int(apex[0]), int(apex[1])),
-                         (int(rim_x), int(rim_y)), max(1, int(1.4 * ss)))
-        pygame.draw.line(surf, ridge,
-                         (int(apex[0] - ss), int(apex[1])),
-                         (int(rim_x - ss * 1.4), int(rim_y - d * ss * 0.5)),
-                         max(1, int(1.0 * ss)))
+    # — Bold value-stepped fan WEDGES: a few chunky pie-slices radiating from the
+    #   hinge apex, alternating ridge-light / valley-dark. Drawn as filled wedges
+    #   (not hairline ribs) so the radiating fan-DIRECTION reads as a few fat rays
+    #   even when the image is crushed to 32px — the "fan vs spiral" distinctness.
+    apex = (cx, lip_y - d * vh * 0.02)           # wedges radiate from near the hinge
+    n_wedge = 7
+    valley = _shade_c(body, -30)
+    ridge = _shade_c(body, 26)
 
-    # — Concentric growth-band arcs near the rim crossing the fan-ribs, the
-    #   bivalve tell (a couple of darker bands following the shell edge).
-    for gb in (0.62, 0.82):
+    def _rim(t):
+        ang = math.pi * (0.03 + 0.94 * t)
+        rx = cx - hw * 0.97 + (2 * hw * 0.97) * t
+        ry = lip_y + d * (math.sin(ang) ** 0.78) * vh * 0.98
+        return rx, ry
+
+    for k in range(n_wedge):
+        t0 = k / n_wedge
+        t1 = (k + 1) / n_wedge
+        r0 = _rim(t0)
+        r1 = _rim(t1)
+        col = ridge if k % 2 == 0 else valley
+        pygame.draw.polygon(surf, col, [(int(apex[0]), int(apex[1])),
+                                        (int(r0[0]), int(r0[1])),
+                                        (int(r1[0]), int(r1[1]))])
+    # Hard dark valley-lines along the wedge seams so the rays stay separated at
+    # small size even if neighbouring fills blur together.
+    for k in range(n_wedge + 1):
+        t = k / n_wedge
+        rx, ry = _rim(t)
+        pygame.draw.line(surf, _shade_c(body, -40), (int(apex[0]), int(apex[1])),
+                         (int(rx), int(ry)), max(1, int(0.9 * ss)))
+
+    # — Concentric growth-band arcs near the rim crossing the fan, the bivalve
+    #   tell (a couple of darker bands following the shell edge).
+    for gb in (0.62, 0.84):
         band = []
         for i in range(steps + 1):
             t = i / steps
@@ -293,15 +351,15 @@ def _shell_half(surf, cx, lip_y, hw, vh, ss, *, upper, night=False):
             x = cx - hw * 0.94 + 2 * hw * 0.94 * t
             y = lip_y + d * (math.sin(ang) ** 0.78) * vh * gb
             band.append((int(x), int(y)))
-        pygame.draw.lines(surf, _shade_c(body, -18), False, band, max(1, int(1.1 * ss)))
+        pygame.draw.lines(surf, _shade_c(body, -22), False, band, max(1, int(1.1 * ss)))
 
     # — ONE hard pearl rim-sheen lobe on the top-left of the bulge (the lit crest).
-    if upper:
-        sx, sy = cx - hw * 0.34, lip_y - vh * 0.66
-        pygame.draw.circle(surf, sheen, (int(sx), int(sy)), max(2, int(hw * 0.15)))
-        pygame.draw.circle(surf, body,
-                           (int(sx + hw * 0.10), int(sy + vh * 0.16)),
-                           max(2, int(hw * 0.12)))
+    #   Stronger on the rounder LOWER valve so the asymmetric weight reads lit.
+    sx, sy = cx - hw * 0.36, lip_y + d * vh * 0.62
+    pygame.draw.circle(surf, sheen, (int(sx), int(sy)), max(2, int(hw * 0.15)))
+    pygame.draw.circle(surf, body,
+                       (int(sx + hw * 0.10), int(sy - d * vh * 0.16)),
+                       max(2, int(hw * 0.12)))
 
     # — Pearl-nacre lip welt running the full horizontal split (the bright grin
     #   line). A bright flat band hugging the hinge edge so the wide split reads.
@@ -333,46 +391,86 @@ def build_hamaguri(scale=1.0, ss=5, *, night=False, compact=False):
     low, the translucent mirage city-tower humming UP out of its parted lips. EPIC
     pass renders BIG at SS then smoothscales. `compact` is the gameplay/32px
     variant — clam grown to dominate the budget, tower shortened, face boldened."""
-    # The clam is WIDE: half-width >> valve height, the horizontal-grin pin.
-    shell_hw = int(56 * scale) * ss
-    valve_vh = int(26 * scale) * ss              # shallow valves => long split
-    tower_mult = 1.3 if compact else 3.0
-    tower_h = int(shell_hw * tower_mult)
-    tower_w = int(shell_hw * (0.62 if compact else 0.5))
+    # The clam is WIDE: half-width >> valve height, the horizontal-grin pin. The
+    # shell MASS must read wider than tall (~1.4:1 W:H) at 32px so the grin wins.
+    shell_hw = int(62 * scale) * ss
+    # Asymmetric valve weight (kills the UFO/saucer twinning): the LOWER valve is
+    # the heavier, rounder, bottom-rooted shell; the UPPER valve is flatter/thinner
+    # so the pair reads as a clam opening UPWARD — a mouth, not a lens between domes.
+    valve_lo = int(30 * scale) * ss              # heavier rounded lower valve
+    valve_hi = int(18 * scale) * ss              # flatter thin upper valve
+    tower_h = int(shell_hw * 3.0)
 
     side_pad = int(14 * scale) * ss
     top_pad = int(14 * scale) * ss
     bot_pad = int(14 * scale) * ss
 
-    W = int((shell_hw + side_pad) * 2)
-    H = int(top_pad + tower_h + valve_vh * 2 + bot_pad)
-    surf = pygame.Surface((W, H), pygame.SRCALPHA)
-    cx = W // 2
+    if compact:
+        # Compact/32px budget: the CLAM dominates and the mirage is a single bright
+        # plume pip floating above the split — no tower competing for vertical mass.
+        plume_h = int(shell_hw * 0.66)
+        plume_w = int(shell_hw * 0.34)
+        W = int((shell_hw + side_pad) * 2)
+        H = int(top_pad + plume_h + valve_hi + valve_lo + bot_pad)
+        surf = pygame.Surface((W, H), pygame.SRCALPHA)
+        cx = W // 2
+        mouth_w = shell_hw * 0.34
+        lip_y = top_pad + plume_h + valve_hi
+        # Plume pip rises with AIR above the parted lips, brightest focal value.
+        open_gap = mouth_w * 1.15
+        plume_base = lip_y - open_gap - valve_hi * 0.1
+        _plume_pip(surf, cx, plume_base, plume_w, plume_h * 0.92, ss, night=night)
+    else:
+        # Hero budget: the full exhaled mirage city-tower hums up out of the mouth.
+        tower_w = int(shell_hw * 0.5)
+        W = int((shell_hw + side_pad) * 2)
+        H = int(top_pad + tower_h + valve_hi + valve_lo + bot_pad)
+        surf = pygame.Surface((W, H), pygame.SRCALPHA)
+        cx = W // 2
+        mouth_w = shell_hw * 0.30
+        lip_y = top_pad + tower_h + valve_hi
+        _mirage_tower(surf, cx, top_pad, lip_y - valve_hi * 0.1, tower_w, ss,
+                      night=night, n_tiers=4, finial=True)
+        open_gap = mouth_w * 0.9
 
-    mouth_w = shell_hw * 0.30                     # how far the lips part at center
-    lip_y = top_pad + tower_h + valve_vh
+    # The hummed-out mouth glow at the lip gap — the city's source.
+    _mirage_glow(surf, cx, lip_y - open_gap * 0.5, max(3, mouth_w * 0.9),
+                 night=night, mult=0.95)
 
-    # Mirage tower rises FROM the parted lips so the city looks exhaled.
-    n_tiers = 3 if compact else 4
-    _mirage_tower(surf, cx, top_pad, lip_y - valve_vh * 0.1, tower_w, ss,
-                  night=night, n_tiers=n_tiers, finial=True)
-
-    # The hummed-out mouth glow at the lip gap — the city's source, brightest pip.
-    _mirage_glow(surf, cx, lip_y - valve_vh * 0.05, max(3, mouth_w * 0.9),
-                 night=night, mult=1.0)
-
-    # Lower valve, then upper valve. Upper is lifted by the mouth gap so the parted
-    # mouth reads as a clean horizontal split with the city rising between.
-    open_gap = mouth_w * (1.1 if compact else 0.9)
-    _shell_half(surf, cx, lip_y, shell_hw, valve_vh, ss, upper=False, night=night)
-    _shell_half(surf, cx, lip_y - open_gap, shell_hw, valve_vh, ss, upper=True,
+    # Lower (heavy) valve first, then the lifted thin upper valve so the parted
+    # mouth reads as a clean WIDE horizontal split with the mirage rising between.
+    _shell_half(surf, cx, lip_y, shell_hw, valve_lo, ss, upper=False, night=night)
+    _shell_half(surf, cx, lip_y - open_gap, shell_hw, valve_hi, ss, upper=True,
                 night=night)
 
-    # Hinge-eyes on the two wings of the UPPER valve (serene old clam).
-    eye_r = shell_hw * (0.11 if compact else 0.085)
-    eye_y = lip_y - open_gap - valve_vh * 0.30
+    # — Deep dark split-line keyline between the valves: a bold warm-ink band along
+    #   the parting so the "parted-lips grin" is the FIRST thing the eye lands on
+    #   at 32px (the whole distinctness pin). Drawn across the full hinge span.
+    split_th = max(2, int(2.4 * ss))
+    for yy, alpha in (((lip_y + lip_y - open_gap) / 2, 255),):
+        pygame.draw.line(surf, SHELL_INK,
+                         (int(cx - shell_hw * 0.99), int(yy)),
+                         (int(cx + shell_hw * 0.99), int(yy)), split_th)
+    # Dark inner-mouth shadow filling the gap between the lips so the split reads
+    # as a deep dark slot, not just two touching edges.
+    inner = [
+        (cx - shell_hw * 0.86, lip_y),
+        (cx + shell_hw * 0.86, lip_y),
+        (cx + shell_hw * 0.70, lip_y - open_gap),
+        (cx - shell_hw * 0.70, lip_y - open_gap),
+    ]
+    gap_layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(gap_layer, (*SHELL_DEEP, 255),
+                        [(int(x), int(y)) for x, y in inner])
+    gap_layer.set_alpha(150)
+    surf.blit(gap_layer, (0, 0))
+
+    # Hinge-eyes on the two wings of the UPPER valve (serene old clam). Larger so
+    # they carry charm at 32px: the serene face above the wide grin.
+    eye_r = shell_hw * (0.13 if compact else 0.10)
+    eye_y = lip_y - open_gap - valve_hi * 0.42
     for s in (-1, 1):
-        _hinge_eye(surf, cx + s * shell_hw * 0.62, eye_y, eye_r, ss, night=night)
+        _hinge_eye(surf, cx + s * shell_hw * 0.60, eye_y, eye_r, ss, night=night)
 
     out_w = int(surf.get_width() / ss)
     out_h = int(surf.get_height() / ss)

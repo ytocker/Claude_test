@@ -120,7 +120,7 @@ def _green_glow(surf, cx, cy, r, *, night=False, alpha=None, mult=1.0):
 
 # ── the bone-cream spiral whorl ───────────────────────────────────────────────
 
-def _spiral_whorl(surf, cx, cy, r, ss, *, night=False, turns=3.0):
+def _spiral_whorl(surf, cx, cy, r, ss, *, night=False, turns=3.0, core=None):
     """The single continuous LOGARITHMIC (equiangular) whorl — the bright
     structural read and the design's distinctness pin. ONE unbroken bone-cream
     ribbon winding from the outer shell INWARD to a tight cosmic core:
@@ -144,10 +144,11 @@ def _spiral_whorl(surf, cx, cy, r, ss, *, night=False, turns=3.0):
     # last (the read that says "spiral", not "concentric rings").
     theta_max = turns * 2 * math.pi
     b = math.log(6.0) / theta_max
-    a0 = r * 0.060                          # core radius (tight centre)
-    # Spiral centre sits a touch above the egg middle so the coil winds up the
-    # body; squashed to the egg oval, never a fat circle.
-    sx, sy = cx - r * 0.02, cy - r * 0.06
+    # The coil's tight inner end stops at the eye core (passed in) so the eye is
+    # the centre the spiral winds DOWN to; it never overdraws the iris.
+    a0 = core if core is not None else r * 0.060
+    # Spiral centre IS the eye; squashed to the egg oval, never a fat circle.
+    sx, sy = cx, cy
 
     steps = 220
     pts = []
@@ -211,8 +212,18 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
         (int(cx), int(cy - ry * 1.16)),
     ])
 
-    # — The bone-cream spiral whorl: THE structural focal, drawn over the shell.
-    _spiral_whorl(surf, cx, cy + ry * 0.06, min(rx, ry) * 1.42, ss, night=night)
+    # The slit-eye sits at the spiral's TIGHT CORE — the coil winds inward to it,
+    # so the eye reads as the cosmic centre the whorl spirals down to (not a
+    # separate fried-egg disc bolted on). Compute its anchor first.
+    eye_x = cx + rx * 0.04
+    eye_y = cy + ry * 0.20
+    eye_r = ry * 0.19
+
+    # — The bone-cream spiral whorl: THE structural focal. Centred ON the eye so
+    #   the single continuous coil visibly winds from the outer shell INWARD to
+    #   the eye core — the distinctness gate vs Hamaguri's radiating fan-ribs.
+    _spiral_whorl(surf, eye_x, eye_y, min(rx, ry) * 1.58, ss, night=night,
+                  core=eye_r * 0.92)
 
     # — The embryo-green crack: a sour-green jagged fissure splitting DOWN the
     #   shell from near the whorl core, where the egg-tooth eye peers out. Drawn as
@@ -253,20 +264,16 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     #   widest point of the crack. Big innocent iris, a vertical cat-slit pupil
     #   (the leviathan-within tell), a bright catch-light. Scary-CUTE: the wide
     #   curious read with a slit that says something ancient is awake.
-    eye_x = cx + rx * 0.12
-    eye_y = cy + ry * 0.22
-    eye_r = ry * 0.21
     bone    = _shade_c(BONE, 8) if night else BONE
     bone_lt = _shade_c(BONE_LT, 6) if night else BONE_LT
-    # A bone-LIT eyelid ring framing the eye — gives the slit-eye the value
-    # contrast it needs to survive the 32px downscale on hue alone (AD directive
-    # 5: dark sclera-slit on a bone-lit eyelid). The whorl bone reads as the lid.
-    pygame.draw.circle(surf, bone, (int(eye_x), int(eye_y)), max(2, int(eye_r * 1.30)))
-    pygame.draw.circle(surf, bone_lt, (int(eye_x - eye_r * 0.18), int(eye_y - eye_r * 0.22)),
-                       max(2, int(eye_r * 1.06)))
-    # The dark socket the eye sits in (shell pulled back around the crack).
+    # A THIN bone-lit lid ring framing the eye — just enough value contrast for
+    # the slit to survive the 32px downscale on hue alone (AD directive 5: dark
+    # sclera-slit on a bone-lit lid). Kept tight so it doesn't become a separate
+    # fried-egg disc; the spiral whorl reads as the structure, the lid only rings
+    # the iris. The dark socket seats the eye in the shell.
     pygame.draw.circle(surf, SHELL_DEEP, (int(eye_x), int(eye_y)),
-                       max(2, int(eye_r * 1.14)))
+                       max(2, int(eye_r * 1.22)))
+    pygame.draw.circle(surf, bone, (int(eye_x), int(eye_y)), max(2, int(eye_r * 1.12)))
     # Green-lit eyeball glow so the eye itself is biolum (it's lit from within).
     _green_glow(surf, eye_x, eye_y, eye_r * 1.0, night=night,
                 alpha=160 if night else 110)
@@ -575,9 +582,9 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((44, 50, 56))
     _label(sheet, font,
-            "TEHOM-NO-TAMAGO  —  Umibozu-versions #5  —  abyssal leviathan-egg (vertical spiral egg)  —  round 1", 18, 12)
+            "TEHOM-NO-TAMAGO  —  Umibozu-versions #5  —  abyssal leviathan-egg (vertical spiral egg)  —  round 2", 18, 12)
     _label(sheet, small,
-            "RE-SPEC: shell relief = ONE continuous logarithmic SPIRAL whorl (NOT Hamaguri fan-ribs); shell value held LOW (backdrop) so bone whorl + sour-green crack carry the read; never twins teal-black Umibozu.",
+            "R2 fixes: cap = ANGULAR cracked-SHARD (notches + jagged split) leaking green DOWN into gap (no antenna); hero whorl = ONE continuous logarithmic coil; shell value dropped to near-black so bone+green lead.",
             18, 32, (196, 210, 206))
 
     # — Cell A: BIG hero on an abyssal teal-indigo sky.
@@ -588,6 +595,7 @@ def main():
     hero = build_tehom(scale=1.7, ss=6)
     sheet.blit(hero, (panel.centerx - hero.get_width() // 2, panel.y + 60))
     _label(sheet, font, "(a) HERO  big scale (SS=6)", panel.x + 8, panel.y + 8)
+    # Hero pulled up a touch — the crown is tall; centring leaves headroom.
     _label(sheet, small, "bone spiral whorl + sour-green crack + curious slit-eye",
            panel.x + 8, panel.y + 28, (200, 224, 218))
 
@@ -716,7 +724,7 @@ def main():
            18, SH - 22, (196, 210, 206))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

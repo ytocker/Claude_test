@@ -113,7 +113,7 @@ def _dot_row(surf, cx, y, span_hw, n, r, col, *, key_col=None, ss=3):
 
 
 def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=12,
-                    skip_bottom=0.0):
+                    skip_bottom=0.0, skip_dir=1):
     """The signature HALO: a crisp graphic STARBURST of red-ochre rays radiating
     straight from the disk rim. Rays ALTERNATE long / short tips around the
     circle (the rain-streak / lightning read). This is hard radial linework —
@@ -132,6 +132,16 @@ def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=12,
         a0 = 2 * math.pi * (i / n_long) - math.pi / 2.0
         # one long ray on the spoke, one short ray in the gap after it
         for kind in ("long", "short"):
+            a_test = a0 if kind == "long" else a0 + math.pi / n_long
+            # Suppress rays that fire toward the board junction so no ray-tip
+            # clips the neck where the disk meets the rain-board. `skip_dir` is
+            # +1 when the board exits DOWN (hero, bottom-pillar cap) and -1 when
+            # it exits UP (top-pillar cap) — keeps the seam clean either way.
+            if skip_bottom > 0.0:
+                target = skip_dir * math.pi / 2.0          # +y down / -y up
+                off = abs(((a_test - target + math.pi) % (2 * math.pi)) - math.pi)
+                if off < skip_bottom:
+                    continue
             if kind == "long":
                 a = a0
                 r_tip = r_long
@@ -216,7 +226,8 @@ def _wandjina_eye(surf, cx, cy, r, ss):
                        max(1, int(r * 0.16)))
 
 
-def _face_disk(surf, cx, cy, r, ss, *, halo=True, r_long=None, r_short=None):
+def _face_disk(surf, cx, cy, r, ss, *, halo=True, r_long=None, r_short=None,
+               skip_bottom=0.0, skip_dir=1):
     """The oversized haloed MOUTHLESS face-disk. White pipeclay ground (DOMINANT
     mass), a heavy charcoal rim keyline, two big calm dark eyes, a slim charcoal
     nose-bar, a yellow-ochre dot-field across the brow + cheeks — and NO MOUTH
@@ -226,7 +237,8 @@ def _face_disk(surf, cx, cy, r, ss, *, halo=True, r_long=None, r_short=None):
     if halo:
         rl = r_long if r_long is not None else r * 2.05
         rs = r_short if r_short is not None else r * 1.55
-        _starburst_halo(surf, cx, cy, r * 0.98, rl, rs, ss, n_long=16)
+        _starburst_halo(surf, cx, cy, r * 0.98, rl, rs, ss, n_long=12,
+                        skip_bottom=skip_bottom, skip_dir=skip_dir)
 
     # white disk ground (the DOMINANT light mass)
     pygame.draw.circle(surf, PIPECLAY, (int(cx), int(cy)), int(r))
@@ -289,16 +301,20 @@ def _rain_band_repeat(surf, cx, y0, band_h, half_w, ss):
     pygame.draw.rect(surf, PIPECLAY,
                      (int(cx - half_w), int(y0), int(2 * half_w), int(band_h)))
 
-    # Top half: pipeclay rain-DOT columns — vertical strings of dots reading as
-    # falling rain. Charcoal-keyed so they pop on the light clay ground.
+    # Top half: pipeclay rain-DOT columns — strings of dots reading as falling
+    # rain. Charcoal-keyed so they pop on the light clay ground. A slight
+    # diagonal LEAN + a per-column phase offset loosen the grid into a "falling
+    # rain" cadence rather than a regular dot matrix.
     n_cols = 3
     for c in range(n_cols):
         colx = cx - half_w * 0.5 + half_w * (c / (n_cols - 1))
+        phase = (c % 2) * 0.065        # stagger alternating columns
         for k in range(3):
-            dy = y0 + band_h * (0.12 + 0.13 * k)
-            pygame.draw.circle(surf, PIPECLAY_DK, (int(colx), int(dy)),
+            dy = y0 + band_h * (0.11 + phase + 0.13 * k)
+            dx = colx + half_w * 0.10 * (k - 1)   # diagonal rain lean
+            pygame.draw.circle(surf, PIPECLAY_DK, (int(dx), int(dy)),
                                max(1, int(half_w * 0.13)))
-            pygame.draw.circle(surf, CHAR, (int(colx), int(dy)),
+            pygame.draw.circle(surf, CHAR, (int(dx), int(dy)),
                                max(1, int(half_w * 0.13)), max(1, int(ss * 0.7)))
 
     # A thin charcoal seam between the two bands (graphic divider).
@@ -402,8 +418,10 @@ def build_wandjina(scale=1.0, ss=5, *, compact=False):
                                       int(disk_cy + disk_r * 0.55),
                                       int(disk_r * 0.84), int(disk_r * 0.5)))
 
+    # Skip the rays firing straight DOWN so none clip the neck where the disk
+    # springs from the rain-board collar (a clean disk<->board seam).
     _face_disk(surf, cx, disk_cy, disk_r, ss, halo=True,
-               r_long=r_long, r_short=r_short)
+               r_long=r_long, r_short=r_short, skip_bottom=0.42)
     if compact:
         _face_tell(surf, cx, disk_cy, disk_r, ss)
 
@@ -450,9 +468,13 @@ def _disk_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
     gl = make_glow_surface(gr, EMBER, alpha_center=150 if night else 110, falloff=2.5)
     surf.blit(gl, (int(cx - gr), int(gy - gr)), special_flags=pygame.BLEND_ADD)
 
-    # the haloed face-disk cap (smaller halo than the hero so it stays compact)
+    # the haloed face-disk cap (smaller halo than the hero so it stays compact).
+    # The board exits on the NON-gap side, so skip the rays that fire that way
+    # to keep the disk<->board seam clean. point_up -> board exits down (+1);
+    # point_down -> board exits up (-1).
     _face_disk(surf, cx, cy, disk_r, ss, halo=True,
-               r_long=int(disk_r * 1.62), r_short=int(disk_r * 1.28))
+               r_long=int(disk_r * 1.62), r_short=int(disk_r * 1.28),
+               skip_bottom=0.42, skip_dir=(1 if point_up else -1))
 
     # ember twinkle at the disk RIM facing the gap (cap-rim ember, per brief)
     rim_y = cy + (-d) * disk_r * 0.98
@@ -528,7 +550,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((118, 120, 126))            # neutral grey bg
     _label(sheet, font,
-           "WANDJINA  —  mokoi spin-off  —  white-clay radial rain-ancestor  —  round 1",
+           "WANDJINA  —  mokoi spin-off  —  white-clay radial rain-ancestor  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
            "FLAT-GRAPHIC, INVERTED VALUE: pipeclay-WHITE dominant ground, charcoal keyline-MASS face, brick-red ray-STARBURST halo, soft yellow-ochre dot-field; MOUTHLESS; ember cap-rim only.",
@@ -668,7 +690,7 @@ def main():
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

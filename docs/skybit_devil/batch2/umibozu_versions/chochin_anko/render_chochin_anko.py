@@ -236,10 +236,11 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     belly.center = (int(cx + r * 0.04), int(cy + r * 0.42))
     pygame.draw.ellipse(surf, _shade_c(coral, -28), belly)
     pygame.draw.ellipse(surf, coral, belly.inflate(-int(r * 0.10), -int(r * 0.10)))
-    # A touch of lit coral inner sheen low-front (the belly catching the lure).
-    lit = pygame.Rect(0, 0, int(body_w * 0.44), int(body_h * 0.30))
+    # A restrained touch of lit coral inner sheen low-front (the belly catching
+    # the lure). Held DOWN in value so the belly never out-values the esca pip.
+    lit = pygame.Rect(0, 0, int(body_w * 0.40), int(body_h * 0.26))
     lit.center = (int(cx), int(cy + r * 0.60))
-    pygame.draw.ellipse(surf, _shade_c(CORAL_LT, -6 if night else 0), lit)
+    pygame.draw.ellipse(surf, _shade_c(CORAL_LT, -28 if night else -22), lit)
     # Carve the coral back down to a belly band: re-fill the upper half with body
     # so the coral never climbs over the back (keeps it BELLY-only).
     cover = pygame.Rect(0, 0, int(body_w * 1.1), int(body_h * 0.62))
@@ -267,22 +268,25 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     maw.center = (int(maw_cx), int(maw_cy))
     # Dark maw cavity (deepest value).
     pygame.draw.ellipse(surf, BODY_DEEP, maw)
-    # Coral GUM line — a thin coral arc hugging the TOP rim of the maw (gum flush,
-    # the only other coral besides the belly).
-    pygame.draw.arc(surf, coral,
+    # Muted coral GUM line — a thin arc hugging the TOP rim of the maw. Kept at a
+    # LOW gum value (not the bright belly coral) so the grin never out-values the
+    # esca pip; it's a dark flushed rim, not a bright smile.
+    gum = _shade_c(GUM, 8) if night else GUM
+    pygame.draw.arc(surf, gum,
                     (maw.x, maw.y - int(r * 0.04), maw.w, int(maw_h * 1.0)),
                     math.radians(8), math.radians(172), max(2, int(2.4 * ss)))
-    # Lower coral gum (the underbite jaw rim).
-    pygame.draw.arc(surf, _shade_c(coral, -16),
+    # Lower coral gum (the underbite jaw rim) — darker still.
+    pygame.draw.arc(surf, _shade_c(gum, -18),
                     (maw.x, maw.y + int(maw_h * 0.30), maw.w, int(maw_h * 0.9)),
                     math.radians(192), math.radians(348), max(2, int(2.2 * ss)))
 
-    # Needle teeth — fine pale triangles top + bottom. Bottom row juts up past
-    # the top seam (the cute underbite).
+    # Needle teeth — fine triangles top + bottom in a DULL cool bone (not bright
+    # white) so the row never competes with the esca for the eye. Bottom row juts
+    # up past the top seam (the cute underbite).
     n_teeth = 9
     top_lip_y = maw_cy - maw_h * 0.28
     bot_lip_y = maw_cy + maw_h * 0.30
-    tooth_col = (236, 232, 224)
+    tooth_col = _shade_c(TOOTH, -10) if night else TOOTH
     for i in range(n_teeth):
         t = (i + 0.5) / n_teeth
         tx = maw_cx - maw_w * 0.42 + maw_w * 0.84 * t
@@ -311,13 +315,15 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     for s in (-1, 1):
         ex = cx + s * eye_dx
         pygame.draw.circle(surf, BODY_DEEP, (int(ex), int(eye_y)), max(2, int(eye_r)))
-        pygame.draw.circle(surf, (210, 222, 224), (int(ex), int(eye_y)),
+        # Eye sclera kept a cool MID-grey, not bright white, so the tiny pin-eyes
+        # don't read as bright pips competing with the esca.
+        pygame.draw.circle(surf, (158, 174, 178), (int(ex), int(eye_y)),
                            max(1, int(eye_r * 0.62)))
         pygame.draw.circle(surf, FACE_INK, (int(ex), int(eye_y)),
                            max(1, int(eye_r * 0.40)))
-        pygame.draw.circle(surf, (240, 248, 248),
+        pygame.draw.circle(surf, (198, 212, 214),
                            (int(ex - eye_r * 0.24), int(eye_y - eye_r * 0.26)),
-                           max(1, int(eye_r * 0.20)))
+                           max(1, int(eye_r * 0.18)))
         # Heavy ANNOYED scowl-lid: a thick angled body-shade wedge cutting the top
         # of the eye, sloping DOWN toward the centre on both sides (a frown).
         inner = ex + s * eye_r * 1.6
@@ -377,8 +383,10 @@ def build_chochin_anko(scale=1.0, ss=5, *, night=False, compact=False):
     # — The illicium stalk: a smooth arc rising off the top of the brow, leaning
     #   FORWARD over the face. Drawn as a string of tapering quads with a node at
     #   each joint (the same unit as the pillar) so the segmented read carries.
+    # Root the stalk DEEP into the brow (well inside the body top at ~-0.83r) so
+    # the arc grows out of the forehead with no sky-gap between head and stalk.
     root_x = cx - head_r * 0.06
-    root_y = cy - head_r * 0.78
+    root_y = cy - head_r * 0.62
     n_seg = 3 if compact else 4
     stalk = _shade_c(STALK, 10) if night else STALK
     sheen = _shade_c(BODY_SHEEN, 30) if night else BODY_SHEEN
@@ -389,48 +397,84 @@ def build_chochin_anko(scale=1.0, ss=5, *, night=False, compact=False):
         ay = root_y - stalk_rise * t
         pts.append((ax, ay))
     hw0 = head_r * 0.16
-    for i in range(n_seg):
-        (x0, y0), (x1, y1) = pts[i], pts[i + 1]
-        t0, t1 = i / n_seg, (i + 1) / n_seg
-        w0 = hw0 * (1.0 - 0.42 * t0)
-        w1 = hw0 * (1.0 - 0.42 * t1)
-        dx, dy = x1 - x0, y1 - y0
-        ln = math.hypot(dx, dy) or 1.0
-        nx, ny = -dy / ln, dx / ln
-        quad = [
-            (x0 - nx * w0, y0 - ny * w0), (x0 + nx * w0, y0 + ny * w0),
-            (x1 + nx * w1, y1 + ny * w1), (x1 - nx * w1, y1 - ny * w1)]
-        pygame.draw.polygon(surf, _shade_c(stalk, -22),
-                            [(int(x), int(y)) for x, y in quad])
-        inner = [
-            (x0 - nx * (w0 - ss), y0 - ny * (w0 - ss)),
-            (x0 + nx * (w0 - ss), y0 + ny * (w0 - ss)),
-            (x1 + nx * (w1 - ss), y1 + ny * (w1 - ss)),
-            (x1 - nx * (w1 - ss), y1 - ny * (w1 - ss))]
-        pygame.draw.polygon(surf, stalk, [(int(x), int(y)) for x, y in inner])
-        if i < n_seg - 1:
-            nr = w1 * 1.5
-            _triad_circle(surf, x1, y1, nr, stalk, sheen=True,
-                          sheen_col=sheen, sheen_scale=0.24)
-        pygame.draw.line(surf, sheen,
-                         (int(x0 - nx * w0 * 0.5), int(y0 - ny * w0 * 0.5)),
-                         (int(x1 - nx * w1 * 0.5), int(y1 - ny * w1 * 0.5)),
-                         max(1, int(1.0 * ss)))
+    if compact:
+        # COMPACT bake: the stalk is ONE solid dark stroke (no per-segment sheen,
+        # no node triads, no barbels) so at true 32px it reads as a definite
+        # "lure on a stick," never a near-1px wisp broken into dashes. The stroke
+        # is sized so it survives the downscale as a clean ~2px dark stalk.
+        dark = _shade_c(stalk, -26)
+        wide = max(3, int(hw0 * 1.7))
+        line_pts = [(int(x), int(y)) for x, y in pts]
+        pygame.draw.lines(surf, dark, False, line_pts, wide)
+        # round the joints so the bend doesn't notch when downscaled
+        for px, py in line_pts:
+            pygame.draw.circle(surf, dark, (px, py), max(1, wide // 2))
+    else:
+        for i in range(n_seg):
+            (x0, y0), (x1, y1) = pts[i], pts[i + 1]
+            t0, t1 = i / n_seg, (i + 1) / n_seg
+            w0 = hw0 * (1.0 - 0.42 * t0)
+            w1 = hw0 * (1.0 - 0.42 * t1)
+            dx, dy = x1 - x0, y1 - y0
+            ln = math.hypot(dx, dy) or 1.0
+            nx, ny = -dy / ln, dx / ln
+            quad = [
+                (x0 - nx * w0, y0 - ny * w0), (x0 + nx * w0, y0 + ny * w0),
+                (x1 + nx * w1, y1 + ny * w1), (x1 - nx * w1, y1 - ny * w1)]
+            pygame.draw.polygon(surf, _shade_c(stalk, -22),
+                                [(int(x), int(y)) for x, y in quad])
+            inner = [
+                (x0 - nx * (w0 - ss), y0 - ny * (w0 - ss)),
+                (x0 + nx * (w0 - ss), y0 + ny * (w0 - ss)),
+                (x1 + nx * (w1 - ss), y1 + ny * (w1 - ss)),
+                (x1 - nx * (w1 - ss), y1 - ny * (w1 - ss))]
+            pygame.draw.polygon(surf, stalk, [(int(x), int(y)) for x, y in inner])
+            if i < n_seg - 1:
+                nr = w1 * 1.5
+                _triad_circle(surf, x1, y1, nr, stalk, sheen=True,
+                              sheen_col=sheen, sheen_scale=0.24)
+            pygame.draw.line(surf, sheen,
+                             (int(x0 - nx * w0 * 0.5), int(y0 - ny * w0 * 0.5)),
+                             (int(x1 - nx * w1 * 0.5), int(y1 - ny * w1 * 0.5)),
+                             max(1, int(1.0 * ss)))
 
-    # A pair of barbel-feelers flicking off the stalk tip (just below the lure).
-    tip_x, tip_y = pts[-1]
-    for s in (-1, 1):
-        bpts = []
-        for i in range(9):
-            t = i / 8
-            bx = tip_x + s * hw0 * 1.5 * t
-            by = tip_y + hw0 * (1.0 * t + 1.1 * t * t)
-            bpts.append((int(bx), int(by)))
-        pygame.draw.lines(surf, _shade_c(stalk, -8), False, bpts, max(1, int(1.4 * ss)))
-        pygame.draw.circle(surf, sheen, bpts[-1], max(1, int(hw0 * 0.18)))
+        # A pair of barbel-feelers flicking off the stalk tip (below the lure).
+        tip_x, tip_y = pts[-1]
+        for s in (-1, 1):
+            bpts = []
+            for i in range(9):
+                t = i / 8
+                bx = tip_x + s * hw0 * 1.5 * t
+                by = tip_y + hw0 * (1.0 * t + 1.1 * t * t)
+                bpts.append((int(bx), int(by)))
+            pygame.draw.lines(surf, _shade_c(stalk, -8), False, bpts,
+                              max(1, int(1.4 * ss)))
+            pygame.draw.circle(surf, sheen, bpts[-1], max(1, int(hw0 * 0.18)))
 
     # Head over the stalk root so the brow occludes the stalk base (one body).
     _head(surf, cx, cy, head_r, ss, night=night, tell=compact)
+
+    # Anchor NUB: a small oil-black mound where the stalk leaves the brow, drawn
+    # AFTER the head so it visibly fuses the stalk base into the forehead — the
+    # eye traces head -> stalk -> lure as one continuous form (no floating lure).
+    body = _shade_c(BODY, 12) if night else BODY
+    nub_x, nub_y = pts[0]
+    nub_r = hw0 * 1.7
+    pygame.draw.circle(surf, _shade_c(body, -26), (int(nub_x), int(nub_y)),
+                       max(2, int(nub_r)))
+    pygame.draw.circle(surf, body, (int(nub_x), int(nub_y)),
+                       max(1, int(nub_r * 0.82)))
+    # Re-lay the first stalk stub ON TOP of the nub so the filament visibly grows
+    # OUT of the forehead mound (the head occluded the original base) — keynote of
+    # the "lure on a stick rooted in THIS creature" read.
+    stalk_c = _shade_c(STALK, 10) if night else STALK
+    (jx0, jy0), (jx1, jy1) = pts[0], pts[1]
+    pygame.draw.line(surf, _shade_c(stalk_c, -22),
+                     (int(jx0), int(jy0)), (int(jx1), int(jy1)),
+                     max(3, int(hw0 * 2.0)))
+    pygame.draw.line(surf, stalk_c,
+                     (int(jx0), int(jy0)), (int(jx1), int(jy1)),
+                     max(2, int(hw0 * 1.3)))
 
     # The esca lure last + on TOP so its glow blooms over everything — the sole
     # brightest pip, dangled at the stalk tip over the grump's face.

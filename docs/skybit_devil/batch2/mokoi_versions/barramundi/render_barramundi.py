@@ -294,8 +294,7 @@ def _fish(surf, cx, cy, hw, hh, ss, *, medallion=False):
     pygame.draw.ellipse(surf, CHAR_DK, cav_rect, max(1, int(1.4 * ss)))
 
     # ── the x-ray SKELETON over the cavity (the hero detail) ──
-    _xray_skeleton(surf, cav_cx, cav_cy, cav_rx * 0.96, cav_ry * 0.92, ss,
-                   ribs=4 if not medallion else 3)
+    _xray_skeleton(surf, cav_cx, cav_cy, cav_rx * 0.96, cav_ry * 0.92, ss)
 
     # ── body keyline LAST so the silhouette is crisp ink ──
     pygame.draw.polygon(surf, INK, ibody, max(2, int(2.2 * ss)))

@@ -177,7 +177,10 @@ def _wide_crown(surf, cx, cy, hw, ss):
     _arc_dot_row(surf, cx, cy, (r1i + r2o) * 0.5, a0 + 0.10, a1 - 0.10, 11,
                  hw * 0.07, PIPECLAY, ss, key_col=PIPECLAY_DK)
     # Three dot-tipped finial horns rising off the crown crest (the "horned"
-    # all-father). Centre tallest — kept ON the hero only.
+    # all-father). Centre tallest — kept ON the hero only. FIX 5: deliberate call
+    # — thicken the horn shafts ~1px so a hint of the "horned" tell survives down
+    # to icon scale, while accepting they cleanly DROP at the true-32px chip
+    # (where the brow band + crown silhouette already carry "crowned").
     for s, hfac in ((-1, 0.62), (0, 0.92), (1, 0.62)):
         a = math.radians(270 + s * 34)
         bx = cx + math.cos(a) * r1o
@@ -185,11 +188,11 @@ def _wide_crown(surf, cx, cy, hw, ss):
         tx = cx + math.cos(a) * (r1o + hw * hfac)
         ty = cy + math.sin(a) * (r1o + hw * hfac)
         pygame.draw.line(surf, CHAR, (int(bx), int(by)), (int(tx), int(ty)),
-                         max(2, int(4.0 * ss)))
+                         max(2, int(5.4 * ss)))
         pygame.draw.line(surf, OCHRE, (int(bx), int(by)), (int(tx), int(ty)),
-                         max(1, int(1.6 * ss)))
-        pygame.draw.circle(surf, PIPECLAY, (int(tx), int(ty)), max(1, int(hw * 0.10)))
-        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(hw * 0.10)),
+                         max(1, int(2.0 * ss)))
+        pygame.draw.circle(surf, PIPECLAY, (int(tx), int(ty)), max(1, int(hw * 0.12)))
+        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(hw * 0.12)),
                            max(1, int(ss)))
 
 
@@ -218,6 +221,12 @@ def _reaching_arm(surf, cx, cy, hw, ss, side):
     ha = a1 if s > 0 else a1
     hx = cax + math.cos(ha) * (r_out + r_in) * 0.5
     hy = cay + math.sin(ha) * (r_out + r_in) * 0.5
+    # FIX 4: tie the palm to the arm-arc with a thick charcoal wrist beat so the
+    # hand reads as the CONTINUATION of the reaching limb, not a detached mitt.
+    wx = cax + math.cos(ha - 0.16 * s) * (r_out + r_in) * 0.5
+    wy = cay + math.sin(ha - 0.16 * s) * (r_out + r_in) * 0.5
+    pygame.draw.line(surf, CHAR, (int(wx), int(wy)), (int(hx), int(hy)),
+                     max(2, int((r_out - r_in) * 0.95)))
     pygame.draw.circle(surf, CHAR, (int(hx), int(hy)), int(hw * 0.30))
     pygame.draw.circle(surf, INK, (int(hx), int(hy)), int(hw * 0.30), max(1, int(1.4 * ss)))
     for fk in (-1, 0, 1):
@@ -391,24 +400,29 @@ def build_baiame_compact(scale=1.0, ss=5):
         pygame.draw.circle(surf, CHAR, (int(ax), int(ay)), int(hw * 0.22))
         pygame.draw.circle(surf, PIPECLAY, (int(ax), int(ay)), max(1, int(hw * 0.08)))
     # A compact single-arc crown (NOT the wide hero double-arc) above the head.
+    # FIX 3: the crown's charcoal ribbon is kept as the visible mass and the
+    # ochre stripe inside it is THINNED so the crown silhouette still says
+    # "crowned" without adding warm area at chip scale.
     crown_r = hw * 0.74
     _arc_band(surf, cx, head_cy, crown_r * 1.30, crown_r * 1.02,
               math.radians(208), math.radians(332), CHAR, ss)
-    _arc_band(surf, cx, head_cy, crown_r * 1.16, crown_r * 1.06,
+    _arc_band(surf, cx, head_cy, crown_r * 1.14, crown_r * 1.08,
               math.radians(208), math.radians(332), OCHRE, ss)
-    _arc_dot_row(surf, cx, head_cy, crown_r * 1.16, math.radians(216),
-                 math.radians(324), 5, hw * 0.10, PIPECLAY, ss)
+    _arc_dot_row(surf, cx, head_cy, crown_r * 1.16, math.radians(220),
+                 math.radians(320), 4, hw * 0.10, PIPECLAY, ss)
 
     # The dark head block + body.
     body = pygame.Rect(int(cx - hw * 0.66), int(body_cy - hh * 0.05),
                        int(hw * 1.32), int(hh * 1.10))
     pygame.draw.rect(surf, CHAR, body, border_radius=int(hw * 0.28))
     pygame.draw.rect(surf, INK, body, max(1, int(1.6 * ss)), border_radius=int(hw * 0.28))
+    # FIX 3: chest band trimmed ~18% thinner so the total warm-ochre AREA on the
+    # chip drops and the icon stays an unambiguous dark charcoal block vs Mimi.
     band_y = body_cy + hh * 0.55
     pygame.draw.rect(surf, OCHRE,
-                     pygame.Rect(int(cx - hw * 0.58), int(band_y - hh * 0.11),
-                                 int(hw * 1.16), int(hh * 0.22)))
-    _dot_row(surf, cx, band_y, hw * 0.46, 5, hw * 0.07, PIPECLAY, ss=ss)
+                     pygame.Rect(int(cx - hw * 0.54), int(band_y - hh * 0.09),
+                                 int(hw * 1.08), int(hh * 0.18)))
+    _dot_row(surf, cx, band_y, hw * 0.44, 5, hw * 0.065, PIPECLAY, ss=ss)
 
     head_r = hw * 0.80
     pygame.draw.circle(surf, CHAR, (int(cx), int(head_cy)), int(head_r))
@@ -517,8 +531,9 @@ def _arc_finial_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
 
     # Three dot-tipped finials dropping DOWN well into the gap from the arc — the
     # heaviest pipeclay mass falls BELOW the shaft axis (decisively bottom-weighted
-    # like Big Reapy's bident). Centre finial longest, on-axis.
-    finials = ((-1, 0.78, 1.05), (0, 0.0, 1.55), (1, 0.78, 1.05))
+    # like Big Reapy's bident). Centre finial longest, on-axis. Drop lengths are
+    # held within the cap reserve so the tips read fully inside the gap, not clipped.
+    finials = ((-1, 0.78, 0.78), (0, 0.0, 1.12), (1, 0.78, 0.78))
     for s, xfac, lfac in finials:
         bx = cx + s * cap_r * xfac
         by = cy
@@ -551,7 +566,7 @@ def _staff_pillar_obstacle(height, ss, *, flip, night=False):
     surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
     cx = bw // 2
     half_w = int((PIPE_W * 0.42)) * ss
-    cap_band = int(40 * ss)
+    cap_band = int(48 * ss)
     if flip:
         _staff_column(surf, cx, 0, bh - cap_band, half_w, ss)
         _arc_finial_cap(surf, cx, bh - cap_band, half_w, ss, point_up=False, night=night)
@@ -609,7 +624,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((120, 120, 124))            # neutral grey bg
     _label(sheet, font,
-           "BAIAME-ALLFATHER  —  mokoi-lineage  —  wide double-arc crowned authority  —  round 1",
+           "BAIAME-ALLFATHER  —  mokoi-lineage  —  wide double-arc crowned authority  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
            "FLAT-GRAPHIC: CHARCOAL-DOMINANT body/value, yellow-ochre ACCENT only (bands/arcs/crown), pipeclay-white dot-rows = protected tell; ember CAP-confined. Opposite value structure from Mimi.",
@@ -619,7 +634,7 @@ def main():
     panel = pygame.Rect(18, 56, 380, 600)
     pygame.draw.rect(sheet, (96, 96, 100), panel, border_radius=8)
     pygame.draw.rect(sheet, (60, 60, 64), panel, 2, border_radius=8)
-    _label(sheet, font, "(a) HERO CHARACTER  SS=6", panel.x + 8, panel.y + 8, (245, 240, 230))
+    _label(sheet, font, "(a) HERO CHARACTER  SS=6  (r2)", panel.x + 8, panel.y + 8, (245, 240, 230))
     _label(sheet, small, "wide double-arc crown + hugely reaching arms (HERO ONLY)",
            panel.x + 8, panel.y + 28, (235, 230, 220))
     hero = build_baiame_hero(scale=1.5, ss=6)
@@ -657,7 +672,7 @@ def main():
     _label(sheet, small, "1 pipeclay dot-row per repeat; ember on CAP only",
            slice_x - 2, slice_y + slice_h + 22, (255, 210, 150))
 
-    cap_band = 40
+    cap_band = 48
     zw, zh = pw, 150
     zoom_src = pygame.Surface((zw, zh), pygame.SRCALPHA)
     top_anchor = 14
@@ -673,8 +688,8 @@ def main():
     pygame.draw.rect(sheet, (210, 200, 180), (zx - 1, zy - 1, zw * 2 + 2, zh * 2 + 2), 1)
     sheet.blit(zoom, (zx, zy))
     _label(sheet, small, "2x zoom CAP band:", zx - 2, zy - 16, (255, 255, 255))
-    _label(sheet, small, "SLIM on-axis arc-finial;", zx - 2, zy + zh * 2 + 6, (255, 210, 150))
-    _label(sheet, small, "dotted finials DROP into gap (not top-heavy)",
+    _label(sheet, small, "SLIM on-axis dome (shaft+30%);", zx - 2, zy + zh * 2 + 6, (255, 210, 150))
+    _label(sheet, small, "3 finials DROP deep into gap = bottom-weighted",
            zx - 2, zy + zh * 2 + 22, (255, 210, 150))
 
     # — Cell C: TRUE 32px gameplay chip on a DAY sky AND a NIGHT sky, plus a 4x
@@ -746,7 +761,7 @@ def main():
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
