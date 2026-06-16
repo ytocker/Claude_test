@@ -110,27 +110,41 @@ def kiln_glow(surf, cx, cy, r, s, strength=120):
 
 
 def spine_plate(surf, apex, bl, br, s, rake=0):
-    """One DISCRETE triangular back-fan spine-plate. Triad-lit independently so
-    the plate count survives downscale: olive dark-core on the right flank,
-    amber fill, cream rim-sheen up the left edge. `rake` shifts the apex outward
-    so the fan splays (centre plate upright, outer plates raked out). A thick
-    ink-keyline gives every plate its own hard edge and the notch between
-    neighbours stays as visible negative space."""
+    """One DISCRETE triangular back-fan spine-plate — a tall narrow SPIKE, not a
+    bump. Triad-lit independently so the plate count survives downscale: olive
+    dark-core down the right flank, amber fill, cream rim-sheen up the left edge.
+    The left edge is SERRATED with two shallow saw-notches so each plate reads as
+    a ceramic spine-plate (and still telegraphs the silhouette at true 32px),
+    distinct from the smooth round mane-curls. `rake` shifts the apex outward so
+    the fan splays (centre upright, outer plates raked out). A thick ink-keyline
+    gives every plate its own hard edge and keeps the notch between neighbours as
+    visible negative space."""
     apex = (apex[0] + rake, apex[1])
-    pts = [apex, br, bl]
+    ax, ay = apex
+    blx, bly = bl
+    # serrate the LEFT (light) edge with two tucks so the spike reads as toothed
+    h = bly - ay
+    midL = (int(ax + (blx-ax)*0.5),  int(ay + h*0.5))
+    s1   = (int(ax + (blx-ax)*0.33) + int(4*s), int(ay + h*0.33))
+    s2   = (int(ax + (blx-ax)*0.66) + int(4*s), int(ay + h*0.66))
+    left_edge = [apex, s1, midL, s2, bl]
+    pts = left_edge + [br]
     # heavy keyline first so adjacent plates never visually fuse into a lump
     pygame.draw.polygon(surf, INK, pts)
     pygame.draw.polygon(surf, AMBER, pts)
     # olive dark-core down the right flank (away from the top-left light)
     pygame.draw.polygon(surf, OLIVE_D,
-                        [apex, br, ((apex[0]+br[0])//2, (apex[1]+br[1])//2)])
+                        [apex, br, ((ax+br[0])//2, (ay+br[1])//2)])
     pygame.draw.polygon(surf, AMBER_D,
-                        [apex, ((apex[0]+br[0])//2, (apex[1]+br[1])//2), br,
+                        [apex, ((ax+br[0])//2, (ay+br[1])//2), br,
                          (br[0]-int(3*s), br[1])])
-    # cream rim-sheen catch up the left edge — the per-plate top-left light
+    # cream rim-sheen catch up the serrated left edge — the per-plate top-left
+    # light, traced along the saw-notches so the teeth pick up the highlight
     pygame.draw.polygon(surf, CREAM_T,
-                        [apex, bl, (bl[0]+int(6*s), bl[1]),
-                         (apex[0]-int(3*s), apex[1]+int(6*s))])
+                        [apex, s1, midL, s2, bl,
+                         (blx+int(5*s), bly),
+                         (midL[0]+int(5*s), midL[1]),
+                         (ax+int(4*s), ay+int(8*s))])
     pygame.draw.polygon(surf, INK, pts, max(3, int(3*s)))
 
 
@@ -157,34 +171,40 @@ def draw_zhenmushou(surf, cx, cy, s):
     ground_y = body_cy + int(46*s)         # where the forelegs plant
 
     # ── (1) back-fan of EXACTLY 5 spine-plates (drawn FIRST → behind head) ────
-    # The signature epic read. Five DISCRETE hard-edged triangular plates rising
-    # behind the head/shoulders, fanned: centre plate tallest + upright, outer
-    # plates shorter and raked outward, each with its own ink-keyline so the
-    # negative-space notches between them stay visible. Bases sit on a common
-    # spine line low on the back; apexes climb ABOVE the top of the head so the
-    # fan clearly out-rises the face rather than hiding behind it.
-    # Bases sit on a high spine line just behind the shoulders; the centre
-    # plate's apex clears the top of the head so all five top-edges are visible
-    # above/around the lion-mask rather than buried behind it.
-    # A vertical CROWN of five plates clustered above-and-behind the head: every
-    # apex clears the top of the head so all five top-edges read as a fan, with
-    # only a modest outward rake (a splay, never sideways wings). Bases share a
-    # tight spine line behind the skull; the centre plate is tallest and upright,
-    # the pairs step down and splay slightly outward.
-    head_top   = face_cy_of(body_cy, s) - int(30*s)
-    fan_base_y = head_top + int(14*s)                 # tight base line behind skull
-    half_w     = int(15*s)                            # half plate-base width
-    # (centre offset, apex y above head_top, outward rake) — centre tallest
+    # THE signature epic read, and the whole job of this pass. Round 1+2 let this
+    # collapse into a lump/row-of-curls hiding behind the skull. It is now a CROWN
+    # of five DISCRETE hard-edged triangular plates that clearly OUT-RISE the head:
+    # every apex clears the top of the skull, the centre plate is tallest + dead
+    # upright, the inner pair steps down + rakes out, the outer pair shorter still
+    # + raked further out — a true splayed fan, not sideways wings. Each plate is
+    # tall + narrow (a spike, distinct from the round mane-curls) and carries its
+    # own thick ink-keyline so the NOTCH between neighbours stays as visible
+    # negative space — the test is being able to count 5 top-edges at 32px.
+    # WHY drawn first: the plates root behind the shoulders/skull; the head + mane
+    # then occlude only their lower thirds, leaving the five spike-tips proud.
+    head_top   = face_cy_of(body_cy, s) - int(32*s)
+    # A tight high spine line behind the skull: the five bases sit close together
+    # so the fan reads as ONE crown (not sideways wings), while the apexes splay
+    # into an even arc. Keeping the rake modest is what stops the outer plates
+    # colliding with the horns and reading as random extra spikes.
+    fan_base_y = head_top + int(8*s)                  # bases tuck behind the skull
+    half_w     = int(11*s)                            # narrow base → spike, not bump
+    # (centre offset of base, apex height ABOVE head_top, outward apex-rake).
+    # Apex rises form a symmetric arc — centre tallest, stepping down to the
+    # sides — and even the SHORTEST (outer) plate clears the horn tips so the fan
+    # towers over the head as its own clean system rather than interleaving with
+    # the two red horns below it. Small rakes splay the tips just enough to count
+    # five edges without throwing the outer plates out sideways like wings.
     fan = [
-        (-int(46*s), head_top - int(12*s), -int(12*s)),  # outer-left
-        (-int(24*s), head_top - int(30*s), -int(6*s)),   # inner-left  (tall)
-        (   0,       head_top - int(44*s),   0),         # centre      (tallest)
-        ( int(24*s), head_top - int(30*s),  int(6*s)),   # inner-right (tall)
-        ( int(46*s), head_top - int(12*s),  int(12*s)),  # outer-right
+        (-int(33*s), int(54*s), -int(14*s)),   # outer-left  (clears the horn tip)
+        (-int(17*s), int(74*s), -int(7*s)),    # inner-left  (tall)
+        (   0,       int(92*s),   0),          # centre      (tallest, upright)
+        ( int(17*s), int(74*s),  int(7*s)),    # inner-right (tall)
+        ( int(33*s), int(54*s),  int(14*s)),   # outer-right (clears the horn tip)
     ]
-    for dx, apex_y, rake in fan:
+    for dx, apex_rise, rake in fan:
         bx = body_cx + dx
-        spine_plate(surf, (bx, apex_y),
+        spine_plate(surf, (bx, head_top - apex_rise),
                     (bx - half_w, fan_base_y), (bx + half_w, fan_base_y),
                     s, rake=rake)
 
@@ -453,13 +473,28 @@ def draw_pillar_segment(surf, cx, top, bot, s, cap_at=None):
                             ceiling: root is at the TOP, plates upswept toward it).
     `cap_at == "top"`     → mask at the top edge (this segment grows from the
                             floor: root is at the BOTTOM, plates upswept away)."""
-    shaft_w = int(34*s)
-    x0 = cx - shaft_w//2
+    # Root end is widest so the stela reads bottom-rooted in MASS, not just in
+    # plate direction (round-2 note #2): the shaft is a slight trapezoid, wide at
+    # the root, tapering toward the capped gap end.
+    root_at_top_shaft = (cap_at == "bottom")
+    wide = int(40*s)                                  # shaft width at the root
+    narrow = int(28*s)                                # shaft width at the gap
+    if root_at_top_shaft:
+        wtop, wbot = wide, narrow
+    else:
+        wtop, wbot = narrow, wide
+    shaft_w = max(wtop, wbot)
+    shaft = [(cx - wtop//2, top), (cx + wtop//2, top),
+             (cx + wbot//2, bot), (cx - wbot//2, bot)]
     # core cream shaft with an olive shade flank + cream rim-sheen flank (triad)
-    pygame.draw.rect(surf, INK, (x0-1, top, shaft_w+2, bot-top))
-    pygame.draw.rect(surf, CREAM, (x0, top, shaft_w, bot-top))
-    pygame.draw.rect(surf, OLIVE_D, (x0 + shaft_w - int(8*s), top, int(8*s), bot-top))
-    pygame.draw.rect(surf, CREAM_T, (x0, top, int(6*s), bot-top))
+    pygame.draw.polygon(surf, INK, shaft)
+    pygame.draw.polygon(surf, CREAM, shaft)
+    pygame.draw.polygon(surf, OLIVE_D,
+                        [(cx + wtop//2 - int(8*s), top), (cx + wtop//2, top),
+                         (cx + wbot//2, bot), (cx + wbot//2 - int(8*s), bot)])
+    pygame.draw.polygon(surf, CREAM_T,
+                        [(cx - wtop//2, top), (cx - wtop//2 + int(6*s), top),
+                         (cx - wbot//2 + int(6*s), bot), (cx - wbot//2, bot)])
 
     # Which end is the ROOT (widest, grounded) vs the GAP (capped, tapered)?
     # Plates always sweep UP-AND-OUT away from the root: apex toward the root,
@@ -602,7 +637,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ZHENMUSHOU", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
-        "antlered sancai tomb-guardian beast  ·  cream + amber + brown-olive + oxidized-red horns + kiln-amber mouth  ·  round 2",
+        "antlered sancai tomb-guardian beast  ·  cream + amber + brown-olive + oxidized-red horns + kiln-amber mouth  ·  round 3",
         True, LABEL_DIM), (250, 24))
 
     # ── (a) BIG hero sprite ───────────────────────────────────────────────────
@@ -674,7 +709,7 @@ def main():
         sheet.blit(font_sm.render(name, True, LABEL), (bx+32, by+1))
         sheet.blit(font_sm.render("%d,%d,%d" % c, True, LABEL_DIM), (bx+32, by+14))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
