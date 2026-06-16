@@ -58,6 +58,12 @@ LABEL     = (240, 240, 240)
 LABEL_DIM = (196, 196, 196)
 
 
+def face_cy_of(body_cy, s):
+    # WHY a shared accessor: the back-fan must key off the same face centre the
+    # head uses so the five plate-apexes always land relative to the head top.
+    return body_cy - int(58*s)
+
+
 def lerp(a, b, t):
     t = max(0.0, min(1.0, t))
     return (int(a[0] + (b[0]-a[0])*t),
@@ -103,27 +109,29 @@ def kiln_glow(surf, cx, cy, r, s, strength=120):
     surf.blit(glow, (cx-r*2, cy-r*2), special_flags=pygame.BLEND_ADD)
 
 
-def spine_plate(surf, cx, base_y, w, h, s, lit=True):
-    """One triangular spine-plate, bottom-rooted (wide base at base_y, apex up).
-    Triad-lit: olive dark-core on the right flank, cream rim-sheen up the left.
-    These same plates are stacked edge-on to BECOME the pillar shaft."""
-    half = w // 2
-    apex = (cx, base_y - h)
-    bl   = (cx - half, base_y)
-    br   = (cx + half, base_y)
-    pts  = [apex, br, bl]
+def spine_plate(surf, apex, bl, br, s, rake=0):
+    """One DISCRETE triangular back-fan spine-plate. Triad-lit independently so
+    the plate count survives downscale: olive dark-core on the right flank,
+    amber fill, cream rim-sheen up the left edge. `rake` shifts the apex outward
+    so the fan splays (centre plate upright, outer plates raked out). A thick
+    ink-keyline gives every plate its own hard edge and the notch between
+    neighbours stays as visible negative space."""
+    apex = (apex[0] + rake, apex[1])
+    pts = [apex, br, bl]
+    # heavy keyline first so adjacent plates never visually fuse into a lump
     pygame.draw.polygon(surf, INK, pts)
-    pygame.draw.polygon(surf, AMBER if lit else OLIVE, pts)
-    # dark-core on the right flank (away from the top-left light)
-    pygame.draw.polygon(surf, AMBER_D if lit else OLIVE_D,
-                        [apex, br, (cx + int(2*s), base_y)])
-    # olive ridge groove up the centre — the ceramic accent, kept linear
-    pygame.draw.line(surf, OLIVE_D, apex, (cx, base_y - int(2*s)), max(1, int(2*s)))
-    # top-left rim-sheen flank
-    pygame.draw.polygon(surf, AMBER_T if lit else OLIVE_T,
-                        [apex, bl, (cx - half + int(5*s), base_y),
-                         (cx - int(2*s), base_y - int(4*s))])
-    pygame.draw.polygon(surf, INK, pts, max(2, int(2*s)))
+    pygame.draw.polygon(surf, AMBER, pts)
+    # olive dark-core down the right flank (away from the top-left light)
+    pygame.draw.polygon(surf, OLIVE_D,
+                        [apex, br, ((apex[0]+br[0])//2, (apex[1]+br[1])//2)])
+    pygame.draw.polygon(surf, AMBER_D,
+                        [apex, ((apex[0]+br[0])//2, (apex[1]+br[1])//2), br,
+                         (br[0]-int(3*s), br[1])])
+    # cream rim-sheen catch up the left edge — the per-plate top-left light
+    pygame.draw.polygon(surf, CREAM_T,
+                        [apex, bl, (bl[0]+int(6*s), bl[1]),
+                         (apex[0]-int(3*s), apex[1]+int(6*s))])
+    pygame.draw.polygon(surf, INK, pts, max(3, int(3*s)))
 
 
 def crackle(surf, x0, y0, x1, y1, s):
@@ -148,20 +156,37 @@ def draw_zhenmushou(surf, cx, cy, s):
     haunch_y = body_cy + int(8*s)
     ground_y = body_cy + int(46*s)         # where the forelegs plant
 
-    # ── (1) back-fan of EXACTLY 5 spine-plates (drawn FIRST → behind body) ────
-    # bottom-rooted: every plate's wide base sits on the spine line; apexes fan
-    # outward. Centre plate tallest so the fan reads as a fan, not a fringe.
-    spine_base = body_cy - int(6*s)
+    # ── (1) back-fan of EXACTLY 5 spine-plates (drawn FIRST → behind head) ────
+    # The signature epic read. Five DISCRETE hard-edged triangular plates rising
+    # behind the head/shoulders, fanned: centre plate tallest + upright, outer
+    # plates shorter and raked outward, each with its own ink-keyline so the
+    # negative-space notches between them stay visible. Bases sit on a common
+    # spine line low on the back; apexes climb ABOVE the top of the head so the
+    # fan clearly out-rises the face rather than hiding behind it.
+    # Bases sit on a high spine line just behind the shoulders; the centre
+    # plate's apex clears the top of the head so all five top-edges are visible
+    # above/around the lion-mask rather than buried behind it.
+    # A vertical CROWN of five plates clustered above-and-behind the head: every
+    # apex clears the top of the head so all five top-edges read as a fan, with
+    # only a modest outward rake (a splay, never sideways wings). Bases share a
+    # tight spine line behind the skull; the centre plate is tallest and upright,
+    # the pairs step down and splay slightly outward.
+    head_top   = face_cy_of(body_cy, s) - int(30*s)
+    fan_base_y = head_top + int(14*s)                 # tight base line behind skull
+    half_w     = int(15*s)                            # half plate-base width
+    # (centre offset, apex y above head_top, outward rake) — centre tallest
     fan = [
-        (-int(40*s), int(34*s)),   # outer-left, short
-        (-int(20*s), int(50*s)),   # inner-left, tall
-        (   0,       int(60*s)),   # centre, tallest
-        ( int(20*s), int(50*s)),   # inner-right, tall
-        ( int(40*s), int(34*s)),   # outer-right, short
+        (-int(46*s), head_top - int(12*s), -int(12*s)),  # outer-left
+        (-int(24*s), head_top - int(30*s), -int(6*s)),   # inner-left  (tall)
+        (   0,       head_top - int(44*s),   0),         # centre      (tallest)
+        ( int(24*s), head_top - int(30*s),  int(6*s)),   # inner-right (tall)
+        ( int(46*s), head_top - int(12*s),  int(12*s)),  # outer-right
     ]
-    pw = int(26*s)
-    for dx, ph in fan:
-        spine_plate(surf, body_cx + dx, spine_base, pw, ph, s, lit=True)
+    for dx, apex_y, rake in fan:
+        bx = body_cx + dx
+        spine_plate(surf, (bx, apex_y),
+                    (bx - half_w, fan_base_y), (bx + half_w, fan_base_y),
+                    s, rake=rake)
 
     # ── (2) haunches + straight forelegs (the bottom-heavy base block) ────────
     # Hind haunch — a rounded cream mound either side, low and wide.
@@ -186,38 +211,44 @@ def draw_zhenmushou(surf, cx, cy, s):
             ow=max(2, int(2.4*s)),
         )
 
-    # straight forelegs planted at front (the "seated on straight forelegs" tell)
+    # straight forelegs planted at front — WIDENED into solid pillars and the
+    # paws rooted with a clear ground line so the bottom-heavy mass is
+    # unambiguous (the "seated on straight forelegs" tell).
     for sgn in (-1, 1):
-        lx = body_cx + sgn*int(26*s)
+        lx = body_cx + sgn*int(28*s)
         leg = [
-            (lx - int(9*s), haunch_y + int(2*s)),
-            (lx + int(9*s), haunch_y + int(2*s)),
-            (lx + int(11*s), ground_y + int(20*s)),
-            (lx - int(11*s), ground_y + int(20*s)),
+            (lx - int(13*s), haunch_y + int(2*s)),
+            (lx + int(13*s), haunch_y + int(2*s)),
+            (lx + int(15*s), ground_y + int(22*s)),
+            (lx - int(15*s), ground_y + int(22*s)),
         ]
         triad_blob(
             surf, CREAM, leg,
-            core_pts=[(lx + int(2*s), haunch_y + int(2*s)),
-                      (lx + int(9*s), haunch_y + int(2*s)),
-                      (lx + int(11*s), ground_y + int(20*s)),
-                      (lx + int(2*s), ground_y + int(20*s))],
-            sheen_pts=[(lx - int(7*s), haunch_y + int(4*s)),
-                       (lx - int(1*s), haunch_y + int(4*s)),
-                       (lx - int(1*s), ground_y + int(16*s)),
-                       (lx - int(7*s), ground_y + int(16*s))],
-            ow=max(2, int(2.2*s)),
+            core_pts=[(lx + int(3*s), haunch_y + int(2*s)),
+                      (lx + int(13*s), haunch_y + int(2*s)),
+                      (lx + int(15*s), ground_y + int(22*s)),
+                      (lx + int(3*s), ground_y + int(22*s))],
+            sheen_pts=[(lx - int(11*s), haunch_y + int(4*s)),
+                       (lx - int(3*s), haunch_y + int(4*s)),
+                       (lx - int(3*s), ground_y + int(18*s)),
+                       (lx - int(11*s), ground_y + int(18*s))],
+            ow=max(2, int(2.4*s)),
         )
-        # cloven hoof / clawed paw block at the foot — amber-banded
-        paw = [(lx - int(13*s), ground_y + int(14*s)),
-               (lx + int(13*s), ground_y + int(14*s)),
-               (lx + int(14*s), ground_y + int(24*s)),
-               (lx - int(14*s), ground_y + int(24*s))]
-        triad_blob(surf, AMBER, paw, ow=max(2, int(2*s)))
+        # broad clawed paw block rooted on the ground — amber-banded, wider base
+        paw = [(lx - int(17*s), ground_y + int(16*s)),
+               (lx + int(17*s), ground_y + int(16*s)),
+               (lx + int(18*s), ground_y + int(28*s)),
+               (lx - int(18*s), ground_y + int(28*s))]
+        triad_blob(surf, AMBER, paw, ow=max(2, int(2.2*s)))
+        # a dark ground-contact shadow line under the paw roots the mass
+        pygame.draw.line(surf, INK,
+                         (lx - int(18*s), ground_y + int(28*s)),
+                         (lx + int(18*s), ground_y + int(28*s)), max(2, int(2.6*s)))
         # three claw splits
         for i in (-1, 0, 1):
-            ncx = lx + i*int(7*s)
-            pygame.draw.line(surf, INK, (ncx, ground_y + int(15*s)),
-                             (ncx, ground_y + int(24*s)), max(1, int(1.6*s)))
+            ncx = lx + i*int(9*s)
+            pygame.draw.line(surf, INK, (ncx, ground_y + int(17*s)),
+                             (ncx, ground_y + int(28*s)), max(1, int(1.8*s)))
 
     # ── (3) body / chest block — cream base with an EARNED amber mid-band ─────
     body = [
@@ -255,7 +286,7 @@ def draw_zhenmushou(surf, cx, cy, s):
 
     # ── (4) the WIDE lion-mask face (the dominant top read) ───────────────────
     face_cx = body_cx
-    face_cy = body_cy - int(58*s)
+    face_cy = face_cy_of(body_cy, s)
     face_w  = int(86*s)
     face_h  = int(64*s)
     face = [
@@ -281,24 +312,22 @@ def draw_zhenmushou(surf, cx, cy, s):
         ow=max(2, int(2.8*s)),
     )
 
-    # olive ceramic ear-flowers blooming from the sides (the accent, kept linear)
+    # olive mane-curls: a tidy SYMMETRIC scallop frame hugging the face cheeks —
+    # the elevated "mane curls" detail. This owns the soft round job so the
+    # back-fan owns the spiky one (one spiky system, not two competing ones).
+    # A column of three small round olive lobes down each cheek, mirrored L/R.
     for sgn in (-1, 1):
-        ex = face_cx + sgn*int(46*s)
-        ey = face_cy - int(6*s)
-        ear = [(ex - sgn*int(4*s), ey - int(16*s)),
-               (ex + sgn*int(16*s), ey - int(8*s)),
-               (ex + sgn*int(12*s), ey + int(10*s)),
-               (ex - sgn*int(6*s), ey + int(12*s))]
-        triad_blob(surf, OLIVE, ear,
-                   core_pts=[(ex + sgn*int(4*s), ey - int(4*s)),
-                             (ex + sgn*int(16*s), ey - int(8*s)),
-                             (ex + sgn*int(12*s), ey + int(10*s)),
-                             (ex + sgn*int(2*s), ey + int(10*s))],
-                   sheen_pts=[(ex - sgn*int(2*s), ey - int(13*s)),
-                              (ex + sgn*int(4*s), ey - int(9*s)),
-                              (ex + sgn*int(4*s), ey + int(2*s)),
-                              (ex - sgn*int(2*s), ey + int(2*s))],
-                   ow=max(2, int(2*s)))
+        mx = face_cx + sgn*int(44*s)
+        for i, cy_off in enumerate((-int(14*s), int(6*s), int(24*s))):
+            r = int((11 - i*1.5)*s)
+            cyl = face_cy + cy_off
+            pygame.draw.circle(surf, INK, (mx, cyl), r + max(2, int(2*s)))
+            pygame.draw.circle(surf, OLIVE, (mx, cyl), r)
+            pygame.draw.circle(surf, OLIVE_D, (mx + sgn*int(3*s), cyl + int(2*s)),
+                               max(2, int(r*0.55)))
+            pygame.draw.circle(surf, OLIVE_T,
+                               (mx - sgn*int(3*s), cyl - int(3*s)),
+                               max(1, int(r*0.4)))
 
     # heavy ink brow ridge (fierce-cute) over big sunken sockets
     pygame.draw.line(surf, INK,
@@ -373,46 +402,57 @@ def draw_zhenmushou(surf, cx, cy, s):
                              (tx + sgn*int(6*s), mouth_cy - int(14*s)),
                              (tx + sgn*int(2*s), mouth_cy - int(2*s))], max(1, int(1.4*s)))
 
-    # ── (6) two upswept oxidized-red HORNS (thin linear accent, never a mass) ─
+    # ── (6) two upswept oxidized-red HORNS — THICK at the base (~50% wider than
+    # round 1) so they survive 32px, still a thin LINEAR cinnabar accent (width,
+    # not extra saturated area). Two firm tapered prongs with a single ridge
+    # groove + a top-left rim-sheen so they read even against the night sky. ──
     for sgn in (-1, 1):
         rx = face_cx + sgn*int(22*s)
-        ry = face_cy - int(30*s)
+        ry = face_cy - int(28*s)
+        # widened base (root ~16 units across) tapering to a still-pointed tip
         horn = [
-            (rx, ry + int(6*s)),
-            (rx + sgn*int(6*s), ry - int(2*s)),
-            (rx + sgn*int(20*s), ry - int(34*s)),
-            (rx + sgn*int(28*s), ry - int(56*s)),
-            (rx + sgn*int(22*s), ry - int(54*s)),
-            (rx + sgn*int(13*s), ry - int(30*s)),
-            (rx - sgn*int(2*s), ry - int(2*s)),
+            (rx - sgn*int(8*s), ry + int(8*s)),     # outer base corner
+            (rx + sgn*int(8*s), ry + int(4*s)),     # inner base corner
+            (rx + sgn*int(20*s), ry - int(26*s)),   # inner mid
+            (rx + sgn*int(30*s), ry - int(54*s)),   # tip
+            (rx + sgn*int(20*s), ry - int(52*s)),   # tip back
+            (rx + sgn*int(10*s), ry - int(24*s)),   # outer mid
+            (rx - sgn*int(8*s), ry - int(2*s)),     # outer base
         ]
         triad_blob(
             surf, HORN, horn,
-            core_pts=[(rx + sgn*int(2*s), ry + int(2*s)),
-                      (rx + sgn*int(20*s), ry - int(34*s)),
-                      (rx + sgn*int(28*s), ry - int(56*s)),
-                      (rx + sgn*int(24*s), ry - int(54*s)),
-                      (rx + sgn*int(13*s), ry - int(30*s))],
-            ow=max(2, int(2.2*s)),
+            core_pts=[(rx + sgn*int(6*s), ry + int(2*s)),
+                      (rx + sgn*int(20*s), ry - int(26*s)),
+                      (rx + sgn*int(30*s), ry - int(54*s)),
+                      (rx + sgn*int(24*s), ry - int(52*s)),
+                      (rx + sgn*int(14*s), ry - int(24*s))],
+            ow=max(2, int(2.6*s)),
         )
-        # horn ridge ribs (the elevated detail, kept as thin linear grooves)
-        for t in (0.3, 0.55, 0.78):
-            hx = int(rx + sgn*(6 + (22)*t)*s)
-            hy = int(ry - (2 + 52*t)*s)
-            pygame.draw.line(surf, HORN_D, (hx - sgn*int(3*s), hy),
-                             (hx + sgn*int(3*s), hy - int(2*s)), max(1, int(1.6*s)))
-        # bright rim-sheen up the front of the horn
+        # single ridge groove up the spine of the horn (the "horn ridges" detail)
+        pygame.draw.line(surf, HORN_D,
+                         (rx + sgn*int(4*s), ry),
+                         (rx + sgn*int(24*s), ry - int(48*s)), max(2, int(2.4*s)))
+        # bright top-left rim-sheen on the front edge — rescues the horn at night
         pygame.draw.line(surf, HORN_T,
-                         (rx + sgn*int(2*s), ry),
-                         (rx + sgn*int(24*s), ry - int(50*s)), max(1, int(2*s)))
+                         (rx - sgn*int(4*s), ry + int(2*s)),
+                         (rx + sgn*int(18*s), ry - int(46*s)), max(2, int(2.6*s)))
 
 
 # ── the spine-spike stela pillar (creature-derived; clean tileable shaft) ─────
 def draw_pillar_segment(surf, cx, top, bot, s, cap_at=None):
-    """Spine-spike stela: a column of the same triad-lit triangular spike-plates
-    stacked edge-on, with sparse crackle-glaze banding — a clean tileable shaft.
-    `cap_at` ('top' or 'bottom') places a smaller MIRRORED beast-mask with a
-    glowing amber kiln-mouth at the gap edge. Bottom-rooted, on-axis."""
+    """Spine-spike stela — BOTTOM-ROOTED. The shaft is a column of the hero's
+    back-fan spike-plates stacked edge-on, every plate UPSWEPT (apex pointing
+    UP/away from the rooted end) and the WIDEST plates clustered at the rooted
+    base, tapering as they climb — so the eye reads upward growth and grounded
+    mass, never the descending-arrow pile the round-1 column made. Sparse
+    hairline crackle-glaze seams band the shaft (2-3 per plate, hard 1px). The
+    `cap_at` end carries the smaller mirrored beast-mask at the gap; the OTHER
+    end is the root, where the mass is widest.
+
+    `cap_at == "bottom"`  → mask at the bottom edge (this segment hangs from the
+                            ceiling: root is at the TOP, plates upswept toward it).
+    `cap_at == "top"`     → mask at the top edge (this segment grows from the
+                            floor: root is at the BOTTOM, plates upswept away)."""
     shaft_w = int(34*s)
     x0 = cx - shaft_w//2
     # core cream shaft with an olive shade flank + cream rim-sheen flank (triad)
@@ -421,34 +461,51 @@ def draw_pillar_segment(surf, cx, top, bot, s, cap_at=None):
     pygame.draw.rect(surf, OLIVE_D, (x0 + shaft_w - int(8*s), top, int(8*s), bot-top))
     pygame.draw.rect(surf, CREAM_T, (x0, top, int(6*s), bot-top))
 
-    # stacked edge-on spike-plates running the length — the spine continued.
-    # each plate points AWAY from the gap so the shaft reads as a spine ridge.
-    point_dir = 1 if cap_at == "top" else -1     # apex points toward the root
-    pitch = int(30*s)
-    plate_w = shaft_w + int(10*s)
-    y = top + int(14*s)
+    # Which end is the ROOT (widest, grounded) vs the GAP (capped, tapered)?
+    # Plates always sweep UP-AND-OUT away from the root: apex toward the root,
+    # base toward the gap — so following the shaft from gap to root, mass grows.
+    root_at_top = (cap_at == "bottom")          # cap at bottom → root at top
+    span = bot - top
+    pitch = int(28*s)
+    n = max(1, (span - int(20*s)) // pitch)
     band_toggle = 0
-    while y < bot - int(10*s):
-        half = plate_w // 2
-        if point_dir < 0:
-            apex = (cx, y + int(20*s)); a = (cx - half, y); b = (cx + half, y)
+    for i in range(n):
+        # frac: 0 at the ROOT end, 1 at the GAP end — plates widen toward root
+        frac = i / max(1, n - 1)                 # 0 at the root end, 1 at the gap
+        if root_at_top:
+            band_y = top + int(12*s) + i*pitch
+            up = +1                              # apex points UP toward the ceiling root
         else:
-            apex = (cx, y - int(6*s)); a = (cx - half, y + int(14*s)); b = (cx + half, y + int(14*s))
+            band_y = bot - int(12*s) - i*pitch
+            up = +1                              # apex points UP toward the floor root
+        # widest plate at the root, tapering toward the gap
+        half = int((22 - 9*frac) * s)
+        height = int((24 - 8*frac) * s)
+        base_y = band_y
+        apex = (cx, base_y - up*height)
+        a = (cx - half, base_y)
+        b = (cx + half, base_y)
         pts = [apex, b, a]
         col   = AMBER if band_toggle % 2 == 0 else CREAM
         col_d = AMBER_D if band_toggle % 2 == 0 else CREAM_D
         col_t = AMBER_T if band_toggle % 2 == 0 else CREAM_T
         pygame.draw.polygon(surf, INK, pts)
         pygame.draw.polygon(surf, col, pts)
-        pygame.draw.polygon(surf, col_d, [apex, b, (apex[0]+int(2*s), b[1])])
-        pygame.draw.line(surf, OLIVE_D, apex, ((a[0]+b[0])//2, a[1]), max(1, int(1.6*s)))
+        # dark-core right flank
+        pygame.draw.polygon(surf, col_d, [apex, b, ((apex[0]+b[0])//2, (apex[1]+b[1])//2)])
+        # olive ridge groove up the spine of the plate
+        pygame.draw.line(surf, OLIVE_D, apex, (cx, base_y), max(1, int(1.8*s)))
+        # cream rim-sheen left edge
         pygame.draw.polygon(surf, col_t,
-                            [apex, a, (a[0]+int(5*s), a[1]), (apex[0]-int(2*s), apex[1]+int(4*s))])
-        pygame.draw.polygon(surf, INK, pts, max(2, int(2*s)))
-        # sparse crackle-glaze seam on alternating plates only (kept sparse)
-        if band_toggle % 2 == 1:
-            crackle(surf, cx - int(8*s), y + int(4*s), cx - int(2*s), y + int(12*s), s)
-        y += pitch
+                            [apex, a, (a[0]+int(5*s), a[1]),
+                             (apex[0]-int(3*s), apex[1]+up*int(5*s))])
+        pygame.draw.polygon(surf, INK, pts, max(2, int(2.4*s)))
+        # sparse hairline crackle-glaze seams — 2-3 per plate, irregular, hard 1px
+        crackle(surf, cx - int(11*s), base_y - up*int(3*s),
+                cx - int(5*s), base_y - up*int(11*s), s)
+        if band_toggle % 2 == 0:
+            crackle(surf, cx + int(9*s), base_y - up*int(2*s),
+                    cx + int(4*s), base_y - up*int(9*s), s)
         band_toggle += 1
 
     # ── the mirrored beast-mask gap-cap (smaller; glowing amber kiln-mouth) ───
@@ -472,18 +529,20 @@ def draw_pillar_segment(surf, cx, top, bot, s, cap_at=None):
                       (cx, my + flip*(mh//2 + int(2*s)))],
             ow=max(2, int(2.4*s)),
         )
-        # two small upswept red horns on the cap (echo the hero)
+        # two thick upswept red horns on the cap (echo the thickened hero horns)
         for sgn in (-1, 1):
-            hx = cx + sgn*int(16*s)
-            hy = my - flip*int(16*s)
-            pygame.draw.polygon(surf, INK,
-                                [(hx, hy),
-                                 (hx + sgn*int(12*s), hy - flip*int(22*s)),
-                                 (hx + sgn*int(7*s), hy - flip*int(2*s))])
-            pygame.draw.polygon(surf, HORN,
-                                [(hx, hy),
-                                 (hx + sgn*int(11*s), hy - flip*int(20*s)),
-                                 (hx + sgn*int(7*s), hy - flip*int(2*s))])
+            hx = cx + sgn*int(15*s)
+            hy = my - flip*int(15*s)
+            chorn = [(hx - sgn*int(6*s), hy),
+                     (hx + sgn*int(6*s), hy - flip*int(2*s)),
+                     (hx + sgn*int(16*s), hy - flip*int(24*s)),
+                     (hx + sgn*int(9*s), hy - flip*int(23*s)),
+                     (hx - sgn*int(4*s), hy - flip*int(2*s))]
+            pygame.draw.polygon(surf, INK, chorn)
+            pygame.draw.polygon(surf, HORN, chorn)
+            pygame.draw.line(surf, HORN_T, (hx - sgn*int(2*s), hy),
+                             (hx + sgn*int(13*s), hy - flip*int(20*s)),
+                             max(1, int(2*s)))
         # two eyes
         for sgn in (-1, 1):
             ex = cx + sgn*int(13*s)
@@ -543,7 +602,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ZHENMUSHOU", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
-        "antlered sancai tomb-guardian beast  ·  cream + amber + brown-olive + oxidized-red horns + kiln-amber mouth  ·  round 1",
+        "antlered sancai tomb-guardian beast  ·  cream + amber + brown-olive + oxidized-red horns + kiln-amber mouth  ·  round 2",
         True, LABEL_DIM), (250, 24))
 
     # ── (a) BIG hero sprite ───────────────────────────────────────────────────
@@ -615,7 +674,7 @@ def main():
         sheet.blit(font_sm.render(name, True, LABEL), (bx+32, by+1))
         sheet.blit(font_sm.render("%d,%d,%d" % c, True, LABEL_DIM), (bx+32, by+14))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
