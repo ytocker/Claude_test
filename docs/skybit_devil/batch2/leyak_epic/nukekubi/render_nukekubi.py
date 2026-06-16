@@ -54,17 +54,25 @@ HAIR        = (34, 28, 38)      # lacquer-black top-knot (DOMINANT mass)
 HAIR_DK     = (18, 14, 22)      # near-black dark-core
 HAIR_SHEEN  = (96, 86, 104)     # cool lacquer rim-sheen lobe (the wet-lacquer pop)
 
-GOLD        = (228, 184, 84)    # kanzashi pins / o-fuda trim / bell
+GOLD        = (228, 184, 84)    # o-fuda trim / bell base gold
 GOLD_DK     = (158, 118, 44)    # gold shade
 GOLD_SHEEN  = (250, 226, 150)   # gold rim sheen
 
-CORAL       = (232, 108, 64)    # coral-RED flame collar (deepened off Ifra's coral)
-CORAL_DK    = (170, 64, 40)     # coral shade / flame seams
-CORAL_SHEEN = (250, 168, 120)   # coral rim sheen
+# The kanzashi pins read a notch BRIGHTER than the shaft o-fuda gold-trim so the
+# head wins the top-to-bottom focal hierarchy (same hue, higher value).
+PIN_GOLD    = (244, 206, 110)
+PIN_GOLD_DK = (176, 132, 52)
+PIN_SHEEN   = (255, 240, 184)
+
+# Nudged slightly cooler + deeper than round-1 so the collar holds clear of
+# shipped Ifra's coral (238,108,72) at 32px on the warm-blue day sky.
+CORAL       = (228, 96, 58)     # coral-RED flame collar (deepened off Ifra's coral)
+CORAL_DK    = (162, 56, 36)     # coral shade / flame seams
+CORAL_SHEEN = (250, 164, 116)   # coral rim sheen
 
 LIP         = (196, 70, 70)     # small bow-mouth red
-PAPER       = (236, 226, 206)   # o-fuda paper charm
-PAPER_DK    = (188, 174, 150)   # paper shade
+PAPER       = (244, 238, 222)   # o-fuda paper charm (brightened — the LIGHT tile beat)
+PAPER_DK    = (180, 164, 140)   # paper shade
 CORD        = (150, 60, 56)     # dark-red charm cord
 CORD_DK     = (104, 38, 38)
 
@@ -164,28 +172,40 @@ def _flame_collar(surf, cx, cy, r, ss, *, night=False):
 # ── the kanzashi pin fan (DOMINANT gold radial) ──────────────────────────────
 
 def _kanzashi(surf, cx, cy, r, ss):
-    """A fanned spray of gold kanzashi hairpins radiating from behind the top-knot —
-    the wide gold radial that, with the black knot, owns the silhouette. Each pin is
-    a thin lacquer stick tipped with a gold dangle bead; alternating long/short for a
-    clean readable fan (not a sunburst mush)."""
-    n = 9
-    spread = math.radians(150)
+    """A fan of FIVE bold gold kanzashi pins radiating from behind the top-knot — the
+    wide gold radial that, with the black knot, owns the silhouette. Round 1's 9 thin
+    pins fizzed to a dotty fringe at 32px; this drops to 5, fattens each stem, and
+    sizes the bloom-heads BIG so the crown reads as ONE ornate jagged gold-tipped
+    silhouette (heads fused at the crown outline, not floating on wires)."""
+    n = 5
+    spread = math.radians(132)
     for i in range(n):
         t = i / (n - 1)
         a = -math.pi / 2 + (t - 0.5) * spread       # fan upward + outward
-        length = r * (1.32 if i % 2 == 0 else 1.06)  # alternating long/short
+        length = r * (1.34 if i % 2 == 0 else 1.08)  # alternating long/short
         ex = cx + math.cos(a) * length
         ey = cy + math.sin(a) * length
-        # Pin shaft: dark-core then gold then a sheen run (the triad on a stick).
-        pygame.draw.line(surf, GOLD_DK, (int(cx), int(cy)), (int(ex), int(ey)),
-                         max(2, int(2.4 * ss)))
-        pygame.draw.line(surf, GOLD, (int(cx), int(cy)), (int(ex), int(ey)),
-                         max(1, int(1.4 * ss)))
-        # Gold dangle bead / flower tip — a small triad circle.
-        tip_r = r * (0.20 if i % 2 == 0 else 0.15)
-        _triad_circle(surf, ex, ey, tip_r, GOLD, sheen_d=34)
-        # A tiny dark pip centres the flower so the tip reads as a kanzashi bloom.
-        pygame.draw.circle(surf, GOLD_DK, (int(ex), int(ey)), max(1, int(tip_r * 0.34)))
+        # A lacquer-black backing wedge from the knot to each bloom welds the pin
+        # bases into the dominant black mass so the heads never float as loose dots.
+        perp = a + math.pi / 2
+        wx, wy = math.cos(perp) * r * 0.18, math.sin(perp) * r * 0.18
+        pygame.draw.polygon(surf, HAIR_DK, [
+            (int(cx + wx), int(cy + wy)), (int(cx - wx), int(cy - wy)),
+            (int(ex), int(ey))])
+        # Pin shaft: FAT triad on a stick — dark-core, gold, bright sheen run.
+        pygame.draw.line(surf, PIN_GOLD_DK, (int(cx), int(cy)), (int(ex), int(ey)),
+                         max(3, int(4.2 * ss)))
+        pygame.draw.line(surf, PIN_GOLD, (int(cx), int(cy)), (int(ex), int(ey)),
+                         max(2, int(2.6 * ss)))
+        pygame.draw.line(surf, PIN_SHEEN,
+                         (int(cx + (ex - cx) * 0.3), int(cy + (ey - cy) * 0.3)),
+                         (int(cx + (ex - cx) * 0.85), int(cy + (ey - cy) * 0.85)),
+                         max(1, int(1.0 * ss)))
+        # BIG gold bloom-head so each pin tip is a clear blob that survives downscale.
+        tip_r = r * (0.30 if i % 2 == 0 else 0.24)
+        _triad_circle(surf, ex, ey, tip_r, PIN_GOLD, sheen_d=40, sheen_col=PIN_SHEEN)
+        # Five-petal dark pips ring the centre so the bloom reads as a kanzashi flower.
+        pygame.draw.circle(surf, PIN_GOLD_DK, (int(ex), int(ey)), max(1, int(tip_r * 0.40)))
 
 
 # ── the top-knot (DOMINANT lacquer-black mass) ───────────────────────────────
@@ -362,14 +382,18 @@ def _ofuda(surf, cx, cy, w, h, ss):
 
 
 def _bead_knot(surf, cx, cy, r, ss):
-    """One bead-knot: a triad gold bead cinched by a dark cord wrap — the second
-    repeatable PILLAR detail (one per tile, alternating with the o-fuda)."""
-    _triad_circle(surf, cx, cy, r, GOLD, sheen_d=34)
-    # Cord wrap pinch top + bottom.
-    for d in (-1, 1):
-        pygame.draw.line(surf, CORD_DK, (int(cx - r * 0.7), int(cy + d * r * 0.5)),
-                         (int(cx + r * 0.7), int(cy + d * r * 0.5)), max(1, int(1.8 * ss)))
-    pygame.draw.circle(surf, GOLD_DK, (int(cx), int(cy)), max(1, int(r * 0.22)))
+    """One bead-knot: a DARK lacquer-black bead with a thin gold cord-band — the second
+    repeatable PILLAR detail. Round 1 made it a gold bead that sat too close in value
+    to the cream o-fuda and the repeat muddied; making the bead DARK gives each tile a
+    clear LIGHT-o-fuda → DARK-bead rhythm so the shaft reads as obvious beads-on-a-cord
+    at 1x. The bead is rounder + a touch bigger than the wrap so it carries the dark
+    beat of the rhythm."""
+    _triad_circle(surf, cx, cy, r, HAIR, sheen_col=HAIR_SHEEN)
+    # A single thin gold cord-band cinching the bead (the only gold here — keeps the
+    # bead the DARK beat while still tying it to the gold-trim language above).
+    band = pygame.Rect(int(cx - r * 1.02), int(cy - r * 0.20), int(r * 2.04), int(r * 0.40))
+    pygame.draw.ellipse(surf, GOLD_DK, band)
+    pygame.draw.ellipse(surf, GOLD, band.inflate(-int(r * 0.5), -int(r * 0.14)))
 
 
 def _charm_cord(surf, top_x, top_y, length, hw, ss, *, n_tiles, wave=0.0, phase=0.0,
@@ -392,15 +416,16 @@ def _charm_cord(surf, top_x, top_y, length, hw, ss, *, n_tiles, wave=0.0, phase=
     pygame.draw.lines(surf, CORD, False, [(int(x), int(y)) for x, y in pts],
                       max(1, int(1.8 * ss)))
 
-    # Per-tile charms: an o-fuda then a bead-knot, alternating down the cord.
+    # Per-tile charms: a LIGHT o-fuda high then a DARK bead-knot low, with a bare-cord
+    # gap before the next tile so the light-then-dark rhythm + seam read down the trail.
     for i in range(n_tiles):
-        t0 = (i + 0.30) / n_tiles
-        t1 = (i + 0.70) / n_tiles
+        t0 = (i + 0.26) / n_tiles
+        t1 = (i + 0.62) / n_tiles
         scale = 1.0 - 0.34 * ((i + 0.5) / n_tiles)
         ox, oy = _x_at(t0), top_y + length * t0
         bx, by = _x_at(t1), top_y + length * t1
-        _ofuda(surf, ox, oy, hw * 2.0 * scale, hw * 2.8 * scale, ss)
-        _bead_knot(surf, bx, by, hw * 0.62 * scale, ss)
+        _ofuda(surf, ox, oy, hw * 2.1 * scale, hw * 2.6 * scale, ss)
+        _bead_knot(surf, bx, by, hw * 0.70 * scale, ss)
 
     if cap:
         _tassel_bell(surf, _x_at(1.0), top_y + length, hw, ss, point_up=False, night=night)
@@ -417,26 +442,53 @@ def _tassel_bell(surf, cx, base_y, hw, ss, *, point_up, night=False):
     gl = make_glow_surface(glow_r, GOLD, alpha_center=200 if night else 130, falloff=2.2)
     surf.blit(gl, (int(cx - glow_r), int(bell_y - glow_r)), special_flags=pygame.BLEND_ADD)
 
-    # The warding-bell: a rounded gold dome with a flared lip + a clapper dot.
-    bw, bh = hw * 2.2, hw * 2.0
-    dome = pygame.Rect(int(cx - bw * 0.5), int(bell_y - bh * 0.5), int(bw), int(bh))
-    pygame.draw.ellipse(surf, GOLD_DK, dome)
-    pygame.draw.ellipse(surf, GOLD, dome.inflate(-int(bw * 0.14), -int(bh * 0.14)))
-    # Flared bell lip (a wider band at the gap-facing edge).
-    lip_y = bell_y + d * bh * 0.42
+    # The warding-bell as an unmistakable BELL silhouette (round 1's dome read as a
+    # coin): a tapered shoulder rising to a small crown loop, flaring OUT to a wide
+    # lip at the gap-facing mouth — a clear trapezoid-bell beat, plus a vertical seam
+    # + clapper so it rhymes with the bead-knots above and never reads as a disc.
+    bw, bh = hw * 2.0, hw * 2.4
+    shoulder_y = bell_y - d * bh * 0.30
+    lip_y = bell_y + d * bh * 0.48
+    body = [
+        (cx - bw * 0.34, shoulder_y),          # narrow shoulder
+        (cx + bw * 0.34, shoulder_y),
+        (cx + bw * 0.62, lip_y),               # flares out to the mouth
+        (cx - bw * 0.62, lip_y),
+    ]
+    pygame.draw.polygon(surf, GOLD_DK, [(int(x), int(y)) for x, y in body])
+    inner = [
+        (cx - bw * 0.26, shoulder_y + d * bh * 0.04),
+        (cx + bw * 0.26, shoulder_y + d * bh * 0.04),
+        (cx + bw * 0.52, lip_y - d * bh * 0.06),
+        (cx - bw * 0.52, lip_y - d * bh * 0.06),
+    ]
+    pygame.draw.polygon(surf, GOLD, [(int(x), int(y)) for x, y in inner])
+    # Rounded crown cap + small suspension loop at the top of the bell.
     pygame.draw.ellipse(surf, GOLD_DK,
-                        (int(cx - bw * 0.62), int(lip_y - hw * 0.32),
-                         int(bw * 1.24), int(hw * 0.7)))
+                        (int(cx - bw * 0.36), int(shoulder_y - hw * 0.5),
+                         int(bw * 0.72), int(hw * 0.8)))
+    pygame.draw.circle(surf, GOLD,
+                       (int(cx), int(shoulder_y - d * hw * 0.6)), max(2, int(hw * 0.30)))
+    pygame.draw.circle(surf, GOLD_DK,
+                       (int(cx), int(shoulder_y - d * hw * 0.6)), max(1, int(hw * 0.14)))
+    # Flared mouth lip band (a wider rim at the gap-facing edge).
+    pygame.draw.ellipse(surf, GOLD_DK,
+                        (int(cx - bw * 0.70), int(lip_y - hw * 0.28),
+                         int(bw * 1.40), int(hw * 0.7)))
     pygame.draw.ellipse(surf, GOLD,
-                        (int(cx - bw * 0.54), int(lip_y - hw * 0.24),
-                         int(bw * 1.08), int(hw * 0.5)))
-    # Wet-gold sheen lobe.
-    pygame.draw.circle(surf, GOLD_SHEEN,
-                       (int(cx - bw * 0.20), int(bell_y - bh * 0.22)),
-                       max(2, int(bw * 0.20)))
-    # Clapper / ringing dot at the bell mouth.
+                        (int(cx - bw * 0.60), int(lip_y - hw * 0.20),
+                         int(bw * 1.20), int(hw * 0.46)))
+    # A vertical seam down the bell body (the casting line — the bell-reading beat).
+    pygame.draw.line(surf, GOLD_DK, (int(cx), int(shoulder_y)),
+                     (int(cx), int(lip_y - d * hw * 0.10)), max(1, int(1.4 * ss)))
+    # Wet-gold sheen run on the left shoulder.
+    pygame.draw.line(surf, GOLD_SHEEN,
+                     (int(cx - bw * 0.18), int(shoulder_y + d * bh * 0.06)),
+                     (int(cx - bw * 0.40), int(lip_y - d * bh * 0.10)),
+                     max(2, int(1.8 * ss)))
+    # Clapper / ringing dot hanging at the bell mouth.
     pygame.draw.circle(surf, _shade_c(GOLD_DK, -18),
-                       (int(cx), int(lip_y + d * hw * 0.10)), max(1, int(hw * 0.20)))
+                       (int(cx), int(lip_y + d * hw * 0.14)), max(2, int(hw * 0.24)))
 
     # The hanging tassel: a coral cord-bind then a fan of strands, on-axis below the
     # bell (toward the gap). Tassel is the soft creature-derived spill that LIGHTS
@@ -505,7 +557,17 @@ def build_nukekubi(scale=1.0, ss=6, *, night=False, compact=False):
     _topknot(surf, cx, head_cy - head_r * 0.46, head_r, ss)
     # The small powder face, set low + tucked under the swept hair.
     face_r = head_r * 0.62
-    _face(surf, cx, head_cy + head_r * 0.10, face_r, ss, night=night, tell=compact)
+    face_cy = head_cy + head_r * 0.10
+    _face(surf, cx, face_cy, face_r, ss, night=night, tell=compact)
+    # A dark ink neck-shadow notch under the chin: round 1 let the powder face mush
+    # into the same-value coral collar at 32px. This crisp dark crescent holds the
+    # chin/jaw edge so the face stays a clean lozenge sitting ON the collar.
+    chin_y = face_cy + face_r * 0.86
+    notch = pygame.Rect(int(cx - face_r * 0.70), int(chin_y - face_r * 0.34),
+                        int(face_r * 1.40), int(face_r * 0.74))
+    pygame.draw.ellipse(surf, INK, notch)
+    pygame.draw.ellipse(surf, _shade_c(CORAL_DK, -20),
+                        notch.inflate(-int(face_r * 0.18), -int(face_r * 0.22)))
     # Coral flame collar under the jaw (drawn last so flames lick over the chin).
     _flame_collar(surf, cx, collar_y, head_r * 0.74, ss, night=night)
 
@@ -530,15 +592,17 @@ def _cord_column(surf, cx, top_y, bot_y, hw, ss):
                      max(2, int(3.4 * ss)))
     pygame.draw.line(surf, CORD, (int(cx), int(top_y)), (int(cx), int(bot_y)),
                      max(1, int(2.0 * ss)))
-    # One tile = one o-fuda + one bead-knot, repeated at a steady cadence.
-    band = hw * 5.0
+    # One tile = one LIGHT o-fuda then one DARK bead-knot, with a clear bare-cord gap
+    # at the seam so the repeat boundary is unmistakable at 1x. o-fuda sits high in the
+    # tile, bead low, leaving a visible cord run between successive tiles.
+    band = hw * 6.4
     n = max(1, int(length / band))
     band = length / n
     for i in range(n):
-        oy = top_y + (i + 0.32) * band
-        by = top_y + (i + 0.74) * band
-        _ofuda(surf, cx, oy, hw * 2.0, hw * 2.8, ss)
-        _bead_knot(surf, cx, by, hw * 0.66, ss)
+        oy = top_y + (i + 0.28) * band
+        by = top_y + (i + 0.66) * band
+        _ofuda(surf, cx, oy, hw * 2.1, hw * 2.6, ss)
+        _bead_knot(surf, cx, by, hw * 0.74, ss)
 
 
 def _cord_pillar_obstacle(height, ss, *, flip, night=False):
@@ -598,7 +662,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((58, 58, 62))          # neutral grey bg per brief
     _label(sheet, font,
-            "NUKEKUBI  —  leyak-EPIC #5  —  court-lady detached head: black top-knot + gold kanzashi + coral flame-collar  —  round 1", 18, 12)
+            "NUKEKUBI  —  leyak-EPIC #5  —  court-lady detached head: black top-knot + gold kanzashi + coral flame-collar  —  round 2", 18, 12)
     _label(sheet, small,
             "epic pipeline: hero SS=6 -> smoothscale (crisp at downscale). Face mass <=25% of head; demure half-lid eyes + bow-mouth (NO grin, NO ash). Black/gold/coral carry the 32px read.",
             18, 32, (212, 212, 216))
@@ -611,7 +675,7 @@ def main():
     boss = build_nukekubi(scale=2.0, ss=6)
     sheet.blit(boss, (panel.centerx - boss.get_width() // 2, panel.y + 44))
     _label(sheet, font, "(a) HERO  big scale (SS=6)", panel.x + 8, panel.y + 8)
-    _label(sheet, small, "dominant black knot + fanned gold pins; tiny powder face; coral flame collar",
+    _label(sheet, small, "5 BOLD pins fused into the crown; tiny powder face on an inked chin notch; coral flame collar",
            panel.x + 8, panel.y + 26, (255, 224, 210))
 
     # — Cell B: charm-cord as a tileable PILLAR pair at TRUE obstacle scale, MIRRORED,
@@ -637,8 +701,8 @@ def main():
     sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
     sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
     pygame.draw.rect(sheet, (220, 190, 190), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
-    _label(sheet, small, "1x native (82px): o-fuda+bead", slice_x - 2, slice_y + slice_h + 6, (235, 210, 205))
-    _label(sheet, small, "tiles; tassel+bell LIGHT the gap", slice_x - 2, slice_y + slice_h + 22, (255, 226, 200))
+    _label(sheet, small, "1x: LIGHT o-fuda -> DARK bead", slice_x - 2, slice_y + slice_h + 6, (235, 210, 205))
+    _label(sheet, small, "rhythm w/ seam gap; bell lights gap", slice_x - 2, slice_y + slice_h + 22, (255, 226, 200))
 
     cap_band = 58
     zw, zh = pw, 170
@@ -734,7 +798,7 @@ def main():
            18, SH - 44, (212, 212, 216))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
