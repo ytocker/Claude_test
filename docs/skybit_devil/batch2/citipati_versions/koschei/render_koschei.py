@@ -222,11 +222,13 @@ def iron_crown(surf, cx, cy, r, s, n=7):
                           (cx - int(r * 1.0), base_y + int(1 * s))],
                ow=max(1, int(1.4 * s)))
     half = (n - 1) / 2.0
+    # uneven per-spike jitter for charm (a ragged tomb-fence, not a tidy comb)
+    jitter = (0.0, 0.12, -0.08, 0.0, -0.08, 0.12, 0.0)
     for i in range(n):
         f = (i - half) / max(1.0, half)          # -1 .. +1 across the comb
         bx = cx + f * r * 0.92
-        # centre tallest, flanks shorter -> a tomb-crown arc
-        h = r * (1.55 - 0.62 * abs(f))
+        # centre tallest, flanks shorter -> a tomb-crown arc, jittered for charm
+        h = r * (1.58 - 0.62 * abs(f) + (jitter[i] if i < len(jitter) else 0))
         lean = f * r * 0.42                       # outward bend at the tip
         tipx = bx + lean
         tipy = base_y - h
@@ -245,6 +247,12 @@ def iron_crown(surf, cx, cy, r, s, n=7):
                    sheen_pts=[(bx - wbot, base_y), (bx - wbot * 0.4, base_y),
                               (kinkx - wbot * 0.4, kinky), (tipx, tipy)],
                    ow=max(1, int(1.1 * s)))
+        # cool indigo rim-light up the gap-side edge so each spike survives
+        # the night sky (ink-on-indigo-dark otherwise erases the crown)
+        pygame.draw.line(surf, lerp(IRON, INDIGO, 0.5),
+                         (bx - wbot * 0.6, base_y),
+                         (tipx - wbot * 0.4, tipy + int(1 * s)),
+                         max(1, int(1.0 * s)))
 
 
 # -- a single rib-spine throne-back blade (reused for the cap fan) -------------
@@ -288,16 +296,33 @@ def draw_koschei(surf, cx, cy, s):
                          (cx + base_w - int(10 * s), seat_y + int(39 * s)),
                          (cx - int(4 * s), seat_y + int(39 * s))],
                ow=max(1, int(1.6 * s)))
-    # two iron stiles rising behind the shoulders, slightly splayed
+    # two iron stiles = throne ARMS rising behind the shoulders.
+    # WHY brought inboard + tied to the dais with a visible armrest cross-bar:
+    # round 1's posts floated free and read as external pillars. Each stile now
+    # springs off the dais and is joined to the seat mass by a horizontal arm-
+    # rest bar at lap height, so the throne reads as ONE caged mass, not
+    # skeleton + 2 sticks. A 1px cool rim-light on the gap-side edge keeps the
+    # iron silhouette alive on the night sky (ink-on-indigo otherwise vanishes).
     for sgn in (-1, 1):
-        sx0 = cx + sgn * int(34 * s)
-        sx1 = cx + sgn * int(42 * s)
-        stile = [(sx0 - int(5 * s), seat_y + int(20 * s)),
-                 (sx0 + int(5 * s), seat_y + int(20 * s)),
+        sx0 = cx + sgn * int(30 * s)
+        sx1 = cx + sgn * int(36 * s)
+        stile = [(sx0 - int(5 * s), seat_y + int(22 * s)),
+                 (sx0 + int(5 * s), seat_y + int(22 * s)),
                  (sx1 + int(5 * s), cy - int(24 * s)),
                  (sx1 - int(5 * s), cy - int(24 * s))]
         triad_blob(surf, IRON, stile, ow=max(1, int(1.4 * s)))
-        # a small iron finial knob atop each stile
+        # armrest cross-bar tying the stile inboard to the seated mass (lap-high)
+        armrest = [(cx + sgn * int(10 * s), seat_y - int(6 * s)),
+                   (sx0 + sgn * int(5 * s), seat_y - int(2 * s)),
+                   (sx0 + sgn * int(5 * s), seat_y + int(7 * s)),
+                   (cx + sgn * int(10 * s), seat_y + int(3 * s))]
+        triad_blob(surf, IRON, armrest, ow=max(1, int(1.3 * s)))
+        # cool rim-light on the outer edge so the iron survives night 32px
+        pygame.draw.line(surf, lerp(IRON, INDIGO, 0.45),
+                         (sx0 + sgn * int(5 * s), seat_y + int(20 * s)),
+                         (sx1 + sgn * int(5 * s), cy - int(23 * s)),
+                         max(1, int(1.4 * s)))
+        # a small iron finial knob atop each stile (the throne arm-cap)
         triad_circle(surf, IRON, (sx1, cy - int(26 * s)), int(6 * s),
                      ow=max(1, int(1.2 * s)), core=False)
 
@@ -374,30 +399,42 @@ def draw_koschei(surf, cx, cy, s):
     pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(6 * s)),
                      (rc_cx, rc_cy + int(5 * s)), max(1, int(2 * s)))
 
-    # === SOUL-EGG cupped in the lap (drawn before the cradling hands) ========
-    egg_c = (cx + int(1 * s), cy + int(22 * s))
-    egg_r = int(13 * s)
+    # === SOUL-EGG cupped in the lap (socket behind -> egg -> two thumbs) ======
+    # WHY +size + a dark socket frame: round 1's egg bled into the lap at 32px
+    # and lost to the eyes. It is bigger now (the single focal) and set into a
+    # hard dark recess so its rim has a high-contrast frame on every side.
+    egg_c = (cx + int(1 * s), cy + int(21 * s))
+    egg_r = int(16 * s)
+    egg_socket(surf, egg_c[0], egg_c[1], egg_r, s)
     soul_egg(surf, egg_c[0], egg_c[1], egg_r, s)
 
-    # === ARMS — both reaching DOWN-IN to cradle the egg (clutching, possessive)
+    # === ARMS — both reaching DOWN-IN to cradle the egg from below ============
+    # WHY two fat thumbs meeting UNDER the egg instead of finger-arc filigree:
+    # at 32px the thin arcs read as dirt; two simple thumb shapes forming a
+    # cupped bracket below the egg read cleanly as "hands holding."
     arm_th = int(7 * s)
     for sgn in (-1, 1):
         shoulder = (rc_cx + sgn * int(15 * s), rc_cy - rc_h // 2 + int(7 * s))
-        elbow = (cx + sgn * int(24 * s), cy + int(8 * s))
-        hand = (egg_c[0] + sgn * int(11 * s), egg_c[1] + int(2 * s))
+        elbow = (cx + sgn * int(25 * s), cy + int(8 * s))
+        hand = (egg_c[0] + sgn * int(12 * s), egg_c[1] + int(12 * s))
         bone_limb(surf, shoulder, elbow, hand, arm_th, s)
-    # bony cupping hands UNDER/around the egg — small finger arcs hugging it
+    # two fat thumbs sweeping UNDER the egg into a cupped bracket
     for sgn in (-1, 1):
-        hx = egg_c[0] + sgn * int(11 * s)
-        hy = egg_c[1] + int(2 * s)
-        triad_circle(surf, BONE, (hx, hy), int(4 * s), ow=max(1, int(1.1 * s)),
-                     core=False)
-        for k in range(3):
-            ang = math.radians((150 if sgn < 0 else 30) - sgn * k * 26)
-            ex = hx + math.cos(ang) * int(8 * s)
-            ey = hy + math.sin(ang) * int(8 * s) - int(3 * s)
-            pygame.draw.line(surf, INK, (hx, hy), (ex, ey), max(1, int(1.6 * s)))
-            pygame.draw.line(surf, BONE, (hx, hy), (ex, ey), max(1, int(1 * s)))
+        bx = egg_c[0] + sgn * int(13 * s)
+        by = egg_c[1] + int(13 * s)
+        tip = (egg_c[0] + sgn * int(4 * s), egg_c[1] + int(int(egg_r) * 1.18))
+        mid = (egg_c[0] + sgn * int(11 * s), egg_c[1] + int(int(egg_r) * 1.30))
+        thumb = [(bx - sgn * int(3 * s), by - int(3 * s)),
+                 (bx + sgn * int(4 * s), by - int(1 * s)),
+                 (mid[0], mid[1]),
+                 (tip[0], tip[1]),
+                 (tip[0] - sgn * int(2 * s), tip[1] - int(4 * s))]
+        triad_blob(surf, BONE, thumb,
+                   sheen_pts=[(bx - sgn * int(3 * s), by - int(3 * s)),
+                              (bx + sgn * int(1 * s), by - int(2 * s)),
+                              (mid[0] - sgn * int(2 * s), mid[1] - int(1 * s)),
+                              (tip[0], tip[1] - int(2 * s))],
+                   ow=max(1, int(1.3 * s)))
 
     # === SKULL HEAD — chibi, sulking, scary-cute, indigo socket glow =========
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -417,15 +454,16 @@ def draw_koschei(surf, cx, cy, s):
                            int(hr * 0.15))
         pygame.draw.circle(surf, INDIGO_BR, (ex, ey + int(1 * s)),
                            max(1, int(hr * 0.07)))
-    # a low sulking brow-line over the sockets (grumpy immortal)
-    pygame.draw.line(surf, BONE_DD,
-                     (head_c[0] - int(hr * 0.62), head_c[1] - int(hr * 0.30)),
-                     (head_c[0] - int(hr * 0.12), head_c[1] - int(hr * 0.16)),
-                     max(1, int(2 * s)))
-    pygame.draw.line(surf, BONE_DD,
-                     (head_c[0] + int(hr * 0.62), head_c[1] - int(hr * 0.30)),
-                     (head_c[0] + int(hr * 0.12), head_c[1] - int(hr * 0.16)),
-                     max(1, int(2 * s)))
+    # the SULK CUE: a heavy indigo brow shadow angled DOWN-toward-centre over
+    # the sockets — one unmistakable "grumpy immortal" tell that reads at 32px
+    # (a neutral skull has no brow; the down-cant + indigo tint sells the scowl)
+    for sgn in (-1, 1):
+        brow = [(head_c[0] + sgn * int(hr * 0.74), head_c[1] - int(hr * 0.34)),
+                (head_c[0] + sgn * int(hr * 0.10), head_c[1] - int(hr * 0.08)),
+                (head_c[0] + sgn * int(hr * 0.12), head_c[1] + int(hr * 0.02)),
+                (head_c[0] + sgn * int(hr * 0.78), head_c[1] - int(hr * 0.22))]
+        pygame.draw.polygon(surf, lerp(BONE_DD, INDIGO_D, 0.45), brow)
+        pygame.draw.aalines(surf, INK, False, brow[:2])
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.13), head_c[1] + int(hr * 0.32)),
@@ -507,17 +545,21 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
            (cx + int(14 * s), cap_y - fan_dir * int(11 * s)),
            (cx - int(14 * s), cap_y - fan_dir * int(11 * s))]
     triad_blob(surf, IRON, lip, ow=max(1, int(1.2 * s)))
-    # rib-spire fan rising away from the gap
-    for i in range(-2, 3):
+    # rib-spire fan rising away from the gap — thinned by one spline so the dark
+    # socket (not a busy splay) does the framing where the fan meets the egg
+    for i in (-2, -1, 1, 2):
         f = i / 2.0
         bx = cx + f * int(18 * s)
         h = int((30 - 8 * abs(f)) * s)
         rib_blade(surf, bx, cap_y - fan_dir * int(8 * s),
                   bx + f * int(6 * s), cap_y - fan_dir * int(8 * s) - fan_dir * h,
                   int(6 * s), s, curve=f * int(4 * s))
-    # the glowing soul-egg cradled at the gap edge (the single warm focal)
-    egg_y = cap_y + fan_dir * int(10 * s)
-    soul_egg(surf, cx, egg_y, int(11 * s), s)
+    # the glowing soul-egg cradled at the gap edge (the single warm focal):
+    # same socket + clean-ovoid fix as the lap egg so the cap reads at 32px
+    egg_y = cap_y + fan_dir * int(11 * s)
+    egg_pr = int(13 * s)
+    egg_socket(surf, cx, egg_y, egg_pr, s)
+    soul_egg(surf, cx, egg_y, egg_pr, s)
 
 
 # -- compose the review sheet -------------------------------------------------
@@ -550,7 +592,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("KOSCHEI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "deathless bone-sorcerer on a marrow-throne  ·  SEATED wide-base · iron-SPIKE crown · cupped soul-egg focal · round 1",
+        "deathless bone-sorcerer on a marrow-throne  ·  SEATED wide-base · iron-SPIKE crown · socketed cupped soul-egg focal · round 2",
         True, LABEL_DIM), (220, 26))
 
     # === (a) BIG HERO =========================================================
@@ -559,7 +601,7 @@ def main():
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("SEATED king: wide throne base, splayed legs, hunched stoop — the only", True, LABEL_DIM), (14, 590))
     sheet.blit(font_sm.render("enthroned mass. Tall BLACKENED-IRON spike crown (never skulls) = the tell.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Cupped chartreuse soul-egg = single warm focal; indigo sockets = cool pin.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Socketed chartreuse soul-egg (dark recess + two thumbs) = single warm focal.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -643,7 +685,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

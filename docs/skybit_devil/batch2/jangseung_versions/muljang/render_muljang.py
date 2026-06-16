@@ -533,8 +533,8 @@ def main():
     hero = grow_outline(hero, INK + (255,), 1)
     sheet.blit(hero, (10, 72))
     sheet.blit(font.render("(a) Hero — leaning figurehead on heavy scroll base", True, LABEL), (16, 548))
-    sheet.blit(font_sm.render("~15deg forward lean + swept-back blade-lock hair fan;", True, LABEL_DIM), (16, 572))
-    sheet.blit(font_sm.render("MASS held low by stacked foam-curl scrolls; coral lip/medallion", True, LABEL_DIM), (16, 588))
+    sheet.blit(font_sm.render("~15deg lean + 5 chunky blade-locks; teak-dominant cap face;", True, LABEL_DIM), (16, 572))
+    sheet.blit(font_sm.render("salt-bleach now a thin rim only; warm eye glow lifts the cap", True, LABEL_DIM), (16, 588))
 
     # (b) pillar assembled — top segment + gap + bottom segment, MIRRORED ------
     pcx = 460
@@ -636,27 +636,29 @@ def main():
     pygame.draw.rect(sheet, PANEL, (10, note_y, W - 20, 222))
     sheet.blit(font.render("Construction notes", True, LABEL), (26, note_y + 10))
     notes_l = [
-        "• Only MOTION read of the set: ~15deg forward lean + a",
-        "  swept-back fan of 5 hard blade-locks (no streaming fringe).",
-        "• Re-spec: lean balanced by a HEAVY low scroll base so the",
-        "  gap-cap is NOT top-heavy — mass low, head tips to the gap.",
-        "• Teak kept a hair COOLER/greyer than Haedung's honey-cedar",
-        "  (closest wood pair) — value/temp separation.",
+        "• R2 FIX: salt-bleach restrained to a thin top-left rim sliver;",
+        "  cap face stays TEAK-dominant (warm light-teak rim ~L176, not",
+        "  the L204 cream) — within ~25 L of the body, same carved wood.",
+        "• R2: warm EYE GLOW now carries the cap's night lift (brighter",
+        "  lit glow), not a pale face wash.",
+        "• Only MOTION read: ~15deg lean + 5 CHUNKY blade-locks w/ teak",
+        "  gaps + sparse salt tell (no solid fringe at 32px).",
     ]
     notes_r = [
-        "• Sea-teal = PROW-FOAM band + eye-paint ONLY (deeper/cooler",
-        "  than jade); lit on a few scroll crests, never a body fill.",
-        "• Coral-red is a small warm focal: lip + brow medallion only.",
-        "• The carved foam-SCROLL column IS the pillar; cap = a SMALLER",
-        "  (78%) mirrored figurehead-head, eyes/lip lit at the gap.",
-        "• Big & few features = one clean leaning-head read at 32px.",
+        "• Re-spec: lean balanced by a HEAVY low scroll base — mass low,",
+        "  head tips to the gap; gap-cap NOT top-heavy.",
+        "• Teak kept a hair COOLER/greyer than Haedung's honey-cedar.",
+        "• Sea-teal split by VALUE: foam = DEEPER TEAL_D crest (one mid",
+        "  crest, clustered), eye-paint = brighter ring; never a body fill.",
+        "• R2: coral medallion enlarged + lip thickened so the single",
+        "  coral focal survives true-32px downscale.",
     ]
     for i, line in enumerate(notes_l):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (26, note_y + 40 + i * 19))
     for i, line in enumerate(notes_r):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (540, note_y + 40 + i * 19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

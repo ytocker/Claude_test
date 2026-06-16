@@ -568,7 +568,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("SOTJANG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "sky-bird sentinel pole  ·  bleached pine + honey-tan duck + flat indigo paint + warm-amber eye  ·  round 1  ·  duck IS the crown, pole IS the pillar",
+        "sky-bird sentinel pole  ·  bleached pine + honey-tan duck + flat indigo paint + warm-amber eye  ·  round 2  ·  DARK mass pushed low, head slimmed, bill tucked",
         True, LABEL_DIM), (200, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------

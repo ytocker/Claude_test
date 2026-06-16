@@ -193,11 +193,17 @@ def cobra_hood(surf, cx, cy, span, height, s):
         tx = cx + math.cos(ang) * span * 0.92
         ty = cy + int(height * 0.04) + math.sin(ang) * height * 1.04
         tip.append((tx, ty))
-    # seven RIGID rib-splines — slate grooves from the neck root to each tip, so
-    # the lighter bone shield reads as ribbed; hard + straight + countable.
+    # seven RIGID rib-splines drawn as a WIDE ink groove with a slate valley and a
+    # thinner bone crest on top — so the inter-spline grooves are deep enough that
+    # 3-4 rib divisions survive the 32px downscale (the hood must read RIBBED, not
+    # a smooth platter that could drift to a Catrina brim or Mukha-Devi fan).
     for (tx, ty) in tip:
-        pygame.draw.line(surf, INK, root, (tx, ty), max(2, int(3.0 * s)))
-        pygame.draw.line(surf, SLATE, root, (tx, ty), max(1, int(2.0 * s)))
+        pygame.draw.line(surf, INK, root, (tx, ty), max(3, int(4.4 * s)))
+    for (tx, ty) in tip:
+        pygame.draw.line(surf, SLATE, root, (tx, ty), max(2, int(2.6 * s)))
+        # a slim cool-pearl crest rides each rib so the divisions read as raised
+        # struts against the deep ink grooves, not painted lines on a flat shield
+        pygame.draw.line(surf, BONE_SH, root, (tx, ty), max(1, int(1.0 * s)))
     # brass bead caps at each rib tip + a thin brass trim arc tying them
     pygame.draw.lines(surf, BRASS, False, tip, max(2, int(2.4 * s)))
     pygame.draw.lines(surf, BRASS_BR, False, tip[:4], max(1, int(1.2 * s)))
@@ -234,19 +240,24 @@ def cobra_skull(surf, cx, cy, r, s, lit=True):
                           (cx - int(r*0.10), cy - int(r*0.20)),
                           (cx - int(r*0.74), cy - int(r*0.24))],
                ow=max(2, int(2 * s)))
-    # two big round eye-sockets — scary-CUTE: ink socket, jade fill, emerald iris
+    # two big almond eye-sockets — FLAT DEEP-JADE, matte, NO glow halo, NO emerald,
+    # NO hot pin. WHY desaturated jade not glowing emerald: at 32px three equal
+    # emerald glows (two eyes + brow gem) bloom into a single green smear and the
+    # crown jewel stops being the one focal. Matte jade drops the eyes out of the
+    # glow tier so the brow cabochon alone blooms — a CROWNED king, not a bug. The
+    # sockets stay clearly almond-shaped so the FACE reads on SHAPE at 32px, never
+    # depending on the glow (jade keeps the socket structure visible vs. pure ink).
     for sgn in (-1, 1):
         ex = cx + sgn * int(r * 0.42)
         ey = cy + int(r * 0.04)
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(r * 0.34))
         pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.28))
         pygame.draw.circle(surf, JADE, (ex, ey), int(r * 0.22))
-        pygame.draw.circle(surf, EMERALD, (ex, ey), int(r * 0.15))
-        # vertical reptilian slit pupil + hot pin
+        # a single recessed darker-jade core gives the socket depth without a glow
+        pygame.draw.circle(surf, lerp(JADE, INK, 0.45), (ex, ey), int(r * 0.13))
+        # vertical reptilian slit pupil keeps the cute-menace read at hero scale
         pygame.draw.line(surf, INK, (ex, ey - int(r*0.14)), (ex, ey + int(r*0.14)),
                          max(1, int(1.6 * s)))
-        pygame.draw.circle(surf, EM_HOT, (ex - int(r*0.05), ey - int(r*0.06)),
-                           max(1, int(r * 0.06)))
     # nostril ticks on the snout
     for sgn in (-1, 1):
         pygame.draw.circle(surf, BONE_DD,
@@ -256,14 +267,17 @@ def cobra_skull(surf, cx, cy, r, s, lit=True):
     my = cy + int(r * 0.74)
     pygame.draw.line(surf, INK, (cx - int(r*0.22), my), (cx + int(r*0.22), my),
                      max(1, int(1.6 * s)))
+    # tiny down-fangs — a hero-scale charm beat only; kept slim + INSIDE the snout
+    # silhouette so they never blob the jaw read at 32px (they contribute nothing
+    # at gameplay scale and must not cost jaw/hood clarity per the critique).
     for sgn in (-1, 1):
-        fx = cx + sgn * int(r * 0.13)
-        fang = [(fx - int(r*0.06), my), (fx + int(r*0.06), my),
-                (fx, my + int(r*0.30))]
+        fx = cx + sgn * int(r * 0.12)
+        fang = [(fx - int(r*0.05), my), (fx + int(r*0.05), my),
+                (fx, my + int(r*0.24))]
         pygame.draw.polygon(surf, INK, fang)
         pygame.draw.polygon(surf, SHEEN, [(fang[0][0]+1, fang[0][1]+1),
                                           (fang[1][0]-1, fang[1][1]+1),
-                                          (fang[2][0], fang[2][1]-int(r*0.08))])
+                                          (fang[2][0], fang[2][1]-int(r*0.07))])
     # === the single BROW-GEM CABOCHON (the crown-jewel focal) ================
     # WHY one domed cabochon in a BRASS bezel, lifted to the crown: a facet-field
     # shimmers into noise at 1×, and a bare emerald dome sitting between the eyes
@@ -358,7 +372,7 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     on-axis, mirrored top↔bottom, never top-heavy. `cap` names the gap-facing end."""
     # the shaft: a tight stack of vertebra discs reading as a banded bone spine.
     disc_pitch = int(15 * s)
-    cap_room = int(46 * s)
+    cap_room = int(56 * s)        # widened cap hood needs more clearance from the shaft
     if cap == "bottom":
         d0, d1 = top + int(8 * s), bot - cap_room
     else:
@@ -374,19 +388,25 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         idx += 1
 
     # === gap-edge cap: hooded skull + splayed 7-spline hood ===================
-    cap_y = (bot - int(26 * s)) if cap == "bottom" else (top + int(26 * s))
-    cap_hr = int(13 * s)
+    # WHY a BIG cap hood: the cap must MIRROR the hero's hood mass, not read as a
+    # tiny knob on a bead-string. The shaft disc full-width is ~30*s, so the cap
+    # hood spans wider than the shaft (+~40%) and the cap skull is enlarged to sit
+    # in front of it — the gap edge clearly echoes the reared cobra's broad hood.
+    cap_y = (bot - int(34 * s)) if cap == "bottom" else (top + int(34 * s))
+    cap_hr = int(17 * s)
+    cap_span = int(44 * s)        # > shaft full-width (~30*s), mirrors hero hood mass
+    cap_height = int(30 * s)
     # mirror the whole cap vertically when it faces UP (cap == "top")
     flip = (cap == "top")
     if flip:
-        sub = pygame.Surface((int(130 * s), int(110 * s)), pygame.SRCALPHA)
-        scx, scy = int(65 * s), int(72 * s)
-        cobra_hood(sub, scx, scy, span=int(36 * s), height=int(26 * s), s=s)
+        sub = pygame.Surface((int(150 * s), int(120 * s)), pygame.SRCALPHA)
+        scx, scy = int(75 * s), int(82 * s)
+        cobra_hood(sub, scx, scy, span=cap_span, height=cap_height, s=s)
         cobra_skull(sub, scx, scy, cap_hr, s, lit=True)
         sub = pygame.transform.flip(sub, False, True)
-        surf.blit(sub, (cx - scx, cap_y - (int(110 * s) - scy)))
+        surf.blit(sub, (cx - scx, cap_y - (int(120 * s) - scy)))
     else:
-        cobra_hood(surf, cx, cap_y, span=int(36 * s), height=int(26 * s), s=s)
+        cobra_hood(surf, cx, cap_y, span=cap_span, height=cap_height, s=s)
         cobra_skull(surf, cx, cap_y, cap_hr, s, lit=True)
 
 
@@ -413,7 +433,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("NAGARAJA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "bone-cobra serpent-king  ·  KIND: serpent-coil  ·  the ONLY legless/armless coil  ·  round 1",
+        "bone-cobra serpent-king  ·  KIND: serpent-coil  ·  the ONLY legless/armless coil  ·  round 2",
         True, LABEL_DIM), (240, 26))
 
     # === (a) BIG HERO =========================================================
@@ -428,7 +448,8 @@ def main():
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("ONE long bone SPINE reared into an S-coil — no arms, no legs (the only", True, LABEL_DIM), (14, 590))
     sheet.blit(font_sm.render("serpentine silhouette). Bottom-rooted base loop; reared hissing neck.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("7 RIGID rib-splines = cobra hood; single emerald brow-gem cabochon; tiny fangs.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("7 RIGID rib-splines (deep ink grooves); SINGLE emerald brow-gem = the only glow;", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("matte deep-jade eye-sockets (no halo) so the crown cabochon is the sole focal.", True, LABEL_DIM), (14, 638))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470

@@ -221,23 +221,28 @@ def draw_mukha_devi(surf, cx, cy, s):
     tiara + a glowing rose third eye keep the FACE reading inside the fan.
     `s` = unit scale around a ~130-unit figure."""
 
-    head_c = (cx, cy - int(34 * s))
-    hr = int(23 * s)
-    relic_r = int(11 * s)
+    # WHY a BIG head (≈40% of body height) over a short torso: the AD ruling is
+    # that at 32px the six arms swallow a small skull. A chibi-large head plus a
+    # squat torso + wide base keeps the FACE the dominant mass and reads as a
+    # pint-sized deity, not a candelabra/totem.
+    head_c = (cx, cy - int(28 * s))
+    hr = int(32 * s)
+    relic_r = int(10 * s)
 
     # === SIX-ARM RADIAL FAN (drawn first → arms sit BEHIND torso & head) ======
-    # WHY behind: the fan must FRAME the face, so the torso/head overdraw the arm
-    # roots and the relics ride out past the silhouette as six distinct blobs.
-    hands = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 0.9), s, hr, relic_r)
+    # WHY behind, and WHY the origin sits LOW at the shoulder/temple line: the fan
+    # must FRAME the face, so it sprouts from below the head and splays sideways,
+    # leaving open sky above the crown for the tiara to read against.
+    hands = draw_arm_fan(surf, head_c[0], head_c[1] + int(hr * 0.82), s, hr, relic_r)
 
-    # === LOWER BODY — a small seated lotus-base (keeps mass low, not leggy) ====
-    base_y = cy + int(40 * s)
-    base = [(cx - int(30 * s), base_y - int(8 * s)),
-            (cx - int(22 * s), base_y - int(16 * s)),
-            (cx + int(22 * s), base_y - int(16 * s)),
-            (cx + int(30 * s), base_y - int(8 * s)),
-            (cx + int(24 * s), base_y + int(10 * s)),
-            (cx - int(24 * s), base_y + int(10 * s))]
+    # === LOWER BODY — a wide squat lotus-base (keeps mass low, not leggy) ======
+    base_y = cy + int(42 * s)
+    base = [(cx - int(34 * s), base_y - int(7 * s)),
+            (cx - int(24 * s), base_y - int(15 * s)),
+            (cx + int(24 * s), base_y - int(15 * s)),
+            (cx + int(34 * s), base_y - int(7 * s)),
+            (cx + int(27 * s), base_y + int(11 * s)),
+            (cx - int(27 * s), base_y + int(11 * s))]
     triad_blob(surf, BONE, base,
                core_pts=[(cx, base_y - int(14 * s)), (cx + int(28 * s), base_y - int(7 * s)),
                          (cx + int(22 * s), base_y + int(9 * s)), (cx, base_y + int(7 * s))],
@@ -247,13 +252,16 @@ def draw_mukha_devi(surf, cx, cy, s):
         px = cx + int(k * 11 * s)
         pygame.draw.line(surf, BONE_DD, (px, base_y - int(15 * s)),
                          (px, base_y + int(8 * s)), max(1, int(1.4 * s)))
-    # a rose seed-glow at the lotus heart (echoes the relic glow)
-    pygame.draw.circle(surf, ROSE, (cx, base_y - int(3 * s)), int(5 * s))
-    pygame.draw.circle(surf, ROSE_BR, (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
+    # a rose seed-glow at the lotus heart — kept a touch deeper than the third
+    # eye so it stays a SECONDARY focal and never competes for "brightest pixel."
+    pygame.draw.circle(surf, ROSE_D, (cx, base_y - int(3 * s)), int(5 * s))
+    pygame.draw.circle(surf, ROSE, (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
 
-    # === TORSO — a compact rib barrel (small, so the arm-fan dominates) =======
-    rc_cx, rc_cy = cx, cy + int(6 * s)
-    rc_w, rc_h = int(30 * s), int(34 * s)
+    # === TORSO — a SHORT rib barrel (squat, so head + base hold the mass) =====
+    # WHY shortened: a tall columnar torso reads as a candelabra; a stubby cage
+    # tucked under the big head shifts weight low for chibi proportion.
+    rc_cx, rc_cy = cx, cy + int(12 * s)
+    rc_w, rc_h = int(32 * s), int(24 * s)
     cage = [(rc_cx - rc_w // 2, rc_cy - rc_h // 2 + int(2 * s)),
             (rc_cx + rc_w // 2, rc_cy - rc_h // 2),
             (rc_cx + int(rc_w * 0.42), rc_cy + rc_h // 2),
@@ -269,14 +277,14 @@ def draw_mukha_devi(surf, cx, cy, s):
                           (rc_cx - rc_w // 2 + int(2 * s), rc_cy + int(2 * s))],
                ow=max(1, int(1.8 * s)))
     # hard rib bands
-    for i in range(3):
-        ry = rc_cy - rc_h // 2 + int(8 * s) + i * int(8 * s)
+    for i in range(2):
+        ry = rc_cy - rc_h // 2 + int(7 * s) + i * int(8 * s)
         bw = int(rc_w * (0.42 - i * 0.05))
         pygame.draw.arc(surf, BONE_DD,
                         (rc_cx - bw, ry - int(6 * s), bw * 2, int(14 * s)),
                         math.radians(205), math.radians(335), max(2, int(2.2 * s)))
-    pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(6 * s)),
-                     (rc_cx, rc_cy + int(4 * s)), max(1, int(2 * s)))
+    pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(5 * s)),
+                     (rc_cx, rc_cy + int(3 * s)), max(1, int(2 * s)))
     # a thin rose prayer-cord sash (linear accent, never a mass)
     pygame.draw.line(surf, ROSE, (rc_cx - int(rc_w * 0.42), rc_cy + int(2 * s)),
                      (rc_cx + int(rc_w * 0.42), rc_cy - int(2 * s)), max(1, int(2 * s)))
@@ -297,22 +305,28 @@ def draw_mukha_devi(surf, cx, cy, s):
         pygame.draw.circle(surf, BONE_D,
                            (head_c[0] + sgn * int(hr * 0.66), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
-    # two big lower sockets — scary-CUTE with rose pin-lights
+    # two big lower sockets — scary-CUTE, kept a NOTCH DIMMER than the third eye
+    # (dark hollow + small deep-rose pin, NO hot-bright core) so the 3-eye
+    # triangle reads as a triangle pointing UP to the brightest brow-eye.
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.42)
-        ey = head_c[1] + int(hr * 0.10)
-        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.32))
-        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.26))
-        pygame.draw.circle(surf, ROSE, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.13))
-        pygame.draw.circle(surf, ROSE_BR, (ex, ey - int(1 * s)), max(1, int(hr * 0.07)))
-    # THIRD EYE — a vertical rose slit high on the brow (the deity + power tell).
-    # WHY pinned bright and central: it must hold as the focal pin at 32px and
-    # anchor the face inside the arm-starburst.
-    tex, tey = head_c[0], head_c[1] - int(hr * 0.40)
-    pygame.draw.ellipse(surf, INK, (tex - int(5 * s), tey - int(7 * s), int(10 * s), int(14 * s)))
-    pygame.draw.ellipse(surf, ROSE, (tex - int(4 * s), tey - int(6 * s), int(8 * s), int(12 * s)))
-    pygame.draw.ellipse(surf, ROSE_BR, (tex - int(2 * s), tey - int(4 * s), int(4 * s), int(6 * s)))
-    pygame.draw.circle(surf, THIRD_BR, (tex, tey - int(1 * s)), max(1, int(1.8 * s)))
+        ey = head_c[1] + int(hr * 0.16)
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.30))
+        pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
+        pygame.draw.circle(surf, ROSE_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
+                           int(hr * 0.12))
+    # THIRD EYE — the single BRIGHTEST pixel on the whole sprite (AD hard rule).
+    # WHY a fat vertical rose slit with a hot white-rose core, central on the
+    # brow: it must survive at 32px as the one magenta dot that says "looking at
+    # you" and anchor the face inside the arm-fan. Sized bigger than the sockets
+    # so the three-eye triangle holds; sockets stay deliberately dimmer.
+    tex, tey = head_c[0], head_c[1] - int(hr * 0.34)
+    pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
+    pygame.draw.ellipse(surf, ROSE, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
+    pygame.draw.ellipse(surf, ROSE_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
+    pygame.draw.circle(surf, THIRD_BR, (tex - int(1 * s), tey - int(2 * s)), max(2, int(3.2 * s)))
+    pygame.draw.circle(surf, (255, 255, 255), (tex - int(1 * s), tey - int(2 * s)),
+                       max(1, int(1.6 * s)))
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.30)),
@@ -333,23 +347,24 @@ def draw_mukha_devi(surf, cx, cy, s):
                              (fx, my + int(hr * 0.22))])
 
     # === LOW 3-SKULL TIARA (the hard tell — fewer + lower than Citipati's 5) ==
-    # WHY a SHALLOW 3-skull arc sitting LOW on the brow: it must read as a
-    # demonstrably smaller crown than Citipati's wide 5-skull arc, and stay below
-    # the arm-fan tips so it frames rather than competes. Centre skull lit rose.
-    tiara_r = int(hr * 1.02)
-    tiara_skull_r = int(hr * 0.32)
-    # a thin gold tiara band the three skulls sit on (linear accent)
+    # WHY it now seats in the OPEN SKY above the crown: with no arm aimed up, a
+    # clean wedge of negative space sits over the head, so the 3-skull band reads
+    # as a low dark-toothed crown ON the head against the sky — not buried in the
+    # arm cluster. A SHALLOW ~70° arc + only THREE skulls keeps it demonstrably
+    # lower/fewer than Citipati's wide 5-skull crown. Centre skull lit rose.
+    tiara_r = int(hr * 0.96)
+    tiara_skull_r = int(hr * 0.30)
     band_pts = []
     for i in range(9):
-        a = math.radians(238 + i * (64 / 8))   # shallow ~64° arc, low on the head
+        a = math.radians(235 + i * (70 / 8))   # shallow ~70° arc, seated on brow
         band_pts.append((head_c[0] + math.cos(a) * tiara_r,
                          head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(5 * s))
+    pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
     pygame.draw.lines(surf, GOLD, False, band_pts, int(3 * s))
     pygame.draw.lines(surf, GOLD_BR, False, band_pts[:5], max(1, int(1.2 * s)))
-    # exactly THREE skulls, evenly across the shallow arc
+    # exactly THREE skulls, evenly across the shallow arc, sitting up in open sky
     for i in range(3):
-        a = math.radians(244 + i * (52 / 2))
+        a = math.radians(242 + i * (56 / 2))
         sx = head_c[0] + math.cos(a) * tiara_r
         sy = head_c[1] + math.sin(a) * tiara_r
         tiara_skull(surf, int(sx), int(sy), tiara_skull_r, s, lit=(i == 1))
@@ -462,16 +477,16 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("MUKHA-DEVI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "six-armed wrathful bone-mother  ·  KIND: radial-fan · warm rose-bone · 3-skull tiara · 6 relic-blobs · round 1",
+        "six-armed wrathful bone-mother  ·  KIND: radial-fan · warm rose-bone · LOW 3-skull tiara · 6 glow-caps (2 alt types) · round 2",
         True, LABEL_DIM), (260, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 470, 178, 232, 1.55)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("SIX-arm radial STARBURST (the only many-armed silhouette); each hand cradles", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("one of six DISTINCT holy relics. LOW 3-skull tiara + rose third eye frame the", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("face. Warm dusty rose-bone (NOT ash-white); rose = the single glow focal.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("BIG chibi head FRAMED by a low-origin six-arm fan (no arm over the crown).", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("Third eye = the single BRIGHTEST pixel; sockets a notch dimmer (3-eye triangle).", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("Six glow-caps = TWO alternating types. LOW 3-skull tiara in open sky over head.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -554,7 +569,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

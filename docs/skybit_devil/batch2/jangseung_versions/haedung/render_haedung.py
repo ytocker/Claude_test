@@ -50,11 +50,14 @@ EMBER_D   = (188,  86,  44)   # deep ember shade
 EMBER_T   = (252, 196, 120)   # ember hot core / rim
 FLAME_TIP = (255, 232, 150)   # cream-yellow hot flame TONGUE-TIP (out-values maw)
 
-# Gold bell is HARDWARE, not a second light source: toned ~22% down in value +
+# Gold bell is HARDWARE, not a second light source: toned down in value +
 # saturation from the brief gold so the EMBER MAW stays the sole warm focal.
-GOLD      = (182, 150,  78)   # gold neck-bell (muted hardware)
-GOLD_D    = (132, 104,  48)   # bell shade
-GOLD_T    = (208, 182, 118)   # bell rim-sheen (small, no glow halo)
+# AD r2 ship-gate: the bell's LIT area is dropped a further ~12% (hue held) so
+# at hero scale it can never match the maw key and re-fuse into one bright
+# lower-face mass — gold catching warm light, not emitting it.
+GOLD      = (162, 132,  70)   # gold neck-bell (muted hardware, value-dropped)
+GOLD_D    = (116,  92,  44)   # bell shade
+GOLD_T    = (188, 162, 104)   # bell rim-sheen (small, no glow halo)
 
 EYEGLOW   = (246, 206, 132)   # warm-amber eye glow (quieter than ember)
 EYEGLOW_D = (208, 158,  92)   # eye-glow shade ring
@@ -432,33 +435,46 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
     mw = int(32*s)
     mh = int(18*s) if lit else int(15*s)
     if lit or hero:
-        # the maw always glows a little (it's eating fire), brighter when lit
-        gr = int(mw * (1.5 if lit else 1.1))
+        # The maw always glows a little (it's eating fire), brighter when lit —
+        # but the glow radius + alpha are pulled in (AD r2): the old wide/strong
+        # additive halo lifted the chin and bell to maw key and smeared the warm
+        # focal down onto the chest. A tighter, dimmer glow keeps the warm pool
+        # contained to the cavity so the dark chin band below can read.
+        gr = int(mw * (1.2 if lit else 0.95))
         mglow = pygame.Surface((gr*4, gr*4), pygame.SRCALPHA)
         for r in range(gr, 0, -1):
-            a = int((150 if lit else 95) * (1 - r/gr))
+            a = int((112 if lit else 70) * (1 - r/gr))
             pygame.draw.circle(mglow, (*EMBER, a), (gr*2, gr*2), r)
-        surf.blit(mglow, (cx - gr*2, my + int(mh*0.4) - gr*2),
+        surf.blit(mglow, (cx - gr*2, my + int(mh*0.3) - gr*2),
                   special_flags=pygame.BLEND_ADD)
     mouth = [(cx - mw, my - int(3*s)), (cx + mw, my - int(3*s)),
              (cx + int(mw*0.7), my + mh), (cx - int(mw*0.7), my + mh)]
     pygame.draw.polygon(surf, INK, mouth)
-    # ember-lit interior (the fire being eaten); hot core toward the centre
+    # Ember-lit interior, value-DROPPED (AD r2 ship-gate): at hero scale the old
+    # near-cream EMBER_T core blew the maw out and fused it with the gold bell
+    # into one bright lower-face mass. So the maw now glows but never blows: the
+    # interior reads EMBER_D base -> EMBER mid as its TOP fill (the spec ember
+    # mid is the brightest the cavity gets), and EMBER_T is demoted from a broad
+    # core to ONLY a thin top rim-LICK just inside the upper lip. The brightest
+    # cream value (FLAME_TIP) is reserved for the flame-curl tip alone, so the
+    # read order stays EYES > flame-curl + ember maw > everything else.
     pygame.draw.polygon(surf, EMBER_D,
                         [(cx - mw + int(3*s), my - int(1*s)),
                          (cx + mw - int(3*s), my - int(1*s)),
                          (cx + int(mw*0.6), my + mh - int(2*s)),
                          (cx - int(mw*0.6), my + mh - int(2*s))])
     pygame.draw.polygon(surf, EMBER,
-                        [(cx - int(mw*0.7), my + int(1*s)),
-                         (cx + int(mw*0.7), my + int(1*s)),
-                         (cx + int(mw*0.42), my + mh - int(3*s)),
-                         (cx - int(mw*0.42), my + mh - int(3*s))])
+                        [(cx - int(mw*0.62), my + int(1*s)),
+                         (cx + int(mw*0.62), my + int(1*s)),
+                         (cx + int(mw*0.40), my + mh - int(3*s)),
+                         (cx - int(mw*0.40), my + mh - int(3*s))])
+    # thin hot rim-lick hugging the upper lip ONLY — a glint, not a filled core,
+    # so the cavity never matches the flame tip or the bell in value.
     pygame.draw.polygon(surf, EMBER_T,
-                        [(cx - int(mw*0.34), my + int(3*s)),
-                         (cx + int(mw*0.34), my + int(3*s)),
-                         (cx + int(mw*0.20), my + mh - int(5*s)),
-                         (cx - int(mw*0.20), my + mh - int(5*s))])
+                        [(cx - int(mw*0.30), my + int(2*s)),
+                         (cx + int(mw*0.30), my + int(2*s)),
+                         (cx + int(mw*0.24), my + int(5*s)),
+                         (cx - int(mw*0.24), my + int(5*s))])
     # cedar lip lines bracketing the fang-row into a grin (carved, not painted)
     lip_w = max(2, int(3*s))
     pygame.draw.line(surf, WOOD_D, (cx - mw, my - int(3*s)),
@@ -480,6 +496,32 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
                (cx + fx + int(3*s), my + mh - int(9*s))]
         pygame.draw.polygon(surf, TOOTH, tri)
         pygame.draw.polygon(surf, INK, tri, max(1, int(1*s)))
+
+    # dark CHIN BAND beneath the maw (AD r2 ship-gate): a carved jaw shelf in
+    # ink + deep cedar shade that re-couples the lower lip to the face mass and
+    # de-couples the lit maw from the gold bell hung below. Without this the lit
+    # cavity and the warm-metal bell fused into one bright lower-face block at
+    # hero scale; the band is the dark gap that makes them two shapes again.
+    # band sits between the lower lip and the face's chin point so it stays
+    # WITHIN the face silhouette (the maw is near the face bottom); it is the
+    # carved shadow of the jaw, not a shape floating off below the head.
+    chin_top = my + mh
+    chin_bot = min(chin_top + int(10*s), fy0 + fh - int(1*s))
+    chin = [(cx - int(mw*0.78), chin_top - int(1*s)),
+            (cx + int(mw*0.78), chin_top - int(1*s)),
+            (cx + int(mw*0.52), chin_bot),
+            (cx - int(mw*0.52), chin_bot)]
+    pygame.draw.polygon(surf, INK, chin)
+    pygame.draw.polygon(surf, WOOD_GRV,
+                        [(cx - int(mw*0.66), chin_top + int(1*s)),
+                         (cx + int(mw*0.66), chin_top + int(1*s)),
+                         (cx + int(mw*0.46), chin_bot - int(2*s)),
+                         (cx - int(mw*0.46), chin_bot - int(2*s))])
+    # a single sun-side sheen sliver so the band reads as carved cedar in shadow,
+    # not a flat black bar — matte triad even in the dark gap.
+    pygame.draw.line(surf, WOOD_D,
+                     (cx - int(mw*0.58), chin_top + int(2*s)),
+                     (cx - int(mw*0.08), chin_top + int(2*s)), max(1, int(2*s)))
 
     # THE fire-eater flame-curl — licking up from ONE (left) mouth corner.
     flame_curl(surf, cx - mw + int(3*s), my - int(2*s), s, lit=(lit or hero))
@@ -603,7 +645,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("HAEDUNG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "fire-eating guardian-lion totem-post  ·  matte honey-cedar + jade scale-band + ember maw + muted gold bell  ·  round 2  ·  creature IS the pillar",
+        "fire-eating guardian-lion totem-post  ·  matte honey-cedar + jade scale-band + ember maw + muted gold bell  ·  round 3  ·  creature IS the pillar",
         True, LABEL_DIM), (200, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------
@@ -722,8 +764,10 @@ def main():
         "  sheen (anti-Zhenmushou re-spec).",
         "• Jade is a single SCALE-BAND course + mane-TIP flecks —",
         "  blue-leaning ACCENT, never a body fill (cross-set teal rule).",
-        "• Ember MAW glow is the SOLE warm focal; gold bell toned",
-        "  ~22% down to hardware so it can't steal that focal (r2).",
+        "• Ember MAW glow is the SOLE warm focal; interior value-DROPPED",
+        "  to ember-mid + a thin rim-lick so it glows, not blows (r3).",
+        "• Dark CHIN BAND + value-dropped gold bell DE-COUPLE the lit maw",
+        "  from the bell — two shapes, not one bright lower-face mass (r3).",
     ]
     notes_r = [
         "• Eyes = round bug-eyes, SINGLE carved ring each (anti-goggle);",
@@ -740,7 +784,7 @@ def main():
     sheet.blit(font_sm.render("  cap = SMALLER mirrored lion-mask so the wide mask never overweights the gap.",
                               True, LABEL_DIM), (540, note_y + 40 + 6*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
