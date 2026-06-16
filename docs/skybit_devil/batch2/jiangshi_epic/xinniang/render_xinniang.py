@@ -148,17 +148,19 @@ def fengguan(surf, cx, base_y, w, s):
     pygame.draw.circle(surf, GOLD_BR, (cx, jy), int(6*s))
     pygame.draw.circle(surf, ROBE, (cx, jy), int(3.2*s))
     pygame.draw.circle(surf, EYE_CORE, (cx - int(1.5*s), jy - int(1.5*s)), max(1, int(1.6*s)))
-    # phoenix-tail dangle strings at the temples — gold beads on a thread
+    # phoenix-tail dangle strings — pulled IN toward the temple axis (and shorter)
+    # so the head silhouette stays a clean dome, not a widening fan that crowns a
+    # top-heavy read at 32px.
     for sgn in (-1, 1):
-        bx = cx + sgn * (half - int(2*s))
-        for k in range(3):
-            by = base_y + int((5 + k*7) * s)
+        bx = cx + sgn * int(half * 0.66)
+        for k in range(2):
+            by = base_y + int((4 + k*6) * s)
             pygame.draw.line(surf, GOLD_D, (bx, base_y), (bx, by), max(1, int(1.4*s)))
-            pygame.draw.circle(surf, GOLD, (bx, by), max(1, int(2.2*s)))
-            pygame.draw.circle(surf, INK, (bx, by), max(1, int(2.2*s)), 1)
-        # red tassel drop at the end
-        ey = base_y + int(26*s)
-        pygame.draw.line(surf, ROBE, (bx, base_y + int(19*s)), (bx, ey), max(1, int(2*s)))
+            pygame.draw.circle(surf, GOLD, (bx, by), max(1, int(2.0*s)))
+            pygame.draw.circle(surf, INK, (bx, by), max(1, int(2.0*s)), 1)
+        # red tassel drop at the end — kept short, hugging the temple axis
+        ey = base_y + int(18*s)
+        pygame.draw.line(surf, ROBE, (bx, base_y + int(12*s)), (bx, ey), max(1, int(2*s)))
     # jade hairpin sliver — the lineage tell, tucked above the right temple
     px0 = cx + int((half - 6) * s)
     pygame.draw.line(surf, INK, (px0, jy + int(2*s)),
@@ -237,12 +239,14 @@ def draw_xinniang(surf, cx, cy, s):
 
     # --- two bound silk hands clasped at the waist (white wrap over the red) ---
     wy = top_y + int(58*s)
-    hand_w = int(26*s)
-    hand_h = int(20*s)
+    hand_w = int(22*s)
+    hand_h = int(18*s)
     hx0 = cx - hand_w//2
     hands = [(hx0, wy), (hx0 + hand_w, wy),
              (hx0 + hand_w - int(2*s), wy + hand_h), (hx0 + int(2*s), wy + hand_h)]
-    triad_blob(surf, (236, 226, 214), hands,
+    # cream knocked down (236→212) so the clasp doesn't read as a second bright
+    # spot competing with the hem; the eye still travels crown → eyes → hem first.
+    triad_blob(surf, (212, 200, 186), hands,
                core_pts=[(cx, wy + int(4*s)), (hx0 + hand_w - int(2*s), wy + int(6*s)),
                          (hx0 + hand_w - int(3*s), wy + hand_h), (cx, wy + hand_h)],
                sheen_pts=[(hx0 + int(2*s), wy + int(2*s)), (cx - int(2*s), wy + int(2*s)),
@@ -277,26 +281,45 @@ def draw_xinniang(surf, cx, cy, s):
                    (hc[0] - vw//2 + int(2*s), vtop + int(16*s))],
         ow=max(2, int(2*s)),
     )
-    # veil weave — fine vertical thread lines + a beaded gold fringe at the hem
-    for vx in range(-int(vw*0.36), int(vw*0.37), int(6*s) or 1):
-        pygame.draw.line(surf, VEIL_D, (hc[0] + vx, vtop + int(3*s)),
-                         (hc[0] + vx, vbot - int(2*s)), 1)
-    for fx in range(-int(vw*0.40), int(vw*0.41), int(8*s) or 1):
+    # veil weave — coarsened to FEW fat threads so it stays a clean panel, never
+    # a stipple, at true 32px. Below a scale threshold the weave drops out entirely
+    # so the square reads as a flat hanging panel and never competes with the eyes.
+    if s >= 2.2:
+        for vx in (-int(vw*0.24), int(vw*0.06), int(vw*0.24)):
+            pygame.draw.line(surf, VEIL_D, (hc[0] + vx, vtop + int(4*s)),
+                             (hc[0] + vx, vbot - int(3*s)), max(1, int(1.4*s)))
+    # hard INK seam along the veil's BOTTOM edge so the SQUARE tell keeps a crisp
+    # bottom line against the shoulders even when the red mass barely separates.
+    pygame.draw.line(surf, INK, (hc[0] - vw//2, vbot), (hc[0] + vw//2, vbot), max(2, int(2*s)))
+    # gold fringe — reduced to a crisp run of 4 beads on a bright lower edge, not
+    # a muddy stipple band at 32px.
+    fringe = [-int(vw*0.30), -int(vw*0.10), int(vw*0.10), int(vw*0.30)]
+    pygame.draw.line(surf, GOLD_D, (hc[0] - vw//2 + int(3*s), vbot + int(2*s)),
+                     (hc[0] + vw//2 - int(3*s), vbot + int(2*s)), max(1, int(1.4*s)))
+    for fx in fringe:
         bx = hc[0] + fx
-        pygame.draw.line(surf, GOLD_D, (bx, vbot), (bx, vbot + int(4*s)), max(1, int(1.4*s)))
-        pygame.draw.circle(surf, GOLD, (bx, vbot + int(4*s)), max(1, int(1.8*s)))
-        pygame.draw.circle(surf, INK, (bx, vbot + int(4*s)), max(1, int(1.8*s)), 1)
+        pygame.draw.circle(surf, GOLD, (bx, vbot + int(4*s)), max(1, int(2.0*s)))
+        pygame.draw.circle(surf, INK, (bx, vbot + int(4*s)), max(1, int(2.0*s)), 1)
 
     # two faint glowing dead-eye dots showing THROUGH the veil (scary-CUTE)
+    # WHY small + close-set + flat-bottomed: wide-set round discs read owl/baby;
+    # two close hot pinpricks slightly squashed read as a cold corpse-stare. The
+    # glow peak is lowered so at 32px the two dots stay TWO dots, never bloom into
+    # one fuzzy mass.
     for sgn in (-1, 1):
-        ex = hc[0] + sgn * int(9*s)
+        ex = hc[0] + sgn * int(6.5*s)
         ey = hc[1] + int(2*s)
-        radial_glow(surf, (ex, ey), int(6*s), EYE_GLOW, peak=120)
-        pygame.draw.circle(surf, EYE_GLOW, (ex, ey), int(3.4*s))
-        pygame.draw.circle(surf, EYE_CORE, (ex, ey), int(2.0*s))
+        radial_glow(surf, (ex, ey), int(4*s), EYE_GLOW, peak=82)
+        # very-slightly wider-than-tall + flat bottom kills the button/owl read
+        er = max(1, int(2.3*s))
+        eh = max(1, int(2.0*s))
+        pygame.draw.ellipse(surf, EYE_GLOW, (ex-er, ey-eh, er*2, eh*2))
+        pygame.draw.circle(surf, EYE_CORE, (ex, ey - int(0.2*s)), max(1, int(1.3*s)))
 
     # --- gold fengguan phoenix-crown scalloped arc on top ---
-    fengguan(surf, hc[0], vtop + int(2*s), int(58*s), s)
+    # WHY narrowed from 58→52: at 58 the arc was the widest mass on the figure and
+    # flirted with a pagoda-wide / top-heavy head; 52 keeps the dome read clean.
+    fengguan(surf, hc[0], vtop + int(2*s), int(52*s), s)
 
 
 # ── the prop → pillar mirror (wedding-lantern dowry pole) ────────────────────
@@ -329,11 +352,13 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
         pygame.draw.circle(surf, GOLD_BR, (cx, my), mr)
         pygame.draw.circle(surf, GOLD_D, (cx, my), mr, max(1, int(1.4*s)))
         pygame.draw.circle(surf, ROBE, (cx, my), int(mr*0.62))
-        # stylized 囍 double-happiness glyph — two gold uprights + crossbars
-        for gx in (-int(3.5*s), int(3.5*s)):
-            pygame.draw.line(surf, GOLD_BR, (cx+gx, my-int(5*s)), (cx+gx, my+int(5*s)), max(1, int(1.6*s)))
-        pygame.draw.line(surf, GOLD_BR, (cx-int(6*s), my-int(2*s)), (cx+int(6*s), my-int(2*s)), max(1, int(1.4*s)))
-        pygame.draw.line(surf, GOLD_BR, (cx-int(6*s), my+int(2*s)), (cx+int(6*s), my+int(2*s)), max(1, int(1.4*s)))
+        # SHAFT medallion glyph — a bold low-detail mark so the tileable band stays
+        # crisp at the 32px cap: a single fat gold cross-stroke (+ verticals only
+        # when there's pixel room). The full 囍 is reserved for the lantern cap.
+        pygame.draw.line(surf, GOLD_BR, (cx-int(5*s), my), (cx+int(5*s), my), max(2, int(2.4*s)))
+        if s >= 0.6:
+            for gx in (-int(4*s), int(4*s)):
+                pygame.draw.line(surf, GOLD_BR, (cx+gx, my-int(4*s)), (cx+gx, my+int(4*s)), max(1, int(1.8*s)))
         pygame.draw.circle(surf, GOLD_HI, (cx-int(mr*0.4), my-int(mr*0.4)), max(1, int(1.4*s)))
         band += pitch
 
@@ -396,7 +421,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 54))
     sheet.blit(font_big.render("XINNIANG", True, LABEL), (24, 12))
     sheet.blit(font_sm.render(
-        "vermilion ghost-marriage corpse bride  ·  saturated-vermilion bell (the warmest mass in the set) + gold fengguan + jade sliver  ·  round 1",
+        "vermilion ghost-marriage corpse bride  ·  saturated-vermilion bell (the warmest mass in the set) + gold fengguan + jade sliver  ·  round 2",
         True, LABEL_DIM), (220, 24))
 
     # --- HERO sprite (large, epic scale) ---
@@ -495,7 +520,7 @@ def main():
         sheet.blit(font_sm.render("%s" % name, True, LABEL), (rx+30, ry+1))
         sheet.blit(font_sm.render("%d,%d,%d" % c, True, LABEL_DIM), (rx+30, ry+13))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
