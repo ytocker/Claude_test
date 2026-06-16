@@ -259,36 +259,33 @@ def _build_skull_upright(w, h):
     face = new_surf(w, h)
     eye_y = cr_cy + cr_h * 0.02
     eye_dx = cr_w * 0.46
-    eye_r = cr_w * 0.30
+    eye_r = cr_w * 0.32
     for sgn in (-1, 1):
         ex = cx + sgn * eye_dx
-        # the socket void as a happy crescent: a fat upward-bowed arc band. We
-        # draw a tan-bone bowl, then carve the lower half back to bone so only a
-        # thin UP-curved sliver of dark remains (the squeezed-shut laughing eye).
-        pygame.draw.circle(face, TANBONE, (int(ex), int(eye_y)), int(eye_r))
-        pygame.draw.circle(face, INK, (int(ex), int(eye_y)), int(eye_r), max(2, SS))
-        # carve bone up over the lower 2/3 so the remaining socket is a top
-        # crescent that bows UP at the centre (joy)
-        pygame.draw.polygon(face, BONE, [
-            (ex - eye_r * 1.05, eye_y - eye_r * 0.10),
-            (ex, eye_y - eye_r * 0.55),                 # bone pushes UP at centre
-            (ex + eye_r * 1.05, eye_y - eye_r * 0.10),
-            (ex + eye_r * 1.05, eye_y + eye_r * 1.1),
-            (ex - eye_r * 1.05, eye_y + eye_r * 1.1),
-        ])
-        # the bold happy squint stroke: a thick upward arc (smile-shaped eye)
-        pygame.draw.arc(face, INK,
-                        (int(ex - eye_r * 1.0), int(eye_y - eye_r * 0.95),
-                         int(eye_r * 2.0), int(eye_r * 1.6)),
-                        math.radians(200), math.radians(340), max(3, SS + 1))
+        # the squeezed-shut LAUGHING eye is a bold UP-bowed (caret-shaped) dark
+        # socket: a thick chevron-arc that peaks UP at the centre. Up-curve =
+        # joy; this replaces round 1's flat sleepy lid. Built as two thick
+        # strokes meeting at a high apex so it reads even at 32px.
+        apex = (ex, eye_y - eye_r * 0.62)
+        left = (ex - eye_r, eye_y + eye_r * 0.30)
+        right = (ex + eye_r, eye_y + eye_r * 0.30)
+        lw = max(4, SS + 2)
+        pygame.draw.line(face, TANBONE, (int(left[0]), int(left[1])),
+                         (int(apex[0]), int(apex[1])), lw)
+        pygame.draw.line(face, TANBONE, (int(apex[0]), int(apex[1])),
+                         (int(right[0]), int(right[1])), lw)
+        pygame.draw.line(face, INK, (int(left[0]), int(left[1])),
+                         (int(apex[0]), int(apex[1])), max(3, SS))
+        pygame.draw.line(face, INK, (int(apex[0]), int(apex[1])),
+                         (int(right[0]), int(right[1])), max(3, SS))
         # laugh-line ticks fanning from the OUTER corner (crinkle of mirth)
-        ox = ex + sgn * eye_r * 1.10
+        ox = ex + sgn * eye_r * 1.15
         for k in range(3):
-            a = math.radians(-22 + k * 24)
+            a = math.radians(-20 + k * 24)
             pygame.draw.line(face, INK,
-                             (int(ox), int(eye_y - eye_r * 0.30)),
-                             (int(ox + sgn * math.cos(a) * eye_r * 0.75),
-                              int(eye_y - eye_r * 0.30 - math.sin(a) * eye_r * 0.75)),
+                             (int(ox), int(eye_y + eye_r * 0.10)),
+                             (int(ox + sgn * math.cos(a) * eye_r * 0.78),
+                              int(eye_y + eye_r * 0.10 - math.sin(a) * eye_r * 0.78)),
                              max(2, SS // 2 + 1))
 
     # ----- NOSE: a small inverted-heart bone void just above the moustache -----
@@ -384,8 +381,8 @@ def _build_body(w, h):
     cx = w * 0.5
 
     torso = new_surf(w, h)
-    t_cy = h * 0.79
-    t_w = w * 0.17
+    t_cy = h * 0.80
+    t_w = w * 0.18
     pygame.draw.polygon(torso, BONE, [
         (cx - t_w, t_cy - h * 0.10),
         (cx + t_w, t_cy - h * 0.10),
@@ -422,9 +419,9 @@ def _build_body(w, h):
     # further out and up than round 1 so the raised cup is a clear silhouette
     # appendage (the prop link + the reason for the laugh — a toast). -----
     arm_r = new_surf(w, h)
-    sh2_x, sh2_y = cx + t_w * 0.9, t_cy - h * 0.07
-    el_x, el_y = cx + t_w * 2.0, t_cy - h * 0.04
-    ha_x, ha_y = cx + t_w * 1.95, t_cy - h * 0.26
+    sh2_x, sh2_y = cx + t_w * 0.9, t_cy - h * 0.08
+    el_x, el_y = cx + t_w * 2.1, t_cy - h * 0.06
+    ha_x, ha_y = cx + t_w * 2.05, t_cy - h * 0.34
     pygame.draw.lines(arm_r, BONE, False,
                       [(int(sh2_x), int(sh2_y)), (int(el_x), int(el_y)),
                        (int(ha_x), int(ha_y))], int(SS * 2.8))
