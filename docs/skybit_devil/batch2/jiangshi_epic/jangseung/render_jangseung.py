@@ -22,6 +22,7 @@ WHY a standalone script: review art must never enter the shipped bundle, so it
 lives under docs/ and reuses only colour math, not runtime sprite modules.
 """
 import os
+import math
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pygame
@@ -30,9 +31,11 @@ pygame.init()
 # ── PINNED PALETTE (locked brief) ─────────────────────────────────────────────
 # Cool weathered slate-wood — clearly greyer/cooler than a warm cream-wood.
 WOOD      = (118, 116, 108)   # weathered slate-wood base
-WOOD_D    = ( 74,  74,  72)   # deep slate-wood shade (dark core)
+# WHY ~10% darker than round 1: on a bright day sky the body value crept toward
+# the pale blue and the silhouette edge softened — a darker core re-separates it.
+WOOD_D    = ( 64,  64,  64)   # deep slate-wood shade (dark core)
 WOOD_T    = (162, 158, 146)   # bleached driftwood rim-sheen helper
-WOOD_GRV  = ( 58,  58,  58)   # carved bevel-groove shadow
+WOOD_GRV  = ( 50,  50,  52)   # carved bevel-groove shadow
 
 CINNABAR  = (208,  54,  42)   # cinnabar hanja / face-paint focal (LINEAR accent)
 CINNA_D   = (150,  34,  30)   # deep cinnabar shade
@@ -93,20 +96,23 @@ def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow
 
 
 # ── deterministic moss-patch stipple (procedural, no PRNG state leak) ─────────
-def moss_patch(surf, x, y, w, h, s, seed):
-    """A clustered moss-teal blotch with a hard ink edge + a few rim-sheen
-    flecks. WHY hand-clustered rather than noise: at 1x downscale a noise field
-    fuzzes into grey; a few BIG flat lobes survive and read as 'aged'."""
-    n = 5
+def moss_patch(surf, cx, cy, rad, s, seed):
+    """A single COMPACT moss-teal cluster centred on (cx, cy) within radius `rad`.
+    WHY a tight clustered disc rather than a scattered field: round 1's moss
+    drifted OFF the silhouette and read as detached particles. Clustering every
+    lobe inside one small radius and anchoring the call site to a groove/glyph
+    edge keeps the moss reading as carved-on aged jade, not floating noise. A few
+    BIG flat lobes survive 1x downscale where stipple fuzzes to grey."""
+    n = 4
     lobes = []
     for i in range(n):
-        # cheap hash -> jitter so patches differ without importing random
-        hx = ((seed * 73 + i * 137) % 100) / 100.0
-        hy = ((seed * 51 + i *  29) % 100) / 100.0
+        # cheap hash -> jitter so clusters differ without importing random
+        ha = ((seed * 73 + i * 137) % 360) * 3.14159 / 180.0
+        hd = ((seed * 51 + i *  29) % 100) / 100.0
         hr = ((seed * 97 + i *  17) % 100) / 100.0
-        lx = x + int(hx * w)
-        ly = y + int(hy * h)
-        lr = int((0.18 + 0.30 * hr) * min(w, h))
+        lx = cx + int(math.cos(ha) * hd * rad * 0.55)
+        ly = cy + int(math.sin(ha) * hd * rad * 0.55)
+        lr = int((0.34 + 0.30 * hr) * rad)
         lobes.append((lx, ly, lr))
     for (lx, ly, lr) in lobes:
         pygame.draw.circle(surf, INK, (lx, ly), lr + max(1, int(1*s)))
@@ -116,6 +122,56 @@ def moss_patch(surf, x, y, w, h, s, seed):
                            int(lr*0.55))
         pygame.draw.circle(surf, MOSS_T, (lx - int(lr*0.35), ly - int(lr*0.35)),
                            max(1, int(lr*0.28)))
+
+
+# ── one bold cinnabar HANJA glyph-block (the spine unit) ──────────────────────
+def hanja_block(surf, cx, cy, w, h, s, motif):
+    """ONE chunky keylined cinnabar glyph mark. WHY rebuild from round 1's thin
+    tick-ladder: at 32px the ladder smeared to faint red mud. A FEW bold blocks
+    (strokes ~+35% thicker) each on a recessed groove with its own 1px INK
+    keyline hold their edge on downscale, so the column persists as a rhythmic
+    cinnabar SPINE even when the glyph shapes themselves stop resolving. Four
+    simple stroke motifs read as 'hanja' tiny without being literal characters."""
+    x0, y0 = cx - w // 2, cy - h // 2
+    sw = max(3, int(4.0*s))          # bold stroke (~+35% vs round 1's 2-3px)
+    # recessed dark groove the glyph sits in (carved-in look) + ink keyline
+    pad = max(2, int(3*s))
+    pygame.draw.rect(surf, INK, (x0 - pad, y0 - pad, w + pad*2, h + pad*2))
+    pygame.draw.rect(surf, WOOD_GRV, (x0 - pad + max(1, int(1*s)),
+                                      y0 - pad + max(1, int(1*s)),
+                                      w + pad*2 - max(2, int(2*s)),
+                                      h + pad*2 - max(2, int(2*s))))
+
+    def hline(yy, x_a=0.0, x_b=1.0):
+        pygame.draw.line(surf, CINNABAR, (x0 + int(w*x_a), yy),
+                         (x0 + int(w*x_b), yy), sw)
+
+    def vline(xx, y_a=0.0, y_b=1.0):
+        pygame.draw.line(surf, CINNABAR, (xx, y0 + int(h*y_a)),
+                         (xx, y0 + int(h*y_b)), sw)
+
+    midx, midy = cx, cy
+    if motif == 0:        # 王-like: three bars + spine
+        hline(y0 + int(h*0.12)); hline(midy); hline(y0 + int(h*0.88))
+        vline(midx, 0.12, 0.88)
+    elif motif == 1:      # 田-like: box + cross
+        pygame.draw.rect(surf, CINNABAR, (x0, y0, w, h), sw)
+        hline(midy); vline(midx)
+    elif motif == 2:      # 大/天-like: top bar + splayed legs
+        hline(y0 + int(h*0.20))
+        pygame.draw.line(surf, CINNABAR, (midx, y0 + int(h*0.20)),
+                         (x0, y0 + h), sw)
+        pygame.draw.line(surf, CINNABAR, (midx, y0 + int(h*0.20)),
+                         (x0 + w, y0 + h), sw)
+        vline(midx, 0.0, 0.55)
+    else:                 # 止-like: spine + foot + side bars
+        vline(midx, 0.05, 0.95)
+        hline(y0 + int(h*0.40), 0.05, 0.95)
+        hline(y0 + int(h*0.95))
+        vline(x0 + int(w*0.18), 0.40, 0.95)
+    # one top-left rim-sheen fleck so the spine catches the triad light
+    pygame.draw.line(surf, CINNA_T, (x0 + int(w*0.08), y0 + int(h*0.10)),
+                     (x0 + int(w*0.45), y0 + int(h*0.10)), max(1, int(1.5*s)))
 
 
 # ── carved-wood column band (the repeatable shaft unit) ───────────────────────
@@ -138,55 +194,65 @@ def carved_shaft(surf, cx, top, bot, half_w, s, with_eyes_at=None):
         ow=max(2, int(2*s)),
     )
 
-    # carved vertical bevel grooves — a few BIG ones so they survive downscale
-    for gx in (-int(half_w*0.62), int(half_w*0.10), int(half_w*0.70)):
+    # carved vertical bevel grooves — a few BIG ones so they survive downscale.
+    # WHY pulled to the OUTER thirds (not crossing the centre): they now frame
+    # the cinnabar spine instead of competing with it, reinforcing the carved
+    # WOOD read that separates this totem from a smooth stone-mask survivor.
+    groove_xs = (-int(half_w*0.66), -int(half_w*0.34),
+                 int(half_w*0.34), int(half_w*0.66))
+    for gx in groove_xs:
         pygame.draw.line(surf, WOOD_GRV, (cx + gx, top + int(4*s)),
                          (cx + gx, bot - int(4*s)), max(1, int(2*s)))
         pygame.draw.line(surf, WOOD_T, (cx + gx - max(1, int(2*s)), top + int(4*s)),
                          (cx + gx - max(1, int(2*s)), bot - int(4*s)),
                          max(1, int(1*s)))
 
-    # faint horizontal grain ticks (sparse — never a hatch field)
-    gy = top + int(20*s)
+    # sparse hard-edged horizontal grain ticks — short flecks against the grooves
+    # so the wood reads grained without piling a hatch field that fuzzes at 1x.
+    gy = top + int(24*s)
     tick = 0
     while gy < bot - int(12*s):
-        gw = int(half_w * (0.5 if tick % 2 else 0.34))
-        pygame.draw.line(surf, WOOD_D, (cx - gw, gy), (cx + gw, gy),
+        gx = groove_xs[tick % 4]
+        gw = int(half_w * 0.16)
+        pygame.draw.line(surf, WOOD_D, (cx + gx - gw, gy), (cx + gx + gw, gy),
                          max(1, int(1*s)))
-        gy += int(34*s)
+        gy += int(40*s)
         tick += 1
 
-    # centred CINNABAR HANJA column — stacked carved glyph blocks (the focal
-    # accent line). Kept as a thin vertical ribbon so red never becomes a mass.
-    glyph_w = int(half_w * 0.46)
-    gy = top + int(16*s)
-    while gy < bot - int(20*s):
-        gh = int(22*s)
-        gx0 = cx - glyph_w // 2
-        # recessed groove behind the glyph
-        pygame.draw.rect(surf, WOOD_GRV, (gx0 - int(2*s), gy - int(2*s),
-                                          glyph_w + int(4*s), gh + int(4*s)))
-        # cinnabar strokes — a simple cross+bars motif reads as 'hanja' tiny
-        cb_x0, cb_x1 = cx - int(glyph_w*0.42), cx + int(glyph_w*0.42)
-        midy = gy + gh // 2
-        pygame.draw.line(surf, CINNABAR, (cb_x0, gy + int(3*s)),
-                         (cb_x1, gy + int(3*s)), max(1, int(2*s)))
-        pygame.draw.line(surf, CINNABAR, (cb_x0, midy), (cb_x1, midy),
-                         max(1, int(2*s)))
-        pygame.draw.line(surf, CINNABAR, (cb_x0, gy + gh - int(3*s)),
-                         (cb_x1, gy + gh - int(3*s)), max(1, int(2*s)))
-        pygame.draw.line(surf, CINNABAR, (cx, gy + int(2*s)), (cx, gy + gh - int(2*s)),
-                         max(1, int(2*s)))
-        # rim-sheen fleck top-left of each glyph
-        pygame.draw.line(surf, CINNA_T, (cb_x0, gy + int(3*s)),
-                         (cx - int(2*s), gy + int(3*s)), max(1, int(1*s)))
-        gy += int(30*s)
+    # 1-2 carved horizontal BANDING SEAMS — full-width triad-lit channels that
+    # break the long shaft into stacked carved courses (totem wood, not a bar).
+    course_h = int(96*s)
+    sy = top + course_h
+    while sy < bot - int(30*s):
+        pygame.draw.line(surf, WOOD_GRV, (x0 + int(3*s), sy),
+                         (x0 + w - int(3*s), sy), max(2, int(3*s)))
+        pygame.draw.line(surf, WOOD_T, (x0 + int(3*s), sy - max(1, int(2*s))),
+                         (x0 + w - int(3*s), sy - max(1, int(2*s))),
+                         max(1, int(1*s)))
+        sy += course_h
 
-    # moss-teal patches clinging to the cooler shaded edge
-    moss_patch(surf, x0 + int(2*s), top + int(28*s), int(half_w*0.7), int(40*s),
-               s, seed=int(top) % 97 + 3)
-    moss_patch(surf, cx + int(half_w*0.3), bot - int(54*s), int(half_w*0.7),
-               int(44*s), s, seed=int(bot) % 89 + 7)
+    # centred CINNABAR HANJA spine — a FEW BOLD keylined glyph-BLOCKS (not a thin
+    # tick ladder). Spaced so the column reads as a rhythmic cinnabar spine that
+    # persists at 32px; kept narrow so red stays a LINEAR accent, never a mass.
+    block_w = int(half_w * 0.62)
+    block_h = int(34*s)
+    pitch   = int(58*s)
+    gy = top + int(34*s)
+    motif = (int(top) // max(1, pitch)) % 4
+    while gy < bot - int(34*s):
+        hanja_block(surf, cx, gy, block_w, block_h, s, motif % 4)
+        gy += pitch
+        motif += 1
+
+    # 2 deliberate moss clusters anchored INSIDE the silhouette at groove/seam
+    # edges (where moss actually collects). WHY anchor + clamp: round 1's lobes
+    # drifted off the post edge; centring inside the body keeps them carved-on.
+    inset = int(half_w * 0.30)
+    mr = max(int(5*s), int(half_w * 0.34))
+    moss_patch(surf, x0 + inset, top + int(course_h*0.65), mr, s,
+               seed=int(top) % 97 + 3)
+    moss_patch(surf, cx + half_w - inset, bot - int(course_h*0.5), mr, s,
+               seed=int(bot) % 89 + 7)
 
 
 # ── the gap-edge cap: twin mirrored partner-face ─────────────────────────────
@@ -304,9 +370,18 @@ def guardian_face(surf, cx, cy, s, lit=False):
                          (cx + mw - int(3*s), my - int(1*s)),
                          (cx + int(mw*0.6), my + mh - int(2*s)),
                          (cx - int(mw*0.6), my + mh - int(2*s))])
-    # cinnabar lip line (the red accent on the grin)
+    # cinnabar lip lines (the red accent that turns the fang-row into a GRIN).
+    # WHY a bolder lip + matching LOWER lip on the lit cap: round 1's cap mouth
+    # read as a muddy fang-bone smear at 32px because the warm gap-glow washed
+    # out its single thin top lip. Bracketing the row in two bold cinnabar lips
+    # gives the cap face the same grin legibility as the hero face.
+    lip_w = max(3, int(4*s)) if lit else max(2, int(3*s))
     pygame.draw.line(surf, CINNABAR, (cx - mw, my - int(3*s)),
-                     (cx + mw, my - int(3*s)), max(2, int(3*s)))
+                     (cx + mw, my - int(3*s)), lip_w)
+    pygame.draw.line(surf, CINNA_T, (cx - mw, my - int(4*s)),
+                     (cx, my - int(4*s)), max(1, int(1*s)))
+    pygame.draw.line(surf, CINNABAR, (cx - int(mw*0.74), my + mh),
+                     (cx + int(mw*0.74), my + mh), lip_w)
     # BIG snaggle fangs — top row down, two bottom up, few & chunky
     for fx in (-int(mw*0.62), -int(mw*0.18), int(mw*0.30)):
         tri = [(cx + fx, my - int(2*s)),
@@ -430,7 +505,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("JANGSEUNG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "carved guardian totem-post  ·  slate-wood + cinnabar hanja + moss-teal + warm-cream eye glow  ·  round 1  ·  creature IS the pillar",
+        "carved guardian totem-post  ·  slate-wood + cinnabar hanja + moss-teal + warm-cream eye glow  ·  round 2  ·  creature IS the pillar",
         True, LABEL_DIM), (210, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------
@@ -568,7 +643,7 @@ def main():
     for i, line in enumerate(notes_r):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (540, note_y + 40 + i*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
