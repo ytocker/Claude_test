@@ -54,10 +54,14 @@ HITO_DEEP   = ( 56, 150, 200)   # bluer deep edge of the flame
 SKIN        = (224, 230, 236)   # faintly cooler-than-kimono pallid face
 SKIN_SH     = (176, 190, 206)   # face dark-core hollow
 # the EYE ink: darker than the socket so the eyes read as positive features
-# (not ambient shadow) — this is the headline 32px-face fix.
-EYE_INK     = ( 40,  44,  60)   # deep cool eye-mass (a touch warmer than hair)
-EYE_DEEP    = ( 24,  26,  38)   # eye core / lash line
-LID_SHEEN   = (210, 222, 232)   # bright lower-lid catch that lifts the eye off the face
+# (not ambient shadow). Deepened ~15% from round 2 so the two eye-marks are the
+# LAST features to survive the final downsample at true 32px.
+EYE_INK     = ( 30,  32,  46)   # deep cool eye-mass (a touch warmer than hair)
+EYE_DEEP    = ( 16,  18,  28)   # eye core / lash line (deepened for 32px contrast)
+# a NEUTRAL cool-grey/white lower-lid catch — deliberately NOT cyan. The cyan
+# must belong to the hitodama alone, else the brightest cyan on the figure is
+# her eyes and she reads demonic/glowing-eyed rather than wistful.
+LID_SHEEN   = (206, 214, 224)   # neutral cool-grey lower-lid sheen (no cyan)
 POLE_WOOD   = (150, 140, 132)   # weathered wood lantern-pole (cool-grey neutral)
 POLE_SH     = (104,  98,  96)
 POLE_HI     = (196, 190, 184)
@@ -158,13 +162,16 @@ def build_yurei(target_h=200):
     # smooth tapering lobes. The earlier jagged hem read as torn cloth; here
     # the bottom is resolved into a few rounded fading tongues so it reads as a
     # ghost drifting into nothing (wistful), not shredded gore.
+    # The earlier hem had a jagged left step that read as torn cloth. Resolved
+    # here into smooth symmetric rounded tongues that ease down to the tip so
+    # she reads as "drifting into nothing" (wistful), never shredded.
     kimono = P([
-        (-30, 70), (-37, 98), (-34, 126), (-39, 150),
-        (-30, 166),                                        # smooth left lobe shoulder
-        (-22, 178), (-26, 188), (-14, 184),                # left fading tongue
-        (-8, 192), (0, 196),                               # central tongue
-        (8, 192), (14, 184), (26, 188), (22, 178),         # right fading tongue
-        (30, 166), (39, 150), (34, 126), (37, 98), (30, 70),
+        (-30, 70), (-37, 98), (-34, 126), (-38, 150),
+        (-32, 164), (-24, 174),                            # smooth left lobe
+        (-18, 182), (-12, 178),                            # left tongue notch eased
+        (-6, 188), (0, 194),                               # central tongue
+        (6, 188), (12, 178), (18, 182),                    # right tongue (mirrored)
+        (24, 174), (32, 164), (38, 150), (34, 126), (37, 98), (30, 70),
     ])
     kimono_shade = [(x + 3 * U, y + 3 * U) for (x, y) in kimono]
     pygame.draw.polygon(s, KIMONO_SH, kimono_shade)
@@ -188,12 +195,14 @@ def build_yurei(target_h=200):
     # toward the tip (stepped alpha over hard flat fills — still procedural, no
     # soft gradient). Reads "dissolving into nothing", not a ragged shred.
     for (y0, y1, half, alpha) in [
-        (150, 182, 32, 210), (166, 192, 22, 150), (180, 200, 13, 95),
+        (150, 186, 30, 205), (164, 196, 20, 145), (178, 204, 11, 90),
     ]:
         lobe = pygame.Surface(s.get_size(), pygame.SRCALPHA)
+        # rounded, symmetric fading tongue (more apex samples = no hard notch)
         pygame.draw.polygon(lobe, (*lerp(KIMONO, LAVENDER, 0.4), alpha), P([
-            (-half, y0), (-int(half * 0.5), y1 - 6), (0, y1),
-            (int(half * 0.5), y1 - 6), (half, y0),
+            (-half, y0), (-int(half * 0.62), y1 - 9), (-int(half * 0.26), y1 - 2),
+            (0, y1),
+            (int(half * 0.26), y1 - 2), (int(half * 0.62), y1 - 9), (half, y0),
         ]))
         s.blit(lobe, (0, 0))
 
@@ -300,7 +309,9 @@ def build_yurei(target_h=200):
             (eye_cx + int(sx * 4 * U), eye_cy - int(2 * U)),
             (eye_cx - int(sx * 6 * U), eye_cy - int(1 * U)),
         ])
-        # bright lower-lid sheen — the 1px lighter catch that says "EYE" at 1x
+        # NEUTRAL cool-grey lower-lid sheen — the 1px lighter catch that says
+        # "EYE" at 1x WITHOUT any cyan. Sad ghost = dark mournful eyes, not lit
+        # eyes; the cyan stays unique to the hitodama soul-flame.
         pygame.draw.polygon(s, LID_SHEEN, [
             (eye_cx + int(sx * 6 * U), eye_cy + int(4 * U)),
             (eye_cx + int(sx * 2 * U), eye_cy + int(7 * U)),
@@ -309,25 +320,28 @@ def build_yurei(target_h=200):
             (eye_cx + int(sx * 2 * U), eye_cy + int(8 * U)),
             (eye_cx + int(sx * 6 * U), eye_cy + int(5 * U)),
         ])
-        # cool blue-cyan ghost catch-light inside the eye (wistful, spectral)
-        pygame.draw.circle(s, HITODAMA,
-                           (eye_cx - int(sx * 1 * U), eye_cy + int(1 * U)),
-                           int(2.2 * U))
-        pygame.draw.circle(s, HITO_CORE,
-                           (eye_cx - int(sx * 2 * U), eye_cy), max(1, int(1.1 * U)))
 
     # tiny nose shadow
     pygame.draw.polygon(s, SKIN_SH, P([(0, 43), (-3, 49), (3, 49)]))
-    # small downturned mournful mouth — a clear positive dark crescent (with an
-    # under-lip sheen) so the oval unmistakably reads "sad face", not blank disc
+    # RESTORED downturned mournful mouth (lost in round 2) — a clear, deepened
+    # frown so the lower face completes the SAD read, not just "startled". A
+    # cool-blue-shade under-shadow seats it, an ink crescent dips at the
+    # CORNERS (the downturn), and a faint lower-lip catch closes it. This is the
+    # beat that tips the oval from "a face" to "a SAD face".
+    pygame.draw.polygon(s, KIMONO_SH, P([
+        (-8, 51), (0, 53), (8, 51), (9, 56), (0, 60), (-9, 56),
+    ]))
+    # the frown ink: corners ride UP-and-out, centre dips DOWN -> a downturn
     pygame.draw.polygon(s, EYE_INK, P([
-        (-7, 51), (0, 54), (7, 51), (6, 53), (0, 57), (-6, 53),
+        (-8, 51), (-4, 52), (0, 55), (4, 52), (8, 51),
+        (7, 53), (0, 58), (-7, 53),
     ]))
     pygame.draw.polygon(s, EYE_DEEP, P([
-        (-6, 52), (0, 54), (6, 52), (4, 53), (0, 55), (-4, 53),
+        (-7, 52), (0, 55), (7, 52), (5, 53), (0, 56), (-5, 53),
     ]))
+    # faint neutral lower-lip catch (no cyan)
     pygame.draw.polygon(s, LID_SHEEN, P([
-        (-5, 56), (0, 58), (5, 56), (3, 57), (0, 58), (-3, 57),
+        (-6, 57), (0, 60), (6, 57), (4, 58), (0, 60), (-4, 58),
     ]))
 
     # ---- LONG STRAIGHT BLACK HAIR-CURTAINS (hard triad panels) --------------
@@ -363,12 +377,13 @@ def build_yurei(target_h=200):
                 (sx * 22, 10), (sx * 30, 28), (sx * 31, 60),
                 (sx * 27, 60), (sx * 26, 28), (sx * 19, 12),
             ]))
-        # faint LAVENDER spectral rim catch along the outer hair edge (top-left
-        # per the triad) so she lifts off a dark night sky — gentle-eerie, not grim
+        # LAVENDER spectral rim catch along the outer hair edge (top-left per the
+        # triad) — lifted a touch from round 2 so she reads gentle-spectral off a
+        # dark night sky, never grim. Slightly thicker + carried lower.
         pygame.draw.line(s, LAVENDER,
-                         (cx + int(sx * 31 * U), int(24 * U)),
-                         (cx + int(sx * 28 * U), int(100 * U)),
-                         max(1, int(1.4 * U)))
+                         (cx + int(sx * 31 * U), int(20 * U)),
+                         (cx + int(sx * 27 * U), int(120 * U)),
+                         max(1, int(2.1 * U)))
     # face-framing inner wisps falling over the temples — kept narrow and held
     # off the eyes so they don't re-pinch the face shut
     for sx in (-1, 1):
@@ -530,9 +545,9 @@ def main():
         sheet.blit(f.render(txt, True, (0, 0, 0)), (x + 1, y + 1))
         sheet.blit(f.render(txt, True, col), (x, y))
 
-    label("YUREI  (round 2)  — trailing-hem white vengeful ghost  [BLUE-CYAN HITODAMA]",
+    label("YUREI  (round 3 / final)  — trailing-hem white vengeful ghost  [BLUE-CYAN HITODAMA]",
           16, 12, font)
-    label("round-2 fixes: positive-shape DARKER droop-eyes + sad mouth, hair opened wider so the FACE survives 32px  ·  ONE smaller hitodama  ·  hands as notches  ·  faded wisp",
+    label("round-3 fixes: CYAN eye-glints KILLED (eyes plain dark + neutral lid-catch, cyan now hitodama-only)  ·  downturned SAD mouth RESTORED  ·  eye darks +15%  ·  wisp softened  ·  lavender rim lifted",
           16, 36, tiny, (176, 196, 216))
 
     # large creature
@@ -610,7 +625,7 @@ def main():
         pygame.draw.rect(sheet, (10, 10, 14), (swx, ry, 26, 18), 1)
         label(nm, swx + 32, ry + 3, tiny)
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("saved", out)
 

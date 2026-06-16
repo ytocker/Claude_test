@@ -209,61 +209,77 @@ def _ribbon(surf, top_x, top_y, length, hw, ss, *, n_beads, wave=0.0, phase=0.0,
         ht_y = top_y + length
         hw2 = hw * 2.2
         hh2 = hw * 2.4
-        # Outside add-glow so the pendant reads LIT (amber soul-glow), lifted at
-        # night where the warm pop must earn its keep.
+        # AD r1: keep amber for the EYES (face is the hero). The pendant glows in
+        # the warm HOT-PINK/ROSE family so two amber focals don't split attention
+        # at small scale — only a tiny warm core twinkles inside the rose heart.
         gr = int(hw2 * (1.5 if night else 1.15))
-        gl = make_glow_surface(gr, AMBER, alpha_center=190 if night else 120,
+        gl = make_glow_surface(gr, TRAIL, alpha_center=200 if night else 130,
                                falloff=2.2)
         surf.blit(gl, (int(top_x - gr), int(ht_y - gr)),
                   special_flags=pygame.BLEND_ADD)
         _lobe(surf, top_x, ht_y, hw2, hh2, ss, TRAIL, heart=True)
-        # Amber pinprick core — the will-o'-the-wisp twinkle the folklore gives it.
+        # Small warm core — the will-o'-the-wisp twinkle, kept tiny so the eye
+        # reads face -> trail -> cap, not cap-vs-eyes.
         pygame.draw.circle(surf, AMBER, (int(top_x), int(ht_y)),
-                           max(1, int(hw2 * 0.20)))
+                           max(1, int(hw2 * 0.13)))
         pygame.draw.circle(surf, (255, 244, 210), (int(top_x), int(ht_y)),
-                           max(1, int(hw2 * 0.10)))
+                           max(1, int(hw2 * 0.06)))
 
 
 # ── the goofy floating jack-o-head ───────────────────────────────────────────
 
 def _bat_ear(surf, cx, cy, r, ss, side):
     """A little bat-ear flap pinned at the side of the head — a small flat
-    triangle-leaf (triad-lit) so the head reads devil-impish, not just a skull."""
+    triad-lit leaf so the head reads devil-impish, not just a skull. AD r1: the
+    flaps read as horns at mid scale, so they are ROUNDED + shortened (the tip
+    pulled in and down ~15%) — the goofy beats the pointy-menacing."""
     s = side
-    base = (cx + s * r * 0.86, cy - r * 0.10)
-    tip = (cx + s * r * 1.42, cy - r * 0.62)
-    bot = (cx + s * r * 0.82, cy + r * 0.30)
+    base = (cx + s * r * 0.84, cy - r * 0.06)
+    tip = (cx + s * r * 1.20, cy - r * 0.48)     # shorter + less swept than r1
+    bend = (cx + s * r * 1.16, cy - r * 0.20)    # a rounding mid-point on the back
+    bot = (cx + s * r * 0.80, cy + r * 0.28)
     pygame.draw.polygon(surf, _shade_c(FACE, -46),
-                        [base, tip, bot])
+                        [base, tip, bend, bot])
     inner = [(base[0] - s * ss, base[1] + ss), (tip[0] - s * ss, tip[1] + ss),
-             (bot[0] - s * ss, bot[1] - ss)]
+             (bend[0] - s * ss, bend[1]), (bot[0] - s * ss, bot[1] - ss)]
     pygame.draw.polygon(surf, FACE, [(int(x), int(y)) for x, y in inner])
     # Inner-ear pink so the bat-flap reads warm + tied to the trail palette.
-    inner2 = [(cx + s * r * 0.92, cy - r * 0.04),
-              (cx + s * r * 1.22, cy - r * 0.44),
-              (cx + s * r * 0.90, cy + r * 0.16)]
+    inner2 = [(cx + s * r * 0.90, cy - r * 0.02),
+              (cx + s * r * 1.06, cy - r * 0.30),
+              (cx + s * r * 0.88, cy + r * 0.14)]
     pygame.draw.polygon(surf, _shade_c(TRAIL, -6),
                         [(int(x), int(y)) for x, y in inner2])
 
 
-def _head(surf, cx, cy, r, ss, *, night=False):
+def _head(surf, cx, cy, r, ss, *, night=False, tongue=True):
     """The oversized floating jack-o-head: round ash skull-ish face, huge bug-eyes
     with amber irises, a wide tongue-lolling tusk-grin, little bat-ear flaps. The
     goofy GRIN + bug-eyes are the scary-cute beat — body-horror reframed as a
-    friendly floating gourd-head."""
+    friendly floating gourd-head. `tongue=False` drops the lolling tongue (AD r1:
+    it blurs into the first trail-lobe at 32px). `night` lifts the ash value ~12%
+    so the head stays a clean LIGHT blob against dark-blue night biomes."""
+    # AD r1: keep the ash face a high-value pop on night skies — lift the fill +
+    # sheen so the upper face never sinks into the dark-blue sky.
+    face = _shade_c(FACE, 16) if night else FACE
+    face_sheen = _shade_c(FACE_SHEEN, 8) if night else FACE_SHEEN
+
     # Bat-ear flaps behind the face so the dome occludes their roots.
     _bat_ear(surf, cx, cy, r, ss, -1)
     _bat_ear(surf, cx, cy, r, ss, 1)
 
     # Cranium dome (ash-white) — slightly squashed wide for a gourd/jack read.
-    _triad_circle(surf, cx, cy, r, FACE)
+    _triad_circle(surf, cx, cy, r, face)
     # A subtle wider lower-cheek bulge so it's a head, not a perfect ball.
     cheek = pygame.Rect(0, 0, int(r * 1.86), int(r * 1.5))
     cheek.center = (int(cx), int(cy + r * 0.30))
-    pygame.draw.ellipse(surf, _shade_c(FACE, -46), cheek)
+    pygame.draw.ellipse(surf, _shade_c(face, -46), cheek)
     inner = cheek.inflate(-int(r * 0.14), -int(r * 0.14))
-    pygame.draw.ellipse(surf, FACE, inner)
-    _triad_circle(surf, cx, cy, r, FACE)       # re-seat the dome over the cheek
+    pygame.draw.ellipse(surf, face, inner)
+    _triad_circle(surf, cx, cy, r, face)       # re-seat the dome over the cheek
+    # A bright cranium-top sheen cap so the head crown catches light on night.
+    pygame.draw.circle(surf, face_sheen,
+                       (int(cx - r * 0.30), int(cy - r * 0.42)),
+                       max(2, int(r * 0.30)))
 
     # — Eyes: HUGE round bug-eyes (the dominant face read). White sclera, big amber
     #   iris, fat ink pupil with a sheen catch — wide and goofy, not menacing.
@@ -312,24 +328,27 @@ def _head(surf, cx, cy, r, ss, *, night=False):
     seat = seat_top + seat_bot[::-1]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in seat])
 
-    # Lolling tongue first (behind the teeth band, flops out the bottom).
-    tongue_y = grin_y + grin_h * 0.30
-    tongue = [
-        (cx - grin_hw * 0.30, tongue_y),
-        (cx + grin_hw * 0.30, tongue_y),
-        (cx + grin_hw * 0.34, tongue_y + grin_h * 1.05),
-        (cx, tongue_y + grin_h * 1.35),
-        (cx - grin_hw * 0.34, tongue_y + grin_h * 1.05),
-    ]
-    pygame.draw.polygon(surf, TRAIL_DK, [(int(x), int(y)) for x, y in tongue])
-    inner_t = [(cx - grin_hw * 0.24, tongue_y + ss), (cx + grin_hw * 0.24, tongue_y + ss),
-               (cx + grin_hw * 0.28, tongue_y + grin_h * 0.98),
-               (cx, tongue_y + grin_h * 1.26),
-               (cx - grin_hw * 0.28, tongue_y + grin_h * 0.98)]
-    pygame.draw.polygon(surf, TRAIL, [(int(x), int(y)) for x, y in inner_t])
-    # Centre tongue groove.
-    pygame.draw.line(surf, TRAIL_DK, (int(cx), int(tongue_y + grin_h * 0.2)),
-                     (int(cx), int(tongue_y + grin_h * 1.2)), max(1, int(1.4 * ss)))
+    # Lolling tongue first (behind the teeth band, flops out the bottom). AD r1:
+    # TUCKED shorter so it no longer blurs into the first trail-lobe; dropped
+    # entirely on the compact 32px icon (`tongue=False`).
+    if tongue:
+        tongue_y = grin_y + grin_h * 0.34
+        tip = [
+            (cx - grin_hw * 0.28, tongue_y),
+            (cx + grin_hw * 0.28, tongue_y),
+            (cx + grin_hw * 0.30, tongue_y + grin_h * 0.70),
+            (cx, tongue_y + grin_h * 0.92),
+            (cx - grin_hw * 0.30, tongue_y + grin_h * 0.70),
+        ]
+        pygame.draw.polygon(surf, TRAIL_DK, [(int(x), int(y)) for x, y in tip])
+        inner_t = [(cx - grin_hw * 0.22, tongue_y + ss), (cx + grin_hw * 0.22, tongue_y + ss),
+                   (cx + grin_hw * 0.24, tongue_y + grin_h * 0.64),
+                   (cx, tongue_y + grin_h * 0.84),
+                   (cx - grin_hw * 0.24, tongue_y + grin_h * 0.64)]
+        pygame.draw.polygon(surf, TRAIL, [(int(x), int(y)) for x, y in inner_t])
+        # Centre tongue groove.
+        pygame.draw.line(surf, TRAIL_DK, (int(cx), int(tongue_y + grin_h * 0.16)),
+                         (int(cx), int(tongue_y + grin_h * 0.80)), max(1, int(1.4 * ss)))
 
     # Little even teeth across the top of the grin.
     teeth = 7
@@ -365,13 +384,56 @@ def _head(surf, cx, cy, r, ss, *, night=False):
 
 # ── the whole creature: head + trailing ribbon, on one surface ───────────────
 
-def build_leyak(scale=1.0, ss=3, *, night=False):
+def _face_tell(surf, cx, cy, r, ss):
+    """A baked LOW-RES face tell (AD r1 gate): two fat dark eye-dots + a single
+    dark grin-bar stamped on the ash field, sized so smoothscale to true 32px
+    PRESERVES a recognizable grinning-skull face instead of mushing to a speck.
+    Drawn over the detailed face — at showcase scale it hides under the real eyes
+    and grin; at icon scale it is the only thing that survives, so it carries the
+    'this is a creature, not a rope' read on its own."""
+    # Two bold dark eye-dots — wide-set, the dominant low-res mark.
+    eye_dx = r * 0.46
+    eye_dy = -r * 0.06
+    eye_rr = r * 0.26
+    for s in (-1, 1):
+        ex, ey = cx + s * eye_dx, cy + eye_dy
+        pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(eye_rr))
+        # An amber rim-pip so the EYE stays the sole warm focal (face is hero).
+        pygame.draw.circle(surf, AMBER, (int(ex), int(ey)), int(eye_rr * 0.42))
+    # A single wide dark grin-BAR — a fat upward-bowed curve, the one mouth mark
+    # that survives downscale. Drawn as a thick arc-polygon.
+    gw = r * 0.92
+    gy = cy + r * 0.52
+    gh = r * 0.20
+    top, bot = [], []
+    n = 12
+    for i in range(n + 1):
+        xr = -1.0 + 2.0 * (i / n)
+        x = cx + xr * gw
+        lift = gh * 1.30 * (xr * xr)             # corners ride up -> a grin curve
+        top.append((x, gy - gh * 0.5 + lift))
+        bot.append((x, gy + gh * 0.5 + lift))
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in (top + bot[::-1])])
+
+
+def build_leyak(scale=1.0, ss=3, *, night=False, compact=False):
     """The full creature on its own transparent surface: the oversized jack-o-head
-    up top, a long viscera-ribbon streaming straight down beneath it tipped with a
-    glowing heart-pendant. Returns an outlined surface. `night` lifts the pendant
-    glow so the warm tip reads LIT on a dark sky."""
+    up top, a viscera-ribbon streaming straight down beneath it tipped with a
+    glowing heart-pendant. Returns an outlined surface. `night` lifts the head
+    value + pendant glow so both read on a dark sky.
+
+    `compact` is the GAMEPLAY / 32px-icon variant (AD r1 gate): the HEAD is grown
+    to dominate ~55-60% of the vertical budget and the trail is cut to 3 short
+    lobes, so the icon reads 'grinning skull on a short ribbon' — never inverts to
+    a pink squiggle with a speck. The showcase variant keeps the longer 6-lobe
+    streamer. Compact also bakes a low-res face tell + drops the tongue."""
     head_r = int(46 * scale) * ss
-    trail_len = int(150 * scale) * ss
+    # AD r1: privilege the head in the icon budget. Showcase keeps a long
+    # streamer (~3.3x head); compact shortens the trail to ~1.1x the head radius
+    # so the head wins the vertical budget at gameplay scale.
+    trail_mult = 1.15 if compact else 2.85
+    trail_len = int(head_r * trail_mult)
+    n_beads = 3 if compact else 6
     side_pad = int(26 * scale) * ss        # room for ears + wave + bead lobes
     top_pad = int(18 * scale) * ss
     bot_pad = int(20 * scale) * ss         # room for the pendant glow halo
@@ -402,13 +464,18 @@ def build_leyak(scale=1.0, ss=3, *, night=False):
              (cx + head_r * 0.24, trail_top_y), (cx - head_r * 0.24, trail_top_y)]
     pygame.draw.polygon(surf, TRAIL, [(int(x), int(y)) for x, y in inner])
 
-    # The trailing viscera ribbon (creature mode: full wave + heart-pendant tip).
+    # The trailing viscera ribbon. Compact uses a tighter wave so the few lobes
+    # still read as a deliberate wavy ribbon, not noise, at 1x.
     hw = head_r * 0.34
     _ribbon(surf, cx, trail_top_y, trail_len, hw, ss,
-            n_beads=6, wave=1.0, phase=0.6, heart_tip=True, night=night)
+            n_beads=n_beads, wave=0.7 if compact else 1.0,
+            phase=0.6, heart_tip=True, night=night)
 
-    # Head over the stump top.
-    _head(surf, cx, head_cy, head_r, ss, night=night)
+    # Head over the stump top. Tongue dropped in the compact icon so it never
+    # blurs into the first trail-lobe.
+    _head(surf, cx, head_cy, head_r, ss, night=night, tongue=not compact)
+    if compact:
+        _face_tell(surf, cx, head_cy, head_r, ss)
 
     out_w = int(surf.get_width() / ss)
     out_h = int(surf.get_height() / ss)
@@ -463,8 +530,10 @@ def _heart_cap(surf, cx, cap_base_y, hw, ss, *, point_up, night=False):
     hy = cap_base_y + d * hw * 3.8
     hw2 = hw * 2.4
     hh2 = hw * 2.6
+    # Rose-family glow (mirrors the creature pendant) so the cap reads as the same
+    # hot-pink heart-lantern, not a competing amber focal.
     gr = int(hw2 * (1.7 if night else 1.3))
-    gl = make_glow_surface(gr, AMBER, alpha_center=210 if night else 140, falloff=2.2)
+    gl = make_glow_surface(gr, TRAIL, alpha_center=220 if night else 150, falloff=2.2)
     surf.blit(gl, (int(cx - gr), int(hy - gr)), special_flags=pygame.BLEND_ADD)
     # Heart oriented point toward the gap (point down for a top pillar reading up).
     if point_up:
@@ -476,9 +545,10 @@ def _heart_cap(surf, cx, cap_base_y, hw, ss, *, point_up, night=False):
         tmp = pygame.transform.flip(tmp, False, True)
         surf.blit(tmp, (int(cx - tmp.get_width() // 2), int(hy - tmp.get_height() // 2)),
                   special_flags=pygame.BLEND_RGBA_MAX)
-    # Amber twinkle core + violet bruise rim-tick so the pendant reads as a lantern.
-    pygame.draw.circle(surf, AMBER, (int(cx), int(hy)), max(1, int(hw2 * 0.22)))
-    pygame.draw.circle(surf, (255, 244, 210), (int(cx), int(hy)), max(1, int(hw2 * 0.11)))
+    # Small warm twinkle core so the pendant reads as a lantern without becoming a
+    # second amber focal that competes with the creature's eyes.
+    pygame.draw.circle(surf, AMBER, (int(cx), int(hy)), max(1, int(hw2 * 0.14)))
+    pygame.draw.circle(surf, (255, 244, 210), (int(cx), int(hy)), max(1, int(hw2 * 0.07)))
 
 
 def _ribbon_pillar_obstacle(height, ss, *, flip, night=False):
@@ -551,12 +621,13 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((34, 28, 36))          # plum-charcoal so the warm trail reads warm
     _label(sheet, font,
-            "LEYAK  —  batch2 DEVILISH  —  ash-white face + hot-pink viscera-trail  —  round 1", 18, 12)
+            "LEYAK  —  batch2 DEVILISH  —  ash-white face + hot-pink viscera-trail  —  round 2", 18, 12)
     _label(sheet, small,
-            "the flying jack-o-head: one oversized grinning head, bug-eyes + tusk-grin + lolling tongue, NO body — a long wavy viscera-RIBBON streams straight down beneath",
+            "r2 gate FIX: the 32px icon is now HEAD-DOMINANT (~55-60% head / short 3-lobe ribbon) with a baked low-res face tell — reads 'grinning skull on a streamer' at 1x, never a pink squiggle + speck.",
             18, 32, (210, 180, 196))
 
-    # — Cell A: creature at showcase scale, on a dusk sky.
+    # — Cell A: creature at showcase scale, on a dusk sky (the long-streamer
+    #   showcase variant — the compact gameplay icon lives in cell C).
     panel = pygame.Rect(18, 56, 360, 580)
     bgA = _sky(panel.w, panel.h, (60, 30, 70), (120, 60, 110), (210, 130, 150))
     sheet.blit(bgA, panel.topleft)
@@ -565,7 +636,7 @@ def main():
     sheet.blit(boss, (panel.centerx - boss.get_width() // 2,
                       panel.y + 52))
     _label(sheet, font, "(a) CREATURE  showcase scale", panel.x + 8, panel.y + 8)
-    _label(sheet, small, "head + trailing viscera-ribbon + glowing heart pendant",
+    _label(sheet, small, "head + 6-lobe trailing ribbon + rose heart pendant (amber EYES only)",
            panel.x + 8, panel.y + 28, (255, 220, 232))
 
     # — Cell B: ribbon as a tileable PILLAR pair at TRUE obstacle scale, on NIGHT,
@@ -612,18 +683,23 @@ def main():
     _label(sheet, small, "heart-pendant lantern", zx - 2, zy + zh * 2 + 6, (255, 225, 200))
     _label(sheet, small, "radiates INTO the gap", zx - 2, zy + zh * 2 + 22, (255, 225, 200))
 
-    # — Cell C: 1x in-game-scale + 32px silhouette read, day / night + grayscale.
+    # — Cell C: the GAMEPLAY icon (compact, head-dominant) — leads with the true-32
+    #   read on day/night, then the 4x audit + grayscale. This cell carries the
+    #   round-2 gate: the head must dominate and read as a grinning skull at 1x.
     panelC = pygame.Rect(770, 56, 392, 580)
     pygame.draw.rect(sheet, (44, 38, 48), panelC, border_radius=8)
     pygame.draw.rect(sheet, (150, 90, 120), panelC, 2, border_radius=8)
-    _label(sheet, font, "(c) 1x scale + 32px read  —  day / night", panelC.x + 8, panelC.y + 8)
+    _label(sheet, font, "(c) GAMEPLAY ICON  —  HEAD-DOMINANT compact", panelC.x + 8, panelC.y + 8)
+    _label(sheet, small, "head ~55-60% of the icon / short 3-lobe ribbon", panelC.x + 8, panelC.y + 28,
+           (255, 220, 232))
 
-    boss1x = build_leyak(scale=0.66, ss=3)
-    boss1x_n = build_leyak(scale=0.66, ss=3, night=True)
+    # The compact gameplay creature at in-game scale, day + night.
+    boss1x = build_leyak(scale=0.62, ss=3, compact=True)
+    boss1x_n = build_leyak(scale=0.62, ss=3, night=True, compact=True)
     day = _sky(180, 300, (40, 110, 200), (90, 170, 230), (170, 220, 245))
     night = _sky(180, 300, (8, 8, 32), (20, 18, 58), (44, 32, 78), stars=True)
 
-    dy = panelC.y + 40
+    dy = panelC.y + 46
     sheet.blit(day, (panelC.x + 14, dy))
     sheet.blit(night, (panelC.x + 200, dy))
     sheet.blit(boss1x, (panelC.x + 14 + 90 - boss1x.get_width() // 2, dy + 8))
@@ -631,15 +707,14 @@ def main():
     _label(sheet, small, "DAY", panelC.x + 14 + 6, dy + 6, (20, 30, 26))
     _label(sheet, small, "NIGHT", panelC.x + 200 + 6, dy + 6, (255, 225, 200))
 
-    # 32px silhouette row: tiny head-to-trail read at true minimap size, on three
-    # value backgrounds + a grayscale + a nearest-neighbour blow-up so the read is
-    # verifiable. The trailing-ribbon SHAPE must survive at 32px.
+    # 32px silhouette row, the round-2 GATE: a true-32 head-dominant icon shown at
+    # 1x FIRST (must read as a grinning skull on a short ribbon WITHOUT the
+    # blow-up), then the 4x audit + grayscale. Built from the compact creature so
+    # the head wins the budget instead of inverting to a speck.
     gy = dy + 312
-    _label(sheet, small, "32px read (the trailing-ribbon shape carries it):",
+    _label(sheet, small, "32px GATE: reads as a grinning skull on a short ribbon AT 1x:",
            panelC.x + 14, gy - 2, (235, 210, 220))
-    tiny = build_leyak(scale=0.0, ss=3) if False else None
-    # Build a compact 32px-tall icon by scaling the showcase render down hard.
-    icon_src = build_leyak(scale=1.0, ss=3)
+    icon_src = build_leyak(scale=1.0, ss=3, compact=True)
     target_h = 64
     sc = target_h / icon_src.get_height()
     icon = pygame.transform.smoothscale(
@@ -647,29 +722,32 @@ def main():
     icon32 = pygame.transform.smoothscale(
         icon_src, (max(1, int(icon_src.get_width() * (32 / icon_src.get_height()))), 32))
     swatches = [
-        ((40, 110, 200), "day"),
-        ((44, 32, 78), "night"),
-        ((120, 60, 110), "dusk"),
+        ((40, 110, 200), "day 1x"),
+        ((44, 32, 78), "night 1x"),
+        ((120, 60, 110), "dusk 1x"),
     ]
     sx = panelC.x + 14
     sw = 86
     for col, lab in swatches:
         chip = pygame.Rect(sx, gy + 16, sw, 84)
         pygame.draw.rect(sheet, col, chip, border_radius=4)
-        sheet.blit(icon, (chip.centerx - icon.get_width() // 2,
-                          chip.centery - icon.get_height() // 2))
+        # Show the true-32 icon at 1x (NOT scaled up) so the at-scale read is honest.
+        sheet.blit(icon32, (chip.centerx - icon32.get_width() // 2,
+                            chip.centery - icon32.get_height() // 2))
         _label(sheet, small, lab, chip.x + 4, chip.y + 2, (240, 240, 240))
         sx += sw + 10
-    # True 32px + a 4x nearest-neighbour blow-up so the silhouette is auditable.
+    # True 32px on neutral + a 4x nearest-neighbour blow-up so the face tell is
+    # auditable, plus the 64px in between for a mid read.
     chip = pygame.Rect(panelC.x + 14, gy + 112, 86, 84)
     pygame.draw.rect(sheet, (90, 90, 96), chip, border_radius=4)
     sheet.blit(icon32, (chip.centerx - icon32.get_width() // 2,
                         chip.centery - icon32.get_height() // 2))
-    _label(sheet, small, "true 32px", chip.x + 4, chip.y + 2, (240, 240, 240))
+    sheet.blit(icon, (chip.centerx + 22, chip.centery - icon.get_height() // 2))
+    _label(sheet, small, "32 / 64px", chip.x + 4, chip.y + 2, (240, 240, 240))
     blow = pygame.transform.scale(icon32, (icon32.get_width() * 4, icon32.get_height() * 4))
     sheet.blit(blow, (panelC.x + 116, gy + 8))
-    _label(sheet, small, "4x blow-up of the 32px icon", panelC.x + 116, gy + 8 + blow.get_height() + 2,
-           (235, 210, 220))
+    _label(sheet, small, "4x blow-up of the 32px icon (face tell baked)",
+           panelC.x + 116, gy + 8 + blow.get_height() + 2, (235, 210, 220))
     # Grayscale value check beside the blow-up.
     gray = _to_gray(icon)
     chip = pygame.Rect(panelC.x + 290, gy + 112, 86, 84)
@@ -678,19 +756,19 @@ def main():
                       chip.centery - gray.get_height() // 2))
     _label(sheet, small, "grayscale", chip.x + 4, chip.y + 2, (24, 24, 24))
 
-    # — Footer captions: thesis + style + mirror.
+    # — Footer captions: r2 fixes + style + mirror.
     _label(sheet, small,
-           "scary-cute: body-horror reframed as a goofy floating jack-o-head — a friendly grinning gourd on a candy-bead streamer, NOT gore-realistic.",
+           "r2 fixes: head:trail rebalanced to ~55-60% head in the icon + 3-lobe trail; baked low-res face tell (eye-dots + grin-bar); night ash value lifted +12% w/ cranium sheen.",
            18, SH - 84, (210, 180, 196))
     _label(sheet, small,
-           "house style: FLAT triad fills, ink keyline grown from alpha, dark-core->fill->sheen; viscera lobes = hard flat heart/bead shapes + amber pendant add-glow.",
+           "amber kept for the EYES only (face is hero); pendant glows ROSE/hot-pink w/ a tiny warm core; tongue tucked shorter + dropped from the icon; bat-ears rounded + shortened ~15%.",
            18, SH - 64, (210, 180, 196))
     _label(sheet, small,
-           "prop->pillar: the rib-bead viscera-ribbon tiles as the shaft; a glowing heart-pendant lantern caps + LIGHTS the gap. Naturally vertical + symmetric — clean mirror.",
+           "prop->pillar (kept ~as-is per AD): the rib-bead viscera-ribbon tiles as the shaft; a glowing heart-pendant lantern caps + LIGHTS the gap. Naturally vertical + symmetric — clean mirror.",
            18, SH - 44, (210, 180, 196))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

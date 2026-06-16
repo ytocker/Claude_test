@@ -1,5 +1,5 @@
 """
-Round-1 review renderer for KARAKASA — the one-eyed hopping umbrella ghost
+Review renderer for KARAKASA — the one-eyed hopping umbrella ghost
 (Section 3 Japanese, sole object-spirit / tsukumogami).
 
 House style: chibi, flat saturated fills, hard ink keylines, the
@@ -9,7 +9,14 @@ single-object mirror in either batch: the creature IS the prop IS the pillar,
 so the same ribbed-canopy + bamboo-shaft language drives both the creature and
 its pillar tile.
 
-Standalone headless script: writes round_1.png next to itself. No game imports
+Round 2 reprofiles the canopy from a low circus-tent dome into a TALL conical
+wagasa parasol (taller-than-wide, top finial spike, slightly out-flared
+rib-tipped hem, alternating oxblood/cream panels), drops the two splayed
+stick-arms to vestigial twig-stubs so the SINGLE central leg+geta carries the
+"umbrella-on-one-leg" read, and blows up the lone central eye to the canopy's
+dominant focal — so it reads "umbrella ghost," never "tent / mushroom," at 32px.
+
+Standalone headless script: writes round_2.png next to itself. No game imports
 so the review sheet stays reproducible in isolation.
 """
 import os
@@ -22,6 +29,7 @@ import pygame
 CANOPY    = (168, 66, 52)     # oxblood-paper canopy base
 CANOPY_D  = (110, 40, 34)     # deep-maroon shade (dark core)
 SHEEN     = (220, 128, 108)   # top-left rim sheen
+SHEEN_HOT = (244, 158, 132)   # hotter sheen so the edge survives on night-blue
 RIB       = (204, 168, 96)    # ochre-bamboo ribs accent
 RIB_D     = (150, 120, 60)    # rib dark core (derived, same bamboo family)
 RIB_RIM   = (228, 200, 140)   # rib sheen (derived)
@@ -65,116 +73,148 @@ def grow_outline(src, ink, px):
     return out
 
 
-# ── shared canopy primitive (the same ribbed-dome language for both reads) ──
+# ── shared canopy primitive: a TALL conical wagasa, not a tent dome ─────────
 
-def draw_canopy(surf, P, top_y, half_w, depth, n_ribs=8, accent_panel=True):
-    """A ribbed paper-parasol dome: oxblood panels split by ochre-bamboo ribs,
-    triad-lit. `P` maps unit coords to surface px. The dome apex sits at
-    (0, top_y); it bells out to `half_w` and drops `depth` below the apex —
-    the SAME shape both the creature canopy and the pillar cap reuse so the
-    mirror reads as one object."""
-    rim_y = top_y + depth                # where the canopy hem sits
-    # dome silhouette (dark core), a fat near-half-ellipse fanning down
-    dome = [(P(-half_w, rim_y)),
-            (P(-half_w * 0.96, rim_y - depth * 0.5)),
-            (P(-half_w * 0.5, top_y + depth * 0.12)),
-            (P(0, top_y)),
-            (P(half_w * 0.5, top_y + depth * 0.12)),
-            (P(half_w * 0.96, rim_y - depth * 0.5)),
-            (P(half_w, rim_y))]
-    _poly(surf, CANOPY_D, dome)
-    # flat fill, pulled in + down-right so a dark-core rim survives on the
-    # lower-right + bottom
-    fill = [(P(-half_w * 0.9 + 1, rim_y - 1)),
-            (P(-half_w * 0.88 + 1, rim_y - depth * 0.5)),
-            (P(-half_w * 0.46 + 1, top_y + depth * 0.16 + 1)),
-            (P(0 + 1, top_y + 1.4)),
-            (P(half_w * 0.46 + 1, top_y + depth * 0.16 + 1)),
-            (P(half_w * 0.88 + 1, rim_y - depth * 0.5)),
-            (P(half_w * 0.9 - 1, rim_y - 1))]
-    _poly(surf, CANOPY, fill)
+def _wagasa_outline(half_w, top_y, rim_y):
+    """Half-profile control points (right side) of a tall onion-conical wagasa:
+    a sharp apex near the finial, a gentle convex onion shoulder, then a slight
+    OUTWARD flare at the hem so the rim bells past the shoulder — the classic
+    paper-parasol silhouette. Mirrored to build the full closed polygon. The
+    profile is taller than wide on purpose so it never reads as a tent dome."""
+    h = rim_y - top_y
+    # (x as fraction of half_w, y as fraction of canopy height from apex)
+    prof = [
+        (0.08, 0.00),   # just off the finial apex — narrow, tall start
+        (0.28, 0.12),
+        (0.54, 0.30),
+        (0.78, 0.50),
+        (0.92, 0.70),
+        (0.99, 0.88),
+        (1.00, 0.97),   # widest point near the hem
+        (0.97, 1.00),   # slight outward flare lip at the very rim
+    ]
+    right = [(x * half_w, top_y + y * h) for x, y in prof]
+    left = [(-x, y) for x, y in reversed(right)]
+    return left + [(0, top_y)] + right
 
-    # cream oilpaper panels alternate with oxblood for the wagasa two-tone read.
-    # They sit OFF-centre (mid-way out on each side) so the central column stays
-    # oxblood for the giant eye to read as the hero focal — alternating wagasa
-    # panels, not a central block.
-    if accent_panel:
-        for k in (-1, 1):
-            x0, x1 = k * half_w * 0.30, k * half_w * 0.62
-            seg = [(P(0, top_y + 1)),
-                   (P(x0, top_y + depth * 0.42)),
-                   (P(x0, rim_y - 1)),
-                   (P(x1, rim_y - 1)),
-                   (P(x1, rim_y - depth * 0.5)),
-                   (P(0, top_y + 1))]
-            _poly(surf, CREAM_D, [(x, y) for x, y in seg])
-            seg2 = [(P(0, top_y + 2.4)),
-                    (P(x0 * 0.96, top_y + depth * 0.44)),
-                    (P(x0 * 0.96, rim_y - 2)),
-                    (P(x1 * 0.96, rim_y - 2)),
-                    (P(x1 * 0.96, rim_y - depth * 0.5)),
-                    (P(0, top_y + 2.4))]
-            _poly(surf, CREAM, [(x, y) for x, y in seg2])
 
-    # top-left rim sheen — a bright crescent on the dome's upper-left shoulder
-    sheen = [(P(-half_w * 0.86, rim_y - depth * 0.42)),
-             (P(-half_w * 0.5, top_y + depth * 0.16)),
-             (P(-half_w * 0.12, top_y + 1.5)),
-             (P(-half_w * 0.2, top_y + depth * 0.34)),
-             (P(-half_w * 0.5, top_y + depth * 0.5)),
-             (P(-half_w * 0.78, rim_y - depth * 0.34))]
-    _poly(surf, SHEEN, sheen)
+def draw_canopy(surf, P, top_y, half_w, depth, n_ribs=8, accent_panel=True,
+                hot_sheen=False):
+    """A TALL conical paper-parasol canopy: alternating oxblood/cream wagasa
+    panels split by radiating ochre-bamboo ribs, triad-lit, topped by a finial
+    spike. `P` maps unit coords to surface px. Apex sits at (0, top_y); it
+    bells to `half_w` and the hem drops `depth` below the apex. `depth` is
+    larger than `half_w` here so the canopy is taller than wide — the SAME
+    shape both the creature canopy and the pillar cap reuse so the mirror reads
+    as one object. Returns the hem y."""
+    rim_y = top_y + depth
+    h = rim_y - top_y
 
-    # radial bamboo ribs splaying from apex to hem (the repeatable banding)
+    poly = _wagasa_outline(half_w, top_y, rim_y)
+
+    # dark-core silhouette
+    _poly(surf, CANOPY_D, [P(x, y) for x, y in poly])
+
+    # flat OXBLOOD fill is the dominant canopy field (pulled in lower-right so a
+    # dark-core rim survives) — oxblood is the hero, cream is only an accent.
+    fill = _wagasa_outline(half_w * 0.93, top_y + h * 0.06, top_y + h * 0.985)
+    # nudge the fill down-right so the dark core reads on the right + bottom edge
+    _poly(surf, CANOPY, [(P(x, y)[0] + 1, P(x, y)[1] + 1) for x, y in fill])
+
+    def rib_x(a):  # x along the cone for a in [-1, 1]
+        return a * half_w * 0.97
+
+    def cone_top_y(a):  # where a rib/panel meets near the apex collar
+        return top_y + h * 0.10
+
+    # cream wagasa panels on a FEW alternating OUTER wedges only — they give the
+    # two-tone candy-stripe + value structure without swamping the oxblood field
+    # that the giant eye reads against. Central wedges stay oxblood for the eye.
+    for i in range(n_ribs):
+        a0 = -1.0 + 2.0 * (i / n_ribs)
+        a1 = -1.0 + 2.0 * ((i + 1) / n_ribs)
+        mid = (a0 + a1) * 0.5
+        if abs(mid) < 0.30:        # keep the central field oxblood for the eye
+            continue
+        if i % 2 == 1:             # alternate -> candy stripe
+            continue
+        wedge = [P(0, cone_top_y(mid)),
+                 P(rib_x(a0) * 0.94, rim_y - h * 0.04),
+                 P(rib_x(a1) * 0.94, rim_y - h * 0.04)]
+        _poly(surf, CREAM_D, wedge)
+        wedge2 = [P(0, cone_top_y(mid) + h * 0.03),
+                  P(rib_x(a0) * 0.88, rim_y - h * 0.07),
+                  P(rib_x(a1) * 0.88, rim_y - h * 0.07)]
+        _poly(surf, CREAM, wedge2)
+
+    # top-left rim sheen — a bright crescent down the canopy's upper-left cone
+    sh = SHEEN_HOT if hot_sheen else SHEEN
+    sheen = [P(-half_w * 0.06, top_y + h * 0.08),
+             P(-half_w * 0.26, top_y + h * 0.30),
+             P(-half_w * 0.52, top_y + h * 0.66),
+             P(-half_w * 0.66, top_y + h * 0.92),
+             P(-half_w * 0.44, top_y + h * 0.92),
+             P(-half_w * 0.32, top_y + h * 0.60),
+             P(-half_w * 0.16, top_y + h * 0.30)]
+    _poly(surf, sh, sheen)
+
+    # radiating bamboo ribs — thin hairlines from the apex collar to each hem
+    # tip (a clear paper-parasol fan, not heavy bars overpowering the panels).
+    px_per_unit = P(1, 0)[0] - P(0, 0)[0]
+    rib_w = max(1, int(0.8 * px_per_unit))
     for i in range(n_ribs + 1):
-        t = i / n_ribs
-        rx = (-1 + 2 * t) * half_w * 0.94
-        # rib tip rides the dome curve: deeper toward the edges
-        edge = abs(-1 + 2 * t)
-        tip_y = top_y + depth * (0.16 + 0.84 * edge) - depth * 0.04
-        ax, ay = P(0, top_y + 1)
-        tx, ty = P(rx, tip_y)
-        pygame.draw.line(surf, RIB_D, (ax, ay), (tx, ty), max(2, int(1.7 * (P(1, 0)[0] - P(0, 0)[0]))))
-        # lit rib hair offset up-left
-        pygame.draw.line(surf, RIB, (ax, ay - 1), (tx - 1, ty - 1),
-                         max(1, int(1.0 * (P(1, 0)[0] - P(0, 0)[0]))))
+        a = -1.0 + 2.0 * (i / n_ribs)
+        rx = rib_x(a)
+        ry = rim_y - h * 0.03
+        ax, ay = P(0, top_y + h * 0.08)
+        tx, ty = P(rx, ry)
+        pygame.draw.line(surf, RIB_D, (ax, ay), (tx, ty), rib_w)
 
-    # hem rib-tip beads + a scalloped lower edge (the paper-parasol fringe)
+    # scalloped hem: rib-tip beads on the slightly flared rim (paper fringe)
     for i in range(n_ribs + 1):
-        t = i / n_ribs
-        rx = (-1 + 2 * t) * half_w * 0.94
-        edge = abs(-1 + 2 * t)
-        tip_y = top_y + depth * (0.16 + 0.84 * edge) - depth * 0.04
-        _ellipse(surf, RIB, *P(rx, tip_y), 1.6, 1.6)
-        _ellipse(surf, RIB_RIM, *P(rx - 0.4, tip_y - 0.4), 0.7, 0.7)
+        a = -1.0 + 2.0 * (i / n_ribs)
+        rx = rib_x(a)
+        ry = rim_y - h * 0.03
+        _ellipse(surf, RIB_D, *P(rx, ry + 0.6), 1.8 * px_per_unit, 1.3 * px_per_unit)
+        _ellipse(surf, RIB, *P(rx, ry + 0.3), 1.3 * px_per_unit, 1.0 * px_per_unit)
+        _ellipse(surf, RIB_RIM, *P(rx - 0.4, ry - 0.2), 0.6 * px_per_unit, 0.5 * px_per_unit)
 
-    # apex bamboo nub (ishizuki ferrule) where the ribs gather
-    _ellipse(surf, RIB_D, *P(0, top_y - 1), 3, 2.6)
-    _ellipse(surf, RIB, *P(0, top_y - 1.4), 2.2, 1.9)
-    _ellipse(surf, RIB_RIM, *P(-0.6, top_y - 2), 1.0, 0.9)
+    # ---- top FINIAL spike (ishizuki ferrule) — the wagasa point ----
+    fy = top_y
+    _poly(surf, RIB_D, [P(-1.7, fy + 0.5), P(0, fy - 7.5), P(1.7, fy + 0.5)])
+    _poly(surf, RIB, [P(-1.0, fy + 0.2), P(0, fy - 6.8), P(1.0, fy + 0.2)])
+    pygame.draw.line(surf, RIB_RIM, P(-0.5, fy - 0.5), P(-0.2, fy - 5.8),
+                     max(1, int(0.9 * (P(1, 0)[0] - P(0, 0)[0]))))
+    # collar nub where ribs gather under the finial
+    _ellipse(surf, RIB_D, *P(0, fy + 1.0), 2.8 * px_per_unit, 1.8 * px_per_unit)
+    _ellipse(surf, RIB, *P(0, fy + 0.6), 2.0 * px_per_unit, 1.3 * px_per_unit)
     return rim_y
 
 
 def draw_karakasa(surf, ox, oy, s):
     """Draw the one-eyed hopping umbrella ghost centred near (ox, oy). `s` is
-    unit scale. Tall vertical: ribbed canopy up top, one giant eye where the
-    panels meet, a long lolling tongue below the hem, one bare leg + geta clog,
-    tiny stick arms. The creature IS the prop."""
+    unit scale. Tall vertical wagasa up top, one GIANT eye on the oxblood
+    central field, a long lolling+curling tongue below the hem, ONE bare
+    central leg + geta clog, and only vestigial twig-stubs where arms used to
+    be. The creature IS the prop."""
 
     def P(x, y):  # local unit coords -> surface px
         return (ox + x * s, oy + y * s)
 
-    # ---- single bare leg + bamboo shaft descending from the canopy ----
-    # (drawn first so the hem + tongue overlap its top)
-    leg_x = 1
-    # shaft stub the canopy rides (continuous with the bamboo handle)
-    pygame.draw.line(surf, RIB_D, P(leg_x - 0.6, 6), P(leg_x - 0.6, 30), max(3, int(3.4 * s)))
-    pygame.draw.line(surf, RIB, P(leg_x - 0.6, 6), P(leg_x - 0.6, 30), max(2, int(2.0 * s)))
-    pygame.draw.line(surf, RIB_RIM, P(leg_x - 1.4, 7), P(leg_x - 1.4, 26), max(1, int(s)))
-    # node bands on the leg-shaft (matches the pillar banding)
-    for ny in (12, 21):
-        _ellipse(surf, RIB_D, *P(leg_x - 0.6, ny), 2.6, 1.4)
-        pygame.draw.line(surf, RIB_RIM, P(leg_x - 1.6, ny - 0.4), P(leg_x + 0.2, ny - 0.4), max(1, int(s)))
+    def E(color, cx, cy, rx, ry):  # ellipse whose radii are in UNITS, scaled by s
+        _ellipse(surf, color, *P(cx, cy), rx * s, ry * s)
+
+    # ---- the single central leg + bamboo shaft down to the geta ----
+    # (drawn first so the hem + tongue overlap its top). One spar on-axis is
+    # the signature; no tripod of limbs.
+    leg_x = 0
+    pygame.draw.line(surf, RIB_D, P(leg_x, 7), P(leg_x, 30), max(4, int(4.0 * s)))
+    pygame.draw.line(surf, RIB, P(leg_x, 7), P(leg_x, 30), max(2, int(2.4 * s)))
+    pygame.draw.line(surf, RIB_RIM, P(leg_x - 0.9, 8), P(leg_x - 0.9, 27), max(1, int(s)))
+    # bamboo node bands (matches the pillar banding)
+    for ny in (13, 22):
+        E(RIB_D, leg_x, ny, 2.8, 1.4)
+        pygame.draw.line(surf, RIB_RIM, P(leg_x - 1.4, ny - 0.4), P(leg_x + 1.0, ny - 0.4), max(1, int(s)))
 
     # ---- geta clog (wooden sandal) at the foot, mid-hop tilt ----
     gx, gy = leg_x, 32
@@ -191,87 +231,86 @@ def draw_karakasa(surf, ox, oy, s):
     pygame.draw.line(surf, INK, P(gx + 0.5, gy - 2.4), P(gx - 4, gy + 0.6), max(1, int(s)))
     pygame.draw.line(surf, INK, P(gx + 0.5, gy - 2.4), P(gx + 5, gy - 0.4), max(1, int(s)))
 
-    # ---- tiny stick arms (spread, hopping-startled pose) ----
+    # ---- vestigial twig-arm STUBS (no longer splayed limbs) ----
+    # Tiny paper-rib stubs poking from just under the hem — they add a flick of
+    # life but never compete with the single-leg silhouette.
     for side in (-1, 1):
-        ax0 = P(side * 9, 8)
-        ael = P(side * 17, 3 + (2 if side < 0 else -1))   # asymmetric for life
-        ahd = P(side * 21, -2 + (3 if side < 0 else -2))
-        pygame.draw.line(surf, CANOPY_D, ax0, ael, max(2, int(2.0 * s)))
-        pygame.draw.line(surf, CANOPY_D, ael, ahd, max(2, int(2.0 * s)))
-        pygame.draw.line(surf, RIB, ax0, ael, max(1, int(s)))
-        pygame.draw.line(surf, RIB, ael, ahd, max(1, int(s)))
-        # three little finger-twigs
-        for fa in (-0.5, 0.0, 0.5):
-            fx = ahd[0] + math.cos(-1.2 + fa) * 4.2 * s * side
-            fy = ahd[1] + math.sin(-1.2 + fa) * 4.2 * s
-            pygame.draw.line(surf, CANOPY_D, ahd, (fx, fy), max(1, int(s)))
+        sx0 = P(side * 9, 7)
+        sx1 = P(side * 13.5, 8.5 if side < 0 else 5.5)
+        pygame.draw.line(surf, CANOPY_D, sx0, sx1, max(2, int(1.8 * s)))
+        pygame.draw.line(surf, RIB, sx0, sx1, max(1, int(s)))
+        # two short finger-twigs at the tip
+        for fa in (-0.4, 0.4):
+            fx = sx1[0] + math.cos(-1.0 + fa) * 3.0 * s * side
+            fy = sx1[1] + math.sin(-1.0 + fa) * 3.0 * s
+            pygame.draw.line(surf, CANOPY_D, sx1, (fx, fy), max(1, int(s)))
 
-    # ---- ribbed paper canopy (the body) ----
-    rim_y = draw_canopy(surf, P, top_y=-26, half_w=22, depth=24, n_ribs=8)
+    # ---- the TALL conical wagasa canopy (the body) ----
+    # depth >> half_w so it is clearly taller than wide.
+    rim_y = draw_canopy(surf, P, top_y=-34, half_w=18, depth=34, n_ribs=8)
 
-    # ---- mouth + long lolling tongue below the hem ----
-    mcx, mcy = 1, rim_y - 0.5
-    # dark mouth slot tucked under the canopy hem
-    _ellipse(surf, INK, *P(mcx, mcy + 1.5), 8, 4)
-    _ellipse(surf, CANOPY_D, *P(mcx, mcy + 0.4), 7.5, 3.4)
-    # upper row of tiny teeth
-    for txx in range(-6, 7, 3):
-        _poly(surf, CREAM, [P(mcx + txx - 1, mcy - 0.5), P(mcx + txx + 1, mcy - 0.5),
+    # ---- mouth + long lolling, curling tongue below the hem ----
+    mcx, mcy = 0, rim_y - 1.0
+    E(INK, mcx, mcy + 1.6, 7.5, 3.6)
+    E(CANOPY_D, mcx, mcy + 0.6, 7.0, 3.0)
+    for txx in range(-5, 6, 3):
+        _poly(surf, CREAM, [P(mcx + txx - 1, mcy - 0.4), P(mcx + txx + 1, mcy - 0.4),
                             P(mcx + txx, mcy + 1.6)])
-    # the long tongue — a tapering pink ribbon that lolls + curls
-    tongue = [(-5, 0), (-6.5, 7), (-4.5, 15), (-6, 22), (-2, 27),
-              (3, 24), (1.5, 16), (4, 8), (5, 1)]
-    _poly(surf, TONGUE_D, [P(mcx + x, mcy + 2.5 + y + 0.6) for x, y in tongue])
-    tongue2 = [(-4, 0.4), (-5.4, 7), (-3.6, 14.5), (-4.8, 21), (-2, 25.5),
-               (2.2, 23), (0.8, 15.5), (3, 8), (4, 1.2)]
-    _poly(surf, TONGUE, [P(mcx + x, mcy + 2.5 + y) for x, y in tongue2])
-    # tongue centre-crease + sheen
-    pygame.draw.line(surf, TONGUE_D, P(mcx - 1, mcy + 4), P(mcx - 1.5, mcy + 24), max(1, int(s)))
-    pygame.draw.line(surf, TONGUE_RIM, P(mcx - 3.4, mcy + 4), P(mcx - 4.2, mcy + 18), max(1, int(s)))
+    # tapering ribbon tongue that narrows downward and curls/flaps at the tip —
+    # not a rectangular bib. Wide at the mouth, pinches, then a hooked flick.
+    tongue = [(-4.2, 0), (-3.4, 8), (-2.2, 16), (-3.6, 22),
+              (-1.0, 25.5), (2.2, 23.5), (2.0, 16), (2.6, 8), (4.2, 0)]
+    _poly(surf, TONGUE_D, [P(mcx + x, mcy + 2.4 + y + 0.6) for x, y in tongue])
+    tongue2 = [(-3.2, 0.4), (-2.6, 8), (-1.6, 15.5), (-2.6, 21),
+               (-0.6, 23.8), (1.6, 22), (1.4, 15.5), (1.9, 8), (3.2, 0.6)]
+    _poly(surf, TONGUE, [P(mcx + x, mcy + 2.4 + y) for x, y in tongue2])
+    # curling flick lobe at the tip
+    E(TONGUE, mcx + 1.6, mcy + 25.0, 2.4, 2.0)
+    E(TONGUE_RIM, mcx + 0.8, mcy + 24.2, 1.0, 0.9)
+    # centre crease + sheen
+    pygame.draw.line(surf, TONGUE_D, P(mcx - 0.4, mcy + 4), P(mcx - 0.8, mcy + 22), max(1, int(s)))
+    pygame.draw.line(surf, TONGUE_RIM, P(mcx - 2.4, mcy + 4), P(mcx - 2.0, mcy + 17), max(1, int(s)))
 
-    # ---- one giant central EYE where the panels meet (drawn last = focal) ----
-    # Sits high + large so it unmistakably dominates the canopy face; only a
-    # light upper-lid arc droops in for scary-cute menace, never burying it.
-    ecx, ecy = 1, -7
-    _ellipse(surf, INK, *P(ecx, ecy + 0.4), 12.6, 12.6)            # ink ring
-    _ellipse(surf, EYE_WHITE, *P(ecx, ecy), 11.4, 11.4)           # huge sclera
-    # amber iris + pupil (large — the amber is a focal mass, not a dot)
-    _ellipse(surf, IRIS_D, *P(ecx + 0.6, ecy + 1.4), 7.8, 7.8)
-    _ellipse(surf, IRIS, *P(ecx, ecy + 0.8), 7.1, 7.1)
-    _ellipse(surf, INK, *P(ecx + 0.6, ecy + 1.2), 3.4, 3.4)        # pupil
-    # light upper-lid arc only — a thin oxblood crescent skimming the top so the
-    # eye keeps its full round read while gaining a hooded glare
-    lid = [(-12, -11), (12, -11), (11, -6.5), (4, -8.6), (-3, -8.0),
-           (-10, -8.8)]
+    # ---- one GIANT central EYE on the oxblood field (drawn last = focal) ----
+    # ~40% of canopy face width, the creature's whole personality. Sits on the
+    # central oxblood wedge so the amber pops against the deep red.
+    ecx, ecy = 0, -8.5
+    er = 6.8
+    E(INK, ecx, ecy + 0.3, er + 1.1, er + 1.1)    # ink ring
+    E(EYE_WHITE, ecx, ecy, er, er)                # huge sclera
+    E(IRIS_D, ecx + 0.4, ecy + 0.9, er * 0.68, er * 0.68)
+    E(IRIS, ecx, ecy + 0.5, er * 0.62, er * 0.62)
+    E(INK, ecx + 0.4, ecy + 0.8, er * 0.30, er * 0.30)  # pupil
+    # light hooded upper-lid crescent — only SKIMS the very top edge so the big
+    # round amber read fully survives (round 1's lid buried the whole eye).
+    lid = [(-er - 0.6, -er - 0.4), (er + 0.6, -er - 0.4), (er * 0.96, -er * 0.74),
+           (0, -er * 0.9), (-er * 0.96, -er * 0.76)]
     _poly(surf, CANOPY_D, [P(ecx + x, ecy + y) for x, y in lid])
-    # twin catchlights (top-left, keeps the triad light direction)
-    _ellipse(surf, EYE_WHITE, *P(ecx - 2.8, ecy - 2.2), 2.0, 2.0)
-    _ellipse(surf, EYE_WHITE, *P(ecx + 2.4, ecy + 3.0), 1.0, 1.0)
-    # bloodshot oxblood veins flicking off the sclera (paper-spirit menace)
-    for va, vl in ((2.4, 3), (3.0, 2.5)):
-        vx = ecx + math.cos(va) * 9
-        vy = ecy + math.sin(va) * 9
-        pygame.draw.line(surf, CANOPY, P(ecx + math.cos(va) * 6, ecy + math.sin(va) * 6),
-                         P(vx, vy), max(1, int(s)))
-    # lower lash flick for the hooded look
-    pygame.draw.line(surf, INK, P(ecx - 9.5, ecy + 7.5), P(ecx - 4, ecy + 10.5), max(1, int(s)))
-    pygame.draw.line(surf, INK, P(ecx + 9.5, ecy + 7.5), P(ecx + 4, ecy + 10.5), max(1, int(s)))
+    # twin catchlights (top-left, holds the triad light direction)
+    E(EYE_WHITE, ecx - 2.2, ecy - 1.8, 1.7, 1.7)
+    E(EYE_WHITE, ecx + 2.0, ecy + 2.0, 0.8, 0.8)
+    # a couple of oxblood bloodshot flicks for paper-spirit menace
+    for va in (2.4, 3.0):
+        pygame.draw.line(surf, CANOPY, P(ecx + math.cos(va) * er * 0.6, ecy + math.sin(va) * er * 0.6),
+                         P(ecx + math.cos(va) * er * 0.92, ecy + math.sin(va) * er * 0.92), max(1, int(s)))
+    # lower lash flicks
+    pygame.draw.line(surf, INK, P(ecx - er * 0.86, ecy + er * 0.66), P(ecx - er * 0.36, ecy + er * 0.96), max(1, int(s)))
+    pygame.draw.line(surf, INK, P(ecx + er * 0.86, ecy + er * 0.66), P(ecx + er * 0.36, ecy + er * 0.96), max(1, int(s)))
 
 
 def draw_canopy_pillar(surf, cx, top, bottom, w, cap=True):
     """Prop -> PILLAR mirror: the karakasa's own parasol. The long bamboo
-    umbrella-HANDLE is the repeatable rib-banded shaft body; the open ribbed
-    CANOPY blooms at the gap as the detachable gap-edge cap. Creature = prop =
-    pillar — the cleanest single-object mirror; canopy is round/symmetric
-    on-axis."""
+    umbrella-HANDLE is the repeatable rib-banded shaft body; the open TALL
+    conical CANOPY blooms at the gap as the detachable gap-edge cap with its
+    finial dropping INTO the gap. Creature = prop = pillar — the cleanest
+    single-object mirror; canopy is round/symmetric on-axis."""
     half = w // 2
     u = w / 24.0                     # unit so the banding scales with width
     # ---- bamboo handle shaft body ----
     pygame.draw.rect(surf, RIB_D, (cx - half - 2, top, w + 4, bottom - top))
     pygame.draw.rect(surf, RIB, (cx - half, top, w, bottom - top))
-    # top-left rim sheen stripe
     pygame.draw.rect(surf, RIB_RIM, (cx - half + 2, top, max(2, w // 5), bottom - top))
-    # node bands (the repeatable banding — same language as the leg-shaft)
+    # node bands (repeatable banding — same language as the leg-shaft)
     seg_h = w * 1.7
     y = top + seg_h
     while y < bottom:
@@ -280,32 +319,32 @@ def draw_canopy_pillar(surf, cx, top, bottom, w, cap=True):
         y += seg_h
 
     if cap:
-        # ---- gap-edge cap: the open ribbed parasol canopy blooming at the gap.
-        # Reuse the creature's canopy primitive so the mirror is literal.
+        # gap-edge cap: the open TALL conical parasol blooming at the gap.
+        # Reuse the creature's canopy primitive so the mirror is literal; the
+        # finial spike points up into the gap as the bloom detail.
         def P(x, yy):
             return (cx + x * u, top + yy * u)
-        # canopy apex above the shaft top, hem flaring out past shaft width
-        draw_canopy(surf, P, top_y=-30, half_w=half / u + 8, depth=26, n_ribs=10)
+        draw_canopy(surf, P, top_y=-40, half_w=half / u + 6, depth=40, n_ribs=10)
 
 
 def build_karakasa_sprite(unit_px):
     """Render the karakasa at unit_px supersampled, outline from its alpha
     mask, return the high-res surface (caller smoothscales)."""
-    W = int(58 * unit_px)
-    H = int(76 * unit_px)
+    W = int(50 * unit_px)
+    H = int(86 * unit_px)
     big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     # centre: canopy near top, tongue + leg + geta trailing below
-    draw_karakasa(big, big.get_width() // 2, int(H * SS * 0.46), unit_px * SS)
+    draw_karakasa(big, big.get_width() // 2, int(H * SS * 0.50), unit_px * SS)
     big = grow_outline(big, INK, SS)   # 1px @ final scale
     return big, (W, H)
 
 
 def build_pillar_sprite(unit_px):
     W = int(46 * unit_px)
-    H = int(98 * unit_px)
+    H = int(104 * unit_px)
     big = pygame.Surface((W * SS, H * SS), pygame.SRCALPHA)
     draw_canopy_pillar(big, big.get_width() // 2,
-                       int(30 * unit_px * SS), big.get_height(),
+                       int(42 * unit_px * SS), big.get_height(),
                        int(13 * unit_px * SS), cap=True)
     big = grow_outline(big, INK, SS)
     return big, (W, H)
@@ -314,7 +353,7 @@ def build_pillar_sprite(unit_px):
 def main():
     pygame.init()
 
-    SHEET_W, SHEET_H = 760, 560
+    SHEET_W, SHEET_H = 780, 580
     sheet = pygame.Surface((SHEET_W, SHEET_H))
     sky_a, sky_b = (190, 168, 158), (150, 120, 116)   # warm dusk so oxblood reads honest
     for y in range(SHEET_H):
@@ -334,23 +373,23 @@ def main():
         sheet.blit(small.render(text, True, (30, 22, 22)), (x, y))
 
     title = pygame.font.SysFont("dejavusans", 22, bold=True)
-    sheet.blit(title.render("KARAKASA — one-eyed hopping umbrella ghost", True, (250, 246, 240)), (19, 13))
-    sheet.blit(title.render("KARAKASA — one-eyed hopping umbrella ghost", True, (40, 24, 22)), (18, 12))
-    sheet.blit(small.render("sole object-spirit (tsukumogami)  ·  oxblood + ochre-bamboo + amber  ·  creature IS prop IS pillar",
+    sheet.blit(title.render("KARAKASA — one-eyed hopping umbrella ghost  · round 2", True, (250, 246, 240)), (19, 13))
+    sheet.blit(title.render("KARAKASA — one-eyed hopping umbrella ghost  · round 2", True, (40, 24, 22)), (18, 12))
+    sheet.blit(small.render("tall conical wagasa · ONE central leg+geta · giant single eye · alternating oxblood/cream panels",
                             True, (40, 26, 24)), (18, 38))
 
     # ---- large creature ----
     big_c, _ = build_karakasa_sprite(5.0)
     large_c = pygame.transform.smoothscale(big_c, (big_c.get_width() // SS, big_c.get_height() // SS))
-    sheet.blit(large_c, (20, 66))
-    label("creature", 95, 60 + large_c.get_height())
+    sheet.blit(large_c, (20, 64))
+    label("creature", 70, 60 + large_c.get_height())
 
     # ---- large pillar mirror ----
     big_p, _ = build_pillar_sprite(4.4)
     large_p = pygame.transform.smoothscale(big_p, (big_p.get_width() // SS, big_p.get_height() // SS))
-    sheet.blit(large_p, (320, 60))
-    label("parasol pillar", 312, 60 + large_p.get_height())
-    slabel("canopy-cap blooms into gap · rib-banded handle repeats", 296, 80 + large_p.get_height())
+    sheet.blit(large_p, (300, 58))
+    label("parasol pillar", 286, 60 + large_p.get_height())
+    slabel("tall canopy-cap blooms into gap (finial points in) · rib-banded handle repeats", 270, 80 + large_p.get_height())
 
     # ---- scale strip: creature + pillar on light & dark panels ----
     def to_h(big, target_h):
@@ -358,33 +397,32 @@ def main():
         scale = (target_h * SS) / h
         return pygame.transform.smoothscale(big, (max(1, int(w * scale / SS)), target_h))
 
-    panel_x = 540
-    pygame.draw.rect(sheet, (240, 232, 222), (panel_x, 66, 200, 214), border_radius=8)
-    pygame.draw.rect(sheet, (60, 40, 38), (panel_x, 66, 200, 214), 2, border_radius=8)
-    pygame.draw.rect(sheet, (26, 30, 50), (panel_x, 300, 200, 200), border_radius=8)
-    pygame.draw.rect(sheet, (90, 96, 124), (panel_x, 300, 200, 200), 2, border_radius=8)
+    panel_x = 560
+    pygame.draw.rect(sheet, (240, 232, 222), (panel_x, 64, 204, 224), border_radius=8)
+    pygame.draw.rect(sheet, (60, 40, 38), (panel_x, 64, 204, 224), 2, border_radius=8)
+    pygame.draw.rect(sheet, (26, 30, 50), (panel_x, 304, 204, 214), border_radius=8)
+    pygame.draw.rect(sheet, (90, 96, 124), (panel_x, 304, 204, 214), 2, border_radius=8)
 
-    slabel("32px on dusk sky", panel_x + 10, 72)
-    sheet.blit(to_h(big_c, 36), (panel_x + 26, 100))
-    sheet.blit(to_h(big_p, 70), (panel_x + 118, 96))
+    slabel("32px on dusk sky", panel_x + 10, 70)
+    sheet.blit(to_h(big_c, 36), (panel_x + 22, 100))
+    sheet.blit(to_h(big_p, 76), (panel_x + 120, 96))
+    slabel("48px detail", panel_x + 10, 202)
+    c48 = pygame.transform.smoothscale(big_c, (int(big_c.get_width() / SS * 0.58),
+                                               int(big_c.get_height() / SS * 0.58)))
+    sheet.blit(c48, (panel_x + 14, 150))
 
-    slabel("48px detail", panel_x + 10, 198)
-    c48 = pygame.transform.smoothscale(big_c, (int(big_c.get_width() / SS * 0.6),
-                                               int(big_c.get_height() / SS * 0.6)))
-    sheet.blit(c48, (panel_x + 18, 148))
-
-    slabel("32px on night sky", panel_x + 10, 308)
-    sheet.blit(to_h(big_c, 36), (panel_x + 26, 336))
-    sheet.blit(to_h(big_p, 70), (panel_x + 118, 332))
-    slabel("24px silhouette", panel_x + 10, 432)
-    sheet.blit(to_h(big_c, 24), (panel_x + 36, 456))
-    sheet.blit(to_h(big_p, 48), (panel_x + 128, 450))
+    slabel("32px on night sky", panel_x + 10, 310)
+    sheet.blit(to_h(big_c, 36), (panel_x + 22, 340))
+    sheet.blit(to_h(big_p, 76), (panel_x + 120, 336))
+    slabel("24px silhouette", panel_x + 10, 442)
+    sheet.blit(to_h(big_c, 24), (panel_x + 34, 466))
+    sheet.blit(to_h(big_p, 52), (panel_x + 132, 460))
 
     # palette swatches
     swatches = [("canopy", CANOPY), ("shade", CANOPY_D), ("rib", RIB),
                 ("cream", CREAM), ("amber", IRIS), ("tongue", TONGUE), ("sheen", SHEEN)]
     sx = 24
-    sy = 506
+    sy = 526
     slabel("pinned palette:", sx, sy - 18)
     for name, col in swatches:
         pygame.draw.rect(sheet, col, (sx, sy, 30, 30), border_radius=4)
@@ -393,7 +431,7 @@ def main():
         sheet.blit(small.render(name, True, (30, 22, 22)), (sx, sy + 30))
         sx += 68
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
