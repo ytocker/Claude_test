@@ -58,8 +58,11 @@ CHAR        = (46, 42, 48)      # charcoal ground (dominant)
 CHAR_DK     = (30, 27, 34)      # deeper charcoal for inset wells / seams
 CHAR_HI     = (66, 60, 68)      # a flat lighter charcoal for graphic separation
 
-OCHRE_L     = (206, 150, 72)    # bright ochre accent
-OCHRE_D     = (170, 108, 52)    # deep ochre accent
+# Pushed REDDER/earthier (burnt-sienna red-ochre) so Mokoi's warm reads
+# distinct from Mariachi sombrero-ochre (214,168,84) and Karakasa ochre-bamboo
+# (204,168,96) — both yellow-ochres. This lands as a red-ochre, not a yellow.
+OCHRE_L     = (192, 118, 56)    # bright red-ochre accent
+OCHRE_D     = (150, 86, 40)     # deep red-ochre accent
 
 PIPECLAY    = (238, 232, 220)   # pipeclay-white — the protected dot tell
 PIPECLAY_DK = (196, 190, 178)   # a quiet shade for dot keylines (still light)
@@ -150,14 +153,16 @@ def _ring_eye(surf, cx, cy, r, ss, *, blink=False):
         pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in (top + bot[::-1])],
                             max(1, int(1.4 * ss)))
         return
-    # Concentric rings from outside in: charcoal-dark well, pipeclay, ochre,
-    # pipeclay, ink pupil, ochre catch. Flat fills, hard edges.
+    # Concentric rings from outside in. Ochre is reserved for the OUTER ring
+    # only; the inner bands alternate strictly pipeclay<->ink so the target keeps
+    # crisp value-contrast all the way down to 32px (ochre-on-ochre inner bands
+    # turned to mud below ~64px). Flat fills, hard edges.
     bands = [
         (1.00, CHAR_DK),
-        (0.84, PIPECLAY),
-        (0.66, OCHRE_D),
-        (0.50, PIPECLAY),
-        (0.34, OCHRE_L),
+        (0.84, OCHRE_D),
+        (0.66, PIPECLAY),
+        (0.50, INK),
+        (0.34, PIPECLAY),
         (0.20, INK),
     ]
     for frac, col in bands:
@@ -256,12 +261,11 @@ def _bark_band_repeat(surf, cx, y0, band_h, half_w, ss):
     # Charcoal ground for this repeat (the dominant mass of the ribbon).
     pygame.draw.rect(surf, CHAR, (int(cx - half_w), int(y0), int(2 * half_w), int(band_h)))
 
-    # Top half: a pipeclay dot-band — two tight rows of the protected tell.
-    dot_y0 = y0 + band_h * 0.16
-    dot_y1 = y0 + band_h * 0.40
-    _dot_row(surf, cx, dot_y0, half_w * 0.66, 5, half_w * 0.16, PIPECLAY,
-             key_col=PIPECLAY_DK, ss=ss)
-    _dot_row(surf, cx, dot_y1, half_w * 0.66, 5, half_w * 0.16, PIPECLAY,
+    # Top half: a pipeclay dot-band — ONE clean row of larger, well-spaced dots.
+    # (Two tight rows merged into grain at true obstacle scale; the protected
+    # tell must stay a COUNTABLE motif, not a dense field — fewer/bigger dots.)
+    dot_y = y0 + band_h * 0.28
+    _dot_row(surf, cx, dot_y, half_w * 0.62, 4, half_w * 0.215, PIPECLAY,
              key_col=PIPECLAY_DK, ss=ss)
 
     # A thin charcoal-dark seam between the two bands (graphic divider).
@@ -311,9 +315,9 @@ def _face_tell(surf, cx, cy, hw, hh, ss):
     eye_r = hw * 0.30
     for s in (-1, 1):
         ex = cx + s * eye_dx
+        pygame.draw.circle(surf, OCHRE_D, (int(ex), int(eye_y)), int(eye_r * 1.06))
         pygame.draw.circle(surf, PIPECLAY, (int(ex), int(eye_y)), int(eye_r))
-        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r * 0.52))
-        pygame.draw.circle(surf, OCHRE_L, (int(ex), int(eye_y)), int(eye_r * 0.24))
+        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r * 0.48))
     # A single wide pipeclay grin-bar that survives downscale.
     gw = hw * 0.50
     gy = cy + hh * 0.60
@@ -336,8 +340,10 @@ def build_mokoi(scale=1.0, ss=5, *, blink=False, compact=False):
     mask_hw = int(40 * scale) * ss
     mask_hh = int(48 * scale) * ss
     # Privilege the mask in the icon budget. Showcase keeps a long 3-repeat
-    # strip; compact shortens it to ~1 repeat so the mask wins the budget.
-    strip_mult = 0.55 if compact else 1.9
+    # strip; compact cuts it to a single SHORT stub so the MASK owns ~72% of the
+    # vertical budget at true 32px — the read is "dotted plank-mask with a stub
+    # of strip," head unmistakably the hero (not a striped bar with a blob).
+    strip_mult = 0.38 if compact else 1.9
     strip_len = int(mask_hh * 2 * strip_mult)
     n_repeats = 1 if compact else 3
     half_w = int(mask_hw * 0.46)
@@ -399,21 +405,24 @@ def _totem_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
     the EMBER glow CONFINED to this cap (the only warm light anywhere). A modest
     plaque, never a top-heavy slab. `point_up` faces the plaque toward the gap."""
     d = -1 if point_up else 1
-    plaque_hw = half_w * 1.30          # cap ~ strip + 30%, no top-heavy slab
+    plaque_hw = half_w * 1.20          # cap ~ strip + 20%, no top-heavy slab
     plaque_hh = plaque_hw * 1.15
     cy = cap_base_y + d * (plaque_hh + half_w * 0.4)
 
     # Ember glow CONFINED to the cap — radiates INTO the gap. This is the lone
     # warm light in the whole pillar; the shaft stays charcoal+pipeclay+ochre.
-    gr = int(plaque_hw * (1.7 if night else 1.25))
+    # Night alpha + radius pulled DOWN so the halo stays a contained cap glow and
+    # does not bloom into the gap/shaft and crown-heavy the silhouette.
+    gr = int(plaque_hw * (1.35 if night else 1.2))
     gy = cap_base_y + d * half_w * 0.4
-    gl = make_glow_surface(gr, EMBER, alpha_center=210 if night else 130, falloff=2.2)
+    gl = make_glow_surface(gr, EMBER, alpha_center=160 if night else 125, falloff=2.4)
     surf.blit(gl, (int(cx - gr), int(gy - gr)), special_flags=pygame.BLEND_ADD)
 
     # The plaque board (charcoal ground, flat).
     _plank_outline(surf, cx, cy, plaque_hw, plaque_hh, ss, CHAR)
-    # A pipeclay dot-ring framing the plaque (the tell, on the cap too).
-    ring_n = 12
+    # A pipeclay dot-ring framing the plaque (the tell, on the cap too). Fewer
+    # dots so the cap doesn't read heavier than the shaft at the gap line.
+    ring_n = 8
     for i in range(ring_n):
         a = 2 * math.pi * (i / ring_n)
         rx = cx + math.cos(a) * plaque_hw * 0.74
@@ -492,11 +501,11 @@ def main():
     font = pygame.font.SysFont("dejavusans", 15, bold=True)
     small = pygame.font.SysFont("dejavusans", 12)
 
-    SW, SH = 1020, 770
+    SW, SH = 1080, 770
     sheet = pygame.Surface((SW, SH))
     sheet.fill((120, 120, 124))            # neutral grey bg
     _label(sheet, font,
-           "MOKOI  —  leyak-epic  —  flat painted plank-mask + bark-art strip  —  round 1",
+           "MOKOI  —  leyak-epic  —  flat plank-mask + bark-art strip  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
            "FLAT-GRAPHIC: charcoal-dominant ground, twin-ochre accents, pipeclay-white dot-pattern as the protected tell; ember CONFINED to the cap. SS=6 hero, no gradients/3D shading.",
@@ -518,7 +527,7 @@ def main():
     bg = _sky(panelB.w, panelB.h, (8, 8, 30), (20, 18, 52), (40, 30, 70), stars=True)
     sheet.blit(bg, panelB.topleft)
     pygame.draw.rect(sheet, (60, 60, 64), panelB, 2, border_radius=8)
-    _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE scale  (NIGHT)", panelB.x + 8, panelB.y + 8)
+    _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE  (NIGHT)", panelB.x + 8, panelB.y + 8)
 
     pw = PIPE_W + 2 * OVERHANG
     slice_h = 500
@@ -559,7 +568,7 @@ def main():
 
     # — Cell C: TRUE 32px gameplay chip on a DAY sky AND a NIGHT sky, plus a 4x
     #   audit + grayscale tell-check.
-    panelC = pygame.Rect(678, 56, 324, 600)
+    panelC = pygame.Rect(678, 56, 384, 600)
     pygame.draw.rect(sheet, (96, 96, 100), panelC, border_radius=8)
     pygame.draw.rect(sheet, (60, 60, 64), panelC, 2, border_radius=8)
     _label(sheet, font, "(c) TRUE 32px gameplay chip", panelC.x + 8, panelC.y + 8, (245, 240, 230))
@@ -615,7 +624,7 @@ def main():
     _label(sheet, small, "3x / 64px audit", chip.x + 4, chip.y + 2, (240, 240, 240))
 
     gray = _to_gray(icon64)
-    gchip = pygame.Rect(panelC.x + 200, gy + 104, 100, 100)
+    gchip = pygame.Rect(panelC.x + 250, gy + 104, 100, 100)
     pygame.draw.rect(sheet, (124, 128, 124), gchip, border_radius=4)
     sheet.blit(gray, (gchip.centerx - gray.get_width() // 2,
                       gchip.centery - gray.get_height() // 2))
@@ -630,7 +639,7 @@ def main():
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
