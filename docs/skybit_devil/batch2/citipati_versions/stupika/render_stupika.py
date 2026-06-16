@@ -271,54 +271,68 @@ def skull_tier(surf, cx, top_y, half_w, h, s, face=False, lit_eyes=False):
 
     if face:
         # === the LOWEST tier wears the ONE live face (big scary-cute eyes) ===
-        eye_y = top_y + int(h * 0.42)
-        eye_dx = int(half_w * 0.46)
+        # WHY the eyes sit LOW in the tier and the cornice/swag stay clear of
+        # them: at 32px the only thing that flips "gold dots on a band" into
+        # "two glowing eyes" is a DARK SOCKET GAP that isolates each lamp-core
+        # from any horizontal trim. So the eye row owns the middle of the tier,
+        # the gilt cornice lives at the very bottom, and NO vermilion crosses it.
+        eye_y = top_y + int(h * 0.46)
+        eye_dx = int(half_w * 0.50)   # widen the inter-eye dark gap
         eye_r = int(half_w * 0.30)
         for sgn in (-1, 1):
             ex = cx + sgn * eye_dx
-            # deep socket bowl
-            pygame.draw.circle(surf, BONE_DD, (ex, eye_y), int(eye_r * 1.18))
-            pygame.draw.circle(surf, INK, (ex, eye_y), eye_r)
-            # warm butter-lamp pupil — alive, peering out of the reliquary
+            # recessed dark socket BOWL — a deep ink hollow the lamp sits inside,
+            # ringed by chalk shade so the hole reads even when desaturated.
+            pygame.draw.circle(surf, BONE_DD, (ex, eye_y), int(eye_r * 1.42))
+            pygame.draw.circle(surf, INK, (ex, eye_y), int(eye_r * 1.12))
+            # warm butter-lamp pupil — alive, peering out of the reliquary, sunk
+            # inside the ink so a clear dark gap rings it on every side.
             pygame.draw.circle(surf, LAMP, (ex + sgn * int(s), eye_y + int(s)),
-                               int(eye_r * 0.52))
+                               int(eye_r * 0.60))
             pygame.draw.circle(surf, LAMP_HOT, (ex - int(0.5 * s), eye_y - int(s)),
-                               max(1, int(eye_r * 0.24)))
-        # nose triangle hollow
-        ny = eye_y + int(eye_r * 1.5)
+                               max(1, int(eye_r * 0.28)))
+        # nose triangle hollow — small, kept between & below the eye line
+        ny = eye_y + int(eye_r * 1.6)
         pygame.draw.polygon(surf, BONE_DD,
                             [(cx - int(half_w * 0.12), ny),
                              (cx + int(half_w * 0.12), ny),
                              (cx, ny + int(half_w * 0.22))])
-        # a small, calm grin — scary-cute, a row of square teeth (the doorway)
-        my = bot_y - int(h * 0.16)
-        tw = int(half_w * 0.62)
+        # a small, calm grin — scary-cute, a row of square teeth (the doorway),
+        # sitting directly UNDER the eyes: eyes-over-teeth is the whole face read.
+        my = bot_y - int(h * 0.20)
+        tw = int(half_w * 0.60)
         pygame.draw.rect(surf, INK, (cx - tw, my - int(3 * s), tw * 2, int(7 * s)))
         for k in range(-2, 3):
             tx = cx + int(k * tw * 0.42)
             pygame.draw.line(surf, BONE, (tx, my - int(2 * s)),
                              (tx, my + int(3 * s)), max(1, int(1.4 * s)))
+        # gilt cornice ledge — at the very BOTTOM of the live tier, well clear of
+        # the eye row so gold never bands across the eyes.
+        gilt_cornice(surf, cx, bot_y - int(3 * s), half_w, s, flare=0.16)
     else:
-        # === upper tiers: blind socket-notches so they read as skull-courses ==
-        eye_y = top_y + int(h * 0.40)
-        eye_dx = int(half_w * 0.40)
-        eye_r = int(half_w * 0.22)
-        for sgn in (-1, 1):
-            ex = cx + sgn * eye_dx
-            pygame.draw.circle(surf, BONE_DD, (ex, eye_y), int(eye_r * 1.1))
-            pygame.draw.circle(surf, INK, (ex, eye_y), max(1, int(eye_r * 0.7)))
-        # nose notch
-        pygame.draw.polygon(surf, BONE_DD,
-                            [(cx - int(half_w * 0.1), eye_y + int(eye_r * 1.0)),
-                             (cx + int(half_w * 0.1), eye_y + int(eye_r * 1.0)),
-                             (cx, eye_y + int(eye_r * 2.0))])
-        # faint teeth groove
-        my = bot_y - int(h * 0.18)
-        pygame.draw.line(surf, BONE_DD, (cx - int(half_w * 0.5), my),
-                         (cx + int(half_w * 0.5), my), max(1, int(1.6 * s)))
+        # === upper tiers: BLIND architecture — no round + no warm core, so only
+        # the lowest tier ever reads as a live face. These are masonry niches:
+        # tall slot recesses + a relief lattice, deliberately NOT eye-shaped.
+        gilt_cornice(surf, cx, bot_y - int(3 * s), half_w, s, flare=0.16)
+        niche_y = top_y + int(h * 0.30)
+        niche_h = int(h * 0.46)
+        niche_w = int(half_w * 0.26)
+        for sgn in (-1, 0, 1):
+            nx = cx + sgn * int(half_w * 0.48)
+            # an arched blind NICHE (tall slot, not a round socket)
+            slot = [(nx - niche_w, niche_y + int(niche_h * 0.18)),
+                    (nx - niche_w, niche_y + niche_h),
+                    (nx + niche_w, niche_y + niche_h),
+                    (nx + niche_w, niche_y + int(niche_h * 0.18))]
+            pygame.draw.polygon(surf, BONE_DD, slot)
+            # arched top of the niche
+            pygame.draw.circle(surf, BONE_DD, (nx, niche_y + int(niche_h * 0.18)),
+                               niche_w)
+            # a thin shade lattice bar across the course (relief, reads as trim)
+            pygame.draw.line(surf, BONE_D, (cx - int(half_w * 0.7), bot_y - int(h * 0.18)),
+                             (cx + int(half_w * 0.7), bot_y - int(h * 0.18)),
+                             max(1, int(1.4 * s)))
 
-    # gilt cornice ledge under this tier (the focal LINEAR gilt)
-    gilt_cornice(surf, cx, bot_y - int(3 * s), half_w, s, flare=0.16)
     return bot_y
 
 

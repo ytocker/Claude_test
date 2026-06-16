@@ -266,16 +266,26 @@ def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False):
     pygame.draw.ellipse(surf, BODY_T, sh)
     pygame.draw.ellipse(surf, INK, rect, max(2, int(2*S)))
 
-    # ── SPARSE feather-courses: 3 hard chevron seams down the breast ─────────
-    for i, fy in enumerate((by - int(bry*0.18), by + int(bry*0.16),
-                            by + int(bry*0.48))):
-        fw = int(brx * (0.72 - i*0.12))
-        pygame.draw.line(surf, BODY_D, (cx - fw, fy),
-                         (cx, fy + int(7*S)), max(2, int(2.5*S)))
-        pygame.draw.line(surf, BODY_D, (cx, fy + int(7*S)),
-                         (cx + fw, fy), max(2, int(2.5*S)))
+    # ── SPARSE feather-courses: 3 hard chevron GROOVES down the breast ───────
+    # WHY each seam is now an INK-core groove with a bright top-left sheen lip
+    # (not a soft BODY_D band): at mid distance the round-1 lowest seam blurred
+    # into the body-shade core and smudged. A hard ink core + a thin sheen lip
+    # reads as a carved channel that survives downscale; the lowest seam is
+    # lifted clear of the body's dark-core ellipse so it stays a crisp groove.
+    seam_ys = (by - int(bry*0.26), by + int(bry*0.06), by + int(bry*0.34))
+    for i, fy in enumerate(seam_ys):
+        fw = int(brx * (0.70 - i*0.10))
+        gw = max(2, int(3*S))
+        # dark ink core groove (the carved channel)
+        pygame.draw.line(surf, INK, (cx - fw, fy),
+                         (cx, fy + int(7*S)), gw)
+        pygame.draw.line(surf, INK, (cx, fy + int(7*S)),
+                         (cx + fw, fy), gw)
+        # thin bright sheen lip riding the top edge of the groove
         pygame.draw.line(surf, BODY_T, (cx - fw, fy - int(2*S)),
-                         (cx, fy + int(5*S)), max(1, int(1*S)))
+                         (cx, fy + int(5*S)), max(1, int(1.5*S)))
+        pygame.draw.line(surf, BODY_T, (cx, fy + int(5*S)),
+                         (cx + fw, fy - int(2*S)), max(1, int(1.5*S)))
 
     # ── a stubby folded tail-tip kicking off the lower-back (duck read) ──────
     tail_dir = 1
@@ -289,9 +299,14 @@ def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False):
                ow=max(1, int(1.5*S)))
 
     # ── neck + head: head sits high, tucked tight to the axis ────────────────
+    # WHY the head is slimmed ~10% from round 1 (hrx 26->23) and its outer
+    # envelope pulled inside the shaft+body width: at 32px the head was reading
+    # WIDER than the shaft and winning the value fight, so the silhouette tipped
+    # toward a top-heavy "lollipop". A narrower dome keeps the top from out-
+    # massing the bottom; the eye stays the same big saucer so the read survives.
     hy = cy - int(46 * S)
-    hrx = int(26 * S)
-    hry = int(24 * S)
+    hrx = int(23 * S)
+    hry = int(23 * S)
     # neck column joining head to body
     neck = [(cx - int(hrx*0.62), hy + int(hry*0.4)),
             (cx + int(hrx*0.62), hy + int(hry*0.4)),
@@ -308,20 +323,30 @@ def duck(surf, cx, cy, s, scale=1.0, lit=False, face_down=False):
                           (cx - int(brx*0.5), by - int(bry*0.5))],
                ow=max(2, int(2*S)))
 
-    # INDIGO neck-band — a FLAT carved paint mass wrapping the neck (hard edge)
-    band_y = hy + int(hry*0.7)
-    band_h = int(13 * S)
+    # INDIGO neck-band — a FLAT carved paint mass wrapping the neck (hard edge).
+    # WHY a deep-indigo dark CORE under the band: AD ruled the band fine as a
+    # ~1px value notch at 32px, but it must downscale to a CRISP DARK separation,
+    # never a muddy mid-grey dither. Seating the band's lower half on the deepest
+    # indigo guarantees the compressed pixel reads dark; hue legibility is not
+    # the band's job, value separation is.
+    band_y = hy + int(hry*0.74)
+    band_h = int(11 * S)
     band = [(cx - int(brx*0.5), band_y), (cx + int(brx*0.5), band_y),
             (cx + int(brx*0.44), band_y + band_h), (cx - int(brx*0.44), band_y + band_h)]
     triad_blob(surf, INDIGO, band,
-               core_pts=[(cx + int(brx*0.06), band_y), (cx + int(brx*0.5), band_y),
+               core_pts=[(cx - int(brx*0.5), band_y + int(band_h*0.42)),
+                         (cx + int(brx*0.5), band_y + int(band_h*0.42)),
                          (cx + int(brx*0.44), band_y + band_h),
-                         (cx + int(brx*0.04), band_y + band_h)],
+                         (cx - int(brx*0.44), band_y + band_h)],
                sheen_pts=[(cx - int(brx*0.48), band_y + max(1, int(1*S))),
                           (cx - int(brx*0.08), band_y + max(1, int(1*S))),
-                          (cx - int(brx*0.1), band_y + int(band_h*0.5)),
-                          (cx - int(brx*0.46), band_y + int(band_h*0.5))],
+                          (cx - int(brx*0.1), band_y + int(band_h*0.4)),
+                          (cx - int(brx*0.46), band_y + int(band_h*0.4))],
                ow=max(1, int(1.5*S)))
+    # deepest-indigo notch line riding the band's lower edge — the value anchor
+    pygame.draw.line(surf, INDIGO_D, (cx - int(brx*0.46), band_y + band_h - max(1, int(1*S))),
+                     (cx + int(brx*0.46), band_y + band_h - max(1, int(1*S))),
+                     max(1, int(2*S)))
 
     # head dome — honey-tan, sits above the band
     hrect = pygame.Rect(0, 0, hrx*2, hry*2)

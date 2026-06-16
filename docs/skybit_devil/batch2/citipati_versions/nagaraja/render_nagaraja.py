@@ -155,140 +155,138 @@ def vertebra_disc(surf, cx, cy, rw, rh, s, ang=0.0, lit=False):
 
 # ── the rigid 7-spline cobra HOOD (the hard top tell — NOT a bushy fan) ────────
 def cobra_hood(surf, cx, cy, span, height, s):
-    """A flat shield of exactly SEVEN straight bone rib-splines splayed behind the
-    skull, tied by a brass trim arc at the tips. WHY rigid + count-able: a soft or
-    overlapping fan would read as Kitsune's tail-fan or Garuda's quills. Each
-    spline is a slim tapered bone strut radiating from a tight neck-base fan to a
-    brass-tipped point — hard ink keylines between them so sky/value shows the gaps
-    and you can literally count seven. Drawn BEHIND the skull."""
+    """A FRONT-FLARED cobra hood: a single wide bone shield (wider than tall) that
+    flares out and UP behind the skull, ribbed by exactly SEVEN straight bone
+    rib-splines fanning from the neck root, each brass-tipped, with a brass trim
+    arc tying the tips. WHY rigid + count-able + front-flared: the classic cobra
+    read is the spread hood seen head-on; a soft or overlapping fan would read as
+    Kitsune's tail-fan or Garuda's quills, so the splines are hard straight struts
+    with ink gaps you can count to seven. `cy` is the SKULL centre — the hood root
+    sits just below it so the skull sits IN FRONT of the hood. Drawn BEHIND skull."""
     n = 7
-    base_y = cy + int(height * 0.20)          # splines spring from a tight base
-    base_spread = span * 0.10                 # narrow root → wide tip = a hood
-    # the brass trim arc the spline tips touch (drawn first, behind splines)
-    trim_pts = []
+    root = (cx, cy + int(height * 0.46))      # the neck point all splines spring from
+    # the outer hood shield outline: a wide flared cobra-hood lobe
+    shield = [(root[0] - int(span * 0.30), root[1]),
+              (cx - span,               cy + int(height * 0.10)),
+              (cx - int(span * 0.86),   cy - int(height * 0.74)),
+              (cx - int(span * 0.34),   cy - int(height * 1.05)),
+              (cx,                      cy - int(height * 1.12)),
+              (cx + int(span * 0.34),   cy - int(height * 1.05)),
+              (cx + int(span * 0.86),   cy - int(height * 0.74)),
+              (cx + span,               cy + int(height * 0.10)),
+              (root[0] + int(span * 0.30), root[1])]
+    triad_blob(surf, BONE, shield,
+               core_pts=[(cx - int(span*0.5), cy + int(height*0.06)),
+                         (cx + int(span*0.5), cy + int(height*0.06)),
+                         (cx + int(span*0.5), cy - int(height*0.7)),
+                         (cx - int(span*0.5), cy - int(height*0.7))],
+               sheen_pts=[(cx - int(span*0.84), cy - int(height*0.70)),
+                          (cx - int(span*0.30), cy - int(height*1.0)),
+                          (cx - int(span*0.20), cy - int(height*0.40)),
+                          (cx - int(span*0.74), cy - int(height*0.10))],
+               ow=max(2, int(2 * s)))
+    # the seven rib-spline tips ride the upper hood arc — collect for the trim arc
+    tip = []
     for i in range(n):
         t = i / (n - 1)
-        ang = math.radians(-152 + t * 124)    # fan across the upper arc
-        tipx = cx + math.cos(ang) * span
-        tipy = base_y + math.sin(ang) * height
-        trim_pts.append((tipx, tipy))
-    # webbing shield BEHIND the splines: a single pale-slate membrane so the hood
-    # reads as one solid cobra hood mass, splines ribbing it (kept darker than the
-    # bone so the splines pop as lighter struts).
-    web = [(cx - base_spread, base_y)] + trim_pts + [(cx + base_spread, base_y)]
-    triad_blob(surf, SLATE, web,
-               core_pts=[(cx - base_spread*0.5, base_y),
-                         trim_pts[1], trim_pts[5],
-                         (cx + base_spread*0.5, base_y)],
-               ow=max(1, int(1.8 * s)))
-    # brass trim arc tying the tips
-    pygame.draw.lines(surf, INK, False, trim_pts, max(2, int(3.2 * s)))
-    pygame.draw.lines(surf, BRASS, False, trim_pts, max(1, int(2.2 * s)))
-    pygame.draw.lines(surf, BRASS_BR, False, trim_pts[:4], max(1, int(1.1 * s)))
-    # seven RIGID rib-splines — slim tapered struts, hard ink-keyed, brass caps
-    for i in range(n):
-        t = i / (n - 1)
-        ang = math.radians(-152 + t * 124)
-        rootx = cx + (t - 0.5) * 2 * base_spread
-        rooty = base_y
-        tipx = cx + math.cos(ang) * span
-        tipy = base_y + math.sin(ang) * height
-        # a slim quad strut (tapered: wider at root, point at tip)
-        dx, dy = tipx - rootx, tipy - rooty
-        L = max(1.0, math.hypot(dx, dy))
-        nx, ny = -dy / L, dx / L
-        rw_ = max(2.0, span * 0.030)          # root half-width
-        strut = [(rootx + nx*rw_, rooty + ny*rw_),
-                 (tipx + nx*rw_*0.30, tipy + ny*rw_*0.30),
-                 (tipx - nx*rw_*0.30, tipy - ny*rw_*0.30),
-                 (rootx - nx*rw_, rooty - ny*rw_)]
-        triad_blob(surf, BONE, strut,
-                   sheen_pts=[(rootx + nx*rw_, rooty + ny*rw_),
-                              (tipx + nx*rw_*0.30, tipy + ny*rw_*0.30),
-                              (tipx, tipy),
-                              (rootx + nx*rw_*0.3, rooty + ny*rw_*0.3)],
-                   ow=max(1, int(1.2 * s)))
-        # brass bead cap at each spline tip (the hood-rib trim)
-        triad_circle(surf, BRASS, (int(tipx), int(tipy)), max(2, int(span * 0.040)),
+        ang = math.radians(-168 + t * 156)    # fan across the wide upper arc
+        tx = cx + math.cos(ang) * span * 0.92
+        ty = cy + int(height * 0.04) + math.sin(ang) * height * 1.04
+        tip.append((tx, ty))
+    # seven RIGID rib-splines — slate grooves from the neck root to each tip, so
+    # the lighter bone shield reads as ribbed; hard + straight + countable.
+    for (tx, ty) in tip:
+        pygame.draw.line(surf, INK, root, (tx, ty), max(2, int(3.0 * s)))
+        pygame.draw.line(surf, SLATE, root, (tx, ty), max(1, int(2.0 * s)))
+    # brass bead caps at each rib tip + a thin brass trim arc tying them
+    pygame.draw.lines(surf, BRASS, False, tip, max(2, int(2.4 * s)))
+    pygame.draw.lines(surf, BRASS_BR, False, tip[:4], max(1, int(1.2 * s)))
+    for (tx, ty) in tip:
+        triad_circle(surf, BRASS, (int(tx), int(ty)), max(2, int(span * 0.060)),
                      ow=max(1, int(1 * s)), core=False)
 
 
-# ── the cobra SKULL head — chibi, scary-cute, single brow-gem cabochon ────────
-def cobra_skull(surf, cx, cy, r, s, lit=True, look=1.0):
-    """Hooded serpent skull: a tapered cranium (round dome narrowing to a blunt
-    snout), two emerald slit-eyes, a single domed brow-gem cabochon, and two tiny
-    down-fangs. `look` skews the snout to face the figure's right (the reared
-    hiss). The brow-gem is ONE cabochon focal — not a facet-field."""
-    # cranium dome — slightly egg-shaped, snout pulled toward `look` direction
-    dome = [(cx - int(r*0.92), cy - int(r*0.10)),
-            (cx - int(r*0.70), cy - int(r*0.86)),
-            (cx + int(r*0.10), cy - int(r*1.02)),
-            (cx + int(r*0.86)*int(look>=0)*0 + int(r*0.84), cy - int(r*0.62)),
-            (cx + int(r*1.10), cy + int(r*0.06)),     # blunt snout point (right)
-            (cx + int(r*0.74), cy + int(r*0.50)),
-            (cx + int(r*0.10), cy + int(r*0.62)),
-            (cx - int(r*0.66), cy + int(r*0.42))]
-    triad_blob(surf, BONE, dome,
-               core_pts=[(cx + int(r*0.10), cy + int(r*0.10)),
-                         (cx + int(r*1.06), cy + int(r*0.06)),
-                         (cx + int(r*0.70), cy + int(r*0.48)),
-                         (cx + int(r*0.10), cy + int(r*0.58))],
-               sheen_pts=[(cx - int(r*0.70), cy - int(r*0.80)),
-                          (cx + int(r*0.06), cy - int(r*0.96)),
-                          (cx - int(r*0.10), cy - int(r*0.40)),
-                          (cx - int(r*0.80), cy - int(r*0.06))],
+# ── the cobra SKULL head — front-on, chibi, scary-cute, single brow-gem ───────
+def cobra_skull(surf, cx, cy, r, s, lit=True):
+    """A front-facing hooded serpent skull: a rounded cranium narrowing to a short
+    blunt snout below, two big round emerald scary-cute eyes, a single domed
+    brow-gem cabochon crowning it, and two tiny down-fangs. WHY front-on: the
+    head-on hooded cobra is the most iconic + most legible serpent read at 32px,
+    and it keeps the brow-gem dead-centre as the crown focal. The brow-gem is ONE
+    cabochon — not a facet-field."""
+    # cranium: a rounded shield narrowing to a snout (taller than wide, snout down)
+    skull = [(cx - int(r*0.82), cy - int(r*0.30)),
+             (cx - int(r*0.70), cy - int(r*0.92)),
+             (cx,               cy - int(r*1.04)),
+             (cx + int(r*0.70), cy - int(r*0.92)),
+             (cx + int(r*0.82), cy - int(r*0.30)),
+             (cx + int(r*0.56), cy + int(r*0.52)),    # cheek down to snout
+             (cx + int(r*0.24), cy + int(r*0.96)),    # snout tip (blunt)
+             (cx - int(r*0.24), cy + int(r*0.96)),
+             (cx - int(r*0.56), cy + int(r*0.52))]
+    triad_blob(surf, BONE, skull,
+               core_pts=[(cx + int(r*0.10), cy - int(r*0.30)),
+                         (cx + int(r*0.80), cy - int(r*0.28)),
+                         (cx + int(r*0.52), cy + int(r*0.50)),
+                         (cx + int(r*0.20), cy + int(r*0.90))],
+               sheen_pts=[(cx - int(r*0.66), cy - int(r*0.86)),
+                          (cx - int(r*0.04), cy - int(r*0.98)),
+                          (cx - int(r*0.10), cy - int(r*0.20)),
+                          (cx - int(r*0.74), cy - int(r*0.24))],
                ow=max(2, int(2 * s)))
-    # supraorbital brow ridge (slate groove) over the eyes
-    pygame.draw.line(surf, SLATE,
-                     (cx - int(r*0.58), cy - int(r*0.18)),
-                     (cx + int(r*0.74), cy - int(r*0.30)), max(2, int(2.4 * s)))
-    # two emerald slit-eyes — scary-cute reptilian slits, lit pins inside
-    for sgn, off in ((-1, 0.34), (1, 0.34)):
-        ex = cx + int(r * (0.10 + sgn * 0.40))
-        ey = cy - int(r * 0.02)
-        # ink almond socket
-        sock = [(ex - int(r*0.26), ey), (ex, ey - int(r*0.20)),
-                (ex + int(r*0.26), ey), (ex, ey + int(r*0.18))]
-        pygame.draw.polygon(surf, INK, sock)
-        pygame.draw.polygon(surf, JADE, sock)
-        # vertical emerald slit pupil
-        pygame.draw.line(surf, EMERALD, (ex, ey - int(r*0.15)), (ex, ey + int(r*0.13)),
-                         max(1, int(1.8 * s)))
-        pygame.draw.circle(surf, EM_HOT, (ex, ey - int(r*0.02)), max(1, int(r * 0.07)))
+    # two big round eye-sockets — scary-CUTE: ink socket, jade fill, emerald iris
+    for sgn in (-1, 1):
+        ex = cx + sgn * int(r * 0.42)
+        ey = cy + int(r * 0.04)
+        pygame.draw.circle(surf, BONE_DD, (ex, ey), int(r * 0.34))
+        pygame.draw.circle(surf, INK, (ex, ey), int(r * 0.28))
+        pygame.draw.circle(surf, JADE, (ex, ey), int(r * 0.22))
+        pygame.draw.circle(surf, EMERALD, (ex, ey), int(r * 0.15))
+        # vertical reptilian slit pupil + hot pin
+        pygame.draw.line(surf, INK, (ex, ey - int(r*0.14)), (ex, ey + int(r*0.14)),
+                         max(1, int(1.6 * s)))
+        pygame.draw.circle(surf, EM_HOT, (ex - int(r*0.05), ey - int(r*0.06)),
+                           max(1, int(r * 0.06)))
     # nostril ticks on the snout
     for sgn in (-1, 1):
         pygame.draw.circle(surf, BONE_DD,
-                           (cx + int(r*0.86), cy + int(r*(0.06 + sgn*0.12))),
-                           max(1, int(r * 0.06)))
-    # tiny down-fangs at the snout underside (the hiss tell, scary-CUTE small)
-    fx = cx + int(r * 0.62)
-    fy = cy + int(r * 0.54)
+                           (cx + sgn * int(r*0.13), cy + int(r*0.52)),
+                           max(1, int(r * 0.07)))
+    # hissing mouth line + two tiny down-fangs (scary-CUTE small)
+    my = cy + int(r * 0.74)
+    pygame.draw.line(surf, INK, (cx - int(r*0.22), my), (cx + int(r*0.22), my),
+                     max(1, int(1.6 * s)))
     for sgn in (-1, 1):
-        fang = [(fx + sgn*int(r*0.16) - int(r*0.05), fy),
-                (fx + sgn*int(r*0.16) + int(r*0.05), fy),
-                (fx + sgn*int(r*0.16), fy + int(r*0.34))]
+        fx = cx + sgn * int(r * 0.13)
+        fang = [(fx - int(r*0.06), my), (fx + int(r*0.06), my),
+                (fx, my + int(r*0.30))]
         pygame.draw.polygon(surf, INK, fang)
-        pygame.draw.polygon(surf, SHEEN, [(fang[0][0]+1, fang[0][1]),
-                                          (fang[1][0]-1, fang[1][1]),
-                                          (fang[2][0], fang[2][1]-int(r*0.06))])
+        pygame.draw.polygon(surf, SHEEN, [(fang[0][0]+1, fang[0][1]+1),
+                                          (fang[1][0]-1, fang[1][1]+1),
+                                          (fang[2][0], fang[2][1]-int(r*0.08))])
     # === the single BROW-GEM CABOCHON (the crown-jewel focal) ================
-    # WHY one domed cabochon: a facet-field shimmers into noise at 1×. This is a
-    # single emerald dome with a jade rim, a hot inner ring and one bright sheen
-    # pip — the lit jewel that crowns the head and survives the 32px downscale.
-    gx, gy = cx + int(r * 0.04), cy - int(r * 0.56)
-    gr = int(r * 0.36)
+    # WHY one domed cabochon in a BRASS bezel, lifted to the crown: a facet-field
+    # shimmers into noise at 1×, and a bare emerald dome sitting between the eyes
+    # reads as a third eye. The brass setting ring + the higher crown position
+    # (riding the cranium/hood join) make it read as a SET crown jewel, distinct
+    # from the two eye-gems below it. One emerald dome, jade rim, hot inner, sheen
+    # pip — survives the 32px downscale as the brightest single focal.
+    gx, gy = cx, cy - int(r * 0.86)
+    gr = int(r * 0.34)
     if lit:
-        # soft jade halo so the gem glows on both biomes
-        halo = pygame.Surface((gr*6, gr*6), pygame.SRCALPHA)
-        pygame.draw.circle(halo, JADE + (90,), (gr*3, gr*3), int(gr*2.0))
-        pygame.draw.circle(halo, EMERALD + (70,), (gr*3, gr*3), int(gr*1.3))
-        surf.blit(halo, (gx - gr*3, gy - gr*3), special_flags=pygame.BLEND_RGBA_ADD)
+        halo = pygame.Surface((gr*8, gr*8), pygame.SRCALPHA)
+        pygame.draw.circle(halo, JADE + (95,), (gr*4, gr*4), int(gr*2.4))
+        pygame.draw.circle(halo, EMERALD + (80,), (gr*4, gr*4), int(gr*1.5))
+        surf.blit(halo, (gx - gr*4, gy - gr*4), special_flags=pygame.BLEND_RGBA_ADD)
+    # brass bezel setting (the "crown" mount that separates it from the eyes)
+    triad_circle(surf, BRASS, (gx, gy), int(gr * 1.32), ow=max(1, int(1.4 * s)),
+                 core=False)
     pygame.draw.circle(surf, INK, (gx, gy), gr + max(1, int(1 * s)))
     pygame.draw.circle(surf, JADE, (gx, gy), gr)
     pygame.draw.circle(surf, EMERALD, (gx, gy), int(gr * 0.78))
     pygame.draw.circle(surf, EM_BR, (gx, gy), int(gr * 0.46))
     pygame.draw.circle(surf, EM_HOT, (gx - int(gr*0.26), gy - int(gr*0.30)),
-                       max(1, int(gr * 0.24)))
+                       max(1, int(gr * 0.26)))
 
 
 # ── the reared bone-cobra (hero) ──────────────────────────────────────────────
@@ -299,16 +297,14 @@ def draw_nagaraja(surf, cx, cy, s):
 
     # === the coiled SPINE path — bottom-rooted base loop rising to a reared neck =
     # WHY a base coil + an S-neck: the bottom loop roots the mass low (anti
-    # top-heavy) and gives the unmistakable serpent-coil read; the neck rears up
-    # and curves so the head faces the figure's right in a hiss.
-    head_y = cy - int(54 * s)
-    head_x = cx + int(10 * s)
+    # top-heavy) and gives the unmistakable serpent-coil read; the neck rears
+    # straight UP out of the coil so the hood + head crown the silhouette head-on.
+    head_y = cy - int(50 * s)
+    head_x = cx
     hr = int(20 * s)
 
-    # control path from the grounded coil tip up to the neck base under the skull.
-    # sampled as a smooth chain; each sample drops a vertebra disc.
-    base_cx = cx - int(2 * s)
-    base_cy = cy + int(46 * s)
+    base_cx = cx - int(4 * s)
+    base_cy = cy + int(48 * s)
     coil_r = int(30 * s)
 
     # build an ordered list of (x, y) spine samples from tail-tip → neck-base
@@ -321,15 +317,14 @@ def draw_nagaraja(surf, cx, cy, s):
         sx = base_cx + math.cos(a) * rr
         sy = base_cy + math.sin(a) * rr * 0.78  # squash so it sits as a coil
         spine.append((sx, sy))
-    # 2) the reared NECK — an S rising from the coil top to under the skull
+    # 2) the reared NECK — a gentle S rising from the coil top to the hood root
     neck0 = spine[-1]
     neck_pts = [neck0,
-                (cx - int(14 * s), cy + int(8 * s)),
-                (cx + int(18 * s), cy - int(18 * s)),
-                (head_x - int(2 * s), head_y + int(26 * s))]
-    for i in range(1, 16):
-        t = i / 15.0
-        # quadratic-ish blend through the neck control points (Catmull-rough)
+                (cx - int(16 * s), cy + int(12 * s)),
+                (cx + int(8 * s), cy - int(14 * s)),
+                (head_x, head_y + int(16 * s))]   # land INSIDE the hood root (no gap)
+    for i in range(1, 17):
+        t = i / 16.0
         x = ((1-t)**3*neck_pts[0][0] + 3*(1-t)**2*t*neck_pts[1][0]
              + 3*(1-t)*t**2*neck_pts[2][0] + t**3*neck_pts[3][0])
         y = ((1-t)**3*neck_pts[0][1] + 3*(1-t)**2*t*neck_pts[1][1]
@@ -341,20 +336,18 @@ def draw_nagaraja(surf, cx, cy, s):
     nseg = len(spine)
     for i, (sx, sy) in enumerate(spine):
         t = i / (nseg - 1)
-        # tangent angle for disc orientation
         j = min(i + 1, nseg - 1)
         k = max(i - 1, 0)
         ang = math.atan2(spine[j][1] - spine[k][1], spine[j][0] - spine[k][0])
-        # body radius tapers tail→neck; widest in the lower coil
-        body = (14.0 - 7.0 * t) * s
+        body = (14.0 - 7.0 * t) * s            # widest in the lower coil
         rw = body * 0.66
         rh = body
-        lit = (i % 3 == 0) and t > 0.25      # periodic emerald foramen up the body
+        lit = (i % 3 == 0) and t > 0.25
         vertebra_disc(surf, sx, sy, rw, rh, s, ang=ang + math.pi/2, lit=lit)
 
-    # === HOOD (behind skull) then SKULL on top ================================
-    cobra_hood(surf, head_x, head_y, span=int(40 * s), height=int(34 * s), s=s)
-    cobra_skull(surf, head_x, head_y, hr, s, lit=True, look=1.0)
+    # === HOOD (behind/around skull) then SKULL on top, both at the neck top ====
+    cobra_hood(surf, head_x, head_y, span=int(42 * s), height=int(30 * s), s=s)
+    cobra_skull(surf, head_x, head_y, hr, s, lit=True)
 
 
 # ── the vertebra-coil column → pillar mirror ──────────────────────────────────
@@ -386,15 +379,15 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     # mirror the whole cap vertically when it faces UP (cap == "top")
     flip = (cap == "top")
     if flip:
-        sub = pygame.Surface((int(120 * s), int(90 * s)), pygame.SRCALPHA)
-        scx, scy = int(60 * s), int(62 * s)
-        cobra_hood(sub, scx, scy, span=int(34 * s), height=int(28 * s), s=s)
-        cobra_skull(sub, scx, scy, cap_hr, s, lit=True, look=1.0)
+        sub = pygame.Surface((int(130 * s), int(110 * s)), pygame.SRCALPHA)
+        scx, scy = int(65 * s), int(72 * s)
+        cobra_hood(sub, scx, scy, span=int(36 * s), height=int(26 * s), s=s)
+        cobra_skull(sub, scx, scy, cap_hr, s, lit=True)
         sub = pygame.transform.flip(sub, False, True)
-        surf.blit(sub, (cx - scx, cap_y - (int(90 * s) - scy)))
+        surf.blit(sub, (cx - scx, cap_y - (int(110 * s) - scy)))
     else:
-        cobra_hood(surf, cx, cap_y, span=int(34 * s), height=int(28 * s), s=s)
-        cobra_skull(surf, cx, cap_y, cap_hr, s, lit=True, look=1.0)
+        cobra_hood(surf, cx, cap_y, span=int(36 * s), height=int(26 * s), s=s)
+        cobra_skull(surf, cx, cap_y, cap_hr, s, lit=True)
 
 
 # ── compose the review sheet ─────────────────────────────────────────────────

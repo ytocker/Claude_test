@@ -48,10 +48,13 @@ JADE_T    = (120, 188, 156)   # jade rim-sheen
 EMBER     = (238, 128,  64)
 EMBER_D   = (188,  86,  44)   # deep ember shade
 EMBER_T   = (252, 196, 120)   # ember hot core / rim
+FLAME_TIP = (255, 232, 150)   # cream-yellow hot flame TONGUE-TIP (out-values maw)
 
-GOLD      = (222, 184,  86)   # gold neck-bell
-GOLD_D    = (170, 132,  52)   # bell shade
-GOLD_T    = (244, 220, 150)   # bell rim-sheen
+# Gold bell is HARDWARE, not a second light source: toned ~22% down in value +
+# saturation from the brief gold so the EMBER MAW stays the sole warm focal.
+GOLD      = (182, 150,  78)   # gold neck-bell (muted hardware)
+GOLD_D    = (132, 104,  48)   # bell shade
+GOLD_T    = (208, 182, 118)   # bell rim-sheen (small, no glow halo)
 
 EYEGLOW   = (246, 206, 132)   # warm-amber eye glow (quieter than ember)
 EYEGLOW_D = (208, 158,  92)   # eye-glow shade ring
@@ -188,44 +191,84 @@ def carved_shaft(surf, cx, top, bot, half_w, s):
 
 # ── a tiny carved flame-curl — THE fire-eater gag, the character's soul ───────
 def flame_curl(surf, x, y, s, lit=True):
-    """A small carved flame licking UP out of ONE mouth corner — the fire the
-    Haetae is mid-devouring. WHY chunky & few-pointed: it must read as 'flame
-    being eaten' at 1x, so it's one bold ember tongue with a hot core, not a
-    fussy multi-lick fire. Always anchored to a single corner (asymmetry =
-    'caught in the act'), with a warm glow only when lit so it pops at night."""
-    fw = int(14 * s)
-    fh = int(26 * s)
+    """ONE bold flame licking UP out of ONE mouth corner — the fire the Haetae is
+    mid-devouring, and the character's SOUL. WHY this rebuild (AD round-1 ruling):
+    at 1x the old curl fused into the same-ember maw and died. So now it is built
+    as a SEPARATE shape from the maw, three ways at once:
+      • a HARD INK-GAP collar is laid down FIRST and oversized, so a dark keyline
+        ring always sits between the maw rim and the flame — they read as two
+        shapes, never one blob;
+      • the lobe is a CHUNKY single comma ~40% taller than before, hooked, and
+        lifted clear of the lip so its tip bites UP into the negative space above
+        the mouth corner (the silhouette break is what sells 'flame');
+      • a 2-VALUE tip — ember body + a cream-yellow hot TONGUE-TIP — so the flame
+        out-values the maw and becomes the eye's second stop after the eyes.
+    Anchored to ONE corner only (asymmetry = 'caught mid-bite'); warm glow when
+    lit so it pops at night."""
+    fw = int(18 * s)
+    fh = int(36 * s)               # ~40% taller — breaks the mouth's top silhouette
+    # lift the whole curl clear of the lip line so it bites into the space ABOVE
+    # the corner rather than sitting flush against the ember interior.
+    bx, by = x - int(2*s), y - int(7*s)
     if lit:
-        glow_r = int(fh * 0.9)
+        glow_r = int(fh * 0.85)
         glow = pygame.Surface((glow_r*4, glow_r*4), pygame.SRCALPHA)
         for r in range(glow_r, 0, -1):
-            a = int(120 * (1 - r/glow_r))
+            a = int(135 * (1 - r/glow_r))
             pygame.draw.circle(glow, (*EMBER, a), (glow_r*2, glow_r*2), r)
-        surf.blit(glow, (x - glow_r*2, y - fh - glow_r + int(fh*0.4)),
+        surf.blit(glow, (bx - glow_r*2, by - fh - glow_r + int(fh*0.45)),
                   special_flags=pygame.BLEND_ADD)
-    # outer ember tongue — an S-curved teardrop curling toward the cheek
+    # ONE chunky comma-lobe flame: a fat base swelling up to a single hooked tip.
     flame = [
-        (x, y),
-        (x - int(fw*0.55), y - int(fh*0.30)),
-        (x - int(fw*0.10), y - int(fh*0.58)),
-        (x + int(fw*0.55), y - int(fh*0.82)),
-        (x + int(fw*0.10), y - int(fh*1.02)),
-        (x + int(fw*0.78), y - int(fh*0.62)),
-        (x + int(fw*0.62), y - int(fh*0.22)),
+        (bx - int(fw*0.30), by),
+        (bx - int(fw*0.66), by - int(fh*0.34)),
+        (bx - int(fw*0.40), by - int(fh*0.62)),
+        (bx + int(fw*0.06), by - int(fh*0.78)),
+        (bx + int(fw*0.62), by - int(fh*1.00)),   # the lifted hooked TIP
+        (bx + int(fw*0.30), by - int(fh*0.66)),
+        (bx + int(fw*0.74), by - int(fh*0.40)),
+        (bx + int(fw*0.70), by - int(fh*0.06)),
     ]
-    pygame.draw.polygon(surf, INK, flame)
+    # HARD INK-GAP collar drawn FIRST and oversized — guarantees a dark keyline
+    # ring between maw rim and flame at every scale, so the two never fuse.
+    pygame.draw.polygon(surf, INK, [
+        (bx - int(fw*0.46), by + int(fh*0.06)),
+        (bx - int(fw*0.84), by - int(fh*0.34)),
+        (bx - int(fw*0.56), by - int(fh*0.66)),
+        (bx + int(fw*0.04), by - int(fh*0.86)),
+        (bx + int(fw*0.78), by - int(fh*1.10)),
+        (bx + int(fw*0.40), by - int(fh*0.64)),
+        (bx + int(fw*0.92), by - int(fh*0.40)),
+        (bx + int(fw*0.88), by + int(fh*0.02)),
+    ])
     pygame.draw.polygon(surf, EMBER, flame)
-    pygame.draw.polygon(surf, INK, flame, max(1, int(1.5*s)))
-    # hot inner core — a smaller bright tongue nested inside (the heat)
+    # deep-ember base shade (anchors the lobe to dark before the hot values)
+    pygame.draw.polygon(surf, EMBER_D, [
+        (bx - int(fw*0.30), by),
+        (bx - int(fw*0.50), by - int(fh*0.26)),
+        (bx - int(fw*0.10), by - int(fh*0.40)),
+        (bx + int(fw*0.34), by - int(fh*0.30)),
+        (bx + int(fw*0.55), by - int(fh*0.06)),
+    ])
+    pygame.draw.polygon(surf, INK, flame, max(2, int(1.8*s)))
+    # 2-VALUE hot TIP: ember-core mid, then a cream-yellow tongue at the very tip,
+    # so the flame out-values the maw interior and reads as the brightest licking
+    # point — the eye's second stop after the eyes.
     core = [
-        (x + int(fw*0.06), y - int(fh*0.12)),
-        (x - int(fw*0.12), y - int(fh*0.40)),
-        (x + int(fw*0.18), y - int(fh*0.66)),
-        (x + int(fw*0.02), y - int(fh*0.86)),
-        (x + int(fw*0.46), y - int(fh*0.52)),
-        (x + int(fw*0.34), y - int(fh*0.24)),
+        (bx - int(fw*0.04), by - int(fh*0.20)),
+        (bx - int(fw*0.18), by - int(fh*0.50)),
+        (bx + int(fw*0.18), by - int(fh*0.70)),
+        (bx + int(fw*0.50), by - int(fh*0.88)),
+        (bx + int(fw*0.26), by - int(fh*0.58)),
+        (bx + int(fw*0.40), by - int(fh*0.34)),
     ]
     pygame.draw.polygon(surf, EMBER_T, core)
+    tip = [
+        (bx + int(fw*0.04), by - int(fh*0.58)),
+        (bx + int(fw*0.50), by - int(fh*0.90)),
+        (bx + int(fw*0.30), by - int(fh*0.62)),
+    ]
+    pygame.draw.polygon(surf, FLAME_TIP, tip)
 
 
 # ── the lion-mask: the carved guardian-lion face ──────────────────────────────
@@ -243,13 +286,15 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
     # the brief caps the mane so it never becomes a fuzzy halo — six chunky
     # comma-curls survive 1x, and each lobe gets a JADE tip (the accent placed,
     # not massed). The cap uses fewer/tighter lobes to stay visually smaller.
-    n_lobes = 6 if hero else 6
-    ring_r = int(58 * s) if hero else int(50 * s)
-    lobe_r = int(20 * s) if hero else int(16 * s)
+    # Exactly 6 BOLD lobes with a clear gap between each — the AD round-1 note:
+    # cull from a packed "noise ring" to six distinct silhouette bumps. Chunkier
+    # radius + a tighter arc spread (so each lobe stands apart, not bead-packed).
+    n_lobes = 6
+    ring_r = int(56 * s) if hero else int(48 * s)
+    lobe_r = int(23 * s) if hero else int(18 * s)
     for i in range(n_lobes):
-        ang = math.pi * (0.5 + (i + 0.5) / n_lobes * 1.0)  # top arc only-ish
-        # spread the six around a near-full ring, biased to the sides+top
-        ang = -math.pi/2 + (i / (n_lobes - 1) - 0.5) * math.radians(232)
+        # spread the six over a top-biased arc with real spacing between lobes
+        ang = -math.pi/2 + (i / (n_lobes - 1) - 0.5) * math.radians(206)
         lx = cx + int(math.cos(ang) * ring_r)
         ly = cy + int(math.sin(ang) * ring_r) - int(6 * s)
         # hard comma-curl: ink seat, cedar lobe, dark core, JADE tip fleck, sheen
@@ -291,16 +336,26 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
 
     # ONE stubby centre brow-HORN (the Haetae unicorn-horn tell; single, no pair).
     # A short fat carved nub rising from the brow centre, cedar with a sheen.
+    # Carved nub IN THE ROUND, not a flat plug: full triad (dark-core on the
+    # right → cedar flat-fill → top-left rim-sheen) plus a stronger taper so the
+    # silhouette narrows toward a rounded tip.
     horn_base_y = fy0 + int(8*s)
-    horn = [(cx - int(9*s), horn_base_y + int(4*s)),
-            (cx + int(9*s), horn_base_y + int(4*s)),
-            (cx + int(5*s), horn_base_y - int(20*s)),
-            (cx - int(5*s), horn_base_y - int(20*s))]
-    triad_blob(surf, WOOD_D, horn,
-               sheen_pts=[(cx - int(7*s), horn_base_y + int(2*s)),
-                          (cx - int(1*s), horn_base_y + int(2*s)),
-                          (cx - int(2*s), horn_base_y - int(18*s)),
-                          (cx - int(6*s), horn_base_y - int(18*s))],
+    horn = [(cx - int(10*s), horn_base_y + int(4*s)),
+            (cx + int(10*s), horn_base_y + int(4*s)),
+            (cx + int(6*s), horn_base_y - int(13*s)),
+            (cx + int(3*s), horn_base_y - int(22*s)),
+            (cx - int(3*s), horn_base_y - int(22*s)),
+            (cx - int(6*s), horn_base_y - int(13*s))]
+    triad_blob(surf, WOOD, horn,
+               core_pts=[(cx + int(1*s), horn_base_y + int(3*s)),
+                         (cx + int(10*s), horn_base_y + int(4*s)),
+                         (cx + int(6*s), horn_base_y - int(13*s)),
+                         (cx + int(2*s), horn_base_y - int(21*s)),
+                         (cx + int(1*s), horn_base_y - int(20*s))],
+               sheen_pts=[(cx - int(8*s), horn_base_y + int(2*s)),
+                          (cx - int(2*s), horn_base_y + int(2*s)),
+                          (cx - int(2*s), horn_base_y - int(19*s)),
+                          (cx - int(5*s), horn_base_y - int(12*s))],
                ow=max(1, int(1.5*s)))
     # carved ring groove around the horn base (the single-ring carved language)
     pygame.draw.arc(surf, WOOD_GRV,
@@ -349,9 +404,11 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
         # ink pupil + tiny hot highlight
         pygame.draw.circle(surf, INK, (ex + int(1*s), eye_y + int(1*s)),
                            int(eb*0.46))
-        pygame.draw.circle(surf, (255, 248, 232),
+        # catchlight knocked off pure white toward warm cream so the EMBER MAW
+        # (+ flame cream-tip) remains the single brightest point in the face.
+        pygame.draw.circle(surf, (242, 226, 196),
                            (ex - int(eb*0.32), eye_y - int(eb*0.32)),
-                           max(1, int(eb*0.22)))
+                           max(1, int(eb*0.20)))
 
     # fat carved SNOUT — one rounded muzzle mass dead-centre (the lion anchor)
     ny = fy0 + int(66*s)
@@ -436,7 +493,7 @@ def neck_bell(surf, cx, y, s):
     a detail, not a second mass."""
     # strap
     pygame.draw.line(surf, WOOD_D, (cx, y - int(10*s)), (cx, y), max(2, int(3*s)))
-    br = int(11*s)
+    br = int(9*s)   # kept small — a detail, not a second mass under the maw
     # bell body — a rounded trapezoid bell
     bell = [(cx - int(br*0.5), y),
             (cx + int(br*0.5), y),
@@ -449,11 +506,13 @@ def neck_bell(surf, cx, y, s):
                          (cx + int(br*0.5), y),
                          (cx + br, y + int(br*1.3)),
                          (cx + int(br*0.2), y + int(br*1.3))])
+    # narrow left-edge rim-sheen only — a carved hardware highlight, NOT a lit
+    # face, so the bell never competes with the ember maw for the warm focal.
     pygame.draw.polygon(surf, GOLD_T,
-                        [(cx - int(br*0.45), y + int(br*0.15)),
-                         (cx - int(br*0.05), y + int(br*0.15)),
-                         (cx - int(br*0.6), y + int(br*1.0)),
-                         (cx - int(br*0.9), y + int(br*1.0))])
+                        [(cx - int(br*0.42), y + int(br*0.20)),
+                         (cx - int(br*0.20), y + int(br*0.20)),
+                         (cx - int(br*0.52), y + int(br*0.92)),
+                         (cx - int(br*0.74), y + int(br*0.92))])
     pygame.draw.polygon(surf, INK, bell, max(1, int(1.5*s)))
     # bell mouth rim + clapper dot
     pygame.draw.line(surf, GOLD_D, (cx - br, y + int(br*1.3)),
@@ -544,7 +603,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("HAEDUNG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "fire-eating guardian-lion totem-post  ·  matte honey-cedar + jade scale-band + ember maw + gold bell  ·  round 1  ·  creature IS the pillar",
+        "fire-eating guardian-lion totem-post  ·  matte honey-cedar + jade scale-band + ember maw + muted gold bell  ·  round 2  ·  creature IS the pillar",
         True, LABEL_DIM), (200, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------

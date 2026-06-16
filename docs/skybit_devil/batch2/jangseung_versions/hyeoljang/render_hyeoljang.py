@@ -38,9 +38,11 @@ WOOD_GRV  = ( 92,  46,  34)   # carved spiral-groove shadow
 
 # Paua EYE-RING — the SMALLEST teal accent of the set. A flat two-tone PAINT
 # inlay with a HARD edge, NOT a glow. Violet inner stays a sub-pixel sliver.
-PAUA_RIM  = ( 64, 150, 150)   # paua teal ring (the hard-edged inlay rim)
-PAUA_RIM_D= ( 40, 104, 104)   # paua ring shade
-PAUA_RIM_T= (118, 188, 188)   # paua ring rim-sheen fleck
+# Deepened + cooled to the set's deepest, coolest, smallest teal so the tell
+# survives the value collision against the bright cream goggle binding at 32px.
+PAUA_RIM  = ( 48, 132, 134)   # paua teal ring (deepest/coolest brood teal, hard)
+PAUA_RIM_D= ( 26,  88,  92)   # paua ring shade
+PAUA_RIM_T= (110, 184, 184)   # paua ring rim-sheen fleck
 PAUA_IN   = (110,  96, 160)   # paua violet inner (sub-pixel sliver only)
 
 TONGUE    = (214, 108, 118)   # tongue-pink — the warm focal GAG
@@ -224,10 +226,11 @@ def warrior_face(surf, cx, cy, s, lit=False):
                           (fx0 + int(10*s), brow_y + int(2*s))],
                ow=max(1, int(1.5*s)))
 
-    # CROSSED GOGGLE-EYES — two bulging domes that cross toward the centre (the
-    # comic warrior squint). Warm-cream glow behind; paua PAINT-inlay ring is a
-    # flat hard-edged two-tone band, NOT a glow.
-    eye_dx = int(25*s)
+    # CROSSED GOGGLE-EYES — two bulging domes set wide so the warm eyeballs can
+    # cross hard INWARD toward the nose-bridge (the comic warrior squint that is
+    # the funniest-fierce beat). Warm-cream glow behind; paua PAINT-inlay ring is
+    # a flat hard-edged two-tone band, NOT a glow.
+    eye_dx = int(27*s)
     eye_y = fy0 + int(50*s)
     er = int(19*s)
     glow_a = 140 if lit else 80
@@ -249,35 +252,56 @@ def warrior_face(surf, cx, cy, s, lit=False):
                            int(er*0.5))
         pygame.draw.circle(surf, INK, (ex, eye_y), er, max(1, int(2*s)))
 
-        # PAUA EYE-RING — flat hard-edged two-tone PAINT inlay. The teal rim is
-        # a thin band (the smallest teal accent of the set); the violet inner is
-        # only a sub-pixel sliver just inside the rim, never a mass.
-        ring_r = int(er * 0.78)
+        # PAUA EYE-RING — flat hard-edged two-tone PAINT inlay. WHY the OUTER arc
+        # is fatter: a thin mid-teal sandwiched between the bright cream goggle
+        # binding (inner) and the dark ink keyline dies at 32px — it averages into
+        # the cream. So the rim is thickened on the OUTER/cheek-facing arc only,
+        # where it borders the ruddy WOOD; wood-vs-teal is a real value+hue jump
+        # that survives downscale, whereas teal-vs-cream does not. Still the
+        # smallest teal of the brood — a hard flat PAINT ring, never a glow.
+        ring_r = int(er * 0.80)
+        # base shade ring (full circle, hard edge)
         pygame.draw.circle(surf, PAUA_RIM_D, (ex, eye_y), ring_r,
-                           max(2, int(3.4*s)))            # darker base band
+                           max(2, int(3.0*s)))
+        # bright teal rim, full circle (the hard inlay band)
         pygame.draw.circle(surf, PAUA_RIM, (ex, eye_y), ring_r,
-                           max(1, int(2.2*s)))            # bright teal rim (hard)
+                           max(1, int(2.2*s)))
+        # OUTER/cheek-facing arc — drawn 1px thicker against the wood so the tell
+        # survives 32px. The cheek side is away from centre: -x for the right eye,
+        # +x for the left. A fat arc swept over the outer ~150° of the ring.
+        outer_sgn = -sgn                       # cheek direction (away from nose)
+        fat_w = max(2, int(4.6*s))
+        outer_rect = (ex - ring_r, eye_y - ring_r, ring_r*2, ring_r*2)
+        if outer_sgn < 0:                      # outer arc faces LEFT
+            a0, a1 = math.radians(115), math.radians(245)
+        else:                                  # outer arc faces RIGHT
+            a0, a1 = math.radians(-65), math.radians(65)
+        pygame.draw.arc(surf, PAUA_RIM_D, outer_rect, a0, a1, fat_w + max(1, int(1*s)))
+        pygame.draw.arc(surf, PAUA_RIM, outer_rect, a0, a1, fat_w)
+        # violet inner stays a sub-pixel sliver just inside the rim, never a mass
         pygame.draw.circle(surf, PAUA_IN, (ex, eye_y), ring_r - max(1, int(2*s)),
-                           max(1, int(1*s)))              # violet sub-pixel sliver
+                           max(1, int(1*s)))
         # top-left hard sheen fleck on the paua rim (inlay catches light)
         pygame.draw.line(surf, PAUA_RIM_T,
                          (ex - int(ring_r*0.55), eye_y - int(ring_r*0.62)),
                          (ex - int(ring_r*0.12), eye_y - int(ring_r*0.78)),
                          max(1, int(1.6*s)))
 
-        # warm-cream glowing eyeball inside the inlay ring
+        # warm-cream glowing eyeball — shifted hard INWARD toward the nose so the
+        # whites already sit near the bridge before the pupils cross further.
         eb = int(er * (0.56 if lit else 0.50))
-        pygame.draw.circle(surf, EYEGLOW_D, (ex, eye_y), eb + max(1, int(1*s)))
-        pygame.draw.circle(surf, EYEGLOW, (ex, eye_y), eb)
-        # CROSSED ink pupils — both pushed toward the centre (cross-eyed gag)
-        pup = cx - ex                       # direction back toward centre
-        pdir = 1 if pup > 0 else -1
+        ball_x = ex - sgn * int(er * 0.30)        # crowd toward centre
+        pygame.draw.circle(surf, EYEGLOW_D, (ball_x, eye_y), eb + max(1, int(1*s)))
+        pygame.draw.circle(surf, EYEGLOW, (ball_x, eye_y), eb)
+        # CROSSED ink pupils — jammed against the inner rim of each eyeball so the
+        # two pupils nearly touch over the bulb-nose (the unmistakable cross-eyed
+        # warrior gag). Both pushed toward centre regardless of which eye.
         pygame.draw.circle(surf, INK,
-                           (ex + pdir*int(eb*0.5), eye_y + int(eb*0.15)),
-                           int(eb*0.5))
+                           (ball_x - sgn*int(eb*0.46), eye_y + int(eb*0.18)),
+                           int(eb*0.52))
         pygame.draw.circle(surf, (255, 252, 244),
-                           (ex - int(eb*0.25), eye_y - int(eb*0.3)),
-                           max(1, int(eb*0.24)))
+                           (ball_x - sgn*int(eb*0.46) - int(eb*0.22), eye_y - int(eb*0.26)),
+                           max(1, int(eb*0.22)))
 
     # fat BULB-NOSE — one rounded mass dead-centre between the eyes (chibi tell)
     ny = fy0 + int(66*s)
@@ -306,10 +330,15 @@ def warrior_face(surf, cx, cy, s, lit=False):
                          (cx + mw - int(3*s), my - int(2*s)),
                          (cx + int(mw*0.74), my + mh - int(2*s)),
                          (cx - int(mw*0.74), my + mh - int(2*s))])
-    # a row of BLUNT warrior teeth across the top of the grimace (few + chunky)
-    for fx in (-int(mw*0.66), -int(mw*0.30), int(mw*0.06), int(mw*0.42)):
-        tw = int(9*s)
-        rect = (cx + fx, my - int(2*s), tw, int(8*s))
+    # a row of BLUNT warrior teeth across the top of the grimace. WHY only 3 fat
+    # tooth-bone blocks with a clear ink gap between each: at 32px a 4-5 tooth
+    # row collapses to a grey noise band; 3 big blocks keep the grimace reading
+    # as a grimace, not a smear, when small.
+    tw = int(15*s)
+    for fx in (-int(mw*0.72), -int(mw*0.18), int(mw*0.36)):
+        rect = (cx + fx, my - int(2*s), tw, int(9*s))
+        pygame.draw.rect(surf, INK, (rect[0]-max(1,int(1*s)), rect[1]-max(1,int(1*s)),
+                                     rect[2]+max(2,int(2*s)), rect[3]+max(1,int(1*s))))
         pygame.draw.rect(surf, TOOTH, rect)
         pygame.draw.rect(surf, INK, rect, max(1, int(1*s)))
     # cinnabar-free cream lip line bracketing the grimace top (warrior paint)
@@ -370,6 +399,14 @@ def warrior_face(surf, cx, cy, s, lit=False):
 
     # the cream-wrapped TOP-KNOT on the crown (the warrior headpiece tell)
     knot_base_y = fy0 + int(2*s)
+    # a hard ink NOTCH cinching where the knot meets the head — WHY: at 32px the
+    # pink/cream wrap blurs into the wood crown and the knot reads as a vague
+    # lump; a dark keyline groove pinches the silhouette so the thumbnail tells
+    # "top-knot" not "bump".
+    notch_w = int(30*s)
+    pygame.draw.rect(surf, INK,
+                     (cx - notch_w//2, knot_base_y - max(2, int(2*s)),
+                      notch_w, max(3, int(4*s))))
     # a short tapered post rising from the crown
     stalk_w = int(20*s)
     stalk = [(cx - stalk_w//2, knot_base_y),
@@ -482,7 +519,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("HYEOLJANG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "tongue-out warrior guardian post  ·  red-totara + paua eye-ring inlay + tongue-pink gag + cream binding  ·  round 1  ·  comedy IS the menace",
+        "tongue-out warrior guardian post  ·  red-totara + paua eye-ring inlay + tongue-pink gag + cream binding  ·  round 2  ·  comedy IS the menace",
         True, LABEL_DIM), (212, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------
@@ -493,8 +530,8 @@ def main():
     hero = grow_outline(hero, INK + (255,), 1)
     sheet.blit(hero, (10, 72))
     sheet.blit(font.render("(a) Hero — tongue-out warrior post", True, LABEL), (16, 548))
-    sheet.blit(font_sm.render("crossed goggle-eyes w/ paua paint-inlay ring; big flat tongue", True, LABEL_DIM), (16, 572))
-    sheet.blit(font_sm.render("dominates lower face; cream-wrapped top-knot; sparse spiral grooves", True, LABEL_DIM), (16, 588))
+    sheet.blit(font_sm.render("eyes now CROSS inward; paua rim deepened + fattened on the OUTER", True, LABEL_DIM), (16, 572))
+    sheet.blit(font_sm.render("cheek-arc (borders wood); 3 fat teeth; knot notch; sparse spirals", True, LABEL_DIM), (16, 588))
 
     # (b) pillar assembled — top segment + gap + bottom segment, MIRRORED ------
     pcx = 460
@@ -608,10 +645,10 @@ def main():
         "  fierce warrior read; big & few features for the 32px read.",
     ]
     notes_r = [
-        "• Paua EYE-RING = the SMALLEST teal accent of the set: a flat",
-        "  two-tone PAINT inlay, HARD edge, NOT a glow (anti-Yurei/Kitsune).",
-        "• Violet paua inner stays a sub-pixel SLIVER (anti-Necrarch);",
-        "  warm-cream eye glow is the one warm focal.",
+        "• Paua EYE-RING deepened to (48,132,134) — deepest/coolest/smallest",
+        "  brood teal; fattened on the OUTER cheek-arc (borders wood, survives",
+        "  32px). Still a flat HARD PAINT inlay, NOT a glow (anti-Yurei/Kitsune).",
+        "• Eyes now CROSS hard inward over the bulb-nose (the warrior gag).",
         "• Creature IS the pillar: hero post body == tiled shaft; cap =",
         "  SMALLER mirrored partner-face (eyes/tongue lit), bottom-rooted.",
     ]
@@ -620,7 +657,7 @@ def main():
     for i, line in enumerate(notes_r):
         sheet.blit(font_sm.render(line, True, LABEL_DIM), (540, note_y + 40 + i*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

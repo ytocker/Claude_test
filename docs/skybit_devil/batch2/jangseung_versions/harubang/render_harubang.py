@@ -41,9 +41,18 @@ GOLD      = (224, 168,  60)   # turmeric-gold cap + belt-bands (warm GOLD mass)
 GOLD_D    = (168, 120,  38)   # deep turmeric shade
 GOLD_T    = (248, 214, 132)   # turmeric rim-sheen
 
-LICHEN    = (168, 176, 150)   # pale lichen-grey patch (GREYER than any mint)
-LICHEN_D  = (118, 128, 106)   # deep lichen-grey
-LICHEN_T  = (206, 210, 188)   # lichen rim-sheen
+# Lichen pushed a hair WARMER/GREYER than r1 so it never drifts toward a cool
+# Kitsune-mint reading on the green day sky (AD note: zero mint risk).
+LICHEN    = (172, 174, 148)   # pale lichen-grey patch (GREYER + warmer than mint)
+LICHEN_D  = (122, 126, 102)   # deep lichen-grey
+LICHEN_T  = (208, 208, 184)   # lichen rim-sheen
+
+# PALE OAK-SHEEN wood for the clasped belly-hands — a separate VALUE from the
+# near-black belly AND from the gold band, so the hands pop as a third body blob
+# at 32px (AD ruling: hands must own their own value, never gold, never the belly).
+HAND      = (172, 150, 124)   # pale oak-sheen wood (clasped hands)
+HAND_D    = (118,  98,  80)   # hand shade (carved finger grooves)
+HAND_T    = (224, 206, 176)   # bright hand rim-sheen (top-left pop)
 
 EYEGLOW   = (246, 224, 168)   # warm-cream eye glow (THE STARE focal)
 EYEGLOW_D = (208, 168,  96)   # eye-glow shade ring
@@ -215,8 +224,10 @@ def barrel_shaft(surf, cx, top, bot, half_w, s, swell=1.0):
     # barrel (where the belly bulges). WHY big arcs not a hatch field: they read
     # as the carved belly grain at 32px and survive downscale; piling thin grain
     # would fuzz to mud. Few & bold per the big-and-few identity rule.
-    swirl_cy = top + int(h * 0.62)
-    for ri, rr in enumerate((0.74, 0.54, 0.34)):
+    # grain-swirl pushed to the UPPER belly (above where the clasped hands sit)
+    # so it reads as carved belly grain and never tangles with the hand mass.
+    swirl_cy = top + int(h * 0.40)
+    for ri, rr in enumerate((0.70, 0.50, 0.30)):
         rad = int(half_w * rr)
         rect = pygame.Rect(cx - rad, swirl_cy - int(rad*0.78),
                            rad*2, int(rad*1.56))
@@ -236,41 +247,74 @@ def barrel_shaft(surf, cx, top, bot, half_w, s, swell=1.0):
         by += pitch
 
     # SPARSE weather-pitting + 2 lichen clusters anchored inside the silhouette.
-    weather_pits(surf, cx - int(half_w*0.5), top + int(h*0.30),
-                 int(half_w*0.5), s, seed=int(top) % 71 + 3, n=3)
-    weather_pits(surf, cx + int(half_w*0.5), bot - int(h*0.22),
-                 int(half_w*0.45), s, seed=int(bot) % 67 + 5, n=2)
-    lr = max(int(5*s), int(half_w * 0.30))
-    lichen_patch(surf, cx - int(half_w*0.62), top + int(h*0.46), lr, s,
+    # Thinned ~30% from r1 and pushed to the EDGES/upper-shoulder so the pits
+    # never compete with the (now enlarged) clasped-hands mass on the mid-belly.
+    weather_pits(surf, cx - int(half_w*0.55), top + int(h*0.22),
+                 int(half_w*0.42), s, seed=int(top) % 71 + 3, n=2)
+    weather_pits(surf, cx + int(half_w*0.58), bot - int(h*0.18),
+                 int(half_w*0.34), s, seed=int(bot) % 67 + 5, n=1)
+    lr = max(int(5*s), int(half_w * 0.28))
+    lichen_patch(surf, cx - int(half_w*0.66), top + int(h*0.32), lr, s,
                  seed=int(top) % 97 + 3)
-    lichen_patch(surf, cx + int(half_w*0.58), bot - int(h*0.34), lr, s,
+    lichen_patch(surf, cx + int(half_w*0.62), bot - int(h*0.14), lr, s,
                  seed=int(bot) % 89 + 7)
 
 
 # ── the two little clasped hands low on the belly (identity feature) ──────────
 def belly_hands(surf, cx, cy, half_w, s):
-    """Two little hands clasped LOW on the belly — one slightly higher than the
-    other, the folklore-true dol hareubang pose. Kept BIG and FEW: two fat
-    rounded oak mitts with a few carved finger grooves, sitting proud of the
-    barrel so they read as the second silhouette anchor after the eyes."""
-    hr = int(half_w * 0.40)
-    # right hand sits slightly higher than the left (the canonical asymmetry)
-    lx, ly = cx - int(hr*0.78), cy + int(hr*0.30)
-    rx, ry = cx + int(hr*0.78), cy - int(hr*0.18)
-    for (hx, hy, top_hand) in ((lx, ly, False), (rx, ry, True)):
-        triad_disc(surf, OAK, hx, hy, hr, ow=max(2, int(2*s)))
-        # 3 carved finger grooves fanning across the back of the mitt (few&big)
-        for fi, fa in enumerate((-0.5, 0.0, 0.5)):
-            ax = hx + int(math.sin(fa) * hr * 0.7)
-            pygame.draw.line(surf, OAK_GRV,
-                             (hx + int(fa*hr*0.7), hy - int(hr*0.55)),
-                             (ax, hy + int(hr*0.5)), max(1, int(2*s)))
-            pygame.draw.line(surf, OAK_T,
-                             (hx + int(fa*hr*0.7) - max(1, int(1*s)), hy - int(hr*0.55)),
-                             (ax - max(1, int(1*s)), hy + int(hr*0.5)), max(1, int(1*s)))
-    # where the two hands clasp/overlap, a deep ink seam sells the clasp
-    pygame.draw.line(surf, INK, (cx - int(hr*0.1), cy - int(hr*0.4)),
-                     (cx + int(hr*0.1), cy + int(hr*0.4)), max(2, int(3*s)))
+    """Two fat hands clasped on the MID-belly — the load-bearing identity beat
+    that makes him a grandfather, not just a big-eyed post (AD ruling).
+
+    WHY this redraw (the decisive r1->r2 fix): at 32px the r1 hands merged into
+    the gold belt-band and read as a lumpy stripe. So now —
+      • the hands are ENLARGED into one wide clasped mass spanning most of the
+        belly, sitting on the MID-belly well CLEAR of the lower belt-band;
+      • a hard dark BOG-OAK-shade gap (carved bevel-groove value) is laid UNDER
+        the hands so they never touch the band and never merge at 1x;
+      • they are painted in PALE OAK-SHEEN WOOD (not gold, not belly-oak) with a
+        bright top-left rim-sheen, so the body reads as THREE blobs at 32px:
+        gold cap-eyes mass / dark belly / pale clasped-hands mass;
+      • BIG AND FEW: two fat mitten-blobs with just 3 fat sausage-finger lobes
+        crossing the seam — no thin-finger noise that fuzzes at downscale."""
+    hr = int(half_w * 0.62)                 # ENLARGED — was 0.40
+    span = int(hr * 0.72)                   # how far each mitt sits off-centre
+    ly_off = int(hr * 0.10)                 # the slight clasp asymmetry
+
+    # 1) HARD DARK GAP first: a near-black bog-oak shadow shelf carved UNDER the
+    #    hand mass so the pale hands float clear of the belly/belt and never merge.
+    shelf = [
+        (cx - hr - span + int(hr*0.2), cy + int(hr*0.62)),
+        (cx + hr + span - int(hr*0.2), cy + int(hr*0.62)),
+        (cx + hr + span - int(hr*0.5), cy + int(hr*1.18)),
+        (cx - hr - span + int(hr*0.5), cy + int(hr*1.18)),
+    ]
+    pygame.draw.polygon(surf, OAK_GRV, shelf)
+
+    # 2) the two fat mitten-blobs in PALE OAK-SHEEN wood (the third body blob)
+    lx = cx - span
+    rx = cx + span
+    for (hx, hy) in ((lx, cy + ly_off), (rx, cy - ly_off)):
+        triad_disc(surf, HAND, hx, hy, hr, ow=max(2, int(2.2*s)))
+
+    # 3) ONE deep ink clasp-seam down the centre where the two mitts overlap
+    pygame.draw.line(surf, INK, (cx, cy - int(hr*0.78)),
+                     (cx, cy + int(hr*0.74)), max(2, int(3.2*s)))
+
+    # 4) just 3 FAT sausage-finger lobes crossing the seam (big & few). Each is a
+    #    pale disc with a carved shade groove below + bright sheen above — they
+    #    read as plump grandfather fingers, never thin hatch lines.
+    fr = int(hr * 0.30)
+    for fy_f in (-0.34, 0.0, 0.34):
+        fy = cy + int(hr * fy_f)
+        for sgn in (-1, 1):
+            fx = cx + sgn * int(hr * 0.42)
+            pygame.draw.circle(surf, HAND_D, (fx, fy + max(1, int(2*s))),
+                               fr + max(1, int(1*s)))
+            pygame.draw.circle(surf, HAND, (fx, fy), fr)
+            pygame.draw.circle(surf, HAND_T,
+                               (fx - int(fr*0.34), fy - int(fr*0.40)),
+                               max(1, int(fr*0.40)))
+            pygame.draw.circle(surf, INK, (fx, fy), fr, max(1, int(1.4*s)))
 
 
 # ── the grandpa head: pupil-less owl-eyes STARE under a domed mushroom-cap ────
@@ -367,20 +411,28 @@ def grandpa_head(surf, cx, cy, s, head_r, lit=False):
                    (cx - int(cap_w*0.34), cap_cy)],
         ow=max(2, int(2*s)),
     )
-    # the cap BRIM ledge — a flat gold band where dome meets head (the hat tell)
+    # the cap BRIM — a DOMED gold ledge whose LOWER edge curves like the crown
+    # so the whole cap reads unmistakably as a soft MUSHROOM (AD fix: no flat
+    # brim). Built as a thin gold lens: an arc top edge + a deeper arc bottom edge.
     brim_y = cap_cy
-    pygame.draw.rect(surf, INK,
-                     (cx - cap_w//2 - int(3*s), brim_y - int(2*s),
-                      cap_w + int(6*s), int(11*s)))
-    pygame.draw.rect(surf, GOLD,
-                     (cx - cap_w//2 - int(2*s), brim_y - int(1*s),
-                      cap_w + int(4*s), int(9*s)))
-    pygame.draw.rect(surf, GOLD_T,
-                     (cx - cap_w//2 - int(2*s), brim_y - int(1*s),
-                      cap_w + int(4*s), int(3*s)))
-    pygame.draw.rect(surf, GOLD_D,
-                     (cx - cap_w//2 - int(2*s), brim_y + int(5*s),
-                      cap_w + int(4*s), int(3*s)))
+    brim_hw = cap_w//2 + int(3*s)
+    brim_th = int(10*s)                     # brim thickness at centre
+    top_pts, bot_pts = [], []
+    steps = 22
+    for i in range(steps + 1):
+        t = i / steps
+        bx = cx - brim_hw + int(2*brim_hw * t)
+        # gentle dome curve on both edges (lower edge bows DOWN at centre)
+        dome = math.sin(math.pi * t)
+        top_pts.append((bx, brim_y - int(brim_th*0.25*dome)))
+        bot_pts.append((bx, brim_y + int(brim_th*0.45) + int(brim_th*0.55*dome)))
+    brim = top_pts + bot_pts[::-1]
+    pygame.draw.polygon(surf, INK, brim)
+    pygame.draw.polygon(surf, GOLD, brim)
+    # top-left sheen lip + deeper lower lip read the brim as a raised carved lens
+    pygame.draw.lines(surf, GOLD_T, False, top_pts, max(1, int(2*s)))
+    pygame.draw.lines(surf, GOLD_D, False, bot_pts, max(1, int(2*s)))
+    pygame.draw.polygon(surf, INK, brim, max(1, int(1.5*s)))
 
 
 # ── the full hero creature: domed-cap grandpa atop the fat barrel post ────────
@@ -405,11 +457,14 @@ def draw_harubang(surf, cx, cy, s):
                           (cx - int(4*s), post_bot + int(12*s)),
                           (cx - pf_w + int(4*s), post_bot + int(12*s))],
                ow=max(2, int(2*s)))
-    # the two little clasped hands low on the belly (identity anchor #2)
-    belly_hands(surf, cx, cy + int(70*s), half_w, s)
-    # the grandpa head crowning the barrel — head clearly NARROWER than belly
+    # the two fat clasped hands on the MID-belly (identity anchor #2) — lifted
+    # well clear of the lower belt-band so the dark gap reads at 32px.
+    belly_hands(surf, cx, cy + int(58*s), half_w, s)
+    # the grandpa head crowning the barrel — head clearly NARROWER than belly.
+    # lit=True so the warm-cream owl-stare carries the SAME glow weight as the
+    # gap-cap partner-head, anchoring the night read consistently (AD FIX 8).
     head_r = int(half_w * 0.82)
-    grandpa_head(surf, cx, post_top - int(head_r*0.66), s, head_r, lit=False)
+    grandpa_head(surf, cx, post_top - int(head_r*0.66), s, head_r, lit=True)
 
 
 # ── the pillar: same carved barrel, mirrored, with a partner-head gap-cap ─────
@@ -464,7 +519,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("HARUBANG", True, LABEL), (22, 12))
     sheet.blit(font_sm.render(
-        "bellied grandfather totem-post  ·  bog-oak + turmeric-gold belt/cap + lichen-grey + warm-cream owl-eyes  ·  round 1  ·  SET LEAD  ·  barrel IS the pillar",
+        "bellied grandfather totem-post  ·  bog-oak + turmeric-gold belt/cap + pale-wood clasped hands + warm-cream owl-eyes  ·  round 2  ·  SET LEAD  ·  barrel IS the pillar",
         True, LABEL_DIM), (215, 26))
 
     # (a) BIG hero sprite ------------------------------------------------------

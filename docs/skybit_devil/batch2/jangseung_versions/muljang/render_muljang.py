@@ -46,6 +46,12 @@ GRV       = ( 96,  66,  40)   # carved scroll-groove shadow
 
 SALT      = (212, 200, 170)   # pale salt-bleach on wind-edges (cool pale)
 SALT_T    = (236, 230, 210)   # brightest salt fleck
+# WHY a capped warm light-teak (not the cream salt): the lit cap face must read
+# as the SAME carved teak as the body, so its rim-sheen tops out near L~176 — a
+# warm light-teak within ~25 L of the body fill, never the L~204 cream that
+# made the cap look like a separate pale stone mask. Salt is now an EDGE-only
+# sliver; this is the cap's interior lift.
+RIM_TEAK  = (224, 184, 132)   # restrained warm light-teak cap rim-sheen (~L176)
 
 # SEA-TEAL — PROW-FOAM band + eye-paint ONLY (deeper/cooler than jade); never a
 # body fill, so it stays a single placed band, not a second mass.
@@ -94,15 +100,19 @@ def grow_outline(surf, color, px):
     return ring
 
 
-def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True, ow=2):
-    """Flat fill + optional dark-core + top-left rim-sheen + ink keyline."""
+def triad_blob(surf, color, pts, sheen_pts=None, core_pts=None, outline=True,
+               ow=2, sheen_amt=0.30):
+    """Flat fill + optional dark-core + top-left rim-sheen + ink keyline.
+    WHY a tunable sheen amount: the lit cap face must NOT flood to a pale cream
+    plate (it broke the "creature IS the wood" read), so the face passes a
+    restrained sheen that lifts the teak only a little — teak stays dominant."""
     if outline:
         pygame.draw.polygon(surf, INK, pts)
     pygame.draw.polygon(surf, color, pts)
     if core_pts:
         pygame.draw.polygon(surf, lerp(color, INK, 0.45), core_pts)
     if sheen_pts:
-        pygame.draw.polygon(surf, lerp(color, (255, 255, 255), 0.30), sheen_pts)
+        pygame.draw.polygon(surf, lerp(color, (255, 255, 255), sheen_amt), sheen_pts)
     if outline:
         pygame.draw.polygon(surf, INK, pts, ow)
 
@@ -271,6 +281,12 @@ def figurehead_head(surf, cx, cy, s, lean_deg=0.0, lit=False, hair_fan=True):
             (fx0 + int(12 * s), fy0 + fh - int(10 * s)),    # under-jaw back
             (fx0, fy0 + int(54 * s)),                       # back of head
             (fx0 + int(6 * s), fy0 + int(20 * s))]          # back-brow
+    # WHY the cheek core stays TEAK and only a thin top-left edge lifts: the
+    # round-1 sheen flooded the whole cheek mass to a near-cream L~204 plate;
+    # the cap then read as a separate pale stone mask on a wood post. The sheen
+    # polygon is now a NARROW top-left rim sliver at a capped warm light-teak
+    # (RIM_TEAK ~L176, within ~25 L of the body), so teak is the dominant value
+    # across the entire face — exactly as on the hero body.
     triad_blob(
         surf, TEAK, face,
         core_pts=[(cx + int(6 * s), fy0 + int(6 * s)),
@@ -279,12 +295,24 @@ def figurehead_head(surf, cx, cy, s, lean_deg=0.0, lit=False, hair_fan=True):
                   (fx0 + fw - int(6 * s), fy0 + fh - int(20 * s)),
                   (fx0 + fw - int(24 * s), fy0 + fh),
                   (cx + int(6 * s), fy0 + fh - int(6 * s))],
-        sheen_pts=[(fx0 + int(8 * s), fy0 + int(18 * s)),
-                   (cx - int(6 * s), fy0 + int(6 * s)),
-                   (cx - int(6 * s), fy0 + fh - int(20 * s)),
-                   (fx0 + int(6 * s), fy0 + int(52 * s))],
         ow=max(2, int(2 * s)),
     )
+    # restrained warm light-teak rim-sheen — a thin top-left wind-facing sliver
+    # only (back-brow down the back of the head), NOT a full-cheek wash.
+    rim = [(fx0 + int(20 * s), fy0 + int(2 * s)),
+           (fx0 + int(30 * s), fy0 + int(2 * s)),
+           (fx0 + int(16 * s), fy0 + int(28 * s)),
+           (fx0 + int(10 * s), fy0 + int(50 * s)),
+           (fx0 + int(12 * s), fy0 + fh - int(28 * s)),
+           (fx0 + int(4 * s), fy0 + int(52 * s)),
+           (fx0 + int(6 * s), fy0 + int(22 * s))]
+    pygame.draw.polygon(surf, RIM_TEAK, rim)
+    # salt-bleach is now an EDGE-only fleck on the very wind-facing back edge —
+    # a thin cool-pale line, the third-tier accent it's specced to be.
+    pygame.draw.line(surf, SALT,
+                     (fx0 + int(7 * s), fy0 + int(22 * s)),
+                     (fx0 + int(11 * s), fy0 + fh - int(30 * s)),
+                     max(1, int(1.5 * s)))
 
     # carved brow ridge + coral MEDALLION at brow centre (the small warm focal)
     brow_y = fy0 + int(30 * s)
