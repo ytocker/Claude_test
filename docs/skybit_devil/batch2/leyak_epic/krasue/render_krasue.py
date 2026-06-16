@@ -53,10 +53,13 @@ SINEW       = (118, 96, 120)    # the thin mauve thread the orbs string onto
 SINEW_DK    = (78, 62, 86)
 
 # Firefly-gold — ONLY ever inside the discrete gut-orbs. Never on flesh.
-ORB         = (255, 224, 128)   # firefly-gold orb fill
-ORB_DK      = (196, 150, 70)    # amber orb shade (dark-core / cracks)
-ORB_SHEEN   = (255, 246, 214)   # pale-gold rim sheen
+# Value/saturation pushed ~15-20% over round 1 so the beads survive the chip
+# and don't wash into a dark-blue night sky (critique priority 2).
+ORB         = (255, 214, 96)    # firefly-gold orb fill (richer / less pastel)
+ORB_DK      = (182, 128, 48)    # amber orb shade (dark-core / cracks)
+ORB_SHEEN   = (255, 244, 198)   # pale-gold rim sheen
 ORB_CORE    = (255, 252, 236)   # the will-o'-the-wisp inner core twinkle
+ORB_INK     = (74, 50, 14)      # near-ink amber keyline around each bead
 
 INK         = (28, 22, 30)      # the house keyline (epic-set ink)
 
@@ -95,42 +98,59 @@ def _add_outline(src, outline_color=(*INK, 235)):
 # ── one glowing gut-orb (warm-gold triad sphere; glow strictly inside) ───────
 
 def _gut_orb(surf, cx, cy, r, ss, *, night=False, cracked=False, glow=True):
-    """A single luminous marsh gut-orb: an additive warm halo (the ONLY warm
-    glow, contained as a discrete orb), a firefly-gold triad sphere on top, an
-    inner glow-lobe + a tiny will-o'-the-wisp core twinkle. `cracked` scores a
-    dark hairline fracture for the gap-edge bottom lantern-orb (its own form)."""
+    """A single luminous marsh gut-LANTERN, built so it survives the 32px chip
+    (critique priority 2 + directive 4). Three-zone lantern, not a flat disc:
+      - a contained warm bloom halo (the ONLY warm glow, bounded to the orb);
+      - a 1px amber-ink keyline so beads stay discrete and don't smear into one
+        blob or wash into the night sky;
+      - a warm-gold core glow-LOBE offset down-RIGHT (like a flame settling in a
+        lantern), a mid gold fill, and a small COOL lilac rim-sheen pip top-left.
+    `cracked` scores the bottom lantern-orb's own-form fracture as a crisp ink
+    line with a lilac-sheen lip so it reads as cracked ceramic, not a smudge."""
     if glow:
-        # Stronger-than-source halo, but bounded to the orb so the body stays
-        # cool — the warm reads as a contained firefly, never a body wash.
-        gr = int(r * (2.0 if night else 1.5))
-        gl = make_glow_surface(gr, ORB, alpha_center=210 if night else 130,
-                               falloff=2.1)
+        # Stronger, localized warm bloom — but bounded to the bead so the body
+        # stays cool (critique: warm reads as a contained firefly, never a wash).
+        gr = int(r * (2.2 if night else 1.7))
+        gl = make_glow_surface(gr, ORB, alpha_center=235 if night else 150,
+                               falloff=2.0)
         surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
 
-    # Warm-gold triad sphere.
+    # Amber-ink keyline ring first — keeps each bead a discrete, gapped shape.
+    pygame.draw.circle(surf, ORB_INK, (int(cx), int(cy)), max(2, int(r + ss)))
+    # Warm-gold body (dark amber ring -> flat fill).
     pygame.draw.circle(surf, ORB_DK, (int(cx), int(cy)), int(r))
-    pygame.draw.circle(surf, ORB, (int(cx), int(cy)), max(1, int(r * 0.90)))
-    # Inner glow-lobe — a brighter offset disc reading as the wisp swelling
-    # behind a translucent membrane (elevated detail, still flat-shaded).
-    pygame.draw.circle(surf, ORB_SHEEN, (int(cx - r * 0.18), int(cy - r * 0.22)),
-                       max(1, int(r * 0.46)))
-    if cracked:
-        # A dark hairline fracture branching across the membrane — the OWN-form
-        # tell that this end-orb is the cracked bottom lantern.
-        cw = max(1, int(0.9 * ss))
-        a = (cx - r * 0.55, cy - r * 0.30)
-        b = (cx - r * 0.05, cy + r * 0.02)
-        c = (cx + r * 0.40, cy - r * 0.42)
-        d = (cx + r * 0.20, cy + r * 0.50)
-        pygame.draw.lines(surf, ORB_DK, False,
-                          [(int(x), int(y)) for x, y in (a, b, c)], cw)
-        pygame.draw.lines(surf, ORB_DK, False,
-                          [(int(x), int(y)) for x, y in (b, d)], cw)
-    # Will-o'-the-wisp core twinkle — kept small so it reads as a point, not a
-    # second mass competing with the orb itself.
+    pygame.draw.circle(surf, ORB, (int(cx), int(cy)), max(1, int(r * 0.86)))
+    # Inner glow-LOBE — a brighter disc offset DOWN-RIGHT, the flame settling in
+    # the lantern (directive 4). Larger than r1's so it carries at the chip.
+    pygame.draw.circle(surf, ORB_SHEEN,
+                       (int(cx + r * 0.16), int(cy + r * 0.20)),
+                       max(1, int(r * 0.52)))
+    # Will-o'-the-wisp core twinkle, biased into the lobe.
     pygame.draw.circle(surf, ORB_CORE,
-                       (int(cx - r * 0.16), int(cy - r * 0.20)),
-                       max(1, int(r * 0.22)))
+                       (int(cx + r * 0.14), int(cy + r * 0.18)),
+                       max(1, int(r * 0.24)))
+    if cracked:
+        # A crisp 1px ink fracture branching across the membrane — the OWN-form
+        # tell that this end-orb is the cracked bottom lantern, with a thin
+        # lilac-sheen lip on the upper edge so it reads as cracked ceramic.
+        cw = max(1, int(0.8 * ss))
+        a = (cx - r * 0.58, cy - r * 0.34)
+        b = (cx - r * 0.04, cy + r * 0.02)
+        c = (cx + r * 0.42, cy - r * 0.44)
+        d = (cx + r * 0.22, cy + r * 0.52)
+        lip = (int(cw * 0.6), -int(cw * 0.6))
+        pygame.draw.lines(surf, BODY_SHEEN, False,
+                          [(int(x + lip[0]), int(y + lip[1]))
+                           for x, y in (a, b, c)], max(1, int(cw * 0.5)))
+        pygame.draw.lines(surf, INK, False,
+                          [(int(x), int(y)) for x, y in (a, b, c)], cw)
+        pygame.draw.lines(surf, INK, False,
+                          [(int(x), int(y)) for x, y in (b, d)], cw)
+    # Cool lilac rim-sheen pip top-left — the only cool pip on the warm bead;
+    # reinforces warm-in-orb / cool-body and keeps the triad honest.
+    pygame.draw.circle(surf, BODY_SHEEN,
+                       (int(cx - r * 0.40), int(cy - r * 0.42)),
+                       max(1, int(r * 0.18)))
 
 
 # ── the orb-string (creature viscera + the pillar body) ──────────────────────
@@ -145,23 +165,27 @@ def _orb_string(surf, top_x, top_y, length, base_r, ss, *, n_orbs, wave=0.0,
         return top_x + wave * base_r * math.sin(t * math.pi * 2.2 + phase) \
             * (0.30 + 0.70 * t)
 
-    # The sinew thread first, so the orbs sit ON it. A thin cool cord with a
-    # dark-core seam + a lilac sheen edge — the connective tissue.
+    # The sinew thread first, so the orbs sit ON it. A visible INK cord with a
+    # mauve underside, drawn thick enough to survive the chip as the connective
+    # tissue that strings the beads into ONE gut-line (directive 3).
     pts = []
     steps = 36
     for i in range(steps + 1):
         t = i / steps
         pts.append((_x_at(t), top_y + length * t))
     ipts = [(int(x), int(y)) for x, y in pts]
-    pygame.draw.lines(surf, SINEW_DK, False, ipts, max(2, int(2.6 * ss)))
+    upts = [(int(x + 1.0 * ss), int(y)) for x, y in pts]   # mauve underside
+    pygame.draw.lines(surf, INK, False, ipts, max(2, int(3.4 * ss)))
+    pygame.draw.lines(surf, SINEW_DK, False, upts, max(1, int(1.6 * ss)))
     pygame.draw.lines(surf, SINEW, False, ipts, max(1, int(1.4 * ss)))
 
     # Evenly-spaced gut-orbs threaded on the sinew (the repeatable organ band).
+    # Bigger, fewer beads at a clean cadence so each survives downscale.
     for i in range(n_orbs):
         t = (i + 0.5) / n_orbs
         x = _x_at(t)
         y = top_y + length * t
-        r = base_r * (1.0 - 0.30 * t)
+        r = base_r * (1.0 - 0.18 * t)
         cracked = end_cracked and (i == n_orbs - 1)
         _gut_orb(surf, x, y, r, ss, night=night, cracked=cracked)
 
@@ -206,36 +230,60 @@ def _head(surf, cx, cy, r, ss, *, night=False):
                           [(int(x0), int(y0)), (int(xm), int(ym)),
                            (int(x1), int(y1))], max(1, int(0.8 * ss)))
 
-    # — Eyes: big SLEEPY half-lidded sockets glowing a contained gold (the lantern
-    #   inside the skull). Deep mauve socket, gold inner glow capped by a heavy
-    #   upper lid so it reads drowsy + cute, not a wide menacing stare.
-    eye_dx = r * 0.44
-    eye_dy = -r * 0.06
-    eye_r = r * 0.40
+    # — A single cracked-BROW ridge above the eyes — the secondary focal tell
+    #   (directive 6) that breaks the bilateral symmetry and screams lantern-
+    #   skull, not generic lich. A dark mauve brow bar with a hairline ink crack.
+    brow_y = cy - r * 0.30
+    brow = pygame.Rect(int(cx - r * 0.82), int(brow_y - r * 0.10),
+                       int(r * 1.64), int(r * 0.22))
+    pygame.draw.ellipse(surf, _shade_c(body, -40), brow)
+    pygame.draw.lines(surf, INK, False,
+                      [(int(cx - r * 0.18), int(brow_y - r * 0.12)),
+                       (int(cx - r * 0.02), int(brow_y + r * 0.02)),
+                       (int(cx + r * 0.14), int(brow_y - r * 0.08)),
+                       (int(cx + r * 0.10), int(brow_y + r * 0.12))],
+                      max(1, int(1.0 * ss)))
+
+    # — Eyes: big SLEEPY half-lidded sockets glowing a contained gold (the
+    #   lantern inside the skull). The sleepy beat is carried by a HARD INK
+    #   upper-lid bar across the top ~45% of each socket — a SHAPE tell that
+    #   survives downscale (directive 1) — with only a thin gold crescent of
+    #   glow showing beneath. Glow no longer does the expression's job.
+    eye_dx = r * 0.46
+    eye_dy = r * 0.02
+    eye_r = r * 0.42
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
-        # Deep-mauve socket recess.
-        pygame.draw.circle(surf, BODY_DK, (int(ex), int(ey)), int(eye_r * 1.06))
-        # Contained gold glow within the socket (warm only inside the lantern eye).
-        gl = make_glow_surface(int(eye_r * 1.5), ORB,
-                               alpha_center=150 if night else 110, falloff=2.0)
-        surf.blit(gl, (int(ex - eye_r * 1.5), int(ey - eye_r * 1.5)),
+        # Deep-mauve socket recess + a 1px ink rim so the socket edge is crisp.
+        pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(eye_r * 1.10))
+        pygame.draw.circle(surf, BODY_DK, (int(ex), int(ey)), int(eye_r * 1.0))
+        # Contained gold glow within the socket (warm only inside the eye).
+        gl = make_glow_surface(int(eye_r * 1.4), ORB,
+                               alpha_center=170 if night else 120, falloff=2.1)
+        surf.blit(gl, (int(ex - eye_r * 1.4), int(ey - eye_r * 1.4)),
                   special_flags=pygame.BLEND_ADD)
-        pygame.draw.circle(surf, ORB_DK, (int(ex), int(ey)), int(eye_r * 0.80))
-        pygame.draw.circle(surf, ORB, (int(ex), int(ey)), int(eye_r * 0.66))
+        pygame.draw.circle(surf, ORB_DK, (int(ex), int(ey)), int(eye_r * 0.82))
+        pygame.draw.circle(surf, ORB, (int(ex), int(ey)), int(eye_r * 0.68))
         pygame.draw.circle(surf, ORB_CORE,
-                           (int(ex - eye_r * 0.16), int(ey - eye_r * 0.20)),
-                           max(1, int(eye_r * 0.20)))
-        # Heavy upper lid (cool body colour) drooping over the top half — the
-        # sleepy beat. A filled circle-segment in the body hue.
-        lid = pygame.Rect(int(ex - eye_r * 1.15), int(ey - eye_r * 1.25),
-                          int(eye_r * 2.3), int(eye_r * 1.45))
-        pygame.draw.ellipse(surf, body, lid)
-        # A thin dark lash-line under the lid so the half-lid reads crisp.
-        pygame.draw.line(surf, BODY_DK,
-                         (int(ex - eye_r * 0.92), int(ey - eye_r * 0.10)),
-                         (int(ex + eye_r * 0.92), int(ey - eye_r * 0.02)),
-                         max(1, int(1.2 * ss)))
+                           (int(ex + eye_r * 0.12), int(ey + eye_r * 0.22)),
+                           max(1, int(eye_r * 0.22)))
+        # HARD INK upper-lid bar covering the top ~45% of the socket — the
+        # half-closed sleepy SHAPE that holds at 32px. A filled circle-segment
+        # in INK, not a darker mauve, so the lid never reads as flesh.
+        lid = pygame.Surface((int(eye_r * 2.6), int(eye_r * 2.6)), pygame.SRCALPHA)
+        pygame.draw.circle(lid, INK, (int(eye_r * 1.3), int(eye_r * 1.3)),
+                           int(eye_r * 1.04))
+        # Mask off the lower ~45% so the drooping lid bar covers ~55% (sleepy).
+        cut = pygame.Rect(0, int(eye_r * 1.3 + eye_r * 0.14),
+                          int(eye_r * 2.6), int(eye_r * 1.6))
+        lid.fill((0, 0, 0, 0), cut)
+        surf.blit(lid, (int(ex - eye_r * 1.3), int(ey - eye_r * 1.3)))
+        # A thin lilac sheen lip on the lid's lower edge so the half-lid reads
+        # crisp + cute (a sleepy eyelash highlight, not a menacing slit).
+        pygame.draw.line(surf, body_sheen,
+                         (int(ex - eye_r * 0.82), int(ey - eye_r * 0.02)),
+                         (int(ex + eye_r * 0.82), int(ey - eye_r * 0.06)),
+                         max(1, int(1.0 * ss)))
 
     # — Nose: a small dark upside-down heart skull-hole between + below the eyes.
     nose_y = cy + r * 0.30
@@ -243,11 +291,12 @@ def _head(surf, cx, cy, r, ss, *, night=False):
             (cx + r * 0.10, nose_y - r * 0.05)]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in nose])
 
-    # — Mouth: a gentle bone tusk-grin. A soft dark mouth seat, a row of little
-    #   even teeth, two modest up-curling tusks at the corners — sleepy-cute.
-    grin_y = cy + r * 0.64
-    grin_hw = r * 0.70
-    grin_h = r * 0.34
+    # — Mouth: a BOLD lantern-skull tusk-grille — the jack-o tell strengthened
+    #   to survive the chip (directive 6) so the read is sleepy-cute lantern-
+    #   skull, never a generic lich. Wider, deeper ink seat; chunkier teeth.
+    grin_y = cy + r * 0.66
+    grin_hw = r * 0.78
+    grin_h = r * 0.42
     seat_top, seat_bot = [], []
     n = 16
     for i in range(n + 1):
@@ -259,10 +308,10 @@ def _head(surf, cx, cy, r, ss, *, night=False):
     seat = seat_top + seat_bot[::-1]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in seat])
 
-    teeth = 6
-    gap = grin_hw * 0.12
+    teeth = 5
+    gap = grin_hw * 0.14
     tw = (grin_hw * 1.55 - gap * (teeth - 1)) / teeth
-    th = grin_h * 0.46
+    th = grin_h * 0.58
     for i in range(teeth):
         tx = -grin_hw * 0.78 + i * (tw + gap)
         xr = (tx + tw * 0.5) / grin_hw
@@ -293,21 +342,46 @@ def _head(surf, cx, cy, r, ss, *, night=False):
 # ── the whole creature: head + trailing orb-string, on one surface ───────────
 
 def _face_tell(surf, cx, cy, r, ss):
-    """A baked LOW-RES face tell (icon gate): two fat gold eye-dots + a single
-    dark grin-bar stamped over the detailed face, sized so smoothscale to true
-    32px PRESERVES a recognizable sleepy-skull face instead of mushing to a
-    speck. Gold eye-dots double as the contained-warm tell at icon scale."""
-    eye_dx = r * 0.44
-    eye_dy = -r * 0.04
-    eye_rr = r * 0.24
+    """A baked LOW-RES face tell (icon gate) that PRESERVES the sleepy-skull
+    read at true 32px instead of collapsing to two gold blobs (critique
+    priority 1). Each eye is a gold crescent capped by a HARD INK upper-lid
+    bar — the half-closed SHAPE survives downscale — over a BOLD ink grin-bar
+    with notched teeth so the lantern-skull tell holds. Gold doubles as the
+    contained-warm tell at icon scale; the INK does the expression."""
+    eye_dx = r * 0.46
+    eye_dy = r * 0.04
+    eye_rr = r * 0.30
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
-        pygame.draw.circle(surf, BODY_DK, (int(ex), int(ey)), int(eye_rr * 1.15))
-        pygame.draw.circle(surf, ORB, (int(ex), int(ey)), int(eye_rr))
-        pygame.draw.circle(surf, ORB_CORE, (int(ex), int(ey)), int(eye_rr * 0.42))
-    gw = r * 0.78
-    gy = cy + r * 0.56
-    gh = r * 0.18
+        # Ink socket rim + gold pool, biased low (the crescent under the lid).
+        pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(eye_rr * 1.18))
+        pygame.draw.circle(surf, ORB, (int(ex), int(ey + eye_rr * 0.18)),
+                           int(eye_rr * 0.92))
+        pygame.draw.circle(surf, ORB_CORE,
+                           (int(ex), int(ey + eye_rr * 0.30)),
+                           int(eye_rr * 0.40))
+        # HARD INK upper-lid bar covering the top ~50% — the sleepy SHAPE tell.
+        lid = pygame.Surface((int(eye_rr * 2.6), int(eye_rr * 2.6)),
+                             pygame.SRCALPHA)
+        pygame.draw.circle(lid, INK, (int(eye_rr * 1.3), int(eye_rr * 1.3)),
+                           int(eye_rr * 1.12))
+        # Cut line dropped LOW so the lid covers ~60% — thinner gold crescent =
+        # a stronger drowsy read that holds at true 32px.
+        lid.fill((0, 0, 0, 0),
+                 pygame.Rect(0, int(eye_rr * 1.3 + eye_rr * 0.30),
+                             int(eye_rr * 2.6), int(eye_rr * 1.4)))
+        surf.blit(lid, (int(ex - eye_rr * 1.3), int(ey - eye_rr * 1.3)))
+
+    # A cracked-brow ink hint above the eyes (focal asymmetry at icon scale).
+    pygame.draw.line(surf, INK,
+                     (int(cx - r * 0.20), int(cy - r * 0.36)),
+                     (int(cx + r * 0.20), int(cy - r * 0.30)),
+                     max(2, int(1.6 * ss)))
+
+    # BOLD ink grin-bar with notched teeth — the lantern-skull grille tell.
+    gw = r * 0.82
+    gy = cy + r * 0.58
+    gh = r * 0.26
     top, bot = [], []
     n = 12
     for i in range(n + 1):
@@ -317,6 +391,13 @@ def _face_tell(surf, cx, cy, r, ss):
         top.append((x, gy - gh * 0.5 + lift))
         bot.append((x, gy + gh * 0.5 + lift))
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in (top + bot[::-1])])
+    # Two bone tooth-notches punched into the grille so it reads jack-o, not slot.
+    for tx in (-r * 0.22, r * 0.22):
+        xr = tx / gw
+        ty = gy - gh * 0.5 + gh * 1.25 * (xr * xr)
+        rect = pygame.Rect(int(cx + tx - r * 0.07), int(ty + gh * 0.10),
+                           int(r * 0.14), int(gh * 0.62))
+        pygame.draw.rect(surf, BONE, rect)
 
 
 def build_krasue(scale=1.0, ss=6, *, night=False, compact=False):
@@ -328,20 +409,26 @@ def build_krasue(scale=1.0, ss=6, *, night=False, compact=False):
     `compact` is the GAMEPLAY / 32px-icon variant: the HEAD is grown to dominate
     ~55-60% of the vertical budget and the string cut to 3 orbs, so the icon reads
     'sleepy skull on a short orb-string' — never a faint thread + speck. Compact
-    also bakes a low-res face tell."""
-    head_r = int(46 * scale) * ss
-    string_mult = 1.20 if compact else 2.85
-    string_len = int(head_r * string_mult)
-    n_orbs = 3 if compact else 6
-    side_pad = int(24 * scale) * ss        # room for wave + orb halos
-    top_pad = int(16 * scale) * ss
-    bot_pad = int(24 * scale) * ss         # room for the bottom orb glow halo
+    also bakes a low-res face tell.
 
-    head_cx_off = side_pad + head_r + int(6 * scale) * ss
+    EPIC (critique priority 4 + directive 5): the hero head is grown to dominate
+    ~60-65% of the frame, the string drops to 4 FAT beads (legibility > count),
+    and a restrained cool-mauve outer AURA rings the whole head so it reads as a
+    screen-filling boss, not a coin pickup."""
+    head_r = int(46 * scale) * ss
+    string_mult = 1.20 if compact else 2.35
+    string_len = int(head_r * string_mult)
+    n_orbs = 3 if compact else 4
+    # Tighter side pad so the big head FILLS its frame (boss read, not pickup).
+    side_pad = int(12 * scale) * ss
+    top_pad = int(20 * scale) * ss         # room for the cool aura halo
+    bot_pad = int(26 * scale) * ss         # room for the bottom orb glow halo
+
+    head_cx_off = side_pad + head_r + int(8 * scale) * ss
     head_cy = top_pad + head_r * 1.04
 
     # The orb-string springs from just under the jaw.
-    string_top_y = head_cy + head_r * 1.16
+    string_top_y = head_cy + head_r * 1.20
     feet_y = string_top_y + string_len
 
     W = int(head_cx_off * 2)
@@ -349,9 +436,18 @@ def build_krasue(scale=1.0, ss=6, *, night=False, compact=False):
     surf = pygame.Surface((W, H), pygame.SRCALPHA)
     cx = W // 2
 
-    base_r = head_r * 0.30
+    # — Restrained cool-mauve outer aura around the whole head (NOT a gradient
+    #   wash) — a low-alpha additive halo that pushes the EPIC boss-scale read
+    #   while keeping the body cool (warm stays inside the orbs).
+    aura_r = int(head_r * 1.55)
+    aura = make_glow_surface(aura_r, BODY_SHEEN,
+                             alpha_center=70 if night else 48, falloff=2.6)
+    surf.blit(aura, (int(cx - aura_r), int(head_cy - aura_r)),
+              special_flags=pygame.BLEND_ADD)
+
+    base_r = head_r * (0.30 if compact else 0.36)
     _orb_string(surf, cx, string_top_y, string_len, base_r, ss,
-                n_orbs=n_orbs, wave=0.6 if compact else 1.0, phase=0.5,
+                n_orbs=n_orbs, wave=0.6 if compact else 0.9, phase=0.5,
                 end_cracked=True, night=night)
 
     _head(surf, cx, head_cy, head_r, ss, night=night)
@@ -375,13 +471,17 @@ def _orb_column(surf, cx, top_y, bot_y, base_r, ss):
     steady on-axis cadence (the band that mirrors top<->bottom). Drawn vertical
     (no wave) so it tiles cleanly along the post."""
     length = bot_y - top_y
-    # The sinew cord down the axis.
-    pygame.draw.line(surf, SINEW_DK, (int(cx), int(top_y)), (int(cx), int(bot_y)),
-                     max(2, int(2.8 * ss)))
-    pygame.draw.line(surf, SINEW, (int(cx - 0.3 * ss), int(top_y)),
-                     (int(cx - 0.3 * ss), int(bot_y)), max(1, int(1.4 * ss)))
-    # Evenly-spaced orbs — the organ band that repeats top<->bottom.
-    band = base_r * 2.6
+    # The sinew cord down the axis — a visible INK thread with a mauve underside
+    # so the beads read strung onto one gut-line at 1x (directive 3).
+    pygame.draw.line(surf, INK, (int(cx), int(top_y)), (int(cx), int(bot_y)),
+                     max(2, int(3.4 * ss)))
+    pygame.draw.line(surf, SINEW_DK, (int(cx + 1.0 * ss), int(top_y)),
+                     (int(cx + 1.0 * ss), int(bot_y)), max(1, int(1.6 * ss)))
+    pygame.draw.line(surf, SINEW, (int(cx), int(top_y)),
+                     (int(cx), int(bot_y)), max(1, int(1.4 * ss)))
+    # Evenly-spaced orbs — the organ band that repeats top<->bottom. Slightly
+    # gappier cadence so each bead stays discrete at the true obstacle scale.
+    band = base_r * 2.9
     n = max(2, int(length / band))
     band = length / n
     for i in range(n):
@@ -462,7 +562,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((58, 56, 62))          # neutral grey bg
     _label(sheet, font,
-            "KRASUE  —  leyak-EPIC #1  —  cool dusk-mauve skull-lantern + warm-gold gut-orb STRING  —  round 1", 18, 12)
+            "KRASUE  —  leyak-EPIC #1  —  cool dusk-mauve skull-lantern + warm-gold gut-orb STRING  —  round 2", 18, 12)
     _label(sheet, small,
             "EPIC pipeline: rendered LARGE @ SS=6 then smoothscaled. Body COOL (mauve); firefly-gold confined STRICTLY to discrete gut-orbs. Orb-string IS the pillar.",
             18, 32, (210, 200, 218))
@@ -472,10 +572,11 @@ def main():
     bgA = _sky(panel.w, panel.h, (52, 36, 66), (104, 70, 108), (176, 132, 150))
     sheet.blit(bgA, panel.topleft)
     pygame.draw.rect(sheet, (130, 110, 140), panel, 2, border_radius=8)
-    boss = build_krasue(scale=1.9, ss=6)
-    sheet.blit(boss, (panel.centerx - boss.get_width() // 2, panel.y + 50))
+    boss = build_krasue(scale=2.2, ss=6)
+    # Pin the big head high in the panel so it FILLS the frame (EPIC boss read).
+    sheet.blit(boss, (panel.centerx - boss.get_width() // 2, panel.y + 38))
     _label(sheet, font, "(a) HERO  big @ SS=6", panel.x + 8, panel.y + 8)
-    _label(sheet, small, "skull-lantern head + 6 gut-orbs on a thin sinew + cracked end-orb",
+    _label(sheet, small, "BOSS-scale head + cool aura + 4 fat lantern-orbs on an ink sinew",
            panel.x + 8, panel.y + 28, (232, 222, 238))
 
     # — Cell B: orb-string as a tileable PILLAR pair @ TRUE obstacle scale (NIGHT),
@@ -610,7 +711,7 @@ def main():
            18, SH - 44, (205, 196, 214))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
