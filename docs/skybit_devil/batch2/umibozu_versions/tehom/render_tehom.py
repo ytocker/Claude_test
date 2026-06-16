@@ -272,17 +272,25 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     #   curious read with a slit that says something ancient is awake.
     bone    = _shade_c(BONE, 8) if night else BONE
     bone_lt = _shade_c(BONE_LT, 6) if night else BONE_LT
-    # A THIN bone-lit lid ring framing the eye — just enough value contrast for
-    # the slit to survive the 32px downscale on hue alone (AD directive 5: dark
-    # sclera-slit on a bone-lit lid). Kept tight so it doesn't become a separate
-    # fried-egg disc; the spiral whorl reads as the structure, the lid only rings
-    # the iris. The dark socket seats the eye in the shell.
+    # A HAIR-THIN bone lid ring framing the iris — only the rim, never a filled
+    # bone disc. R2 flooded a near-white halo across the whole eye-zone (the
+    # brightest mass on the egg); the AD's sole remaining blocker. Fix: the dark
+    # shell re-owns the socket, the lid is a THIN cool bone-cream RING (a step
+    # below white) that hugs the iris, and the biolum eye-glow is pulled tight +
+    # cooled to the sour-green seat so it lanterns the slit without blooming.
+    # The slit reads on CONTRAST (dark slit on bone-lit iris), not on a hot socket.
     pygame.draw.circle(surf, SHELL_DEEP, (int(eye_x), int(eye_y)),
-                       max(2, int(eye_r * 1.22)))
-    pygame.draw.circle(surf, bone, (int(eye_x), int(eye_y)), max(2, int(eye_r * 1.12)))
-    # Green-lit eyeball glow so the eye itself is biolum (it's lit from within).
-    _green_glow(surf, eye_x, eye_y, eye_r * 1.0, night=night,
-                alpha=160 if night else 110)
+                       max(2, int(eye_r * 1.18)))
+    # Thin bone lid: drawn as a ring (dark fill re-stamped inside) so the bone is
+    # a rim only — the dark shell value wins the area immediately around the lid.
+    pygame.draw.circle(surf, BONE_DK, (int(eye_x), int(eye_y)), max(2, int(eye_r * 1.10)))
+    pygame.draw.circle(surf, bone, (int(eye_x), int(eye_y)), max(2, int(eye_r * 1.04)))
+    pygame.draw.circle(surf, SHELL_DEEP, (int(eye_x), int(eye_y)), max(2, int(eye_r * 0.96)))
+    # Green-lit eyeball glow — biolum from within, but TIGHT (radius to the iris
+    # footprint, cooled toward the sour-green seat) so it never blooms past the
+    # lid onto the whorl/shell as a white halo.
+    _green_glow(surf, eye_x, eye_y, eye_r * 0.66, night=night,
+                alpha=110 if night else 72, mult=0.85)
     # The iris: a sour-green disc with a dark rim.
     pygame.draw.circle(surf, GREEN_DK, (int(eye_x), int(eye_y)), max(2, int(eye_r)))
     pygame.draw.circle(surf, GREEN, (int(eye_x), int(eye_y)), max(2, int(eye_r * 0.82)))
