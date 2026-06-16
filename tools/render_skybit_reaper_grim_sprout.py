@@ -127,7 +127,7 @@ def build_grim_sprout(scale=1.0, ss=3):
     s = pygame.Surface((BW, BH), pygame.SRCALPHA)
 
     # Tiny imp, anchored low. Body deliberately small vs the prop.
-    body_cx = int(BW * 0.64)
+    body_cx = int(BW * 0.55)
     feet_y = int(BH * 0.955)
     hood_r = int(34 * scale * ss)              # small head, but big enough to carry a face
     belly_r = int(20 * scale * ss)
@@ -262,10 +262,10 @@ def build_grim_sprout(scale=1.0, ss=3):
                            max(1, int(er * 0.42)))
     # ONE oversized cream FANG offset to the imp's left of center, poking UP over
     # the hood-shadow lip — the scary-cute signature beat, now bold + legible.
-    fangx = fcx - int(cav_r * 0.20)
-    fangy = fcy + int(cav_r * 0.50)
+    fangx = fcx - int(cav_r * 0.22)
+    fangy = fcy + int(cav_r * 0.34)
     fang_w = int(8 * scale * ss)
-    fang_h = int(18 * scale * ss)
+    fang_h = int(19 * scale * ss)
     fang = [(fangx - fang_w, fangy), (fangx + fang_w, fangy),
             (fangx + int(fang_w * 0.2), fangy - fang_h)]
     pygame.draw.polygon(s, BONE, fang)

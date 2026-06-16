@@ -551,7 +551,8 @@ def main():
     pygame.draw.rect(sheet, (90, 86, 104), panelC, 2, border_radius=8)
     _label(sheet, font, "(c) 1x in-game scale  —  day / night legibility", panelC.x + 8, panelC.y + 8)
 
-    boss1x, feet = build_big_reapy(scale=0.66, ss=3)   # ~ scrolling-route size
+    boss1x, feet = build_big_reapy(scale=0.66, ss=3)              # ~ scrolling size
+    boss1x_n, _ = build_big_reapy(scale=0.66, ss=3, night=True)   # lit-eye night cut
     day = _sky(180, 250, (40, 110, 200), (90, 170, 230), (170, 220, 245))
     night = _sky(180, 250, (5, 8, 30), (15, 25, 70), (35, 55, 115))
     # A couple of night stars so the dark panel reads as the night sky.
@@ -563,8 +564,8 @@ def main():
     sheet.blit(night, (panelC.x + 200, dy))
     sheet.blit(boss1x, (panelC.x + 14 + 90 - boss1x.get_width() // 2,
                         dy + 250 - boss1x.get_height() - 6))
-    sheet.blit(boss1x, (panelC.x + 200 + 90 - boss1x.get_width() // 2,
-                        dy + 250 - boss1x.get_height() - 6))
+    sheet.blit(boss1x_n, (panelC.x + 200 + 90 - boss1x_n.get_width() // 2,
+                          dy + 250 - boss1x_n.get_height() - 6))
     _label(sheet, small, "DAY", panelC.x + 14 + 6, dy + 6, (20, 20, 30))
     _label(sheet, small, "NIGHT", panelC.x + 200 + 6, dy + 6, (210, 220, 255))
 
@@ -587,7 +588,7 @@ def main():
 
     # — Footer caption: the scary-cute thesis.
     _label(sheet, small,
-           "scary-cute: big round sockets + lifted bone brows + a wide square-toothed jack-grin read 'delighted puppy', not horror.",
+           "scary-cute: big round sockets + lifted bone brows + a 5-tooth bowed-UP jack-grin read 'delighted puppy', not horror.",
            18, SH - 124, (210, 206, 220))
     _label(sheet, small,
            "house style: FLAT fills, hard ink keyline grown from the alpha mask, dark-core->fill->top-left-sheen triad, ss=3 -> smoothscale.",
@@ -600,7 +601,7 @@ def main():
                            "skybit_reaper", "big_reapy")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

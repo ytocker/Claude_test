@@ -420,10 +420,15 @@ def _sky_panel(w, h, night):
 
 def _boss_bitmap(disp_w, disp_h, ss, **kw):
     """Render the boss supersampled then smoothscale down (house AA discipline),
-    with the 1px outline grown on the downscaled sprite."""
+    with the 1px outline grown on the downscaled sprite. WHY r2: the squatter,
+    wider build + its held snuffer-pole (which rises ABOVE the head) need more
+    headroom and right-margin than r1 — figure is shifted left and the feet
+    dropped so the whole prop-and-bell reads inside the cell without clipping."""
     big = pygame.Surface((disp_w * ss, disp_h * ss), pygame.SRCALPHA)
-    draw_hollow(big, int(disp_w * 0.46 * ss), int((disp_h - 6) * ss),
-                scale=disp_h / 220.0, ss=ss, **kw)
+    # Scale off the smaller axis so the wide hem + the tall held pole both fit.
+    scale = min(disp_w / 270.0, disp_h / 250.0)
+    draw_hollow(big, int(disp_w * 0.42 * ss), int((disp_h - 6) * ss),
+                scale=scale, ss=ss, **kw)
     small = pygame.transform.smoothscale(big, (disp_w, disp_h))
     return _add_outline(small)
 
