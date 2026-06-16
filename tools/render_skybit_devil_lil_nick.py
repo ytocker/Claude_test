@@ -106,26 +106,30 @@ def _add_outline(src, outline_color=(*INK, 235)):
 # ── the upturned candle-flame horns (the unmistakable devil black-read) ───────
 
 def _horn(surf, base_x, base_y, length, hw, ss, *, lean):
-    """One short UPTURNED horn: a stubby candle-flame cone that curves OUTWARD then
-    flicks back to a sharp upturned point. Deliberately SHORT + upturned (the set-
-    wide guardrail forbids a big curved-ram pair). Triad-lit cream with one dark
-    banding groove so it reads as a little horn, not a beak. `lean` is the outward
-    sweep direction (-1 left horn, +1 right horn)."""
+    """One short UPTURNED horn: a stubby candle-flame that rises mostly VERTICALLY,
+    then hooks back to a sharp inward-upturned point. Deliberately SHORT + upright
+    (the set-wide guardrail forbids the outward bull/ram-pair sweep). Triad-lit
+    cream with one dark banding groove so it reads as a little horn, not a beak.
+    `lean` is the (small) outward bow direction (-1 left horn, +1 right horn)."""
     # Build the horn as a centre-spine of (x, y, half-width) samples, then expand
     # to an outer polygon (dark-core) and a shrunk inner polygon (flat fill) off
     # the SAME spine so the triad can never produce a degenerate ring.
     spine = []
     n = 12
+    # Outward bow is cut ~40% off the round-1 sweep (length*0.32 -> length*0.19) so
+    # the horn rises near-vertical; the upturn flick is increased so the tip hooks
+    # back INWARD into the candle-flame point — never the wide V that reads ram.
+    bow = length * 0.19
     for i in range(n + 1):
         t = i / n
-        # Sweep outward in the lower half, then flick the tip back toward upright
-        # so the point upturns (a candle-flame curl, not a straight spike).
-        out = math.sin(min(t, 0.55) / 0.55 * math.pi * 0.5)
+        # Bow out only gently in the lower half, then flick the tip back PAST the
+        # base line so the point upturns inward (a candle-flame curl, not a spike).
+        out = math.sin(min(t, 0.5) / 0.5 * math.pi * 0.5)
         flick = 0.0
-        if t > 0.55:
-            ft = (t - 0.55) / 0.45
-            flick = (ft * ft) * 0.55
-        sx = base_x + lean * (hw * 0.2 + length * 0.32 * out - length * 0.32 * flick)
+        if t > 0.5:
+            ft = (t - 0.5) / 0.5
+            flick = (ft * ft) * 1.35           # stronger inward hook at the tip
+        sx = base_x + lean * (hw * 0.15 + bow * out - bow * flick)
         sy = base_y - length * t
         wgt = hw * (1.0 - 0.82 * t)             # taper to a point
         spine.append((sx, sy, wgt))
@@ -225,7 +229,10 @@ def _devil_face(surf, cx, cy, r, ss):
             (cx + s * r * 1.20, cy - r * 0.26),
             (cx + s * r * 0.98, cy + r * 0.14),
         ]
-        pygame.draw.polygon(surf, BELLY, [(int(x), int(y)) for x, y in inner])
+        # Ear-inner pink nudged brighter so the pointed elf-ears stay legible
+        # against the body mass on the dark night sky.
+        pygame.draw.polygon(surf, _shade_c(BELLY, 22),
+                            [(int(x), int(y)) for x, y in inner])
 
     # The round head dome.
     _triad_circle(surf, cx, cy, r, RED)
@@ -236,15 +243,16 @@ def _devil_face(surf, cx, cy, r, ss):
         br.center = (int(cx + s * r * 0.52), int(cy + r * 0.36))
         pygame.draw.ellipse(surf, BELLY, br)
 
-    # Mischief brows — thick angled wedges, inner ends DOWN (the gleeful-imp
-    # scheming look), but soft enough to stay cute not furious.
+    # Mischief brows — slim angled wedges lifted clear of the eye so they read as
+    # a separate scheming accent at 1x instead of merging into a dark upper band.
+    # Thinner + higher than round 1, inner ends still tipped DOWN (gleeful imp).
     for s in (-1, 1):
         bx = cx + s * r * 0.40
         brow = [
-            (bx - s * r * 0.28, cy - r * 0.30),
+            (bx - s * r * 0.26, cy - r * 0.40),
+            (bx + s * r * 0.30, cy - r * 0.54),
             (bx + s * r * 0.30, cy - r * 0.46),
-            (bx + s * r * 0.30, cy - r * 0.34),
-            (bx - s * r * 0.28, cy - r * 0.18),
+            (bx - s * r * 0.26, cy - r * 0.32),
         ]
         pygame.draw.polygon(surf, RED_DK, [(int(x), int(y)) for x, y in brow])
 
@@ -262,12 +270,13 @@ def _devil_face(surf, cx, cy, r, ss):
     pygame.draw.circle(surf, EYE_WHITE,
                        (int(lx - r * 0.02), int(eye_y - r * 0.05)),
                        max(1, int(r * 0.05)))                 # catchlight
-    # Right wink — a bowed-up happy arc.
+    # Right wink — a bold bowed-up happy arc. Thicker + wider than round 1 so the
+    # closed-eye crescent survives the 1x downscale instead of vanishing to a dot.
     rxc = cx + eye_dx
     pygame.draw.arc(surf, INK,
-                    (int(rxc - r * 0.26), int(eye_y - r * 0.10),
-                     int(r * 0.52), int(r * 0.34)),
-                    math.radians(200), math.radians(340), max(2, int(2.4 * ss)))
+                    (int(rxc - r * 0.30), int(eye_y - r * 0.12),
+                     int(r * 0.60), int(r * 0.42)),
+                    math.radians(196), math.radians(344), max(3, int(4.2 * ss)))
 
     # Button nose — a tiny rose triangle between+below the eyes.
     ny = cy + r * 0.18
@@ -276,22 +285,25 @@ def _devil_face(surf, cx, cy, r, ss):
     pygame.draw.polygon(surf, BELLY_DK, [(int(x), int(y)) for x, y in nose])
 
     # The smug grin — a wide bowed-UP mouth crescent with one snaggle-fang poking
-    # up over the lip. Smug = one corner higher than the other.
+    # up over the lip. Smug = right corner pulled noticeably higher than the left,
+    # asymmetry nudged up from round 1 so it still reads cocky at 1x.
     gy = cy + r * 0.50
     mouth = [
-        (cx - r * 0.46, gy - r * 0.02),
-        (cx, gy + r * 0.20),
-        (cx + r * 0.50, gy - r * 0.12),                       # higher right = smug
+        (cx - r * 0.46, gy),
+        (cx, gy + r * 0.22),
+        (cx + r * 0.52, gy - r * 0.24),                       # higher right = smug
     ]
     pygame.draw.lines(surf, INK, False,
-                      [(int(x), int(y)) for x, y in mouth], max(2, int(3 * ss)))
-    # Snaggle-fang: a little ivory triangle poking UP from the lower lip, off-centre.
-    fx = cx - r * 0.16
-    fang = [(fx, gy + r * 0.05), (fx - r * 0.07, gy + r * 0.20),
-            (fx + r * 0.07, gy + r * 0.20)]
+                      [(int(x), int(y)) for x, y in mouth], max(3, int(3.6 * ss)))
+    # Snaggle-fang: an ivory triangle poking UP from the lower lip, off-centre.
+    # Enlarged ~30% with a crisp ink keyline so the single tooth survives 1x as a
+    # clear scary-cute beat rather than blurring into the mouth line.
+    fx = cx - r * 0.17
+    fang = [(fx, gy + r * 0.03), (fx - r * 0.10, gy + r * 0.26),
+            (fx + r * 0.10, gy + r * 0.26)]
     pygame.draw.polygon(surf, FANG, [(int(x), int(y)) for x, y in fang])
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in fang],
-                        max(1, int(ss)))
+                        max(2, int(1.8 * ss)))
 
     # Pointed chin-goatee — a tiny dark triangle under the mouth (the classic
     # devil beard), drawn in the spade-black so it groups with horns/tail.
@@ -300,20 +312,21 @@ def _devil_face(surf, cx, cy, r, ss):
     pygame.draw.polygon(surf, SPADE, [(int(x), int(y)) for x, y in goat])
 
 
-def _devil_body(surf, cx, neck_y, w, h, ss):
+def _devil_body(surf, cx, neck_y, w, h, ss, *, haft_x=None):
     """The short wide chibi body: a round pot-belly torso in cherry-red with a
-    rose belly patch, stub arms (one braces the fork, one fists on the hip — the
-    smug twirl pose), and two little black hooves. Deliberately egg-shaped so the
-    big head dominates the chibi read."""
+    rose belly patch, stub arms (one GRIPS the fork haft, one fists on the hip —
+    the smug twirl pose), and two little black hooves. Deliberately egg-shaped so
+    the big head dominates the chibi read. `haft_x` is the fork-haft centre so the
+    right hand lands ON the haft as a clear grip (no floating hand-ball)."""
     belly_cy = neck_y + h * 0.46
     belly_r = w * 0.5
     # Round torso via the triad.
     _triad_circle(surf, cx, belly_cy, belly_r, RED)
-    # Pot-belly patch — a rose oval low + centre so the round body reads bellied.
-    pr = pygame.Rect(0, 0, int(belly_r * 1.1), int(belly_r * 1.2))
-    pr.center = (int(cx), int(belly_cy + belly_r * 0.22))
-    pygame.draw.ellipse(surf, BELLY_DK, pr)
-    pygame.draw.ellipse(surf, BELLY, pr.inflate(-int(3 * ss), -int(3 * ss)))
+    # Pot-belly patch — ONE clean rose oval (no concentric rings) so the body reads
+    # bellied rather than target-like and the grayscale body/belly value separates.
+    pr = pygame.Rect(0, 0, int(belly_r * 1.06), int(belly_r * 1.18))
+    pr.center = (int(cx), int(belly_cy + belly_r * 0.24))
+    pygame.draw.ellipse(surf, BELLY, pr)
     # Gold belt cinch at the belly waist (the trim accent + a value break).
     belt = pygame.Rect(0, 0, int(belly_r * 1.7), int(h * 0.16))
     belt.center = (int(cx), int(belly_cy - belly_r * 0.04))
@@ -322,8 +335,7 @@ def _devil_body(surf, cx, neck_y, w, h, ss):
                      border_radius=max(2, int(2 * ss)))
     pygame.draw.circle(surf, GOLD_HI, belt.center, max(1, int(h * 0.04)))
 
-    # Stub arms: LEFT hand fists on the hip (smug), RIGHT reaches up to brace the
-    # fork (the caller draws the fork at the figure's right).
+    # Stub arms: LEFT hand fists on the hip (smug), RIGHT grips the fork haft.
     # Left hip arm.
     hipx = cx - belly_r * 0.92
     pygame.draw.line(surf, RED_DK, (int(cx - belly_r * 0.5), int(belly_cy - belly_r * 0.1)),
@@ -331,14 +343,18 @@ def _devil_body(surf, cx, neck_y, w, h, ss):
     pygame.draw.line(surf, RED, (int(cx - belly_r * 0.5), int(belly_cy - belly_r * 0.1)),
                      (int(hipx), int(belly_cy + belly_r * 0.18)), max(2, int(4.5 * ss)))
     _triad_circle(surf, hipx, belly_cy + belly_r * 0.18, w * 0.14, RED)
-    # Right brace arm reaching up toward the fork haft.
-    grabx = cx + belly_r * 1.05
-    graby = belly_cy - belly_r * 0.5
-    pygame.draw.line(surf, RED_DK, (int(cx + belly_r * 0.45), int(belly_cy - belly_r * 0.05)),
-                     (int(grabx), int(graby)), max(4, int(7 * ss)))
-    pygame.draw.line(surf, RED, (int(cx + belly_r * 0.45), int(belly_cy - belly_r * 0.05)),
-                     (int(grabx), int(graby)), max(2, int(4.5 * ss)))
-    _triad_circle(surf, grabx, graby, w * 0.14, RED)
+    # Right arm: a short near-level reach that plants the fist ON the haft so it
+    # reads as a confident GRIP (a twirl), not a stiff diagonal to a floating ball.
+    grabx = haft_x if haft_x is not None else cx + belly_r * 1.05
+    graby = belly_cy - belly_r * 0.10
+    sh_x = cx + belly_r * 0.45
+    sh_y = belly_cy - belly_r * 0.04
+    pygame.draw.line(surf, RED_DK, (int(sh_x), int(sh_y)),
+                     (int(grabx), int(graby)), max(4, int(7.5 * ss)))
+    pygame.draw.line(surf, RED, (int(sh_x), int(sh_y)),
+                     (int(grabx), int(graby)), max(2, int(5 * ss)))
+    # The fist closes AROUND the haft — drawn centred on the haft so it wraps it.
+    _triad_circle(surf, grabx, graby, w * 0.15, RED)
 
     # Two little black hooves peeking under the belly (cloven devil feet).
     hoof_y = belly_cy + belly_r * 0.92
@@ -474,19 +490,22 @@ def build_lil_nick(scale=1.0, ss=3):
 
     # Pitchfork held upright at the figure's right; haft runs past the feet, the
     # trident head rises above the head (twirled aloft).
-    bx = cx + W * 0.52 * ss
+    bx = cx + W * 0.48 * ss
     bhw = 6.5 * ss
     head_top = head_cy - head_r * 1.05
     _iron_haft(surf, bx, head_top, feet_y + 6 * ss, bhw, ss)
     _iron_trident(surf, bx, head_top, bhw, ss, point_up=True)
 
-    # Body, then horns (behind the head dome top), then face on top.
-    _devil_body(surf, head_cx, neck_y, body_w, body_h, ss)
-    # Two short upturned horns springing from the top of the head.
-    horn_len = head_r * 0.92
-    horn_hw = head_r * 0.20
-    _horn(surf, head_cx - head_r * 0.40, head_cy - head_r * 0.86, horn_len, horn_hw, ss, lean=-1)
-    _horn(surf, head_cx + head_r * 0.40, head_cy - head_r * 0.86, horn_len, horn_hw, ss, lean=1)
+    # Body (its right fist grips the haft just drawn), then horns (behind the head
+    # dome top), then face on top.
+    _devil_body(surf, head_cx, neck_y, body_w, body_h, ss, haft_x=bx)
+    # Two short upturned horns springing from the top of the head, bases pulled
+    # closer together so the upright pair reads as a tight candle-flame V, never
+    # the wide outward span of bull/ram horns.
+    horn_len = head_r * 0.96
+    horn_hw = head_r * 0.21
+    _horn(surf, head_cx - head_r * 0.32, head_cy - head_r * 0.90, horn_len, horn_hw, ss, lean=-1)
+    _horn(surf, head_cx + head_r * 0.32, head_cy - head_r * 0.90, horn_len, horn_hw, ss, lean=1)
     _devil_face(surf, head_cx, head_cy, head_r, ss)
 
     out_w = int(surf.get_width() / ss)
@@ -547,7 +566,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((34, 30, 38))
-    _label(sheet, font, "LIL NICK  —  take B1  —  cherry-red storybook devil  —  round 1", 18, 12)
+    _label(sheet, font, "LIL NICK  —  take B1  —  cherry-red storybook devil  —  round 2", 18, 12)
     _label(sheet, small,
             "the canonical chibi red imp: round egg-body, short UPTURNED candle-horns, elf-ears, spade tail, iron pitchfork  (Group-B RED anchor)",
             18, 32, (210, 196, 200))
@@ -560,6 +579,8 @@ def main():
     sheet.blit(boss, (panel.centerx - boss.get_width() // 2,
                       panel.bottom - boss.get_height() - 16))
     _label(sheet, font, "(a) BOSS  showcase scale", panel.x + 8, panel.y + 8)
+    _label(sheet, small, "upright candle-horns, fist GRIPS haft, 1-oval belly",
+           panel.x + 8, panel.y + 28, (210, 196, 200))
 
     # — Cell B: the pitchfork as a tileable PILLAR pair at TRUE obstacle scale.
     panelB = pygame.Rect(394, 56, 360, 590)
@@ -654,7 +675,7 @@ def main():
                            "skybit_devil", "devil", "lil_nick")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

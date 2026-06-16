@@ -1,4 +1,4 @@
-"""Round-1 look-dev sheet for the A7 TWINFACE devil-reaper boss.
+"""Round-2 look-dev sheet for the A7 TWINFACE devil-reaper boss.
 
 One head split vertically down a hard gold seam: a pale bone SKULL half on the
 left, a hot vermilion DEVIL half (single curved horn, slit eye, fang, goatee)
@@ -34,12 +34,14 @@ BONE_SH    = (176, 156, 116)         # bone under-shade (dark-core)
 BONE_HI    = (255, 250, 236)         # top-left rim sheen
 SOCKET     = (54, 44, 52)            # hollow eye socket void
 SULPHUR    = (244, 214, 70)          # the skull eye-spark / sulphur pinprick
-# Devil half -- Dante's forward RED face, the hot vermilion.
-DEVIL      = (214, 52, 40)
-DEVIL_SH   = (150, 28, 28)           # devil-skin dark-core
-DEVIL_HI   = (246, 132, 110)         # warm rim sheen on the red
-HORN_BONE  = (236, 214, 168)         # the single curved horn keratin
-HORN_SH    = (168, 132, 78)
+# Devil half -- Dante's forward RED face, the hot vermilion. SH dropped deep so
+# inked features and the horn read as crisp dark marks on the red (~30% more
+# internal value range than round 1).
+DEVIL      = (216, 48, 38)
+DEVIL_SH   = (104, 16, 18)           # devil-skin dark-core (deepened)
+DEVIL_HI   = (250, 150, 124)         # warm rim sheen -- now a small top tick only
+HORN_BONE  = (236, 214, 168)         # the single horn keratin (lit edge only)
+HORN_SH    = (118, 86, 44)           # horn body -- dark so it carries the silhouette
 FANG       = (250, 246, 236)         # one bright fang
 GOATEE     = (40, 30, 34)            # little devil chin-goatee
 SLIT_EYE   = (250, 226, 96)          # hot slit pupil (matches sulphur family)
@@ -105,34 +107,45 @@ def _twin_head(surf, cx, cy, hr, ss, *, wink=True):
     surf.set_clip(right_rect)
     pygame.draw.circle(surf, DEVIL_SH, (int(cx), int(cy)), int(hr))
     pygame.draw.circle(surf, DEVIL, (int(cx), int(cy)), int(hr - ss))
+    # the warm sheen is now a SMALL top-far tick (pulled to the outer top corner,
+    # away from the seam) so it stops reading as a soft red wound.
     pygame.draw.circle(surf, DEVIL_HI,
-                       (int(cx + hr * 0.18), int(cy - hr * 0.42)),
-                       max(1, int(hr * 0.30)))
+                       (int(cx + hr * 0.52), int(cy - hr * 0.54)),
+                       max(1, int(hr * 0.16)))
     surf.set_clip(prev)
 
-    # ── the GOLD seam: the high-contrast hard divide that IS the gag. A bright
-    # gold ridge with a dark valley so it never muddies into a lumpy red skull.
-    pygame.draw.line(surf, _shade_c(GOLD, -70),
+    # ── the GOLD seam: the second-loudest thing after the eyes -- a bold ridge
+    # that visually CUTS the head in two at gameplay scale. Built as a wide dark
+    # valley, a bright gold ridge on top, and a thin GOLD_HI catch-light. ~2x the
+    # round-1 width; nothing else is allowed to sit beside it.
+    valley_w = max(4, int(6 * ss))
+    ridge_w  = max(3, int(3.4 * ss))
+    pygame.draw.line(surf, GOLD_SH,
                      (int(seam_x), int(cy - hr + ss)),
-                     (int(seam_x), int(cy + hr - ss)), max(2, int(3 * ss)))
+                     (int(seam_x), int(cy + hr - ss)), valley_w)
     pygame.draw.line(surf, GOLD,
                      (int(seam_x), int(cy - hr + ss)),
-                     (int(seam_x), int(cy + hr - ss)), max(1, int(1.6 * ss)))
+                     (int(seam_x), int(cy + hr - ss)), ridge_w)
     pygame.draw.line(surf, GOLD_HI,
-                     (int(seam_x - ss * 0.6), int(cy - hr + 2 * ss)),
-                     (int(seam_x - ss * 0.6), int(cy)), max(1, int(ss)))
+                     (int(seam_x - ridge_w * 0.28), int(cy - hr + 2 * ss)),
+                     (int(seam_x - ridge_w * 0.28), int(cy + hr * 0.2)),
+                     max(1, int(1.2 * ss)))
 
-    # ── BONE half: hollow socket with a sulphur spark + a bone cheek seam.
+    # ── BONE half: a CALM hollow dark socket -- the value anchor that the devil
+    # wink disagrees with. The sulphur spark stays a tiny pinprick deep in the
+    # void (round 1's big glow filled the socket into a loud yellow disc); the
+    # socket must read mostly dark + hollow so the two eyes are two moods.
     sk_ex = cx - hr * 0.42
     sk_ey = cy - hr * 0.12
-    socket_r = max(2, int(hr * 0.30))
+    socket_r = max(2, int(hr * 0.32))
     pygame.draw.circle(surf, SOCKET, (int(sk_ex), int(sk_ey)), socket_r)
-    pygame.draw.circle(surf, _shade_c(SOCKET, -20),
-                       (int(sk_ex), int(sk_ey)), socket_r, max(1, int(ss)))
-    # tiny sulphur eye-spark deep in the socket
-    blit_glow(surf, int(sk_ex), int(sk_ey), max(3, int(hr * 0.22)), SULPHUR, 150)
-    pygame.draw.circle(surf, SULPHUR, (int(sk_ex), int(sk_ey)),
-                       max(1, int(hr * 0.11)))
+    pygame.draw.circle(surf, INK, (int(sk_ex), int(sk_ey)), socket_r, max(2, int(2 * ss)))
+    # a small, contained spark deep in the lower socket -- glow kept tight so the
+    # surrounding void stays dark.
+    spark_y = sk_ey + socket_r * 0.34
+    blit_glow(surf, int(sk_ex), int(spark_y), max(2, int(hr * 0.12)), SULPHUR, 120)
+    pygame.draw.circle(surf, SULPHUR, (int(sk_ex), int(spark_y)),
+                       max(1, int(hr * 0.07)))
     # bone cheekbone shade-line under the socket
     pygame.draw.line(surf, BONE_SH,
                      (int(cx - hr * 0.74), int(cy + hr * 0.18)),
@@ -148,59 +161,75 @@ def _twin_head(surf, cx, cy, hr, ss, *, wink=True):
                          (int(tx - tw / 2), int(jaw_y), tw, max(2, int(hr * 0.22))),
                          max(1, int(ss)))
 
-    # ── DEVIL half: ONE curved horn (set guardrail = a single horn read, NOT a
-    # second curved-horn pair). Sweeps up-and-back off the right brow.
-    horn_base = (cx + hr * 0.30, cy - hr * 0.78)
-    horn_pts = []
-    for k in range(9):
-        t = k / 8.0
-        # a back-swept curl: up, then leaning outward to a tapering point
-        hx = horn_base[0] + hr * (0.30 * t + 0.55 * t * t)
-        hy = horn_base[1] - hr * (1.05 * t)
-        horn_pts.append((hx, hy))
-    # horn as a tapering filled band (dark-core then lit keratin) + sheen
-    for col, woff in ((HORN_SH, 2.2), (HORN_BONE, 0.0)):
-        for i in range(len(horn_pts) - 1):
-            t = i / (len(horn_pts) - 1)
-            w = max(2, int((hr * 0.34) * (1.0 - 0.7 * t) + woff * ss))
-            pygame.draw.line(surf, col,
-                             (int(horn_pts[i][0]), int(horn_pts[i][1])),
-                             (int(horn_pts[i + 1][0]), int(horn_pts[i + 1][1])), w)
-    # two ridge nicks on the horn so it reads as keratin, not a smooth tusk
-    for ridge_t in (0.30, 0.55):
-        i = int(ridge_t * (len(horn_pts) - 1))
-        pygame.draw.line(surf, HORN_SH,
-                         (int(horn_pts[i][0] - hr * 0.12), int(horn_pts[i][1])),
-                         (int(horn_pts[i][0] + hr * 0.12), int(horn_pts[i][1] - hr * 0.04)),
-                         max(1, int(ss)))
+    # ── DEVIL half: ONE horn (set guardrail = a single asymmetric profile horn,
+    # NOT a curved-ram pair). Built as a SOLID tapering triangle that sweeps
+    # steeply UP-and-back off the right brow with a thick base, so the lopsided
+    # one-horn head reads in the blackout silhouette. Dark HORN_SH body carries
+    # the read; HORN_BONE is only the lit front edge. Kept inside frame.
+    hb_x = cx + hr * 0.46          # base sits just inside the head crown
+    hb_y = cy - hr * 0.62
+    base_half = hr * 0.30          # thick base
+    tip = (cx + hr * 0.74, cy - hr * 1.46)   # steep, mostly-up tip (in frame)
+    mid = (cx + hr * 0.74, cy - hr * 1.02)   # slight outward belly
+    # solid horn body (dark) -- a curved tapering wedge
+    body = [(hb_x - base_half, hb_y),
+            (hb_x + base_half, hb_y - hr * 0.06),
+            (mid[0], mid[1]),
+            (tip[0], tip[1])]
+    pygame.draw.polygon(surf, HORN_SH, [(int(p[0]), int(p[1])) for p in body])
+    # lit keratin edge down the front (skull-facing) side only
+    pygame.draw.lines(surf, HORN_BONE, False,
+                      [(int(hb_x - base_half), int(hb_y)),
+                       (int(mid[0] - hr * 0.10), int(mid[1])),
+                       (int(tip[0]), int(tip[1]))], max(2, int(2 * ss)))
+    # the back ink keyline so the horn pops off the red
+    pygame.draw.lines(surf, INK, False,
+                      [(int(hb_x + base_half), int(hb_y - hr * 0.06)),
+                       (int(mid[0]), int(mid[1])),
+                       (int(tip[0]), int(tip[1]))], max(2, int(2 * ss)))
+    # two BOLD keratin nicks across the horn so it reads ridged, not a smooth tusk
+    for ridge_t, span in ((0.34, 0.24), (0.62, 0.17)):
+        rx = hb_x + (tip[0] - hb_x) * ridge_t * 0.5
+        ry = hb_y + (tip[1] - hb_y) * ridge_t
+        pygame.draw.line(surf, INK,
+                         (int(rx - hr * span), int(ry)),
+                         (int(rx + hr * span), int(ry - hr * 0.07)),
+                         max(2, int(1.8 * ss)))
 
-    # devil SLIT eye (a winking, sly read vs the calm skull). When winking, a
-    # cocked closed arc; else a hot vertical slit pupil on a lit lid.
-    dv_ex = cx + hr * 0.40
+    # devil eye -- the WINK that disagrees with the calm hollow skull socket. A
+    # bold INK closed downward-curl arc (a happy/sly shut lid), NO yellow disc.
+    # If `wink` is off, a clear vertical INK slit on a lit lid -- still a crisp
+    # dark mark, never a full yellow circle.
+    dv_ex = cx + hr * 0.42
     dv_ey = cy - hr * 0.10
     if wink:
+        # a smiling closed-eye curl: a thick ink arc bowing downward
+        arc_w = max(3, int(2.8 * ss))
         pygame.draw.arc(surf, INK,
-                        (int(dv_ex - hr * 0.30), int(dv_ey - hr * 0.18),
-                         int(hr * 0.60), int(hr * 0.36)),
-                        math.pi * 0.05, math.pi * 0.95, max(2, int(2 * ss)))
-        # one cheeky lash tick
+                        (int(dv_ex - hr * 0.34), int(dv_ey - hr * 0.30),
+                         int(hr * 0.68), int(hr * 0.52)),
+                        math.pi * 1.12, math.pi * 1.88, arc_w)
+        # one cheeky upward lash flick on the outer corner
         pygame.draw.line(surf, INK,
-                         (int(dv_ex + hr * 0.30), int(dv_ey)),
-                         (int(dv_ex + hr * 0.42), int(dv_ey - hr * 0.06)),
-                         max(1, int(ss)))
+                         (int(dv_ex + hr * 0.30), int(dv_ey - hr * 0.02)),
+                         (int(dv_ex + hr * 0.44), int(dv_ey - hr * 0.12)),
+                         max(2, int(1.6 * ss)))
     else:
-        pygame.draw.ellipse(surf, FANG,
-                            (int(dv_ex - hr * 0.20), int(dv_ey - hr * 0.20),
-                             int(hr * 0.40), int(hr * 0.40)))
-        blit_glow(surf, int(dv_ex), int(dv_ey), max(3, int(hr * 0.22)), SLIT_EYE, 140)
-        pygame.draw.line(surf, _shade_c(SLIT_EYE, -30),
-                         (int(dv_ex), int(dv_ey - hr * 0.16)),
-                         (int(dv_ex), int(dv_ey + hr * 0.16)), max(2, int(2 * ss)))
-    # a sly raised devil brow (inner-low? no -- cocked up so it reads playful sly)
+        # a small lit almond lid with a hot vertical slit -- bold dark slit, no disc
+        pygame.draw.ellipse(surf, DEVIL_HI,
+                            (int(dv_ex - hr * 0.22), int(dv_ey - hr * 0.14),
+                             int(hr * 0.44), int(hr * 0.28)))
+        pygame.draw.ellipse(surf, INK,
+                            (int(dv_ex - hr * 0.22), int(dv_ey - hr * 0.14),
+                             int(hr * 0.44), int(hr * 0.28)), max(2, int(2 * ss)))
+        pygame.draw.line(surf, INK,
+                         (int(dv_ex), int(dv_ey - hr * 0.13)),
+                         (int(dv_ex), int(dv_ey + hr * 0.13)), max(3, int(3 * ss)))
+    # a sly cocked devil brow, INKED so it reads as a crisp dark mark on the red
     pygame.draw.line(surf, INK,
-                     (int(dv_ex - hr * 0.26), int(dv_ey - hr * 0.34)),
-                     (int(dv_ex + hr * 0.34), int(dv_ey - hr * 0.52)),
-                     max(2, int(1.8 * ss)))
+                     (int(dv_ex - hr * 0.30), int(dv_ey - hr * 0.30)),
+                     (int(dv_ex + hr * 0.36), int(dv_ey - hr * 0.50)),
+                     max(2, int(2.2 * ss)))
 
     # devil-side mouth: a grinning curl with ONE bright fang dropping below the
     # lip; the skull side keeps the flat tooth row, so the smile is two-natured.
@@ -213,19 +242,21 @@ def _twin_head(surf, cx, cy, hr, ss, *, wink=True):
         # lifts the far (outer) corner so the devil half reads sly, not grim.
         myp = mly - hr * 0.14 * (1.0 - 4.0 * (t - 0.5) ** 2) - hr * 0.06 * t
         mouth.append((mxp, myp))
-    pygame.draw.lines(surf, _shade_c(DEVIL_SH, -30), False,
-                      [(int(p[0]), int(p[1])) for p in mouth], max(2, int(2 * ss)))
+    # smirk INKED (was DEVIL_SH -- sank into the red and read grim); a crisp dark
+    # sly curl now.
+    pygame.draw.lines(surf, INK, False,
+                      [(int(p[0]), int(p[1])) for p in mouth], max(2, int(2.4 * ss)))
     # the fang
     fx = cx + hr * 0.20
     fang_tri = [(fx - hr * 0.07, mly), (fx + hr * 0.10, mly),
                 (fx, mly + hr * 0.26)]
     pygame.draw.polygon(surf, FANG, [(int(p[0]), int(p[1])) for p in fang_tri])
-    pygame.draw.polygon(surf, _shade_c(DEVIL_SH, -30),
+    pygame.draw.polygon(surf, INK,
                         [(int(p[0]), int(p[1])) for p in fang_tri], max(1, int(ss)))
     # little chin goatee tuft on the devil side
     goatee = [(cx + hr * 0.10, cy + hr * 0.74), (cx + hr * 0.40, cy + hr * 0.70),
               (cx + hr * 0.24, cy + hr * 1.02)]
-    pygame.draw.polygon(surf, GOATEE, [(int(p[0]), int(p[1])) for p in goatee])
+    pygame.draw.polygon(surf, INK, [(int(p[0]), int(p[1])) for p in goatee])
 
 
 def _split_robe(surf, cx, neck_y, body_w, body_h, ss):
@@ -258,75 +289,78 @@ def _split_robe(surf, cx, neck_y, body_w, body_h, ss):
 # ── the double-bit pole prop ────────────────────────────────────────────────────
 
 def _skull_finial(surf, cx, tip_y, scale, ss, *, point_up):
-    """The BONE end of the double-bit pole: a small reaper crescent-blade backed
-    by a tiny bone skull-knob. `point_up` flips the blade so the same primitive
-    serves the top cap and the bottom cap of the mirrored pillar."""
+    """The BONE end of the double-bit pole: a single bold REAPER CRESCENT blade.
+    Deliberately NOT a skull -- round 1's twin-socket knob read as a second face
+    competing with the boss head. Now it is one clean scythe crescent with a small
+    gold collar at the haft; one dark slot only, never two eye-sockets. `point_up`
+    flips the blade for the top cap vs the mirrored bottom cap."""
     d = -1 if point_up else 1
-    # bone skull knob seated on the pole tip
-    kr = max(3, int(7 * scale))
-    ky = tip_y + d * kr
-    _triad_circle(surf, cx, ky, kr, BONE, ss=ss)
-    # two tiny sockets in the knob
-    for s in (-1, 1):
-        pygame.draw.circle(surf, SOCKET,
-                           (int(cx + s * kr * 0.42), int(ky - d * kr * 0.10)),
-                           max(1, int(kr * 0.30)))
-    # the reaper crescent BLADE sweeping off one side of the knob
+    kr = max(4, int(8 * scale))
+    haft_y = tip_y + d * kr
+    # gold collar where the blade meets the shaft (reads as a fitting, not a head)
+    pygame.draw.circle(surf, GOLD_SH, (int(cx), int(haft_y)), max(2, int(kr * 0.55)))
+    pygame.draw.circle(surf, GOLD, (int(cx), int(haft_y)), max(1, int(kr * 0.42)))
+    # the crescent BLADE: a bold scythe sweeping out and curling to a point. Outer
+    # arc then a tighter inner arc carve the concave hook.
     blade = []
-    n = 14
-    for k in range(n):
+    n = 16
+    span = math.pi * 0.95
+    for k in range(n):                      # outer (cutting) edge
         t = k / (n - 1)
-        ang = math.pi * (0.15 + 0.7 * t)
-        rad = kr * (2.6 - 0.9 * abs(t - 0.5) * 2)
+        ang = math.pi * 0.08 + span * t
+        rad = kr * 3.0
         bx = cx + math.cos(ang) * rad
-        by = ky - d * (math.sin(ang) * rad * 0.9 + kr * 0.6)
+        by = haft_y - d * (math.sin(ang) * rad * 0.78)
         blade.append((bx, by))
-    # inner edge back to the knob
-    for k in range(n):
+    for k in range(n):                      # inner (back) edge returning to haft
         t = 1 - k / (n - 1)
-        ang = math.pi * (0.15 + 0.7 * t)
-        rad = kr * (1.7 - 0.5 * abs(t - 0.5) * 2)
+        ang = math.pi * 0.08 + span * t
+        rad = kr * (3.0 - 1.25 - 0.55 * math.sin(math.pi * t))
         bx = cx + math.cos(ang) * rad
-        by = ky - d * (math.sin(ang) * rad * 0.9 + kr * 0.6)
+        by = haft_y - d * (math.sin(ang) * rad * 0.78)
         blade.append((bx, by))
     pygame.draw.polygon(surf, BONE_SH, [(int(p[0]), int(p[1])) for p in blade])
-    pygame.draw.polygon(surf, BONE,
-                        [(int(p[0]), int(p[1])) for p in blade[:n]] +
-                        [(int(blade[-1][0]), int(blade[-1][1]))], max(1, int(ss)))
-    # a sulphur glint on the blade edge
-    pygame.draw.circle(surf, SULPHUR, (int(blade[0][0]), int(blade[0][1])),
-                       max(1, int(scale * 1.4)))
+    # lit cutting edge along the outer arc
+    pygame.draw.lines(surf, BONE, False,
+                      [(int(p[0]), int(p[1])) for p in blade[:n]], max(2, int(2 * ss)))
+    # a bright sulphur glint at the scythe point
+    pygame.draw.circle(surf, SULPHUR, (int(blade[n - 1][0]), int(blade[n - 1][1])),
+                       max(2, int(scale * 1.8)))
 
 
 def _fork_finial(surf, cx, tip_y, scale, ss, *, point_up):
-    """The DEVIL end of the double-bit pole: a two-prong spade/fork bit backed by a
-    little spade-tail diamond. Mirror-twin of the skull blade on the same shaft."""
+    """The DEVIL end of the double-bit pole: a bold, obvious TWO-PRONG spade fork.
+    Mirror-twin of the skull crescent on the same shaft. Two clean straight prongs
+    rising from a gold collar -- reads as a fork in silhouette at 1x."""
     d = -1 if point_up else 1
     base_y = tip_y
-    # two devil fork prongs sweeping out
-    prong_len = int(16 * scale)
+    # gold collar matching the skull haft so both ends read as a fitted pole
+    cr = max(3, int(6 * scale))
+    pygame.draw.circle(surf, GOLD_SH, (int(cx), int(base_y + d * cr)), max(2, int(cr * 0.7)))
+    pygame.draw.circle(surf, GOLD, (int(cx), int(base_y + d * cr)), max(1, int(cr * 0.52)))
+    prong_len = int(20 * scale)
+    spread = int(9 * scale)
+    half_w = max(2, int(3 * scale))
     for s in (-1, 1):
-        tipx = cx + s * int(7 * scale)
+        root_x = cx + s * int(3 * scale)
+        tipx = cx + s * spread
         tipy = base_y + d * prong_len
-        ctrlx = cx + s * int(11 * scale)
-        ctrly = base_y + d * int(prong_len * 0.45)
-        prong = [(cx + s * int(2 * scale), base_y),
-                 (ctrlx, ctrly), (tipx, tipy),
-                 (cx + s * int(0.5 * scale), base_y + d * int(prong_len * 0.30))]
+        # a tapering blade: wide root -> sharp barbed tip
+        prong = [(root_x - half_w, base_y + d * cr),
+                 (root_x + half_w, base_y + d * cr),
+                 (tipx + s * half_w, base_y + d * int(prong_len * 0.55)),
+                 (tipx, tipy)]
         pygame.draw.polygon(surf, DEVIL_SH, [(int(p[0]), int(p[1])) for p in prong])
         pygame.draw.polygon(surf, DEVIL,
-                            [(int(p[0]), int(p[1])) for p in prong], max(1, int(ss)))
+                            [(int(p[0]), int(p[1])) for p in prong[:-1]], 0)
         # gold barb tip
-        pygame.draw.circle(surf, GOLD, (int(tipx), int(tipy)), max(1, int(scale * 1.6)))
-        pygame.draw.circle(surf, GOLD_SH, (int(tipx), int(tipy)), max(1, int(scale * 1.6)),
-                           max(1, int(ss)))
-    # a centre spade-tail diamond between the prongs
-    spade = [(cx, base_y + d * int(prong_len * 0.20)),
-             (cx + int(5 * scale), base_y + d * int(prong_len * 0.55)),
-             (cx, base_y + d * int(prong_len * 0.95)),
-             (cx - int(5 * scale), base_y + d * int(prong_len * 0.55))]
-    pygame.draw.polygon(surf, DEVIL, [(int(p[0]), int(p[1])) for p in spade])
-    pygame.draw.polygon(surf, DEVIL_SH, [(int(p[0]), int(p[1])) for p in spade], max(1, int(ss)))
+        pygame.draw.circle(surf, GOLD, (int(tipx), int(tipy)), max(2, int(scale * 1.8)))
+    # a centre spade-tail spike between the prongs (shorter, so two prongs dominate)
+    spade = [(cx, base_y + d * cr),
+             (cx + int(4 * scale), base_y + d * int(prong_len * 0.42)),
+             (cx, base_y + d * int(prong_len * 0.72)),
+             (cx - int(4 * scale), base_y + d * int(prong_len * 0.42))]
+    pygame.draw.polygon(surf, DEVIL_SH, [(int(p[0]), int(p[1])) for p in spade])
 
 
 def _double_bit_pole(surf, cx, top_y, bot_y, scale, ss, *, cap="skull"):
@@ -436,7 +470,7 @@ def main():
     lab = pygame.font.SysFont("arial", 16, bold=True)
     small = pygame.font.SysFont("arial", 13)
 
-    _label(sheet, title, "A7  TWINFACE  -  the two-faced reaper-devil  (round 1)", 24, 16,
+    _label(sheet, title, "A7  TWINFACE  -  the two-faced reaper-devil  (round 2)", 24, 16,
            color=(255, 224, 120))
     _label(sheet, small,
            "split head: bone SKULL half | gold seam | vermilion DEVIL half (single horn).  "
@@ -506,7 +540,8 @@ def main():
         "",
         "SCARY-CUTE: the two halves disagree -- the skull side stays",
         "calm (hollow socket, sulphur spark), the devil side WINKS",
-        "with a sly cocked brow + one fang. Menace, never grim.",
+        "(bold INK closed-arc, no yellow disc) with a sly cocked brow,",
+        "one fang + ONE bold UP-swept horn. Menace, never grim.",
         "",
         "PROP -> PILLAR: the double-bit pole is symmetric by design,",
         "so the banded bone+gold shaft tiles as the pillar mid-body",
@@ -523,7 +558,7 @@ def main():
 
     out_dir = "/home/user/skybit/docs/skybit_devil/reapy_devil/twinface"
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

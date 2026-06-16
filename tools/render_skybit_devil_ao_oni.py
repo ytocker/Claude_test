@@ -41,7 +41,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame
 
-from game.draw import _shade_c, lerp_color, make_glow_surface
+from game.draw import _shade_c, lerp_color
 from game.config import PIPE_W
 
 
@@ -77,8 +77,9 @@ TIGER_STRIPE= (40,  30,  22)    # loincloth black stripes
 IRON        = (108, 116, 134)   # kanabo club body
 IRON_DK     = (60,  66,  84)    # iron dark-core / groove
 IRON_SHEEN  = (172, 182, 202)   # iron top-left sheen
-RIVET       = (208, 214, 228)   # bright stud highlight
-RIVET_DK    = (44,  50,  66)    # stud seat ring
+RIVET       = (224, 230, 244)   # bright stud highlight (pushed up for 1x punch)
+RIVET_DK    = (28,  32,  46)    # stud seat ring (pushed down so the dome pops)
+GROOVE      = (40,  44,  58)    # full-width dark band between rivet rows
 
 MOUTH       = (90,  30,  46)    # sulky open-mouth interior (dark plum)
 LIP         = (96,  150, 214)   # the pouting lower lip (lighter cobalt)
@@ -232,61 +233,69 @@ def _oni_head(surf, cx, cy, r, ss, *, night=False):
     hw = r * 1.18                     # head is wider than tall
     hh = r * 0.98
 
-    # — Wild topknot + side hair FIRST so the head overlaps it. A spiky blue-black
-    #   mass tied with an ivory band, plus two side tufts framing the face.
+    # — One bold topknot FIRST so the head overlaps it. Simplified to a single
+    #   decisive blue-black bulb with 3 confident spikes + an ivory tie band — the
+    #   crowd of side tufts is gone so the head reads clean at 1x and the amber
+    #   ox-horn stays clearly separate from the hair mass.
     knot_cx = cx
-    knot_cy = cy - hh * 0.86
-    # Side hair tufts.
-    for s in (-1, 1):
-        pts = [
-            (cx + s * hw * 0.78, cy - hh * 0.30),
-            (cx + s * hw * 1.02, cy - hh * 0.70),
-            (cx + s * hw * 0.66, cy - hh * 0.58),
-            (cx + s * hw * 0.86, cy - hh * 0.10),
-            (cx + s * hw * 0.60, cy + hh * 0.05),
-        ]
-        pygame.draw.polygon(surf, HAIR, [(int(x), int(y)) for x, y in pts])
-    # The topknot bulb on top.
-    pygame.draw.circle(surf, HAIR, (int(knot_cx), int(knot_cy)), int(r * 0.42))
+    knot_cy = cy - hh * 0.90
+    knot_r = r * 0.50
+    # The topknot bulb on top (bigger + bolder than the fiddly r1 ball).
+    pygame.draw.circle(surf, HAIR, (int(knot_cx), int(knot_cy)), int(knot_r))
     pygame.draw.circle(surf, HAIR_HI,
-                       (int(knot_cx - r * 0.14), int(knot_cy - r * 0.16)),
-                       int(r * 0.16))
-    # Spiky tuft tips bursting from the knot.
-    for ang in (-58, -22, 18, 56):
+                       (int(knot_cx - knot_r * 0.32), int(knot_cy - knot_r * 0.36)),
+                       int(knot_r * 0.34))
+    # Three decisive spikes bursting from the knot (fewer + thicker than r1).
+    for ang in (-46, 0, 46):
         a = math.radians(ang - 90)
-        tx = knot_cx + math.cos(a) * r * 0.42
-        ty = knot_cy + math.sin(a) * r * 0.42
-        ex = knot_cx + math.cos(a) * r * 0.78
-        ey = knot_cy + math.sin(a) * r * 0.78
+        tx = knot_cx + math.cos(a) * knot_r * 0.7
+        ty = knot_cy + math.sin(a) * knot_r * 0.7
+        ex = knot_cx + math.cos(a) * knot_r * 1.7
+        ey = knot_cy + math.sin(a) * knot_r * 1.7
         pygame.draw.line(surf, HAIR, (int(tx), int(ty)), (int(ex), int(ey)),
-                         max(2, int(4 * ss)))
+                         max(3, int(6 * ss)))
     # Ivory tie band around the knot base.
     band = pygame.Rect(0, 0, int(r * 0.5), int(r * 0.22))
-    band.center = (int(knot_cx), int(knot_cy + r * 0.34))
+    band.center = (int(knot_cx), int(knot_cy + knot_r * 0.62))
     pygame.draw.rect(surf, IVORY_DK, band, border_radius=max(1, int(ss)))
     pygame.draw.rect(surf, IVORY, band.inflate(-int(2 * ss), -int(2 * ss)),
                      border_radius=max(1, int(ss)))
 
-    # — The single OX stub-horn: short, thick, BLUNT (the guardrail — never a
-    #   curved ram pair). One horn, off to the brow, a fat amber cone barely
-    #   taller than wide.
-    hx = cx - hw * 0.46
-    hy = cy - hh * 0.78
+    # — The single OX stub-horn: a BOLD, blunt, fat amber NUB set out on the brow
+    #   ridge, clearly SEPARATE from the topknot so it reads as a horn (not a hair
+    #   tuft) in colour AND grayscale (the "one short ox horn, no ram pair"
+    #   guardrail). Fattened + given a dark seat ring + bright cap so the eye
+    #   catches it at a glance and the value carries with no colour.
+    hx = cx - hw * 0.62
+    hy = cy - hh * 0.66
+    hwid = r * 0.30                   # fat: a stub nub wider than a finger
+    hht = r * 0.46
+    # Dark seat ring at the base so the nub reads as a separate growth.
+    pygame.draw.ellipse(surf, HORN_DK,
+                        (int(hx - hwid * 1.18), int(hy + hht * 0.30),
+                         int(hwid * 2.36), int(hht * 0.62)))
     horn = [
-        (hx - r * 0.16, hy + r * 0.20),
-        (hx + r * 0.16, hy + r * 0.20),
-        (hx + r * 0.06, hy - r * 0.30),
-        (hx - r * 0.06, hy - r * 0.30),
+        (hx - hwid, hy + hht * 0.52),
+        (hx + hwid, hy + hht * 0.52),
+        (hx + hwid * 0.42, hy - hht * 0.52),
+        (hx - hwid * 0.42, hy - hht * 0.52),
     ]
     pygame.draw.polygon(surf, HORN_DK, [(int(x), int(y)) for x, y in horn])
-    inner = [(hx - r * 0.10, hy + r * 0.18), (hx + r * 0.12, hy + r * 0.18),
-             (hx + r * 0.04, hy - r * 0.24), (hx - r * 0.03, hy - r * 0.24)]
+    inner = [(hx - hwid * 0.74, hy + hht * 0.48), (hx + hwid * 0.78, hy + hht * 0.48),
+             (hx + hwid * 0.30, hy - hht * 0.42), (hx - hwid * 0.26, hy - hht * 0.42)]
     pygame.draw.polygon(surf, HORN, [(int(x), int(y)) for x, y in inner])
-    pygame.draw.line(surf, HORN_HI, (int(hx - r * 0.04), int(hy + r * 0.14)),
-                     (int(hx - r * 0.01), int(hy - r * 0.20)), max(1, int(1.6 * ss)))
-    # A ridge groove so the blunt stub reads as ox-horn, not a finger.
-    pygame.draw.line(surf, HORN_DK, (int(hx + r * 0.02), int(hy + r * 0.14)),
-                     (int(hx + r * 0.05), int(hy - r * 0.20)), max(1, int(ss)))
+    # Blunt rounded cap (ox stub, never a sharp ram point).
+    pygame.draw.circle(surf, HORN,
+                       (int(hx + hwid * 0.02), int(hy - hht * 0.42)),
+                       max(2, int(hwid * 0.42)))
+    pygame.draw.circle(surf, HORN_HI,
+                       (int(hx - hwid * 0.16), int(hy - hht * 0.48)),
+                       max(1, int(hwid * 0.26)))
+    # A left-edge sheen + ridge groove so the blunt stub reads sculpted ox-horn.
+    pygame.draw.line(surf, HORN_HI, (int(hx - hwid * 0.34), int(hy + hht * 0.30)),
+                     (int(hx - hwid * 0.16), int(hy - hht * 0.30)), max(1, int(2 * ss)))
+    pygame.draw.line(surf, HORN_DK, (int(hx + hwid * 0.20), int(hy + hht * 0.34)),
+                     (int(hx + hwid * 0.30), int(hy - hht * 0.30)), max(1, int(1.4 * ss)))
 
     # — Head flesh: a broad rounded-square so the face reads heavy + jowly.
     head = pygame.Rect(0, 0, int(hw * 2), int(hh * 2))
@@ -302,26 +311,34 @@ def _oni_head(surf, cx, cy, r, ss, *, night=False):
                            int(r * 0.24))
 
     if night:
-        glow = make_glow_surface(int(hw * 1.2), SKY_SHEEN, alpha_center=70, falloff=2.2)
-        surf.blit(glow, (int(cx - hw * 1.2 - 1), int(cy - hh * 1.2 - 1)),
-                  special_flags=pygame.BLEND_ADD)
+        # No additive halo — it washed the head to pale cyan and KILLED the
+        # cobalt. Instead a crisp cool rim-sheen ticks the upper-left slab edge so
+        # the body stays unmistakably COBALT against the dark sky (a sharp lit
+        # contour, not a glow). Drawn as a bright arc hugging the head silhouette.
+        rim = head.inflate(-int(2 * ss), -int(2 * ss))
+        pygame.draw.arc(surf, SKY_SHEEN_HI, rim,
+                        math.radians(78), math.radians(196), max(2, int(2.6 * ss)))
+        pygame.draw.arc(surf, SKY_SHEEN, rim,
+                        math.radians(196), math.radians(252), max(2, int(2.0 * ss)))
 
     # — Thick angry BROWS: two heavy ivory-pale ridges slanting down toward the
     #   nose (the inner-down V = scowl), the grayscale-legible menace cue. Drawn
     #   as fat cobalt-dark wedges with a pale top edge.
     brow_y = cy - hh * 0.18
     for s in (-1, 1):
+        # Thicker + darker than r1 so the inner-down scowl is the face's loudest
+        # cue and survives the 1x downscale.
         b = [
-            (cx + s * hw * 0.20, brow_y - r * 0.02),     # inner (low)
-            (cx + s * hw * 0.74, brow_y - r * 0.30),     # outer (high)
-            (cx + s * hw * 0.74, brow_y - r * 0.10),
-            (cx + s * hw * 0.20, brow_y + r * 0.16),
+            (cx + s * hw * 0.18, brow_y + r * 0.04),     # inner (low)
+            (cx + s * hw * 0.78, brow_y - r * 0.34),     # outer (high)
+            (cx + s * hw * 0.78, brow_y - r * 0.06),
+            (cx + s * hw * 0.18, brow_y + r * 0.26),
         ]
-        pygame.draw.polygon(surf, COBALT_DK, [(int(x), int(y)) for x, y in b])
+        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in b])
         pygame.draw.line(surf, _shade_c(COBALT, 18),
                          (int(cx + s * hw * 0.22), int(brow_y - r * 0.02)),
-                         (int(cx + s * hw * 0.70), int(brow_y - r * 0.26)),
-                         max(1, int(2 * ss)))
+                         (int(cx + s * hw * 0.72), int(brow_y - r * 0.30)),
+                         max(1, int(2.4 * ss)))
 
     # — Eyes: big round whites with a small dark pupil aimed slightly together +
     #   down (sulky, not a piercing glare) under the heavy brows. Big round eyes
@@ -415,51 +432,61 @@ def _kanabo_shaft(surf, cx, top_y, bot_y, hw, ss):
                      (int(cx - hw * 0.46), int(top_y + 3 * ss)),
                      (int(cx - hw * 0.46), int(bot_y - 3 * ss)), max(2, int(2.4 * ss)))
 
-    # Rivet rows: chunky studs in regular bands. Row pitch sized so ~3-4 rows
-    # stack across a gameplay pillar and the studs stay readable after downscale.
-    row_pitch = max(int(18 * ss), int(hw * 1.55))
-    n_rows = max(2, int(length / row_pitch))
+    # Rivet rows: FEWER, BIGGER, higher-contrast studs so the banding reads as
+    # rhythm at 1x instead of washing to a blank grey bar (the rivet rows ARE the
+    # pillar's identity). Now the shaft is fat, three big studs straddle each row.
+    # Row pitch is generous so the rows stay distinct after the 1x downscale.
+    row_pitch = max(int(26 * ss), int(hw * 0.92))
+    n_rows = max(2, int(round(length / row_pitch)))
     row_pitch = length / n_rows
-    stud_r = hw * 0.34
-    # Two columns of studs per row (left + right of the shaft), staggered.
+    stud_r = hw * 0.30
+    cols = (-0.58, 0.0, 0.58)
     for i in range(n_rows):
         ry = top_y + (i + 0.5) * row_pitch
-        # A faint dark band groove between rows so the banding reads.
-        pygame.draw.line(surf, IRON_DK,
-                         (int(cx - hw + 2 * ss), int(ry - row_pitch * 0.5)),
-                         (int(cx + hw - 2 * ss), int(ry - row_pitch * 0.5)),
-                         max(1, int(1.6 * ss)))
-        for s in (-1, 1):
-            sx = cx + s * hw * 0.46
-            # Seat ring -> dome -> bright pinprick = a riveted stud.
-            pygame.draw.circle(surf, RIVET_DK, (int(sx), int(ry)), int(stud_r + ss))
+        # A FULL-WIDTH dark groove band between every row so the banding is a
+        # bold rhythm that survives smoothscale — not a faint hairline.
+        band_y = ry - row_pitch * 0.5
+        band = pygame.Rect(int(cx - hw + 1.5 * ss), int(band_y - 2.2 * ss),
+                           int(2 * hw - 3 * ss), max(2, int(4.4 * ss)))
+        pygame.draw.rect(surf, GROOVE, band, border_radius=max(1, int(ss)))
+        for f in cols:
+            sx = cx + f * hw
+            # Seat ring -> bright dome -> dark contact shadow -> hot pinprick: a
+            # high-contrast riveted hemisphere that survives the downscale.
+            pygame.draw.circle(surf, RIVET_DK, (int(sx), int(ry)), int(stud_r + 1.4 * ss))
             pygame.draw.circle(surf, IRON_SHEEN, (int(sx), int(ry)), int(stud_r))
-            pygame.draw.circle(surf, IRON,
-                               (int(sx + ss), int(ry + ss)), max(1, int(stud_r * 0.6)))
+            pygame.draw.circle(surf, IRON_DK,
+                               (int(sx + stud_r * 0.34), int(ry + stud_r * 0.40)),
+                               max(1, int(stud_r * 0.42)))
             pygame.draw.circle(surf, RIVET,
-                               (int(sx - stud_r * 0.3), int(ry - stud_r * 0.3)),
-                               max(1, int(stud_r * 0.30)))
+                               (int(sx - stud_r * 0.30), int(ry - stud_r * 0.32)),
+                               max(1, int(stud_r * 0.40)))
 
 
-def _kanabo_head(surf, cx, base_y, hw, ss, *, point_up=True):
+def _kanabo_head(surf, cx, base_y, hw, ss, *, point_up=True, head_r=None,
+                 spike_reach=1.44):
     """The bulbous spiked club-HEAD = the detachable PILLAR TOP CAP that rides the
     gap-edge ONLY. A fat iron drum studded with the same rivets PLUS a ring of
     short blunt iron spikes around it (the kanabo's heavy business end). Bold +
     chunky so the spiked-head read survives the 1x pillar downscale; mirrors with
     the shaft into a clean iron post. `point_up` aims the spikes away from the
-    shaft (toward the gap)."""
+    shaft (toward the gap). `head_r` + `spike_reach` let the pillar cap the drum
+    and shorten the spikes so the ring stays inside the footprint when the shaft
+    is full-width."""
     d = -1 if point_up else 1
-    head_r = hw * 2.05
+    if head_r is None:
+        head_r = hw * 2.05
     head_cy = base_y + d * head_r * 0.9
 
     # Ring of short blunt spikes around the head (drawn first, behind the drum).
     n_sp = 11
+    mid_reach = 1.0 + (spike_reach - 1.0) * 0.64
     for i in range(n_sp):
         a = math.tau * i / n_sp - math.pi / 2 * d
         sx = cx + math.cos(a) * head_r
         sy = head_cy + math.sin(a) * head_r
-        ex = cx + math.cos(a) * head_r * 1.44
-        ey = head_cy + math.sin(a) * head_r * 1.44
+        ex = cx + math.cos(a) * head_r * spike_reach
+        ey = head_cy + math.sin(a) * head_r * spike_reach
         # Fat blunt spike: a short triangle, dark-core then iron fill.
         perp = a + math.pi / 2
         bwid = head_r * 0.22
@@ -470,8 +497,8 @@ def _kanabo_head(surf, cx, base_y, hw, ss, *, point_up=True):
                              (int(ex), int(ey))])
         p1b = (sx + math.cos(perp) * bwid * 0.6, sy + math.sin(perp) * bwid * 0.6)
         p2b = (sx - math.cos(perp) * bwid * 0.6, sy - math.sin(perp) * bwid * 0.6)
-        mx = cx + math.cos(a) * head_r * 1.30
-        my = head_cy + math.sin(a) * head_r * 1.30
+        mx = cx + math.cos(a) * head_r * mid_reach
+        my = head_cy + math.sin(a) * head_r * mid_reach
         pygame.draw.polygon(surf, IRON,
                             [(int(p1b[0]), int(p1b[1])), (int(p2b[0]), int(p2b[1])),
                              (int(mx), int(my))])
@@ -519,7 +546,9 @@ def build_ao_oni(scale=1.0, ss=3, *, night=False):
     # The kanabo: gripped in the right fist, shaft running DOWN past the hip, the
     # spiked head rising ABOVE the shoulder (shouldered like a brawler).
     grip_x, grip_y = _slab_body(surf, cx, body_top, body_w, body_h, ss)
-    khw = 9 * ss
+    # A fatter shouldered club so the prop reads as the same heavy iron kanabo the
+    # pillar mirror fills — and the bigger studs carry onto the boss figure.
+    khw = 13 * ss
     kx = grip_x + khw * 0.2
     head_base = body_top - head_r * 0.2          # spiked head up by the shoulder
     foot_y = body_top + body_h
@@ -557,10 +586,16 @@ def _kanabo_pillar_obstacle(height, ss, *, flip):
     bh = max(1, int(height)) * ss
     surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
     cx = bw // 2
-    hw = 10 * ss
+    # A Skybit pillar IS the full-width obstacle: the iron shaft must FILL the
+    # footprint (~84% of pw) so it reads as a heavy iron kanabo, not a thin pole
+    # stranded in empty sky. Studs scale off hw, so widening auto-fattens them.
+    hw = int((PIPE_W + 2 * OVERHANG) * 0.42 * ss)
     cap_band = int(64 * ss)
     _kanabo_shaft(surf, cx, 0, bh - cap_band, hw, ss)
-    _kanabo_head(surf, cx, bh - cap_band, hw, ss, point_up=False)
+    # Cap the drum to ~shaft width + short spikes so the spiked club-head stays
+    # inside the now-full-width footprint instead of clipping at the panel edge.
+    _kanabo_head(surf, cx, bh - cap_band, hw, ss, point_up=False,
+                 head_r=hw * 1.06, spike_reach=1.14)
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
     out = _add_outline(out)
     if flip:
@@ -595,7 +630,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((30, 32, 46))
-    _label(sheet, font, "AO-ONI  —  Group B take #4  —  cobalt-oni & tiger-gold  —  round 1", 18, 12)
+    _label(sheet, font, "AO-ONI  —  Group B take #4  —  cobalt-oni & tiger-gold  —  round 2", 18, 12)
     _label(sheet, small,
            "the grumpy blue sumo-ogre: a HEAVY broad slab (low wide CoG), UP-tusks + topknot + ox stub-horn, a studded KANABO club",
            18, 32, (200, 200, 214))
@@ -629,8 +664,8 @@ def main():
     sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
     sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
     pygame.draw.rect(sheet, (255, 255, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
-    _label(sheet, small, "1x native (82px wide, as", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
-    _label(sheet, small, "it scrolls): rivet rows band the shaft", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
+    _label(sheet, small, "1x native (82px wide): shaft now FILLS", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
+    _label(sheet, small, "the footprint; bold rivet rows band it", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
 
     # 2x zoom of the gap so the spiked head + rivet banding is legible.
     zw, zh = pw, 150
@@ -701,7 +736,7 @@ def main():
                            "skybit_devil", "devil", "ao_oni")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
