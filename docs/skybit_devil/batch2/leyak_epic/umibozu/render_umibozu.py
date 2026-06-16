@@ -80,40 +80,49 @@ def _triad_circle(surf, cx, cy, r, col, *, sheen=True, sheen_d=30, sheen_col=Non
                            max(2, int(r * 0.30)))
 
 
-INK_NIGHT   = (150, 196, 196)   # cool sea-foam keyline for night — a lifted-value
+INK_NIGHT   = (188, 226, 224)   # cool sea-foam keyline for night — a lifted-value
                                 # rim so the teal-black dome edge survives on the
                                 # midnight-blue sky (dark ink would vanish there).
+                                # R3 lifts it ~25% brighter and grows it 2px so the
+                                # silhouette reads on shape, not on amber alone.
 
 
-def _add_outline(src, outline_color=(*INK, 235)):
-    """Grow a 1px keyline from the alpha mask so the silhouette POPS on any sky
-    (the parrot `_add_outline` recipe). On night the keyline is a lifted cool
-    sea-foam tone, not dark ink, so the dome edge reads against dark sky. Returns
-    a padded surface."""
+def _add_outline(src, outline_color=(*INK, 235), width=1):
+    """Grow a keyline from the alpha mask so the silhouette POPS on any sky (the
+    parrot `_add_outline` recipe). On night the keyline is a lifted cool sea-foam
+    tone, not dark ink, AND grown thicker (width=2) so the dome edge survives on
+    the dark sky by shape. Returns a padded surface."""
     w, h = src.get_size()
-    pad = 2
+    pad = width + 1
     out = pygame.Surface((w + pad * 2, h + pad * 2), pygame.SRCALPHA)
     mask = pygame.mask.from_surface(src, threshold=8)
     sil = mask.to_surface(setcolor=outline_color, unsetcolor=(0, 0, 0, 0))
-    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
-                   (-1, -1), (1, -1), (-1, 1), (1, 1)):
+    offs = [(dx, dy) for dx in range(-width, width + 1)
+            for dy in range(-width, width + 1) if (dx, dy) != (0, 0)]
+    for dx, dy in offs:
         out.blit(sil, (pad + dx, pad + dy))
     out.blit(src, (pad, pad))
     return out
 
 
-def _biolum_dot(surf, cx, cy, r, ss, *, glow=True, night=False):
+def _biolum_dot(surf, cx, cy, r, ss, *, glow=True, night=False, core=True,
+                glow_mult=1.0):
     """A single warm-amber biolum DOT — the ONLY place warm hue is allowed. A
-    contained glow halo + a flat amber disc with a dark-core ring + a hot twinkle
-    core. Kept small + discrete so the warm never washes the cool body."""
+    contained glow halo + a flat amber disc with a dark-core ring + (optionally) a
+    hot twinkle core. Kept small + discrete so the warm never washes the cool body.
+    `core=False` gives a flat amber point-glow (no bright ring-with-pupil read) —
+    used for the brow constellation so the dots don't read as open eyes.
+    `glow_mult` tightens the halo radius (the cap rim uses <1 so the dots stay
+    discrete point-glows and never bloom into a Tzitzimitl-style corona)."""
     if glow:
-        gr = int(r * (3.4 if night else 2.4))
-        gl = make_glow_surface(gr, AMBER, alpha_center=190 if night else 120,
+        gr = int(r * (3.4 if night else 2.4) * glow_mult)
+        gl = make_glow_surface(max(1, gr), AMBER, alpha_center=190 if night else 120,
                                falloff=2.0)
         surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
     pygame.draw.circle(surf, AMBER_DK, (int(cx), int(cy)), max(1, int(r)))
     pygame.draw.circle(surf, AMBER, (int(cx), int(cy)), max(1, int(r * 0.78)))
-    pygame.draw.circle(surf, AMBER_CORE, (int(cx), int(cy)), max(1, int(r * 0.36)))
+    if core:
+        pygame.draw.circle(surf, AMBER_CORE, (int(cx), int(cy)), max(1, int(r * 0.36)))
 
 
 # ── one tentacle (a flat triad tapering ribbon) ──────────────────────────────
@@ -204,9 +213,12 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     scary-CUTE beat is the meditative stillness on a vast face. `tell` bakes a
     bolder low-res face mark for the 32px read."""
     body = _shade_c(BODY, 14) if night else BODY
-    # Night lifts the sea-foam sheen ~20% so the rim-lit dome edge holds value on
-    # the midnight-blue sky (teal-black-on-dark would otherwise lose the shape).
-    sheen = _shade_c(BODY_SHEEN, 40) if night else BODY_SHEEN
+    # Night lifts the sea-foam sheen so the rim-lit dome edge holds value on the
+    # midnight-blue sky (teal-black-on-dark would otherwise lose the shape). R3
+    # pushes the lift further (+64 vs R2's +40) — with the grown cool keyline this
+    # carries the dome SILHOUETTE on shape, not on amber alone (the accessibility
+    # requirement: the night chip must read with the amber mentally subtracted).
+    sheen = _shade_c(BODY_SHEEN, 64) if night else BODY_SHEEN
 
     # Dome: a tall rounded jelly head — circle crown with an elongated lower jaw
     # so it reads as a heavy looming monk-pate, not a perfect ball.
@@ -289,16 +301,20 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
         mpts.append((int(ax), int(ay)))
     pygame.draw.lines(surf, FACE_INK, False, mpts, max(2, int(1.8 * ss)))
 
-    # — Brow biolum constellation (DOTS only, the warm focal). TWO larger dots,
-    # CENTERED on the brow axis and spaced wide so they read as a deliberate mark
-    # — not 3 cramped dots smearing into a blob. Pulled DOWN onto the brow and
-    # clear of the top-left sheen crescent so amber never vibrates on the foam.
+    # — Brow biolum constellation (DOTS only, the warm focal). TWO TINY flat amber
+    # points sitting ON the brow ridge — emphatically NOT a second eye-pair. R3
+    # makes these genuinely subordinate: shrunk hard, NO dark seat (that read as a
+    # pupil), NO glow bloom (that swelled them to eye size), just a small flat amber
+    # disc. They register as a faint biolum freckle pair, never an open-eye read;
+    # the serene closed lids stay the dominant facial beat. Seated low on the brow
+    # arc and in off the sheen foam so amber never vibrates on the cool highlight.
     brow_dots = [
-        (cx - r * 0.18, cy - r * 0.34, r * 0.10),
-        (cx + r * 0.20, cy - r * 0.34, r * 0.10),
+        (cx - r * 0.15, cy - r * 0.22, r * 0.045),
+        (cx + r * 0.17, cy - r * 0.22, r * 0.045),
     ]
     for bx, by, br in brow_dots:
-        _biolum_dot(surf, bx, by, max(2, br), ss, night=night)
+        _biolum_dot(surf, bx, by, max(2, br), ss, glow=False, night=night,
+                    core=False)
 
     if tell:
         # Baked low-res face tell so the 32px icon keeps a creature read: two bold
@@ -307,8 +323,8 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
             ex = cx + s * eye_dx
             pygame.draw.line(surf, FACE_INK, (int(ex - eye_hw), int(eye_y)),
                              (int(ex + eye_hw), int(eye_y)), max(2, int(2.4 * ss)))
-        _biolum_dot(surf, cx, cy - r * 0.40, max(2, r * 0.13), ss,
-                    glow=False, night=night)
+        _biolum_dot(surf, cx, cy - r * 0.30, max(2, r * 0.09), ss,
+                    glow=False, night=night, core=False)
 
 
 # ── the whole creature: dome + tentacle curtain ──────────────────────────────
@@ -347,7 +363,7 @@ def build_umibozu(scale=1.0, ss=5, *, night=False, compact=False):
     out_h = int(surf.get_height() / ss)
     smallv = pygame.transform.smoothscale(surf, (out_w, out_h))
     oc = (*INK_NIGHT, 245) if night else (*INK, 235)
-    return _add_outline(smallv, outline_color=oc)
+    return _add_outline(smallv, outline_color=oc, width=2 if night else 1)
 
 
 # ── pillar pair (prop -> pillar mirror proof) ────────────────────────────────
@@ -422,15 +438,17 @@ def _bell_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
                   wave=0.0, col=_shade_c(body, -6), biolum=False, night=night,
                   n_band=2)
 
-    # Amber biolum DOTS ringing the gap-facing rim of the bell — the warm focal
-    # that lanterns the gap, kept as discrete dots. Pulled INBOARD (0.30 vs the
-    # cap silhouette) so the dot-crown never widens the cap past its modest mass;
-    # the bell stays on-axis and doesn't out-weigh the gap line.
-    for ang_deg in range(0, 181, 36):
+    # Amber biolum DOTS at the gap-facing rim of the bell — the warm focal that
+    # lanterns the gap, kept as a FEW discrete dots, NOT a full bright crown ring.
+    # Thinned to 3 small de-cored point-glows hugging the rim (vs the dense R2 ring
+    # that out-weighed the gap line and re-read top-heavy). Pulled INBOARD (0.26)
+    # and shrunk so the amber never widens/crowns the modest bell silhouette.
+    for ang_deg in (54, 90, 126):
         a = math.radians(ang_deg)
-        rx = math.cos(a) * bell_w * 0.30
-        ry = -d * (math.sin(a) * bell_h * 0.42 + bell_h * 0.06)
-        _biolum_dot(surf, cx + rx, by + ry, max(2, bell_w * 0.05), ss, night=night)
+        rx = math.cos(a) * bell_w * 0.26
+        ry = -d * (math.sin(a) * bell_h * 0.40 + bell_h * 0.06)
+        _biolum_dot(surf, cx + rx, by + ry, max(2, bell_w * 0.036), ss,
+                    night=night, core=False, glow_mult=0.55)
 
 
 def _curtain_pillar_obstacle(height, ss, *, flip, night=False):
@@ -453,7 +471,7 @@ def _curtain_pillar_obstacle(height, ss, *, flip, night=False):
         _bell_cap(surf, cx, cap_band, span, ss, point_up=True, night=night)
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
     oc = (*INK_NIGHT, 245) if night else (*INK, 235)
-    return _add_outline(out, outline_color=oc)
+    return _add_outline(out, outline_color=oc, width=2 if night else 1)
 
 
 # ── sheet composition ────────────────────────────────────────────────────────
@@ -503,9 +521,9 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((52, 56, 58))          # neutral grey bg
     _label(sheet, font,
-            "UMIBOZU  —  Leyak-epic set #3  —  abyss sea-monk jelly-dome + tentacle curtain  —  round 2", 18, 12)
+            "UMIBOZU  —  Leyak-epic set #3  —  abyss sea-monk jelly-dome + tentacle curtain  —  round 3", 18, 12)
     _label(sheet, small,
-            "R2: ONE hard rim-sheen crescent (no pate blob); 2 wide-spaced brow dots; tighter modest bell-cap; lifted night sheen+keyline so the dome reads at 32px night.",
+            "R3 (subtractive): brow dots DE-EYED (shrunk ~40%, no bright cores, seated on the brow ridge); cap crown THINNED (3 small de-cored dots); night dome lifted (brighter foam sheen + 2px grown cool keyline) so the silhouette reads without amber.",
             18, 32, (190, 214, 212))
 
     # — Cell A: BIG hero, on an abyssal teal-black sky.
@@ -635,7 +653,7 @@ def main():
            18, SH - 22, (190, 214, 212))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
