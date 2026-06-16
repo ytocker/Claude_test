@@ -88,12 +88,16 @@ def _neon_line(surf, a, b, color, core, ss, *, w=3.0, glow=True, glow_r=None):
     """A CRISP neon tube edge: a tight outside BLEND_ADD bloom (small radius,
     steep falloff so it stays house-crisp not a blurry cloud), then a hard flat
     coloured stroke, then a near-white tube core on top. The glow is the accent;
-    the flat stroke is the shape. Used for grid seams, horn edges, prong rails."""
+    the flat stroke is the shape. Used for grid seams, horn edges, prong rails.
+
+    Radius is kept small and falloff steep on purpose: the round-1 sheet bloomed
+    into a pink/cyan wash that ate the silhouette, so the bloom must stay a hair-
+    line halo hugging the stroke, never a soft cloud spilling across the body."""
     ax, ay = int(a[0]), int(a[1])
     bx, by = int(b[0]), int(b[1])
     if glow:
-        gr = int(glow_r if glow_r is not None else max(4, w * 2.4) * ss)
-        g = make_glow_surface(gr, color, alpha_center=150, falloff=2.6)
+        gr = int(glow_r if glow_r is not None else max(3, w * 1.5) * ss)
+        g = make_glow_surface(gr, color, alpha_center=92, falloff=3.4)
         # Stamp the tight bloom along the segment at a few sample points.
         n = max(2, int(math.hypot(bx - ax, by - ay) / max(1, gr * 0.7)))
         for i in range(n + 1):
@@ -143,23 +147,28 @@ def _laser_horn(surf, base_x, base_y, r, ss, *, side, glitch=False):
     inn = (base_x + s * r * 0.18, base_y - r * 0.32)
     pts = [inn, out, tip]
     _facet(surf, pts, VOID, ss=ss)
-    # Inner magenta plane (offset toward the lit inner edge).
-    mp = [(base_x + s * r * 0.30, base_y - r * 0.40),
-          (base_x + s * r * 0.72, base_y - r * 0.18),
-          (base_x + s * r * 0.92, base_y - r * 1.55)]
+    # Inner magenta sliver kept SMALL (a lit accent on a near-black blade), so the
+    # horn reads as dark with neon piping rather than a solid magenta spike.
+    mp = [(base_x + s * r * 0.42, base_y - r * 0.46),
+          (base_x + s * r * 0.66, base_y - r * 0.34),
+          (base_x + s * r * 0.96, base_y - r * 1.55)]
     _facet(surf, mp, MAGENTA_DK, ink=False, ss=ss)
     # Crisp cyan tube along the leading (outer) edge — the laser read.
     _neon_line(surf, out, tip, CYAN, CYAN_HOT, ss, w=2.4)
     # A magenta tube along the inner edge so the horn glows two-tone.
     _neon_line(surf, inn, tip, MAGENTA_HOT, SHEEN_WHITE, ss, w=2.0)
     if glitch:
-        # Faint offset ghost-duplicate of the tip edge (hologram glitch).
-        off = s * 5 * ss
+        # COMMIT the glitch: a clearly readable cyan ghost-offset of the WHOLE
+        # horn blade (both edges, shoved aside + up), not a faint single hairline.
+        # This is the buggy-hologram scary-cute beat — it must read as intentional.
+        off = s * 9 * ss
+        up = 7 * ss
         ghost = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        _neon_line(ghost, (out[0] + off, out[1] - 3 * ss),
-                   (tip[0] + off, tip[1] - 3 * ss), CYAN, CYAN_HOT, ss,
-                   w=1.8, glow=True)
-        ghost.set_alpha(120)
+        _neon_line(ghost, (out[0] + off, out[1] - up), (tip[0] + off, tip[1] - up),
+                   CYAN, CYAN_HOT, ss, w=2.0, glow=True)
+        _neon_line(ghost, (inn[0] + off, inn[1] - up), (tip[0] + off, tip[1] - up),
+                   CYAN, CYAN_HOT, ss, w=1.6, glow=True)
+        ghost.set_alpha(150)
         surf.blit(ghost, (0, 0))
 
 
@@ -180,32 +189,35 @@ def _devil_head(surf, cx, cy, r, ss, *, night=False):
     ]
     _facet(surf, head, VOID, ss=ss)
 
-    # Two flat magenta cheek planes (left-lit brighter) so the head reads as a
-    # faceted volume, not a flat black blob — the neon triad's flat-fill stage.
-    cheek_l = [(cx - hx * 0.80, cy - r * 0.60), (cx - hx * 0.06, cy - r * 0.30),
-               (cx - hx * 0.30, cy + r * 0.80), (cx - hx * 0.90, cy + r * 0.02)]
-    cheek_r = [(cx + hx * 0.06, cy - r * 0.30), (cx + hx * 0.80, cy - r * 0.60),
-               (cx + hx * 0.90, cy + r * 0.02), (cx + hx * 0.30, cy + r * 0.80)]
+    # VALUE FLIP (the B6 guardrail): the head is a near-black VOID plate first;
+    # magenta is confined to ONE narrow lit-side (left) accent wedge — ~30% of
+    # the face — so the dark silhouette survives the bright day sky and the
+    # glow-strip. The right half stays VOID, the chin a touch of VOID_DK. No
+    # full magenta cheeks: that was the round-1 pink blob.
+    cheek_l = [(cx - hx * 0.78, cy - r * 0.56), (cx - hx * 0.20, cy - r * 0.34),
+               (cx - hx * 0.30, cy + r * 0.40), (cx - hx * 0.84, cy - r * 0.02)]
     _facet(surf, cheek_l, MAGENTA, ink=False, ss=ss)
-    _facet(surf, cheek_r, MAGENTA_DK, ink=False, ss=ss)   # right plane in shade
+    # A slim deep-magenta sliver under it keeps the lit side reading as a plane,
+    # not a stripe — still a minority of the face area.
+    cheek_l2 = [(cx - hx * 0.84, cy - r * 0.02), (cx - hx * 0.30, cy + r * 0.40),
+                (cx - hx * 0.36, cy + r * 0.74), (cx - hx * 0.66, cy + r * 0.50)]
+    _facet(surf, cheek_l2, MAGENTA_DK, ink=False, ss=ss)
+    # The rest of the face stays dark: a VOID_DK shade plane down the right so it
+    # reads as faceted volume without adding any bright fill on the shadow side.
+    cheek_r = [(cx + hx * 0.10, cy - r * 0.30), (cx + hx * 0.78, cy - r * 0.56),
+               (cx + hx * 0.84, cy - r * 0.02), (cx + hx * 0.28, cy + r * 0.70)]
+    _facet(surf, cheek_r, VOID_DK, ink=False, ss=ss)
 
-    # A small violet under-jaw facet for a third value step (still flat).
-    chin = [(cx - hx * 0.30, cy + r * 0.62), (cx + hx * 0.30, cy + r * 0.62),
-            (cx, cy + r * 1.00)]
-    _facet(surf, chin, VIOLET, ink=False, ss=ss)
-
-    # Crisp cyan GRID seams over the facets — the synthwave scanline tell. A
-    # vertical centre seam + two horizontal scan-bands. Flat bright lines + tight
-    # glow; kept sparse so they read at 1x and never wash to noise.
-    _neon_line(surf, (cx, cy - r * 0.70), (cx, cy + r * 0.98), CYAN, CYAN_HOT, ss,
-               w=1.8)
-    for fy in (-0.30, 0.34):
-        yy = cy + r * fy
-        _neon_line(surf, (cx - hx * 0.78, yy), (cx + hx * 0.78, yy),
-                   CYAN, CYAN_HOT, ss, w=1.4)
-    # Hard magenta rim-edge up the lit (left) brow — the neon "rim sheen".
+    # Crisp cyan GRID seam — the synthwave scanline tell, now reduced to a single
+    # vertical centre seam + ONE horizontal scan-band so it reads as discrete
+    # filaments at 1x and never stacks into the round-1 wash.
+    _neon_line(surf, (cx, cy - r * 0.66), (cx, cy + r * 0.92), CYAN, CYAN_HOT, ss,
+               w=1.6)
+    _neon_line(surf, (cx - hx * 0.72, cy - r * 0.04), (cx + hx * 0.72, cy - r * 0.04),
+               CYAN, CYAN_HOT, ss, w=1.4)
+    # Hard magenta rim-edge up the lit (left) brow only — the neon "rim sheen".
     _neon_line(surf, (cx - hx * 0.86, cy - r * 0.74), (cx - hx * 0.98, cy - r * 0.04),
-               MAGENTA_HOT, SHEEN_WHITE, ss, w=2.2)
+               MAGENTA_HOT, SHEEN_WHITE, ss, w=2.0)
 
     # Swept laser horns from the brow corners. RIGHT horn glitch-doubled (cute).
     _laser_horn(surf, cx - hx * 0.62, cy - r * 0.70, r * 0.62, ss, side=-1)
@@ -224,24 +236,24 @@ def _devil_head(surf, cx, cy, r, ss, *, night=False):
                 (ex - s * r * 0.24, eye_y + r * 0.14)]
         _facet(surf, slot, VOID_DK, ink=True, ss=ss)
         # Tight laser-yellow glow + hot pinprick (the one warm note, kept tiny).
-        g = make_glow_surface(int(r * 0.26), LASER_YEL, alpha_center=210, falloff=2.4)
-        surf.blit(g, (int(ex - r * 0.26 - 1), int(eye_y - r * 0.26 - 1)),
+        g = make_glow_surface(int(r * 0.20), LASER_YEL, alpha_center=160, falloff=3.0)
+        surf.blit(g, (int(ex - r * 0.20 - 1), int(eye_y - r * 0.20 - 1)),
                   special_flags=pygame.BLEND_ADD)
         pygame.draw.circle(surf, LASER_YEL, (int(ex), int(eye_y)),
                            max(2, int(r * 0.12)))
         pygame.draw.circle(surf, SHEEN_WHITE, (int(ex - s * r * 0.04), int(eye_y - r * 0.04)),
                            max(1, int(r * 0.05)))
 
-    # The cocky grin: a hard cyan ZIG-ZAG (angular, not a curve) — a jagged neon
-    # smirk lifted at one corner. Reads as a smug arcade grin, not a horror rictus.
-    gy = cy + r * 0.56
-    zig = [(cx - r * 0.42, gy),
-           (cx - r * 0.18, gy + r * 0.14),
-           (cx + r * 0.06, gy - r * 0.02),
-           (cx + r * 0.30, gy + r * 0.12),
-           (cx + r * 0.50, gy - r * 0.10)]   # one corner cocked up
+    # The cocky grin: a BOLDER, fewer-segment cyan ZIG (angular, not a curve) with
+    # one corner cocked sharply up — a smug arcade smirk, not a horror rictus. Set
+    # against a dark under-jaw so the high-contrast neon zig carries attitude at 1x.
+    gy = cy + r * 0.58
+    zig = [(cx - r * 0.40, gy + r * 0.02),
+           (cx - r * 0.06, gy + r * 0.18),
+           (cx + r * 0.28, gy - r * 0.04),
+           (cx + r * 0.52, gy - r * 0.22)]   # last corner cocked sharply up
     for i in range(len(zig) - 1):
-        _neon_line(surf, zig[i], zig[i + 1], MAGENTA_HOT, SHEEN_WHITE, ss, w=2.0)
+        _neon_line(surf, zig[i], zig[i + 1], CYAN_HOT, SHEEN_WHITE, ss, w=2.6)
 
 
 def _devil_body(surf, cx, neck_y, w, h, ss):
@@ -259,14 +271,21 @@ def _devil_body(surf, cx, neck_y, w, h, ss):
         (cx + w * 0.30, neck_y),
     ]
     _facet(surf, torso, VOID, ss=ss)
-    # Lit magenta front plane.
-    front = [(cx - w * 0.24, neck_y + ss), (cx + w * 0.10, neck_y + h * 0.20),
-             (cx + w * 0.18, hem_y - ss), (cx - w * 0.20, hem_y - ss)]
+    # VALUE FLIP: the torso is VOID-dominant. Magenta is one narrow lit wedge down
+    # the LEFT front (~30% of the chest), tapering — not a full magenta panel. The
+    # rest stays near-black so the chevron silhouette survives day sky + grayscale.
+    front = [(cx - w * 0.26, neck_y + ss), (cx - w * 0.02, neck_y + h * 0.16),
+             (cx - w * 0.02, hem_y - h * 0.10), (cx - w * 0.22, hem_y - ss)]
     _facet(surf, front, MAGENTA, ink=False, ss=ss)
-    # Right side plane in deep-magenta shade.
-    rside = [(cx + w * 0.10, neck_y + h * 0.20), (cx + w * 0.48, neck_y + h * 0.30),
-             (cx + w * 0.24, hem_y - ss), (cx + w * 0.18, hem_y - ss)]
-    _facet(surf, rside, MAGENTA_DK, ink=False, ss=ss)
+    # A deep-magenta shade sliver beneath it (third value step, still minority).
+    front2 = [(cx - w * 0.22, hem_y - ss), (cx - w * 0.02, hem_y - h * 0.10),
+              (cx + w * 0.02, hem_y - ss)]
+    _facet(surf, front2, MAGENTA_DK, ink=False, ss=ss)
+    # Right side plane kept as VOID_DK shade — dark, no bright fill on the shadow
+    # side, so the figure reads dark-with-neon-piping on the bright day sky.
+    rside = [(cx + w * 0.02, neck_y + h * 0.16), (cx + w * 0.48, neck_y + h * 0.30),
+             (cx + w * 0.24, hem_y - ss), (cx + w * 0.02, hem_y - ss)]
+    _facet(surf, rside, VOID_DK, ink=False, ss=ss)
 
     # Cyan chevron-fin crest at the collar (3 stacked sharp V's) — a sharp tech
     # crest, the body's signature. Flat bright + tight glow.
@@ -281,11 +300,10 @@ def _devil_body(surf, cx, neck_y, w, h, ss):
     _neon_line(surf, (cx - w * 0.30, neck_y + h * 0.05),
                (cx - w * 0.26, hem_y - ss), MAGENTA_HOT, SHEEN_WHITE, ss, w=1.8)
 
-    # Two grid scan-bands across the torso.
-    for fy in (0.42, 0.72):
-        yy = neck_y + h * fy
-        half = w * (0.40 - 0.16 * fy)
-        _neon_line(surf, (cx - half, yy), (cx + half, yy), CYAN, CYAN_HOT, ss, w=1.2)
+    # ONE grid scan-band across the torso (round 1 stacked too many into noise).
+    yy = neck_y + h * 0.54
+    half = w * 0.30
+    _neon_line(surf, (cx - half, yy), (cx + half, yy), CYAN, CYAN_HOT, ss, w=1.4)
 
     # Stub angular arms (one will rest near the trident; the other a finger-gun).
     for s in (-1, 1):
@@ -360,31 +378,40 @@ def _light_rod(surf, cx, top_y, bot_y, hw, ss):
     smoothscale), each a flat cyan bar + tight glow — a synthwave power-conduit.
     No prongs here; the prongs are the detachable top cap."""
     length = bot_y - top_y
-    # Dark faceted post body (the value anchor under the glow).
+    # VALUE FLIP for the rod: it is a DARK VOID post, not a pale white stick. The
+    # whole interior stays near-black; only a SLIM lit-side magenta sliver hints at
+    # volume. This makes the rod read as a dark conduit distinct from the boss's
+    # bright highlights (round 1 read as a white thermometer).
     post = [(cx - hw, top_y), (cx + hw, top_y),
             (cx + hw, bot_y), (cx - hw, bot_y)]
     _facet(surf, post, VOID, ss=ss)
-    # Inner magenta column plane (left-lit).
+    # A thin lit magenta sliver down the LEFT inner rail only (a minority accent).
     pygame.draw.rect(surf, MAGENTA_DK,
-                     (int(cx - hw * 0.62), int(top_y), int(hw * 1.0), int(length)))
-    # Bright magenta tube edges down both rails.
+                     (int(cx - hw * 0.86), int(top_y), int(hw * 0.36), int(length)))
+    # BOLD magenta tube RAILS down both edges — the conduit's signature piping.
     _neon_line(surf, (cx - hw, top_y), (cx - hw, bot_y), MAGENTA_HOT, SHEEN_WHITE,
-               ss, w=2.0)
+               ss, w=2.6)
     _neon_line(surf, (cx + hw, top_y), (cx + hw, bot_y), MAGENTA, MAGENTA_HOT,
-               ss, w=2.0)
-    # Pulsing cyan grid bands: bold, evenly spaced, sized so only ~3-4 stack across
-    # a gameplay pillar (chunky enough to survive the 1x downscale).
-    band_h = max(int(26 * ss), int(hw * 3.2))
-    n = max(2, round(length / band_h))
+               ss, w=2.4)
+    # 3-4 BOLD cyan grid bands rung across the dark post — chunky bars (not thin
+    # lines) so they survive the 1x downscale and read as discrete pulses. Spaced
+    # so a gameplay pillar carries 3-4 of them.
+    band_h = max(int(34 * ss), int(hw * 3.6))
+    n = max(2, min(4, round(length / band_h)))
     band_h = length / n
+    bar_t = max(2, int(3.4 * ss))   # the band's flat fill thickness
     for i in range(n):
         by = top_y + (i + 0.5) * band_h
         # Brightness "pulses" along the rod (a hologram throb) — alternate hot/cool.
         hot = (i % 2 == 0)
         col = CYAN_HOT if hot else CYAN
-        _neon_line(surf, (cx - hw * 0.9, by), (cx + hw * 0.9, by),
-                   col, SHEEN_WHITE if hot else CYAN_HOT, ss, w=2.2,
-                   glow_r=int(hw * 1.4))
+        core = SHEEN_WHITE if hot else CYAN_HOT
+        # Tight glow first, then a BOLD flat cyan bar so the band is a solid rung.
+        _neon_line(surf, (cx - hw * 0.92, by), (cx + hw * 0.92, by),
+                   col, core, ss, w=3.4, glow_r=int(hw * 1.0))
+        pygame.draw.rect(surf, col,
+                         (int(cx - hw * 0.92), int(by - bar_t * 0.5),
+                          int(hw * 1.84), bar_t))
 
 
 def _light_prongs(surf, cx, base_y, hw, ss, *, point_up=True):
@@ -394,43 +421,45 @@ def _light_prongs(surf, cx, base_y, hw, ss, *, point_up=True):
     energy-orb caught between them. `point_up` orients the tines away from the rod
     (toward the gap). Mirrors with the rod into a clean neon post."""
     d = -1 if point_up else 1
-    prong_len = 50 * ss
-    spread = hw * 2.6
+    # Shorter + thicker tines with a WIDER splay so the trident cap silhouette is
+    # unmistakable at 82px (round 1 read as thin spidery legs).
+    prong_len = 40 * ss
+    spread = hw * 3.4
     tips = []
-    # Three tines: centre straight, two flanking ones angled out.
+    # Three tines: centre straight, two flanking ones angled out with conviction.
     for off in (-1, 0, 1):
-        bx = cx + off * spread * 0.5
+        bx = cx + off * spread * 0.34
         tipx = cx + off * spread
         tipy = base_y + d * prong_len
         midx = (bx + tipx) * 0.5
         midy = base_y + d * prong_len * 0.5
-        # A hard kinked laser tine (slight zig so it reads as energy, not a stick).
-        _neon_line(surf, (bx, base_y), (midx, midy), CYAN, CYAN_HOT, ss, w=2.6)
+        # A hard kinked laser tine, drawn THICK so it survives the downscale.
+        _neon_line(surf, (bx, base_y), (midx, midy), CYAN, CYAN_HOT, ss, w=3.6)
         _neon_line(surf, (midx, midy), (tipx, tipy), MAGENTA_HOT, SHEEN_WHITE, ss,
-                   w=2.6)
+                   w=3.6)
         # Sharp tip glint.
-        g = make_glow_surface(int(hw * 1.3), CYAN_HOT, alpha_center=200, falloff=2.4)
-        surf.blit(g, (int(tipx - hw * 1.3 - 1), int(tipy - hw * 1.3 - 1)),
+        g = make_glow_surface(int(hw * 1.1), CYAN_HOT, alpha_center=140, falloff=3.0)
+        surf.blit(g, (int(tipx - hw * 1.1 - 1), int(tipy - hw * 1.1 - 1)),
                   special_flags=pygame.BLEND_ADD)
         pygame.draw.circle(surf, SHEEN_WHITE, (int(tipx), int(tipy)),
-                           max(1, int(hw * 0.4)))
+                           max(1, int(hw * 0.5)))
         tips.append((tipx, tipy))
-    # A cross-brace arc of cyan linking the three bases (the trident's head bar).
+    # A BOLD cross-brace bar of cyan linking the three bases (the trident's head).
     base_l = cx - spread
     base_r = cx + spread
-    _neon_line(surf, (base_l, base_y), (base_r, base_y), CYAN, CYAN_HOT, ss, w=2.0)
-    # The caught energy ORB nestled between the tines — a bright magenta/cyan core.
+    _neon_line(surf, (base_l, base_y), (base_r, base_y), CYAN, CYAN_HOT, ss, w=2.8)
+    # The caught energy ORB — LARGER + BRIGHTER so it is the cap's focal point.
     orb_x = cx
-    orb_y = base_y + d * prong_len * 0.42
-    orb_r = hw * 1.1
-    g = make_glow_surface(int(orb_r * 2.2), MAGENTA, alpha_center=220, falloff=2.6)
-    surf.blit(g, (int(orb_x - orb_r * 2.2 - 1), int(orb_y - orb_r * 2.2 - 1)),
+    orb_y = base_y + d * prong_len * 0.50
+    orb_r = hw * 1.5
+    g = make_glow_surface(int(orb_r * 1.9), MAGENTA, alpha_center=150, falloff=3.0)
+    surf.blit(g, (int(orb_x - orb_r * 1.9 - 1), int(orb_y - orb_r * 1.9 - 1)),
               special_flags=pygame.BLEND_ADD)
     pygame.draw.circle(surf, MAGENTA_HOT, (int(orb_x), int(orb_y)), max(2, int(orb_r)))
     pygame.draw.circle(surf, CYAN_HOT, (int(orb_x), int(orb_y - orb_r * 0.2)),
-                       max(1, int(orb_r * 0.5)))
-    pygame.draw.circle(surf, SHEEN_WHITE, (int(orb_x), int(orb_y - orb_r * 0.25)),
-                       max(1, int(orb_r * 0.22)))
+                       max(1, int(orb_r * 0.55)))
+    pygame.draw.circle(surf, SHEEN_WHITE, (int(orb_x), int(orb_y - orb_r * 0.28)),
+                       max(1, int(orb_r * 0.26)))
 
 
 # ── pillar pair (prop -> pillar mirror proof) ────────────────────────────────
@@ -486,7 +515,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((22, 18, 34))
-    _label(sheet, font, "GLITCHFIEND  —  B6  —  neon synthwave devil  —  round 1", 18, 12)
+    _label(sheet, font, "GLITCHFIEND  —  B6  —  neon synthwave devil  —  round 2", 18, 12)
     _label(sheet, small,
             "the holographic ARCADE devil: angular neon body, swept LASER horns, chevron crest, bolt tail, light-TRIDENT",
             18, 32, (190, 170, 220))
@@ -585,7 +614,7 @@ def main():
     pygame.draw.rect(sheet, (120, 120, 128), gpanel, border_radius=6)
     sheet.blit(gray, (gpanel.centerx - gray.get_width() // 2,
                       gpanel.bottom - gray.get_height() - 8))
-    _label(sheet, small, "grayscale: the FLAT void body + facet planes carry the read (glow is accent, not construction)",
+    _label(sheet, small, "grayscale (glow STRIPPED): near-black VOID body dominant -> a clear dark devil silhouette, neon = thin bright filaments only",
             gpanel.x + 6, gpanel.y + 6, (30, 30, 30))
 
     # — Footer caption.
@@ -593,7 +622,7 @@ def main():
            "scary-cute: cocky finger-gun + narrowed laser-eye squint + a jagged zig-zag grin (one horn glitch-doubled = buggy hologram).",
            18, SH - 124, (200, 186, 226))
     _label(sheet, small,
-           "house style: FLAT void+magenta facets, hard ink keyline from alpha mask; neon = CRISP flat tube edges + TIGHT additive glow.",
+           "value flip: near-black VOID is the DOMINANT body value; magenta is a ~30% lit-side accent; neon = CRISP filaments + TIGHT additive glow.",
            18, SH - 104, (200, 186, 226))
     _label(sheet, small,
            "guardrails: SHARP swept laser horns (no curved ram); electric magenta/cyan (no warm torch-gold, no green soul-fire).",
@@ -603,7 +632,7 @@ def main():
                            "skybit_devil", "devil", "glitchfiend")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

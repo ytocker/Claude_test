@@ -51,11 +51,15 @@ BONE_SHEEN  = (255, 250, 236)   # top-left rim sheen
 TOOTH       = (250, 244, 226)
 TOOTH_DK    = (150, 140, 118)
 
-HOOF        = (122, 30, 38)     # oxblood-maroon hoof-leg fill
-HOOF_DK     = (78, 18, 26)      # leg dark-core / split groove seat
-HOOF_SHEEN  = (176, 64, 70)     # leg top-left rim sheen
-HOOF_BLACK  = (34, 28, 32)      # the cloven hoof horn (split toe)
-HOOF_BLACK2 = (62, 52, 58)      # hoof sheen plane
+HOOF        = (150, 40, 48)     # oxblood-maroon goat-leg fill (lifted a step so
+                                # the BLACK hoof reads off it instead of muddying)
+HOOF_DK     = (92, 22, 30)      # leg dark-core / digitigrade-knee notch seat
+HOOF_SHEEN  = (196, 78, 84)     # leg top-left rim sheen (hard flat plane)
+HOOF_BLACK  = (26, 20, 24)      # the cloven hoof horn (split toe) — near-black so
+                                # it is the darkest mass on both day AND night sky
+HOOF_BLACK2 = (66, 54, 60)      # hoof top sheen plane (the lit horn surface)
+HOOF_RIM    = (236, 224, 200)   # bone-white hoof crown rim — the hard value break
+                                # that forces the black hoof to pop on any sky
 
 BRASS       = (200, 150, 54)    # hoof-ring trim accent
 BRASS_HI    = (255, 224, 150)
@@ -232,28 +236,32 @@ def _ribcage(surf, cx, top_y, w, h, ss):
 
 def _arms(surf, cx, sh_y, w, ss):
     """Two tiny bone stick-arms with knob hands held out for balance (sells the
-    wobbly, about-to-topple stance)."""
-    for s, lift in ((-1, -0.5), (1, -0.8)):
-        sx = cx + s * w * 0.42
-        ex = cx + s * w * 0.78
-        ey = sh_y + w * lift
+    wobbly stance). Held LOW + close to the ribs so they never crown the skull or
+    read as antennae at 1x — they drop down-and-out from the shoulder."""
+    for s in (-1, 1):
+        sx = cx + s * w * 0.30
+        ex = cx + s * w * 0.52
+        ey = sh_y + w * 0.46                          # hands hang BELOW the shoulder
         for col, wid in ((BONE_DK, 6 * ss), (BONE, 3.5 * ss)):
             pygame.draw.line(surf, col, (int(sx), int(sh_y)), (int(ex), int(ey)),
                              max(1, int(wid)))
-        _triad_circle(surf, ex, ey, w * 0.16, BONE)
+        _triad_circle(surf, ex, ey, w * 0.15, BONE)
 
 
 def _tail(surf, hip_x, hip_y, scale_len, ss):
-    """A spaded bone tail curling out behind one hip — a vertebra chain ending in
-    a little bone spade (the devil tell, in bone)."""
+    """A spaded bone tail that curls tight DOWN-and-out off the hip, then hooks
+    back up — short and clearly hip-anchored so it never reads as a stray third
+    limb at 1x. A vertebra chain ending in a little bone spade (the devil tell)."""
     pts = []
     n = 12
     for i in range(n + 1):
         t = i / n
-        px = hip_x + scale_len * (0.2 + 0.9 * t)
-        py = hip_y - scale_len * (0.5 * math.sin(t * math.pi * 0.9))
+        # A tight downward hook off the hip (anchored low), curling back up at the
+        # tip — short reach so the spade clearly belongs to this hip.
+        px = hip_x + scale_len * (0.12 + 0.62 * t)
+        py = hip_y + scale_len * (0.55 * math.sin(t * math.pi) - 0.30 * t)
         pts.append((px, py))
-    for col, wid in ((BONE_DK, 6 * ss), (BONE, 3.4 * ss)):
+    for col, wid in ((BONE_DK, 6.5 * ss), (BONE, 3.6 * ss)):
         for i in range(len(pts) - 1):
             pygame.draw.line(surf, col, (int(pts[i][0]), int(pts[i][1])),
                              (int(pts[i + 1][0]), int(pts[i + 1][1])), max(1, int(wid)))
@@ -270,21 +278,27 @@ def _tail(surf, hip_x, hip_y, scale_len, ss):
 # ── the ABSURD oversized cloven hoof-legs (the whole gag) ─────────────────────
 
 def _hoof_leg(surf, hip_x, hip_y, foot_y, lw, ss, *, knee_out):
-    """One enormous columnar maroon hoof-leg ending in a split black cloven hoof.
-    `knee_out` (+/-1) bows the knee outward for the knock-kneed, wobbling stance.
-    Goat-leg shape: a thick thigh, a bent reverse-knee, a fetlock fur-tuft, a
-    brass ankle-ring, then the cloven hoof. Triad-shaded oxblood so the legs are
-    the bottom-heavy value anchor."""
+    """One ABSURD goat-leg ending in an enormous splayed black cloven hoof — the
+    whole gag. `knee_out` (+/-1) is the outward side. The leg is articulated like a
+    real beast leg so it NEVER reads as a trouser tube: a fat thigh kicks OUT to a
+    hard reverse (backward) digitigrade KNEE notch, a slim cannon-bone kicks back
+    IN to a narrow fetlock, then the hoof flares out WIDER than the thigh is long.
+    Bone-white crown rim + wide brass break force the near-black hoof to pop on any
+    sky. The hoof is deliberately the boldest, widest, darkest mass in the figure."""
     leg_h = foot_y - hip_y
-    knee_y = hip_y + leg_h * 0.46
-    knee_x = hip_x + knee_out * lw * 1.1            # bow the knee outward
-    ank_y = foot_y - leg_h * 0.20
-    ank_x = hip_x + knee_out * lw * 0.2             # ankle tucks back in (knock-knee)
 
-    # Thigh + shin as two fat tapering capsules (dark-core then fill then sheen).
+    # Three hard-bent joints so the silhouette is unmistakably a beast leg.
+    #   hip -> knee (kicked far OUT)  ->  fetlock (tucked hard back IN)  ->  hoof.
+    knee_y = hip_y + leg_h * 0.32
+    knee_x = hip_x + knee_out * lw * 2.6            # hard outward knock-knee kick
+    fet_y = hip_y + leg_h * 0.58                    # fetlock higher -> taller hoof
+    fet_x = hip_x + knee_out * lw * 0.30            # cannon kicks sharply back in
+    hoof_cx = hip_x + knee_out * lw * 0.85          # hoof splays back outward, planted
+
     def _segment(ax, ay, bx, by, wa, wb):
-        for col, dw in ((HOOF_DK, 2.4), (HOOF, 0.0)):
-            steps = 16
+        """A fat tapering capsule via stacked circles; dark-core pass then fill."""
+        for col, dw in ((HOOF_DK, 2.6), (HOOF, 0.0)):
+            steps = 18
             for i in range(steps):
                 t = i / (steps - 1)
                 px = ax + (bx - ax) * t
@@ -292,65 +306,105 @@ def _hoof_leg(surf, hip_x, hip_y, foot_y, lw, ss, *, knee_out):
                 rw = (wa + (wb - wa) * t) + dw * ss
                 pygame.draw.circle(surf, col, (int(px), int(py)), max(1, int(rw)))
 
-    thigh_w0 = lw * 1.25
-    thigh_w1 = lw * 0.95
-    shin_w0 = lw * 0.92
-    shin_w1 = lw * 0.66
+    thigh_w0 = lw * 1.30
+    thigh_w1 = lw * 0.86
+    cannon_w0 = lw * 0.74
+    cannon_w1 = lw * 0.50                            # the slim cannon — reads "shin bone"
     _segment(hip_x, hip_y, knee_x, knee_y, thigh_w0, thigh_w1)
-    _segment(knee_x, knee_y, ank_x, ank_y, shin_w0, shin_w1)
+    _segment(knee_x, knee_y, fet_x, fet_y, cannon_w0 * 1.05, cannon_w1)
 
-    # Top-left rim sheen down the lit edge of the thigh.
-    pygame.draw.line(surf, HOOF_SHEEN,
-                     (int(hip_x - thigh_w0 * 0.55), int(hip_y + leg_h * 0.05)),
-                     (int(knee_x - thigh_w1 * 0.55), int(knee_y)), max(2, int(2.4 * ss)))
+    # Hard reverse-KNEE notch: a dark wedge poking BACKWARD off the joint so the
+    # bend registers as a digitigrade hock at 1x (a recognised goat/devil tell).
+    nx = knee_x + knee_out * thigh_w1 * 0.9
+    knee_pts = [(knee_x, knee_y - thigh_w1 * 0.5),
+                (nx, knee_y - thigh_w1 * 0.1),
+                (nx, knee_y + thigh_w1 * 0.7),
+                (knee_x, knee_y + thigh_w1 * 0.5)]
+    pygame.draw.polygon(surf, HOOF_DK, [(int(x), int(y)) for x, y in knee_pts])
 
-    # Fetlock fur-tuft: a little ragged maroon ruff just above the hoof (the goat
-    # tell), drawn as hard flat lobes — no feathering (house hem grammar).
-    tuft_y = ank_y + leg_h * 0.06
-    for k in range(5):
-        a = -math.pi * 0.5 + (k - 2) * 0.5
-        lx = ank_x + math.cos(a) * lw * 0.7
-        ly = tuft_y + abs(math.sin(a)) * lw * 0.2
-        pygame.draw.circle(surf, HOOF_DK, (int(lx), int(ly + lw * 0.4)), int(lw * 0.46))
-        pygame.draw.circle(surf, HOOF, (int(lx), int(ly + lw * 0.4 - ss)),
-                           max(1, int(lw * 0.38)))
+    # Top-left rim sheen as HARD FLAT planes (no soft diagonal streak) — a stubby
+    # lit facet on the inner edge of each segment, matching the skull/pillar triad.
+    in_s = -knee_out                                 # lit edge faces the body centre
+    pygame.draw.polygon(surf, HOOF_SHEEN, [
+        (int(hip_x + in_s * thigh_w0 * 0.5), int(hip_y + leg_h * 0.02)),
+        (int(hip_x + in_s * thigh_w0 * 0.22), int(hip_y + leg_h * 0.04)),
+        (int(knee_x + in_s * thigh_w1 * 0.2), int(knee_y - thigh_w1 * 0.2)),
+        (int(knee_x + in_s * thigh_w1 * 0.5), int(knee_y - thigh_w1 * 0.2)),
+    ])
 
-    # Brass ankle-ring just above the hoof — the trim accent + a hard value break
-    # between oxblood leg and black hoof.
-    ring = pygame.Rect(0, 0, int(lw * 1.5), int(lw * 0.5))
-    ring.center = (int(ank_x), int(ank_y + lw * 0.55))
+    # Fetlock fur-tuft: a bold, hard-lobed ragged ring above the hoof — committed,
+    # not a bulge (the goat tell). Three chunky flat lobes, no feathering.
+    for k in (-1, 0, 1):
+        lx = fet_x + k * lw * 0.6
+        ly = fet_y + lw * 0.5 + abs(k) * lw * 0.18
+        pygame.draw.circle(surf, HOOF_DK, (int(lx), int(ly)), int(lw * 0.55))
+        pygame.draw.circle(surf, HOOF, (int(lx), int(ly - ss)), max(1, int(lw * 0.44)))
+
+    # Wide brass ankle-ring — the value BREAK between maroon leg and black hoof,
+    # set clear of the hoof block so it always reads as a band, not lost in black.
+    ank_y = fet_y + lw * 0.95
+    ring = pygame.Rect(0, 0, int(lw * 1.9), int(lw * 0.7))
+    ring.center = (int(hoof_cx), int(ank_y))
     pygame.draw.ellipse(surf, _shade_c(BRASS, -50), ring)
-    pygame.draw.ellipse(surf, BRASS, ring.inflate(-int(2 * ss), -int(1.5 * ss)))
-    pygame.draw.circle(surf, BRASS_HI, (ring.left + int(lw * 0.3), ring.centery),
-                       max(1, int(lw * 0.12)))
+    pygame.draw.ellipse(surf, BRASS, ring.inflate(-int(2.5 * ss), -int(2 * ss)))
+    pygame.draw.circle(surf, BRASS_HI, (ring.left + int(lw * 0.45), ring.centery),
+                       max(1, int(lw * 0.16)))
 
-    # The CLOVEN HOOF: a chunky black wedge that splits into two toes with a hard
-    # ink cleft up the middle. This is the silhouette payoff — drawn big + bold.
-    hoof_top = ank_y + lw * 0.75
+    # ── THE CLOVEN HOOF — the headline gag. A chunky, TALL two-toed black hoof
+    # block that flares wider than the thigh, with a deep cleft so it reads as
+    # two splayed toes, not a flat platform. Each toe is drawn on its own so the
+    # silhouette has a real cloven notch up the front and a gap between the toes.
+    hoof_top = ank_y + lw * 0.35
     hoof_bot = foot_y
     hh = hoof_bot - hoof_top
-    hw = lw * 1.35
-    # Solid wedge body (slightly forward of the ankle so it reads planted/splayed).
-    cxh = ank_x + knee_out * lw * 0.15
-    wedge = [(cxh - hw, hoof_top), (cxh + hw, hoof_top),
-             (cxh + hw * 0.78, hoof_bot), (cxh - hw * 0.78, hoof_bot)]
-    pygame.draw.polygon(surf, HOOF_BLACK, [(int(x), int(y)) for x, y in wedge])
-    # Top sheen plane on the hoof so the black still reads as a lit horn surface.
-    pygame.draw.polygon(surf, HOOF_BLACK2,
-                        [(int(cxh - hw + ss), int(hoof_top + ss)),
-                         (int(cxh), int(hoof_top + ss)),
-                         (int(cxh - hw * 0.4), int(hoof_top + hh * 0.4))])
-    # The split: a deep ink cleft from the toe up the centre — the cloven read.
+    hw = lw * 1.9                                    # outer half-width >> leg width
+    inner = hw * 0.16                                # the gap each toe leaves at centre
+
+    def _toe(side):
+        """One splayed toe: tall block, narrow at the crown, flaring to a rounded
+        outer base, leaving a hard cleft gap at the centre."""
+        ox = hoof_cx + side * inner                  # inner edge (cleft side)
+        bx = hoof_cx + side * hw                      # outer base edge (splayed)
+        cx_top = hoof_cx + side * hw * 0.42           # crown sits over the ankle
+        # Bone-white crown rim behind the toe for the hard value pop.
+        crown = [(cx_top - side * hw * 0.34 - side * 1.5 * ss, hoof_top - 1.5 * ss),
+                 (cx_top + side * hw * 0.30 + side * 1.5 * ss, hoof_top - 1.5 * ss),
+                 (cx_top + side * hw * 0.30, hoof_top + hh * 0.26),
+                 (cx_top - side * hw * 0.34, hoof_top + hh * 0.26)]
+        pygame.draw.polygon(surf, HOOF_RIM, [(int(x), int(y)) for x, y in crown])
+        # The black toe block: crown -> flares down-and-out to a wide rounded base.
+        block = [(cx_top - side * hw * 0.30, hoof_top),
+                 (cx_top + side * hw * 0.30, hoof_top),
+                 (bx, hoof_bot - hh * 0.16),
+                 (bx - side * hw * 0.10, hoof_bot),
+                 (ox + side * inner * 0.4, hoof_bot),
+                 (ox, hoof_bot - hh * 0.30)]
+        pygame.draw.polygon(surf, HOOF_BLACK, [(int(x), int(y)) for x, y in block])
+        # Rounded toe-tip so it reads as a hoof, not a wedge.
+        pygame.draw.circle(surf, HOOF_BLACK,
+                           (int(bx - side * hw * 0.16), int(hoof_bot - hh * 0.16)),
+                           max(2, int(hh * 0.20)))
+        # Hard flat sheen facet on the lit (inner-body) side of the toe.
+        if side == in_s:
+            pygame.draw.polygon(surf, HOOF_BLACK2,
+                                [(int(cx_top - side * hw * 0.26), int(hoof_top + ss)),
+                                 (int(cx_top + side * hw * 0.02), int(hoof_top + ss)),
+                                 (int(ox + side * hw * 0.06), int(hoof_bot - hh * 0.34))])
+        # Bone rim along the outer base edge so light catches the splayed toe.
+        pygame.draw.line(surf, HOOF_RIM,
+                         (int(ox + side * inner), int(hoof_bot - 1)),
+                         (int(bx - side * hw * 0.10), int(hoof_bot - 1)),
+                         max(1, int(1.8 * ss)))
+
+    _toe(-1)
+    _toe(+1)
+    # The deep ink CLEFT between the toes — the unmistakable cloven read, cut from
+    # the base most of the way up the hoof.
     pygame.draw.polygon(surf, INK,
-                        [(int(cxh - hw * 0.10), int(hoof_bot)),
-                         (int(cxh + hw * 0.10), int(hoof_bot)),
-                         (int(cxh + ss), int(hoof_top + hh * 0.42)),
-                         (int(cxh - ss), int(hoof_top + hh * 0.42))])
-    # Two glossy toe-nubs at the bottom corners so each half-hoof reads rounded.
-    for s in (-1, 1):
-        pygame.draw.circle(surf, HOOF_BLACK2,
-                           (int(cxh + s * hw * 0.5), int(hoof_bot - hh * 0.18)),
-                           max(1, int(hw * 0.16)))
+                        [(int(hoof_cx - inner * 1.1), int(hoof_bot + 1)),
+                         (int(hoof_cx + inner * 1.1), int(hoof_bot + 1)),
+                         (int(hoof_cx + 1.5 * ss), int(hoof_top + hh * 0.22)),
+                         (int(hoof_cx - 1.5 * ss), int(hoof_top + hh * 0.22))])
 
 
 def build_clovenpate(scale=1.0, ss=3, *, night=False):
@@ -360,7 +414,8 @@ def build_clovenpate(scale=1.0, ss=3, *, night=False):
     so the imp stays lit on a dark sky."""
     H = int(280 * scale)
     W = int(160 * scale)
-    pad = int(60 * scale)
+    pad = int(76 * scale)                            # wider pad — the splayed hooves
+                                                     # now reach well past the legs
     surf = pygame.Surface(((W + pad * 2) * ss, (H + pad) * ss), pygame.SRCALPHA)
     cx = (W // 2 + pad) * ss
 
@@ -387,13 +442,15 @@ def build_clovenpate(scale=1.0, ss=3, *, night=False):
     _femur_shaft(surf, fx, fork_base, foot_y + 6 * ss, fhw, ss)
     _trident_fork(surf, fx, fork_base, fhw, ss, point_up=True)
 
-    # Tail curls out behind the right hip (drawn before legs so legs overlap it).
-    _tail(surf, cx + rib_w * 0.5, hip_y, W * 0.22 * ss, ss)
+    # Tail curls tight off the right hip, low (drawn before legs so legs overlap).
+    _tail(surf, cx + rib_w * 0.46, hip_y + rib_h * 0.05, W * 0.20 * ss, ss)
 
-    # The two ABSURD legs — splayed wide + knock-kneed so it teeters.
-    lw = W * 0.13 * ss
-    _hoof_leg(surf, cx - rib_w * 0.34, hip_y, foot_y, lw, ss, knee_out=-1)
-    _hoof_leg(surf, cx + rib_w * 0.34, hip_y, foot_y, lw, ss, knee_out=+1)
+    # The two ABSURD legs — hips set CLOSE together (knees kick out, hooves splay
+    # WIDE), so the widest mass at the floor is the pair of hooves, not the legs.
+    # Slim cannon-bone width so the hooves dwarf the legs.
+    lw = W * 0.105 * ss
+    _hoof_leg(surf, cx - rib_w * 0.22, hip_y, foot_y, lw, ss, knee_out=-1)
+    _hoof_leg(surf, cx + rib_w * 0.22, hip_y, foot_y, lw, ss, knee_out=+1)
 
     # Ribcage + arms + skull on top (drawn last so the torso sits over the hips).
     _ribcage(surf, skull_cx, rib_top, rib_w, rib_h, ss)
@@ -527,7 +584,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((34, 30, 36))
-    _label(sheet, font, "CLOVENPATE  —  GROUP A take A3  —  bone & oxblood-hoof  —  round 1", 18, 12)
+    _label(sheet, font, "CLOVENPATE  —  GROUP A take A3  —  bone & oxblood-hoof  —  round 2", 18, 12)
     _label(sheet, small, "the BOTTOM-heavy hoof-imp: a wee bone skull+ribcage teetering on absurd oversized cloven hoof-legs (inverts Big Reapy's giant head)",
             18, 32, (206, 196, 200))
 
@@ -539,8 +596,8 @@ def main():
     sheet.blit(boss, (panel.centerx - boss.get_width() // 2,
                       panel.bottom - boss.get_height() - 16))
     _label(sheet, font, "(a) BOSS  showcase scale", panel.x + 8, panel.y + 8)
-    _label(sheet, small, "skull+ribs = death; huge cloven", panel.x + 8, panel.bottom - 40, (210, 200, 204))
-    _label(sheet, small, "hooves = devil; knock-kneed wobble", panel.x + 8, panel.bottom - 24, (210, 200, 204))
+    _label(sheet, small, "skull+ribs = death; GIANT splayed", panel.x + 8, panel.bottom - 40, (210, 200, 204))
+    _label(sheet, small, "cloven hooves = devil; goat-leg hocks", panel.x + 8, panel.bottom - 24, (210, 200, 204))
 
     # — Cell B: the pitchfork as a tileable PILLAR pair at TRUE obstacle scale.
     panelB = pygame.Rect(394, 56, 360, 560)
@@ -616,7 +673,7 @@ def main():
     pygame.draw.rect(sheet, (120, 120, 124), gpanel, border_radius=6)
     sheet.blit(gray, (gpanel.centerx - gray.get_width() // 2,
                       gpanel.bottom - gray.get_height() - 8))
-    _label(sheet, small, "grayscale: tiny-skull-on-HUGE-hooves (bottom-heavy) reads on shape alone",
+    _label(sheet, small, "grayscale: the two WIDEST/DARKEST masses at the floor are the HOOVES",
             gpanel.x + 6, gpanel.y + 6, (30, 30, 30))
 
     # — Footer captions.
@@ -634,7 +691,7 @@ def main():
                            "skybit_devil", "reapy_devil", "clovenpate")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

@@ -13,9 +13,10 @@ Grim Sprout recipe), supersampled then smoothscaled for crisp AA, with a grown
 DISTINCTNESS FROM GRIM SPROUT (the shipped reaper) is load-bearing here: that
 one is a hooded orchid-violet imp dragging a great SCYTHE. This is a DEVIL, not
 a reaper — a PEAR-shaped acid-green gremlin (no hood, no skull), with DEVIL
-BAT-WINGS spread wide behind it (its 1x silhouette anchor), a tiny pointy
-horn-nub + big pointed ears (NOT a curved ram pair), a curl tail, and a slim
-FIRE-SPEAR (warm flame-fork tip), never a scythe. The palette is acid-green —
+BAT-WINGS — a bold two-lobe membrane that anchors the 1x silhouette while the
+acid-green torso stays the dominant value — a tiny pointy horn-nub + big pointed
+ears (NOT a curved ram pair), a curl tail, and a slim FIRE-SPEAR (warm
+flame-fork tip) it visibly STRAINS to lift, never a scythe. The palette is acid-green —
 distinct from Pyrecrown's green soul-FLAME by being a body-green gremlin, not a
 green-flame skull, and from any reaper-grey/violet.
 
@@ -39,9 +40,12 @@ GREEN      = (120, 196,  72)   # #78C448 acid-green body
 GREEN_DK   = ( 78, 142,  46)   # #4E8E2E olive shade
 GREEN_HI   = (182, 232,  96)   # #B6E860 chartreuse sheen
 CREAM      = (220, 232, 176)   # #DCE8B0 belly-cream
-WING       = ( 32,  26,  34)   # near-black bat-wing membrane
-WING_HI    = (110,  68, 128)   # #6E4480 plum-wing top-light (devil accent)
-WING_DK    = ( 72,  42,  86)   # #482A56 plum wing-shade
+# Wing membrane warmed OUT of the near-black hole that vanished on night: a
+# desaturated plum-grey reads as a lit HUE on both skies while still ranking
+# darker than the acid-green body so green stays the dominant 1x value.
+WING       = ( 86,  62,  96)   # #563E60 plum-grey membrane (was near-black)
+WING_HI    = (150, 104, 168)   # #9668A8 brighter plum top-light (devil accent)
+WING_DK    = ( 58,  40,  68)   # #3A2844 plum wing-shade core
 HORN       = ( 28,  22,  30)   # ink-black horn-nub + ear-tips
 EYE_ORANGE = (248, 168,  52)   # #F8A834 huge glowing gremlin eyes
 EYE_HOT    = (255, 226, 150)   # eye hotspot
@@ -88,76 +92,78 @@ def _flame_fork(surf, cx, ty, w, h, ss):
     neon. Each prong is a tapered teardrop flame with a glow halo; the centre
     prong rides tallest so the silhouette reads 'fork', not 'torch'."""
     blit_glow(surf, int(cx), int(ty - h * 0.45), int(h * 0.6), FLAME_OUT, 130)
-    prongs = ((-1, 0.78), (0, 1.0), (1, 0.78))   # (x-dir, height-frac)
+    prongs = ((-1, 0.74), (0, 1.0), (1, 0.74))   # (x-dir, height-frac)
     for xd, hf in prongs:
         px = cx + xd * w * 0.62
         ph = h * hf
-        # A leaf/teardrop flame: wide base, curl to a point, slight outward lean.
-        tip = (px + xd * w * 0.18, ty - ph)
-        base_l = (px - w * 0.30, ty)
-        base_r = (px + w * 0.30, ty)
-        mid_l = (px - w * 0.34 + xd * w * 0.05, ty - ph * 0.45)
-        mid_r = (px + w * 0.20 + xd * w * 0.12, ty - ph * 0.5)
-        flame = [base_l, mid_l, tip, mid_r, base_r]
+        # A leaf/teardrop flame: a fat bulb low that pinches up to a curled licking
+        # point with a strong outward lean — never a straight spike (so it can't be
+        # mistaken for an iron tine or a bone fork). Extra waist vertices give the
+        # tongue its taper at 1x.
+        tip   = (px + xd * w * 0.34, ty - ph)               # tip licks outward
+        base_l = (px - w * 0.32, ty)
+        base_r = (px + w * 0.32, ty)
+        bulb_l = (px - w * 0.38, ty - ph * 0.30)            # widest point low
+        bulb_r = (px + w * 0.30 + xd * w * 0.06, ty - ph * 0.34)
+        waist_l = (px - w * 0.10 + xd * w * 0.14, ty - ph * 0.70)
+        waist_r = (px + w * 0.06 + xd * w * 0.22, ty - ph * 0.66)
+        flame = [base_l, bulb_l, waist_l, tip, waist_r, bulb_r, base_r]
         pygame.draw.polygon(surf, FLAME_OUT, flame)
         pygame.draw.polygon(surf, INK, flame, max(1, int(1.6 * ss)))
-        # Inner warm core (mid + pale) so the flame reads hot, not a flat orange chip.
-        inner = [(px - w * 0.16, ty - ph * 0.08),
-                 (px + xd * w * 0.12, ty - ph * 0.7),
-                 (px + w * 0.16, ty - ph * 0.08)]
+        # Inner warm core — a tall mid-orange tongue + a pale-yellow heart, both
+        # tapering with the outer flame so it reads HOT and licking, not a chip.
+        inner = [(px - w * 0.18, ty - ph * 0.06),
+                 (px - w * 0.04 + xd * w * 0.16, ty - ph * 0.62),
+                 (px + xd * w * 0.22, ty - ph * 0.86),
+                 (px + w * 0.06 + xd * w * 0.18, ty - ph * 0.58),
+                 (px + w * 0.18, ty - ph * 0.06)]
         pygame.draw.polygon(surf, FLAME_MID, inner)
         pygame.draw.polygon(surf, FLAME_CORE,
-                            [(px, ty - ph * 0.12),
-                             (px + xd * w * 0.06, ty - ph * 0.5),
-                             (px + w * 0.07, ty - ph * 0.12)])
+                            [(px - w * 0.08, ty - ph * 0.10),
+                             (px + xd * w * 0.14, ty - ph * 0.60),
+                             (px + w * 0.09, ty - ph * 0.10)])
 
 
 def _bat_wing(surf, hinge, scale, ss, *, side):
-    """One oversized DEVIL bat-wing fanning out + up behind the body — the imp's
-    1x silhouette ANCHOR (AD guardrail: tiny figure, but the bold wing spread must
-    still register on a busy sky). A hard membrane: a clawed top spar, 3 finger
-    ribs, and scalloped membrane bays between them, with a plum top-light so the
-    near-black wing still reads as a lit form. `side` (-1 left, +1 right) mirrors
-    it. Wings, not a hood — the core devil/Grim-Sprout separator."""
+    """One oversized DEVIL bat-wing as a BOLD TWO-LOBE membrane — the imp's 1x
+    silhouette ANCHOR. The R1 wing was a finely-ribbed black FAN that turned to
+    mush + swallowed the body at gameplay scale; here the anchor is the SHAPE: a
+    fat upper lobe + lower lobe with ONE scallop notch between them, reach pulled
+    in ~18%, swept up-and-back so clear sky cuts between the wing and the green
+    torso (the torso must stay the dominant value). Only TWO bold finger spars,
+    no rib noise. `side` (-1 left, +1 right) mirrors it. Wings, not a hood — the
+    core devil/Grim-Sprout separator."""
     hx, hy = hinge
     sgn = side
-    L = 86 * scale * ss            # wing reach
-    # Finger ribs fan from the hinge: a long top spar plus two shorter fingers,
-    # each tipped with a little claw. Tips define the scalloped trailing edge.
-    ribs = [
-        (-0.18, 1.00),   # top spar (sweeps up + out, the thumb-claw)
-        (0.28, 0.96),    # upper finger
-        (0.66, 0.78),    # lower finger
-    ]
-    tips = []
-    for ang_f, len_f in ribs:
-        a = math.radians(-150 * sgn) + sgn * ang_f * math.radians(118)
-        # Bias the whole fan upward+outward so the wings cape the body from behind.
-        tx = hx + math.cos(a) * L * len_f
-        ty = hy + math.sin(a) * L * len_f - L * 0.18
-        tips.append((tx, ty))
-    # Membrane polygon: hinge -> top tip -> scalloped down through finger tips ->
-    # back to a low anchor near the body so the bottom bay closes cleanly.
-    low_anchor = (hx + sgn * L * 0.10, hy + L * 0.34)
-    membrane = [(hx, hy)]
-    membrane += tips
-    membrane.append(low_anchor)
+    L = 70 * scale * ss            # wing reach (pulled in ~18% from R1's 86)
+    # Two bold spars define a fat upper lobe and a shorter lower lobe. The single
+    # notch between their tips is the only scallop — a clean bat read, not a fan.
+    top_tip = (hx + sgn * L * 0.96, hy - L * 0.62)        # swept up + out + back
+    notch   = (hx + sgn * L * 0.74, hy - L * 0.12)        # the one scallop cusp
+    low_tip = (hx + sgn * L * 0.78, hy + L * 0.30)
+    # Outer edge bows OUTWARD (control points) so each lobe reads convex + plump
+    # rather than a straight wedge; we approximate the curve with extra vertices.
+    up_bow  = (hx + sgn * L * 0.62, hy - L * 0.52)
+    lo_bow  = (hx + sgn * L * 0.40, hy + L * 0.12)
+    # Membrane: hinge -> arc out to the top tip -> in to the notch -> out to the
+    # low tip -> bow back to a body-hugging anchor. The anchor sits TUCKED so a
+    # sky gap opens between membrane and torso.
+    anchor = (hx + sgn * L * 0.06, hy + L * 0.20)
+    membrane = [(hx, hy), up_bow, top_tip, notch, low_tip, lo_bow, anchor]
     pygame.draw.polygon(surf, WING_DK, membrane)
     pygame.draw.polygon(surf, WING, [(x - sgn * ss, y + ss) for x, y in membrane])
-    pygame.draw.polygon(surf, INK, membrane, max(2, int(2.2 * ss)))
-    # Plum top-light skim along the leading (top) spar so the black wing reads lit.
-    pygame.draw.line(surf, WING_HI, (hx, hy), tips[0], max(2, int(2.4 * ss)))
-    pygame.draw.line(surf, WING_HI, (hx, hy), tips[0], max(1, int(1.2 * ss)))
-    # Finger ribs drawn over the membrane so the bat structure reads.
-    for tx, ty in tips:
-        pygame.draw.line(surf, INK, (hx, hy), (int(tx), int(ty)), max(2, int(2.0 * ss)))
-        pygame.draw.line(surf, WING_HI, (hx, hy), (int(tx), int(ty)), max(1, int(ss)))
-        # A tiny claw hook at each rib tip (gremlin tell).
+    pygame.draw.polygon(surf, INK, membrane, max(2, int(2.6 * ss)))
+    # Plum top-light skim along the leading spar so the wing reads as a LIT form.
+    pygame.draw.line(surf, WING_HI, (hx, hy), top_tip, max(2, int(3.0 * ss)))
+    # The TWO bold finger spars (only) so the bat structure reads without noise.
+    for tx, ty in (top_tip, low_tip):
+        pygame.draw.line(surf, INK, (hx, hy), (int(tx), int(ty)), max(2, int(2.4 * ss)))
+        # A claw hook at each spar tip (gremlin tell) — bold, only two of them.
         ca = math.atan2(ty - hy, tx - hx)
-        claw = (tx + math.cos(ca - sgn * 0.7) * 6 * scale * ss,
-                ty + math.sin(ca - sgn * 0.7) * 6 * scale * ss)
+        claw = (tx + math.cos(ca - sgn * 0.6) * 8 * scale * ss,
+                ty + math.sin(ca - sgn * 0.6) * 8 * scale * ss)
         pygame.draw.line(surf, INK, (int(tx), int(ty)),
-                         (int(claw[0]), int(claw[1])), max(2, int(2.2 * ss)))
+                         (int(claw[0]), int(claw[1])), max(2, int(2.6 * ss)))
 
 
 # ── the imp + his oversized fire-spear ───────────────────────────────────────
@@ -171,19 +177,22 @@ def build_implet(scale=1.0, ss=3):
     BH = int(420 * scale * ss)
     s = pygame.Surface((BW, BH), pygame.SRCALPHA)
 
-    # Tiny pear body anchored low; the spear towers above it.
-    body_cx = int(BW * 0.46)
+    # Tiny pear body anchored low; the spear towers above it. The body LEANS into
+    # the prop (a left tilt) so the comedy-of-scale strain reads as a pose, not a
+    # caption — the imp is buckling under a weapon too big for it.
+    body_cx = int(BW * 0.40)
     feet_y = int(BH * 0.94)
     head_r = int(34 * scale * ss)          # big head (chibi cute lever)
     belly_w = int(30 * scale * ss)         # pear: wide bottom
     belly_h = int(40 * scale * ss)
+    lean = math.radians(13)                # whole-body tilt toward the load
 
     # ── 1. THE OVERSIZED FIRE-SPEAR (drawn first; the imp's mitts close over it) ─
-    # A slim near-vertical pole far taller than the imp, topped by a small warm
-    # flame-fork. Slight lean so it reads "held", and tilted so the tiny imp
-    # plainly strains under it.
-    spear_top = (int(BW * 0.70), int(BH * 0.10))
-    spear_bot = (int(BW * 0.60), feet_y - int(2 * scale * ss))
+    # A slim pole far taller than the imp, topped by a small warm flame-fork. It is
+    # tilted HARD (top swung out, butt swung back under the imp) so its weight
+    # visibly DRAGS the wee body — the spear leads the eye into the strain gag.
+    spear_top = (int(BW * 0.78), int(BH * 0.08))
+    spear_bot = (int(BW * 0.50), feet_y - int(2 * scale * ss))
     sw = int(6 * scale * ss)
     pygame.draw.line(s, SHAFT_DK, spear_top, spear_bot, sw + max(2, int(3 * ss)))
     pygame.draw.line(s, SHAFT, spear_top, spear_bot, sw)
@@ -211,38 +220,43 @@ def build_implet(scale=1.0, ss=3):
     _flame_fork(s, spear_top[0], spear_top[1] + int(2 * scale * ss),
                 int(26 * scale * ss), int(58 * scale * ss), ss)
 
-    # ── 2. BAT-WINGS spread wide behind the body (the 1x silhouette anchor) ──────
-    wing_hy = feet_y - belly_h - int(4 * scale * ss)
-    _bat_wing(s, (body_cx + int(6 * scale * ss), wing_hy), scale, ss, side=1)
-    _bat_wing(s, (body_cx - int(6 * scale * ss), wing_hy), scale, ss, side=-1)
+    # ── 2. BAT-WINGS as a bold two-lobe pair behind the body (1x silhouette anchor)
+    # Hinged high on the shoulders and swept up+back so a clear strip of sky cuts
+    # between each wing and the green torso — the torso stays the dominant value.
+    wing_hy = feet_y - belly_h - int(20 * scale * ss)
+    _bat_wing(s, (body_cx + int(14 * scale * ss), wing_hy), scale, ss, side=1)
+    _bat_wing(s, (body_cx - int(14 * scale * ss), wing_hy), scale, ss, side=-1)
 
-    # ── 3. CURL TAIL flicking out behind the lower body ──────────────────────────
+    # ── 3. CURL TAIL — ONE bold S-stroke + spade tip ─────────────────────────────
+    # R1's bead-chain became a row of 1x dots that fuzzed out; this is a single
+    # tapered S polyline (the stroke, drawn as a thick line) ending in the devil
+    # spade arrowhead — the spade is the only tell that has to read, the body of
+    # the tail is just one confident curve.
+    tseg = 14
+    t0x, t0y = body_cx - belly_w + int(2 * scale * ss), feet_y - int(10 * scale * ss)
     tail = []
-    tseg = 16
-    t0x, t0y = body_cx - belly_w + int(2 * scale * ss), feet_y - int(8 * scale * ss)
     for i in range(tseg):
         t = i / (tseg - 1)
-        # An S that flips out left then curls up into a hooked spade tip.
-        tx = t0x - math.sin(t * math.pi * 1.15) * 22 * scale * ss
-        ty = t0y - t * 30 * scale * ss + math.sin(t * math.pi) * 6 * scale * ss
-        rr = (4.0 - 2.6 * t) * scale * ss
-        tail.append((tx, ty, max(1.5, rr)))
-    for (tx, ty, rr) in tail:
-        pygame.draw.circle(s, GREEN_DK, (int(tx), int(ty)), max(2, int(rr)))
-    for (tx, ty, rr) in tail:
-        pygame.draw.circle(s, GREEN, (int(tx), int(ty)), max(1, int(rr - ss * 0.6)))
-    # Spade tip — a tiny devil arrowhead (devil tell), points up-left.
-    spx, spy, _ = tail[-1]
-    spade = [(spx - 8 * scale * ss, spy + 2 * scale * ss),
-             (spx + 4 * scale * ss, spy + 4 * scale * ss),
-             (spx - 4 * scale * ss, spy - 10 * scale * ss)]
+        tx = t0x - math.sin(t * math.pi * 1.15) * 24 * scale * ss
+        ty = t0y - t * 34 * scale * ss + math.sin(t * math.pi) * 7 * scale * ss
+        tail.append((int(tx), int(ty)))
+    pygame.draw.lines(s, GREEN_DK, False, tail, max(3, int(7 * scale * ss)))
+    pygame.draw.lines(s, GREEN, False, tail, max(2, int(4 * scale * ss)))
+    # Spade tip — a tiny devil arrowhead (the load-bearing devil tell), points up.
+    spx, spy = tail[-1]
+    spade = [(spx - 9 * scale * ss, spy + 2 * scale * ss),
+             (spx + 5 * scale * ss, spy + 4 * scale * ss),
+             (spx - 3 * scale * ss, spy - 12 * scale * ss)]
     pygame.draw.polygon(s, GREEN_DK, spade)
-    pygame.draw.polygon(s, INK, spade, max(1, int(1.6 * ss)))
+    pygame.draw.polygon(s, INK, spade, max(1, int(1.8 * ss)))
 
-    # ── 4. CLAWED FEET poking out the bottom (tiny, scale-floor) ─────────────────
-    for fx_off in (-12, 11):
+    # ── 4. CLAWED FEET — a braced, knee-buckled stance under the load ────────────
+    # The back foot (left) is splayed out wide + planted low to brace; the front
+    # foot (right) is tucked in + raised a touch, reading as a buckling knee. The
+    # asymmetry sells "barely holding it up", not a relaxed stand.
+    for fx_off, fy_off in ((-20, 0), (8, -7)):
         fx = body_cx + int(fx_off * scale * ss)
-        fy = feet_y
+        fy = feet_y + int(fy_off * scale * ss)
         fr = int(8 * scale * ss)
         _triad_circle(s, fx, fy, fr, GREEN, ss)
         for k in (-1, 0, 1):
@@ -274,21 +288,33 @@ def build_implet(scale=1.0, ss=3):
                         (body_cx - int(belly_w * 0.55), belly_cy - int(belly_h * 0.1),
                          int(belly_w * 1.1), int(belly_h * 1.0)), max(1, int(ss)))
 
-    # ── 6. STUB MITT ARMS — both straining UP on the too-big spear ───────────────
-    up_grip = (int(spear_top[0] + dx * 0.62), int(spear_top[1] + dy * 0.62))
-    lo_grip = (int(spear_top[0] + dx * 0.78), int(spear_top[1] + dy * 0.78))
-    sh_hi = (body_cx + int(12 * scale * ss), belly_cy - int(10 * scale * ss))
-    sh_lo = (body_cx + int(15 * scale * ss), belly_cy + int(4 * scale * ss))
-    pygame.draw.line(s, GREEN_DK, sh_hi, up_grip, int(9 * scale * ss))
-    pygame.draw.line(s, GREEN, sh_hi, up_grip, int(6 * scale * ss))
-    pygame.draw.line(s, GREEN_DK, sh_lo, lo_grip, int(9 * scale * ss))
-    pygame.draw.line(s, GREEN, sh_lo, lo_grip, int(6 * scale * ss))
+    # ── 6. STUB MITT ARMS — BOTH thrown overhead in a two-handed strain ──────────
+    # The R1 imp held the spear casually at belly height with one arm — it read
+    # relaxed. Now BOTH stub arms reach up OVERHEAD to grip the shaft high, elbows
+    # flung wide, so the silhouette is plainly "heaving a too-big weapon aloft".
+    # The two grips sit close together up the dragging shaft.
+    dx_s, dy_s = spear_bot[0] - spear_top[0], spear_bot[1] - spear_top[1]
+    up_grip = (int(spear_top[0] + dx_s * 0.40), int(spear_top[1] + dy_s * 0.40))
+    lo_grip = (int(spear_top[0] + dx_s * 0.52), int(spear_top[1] + dy_s * 0.52))
+    # Shoulders high on the torso; both arms angle UP and OUT to the high grips.
+    sh_hi = (body_cx + int(16 * scale * ss), belly_cy - int(20 * scale * ss))
+    sh_lo = (body_cx - int(2 * scale * ss), belly_cy - int(14 * scale * ss))
+    # A wide elbow on each arm so the limbs read as straining bends, not stretches.
+    elb_hi = (sh_hi[0] + int(20 * scale * ss), sh_hi[1] - int(18 * scale * ss))
+    elb_lo = (sh_lo[0] + int(8 * scale * ss),  sh_lo[1] - int(24 * scale * ss))
+    for sh, elb, grip in ((sh_hi, elb_hi, up_grip), (sh_lo, elb_lo, lo_grip)):
+        pygame.draw.lines(s, GREEN_DK, False, [sh, elb, grip], int(9 * scale * ss))
+        pygame.draw.lines(s, GREEN, False, [sh, elb, grip], int(6 * scale * ss))
     for grip, gr in ((up_grip, 7), (lo_grip, 7)):
         _triad_circle(s, grip[0], grip[1], int(gr * scale * ss), GREEN, ss)
         pygame.draw.circle(s, INK, grip, int(gr * scale * ss), max(1, int(ss)))
 
     # ── 7. THE HEAD — round, with big POINTED EARS, a single horn-NUB + huge eyes ─
+    # Tipped LEFT off the body centre (the lean) so the head + heavy spear pull the
+    # silhouette into a buckle. The whole head cluster shifts by head_lean.
     head_cy = belly_cy - belly_h - int(2 * scale * ss)
+    head_lean = int(math.sin(lean) * belly_h * 1.6)
+    body_cx = body_cx - head_lean    # shadow the torso var for all head features
     # Big pointed ears (gremlin signature) BEFORE the head so they tuck behind it.
     for esgn in (-1, 1):
         eb = (body_cx + esgn * head_r * 0.78, head_cy + head_r * 0.06)
@@ -446,7 +472,7 @@ def main():
     font = pygame.font.SysFont("dejavusans", 16, bold=True)
     fbig = pygame.font.SysFont("dejavusans", 22, bold=True)
 
-    _label(sheet, fbig, "IMPLET  -  pocket gremlin imp (take B8)  R1", 20, 14)
+    _label(sheet, fbig, "IMPLET  -  pocket gremlin imp (take B8)  R2", 20, 14)
 
     # (a) Showcase boss on a neutral panel — emphasize tiny-imp + oversized
     # fire-spear comedy of scale (but it must read DEVIL, not reaper).
@@ -458,7 +484,7 @@ def main():
     panel.blit(boss, (panel_w // 2 - boss.get_width() // 2,
                       panel_h // 2 - boss.get_height() // 2 + 6))
     sheet.blit(panel, (20, 52))
-    _label(sheet, font, "(a) showcase  -  spear DWARFS the imp", 24, 60)
+    _label(sheet, font, "(a) showcase  -  STRAINING under the spear", 24, 60)
 
     # (b) prop -> pillar mirror: a tall vertical PILLAR pair (flame-tip cap +
     # repeatable shaft mid) proving the spear tiles and the flame stays gap-edge.
@@ -514,7 +540,7 @@ def main():
                            "skybit_devil", "devil", "implet")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

@@ -57,20 +57,25 @@ FUR_DK     = (36, 32, 60)       # dark-core ring / fold grooves
 FUR_SHEEN  = (120, 106, 172)    # violet top-left rim sheen
 FUR_RIM    = (150, 132, 200)    # brightest violet edge catch
 
-MUZZLE     = (210, 204, 214)    # cream-ash goat muzzle fill
-MUZZLE_DK  = (150, 146, 162)    # muzzle dark-core / nostril seat
-MUZZLE_SH  = (244, 240, 248)    # muzzle top-left sheen
+# Muzzle dropped ~15% off pure-cream so the goat snout stops out-shouting the
+# eyes/horns and the goat read survives grayscale on its own form, not its value.
+MUZZLE     = (178, 172, 186)    # ash-taupe goat muzzle fill (dropped from cream)
+MUZZLE_DK  = (122, 118, 136)    # muzzle dark-core / nostril seat
+MUZZLE_SH  = (210, 204, 218)    # muzzle top-left sheen (no longer near-white)
 
 HORN       = (214, 168, 78)     # amber back-swept goat horn
 HORN_DK    = (150, 110, 44)     # horn dark-core / ridge valleys
 HORN_SH    = (252, 224, 150)    # horn ridge highlight
 
-WING       = (46, 40, 78)       # bat-wing membrane (darker than fur for depth)
-WING_DK    = (28, 24, 52)       # wing dark-core / rib seats
-WING_SH    = (96, 82, 146)      # wing top-left rim
+# Wings sit a clear value-step below the body FUR so the wing/body junction reads
+# as a seam (not one indigo blob) at 1x — the membrane darkens behind the torso.
+WING       = (40, 34, 70)       # bat-wing membrane (a step darker than fur)
+WING_DK    = (24, 20, 46)       # wing dark-core / rib seats
+WING_SH    = (90, 76, 138)      # wing top-left rim
 
 EYE        = (250, 224, 96)     # sulphur-amber goat eye
 EYE_SLOT   = (40, 30, 24)       # rectangular slot pupil
+EYE_CATCH  = (252, 248, 240)    # bright wet-eye sheen dot (kept near-white)
 
 TORCH      = (255, 196, 72)     # warm crown-torch flame (outer)
 TORCH_HOT  = (255, 240, 196)    # torch inner hot core
@@ -127,18 +132,23 @@ def _add_outline(src, outline_color=(*INK, 235)):
 
 # ── the warm crown-torch flame ───────────────────────────────────────────────
 
-def _torch_flame(surf, cx, base_y, fh, ss, *, point_up=True):
+def _torch_flame(surf, cx, base_y, fh, ss, *, point_up=True, narrow=False):
     """A small WARM classic torch flame — a soft teardrop of gold with a warm
     round halo and a hot pale core. Deliberately rounded + warm so it never reads
     as Glitchfiend's neon spike or Pyrecrown's green soul-fire. `point_up` orients
     the teardrop tip away from the base (used both on the crown and the pillar cap,
-    where the cap flame flourishes INTO the gap)."""
+    where the cap flame flourishes INTO the gap). `narrow` slims it to a taller
+    teardrop for the crown so it reads as a flame BETWEEN the horns, not a gold
+    cap fused on the cranium."""
     d = -1 if point_up else 1
-    fw = fh * 0.62
-    # Warm round halo first (additive) so the flame glows without a hard edge.
-    glow = make_glow_surface(int(fh * 0.95), TORCH, alpha_center=200, falloff=2.2)
+    fw = fh * (0.42 if narrow else 0.62)
+    # Warm round halo first (additive) so the flame glows without a hard edge. A
+    # narrow crown flame gets a tighter halo so the glow doesn't bloom back into a
+    # wide gold skullcap over the cranium.
+    gr = fh * (0.70 if narrow else 0.95)
+    glow = make_glow_surface(int(gr), TORCH, alpha_center=200, falloff=2.2)
     gy = base_y + d * fh * 0.45
-    surf.blit(glow, (int(cx - fh * 0.95 - 1), int(gy - fh * 0.95 - 1)),
+    surf.blit(glow, (int(cx - gr - 1), int(gy - gr - 1)),
               special_flags=pygame.BLEND_ADD)
     # Outer flame teardrop: a wide rounded base tapering to a soft tip — flat fill,
     # NOT a jagged spike. Built as a stack of shrinking circles along the axis.
@@ -299,51 +309,65 @@ def _goat_head(surf, cx, cy, r, ss, *, night=False, tilt=0.0):
         pygame.draw.polygon(surf, FUR,
                             [(int(x - s * ss), int(y)) for x, y in pts])
 
-    # LONG rectangular goat muzzle hung down-front of the cranium — the face
-    # identity. Wider-tall than skull-round; a soft-cornered long box.
-    mw = r * 1.02
-    mh = r * 1.18
-    mx = cx - mw * 0.5
-    my = cy + r * 0.36
-    _triad_ellipse(surf, (int(mx), int(my), int(mw), int(mh)), MUZZLE)
-    # Square off the lower muzzle so it reads RECTANGULAR not round: a flat-bottom
-    # cream block tucked under the ellipse.
-    blk = [(cx - mw * 0.40, cy + r * 0.86),
-           (cx - mw * 0.44, my + mh * 0.86),
-           (cx + mw * 0.44, my + mh * 0.86),
-           (cx + mw * 0.40, cy + r * 0.86)]
-    pygame.draw.polygon(surf, MUZZLE_DK, [(int(x), int(y)) for x, y in blk])
-    blk2 = [(cx - mw * 0.36, cy + r * 0.90),
-            (cx - mw * 0.40, my + mh * 0.80),
-            (cx + mw * 0.40, my + mh * 0.80),
-            (cx + mw * 0.36, cy + r * 0.90)]
-    pygame.draw.polygon(surf, MUZZLE, [(int(x), int(y)) for x, y in blk2])
-    # Muzzle sheen catch (top-left of the long snout).
+    # LONG goat SNOUT jutting down-FORWARD — the face identity. A real goat muzzle
+    # is a long shape that TAPERS forward to a rounded tip (nostrils at the tip),
+    # not a square face-plate. Built as a tapering polygon: wide where it meets the
+    # cranium, narrowing to a rounded front tip, with a down-curved mouth-line. The
+    # tilt leans the snout tip forward for the derp read.
+    mw = r * 0.96               # width at the cranium join (the snout root)
+    snout_len = r * 1.26        # how far the snout reaches down-forward
+    root_y = cy + r * 0.34
+    lean = tilt * r * 0.42      # derp: the tip drifts to the leading side
+    tip_x = cx + lean
+    tip_y = root_y + snout_len
+    tip_w = mw * 0.46           # the rounded forward tip is ~half the root width
+    # Dark-core silhouette (slightly larger), then the flat ash fill on top.
+    def _snout(col, grow):
+        return [(cx - mw * 0.5 - grow, root_y - grow * 0.5),
+                (cx - tip_w * 0.5 + lean - grow * 0.4, tip_y - tip_w * 0.6),
+                (tip_x - tip_w * 0.18, tip_y + grow),           # rounded tip L
+                (tip_x + tip_w * 0.18, tip_y + grow),           # rounded tip R
+                (cx + tip_w * 0.5 + lean + grow * 0.4, tip_y - tip_w * 0.6),
+                (cx + mw * 0.5 + grow, root_y - grow * 0.5)]
+    pygame.draw.polygon(surf, _shade_c(MUZZLE, -40),
+                        [(int(x), int(y)) for x, y in _snout(MUZZLE, 2 * ss)])
+    pygame.draw.polygon(surf, MUZZLE,
+                        [(int(x), int(y)) for x, y in _snout(MUZZLE, 0)])
+    # Round the very tip so it never reads as a chiselled box.
+    pygame.draw.circle(surf, MUZZLE, (int(tip_x), int(tip_y - tip_w * 0.18)),
+                       max(1, int(tip_w * 0.5)))
+    # Top-left sheen along the upper-left of the snout (form, not a face-plate).
     pygame.draw.ellipse(surf, MUZZLE_SH,
-                        (int(mx + mw * 0.12), int(my + mh * 0.06),
-                         int(mw * 0.40), int(mh * 0.30)))
+                        (int(cx - mw * 0.40), int(root_y + snout_len * 0.06),
+                         int(mw * 0.42), int(snout_len * 0.40)))
 
-    # Two dark nostril slots low on the muzzle (the goat nose).
+    # Two nostrils at the FRONT of the rounded tip — slim curved nostril nicks
+    # flanking the tip centre (a goat nose), NOT vertical face-plate slots.
+    nose_y = tip_y - tip_w * 0.30
     for s in (-1, 1):
-        nx = cx + s * mw * 0.18
-        ny = my + mh * 0.66
+        nx = tip_x + s * tip_w * 0.26
         pygame.draw.ellipse(surf, MUZZLE_DK,
-                            (int(nx - 3 * ss), int(ny - 5 * ss),
-                             int(6 * ss), int(11 * ss)))
+                            (int(nx - 3.2 * ss), int(nose_y - 2.2 * ss),
+                             int(6.4 * ss), int(5.2 * ss)))
         pygame.draw.ellipse(surf, EYE_SLOT,
-                            (int(nx - 1.6 * ss), int(ny - 4 * ss),
-                             int(3.2 * ss), int(8 * ss)))
+                            (int(nx - 1.8 * ss), int(nose_y - 1.4 * ss),
+                             int(3.0 * ss), int(3.4 * ss)))
 
-    # A soft mouth seam + a slight under-lip so the snout isn't blank.
-    pygame.draw.line(surf, MUZZLE_DK,
-                     (int(cx - mw * 0.30), int(my + mh * 0.92)),
-                     (int(cx + mw * 0.30), int(my + mh * 0.92)),
-                     max(1, int(2 * ss)))
+    # A DOWN-CURVED mouth-line set back from the tip (the solemn goat frown). Drawn
+    # as a shallow dark arc so the snout has a clear lip, not a blank plate.
+    mouth_y = root_y + snout_len * 0.62
+    mouth_pts = []
+    for i in range(9):
+        t = i / 8
+        mxp = cx - mw * 0.30 + lean * 0.6 + t * mw * 0.60
+        myp = mouth_y + math.sin(t * math.pi) * mw * 0.16   # bows DOWN at centre
+        mouth_pts.append((int(mxp), int(myp)))
+    pygame.draw.lines(surf, MUZZLE_DK, False, mouth_pts, max(1, int(2.2 * ss)))
 
-    # Chin beard — a short stack of indigo fur tufts hanging below the muzzle.
+    # Chin beard — a short stack of indigo fur tufts hanging below the snout tip.
     for k, (dx, dl) in enumerate(((-0.16, 0.9), (0.0, 1.0), (0.16, 0.85))):
-        bx = cx + dx * mw
-        by = my + mh * 0.92
+        bx = tip_x + dx * mw
+        by = tip_y + tip_w * 0.10
         bl = r * 0.42 * dl
         pts = [(bx - r * 0.10, by),
                (bx, by + bl),
@@ -370,7 +394,7 @@ def _goat_head(surf, cx, cy, r, ss, *, night=False, tilt=0.0):
                             int(pw), int(ph))
         pygame.draw.rect(surf, EYE_SLOT, prect, border_radius=max(1, int(ph * 0.3)))
         # Tiny sheen dot top-left = the wet dopey catch.
-        pygame.draw.circle(surf, MUZZLE_SH,
+        pygame.draw.circle(surf, EYE_CATCH,
                            (int(ex - er * 0.4), int(ey - er * 0.5)),
                            max(1, int(er * 0.18)))
 
@@ -379,16 +403,22 @@ def _goat_head(surf, cx, cy, r, ss, *, night=False, tilt=0.0):
     for s in (-1, 1):
         _goat_horn(surf, cx + s * r * 0.46, cy - r * 0.62, horn_len, ss, side=s)
 
-    # The warm crown-torch burning BETWEEN the horns, on a tiny stub at the crown.
-    tb_y = cy - r * 0.74
-    # A small indigo torch-stub the flame sits on.
+    # The warm crown-torch burning HIGH and CLEAR between the horns. Raised off the
+    # cranium on a slim indigo stub so a band of dark cranium shows beneath the
+    # flame between the horn bases — it reads as a flame RISING between the horns,
+    # never as a gold skullcap fused onto the dome. A small gold cradle ring caps
+    # the stub; the flame is a TALL NARROW teardrop above it.
+    stub_top = cy - r * 0.98          # lifted (was -0.74) to clear the dome
+    stub_len = r * 0.30
     pygame.draw.rect(surf, FUR_DK,
-                     (int(cx - 3 * ss), int(tb_y), int(6 * ss), int(r * 0.22)),
+                     (int(cx - 2.4 * ss), int(stub_top), int(4.8 * ss), int(stub_len)),
                      border_radius=max(1, int(2 * ss)))
-    pygame.draw.line(surf, GOLD, (int(cx - 3 * ss), int(tb_y)),
-                     (int(cx + 3 * ss), int(tb_y)), max(1, int(2 * ss)))
-    fh = r * (0.86 if not night else 0.96)
-    _torch_flame(surf, cx, tb_y, fh, ss, point_up=True)
+    # A compact gold cradle ring at the stub top (the flame's only gold seat).
+    pygame.draw.circle(surf, GOLD, (int(cx), int(stub_top)), max(1, int(3.4 * ss)))
+    pygame.draw.circle(surf, _shade_c(GOLD, -40), (int(cx), int(stub_top)),
+                       max(1, int(3.4 * ss)), max(1, int(ss)))
+    fh = r * (1.02 if not night else 1.14)
+    _torch_flame(surf, cx, stub_top - 1 * ss, fh, ss, point_up=True, narrow=True)
 
 
 # ── the full boss figure ──────────────────────────────────────────────────────
@@ -419,14 +449,17 @@ def build_baalgoat(scale=1.0, ss=3, *, night=False):
         _bat_wing(surf, cx + s * body_w * 0.42, body_top + body_h * 0.12,
                   wing_span, ss, side=s)
 
-    # Squat indigo body (a rounded barrel torso) with the triad.
+    # Squat indigo body (a rounded barrel torso) with the triad. A thicker FUR_DK
+    # rim at the TOP of the torso reads as the head/body neck seam so the chibi
+    # proportions don't collapse into one indigo lump at 1x (head + body share the
+    # FUR fill, so they need a value-step break, not just a 1px keyline).
     brect = (int(cx - body_w * 0.5), int(body_top), int(body_w), int(body_h))
     pygame.draw.ellipse(surf, FUR_DK, brect)
     pygame.draw.ellipse(surf, FUR,
-                        (brect[0] + 2 * ss, brect[1] + 2 * ss,
-                         brect[2] - 4 * ss, brect[3] - 3 * ss))
+                        (brect[0] + 2 * ss, brect[1] + int(7 * ss),
+                         brect[2] - 4 * ss, brect[3] - int(8 * ss)))
     pygame.draw.ellipse(surf, FUR_SHEEN,
-                        (brect[0] + int(body_w * 0.16), brect[1] + int(body_h * 0.10),
+                        (brect[0] + int(body_w * 0.16), brect[1] + int(body_h * 0.16),
                          int(body_w * 0.42), int(body_h * 0.34)))
 
     # Stub hooved legs peeking under the torso.
@@ -447,8 +480,9 @@ def build_baalgoat(scale=1.0, ss=3, *, night=False):
                          (int(lx), int(hy + 8 * ss)), max(1, int(2 * ss)))
     feet_y = body_top + body_h * 0.92 + int(H * 0.10) * ss + 8 * ss
 
-    # Pentagram medallion at the chest.
-    _pentagram(surf, cx, body_cy - body_h * 0.02, head_r * 0.46, ss)
+    # Pentagram medallion at the chest — an ACCENT emblem, trimmed ~20% so it does
+    # not compete with the head as a second focal point.
+    _pentagram(surf, cx, body_cy + body_h * 0.04, head_r * 0.37, ss)
 
     # The head LAST so muzzle + horns + torch sit over the body/wings.
     _goat_head(surf, head_cx, head_cy, head_r, ss, night=night, tilt=0.18)
@@ -474,49 +508,57 @@ def _torch_pole_body(surf, cx, y0, y1, hw, ss):
                                  int(hw * 2 - 4 * ss), int(y1 - y0)))
     pygame.draw.rect(surf, FUR_SHEEN, (int(cx - hw + 2 * ss), int(y0),
                                        max(1, int(hw * 0.5)), int(y1 - y0)))
-    # Gold cuff bands at a fixed pitch = the tileable repeat.
+    # Gold cuff bands at a fixed pitch = the tileable repeat. Anchored UP from the
+    # gap-edge (y1) so the band rhythm meets the gap at the same offset on both the
+    # top and bottom posts — the top/bottom flip then mirrors into one continuous
+    # banded pole regardless of either post's length.
     pitch = 46 * ss
-    yy = y0 + 18 * ss
-    while yy < y1 - 6 * ss:
+    yy = y1 - 22 * ss
+    while yy > y0 + 6 * ss:
         pygame.draw.rect(surf, GOLD_HI, (int(cx - hw), int(yy - 2 * ss),
                                          int(hw * 2), int(2 * ss)))
         pygame.draw.rect(surf, GOLD, (int(cx - hw), int(yy), int(hw * 2), int(6 * ss)))
         pygame.draw.rect(surf, _shade_c(GOLD, -40), (int(cx - hw), int(yy + 6 * ss),
                                                      int(hw * 2), int(2 * ss)))
-        yy += pitch
+        yy -= pitch
 
 
 def _torch_pillar_obstacle(height, ss, *, flip):
-    """One crown-torch-pole PILLAR obstacle: the banded indigo pole fills the post,
-    the brazier flame-cap sits at the gap end (flame flourishing INTO the gap).
+    """One crown-torch-pole PILLAR obstacle: the banded indigo POLE *is* the body
+    and fills the whole post; a SMALL gap-edge cap (a slim gold cuff + a compact
+    brazier rim) caps the gap end with a warm flame flourishing INTO the gap.
     `flip` makes the top pillar's flame point DOWN into the gap; the bottom's UP —
-    proving the prop mirrors top<->bottom into one clean vertical pole with a flame
-    at each gap-edge (the prop->pillar decision)."""
+    proving the prop mirrors top<->bottom into one clean vertical banded pole with
+    a flame at each gap-edge (the prop->pillar decision). The cap is now a small
+    detachable flourish so the tileable body dominates even at short bottom-post
+    heights."""
     bw = (PIPE_W + 2 * OVERHANG) * ss
     bh = max(1, int(height)) * ss
     surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
     cx = bw // 2
     hw = 11 * ss
-    cap_band = int(96 * ss)
-    # Pole body fills everything above the cap band.
-    _torch_pole_body(surf, cx, 0, bh - cap_band, hw, ss)
-    # The brazier bowl + flame cap at the gap edge.
+    # SMALL cap so the banded pole body always renders + tiles (was 96px = whole
+    # post). The brazier rim + flame live in this band; the pole owns the rest.
+    cap_band = min(int(bh * 0.42), int(30 * ss))
     bowl_y = bh - cap_band
-    # A gold brazier bowl flaring out from the pole top.
-    bowl = [(cx - hw * 1.9, bowl_y + 14 * ss),
-            (cx - hw * 1.2, bowl_y - 2 * ss),
-            (cx + hw * 1.2, bowl_y - 2 * ss),
-            (cx + hw * 1.9, bowl_y + 14 * ss)]
-    pygame.draw.polygon(surf, _shade_c(GOLD, -40), [(int(x), int(y)) for x, y in bowl])
-    bowl2 = [(cx - hw * 1.6, bowl_y + 12 * ss),
-             (cx - hw * 1.0, bowl_y + 1 * ss),
-             (cx + hw * 1.0, bowl_y + 1 * ss),
-             (cx + hw * 1.6, bowl_y + 12 * ss)]
-    pygame.draw.polygon(surf, GOLD, [(int(x), int(y)) for x, y in bowl2])
-    pygame.draw.line(surf, GOLD_HI, (int(cx - hw * 1.5), int(bowl_y + 10 * ss)),
-                     (int(cx - hw * 0.9), int(bowl_y + 1 * ss)), max(1, int(2 * ss)))
-    # Warm flame leaping UP out of the bowl (into the gap on the un-flipped tile).
-    _torch_flame(surf, cx, bowl_y, 78 * ss, ss, point_up=True)
+    # Pole body fills everything above the cap edge — the tileable repeat.
+    _torch_pole_body(surf, cx, 0, bowl_y, hw, ss)
+    # A compact gold brazier rim seated on the pole top (small, not a bowl-blob).
+    rim = [(cx - hw * 1.5, bowl_y + 9 * ss),
+           (cx - hw * 1.05, bowl_y - 1 * ss),
+           (cx + hw * 1.05, bowl_y - 1 * ss),
+           (cx + hw * 1.5, bowl_y + 9 * ss)]
+    pygame.draw.polygon(surf, _shade_c(GOLD, -40), [(int(x), int(y)) for x, y in rim])
+    rim2 = [(cx - hw * 1.28, bowl_y + 8 * ss),
+            (cx - hw * 0.92, bowl_y + 1 * ss),
+            (cx + hw * 0.92, bowl_y + 1 * ss),
+            (cx + hw * 1.28, bowl_y + 8 * ss)]
+    pygame.draw.polygon(surf, GOLD, [(int(x), int(y)) for x, y in rim2])
+    pygame.draw.line(surf, GOLD_HI, (int(cx - hw * 1.22), int(bowl_y + 7 * ss)),
+                     (int(cx - hw * 0.85), int(bowl_y + 1 * ss)), max(1, int(2 * ss)))
+    # Warm flame leaping UP out of the rim (into the gap on the un-flipped tile);
+    # sized to the small cap so it stays a gap-edge accent, not a headstone.
+    _torch_flame(surf, cx, bowl_y - 1 * ss, 40 * ss, ss, point_up=True)
 
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
     out = _add_outline(out)
@@ -552,8 +594,8 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((34, 32, 46))
-    _label(sheet, font, "BAALGOAT  —  GROUP B  take B2  —  indigo-goat & torch-gold  —  round 1", 18, 12)
-    _label(sheet, small, "the chibi BAPHOMET: a long cream goat-MUZZLE, back-swept ridged amber horns w/ a warm crown-TORCH between, bat wings, pentagram",
+    _label(sheet, font, "BAALGOAT  —  GROUP B  take B2  —  indigo-goat & torch-gold  —  round 2", 18, 12)
+    _label(sheet, small, "r2: forward-tapering goat SNOUT (tip nostrils + down-curved mouth, value dropped) / pole-IS-body pillar w/ small gap-edge cap / lifted crown-torch",
             18, 32, (200, 196, 210))
 
     # — Cell A: boss at showcase scale, on a neutral panel.
@@ -585,8 +627,9 @@ def main():
     sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
     sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
     pygame.draw.rect(sheet, (255, 255, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
-    _label(sheet, small, "1x native (82px wide, as it", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
-    _label(sheet, small, "scrolls): gold cuff bands tile", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
+    _label(sheet, small, "1x native: the banded indigo POLE", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
+    _label(sheet, small, "IS the body; cuff bands tile the", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
+    _label(sheet, small, "mirror; small cap at each gap-edge", slice_x - 2, slice_y + slice_h + 38, (20, 20, 30))
 
     # 2x zoom of the GAP region so the brazier-flame cap + cuff banding is legible.
     zw, zh = pw, 150
@@ -657,7 +700,7 @@ def main():
                            "skybit_devil", "devil", "baalgoat")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

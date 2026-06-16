@@ -156,12 +156,15 @@ def _candle_horn(surf, cx, base_y, ch, hw, ss, *, night=False, lean=0.0):
     """A STRAIGHT vertical wax taper (NOT a curved horn) rising from the cranium
     rim, with frozen wax drips down one side, a melted lip, and a green soul-flame
     on top. `lean` tilts the taper slightly off-vertical so the five-candle fan
-    splays — but each stays a straight taper, never a curved ram-horn arc."""
+    splays OUTWARD — but each stays a straight taper, never a curved ram-horn arc.
+    A fat melted-LIP overhang at the tip is the read that separates this from a
+    horn/spike: an altar candle that has burned down and slumped."""
     top_y = base_y - ch
     tip_dx = lean * ch                            # straight lean, not a curve
-    # The wax column: a tapering quad, dark-core then fill then sheen.
+    # The wax column: a tapering quad, dark-core then fill then sheen. A near-
+    # cylindrical taper (only mild neck) so it reads as a fat CANDLE, not a spike.
     base_hw = hw
-    top_hw = hw * 0.62
+    top_hw = hw * 0.82
     col_pts = [
         (cx - base_hw, base_y),
         (cx + base_hw, base_y),
@@ -181,31 +184,50 @@ def _candle_horn(surf, cx, base_y, ch, hw, ss, *, night=False, lean=0.0):
                      (int(cx - base_hw + 1.4 * ss), int(base_y - ss)),
                      (int(cx + tip_dx - top_hw + 1.4 * ss), int(top_y + 2 * ss)),
                      max(1, int(1.6 * ss)))
-    # Frozen wax drips: a couple of teardrop runs frozen down the right side so the
-    # candle reads MELTED (an altar candle), seated as flat WAX shapes.
-    for dt, dl in ((0.30, 0.34), (0.58, 0.22), (0.78, 0.40)):
+    # Frozen wax drips: bulging teardrop runs frozen down BOTH sides so the candle
+    # reads MELTED (an altar candle) even at 1x — the drip tell is the candle read.
+    for dt, dl, side in ((0.34, 0.40, 1), (0.60, 0.30, -1), (0.78, 0.46, 1)):
         dy = base_y - ch * dt
-        dx = cx + tip_dx * (1 - dt) + base_hw * 0.78
+        dx = cx + tip_dx * (1 - dt) + side * base_hw * 0.82
         rr = hw * dl
         pygame.draw.circle(surf, WAX_DK, (int(dx), int(dy)), int(rr))
         pygame.draw.circle(surf, WAX, (int(dx - ss), int(dy - ss)),
                            max(1, int(rr - ss)))
         # the drip tail running down
         pygame.draw.line(surf, WAX, (int(dx), int(dy)),
-                         (int(dx - tip_dx * 0.04), int(dy + rr * 1.6)),
-                         max(1, int(rr * 0.7)))
-    # Melted lip at the top, glowing faintly green from the flame above.
+                         (int(dx - tip_dx * 0.04), int(dy + rr * 1.7)),
+                         max(1, int(rr * 0.85)))
+    # Fat MELTED LIP: a wide wax collar that overhangs the column top with a couple
+    # of lip-drips spilling over the rim — the unmistakable burned-down-candle tell.
     lip_cx = cx + tip_dx
-    pygame.draw.ellipse(surf, WAX_SHEEN,
-                        (int(lip_cx - top_hw), int(top_y - ss * 1.5),
-                         int(top_hw * 2), int(top_hw * 1.4)))
-    pygame.draw.ellipse(surf, _shade_c(FLAME_DEEP, -10),
+    lip_w = top_hw * 1.5
+    pygame.draw.ellipse(surf, WAX_DK,
+                        (int(lip_cx - lip_w), int(top_y - ss * 1.0),
+                         int(lip_w * 2), int(lip_w * 1.05)))
+    pygame.draw.ellipse(surf, WAX,
+                        (int(lip_cx - lip_w + ss), int(top_y - ss * 0.5),
+                         int(lip_w * 2 - 2 * ss), int(lip_w * 0.9)))
+    # Cool sheen catching the front edge of the lip collar.
+    pygame.draw.arc(surf, WAX_SHEEN,
+                    (int(lip_cx - lip_w + ss), int(top_y - ss * 0.5),
+                     int(lip_w * 2 - 2 * ss), int(lip_w * 0.9)),
+                    math.radians(195), math.radians(345), max(1, int(1.4 * ss)))
+    # Two lip-drips spilling over the rim — the molten overflow.
+    for ld in (-0.62, 0.5):
+        ldx = lip_cx + ld * lip_w
+        pygame.draw.circle(surf, WAX, (int(ldx), int(top_y + lip_w * 0.5)),
+                           max(1, int(hw * 0.24)))
+        pygame.draw.line(surf, WAX, (int(ldx), int(top_y + lip_w * 0.4)),
+                         (int(ldx), int(top_y + lip_w * 0.95)),
+                         max(1, int(hw * 0.3)))
+    # The molten wax pool at the wick, glowing faintly green from the flame above.
+    pygame.draw.ellipse(surf, _shade_c(FLAME_DEEP, -6),
                         (int(lip_cx - top_hw * 0.5), int(top_y - ss * 0.5),
-                         int(top_hw), int(top_hw * 0.8)))
+                         int(top_hw), int(top_hw * 0.7)))
     # Wick + soul-flame.
     pygame.draw.line(surf, WICK, (int(lip_cx), int(top_y)),
                      (int(lip_cx), int(top_y - ch * 0.05)), max(1, int(1.4 * ss)))
-    fh = ch * 0.62
+    fh = ch * 0.58
     _soul_flame(surf, lip_cx, top_y - ch * 0.02, fh, ss, night=night)
 
 
@@ -323,26 +345,30 @@ def _crown(surf, cx, cy, r, ss, *, night=False):
     tapers (never a curved horn pair), each tipped with a green soul-flame. The
     centre candle is tallest; the pair-leans splay symmetrically so the crown
     reads as a flaming altar-fan. This crown IS the identity."""
-    # Five candles seated along the upper cranium rim. Lean splays outward but each
-    # column stays a STRAIGHT taper (set-wide guardrail).
-    rim_y = cy - r * 0.86
+    # Five candles seated WIDE along the cranium rim so sky shows between tapers and
+    # the crown reads as a splayed candelabra-fan, not a packed mohawk. The outer
+    # pair splay clearly OUTWARD past the temples; leans are positive-outward (the
+    # flames fan apart, never converging into one clump). Heights step BOLDLY
+    # (short outers, tall centre) and widths vary so no two candles twin. Each
+    # column stays a STRAIGHT taper (set-wide guardrail) — only the lean differs.
     specs = [
-        (-0.62, 0.78, -0.16),   # (x along rim, height factor, straight lean)
-        (-0.32, 0.92, -0.08),
-        (0.00, 1.04, 0.00),     # tallest centre candle
-        (0.32, 0.92, 0.08),
-        (0.62, 0.78, 0.16),
+        # (x along rim, height factor, OUTWARD lean, width factor)
+        (-1.02, 0.62, -0.30, 0.86),
+        (-0.56, 0.96, -0.15, 1.12),
+        (0.00, 1.20, 0.00, 1.00),    # tallest, slightly slimmer centre candle
+        (0.56, 0.88, 0.15, 1.18),
+        (1.02, 0.68, 0.30, 0.82),
     ]
-    base_ch = r * 1.05
-    hw = r * 0.15
-    # Seat the candle feet on the dome so they look planted in the bone, by nudging
-    # the base down where the candle sits further out (the dome curves away).
-    for sx, hf, lean in specs:
-        bx = cx + sx * r
-        # Follow the cranium curve so feet sit ON the dome, not floating.
-        by = cy - math.sqrt(max(0.0, 1.0 - (sx * 1.0) ** 2)) * r * 0.86 + r * 0.04
+    base_ch = r * 1.10
+    base_hw = r * 0.165
+    # Seat the candle feet on the dome so they look planted in the bone, following
+    # the cranium curve so the outer feet sit lower (the dome curves away).
+    for sx, hf, lean, wf in specs:
+        bx = cx + sx * r * 0.72
+        curve = max(0.0, 1.0 - min(1.0, (sx * 0.72) ** 2))
+        by = cy - math.sqrt(curve) * r * 0.84 + r * 0.05
         ch = base_ch * hf
-        _candle_horn(surf, bx, by, ch, hw, ss, night=night, lean=lean)
+        _candle_horn(surf, bx, by, ch, base_hw * wf, ss, night=night, lean=lean)
 
 
 def _cassock_body(surf, cx, neck_y, w, h, ss):
@@ -376,40 +402,71 @@ def _cassock_body(surf, cx, neck_y, w, h, ss):
                      (int(cx + w * 0.5), int(cordy)), max(1, int(1.6 * ss)))
     pygame.draw.circle(surf, GOLD_HI, (int(cx - w * 0.5), int(cordy)),
                        max(1, int(1.4 * ss)))
-    # Two bone hands pressed together (praying) high on the chest.
-    hy = neck_y + h * 0.30
-    for s in (-1, 1):
-        hand = pygame.Rect(0, 0, int(w * 0.14), int(h * 0.26))
-        hand.center = (int(cx + s * w * 0.07), int(hy))
-        pygame.draw.rect(surf, _shade_c(BONE, -30), hand,
-                         border_radius=max(1, int(2 * ss)))
-        pygame.draw.rect(surf, BONE, hand.inflate(-int(ss), -int(ss)),
-                         border_radius=max(1, int(2 * ss)))
-    # Fingertip seam between the two pressed hands.
-    pygame.draw.line(surf, BONE_DK, (int(cx), int(hy - h * 0.13)),
-                     (int(cx), int(hy + h * 0.13)), max(1, int(ss)))
+    # Praying hands: a clean STEEPLE silhouette — a pale bone teardrop coming to a
+    # point at the top with a visible centre seam splitting the two pressed palms,
+    # so it reads as a praying gesture and not a random pale lump.
+    hy = neck_y + h * 0.34
+    steeple_w = w * 0.30
+    steeple_h = h * 0.42
+    tip = (cx, hy - steeple_h * 0.5)
+    steeple = [
+        tip,
+        (cx + steeple_w * 0.5, hy - steeple_h * 0.12),
+        (cx + steeple_w * 0.42, hy + steeple_h * 0.5),
+        (cx - steeple_w * 0.42, hy + steeple_h * 0.5),
+        (cx - steeple_w * 0.5, hy - steeple_h * 0.12),
+    ]
+    pygame.draw.polygon(surf, _shade_c(BONE, -34),
+                        [(int(x), int(y)) for x, y in steeple])
+    inner = [(tip[0], tip[1] + ss),
+             (cx + steeple_w * 0.42, hy - steeple_h * 0.1),
+             (cx + steeple_w * 0.34, hy + steeple_h * 0.44),
+             (cx - steeple_w * 0.34, hy + steeple_h * 0.44),
+             (cx - steeple_w * 0.42, hy - steeple_h * 0.1)]
+    pygame.draw.polygon(surf, BONE, [(int(x), int(y)) for x, y in inner])
+    # Centre seam between the two pressed palms — the steeple split.
+    pygame.draw.line(surf, BONE_DK, (int(cx), int(tip[1] + ss)),
+                     (int(cx), int(hy + steeple_h * 0.46)), max(1, int(ss)))
+    # Top-left sheen on the lit palm.
+    pygame.draw.line(surf, BONE_SHEEN,
+                     (int(cx - steeple_w * 0.18), int(hy - steeple_h * 0.3)),
+                     (int(cx - steeple_w * 0.3), int(hy + steeple_h * 0.3)),
+                     max(1, int(ss)))
 
 
 def build_pyrecrown(scale=1.0, ss=3, *, night=False):
-    """The full boss figure on its own transparent surface: candle crown ~top
-    third, serene skull mid, tiny praying cassock below. Returns an outlined
-    surface and its baseline (feet) y. `night` lifts the soul-flame glow so the
+    """The full boss figure on its own transparent surface: candle crown on top,
+    serene skull mid, tiny praying cassock below. Returns an outlined surface and
+    its baseline (feet) y. The surface is sized to the WHOLE figure — the crown's
+    flame tips and the splayed outer flames each get explicit margin so nothing
+    clips off the panel at showcase scale. `night` lifts the soul-flame glow so the
     green crown reads LIT on a dark sky (where it must pop hardest)."""
-    H = int(300 * scale)
-    W = int(160 * scale)
-    pad = int(64 * scale)
-    surf = pygame.Surface(((W + pad * 2) * ss, (H + pad) * ss), pygame.SRCALPHA)
-    cx = (W // 2 + pad) * ss
+    skull_r = int(60 * scale) * ss
+    body_h = int(90 * scale) * ss
+    side_pad = int(34 * scale) * ss     # room for the splayed outer flames + glow
+    top_pad = int(40 * scale) * ss      # room above the tallest flame tip + halo
+    bot_pad = int(18 * scale) * ss
 
-    # Skull sits in the upper-middle; the candle crown rises above it into the pad.
-    skull_r = int(H * 0.20) * ss
-    skull_cy = int(pad * 0.34) * ss + int(H * 0.46) * ss * 0.5 + skull_r * 0.4
-    skull_cx = cx
+    # Geometry of the figure measured downward from the tallest flame tip.
+    # Crown: centre candle base_ch = skull_r/ss*1.10*scale... computed in _crown,
+    # so mirror its tallest reach here. Centre candle foot sits ~r*0.79 above the
+    # skull centre; its column is base_ch*1.20 tall; the flame adds ch*0.58 more.
+    base_ch = skull_r * 1.10
+    centre_foot_above = skull_r * 0.79          # math.sqrt(1)*0.84 - 0.05
+    centre_col = base_ch * 1.20
+    centre_flame = (base_ch * 1.20) * 0.58
+    crown_top_above_skull = centre_foot_above + centre_col + centre_flame
 
+    skull_cy = top_pad + crown_top_above_skull
     neck_y = skull_cy + skull_r * 0.96
-    body_w = W * 0.66 * ss
-    body_h = int(H * 0.30) * ss
     feet_y = neck_y + body_h
+
+    W = int(skull_r * 2 + side_pad * 2)
+    H = int(feet_y + bot_pad)
+    surf = pygame.Surface((W, H), pygame.SRCALPHA)
+    skull_cx = W // 2
+
+    body_w = skull_r * 2.2
 
     # Draw order: crown candles behind the skull dome so the dome occludes their
     # feet (planted look), then skull, then body over the jaw.
@@ -504,23 +561,30 @@ def _candle_cap(surf, cx, cap_base_y, hw, ss, *, point_up, night=False):
 
 
 def _candle_pillar_obstacle(height, ss, *, flip, night=False):
-    """One candle-pillar PILLAR obstacle: the dripping wax column fills the post,
-    the skull-knob + big flame cap sits at the gap end. `flip` makes the top
-    pillar's flame point DOWN into the gap; the bottom pillar's flame points UP —
-    proving the prop mirrors top<->bottom into a clean vertical candle-pillar with
-    a soul-flame lighting INTO the gap."""
+    """One candle-pillar PILLAR obstacle: the dripping wax column fills the post and
+    the skull-knob + big flame CAP sits at the GAP-facing edge, flame flourishing
+    INTO the gap. `flip=True` is the TOP pillar — its cap is at the BOTTOM edge with
+    the flame pointing DOWN into the gap; `flip=False` is the BOTTOM pillar — cap at
+    the TOP edge, flame pointing UP into the gap. Both mirror the same wax-drip body
+    into a clean vertical candle-pillar lit at the gap (it LIGHTS, never snuffs)."""
     bw = (PIPE_W + 2 * OVERHANG) * ss
     bh = max(1, int(height)) * ss
     surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
     cx = bw // 2
     hw = 16 * ss
     cap_band = int(72 * ss)
-    _wax_column(surf, cx, 0, bh - cap_band, hw, ss)
-    _candle_cap(surf, cx, bh - cap_band, hw, ss, point_up=False, night=night)
+    if flip:
+        # TOP pillar: column from the title edge down; cap at the bottom (gap) edge,
+        # flame pointing DOWN into the gap below.
+        _wax_column(surf, cx, 0, bh - cap_band, hw, ss)
+        _candle_cap(surf, cx, bh - cap_band, hw, ss, point_up=False, night=night)
+    else:
+        # BOTTOM pillar: cap at the TOP (gap) edge, flame pointing UP into the gap
+        # above; column runs from the cap band down to the ground.
+        _wax_column(surf, cx, cap_band, bh, hw, ss)
+        _candle_cap(surf, cx, cap_band, hw, ss, point_up=True, night=night)
     out = pygame.transform.smoothscale(surf, (PIPE_W + 2 * OVERHANG, max(1, int(height))))
     out = _add_outline(out)
-    if flip:
-        out = pygame.transform.flip(out, False, True)
     return out
 
 
@@ -558,7 +622,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((30, 36, 34))          # faint green-charcoal so the set reads green
-    _label(sheet, font, "PYRECROWN  —  take A5  —  bone + wax-black + GREEN soul-flame  —  round 1", 18, 12)
+    _label(sheet, font, "PYRECROWN  —  take A5  —  bone + wax-black + GREEN soul-flame  —  round 2", 18, 12)
     _label(sheet, small,
             "the candelabra-skull: a SERENE bone skull crowned with FIVE straight black candle-horns burning green soul-flames; tiny praying cassock",
             18, 32, (190, 210, 198))
@@ -572,42 +636,57 @@ def main():
                       panel.bottom - boss.get_height() - 16))
     _label(sheet, font, "(a) BOSS  showcase scale", panel.x + 8, panel.y + 8)
 
-    # — Cell B: the candle as a tileable PILLAR pair at TRUE obstacle scale + 2x zoom.
+    # — Cell B: the candle as a tileable PILLAR pair at TRUE obstacle scale, on the
+    #   NIGHT sky (where the green gap-edge flame must earn its keep), + a 2x zoom
+    #   re-aimed at the CAP BAND so the skull-knob + flame lighting the gap is proven.
     panelB = pygame.Rect(394, 56, 360, 580)
-    bg = _sky(panelB.w, panelB.h, (40, 110, 200), (90, 170, 230), (170, 220, 245))
+    bg = _sky(panelB.w, panelB.h, (5, 8, 30), (15, 25, 70), (35, 55, 115), stars=True)
     sheet.blit(bg, panelB.topleft)
     pygame.draw.rect(sheet, (84, 104, 92), panelB, 2, border_radius=8)
-    _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE obstacle scale", panelB.x + 8, panelB.y + 8)
+    _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE scale  (NIGHT)", panelB.x + 8, panelB.y + 8)
 
     pw = PIPE_W + 2 * OVERHANG
-    slice_h = 480
-    slice_x = panelB.x + 26
-    slice_y = panelB.y + 46
-    gap_top = 172
-    gap_h = 122
+    slice_h = 470
+    slice_x = panelB.x + 24
+    slice_y = panelB.y + 44
+    gap_top = 150
+    gap_h = 128
     top_h = gap_top
     bot_h = slice_h - gap_top - gap_h
-    top_pillar = _candle_pillar_obstacle(top_h, 3, flip=True)
-    bot_pillar = _candle_pillar_obstacle(bot_h, 3, flip=False)
+    top_pillar = _candle_pillar_obstacle(top_h, 3, flip=True, night=True)
+    bot_pillar = _candle_pillar_obstacle(bot_h, 3, flip=False, night=True)
     sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
     sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
-    pygame.draw.rect(sheet, (255, 255, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
-    _label(sheet, small, "1x native (82px wide): wax-drip", slice_x - 2, slice_y + slice_h + 6, (20, 30, 26))
-    _label(sheet, small, "banding tiles; flame caps the gap", slice_x - 2, slice_y + slice_h + 22, (20, 30, 26))
+    pygame.draw.rect(sheet, (200, 220, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
+    _label(sheet, small, "1x native (82px): wax-drip banding", slice_x - 2, slice_y + slice_h + 6, (200, 225, 255))
+    _label(sheet, small, "tiles; green flames RIM-LIGHT the gap", slice_x - 2, slice_y + slice_h + 22, (200, 255, 220))
 
-    # 2x zoom of the GAP so the skull-knob + flame cap + drip banding read.
-    zw, zh = pw, 152
+    # 2x zoom RE-AIMED at the gap CAP band: both skull-knobs + both green flames
+    # lighting INTO the gap from each edge, on the night sky behind. This is the
+    # payoff the prop must prove.
+    cap_band = 72
+    zw, zh = pw, 170
     zoom_src = pygame.Surface((zw, zh), pygame.SRCALPHA)
-    zoom_src.blit(top_pillar, (-2, -(gap_top - 72) - 2))
-    zoom_src.blit(bot_pillar, (-2, gap_h + 72 - 2))
+    # Frame the GAP CAP band: the top pillar's bottom cap (flame DOWN) in the upper
+    # area, the bottom pillar's top cap (flame UP) in the lower area, with a tight
+    # representative gap between — proving BOTH green flames reach INTO the gap. The
+    # represented gap is compressed (not the full obstacle gap) so both caps fit.
+    top_anchor = 12            # px from zoom top to the top pillar's cap top
+    zoom_src.blit(top_pillar, (-2, -(top_h - cap_band - top_anchor) - 2))
+    zoom_gap = zh - 2 * cap_band - 2 * top_anchor
+    bot_anchor = top_anchor + cap_band + zoom_gap
+    zoom_src.blit(bot_pillar, (-2, bot_anchor - 2))
     zoom = pygame.transform.scale(zoom_src, (zw * 2, zh * 2))
-    zx = panelB.x + 184
-    zy = panelB.y + 70
+    zx = panelB.x + 178
+    zy = panelB.y + 96
+    # A soft night backing behind the zoom so the green reads LIT (not on panel grey).
+    zbg = _sky(zw * 2, zh * 2, (5, 8, 30), (12, 20, 56), (22, 34, 78))
+    sheet.blit(zbg, (zx, zy))
+    pygame.draw.rect(sheet, (200, 220, 255), (zx - 1, zy - 1, zw * 2 + 2, zh * 2 + 2), 1)
     sheet.blit(zoom, (zx, zy))
-    _label(sheet, small, "2x zoom of the gap:", zx - 4, zy - 16, (255, 255, 255))
-    _label(sheet, small, "skull-knob + green flame", zx - 4, zy + zh * 2 + 6, (20, 30, 26))
-    _label(sheet, small, "LIGHT the gap; wax-drip", zx - 4, zy + zh * 2 + 22, (20, 30, 26))
-    _label(sheet, small, "body mirrors top<->bottom", zx - 4, zy + zh * 2 + 38, (20, 30, 26))
+    _label(sheet, small, "2x zoom of the CAP band:", zx - 2, zy - 16, (255, 255, 255))
+    _label(sheet, small, "skull-knob + green flame", zx - 2, zy + zh * 2 + 6, (200, 255, 220))
+    _label(sheet, small, "LIGHT the gap edges", zx - 2, zy + zh * 2 + 22, (200, 255, 220))
 
     # — Cell C: 1x in-game-scale INSET on BOTH day and night skies + grayscale.
     panelC = pygame.Rect(770, 56, 392, 580)
@@ -662,7 +741,7 @@ def main():
                            "skybit_devil", "reapy_devil", "pyrecrown")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
