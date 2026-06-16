@@ -41,9 +41,19 @@ WRAP_T    = (238, 228, 200)   # bone-wrap rim-sheen helper (top-left)
 FLESH     = (176, 150, 132)   # exposed grey-tan charnel flesh under the wraps
 FLESH_D   = (120,  98,  88)
 
+# the face owns its OWN brighter ivory value (not the dull body flesh) so the
+# head pops off BOTH the dark-blue night sky and the maroon wings at true 32px —
+# the brief's lever is VALUE/GEOMETRY, never a maroon brighten.
+FACE      = (236, 224, 196)   # bright bone-ivory face ball (the 1x value anchor)
+FACE_D    = (176, 158, 128)   # face shade core
+FACE_T    = (252, 246, 226)   # face rim-sheen
+
 MAROON    = (108,  40,  46)   # DARK desaturated ox-blood membrane (NOT vermilion)
 MAROON_D  = ( 70,  26,  32)   # deep ox-blood shade
 MAROON_T  = (140,  62,  68)   # muted maroon rim-sheen (still desaturated)
+# a thin COOL-BONE edge sheen on the wing membranes so their silhouette survives
+# against the ~20,30,55 night sky WITHOUT brightening the maroon hue itself.
+MEMB_RIM  = (172, 166, 158)   # cool greyed-bone wing-edge rim (value, not hue)
 
 AMBER     = (244, 176,  60)   # hot-amber eye / gap focal
 AMBER_BR  = (255, 214, 120)   # brightest amber core (night anchor)
@@ -173,6 +183,15 @@ def furled_wing_arm(surf, sx, sy, sgn, s):
                    (sx + sgn*int(6*s),  sy - int(36*s))],
         ow=max(2, int(2*s)),
     )
+    # thin cool-bone rim along the OUTER membrane edge so the maroon wing keeps a
+    # readable silhouette against the dark-blue night sky (value, not a hue lift).
+    outer_edge = [
+        (sx + sgn*int(22*s), sy - int(18*s)),
+        (sx + sgn*int(30*s), sy - int(48*s)),
+        (sx + sgn*int(24*s), top + int(14*s)),
+        (sx + sgn*int(9*s),  top),
+    ]
+    pygame.draw.lines(surf, MEMB_RIM, False, outer_edge, max(1, int(1.4*s)))
     # rib-struts — three slate finger-bones fanning through the membrane
     for k in range(3):
         t = 0.2 + k*0.3
@@ -277,82 +296,88 @@ def draw_vetala(surf, cx, cy, s):
     furled_wing_arm(surf, cx + half_bot - int(4*s), sh_y, +1, s)
 
     # --- the fanged chibi head at the BOTTOM (eyes read right-way-up) ---
-    hr = int(30*s)
-    hc = (cx, head_cy)
+    # head enlarged ~18% over round 1 and dropped slightly lower so the FACE owns
+    # more pixels at true 32px — the brief's #1 gate (face FIRST, day AND night).
+    hr = int(36*s)
+    hc = (cx, head_cy + int(4*s))
     # neck wrap joining body to head
     pygame.draw.polygon(surf, WRAP_D,
                         [(cx - int(13*s), body_bot + int(2*s)),
                          (cx + int(13*s), body_bot + int(2*s)),
-                         (cx + int(11*s), head_cy - int(hr*0.7)),
-                         (cx - int(11*s), head_cy - int(hr*0.7))])
+                         (cx + int(11*s), hc[1] - int(hr*0.74)),
+                         (cx - int(11*s), hc[1] - int(hr*0.74))])
     pygame.draw.polygon(surf, INK,
                         [(cx - int(13*s), body_bot + int(2*s)),
                          (cx + int(13*s), body_bot + int(2*s)),
-                         (cx + int(11*s), head_cy - int(hr*0.7)),
-                         (cx - int(11*s), head_cy - int(hr*0.7))], max(1, int(2*s)))
+                         (cx + int(11*s), hc[1] - int(hr*0.74)),
+                         (cx - int(11*s), hc[1] - int(hr*0.74))], max(1, int(2*s)))
 
-    # head ball — pale flesh, triad-shaded
-    pygame.draw.circle(surf, INK, hc, hr + int(2*s))
-    pygame.draw.circle(surf, FLESH, hc, hr)
-    pygame.draw.circle(surf, FLESH_D, (hc[0] + int(8*s), hc[1] + int(8*s)), int(hr*0.72))
-    pygame.draw.circle(surf, FLESH, hc, int(hr*0.84))
-    pygame.draw.circle(surf, lerp(FLESH, WRAP_T, 0.8),
-                       (hc[0] - int(11*s), hc[1] - int(11*s)), int(7*s))
-    pygame.draw.circle(surf, INK, hc, hr, int(2*s) + 1)
+    # head ball — BRIGHT bone-ivory (its own value, not the dull body flesh) with
+    # a heavy ink keyline so it pops off both the maroon wings and the night sky.
+    pygame.draw.circle(surf, INK, hc, hr + int(4*s))
+    pygame.draw.circle(surf, FACE, hc, hr)
+    pygame.draw.circle(surf, FACE_D, (hc[0] + int(9*s), hc[1] + int(9*s)), int(hr*0.74))
+    pygame.draw.circle(surf, FACE, hc, int(hr*0.86))
+    pygame.draw.circle(surf, FACE_T,
+                       (hc[0] - int(13*s), hc[1] - int(13*s)), int(9*s))
+    pygame.draw.circle(surf, INK, hc, hr, max(3, int(3*s)))
 
-    # two big hot-amber eyes — placed in the UPPER half of the head ball so that,
-    # with the body inverted above, the face still reads eyes-over-mouth = a FACE.
-    for ex in (hc[0] - int(12*s), hc[0] + int(12*s)):
-        ey = hc[1] - int(6*s)
-        amber_glow(surf, ex, ey, int(9*s), intensity=130)
-        pygame.draw.circle(surf, INK, (ex, ey), int(8*s))
-        pygame.draw.circle(surf, AMBER, (ex, ey), int(6*s))
-        pygame.draw.circle(surf, AMBER_BR, (ex - int(1*s), ey - int(2*s)), int(3*s))
-        pygame.draw.circle(surf, (255, 250, 230), (ex - int(2*s), ey - int(2*s)), max(1, int(1.4*s)))
+    # two big hot-amber eyes with HARD dark socket rims so they survive as TWO
+    # distinct dots (not one smear) at 1x. Placed in the upper half of the head
+    # so the inverted face still reads eyes-over-mouth = a FACE.
+    eye_r = int(8*s)
+    for ex in (hc[0] - int(15*s), hc[0] + int(15*s)):
+        ey = hc[1] - int(8*s)
+        amber_glow(surf, ex, ey, int(10*s), intensity=140)
+        # hard dark socket rim keeps each eye an isolated dot when downscaled
+        pygame.draw.circle(surf, INK, (ex, ey), eye_r + int(2*s))
+        pygame.draw.circle(surf, AMBER_D, (ex, ey), eye_r + int(1*s))
+        pygame.draw.circle(surf, AMBER, (ex, ey), eye_r)
+        pygame.draw.circle(surf, AMBER_BR, (ex - int(1*s), ey - int(2*s)), int(4*s))
+        pygame.draw.circle(surf, (255, 250, 230), (ex - int(2*s), ey - int(2*s)), max(1, int(1.6*s)))
         # heavy ridge-brow above each eye (toward the body) for the menace read
-        pygame.draw.line(surf, INK, (ex - int(8*s), ey - int(9*s)),
-                         (ex + int(8*s), ey - int(7*s)), max(2, int(2.6*s)))
+        pygame.draw.line(surf, INK, (ex - int(10*s), ey - int(11*s)),
+                         (ex + int(9*s), ey - int(8*s)), max(2, int(3*s)))
 
     # tiny down-turned nose hollow between the eyes
-    pygame.draw.polygon(surf, FLESH_D,
-                        [(hc[0] - int(3*s), hc[1] + int(2*s)),
-                         (hc[0] + int(3*s), hc[1] + int(2*s)),
-                         (hc[0], hc[1] + int(7*s))])
+    pygame.draw.polygon(surf, FACE_D,
+                        [(hc[0] - int(3*s), hc[1] + int(3*s)),
+                         (hc[0] + int(3*s), hc[1] + int(3*s)),
+                         (hc[0], hc[1] + int(9*s))])
 
-    # fanged grin LOW on the head ball (the mouth sits below the eyes = face-up
-    # read). Two big up-pointing fangs + a small lolling tongue pointing UP
-    # toward the body (the inverted gravity gag).
-    my = hc[1] + int(15*s)
-    # mouth gap with a faint amber glow inside it (the gap-glow motif)
-    amber_glow(surf, hc[0], my + int(1*s), int(7*s), intensity=70)
-    pygame.draw.polygon(surf, INK,
-                        [(hc[0] - int(13*s), my),
-                         (hc[0] + int(13*s), my),
-                         (hc[0] + int(9*s), my + int(9*s)),
-                         (hc[0] - int(9*s), my + int(9*s))])
+    # fanged grin LOW on the head ball. At true 32px a row of small teeth reads
+    # as a flat band, so this is THREE big triangular fangs over a dark mouth-gap
+    # — the grin survives the downscale the way Karakasa's / Citipati's do.
+    my = hc[1] + int(17*s)
+    mouth_w = int(17*s)
+    # the dark mouth-gap behind the fangs (with a faint amber gap-glow inside)
+    amber_glow(surf, hc[0], my + int(3*s), int(8*s), intensity=70)
+    mouth_box = [(hc[0] - mouth_w, my),
+                 (hc[0] + mouth_w, my),
+                 (hc[0] + int(mouth_w*0.7), my + int(12*s)),
+                 (hc[0] - int(mouth_w*0.7), my + int(12*s))]
+    pygame.draw.polygon(surf, INK, mouth_box)
     pygame.draw.polygon(surf, MAROON_D,
-                        [(hc[0] - int(11*s), my + int(1*s)),
-                         (hc[0] + int(11*s), my + int(1*s)),
-                         (hc[0] + int(7*s), my + int(7*s)),
-                         (hc[0] - int(7*s), my + int(7*s))])
-    # two fangs — pointing UP (toward the head crown / body) because inverted
-    for fx in (hc[0] - int(7*s), hc[0] + int(7*s)):
-        fang = [(fx - int(3*s), my + int(7*s)),
-                (fx + int(3*s), my + int(7*s)),
-                (fx, my - int(1*s))]
+                        [(hc[0] - mouth_w + int(2*s), my + int(1*s)),
+                         (hc[0] + mouth_w - int(2*s), my + int(1*s)),
+                         (hc[0] + int(mouth_w*0.6), my + int(10*s)),
+                         (hc[0] - int(mouth_w*0.6), my + int(10*s))])
+    # THREE big fangs pointing UP (inverted) — the wide outer pair carry the read
+    fang_xs = (hc[0] - int(11*s), hc[0], hc[0] + int(11*s))
+    fang_w  = (int(5*s), int(4*s), int(5*s))
+    for fx, fw in zip(fang_xs, fang_w):
+        fang = [(fx - fw, my + int(11*s)),
+                (fx + fw, my + int(11*s)),
+                (fx, my - int(2*s))]
         pygame.draw.polygon(surf, FANG, fang)
-        pygame.draw.polygon(surf, INK, fang, max(1, int(1*s)))
-    # lolling tongue flicking UP toward the body (gravity gag)
-    tongue = [(hc[0] - int(3*s), my + int(2*s)),
-              (hc[0] + int(3*s), my + int(2*s)),
-              (hc[0] + int(2*s), my - int(8*s)),
-              (hc[0] - int(2*s), my - int(9*s))]
-    pygame.draw.polygon(surf, MAROON, tongue)
-    pygame.draw.polygon(surf, MAROON_T,
-                        [(hc[0] - int(2*s), my - int(1*s)),
-                         (hc[0] + int(1*s), my - int(1*s)),
-                         (hc[0], my - int(8*s))])
-    pygame.draw.polygon(surf, INK, tongue, max(1, int(1*s)))
+        pygame.draw.polygon(surf, INK, fang, max(1, int(1.4*s)))
+    # tongue reduced to a small amber-pink nub only — sacrificed first at 1x so
+    # the fangs + eyes carry the face; just a hint of the inverted gravity gag.
+    nub = [(hc[0] - int(3*s), my + int(3*s)),
+           (hc[0] + int(3*s), my + int(3*s)),
+           (hc[0], my - int(3*s))]
+    pygame.draw.polygon(surf, MAROON_T, nub)
+    pygame.draw.polygon(surf, INK, nub, max(1, int(1*s)))
 
 
 # ── the prop -> pillar mirror (charnel-branch / bat-wing-fan cap) ─────────────
@@ -485,7 +510,9 @@ def render_pillar_box(boxw, boxh, top, bot, scale, cap):
 
 
 def main():
-    W, H = 1040, 860
+    # widened to 1280 so the palette panel, the night 32px chip, and the
+    # face-read aid no longer clip off the right edge (round-1 FIX #1).
+    W, H = 1280, 880
     font_big = pygame.font.SysFont("DejaVu Sans", 30, bold=True)
     font = pygame.font.SysFont("DejaVu Sans", 17, bold=True)
     font_sm = pygame.font.SysFont("DejaVu Sans", 12)
@@ -496,13 +523,13 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("VETALA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "inverted bat-hung charnel revenant  ·  dusty bone-wrap + DARK ox-blood maroon + hot-amber  ·  round 1  ·  SS=6 epic",
+        "inverted bat-hung charnel revenant  ·  dusty bone-wrap + DARK ox-blood maroon + hot-amber  ·  round 2  ·  SS=6 epic",
         True, LABEL_DIM), (180, 24))
 
     # --- (a) BIG HERO sprite (inverted: feet hook top, head hangs bottom) ---
     hero = render_creature_box(300, 470, 150, 235, 1.55)
     sheet.blit(hero, (16, 78))
-    sheet.blit(font.render("(a) Hero — inverted bat-hung", True, LABEL), (40, 558))
+    sheet.blit(font.render("(a) Hero — inverted bat-hung", True, LABEL), (40, 560))
     sheet.blit(font_sm.render("clawed grip-feet hook the branch at TOP; wrapped body hangs DOWN;", True, LABEL_DIM), (16, 582))
     sheet.blit(font_sm.render("fanged chibi head at BOTTOM (eyes right-way-up); arms furled as bat-wings;", True, LABEL_DIM), (16, 598))
     sheet.blit(font_sm.render("tongue lolls UP — bottom-weighted pendulum, never top-heavy", True, LABEL_DIM), (16, 614))
@@ -525,10 +552,13 @@ def main():
     sheet.blit(font_sm.render("bat-wings-unfurled scalloped fan caps each gap edge, amber focal at gap", True, LABEL_DIM), (px0 - 8, 78 + 2*seg_h + gap_h + 48))
 
     # --- (c) TRUE 32px gameplay chips on day + night sky ---
+    # right column fully inside the widened canvas: panel spans to W-16 with both
+    # day + night chips and their 4x zooms laid out so nothing clips (FIX #1).
     panel_x = 600
-    pygame.draw.rect(sheet, PANEL, (panel_x, 78, W - panel_x - 16, 360))
+    pw = W - panel_x - 16
+    pygame.draw.rect(sheet, PANEL, (panel_x, 78, pw, 388))
     sheet.blit(font.render("(c) TRUE 32px gameplay chip", True, LABEL), (panel_x + 16, 90))
-    sheet.blit(font_sm.render("the inverted face must read as a FACE first", True, LABEL_DIM), (panel_x + 16, 114))
+    sheet.blit(font_sm.render("the inverted face must read as a FACE first — day AND night", True, LABEL_DIM), (panel_x + 16, 114))
 
     # build a 32px-tall creature chip (figure ~150 units -> scale 32/150)
     def chip_32():
@@ -541,7 +571,7 @@ def main():
     # show at 32px native and a 4x zoom so the reviewer can read both
     zoom = pygame.transform.scale(chip, (256, 256))
 
-    # day sky
+    # day column
     dx, dyy = panel_x + 24, 144
     pygame.draw.rect(sheet, DAY_SKY, (dx, dyy, 64, 64))
     sheet.blit(chip, (dx, dyy))
@@ -550,10 +580,10 @@ def main():
     pygame.draw.rect(sheet, DAY_SKY, (dx, dyy + 96, 256, 256))
     sheet.blit(zoom, (dx, dyy + 96))
     pygame.draw.rect(sheet, INK, (dx, dyy + 96, 256, 256), 1)
-    sheet.blit(font_sm.render("4× zoom of the 32px day chip", True, LABEL_DIM), (dx, dyy + 356 - 0))
+    sheet.blit(font_sm.render("4× zoom of the 32px day chip", True, LABEL_DIM), (dx, dyy + 356))
 
-    # night sky
-    nx2 = dx + 300
+    # night column — fully inside the panel (was clipped in round 1)
+    nx2 = dx + 296
     pygame.draw.rect(sheet, NIGHT_SKY, (nx2, dyy, 64, 64))
     sheet.blit(chip, (nx2, dyy))
     pygame.draw.rect(sheet, INK, (nx2, dyy, 64, 64), 1)
@@ -561,41 +591,54 @@ def main():
     pygame.draw.rect(sheet, NIGHT_SKY, (nx2, dyy + 96, 256, 256))
     sheet.blit(zoom, (nx2, dyy + 96))
     pygame.draw.rect(sheet, INK, (nx2, dyy + 96, 256, 256), 1)
-    sheet.blit(font_sm.render("4× zoom · amber focal anchors on dark", True, LABEL_DIM), (nx2, dyy + 356))
+    sheet.blit(font_sm.render("4× zoom · bright face + 2 socketed eyes anchor on dark", True, LABEL_DIM), (nx2, dyy + 356))
 
     # --- palette swatch row ---
-    pygame.draw.rect(sheet, PANEL, (panel_x, 452, W - panel_x - 16, 196))
-    sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 462))
+    pygame.draw.rect(sheet, PANEL, (panel_x, 480, pw, 196))
+    sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, 490))
     swatches = [
         (WRAP, "bone-wrap"), (WRAP_D, "wrap-shade"),
-        (WRAP_DD, "wrap-groove"), (FLESH, "charnel flesh"),
+        (FACE, "face ivory (1x anchor)"), (FLESH, "charnel flesh"),
         (MAROON, "ox-blood (dark/desat)"), (MAROON_D, "ox-blood shade"),
+        (MEMB_RIM, "wing rim (night sep)"), (SLATE, "slate branch"),
         (AMBER, "hot-amber"), (AMBER_BR, "amber (night)"),
-        (SLATE, "slate branch"), (INK, "ink keyline"),
+        (AMBER_D, "amber socket"), (INK, "ink keyline"),
     ]
-    sx, sy = panel_x + 16, 494
+    sx, sy = panel_x + 16, 520
     for i, (c, name) in enumerate(swatches):
         col = i % 2
         row = i // 2
-        rx = sx + col*210
-        ry = sy + row*28
+        rx = sx + col*322
+        ry = sy + row*26
         pygame.draw.rect(sheet, INK, (rx-1, ry-1, 24, 24))
         pygame.draw.rect(sheet, c, (rx, ry, 22, 22))
         sheet.blit(font_sm.render("%s  %d,%d,%d" % (name, *c), True, LABEL), (rx+30, ry+5))
 
-    # --- a small inverted-vs-flipped face-read aid under the palette ---
-    pygame.draw.rect(sheet, PANEL, (panel_x, 660, W - panel_x - 16, 188))
-    sheet.blit(font.render("Face-read aid", True, LABEL), (panel_x + 16, 670))
-    sheet.blit(font_sm.render("as-placed (inverted body) vs the head alone — eyes-over-mouth", True, LABEL_DIM), (panel_x + 16, 694))
-    # head-only crop, larger, to prove the face reads
-    headbig = pygame.Surface((90*SS, 90*SS), pygame.SRCALPHA)
-    draw_vetala(headbig, 45*SS, (45 - 70 + 30)*SS, 1.0*SS)  # shift so head sits in frame
-    headsmall = pygame.transform.smoothscale(headbig, (180, 180))
-    pygame.draw.rect(sheet, DAY_SKY, (panel_x + 24, 716, 180, 124))
-    sheet.blit(headsmall, (panel_x + 24, 716 - 56))
-    pygame.draw.rect(sheet, INK, (panel_x + 24, 716, 180, 124), 1)
+    # --- face-read aid: the head alone, day + night, proving eyes-over-mouth ---
+    pygame.draw.rect(sheet, PANEL, (panel_x, 690, pw, 174))
+    sheet.blit(font.render("Face-read aid — head alone (eyes-over-mouth)", True, LABEL), (panel_x + 16, 700))
+    sheet.blit(font_sm.render("bright ivory ball + 2 socketed amber eyes + 3 big fangs over a dark mouth-gap", True, LABEL_DIM), (panel_x + 16, 724))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    def head_crop():
+        # frame the enlarged head; figure head_cy ~= cy+70, so centre the box there
+        big = pygame.Surface((96*SS, 96*SS), pygame.SRCALPHA)
+        draw_vetala(big, 48*SS, (48 - 74)*SS, 1.0*SS)  # shift body up so head sits in frame
+        small = pygame.transform.smoothscale(big, (132, 132))
+        return grow_outline(small, INK + (255,), 1)
+
+    hcrop = head_crop()
+    hy = 742
+    pygame.draw.rect(sheet, DAY_SKY, (panel_x + 24, hy, 132, 116))
+    sheet.blit(hcrop, (panel_x + 24, hy - 12))
+    pygame.draw.rect(sheet, INK, (panel_x + 24, hy, 132, 116), 1)
+    sheet.blit(font_sm.render("day", True, LABEL_DIM), (panel_x + 24, hy + 118))
+    nhx = panel_x + 24 + 160
+    pygame.draw.rect(sheet, NIGHT_SKY, (nhx, hy, 132, 116))
+    sheet.blit(hcrop, (nhx, hy - 12))
+    pygame.draw.rect(sheet, INK, (nhx, hy, 132, 116), 1)
+    sheet.blit(font_sm.render("night", True, LABEL_DIM), (nhx, hy + 118))
+
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
