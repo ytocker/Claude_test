@@ -8,15 +8,22 @@ Procedural Pygame, house style: chibi proportions, flat saturated fills + hard
 TRIAD (never soft gradient), silhouette POP via a 1px outline grown from the
 alpha mask, supersample (SS=4) -> smoothscale.
 
-Red-split pin honoured: chile-red `(214,86,44)` is a SMALL accent ONLY (hatband
-+ one chile lobe), pushed oranger to stay off Zapateada's pink-rose. The HERO
-body mass is masa-gold/corn-tan `(228,186,96)` (food + tamale) with warm-bone
-ribcage. Lead read is EXPOSED ANATOMY: the barrel ribcage spreads OPEN like
-cupboard doors framing an interior cluster of exactly 3 fat food lobes.
+Round 2 re-engineers the signature read so it survives to true 32px: the belly
+is now a bold DARK interior CAVITY (a deep ink pocket, an arch of negative
+space) framed by only ~3 THICK open ribs per side swung like cupboard doors,
+with 3 HIGH-CONTRAST food lobes popping PROUD of the dark pocket. Negative
+space carries the tell the way Risón's dropped jaw and Papelito's punched
+sockets do — even rib-banding is gone. The figure is re-weighted bottom-heavy
+(wide bowed femurs + broad planted feet + fuller pelvis) and the vendor hat is
+pushed to a flat, wide, distinctly low brim so it reads OFF the Mariachi anchor.
+
+Red-split pin (a clean PASS in round 1) is UNTOUCHED: chile-red `(214,86,44)`
+stays a SMALL accent ONLY (hatband + the one cigar-chile in the jaw + the one
+interior chile lobe). HERO mass stays masa-gold/bone.
 
 Sheet shows the creature AND its prop->pillar mirror (market-pole ristra +
-round comal cap) at large + 32px scales, plus a pure-black silhouette panel and
-the pinned palette swatches.
+round comal cap) at large + 32px scales, a pure-black silhouette panel, the
+true 32px chip on BOTH a day-ochre AND a night sky, and the pinned swatches.
 
 Run headless:  SDL_VIDEODRIVER=dummy python render_comelona.py
 """
@@ -47,11 +54,15 @@ OCHRE_SHEEN = (244, 198, 124)   # straw-hat top-left sheen
 CHILE_CORE  = (132,  46,  24)   # dark-core under chile-red
 CHILE_SHEEN = (236, 138,  92)   # chile-red top-left sheen
 CILANTRO_D  = ( 80, 120,  52)   # cilantro garnish shade
-# Pan-dulce concha gets a warm pinkish tint that still lives in the gold family
-# so the red read stays demoted -- it must not compete with the chile accent.
-PAN_PINK    = (224, 152, 118)   # pan-dulce concha shell glaze
-PAN_PINK_D  = (164,  98,  74)
-PAN_PINK_S  = (244, 196, 168)
+# The cavity interior is a near-black warm ink so the food lobes read as "stuff
+# in a dark cupboard" -- the negative-space tell. Deeper than the bone core.
+CAVITY      = ( 26,  18,  18)
+CAVITY_EDGE = ( 14,  10,  10)
+# Pan-dulce concha gets a CREAM read (max value contrast against the dark
+# cavity) with a faint warm tint, so the red read stays demoted.
+PAN_CREAM   = (244, 234, 208)
+PAN_CREAM_D = (196, 178, 144)
+PAN_CREAM_S = (252, 246, 230)
 
 SS = 4   # supersample factor
 
@@ -100,24 +111,25 @@ def grow_outline(surf, color=INK, thickness=1):
 # -- the creature -------------------------------------------------------------
 
 def draw_comelona(target_size):
-    """Squat bottom-heavy pear vendor calaca: small skull under a flat straw
-    vendor hat with a chile clenched cigar-style in the grin; a wide barrel
-    RIBCAGE spread OPEN like cupboard doors framing an interior cluster of 3 fat
-    food lobes (pan dulce, one chile, a round tamale); thin pelvis + bowed bone
-    legs; one bony hand thrust forward offering a fat tamale. The open-belly-
-    with-food-inside read is the signature -- gluttony through bared bone."""
+    """Squat bottom-heavy pear vendor calaca. The signature read (round 2):
+    a bold DARK interior CAVITY in the belly -- a deep ink pocket framed by only
+    ~3 THICK ribs per side swung open like cupboard doors -- with 3 HIGH-CONTRAST
+    food lobes (cream pan dulce, masa-gold tamale, one chile-red lobe) sitting
+    PROUD of the pocket. Negative space (the dark hole) carries the tell at 32px,
+    not even rib-banding. Wide bowed femurs + broad planted feet anchor the
+    bottom-heavy mass; one bony hand offers a fat tamale (vendor + asymmetry)."""
     S = target_size * SS
     surf = pygame.Surface((S, S), pygame.SRCALPHA)
     cx = S * 0.5
 
     # Layout anchors (fractions of S). Bottom-heavy: small high skull, wide low
-    # ribcage belly, short legs -- the pear silhouette.
-    hat_y   = S * 0.205
-    head_y  = S * 0.275
-    belly_y = S * 0.575   # centre of the open ribcage pantry (dominant mass)
-    hip_y   = S * 0.745
+    # ribcage belly, short splayed legs -- the pear silhouette.
+    hat_y   = S * 0.200
+    head_y  = S * 0.270
+    belly_y = S * 0.560   # centre of the open ribcage pantry (dominant mass)
+    hip_y   = S * 0.740
 
-    # ---- BONE LEGS: short, bowed femurs (drawn first, pelvis overlaps hips) ---
+    # ---- BONE LEGS: short, WIDELY bowed femurs for a heavy planted base -------
     def bone_limb(p0, p1, p2, w):
         for a, b in ((p0, p1), (p1, p2)):
             pygame.draw.line(surf, INK, a, b, int(w + SS * 1.6))
@@ -128,137 +140,158 @@ def draw_comelona(target_size):
             triad_ellipse(surf, p[0], p[1], w * 0.62, w * 0.62,
                           BONE_CORE, BONE, SHEEN)
 
-    legw = S * 0.062
-    # Bowed femur legs splayed slightly so the squat base is wide -- a planted,
-    # heavy vendor stance, not a dancer's kick.
-    bone_limb((cx - S * 0.085, hip_y),
-              (cx - S * 0.155, S * 0.85),
-              (cx - S * 0.115, S * 0.95), legw)
-    bone_limb((cx + S * 0.085, hip_y),
-              (cx + S * 0.155, S * 0.85),
-              (cx + S * 0.115, S * 0.95), legw)
-    # Flat bone feet, toes outward.
-    for fx in (cx - S * 0.115, cx + S * 0.115):
-        triad_ellipse(surf, fx + S * 0.02, S * 0.955, S * 0.072, S * 0.038,
-                      BONE_CORE, BONE, SHEEN)
+    legw = S * 0.072
+    # Wide-bowed femurs splayed hard outward so the squat base out-widths the
+    # chest -- bottom-heavy stance, not the round-1 spindly/top-heavy read.
+    bone_limb((cx - S * 0.105, hip_y),
+              (cx - S * 0.205, S * 0.855),
+              (cx - S * 0.155, S * 0.95), legw)
+    bone_limb((cx + S * 0.105, hip_y),
+              (cx + S * 0.205, S * 0.855),
+              (cx + S * 0.155, S * 0.95), legw)
+    # Broad flat bone feet, toes outward -- wide footprint anchors the pear.
+    for fx, sgn in ((cx - S * 0.155, -1), (cx + S * 0.155, 1)):
+        triad_ellipse(surf, fx + sgn * S * 0.03, S * 0.958,
+                      S * 0.094, S * 0.044, BONE_CORE, BONE, SHEEN)
 
-    # ---- THIN PELVIS (the narrow waist of the pear, under the wide belly) -----
+    # ---- FULL PELVIS (broad, so the lower body carries weight) ----------------
     pelvis = [
-        (cx - S * 0.115, hip_y - S * 0.05),
-        (cx + S * 0.115, hip_y - S * 0.05),
-        (cx + S * 0.085, hip_y + S * 0.045),
-        (cx,             hip_y + S * 0.02),
-        (cx - S * 0.085, hip_y + S * 0.045),
+        (cx - S * 0.150, hip_y - S * 0.06),
+        (cx + S * 0.150, hip_y - S * 0.06),
+        (cx + S * 0.120, hip_y + S * 0.060),
+        (cx,             hip_y + S * 0.030),
+        (cx - S * 0.120, hip_y + S * 0.060),
     ]
     triad_poly(surf, pelvis, BONE_CORE, BONE, SHEEN)
     # Pelvic eye-holes (iliac fossae) -- bone read.
     for sx in (-1, 1):
-        _ell(surf, INK, cx + sx * S * 0.058, hip_y - S * 0.005,
-             S * 0.026, S * 0.034)
+        _ell(surf, INK, cx + sx * S * 0.072, hip_y - S * 0.008,
+             S * 0.030, S * 0.040)
 
-    # ---- OPEN RIBCAGE PANTRY (the dominant mass + signature read) -------------
-    # Back wall: warm-bone barrel that the cage doors swing off, with the spine
-    # visible up the back. Drawn before the food cluster so food sits INSIDE.
+    # ---- OPEN RIBCAGE PANTRY (the dominant mass + signature read, REBUILT) ----
+    # Step 1: the bone barrel BACK WALL the cupboard doors swing off. Wider than
+    # round 1 so the belly out-masses the head -> bottom-heavy.
     back = [
-        (cx - S * 0.225, belly_y - S * 0.135),
-        (cx + S * 0.225, belly_y - S * 0.135),
-        (cx + S * 0.205, belly_y + S * 0.165),
-        (cx,             belly_y + S * 0.205),
-        (cx - S * 0.205, belly_y + S * 0.165),
+        (cx - S * 0.250, belly_y - S * 0.150),
+        (cx + S * 0.250, belly_y - S * 0.150),
+        (cx + S * 0.230, belly_y + S * 0.180),
+        (cx,             belly_y + S * 0.225),
+        (cx - S * 0.230, belly_y + S * 0.180),
     ]
     triad_poly(surf, back, BONE_CORE, BONE_SHADE, BONE,
-               sheen_pts=[(cx - S * 0.205, belly_y - S * 0.11),
-                          (cx - S * 0.06,  belly_y - S * 0.12),
-                          (cx - S * 0.10,  belly_y + S * 0.10),
-                          (cx - S * 0.18,  belly_y + S * 0.09)])
-    # Spine ticks up the centre-back, peeking between the food lobes' gaps.
-    for i in range(5):
-        sy = belly_y - S * 0.10 + i * S * 0.06
-        _ell(surf, BONE_SHADE, cx, sy, S * 0.022, S * 0.018)
-        _ell(surf, INK, cx, sy, S * 0.022, S * 0.018)
+               sheen_pts=[(cx - S * 0.225, belly_y - S * 0.12),
+                          (cx - S * 0.07,  belly_y - S * 0.13),
+                          (cx - S * 0.11,  belly_y + S * 0.10),
+                          (cx - S * 0.20,  belly_y + S * 0.09)])
 
-    # INTERIOR FOOD CLUSTER -- exactly 3 FAT lobes (brief cap: 4th garnish
-    # dropped to avoid 32px noise). Gold/bone hero mass; chile is the ONE small
-    # red. Each lobe gets the hard triad so the pantry reads busy but legible.
-    # Lobe 1: round tamale (masa-gold husk-wrapped) -- lower-centre, biggest.
-    triad_ellipse(surf, cx + S * 0.01, belly_y + S * 0.055,
-                  S * 0.115, S * 0.10, GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
-    # Husk-tie ink ticks so the tamale reads as wrapped, not a plain blob.
-    for k in (-1, 0, 1):
-        pygame.draw.line(surf, BONE_SHADE,
-                         (cx + S * 0.01 + k * S * 0.03, belly_y - S * 0.03),
-                         (cx + S * 0.01 + k * S * 0.045, belly_y + S * 0.15),
-                         max(1, int(SS * 0.8)))
-    # Lobe 2: pan dulce concha (upper-left) -- warm pink glaze in the gold family
-    # with a cross-hatch shell, so it's clearly bread, not a second chile.
-    pcx, pcy = cx - S * 0.10, belly_y - S * 0.045
-    triad_ellipse(surf, pcx, pcy, S * 0.082, S * 0.078,
-                  PAN_PINK_D, PAN_PINK, PAN_PINK_S)
-    for k in (-1, 0, 1):
-        pygame.draw.line(surf, PAN_PINK_D,
-                         (pcx - S * 0.05, pcy + k * S * 0.026),
-                         (pcx + S * 0.05, pcy + k * S * 0.026), max(1, int(SS)))
-        pygame.draw.line(surf, PAN_PINK_D,
-                         (pcx + k * S * 0.026, pcy - S * 0.05),
-                         (pcx + k * S * 0.026, pcy + S * 0.05), max(1, int(SS)))
-    # Lobe 3: ONE chile (upper-right) -- the SMALL red accent, oranger so it
-    # stays off Zapateada's pink-rose. A curved pod with a green cilantro stem
-    # cap to anchor it as produce, not the body's hue.
-    chx, chy = cx + S * 0.115, belly_y - S * 0.055
+    # Step 2: the bold DARK interior CAVITY -- a single deep ink pocket carved
+    # into the belly. This negative-space hole IS the silhouette tell; it must
+    # read as a black pocket at 32px, framed by the bone barrel around it. Built
+    # as a rounded arch (wide top, tapered bottom) so it reads as an open cupboard
+    # mouth, not a rib gap.
+    cav_w = S * 0.190
+    cav_top = belly_y - S * 0.118
+    cav_bot = belly_y + S * 0.175
+    cavity = [
+        (cx - cav_w, cav_top + S * 0.020),
+        (cx - cav_w * 0.78, cav_top - S * 0.012),
+        (cx,            cav_top - S * 0.022),
+        (cx + cav_w * 0.78, cav_top - S * 0.012),
+        (cx + cav_w, cav_top + S * 0.020),
+        (cx + cav_w * 0.86, cav_bot - S * 0.05),
+        (cx + cav_w * 0.40, cav_bot),
+        (cx - cav_w * 0.40, cav_bot),
+        (cx - cav_w * 0.86, cav_bot - S * 0.05),
+    ]
+    # Ink rim then the near-black cavity fill -- deep, flat, no gradient.
+    pygame.draw.polygon(surf, INK, cavity)
+    inner = [(cx + (p[0] - cx) * 0.90, p[1] + (belly_y - p[1]) * 0.06)
+             for p in cavity]
+    pygame.draw.polygon(surf, CAVITY_EDGE, inner)
+    inner2 = [(cx + (p[0] - cx) * 0.82, p[1] + (belly_y - p[1]) * 0.10)
+              for p in cavity]
+    pygame.draw.polygon(surf, CAVITY, inner2)
+    # A short vertical spine tick at the very back of the dark pocket so the
+    # bone read persists inside the hole without breaking the dark mass.
+    for i in range(3):
+        sy = cav_top + S * 0.04 + i * S * 0.075
+        _ell(surf, BONE_SHADE, cx, sy, S * 0.018, S * 0.014)
+
+    # Step 3: 3 HIGH-CONTRAST food lobes sitting PROUD of the dark pocket. Each
+    # is a fat round blob with max value contrast against the cavity + its own
+    # sheen dot, so it reads as "stuff inside the chest" at 1x, not texture.
+    # 3 lobes MAX (brief drops the 4th garnish -- hold that line).
+    # Lobe A: CREAM pan-dulce concha, upper-left -- the brightest lobe (max pop).
+    pcx, pcy = cx - S * 0.085, belly_y - S * 0.020
+    triad_ellipse(surf, pcx, pcy, S * 0.090, S * 0.085,
+                  PAN_CREAM_D, PAN_CREAM, PAN_CREAM_S)
+    for k in (-1, 1):   # concha shell cross-score (few + bold so it survives)
+        pygame.draw.line(surf, PAN_CREAM_D,
+                         (pcx - S * 0.055, pcy + k * S * 0.030),
+                         (pcx + S * 0.055, pcy + k * S * 0.030), max(1, int(SS)))
+        pygame.draw.line(surf, PAN_CREAM_D,
+                         (pcx + k * S * 0.030, pcy - S * 0.055),
+                         (pcx + k * S * 0.030, pcy + S * 0.055), max(1, int(SS)))
+    # Lobe B: masa-GOLD round tamale, lower-centre -- the biggest, hero hue.
+    tax, tay = cx + S * 0.055, belly_y + S * 0.085
+    triad_ellipse(surf, tax, tay, S * 0.108, S * 0.098,
+                  GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
+    for k in (-1, 0, 1):   # husk ties so it reads wrapped, bold + few
+        pygame.draw.line(surf, GOLD_CORE,
+                         (tax + k * S * 0.035, tay - S * 0.085),
+                         (tax + k * S * 0.05, tay + S * 0.085),
+                         max(1, int(SS * 1.1)))
+    # Lobe C: the ONE chile-red lobe, upper-right -- the single interior red
+    # accent (oranger, stays off Zapateada's pink-rose), with a cilantro stem.
+    chx, chy = cx + S * 0.108, belly_y - S * 0.058
     chile_pod = [
-        (chx - S * 0.018, chy - S * 0.07),
-        (chx + S * 0.045, chy - S * 0.04),
-        (chx + S * 0.06,  chy + S * 0.035),
-        (chx + S * 0.02,  chy + S * 0.085),
-        (chx - S * 0.03,  chy + S * 0.05),
-        (chx - S * 0.045, chy - S * 0.01),
+        (chx - S * 0.020, chy - S * 0.060),
+        (chx + S * 0.050, chy - S * 0.030),
+        (chx + S * 0.066, chy + S * 0.040),
+        (chx + S * 0.020, chy + S * 0.085),
+        (chx - S * 0.030, chy + S * 0.045),
+        (chx - S * 0.048, chy - S * 0.012),
     ]
     triad_poly(surf, chile_pod, CHILE_CORE, CHILE, CHILE_SHEEN)
-    pygame.draw.line(surf, CILANTRO_D,
-                     (chx - S * 0.018, chy - S * 0.07),
-                     (chx - S * 0.035, chy - S * 0.105), max(2, int(SS * 1.4)))
     pygame.draw.line(surf, CILANTRO,
-                     (chx - S * 0.018, chy - S * 0.07),
-                     (chx - S * 0.035, chy - S * 0.105), max(1, int(SS * 0.7)))
+                     (chx - S * 0.020, chy - S * 0.060),
+                     (chx - S * 0.036, chy - S * 0.095), max(1, int(SS)))
 
-    # CAGE DOORS: the ribs spread OPEN like cupboard doors, in front of the food
-    # cluster so they FRAME it. Two stacks of curved rib bands per side, hinged
-    # at the spine and swinging outward -- the "open cupboard" tell. Hard triad
-    # on every rib: dark-core trough, flat bone face, top-left sheen lip.
-    def rib(side, i, n):
+    # Step 4: only ~3 THICK ribs per side, swung OPEN like cupboard doors, drawn
+    # IN FRONT of the food so they FRAME the lit cluster against the dark hole.
+    # Few + fat (vs round-1's even thin banding) so each rib is a distinct door
+    # slat, not a stripe. Hinged at the rim, fanning outward top->bottom.
+    def door_rib(side, i, n):
         t = i / (n - 1)
-        ry0 = belly_y - S * 0.115 + t * S * 0.26
-        # Outward swing: lower ribs reach wider, like flung-open doors.
-        reach = S * (0.10 + 0.13 * (0.4 + 0.6 * t))
-        hinge_x = cx + side * S * 0.028
-        tip_x = cx + side * reach
-        curve = S * 0.05 * (1.0 - abs(t - 0.5) * 1.2)
-        # Rib as a fat curved bone bar: trough core, bone face, sheen lip.
-        thick = S * 0.030
+        ry0 = belly_y - S * 0.085 + t * S * 0.205
+        # Lower ribs reach wider -- doors flung open from the top hinge.
+        reach = S * (0.135 + 0.115 * t)
+        hinge_x = cx + side * cav_w * 0.96
+        tip_x = cx + side * (cav_w + reach * 0.55)
+        curve = S * 0.040 * (1.0 - abs(t - 0.5) * 1.1)
+        thick = S * 0.046   # THICK door slat
         pts = [
             (hinge_x, ry0 - thick),
-            (cx + side * reach * 0.55, ry0 - thick - curve),
-            (tip_x, ry0 - thick * 0.4 - curve * 0.4),
-            (tip_x, ry0 + thick * 0.6 - curve * 0.4),
-            (cx + side * reach * 0.55, ry0 + thick - curve),
+            (cx + side * (cav_w + reach * 0.3), ry0 - thick - curve),
+            (tip_x, ry0 - thick * 0.35 - curve * 0.4),
+            (tip_x, ry0 + thick * 0.7 - curve * 0.4),
+            (cx + side * (cav_w + reach * 0.3), ry0 + thick - curve),
             (hinge_x, ry0 + thick),
         ]
         triad_poly(surf, pts, BONE_CORE, BONE, SHEEN)
-        # Bright sheen lip along the TOP edge of each rib so curvature reads in
-        # flat banding (brief: curvature in flat banding, never gradient).
+        # Bright sheen lip along the TOP edge so curvature reads in flat banding.
         pygame.draw.line(surf, SHEEN,
                          (hinge_x, ry0 - thick * 0.5),
-                         (cx + side * reach * 0.6, ry0 - thick * 0.5 - curve),
-                         max(1, int(SS * 0.9)))
+                         (cx + side * (cav_w + reach * 0.35),
+                          ry0 - thick * 0.5 - curve),
+                         max(1, int(SS * 1.0)))
 
     for side in (-1, 1):
-        for i in range(4):
-            rib(side, i, 4)
-    # Hinge spine seam: a dark ink valley up the centre where the doors meet, so
-    # the "two doors swung open" read is unmistakable in silhouette.
-    pygame.draw.line(surf, INK,
-                     (cx, belly_y - S * 0.135),
-                     (cx, belly_y + S * 0.19), max(2, int(SS * 1.6)))
+        for i in range(3):
+            door_rib(side, i, 3)
+    # The cavity mouth keeps a crisp dark ink rim so the pocket edge stays bold
+    # against the framing ribs at 32px.
+    pygame.draw.polygon(surf, INK, cavity, max(2, int(SS * 1.4)))
 
     # ---- SKULL head (small, grinning, chile clenched cigar-style) ------------
     triad_ellipse(surf, cx, head_y, S * 0.128, S * 0.135,
@@ -292,8 +325,8 @@ def draw_comelona(target_size):
         tx = cx + k * S * 0.019
         pygame.draw.line(surf, INK, (tx, sm_y - S * 0.012),
                          (tx, sm_y + S * 0.013), max(1, int(SS)))
-    # Chile clenched like a CIGAR in the corner of the jaw (the gluttony tell,
-    # the second small chile-red accent on the face). Green stem flicks up.
+    # Chile clenched like a CIGAR in the corner of the jaw (gluttony tell, the
+    # second small chile-red face accent). Green stem flicks up.
     cgx, cgy = cx + S * 0.075, sm_y + S * 0.004
     cigar = [
         (cgx, cgy - S * 0.014),
@@ -306,44 +339,51 @@ def draw_comelona(target_size):
                      (cgx + S * 0.105, cgy - S * 0.017),
                      (cgx + S * 0.13, cgy - S * 0.04), max(1, int(SS * 0.9)))
 
-    # ---- FLAT STRAW VENDOR HAT (pumpkin-ochre, wide low brim + chile band) ----
-    _ell(surf, INK, cx, hat_y + S * 0.012, S * 0.255, S * 0.072)
-    triad_ellipse(surf, cx, hat_y, S * 0.25, S * 0.066,
+    # ---- FLAT WIDE VENDOR HAT (distinct from Mariachi: low flat brim + notch) --
+    # Pushed flatter and wider than the anchor's domed sombrero, so the gap-read
+    # between the two skeletons isn't just the body -- the hat silhouette differs
+    # too. Crown is a low truncated band (a vendor's straw hat), not a tall cone.
+    _ell(surf, INK, cx, hat_y + S * 0.014, S * 0.300, S * 0.060)
+    triad_ellipse(surf, cx, hat_y, S * 0.295, S * 0.054,
                   OCHRE_CORE, OCHRE_HAT, OCHRE_SHEEN)
-    # Woven straw radial ticks so the brim reads as straw, not felt.
-    for k in range(-5, 6):
-        bx = cx + k * S * 0.04
+    # Woven straw radial ticks so the wide brim reads as straw, not felt.
+    for k in range(-6, 7):
+        bx = cx + k * S * 0.042
         pygame.draw.line(surf, OCHRE_CORE,
-                         (bx, hat_y - S * 0.02), (bx, hat_y + S * 0.02),
+                         (bx, hat_y - S * 0.016), (bx, hat_y + S * 0.016),
                          max(1, int(SS * 0.7)))
-    # Low rounded crown.
+    # LOW flat-topped crown (a short straw band, distinctly un-domed).
     crown = [
-        (cx - S * 0.095, hat_y - S * 0.008),
-        (cx - S * 0.075, hat_y - S * 0.062),
-        (cx - S * 0.04,  hat_y - S * 0.082),
-        (cx + S * 0.04,  hat_y - S * 0.082),
-        (cx + S * 0.075, hat_y - S * 0.062),
-        (cx + S * 0.095, hat_y - S * 0.008),
+        (cx - S * 0.085, hat_y - S * 0.006),
+        (cx - S * 0.072, hat_y - S * 0.052),
+        (cx - S * 0.050, hat_y - S * 0.064),
+        (cx + S * 0.050, hat_y - S * 0.064),
+        (cx + S * 0.072, hat_y - S * 0.052),
+        (cx + S * 0.085, hat_y - S * 0.006),
     ]
     triad_poly(surf, crown, OCHRE_CORE, OCHRE_HAT, OCHRE_SHEEN,
-               sheen_pts=[(cx - S * 0.08, hat_y - S * 0.012),
-                          (cx - S * 0.045, hat_y - S * 0.072),
-                          (cx - S * 0.01, hat_y - S * 0.078),
-                          (cx - S * 0.035, hat_y - S * 0.012)])
-    # Chile-red HATBAND -- the one designated red accent on the hat.
+               sheen_pts=[(cx - S * 0.072, hat_y - S * 0.010),
+                          (cx - S * 0.052, hat_y - S * 0.056),
+                          (cx - S * 0.020, hat_y - S * 0.060),
+                          (cx - S * 0.040, hat_y - S * 0.010)])
+    # Chile-red HATBAND with a distinct front NOTCH (a V-dip) -- a hat tell that
+    # differs from the anchor's plain band, and the one designated hat red.
     pygame.draw.line(surf, CHILE,
-                     (cx - S * 0.082, hat_y - S * 0.014),
-                     (cx + S * 0.082, hat_y - S * 0.014), max(2, int(SS * 2.0)))
+                     (cx - S * 0.075, hat_y - S * 0.012),
+                     (cx + S * 0.075, hat_y - S * 0.012), max(2, int(SS * 2.0)))
+    pygame.draw.polygon(surf, CHILE, [
+        (cx - S * 0.018, hat_y - S * 0.012),
+        (cx + S * 0.018, hat_y - S * 0.012),
+        (cx,             hat_y + S * 0.014),
+    ])
     pygame.draw.line(surf, CHILE_SHEEN,
-                     (cx - S * 0.082, hat_y - S * 0.02),
-                     (cx + S * 0.04, hat_y - S * 0.02), max(1, int(SS * 0.7)))
+                     (cx - S * 0.075, hat_y - S * 0.018),
+                     (cx + S * 0.03, hat_y - S * 0.018), max(1, int(SS * 0.7)))
 
     # ---- OFFERED-TAMALE HAND thrust forward (vendor read + asymmetry tell) ----
-    # One bony arm reaches out player-right holding a fat masa-gold tamale up to
-    # the viewer -- the "vendor offering food" gesture that breaks symmetry.
-    sh_x, sh_y = cx + S * 0.205, belly_y - S * 0.05
-    el_x, el_y = cx + S * 0.31, belly_y + S * 0.01
-    hd_x, hd_y = cx + S * 0.37, belly_y + S * 0.075
+    sh_x, sh_y = cx + S * 0.235, belly_y - S * 0.050
+    el_x, el_y = cx + S * 0.335, belly_y + S * 0.010
+    hd_x, hd_y = cx + S * 0.395, belly_y + S * 0.075
     for a, b in (((sh_x, sh_y), (el_x, el_y)), ((el_x, el_y), (hd_x, hd_y))):
         pygame.draw.line(surf, INK, a, b, int(S * 0.05 + SS * 1.6))
         pygame.draw.line(surf, BONE_SHADE, a, b, int(S * 0.05))
@@ -354,10 +394,10 @@ def draw_comelona(target_size):
     triad_ellipse(surf, hd_x + S * 0.02, hd_y - S * 0.01,
                   S * 0.078, S * 0.068, GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
     for k in (-1, 0, 1):
-        pygame.draw.line(surf, BONE_SHADE,
+        pygame.draw.line(surf, GOLD_CORE,
                          (hd_x + S * 0.02 + k * S * 0.022, hd_y - S * 0.07),
                          (hd_x + S * 0.02 + k * S * 0.03, hd_y + S * 0.04),
-                         max(1, int(SS * 0.8)))
+                         max(1, int(SS * 0.9)))
     # A few bony fingers cupping the tamale underneath.
     for f in range(3):
         fx = hd_x - S * 0.02 + f * S * 0.026
@@ -374,10 +414,12 @@ def draw_comelona(target_size):
 
 def draw_pillar(width, height, top_cap=True):
     """Market-stall vendor pole: a wooden pole strung with a ristra of dried
-    chiles = repeatable shaft (chile banding); a round comal griddle topped with
-    a stacked-tamale dome = detachable gap-edge cap. Mirror is clean -- the
-    round comal sits on-axis and symmetric (the creature is the bottom-heavy
-    one; the prop is balanced), so the cap never goes top-heavy."""
+    chiles = repeatable shaft (chile banding); a wide round comal griddle topped
+    with a stacked-tamale dome = detachable gap-edge cap. Mirror is clean -- the
+    comal sits on-axis and symmetric (the creature is the bottom-heavy one; the
+    prop is balanced), so the cap never goes top-heavy. The comal disc is now
+    pushed WIDER than the shaft (a clear flat-griddle silhouette breaking the
+    shaft round) so the gap-edge cap reads as a separate element, not a bead."""
     W = width * SS
     H = height * SS
     cx = W * 0.5
@@ -413,30 +455,38 @@ def draw_pillar(width, height, top_cap=True):
             triad_ellipse(surf, cx, by + SS * 4, SS * 3.4, SS * 6,
                           GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
 
-    # Gap-edge cap: round comal griddle (on-axis, symmetric) with a stacked-
-    # tamale dome rising off it. Sized ~shaft +35% so the mirror stays balanced.
+    # Gap-edge cap: a WIDE flat comal griddle (on-axis, symmetric) clearly wider
+    # than the shaft, with a stacked-tamale dome breaking its round -- so the cap
+    # silhouette is unmistakably a separate flat-disc element, not body banding.
     if top_cap:
-        comal_r = pole_w * 0.95   # ~shaft width +35% per radius
-        cyp = H - comal_r - W * 0.04
-        # Dark iron comal disc.
-        triad_ellipse(surf, cx, cyp, comal_r, comal_r * 0.42,
-                      (40, 32, 28), (70, 58, 50), (120, 104, 90))
-        # Stacked-tamale dome (masa-gold) sitting on the comal -- gold hero mass.
-        triad_ellipse(surf, cx, cyp - comal_r * 0.32,
-                      comal_r * 0.66, comal_r * 0.6,
+        comal_r = pole_w * 1.45   # pushed wide -- the disc out-widths the shaft
+        cyp = H - comal_r * 0.42 - W * 0.06
+        # Dark iron comal disc -- a flat, very oblate plate (low ry) so it reads
+        # as a griddle seen edge-on, distinct from the round shaft beads.
+        triad_ellipse(surf, cx, cyp, comal_r, comal_r * 0.30,
+                      (38, 30, 26), (66, 54, 46), (118, 102, 88))
+        # A bright iron rim highlight along the disc top so the flat plate pops.
+        pygame.draw.arc(surf, (150, 132, 112),
+                        (int(cx - comal_r), int(cyp - comal_r * 0.30),
+                         int(comal_r * 2), int(comal_r * 0.60)),
+                        math.pi * 1.05, math.pi * 1.95, max(1, int(SS * 1.4)))
+        # Stacked-tamale dome (masa-gold) sitting on the comal -- gold hero mass,
+        # narrower than the disc so the disc clearly frames it.
+        triad_ellipse(surf, cx, cyp - comal_r * 0.40,
+                      comal_r * 0.56, comal_r * 0.52,
                       GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
-        triad_ellipse(surf, cx, cyp - comal_r * 0.72,
-                      comal_r * 0.44, comal_r * 0.42,
+        triad_ellipse(surf, cx, cyp - comal_r * 0.78,
+                      comal_r * 0.38, comal_r * 0.38,
                       GOLD_CORE, MASA_GOLD, GOLD_SHEEN)
         # Husk ties on the dome.
         for k in (-1, 0, 1):
-            pygame.draw.line(surf, BONE_SHADE,
-                             (cx + k * comal_r * 0.22, cyp - comal_r * 0.95),
-                             (cx + k * comal_r * 0.28, cyp - comal_r * 0.05),
+            pygame.draw.line(surf, GOLD_CORE,
+                             (cx + k * comal_r * 0.20, cyp - comal_r * 0.95),
+                             (cx + k * comal_r * 0.26, cyp - comal_r * 0.10),
                              max(1, int(SS * 0.9)))
         # A single chile-red garnish on the dome top (accent, on-axis).
-        triad_ellipse(surf, cx, cyp - comal_r * 1.0,
-                      comal_r * 0.14, comal_r * 0.22,
+        triad_ellipse(surf, cx, cyp - comal_r * 1.02,
+                      comal_r * 0.12, comal_r * 0.20,
                       CHILE_CORE, CHILE, CHILE_SHEEN)
 
     grow_outline(surf, INK, 1)
@@ -459,8 +509,16 @@ def draw_silhouette(target_size):
 
 # -- sheet composition --------------------------------------------------------
 
+def _sky_panel(sheet, x, y, w, h, top, bot):
+    for yy in range(h):
+        t = yy / float(h)
+        col = tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(3))
+        pygame.draw.line(sheet, col, (x, y + yy), (x + w, y + yy))
+    pygame.draw.rect(sheet, (24, 20, 26), (x, y, w, h), 2)
+
+
 def build_sheet():
-    W, H = 1000, 720
+    W, H = 1000, 760
     sheet = pygame.Surface((W, H))
     sheet.fill((46, 40, 50))   # warm-dark neutral review backdrop
 
@@ -473,10 +531,10 @@ def build_sheet():
     def caption(txt, x, y, col=(208, 200, 210)):
         sheet.blit(small.render(txt, True, col), (x, y))
 
-    label("CALACA COMELONA — gluttonous Day-of-the-Dead street-food vendor  ·  round 1",
+    label("CALACA COMELONA — gluttonous Day-of-the-Dead street-food vendor  ·  round 2",
           18, 12, (250, 214, 130))
-    caption("LEAD: EXPOSED ANATOMY — open ribcage-pantry stuffed with 3 food lobes "
-            "· gold-led body, chile-red accent only", 18, 36)
+    caption("LEAD: EXPOSED ANATOMY — re-engineered as a DARK belly CAVITY + 3 lobes "
+            "PROUD of the pocket · gold-led, chile-red accent only", 18, 36)
 
     # Large creature.
     big = draw_comelona(300)
@@ -488,13 +546,13 @@ def build_sheet():
     sheet.blit(mid, (350, 60))
     caption("creature · 150px", 350, 214)
 
-    # 32px creature + 4x zoom.
+    # 32px creature + 4x zoom on the neutral mat.
     tiny = draw_comelona(32)
     sheet.blit(tiny, (350, 244))
     caption("32px", 350, 280)
     zoom = pygame.transform.scale(tiny, (128, 128))
     sheet.blit(zoom, (392, 244))
-    caption("32px @4x", 392, 376)
+    caption("32px @4x (mat)", 392, 376)
 
     # Pure-black silhouette read.
     sil_big = draw_silhouette(150)
@@ -504,26 +562,25 @@ def build_sheet():
     sil_zoom = pygame.transform.scale(sil_tiny, (128, 128))
     sheet.blit(sil_zoom, (188, 408))
     caption("silhouette 32px @4x", 188, 540)
-    caption("read: bottom-heavy vendor, open belly", 188, 556)
+    caption("read: bottom-heavy, open belly hole", 188, 556)
 
-    # Warm OCHRE-DAY-SKY verification — confirm the open-cage gap + food cluster
-    # stay legible on a desert biome, not only on the dark review mat.
-    tiny_w = draw_comelona(32)
-    panel_x = 350
-    sky_top, sky_bot = (236, 196, 120), (210, 158, 92)
-    for yy in range(128):
-        t = yy / 128.0
-        col = tuple(int(sky_top[i] + (sky_bot[i] - sky_top[i]) * t) for i in range(3))
-        pygame.draw.line(sheet, col, (panel_x, 408 + yy), (panel_x + 128, 408 + yy))
-    pygame.draw.rect(sheet, (24, 20, 26), (panel_x, 408, 128, 128), 2)
-    sheet.blit(pygame.transform.scale(tiny_w, (128, 128)), (panel_x, 408))
-    caption("32px @4x on ochre day sky", panel_x, 540)
-    caption("cage gap + food cluster legible", panel_x, 556)
+    # TRUE 32px chip on BOTH a day-ochre AND a night sky (AD: prove the
+    # dark-cavity-plus-3-lobes read holds on both biome backdrops).
+    day_x = 350
+    _sky_panel(sheet, day_x, 408, 128, 128, (236, 196, 120), (210, 158, 92))
+    sheet.blit(pygame.transform.scale(draw_comelona(32), (128, 128)), (day_x, 408))
+    caption("32px @4x · ochre DAY sky", day_x, 540)
+
+    night_x = 492
+    _sky_panel(sheet, night_x, 408, 128, 128, (28, 30, 64), (52, 40, 78))
+    sheet.blit(pygame.transform.scale(draw_comelona(32), (128, 128)), (night_x, 408))
+    caption("32px @4x · NIGHT sky", night_x, 540)
+    caption("dark cavity + 3 lobes hold on both", day_x, 556)
 
     # Prop -> pillar mirror (market-pole ristra + comal cap).
-    px = 580
+    px = 660
     py = 60
-    cap_h = 92
+    cap_h = 100
     shaft_h = 150
     big_w = 64
     bot_cap = draw_pillar(big_w, cap_h, top_cap=True)
@@ -531,22 +588,23 @@ def build_sheet():
     top_cap = pygame.transform.flip(bot_cap, False, True)
     top_shaft = pygame.transform.flip(bot_shaft, False, True)
 
-    gap = 64
+    gap = 60
     sheet.blit(top_shaft, (px, py))
     sheet.blit(top_cap, (px, py + shaft_h))
     gap_y = py + shaft_h + cap_h
     sheet.blit(bot_cap, (px, gap_y + gap))
     sheet.blit(bot_shaft, (px, gap_y + gap + cap_h))
     caption("prop->pillar mirror", px - 4, py + shaft_h * 2 + cap_h * 2 + gap + 6)
-    caption("market pole + ristra · comal cap", px - 4, py + shaft_h * 2 + cap_h * 2 + gap + 22)
+    caption("market pole + ristra · WIDE comal cap", px - 4,
+            py + shaft_h * 2 + cap_h * 2 + gap + 22)
 
     # 32px pillar cap (judge the gap-edge read small).
-    tcap = draw_pillar(28, 42, top_cap=True)
-    sheet.blit(tcap, (px + 130, py + 20))
-    czoom = pygame.transform.scale(tcap, (112, 168))
-    sheet.blit(czoom, (px + 172, py + 20))
-    caption("cap 28px / @4x", px + 130, py + 196)
-    caption("comal cap ~shaft +35%", px + 130, py + 212)
+    tcap = draw_pillar(30, 46, top_cap=True)
+    sheet.blit(tcap, (px + 150, py + 20))
+    czoom = pygame.transform.scale(tcap, (120, 184))
+    sheet.blit(czoom, (px + 196, py + 20))
+    caption("cap 30px / @4x", px + 150, py + 212)
+    caption("comal disc out-widths shaft", px + 150, py + 228)
 
     # Palette swatch strip.
     sw_y = H - 52
@@ -566,6 +624,6 @@ def build_sheet():
 
 if __name__ == "__main__":
     out = build_sheet()
-    dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(out, dst)
     print("wrote", dst)
