@@ -198,8 +198,17 @@ def _head(surf, cx, cy, r, ss, *, night=False):
     gold (the lantern within), a small skull nose-hole, and a gentle bone tusk-
     grin. Scary-CUTE — drowsy, not menacing. `night` lifts the cool body value so
     the head stays a clean LIGHT-mauve blob against dark-blue night biomes."""
-    body = _shade_c(BODY, 14) if night else BODY
-    body_sheen = _shade_c(BODY_SHEEN, 8) if night else BODY_SHEEN
+    # Night lifts the cool body so it stays a light blob on dark sky; DAY instead
+    # cools+darkens the base ~1 value step (a touch more blue, a touch less value)
+    # so the ink lids + grille hold contrast against the bright-blue day sky and
+    # the head reads lantern-skull, not a pale blob (critique priority 2). The
+    # night/dusk balance is untouched.
+    if night:
+        body = _shade_c(BODY, 14)
+        body_sheen = _shade_c(BODY_SHEEN, 8)
+    else:
+        body = _shade_c((BODY[0] - 10, BODY[1] - 12, BODY[2] + 2), -14)
+        body_sheen = BODY_SHEEN
 
     # Cranium dome (cool mauve) — slightly squashed wide for a lantern/gourd read.
     _triad_circle(surf, cx, cy, r, body)
@@ -244,46 +253,60 @@ def _head(surf, cx, cy, r, ss, *, night=False):
                        (int(cx + r * 0.10), int(brow_y + r * 0.12))],
                       max(1, int(1.0 * ss)))
 
-    # — Eyes: big SLEEPY half-lidded sockets glowing a contained gold (the
-    #   lantern inside the skull). The sleepy beat is carried by a HARD INK
-    #   upper-lid bar across the top ~45% of each socket — a SHAPE tell that
-    #   survives downscale (directive 1) — with only a thin gold crescent of
-    #   glow showing beneath. Glow no longer does the expression's job.
+    # — Eyes: big SLEEPY heavy-lidded sockets glowing a contained gold (the
+    #   lantern inside the skull). The sleepy read is now carried by the SHAPE
+    #   of the socket itself: a WIDE SHORT slot (wider than tall) under a HEAVY
+    #   ink lid that covers the top ~58% — so the eye reads as a low crescent
+    #   smile-curve of glow, not a tall startled oval (critique priority 1).
     eye_dx = r * 0.46
-    eye_dy = r * 0.02
-    eye_r = r * 0.42
+    eye_dy = r * 0.06
+    eye_hw = r * 0.50          # socket is WIDE…
+    eye_hh = r * 0.30          # …and SHORT — wider than tall = drowsy slot
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
-        # Deep-mauve socket recess + a 1px ink rim so the socket edge is crisp.
-        pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(eye_r * 1.10))
-        pygame.draw.circle(surf, BODY_DK, (int(ex), int(ey)), int(eye_r * 1.0))
-        # Contained gold glow within the socket (warm only inside the eye).
-        gl = make_glow_surface(int(eye_r * 1.4), ORB,
+        # Deep-mauve socket recess as a WIDE SHORT ellipse + a 1px ink rim, so
+        # the resting socket shape already reads heavy-lidded, not round.
+        sock = pygame.Rect(0, 0, int(eye_hw * 2.20), int(eye_hh * 2.20))
+        sock.center = (int(ex), int(ey))
+        pygame.draw.ellipse(surf, INK, sock)
+        sock_i = pygame.Rect(0, 0, int(eye_hw * 2.0), int(eye_hh * 2.0))
+        sock_i.center = (int(ex), int(ey))
+        pygame.draw.ellipse(surf, BODY_DK, sock_i)
+        # Contained gold glow within the socket (warm only inside the eye),
+        # biased LOW so the bloom sits in the crescent under the lid.
+        gl = make_glow_surface(int(eye_hw * 1.3), ORB,
                                alpha_center=170 if night else 120, falloff=2.1)
-        surf.blit(gl, (int(ex - eye_r * 1.4), int(ey - eye_r * 1.4)),
+        surf.blit(gl, (int(ex - eye_hw * 1.3),
+                       int(ey + eye_hh * 0.30 - eye_hw * 1.3)),
                   special_flags=pygame.BLEND_ADD)
-        pygame.draw.circle(surf, ORB_DK, (int(ex), int(ey)), int(eye_r * 0.82))
-        pygame.draw.circle(surf, ORB, (int(ex), int(ey)), int(eye_r * 0.68))
+        # The gold itself is a WIDE LOW crescent-ellipse pooled at the bottom of
+        # the socket — a thin smile-curve of light, wider than it is tall.
+        gold = pygame.Rect(0, 0, int(eye_hw * 1.80), int(eye_hh * 1.30))
+        gold.center = (int(ex), int(ey + eye_hh * 0.40))
+        pygame.draw.ellipse(surf, ORB_DK, gold)
+        gold_i = gold.inflate(-int(eye_hw * 0.30), -int(eye_hh * 0.30))
+        pygame.draw.ellipse(surf, ORB, gold_i)
         pygame.draw.circle(surf, ORB_CORE,
-                           (int(ex + eye_r * 0.12), int(ey + eye_r * 0.22)),
-                           max(1, int(eye_r * 0.22)))
-        # HARD INK upper-lid bar covering the top ~45% of the socket — the
-        # half-closed sleepy SHAPE that holds at 32px. A filled circle-segment
-        # in INK, not a darker mauve, so the lid never reads as flesh.
-        lid = pygame.Surface((int(eye_r * 2.6), int(eye_r * 2.6)), pygame.SRCALPHA)
-        pygame.draw.circle(lid, INK, (int(eye_r * 1.3), int(eye_r * 1.3)),
-                           int(eye_r * 1.04))
-        # Mask off the lower ~45% so the drooping lid bar covers ~55% (sleepy).
-        cut = pygame.Rect(0, int(eye_r * 1.3 + eye_r * 0.14),
-                          int(eye_r * 2.6), int(eye_r * 1.6))
-        lid.fill((0, 0, 0, 0), cut)
-        surf.blit(lid, (int(ex - eye_r * 1.3), int(ey - eye_r * 1.3)))
-        # A thin lilac sheen lip on the lid's lower edge so the half-lid reads
-        # crisp + cute (a sleepy eyelash highlight, not a menacing slit).
+                           (int(ex + eye_hw * 0.10), int(ey + eye_hh * 0.55)),
+                           max(1, int(eye_hh * 0.30)))
+        # HEAVY INK upper-lid covering the top ~58% of the socket — the dominant
+        # SHAPE. A wide ellipse-segment in INK (never flesh) drooping low so the
+        # only gold left is a thin low crescent (the half-closed sleepy beat).
+        lw, lh = int(eye_hw * 2.6), int(eye_hh * 2.8)
+        lid = pygame.Surface((lw, lh), pygame.SRCALPHA)
+        pygame.draw.ellipse(lid, INK,
+                            pygame.Rect(0, 0, lw, int(eye_hh * 2.5)))
+        # Cut the lower portion so the heavy lid covers ~58% of the slot.
+        lid.fill((0, 0, 0, 0),
+                 pygame.Rect(0, int(eye_hh * 1.28), lw, lh))
+        surf.blit(lid, (int(ex - lw / 2),
+                        int(ey - eye_hh * 1.10)))
+        # A thin lilac sheen lip riding the lid's lower edge — a sleepy lash
+        # highlight that keeps the heavy-lid crescent crisp + cute.
         pygame.draw.line(surf, body_sheen,
-                         (int(ex - eye_r * 0.82), int(ey - eye_r * 0.02)),
-                         (int(ex + eye_r * 0.82), int(ey - eye_r * 0.06)),
-                         max(1, int(1.0 * ss)))
+                         (int(ex - eye_hw * 0.72), int(ey - eye_hh * 0.06)),
+                         (int(ex + eye_hw * 0.72), int(ey - eye_hh * 0.12)),
+                         max(1, int(1.2 * ss)))
 
     # — Nose: a small dark upside-down heart skull-hole between + below the eyes.
     nose_y = cy + r * 0.30
@@ -308,8 +331,11 @@ def _head(surf, cx, cy, r, ss, *, night=False):
     seat = seat_top + seat_bot[::-1]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in seat])
 
-    teeth = 5
-    gap = grin_hw * 0.14
+    # Even teeth (4) leave a fat ink GRILLE POST dead-center — the jack-o tell,
+    # fattened ~1px via a wider inter-tooth gap so the central post survives
+    # day-1x as a tell, not a smudge (critique priority 2).
+    teeth = 4
+    gap = grin_hw * 0.18
     tw = (grin_hw * 1.55 - gap * (teeth - 1)) / teeth
     th = grin_h * 0.58
     for i in range(teeth):
@@ -349,28 +375,31 @@ def _face_tell(surf, cx, cy, r, ss):
     with notched teeth so the lantern-skull tell holds. Gold doubles as the
     contained-warm tell at icon scale; the INK does the expression."""
     eye_dx = r * 0.46
-    eye_dy = r * 0.04
-    eye_rr = r * 0.30
+    eye_dy = r * 0.06
+    eye_hw = r * 0.40          # WIDE…
+    eye_hh = r * 0.24          # …SHORT — the heavy-lidded slot at icon scale
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
-        # Ink socket rim + gold pool, biased low (the crescent under the lid).
-        pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(eye_rr * 1.18))
-        pygame.draw.circle(surf, ORB, (int(ex), int(ey + eye_rr * 0.18)),
-                           int(eye_rr * 0.92))
+        # Ink socket rim (wide short) + a WIDE LOW gold crescent pooled at the
+        # bottom — wider than tall so it reads sleepy, not a round open eye.
+        rim = pygame.Rect(0, 0, int(eye_hw * 2.30), int(eye_hh * 2.30))
+        rim.center = (int(ex), int(ey))
+        pygame.draw.ellipse(surf, INK, rim)
+        gold = pygame.Rect(0, 0, int(eye_hw * 1.85), int(eye_hh * 1.50))
+        gold.center = (int(ex), int(ey + eye_hh * 0.42))
+        pygame.draw.ellipse(surf, ORB, gold)
         pygame.draw.circle(surf, ORB_CORE,
-                           (int(ex), int(ey + eye_rr * 0.30)),
-                           int(eye_rr * 0.40))
-        # HARD INK upper-lid bar covering the top ~50% — the sleepy SHAPE tell.
-        lid = pygame.Surface((int(eye_rr * 2.6), int(eye_rr * 2.6)),
-                             pygame.SRCALPHA)
-        pygame.draw.circle(lid, INK, (int(eye_rr * 1.3), int(eye_rr * 1.3)),
-                           int(eye_rr * 1.12))
-        # Cut line dropped LOW so the lid covers ~60% — thinner gold crescent =
-        # a stronger drowsy read that holds at true 32px.
+                           (int(ex), int(ey + eye_hh * 0.55)),
+                           max(1, int(eye_hh * 0.40)))
+        # HEAVY INK upper-lid covering the top ~58% — the dominant sleepy SHAPE
+        # tell that holds at true 32px (a thin gold crescent left beneath).
+        lw, lh = int(eye_hw * 2.6), int(eye_hh * 2.8)
+        lid = pygame.Surface((lw, lh), pygame.SRCALPHA)
+        pygame.draw.ellipse(lid, INK,
+                            pygame.Rect(0, 0, lw, int(eye_hh * 2.4)))
         lid.fill((0, 0, 0, 0),
-                 pygame.Rect(0, int(eye_rr * 1.3 + eye_rr * 0.30),
-                             int(eye_rr * 2.6), int(eye_rr * 1.4)))
-        surf.blit(lid, (int(ex - eye_rr * 1.3), int(ey - eye_rr * 1.3)))
+                 pygame.Rect(0, int(eye_hh * 1.18), lw, lh))
+        surf.blit(lid, (int(ex - lw / 2), int(ey - eye_hh * 1.05)))
 
     # A cracked-brow ink hint above the eyes (focal asymmetry at icon scale).
     pygame.draw.line(surf, INK,
@@ -391,12 +420,14 @@ def _face_tell(surf, cx, cy, r, ss):
         top.append((x, gy - gh * 0.5 + lift))
         bot.append((x, gy + gh * 0.5 + lift))
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in (top + bot[::-1])])
-    # Two bone tooth-notches punched into the grille so it reads jack-o, not slot.
-    for tx in (-r * 0.22, r * 0.22):
+    # Two bone tooth-notches spread a touch WIDER so the central ink GRILLE POST
+    # between them fattens ~1px — the jack-o tell that must survive day-1x
+    # against bright sky, not collapse to a smudge (critique priority 2).
+    for tx in (-r * 0.28, r * 0.28):
         xr = tx / gw
         ty = gy - gh * 0.5 + gh * 1.25 * (xr * xr)
-        rect = pygame.Rect(int(cx + tx - r * 0.07), int(ty + gh * 0.10),
-                           int(r * 0.14), int(gh * 0.62))
+        rect = pygame.Rect(int(cx + tx - r * 0.06), int(ty + gh * 0.10),
+                           int(r * 0.12), int(gh * 0.62))
         pygame.draw.rect(surf, BONE, rect)
 
 
@@ -562,7 +593,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((58, 56, 62))          # neutral grey bg
     _label(sheet, font,
-            "KRASUE  —  leyak-EPIC #1  —  cool dusk-mauve skull-lantern + warm-gold gut-orb STRING  —  round 2", 18, 12)
+            "KRASUE  —  leyak-EPIC #1  —  cool dusk-mauve skull-lantern + warm-gold gut-orb STRING  —  round 3", 18, 12)
     _label(sheet, small,
             "EPIC pipeline: rendered LARGE @ SS=6 then smoothscaled. Body COOL (mauve); firefly-gold confined STRICTLY to discrete gut-orbs. Orb-string IS the pillar.",
             18, 32, (210, 200, 218))
@@ -711,7 +742,7 @@ def main():
            18, SH - 44, (205, 196, 214))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
