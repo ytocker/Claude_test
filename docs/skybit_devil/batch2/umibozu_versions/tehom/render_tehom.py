@@ -293,18 +293,20 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
                 alpha=110 if night else 72, mult=0.85)
     # The iris: a sour-green disc with a dark rim.
     pygame.draw.circle(surf, GREEN_DK, (int(eye_x), int(eye_y)), max(2, int(eye_r)))
-    pygame.draw.circle(surf, GREEN, (int(eye_x), int(eye_y)), max(2, int(eye_r * 0.82)))
-    pygame.draw.circle(surf, GREEN_HOT, (int(eye_x), int(eye_y)), max(1, int(eye_r * 0.38)))
+    pygame.draw.circle(surf, GREEN, (int(eye_x), int(eye_y)), max(2, int(eye_r * 0.84)))
+    # Hot core kept SMALL + tight to the slit so the iris reads sour-GREEN (not a
+    # pale white-green wash). The pale GREEN_HOT is a sharp pip, not the eye body.
+    pygame.draw.circle(surf, GREEN_HOT, (int(eye_x), int(eye_y)), max(1, int(eye_r * 0.26)))
     # Vertical cat-slit pupil — the leviathan-within tell. Pure ink, fat enough to
     # read as the dark sclera-slit at 32px against the bright green iris.
     slit_w = max(2, int(eye_r * 0.30))
     pygame.draw.ellipse(surf, INK,
                         (int(eye_x - slit_w * 0.5), int(eye_y - eye_r * 0.78),
                          slit_w, int(eye_r * 1.56)))
-    # Glossy catch-light, top-left (the baby-cute beat).
+    # Glossy catch-light, top-left (the baby-cute beat) — a tiny crisp pip only.
     pygame.draw.circle(surf, GREEN_HOT,
                        (int(eye_x - eye_r * 0.34), int(eye_y - eye_r * 0.40)),
-                       max(1, int(eye_r * 0.24)))
+                       max(1, int(eye_r * 0.20)))
 
     # — One thin top-left rim SLIVER on the shell crown: the only lifted teal on
     #   the body. R1 used a big bright disc-crescent that lightened the whole egg;
@@ -517,8 +519,10 @@ def _egg_stone_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
         gx = lip_x + jit[i] * stone_w
         gy = lip_y + d * f * stone_h * 0.78
         gr = stone_w * (0.28 - 0.20 * f)    # tapers narrower into the gap
+        # Knocked back from R2 so the cap leak lanterns the gap without blooming
+        # into a halo — the same value discipline applied to the hero eye-zone.
         _green_glow(surf, gx, gy, gr, night=night,
-                    alpha=int((175 if night else 125) * (1.0 - 0.45 * f)))
+                    alpha=int((140 if night else 96) * (1.0 - 0.45 * f)))
     # The bright crack filament inside the leak — short, jagged, fading down.
     leak_seam = [(int(lip_x + jit[i] * stone_w * 0.6),
                   int(lip_y + d * (i / (n_leak - 1)) * stone_h * 0.72))
@@ -601,9 +605,9 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((44, 50, 56))
     _label(sheet, font,
-            "TEHOM-NO-TAMAGO  —  Umibozu-versions #5  —  abyssal leviathan-egg (vertical spiral egg)  —  round 2", 18, 12)
+            "TEHOM-NO-TAMAGO  —  Umibozu-versions #5  —  abyssal leviathan-egg (vertical spiral egg)  —  round 3", 18, 12)
     _label(sheet, small,
-            "R2 fixes: cap = ANGULAR cracked-SHARD (notches + jagged split) leaking green DOWN into gap (no antenna); hero whorl = ONE continuous logarithmic coil; shell value dropped to near-black so bone+green lead.",
+            "R3 fix: eye-zone HALO knocked back — thin cool bone lid RING (not a hot bone disc), tight cooled biolum glow, smaller hot iris pip; dark shell re-owns the socket. Iris slit + bone whorl stay the bright masses. Cap leak trimmed.",
             18, 32, (196, 210, 206))
 
     # — Cell A: BIG hero on an abyssal teal-indigo sky.
@@ -743,7 +747,7 @@ def main():
            18, SH - 22, (196, 210, 206))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
