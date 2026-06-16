@@ -242,17 +242,25 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     # Glow first (under the seam) so the crack reads as LIGHT LEAKING out of the
     # fracture — strongest at the split by the eye, swelling on the downward leak,
     # so it reads as a leak rather than an even-lit slot.
+    # Additive green glows stacked along the leak summed to near-WHITE (each
+    # BLEND_ADD blit piling GREEN's channels past clamp) — recreating one zone
+    # south the very halo r3 killed at the iris. Pulled per-point alpha + radius
+    # down hard so the leak lanterns a contained SOUR-GREEN fissure that never
+    # out-values the bone whorl.
     for gi, (gx, gy) in enumerate(crack_pts[2:]):
         falloff = 1.0 - 0.40 * (gi / max(1, len(crack_pts) - 3))
-        _green_glow(surf, gx, gy, rx * (0.21 * falloff), night=night,
-                    alpha=int((165 if night else 110) * falloff), mult=0.95)
+        _green_glow(surf, gx, gy, rx * (0.15 * falloff), night=night,
+                    alpha=int((84 if night else 46) * falloff), mult=0.6)
     # Dark crack seam (the gap in the shell) — full run.
     seam = [(int(x), int(y)) for x, y in crack_pts]
     pygame.draw.lines(surf, SHELL_DEEP, False, seam, max(3, int(4.6 * ss)))
     # The DOWNWARD leak below the eye is the bright green fissure (the co-focal).
     lower = seam[1:]
     pygame.draw.lines(surf, GREEN, False, lower, max(2, int(2.8 * ss)))
-    pygame.draw.lines(surf, GREEN_HOT, False, lower, max(1, int(1.1 * ss)))
+    # Hot white-green filament kept ONLY to the short run nearest the eye-origin,
+    # not the full downward leak — so the leak body stays sour-green instead of a
+    # near-white lightning line down the belly.
+    pygame.draw.lines(surf, GREEN_HOT, False, lower[:2], max(1, int(1.1 * ss)))
     # The upper crown crack stays a thin sour hairline (doesn't compete).
     pygame.draw.lines(surf, GREEN_DK, False, seam[:2], max(1, int(1.4 * ss)))
     # A couple of hairline branch cracks off the DOWNWARD seam (shell stress).
@@ -747,7 +755,7 @@ def main():
            18, SH - 22, (196, 210, 206))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_3.png")
+    out_path = os.path.join(out_dir, "round_4.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
