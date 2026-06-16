@@ -470,7 +470,7 @@ def main():
                            "skybit_reaper", "grim_sprout")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_2.png")
+    out_path = os.path.join(out_dir, "round_3.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
