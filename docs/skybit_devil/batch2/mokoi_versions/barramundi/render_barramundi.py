@@ -144,7 +144,10 @@ def _xray_skeleton(surf, cx, cy, body_hw, body_hh, ss, *, ribs=4):
     lozenge in the belly. No dense rib-comb — at gameplay scale a comb greys to
     mush, so the rib count and spacing are tuned so each rib still reads as its
     own stroke after the downscale. This is what makes the fish see-through."""
-    # The SPINE: one bold thick charcoal line, a shallow arc following the back.
+    # The SPINE must be the BRIGHTEST internal mass — a single thick, unbroken
+    # pipeclay bar so it out-values the eye and bakes to a clean ~2px bone at
+    # 32px. A thin charcoal centre-stroke reads it as ink-defined bone WITHOUT
+    # darkening the bar's overall value (kept much thinner than the pipeclay).
     spine_x0 = cx - body_hw * 0.66
     spine_x1 = cx + body_hw * 0.46
     spine_y = cy - body_hh * 0.30
@@ -156,26 +159,25 @@ def _xray_skeleton(surf, cx, cy, body_hw, body_hh, ss, *, ribs=4):
         # a gentle downward dip toward the tail so it tracks the body silhouette
         y = spine_y + body_hh * 0.20 * (t * t)
         spine_pts.append((x, y))
-    # First a pipeclay underlay so the charcoal spine reads as ink ON light bone.
-    pygame.draw.lines(surf, PIPECLAY, False,
-                      [(int(x), int(y)) for x, y in spine_pts], max(3, int(5.0 * ss)))
-    pygame.draw.lines(surf, CHAR_DK, False,
-                      [(int(x), int(y)) for x, y in spine_pts], max(2, int(3.0 * ss)))
+    spine_ipts = [(int(x), int(y)) for x, y in spine_pts]
+    pygame.draw.lines(surf, PIPECLAY, False, spine_ipts, max(4, int(7.0 * ss)))
+    pygame.draw.lines(surf, CHAR_DK, False, spine_ipts, max(1, int(1.6 * ss)))
 
-    # RIBS: 3-4 pipeclay ribs MAX per side, curving DOWN into the belly from
-    # evenly spaced points along the front half of the spine. Each rib gets a
-    # thin charcoal keyline so it reads as a bone outline, not a smear.
-    rib_lw = max(2, int(2.6 * ss))
-    rib_key = max(1, int(1.2 * ss))
+    # RIBS: drop the BAKE to 3 BOLD ribs per side so the downscale never combs to
+    # mush — each rib is a fat pipeclay stroke, as bright as the spine, clearly
+    # separated. A thin charcoal keyline keeps it reading as a bone outline.
+    ribs = 3
+    rib_lw = max(3, int(4.4 * ss))
+    rib_key = max(1, int(1.3 * ss))
     for i in range(ribs):
-        t = 0.16 + 0.50 * (i / max(1, ribs - 1))
+        t = 0.14 + 0.62 * (i / max(1, ribs - 1))
         # anchor on the spine
         ax = spine_x0 + (spine_x1 - spine_x0) * t
         ay = spine_y + body_hh * 0.20 * (t * t)
         # the rib curves down and slightly back toward the belly floor
         rib = []
         m = 10
-        reach = body_hh * (1.18 - 0.10 * i)
+        reach = body_hh * (1.24 - 0.10 * i)
         for j in range(m + 1):
             u = j / m
             rx = ax - body_hw * 0.10 * u
@@ -196,11 +198,18 @@ def _xray_skeleton(surf, cx, cy, body_hw, body_hh, ss, *, ribs=4):
                            int(2 * org_rx), int(2 * org_ry))
     pygame.draw.ellipse(surf, PIPECLAY, org_rect)
     pygame.draw.ellipse(surf, INK, org_rect, max(1, int(1.6 * ss)))
-    # A small rust core inside the lozenge — a graphic "heart" stamp, flat.
+    # A small warm core inside the lozenge — the single organ reads as the warm
+    # focal of the x-ray. A faint ember-tinted pipeclay (NOT a glow ring; the
+    # cap keeps the only true ember light) so it stays the warmest internal mass.
+    org_warm = lerp_color(PIPECLAY, EMBER, 0.34)
+    pygame.draw.ellipse(surf, org_warm,
+                        pygame.Rect(int(org_cx - org_rx * 0.52),
+                                    int(org_cy - org_ry * 0.52),
+                                    int(org_rx * 1.04), int(org_ry * 1.04)))
     pygame.draw.ellipse(surf, RUST_DK,
-                        pygame.Rect(int(org_cx - org_rx * 0.42),
-                                    int(org_cy - org_ry * 0.42),
-                                    int(org_rx * 0.84), int(org_ry * 0.84)))
+                        pygame.Rect(int(org_cx - org_rx * 0.30),
+                                    int(org_cy - org_ry * 0.30),
+                                    int(org_rx * 0.60), int(org_ry * 0.60)))
 
 
 # ── the chubby x-ray fish ────────────────────────────────────────────────────
@@ -270,10 +279,11 @@ def _fish(surf, cx, cy, hw, hh, ss, *, medallion=False):
     if len(back_pts) >= 3:
         pygame.draw.polygon(surf, RUST_HI, [(int(x), int(y)) for x, y in back_pts])
 
-    # ── the BELLY-CAVITY WINDOW: a flat pipeclay-tinted-dark panel inset in the
-    #    lower body so the skeleton reads as seen THROUGH a translucent fish, not
-    #    painted on its skin. A muted rust-pipeclay mix keeps it flat + readable. ──
-    cav_col = lerp_color(RUST_DK, PIPECLAY, 0.22)
+    # ── the BELLY-CAVITY WINDOW: a flat DARK panel inset in the lower body so the
+    #    pipeclay lattice has the value-contrast to pop (the bones-on-rust read
+    #    went faint at 32px when they were close in value). A deep charcoal-rust
+    #    under-plate — still flat, just a much darker flat region than the body. ──
+    cav_col = lerp_color(RUST_DK, CHAR_DK, 0.55)
     cav_cx = cx - hw * 0.08
     cav_cy = cy + hh * 0.08
     cav_rx = hw * 0.62
@@ -302,19 +312,17 @@ def _fish(surf, cx, cy, hw, hh, ss, *, medallion=False):
     pygame.draw.lines(surf, CHAR, False, [(int(x), int(y)) for x, y in gill],
                       max(2, int(2.2 * ss)))
 
-    # ── the big chibi RING-EYE (wide-eyed, the cute read) up in the snout ──
+    # ── the chibi RING-EYE (wide-eyed, the cute read) up in the snout. DEMOTED:
+    #    shrunk so the BONES, not the eye, win the brightest-internal-mass fight
+    #    at 32px. Ringed in charcoal and its inner-white sheen DROPPED so it stops
+    #    competing with the pipeclay lattice for the focal slot. ──
     eye_cx = cx + hw * 0.62
     eye_cy = cy - hh * 0.22
-    eye_r = hh * 0.42
-    pygame.draw.circle(surf, PIPECLAY, (int(eye_cx), int(eye_cy)), int(eye_r))
-    pygame.draw.circle(surf, OCHRE, (int(eye_cx), int(eye_cy)), int(eye_r * 0.74))
-    pygame.draw.circle(surf, INK, (int(eye_cx), int(eye_cy)), int(eye_r * 0.46))
+    eye_r = hh * 0.32
+    pygame.draw.circle(surf, OCHRE, (int(eye_cx), int(eye_cy)), int(eye_r))
+    pygame.draw.circle(surf, INK, (int(eye_cx), int(eye_cy)), int(eye_r * 0.52))
     pygame.draw.circle(surf, INK, (int(eye_cx), int(eye_cy)), int(eye_r),
-                       max(1, int(1.4 * ss)))
-    # a tiny pipeclay catch-dot — the only glint, kept flat (a stamped dot)
-    pygame.draw.circle(surf, PIPECLAY,
-                       (int(eye_cx + eye_r * 0.20), int(eye_cy - eye_r * 0.20)),
-                       max(1, int(eye_r * 0.16)))
+                       max(2, int(2.2 * ss)))
 
     # ── tiny pursed MOUTH at the snout tip (the adorable beat — small, not a maw) ──
     mx = cx + hw * 0.94
@@ -362,27 +370,30 @@ def _xray_tell(surf, cx, cy, hw, hh, ss):
     read instead of mushing the fine ribs to noise. At showcase scale it hides
     under the real sparse skeleton; at icon scale it is what survives, carrying
     the 'I can see its bones' read that is this concept's entire point."""
-    # the dark belly window (a touch darker so the light bones pop on it small)
-    cav_col = lerp_color(RUST_DK, CHAR_DK, 0.35)
+    # a DARK belly window so the light bones pop on it small — pushed deep
+    # charcoal-rust so the pipeclay lattice has the value contrast to dominate.
+    cav_col = lerp_color(RUST_DK, CHAR_DK, 0.60)
     pygame.draw.ellipse(surf, cav_col,
                         pygame.Rect(int(cx - hw), int(cy - hh),
                                     int(2 * hw), int(2 * hh)))
-    # one bold spine
-    pygame.draw.line(surf, PIPECLAY, (int(cx - hw * 0.8), int(cy - hh * 0.5)),
-                     (int(cx + hw * 0.7), int(cy - hh * 0.34)), max(3, int(5.0 * ss)))
-    pygame.draw.line(surf, CHAR_DK, (int(cx - hw * 0.8), int(cy - hh * 0.5)),
-                     (int(cx + hw * 0.7), int(cy - hh * 0.34)), max(2, int(2.6 * ss)))
-    # ONE fat rib pair
-    for s in (-1, 1):
-        ax = cx + s * hw * 0.20
-        pygame.draw.line(surf, PIPECLAY, (int(ax), int(cy - hh * 0.42)),
-                         (int(ax - hw * 0.10), int(cy + hh * 0.62)),
-                         max(3, int(4.0 * ss)))
-    # one big organ-dot
-    pygame.draw.circle(surf, PIPECLAY, (int(cx - hw * 0.18), int(cy + hh * 0.30)),
-                       int(hh * 0.30))
-    pygame.draw.circle(surf, RUST_DK, (int(cx - hw * 0.18), int(cy + hh * 0.30)),
-                       int(hh * 0.15))
+    # ONE bold pipeclay SPINE — the brightest internal mass, baking to ~2px.
+    sp0 = (int(cx - hw * 0.80), int(cy - hh * 0.50))
+    sp1 = (int(cx + hw * 0.72), int(cy - hh * 0.34))
+    pygame.draw.line(surf, PIPECLAY, sp0, sp1, max(4, int(7.0 * ss)))
+    pygame.draw.line(surf, CHAR_DK, sp0, sp1, max(1, int(1.6 * ss)))
+    # 3 BOLD ribs (no comb): each a fat pipeclay stroke, clearly spaced, as
+    # bright as the spine, dropping from along the spine into the belly.
+    for i, fx in enumerate((-0.46, 0.02, 0.50)):
+        ax = cx + hw * fx
+        ay = cy - hh * (0.46 - 0.08 * i)
+        pygame.draw.line(surf, PIPECLAY, (int(ax), int(ay)),
+                         (int(ax - hw * 0.12), int(cy + hh * 0.66)),
+                         max(3, int(5.0 * ss)))
+    # one big organ-dot — warm-cored pipeclay, the x-ray focal.
+    org = (int(cx - hw * 0.18), int(cy + hh * 0.34))
+    pygame.draw.circle(surf, PIPECLAY, org, int(hh * 0.32))
+    pygame.draw.circle(surf, lerp_color(PIPECLAY, EMBER, 0.34), org, int(hh * 0.22))
+    pygame.draw.circle(surf, RUST_DK, org, int(hh * 0.11))
 
 
 # ── pillar pair (prop -> pillar mirror proof) — the WEIR-POLE ─────────────────
@@ -400,19 +411,22 @@ def _weir_band_repeat(surf, cx, y0, band_h, half_w, ss):
 
     # Top half: the RIB-LADDER — a bold charcoal centre spine with a few pipeclay
     # cross-rungs (the weir lashings = the fish ribs echoed). Sparse, countable.
+    # Kept a touch LIGHTER/THINNER than the hero's own spine + ribs so the
+    # CREATURE out-bolds its derived prop (the body must read at least as bold as
+    # its pillar, not lose to it).
     spine_y0 = y0 + band_h * 0.06
     spine_y1 = y0 + band_h * 0.48
     pygame.draw.line(surf, PIPECLAY, (int(cx), int(spine_y0)),
-                     (int(cx), int(spine_y1)), max(3, int(4.4 * ss)))
+                     (int(cx), int(spine_y1)), max(2, int(3.2 * ss)))
     pygame.draw.line(surf, CHAR_DK, (int(cx), int(spine_y0)),
-                     (int(cx), int(spine_y1)), max(2, int(2.6 * ss)))
+                     (int(cx), int(spine_y1)), max(1, int(1.6 * ss)))
     rungs = 3
     for i in range(rungs):
         ry = spine_y0 + (spine_y1 - spine_y0) * (0.16 + 0.72 * (i / max(1, rungs - 1)))
-        pygame.draw.line(surf, PIPECLAY, (int(cx - half_w * 0.66), int(ry)),
-                         (int(cx + half_w * 0.66), int(ry)), max(2, int(2.6 * ss)))
-        pygame.draw.line(surf, CHAR, (int(cx - half_w * 0.66), int(ry)),
-                         (int(cx + half_w * 0.66), int(ry)), max(1, int(1.2 * ss)))
+        pygame.draw.line(surf, PIPECLAY, (int(cx - half_w * 0.60), int(ry)),
+                         (int(cx + half_w * 0.60), int(ry)), max(2, int(2.2 * ss)))
+        pygame.draw.line(surf, CHAR, (int(cx - half_w * 0.60), int(ry)),
+                         (int(cx + half_w * 0.60), int(ry)), max(1, int(1.0 * ss)))
 
     # A thin charcoal-dark seam between the two bands (graphic divider).
     seam_y = y0 + band_h * 0.54

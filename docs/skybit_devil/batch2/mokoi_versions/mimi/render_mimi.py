@@ -103,11 +103,26 @@ def _dot_joint(surf, x, y, r, ss, *, ember=False):
     pygame.draw.circle(surf, key, (int(x), int(y)), int(r), max(1, int(ss * 0.7)))
 
 
+def _joint_dot_square(surf, x, y, r, ss):
+    """A LOAD-BEARING joint marker built to SURVIVE the downscale to true 32px:
+    a fat pipeclay SQUARE wrapped in a hard ink ring. Squares hold their corners
+    through smoothscale far better than small discs hold their edge, so the
+    hue-blind pipeclay tell stays countable at gameplay scale instead of mushing
+    into the ochre limb. Sized so it lands at ~2px pipeclay + 1px ink ring at 1x."""
+    s = int(r)
+    rect = pygame.Rect(int(x - s), int(y - s), int(2 * s), int(2 * s))
+    # Ink ground first (so the ring reads as a hard border on every side).
+    pygame.draw.rect(surf, INK, rect.inflate(int(ss * 1.6), int(ss * 1.6)))
+    pygame.draw.rect(surf, PIPECLAY, rect)
+
+
 def _hatch_limb(surf, p0, p1, half_w, ss, col, *, n=5):
     """A thin, gangly LIMB drawn as a hatch-banded bar: a flat yellow-ochre quad
-    between two joints, ribbed with short charcoal cross-hatch ticks. Pure flat
-    fill + linework — the limb's volume is faked only by the keyline + the rib
-    density, never by shading. This is the frantic scribble texture."""
+    between two joints, ribbed with short charcoal cross-hatch ticks, then FULLY
+    wrapped in a continuous charcoal keyline (both long edges + both end caps) so
+    the ochre always sits inside an ink edge — the limb keeps a hard, dark border
+    against the bright day sky and never goes soft at 32px. Pure flat fill +
+    linework; volume is faked only by the keyline + rib density, never shading."""
     x0, y0 = p0
     x1, y1 = p1
     dx, dy = x1 - x0, y1 - y0
@@ -131,12 +146,11 @@ def _hatch_limb(surf, p0, p1, half_w, ss, col, *, n=5):
         pygame.draw.line(surf, hc,
                          (int(cxp + nx * half_w), int(cyp + ny * half_w)),
                          (int(cxp - nx * half_w), int(cyp - ny * half_w)), lw)
-    # A continuous charcoal keyline up both long edges so the limb reads crisp.
-    for sgn in (1, -1):
-        pygame.draw.line(surf, CHAR,
-                         (int(x0 + sgn * nx * half_w), int(y0 + sgn * ny * half_w)),
-                         (int(x1 + sgn * nx * half_w), int(y1 + sgn * ny * half_w)),
-                         max(1, int(1.4 * ss)))
+    # A continuous charcoal keyline that FULLY rings the limb quad — both long
+    # edges AND both end caps — so the ochre is always boxed in ink. Heavier than
+    # round 1 so it survives the downscale onto the bright day sky.
+    kw = max(2, int(2.2 * ss))
+    pygame.draw.polygon(surf, CHAR, [(int(x), int(y)) for x, y in quad], kw)
 
 
 def _dot_head(surf, cx, cy, r, ss):
@@ -146,35 +160,34 @@ def _dot_head(surf, cx, cy, r, ss):
     the silhouette never dissolves at 32px: the head carries the read, the hatch
     is texture. Flat fills, hard edges — no shading."""
     # Charcoal keyline-mass ring behind the disk (high contrast vs the light body).
-    pygame.draw.circle(surf, CHAR, (int(cx), int(cy)), int(r * 1.06))
+    pygame.draw.circle(surf, CHAR, (int(cx), int(cy)), int(r * 1.10))
     # The pipeclay disk (the bright, hue-blind-readable anchor).
     pygame.draw.circle(surf, PIPECLAY, (int(cx), int(cy)), int(r))
-    pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r), max(1, int(1.6 * ss)))
+    # A fat INK ring fully wrapping the disk so the head pops off BOTH day and
+    # night skies and stays the silhouette anchor after the downscale.
+    pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r), max(2, int(2.4 * ss)))
     # A thin red-ochre headband arc across the brow (faint warm accent, the
     # painted-spirit tell on the head).
-    band_r = int(r * 0.78)
+    band_r = int(r * 0.80)
     pygame.draw.arc(surf, REDOCHRE,
                     pygame.Rect(int(cx - band_r), int(cy - band_r),
                                 int(2 * band_r), int(2 * band_r)),
-                    math.radians(200), math.radians(340), max(2, int(2.6 * ss)))
-    # Two big charcoal dot-eyes — wide-set, frantic, scary-CUTE.
-    eye_dx = r * 0.40
-    eye_y = cy - r * 0.06
-    eye_r = r * 0.27
+                    math.radians(202), math.radians(338), max(2, int(2.6 * ss)))
+    # Two clean high-contrast INK dot-eyes — wide-set with clear pipeclay between
+    # them so the face stays scary-CUTE (not a single grey smudge) at 32px. No
+    # catch-dot glint: at icon scale it only muddied the read, so the eyes are
+    # solid stamped ink discs.
+    eye_dx = r * 0.42
+    eye_y = cy - r * 0.04
+    eye_r = r * 0.24
     for s in (-1, 1):
         ex = cx + s * eye_dx
-        pygame.draw.circle(surf, CHAR, (int(ex), int(eye_y)), int(eye_r))
-        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r),
-                           max(1, int(ss * 0.8)))
-        # A tiny pipeclay catch-dot — the only glint, kept flat (a stamped dot).
-        pygame.draw.circle(surf, PIPECLAY,
-                           (int(ex + eye_r * 0.22), int(eye_y - eye_r * 0.30)),
-                           max(1, int(eye_r * 0.30)))
-    # A small bared grin: a charcoal arc-mouth (open, mid-shout — all speed).
-    pygame.draw.arc(surf, CHAR,
-                    pygame.Rect(int(cx - r * 0.34), int(cy + r * 0.16),
-                                int(r * 0.68), int(r * 0.52)),
-                    math.radians(200), math.radians(340), max(2, int(2.8 * ss)))
+        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r))
+    # A small bared grin: an INK arc-mouth (open, mid-shout — all speed).
+    pygame.draw.arc(surf, INK,
+                    pygame.Rect(int(cx - r * 0.32), int(cy + r * 0.18),
+                                int(r * 0.64), int(r * 0.50)),
+                    math.radians(202), math.radians(338), max(2, int(2.8 * ss)))
 
 
 # ── the gangly stick-figure ───────────────────────────────────────────────────
@@ -207,8 +220,9 @@ def _mimi_figure(surf, cx, cy, scale_px, ss, *, big_head=False):
     knee_f   = (cx + u * 0.74, cy + u * 1.10)      # leading leg reaching out
     foot_f   = (cx + u * 1.30, cy + u * 1.58)
 
-    limb_w   = u * 0.165                            # thin, gangly
-    torso_w  = u * 0.235                            # torso just a touch fatter
+    limb_w   = u * 0.205                            # thin+gangly, widened so the
+                                                    # full ink keyline survives 32px
+    torso_w  = u * 0.275                            # torso just a touch fatter
 
     # Draw far-side (back) limbs first, then torso, then near limbs + head, so
     # the dot-joints and head stack cleanly on top.
@@ -245,12 +259,19 @@ def _mimi_figure(surf, cx, cy, scale_px, ss, *, big_head=False):
     pygame.draw.polygon(surf, CHAR, [(int(x), int(y)) for x, y in barb])
     _dot_joint(surf, bx, by - u * 0.02, u * 0.10, ss, ember=True)
 
-    # Pipeclay dot-JOINTS at every pivot — the protected tell, the dotted system
-    # that ties the scribble together. Joint radius scales with the limb width.
-    jr = limb_w * 0.92
-    for jx, jy in (neck, hip, sh_back, sh_front, elbow_b, hand_b,
-                   elbow_f, hand_f, knee_b, foot_b, knee_f, foot_f):
-        _dot_joint(surf, jx, jy, jr, ss)
+    # The protected pipeclay dot-tell, re-spec'd for true-32 legibility: instead
+    # of eight small discs that mush at gameplay scale, FOUR load-bearing joint
+    # SQUARES — one per limb at its mid pivot (elbow / knee) — each fat + ink-ringed
+    # so they stay COUNTABLE after the downscale. The hue-blind articulation tell
+    # now survives at 32px instead of being head-only.
+    jr = limb_w * 1.05
+    for jx, jy in (elbow_b, elbow_f, knee_b, knee_f):
+        _joint_dot_square(surf, jx, jy, jr, ss)
+    # A small pipeclay hub at the shoulder/hip core so the four limbs still read
+    # as sprung from one body — a quiet connector, not a counted tell.
+    _dot_joint(surf, hip[0], hip[1], limb_w * 0.6, ss)
+    _dot_joint(surf, (sh_back[0] + sh_front[0]) * 0.5,
+               (sh_back[1] + sh_front[1]) * 0.5, limb_w * 0.55, ss)
 
     # The OVERSIZED dot-HEAD last so it owns the silhouette (the chibi anchor).
     _dot_head(surf, head_c[0], head_c[1], head_r * u / u, ss)
@@ -262,12 +283,12 @@ def _baked_head_tell(surf, cx, cy, r, ss):
     recognizable big-headed dotted spirit instead of mushing to noise. The thin
     hatch limbs survive only as a faint scribble; this head is what carries the
     'big-headed scribble-spirit' read at icon scale."""
-    pygame.draw.circle(surf, CHAR, (int(cx), int(cy)), int(r * 1.08))
+    pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r * 1.12))
     pygame.draw.circle(surf, PIPECLAY, (int(cx), int(cy)), int(r))
     eye_dx = r * 0.42
-    eye_r = r * 0.30
+    eye_r = r * 0.28
     for s in (-1, 1):
-        pygame.draw.circle(surf, CHAR, (int(cx + s * eye_dx), int(cy - r * 0.04)),
+        pygame.draw.circle(surf, INK, (int(cx + s * eye_dx), int(cy - r * 0.04)),
                            int(eye_r))
 
 
@@ -397,6 +418,22 @@ def _barb_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
             (cx + s * plaque_hw * 0.7, base_y + d * tip_len * 0.02),
         ]
         pygame.draw.polygon(surf, CHAR, [(int(x), int(y)) for x, y in hook])
+    # The WOOMERA read: an ASYMMETRIC hooked lug jutting off ONE side of the
+    # blade base — the spear-thrower's catch-peg. This is the silhouette tell that
+    # separates the cap from a generic barb and from the roster's other staff/pole
+    # caps: a clean spear-thrower, not just a point. Built as a red-ochre cranked
+    # hook (the prop accent) outlined in ink so it reads at the cap.
+    lug = [
+        (cx + plaque_hw * 0.55, base_y + d * half_w * 0.10),
+        (cx + plaque_hw * 1.85, base_y + d * half_w * 0.10),
+        (cx + plaque_hw * 1.95, base_y - d * tip_len * 0.34),
+        (cx + plaque_hw * 1.50, base_y - d * tip_len * 0.30),
+        (cx + plaque_hw * 1.42, base_y - d * half_w * 0.30),
+        (cx + plaque_hw * 0.55, base_y - d * half_w * 0.30),
+    ]
+    pygame.draw.polygon(surf, REDOCHRE, [(int(x), int(y)) for x, y in lug])
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in lug],
+                        max(2, int(1.8 * ss)))
     # A pipeclay dot-knot at the blade base — the tell, binding tip to shaft.
     _dot_joint(surf, cx, base_y, plaque_hw * 0.34, ss)
     # Charcoal hatch ribs up the blade centreline (pattern density on the cap).
@@ -480,10 +517,10 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((120, 120, 124))            # neutral grey bg
     _label(sheet, font,
-           "MIMI  —  mokoi-versions  —  thin crosshatch stick-spirit + thrown-spear pillar  —  round 1",
+           "MIMI  —  mokoi-versions  —  thin crosshatch stick-spirit + thrown-spear pillar  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
-           "FLAT-GRAPHIC: YELLOW-OCHRE-dominant LIGHT body (opposite value of Baiame), charcoal hatch-keyline, pipeclay dot-JOINTS = protected tell; ember CONFINED to spear-tip cap. SS=6 hero.",
+           "R2 fixes: 4 FAT ink-ringed joint-SQUARES survive 32px; limbs FULLY ink-wrapped + widened; clean ink dot-eyes; woomera lug on the cap. Yellow-DOMINANT LIGHT, ember cap-only.",
            18, 32, (40, 40, 46))
 
     # — Cell A: the BIG hero stick-figure on a neutral panel (elevated SS=6).
@@ -491,7 +528,7 @@ def main():
     pygame.draw.rect(sheet, (96, 96, 100), panel, border_radius=8)
     pygame.draw.rect(sheet, (60, 60, 64), panel, 2, border_radius=8)
     _label(sheet, font, "(a) HERO  big scale  SS=6", panel.x + 8, panel.y + 8, (245, 240, 230))
-    _label(sheet, small, "frantic mid-stride scribble-spirit; oversized dot-head anchor",
+    _label(sheet, small, "ink-wrapped limbs; 4 fat joint-squares; woomera-lug spear",
            panel.x + 8, panel.y + 28, (235, 230, 220))
     hero = build_mimi(scale=1.7, ss=6)
     sheet.blit(hero, (panel.centerx - hero.get_width() // 2,
@@ -617,7 +654,7 @@ def main():
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

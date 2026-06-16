@@ -451,8 +451,13 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
         # dark at hero scale. Centre it inside the cavity, above the lower lip.
         mglow = pygame.transform.smoothscale(mglow, (gr*4, int(gr*4*0.62)))
         gh = mglow.get_height()
-        surf.blit(mglow, (cx - gr*2, my - int(mh*0.1) - gh//2),
-                  special_flags=pygame.BLEND_ADD)
+        # Alpha-blend (NOT additive): BLEND_ADD ignored the per-pixel alpha and
+        # summed full EMBER onto the already-bright cedar, clamping the maw +
+        # surrounding snout to near-white and fusing with the bell into one bright
+        # lower-face mass (the r2/r3 ship-gate). A normal alpha blit keeps the glow
+        # a contained warm TINT over cedar, so the cavity never out-values the
+        # eye-rings and the dark chin band below reads.
+        surf.blit(mglow, (cx - gr*2, my - int(mh*0.1) - gh//2))
     mouth = [(cx - mw, my - int(3*s)), (cx + mw, my - int(3*s)),
              (cx + int(mw*0.7), my + mh), (cx - int(mw*0.7), my + mh)]
     pygame.draw.polygon(surf, INK, mouth)
@@ -790,7 +795,7 @@ def main():
     sheet.blit(font_sm.render("  cap = SMALLER mirrored lion-mask so the wide mask never overweights the gap.",
                               True, LABEL_DIM), (540, note_y + 40 + 6*19))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

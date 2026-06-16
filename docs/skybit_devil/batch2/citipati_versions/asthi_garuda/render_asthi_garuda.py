@@ -161,25 +161,39 @@ def bone_blade(surf, root, ang, length, width, s, tip_blunt=0.34):
     pygame.draw.polygon(surf, INK, blade, max(2, int(width * 0.16)))
 
 
-def blade_wing(surf, root, base_ang, s, sign, scale=1.0, length=58.0, width=12.0):
-    """ONE wing as a small set of FAT bone-blades forming TWO clean RANKS — an
-    outer PRIMARY rank (3 long blades that define the X-arm) + an inner COVERT
-    rank (2 short fat stubs at the shoulder). WHY two ranks not one fringe: the
-    brief asks for tiered fans; the longest primary points down `base_ang` and
-    is THE X-limb, its siblings tuck a few degrees behind it (NOT a radial
-    sunburst). `sign` (+1 right / -1 left) only mirrors the small spread offsets.
-    Total = 5 blades per wing, max — the AD blade budget."""
-    bw = max(4.0, width * s)
-    L = length * s * scale
-    # COVERT rank first (drawn behind): two short fat stubs hugging the shoulder
-    for k, (off, fac, wfac) in enumerate(((22, 0.42, 1.05), (40, 0.34, 0.92))):
+def blade_wing(surf, root, base_ang, s, sign):
+    """ONE bird wing per side as a TIERED quill-BLADE fan — NOT a 4-spoke cross.
+    WHY a tiered bird-fan: round-2 read as a four-winged INSECT because the two
+    upper and two lower fans were near-equal and symmetric. A bird has ONE wing
+    per side: long PRIMARIES rising up-and-out at the leading edge, and a rank
+    of SHORTER coverts/secondaries folding DOWN-and-under BEHIND them as the
+    trailing edge — graded longest→shortest from leading to trailing. `sign`
+    (+1 right / -1 left) sweeps the whole fan outward from the shoulder; the
+    fan opens DOWNWARD off the leading primary so the wing droops like a real
+    spread raptor wing (a fat V-arm), never a radial spoke-cross.
+
+    `base_ang` points along the LONGEST leading primary (up-and-out). Successive
+    blades rotate DOWNWARD (toward the body's lower-outer quadrant) and shorten,
+    so the silhouette is one solid wing-fan: long top edge, short tucked bottom."""
+    L = 60.0 * s
+    bw = 13.0 * s
+    # leading primaries → trailing coverts: each blade sweeps DOWN from the
+    # leading edge by a growing angle and SHORTENS, so the bottom of the fan is
+    # short folded coverts, not a second wing thrusting out. (off° measured
+    # DOWNWARD from the leading primary, toward the lower-outer body quadrant.)
+    ranks = (
+        (0,   1.00, 1.00, 0.30),   # P1 — longest leading primary (the wing tip)
+        (20,  0.92, 0.98, 0.32),   # P2
+        (40,  0.80, 0.96, 0.36),   # P3
+        (60,  0.66, 0.92, 0.42),   # secondary
+        (82,  0.50, 0.88, 0.50),   # covert — short, folded under, trailing edge
+        (104, 0.38, 0.82, 0.56),   # innermost covert hugging the shoulder
+    )
+    # `sign` rotates the downward sweep toward the OUTER-lower quadrant for each
+    # side so both wings droop symmetrically away from the body centreline.
+    for off, fac, wfac, blunt in ranks:
         a = base_ang + sign * math.radians(off)
-        bone_blade(surf, root, a, L * fac, bw * wfac, s, tip_blunt=0.46)
-    # PRIMARY rank: three long blades, the MIDDLE one is the X-limb (longest)
-    # tight ±13° spread so they read as one bold thrust, not a spreading fan
-    for k, (off, fac) in enumerate(((-13, 0.80), (0, 1.0), (13, 0.84))):
-        a = base_ang + math.radians(off)
-        bone_blade(surf, root, a, L * fac, bw, s, tip_blunt=0.30)
+        bone_blade(surf, root, a, L * fac, bw * wfac, s, tip_blunt=blunt)
 
 
 # ── a single FAT triad-lit bone CLAW / toe (talons read at 32px) ──────────────
@@ -222,15 +236,20 @@ def fat_claw(surf, a, b, width, s, bend=0.0):
 
 # ── a half-FOLDED wing = a tight hard SCALLOPED fan of fat blades (pillar cap) ─
 def folded_fan(surf, root, base_ang, s, sign):
-    """Three FAT bone-blades fanned in a TIGHT arc — the wing half-folded into a
-    hard scalloped edge. WHY on the prop: round-1's cap read as 'another vertebra
-    knot'; the winged tell has to live on the pillar too. A close ±16° fan of fat
-    blades gives the scalloped folded-wing edge (NOT Nagaraja's splayed rib-spline
-    hood), each blade triad-lit so the scallop reads as layered bone planks."""
-    bw = max(3.5, 6.0 * s)
-    for k, (off, fac) in enumerate(((-16, 0.82), (0, 1.0), (16, 0.86))):
-        a = base_ang + math.radians(off)
-        bone_blade(surf, root, a, 30 * s * fac, bw, s, tip_blunt=0.38)
+    """A half-FOLDED wing: FOUR fat bone-blades raked into a tight overlapping
+    arc that sweeps DOWN the shaft, graded long→short, so the trailing edge
+    reads as a hard SCALLOPED fan of layered quill-planks. WHY on the prop:
+    round-1+2's cap read as 'another vertebra knot / small head'; the winged
+    tell has to live on the pillar too. Tight raked overlap (not splayed) =
+    folded wing, clearly off Nagaraja's splayed rib-spline hood. `sign` rakes
+    the fan toward the outer-down quadrant for each side."""
+    bw = max(4.0, 7.0 * s)
+    # graded from the leading blade (longest, highest) down to a short folded
+    # covert — each steps DOWN the shaft and shortens → scalloped folded edge
+    for off, fac, wfac in ((0, 1.00, 1.00), (20, 0.82, 0.94),
+                           (42, 0.64, 0.86), (66, 0.46, 0.78)):
+        a = base_ang + sign * math.radians(off)
+        bone_blade(surf, root, a, 34 * s * fac, bw * wfac, s, tip_blunt=0.40)
 
 
 # ── the beaked bone-skull (vulture head — reused for hero + pillar cap) ───────
@@ -241,60 +260,85 @@ def bird_skull(surf, cx, cy, r, s, lit=True, agape=True):
     the beak open (the sky-eater gape); `lit` lights the gape + sockets."""
     # cranium dome (the bone mass that owns the silhouette centre)
     triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.8 * s)), core=False)
-    # a low brow ridge sweeping forward over the eyes — the grumpy vulture scowl
-    brow = [(cx - int(r * 0.92), cy - int(r * 0.10)),
-            (cx + int(r * 0.92), cy - int(r * 0.10)),
-            (cx + int(r * 0.70), cy + int(r * 0.18)),
-            (cx - int(r * 0.70), cy + int(r * 0.18))]
-    triad_blob(surf, BONE_D, brow, ow=max(1, int(1.2 * s)))
+    # a HEAVY brow ridge jutting forward and DOWN over the sockets — the grumpy
+    # vulture scowl. It dips to a centre point above the beak (a frowning chevron)
+    # so it overhangs each socket's top edge and breaks any round-disc symmetry:
+    # the eyes read as recessed UNDER bone, not as a forward pair of lenses.
+    brow = [(cx - int(r * 0.96), cy - int(r * 0.22)),
+            (cx + int(r * 0.96), cy - int(r * 0.22)),
+            (cx + int(r * 0.78), cy + int(r * 0.08)),
+            (cx + int(r * 0.30), cy + int(r * 0.04)),
+            (cx, cy + int(r * 0.20)),                       # centre dip (the frown)
+            (cx - int(r * 0.30), cy + int(r * 0.04)),
+            (cx - int(r * 0.78), cy + int(r * 0.08))]
+    triad_blob(surf, BONE_D, brow,
+               sheen_pts=[(cx - int(r * 0.90), cy - int(r * 0.20)),
+                          (cx - int(r * 0.30), cy - int(r * 0.18)),
+                          (cx - int(r * 0.40), cy - int(r * 0.02)),
+                          (cx - int(r * 0.84), cy - int(r * 0.02))],
+               ow=max(1, int(1.2 * s)))
 
-    # === the HOOKED BEAK — the defining read =================================
-    # upper mandible: a heavy wedge hooking DOWN past the jaw, glowing inside.
-    beak_top = cy + int(r * 0.18)
-    hook_y = cy + int(r * 1.18)
-    upper = [(cx - int(r * 0.46), beak_top),
-             (cx + int(r * 0.46), beak_top),
-             (cx + int(r * 0.30), cy + int(r * 0.74)),
-             (cx + int(r * 0.16), hook_y),                 # hooked tip
-             (cx - int(r * 0.02), cy + int(r * 0.92)),
-             (cx - int(r * 0.30), cy + int(r * 0.74))]
+    # === the HOOKED BEAK — the PROMINENT defining read =======================
+    # WHY big & strongly hooked: round-2's beak was a tiny triangle the sockets
+    # swamped — so the face didn't read BIRD. This is a heavy raptor beak: wide
+    # at the cere where it meets the brow, hooking DOWN well past the cranium to
+    # a sharp talon-like point that curls under, with a big blood-orange GAPE
+    # cracked open mid-beak (the sky-eater). It is THE face focal; the gape is
+    # the brightest thing on the head.
+    beak_top = cy + int(r * 0.12)
+    # UPPER MANDIBLE — a heavy SYMMETRIC bone hook: wide at the cere, narrowing
+    # to a blunt point that curls DOWN-and-under. Built as a single clean wedge
+    # so the silhouette reads "raptor beak," not a notched spur. The gape (below)
+    # is cut into its lower face; the lower mandible closes underneath.
+    hook_tip = (cx, cy + int(r * 1.36))                    # deep central hook point
+    upper = [(cx - int(r * 0.50), beak_top),
+             (cx + int(r * 0.50), beak_top),
+             (cx + int(r * 0.40), cy + int(r * 0.66)),     # right cheek of beak
+             (cx + int(r * 0.16), cy + int(r * 1.08)),
+             hook_tip,                                     # blunt down-hook
+             (cx - int(r * 0.16), cy + int(r * 1.08)),
+             (cx - int(r * 0.40), cy + int(r * 0.66))]     # left cheek of beak
     triad_blob(surf, BONE, upper,
-               core_pts=[(cx + int(r * 0.04), beak_top + int(r * 0.06)),
-                         (cx + int(r * 0.44), beak_top),
-                         (cx + int(r * 0.28), cy + int(r * 0.72)),
-                         (cx + int(r * 0.16), hook_y)],
-               sheen_pts=[(cx - int(r * 0.44), beak_top + int(r * 0.04)),
-                          (cx - int(r * 0.10), beak_top + int(r * 0.02)),
-                          (cx - int(r * 0.18), cy + int(r * 0.6)),
-                          (cx - int(r * 0.40), cy + int(r * 0.5))],
-               ow=max(1, int(1.4 * s)))
-    # cere nostril slit on the beak
-    pygame.draw.line(surf, BONE_DD,
-                     (cx - int(r * 0.10), beak_top + int(r * 0.16)),
-                     (cx - int(r * 0.22), cy + int(r * 0.5)), max(1, int(1.4 * s)))
+               core_pts=[(cx + int(r * 0.06), beak_top + int(r * 0.06)),
+                         (cx + int(r * 0.46), beak_top + int(r * 0.02)),
+                         (cx + int(r * 0.34), cy + int(r * 0.64)),
+                         (cx + int(r * 0.12), cy + int(r * 1.04)),
+                         hook_tip],
+               sheen_pts=[(cx - int(r * 0.46), beak_top + int(r * 0.04)),
+                          (cx - int(r * 0.12), beak_top + int(r * 0.02)),
+                          (cx - int(r * 0.22), cy + int(r * 0.58)),
+                          (cx - int(r * 0.40), cy + int(r * 0.50))],
+               ow=max(1, int(1.6 * s)))
+    # paired cere nostril slits high on the beak (the raptor tell)
+    for sg in (-1, 1):
+        pygame.draw.line(surf, BONE_DD,
+                         (cx + sg * int(r * 0.18), beak_top + int(r * 0.12)),
+                         (cx + sg * int(r * 0.26), cy + int(r * 0.40)),
+                         max(1, int(1.5 * s)))
 
     if agape:
-        # the GAPE — a dark wedge between the mandibles, glowing blood-orange
-        gape = [(cx - int(r * 0.30), cy + int(r * 0.42)),
-                (cx + int(r * 0.30), cy + int(r * 0.42)),
-                (cx + int(r * 0.10), cy + int(r * 0.70)),
-                (cx - int(r * 0.10), cy + int(r * 0.70))]
+        # the GAPE — a big dark wedge cracked open low in the beak, glowing
+        # blood-orange (the SOLE warm focal, the brightest mark on the head).
+        # Centred and symmetric so it reads as an open maw, not a frown.
+        gape = [(cx - int(r * 0.30), cy + int(r * 0.46)),
+                (cx + int(r * 0.30), cy + int(r * 0.46)),
+                (cx + int(r * 0.14), cy + int(r * 0.84)),
+                (cx - int(r * 0.14), cy + int(r * 0.84))]
         pygame.draw.polygon(surf, INK, gape)
         if lit:
-            inner = [(cx - int(r * 0.22), cy + int(r * 0.46)),
-                     (cx + int(r * 0.22), cy + int(r * 0.46)),
-                     (cx, cy + int(r * 0.66))]
-            pygame.draw.polygon(surf, GLOW, inner)
+            pygame.draw.polygon(surf, RUST,
+                [(cx - int(r * 0.24), cy + int(r * 0.49)),
+                 (cx + int(r * 0.24), cy + int(r * 0.49)),
+                 (cx + int(r * 0.10), cy + int(r * 0.80)),
+                 (cx - int(r * 0.10), cy + int(r * 0.80))])
+            pygame.draw.polygon(surf, GLOW,
+                [(cx - int(r * 0.18), cy + int(r * 0.52)),
+                 (cx + int(r * 0.18), cy + int(r * 0.52)),
+                 (cx, cy + int(r * 0.76))])
             pygame.draw.polygon(surf, GLOW_BR,
-                                [(cx - int(r * 0.12), cy + int(r * 0.48)),
-                                 (cx + int(r * 0.12), cy + int(r * 0.48)),
-                                 (cx, cy + int(r * 0.60))])
-        # lower mandible hooking up under the gape
-        lower = [(cx - int(r * 0.24), cy + int(r * 0.66)),
-                 (cx + int(r * 0.24), cy + int(r * 0.66)),
-                 (cx + int(r * 0.12), cy + int(r * 0.96)),
-                 (cx - int(r * 0.12), cy + int(r * 0.96))]
-        triad_blob(surf, BONE, lower, ow=max(1, int(1.2 * s)))
+                [(cx - int(r * 0.09), cy + int(r * 0.54)),
+                 (cx + int(r * 0.09), cy + int(r * 0.54)),
+                 (cx, cy + int(r * 0.68))])
 
     # === deep ANGULAR bone sockets pinned with blood-orange glow =============
     # WHY angular hollows, not round rims: round-1's round bone rings + a bridge
@@ -304,30 +348,42 @@ def bird_skull(surf, cx, cy, r, s, lit=True, agape=True):
     # bony FOREHEAD KEEL between them (not a thin bridge bar). Reads raw
     # bone-vulture, not spectacles.
     for sgn in (-1, 1):
-        ex = cx + sgn * int(r * 0.50)
-        ey = cy - int(r * 0.02)
-        # an angular socket hollow bored into the bone — top-outer corner sharp,
-        # inner-bottom rounded, slanting down toward the beak (the scowl)
+        ex = cx + sgn * int(r * 0.52)
+        ey = cy + int(r * 0.02)
+        # A deep ANGULAR keyhole hollow bored into the bone, TILTED so its long
+        # axis runs from the high outer corner down toward the beak — a slanted
+        # teardrop/triangle, NOT a forward round lens. The heavy brow above
+        # overhangs the top edge; the glow is poured into the SAME angular shape
+        # (not a circle) so it can never read as a compound-eye disc.
         socket = [
-            (ex - sgn * int(r * 0.30), ey - int(r * 0.30)),   # inner top
-            (ex + sgn * int(r * 0.34), ey - int(r * 0.24)),   # outer top
-            (ex + sgn * int(r * 0.30), ey + int(r * 0.22)),   # outer bottom
-            (ex - sgn * int(r * 0.20), ey + int(r * 0.30)),   # inner bottom (toward beak)
+            (ex - sgn * int(r * 0.18), ey - int(r * 0.34)),   # inner top (under keel)
+            (ex + sgn * int(r * 0.40), ey - int(r * 0.30)),   # outer top corner (sharp)
+            (ex + sgn * int(r * 0.32), ey + int(r * 0.10)),   # outer bottom
+            (ex - sgn * int(r * 0.08), ey + int(r * 0.36)),   # inner point (toward beak)
         ]
-        pygame.draw.polygon(surf, BONE_DD, socket)
         pygame.draw.polygon(surf, INK, socket)
+        pygame.draw.polygon(surf, BONE_DD, socket)
         if lit:
-            # rust floor → orange glow nested DEEP in the hollow, not on a lens
-            pygame.draw.circle(surf, RUST, (ex, ey), int(r * 0.24))
-            pygame.draw.circle(surf, GLOW, (ex + sgn * int(1 * s), ey + int(1 * s)),
-                               int(r * 0.17))
-            pygame.draw.circle(surf, GLOW_HOT, (ex - int(1 * s), ey - int(1 * s)),
-                               max(1, int(r * 0.07)))
+            # rust floor then blood-orange glow poured into the SAME angular
+            # hollow (a scaled-in copy of the socket), nested deep — an inset
+            # slit of fire, not a round lens.
+            def inset(poly, t):
+                gx = sum(p[0] for p in poly) / len(poly)
+                gy = sum(p[1] for p in poly) / len(poly)
+                return [(int(gx + (px - gx) * t), int(gy + (py - gy) * t))
+                        for (px, py) in poly]
+            pygame.draw.polygon(surf, RUST, inset(socket, 0.74))
+            pygame.draw.polygon(surf, GLOW, inset(socket, 0.56))
+            pygame.draw.polygon(surf, GLOW_BR, inset(socket, 0.30))
+            # a tiny hot pin high in the hollow (catch-light, off-centre → alive)
+            hx = ex + sgn * int(r * 0.06)
+            hy = ey - int(r * 0.10)
+            pygame.draw.circle(surf, GLOW_HOT, (hx, hy), max(1, int(r * 0.06)))
         else:
             pygame.draw.polygon(surf, INK, [
-                (ex - int(r * 0.16), ey - int(r * 0.14)),
-                (ex + int(r * 0.16), ey - int(r * 0.10)),
-                (ex, ey + int(r * 0.16))])
+                (ex - int(r * 0.14), ey - int(r * 0.16)),
+                (ex + sgn * int(r * 0.22), ey - int(r * 0.10)),
+                (ex - sgn * int(r * 0.02), ey + int(r * 0.18))])
     # WIDE bony forehead keel between the sockets — a solid wedge of skull,
     # triad-lit, that physically SEPARATES the eyes (kills the bridge read)
     keel = [(cx - int(r * 0.16), cy - int(r * 0.34)),
@@ -354,25 +410,20 @@ def draw_asthi_garuda(surf, cx, cy, s):
     shoulder_y = cy - int(8 * s)
     shoulder_dx = int(15 * s)
 
-    # === WINGS — FOUR bold X-arms of FAT bone-BLADES (the X-silhouette) =======
-    # WHY drawn first/behind: the body breastbone overlaps the wing roots so the
-    # blades look anchored INTO the shoulders. The four limbs of a CAPITAL X —
-    # two thrust up-and-out, two down-and-out — each a wing of fat blades whose
-    # longest primary IS the X-limb. The span is wider than the body is tall so
-    # the blacked-out 32px silhouette reads ONLY as a spread-wing X.
-    # four limbs of a CAPITAL X radiating from the shoulder wing-joints. Upper
-    # limbs thrust up-and-out; lower limbs are rooted at the SHOULDER (not the
-    # waist) and swept down-and-out far enough that their fat primaries clear the
-    # body silhouette — so the bottom of the X punches OUT past the torso instead
-    # of collapsing into a fluffy base. Span is wider than the figure is tall.
-    upL = (cx - shoulder_dx, shoulder_y - int(2 * s))
-    upR = (cx + shoulder_dx, shoulder_y - int(2 * s))
-    dnL = (cx - shoulder_dx, shoulder_y + int(4 * s))
-    dnR = (cx + shoulder_dx, shoulder_y + int(4 * s))
-    blade_wing(surf, upL, math.radians(218), s, sign=+1, scale=1.10, length=62, width=14)
-    blade_wing(surf, upR, math.radians(-38), s, sign=-1, scale=1.10, length=62, width=14)
-    blade_wing(surf, dnL, math.radians(150), s, sign=-1, scale=1.02, length=60, width=13)
-    blade_wing(surf, dnR, math.radians(30),  s, sign=+1, scale=1.02, length=60, width=13)
+    # === WINGS — TWO tiered bird-wing fans (one per side) — NOT a 4-arm cross ==
+    # WHY two wings not four: round-2 read as a four-winged INSECT. A bird has
+    # ONE wing per side — long leading primaries rising up-and-out, a graded fan
+    # of shorter coverts folding down-and-under behind. Drawn first/behind so the
+    # breastbone overlaps the roots (anchored INTO the shoulders). The leading
+    # primary of each side rises ABOVE the head and the fan droops to the lower-
+    # outer quadrant, so the blacked-out chip reads as a beaked body between two
+    # spread DROOPING wings (a bird Y/X), never a symmetric 4-spoke fly.
+    wL = (cx - shoulder_dx, shoulder_y)
+    wR = (cx + shoulder_dx, shoulder_y)
+    # left leading primary up-and-out (~213°); fan sweeps DOWN (sign=-1 → toward
+    # ~110°). right leading primary up-and-out (~-33°); fan sweeps DOWN (sign=+1).
+    blade_wing(surf, wL, math.radians(213), s, sign=-1)
+    blade_wing(surf, wR, math.radians(-33), s, sign=+1)
 
     # === BODY — a compact keeled breastbone (chibi, short) ===================
     body = [(cx - int(16 * s), shoulder_y - int(2 * s)),
@@ -399,31 +450,51 @@ def draw_asthi_garuda(surf, cx, cy, s):
         pygame.draw.arc(surf, BONE_DD, (cx - bw2, ry - int(6 * s), bw2 * 2, int(14 * s)),
                         math.radians(200), math.radians(340), max(1, int(2 * s)))
 
-    # === TALONS — three-toe bone claws gripping below the keel ===============
-    # WHY bottom-set: the hook charts that the pillar cap is bottom-weighted; the
-    # hero shows the same grip so the silhouette has a clear "perched-then-launched"
-    # bottom anchor (anti top-heavy).
-    foot_y = cy + int(30 * s)
+    # === TALONS — two fat bone feet, three CHISEL toes each, gripping below ===
+    # WHY rebuilt fat: round-1+2 left these as thread-scribbles that dissolved to
+    # fuzz at 32px. Each foot is a fat triad-lit SHANK dropping from the keel to
+    # an ankle, then THREE wide chisel toes curling FORWARD (hooked tips) like a
+    # talon clamped on an unseen perch — the same fat-blade construction as the
+    # wings so the grip reads as solid bone, not noise, even tiny.
+    ankle_y = cy + int(34 * s)
     for sgn in (-1, 1):
-        fx = cx + sgn * int(9 * s)
-        # shank — a fat triad-lit bone, not a scribble
-        fat_claw(surf, (cx + sgn * int(6 * s), cy + int(20 * s)), (fx, foot_y),
-                 max(5.0, 6.0 * s), s, bend=0.0)
-        # exactly THREE fat triad-lit toes, kept TIGHT and short so they read as a
-        # compact gripping claw under the keel — the lower wing-blades, not the
-        # talons, carry the bottom of the X silhouette
-        for k in (-1, 0, 1):
-            a = math.radians(78 + k * 26)
-            tx = fx + math.cos(a) * int(11 * s)
-            ty = foot_y + abs(math.sin(a)) * int(11 * s)
-            fat_claw(surf, (fx, foot_y), (tx, ty), max(4.0, 5.0 * s), s, bend=k * 0.3)
+        ax = cx + sgn * int(8 * s)
+        # fat shank from the keel base down-and-out to the ankle knuckle
+        fat_claw(surf, (cx + sgn * int(4 * s), cy + int(22 * s)), (ax, ankle_y),
+                 max(6.0, 8.0 * s), s, bend=0.0)
+        # ankle knuckle — a small solid bone ball so toes look jointed, not stuck
+        triad_circle(surf, BONE, (ax, ankle_y), max(2, int(4 * s)),
+                     ow=max(1, int(1.2 * s)), sheen=True, core=False)
+        # THREE fat chisel toes: front pair splay down-out, one rear toe curls
+        # back-under (a raptor's gripping arrangement), each hooked at the tip
+        toes = ((sgn * 0.50, 1.00, 0.45),   # outer front toe (down-and-out)
+                (sgn * 0.05, 1.10, 0.30),   # centre front toe (longest, down)
+                (-sgn * 0.42, 0.74, -0.40)) # rear toe curling back-under
+        for dx_f, lf, bend in toes:
+            tx = ax + dx_f * int(13 * s)
+            ty = ankle_y + lf * int(13 * s)
+            fat_claw(surf, (ax, ankle_y), (tx, ty), max(5.0, 6.5 * s), s, bend=bend)
 
-    # === wing roots overlapping the shoulders (anchor read) ==================
+    # === scapula KNOBS where the wings root into the shoulders ===============
+    # WHY irregular bone wedges, not round rivets: round-2's two symmetric grey
+    # ring-knuckles read as bolts/thorax-rivets (the insect tell again). These
+    # are lumpy triad-lit scapula bones — an asymmetric pentagon tilted up-and-
+    # out toward each wing, so the join reads SKELETAL, not mechanical.
     for sgn in (-1, 1):
-        triad_circle(surf, BONE, (cx + sgn * shoulder_dx, shoulder_y),
-                     int(8 * s), ow=max(1, int(1.2 * s)), core=False)
-        pygame.draw.circle(surf, BONE_DD, (cx + sgn * shoulder_dx, shoulder_y),
-                           int(3 * s))
+        kx = cx + sgn * shoulder_dx
+        knob = [(kx - sgn * int(7 * s), shoulder_y + int(4 * s)),
+                (kx - sgn * int(6 * s), shoulder_y - int(6 * s)),
+                (kx + sgn * int(4 * s), shoulder_y - int(8 * s)),
+                (kx + sgn * int(9 * s), shoulder_y - int(1 * s)),
+                (kx + sgn * int(5 * s), shoulder_y + int(6 * s))]
+        triad_blob(surf, BONE, knob,
+                   core_pts=[(kx, shoulder_y + int(5 * s)),
+                             (kx + sgn * int(8 * s), shoulder_y),
+                             (kx + sgn * int(4 * s), shoulder_y + int(5 * s))],
+                   sheen_pts=[(kx - sgn * int(5 * s), shoulder_y - int(5 * s)),
+                              (kx + sgn * int(2 * s), shoulder_y - int(6 * s)),
+                              (kx - sgn * int(1 * s), shoulder_y - int(1 * s))],
+                   ow=max(1, int(1.2 * s)))
 
     # === HEAD last — beak owns the centre ====================================
     # short neck vertebrae linking skull to keel
@@ -491,33 +562,39 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     # WHY bottom-weighted: the beak + talons hang toward the gap so the heavy mass
     # sits at the gap edge, never top-heavy. Wings are half-folded into a tight
     # hard scalloped fan tucked back along the pole, not flared wide.
-    cap_skull_r = int(15 * s)
+    cap_skull_r = int(16 * s)
     if cap == "bottom":
-        cap_y = bot - int(24 * s)
-        fold_y = cap_y - int(8 * s)
-        # half-FOLDED wings: 3 FAT blades per side, swept back-and-DOWN along the
-        # pole into a tight HARD SCALLOPED fan (the winged tell on the prop, NOT a
-        # rib-spline hood). Steep angle + short length = folded, not flared.
-        folded_fan(surf, (cx - int(10 * s), fold_y), math.radians(238), s, +1)
-        folded_fan(surf, (cx + int(10 * s), fold_y), math.radians(-58), s, -1)
-        talon_y = cap_y + int(cap_skull_r * 1.3)
+        cap_y = bot - int(26 * s)
+        # half-FOLDED wings tucked UP the shaft (away from the down-facing gap):
+        # leading blade rises up-and-out, the scalloped fan sweeps back along the
+        # pole. Roots sit at the skull's shoulders. This is the WINGED tell on the
+        # prop — clearly off Nagaraja's splayed rib-spline hood.
+        fold_y = cap_y - int(6 * s)
+        folded_fan(surf, (cx - int(11 * s), fold_y), math.radians(206), s, -1)
+        folded_fan(surf, (cx + int(11 * s), fold_y), math.radians(-26), s, +1)
+        talon_y = cap_y + int(cap_skull_r * 1.4)
         talon_dir = 1
     else:
-        cap_y = top + int(24 * s)
-        fold_y = cap_y + int(8 * s)
-        folded_fan(surf, (cx - int(10 * s), fold_y), math.radians(122), s, +1)
-        folded_fan(surf, (cx + int(10 * s), fold_y), math.radians(58), s, -1)
-        talon_y = cap_y - int(cap_skull_r * 1.3)
+        cap_y = top + int(26 * s)
+        fold_y = cap_y + int(6 * s)
+        folded_fan(surf, (cx - int(11 * s), fold_y), math.radians(154), s, +1)
+        folded_fan(surf, (cx + int(11 * s), fold_y), math.radians(26), s, -1)
+        talon_y = cap_y - int(cap_skull_r * 1.4)
         talon_dir = -1
 
-    # three FAT triad-lit talons gripping TOWARD the gap line (bottom-weight)
+    # two fat feet (three chisel toes each) gripping TOWARD the gap line — same
+    # fat construction as the hero so the grip survives at pillar-chip scale
     for sgn in (-1, 1):
-        gx = cx + sgn * int(7 * s)
-        for k in (-1, 0, 1):
-            a = math.radians(74 + k * 32)
-            tx = gx + math.cos(a) * int(12 * s)
-            ty = talon_y + talon_dir * abs(math.sin(a)) * int(12 * s)
-            fat_claw(surf, (gx, talon_y), (tx, ty), max(3.0, 4.0 * s), s, bend=k * 0.3)
+        gx = cx + sgn * int(8 * s)
+        # short shank to an ankle knuckle, then three toes splaying toward the gap
+        knuckle = (gx, talon_y)
+        triad_circle(surf, BONE, knuckle, max(2, int(4 * s)),
+                     ow=max(1, int(1.0 * s)), sheen=True, core=False)
+        for dx_f, lf, bend in ((sgn * 0.55, 0.9, 0.4), (sgn * 0.08, 1.05, 0.25),
+                               (-sgn * 0.42, 0.7, -0.35)):
+            tx = gx + dx_f * int(13 * s)
+            ty = talon_y + talon_dir * lf * int(13 * s)
+            fat_claw(surf, knuckle, (tx, ty), max(4.0, 5.0 * s), s, bend=bend)
 
     # the skull caps the gap, beak + eyes glowing toward it
     # flip the skull so the beak points at the gap on the top segment
@@ -555,7 +632,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASTHI-GARUDA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "bone-winged charnel sky-eater  ·  BOLD X · beaked skull · 4-5 FAT bone-BLADES · round 2",
+        "bone-winged charnel sky-eater  ·  BEAKED bird-SKULL · TWO tiered quill-wings · bone sockets · fat talons · round 3",
         True, LABEL_DIM), (290, 26))
 
     # === (a) BIG HERO =========================================================
@@ -567,9 +644,9 @@ def main():
 
     sheet.blit(render_hero(), (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("hard X-silhouette: beaked bone-skull over two tiered fans of RIGID quill-", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("BLADES (bone splines, NOT membranes). Beak agape + sockets glow blood-orange.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Talons grip below = bottom anchor. Lavender-grey bone DESATURATED, no violet glow.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("BEAKED bird-skull (heavy hooked beak focal) between TWO tiered quill-wings —", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("long leading primaries, short coverts folding under (one wing/side, NOT 4-spoke).", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("Angular BONE sockets + beak gape glow blood-orange. Fat 3-toe talons grip below.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -631,7 +708,7 @@ def main():
     pygame.draw.rect(sheet, INK, (sx, sil_y, 96, 96), 1)
     sheet.blit(silhouette32(), (sx, sil_y))
     sheet.blit(font_sm.render("32px BLACKED-OUT silhouette —", True, LABEL), (sx + 104, sil_y + 30))
-    sheet.blit(font_sm.render("must read ONLY as spread-wing X", True, LABEL_DIM), (sx + 104, sil_y + 48))
+    sheet.blit(font_sm.render("must read BEAKED BIRD, spread wings", True, LABEL_DIM), (sx + 104, sil_y + 48))
 
     def pillar_chip32():
         big = pygame.Surface((44 * SS, 130 * SS), pygame.SRCALPHA)
@@ -672,7 +749,7 @@ def main():
         "dark-core→fill→top-left sheen triad · 1px grown outline · chibi · scary-CUTE · procedural-only · violet in BONE not glow.",
         True, LABEL_DIM), (26, 863))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

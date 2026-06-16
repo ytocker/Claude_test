@@ -472,51 +472,62 @@ def _arc_finial_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
     DOWN toward the gap so the cap MASS falls INTO the gap, never top-heavy. The
     EMBER glow is CONFINED to this cap (the only warm light anywhere)."""
     d = -1 if point_up else 1     # d points toward the gap
-    # The compact arc-finial sits a little proud of the shaft end, ON-axis. Its
-    # opening faces the gap so its dotted finials hang DOWN into the gap.
-    cap_r = half_w * 1.18         # slim — barely wider than the shaft
-    cy = cap_base_y + d * half_w * 0.55
+    # RE-SPEC A: the finial must NOT carry mass above the shaft axis. The arc is
+    # pulled to a SLIM on-axis cap (span ~= shaft width +30%, no wider) and bows
+    # AWAY from the gap, tucked tight against the shaft end so almost nothing
+    # rides above it. The dot-tipped finials hang DOWN well into the gap so the
+    # heaviest pipeclay mass falls below the shaft axis, never above it.
+    cap_r = half_w * 1.30         # slim — shaft width +30%, capped here
+    # Keep the arc apex barely proud of the shaft end so the band is on-axis and
+    # the visible ribbon sits LOW, not perched as a wide bar overhead.
+    cy = cap_base_y + d * half_w * 0.18
 
     # Ember glow CONFINED to the cap — radiates INTO the gap. Night alpha pulled
     # so the halo stays a contained cap glow.
-    gr = int(cap_r * (1.25 if night else 1.1))
-    gy = cap_base_y + d * half_w * 0.3
+    gr = int(cap_r * (1.18 if night else 1.0))
+    gy = cap_base_y + d * half_w * 0.55
     gl = make_glow_surface(gr, EMBER, alpha_center=150 if night else 118, falloff=2.4)
     surf.blit(gl, (int(cx - gr), int(gy - gr)), special_flags=pygame.BLEND_ADD)
 
-    # A single charcoal arc-ribbon whose opening faces the gap (mass into gap).
-    # Angles chosen so the arc bows AWAY from the gap and the open ends point
-    # toward it, anchoring the cap tight to the axis.
+    # A single SLIM charcoal arc-ribbon, narrow in angular span so it reads as a
+    # compact on-axis dome, NOT a wide horizontal smile-bar. The arc bows AWAY
+    # from the gap; its open ends point toward the gap.
     if point_up:
-        a0, a1 = math.radians(28), math.radians(152)    # bow points down (into gap)
+        a0, a1 = math.radians(44), math.radians(136)    # narrow dome, bows down
     else:
-        a0, a1 = math.radians(208), math.radians(332)   # bow points up (into gap)
-    _arc_band(surf, cx, cy, cap_r, cap_r * 0.74, a0, a1, CHAR, ss)
-    _arc_band(surf, cx, cy, cap_r * 0.92, cap_r * 0.84, a0, a1, OCHRE, ss)
-    _arc_band(surf, cx, cy, cap_r, cap_r * 0.94, a0, a1, REDRIM, ss)
-    _arc_dot_row(surf, cx, cy, cap_r * 0.83, a0 + 0.18, a1 - 0.18, 5,
-                 half_w * 0.15, PIPECLAY, ss, key_col=PIPECLAY_DK)
+        a0, a1 = math.radians(224), math.radians(316)   # narrow dome, bows up
+    _arc_band(surf, cx, cy, cap_r, cap_r * 0.70, a0, a1, CHAR, ss)
+    _arc_band(surf, cx, cy, cap_r * 0.90, cap_r * 0.80, a0, a1, OCHRE, ss)
+    _arc_band(surf, cx, cy, cap_r, cap_r * 0.92, a0, a1, REDRIM, ss)
 
-    # Two dot-tipped finials dropped DOWN toward the gap from the arc ends, so
-    # the cap's heaviest stamped marks fall INTO the gap (anti-top-heavy).
-    for s in (-1, 1):
-        bx = cx + s * cap_r * 0.78
+    # The pipeclay dot-row no longer rides ALONG the top of the arc (that read as
+    # a smile-bar). Instead a SHORT 3-dot row sits at the on-axis crest, the
+    # heaviest stamped mass deferred to the hanging finials below.
+    _arc_dot_row(surf, cx, cy, cap_r * 0.82, a0 + 0.42, a1 - 0.42, 3,
+                 half_w * 0.13, PIPECLAY, ss, key_col=PIPECLAY_DK)
+
+    # Three dot-tipped finials dropping DOWN well into the gap from the arc — the
+    # heaviest pipeclay mass falls BELOW the shaft axis (decisively bottom-weighted
+    # like Big Reapy's bident). Centre finial longest, on-axis.
+    finials = ((-1, 0.78, 1.05), (0, 0.0, 1.55), (1, 0.78, 1.05))
+    for s, xfac, lfac in finials:
+        bx = cx + s * cap_r * xfac
         by = cy
-        tx = cx + s * cap_r * 0.50
-        ty = cy + d * cap_r * 0.95
+        tx = cx + s * cap_r * (xfac * 0.55)
+        ty = cy + d * cap_r * lfac
         pygame.draw.line(surf, CHAR, (int(bx), int(by)), (int(tx), int(ty)),
                          max(2, int(3.4 * ss)))
         pygame.draw.line(surf, OCHRE, (int(bx), int(by)), (int(tx), int(ty)),
                          max(1, int(1.4 * ss)))
-        pygame.draw.circle(surf, PIPECLAY, (int(tx), int(ty)), max(1, int(half_w * 0.16)))
-        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(half_w * 0.16)),
+        pygame.draw.circle(surf, PIPECLAY, (int(tx), int(ty)), max(1, int(half_w * 0.18)))
+        pygame.draw.circle(surf, INK, (int(tx), int(ty)), max(1, int(half_w * 0.18)),
                            max(1, int(ss)))
 
-    # The ember twinkle core sits in the arc crest, gap-facing.
+    # The ember twinkle core sits at the on-axis arc crest, gap-facing, contained.
     ex = cx
-    ey = cy + d * cap_r * 0.40
-    pygame.draw.circle(surf, EMBER, (int(ex), int(ey)), max(1, int(half_w * 0.20)))
-    pygame.draw.circle(surf, EMBER_HOT, (int(ex), int(ey)), max(1, int(half_w * 0.10)))
+    ey = cy + d * cap_r * 0.55
+    pygame.draw.circle(surf, EMBER, (int(ex), int(ey)), max(1, int(half_w * 0.18)))
+    pygame.draw.circle(surf, EMBER_HOT, (int(ex), int(ey)), max(1, int(half_w * 0.09)))
 
 
 def _staff_pillar_obstacle(height, ss, *, flip, night=False):

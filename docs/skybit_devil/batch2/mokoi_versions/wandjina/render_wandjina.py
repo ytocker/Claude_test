@@ -112,15 +112,21 @@ def _dot_row(surf, cx, y, span_hw, n, r, col, *, key_col=None, ss=3):
                                max(1, int(ss * 0.6)))
 
 
-def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=16):
+def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=12):
     """The signature HALO: a crisp graphic STARBURST of red-ochre rays radiating
     straight from the disk rim. Rays ALTERNATE long / short tips around the
     circle (the rain-streak / lightning read). This is hard radial linework —
     deliberately NOT a soft glow ring and NOT a circle of discrete objects (the
     Raijin drum-ring trap). Each ray is a tapered triangle (fat at the rim,
-    pointed at the tip) so the burst reads as spokes of rain, not a gear."""
+    pointed at the tip) so the burst reads as spokes of rain, not a gear.
+
+    A BOLDER, LOWER-count burst reads more graphic at 32px than a dense fan: the
+    long tips are clearly longer + wider-based so they own the silhouette, and
+    the short tips are clearly stubbier so the long/short alternation stays
+    legible after the downscale instead of mushing into a fuzzy spiky blob."""
     # Draw the long + short rays interleaved. Long rays carry the silhouette;
-    # short rays fill the gaps so the burst reads dense without becoming a ring.
+    # short rays read as the in-between stubs — the clear long/short rhythm is
+    # what keeps the burst crisp small rather than a uniform spiky ring.
     for i in range(n_long):
         a0 = 2 * math.pi * (i / n_long) - math.pi / 2.0
         # one long ray on the spoke, one short ray in the gap after it
@@ -128,13 +134,15 @@ def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=16):
             if kind == "long":
                 a = a0
                 r_tip = r_long
-                half = 0.034 * math.tau if hasattr(math, "tau") else 0.034 * 2 * math.pi
+                # wider base so the long tips read BOLD, not thread-thin, at 32px
+                half = 0.050 * 2 * math.pi
                 col = RED_OCHRE
                 col_key = RED_OCHRE_D
             else:
                 a = a0 + math.pi / n_long
-                r_tip = r_short
-                half = 0.020 * 2 * math.pi
+                # clearly stubbier short tip — exaggerated long/short contrast
+                r_tip = r_in + (r_short - r_in) * 0.62
+                half = 0.022 * 2 * math.pi
                 col = RED_OCHRE_D
                 col_key = None
             # tapered triangle: two base points on the rim, one tip out at r_tip
@@ -175,7 +183,13 @@ def _wandjina_eye(surf, cx, cy, r, ss):
     """A big CALM dark eye: a heavy charcoal-mass oval ringed thin pipeclay, with
     a soft yellow-ochre iris-ring and an ink pupil. Flat fills only. The eyes
     are the dominant dark mass on the white face — wide and serene, the watching
-    stare. A single pipeclay catch-dot is the lone flat 'glint'."""
+    stare.
+
+    The CATCH-LIGHT is the load-bearing detail: at true 32px the charcoal mass
+    collapses to a solid dark oval and the eye otherwise reads as an empty skull
+    socket. A BOLD pipeclay catch-ring around the iris plus a pipeclay glint pip
+    keep a bright spot inside the dark mass after the downscale, so the eye still
+    reads as a watching EYE rather than a hole — the whole scary-CUTE beat."""
     # charcoal eye-mass (the dominant dark on the white disk)
     pygame.draw.ellipse(surf, CHAR,
                         pygame.Rect(int(cx - r), int(cy - r * 1.18),
@@ -184,15 +198,21 @@ def _wandjina_eye(surf, cx, cy, r, ss):
                         pygame.Rect(int(cx - r), int(cy - r * 1.18),
                                     int(2 * r), int(2 * r * 1.18)),
                         max(1, int(1.4 * ss)))
-    # yellow-ochre iris ring inside the charcoal
-    pygame.draw.circle(surf, YEL_OCHRE, (int(cx), int(cy)), int(r * 0.60))
-    pygame.draw.circle(surf, YEL_OCHRE_D, (int(cx), int(cy)), int(r * 0.60),
+    # BOLD pipeclay catch-ring: a bright clay annulus just inside the charcoal
+    # rim. This is the bright pixel that must survive to 32px so the eye is not a
+    # hollow socket — drawn fat (filled clay disk, then re-cut by the iris) so it
+    # keeps width after smoothscale.
+    pygame.draw.circle(surf, PIPECLAY_HI, (int(cx), int(cy)), int(r * 0.78))
+    # yellow-ochre iris ring inside the catch-ring
+    pygame.draw.circle(surf, YEL_OCHRE, (int(cx), int(cy)), int(r * 0.56))
+    pygame.draw.circle(surf, YEL_OCHRE_D, (int(cx), int(cy)), int(r * 0.56),
                        max(1, int(1.0 * ss)))
     # ink pupil
-    pygame.draw.circle(surf, CHAR_DK, (int(cx), int(cy)), int(r * 0.34))
-    # lone flat catch-dot
-    pygame.draw.circle(surf, PIPECLAY_HI, (int(cx - r * 0.16), int(cy - r * 0.30)),
-                       max(1, int(r * 0.12)))
+    pygame.draw.circle(surf, CHAR_DK, (int(cx), int(cy)), int(r * 0.32))
+    # bright pipeclay glint pip riding the catch-ring (the lone 'alive' spark)
+    pygame.draw.circle(surf, PIPECLAY_HI,
+                       (int(cx - r * 0.20), int(cy - r * 0.34)),
+                       max(1, int(r * 0.16)))
 
 
 def _face_disk(surf, cx, cy, r, ss, *, halo=True, r_long=None, r_short=None):
@@ -218,15 +238,18 @@ def _face_disk(surf, cx, cy, r, ss, *, halo=True, r_long=None, r_short=None):
     pygame.draw.circle(surf, CHAR, (int(cx), int(cy)), int(r), max(2, int(2.6 * ss)))
     pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r), max(1, int(1.2 * ss)))
 
-    # yellow-ochre dot-field across the brow (the only filler pattern, up high)
+    # yellow-ochre dot-field across the brow (the only filler pattern, up high).
+    # Nudged one value/size step up so a hint of the dot-row survives to 64px.
     brow_y = cy - r * 0.50
-    _dot_row(surf, cx, brow_y, r * 0.56, 7, r * 0.066, YEL_OCHRE,
+    _dot_row(surf, cx, brow_y, r * 0.56, 6, r * 0.078, YEL_OCHRE,
              key_col=YEL_OCHRE_D, ss=ss)
 
-    # two big CALM dark eyes — the dominant dark mass on the white face
-    eye_dx = r * 0.40
+    # two big CALM dark eyes — the dominant dark mass on the white face. Slightly
+    # SMALLER + WIDER-set than round 1: recovers the "face" read over the
+    # "skull" read and leaves room inside the dark oval for the catch-ring.
+    eye_dx = r * 0.45
     eye_y = cy + r * 0.02
-    eye_r = r * 0.27
+    eye_r = r * 0.235
     for s in (-1, 1):
         _wandjina_eye(surf, cx + s * eye_dx, eye_y, eye_r, ss)
 

@@ -128,76 +128,93 @@ def _handprint(surf, cx, cy, w, ss, col, key=None):
 
 # ── the FAT knob-head (the hero read) ────────────────────────────────────────
 
-def _knob_bands(surf, cx, cy, r, ss):
-    """The pipeclay-white CONCENTRIC KNOB-BANDS — the protected tell. A target
-    of alternating charcoal / pipeclay rings carved into the bulb, with a thin
-    yellow-ochre rim edging the whole knob and brick-red accents in the gaps.
-    All flat fills, hard edges — the concentric banding IS the detail."""
-    # Outer thin yellow-ochre rim — the only rim hue, edges the knob.
+def _knob_base(surf, cx, cy, r, ss):
+    """The fat bulb GROUND for the imp's face — a charcoal disc edged by a thin
+    yellow-ochre rim and a single PARTIAL pipeclay brow-arc. Deliberately NOT a
+    set of concentric rings: the bands are demoted to one open top-of-skull arc
+    (a painted brow stripe) + one short brick chin-mark, so the bulb never reads
+    as a bullseye. The big asymmetric eyes + mouth (drawn after) are the
+    dominant marks; this is just the field they sit on.
+
+    The asymmetry is the whole point — a concentric target survives downscale as
+    rings, but an off-centre brow + chin breaks that symmetry so at 32px the eye
+    reads a FACE on a bulb, not a dartboard on a stick."""
+    # Thin yellow-ochre rim, then the charcoal bulb field it edges.
     pygame.draw.circle(surf, YELLOW_RIM, (int(cx), int(cy)), int(r))
-    # Concentric bands from outside in. Strict pipeclay<->charcoal alternation so
-    # the target keeps crisp value-contrast all the way to 32px; one brick band
-    # gives the warm read without muddying the inner contrast.
-    bands = [
-        (0.92, CHAR),
-        (0.78, PIPECLAY),
-        (0.64, BRICK),
-        (0.50, PIPECLAY),
-        (0.34, CHAR_DK),
-        (0.18, PIPECLAY),
-    ]
-    for frac, col in bands:
-        pygame.draw.circle(surf, col, (int(cx), int(cy)), max(1, int(r * frac)))
-    # Crisp ink keyline on the outer band so the knob POPS.
+    pygame.draw.circle(surf, CHAR, (int(cx), int(cy)), int(r * 0.90))
+    # ONE partial pipeclay brow-band hugging the top of the skull — an open arc,
+    # not a closed ring, so it can't ring as a target. It also frames the eyes.
+    brow = pygame.Rect(int(cx - r * 0.72), int(cy - r * 0.80),
+                       int(r * 1.44), int(r * 1.10))
+    pygame.draw.arc(surf, PIPECLAY, brow, math.radians(28), math.radians(152),
+                    max(2, int(r * 0.16)))
+    pygame.draw.arc(surf, INK, brow, math.radians(28), math.radians(152),
+                    max(1, int(0.8 * ss)))
+    # ONE short brick chin-mark low + off the centre line — warm tell, asymmetric.
+    chin = pygame.Rect(int(cx - r * 0.40), int(cy + r * 0.52),
+                       int(r * 0.74), int(r * 0.34))
+    pygame.draw.arc(surf, BRICK, chin, math.radians(200), math.radians(340),
+                    max(2, int(r * 0.13)))
+    # Crisp ink keyline on the bulb edge so the knob POPS.
     pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r), max(1, int(1.6 * ss)))
-    # Inner ink keylines on the two widest pipeclay bands so the target stays
-    # legible (a band reads as a band, not a flat disc).
-    pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r * 0.78),
-                       max(1, int(1.0 * ss)))
-    pygame.draw.circle(surf, INK, (int(cx), int(cy)), int(r * 0.50),
-                       max(1, int(1.0 * ss)))
 
 
 def _imp_face(surf, cx, cy, r, ss, *, blink=False):
-    """The goofy bulb-head face stamped on the fat knob: two close-set ring-eyes
-    high on the bulb and a small bared underbite-grin low — the scary-CUTE beat.
-    Eyes sit on the knob's upper pipeclay band so they read as part of the
-    target tell, not pasted on top."""
-    eye_dx = r * 0.34
-    eye_y = cy - r * 0.20
-    eye_r = r * 0.20
+    """The goofy CROSS-EYED imp face — the dominant marks on the bulb, authored
+    to survive at TRUE 32px. Two BIG high-contrast asymmetric eyes (pipeclay
+    whites, hard charcoal pupils that converge cross-eyed) and one decisive
+    charcoal mouth-bar with fang-notches. Sized so the eyes+mouth, not the
+    bands, win the focal at native res — read the 1x chip and it's a face.
+
+    Asymmetry is deliberate: the eyes sit at slightly different heights/sizes and
+    the pupils cross inward, so the knob can never collapse into concentric
+    symmetry the way a tidy two-eye target would."""
+    # Big eyes, set wide and high, intentionally unequal — goofy, never tidy.
+    eye_dx = r * 0.40
+    # Left eye a touch larger + lower; right smaller + higher — broken symmetry.
+    specs = (
+        (-1, eye_dx * 1.02, cy - r * 0.10, r * 0.34),
+        (+1, eye_dx * 0.96, cy - r * 0.18, r * 0.30),
+    )
     if blink:
-        for s in (-1, 1):
-            ex = cx + s * eye_dx
-            pygame.draw.line(surf, INK, (int(ex - eye_r), int(eye_y)),
-                             (int(ex + eye_r), int(eye_y)), max(2, int(2.0 * ss)))
+        for s, dx, ey, er in specs:
+            ex = cx + s * dx
+            pygame.draw.line(surf, INK, (int(ex - er), int(ey)),
+                             (int(ex + er), int(ey)), max(2, int(0.5 * er)))
     else:
-        for s in (-1, 1):
-            ex = cx + s * eye_dx
-            pygame.draw.circle(surf, PIPECLAY, (int(ex), int(eye_y)), int(eye_r))
-            pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r),
-                               max(1, int(1.2 * ss)))
-            # Pupil glances sideways — the lurking, about-to-pounce read.
-            pygame.draw.circle(surf, INK, (int(ex + eye_r * 0.30), int(eye_y)),
-                               int(eye_r * 0.52))
+        for s, dx, ey, er in specs:
+            ex = cx + s * dx
+            # Big pipeclay sclera with a hard ink keyline — high value contrast
+            # so the eye punches through at 32px as a clear light blob + dark dot.
+            pygame.draw.circle(surf, PIPECLAY, (int(ex), int(ey)), int(er))
+            pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(er),
+                               max(1, int(1.4 * ss)))
+            # Fat charcoal pupil pulled INWARD (cross-eyed toward the nose) — the
+            # goofy ambush-imp read, and it forces left/right asymmetry.
+            pup_r = er * 0.62
+            px = ex - s * er * 0.34
+            pygame.draw.circle(surf, INK, (int(px), int(ey + er * 0.06)), int(pup_r))
+            # Tiny catch-light so the pupil reads as an eye, not a hole.
             pygame.draw.circle(surf, PIPECLAY,
-                               (int(ex + eye_r * 0.10), int(eye_y - eye_r * 0.22)),
-                               max(1, int(eye_r * 0.16)))
-    # A small bared underbite-grin low on the bulb — a charcoal well with two
-    # stubby pipeclay fang-stubs poking UP (goofy-menacing, not a maw).
-    grin_y = cy + r * 0.34
-    grin_hw = r * 0.30
-    grin_h = r * 0.13
+                               (int(px - s * pup_r * 0.3), int(ey - pup_r * 0.3)),
+                               max(1, int(pup_r * 0.30)))
+    # One decisive charcoal mouth-BAR low on the bulb — a wide flat well that
+    # survives downscale as a single dark horizontal mark (matches the Mokoi
+    # parent's bar-mouth read), with two pipeclay fang-notches biting up.
+    grin_y = cy + r * 0.40
+    grin_hw = r * 0.42
+    grin_h = r * 0.15
     mouth = pygame.Rect(int(cx - grin_hw), int(grin_y - grin_h),
                         int(2 * grin_hw), int(2 * grin_h))
-    pygame.draw.rect(surf, CHAR_DK, mouth, border_radius=int(grin_h))
-    pygame.draw.rect(surf, INK, mouth, max(1, int(1.2 * ss)),
-                     border_radius=int(grin_h))
+    pygame.draw.rect(surf, CHAR_DK, mouth, border_radius=int(grin_h * 0.6))
+    pygame.draw.rect(surf, INK, mouth, max(1, int(1.4 * ss)),
+                     border_radius=int(grin_h * 0.6))
+    # Two stubby pipeclay fangs poking UP from the lower lip — goofy-menacing.
     for s in (-1, 1):
-        fx = cx + s * grin_hw * 0.5
-        pts = [(fx - grin_hw * 0.16, grin_y + grin_h * 0.6),
-               (fx + grin_hw * 0.16, grin_y + grin_h * 0.6),
-               (fx, grin_y - grin_h * 0.5)]
+        fx = cx + s * grin_hw * 0.45
+        pts = [(fx - grin_hw * 0.18, grin_y + grin_h * 0.55),
+               (fx + grin_hw * 0.18, grin_y + grin_h * 0.55),
+               (fx, grin_y - grin_h * 0.4)]
         pygame.draw.polygon(surf, PIPECLAY, [(int(x), int(y)) for x, y in pts])
 
 
@@ -274,20 +291,20 @@ def build_quinkan(scale=1.0, ss=5, *, blink=False, compact=False):
         pygame.draw.line(surf, INK, (int(cx + s * shaft_half), int(shaft_top)),
                          (int(cx + s * shaft_half), int(shaft_top + shaft_len)),
                          max(1, int(1.5 * ss)))
-    # A squat splayed digging-foot at the base (the lurking-on-the-trail read).
-    foot_hw = shaft_half * 2.1
-    foot_pts = [(cx - shaft_half, foot_y - shaft_len * 0.04),
-                (cx - foot_hw, foot_y + knob_r * 0.5),
-                (cx + foot_hw, foot_y + knob_r * 0.5),
-                (cx + shaft_half, foot_y - shaft_len * 0.04)]
-    pygame.draw.polygon(surf, CHAR, [(int(x), int(y)) for x, y in foot_pts])
-    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in foot_pts],
-                        max(1, int(1.4 * ss)))
-    _dot_column(surf, cx, foot_y + knob_r * 0.14, foot_y + knob_r * 0.36,
-                shaft_half * 0.34, BRICK, key_col=BRICK_DK, ss=ss, n=1)
+    # A small charcoal BOOKEND-KNOB closes the club on-axis — a flat hard-edged
+    # bulb echoing the head, no wider than the shaft so the lollipop silhouette
+    # and the mirror stay clean (NO flared tripod / stand). One brick dot stamps
+    # its centre as the last handprint-family mark; a hard ink cap, no fuzz.
+    foot_r = int(shaft_half * 1.05)
+    foot_cy = int(foot_y + foot_r * 0.55)
+    pygame.draw.circle(surf, CHAR, (int(cx), foot_cy), foot_r)
+    pygame.draw.circle(surf, INK, (int(cx), foot_cy), foot_r, max(1, int(1.5 * ss)))
+    pygame.draw.circle(surf, BRICK, (int(cx), foot_cy), max(2, int(foot_r * 0.34)))
+    pygame.draw.circle(surf, BRICK_DK, (int(cx), foot_cy),
+                       max(2, int(foot_r * 0.34)), max(1, int(0.6 * ss)))
 
     # The FAT knob-head last so it occludes the stalk top — the dominant read.
-    _knob_bands(surf, cx, knob_cy, knob_r, ss)
+    _knob_base(surf, cx, knob_cy, knob_r, ss)
     _imp_face(surf, cx, knob_cy, knob_r, ss, blink=blink)
 
     out_w = int(surf.get_width() / ss)
@@ -340,12 +357,16 @@ def _knob_cap(surf, cx, cap_base_y, half_w, ss, *, point_up, night=False):
                       int(min(cap_base_y, cy)),
                       int(half_w), int(abs(cy - cap_base_y))))
 
-    # The knob finial: the concentric pipeclay band-tell.
-    _knob_bands(surf, cx, cy, knob_r, ss)
-    # The ember twinkle core sits in the knob centre so the warm light reads as
-    # the finial's lit eye, not a free-floating spark.
-    pygame.draw.circle(surf, EMBER, (int(cx), int(cy)), max(1, int(knob_r * 0.16)))
-    pygame.draw.circle(surf, EMBER_HOT, (int(cx), int(cy)), max(1, int(knob_r * 0.08)))
+    # The knob finial carries the SAME face the hero does — so a scrolling column
+    # of caps reads as a row of lurking imp-HEADS, never stacked dartboards. The
+    # face-dominant authoring (eyes + mouth beat the bands) is what de-targets it.
+    _knob_base(surf, cx, cy, knob_r, ss)
+    _imp_face(surf, cx, cy, knob_r, ss)
+    # A warm ember twinkle low in the mouth so the cap's lone warm light reads as
+    # the imp's lit grin, not a free spark — still strictly cap-confined.
+    em_y = cy + knob_r * 0.40
+    pygame.draw.circle(surf, EMBER, (int(cx), int(em_y)), max(1, int(knob_r * 0.13)))
+    pygame.draw.circle(surf, EMBER_HOT, (int(cx), int(em_y)), max(1, int(knob_r * 0.06)))
 
 
 def _club_pillar_obstacle(height, ss, *, flip, night=False):
@@ -413,11 +434,11 @@ def main():
     font = pygame.font.SysFont("dejavusans", 15, bold=True)
     small = pygame.font.SysFont("dejavusans", 12)
 
-    SW, SH = 1080, 770
+    SW, SH = 1320, 770
     sheet = pygame.Surface((SW, SH))
     sheet.fill((120, 120, 124))
     _label(sheet, font,
-           "QUINKAN-IMJIM  —  mokoi spin-off  —  knob-lollipop ambush-imp  —  round 1",
+           "QUINKAN-IMJIM  —  mokoi spin-off  —  knob-lollipop ambush-imp  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
            "FLAT-GRAPHIC: charcoal body (red-ochre lean), brick-red dot/handprint stamps, pipeclay concentric knob-bands as the tell, thin yellow-ochre rim; ember CAP-only. FAT knob + THIN stalk.",
@@ -540,15 +561,44 @@ def main():
                       gchip.centery - gray.get_height() // 2))
     _label(sheet, small, "grayscale tell", gchip.x + 4, gchip.y + 2, (24, 24, 24))
 
+    # — Cell D: a SCROLLING COLUMN of 3-4 repeating pillars at 1x, day + night,
+    #   to confirm the caps read as a row of imp-HEADS, not stacked dartboards.
+    panelD = pygame.Rect(1074, 56, 230, 600)
+    pygame.draw.rect(sheet, (96, 96, 100), panelD, border_radius=8)
+    pygame.draw.rect(sheet, (60, 60, 64), panelD, 2, border_radius=8)
+    _label(sheet, font, "(d) SCROLL @ 1x", panelD.x + 8, panelD.y + 8, (245, 240, 230))
+    _label(sheet, small, "caps = imp-HEADS, not", panelD.x + 8, panelD.y + 28, (235, 230, 220))
+    _label(sheet, small, "stacked targets", panelD.x + 8, panelD.y + 42, (235, 230, 220))
+
+    pw = PIPE_W + 2 * OVERHANG
+    for col_i, (sky_cols, lab, night) in enumerate((
+            (((40, 110, 200), (90, 170, 230), (170, 220, 245)), "day", False),
+            (((8, 8, 30), (20, 18, 52), (40, 30, 70)), "night", True))):
+        col_x = panelD.x + 14 + col_i * (pw + 26)
+        col_y = panelD.y + 64
+        col_h = 510
+        cbg = _sky(pw, col_h, *sky_cols, stars=night)
+        sheet.blit(cbg, (col_x, col_y))
+        pygame.draw.rect(sheet, (60, 60, 64), (col_x, col_y, pw, col_h), 1)
+        # Three repeating top pillars marching down the column with gaps, so the
+        # gap-edge caps stack into the player's view the way they scroll in-game.
+        for k in range(3):
+            ph = 96
+            py = col_y + 6 + k * (ph + 64)
+            pil = _club_pillar_obstacle(ph, 4, flip=True, night=night)
+            sheet.blit(pil, (col_x - 2, py - 2))
+        _label(sheet, small, lab, col_x + 4, col_y + 4,
+               (18, 28, 24) if not night else (255, 220, 200))
+
     _label(sheet, small,
-           "FLAT only: detail via PATTERN DENSITY (concentric knob-bands + dot-column + handprint), never 3D shading; charcoal dominant (red lean); pipeclay knob-bands are the protected tell.",
+           "FLAT only: detail via PATTERN DENSITY (face-dominant knob + dot-column + handprint), never 3D shading; charcoal dominant (red lean); pipeclay marks are the protected tell.",
            18, SH - 64, (40, 40, 46))
     _label(sheet, small,
-           "prop->pillar: club shaft = 1 brick dot-column + 1 handprint stamp per repeat (tiles); gap-edge cap = round knob-head finial (~+30%) w/ ember CONFINED to the cap. On-axis mirror.",
+           "ROUND 2: face de-targeted (big cross-eyes + bar-mouth beat the bands; brow is a PARTIAL arc, not concentric rings); foot = small charcoal bookend-knob (no tripod); caps read as heads.",
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
