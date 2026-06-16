@@ -255,11 +255,11 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     pygame.draw.lines(surf, GREEN_HOT, False, lower, max(1, int(1.1 * ss)))
     # The upper crown crack stays a thin sour hairline (doesn't compete).
     pygame.draw.lines(surf, GREEN_DK, False, seam[:2], max(1, int(1.4 * ss)))
-    # A couple of hairline branch cracks off the main seam (shell stress).
+    # A couple of hairline branch cracks off the DOWNWARD seam (shell stress).
     for (bx, by), (ex, ey) in (
-        (crack_pts[1], (cx + rx * 0.40, cy + ry * 0.04)),
-        (crack_pts[2], (cx - rx * 0.42, cy + ry * 0.30)),
-        (crack_pts[3], (cx + rx * 0.40, cy + ry * 0.58)),
+        (crack_pts[2], (cx - rx * 0.44, cy + ry * 0.36)),
+        (crack_pts[3], (cx + rx * 0.42, cy + ry * 0.56)),
+        (crack_pts[4], (cx - rx * 0.34, cy + ry * 0.78)),
     ):
         pygame.draw.line(surf, SHELL_DEEP, (int(bx), int(by)), (int(ex), int(ey)),
                          max(2, int(2.2 * ss)))
@@ -310,11 +310,16 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     pygame.draw.lines(surf, rim, False, rim_pts, max(2, int(2.4 * ss)))
 
     if tell:
-        # Baked low-res tell for the 32px read: a bolder green crack stroke + a
-        # fatter green eye-blob so the creature read survives the downscale.
-        pygame.draw.lines(surf, GREEN, False, seam, max(2, int(3.0 * ss)))
-        pygame.draw.circle(surf, GREEN_HOT, (int(eye_x), int(eye_y)),
-                           max(2, int(eye_r * 0.55)))
+        # Baked low-res tell for the 32px read: bolder DOWNWARD green leak + a
+        # fatter green iris, then the dark slit RE-STAMPED on top so the curious
+        # slit-eye charm focal survives the downscale (AD directive 5) instead of
+        # washing to a green dot.
+        pygame.draw.lines(surf, GREEN, False, lower, max(2, int(3.2 * ss)))
+        pygame.draw.circle(surf, GREEN, (int(eye_x), int(eye_y)),
+                           max(2, int(eye_r * 0.66)))
+        pygame.draw.ellipse(surf, INK,
+                            (int(eye_x - slit_w * 0.6), int(eye_y - eye_r * 0.74),
+                             int(slit_w * 1.2), int(eye_r * 1.48)))
 
 
 def build_tehom(scale=1.0, ss=5, *, night=False, compact=False):

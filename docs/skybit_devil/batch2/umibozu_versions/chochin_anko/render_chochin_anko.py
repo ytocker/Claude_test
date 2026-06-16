@@ -129,6 +129,14 @@ def _esca(surf, cx, cy, r, ss, *, night=False, glow_mult=1.0, epic=False):
     gl = make_glow_surface(max(1, gr), LURE, alpha_center=200 if night else 140,
                            falloff=2.8)
     surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
+    if epic:
+        # Hero gets a tight inner WHITE bloom (small radius so it never bleeds over
+        # the body) to make the pip feel genuinely incandescent at big scale.
+        gr2 = int(r * 1.3 * glow_mult)
+        gl2 = make_glow_surface(max(1, gr2), LURE_CORE, alpha_center=200,
+                                falloff=3.0)
+        surf.blit(gl2, (int(cx - gr2), int(cy - gr2)),
+                  special_flags=pygame.BLEND_ADD)
     pygame.draw.circle(surf, LURE_DK, (int(cx), int(cy)), max(1, int(r)))
     pygame.draw.circle(surf, LURE, (int(cx), int(cy)), max(1, int(r * 0.86)))
     # A true hot-WHITE core blooming up out of the peach body so the lure reads
