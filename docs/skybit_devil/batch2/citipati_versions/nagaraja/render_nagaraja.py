@@ -287,10 +287,14 @@ def cobra_skull(surf, cx, cy, r, s, lit=True):
     # pip — survives the 32px downscale as the brightest single focal.
     gx, gy = cx, cy - int(r * 0.86)
     gr = int(r * 0.34)
+    # the brow cabochon is now the ONLY emerald glow in the figure (eyes are matte
+    # jade) — push its halo a touch harder so it is unambiguously the single bloom
+    # that survives the 32px downscale as the one bright focal point.
     if lit:
         halo = pygame.Surface((gr*8, gr*8), pygame.SRCALPHA)
-        pygame.draw.circle(halo, JADE + (95,), (gr*4, gr*4), int(gr*2.4))
-        pygame.draw.circle(halo, EMERALD + (80,), (gr*4, gr*4), int(gr*1.5))
+        pygame.draw.circle(halo, JADE + (110,), (gr*4, gr*4), int(gr*2.6))
+        pygame.draw.circle(halo, EMERALD + (110,), (gr*4, gr*4), int(gr*1.6))
+        pygame.draw.circle(halo, EM_BR + (90,), (gr*4, gr*4), int(gr*0.9))
         surf.blit(halo, (gx - gr*4, gy - gr*4), special_flags=pygame.BLEND_RGBA_ADD)
     # brass bezel setting (the "crown" mount that separates it from the eyes)
     triad_circle(surf, BRASS, (gx, gy), int(gr * 1.32), ow=max(1, int(1.4 * s)),
@@ -536,7 +540,7 @@ def main():
         "dark-core→fill→top-left sheen · 1px grown outline · chibi · scary-cute · pearl-and-jade · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 

@@ -440,12 +440,18 @@ def lion_mask(surf, cx, cy, s, lit=False, hero=True):
         # additive halo lifted the chin and bell to maw key and smeared the warm
         # focal down onto the chest. A tighter, dimmer glow keeps the warm pool
         # contained to the cavity so the dark chin band below can read.
-        gr = int(mw * (1.2 if lit else 0.95))
+        gr = int(mw * (1.05 if lit else 0.85))
         mglow = pygame.Surface((gr*4, gr*4), pygame.SRCALPHA)
         for r in range(gr, 0, -1):
-            a = int((112 if lit else 70) * (1 - r/gr))
+            a = int((100 if lit else 62) * (1 - r/gr))
             pygame.draw.circle(mglow, (*EMBER, a), (gr*2, gr*2), r)
-        surf.blit(mglow, (cx - gr*2, my + int(mh*0.3) - gr*2),
+        # Vertically SQUASH the halo so the warm pool spreads across the maw but
+        # its downward falloff dies at the dark chin band instead of washing over
+        # it onto the bell + top scale courses — the gap under the chin must read
+        # dark at hero scale. Centre it inside the cavity, above the lower lip.
+        mglow = pygame.transform.smoothscale(mglow, (gr*4, int(gr*4*0.62)))
+        gh = mglow.get_height()
+        surf.blit(mglow, (cx - gr*2, my - int(mh*0.1) - gh//2),
                   special_flags=pygame.BLEND_ADD)
     mouth = [(cx - mw, my - int(3*s)), (cx + mw, my - int(3*s)),
              (cx + int(mw*0.7), my + mh), (cx - int(mw*0.7), my + mh)]
