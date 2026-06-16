@@ -228,27 +228,33 @@ def _egg(surf, cx, cy, rx, ry, ss, *, night=False, tell=False):
     # — The embryo-green crack: a sour-green jagged fissure splitting DOWN the
     #   shell from near the whorl core, where the egg-tooth eye peers out. Drawn as
     #   a dark seam, a green glow inside, then a hot lightning-thin filament.
-    crack_top = (cx + rx * 0.02, cy - ry * 0.12)
+    # The crack ORIGINATES at the eye (the split where the egg-tooth eye peers
+    # out) and leaks DOWN the shell as the main green fissure; a faint hairline
+    # continues UP through the crown. The downward run is the dominant green leak.
     crack_pts = [
-        crack_top,
-        (cx + rx * 0.12, cy + ry * 0.16),
-        (cx - rx * 0.06, cy + ry * 0.40),
-        (cx + rx * 0.10, cy + ry * 0.66),
-        (cx - rx * 0.02, cy + ry * 0.86),
+        (cx + rx * 0.05, cy - ry * 0.22),   # faint upper hairline (crown)
+        (eye_x, eye_y),                      # the split AT the eye (origin)
+        (cx + rx * 0.14, cy + ry * 0.46),
+        (cx - rx * 0.04, cy + ry * 0.66),
+        (cx + rx * 0.10, cy + ry * 0.84),
+        (cx + rx * 0.0,  cy + ry * 0.98),
     ]
     # Glow first (under the seam) so the crack reads as LIGHT LEAKING out of the
-    # fracture — strongest at the split near the eye, tapering downward so it
-    # reads as a leak, not an even-lit slot.
-    for gi, (gx, gy) in enumerate(crack_pts[1:]):
-        falloff = 1.0 - 0.55 * (gi / max(1, len(crack_pts) - 2))
-        _green_glow(surf, gx, gy, rx * (0.18 * falloff), night=night,
-                    alpha=int((150 if night else 95) * falloff), mult=0.9)
-    # Dark crack seam (the gap in the shell).
+    # fracture — strongest at the split by the eye, swelling on the downward leak,
+    # so it reads as a leak rather than an even-lit slot.
+    for gi, (gx, gy) in enumerate(crack_pts[2:]):
+        falloff = 1.0 - 0.40 * (gi / max(1, len(crack_pts) - 3))
+        _green_glow(surf, gx, gy, rx * (0.21 * falloff), night=night,
+                    alpha=int((165 if night else 110) * falloff), mult=0.95)
+    # Dark crack seam (the gap in the shell) — full run.
     seam = [(int(x), int(y)) for x, y in crack_pts]
-    pygame.draw.lines(surf, SHELL_DEEP, False, seam, max(3, int(4.4 * ss)))
-    # Hot green filament inside the seam.
-    pygame.draw.lines(surf, GREEN, False, seam, max(2, int(2.2 * ss)))
-    pygame.draw.lines(surf, GREEN_HOT, False, seam, max(1, int(0.9 * ss)))
+    pygame.draw.lines(surf, SHELL_DEEP, False, seam, max(3, int(4.6 * ss)))
+    # The DOWNWARD leak below the eye is the bright green fissure (the co-focal).
+    lower = seam[1:]
+    pygame.draw.lines(surf, GREEN, False, lower, max(2, int(2.8 * ss)))
+    pygame.draw.lines(surf, GREEN_HOT, False, lower, max(1, int(1.1 * ss)))
+    # The upper crown crack stays a thin sour hairline (doesn't compete).
+    pygame.draw.lines(surf, GREEN_DK, False, seam[:2], max(1, int(1.4 * ss)))
     # A couple of hairline branch cracks off the main seam (shell stress).
     for (bx, by), (ex, ey) in (
         (crack_pts[1], (cx + rx * 0.40, cy + ry * 0.04)),

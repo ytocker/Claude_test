@@ -171,8 +171,10 @@ def _stalk_segment(surf, cx, top_y, seg_len, hw, ss, *, night=False,
     inner_r = [(x - ss, y) for x, y in right]
     pygame.draw.polygon(surf, stalk,
                         [(int(x), int(y)) for x, y in (inner_l + inner_r[::-1])])
-    # Cold-steel sheen stripe down the lit (left) edge of the filament.
-    sheen = _shade_c(BODY_SHEEN, 30) if night else BODY_SHEEN
+    # Cold-steel sheen stripe down the lit (left) edge of the filament. On night
+    # it is muted to a low-contrast tone so the dark filament stays ONE unbroken
+    # value at obstacle scale and never breaks into a dotted/dashed line.
+    sheen = _shade_c(stalk, 22) if night else BODY_SHEEN
     sheen_pts = [(int(x + ss * 1.4), int(y)) for x, y in left[::2]]
     if len(sheen_pts) >= 2:
         pygame.draw.lines(surf, sheen, False, sheen_pts, max(1, int(1.0 * ss)))
@@ -521,7 +523,9 @@ def _esca_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
     `point_up` orients the bulb so it hangs toward the gap. Kept compact so the
     cap is never top-heavy vs the shaft."""
     d = -1 if point_up else 1
-    bulb_r = span * 0.40            # ~stalk +30% in the read — modest, not a lantern
+    # Shaft full width is span*0.40 (hw=span*0.20); a bulb diameter of ~span*0.54
+    # is ~shaft +35% — modest, on-axis, never top-heavy vs the filament.
+    bulb_r = span * 0.27
     neck_len = span * 0.34
     body = _shade_c(BODY, 12) if night else BODY
     sheen = _shade_c(BODY_SHEEN, 36) if night else BODY_SHEEN
@@ -607,7 +611,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((46, 48, 52))          # neutral grey bg
     _label(sheet, font,
-            "CHOCHIN-ANKO  —  Umibozu-versions #1  —  abyssal anglerfish lure-fiend (KIND: lure-on-a-stalk; brood ANCHOR)  —  round 1", 18, 12)
+            "CHOCHIN-ANKO  —  Umibozu-versions #1  —  abyssal anglerfish lure-fiend (KIND: lure-on-a-stalk; brood ANCHOR)  —  round 2", 18, 12)
     _label(sheet, small,
             "Oil-black near-silhouette grump wagging a nightlight; cute underbite -> needle-maw; coral BELLY+gum flush only; the hot-white-peach esca is the SOLE brightest pip.",
             18, 32, (210, 196, 188))
@@ -739,7 +743,7 @@ def main():
            18, SH - 22, (210, 196, 188))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

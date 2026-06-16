@@ -218,39 +218,44 @@ def _plume_pip(surf, cx, base_y, w, h, ss, *, night=False):
     a tiny pagoda hint at its tip, floating ABOVE the split with air around it so
     it never plugs the hinge or de-silhouettes the grin. It is the SOLE bright
     focal pip — lifted well above shell value so it reads as LIGHT, not mass."""
-    # Halo first so the pip glows brighter than the warm shell on any sky.
-    _mirage_glow(surf, cx, base_y - h * 0.5, max(2, w * 0.7),
-                 night=night, mult=1.05)
+    # A broad bright halo first so the pip reads as LIGHT — distinctly brighter
+    # than the warm shell on day haze AND night indigo. This carries the "glow"
+    # read even after the 32px downscale softens the flame body.
+    _mirage_glow(surf, cx, base_y - h * 0.5, max(3, w * 1.0),
+                 night=night, mult=1.5)
 
-    core = MIRAGE_LT if not night else (230, 250, 236)
-    body = MIRAGE
+    core = (236, 252, 240) if night else (224, 248, 230)
+    edge = MIRAGE
     # A narrow upward teardrop flame: wide-ish at the lips, tapering to a point.
+    # Drawn mostly in the LIFTED core value so the silhouette itself reads bright
+    # (not a grey-green mass); a thin MIRAGE edge keeps it from being pure white.
     flame = [
         (cx - w * 0.5, base_y),
-        (cx - w * 0.18, base_y - h * 0.55),
+        (cx - w * 0.20, base_y - h * 0.55),
         (cx, base_y - h),
-        (cx + w * 0.18, base_y - h * 0.55),
+        (cx + w * 0.20, base_y - h * 0.55),
         (cx + w * 0.5, base_y),
     ]
-    pygame.draw.polygon(surf, body, [(int(x), int(y)) for x, y in flame])
-    # Bright inner core flame so the centre is the brightest value on the sheet.
+    pygame.draw.polygon(surf, edge, [(int(x), int(y)) for x, y in flame])
+    # Bright inner core flame filling most of the body so the plume is the
+    # brightest value on the whole sheet — the sole focal pip.
     inner = [
-        (cx - w * 0.26, base_y - h * 0.06),
-        (cx, base_y - h * 0.92),
-        (cx + w * 0.26, base_y - h * 0.06),
+        (cx - w * 0.34, base_y - h * 0.04),
+        (cx, base_y - h * 0.96),
+        (cx + w * 0.34, base_y - h * 0.04),
     ]
     pygame.draw.polygon(surf, core, [(int(x), int(y)) for x, y in inner])
     # A tiny pagoda-eave hint near the tip — the drowned-city read at hero scale,
     # small enough to vanish gracefully at 32px (leaving just the bright plume).
-    ry = base_y - h * 0.62
-    rw = w * 0.62
+    ry = base_y - h * 0.60
+    rw = w * 0.70
     pygame.draw.polygon(surf, core, [
         (int(cx - rw * 0.5), int(ry)),
-        (int(cx), int(ry - h * 0.16)),
+        (int(cx), int(ry - h * 0.18)),
         (int(cx + rw * 0.5), int(ry)),
     ])
     # Hot knob at the apex — one crisp bright dot crowning the plume.
-    pygame.draw.circle(surf, core, (int(cx), int(base_y - h)), max(1, int(w * 0.16)))
+    pygame.draw.circle(surf, core, (int(cx), int(base_y - h)), max(2, int(w * 0.20)))
 
 
 # ── the mirage tower (creature exhalation + pillar body) ──────────────────────
@@ -397,8 +402,8 @@ def build_hamaguri(scale=1.0, ss=5, *, night=False, compact=False):
     # Asymmetric valve weight (kills the UFO/saucer twinning): the LOWER valve is
     # the heavier, rounder, bottom-rooted shell; the UPPER valve is flatter/thinner
     # so the pair reads as a clam opening UPWARD — a mouth, not a lens between domes.
-    valve_lo = int(30 * scale) * ss              # heavier rounded lower valve
-    valve_hi = int(18 * scale) * ss              # flatter thin upper valve
+    valve_lo = int(32 * scale) * ss              # heavier rounded lower valve
+    valve_hi = int(22 * scale) * ss              # flatter, thinner upper valve
     tower_h = int(shell_hw * 3.0)
 
     side_pad = int(14 * scale) * ss
@@ -407,9 +412,10 @@ def build_hamaguri(scale=1.0, ss=5, *, night=False, compact=False):
 
     if compact:
         # Compact/32px budget: the CLAM dominates and the mirage is a single bright
-        # plume pip floating above the split — no tower competing for vertical mass.
-        plume_h = int(shell_hw * 0.66)
-        plume_w = int(shell_hw * 0.34)
+        # plume pip floating above the split — short, with air around it, so it
+        # never competes with the clam as a vertical mass (no UFO-antenna read).
+        plume_h = int(shell_hw * 0.46)
+        plume_w = int(shell_hw * 0.30)
         W = int((shell_hw + side_pad) * 2)
         H = int(top_pad + plume_h + valve_hi + valve_lo + bot_pad)
         surf = pygame.Surface((W, H), pygame.SRCALPHA)

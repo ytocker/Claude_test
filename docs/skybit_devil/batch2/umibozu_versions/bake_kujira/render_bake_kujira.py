@@ -108,9 +108,12 @@ def _socket(surf, cx, cy, r, ss, *, night=False, sad=True):
     rim + a flat amber pool + a hot pupil-pip, with a heavy upper lid so the eye
     reads gentle/mournful rather than a blank skull hole. The two sockets are the
     only warm hue allowed anywhere on the creature."""
-    gr = int(r * (2.8 if night else 2.0))
-    gl = make_glow_surface(max(1, gr), AMBER, alpha_center=180 if night else 110,
-                           falloff=2.0)
+    # Keep the night halo CONTAINED — a big high-alpha bloom washes the cool cheeks
+    # toward warm white (calaca cream), which the skeleton-gate forbids. A tighter,
+    # punchier amber core keeps the sockets the SOLE warm focal without bleeding.
+    gr = int(r * (2.1 if night else 2.0))
+    gl = make_glow_surface(max(1, gr), AMBER, alpha_center=150 if night else 110,
+                           falloff=2.4)
     surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
     # Bone rim of the orbit (cool), then the amber socket pool, then a hot pip.
     pygame.draw.circle(surf, BONE_DK, (int(cx), int(cy)), max(2, int(r * 1.16)))
@@ -153,9 +156,11 @@ def _rib_pair(surf, cx, y, span, hw, ss, *, col=BONE, night=False):
             ang = math.radians(8 + 120 * t)
             # Pull the tip horizontally back toward the keel over the last third
             # of the sweep so it lands on the spine/membrane, not in open teal.
-            pull = max(0.0, (t - 0.62) / 0.38)
-            ox = cx + s * rib_w * math.sin(ang) * (1.0 - 0.72 * pull)
-            oy = y + rib_drop * (1.0 - math.cos(ang)) * 0.6
+            pull = max(0.0, (t - 0.58) / 0.42)
+            ox = cx + s * rib_w * math.sin(ang) * (1.0 - 0.88 * pull)
+            # Ease the vertical drop back near the tip too, so the closing hook
+            # tucks UP onto the keel instead of dangling below the silhouette.
+            oy = y + rib_drop * (1.0 - math.cos(ang)) * 0.6 - rib_drop * 0.10 * (pull ** 2)
             center_pts.append((ox, oy))
         # Build a tapering ribbon along the centreline (thick at the keel root,
         # necking to a fine tip at the sternum-ward hook).
@@ -301,8 +306,8 @@ def _head(surf, cx, cy, r, ss, *, night=False, tell=False):
     # NOT brightened toward warm white — otherwise the skull eye-mass reads as
     # calaca cream and steals the amber sockets' warm monopoly. Only the two amber
     # sockets stay warm at night.
-    body = lerp_color(BONE, MEMBRANE, 0.30) if night else BONE
-    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.34) if night else BONE_SHEEN
+    body = lerp_color(BONE, MEMBRANE, 0.46) if night else BONE
+    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.48) if night else BONE_SHEEN
 
     # Blunt snout/jaw mass FIRST (occluded by the cranium dome) — a wide rounded
     # muzzle dropping below the cranium so the silhouette reads "whale skull,"
@@ -428,8 +433,8 @@ def _skull_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
     skull_h = skull_w * 0.66
     by = cap_base_y + d * skull_h * 0.58
 
-    body = lerp_color(BONE, MEMBRANE, 0.30) if night else BONE
-    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.34) if night else BONE_SHEEN
+    body = lerp_color(BONE, MEMBRANE, 0.46) if night else BONE
+    sheen = lerp_color(BONE_SHEEN, MEMBRANE, 0.48) if night else BONE_SHEEN
 
     # Blunt skull dome facing the gap — a flat triad ellipse.
     dome = pygame.Rect(0, 0, int(skull_w), int(skull_h * 1.6))
