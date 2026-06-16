@@ -469,15 +469,23 @@ def build_chochin_anko(scale=1.0, ss=5, *, night=False, compact=False):
     # the "lure on a stick rooted in THIS creature" read.
     stalk_c = _shade_c(STALK, 10) if night else STALK
     (jx0, jy0), (jx1, jy1) = pts[0], pts[1]
-    pygame.draw.line(surf, _shade_c(stalk_c, -22),
-                     (int(jx0), int(jy0)), (int(jx1), int(jy1)),
-                     max(3, int(hw0 * 2.0)))
-    pygame.draw.line(surf, stalk_c,
-                     (int(jx0), int(jy0)), (int(jx1), int(jy1)),
-                     max(2, int(hw0 * 1.3)))
+    if compact:
+        # Compact keeps the same single solid dark stroke through the join so the
+        # stub never thins to a wisp at 32px.
+        pygame.draw.line(surf, _shade_c(stalk_c, -26),
+                         (int(jx0), int(jy0)), (int(jx1), int(jy1)),
+                         max(3, int(hw0 * 1.7)))
+    else:
+        pygame.draw.line(surf, _shade_c(stalk_c, -22),
+                         (int(jx0), int(jy0)), (int(jx1), int(jy1)),
+                         max(3, int(hw0 * 2.0)))
+        pygame.draw.line(surf, stalk_c,
+                         (int(jx0), int(jy0)), (int(jx1), int(jy1)),
+                         max(2, int(hw0 * 1.3)))
 
     # The esca lure last + on TOP so its glow blooms over everything — the sole
     # brightest pip, dangled at the stalk tip over the grump's face.
+    tip_x, tip_y = pts[-1]
     _esca(surf, tip_x, tip_y, lure_r, ss, night=night, epic=not compact)
 
     out_w = int(surf.get_width() / ss)

@@ -570,7 +570,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((54, 50, 46))          # warm neutral grey bg
     _label(sheet, font,
-            "HAMAGURI-SHINKIROU  —  Umibozu-versions #4  —  mirage clam, mouth of a drowned city  —  round 1", 18, 12)
+            "HAMAGURI-SHINKIROU  —  Umibozu-versions #4  —  mirage clam, mouth of a drowned city  —  round 2", 18, 12)
     _label(sheet, small,
             "Horizontal clam-mouth (the ONLY horizontal-grin of the brood) humming a translucent pearl-green pagoda-city out of its parted lips. Warm sea-rust shell w/ bold RADIATING fan-ribs; never teal.",
             18, 32, (214, 206, 188))
@@ -709,7 +709,7 @@ def main():
            18, SH - 22, (214, 206, 188))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
