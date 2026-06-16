@@ -112,7 +112,8 @@ def _dot_row(surf, cx, y, span_hw, n, r, col, *, key_col=None, ss=3):
                                max(1, int(ss * 0.6)))
 
 
-def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=12):
+def _starburst_halo(surf, cx, cy, r_in, r_long, r_short, ss, *, n_long=12,
+                    skip_bottom=0.0):
     """The signature HALO: a crisp graphic STARBURST of red-ochre rays radiating
     straight from the disk rim. Rays ALTERNATE long / short tips around the
     circle (the rain-streak / lightning read). This is hard radial linework —
@@ -338,13 +339,21 @@ def _face_tell(surf, cx, cy, r, ss):
     showcase scale it hides under the real disk; at icon scale it is what
     survives, carrying the 'haloed dark-eyed white disk, not a striped rope'
     read. The value flip (bright disk / dark eyes) is the tell."""
-    eye_dx = r * 0.40
+    eye_dx = r * 0.45
     eye_y = cy + r * 0.02
-    eye_r = r * 0.27
+    eye_r = r * 0.235
     for s in (-1, 1):
         ex = cx + s * eye_dx
+        # charcoal eye-mass
         pygame.draw.circle(surf, CHAR, (int(ex), int(eye_y)), int(eye_r * 1.16))
-        pygame.draw.circle(surf, CHAR_DK, (int(ex), int(eye_y)), int(eye_r * 0.55))
+        # BOLD pipeclay catch-ring baked into the tell so the eye keeps a bright
+        # spot at 32px instead of collapsing to a solid black socket
+        pygame.draw.circle(surf, PIPECLAY_HI, (int(ex), int(eye_y)), int(eye_r * 0.84))
+        pygame.draw.circle(surf, CHAR_DK, (int(ex), int(eye_y)), int(eye_r * 0.46))
+        # the glint pip — the single bright pixel that must survive the downscale
+        pygame.draw.circle(surf, PIPECLAY_HI,
+                           (int(ex - eye_r * 0.22), int(eye_y - eye_r * 0.38)),
+                           max(1, int(eye_r * 0.30)))
     # the long nose-bar that survives downscale
     pygame.draw.line(surf, CHAR, (int(cx), int(eye_y)), (int(cx), int(cy + r * 0.56)),
                      max(2, int(2.6 * ss)))

@@ -410,58 +410,99 @@ def _cord_column(surf, cx, top_y, bot_y, span, ss, *, night=False):
 
 
 def _egg_stone_cap(surf, cx, cap_base_y, span, ss, *, point_up, night=False):
-    """The detachable GAP-EDGE CAP: a small cracked shell-shard EGG-STONE
-    (~shaft span +30%) sitting at the cord's gap end, leaking ONE green glow line
-    into the gap. `point_up` orients the shard so its cracked face leaks toward
-    the gap. Kept compact so the cap is never top-heavy vs the cord shaft."""
-    d = -1 if point_up else 1
+    """The detachable GAP-EDGE CAP: a small CRACKED SHELL-SHARD egg-stone
+    (~shaft span +30%) sitting at the cord's gap end. R1 was a smooth pale ovoid
+    with a straight green stick poking up — the AD's worst offender. This is now
+    an ANGULAR faceted broken-egg silhouette (hard concave notches in the
+    outline + a visible jagged split seam) whose green reads as a CRACK LEAKING
+    light DOWNWARD into the gap (a short irregular tapering wedge, not an
+    antenna). `point_up` orients the cracked face toward the gap. Kept compact so
+    the cap is never top-heavy vs the cord shaft."""
+    d = -1 if point_up else 1               # +1 bottom-pillar (gap above), -1 top
     stone_w = span * 1.30                   # ~shaft +30%
-    stone_h = stone_w * 1.18                # a small upright egg-shard
-    sy = cap_base_y + d * stone_h * 0.50
+    stone_h = stone_w * 1.10
+    sy = cap_base_y + d * stone_h * 0.52
 
-    shell    = _shade_c(SHELL, 12) if night else SHELL
-    shell_dk = _shade_c(SHELL_DK, 8) if night else SHELL_DK
-    sheen    = _shade_c(SHELL, 36) if night else _shade_c(SHELL, 28)
+    shell    = _shade_c(SHELL, 10) if night else SHELL
+    shell_dk = _shade_c(SHELL_DK, 6) if night else SHELL_DK
+    rim      = _shade_c(SHELL_RIM, 8) if night else SHELL_RIM
+    hw = stone_w * 0.5
+    hh = stone_h * 0.5
 
-    # The shard body — a small egg-oval triad.
-    stone = pygame.Rect(0, 0, int(stone_w), int(stone_h))
-    stone.center = (int(cx), int(sy))
-    pygame.draw.ellipse(surf, shell_dk, stone)
-    pygame.draw.ellipse(surf, shell, stone.inflate(-int(stone_w * 0.14), -int(stone_h * 0.14)))
+    # ANGULAR cracked-shard silhouette: a faceted polygon, broad at the anchored
+    # (shaft) end, narrowing to a JAGGED broken lip at the gap-facing end. Two
+    # hard concave notches bite the outline so it reads "broken shell", not pebble.
+    # Local coords: gy-axis runs from anchored end (-d) to gap end (+d).
+    def P(fx, fy):
+        return (int(cx + fx * hw), int(sy + d * fy * hh))
+    # fy: -1 anchored crown -> +1 gap-facing jagged lip.
+    shard = [
+        P(-0.62, -0.86),   # anchored shoulder L
+        P(-0.92, -0.10),   # wide L
+        P(-0.40,  0.18),   # concave NOTCH bite (in)
+        P(-0.78,  0.52),   # jagged out
+        P(-0.30,  0.70),   # broken lip step
+        P(-0.46,  1.02),   # gap-facing fang L
+        P( 0.06,  0.78),   # split valley (where the crack opens)
+        P( 0.40,  1.06),   # gap-facing fang R
+        P( 0.30,  0.64),   # broken lip step
+        P( 0.86,  0.46),   # jagged out R
+        P( 0.34,  0.16),   # concave NOTCH bite R (in)
+        P( 0.90, -0.16),   # wide R
+        P( 0.58, -0.84),   # anchored shoulder R
+        P( 0.0,  -1.02),   # crown point (egg apex)
+    ]
+    pygame.draw.polygon(surf, shell_dk, shard)
+    # Inner flat-fill facet, pulled in from the keyline edge.
+    inner = [(int(cx + (px - cx) * 0.80), int(sy + (py - sy) * 0.82)) for px, py in shard]
+    pygame.draw.polygon(surf, shell, inner)
 
-    # A short bone-whorl arc on the shard face so the cap echoes the hero's spiral.
-    arc_r = stone_w * 0.30
-    pygame.draw.arc(surf, BONE_DK,
-                    (int(cx - arc_r * 1.1), int(sy - arc_r * 1.1),
-                     int(arc_r * 2.2), int(arc_r * 2.2)),
-                    math.radians(20), math.radians(290), max(2, int(2.6 * ss)))
+    # The JAGGED SPLIT SEAM through the shard, opening at the gap-facing lip — a
+    # dark zig-zag fissure (not a clean line). It runs from inside the shard out
+    # to the broken lip, where it widens into the gap.
+    split = [
+        P(-0.04, -0.40),
+        P( 0.14, -0.05),
+        P(-0.06,  0.28),
+        P( 0.12,  0.55),
+        P(-0.02,  0.80),
+    ]
+    pygame.draw.lines(surf, SHELL_DEEP, False, split, max(2, int(2.6 * ss)))
+
+    # A short bone-whorl HINT on the shard face (NOT a full spiral — the AD ruled
+    # the cap should carry the crack + shard shape, the hero carries the spiral):
+    # one small bone tick echoing the coil so the family reads.
+    tick_cx, tick_cy = P(-0.18, -0.30)
     pygame.draw.arc(surf, BONE,
-                    (int(cx - arc_r), int(sy - arc_r),
-                     int(arc_r * 2), int(arc_r * 2)),
-                    math.radians(20), math.radians(290), max(1, int(1.6 * ss)))
+                    (int(tick_cx - hw * 0.34), int(tick_cy - hh * 0.30),
+                     int(hw * 0.68), int(hh * 0.60)),
+                    math.radians(150), math.radians(20), max(1, int(1.8 * ss)))
 
-    # The single green glow LINE leaking into the gap: a crack on the gap-facing
-    # edge of the shard, glowing one bright filament toward the gap.
-    tip_y = sy + d * stone_h * 0.42         # gap-facing pole of the shard
-    line_end_y = cap_base_y                  # the line reaches the gap edge
-    lx = cx + stone_w * 0.06
-    _green_glow(surf, lx, (tip_y + line_end_y) * 0.5, stone_w * 0.34,
-                night=night, alpha=180 if night else 130)
-    pygame.draw.line(surf, SHELL_DEEP, (int(cx), int(sy)), (int(lx), int(tip_y)),
-                     max(2, int(3.0 * ss)))
-    pygame.draw.line(surf, SHELL_DEEP, (int(lx), int(tip_y)),
-                     (int(lx), int(line_end_y)), max(2, int(2.6 * ss)))
-    pygame.draw.line(surf, GREEN, (int(cx), int(sy)), (int(lx), int(tip_y)),
-                     max(1, int(1.6 * ss)))
-    pygame.draw.line(surf, GREEN, (int(lx), int(tip_y)),
-                     (int(lx), int(line_end_y)), max(1, int(1.6 * ss)))
-    pygame.draw.line(surf, GREEN_HOT, (int(lx), int(tip_y)),
-                     (int(lx), int(line_end_y)), max(1, int(0.8 * ss)))
+    # Green LEAK: a tapering irregular WEDGE of light bleeding DOWN out of the
+    # split's open lip into the gap — wide at the fracture, narrowing as it falls.
+    # No straight stick: the wedge is a tight column of glow discs that shrink as
+    # they descend toward the gap edge, with a couple of off-axis jitter steps so
+    # it reads as leaking, not beaming.
+    lip_x, lip_y = P(0.04, 0.92)            # the open mouth of the split
+    n_leak = 6
+    jit = [0.0, 0.10, -0.06, 0.08, -0.04, 0.0]
+    for i in range(n_leak):
+        f = i / (n_leak - 1)                # 0 at lip -> 1 at gap edge
+        gx = lip_x + jit[i] * stone_w
+        gy = lip_y + d * f * stone_h * 0.78
+        gr = stone_w * (0.28 - 0.20 * f)    # tapers narrower into the gap
+        _green_glow(surf, gx, gy, gr, night=night,
+                    alpha=int((175 if night else 125) * (1.0 - 0.45 * f)))
+    # The bright crack filament inside the leak — short, jagged, fading down.
+    leak_seam = [(int(lip_x + jit[i] * stone_w * 0.6),
+                  int(lip_y + d * (i / (n_leak - 1)) * stone_h * 0.72))
+                 for i in range(n_leak)]
+    pygame.draw.lines(surf, SHELL_DEEP, False, leak_seam, max(2, int(2.4 * ss)))
+    pygame.draw.lines(surf, GREEN, False, leak_seam, max(1, int(1.6 * ss)))
+    pygame.draw.lines(surf, GREEN_HOT, False, leak_seam[:3], max(1, int(0.8 * ss)))
 
-    # Hard rim sheen on the gap-away crown of the shard.
-    pygame.draw.circle(surf, sheen,
-                       (int(cx - stone_w * 0.18), int(sy - d * stone_h * 0.26)),
-                       max(2, int(stone_w * 0.15)))
+    # Thin top-left rim sliver on the shard's anchored crown (only lifted teal).
+    pygame.draw.line(surf, rim, P(-0.55, -0.70), P(-0.04, -1.0), max(2, int(2.0 * ss)))
 
 
 def _cord_pillar_obstacle(height, ss, *, flip, night=False):

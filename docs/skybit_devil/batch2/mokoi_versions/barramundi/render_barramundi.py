@@ -136,14 +136,14 @@ def _rarrk_fin(surf, pts, ss, *, base_col, hatch_col, n=4):
 
 # ── the x-ray skeleton (the hero detail — kept deliberately sparse) ──────────
 
-def _xray_skeleton(surf, cx, cy, body_hw, body_hh, ss, *, ribs=4):
+def _xray_skeleton(surf, cx, cy, body_hw, body_hh, ss):
     """The hero see-through detail, drawn DELIBERATELY SPARSE per the re-spec.
 
-    ONE bold thick charcoal spine arcing along the body axis; 3-4 pipeclay ribs
-    MAX curving down off it on EACH side; exactly ONE clear pipeclay organ-
-    lozenge in the belly. No dense rib-comb — at gameplay scale a comb greys to
-    mush, so the rib count and spacing are tuned so each rib still reads as its
-    own stroke after the downscale. This is what makes the fish see-through."""
+    ONE bold BRIGHT pipeclay spine arcing along the body axis (the brightest
+    internal mass, beating the eye); 3 bold pipeclay ribs curving down off it,
+    each as bright as the spine and clearly separated so the downscale never
+    combs them to mush; exactly ONE clear warm-cored pipeclay organ-lozenge in
+    the belly. This is what makes the fish see-through and must dominate."""
     # The SPINE must be the BRIGHTEST internal mass — a single thick, unbroken
     # pipeclay bar so it out-values the eye and bakes to a clean ~2px bone at
     # 32px. A thin charcoal centre-stroke reads it as ink-defined bone WITHOUT
@@ -574,7 +574,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((120, 120, 124))            # neutral grey bg
     _label(sheet, font,
-           "BARRAMUNDI-SPIRIT  —  mokoi spin-off  —  side-on x-ray fish-beast  —  round 1",
+           "BARRAMUNDI-SPIRIT  —  mokoi spin-off  —  side-on x-ray fish-beast  —  round 2",
            18, 12, (24, 24, 28))
     _label(sheet, small,
            "FLAT-GRAPHIC: hematite-RUST body, charcoal bone-keyline, pipeclay-white rib/organ LATTICE (the tell), yellow-ochre fin-tips; ember CONFINED to cap. Sparse skeleton per re-spec.",
@@ -585,7 +585,7 @@ def main():
     pygame.draw.rect(sheet, (96, 96, 100), panel, border_radius=8)
     pygame.draw.rect(sheet, (60, 60, 64), panel, 2, border_radius=8)
     _label(sheet, font, "(a) HERO  big scale  SS=6", panel.x + 8, panel.y + 8, (245, 240, 230))
-    _label(sheet, small, "chubby fish; see THROUGH to spine + 4 ribs + 1 organ",
+    _label(sheet, small, "chubby fish; see THROUGH to BOLD spine + 3 ribs + 1 organ",
            panel.x + 8, panel.y + 28, (235, 230, 220))
     hero = build_barramundi(scale=1.7, ss=6)
     sheet.blit(hero, (panel.centerx - hero.get_width() // 2,
@@ -712,7 +712,7 @@ def main():
            18, SH - 44, (40, 40, 46))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

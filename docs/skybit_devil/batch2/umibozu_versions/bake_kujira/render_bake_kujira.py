@@ -216,16 +216,21 @@ def _spine_keel(surf, cx, top_y, bot_y, hw, ss, *, col=BONE, night=False, n_vert
 
 # ── the rib-cage curtain (creature trail + pillar body) ──────────────────────
 
-def _ribcage(surf, cx, top_y, bot_y, span, ss, *, night=False, n=None):
+def _ribcage(surf, cx, top_y, bot_y, span, ss, *, night=False, n=None, bold=False):
     """The hung RIB-CAGE: a membrane-dark backing mass, the ghost-spine keel down
     the axis, and a stack of curved rib-PAIRS springing off it. The cool teal-grey
     membrane reads as the dominant value (the gaps + backing), with the greyed
     bone ribs arched over it. This is both the creature's trailing body and the
-    band that TILES for the pillar."""
+    band that TILES for the pillar. `bold` is the gameplay/true-scale variant:
+    FEWER, THICKER, higher-contrast rib-pairs spaced further apart so the cage
+    reads as a CAGE — not a comb of thin C-arcs that mush into hatching at 32px."""
     length = bot_y - top_y
     keel_hw = span * 0.085
     if n is None:
-        n = max(3, int(length / (span * 0.40)))
+        # Bold: ~half the rib-pairs so each ribs reads bold with a deep dark gap
+        # between; hero keeps the denser, more detailed cage.
+        spacing = span * 0.74 if bold else span * 0.40
+        n = max(2 if bold else 3, int(length / spacing))
 
     # Membrane backing mass filling the cage INTERIOR — a tapering teal-grey
     # column so the cage gaps read as the dominant COOL body value (not sky). It
@@ -247,7 +252,7 @@ def _ribcage(surf, cx, top_y, bot_y, span, ss, *, night=False, n=None):
     pygame.draw.polygon(surf, MEMBRANE,
                         [(int(x), int(y)) for x, y in (core_l + core_r[::-1])])
 
-    rib_hw = span * 0.066
+    rib_hw = span * (0.108 if bold else 0.066)
     for k in range(n):
         # Seat each rib-pair high on its slot so its C-arc drop overlaps the next,
         # stacking into a continuous hooped cage rather than spaced-out legs.

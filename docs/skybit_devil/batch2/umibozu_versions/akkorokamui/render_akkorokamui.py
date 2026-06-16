@@ -365,9 +365,11 @@ def build_akkorokamui(scale=1.0, ss=5, *, night=False, compact=False):
     arms = [
         # band: 0 = behind (drawn first), 1 = front (drawn after the head)
         # (root_ang,      ring,  heading,        lenS, hwS,  curl,   accel, side, band)
-        (math.radians(238), 0.78, math.radians(255), 0.62, 0.78,  0.030, 0.9,  -1, 0),  # behind upper-left stub
-        (math.radians(302), 0.78, math.radians(290), 0.58, 0.74, -0.034, 0.9,   1, 0),  # behind upper-right stub
-        (math.radians(270), 0.55, math.radians(272), 0.70, 0.70,  0.018, 0.8,  -1, 0),  # behind crown stub
+        # BEHIND arms peek out LOW + to the sides of the mantle and head DOWN, so
+        # they read as occluded arms behind a head-forward mass (never up-horns).
+        (math.radians(170), 0.72, math.radians(186), 0.68, 0.72,  0.046, 1.3,  -1, 0),  # behind far-left, down
+        (math.radians(38),  0.72, math.radians(0),   0.60, 0.68, -0.052, 1.3,   1, 0),  # behind far-right, down
+        (math.radians(64),  0.58, math.radians(48),  0.66, 0.66, -0.038, 1.1,   1, 0),  # behind lower-right tuck
         (math.radians(196), 0.88, math.radians(150), 1.06, 1.00,  0.052, 1.5,  -1, 1),  # long trailing left, sweeps out+down
         (math.radians(214), 0.92, math.radians(128), 0.88, 0.90,  0.078, 1.9,  -1, 1),  # mid left, tight inward hook
         (math.radians(120), 0.86, math.radians(70),  0.74, 0.86, -0.090, 2.1,   1, 1),  # short right, crossing forward hook

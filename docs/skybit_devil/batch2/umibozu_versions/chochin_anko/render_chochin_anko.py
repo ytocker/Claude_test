@@ -120,20 +120,29 @@ def _esca(surf, cx, cy, r, ss, *, night=False, glow_mult=1.0, epic=False):
     """The glowing esca lure-bulb — the ONE place the hot-white-peach is allowed
     and the single brightest pip in the whole design. A contained glow halo + a
     flat lure disc with a dark-seat ring + a blown-out hot core. Everything else
-    stays oil-black so this is the only thing the eye lands on."""
-    gr = int(r * (4.2 if night else 3.0) * glow_mult)
-    gl = make_glow_surface(max(1, gr), LURE, alpha_center=210 if night else 150,
-                           falloff=2.0)
+    stays oil-black so this is the only thing the eye lands on. The glow is kept
+    TIGHT (a steep falloff) so it never bleeds a soft halo over the oil-black
+    body and steals contrast from the pip — the body edge must stay crisp."""
+    # Tight halo: a smaller radius + steeper falloff than r1 so the bloom hugs
+    # the bulb instead of washing over the silhouette's top edge.
+    gr = int(r * (3.0 if night else 2.2) * glow_mult)
+    gl = make_glow_surface(max(1, gr), LURE, alpha_center=200 if night else 140,
+                           falloff=2.8)
     surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
-    if epic:
-        # A second tighter inner halo so the hero lure feels genuinely radiant.
-        gr2 = int(r * 1.7 * glow_mult)
-        gl2 = make_glow_surface(max(1, gr2), LURE_CORE,
-                                alpha_center=180, falloff=2.4)
-        surf.blit(gl2, (int(cx - gr2), int(cy - gr2)), special_flags=pygame.BLEND_ADD)
     pygame.draw.circle(surf, LURE_DK, (int(cx), int(cy)), max(1, int(r)))
-    pygame.draw.circle(surf, LURE, (int(cx), int(cy)), max(1, int(r * 0.80)))
-    pygame.draw.circle(surf, LURE_CORE, (int(cx), int(cy)), max(1, int(r * 0.40)))
+    pygame.draw.circle(surf, LURE, (int(cx), int(cy)), max(1, int(r * 0.86)))
+    # A true hot-WHITE core blooming up out of the peach body so the lure reads
+    # as a single incandescent PIP, not a flat lantern coin. The core is the
+    # absolute brightest value in the whole design.
+    pygame.draw.circle(surf, LURE, (int(cx), int(cy)), max(1, int(r * 0.58)))
+    pygame.draw.circle(surf, LURE_CORE, (int(cx), int(cy)), max(1, int(r * 0.42)))
+    # A tiny additive white spark dead-center pushes the core hotter than any
+    # peach around it so it survives both the bright day sky and the dark night.
+    spark = max(1, int(r * 0.22))
+    sg = make_glow_surface(spark * 3, (255, 252, 244), alpha_center=235,
+                           falloff=2.4)
+    surf.blit(sg, (int(cx - spark * 3), int(cy - spark * 3)),
+              special_flags=pygame.BLEND_ADD)
 
 
 # ── one segment of the illicium stalk (segmented filament + knuckle-node) ─────

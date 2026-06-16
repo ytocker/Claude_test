@@ -337,19 +337,28 @@ def _face_tell(surf, cx, cy, hw, ss):
     ink pupils + a stern pipeclay bar-mouth) instead of mushing to noise."""
     eye_dx = hw * 0.42
     eye_y = cy - hw * 0.06
-    eye_r = hw * 0.34
+    eye_r = hw * 0.36
     for s in (-1, 1):
         ex = cx + s * eye_dx
-        pygame.draw.circle(surf, OCHRE, (int(ex), int(eye_y)), int(eye_r * 1.06))
-        pygame.draw.circle(surf, PIPECLAY, (int(ex), int(eye_y)), int(eye_r))
-        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r * 0.48))
-    # A single stern pipeclay bar-mouth that survives downscale.
-    mw = hw * 0.46
-    my = cy + hw * 0.48
-    mh = hw * 0.10
+        # RE-SPEC B / FIX 3: the ochre ring is trimmed to a THIN rim only (a hair
+        # over the pipeclay disc) so warm-ochre AREA on the chip drops; charcoal
+        # stays the dominant value. FIX 2: the ink PUPIL is held FAT (0.56) so the
+        # eye stays a clear concentric target and never merges to a solid ochre
+        # disc at true 32px — the pupil hole reads as the protected target tell.
+        pygame.draw.circle(surf, OCHRE, (int(ex), int(eye_y)), int(eye_r * 1.02))
+        pygame.draw.circle(surf, PIPECLAY, (int(ex), int(eye_y)), int(eye_r * 0.92))
+        pygame.draw.circle(surf, INK, (int(ex), int(eye_y)), int(eye_r * 0.56))
+        # A pinprick pipeclay centre keeps a glint inside the dark pupil so the
+        # concentric structure survives the downscale.
+        pygame.draw.circle(surf, PIPECLAY, (int(ex), int(eye_y)), max(1, int(eye_r * 0.16)))
+    # FIX 2: a stern pipeclay bar-mouth held TALLER (>=2px at true 32px) so it
+    # never thins out; FIX 3: kept narrow so it adds little warm area.
+    mw = hw * 0.42
+    my = cy + hw * 0.50
+    mh = hw * 0.14
     pygame.draw.rect(surf, PIPECLAY,
                      pygame.Rect(int(cx - mw), int(my - mh), int(2 * mw), int(2 * mh)),
-                     border_radius=int(mh))
+                     border_radius=int(mh * 0.5))
 
 
 def build_baiame_compact(scale=1.0, ss=5):
