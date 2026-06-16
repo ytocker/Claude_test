@@ -55,8 +55,10 @@ pygame.init()
 # bright-gold corona vs deep-indigo body = the hue-blind tell.
 INDIGO      = (52, 56, 120)     # midnight night-cloth fill (blue-leaning)
 INDIGO_DK   = (28, 30, 74)      # deep-indigo shade (dark-core / seams)
-INDIGO_SHEEN = (98, 108, 188)   # cool blue rim sheen
-NIGHTCLOTH  = (40, 44, 100)     # slightly cooler banner cloth fill
+# Rim sheen pinned BLUE-WHITE (not lilac): blue channel leads but green tracks
+# it closely so a violet drift can't pull the body toward Necrarch's lane.
+INDIGO_SHEEN = (150, 172, 222)  # blue-white rim sheen (no lilac cast)
+NIGHTCLOTH  = (48, 52, 116)     # banner cloth fill — ONE indigo value, no cream
 
 GOLD        = (255, 214, 110)   # the corona — single brightest warm focal
 GOLD_DK     = (198, 150, 52)    # gold shade (dark-core / ray roots)
@@ -103,36 +105,34 @@ def _add_outline(src, outline_color=(*INK, 235)):
 # ── the gold star-corona (the dominant warm focal, the radial-KIND silhouette) ─
 
 def _ray(surf, cx, cy, ang, inner_r, outer_r, half_w, col, ss):
-    """One corona RAY as a flat triad spear: a long thin kite from inner_r to
-    outer_r at angle `ang`, with a dark-core base, gold fill, and a top-left
-    sheen sliver on the lit flank. Rays alternate long/short to read as a clean
-    8-point starburst rather than a fuzzy disc."""
+    """One corona RAY as a flat triad SPEAR: a clean isosceles triangle from a
+    flat base on the corona ring (inner_r) to a SHARP point at outer_r. No belly
+    bulge — a crisp triangular tip so the starburst stays snappy even at 32px.
+    Dark-core spear behind, gold fill in front, a thin top-left sheen sliver on
+    the lit flank."""
     ca, sa = math.cos(ang), math.sin(ang)
     pa = ang + math.pi / 2                      # perpendicular for the width
     pca, psa = math.cos(pa), math.sin(pa)
 
-    def _kite(o_r, hw, i_r):
-        bx, by = cx + ca * i_r, cy + sa * i_r           # root on the corona ring
-        tx, ty = cx + ca * o_r, cy + sa * o_r           # spear tip
-        lx, ly = cx + ca * (i_r * 1.4), cy + sa * (i_r * 1.4)  # belly point out
+    def _spear(o_r, hw, i_r):
+        bx, by = cx + ca * i_r, cy + sa * i_r           # base centre on the ring
+        tx, ty = cx + ca * o_r, cy + sa * o_r           # SHARP spear tip
         return [
-            (bx + pca * hw, by + psa * hw),
-            (lx + pca * hw * 1.15, ly + psa * hw * 1.15),
-            (tx, ty),
-            (lx - pca * hw * 1.15, ly - psa * hw * 1.15),
-            (bx - pca * hw, by - psa * hw),
+            (bx + pca * hw, by + psa * hw),             # base, lit flank
+            (tx, ty),                                   # crisp triangular point
+            (bx - pca * hw, by - psa * hw),             # base, shadow flank
         ]
 
     pygame.draw.polygon(surf, GOLD_DK,
-                        [(int(x), int(y)) for x, y in _kite(outer_r, half_w, inner_r)])
+                        [(int(x), int(y)) for x, y in _spear(outer_r, half_w, inner_r)])
     pygame.draw.polygon(surf, col,
                         [(int(x), int(y)) for x, y in
-                         _kite(outer_r - 1.2 * ss, half_w * 0.74, inner_r + 0.8 * ss)])
-    # Top-left lit flank sheen: a thin sliver up the ray's upper edge.
-    sl = _kite(outer_r - 2.0 * ss, half_w * 0.30, inner_r + 1.0 * ss)
+                         _spear(outer_r - 1.4 * ss, half_w * 0.70, inner_r + 0.8 * ss)])
+    # Top-left lit flank sheen: a thin sliver hugging the ray's upper edge.
+    sl = _spear(outer_r - 2.4 * ss, half_w * 0.26, inner_r + 1.2 * ss)
     pygame.draw.polygon(surf, GOLD_SHEEN,
-                        [(int(x + pca * half_w * 0.4), int(y + psa * half_w * 0.4))
-                         for x, y in sl[:3]])
+                        [(int(x + pca * half_w * 0.34), int(y + psa * half_w * 0.34))
+                         for x, y in sl])
 
 
 def _corona(surf, cx, cy, ring_r, ss, *, night=False):
@@ -141,18 +141,20 @@ def _corona(surf, cx, cy, ring_r, ss, *, night=False):
     a fat gold glow halo behind, and a gold ring band the rays spring from. The
     longest rays point up/down/sides so the radial silhouette reads instantly."""
     # Glow halo behind the whole corona — the eclipse blaze (stronger on night).
+    # Tighter falloff so the ADD-blend stays a warm corona bloom and does NOT
+    # flat-wash the indigo banner panel below it to a false cream value.
     gr = int(ring_r * (2.7 if night else 2.2))
-    gl = make_glow_surface(gr, GOLD, alpha_center=150 if night else 96, falloff=2.4)
+    gl = make_glow_surface(gr, GOLD, alpha_center=140 if night else 92, falloff=3.4)
     surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
 
     n = 8
     long_r = ring_r * 2.55
-    short_r = ring_r * 1.74
+    short_r = ring_r * 1.58              # decisively ~62% of long → crisp 8-point
     for i in range(n):
         ang = -math.pi / 2 + (2 * math.pi) * (i / n)     # first ray straight UP
         long_ray = (i % 2 == 0)
         outer = long_r if long_ray else short_r
-        hw = ring_r * (0.30 if long_ray else 0.24)
+        hw = ring_r * (0.30 if long_ray else 0.22)
         _ray(surf, cx, cy, ang, ring_r * 0.92, outer, hw, GOLD, ss)
 
     # The gold ring band the rays grow out of — a triad torus framing the bone.
@@ -176,12 +178,22 @@ def _corona(surf, cx, cy, ring_r, ss, *, night=False):
 
 # ── the bone star-skull face (small high-value mark inside the corona) ────────
 
-def _skull(surf, cx, cy, r, ss, *, night=False, compact=False):
+def _skull(surf, cx, cy, r, ss, *, night=False, compact=False, chip=False):
     """The small bone skull seated inside the gold ring: round-ish cranium,
     big dark eye-sockets with a cool star-spark, a tiny triangle nose, and a
     little stitched grin. Scary-CUTE — wide friendly sockets, not a rictus.
-    `night` lifts the bone value so it stays a light pop on dark sky."""
-    bone = _shade_c(BONE, 12) if night else BONE
+
+    `night` lifts the bone value so it stays a light pop on dark sky. `chip` is
+    the true-32px build: the face collapses to the absolute-minimum legible mark
+    — two OVERSIZED dark socket dots + one dark grin slot, ink keyline thickened,
+    and the bone pushed brighter than the indigo disk so the FACE survives as a
+    distinct value island instead of one light blob."""
+    # Bone pushed brighter for night AND for the chip — at 32px the face must be
+    # a clear value island ~15-20% above the indigo disk it sits on.
+    lift_v = 12 if night else 0
+    if chip:
+        lift_v += 14
+    bone = _shade_c(BONE, lift_v)
     bone_sheen = _shade_c(BONE_SHEEN, 6) if night else BONE_SHEEN
 
     # Cranium dome.
@@ -193,12 +205,13 @@ def _skull(surf, cx, cy, r, ss, *, night=False, compact=False):
     inner = jaw.inflate(-int(r * 0.16), -int(r * 0.16))
     pygame.draw.ellipse(surf, bone, inner)
     _triad_circle(surf, cx, cy, r, bone, ss=ss)
-    pygame.draw.circle(surf, bone_sheen,
-                       (int(cx - r * 0.30), int(cy - r * 0.40)),
-                       max(2, int(r * 0.26)))
+    if not chip:
+        pygame.draw.circle(surf, bone_sheen,
+                           (int(cx - r * 0.30), int(cy - r * 0.40)),
+                           max(2, int(r * 0.26)))
 
     # Subtle bone cracks (elevated detail) — thin hairline seams off the crown.
-    if not compact:
+    if not compact and not chip:
         for (a0, ln) in ((-1.15, 0.55), (-0.35, 0.42)):
             x0 = cx + math.cos(a0) * r * 0.5
             y0 = cy + math.sin(a0) * r * 0.5 - r * 0.2
@@ -206,6 +219,35 @@ def _skull(surf, cx, cy, r, ss, *, night=False, compact=False):
             y1 = y0 + math.sin(a0 + 0.5) * r * ln
             pygame.draw.line(surf, BONE_DK, (int(x0), int(y0)), (int(x1), int(y1)),
                              max(1, int(1.2 * ss)))
+
+    if chip:
+        # MINIMUM legible face: two oversized solid-ink socket dots + a bold ink
+        # grin slot. No star-spark / nose / teeth — they vanish at 32px and just
+        # muddy the value. Outline thickened so the marks survive the downscale.
+        eye_dx = r * 0.46
+        eye_dy = -r * 0.06
+        eye_r = r * 0.44
+        for s in (-1, 1):
+            ex = cx + s * eye_dx
+            pygame.draw.circle(surf, INK, (int(ex), int(cy + eye_dy)), int(eye_r))
+            # one tiny bright catch so the eye still twinkles, not dead black
+            pygame.draw.circle(surf, GOLD_SHEEN,
+                               (int(ex - eye_r * 0.18), int(cy + eye_dy - eye_r * 0.20)),
+                               max(1, int(eye_r * 0.34)))
+        # Bold grin slot: a single thick ink bar, gentle smile curve.
+        grin_y = cy + r * 0.66
+        grin_hw = r * 0.56
+        grin_h = r * 0.30
+        top, bot = [], []
+        n = 10
+        for i in range(n + 1):
+            xr = -1.0 + 2.0 * (i / n)
+            x = cx + xr * grin_hw
+            lift = grin_h * 0.5 * (xr * xr)
+            top.append((x, grin_y - grin_h * 0.5 + lift))
+            bot.append((x, grin_y + grin_h * 0.5 + lift))
+        pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in (top + bot[::-1])])
+        return
 
     # — Eye sockets: big round dark hollows, the dominant face read. A cool
     #   star-spark sits in each so the eyes twinkle (the star-demon tell).
@@ -265,7 +307,12 @@ def _banner_panel(surf, cx, top_y, w, h, ss, *, glyph=True, lit=True):
     """One hanging indigo doom-banner panel: a flat triad cloth rectangle necking
     to a notched (swallow-tail) bottom edge, with gold glyph stitching down the
     middle. This is the repeatable PILLAR BODY unit — 2-3 stack per repeat. Flat
-    shapes, hard edges, no gradient."""
+    shapes, hard edges, no gradient.
+
+    Every panel is ONE indigo cloth value (`lit` no longer flips the fill) so the
+    fall reads as a single repeating cloth — only the dark-core seam, the flat
+    fill and the top-left blue-white sheen separate panels. A strobing
+    light/dark alternation would read as a second material as the pillar tiles."""
     hw = w * 0.5
     notch = h * 0.16
     # Cloth body: dark-core silhouette then flat fill, with a swallow-tail hem.
@@ -282,7 +329,7 @@ def _banner_panel(surf, cx, top_y, w, h, ss, *, glyph=True, lit=True):
         pygame.draw.polygon(surf, col, [(int(x), int(y)) for x, y in pts])
 
     _cloth(1.00, INDIGO_DK)
-    _cloth(0.88, NIGHTCLOTH if lit else _shade_c(NIGHTCLOTH, -10))
+    _cloth(0.88, NIGHTCLOTH)
     # Top-left rim sheen stripe down the lit edge of the cloth.
     pygame.draw.line(surf, INDIGO_SHEEN,
                      (int(cx - hw * 0.80), int(top_y + h * 0.06)),
@@ -307,7 +354,7 @@ def _banner_panel(surf, cx, top_y, w, h, ss, *, glyph=True, lit=True):
 
 # ── the whole creature: star-skull + banner-fall, on one surface ──────────────
 
-def build_tzitzimitl(scale=1.0, ss=6, *, night=False, compact=False):
+def build_tzitzimitl(scale=1.0, ss=6, *, night=False, compact=False, chip=False):
     """The full creature on its own transparent surface: the bone star-skull
     wreathed in the gold corona up top, a fall of indigo doom-banners streaming
     straight down beneath it. Returns an outlined surface.
@@ -332,8 +379,11 @@ def build_tzitzimitl(scale=1.0, ss=6, *, night=False, compact=False):
     head_cx = side_pad + ring_r
     head_cy = top_pad + ring_r
 
-    # The banner-fall springs from just under the skull/ring.
-    fall_top = head_cy + ring_r * 0.96
+    # The banner-fall hangs from BELOW the corona's downward long ray so the
+    # ray reads as the corona's bottom point and never paints over (cream-washes)
+    # the top banner cloth. The cord bridges the short gap from ring to fall.
+    ray_reach_down = ring_r * (2.55 if compact else 2.55)
+    fall_top = head_cy + ray_reach_down + ring_r * 0.10
     fall_h = n_panels * (panel_h + band_gap)
     feet_y = fall_top + fall_h
 
@@ -357,9 +407,11 @@ def build_tzitzimitl(scale=1.0, ss=6, *, night=False, compact=False):
         y += panel_h * sc + band_gap
 
     # The corona + skull over the banner roots. Corona drawn first (behind), then
-    # the bone skull seated inside the ring.
+    # the bone skull seated inside the ring. On the chip the skull is grown so
+    # the minimal face survives the 32px downscale.
     _corona(surf, cx, head_cy, ring_r, ss, night=night)
-    _skull(surf, cx, head_cy, skull_r, ss, night=night, compact=compact)
+    sr = skull_r * 1.14 if chip else skull_r
+    _skull(surf, cx, head_cy, sr, ss, night=night, compact=compact, chip=chip)
 
     out_w = int(surf.get_width() / ss)
     out_h = int(surf.get_height() / ss)
@@ -402,18 +454,22 @@ def _star_disk_cap(surf, cx, cap_base_y, disk_r, ss, *, point_up, night=False):
     d = -1 if point_up else 1
     cy = cap_base_y + d * (disk_r * 0.92)
 
-    # Gold glow into the gap.
-    gr = int(disk_r * (2.0 if night else 1.5))
-    gl = make_glow_surface(gr, GOLD, alpha_center=200 if night else 130, falloff=2.3)
-    surf.blit(gl, (int(cx - gr), int(cy - gr)), special_flags=pygame.BLEND_ADD)
+    # Gold glow biased INTO the gap (offset toward the gap edge, tighter reach +
+    # lower alpha) so the ADD-blend lights the gap, NOT the indigo banner behind
+    # it. A fat glow over the shaft washed the adjacent cloth panel to cream.
+    gr = int(disk_r * (1.5 if night else 1.2))
+    gl = make_glow_surface(gr, GOLD, alpha_center=150 if night else 96, falloff=2.8)
+    glow_cy = cy + d * disk_r * 0.55           # push the bloom toward the gap
+    surf.blit(gl, (int(cx - gr), int(glow_cy - gr)), special_flags=pygame.BLEND_ADD)
 
-    # Short corona spikes around the disk (8, alternating), gap-facing longest.
+    # Short corona spikes around the disk (8, alternating). Kept SHORT so the
+    # disk+rays envelope holds to ~shaft+30% and the cap never reads top-heavy.
     n = 8
     for i in range(n):
         ang = (2 * math.pi) * (i / n) - math.pi / 2
         long_ray = (i % 2 == 0)
-        outer = disk_r * (1.62 if long_ray else 1.30)
-        hw = disk_r * (0.20 if long_ray else 0.15)
+        outer = disk_r * (1.34 if long_ray else 1.16)
+        hw = disk_r * (0.17 if long_ray else 0.13)
         _ray(surf, cx, cy, ang, disk_r * 0.94, outer, hw, GOLD, ss)
 
     # Gold ring band.
@@ -438,8 +494,11 @@ def _banner_pillar_obstacle(height, ss, *, flip, night=False):
     bh = max(1, int(height)) * ss
     surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
     cx = bw // 2
-    disk_r = int((PIPE_W * 0.5 * 1.30) * ss)     # ~shaft + 30%
-    cap_band = int(disk_r * 2.2)
+    # Size the disk so the disk+RAYS envelope (rays reach disk_r*1.34) holds to
+    # ~shaft+30%, not the disk alone — keeps the cap from creeping top-heavy.
+    cap_reach = (PIPE_W * 0.5) * 1.30 * ss       # half the shaft+30% envelope
+    disk_r = int(cap_reach / 1.34)
+    cap_band = int(cap_reach * 2.4)
     if flip:
         _banner_column(surf, cx, 0, bh - cap_band, ss)
         _star_disk_cap(surf, cx, bh - cap_band, disk_r, ss, point_up=False, night=night)
@@ -497,7 +556,7 @@ def main():
     sheet = pygame.Surface((SW, SH))
     sheet.fill((70, 72, 78))          # neutral grey bg
     _label(sheet, font,
-            "TZITZIMITL  —  LEYAK-EPIC  —  eclipse star-skull + gold corona + indigo doom-banners  —  round 1", 16, 12)
+            "TZITZIMITL  —  LEYAK-EPIC  —  eclipse star-skull + gold corona + indigo doom-banners  —  round 2", 16, 12)
     _label(sheet, small,
             "epic dial: SS=6, 8 alternating long/short corona rays (dominant warm focal), midnight-INDIGO body (blue-leaning), bone star-skull. banner-fall IS the pillar.",
             16, 32, (210, 214, 230))
@@ -537,17 +596,21 @@ def main():
     _label(sheet, small, "1x native (82px): doom-banner", slice_x - 2, slice_y + slice_h + 6, (215, 215, 225))
     _label(sheet, small, "panels tile; star-disk caps gap", slice_x - 2, slice_y + slice_h + 22, (255, 225, 170))
 
-    # 2x zoom re-aimed at the CAP band.
+    # 2x zoom re-aimed at the CAP band. The zoom surface is padded WIDER than the
+    # pillar (zpad each side) and the pillar centred inside it, so no corona ray /
+    # outline can clip at the frame edge — the cap audit must show all 8 rays.
     cap_band = 64
-    zw, zh = pw, 180
+    zpad = 6
+    zw, zh = pw + 2 * zpad, 180
+    px = zpad - 2                           # pillar surface is outlined (pad=2)
     zoom_src = pygame.Surface((zw, zh), pygame.SRCALPHA)
     top_anchor = 14
-    zoom_src.blit(top_pillar, (-2, -(top_h - cap_band - top_anchor) - 2))
+    zoom_src.blit(top_pillar, (px, -(top_h - cap_band - top_anchor) - 2))
     zoom_gap = zh - 2 * cap_band - 2 * top_anchor
     bot_anchor = top_anchor + cap_band + zoom_gap
-    zoom_src.blit(bot_pillar, (-2, bot_anchor - 2))
+    zoom_src.blit(bot_pillar, (px, bot_anchor - 2))
     zoom = pygame.transform.scale(zoom_src, (zw * 2, zh * 2))
-    zx = panelB.x + 168
+    zx = panelB.right - zw * 2 - 14
     zy = panelB.y + 92
     zbg = _sky(zw * 2, zh * 2, (8, 10, 34), (16, 16, 50), (28, 26, 66))
     sheet.blit(zbg, (zx, zy))
@@ -565,8 +628,8 @@ def main():
     _label(sheet, small, "head-dominant compact; day + night sky", panelC.x + 8, panelC.y + 26,
            (255, 230, 180))
 
-    icon_src = build_tzitzimitl(scale=1.0, ss=6, compact=True)
-    icon_src_n = build_tzitzimitl(scale=1.0, ss=6, night=True, compact=True)
+    icon_src = build_tzitzimitl(scale=1.0, ss=6, compact=True, chip=True)
+    icon_src_n = build_tzitzimitl(scale=1.0, ss=6, night=True, compact=True, chip=True)
     sc = 32 / icon_src.get_height()
     icon32 = pygame.transform.smoothscale(
         icon_src, (max(1, int(icon_src.get_width() * sc)), 32))
@@ -614,7 +677,7 @@ def main():
            16, SH - 44, (210, 214, 230))
 
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
