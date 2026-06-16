@@ -34,16 +34,23 @@ pygame.init()
 
 # ── PINNED PALETTE (locked brief) ─────────────────────────────────────────────
 # Warm-IVORY bone is the dominant mass; everything else is a thin accent.
-BONE      = (238, 226, 196)   # warm-ivory bone (the dominant fill)
-BONE_D    = (176, 158, 124)   # bone dark-core
-BONE_DD   = (132, 116,  90)   # deepest bone hollow (sockets, rib gaps)
-BONE_SH   = (250, 244, 224)   # bone top-left rim-sheen
+# WHY pushed brighter than round 1: ivory must be the dominant FIELD at 32px
+# (critique FIX #3) and hold value on the dark night sky — a high-key bone keeps
+# the figure reading "ivory-and-fire," not "orange thing."
+BONE      = (246, 236, 210)   # warm-ivory bone (the dominant fill)
+BONE_D    = (190, 172, 138)   # bone dark-core
+BONE_DD   = (140, 122,  94)   # deepest bone hollow (sockets, rib gaps)
+BONE_SH   = (255, 250, 234)   # bone top-left rim-sheen
 CINNABAR  = (200,  48,  40)   # cinnabar — crown band + sash sliver ACCENT only
 CINNA_D   = (146,  32,  28)
 CINNA_BR  = (224,  86,  64)
-EMBER     = (244, 150,  56)   # ember-orange — the thin HALO RING only
-EMBER_BR  = (255, 198, 110)   # hot ember inner
-EMBER_D   = (196,  92,  34)
+# WHY hotter/lighter than round 1: the halo must read as a separate value/chroma
+# band from the gold scepter (critique FIX #4) and stay a thin accent, never a
+# warm clump — so the flame is pushed toward a hot yellow-orange tip.
+EMBER     = (250, 138,  46)   # ember-orange — the thin HALO RING only
+EMBER_BR  = (255, 214, 120)   # hot ember inner / lobe tip
+EMBER_HOT = (255, 240, 178)   # hottest flame core (lightest, separates from gold)
+EMBER_D   = (200,  88,  30)
 GOLD      = (224, 186,  88)   # gold scepter / crown-jewel accent
 GOLD_BR   = (246, 210, 118)
 GOLD_D    = (170, 134,  56)
@@ -114,73 +121,78 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 # ── a single ornamental crown-skull (reused for the arc + the pillar cap) ─────
 def crown_skull(surf, cx, cy, r, s, lit=False):
-    """Tiny ivory skull — domed cranium, two dark sockets, a stub jaw. `lit`
-    swaps the eye-pins to ember for the gap-cap so it glows toward the gap."""
-    # cranium dome
-    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.5 * s)))
-    # jaw stub below
-    jaw = [(cx - int(r * 0.6), cy + int(r * 0.5)),
-           (cx + int(r * 0.6), cy + int(r * 0.5)),
-           (cx + int(r * 0.4), cy + int(r * 1.05)),
-           (cx - int(r * 0.4), cy + int(r * 1.05))]
+    """Tiny ivory skull — domed cranium, two dark sockets, a stub jaw. WHY the
+    sockets are SMALL and high-contrast (critique FIX #2): each crown skull must
+    punch a clean IVORY shape with two dark dots at 32px, so the bone dome stays
+    the dominant value and the sockets don't merge into a dark blob. `lit` swaps
+    the eye-pins to hot ember for the gap-cap so it glows toward the gap."""
+    # cranium dome — the dominant ivory mass that breaks the silhouette
+    triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.6 * s)), core=False)
+    # jaw stub below (kept short so the dome dominates)
+    jaw = [(cx - int(r * 0.52), cy + int(r * 0.52)),
+           (cx + int(r * 0.52), cy + int(r * 0.52)),
+           (cx + int(r * 0.34), cy + int(r * 1.0)),
+           (cx - int(r * 0.34), cy + int(r * 1.0))]
     triad_blob(surf, BONE, jaw, ow=max(1, int(1.2 * s)))
-    # two sockets
-    eye_c = EMBER_BR if lit else INK
-    for ex in (cx - int(r * 0.42), cx + int(r * 0.42)):
-        pygame.draw.circle(surf, BONE_DD, (ex, cy - int(r * 0.05)), int(r * 0.34))
-        pygame.draw.circle(surf, INK, (ex, cy - int(r * 0.05)), int(r * 0.26))
+    # two small sockets — just enough to read as eyes, never a mass
+    eye_c = EMBER_HOT if lit else INK
+    for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
+        pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.04)), max(1, int(r * 0.24)))
         if lit:
-            pygame.draw.circle(surf, eye_c, (ex, cy - int(r * 0.05)), max(1, int(r * 0.13)))
-    # nose triangle
-    pygame.draw.polygon(surf, BONE_DD,
-                        [(cx - int(r * 0.12), cy + int(r * 0.18)),
-                         (cx + int(r * 0.12), cy + int(r * 0.18)),
-                         (cx, cy + int(r * 0.42))])
-    # teeth ticks on the jaw
-    for tx in range(-2, 3):
-        pygame.draw.line(surf, INK,
-                         (cx + int(tx * r * 0.22), cy + int(r * 0.52)),
-                         (cx + int(tx * r * 0.22), cy + int(r * 0.92)),
-                         max(1, int(1 * s)))
+            pygame.draw.circle(surf, eye_c, (ex, cy + int(r * 0.04)), max(1, int(r * 0.13)))
+    # nose tick
+    pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.13)))
+    # one grin line on the jaw (teeth read as a single notch at scale)
+    pygame.draw.line(surf, INK,
+                     (cx - int(r * 0.34), cy + int(r * 0.70)),
+                     (cx + int(r * 0.34), cy + int(r * 0.70)),
+                     max(1, int(1.2 * s)))
 
 
-# ── the lobed flame-halo RING (the top tell — a clean ring, not a fire field) ─
-def flame_halo(surf, cx, cy, rad, s, lobes=13):
-    """A thin lobed ember RING behind the head. WHY a ring and not a blob: the
-    brief's hard watch-note is that the halo must read as a clean lobed RING,
-    so it is drawn as a ring of triangular flame-tongues with a HOLLOW centre —
-    additive glow underlays it, the ink-edged tongues sit on the band, and the
-    head later occludes the middle so no fire fills the face."""
-    # soft additive under-glow keeps it warm without a hard disc
-    glow = pygame.Surface((rad * 5, rad * 5), pygame.SRCALPHA)
-    gc = (rad * 5) // 2
-    for r in range(int(rad * 1.35), int(rad * 0.7), -1):
-        a = int(34 * (1 - (r - rad * 0.7) / (rad * 0.65)))
-        pygame.draw.circle(glow, (*EMBER, max(0, a)), (gc, gc), r)
-    surf.blit(glow, (cx - gc, cy - gc), special_flags=pygame.BLEND_ADD)
+# ── the lobed flame-halo RING (the top tell — a clean OPEN ring, no fire field) ─
+def flame_halo(surf, cx, cy, rad, s, lobes=11, gap_bottom=0.50, angles=None, reach=1.0):
+    """A THIN, OPEN lobed ember ring behind the head. WHY this rebuild (critique
+    FIX #1/#3/#4): round 1 drew an under-glow disc + fat overlapping tongues that
+    fused into a solid orange sunflower, swamping ivory and erasing the crown.
+    The ring is now NEGATIVE-SPACE-first — sky shows THROUGH the gap between the
+    head and the flame band, and BETWEEN the separated flame tongues. Each tongue
+    is a slim isolated flame (no overlap, no backing disc), value-graded hot-light
+    at the tip so it stays a thin accent that separates from the gold scepter.
 
-    inner = rad * 0.84
-    outer = rad * 1.18
-    tip = rad * 1.42
-    for i in range(lobes):
-        ang = -math.pi / 2 + (i / lobes) * 2 * math.pi
-        # skip the bottom arc so the neck/shoulders read clean
-        if math.sin(ang) > 0.62:
+    `rad` is the head radius; the flame band floats well outside it so the bone
+    cranium and the crown skulls own the centre. `gap_bottom` widens the open
+    bottom arc so neck/shoulders/crown stay clean."""
+    # the ring floats clearly OFF the head — the visible gap is the whole point.
+    # `reach` scales tongue length so tips poke OUT past the crown skull arc.
+    base_r = rad * 0.86        # inner foot of each tongue, just outside the head
+    tip_r  = rad * (1.06 + 0.30 * reach)   # tongue tip — pokes past the skulls
+    half_w = (math.pi / lobes) * 0.42   # SLIM tongues with sky between them
+    # WHY explicit angles: when the crown skulls own the outer arc the flame must
+    # peek through the GAPS between them, so the caller can hand in interleaved
+    # angles; otherwise fall back to an even ring across the open top arc.
+    if angles is None:
+        angles = [-math.pi / 2 + (i / lobes) * 2 * math.pi for i in range(lobes)]
+    for ang in angles:
+        # leave the whole bottom arc open (neck + crown band live there)
+        if math.sin(ang) > gap_bottom:
             continue
-        a0 = ang - math.pi / lobes * 0.82
-        a1 = ang + math.pi / lobes * 0.82
-        base0 = (cx + math.cos(a0) * inner, cy + math.sin(a0) * inner)
-        base1 = (cx + math.cos(a1) * inner, cy + math.sin(a1) * inner)
-        out0 = (cx + math.cos(a0) * outer, cy + math.sin(a0) * outer)
-        out1 = (cx + math.cos(a1) * outer, cy + math.sin(a1) * outer)
-        tipp = (cx + math.cos(ang) * tip, cy + math.sin(ang) * tip)
-        tongue = [base0, out0, tipp, out1, base1]
-        mid0 = (base0[0] + (tipp[0] - base0[0]) * 0.55, base0[1] + (tipp[1] - base0[1]) * 0.55)
-        mid1 = (base1[0] + (tipp[0] - base1[0]) * 0.55, base1[1] + (tipp[1] - base1[1]) * 0.55)
+        a0 = ang - half_w
+        a1 = ang + half_w
+        base0 = (cx + math.cos(a0) * base_r, cy + math.sin(a0) * base_r)
+        base1 = (cx + math.cos(a1) * base_r, cy + math.sin(a1) * base_r)
+        tipp  = (cx + math.cos(ang) * tip_r, cy + math.sin(ang) * tip_r)
+        # a slim two-step flicker: outer half kinks for the flame-tongue read
+        kink  = (cx + math.cos(ang + half_w * 0.5) * (base_r + (tip_r - base_r) * 0.55),
+                 cy + math.sin(ang + half_w * 0.5) * (base_r + (tip_r - base_r) * 0.55))
+        tongue = [base0, kink, tipp, base1]
         pygame.draw.polygon(surf, INK, tongue)
         pygame.draw.polygon(surf, EMBER, tongue)
-        pygame.draw.polygon(surf, EMBER_BR, [base0, mid0, mid1, base1])
-        pygame.draw.polygon(surf, INK, tongue, max(1, int(1.2 * s)))
+        # hot inner gradient kept to the LOWER half so the tip reads light
+        mid0 = (base0[0] + (tipp[0] - base0[0]) * 0.50, base0[1] + (tipp[1] - base0[1]) * 0.50)
+        mid1 = (base1[0] + (tipp[0] - base1[0]) * 0.50, base1[1] + (tipp[1] - base1[1]) * 0.50)
+        pygame.draw.polygon(surf, EMBER_BR, [base0, mid0, tipp, mid1])
+        pygame.draw.polygon(surf, EMBER_HOT, [mid0, tipp, mid1])
+        pygame.draw.polygon(surf, INK, tongue, max(1, int(1.1 * s)))
 
 
 # ── the dancing skeleton-lord ─────────────────────────────────────────────────
@@ -197,7 +209,15 @@ def draw_citipati(surf, cx, cy, s):
     hip_cx = cx + int(7 * s)          # hips cocked to the figure's right
 
     # === FLAME-HALO RING (drawn first → behind everything) ===================
-    flame_halo(surf, head_c[0], head_c[1], int(hr * 1.5), s)
+    # WHY interleaved with the crown: the five skulls (drawn last) own the outer
+    # arc; the thin flame tongues are placed in the GAPS between skull positions
+    # so fire peeks BETWEEN bone domes with sky showing through — a clean open
+    # ring, not a field. Flame angles = the inter-skull gaps + two flank tips.
+    skull_degs = [214 + i * 28 for i in range(5)]
+    gap_degs = [200] + [(skull_degs[i] + skull_degs[i + 1]) / 2 for i in range(4)] + [340]
+    flame_angles = [math.radians(d) for d in gap_degs]
+    flame_halo(surf, head_c[0], head_c[1] - int(hr * 0.10), int(hr * 1.50), s,
+               gap_bottom=0.55, angles=flame_angles, reach=1.18)
 
     # === LEGS — wide cocked-hip dance: one knee kicked OUT, weight on far leg =
     # standing leg (figure's left): nearly straight, planted, slight outward set
@@ -218,7 +238,10 @@ def draw_citipati(surf, cx, cy, s):
             triad_circle(surf, BONE, p1, int(thick * 0.62), ow=max(1, int(1.2 * s)),
                          core=False)
 
-    leg_th = int(11 * s)
+    # WHY thicker than round 1 (critique FIX #5): at 32px the kicked-out legs
+    # collapsed into a thin tangle; fatter bone masses keep the cocked-hip stance
+    # the clear bottom-silhouette tell.
+    leg_th = int(14 * s)
     # standing leg — planted out to the left
     hipL = (hip_cx - int(13 * s), hip_y)
     kneeL = (hip_cx - int(20 * s), hip_y + int(26 * s))
@@ -229,11 +252,11 @@ def draw_citipati(surf, cx, cy, s):
     kneeR = (hip_cx + int(30 * s), hip_y + int(8 * s))
     footR = (hip_cx + int(20 * s), hip_y + int(34 * s))
     bone_limb(hipR, kneeR, footR, leg_th)
-    # bony foot blocks
+    # bony foot blocks — chunkier so the stance reads at 32px
     for (fx, fy), sgn in ((footL, -1), (footR, +1)):
-        foot = [(fx - int(3 * s), fy), (fx + sgn * int(13 * s), fy + int(2 * s)),
-                (fx + sgn * int(12 * s), fy + int(7 * s)), (fx - int(4 * s), fy + int(6 * s))]
-        triad_blob(surf, BONE, foot, ow=max(1, int(1.2 * s)))
+        foot = [(fx - int(4 * s), fy - int(2 * s)), (fx + sgn * int(16 * s), fy + int(2 * s)),
+                (fx + sgn * int(15 * s), fy + int(10 * s)), (fx - int(5 * s), fy + int(8 * s))]
+        triad_blob(surf, BONE, foot, ow=max(1, int(1.4 * s)))
 
     # === PELVIS + RIBCAGE torso (the rib bands the pillar continues) =========
     # pelvis — a wing-shaped ivory block, cocked
@@ -353,13 +376,15 @@ def draw_citipati(surf, cx, cy, s):
         ey = head_c[1] - int(hr * 0.02)
         pygame.draw.circle(surf, BONE_DD, (ex, ey), int(hr * 0.34))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.28))
-        pygame.draw.circle(surf, EMBER, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.12))
-        pygame.draw.circle(surf, EMBER_BR, (ex, ey - int(1 * s)), max(1, int(hr * 0.06)))
-    # third eye of wisdom — a small cool vertical slit on the brow (the deity tell)
+        pygame.draw.circle(surf, EMBER, (ex + sgn * int(1 * s), ey + int(1 * s)), int(hr * 0.14))
+        pygame.draw.circle(surf, EMBER_HOT, (ex, ey - int(1 * s)), max(1, int(hr * 0.08)))
+    # third eye of wisdom — a small cool vertical slit on the brow (the deity tell).
+    # WHY a touch bigger/brighter (critique FIX #7): it must still register as the
+    # one cool pin at 32px on both biomes.
     tex, tey = head_c[0], head_c[1] - int(hr * 0.46)
-    pygame.draw.ellipse(surf, INK, (tex - int(3 * s), tey - int(5 * s), int(6 * s), int(10 * s)))
-    pygame.draw.ellipse(surf, THIRD_EYE, (tex - int(2 * s), tey - int(4 * s), int(4 * s), int(8 * s)))
-    pygame.draw.circle(surf, (220, 200, 255), (tex, tey - int(1 * s)), max(1, int(1.2 * s)))
+    pygame.draw.ellipse(surf, INK, (tex - int(4 * s), tey - int(6 * s), int(8 * s), int(12 * s)))
+    pygame.draw.ellipse(surf, THIRD_EYE, (tex - int(3 * s), tey - int(5 * s), int(6 * s), int(10 * s)))
+    pygame.draw.circle(surf, (228, 210, 255), (tex, tey - int(1 * s)), max(1, int(1.6 * s)))
     # nose triangle
     pygame.draw.polygon(surf, BONE_DD,
                         [(head_c[0] - int(hr * 0.14), head_c[1] + int(hr * 0.22)),
@@ -383,23 +408,28 @@ def draw_citipati(surf, cx, cy, s):
         pygame.draw.line(surf, GOLD_BR, (ear_x + sgn * int(2 * s), head_c[1]),
                          (ear_x + sgn * int(9 * s), head_c[1] - int(6 * s)), max(1, int(1.2 * s)))
 
-    # === FIVE-SKULL CROWN ARC (the top tell) — arcs over the cranium =========
-    crown_r = int(hr * 1.02)
-    skull_r = int(6.0 * s)
-    # cinnabar crown band the skulls sit on
+    # === FIVE-SKULL CROWN ARC (the top tell) — the OUTER silhouette arc =======
+    # WHY skulls own the outer arc (critique FIX #2): each skull is pushed OUTSIDE
+    # the flame band and enlarged so it BREAKS the outline — at 32px the five bone
+    # domes punch ivory holes into the orange, so you can count skulls and the
+    # crown survives the downscale. The thin cinnabar band sits behind them.
+    band_r  = int(hr * 1.18)
+    skull_cr = hr * 1.62          # skull centres ride OUTSIDE the flame tips
+    skull_r = int(hr * 0.40)      # big enough to read as a dome at 32px
+    # cinnabar crown band the skulls sit on (kept a thin linear accent)
     band_pts = []
     for i in range(13):
-        a = math.radians(200 + i * (140 / 12))
-        band_pts.append((head_c[0] + math.cos(a) * crown_r,
-                         head_c[1] + math.sin(a) * crown_r))
+        a = math.radians(205 + i * (130 / 12))
+        band_pts.append((head_c[0] + math.cos(a) * band_r,
+                         head_c[1] + math.sin(a) * band_r))
     pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
     pygame.draw.lines(surf, CINNABAR, False, band_pts, int(4 * s))
     pygame.draw.lines(surf, CINNA_BR, False, band_pts[:7], max(1, int(1.4 * s)))
-    # five distinct skulls along the arc
+    # five distinct ivory skulls fanned across the top arc
     for i in range(5):
-        a = math.radians(208 + i * (124 / 4))
-        sx = head_c[0] + math.cos(a) * int(crown_r * 1.16)
-        sy = head_c[1] + math.sin(a) * int(crown_r * 1.16)
+        a = math.radians(214 + i * (112 / 4))
+        sx = head_c[0] + math.cos(a) * skull_cr
+        sy = head_c[1] + math.sin(a) * skull_cr
         crown_skull(surf, int(sx), int(sy), skull_r, s, lit=(i == 2))
 
 
@@ -451,10 +481,14 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
                          (cx + int(bw * 0.5), y - int(5 * s)), max(1, int(1.2 * s)))
         y += step
 
-    # === gap-edge cap: a single crown-skull + small flame-ring ===============
-    cap_y = (bot - int(16 * s)) if cap == "bottom" else (top + int(16 * s))
-    flame_halo(surf, cx, cap_y, int(15 * s), s, lobes=10)
-    crown_skull(surf, cx, cap_y, int(12 * s), s, lit=True)
+    # === gap-edge cap: a single crown-skull + small OPEN flame-ring ==========
+    # WHY bumped ~15% with the same open-ring flame (critique FIX #6): the cap was
+    # faint on the night chip; a larger skull and the shared thin-ring flame keep
+    # one flame language across shaft and cap and make the gap-edge cap legible.
+    cap_y = (bot - int(18 * s)) if cap == "bottom" else (top + int(18 * s))
+    cap_skull_r = int(14 * s)
+    flame_halo(surf, cx, cap_y - int(cap_skull_r * 0.18), int(cap_skull_r * 0.96), s, lobes=9)
+    crown_skull(surf, cx, cap_y, cap_skull_r, s, lit=True)
     # a small gold ferrule collar where the cap meets the shaft (scepter accent)
     collar_y = (cap_y - int(18 * s)) if cap == "bottom" else (cap_y + int(18 * s))
     pygame.draw.rect(surf, INK, (cx - int(11 * s), collar_y - int(3 * s), int(22 * s), int(7 * s)))
@@ -492,7 +526,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("CITIPATI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "dancing charnel skeleton-lord  ·  warm-ivory bone + cinnabar accent + ember halo-ring  ·  round 1",
+        "dancing charnel skeleton-lord  ·  ivory-dominant · 5 skulls = outer arc · OPEN flame-ring · round 2",
         True, LABEL_DIM), (220, 26))
 
     # === (a) BIG HERO =========================================================
@@ -500,7 +534,7 @@ def main():
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
     sheet.blit(font_sm.render("cocked-hip DANCE: one knee kicked out, flamenco-flourish arms (the only", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("motion silhouette). 5-skull crown arc + lobed flame-halo ring = the top tell.", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("motion silhouette). 5 skulls = OUTER arc; OPEN flame-ring inside = the top tell.", True, LABEL_DIM), (14, 606))
     sheet.blit(font_sm.render("third eye + fan ears = Citipati. Ivory-and-fire; red only as crown/sash sliver.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
@@ -593,7 +627,7 @@ def main():
         "dark-core→fill→top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
