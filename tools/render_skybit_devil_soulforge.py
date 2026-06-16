@@ -75,10 +75,9 @@ APRON_DK    = (82, 34, 28)      # apron dark-core / fold groove
 APRON_SHEEN = (162, 84, 64)     # apron top-left rim
 STRAP       = (58, 40, 34)      # apron strap leather
 
-EMBER       = (255, 128, 36)    # forge-orange spark / socket-coal (outer)
-EMBER_HOT   = (255, 232, 180)   # white-hot core
-BRASS       = (196, 144, 52)    # apron buckle / collar trim
-BRASS_HI    = (255, 224, 150)
+EMBER       = (255, 128, 36)    # forge-orange spark / socket-coal (the ONLY hot hue)
+EMBER_HOT   = (255, 232, 180)   # white-hot pinprick point
+BRASS       = (196, 144, 52)    # lone small buckle glint (muted, not a 2nd warm family)
 
 INK         = (28, 22, 30)      # the house keyline
 
@@ -130,29 +129,34 @@ def _horn_stumps(surf, cx, cy, r, ss):
     as short upright drums with a flat sawn-off top ring (concentric rings show the
     filed cross-section), seated low + wide on the cranium so they read as part of
     the skull, not a hat. Bone-pale on top of the soot so they catch the light."""
-    stub_dx = r * 0.50
-    stub_w = r * 0.42
-    stub_h = r * 0.40
+    # ~18% larger + seated prouder than round 1 so the named devil-primitive
+    # actually reads at 1x — these are the thing that says "devil," so they cannot
+    # vanish into the cranium sheen.
+    stub_dx = r * 0.52
+    stub_w = r * 0.50
+    stub_h = r * 0.48
     for s in (-1, 1):
         sx = cx + s * stub_dx
         # The drum body — a short cylinder rising off the brow.
         body = pygame.Rect(0, 0, int(stub_w), int(stub_h))
-        body.center = (int(sx), int(cy - stub_h * 0.30))
+        body.center = (int(sx), int(cy - stub_h * 0.38))
         pygame.draw.rect(surf, SOOT_DK, body, border_radius=max(2, int(stub_w * 0.30)))
         pygame.draw.rect(surf, _shade_c(SOOT, 20), body.inflate(-int(2 * ss), -int(2 * ss)),
                          border_radius=max(1, int(stub_w * 0.26)))
-        # The flat SAWN-OFF top: a wide ellipse cap (the filed cross-section), with
-        # two concentric rings so it reads as cut-bone, not a rounded horn tip.
-        top = pygame.Rect(0, 0, int(stub_w), int(stub_w * 0.46))
-        top.center = (int(sx), int(cy - stub_h * 0.78))
-        pygame.draw.ellipse(surf, _shade_c(SOOT, -10), top)
-        pygame.draw.ellipse(surf, (170, 158, 140), top.inflate(-int(2 * ss), -int(2 * ss)))
-        pygame.draw.ellipse(surf, (132, 120, 104), top.inflate(-int(6 * ss), -int(3 * ss)))
-        pygame.draw.ellipse(surf, (96, 86, 78), top.inflate(-int(11 * ss), -int(5 * ss)))
+        # The flat SAWN-OFF top: a wide ellipse cap (the filed cross-section). The
+        # bone face is pushed a CLEAR value step LIGHTER than the cool cranium sheen
+        # (SOOT_SHEEN ~104) so the flat cut-bone disc pops off the soot — the "filed,
+        # not pointed" tell. Concentric rings read it as a cut cross-section.
+        top = pygame.Rect(0, 0, int(stub_w * 1.02), int(stub_w * 0.50))
+        top.center = (int(sx), int(cy - stub_h * 0.86))
+        pygame.draw.ellipse(surf, INK, top)
+        pygame.draw.ellipse(surf, (214, 206, 192), top.inflate(-int(2 * ss), -int(2 * ss)))
+        pygame.draw.ellipse(surf, (176, 166, 150), top.inflate(-int(7 * ss), -int(3 * ss)))
+        pygame.draw.ellipse(surf, (138, 128, 114), top.inflate(-int(13 * ss), -int(6 * ss)))
         # A cool rim-sheen tick on the lit side of the drum.
         pygame.draw.line(surf, SOOT_SHEEN,
-                         (int(sx - stub_w * 0.34), int(cy - stub_h * 0.55)),
-                         (int(sx - stub_w * 0.34), int(cy - stub_h * 0.10)),
+                         (int(sx - stub_w * 0.34), int(cy - stub_h * 0.62)),
+                         (int(sx - stub_w * 0.34), int(cy - stub_h * 0.14)),
                          max(1, int(1.4 * ss)))
 
 
@@ -194,60 +198,80 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
     pygame.draw.ellipse(surf, _shade_c(SOOT, 30), sh)
     pygame.draw.ellipse(surf, SOOT, sh.inflate(-int(3 * ss), -int(3 * ss)))
 
-    # Cheekbone hollows so the wide jaw reads as bone, not a slab.
-    for s in (-1, 1):
-        hr = pygame.Rect(0, 0, int(r * 0.32), int(r * 0.34))
-        hr.center = (int(cx + s * r * 0.70), int(cy + r * 0.44))
-        pygame.draw.ellipse(surf, SOOT_DK, hr)
+    # The filed horn-stumps on the brow (drawn over the cranium). Kept HIGHER on
+    # the brow so the filed cut-bone tops are an upper-face event, not lost in sheen.
+    _horn_stumps(surf, cx, cy - r * 0.58, r, ss)
 
-    # The filed horn-stumps on the brow (drawn over the cranium).
-    _horn_stumps(surf, cx, cy - r * 0.50, r, ss)
-
-    # — Eyes: forge-coal sockets. The LEFT (s == -1) eye SQUINTS shut to a slit —
-    #   he's lining up the swing — while the RIGHT is a wide round coal-socket.
-    #   Asymmetric squint is the whole "aiming the hammer" tell.
+    # — Eyes: TWO matched soot sockets so the skull keeps bilateral symmetry. The
+    #   LEFT (s == -1) eye SQUINTS to a scrunched lidded slit — he's lining up the
+    #   swing — while the RIGHT is a wide-open round socket. Both are DARK INK
+    #   CAVITIES first; forge-orange is only a tiny contained coal + a white-hot
+    #   PINPRICK point (never a filled disc), so orange is the smallest warm area on
+    #   the figure. The dark socket SHAPE carries the read in grayscale; the asymmetry
+    #   is "scrunched aiming eye vs wide eye," never "big glow vs nothing."
     eye_dx = r * 0.44
     eye_dy = -r * 0.02
     sock_r = r * 0.27
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
         squint = (s < 0)
-        # Contained ember halo behind each socket so the coals read LIT — kept
-        # tight so soot stays dominant (the contained-glow guardrail). Night pushes
-        # it so the eyes don't go dead on a dark sky.
-        halo_a = 200 if night else 130
-        halo_r = sock_r * (1.9 if night else 1.5)
-        if not squint:
-            glow = make_glow_surface(int(halo_r), EMBER, alpha_center=halo_a, falloff=2.1)
-            surf.blit(glow, (int(ex - halo_r - 1), int(ey - halo_r - 1)),
-                      special_flags=pygame.BLEND_ADD)
+        # A small CONTAINED ember halo — ~half the round-1 radius so it's only a
+        # whisper of warmth around the coal, never a headlight. Night nudges it just
+        # enough to keep the coal alive on a dark sky.
+        halo_a = 150 if night else 100
+        halo_r = sock_r * (1.0 if night else 0.72)
+        glow = make_glow_surface(int(halo_r), EMBER, alpha_center=halo_a, falloff=2.4)
+        gy_off = sock_r * 0.10 if squint else sock_r * 0.20
+        surf.blit(glow, (int(ex - halo_r - 1), int(ey + gy_off - halo_r - 1)),
+                  special_flags=pygame.BLEND_ADD)
         if squint:
-            # A hard squint slit: a thin dark crescent socket with a low ember coal
-            # line — one eye scrunched aiming the swing.
-            slit = pygame.Rect(0, 0, int(sock_r * 1.9), int(sock_r * 0.74))
-            slit.center = (int(ex), int(ey + sock_r * 0.10))
-            pygame.draw.ellipse(surf, INK, slit)
-            pygame.draw.ellipse(surf, SOOT_DK, slit.inflate(-int(2 * ss), -int(2 * ss)))
-            # A small ember coal glint at the slit so it still reads as a live eye.
-            pygame.draw.circle(surf, EMBER, (int(ex), int(ey + sock_r * 0.10)),
-                               max(1, int(sock_r * 0.26)))
-            # A heavy scrunched brow over the squint (the only near-V on the face,
-            # for the aiming "concentration" beat — but bowed, never angry-flat).
-            pygame.draw.arc(surf, SOOT_DK,
-                            (int(ex - sock_r * 1.3), int(ey - sock_r * 1.5),
-                             int(sock_r * 2.6), int(sock_r * 1.8)),
-                            math.radians(200), math.radians(340), max(2, int(2.6 * ss)))
+            # The scrunched aiming eye: a dark ink socket matched in SIZE to the open
+            # one, but read as a closed lidded slit — a lid-crease arc above + a low
+            # crescent cavity below, with a small coal glint pinched in the slit so it
+            # reads as a live winking eye, not a missing socket.
+            sock = pygame.Rect(0, 0, int(sock_r * 2.0), int(sock_r * 2.0))
+            sock.center = (int(ex), int(ey))
+            # The dark cavity, clipped to the lower crescent by the lid above it.
+            lid_y = ey - sock_r * 0.18
+            crescent = pygame.Rect(int(ex - sock_r), int(lid_y),
+                                   int(sock_r * 2.0), int(sock_r * 1.3))
+            pygame.draw.ellipse(surf, INK, crescent)
+            pygame.draw.ellipse(surf, SOOT_DK, crescent.inflate(-int(2 * ss), -int(2 * ss)))
+            # The drooped lid + crease line riding over the cavity (the "scrunched
+            # shut" tell — a bold dark arc the width of the socket).
+            pygame.draw.line(surf, SOOT_DK,
+                             (int(ex - sock_r * 0.96), int(lid_y + sock_r * 0.06)),
+                             (int(ex + sock_r * 0.96), int(lid_y - sock_r * 0.10)),
+                             max(2, int(2.4 * ss)))
+            pygame.draw.line(surf, _shade_c(SOOT, 18),
+                             (int(ex - sock_r * 0.86), int(lid_y - sock_r * 0.18)),
+                             (int(ex + sock_r * 0.86), int(lid_y - sock_r * 0.30)),
+                             max(1, int(1.4 * ss)))
+            # A small coal glint pinched low in the slit (point-sized).
+            pygame.draw.circle(surf, EMBER,
+                               (int(ex - s * sock_r * 0.10), int(ey + sock_r * 0.44)),
+                               max(1, int(sock_r * 0.24)))
+            pygame.draw.circle(surf, EMBER_HOT,
+                               (int(ex - s * sock_r * 0.10), int(ey + sock_r * 0.40)),
+                               max(1, int(sock_r * 0.12)))
         else:
-            # Deep ink cavity (grayscale-legible shape).
+            # The wide-open socket: a deep ink cavity (grayscale-legible) holding a
+            # small low coal + a single white-hot PINPRICK point — not a glowing disc.
             pygame.draw.circle(surf, INK, (int(ex), int(ey)), int(sock_r))
             pygame.draw.circle(surf, SOOT_DK, (int(ex), int(ey)),
                                int(sock_r), max(1, int(2 * ss)))
-            # Forge-coal pooling low, white-hot pinprick high + inward (eager).
-            pygame.draw.circle(surf, EMBER, (int(ex), int(ey + sock_r * 0.20)),
-                               int(sock_r * 0.56))
+            # A small contained coal pooled low in the cavity (not filling it).
+            pygame.draw.circle(surf, _shade_c(EMBER, -30),
+                               (int(ex), int(ey + sock_r * 0.34)),
+                               max(1, int(sock_r * 0.36)))
+            pygame.draw.circle(surf, EMBER,
+                               (int(ex), int(ey + sock_r * 0.34)),
+                               max(1, int(sock_r * 0.24)))
+            # The white-hot PINPRICK: a tiny eager point high + inward, the catch-
+            # light of a live eye (a point, never a wide core).
             pygame.draw.circle(surf, EMBER_HOT,
-                               (int(ex - s * sock_r * 0.16), int(ey - sock_r * 0.04)),
-                               max(2, int(sock_r * 0.30)))
+                               (int(ex - s * sock_r * 0.18), int(ey - sock_r * 0.06)),
+                               max(1, int(sock_r * 0.16)))
             # High bowed-UP bone brow-ridge over the open eye — lifted, surprised-
             # cute, never the angry inner-down V.
             pygame.draw.arc(surf, _shade_c(SOOT, 26),
@@ -283,30 +307,32 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
     seat = seat_top + seat_bot[::-1]
     pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in seat])
 
-    # The tongue-tip — a small soft red lobe poking up over the right corner of
-    # the seat, the "tip out in concentration" beat.
-    t_x = cx + grin_hw * 0.62
-    t_y = grin_y - _bow(0.62) + grin_h * 0.20
-    tongue = pygame.Rect(0, 0, int(r * 0.22), int(r * 0.20))
+    # The tongue-tip — a bigger, higher-contrast red lobe poking up over the right
+    # corner of the seat, the "tip out in concentration" beat. Enlarged + brighter
+    # so it reads as a tongue at 1x, not a stray red pixel.
+    t_x = cx + grin_hw * 0.66
+    t_y = grin_y - _bow(0.66) + grin_h * 0.18
+    tongue = pygame.Rect(0, 0, int(r * 0.32), int(r * 0.28))
     tongue.center = (int(t_x), int(t_y))
-    pygame.draw.ellipse(surf, (150, 40, 56), tongue)
-    pygame.draw.ellipse(surf, (206, 70, 90), tongue.inflate(-int(2 * ss), -int(2 * ss)))
-    pygame.draw.line(surf, (150, 40, 56), (int(t_x), int(t_y - r * 0.06)),
-                     (int(t_x), int(t_y + r * 0.06)), max(1, int(ss)))
+    pygame.draw.ellipse(surf, (130, 30, 46), tongue)
+    pygame.draw.ellipse(surf, (224, 86, 104), tongue.inflate(-int(2 * ss), -int(2 * ss)))
+    pygame.draw.line(surf, (130, 30, 46), (int(t_x), int(t_y - r * 0.08)),
+                     (int(t_x), int(t_y + r * 0.08)), max(1, int(1.4 * ss)))
 
-    # Tooth band — four even sooted teeth on the smile-curve.
-    teeth = 4
-    gap = grin_hw * 0.12
+    # Tooth band — THREE bold sooted teeth on the smile-curve (low-count so the grin
+    # survives 1x instead of muddying into a dark smear).
+    teeth = 3
+    gap = grin_hw * 0.14
     tw = (grin_hw * 2.0 - gap * (teeth - 1)) / teeth
-    th = grin_h * 0.66
+    th = grin_h * 0.74
     for i in range(teeth):
         tx = -grin_hw + i * (tw + gap)
         xr = (tx + tw * 0.5) / grin_hw
         ty = grin_y - _bow(xr) + ss
         rect = pygame.Rect(int(cx + tx + ss), int(ty), int(tw - ss), int(th))
-        pygame.draw.rect(surf, TOOTH, rect, border_radius=max(1, int(1.4 * ss)))
-        pygame.draw.rect(surf, TOOTH_DK, rect, max(1, int(1.2 * ss)),
-                         border_radius=max(1, int(1.4 * ss)))
+        pygame.draw.rect(surf, TOOTH, rect, border_radius=max(1, int(1.8 * ss)))
+        pygame.draw.rect(surf, TOOTH_DK, rect, max(1, int(1.4 * ss)),
+                         border_radius=max(1, int(1.8 * ss)))
 
 
 # ── the stocky apron body + giant stone fist ─────────────────────────────────
@@ -350,13 +376,19 @@ def _apron_body(surf, cx, neck_y, w, h, ss):
                          (int(cx - s * w * 0.12), int(neck_y + h * 0.20)),
                          max(2, int(3 * ss)))
 
-    # Brass buckle at mid-bib (the trim accent + value break on the dark leather).
+    # Dark-IRON buckle at mid-bib — muted to iron (NOT brass) so forge-orange is the
+    # ONLY "hot" hue on the figure; a single small brass dot is the lone metal glint,
+    # the value break on the dark leather without a second warm-metal family.
     buckle = pygame.Rect(0, 0, int(w * 0.22), int(h * 0.16))
     buckle.center = (int(cx), int(neck_y + h * 0.40))
-    pygame.draw.rect(surf, _shade_c(BRASS, -50), buckle, border_radius=max(1, int(2 * ss)))
-    pygame.draw.rect(surf, BRASS, buckle.inflate(-int(2 * ss), -int(2 * ss)),
+    pygame.draw.rect(surf, IRON_DK, buckle, border_radius=max(1, int(2 * ss)))
+    pygame.draw.rect(surf, _shade_c(IRON, -8), buckle.inflate(-int(2 * ss), -int(2 * ss)),
                      border_radius=max(1, int(2 * ss)))
-    pygame.draw.circle(surf, BRASS_HI, buckle.center, max(1, int(h * 0.035)))
+    pygame.draw.line(surf, IRON_SHEEN,
+                     (int(buckle.left + 2 * ss), int(buckle.top + 2 * ss)),
+                     (int(buckle.left + 2 * ss), int(buckle.bottom - 2 * ss)),
+                     max(1, int(1.4 * ss)))
+    pygame.draw.circle(surf, BRASS, buckle.center, max(1, int(h * 0.030)))
 
     # Tiny stub legs in heavy boots peeking under the hem (small = the chibi gag
     # against the big body + giant fist).
@@ -604,7 +636,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((34, 32, 38))
-    _label(sheet, font, "SOULFORGE  —  take A8  —  soot-charcoal & forge-orange  —  round 1", 18, 12)
+    _label(sheet, font, "SOULFORGE  —  take A8  —  soot-charcoal & forge-orange  —  round 2", 18, 12)
     _label(sheet, small,
             "the blacksmith-DEVIL skull: a broad soot skull w/ FILED HORN-STUMPS + ONE giant stone fist swinging a sledgehammer",
             18, 32, (200, 196, 210))
@@ -710,7 +742,7 @@ def main():
                            "skybit_devil", "reapy_devil", "soulforge")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 

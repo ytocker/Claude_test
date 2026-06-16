@@ -106,19 +106,22 @@ def _facet(surf, pts, col, ss, *, sheen_edge=None):
 
 def _magma_seam(surf, pts, ss, *, width=4.0, glow=True):
     """A magma crack: a FLAT bright shape (deep-orange edge -> orange seam ->
-    hot-yellow core) plus an OUTSIDE additive glow — never a soft gradient fill.
-    `pts` is the seam polyline; it pulses bright so it survives the 1x downscale."""
+    hot-yellow core) plus a TIGHT outside additive glow — light leaking from a
+    crack in cool rock, NOT rock on fire. `pts` is the seam polyline; it stays
+    bright enough to survive the 1x downscale while the charcoal stays dominant."""
     if len(pts) < 2:
         return
     if glow:
-        # Outside additive bloom hugging the whole seam so the crack reads molten
-        # without bleeding warmth into the flat rock facets.
-        for px, py in pts:
-            g = make_glow_surface(int(width * 2.2 * ss), MAGMA,
-                                  alpha_center=150, falloff=2.2)
-            r = int(width * 2.2 * ss)
-            surf.blit(g, (int(px - r - 1), int(py - r - 1)),
-                      special_flags=pygame.BLEND_ADD)
+        # A TIGHT rim glow stamped ONCE along the seam (sparse samples, halved
+        # radius, low alpha) so the bloom hugs the crack edge instead of
+        # compounding into a solid orange wash over the whole figure.
+        gr = int(width * 1.1 * ss)
+        if gr >= 1:
+            g = make_glow_surface(gr, MAGMA, alpha_center=82, falloff=2.6)
+            step = max(1, len(pts) // 3)
+            for px, py in pts[::step]:
+                surf.blit(g, (int(px - gr - 1), int(py - gr - 1)),
+                          special_flags=pygame.BLEND_ADD)
 
     def _stroke(col, w):
         w = max(1, int(w))
@@ -189,22 +192,17 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
     for seam in seam_specs:
         _magma_seam(surf, seam, ss, width=sw)
 
-    # — Eye sockets: deep angular ink cavities pooling molten light. Big + slightly
-    #   inward-canted on a chibi head = the eager scary-cute tell, not a glare.
+    # — Eye sockets: deep angular EMPTY ink cavities with only a small molten pool
+    #   pooled LOW inside — "empty skull socket with embers at the bottom", NOT a
+    #   glowing iris. Mostly ink so the bone (not the magma) draws the face.
     eye_dx = r * 0.40
     eye_dy = -r * 0.04
     sock_r = r * 0.30
     for s in (-1, 1):
         ex, ey = cx + s * eye_dx, cy + eye_dy
-        # Molten underglow welling from inside the socket (additive, tight so the
-        # cool basalt stays dominant). Night pushes it so the eyes read LIT.
-        halo_a = 220 if night else 160
-        halo_r = sock_r * (2.0 if night else 1.7)
-        g = make_glow_surface(int(halo_r), MAGMA, alpha_center=halo_a, falloff=2.0)
-        surf.blit(g, (int(ex - halo_r - 1), int(ey - halo_r - 1)),
-                  special_flags=pygame.BLEND_ADD)
         # Angular ink socket (a cut hexagonal hollow, not a round eye) — the
-        # grayscale-legible shape that survives without the magma colour.
+        # grayscale-legible shape that survives without the magma colour. The dark
+        # cavity is the dominant value; the magma only sits in its floor.
         hexr = sock_r
         sock = []
         for k in range(6):
@@ -214,20 +212,31 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
         pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in sock])
         pygame.draw.polygon(surf, _shade_c(ROCK, -10),
                             [(int(x), int(y)) for x, y in sock], max(1, int(2 * ss)))
-        # Molten pool low in the socket + a hot core canted inward (eager, cute).
-        pygame.draw.circle(surf, MAGMA, (int(ex), int(ey + sock_r * 0.20)),
-                           int(sock_r * 0.50))
-        pygame.draw.circle(surf, MAGMA_CORE,
-                           (int(ex - s * sock_r * 0.16), int(ey - sock_r * 0.02)),
-                           max(2, int(sock_r * 0.30)))
-        pygame.draw.circle(surf, (255, 244, 210),
-                           (int(ex - s * sock_r * 0.20), int(ey - sock_r * 0.12)),
-                           max(1, int(sock_r * 0.13)))
-        # A heavy angular basalt brow-ridge sitting OVER each socket, lifted at the
-        # outer corner (surprised/eager, never the angry inner-down V).
-        brow = [(ex - sock_r * 1.15, ey - sock_r * 0.55),
-                (ex + sock_r * 1.25, ey - sock_r * 1.15),
-                (ex + sock_r * 1.05, ey - sock_r * 0.70)]
+        # Only a SMALL ember pool resting low in the cavity floor (a flat sliver,
+        # not a centred iris) + a tight contained underglow so the cool basalt
+        # keeps owning the face. Night lifts the ember so the eyes still read lit.
+        pool_y = ey + sock_r * 0.46
+        glow_a = 150 if night else 96
+        glow_r = int(sock_r * (1.0 if night else 0.8))
+        if glow_r >= 1:
+            g = make_glow_surface(glow_r, MAGMA, alpha_center=glow_a, falloff=2.6)
+            surf.blit(g, (int(ex - glow_r - 1), int(pool_y - glow_r - 1)),
+                      special_flags=pygame.BLEND_ADD)
+        pool = [(ex - sock_r * 0.46, pool_y - sock_r * 0.10),
+                (ex + sock_r * 0.46, pool_y - sock_r * 0.10),
+                (ex + sock_r * 0.30, pool_y + sock_r * 0.22),
+                (ex - sock_r * 0.30, pool_y + sock_r * 0.22)]
+        pygame.draw.polygon(surf, MAGMA, [(int(x), int(y)) for x, y in pool])
+        pygame.draw.line(surf, MAGMA_CORE,
+                         (int(ex - sock_r * 0.32), int(pool_y + sock_r * 0.04)),
+                         (int(ex + sock_r * 0.32), int(pool_y + sock_r * 0.04)),
+                         max(1, int(1.6 * ss)))
+        # A heavy angular basalt brow-ridge sitting OVER each socket, only gently
+        # lifted at the outer corner with a SOFTENED (less peaked) wedge so the
+        # read is eager/curious, not an aggressive glare.
+        brow = [(ex - sock_r * 1.10, ey - sock_r * 0.62),
+                (ex + sock_r * 1.05, ey - sock_r * 0.88),
+                (ex + sock_r * 0.95, ey - sock_r * 0.58)]
         if s < 0:
             brow = [(2 * ex - x, y) for x, y in brow]
         pygame.draw.polygon(surf, _shade_c(BASALT, -8),
@@ -261,11 +270,13 @@ def _skull_face(surf, cx, cy, r, ss, *, night=False):
         seat_top.append((x, yt))
         seat_bot.append((x, yt + grin_h))
     seat = seat_top + seat_bot[::-1]
-    # Additive glow under the whole grin so the mouth-magma reads as molten light.
-    gm = make_glow_surface(int(grin_hw * 1.1), MAGMA,
-                           alpha_center=190 if night else 150, falloff=2.4)
-    gr = int(grin_hw * 1.1)
-    surf.blit(gm, (int(cx - gr - 1), int(grin_y + grin_h * 0.4 - gr - 1)),
+    # A TIGHT additive glow hugging just the mouth-band so the grin reads as molten
+    # light leaking between the teeth — not a warm cheek-disc washing the lower
+    # face. Halved radius + low alpha so the basalt cheekbone stays cool basalt.
+    gr = int(grin_hw * 0.62)
+    gm = make_glow_surface(gr, MAGMA,
+                           alpha_center=120 if night else 78, falloff=2.6)
+    surf.blit(gm, (int(cx - gr - 1), int(grin_y + grin_h * 0.45 - gr - 1)),
               special_flags=pygame.BLEND_ADD)
     pygame.draw.polygon(surf, MAGMA_DEEP, [(int(x), int(y)) for x, y in seat])
     inner_seat = ([(x, y + ss) for x, y in seat_top]
@@ -331,13 +342,12 @@ def _coal_body(surf, cx, neck_y, w, h, ss):
     pygame.draw.line(surf, ROCK_SHEEN, (int(cx - w * 0.34), int(neck_y + h * 0.12)),
                      (int(cx - w * 0.62), int(neck_y + h * 0.46)), max(2, int(2 * ss)))
 
-    # Magma seams cracking through the coal-mound so the body is hellfire stone too.
-    _magma_seam(surf, [(cx - w * 0.10, neck_y + h * 0.10),
-                       (cx + w * 0.04, neck_y + h * 0.45),
-                       (cx - w * 0.06, hem_y - h * 0.06)], ss, width=2.6)
-    _magma_seam(surf, [(cx + w * 0.36, neck_y + h * 0.30),
-                       (cx + w * 0.52, neck_y + h * 0.62),
-                       (cx + w * 0.40, hem_y - h * 0.05)], ss, width=2.4)
+    # ONE bold magma seam cracking down the coal-mound — a confident zigzag with
+    # real width, not several thin snakes that shimmer to noise at 1x. The body
+    # stays mostly cool charcoal so the figure reads "cracked rock", not "on fire".
+    _magma_seam(surf, [(cx - w * 0.06, neck_y + h * 0.10),
+                       (cx + w * 0.10, neck_y + h * 0.46),
+                       (cx - w * 0.04, hem_y - h * 0.06)], ss, width=3.0)
 
     # Two stub basalt mitts poking from the mound — one will brace the column prop
     # (drawn by the caller), the other rests. Tiny + blocky = cute, no legs needed.
@@ -407,16 +417,25 @@ def _basalt_column(surf, cx, top_y, bot_y, hw, ss, *, seam_phase=0.0):
         pygame.draw.line(surf, ROCK_SHEEN, (int(left_x), int(jy + ss)),
                          (int(facet_l), int(jy + ss)), max(1, int(ss)))
 
-    # The magma seam running the FULL length of the column, zig-zagging gently down
-    # the front face and welling brighter at each segment joint.
-    seam = []
-    steps = max(6, int(length / (10 * ss)))
-    for i in range(steps + 1):
-        t = i / steps
-        y = top_y + t * length
-        x = cx + math.sin(t * math.pi * 3 + seam_phase) * hw * 0.30
-        seam.append((x, y))
-    _magma_seam(surf, seam, ss, width=2.6)
+    # The magma seam runs the FULL length of the column as a near-STRAIGHT crack
+    # that only kinks at the segment joints — so the Giant's-Causeway banding stays
+    # the dominant read and the seam is a secondary, decisive crack (not a sine
+    # wobble competing with the joints). It wells BRIGHTER where segments meet.
+    seam = [(cx, top_y)]
+    for i in range(1, nseg):
+        jy = top_y + i * seg_h
+        # A small lateral jog at each joint = a real basalt fracture stepping
+        # between columns, kept tight so the line reads straight at 1x.
+        jog = hw * 0.16 * (1 if i % 2 else -1)
+        seam.append((cx + jog, jy))
+    seam.append((cx, bot_y))
+    _magma_seam(surf, seam, ss, width=2.8)
+    # Brighter molten welling exactly at each joint where the crack opens.
+    for i in range(1, nseg):
+        jy = top_y + i * seg_h
+        jog = hw * 0.16 * (1 if i % 2 else -1)
+        pygame.draw.circle(surf, MAGMA_CORE, (int(cx + jog), int(jy)),
+                           max(1, int(1.4 * ss)))
 
 
 def _brazier_cap(surf, cx, base_y, hw, ss, *, point_up=True):
@@ -445,10 +464,12 @@ def _brazier_cap(surf, cx, base_y, hw, ss, *, point_up=True):
                      (int(cx - bowl_w * 0.60), int(rim_y + d * (bowl_h - ss))),
                      max(1, int(1.6 * ss)))
 
-    # Welling magma pool sitting in the bowl rim, with a bright additive glow.
+    # Welling magma pool sitting in the bowl rim, with a contained additive glow —
+    # this is the prop's signature flame flourish so it stays bright, but the bloom
+    # is tightened so it doesn't wash the basalt shaft/skull below it into orange.
     pool_y = rim_y - d * bowl_h * 0.12
-    gp = make_glow_surface(int(bowl_w * 1.6), MAGMA, alpha_center=230, falloff=2.2)
-    gpr = int(bowl_w * 1.6)
+    gp = make_glow_surface(int(bowl_w * 1.1), MAGMA, alpha_center=175, falloff=2.4)
+    gpr = int(bowl_w * 1.1)
     surf.blit(gp, (int(cx - gpr - 1), int(pool_y - d * bowl_w * 0.6 - gpr - 1)),
               special_flags=pygame.BLEND_ADD)
 
@@ -568,7 +589,7 @@ def main():
     SW, SH = 1180, 760
     sheet = pygame.Surface((SW, SH))
     sheet.fill((30, 26, 32))
-    _label(sheet, font, "BRIMSTONE  —  Group A take A2  —  charcoal-basalt & magma  —  round 1", 18, 12)
+    _label(sheet, font, "BRIMSTONE  —  Group A take A2  —  charcoal-basalt & magma  —  round 2", 18, 12)
     _label(sheet, small, "the cracked-magma boulder-skull: a faceted hellfire-STONE skull (sockets+grin) sitting like a coal, carrying a basalt-column brazier",
             18, 32, (200, 196, 210))
 
@@ -663,7 +684,7 @@ def main():
 
     # — Footer caption: the scary-cute thesis.
     _label(sheet, small,
-           "scary-cute: the magma grin glows like it's blushing + a tiny soot puff from one socket; eager inward-canted molten eyes, not a glare.",
+           "scary-cute: charcoal basalt DOMINATES; sockets are empty ink cavities with embers pooled LOW; the magma grin glows like a quiet blush, not a glare.",
            18, SH - 124, (210, 206, 220))
     _label(sheet, small,
            "house style: FLAT triad facets, hard ink keyline from the alpha mask, magma seams = flat bright shape + OUTSIDE additive glow, ss=3.",
@@ -676,7 +697,7 @@ def main():
                            "skybit_devil", "reapy_devil", "brimstone")
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "round_1.png")
+    out_path = os.path.join(out_dir, "round_2.png")
     pygame.image.save(sheet, out_path)
     print("wrote", out_path)
 
