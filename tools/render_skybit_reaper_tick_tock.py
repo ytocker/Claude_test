@@ -39,8 +39,10 @@ HOOD_FACE = (244, 236, 214)   # bone-cream skull-pale
 FRAME = (200, 144, 46)        # brass hourglass frame
 FRAME_DK = (140, 96, 26)
 FRAME_HI = (255, 228, 154)
-SAND = (255, 194, 61)         # amber sand
-SAND_HI = (255, 228, 154)
+# Amber sand pulled down a notch (was 255,194,61 / 255,228,154) so the hourglass
+# stops being the single brightest mass and the skull-pale FACE leads the read.
+SAND = (236, 170, 48)         # amber sand (deeper, less near-white-yellow)
+SAND_HI = (250, 206, 120)
 SASH = (214, 62, 90)          # rose sash
 SASH_DK = (150, 38, 60)
 GLASS = (180, 224, 232)       # faint cold glass tint
@@ -123,9 +125,11 @@ def _hourglass(surf, cx, cy, half_w, half_h, ss, *, sand_t=0.5, glow=True):
                          max(1, int(1.2 * ss)))
 
     # The thin falling-sand thread through the neck (the live beat), with a soft
-    # amber glow so it reads as luminous trickling time.
+    # amber glow so it reads as luminous trickling time. Glow pulled DOWN one more
+    # notch (was 66) so the bright amber mass stops out-shouting the FACE at 1x —
+    # the head is the focal point, the glass the supporting beat.
     if glow:
-        blit_glow(surf, int(cx), int(cy), max(3, int(half_w * 0.5)), SAND, alpha=66)
+        blit_glow(surf, int(cx), int(cy), max(3, int(half_w * 0.42)), SAND, alpha=40)
     pygame.draw.line(surf, SAND_HI, (int(cx), int(cy - half_h * 0.18)),
                      (int(cx), int(cy + half_h * 0.5)), max(1, int(1.4 * ss)))
 
@@ -184,37 +188,44 @@ def _smug_face(surf, cx, cy, hw, ss, *, look=-1):
         pr = max(1, int(hw * 0.10))
         pygame.draw.circle(surf, INK,
                            (int(exx + look * hw * 0.14), int(ey + hw * 0.02)), pr)
-        # The half-lid: a thick ink bar arcing across the top third of the eye.
+        # The half-lid: a STEEPER, heavier ink bar dragged further DOWN over the eye
+        # so only a knowing sliver survives — the menace lives in the lid, not the
+        # palette. Pushed down ~1px (ey-0.20 -> ey-0.14) and thickened (2.2 -> 2.8ss)
+        # so the slit reads as smug DEATH, not a neutral open eye, even at the 1x inset.
         pygame.draw.arc(surf, INK,
-                        (int(exx - hw * 0.34), int(ey - hw * 0.26),
+                        (int(exx - hw * 0.34), int(ey - hw * 0.14),
                          int(hw * 0.68), int(hw * 0.42)),
-                        math.pi * 0.05, math.pi * 0.95, max(2, int(2.2 * ss)))
-        # ONE arched eyebrow-ridge above — inner-low, outer raised: the "oh-really"
-        # arch that reads patient-condescending, never an angry inner-down V.
-        inner = (exx - s * hw * 0.10, ey - hw * 0.34)
-        mid = (exx + s * hw * 0.22, ey - hw * 0.46)
-        outer = (exx + s * hw * 0.42, ey - hw * 0.36)
-        pygame.draw.lines(surf, _shade_c(HOOD_FACE, -70), False,
+                        math.pi * 0.02, math.pi * 0.98, max(3, int(2.8 * ss)))
+        # ONE arched eyebrow-ridge above — inner-LOW, outer raised: the "oh-really"
+        # arch that reads patient-condescending. Inner end dragged down + closer to
+        # the lid so the brow/lid pinch reads as a steeper knowing squint, not a
+        # pleasant open arch.
+        inner = (exx - s * hw * 0.12, ey - hw * 0.28)
+        mid = (exx + s * hw * 0.20, ey - hw * 0.46)
+        outer = (exx + s * hw * 0.44, ey - hw * 0.38)
+        pygame.draw.lines(surf, _shade_c(HOOD_FACE, -78), False,
                           [(int(inner[0]), int(inner[1])), (int(mid[0]), int(mid[1])),
-                           (int(outer[0]), int(outer[1]))], max(2, int(1.8 * ss)))
+                           (int(outer[0]), int(outer[1]))], max(2, int(2.0 * ss)))
     # (No nose-bridge tick — it reads as noise at the 1x inset; the half-lids +
     #  smirk carry the smug clerk on their own.)
-    # The SMUG closed mouth: a flat line with the gaze-side corner cocked UP into a
-    # tiny dimple — the patient smirk. No teeth, no grimace.
+    # The SMUG closed mouth: a flat line with the gaze-side corner cocked sharply UP
+    # into a deepened dimple — the patient smirk. No teeth, no grimace. The cocked
+    # corner is pushed harder (0.10 -> 0.16 lift) so the asymmetry is unmistakably a
+    # knowing smirk, not a neutral smile, and survives the 1x shrink.
     my = cy + hw * 0.56
     mouth = []
     for k in range(11):
         t = k / 10.0
-        mx = cx - hw * 0.42 + hw * 0.84 * t
-        # Raise the left (gaze) corner; sag the right slightly for the lopsided read.
-        droop = (t - 0.5)
-        myy = my - hw * 0.10 * (1.0 - t) + hw * 0.06 * t
+        mx = cx - hw * 0.44 + hw * 0.86 * t
+        # Hard lift on the left (gaze) corner; let the right droop for the lopsided read.
+        myy = my - hw * 0.16 * (1.0 - t) ** 1.4 + hw * 0.07 * t
         mouth.append((int(mx), int(myy)))
-    pygame.draw.lines(surf, _shade_c(SASH, -30), False, mouth, max(2, int(2.0 * ss)))
-    # Dimple tick seating the raised corner so the asymmetry survives shrinking.
-    pygame.draw.line(surf, _shade_c(HOOD_FACE, -60),
-                     (int(cx - hw * 0.42), int(my - hw * 0.10)),
-                     (int(cx - hw * 0.50), int(my - hw * 0.24)), max(1, int(1.4 * ss)))
+    pygame.draw.lines(surf, _shade_c(SASH, -34), False, mouth, max(2, int(2.2 * ss)))
+    # Deepened dimple tick seating the raised corner so the cocked smirk survives
+    # shrinking — the gaze-side fold that sells the smug, clock-running-out read.
+    pygame.draw.line(surf, _shade_c(HOOD_FACE, -64),
+                     (int(cx - hw * 0.44), int(my - hw * 0.16)),
+                     (int(cx - hw * 0.54), int(my - hw * 0.34)), max(2, int(1.6 * ss)))
 
 
 def draw_tick_tock(surf, cx, feet_y, scale=1.0, ss=2):
@@ -295,9 +306,13 @@ def draw_tick_tock(surf, cx, feet_y, scale=1.0, ss=2):
     # Cradling arm (his right; viewer-right) — one CONTINUOUS sleeve springing from
     # the shoulder seam and sweeping out to clasp the pole (no detached floating
     # slab). Top edge starts at the shoulder; bottom edge curves under to the mitt.
+    # Inner edge runs as a smooth convex sweep from deep inside the shoulder mass
+    # out to the forearm — the prior inner-anchor notch cut a flat dark facet that
+    # read as a stuck-on tab at the elbow, so it is removed and the underside now
+    # springs cleanly from the shoulder.
     cradle = [(cx + sh_hw - U(2), shoulder_y + U(1)),       # shoulder seam (top)
-              (cx + sh_hw * 0.5, shoulder_y + U(7)),         # inner shoulder anchor
-              (cx + sh_hw * 0.7, shoulder_y + U(26)),        # inner underside
+              (cx + sh_hw * 0.78, shoulder_y + U(14)),       # inner shoulder (eased in)
+              (cx + sh_hw * 0.96, shoulder_y + U(30)),       # smooth elbow underside
               (staff_x - U(12), pole_top + U(50)),           # underside reaching pole
               (staff_x - U(1), pole_top + U(46)),            # at the pole (forearm)
               (staff_x - U(3), pole_top + U(36)),            # top of forearm
@@ -402,10 +417,12 @@ def draw_hourglass_pillar(surf, cx, gap_edge, far_edge, w, ss, *, flip):
 
     # The hourglass CAP at the gap edge — the silhouette bulge that owns the
     # gameplay read. Sand drains toward the gap so the live falling-sand reads. The
-    # half-width:half-height ratio is locked to the boss's staff glass (0.75) so the
-    # "one literal shape" prop->pillar mirror reads identical at a glance.
-    hg_hh = min(span * 0.32, 30 * ss)
-    hg_hw = hg_hh * 0.75
+    # glass half-WIDTH and the half-width:half-height ratio (0.75) are locked to the
+    # boss's staff glass so the "one literal shape" prop->pillar mirror reads
+    # IDENTICAL at a glance — the pier glass had been reading marginally wide, so the
+    # absolute half-width is now pinned to the boss value (25.5*ss at boss scale 1.7).
+    hg_hw = min(span * 0.32 * 0.75, 25.5 * ss)
+    hg_hh = hg_hw / 0.75
     hg_cy = gap_edge + sign * (hg_hh + 6 * ss)
     _hourglass(surf, cx, hg_cy, hg_hw, hg_hh, ss, sand_t=0.5)
 
@@ -475,7 +492,10 @@ def main():
     gap_top = int(th * 0.40)
     gap_bot = int(th * 0.60)
     col_x = tw // 2
-    post_w = max(4, int(7 * ss))
+    # Pole width pinned to the BOSS staff pole (U(3.2) at boss scale 1.7 = 5.44*ss,
+    # so half-width 5.44 -> full ~10.9*ss) so the pole:glass proportion matches the
+    # staff and the pier stops reading as a fat post under a small glass.
+    post_w = max(4, int(10.9 * ss))
     big_p = pygame.Surface((tw * ss, th * ss), pygame.SRCALPHA)
     # Top pier: hangs from the ceiling, hourglass eye flourishes DOWN into the gap.
     draw_hourglass_pillar(big_p, col_x * ss, gap_top * ss, 4 * ss, post_w, ss, flip=True)

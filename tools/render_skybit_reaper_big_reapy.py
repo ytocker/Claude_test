@@ -384,7 +384,7 @@ def _bone_fork(surf, cx, base_y, hw, ss, *, point_up=True):
     # prong tips (not low on the shaft). Tight, bright halo + a hot inner core so it
     # reads as one discrete glowing caught soul, not a smear of bone-bleed.
     tip_y = (tips[0][1] + tips[1][1]) * 0.5
-    wy = tip_y - d * prong_len * 0.10            # nestled just inside the tips
+    wy = tip_y - d * prong_len * 0.22            # nestled down inside the cradle
     soul_r = hw * 0.85
     glow = make_glow_surface(int(soul_r * 2.0), EMBER, alpha_center=230, falloff=2.4)
     surf.blit(glow, (int(cx - soul_r * 2.0 - 1), int(wy - soul_r * 2.0 - 1)),
@@ -516,13 +516,15 @@ def main():
     _label(sheet, font, "(b) PROP -> PILLAR  @ TRUE obstacle scale", panelB.x + 8, panelB.y + 8)
 
     pw = PIPE_W + 2 * OVERHANG                  # 82px — the real obstacle width
-    # True 1x gameplay slice: a 200px-tall window of the 640-tall canvas with a
-    # realistic ~150px gap, pillars at native pixel size.
-    slice_h = 200
-    slice_x = panelB.x + 30
-    slice_y = panelB.y + 70
-    gap_top = 56
-    gap_h = 92
+    # True 1x gameplay slice: a tall window of the 640-tall canvas with a realistic
+    # gap, pillars at native pixel size. The pillars are LONG enough that 2-3
+    # vertebra segments stack across each post — the spine read must survive at this
+    # exact size, not just in the zoom.
+    slice_h = 470
+    slice_x = panelB.x + 26
+    slice_y = panelB.y + 46
+    gap_top = 168
+    gap_h = 120
     top_h = gap_top
     bot_h = slice_h - gap_top - gap_h
     top_pillar = _bident_pillar_obstacle(top_h, 3, flip=True)
@@ -530,20 +532,23 @@ def main():
     sheet.blit(top_pillar, (slice_x - 2, slice_y - 2))
     sheet.blit(bot_pillar, (slice_x - 2, slice_y + gap_top + gap_h - 2))
     pygame.draw.rect(sheet, (255, 255, 255), (slice_x - 4, slice_y - 4, pw + 8, slice_h + 8), 1)
-    _label(sheet, small, "1x native (82px wide,", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
-    _label(sheet, small, "as it scrolls in-game)", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
+    _label(sheet, small, "1x native (82px wide, as", slice_x - 2, slice_y + slice_h + 6, (20, 20, 30))
+    _label(sheet, small, "it scrolls): 2-3 vertebra/post", slice_x - 2, slice_y + slice_h + 22, (20, 20, 30))
 
-    # 2x zoom of the gap region so the fork + banding detail is legible to review.
-    zoom_src = pygame.Surface((pw, slice_h), pygame.SRCALPHA)
-    zoom_src.blit(top_pillar, (-2, -2))
-    zoom_src.blit(bot_pillar, (-2, gap_top + gap_h - 2))
-    zoom = pygame.transform.scale(zoom_src, (pw * 2, slice_h * 2))
-    zx = panelB.x + 165
-    zy = panelB.y + 60
+    # 2x zoom of just the GAP region so the fork + banding detail is legible to
+    # review — the prongs cradling the ember soul, top<->bottom mirror.
+    zw, zh = pw, 150
+    zoom_src = pygame.Surface((zw, zh), pygame.SRCALPHA)
+    zoom_src.blit(top_pillar, (-2, -(gap_top - 70) - 2))
+    zoom_src.blit(bot_pillar, (-2, gap_h + 70 - 2))
+    zoom = pygame.transform.scale(zoom_src, (zw * 2, zh * 2))
+    zx = panelB.x + 184
+    zy = panelB.y + 70
     sheet.blit(zoom, (zx, zy))
-    _label(sheet, small, "2x zoom: chunky vertebra", zx - 4, zy - 16, (255, 255, 255))
-    _label(sheet, small, "spine + beefed fork cradling", zx - 4, zy + slice_h * 2 + 4, (20, 20, 30))
-    _label(sheet, small, "the ember soul, top<->bottom mirror", zx - 4, zy + slice_h * 2 + 20, (20, 20, 30))
+    _label(sheet, small, "2x zoom of the gap:", zx - 4, zy - 16, (255, 255, 255))
+    _label(sheet, small, "beefed fork prongs", zx - 4, zy + zh * 2 + 6, (20, 20, 30))
+    _label(sheet, small, "cradle the ember soul;", zx - 4, zy + zh * 2 + 22, (20, 20, 30))
+    _label(sheet, small, "top<->bottom mirror", zx - 4, zy + zh * 2 + 38, (20, 20, 30))
 
     # — Cell C: 1x in-game-scale INSET on BOTH day and night skies.
     panelC = pygame.Rect(770, 56, 392, 560)
