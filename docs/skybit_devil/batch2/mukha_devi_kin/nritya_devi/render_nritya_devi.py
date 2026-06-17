@@ -52,6 +52,13 @@ INK       = ( 28,  22,  26)   # hard ink keyline
 THIRD_EYE = (232,  86, 150)
 THIRD_BR  = (255, 196, 224)
 
+# WHY a night-dimmed gold: at NIGHT the warm gold bells + crest-trim were
+# out-glowing the rose third-eye, stealing its "single brightest pixel" rule.
+# Warm-dimming gold a clear notch in the night biome lets the rose brow win in
+# BOTH biomes without changing the day read.
+GOLD_NT   = (150, 120,  58)   # night-dimmed gold body
+GOLD_NT_BR= (182, 150,  84)   # night-dimmed gold sheen (still below ROSE_BR/THIRD_BR)
+
 BG        = ( 96,  92, 100)   # neutral grey review backdrop
 PANEL     = ( 74,  72,  84)
 DAY_SKY_T = (120, 196, 236)
@@ -60,6 +67,20 @@ NIGHT_T   = ( 22,  26,  54)
 NIGHT_B   = ( 48,  44,  82)
 LABEL     = (240, 236, 240)
 LABEL_DIM = (196, 190, 202)
+
+
+# WHY a module-level gold swap rather than a param on every helper: the gold is
+# touched in six places (bells, damaru, tassels, rattle handle, crest band +
+# spokes); a single biome-set indirection keeps each call site unchanged while
+# letting NIGHT warm-dim every gold at once so the rose third-eye stays brightest.
+GCOL    = GOLD
+GCOL_BR = GOLD_BR
+
+
+def set_biome(night):
+    global GCOL, GCOL_BR
+    GCOL = GOLD_NT if night else GOLD
+    GCOL_BR = GOLD_NT_BR if night else GOLD_BR
 
 
 def lerp(a, b, t):
@@ -144,23 +165,30 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 # ── the four asymmetric DANCE ornaments at the arm-ends ───────────────────────
 def scarf_ribbon(surf, hx, hy, ang, r, s, flick):
     """A short, FAT, 2-segment ROSE scarf-ribbon trailing from the hand, flicked
-    toward the gap. WHY fat + 2-segment + ink-keylined: a thin flick vanishes on
-    a busy 32px sky, so the ribbon is a chunky value-clump that bends once
-    (an S-flick) and holds its mass at downscale. `flick` is +1/-1 to curl the
-    tail toward the gap side."""
-    th0 = max(2, int(r * 0.9))
-    th1 = max(2, int(r * 0.66))
-    L = r * 1.6
-    # the ribbon leaves the hand roughly along the arm, then S-flicks sideways
-    mx = hx + math.cos(ang) * L * 0.55 + flick * math.cos(ang + math.pi / 2) * L * 0.18
-    my = hy + math.sin(ang) * L * 0.55 + flick * math.sin(ang + math.pi / 2) * L * 0.18
-    tx = mx + math.cos(ang) * L * 0.18 + flick * math.cos(ang + math.pi / 2) * L * 0.62
-    ty = my + math.sin(ang) * L * 0.18 + flick * math.sin(ang + math.pi / 2) * L * 0.62
-    fat_band(surf, (hx, hy), (mx, my), th0, ROSE, ow=max(1, int(1.4 * s)))
-    fat_band(surf, (mx, my), (tx, ty), th1, ROSE, ow=max(1, int(1.3 * s)))
-    # a hot rose tip-sheen + a tiny gold tassel knot so the flick reads as cloth
-    pygame.draw.circle(surf, ROSE_BR, (int(mx), int(my)), max(1, int(th0 * 0.3)))
-    triad_circle(surf, GOLD, (int(tx), int(ty)), max(2, int(r * 0.34)),
+    gap-ward in a hard diagonal. WHY very fat + short + a single hard bend (not a
+    lazy S): thin or long-and-thin flicks vanish on a busy 32px sky, so the ribbon
+    is a CHUNKY value-clump — a stub leaving the hand, then a wide bend that throws
+    the bulk sideways so two ribbon flicks stay distinct after /6 smoothscale.
+    `flick` is +1/-1 to curl the tail toward the gap side. Native widths are held
+    well above 3px so they survive ~1.5-2px at 32px."""
+    # WHY these widths: at the 32px chip the figure draws at s~1.28, r~14, so
+    # th0~6.6px native -> ~1.7px after the /6 downscale; the keyline keeps the edge.
+    th0 = max(3, int(r * 0.78))
+    th1 = max(3, int(r * 0.64))
+    L = r * 1.35
+    perp = ang + math.pi / 2
+    # segment 1: a short fat stub leaving the hand mostly along the arm
+    mx = hx + math.cos(ang) * L * 0.42 + flick * math.cos(perp) * L * 0.10
+    my = hy + math.sin(ang) * L * 0.42 + flick * math.sin(perp) * L * 0.10
+    # segment 2: a HARD gap-ward diagonal flick (bulk thrown to the side)
+    tx = mx + math.cos(ang) * L * 0.06 + flick * math.cos(perp) * L * 0.78
+    ty = my + math.sin(ang) * L * 0.06 + flick * math.sin(perp) * L * 0.78
+    fat_band(surf, (hx, hy), (mx, my), th0, ROSE, ow=max(1, int(1.5 * s)))
+    fat_band(surf, (mx, my), (tx, ty), th1, ROSE, ow=max(1, int(1.4 * s)))
+    # a bright rose elbow-bead at the bend so the kink reads as flicked cloth
+    pygame.draw.circle(surf, ROSE_BR, (int(mx), int(my)), max(2, int(th0 * 0.42)))
+    # a tiny gold tassel knot anchors the flicked tip
+    triad_circle(surf, GCOL, (int(tx), int(ty)), max(2, int(r * 0.30)),
                  ow=max(1, int(1 * s)), core=False, sheen=False)
 
 
@@ -178,7 +206,7 @@ def ankle_bells(surf, hx, hy, ang, r, s):
     for ox, oy in offs:
         bx = hx + math.cos(ang) * r * 0.7 + ox * r * 0.9
         by = hy + math.sin(ang) * r * 0.7 + oy * r * 0.9
-        triad_circle(surf, GOLD, (int(bx), int(by)), max(2, int(r * 0.42)),
+        triad_circle(surf, GCOL, (int(bx), int(by)), max(2, int(r * 0.42)),
                      ow=max(1, int(1.1 * s)), core=False)
         pygame.draw.circle(surf, GOLD_D, (int(bx), int(by + r * 0.18)), max(1, int(r * 0.12)))
 
@@ -201,8 +229,8 @@ def damaru_drum(surf, hx, hy, ang, r, s):
     bot = [(cx + wx + ux, cy + wy + uy), (cx + wx - ux, cy + wy - uy),
            (cx + math.cos(pa) * waist, cy + math.sin(pa) * waist),
            (cx - math.cos(pa) * waist, cy - math.sin(pa) * waist)]
-    triad_blob(surf, GOLD, top, ow=max(1, int(1.3 * s)))
-    triad_blob(surf, GOLD, bot, ow=max(1, int(1.3 * s)))
+    triad_blob(surf, GCOL, top, ow=max(1, int(1.3 * s)))
+    triad_blob(surf, GCOL, bot, ow=max(1, int(1.3 * s)))
     # teal drumheads at each end
     pygame.draw.line(surf, TEAL, (cx - wx + ux, cy - wy + uy), (cx - wx - ux, cy - wy - uy),
                      max(2, int(2.2 * s)))
@@ -258,12 +286,14 @@ def draw_dance_fan(surf, sh_cx, sh_cy, s, hr, orn_r, tilt):
     return hands
 
 
-def draw_nritya_devi(surf, cx, cy, s):
+def draw_nritya_devi(surf, cx, cy, s, night=False):
     """Pint-sized dancing death-goddess: a tiny chibi torso in a slight
     tribhanga lean under a wide ASYMMETRIC six-arm fan, hands shaking dance
     ornaments. A taller-but-AIRY fanned skull crest + a glowing rose third eye
     keep the FACE the lead inside the fan. `s` = unit scale around a ~130-unit
-    figure."""
+    figure. `night` warm-dims the gold so the rose third-eye stays the single
+    brightest pixel in the dark biome too."""
+    set_biome(night)
     # WHY a slight torso tilt (tribhanga): the counter-poise is what makes a
     # static sprite read as 'dancing'. Kept tiny so the silhouette stays clean.
     tilt = math.radians(7)
@@ -332,13 +362,17 @@ def draw_nritya_devi(surf, cx, cy, s):
     pygame.draw.line(surf, ROSE_BR, (rc_cx - int(rc_w * 0.3) + base_dx, rc_cy + int(1 * s)),
                      (rc_cx + top_dx, rc_cy - int(1 * s)), max(1, int(1 * s)))
 
-    # === FOUR ASYMMETRIC DANCE ORNAMENTS (replace the six relics) =============
-    # WHY a deliberate L/R map (not A-B-A-B): the ornament SET is the sister's
-    # tell, and the asymmetry is what sells the dance. Outermost raised hands
-    # trail the FAT scarves toward the gap; the lower-tucked hands shake bells;
-    # one mid hand spins the damaru, one holds the lone skull-rattle. The brood
-    # rule: body + face still LEAD, so only ONE skull rides the arms.
-    # sort hands so we can address them by side + height deterministically
+    # === SIX ASYMMETRIC DANCE ORNAMENTS — CHOREOGRAPHED IN OPPOSING DIAGONALS ==
+    # WHY a CROSSING-diagonal map (not "all heavy props on one side"): the prop
+    # placement itself has to read as a dance BEAT, so the same prop-types sit on
+    # opposite corners and the two mid props oppose each other:
+    #   diag 1 : scarf high-LEFT  <-> bell low-RIGHT
+    #   diag 2 : scarf high-RIGHT <-> bell low-LEFT
+    #   diag 3 : damaru mid-LEFT  <-> skull-rattle mid-RIGHT
+    # Each diagonal carries one light + one heavy end, so neither side feels
+    # loaded — it reads as motion, not lopsided clutter. Total props unchanged
+    # (2 scarves, 2 bells, 1 damaru, 1 rattle); only ONE skull rides the arms so
+    # body + face still LEAD.
     left = sorted([h for h in hands if h[0] < 0], key=lambda h: -h[1])   # high->low
     right = sorted([h for h in hands if h[0] > 0], key=lambda h: -h[1])
 
@@ -349,24 +383,31 @@ def draw_nritya_devi(surf, cx, cy, s):
         hx, hy = hp(h)
         return math.atan2(hy - rc_cy, hx - rc_cx)
 
-    # gap-ward flick direction: scarves on the two highest/widest hands
+    # diag 1 + diag 2: the two raised hands trail FAT scarves, each flicked
+    # gap-ward in OPPOSING diagonals; the two lowest hands ring the bells.
     scarf_ribbon(surf, *hp(left[0]), oang(left[0]), orn_r, s, flick=-1)
     scarf_ribbon(surf, *hp(right[0]), oang(right[0]), orn_r, s, flick=+1)
-    # ankle-bell clusters on the two lowest hands
-    ankle_bells(surf, *hp(left[2]), oang(left[2]), orn_r, s)
     ankle_bells(surf, *hp(right[2]), oang(right[2]), orn_r, s)
-    # damaru drum on a mid hand (raised side), skull-rattle on the other mid hand
+    ankle_bells(surf, *hp(left[2]), oang(left[2]), orn_r, s)
+    # diag 3: damaru spun on the left-mid hand, skull-rattle on the right-mid
     damaru_drum(surf, *hp(left[1]), oang(left[1]), orn_r, s)
     # the single tiara_skull rattle: a skull on a short gold handle + rose cord
+    # WHY a fat gold handle-STUB between hand and skull (not a thin back-stick):
+    # a small skull alone reads as a stray crest-skull; a short keylined gold
+    # stub UNDER it reads unmistakably as a HELD rattle. Kept small so the head
+    # still leads.
     rhx, rhy = hp(right[1])
     ra = oang(right[1])
-    sk_x = rhx + int(math.cos(ra) * orn_r * 0.6)
-    sk_y = rhy + int(math.sin(ra) * orn_r * 0.6)
-    pygame.draw.line(surf, GOLD, (rhx, rhy),
-                     (rhx - int(math.cos(ra) * orn_r * 0.7), rhy - int(math.sin(ra) * orn_r * 0.7)),
-                     max(2, int(2.4 * s)))
-    tiara_skull(surf, sk_x, sk_y, int(orn_r * 0.82), s, lit=False)
-    pygame.draw.circle(surf, ROSE, (rhx, rhy), max(1, int(orn_r * 0.22)))
+    grip_x = rhx + int(math.cos(ra) * orn_r * 0.34)
+    grip_y = rhy + int(math.sin(ra) * orn_r * 0.34)
+    sk_x = rhx + int(math.cos(ra) * orn_r * 0.96)
+    sk_y = rhy + int(math.sin(ra) * orn_r * 0.96)
+    fat_band(surf, (grip_x, grip_y), (sk_x, sk_y), max(3, int(orn_r * 0.42)),
+             GCOL, ow=max(1, int(1.2 * s)))
+    tiara_skull(surf, sk_x, sk_y, int(orn_r * 0.80), s, lit=False)
+    # rose grip-bead where the hand wraps the stub
+    pygame.draw.circle(surf, ROSE, (rhx, rhy), max(2, int(orn_r * 0.26)))
+    pygame.draw.circle(surf, ROSE_BR, (rhx - int(1 * s), rhy - int(1 * s)), max(1, int(orn_r * 0.12)))
 
     # === SKULL HEAD — chibi, scary-cute, three-eyed (the framed FACE) =========
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -412,9 +453,9 @@ def draw_nritya_devi(surf, cx, cy, s):
     # but shallow-radius arc with clear sky BETWEEN them, each on a thin gold
     # spoke so the negative space keeps it airy. Locked to 5 (centre lit rose).
     crest_n = 5
-    span = 116          # wide arc (degrees) so skulls splay out, not stack up
-    crest_r = int(hr * 1.34)   # taller reach than Mukha's brow-band tiara
-    crest_sk_r = int(hr * 0.26)
+    span = 150          # WIDER arc so skulls splay into a flat fan, not a ball
+    crest_r = int(hr * 1.12)   # ~16% shorter reach -> airy low fan (push from Maha)
+    crest_sk_r = int(hr * 0.235)   # slightly smaller skulls keep clear sky-gaps
     a0 = -90 - span / 2
     # a thin gold ground-band the spokes spring from (kept light, brow-seated)
     band = []
@@ -423,7 +464,7 @@ def draw_nritya_devi(surf, cx, cy, s):
         band.append((head_c[0] + math.cos(a) * int(hr * 0.96),
                      head_c[1] + math.sin(a) * int(hr * 0.96)))
     pygame.draw.lines(surf, INK, False, band, int(5 * s))
-    pygame.draw.lines(surf, GOLD, False, band, int(2 * s))
+    pygame.draw.lines(surf, GCOL, False, band, int(2 * s))
     for i in range(crest_n):
         a = math.radians(a0 + i * (span / (crest_n - 1)))
         sx = head_c[0] + math.cos(a) * crest_r
@@ -432,7 +473,7 @@ def draw_nritya_devi(surf, cx, cy, s):
         bx = head_c[0] + math.cos(a) * int(hr * 0.94)
         by = head_c[1] + math.sin(a) * int(hr * 0.94)
         pygame.draw.line(surf, INK, (int(bx), int(by)), (int(sx), int(sy)), max(2, int(2.6 * s)))
-        pygame.draw.line(surf, GOLD, (int(bx), int(by)), (int(sx), int(sy)), max(1, int(1.4 * s)))
+        pygame.draw.line(surf, GCOL, (int(bx), int(by)), (int(sx), int(sy)), max(1, int(1.4 * s)))
         tiara_skull(surf, int(sx), int(sy), crest_sk_r, s, lit=(i == 2))
 
 
@@ -531,9 +572,9 @@ def load_font(size, bold=True):
     return pygame.font.SysFont("DejaVu Sans", size, bold=bold)
 
 
-def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale):
+def render_creature_chip(boxw, boxh, draw_cx, draw_cy, scale, night=False):
     big = pygame.Surface((boxw * SS, boxh * SS), pygame.SRCALPHA)
-    draw_nritya_devi(big, draw_cx * SS, draw_cy * SS, scale * SS)
+    draw_nritya_devi(big, draw_cx * SS, draw_cy * SS, scale * SS, night=night)
     small = pygame.transform.smoothscale(big, (boxw, boxh))
     return grow_outline(small, INK + (255,), 1)
 
@@ -557,7 +598,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("NRITYA-DEVI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "dancing wrath  ·  Mukha-Devi SISTER (LOOSE · prominent · the lone pose-mover) · asym dance-fan · fat rose scarves · gold bells · teal damaru · 1 skull-rattle · airy 5-skull crest · round 1",
+        "dancing wrath  ·  Mukha-Devi SISTER (LOOSE · prominent · the lone pose-mover) · asym dance-fan · FAT rose scarves · gold bells · teal damaru · 1 skull-rattle · WIDE airy 5-skull crest · round 2",
         True, LABEL_DIM), (260, 26))
 
     # === (a) BIG HERO =========================================================
@@ -590,25 +631,23 @@ def main():
     pygame.draw.rect(sheet, PANEL, (panel_x, 86, W - panel_x - 14, 560))
     sheet.blit(font.render("True 32px gameplay-scale chip", True, LABEL), (panel_x + 16, 96))
 
-    def chip32():
+    def chip32(night=False):
         big = pygame.Surface((110 * SS, 110 * SS), pygame.SRCALPHA)
-        draw_nritya_devi(big, 55 * SS, 58 * SS, (32 / 150.0) * SS)
+        draw_nritya_devi(big, 55 * SS, 58 * SS, (32 / 150.0) * SS, night=night)
         small = pygame.transform.smoothscale(big, (110, 110))
         return grow_outline(small, INK + (255,), 1)
-
-    chip = chip32()
 
     day_y = 128
     vgrad(sheet, (panel_x + 20, day_y, 150, 150), DAY_SKY_T, DAY_SKY_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, day_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 20, day_y + 20))
+    sheet.blit(chip32(night=False), (panel_x + 20 + 20, day_y + 20))
     sheet.blit(font_sm.render("32px on day sky", True, LABEL), (panel_x + 20, day_y + 156))
 
     night_y = day_y + 184
     vgrad(sheet, (panel_x + 20, night_y, 150, 150), NIGHT_T, NIGHT_B)
     pygame.draw.rect(sheet, INK, (panel_x + 20, night_y, 150, 150), 1)
-    sheet.blit(chip, (panel_x + 20 + 20, night_y + 20))
-    sheet.blit(font_sm.render("32px on night sky", True, LABEL_DIM), (panel_x + 20, night_y + 156))
+    sheet.blit(chip32(night=True), (panel_x + 20 + 20, night_y + 20))
+    sheet.blit(font_sm.render("32px on night sky (gold warm-dimmed)", True, LABEL_DIM), (panel_x + 20, night_y + 156))
 
     # blackout silhouette proof — does the dance read in pure black?
     def chip_black():
@@ -673,7 +712,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.  Sister of Mukha-Devi (KEEP fan + palette + face).",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     return out
