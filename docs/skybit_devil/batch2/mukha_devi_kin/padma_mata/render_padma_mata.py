@@ -132,72 +132,147 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
     pygame.draw.circle(surf, INK, (cx, cy + int(r * 0.42)), max(1, int(r * 0.14)))
 
 
-# ── the six bloom-clusters — A-B-A-B-A-B, two hide a skull bud ────────────────
+# ── one FAT teardrop petal — the building block of every bloom ────────────────
+def fat_petal(surf, hx, hy, pa, plen, pw, color, s, sheen=True):
+    """A single CHUNKY rounded petal: a wide ink-keylined teardrop seated AT the
+    heart and bulging outward, capped by a fat round lobe so its far end is
+    rounded (never spiky). WHY a polygon body + a circle tip: the polygon gives
+    the petal a believable taper from the heart, the round cap keeps the silhouette
+    a soft blob at 32px — together they read as 'a fat little petal', not a spoke."""
+    dx, dy = math.cos(pa), math.sin(pa)
+    nx, ny = -dy, dx
+    base = pw * 0.55                 # narrow-ish where it meets the heart
+    midx, midy = hx + dx * plen * 0.62, hy + dy * plen * 0.62
+    tipx, tipy = hx + dx * plen, hy + dy * plen
+    body = [(hx + nx * base, hy + ny * base),
+            (midx + nx * pw, midy + ny * pw),
+            (tipx + nx * pw * 0.5, tipy + ny * pw * 0.5),
+            (tipx - nx * pw * 0.5, tipy - ny * pw * 0.5),
+            (midx - nx * pw, midy - ny * pw),
+            (hx - nx * base, hy - ny * base)]
+    # ink keyline first (a hair fatter), then fill, then a round tip-lobe so the
+    # far end is a rounded mass; finally a slim sheen down the lit (upper) flank.
+    pygame.draw.polygon(surf, INK, body)
+    pygame.draw.circle(surf, INK, (int(tipx), int(tipy)), int(pw * 0.62))
+    pygame.draw.polygon(surf, color, body)
+    pygame.draw.circle(surf, color, (int(tipx), int(tipy)), int(pw * 0.5))
+    # a darker valley-shade on the trailing flank gives the petal a fold
+    pygame.draw.polygon(surf, lerp(color, INK, 0.30),
+                        [(hx - nx * base * 0.6, hy - ny * base * 0.6),
+                         (midx - nx * pw * 0.8, midy - ny * pw * 0.8),
+                         (tipx - nx * pw * 0.3, tipy - ny * pw * 0.3),
+                         (tipx, tipy), (hx, hy)])
+    if sheen:
+        pygame.draw.line(surf, lerp(color, (255, 255, 255), 0.5),
+                         (int(hx + nx * base * 0.4), int(hy + ny * base * 0.4)),
+                         (int(midx + nx * pw * 0.4), int(midy + ny * pw * 0.4)),
+                         max(1, int(1.6 * s)))
+
+
+# ── the six bloom-clusters — A-B-A-B-A-B, two NEST a skull bud ────────────────
 def bloom(surf, kind, hx, hy, r, s, ang=0.0, hidden_skull=False):
-    """Draw ONE arm-end bloom-cluster. WHY a LOW petal count (4-5 FAT petals),
-    not a many-petal rosette: at 32px a dense rosette blurs to noise, so each
-    bloom is a chunky FLOWER-MASS — a few thick bone/gold petal-blobs fanning
-    open around a central relic. `kind % 2` keeps Mukha's A-B-A-B rhythm:
-      A (even) = a ROSE disc (coral-warm heart) cradled in BONE petals;
-      B (odd)  = a GOLD seed-pod with a TEAL dewdrop in GOLD petals.
-    When `hidden_skull` is set (the two mid arms, one per side), a tiny
-    tiara_skull BUD is tucked among the petals and left peeking clearly above
-    them — the scary-CUTE "skull in a flower" hook. The petals fan AWAY from the
-    torso (centred on `ang`, which points outward) so blooms open like a hand."""
+    """Draw ONE arm-end bloom-cluster as a real FAT 5-petal flower-mass. WHY a LOW
+    petal count of chunky teardrops (not a many-petal rosette): at 32px a dense
+    rosette blurs to noise, so five thick `fat_petal` lobes radiate around a
+    central relic HEART and overlap into one rounded blob — reads at 1× as 'a fat
+    little flower', at 32px as 'a chunky rounded mass'.
+
+    A and B are SIBLINGS of one bloom — same petal count + near-equal footprint —
+    differing ONLY in the heart:
+      A (even) = BONE petals around a ROSE/coral disc heart (coral-warm);
+      B (odd)  = GOLD petals around a GOLD seed-pod with an attached TEAL dewdrop.
+
+    When `hidden_skull` is set (the two mid arms), a `tiara_skull` BUD is NESTED
+    INSIDE the bloom: its cranium sits BEHIND/among the petals with only the dome
+    + eye-sockets peeking ABOVE the petal line while the petals overlap its lower
+    jaw — composed as emerging-FROM-the-bloom, the scary-CUTE 'is that a skull in
+    there?' discovery. The petals fan around `ang` (pointing outward) so the bloom
+    opens like a hand away from the torso."""
     petal_col = BONE if kind % 2 == 0 else GOLD
-    # WHY petals are SHORT FAT overlapping BLOBS (not long thin spokes): the first
-    # pass read as a spiky sun/gear at 32px. A few chunky lobes seated CLOSE to the
-    # heart and overlapping into a rounded outline read as one soft flower-mass that
-    # survives downscale. 4-5 petals on a near-full ring, each a fat ink-keylined
-    # lobe whose centre is only ~0.55r out so the cluster stays a compact bloom.
     n_pet = 5
-    seat = r * 0.62          # how far each lobe centre sits from the heart (close)
-    lobe_r = r * 0.66        # fat lobe radius — overlaps its neighbours into a mass
-    # leave a small notch facing the torso so it reads as opening AWAY from the arm
-    span = math.radians(294)
-    for k in range(n_pet):
-        pa = ang - span / 2 + span * (k / (n_pet - 1))
-        px = hx + math.cos(pa) * seat
-        py = hy + math.sin(pa) * seat
-        triad_circle(surf, petal_col, (int(px), int(py)), int(lobe_r),
-                     ow=max(1, int(1.3 * s)), core=False, sheen=True)
+    plen = r * 1.18           # petal reach from heart — generous, makes a fat fan
+    pw = r * 0.52             # petal half-width — fat lobes that overlap into a mass
 
-    # central relic at the bloom HEART (coral-warm). On the two hidden-skull arms
-    # the heart shrinks so the skull BUD is the star; on all others it crowns the
-    # flower. The bud is drawn LAST, after everything, so its dome always reads.
-    heart_k = 0.66 if hidden_skull else 1.0   # give the bud room on those two arms
-    if kind % 2 == 0:   # TYPE A — ROSE disc in a gold ring, coral heart
-        triad_circle(surf, GOLD, (hx, hy), int(r * 0.62 * heart_k), ow=max(1, int(1.2 * s)), core=False)
-        triad_circle(surf, ROSE, (hx, hy), int(r * 0.44 * heart_k), ow=max(1, int(1 * s)), core=False)
-        pygame.draw.circle(surf, ROSE_CORAL, (hx, hy), max(1, int(r * 0.30 * heart_k)))
-        pygame.draw.circle(surf, ROSE_CORAL_BR, (hx - int(r * 0.12), hy - int(r * 0.13)),
-                           max(1, int(r * 0.16 * heart_k)))
-    else:   # TYPE B — GOLD seed-pod with a TEAL dewdrop, coral undertone
-        triad_circle(surf, GOLD, (hx, hy), int(r * 0.5 * heart_k), ow=max(1, int(1.2 * s)), core=True)
-        for sgn in (-1, 1):
-            pygame.draw.circle(surf, GOLD_D, (hx + sgn * int(r * 0.2 * heart_k), hy + int(r * 0.05)),
-                               max(1, int(r * 0.1 * heart_k)))
-        pygame.draw.circle(surf, ROSE_CORAL, (hx, hy + int(r * 0.18 * heart_k)), max(1, int(r * 0.12 * heart_k)))
-        if not hidden_skull:
-            # the teal dewdrop bead clinging top-left (skipped under a bud)
-            dx, dy = hx - int(r * 0.2), hy - int(r * 0.34)
-            pygame.draw.circle(surf, INK, (dx, dy), max(1, int(r * 0.22)))
-            pygame.draw.circle(surf, TEAL, (dx, dy), max(1, int(r * 0.16)))
-            pygame.draw.circle(surf, TEAL_BR, (dx - int(r * 0.05), dy - int(r * 0.06)),
-                               max(1, int(r * 0.07)))
-
-    # hidden skull BUD — drawn LAST so its dome clears petals AND heart, sized a
-    # touch ABOVE the tiara skull footprint and seated up-and-outward so the
-    # "is that a skull in there?" hook survives at true 32px.
+    # WHY a nested skull is built in LAYERS, and the petals fan only DOWN-AND-OUT
+    # (a CUP, not a full ring) on those two arms: r2's full ring buried the skull
+    # so it died at 32px. The cranium BACK is laid down FIRST (behind petals); the
+    # petals next, cupping BELOW/around the skull so they overlap only its lower
+    # jaw; the skull FACE (lit dome + dark socket pair) LAST so its upper half peeks
+    # clearly ABOVE the petal line — read as the skull EMERGING from the bloom.
+    bud_dir = ang                 # the skull rises along the outward arm direction
     if hidden_skull:
-        bud_a = ang
-        bx = hx + math.cos(bud_a) * r * 0.42
-        by = hy + math.sin(bud_a) * r * 0.42 - int(r * 0.18)
-        tiara_skull(surf, int(bx), int(by), int(r * 0.72), s, lit=False)
-        # a TEAL dewdrop kept on the bud arm so type-B still carries its teal note
-        dx, dy = hx + int(r * 0.55), hy + int(r * 0.5)
-        pygame.draw.circle(surf, INK, (dx, dy), max(1, int(r * 0.2)))
-        pygame.draw.circle(surf, TEAL, (dx, dy), max(1, int(r * 0.14)))
+        bx = hx + math.cos(bud_dir) * r * 0.46
+        by = hy + math.sin(bud_dir) * r * 0.46
+        bud_r = int(r * 0.92)            # >= tiara-skull footprint so it survives 32px
+        triad_circle(surf, BONE, (int(bx), int(by)), bud_r,
+                     ow=max(1, int(1.4 * s)), core=False, sheen=False)
+        # petals cup the OPPOSITE half (toward the torso / below the skull) so the
+        # dome stays clear — a tighter 190° fan centred away from the bud.
+        span = math.radians(190)
+        centre = bud_dir + math.pi
+    else:
+        span = math.radians(300)  # plain blooms: near-full ring with a torso notch
+        centre = bud_dir
+
+    for k in range(n_pet):
+        pa = centre - span / 2 + span * (k / (n_pet - 1))
+        fat_petal(surf, hx, hy, pa, plen, pw, petal_col, s)
+
+    # central relic at the bloom HEART (coral-warm). On the two nested-skull arms
+    # the heart shrinks and seats toward the petal-cup (opposite the skull).
+    heart_k = 0.58 if hidden_skull else 1.0
+    if hidden_skull:
+        hcx = hx + math.cos(bud_dir + math.pi) * r * 0.30
+        hcy = hy + math.sin(bud_dir + math.pi) * r * 0.30
+        hx = int(hcx)
+        hcy = int(hcy)
+    else:
+        hcy = hy
+    if kind % 2 == 0:   # TYPE A — ROSE/coral disc heart in a gold collar
+        triad_circle(surf, GOLD, (hx, hcy), int(r * 0.50 * heart_k), ow=max(1, int(1.2 * s)), core=False)
+        triad_circle(surf, ROSE_CORAL, (hx, hcy), int(r * 0.38 * heart_k), ow=max(1, int(1 * s)), core=False, sheen=False)
+        pygame.draw.circle(surf, ROSE_CORAL, (hx, hcy), max(1, int(r * 0.30 * heart_k)))
+        pygame.draw.circle(surf, ROSE_CORAL_BR, (hx - int(r * 0.10), hcy - int(r * 0.11)),
+                           max(1, int(r * 0.15 * heart_k)))
+    else:   # TYPE B — GOLD seed-pod + an ATTACHED teal dewdrop
+        triad_circle(surf, GOLD, (hx, hcy), int(r * 0.46 * heart_k), ow=max(1, int(1.2 * s)), core=True)
+        for sgn in (-1, 1):
+            pygame.draw.circle(surf, GOLD_D, (hx + sgn * int(r * 0.18 * heart_k), hcy + int(r * 0.04)),
+                               max(1, int(r * 0.09 * heart_k)))
+        # the teal dewdrop bead OVERLAPS the pod rim (attached, not a stray dot);
+        # placed up-left on the pod so it clusters with the seed-pod mass.
+        ddx = hx - int(r * 0.30 * heart_k)
+        ddy = hcy - int(r * 0.30 * heart_k)
+        pygame.draw.circle(surf, INK, (ddx, ddy), max(1, int(r * 0.21 * heart_k)))
+        pygame.draw.circle(surf, TEAL, (ddx, ddy), max(1, int(r * 0.15 * heart_k)))
+        pygame.draw.circle(surf, TEAL_BR, (ddx - int(r * 0.05), ddy - int(r * 0.05)),
+                           max(1, int(r * 0.06 * heart_k)))
+
+    # skull FACE drawn LAST: dome + paired sockets peek ABOVE the petal line. The
+    # dome gets a bright bone highlight and the sockets a DARK pair so the two
+    # nested blooms stay distinguishable from the four plain blooms at 32px.
+    if hidden_skull:
+        # bright dome cap (toward the outward/up side) so the cranium reads as a
+        # lit bone dome rising above the petal cup — the value contrast that lets
+        # the bud separate from the four plain blooms at 32px.
+        dcx = bx - math.cos(bud_dir) * bud_r * 0.28
+        dcy = by - math.sin(bud_dir) * bud_r * 0.40 - bud_r * 0.16
+        pygame.draw.circle(surf, BONE_SH, (int(dcx), int(dcy)), max(2, int(bud_r * 0.40)))
+        # the dark socket PAIR — the legibility tell at 32px. Seated CLOSE together
+        # and FAT so on downscale they fuse into one bold dark eye-mass that reads
+        # as 'the skull's eyes' against the bright dome — the bud's 32px signature.
+        pnx, pny = -math.sin(bud_dir), math.cos(bud_dir)
+        for sgn in (-1, 1):
+            ex = int(bx + sgn * pnx * bud_r * 0.36)
+            ey = int(by + sgn * pny * bud_r * 0.36)
+            pygame.draw.circle(surf, INK, (ex, ey), max(2, int(bud_r * 0.38)))
+            pygame.draw.circle(surf, BONE_DD, (ex, ey), max(1, int(bud_r * 0.18)))
+            pygame.draw.circle(surf, INK, (ex, ey), max(2, int(bud_r * 0.13)))
+        # nasal notch just inward of the socket line to finish the skull read
+        pygame.draw.circle(surf, INK,
+                           (int(bx + math.cos(bud_dir) * bud_r * 0.28),
+                            int(by + math.sin(bud_dir) * bud_r * 0.28)),
+                           max(1, int(bud_r * 0.13)))
 
 
 # ── the six-arm radial starburst (the KIND tell — UNCHANGED from Mukha) ───────
@@ -310,12 +385,19 @@ def draw_padma_mata(surf, cx, cy, s):
     # WHY drawn after torso, before head: they open at the fan tips so the outer
     # arc is six chunky flower-masses; the two MID arms (spread == 64°, one per
     # side) hide a skull bud — the only skull-bearing blooms.
-    for hx, hy, d in hands:
+    # WHY a clean A-B-A-B-A-B walk by radial index (not by spread-rank): r1 keyed
+    # A/B off the arm angle, which read as A-B-A-A-B-A. Walking the six hands in
+    # order alternates A/B cleanly around the fan. The two MID arms (spread 64°)
+    # NEST a skull-bud regardless of their A/B heart — a bud reads in either heart.
+    for i, (hx, hy, d) in enumerate(hands):
         oa = math.atan2(hy - rc_cy, hx - rc_cx)
-        # A-B alternation keyed off the arm's spread-rank so it reads radially.
-        kind = {100: 0, 64: 1, 28: 0}[d]   # outer=A, mid=B, low=A on each side
-        hidden = (d == 64)                 # the two mid arms tuck the skull bud
-        bloom(surf, kind, hx, hy, bloom_r, s, ang=oa, hidden_skull=hidden)
+        kind = i % 2
+        hidden = (d == 64)
+        # WHY the two skull-buds get a slightly LARGER footprint: at true 32px the
+        # only way the buds beat the four plain blooms is a bigger, brighter mass
+        # carrying the dark socket pair — so the mid arms read 'skull', not 'flower'.
+        br = int(bloom_r * (1.22 if hidden else 1.0))
+        bloom(surf, kind, hx, hy, br, s, ang=oa, hidden_skull=hidden)
 
     # === SKULL HEAD — chibi, scary-cute, three-eyed (UNCHANGED) ===============
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -489,16 +571,16 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("PADMA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "bloom-and-relic mother  ·  Mukha-Devi SISTER (clone) · TIGHT · prominent · six bloom-clusters (A-B-A-B) · 2 hidden skull-buds · round 1",
+        "bloom-and-relic mother  ·  Mukha-Devi SISTER (clone) · TIGHT · prominent · six FAT 5-petal blooms (A-B-A-B) · 2 NESTED skull-buds · round 2",
         True, LABEL_DIM), (270, 28))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 470, 178, 232, 1.55)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 566))
-    sheet.blit(font_sm.render("Mukha's body/fan/face/tiara UNCHANGED; arm-ends now open BLOOM-CLUSTERS.", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("A = rose disc in petals · B = gold seed-pod + teal dewdrop. 5 FAT petals each.", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Two MID arms hide a tiny skull BUD peeking among petals (3 tiara + 2 = 5 skulls).", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Mukha's body/fan/face/tiara UNCHANGED; arm-ends open FAT 5-PETAL flower-masses.", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("A = rose/coral disc heart · B = gold seed-pod + ATTACHED teal dewdrop. Same footprint.", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("Two MID arms NEST a skull-bud: dome+sockets peek ABOVE the petal line (3 tiara + 2 = 5).", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR assembled — mirrored, clean tileable shaft ================
     pcx = 470
@@ -598,7 +680,7 @@ def main():
         "arm-ends swapped to bloom-clusters + 2 hidden skull-buds; coral nudge in bloom hearts only. procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
