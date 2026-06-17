@@ -45,12 +45,16 @@ BONE_DD   = (104,  90,  70)   # deepest bone hollow (sockets, jaw gaps)
 BONE_SH   = (244, 236, 218)   # bone top-left rim-sheen
 BRONZE    = (150, 110,  62)   # aged-bronze — the DOMINANT accent mass
 BRONZE_BR = (196, 152,  92)   # bronze top-left sheen
-BRONZE_D  = ( 98,  70,  40)   # deep-bronze shade / core
-TEAL      = ( 78, 150, 128)   # verdigris-teal — DULL + green-leaning patina
-TEAL_BR   = (128, 192, 168)   # teal patina sheen
-TEAL_D    = ( 46,  96,  82)   # deep verdigris shade
-EYE       = ( 96, 210, 168)   # cool serpent-eye glow (verdigris, the focal hue)
-EYE_BR    = (188, 246, 214)   # hot eye core
+BRONZE_D  = ( 90,  62,  34)   # deep-bronze shade / core (deepened for day-chip value)
+# WHY duller + GREENER verdigris (chroma −25-30% vs r1): r1's teal read as a
+# clean cyan jewel — "Mukha's teal grown up." Pushed toward oxidized-copper
+# green-grey so it reads as TARNISH, not a gem. Used ONLY as the third-eye
+# brightest pixel + thin oxide rims; bronze owns the mass.
+TEAL      = ( 84, 138, 112)   # verdigris — oxidized-copper green-grey (dulled)
+TEAL_BR   = (122, 170, 146)   # verdigris faint sheen
+TEAL_D    = ( 48,  84,  70)   # deep verdigris oxide shade
+EYE       = ( 92, 178, 142)   # serpent-eye glow — greener, less cyan than r1
+EYE_BR    = (164, 224, 188)   # hot eye core (still the brightest pixel)
 INK       = ( 28,  22,  26)   # hard ink keyline
 
 BG        = ( 92,  96,  88)   # neutral green-grey review backdrop
@@ -141,79 +145,84 @@ def thick_path(surf, color, pts, w, ow):
     pygame.draw.polygon(surf, INK, poly, ow)
 
 
-# ── ONE reared cobra-hood (the arm-end ornament — replaces Mukha's hands) ─────
+# ── ONE reared cobra-hood LOBE (the arm-end — replaces Mukha's hands) ─────────
 def cobra_hood(surf, cx, cy, r, s, ang, with_skull, lit=False):
-    """A FAT reared cobra-hood: a bulbous flared bronze hood-flap with a small
-    bone snake-head at its centre, a bronze hood-RING + skull-boss, and (on
-    alternating hoods) a TINY SKULL set in the open jaw. WHY fat + bulbous: the
-    silhouette tell is a RING OF DISCRETE LOBES — each hood must blackout as one
-    chunky blob with a clear gap to its neighbour, the antithesis of a spoke.
-    `ang` orients the hood so it rears OUTWARD from the skull. The brood's
-    arm-end-ornament-with-tiny-skull DNA lives here."""
+    """A FAT reared cobra-HOOD: a bulbous spade/teardrop hood-lobe — narrow at
+    the neck, ballooning to a wide rounded crown — with an open snake-jaw at its
+    tip and (on alternating lobes) a TINY SKULL clenched in the jaw. WHY a fat
+    spade and not a flat shield: the silhouette tell is a RING OF DISCRETE
+    BULBOUS LOBES, so each hood must blackout as one chunky teardrop with a clear
+    air-gap to its neighbour — the antithesis of a flat relic-plaque or a spoke.
+    `(cx,cy)` is the lobe CENTRE; `ang` points from neck → crown (outward from
+    the skull). The brood's arm-end-ornament-with-tiny-skull DNA lives here."""
     ca, sa = math.cos(ang), math.sin(ang)
-    # perpendicular axis for the lateral hood-flare
-    px, py = -sa, ca
+    px, py = -sa, ca   # perpendicular = the lateral hood-flare axis
 
-    # the flared HOOD-FLAP — a wide rounded shield (the bulbous lobe)
-    flap = []
-    for t in (-1.0, -0.62, 0.0, 0.62, 1.0):
-        # widen at the shoulders, round the top
-        wide = r * (1.55 - abs(t) * 0.35)
-        reach = r * (1.0 + (1.0 - abs(t)) * 0.45)
-        flap.append((cx + px * wide * t + ca * reach,
-                     cy + py * wide * t + sa * reach))
-    # base of the flap nearer the arm
-    flap.append((cx + px * r * 0.6 - ca * r * 0.2,
-                 cy + py * r * 0.6 - sa * r * 0.2))
-    flap.append((cx - px * r * 0.6 - ca * r * 0.2,
-                 cy - py * r * 0.6 - sa * r * 0.2))
-    triad_blob(surf, BRONZE, flap,
-               core_pts=[(cx + ca * r * 0.7, cy + sa * r * 0.7),
-                         (cx + px * r * 0.9 + ca * r * 0.3, cy + py * r * 0.9 + sa * r * 0.3),
-                         (cx + px * r * 0.5 + ca * r * 1.2, cy + py * r * 0.5 + sa * r * 1.2),
-                         (cx - px * r * 0.2 + ca * r * 1.1, cy - py * r * 0.2 + sa * r * 1.1)],
-               ow=max(1, int(1.6 * s)))
-    # verdigris patina pooling at the hood crown (the cool shading note)
-    crown = (cx + ca * r * 1.15, cy + sa * r * 1.15)
-    pygame.draw.circle(surf, TEAL_D, (int(crown[0]), int(crown[1])), int(r * 0.5))
-    pygame.draw.circle(surf, TEAL, (int(crown[0] - ca * r * 0.1), int(crown[1] - sa * r * 0.1)),
-                       int(r * 0.34))
+    def P(along, across):
+        return (cx + ca * r * along + px * r * across,
+                cy + sa * r * along + py * r * across)
 
-    # bronze hood-RING with a skull-boss at the hood throat (DNA: ring + skull)
-    ring_c = (cx + ca * r * 0.42, cy + sa * r * 0.42)
-    triad_circle(surf, BRONZE, (int(ring_c[0]), int(ring_c[1])), int(r * 0.46),
-                 ow=max(1, int(1.4 * s)), core=False, sheen=False)
-    triad_circle(surf, BRONZE_D, (int(ring_c[0]), int(ring_c[1])), int(r * 0.28),
-                 ow=max(1, int(1 * s)), core=False, sheen=False)
-    # the small bone snake-head poking through the ring (the "hand" replacement)
-    snake_c = (cx + ca * r * 0.7, cy + sa * r * 0.7)
-    triad_circle(surf, BONE, (int(snake_c[0]), int(snake_c[1])), int(r * 0.42),
-                 ow=max(1, int(1.4 * s)), core=False)
-    # snub snout
-    snout = [(snake_c[0] + ca * r * 0.7, snake_c[1] + sa * r * 0.7),
-             (snake_c[0] + px * r * 0.3 + ca * r * 0.3, snake_c[1] + py * r * 0.3 + sa * r * 0.3),
-             (snake_c[0] - px * r * 0.3 + ca * r * 0.3, snake_c[1] - py * r * 0.3 + sa * r * 0.3)]
-    triad_blob(surf, BONE, snout, ow=max(1, int(1 * s)))
+    # SPADE/TEARDROP outline: pinched neck at the base, fat rounded crown at tip.
+    # Sampled so the widest belly sits ~0.55 of the way out = the bulbous read.
+    spade = [
+        P(-0.95,  0.18), P(-0.55,  0.62), P(-0.05,  0.96),
+        P( 0.55,  1.02), P( 1.02,  0.78), P( 1.30,  0.30),
+        P( 1.36,  0.00),                                   # crown apex
+        P( 1.30, -0.30), P( 1.02, -0.78), P( 0.55, -1.02),
+        P(-0.05, -0.96), P(-0.55, -0.62), P(-0.95, -0.18),
+    ]
+    triad_blob(surf, BRONZE, spade,
+               core_pts=[P(0.55, 0.20), P(1.05, 0.40), P(1.15, -0.10),
+                         P(0.65, -0.30), P(0.20, 0.05)],
+               sheen_pts=[P(0.10, -0.55), P(0.55, -0.78), P(0.78, -0.50),
+                          P(0.30, -0.30)],
+               ow=max(2, int(2.0 * s)))
+    # thin verdigris OXIDE RIM hugging the crown edge (tarnish, not a mass)
+    rim = [P(0.55, 0.96), P(1.0, 0.74), P(1.28, 0.28), P(1.34, 0.0),
+           P(1.28, -0.28), P(1.0, -0.74), P(0.55, -0.96)]
+    pygame.draw.lines(surf, TEAL_D, False,
+                      [(int(x), int(y)) for x, y in rim], max(1, int(2.2 * s)))
+    pygame.draw.lines(surf, TEAL, False,
+                      [(int(x), int(y)) for x, y in rim[1:-1]], max(1, int(1.4 * s)))
+
+    # a bronze hood-spine ridge running neck → crown (reads as the reared neck)
+    pygame.draw.line(surf, BRONZE_D, (int(P(-0.6, 0)[0]), int(P(-0.6, 0)[1])),
+                     (int(P(0.9, 0)[0]), int(P(0.9, 0)[1])), max(1, int(2.4 * s)))
+    pygame.draw.line(surf, BRONZE_BR, (int(P(-0.4, -0.06)[0]), int(P(-0.4, -0.06)[1])),
+                     (int(P(0.6, -0.06)[0]), int(P(0.6, -0.06)[1])), max(1, int(1.4 * s)))
+
+    # OPEN SNAKE-JAW at the crown: a dark wedge mouth (the focal of each lobe)
+    jaw = [P(1.10, 0.30), P(1.40, 0.06), P(1.10, -0.30)]
+    pygame.draw.polygon(surf, BONE_DD, [(int(x), int(y)) for x, y in jaw])
+    pygame.draw.polygon(surf, INK, [(int(x), int(y)) for x, y in jaw], max(1, int(1.4 * s)))
 
     if with_skull:
-        # a TINY SKULL set in the open jaw (alternating hoods only) — the brood's
-        # arm-end-skull DNA. Sits just inside the snout so it reads as "in jaw."
-        sk = (snake_c[0] + ca * r * 0.5, snake_c[1] + sa * r * 0.5)
-        skr = int(r * 0.3)
+        # a TINY SKULL clenched in the open jaw (alternating lobes) — the brood's
+        # arm-end-skull DNA, now punctuating the RING rhythmically.
+        sk = P(1.16, 0.0)
+        skr = int(r * 0.30)
         triad_circle(surf, BONE_SH, (int(sk[0]), int(sk[1])), skr,
-                     ow=max(1, int(1 * s)), core=False, sheen=False)
-        for off in (-0.34, 0.34):
+                     ow=max(1, int(1.2 * s)), core=False, sheen=False)
+        for off in (-0.40, 0.40):
             pygame.draw.circle(surf, INK,
                                (int(sk[0] + px * skr * off), int(sk[1] + py * skr * off)),
-                               max(1, int(skr * 0.3)))
+                               max(1, int(skr * 0.34)))
+        pygame.draw.line(surf, INK,
+                         (int(sk[0] - px * skr * 0.4 + ca * skr * 0.5),
+                          int(sk[1] - py * skr * 0.4 + sa * skr * 0.5)),
+                         (int(sk[0] + px * skr * 0.4 + ca * skr * 0.5),
+                          int(sk[1] + py * skr * 0.4 + sa * skr * 0.5)), max(1, int(1 * s)))
     else:
-        # serpent eyes (verdigris) on the snake-head when no skull rides the jaw
-        for off in (-0.42, 0.42):
-            ex = snake_c[0] + px * r * 0.22 * (off / 0.42) - ca * r * 0.05
-            ey = snake_c[1] + py * r * 0.22 * (off / 0.42) - sa * r * 0.05
-            pygame.draw.circle(surf, INK, (int(ex), int(ey)), max(1, int(r * 0.12)))
-            ec = EYE_BR if lit else EYE
-            pygame.draw.circle(surf, ec, (int(ex), int(ey)), max(1, int(r * 0.07)))
+        # twin serpent-fangs framing the open jaw when no skull rides it
+        for off in (-0.30, 0.30):
+            fa = P(1.18, off)
+            fb = P(1.42, off * 0.5)
+            pygame.draw.line(surf, BONE_SH, (int(fa[0]), int(fa[1])),
+                             (int(fb[0]), int(fb[1])), max(1, int(1.4 * s)))
+        # a faint verdigris glint deep in the throat
+        gt = P(1.18, 0.0)
+        ec = EYE_BR if lit else EYE
+        pygame.draw.circle(surf, ec, (int(gt[0]), int(gt[1])), max(1, int(r * 0.12)))
 
 
 # ── a single ornamental tiara-skull (the preserved skull-crown DNA) ───────────
@@ -236,45 +245,48 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 
 
 # ── the six-arm SERPENT hood-ring (the KIND tell) ─────────────────────────────
-def draw_hood_ring(surf, sh_cx, sh_cy, s, hr, hood_r):
-    """Six bone-snake arms wind out from a low shoulder line and each REARS into
-    a fat cobra-hood, the six hoods crowding around the skull as a lumpy lateral
-    RING. WHY S-curved arms but FAT discrete hoods: the writhing arms give the
-    organic naga read, but the SILHOUETTE must survive at 32px as a ring of
-    separate bulbous lobes with negative GAPS between — so the hoods are fat and
-    the ring angles are spaced to keep a clear gap between adjacent hoods. The
-    ring deliberately reaches AROUND and slightly OVER the head (not capped by a
-    straight spoke), the antithesis of Mukha's open radial fan. Returns the six
-    (hood-centre, outward-angle) for skull placement, with which hoods carry a
-    jaw-skull (alternating)."""
-    shoulder = (sh_cx, sh_cy)
-    arm_len = int(hr * 1.7)
-    arm_th = int(11 * s)
-    # six hoods spaced AROUND the head: two low, two mid-lateral, two upper —
-    # angles chosen so adjacent hoods leave a clear negative gap (not even spokes).
-    ring_deg = [-150, -108, -54, 54, 108, 150]  # measured from +x, screen space
+def draw_hood_ring(surf, head_cx, head_cy, s, hr, hood_r):
+    """Six bone-snake necks rear out of a low collar and ARCH UP AND AROUND the
+    skull, each terminating in a fat cobra-hood LOBE, so the six hoods HALO the
+    head as a flower of bulbous petals. WHY a true ring (not a low cluster): the
+    silhouette tell is a SKULL HALOED BY 6 LOBES, so the lobe-centres are placed
+    on an arc that sweeps the upper hemisphere — 3 per side at top-lateral and
+    mid-lateral stations — and every adjacent pair is spaced to leave ~1
+    hood-width of AIR between them. Each neck is a short S-curve from the collar
+    to its lobe; the lobe rears RADIALLY OUTWARD from head-centre. Returns the
+    six (lobe-centre, outward-angle, carries-jaw-skull) for the over-draw pass."""
+    # lobe-centre stations on a radius that arches the lobes up & around the head.
+    # Measured CCW-from-screen-up so they sweep the UPPER hemisphere (mass goes
+    # UP into the ring, NOT down onto a lap). Symmetric L/R, gaps between each.
+    #   top-lateral (near the crown), upper-side, mid-lateral (cheek height)
+    ring_deg = [-118, -64, -22, 22, 64, 118]   # 0deg = up; +/- = right/left lean
+    radius = hr + hood_r * 0.95               # lobe-centre offset from head centre
+    collar = (head_cx, head_cy + int(hr * 0.78))   # necks spring from a low collar
+    arm_th = int(8.5 * s)
     hoods = []
     for k, d in enumerate(ring_deg):
         a = math.radians(d)
-        sgn = -1 if d < 0 else 1
-        sh = (shoulder[0] + sgn * int(hr * 0.5), shoulder[1] + int(hr * 0.1))
-        # an S-curve: bow the arm outward then curl the hood up/around
-        ex = sh[0] + math.cos(a) * arm_len * 0.95
-        ey = sh[1] + math.sin(a) * arm_len * 0.95
-        mid1 = (sh[0] + math.cos(a) * arm_len * 0.38 - sgn * hr * 0.18,
-                sh[1] + math.sin(a) * arm_len * 0.38 + hr * 0.12)
-        mid2 = (sh[0] + math.cos(a) * arm_len * 0.72 + sgn * hr * 0.16,
-                sh[1] + math.sin(a) * arm_len * 0.72 - hr * 0.05)
-        hood_c = (ex, ey)
-        thick_path(surf, BONE, [sh, mid1, mid2, hood_c], arm_th, max(1, int(arm_th * 0.16)))
-        # bone scale-segment dots along the arm (cute serpent texture)
-        for t in (0.4, 0.62, 0.82):
-            sx = sh[0] + (hood_c[0] - sh[0]) * t
-            sy = sh[1] + (hood_c[1] - sh[1]) * t
-            pygame.draw.circle(surf, BONE_DD, (int(sx), int(sy)), max(1, int(arm_th * 0.18)))
-        # the hood rears OUTWARD along the arm direction
-        hoods.append((hood_c, a, k % 2 == 0))
-    # draw hoods AFTER all arms so the bulbous lobes sit on top, clean ring read
+        sgn = 1 if d > 0 else -1
+        # direction from head-centre out to the lobe (screen coords: up = -y)
+        ux, uy = math.sin(a), -math.cos(a)
+        lobe_c = (head_cx + ux * radius, head_cy + uy * radius)
+        # outward orientation of the lobe: neck → crown points away from head
+        out_ang = math.atan2(uy, ux)
+        # short S-curve neck: collar → bowed mid → lobe base (just inside lobe_c)
+        base = (lobe_c[0] - ux * hood_r * 0.5, lobe_c[1] - uy * hood_r * 0.5)
+        mid = ((collar[0] + base[0]) * 0.5 + sgn * hr * 0.30,
+               (collar[1] + base[1]) * 0.5 + hr * 0.10)
+        thick_path(surf, BONE, [collar, mid, base], arm_th, max(1, int(arm_th * 0.18)))
+        # bone scale-segment dots along the neck (cute serpent texture)
+        for t in (0.45, 0.75):
+            sx = collar[0] + (base[0] - collar[0]) * t
+            sy = collar[1] + (base[1] - collar[1]) * t
+            pygame.draw.circle(surf, BONE_DD, (int(sx), int(sy)), max(1, int(arm_th * 0.20)))
+        # alternate which lobes clench a jaw-skull → 3 of 6 (k even)
+        hoods.append((lobe_c, out_ang, k % 2 == 0))
+    # a small bronze collar-boss where the six necks converge (roots the ring)
+    triad_circle(surf, BRONZE, (int(collar[0]), int(collar[1])), int(hr * 0.40),
+                 ow=max(1, int(1.6 * s)), core=False, sheen=False)
     return hoods, hood_r
 
 
@@ -284,73 +296,40 @@ def draw_nagini_devi(surf, cx, cy, s):
     reared cobra-hoods on bone-snake arms, crowned with a skull-tiara, rooted on
     a coiled-serpent base. `s` = unit scale around a ~140-unit figure."""
 
-    # WHY a big chibi head: like the brood Original, at 32px the ring of hoods
-    # will crowd the skull, so the FACE must be the dominant mass to win the read.
-    head_c = (cx, cy - int(20 * s))
-    hr = int(30 * s)
-    hood_r = int(13 * s)
+    # WHY a big chibi head: at 32px the ring of hoods crowds the skull, so the
+    # FACE must be the dominant central mass to win the read. The head sits a
+    # touch LOW in the frame so the ring of lobes haloes UP and AROUND it and the
+    # gap UNDER the chin reads as open air, not a crouching torso.
+    head_c = (cx, cy + int(6 * s))
+    hr = int(31 * s)
+    hood_r = int(15 * s)
 
-    # === SIX SERPENT-ARM HOODS (arms drawn behind; hoods drawn after) =========
-    hoods, hr_hood = draw_hood_ring(surf, head_c[0], head_c[1] + int(hr * 0.9), s, hr, hood_r)
+    # === SIX SERPENT-NECK HOODS — necks behind, fat lobes over-drawn later =====
+    hoods, hr_hood = draw_hood_ring(surf, head_c[0], head_c[1], s, hr, hood_r)
 
-    # === LOWER BODY — a coiled-serpent base (keeps mass low, roots the figure) =
-    base_y = cy + int(46 * s)
-    # a fat coil loop reading as the naga's lower body
-    coil = [(cx - int(36 * s), base_y - int(6 * s)),
-            (cx - int(30 * s), base_y - int(18 * s)),
-            (cx + int(30 * s), base_y - int(18 * s)),
-            (cx + int(36 * s), base_y - int(6 * s)),
-            (cx + int(28 * s), base_y + int(12 * s)),
-            (cx - int(28 * s), base_y + int(12 * s))]
+    # === LOWER BODY — only a SLIM coiled tail-knot tucked under the chin =======
+    # WHY tiny + low: directive moves mass OFF the lap and UP into the ring, so
+    # the body is just a small bronze coil that roots the figure without reading
+    # as a torso. The blackout below the chin stays mostly open air.
+    base_y = head_c[1] + int(hr * 1.18)
+    coil = [(cx - int(16 * s), base_y - int(8 * s)),
+            (cx + int(16 * s), base_y - int(8 * s)),
+            (cx + int(12 * s), base_y + int(7 * s)),
+            (cx - int(12 * s), base_y + int(7 * s))]
     triad_blob(surf, BRONZE, coil,
-               core_pts=[(cx, base_y - int(16 * s)), (cx + int(30 * s), base_y - int(6 * s)),
-                         (cx + int(22 * s), base_y + int(10 * s)), (cx, base_y + int(8 * s))],
-               sheen_pts=[(cx - int(30 * s), base_y - int(16 * s)), (cx - int(6 * s), base_y - int(17 * s)),
-                          (cx - int(10 * s), base_y - int(2 * s)), (cx - int(30 * s), base_y - int(4 * s))],
-               ow=max(1, int(1.6 * s)))
-    # coil scale-bands (verdigris grooves so the base reads as a snake body)
-    for k in range(-2, 3):
-        px = cx + int(k * 12 * s)
-        pygame.draw.line(surf, TEAL_D, (px, base_y - int(18 * s)),
-                         (px, base_y + int(10 * s)), max(1, int(1.6 * s)))
-    # a verdigris belly-stone at the coil heart — kept DEEPER than the third eye
-    # so it stays a SECONDARY focal (Mukha's belly-gem note, learned from AD).
-    pygame.draw.circle(surf, TEAL_D, (cx, base_y - int(3 * s)), int(5 * s))
-    pygame.draw.circle(surf, TEAL, (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
-
-    # === TORSO — a short bronze rib barrel (squat, head + base hold the mass) ==
-    rc_cx, rc_cy = cx, cy + int(14 * s)
-    rc_w, rc_h = int(32 * s), int(24 * s)
-    cage = [(rc_cx - rc_w // 2, rc_cy - rc_h // 2 + int(2 * s)),
-            (rc_cx + rc_w // 2, rc_cy - rc_h // 2),
-            (rc_cx + int(rc_w * 0.42), rc_cy + rc_h // 2),
-            (rc_cx - int(rc_w * 0.42), rc_cy + rc_h // 2)]
-    triad_blob(surf, BRONZE, cage,
-               core_pts=[(rc_cx + int(2 * s), rc_cy - rc_h // 2 + int(3 * s)),
-                         (rc_cx + rc_w // 2, rc_cy - rc_h // 2 + int(2 * s)),
-                         (rc_cx + int(rc_w * 0.42), rc_cy + rc_h // 2),
-                         (rc_cx + int(2 * s), rc_cy + rc_h // 2)],
-               sheen_pts=[(rc_cx - rc_w // 2 + int(2 * s), rc_cy - rc_h // 2 + int(3 * s)),
-                          (rc_cx - int(4 * s), rc_cy - rc_h // 2 + int(2 * s)),
-                          (rc_cx - int(6 * s), rc_cy + int(4 * s)),
-                          (rc_cx - rc_w // 2 + int(2 * s), rc_cy + int(2 * s))],
+               core_pts=[(cx + int(2 * s), base_y - int(6 * s)), (cx + int(15 * s), base_y - int(6 * s)),
+                         (cx + int(11 * s), base_y + int(6 * s)), (cx + int(2 * s), base_y + int(6 * s))],
                ow=max(1, int(1.8 * s)))
-    # bone rib bands over the bronze (bone-core showing through tarnish)
-    for i in range(2):
-        ry = rc_cy - rc_h // 2 + int(7 * s) + i * int(8 * s)
-        bw = int(rc_w * (0.42 - i * 0.05))
-        pygame.draw.arc(surf, BONE,
-                        (rc_cx - bw, ry - int(6 * s), bw * 2, int(14 * s)),
-                        math.radians(205), math.radians(335), max(2, int(2.2 * s)))
-    pygame.draw.line(surf, BRONZE_D, (rc_cx, rc_cy - rc_h // 2 + int(5 * s)),
-                     (rc_cx, rc_cy + int(3 * s)), max(1, int(2 * s)))
-    # a thin verdigris sash (linear accent, never a mass)
-    pygame.draw.line(surf, TEAL, (rc_cx - int(rc_w * 0.42), rc_cy + int(2 * s)),
-                     (rc_cx + int(rc_w * 0.42), rc_cy - int(2 * s)), max(1, int(2 * s)))
+    # a couple verdigris scale-grooves so the knot reads as snake-tail, not a base
+    for k in (-1, 0, 1):
+        gx = cx + int(k * 9 * s)
+        pygame.draw.line(surf, TEAL_D, (gx, base_y - int(8 * s)),
+                         (gx, base_y + int(6 * s)), max(1, int(1.6 * s)))
 
-    # === SIX COBRA-HOODS — the ring of bulbous lobes (drawn over torso) ========
-    # WHY after torso, before head: hoods crowd around and slightly over the
-    # skull so the RING reads, but the big head still overdraws the inner edges.
+    # === SIX COBRA-HOOD LOBES — the haloing ring (drawn over necks + body) =====
+    # WHY drawn after necks/body, before head: the fat lobes ARCH around the
+    # skull so the RING reads, while the big central head over-draws their inner
+    # edges to keep the negative gaps between adjacent lobes clean.
     for (hood_c, a, with_skull) in hoods:
         cobra_hood(surf, int(hood_c[0]), int(hood_c[1]), hr_hood, s, a,
                    with_skull, lit=False)
@@ -516,7 +495,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("NAGINI-DEVI", True, LABEL), (24, 14))
     sheet.blit(font_sm.render(
-        "serpent hood-ring bone-naga-queen  ·  KIND: arms-as-snakes hood-RING · mid · aged-bronze (dom) + verdigris-teal · 6 cobra-hoods · round 1",
+        "serpent hood-ring bone-naga-queen  ·  KIND: arms-as-snakes hood-RING · mid · aged-bronze (dom) + dull-verdigris · 6 cobra-hood lobes haloing the skull · round 2",
         True, LABEL_DIM), (250, 26))
 
     # === (a) EPIC HERO ========================================================
@@ -525,9 +504,9 @@ def main():
     hero = grow1(pygame.transform.smoothscale(big, (360, 470)))
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — EPIC hero", True, LABEL), (96, 566))
-    sheet.blit(font_sm.render("Big chibi head RINGED by six reared cobra-hoods (S-curved snake-arms, not spokes).", True, LABEL_DIM), (14, 590))
-    sheet.blit(font_sm.render("Tiny skulls in ALTERNATING hood-jaws; bronze hood-rings + skull-bosses (brood DNA).", True, LABEL_DIM), (14, 606))
-    sheet.blit(font_sm.render("Verdigris third-eye = brightest pixel; bronze = dominant mass; skull-crown tiara on top.", True, LABEL_DIM), (14, 622))
+    sheet.blit(font_sm.render("Skull HALOED by six fat spade-hood lobes (S-necks arching up & around — a flower of petals).", True, LABEL_DIM), (14, 590))
+    sheet.blit(font_sm.render("Tiny skulls clenched in 3 of 6 open hood-jaws (alternating); chin-gap below reads open.", True, LABEL_DIM), (14, 606))
+    sheet.blit(font_sm.render("Dull-verdigris third-eye = brightest pixel + thin oxide rims; bronze = dominant mass; skull-tiara on top.", True, LABEL_DIM), (14, 622))
 
     # === (b) PILLAR — caduceus twin-snake staff, mirrored, bottom-rooted ======
     pcx = 470
@@ -598,8 +577,20 @@ def main():
     pygame.draw.rect(sheet, (180, 184, 176), (panel_x + 16, sil_y + 14, 150, 170))
     pygame.draw.rect(sheet, INK, (panel_x + 16, sil_y + 14, 150, 170), 1)
     sheet.blit(blk, (panel_x + 16, sil_y + 14))
-    sheet.blit(font_sm.render("ring of hood-lobes,", True, LABEL_DIM), (panel_x + 174, sil_y + 40))
-    sheet.blit(font_sm.render("NOT a radial fan", True, LABEL_DIM), (panel_x + 174, sil_y + 56))
+    # a TRUE-32px blackout beside it: proves the lobes stay DISCRETE under the chip
+    chip_sil = pygame.Surface((32, 32), pygame.SRCALPHA)
+    chip_src = pygame.Surface((40 * SS, 40 * SS), pygame.SRCALPHA)
+    draw_nagini_devi(chip_src, 20 * SS, 21 * SS, (32 / 150.0) * SS)
+    chip_small = pygame.transform.smoothscale(chip_src, (32, 32))
+    cmask = pygame.mask.from_surface(chip_small)
+    chip_blk = cmask.to_surface(setcolor=INK + (255,), unsetcolor=(0, 0, 0, 0))
+    chip_blk = pygame.transform.scale(chip_blk, (96, 96))   # nearest-neighbour zoom
+    pygame.draw.rect(sheet, (180, 184, 176), (panel_x + 174, sil_y + 64, 96, 96))
+    pygame.draw.rect(sheet, INK, (panel_x + 174, sil_y + 64, 96, 96), 1)
+    sheet.blit(chip_blk, (panel_x + 174, sil_y + 64))
+    sheet.blit(font_sm.render("flower of fat lobes", True, LABEL_DIM), (panel_x + 174, sil_y + 24))
+    sheet.blit(font_sm.render("around a skull", True, LABEL_DIM), (panel_x + 174, sil_y + 40))
+    sheet.blit(font_sm.render("32px blk (3x zoom)", True, LABEL_DIM), (panel_x + 174, sil_y + 164))
 
     # === (e) PALETTE STRIP ====================================================
     sheet.blit(font.render("Pinned palette", True, LABEL), (panel_x + 16, sil_y + 196))
@@ -624,7 +615,7 @@ def main():
         "dark-core->fill->top-left sheen triad · 1px grown outline · chibi · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
