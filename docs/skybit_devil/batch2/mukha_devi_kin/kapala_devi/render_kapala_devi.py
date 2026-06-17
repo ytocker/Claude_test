@@ -132,6 +132,56 @@ def tiara_skull(surf, cx, cy, r, s, lit=False):
 
 
 # ── the six arm-end SKULL-CUPS (the ONLY edit vs Mukha-Devi) ──────────────────
+# the brightest a rose offering-pool may reach — a HARD notch under THIRD_BR so
+# the brow third-eye stays the single brightest pixel even after smoothscale.
+# (lum ~163 vs THIRD_BR's ~213 / the brow white core's 255 — a clear gap.)
+POOL_HOT = lerp(ROSE_BR, ROSE_D, 0.30)   # capped hot core for the fat A-pools
+
+
+def _rim_band(surf, cx, cy, mw, mh, s, ux, uy, teal_rim, kind):
+    """Build the GOLD rim-band + pooled rose offering-glow on a canonical
+    mouth-up tile, then ROTATE it so the cup mouth opens along the arm's OUTWARD
+    vector (ux,uy). WHY rotate vs an axis-aligned ellipse: a near-vertical arm's
+    rim must foreshorten along its own angle, or the cup reads as a flat
+    front-facing disc instead of an up-facing BOWL (the lower-left horizontal
+    cup is the correct reference). In the canonical tile the mouth's 'up' is
+    -Y; the ellipse is WIDE (mw) and SHORT (mh) so it already reads foreshortened
+    before rotation."""
+    pad = int(mw * 0.7) + 4
+    tile = pygame.Surface((pad * 2, pad * 2), pygame.SRCALPHA)
+    cxl, cyl = pad, pad
+    rim_rect = (cxl - mw // 2, cyl - mh // 2, mw, mh)
+    pygame.draw.ellipse(tile, INK, rim_rect, max(2, int(2.2 * s)))
+    pygame.draw.ellipse(tile, GOLD, rim_rect, max(1, int(1.8 * s)))
+    # GOLD_BR only on the FAR rim-edge (the lit lip of an up-tilted bowl mouth)
+    pygame.draw.arc(tile, GOLD_BR, rim_rect,
+                    math.radians(200), math.radians(340), max(1, int(1.4 * s)))
+    if teal_rim:   # a hairline teal accent on the upper-pair rims ONLY
+        pygame.draw.arc(tile, TEAL, rim_rect,
+                        math.radians(20), math.radians(160), max(1, int(1.2 * s)))
+
+    # the pooled rose OFFERING-GLOW seated INSIDE the mouth ellipse. A = fat
+    # bright pool (capped at POOL_HOT), B = small deep-ROSE_D ember (the A-B-A-B
+    # rhythm by glow SIZE + VALUE) — both a clear notch under the brow third-eye.
+    if kind % 2 == 0:   # TYPE A — fat bright rose pool
+        pw, ph = int(mw * 0.66), int(mh * 0.62)
+        pygame.draw.ellipse(tile, ROSE_D, (cxl - pw // 2, cyl - ph // 2, pw, ph))
+        pygame.draw.ellipse(tile, ROSE,
+                            (cxl - int(pw * 0.34), cyl - int(ph * 0.34),
+                             int(pw * 0.68), max(2, int(ph * 0.68))))
+        pygame.draw.circle(tile, POOL_HOT, (cxl, cyl), max(1, int(mh * 0.22)))
+    else:               # TYPE B — small deep-rose ember
+        pw, ph = int(mw * 0.40), int(mh * 0.44)
+        pygame.draw.ellipse(tile, ROSE_D, (cxl - pw // 2, cyl - ph // 2, pw, ph))
+        pygame.draw.circle(tile, ROSE, (cxl, cyl), max(1, int(mh * 0.16)))
+
+    # rotate the canonical (mouth-up) tile so its -Y opening aligns with (ux,uy)
+    deg = math.degrees(math.atan2(-uy, ux)) - 90.0
+    rot = pygame.transform.rotate(tile, deg)
+    rr = rot.get_rect(center=(int(cx), int(cy)))
+    surf.blit(rot, rr.topleft)
+
+
 def skull_cup(surf, kind, cx, cy, r, s, ang=0.0, teal_rim=False):
     """Draw ONE of the six upturned skull-cups (kapala). WHY a rim-up cranium
     BOWL: it reuses `tiara_skull`'s domed bone cranium as the bowl wall and adds
@@ -139,13 +189,17 @@ def skull_cup(surf, kind, cx, cy, r, s, ang=0.0, teal_rim=False):
     the arm-end literally IS a skull — but held UP as an offering bowl, lit from
     within (vs Mala's inert down-beads).
 
-    WHY the A-B-A-B rhythm is GLOW SIZE only (A = fat bright rose pool, B = small
-    deep-rose ember) and the cups are otherwise identical: at 32px six even bone
-    domes read as a halo of skulls; varying the GLOW gives rhythm without fussy
-    per-cup shapes pulling weight to the rim.
+    WHY the rim foreshortens to the ARM vector: each cup mouth opens away from
+    the torso along its own arm, so a near-vertical arm's rim tilts with it and
+    reads as an up-facing BOWL, not a flat floating disc.
 
-    CRITICAL: every offering-pool is capped a notch BELOW THIRD_BR so the brow
-    third-eye stays the single brightest pixel."""
+    WHY the A-B-A-B rhythm rides GLOW SIZE + VALUE (A = fat bright rose pool,
+    B = small deep-ROSE_D ember) on otherwise-identical bone domes: at 32px six
+    even craniums read as a halo of skulls; the alternating glow gives rhythm
+    without fussy per-cup shapes.
+
+    CRITICAL: every offering-pool is capped a clear notch BELOW THIRD_BR
+    (POOL_HOT) so the brow third-eye stays the single brightest pixel."""
     gx = cx + int(math.cos(ang) * r * 0.55)
     gy = cy + int(math.sin(ang) * r * 0.55)
 
@@ -162,38 +216,12 @@ def skull_cup(surf, kind, cx, cy, r, s, ang=0.0, teal_rim=False):
                            (gx + sgn * int(r * 0.36), gy + int(r * 0.12)),
                            max(1, int(r * 0.22)))
 
-    # the GOLD rim-band at the cup MOUTH — an ellipse cap across the dome top
-    mouth = (gx, gy - int(r * 0.46))
-    mw, mh = int(r * 1.5), int(r * 0.7)
-    rim_rect = (mouth[0] - mw // 2, mouth[1] - mh // 2, mw, mh)
-    pygame.draw.ellipse(surf, INK, rim_rect, max(2, int(2.2 * s)))
-    pygame.draw.ellipse(surf, GOLD, rim_rect, max(1, int(1.8 * s)))
-    pygame.draw.ellipse(surf, GOLD_BR,
-                        (mouth[0] - mw // 2, mouth[1] - mh // 2, mw, max(1, int(mh * 0.5))),
-                        max(1, int(1 * s)))
-    if teal_rim:   # a hairline teal accent on the upper-pair rims ONLY
-        pygame.draw.arc(surf, TEAL, rim_rect,
-                        math.radians(20), math.radians(160), max(1, int(1.2 * s)))
-
-    # the pooled rose OFFERING-GLOW inside the bowl mouth. WHY two intensities:
-    # A = fat bright rose pool, B = small deep-rose ember (the A-B-A-B rhythm).
-    pool_w = int(mw * 0.72)
-    pool_rect = (mouth[0] - pool_w // 2, mouth[1] - int(mh * 0.28),
-                 pool_w, max(2, int(mh * 0.62)))
-    if kind % 2 == 0:   # TYPE A — fat bright rose offering-pool
-        pygame.draw.ellipse(surf, ROSE_D, pool_rect)
-        pygame.draw.ellipse(surf, ROSE,
-                            (mouth[0] - int(pool_w * 0.36), mouth[1] - int(mh * 0.18),
-                             int(pool_w * 0.72), max(2, int(mh * 0.42))))
-        # the brightest the pool may reach — a notch UNDER THIRD_BR, never (255,255,255)
-        pygame.draw.circle(surf, lerp(ROSE_BR, THIRD_BR, 0.4),
-                           (mouth[0] - int(r * 0.08), mouth[1] - int(r * 0.04)),
-                           max(1, int(r * 0.22)))
-    else:               # TYPE B — small deep-rose ember
-        pygame.draw.ellipse(surf, ROSE_D,
-                            (mouth[0] - int(pool_w * 0.30), mouth[1] - int(mh * 0.12),
-                             int(pool_w * 0.6), max(2, int(mh * 0.36))))
-        pygame.draw.circle(surf, ROSE, (mouth[0], mouth[1]), max(1, int(r * 0.16)))
+    # the cup mouth opens OUTWARD along the arm (away from torso); foreshorten
+    # the rim + pool to that vector so vertical arms read as up-facing bowls.
+    ox, oy = math.cos(ang), math.sin(ang)
+    mouth = (gx + ox * r * 0.46, gy + oy * r * 0.46)
+    mw, mh = int(r * 1.5), int(r * 0.72)
+    _rim_band(surf, mouth[0], mouth[1], mw, mh, s, ox, oy, teal_rim, kind)
 
 
 # ── the six-arm radial starburst (the KIND tell — cloned UNCHANGED) ───────────
@@ -477,7 +505,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("KAPALA-DEVI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "six skull-cup wrath  ·  Mukha-Devi SISTER (TIGHT · skull-motif) · 6 upturned skull-cups + LOW 3-skull tiara = halo of nine · round 1",
+        "six skull-cup wrath  ·  Mukha-Devi SISTER (TIGHT · skull-motif) · 6 upturned skull-cups + LOW 3-skull tiara = halo of nine · round 2",
         True, LABEL_DIM), (300, 26))
 
     # === (a) BIG HERO =========================================================
@@ -574,29 +602,47 @@ def main():
         "SKULL-CUPS (gold rim + pooled rose offering-glow). STAY: flat fills, ink keyline, triad, chibi, scary-cute.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
-    # ── self-check: skulls read at 32px AND third-eye is the brightest pixel ──
+    # ── self-check: brow third-eye must be the single brightest pixel on BOTH
+    # the day and the night 32px chip (composite the chip over each sky so the
+    # check sees exactly what the player sees, including any sky bleed-through).
     chip_big = pygame.Surface((110 * SS, 110 * SS), pygame.SRCALPHA)
     draw_kapala_devi(chip_big, 55 * SS, 58 * SS, (32 / 150.0) * SS)
     chip32 = pygame.transform.smoothscale(chip_big, (110, 110))
-    bright_xy, bright_lum, brightest = None, -1, None
-    for yy in range(110):
-        for xx in range(110):
-            r, g, b, a = chip32.get_at((xx, yy))
-            if a < 40:
-                continue
-            lum = 0.299 * r + 0.587 * g + 0.114 * b
-            if lum > bright_lum:
-                bright_lum, bright_xy, brightest = lum, (xx, yy), (r, g, b)
-    # the brow third-eye sits high-centre; expect the brightest pixel up there
     cx0, cy0 = 55, 58
     head_brow_y = cy0 - int((32 / 150.0) * 28) - int((32 / 150.0) * 32 * 0.34)
-    near_brow = (abs(bright_xy[0] - cx0) <= 9 and abs(bright_xy[1] - head_brow_y) <= 12)
-    print(f"brightest pixel {brightest} lum={bright_lum:.0f} at {bright_xy}; "
-          f"expected brow ~({cx0},{head_brow_y}); third-eye-is-brightest={near_brow}")
+
+    def brightest_on(sky_t, sky_b, label):
+        bg_ = pygame.Surface((110, 110))
+        vgrad(bg_, (0, 0, 110, 110), sky_t, sky_b)
+        comp = bg_.copy()
+        comp.blit(chip32, (0, 0))
+        b_xy, b_lum, b_rgb = None, -1.0, None
+        brow_lum, pool_lum = -1.0, -1.0   # gap between focal + the hottest cup
+        for yy in range(110):
+            for xx in range(110):
+                r, g, b = comp.get_at((xx, yy))[:3]
+                if chip32.get_at((xx, yy))[3] < 40:
+                    continue
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                if lum > b_lum:
+                    b_lum, b_xy, b_rgb = lum, (xx, yy), (r, g, b)
+                if abs(xx - cx0) <= 6 and abs(yy - head_brow_y) <= 8:
+                    brow_lum = max(brow_lum, lum)
+                else:
+                    pool_lum = max(pool_lum, lum)
+        near_brow = (abs(b_xy[0] - cx0) <= 9 and abs(b_xy[1] - head_brow_y) <= 12)
+        print(f"[{label}] brightest {b_rgb} lum={b_lum:.0f} at {b_xy}; "
+              f"brow_max={brow_lum:.0f} hottest_cup={pool_lum:.0f} gap={brow_lum-pool_lum:.0f}; "
+              f"brow-is-brightest={near_brow}")
+        return near_brow
+
+    ok_day = brightest_on(DAY_SKY_T, DAY_SKY_B, "DAY 32px")
+    ok_night = brightest_on(NIGHT_T, NIGHT_B, "NIGHT 32px")
+    print(f"SHIP-GATE brow-brightest both chips = {ok_day and ok_night}")
 
 
 if __name__ == "__main__":
