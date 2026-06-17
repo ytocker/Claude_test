@@ -60,6 +60,21 @@ in-game color read is ship-quality; only the pure-black silhouette crown trends 
 - [Moso-no-Taisho — great single-culm monolith (lone fat column)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/moso_no_taisho/round_3.png)
 - [Shishi-Kadomatsu — bound-culm komainu guardian (squat quadruped + cut-tip crown)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/kadomatsu_versions/shishi_kadomatsu/round_5.png)
 
+## 💀 Mukha-Devi — many-armed bone-goddess bosses (a spin-off of a spin-off)
+Spun off from **Mukha-Devi** (herself the radial-fan member of the Citipati brood above). Every boss keeps
+her DNA — multi-arm + skull-crown/tiara + arm-end ornaments with tiny skulls — while spanning a deliberate
+proportion spread (elevated-chibi → monumental) and theme spread (pure skeletal → bone-core + accent).
+Nagini-Devi is SHIP-READY; the other four matured through the full GD3/AD2 budget (final round folds in the
+last critique — see each concept's critique files).
+**Combined showcase:** [mukha_devi_versions/showcase.png](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/showcase.png)
+
+- **Original:** [Mukha-Devi (six-armed bone-mother / radial-fan)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png)
+- [Asha-Mukti — lotus bloom-mandorla saint (closed tall-almond · chibi)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/asha_mukti/round_3.png)
+- [Nagini-Devi — serpent hood-ring naga-queen (lobed hood-ring · mid)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/nagini_devi/round_2.png)
+- [Chandra-Mata — lunar crescent-arc mother (wide crescent-cup · mid-tall)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/chandra_mata/round_3.png)
+- [Rakta-Ambu — coral-tree bone-canopy (dendritic canopy · monumental-by-width)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/rakta_ambu/round_3.png)
+- [Asthi-Samrat — temple-pylon colossus (rigid arm-grid · monumental / pure-bone)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/mukha_devi_versions/asthi_samrat/round_3.png)
+
 ---
 
 # Standalone fresh-theme sets (not spin-off broods)
