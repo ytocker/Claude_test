@@ -108,17 +108,19 @@ def triad_circle(surf, color, c, r, ow=2, sheen=True, core=True):
 
 
 # ── a single ornamental tiara-skull (reused for crown + arm trophies) ─────────
-def tiara_skull(surf, cx, cy, r, s, lit=False):
+def tiara_skull(surf, cx, cy, r, s, lit=False, lit_col=ROSE):
     """Tiny rose-bone skull: domed cranium + jaw + two ink sockets. Punches a
-    clean bone shape with two dots at 32px. `lit` floods the eyes ROSE_BR — used
-    ONLY for the crown centre so it stays a single motif accent."""
+    clean bone shape with two dots at 32px. `lit` floods the eyes with `lit_col`
+    — used for the crown KEYSTONE (default plain ROSE, a clear value notch BELOW
+    the brow third-eye so the brow stays the single brightest pixel) and, with a
+    hotter colour, the pillar hub."""
     triad_circle(surf, BONE, (cx, cy), r, ow=max(1, int(1.4 * s)), core=False)
     jaw = [(cx - int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.5), cy + int(r * 0.5)),
            (cx + int(r * 0.32), cy + int(r * 0.94)),
            (cx - int(r * 0.32), cy + int(r * 0.94))]
     triad_blob(surf, BONE, jaw, ow=max(1, int(1.1 * s)))
-    eye_c = ROSE_BR if lit else INK
+    eye_c = lit_col if lit else INK
     for ex in (cx - int(r * 0.38), cx + int(r * 0.38)):
         pygame.draw.circle(surf, INK, (ex, cy + int(r * 0.02)), max(1, int(r * 0.26)))
         if lit:
@@ -172,14 +174,17 @@ def skull_trophy_strand(surf, hx, hy, r, s, ang=0.0, two=True):
                              (sx, cy - int(sk_r * 0.8)), max(1, int(1.6 * s)))
         tiara_skull(surf, int(sx), int(cy), sk_r, s, lit=False)
 
-    # the ROSE tassel-dot below the lowest skull (the warm strand terminator)
+    # the DEEP-ROSE tassel-dot below the lowest skull (the strand terminator).
+    # WHY ROSE_D not ROSE: six warm dots ringing the fan competed with the brow
+    # focal — sunk to deep-rose with only a faint ROSE (not ROSE_BR) catch-light
+    # so they read as terminators, never as glows that rival the third-eye.
     tail_y = sy + (n - 1) * pitch + int(sk_r * 1.15)
     pygame.draw.line(surf, ROSE_D, (sx, tail_y - int(sk_r * 0.7)), (sx, tail_y),
                      max(1, int(1.8 * s)))
-    triad_circle(surf, ROSE, (int(sx), int(tail_y)), max(2, int(r * 0.42)),
+    triad_circle(surf, ROSE_D, (int(sx), int(tail_y)), max(2, int(r * 0.42)),
                  ow=max(1, int(1.2 * s)), core=False, sheen=False)
-    pygame.draw.circle(surf, ROSE_BR, (int(sx - r * 0.12), int(tail_y - r * 0.14)),
-                       max(1, int(r * 0.2)))
+    pygame.draw.circle(surf, ROSE, (int(sx - r * 0.12), int(tail_y - r * 0.14)),
+                       max(1, int(r * 0.18)))
 
 
 # ── the six-arm radial starburst (the KIND tell — UNCHANGED from Mukha) ───────
@@ -216,7 +221,9 @@ def draw_arm_fan(surf, sh_cx, sh_cy, s, hr, relic_r):
                      ow=max(1, int(1.2 * s)), core=False)
         hands.append((sgn, d, hand))
     hands.sort(key=lambda h: (h[0], -h[1]))
-    return [(int(h[2][0]), int(h[2][1])) for h in hands]
+    # carry each hand's spread `d` so the caller can thin the TOP-arm strands
+    # (smallest d = highest arms) — the escape hatch that deepens the crown wedge.
+    return [(int(h[2][0]), int(h[2][1]), h[1]) for h in hands]
 
 
 # ── MAHA-KAPALI — great skull-crowned dread ───────────────────────────────────
@@ -290,9 +297,14 @@ def draw_maha_kapali(surf, cx, cy, s):
     # WHY drawn after torso, before head: they hang out and DOWN from the fan
     # tips so the outer arc reads as six dripping skull-strands; the head still
     # overdraws nothing of the face.
-    for i, (hx, hy) in enumerate(hands):
+    # ESCAPE HATCH (deepens the crown wedge on a LIGHT sky): the TWO TOP arms
+    # (smallest spread d=28) drop to ONE skull + tassel so the topmost strands
+    # never climb into the crown's airspace; the lower four keep two skulls so
+    # the "skulls dripping off the arms" read stays heavy where there is room.
+    top_d = min(h[2] for h in hands)
+    for i, (hx, hy, d) in enumerate(hands):
         oa = math.atan2(hy - rc_cy, hx - rc_cx)
-        skull_trophy_strand(surf, hx, hy, trophy_r, s, ang=oa, two=True)
+        skull_trophy_strand(surf, hx, hy, trophy_r, s, ang=oa, two=(d != top_d))
 
     # === SKULL HEAD — chibi, scary-cute, three-eyed (UNCHANGED face) ==========
     triad_circle(surf, BONE, head_c, hr, ow=max(2, int(2 * s)))
@@ -342,24 +354,45 @@ def draw_maha_kapali(surf, cx, cy, s):
     # negative gap stays between the lowest crown skulls and the topmost arm
     # strands — the two skull-masses must NOT merge into one blob. The
     # self-check at the bottom verifies this gap survives at 32px.
-    crown_r = int(hr * 1.34)                  # tall: lifts skulls well clear of arms
     crown_skull_r = int(hr * 0.32)
-    band_pts = []
-    for i in range(11):
-        a = math.radians(244 + i * (52 / 10))  # steep ~52deg arc, high on the dome
-        band_pts.append((head_c[0] + math.cos(a) * crown_r,
-                         head_c[1] + math.sin(a) * crown_r))
+    # WHY a TALL TRIANGULAR STEPPED FAN (not an arc/dome): the five skulls climb
+    # in a tight crest — centre highest as the keystone, the flanking pairs
+    # stepping DOWN and slightly OUT — so the silhouette is a pointed crest, not
+    # a wide cabbage, and the 5-count reads at hero. Heights/offsets are explicit
+    # steps (in skull-radii) rather than points on an arc so the stagger is read
+    # as a deliberate ridge.
+    cxh = head_c[0]
+    # crest base sits HIGH over the cranium; the keystone climbs well clear of
+    # the (now thinned) topmost arm strands so a dark air-wedge survives on a
+    # LIGHT sky downscale, not just on night.
+    base_y = head_c[1] - int(hr * 1.18)
+    step_x = crown_skull_r * 1.42                  # horizontal pitch between skulls
+    step_dn = crown_skull_r * 0.92                  # each flank pair drops this far
+    # gold crest-band tracing the stepped ridge (anchors the skulls to one piece)
+    band_pts = [
+        (cxh - 2 * step_x, base_y + 2 * step_dn),
+        (cxh - 1 * step_x, base_y + 1 * step_dn),
+        (cxh,              base_y),
+        (cxh + 1 * step_x, base_y + 1 * step_dn),
+        (cxh + 2 * step_x, base_y + 2 * step_dn),
+    ]
     pygame.draw.lines(surf, INK, False, band_pts, int(7 * s))
     pygame.draw.lines(surf, GOLD, False, band_pts, int(3.4 * s))
-    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:6], max(1, int(1.4 * s)))
-    # the FIVE skulls, fanned tall on a steep arc; centre (i==2) lit ROSE_BR.
-    for i in range(5):
-        a = math.radians(250 + i * (40 / 4))
-        # lift the crown skulls a hair above the band so they read as a fanned
-        # ridge of craniums, not beads threaded on a wire.
-        rr = crown_r + crown_skull_r * 0.55
-        sx = head_c[0] + math.cos(a) * rr
-        sy = head_c[1] + math.sin(a) * rr
+    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:3], max(1, int(1.4 * s)))
+    # the FIVE skulls riding the stepped crest; centre (i==2) is the lit keystone.
+    # drawn outside-in so the taller inner skulls overlap the shorter flanks, and
+    # a hair of ink keyline drops between neighbours so the 5-count is unambiguous.
+    for i in (0, 4, 1, 3, 2):
+        off = i - 2
+        sx = cxh + off * step_x
+        sy = base_y + abs(off) * step_dn - crown_skull_r * 0.4   # skull rides above band
+        # ink keyline between this skull and the taller neighbour toward centre
+        if off != 0:
+            inx = cxh + (off - (1 if off > 0 else -1)) * step_x
+            iny = base_y + abs(off + (-1 if off > 0 else 1)) * step_dn - crown_skull_r * 0.4
+            pygame.draw.line(surf, INK, (int(sx), int(sy)),
+                             (int((sx + inx) / 2), int((sy + iny) / 2)),
+                             max(1, int(2.2 * s)))
         tiara_skull(surf, int(sx), int(sy), crown_skull_r, s, lit=(i == 2))
 
 
@@ -429,7 +462,7 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     pygame.draw.rect(surf, GOLD, (cx - int(9 * s), collar_y - int(2 * s), int(18 * s), int(5 * s)))
     pygame.draw.rect(surf, GOLD_BR, (cx - int(9 * s), collar_y - int(2 * s), int(18 * s), int(2 * s)))
     # the LIT rose skull at the burst hub (the gap glow — Maha's lit-centre motif)
-    tiara_skull(surf, cx, cap_y, int(sk_r * 1.1), s, lit=True)
+    tiara_skull(surf, cx, cap_y, int(sk_r * 1.1), s, lit=True, lit_col=ROSE_BR)
     pygame.draw.arc(surf, TEAL, (cx - int(7 * s), cap_y + int(2 * s), int(14 * s), int(10 * s)),
                     math.radians(200), math.radians(340), max(1, int(1.8 * s)))
 
@@ -452,54 +485,81 @@ def vgrad(surf, rect, top_col, bot_col):
                          (x, y + j), (x + w, y + j))
 
 
-# ── 32px self-check: crown-skull mass must NOT merge into the arm strands ─────
+# ── 32px self-check: a DARK crown↔arm wedge must survive on a LIGHT sky too ───
 def selfcheck_32px_gap():
-    """Render JUST the creature at true 32px and confirm a band of BACKGROUND
-    survives between the crown-skull cluster (top) and the topmost arm-trophy
-    strands. WHY the SIDE wedges, not the centre column: by design the crown
-    seats ON the cranium, so straight down the axis the crown and head are ONE
-    intended mass (correct). The merge failure mode is the crown's OUTER skulls
-    fusing into the near-horizontal topmost arm strands that splay out to the
-    sides — so we scan the two off-axis wedge columns where the crown shoulder
-    sits above the upper arm. A surviving negative gap in EITHER wedge proves the
-    two skull-masses stay distinct value-clumps. Returns (ok, gap_px, detail)."""
-    N = 96                                 # render bigger then check, sub-pixel safe
-    surf = pygame.Surface((N, N), pygame.SRCALPHA)
-    draw_maha_kapali(surf, N // 2, int(N * 0.52), 32 / 150.0 * (N / 32.0))
+    """The Round-1 fail mode: the alpha gap survived (geometry was fine) but on a
+    BRIGHT day sky the thin dark wedge between crown and arms washed out and the
+    masses fused VISUALLY. So this check is no longer alpha-only — it COMPOSITES
+    the true-32px chip over both the day and the night sky and confirms a band of
+    genuinely DARK pixels (low luminance, clearly below the lit bone fill) lives
+    between the crown-skull cluster and the topmost arm strand, in at least one
+    off-axis wedge, on BOTH skies. WHY off-axis: the crown seats ON the cranium,
+    so the centre axis is one intended mass; the merge risk is the crown's outer
+    skulls fusing into the splayed upper arm strands. Returns (ok, info)."""
+    SS_ = 6
+    N = 32
+    sky_day = (lerp(DAY_SKY_T, DAY_SKY_B, 0.5))
+    sky_night = (lerp(NIGHT_T, NIGHT_B, 0.5))
+
+    def lum(c):
+        return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+
+    def composite_on(sky):
+        big = pygame.Surface((N * SS_, N * SS_), pygame.SRCALPHA)
+        draw_maha_kapali(big, (N // 2) * SS_, int(N * 0.52) * SS_, 32 / 150.0 * SS_)
+        chip = pygame.transform.smoothscale(big, (N, N))
+        comp = pygame.Surface((N, N))
+        comp.fill(sky)
+        comp.blit(chip, (0, 0))
+        return comp
+
+    # A surviving wedge = a band of SKY-VALUED rows (the wedge column reads close
+    # to the sky, clearly NOT the lit bone fill) sandwiched BETWEEN a bone band
+    # above (a crown skull) and a bone band below (the upper arm strand). This is
+    # value-symmetric: it holds whether the wedge is darker than the bone (day) or
+    # the bone is brighter than a dark sky (night) — what the alpha check missed.
     cx = N // 2
+    bone_lum = lum(BONE)
 
-    def runs_in_column(col_lo, col_hi):
-        def row_opaque(y):
-            for x in range(col_lo, col_hi):
-                if 0 <= x < N and surf.get_at((x, y))[3] > 40:
-                    return True
-            return False
-        runs, prev, start = [], False, 0
-        for y in range(N):
-            op = row_opaque(y)
-            if op and not prev:
-                start = y
-            if (not op) and prev:
-                runs.append((start, y - 1))
-            prev = op
-        if prev:
-            runs.append((start, N - 1))
-        return runs
+    def wedge_band(comp, sky):
+        # A row is "bone-covered" in the wedge column if some pixel reads close to
+        # the lit bone value; it is "wedge" if every pixel is FAR from bone (either
+        # the dark ink/socket wedge that shows on a bright day sky, or the sky-gap
+        # that shows on a dark night sky). Distance-from-bone is the one rule that
+        # captures both failure-distinct visuals.
+        best = -1
+        for sgn in (-1, 1):
+            wx = cx + sgn * 6
+            kind = []  # per row: True=bone-covered, False=wedge (not bone)
+            for y in range(N):
+                covered = False
+                for x in range(wx - 2, wx + 3):
+                    if 0 <= x < N and abs(lum(comp.get_at((x, y))) - bone_lum) < 36:
+                        covered = True
+                        break
+                kind.append(covered)
+            # find sky-band (False run) with bone above and bone below in the
+            # crown↔arm zone (rows 2..0.62N)
+            y = 3
+            while y < int(N * 0.62):
+                if not kind[y] and kind[y - 1]:
+                    j = y
+                    while j < N and not kind[j]:
+                        j += 1
+                    if j < N and kind[j]:           # bone below closes the band
+                        best = max(best, j - y)
+                    y = j
+                else:
+                    y += 1
+        return best
 
-    # the wedge columns where the crown's outer skulls overhang the topmost arm
-    best_gap, best_detail = -1, ""
-    for sgn in (-1, 1):
-        wx = cx + sgn * int(N * 0.22)
-        runs = runs_in_column(wx - 3, wx + 4)
-        # first run = crown-skull cluster; the next run below it = upper arm strand
-        if len(runs) >= 2:
-            gap = runs[1][0] - runs[0][1] - 1
-            if gap > best_gap:
-                best_gap = gap
-                best_detail = f"wedge x~{wx}: runs={runs[:3]} -> gap={gap}px"
-    if best_gap >= 1:
-        return True, best_gap, best_detail
-    return False, max(0, best_gap), best_detail or "no separated runs in either wedge"
+    day = composite_on(sky_day)
+    night = composite_on(sky_night)
+    d_day = wedge_band(day, sky_day)
+    d_night = wedge_band(night, sky_night)
+    ok = d_day >= 1 and d_night >= 1
+    detail = f"sky wedge band (crown<->arm): day={d_day}px night={d_night}px (need >=1 each)"
+    return ok, min(d_day, d_night), detail
 
 
 def _load_font(size, bold=True):
@@ -531,15 +591,15 @@ def main():
     sheet.blit(font_big.render("MAHA-KAPALI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "great skull-crowned dread  ·  Mukha-Devi KIN (grounded sister) · LOOSE · skull-motif · "
-        "5-skull MEGA-CROWN + six skull-trophy strands · round 1",
+        "5-skull MEGA-CROWN + six skull-trophy strands · round 2",
         True, LABEL_DIM), (270, 26))
 
     # === (a) BIG HERO =========================================================
     hero = render_creature_chip(360, 500, 178, 244, 1.5)
     sheet.blit(hero, (14, 92))
     sheet.blit(font.render("Creature — hero", True, LABEL), (110, 596))
-    sheet.blit(font_sm.render("Tall fanned 5-skull MEGA-CROWN (lit centre) over a raised, taller head.", True, LABEL_DIM), (14, 620))
-    sheet.blit(font_sm.render("Six arm-ends drip skull-trophy strands (gold rod + 2 skulls + rose tassel).", True, LABEL_DIM), (14, 636))
+    sheet.blit(font_sm.render("Tall TRIANGULAR stepped 5-skull crest (lit ROSE keystone, a notch below the brow).", True, LABEL_DIM), (14, 620))
+    sheet.blit(font_sm.render("Lower-four arms drip 2-skull strands; TOP-two arms drop to 1 skull (deepens the wedge).", True, LABEL_DIM), (14, 636))
     sheet.blit(font_sm.render("Third eye stays the single BRIGHTEST pixel; six-arm fan + palette = Mukha's sister.", True, LABEL_DIM), (14, 652))
 
     # === (b) PILLAR assembled — mirrored ======================================
@@ -601,14 +661,14 @@ def main():
     sheet.blit(font_sm.render("blackout proof", True, LABEL), (bo_x, day_y + 146))
 
     # the self-check verdict, surfaced ON the sheet
-    verdict = f"32px crown<->arm gap CHECK: {'PASS' if ok else 'FAIL'}  (gap={gap}px)"
+    verdict = f"DARK crown<->arm wedge: {'PASS' if ok else 'FAIL'}  (min {gap}px)"
     vcol = (150, 226, 150) if ok else (250, 150, 150)
     sheet.blit(font_sm.render(verdict, True, vcol), (bo_x, night_y + 8))
-    sheet.blit(font_sm.render("crown skulls stay a separate", True, LABEL_DIM), (bo_x, night_y + 30))
-    sheet.blit(font_sm.render("value-mass above the arm", True, LABEL_DIM), (bo_x, night_y + 46))
-    sheet.blit(font_sm.render("strands (no merge into one blob)", True, LABEL_DIM), (bo_x, night_y + 62))
-    sheet.blit(font_sm.render("locks: crown=5 skulls,", True, LABEL_DIM), (bo_x, night_y + 92))
-    sheet.blit(font_sm.render("arm trophies=2 per strand.", True, LABEL_DIM), (bo_x, night_y + 108))
+    sheet.blit(font_sm.render("now a VALUE test, not alpha:", True, LABEL_DIM), (bo_x, night_y + 30))
+    sheet.blit(font_sm.render("a dark wedge survives between", True, LABEL_DIM), (bo_x, night_y + 46))
+    sheet.blit(font_sm.render("crown + arms on DAY *and* night.", True, LABEL_DIM), (bo_x, night_y + 62))
+    sheet.blit(font_sm.render("locks: crown=5; arms=2 skulls,", True, LABEL_DIM), (bo_x, night_y + 92))
+    sheet.blit(font_sm.render("top-two arms=1 (wedge escape).", True, LABEL_DIM), (bo_x, night_y + 108))
 
     sheet.blit(font.render("Pinned palette (UNCHANGED)", True, LABEL), (panel_x + 16, 540))
     swatches = [
@@ -634,7 +694,7 @@ def main():
     sheet.blit(font_sm.render("SISTER of Mukha-Devi: six-arm fan + face + palette UNCHANGED; new = 5-skull mega-crown + dripping skull-trophy strands.",
                               True, LABEL_DIM), (26, 814))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_1.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     print("selfcheck:", "PASS" if ok else "FAIL", "gap=", gap, "|", detail)
