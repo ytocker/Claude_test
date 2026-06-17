@@ -317,8 +317,10 @@ def draw_mala_mata(surf, cx, cy, s):
         px = cx + int(k * 11 * s)
         pygame.draw.line(surf, BONE_DD, (px, base_y - int(15 * s)),
                          (px, base_y + int(8 * s)), max(1, int(1.4 * s)))
-    pygame.draw.circle(surf, ROSE_D, (cx, base_y - int(3 * s)), int(5 * s))
-    pygame.draw.circle(surf, lerp(ROSE, ROSE_D, 0.3),
+    # base lotus pip nudged toward BONE_D so no rose mass below competes with the
+    # brow third-eye for the DAY-chip focal — the eye must win the gaze.
+    pygame.draw.circle(surf, lerp(ROSE_D, BONE_D, 0.45), (cx, base_y - int(3 * s)), int(5 * s))
+    pygame.draw.circle(surf, lerp(ROSE_D, BONE_D, 0.25),
                        (cx - int(1 * s), base_y - int(4 * s)), max(1, int(2 * s)))
 
     # === TORSO — a SHORT rib barrel (UNCHANGED) ===============================
@@ -346,9 +348,10 @@ def draw_mala_mata(surf, cx, cy, s):
                         math.radians(205), math.radians(335), max(2, int(2.2 * s)))
     pygame.draw.line(surf, BONE_DD, (rc_cx, rc_cy - rc_h // 2 + int(5 * s)),
                      (rc_cx, rc_cy + int(3 * s)), max(1, int(2 * s)))
-    # chest sash — kept rose but capped a notch DOWN (no ROSE_BR) so the only
-    # truly hot rose on the figure is the brow third-eye.
-    pygame.draw.line(surf, lerp(ROSE, ROSE_D, 0.3),
+    # chest sash — dropped a notch toward BONE_D (a dusty mauve-rose, not a hot
+    # rose) so it stops being the loudest rose mass on the DAY chip; the brow
+    # third-eye is then the only saturated rose and wins the focal.
+    pygame.draw.line(surf, lerp(ROSE_D, BONE_D, 0.4),
                      (rc_cx - int(rc_w * 0.42), rc_cy + int(2 * s)),
                      (rc_cx + int(rc_w * 0.42), rc_cy - int(2 * s)), max(1, int(2 * s)))
 
@@ -371,8 +374,10 @@ def draw_mala_mata(surf, cx, cy, s):
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.25))
         pygame.draw.circle(surf, ROSE_D, (ex + sgn * int(1 * s), ey + int(1 * s)),
                            int(hr * 0.12))
-    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule, UNCHANGED).
-    tex, tey = head_c[0], head_c[1] - int(hr * 0.34)
+    # THIRD EYE — the single BRIGHTEST pixel (AD hard rule). Lifted ~1px higher on
+    # the brow (0.34 -> 0.42) so a clear vertical gap opens between it and the eye-
+    # socket row; at 32px the face stops reading as a flat 3-pink-dot row.
+    tex, tey = head_c[0], head_c[1] - int(hr * 0.42)
     pygame.draw.ellipse(surf, INK, (tex - int(7 * s), tey - int(9 * s), int(14 * s), int(18 * s)))
     pygame.draw.ellipse(surf, ROSE, (tex - int(6 * s), tey - int(8 * s), int(12 * s), int(16 * s)))
     pygame.draw.ellipse(surf, ROSE_BR, (tex - int(4 * s), tey - int(5 * s), int(8 * s), int(10 * s)))
@@ -395,21 +400,40 @@ def draw_mala_mata(surf, cx, cy, s):
                             [(fx - int(2 * s), my), (fx + int(2 * s), my),
                              (fx, my + int(hr * 0.22))])
 
-    # === LOW 3-SKULL TIARA (kept — UNCHANGED) =================================
+    # === LOW 3-SKULL TIARA (splayed to PUNCH a sky-wedge over the crown) =======
+    # WHY a wider band arc + outward/down outer skulls + a dropped centre apex:
+    # at 32px the three skulls + cord arcs had closed the top into a solid dome
+    # (no sky bit into the silhouette). Splaying the two OUTER skulls down-and-out
+    # and lowering the CENTRE skull's apex ~2px opens a clean triangular notch of
+    # sky between them, so the crown FRAMES beside the face rather than roofing it.
     tiara_r = int(hr * 0.96)
     tiara_skull_r = int(hr * 0.30)
-    band_pts = []
-    for i in range(9):
-        a = math.radians(235 + i * (70 / 8))
-        band_pts.append((head_c[0] + math.cos(a) * tiara_r,
-                         head_c[1] + math.sin(a) * tiara_r))
-    pygame.draw.lines(surf, INK, False, band_pts, int(6 * s))
-    pygame.draw.lines(surf, GOLD, False, band_pts, int(3 * s))
-    pygame.draw.lines(surf, GOLD_BR, False, band_pts[:5], max(1, int(1.2 * s)))
-    for i in range(3):
-        a = math.radians(242 + i * (56 / 2))
-        sx = head_c[0] + math.cos(a) * tiara_r
-        sy = head_c[1] + math.sin(a) * tiara_r
+    # WHY the band is drawn as TWO arcs with an apex GAP (not one arc over the
+    # crown): a continuous gold band over 270deg roofed the silhouette — on the
+    # blackout no sky bit in. Splitting it (left 240->262, right 278->300) leaves
+    # an open notch of sky at the apex; the centre skull then rides BELOW that
+    # gap on a short radius so it frames beside, never over.
+    def _band_arc(d0, d1, sheen):
+        pts = []
+        steps = 6
+        for i in range(steps + 1):
+            a = math.radians(d0 + (d1 - d0) * i / steps)
+            pts.append((head_c[0] + math.cos(a) * tiara_r,
+                        head_c[1] + math.sin(a) * tiara_r))
+        pygame.draw.lines(surf, INK, False, pts, int(6 * s))
+        pygame.draw.lines(surf, GOLD, False, pts, int(3 * s))
+        if sheen:
+            pygame.draw.lines(surf, GOLD_BR, False, pts, max(1, int(1.2 * s)))
+    _band_arc(240, 262, sheen=True)
+    _band_arc(278, 300, sheen=False)
+    # the centre skull rides a shorter radius (apex dropped, sits under the gap);
+    # the two outer skulls sit at wider angles AND push out past the band ends so
+    # a clean V of sky opens between centre and each outer skull.
+    tiara_place = [(230, tiara_r * 1.08), (270, tiara_r * 0.82), (310, tiara_r * 1.08)]
+    for i, (deg, rr) in enumerate(tiara_place):
+        a = math.radians(deg)
+        sx = head_c[0] + math.cos(a) * rr
+        sy = head_c[1] + math.sin(a) * rr
         tiara_skull(surf, int(sx), int(sy), tiara_skull_r, s, lit=(i == 1))
 
 
@@ -535,7 +559,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("MALA-MATA", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "skull-garland mother  ·  Mukha-Devi SISTER · MID tight-loose · CONNECTED rim · 6 garland + 3 tiara skulls · round 2",
+        "skull-garland mother  ·  Mukha-Devi SISTER · MID tight-loose · CONNECTED rim · 6 garland + 3 tiara skulls · round 3",
         True, LABEL_DIM), (250, 26))
 
     # === (a) BIG HERO =========================================================
@@ -648,7 +672,7 @@ def main():
         "INERT beads on a visible rose cord (NO glow) vs Kapala's up-facing glowing cups.  procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
