@@ -152,6 +152,28 @@ def thick_curve(surf, color, p0, p1, p2, width, steps=16, sheen=False):
     return pts
 
 
+def arm_rib_groove(surf, p0, p1, p2, s, steps=22):
+    """A low-contrast tonal GROOVE on the aureole bone-fill that reads as one
+    slender arm in relief. WHY a groove, not a raised limb: the round-2 miss was
+    that solid arms either bumped past the clean almond rim or vanished entirely.
+    A recessed groove (a warm-tan shade band with a thin dark-core keyline down
+    its centre) carves the arm INTO the bone surface — it can't deform the outer
+    silhouette, yet at hero scale the eye counts eight ribs converging on the
+    points. WHY thin + low-contrast: it must DROP OUT at 32px so the chip read
+    stays a clean almond + warm third-eye, never a tangle."""
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        x = (1-t)**2 * p0[0] + 2*(1-t)*t * p1[0] + t*t * p2[0]
+        y = (1-t)**2 * p0[1] + 2*(1-t)*t * p1[1] + t*t * p2[1]
+        pts.append((int(x), int(y)))
+    # a soft warm-tan shade band (the groove walls) then a thin deepest-bone
+    # dark-core keyline down the centre — both low-contrast against the BONE fill
+    if len(pts) >= 2:
+        pygame.draw.lines(surf, BONE_D, False, pts, max(2, int(3.2 * s)))
+        pygame.draw.lines(surf, BONE_DD, False, pts, max(1, int(1.3 * s)))
+
+
 # ── a single lotus-pod relic (arm-end ornament) ───────────────────────────────
 def lotus_pod(surf, cx, cy, r, s, ang, skull=False, glow=True):
     """An arm-end lotus seed-pod relic. WHY a pod, not a weapon: Asha is a calm
@@ -168,8 +190,16 @@ def lotus_pod(surf, cx, cy, r, s, ang, skull=False, glow=True):
         sr = int(r * 0.62)
         triad_circle(surf, BONE_SH, (cx, cy - int(r * 0.06)), sr,
                      ow=max(1, int(1.1 * s)), core=False, sheen=False)
+        # WHY a deep-bone shadow ring under each INK socket: the pips are already
+        # the darkest ink, but at downscale they anti-alias against the light dome
+        # to mid-grey and the skull DNA needs a zoom to read. Seating each pip in a
+        # one-step-darker BONE_DD pocket carries more dark mass through the
+        # smoothscale so the two sockets stay legibly dark — without enlarging the
+        # visible pip itself.
         for ex in (cx - int(sr * 0.42), cx + int(sr * 0.42)):
+            pygame.draw.circle(surf, BONE_DD, (ex, cy - int(r * 0.02)), max(1, int(sr * 0.40)))
             pygame.draw.circle(surf, INK, (ex, cy - int(r * 0.02)), max(1, int(sr * 0.30)))
+        pygame.draw.circle(surf, BONE_DD, (cx, cy + int(sr * 0.34)), max(1, int(sr * 0.26)))
         pygame.draw.circle(surf, INK, (cx, cy + int(sr * 0.34)), max(1, int(sr * 0.18)))
         # tiny jaw line
         pygame.draw.line(surf, INK, (cx - int(sr * 0.5), cy + int(sr * 0.5)),
@@ -324,6 +354,24 @@ def draw_asha_mukti(surf, cx, cy, s):
     # === EIGHT-ARM RELIEF on the aureole (rides the same rim → no bumps past) ==
     hands, apex, almond_bottom, rim_sampler = draw_arm_almond(
         surf, head_c[0], sh_y, head_c[1], s, reach)
+
+    # === EIGHT INTERIOR ARM-RIB GROOVES (the many-armed read, carved IN) =======
+    # WHY grooves carved on the bone-fill, terminating at each rim bead: this
+    # restores the countable many-armed read the round-2 solid aureole lost,
+    # WITHOUT the limbs ever touching the clean outer almond rim. Each rib runs
+    # from a LOW body shoulder, bows along an inset of the mandorla curve, and
+    # ENDS at its hand bead so the bead reads as an arm-end lotus-pod, not a free
+    # rivet. Four per side curve toward the apex / bottom point. Strokes are thin
+    # + low-contrast so they DROP OUT at 32px (chip stays almond + third-eye).
+    rib_shoulder_y = sh_y - int(reach * 0.04)
+    for sgn, t, hand in hands:
+        sh_anchor = (head_c[0] + sgn * int(reach * 0.05), rib_shoulder_y)
+        # bow the groove along an INSET of the rim so it sits comfortably inside
+        # the inner bone polygon and can never crowd the outer silhouette edge
+        mid_t = t * (0.50 if t >= 0.5 else 0.62)
+        mry, mw = rim_sampler(mid_t)
+        ctrl = (head_c[0] + sgn * mw * 0.66, mry)
+        arm_rib_groove(surf, sh_anchor, ctrl, (int(hand[0]), int(hand[1])), s)
 
     # === LOWER BODY — a SMALL lotus-seat base (daintier than r1; the head leads)
     base_y = cy + int(30 * s)
@@ -521,10 +569,15 @@ def draw_pillar(surf, cx, top, bot, s, cap="bottom"):
     pygame.draw.rect(surf, PEACH, (cx - int(8 * s), collar_y - int(2 * s), int(16 * s), int(2 * s)))
     # the glowing saffron seed at the bloom heart — a CLEAR peach gap-glow so the
     # "lotus bloom caps the gap" reads even at pillar scale.
-    glow = pygame.Surface((int(28 * s), int(28 * s)), pygame.SRCALPHA)
-    for rr, aa in ((int(13 * s), 70), (int(9 * s), 120), (int(6 * s), 170)):
-        pygame.draw.circle(glow, PEACH_HALO + (aa,), (int(14 * s), int(14 * s)), rr)
-    surf.blit(glow, (cx - int(14 * s), cap_y - int(14 * s)))
+    # WHY push the peach outer-glow ~15% over the pod glow: the gap-cap must read
+    # "a closed lotus bloom caps the gap" at a glance, matching the hero third-eye
+    # bloom. A wider, hotter halo (larger surface so the outer ring isn't clipped)
+    # makes the bloom unmistakable at pillar scale without widening the petals.
+    glow = pygame.Surface((int(34 * s), int(34 * s)), pygame.SRCALPHA)
+    gc = int(17 * s)
+    for rr, aa in ((int(16 * s), 80), (int(11 * s), 138), (int(7 * s), 196)):
+        pygame.draw.circle(glow, PEACH_HALO + (aa,), (gc, gc), rr)
+    surf.blit(glow, (cx - gc, cap_y - gc))
     triad_circle(surf, BONE, (cx, cap_y), int(6 * s), ow=max(1, int(1.3 * s)), core=False)
     pygame.draw.circle(surf, SAFF, (cx, cap_y), int(4 * s))
     pygame.draw.circle(surf, PEACH, (cx, cap_y), max(1, int(2.4 * s)))
@@ -561,7 +614,7 @@ def main():
     pygame.draw.rect(sheet, PANEL, (0, 0, W, 56))
     sheet.blit(font_big.render("ASHA-MUKTI", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
-        "lotus bloom-mandorla bone-saint  ·  KIND: closed tall-almond · CHIBI tiny-idol · warm saffron->peach bloom (NOT pink) · round 2",
+        "lotus bloom-mandorla bone-saint  ·  KIND: closed tall-almond · CHIBI tiny-idol · warm saffron->peach bloom (NOT pink) · round 3",
         True, LABEL_DIM), (250, 26))
 
     # === (a) BIG HERO =========================================================
@@ -570,7 +623,7 @@ def main():
     hero = grow_outline(pygame.transform.smoothscale(hero, (360, 480)), INK + (255,), 1)
     sheet.blit(hero, (14, 82))
     sheet.blit(font.render("Creature - hero", True, LABEL), (110, 562))
-    sheet.blit(font_sm.render("EIGHT slender arms close to a teardrop point ABOVE the crown = a vertical almond.", True, LABEL_DIM), (14, 588))
+    sheet.blit(font_sm.render("EIGHT arm-rib grooves (4/side) carve INTO the aureole + end at a lotus-pod = countable arms.", True, LABEL_DIM), (14, 588))
     sheet.blit(font_sm.render("Saffron third-eye = the single brightest pixel; calm serene chibi saint, tiny-idol scale.", True, LABEL_DIM), (14, 604))
     sheet.blit(font_sm.render("Arm-ends = lotus-pod relics; tiny skulls in the TWO LOWEST pods, arc-tips clean glow-caps.", True, LABEL_DIM), (14, 620))
 
@@ -664,7 +717,7 @@ def main():
         "hard ink keyline (28,22,26) · 1px grown outline · CHIBI tiny-idol · scary-cute · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_2.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
