@@ -45,3 +45,19 @@ Links point at the `v5_skybit_enrich` branch.
 - [Mukha-Devi — six-armed bone-mother (radial-fan)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/mukha_devi/round_2.png)
 - [Asthi-Garuda — bone-winged sky-eater (spread-wing)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/asthi_garuda/round_3.png)
 - [Koschei — deathless bone-throne king (seated-throne)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/citipati_versions/koschei/round_2.png)
+
+---
+
+# Standalone fresh-theme sets (not spin-off broods)
+
+## 🎋 Bamboo v2 — realistic bamboo bosses (five distinct silhouette KINDs)
+A fresh **realistic** bamboo theme (no source original). Supersedes the chibi bamboo v1 set
+([bamboo_versions/](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_versions/README.md)).
+Realistic + botanically-accurate, procedural hard-stepped multi-band shading. All five SHIP-READY.
+**Combined showcase:** [bamboo_v2_versions/showcase.png](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/showcase.png)
+
+- [Takenoko-Warashi — armored bamboo-shoot sprout (sheath-scale cone-warrior)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/takenoko_warashi/round_2.png)
+- [Sasa-Yuki-Onna — snow-grass drift-spirit (wide-low drift-mound)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/sasa_yuki_onna/round_2.png)
+- [Kurochiku-Garasu-Tengu — black-bamboo crow-tengu (winged beaked tengu)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/kurochiku_garasu_tengu/round_3.png)
+- [Kadomatsu-Shin — New-Year three-culm gate-god (tri-culm diagonal-cut cluster)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/kadomatsu_shin/round_2.png)
+- [Take-Tsuchigumo — culm-legged grove spider (radial multi-leg spider)](https://github.com/ytocker/skybit/blob/v5_skybit_enrich/docs/skybit_devil/batch2/bamboo_v2_versions/take_tsuchigumo/round_2.png)
