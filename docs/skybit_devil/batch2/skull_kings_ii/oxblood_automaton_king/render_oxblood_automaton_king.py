@@ -253,25 +253,47 @@ def skull_spire(surf, cx, base_y, r, s, night_rim=False):
     # that survives the downscale as a SKULL SHAPE, not a bead. It is filled
     # BRASS_BR (the hottest warm value in the whole figure) so it WINS the
     # brightest-warm tie against the now-dimmed torso eye + chest bolt.
-    skw = int(r * 1.34)                     # a broad block, not a round bead
-    skh = int(r * 1.12)
+    # round 4: the cranium is grown ~10% and the dome is squarer-shouldered so it
+    # carries MORE warm mass than the (now iron) chest at 32px — the squint must
+    # land here first, and warm AREA (not just peak brightness) is what wins a
+    # squint tie. A jaw step is cut INTO the silhouette so the bottom edge is
+    # asymmetric (stops it reading as a coin/orb through the downscale).
+    skw = int(r * 1.72)                     # broad block grown for more warm mass
+    skh = int(r * 1.44)
     skx = cx - skw // 2
     sky_top = spire_top - skh
-    # a rounded-shoulder dome: wide cranium tapering to a narrower jaw base, so the
-    # silhouette alone (sockets + jaw notch) reads as a skull at 3px tall.
-    cranium = [(skx, sky_top + int(skh * 0.20)),
-               (skx + int(skw * 0.18), sky_top),
-               (skx + skw - int(skw * 0.18), sky_top),
-               (skx + skw, sky_top + int(skh * 0.20)),
-               (skx + skw, sky_top + int(skh * 0.58)),
-               (skx + int(skw * 0.74), sky_top + int(skh * 0.76)),
-               (skx + int(skw * 0.26), sky_top + int(skh * 0.76)),
-               (skx, sky_top + int(skh * 0.58))]
+    jaw_w = int(skw * 0.50)                  # the narrower jaw the dome steps down to
+    jaw_top = sky_top + int(skh * 0.70)
+    jaw_bot = sky_top + int(skh * 1.00)
+    # ONE closed cranium-plus-jaw outline: wide dome shoulders -> a hard STEP IN at
+    # the jaw line -> a narrower jaw block. The inward step on both sides is the
+    # asymmetric bottom that survives smoothscale as a skull, not a bead.
+    cranium = [(skx, sky_top + int(skh * 0.22)),
+               (skx + int(skw * 0.20), sky_top),
+               (skx + skw - int(skw * 0.20), sky_top),
+               (skx + skw, sky_top + int(skh * 0.22)),
+               (skx + skw, sky_top + int(skh * 0.56)),
+               (skx + skw - int(skw * 0.10), sky_top + int(skh * 0.66)),
+               (cx + jaw_w // 2, jaw_top),                # right step-in
+               (cx + jaw_w // 2, jaw_bot),                # right jaw corner
+               (cx - jaw_w // 2, jaw_bot),                # left jaw corner
+               (cx - jaw_w // 2, jaw_top),                # left step-in
+               (skx + int(skw * 0.10), sky_top + int(skh * 0.66)),
+               (skx, sky_top + int(skh * 0.56))]
     if night_rim:
         # tight warm halo on the cranium so the skull stays the night focal even
         # once it is the brightest value (re-proven on the night chip in round 3)
         rim = grow_outline(_blob_surface(surf.get_size(), BRASS_BR, cranium),
                            BRASS_BR + (255,), max(2, int(1.6 * s)))
+        surf.blit(rim, (0, 0))
+    else:
+        # round 4: a thin HOT-brass halo on DAY too. WHY: at true 32px the skull is
+        # ~5px tall, so the ink sockets+jaw eat most of it and the dome went DARK in
+        # round-4a. A BRASS_BR bloom outside the keyline pads the dome with bright
+        # warm pixels so the crown stays the bright-warm focal through the downscale,
+        # while the ink features (kept small below) still carry the skull SHAPE.
+        rim = grow_outline(_blob_surface(surf.get_size(), BRASS_BR, cranium),
+                           BRASS_BR + (255,), max(1, int(1.3 * s)))
         surf.blit(rim, (0, 0))
     # the skull is the BRIGHTEST warm value — fill the cranium hot brass FLAT
     # (no dark interior core; only a faint top-left sheen) so the 2-tone holds.
@@ -282,19 +304,28 @@ def skull_spire(surf, cx, base_y, r, s, night_rim=False):
                          (skx + int(skw * 0.46), sky_top + int(skh * 0.04)),
                          (skx + int(skw * 0.30), sky_top + int(skh * 0.34)),
                          (skx + int(skw * 0.12), sky_top + int(skh * 0.30))])
+    # one extra HOT brass pixel-cluster at the dome crest so the crown's single
+    # brightest pixel beats anything below it with margin — kept BRASS-toned (not
+    # white) so the brightest pixel stays the brass hot-core the brief pins.
+    pygame.draw.circle(surf, lerp(BRASS_BR, (255, 255, 220), 0.4),
+                       (cx - int(skw * 0.06), sky_top + int(skh * 0.16)),
+                       max(1, int(skw * 0.12)))
     pygame.draw.polygon(surf, INK, cranium, max(1, int(1.2 * s)))
-    # two big INK socket holes — the dark socket-row that reads as a skull at 32px
-    eye_r = max(2, int(skw * 0.20))
-    ey = sky_top + int(skh * 0.42)
+    # two INK socket holes — kept SMALL and HIGH on the dome (round 4) but pushed
+    # FAR APART so the bright brass GAP between them survives the downscale as the
+    # skull's mid-tell, and most of the (now larger) dome stays bright brass so the
+    # crown is a clearly BRIGHT-warm chip, not a dark detailed skull that collapses.
+    eye_r = max(2, int(skw * 0.13))
+    ey = sky_top + int(skh * 0.38)
     for sg in (-1, 1):
-        pygame.draw.circle(surf, INK, (cx + sg * int(skw * 0.25), ey), eye_r)
-    # a single deep INK jaw notch under the cranium — the maw that completes the
-    # skull silhouette in 2-tone (no tooth lines; they vanish + muddy at 32px)
-    jw = int(skw * 0.44)
-    jy = sky_top + int(skh * 0.74)
-    jaw = [(cx - jw // 2, jy), (cx + jw // 2, jy),
-           (cx + int(jw * 0.34), jy + int(skh * 0.30)),
-           (cx - int(jw * 0.34), jy + int(skh * 0.30))]
+        pygame.draw.circle(surf, INK, (cx + sg * int(skw * 0.31), ey), eye_r)
+    # the anti-coin asymmetry now lives mainly in the SILHOUETTE step-in shoulders
+    # above (the dome steps down to a narrower jaw); a SHALLOW ink notch on the jaw
+    # bottom adds a final dark bite without darkening the bright dome.
+    jw = int(jaw_w * 0.46)
+    jaw = [(cx - jw // 2, jaw_bot + 1), (cx + jw // 2, jaw_bot + 1),
+           (cx + int(jw * 0.26), jaw_bot - int(skh * 0.12)),
+           (cx - int(jw * 0.26), jaw_bot - int(skh * 0.12))]
     pygame.draw.polygon(surf, INK, jaw)
 
 
@@ -321,12 +352,22 @@ def draw_automaton(surf, cx, cy, s, night_rim=False):
     th = int(40 * s)
     tx = cx - tw // 2
     rivet_plate(surf, tx, torso_y, tw, th, COPPER, s)
-    # a central oxblood-lacquer chest inlay panel (thin rectangular accent)
-    rivet_plate(surf, cx - int(11 * s), torso_y + int(8 * s),
-                int(22 * s), int(22 * s), COPPER, s, rivets=False, inlay=True)
-    # a small boiler-bolt centred on the oxblood panel — kept DARK-BRASS (round 3)
-    # so no warm chest spot rivals the crown skull for the brightest-warm value.
-    triad_circle(surf, BRASS_D, (cx, torso_y + int(19 * s)), int(4 * s),
+    # the central chest inlay — pushed to IRON-SHADE (round 4). WHY: on the day
+    # 32px chip the warm oxblood chest mass was reading co-equal with the tiny
+    # crown skull and stealing the squint by sheer area. A red lacquer panel is
+    # inherently warm+saturated; no amount of darkening keeps it warm without
+    # competing. So the chest now recedes as COOL DARK IRON STRUCTURE — a sunken
+    # boiler hatch — leaving the crown skull the only bright-warm mass up top.
+    cpx, cpy = cx - int(11 * s), torso_y + int(8 * s)
+    cpw, cph = int(22 * s), int(22 * s)
+    chest = [(cpx, cpy), (cpx + cpw, cpy), (cpx + cpw, cpy + cph), (cpx, cpy + cph)]
+    triad_blob(surf, IRON, chest,
+               core_pts=[(cpx + cpw * 0.32, cpy + cph * 0.34), (cpx + cpw, cpy + cph * 0.24),
+                         (cpx + cpw, cpy + cph), (cpx + cpw * 0.32, cpy + cph)],
+               ow=max(1, int(1.3 * s)))
+    # a small boiler-bolt centred on the now-iron hatch — kept DIM IRON-D so the
+    # chest carries NO warm spot at all (the crown owns every warm pixel up top).
+    triad_circle(surf, IRON_D, (cx, torso_y + int(19 * s)), int(4 * s),
                  ow=max(1, int(1.0 * s)), core=False, sheen=False)
     # waist gear-ring (joint between torso and pelvis block)
     gear_ring(surf, cx, torso_y + th, int(8 * s), s, teeth=9)
@@ -544,7 +585,7 @@ def main():
     sheet.blit(font_big.render("OXBLOOD AUTOMATON KING", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "Skull-Kings-II  ·  rigid BLOCKY humanoid machine · riveted copper plates + peg legs + square pauldrons · "
-        "circular GEAR-RINGS at joints · torso gear-eye demoted · CHUNKY 2-tone skull-on-gear-spire crown = BRIGHTEST warm · round 3",
+        "circular GEAR-RINGS at joints · torso eye demoted + CHEST IRON-SHADED · CHUNKY 2-tone skull-on-gear-spire crown WINS the squint by mass · round 4",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -667,7 +708,7 @@ def main():
         "SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
     self_check()
@@ -705,10 +746,29 @@ def self_check():
     # the crown skull sits well above the head centre; the torso eye is below it.
     head_top = cy - int(34 * 2.0) - int(18 * 2.0)     # top of the face plate
     in_crown = by < head_top
+    # round 4: also weigh WARM MASS in the crown band vs the chest band, since the
+    # day-chip tie was lost on AREA, not peak luminance. Crown warm mass must
+    # clearly exceed the chest's (the chest is now iron, so it should be ~0).
+    chest_top, chest_bot = cy - int(8 * 2.0), cy - int(8 * 2.0) + int(40 * 2.0)
+    crown_warm = chest_warm = 0
+    for x in range(0, w, 2):
+        for yy in range(0, h, 2):
+            if a[x, yy] < 40:
+                continue
+            rr, gg, bb = int(px[x, yy][0]), int(px[x, yy][1]), int(px[x, yy][2])
+            warm = (rr > gg and rr > bb and rr > 150 and gg > 100)   # bright warm
+            if not warm:
+                continue
+            if yy < head_top:
+                crown_warm += 1
+            elif chest_top <= yy <= chest_bot and abs(x - cx) < int(13 * 2.0):
+                chest_warm += 1
     del px, a
     print("self-check: brightest pixel @", best_xy, "rgb", (r, g, b),
           "lum %.0f" % best_lum, "-> brass-core?", is_brass,
           "-> in CROWN band (above head)?", in_crown)
+    print("self-check: BRIGHT-WARM mass  crown ~%d  vs chest-centre ~%d  -> crown wins margin? %s"
+          % (crown_warm, chest_warm, crown_warm > chest_warm * 3))
     print("self-check: warm px ~%d  vs cool px ~%d  -> cool fraction %.3f (must be small)"
           % (warm_n, cool_n, cool_n / max(1, warm_n + cool_n)))
 

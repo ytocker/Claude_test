@@ -201,15 +201,16 @@ def nacre_tier(surf, cx, cy, w, h, s, flecks=True):
     rect = (cx - w // 2, cy - h // 2, w, h)
     # cool drop-shadow cast UNDER this tier's seam — a fat dark crescent below the
     # lower lip so the downward-widening rings read as distinctly stacked shells.
-    # WHY pushed deeper + taller than round 2: at 32px the faint round-2 seam let
-    # the four tiers smear into one smooth lump; a strong cool trench under each
-    # lip is what makes the shells resolve as separate beads on the downscale.
-    pygame.draw.ellipse(surf, lerp(SEAM_SH, INK, 0.35),
-                        (rect[0] + int(1 * s), int(cy + h * 0.10),
-                         rect[2] - int(2 * s), int(h * 0.66)))
-    pygame.draw.ellipse(surf, SEAM_SH,
-                        (rect[0] + int(2 * s), int(cy + h * 0.16),
-                         rect[2] - int(4 * s), int(h * 0.5)))
+    # WHY pushed deeper + taller again in round 4: at 32px the round-3 seam was
+    # still too pale a cool — the downward-widening shells averaged into one
+    # smooth column. Driving the trench most of the way to ink (and taller) is
+    # what makes each shell resolve as a separate stacked bead on the downscale.
+    pygame.draw.ellipse(surf, lerp(SEAM_SH, INK, 0.55),
+                        (rect[0], int(cy + h * 0.06),
+                         rect[2], int(h * 0.78)))
+    pygame.draw.ellipse(surf, lerp(SEAM_SH, INK, 0.25),
+                        (rect[0] + int(2 * s), int(cy + h * 0.14),
+                         rect[2] - int(4 * s), int(h * 0.56)))
     # fat full-perimeter ink keyline
     kpx = max(2, int(2.2 * s))
     pygame.draw.ellipse(surf, INK, (rect[0] - kpx, rect[1] - kpx,
@@ -346,13 +347,15 @@ def opal_socket(surf, cx, cy, r, s):
     the gem is painted near-black here so the bloom reads as one bright bead
     against shadow instead of a pale lump on a pale belly tier."""
     # darkened back-disc that locally shades the belly tier behind the gem.
-    # WHY a wider + deeper cool pocket than round 2: the gem only pops as ONE
-    # bright bead if the nacre directly behind it falls into shadow; a broad
-    # soft-edged cool-black disc (with an even darker inner core) carves that
-    # pocket so the bloom never reads as a pale lump on a pale belly tier.
-    for (rr, col) in ((2.1, lerp(OPAL_BACK, NACRE_DD, 0.45)),
-                      (1.8, OPAL_BACK),
-                      (1.4, lerp(OPAL_BACK, INK, 0.55))):
+    # WHY a still-WIDER + DARKER cool pocket than round 3: at 32px the round-3
+    # halo collapsed — the bright bloom ate its own dark ring on the downscale.
+    # Pushing the outer pocket to 2.6·r and driving the whole stack deeper toward
+    # ink keeps a visible dark halo surviving AROUND the gem at gameplay scale, so
+    # the bead still reads as one bright point sitting in shadow, not a pale lump.
+    for (rr, col) in ((2.6, lerp(OPAL_BACK, NACRE_DD, 0.30)),
+                      (2.15, lerp(OPAL_BACK, INK, 0.30)),
+                      (1.7, lerp(OPAL_BACK, INK, 0.55)),
+                      (1.35, lerp(OPAL_BACK, INK, 0.72))):
         pygame.draw.circle(surf, col, (cx, cy), int(r * rr))
     sr = int(r * 1.22)
     socket = []
@@ -417,18 +420,24 @@ def opal_skull(surf, cx, cy, r, s):
                          (cx + int(k * r * 0.16), my + int(r * 0.16)),
                          max(1, int(1.0 * s)))
     # the HOTTEST core pip — the single brightest pixel of the whole creature.
-    # WHY a solid white disc plus a final additive over-bloom on TOP of all the
-    # drawn skull detail: the eye-sockets + jaw + flushes would otherwise pull
-    # the gem's average value down on the smoothscale; laying a blown-out white
-    # core last guarantees a near-white cluster of source pixels at the centre, so
-    # the gem stays the unambiguous brightest point after the downscale.
-    pygame.draw.circle(surf, OPAL_HOT, (cx - int(r * 0.08), cy - int(r * 0.10)),
-                       max(3, int(r * 0.40)))
-    for (rr, a) in ((r * 0.7, 150), (r * 0.42, 255)):
+    # WHY a FAT solid white disc (≥0.6·r, not 0.4) laid last, over a saturated
+    # pink/teal under-ring, then a final hard additive over-bloom: at 32px the
+    # round-3 core was too small a source cluster — the smoothscale averaged it
+    # against the dark socket and the flushes, so the gem only tied. Making the
+    # pure-white disc large enough that it still spans 2-3 solid pixels AFTER the
+    # downscale, ringed by vivid chroma so it ALSO wins the most-saturated test,
+    # is what makes the gem the unambiguous single brightest point on both chips.
+    core_c = (cx - int(r * 0.06), cy - int(r * 0.06))
+    pygame.draw.circle(surf, OPAL_PINK, (core_c[0] - int(r * 0.18), core_c[1]),
+                       max(3, int(r * 0.52)))
+    pygame.draw.circle(surf, OPAL_TEAL, (core_c[0] + int(r * 0.18), core_c[1] + int(r * 0.06)),
+                       max(3, int(r * 0.46)))
+    pygame.draw.circle(surf, OPAL_BR, core_c, max(3, int(r * 0.58)))
+    pygame.draw.circle(surf, OPAL_HOT, core_c, max(3, int(r * 0.46)))
+    for (rr, a) in ((r * 0.9, 130), (r * 0.6, 220), (r * 0.40, 255)):
         halo = pygame.Surface((int(rr * 2) + 4, int(rr * 2) + 4), pygame.SRCALPHA)
         pygame.draw.circle(halo, OPAL_HOT + (a,), (int(rr) + 2, int(rr) + 2), int(rr))
-        surf.blit(halo, (cx - int(r * 0.08) - int(rr) - 2,
-                         cy - int(r * 0.10) - int(rr) - 2),
+        surf.blit(halo, (core_c[0] - int(rr) - 2, core_c[1] - int(rr) - 2),
                   special_flags=pygame.BLEND_RGBA_ADD)
 
 
@@ -496,18 +505,31 @@ def draw_queen(surf, cx, cy, s):
     # lower ellipse plus a flanking dark notch on each side of the gem — gives the
     # fingers a deep shadow to read against on all sides, so the "four hands
     # holding a bright bead" silhouette survives the downscale.
-    cup_gap = pygame.Surface((int(opal_r * 5.4), int(opal_r * 4.0)), pygame.SRCALPHA)
-    pygame.draw.ellipse(cup_gap, (16, 14, 22, 255), cup_gap.get_rect())
-    surf.blit(cup_gap, (opal_c[0] - int(opal_r * 2.7),
-                        opal_c[1] - int(opal_r * 0.7)))
+    # WHY a BIGGER + fully-opaque basin than round 3, plus a vertical ink wedge
+    # splitting the left pair from the right pair: at 32px the four hands smeared
+    # back into one pale belly-mass because the negative space between them was
+    # too thin to survive the downscale. A broad opaque dark cup, deep flanking
+    # notches, AND a central dark trench between the two hand-pairs give every
+    # finger a thick shadow gap on all sides — so the "four hands cupping a bead"
+    # cradle stays separated at gameplay scale.
+    cup_gap = pygame.Surface((int(opal_r * 6.0), int(opal_r * 4.6)), pygame.SRCALPHA)
+    pygame.draw.ellipse(cup_gap, (14, 12, 20, 255), cup_gap.get_rect())
+    surf.blit(cup_gap, (opal_c[0] - int(opal_r * 3.0),
+                        opal_c[1] - int(opal_r * 0.8)))
     # flanking dark notches that bite IN between the belly tier and each pair of
     # hands so the cradle's outer edges separate from the body at 32px
     for sgn in (-1, 1):
-        notch = pygame.Surface((int(opal_r * 1.6), int(opal_r * 2.4)),
+        notch = pygame.Surface((int(opal_r * 1.9), int(opal_r * 2.8)),
                                pygame.SRCALPHA)
-        pygame.draw.ellipse(notch, (16, 14, 22, 235), notch.get_rect())
-        surf.blit(notch, (opal_c[0] + sgn * int(opal_r * 1.7) - int(opal_r * 0.8),
-                          opal_c[1] - int(opal_r * 0.8)))
+        pygame.draw.ellipse(notch, (14, 12, 20, 255), notch.get_rect())
+        surf.blit(notch, (opal_c[0] + sgn * int(opal_r * 1.9) - int(opal_r * 0.95),
+                          opal_c[1] - int(opal_r * 0.9)))
+    # central ink wedge below the gem — separates the left hand-pair from the
+    # right so the cradle reads as TWO cupping pairs, not one solid lower lump.
+    wedge = [(opal_c[0] - int(opal_r * 0.30), opal_c[1] + int(opal_r * 0.9)),
+             (opal_c[0] + int(opal_r * 0.30), opal_c[1] + int(opal_r * 0.9)),
+             (opal_c[0], opal_c[1] + int(opal_r * 2.4))]
+    pygame.draw.polygon(surf, (14, 12, 20), wedge)
     opal_socket(surf, opal_c[0], opal_c[1], opal_r, s)
     # four lower arms reaching in from both sides to cradle the skull from below
     lower = [
@@ -539,25 +561,30 @@ def draw_queen(surf, cx, cy, s):
     opal_skull(surf, opal_c[0], opal_c[1], opal_r, s)
 
     # === SKULL HEAD ==========================================================
-    # WHY the face-disc is drawn a notch DARKER than the body nacre (NACRE_D
-    # core, no bright sheen): in round 2 the white head dome tied the opal skull
-    # for brightest pixel; holding the head in the mid range puts it firmly below
-    # the gem + the brow pearl in the value hierarchy, so the cradle stays the eye.
-    triad_circle(surf, lerp(NACRE, NACRE_D, 0.5), head_c, hr,
+    # WHY the face-disc is dropped a FULL value step below the body nacre (down to
+    # mid nacre-shade, no bright sheen): on the 32px chip the round-3 half-step
+    # still left the head-disc as the largest bright shape, so the eye landed
+    # there before the gem. Sitting the head at NACRE_D outright reserves the top
+    # of the value scale for the gem + brow pearl alone — only those two read
+    # near-white, so the cupped opal owns the brightest read on the downscale.
+    triad_circle(surf, NACRE_D, head_c, hr,
                  ow=max(2, int(2 * s)), sheen=False)
     # cool rim-light along the head's lower/right contour so the pale dome
     # detaches from a light day sky (mirrors the tier rim-light treatment)
     pygame.draw.arc(surf, RIMLIGHT,
                     (head_c[0] - hr, head_c[1] - hr, hr * 2, hr * 2),
                     math.radians(300), math.radians(110), max(2, int(1.8 * s)))
+    # WHY the cheek + socket-rim shades are pushed one step deeper than round 3:
+    # the face-disc now sits at NACRE_D, so its old features would melt into it;
+    # dropping them to NACRE_DD keeps the face legible on the darker disc.
     for sgn in (-1, 1):
-        pygame.draw.circle(surf, NACRE_D,
+        pygame.draw.circle(surf, NACRE_DD,
                            (head_c[0] + sgn * int(hr * 0.64), head_c[1] + int(hr * 0.28)),
                            int(hr * 0.26))
     for sgn in (-1, 1):
         ex = head_c[0] + sgn * int(hr * 0.42)
         ey = head_c[1] + int(hr * 0.06)
-        pygame.draw.circle(surf, NACRE_DD, (ex, ey), int(hr * 0.34))
+        pygame.draw.circle(surf, lerp(NACRE_DD, INK, 0.3), (ex, ey), int(hr * 0.34))
         pygame.draw.circle(surf, INK, (ex, ey), int(hr * 0.28))
         # a tiny teal iridescent pin in each socket (the queen's cool eye-glint)
         pygame.draw.circle(surf, FLECK_TEAL, (ex, ey + int(1 * s)), max(1, int(hr * 0.10)))
@@ -679,7 +706,7 @@ def main():
     sheet.blit(font_big.render("OPAL PEARL-DIVER QUEEN", True, LABEL), (24, 13))
     sheet.blit(font_sm.render(
         "royal skull-KING (Skull Kings II)  ·  FLOATING nacre tier-stack (rings WIDEN downward, no feet) · paired shell-horn crown-skulls + brow pearl · "
-        "FIXED 3-fleck iridescence · 4 hands CUP the bright OPAL SKULL focal · round 3",
+        "FIXED 3-fleck iridescence · 4 hands CUP the bright OPAL SKULL focal · round 4",
         True, LABEL_DIM), (360, 26))
 
     # === (a) BIG HERO =========================================================
@@ -802,7 +829,7 @@ def main():
         "FIXED (non-animated) 3-fleck shimmer; cupped OPAL SKULL = single brightest pixel; crown-skulls kept small.  SS=6 supersample -> smoothscale · procedural-only.",
         True, LABEL_DIM), (26, 783))
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_3.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "round_4.png")
     pygame.image.save(sheet, out)
     print("wrote", out)
 
